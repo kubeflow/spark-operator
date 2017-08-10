@@ -1,2 +1,10 @@
 package: github.com/liyinan926/spark-operator
-import: []
+import:
+- package: k8s.io/client-go
+  version: 1850dd66e4213a26bd70d0b85fee4176d324b845
+- package: k8s.io/api
+  version: e532fdb5587debfd7aade56dabe9eb5df9544baf
+- package: k8s.io/apimachinery
+  version: a13245d02534abe88286859b547d041816f9a3f4
+- package: k8s.io/apiextensions-apiserver
+  version: 6d8c23d2e66ce61e2a7e34f92e8eb3eec13279fa
