@@ -2,9 +2,10 @@ package controller
 
 import (
 	"context"
-	"fmt"
 
+	"github.com/golang/glog"
 	"github.com/liyinan926/spark-operator/pkg/apis/v1alpha1"
+	"github.com/liyinan926/spark-operator/pkg/config"
 	"github.com/liyinan926/spark-operator/pkg/crd"
 	"github.com/liyinan926/spark-operator/pkg/submission"
 
@@ -36,7 +37,7 @@ func NewSparkApplicationController(crdClient *crd.Client, kubeClient clientset.I
 func (s *SparkApplicationController) Run(ctx context.Context) error {
 	_, err := s.watchSparkApplications(ctx)
 	if err != nil {
-		fmt.Printf("Failed to register watch for SparkApplication resource: %v\n", err)
+		glog.Errorf("Failed to register watch for SparkApplication resource: %v\n", err)
 		return err
 	}
 
@@ -71,29 +72,44 @@ func (s *SparkApplicationController) watchSparkApplications(ctx context.Context)
 // Callback function called when a new SparkApplication object gets created.
 func (s *SparkApplicationController) onAdd(obj interface{}) {
 	app := obj.(*v1alpha1.SparkApplication)
-	fmt.Printf("[CONTROLLER] OnAdd %s\n", app.ObjectMeta.SelfLink)
+	glog.Infof("[CONTROLLER] OnAdd %s\n", app.ObjectMeta.SelfLink)
 
 	// NEVER modify objects from the store. It's a read-only, local cache.
 	// You can use scheme.Copy() to make a deep copy of original object and modify this copy
 	// Or create a copy manually for better performance.
 	copyObj, err := s.crdClient.Scheme.Copy(app)
 	if err != nil {
-		fmt.Printf("ERROR creating a deep copy of example object: %v\n", err)
+		glog.Errorf("failed to create a deep copy of example object: %v\n", err)
 		return
 	}
-
 	appCopy := copyObj.(*v1alpha1.SparkApplication)
 	appCopy.Status = v1alpha1.SparkApplicationStatus{}
+
+	if appCopy.Spec.SparkConfDir != nil {
+		err = config.CreateSparkConfigMap(*appCopy.Spec.SparkConfDir, appCopy.Namespace, appCopy, s.kubeClient)
+		if err != nil {
+			glog.Errorf("failed to create a ConfigMap for Spark configuration at %s: %v\n", *appCopy.Spec.SparkConfDir, err)
+			return
+		}
+	}
+	if appCopy.Spec.HadoopConfigDir != nil {
+		err = config.CreateSparkConfigMap(*appCopy.Spec.HadoopConfigDir, appCopy.Namespace, appCopy, s.kubeClient)
+		if err != nil {
+			glog.Errorf("failed to create a ConfigMap for Hadoop configuration at %s: %v\n", *appCopy.Spec.HadoopConfigDir, err)
+			return
+		}
+	}
+
 	s.crdClient.Update(appCopy, appCopy.Namespace)
 }
 
 func (s *SparkApplicationController) onUpdate(oldObj, newObj interface{}) {
 	oldApp := oldObj.(*v1alpha1.SparkApplication)
 	newApp := newObj.(*v1alpha1.SparkApplication)
-	fmt.Printf("[CONTROLLER] OnUpdate %s to %s\n", oldApp.ObjectMeta.SelfLink, newApp.ObjectMeta.SelfLink)
+	glog.Infof("[CONTROLLER] OnUpdate %s to %s\n", oldApp.ObjectMeta.SelfLink, newApp.ObjectMeta.SelfLink)
 }
 
 func (s *SparkApplicationController) onDelete(obj interface{}) {
 	app := obj.(*v1alpha1.SparkApplication)
-	fmt.Printf("[CONTROLLER] OnDelete %s\n", app.ObjectMeta.SelfLink)
+	glog.Infof("[CONTROLLER] OnDelete %s\n", app.ObjectMeta.SelfLink)
 }

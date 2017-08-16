@@ -1,4 +1,4 @@
-package secret
+package initializer
 
 import (
 	"k8s.io/api/core/v1"
@@ -8,7 +8,7 @@ const (
 	GoogleApplicationCredentialsEnvVar        = "GOOGLE_APPLICATION_CREDENTIALS"
 	DefaultServiceAccountJsonKeyFileName      = "service_account_key.json"
 	serviceAccountSecretVolumeName            = "google-service-account-secret-volume"
-	DefaultServiceAccountJsonKeyFileMountPath = "/var/secrets/google"
+	DefaultServiceAccountJsonKeyFileMountPath = "/etc/secrets/google"
 )
 
 func AddServiceAccountSecretVolumeToPod(secretName string, pod *v1.Pod) {

@@ -8,6 +8,7 @@ import (
 // SparkApplicationType describes the type of a Spark application.
 type SparkApplicationType string
 
+// Different types of Spark applications.
 const (
 	JavaApplicationType   SparkApplicationType = "Java"
 	ScalaApplicationType  SparkApplicationType = "Scala"
@@ -31,7 +32,7 @@ type SparkApplicationSpec struct {
 	// MainClass is the fully-qualified main class of the Spark application.
 	// This only applies to Java/Scala Spark applications.
 	MainClass *string `jason:"mainClass,omitempty"`
-	// SparkConf carries the user-specified Spark configuration properties.
+	// SparkConf carries the user-specified Spark configuration properties as they would use the "--conf" option in spark-submit.
 	SparkConf map[string]string `jason:"sparkConf,omitempty"`
 	// JarFiles is a list of JAR files the Spark application depends on.
 	JarFiles []string `jason:"jarFiles,omitempty"`
@@ -56,11 +57,15 @@ type SparkApplicationSpec struct {
 	SubmissionClientTemplate v1.PodTemplateSpec `json:"submissionClientTemplate,omitempty"`
 }
 
-// SparkApplicationSpecStatus describes the current status of a Spark application.
+// SparkApplicationStatus describes the current status of a Spark application.
 type SparkApplicationStatus struct {
 	WebUIURL string `jason:"webUIURL,omitempty"`
 	// ClientPodName is the name of the client Pod.
 	ClientPodName string `json:"clientPodName"`
+	// SparkConfigMapName is the name of the ConfigMap created from Spec.SparkConfDir.
+	SparkConfigMapName *string
+	// HadoopConfigMapName is the name of the ConfigMap created from Spec.HadoopConfDir.
+	HadoopConfigMapName *string
 }
 
 // SparkApplicationList carries a list of SparkApplication objects.
