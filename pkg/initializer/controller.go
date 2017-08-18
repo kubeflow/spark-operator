@@ -6,6 +6,8 @@ import (
 
 	"github.com/golang/glog"
 
+	"github.com/liyinan926/spark-operator/pkg/config"
+
 	"k8s.io/api/admissionregistration/v1alpha1"
 	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -15,6 +17,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/apimachinery/pkg/watch"
 	clientset "k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
 )
@@ -47,8 +50,7 @@ func NewController(kubeClient clientset.Interface, podLabelSelector string) *Con
 		kubeClient: kubeClient,
 		queue:      workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "spark-initializer"),
 	}
-
-	controller.syncHandler = controller.syncSparkPods
+	controller.syncHandler = controller.syncSparkPod
 	_, controller.sparkPodController = cache.NewInformer(
 		&cache.ListWatch{
 			ListFunc: func(options metav1.ListOptions) (runtime.Object, error) {
@@ -126,10 +128,37 @@ func (ic *Controller) processNextItem() bool {
 	return true
 }
 
-// syncSparkPods does the actual processing of the given Spark Pod.
-func (ic *Controller) syncSparkPods(pod *v1.Pod) error {
-	// Remove this initializer from the list of pending intializers.
-	remoteInitializer(pod)
+// syncSparkPod does the actual processing of the given Spark Pod.
+func (ic *Controller) syncSparkPod(pod *v1.Pod) error {
+	// Make a copy.
+	copy, err := scheme.Scheme.DeepCopy(pod)
+	if err != nil {
+		return err
+	}
+	podCopy := copy.(*v1.Pod)
+
+	if len(podCopy.Spec.Containers) <= 0 {
+		return fmt.Errorf("No container found in Pod %s", podCopy.Name)
+	}
+	// We assume that the first container is the Spark container.
+	appContainer := &podCopy.Spec.Containers[0]
+	sparkConfigMapName, ok := podCopy.Annotations[config.SparkConfigMapAnnotation]
+	if ok {
+		volumeName := config.AddSparkConfigMapVolumeToPod(sparkConfigMapName, podCopy)
+		config.MountSparkConfigMapToContainer(volumeName, config.DefaultSparkConfDir, appContainer)
+	}
+	hadoopConfigMapName, ok := podCopy.Annotations[config.HadoopConfigMapAnnotation]
+	if ok {
+		volumeName := config.AddHadoopConfigMapVolumeToPod(hadoopConfigMapName, podCopy)
+		config.MountHadoopConfigMapToContainer(volumeName, config.DefaultHadoopConfDir, appContainer)
+	}
+
+	// Remove this initializer from the list of pending intializers and update the Pod.
+	remoteInitializer(podCopy)
+	_, err = ic.kubeClient.Core().Pods(pod.Namespace).Update(podCopy)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -140,26 +169,32 @@ func (ic *Controller) addSparkPod(obj interface{}) {
 		glog.Errorf("received non-pod object: %v", obj)
 	}
 
-	if ic.isSparkPod(pod) && ic.isUninitialized(pod) {
+	// The presence of the Initializer in the pending list of Initializers in the pod
+	// is a sign that the pod is uninitialized.
+	if ic.isSparkPod(pod) && isInitializerPresent(pod) {
 		ic.queue.AddRateLimited(pod)
 	}
 }
 
+// TODO: this seems redundant given that the Controller takes in a labelSelector that
+// selects only Pods with the spark-role label.
 func (ic *Controller) isSparkPod(pod *v1.Pod) bool {
 	sparkRole, ok := pod.Labels[SparkRoleLabel]
 	return ok && (sparkRole == SparkDriverRole || sparkRole == SparkExecutorRole)
 }
 
-func (ic *Controller) isUninitialized(pod *v1.Pod) bool {
-	unInitialized := false
-	for _, condition := range pod.Status.Conditions {
-		// We don't care already-initialized Pods.
-		if condition.Type == v1.PodInitialized && condition.Status == v1.ConditionFalse {
-			unInitialized = true
-			break
+// isInitializerPresent returns if the list of pending Initializer of the given pod contains an instance of this Initializer.
+func isInitializerPresent(pod *v1.Pod) bool {
+	if pod.Initializers == nil {
+		return false
+	}
+
+	for _, pending := range pod.Initializers.Pending {
+		if pending.Name == InitializerName {
+			return true
 		}
 	}
-	return unInitialized
+	return false
 }
 
 func (ic *Controller) addInitializationConfig() {
@@ -211,20 +246,6 @@ func (ic *Controller) addInitializationConfig() {
 	}
 }
 
-// isInitializerApplicable returns if the initializer is applicable to a given Pod.
-func isInitializerApplicable(pod *v1.Pod) bool {
-	if pod.Initializers == nil {
-		return false
-	}
-
-	for _, pending := range pod.Initializers.Pending {
-		if pending.Name == InitializerName {
-			return true
-		}
-	}
-	return false
-}
-
 // remoteInitializer removes the initializer from the list of pending initializers of the given Pod.
 func remoteInitializer(pod *v1.Pod) {
 	if pod.Initializers == nil {
@@ -247,7 +268,7 @@ func remoteInitializer(pod *v1.Pod) {
 		pod.Initializers.Pending = updated
 	}
 
-	glog.Infof("removed initializer on PersistentVolume %s", pod.Name)
+	glog.Infof("Removed initializer on PersistentVolume %s", pod.Name)
 	return
 }
 

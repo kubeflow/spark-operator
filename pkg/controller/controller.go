@@ -77,13 +77,12 @@ func (s *SparkApplicationController) onAdd(obj interface{}) {
 	// NEVER modify objects from the store. It's a read-only, local cache.
 	// You can use scheme.Copy() to make a deep copy of original object and modify this copy
 	// Or create a copy manually for better performance.
-	copyObj, err := s.crdClient.Scheme.Copy(app)
+	copyObj, err := s.crdClient.Scheme.DeepCopy(app)
 	if err != nil {
 		glog.Errorf("failed to create a deep copy of example object: %v\n", err)
 		return
 	}
 	appCopy := copyObj.(*v1alpha1.SparkApplication)
-	appCopy.Status = v1alpha1.SparkApplicationStatus{}
 
 	if appCopy.Spec.SparkConfDir != nil {
 		err = config.CreateSparkConfigMap(*appCopy.Spec.SparkConfDir, appCopy.Namespace, appCopy, s.kubeClient)

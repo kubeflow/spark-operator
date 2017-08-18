@@ -1,4 +1,4 @@
-package initializer
+package secret
 
 import (
 	"k8s.io/api/core/v1"
@@ -23,9 +23,9 @@ func AddServiceAccountSecretVolumeToPod(secretName string, pod *v1.Pod) {
 	pod.Spec.Volumes = append(pod.Spec.Volumes, volume)
 }
 
-func MountServiceAccountSecretToContainer(secretName string, mountPath string, container *v1.Container) {
+func MountServiceAccountSecretToContainer(volumeName string, mountPath string, container *v1.Container) {
 	volumeMount := v1.VolumeMount{
-		Name:      secretName,
+		Name:      volumeName,
 		ReadOnly:  true,
 		MountPath: mountPath,
 	}
