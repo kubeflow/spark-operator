@@ -58,10 +58,12 @@ func CreateSparkConfigMap(sparkConfDir string, namespace string, app *v1alpha1.S
 		return err
 	}
 
+	// Add an annotation to the driver and executor Pods so the initializer gets informed.
 	updateAnnotation(app, SparkDriverAnnotationsKey, SparkConfigMapAnnotation, name)
 	updateAnnotation(app, SparkExecutorAnnotationsKey, SparkConfigMapAnnotation, name)
-	app.Status.SparkConfigMapName = new(string)
-	*app.Status.SparkConfigMapName = name
+	// Update the Spec to include the name of the newly created ConfigMap.
+	app.Spec.SparkConfigMap = new(string)
+	*app.Spec.SparkConfigMap = name
 
 	return nil
 }
@@ -73,10 +75,12 @@ func CreateHadoopConfigMap(hadoopConfDir string, namespace string, app *v1alpha1
 		return err
 	}
 
+	// Add an annotation to the driver and executor Pods so the initializer gets informed.
 	updateAnnotation(app, SparkDriverAnnotationsKey, HadoopConfigMapAnnotation, name)
 	updateAnnotation(app, SparkExecutorAnnotationsKey, HadoopConfigMapAnnotation, name)
-	app.Status.HadoopConfigMapName = new(string)
-	*app.Status.HadoopConfigMapName = name
+	// Update the Spec to include the name of the newly created ConfigMap.
+	app.Spec.HadoopConfigMap = new(string)
+	*app.Spec.HadoopConfigMap = name
 
 	return nil
 }
@@ -128,7 +132,7 @@ func mountConfigMapToContainer(volumeName string, mountPath string, env string, 
 }
 
 func createConfigMap(dir string, namespace string, namePrefix string, app *v1alpha1.SparkApplication, kubeClient clientset.Interface) (string, error) {
-	configMap, err := buildConfigMapFromConfigDir(dir, namePrefix, namespace)
+	configMap, err := buildConfigMapFromConfigDir(dir, namePrefix, namespace, string(app.UID))
 	if err != nil {
 		return configMap.Name, err
 	}
@@ -148,7 +152,7 @@ func updateAnnotation(app *v1alpha1.SparkApplication, annotationConfKey string, 
 	}
 }
 
-func buildConfigMapFromConfigDir(dir string, namePrefix string, namespace string) (*apiv1.ConfigMap, error) {
+func buildConfigMapFromConfigDir(dir string, namePrefix string, namespace string, appUID string) (*apiv1.ConfigMap, error) {
 	files, err := ioutil.ReadDir(dir)
 	if err != nil {
 		return nil, err
@@ -177,6 +181,7 @@ func buildConfigMapFromConfigDir(dir string, namePrefix string, namespace string
 
 	hasher.Write([]byte(dir))
 	hasher.Write([]byte(namespace))
+	hasher.Write([]byte(appUID))
 	configMap.Name = fmt.Sprintf("%s-%d", namePrefix, hasher.Sum32())
 
 	return configMap, nil

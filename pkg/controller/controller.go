@@ -5,7 +5,6 @@ import (
 
 	"github.com/golang/glog"
 	"github.com/liyinan926/spark-operator/pkg/apis/v1alpha1"
-	"github.com/liyinan926/spark-operator/pkg/config"
 	"github.com/liyinan926/spark-operator/pkg/crd"
 	"github.com/liyinan926/spark-operator/pkg/submission"
 
@@ -83,22 +82,6 @@ func (s *SparkApplicationController) onAdd(obj interface{}) {
 		return
 	}
 	appCopy := copyObj.(*v1alpha1.SparkApplication)
-
-	if appCopy.Spec.SparkConfDir != nil {
-		err = config.CreateSparkConfigMap(*appCopy.Spec.SparkConfDir, appCopy.Namespace, appCopy, s.kubeClient)
-		if err != nil {
-			glog.Errorf("failed to create a ConfigMap for Spark configuration at %s: %v\n", *appCopy.Spec.SparkConfDir, err)
-			return
-		}
-	}
-	if appCopy.Spec.HadoopConfigDir != nil {
-		err = config.CreateSparkConfigMap(*appCopy.Spec.HadoopConfigDir, appCopy.Namespace, appCopy, s.kubeClient)
-		if err != nil {
-			glog.Errorf("failed to create a ConfigMap for Hadoop configuration at %s: %v\n", *appCopy.Spec.HadoopConfigDir, err)
-			return
-		}
-	}
-
 	s.crdClient.Update(appCopy, appCopy.Namespace)
 }
 
