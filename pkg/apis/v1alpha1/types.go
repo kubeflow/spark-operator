@@ -53,9 +53,8 @@ type SparkApplicationSpec struct {
 
 // SparkApplicationStatus describes the current status of a Spark application.
 type SparkApplicationStatus struct {
-	WebUIURL string `jason:"webUIURL,omitempty"`
-	// ClientPodName is the name of the client Pod.
-	ClientPodName string `json:"clientPodName"`
+	// WebUIServiceName is the name of the service for the Spark web UI running on the driver.
+	WebUIServiceName string `json:"webUIServiceName"`
 }
 
 // SparkApplicationList carries a list of SparkApplication objects.
