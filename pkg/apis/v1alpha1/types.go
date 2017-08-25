@@ -51,10 +51,42 @@ type SparkApplicationSpec struct {
 	Deps Dependencies `jason:"deps"`
 }
 
+// ApplicationState tells the current state of an application.
+type ApplicationState string
+
+// Different states an application may have.
+const (
+	NewState       ApplicationState = "NEW"
+	PendingState   ApplicationState = "PENDING"
+	SubmittedState ApplicationState = "SUBMITTED"
+	RunningState   ApplicationState = "RUNNING"
+	CompletedState ApplicationState = "COMPLETED"
+	FailedState    ApplicationState = "FAILED"
+)
+
+// ExecutorState tells the current state of an executor.
+type ExecutorState string
+
+// Different states an executor may have.
+const (
+	ExecutorRunningState   ApplicationState = "RUNNING"
+	ExecutorCompletedState ApplicationState = "COMPLETED"
+	ExecutorFailedState    ApplicationState = "FAILED"
+)
+
 // SparkApplicationStatus describes the current status of a Spark application.
 type SparkApplicationStatus struct {
 	// WebUIServiceName is the name of the service for the Spark web UI running on the driver.
 	WebUIServiceName string `json:"webUIServiceName"`
+	State            ApplicationState
+	// RequestedExecutors is the number of executors requested.
+	// In case dynamic allocation is enabled, this is the number of initial executors requested.
+	RequestedExecutors int32 `json:"requestedExecutors"`
+	RunningExecutors   int32 `json:"runningExecutors"`
+	CompletedExecutors int32 `json:"completedExecutors"`
+	FailedExecutors    int32 `json:"failedExecutors"`
+	// ExecutorState records the state of executors by executor IDs.
+	ExecutorState map[string]ExecutorState `json:"executorState"`
 }
 
 // SparkApplicationList carries a list of SparkApplication objects.
