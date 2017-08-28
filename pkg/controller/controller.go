@@ -2,7 +2,7 @@ package controller
 
 import (
 	"context"
-	"strconv"
+	"fmt"
 
 	"github.com/golang/glog"
 	"github.com/liyinan926/spark-operator/pkg/apis/v1alpha1"
@@ -17,6 +17,7 @@ import (
 )
 
 const (
+	sparkAppIDLabel               = "apache-spark-on-k8s/app-id"
 	driverEnvVarConfigKeyPrefix   = "spark.kubernetes.driverEnv."
 	executorEnvVarConfigKeyPrefix = "spark.kubernetes.driverEnv."
 )
@@ -89,6 +90,7 @@ func (s *SparkApplicationController) onAdd(obj interface{}) {
 		return
 	}
 	appCopy := copyObj.(*v1alpha1.SparkApplication)
+	appCopy.Status.AppID = buildAppID(appCopy)
 	s.crdClient.Update(appCopy, appCopy.Namespace)
 }
 
@@ -101,4 +103,12 @@ func (s *SparkApplicationController) onUpdate(oldObj, newObj interface{}) {
 func (s *SparkApplicationController) onDelete(obj interface{}) {
 	app := obj.(*v1alpha1.SparkApplication)
 	glog.Infof("[CONTROLLER] OnDelete %s\n", app.ObjectMeta.SelfLink)
+}
+
+func buildAppID(app *v1alpha1.SparkApplication) string {
+	hasher := util.NewHash32()
+	hasher.Write([]byte(app.Name))
+	hasher.Write([]byte(app.Namespace))
+	hasher.Write([]byte(app.UID))
+	return fmt.Sprintf("%s-%d", app.Name, hasher.Sum32())
 }

@@ -3,7 +3,6 @@ package initializer
 import (
 	"testing"
 
-	initializer "k8s.io/api/admissionregistration/v1alpha1"
 	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
@@ -118,8 +117,4 @@ func TestRemoteInitializer(t *testing.T) {
 
 func newFakeController() *Controller {
 	return NewController(fake.NewSimpleClientset(), "")
-}
-
-func newInitializerConfiguration() *initializer.InitializerConfiguration {
-	return nil
 }

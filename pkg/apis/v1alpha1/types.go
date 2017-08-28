@@ -49,6 +49,13 @@ type SparkApplicationSpec struct {
 	Executor ExecutorSpec `jason:"executor"`
 	// Deps captures all possible types of dependencies of a Spark application.
 	Deps Dependencies `jason:"deps"`
+	// LogsLocation is the location where application logs get written to on local file system.
+	// This is only applicable if application logs are not written to stdout/stderr.
+	LogsLocation *string `jason:"logsLocation,omitempty"`
+	// SubmissionByUser indicates if the application is to be submitted by the user using the command-line tool.
+	// The custom controller should not submit the application on behalf of the user if this is true.
+	// It defaults to false.
+	SubmissionByUser bool
 }
 
 // ApplicationState tells the current state of an application.
@@ -76,16 +83,20 @@ const (
 
 // SparkApplicationStatus describes the current status of a Spark application.
 type SparkApplicationStatus struct {
+	// AppId is the application ID that's also added as a label to the SparkApplication object
+	// and driver and executor Pods, and is used to group the objects for the same application.
+	AppID string
 	// WebUIServiceName is the name of the service for the Spark web UI running on the driver.
-	WebUIServiceName string `json:"webUIServiceName"`
-	State            ApplicationState
+	UIServiceInfo UIServiceInfo `json:"uiServiceInfo"`
+	// State tells the overall application state.
+	State ApplicationState
 	// RequestedExecutors is the number of executors requested.
 	// In case dynamic allocation is enabled, this is the number of initial executors requested.
 	RequestedExecutors int32 `json:"requestedExecutors"`
 	RunningExecutors   int32 `json:"runningExecutors"`
 	CompletedExecutors int32 `json:"completedExecutors"`
 	FailedExecutors    int32 `json:"failedExecutors"`
-	// ExecutorState records the state of executors by executor IDs.
+	// ExecutorState records the state of executors by executor Pod names.
 	ExecutorState map[string]ExecutorState `json:"executorState"`
 }
 
@@ -94,6 +105,12 @@ type SparkApplicationList struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata"`
 	Item              []SparkApplication `jason:"items,omitempty"`
+}
+
+// UIServiceInfo captures information about the Spark UI service.
+type UIServiceInfo struct {
+	Name string
+	Port int32
 }
 
 // Dependencies specifies all possible types of dependencies of a Spark application.
@@ -111,7 +128,7 @@ type DriverSpec struct {
 	// DriverConfigMaps carries information of other ConfigMaps to add to the driver Pod.
 	DriverConfigMaps []NamePath `jason:"driverConigMaps,omitempty"`
 	// DriverSecrets carries information of secrets to add to the driver Pod.
-	DriverSecrets []NamePath `jason:"driverSecrets,omitempty"`
+	DriverSecrets []SecretInfo `jason:"driverSecrets,omitempty"`
 	// DriverEnvVars carries the environment variables to add to the driver Pod.
 	DriverEnvVars map[string]string `jason:"driverEnvVars,omitempty"`
 }
@@ -121,7 +138,7 @@ type ExecutorSpec struct {
 	// ExecutorConfigMaps carries information of other ConfigMaps to add to the executor Pods.
 	ExecutorConfigMaps []NamePath `jason:"executorConigMaps,omitempty"`
 	// ExecutorSecrets carries information of secrets to add to the executor Pods.
-	ExecutorSecrets []NamePath `jason:"executorSecrets,omitempty"`
+	ExecutorSecrets []SecretInfo `jason:"executorSecrets,omitempty"`
 	// ExecutorEnvVars carries the environment variables to add to the executor Pods.
 	ExecutorEnvVars map[string]string `jason:"executorEnvVars,omitempty"`
 }
@@ -130,4 +147,26 @@ type ExecutorSpec struct {
 type NamePath struct {
 	Name string
 	Path string
+}
+
+// SecretType tells the type of a secret.
+type SecretType string
+
+// An enumeration of secret types supported.
+const (
+	// GCPServiceAccountSecret is for secrets from a GCP service account Json key file that needs
+	// the environment variable GOOGLE_APPLICATION_CREDENTIALS.
+	GCPServiceAccountSecret SecretType = "GCPServiceAccount"
+	// HDFSDelegationTokenSecret is for secrets from an HDFS delegation token that needs the
+	// environment variable HADOOP_TOKEN_FILE_LOCATION.
+	HDFSDelegationTokenSecret SecretType = "HDFSDelegationToken"
+	// GenericType is for secrets that needs no special handling.
+	GenericType SecretType = "Generic"
+)
+
+// SecretInfo captures information of a secret.
+type SecretInfo struct {
+	Name string
+	Path string
+	Type SecretType
 }

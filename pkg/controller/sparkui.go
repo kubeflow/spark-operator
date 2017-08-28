@@ -2,6 +2,7 @@ package controller
 
 import (
 	"fmt"
+	"strconv"
 
 	"github.com/golang/glog"
 	"github.com/liyinan926/spark-operator/pkg/apis/v1alpha1"
@@ -9,17 +10,24 @@ import (
 
 	apiv1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	clientset "k8s.io/client-go/kubernetes"
 )
 
 const (
 	sparkUIPortConfigurationKey = "spark.ui.port"
 	defaultSparkWebUIPort       = "4040"
+	sparkRoleLabel              = "spark-role"
+	sparkDriverRole             = "driver"
 )
 
 func createSparkUIService(app *v1alpha1.SparkApplication, kubeClient clientset.Interface) error {
-	port := getUITargetPort(app)
-	service := apiv1.Service{
+	portStr := getUITargetPort(app)
+	port, err := strconv.Atoi(portStr)
+	if err != nil {
+		return err
+	}
+	service := &apiv1.Service{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      buildUIServiceName(app),
 			Namespace: app.Namespace,
@@ -28,20 +36,29 @@ func createSparkUIService(app *v1alpha1.SparkApplication, kubeClient clientset.I
 		Spec: apiv1.ServiceSpec{
 			Ports: []apiv1.ServicePort{
 				apiv1.ServicePort{
-					Port:       strconv.Atoi(port),
-					TargetPort: port,
+					Port:       int32(port),
+					TargetPort: intstr.FromInt(port),
 				},
 			},
-			Selector: map[string]string{},
+			Selector: map[string]string{
+				sparkAppIDLabel: app.Status.AppID,
+				sparkRoleLabel:  sparkDriverRole,
+			},
+			Type: apiv1.ServiceTypeNodePort,
 		},
 	}
 
 	glog.Infof("Creating a service %s for the Spark UI for application %s", service.Name, app.Name)
-	service, err := s.kubeClient.CoreV1().Services(app.Namespace).Create(service)
+	service, err = kubeClient.CoreV1().Services(app.Namespace).Create(service)
 	if err != nil {
 		return err
 	}
-	app.Status.WebUIServiceName = service.Name
+	app.Status.UIServiceInfo = v1alpha1.UIServiceInfo{
+		Name: service.Name,
+		Port: int32(port),
+	}
+
+	return nil
 }
 
 // getWebUITargetPort attempts to get the Spark web UI port from configuration property spark.ui.port
@@ -58,8 +75,8 @@ func getUITargetPort(app *v1alpha1.SparkApplication) string {
 // buildUIServiceName builds a unique name of the service for the Spark UI.
 func buildUIServiceName(app *v1alpha1.SparkApplication) string {
 	hasher := util.NewHash32()
-	hasher.Write(app.Name)
-	hasher.Write(app.Namespace)
-	hasher.Write(app.UID)
-	return fmt.Sprintf("%s-%d", app.Name, hasher.Sum32())
+	hasher.Write([]byte(app.Name))
+	hasher.Write([]byte(app.Namespace))
+	hasher.Write([]byte(app.UID))
+	return fmt.Sprintf("%s-ui-%d", app.Name, hasher.Sum32())
 }
