@@ -55,7 +55,7 @@ type SparkApplicationSpec struct {
 	// SubmissionByUser indicates if the application is to be submitted by the user using the command-line tool.
 	// The custom controller should not submit the application on behalf of the user if this is true.
 	// It defaults to false.
-	SubmissionByUser bool
+	SubmissionByUser bool `jason:"submissionByUser"`
 }
 
 // ApplicationState tells the current state of an application.

@@ -6,6 +6,7 @@ import (
 
 	"github.com/golang/glog"
 	"github.com/liyinan926/spark-operator/pkg/apis/v1alpha1"
+	"github.com/liyinan926/spark-operator/pkg/config"
 	"github.com/liyinan926/spark-operator/pkg/util"
 
 	apiv1 "k8s.io/api/core/v1"
@@ -41,8 +42,8 @@ func createSparkUIService(app *v1alpha1.SparkApplication, kubeClient clientset.I
 				},
 			},
 			Selector: map[string]string{
-				sparkAppIDLabel: app.Status.AppID,
-				sparkRoleLabel:  sparkDriverRole,
+				config.SparkAppIDLabel: app.Status.AppID,
+				sparkRoleLabel:         sparkDriverRole,
 			},
 			Type: apiv1.ServiceTypeNodePort,
 		},

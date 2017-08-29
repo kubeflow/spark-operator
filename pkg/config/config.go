@@ -14,15 +14,13 @@ import (
 )
 
 const (
+
 	// DefaultSparkConfDir is the default directory for Spark configuration files if not specified.
 	// This directory is where the Spark ConfigMap is mounted in the driver and executor containers.
 	DefaultSparkConfDir = "/etc/spark/conf"
 	// SparkConfigMapNamePrefix is the name prefix of the Spark ConfigMap created from the directory
 	// in the submission client container specified by SparkApplicationSpec.SparkConfDir.
 	SparkConfigMapNamePrefix = "spark-config-map"
-	// SparkConfigMapAnnotation is the name of the annotation added to the driver and executor Pods
-	// through the "--conf" option of spark-submit that indicates the presence of a Spark ConfigMap.
-	SparkConfigMapAnnotation = "apache-spark-on-k8s/spark-config-map"
 	// SparkConfigMapVolumeName is the name of the ConfigMap volume of Spark configuration files.
 	SparkConfigMapVolumeName = "spark-config-map-volume"
 	// DefaultHadoopConfDir is the default directory for Spark configuration files if not specified.
@@ -31,14 +29,48 @@ const (
 	// HadoopConfigMapNamePrefix is the name prefix of the Hadoop ConfigMap created from the directory
 	// in the submission client container specified by.
 	HadoopConfigMapNamePrefix = "hadoop-config-map"
-	// HadoopConfigMapAnnotation is the name of the annotation added to the driver and executor Pods
-	// through the "--conf" option of spark-submitthat indicates the presence of a Hadoop ConfigMap.
-	HadoopConfigMapAnnotation = "apache-spark-on-k8s/hadoop-config-map"
 	// HadoopConfigMapVolumeName is the name of the ConfigMap volume of Hadoop configuration files.
 	HadoopConfigMapVolumeName = "hadoop-config-map-volume"
 )
 
 const (
+	// LabelAnnotationPrefix is the prefix of every labels and annotations added by the controller.
+	LabelAnnotationPrefix = "apache-spark-on-k8s/"
+	// SparkConfigMapAnnotation is the name of the annotation added to the driver and executor Pods
+	// that indicates the presence of a Spark ConfigMap that should be mounted to the driver and
+	// executor Pods with the environment variable SPARK_CONF_DIR set to point to the mount path.
+	SparkConfigMapAnnotation = LabelAnnotationPrefix + "spark-config-map"
+	// HadoopConfigMapAnnotation is the name of the annotation added to the driver and executor Pods
+	// that indicates the presence of a Hadoop ConfigMap that should be mounted to the driver and
+	// executor Pods with the environment variable HADOOP_CONF_DIR set to point to the mount path.
+	HadoopConfigMapAnnotation = LabelAnnotationPrefix + "hadoop-config-map"
+	// DriverConfigMapsAnnotation is the name of the annotation added to the driver Pod that specifies
+	// the name and mount paths of additional ConfigMaps to be mounted into the driver.
+	DriverConfigMapsAnnotation = LabelAnnotationPrefix + "driver-config-maps"
+	// ExecutorConfigMapsAnnotation is the name of the annotation added to the executor Pod that specifies
+	// the name and mount paths of additional ConfigMaps to be mounted into the executor.
+	ExecutorConfigMapsAnnotation = LabelAnnotationPrefix + "executor-config-maps"
+	// DriverSecretsAnnotation is the name of the annotation added to the driver Pod that specifies
+	// the name, mount path, and type of secrets to be mounted into the driver.
+	DriverSecretsAnnotation = LabelAnnotationPrefix + "driver-secrets"
+	// ExecutorSecretsAnnotation is the name of the annotation added to the executor Pod that specifies
+	// the name, mount path, and type of secrets to be mounted into the executor.
+	ExecutorSecretsAnnotation = LabelAnnotationPrefix + "executor-secrets"
+	// OwnerReferenceAnnotation is the name of the annotation added to the driver and executor Pods
+	// that specifies the OwnerReference of the owning SparkApplication.
+	OwnerReferenceAnnotation = LabelAnnotationPrefix + "owner-reference"
+	// SparkAppIDLabel is the name of the label used to group API objects, e.g., Spark UI service, Pods,
+	// ConfigMaps, etc., belonging to the same Spark application.
+	SparkAppIDLabel = LabelAnnotationPrefix + "app-id"
+)
+
+const (
+	// DriverEnvVarConfigKeyPrefix is the Spark configruation prefix for setting environment variables
+	// into the driver.
+	DriverEnvVarConfigKeyPrefix = "spark.kubernetes.driverEnv."
+	// ExecutorEnvVarConfigKeyPrefix is the Spark configruation prefix for setting environment variables
+	// into the executor.
+	ExecutorEnvVarConfigKeyPrefix = "spark.executorEnv."
 	// SparkDriverAnnotationsKey is the Spark configuation key for annotations on the driver Pod.
 	SparkDriverAnnotationsKey = "spark.kubernetes.driver.annotations"
 	// SparkExecutorAnnotationsKey is the Spark configuation key for annotations on the executor Pod.
@@ -51,6 +83,15 @@ const (
 	HadoopConfDirEnvVar = "HADOOP_CONF_DIR"
 )
 
+func AddConfigMapAnnotation(app *v1alpha1.SparkApplication, annotationConfKey string, key string, value string) {
+	annotations, ok := app.Spec.SparkConf[annotationConfKey]
+	if ok {
+		app.Spec.SparkConf[annotationConfKey] = fmt.Sprintf("%s,%s=%s", annotations, key, value)
+	} else {
+		app.Spec.SparkConf[annotationConfKey] = fmt.Sprintf("%s=%s", key, value)
+	}
+}
+
 // CreateSparkConfigMap is to be used by the SparkApplication controller to create a ConfigMap from a directory of Spark configuration files.
 func CreateSparkConfigMap(sparkConfDir string, namespace string, app *v1alpha1.SparkApplication, kubeClient clientset.Interface) error {
 	name, err := createConfigMap(sparkConfDir, namespace, SparkConfigMapNamePrefix, app, kubeClient)
@@ -59,8 +100,8 @@ func CreateSparkConfigMap(sparkConfDir string, namespace string, app *v1alpha1.S
 	}
 
 	// Add an annotation to the driver and executor Pods so the initializer gets informed.
-	updateAnnotation(app, SparkDriverAnnotationsKey, SparkConfigMapAnnotation, name)
-	updateAnnotation(app, SparkExecutorAnnotationsKey, SparkConfigMapAnnotation, name)
+	AddConfigMapAnnotation(app, SparkDriverAnnotationsKey, SparkConfigMapAnnotation, name)
+	AddConfigMapAnnotation(app, SparkExecutorAnnotationsKey, SparkConfigMapAnnotation, name)
 	// Update the Spec to include the name of the newly created ConfigMap.
 	app.Spec.SparkConfigMap = new(string)
 	*app.Spec.SparkConfigMap = name
@@ -76,8 +117,8 @@ func CreateHadoopConfigMap(hadoopConfDir string, namespace string, app *v1alpha1
 	}
 
 	// Add an annotation to the driver and executor Pods so the initializer gets informed.
-	updateAnnotation(app, SparkDriverAnnotationsKey, HadoopConfigMapAnnotation, name)
-	updateAnnotation(app, SparkExecutorAnnotationsKey, HadoopConfigMapAnnotation, name)
+	AddConfigMapAnnotation(app, SparkDriverAnnotationsKey, HadoopConfigMapAnnotation, name)
+	AddConfigMapAnnotation(app, SparkExecutorAnnotationsKey, HadoopConfigMapAnnotation, name)
 	// Update the Spec to include the name of the newly created ConfigMap.
 	app.Spec.HadoopConfigMap = new(string)
 	*app.Spec.HadoopConfigMap = name
@@ -141,15 +182,6 @@ func createConfigMap(dir string, namespace string, namePrefix string, app *v1alp
 		return configMap.Name, err
 	}
 	return configMap.Name, nil
-}
-
-func updateAnnotation(app *v1alpha1.SparkApplication, annotationConfKey string, key string, value string) {
-	annotations, ok := app.Spec.SparkConf[annotationConfKey]
-	if ok {
-		app.Spec.SparkConf[annotationConfKey] = fmt.Sprintf("%s,%s=%s", annotations, key, value)
-	} else {
-		app.Spec.SparkConf[annotationConfKey] = fmt.Sprintf("%s=%s", key, value)
-	}
 }
 
 func buildConfigMapFromConfigDir(dir string, namePrefix string, namespace string, appUID string) (*apiv1.ConfigMap, error) {

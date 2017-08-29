@@ -16,12 +16,6 @@ import (
 	"k8s.io/client-go/tools/cache"
 )
 
-const (
-	sparkAppIDLabel               = "apache-spark-on-k8s/app-id"
-	driverEnvVarConfigKeyPrefix   = "spark.kubernetes.driverEnv."
-	executorEnvVarConfigKeyPrefix = "spark.kubernetes.driverEnv."
-)
-
 // SparkApplicationController manages instances of SparkApplication.
 type SparkApplicationController struct {
 	crdClient        *crd.Client
@@ -91,6 +85,7 @@ func (s *SparkApplicationController) onAdd(obj interface{}) {
 	}
 	appCopy := copyObj.(*v1alpha1.SparkApplication)
 	appCopy.Status.AppID = buildAppID(appCopy)
+	createSparkUIService(appCopy, s.kubeClient)
 	s.crdClient.Update(appCopy, appCopy.Namespace)
 }
 
@@ -105,6 +100,7 @@ func (s *SparkApplicationController) onDelete(obj interface{}) {
 	glog.Infof("[CONTROLLER] OnDelete %s\n", app.ObjectMeta.SelfLink)
 }
 
+// buildAppID builds an application ID in the form of <application name>-<32-bit hash>.
 func buildAppID(app *v1alpha1.SparkApplication) string {
 	hasher := util.NewHash32()
 	hasher.Write([]byte(app.Name))
