@@ -83,6 +83,7 @@ const (
 	HadoopConfDirEnvVar = "HADOOP_CONF_DIR"
 )
 
+// AddConfigMapAnnotation adds an annotation key=value using the --conf option.
 func AddConfigMapAnnotation(app *v1alpha1.SparkApplication, annotationConfKey string, key string, value string) {
 	annotations, ok := app.Spec.SparkConf[annotationConfKey]
 	if ok {
@@ -161,6 +162,11 @@ func MountHadoopConfigMapToContainer(volumeName string, mountPath string, contai
 	mountConfigMapToContainer(volumeName, mountPath, HadoopConfDirEnvVar, container)
 }
 
+// MountConfigMapToContainer mounts the ConfigMap volume named volumeName onto mountPath into the given container.
+func MountConfigMapToContainer(volumeName string, mountPath string, container *apiv1.Container) {
+	mountConfigMapToContainer(volumeName, mountPath, "", container)
+}
+
 func mountConfigMapToContainer(volumeName string, mountPath string, env string, container *apiv1.Container) {
 	volumeMount := apiv1.VolumeMount{
 		Name:      volumeName,
@@ -168,8 +174,10 @@ func mountConfigMapToContainer(volumeName string, mountPath string, env string, 
 		MountPath: mountPath,
 	}
 	container.VolumeMounts = append(container.VolumeMounts, volumeMount)
-	appCredentialEnvVar := apiv1.EnvVar{Name: env, Value: mountPath}
-	container.Env = append(container.Env, appCredentialEnvVar)
+	if env != "" {
+		appCredentialEnvVar := apiv1.EnvVar{Name: env, Value: mountPath}
+		container.Env = append(container.Env, appCredentialEnvVar)
+	}
 }
 
 func createConfigMap(dir string, namespace string, namePrefix string, app *v1alpha1.SparkApplication, kubeClient clientset.Interface) (string, error) {

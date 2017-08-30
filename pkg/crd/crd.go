@@ -25,7 +25,7 @@ const (
 	CRDFullName = CRDPlural + "." + CRDGroup
 )
 
-// CreateCRD creates a Kubernetes CustomResourceDefinition for SparkApplication.
+// CreateCRD creates a Kubernetes CustomResourceDefinition (CRD) for SparkApplication.
 // An error is returned if it fails to create the CustomResourceDefinition before it times out.
 func CreateCRD(clientset apiextensionsclient.Interface) error {
 	// The CustomResourceDefinition is not found, create it now.

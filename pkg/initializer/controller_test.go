@@ -3,7 +3,9 @@ package initializer
 import (
 	"testing"
 
-	"k8s.io/api/core/v1"
+	"github.com/liyinan926/spark-operator/pkg/config"
+
+	apiv1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
 )
@@ -42,7 +44,7 @@ func TestAddInitializationConfig(t *testing.T) {
 func TestRemoteInitializer(t *testing.T) {
 	type testcase struct {
 		name    string
-		pod     *v1.Pod
+		pod     *apiv1.Pod
 		removed bool
 	}
 
@@ -53,15 +55,15 @@ func TestRemoteInitializer(t *testing.T) {
 		}
 	}
 
-	pod0 := &v1.Pod{}
-	pod1 := &v1.Pod{
+	pod0 := &apiv1.Pod{}
+	pod1 := &apiv1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
 			Initializers: &metav1.Initializers{
 				Pending: []metav1.Initializer{},
 			},
 		},
 	}
-	pod2 := &v1.Pod{
+	pod2 := &apiv1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
 			Initializers: &metav1.Initializers{
 				Pending: []metav1.Initializer{
@@ -72,7 +74,7 @@ func TestRemoteInitializer(t *testing.T) {
 			},
 		},
 	}
-	pod3 := &v1.Pod{
+	pod3 := &apiv1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
 			Initializers: &metav1.Initializers{
 				Pending: []metav1.Initializer{
@@ -110,6 +112,140 @@ func TestRemoteInitializer(t *testing.T) {
 		},
 	}
 
+	for _, test := range testcases {
+		testFn(test, t)
+	}
+}
+
+func TestSyncSparkPod(t *testing.T) {
+	type testcase struct {
+		name                   string
+		pod                    *apiv1.Pod
+		expectedConfigMapNames []string
+		expectedVolumeNames    []string
+	}
+	controller := newFakeController()
+	testFn := func(test testcase, t *testing.T) {
+		_, err := controller.kubeClient.CoreV1().Pods(test.pod.Namespace).Create(test.pod)
+		if err != nil {
+			t.Fatal(err)
+		}
+		err = controller.syncSparkPod(test.pod)
+		if err != nil {
+			t.Fatal(err)
+		}
+		updatedPod, err := controller.kubeClient.CoreV1().Pods(test.pod.Namespace).Get(test.pod.Name, metav1.GetOptions{})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(updatedPod.Spec.Volumes) != len(test.expectedVolumeNames) {
+			t.Errorf("%s: wanted %d volumes got %d", test.name, len(test.expectedVolumeNames), len(updatedPod.Spec.Volumes))
+		}
+		for i := 0; i < len(updatedPod.Spec.Volumes); i++ {
+			name := updatedPod.Spec.Volumes[i].Name
+			if name != test.expectedVolumeNames[i] {
+				t.Errorf("%s: for ConfigMap volume name wanted %s got %s", test.name, test.expectedVolumeNames[i], name)
+			}
+		}
+		for i := 0; i < len(updatedPod.Spec.Volumes); i++ {
+			name := updatedPod.Spec.Volumes[i].ConfigMap.LocalObjectReference.Name
+			if name != test.expectedConfigMapNames[i] {
+				t.Errorf("%s: for ConfigMap name wanted %s got %s", test.name, test.expectedConfigMapNames[i], name)
+			}
+		}
+		container := updatedPod.Spec.Containers[0]
+		if len(container.VolumeMounts) != len(test.expectedVolumeNames) {
+			t.Errorf("%s: wanted %d volumn mounts got %d", test.name, len(test.expectedVolumeNames), len(container.VolumeMounts))
+		}
+		for i := 0; i < len(container.VolumeMounts); i++ {
+			volumeMount := container.VolumeMounts[i]
+			if volumeMount.Name != test.expectedVolumeNames[i] {
+				t.Errorf("%s: for volume mount name wanted %s got %s", test.name, test.expectedVolumeNames[i], volumeMount.Name)
+			}
+		}
+	}
+
+	pod1 := &apiv1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:        "pod1",
+			Namespace:   "default",
+			Annotations: map[string]string{},
+		},
+		Spec: apiv1.PodSpec{
+			Containers: []apiv1.Container{
+				apiv1.Container{},
+			},
+		},
+	}
+	pod2 := &apiv1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "pod2",
+			Namespace: "default",
+			Annotations: map[string]string{
+				config.SparkConfigMapAnnotation:  "spark-config-map",
+				config.HadoopConfigMapAnnotation: "hadoop-config-map",
+			},
+		},
+		Spec: apiv1.PodSpec{
+			Containers: []apiv1.Container{
+				apiv1.Container{},
+			},
+		},
+	}
+	pod3 := &apiv1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "pod3",
+			Namespace: "default",
+			Annotations: map[string]string{
+				config.SparkConfigMapAnnotation: "spark-config-map",
+			},
+		},
+		Spec: apiv1.PodSpec{
+			Containers: []apiv1.Container{
+				apiv1.Container{},
+			},
+		},
+	}
+	pod4 := &apiv1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "pod4",
+			Namespace: "default",
+			Annotations: map[string]string{
+				config.HadoopConfigMapAnnotation: "hadoop-config-map",
+			},
+		},
+		Spec: apiv1.PodSpec{
+			Containers: []apiv1.Container{
+				apiv1.Container{},
+			},
+		},
+	}
+	testcases := []testcase{
+		testcase{
+			name:                   "pod without SparkConfigMap or HadoopConfigMap annotation",
+			pod:                    pod1,
+			expectedVolumeNames:    []string{},
+			expectedConfigMapNames: []string{},
+		},
+		testcase{
+			name:                   "pod with both SparkConfigMap or HadoopConfigMap annotations",
+			pod:                    pod2,
+			expectedVolumeNames:    []string{config.SparkConfigMapVolumeName, config.HadoopConfigMapVolumeName},
+			expectedConfigMapNames: []string{"spark-config-map", "hadoop-config-map"},
+		},
+		testcase{
+			name:                   "pod with SparkConfigMap annotation",
+			pod:                    pod3,
+			expectedVolumeNames:    []string{config.SparkConfigMapVolumeName},
+			expectedConfigMapNames: []string{"spark-config-map"},
+		},
+		testcase{
+			name:                   "pod with HadoopConfigMap annotation",
+			pod:                    pod4,
+			expectedVolumeNames:    []string{config.HadoopConfigMapVolumeName},
+			expectedConfigMapNames: []string{"hadoop-config-map"},
+		},
+	}
 	for _, test := range testcases {
 		testFn(test, t)
 	}

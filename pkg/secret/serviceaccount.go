@@ -6,7 +6,7 @@ import (
 
 const (
 	GoogleApplicationCredentialsEnvVar        = "GOOGLE_APPLICATION_CREDENTIALS"
-	DefaultServiceAccountJsonKeyFileName      = "service_account_key.json"
+	DefaultServiceAccountJsonKeyFileName      = "key.json"
 	serviceAccountSecretVolumeName            = "google-service-account-secret-volume"
 	DefaultServiceAccountJsonKeyFileMountPath = "/etc/secrets/google"
 )
