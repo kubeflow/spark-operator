@@ -252,5 +252,5 @@ func TestSyncSparkPod(t *testing.T) {
 }
 
 func newFakeController() *Controller {
-	return NewController(fake.NewSimpleClientset(), "")
+	return NewController(fake.NewSimpleClientset())
 }

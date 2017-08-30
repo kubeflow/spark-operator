@@ -15,12 +15,6 @@ import (
 	// _ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 )
 
-const (
-	SparkRoleLabel    = "spark-role"
-	SparkDriverRole   = "driver"
-	SparkExecutorRole = "executor"
-)
-
 func main() {
 	kubeconfig := flag.String("kubeconfig", "", "Path to a kube config. Only required if out-of-cluster.")
 	flag.Parse()
@@ -45,8 +39,7 @@ func main() {
 	defer cancelFunc()
 	go appController.Run(ctx)
 
-	labelSelector := fmt.Sprintf("%s in (%s, %s)", SparkRoleLabel, SparkDriverRole, SparkExecutorRole)
-	initializerController := initializer.NewController(kubeClient, labelSelector)
+	initializerController := initializer.NewController(kubeClient)
 	go initializerController.Run(1, ctx.Done())
 }
 

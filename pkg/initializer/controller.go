@@ -45,7 +45,7 @@ type Controller struct {
 }
 
 // NewController creates a new instance of Controller.
-func NewController(kubeClient clientset.Interface, podLabelSelector string) *Controller {
+func NewController(kubeClient clientset.Interface) *Controller {
 	controller := &Controller{
 		kubeClient: kubeClient,
 		queue:      workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "spark-initializer"),
@@ -54,10 +54,12 @@ func NewController(kubeClient clientset.Interface, podLabelSelector string) *Con
 	_, controller.sparkPodController = cache.NewInformer(
 		&cache.ListWatch{
 			ListFunc: func(options metav1.ListOptions) (runtime.Object, error) {
-				return kubeClient.CoreV1().Pods("").List(*buildListOptions(&options, podLabelSelector))
+				options.IncludeUninitialized = true
+				return kubeClient.CoreV1().Pods("").List(options)
 			},
 			WatchFunc: func(options metav1.ListOptions) (watch.Interface, error) {
-				return kubeClient.CoreV1().Pods("").Watch(*buildListOptions(&options, podLabelSelector))
+				options.IncludeUninitialized = true
+				return kubeClient.CoreV1().Pods("").Watch(options)
 			},
 		},
 		&v1.Pod{},
@@ -92,6 +94,55 @@ func (ic *Controller) Run(threadiness int, stopCh <-chan struct{}) {
 	}
 
 	<-stopCh
+}
+
+func (ic *Controller) addInitializationConfig() {
+	sparkPodInitializer := v1alpha1.Initializer{
+		Name: InitializerName,
+		Rules: []v1alpha1.Rule{
+			{
+				APIGroups:   []string{"*"},
+				APIVersions: []string{"*"},
+				Resources:   []string{"pods"},
+			},
+		},
+	}
+	sparkPodInitializerConfig := v1alpha1.InitializerConfiguration{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: InitializerConfigName,
+		},
+		Initializers: []v1alpha1.Initializer{sparkPodInitializer},
+	}
+
+	existingConfig, err := ic.kubeClient.AdmissionregistrationV1alpha1().InitializerConfigurations().Get(InitializerConfigName, metav1.GetOptions{})
+	if err != nil {
+		if errors.IsNotFound(err) {
+			// InitializerConfig wasn't found.
+			_, err = ic.kubeClient.AdmissionregistrationV1alpha1().InitializerConfigurations().Create(&sparkPodInitializerConfig)
+			if err != nil {
+				glog.Errorf("Failed to set InitializerConfig: %v", err)
+			}
+		} else {
+			// API error.
+			glog.Errorf("Unable to get InitializerConfig: %v", err)
+		}
+	} else {
+		// InitializerConfig was found, check we are in the list.
+		found := false
+		for _, initializer := range existingConfig.Initializers {
+			if initializer.Name == InitializerName {
+				found = true
+				break
+			}
+		}
+		if !found {
+			existingConfig.Initializers = append(existingConfig.Initializers, sparkPodInitializer)
+			_, err = ic.kubeClient.AdmissionregistrationV1alpha1().InitializerConfigurations().Update(existingConfig)
+			if err != nil {
+				glog.Errorf("Failed to update InitializerConfig: %v", err)
+			}
+		}
+	}
 }
 
 // runWorker runs a single controller worker.
@@ -171,14 +222,19 @@ func (ic *Controller) addSparkPod(obj interface{}) {
 
 	// The presence of the Initializer in the pending list of Initializers in the pod
 	// is a sign that the pod is uninitialized.
-	if ic.isSparkPod(pod) && isInitializerPresent(pod) {
-		ic.queue.AddRateLimited(pod)
+	if isInitializerPresent(pod) {
+		if isSparkPod(pod) {
+			ic.queue.AddRateLimited(pod)
+		} else {
+			// We don't deal with non-Spark pods so simply remove the initializer from the pending list.
+			remoteInitializer(pod)
+		}
 	}
 }
 
 // TODO: this seems redundant given that the Controller takes in a labelSelector that
 // selects only Pods with the spark-role label.
-func (ic *Controller) isSparkPod(pod *v1.Pod) bool {
+func isSparkPod(pod *v1.Pod) bool {
 	sparkRole, ok := pod.Labels[SparkRoleLabel]
 	return ok && (sparkRole == SparkDriverRole || sparkRole == SparkExecutorRole)
 }
@@ -195,55 +251,6 @@ func isInitializerPresent(pod *v1.Pod) bool {
 		}
 	}
 	return false
-}
-
-func (ic *Controller) addInitializationConfig() {
-	sparkPodInitializer := v1alpha1.Initializer{
-		Name: InitializerName,
-		Rules: []v1alpha1.Rule{
-			{
-				APIGroups:   []string{"*"},
-				APIVersions: []string{"*"},
-				Resources:   []string{"pods"},
-			},
-		},
-	}
-	sparkPodInitializerConfig := v1alpha1.InitializerConfiguration{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: InitializerConfigName,
-		},
-		Initializers: []v1alpha1.Initializer{sparkPodInitializer},
-	}
-
-	existingConfig, err := ic.kubeClient.AdmissionregistrationV1alpha1().InitializerConfigurations().Get(InitializerConfigName, metav1.GetOptions{})
-	if err != nil {
-		if errors.IsNotFound(err) {
-			// InitializerConfig wasn't found.
-			_, err = ic.kubeClient.AdmissionregistrationV1alpha1().InitializerConfigurations().Create(&sparkPodInitializerConfig)
-			if err != nil {
-				glog.Errorf("Failed to set InitializerConfig: %v", err)
-			}
-		} else {
-			// API error.
-			glog.Errorf("Unable to get InitializerConfig: %v", err)
-		}
-	} else {
-		// InitializerConfig was found, check we are in the list.
-		found := false
-		for _, initializer := range existingConfig.Initializers {
-			if initializer.Name == InitializerName {
-				found = true
-				break
-			}
-		}
-		if !found {
-			existingConfig.Initializers = append(existingConfig.Initializers, sparkPodInitializer)
-			_, err = ic.kubeClient.AdmissionregistrationV1alpha1().InitializerConfigurations().Update(existingConfig)
-			if err != nil {
-				glog.Errorf("Failed to update InitializerConfig: %v", err)
-			}
-		}
-	}
 }
 
 // remoteInitializer removes the initializer from the list of pending initializers of the given Pod.
@@ -270,12 +277,4 @@ func remoteInitializer(pod *v1.Pod) {
 
 	glog.Infof("Removed initializer on PersistentVolume %s", pod.Name)
 	return
-}
-
-func buildListOptions(options *metav1.ListOptions, podLabelSelector string) *metav1.ListOptions {
-	options.IncludeUninitialized = true
-	if podLabelSelector != "" {
-		options.LabelSelector = podLabelSelector
-	}
-	return options
 }
