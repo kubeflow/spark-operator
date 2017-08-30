@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/liyinan926/spark-operator/pkg/config"
+	"github.com/liyinan926/spark-operator/pkg/secret"
 
 	apiv1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -210,10 +211,10 @@ func TestIsInitializerPresent(t *testing.T) {
 
 func TestSyncSparkPod(t *testing.T) {
 	type testcase struct {
-		name                   string
-		pod                    *apiv1.Pod
-		expectedConfigMapNames []string
-		expectedVolumeNames    []string
+		name                string
+		pod                 *apiv1.Pod
+		expectedVolumeNames []string
+		expectedObjectNames []string
 	}
 	controller := newFakeController()
 	testFn := func(test testcase, t *testing.T) {
@@ -239,9 +240,14 @@ func TestSyncSparkPod(t *testing.T) {
 			}
 		}
 		for i := 0; i < len(updatedPod.Spec.Volumes); i++ {
-			name := updatedPod.Spec.Volumes[i].ConfigMap.LocalObjectReference.Name
-			if name != test.expectedConfigMapNames[i] {
-				t.Errorf("%s: for ConfigMap name wanted %s got %s", test.name, test.expectedConfigMapNames[i], name)
+			var name string
+			if updatedPod.Spec.Volumes[i].ConfigMap != nil {
+				name = updatedPod.Spec.Volumes[i].ConfigMap.LocalObjectReference.Name
+			} else if updatedPod.Spec.Volumes[i].Secret != nil {
+				name = updatedPod.Spec.Volumes[i].Secret.SecretName
+			}
+			if name != test.expectedObjectNames[i] {
+				t.Errorf("%s: for ConfigMap name wanted %s got %s", test.name, test.expectedObjectNames[i], name)
 			}
 		}
 		container := updatedPod.Spec.Containers[0]
@@ -311,30 +317,50 @@ func TestSyncSparkPod(t *testing.T) {
 			},
 		},
 	}
+	pod5 := &apiv1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "pod5",
+			Namespace: "default",
+			Annotations: map[string]string{
+				config.GCPServiceAccountSecretAnnotation: "gcp-service-account",
+			},
+		},
+		Spec: apiv1.PodSpec{
+			Containers: []apiv1.Container{
+				apiv1.Container{},
+			},
+		},
+	}
 	testcases := []testcase{
 		testcase{
-			name:                   "pod without SparkConfigMap or HadoopConfigMap annotation",
-			pod:                    pod1,
-			expectedVolumeNames:    []string{},
-			expectedConfigMapNames: []string{},
+			name:                "pod without SparkConfigMap or HadoopConfigMap annotation",
+			pod:                 pod1,
+			expectedVolumeNames: []string{},
+			expectedObjectNames: []string{},
 		},
 		testcase{
-			name:                   "pod with both SparkConfigMap or HadoopConfigMap annotations",
-			pod:                    pod2,
-			expectedVolumeNames:    []string{config.SparkConfigMapVolumeName, config.HadoopConfigMapVolumeName},
-			expectedConfigMapNames: []string{"spark-config-map", "hadoop-config-map"},
+			name:                "pod with both SparkConfigMap or HadoopConfigMap annotations",
+			pod:                 pod2,
+			expectedVolumeNames: []string{config.SparkConfigMapVolumeName, config.HadoopConfigMapVolumeName},
+			expectedObjectNames: []string{"spark-config-map", "hadoop-config-map"},
 		},
 		testcase{
-			name:                   "pod with SparkConfigMap annotation",
-			pod:                    pod3,
-			expectedVolumeNames:    []string{config.SparkConfigMapVolumeName},
-			expectedConfigMapNames: []string{"spark-config-map"},
+			name:                "pod with SparkConfigMap annotation",
+			pod:                 pod3,
+			expectedVolumeNames: []string{config.SparkConfigMapVolumeName},
+			expectedObjectNames: []string{"spark-config-map"},
 		},
 		testcase{
-			name:                   "pod with HadoopConfigMap annotation",
-			pod:                    pod4,
-			expectedVolumeNames:    []string{config.HadoopConfigMapVolumeName},
-			expectedConfigMapNames: []string{"hadoop-config-map"},
+			name:                "pod with HadoopConfigMap annotation",
+			pod:                 pod4,
+			expectedVolumeNames: []string{config.HadoopConfigMapVolumeName},
+			expectedObjectNames: []string{"hadoop-config-map"},
+		},
+		testcase{
+			name:                "pod with GCP service account secret annotation",
+			pod:                 pod5,
+			expectedVolumeNames: []string{secret.ServiceAccountSecretVolumeName},
+			expectedObjectNames: []string{"gcp-service-account"},
 		},
 	}
 	for _, test := range testcases {

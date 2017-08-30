@@ -1,20 +1,29 @@
 package secret
 
 import (
+	"fmt"
+
 	"k8s.io/api/core/v1"
 )
 
 const (
-	GoogleApplicationCredentialsEnvVar        = "GOOGLE_APPLICATION_CREDENTIALS"
-	DefaultServiceAccountJsonKeyFileName      = "key.json"
-	serviceAccountSecretVolumeName            = "google-service-account-secret-volume"
-	DefaultServiceAccountJsonKeyFileMountPath = "/etc/secrets/google"
+	// GoogleApplicationCredentialsEnvVar is the environment variable used by the
+	// Application Default Credentials mechanism. More details can be found at
+	// https://developers.google.com/identity/protocols/application-default-credentials.
+	GoogleApplicationCredentialsEnvVar = "GOOGLE_APPLICATION_CREDENTIALS"
+	// defaultServiceAccountJSONKeyFileName is the default name of the service account
+	// Json key file. This name is added to the service account secret mount path to
+	// form the path to the Json key file referred to by GOOGLE_APPLICATION_CREDENTIALS.
+	defaultServiceAccountJSONKeyFileName = "key.json"
+	// ServiceAccountSecretVolumeName is the name of the GCP service account secret volume.
+	ServiceAccountSecretVolumeName            = "gcp-service-account-secret-volume"
+	defaultServiceAccountJSONKeyFileMountPath = "/etc/secrets/google"
 )
 
 // AddSecretVolumeToPod adds a secret volume for the secret with secretName into pod.
-func AddSecretVolumeToPod(secretName string, pod *v1.Pod) {
+func AddSecretVolumeToPod(secretVolumeName string, secretName string, pod *v1.Pod) {
 	volume := v1.Volume{
-		Name: serviceAccountSecretVolumeName,
+		Name: secretVolumeName,
 		VolumeSource: v1.VolumeSource{
 			Secret: &v1.SecretVolumeSource{
 				SecretName: secretName,
@@ -32,14 +41,14 @@ func MountSecretToContainer(volumeName string, mountPath string, container *v1.C
 		MountPath: mountPath,
 	}
 	container.VolumeMounts = append(container.VolumeMounts, volumeMount)
-
 }
 
 // MountServiceAccountSecretToContainer mounts the service account secret volume with volumeName onto
 // the mountPath into container and also sets environment variable GOOGLE_APPLICATION_CREDENTIALS to
 // the service account key file in the volume.
-func MountServiceAccountSecretToContainer(volumeName string, mountPath string, container *v1.Container) {
-	MountSecretToContainer(volumeName, mountPath, container)
-	appCredentialEnvVar := v1.EnvVar{Name: GoogleApplicationCredentialsEnvVar, Value: mountPath}
+func MountServiceAccountSecretToContainer(volumeName string, container *v1.Container) {
+	MountSecretToContainer(volumeName, defaultServiceAccountJSONKeyFileMountPath, container)
+	jsonKeyFilePath := fmt.Sprintf("%s/%s", defaultServiceAccountJSONKeyFileMountPath, defaultServiceAccountJSONKeyFileName)
+	appCredentialEnvVar := v1.EnvVar{Name: GoogleApplicationCredentialsEnvVar, Value: jsonKeyFilePath}
 	container.Env = append(container.Env, appCredentialEnvVar)
 }

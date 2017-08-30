@@ -7,9 +7,10 @@ import (
 	"github.com/golang/glog"
 
 	"github.com/liyinan926/spark-operator/pkg/config"
+	"github.com/liyinan926/spark-operator/pkg/secret"
 
 	"k8s.io/api/admissionregistration/v1alpha1"
-	"k8s.io/api/core/v1"
+	apiv1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -46,7 +47,7 @@ type Controller struct {
 	// A queue of uninitialized Pods that need to be processed by this initializer controller.
 	queue workqueue.RateLimitingInterface
 	// To allow injection of syncReplicaSet for testing.
-	syncHandler func(pod *v1.Pod) error
+	syncHandler func(pod *apiv1.Pod) error
 }
 
 // NewController creates a new instance of Controller.
@@ -67,7 +68,7 @@ func NewController(kubeClient clientset.Interface) *Controller {
 				return kubeClient.CoreV1().Pods("").Watch(options)
 			},
 		},
-		&v1.Pod{},
+		&apiv1.Pod{},
 		0,
 		cache.ResourceEventHandlerFuncs{
 			AddFunc: controller.addSparkPod,
@@ -164,7 +165,7 @@ func (ic *Controller) processNextItem() bool {
 	}
 	defer ic.queue.Done(key)
 
-	err := ic.syncHandler(key.(*v1.Pod))
+	err := ic.syncHandler(key.(*apiv1.Pod))
 	if err == nil {
 		// Successfully processed the key so tell the queue to stop tracking history for your key.
 		// This will reset things like failure counts for per-item rate limiting.
@@ -185,29 +186,21 @@ func (ic *Controller) processNextItem() bool {
 }
 
 // syncSparkPod does the actual processing of the given Spark Pod.
-func (ic *Controller) syncSparkPod(pod *v1.Pod) error {
+func (ic *Controller) syncSparkPod(pod *apiv1.Pod) error {
 	// Make a copy.
 	copy, err := scheme.Scheme.DeepCopy(pod)
 	if err != nil {
 		return err
 	}
-	podCopy := copy.(*v1.Pod)
-
+	podCopy := copy.(*apiv1.Pod)
 	if len(podCopy.Spec.Containers) <= 0 {
 		return fmt.Errorf("No container found in Pod %s", podCopy.Name)
 	}
 	// We assume that the first container is the Spark container.
 	appContainer := &podCopy.Spec.Containers[0]
-	sparkConfigMapName, ok := podCopy.Annotations[config.SparkConfigMapAnnotation]
-	if ok {
-		volumeName := config.AddSparkConfigMapVolumeToPod(sparkConfigMapName, podCopy)
-		config.MountSparkConfigMapToContainer(volumeName, config.DefaultSparkConfDir, appContainer)
-	}
-	hadoopConfigMapName, ok := podCopy.Annotations[config.HadoopConfigMapAnnotation]
-	if ok {
-		volumeName := config.AddHadoopConfigMapVolumeToPod(hadoopConfigMapName, podCopy)
-		config.MountHadoopConfigMapToContainer(volumeName, config.DefaultHadoopConfDir, appContainer)
-	}
+
+	handleConfigMaps(podCopy, appContainer)
+	handleSecrets(podCopy, appContainer)
 
 	// Remove this initializer from the list of pending intializers and update the Pod.
 	remoteInitializer(podCopy)
@@ -220,7 +213,7 @@ func (ic *Controller) syncSparkPod(pod *v1.Pod) error {
 
 // addSparkPod is the callback function called when an event for a new Pod is informed.
 func (ic *Controller) addSparkPod(obj interface{}) {
-	pod, ok := obj.(*v1.Pod)
+	pod, ok := obj.(*apiv1.Pod)
 	if !ok {
 		glog.Errorf("received non-pod object: %v", obj)
 	}
@@ -239,13 +232,13 @@ func (ic *Controller) addSparkPod(obj interface{}) {
 
 // TODO: this seems redundant given that the Controller takes in a labelSelector that
 // selects only Pods with the spark-role label.
-func isSparkPod(pod *v1.Pod) bool {
+func isSparkPod(pod *apiv1.Pod) bool {
 	sparkRole, ok := pod.Labels[sparkRoleLabel]
 	return ok && (sparkRole == sparkDriverRole || sparkRole == sparkExecutorRole)
 }
 
 // isInitializerPresent returns if the list of pending Initializer of the given pod contains an instance of this Initializer.
-func isInitializerPresent(pod *v1.Pod) bool {
+func isInitializerPresent(pod *apiv1.Pod) bool {
 	if pod.Initializers == nil {
 		return false
 	}
@@ -258,8 +251,29 @@ func isInitializerPresent(pod *v1.Pod) bool {
 	return false
 }
 
+func handleConfigMaps(pod *apiv1.Pod, container *apiv1.Container) {
+	sparkConfigMapName, ok := pod.Annotations[config.SparkConfigMapAnnotation]
+	if ok {
+		volumeName := config.AddSparkConfigMapVolumeToPod(sparkConfigMapName, pod)
+		config.MountSparkConfigMapToContainer(volumeName, config.DefaultSparkConfDir, container)
+	}
+	hadoopConfigMapName, ok := pod.Annotations[config.HadoopConfigMapAnnotation]
+	if ok {
+		volumeName := config.AddHadoopConfigMapVolumeToPod(hadoopConfigMapName, pod)
+		config.MountHadoopConfigMapToContainer(volumeName, config.DefaultHadoopConfDir, container)
+	}
+}
+
+func handleSecrets(pod *apiv1.Pod, container *apiv1.Container) {
+	gcpServiceAccountSecretName, ok := pod.Annotations[config.GCPServiceAccountSecretAnnotation]
+	if ok {
+		secret.AddSecretVolumeToPod(secret.ServiceAccountSecretVolumeName, gcpServiceAccountSecretName, pod)
+		secret.MountServiceAccountSecretToContainer(secret.ServiceAccountSecretVolumeName, container)
+	}
+}
+
 // remoteInitializer removes the initializer from the list of pending initializers of the given Pod.
-func remoteInitializer(pod *v1.Pod) {
+func remoteInitializer(pod *apiv1.Pod) {
 	if pod.Initializers == nil {
 		return
 	}
