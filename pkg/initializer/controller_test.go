@@ -15,16 +15,16 @@ func TestAddInitializationConfig(t *testing.T) {
 	client := controller.kubeClient.AdmissionregistrationV1alpha1()
 
 	controller.addInitializationConfig()
-	ig1, err := client.InitializerConfigurations().Get(InitializerConfigName, metav1.GetOptions{})
+	ig1, err := client.InitializerConfigurations().Get(initializerConfigName, metav1.GetOptions{})
 	if err != nil {
 		t.Error(err)
 	}
-	if ig1.Name != InitializerConfigName {
-		t.Errorf("mismatched name wanted %s got %s", InitializerConfigName, ig1.Name)
+	if ig1.Name != initializerConfigName {
+		t.Errorf("mismatched name wanted %s got %s", initializerConfigName, ig1.Name)
 	}
 
 	controller.addInitializationConfig()
-	ig2, err := client.InitializerConfigurations().Get(InitializerConfigName, metav1.GetOptions{})
+	ig2, err := client.InitializerConfigurations().Get(initializerConfigName, metav1.GetOptions{})
 	if err != nil {
 		t.Error(err)
 	}
@@ -51,7 +51,7 @@ func TestRemoteInitializer(t *testing.T) {
 	testFn := func(test *testcase, t *testing.T) {
 		remoteInitializer(test.pod)
 		if test.removed && isInitializerPresent(test.pod) {
-			t.Errorf("%s: %s was not removed", test.name, InitializerName)
+			t.Errorf("%s: %s was not removed", test.name, initializerName)
 		}
 	}
 
@@ -68,7 +68,7 @@ func TestRemoteInitializer(t *testing.T) {
 			Initializers: &metav1.Initializers{
 				Pending: []metav1.Initializer{
 					metav1.Initializer{
-						Name: InitializerName,
+						Name: initializerName,
 					},
 				},
 			},
@@ -79,7 +79,7 @@ func TestRemoteInitializer(t *testing.T) {
 			Initializers: &metav1.Initializers{
 				Pending: []metav1.Initializer{
 					metav1.Initializer{
-						Name: InitializerName,
+						Name: initializerName,
 					},
 					metav1.Initializer{
 						Name: "foo",
@@ -112,6 +112,97 @@ func TestRemoteInitializer(t *testing.T) {
 		},
 	}
 
+	for _, test := range testcases {
+		testFn(test, t)
+	}
+}
+
+func TestIsSparkPod(t *testing.T) {
+	type testcase struct {
+		name     string
+		pod      *apiv1.Pod
+		sparkPod bool
+	}
+	testFn := func(test testcase, t *testing.T) {
+		result := isSparkPod(test.pod)
+		if result != test.sparkPod {
+			t.Errorf("%s: isSparkPod is %v while expectation is %v", test.name, result, test.sparkPod)
+		}
+	}
+
+	pod1 := &apiv1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "pod1"}}
+	pod2 := &apiv1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:   "pod1",
+			Labels: map[string]string{sparkRoleLabel: sparkDriverRole},
+		},
+	}
+	pod3 := &apiv1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:   "pod1",
+			Labels: map[string]string{sparkRoleLabel: sparkExecutorRole},
+		},
+	}
+	testcases := []testcase{
+		testcase{
+			name:     "not a Spark Pod",
+			pod:      pod1,
+			sparkPod: false,
+		},
+		testcase{
+			name:     "a Spark driver Pod",
+			pod:      pod2,
+			sparkPod: true,
+		},
+		testcase{
+			name:     "a Spark executor Pod",
+			pod:      pod3,
+			sparkPod: true,
+		},
+	}
+	for _, test := range testcases {
+		testFn(test, t)
+	}
+}
+
+func TestIsInitializerPresent(t *testing.T) {
+	type testcase struct {
+		name    string
+		pod     *apiv1.Pod
+		present bool
+	}
+	testFn := func(test testcase, t *testing.T) {
+		result := isInitializerPresent(test.pod)
+		if result != test.present {
+			t.Errorf("%s: isInitializerPresent is %v while expectation is %v", test.name, result, test.present)
+		}
+	}
+
+	pod1 := &apiv1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "pod1"}}
+	pod2 := &apiv1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "pod1",
+			Initializers: &metav1.Initializers{
+				Pending: []metav1.Initializer{
+					metav1.Initializer{
+						Name: initializerName,
+					},
+				},
+			},
+		},
+	}
+	testcases := []testcase{
+		testcase{
+			name:    "without the initializer",
+			pod:     pod1,
+			present: false,
+		},
+		testcase{
+			name:    "with the initializer",
+			pod:     pod2,
+			present: true,
+		},
+	}
 	for _, test := range testcases {
 		testFn(test, t)
 	}

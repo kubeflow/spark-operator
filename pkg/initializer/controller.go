@@ -23,11 +23,16 @@ import (
 )
 
 const (
-	InitializerName       = "spark-pod-initializer"
-	InitializerConfigName = "spark-pod-initializer-config"
-	SparkRoleLabel        = "spark-role"
-	SparkDriverRole       = "driver"
-	SparkExecutorRole     = "executor"
+	// InitializerName is the name that will appear in the list of pending initializers in Pod spec.
+	initializerName = "pod-initializer.spark.apache.k8s.io"
+	// InitializerConfigName is the name of the InitializerConfig object.
+	initializerConfigName = "spark-pod-initializer-config"
+	// SparkRoleLabel is an label we use to distinguish Spark pods for other Pods.
+	sparkRoleLabel = "spark-role"
+	// SparkDriverRole is the value of the spark-role label assigned to Spark driver Pods.
+	sparkDriverRole = "driver"
+	// SparkExecutorRole is the value of the spark-role label assigned to Spark executor Pods.
+	sparkExecutorRole = "executor"
 )
 
 // Controller is an initializer controller that watches for uninitialized Spark driver and executor Pods.
@@ -98,7 +103,7 @@ func (ic *Controller) Run(threadiness int, stopCh <-chan struct{}) {
 
 func (ic *Controller) addInitializationConfig() {
 	sparkPodInitializer := v1alpha1.Initializer{
-		Name: InitializerName,
+		Name: initializerName,
 		Rules: []v1alpha1.Rule{
 			{
 				APIGroups:   []string{"*"},
@@ -109,12 +114,12 @@ func (ic *Controller) addInitializationConfig() {
 	}
 	sparkPodInitializerConfig := v1alpha1.InitializerConfiguration{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: InitializerConfigName,
+			Name: initializerConfigName,
 		},
 		Initializers: []v1alpha1.Initializer{sparkPodInitializer},
 	}
 
-	existingConfig, err := ic.kubeClient.AdmissionregistrationV1alpha1().InitializerConfigurations().Get(InitializerConfigName, metav1.GetOptions{})
+	existingConfig, err := ic.kubeClient.AdmissionregistrationV1alpha1().InitializerConfigurations().Get(initializerConfigName, metav1.GetOptions{})
 	if err != nil {
 		if errors.IsNotFound(err) {
 			// InitializerConfig wasn't found.
@@ -130,7 +135,7 @@ func (ic *Controller) addInitializationConfig() {
 		// InitializerConfig was found, check we are in the list.
 		found := false
 		for _, initializer := range existingConfig.Initializers {
-			if initializer.Name == InitializerName {
+			if initializer.Name == initializerName {
 				found = true
 				break
 			}
@@ -235,8 +240,8 @@ func (ic *Controller) addSparkPod(obj interface{}) {
 // TODO: this seems redundant given that the Controller takes in a labelSelector that
 // selects only Pods with the spark-role label.
 func isSparkPod(pod *v1.Pod) bool {
-	sparkRole, ok := pod.Labels[SparkRoleLabel]
-	return ok && (sparkRole == SparkDriverRole || sparkRole == SparkExecutorRole)
+	sparkRole, ok := pod.Labels[sparkRoleLabel]
+	return ok && (sparkRole == sparkDriverRole || sparkRole == sparkExecutorRole)
 }
 
 // isInitializerPresent returns if the list of pending Initializer of the given pod contains an instance of this Initializer.
@@ -246,7 +251,7 @@ func isInitializerPresent(pod *v1.Pod) bool {
 	}
 
 	for _, pending := range pod.Initializers.Pending {
-		if pending.Name == InitializerName {
+		if pending.Name == initializerName {
 			return true
 		}
 	}
@@ -261,7 +266,7 @@ func remoteInitializer(pod *v1.Pod) {
 
 	var updated []metav1.Initializer
 	for _, pending := range pod.Initializers.Pending {
-		if pending.Name != InitializerName {
+		if pending.Name != initializerName {
 			updated = append(updated, pending)
 		}
 	}
