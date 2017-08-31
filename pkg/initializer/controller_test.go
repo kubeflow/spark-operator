@@ -1,6 +1,7 @@
 package initializer
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/liyinan926/spark-operator/pkg/config"
@@ -209,6 +210,83 @@ func TestIsInitializerPresent(t *testing.T) {
 	}
 }
 
+func TestAddPod(t *testing.T) {
+	type testcase struct {
+		name   string
+		pod    *apiv1.Pod
+		queued bool
+	}
+	controller := newFakeController()
+	testFn := func(test testcase, t *testing.T) {
+		controller.addSparkPod(test.pod)
+		if test.queued {
+			key, _ := controller.queue.Get()
+			controller.queue.Done(key)
+			if controller.queue.Len() > 0 {
+				t.Errorf("%s: expected queue to be emptied got %d keys", test.name, controller.queue.Len())
+			}
+		}
+		if !test.queued && controller.queue.Len() > 0 {
+			t.Errorf("%s: expected an empty queue got %d keys", test.name, controller.queue.Len())
+		}
+	}
+
+	pod0 := &apiv1.Pod{}
+	pod1 := &apiv1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Initializers: &metav1.Initializers{
+				Pending: []metav1.Initializer{
+					metav1.Initializer{
+						Name: initializerName,
+					},
+				},
+			},
+		},
+	}
+	pod2 := &apiv1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Labels: map[string]string{sparkRoleLabel: sparkDriverRole},
+		},
+	}
+	pod3 := &apiv1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Labels: map[string]string{sparkRoleLabel: sparkDriverRole},
+			Initializers: &metav1.Initializers{
+				Pending: []metav1.Initializer{
+					metav1.Initializer{
+						Name: initializerName,
+					},
+				},
+			},
+		},
+	}
+	testcases := []testcase{
+		testcase{
+			name:   "non-Spark pod without initializers",
+			pod:    pod0,
+			queued: false,
+		},
+		testcase{
+			name:   "non-Spark pod with the initializer",
+			pod:    pod1,
+			queued: false,
+		},
+		testcase{
+			name:   "Spark pod without the initializer",
+			pod:    pod2,
+			queued: false,
+		},
+		testcase{
+			name:   "Spark pod with the initializer",
+			pod:    pod3,
+			queued: true,
+		},
+	}
+	for _, test := range testcases {
+		testFn(test, t)
+	}
+}
+
 func TestSyncSparkPod(t *testing.T) {
 	type testcase struct {
 		name                string
@@ -258,6 +336,23 @@ func TestSyncSparkPod(t *testing.T) {
 			volumeMount := container.VolumeMounts[i]
 			if volumeMount.Name != test.expectedVolumeNames[i] {
 				t.Errorf("%s: for volume mount name wanted %s got %s", test.name, test.expectedVolumeNames[i], volumeMount.Name)
+			}
+		}
+		for i := 0; i < len(container.VolumeMounts); i++ {
+			volumeMount := container.VolumeMounts[i]
+			if volumeMount.Name == config.SparkConfigMapVolumeName {
+				if !hasEnvVar(config.SparkConfDirEnvVar, volumeMount.MountPath, container.Env) {
+					t.Errorf("expected environment variable %s but not found", config.SparkConfDirEnvVar)
+				}
+			} else if volumeMount.Name == config.HadoopConfigMapVolumeName {
+				if !hasEnvVar(config.HadoopConfDirEnvVar, volumeMount.MountPath, container.Env) {
+					t.Errorf("expected environment variable %s but not found", config.HadoopConfDirEnvVar)
+				}
+			} else if volumeMount.Name == secret.ServiceAccountSecretVolumeName {
+				keyFilePath := fmt.Sprintf("%s/%s", volumeMount.MountPath, secret.ServiceAccountJSONKeyFileName)
+				if !hasEnvVar(secret.GoogleApplicationCredentialsEnvVar, keyFilePath, container.Env) {
+					t.Errorf("expected environment variable %s but not found", secret.GoogleApplicationCredentialsEnvVar)
+				}
 			}
 		}
 	}
@@ -370,4 +465,13 @@ func TestSyncSparkPod(t *testing.T) {
 
 func newFakeController() *Controller {
 	return NewController(fake.NewSimpleClientset())
+}
+
+func hasEnvVar(name, value string, envVars []apiv1.EnvVar) bool {
+	for _, envVar := range envVars {
+		if envVar.Name == name && envVar.Value == value {
+			return true
+		}
+	}
+	return false
 }
