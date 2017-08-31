@@ -1,11 +1,15 @@
 package main
 
 import (
-	"context"
 	"flag"
-	"fmt"
+	"os"
+	"os/signal"
+	"syscall"
+
+	"github.com/golang/glog"
 
 	"github.com/liyinan926/spark-operator/pkg/controller"
+	"github.com/liyinan926/spark-operator/pkg/crd"
 	"github.com/liyinan926/spark-operator/pkg/initializer"
 
 	clientset "k8s.io/client-go/kubernetes"
@@ -17,7 +21,10 @@ import (
 
 func main() {
 	kubeconfig := flag.String("kubeconfig", "", "Path to a kube config. Only required if out-of-cluster.")
+	initializerThreads := flag.Int("initializer-threads", 10, "Number of worker threads in the initializer controller.")
 	flag.Parse()
+
+	glog.Info("Starting the Spark operator...")
 
 	// Create the client config. Use kubeconfig if given, otherwise assume in-cluster.
 	config, err := buildConfig(*kubeconfig)
@@ -34,13 +41,21 @@ func main() {
 		panic(err)
 	}
 
+	stopCh := make(chan struct{})
+
 	appController := controller.NewSparkApplicationController(crdClient, kubeClient)
-	ctx, cancelFunc := context.WithCancel(context.Background())
-	defer cancelFunc()
-	go appController.Run(ctx)
+	go appController.Run(stopCh)
 
 	initializerController := initializer.NewController(kubeClient)
-	go initializerController.Run(1, ctx.Done())
+	go initializerController.Run(*initializerThreads, stopCh)
+
+	signalCh := make(chan os.Signal, 1)
+	signal.Notify(signalCh, syscall.SIGINT, syscall.SIGTERM)
+	<-signalCh
+
+	glog.Info("Shutting down the Spark operator...")
+	// This causes the custom controller and initializer to stop.
+	close(stopCh)
 }
 
 func buildConfig(kubeconfig string) (*rest.Config, error) {

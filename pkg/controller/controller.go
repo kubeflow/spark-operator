@@ -1,7 +1,6 @@
 package controller
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/golang/glog"
@@ -35,18 +34,17 @@ func NewSparkApplicationController(crdClient *crd.Client, kubeClient clientset.I
 }
 
 // Run starts the SparkApplicationController by registering a watcher for SparkApplication objects.
-func (s *SparkApplicationController) Run(ctx context.Context) error {
-	_, err := s.watchSparkApplications(ctx)
+func (s *SparkApplicationController) Run(stopCh <-chan struct{}) {
+	_, err := s.watchSparkApplications(stopCh)
 	if err != nil {
 		glog.Errorf("Failed to register watch for SparkApplication resource: %v\n", err)
-		return err
+		return
 	}
 
-	<-ctx.Done()
-	return ctx.Err()
+	<-stopCh
 }
 
-func (s *SparkApplicationController) watchSparkApplications(ctx context.Context) (cache.Controller, error) {
+func (s *SparkApplicationController) watchSparkApplications(stopCh <-chan struct{}) (cache.Controller, error) {
 	source := cache.NewListWatchFromClient(
 		s.crdClient.Client,
 		crd.CRDPlural,
@@ -66,7 +64,7 @@ func (s *SparkApplicationController) watchSparkApplications(ctx context.Context)
 			DeleteFunc: s.onDelete,
 		})
 
-	go controller.Run(ctx.Done())
+	go controller.Run(stopCh)
 	return controller, nil
 }
 
