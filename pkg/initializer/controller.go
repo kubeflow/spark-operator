@@ -141,7 +141,9 @@ func (ic *Controller) addInitializationConfig() {
 				break
 			}
 		}
-		if !found {
+		if found {
+			glog.Infof("InitializerConfiguration %s for initializer %s already exists", initializerConfigName, initializerName)
+		} else {
 			existingConfig.Initializers = append(existingConfig.Initializers, sparkPodInitializer)
 			_, err = ic.kubeClient.AdmissionregistrationV1alpha1().InitializerConfigurations().Update(existingConfig)
 			if err != nil {
