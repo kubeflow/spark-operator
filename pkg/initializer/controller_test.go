@@ -2,6 +2,7 @@ package initializer
 
 import (
 	"fmt"
+	"reflect"
 	"testing"
 
 	"github.com/liyinan926/spark-operator/pkg/config"
@@ -456,6 +457,68 @@ func TestSyncSparkPod(t *testing.T) {
 			pod:                 pod5,
 			expectedVolumeNames: []string{secret.ServiceAccountSecretVolumeName},
 			expectedObjectNames: []string{"gcp-service-account"},
+		},
+	}
+	for _, test := range testcases {
+		testFn(test, t)
+	}
+}
+
+func TestAddOwnerReference(t *testing.T) {
+	type testcase struct {
+		name                   string
+		pod                    *apiv1.Pod
+		hasOwnerReference      bool
+		expectedOwnerReference *metav1.OwnerReference
+	}
+
+	testFn := func(test testcase, t *testing.T) {
+		addOwnerReference(test.pod)
+		if test.hasOwnerReference {
+			if len(test.pod.ObjectMeta.OwnerReferences) != 1 {
+				t.Errorf("%s: expected one OwnerReference got %d", test.name, len(test.pod.ObjectMeta.OwnerReferences))
+			} else {
+				ownerReference := test.pod.ObjectMeta.OwnerReferences[0]
+				if !reflect.DeepEqual(ownerReference, *test.expectedOwnerReference) {
+					t.Errorf("%s: actual OwnerReference %v and expected one %v are not equal", test.name, ownerReference, *test.expectedOwnerReference)
+				}
+			}
+		}
+		if !test.hasOwnerReference && len(test.pod.ObjectMeta.OwnerReferences) > 0 {
+			t.Errorf("%s: expected no OwnerReference got %d", test.name, len(test.pod.ObjectMeta.OwnerReferences))
+		}
+	}
+
+	pod0 := &apiv1.Pod{}
+	ownerReference := metav1.OwnerReference{
+		APIVersion: "v1alpha1",
+		Kind:       "SparkApp",
+		Name:       "TestSparkApp",
+		Controller: new(bool),
+	}
+	ownerReferenceBytes, err := ownerReference.Marshal()
+	if err != nil {
+		t.Fatal(err)
+	}
+	pod1 := &apiv1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Annotations: map[string]string{
+				config.OwnerReferenceAnnotation: string(ownerReferenceBytes),
+			},
+		},
+	}
+	testcases := []testcase{
+		testcase{
+			name:                   "Pod without OwnerReference annotation",
+			pod:                    pod0,
+			hasOwnerReference:      false,
+			expectedOwnerReference: nil,
+		},
+		testcase{
+			name:                   "Pod with OwnerReference annotation",
+			pod:                    pod1,
+			hasOwnerReference:      true,
+			expectedOwnerReference: &ownerReference,
 		},
 	}
 	for _, test := range testcases {

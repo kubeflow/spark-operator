@@ -20,7 +20,7 @@ const (
 	CRDPlural   = "sparkapps"
 	CRDSingular = "sparkapp"
 	CRDKind     = "SparkApp"
-	CRDGroup    = "spark-operator"
+	CRDGroup    = "spark.apache.k8s.io"
 	CRDVersion  = "v1alpha1"
 	CRDFullName = CRDPlural + "." + CRDGroup
 )

@@ -201,6 +201,7 @@ func (ic *Controller) syncSparkPod(pod *apiv1.Pod) error {
 	// We assume that the first container is the Spark container.
 	appContainer := &podCopy.Spec.Containers[0]
 
+	addOwnerReference(podCopy)
 	handleConfigMaps(podCopy, appContainer)
 	handleSecrets(podCopy, appContainer)
 
@@ -271,6 +272,18 @@ func handleSecrets(pod *apiv1.Pod, container *apiv1.Container) {
 	if ok {
 		secret.AddSecretVolumeToPod(secret.ServiceAccountSecretVolumeName, gcpServiceAccountSecretName, pod)
 		secret.MountServiceAccountSecretToContainer(secret.ServiceAccountSecretVolumeName, container)
+	}
+}
+
+func addOwnerReference(pod *apiv1.Pod) {
+	ownerReferenceStr, ok := pod.Annotations[config.OwnerReferenceAnnotation]
+	if ok {
+		ownerReference := &metav1.OwnerReference{}
+		err := ownerReference.Unmarshal([]byte(ownerReferenceStr))
+		if err != nil {
+			glog.Errorf("Failed to add OwnerReference to Pod %s: %v", pod.Name, err)
+		}
+		pod.ObjectMeta.OwnerReferences = append(pod.ObjectMeta.OwnerReferences, *ownerReference)
 	}
 }
 
