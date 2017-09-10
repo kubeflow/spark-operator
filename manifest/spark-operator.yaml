@@ -1,0 +1,22 @@
+apiVersion: apps/v1beta1
+kind: Deployment
+metadata:
+  name: spark-operator
+  namespace: default
+  labels:
+    app: spark-operator
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: spark-operator
+  template:
+    metadata:
+      labels:
+        app: spark-operator
+    spec:
+      serviceAccountName: spark-operator
+      containers:
+      - name: spark-operator
+        image: gcr.io/ynli-k8s/spark-operator:latest
+        command: ["/usr/bin/spark-operator"]
