@@ -1,0 +1,35 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: spark-operator
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: spark-operator
+  namespace: spark-operator
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRole
+metadata:
+  name: spark-operator
+rules:
+- apiGroups:
+  - "*"
+  resources:
+  - "*"
+  verbs:
+  - "*"
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRoleBinding
+metadata:
+  name: spark-operator
+subjects:
+- kind: ServiceAccount
+  name: spark-operator
+  namespace: spark-operator
+roleRef:
+  kind: ClusterRole
+  name: spark-operator
+  apiGroup: rbac.authorization.k8s.io

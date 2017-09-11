@@ -2,7 +2,7 @@ apiVersion: apps/v1beta1
 kind: Deployment
 metadata:
   name: spark-operator
-  namespace: default
+  namespace: spark-operator
   labels:
     app: spark-operator
 spec:
