@@ -8,8 +8,6 @@ import (
 
 	"github.com/golang/glog"
 
-	"github.com/liyinan926/spark-operator/pkg/controller"
-	"github.com/liyinan926/spark-operator/pkg/crd"
 	"github.com/liyinan926/spark-operator/pkg/initializer"
 
 	clientset "k8s.io/client-go/kubernetes"
@@ -36,15 +34,8 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	crdClient, err := crd.NewClient(config)
-	if err != nil {
-		panic(err)
-	}
 
 	stopCh := make(chan struct{})
-
-	appController := controller.NewSparkApplicationController(crdClient, kubeClient)
-	go appController.Run(stopCh)
 
 	initializerController := initializer.NewController(kubeClient)
 	go initializerController.Run(*initializerThreads, stopCh)

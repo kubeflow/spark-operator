@@ -13,6 +13,7 @@ import (
 	apiv1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -57,19 +58,26 @@ func NewController(kubeClient clientset.Interface) *Controller {
 		queue:      workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "spark-initializer"),
 	}
 	controller.syncHandler = controller.syncSparkPod
-	_, controller.sparkPodController = cache.NewInformer(
-		&cache.ListWatch{
-			ListFunc: func(options metav1.ListOptions) (runtime.Object, error) {
-				options.IncludeUninitialized = true
-				return kubeClient.CoreV1().Pods("").List(options)
-			},
-			WatchFunc: func(options metav1.ListOptions) (watch.Interface, error) {
-				options.IncludeUninitialized = true
-				return kubeClient.CoreV1().Pods("").Watch(options)
-			},
+
+	restClient := kubeClient.CoreV1().RESTClient()
+	watchlist := cache.NewListWatchFromClient(restClient, "pods", apiv1.NamespaceAll, fields.Everything())
+	// Wrap the returned watchlist to workaround the inability to include
+	// the `IncludeUninitialized` list option when setting up watch clients.
+	includeUninitializedWatchlist := &cache.ListWatch{
+		ListFunc: func(options metav1.ListOptions) (runtime.Object, error) {
+			options.IncludeUninitialized = true
+			return watchlist.List(options)
 		},
+		WatchFunc: func(options metav1.ListOptions) (watch.Interface, error) {
+			options.IncludeUninitialized = true
+			return watchlist.Watch(options)
+		},
+	}
+
+	_, controller.sparkPodController = cache.NewInformer(
+		includeUninitializedWatchlist,
 		&apiv1.Pod{},
-		0,
+		30*time.Second,
 		cache.ResourceEventHandlerFuncs{
 			AddFunc: controller.addSparkPod,
 		},
@@ -86,12 +94,13 @@ func (ic *Controller) Run(threadiness int, stopCh <-chan struct{}) {
 	glog.Infof("Starting the Spark Pod initializer controller")
 	defer glog.Infof("Shutting down the Spark Pod initializer controller")
 
-	if !cache.WaitForCacheSync(stopCh, ic.sparkPodController.HasSynced) {
-		return
-	}
-
+	glog.Info("Adding the InitializerConfiguration...")
 	ic.addInitializationConfig()
 
+	glog.Info("Starting the Pod controller...")
+	go ic.sparkPodController.Run(stopCh)
+
+	glog.Info("Starting the workers of the Spark Pod initializer controller...")
 	// Start up worker threads based on threadiness.
 	for i := 0; i < threadiness; i++ {
 		// runWorker will loop until "something bad" happens. Until will then rekick
@@ -142,7 +151,7 @@ func (ic *Controller) addInitializationConfig() {
 			}
 		}
 		if found {
-			glog.Infof("InitializerConfiguration %s for initializer %s already exists", initializerConfigName, initializerName)
+			glog.Warning("InitializerConfiguration %s for initializer %s already exists", initializerConfigName, initializerName)
 		} else {
 			existingConfig.Initializers = append(existingConfig.Initializers, sparkPodInitializer)
 			_, err = ic.kubeClient.AdmissionregistrationV1alpha1().InitializerConfigurations().Update(existingConfig)

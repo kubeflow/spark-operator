@@ -2,7 +2,7 @@ apiVersion: apps/v1beta1
 kind: Deployment
 metadata:
   name: spark-operator
-  namespace: spark-operator
+  namespace: default
   labels:
     app: spark-operator
 spec:
@@ -15,8 +15,9 @@ spec:
       labels:
         app: spark-operator
     spec:
-      serviceAccountName: spark-operator
       containers:
       - name: spark-operator
-        image: gcr.io/ynli-k8s/spark-operator:latest
+        image: liyinan926/spark-operator:latest
         command: ["/usr/bin/spark-operator"]
+        args:
+        - --logtostderr
