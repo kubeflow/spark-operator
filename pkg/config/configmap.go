@@ -14,12 +14,11 @@ import (
 )
 
 // AddConfigMapAnnotation adds an annotation key=value using the --conf option.
-func AddConfigMapAnnotation(app *v1alpha1.SparkApplication, annotationConfKey string, key string, value string) {
-	annotations, ok := app.Spec.SparkConf[annotationConfKey]
-	if ok {
-		app.Spec.SparkConf[annotationConfKey] = fmt.Sprintf("%s,%s=%s", annotations, key, value)
-	} else {
-		app.Spec.SparkConf[annotationConfKey] = fmt.Sprintf("%s=%s", key, value)
+func AddConfigMapAnnotation(app *v1alpha1.SparkApplication, annotationKeyPrefix string, key string, value string) {
+	annotationConfKey := fmt.Sprintf("%s.%s", annotationKeyPrefix, key)
+	_, ok := app.Spec.SparkConf[annotationConfKey]
+	if !ok {
+		app.Spec.SparkConf[annotationConfKey] = value
 	}
 }
 
@@ -31,8 +30,8 @@ func CreateSparkConfigMap(sparkConfDir string, namespace string, app *v1alpha1.S
 	}
 
 	// Add an annotation to the driver and executor Pods so the initializer gets informed.
-	AddConfigMapAnnotation(app, SparkDriverAnnotationsKey, SparkConfigMapAnnotation, name)
-	AddConfigMapAnnotation(app, SparkExecutorAnnotationsKey, SparkConfigMapAnnotation, name)
+	AddConfigMapAnnotation(app, SparkDriverAnnotationKeyPrefix, SparkConfigMapAnnotation, name)
+	AddConfigMapAnnotation(app, SparkExecutorAnnotationKeyPrefix, SparkConfigMapAnnotation, name)
 	// Update the Spec to include the name of the newly created ConfigMap.
 	app.Spec.SparkConfigMap = new(string)
 	*app.Spec.SparkConfigMap = name
@@ -48,8 +47,8 @@ func CreateHadoopConfigMap(hadoopConfDir string, namespace string, app *v1alpha1
 	}
 
 	// Add an annotation to the driver and executor Pods so the initializer gets informed.
-	AddConfigMapAnnotation(app, SparkDriverAnnotationsKey, HadoopConfigMapAnnotation, name)
-	AddConfigMapAnnotation(app, SparkExecutorAnnotationsKey, HadoopConfigMapAnnotation, name)
+	AddConfigMapAnnotation(app, SparkDriverAnnotationKeyPrefix, HadoopConfigMapAnnotation, name)
+	AddConfigMapAnnotation(app, SparkExecutorAnnotationKeyPrefix, HadoopConfigMapAnnotation, name)
 	// Update the Spec to include the name of the newly created ConfigMap.
 	app.Spec.HadoopConfigMap = new(string)
 	*app.Spec.HadoopConfigMap = name

@@ -55,10 +55,10 @@ const (
 	// ExecutorEnvVarConfigKeyPrefix is the Spark configruation prefix for setting environment variables
 	// into the executor.
 	ExecutorEnvVarConfigKeyPrefix = "spark.executorEnv."
-	// SparkDriverAnnotationsKey is the Spark configuation key for annotations on the driver Pod.
-	SparkDriverAnnotationsKey = "spark.kubernetes.driver.annotations"
-	// SparkExecutorAnnotationsKey is the Spark configuation key for annotations on the executor Pod.
-	SparkExecutorAnnotationsKey = "spark.kubernetes.executor.annotations"
+	// SparkDriverAnnotationKeyPrefix is the Spark configuation key prefix for annotations on the driver Pod.
+	SparkDriverAnnotationKeyPrefix = "spark.kubernetes.driver.annotations."
+	// SparkExecutorAnnotationKeyPrefix is the Spark configuation key prefix for annotations on the executor Pod.
+	SparkExecutorAnnotationKeyPrefix = "spark.kubernetes.executor.annotations."
 	// SparkConfDirEnvVar is the environment variable to add to the driver and executor Pods that point
 	// to the directory where the Spark ConfigMap is mounted.
 	SparkConfDirEnvVar = "SPARK_CONF_DIR"
