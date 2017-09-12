@@ -36,9 +36,10 @@ func main() {
 	}
 
 	stopCh := make(chan struct{})
+	errCh := make(chan error)
 
 	initializerController := initializer.NewController(kubeClient)
-	go initializerController.Run(*initializerThreads, stopCh)
+	go initializerController.Run(*initializerThreads, stopCh, errCh)
 
 	signalCh := make(chan os.Signal, 1)
 	signal.Notify(signalCh, syscall.SIGINT, syscall.SIGTERM)
@@ -47,6 +48,11 @@ func main() {
 	glog.Info("Shutting down the Spark operator...")
 	// This causes the custom controller and initializer to stop.
 	close(stopCh)
+
+	err = <-errCh
+	if err != nil {
+		glog.Errorf("Spark operator failed with error: %v", err)
+	}
 }
 
 func buildConfig(kubeconfig string) (*rest.Config, error) {
