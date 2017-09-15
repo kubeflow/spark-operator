@@ -9,11 +9,12 @@ import (
 	"github.com/liyinan926/spark-operator/pkg/secret"
 
 	apiv1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
 )
 
-func TestAddInitializationConfig(t *testing.T) {
+func TestAddAndDeleteInitializationConfig(t *testing.T) {
 	controller := newFakeController()
 	client := controller.kubeClient.AdmissionregistrationV1alpha1()
 
@@ -41,6 +42,14 @@ func TestAddInitializationConfig(t *testing.T) {
 	}
 	if len(list.Items) != 1 {
 		t.Errorf("unexpected number of items wanted 1 got %d", len(list.Items))
+	}
+
+	controller.deleteInitializationConfig()
+	_, err = client.InitializerConfigurations().Get(initializerConfigName, metav1.GetOptions{})
+	if err != nil {
+		if !errors.IsNotFound(err) {
+			t.Error(err)
+		}
 	}
 }
 
