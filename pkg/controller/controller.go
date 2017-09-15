@@ -10,6 +10,7 @@ import (
 	"github.com/liyinan926/spark-operator/pkg/util"
 
 	apiv1 "k8s.io/api/core/v1"
+	apiextensionsclient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	"k8s.io/apimachinery/pkg/fields"
 	clientset "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
@@ -19,14 +20,19 @@ import (
 type SparkApplicationController struct {
 	crdClient        *crd.Client
 	kubeClient       clientset.Interface
+	extensionsClient apiextensionsclient.Interface
 	submissionClient *submission.SparkSubmissionClient
 }
 
 // NewSparkApplicationController creates a new SparkApplicationController.
-func NewSparkApplicationController(crdClient *crd.Client, kubeClient clientset.Interface) *SparkApplicationController {
+func NewSparkApplicationController(
+	crdClient *crd.Client,
+	kubeClient clientset.Interface,
+	extensionsClient apiextensionsclient.Interface) *SparkApplicationController {
 	return &SparkApplicationController{
-		crdClient:  crdClient,
-		kubeClient: kubeClient,
+		crdClient:        crdClient,
+		kubeClient:       kubeClient,
+		extensionsClient: extensionsClient,
 		submissionClient: &submission.SparkSubmissionClient{
 			KubeClient: kubeClient,
 		},
@@ -35,7 +41,13 @@ func NewSparkApplicationController(crdClient *crd.Client, kubeClient clientset.I
 
 // Run starts the SparkApplicationController by registering a watcher for SparkApplication objects.
 func (s *SparkApplicationController) Run(stopCh <-chan struct{}) {
-	_, err := s.watchSparkApplications(stopCh)
+	err := crd.CreateCRD(s.extensionsClient)
+	if err != nil {
+		glog.Errorf("Failed to create the CustomResourceDefinition for SparkApplication: %v", err)
+		return
+	}
+
+	_, err = s.watchSparkApplications(stopCh)
 	if err != nil {
 		glog.Errorf("Failed to register watch for SparkApplication resource: %v\n", err)
 		return

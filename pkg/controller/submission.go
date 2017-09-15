@@ -37,12 +37,12 @@ func buildSubmissionCommand(app *v1alpha1.SparkApplication) (string, error) {
 		command += fmt.Sprintf(" --py-files %s", strings.Join(app.Spec.Deps.PyFiles, ","))
 	}
 	if app.Spec.SparkConfigMap != nil {
-		config.AddConfigMapAnnotation(app, config.SparkDriverAnnotationsKey, config.SparkConfigMapAnnotation, *app.Spec.SparkConfigMap)
-		config.AddConfigMapAnnotation(app, config.SparkExecutorAnnotationsKey, config.SparkConfigMapAnnotation, *app.Spec.SparkConfigMap)
+		config.AddConfigMapAnnotation(app, config.SparkDriverAnnotationKeyPrefix, config.SparkConfigMapAnnotation, *app.Spec.SparkConfigMap)
+		config.AddConfigMapAnnotation(app, config.SparkExecutorAnnotationKeyPrefix, config.SparkConfigMapAnnotation, *app.Spec.SparkConfigMap)
 	}
 	if app.Spec.HadoopConfigMap != nil {
-		config.AddConfigMapAnnotation(app, config.SparkDriverAnnotationsKey, config.HadoopConfigMapAnnotation, *app.Spec.HadoopConfigMap)
-		config.AddConfigMapAnnotation(app, config.SparkExecutorAnnotationsKey, config.HadoopConfigMapAnnotation, *app.Spec.HadoopConfigMap)
+		config.AddConfigMapAnnotation(app, config.SparkDriverAnnotationKeyPrefix, config.HadoopConfigMapAnnotation, *app.Spec.HadoopConfigMap)
+		config.AddConfigMapAnnotation(app, config.SparkExecutorAnnotationKeyPrefix, config.HadoopConfigMapAnnotation, *app.Spec.HadoopConfigMap)
 	}
 	// Add Spark configuration properties.
 	for key, value := range app.Spec.SparkConf {
