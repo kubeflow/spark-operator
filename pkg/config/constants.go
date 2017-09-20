@@ -17,6 +17,12 @@ const (
 	HadoopConfigMapNamePrefix = "hadoop-config-map"
 	// HadoopConfigMapVolumeName is the name of the ConfigMap volume of Hadoop configuration files.
 	HadoopConfigMapVolumeName = "hadoop-config-map-volume"
+	// SparkConfDirEnvVar is the environment variable to add to the driver and executor Pods that point
+	// to the directory where the Spark ConfigMap is mounted.
+	SparkConfDirEnvVar = "SPARK_CONF_DIR"
+	// HadoopConfDirEnvVar is the environment variable to add to the driver and executor Pods that point
+	// to the directory where the Hadoop ConfigMap is mounted.
+	HadoopConfDirEnvVar = "HADOOP_CONF_DIR"
 )
 
 const (
@@ -59,10 +65,4 @@ const (
 	SparkDriverAnnotationKeyPrefix = "spark.kubernetes.driver.annotations."
 	// SparkExecutorAnnotationKeyPrefix is the Spark configuation key prefix for annotations on the executor Pod.
 	SparkExecutorAnnotationKeyPrefix = "spark.kubernetes.executor.annotations."
-	// SparkConfDirEnvVar is the environment variable to add to the driver and executor Pods that point
-	// to the directory where the Spark ConfigMap is mounted.
-	SparkConfDirEnvVar = "SPARK_CONF_DIR"
-	// HadoopConfDirEnvVar is the environment variable to add to the driver and executor Pods that point
-	// to the directory where the Hadoop ConfigMap is mounted.
-	HadoopConfDirEnvVar = "HADOOP_CONF_DIR"
 )

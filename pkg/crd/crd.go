@@ -16,11 +16,12 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 )
 
+// CRD metadata.
 const (
 	CRDPlural   = "sparkapps"
 	CRDSingular = "sparkapp"
 	CRDKind     = "SparkApp"
-	CRDGroup    = "spark.apache.k8s.io"
+	CRDGroup    = v1alpha1.GroupName
 	CRDVersion  = "v1alpha1"
 	CRDFullName = CRDPlural + "." + CRDGroup
 )

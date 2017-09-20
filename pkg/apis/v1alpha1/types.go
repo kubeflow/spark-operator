@@ -15,6 +15,18 @@ const (
 	RApplocationType      SparkApplicationType = "R"
 )
 
+// DeployMode describes the type of deployment of a Spark application.
+type DeployMode string
+
+// Different types of deployments.
+const (
+	ClusterMode         DeployMode = "cluster"
+	ClientMode          DeployMode = "client"
+	InClusterClientMode DeployMode = "in-cluster-client"
+)
+
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
 // SparkApplication represents a Spark application running on and using Kubernetes as a cluster manager.
 type SparkApplication struct {
 	metav1.TypeMeta   `json:",inline"`
@@ -28,6 +40,8 @@ type SparkApplication struct {
 type SparkApplicationSpec struct {
 	// Type tells the type of the Spark application.
 	Type SparkApplicationType `jason:"type"`
+	// Mode is the deployment mode of the Spark application.
+	Mode DeployMode `jason:"mode"`
 	// MainClass is the fully-qualified main class of the Spark application.
 	// This only applies to Java/Scala Spark applications.
 	MainClass *string `jason:"mainClass,omitempty"`
@@ -38,7 +52,7 @@ type SparkApplicationSpec struct {
 	// SparkConf carries the user-specified Spark configuration properties as they would use the "--conf" option in spark-submit.
 	SparkConf map[string]string `jason:"sparkConf,omitempty"`
 	// SparkConfigMap carries the name of the ConfigMap containing Spark configuration files such as log4j.properties.
-	// The controller will add environment variable HADOOP_CONF_DIR to the path where the ConfigMap is mounted to.
+	// The controller will add environment variable SPARK_CONF_DIR to the path where the ConfigMap is mounted to.
 	SparkConfigMap *string `jason:"sparkConigMap,omitempty"`
 	// HadoopConfigMap carries the name of the ConfigMap containing Hadoop configuration files such as core-site.xml.
 	// The controller will add environment variable HADOOP_CONF_DIR to the path where the ConfigMap is mounted to.
@@ -52,7 +66,7 @@ type SparkApplicationSpec struct {
 	// LogsLocation is the location where application logs get written to on local file system.
 	// This is only applicable if application logs are not written to stdout/stderr.
 	LogsLocation *string `jason:"logsLocation,omitempty"`
-	// SubmissionByUser indicates if the application is to be submitted by the user using the command-line tool.
+	// SubmissionByUser indicates if the application is to be submitted by the user.
 	// The custom controller should not submit the application on behalf of the user if this is true.
 	// It defaults to false.
 	SubmissionByUser bool `jason:"submissionByUser"`
@@ -99,6 +113,8 @@ type SparkApplicationStatus struct {
 	// ExecutorState records the state of executors by executor Pod names.
 	ExecutorState map[string]ExecutorState `json:"executorState"`
 }
+
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // SparkApplicationList carries a list of SparkApplication objects.
 type SparkApplicationList struct {
