@@ -1,6 +1,7 @@
 package initializer
 
 import (
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -15,7 +16,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
+	"k8s.io/apimachinery/pkg/util/strategicpatch"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/apimachinery/pkg/watch"
 	clientset "k8s.io/client-go/kubernetes"
@@ -232,21 +235,21 @@ func (ic *Controller) syncSparkPod(pod *apiv1.Pod) error {
 	if err != nil {
 		return err
 	}
-	podCopy := copy.(*apiv1.Pod)
-	if len(podCopy.Spec.Containers) <= 0 {
-		return fmt.Errorf("No container found in Pod %s", podCopy.Name)
+	modifiedPod := copy.(*apiv1.Pod)
+	if len(modifiedPod.Spec.Containers) <= 0 {
+		return fmt.Errorf("No container found in Pod %s", modifiedPod.Name)
 	}
 	// We assume that the first container is the Spark container.
-	appContainer := &podCopy.Spec.Containers[0]
+	appContainer := &modifiedPod.Spec.Containers[0]
 
 	// Perform the initialization tasks.
-	addOwnerReference(podCopy)
-	handleConfigMaps(podCopy, appContainer)
-	handleSecrets(podCopy, appContainer)
+	addOwnerReference(modifiedPod)
+	handleConfigMaps(modifiedPod, appContainer)
+	handleSecrets(modifiedPod, appContainer)
 	// Remove this initializer from the list of pending intializers and update the Pod.
-	remoteInitializer(podCopy)
+	remoteInitializer(modifiedPod)
 
-	return updatePod(podCopy, ic.kubeClient)
+	return patchPod(pod, modifiedPod, ic.kubeClient)
 }
 
 // addSparkPod is the callback function called when an event for a new Pod is informed.
@@ -370,5 +373,27 @@ func updatePod(newPod *apiv1.Pod, clientset clientset.Interface) error {
 	if err != nil {
 		return err
 	}
+	return nil
+}
+
+func patchPod(originalPod, modifiedPod *apiv1.Pod, clientset clientset.Interface) error {
+	originalData, err := json.Marshal(originalPod)
+	if err != nil {
+		return err
+	}
+	modifiedData, err := json.Marshal(modifiedPod)
+	if err != nil {
+		return err
+	}
+
+	patch, err := strategicpatch.CreateTwoWayMergePatch(originalData, modifiedData, apiv1.Pod{})
+	if err != nil {
+		return err
+	}
+	_, err = clientset.CoreV1().Pods(originalPod.Namespace).Patch(originalPod.Name, types.StrategicMergePatchType, patch)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }

@@ -314,31 +314,31 @@ func TestSyncSparkPod(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		updatedPod, err := controller.kubeClient.CoreV1().Pods(test.pod.Namespace).Get(test.pod.Name, metav1.GetOptions{})
+		modifiedPod, err := controller.kubeClient.CoreV1().Pods(test.pod.Namespace).Get(test.pod.Name, metav1.GetOptions{})
 		if err != nil {
 			t.Fatal(err)
 		}
-		if len(updatedPod.Spec.Volumes) != len(test.expectedVolumeNames) {
-			t.Errorf("%s: wanted %d volumes got %d", test.name, len(test.expectedVolumeNames), len(updatedPod.Spec.Volumes))
+		if len(modifiedPod.Spec.Volumes) != len(test.expectedVolumeNames) {
+			t.Errorf("%s: wanted %d volumes got %d", test.name, len(test.expectedVolumeNames), len(modifiedPod.Spec.Volumes))
 		}
-		for i := 0; i < len(updatedPod.Spec.Volumes); i++ {
-			name := updatedPod.Spec.Volumes[i].Name
+		for i := 0; i < len(modifiedPod.Spec.Volumes); i++ {
+			name := modifiedPod.Spec.Volumes[i].Name
 			if name != test.expectedVolumeNames[i] {
 				t.Errorf("%s: for ConfigMap volume name wanted %s got %s", test.name, test.expectedVolumeNames[i], name)
 			}
 		}
-		for i := 0; i < len(updatedPod.Spec.Volumes); i++ {
+		for i := 0; i < len(modifiedPod.Spec.Volumes); i++ {
 			var name string
-			if updatedPod.Spec.Volumes[i].ConfigMap != nil {
-				name = updatedPod.Spec.Volumes[i].ConfigMap.LocalObjectReference.Name
-			} else if updatedPod.Spec.Volumes[i].Secret != nil {
-				name = updatedPod.Spec.Volumes[i].Secret.SecretName
+			if modifiedPod.Spec.Volumes[i].ConfigMap != nil {
+				name = modifiedPod.Spec.Volumes[i].ConfigMap.LocalObjectReference.Name
+			} else if modifiedPod.Spec.Volumes[i].Secret != nil {
+				name = modifiedPod.Spec.Volumes[i].Secret.SecretName
 			}
 			if name != test.expectedObjectNames[i] {
 				t.Errorf("%s: for ConfigMap name wanted %s got %s", test.name, test.expectedObjectNames[i], name)
 			}
 		}
-		container := updatedPod.Spec.Containers[0]
+		container := modifiedPod.Spec.Containers[0]
 		if len(container.VolumeMounts) != len(test.expectedVolumeNames) {
 			t.Errorf("%s: wanted %d volumn mounts got %d", test.name, len(test.expectedVolumeNames), len(container.VolumeMounts))
 		}
