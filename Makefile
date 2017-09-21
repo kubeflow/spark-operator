@@ -5,9 +5,10 @@ generate_files:
 
 build: generate_files
 	GOOS=linux go build
+	chmod +x spark-operator
 
 image: build
-	docker build -t liyinan926/spark-operator:latest -f ./Dockerfile .
+	docker build -t $(image-tag) -f ./Dockerfile .
 
 push: image
-	docker push liyinan926/spark-operator:latest
+	docker push $(image-tag)
