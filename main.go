@@ -11,10 +11,9 @@ import (
 	"github.com/liyinan926/spark-operator/pkg/initializer"
 
 	clientset "k8s.io/client-go/kubernetes"
+	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
-	// Uncomment the following line to load the gcp plugin (only required to authenticate against GKE clusters).
-	// _ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 )
 
 func main() {
