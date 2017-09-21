@@ -56,17 +56,18 @@ func CreateHadoopConfigMap(hadoopConfDir string, namespace string, app *v1alpha1
 	return nil
 }
 
-// AddSparkConfigMapVolumeToPod add a ConfigMap volume for Spark configuration files into the given Pod.
+// AddSparkConfigMapVolumeToPod add a ConfigMap volume for Spark configuration files into the given pod.
 func AddSparkConfigMapVolumeToPod(configMapName string, pod *apiv1.Pod) string {
-	return addConfigMapVolumeToPod(configMapName, SparkConfigMapVolumeName, pod)
+	return AddConfigMapVolumeToPod(SparkConfigMapVolumeName, configMapName, pod)
 }
 
-// AddHadoopConfigMapVolumeToPod add a ConfigMap volume for Hadoop configuration files into the given Pod.
+// AddHadoopConfigMapVolumeToPod add a ConfigMap volume for Hadoop configuration files into the given pod.
 func AddHadoopConfigMapVolumeToPod(configMapName string, pod *apiv1.Pod) string {
-	return addConfigMapVolumeToPod(configMapName, HadoopConfigMapVolumeName, pod)
+	return AddConfigMapVolumeToPod(HadoopConfigMapVolumeName, configMapName, pod)
 }
 
-func addConfigMapVolumeToPod(configMapName string, configMapVolumeName string, pod *apiv1.Pod) string {
+// AddConfigMapVolumeToPod adds a ConfigMap volume into the given pod.
+func AddConfigMapVolumeToPod(configMapVolumeName string, configMapName string, pod *apiv1.Pod) string {
 	volume := apiv1.Volume{
 		Name: configMapVolumeName,
 		VolumeSource: apiv1.VolumeSource{

@@ -28,7 +28,7 @@ import (
 
 const (
 	// InitializerName is the name that will appear in the list of pending initializers in Pod spec.
-	initializerName = "pod-initializer.spark.apache.k8s.io"
+	initializerName = "pod-initializer.spark-operator.k8s.io"
 	// InitializerConfigName is the name of the InitializerConfig object.
 	initializerConfigName = "spark-pod-initializer-config"
 	// SparkRoleLabel is an label we use to distinguish Spark pods for other Pods.
@@ -321,11 +321,19 @@ func handleConfigMaps(pod *apiv1.Pod, container *apiv1.Container) {
 }
 
 func handleSecrets(pod *apiv1.Pod, container *apiv1.Container) {
-	gcpServiceAccountSecretName, ok := pod.Annotations[config.GCPServiceAccountSecretAnnotation]
-	if ok {
-		glog.Infof("Mounting GCP service account %s to pod %s", gcpServiceAccountSecretName, pod.Name)
-		secret.AddSecretVolumeToPod(secret.ServiceAccountSecretVolumeName, gcpServiceAccountSecretName, pod)
-		secret.MountServiceAccountSecretToContainer(secret.ServiceAccountSecretVolumeName, container)
+	secretName, mountPath, found := secret.FindGCPServiceAccountSecret(pod.Annotations)
+	if found {
+		glog.Infof("Mounting GCP service account secret %s to pod %s", secretName, pod.Name)
+		secret.AddSecretVolumeToPod(secret.ServiceAccountSecretVolumeName, secretName, pod)
+		secret.MountServiceAccountSecretToContainer(mountPath, container)
+	}
+
+	secrets := secret.FindGeneralSecrets(pod.Annotations)
+	for secretName, mountPath := range secrets {
+		glog.Infof("Mounting secret %s to pod %s", secretName, pod.Name)
+		secretVolumeName := secretName + "-volume"
+		secret.AddSecretVolumeToPod(secretVolumeName, secretName, pod)
+		secret.MountSecretToContainer(secretVolumeName, mountPath, container)
 	}
 }
 
@@ -363,12 +371,12 @@ func remoteInitializer(pod *apiv1.Pod) {
 		pod.Initializers.Pending = updated
 	}
 
-	glog.Infof("Removed initializer on Spark %s pod %s", pod.Labels[sparkRoleLabel], pod.Name)
+	glog.Infof("Removed initializer on pod %s", pod.Name)
 	return
 }
 
 func updatePod(newPod *apiv1.Pod, clientset clientset.Interface) error {
-	glog.Infof("Updating Spark %s pod %s", newPod.Labels[sparkRoleLabel], newPod.Name)
+	glog.Infof("Updating pod %s", newPod.Name)
 	_, err := clientset.CoreV1().Pods(newPod.Namespace).Update(newPod)
 	if err != nil {
 		return err

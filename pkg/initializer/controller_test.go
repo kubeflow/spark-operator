@@ -427,7 +427,7 @@ func TestSyncSparkPod(t *testing.T) {
 			Name:      "pod5",
 			Namespace: "default",
 			Annotations: map[string]string{
-				config.GCPServiceAccountSecretAnnotation: "gcp-service-account",
+				config.GCPServiceAccountSecretAnnotationPrefix + "test": "/etc/secrets",
 			},
 		},
 		Spec: apiv1.PodSpec{
