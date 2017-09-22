@@ -52,11 +52,15 @@ func addKnownTypes(scheme *runtime.Scheme) error {
 }
 
 // Create creates a new SparkApplication through an HTTP POST request.
-func (c *Client) Create(app *v1alpha1.SparkApplication, namespace string) (*v1alpha1.SparkApplication, error) {
+func (c *Client) Create(app *v1alpha1.SparkApplication) (*v1alpha1.SparkApplication, error) {
 	var result v1alpha1.SparkApplication
 	err := c.Client.Post().
-		Namespace(namespace).Resource(CRDPlural).Body(app).
-		Do().Into(&result)
+		Namespace(app.Namespace).
+		Name(app.Name).
+		Resource(CRDPlural).
+		Body(app).
+		Do().
+		Into(&result)
 	if err != nil {
 		return nil, err
 	}
@@ -66,16 +70,24 @@ func (c *Client) Create(app *v1alpha1.SparkApplication, namespace string) (*v1al
 // Delete deletes an existing SparkApplication through an HTTP DELETE request.
 func (c *Client) Delete(name string, namespace string, options metav1.DeleteOptions) error {
 	return c.Client.Delete().
-		Namespace(namespace).Resource(CRDPlural).Name(name).Body(options).
-		Do().Error()
+		Namespace(namespace).
+		Name(name).
+		Resource(CRDPlural).
+		Body(options).
+		Do().
+		Error()
 }
 
 // Update updates an existing SparkApplication through an HTTP PUT request.
-func (c *Client) Update(app *v1alpha1.SparkApplication, namespace string) (*v1alpha1.SparkApplication, error) {
+func (c *Client) Update(app *v1alpha1.SparkApplication) (*v1alpha1.SparkApplication, error) {
 	var result v1alpha1.SparkApplication
 	err := c.Client.Put().
-		Namespace(namespace).Resource(CRDPlural).Body(app).
-		Do().Into(&result)
+		Namespace(app.Namespace).
+		Name(app.Name).
+		Resource(CRDPlural).
+		Body(app).
+		Do().
+		Into(&result)
 	if err != nil {
 		return nil, err
 	}
@@ -85,7 +97,13 @@ func (c *Client) Update(app *v1alpha1.SparkApplication, namespace string) (*v1al
 // Get gets a SparkApplication through an HTTP GET request.
 func (c *Client) Get(name string, namespace string, options metav1.GetOptions) (*v1alpha1.SparkApplication, error) {
 	var result v1alpha1.SparkApplication
-	err := c.Client.Get().Namespace(namespace).Name(name).Body(options).Do().Into(&result)
+	err := c.Client.Get().
+		Namespace(namespace).
+		Name(name).
+		Resource(CRDPlural).
+		Body(options).
+		Do().
+		Into(&result)
 	if err != nil {
 		return nil, err
 	}

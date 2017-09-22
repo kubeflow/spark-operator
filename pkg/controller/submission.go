@@ -15,27 +15,30 @@ const (
 )
 
 func buildSubmissionCommand(app *v1alpha1.SparkApplication) (string, error) {
-	var command string
+	var command = "bin/spark-submit \\\n"
 	if app.Spec.MainClass != nil {
-		command += fmt.Sprintf(" --class %s", *app.Spec.MainClass)
+		command += fmt.Sprintf(" --class %s \\\n", *app.Spec.MainClass)
 	}
 	masterURL, err := getMasterURL()
 	if err != nil {
 		return "", nil
 	}
-	command += fmt.Sprintf(" --master %s", masterURL)
-	command += fmt.Sprintf(" --kubernetes-namespace %s", app.Namespace)
-	command += " --deploy-mode cluster"
+
+	command += fmt.Sprintf(" --master %s \\\n", masterURL)
+	command += fmt.Sprintf(" --kubernetes-namespace %s \\\n", app.Namespace)
+	command += fmt.Sprintf(" --deploy-mode %s \\\n", app.Spec.Mode)
+
 	// Add application dependencies.
 	if len(app.Spec.Deps.JarFiles) > 0 {
-		command += fmt.Sprintf(" --jars %s", strings.Join(app.Spec.Deps.JarFiles, ","))
+		command += fmt.Sprintf(" --jars %s \\\n", strings.Join(app.Spec.Deps.JarFiles, ","))
 	}
 	if len(app.Spec.Deps.JarFiles) > 0 {
-		command += fmt.Sprintf(" --files %s", strings.Join(app.Spec.Deps.Files, ","))
+		command += fmt.Sprintf(" --files %s \\\n", strings.Join(app.Spec.Deps.Files, ","))
 	}
 	if len(app.Spec.Deps.JarFiles) > 0 {
-		command += fmt.Sprintf(" --py-files %s", strings.Join(app.Spec.Deps.PyFiles, ","))
+		command += fmt.Sprintf(" --py-files %s \\\n", strings.Join(app.Spec.Deps.PyFiles, ","))
 	}
+
 	if app.Spec.SparkConfigMap != nil {
 		config.AddConfigMapAnnotation(app, config.SparkDriverAnnotationKeyPrefix, config.SparkConfigMapAnnotation, *app.Spec.SparkConfigMap)
 		config.AddConfigMapAnnotation(app, config.SparkExecutorAnnotationKeyPrefix, config.SparkConfigMapAnnotation, *app.Spec.SparkConfigMap)
@@ -44,10 +47,12 @@ func buildSubmissionCommand(app *v1alpha1.SparkApplication) (string, error) {
 		config.AddConfigMapAnnotation(app, config.SparkDriverAnnotationKeyPrefix, config.HadoopConfigMapAnnotation, *app.Spec.HadoopConfigMap)
 		config.AddConfigMapAnnotation(app, config.SparkExecutorAnnotationKeyPrefix, config.HadoopConfigMapAnnotation, *app.Spec.HadoopConfigMap)
 	}
+
 	// Add Spark configuration properties.
 	for key, value := range app.Spec.SparkConf {
-		command += fmt.Sprintf(" --conf %s=%s", key, value)
+		command += fmt.Sprintf(" --conf %s=%s \\\n", key, value)
 	}
+
 	// Add driver and executor environment variables using the --conf option.
 	for _, conf := range getDriverEnvVarConfOptions(app) {
 		command += conf
@@ -55,6 +60,15 @@ func buildSubmissionCommand(app *v1alpha1.SparkApplication) (string, error) {
 	for _, conf := range getExecutorEnvVarConfOptions(app) {
 		command += conf
 	}
+
+	// Add driver and executor secret annotations using the --conf option.
+	for _, conf := range getDriverSecretConfOptions(app) {
+		command += conf
+	}
+	for _, conf := range getExecutorSecretConfOptions(app) {
+		command += conf
+	}
+
 	// Add the main application file.
 	command += " " + app.Spec.MainApplicationFile
 	// Add application arguments.
@@ -76,10 +90,54 @@ func getMasterURL() (string, error) {
 	return fmt.Sprintf("k8s://%s:%s", kubernetesServiceHost, kubernetesServicePort), nil
 }
 
+func getDriverSecretConfOptions(app *v1alpha1.SparkApplication) []string {
+	var secretConfs []string
+	for _, secret := range app.Spec.Driver.DriverSecrets {
+		if secret.Type == v1alpha1.GCPServiceAccountSecret {
+			conf := fmt.Sprintf(" --conf %s%s%s=%s \\\n",
+				config.SparkDriverAnnotationKeyPrefix,
+				config.GCPServiceAccountSecretAnnotationPrefix,
+				secret.Name,
+				secret.Path)
+			secretConfs = append(secretConfs, conf)
+		} else {
+			conf := fmt.Sprintf(" --conf %s%s%s=%s \\\n",
+				config.SparkDriverAnnotationKeyPrefix,
+				config.GeneralSecretsAnnotationPrefix,
+				secret.Name,
+				secret.Path)
+			secretConfs = append(secretConfs, conf)
+		}
+	}
+	return secretConfs
+}
+
+func getExecutorSecretConfOptions(app *v1alpha1.SparkApplication) []string {
+	var secretConfs []string
+	for _, secret := range app.Spec.Executor.ExecutorSecrets {
+		if secret.Type == v1alpha1.GCPServiceAccountSecret {
+			conf := fmt.Sprintf(" --conf %s%s%s=%s \\\n",
+				config.SparkExecutorAnnotationKeyPrefix,
+				config.GCPServiceAccountSecretAnnotationPrefix,
+				secret.Name,
+				secret.Path)
+			secretConfs = append(secretConfs, conf)
+		} else {
+			conf := fmt.Sprintf(" --conf %s%s%s=%s \\\n",
+				config.SparkExecutorAnnotationKeyPrefix,
+				config.GeneralSecretsAnnotationPrefix,
+				secret.Name,
+				secret.Path)
+			secretConfs = append(secretConfs, conf)
+		}
+	}
+	return secretConfs
+}
+
 func getDriverEnvVarConfOptions(app *v1alpha1.SparkApplication) []string {
 	var envVarConfs []string
 	for key, value := range app.Spec.Driver.DriverEnvVars {
-		envVar := fmt.Sprintf(" --conf %s%s=%s", config.DriverEnvVarConfigKeyPrefix, key, value)
+		envVar := fmt.Sprintf(" --conf %s%s=%s \\\n", config.DriverEnvVarConfigKeyPrefix, key, value)
 		envVarConfs = append(envVarConfs, envVar)
 	}
 	return envVarConfs
@@ -88,7 +146,7 @@ func getDriverEnvVarConfOptions(app *v1alpha1.SparkApplication) []string {
 func getExecutorEnvVarConfOptions(app *v1alpha1.SparkApplication) []string {
 	var envVarConfs []string
 	for key, value := range app.Spec.Executor.ExecutorEnvVars {
-		envVar := fmt.Sprintf(" --conf %s%s=%s", config.ExecutorEnvVarConfigKeyPrefix, key, value)
+		envVar := fmt.Sprintf(" --conf %s%s=%s \\\n", config.ExecutorEnvVarConfigKeyPrefix, key, value)
 		envVarConfs = append(envVarConfs, envVar)
 	}
 	return envVarConfs

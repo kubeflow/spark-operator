@@ -13,12 +13,12 @@ spec:
       path: "/opt/spark/secrets"
       type: GCPServiceAccount
     driverEnvVars:
-      GOOGLE_APPLICATION_CREDENTIALS: "/opt/spark/secrets/key.json"
+      "GOOGLE_APPLICATION_CREDENTIALS": "/opt/spark/secrets/key.json"
   executor:
     executorSecrets:
     - name: spark-secret
       path: "/opt/spark/secrets"
       type: GCPServiceAccount
     executorEnvVars:
-      GOOGLE_APPLICATION_CREDENTIALS: "/opt/spark/secrets/key.json"
+      "GOOGLE_APPLICATION_CREDENTIALS": "/opt/spark/secrets/key.json"
   submissionByUser: true

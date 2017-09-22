@@ -16,6 +16,11 @@ import (
 	"k8s.io/client-go/tools/cache"
 )
 
+const (
+	// SubmissionCommandAnnotationKey is the annotation key for recording the submission command.
+	SubmissionCommandAnnotationKey = "submission-command"
+)
+
 // SparkApplicationController manages instances of SparkApplication.
 type SparkApplicationController struct {
 	crdClient        *crd.Client
@@ -100,8 +105,21 @@ func (s *SparkApplicationController) onAdd(obj interface{}) {
 	}
 	appCopy := copyObj.(*v1alpha1.SparkApplication)
 	appCopy.Status.AppID = buildAppID(appCopy)
+
 	createSparkUIService(appCopy, s.kubeClient)
-	s.crdClient.Update(appCopy, appCopy.Namespace)
+
+	submissionCmd, err := buildSubmissionCommand(appCopy)
+	if err != nil {
+		glog.Errorf("Failed to build the submission command for SparkApplication %s: %v", appCopy.Name, err)
+	}
+	glog.Infof("Submission command: %s", submissionCmd)
+	appCopy.Annotations = make(map[string]string)
+	appCopy.Annotations[SubmissionCommandAnnotationKey] = submissionCmd
+
+	_, err = s.crdClient.Update(appCopy)
+	if err != nil {
+		glog.Errorf("Failed to update SparkApplication %s: %v", appCopy.Name, err)
+	}
 }
 
 func (s *SparkApplicationController) onUpdate(oldObj, newObj interface{}) {
