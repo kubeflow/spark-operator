@@ -18,9 +18,9 @@ import (
 
 // CRD metadata.
 const (
-	CRDPlural   = "sparkapps"
-	CRDSingular = "sparkapp"
-	CRDKind     = "SparkApp"
+	CRDPlural   = "sparkapplications"
+	CRDSingular = "sparkapplication"
+	CRDKind     = "SparkApplication"
 	CRDGroup    = v1alpha1.GroupName
 	CRDVersion  = "v1alpha1"
 	CRDFullName = CRDPlural + "." + CRDGroup

@@ -118,9 +118,9 @@ type SparkApplicationStatus struct {
 
 // SparkApplicationList carries a list of SparkApplication objects.
 type SparkApplicationList struct {
-	metav1.TypeMeta   `json:",inline"`
-	metav1.ObjectMeta `json:"metadata"`
-	Item              []SparkApplication `jason:"items,omitempty"`
+	metav1.TypeMeta `json:",inline"`
+	metav1.ListMeta `json:"metadata,omitempty"`
+	Items           []SparkApplication `jason:"items,omitempty"`
 }
 
 // UIServiceInfo captures information about the Spark UI service.

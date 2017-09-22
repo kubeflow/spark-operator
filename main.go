@@ -8,8 +8,11 @@ import (
 
 	"github.com/golang/glog"
 
+	"github.com/liyinan926/spark-operator/pkg/controller"
+	"github.com/liyinan926/spark-operator/pkg/crd"
 	"github.com/liyinan926/spark-operator/pkg/initializer"
 
+	apiextensionsclient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	clientset "k8s.io/client-go/kubernetes"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	"k8s.io/client-go/rest"
@@ -33,12 +36,23 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+	crdClient, err := crd.NewClient(config)
+	if err != nil {
+		panic(err)
+	}
+	apiExtensionsClient, err := apiextensionsclient.NewForConfig(config)
+	if err != nil {
+		panic(err)
+	}
 
 	stopCh := make(chan struct{})
 	errCh := make(chan error)
 
 	initializerController := initializer.NewController(kubeClient)
 	go initializerController.Run(*initializerThreads, stopCh, errCh)
+
+	sparkApplicationController := controller.NewSparkApplicationController(crdClient, kubeClient, apiExtensionsClient)
+	go sparkApplicationController.Run(stopCh, errCh)
 
 	signalCh := make(chan os.Signal, 1)
 	signal.Notify(signalCh, syscall.SIGINT, syscall.SIGTERM)

@@ -241,9 +241,9 @@ func (in *SparkApplication) DeepCopyObject() runtime.Object {
 func (in *SparkApplicationList) DeepCopyInto(out *SparkApplicationList) {
 	*out = *in
 	out.TypeMeta = in.TypeMeta
-	in.ObjectMeta.DeepCopyInto(&out.ObjectMeta)
-	if in.Item != nil {
-		in, out := &in.Item, &out.Item
+	out.ListMeta = in.ListMeta
+	if in.Items != nil {
+		in, out := &in.Items, &out.Items
 		*out = make([]SparkApplication, len(*in))
 		for i := range *in {
 			(*in)[i].DeepCopyInto(&(*out)[i])
