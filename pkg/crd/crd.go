@@ -2,10 +2,10 @@ package crd
 
 import (
 	"fmt"
-	"os"
 	"reflect"
 	"time"
 
+	"github.com/golang/glog"
 	"github.com/liyinan926/spark-operator/pkg/apis/v1alpha1"
 
 	apiextensionsv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
@@ -46,8 +46,8 @@ func CreateCRD(clientset apiextensionsclient.Interface) error {
 	}
 	_, err := clientset.ApiextensionsV1beta1().CustomResourceDefinitions().Create(crd)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "%v\n", err)
 		if apierrors.IsAlreadyExists(err) {
+			glog.Warningf("CustomResourceDefinition %s already exists", CRDFullName)
 			return nil
 		}
 		return err

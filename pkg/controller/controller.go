@@ -41,12 +41,17 @@ func NewSparkApplicationController(
 
 // Run starts the SparkApplicationController by registering a watcher for SparkApplication objects.
 func (s *SparkApplicationController) Run(stopCh <-chan struct{}, errCh chan<- error) {
+	glog.Info("Starting the SparkApplication controller")
+	defer glog.Info("Shutting down the SparkApplication controller")
+
+	glog.Info("Creating the CustomResourceDefinition %s...", crd.CRDFullName)
 	err := crd.CreateCRD(s.extensionsClient)
 	if err != nil {
 		errCh <- fmt.Errorf("Failed to create the CustomResourceDefinition for SparkApplication: %v", err)
 		return
 	}
 
+	glog.Info("Starting the SparkApplication watcher...")
 	_, err = s.watchSparkApplications(stopCh)
 	if err != nil {
 		errCh <- fmt.Errorf("Failed to register watch for SparkApplication resource: %v", err)
