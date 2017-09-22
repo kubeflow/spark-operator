@@ -21,7 +21,7 @@ func TestCreateSparkUIService(t *testing.T) {
 	}
 	testFn := func(test testcase, t *testing.T) {
 		fakeClient := fake.NewSimpleClientset()
-		err := createSparkUIService(test.app, fakeClient)
+		_, err := createSparkUIService(test.app, fakeClient)
 		if !test.expectError && err != nil {
 			t.Fatal(err)
 		}

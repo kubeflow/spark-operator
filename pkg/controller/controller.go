@@ -11,12 +11,15 @@ import (
 
 	apiv1 "k8s.io/api/core/v1"
 	apiextensionsclient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	clientset "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 )
 
 const (
+	// SparkUIServiceNameAnnotationKey is the annotation key for recording the UI service name.
+	SparkUIServiceNameAnnotationKey = "ui-service-name"
 	// SubmissionCommandAnnotationKey is the annotation key for recording the submission command.
 	SubmissionCommandAnnotationKey = "submission-command"
 )
@@ -105,15 +108,19 @@ func (s *SparkApplicationController) onAdd(obj interface{}) {
 	}
 	appCopy := copyObj.(*v1alpha1.SparkApplication)
 	appCopy.Status.AppID = buildAppID(appCopy)
+	appCopy.Annotations = make(map[string]string)
 
-	createSparkUIService(appCopy, s.kubeClient)
+	serviceName, err := createSparkUIService(appCopy, s.kubeClient)
+	if err != nil {
+		glog.Errorf("Failed to create a UI service for SparkApplication %s: %v", appCopy.Name, err)
+	}
+	appCopy.Annotations[SparkUIServiceNameAnnotationKey] = serviceName
 
 	submissionCmd, err := buildSubmissionCommand(appCopy)
 	if err != nil {
 		glog.Errorf("Failed to build the submission command for SparkApplication %s: %v", appCopy.Name, err)
 	}
 	glog.Infof("Submission command: %s", submissionCmd)
-	appCopy.Annotations = make(map[string]string)
 	appCopy.Annotations[SubmissionCommandAnnotationKey] = submissionCmd
 
 	_, err = s.crdClient.Update(appCopy)
@@ -131,6 +138,13 @@ func (s *SparkApplicationController) onUpdate(oldObj, newObj interface{}) {
 func (s *SparkApplicationController) onDelete(obj interface{}) {
 	app := obj.(*v1alpha1.SparkApplication)
 	glog.Infof("[CONTROLLER] OnDelete %s\n", app.ObjectMeta.SelfLink)
+	if serviceName, ok := app.Annotations[SparkUIServiceNameAnnotationKey]; ok {
+		glog.Infof("Deleting the UI service %s for SparkApplication %s", serviceName, app.Name)
+		err := s.kubeClient.CoreV1().Services(app.Namespace).Delete(serviceName, &metav1.DeleteOptions{})
+		if err != nil {
+			glog.Errorf("Failed to delete the UI service %s for SparkApplication %s: %v", serviceName, app.Name, err)
+		}
+	}
 }
 
 // buildAppID builds an application ID in the form of <application name>-<32-bit hash>.

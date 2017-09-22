@@ -22,11 +22,11 @@ const (
 	sparkDriverRole             = "driver"
 )
 
-func createSparkUIService(app *v1alpha1.SparkApplication, kubeClient clientset.Interface) error {
+func createSparkUIService(app *v1alpha1.SparkApplication, kubeClient clientset.Interface) (string, error) {
 	portStr := getUITargetPort(app)
 	port, err := strconv.Atoi(portStr)
 	if err != nil {
-		return err
+		return "", err
 	}
 	service := &apiv1.Service{
 		ObjectMeta: metav1.ObjectMeta{
@@ -52,14 +52,14 @@ func createSparkUIService(app *v1alpha1.SparkApplication, kubeClient clientset.I
 	glog.Infof("Creating a service %s for the Spark UI for application %s", service.Name, app.Name)
 	service, err = kubeClient.CoreV1().Services(app.Namespace).Create(service)
 	if err != nil {
-		return err
+		return "", err
 	}
 	app.Status.UIServiceInfo = v1alpha1.UIServiceInfo{
 		Name: service.Name,
 		Port: int32(port),
 	}
 
-	return nil
+	return service.Name, nil
 }
 
 // getWebUITargetPort attempts to get the Spark web UI port from configuration property spark.ui.port
