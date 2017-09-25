@@ -27,6 +27,8 @@ func buildSubmissionCommand(app *v1alpha1.SparkApplication) (string, error) {
 	command += fmt.Sprintf(" --master %s \\\n", masterURL)
 	command += fmt.Sprintf(" --kubernetes-namespace %s \\\n", app.Namespace)
 	command += fmt.Sprintf(" --deploy-mode %s \\\n", app.Spec.Mode)
+	command += fmt.Sprintf(" --conf spark.app.name=%s \\\n", app.Name)
+	command += fmt.Sprintf(" --conf spark.executor.instances=%d", app.Spec.Executor.Instances)
 
 	// Add application dependencies.
 	if len(app.Spec.Deps.JarFiles) > 0 {
@@ -53,7 +55,7 @@ func buildSubmissionCommand(app *v1alpha1.SparkApplication) (string, error) {
 		command += fmt.Sprintf(" --conf %s=%s \\\n", key, value)
 	}
 
-	// Add driver and executor environment variables using the --conf option.
+	// Add driver and executor environment variables configuration option.
 	for _, conf := range getDriverEnvVarConfOptions(app) {
 		command += conf
 	}
@@ -61,7 +63,7 @@ func buildSubmissionCommand(app *v1alpha1.SparkApplication) (string, error) {
 		command += conf
 	}
 
-	// Add driver and executor secret annotations using the --conf option.
+	// Add driver and executor secret annotations configuration option.
 	for _, conf := range getDriverSecretConfOptions(app) {
 		command += conf
 	}
@@ -69,12 +71,19 @@ func buildSubmissionCommand(app *v1alpha1.SparkApplication) (string, error) {
 		command += conf
 	}
 
+	// Add the driver and executor Docker image configuration options.
+	// Note that when the controller submits the application, it expects that all dependencies are local
+	// so init-container is not needed and therefore no init-container image needs to be specified.
+	command += fmt.Sprintf(" --conf spark.kubernetes.driver.docker.image=%s \\\n", app.Spec.Driver.Image)
+	command += fmt.Sprintf(" --conf spark.kubernetes.executor.docker.image=%s \\\n", app.Spec.Executor.Image)
+
 	// Add the main application file.
 	command += " " + app.Spec.MainApplicationFile
 	// Add application arguments.
 	for _, argument := range app.Spec.Arguments {
 		command += " " + argument
 	}
+
 	return command, nil
 }
 

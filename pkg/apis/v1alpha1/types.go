@@ -141,6 +141,8 @@ type Dependencies struct {
 
 // DriverSpec is specification of the driver.
 type DriverSpec struct {
+	// Image is the driver Docker image to use.
+	Image string `jason:"image"`
 	// DriverConfigMaps carries information of other ConfigMaps to add to the driver Pod.
 	DriverConfigMaps []NamePath `jason:"driverConigMaps,omitempty"`
 	// DriverSecrets carries information of secrets to add to the driver Pod.
@@ -151,6 +153,10 @@ type DriverSpec struct {
 
 // ExecutorSpec is specification of the executor.
 type ExecutorSpec struct {
+	// Image is the executor Docker image to use.
+	Image string `jason:"image"`
+	// Instances is the number of executor instances.
+	Instances int32 `jason:"instances"`
 	// ExecutorConfigMaps carries information of other ConfigMaps to add to the executor Pods.
 	ExecutorConfigMaps []NamePath `jason:"executorConigMaps,omitempty"`
 	// ExecutorSecrets carries information of secrets to add to the executor Pods.
