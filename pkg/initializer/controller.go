@@ -3,6 +3,7 @@ package initializer
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/golang/glog"
@@ -50,7 +51,7 @@ type Controller struct {
 	// A queue of uninitialized Pods that need to be processed by this initializer controller.
 	queue workqueue.RateLimitingInterface
 	// To allow injection of syncReplicaSet for testing.
-	syncHandler func(pod *apiv1.Pod) error
+	syncHandler func(key string) error
 }
 
 // NewController creates a new instance of Controller.
@@ -81,7 +82,8 @@ func NewController(kubeClient clientset.Interface) *Controller {
 		&apiv1.Pod{},
 		30*time.Second,
 		cache.ResourceEventHandlerFuncs{
-			AddFunc: controller.addSparkPod,
+			AddFunc:    controller.onPodAdded,
+			DeleteFunc: controller.onPodDeleted,
 		},
 	)
 
@@ -205,18 +207,17 @@ func (ic *Controller) processNextItem() bool {
 	}
 	defer ic.queue.Done(key)
 
-	pod := key.(*apiv1.Pod)
-	err := ic.syncHandler(pod)
+	err := ic.syncHandler(key.(string))
 	if err == nil {
-		// Successfully processed the key so tell the queue to stop tracking history for your key.
-		// This will reset things like failure counts for per-item rate limiting.
+		// Successfully processed the key or the key was not found so tell the queue to stop tracking
+		// history for your key. This will reset things like failure counts for per-item rate limiting.
 		ic.queue.Forget(key)
 		return true
 	}
 
 	// There was a failure so be sure to report it. This method allows for pluggable error handling
 	// which can be used for things like cluster-monitoring
-	utilruntime.HandleError(fmt.Errorf("Sync %q failed with %v", pod.Name, err))
+	utilruntime.HandleError(fmt.Errorf("Sync pod %q failed with %v", key, err))
 	// Since we failed, we should requeue the item to work on later.  This method will add a backoff
 	// to avoid hotlooping on particular items (they're probably still not going to work right away)
 	// and overall controller protection (everything I've done is broken, this controller needs to
@@ -227,7 +228,16 @@ func (ic *Controller) processNextItem() bool {
 }
 
 // syncSparkPod does the actual processing of the given Spark Pod.
-func (ic *Controller) syncSparkPod(pod *apiv1.Pod) error {
+func (ic *Controller) syncSparkPod(key string) error {
+	namespace, name, err := getNamespaceName(key)
+	pod, err := ic.kubeClient.CoreV1().Pods(namespace).Get(name, metav1.GetOptions{})
+	if err != nil {
+		if errors.IsNotFound(err) {
+			return nil
+		}
+		return err
+	}
+
 	glog.Infof("Processing Spark %s pod %s", pod.Labels[sparkRoleLabel], pod.Name)
 
 	// Make a copy.
@@ -252,8 +262,8 @@ func (ic *Controller) syncSparkPod(pod *apiv1.Pod) error {
 	return patchPod(pod, modifiedPod, ic.kubeClient)
 }
 
-// addSparkPod is the callback function called when an event for a new Pod is informed.
-func (ic *Controller) addSparkPod(obj interface{}) {
+// onPodAdded is the callback function called when an event for a new Pod is informed.
+func (ic *Controller) onPodAdded(obj interface{}) {
 	pod, ok := obj.(*apiv1.Pod)
 	if !ok {
 		glog.Errorf("Received non-pod object: %v", obj)
@@ -263,12 +273,40 @@ func (ic *Controller) addSparkPod(obj interface{}) {
 	// is a sign that the pod is uninitialized.
 	if isInitializerPresent(pod) {
 		if isSparkPod(pod) {
-			ic.queue.AddRateLimited(pod)
+			ic.queue.AddRateLimited(getQueueKey(pod))
 		} else {
 			// For non-Spark pods we don't put them into the queue.
 			handleNonSparkPod(pod, ic.kubeClient)
 		}
 	}
+}
+
+// onPodDeleted is the callback function called when an event for a deleted Pod is informed.
+func (ic *Controller) onPodDeleted(obj interface{}) {
+	pod, ok := obj.(*apiv1.Pod)
+	if !ok {
+		glog.Errorf("Received non-pod object: %v", obj)
+	}
+
+	if isSparkPod(pod) {
+		glog.Infof("Spark %s pod %s was deleted, dequeuing it...", pod.Labels[sparkRoleLabel], pod.Name)
+		key := getQueueKey(pod)
+		ic.queue.Forget(key)
+		ic.queue.Done(key)
+	}
+}
+
+func getQueueKey(pod *apiv1.Pod) string {
+	return fmt.Sprintf("%s/%s", pod.Namespace, pod.Name)
+}
+
+func getNamespaceName(key string) (string, string, error) {
+	parts := strings.Split(key, "/")
+	if len(parts) != 2 {
+		return "", "", fmt.Errorf("Malformed queue key %s", key)
+	}
+
+	return parts[0], parts[1], nil
 }
 
 // isInitializerPresent returns if the list of pending Initializer of the given pod contains an instance of this Initializer.
