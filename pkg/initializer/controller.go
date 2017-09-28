@@ -267,6 +267,7 @@ func (ic *Controller) onPodAdded(obj interface{}) {
 	pod, ok := obj.(*apiv1.Pod)
 	if !ok {
 		glog.Errorf("Received non-pod object: %v", obj)
+		return
 	}
 
 	// The presence of the Initializer in the pending list of Initializers in the pod

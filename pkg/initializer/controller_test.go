@@ -228,7 +228,7 @@ func TestAddPod(t *testing.T) {
 	}
 	controller := newFakeController()
 	testFn := func(test testcase, t *testing.T) {
-		controller.addSparkPod(test.pod)
+		controller.onPodAdded(test.pod)
 		if test.queued {
 			key, _ := controller.queue.Get()
 			controller.queue.Done(key)
@@ -310,7 +310,7 @@ func TestSyncSparkPod(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		err = controller.syncSparkPod(test.pod)
+		err = controller.syncSparkPod(getQueueKey(test.pod))
 		if err != nil {
 			t.Fatal(err)
 		}
