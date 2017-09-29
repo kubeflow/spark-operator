@@ -3,6 +3,7 @@ package controller
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/liyinan926/spark-operator/pkg/apis/v1alpha1"
@@ -10,12 +11,18 @@ import (
 )
 
 const (
+	sparkHomeEnvVar             = "SPARK_HOME"
 	kubernetesServiceHostEnvVar = "KUBERNETES_SERVICE_HOST"
 	kubernetesServicePortEnvVar = "KUBERNETES_SERVICE_PORT"
 )
 
 func buildSubmissionCommand(app *v1alpha1.SparkApplication) (string, error) {
-	var command = "bin/spark-submit \\\n"
+	sparkHome, present := os.LookupEnv(sparkHomeEnvVar)
+	if !present {
+		return "", fmt.Errorf("SPARK_HOME is not specified")
+	}
+
+	var command = filepath.Join(sparkHome, "/bin/spark-submit") + " \\\n"
 	if app.Spec.MainClass != nil {
 		command += fmt.Sprintf(" --class %s \\\n", *app.Spec.MainClass)
 	}
