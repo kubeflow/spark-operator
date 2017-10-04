@@ -51,7 +51,7 @@ type Controller struct {
 	// A queue of uninitialized Pods that need to be processed by this initializer controller.
 	queue workqueue.RateLimitingInterface
 	// To allow injection of syncReplicaSet for testing.
-	syncHandler func(key string) error
+	syncHandler func(key string) (*apiv1.Pod, error)
 }
 
 // NewController creates a new instance of Controller.
@@ -207,7 +207,7 @@ func (ic *Controller) processNextItem() bool {
 	}
 	defer ic.queue.Done(key)
 
-	err := ic.syncHandler(key.(string))
+	_, err := ic.syncHandler(key.(string))
 	if err == nil {
 		// Successfully processed the key or the key was not found so tell the queue to stop tracking
 		// history for your key. This will reset things like failure counts for per-item rate limiting.
@@ -228,14 +228,14 @@ func (ic *Controller) processNextItem() bool {
 }
 
 // syncSparkPod does the actual processing of the given Spark Pod.
-func (ic *Controller) syncSparkPod(key string) error {
+func (ic *Controller) syncSparkPod(key string) (*apiv1.Pod, error) {
 	namespace, name, err := getNamespaceName(key)
 	pod, err := ic.kubeClient.CoreV1().Pods(namespace).Get(name, metav1.GetOptions{})
 	if err != nil {
 		if errors.IsNotFound(err) {
-			return nil
+			return nil, nil
 		}
-		return err
+		return nil, err
 	}
 
 	glog.Infof("Processing Spark %s pod %s", pod.Labels[sparkRoleLabel], pod.Name)
@@ -243,11 +243,11 @@ func (ic *Controller) syncSparkPod(key string) error {
 	// Make a copy.
 	copy, err := runtime.NewScheme().DeepCopy(pod)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	modifiedPod := copy.(*apiv1.Pod)
 	if len(modifiedPod.Spec.Containers) <= 0 {
-		return fmt.Errorf("No container found in Pod %s", modifiedPod.Name)
+		return nil, fmt.Errorf("No container found in Pod %s", modifiedPod.Name)
 	}
 	// We assume that the first container is the Spark container.
 	appContainer := &modifiedPod.Spec.Containers[0]
@@ -423,24 +423,20 @@ func updatePod(newPod *apiv1.Pod, clientset clientset.Interface) error {
 	return nil
 }
 
-func patchPod(originalPod, modifiedPod *apiv1.Pod, clientset clientset.Interface) error {
+func patchPod(originalPod, modifiedPod *apiv1.Pod, clientset clientset.Interface) (*apiv1.Pod, error) {
 	originalData, err := json.Marshal(originalPod)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	modifiedData, err := json.Marshal(modifiedPod)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	patch, err := strategicpatch.CreateTwoWayMergePatch(originalData, modifiedData, apiv1.Pod{})
 	if err != nil {
-		return err
-	}
-	_, err = clientset.CoreV1().Pods(originalPod.Namespace).Patch(originalPod.Name, types.StrategicMergePatchType, patch)
-	if err != nil {
-		return err
+		return nil, err
 	}
 
-	return nil
+	return clientset.CoreV1().Pods(originalPod.Namespace).Patch(originalPod.Name, types.StrategicMergePatchType, patch)
 }

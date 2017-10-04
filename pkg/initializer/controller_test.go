@@ -1,6 +1,7 @@
 package initializer
 
 import (
+	"encoding/json"
 	"fmt"
 	"reflect"
 	"testing"
@@ -11,11 +12,13 @@ import (
 	apiv1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes/fake"
+	clienttesting "k8s.io/client-go/testing"
 )
 
 func TestAddAndDeleteInitializationConfig(t *testing.T) {
-	controller := newFakeController()
+	controller := NewController(fake.NewSimpleClientset())
 	client := controller.kubeClient.AdmissionregistrationV1alpha1()
 
 	controller.addInitializationConfig()
@@ -226,7 +229,7 @@ func TestAddPod(t *testing.T) {
 		pod    *apiv1.Pod
 		queued bool
 	}
-	controller := newFakeController()
+	controller := NewController(fake.NewSimpleClientset())
 	testFn := func(test testcase, t *testing.T) {
 		controller.onPodAdded(test.pod)
 		if test.queued {
@@ -304,20 +307,27 @@ func TestSyncSparkPod(t *testing.T) {
 		expectedVolumeNames []string
 		expectedObjectNames []string
 	}
-	controller := newFakeController()
+
+	clientset := fake.NewSimpleClientset()
+	clientset.PrependReactor("patch", "pods", func(action clienttesting.Action) (handled bool, ret runtime.Object, err error) {
+		patch := action.(clienttesting.PatchActionImpl).GetPatch()
+		obj := &apiv1.Pod{}
+		json.Unmarshal(patch, obj)
+		return true, obj, nil
+	})
+	controller := NewController(clientset)
+
 	testFn := func(test testcase, t *testing.T) {
 		_, err := controller.kubeClient.CoreV1().Pods(test.pod.Namespace).Create(test.pod)
 		if err != nil {
 			t.Fatal(err)
 		}
-		err = controller.syncSparkPod(getQueueKey(test.pod))
+
+		modifiedPod, err := controller.syncSparkPod(getQueueKey(test.pod))
 		if err != nil {
 			t.Fatal(err)
 		}
-		modifiedPod, err := controller.kubeClient.CoreV1().Pods(test.pod.Namespace).Get(test.pod.Name, metav1.GetOptions{})
-		if err != nil {
-			t.Fatal(err)
-		}
+
 		if len(modifiedPod.Spec.Volumes) != len(test.expectedVolumeNames) {
 			t.Errorf("%s: wanted %d volumes got %d", test.name, len(test.expectedVolumeNames), len(modifiedPod.Spec.Volumes))
 		}
@@ -337,6 +347,10 @@ func TestSyncSparkPod(t *testing.T) {
 			if name != test.expectedObjectNames[i] {
 				t.Errorf("%s: for ConfigMap name wanted %s got %s", test.name, test.expectedObjectNames[i], name)
 			}
+		}
+
+		if len(modifiedPod.Spec.Containers) != 1 {
+			return
 		}
 		container := modifiedPod.Spec.Containers[0]
 		if len(container.VolumeMounts) != len(test.expectedVolumeNames) {
@@ -375,7 +389,7 @@ func TestSyncSparkPod(t *testing.T) {
 		},
 		Spec: apiv1.PodSpec{
 			Containers: []apiv1.Container{
-				apiv1.Container{},
+				apiv1.Container{Name: "foo"},
 			},
 		},
 	}
@@ -390,7 +404,7 @@ func TestSyncSparkPod(t *testing.T) {
 		},
 		Spec: apiv1.PodSpec{
 			Containers: []apiv1.Container{
-				apiv1.Container{},
+				apiv1.Container{Name: "foo"},
 			},
 		},
 	}
@@ -404,7 +418,7 @@ func TestSyncSparkPod(t *testing.T) {
 		},
 		Spec: apiv1.PodSpec{
 			Containers: []apiv1.Container{
-				apiv1.Container{},
+				apiv1.Container{Name: "foo"},
 			},
 		},
 	}
@@ -418,7 +432,7 @@ func TestSyncSparkPod(t *testing.T) {
 		},
 		Spec: apiv1.PodSpec{
 			Containers: []apiv1.Container{
-				apiv1.Container{},
+				apiv1.Container{Name: "foo"},
 			},
 		},
 	}
@@ -427,12 +441,12 @@ func TestSyncSparkPod(t *testing.T) {
 			Name:      "pod5",
 			Namespace: "default",
 			Annotations: map[string]string{
-				config.GCPServiceAccountSecretAnnotationPrefix + "test": "/etc/secrets",
+				config.GCPServiceAccountSecretAnnotationPrefix + "gcp-service-account": "/etc/secrets",
 			},
 		},
 		Spec: apiv1.PodSpec{
 			Containers: []apiv1.Container{
-				apiv1.Container{},
+				apiv1.Container{Name: "foo"},
 			},
 		},
 	}
@@ -533,10 +547,6 @@ func TestAddOwnerReference(t *testing.T) {
 	for _, test := range testcases {
 		testFn(test, t)
 	}
-}
-
-func newFakeController() *Controller {
-	return NewController(fake.NewSimpleClientset())
 }
 
 func hasEnvVar(name, value string, envVars []apiv1.EnvVar) bool {
