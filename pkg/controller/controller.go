@@ -30,6 +30,7 @@ type SparkApplicationController struct {
 	kubeClient       clientset.Interface
 	extensionsClient apiextensionsclient.Interface
 	submissionClient *submission.SparkSubmissionClient
+	runner           *SparkSubmitRunner
 }
 
 // NewSparkApplicationController creates a new SparkApplicationController.
@@ -44,6 +45,7 @@ func NewSparkApplicationController(
 		submissionClient: &submission.SparkSubmissionClient{
 			KubeClient: kubeClient,
 		},
+		runner: newRunner(3),
 	}
 }
 
@@ -65,6 +67,8 @@ func (s *SparkApplicationController) Run(stopCh <-chan struct{}, errCh chan<- er
 		errCh <- fmt.Errorf("Failed to register watch for SparkApplication resource: %v", err)
 		return
 	}
+
+	s.runner.start(stopCh)
 
 	<-stopCh
 }
@@ -122,6 +126,10 @@ func (s *SparkApplicationController) onAdd(obj interface{}) {
 	}
 	glog.Infof("Submission command: %s", submissionCmd)
 	appCopy.Annotations[SubmissionCommandAnnotationKey] = submissionCmd
+
+	if !appCopy.Spec.SubmissionByUser {
+		s.runner.addSparkApplication(submissionCmd)
+	}
 
 	_, err = s.crdClient.Update(appCopy)
 	if err != nil {

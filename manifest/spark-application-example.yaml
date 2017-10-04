@@ -8,8 +8,8 @@ spec:
   mode: cluster
   mainApplicationFile: "local:///opt/spark/examples/jars/spark_examples_2.11-2.2.0.jar"
   driver:
-    image: "kubespark/spark-driver:v2.1.0-kubernetes-0.3.1"
+    image: "liyinan926/spark-driver:latest"
   executor:
-    image: "kubespark/spark-executor:v2.1.0-kubernetes-0.3.1"
+    image: "liyinan926/spark-executor:latest"
     instances: 1
-  submissionByUser: true
+  submissionByUser: false
