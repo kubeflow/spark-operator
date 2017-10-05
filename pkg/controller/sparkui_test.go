@@ -43,6 +43,9 @@ func TestCreateSparkUIService(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
+		if len(service.Labels) != 1 || service.Labels[config.SparkAppIDLabel] != test.app.Status.AppID {
+			t.Errorf("%s: service of app %s has the wrong labels", test.name, test.app.Name)
+		}
 		if !reflect.DeepEqual(test.expectedSelector, service.Spec.Selector) {
 			t.Errorf("%s: for label selector wanted %s got %s", test.name, test.expectedSelector, service.Spec.Selector)
 		}

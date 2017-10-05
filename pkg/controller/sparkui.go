@@ -32,7 +32,9 @@ func createSparkUIService(app *v1alpha1.SparkApplication, kubeClient clientset.I
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      buildUIServiceName(app),
 			Namespace: app.Namespace,
-			Labels:    map[string]string{},
+			Labels: map[string]string{
+				config.SparkAppIDLabel: app.Status.AppID,
+			},
 		},
 		Spec: apiv1.ServiceSpec{
 			Ports: []apiv1.ServicePort{

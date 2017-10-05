@@ -6,7 +6,6 @@ import (
 	"github.com/golang/glog"
 	"github.com/liyinan926/spark-operator/pkg/apis/v1alpha1"
 	"github.com/liyinan926/spark-operator/pkg/crd"
-	"github.com/liyinan926/spark-operator/pkg/submission"
 	"github.com/liyinan926/spark-operator/pkg/util"
 
 	apiv1 "k8s.io/api/core/v1"
@@ -29,7 +28,6 @@ type SparkApplicationController struct {
 	crdClient        *crd.Client
 	kubeClient       clientset.Interface
 	extensionsClient apiextensionsclient.Interface
-	submissionClient *submission.SparkSubmissionClient
 	runner           *SparkSubmitRunner
 }
 
@@ -42,10 +40,7 @@ func NewSparkApplicationController(
 		crdClient:        crdClient,
 		kubeClient:       kubeClient,
 		extensionsClient: extensionsClient,
-		submissionClient: &submission.SparkSubmissionClient{
-			KubeClient: kubeClient,
-		},
-		runner: newRunner(3),
+		runner:           newRunner(3),
 	}
 }
 

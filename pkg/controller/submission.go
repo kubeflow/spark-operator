@@ -48,6 +48,15 @@ func buildSubmissionCommand(app *v1alpha1.SparkApplication) (string, error) {
 		command += fmt.Sprintf(" --py-files %s \\\n", strings.Join(app.Spec.Deps.PyFiles, ","))
 	}
 
+	// Add Spark configuration properties.
+	for key, value := range app.Spec.SparkConf {
+		command += fmt.Sprintf(" --conf %s=%s \\\n", key, value)
+	}
+
+	// Add the application ID label.
+	command += fmt.Sprintf(" --conf %s%s=%s \\\n", config.SparkDriverLabelKeyPrefix, config.SparkAppIDLabel, app.Status.AppID)
+	command += fmt.Sprintf(" --conf %s%s=%s \\\n", config.SparkExecutorLabelKeyPrefix, config.SparkAppIDLabel, app.Status.AppID)
+
 	if app.Spec.SparkConfigMap != nil {
 		config.AddConfigMapAnnotation(app, config.SparkDriverAnnotationKeyPrefix, config.SparkConfigMapAnnotation, *app.Spec.SparkConfigMap)
 		config.AddConfigMapAnnotation(app, config.SparkExecutorAnnotationKeyPrefix, config.SparkConfigMapAnnotation, *app.Spec.SparkConfigMap)
@@ -55,11 +64,6 @@ func buildSubmissionCommand(app *v1alpha1.SparkApplication) (string, error) {
 	if app.Spec.HadoopConfigMap != nil {
 		config.AddConfigMapAnnotation(app, config.SparkDriverAnnotationKeyPrefix, config.HadoopConfigMapAnnotation, *app.Spec.HadoopConfigMap)
 		config.AddConfigMapAnnotation(app, config.SparkExecutorAnnotationKeyPrefix, config.HadoopConfigMapAnnotation, *app.Spec.HadoopConfigMap)
-	}
-
-	// Add Spark configuration properties.
-	for key, value := range app.Spec.SparkConf {
-		command += fmt.Sprintf(" --conf %s=%s \\\n", key, value)
 	}
 
 	// Add driver and executor environment variables configuration option.

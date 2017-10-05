@@ -63,6 +63,10 @@ const (
 	ExecutorEnvVarConfigKeyPrefix = "spark.executorEnv."
 	// SparkDriverAnnotationKeyPrefix is the Spark configuation key prefix for annotations on the driver Pod.
 	SparkDriverAnnotationKeyPrefix = "spark.kubernetes.driver.annotation."
-	// SparkExecutorAnnotationKeyPrefix is the Spark configuation key prefix for annotations on the executor Pod.
+	// SparkExecutorAnnotationKeyPrefix is the Spark configuation key prefix for annotations on the executor Pods.
 	SparkExecutorAnnotationKeyPrefix = "spark.kubernetes.executor.annotation."
+	// SparkDriverLabelKeyPrefix is the Spark configuation key prefix for labels on the driver Pod.
+	SparkDriverLabelKeyPrefix = "spark.kubernetes.driver.label."
+	// SparkExecutorLabelKeyPrefix is the Spark configuation key prefix for labels on the executor Pods.
+	SparkExecutorLabelKeyPrefix = "spark.kubernetes.executor.label."
 )
