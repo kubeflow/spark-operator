@@ -42,6 +42,6 @@ func (r *SparkSubmitRunner) runWorker() {
 	}
 }
 
-func (r *SparkSubmitRunner) addSparkApplication(sparkSubmitCommand string) {
+func (r *SparkSubmitRunner) addSparkSubmitCommand(sparkSubmitCommand string) {
 	r.queue <- sparkSubmitCommand
 }

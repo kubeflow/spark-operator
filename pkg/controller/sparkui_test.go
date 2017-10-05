@@ -1,10 +1,12 @@
 package controller
 
 import (
+	"reflect"
 	"strconv"
 	"testing"
 
 	"github.com/liyinan926/spark-operator/pkg/apis/v1alpha1"
+	"github.com/liyinan926/spark-operator/pkg/config"
 
 	apiv1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -17,6 +19,7 @@ func TestCreateSparkUIService(t *testing.T) {
 		app                 *v1alpha1.SparkApplication
 		expectedServiceName string
 		expectedServicePort int32
+		expectedSelector    map[string]string
 		expectError         bool
 	}
 	testFn := func(test testcase, t *testing.T) {
@@ -39,6 +42,9 @@ func TestCreateSparkUIService(t *testing.T) {
 		service, err := fakeClient.CoreV1().Services(test.app.Namespace).Get(test.app.Status.UIServiceInfo.Name, metav1.GetOptions{})
 		if err != nil {
 			t.Fatal(err)
+		}
+		if !reflect.DeepEqual(test.expectedSelector, service.Spec.Selector) {
+			t.Errorf("%s: for label selector wanted %s got %s", test.name, test.expectedSelector, service.Spec.Selector)
 		}
 		if service.Spec.Type != apiv1.ServiceTypeNodePort {
 			t.Errorf("%s: for service type wanted %s got %s", test.name, apiv1.ServiceTypeNodePort, service.Spec.Type)
@@ -69,12 +75,18 @@ func TestCreateSparkUIService(t *testing.T) {
 				sparkUIPortConfigurationKey: "4041",
 			},
 		},
+		Status: v1alpha1.SparkApplicationStatus{
+			AppID: "foo-1",
+		},
 	}
 	app2 := &v1alpha1.SparkApplication{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "foo",
 			Namespace: "default",
 			UID:       "foo-123",
+		},
+		Status: v1alpha1.SparkApplicationStatus{
+			AppID: "foo-2",
 		},
 	}
 	defaultPort, err := strconv.Atoi(defaultSparkWebUIPort)
@@ -92,6 +104,9 @@ func TestCreateSparkUIService(t *testing.T) {
 				sparkUIPortConfigurationKey: "4041x",
 			},
 		},
+		Status: v1alpha1.SparkApplicationStatus{
+			AppID: "foo-3",
+		},
 	}
 	testcases := []testcase{
 		testcase{
@@ -99,14 +114,22 @@ func TestCreateSparkUIService(t *testing.T) {
 			app:                 app1,
 			expectedServiceName: buildUIServiceName(app1),
 			expectedServicePort: 4041,
-			expectError:         false,
+			expectedSelector: map[string]string{
+				config.SparkAppIDLabel: "foo-1",
+				sparkRoleLabel:         sparkDriverRole,
+			},
+			expectError: false,
 		},
 		testcase{
 			name:                "service with default port",
 			app:                 app2,
 			expectedServiceName: buildUIServiceName(app2),
 			expectedServicePort: int32(defaultPort),
-			expectError:         false,
+			expectedSelector: map[string]string{
+				config.SparkAppIDLabel: "foo-2",
+				sparkRoleLabel:         sparkDriverRole,
+			},
+			expectError: false,
 		},
 		testcase{
 			name:        "service with bad port configurations",

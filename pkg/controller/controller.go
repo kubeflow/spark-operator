@@ -128,7 +128,7 @@ func (s *SparkApplicationController) onAdd(obj interface{}) {
 	appCopy.Annotations[SubmissionCommandAnnotationKey] = submissionCmd
 
 	if !appCopy.Spec.SubmissionByUser {
-		s.runner.addSparkApplication(submissionCmd)
+		s.runner.addSparkSubmitCommand(submissionCmd)
 	}
 
 	_, err = s.crdClient.Update(appCopy)

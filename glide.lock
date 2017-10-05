@@ -1,8 +1,10 @@
-hash: 23ff4e046736cbf95d11d8c63f892dc1824339cf993ac61f7af5e2e3203bf629
-updated: 2017-09-19T17:46:10.878477124-07:00
+hash: 79f8c0e0c2096f7cee1702c8d92add6c23710a5b0d2ef391748aade953e27696
+updated: 2017-10-05T09:18:05.081270298-07:00
 imports:
 - name: cloud.google.com/go
   version: 5a9e19d4e1e41a734154e44a2132b358afb49a03
+  subpackages:
+  - compute/metadata
 - name: github.com/davecgh/go-spew
   version: 782f4967f2dc4564575ca782fe2d04090b5faca8
   subpackages:
@@ -79,6 +81,8 @@ imports:
   version: 5bd2802263f21d8788851d5305584c82a5c75d7e
 - name: github.com/spf13/pflag
   version: 9ff6c6923cfffbcd502984b8e0c80539a94968b7
+- name: github.com/stretchr/testify
+  version: 69483b4bd14f5845b5a1e55bca19e954e827f1d0
 - name: golang.org/x/crypto
   version: d172538b2cfce0c13cee31e647d0367aa8cd2486
   subpackages:
@@ -87,6 +91,7 @@ imports:
   version: 1c05540f6879653db88113bc4a2b70aec4bd491f
   subpackages:
   - context
+  - context/ctxhttp
   - html
   - html/atom
   - http2
@@ -96,6 +101,13 @@ imports:
   - lex/httplex
   - trace
   - websocket
+- name: golang.org/x/oauth2
+  version: a6bd8cefa1811bd24b86f8902872e4e8225f74c4
+  subpackages:
+  - google
+  - internal
+  - jws
+  - jwt
 - name: golang.org/x/sys
   version: 7a4fde3fda8ef580a89dbae8138c26041be14299
   subpackages:
@@ -114,6 +126,18 @@ imports:
   - unicode/bidi
   - unicode/norm
   - width
+- name: google.golang.org/appengine
+  version: 12d5545dc1cfa6047a286d5e853841b6471f4c19
+  subpackages:
+  - internal
+  - internal/app_identity
+  - internal/base
+  - internal/datastore
+  - internal/log
+  - internal/modules
+  - internal/remote_api
+  - internal/urlfetch
+  - urlfetch
 - name: gopkg.in/inf.v0
   version: 3887ee99ecf07df5b447e9b00d9c0b2adaa9f3e4
 - name: gopkg.in/yaml.v2
@@ -186,15 +210,18 @@ imports:
   - pkg/util/framer
   - pkg/util/intstr
   - pkg/util/json
+  - pkg/util/mergepatch
   - pkg/util/net
   - pkg/util/runtime
   - pkg/util/sets
+  - pkg/util/strategicpatch
   - pkg/util/validation
   - pkg/util/validation/field
   - pkg/util/wait
   - pkg/util/yaml
   - pkg/version
   - pkg/watch
+  - third_party/forked/golang/json
   - third_party/forked/golang/reflect
 - name: k8s.io/client-go
   version: c6f8cf2c47d21d55fa0df928291b2580544886c8
@@ -253,9 +280,11 @@ imports:
   - kubernetes/typed/storage/v1beta1
   - kubernetes/typed/storage/v1beta1/fake
   - pkg/version
+  - plugin/pkg/client/auth/gcp
   - rest
   - rest/watch
   - testing
+  - third_party/forked/golang/template
   - tools/auth
   - tools/cache
   - tools/clientcmd
@@ -270,6 +299,7 @@ imports:
   - util/flowcontrol
   - util/homedir
   - util/integer
+  - util/jsonpath
   - util/workqueue
 - name: k8s.io/kube-openapi
   version: 80f07ef71bb4f781233c65aa8d0369e4ecafab87
