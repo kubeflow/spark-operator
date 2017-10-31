@@ -49,7 +49,7 @@ func (s *SparkApplicationController) Run(stopCh <-chan struct{}, errCh chan<- er
 	glog.Info("Starting the SparkApplication controller")
 	defer glog.Info("Shutting down the SparkApplication controller")
 
-	glog.Info("Creating the CustomResourceDefinition %s...", crd.CRDFullName)
+	glog.Infof("Creating the CustomResourceDefinition %s...", crd.CRDFullName)
 	err := crd.CreateCRD(s.extensionsClient)
 	if err != nil {
 		errCh <- fmt.Errorf("Failed to create the CustomResourceDefinition for SparkApplication: %v", err)
@@ -109,21 +109,19 @@ func (s *SparkApplicationController) onAdd(obj interface{}) {
 	appCopy.Status.AppID = buildAppID(appCopy)
 	appCopy.Annotations = make(map[string]string)
 
-	serviceName, err := createSparkUIService(appCopy, s.kubeClient)
-	if err != nil {
-		glog.Errorf("Failed to create a UI service for SparkApplication %s: %v", appCopy.Name, err)
-	}
-	appCopy.Annotations[SparkUIServiceNameAnnotationKey] = serviceName
+	// serviceName, err := createSparkUIService(appCopy, s.kubeClient)
+	// if err != nil {
+	// 	glog.Errorf("Failed to create a UI service for SparkApplication %s: %v", appCopy.Name, err)
+	// }
+	// appCopy.Annotations[SparkUIServiceNameAnnotationKey] = serviceName
 
-	submissionCmd, err := buildSubmissionCommand(appCopy)
+	submissionCmdArgs, err := buildSubmissionCommandArgs(appCopy)
 	if err != nil {
 		glog.Errorf("Failed to build the submission command for SparkApplication %s: %v", appCopy.Name, err)
 	}
-	glog.Infof("Submission command: %s", submissionCmd)
-	appCopy.Annotations[SubmissionCommandAnnotationKey] = submissionCmd
 
 	if !appCopy.Spec.SubmissionByUser {
-		s.runner.addSparkSubmitCommand(submissionCmd)
+		s.runner.addSparkSubmitCommand(submissionCmdArgs)
 	}
 
 	_, err = s.crdClient.Update(appCopy)
