@@ -15,6 +15,18 @@ const (
 	kubernetesServicePortEnvVar = "KUBERNETES_SERVICE_PORT"
 )
 
+type submission struct {
+	args []string
+	app  *v1alpha1.SparkApplication
+}
+
+func newSubmission(args []string, app *v1alpha1.SparkApplication) *submission {
+	return &submission{
+		args: args,
+		app:  app,
+	}
+}
+
 func buildSubmissionCommandArgs(app *v1alpha1.SparkApplication) ([]string, error) {
 	var args []string
 	if app.Spec.MainClass != nil {

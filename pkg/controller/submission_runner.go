@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/liyinan926/spark-operator/pkg/apis/v1alpha1"
+
 	"github.com/golang/glog"
 
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -13,14 +15,16 @@ import (
 
 // SparkSubmitRunner is responsible for running user-specified Spark applications.
 type SparkSubmitRunner struct {
-	workers int
-	queue   chan []string
+	workers               int
+	queue                 chan *submission
+	appStateReportingChan chan *v1alpha1.SparkApplication
 }
 
-func newRunner(workers int) *SparkSubmitRunner {
+func newRunner(workers int, appStateReportingChan chan *v1alpha1.SparkApplication) *SparkSubmitRunner {
 	return &SparkSubmitRunner{
 		workers: workers,
-		queue:   make(chan []string, workers),
+		queue:   make(chan *submission, workers),
+		appStateReportingChan: appStateReportingChan,
 	}
 }
 
@@ -33,6 +37,7 @@ func (r *SparkSubmitRunner) start(stopCh <-chan struct{}) {
 	}
 
 	<-stopCh
+	close(r.appStateReportingChan)
 }
 
 func (r *SparkSubmitRunner) runWorker() {
@@ -42,19 +47,24 @@ func (r *SparkSubmitRunner) runWorker() {
 	}
 	var command = filepath.Join(sparkHome, "/bin/spark-submit")
 
-	for sparkSubmitCommandArgs := range r.queue {
-		cmd := exec.Command(command, sparkSubmitCommandArgs...)
+	for s := range r.queue {
+		cmd := exec.Command(command, s.args...)
 		glog.Infof("spark-submit arguments: %v", cmd.Args)
-		if bytes, err := cmd.Output(); err != nil {
+		if _, err := cmd.Output(); err != nil {
 			if exitErr, ok := err.(*exec.ExitError); ok {
-				glog.Errorf("Failed to run spark-submit command: %s", string(exitErr.Stderr))
+				glog.Errorf("Spark application %s failed: %s", s.app.Name, string(exitErr.Stderr))
 			}
+			s.app.Status.State = v1alpha1.FailedState
 		} else {
-			glog.Infof("spark-submit output: %s", string(bytes))
+			glog.Infof("Spark application %s completed", s.app.Name)
+			s.app.Status.State = v1alpha1.CompletedState
 		}
+		// Report the application state back to the controller.
+		r.appStateReportingChan <- s.app
 	}
 }
 
-func (r *SparkSubmitRunner) addSparkSubmitCommand(sparkSubmitCommandArgs []string) {
-	r.queue <- sparkSubmitCommandArgs
+func (r *SparkSubmitRunner) submit(s *submission) {
+	s.app.Status.State = v1alpha1.SubmittedState
+	r.queue <- s
 }

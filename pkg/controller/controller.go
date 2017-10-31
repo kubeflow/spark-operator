@@ -25,10 +25,11 @@ const (
 
 // SparkApplicationController manages instances of SparkApplication.
 type SparkApplicationController struct {
-	crdClient        *crd.Client
-	kubeClient       clientset.Interface
-	extensionsClient apiextensionsclient.Interface
-	runner           *SparkSubmitRunner
+	crdClient             *crd.Client
+	kubeClient            clientset.Interface
+	extensionsClient      apiextensionsclient.Interface
+	appStateReportingChan chan *v1alpha1.SparkApplication
+	runner                *SparkSubmitRunner
 }
 
 // NewSparkApplicationController creates a new SparkApplicationController.
@@ -36,11 +37,13 @@ func NewSparkApplicationController(
 	crdClient *crd.Client,
 	kubeClient clientset.Interface,
 	extensionsClient apiextensionsclient.Interface) *SparkApplicationController {
+	appStateReportingChan := make(chan *v1alpha1.SparkApplication, 3)
 	return &SparkApplicationController{
-		crdClient:        crdClient,
-		kubeClient:       kubeClient,
-		extensionsClient: extensionsClient,
-		runner:           newRunner(3),
+		crdClient:             crdClient,
+		kubeClient:            kubeClient,
+		extensionsClient:      extensionsClient,
+		appStateReportingChan: appStateReportingChan,
+		runner:                newRunner(3, appStateReportingChan),
 	}
 }
 
@@ -63,7 +66,15 @@ func (s *SparkApplicationController) Run(stopCh <-chan struct{}, errCh chan<- er
 		return
 	}
 
-	s.runner.start(stopCh)
+	go s.runner.start(stopCh)
+	go func() {
+		for app := range s.appStateReportingChan {
+			_, err = s.crdClient.Update(app)
+			if err != nil {
+				glog.Errorf("Failed to update SparkApplication %s: %v", app.Name, err)
+			}
+		}
+	}()
 
 	<-stopCh
 }
@@ -107,6 +118,8 @@ func (s *SparkApplicationController) onAdd(obj interface{}) {
 	}
 	appCopy := copyObj.(*v1alpha1.SparkApplication)
 	appCopy.Status.AppID = buildAppID(appCopy)
+	appCopy.Status.State = v1alpha1.NewState
+	appCopy.Status.RequestedExecutors = appCopy.Spec.Executor.Instances
 	appCopy.Annotations = make(map[string]string)
 
 	serviceName, err := createSparkUIService(appCopy, s.kubeClient)
@@ -115,25 +128,23 @@ func (s *SparkApplicationController) onAdd(obj interface{}) {
 	}
 	appCopy.Annotations[SparkUIServiceNameAnnotationKey] = serviceName
 
-	submissionCmdArgs, err := buildSubmissionCommandArgs(appCopy)
-	if err != nil {
-		glog.Errorf("Failed to build the submission command for SparkApplication %s: %v", appCopy.Name, err)
-	}
-
-	if !appCopy.Spec.SubmissionByUser {
-		s.runner.addSparkSubmitCommand(submissionCmdArgs)
-	}
-
-	_, err = s.crdClient.Update(appCopy)
+	updatedApp, err := s.crdClient.Update(appCopy)
 	if err != nil {
 		glog.Errorf("Failed to update SparkApplication %s: %v", appCopy.Name, err)
+	}
+
+	submissionCmdArgs, err := buildSubmissionCommandArgs(updatedApp)
+	if err != nil {
+		glog.Errorf("Failed to build the submission command for SparkApplication %s: %v", updatedApp.Name, err)
+	}
+	if !updatedApp.Spec.SubmissionByUser {
+		s.runner.submit(newSubmission(submissionCmdArgs, updatedApp))
 	}
 }
 
 func (s *SparkApplicationController) onUpdate(oldObj, newObj interface{}) {
-	oldApp := oldObj.(*v1alpha1.SparkApplication)
 	newApp := newObj.(*v1alpha1.SparkApplication)
-	glog.Infof("[CONTROLLER] OnUpdate %s to %s\n", oldApp.ObjectMeta.SelfLink, newApp.ObjectMeta.SelfLink)
+	glog.Infof("[CONTROLLER] OnUpdate %s\n", newApp.ObjectMeta.SelfLink)
 }
 
 func (s *SparkApplicationController) onDelete(obj interface{}) {

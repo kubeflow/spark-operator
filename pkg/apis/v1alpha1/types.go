@@ -78,7 +78,6 @@ type ApplicationState string
 // Different states an application may have.
 const (
 	NewState       ApplicationState = "NEW"
-	PendingState   ApplicationState = "PENDING"
 	SubmittedState ApplicationState = "SUBMITTED"
 	RunningState   ApplicationState = "RUNNING"
 	CompletedState ApplicationState = "COMPLETED"
