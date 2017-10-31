@@ -109,11 +109,11 @@ func (s *SparkApplicationController) onAdd(obj interface{}) {
 	appCopy.Status.AppID = buildAppID(appCopy)
 	appCopy.Annotations = make(map[string]string)
 
-	// serviceName, err := createSparkUIService(appCopy, s.kubeClient)
-	// if err != nil {
-	// 	glog.Errorf("Failed to create a UI service for SparkApplication %s: %v", appCopy.Name, err)
-	// }
-	// appCopy.Annotations[SparkUIServiceNameAnnotationKey] = serviceName
+	serviceName, err := createSparkUIService(appCopy, s.kubeClient)
+	if err != nil {
+		glog.Errorf("Failed to create a UI service for SparkApplication %s: %v", appCopy.Name, err)
+	}
+	appCopy.Annotations[SparkUIServiceNameAnnotationKey] = serviceName
 
 	submissionCmdArgs, err := buildSubmissionCommandArgs(appCopy)
 	if err != nil {
