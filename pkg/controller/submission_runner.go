@@ -51,13 +51,14 @@ func (r *SparkSubmitRunner) runWorker() {
 		cmd := exec.Command(command, s.args...)
 		glog.Infof("spark-submit arguments: %v", cmd.Args)
 		if _, err := cmd.Output(); err != nil {
+			s.app.Status.AppState.State = v1alpha1.FailedState
 			if exitErr, ok := err.(*exec.ExitError); ok {
 				glog.Errorf("Spark application %s failed: %s", s.app.Name, string(exitErr.Stderr))
+				s.app.Status.AppState.ErrorMessage = string(exitErr.Stderr)
 			}
-			s.app.Status.State = v1alpha1.FailedState
 		} else {
 			glog.Infof("Spark application %s completed", s.app.Name)
-			s.app.Status.State = v1alpha1.CompletedState
+			s.app.Status.AppState.State = v1alpha1.CompletedState
 		}
 		// Report the application state back to the controller.
 		r.appStateReportingChan <- s.app
@@ -65,6 +66,6 @@ func (r *SparkSubmitRunner) runWorker() {
 }
 
 func (r *SparkSubmitRunner) submit(s *submission) {
-	s.app.Status.State = v1alpha1.SubmittedState
+	s.app.Status.AppState.State = v1alpha1.SubmittedState
 	r.queue <- s
 }

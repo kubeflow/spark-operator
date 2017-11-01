@@ -118,7 +118,7 @@ func (s *SparkApplicationController) onAdd(obj interface{}) {
 	}
 	appCopy := copyObj.(*v1alpha1.SparkApplication)
 	appCopy.Status.AppID = buildAppID(appCopy)
-	appCopy.Status.State = v1alpha1.NewState
+	appCopy.Status.AppState.State = v1alpha1.NewState
 	appCopy.Status.RequestedExecutors = appCopy.Spec.Executor.Instances
 	appCopy.Annotations = make(map[string]string)
 

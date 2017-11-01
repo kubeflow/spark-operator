@@ -342,6 +342,7 @@ func (in *SparkApplicationSpec) DeepCopy() *SparkApplicationSpec {
 func (in *SparkApplicationStatus) DeepCopyInto(out *SparkApplicationStatus) {
 	*out = *in
 	out.UIServiceInfo = in.UIServiceInfo
+	out.AppState = in.AppState
 	if in.ExecutorState != nil {
 		in, out := &in.ExecutorState, &out.ExecutorState
 		*out = make(map[string]ExecutorState, len(*in))

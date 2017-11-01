@@ -72,37 +72,42 @@ type SparkApplicationSpec struct {
 	SubmissionByUser bool `jason:"submissionByUser"`
 }
 
-// ApplicationState tells the current state of an application.
-type ApplicationState string
+// ApplicationStateType represents the type of the current state of an application.
+type ApplicationStateType string
 
 // Different states an application may have.
 const (
-	NewState       ApplicationState = "NEW"
-	SubmittedState ApplicationState = "SUBMITTED"
-	RunningState   ApplicationState = "RUNNING"
-	CompletedState ApplicationState = "COMPLETED"
-	FailedState    ApplicationState = "FAILED"
+	NewState       ApplicationStateType = "NEW"
+	SubmittedState ApplicationStateType = "SUBMITTED"
+	RunningState   ApplicationStateType = "RUNNING"
+	CompletedState ApplicationStateType = "COMPLETED"
+	FailedState    ApplicationStateType = "FAILED"
 )
+
+type applicationState struct {
+	State        ApplicationStateType
+	ErrorMessage string
+}
 
 // ExecutorState tells the current state of an executor.
 type ExecutorState string
 
 // Different states an executor may have.
 const (
-	ExecutorRunningState   ApplicationState = "RUNNING"
-	ExecutorCompletedState ApplicationState = "COMPLETED"
-	ExecutorFailedState    ApplicationState = "FAILED"
+	ExecutorRunningState   ExecutorState = "RUNNING"
+	ExecutorCompletedState ExecutorState = "COMPLETED"
+	ExecutorFailedState    ExecutorState = "FAILED"
 )
 
 // SparkApplicationStatus describes the current status of a Spark application.
 type SparkApplicationStatus struct {
 	// AppId is the application ID that's also added as a label to the SparkApplication object
 	// and driver and executor Pods, and is used to group the objects for the same application.
-	AppID string
+	AppID string `json:"appId"`
 	// WebUIServiceName is the name of the service for the Spark web UI running on the driver.
 	UIServiceInfo UIServiceInfo `json:"uiServiceInfo"`
-	// State tells the overall application state.
-	State ApplicationState
+	// AppState tells the overall application state.
+	AppState applicationState `json:"applicationState"`
 	// RequestedExecutors is the number of executors requested.
 	// In case dynamic allocation is enabled, this is the number of initial executors requested.
 	RequestedExecutors int32 `json:"requestedExecutors"`
