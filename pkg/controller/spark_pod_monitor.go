@@ -31,8 +31,9 @@ type SparkPodMonitor struct {
 
 // driverStateUpdate encapsulates state update of the driver.
 type driverStateUpdate struct {
-	appID   string
-	podName string
+	appID    string
+	podName  string
+	nodeName string
 }
 
 // executorStateUpdate encapsulates state update of an executor.
@@ -98,9 +99,7 @@ func (s *SparkPodMonitor) run(stopCh <-chan struct{}) {
 func (s *SparkPodMonitor) onPodAdded(obj interface{}) {
 	pod := obj.(*apiv1.Pod)
 	if isDriverPod(pod) {
-		if appID, ok := getAppID(pod); ok {
-			s.driverStateReportingChan <- driverStateUpdate{appID: appID, podName: pod.Name}
-		}
+		s.updateDriverState(pod)
 	} else if isExecutorPod(pod) {
 		s.updateExecutorState(pod)
 	}
@@ -108,10 +107,11 @@ func (s *SparkPodMonitor) onPodAdded(obj interface{}) {
 
 func (s *SparkPodMonitor) onPodUpdated(old, updated interface{}) {
 	updatedPod := updated.(*apiv1.Pod)
-	if !isExecutorPod(updatedPod) {
-		return
+	if isDriverPod(updatedPod) {
+		s.updateDriverState(updatedPod)
+	} else if isExecutorPod(updatedPod) {
+		s.updateExecutorState(updatedPod)
 	}
-	s.updateExecutorState(updatedPod)
 }
 
 func (s *SparkPodMonitor) onPodDeleted(obj interface{}) {
@@ -120,6 +120,16 @@ func (s *SparkPodMonitor) onPodDeleted(obj interface{}) {
 		return
 	}
 	s.updateExecutorState(deletedPod)
+}
+
+func (s *SparkPodMonitor) updateDriverState(pod *apiv1.Pod) {
+	if appID, ok := getAppID(pod); ok {
+		s.driverStateReportingChan <- driverStateUpdate{
+			appID:    appID,
+			podName:  pod.Name,
+			nodeName: pod.Spec.NodeName,
+		}
+	}
 }
 
 func (s *SparkPodMonitor) updateExecutorState(pod *apiv1.Pod) {

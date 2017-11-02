@@ -122,13 +122,6 @@ type SparkApplicationList struct {
 	Items           []SparkApplication `json:"items,omitempty"`
 }
 
-// DriverInfo captures information about the driver.
-type DriverInfo struct {
-	WebUIServiceName string `json:"webUIServiceName"`
-	WebUIPort        int32  `json:"webUIPort"`
-	PodName          string `json:"podName"`
-}
-
 // Dependencies specifies all possible types of dependencies of a Spark application.
 type Dependencies struct {
 	// JarFiles is a list of JAR files the Spark application depends on.
@@ -185,6 +178,14 @@ const (
 	// GenericType is for secrets that needs no special handling.
 	GenericType SecretType = "Generic"
 )
+
+// DriverInfo captures information about the driver.
+type DriverInfo struct {
+	WebUIServiceName string `json:"webUIServiceName"`
+	WebUIPort        int32  `json:"webUIPort"`
+	WebUIURL         string `json:"webUIURL"`
+	PodName          string `json:"podName"`
+}
 
 // SecretInfo captures information of a secret.
 type SecretInfo struct {

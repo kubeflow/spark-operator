@@ -199,6 +199,12 @@ func (s *SparkApplicationController) processSingleDriverStateUpdate(update drive
 
 	if app, ok := s.runningApps[update.appID]; ok {
 		app.Status.DriverInfo.PodName = update.podName
+		if update.nodeName != "" {
+			nodeIP := s.getNodeExternalIP(update.nodeName)
+			if nodeIP != "" {
+				app.Status.DriverInfo.WebUIURL = fmt.Sprintf("%s:%d", nodeIP, app.Status.DriverInfo.WebUIPort)
+			}
+		}
 		updated, err := s.crdClient.Update(app)
 		s.runningApps[updated.Status.AppID] = updated
 		if err != nil {
@@ -251,6 +257,20 @@ func (s *SparkApplicationController) processSingleExecutorStateUpdate(update exe
 			}
 		}
 	}
+}
+
+func (s *SparkApplicationController) getNodeExternalIP(nodeName string) string {
+	node, err := s.kubeClient.CoreV1().Nodes().Get(nodeName, metav1.GetOptions{})
+	if err != nil {
+		glog.Errorf("Failed to get node %s", nodeName)
+		return ""
+	}
+	for _, address := range node.Status.Addresses {
+		if address.Type == apiv1.NodeExternalIP {
+			return address.Address
+		}
+	}
+	return ""
 }
 
 // buildAppID builds an application ID in the form of <application name>-<32-bit hash>.
