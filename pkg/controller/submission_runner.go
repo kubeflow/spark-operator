@@ -17,10 +17,17 @@ import (
 type SparkSubmitRunner struct {
 	workers               int
 	queue                 chan *submission
-	appStateReportingChan chan *v1alpha1.SparkApplication
+	appStateReportingChan chan<- appStateUpdate
 }
 
-func newRunner(workers int, appStateReportingChan chan *v1alpha1.SparkApplication) *SparkSubmitRunner {
+// appStateUpdate encapsulates overall state update of a Spark application.
+type appStateUpdate struct {
+	appID        string
+	state        v1alpha1.ApplicationStateType
+	errorMessage string
+}
+
+func newSparkSubmitRunner(workers int, appStateReportingChan chan<- appStateUpdate) *SparkSubmitRunner {
 	return &SparkSubmitRunner{
 		workers: workers,
 		queue:   make(chan *submission, workers),
@@ -28,7 +35,7 @@ func newRunner(workers int, appStateReportingChan chan *v1alpha1.SparkApplicatio
 	}
 }
 
-func (r *SparkSubmitRunner) start(stopCh <-chan struct{}) {
+func (r *SparkSubmitRunner) run(stopCh <-chan struct{}) {
 	glog.Info("Starting the spark-submit runner")
 	defer glog.Info("Shutting down the spark-submit runner")
 
@@ -50,22 +57,22 @@ func (r *SparkSubmitRunner) runWorker() {
 	for s := range r.queue {
 		cmd := exec.Command(command, s.args...)
 		glog.Infof("spark-submit arguments: %v", cmd.Args)
+		stateUpdate := appStateUpdate{appID: s.appID}
 		if _, err := cmd.Output(); err != nil {
-			s.app.Status.AppState.State = v1alpha1.FailedState
+			stateUpdate.state = v1alpha1.FailedState
 			if exitErr, ok := err.(*exec.ExitError); ok {
-				glog.Errorf("Spark application %s failed: %s", s.app.Name, string(exitErr.Stderr))
-				s.app.Status.AppState.ErrorMessage = string(exitErr.Stderr)
+				glog.Errorf("Spark application %s failed: %s", s.appName, string(exitErr.Stderr))
+				stateUpdate.errorMessage = string(exitErr.Stderr)
 			}
 		} else {
-			glog.Infof("Spark application %s completed", s.app.Name)
-			s.app.Status.AppState.State = v1alpha1.CompletedState
+			glog.Infof("Spark application %s completed", s.appName)
+			stateUpdate.state = v1alpha1.CompletedState
 		}
 		// Report the application state back to the controller.
-		r.appStateReportingChan <- s.app
+		r.appStateReportingChan <- stateUpdate
 	}
 }
 
 func (r *SparkSubmitRunner) submit(s *submission) {
-	s.app.Status.AppState.State = v1alpha1.SubmittedState
 	r.queue <- s
 }

@@ -15,15 +15,18 @@ const (
 	kubernetesServicePortEnvVar = "KUBERNETES_SERVICE_PORT"
 )
 
+// submission includes information of a Spark application to be submitted.
 type submission struct {
-	args []string
-	app  *v1alpha1.SparkApplication
+	appName string
+	appID   string
+	args    []string
 }
 
 func newSubmission(args []string, app *v1alpha1.SparkApplication) *submission {
 	return &submission{
-		args: args,
-		app:  app,
+		appName: app.Name,
+		appID:   app.Status.AppID,
+		args:    args,
 	}
 }
 

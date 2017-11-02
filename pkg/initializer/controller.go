@@ -98,17 +98,17 @@ func (ic *Controller) Run(threadiness int, stopCh <-chan struct{}, errCh chan<- 
 	glog.Info("Starting the Spark Pod initializer controller")
 	defer glog.Info("Shutting down the Spark Pod initializer controller")
 
-	glog.Infof("Adding the InitializerConfiguration %s...", initializerConfigName)
+	glog.Infof("Adding the InitializerConfiguration %s", initializerConfigName)
 	err := ic.addInitializationConfig()
 	if err != nil {
 		errCh <- fmt.Errorf("Failed to add InitializationConfiguration %s: %v", initializerConfigName, err)
 		return
 	}
 
-	glog.Info("Starting the Pod controller...")
+	glog.Info("Starting the Pod controller")
 	go ic.sparkPodController.Run(stopCh)
 
-	glog.Info("Starting the workers of the Spark Pod initializer controller...")
+	glog.Info("Starting the workers of the Spark Pod initializer controller")
 	// Start up worker threads based on threadiness.
 	for i := 0; i < threadiness; i++ {
 		// runWorker will loop until "something bad" happens. Until will then rekick
@@ -118,7 +118,7 @@ func (ic *Controller) Run(threadiness int, stopCh <-chan struct{}, errCh chan<- 
 
 	<-stopCh
 
-	glog.Infof("Deleting the InitializerConfiguration %s...", initializerConfigName)
+	glog.Infof("Deleting the InitializerConfiguration %s", initializerConfigName)
 	err = ic.deleteInitializationConfig()
 	if err != nil {
 		errCh <- fmt.Errorf("Failed to delete InitializationConfiguration %s: %v", initializerConfigName, err)
@@ -290,7 +290,7 @@ func (ic *Controller) onPodDeleted(obj interface{}) {
 	}
 
 	if isSparkPod(pod) {
-		glog.Infof("Spark %s pod %s was deleted, dequeuing it...", pod.Labels[sparkRoleLabel], pod.Name)
+		glog.Infof("Spark %s pod %s was deleted, dequeuing it", pod.Labels[sparkRoleLabel], pod.Name)
 		key := getQueueKey(pod)
 		ic.queue.Forget(key)
 		ic.queue.Done(key)

@@ -94,6 +94,7 @@ type ExecutorState string
 
 // Different states an executor may have.
 const (
+	ExecutorPendingState   ExecutorState = "PENDING"
 	ExecutorRunningState   ExecutorState = "RUNNING"
 	ExecutorCompletedState ExecutorState = "COMPLETED"
 	ExecutorFailedState    ExecutorState = "FAILED"

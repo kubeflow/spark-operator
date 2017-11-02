@@ -18,8 +18,6 @@ import (
 const (
 	sparkUIPortConfigurationKey = "spark.ui.port"
 	defaultSparkWebUIPort       = "4040"
-	sparkRoleLabel              = "spark-role"
-	sparkDriverRole             = "driver"
 )
 
 func createSparkUIService(app *v1alpha1.SparkApplication, kubeClient clientset.Interface) (string, error) {
