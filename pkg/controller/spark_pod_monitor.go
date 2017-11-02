@@ -91,6 +91,7 @@ func (s *SparkPodMonitor) run(stopCh <-chan struct{}) {
 	go s.sparkPodController.Run(stopCh)
 
 	<-stopCh
+	close(s.driverStateReportingChan)
 	close(s.executorStateReportingChan)
 }
 
