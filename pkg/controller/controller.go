@@ -34,8 +34,9 @@ type SparkApplicationController struct {
 	extensionsClient           apiextensionsclient.Interface
 	runner                     *SparkSubmitRunner
 	sparkPodMonitor            *SparkPodMonitor
-	appStateReportingChan      chan appStateUpdate
-	executorStateReportingChan chan executorStateUpdate
+	appStateReportingChan      <-chan appStateUpdate
+	driverStateReportingChan   <-chan driverStateUpdate
+	executorStateReportingChan <-chan executorStateUpdate
 	runningApps                map[string]*v1alpha1.SparkApplication
 	mutex                      sync.Mutex
 }
@@ -46,9 +47,10 @@ func NewSparkApplicationController(
 	kubeClient clientset.Interface,
 	extensionsClient apiextensionsclient.Interface) *SparkApplicationController {
 	appStateReportingChan := make(chan appStateUpdate, 3)
+	driverStateReportingChan := make(chan driverStateUpdate)
 	executorStateReportingChan := make(chan executorStateUpdate)
 	runner := newSparkSubmitRunner(3, appStateReportingChan)
-	sparkPodMonitor := newSparkPodMonitor(kubeClient, executorStateReportingChan)
+	sparkPodMonitor := newSparkPodMonitor(kubeClient, driverStateReportingChan, executorStateReportingChan)
 
 	return &SparkApplicationController{
 		crdClient:                  crdClient,
@@ -57,6 +59,7 @@ func NewSparkApplicationController(
 		runner:                     runner,
 		sparkPodMonitor:            sparkPodMonitor,
 		appStateReportingChan:      appStateReportingChan,
+		driverStateReportingChan:   driverStateReportingChan,
 		executorStateReportingChan: executorStateReportingChan,
 		runningApps:                make(map[string]*v1alpha1.SparkApplication),
 	}
@@ -85,6 +88,7 @@ func (s *SparkApplicationController) Run(stopCh <-chan struct{}, errCh chan<- er
 	go s.sparkPodMonitor.run(stopCh)
 
 	go s.processAppStateUpdates()
+	go s.processDriverStateUpdates()
 	go s.processExecutorStateUpdates()
 
 	<-stopCh
@@ -128,7 +132,6 @@ func (s *SparkApplicationController) onAdd(obj interface{}) {
 	appCopy := copyObj.(*v1alpha1.SparkApplication)
 	appCopy.Status.AppID = buildAppID(appCopy)
 	appCopy.Status.AppState.State = v1alpha1.NewState
-	appCopy.Status.RequestedExecutors = appCopy.Spec.Executor.Instances
 	appCopy.Annotations = make(map[string]string)
 
 	serviceName, err := createSparkUIService(appCopy, s.kubeClient)
@@ -177,6 +180,26 @@ func (s *SparkApplicationController) onDelete(obj interface{}) {
 	}
 }
 
+func (s *SparkApplicationController) processDriverStateUpdates() {
+	for update := range s.driverStateReportingChan {
+		s.processSingleDriverStateUpdate(update)
+	}
+}
+
+func (s *SparkApplicationController) processSingleDriverStateUpdate(update driverStateUpdate) {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
+	if app, ok := s.runningApps[update.appID]; ok {
+		app.Status.DriverInfo.PodName = update.podName
+		updated, err := s.crdClient.Update(app)
+		s.runningApps[updated.Status.AppID] = updated
+		if err != nil {
+			glog.Errorf("Failed to update SparkApplication %s: %v", app.Name, err)
+		}
+	}
+}
+
 func (s *SparkApplicationController) processAppStateUpdates() {
 	for update := range s.appStateReportingChan {
 		s.processSingleAppStateUpdate(update)
@@ -212,11 +235,13 @@ func (s *SparkApplicationController) processSingleExecutorStateUpdate(update exe
 		if app.Status.ExecutorState == nil {
 			app.Status.ExecutorState = make(map[string]v1alpha1.ExecutorState)
 		}
-		app.Status.ExecutorState[update.podName] = update.state
-		updated, err := s.crdClient.Update(app)
-		s.runningApps[updated.Status.AppID] = updated
-		if err != nil {
-			glog.Errorf("Failed to update SparkApplication %s: %v", app.Name, err)
+		if update.state == v1alpha1.ExecutorCompletedState || update.state == v1alpha1.ExecutorFailedState {
+			app.Status.ExecutorState[update.podName] = update.state
+			updated, err := s.crdClient.Update(app)
+			s.runningApps[updated.Status.AppID] = updated
+			if err != nil {
+				glog.Errorf("Failed to update SparkApplication %s: %v", app.Name, err)
+			}
 		}
 	}
 }

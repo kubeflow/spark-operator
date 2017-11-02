@@ -54,9 +54,9 @@ func createSparkUIService(app *v1alpha1.SparkApplication, kubeClient clientset.I
 	if err != nil {
 		return "", err
 	}
-	app.Status.UIServiceInfo = v1alpha1.UIServiceInfo{
-		Name: service.Name,
-		Port: int32(port),
+	app.Status.DriverInfo = v1alpha1.DriverInfo{
+		WebUIServiceName: service.Name,
+		WebUIPort:        int32(port),
 	}
 
 	return service.Name, nil
