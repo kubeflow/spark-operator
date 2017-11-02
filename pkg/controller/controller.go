@@ -178,6 +178,12 @@ func (s *SparkApplicationController) onDelete(obj interface{}) {
 			glog.Errorf("Failed to delete the UI service %s for SparkApplication %s: %v", serviceName, app.Name, err)
 		}
 	}
+
+	driverServiceName := app.Status.DriverInfo.PodName + "-svc"
+	glog.Infof("Deleting the headless service %s for the driver of SparkApplication %s", driverServiceName, app.Name)
+	s.kubeClient.CoreV1().Services(app.Namespace).Delete(driverServiceName, &metav1.DeleteOptions{})
+	glog.Infof("Deleting the driver pod %s of SparkApplication %s", app.Status.DriverInfo.PodName, app.Name)
+	s.kubeClient.CoreV1().Pods(app.Namespace).Delete(app.Status.DriverInfo.PodName, &metav1.DeleteOptions{})
 }
 
 func (s *SparkApplicationController) processDriverStateUpdates() {
