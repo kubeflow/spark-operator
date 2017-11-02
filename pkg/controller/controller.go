@@ -45,11 +45,12 @@ type SparkApplicationController struct {
 func NewSparkApplicationController(
 	crdClient *crd.Client,
 	kubeClient clientset.Interface,
-	extensionsClient apiextensionsclient.Interface) *SparkApplicationController {
-	appStateReportingChan := make(chan appStateUpdate, 3)
+	extensionsClient apiextensionsclient.Interface,
+	submissionRunnerWorkers int) *SparkApplicationController {
+	appStateReportingChan := make(chan appStateUpdate, submissionRunnerWorkers)
 	driverStateReportingChan := make(chan driverStateUpdate)
 	executorStateReportingChan := make(chan executorStateUpdate)
-	runner := newSparkSubmitRunner(3, appStateReportingChan)
+	runner := newSparkSubmitRunner(submissionRunnerWorkers, appStateReportingChan)
 	sparkPodMonitor := newSparkPodMonitor(kubeClient, driverStateReportingChan, executorStateReportingChan)
 
 	return &SparkApplicationController{

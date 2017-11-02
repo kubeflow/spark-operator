@@ -91,7 +91,7 @@ func NewController(kubeClient clientset.Interface) *Controller {
 }
 
 // Run runs the initializer controller.
-func (ic *Controller) Run(threadiness int, stopCh <-chan struct{}, errCh chan<- error) {
+func (ic *Controller) Run(workers int, stopCh <-chan struct{}, errCh chan<- error) {
 	defer utilruntime.HandleCrash()
 	defer ic.queue.ShutDown()
 
@@ -109,8 +109,8 @@ func (ic *Controller) Run(threadiness int, stopCh <-chan struct{}, errCh chan<- 
 	go ic.sparkPodController.Run(stopCh)
 
 	glog.Info("Starting the workers of the Spark Pod initializer controller")
-	// Start up worker threads based on threadiness.
-	for i := 0; i < threadiness; i++ {
+	// Start up worker threads.
+	for i := 0; i < workers; i++ {
 		// runWorker will loop until "something bad" happens. Until will then rekick
 		// the worker after one second.
 		go wait.Until(ic.runWorker, time.Second, stopCh)

@@ -21,7 +21,8 @@ import (
 
 func main() {
 	kubeconfig := flag.String("kubeconfig", "", "Path to a kube config. Only required if out-of-cluster.")
-	initializerThreads := flag.Int("initializer-threads", 10, "Number of worker threads in the initializer controller.")
+	initializerThreads := flag.Int("initializer-threads", 10, "Number of worker threads used by the initializer controller.")
+	submissionRunnerThreads := flag.Int("", 3, "Number of worker threads used by the submission runner.")
 	flag.Parse()
 
 	glog.Info("Starting the Spark operator...")
@@ -51,7 +52,7 @@ func main() {
 	initializerController := initializer.NewController(kubeClient)
 	go initializerController.Run(*initializerThreads, stopCh, errCh)
 
-	sparkApplicationController := controller.NewSparkApplicationController(crdClient, kubeClient, apiExtensionsClient)
+	sparkApplicationController := controller.NewSparkApplicationController(crdClient, kubeClient, apiExtensionsClient, *submissionRunnerThreads)
 	go sparkApplicationController.Run(stopCh, errCh)
 
 	signalCh := make(chan os.Signal, 1)
