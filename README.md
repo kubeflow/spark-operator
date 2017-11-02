@@ -10,14 +10,84 @@ To make such automation possible, Spark Operator uses the Kubernetes [CustomReso
 
 ## Current Status
 
-Currently the initializer is the only component that is tested and actually works.  
+Currently the SparkApplication CRD controller and the pod initializer work.  
 
 ## Build and Installation
 
-To build Spark operator, run the following command:
+To build the Spark operator, run the following command:
 
 ```
 make build
+```
+
+To additionally build a Docker image of the Spark operator, run the following command:
+
+```
+make image-tag=<image tag> image
+```
+
+To further push the Docker image to Docker hub, run the following command:
+
+```
+make image-tag=<image tag> push
+```
+
+## Deploying Spark Operator
+
+To deploy the Spark operator, run the following command:
+
+```
+kubectl create -f manifest/spark-operator.yaml 
+```
+
+## Running the Example Spark Application
+
+To run the example Spark application, run the following command:
+
+```
+kubectl create -f manifest/spark-application-example.yaml
+```
+
+This will create a `SparkApplication` object named `spark-app-example`. Check the object by running the following command:
+
+```
+kubectl get sparkapplications spark-app-example -o=yaml
+```
+
+This will show something similar to the following:
+
+```
+apiVersion: spark-operator.k8s.io/v1alpha1
+kind: SparkApplication
+metadata:
+  ...
+spec:
+  deps: {}
+  driver:
+    image: kubespark/spark-driver:v2.2.0-kubernetes-0.5.0
+  executor:
+    image: kubespark/spark-executor:v2.2.0-kubernetes-0.5.0
+    instances: 1
+  mainApplicationFile: local:///opt/spark/examples/jars/spark-examples_2.11-2.2.0-k8s-0.5.0.jar
+  mainClass: org.apache.spark.examples.SparkPi
+  mode: cluster
+  sparkConf:
+    spark.driver.cores: "0.1"
+    spark.executor.cores: "0.1"
+    spark.executor.memory: 512m
+  submissionByUser: false
+  type: Scala
+status:
+  appId: spark-app-example-2877880513
+  applicationState:
+    errorMessage: ""
+    state: COMPLETED
+  driverInfo:
+    podName: spark-app-example-1509647496976-driver
+    webUIPort: 4040
+    webUIServiceName: spark-app-example-ui-2877880513
+  executorState:
+    spark-app-example-1509647496976-exec-1: COMPLETED
 ```
 
 ## Using the Initializer
