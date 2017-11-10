@@ -15,7 +15,9 @@ This approach is completely different than the one that has the submission clien
 * Things like creating namespaces and setting up RBAC roles and resource quotas represent a separate concern and are better done before applications get submitted.
 * With the external CRD controller submitting applications on behalf of users, they don't need to deal with the submission process and the `spark-submit` command. Instead, the focus is shifted from thinking about commands to thinking about declaractive YAML files describing Spark applications that can be easily version controlled. 
 * Externally created CRD objects make it easier to integrate Spark application submission and monitoring with users' existing pipelines and tooling on Kubernetes.
-* Internally created CRD objects are good for capturing and communicating application/executor status to the users, but not for driver/executor pod configuration/customization as very likely it needs external input. Such external input most likely need additional command-line options to get passed in.     
+* Internally created CRD objects are good for capturing and communicating application/executor status to the users, but not for driver/executor pod configuration/customization as very likely it needs external input. Such external input most likely need additional command-line options to get passed in.
+
+Additionally, keeping the CRD implementation outside the Spark repository gives us a lot of flexibility in terms of functionality to add to the CRD controller. We also have full control over code review and release process.
 
 ## Current Status
 
@@ -117,4 +119,4 @@ Currently the following annotations are supported:
 |`spark-operator.k8s.io/configMap.[ConfigMapName]`|Mount path of the ConfigMap named `ConfigMapName`|
 |`spark-operator.k8s.io/GCPServiceAccount.[SeviceAccountSecretName]`|Mount path of the secret storing GCP service account credentials (typically a JSON key file) named `SeviceAccountSecretName`|
 
-When using the `SparkApplication` CRD to describe a Spark appliction, the annotations are automatically added by the CRD controller.
+When using the `SparkApplication` CRD to describe a Spark appliction, the annotations are automatically added by the CRD controller. `manifest/spark-application-example-gcp-service-account.yaml` shows an example `SparkApplication` with a user-specified GCP service account credential secret named `gcp-service-account` that is to be mounted into both the driver and executor containers. The `SparkApplication` controller automatically adds the annotation `spark-operator.k8s.io/GCPServiceAccount.gcp-service-account=/mnt/secrets` to the driver and executor Pods. The initializer sees the annotation and automatically adds a secret volume into the pods.   
