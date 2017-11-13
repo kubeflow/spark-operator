@@ -75,30 +75,31 @@ metadata:
 spec:
   deps: {}
   driver:
+    cores: "0.1"
     image: kubespark/spark-driver:v2.2.0-kubernetes-0.5.0
+    memory: null
   executor:
+    cores: "0.1"
     image: kubespark/spark-executor:v2.2.0-kubernetes-0.5.0
     instances: 1
+    memory: 512m
   mainApplicationFile: local:///opt/spark/examples/jars/spark-examples_2.11-2.2.0-k8s-0.5.0.jar
   mainClass: org.apache.spark.examples.SparkPi
   mode: cluster
-  sparkConf:
-    spark.driver.cores: "0.1"
-    spark.executor.cores: "0.1"
-    spark.executor.memory: 512m
   submissionByUser: false
   type: Scala
 status:
-  appId: spark-app-example-2877880513
+  appId: spark-app-example-1553506518
   applicationState:
     errorMessage: ""
     state: COMPLETED
   driverInfo:
-    podName: spark-app-example-1509647496976-driver
+    podName: spark-app-example-1510603652649-driver
     webUIPort: 4040
-    webUIServiceName: spark-app-example-ui-2877880513
+    webUIServiceName: spark-app-example-ui-1553506518
+    webUIURL: 35.193.197.127:4040
   executorState:
-    spark-app-example-1509647496976-exec-1: COMPLETED
+    spark-app-example-1510603652649-exec-1: COMPLETED
 ```
 
 ## Using the Initializer
