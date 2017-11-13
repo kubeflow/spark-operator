@@ -44,7 +44,6 @@ func buildSubmissionCommandArgs(app *v1alpha1.SparkApplication) ([]string, error
 	args = append(args, "--kubernetes-namespace", app.Namespace)
 	args = append(args, "--deploy-mode", string(app.Spec.Mode))
 	args = append(args, "--conf", fmt.Sprintf("spark.app.name=%s", app.Name))
-	args = append(args, "--conf", fmt.Sprintf("spark.executor.instances=%d", app.Spec.Executor.Instances))
 
 	// Add application dependencies.
 	if len(app.Spec.Deps.JarFiles) > 0 {
@@ -62,10 +61,6 @@ func buildSubmissionCommandArgs(app *v1alpha1.SparkApplication) ([]string, error
 		args = append(args, "--conf", fmt.Sprintf("%s=%s", key, value))
 	}
 
-	// Add the application ID label.
-	args = append(args, "--conf", fmt.Sprintf("%s%s=%s", config.SparkDriverLabelKeyPrefix, config.SparkAppIDLabel, app.Status.AppID))
-	args = append(args, "--conf", fmt.Sprintf("%s%s=%s", config.SparkExecutorLabelKeyPrefix, config.SparkAppIDLabel, app.Status.AppID))
-
 	if app.Spec.SparkConfigMap != nil {
 		config.AddConfigMapAnnotation(app, config.SparkDriverAnnotationKeyPrefix, config.SparkConfigMapAnnotation, *app.Spec.SparkConfigMap)
 		config.AddConfigMapAnnotation(app, config.SparkExecutorAnnotationKeyPrefix, config.SparkConfigMapAnnotation, *app.Spec.SparkConfigMap)
@@ -75,27 +70,11 @@ func buildSubmissionCommandArgs(app *v1alpha1.SparkApplication) ([]string, error
 		config.AddConfigMapAnnotation(app, config.SparkExecutorAnnotationKeyPrefix, config.HadoopConfigMapAnnotation, *app.Spec.HadoopConfigMap)
 	}
 
-	// Add driver and executor environment variables configuration option.
-	for _, conf := range getDriverEnvVarConfOptions(app) {
-		args = append(args, conf)
-	}
-	for _, conf := range getExecutorEnvVarConfOptions(app) {
-		args = append(args, conf)
-	}
-
-	// Add driver and executor secret annotations configuration option.
-	for _, conf := range getDriverSecretConfOptions(app) {
-		args = append(args, conf)
-	}
-	for _, conf := range getExecutorSecretConfOptions(app) {
-		args = append(args, conf)
-	}
-
-	// Add the driver and executor Docker image configuration options.
+	// Add the driver and executor configuration options.
 	// Note that when the controller submits the application, it expects that all dependencies are local
 	// so init-container is not needed and therefore no init-container image needs to be specified.
-	args = append(args, "--conf", fmt.Sprintf("spark.kubernetes.driver.docker.image=%s", app.Spec.Driver.Image))
-	args = append(args, "--conf", fmt.Sprintf("spark.kubernetes.executor.docker.image=%s", app.Spec.Executor.Image))
+	args = append(args, addDriverConfOptions(app)...)
+	args = append(args, addExecutorConfOptions(app)...)
 
 	// Add the main application file.
 	args = append(args, app.Spec.MainApplicationFile)
@@ -117,6 +96,65 @@ func getMasterURL() (string, error) {
 		return "", fmt.Errorf("Environment variable %s is not found", kubernetesServicePortEnvVar)
 	}
 	return fmt.Sprintf("k8s://https://%s:%s", kubernetesServiceHost, kubernetesServicePort), nil
+}
+
+func addDriverConfOptions(app *v1alpha1.SparkApplication) []string {
+	var driverConfOptions []string
+
+	driverConfOptions = append(
+		driverConfOptions,
+		"--conf",
+		fmt.Sprintf("%s%s=%s", config.SparkDriverLabelKeyPrefix, config.SparkAppIDLabel, app.Status.AppID))
+	driverConfOptions = append(
+		driverConfOptions,
+		"--conf",
+		fmt.Sprintf("spark.kubernetes.driver.docker.image=%s", app.Spec.Driver.Image))
+
+	if app.Spec.Driver.Cores != nil {
+		conf := fmt.Sprintf("spark.driver.cores=%s", *app.Spec.Driver.Cores)
+		driverConfOptions = append(driverConfOptions, "--conf", conf)
+	}
+	if app.Spec.Driver.Memory != nil {
+		conf := fmt.Sprintf("spark.driver.memory=%s", *app.Spec.Driver.Memory)
+		driverConfOptions = append(driverConfOptions, "--conf", conf)
+	}
+
+	driverConfOptions = append(driverConfOptions, getDriverEnvVarConfOptions(app)...)
+	driverConfOptions = append(driverConfOptions, getDriverSecretConfOptions(app)...)
+
+	return driverConfOptions
+}
+
+func addExecutorConfOptions(app *v1alpha1.SparkApplication) []string {
+	var executorConfOptions []string
+
+	executorConfOptions = append(
+		executorConfOptions,
+		"--conf",
+		fmt.Sprintf("%s%s=%s", config.SparkExecutorLabelKeyPrefix, config.SparkAppIDLabel, app.Status.AppID))
+	executorConfOptions = append(
+		executorConfOptions,
+		"--conf",
+		fmt.Sprintf("spark.kubernetes.executor.docker.image=%s", app.Spec.Executor.Image))
+
+	if app.Spec.Executor.Instances != nil {
+		conf := fmt.Sprintf("spark.executor.instances=%d", *app.Spec.Executor.Instances)
+		executorConfOptions = append(executorConfOptions, "--conf", conf)
+	}
+
+	if app.Spec.Executor.Cores != nil {
+		conf := fmt.Sprintf("spark.executor.cores=%s", *app.Spec.Executor.Cores)
+		executorConfOptions = append(executorConfOptions, "--conf", conf)
+	}
+	if app.Spec.Executor.Memory != nil {
+		conf := fmt.Sprintf("spark.executor.memory=%s", *app.Spec.Executor.Memory)
+		executorConfOptions = append(executorConfOptions, "--conf", conf)
+	}
+
+	executorConfOptions = append(executorConfOptions, getExecutorEnvVarConfOptions(app)...)
+	executorConfOptions = append(executorConfOptions, getExecutorSecretConfOptions(app)...)
+
+	return executorConfOptions
 }
 
 func getDriverSecretConfOptions(app *v1alpha1.SparkApplication) []string {

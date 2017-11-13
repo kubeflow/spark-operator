@@ -134,6 +134,10 @@ type Dependencies struct {
 
 // DriverSpec is specification of the driver.
 type DriverSpec struct {
+	// Cores is used to set spark.driver.cores.
+	Cores *string `json:"cores"`
+	// Memory is used to set spark.driver.memory.
+	Memory *string `json:"memory"`
 	// Image is the driver Docker image to use.
 	Image string `json:"image"`
 	// DriverConfigMaps carries information of other ConfigMaps to add to the driver Pod.
@@ -146,10 +150,14 @@ type DriverSpec struct {
 
 // ExecutorSpec is specification of the executor.
 type ExecutorSpec struct {
+	// Cores is used to set spark.executor.cores.
+	Cores *string `json:"cores"`
+	// Memory is used to set spark.executor.memory.
+	Memory *string `json:"memory"`
 	// Image is the executor Docker image to use.
 	Image string `json:"image"`
 	// Instances is the number of executor instances.
-	Instances int32 `json:"instances"`
+	Instances *int32 `json:"instances"`
 	// ExecutorConfigMaps carries information of other ConfigMaps to add to the executor Pods.
 	ExecutorConfigMaps []NamePath `json:"executorConigMaps,omitempty"`
 	// ExecutorSecrets carries information of secrets to add to the executor Pods.
