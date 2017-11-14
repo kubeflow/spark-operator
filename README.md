@@ -27,19 +27,20 @@ Currently the `SparkApplication` CRD controller and the pod initializer work.
 
 To build the Spark operator, run the following command:
 
-```
+```console
 make build
 ```
 
 To additionally build a Docker image of the Spark operator, run the following command:
 
-```
+```console
 make image-tag=<image tag> image
 ```
 
 To further push the Docker image to Docker hub, run the following command:
+console
 
-```
+```console
 make image-tag=<image tag> push
 ```
 
@@ -47,7 +48,7 @@ make image-tag=<image tag> push
 
 To deploy the Spark operator, run the following command:
 
-```
+```console
 kubectl create -f manifest/spark-operator.yaml 
 ```
 
@@ -55,19 +56,19 @@ kubectl create -f manifest/spark-operator.yaml
 
 To run the example Spark application, run the following command:
 
-```
+```console
 kubectl create -f manifest/spark-application-example.yaml
 ```
 
 This will create a `SparkApplication` object named `spark-app-example`. Check the object by running the following command:
 
-```
+```console
 kubectl get sparkapplications spark-app-example -o=yaml
 ```
 
 This will show something similar to the following:
 
-```
+```yaml
 apiVersion: spark-operator.k8s.io/v1alpha1
 kind: SparkApplication
 metadata:
@@ -106,7 +107,7 @@ status:
 
 The initializer works independently with or without the CRD controller. The initializer looks for certain custom annotations on Spark driver and executor Pods to perform its tasks. To use the initializer without leveraging the CRD, simply add the needed annotations to the driver and/or executor Pods using the following Spark configuration properties when submitting your Spark applications through the `spark-submit` script.
 
-```
+```console
 --conf spark.kubernetes.driver.annotations.[AnnotationName]=value
 --conf spark.kubernetes.executor.annotations.[AnnotationName]=value
 ```  
