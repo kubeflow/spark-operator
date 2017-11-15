@@ -22,7 +22,7 @@ import (
 func main() {
 	kubeconfig := flag.String("kubeconfig", "", "Path to a kube config. Only required if out-of-cluster.")
 	initializerThreads := flag.Int("initializer-threads", 10, "Number of worker threads used by the initializer controller.")
-	submissionRunnerThreads := flag.Int("", 3, "Number of worker threads used by the submission runner.")
+	submissionRunnerThreads := flag.Int("submission-threads", 3, "Number of worker threads used by the submission runner.")
 	flag.Parse()
 
 	glog.Info("Starting the Spark operator...")

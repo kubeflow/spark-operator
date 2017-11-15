@@ -54,6 +54,12 @@ To deploy the Spark operator, run the following command:
 kubectl create -f manifest/spark-operator.yaml 
 ```
 
+## Configuring Spark Operator
+
+Spark Operator is typically deployed and run using `manifest/spark-operator.yaml` through a Kubernetes `Deployment`. However, users can still run it outside a Kubernetes cluster and make it talk to the Kubernetes API server of a cluster by specifying path to `kubeconfig`, which can be done using the `--kubeconfig` flag. 
+
+Spark Operator uses multiple workers in the initializer controller and the submission runner. The number of worker threads to use in the two places are controlled using command-line flags `--initializer-threads` and `--submission-threads`, respectively. The default values for both flags are 10 and 3, respectively.
+
 ## Running the Example Spark Application
 
 To run the example Spark application, run the following command:
