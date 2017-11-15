@@ -34,6 +34,7 @@ type driverStateUpdate struct {
 	appID    string
 	podName  string
 	nodeName string
+	podPhase apiv1.PodPhase
 }
 
 // executorStateUpdate encapsulates state update of an executor.
@@ -128,6 +129,7 @@ func (s *SparkPodMonitor) updateDriverState(pod *apiv1.Pod) {
 			appID:    appID,
 			podName:  pod.Name,
 			nodeName: pod.Spec.NodeName,
+			podPhase: pod.Status.Phase,
 		}
 	}
 }
@@ -135,9 +137,10 @@ func (s *SparkPodMonitor) updateDriverState(pod *apiv1.Pod) {
 func (s *SparkPodMonitor) updateExecutorState(pod *apiv1.Pod) {
 	if appID, ok := getAppID(pod); ok {
 		s.executorStateReportingChan <- executorStateUpdate{
-			appID:   appID,
-			podName: pod.Name,
-			state:   podPhaseToExecutorState(pod.Status.Phase),
+			appID:      appID,
+			podName:    pod.Name,
+			executorID: getExecutorID(pod),
+			state:      podPhaseToExecutorState(pod.Status.Phase),
 		}
 	}
 }
@@ -167,4 +170,8 @@ func podPhaseToExecutorState(podPhase apiv1.PodPhase) v1alpha1.ExecutorState {
 		return v1alpha1.ExecutorFailedState
 	}
 	return ""
+}
+
+func getExecutorID(pod *apiv1.Pod) string {
+	return pod.Labels[sparkExecutorIDLabel]
 }

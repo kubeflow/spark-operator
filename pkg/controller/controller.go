@@ -25,6 +25,7 @@ const (
 	sparkRoleLabel                 = "spark-role"
 	sparkDriverRole                = "driver"
 	sparkExecutorRole              = "executor"
+	sparkExecutorIDLabel           = "spark-exec-id"
 )
 
 // SparkApplicationController manages instances of SparkApplication.
@@ -205,6 +206,13 @@ func (s *SparkApplicationController) processSingleDriverStateUpdate(update drive
 				app.Status.DriverInfo.WebUIURL = fmt.Sprintf("%s:%d", nodeIP, app.Status.DriverInfo.WebUIPort)
 			}
 		}
+
+		appState := driverPodPhaseToApplicationState(update.podPhase)
+		// Update the application based on the driver pod phase if the driver has terminated.
+		if isAppTerminated(appState) {
+			app.Status.AppState.State = appState
+		}
+
 		updated, err := s.crdClient.Update(app)
 		s.runningApps[updated.Status.AppID] = updated
 		if err != nil {
@@ -224,12 +232,15 @@ func (s *SparkApplicationController) processSingleAppStateUpdate(update appState
 	defer s.mutex.Unlock()
 
 	if app, ok := s.runningApps[update.appID]; ok {
-		app.Status.AppState.State = update.state
-		app.Status.AppState.ErrorMessage = update.errorMessage
-		updated, err := s.crdClient.Update(app)
-		s.runningApps[updated.Status.AppID] = updated
-		if err != nil {
-			glog.Errorf("Failed to update SparkApplication %s: %v", app.Name, err)
+		// The application state may have already been set based on the driver pod state, so it's set here only if otherwise.
+		if !isAppTerminated(app.Status.AppState.State) {
+			app.Status.AppState.State = update.state
+			app.Status.AppState.ErrorMessage = update.errorMessage
+			updated, err := s.crdClient.Update(app)
+			s.runningApps[updated.Status.AppID] = updated
+			if err != nil {
+				glog.Errorf("Failed to update SparkApplication %s: %v", app.Name, err)
+			}
 		}
 	}
 }
@@ -241,6 +252,8 @@ func (s *SparkApplicationController) processExecutorStateUpdates() {
 }
 
 func (s *SparkApplicationController) processSingleExecutorStateUpdate(update executorStateUpdate) {
+	glog.V(2).Infof("Received new state %s for executor %s running in %s", update.state, update.executorID, update.podName)
+
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
@@ -280,4 +293,22 @@ func buildAppID(app *v1alpha1.SparkApplication) string {
 	hasher.Write([]byte(app.Namespace))
 	hasher.Write([]byte(app.UID))
 	return fmt.Sprintf("%s-%d", app.Name, hasher.Sum32())
+}
+
+func isAppTerminated(appState v1alpha1.ApplicationStateType) bool {
+	return appState == v1alpha1.CompletedState || appState == v1alpha1.FailedState
+}
+
+func driverPodPhaseToApplicationState(podPhase apiv1.PodPhase) v1alpha1.ApplicationStateType {
+	switch podPhase {
+	case apiv1.PodPending:
+		return v1alpha1.SubmittedState
+	case apiv1.PodRunning:
+		return v1alpha1.RunningState
+	case apiv1.PodSucceeded:
+		return v1alpha1.CompletedState
+	case apiv1.PodFailed:
+		return v1alpha1.FailedState
+	}
+	return ""
 }
