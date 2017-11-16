@@ -36,7 +36,7 @@ func createSparkUIService(app *v1alpha1.SparkApplication, kubeClient clientset.I
 		},
 		Spec: apiv1.ServiceSpec{
 			Ports: []apiv1.ServicePort{
-				apiv1.ServicePort{
+				{
 					Port:       int32(port),
 					TargetPort: intstr.FromInt(port),
 				},

@@ -25,7 +25,7 @@ func main() {
 	submissionRunnerThreads := flag.Int("submission-threads", 3, "Number of worker threads used by the submission runner.")
 	flag.Parse()
 
-	glog.Info("Starting the Spark operator...")
+	glog.Info("Starting the Spark operator")
 
 	// Create the client config. Use kubeconfig if given, otherwise assume in-cluster.
 	config, err := buildConfig(*kubeconfig)
@@ -49,17 +49,17 @@ func main() {
 	stopCh := make(chan struct{})
 	errCh := make(chan error)
 
-	initializerController := initializer.NewController(kubeClient)
+	initializerController := initializer.New(kubeClient)
 	go initializerController.Run(*initializerThreads, stopCh, errCh)
 
-	sparkApplicationController := controller.NewSparkApplicationController(crdClient, kubeClient, apiExtensionsClient, *submissionRunnerThreads)
+	sparkApplicationController := controller.New(crdClient, kubeClient, apiExtensionsClient, *submissionRunnerThreads)
 	go sparkApplicationController.Run(stopCh, errCh)
 
 	signalCh := make(chan os.Signal, 1)
 	signal.Notify(signalCh, syscall.SIGINT, syscall.SIGTERM)
 	<-signalCh
 
-	glog.Info("Shutting down the Spark operator...")
+	glog.Info("Shutting down the Spark operator")
 	// This causes the custom controller and initializer to stop.
 	close(stopCh)
 

@@ -36,10 +36,12 @@ func TestCreateSparkUIService(t *testing.T) {
 			}
 		}
 
-		if test.app.Status.UIServiceInfo.Name != test.expectedServiceName {
-			t.Errorf("%s: for service name wanted %s got %s", test.name, test.expectedServiceName, test.app.Status.UIServiceInfo.Name)
+		if test.app.Status.DriverInfo.WebUIServiceName != test.expectedServiceName {
+			t.Errorf("%s: for service name wanted %s got %s", test.name, test.expectedServiceName, test.app.Status.DriverInfo.WebUIServiceName)
 		}
-		service, err := fakeClient.CoreV1().Services(test.app.Namespace).Get(test.app.Status.UIServiceInfo.Name, metav1.GetOptions{})
+		service, err := fakeClient.CoreV1().
+			Services(test.app.Namespace).
+			Get(test.app.Status.DriverInfo.WebUIServiceName, metav1.GetOptions{})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -62,8 +64,8 @@ func TestCreateSparkUIService(t *testing.T) {
 		if port.TargetPort.IntVal != test.expectedServicePort {
 			t.Errorf("%s: unexpected target port wanted %d got %d", test.name, test.expectedServicePort, port.TargetPort.IntVal)
 		}
-		if test.app.Status.UIServiceInfo.Port != test.expectedServicePort {
-			t.Errorf("%s: unexpected port wanted %d got %d", test.name, test.expectedServicePort, test.app.Status.UIServiceInfo.Port)
+		if test.app.Status.DriverInfo.WebUIPort != test.expectedServicePort {
+			t.Errorf("%s: unexpected port wanted %d got %d", test.name, test.expectedServicePort, test.app.Status.DriverInfo.WebUIPort)
 		}
 	}
 
@@ -112,7 +114,7 @@ func TestCreateSparkUIService(t *testing.T) {
 		},
 	}
 	testcases := []testcase{
-		testcase{
+		{
 			name:                "service with custom port",
 			app:                 app1,
 			expectedServiceName: buildUIServiceName(app1),
@@ -123,7 +125,7 @@ func TestCreateSparkUIService(t *testing.T) {
 			},
 			expectError: false,
 		},
-		testcase{
+		{
 			name:                "service with default port",
 			app:                 app2,
 			expectedServiceName: buildUIServiceName(app2),
@@ -134,7 +136,7 @@ func TestCreateSparkUIService(t *testing.T) {
 			},
 			expectError: false,
 		},
-		testcase{
+		{
 			name:        "service with bad port configurations",
 			app:         app3,
 			expectError: true,

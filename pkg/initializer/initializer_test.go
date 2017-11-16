@@ -18,7 +18,7 @@ import (
 )
 
 func TestAddAndDeleteInitializationConfig(t *testing.T) {
-	controller := NewController(fake.NewSimpleClientset())
+	controller := New(fake.NewSimpleClientset())
 	client := controller.kubeClient.AdmissionregistrationV1alpha1()
 
 	controller.addInitializationConfig()
@@ -63,8 +63,8 @@ func TestRemoteInitializer(t *testing.T) {
 		removed bool
 	}
 
-	testFn := func(test *testcase, t *testing.T) {
-		remoteInitializer(test.pod)
+	testFn := func(test testcase, t *testing.T) {
+		removeSelf(test.pod)
 		if test.removed && isInitializerPresent(test.pod) {
 			t.Errorf("%s: %s was not removed", test.name, initializerName)
 		}
@@ -82,7 +82,7 @@ func TestRemoteInitializer(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{
 			Initializers: &metav1.Initializers{
 				Pending: []metav1.Initializer{
-					metav1.Initializer{
+					{
 						Name: initializerName,
 					},
 				},
@@ -93,10 +93,10 @@ func TestRemoteInitializer(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{
 			Initializers: &metav1.Initializers{
 				Pending: []metav1.Initializer{
-					metav1.Initializer{
+					{
 						Name: initializerName,
 					},
-					metav1.Initializer{
+					{
 						Name: "foo",
 					},
 				},
@@ -104,23 +104,23 @@ func TestRemoteInitializer(t *testing.T) {
 		},
 	}
 
-	testcases := []*testcase{
-		&testcase{
+	testcases := []testcase{
+		{
 			name:    "pod with nil Initializers",
 			pod:     pod0,
 			removed: false,
 		},
-		&testcase{
+		{
 			name:    "pod with empty Initializers",
 			pod:     pod1,
 			removed: false,
 		},
-		&testcase{
+		{
 			name:    "pod with only the initializer",
 			pod:     pod2,
 			removed: true,
 		},
-		&testcase{
+		{
 			name:    "pod with the initializer and another initializer",
 			pod:     pod3,
 			removed: true,
@@ -159,17 +159,17 @@ func TestIsSparkPod(t *testing.T) {
 		},
 	}
 	testcases := []testcase{
-		testcase{
+		{
 			name:     "not a Spark Pod",
 			pod:      pod1,
 			sparkPod: false,
 		},
-		testcase{
+		{
 			name:     "a Spark driver Pod",
 			pod:      pod2,
 			sparkPod: true,
 		},
-		testcase{
+		{
 			name:     "a Spark executor Pod",
 			pod:      pod3,
 			sparkPod: true,
@@ -199,7 +199,7 @@ func TestIsInitializerPresent(t *testing.T) {
 			Name: "pod1",
 			Initializers: &metav1.Initializers{
 				Pending: []metav1.Initializer{
-					metav1.Initializer{
+					{
 						Name: initializerName,
 					},
 				},
@@ -207,12 +207,12 @@ func TestIsInitializerPresent(t *testing.T) {
 		},
 	}
 	testcases := []testcase{
-		testcase{
+		{
 			name:    "without the initializer",
 			pod:     pod1,
 			present: false,
 		},
-		testcase{
+		{
 			name:    "with the initializer",
 			pod:     pod2,
 			present: true,
@@ -229,7 +229,7 @@ func TestAddPod(t *testing.T) {
 		pod    *apiv1.Pod
 		queued bool
 	}
-	controller := NewController(fake.NewSimpleClientset())
+	controller := New(fake.NewSimpleClientset())
 	testFn := func(test testcase, t *testing.T) {
 		controller.onPodAdded(test.pod)
 		if test.queued {
@@ -249,7 +249,7 @@ func TestAddPod(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{
 			Initializers: &metav1.Initializers{
 				Pending: []metav1.Initializer{
-					metav1.Initializer{
+					{
 						Name: initializerName,
 					},
 				},
@@ -266,7 +266,7 @@ func TestAddPod(t *testing.T) {
 			Labels: map[string]string{sparkRoleLabel: sparkDriverRole},
 			Initializers: &metav1.Initializers{
 				Pending: []metav1.Initializer{
-					metav1.Initializer{
+					{
 						Name: initializerName,
 					},
 				},
@@ -274,22 +274,22 @@ func TestAddPod(t *testing.T) {
 		},
 	}
 	testcases := []testcase{
-		testcase{
+		{
 			name:   "non-Spark pod without initializers",
 			pod:    pod0,
 			queued: false,
 		},
-		testcase{
+		{
 			name:   "non-Spark pod with the initializer",
 			pod:    pod1,
 			queued: false,
 		},
-		testcase{
+		{
 			name:   "Spark pod without the initializer",
 			pod:    pod2,
 			queued: false,
 		},
-		testcase{
+		{
 			name:   "Spark pod with the initializer",
 			pod:    pod3,
 			queued: true,
@@ -315,7 +315,7 @@ func TestSyncSparkPod(t *testing.T) {
 		json.Unmarshal(patch, obj)
 		return true, obj, nil
 	})
-	controller := NewController(clientset)
+	controller := New(clientset)
 
 	testFn := func(test testcase, t *testing.T) {
 		_, err := controller.kubeClient.CoreV1().Pods(test.pod.Namespace).Create(test.pod)
@@ -389,7 +389,7 @@ func TestSyncSparkPod(t *testing.T) {
 		},
 		Spec: apiv1.PodSpec{
 			Containers: []apiv1.Container{
-				apiv1.Container{Name: "foo"},
+				{Name: "foo"},
 			},
 		},
 	}
@@ -404,7 +404,7 @@ func TestSyncSparkPod(t *testing.T) {
 		},
 		Spec: apiv1.PodSpec{
 			Containers: []apiv1.Container{
-				apiv1.Container{Name: "foo"},
+				{Name: "foo"},
 			},
 		},
 	}
@@ -418,7 +418,7 @@ func TestSyncSparkPod(t *testing.T) {
 		},
 		Spec: apiv1.PodSpec{
 			Containers: []apiv1.Container{
-				apiv1.Container{Name: "foo"},
+				{Name: "foo"},
 			},
 		},
 	}
@@ -432,7 +432,7 @@ func TestSyncSparkPod(t *testing.T) {
 		},
 		Spec: apiv1.PodSpec{
 			Containers: []apiv1.Container{
-				apiv1.Container{Name: "foo"},
+				{Name: "foo"},
 			},
 		},
 	}
@@ -446,36 +446,36 @@ func TestSyncSparkPod(t *testing.T) {
 		},
 		Spec: apiv1.PodSpec{
 			Containers: []apiv1.Container{
-				apiv1.Container{Name: "foo"},
+				{Name: "foo"},
 			},
 		},
 	}
 	testcases := []testcase{
-		testcase{
+		{
 			name:                "pod without SparkConfigMap or HadoopConfigMap annotation",
 			pod:                 pod1,
 			expectedVolumeNames: []string{},
 			expectedObjectNames: []string{},
 		},
-		testcase{
+		{
 			name:                "pod with both SparkConfigMap or HadoopConfigMap annotations",
 			pod:                 pod2,
 			expectedVolumeNames: []string{config.SparkConfigMapVolumeName, config.HadoopConfigMapVolumeName},
 			expectedObjectNames: []string{"spark-config-map", "hadoop-config-map"},
 		},
-		testcase{
+		{
 			name:                "pod with SparkConfigMap annotation",
 			pod:                 pod3,
 			expectedVolumeNames: []string{config.SparkConfigMapVolumeName},
 			expectedObjectNames: []string{"spark-config-map"},
 		},
-		testcase{
+		{
 			name:                "pod with HadoopConfigMap annotation",
 			pod:                 pod4,
 			expectedVolumeNames: []string{config.HadoopConfigMapVolumeName},
 			expectedObjectNames: []string{"hadoop-config-map"},
 		},
-		testcase{
+		{
 			name:                "pod with GCP service account secret annotation",
 			pod:                 pod5,
 			expectedVolumeNames: []string{secret.ServiceAccountSecretVolumeName},
@@ -531,13 +531,13 @@ func TestAddOwnerReference(t *testing.T) {
 		},
 	}
 	testcases := []testcase{
-		testcase{
+		{
 			name:                   "Pod without OwnerReference annotation",
 			pod:                    pod0,
 			hasOwnerReference:      false,
 			expectedOwnerReference: nil,
 		},
-		testcase{
+		{
 			name:                   "Pod with OwnerReference annotation",
 			pod:                    pod1,
 			hasOwnerReference:      true,

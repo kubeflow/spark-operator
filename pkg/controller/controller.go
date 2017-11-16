@@ -20,12 +20,10 @@ import (
 const (
 	// SparkUIServiceNameAnnotationKey is the annotation key for recording the UI service name.
 	SparkUIServiceNameAnnotationKey = "ui-service-name"
-	// SubmissionCommandAnnotationKey is the annotation key for recording the submission command.
-	SubmissionCommandAnnotationKey = "submission-command"
-	sparkRoleLabel                 = "spark-role"
-	sparkDriverRole                = "driver"
-	sparkExecutorRole              = "executor"
-	sparkExecutorIDLabel           = "spark-exec-id"
+	sparkRoleLabel                  = "spark-role"
+	sparkDriverRole                 = "driver"
+	sparkExecutorRole               = "executor"
+	sparkExecutorIDLabel            = "spark-exec-id"
 )
 
 // SparkApplicationController manages instances of SparkApplication.
@@ -42,8 +40,8 @@ type SparkApplicationController struct {
 	mutex                      sync.Mutex
 }
 
-// NewSparkApplicationController creates a new SparkApplicationController.
-func NewSparkApplicationController(
+// New creates a new SparkApplicationController.
+func New(
 	crdClient *crd.Client,
 	kubeClient clientset.Interface,
 	extensionsClient apiextensionsclient.Interface,
@@ -70,19 +68,19 @@ func NewSparkApplicationController(
 // Run starts the SparkApplicationController by registering a watcher for SparkApplication objects.
 func (s *SparkApplicationController) Run(stopCh <-chan struct{}, errCh chan<- error) {
 	glog.Info("Starting the SparkApplication controller")
-	defer glog.Info("Shutting down the SparkApplication controller")
+	defer glog.Info("Stopping the SparkApplication controller")
 
 	glog.Infof("Creating the CustomResourceDefinition %s", crd.CRDFullName)
 	err := crd.CreateCRD(s.extensionsClient)
 	if err != nil {
-		errCh <- fmt.Errorf("Failed to create the CustomResourceDefinition for SparkApplication: %v", err)
+		errCh <- fmt.Errorf("failed to create the CustomResourceDefinition %s: %v", crd.CRDFullName, err)
 		return
 	}
 
 	glog.Info("Starting the SparkApplication watcher")
 	_, err = s.watchSparkApplications(stopCh)
 	if err != nil {
-		errCh <- fmt.Errorf("Failed to register watch for SparkApplication resource: %v", err)
+		errCh <- fmt.Errorf("failed to register watch for SparkApplication resource: %v", err)
 		return
 	}
 
@@ -138,13 +136,13 @@ func (s *SparkApplicationController) onAdd(obj interface{}) {
 
 	serviceName, err := createSparkUIService(appCopy, s.kubeClient)
 	if err != nil {
-		glog.Errorf("Failed to create a UI service for SparkApplication %s: %v", appCopy.Name, err)
+		glog.Errorf("failed to create a UI service for SparkApplication %s: %v", appCopy.Name, err)
 	}
 	appCopy.Annotations[SparkUIServiceNameAnnotationKey] = serviceName
 
 	updatedApp, err := s.crdClient.Update(appCopy)
 	if err != nil {
-		glog.Errorf("Failed to update SparkApplication %s: %v", appCopy.Name, err)
+		glog.Errorf("failed to update SparkApplication %s: %v", appCopy.Name, err)
 	}
 
 	s.mutex.Lock()
@@ -153,7 +151,7 @@ func (s *SparkApplicationController) onAdd(obj interface{}) {
 
 	submissionCmdArgs, err := buildSubmissionCommandArgs(updatedApp)
 	if err != nil {
-		glog.Errorf("Failed to build the submission command for SparkApplication %s: %v", updatedApp.Name, err)
+		glog.Errorf("failed to build the submission command for SparkApplication %s: %v", updatedApp.Name, err)
 	}
 	if !updatedApp.Spec.SubmissionByUser {
 		s.runner.submit(newSubmission(submissionCmdArgs, updatedApp))
@@ -177,7 +175,7 @@ func (s *SparkApplicationController) onDelete(obj interface{}) {
 		glog.Infof("Deleting the UI service %s for SparkApplication %s", serviceName, app.Name)
 		err := s.kubeClient.CoreV1().Services(app.Namespace).Delete(serviceName, &metav1.DeleteOptions{})
 		if err != nil {
-			glog.Errorf("Failed to delete the UI service %s for SparkApplication %s: %v", serviceName, app.Name, err)
+			glog.Errorf("failed to delete the UI service %s for SparkApplication %s: %v", serviceName, app.Name, err)
 		}
 	}
 
@@ -203,7 +201,7 @@ func (s *SparkApplicationController) processSingleDriverStateUpdate(update drive
 		if update.nodeName != "" {
 			nodeIP := s.getNodeExternalIP(update.nodeName)
 			if nodeIP != "" {
-				app.Status.DriverInfo.WebUIURL = fmt.Sprintf("%s:%d", nodeIP, app.Status.DriverInfo.WebUIPort)
+				app.Status.DriverInfo.WebUIAddress = fmt.Sprintf("%s:%d", nodeIP, app.Status.DriverInfo.WebUIPort)
 			}
 		}
 
@@ -216,7 +214,7 @@ func (s *SparkApplicationController) processSingleDriverStateUpdate(update drive
 		updated, err := s.crdClient.Update(app)
 		s.runningApps[updated.Status.AppID] = updated
 		if err != nil {
-			glog.Errorf("Failed to update SparkApplication %s: %v", app.Name, err)
+			glog.Errorf("failed to update SparkApplication %s: %v", app.Name, err)
 		}
 	}
 }
@@ -239,7 +237,7 @@ func (s *SparkApplicationController) processSingleAppStateUpdate(update appState
 			updated, err := s.crdClient.Update(app)
 			s.runningApps[updated.Status.AppID] = updated
 			if err != nil {
-				glog.Errorf("Failed to update SparkApplication %s: %v", app.Name, err)
+				glog.Errorf("failed to update SparkApplication %s: %v", app.Name, err)
 			}
 		}
 	}
@@ -266,7 +264,7 @@ func (s *SparkApplicationController) processSingleExecutorStateUpdate(update exe
 			updated, err := s.crdClient.Update(app)
 			s.runningApps[updated.Status.AppID] = updated
 			if err != nil {
-				glog.Errorf("Failed to update SparkApplication %s: %v", app.Name, err)
+				glog.Errorf("failed to update SparkApplication %s: %v", app.Name, err)
 			}
 		}
 	}
@@ -275,7 +273,7 @@ func (s *SparkApplicationController) processSingleExecutorStateUpdate(update exe
 func (s *SparkApplicationController) getNodeExternalIP(nodeName string) string {
 	node, err := s.kubeClient.CoreV1().Nodes().Get(nodeName, metav1.GetOptions{})
 	if err != nil {
-		glog.Errorf("Failed to get node %s", nodeName)
+		glog.Errorf("failed to get node %s", nodeName)
 		return ""
 	}
 	for _, address := range node.Status.Addresses {

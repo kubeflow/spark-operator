@@ -89,11 +89,11 @@ func buildSubmissionCommandArgs(app *v1alpha1.SparkApplication) ([]string, error
 func getMasterURL() (string, error) {
 	kubernetesServiceHost := os.Getenv(kubernetesServiceHostEnvVar)
 	if kubernetesServiceHost == "" {
-		return "", fmt.Errorf("Environment variable %s is not found", kubernetesServiceHostEnvVar)
+		return "", fmt.Errorf("environment variable %s is not found", kubernetesServiceHostEnvVar)
 	}
 	kubernetesServicePort := os.Getenv(kubernetesServicePortEnvVar)
 	if kubernetesServicePort == "" {
-		return "", fmt.Errorf("Environment variable %s is not found", kubernetesServicePortEnvVar)
+		return "", fmt.Errorf("environment variable %s is not found", kubernetesServicePortEnvVar)
 	}
 	return fmt.Sprintf("k8s://https://%s:%s", kubernetesServiceHost, kubernetesServicePort), nil
 }

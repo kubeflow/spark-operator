@@ -53,10 +53,10 @@ type SparkApplicationSpec struct {
 	SparkConf map[string]string `json:"sparkConf,omitempty"`
 	// SparkConfigMap carries the name of the ConfigMap containing Spark configuration files such as log4j.properties.
 	// The controller will add environment variable SPARK_CONF_DIR to the path where the ConfigMap is mounted to.
-	SparkConfigMap *string `json:"sparkConigMap,omitempty"`
+	SparkConfigMap *string `json:"sparkConfigMap,omitempty"`
 	// HadoopConfigMap carries the name of the ConfigMap containing Hadoop configuration files such as core-site.xml.
 	// The controller will add environment variable HADOOP_CONF_DIR to the path where the ConfigMap is mounted to.
-	HadoopConfigMap *string `json:"hadoopConigMap,omitempty"`
+	HadoopConfigMap *string `json:"hadoopConfigMap,omitempty"`
 	// Driver is the driver specification.
 	Driver DriverSpec `json:"driver"`
 	// Executor is the executor specification.
@@ -191,7 +191,7 @@ const (
 type DriverInfo struct {
 	WebUIServiceName string `json:"webUIServiceName"`
 	WebUIPort        int32  `json:"webUIPort"`
-	WebUIURL         string `json:"webUIURL"`
+	WebUIAddress     string `json:"webUIAddress"`
 	PodName          string `json:"podName"`
 }
 

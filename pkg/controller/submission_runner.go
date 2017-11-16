@@ -61,7 +61,7 @@ func (r *SparkSubmitRunner) runWorker() {
 		if _, err := cmd.Output(); err != nil {
 			stateUpdate.state = v1alpha1.FailedState
 			if exitErr, ok := err.(*exec.ExitError); ok {
-				glog.Errorf("Spark application %s failed: %s", s.appName, string(exitErr.Stderr))
+				glog.Errorf("failed to submit Spark application %s: %s", s.appName, string(exitErr.Stderr))
 				stateUpdate.errorMessage = string(exitErr.Stderr)
 			}
 		} else {

@@ -40,10 +40,10 @@ const (
 	sparkExecutorRole = "executor"
 )
 
-// Controller is an initializer controller that watches for uninitialized Spark driver and executor Pods.
-// This initializer controller is responsible for the following initialization tasks:
-// 1.
-type Controller struct {
+// SparkPodInitializer watches uninitialized Spark driver and executor pods and modifies pod specs
+// based on certain annotations on the pods. For example, it is responsible for mounting
+// user-specified secrets and ConfigMaps into the driver and executor pods.
+type SparkPodInitializer struct {
 	// Client to the Kubernetes API.
 	kubeClient clientset.Interface
 	// sparkPodController is a controller for listing uninitialized Spark Pods.
@@ -54,13 +54,13 @@ type Controller struct {
 	syncHandler func(key string) (*apiv1.Pod, error)
 }
 
-// NewController creates a new instance of Controller.
-func NewController(kubeClient clientset.Interface) *Controller {
-	controller := &Controller{
+// New creates a new instance of Initializer.
+func New(kubeClient clientset.Interface) *SparkPodInitializer {
+	initializer := &SparkPodInitializer{
 		kubeClient: kubeClient,
 		queue:      workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "spark-initializer"),
 	}
-	controller.syncHandler = controller.syncSparkPod
+	initializer.syncHandler = initializer.syncSparkPod
 
 	restClient := kubeClient.CoreV1().RESTClient()
 	watchlist := cache.NewListWatchFromClient(restClient, "pods", apiv1.NamespaceAll, fields.Everything())
@@ -77,31 +77,31 @@ func NewController(kubeClient clientset.Interface) *Controller {
 		},
 	}
 
-	_, controller.sparkPodController = cache.NewInformer(
+	_, initializer.sparkPodController = cache.NewInformer(
 		includeUninitializedWatchlist,
 		&apiv1.Pod{},
 		30*time.Second,
 		cache.ResourceEventHandlerFuncs{
-			AddFunc:    controller.onPodAdded,
-			DeleteFunc: controller.onPodDeleted,
+			AddFunc:    initializer.onPodAdded,
+			DeleteFunc: initializer.onPodDeleted,
 		},
 	)
 
-	return controller
+	return initializer
 }
 
 // Run runs the initializer controller.
-func (ic *Controller) Run(workers int, stopCh <-chan struct{}, errCh chan<- error) {
+func (ic *SparkPodInitializer) Run(workers int, stopCh <-chan struct{}, errCh chan<- error) {
 	defer utilruntime.HandleCrash()
 	defer ic.queue.ShutDown()
 
-	glog.Info("Starting the Spark Pod initializer controller")
-	defer glog.Info("Shutting down the Spark Pod initializer controller")
+	glog.Info("Starting the Spark Pod initializer")
+	defer glog.Info("Stopping the Spark Pod initializer")
 
 	glog.Infof("Adding the InitializerConfiguration %s", initializerConfigName)
 	err := ic.addInitializationConfig()
 	if err != nil {
-		errCh <- fmt.Errorf("Failed to add InitializationConfiguration %s: %v", initializerConfigName, err)
+		errCh <- fmt.Errorf("failed to add InitializationConfiguration %s: %v", initializerConfigName, err)
 		return
 	}
 
@@ -121,14 +121,14 @@ func (ic *Controller) Run(workers int, stopCh <-chan struct{}, errCh chan<- erro
 	glog.Infof("Deleting the InitializerConfiguration %s", initializerConfigName)
 	err = ic.deleteInitializationConfig()
 	if err != nil {
-		errCh <- fmt.Errorf("Failed to delete InitializationConfiguration %s: %v", initializerConfigName, err)
+		errCh <- fmt.Errorf("failed to delete InitializationConfiguration %s: %v", initializerConfigName, err)
 		return
 	}
 
 	errCh <- nil
 }
 
-func (ic *Controller) addInitializationConfig() error {
+func (ic *SparkPodInitializer) addInitializationConfig() error {
 	sparkPodInitializer := v1alpha1.Initializer{
 		Name: initializerName,
 		Rules: []v1alpha1.Rule{
@@ -153,12 +153,12 @@ func (ic *Controller) addInitializationConfig() error {
 			// InitializerConfig wasn't found.
 			_, err = icClient.Create(&sparkPodInitializerConfig)
 			if err != nil {
-				return fmt.Errorf("Failed to create InitializerConfiguration: %v", err)
+				return fmt.Errorf("failed to create InitializerConfiguration: %v", err)
 			}
 			return nil
 		}
 		// API error.
-		return fmt.Errorf("Failed to get InitializerConfiguration: %v", err)
+		return fmt.Errorf("failed to get InitializerConfiguration: %v", err)
 	}
 
 	// InitializerConfig was found, check we are in the list.
@@ -180,27 +180,27 @@ func (ic *Controller) addInitializationConfig() error {
 	glog.Infof("Updating InitializerConfiguration %s", initializerConfigName)
 	_, err = icClient.Update(existingConfig)
 	if err != nil {
-		return fmt.Errorf("Failed to update InitializerConfiguration: %v", err)
+		return fmt.Errorf("failed to update InitializerConfiguration: %v", err)
 	}
 	return nil
 }
 
-func (ic *Controller) deleteInitializationConfig() error {
+func (ic *SparkPodInitializer) deleteInitializationConfig() error {
 	err := ic.kubeClient.AdmissionregistrationV1alpha1().InitializerConfigurations().Delete(initializerConfigName, &metav1.DeleteOptions{})
 	if err != nil {
-		return fmt.Errorf("Failed to delete InitializerConfiguration: %v", err)
+		return fmt.Errorf("failed to delete InitializerConfiguration: %v", err)
 	}
 	return nil
 }
 
 // runWorker runs a single controller worker.
-func (ic *Controller) runWorker() {
+func (ic *SparkPodInitializer) runWorker() {
 	for ic.processNextItem() {
 	}
 }
 
 // processNextItem processes the next item in the queue.
-func (ic *Controller) processNextItem() bool {
+func (ic *SparkPodInitializer) processNextItem() bool {
 	key, quit := ic.queue.Get()
 	if quit {
 		return false
@@ -217,7 +217,7 @@ func (ic *Controller) processNextItem() bool {
 
 	// There was a failure so be sure to report it. This method allows for pluggable error handling
 	// which can be used for things like cluster-monitoring
-	utilruntime.HandleError(fmt.Errorf("Sync pod %q failed with %v", key, err))
+	utilruntime.HandleError(fmt.Errorf("failed to sync pod %q: %v", key, err))
 	// Since we failed, we should requeue the item to work on later.  This method will add a backoff
 	// to avoid hotlooping on particular items (they're probably still not going to work right away)
 	// and overall controller protection (everything I've done is broken, this controller needs to
@@ -228,7 +228,7 @@ func (ic *Controller) processNextItem() bool {
 }
 
 // syncSparkPod does the actual processing of the given Spark Pod.
-func (ic *Controller) syncSparkPod(key string) (*apiv1.Pod, error) {
+func (ic *SparkPodInitializer) syncSparkPod(key string) (*apiv1.Pod, error) {
 	namespace, name, err := getNamespaceName(key)
 	pod, err := ic.kubeClient.CoreV1().Pods(namespace).Get(name, metav1.GetOptions{})
 	if err != nil {
@@ -241,13 +241,13 @@ func (ic *Controller) syncSparkPod(key string) (*apiv1.Pod, error) {
 	glog.Infof("Processing Spark %s pod %s", pod.Labels[sparkRoleLabel], pod.Name)
 
 	// Make a copy.
-	copy, err := runtime.NewScheme().DeepCopy(pod)
+	copyObj, err := runtime.NewScheme().DeepCopy(pod)
 	if err != nil {
 		return nil, err
 	}
-	modifiedPod := copy.(*apiv1.Pod)
+	modifiedPod := copyObj.(*apiv1.Pod)
 	if len(modifiedPod.Spec.Containers) <= 0 {
-		return nil, fmt.Errorf("No container found in Pod %s", modifiedPod.Name)
+		return nil, fmt.Errorf("no container found in Pod %s", modifiedPod.Name)
 	}
 	// We assume that the first container is the Spark container.
 	appContainer := &modifiedPod.Spec.Containers[0]
@@ -256,17 +256,17 @@ func (ic *Controller) syncSparkPod(key string) (*apiv1.Pod, error) {
 	addOwnerReference(modifiedPod)
 	handleConfigMaps(modifiedPod, appContainer)
 	handleSecrets(modifiedPod, appContainer)
-	// Remove this initializer from the list of pending intializers and update the Pod.
-	remoteInitializer(modifiedPod)
+	// Remove this initializer from the list of pending initializers and update the Pod.
+	removeSelf(modifiedPod)
 
 	return patchPod(pod, modifiedPod, ic.kubeClient)
 }
 
 // onPodAdded is the callback function called when an event for a new Pod is informed.
-func (ic *Controller) onPodAdded(obj interface{}) {
+func (ic *SparkPodInitializer) onPodAdded(obj interface{}) {
 	pod, ok := obj.(*apiv1.Pod)
 	if !ok {
-		glog.Errorf("Received non-pod object: %v", obj)
+		glog.Errorf("received non-pod object: %v", obj)
 		return
 	}
 
@@ -283,10 +283,10 @@ func (ic *Controller) onPodAdded(obj interface{}) {
 }
 
 // onPodDeleted is the callback function called when an event for a deleted Pod is informed.
-func (ic *Controller) onPodDeleted(obj interface{}) {
+func (ic *SparkPodInitializer) onPodDeleted(obj interface{}) {
 	pod, ok := obj.(*apiv1.Pod)
 	if !ok {
-		glog.Errorf("Received non-pod object: %v", obj)
+		glog.Errorf("received non-pod object: %v", obj)
 	}
 
 	if isSparkPod(pod) {
@@ -304,7 +304,7 @@ func getQueueKey(pod *apiv1.Pod) string {
 func getNamespaceName(key string) (string, string, error) {
 	parts := strings.Split(key, "/")
 	if len(parts) != 2 {
-		return "", "", fmt.Errorf("Malformed queue key %s", key)
+		return "", "", fmt.Errorf("malformed queue key %s", key)
 	}
 
 	return parts[0], parts[1], nil
@@ -332,14 +332,14 @@ func isSparkPod(pod *apiv1.Pod) bool {
 
 func handleNonSparkPod(pod *apiv1.Pod, clientset clientset.Interface) error {
 	// Make a copy.
-	copy, err := runtime.NewScheme().DeepCopy(pod)
+	copyObj, err := runtime.NewScheme().DeepCopy(pod)
 	if err != nil {
 		return err
 	}
-	podCopy := copy.(*apiv1.Pod)
+	podCopy := copyObj.(*apiv1.Pod)
 
-	// Remove this initializer from the list of pending intializers and update the Pod.
-	remoteInitializer(podCopy)
+	// Remove the name of itself from the list of pending intializers and update the Pod.
+	removeSelf(podCopy)
 
 	return updatePod(podCopy, clientset)
 }
@@ -382,14 +382,14 @@ func addOwnerReference(pod *apiv1.Pod) {
 		ownerReference := &metav1.OwnerReference{}
 		err := ownerReference.Unmarshal([]byte(ownerReferenceStr))
 		if err != nil {
-			glog.Errorf("Failed to add OwnerReference to Pod %s: %v", pod.Name, err)
+			glog.Errorf("failed to add OwnerReference to Pod %s: %v", pod.Name, err)
 		}
 		pod.ObjectMeta.OwnerReferences = append(pod.ObjectMeta.OwnerReferences, *ownerReference)
 	}
 }
 
-// remoteInitializer removes the initializer from the list of pending initializers of the given Pod.
-func remoteInitializer(pod *apiv1.Pod) {
+// removeSelf removes the initializer from the list of pending initializers of the given Pod.
+func removeSelf(pod *apiv1.Pod) {
 	if pod.Initializers == nil {
 		return
 	}
