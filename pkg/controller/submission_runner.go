@@ -37,7 +37,7 @@ func newSparkSubmitRunner(workers int, appStateReportingChan chan<- appStateUpda
 
 func (r *SparkSubmitRunner) run(stopCh <-chan struct{}) {
 	glog.Info("Starting the spark-submit runner")
-	defer glog.Info("Shutting down the spark-submit runner")
+	defer glog.Info("Stopping the spark-submit runner")
 
 	for i := 0; i < r.workers; i++ {
 		go wait.Until(r.runWorker, time.Second, stopCh)

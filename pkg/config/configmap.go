@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"path/filepath"
+	"strings"
 
 	"github.com/liyinan926/spark-operator/pkg/apis/v1alpha1"
 	"github.com/liyinan926/spark-operator/pkg/util"
@@ -12,6 +13,21 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	clientset "k8s.io/client-go/kubernetes"
 )
+
+
+// FindGeneralConfigMaps finds the annotations for specifying general secrets and returns
+// an map of names of the secrets to their mount paths.
+func FindGeneralConfigMaps(annotations map[string]string) map[string]string {
+	configMaps := make(map[string]string)
+	for annotation := range annotations {
+		if strings.HasPrefix(annotation, GeneralConfigMapsAnnotationPrefix) {
+			name := strings.TrimPrefix(annotation, GeneralConfigMapsAnnotationPrefix)
+			path := annotations[annotation]
+			configMaps[name] = path
+		}
+	}
+	return configMaps
+}
 
 // AddConfigMapAnnotation adds an annotation key=value using the --conf option.
 func AddConfigMapAnnotation(app *v1alpha1.SparkApplication, annotationKeyPrefix string, key string, value string) {

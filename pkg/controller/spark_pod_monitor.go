@@ -86,8 +86,8 @@ func newSparkPodMonitor(
 func (s *SparkPodMonitor) run(stopCh <-chan struct{}) {
 	defer utilruntime.HandleCrash()
 
-	glog.Info("Starting the Spark executor Pod monitor")
-	defer glog.Info("Shutting down the Spark executor Pod monitor")
+	glog.Info("Starting the Spark Pod monitor")
+	defer glog.Info("Stopping the Spark Pod monitor")
 
 	glog.Info("Starting the Pod controller")
 	go s.sparkPodController.Run(stopCh)
@@ -168,8 +168,9 @@ func podPhaseToExecutorState(podPhase apiv1.PodPhase) v1alpha1.ExecutorState {
 		return v1alpha1.ExecutorCompletedState
 	case apiv1.PodFailed:
 		return v1alpha1.ExecutorFailedState
+	default:
+		return ""
 	}
-	return ""
 }
 
 func getExecutorID(pod *apiv1.Pod) string {

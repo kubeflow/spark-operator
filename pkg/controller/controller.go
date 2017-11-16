@@ -307,6 +307,7 @@ func driverPodPhaseToApplicationState(podPhase apiv1.PodPhase) v1alpha1.Applicat
 		return v1alpha1.CompletedState
 	case apiv1.PodFailed:
 		return v1alpha1.FailedState
+	default:
+		return ""
 	}
-	return ""
 }

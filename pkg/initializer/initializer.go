@@ -28,7 +28,7 @@ import (
 )
 
 const (
-	// InitializerName is the name that will appear in the list of pending initializers in Pod spec.
+	// InitializerName is the name that will appear in the list of pending initializer in Pod spec.
 	initializerName = "pod-initializer.spark-operator.k8s.io"
 	// InitializerConfigName is the name of the InitializerConfig object.
 	initializerConfigName = "spark-pod-initializer-config"
@@ -256,7 +256,7 @@ func (ic *SparkPodInitializer) syncSparkPod(key string) (*apiv1.Pod, error) {
 	addOwnerReference(modifiedPod)
 	handleConfigMaps(modifiedPod, appContainer)
 	handleSecrets(modifiedPod, appContainer)
-	// Remove this initializer from the list of pending initializers and update the Pod.
+	// Remove this initializer from the list of pending initializer and update the Pod.
 	removeSelf(modifiedPod)
 
 	return patchPod(pod, modifiedPod, ic.kubeClient)
@@ -290,7 +290,7 @@ func (ic *SparkPodInitializer) onPodDeleted(obj interface{}) {
 	}
 
 	if isSparkPod(pod) {
-		glog.Infof("Spark %s pod %s was deleted, dequeuing it", pod.Labels[sparkRoleLabel], pod.Name)
+		glog.Infof("Spark %s pod %s was deleted, deleting it from the work queue", pod.Labels[sparkRoleLabel], pod.Name)
 		key := getQueueKey(pod)
 		ic.queue.Forget(key)
 		ic.queue.Done(key)
@@ -338,7 +338,7 @@ func handleNonSparkPod(pod *apiv1.Pod, clientset clientset.Interface) error {
 	}
 	podCopy := copyObj.(*apiv1.Pod)
 
-	// Remove the name of itself from the list of pending intializers and update the Pod.
+	// Remove the name of itself from the list of pending initializer and update the Pod.
 	removeSelf(podCopy)
 
 	return updatePod(podCopy, clientset)
@@ -351,11 +351,20 @@ func handleConfigMaps(pod *apiv1.Pod, container *apiv1.Container) {
 		volumeName := config.AddSparkConfigMapVolumeToPod(sparkConfigMapName, pod)
 		config.MountSparkConfigMapToContainer(volumeName, config.DefaultSparkConfDir, container)
 	}
+
 	hadoopConfigMapName, ok := pod.Annotations[config.HadoopConfigMapAnnotation]
 	if ok {
 		glog.Infof("Mounting Hadoop ConfigMap %s to pod %s", hadoopConfigMapName, pod.Name)
 		volumeName := config.AddHadoopConfigMapVolumeToPod(hadoopConfigMapName, pod)
 		config.MountHadoopConfigMapToContainer(volumeName, config.DefaultHadoopConfDir, container)
+	}
+
+	configMaps := config.FindGeneralConfigMaps(pod.Annotations)
+	for name, mountPath := range configMaps {
+		glog.Infof("Mounting ConfigMap %s to pod %s", name, pod.Name)
+		volumeName := name + "-volume"
+		config.AddConfigMapVolumeToPod(volumeName, name, pod)
+		config.MountConfigMapToContainer(volumeName, mountPath, container)
 	}
 }
 
@@ -368,11 +377,11 @@ func handleSecrets(pod *apiv1.Pod, container *apiv1.Container) {
 	}
 
 	secrets := secret.FindGeneralSecrets(pod.Annotations)
-	for secretName, mountPath := range secrets {
-		glog.Infof("Mounting secret %s to pod %s", secretName, pod.Name)
-		secretVolumeName := secretName + "-volume"
-		secret.AddSecretVolumeToPod(secretVolumeName, secretName, pod)
-		secret.MountSecretToContainer(secretVolumeName, mountPath, container)
+	for name, mountPath := range secrets {
+		glog.Infof("Mounting secret %s to pod %s", name, pod.Name)
+		volumeName := name + "-volume"
+		secret.AddSecretVolumeToPod(volumeName, name, pod)
+		secret.MountSecretToContainer(volumeName, mountPath, container)
 	}
 }
 
