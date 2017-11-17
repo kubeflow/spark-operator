@@ -124,12 +124,7 @@ func (s *SparkApplicationController) onAdd(obj interface{}) {
 	// NEVER modify objects from the store. It's a read-only, local cache.
 	// You can use scheme.Copy() to make a deep copy of original object and modify this copy
 	// Or create a copy manually for better performance.
-	copyObj, err := s.crdClient.Scheme.DeepCopy(app)
-	if err != nil {
-		glog.Errorf("failed to create a deep copy of example object: %v\n", err)
-		return
-	}
-	appCopy := copyObj.(*v1alpha1.SparkApplication)
+	appCopy := app.DeepCopy()
 	appCopy.Status.AppID = buildAppID(appCopy)
 	appCopy.Status.AppState.State = v1alpha1.NewState
 	appCopy.Annotations = make(map[string]string)
@@ -141,12 +136,15 @@ func (s *SparkApplicationController) onAdd(obj interface{}) {
 	appCopy.Annotations[SparkUIServiceNameAnnotationKey] = serviceName
 
 	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
 	updatedApp, err := s.crdClient.Update(appCopy)
 	if err != nil {
 		glog.Errorf("failed to update SparkApplication %s: %v", appCopy.Name, err)
+		return
 	}
+
 	s.runningApps[updatedApp.Status.AppID] = updatedApp
-	s.mutex.Unlock()
 
 	submissionCmdArgs, err := buildSubmissionCommandArgs(updatedApp)
 	if err != nil {
@@ -161,7 +159,7 @@ func (s *SparkApplicationController) onUpdate(oldObj, newObj interface{}) {
 	newApp := newObj.(*v1alpha1.SparkApplication)
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
-	s.runningApps[newApp.Status.AppID] = newApp
+	s.runningApps[newApp.Status.AppID] = newApp.DeepCopy()
 }
 
 func (s *SparkApplicationController) onDelete(obj interface{}) {
@@ -211,9 +209,10 @@ func (s *SparkApplicationController) processSingleDriverStateUpdate(update drive
 		}
 
 		updated, err := s.crdClient.Update(app)
-		s.runningApps[updated.Status.AppID] = updated
 		if err != nil {
 			glog.Errorf("failed to update SparkApplication %s: %v", app.Name, err)
+		} else {
+			s.runningApps[updated.Status.AppID] = updated
 		}
 	}
 }
@@ -234,9 +233,10 @@ func (s *SparkApplicationController) processSingleAppStateUpdate(update appState
 			app.Status.AppState.State = update.state
 			app.Status.AppState.ErrorMessage = update.errorMessage
 			updated, err := s.crdClient.Update(app)
-			s.runningApps[updated.Status.AppID] = updated
 			if err != nil {
 				glog.Errorf("failed to update SparkApplication %s: %v", app.Name, err)
+			} else {
+				s.runningApps[updated.Status.AppID] = updated
 			}
 		}
 	}
@@ -261,9 +261,10 @@ func (s *SparkApplicationController) processSingleExecutorStateUpdate(update exe
 		if update.state == v1alpha1.ExecutorCompletedState || update.state == v1alpha1.ExecutorFailedState {
 			app.Status.ExecutorState[update.podName] = update.state
 			updated, err := s.crdClient.Update(app)
-			s.runningApps[updated.Status.AppID] = updated
 			if err != nil {
 				glog.Errorf("failed to update SparkApplication %s: %v", app.Name, err)
+			} else {
+				s.runningApps[updated.Status.AppID] = updated
 			}
 		}
 	}

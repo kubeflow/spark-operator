@@ -94,6 +94,23 @@ func (c *Client) Update(app *v1alpha1.SparkApplication) (*v1alpha1.SparkApplicat
 	return &result, nil
 }
 
+// UpdateStatus updates the status of an existing SparkApplication through an HTTP PUT request.
+func (c *Client) UpdateStatus(app *v1alpha1.SparkApplication) (*v1alpha1.SparkApplication, error) {
+	var result v1alpha1.SparkApplication
+	err := c.Client.Put().
+		Namespace(app.Namespace).
+		Name(app.Name).
+		Resource(CRDPlural).
+		SubResource("status").
+		Body(app).
+		Do().
+		Into(&result)
+	if err != nil {
+		return nil, err
+	}
+	return &result, nil
+}
+
 // Get gets a SparkApplication through an HTTP GET request.
 func (c *Client) Get(name string, namespace string, options metav1.GetOptions) (*v1alpha1.SparkApplication, error) {
 	var result v1alpha1.SparkApplication
