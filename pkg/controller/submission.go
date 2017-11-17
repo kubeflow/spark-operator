@@ -49,10 +49,10 @@ func buildSubmissionCommandArgs(app *v1alpha1.SparkApplication) ([]string, error
 	if len(app.Spec.Deps.JarFiles) > 0 {
 		args = append(args, "--jars", strings.Join(app.Spec.Deps.JarFiles, ","))
 	}
-	if len(app.Spec.Deps.JarFiles) > 0 {
+	if len(app.Spec.Deps.Files) > 0 {
 		args = append(args, "--files", strings.Join(app.Spec.Deps.Files, ","))
 	}
-	if len(app.Spec.Deps.JarFiles) > 0 {
+	if len(app.Spec.Deps.PyFiles) > 0 {
 		args = append(args, "--py-files", strings.Join(app.Spec.Deps.PyFiles, ","))
 	}
 

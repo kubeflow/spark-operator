@@ -171,11 +171,11 @@ func (ic *SparkPodInitializer) addInitializationConfig() error {
 	}
 
 	if found {
-		glog.Warning("InitializerConfiguration %s with Initializer %s already exists", initializerConfigName, initializerName)
+		glog.Warningf("InitializerConfiguration %s with Initializer %s already exists", initializerConfigName, initializerName)
 		return nil
 	}
 
-	glog.Warning("Found InitializerConfiguration %s without Initializer %s", initializerConfigName, initializerName)
+	glog.Warningf("Found InitializerConfiguration %s without Initializer %s", initializerConfigName, initializerName)
 	existingConfig.Initializers = append(existingConfig.Initializers, sparkPodInitializer)
 	glog.Infof("Updating InitializerConfiguration %s", initializerConfigName)
 	_, err = icClient.Update(existingConfig)

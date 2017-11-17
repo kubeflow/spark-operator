@@ -140,12 +140,11 @@ func (s *SparkApplicationController) onAdd(obj interface{}) {
 	}
 	appCopy.Annotations[SparkUIServiceNameAnnotationKey] = serviceName
 
+	s.mutex.Lock()
 	updatedApp, err := s.crdClient.Update(appCopy)
 	if err != nil {
 		glog.Errorf("failed to update SparkApplication %s: %v", appCopy.Name, err)
 	}
-
-	s.mutex.Lock()
 	s.runningApps[updatedApp.Status.AppID] = updatedApp
 	s.mutex.Unlock()
 
