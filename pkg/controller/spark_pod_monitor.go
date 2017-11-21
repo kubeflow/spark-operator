@@ -17,8 +17,8 @@ import (
 	"k8s.io/client-go/tools/cache"
 )
 
-// SparkPodMonitor monitors Spark executor pods and update the SparkApplication objects accordingly.
-type SparkPodMonitor struct {
+// sparkPodMonitor monitors Spark executor pods and update the SparkApplication objects accordingly.
+type sparkPodMonitor struct {
 	// Client to the Kubernetes API.
 	kubeClient clientset.Interface
 	// sparkPodController is a controller for listing uninitialized Spark Pods.
@@ -45,12 +45,12 @@ type executorStateUpdate struct {
 	state      v1alpha1.ExecutorState
 }
 
-// newSparkPodMonitor creates a new SparkPodMonitor instance.
+// newSparkPodMonitor creates a new sparkPodMonitor instance.
 func newSparkPodMonitor(
 	kubeClient clientset.Interface,
 	driverStateReportingChan chan<- driverStateUpdate,
-	executorStateReportingChan chan<- executorStateUpdate) *SparkPodMonitor {
-	monitor := &SparkPodMonitor{
+	executorStateReportingChan chan<- executorStateUpdate) *sparkPodMonitor {
+	monitor := &sparkPodMonitor{
 		kubeClient:                 kubeClient,
 		driverStateReportingChan:   driverStateReportingChan,
 		executorStateReportingChan: executorStateReportingChan,
@@ -85,7 +85,7 @@ func newSparkPodMonitor(
 	return monitor
 }
 
-func (s *SparkPodMonitor) run(stopCh <-chan struct{}) {
+func (s *sparkPodMonitor) run(stopCh <-chan struct{}) {
 	defer utilruntime.HandleCrash()
 
 	glog.Info("Starting the Spark Pod monitor")
@@ -99,7 +99,7 @@ func (s *SparkPodMonitor) run(stopCh <-chan struct{}) {
 	close(s.executorStateReportingChan)
 }
 
-func (s *SparkPodMonitor) onPodAdded(obj interface{}) {
+func (s *sparkPodMonitor) onPodAdded(obj interface{}) {
 	pod := obj.(*apiv1.Pod)
 	if isDriverPod(pod) {
 		s.updateDriverState(pod)
@@ -108,7 +108,7 @@ func (s *SparkPodMonitor) onPodAdded(obj interface{}) {
 	}
 }
 
-func (s *SparkPodMonitor) onPodUpdated(old, updated interface{}) {
+func (s *sparkPodMonitor) onPodUpdated(old, updated interface{}) {
 	updatedPod := updated.(*apiv1.Pod)
 	if isDriverPod(updatedPod) {
 		s.updateDriverState(updatedPod)
@@ -117,7 +117,7 @@ func (s *SparkPodMonitor) onPodUpdated(old, updated interface{}) {
 	}
 }
 
-func (s *SparkPodMonitor) onPodDeleted(obj interface{}) {
+func (s *sparkPodMonitor) onPodDeleted(obj interface{}) {
 	deletedPod := obj.(*apiv1.Pod)
 	if !isExecutorPod(deletedPod) {
 		return
@@ -125,7 +125,7 @@ func (s *SparkPodMonitor) onPodDeleted(obj interface{}) {
 	s.updateExecutorState(deletedPod)
 }
 
-func (s *SparkPodMonitor) updateDriverState(pod *apiv1.Pod) {
+func (s *sparkPodMonitor) updateDriverState(pod *apiv1.Pod) {
 	if appID, ok := getAppID(pod); ok {
 		s.driverStateReportingChan <- driverStateUpdate{
 			appID:    appID,
@@ -136,7 +136,7 @@ func (s *SparkPodMonitor) updateDriverState(pod *apiv1.Pod) {
 	}
 }
 
-func (s *SparkPodMonitor) updateExecutorState(pod *apiv1.Pod) {
+func (s *sparkPodMonitor) updateExecutorState(pod *apiv1.Pod) {
 	if appID, ok := getAppID(pod); ok {
 		s.executorStateReportingChan <- executorStateUpdate{
 			appID:      appID,

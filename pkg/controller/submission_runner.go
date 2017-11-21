@@ -13,8 +13,8 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 )
 
-// SparkSubmitRunner is responsible for running user-specified Spark applications.
-type SparkSubmitRunner struct {
+// sparkSubmitRunner is responsible for running user-specified Spark applications.
+type sparkSubmitRunner struct {
 	workers               int
 	queue                 chan *submission
 	appStateReportingChan chan<- appStateUpdate
@@ -27,15 +27,15 @@ type appStateUpdate struct {
 	errorMessage string
 }
 
-func newSparkSubmitRunner(workers int, appStateReportingChan chan<- appStateUpdate) *SparkSubmitRunner {
-	return &SparkSubmitRunner{
+func newSparkSubmitRunner(workers int, appStateReportingChan chan<- appStateUpdate) *sparkSubmitRunner {
+	return &sparkSubmitRunner{
 		workers: workers,
 		queue:   make(chan *submission, workers),
 		appStateReportingChan: appStateReportingChan,
 	}
 }
 
-func (r *SparkSubmitRunner) run(stopCh <-chan struct{}) {
+func (r *sparkSubmitRunner) run(stopCh <-chan struct{}) {
 	glog.Info("Starting the spark-submit runner")
 	defer glog.Info("Stopping the spark-submit runner")
 
@@ -47,7 +47,7 @@ func (r *SparkSubmitRunner) run(stopCh <-chan struct{}) {
 	close(r.appStateReportingChan)
 }
 
-func (r *SparkSubmitRunner) runWorker() {
+func (r *sparkSubmitRunner) runWorker() {
 	sparkHome, present := os.LookupEnv(sparkHomeEnvVar)
 	if !present {
 		glog.Error("SPARK_HOME is not specified")
@@ -73,6 +73,6 @@ func (r *SparkSubmitRunner) runWorker() {
 	}
 }
 
-func (r *SparkSubmitRunner) submit(s *submission) {
+func (r *sparkSubmitRunner) submit(s *submission) {
 	r.queue <- s
 }

@@ -20,8 +20,7 @@ import (
 )
 
 const (
-	// SparkUIServiceNameAnnotationKey is the annotation key for recording the UI service name.
-	SparkUIServiceNameAnnotationKey = "ui-service-name"
+	sparkUIServiceNameAnnotationKey = "ui-service-name"
 	sparkRoleLabel                  = "spark-role"
 	sparkDriverRole                 = "driver"
 	sparkExecutorRole               = "executor"
@@ -34,8 +33,8 @@ type SparkApplicationController struct {
 	crdClient                  *crd.Client
 	kubeClient                 clientset.Interface
 	extensionsClient           apiextensionsclient.Interface
-	runner                     *SparkSubmitRunner
-	sparkPodMonitor            *SparkPodMonitor
+	runner                     *sparkSubmitRunner
+	sparkPodMonitor            *sparkPodMonitor
 	appStateReportingChan      <-chan appStateUpdate
 	driverStateReportingChan   <-chan driverStateUpdate
 	executorStateReportingChan <-chan executorStateUpdate
@@ -136,7 +135,7 @@ func (s *SparkApplicationController) onAdd(obj interface{}) {
 	if err != nil {
 		glog.Errorf("failed to create a UI service for SparkApplication %s: %v", appCopy.Name, err)
 	}
-	appCopy.Annotations[SparkUIServiceNameAnnotationKey] = serviceName
+	appCopy.Annotations[sparkUIServiceNameAnnotationKey] = serviceName
 
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
@@ -174,7 +173,7 @@ func (s *SparkApplicationController) onDelete(obj interface{}) {
 	delete(s.runningApps, app.Status.AppID)
 	s.mutex.Unlock()
 
-	if serviceName, ok := app.Annotations[SparkUIServiceNameAnnotationKey]; ok {
+	if serviceName, ok := app.Annotations[sparkUIServiceNameAnnotationKey]; ok {
 		glog.Infof("Deleting the UI service %s for SparkApplication %s", serviceName, app.Name)
 		err := s.kubeClient.CoreV1().Services(app.Namespace).Delete(serviceName, &metav1.DeleteOptions{})
 		if err != nil {
