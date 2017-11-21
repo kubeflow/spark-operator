@@ -68,12 +68,11 @@ func (c *Client) Create(app *v1alpha1.SparkApplication) (*v1alpha1.SparkApplicat
 }
 
 // Delete deletes an existing SparkApplication through an HTTP DELETE request.
-func (c *Client) Delete(name string, namespace string, options metav1.DeleteOptions) error {
+func (c *Client) Delete(name string, namespace string) error {
 	return c.Client.Delete().
 		Namespace(namespace).
 		Name(name).
 		Resource(CRDPlural).
-		Body(options).
 		Do().
 		Error()
 }
@@ -112,13 +111,12 @@ func (c *Client) UpdateStatus(app *v1alpha1.SparkApplication) (*v1alpha1.SparkAp
 }
 
 // Get gets a SparkApplication through an HTTP GET request.
-func (c *Client) Get(name string, namespace string, options metav1.GetOptions) (*v1alpha1.SparkApplication, error) {
+func (c *Client) Get(name string, namespace string) (*v1alpha1.SparkApplication, error) {
 	var result v1alpha1.SparkApplication
 	err := c.Client.Get().
 		Namespace(namespace).
 		Name(name).
 		Resource(CRDPlural).
-		Body(options).
 		Do().
 		Into(&result)
 	if err != nil {

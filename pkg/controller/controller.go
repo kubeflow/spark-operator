@@ -26,6 +26,7 @@ const (
 	sparkDriverRole                 = "driver"
 	sparkExecutorRole               = "executor"
 	sparkExecutorIDLabel            = "spark-exec-id"
+	maximumUpdateRetries            = 3
 )
 
 // SparkApplicationController manages instances of SparkApplication.
@@ -39,7 +40,7 @@ type SparkApplicationController struct {
 	driverStateReportingChan   <-chan driverStateUpdate
 	executorStateReportingChan <-chan executorStateUpdate
 	runningApps                map[string]*v1alpha1.SparkApplication // Guarded by mutex.
-	mutex                      sync.Mutex // Guard SparkApplication updates to the API server and runningApps.
+	mutex                      sync.Mutex                            // Guard SparkApplication updates to the API server and runningApps.
 }
 
 // New creates a new SparkApplicationController.
@@ -214,30 +215,24 @@ func (s *SparkApplicationController) processSingleDriverStateUpdate(update drive
 	defer s.mutex.Unlock()
 
 	if app, ok := s.runningApps[update.appID]; ok {
-		appCopy := app.DeepCopy()
-		appCopy.Status.DriverInfo.PodName = update.podName
-		if update.nodeName != "" {
-			nodeIP := s.getNodeExternalIP(update.nodeName)
-			if nodeIP != "" {
-				appCopy.Status.DriverInfo.WebUIAddress = fmt.Sprintf(
-					"%s:%d", nodeIP, appCopy.Status.DriverInfo.WebUIPort)
+		updated := s.updateSparkApplicationWithRetries(app, app.DeepCopy(), func(toUpdate *v1alpha1.SparkApplication) {
+			toUpdate.Status.DriverInfo.PodName = update.podName
+			if update.nodeName != "" {
+				nodeIP := s.getNodeExternalIP(update.nodeName)
+				if nodeIP != "" {
+					toUpdate.Status.DriverInfo.WebUIAddress = fmt.Sprintf(
+						"%s:%d", nodeIP, toUpdate.Status.DriverInfo.WebUIPort)
+				}
 			}
-		}
 
-		appState := driverPodPhaseToApplicationState(update.podPhase)
-		// Update the application based on the driver pod phase if the driver has terminated.
-		if isAppTerminated(appState) {
-			appCopy.Status.AppState.State = appState
-		}
+			appState := driverPodPhaseToApplicationState(update.podPhase)
+			// Update the application based on the driver pod phase if the driver has terminated.
+			if isAppTerminated(appState) {
+				toUpdate.Status.AppState.State = appState
+			}
+		})
 
-		if reflect.DeepEqual(app.Status, appCopy.Status) {
-			return
-		}
-
-		updated, err := s.crdClient.Update(appCopy)
-		if err != nil {
-			glog.Errorf("failed to update SparkApplication %s: %v", appCopy.Name, err)
-		} else {
+		if updated != nil {
 			s.runningApps[updated.Status.AppID] = updated
 		}
 	}
@@ -254,22 +249,16 @@ func (s *SparkApplicationController) processSingleAppStateUpdate(update appState
 	defer s.mutex.Unlock()
 
 	if app, ok := s.runningApps[update.appID]; ok {
-		appCopy := app.DeepCopy()
-		// The application state may have already been set based on the driver pod state,
-		// so it's set here only if otherwise.
-		if !isAppTerminated(appCopy.Status.AppState.State) {
-			appCopy.Status.AppState.State = update.state
-			appCopy.Status.AppState.ErrorMessage = update.errorMessage
-		}
+		updated := s.updateSparkApplicationWithRetries(app, app.DeepCopy(), func(toUpdate *v1alpha1.SparkApplication) {
+			// The application state may have already been set based on the driver pod state,
+			// so it's set here only if otherwise.
+			if !isAppTerminated(toUpdate.Status.AppState.State) {
+				toUpdate.Status.AppState.State = update.state
+				toUpdate.Status.AppState.ErrorMessage = update.errorMessage
+			}
+		})
 
-		if reflect.DeepEqual(app.Status, appCopy.Status) {
-			return
-		}
-
-		updated, err := s.crdClient.Update(appCopy)
-		if err != nil {
-			glog.Errorf("failed to update SparkApplication %s: %v", appCopy.Name, err)
-		} else {
+		if updated != nil {
 			s.runningApps[updated.Status.AppID] = updated
 		}
 	}
@@ -292,25 +281,47 @@ func (s *SparkApplicationController) processSingleExecutorStateUpdate(update exe
 	defer s.mutex.Unlock()
 
 	if app, ok := s.runningApps[update.appID]; ok {
-		appCopy := app.DeepCopy()
-		if appCopy.Status.ExecutorState == nil {
-			appCopy.Status.ExecutorState = make(map[string]v1alpha1.ExecutorState)
-		}
-		if update.state == v1alpha1.ExecutorCompletedState || update.state == v1alpha1.ExecutorFailedState {
-			appCopy.Status.ExecutorState[update.podName] = update.state
-		}
+		updated := s.updateSparkApplicationWithRetries(app, app.DeepCopy(), func(toUpdate *v1alpha1.SparkApplication) {
+			if toUpdate.Status.ExecutorState == nil {
+				toUpdate.Status.ExecutorState = make(map[string]v1alpha1.ExecutorState)
+			}
+			if update.state == v1alpha1.ExecutorCompletedState || update.state == v1alpha1.ExecutorFailedState {
+				toUpdate.Status.ExecutorState[update.podName] = update.state
+			}
+		})
 
-		if reflect.DeepEqual(app.Status, appCopy.Status) {
-			return
-		}
-
-		updated, err := s.crdClient.Update(appCopy)
-		if err != nil {
-			glog.Errorf("failed to update SparkApplication %s: %v", appCopy.Name, err)
-		} else {
+		if updated != nil {
 			s.runningApps[updated.Status.AppID] = updated
 		}
 	}
+}
+
+func (s *SparkApplicationController) updateSparkApplicationWithRetries(
+	original *v1alpha1.SparkApplication,
+	toUpdate *v1alpha1.SparkApplication,
+	updateFunc func(*v1alpha1.SparkApplication)) *v1alpha1.SparkApplication {
+	for i := 0; i < maximumUpdateRetries; i++ {
+		updateFunc(toUpdate)
+		if reflect.DeepEqual(original.Status, toUpdate.Status) {
+			return nil
+		}
+
+		updated, err := s.crdClient.Update(toUpdate)
+		if err == nil {
+			return updated
+		}
+
+		// Failed update to the API server.
+		// Get the latest version from the API server first and re-apply the update.
+		name := toUpdate.Name
+		toUpdate, err = s.crdClient.Get(toUpdate.Name, toUpdate.Namespace)
+		if err != nil {
+			glog.Errorf("failed to get SparkApplication %s: %v", name, err)
+			return nil
+		}
+	}
+
+	return nil
 }
 
 func (s *SparkApplicationController) getNodeExternalIP(nodeName string) string {
