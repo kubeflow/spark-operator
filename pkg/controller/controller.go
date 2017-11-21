@@ -2,7 +2,9 @@ package controller
 
 import (
 	"fmt"
+	"reflect"
 	"sync"
+	"time"
 
 	"github.com/golang/glog"
 	"github.com/liyinan926/spark-operator/pkg/apis/v1alpha1"
@@ -36,8 +38,8 @@ type SparkApplicationController struct {
 	appStateReportingChan      <-chan appStateUpdate
 	driverStateReportingChan   <-chan driverStateUpdate
 	executorStateReportingChan <-chan executorStateUpdate
-	runningApps                map[string]*v1alpha1.SparkApplication
-	mutex                      sync.Mutex
+	runningApps                map[string]*v1alpha1.SparkApplication // Guarded by mutex.
+	mutex                      sync.Mutex // Guard SparkApplication updates to the API server and runningApps.
 }
 
 // New creates a new SparkApplicationController.
@@ -106,7 +108,7 @@ func (s *SparkApplicationController) watchSparkApplications(stopCh <-chan struct
 		&v1alpha1.SparkApplication{},
 		// resyncPeriod. Every resyncPeriod, all resources in the cache will retrigger events.
 		// Set to 0 to disable the resync.
-		0,
+		0*time.Second,
 		// SparkApplication resource event handlers.
 		cache.ResourceEventHandlerFuncs{
 			AddFunc:    s.onAdd,
@@ -148,7 +150,10 @@ func (s *SparkApplicationController) onAdd(obj interface{}) {
 
 	submissionCmdArgs, err := buildSubmissionCommandArgs(updatedApp)
 	if err != nil {
-		glog.Errorf("failed to build the submission command for SparkApplication %s: %v", updatedApp.Name, err)
+		glog.Errorf(
+			"failed to build the submission command for SparkApplication %s: %v",
+			updatedApp.Name,
+			err)
 	}
 	if !updatedApp.Spec.SubmissionByUser {
 		s.runner.submit(newSubmission(submissionCmdArgs, updatedApp))
@@ -159,7 +164,7 @@ func (s *SparkApplicationController) onUpdate(oldObj, newObj interface{}) {
 	newApp := newObj.(*v1alpha1.SparkApplication)
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
-	s.runningApps[newApp.Status.AppID] = newApp.DeepCopy()
+	s.runningApps[newApp.Status.AppID] = newApp
 }
 
 func (s *SparkApplicationController) onDelete(obj interface{}) {
@@ -172,14 +177,24 @@ func (s *SparkApplicationController) onDelete(obj interface{}) {
 		glog.Infof("Deleting the UI service %s for SparkApplication %s", serviceName, app.Name)
 		err := s.kubeClient.CoreV1().Services(app.Namespace).Delete(serviceName, &metav1.DeleteOptions{})
 		if err != nil {
-			glog.Errorf("failed to delete the UI service %s for SparkApplication %s: %v", serviceName, app.Name, err)
+			glog.Errorf(
+				"failed to delete the UI service %s for SparkApplication %s: %v",
+				serviceName,
+				app.Name,
+				err)
 		}
 	}
 
 	driverServiceName := app.Status.DriverInfo.PodName + "-svc"
-	glog.Infof("Deleting the headless service %s for the driver of SparkApplication %s", driverServiceName, app.Name)
+	glog.Infof(
+		"Deleting the headless service %s for the driver of SparkApplication %s",
+		driverServiceName,
+		app.Name)
 	s.kubeClient.CoreV1().Services(app.Namespace).Delete(driverServiceName, &metav1.DeleteOptions{})
-	glog.Infof("Deleting the driver pod %s of SparkApplication %s", app.Status.DriverInfo.PodName, app.Name)
+	glog.Infof(
+		"Deleting the driver pod %s of SparkApplication %s",
+		app.Status.DriverInfo.PodName,
+		app.Name)
 	s.kubeClient.CoreV1().Pods(app.Namespace).Delete(app.Status.DriverInfo.PodName, &metav1.DeleteOptions{})
 }
 
@@ -190,27 +205,38 @@ func (s *SparkApplicationController) processDriverStateUpdates() {
 }
 
 func (s *SparkApplicationController) processSingleDriverStateUpdate(update driverStateUpdate) {
+	glog.V(2).Infof(
+		"Received driver state update for %s with phase %s",
+		update.appID,
+		update.podPhase)
+
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
 	if app, ok := s.runningApps[update.appID]; ok {
-		app.Status.DriverInfo.PodName = update.podName
+		appCopy := app.DeepCopy()
+		appCopy.Status.DriverInfo.PodName = update.podName
 		if update.nodeName != "" {
 			nodeIP := s.getNodeExternalIP(update.nodeName)
 			if nodeIP != "" {
-				app.Status.DriverInfo.WebUIAddress = fmt.Sprintf("%s:%d", nodeIP, app.Status.DriverInfo.WebUIPort)
+				appCopy.Status.DriverInfo.WebUIAddress = fmt.Sprintf(
+					"%s:%d", nodeIP, appCopy.Status.DriverInfo.WebUIPort)
 			}
 		}
 
 		appState := driverPodPhaseToApplicationState(update.podPhase)
 		// Update the application based on the driver pod phase if the driver has terminated.
 		if isAppTerminated(appState) {
-			app.Status.AppState.State = appState
+			appCopy.Status.AppState.State = appState
 		}
 
-		updated, err := s.crdClient.Update(app)
+		if reflect.DeepEqual(app.Status, appCopy.Status) {
+			return
+		}
+
+		updated, err := s.crdClient.Update(appCopy)
 		if err != nil {
-			glog.Errorf("failed to update SparkApplication %s: %v", app.Name, err)
+			glog.Errorf("failed to update SparkApplication %s: %v", appCopy.Name, err)
 		} else {
 			s.runningApps[updated.Status.AppID] = updated
 		}
@@ -228,16 +254,23 @@ func (s *SparkApplicationController) processSingleAppStateUpdate(update appState
 	defer s.mutex.Unlock()
 
 	if app, ok := s.runningApps[update.appID]; ok {
-		// The application state may have already been set based on the driver pod state, so it's set here only if otherwise.
-		if !isAppTerminated(app.Status.AppState.State) {
-			app.Status.AppState.State = update.state
-			app.Status.AppState.ErrorMessage = update.errorMessage
-			updated, err := s.crdClient.Update(app)
-			if err != nil {
-				glog.Errorf("failed to update SparkApplication %s: %v", app.Name, err)
-			} else {
-				s.runningApps[updated.Status.AppID] = updated
-			}
+		appCopy := app.DeepCopy()
+		// The application state may have already been set based on the driver pod state,
+		// so it's set here only if otherwise.
+		if !isAppTerminated(appCopy.Status.AppState.State) {
+			appCopy.Status.AppState.State = update.state
+			appCopy.Status.AppState.ErrorMessage = update.errorMessage
+		}
+
+		if reflect.DeepEqual(app.Status, appCopy.Status) {
+			return
+		}
+
+		updated, err := s.crdClient.Update(appCopy)
+		if err != nil {
+			glog.Errorf("failed to update SparkApplication %s: %v", appCopy.Name, err)
+		} else {
+			s.runningApps[updated.Status.AppID] = updated
 		}
 	}
 }
@@ -249,23 +282,33 @@ func (s *SparkApplicationController) processExecutorStateUpdates() {
 }
 
 func (s *SparkApplicationController) processSingleExecutorStateUpdate(update executorStateUpdate) {
-	glog.V(2).Infof("Received new state %s for executor %s running in %s", update.state, update.executorID, update.podName)
+	glog.V(2).Infof(
+		"Received state update of executor %s for %s with state %s",
+		update.executorID,
+		update.appID,
+		update.state)
 
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
 	if app, ok := s.runningApps[update.appID]; ok {
-		if app.Status.ExecutorState == nil {
-			app.Status.ExecutorState = make(map[string]v1alpha1.ExecutorState)
+		appCopy := app.DeepCopy()
+		if appCopy.Status.ExecutorState == nil {
+			appCopy.Status.ExecutorState = make(map[string]v1alpha1.ExecutorState)
 		}
 		if update.state == v1alpha1.ExecutorCompletedState || update.state == v1alpha1.ExecutorFailedState {
-			app.Status.ExecutorState[update.podName] = update.state
-			updated, err := s.crdClient.Update(app)
-			if err != nil {
-				glog.Errorf("failed to update SparkApplication %s: %v", app.Name, err)
-			} else {
-				s.runningApps[updated.Status.AppID] = updated
-			}
+			appCopy.Status.ExecutorState[update.podName] = update.state
+		}
+
+		if reflect.DeepEqual(app.Status, appCopy.Status) {
+			return
+		}
+
+		updated, err := s.crdClient.Update(appCopy)
+		if err != nil {
+			glog.Errorf("failed to update SparkApplication %s: %v", appCopy.Name, err)
+		} else {
+			s.runningApps[updated.Status.AppID] = updated
 		}
 	}
 }

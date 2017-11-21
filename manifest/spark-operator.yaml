@@ -20,6 +20,7 @@ spec:
       containers:
       - name: spark-operator
         image: liyinan926/spark-operator:latest
+        imagePullPolicy: Always
         command: ["/usr/bin/spark-operator"]
         args:
         - --logtostderr

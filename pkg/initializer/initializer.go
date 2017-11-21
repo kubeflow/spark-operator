@@ -58,7 +58,9 @@ type SparkPodInitializer struct {
 func New(kubeClient clientset.Interface) *SparkPodInitializer {
 	initializer := &SparkPodInitializer{
 		kubeClient: kubeClient,
-		queue:      workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "spark-initializer"),
+		queue:      workqueue.NewNamedRateLimitingQueue(
+			workqueue.DefaultControllerRateLimiter(),
+			"spark-initializer"),
 	}
 	initializer.syncHandler = initializer.syncSparkPod
 
@@ -80,7 +82,9 @@ func New(kubeClient clientset.Interface) *SparkPodInitializer {
 	_, initializer.sparkPodController = cache.NewInformer(
 		includeUninitializedWatchlist,
 		&apiv1.Pod{},
-		30*time.Second,
+		// resyncPeriod. Every resyncPeriod, all resources in the cache will retrigger events.
+		// Set to 0 to disable the resync.
+		0*time.Second,
 		cache.ResourceEventHandlerFuncs{
 			AddFunc:    initializer.onPodAdded,
 			DeleteFunc: initializer.onPodDeleted,
@@ -171,11 +175,17 @@ func (ic *SparkPodInitializer) addInitializationConfig() error {
 	}
 
 	if found {
-		glog.Warningf("InitializerConfiguration %s with Initializer %s already exists", initializerConfigName, initializerName)
+		glog.Warningf(
+			"InitializerConfiguration %s with Initializer %s already exists",
+			initializerConfigName,
+			initializerName)
 		return nil
 	}
 
-	glog.Warningf("Found InitializerConfiguration %s without Initializer %s", initializerConfigName, initializerName)
+	glog.Warningf(
+		"Found InitializerConfiguration %s without Initializer %s",
+		initializerConfigName,
+		initializerName)
 	existingConfig.Initializers = append(existingConfig.Initializers, sparkPodInitializer)
 	glog.Infof("Updating InitializerConfiguration %s", initializerConfigName)
 	_, err = icClient.Update(existingConfig)
@@ -186,7 +196,9 @@ func (ic *SparkPodInitializer) addInitializationConfig() error {
 }
 
 func (ic *SparkPodInitializer) deleteInitializationConfig() error {
-	err := ic.kubeClient.AdmissionregistrationV1alpha1().InitializerConfigurations().Delete(initializerConfigName, &metav1.DeleteOptions{})
+	err := ic.kubeClient.AdmissionregistrationV1alpha1().InitializerConfigurations().Delete(
+		initializerConfigName,
+		&metav1.DeleteOptions{})
 	if err != nil {
 		return fmt.Errorf("failed to delete InitializerConfiguration: %v", err)
 	}
@@ -290,7 +302,10 @@ func (ic *SparkPodInitializer) onPodDeleted(obj interface{}) {
 	}
 
 	if isSparkPod(pod) {
-		glog.Infof("Spark %s pod %s was deleted, deleting it from the work queue", pod.Labels[sparkRoleLabel], pod.Name)
+		glog.Infof(
+			"Spark %s pod %s was deleted, deleting it from the work queue",
+			pod.Labels[sparkRoleLabel],
+			pod.Name)
 		key := getQueueKey(pod)
 		ic.queue.Forget(key)
 		ic.queue.Done(key)
@@ -310,7 +325,8 @@ func getNamespaceName(key string) (string, string, error) {
 	return parts[0], parts[1], nil
 }
 
-// isInitializerPresent returns if the list of pending Initializer of the given pod contains an instance of this Initializer.
+// isInitializerPresent returns if the list of pending Initializer of the given pod
+// contains an instance of this Initializer.
 func isInitializerPresent(pod *apiv1.Pod) bool {
 	if pod.Initializers == nil {
 		return false
@@ -447,5 +463,8 @@ func patchPod(originalPod, modifiedPod *apiv1.Pod, clientset clientset.Interface
 		return nil, err
 	}
 
-	return clientset.CoreV1().Pods(originalPod.Namespace).Patch(originalPod.Name, types.StrategicMergePatchType, patch)
+	return clientset.CoreV1().Pods(originalPod.Namespace).Patch(
+		originalPod.Name,
+		types.StrategicMergePatchType,
+		patch)
 }

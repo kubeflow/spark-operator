@@ -17,7 +17,7 @@ import (
 	"k8s.io/client-go/tools/cache"
 )
 
-// SparkPodMonitor monitors Spark executor pods and update the SparkAppliation objects accordingly.
+// SparkPodMonitor monitors Spark executor pods and update the SparkApplication objects accordingly.
 type SparkPodMonitor struct {
 	// Client to the Kubernetes API.
 	kubeClient clientset.Interface
@@ -72,7 +72,9 @@ func newSparkPodMonitor(
 	_, monitor.sparkPodController = cache.NewInformer(
 		sparkPodWatchList,
 		&apiv1.Pod{},
-		30*time.Second,
+		// resyncPeriod. Every resyncPeriod, all resources in the cache will retrigger events.
+		// Set to 0 to disable the resync.
+		0*time.Second,
 		cache.ResourceEventHandlerFuncs{
 			AddFunc:    monitor.onPodAdded,
 			UpdateFunc: monitor.onPodUpdated,
