@@ -18,12 +18,12 @@ import (
 
 // CRD metadata.
 const (
-	CRDPlural   = "sparkapplications"
-	CRDSingular = "sparkapplication"
-	CRDKind     = "SparkApplication"
-	CRDGroup    = v1alpha1.GroupName
-	CRDVersion  = "v1alpha1"
-	CRDFullName = CRDPlural + "." + CRDGroup
+	CRDPlural    = "sparkapplications"
+	CRDSingular  = "sparkapplication"
+	CRDShortName = "sparkapp"
+	CRDGroup     = v1alpha1.GroupName
+	CRDVersion   = "v1alpha1"
+	CRDFullName  = CRDPlural + "." + CRDGroup
 )
 
 // CreateCRD creates a Kubernetes CustomResourceDefinition (CRD) for SparkApplication.
@@ -39,8 +39,10 @@ func CreateCRD(clientset apiextensionsclient.Interface) error {
 			Version: CRDVersion,
 			Scope:   apiextensionsv1beta1.NamespaceScoped,
 			Names: apiextensionsv1beta1.CustomResourceDefinitionNames{
-				Plural: CRDPlural,
-				Kind:   reflect.TypeOf(v1alpha1.SparkApplication{}).Name(),
+				Plural:     CRDPlural,
+				Singular:   CRDSingular,
+				ShortNames: []string{CRDShortName},
+				Kind:       reflect.TypeOf(v1alpha1.SparkApplication{}).Name(),
 			},
 		},
 	}
