@@ -27,6 +27,13 @@ Currently the `SparkApplication` CRD controller and the pod initializer work.
 
 ## Build and Installation
 
+Before building the Spark operator the first time, run the following commands to get the required Kubernetes code generators:
+
+```console
+go get -u k8s.io/code-generator/cmd/deepcopy-gen
+go get -u k8s.io/code-generator/cmd/defaulter-gen
+```
+
 To build the Spark operator, run the following command:
 
 ```console
