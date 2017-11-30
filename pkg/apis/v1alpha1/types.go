@@ -50,8 +50,11 @@ type SparkApplicationSpec struct {
 	MainApplicationFile string `json:"mainApplicationFile"`
 	// Arguments is a list of arguments to be passed to the application.
 	Arguments []string `json:"arguments,omitempty"`
-	// SparkConf carries the user-specified Spark configuration properties as they would use the "--conf" option in spark-submit.
+	// SparkConf carries user-specified Spark configuration properties as they would use the "--conf" option in spark-submit.
 	SparkConf map[string]string `json:"sparkConf,omitempty"`
+	// HadoopConf carries user-specified Hadoop configuration properties as they would use the the "--conf" option in spark-submit.
+	// The SparkApplication controller automatically adds prefix "spark.hadoop." to Hadoop configuration properties.
+	HadoopConf map[string]string `json:"hadoopConf,omitempty"`
 	// SparkConfigMap carries the name of the ConfigMap containing Spark configuration files such as log4j.properties.
 	// The controller will add environment variable SPARK_CONF_DIR to the path where the ConfigMap is mounted to.
 	SparkConfigMap *string `json:"sparkConfigMap,omitempty"`

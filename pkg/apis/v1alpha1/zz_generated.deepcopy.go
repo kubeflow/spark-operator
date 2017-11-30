@@ -356,6 +356,13 @@ func (in *SparkApplicationSpec) DeepCopyInto(out *SparkApplicationSpec) {
 			(*out)[key] = val
 		}
 	}
+	if in.HadoopConf != nil {
+		in, out := &in.HadoopConf, &out.HadoopConf
+		*out = make(map[string]string, len(*in))
+		for key, val := range *in {
+			(*out)[key] = val
+		}
+	}
 	if in.SparkConfigMap != nil {
 		in, out := &in.SparkConfigMap, &out.SparkConfigMap
 		if *in == nil {

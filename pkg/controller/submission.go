@@ -61,10 +61,16 @@ func buildSubmissionCommandArgs(app *v1alpha1.SparkApplication) ([]string, error
 		args = append(args, "--conf", fmt.Sprintf("%s=%s", key, value))
 	}
 
+	// Add Hadoop configuration properties.
+	for key, value := range app.Spec.HadoopConf {
+		args = append(args, "--conf", fmt.Sprintf("spark.hadoop.%s=%s", key, value))
+	}
+
 	if app.Spec.SparkConfigMap != nil {
 		config.AddConfigMapAnnotation(app, config.SparkDriverAnnotationKeyPrefix, config.SparkConfigMapAnnotation, *app.Spec.SparkConfigMap)
 		config.AddConfigMapAnnotation(app, config.SparkExecutorAnnotationKeyPrefix, config.SparkConfigMapAnnotation, *app.Spec.SparkConfigMap)
 	}
+
 	if app.Spec.HadoopConfigMap != nil {
 		config.AddConfigMapAnnotation(app, config.SparkDriverAnnotationKeyPrefix, config.HadoopConfigMapAnnotation, *app.Spec.HadoopConfigMap)
 		config.AddConfigMapAnnotation(app, config.SparkExecutorAnnotationKeyPrefix, config.HadoopConfigMapAnnotation, *app.Spec.HadoopConfigMap)
@@ -158,7 +164,7 @@ func addExecutorConfOptions(app *v1alpha1.SparkApplication) []string {
 }
 
 func getDriverSecretConfOptions(app *v1alpha1.SparkApplication) []string {
-	var secretConfs []string
+	var secretConfOptions []string
 	for _, secret := range app.Spec.Driver.DriverSecrets {
 		if secret.Type == v1alpha1.GCPServiceAccountSecret {
 			conf := fmt.Sprintf("%s%s%s=%s",
@@ -166,21 +172,21 @@ func getDriverSecretConfOptions(app *v1alpha1.SparkApplication) []string {
 				config.GCPServiceAccountSecretAnnotationPrefix,
 				secret.Name,
 				secret.Path)
-			secretConfs = append(secretConfs, "--conf", conf)
+			secretConfOptions = append(secretConfOptions, "--conf", conf)
 		} else {
 			conf := fmt.Sprintf("%s%s%s=%s",
 				config.SparkDriverAnnotationKeyPrefix,
 				config.GeneralSecretsAnnotationPrefix,
 				secret.Name,
 				secret.Path)
-			secretConfs = append(secretConfs, "--conf", conf)
+			secretConfOptions = append(secretConfOptions, "--conf", conf)
 		}
 	}
-	return secretConfs
+	return secretConfOptions
 }
 
 func getExecutorSecretConfOptions(app *v1alpha1.SparkApplication) []string {
-	var secretConfs []string
+	var secretConfOptions []string
 	for _, secret := range app.Spec.Executor.ExecutorSecrets {
 		if secret.Type == v1alpha1.GCPServiceAccountSecret {
 			conf := fmt.Sprintf("%s%s%s=%s",
@@ -188,33 +194,33 @@ func getExecutorSecretConfOptions(app *v1alpha1.SparkApplication) []string {
 				config.GCPServiceAccountSecretAnnotationPrefix,
 				secret.Name,
 				secret.Path)
-			secretConfs = append(secretConfs, "--conf", conf)
+			secretConfOptions = append(secretConfOptions, "--conf", conf)
 		} else {
 			conf := fmt.Sprintf("%s%s%s=%s",
 				config.SparkExecutorAnnotationKeyPrefix,
 				config.GeneralSecretsAnnotationPrefix,
 				secret.Name,
 				secret.Path)
-			secretConfs = append(secretConfs, "--conf", conf)
+			secretConfOptions = append(secretConfOptions, "--conf", conf)
 		}
 	}
-	return secretConfs
+	return secretConfOptions
 }
 
 func getDriverEnvVarConfOptions(app *v1alpha1.SparkApplication) []string {
-	var envVarConfs []string
+	var envVarConfOptions []string
 	for key, value := range app.Spec.Driver.DriverEnvVars {
 		envVar := fmt.Sprintf("%s%s=%s", config.DriverEnvVarConfigKeyPrefix, key, value)
-		envVarConfs = append(envVarConfs, "--conf", envVar)
+		envVarConfOptions = append(envVarConfOptions, "--conf", envVar)
 	}
-	return envVarConfs
+	return envVarConfOptions
 }
 
 func getExecutorEnvVarConfOptions(app *v1alpha1.SparkApplication) []string {
-	var envVarConfs []string
+	var envVarConfOptions []string
 	for key, value := range app.Spec.Executor.ExecutorEnvVars {
 		envVar := fmt.Sprintf("%s%s=%s", config.ExecutorEnvVarConfigKeyPrefix, key, value)
-		envVarConfs = append(envVarConfs, "--conf", envVar)
+		envVarConfOptions = append(envVarConfOptions, "--conf", envVar)
 	}
-	return envVarConfs
+	return envVarConfOptions
 }
