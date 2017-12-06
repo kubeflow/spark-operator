@@ -10,17 +10,28 @@ import (
 	"k8s.io/client-go/rest"
 )
 
-// Client is the client for talking to the API server for CRUD operations on the SparkApplication custom resource objects.
-type Client struct {
-	Client *rest.RESTClient
-	Scheme *runtime.Scheme
+// ClientInterface is the interface for client implementations for talking to the API server for
+// CRUD operations on the SparkApplication custom resource objects.
+type ClientInterface interface {
+	RESTClient() rest.Interface
+	Create(app *v1alpha1.SparkApplication) (*v1alpha1.SparkApplication, error)
+	Delete(name string, namespace string) error
+	Get(name string, namespace string) (*v1alpha1.SparkApplication, error)
+	Update(app *v1alpha1.SparkApplication) (*v1alpha1.SparkApplication, error)
+	UpdateStatus(app *v1alpha1.SparkApplication) (*v1alpha1.SparkApplication, error)
+}
+
+// clientImpl is a real implementation of ClientInterface for talking to the API server for CRUD
+// operations on the SparkApplication custom resource objects.
+type clientImpl struct {
+	restClient rest.Interface
 }
 
 // SchemeGroupVersion is the group version used to register the SparkApplication custom resource objects.
 var schemeGroupVersion = schema.GroupVersion{Group: Group, Version: Version}
 
-// NewClient creates a new client for the CRD.
-func NewClient(cfg *rest.Config) (*Client, error) {
+// NewClient creates a new real client for the SparkApplication CRD.
+func NewClient(cfg *rest.Config) (ClientInterface, error) {
 	scheme := runtime.NewScheme()
 	schemaBuilder := runtime.NewSchemeBuilder(addKnownTypes)
 	if err := schemaBuilder.AddToScheme(scheme); err != nil {
@@ -38,7 +49,7 @@ func NewClient(cfg *rest.Config) (*Client, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Client{Client: client, Scheme: scheme}, nil
+	return &clientImpl{restClient: client}, nil
 }
 
 // addKnownTypes adds the set of types defined in this package to the supplied scheme.
@@ -51,10 +62,14 @@ func addKnownTypes(scheme *runtime.Scheme) error {
 	return nil
 }
 
+func (c *clientImpl) RESTClient() rest.Interface {
+	return c.restClient
+}
+
 // Create creates a new SparkApplication through an HTTP POST request.
-func (c *Client) Create(app *v1alpha1.SparkApplication) (*v1alpha1.SparkApplication, error) {
+func (c *clientImpl) Create(app *v1alpha1.SparkApplication) (*v1alpha1.SparkApplication, error) {
 	var result v1alpha1.SparkApplication
-	err := c.Client.Post().
+	err := c.restClient.Post().
 		Namespace(app.Namespace).
 		Name(app.Name).
 		Resource(Plural).
@@ -68,8 +83,8 @@ func (c *Client) Create(app *v1alpha1.SparkApplication) (*v1alpha1.SparkApplicat
 }
 
 // Delete deletes an existing SparkApplication through an HTTP DELETE request.
-func (c *Client) Delete(name string, namespace string) error {
-	return c.Client.Delete().
+func (c *clientImpl) Delete(name string, namespace string) error {
+	return c.restClient.Delete().
 		Namespace(namespace).
 		Name(name).
 		Resource(Plural).
@@ -78,9 +93,9 @@ func (c *Client) Delete(name string, namespace string) error {
 }
 
 // Update updates an existing SparkApplication through an HTTP PUT request.
-func (c *Client) Update(app *v1alpha1.SparkApplication) (*v1alpha1.SparkApplication, error) {
+func (c *clientImpl) Update(app *v1alpha1.SparkApplication) (*v1alpha1.SparkApplication, error) {
 	var result v1alpha1.SparkApplication
-	err := c.Client.Put().
+	err := c.restClient.Put().
 		Namespace(app.Namespace).
 		Name(app.Name).
 		Resource(Plural).
@@ -94,9 +109,9 @@ func (c *Client) Update(app *v1alpha1.SparkApplication) (*v1alpha1.SparkApplicat
 }
 
 // UpdateStatus updates the status of an existing SparkApplication through an HTTP PUT request.
-func (c *Client) UpdateStatus(app *v1alpha1.SparkApplication) (*v1alpha1.SparkApplication, error) {
+func (c *clientImpl) UpdateStatus(app *v1alpha1.SparkApplication) (*v1alpha1.SparkApplication, error) {
 	var result v1alpha1.SparkApplication
-	err := c.Client.Put().
+	err := c.restClient.Put().
 		Namespace(app.Namespace).
 		Name(app.Name).
 		Resource(Plural).
@@ -111,9 +126,9 @@ func (c *Client) UpdateStatus(app *v1alpha1.SparkApplication) (*v1alpha1.SparkAp
 }
 
 // Get gets a SparkApplication through an HTTP GET request.
-func (c *Client) Get(name string, namespace string) (*v1alpha1.SparkApplication, error) {
+func (c *clientImpl) Get(name string, namespace string) (*v1alpha1.SparkApplication, error) {
 	var result v1alpha1.SparkApplication
-	err := c.Client.Get().
+	err := c.restClient.Get().
 		Namespace(namespace).
 		Name(name).
 		Resource(Plural).

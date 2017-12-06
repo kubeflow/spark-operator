@@ -30,7 +30,7 @@ const (
 
 // SparkApplicationController manages instances of SparkApplication.
 type SparkApplicationController struct {
-	crdClient                  *crd.Client
+	crdClient                  crd.ClientInterface
 	kubeClient                 clientset.Interface
 	extensionsClient           apiextensionsclient.Interface
 	runner                     *sparkSubmitRunner
@@ -44,7 +44,7 @@ type SparkApplicationController struct {
 
 // New creates a new SparkApplicationController.
 func New(
-	crdClient *crd.Client,
+	crdClient crd.ClientInterface,
 	kubeClient clientset.Interface,
 	extensionsClient apiextensionsclient.Interface,
 	submissionRunnerWorkers int) *SparkApplicationController {
@@ -98,12 +98,12 @@ func (s *SparkApplicationController) Run(stopCh <-chan struct{}, errCh chan<- er
 
 func (s *SparkApplicationController) watchSparkApplications(stopCh <-chan struct{}) (cache.Controller, error) {
 	source := cache.NewListWatchFromClient(
-		s.crdClient.Client,
+		s.crdClient.RESTClient(),
 		crd.Plural,
 		apiv1.NamespaceAll,
 		fields.Everything())
 
-	_, controller := cache.NewInformer(
+	_, cacheController := cache.NewInformer(
 		source,
 		&v1alpha1.SparkApplication{},
 		// resyncPeriod. Every resyncPeriod, all resources in the cache will retrigger events.
@@ -116,8 +116,8 @@ func (s *SparkApplicationController) watchSparkApplications(stopCh <-chan struct
 			DeleteFunc: s.onDelete,
 		})
 
-	go controller.Run(stopCh)
-	return controller, nil
+	go cacheController.Run(stopCh)
+	return cacheController, nil
 }
 
 // Callback function called when a new SparkApplication object gets created.
@@ -284,7 +284,7 @@ func (s *SparkApplicationController) processSingleExecutorStateUpdate(update exe
 			if toUpdate.Status.ExecutorState == nil {
 				toUpdate.Status.ExecutorState = make(map[string]v1alpha1.ExecutorState)
 			}
-			if update.state == v1alpha1.ExecutorCompletedState || update.state == v1alpha1.ExecutorFailedState {
+			if update.state != v1alpha1.ExecutorPendingState {
 				toUpdate.Status.ExecutorState[update.podName] = update.state
 			}
 		})

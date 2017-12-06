@@ -88,7 +88,7 @@ const (
 	FailedState    ApplicationStateType = "FAILED"
 )
 
-type applicationState struct {
+type ApplicationState struct {
 	State        ApplicationStateType `json:"state"`
 	ErrorMessage string               `json:"errorMessage"`
 }
@@ -112,7 +112,7 @@ type SparkApplicationStatus struct {
 	// DriverInfo has information about the driver.
 	DriverInfo DriverInfo `json:"driverInfo"`
 	// AppState tells the overall application state.
-	AppState applicationState `json:"applicationState"`
+	AppState ApplicationState `json:"applicationState"`
 	// ExecutorState records the state of executors by executor Pod names.
 	ExecutorState map[string]ExecutorState `json:"executorState"`
 }
