@@ -72,10 +72,10 @@ func (s *SparkApplicationController) Run(stopCh <-chan struct{}, errCh chan<- er
 	glog.Info("Starting the SparkApplication controller")
 	defer glog.Info("Stopping the SparkApplication controller")
 
-	glog.Infof("Creating the CustomResourceDefinition %s", crd.CRDFullName)
+	glog.Infof("Creating the CustomResourceDefinition %s", crd.FullName)
 	err := crd.CreateCRD(s.extensionsClient)
 	if err != nil {
-		errCh <- fmt.Errorf("failed to create the CustomResourceDefinition %s: %v", crd.CRDFullName, err)
+		errCh <- fmt.Errorf("failed to create the CustomResourceDefinition %s: %v", crd.FullName, err)
 		return
 	}
 
@@ -99,7 +99,7 @@ func (s *SparkApplicationController) Run(stopCh <-chan struct{}, errCh chan<- er
 func (s *SparkApplicationController) watchSparkApplications(stopCh <-chan struct{}) (cache.Controller, error) {
 	source := cache.NewListWatchFromClient(
 		s.crdClient.Client,
-		crd.CRDPlural,
+		crd.Plural,
 		apiv1.NamespaceAll,
 		fields.Everything())
 

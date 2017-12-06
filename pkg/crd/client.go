@@ -17,7 +17,7 @@ type Client struct {
 }
 
 // SchemeGroupVersion is the group version used to register the SparkApplication custom resource objects.
-var schemeGroupVersion = schema.GroupVersion{Group: CRDGroup, Version: CRDVersion}
+var schemeGroupVersion = schema.GroupVersion{Group: Group, Version: Version}
 
 // NewClient creates a new client for the CRD.
 func NewClient(cfg *rest.Config) (*Client, error) {
@@ -57,7 +57,7 @@ func (c *Client) Create(app *v1alpha1.SparkApplication) (*v1alpha1.SparkApplicat
 	err := c.Client.Post().
 		Namespace(app.Namespace).
 		Name(app.Name).
-		Resource(CRDPlural).
+		Resource(Plural).
 		Body(app).
 		Do().
 		Into(&result)
@@ -72,7 +72,7 @@ func (c *Client) Delete(name string, namespace string) error {
 	return c.Client.Delete().
 		Namespace(namespace).
 		Name(name).
-		Resource(CRDPlural).
+		Resource(Plural).
 		Do().
 		Error()
 }
@@ -83,7 +83,7 @@ func (c *Client) Update(app *v1alpha1.SparkApplication) (*v1alpha1.SparkApplicat
 	err := c.Client.Put().
 		Namespace(app.Namespace).
 		Name(app.Name).
-		Resource(CRDPlural).
+		Resource(Plural).
 		Body(app).
 		Do().
 		Into(&result)
@@ -99,7 +99,7 @@ func (c *Client) UpdateStatus(app *v1alpha1.SparkApplication) (*v1alpha1.SparkAp
 	err := c.Client.Put().
 		Namespace(app.Namespace).
 		Name(app.Name).
-		Resource(CRDPlural).
+		Resource(Plural).
 		SubResource("status").
 		Body(app).
 		Do().
@@ -116,7 +116,7 @@ func (c *Client) Get(name string, namespace string) (*v1alpha1.SparkApplication,
 	err := c.Client.Get().
 		Namespace(namespace).
 		Name(name).
-		Resource(CRDPlural).
+		Resource(Plural).
 		Do().
 		Into(&result)
 	if err != nil {

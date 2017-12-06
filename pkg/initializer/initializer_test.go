@@ -22,16 +22,16 @@ func TestAddAndDeleteInitializationConfig(t *testing.T) {
 	client := controller.kubeClient.AdmissionregistrationV1alpha1()
 
 	controller.addInitializationConfig()
-	ig1, err := client.InitializerConfigurations().Get(initializerConfigName, metav1.GetOptions{})
+	ig1, err := client.InitializerConfigurations().Get(sparkPodInitializerConfigName, metav1.GetOptions{})
 	if err != nil {
 		t.Error(err)
 	}
-	if ig1.Name != initializerConfigName {
-		t.Errorf("mismatched name wanted %s got %s", initializerConfigName, ig1.Name)
+	if ig1.Name != sparkPodInitializerConfigName {
+		t.Errorf("mismatched name wanted %s got %s", sparkPodInitializerConfigName, ig1.Name)
 	}
 
 	controller.addInitializationConfig()
-	ig2, err := client.InitializerConfigurations().Get(initializerConfigName, metav1.GetOptions{})
+	ig2, err := client.InitializerConfigurations().Get(sparkPodInitializerConfigName, metav1.GetOptions{})
 	if err != nil {
 		t.Error(err)
 	}
@@ -48,7 +48,7 @@ func TestAddAndDeleteInitializationConfig(t *testing.T) {
 	}
 
 	controller.deleteInitializationConfig()
-	_, err = client.InitializerConfigurations().Get(initializerConfigName, metav1.GetOptions{})
+	_, err = client.InitializerConfigurations().Get(sparkPodInitializerConfigName, metav1.GetOptions{})
 	if err != nil {
 		if !errors.IsNotFound(err) {
 			t.Error(err)
@@ -66,7 +66,7 @@ func TestRemoteInitializer(t *testing.T) {
 	testFn := func(test testcase, t *testing.T) {
 		removeSelf(test.pod)
 		if test.removed && isInitializerPresent(test.pod) {
-			t.Errorf("%s: %s was not removed", test.name, initializerName)
+			t.Errorf("%s: %s was not removed", test.name, sparkPodInitializerName)
 		}
 	}
 
@@ -83,7 +83,7 @@ func TestRemoteInitializer(t *testing.T) {
 			Initializers: &metav1.Initializers{
 				Pending: []metav1.Initializer{
 					{
-						Name: initializerName,
+						Name: sparkPodInitializerName,
 					},
 				},
 			},
@@ -94,7 +94,7 @@ func TestRemoteInitializer(t *testing.T) {
 			Initializers: &metav1.Initializers{
 				Pending: []metav1.Initializer{
 					{
-						Name: initializerName,
+						Name: sparkPodInitializerName,
 					},
 					{
 						Name: "foo",
@@ -200,7 +200,7 @@ func TestIsInitializerPresent(t *testing.T) {
 			Initializers: &metav1.Initializers{
 				Pending: []metav1.Initializer{
 					{
-						Name: initializerName,
+						Name: sparkPodInitializerName,
 					},
 				},
 			},
@@ -250,7 +250,7 @@ func TestAddPod(t *testing.T) {
 			Initializers: &metav1.Initializers{
 				Pending: []metav1.Initializer{
 					{
-						Name: initializerName,
+						Name: sparkPodInitializerName,
 					},
 				},
 			},
@@ -267,7 +267,7 @@ func TestAddPod(t *testing.T) {
 			Initializers: &metav1.Initializers{
 				Pending: []metav1.Initializer{
 					{
-						Name: initializerName,
+						Name: sparkPodInitializerName,
 					},
 				},
 			},

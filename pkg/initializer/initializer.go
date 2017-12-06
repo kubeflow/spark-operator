@@ -29,9 +29,9 @@ import (
 
 const (
 	// InitializerName is the name that will appear in the list of pending initializer in Pod spec.
-	initializerName = "pod-initializer.spark-operator.k8s.io"
+	sparkPodInitializerName = "pod-initializer.spark-operator.k8s.io"
 	// InitializerConfigName is the name of the InitializerConfig object.
-	initializerConfigName = "spark-pod-initializer-config"
+	sparkPodInitializerConfigName = "spark-pod-initializer-config"
 	// SparkRoleLabel is an label we use to distinguish Spark pods for other Pods.
 	sparkRoleLabel = "spark-role"
 	// SparkDriverRole is the value of the spark-role label assigned to Spark driver Pods.
@@ -56,13 +56,13 @@ type SparkPodInitializer struct {
 
 // New creates a new instance of Initializer.
 func New(kubeClient clientset.Interface) *SparkPodInitializer {
-	initializer := &SparkPodInitializer{
+	sparkPodInitializer := &SparkPodInitializer{
 		kubeClient: kubeClient,
 		queue:      workqueue.NewNamedRateLimitingQueue(
 			workqueue.DefaultControllerRateLimiter(),
-			"spark-initializer"),
+			"spark-sparkPodInitializer"),
 	}
-	initializer.syncHandler = initializer.syncSparkPod
+	sparkPodInitializer.syncHandler = sparkPodInitializer.syncSparkPod
 
 	restClient := kubeClient.CoreV1().RESTClient()
 	watchlist := cache.NewListWatchFromClient(restClient, "pods", apiv1.NamespaceAll, fields.Everything())
@@ -79,19 +79,19 @@ func New(kubeClient clientset.Interface) *SparkPodInitializer {
 		},
 	}
 
-	_, initializer.sparkPodController = cache.NewInformer(
+	_, sparkPodInitializer.sparkPodController = cache.NewInformer(
 		includeUninitializedWatchlist,
 		&apiv1.Pod{},
 		// resyncPeriod. Every resyncPeriod, all resources in the cache will retrigger events.
 		// Set to 0 to disable the resync.
 		0*time.Second,
 		cache.ResourceEventHandlerFuncs{
-			AddFunc:    initializer.onPodAdded,
-			DeleteFunc: initializer.onPodDeleted,
+			AddFunc:    sparkPodInitializer.onPodAdded,
+			DeleteFunc: sparkPodInitializer.onPodDeleted,
 		},
 	)
 
-	return initializer
+	return sparkPodInitializer
 }
 
 // Run runs the initializer controller.
@@ -102,10 +102,10 @@ func (ic *SparkPodInitializer) Run(workers int, stopCh <-chan struct{}, errCh ch
 	glog.Info("Starting the Spark Pod initializer")
 	defer glog.Info("Stopping the Spark Pod initializer")
 
-	glog.Infof("Adding the InitializerConfiguration %s", initializerConfigName)
+	glog.Infof("Adding the InitializerConfiguration %s", sparkPodInitializerConfigName)
 	err := ic.addInitializationConfig()
 	if err != nil {
-		errCh <- fmt.Errorf("failed to add InitializationConfiguration %s: %v", initializerConfigName, err)
+		errCh <- fmt.Errorf("failed to add InitializationConfiguration %s: %v", sparkPodInitializerConfigName, err)
 		return
 	}
 
@@ -122,10 +122,10 @@ func (ic *SparkPodInitializer) Run(workers int, stopCh <-chan struct{}, errCh ch
 
 	<-stopCh
 
-	glog.Infof("Deleting the InitializerConfiguration %s", initializerConfigName)
+	glog.Infof("Deleting the InitializerConfiguration %s", sparkPodInitializerConfigName)
 	err = ic.deleteInitializationConfig()
 	if err != nil {
-		errCh <- fmt.Errorf("failed to delete InitializationConfiguration %s: %v", initializerConfigName, err)
+		errCh <- fmt.Errorf("failed to delete InitializationConfiguration %s: %v", sparkPodInitializerConfigName, err)
 		return
 	}
 
@@ -134,7 +134,7 @@ func (ic *SparkPodInitializer) Run(workers int, stopCh <-chan struct{}, errCh ch
 
 func (ic *SparkPodInitializer) addInitializationConfig() error {
 	sparkPodInitializer := v1alpha1.Initializer{
-		Name: initializerName,
+		Name: sparkPodInitializerName,
 		Rules: []v1alpha1.Rule{
 			{
 				APIGroups:   []string{"*"},
@@ -145,13 +145,13 @@ func (ic *SparkPodInitializer) addInitializationConfig() error {
 	}
 	sparkPodInitializerConfig := v1alpha1.InitializerConfiguration{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: initializerConfigName,
+			Name: sparkPodInitializerConfigName,
 		},
 		Initializers: []v1alpha1.Initializer{sparkPodInitializer},
 	}
 
 	icClient := ic.kubeClient.AdmissionregistrationV1alpha1().InitializerConfigurations()
-	existingConfig, err := icClient.Get(initializerConfigName, metav1.GetOptions{})
+	existingConfig, err := icClient.Get(sparkPodInitializerConfigName, metav1.GetOptions{})
 	if err != nil {
 		if errors.IsNotFound(err) {
 			// InitializerConfig wasn't found.
@@ -167,8 +167,8 @@ func (ic *SparkPodInitializer) addInitializationConfig() error {
 
 	// InitializerConfig was found, check we are in the list.
 	found := false
-	for _, initializer := range existingConfig.Initializers {
-		if initializer.Name == initializerName {
+	for _, existingInitializer := range existingConfig.Initializers {
+		if existingInitializer.Name == sparkPodInitializerName {
 			found = true
 			break
 		}
@@ -177,17 +177,17 @@ func (ic *SparkPodInitializer) addInitializationConfig() error {
 	if found {
 		glog.Warningf(
 			"InitializerConfiguration %s with Initializer %s already exists",
-			initializerConfigName,
-			initializerName)
+			sparkPodInitializerConfigName,
+			sparkPodInitializerName)
 		return nil
 	}
 
 	glog.Warningf(
 		"Found InitializerConfiguration %s without Initializer %s",
-		initializerConfigName,
-		initializerName)
+		sparkPodInitializerConfigName,
+		sparkPodInitializerName)
 	existingConfig.Initializers = append(existingConfig.Initializers, sparkPodInitializer)
-	glog.Infof("Updating InitializerConfiguration %s", initializerConfigName)
+	glog.Infof("Updating InitializerConfiguration %s", sparkPodInitializerConfigName)
 	_, err = icClient.Update(existingConfig)
 	if err != nil {
 		return fmt.Errorf("failed to update InitializerConfiguration: %v", err)
@@ -197,7 +197,7 @@ func (ic *SparkPodInitializer) addInitializationConfig() error {
 
 func (ic *SparkPodInitializer) deleteInitializationConfig() error {
 	err := ic.kubeClient.AdmissionregistrationV1alpha1().InitializerConfigurations().Delete(
-		initializerConfigName,
+		sparkPodInitializerConfigName,
 		&metav1.DeleteOptions{})
 	if err != nil {
 		return fmt.Errorf("failed to delete InitializerConfiguration: %v", err)
@@ -333,7 +333,7 @@ func isInitializerPresent(pod *apiv1.Pod) bool {
 	}
 
 	for _, pending := range pod.Initializers.Pending {
-		if pending.Name == initializerName {
+		if pending.Name == sparkPodInitializerName {
 			return true
 		}
 	}
@@ -421,7 +421,7 @@ func removeSelf(pod *apiv1.Pod) {
 
 	var updated []metav1.Initializer
 	for _, pending := range pod.Initializers.Pending {
-		if pending.Name != initializerName {
+		if pending.Name != sparkPodInitializerName {
 			updated = append(updated, pending)
 		}
 	}
