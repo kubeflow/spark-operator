@@ -45,21 +45,29 @@ type SparkApplicationSpec struct {
 	Mode DeployMode `json:"mode"`
 	// MainClass is the fully-qualified main class of the Spark application.
 	// This only applies to Java/Scala Spark applications.
+	// Optional.
 	MainClass *string `json:"mainClass,omitempty"`
 	// MainFile is the path to a bundled JAR or Python file including the Spark application and its dependencies.
 	MainApplicationFile string `json:"mainApplicationFile"`
 	// Arguments is a list of arguments to be passed to the application.
+	// Optional.
 	Arguments []string `json:"arguments,omitempty"`
-	// SparkConf carries user-specified Spark configuration properties as they would use the "--conf" option in spark-submit.
+	// SparkConf carries user-specified Spark configuration properties as they would use the  "--conf" option in
+	// spark-submit.
+	// Optional.
 	SparkConf map[string]string `json:"sparkConf,omitempty"`
-	// HadoopConf carries user-specified Hadoop configuration properties as they would use the the "--conf" option in spark-submit.
-	// The SparkApplication controller automatically adds prefix "spark.hadoop." to Hadoop configuration properties.
+	// HadoopConf carries user-specified Hadoop configuration properties as they would use the  the "--conf" option
+	// in spark-submit.  The SparkApplication controller automatically adds prefix "spark.hadoop." to Hadoop
+	// configuration properties.
+	// Optional.
 	HadoopConf map[string]string `json:"hadoopConf,omitempty"`
 	// SparkConfigMap carries the name of the ConfigMap containing Spark configuration files such as log4j.properties.
 	// The controller will add environment variable SPARK_CONF_DIR to the path where the ConfigMap is mounted to.
+	// Optional.
 	SparkConfigMap *string `json:"sparkConfigMap,omitempty"`
 	// HadoopConfigMap carries the name of the ConfigMap containing Hadoop configuration files such as core-site.xml.
 	// The controller will add environment variable HADOOP_CONF_DIR to the path where the ConfigMap is mounted to.
+	// Optional.
 	HadoopConfigMap *string `json:"hadoopConfigMap,omitempty"`
 	// Driver is the driver specification.
 	Driver DriverSpec `json:"driver"`
@@ -69,6 +77,7 @@ type SparkApplicationSpec struct {
 	Deps Dependencies `json:"deps"`
 	// LogsLocation is the location where application logs get written to on local file system.
 	// This is only applicable if application logs are not written to stdout/stderr.
+	// Optional.
 	LogsLocation *string `json:"logsLocation,omitempty"`
 	// SubmissionByUser indicates if the application is to be submitted by the user.
 	// The custom controller should not submit the application on behalf of the user if this is true.
@@ -129,44 +138,63 @@ type SparkApplicationList struct {
 // Dependencies specifies all possible types of dependencies of a Spark application.
 type Dependencies struct {
 	// JarFiles is a list of JAR files the Spark application depends on.
+	// Optional.
 	JarFiles []string `json:"jarFiles,omitempty"`
 	// Files is a list of files the Spark application depends on.
+	// Optional.
 	Files []string `json:"files,omitempty"`
 	// PyFiles is a list of Python files the Spark application depends on.
+	// Optional.
 	PyFiles []string `json:"pyFiles,omitempty"`
 }
 
 // DriverSpec is specification of the driver.
 type DriverSpec struct {
+	// PodName is the name of the driver pod that the user creates. This is used for the
+	// in-cluster client mode in which the user creates a client pod where the driver of
+	// the user application runs. It's an error to set this field if Mode is not
+	// in-cluster-client.
+	// Optional.
+	PodName *string `json:"podName"`
 	// Cores is used to set spark.driver.cores.
+	// Optional.
 	Cores *string `json:"cores"`
 	// Memory is used to set spark.driver.memory.
+	// Optional.
 	Memory *string `json:"memory"`
 	// Image is the driver Docker image to use.
 	Image string `json:"image"`
 	// DriverConfigMaps carries information of other ConfigMaps to add to the driver Pod.
+	// Optional.
 	DriverConfigMaps []NamePath `json:"driverConigMaps,omitempty"`
 	// DriverSecrets carries information of secrets to add to the driver Pod.
+	// Optional.
 	DriverSecrets []SecretInfo `json:"driverSecrets,omitempty"`
 	// DriverEnvVars carries the environment variables to add to the driver Pod.
+	// Optional.
 	DriverEnvVars map[string]string `json:"driverEnvVars,omitempty"`
 }
 
 // ExecutorSpec is specification of the executor.
 type ExecutorSpec struct {
 	// Cores is used to set spark.executor.cores.
+	// Optional.
 	Cores *string `json:"cores"`
 	// Memory is used to set spark.executor.memory.
+	// Optional.
 	Memory *string `json:"memory"`
 	// Image is the executor Docker image to use.
 	Image string `json:"image"`
 	// Instances is the number of executor instances.
 	Instances *int32 `json:"instances"`
 	// ExecutorConfigMaps carries information of other ConfigMaps to add to the executor Pods.
+	// Optional.
 	ExecutorConfigMaps []NamePath `json:"executorConigMaps,omitempty"`
 	// ExecutorSecrets carries information of secrets to add to the executor Pods.
+	// Optional.
 	ExecutorSecrets []SecretInfo `json:"executorSecrets,omitempty"`
 	// ExecutorEnvVars carries the environment variables to add to the executor Pods.
+	// Optional.
 	ExecutorEnvVars map[string]string `json:"executorEnvVars,omitempty"`
 }
 
