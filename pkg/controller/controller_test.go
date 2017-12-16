@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"os"
 	"testing"
 
 	"github.com/liyinan926/spark-operator/pkg/apis/v1alpha1"
@@ -12,9 +13,6 @@ import (
 	apiextensionsfake "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset/fake"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
-
-func TestOnAdd(t *testing.T) {
-}
 
 func newFakeController() *SparkApplicationController {
 	crdClient := crd.NewFakeClient()
@@ -32,7 +30,109 @@ func newFakeController() *SparkApplicationController {
 			},
 		},
 	})
-	return New(crdClient, kubeClient, apiextensionsfake.NewSimpleClientset(), 1)
+	return New(crdClient, kubeClient, apiextensionsfake.NewSimpleClientset(), 0)
+}
+
+func TestOnAdd(t *testing.T) {
+	ctrl := newFakeController()
+
+	os.Setenv(kubernetesServiceHostEnvVar, "localhost")
+	os.Setenv(kubernetesServicePortEnvVar, "443")
+
+	app := &v1alpha1.SparkApplication{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "foo",
+			Namespace: "default",
+		},
+	}
+
+	go ctrl.onAdd(app)
+	submission := <- ctrl.runner.queue
+	assert.Equal(t, submission.appName, app.Name, "wanted application name %s got %s", app.Name, submission.appName)
+}
+
+func TestOnUpdate(t *testing.T) {
+	ctrl := newFakeController()
+
+	os.Setenv(kubernetesServiceHostEnvVar, "localhost")
+	os.Setenv(kubernetesServicePortEnvVar, "443")
+
+	app := &v1alpha1.SparkApplication{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "foo",
+			Namespace: "default",
+		},
+		Spec: v1alpha1.SparkApplicationSpec{
+			Mode: v1alpha1.ClusterMode,
+		},
+		Status: v1alpha1.SparkApplicationStatus{
+			AppID: "foo-123",
+		},
+	}
+	ctrl.runningApps[app.Status.AppID] = app
+
+	newApp := app.DeepCopy()
+	newApp.Spec.Mode = v1alpha1.ClientMode
+
+	ctrl.onUpdate(app, newApp)
+	assert.Equal(t, ctrl.runningApps[newApp.Status.AppID].Spec.Mode, v1alpha1.ClientMode,
+		"wanted mode %s got %s", v1alpha1.ClientMode, ctrl.runningApps[newApp.Status.AppID].Spec.Mode)
+}
+
+func TestOnDelete(t *testing.T) {
+	ctrl := newFakeController()
+
+	os.Setenv(kubernetesServiceHostEnvVar, "localhost")
+	os.Setenv(kubernetesServicePortEnvVar, "443")
+
+	app := &v1alpha1.SparkApplication{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "foo",
+			Namespace: "default",
+		},
+		Status: v1alpha1.SparkApplicationStatus{
+			AppID: "foo-123",
+		},
+	}
+
+	driverPod := &apiv1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "foo-driver",
+			Namespace: app.Namespace,
+		},
+	}
+	driverService := &apiv1.Service{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: driverPod.Name + "-svc",
+			Namespace: app.Namespace,
+		},
+	}
+	ctrl.kubeClient.CoreV1().Pods(app.Namespace).Create(driverPod)
+	ctrl.kubeClient.CoreV1().Services(app.Namespace).Create(driverService)
+
+	_, err := ctrl.kubeClient.CoreV1().Pods(app.Namespace).Get(driverPod.Name, metav1.GetOptions{})
+	assert.True(t, err == nil)
+	_, err = ctrl.kubeClient.CoreV1().Services(app.Namespace).Get(driverService.Name, metav1.GetOptions{})
+	assert.True(t, err == nil)
+
+	driverUIServiceName, _ := createSparkUIService(app, ctrl.kubeClient)
+	app.Annotations = make(map[string]string)
+	app.Annotations[sparkUIServiceNameAnnotationKey] = driverUIServiceName
+	app.Status.DriverInfo.PodName = driverPod.Name
+
+	ctrl.onDelete(app)
+
+	driverUIService, err := ctrl.kubeClient.CoreV1().Services(app.Namespace).Get(driverUIServiceName, metav1.GetOptions{})
+	assert.True(t, driverUIService == nil)
+	assert.True(t, err != nil)
+
+	driverService, err = ctrl.kubeClient.CoreV1().Services(app.Namespace).Get(driverService.Name, metav1.GetOptions{})
+	assert.True(t, driverService == nil)
+	assert.True(t, err != nil)
+
+	driverPod, err = ctrl.kubeClient.CoreV1().Pods(app.Namespace).Get(driverPod.Name, metav1.GetOptions{})
+	assert.True(t, driverPod == nil)
+	assert.True(t, err != nil)
 }
 
 func TestProcessSingleDriverStateUpdate(t *testing.T) {

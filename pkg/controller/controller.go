@@ -160,6 +160,7 @@ func (s *SparkApplicationController) onAdd(obj interface{}) {
 	}
 }
 
+// TODO: need to figure out what to do about updates from the users.
 func (s *SparkApplicationController) onUpdate(oldObj, newObj interface{}) {
 	newApp := newObj.(*v1alpha1.SparkApplication)
 	s.mutex.Lock()
