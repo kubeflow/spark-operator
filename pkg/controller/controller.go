@@ -30,6 +30,7 @@ import (
 	apiv1 "k8s.io/api/core/v1"
 	apiextensionsclient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/fields"
 	clientset "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
@@ -142,46 +143,26 @@ func (s *SparkApplicationController) onAdd(obj interface{}) {
 	// NEVER modify objects from the store. It's a read-only, local cache.
 	// You can use scheme.Copy() to make a deep copy of original object and modify this copy
 	// Or create a copy manually for better performance.
-	appCopy := app.DeepCopy()
-	appCopy.Status.AppID = buildAppID(appCopy)
-	appCopy.Status.AppState.State = v1alpha1.NewState
-	appCopy.Annotations = make(map[string]string)
+	s.submitApp(app.DeepCopy())
+}
 
-	serviceName, err := createSparkUIService(appCopy, s.kubeClient)
-	if err != nil {
-		glog.Errorf("failed to create a UI service for SparkApplication %s: %v", appCopy.Name, err)
-	}
-	appCopy.Annotations[sparkUIServiceNameAnnotationKey] = serviceName
-
+func (s *SparkApplicationController) onUpdate(oldObj, newObj interface{}) {
+	oldApp := oldObj.(*v1alpha1.SparkApplication)
 	s.mutex.Lock()
-	defer s.mutex.Unlock()
+	delete(s.runningApps, oldApp.Status.AppID)
+	s.mutex.Unlock()
 
-	updatedApp, err := s.crdClient.Update(appCopy)
-	if err != nil {
-		glog.Errorf("failed to update SparkApplication %s: %v", appCopy.Name, err)
+	// Kill the old application instance by deleting its driver pod.
+	err := s.kubeClient.CoreV1().Pods(oldApp.Namespace).Delete(oldApp.Status.DriverInfo.PodName, &metav1.DeleteOptions{})
+	if err != nil && !errors.IsNotFound(err) {
+		glog.Errorf("failed to delete the driver pod %s of the old instance of application %s",
+			oldApp.Status.DriverInfo.PodName, oldApp.Name)
 		return
 	}
 
-	s.runningApps[updatedApp.Status.AppID] = updatedApp
-
-	submissionCmdArgs, err := buildSubmissionCommandArgs(updatedApp)
-	if err != nil {
-		glog.Errorf(
-			"failed to build the submission command for SparkApplication %s: %v",
-			updatedApp.Name,
-			err)
-	}
-	if !updatedApp.Spec.SubmissionByUser {
-		s.runner.submit(newSubmission(submissionCmdArgs, updatedApp))
-	}
-}
-
-// TODO: need to figure out what to do about updates from the users.
-func (s *SparkApplicationController) onUpdate(oldObj, newObj interface{}) {
+	// Then submit an instance of the new application to run.
 	newApp := newObj.(*v1alpha1.SparkApplication)
-	s.mutex.Lock()
-	defer s.mutex.Unlock()
-	s.runningApps[newApp.Status.AppID] = newApp
+	s.submitApp(newApp.DeepCopy())
 }
 
 func (s *SparkApplicationController) onDelete(obj interface{}) {
@@ -213,6 +194,40 @@ func (s *SparkApplicationController) onDelete(obj interface{}) {
 		app.Status.DriverInfo.PodName,
 		app.Name)
 	s.kubeClient.CoreV1().Pods(app.Namespace).Delete(app.Status.DriverInfo.PodName, &metav1.DeleteOptions{})
+}
+
+func (s *SparkApplicationController) submitApp(app *v1alpha1.SparkApplication) {
+	app.Status.AppID = buildAppID(app)
+	app.Status.AppState.State = v1alpha1.NewState
+	app.Annotations = make(map[string]string)
+
+	serviceName, err := createSparkUIService(app, s.kubeClient)
+	if err != nil {
+		glog.Errorf("failed to create a UI service for SparkApplication %s: %v", app.Name, err)
+	}
+	app.Annotations[sparkUIServiceNameAnnotationKey] = serviceName
+
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
+	updatedApp, err := s.crdClient.Update(app)
+	if err != nil {
+		glog.Errorf("failed to update SparkApplication %s: %v", app.Name, err)
+		return
+	}
+
+	s.runningApps[updatedApp.Status.AppID] = updatedApp
+
+	submissionCmdArgs, err := buildSubmissionCommandArgs(updatedApp)
+	if err != nil {
+		glog.Errorf(
+			"failed to build the submission command for SparkApplication %s: %v",
+			updatedApp.Name,
+			err)
+	}
+	if !updatedApp.Spec.SubmissionByUser {
+		s.runner.submit(newSubmission(submissionCmdArgs, updatedApp))
+	}
 }
 
 func (s *SparkApplicationController) processDriverStateUpdates() {

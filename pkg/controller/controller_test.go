@@ -26,6 +26,7 @@ import (
 
 	apiv1 "k8s.io/api/core/v1"
 	apiextensionsfake "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset/fake"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kubeclientfake "k8s.io/client-go/kubernetes/fake"
 )
@@ -73,6 +74,7 @@ func TestOnUpdate(t *testing.T) {
 	os.Setenv(kubernetesServiceHostEnvVar, "localhost")
 	os.Setenv(kubernetesServicePortEnvVar, "443")
 
+	one := int32(1)
 	app := &v1alpha1.SparkApplication{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "foo",
@@ -80,19 +82,42 @@ func TestOnUpdate(t *testing.T) {
 		},
 		Spec: v1alpha1.SparkApplicationSpec{
 			Mode: v1alpha1.ClusterMode,
+			Executor: v1alpha1.ExecutorSpec{
+				Instances: &one,
+			},
 		},
 		Status: v1alpha1.SparkApplicationStatus{
 			AppID: "foo-123",
 		},
 	}
+	driverPod := &apiv1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "foo-driver",
+			Namespace: app.Namespace,
+		},
+	}
+	ctrl.kubeClient.CoreV1().Pods(app.Namespace).Create(driverPod)
+	app.Status.DriverInfo.PodName = driverPod.Name
 	ctrl.runningApps[app.Status.AppID] = app
 
 	newApp := app.DeepCopy()
-	newApp.Spec.Mode = v1alpha1.ClientMode
+	two := int32(2)
+	newApp.Spec.Executor.Instances = &two
 
-	ctrl.onUpdate(app, newApp)
-	assert.Equal(t, ctrl.runningApps[newApp.Status.AppID].Spec.Mode, v1alpha1.ClientMode,
-		"wanted mode %s got %s", v1alpha1.ClientMode, ctrl.runningApps[newApp.Status.AppID].Spec.Mode)
+	go ctrl.onUpdate(app, newApp)
+
+	submission := <- ctrl.runner.queue
+	assert.Equal(t, submission.appName, newApp.Name, "wanted application name %s got %s", app.Name, submission.appName)
+
+	_, ok := ctrl.runningApps[app.Status.AppID]
+	assert.False(t, ok)
+
+	driverPod, err := ctrl.kubeClient.CoreV1().Pods(app.Namespace).Get(driverPod.Name, metav1.GetOptions{})
+	assert.True(t, driverPod == nil)
+	assert.True(t, errors.IsNotFound(err))
+
+	assert.Equal(t, submission.appName, newApp.Name)
+	assert.Equal(t, *ctrl.runningApps[submission.appID].Spec.Executor.Instances, two)
 }
 
 func TestOnDelete(t *testing.T) {
@@ -138,17 +163,20 @@ func TestOnDelete(t *testing.T) {
 
 	ctrl.onDelete(app)
 
+	_, ok := ctrl.runningApps[app.Status.AppID]
+	assert.False(t, ok)
+
 	driverUIService, err := ctrl.kubeClient.CoreV1().Services(app.Namespace).Get(driverUIServiceName, metav1.GetOptions{})
 	assert.True(t, driverUIService == nil)
-	assert.True(t, err != nil)
+	assert.True(t, errors.IsNotFound(err))
 
 	driverService, err = ctrl.kubeClient.CoreV1().Services(app.Namespace).Get(driverService.Name, metav1.GetOptions{})
 	assert.True(t, driverService == nil)
-	assert.True(t, err != nil)
+	assert.True(t, errors.IsNotFound(err))
 
 	driverPod, err = ctrl.kubeClient.CoreV1().Pods(app.Namespace).Get(driverPod.Name, metav1.GetOptions{})
 	assert.True(t, driverPod == nil)
-	assert.True(t, err != nil)
+	assert.True(t, errors.IsNotFound(err))
 }
 
 func TestProcessSingleDriverStateUpdate(t *testing.T) {
