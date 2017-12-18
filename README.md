@@ -1,5 +1,7 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/liyinan926/spark-operator)](https://goreportcard.com/report/github.com/liyinan926/spark-operator)
 
+**This is not an official Google product.**
+
 # Spark Operator
 
 Spark Operator is an experimental project aiming to make it easier to run [Spark-on-Kubernetes](https://github.com/apache-spark-on-k8s/spark) applications on a Kubernetes cluster by potentially automating certain tasks such as the following:

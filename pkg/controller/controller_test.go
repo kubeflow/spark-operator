@@ -1,3 +1,19 @@
+/*
+Copyright 2017 Google LLC
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    https://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package controller
 
 import (
@@ -9,9 +25,9 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	apiv1 "k8s.io/api/core/v1"
-	kubeclientfake "k8s.io/client-go/kubernetes/fake"
 	apiextensionsfake "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset/fake"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	kubeclientfake "k8s.io/client-go/kubernetes/fake"
 )
 
 func newFakeController() *SparkApplicationController {
@@ -24,7 +40,7 @@ func newFakeController() *SparkApplicationController {
 		Status: apiv1.NodeStatus{
 			Addresses: []apiv1.NodeAddress{
 				{
-					Type: apiv1.NodeExternalIP,
+					Type:    apiv1.NodeExternalIP,
 					Address: "12.34.56.78",
 				},
 			},
@@ -47,7 +63,7 @@ func TestOnAdd(t *testing.T) {
 	}
 
 	go ctrl.onAdd(app)
-	submission := <- ctrl.runner.queue
+	submission := <-ctrl.runner.queue
 	assert.Equal(t, submission.appName, app.Name, "wanted application name %s got %s", app.Name, submission.appName)
 }
 
@@ -97,13 +113,13 @@ func TestOnDelete(t *testing.T) {
 
 	driverPod := &apiv1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: "foo-driver",
+			Name:      "foo-driver",
 			Namespace: app.Namespace,
 		},
 	}
 	driverService := &apiv1.Service{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: driverPod.Name + "-svc",
+			Name:      driverPod.Name + "-svc",
 			Namespace: app.Namespace,
 		},
 	}
@@ -137,8 +153,8 @@ func TestOnDelete(t *testing.T) {
 
 func TestProcessSingleDriverStateUpdate(t *testing.T) {
 	type testcase struct {
-		name string
-		update driverStateUpdate
+		name             string
+		update           driverStateUpdate
 		expectedAppState v1alpha1.ApplicationStateType
 	}
 
@@ -216,9 +232,9 @@ func TestProcessSingleDriverStateUpdate(t *testing.T) {
 
 func TestProcessSingleAppStateUpdate(t *testing.T) {
 	type testcase struct {
-		name string
-		update appStateUpdate
-		initialAppState v1alpha1.ApplicationStateType
+		name             string
+		update           appStateUpdate
+		initialAppState  v1alpha1.ApplicationStateType
 		expectedAppState v1alpha1.ApplicationStateType
 	}
 
@@ -244,51 +260,51 @@ func TestProcessSingleAppStateUpdate(t *testing.T) {
 		{
 			name: "succeeded app",
 			update: appStateUpdate{
-				appID:    appID,
-				state:  v1alpha1.CompletedState,
+				appID:        appID,
+				state:        v1alpha1.CompletedState,
 				errorMessage: "",
 			},
-			initialAppState: v1alpha1.RunningState,
+			initialAppState:  v1alpha1.RunningState,
 			expectedAppState: v1alpha1.CompletedState,
 		},
 		{
 			name: "failed app",
 			update: appStateUpdate{
-				appID:    appID,
-				state:  v1alpha1.FailedState,
+				appID:        appID,
+				state:        v1alpha1.FailedState,
 				errorMessage: "",
 			},
-			initialAppState: v1alpha1.RunningState,
+			initialAppState:  v1alpha1.RunningState,
 			expectedAppState: v1alpha1.FailedState,
 		},
 		{
 			name: "running app",
 			update: appStateUpdate{
-				appID:    appID,
-				state:  v1alpha1.RunningState,
+				appID:        appID,
+				state:        v1alpha1.RunningState,
 				errorMessage: "",
 			},
-			initialAppState: v1alpha1.NewState,
+			initialAppState:  v1alpha1.NewState,
 			expectedAppState: v1alpha1.RunningState,
 		},
 		{
 			name: "completed app with initial state SubmittedState",
 			update: appStateUpdate{
-				appID:    appID,
-				state:  v1alpha1.SubmittedState,
+				appID:        appID,
+				state:        v1alpha1.SubmittedState,
 				errorMessage: "",
 			},
-			initialAppState: v1alpha1.CompletedState,
+			initialAppState:  v1alpha1.CompletedState,
 			expectedAppState: v1alpha1.CompletedState,
 		},
 		{
 			name: "failed app with initial state SubmittedState",
 			update: appStateUpdate{
-				appID:    appID,
-				state:  v1alpha1.SubmittedState,
+				appID:        appID,
+				state:        v1alpha1.SubmittedState,
 				errorMessage: "",
 			},
-			initialAppState: v1alpha1.FailedState,
+			initialAppState:  v1alpha1.FailedState,
 			expectedAppState: v1alpha1.FailedState,
 		},
 	}
@@ -316,8 +332,8 @@ func TestProcessSingleAppStateUpdate(t *testing.T) {
 
 func TestProcessSingleExecutorStateUpdate(t *testing.T) {
 	type testcase struct {
-		name string
-		update executorStateUpdate
+		name                   string
+		update                 executorStateUpdate
 		expectedExecutorStates map[string]v1alpha1.ExecutorState
 	}
 
@@ -344,24 +360,24 @@ func TestProcessSingleExecutorStateUpdate(t *testing.T) {
 		{
 			name: "completed executor",
 			update: executorStateUpdate{
-				appID: appID,
-				podName: "foo-exec-1",
+				appID:      appID,
+				podName:    "foo-exec-1",
 				executorID: "1",
-				state: v1alpha1.ExecutorCompletedState,
+				state:      v1alpha1.ExecutorCompletedState,
 			},
-			expectedExecutorStates: map[string]v1alpha1.ExecutorState {
+			expectedExecutorStates: map[string]v1alpha1.ExecutorState{
 				"foo-exec-1": v1alpha1.ExecutorCompletedState,
 			},
 		},
 		{
 			name: "failed executor",
 			update: executorStateUpdate{
-				appID: appID,
-				podName: "foo-exec-2",
+				appID:      appID,
+				podName:    "foo-exec-2",
 				executorID: "2",
-				state: v1alpha1.ExecutorFailedState,
+				state:      v1alpha1.ExecutorFailedState,
 			},
-			expectedExecutorStates: map[string]v1alpha1.ExecutorState {
+			expectedExecutorStates: map[string]v1alpha1.ExecutorState{
 				"foo-exec-1": v1alpha1.ExecutorCompletedState,
 				"foo-exec-2": v1alpha1.ExecutorFailedState,
 			},
@@ -369,12 +385,12 @@ func TestProcessSingleExecutorStateUpdate(t *testing.T) {
 		{
 			name: "running executor",
 			update: executorStateUpdate{
-				appID: appID,
-				podName: "foo-exec-3",
+				appID:      appID,
+				podName:    "foo-exec-3",
 				executorID: "3",
-				state: v1alpha1.ExecutorRunningState,
+				state:      v1alpha1.ExecutorRunningState,
 			},
-			expectedExecutorStates: map[string]v1alpha1.ExecutorState {
+			expectedExecutorStates: map[string]v1alpha1.ExecutorState{
 				"foo-exec-1": v1alpha1.ExecutorCompletedState,
 				"foo-exec-2": v1alpha1.ExecutorFailedState,
 				"foo-exec-3": v1alpha1.ExecutorRunningState,
@@ -383,12 +399,12 @@ func TestProcessSingleExecutorStateUpdate(t *testing.T) {
 		{
 			name: "pending executor",
 			update: executorStateUpdate{
-				appID: appID,
-				podName: "foo-exec-4",
+				appID:      appID,
+				podName:    "foo-exec-4",
 				executorID: "4",
-				state: v1alpha1.ExecutorPendingState,
+				state:      v1alpha1.ExecutorPendingState,
 			},
-			expectedExecutorStates: map[string]v1alpha1.ExecutorState {
+			expectedExecutorStates: map[string]v1alpha1.ExecutorState{
 				"foo-exec-1": v1alpha1.ExecutorCompletedState,
 				"foo-exec-2": v1alpha1.ExecutorFailedState,
 				"foo-exec-3": v1alpha1.ExecutorRunningState,
