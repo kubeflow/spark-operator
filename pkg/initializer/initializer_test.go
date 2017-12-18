@@ -234,6 +234,11 @@ func TestAddPod(t *testing.T) {
 		controller.onPodAdded(test.pod)
 		if test.queued {
 			key, _ := controller.queue.Get()
+			keyString := key.(string)
+			expectedQueueKey := getQueueKey(test.pod)
+			if keyString != expectedQueueKey {
+				t.Errorf("%s: expected queue key %s got %s", test.name, expectedQueueKey, keyString)
+			}
 			controller.queue.Done(key)
 			if controller.queue.Len() > 0 {
 				t.Errorf("%s: expected queue to be emptied got %d keys", test.name, controller.queue.Len())
@@ -244,9 +249,16 @@ func TestAddPod(t *testing.T) {
 		}
 	}
 
-	pod0 := &apiv1.Pod{}
+	pod0 := &apiv1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:        "pod1",
+			Namespace:   "default",
+		},
+	}
 	pod1 := &apiv1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
+			Name:        "pod1",
+			Namespace:   "default",
 			Initializers: &metav1.Initializers{
 				Pending: []metav1.Initializer{
 					{
@@ -258,11 +270,15 @@ func TestAddPod(t *testing.T) {
 	}
 	pod2 := &apiv1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
+			Name:        "pod1",
+			Namespace:   "default",
 			Labels: map[string]string{sparkRoleLabel: sparkDriverRole},
 		},
 	}
 	pod3 := &apiv1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
+			Name:        "pod1",
+			Namespace:   "default",
 			Labels: map[string]string{sparkRoleLabel: sparkDriverRole},
 			Initializers: &metav1.Initializers{
 				Pending: []metav1.Initializer{
@@ -480,6 +496,97 @@ func TestSyncSparkPod(t *testing.T) {
 			pod:                 pod5,
 			expectedVolumeNames: []string{secret.ServiceAccountSecretVolumeName},
 			expectedObjectNames: []string{"gcp-service-account"},
+		},
+	}
+	for _, test := range testcases {
+		testFn(test, t)
+	}
+}
+
+func TestDeletePod(t *testing.T) {
+	type testcase struct {
+		name   string
+		pod    *apiv1.Pod
+		queued bool
+	}
+
+	controller := New(fake.NewSimpleClientset())
+	testFn := func(test testcase, t *testing.T) {
+		controller.onPodAdded(test.pod)
+		if test.queued {
+			key, _ := controller.queue.Get()
+			keyString := key.(string)
+			expectedQueueKey := getQueueKey(test.pod)
+			if keyString != expectedQueueKey {
+				t.Errorf("%s: expected queue key %s got %s", test.name, expectedQueueKey, keyString)
+			}
+		}
+		controller.onPodDeleted(test.pod)
+		if controller.queue.Len() > 0 {
+			t.Errorf("%s: expected queue to be emptied got %d keys", test.name, controller.queue.Len())
+		}
+	}
+
+	pod0 := &apiv1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:        "pod1",
+			Namespace:   "default",
+		},
+	}
+	pod1 := &apiv1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:        "pod1",
+			Namespace:   "default",
+			Initializers: &metav1.Initializers{
+				Pending: []metav1.Initializer{
+					{
+						Name: sparkPodInitializerName,
+					},
+				},
+			},
+		},
+	}
+	pod2 := &apiv1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:        "pod1",
+			Namespace:   "default",
+			Labels: map[string]string{sparkRoleLabel: sparkDriverRole},
+		},
+	}
+	pod3 := &apiv1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:        "pod1",
+			Namespace:   "default",
+			Labels: map[string]string{sparkRoleLabel: sparkDriverRole},
+			Initializers: &metav1.Initializers{
+				Pending: []metav1.Initializer{
+					{
+						Name: sparkPodInitializerName,
+					},
+				},
+			},
+		},
+	}
+	testcases := []testcase{
+		{
+			name:   "non-Spark pod without initializers",
+			pod:    pod0,
+			queued: false,
+		},
+		{
+			name:   "non-Spark pod with the initializer",
+			pod:    pod1,
+			queued: false,
+		},
+		{
+			name:   "Spark pod without the initializer",
+			pod:    pod2,
+			queued: false,
+		},
+		{
+			name:   "Spark pod with the initializer",
+			pod:    pod3,
+			queued: true,
 		},
 	}
 	for _, test := range testcases {

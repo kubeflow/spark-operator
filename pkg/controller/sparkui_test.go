@@ -61,12 +61,6 @@ func TestCreateSparkUIService(t *testing.T) {
 		if port.Port != test.expectedServicePort {
 			t.Errorf("%s: unexpected port wanted %d got %d", test.name, test.expectedServicePort, port.Port)
 		}
-		if port.TargetPort.IntVal != test.expectedServicePort {
-			t.Errorf("%s: unexpected target port wanted %d got %d", test.name, test.expectedServicePort, port.TargetPort.IntVal)
-		}
-		if test.app.Status.DriverInfo.WebUIPort != test.expectedServicePort {
-			t.Errorf("%s: unexpected port wanted %d got %d", test.name, test.expectedServicePort, test.app.Status.DriverInfo.WebUIPort)
-		}
 	}
 
 	app1 := &v1alpha1.SparkApplication{

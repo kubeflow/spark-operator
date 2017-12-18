@@ -11,7 +11,6 @@ import (
 
 	apiv1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/intstr"
 	clientset "k8s.io/client-go/kubernetes"
 )
 
@@ -37,8 +36,8 @@ func createSparkUIService(app *v1alpha1.SparkApplication, kubeClient clientset.I
 		Spec: apiv1.ServiceSpec{
 			Ports: []apiv1.ServicePort{
 				{
-					Port:       int32(port),
-					TargetPort: intstr.FromInt(port),
+					Name: "spark-driver-ui-port",
+					Port: int32(port),
 				},
 			},
 			Selector: map[string]string{
@@ -56,7 +55,7 @@ func createSparkUIService(app *v1alpha1.SparkApplication, kubeClient clientset.I
 	}
 	app.Status.DriverInfo = v1alpha1.DriverInfo{
 		WebUIServiceName: service.Name,
-		WebUIPort:        int32(port),
+		WebUIPort:        service.Spec.Ports[0].NodePort,
 	}
 
 	return service.Name, nil
