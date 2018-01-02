@@ -63,7 +63,7 @@ type SparkApplicationSpec struct {
 	// This only applies to Java/Scala Spark applications.
 	// Optional.
 	MainClass *string `json:"mainClass,omitempty"`
-	// MainFile is the path to a bundled JAR or Python file including the Spark application and its dependencies.
+	// MainFile is the path to a bundled JAR, Python, or R file of the application.
 	MainApplicationFile string `json:"mainApplicationFile"`
 	// Arguments is a list of arguments to be passed to the application.
 	// Optional.
@@ -91,10 +91,6 @@ type SparkApplicationSpec struct {
 	Executor ExecutorSpec `json:"executor"`
 	// Deps captures all possible types of dependencies of a Spark application.
 	Deps Dependencies `json:"deps"`
-	// LogsLocation is the location where application logs get written to on local file system.
-	// This is only applicable if application logs are not written to stdout/stderr.
-	// Optional.
-	LogsLocation *string `json:"logsLocation,omitempty"`
 	// SubmissionByUser indicates if the application is to be submitted by the user.
 	// The custom controller should not submit the application on behalf of the user if this is true.
 	// It defaults to false.
@@ -113,6 +109,7 @@ const (
 	FailedState    ApplicationStateType = "FAILED"
 )
 
+// ApplicationState tells the current state of the application and an error message in case of failures.
 type ApplicationState struct {
 	State        ApplicationStateType `json:"state"`
 	ErrorMessage string               `json:"errorMessage"`
@@ -134,12 +131,16 @@ type SparkApplicationStatus struct {
 	// AppId is the application ID that's also added as a label to the SparkApplication object
 	// and driver and executor Pods, and is used to group the objects for the same application.
 	AppID string `json:"appId"`
+	// SubmissionTime is the time when the application is submitted.
+	SubmissionTime metav1.Time `json:"submissionTime"`
+	// CompletionTime is the time when the application runs to completion if it does.
+	CompletionTime metav1.Time `json:"completionTime"`
 	// DriverInfo has information about the driver.
 	DriverInfo DriverInfo `json:"driverInfo"`
 	// AppState tells the overall application state.
 	AppState ApplicationState `json:"applicationState"`
 	// ExecutorState records the state of executors by executor Pod names.
-	ExecutorState map[string]ExecutorState `json:"executorState"`
+	ExecutorState map[string]ExecutorState `json:"executorState,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -171,13 +172,13 @@ type DriverSpec struct {
 	// the user application runs. It's an error to set this field if Mode is not
 	// in-cluster-client.
 	// Optional.
-	PodName *string `json:"podName"`
+	PodName *string `json:"podName,omitempty"`
 	// Cores is used to set spark.driver.cores.
 	// Optional.
-	Cores *string `json:"cores"`
+	Cores *string `json:"cores,omitempty"`
 	// Memory is used to set spark.driver.memory.
 	// Optional.
-	Memory *string `json:"memory"`
+	Memory *string `json:"memory,omitempty"`
 	// Image is the driver Docker image to use.
 	Image string `json:"image"`
 	// DriverConfigMaps carries information of other ConfigMaps to add to the driver Pod.
@@ -195,14 +196,14 @@ type DriverSpec struct {
 type ExecutorSpec struct {
 	// Cores is used to set spark.executor.cores.
 	// Optional.
-	Cores *string `json:"cores"`
+	Cores *string `json:"cores,omitempty"`
 	// Memory is used to set spark.executor.memory.
 	// Optional.
-	Memory *string `json:"memory"`
+	Memory *string `json:"memory,omitempty"`
 	// Image is the executor Docker image to use.
 	Image string `json:"image"`
 	// Instances is the number of executor instances.
-	Instances *int32 `json:"instances"`
+	Instances *int32 `json:"instances,omitempty"`
 	// ExecutorConfigMaps carries information of other ConfigMaps to add to the executor Pods.
 	// Optional.
 	ExecutorConfigMaps []NamePath `json:"executorConigMaps,omitempty"`
