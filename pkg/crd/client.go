@@ -17,7 +17,7 @@ limitations under the License.
 package crd
 
 import (
-	"github.com/liyinan926/spark-operator/pkg/apis/v1alpha1"
+	"k8s.io/spark-on-k8s-operator/pkg/apis/v1alpha1"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"

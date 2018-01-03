@@ -14,7 +14,7 @@
 # limitations under the License.
 #
 
-package: github.com/liyinan926/spark-operator
+package: k8s.io/spark-on-k8s-operator
 import:
 - package: k8s.io/client-go
   version: c6f8cf2c47d21d55fa0df928291b2580544886c8

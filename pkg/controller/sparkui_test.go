@@ -21,8 +21,8 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/liyinan926/spark-operator/pkg/apis/v1alpha1"
-	"github.com/liyinan926/spark-operator/pkg/config"
+	"k8s.io/spark-on-k8s-operator/pkg/apis/v1alpha1"
+	"k8s.io/spark-on-k8s-operator/pkg/config"
 
 	apiv1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

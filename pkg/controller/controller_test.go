@@ -20,8 +20,9 @@ import (
 	"os"
 	"testing"
 
-	"github.com/liyinan926/spark-operator/pkg/apis/v1alpha1"
-	"github.com/liyinan926/spark-operator/pkg/crd"
+	"k8s.io/spark-on-k8s-operator/pkg/apis/v1alpha1"
+	"k8s.io/spark-on-k8s-operator/pkg/crd"
+
 	"github.com/stretchr/testify/assert"
 
 	apiv1 "k8s.io/api/core/v1"
