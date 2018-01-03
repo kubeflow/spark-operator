@@ -29,29 +29,35 @@ Currently the `SparkApplication` CRD controller and the pod initializer work.
 
 ## Build and Installation
 
+Spark Operator uses [Glide](http://glide.sh/) for dependency management. Please install Glide following the instruction on the website if you don't have it available locally. To install the dependencies, run the following command:
+
+```bash
+glide install --strip-vendor
+```  
+
 Before building the Spark operator the first time, run the following commands to get the required Kubernetes code generators:
 
-```console
+```bash
 go get -u k8s.io/code-generator/cmd/deepcopy-gen
 go get -u k8s.io/code-generator/cmd/defaulter-gen
 ```
 
 To build the Spark operator, run the following command:
 
-```console
+```bash
 make build
 ```
 
 To additionally build a Docker image of the Spark operator, run the following command:
 
-```console
+```bash
 make image-tag=<image tag> image
 ```
 
 To further push the Docker image to Docker hub, run the following command:
 console
 
-```console
+```bash
 make image-tag=<image tag> push
 ```
 
@@ -59,7 +65,7 @@ make image-tag=<image tag> push
 
 To deploy the Spark operator, run the following command:
 
-```console
+```bash
 kubectl create -f manifest/spark-operator.yaml 
 ```
 
@@ -73,13 +79,13 @@ Spark Operator uses multiple workers in the initializer controller and the submi
 
 To run the example Spark application, run the following command:
 
-```console
+```bash
 kubectl create -f manifest/spark-application-example.yaml
 ```
 
 This will create a `SparkApplication` object named `spark-app-example`. Check the object by running the following command:
 
-```console
+```bash
 kubectl get sparkapplications spark-app-example -o=yaml
 ```
 
@@ -124,7 +130,7 @@ status:
 
 The initializer works independently with or without the CRD controller. The initializer looks for certain custom annotations on Spark driver and executor Pods to perform its tasks. To use the initializer without leveraging the CRD, simply add the needed annotations to the driver and/or executor Pods using the following Spark configuration properties when submitting your Spark applications through the `spark-submit` script.
 
-```console
+```
 --conf spark.kubernetes.driver.annotations.[AnnotationName]=value
 --conf spark.kubernetes.executor.annotations.[AnnotationName]=value
 ```  
