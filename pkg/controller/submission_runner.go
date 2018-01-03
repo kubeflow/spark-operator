@@ -26,6 +26,7 @@ import (
 
 	"github.com/golang/glog"
 
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
 )
 
@@ -38,9 +39,11 @@ type sparkSubmitRunner struct {
 
 // appStateUpdate encapsulates overall state update of a Spark application.
 type appStateUpdate struct {
-	appID        string
-	state        v1alpha1.ApplicationStateType
-	errorMessage string
+	appID          string
+	submissionTime metav1.Time
+	completionTime metav1.Time
+	state          v1alpha1.ApplicationStateType
+	errorMessage   string
 }
 
 func newSparkSubmitRunner(workers int, appStateReportingChan chan<- appStateUpdate) *sparkSubmitRunner {
@@ -73,7 +76,10 @@ func (r *sparkSubmitRunner) runWorker() {
 	for s := range r.queue {
 		cmd := exec.Command(command, s.args...)
 		glog.Infof("spark-submit arguments: %v", cmd.Args)
-		stateUpdate := appStateUpdate{appID: s.appID}
+		stateUpdate := appStateUpdate{
+			appID:          s.appID,
+			submissionTime: metav1.Now(),
+		}
 		if _, err := cmd.Output(); err != nil {
 			stateUpdate.state = v1alpha1.FailedState
 			if exitErr, ok := err.(*exec.ExitError); ok {
@@ -83,6 +89,7 @@ func (r *sparkSubmitRunner) runWorker() {
 		} else {
 			glog.Infof("Spark application %s completed", s.appName)
 			stateUpdate.state = v1alpha1.CompletedState
+			stateUpdate.completionTime = metav1.Now()
 		}
 		// Report the application state back to the controller.
 		r.appStateReportingChan <- stateUpdate

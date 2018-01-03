@@ -287,6 +287,12 @@ func (s *SparkApplicationController) processSingleAppStateUpdate(update appState
 				toUpdate.Status.AppState.State = update.state
 				toUpdate.Status.AppState.ErrorMessage = update.errorMessage
 			}
+			if !update.submissionTime.IsZero() {
+				toUpdate.Status.SubmissionTime = update.submissionTime
+			}
+			if !update.completionTime.IsZero() {
+				toUpdate.Status.CompletionTime = update.completionTime
+			}
 		})
 
 		if updated != nil {
