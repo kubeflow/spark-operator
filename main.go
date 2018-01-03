@@ -25,9 +25,9 @@ import (
 
 	"github.com/golang/glog"
 
-	"github.com/liyinan926/spark-operator/pkg/controller"
-	"github.com/liyinan926/spark-operator/pkg/crd"
-	"github.com/liyinan926/spark-operator/pkg/initializer"
+	"k8s.io/spark-on-k8s-operator/pkg/controller"
+	"k8s.io/spark-on-k8s-operator/pkg/crd"
+	"k8s.io/spark-on-k8s-operator/pkg/initializer"
 
 	apiextensionsclient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	"k8s.io/apimachinery/pkg/api/errors"

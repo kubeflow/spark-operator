@@ -20,7 +20,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/liyinan926/spark-operator/pkg/config"
+	"k8s.io/spark-on-k8s-operator/pkg/config"
 
 	"k8s.io/api/core/v1"
 )

@@ -22,8 +22,8 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/liyinan926/spark-operator/pkg/config"
-	"github.com/liyinan926/spark-operator/pkg/secret"
+	"k8s.io/spark-on-k8s-operator/pkg/config"
+	"k8s.io/spark-on-k8s-operator/pkg/secret"
 
 	apiv1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"

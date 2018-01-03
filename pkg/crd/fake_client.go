@@ -19,7 +19,7 @@ package crd
 import (
 	"sync"
 
-	"github.com/liyinan926/spark-operator/pkg/apis/v1alpha1"
+	"k8s.io/spark-on-k8s-operator/pkg/apis/v1alpha1"
 
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/rest/fake"

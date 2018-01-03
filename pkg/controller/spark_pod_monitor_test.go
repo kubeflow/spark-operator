@@ -19,10 +19,10 @@ package controller
 import (
 	"testing"
 
-	"github.com/liyinan926/spark-operator/pkg/config"
-	"github.com/stretchr/testify/assert"
+	"k8s.io/spark-on-k8s-operator/pkg/config"
+	"k8s.io/spark-on-k8s-operator/pkg/apis/v1alpha1"
 
-	"github.com/liyinan926/spark-operator/pkg/apis/v1alpha1"
+	"github.com/stretchr/testify/assert"
 	apiv1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kubeclientfake "k8s.io/client-go/kubernetes/fake"

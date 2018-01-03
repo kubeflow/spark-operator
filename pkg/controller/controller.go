@@ -23,9 +23,9 @@ import (
 	"time"
 
 	"github.com/golang/glog"
-	"github.com/liyinan926/spark-operator/pkg/apis/v1alpha1"
-	"github.com/liyinan926/spark-operator/pkg/crd"
-	"github.com/liyinan926/spark-operator/pkg/util"
+	"k8s.io/spark-on-k8s-operator/pkg/apis/v1alpha1"
+	"k8s.io/spark-on-k8s-operator/pkg/crd"
+	"k8s.io/spark-on-k8s-operator/pkg/util"
 
 	apiv1 "k8s.io/api/core/v1"
 	apiextensionsclient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
