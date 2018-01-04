@@ -21,8 +21,8 @@ generate_files:
 	defaulter-gen -i ./pkg/apis/v1alpha1 -O zz_generated.defaults
 
 build: generate_files
-	GOOS=linux go build
-	chmod +x spark-on-k8s-operator
+	GOOS=linux go build -o spark-operator
+	chmod +x spark-operator
 
 image: build
 	docker build -t $(image-tag) -f ./Dockerfile .

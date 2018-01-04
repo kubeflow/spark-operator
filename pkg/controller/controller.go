@@ -29,7 +29,6 @@ import (
 
 	apiv1 "k8s.io/api/core/v1"
 	apiextensionsclient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
-	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	clientset "k8s.io/client-go/kubernetes"
@@ -129,7 +128,6 @@ func (s *SparkApplicationController) watchSparkApplications(stopCh <-chan struct
 		// SparkApplication resource event handlers.
 		cache.ResourceEventHandlerFuncs{
 			AddFunc:    s.onAdd,
-			UpdateFunc: s.onUpdate,
 			DeleteFunc: s.onDelete,
 		})
 
@@ -144,25 +142,6 @@ func (s *SparkApplicationController) onAdd(obj interface{}) {
 	// You can use scheme.Copy() to make a deep copy of original object and modify this copy
 	// Or create a copy manually for better performance.
 	s.submitApp(app.DeepCopy())
-}
-
-func (s *SparkApplicationController) onUpdate(oldObj, newObj interface{}) {
-	oldApp := oldObj.(*v1alpha1.SparkApplication)
-	s.mutex.Lock()
-	delete(s.runningApps, oldApp.Status.AppID)
-	s.mutex.Unlock()
-
-	// Kill the old application instance by deleting its driver pod.
-	err := s.kubeClient.CoreV1().Pods(oldApp.Namespace).Delete(oldApp.Status.DriverInfo.PodName, &metav1.DeleteOptions{})
-	if err != nil && !errors.IsNotFound(err) {
-		glog.Errorf("failed to delete the driver pod %s of the old instance of application %s",
-			oldApp.Status.DriverInfo.PodName, oldApp.Name)
-		return
-	}
-
-	// Then submit an instance of the new application to run.
-	newApp := newObj.(*v1alpha1.SparkApplication)
-	s.submitApp(newApp.DeepCopy())
 }
 
 func (s *SparkApplicationController) onDelete(obj interface{}) {
