@@ -183,7 +183,7 @@ type DriverSpec struct {
 	Image string `json:"image"`
 	// DriverConfigMaps carries information of other ConfigMaps to add to the driver Pod.
 	// Optional.
-	DriverConfigMaps []NamePath `json:"driverConigMaps,omitempty"`
+	DriverConfigMaps []NamePath `json:"driverConfigMaps,omitempty"`
 	// DriverSecrets carries information of secrets to add to the driver Pod.
 	// Optional.
 	DriverSecrets []SecretInfo `json:"driverSecrets,omitempty"`
@@ -206,7 +206,7 @@ type ExecutorSpec struct {
 	Instances *int32 `json:"instances,omitempty"`
 	// ExecutorConfigMaps carries information of other ConfigMaps to add to the executor Pods.
 	// Optional.
-	ExecutorConfigMaps []NamePath `json:"executorConigMaps,omitempty"`
+	ExecutorConfigMaps []NamePath `json:"executorConfigMaps,omitempty"`
 	// ExecutorSecrets carries information of secrets to add to the executor Pods.
 	// Optional.
 	ExecutorSecrets []SecretInfo `json:"executorSecrets,omitempty"`
