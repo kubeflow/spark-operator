@@ -36,7 +36,7 @@ spec:
     spec:
       containers:
       - name: spark-operator
-        image: liyinan926/spark-operator:latest
+        image: liyinan926/spark-operator:v2.3.0
         imagePullPolicy: Always
         command: ["/usr/bin/spark-operator"]
         args:

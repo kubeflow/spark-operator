@@ -57,8 +57,8 @@ func buildSubmissionCommandArgs(app *v1alpha1.SparkApplication) ([]string, error
 	}
 
 	args = append(args, "--master", masterURL)
-	args = append(args, "--kubernetes-namespace", app.Namespace)
 	args = append(args, "--deploy-mode", string(app.Spec.Mode))
+	args = append(args, "--conf", fmt.Sprintf("spark.kubernetes.namespace=%s", app.Namespace))
 	args = append(args, "--conf", fmt.Sprintf("spark.app.name=%s", app.Name))
 
 	// Add application dependencies.
@@ -130,7 +130,7 @@ func addDriverConfOptions(app *v1alpha1.SparkApplication) []string {
 	driverConfOptions = append(
 		driverConfOptions,
 		"--conf",
-		fmt.Sprintf("spark.kubernetes.driver.docker.image=%s", app.Spec.Driver.Image))
+		fmt.Sprintf("spark.kubernetes.driver.container.image=%s", app.Spec.Driver.Image))
 
 	if app.Spec.Driver.Cores != nil {
 		conf := fmt.Sprintf("spark.driver.cores=%s", *app.Spec.Driver.Cores)
@@ -157,7 +157,7 @@ func addExecutorConfOptions(app *v1alpha1.SparkApplication) []string {
 	executorConfOptions = append(
 		executorConfOptions,
 		"--conf",
-		fmt.Sprintf("spark.kubernetes.executor.docker.image=%s", app.Spec.Executor.Image))
+		fmt.Sprintf("spark.kubernetes.executor.container.image=%s", app.Spec.Executor.Image))
 
 	if app.Spec.Executor.Instances != nil {
 		conf := fmt.Sprintf("spark.executor.instances=%d", *app.Spec.Executor.Instances)

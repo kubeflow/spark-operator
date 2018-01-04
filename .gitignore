@@ -1,5 +1,5 @@
 .vscode/
 vendor/
-spark-on-k8s-operator
+spark-operator
 .idea/
 **/*.iml

@@ -69,58 +69,6 @@ func TestOnAdd(t *testing.T) {
 	assert.Equal(t, submission.appName, app.Name, "wanted application name %s got %s", app.Name, submission.appName)
 }
 
-func TestOnUpdate(t *testing.T) {
-	ctrl := newFakeController()
-
-	os.Setenv(kubernetesServiceHostEnvVar, "localhost")
-	os.Setenv(kubernetesServicePortEnvVar, "443")
-
-	one := int32(1)
-	app := &v1alpha1.SparkApplication{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "foo",
-			Namespace: "default",
-		},
-		Spec: v1alpha1.SparkApplicationSpec{
-			Mode: v1alpha1.ClusterMode,
-			Executor: v1alpha1.ExecutorSpec{
-				Instances: &one,
-			},
-		},
-		Status: v1alpha1.SparkApplicationStatus{
-			AppID: "foo-123",
-		},
-	}
-	driverPod := &apiv1.Pod{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "foo-driver",
-			Namespace: app.Namespace,
-		},
-	}
-	ctrl.kubeClient.CoreV1().Pods(app.Namespace).Create(driverPod)
-	app.Status.DriverInfo.PodName = driverPod.Name
-	ctrl.runningApps[app.Status.AppID] = app
-
-	newApp := app.DeepCopy()
-	two := int32(2)
-	newApp.Spec.Executor.Instances = &two
-
-	go ctrl.onUpdate(app, newApp)
-
-	submission := <- ctrl.runner.queue
-	assert.Equal(t, submission.appName, newApp.Name, "wanted application name %s got %s", app.Name, submission.appName)
-
-	_, ok := ctrl.runningApps[app.Status.AppID]
-	assert.False(t, ok)
-
-	driverPod, err := ctrl.kubeClient.CoreV1().Pods(app.Namespace).Get(driverPod.Name, metav1.GetOptions{})
-	assert.True(t, driverPod == nil)
-	assert.True(t, errors.IsNotFound(err))
-
-	assert.Equal(t, submission.appName, newApp.Name)
-	assert.Equal(t, *ctrl.runningApps[submission.appID].Spec.Executor.Instances, two)
-}
-
 func TestOnDelete(t *testing.T) {
 	ctrl := newFakeController()
 
