@@ -61,8 +61,10 @@ const (
 type SparkPodInitializer struct {
 	// Client to the Kubernetes API.
 	kubeClient clientset.Interface
-	// sparkPodInformer is a shared informer for Spark Pods (including uninitialized ones).
-	sparkPodInformer cache.SharedInformer
+	// sparkPodInformer is a shared informer for Pods (including uninitialized ones).
+	sparkPodInformer cache.Controller
+	// sparkPodStore is the store of cached Pods.
+	sparkPodStore cache.Store
 	// A queue of uninitialized Pods that need to be processed by this initializer controller.
 	queue workqueue.RateLimitingInterface
 	// To allow injection of syncHandler for testing.
@@ -94,17 +96,17 @@ func New(kubeClient clientset.Interface) *SparkPodInitializer {
 		},
 	}
 
-	sparkPodInitializer.sparkPodInformer = cache.NewSharedInformer(
+	sparkPodInitializer.sparkPodStore, sparkPodInitializer.sparkPodInformer = cache.NewInformer(
 		includeUninitializedWatchlist,
 		&apiv1.Pod{},
 		// resyncPeriod. Every resyncPeriod, all resources in the cache will re-trigger events.
 		// Set to 0 to disable the resync.
 		0*time.Second,
+		cache.ResourceEventHandlerFuncs{
+			AddFunc:    sparkPodInitializer.onPodAdded,
+			DeleteFunc: sparkPodInitializer.onPodDeleted,
+		},
 	)
-	sparkPodInitializer.sparkPodInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc:    sparkPodInitializer.onPodAdded,
-		DeleteFunc: sparkPodInitializer.onPodDeleted,
-	})
 
 	return sparkPodInitializer
 }
@@ -261,7 +263,7 @@ func (ic *SparkPodInitializer) processNextItem() bool {
 }
 
 func (ic *SparkPodInitializer) syncSparkPod(key string) error {
-	item, exists, err := ic.sparkPodInformer.GetStore().GetByKey(key)
+	item, exists, err := ic.sparkPodStore.GetByKey(key)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			return nil
