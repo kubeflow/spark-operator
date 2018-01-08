@@ -62,12 +62,12 @@ const (
 type SparkPodInitializer struct {
 	// Client to the Kubernetes API.
 	kubeClient clientset.Interface
-	// sparkPodController is a controller for listing uninitialized Spark Pods.
-	sparkPodController cache.Controller
+	// sparkPodInformer is a shared informer for Spark Pods (including uninitialized ones).
+	sparkPodInformer cache.SharedInformer
 	// A queue of uninitialized Pods that need to be processed by this initializer controller.
 	queue workqueue.RateLimitingInterface
-	// To allow injection of syncReplicaSet for testing.
-	syncHandler func(key string) (*apiv1.Pod, error)
+	// To allow injection of syncHandler for testing.
+	syncHandler func(key string) error
 }
 
 // New creates a new instance of Initializer.
@@ -76,7 +76,7 @@ func New(kubeClient clientset.Interface) *SparkPodInitializer {
 		kubeClient: kubeClient,
 		queue: workqueue.NewNamedRateLimitingQueue(
 			workqueue.DefaultControllerRateLimiter(),
-			"spark-sparkPodInitializer"),
+			"spark-pod-initializer"),
 	}
 	sparkPodInitializer.syncHandler = sparkPodInitializer.syncSparkPod
 
@@ -95,17 +95,17 @@ func New(kubeClient clientset.Interface) *SparkPodInitializer {
 		},
 	}
 
-	_, sparkPodInitializer.sparkPodController = cache.NewInformer(
+	sparkPodInitializer.sparkPodInformer = cache.NewSharedInformer(
 		includeUninitializedWatchlist,
 		&apiv1.Pod{},
-		// resyncPeriod. Every resyncPeriod, all resources in the cache will retrigger events.
+		// resyncPeriod. Every resyncPeriod, all resources in the cache will re-trigger events.
 		// Set to 0 to disable the resync.
 		0*time.Second,
-		cache.ResourceEventHandlerFuncs{
-			AddFunc:    sparkPodInitializer.onPodAdded,
-			DeleteFunc: sparkPodInitializer.onPodDeleted,
-		},
 	)
+	sparkPodInitializer.sparkPodInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
+		AddFunc:    sparkPodInitializer.onPodAdded,
+		DeleteFunc: sparkPodInitializer.onPodDeleted,
+	})
 
 	return sparkPodInitializer
 }
@@ -125,8 +125,8 @@ func (ic *SparkPodInitializer) Run(workers int, stopCh <-chan struct{}, errCh ch
 		return
 	}
 
-	glog.Info("Starting the Pod controller")
-	go ic.sparkPodController.Run(stopCh)
+	glog.Info("Starting the Spark Pod informer")
+	go ic.sparkPodInformer.Run(stopCh)
 
 	glog.Info("Starting the workers of the Spark Pod initializer controller")
 	// Start up worker threads.
@@ -235,7 +235,7 @@ func (ic *SparkPodInitializer) processNextItem() bool {
 	}
 	defer ic.queue.Done(key)
 
-	_, err := ic.syncHandler(key.(string))
+	err := ic.syncHandler(key.(string))
 	if err == nil {
 		// Successfully processed the key or the key was not found so tell the queue to stop tracking
 		// history for your key. This will reset things like failure counts for per-item rate limiting.
@@ -255,39 +255,46 @@ func (ic *SparkPodInitializer) processNextItem() bool {
 	return true
 }
 
-// syncSparkPod does the actual processing of the given Spark Pod.
-func (ic *SparkPodInitializer) syncSparkPod(key string) (*apiv1.Pod, error) {
+func (ic *SparkPodInitializer) syncSparkPod(key string) error {
 	namespace, name, err := getNamespaceName(key)
 	pod, err := ic.kubeClient.CoreV1().Pods(namespace).Get(name, metav1.GetOptions{})
 	if err != nil {
 		if errors.IsNotFound(err) {
-			return nil, nil
+			return nil
 		}
-		return nil, err
+		return err
 	}
 
+	if isSparkPod(pod) {
+		ic.initializeSparkPod(pod)
+	} else {
+		ic.handleNonSparkPod(pod)
+	}
+
+	return nil
+}
+
+// initializeSparkPod does the actual initialization of the given Spark Pod.
+func (ic *SparkPodInitializer) initializeSparkPod(pod *apiv1.Pod) (*apiv1.Pod, error) {
 	glog.Infof("Processing Spark %s pod %s", pod.Labels[sparkRoleLabel], pod.Name)
 
 	// Make a copy.
-	copyObj, err := runtime.NewScheme().DeepCopy(pod)
-	if err != nil {
-		return nil, err
-	}
-	modifiedPod := copyObj.(*apiv1.Pod)
-	if len(modifiedPod.Spec.Containers) <= 0 {
-		return nil, fmt.Errorf("no container found in Pod %s", modifiedPod.Name)
+	podCopy := pod.DeepCopy()
+
+	if len(podCopy.Spec.Containers) <= 0 {
+		return nil, fmt.Errorf("no container found in Pod %s", podCopy.Name)
 	}
 	// We assume that the first container is the Spark container.
-	appContainer := &modifiedPod.Spec.Containers[0]
+	appContainer := &podCopy.Spec.Containers[0]
 
 	// Perform the initialization tasks.
-	addOwnerReference(modifiedPod)
-	handleConfigMaps(modifiedPod, appContainer)
-	handleSecrets(modifiedPod, appContainer)
+	addOwnerReference(podCopy)
+	handleConfigMaps(podCopy, appContainer)
+	handleSecrets(podCopy, appContainer)
 	// Remove this initializer from the list of pending initializer and update the Pod.
-	removeSelf(modifiedPod)
+	removeSelf(podCopy)
 
-	return patchPod(pod, modifiedPod, ic.kubeClient)
+	return patchPod(pod, podCopy, ic.kubeClient)
 }
 
 // onPodAdded is the callback function called when an event for a new Pod is informed.
@@ -301,12 +308,7 @@ func (ic *SparkPodInitializer) onPodAdded(obj interface{}) {
 	// The presence of the Initializer in the pending list of Initializers in the pod
 	// is a sign that the pod is uninitialized.
 	if isInitializerPresent(pod) {
-		if isSparkPod(pod) {
-			ic.queue.AddRateLimited(getQueueKey(pod))
-		} else {
-			// For non-Spark pods we don't put them into the queue.
-			handleNonSparkPod(pod, ic.kubeClient)
-		}
+		ic.queue.AddRateLimited(getQueueKey(pod))
 	}
 }
 
@@ -317,11 +319,9 @@ func (ic *SparkPodInitializer) onPodDeleted(obj interface{}) {
 		glog.Errorf("received non-pod object: %v", obj)
 	}
 
+	// Non-Spark Pods are removed from the queue in handleNonSparkPod
+	// so we don't need to worry about removing them here.
 	if isSparkPod(pod) {
-		glog.Infof(
-			"Spark %s pod %s was deleted, deleting it from the work queue",
-			pod.Labels[sparkRoleLabel],
-			pod.Name)
 		key := getQueueKey(pod)
 		ic.queue.Forget(key)
 		ic.queue.Done(key)
@@ -362,18 +362,19 @@ func isSparkPod(pod *apiv1.Pod) bool {
 	return ok && (sparkRole == sparkDriverRole || sparkRole == sparkExecutorRole)
 }
 
-func handleNonSparkPod(pod *apiv1.Pod, clientset clientset.Interface) error {
+func (ic *SparkPodInitializer) handleNonSparkPod(pod *apiv1.Pod) error {
+	// Remove the non-Spark Pod from the queue.
+	key := getQueueKey(pod)
+	ic.queue.Forget(key)
+	ic.queue.Done(key)
+
 	// Make a copy.
-	copyObj, err := runtime.NewScheme().DeepCopy(pod)
-	if err != nil {
-		return err
-	}
-	podCopy := copyObj.(*apiv1.Pod)
+	podCopy := pod.DeepCopy()
 
 	// Remove the name of itself from the list of pending initializer and update the Pod.
 	removeSelf(podCopy)
 
-	return updatePod(podCopy, clientset)
+	return updatePod(podCopy, ic.kubeClient)
 }
 
 func handleConfigMaps(pod *apiv1.Pod, container *apiv1.Container) {

@@ -29,7 +29,7 @@ metadata:
 apiVersion: rbac.authorization.k8s.io/v1beta1
 kind: ClusterRole
 metadata:
-  name: spark-operator
+  name: spark-operator-role
 rules:
 - apiGroups:
   - "*"
@@ -41,12 +41,12 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1beta1
 kind: ClusterRoleBinding
 metadata:
-  name: spark-operator
+  name: spark-operator-role-binding
 subjects:
 - kind: ServiceAccount
   name: spark-operator
   namespace: spark-operator
 roleRef:
   kind: ClusterRole
-  name: spark-operator
+  name: spark-operator-role
   apiGroup: rbac.authorization.k8s.io

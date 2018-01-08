@@ -35,11 +35,13 @@ import (
 )
 
 // sparkPodMonitor monitors Spark executor pods and update the SparkApplication objects accordingly.
+// Note that no work queue is used as in the initializer because sparkPodMonitor is only informed of
+// Spark Pods and it never modifies the Pods.
 type sparkPodMonitor struct {
 	// Client to the Kubernetes API.
 	kubeClient clientset.Interface
-	// sparkPodController is a controller for listing uninitialized Spark Pods.
-	sparkPodController cache.Controller
+	// sparkPodInformer is a controller for listing uninitialized Spark Pods.
+	sparkPodInformer cache.SharedInformer
 	// driverStateReportingChan is a channel used to notify the controller of driver state updates.
 	driverStateReportingChan chan<- driverStateUpdate
 	// executorStateUpdateChan is a channel used to notify the controller of executor state updates.
@@ -86,18 +88,18 @@ func newSparkPodMonitor(
 		},
 	}
 
-	_, monitor.sparkPodController = cache.NewInformer(
+	monitor.sparkPodInformer = cache.NewSharedInformer(
 		sparkPodWatchList,
 		&apiv1.Pod{},
 		// resyncPeriod. Every resyncPeriod, all resources in the cache will retrigger events.
 		// Set to 0 to disable the resync.
 		0*time.Second,
-		cache.ResourceEventHandlerFuncs{
-			AddFunc:    monitor.onPodAdded,
-			UpdateFunc: monitor.onPodUpdated,
-			DeleteFunc: monitor.onPodDeleted,
-		},
 	)
+	monitor.sparkPodInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
+		AddFunc:    monitor.onPodAdded,
+		UpdateFunc: monitor.onPodUpdated,
+		DeleteFunc: monitor.onPodDeleted,
+	})
 
 	return monitor
 }
@@ -108,8 +110,8 @@ func (s *sparkPodMonitor) run(stopCh <-chan struct{}) {
 	glog.Info("Starting the Spark Pod monitor")
 	defer glog.Info("Stopping the Spark Pod monitor")
 
-	glog.Info("Starting the Pod controller")
-	go s.sparkPodController.Run(stopCh)
+	glog.Info("Starting the Spark Pod informer")
+	go s.sparkPodInformer.Run(stopCh)
 
 	<-stopCh
 	close(s.driverStateReportingChan)

@@ -355,7 +355,7 @@ func TestSyncSparkPod(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		modifiedPod, err := controller.syncSparkPod(getQueueKey(test.pod))
+		modifiedPod, err := controller.initializeSparkPod(test.pod)
 		if err != nil {
 			t.Fatal(err)
 		}
