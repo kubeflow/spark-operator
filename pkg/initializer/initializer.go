@@ -464,7 +464,6 @@ func removeSelf(pod *apiv1.Pod) {
 	}
 
 	glog.Infof("Removed initializer on pod %s", pod.Name)
-	return
 }
 
 func updatePod(newPod *apiv1.Pod, clientset clientset.Interface) error {

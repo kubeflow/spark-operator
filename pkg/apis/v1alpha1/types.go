@@ -154,9 +154,9 @@ type SparkApplicationList struct {
 
 // Dependencies specifies all possible types of dependencies of a Spark application.
 type Dependencies struct {
-	// JarFiles is a list of JAR files the Spark application depends on.
+	// Jars is a list of JAR files the Spark application depends on.
 	// Optional.
-	JarFiles []string `json:"jarFiles,omitempty"`
+	Jars []string `json:"jars,omitempty"`
 	// Files is a list of files the Spark application depends on.
 	// Optional.
 	Files []string `json:"files,omitempty"`
@@ -181,15 +181,15 @@ type DriverSpec struct {
 	Memory *string `json:"memory,omitempty"`
 	// Image is the driver Docker image to use.
 	Image string `json:"image"`
-	// DriverConfigMaps carries information of other ConfigMaps to add to the driver Pod.
+	// ConfigMaps carries information of other ConfigMaps to add to the driver Pod.
 	// Optional.
-	DriverConfigMaps []NamePath `json:"driverConfigMaps,omitempty"`
-	// DriverSecrets carries information of secrets to add to the driver Pod.
+	ConfigMaps []NamePath `json:"configMaps,omitempty"`
+	// Secrets carries information of secrets to add to the driver Pod.
 	// Optional.
-	DriverSecrets []SecretInfo `json:"driverSecrets,omitempty"`
-	// DriverEnvVars carries the environment variables to add to the driver Pod.
+	Secrets []SecretInfo `json:"secrets,omitempty"`
+	// EnvVars carries the environment variables to add to the driver Pod.
 	// Optional.
-	DriverEnvVars map[string]string `json:"driverEnvVars,omitempty"`
+	EnvVars map[string]string `json:"envVars,omitempty"`
 }
 
 // ExecutorSpec is specification of the executor.
@@ -204,15 +204,15 @@ type ExecutorSpec struct {
 	Image string `json:"image"`
 	// Instances is the number of executor instances.
 	Instances *int32 `json:"instances,omitempty"`
-	// ExecutorConfigMaps carries information of other ConfigMaps to add to the executor Pods.
+	// ConfigMaps carries information of other ConfigMaps to add to the executor Pods.
 	// Optional.
-	ExecutorConfigMaps []NamePath `json:"executorConfigMaps,omitempty"`
-	// ExecutorSecrets carries information of secrets to add to the executor Pods.
+	ConfigMaps []NamePath `json:"configMaps,omitempty"`
+	// Secrets carries information of secrets to add to the executor Pods.
 	// Optional.
-	ExecutorSecrets []SecretInfo `json:"executorSecrets,omitempty"`
-	// ExecutorEnvVars carries the environment variables to add to the executor Pods.
+	Secrets []SecretInfo `json:"secrets,omitempty"`
+	// EnvVars carries the environment variables to add to the executor Pods.
 	// Optional.
-	ExecutorEnvVars map[string]string `json:"executorEnvVars,omitempty"`
+	EnvVars map[string]string `json:"envVars,omitempty"`
 }
 
 // NamePath is a pair of a name and a path to which the named objects should be mounted to.
