@@ -32,6 +32,7 @@ import (
 	"k8s.io/apimachinery/pkg/watch"
 	clientset "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
+	"fmt"
 )
 
 // sparkPodMonitor monitors Spark executor pods and update the SparkApplication objects accordingly.
@@ -112,6 +113,12 @@ func (s *sparkPodMonitor) run(stopCh <-chan struct{}) {
 
 	glog.Info("Starting the Spark Pod informer")
 	go s.sparkPodInformer.Run(stopCh)
+
+	// Wait for all involved caches to be synced, before processing items from the queue is started
+	if !cache.WaitForCacheSync(stopCh, s.sparkPodInformer.HasSynced) {
+		utilruntime.HandleError(fmt.Errorf("timed out waiting for cache to sync"))
+		return
+	}
 
 	<-stopCh
 	close(s.driverStateReportingChan)

@@ -95,8 +95,8 @@ func (s *SparkApplicationController) Run(stopCh <-chan struct{}, errCh chan<- er
 		return
 	}
 
-	glog.Info("Starting the SparkApplication watcher")
-	_, err = s.watchSparkApplications(stopCh)
+	glog.Info("Starting the SparkApplication informer")
+	err = s.startSparkApplicationInformer(stopCh)
 	if err != nil {
 		errCh <- fmt.Errorf("failed to register watch for SparkApplication resource: %v", err)
 		return
@@ -112,15 +112,15 @@ func (s *SparkApplicationController) Run(stopCh <-chan struct{}, errCh chan<- er
 	<-stopCh
 }
 
-func (s *SparkApplicationController) watchSparkApplications(stopCh <-chan struct{}) (cache.Controller, error) {
-	source := cache.NewListWatchFromClient(
+func (s *SparkApplicationController) startSparkApplicationInformer(stopCh <-chan struct{}) error {
+	listerWatcher := cache.NewListWatchFromClient(
 		s.crdClient.RESTClient(),
 		crd.Plural,
 		apiv1.NamespaceAll,
 		fields.Everything())
 
-	_, cacheController := cache.NewInformer(
-		source,
+	_, sparkApplicationInformer := cache.NewInformer(
+		listerWatcher,
 		&v1alpha1.SparkApplication{},
 		// resyncPeriod. Every resyncPeriod, all resources in the cache will retrigger events.
 		// Set to 0 to disable the resync.
@@ -131,8 +131,13 @@ func (s *SparkApplicationController) watchSparkApplications(stopCh <-chan struct
 			DeleteFunc: s.onDelete,
 		})
 
-	go cacheController.Run(stopCh)
-	return cacheController, nil
+	go sparkApplicationInformer.Run(stopCh)
+
+	if !cache.WaitForCacheSync(stopCh, sparkApplicationInformer.HasSynced) {
+		return fmt.Errorf("timed out waiting for cache to sync")
+	}
+
+	return nil
 }
 
 // Callback function called when a new SparkApplication object gets created.

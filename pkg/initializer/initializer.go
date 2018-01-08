@@ -127,6 +127,12 @@ func (ic *SparkPodInitializer) Run(workers int, stopCh <-chan struct{}, errCh ch
 	glog.Info("Starting the Spark Pod informer")
 	go ic.sparkPodInformer.Run(stopCh)
 
+	// Wait for all involved caches to be synced, before processing items from the queue is started
+	if !cache.WaitForCacheSync(stopCh, ic.sparkPodInformer.HasSynced) {
+		utilruntime.HandleError(fmt.Errorf("timed out waiting for cache to sync"))
+		return
+	}
+
 	glog.Info("Starting the workers of the Spark Pod initializer controller")
 	// Start up worker threads.
 	for i := 0; i < workers; i++ {
