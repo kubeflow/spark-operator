@@ -19,7 +19,6 @@ package initializer
 import (
 	"encoding/json"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/golang/glog"
@@ -256,8 +255,7 @@ func (ic *SparkPodInitializer) processNextItem() bool {
 }
 
 func (ic *SparkPodInitializer) syncSparkPod(key string) error {
-	namespace, name, err := getNamespaceName(key)
-	pod, err := ic.kubeClient.CoreV1().Pods(namespace).Get(name, metav1.GetOptions{})
+	item, exists, err := ic.sparkPodInformer.GetStore().GetByKey(key)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			return nil
@@ -265,6 +263,11 @@ func (ic *SparkPodInitializer) syncSparkPod(key string) error {
 		return err
 	}
 
+	if !exists {
+		return nil
+	}
+
+	pod := item.(*apiv1.Pod)
 	if isSparkPod(pod) {
 		ic.initializeSparkPod(pod)
 	} else {
@@ -308,7 +311,12 @@ func (ic *SparkPodInitializer) onPodAdded(obj interface{}) {
 	// The presence of the Initializer in the pending list of Initializers in the pod
 	// is a sign that the pod is uninitialized.
 	if isInitializerPresent(pod) {
-		ic.queue.AddRateLimited(getQueueKey(pod))
+		key, err := cache.MetaNamespaceKeyFunc(pod)
+		if err != nil {
+			glog.Errorf("Failed to get queue key for %v", pod)
+		}
+
+		ic.queue.AddRateLimited(key)
 	}
 }
 
@@ -322,23 +330,14 @@ func (ic *SparkPodInitializer) onPodDeleted(obj interface{}) {
 	// Non-Spark Pods are removed from the queue in handleNonSparkPod
 	// so we don't need to worry about removing them here.
 	if isSparkPod(pod) {
-		key := getQueueKey(pod)
+		key, err := cache.MetaNamespaceKeyFunc(pod)
+		if err != nil {
+			glog.Errorf("Failed to get queue key for %v", pod)
+		}
+
 		ic.queue.Forget(key)
 		ic.queue.Done(key)
 	}
-}
-
-func getQueueKey(pod *apiv1.Pod) string {
-	return fmt.Sprintf("%s/%s", pod.Namespace, pod.Name)
-}
-
-func getNamespaceName(key string) (string, string, error) {
-	parts := strings.Split(key, "/")
-	if len(parts) != 2 {
-		return "", "", fmt.Errorf("malformed queue key %s", key)
-	}
-
-	return parts[0], parts[1], nil
 }
 
 // isInitializerPresent returns if the list of pending Initializer of the given pod
@@ -364,7 +363,11 @@ func isSparkPod(pod *apiv1.Pod) bool {
 
 func (ic *SparkPodInitializer) handleNonSparkPod(pod *apiv1.Pod) error {
 	// Remove the non-Spark Pod from the queue.
-	key := getQueueKey(pod)
+	key, err := cache.MetaNamespaceKeyFunc(pod)
+	if err != nil {
+		return err
+	}
+
 	ic.queue.Forget(key)
 	ic.queue.Done(key)
 

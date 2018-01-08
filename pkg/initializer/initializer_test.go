@@ -31,6 +31,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes/fake"
 	clienttesting "k8s.io/client-go/testing"
+	"k8s.io/client-go/tools/cache"
 )
 
 func TestAddAndDeleteInitializationConfig(t *testing.T) {
@@ -251,7 +252,7 @@ func TestAddPod(t *testing.T) {
 		if test.queued {
 			key, _ := controller.queue.Get()
 			keyString := key.(string)
-			expectedQueueKey := getQueueKey(test.pod)
+			expectedQueueKey, _ := cache.MetaNamespaceKeyFunc(test.pod)
 			if keyString != expectedQueueKey {
 				t.Errorf("%s: expected queue key %s got %s", test.name, expectedQueueKey, keyString)
 			}
@@ -532,7 +533,7 @@ func TestDeletePod(t *testing.T) {
 		if test.queued {
 			key, _ := controller.queue.Get()
 			keyString := key.(string)
-			expectedQueueKey := getQueueKey(test.pod)
+			expectedQueueKey, _ := cache.MetaNamespaceKeyFunc(test.pod)
 			if keyString != expectedQueueKey {
 				t.Errorf("%s: expected queue key %s got %s", test.name, expectedQueueKey, keyString)
 			}
