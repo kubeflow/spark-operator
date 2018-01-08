@@ -42,7 +42,7 @@ type sparkPodMonitor struct {
 	// Client to the Kubernetes API.
 	kubeClient clientset.Interface
 	// sparkPodInformer is a controller for listing uninitialized Spark Pods.
-	sparkPodInformer cache.SharedInformer
+	sparkPodInformer cache.Controller
 	// driverStateReportingChan is a channel used to notify the controller of driver state updates.
 	driverStateReportingChan chan<- driverStateUpdate
 	// executorStateUpdateChan is a channel used to notify the controller of executor state updates.
@@ -89,18 +89,18 @@ func newSparkPodMonitor(
 		},
 	}
 
-	monitor.sparkPodInformer = cache.NewSharedInformer(
+	_, monitor.sparkPodInformer = cache.NewInformer(
 		sparkPodWatchList,
 		&apiv1.Pod{},
 		// resyncPeriod. Every resyncPeriod, all resources in the cache will retrigger events.
 		// Set to 0 to disable the resync.
 		0*time.Second,
+		cache.ResourceEventHandlerFuncs{
+			AddFunc:    monitor.onPodAdded,
+			UpdateFunc: monitor.onPodUpdated,
+			DeleteFunc: monitor.onPodDeleted,
+		},
 	)
-	monitor.sparkPodInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc:    monitor.onPodAdded,
-		UpdateFunc: monitor.onPodUpdated,
-		DeleteFunc: monitor.onPodDeleted,
-	})
 
 	return monitor
 }
