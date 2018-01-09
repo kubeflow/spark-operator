@@ -62,8 +62,8 @@ func buildSubmissionCommandArgs(app *v1alpha1.SparkApplication) ([]string, error
 	args = append(args, "--conf", fmt.Sprintf("spark.app.name=%s", app.Name))
 
 	// Add application dependencies.
-	if len(app.Spec.Deps.JarFiles) > 0 {
-		args = append(args, "--jars", strings.Join(app.Spec.Deps.JarFiles, ","))
+	if len(app.Spec.Deps.Jars) > 0 {
+		args = append(args, "--jars", strings.Join(app.Spec.Deps.Jars, ","))
 	}
 	if len(app.Spec.Deps.Files) > 0 {
 		args = append(args, "--files", strings.Join(app.Spec.Deps.Files, ","))
@@ -181,7 +181,7 @@ func addExecutorConfOptions(app *v1alpha1.SparkApplication) []string {
 
 func getDriverSecretConfOptions(app *v1alpha1.SparkApplication) []string {
 	var secretConfOptions []string
-	for _, secret := range app.Spec.Driver.DriverSecrets {
+	for _, secret := range app.Spec.Driver.Secrets {
 		if secret.Type == v1alpha1.GCPServiceAccountSecret {
 			conf := fmt.Sprintf("%s%s%s=%s",
 				config.SparkDriverAnnotationKeyPrefix,
@@ -203,7 +203,7 @@ func getDriverSecretConfOptions(app *v1alpha1.SparkApplication) []string {
 
 func getExecutorSecretConfOptions(app *v1alpha1.SparkApplication) []string {
 	var secretConfOptions []string
-	for _, secret := range app.Spec.Executor.ExecutorSecrets {
+	for _, secret := range app.Spec.Executor.Secrets {
 		if secret.Type == v1alpha1.GCPServiceAccountSecret {
 			conf := fmt.Sprintf("%s%s%s=%s",
 				config.SparkExecutorAnnotationKeyPrefix,
@@ -225,7 +225,7 @@ func getExecutorSecretConfOptions(app *v1alpha1.SparkApplication) []string {
 
 func getDriverEnvVarConfOptions(app *v1alpha1.SparkApplication) []string {
 	var envVarConfOptions []string
-	for key, value := range app.Spec.Driver.DriverEnvVars {
+	for key, value := range app.Spec.Driver.EnvVars {
 		envVar := fmt.Sprintf("%s%s=%s", config.DriverEnvVarConfigKeyPrefix, key, value)
 		envVarConfOptions = append(envVarConfOptions, "--conf", envVar)
 	}
@@ -234,7 +234,7 @@ func getDriverEnvVarConfOptions(app *v1alpha1.SparkApplication) []string {
 
 func getExecutorEnvVarConfOptions(app *v1alpha1.SparkApplication) []string {
 	var envVarConfOptions []string
-	for key, value := range app.Spec.Executor.ExecutorEnvVars {
+	for key, value := range app.Spec.Executor.EnvVars {
 		envVar := fmt.Sprintf("%s%s=%s", config.ExecutorEnvVarConfigKeyPrefix, key, value)
 		envVarConfOptions = append(envVarConfOptions, "--conf", envVar)
 	}
