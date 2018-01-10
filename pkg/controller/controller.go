@@ -28,11 +28,14 @@ import (
 	"k8s.io/spark-on-k8s-operator/pkg/util"
 
 	apiv1 "k8s.io/api/core/v1"
+	typedcorev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	apiextensionsclient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	clientset "k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/tools/cache"
+	"k8s.io/client-go/tools/record"
 )
 
 const (
@@ -49,13 +52,14 @@ type SparkApplicationController struct {
 	crdClient                  crd.ClientInterface
 	kubeClient                 clientset.Interface
 	extensionsClient           apiextensionsclient.Interface
+	recorder                   record.EventRecorder
 	runner                     *sparkSubmitRunner
 	sparkPodMonitor            *sparkPodMonitor
 	appStateReportingChan      <-chan appStateUpdate
 	driverStateReportingChan   <-chan driverStateUpdate
 	executorStateReportingChan <-chan executorStateUpdate
-	runningApps                map[string]*v1alpha1.SparkApplication // Guarded by mutex.
 	mutex                      sync.Mutex                            // Guard SparkApplication updates to the API server and runningApps.
+	runningApps                map[string]*v1alpha1.SparkApplication // Guarded by mutex.
 }
 
 // New creates a new SparkApplicationController.
@@ -64,9 +68,18 @@ func New(
 	kubeClient clientset.Interface,
 	extensionsClient apiextensionsclient.Interface,
 	submissionRunnerWorkers int) *SparkApplicationController {
+	v1alpha1.AddToScheme(scheme.Scheme)
+	eventBroadcaster := record.NewBroadcaster()
+	eventBroadcaster.StartLogging(glog.V(2).Infof)
+	eventBroadcaster.StartRecordingToSink(&typedcorev1.EventSinkImpl{
+		Interface: kubeClient.CoreV1().Events(""),
+	})
+	recorder := eventBroadcaster.NewRecorder(scheme.Scheme, apiv1.EventSource{Component: "spark-operator"})
+
 	appStateReportingChan := make(chan appStateUpdate, submissionRunnerWorkers)
 	driverStateReportingChan := make(chan driverStateUpdate)
 	executorStateReportingChan := make(chan executorStateUpdate)
+
 	runner := newSparkSubmitRunner(submissionRunnerWorkers, appStateReportingChan)
 	sparkPodMonitor := newSparkPodMonitor(kubeClient, driverStateReportingChan, executorStateReportingChan)
 
@@ -74,6 +87,7 @@ func New(
 		crdClient:                  crdClient,
 		kubeClient:                 kubeClient,
 		extensionsClient:           extensionsClient,
+		recorder:                   recorder,
 		runner:                     runner,
 		sparkPodMonitor:            sparkPodMonitor,
 		appStateReportingChan:      appStateReportingChan,
@@ -143,14 +157,17 @@ func (s *SparkApplicationController) startSparkApplicationInformer(stopCh <-chan
 // Callback function called when a new SparkApplication object gets created.
 func (s *SparkApplicationController) onAdd(obj interface{}) {
 	app := obj.(*v1alpha1.SparkApplication)
-	// NEVER modify objects from the store. It's a read-only, local cache.
-	// You can use scheme.Copy() to make a deep copy of original object and modify this copy
-	// Or create a copy manually for better performance.
+	s.recorder.Eventf(app, apiv1.EventTypeNormal, "SparkApplicationAdded",
+		"Submitting SparkApplication: %s", app.Name)
 	s.submitApp(app.DeepCopy())
 }
 
 func (s *SparkApplicationController) onDelete(obj interface{}) {
 	app := obj.(*v1alpha1.SparkApplication)
+
+	s.recorder.Eventf(app, apiv1.EventTypeNormal, "SparkApplicationDeleted",
+		"Deleting SparkApplication: %s", app.Name)
+
 	s.mutex.Lock()
 	delete(s.runningApps, app.Status.AppID)
 	s.mutex.Unlock()
@@ -249,6 +266,9 @@ func (s *SparkApplicationController) processSingleDriverStateUpdate(update drive
 
 		if updated != nil {
 			s.runningApps[updated.Status.AppID] = updated
+			if isAppTerminated(updated.Status.AppState.State) {
+				s.recordTermination(updated)
+			}
 		}
 	}
 }
@@ -281,6 +301,9 @@ func (s *SparkApplicationController) processSingleAppStateUpdate(update appState
 
 		if updated != nil {
 			s.runningApps[updated.Status.AppID] = updated
+			if isAppTerminated(updated.Status.AppState.State) {
+				s.recordTermination(updated)
+			}
 		}
 	}
 }
@@ -357,6 +380,11 @@ func (s *SparkApplicationController) getNodeExternalIP(nodeName string) string {
 		}
 	}
 	return ""
+}
+
+func (s *SparkApplicationController) recordTermination(app *v1alpha1.SparkApplication) {
+	s.recorder.Eventf(app, apiv1.EventTypeNormal, "SparkApplicationTermination",
+		"SparkApplication %s terminated with state: %v", app.Name, app.Status.AppState)
 }
 
 // buildAppID builds an application ID in the form of <application name>-<32-bit hash>.
