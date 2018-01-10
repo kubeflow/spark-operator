@@ -30,6 +30,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kubeclientfake "k8s.io/client-go/kubernetes/fake"
+	"k8s.io/client-go/tools/record"
 )
 
 func newFakeController() *SparkApplicationController {
@@ -48,7 +49,8 @@ func newFakeController() *SparkApplicationController {
 			},
 		},
 	})
-	return New(crdClient, kubeClient, apiextensionsfake.NewSimpleClientset(), 0)
+	return newSparkApplicationController(crdClient, kubeClient, apiextensionsfake.NewSimpleClientset(),
+		record.NewFakeRecorder(3), 0)
 }
 
 func TestOnAdd(t *testing.T) {

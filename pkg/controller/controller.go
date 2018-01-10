@@ -76,6 +76,15 @@ func New(
 	})
 	recorder := eventBroadcaster.NewRecorder(scheme.Scheme, apiv1.EventSource{Component: "spark-operator"})
 
+	return newSparkApplicationController(crdClient, kubeClient, extensionsClient, recorder, submissionRunnerWorkers)
+}
+
+func newSparkApplicationController(
+	crdClient crd.ClientInterface,
+	kubeClient clientset.Interface,
+	extensionsClient apiextensionsclient.Interface,
+	eventRecorder record.EventRecorder,
+	submissionRunnerWorkers int) *SparkApplicationController {
 	appStateReportingChan := make(chan appStateUpdate, submissionRunnerWorkers)
 	driverStateReportingChan := make(chan driverStateUpdate)
 	executorStateReportingChan := make(chan executorStateUpdate)
@@ -87,7 +96,7 @@ func New(
 		crdClient:                  crdClient,
 		kubeClient:                 kubeClient,
 		extensionsClient:           extensionsClient,
-		recorder:                   recorder,
+		recorder:                   eventRecorder,
 		runner:                     runner,
 		sparkPodMonitor:            sparkPodMonitor,
 		appStateReportingChan:      appStateReportingChan,
