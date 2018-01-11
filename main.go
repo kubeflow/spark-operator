@@ -63,7 +63,7 @@ func main() {
 
 	initializerController := initializer.New(kubeClient)
 	stopCh := make(chan struct{})
-	errCh := make(chan error)
+	errCh := make(chan error, 1)
 	go initializerController.Run(*initializerThreads, stopCh, errCh)
 
 	crdClient, err := crd.NewClient(config)
@@ -80,16 +80,19 @@ func main() {
 
 	signalCh := make(chan os.Signal, 1)
 	signal.Notify(signalCh, syscall.SIGINT, syscall.SIGTERM)
-	<-signalCh
+
+	select {
+	case <-signalCh:
+		break
+	case err = <-errCh:
+		if err != nil {
+			glog.Errorf("Spark operator failed with error: %v", err)
+		}
+	}
 
 	glog.Info("Shutting down the Spark operator")
 	// This causes the custom controller and initializer to stop.
 	close(stopCh)
-
-	err = <-errCh
-	if err != nil {
-		glog.Errorf("Spark operator failed with error: %v", err)
-	}
 }
 
 func buildConfig(kubeConfig string) (*rest.Config, error) {

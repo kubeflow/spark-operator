@@ -20,6 +20,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io"
 )
 
 var (
@@ -27,11 +28,8 @@ var (
 	AddToScheme   = SchemeBuilder.AddToScheme
 )
 
-// GroupName is the group name used in this package.
-const GroupName = "spark-operator.k8s.io"
-
 // SchemeGroupVersion is the group version used to register these objects.
-var SchemeGroupVersion = schema.GroupVersion{Group: GroupName, Version: "v1alpha1"}
+var SchemeGroupVersion = schema.GroupVersion{Group: sparkoperator.GroupName, Version: "v1alpha1"}
 
 func init() {
 	SchemeBuilder.Register(addDefaultingFunc)

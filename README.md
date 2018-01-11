@@ -112,7 +112,7 @@ kubectl get sparkapplications spark-app-example -o=yaml
 This will show something similar to the following:
 
 ```yaml
-apiVersion: spark-operator.k8s.io/v1alpha1
+apiVersion: sparkoperator.k8s.io/v1alpha1
 kind: SparkApplication
 metadata:
   ...
@@ -162,9 +162,13 @@ Currently the following annotations are supported:
 
 |Annotation|Value|
 | ------------- | ------------- |
-|`spark-operator.k8s.io/sparkConfigMap`|Name of the Kubernetes ConfigMap storing Spark configuration files (to which `SPARK_CONF_DIR` applies)|
-|`spark-operator.k8s.io/hadoopConfigMap`|Name of the Kubernetes ConfigMap storing Hadoop configuration files (to which `HADOOP_CONF_DIR` applies)|
-|`spark-operator.k8s.io/configMap.[ConfigMapName]`|Mount path of the ConfigMap named `ConfigMapName`|
-|`spark-operator.k8s.io/GCPServiceAccount.[SeviceAccountSecretName]`|Mount path of the secret storing GCP service account credentials (typically a JSON key file) named `SeviceAccountSecretName`|
+|`sparkoperator.k8s.io/sparkConfigMap`|Name of the Kubernetes ConfigMap storing Spark configuration files (to which `SPARK_CONF_DIR` applies)|
+|`sparkoperator.k8s.io/hadoopConfigMap`|Name of the Kubernetes ConfigMap storing Hadoop configuration files (to which `HADOOP_CONF_DIR` applies)|
+|`sparkoperator.k8s.io/configMap.[ConfigMapName]`|Mount path of the ConfigMap named `ConfigMapName`|
+|`sparkoperator.k8s.io/GCPServiceAccount.[SeviceAccountSecretName]`|Mount path of the secret storing GCP service account credentials (typically a JSON key file) named `SeviceAccountSecretName`|
 
-When using the `SparkApplication` CRD to describe a Spark appliction, the annotations are automatically added by the CRD controller. `manifest/spark-application-example-gcp-service-account.yaml` shows an example `SparkApplication` with a user-specified GCP service account credential secret named `gcp-service-account` that is to be mounted into both the driver and executor containers. The `SparkApplication` controller automatically adds the annotation `spark-operator.k8s.io/GCPServiceAccount.gcp-service-account=/mnt/secrets` to the driver and executor Pods. The initializer sees the annotation and automatically adds a secret volume into the pods.   
+When using the `SparkApplication` CRD to describe a Spark appliction, the annotations are automatically added by the CRD controller. 
+`manifest/spark-application-example-gcp-service-account.yaml` shows an example `SparkApplication` with a user-specified GCP service 
+account credential secret named `gcp-service-account` that is to be mounted into both the driver and executor containers. 
+The `SparkApplication` controller automatically adds the annotation `sparkoperator.k8s.io/GCPServiceAccount.gcp-service-account=/mnt/secrets` 
+to the driver and executor Pods. The initializer sees the annotation and automatically adds a secret volume into the pods.   

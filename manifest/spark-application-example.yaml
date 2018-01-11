@@ -14,7 +14,7 @@
 # limitations under the License.
 #
 
-apiVersion: "spark-operator.k8s.io/v1alpha1"
+apiVersion: "sparkoperator.k8s.io/v1alpha1"
 kind: SparkApplication
 metadata:
   name: spark-app-example

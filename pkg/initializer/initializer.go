@@ -44,7 +44,7 @@ import (
 
 const (
 	// InitializerName is the name that will appear in the list of pending initializer in Pod spec.
-	sparkPodInitializerName = "pod-initializer.spark-operator.k8s.io"
+	sparkPodInitializerName = "spark-pod-initializer.sparkoperator.k8s.io"
 	// InitializerConfigName is the name of the InitializerConfig object.
 	sparkPodInitializerConfigName = "spark-pod-initializer-config"
 	// SparkRoleLabel is an label we use to distinguish Spark pods for other Pods.

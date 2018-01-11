@@ -17,8 +17,7 @@
 all: build
 
 generate_files:
-	deepcopy-gen -i ./pkg/apis/v1alpha1 -O zz_generated.deepcopy --bounding-dirs=k8s.io/spark-on-k8s-operator
-	defaulter-gen -i ./pkg/apis/v1alpha1 -O zz_generated.defaults
+	hack/update-codegen.sh
 
 build: generate_files
 	GOOS=linux go build -o spark-operator
