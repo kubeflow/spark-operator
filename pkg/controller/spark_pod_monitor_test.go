@@ -20,7 +20,7 @@ import (
 	"testing"
 
 	"k8s.io/spark-on-k8s-operator/pkg/config"
-	"k8s.io/spark-on-k8s-operator/pkg/apis/v1alpha1"
+	"k8s.io/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1alpha1"
 
 	"github.com/stretchr/testify/assert"
 	apiv1 "k8s.io/api/core/v1"

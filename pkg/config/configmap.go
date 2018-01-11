@@ -22,7 +22,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"k8s.io/spark-on-k8s-operator/pkg/apis/v1alpha1"
+	"k8s.io/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1alpha1"
 	"k8s.io/spark-on-k8s-operator/pkg/util"
 
 	apiv1 "k8s.io/api/core/v1"

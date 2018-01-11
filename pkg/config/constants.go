@@ -43,7 +43,7 @@ const (
 
 const (
 	// LabelAnnotationPrefix is the prefix of every labels and annotations added by the controller.
-	LabelAnnotationPrefix = "spark-operator.k8s.io/"
+	LabelAnnotationPrefix = "sparkoperator.k8s.io/"
 	// SparkConfigMapAnnotation is the name of the annotation added to the driver and executor Pods
 	// that indicates the presence of a Spark ConfigMap that should be mounted to the driver and
 	// executor Pods with the environment variable SPARK_CONF_DIR set to point to the mount path.

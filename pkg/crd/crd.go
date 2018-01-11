@@ -22,7 +22,8 @@ import (
 	"time"
 
 	"github.com/golang/glog"
-	"k8s.io/spark-on-k8s-operator/pkg/apis/v1alpha1"
+	"k8s.io/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io"
+	"k8s.io/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1alpha1"
 
 	apiextensionsv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	apiextensionsclient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
@@ -37,7 +38,7 @@ const (
 	Plural    = "sparkapplications"
 	Singular  = "sparkapplication"
 	ShortName = "sparkapp"
-	Group     = v1alpha1.GroupName
+	Group     = sparkoperator.GroupName
 	Version   = "v1alpha1"
 	FullName  = Plural + "." + Group
 )
