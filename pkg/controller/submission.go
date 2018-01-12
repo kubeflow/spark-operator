@@ -19,10 +19,13 @@ package controller
 import (
 	"fmt"
 	"os"
+	"reflect"
 	"strings"
 
 	"k8s.io/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1alpha1"
 	"k8s.io/spark-on-k8s-operator/pkg/config"
+
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 const (
@@ -83,13 +86,29 @@ func buildSubmissionCommandArgs(app *v1alpha1.SparkApplication) ([]string, error
 	}
 
 	if app.Spec.SparkConfigMap != nil {
-		config.AddConfigMapAnnotation(app, config.SparkDriverAnnotationKeyPrefix, config.SparkConfigMapAnnotation, *app.Spec.SparkConfigMap)
-		config.AddConfigMapAnnotation(app, config.SparkExecutorAnnotationKeyPrefix, config.SparkConfigMapAnnotation, *app.Spec.SparkConfigMap)
+		config.AddConfigMapAnnotation(
+			app,
+			config.SparkDriverAnnotationKeyPrefix,
+			config.SparkConfigMapAnnotation,
+			*app.Spec.SparkConfigMap)
+		config.AddConfigMapAnnotation(
+			app,
+			config.SparkExecutorAnnotationKeyPrefix,
+			config.SparkConfigMapAnnotation,
+			*app.Spec.SparkConfigMap)
 	}
 
 	if app.Spec.HadoopConfigMap != nil {
-		config.AddConfigMapAnnotation(app, config.SparkDriverAnnotationKeyPrefix, config.HadoopConfigMapAnnotation, *app.Spec.HadoopConfigMap)
-		config.AddConfigMapAnnotation(app, config.SparkExecutorAnnotationKeyPrefix, config.HadoopConfigMapAnnotation, *app.Spec.HadoopConfigMap)
+		config.AddConfigMapAnnotation(
+			app,
+			config.SparkDriverAnnotationKeyPrefix,
+			config.HadoopConfigMapAnnotation,
+			*app.Spec.HadoopConfigMap)
+		config.AddConfigMapAnnotation(
+			app,
+			config.SparkExecutorAnnotationKeyPrefix,
+			config.HadoopConfigMapAnnotation,
+			*app.Spec.HadoopConfigMap)
 	}
 
 	// Add the driver and executor configuration options.
@@ -97,6 +116,19 @@ func buildSubmissionCommandArgs(app *v1alpha1.SparkApplication) ([]string, error
 	// so init-container is not needed and therefore no init-container image needs to be specified.
 	args = append(args, addDriverConfOptions(app)...)
 	args = append(args, addExecutorConfOptions(app)...)
+
+	reference := getOwnerReference(app)
+	referenceData, err := reference.Marshal()
+	if err != nil {
+		return nil, err
+	}
+	args = append(args,
+		"--conf",
+		fmt.Sprintf(
+			"%s%s=%s",
+			config.SparkDriverAnnotationKeyPrefix,
+			config.OwnerReferenceAnnotation,
+			string(referenceData)))
 
 	// Add the main application file.
 	args = append(args, app.Spec.MainApplicationFile)
@@ -118,6 +150,15 @@ func getMasterURL() (string, error) {
 		return "", fmt.Errorf("environment variable %s is not found", kubernetesServicePortEnvVar)
 	}
 	return fmt.Sprintf("k8s://https://%s:%s", kubernetesServiceHost, kubernetesServicePort), nil
+}
+
+func getOwnerReference(app *v1alpha1.SparkApplication) metav1.OwnerReference {
+	return metav1.OwnerReference{
+		APIVersion: v1alpha1.SchemeGroupVersion.String(),
+		Kind:       reflect.TypeOf(v1alpha1.SparkApplication{}).Name(),
+		Name:       app.Name,
+		UID:        app.UID,
+	}
 }
 
 func addDriverConfOptions(app *v1alpha1.SparkApplication) []string {

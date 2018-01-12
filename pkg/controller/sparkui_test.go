@@ -40,17 +40,7 @@ func TestCreateSparkUIService(t *testing.T) {
 	}
 	testFn := func(test testcase, t *testing.T) {
 		fakeClient := fake.NewSimpleClientset()
-		_, err := createSparkUIService(test.app, fakeClient)
-		if !test.expectError && err != nil {
-			t.Fatal(err)
-		}
-		if test.expectError {
-			if err == nil {
-				t.Errorf("%s: expected error got nothing", test.name)
-			} else {
-				return
-			}
-		}
+		createSparkUIService(test.app, fakeClient)
 
 		if test.app.Status.DriverInfo.WebUIServiceName != test.expectedServiceName {
 			t.Errorf("%s: for service name wanted %s got %s", test.name, test.expectedServiceName, test.app.Status.DriverInfo.WebUIServiceName)
@@ -59,6 +49,9 @@ func TestCreateSparkUIService(t *testing.T) {
 			Services(test.app.Namespace).
 			Get(test.app.Status.DriverInfo.WebUIServiceName, metav1.GetOptions{})
 		if err != nil {
+			if test.expectError {
+				return
+			}
 			t.Fatal(err)
 		}
 		if len(service.Labels) != 1 || service.Labels[config.SparkAppIDLabel] != test.app.Status.AppID {

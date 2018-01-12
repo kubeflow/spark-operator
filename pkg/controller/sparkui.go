@@ -36,12 +36,14 @@ const (
 	defaultSparkWebUIPort       = "4040"
 )
 
-func createSparkUIService(app *v1alpha1.SparkApplication, kubeClient clientset.Interface) (string, error) {
+func createSparkUIService(app *v1alpha1.SparkApplication, kubeClient clientset.Interface) {
 	portStr := getUITargetPort(app)
 	port, err := strconv.Atoi(portStr)
 	if err != nil {
-		return "", err
+		glog.Errorf("invalid Spark UI port: %s", portStr)
+		return
 	}
+
 	service := &apiv1.Service{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      buildUIServiceName(app),
@@ -49,6 +51,7 @@ func createSparkUIService(app *v1alpha1.SparkApplication, kubeClient clientset.I
 			Labels: map[string]string{
 				config.SparkAppIDLabel: app.Status.AppID,
 			},
+			OwnerReferences: []metav1.OwnerReference{getOwnerReference(app)},
 		},
 		Spec: apiv1.ServiceSpec{
 			Ports: []apiv1.ServicePort{
@@ -68,14 +71,14 @@ func createSparkUIService(app *v1alpha1.SparkApplication, kubeClient clientset.I
 	glog.Infof("Creating a service %s for the Spark UI for application %s", service.Name, app.Name)
 	service, err = kubeClient.CoreV1().Services(app.Namespace).Create(service)
 	if err != nil {
-		return "", err
+		glog.Errorf("failed to create a UI service for SparkApplication %s: %v", app.Name, err)
+		return
 	}
+
 	app.Status.DriverInfo = v1alpha1.DriverInfo{
 		WebUIServiceName: service.Name,
 		WebUIPort:        service.Spec.Ports[0].NodePort,
 	}
-
-	return service.Name, nil
 }
 
 // getWebUITargetPort attempts to get the Spark web UI port from configuration property spark.ui.port
@@ -95,5 +98,6 @@ func buildUIServiceName(app *v1alpha1.SparkApplication) string {
 	hasher.Write([]byte(app.Name))
 	hasher.Write([]byte(app.Namespace))
 	hasher.Write([]byte(app.UID))
+	hasher.Write([]byte(app.Status.AppID))
 	return fmt.Sprintf("%s-ui-%d", app.Name, hasher.Sum32())
 }

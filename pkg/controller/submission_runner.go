@@ -48,8 +48,8 @@ type appStateUpdate struct {
 
 func newSparkSubmitRunner(workers int, appStateReportingChan chan<- appStateUpdate) *sparkSubmitRunner {
 	return &sparkSubmitRunner{
-		workers: workers,
-		queue:   make(chan *submission, workers),
+		workers:               workers,
+		queue:                 make(chan *submission, workers),
 		appStateReportingChan: appStateReportingChan,
 	}
 }
@@ -81,7 +81,7 @@ func (r *sparkSubmitRunner) runWorker() {
 			submissionTime: metav1.Now(),
 		}
 		if _, err := cmd.Output(); err != nil {
-			stateUpdate.state = v1alpha1.FailedState
+			stateUpdate.state = v1alpha1.FailedSubmissionState
 			if exitErr, ok := err.(*exec.ExitError); ok {
 				glog.Errorf("failed to submit Spark application %s: %s", s.appName, string(exitErr.Stderr))
 				stateUpdate.errorMessage = string(exitErr.Stderr)

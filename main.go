@@ -47,51 +47,48 @@ func main() {
 	// Create the client config. Use kubeConfig if given, otherwise assume in-cluster.
 	config, err := buildConfig(*kubeConfig)
 	if err != nil {
-		panic(err)
+		glog.Fatal(err)
 	}
 	kubeClient, err := clientset.NewForConfig(config)
 	if err != nil {
-		panic(err)
+		glog.Fatal(err)
 	}
 
 	glog.Info("Checking the kube-dns add-on")
 	if err = checkKubeDNS(kubeClient); err != nil {
-		return
+		glog.Fatal(err)
 	}
 
 	glog.Info("Starting the Spark operator")
 
-	initializerController := initializer.New(kubeClient)
 	stopCh := make(chan struct{})
-	errCh := make(chan error, 1)
-	go initializerController.Run(*initializerThreads, stopCh, errCh)
 
 	crdClient, err := crd.NewClient(config)
 	if err != nil {
-		panic(err)
+		glog.Fatal(err)
 	}
 	apiExtensionsClient, err := apiextensionsclient.NewForConfig(config)
 	if err != nil {
-		panic(err)
+		glog.Fatal(err)
 	}
 
 	sparkApplicationController := controller.New(crdClient, kubeClient, apiExtensionsClient, *submissionRunnerThreads)
-	go sparkApplicationController.Run(stopCh, errCh)
+	if err = sparkApplicationController.Start(stopCh); err != nil {
+		glog.Fatal(err)
+	}
+
+	initializerController := initializer.New(kubeClient)
+	if err = initializerController.Start(*initializerThreads, stopCh); err != nil {
+		glog.Fatal(err)
+	}
 
 	signalCh := make(chan os.Signal, 1)
 	signal.Notify(signalCh, syscall.SIGINT, syscall.SIGTERM)
-
-	select {
-	case <-signalCh:
-		break
-	case err = <-errCh:
-		if err != nil {
-			glog.Errorf("Spark operator failed with error: %v", err)
-		}
-	}
+	<-signalCh
 
 	glog.Info("Shutting down the Spark operator")
-	// This causes the custom controller and initializer to stop.
+	initializerController.Stop()
+	// This causes the workers of the initializer and SparkApplication controller to stop.
 	close(stopCh)
 }
 
