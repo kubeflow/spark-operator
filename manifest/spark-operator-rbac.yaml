@@ -15,38 +15,15 @@
 # limitations under the License.
 #
 
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: spark-operator
----
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: spark-operator
-  namespace: spark-operator
----
-apiVersion: rbac.authorization.k8s.io/v1beta1
-kind: ClusterRole
-metadata:
-  name: spark-operator-role
-rules:
-- apiGroups:
-  - "*"
-  resources:
-  - "*"
-  verbs:
-  - "*"
----
 apiVersion: rbac.authorization.k8s.io/v1beta1
 kind: ClusterRoleBinding
 metadata:
-  name: spark-operator-role-binding
+  name: spark-operator-rbac
 subjects:
-- kind: ServiceAccount
-  name: spark-operator
-  namespace: spark-operator
+  - kind: ServiceAccount
+    name: spark-operator
+    namespace: spark-operator
 roleRef:
   kind: ClusterRole
-  name: spark-operator-role
+  name: cluster-admin
   apiGroup: rbac.authorization.k8s.io

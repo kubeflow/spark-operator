@@ -33,5 +33,5 @@ func RegisterDefaults(scheme *runtime.Scheme) error {
 }
 
 func SetObjectDefaults_SparkApplication(in *SparkApplication) {
-	SetDefaults_SparkApplication(in)
+	SetSparkApplicationDefaults(in)
 }

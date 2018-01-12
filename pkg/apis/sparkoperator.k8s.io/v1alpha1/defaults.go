@@ -16,13 +16,17 @@ limitations under the License.
 
 package v1alpha1
 
-func SetDefaults_SparkApplication(app *SparkApplication) {
+func SetSparkApplicationDefaults(app *SparkApplication) {
 	if app == nil {
 		return
 	}
 
 	if app.Spec.Mode == "" {
 		app.Spec.Mode = ClusterMode
+	}
+
+	if app.Spec.RestartPolicy == "" {
+		app.Spec.RestartPolicy = Never
 	}
 
 	setDriverSpecDefaults(app.Spec.Driver)

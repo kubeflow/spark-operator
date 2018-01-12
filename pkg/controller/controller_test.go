@@ -27,7 +27,6 @@ import (
 
 	apiv1 "k8s.io/api/core/v1"
 	apiextensionsfake "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset/fake"
-	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kubeclientfake "k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/tools/record"
@@ -93,41 +92,19 @@ func TestOnDelete(t *testing.T) {
 			Namespace: app.Namespace,
 		},
 	}
-	driverService := &apiv1.Service{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      driverPod.Name + "-svc",
-			Namespace: app.Namespace,
-		},
-	}
 	ctrl.kubeClient.CoreV1().Pods(app.Namespace).Create(driverPod)
-	ctrl.kubeClient.CoreV1().Services(app.Namespace).Create(driverService)
 
 	_, err := ctrl.kubeClient.CoreV1().Pods(app.Namespace).Get(driverPod.Name, metav1.GetOptions{})
 	assert.True(t, err == nil)
-	_, err = ctrl.kubeClient.CoreV1().Services(app.Namespace).Get(driverService.Name, metav1.GetOptions{})
-	assert.True(t, err == nil)
 
-	driverUIServiceName, _ := createSparkUIService(app, ctrl.kubeClient)
+	createSparkUIService(app, ctrl.kubeClient)
 	app.Annotations = make(map[string]string)
-	app.Annotations[sparkUIServiceNameAnnotationKey] = driverUIServiceName
 	app.Status.DriverInfo.PodName = driverPod.Name
 
 	ctrl.onDelete(app)
 
 	_, ok := ctrl.runningApps[app.Status.AppID]
 	assert.False(t, ok)
-
-	driverUIService, err := ctrl.kubeClient.CoreV1().Services(app.Namespace).Get(driverUIServiceName, metav1.GetOptions{})
-	assert.True(t, driverUIService == nil)
-	assert.True(t, errors.IsNotFound(err))
-
-	driverService, err = ctrl.kubeClient.CoreV1().Services(app.Namespace).Get(driverService.Name, metav1.GetOptions{})
-	assert.True(t, driverService == nil)
-	assert.True(t, errors.IsNotFound(err))
-
-	driverPod, err = ctrl.kubeClient.CoreV1().Pods(app.Namespace).Get(driverPod.Name, metav1.GetOptions{})
-	assert.True(t, driverPod == nil)
-	assert.True(t, errors.IsNotFound(err))
 }
 
 func TestProcessSingleDriverStateUpdate(t *testing.T) {

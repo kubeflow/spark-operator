@@ -17,7 +17,7 @@
 apiVersion: "sparkoperator.k8s.io/v1alpha1"
 kind: SparkApplication
 metadata:
-  name: spark-app-example
+  name: spark-pi
   namespace: default
 spec:
   type: Scala
@@ -31,4 +31,5 @@ spec:
     image: "liyinan926/spark-executor:v2.3.0"
     instances: 1
     memory: "512m"
+  restartPolicy: OnFailure
   submissionByUser: false

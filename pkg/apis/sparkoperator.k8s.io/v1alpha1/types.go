@@ -41,6 +41,18 @@ const (
 	InClusterClientMode DeployMode = "in-cluster-client"
 )
 
+// RestartPolicy is the policy of if and in which conditions the controller should restart a terminated application.
+// The decision is based on the policy and termination state of the driver pod. An application that fails submission
+// won't be restarted regardless of the policy.
+type RestartPolicy string
+
+const (
+	Undefined RestartPolicy = ""
+	Never     RestartPolicy = "Never"
+	OnFailure RestartPolicy = "OnFailure"
+	Always    RestartPolicy = "Always"
+)
+
 // +genclient
 // +genclient:noStatus
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -48,10 +60,10 @@ const (
 
 // SparkApplication represents a Spark application running on and using Kubernetes as a cluster manager.
 type SparkApplication struct {
-	metav1.TypeMeta   `json:",inline"`
-	metav1.ObjectMeta `json:"metadata"`
-	Spec              SparkApplicationSpec   `json:"spec"`
-	Status            SparkApplicationStatus `json:"status,omitempty"`
+	metav1.TypeMeta               `json:",inline"`
+	metav1.ObjectMeta             `json:"metadata"`
+	Spec   SparkApplicationSpec   `json:"spec"`
+	Status SparkApplicationStatus `json:"status,omitempty"`
 }
 
 // SparkApplicationSpec describes the specification of a Spark application using Kubernetes as a cluster manager.
@@ -60,7 +72,7 @@ type SparkApplicationSpec struct {
 	// Type tells the type of the Spark application.
 	Type SparkApplicationType `json:"type"`
 	// Mode is the deployment mode of the Spark application.
-	Mode DeployMode `json:"mode"`
+	Mode DeployMode `json:"mode,omitempty"`
 	// MainClass is the fully-qualified main class of the Spark application.
 	// This only applies to Java/Scala Spark applications.
 	// Optional.
@@ -93,6 +105,8 @@ type SparkApplicationSpec struct {
 	Executor ExecutorSpec `json:"executor"`
 	// Deps captures all possible types of dependencies of a Spark application.
 	Deps Dependencies `json:"deps"`
+	// RestartPolicy defines the policy on if and in which conditions the controller should restart a failed application.
+	RestartPolicy RestartPolicy `json:"restartPolicy,omitempty"`
 	// SubmissionByUser indicates if the application is to be submitted by the user.
 	// The custom controller should not submit the application on behalf of the user if this is true.
 	// It defaults to false.
@@ -104,11 +118,12 @@ type ApplicationStateType string
 
 // Different states an application may have.
 const (
-	NewState       ApplicationStateType = "NEW"
-	SubmittedState ApplicationStateType = "SUBMITTED"
-	RunningState   ApplicationStateType = "RUNNING"
-	CompletedState ApplicationStateType = "COMPLETED"
-	FailedState    ApplicationStateType = "FAILED"
+	NewState              ApplicationStateType = "NEW"
+	SubmittedState        ApplicationStateType = "SUBMITTED"
+	RunningState          ApplicationStateType = "RUNNING"
+	CompletedState        ApplicationStateType = "COMPLETED"
+	FailedState           ApplicationStateType = "FAILED"
+	FailedSubmissionState ApplicationStateType = "SUBMISSION_FAILED"
 )
 
 // ApplicationState tells the current state of the application and an error message in case of failures.
@@ -149,9 +164,9 @@ type SparkApplicationStatus struct {
 
 // SparkApplicationList carries a list of SparkApplication objects.
 type SparkApplicationList struct {
-	metav1.TypeMeta `json:",inline"`
-	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []SparkApplication `json:"items,omitempty"`
+	metav1.TypeMeta          `json:",inline"`
+	metav1.ListMeta          `json:"metadata,omitempty"`
+	Items []SparkApplication `json:"items,omitempty"`
 }
 
 // Dependencies specifies all possible types of dependencies of a Spark application.

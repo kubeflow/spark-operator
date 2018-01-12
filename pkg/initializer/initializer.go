@@ -111,19 +111,12 @@ func New(kubeClient clientset.Interface) *SparkPodInitializer {
 	return sparkPodInitializer
 }
 
-// Run runs the initializer controller.
-func (ic *SparkPodInitializer) Run(workers int, stopCh <-chan struct{}, errCh chan<- error) {
-	defer utilruntime.HandleCrash()
-	defer ic.queue.ShutDown()
-
+// Start starts the initializer controller.
+func (ic *SparkPodInitializer) Start(workers int, stopCh <-chan struct{}) error {
 	glog.Info("Starting the Spark Pod initializer")
-	defer glog.Info("Stopping the Spark Pod initializer")
 
-	glog.Infof("Adding the InitializerConfiguration %s", sparkPodInitializerConfigName)
-	err := ic.addInitializationConfig()
-	if err != nil {
-		errCh <- fmt.Errorf("failed to add InitializationConfiguration %s: %v", sparkPodInitializerConfigName, err)
-		return
+	if err := ic.addInitializationConfig(); err != nil {
+		return err
 	}
 
 	glog.Info("Starting the Spark Pod informer")
@@ -131,8 +124,7 @@ func (ic *SparkPodInitializer) Run(workers int, stopCh <-chan struct{}, errCh ch
 
 	// Wait for all involved caches to be synced, before processing items from the queue is started
 	if !cache.WaitForCacheSync(stopCh, ic.sparkPodInformer.HasSynced) {
-		utilruntime.HandleError(fmt.Errorf("timed out waiting for cache to sync"))
-		return
+		return fmt.Errorf("timed out waiting for cache to sync")
 	}
 
 	glog.Info("Starting the workers of the Spark Pod initializer controller")
@@ -143,16 +135,16 @@ func (ic *SparkPodInitializer) Run(workers int, stopCh <-chan struct{}, errCh ch
 		go wait.Until(ic.runWorker, time.Second, stopCh)
 	}
 
-	<-stopCh
+	return nil
+}
 
-	glog.Infof("Deleting the InitializerConfiguration %s", sparkPodInitializerConfigName)
-	err = ic.deleteInitializationConfig()
-	if err != nil {
-		errCh <- fmt.Errorf("failed to delete InitializationConfiguration %s: %v", sparkPodInitializerConfigName, err)
-		return
+// Stop stops the initializer controller.
+func (ic *SparkPodInitializer) Stop() {
+	glog.Info("Stopping the Spark Pod initializer")
+	ic.queue.ShutDown()
+	if err := ic.deleteInitializationConfig(); err != nil {
+		glog.Errorf("failed to delete the InitializerConfiguration %s", sparkPodInitializerConfigName)
 	}
-
-	errCh <- nil
 }
 
 func (ic *SparkPodInitializer) addInitializationConfig() error {
@@ -173,6 +165,7 @@ func (ic *SparkPodInitializer) addInitializationConfig() error {
 		Initializers: []v1alpha1.Initializer{sparkPodInitializer},
 	}
 
+	glog.Infof("Adding the InitializerConfiguration %s", sparkPodInitializerConfigName)
 	icClient := ic.kubeClient.AdmissionregistrationV1alpha1().InitializerConfigurations()
 	existingConfig, err := icClient.Get(sparkPodInitializerConfigName, metav1.GetOptions{})
 	if err != nil {
@@ -180,12 +173,12 @@ func (ic *SparkPodInitializer) addInitializationConfig() error {
 			// InitializerConfig wasn't found.
 			_, err = icClient.Create(&sparkPodInitializerConfig)
 			if err != nil {
-				return fmt.Errorf("failed to create InitializerConfiguration: %v", err)
+				return fmt.Errorf("failed to create InitializerConfiguration %s: %v", sparkPodInitializerConfigName, err)
 			}
 			return nil
 		}
 		// API error.
-		return fmt.Errorf("failed to get InitializerConfiguration: %v", err)
+		return fmt.Errorf("failed to get InitializerConfiguration %s: %v", sparkPodInitializerConfigName, err)
 	}
 
 	// InitializerConfig was found, check we are in the list.
@@ -213,18 +206,21 @@ func (ic *SparkPodInitializer) addInitializationConfig() error {
 	glog.Infof("Updating InitializerConfiguration %s", sparkPodInitializerConfigName)
 	_, err = icClient.Update(existingConfig)
 	if err != nil {
-		return fmt.Errorf("failed to update InitializerConfiguration: %v", err)
+		return fmt.Errorf("failed to update InitializerConfiguration %s: %v", sparkPodInitializerConfigName, err)
 	}
+
 	return nil
 }
 
 func (ic *SparkPodInitializer) deleteInitializationConfig() error {
+	glog.Infof("Deleting the InitializerConfiguration %s", sparkPodInitializerConfigName)
 	err := ic.kubeClient.AdmissionregistrationV1alpha1().InitializerConfigurations().Delete(
 		sparkPodInitializerConfigName,
 		&metav1.DeleteOptions{})
-	if err != nil {
+	if err != nil && !errors.IsNotFound(err) {
 		return fmt.Errorf("failed to delete InitializerConfiguration: %v", err)
 	}
+
 	return nil
 }
 
