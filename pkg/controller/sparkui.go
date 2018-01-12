@@ -17,14 +17,12 @@ limitations under the License.
 package controller
 
 import (
-	"fmt"
 	"strconv"
 
 	"github.com/golang/glog"
 
 	"k8s.io/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1alpha1"
 	"k8s.io/spark-on-k8s-operator/pkg/config"
-	"k8s.io/spark-on-k8s-operator/pkg/util"
 
 	apiv1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -46,7 +44,7 @@ func createSparkUIService(app *v1alpha1.SparkApplication, kubeClient clientset.I
 
 	service := &apiv1.Service{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      buildUIServiceName(app),
+			Name:      app.Status.AppID + "-ui-svc",
 			Namespace: app.Namespace,
 			Labels: map[string]string{
 				config.SparkAppIDLabel: app.Status.AppID,
@@ -90,14 +88,4 @@ func getUITargetPort(app *v1alpha1.SparkApplication) string {
 		return port
 	}
 	return defaultSparkWebUIPort
-}
-
-// buildUIServiceName builds a unique name of the service for the Spark UI.
-func buildUIServiceName(app *v1alpha1.SparkApplication) string {
-	hasher := util.NewHash32()
-	hasher.Write([]byte(app.Name))
-	hasher.Write([]byte(app.Namespace))
-	hasher.Write([]byte(app.UID))
-	hasher.Write([]byte(app.Status.AppID))
-	return fmt.Sprintf("%s-ui-%d", app.Name, hasher.Sum32())
 }
