@@ -120,7 +120,7 @@ func TestCreateSparkUIService(t *testing.T) {
 		{
 			name:                "service with custom port",
 			app:                 app1,
-			expectedServiceName: buildUIServiceName(app1),
+			expectedServiceName: app1.Status.AppID + "-ui-svc",
 			expectedServicePort: 4041,
 			expectedSelector: map[string]string{
 				config.SparkAppIDLabel: "foo-1",
@@ -131,7 +131,7 @@ func TestCreateSparkUIService(t *testing.T) {
 		{
 			name:                "service with default port",
 			app:                 app2,
-			expectedServiceName: buildUIServiceName(app2),
+			expectedServiceName: app2.Status.AppID + "-ui-svc",
 			expectedServicePort: int32(defaultPort),
 			expectedSelector: map[string]string{
 				config.SparkAppIDLabel: "foo-2",
