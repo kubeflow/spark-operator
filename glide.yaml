@@ -17,14 +17,14 @@
 package: k8s.io/spark-on-k8s-operator
 import:
 - package: k8s.io/client-go
-  version: c6f8cf2c47d21d55fa0df928291b2580544886c8
+  version: kubernetes-1.8.2
 - package: k8s.io/api
-  version: 926789af7ddda62752e08bc9b93f1d1ebbc7b2de
+  version: kubernetes-1.8.2
 - package: k8s.io/apimachinery
-  version: a28c9b0b532638dcfb2c8b1b6f8f1e4a21041752
+  version: kubernetes-1.8.2
 - package: k8s.io/apiextensions-apiserver
-  version: 2bfb07d318ed549813240d1165fcebad6250c666
+  version: kubernetes-1.8.2
 - package: cloud.google.com/go
   version: 0.13.0
 - package: github.com/stretchr/testify
-  version: 1.1.4  
+  version: 1.1.4
