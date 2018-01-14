@@ -16,7 +16,7 @@ Spark Operator relies on [Initializers](https://kubernetes.io/docs/admin/extensi
 and [garbage collection](https://kubernetes.io/docs/concepts/workloads/controllers/garbage-collection/) support for 
 custom resources which are in Kubernetes 1.8+.
 
-# Spark Operator
+## Spark Operator
 
 Spark Operator is an experimental project aiming to make specifying and running [Spark](https://github.com/apache/spark) 
 applications as easy and idiomatic as running other workloads on Kubernetes. It requires Spark 2.3 and above that supports 
@@ -53,11 +53,15 @@ need additional command-line options to get passed in.
 Additionally, keeping the CRD implementation outside the Spark repository gives us a lot of flexibility in terms of 
 functionality to add to the CRD controller. We also have full control over code review and release process.
 
-## Current Status
+### Build and Installation
 
-Currently both the `SparkApplication` CRD controller and the pod initializer work.  
+To get Spark Operator, run the following commands:
 
-## Build and Installation
+```bash
+make -p $GOPATH/src/k8s.io
+cd $GOPATH/src/k8s.io
+git clone git@github.com:GoogleCloudPlatform/spark-on-k8s-operator.git
+```
 
 Spark Operator uses [Glide](http://glide.sh/) for dependency management. Please install Glide following the instruction on 
 the website if you don't have it available locally. To install the dependencies, run the following command:
@@ -92,7 +96,7 @@ console
 make image-tag=<image tag> push
 ```
 
-## Deploying Spark Operator
+### Deploying Spark Operator
 
 To deploy the Spark operator, run the following command:
 
@@ -100,7 +104,7 @@ To deploy the Spark operator, run the following command:
 kubectl create -f manifest/spark-operator.yaml 
 ```
 
-## Configuring Spark Operator
+### Configuring Spark Operator
 
 Spark Operator is typically deployed and run using `manifest/spark-operator.yaml` through a Kubernetes `Deployment`. 
 However, users can still run it outside a Kubernetes cluster and make it talk to the Kubernetes API server of a cluster 
@@ -110,7 +114,7 @@ Spark Operator uses multiple workers in the initializer controller and the submi
 threads to use in the two places are controlled using command-line flags `--initializer-threads` and `--submission-threads`, 
 respectively. The default values for both flags are 10 and 3, respectively.
 
-## Running the Example Spark Application
+### Running the Example Spark Application
 
 To run the Spark Pi example, run the following command:
 
@@ -161,7 +165,7 @@ status:
   submissionTime: 2018-01-09T23:19:43Z
 ```
 
-## Using the Initializer
+### Using the Initializer
 
 The initializer works independently with or without the CRD controller. The initializer looks for certain custom 
 annotations on Spark driver and executor Pods to perform its tasks. To use the initializer without leveraging the CRD, 
