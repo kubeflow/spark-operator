@@ -2,6 +2,20 @@
 
 **This is not an official Google product.**
 
+## Project Status
+
+**Project status:** *alpha* 
+
+Spark Operator is still under active development and has not been extensively tested yet. Use at your own risk. Backward-compatibility is not supported for alpha releases.
+
+## Prerequisites
+
+* Version >= 1.8 of Kubernetes.
+
+Spark Operator relies on [Initializers](https://kubernetes.io/docs/admin/extensible-admission-controllers/#initializers) 
+and [garbage collection](https://kubernetes.io/docs/concepts/workloads/controllers/garbage-collection/) support for 
+custom resources which are in Kubernetes 1.8+.
+
 # Spark Operator
 
 Spark Operator is an experimental project aiming to make specifying and running [Spark](https://github.com/apache/spark) 
@@ -20,7 +34,8 @@ cluster, without needing to use API server proxy or port forwarding.
 * Automatically creating namespaces and setting up RBAC roles and quotas, and running users' applications in separate 
 namespaces for better resource isolation and quota management. 
 
-To make such automation possible, Spark Operator uses the Kubernetes [CustomResourceDefinition (CRD)](https://kubernetes.io/docs/tasks/access-kubernetes-api/extend-api-custom-resource-definitions/) and a corresponding CRD controller as well as an [initializer](https://kubernetes.io/docs/admin/extensible-admission-controllers/#initializers). The CRD controller setups the environment for an application and submits the application to run on behalf of the user, whereas the initializer handles customization of the Spark Pods.
+To make such automation possible, Spark Operator uses the Kubernetes 
+[CustomResourceDefinition (CRD)](https://kubernetes.io/docs/tasks/access-kubernetes-api/extend-api-custom-resource-definitions/) and a corresponding CRD controller as well as an [initializer](https://kubernetes.io/docs/admin/extensible-admission-controllers/#initializers). The CRD controller setups the environment for an application and submits the application to run on behalf of the user, whereas the initializer handles customization of the Spark Pods.
 
 This approach is completely different than the one that has the submission client creates a CRD object. Having externally 
 created and managed CRD objects offer the following benefits:
@@ -97,16 +112,16 @@ respectively. The default values for both flags are 10 and 3, respectively.
 
 ## Running the Example Spark Application
 
-To run the example Spark application, run the following command:
+To run the Spark Pi example, run the following command:
 
 ```bash
-kubectl create -f manifest/spark-application-example.yaml
+kubectl create -f examples/spark-pi.yaml
 ```
 
-This will create a `SparkApplication` object named `spark-app-example`. Check the object by running the following command:
+This will create a `SparkApplication` object named `spark-pi`. Check the object by running the following command:
 
 ```bash
-kubectl get sparkapplications spark-app-example -o=yaml
+kubectl get sparkapplications spark-pi -o=yaml
 ```
 
 This will show something similar to the following:

@@ -21,7 +21,7 @@ import (
 	"testing"
 
 	"k8s.io/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1alpha1"
-	"k8s.io/spark-on-k8s-operator/pkg/crd"
+	crdfake "k8s.io/spark-on-k8s-operator/pkg/client/clientset/versioned/fake"
 
 	"github.com/stretchr/testify/assert"
 
@@ -33,7 +33,7 @@ import (
 )
 
 func newFakeController() *SparkApplicationController {
-	crdClient := crd.NewFakeClient()
+	crdClient := crdfake.NewSimpleClientset()
 	kubeClient := kubeclientfake.NewSimpleClientset()
 	kubeClient.CoreV1().Nodes().Create(&apiv1.Node{
 		ObjectMeta: metav1.ObjectMeta{
@@ -64,6 +64,7 @@ func TestOnAdd(t *testing.T) {
 			Namespace: "default",
 		},
 	}
+	ctrl.crdClient.SparkoperatorV1alpha1().SparkApplications(app.Namespace).Create(app)
 
 	go ctrl.onAdd(app)
 	submission := <-ctrl.runner.queue
@@ -85,6 +86,7 @@ func TestOnDelete(t *testing.T) {
 			AppID: "foo-123",
 		},
 	}
+	ctrl.crdClient.SparkoperatorV1alpha1().SparkApplications(app.Namespace).Create(app)
 
 	driverPod := &apiv1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
@@ -130,6 +132,7 @@ func TestProcessSingleDriverStateUpdate(t *testing.T) {
 			},
 		},
 	}
+	ctrl.crdClient.SparkoperatorV1alpha1().SparkApplications(app.Namespace).Create(app)
 	ctrl.runningApps[app.Status.AppID] = app
 
 	testcases := []testcase{
@@ -210,6 +213,7 @@ func TestProcessSingleAppStateUpdate(t *testing.T) {
 			},
 		},
 	}
+	ctrl.crdClient.SparkoperatorV1alpha1().SparkApplications(app.Namespace).Create(app)
 	ctrl.runningApps[app.Status.AppID] = app
 
 	testcases := []testcase{
@@ -310,6 +314,7 @@ func TestProcessSingleExecutorStateUpdate(t *testing.T) {
 			ExecutorState: make(map[string]v1alpha1.ExecutorState),
 		},
 	}
+	ctrl.crdClient.SparkoperatorV1alpha1().SparkApplications(app.Namespace).Create(app)
 	ctrl.runningApps[app.Status.AppID] = app
 
 	testcases := []testcase{

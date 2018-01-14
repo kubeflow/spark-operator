@@ -26,8 +26,8 @@ import (
 	"github.com/golang/glog"
 
 	"k8s.io/spark-on-k8s-operator/pkg/controller"
-	"k8s.io/spark-on-k8s-operator/pkg/crd"
 	"k8s.io/spark-on-k8s-operator/pkg/initializer"
+	crdclientset "k8s.io/spark-on-k8s-operator/pkg/client/clientset/versioned"
 
 	apiextensionsclient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -38,14 +38,22 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 )
 
+var (
+	master = flag.String("master", "", "The address of the Kubernetes API server. "+
+		"Overrides any value in kubeconfig. Only required if out-of-cluster.")
+	kubeConfig = flag.String("kubeConfig", "", "Path to a kube config. Only required if "+
+		"out-of-cluster.")
+	initializerThreads = flag.Int("initializer-threads", 10, "Number of worker threads "+
+		"used by the initializer controller.")
+	submissionRunnerThreads = flag.Int("submission-threads", 3, "Number of worker threads "+
+		"used by the submission runner.")
+)
+
 func main() {
-	kubeConfig := flag.String("kubeConfig", "", "Path to a kube config. Only required if out-of-cluster.")
-	initializerThreads := flag.Int("initializer-threads", 10, "Number of worker threads used by the initializer controller.")
-	submissionRunnerThreads := flag.Int("submission-threads", 3, "Number of worker threads used by the submission runner.")
 	flag.Parse()
 
 	// Create the client config. Use kubeConfig if given, otherwise assume in-cluster.
-	config, err := buildConfig(*kubeConfig)
+	config, err := buildConfig(*master, *kubeConfig)
 	if err != nil {
 		glog.Fatal(err)
 	}
@@ -63,7 +71,7 @@ func main() {
 
 	stopCh := make(chan struct{})
 
-	crdClient, err := crd.NewClient(config)
+	crdClient, err := crdclientset.NewForConfig(config)
 	if err != nil {
 		glog.Fatal(err)
 	}
@@ -92,9 +100,9 @@ func main() {
 	close(stopCh)
 }
 
-func buildConfig(kubeConfig string) (*rest.Config, error) {
+func buildConfig(masterUrl string, kubeConfig string) (*rest.Config, error) {
 	if kubeConfig != "" {
-		return clientcmd.BuildConfigFromFlags("", kubeConfig)
+		return clientcmd.BuildConfigFromFlags(masterUrl, kubeConfig)
 	}
 	return rest.InClusterConfig()
 }
