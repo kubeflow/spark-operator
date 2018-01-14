@@ -26,12 +26,13 @@ import (
 	"k8s.io/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1alpha1"
 	"k8s.io/spark-on-k8s-operator/pkg/crd"
 	"k8s.io/spark-on-k8s-operator/pkg/util"
+	crdclientset "k8s.io/spark-on-k8s-operator/pkg/client/clientset/versioned"
+	crdinformers "k8s.io/spark-on-k8s-operator/pkg/client/informers/externalversions"
 
 	apiv1 "k8s.io/api/core/v1"
 	typedcorev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	apiextensionsclient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/fields"
 	clientset "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/tools/cache"
@@ -49,7 +50,7 @@ const (
 
 // SparkApplicationController manages instances of SparkApplication.
 type SparkApplicationController struct {
-	crdClient                  crd.ClientInterface
+	crdClient                  crdclientset.Interface
 	kubeClient                 clientset.Interface
 	extensionsClient           apiextensionsclient.Interface
 	recorder                   record.EventRecorder
@@ -64,7 +65,7 @@ type SparkApplicationController struct {
 
 // New creates a new SparkApplicationController.
 func New(
-	crdClient crd.ClientInterface,
+	crdClient crdclientset.Interface,
 	kubeClient clientset.Interface,
 	extensionsClient apiextensionsclient.Interface,
 	submissionRunnerWorkers int) *SparkApplicationController {
@@ -80,7 +81,7 @@ func New(
 }
 
 func newSparkApplicationController(
-	crdClient crd.ClientInterface,
+	crdClient crdclientset.Interface,
 	kubeClient clientset.Interface,
 	extensionsClient apiextensionsclient.Interface,
 	eventRecorder record.EventRecorder,
@@ -133,27 +134,19 @@ func (s *SparkApplicationController) Start(stopCh <-chan struct{}) error {
 }
 
 func (s *SparkApplicationController) startSparkApplicationInformer(stopCh <-chan struct{}) error {
-	listerWatcher := cache.NewListWatchFromClient(
-		s.crdClient.RESTClient(),
-		crd.Plural,
-		apiv1.NamespaceAll,
-		fields.Everything())
-
-	_, sparkApplicationInformer := cache.NewInformer(
-		listerWatcher,
-		&v1alpha1.SparkApplication{},
-		// resyncPeriod. Every resyncPeriod, all resources in the cache will retrigger events.
+	informerFactory := crdinformers.NewSharedInformerFactory(
+		s.crdClient,
+		// resyncPeriod. Every resyncPeriod, all resources in the cache will re-trigger events.
 		// Set to 0 to disable the resync.
-		0*time.Second,
-		// SparkApplication resource event handlers.
-		cache.ResourceEventHandlerFuncs{
-			AddFunc:    s.onAdd,
-			DeleteFunc: s.onDelete,
-		})
+		0*time.Second)
+	informer := informerFactory.Sparkoperator().V1alpha1().SparkApplications().Informer()
+	informer.AddEventHandler(cache.ResourceEventHandlerFuncs{
+		AddFunc:    s.onAdd,
+		DeleteFunc: s.onDelete,
+	})
+	go informer.Run(stopCh)
 
-	go sparkApplicationInformer.Run(stopCh)
-
-	if !cache.WaitForCacheSync(stopCh, sparkApplicationInformer.HasSynced) {
+	if !cache.WaitForCacheSync(stopCh, informer.HasSynced) {
 		return fmt.Errorf("timed out waiting for cache to sync")
 	}
 
@@ -354,7 +347,8 @@ func (s *SparkApplicationController) updateSparkApplicationWithRetries(
 			return nil
 		}
 
-		updated, err := s.crdClient.Update(toUpdate)
+		client := s.crdClient.SparkoperatorV1alpha1().SparkApplications(toUpdate.Namespace)
+		updated, err := client.Update(toUpdate)
 		if err == nil {
 			return updated
 		}
@@ -362,7 +356,7 @@ func (s *SparkApplicationController) updateSparkApplicationWithRetries(
 		// Failed update to the API server.
 		// Get the latest version from the API server first and re-apply the update.
 		name := toUpdate.Name
-		toUpdate, err = s.crdClient.Get(name, toUpdate.Namespace)
+		toUpdate, err = client.Get(name, metav1.GetOptions{})
 		if err != nil {
 			glog.Errorf("failed to get SparkApplication %s: %v", name, err)
 			return nil
