@@ -26,7 +26,6 @@ import (
 
 	apiv1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/watch"
@@ -76,16 +75,15 @@ func newSparkPodMonitor(
 		executorStateReportingChan: executorStateReportingChan,
 	}
 
-	restClient := kubeClient.CoreV1().RESTClient()
-	watchlist := cache.NewListWatchFromClient(restClient, "pods", apiv1.NamespaceAll, fields.Everything())
+	podInterface := kubeClient.CoreV1().Pods(apiv1.NamespaceAll)
 	sparkPodWatchList := &cache.ListWatch{
 		ListFunc: func(options metav1.ListOptions) (runtime.Object, error) {
 			options.LabelSelector = sparkRoleLabel
-			return watchlist.List(options)
+			return podInterface.List(options)
 		},
 		WatchFunc: func(options metav1.ListOptions) (watch.Interface, error) {
 			options.LabelSelector = sparkRoleLabel
-			return watchlist.Watch(options)
+			return podInterface.Watch(options)
 		},
 	}
 
