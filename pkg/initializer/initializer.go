@@ -30,7 +30,6 @@ import (
 	apiv1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
@@ -61,10 +60,10 @@ const (
 type SparkPodInitializer struct {
 	// Client to the Kubernetes API.
 	kubeClient clientset.Interface
-	// sparkPodInformer is a shared informer for Pods (including uninitialized ones).
-	sparkPodInformer cache.Controller
-	// sparkPodStore is the store of cached Pods.
-	sparkPodStore cache.Store
+	// podInformer is a shared informer for Pods (including uninitialized ones).
+	podInformer cache.Controller
+	// podStore is the store of cached Pods.
+	podStore cache.Store
 	// A queue of uninitialized Pods that need to be processed by this initializer controller.
 	queue workqueue.RateLimitingInterface
 	// To allow injection of syncHandler for testing.
@@ -73,42 +72,39 @@ type SparkPodInitializer struct {
 
 // New creates a new instance of Initializer.
 func New(kubeClient clientset.Interface) *SparkPodInitializer {
-	sparkPodInitializer := &SparkPodInitializer{
+	initializer := &SparkPodInitializer{
 		kubeClient: kubeClient,
 		queue: workqueue.NewNamedRateLimitingQueue(
 			workqueue.DefaultControllerRateLimiter(),
 			"spark-pod-initializer"),
 	}
-	sparkPodInitializer.syncHandler = sparkPodInitializer.syncSparkPod
+	initializer.syncHandler = initializer.syncSparkPod
 
-	restClient := kubeClient.CoreV1().RESTClient()
-	watchlist := cache.NewListWatchFromClient(restClient, "pods", apiv1.NamespaceAll, fields.Everything())
-	// Wrap the returned watchlist to workaround the inability to include
-	// the `IncludeUninitialized` list option when setting up watch clients.
+	podInterface := kubeClient.CoreV1().Pods(apiv1.NamespaceAll)
 	includeUninitializedWatchlist := &cache.ListWatch{
 		ListFunc: func(options metav1.ListOptions) (runtime.Object, error) {
 			options.IncludeUninitialized = true
-			return watchlist.List(options)
+			return podInterface.List(options)
 		},
 		WatchFunc: func(options metav1.ListOptions) (watch.Interface, error) {
 			options.IncludeUninitialized = true
-			return watchlist.Watch(options)
+			return podInterface.Watch(options)
 		},
 	}
 
-	sparkPodInitializer.sparkPodStore, sparkPodInitializer.sparkPodInformer = cache.NewInformer(
+	initializer.podStore, initializer.podInformer = cache.NewInformer(
 		includeUninitializedWatchlist,
 		&apiv1.Pod{},
 		// resyncPeriod. Every resyncPeriod, all resources in the cache will re-trigger events.
 		// Set to 0 to disable the resync.
 		0*time.Second,
 		cache.ResourceEventHandlerFuncs{
-			AddFunc:    sparkPodInitializer.onPodAdded,
-			DeleteFunc: sparkPodInitializer.onPodDeleted,
+			AddFunc:    initializer.onPodAdded,
+			DeleteFunc: initializer.onPodDeleted,
 		},
 	)
 
-	return sparkPodInitializer
+	return initializer
 }
 
 // Start starts the initializer controller.
@@ -120,10 +116,10 @@ func (ic *SparkPodInitializer) Start(workers int, stopCh <-chan struct{}) error 
 	}
 
 	glog.Info("Starting the Spark Pod informer")
-	go ic.sparkPodInformer.Run(stopCh)
+	go ic.podInformer.Run(stopCh)
 
 	// Wait for all involved caches to be synced, before processing items from the queue is started
-	if !cache.WaitForCacheSync(stopCh, ic.sparkPodInformer.HasSynced) {
+	if !cache.WaitForCacheSync(stopCh, ic.podInformer.HasSynced) {
 		return fmt.Errorf("timed out waiting for cache to sync")
 	}
 
@@ -259,7 +255,7 @@ func (ic *SparkPodInitializer) processNextItem() bool {
 }
 
 func (ic *SparkPodInitializer) syncSparkPod(key string) error {
-	item, exists, err := ic.sparkPodStore.GetByKey(key)
+	item, exists, err := ic.podStore.GetByKey(key)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			return nil

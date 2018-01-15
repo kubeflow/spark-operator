@@ -73,7 +73,7 @@ func New(
 	eventBroadcaster := record.NewBroadcaster()
 	eventBroadcaster.StartLogging(glog.V(2).Infof)
 	eventBroadcaster.StartRecordingToSink(&typedcorev1.EventSinkImpl{
-		Interface: kubeClient.CoreV1().Events(""),
+		Interface: kubeClient.CoreV1().Events(apiv1.NamespaceAll),
 	})
 	recorder := eventBroadcaster.NewRecorder(scheme.Scheme, apiv1.EventSource{Component: "spark-operator"})
 
