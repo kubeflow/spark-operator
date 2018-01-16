@@ -44,9 +44,11 @@ var (
 	kubeConfig = flag.String("kubeConfig", "", "Path to a kube config. Only required if "+
 		"out-of-cluster.")
 	initializerThreads = flag.Int("initializer-threads", 10, "Number of worker threads "+
-		"used by the initializer controller.")
+		"used by the Spark Pod initializer.")
+	controllerThreads = flag.Int("controller-threads", 10, "Number of worker threads "+
+		"used by the SparkApplication controller.")
 	submissionRunnerThreads = flag.Int("submission-threads", 3, "Number of worker threads "+
-		"used by the submission runner.")
+		"used by the SparkApplication submission runner.")
 )
 
 func main() {
@@ -81,7 +83,7 @@ func main() {
 	}
 
 	sparkApplicationController := controller.New(crdClient, kubeClient, apiExtensionsClient, *submissionRunnerThreads)
-	if err = sparkApplicationController.Start(stopCh); err != nil {
+	if err = sparkApplicationController.Start(*controllerThreads, stopCh); err != nil {
 		glog.Fatal(err)
 	}
 
@@ -95,6 +97,7 @@ func main() {
 	<-signalCh
 
 	glog.Info("Shutting down the Spark operator")
+	sparkApplicationController.Stop()
 	initializerController.Stop()
 	// This causes the workers of the initializer and SparkApplication controller to stop.
 	close(stopCh)

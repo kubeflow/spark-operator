@@ -33,11 +33,15 @@ import (
 	apiv1 "k8s.io/api/core/v1"
 	typedcorev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	apiextensionsclient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
+	"k8s.io/apimachinery/pkg/util/wait"
 	clientset "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
+	"k8s.io/client-go/util/workqueue"
 )
 
 const (
@@ -53,6 +57,8 @@ type SparkApplicationController struct {
 	crdClient                  crdclientset.Interface
 	kubeClient                 clientset.Interface
 	extensionsClient           apiextensionsclient.Interface
+	queue                      workqueue.RateLimitingInterface
+	store                      cache.Store
 	recorder                   record.EventRecorder
 	runner                     *sparkSubmitRunner
 	sparkPodMonitor            *sparkPodMonitor
@@ -90,6 +96,8 @@ func newSparkApplicationController(
 	driverStateReportingChan := make(chan driverStateUpdate)
 	executorStateReportingChan := make(chan executorStateUpdate)
 
+	queue := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(),
+		"spark-application-controller")
 	runner := newSparkSubmitRunner(submissionRunnerWorkers, appStateReportingChan)
 	sparkPodMonitor := newSparkPodMonitor(kubeClient, driverStateReportingChan, executorStateReportingChan)
 
@@ -98,6 +106,7 @@ func newSparkApplicationController(
 		kubeClient:                 kubeClient,
 		extensionsClient:           extensionsClient,
 		recorder:                   eventRecorder,
+		queue:                      queue,
 		runner:                     runner,
 		sparkPodMonitor:            sparkPodMonitor,
 		appStateReportingChan:      appStateReportingChan,
@@ -108,7 +117,7 @@ func newSparkApplicationController(
 }
 
 // Start starts the SparkApplicationController by registering a watcher for SparkApplication objects.
-func (s *SparkApplicationController) Start(stopCh <-chan struct{}) error {
+func (s *SparkApplicationController) Start(workers int, stopCh <-chan struct{}) error {
 	glog.Info("Starting the SparkApplication controller")
 
 	glog.Infof("Creating the CustomResourceDefinition %s", crd.FullName)
@@ -118,9 +127,16 @@ func (s *SparkApplicationController) Start(stopCh <-chan struct{}) error {
 	}
 
 	glog.Info("Starting the SparkApplication informer")
-	err = s.startSparkApplicationInformer(stopCh)
+	s.store, err = s.startSparkApplicationInformer(stopCh)
 	if err != nil {
 		return fmt.Errorf("failed to register watch for SparkApplication resource: %v", err)
+	}
+
+	glog.Info("Starting the workers of the SparkApplication controller")
+	for i := 0; i < workers; i++ {
+		// runWorker will loop until "something bad" happens. Until will then rekick
+		// the worker after one second.
+		go wait.Until(s.runWorker, time.Second, stopCh)
 	}
 
 	go s.runner.run(stopCh)
@@ -133,7 +149,12 @@ func (s *SparkApplicationController) Start(stopCh <-chan struct{}) error {
 	return nil
 }
 
-func (s *SparkApplicationController) startSparkApplicationInformer(stopCh <-chan struct{}) error {
+func (s *SparkApplicationController) Stop() {
+	glog.Info("Stopping the SparkApplication controller")
+	s.queue.ShutDown()
+}
+
+func (s *SparkApplicationController) startSparkApplicationInformer(stopCh <-chan struct{}) (cache.Store, error) {
 	informerFactory := crdinformers.NewSharedInformerFactory(
 		s.crdClient,
 		// resyncPeriod. Every resyncPeriod, all resources in the cache will re-trigger events.
@@ -147,22 +168,29 @@ func (s *SparkApplicationController) startSparkApplicationInformer(stopCh <-chan
 	go informer.Run(stopCh)
 
 	if !cache.WaitForCacheSync(stopCh, informer.HasSynced) {
-		return fmt.Errorf("timed out waiting for cache to sync")
+		return nil, fmt.Errorf("timed out waiting for cache to sync")
 	}
 
-	return nil
+	return informer.GetStore(), nil
 }
 
 // Callback function called when a new SparkApplication object gets created.
 func (s *SparkApplicationController) onAdd(obj interface{}) {
 	app := obj.(*v1alpha1.SparkApplication)
+
 	s.recorder.Eventf(
 		app,
 		apiv1.EventTypeNormal,
 		"SparkApplicationSubmission",
 		"Submitting SparkApplication: %s",
 		app.Name)
-	s.submitApp(app, false)
+
+	key, err := cache.MetaNamespaceKeyFunc(app)
+	if err != nil {
+		glog.Errorf("failed to get queue key for %v", app)
+	}
+
+	s.queue.AddRateLimited(key)
 }
 
 func (s *SparkApplicationController) onDelete(obj interface{}) {
@@ -178,6 +206,64 @@ func (s *SparkApplicationController) onDelete(obj interface{}) {
 	s.mutex.Lock()
 	delete(s.runningApps, app.Status.AppID)
 	s.mutex.Unlock()
+
+	key, err := cache.MetaNamespaceKeyFunc(app)
+	if err != nil {
+		glog.Errorf("failed to get queue key for %v", app)
+	}
+
+	s.queue.Forget(key)
+	s.queue.Done(key)
+}
+
+// runWorker runs a single controller worker.
+func (s *SparkApplicationController) runWorker() {
+	for s.processNextItem() {
+	}
+}
+
+func (s *SparkApplicationController) processNextItem() bool {
+	key, quit := s.queue.Get()
+	if quit {
+		return false
+	}
+	defer s.queue.Done(key)
+
+	err := s.syncSparkApplication(key.(string))
+	if err == nil {
+		// Successfully processed the key or the key was not found so tell the queue to stop tracking
+		// history for your key. This will reset things like failure counts for per-item rate limiting.
+		s.queue.Forget(key)
+		return true
+	}
+
+	// There was a failure so be sure to report it. This method allows for pluggable error handling
+	// which can be used for things like cluster-monitoring
+	utilruntime.HandleError(fmt.Errorf("failed to sync SparkApplication %q: %v", key, err))
+	// Since we failed, we should requeue the item to work on later.  This method will add a backoff
+	// to avoid hot-looping on particular items (they're probably still not going to work right away)
+	// and overall controller protection (everything I've done is broken, this controller needs to
+	// calm down or it can starve other useful work) cases.
+	s.queue.AddRateLimited(key)
+
+	return true
+}
+
+func (s *SparkApplicationController) syncSparkApplication(key string) error {
+	item, exists, err := s.store.GetByKey(key)
+	if err != nil {
+		if errors.IsNotFound(err) {
+			return nil
+		}
+		return err
+	}
+
+	if !exists {
+		return nil
+	}
+
+	s.submitApp(item.(*v1alpha1.SparkApplication), false)
+	return nil
 }
 
 func (s *SparkApplicationController) submitApp(app *v1alpha1.SparkApplication, resubmission bool) {

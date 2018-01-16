@@ -52,7 +52,7 @@ func newFakeController() *SparkApplicationController {
 		record.NewFakeRecorder(3), 0)
 }
 
-func TestOnAdd(t *testing.T) {
+func TestSubmitApp(t *testing.T) {
 	ctrl := newFakeController()
 
 	os.Setenv(kubernetesServiceHostEnvVar, "localhost")
@@ -66,7 +66,7 @@ func TestOnAdd(t *testing.T) {
 	}
 	ctrl.crdClient.SparkoperatorV1alpha1().SparkApplications(app.Namespace).Create(app)
 
-	go ctrl.onAdd(app)
+	go ctrl.submitApp(app, false)
 	submission := <-ctrl.runner.queue
 	assert.Equal(t, submission.appName, app.Name, "wanted application name %s got %s", app.Name, submission.appName)
 }

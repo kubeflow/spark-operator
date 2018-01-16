@@ -109,7 +109,7 @@ func (s *sparkPodMonitor) run(stopCh <-chan struct{}) {
 	glog.Info("Starting the Spark Pod monitor")
 	defer glog.Info("Stopping the Spark Pod monitor")
 
-	glog.Info("Starting the Spark Pod informer")
+	glog.Info("Starting the Pod informer of the Spark Pod monitor")
 	go s.sparkPodInformer.Run(stopCh)
 
 	// Wait for all involved caches to be synced, before processing items from the queue is started
