@@ -64,7 +64,7 @@ type SparkPodInitializer struct {
 	podInformer cache.Controller
 	// podStore is the store of cached Pods.
 	podStore cache.Store
-	// A queue of uninitialized Pods that need to be processed by this initializer controller.
+	// A queue of uninitialized Pods that need to be processed by this initializer.
 	queue workqueue.RateLimitingInterface
 	// To allow injection of syncHandler for testing.
 	syncHandler func(key string) error
@@ -107,7 +107,7 @@ func New(kubeClient clientset.Interface) *SparkPodInitializer {
 	return initializer
 }
 
-// Start starts the initializer controller.
+// Start starts the initializer.
 func (ic *SparkPodInitializer) Start(workers int, stopCh <-chan struct{}) error {
 	glog.Info("Starting the Spark Pod initializer")
 
@@ -115,7 +115,7 @@ func (ic *SparkPodInitializer) Start(workers int, stopCh <-chan struct{}) error 
 		return err
 	}
 
-	glog.Info("Starting the Spark Pod informer")
+	glog.Info("Starting the Pod informer of the Spark Pod initializer")
 	go ic.podInformer.Run(stopCh)
 
 	// Wait for all involved caches to be synced, before processing items from the queue is started
@@ -123,7 +123,7 @@ func (ic *SparkPodInitializer) Start(workers int, stopCh <-chan struct{}) error 
 		return fmt.Errorf("timed out waiting for cache to sync")
 	}
 
-	glog.Info("Starting the workers of the Spark Pod initializer controller")
+	glog.Info("Starting the workers of the Spark Pod initializer")
 	// Start up worker threads.
 	for i := 0; i < workers; i++ {
 		// runWorker will loop until "something bad" happens. Until will then rekick
@@ -134,7 +134,7 @@ func (ic *SparkPodInitializer) Start(workers int, stopCh <-chan struct{}) error 
 	return nil
 }
 
-// Stop stops the initializer controller.
+// Stop stops the initializer.
 func (ic *SparkPodInitializer) Stop() {
 	glog.Info("Stopping the Spark Pod initializer")
 	ic.queue.ShutDown()
@@ -313,7 +313,7 @@ func (ic *SparkPodInitializer) onPodAdded(obj interface{}) {
 	if isInitializerPresent(pod) {
 		key, err := cache.MetaNamespaceKeyFunc(pod)
 		if err != nil {
-			glog.Errorf("Failed to get queue key for %v", pod)
+			glog.Errorf("failed to get queue key for %v", pod)
 		}
 
 		ic.queue.AddRateLimited(key)
@@ -332,7 +332,7 @@ func (ic *SparkPodInitializer) onPodDeleted(obj interface{}) {
 	if isSparkPod(pod) {
 		key, err := cache.MetaNamespaceKeyFunc(pod)
 		if err != nil {
-			glog.Errorf("Failed to get queue key for %v", pod)
+			glog.Errorf("failed to get queue key for %v", pod)
 		}
 
 		ic.queue.Forget(key)
