@@ -58,6 +58,7 @@ type SparkApplicationController struct {
 	kubeClient                 clientset.Interface
 	extensionsClient           apiextensionsclient.Interface
 	queue                      workqueue.RateLimitingInterface
+	informer                   cache.SharedIndexInformer
 	store                      cache.Store
 	recorder                   record.EventRecorder
 	runner                     *sparkSubmitRunner
@@ -92,16 +93,16 @@ func newSparkApplicationController(
 	extensionsClient apiextensionsclient.Interface,
 	eventRecorder record.EventRecorder,
 	submissionRunnerWorkers int) *SparkApplicationController {
+	queue := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(),
+		"spark-application-controller")
+
 	appStateReportingChan := make(chan appStateUpdate, submissionRunnerWorkers)
 	driverStateReportingChan := make(chan driverStateUpdate)
 	executorStateReportingChan := make(chan executorStateUpdate)
-
-	queue := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(),
-		"spark-application-controller")
 	runner := newSparkSubmitRunner(submissionRunnerWorkers, appStateReportingChan)
 	sparkPodMonitor := newSparkPodMonitor(kubeClient, driverStateReportingChan, executorStateReportingChan)
 
-	return &SparkApplicationController{
+	controller := &SparkApplicationController{
 		crdClient:                  crdClient,
 		kubeClient:                 kubeClient,
 		extensionsClient:           extensionsClient,
@@ -114,6 +115,20 @@ func newSparkApplicationController(
 		executorStateReportingChan: executorStateReportingChan,
 		runningApps:                make(map[string]*v1alpha1.SparkApplication),
 	}
+
+	informerFactory := crdinformers.NewSharedInformerFactory(
+		crdClient,
+		// resyncPeriod. Every resyncPeriod, all resources in the cache will re-trigger events.
+		// Set to 0 to disable the resync.
+		0*time.Second)
+	controller.informer = informerFactory.Sparkoperator().V1alpha1().SparkApplications().Informer()
+	controller.informer.AddEventHandler(cache.ResourceEventHandlerFuncs{
+		AddFunc:    controller.onAdd,
+		DeleteFunc: controller.onDelete,
+	})
+	controller.store = controller.informer.GetStore()
+
+	return controller
 }
 
 // Start starts the SparkApplicationController by registering a watcher for SparkApplication objects.
@@ -127,9 +142,10 @@ func (s *SparkApplicationController) Start(workers int, stopCh <-chan struct{}) 
 	}
 
 	glog.Info("Starting the SparkApplication informer")
-	s.store, err = s.startSparkApplicationInformer(stopCh)
-	if err != nil {
-		return fmt.Errorf("failed to register watch for SparkApplication resource: %v", err)
+	go s.informer.Run(stopCh)
+
+	if !cache.WaitForCacheSync(stopCh, s.informer.HasSynced) {
+		return fmt.Errorf("timed out waiting for cache to sync")
 	}
 
 	glog.Info("Starting the workers of the SparkApplication controller")
@@ -152,26 +168,6 @@ func (s *SparkApplicationController) Start(workers int, stopCh <-chan struct{}) 
 func (s *SparkApplicationController) Stop() {
 	glog.Info("Stopping the SparkApplication controller")
 	s.queue.ShutDown()
-}
-
-func (s *SparkApplicationController) startSparkApplicationInformer(stopCh <-chan struct{}) (cache.Store, error) {
-	informerFactory := crdinformers.NewSharedInformerFactory(
-		s.crdClient,
-		// resyncPeriod. Every resyncPeriod, all resources in the cache will re-trigger events.
-		// Set to 0 to disable the resync.
-		0*time.Second)
-	informer := informerFactory.Sparkoperator().V1alpha1().SparkApplications().Informer()
-	informer.AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc:    s.onAdd,
-		DeleteFunc: s.onDelete,
-	})
-	go informer.Run(stopCh)
-
-	if !cache.WaitForCacheSync(stopCh, informer.HasSynced) {
-		return nil, fmt.Errorf("timed out waiting for cache to sync")
-	}
-
-	return informer.GetStore(), nil
 }
 
 // Callback function called when a new SparkApplication object gets created.
