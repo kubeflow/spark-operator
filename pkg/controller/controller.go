@@ -19,6 +19,7 @@ package controller
 import (
 	"fmt"
 	"reflect"
+	"strconv"
 	"sync"
 	"time"
 
@@ -37,7 +38,6 @@ import (
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
-	"strconv"
 )
 
 const (
@@ -181,9 +181,6 @@ func (s *SparkApplicationController) onDelete(obj interface{}) {
 }
 
 func (s *SparkApplicationController) submitApp(app *v1alpha1.SparkApplication, resubmission bool) {
-	s.mutex.Lock()
-	defer s.mutex.Unlock()
-
 	updatedApp := s.updateSparkApplicationWithRetries(app, app.DeepCopy(), func(toUpdate *v1alpha1.SparkApplication) {
 		if resubmission {
 			// Clear the Status field if it's a resubmission.
@@ -197,8 +194,6 @@ func (s *SparkApplicationController) submitApp(app *v1alpha1.SparkApplication, r
 	if updatedApp == nil {
 		return
 	}
-
-	s.runningApps[updatedApp.Status.AppID] = updatedApp
 
 	submissionCmdArgs, err := buildSubmissionCommandArgs(updatedApp)
 	if err != nil {
@@ -234,9 +229,6 @@ func (s *SparkApplicationController) processSingleDriverStateUpdate(update drive
 		update.appID,
 		update.podPhase)
 
-	s.mutex.Lock()
-	defer s.mutex.Unlock()
-
 	if app, ok := s.runningApps[update.appID]; ok {
 		updated := s.updateSparkApplicationWithRetries(app, app.DeepCopy(), func(toUpdate *v1alpha1.SparkApplication) {
 			toUpdate.Status.DriverInfo.PodName = update.podName
@@ -255,9 +247,6 @@ func (s *SparkApplicationController) processSingleDriverStateUpdate(update drive
 			}
 		})
 
-		if updated != nil {
-			s.runningApps[updated.Status.AppID] = updated
-		}
 		return updated
 	}
 
@@ -271,9 +260,6 @@ func (s *SparkApplicationController) processAppStateUpdates() {
 }
 
 func (s *SparkApplicationController) processSingleAppStateUpdate(update appStateUpdate) {
-	s.mutex.Lock()
-	defer s.mutex.Unlock()
-
 	if app, ok := s.runningApps[update.appID]; ok {
 		updated := s.updateSparkApplicationWithRetries(app, app.DeepCopy(), func(toUpdate *v1alpha1.SparkApplication) {
 			// The application termination state is set based on the driver pod termination state. So if the app state
@@ -291,16 +277,13 @@ func (s *SparkApplicationController) processSingleAppStateUpdate(update appState
 			}
 		})
 
-		if updated != nil {
-			s.runningApps[updated.Status.AppID] = updated
-			if updated.Status.AppState.State == v1alpha1.FailedSubmissionState {
-				s.recorder.Eventf(
-					updated,
-					apiv1.EventTypeNormal,
-					"SparkApplicationSubmissionFailure",
-					"SparkApplication %s failed submission",
-					updated.Name)
-			}
+		if updated != nil && updated.Status.AppState.State == v1alpha1.FailedSubmissionState {
+			s.recorder.Eventf(
+				updated,
+				apiv1.EventTypeNormal,
+				"SparkApplicationSubmissionFailure",
+				"SparkApplication %s failed submission",
+				updated.Name)
 		}
 	}
 }
@@ -318,11 +301,8 @@ func (s *SparkApplicationController) processSingleExecutorStateUpdate(update exe
 		update.appID,
 		update.state)
 
-	s.mutex.Lock()
-	defer s.mutex.Unlock()
-
 	if app, ok := s.runningApps[update.appID]; ok {
-		updated := s.updateSparkApplicationWithRetries(app, app.DeepCopy(), func(toUpdate *v1alpha1.SparkApplication) {
+		s.updateSparkApplicationWithRetries(app, app.DeepCopy(), func(toUpdate *v1alpha1.SparkApplication) {
 			if toUpdate.Status.ExecutorState == nil {
 				toUpdate.Status.ExecutorState = make(map[string]v1alpha1.ExecutorState)
 			}
@@ -330,10 +310,6 @@ func (s *SparkApplicationController) processSingleExecutorStateUpdate(update exe
 				toUpdate.Status.ExecutorState[update.podName] = update.state
 			}
 		})
-
-		if updated != nil {
-			s.runningApps[updated.Status.AppID] = updated
-		}
 	}
 }
 
@@ -341,29 +317,50 @@ func (s *SparkApplicationController) updateSparkApplicationWithRetries(
 	original *v1alpha1.SparkApplication,
 	toUpdate *v1alpha1.SparkApplication,
 	updateFunc func(*v1alpha1.SparkApplication)) *v1alpha1.SparkApplication {
+	var lastUpdateErr error
 	for i := 0; i < maximumUpdateRetries; i++ {
-		updateFunc(toUpdate)
-		if reflect.DeepEqual(original.Status, toUpdate.Status) {
-			return nil
-		}
-
-		client := s.crdClient.SparkoperatorV1alpha1().SparkApplications(toUpdate.Namespace)
-		updated, err := client.Update(toUpdate)
+		updated, err := s.tryUpdate(original, toUpdate, updateFunc)
 		if err == nil {
 			return updated
 		}
+		lastUpdateErr = err
 
 		// Failed update to the API server.
 		// Get the latest version from the API server first and re-apply the update.
 		name := toUpdate.Name
-		toUpdate, err = client.Get(name, metav1.GetOptions{})
+		toUpdate, err = s.crdClient.SparkoperatorV1alpha1().SparkApplications(toUpdate.Namespace).Get(name, metav1.GetOptions{})
 		if err != nil {
 			glog.Errorf("failed to get SparkApplication %s: %v", name, err)
 			return nil
 		}
 	}
 
+	if lastUpdateErr != nil {
+		glog.Errorf("failed to update SparkApplication %s: %v", toUpdate.Name, lastUpdateErr)
+	}
+
 	return nil
+}
+
+func (s *SparkApplicationController) tryUpdate(
+	original *v1alpha1.SparkApplication,
+	toUpdate *v1alpha1.SparkApplication,
+	updateFunc func(*v1alpha1.SparkApplication)) (*v1alpha1.SparkApplication, error) {
+	updateFunc(toUpdate)
+	if reflect.DeepEqual(original.Status, toUpdate.Status) {
+		return nil, nil
+	}
+
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
+	updated, err := s.crdClient.SparkoperatorV1alpha1().SparkApplications(toUpdate.Namespace).Update(toUpdate)
+	if err == nil {
+		s.runningApps[updated.Status.AppID] = updated
+		return updated, nil
+	}
+
+	return nil, err
 }
 
 func (s *SparkApplicationController) getNodeExternalIP(nodeName string) string {
