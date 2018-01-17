@@ -43,8 +43,10 @@ var (
 		"Overrides any value in kubeconfig. Only required if out-of-cluster.")
 	kubeConfig = flag.String("kubeConfig", "", "Path to a kube config. Only required if "+
 		"out-of-cluster.")
+	enableInitializer = flag.Bool("enable-initializer", true, "Whether to enable the " +
+		"Spark pod initializer.")
 	initializerThreads = flag.Int("initializer-threads", 10, "Number of worker threads "+
-		"used by the Spark Pod initializer.")
+		"used by the Spark Pod initializer (if it's enabled).")
 	controllerThreads = flag.Int("controller-threads", 10, "Number of worker threads "+
 		"used by the SparkApplication controller.")
 	submissionRunnerThreads = flag.Int("submission-threads", 3, "Number of worker threads "+
@@ -87,9 +89,12 @@ func main() {
 		glog.Fatal(err)
 	}
 
-	initializerController := initializer.New(kubeClient)
-	if err = initializerController.Start(*initializerThreads, stopCh); err != nil {
-		glog.Fatal(err)
+	var sparkPodInitializer *initializer.SparkPodInitializer
+	if *enableInitializer {
+		sparkPodInitializer = initializer.New(kubeClient)
+		if err = sparkPodInitializer.Start(*initializerThreads, stopCh); err != nil {
+			glog.Fatal(err)
+		}
 	}
 
 	signalCh := make(chan os.Signal, 1)
@@ -98,7 +103,10 @@ func main() {
 
 	glog.Info("Shutting down the Spark operator")
 	sparkApplicationController.Stop()
-	initializerController.Stop()
+	if *enableInitializer {
+		sparkPodInitializer.Stop()
+	}
+
 	// This causes the workers of the initializer and SparkApplication controller to stop.
 	close(stopCh)
 }
