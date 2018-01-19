@@ -20,13 +20,19 @@ import (
 	crdclientset "k8s.io/spark-on-k8s-operator/pkg/client/clientset/versioned"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/rest"
+	clientset "k8s.io/client-go/kubernetes"
 )
 
 func buildConfig(kubeConfig string) (*rest.Config, error) {
-	if kubeConfig != "" {
-		return clientcmd.BuildConfigFromFlags("", kubeConfig)
+	return clientcmd.BuildConfigFromFlags("", kubeConfig)
+}
+
+func getKubeClient() (clientset.Interface, error) {
+	config, err := buildConfig(KubeConfig)
+	if err != nil {
+		return nil, err
 	}
-	return rest.InClusterConfig()
+	return clientset.NewForConfig(config)
 }
 
 func getSparkApplicationClient() (crdclientset.Interface, error) {

@@ -17,36 +17,43 @@ limitations under the License.
 package cmd
 
 import (
+	"fmt"
+	"os"
+
 	"github.com/spf13/cobra"
-	"github.com/golang/glog"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	crdclientset "k8s.io/spark-on-k8s-operator/pkg/client/clientset/versioned"
 )
 
 var deleteCmd = &cobra.Command{
-	Use:   "delete",
+	Use:   "delete <name>",
 	Short: "Delete a SparkApplication object",
 	Long:  `Delete a SparkApplication object with a given name`,
 	Run: func(cmd *cobra.Command, args []string) {
 		if len(args) != 1 {
-			glog.Fatal(rootCmd.Usage())
+			fmt.Fprintln(os.Stderr, "must specify a SparkApplication name")
+			return
 		}
 
-		if err := doDelete(args[0]); err != nil {
-			glog.Fatalf("failed to delete SparkApplication %s: %v", args[0], err)
+		crdClientset, err := getSparkApplicationClient()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "failed to get SparkApplication client: %v\n", err)
+			return
+		}
+
+		if err := doDelete(args[0], crdClientset); err != nil {
+			fmt.Fprintf(os.Stderr, "failed to delete SparkApplication %s: %v\n", args[0], err)
 		}
 	},
 }
 
-func doDelete(name string) error {
-	clientset, err := getSparkApplicationClient()
+func doDelete(name string, crdClientset crdclientset.Interface) error {
+	err := crdClientset.SparkoperatorV1alpha1().SparkApplications(Namespace).Delete(name, &metav1.DeleteOptions{})
 	if err != nil {
 		return err
 	}
 
-	err = clientset.SparkoperatorV1alpha1().SparkApplications(Namespace).Delete(name, &metav1.DeleteOptions{})
-	if err != nil {
-		return err
-	}
+	fmt.Printf("SparkApplication \"%s\" deleted\n", name)
 
 	return nil
 }

@@ -14,13 +14,24 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package main
+package cmd
 
 import (
-	_ "k8s.io/client-go/plugin/pkg/client/auth"
-	"k8s.io/spark-on-k8s-operator/sparkctl/cmd"
+	"fmt"
+	"os"
+
+	"github.com/spf13/cobra"
 )
 
-func main() {
-	cmd.Execute()
+var logCommand = &cobra.Command{
+	Use:   "log <name>",
+	Short: "log is a sub-command of sparkctl that fetches logs of a Spark application.",
+	Long:  ``,
+	Run: func(cmd *cobra.Command, args []string) {
+		if len(args) != 1 {
+			fmt.Fprintln(os.Stderr, "must specify a SparkApplication name")
+			return
+		}
+	},
 }
+

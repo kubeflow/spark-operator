@@ -17,36 +17,41 @@ limitations under the License.
 package cmd
 
 import (
+	"fmt"
+	"os"
+
 	"github.com/spf13/cobra"
-	"github.com/golang/glog"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1alpha1"
+	crdclientset "k8s.io/spark-on-k8s-operator/pkg/client/clientset/versioned"
 )
 
 var statusCmd = &cobra.Command{
-	Use:   "status",
+	Use:   "status <name>",
 	Short: "Check status of a SparkApplication",
 	Long:  `Check status of a SparkApplication with a given name`,
 	Run: func(cmd *cobra.Command, args []string) {
 		if len(args) != 1 {
-			glog.Fatal(rootCmd.Usage())
+			fmt.Fprintln(os.Stderr, "must specify a SparkApplication name")
+			return
 		}
 
-		if err := doStatus(args[0]); err != nil {
-			glog.Fatalf("failed to check status of SparkApplication %s: %v", args[0], err)
+		crdClientset, err := getSparkApplicationClient()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "failed to get SparkApplication client: %v\n", err)
+			return
+		}
+
+		if err := doStatus(args[0], crdClientset); err != nil {
+			fmt.Fprintf(os.Stderr, "failed to check status of SparkApplication %s: %v\n", args[0], err)
 		}
 	},
 }
 
-func doStatus(name string) error {
-	clientset, err := getSparkApplicationClient()
+func doStatus(name string, crdClientset crdclientset.Interface) error {
+	app, err := crdClientset.SparkoperatorV1alpha1().SparkApplications(Namespace).Get(name, metav1.GetOptions{})
 	if err != nil {
-		return err
-	}
-
-	app, err := clientset.SparkoperatorV1alpha1().SparkApplications(Namespace).Get(name, metav1.GetOptions{})
-	if err != nil {
-		return err
+		return fmt.Errorf("failed to get SparkApplication %s: %v", name, err)
 	}
 	printStatus(app)
 
@@ -54,5 +59,19 @@ func doStatus(name string) error {
 }
 
 func printStatus(app *v1alpha1.SparkApplication) {
+	fmt.Printf("Application state: %s\n", app.Status.AppState.State)
+	if app.Status.AppState.ErrorMessage != "" {
+		fmt.Printf("Application error message: %s\n", app.Status.AppState.ErrorMessage)
+	}
 
+	if app.Status.DriverInfo.PodName != "" {
+		fmt.Printf("Driver pod name: %s", app.Status.DriverInfo.PodName)
+	}
+	if app.Status.DriverInfo.WebUIAddress != "" {
+		fmt.Printf("Driver UI address: %s", app.Status.DriverInfo.WebUIAddress)
+	}
+
+	for executorPod, state := range app.Status.ExecutorState {
+		fmt.Printf("Executor state of %s: %s\n", executorPod, state)
+	}
 }
