@@ -222,6 +222,7 @@ func (ic *SparkPodInitializer) deleteInitializationConfig() error {
 
 // runWorker runs a single controller worker.
 func (ic *SparkPodInitializer) runWorker() {
+	defer utilruntime.HandleCrash()
 	for ic.processNextItem() {
 	}
 }

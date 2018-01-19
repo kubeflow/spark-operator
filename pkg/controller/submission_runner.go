@@ -27,6 +27,7 @@ import (
 	"github.com/golang/glog"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
 )
 
@@ -55,6 +56,8 @@ func newSparkSubmitRunner(workers int, appStateReportingChan chan<- appStateUpda
 }
 
 func (r *sparkSubmitRunner) run(stopCh <-chan struct{}) {
+	defer utilruntime.HandleCrash()
+
 	glog.Info("Starting the spark-submit runner")
 	defer glog.Info("Stopping the spark-submit runner")
 
