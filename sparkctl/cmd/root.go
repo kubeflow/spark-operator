@@ -20,9 +20,10 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
+	"fmt"
 )
 
-var defaultKubeConfig = os.Getenv("HOME" + "/.kube/config")
+var defaultKubeConfig = os.Getenv("HOME") + "/.kube/config"
 
 var Namespace string
 var KubeConfig string
@@ -30,10 +31,8 @@ var KubeConfig string
 var rootCmd = &cobra.Command{
 	Use:   "sparkctl",
 	Short: "sparkctl is the command-line tool for working with the Spark Operator",
-	Long:  ``,
-	Run: func(cmd *cobra.Command, args []string) {
-		// Do Stuff Here
-	},
+	Long: `sparkctl is the command-line tool for working with the Spark Operator. It supports creating, deleting and 
+           checking status of SparkApplication objects. It also supports fetching application logs.`,
 }
 
 func init() {
@@ -41,9 +40,11 @@ func init() {
 		"The namespace in which the SparkApplication is to be created")
 	rootCmd.PersistentFlags().StringVarP(&KubeConfig, "kubeconfig", "c", defaultKubeConfig,
 		"The namespace in which the SparkApplication is to be created")
-	rootCmd.AddCommand(createCmd, deleteCmd, statusCmd)
+	rootCmd.AddCommand(createCmd, deleteCmd, statusCmd, logCommand)
 }
 
 func Execute() {
-	rootCmd.Execute()
+	if err := rootCmd.Execute(); err != nil {
+		fmt.Fprintf(os.Stderr, "%v", err)
+	}
 }
