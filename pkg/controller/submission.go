@@ -75,6 +75,20 @@ func buildSubmissionCommandArgs(app *v1alpha1.SparkApplication) ([]string, error
 		args = append(args, "--py-files", strings.Join(app.Spec.Deps.PyFiles, ","))
 	}
 
+	if app.Spec.SparkConfigMap != nil {
+		config.AddConfigMapAnnotation(app, config.SparkDriverAnnotationKeyPrefix, config.SparkConfigMapAnnotation,
+			*app.Spec.SparkConfigMap)
+		config.AddConfigMapAnnotation(app, config.SparkExecutorAnnotationKeyPrefix, config.SparkConfigMapAnnotation,
+			*app.Spec.SparkConfigMap)
+	}
+
+	if app.Spec.HadoopConfigMap != nil {
+		config.AddConfigMapAnnotation(app, config.SparkDriverAnnotationKeyPrefix, config.HadoopConfigMapAnnotation,
+			*app.Spec.HadoopConfigMap)
+		config.AddConfigMapAnnotation(app, config.SparkExecutorAnnotationKeyPrefix, config.HadoopConfigMapAnnotation,
+			*app.Spec.HadoopConfigMap)
+	}
+
 	// Add Spark configuration properties.
 	for key, value := range app.Spec.SparkConf {
 		args = append(args, "--conf", fmt.Sprintf("%s=%s", key, value))
@@ -83,32 +97,6 @@ func buildSubmissionCommandArgs(app *v1alpha1.SparkApplication) ([]string, error
 	// Add Hadoop configuration properties.
 	for key, value := range app.Spec.HadoopConf {
 		args = append(args, "--conf", fmt.Sprintf("spark.hadoop.%s=%s", key, value))
-	}
-
-	if app.Spec.SparkConfigMap != nil {
-		config.AddConfigMapAnnotation(
-			app,
-			config.SparkDriverAnnotationKeyPrefix,
-			config.SparkConfigMapAnnotation,
-			*app.Spec.SparkConfigMap)
-		config.AddConfigMapAnnotation(
-			app,
-			config.SparkExecutorAnnotationKeyPrefix,
-			config.SparkConfigMapAnnotation,
-			*app.Spec.SparkConfigMap)
-	}
-
-	if app.Spec.HadoopConfigMap != nil {
-		config.AddConfigMapAnnotation(
-			app,
-			config.SparkDriverAnnotationKeyPrefix,
-			config.HadoopConfigMapAnnotation,
-			*app.Spec.HadoopConfigMap)
-		config.AddConfigMapAnnotation(
-			app,
-			config.SparkExecutorAnnotationKeyPrefix,
-			config.HadoopConfigMapAnnotation,
-			*app.Spec.HadoopConfigMap)
 	}
 
 	// Add the driver and executor configuration options.
@@ -122,13 +110,8 @@ func buildSubmissionCommandArgs(app *v1alpha1.SparkApplication) ([]string, error
 	if err != nil {
 		return nil, err
 	}
-	args = append(args,
-		"--conf",
-		fmt.Sprintf(
-			"%s%s=%s",
-			config.SparkDriverAnnotationKeyPrefix,
-			config.OwnerReferenceAnnotation,
-			string(referenceData)))
+	args = append(args, "--conf", fmt.Sprintf("%s%s=%s", config.SparkDriverAnnotationKeyPrefix,
+		config.OwnerReferenceAnnotation, string(referenceData)))
 
 	// Add the main application file.
 	args = append(args, app.Spec.MainApplicationFile)

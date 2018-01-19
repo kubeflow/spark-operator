@@ -46,7 +46,11 @@ func FindGeneralConfigMaps(annotations map[string]string) map[string]string {
 
 // AddConfigMapAnnotation adds an annotation key=value using the --conf option.
 func AddConfigMapAnnotation(app *v1alpha1.SparkApplication, annotationKeyPrefix string, key string, value string) {
-	annotationConfKey := fmt.Sprintf("%s.%s", annotationKeyPrefix, key)
+	if app.Spec.SparkConf == nil {
+		app.Spec.SparkConf = make(map[string]string)
+	}
+	
+	annotationConfKey := fmt.Sprintf("%s%s", annotationKeyPrefix, key)
 	_, ok := app.Spec.SparkConf[annotationConfKey]
 	if !ok {
 		app.Spec.SparkConf[annotationConfKey] = value
