@@ -214,6 +214,7 @@ func (s *SparkApplicationController) onDelete(obj interface{}) {
 
 // runWorker runs a single controller worker.
 func (s *SparkApplicationController) runWorker() {
+	defer utilruntime.HandleCrash()
 	for s.processNextItem() {
 	}
 }
