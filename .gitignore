@@ -3,4 +3,3 @@ vendor/
 spark-operator
 .idea/
 **/*.iml
-**/sparkctl
