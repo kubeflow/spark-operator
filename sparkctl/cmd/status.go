@@ -65,13 +65,16 @@ func printStatus(app *v1alpha1.SparkApplication) {
 	}
 
 	if app.Status.DriverInfo.PodName != "" {
-		fmt.Printf("Driver pod name: %s", app.Status.DriverInfo.PodName)
+		fmt.Printf("Driver pod name: %s\n", app.Status.DriverInfo.PodName)
 	}
 	if app.Status.DriverInfo.WebUIAddress != "" {
-		fmt.Printf("Driver UI address: %s", app.Status.DriverInfo.WebUIAddress)
+		fmt.Printf("Driver UI address: %s\n", app.Status.DriverInfo.WebUIAddress)
 	}
 
-	for executorPod, state := range app.Status.ExecutorState {
-		fmt.Printf("Executor state of %s: %s\n", executorPod, state)
+	if len(app.Status.ExecutorState) > 0 {
+		fmt.Println("Executor state:")
+		for executorPod, state := range app.Status.ExecutorState {
+			fmt.Printf("\t%s: %s\n", executorPod, state)
+		}
 	}
 }

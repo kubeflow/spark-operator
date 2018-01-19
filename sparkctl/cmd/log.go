@@ -21,6 +21,10 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
+	apiv1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	crdclientset "k8s.io/spark-on-k8s-operator/pkg/client/clientset/versioned"
+	clientset "k8s.io/client-go/kubernetes"
 )
 
 var logCommand = &cobra.Command{
@@ -32,6 +36,41 @@ var logCommand = &cobra.Command{
 			fmt.Fprintln(os.Stderr, "must specify a SparkApplication name")
 			return
 		}
+
+		kubeClientset, err := getKubeClient()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "failed to get Kubernetes client: %v\n", err)
+			return
+		}
+
+		crdClientset, err := getSparkApplicationClient()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "failed to get SparkApplication client: %v\n", err)
+			return
+		}
+
+		if err := doLog(args[0], kubeClientset, crdClientset); err != nil {
+			fmt.Fprintf(os.Stderr, "failed to get driver logs of SparkApplication %s: %v\n", args[0], err)
+		}
 	},
 }
 
+func doLog(name string, kubeClientset clientset.Interface, crdClientset crdclientset.Interface) error {
+	app, err := crdClientset.SparkoperatorV1alpha1().SparkApplications(Namespace).Get(name, metav1.GetOptions{})
+	if err != nil {
+		return fmt.Errorf("failed to get SparkApplication %s: %v", name, err)
+	}
+
+	if app.Status.DriverInfo.PodName != "" {
+		rawLogs, err := kubeClientset.CoreV1().Pods(Namespace).GetLogs(app.Status.DriverInfo.PodName,
+			&apiv1.PodLogOptions{}).Do().Raw()
+		if err != nil {
+			return err
+		}
+		fmt.Println(string(rawLogs))
+	} else {
+		fmt.Fprintf(os.Stderr, "driver pod name is unknown for SparkApplication %s", name)
+	}
+
+	return nil
+}
