@@ -40,7 +40,7 @@ func init() {
 		"The namespace in which the SparkApplication is to be created")
 	rootCmd.PersistentFlags().StringVarP(&KubeConfig, "kubeconfig", "c", defaultKubeConfig,
 		"The namespace in which the SparkApplication is to be created")
-	rootCmd.AddCommand(createCmd, deleteCmd, statusCmd, logCommand)
+	rootCmd.AddCommand(createCmd, deleteCmd, statusCmd, logCommand, listCmd)
 }
 
 func Execute() {
