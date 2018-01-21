@@ -20,9 +20,6 @@ import (
 	"os"
 	"testing"
 
-	"k8s.io/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1alpha1"
-	crdfake "k8s.io/spark-on-k8s-operator/pkg/client/clientset/versioned/fake"
-
 	"github.com/stretchr/testify/assert"
 
 	apiv1 "k8s.io/api/core/v1"
@@ -30,6 +27,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kubeclientfake "k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/tools/record"
+
+	"k8s.io/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1alpha1"
+	crdfake "k8s.io/spark-on-k8s-operator/pkg/client/clientset/versioned/fake"
 )
 
 func newFakeController() *SparkApplicationController {

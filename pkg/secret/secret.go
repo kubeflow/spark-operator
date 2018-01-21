@@ -20,9 +20,9 @@ import (
 	"fmt"
 	"strings"
 
-	"k8s.io/spark-on-k8s-operator/pkg/config"
-
 	"k8s.io/api/core/v1"
+
+	"k8s.io/spark-on-k8s-operator/pkg/config"
 )
 
 const (
