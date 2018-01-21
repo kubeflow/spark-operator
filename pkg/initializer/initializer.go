@@ -23,9 +23,6 @@ import (
 
 	"github.com/golang/glog"
 
-	"k8s.io/spark-on-k8s-operator/pkg/config"
-	"k8s.io/spark-on-k8s-operator/pkg/secret"
-
 	"k8s.io/api/admissionregistration/v1alpha1"
 	apiv1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -39,6 +36,9 @@ import (
 	clientset "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
+
+	"k8s.io/spark-on-k8s-operator/pkg/config"
+	"k8s.io/spark-on-k8s-operator/pkg/secret"
 )
 
 const (

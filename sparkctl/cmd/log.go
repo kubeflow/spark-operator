@@ -21,10 +21,12 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
+
 	apiv1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	crdclientset "k8s.io/spark-on-k8s-operator/pkg/client/clientset/versioned"
 	clientset "k8s.io/client-go/kubernetes"
+
+	crdclientset "k8s.io/spark-on-k8s-operator/pkg/client/clientset/versioned"
 )
 
 var logCommand = &cobra.Command{

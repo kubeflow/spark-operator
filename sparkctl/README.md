@@ -4,6 +4,12 @@
 and deleting `SparkApplication`s. It can also do port forwarding from a local port to the Spark web UI port for 
 accessing the Spark web UI on the driver. Each function is implemented as a sub-command of `sparkctl`.
 
+To build `sparkctl`, run the following command from within `sparkctl/`:
+
+```bash
+go build -o sparkctl
+```
+
 ## Flags
 
 The following global flags are available for all the sub commands:
@@ -19,7 +25,7 @@ The following global flags are available for all the sub commands:
 parsed to the Kubernetes API server.
 
 Usage:
-```console
+```bash
 $ sparkctl create <path to YAML file>
 ```
 
@@ -37,7 +43,7 @@ It is planned to add support for staging local application dependencies as part 
 `--namespace`.
 
 Usage:
-```console
+```bash
 $ sparkctl list
 ```
 
@@ -47,7 +53,7 @@ $ sparkctl list
 specified by `--namespace`.
 
 Usage:
-```console
+```bash
 $ sparkctl status <SparkApplication name>
 ```
 
@@ -57,7 +63,7 @@ $ sparkctl status <SparkApplication name>
 in the namespace specified by `--namespace`. Support for fetching executor logs will be added in future.
 
 Usage:
-```console
+```bash
 $ sparkctl log <SparkApplication name>
 ```
 
@@ -67,7 +73,7 @@ $ sparkctl log <SparkApplication name>
 specified by `--namespace`.
 
 Usage:
-```console
+```bash
 $ sparkctl delete <SparkApplication name>
 ```
 
@@ -79,7 +85,7 @@ port `4040` to remote port `4040`, which is the default Spark web UI port. Users
 and remote port using the flags `--local-port` and `--remote-port`, respectively. 
 
 Usage:
-```console
+```bash
 $ sparkctl forward <SparkApplication name> [--local-port <local port>] [--remote-port <remote port>]
 ```
 
