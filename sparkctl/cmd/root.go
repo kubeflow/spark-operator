@@ -17,10 +17,10 @@ limitations under the License.
 package cmd
 
 import (
+	"fmt"
 	"os"
 
 	"github.com/spf13/cobra"
-	"fmt"
 )
 
 var defaultKubeConfig = os.Getenv("HOME") + "/.kube/config"
@@ -40,7 +40,7 @@ func init() {
 		"The namespace in which the SparkApplication is to be created")
 	rootCmd.PersistentFlags().StringVarP(&KubeConfig, "kubeconfig", "c", defaultKubeConfig,
 		"The namespace in which the SparkApplication is to be created")
-	rootCmd.AddCommand(createCmd, deleteCmd, statusCmd, logCommand, listCmd)
+	rootCmd.AddCommand(createCmd, deleteCmd, statusCmd, logCommand, listCmd, forwardCmd)
 }
 
 func Execute() {
