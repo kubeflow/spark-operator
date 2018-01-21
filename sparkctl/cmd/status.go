@@ -21,7 +21,6 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1alpha1"
 	crdclientset "k8s.io/spark-on-k8s-operator/pkg/client/clientset/versioned"
 )
@@ -49,7 +48,7 @@ var statusCmd = &cobra.Command{
 }
 
 func doStatus(name string, crdClientset crdclientset.Interface) error {
-	app, err := crdClientset.SparkoperatorV1alpha1().SparkApplications(Namespace).Get(name, metav1.GetOptions{})
+	app, err := getSparkApplication(name, crdClientset)
 	if err != nil {
 		return fmt.Errorf("failed to get SparkApplication %s: %v", name, err)
 	}
