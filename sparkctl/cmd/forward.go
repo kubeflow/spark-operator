@@ -51,7 +51,7 @@ var forwardCmd = &cobra.Command{
 
 		config, err := buildConfig(KubeConfig)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "failed to get kubeconfig: %v", err)
+			fmt.Fprintf(os.Stderr, "failed to get kubeconfig: %v\n", err)
 			return
 		}
 
@@ -71,7 +71,7 @@ var forwardCmd = &cobra.Command{
 		driverPodUrl, driverPodName, err := getDriverPodUrlAndName(args[0], restClient, crdClientset)
 		if err != nil {
 			fmt.Fprintf(os.Stderr,
-				"failed to get an API server URL of the driver pod of SparkApplication %s: %v",
+				"failed to get an API server URL of the driver pod of SparkApplication %s: %v\n",
 				args[0], err)
 			return
 		}
@@ -81,13 +81,13 @@ var forwardCmd = &cobra.Command{
 
 		forwarder, err := newPortForwarder(config, driverPodUrl, stopCh, readyCh)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "failed to get a port forwarder: %v", err)
+			fmt.Fprintf(os.Stderr, "failed to get a port forwarder: %v\n", err)
 			return
 		}
 
 		fmt.Printf("Forwarding from %d -> %d\n", LocalPort, RemotePort)
 		if err = runPortForward(driverPodName, stopCh, forwarder, kubeClientset); err != nil {
-			fmt.Fprintf(os.Stderr, "failed to run port forwarding: %v", err)
+			fmt.Fprintf(os.Stderr, "failed to run port forwarding: %v\n", err)
 		}
 	},
 }
@@ -161,7 +161,7 @@ func runPortForward(
 			}
 			time.Sleep(1 * time.Second)
 		}
-		fmt.Println("Driver pod has terminated, stopping forwarding")
+		fmt.Println("Stopping forwarding as the driver pod has terminated")
 	}()
 
 	go func() {

@@ -76,6 +76,7 @@ func doCreate(yamlFile string, kubeClientset clientset.Interface, crdClientset c
 	}
 
 	if hadoopConfDir := os.Getenv("HADOOP_CONF_DIR"); hadoopConfDir != "" {
+		fmt.Println("Creating a ConfigMap for Hadoop configuration files in HADOOP_CONF_DIR")
 		if err = handleHadoopConfiguration(app, hadoopConfDir, kubeClientset); err != nil {
 			return err
 		}
@@ -194,6 +195,10 @@ func buildHadoopConfigMap(appName string, hadoopConfDir string) (*apiv1.ConfigMa
 	files, err := ioutil.ReadDir(hadoopConfDir)
 	if err != nil {
 		return nil, err
+	}
+
+	if len(files) == 0 {
+		return nil, fmt.Errorf("no Hadoop configuration file found in %s", hadoopConfDir)
 	}
 
 	hadoopConfigFiles := make(map[string]string)

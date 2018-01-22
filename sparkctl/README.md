@@ -13,8 +13,9 @@ go build -o sparkctl
 ## Flags
 
 The following global flags are available for all the sub commands:
-* `--namespace`: the Kubernetes namespace of the `SparkApplication`(s).
-* `--kubeconfig`: the path to the file storing configuration for accessing the Kubernetes API server.
+* `--namespace`: the Kubernetes namespace of the `SparkApplication`(s). Defaults to `default`.
+* `--kubeconfig`: the path to the file storing configuration for accessing the Kubernetes API server. Defaults to 
+`$HOME/.kube/config`
 
 ## Available Commands
 
@@ -59,12 +60,13 @@ $ sparkctl status <SparkApplication name>
 
 ### Log
 
-`log` is a sub command of `sparkctl` for fetching the logs of the driver pod of `SparkApplication` with the given name
-in the namespace specified by `--namespace`. Support for fetching executor logs will be added in future.
+`log` is a sub command of `sparkctl` for fetching the logs of a pod of `SparkApplication` with the given name in the 
+namespace specified by `--namespace`. The command by default fetches the logs of the driver pod. To make it fetch logs
+of an executor pod instead, use the flag `--executor` to specify the ID of the executor whose logs should be fetched.
 
 Usage:
 ```bash
-$ sparkctl log <SparkApplication name>
+$ sparkctl log <SparkApplication name> [--executor <executor ID, e.g., 1>]
 ```
 
 ### Delete
