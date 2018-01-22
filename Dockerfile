@@ -14,6 +14,6 @@
 # limitations under the License.
 #
 
-FROM liyinan926/spark-base:v2.3.0
+FROM liyinan926/spark:v2.3.0
 COPY spark-operator /usr/bin/
 ENTRYPOINT ["/user/bin/spark-operator"]

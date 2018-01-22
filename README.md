@@ -2,6 +2,16 @@
 
 **This is not an official Google product.**
 
+## Table of Contents
+1. [Project Status](#project-status)
+2. [Prerequisites](#prerequisites)
+3. [Spark Operator](#spark-operator)
+   1. [Build Spark Operator](#build-spark-operator)
+   2. [Deploying Spark Operator](#deploying-spark-operator)
+   3. [Configuring Spark Operator](#configuring-spark-operator)
+   4. [Running the Example Spark Application](#running-the-example-spark-application)
+   5. [Using the Initializer](#using-the-initializer)
+
 ## Project Status
 
 **Project status:** *alpha* 
@@ -53,7 +63,7 @@ need additional command-line options to get passed in.
 Additionally, keeping the CRD implementation outside the Spark repository gives us a lot of flexibility in terms of 
 functionality to add to the CRD controller. We also have full control over code review and release process.
 
-### Build and Installation
+### Build Spark Operator
 
 To get Spark Operator, run the following commands:
 
@@ -101,7 +111,18 @@ make image-tag=<image tag> push
 To deploy the Spark operator, run the following command:
 
 ```bash
-kubectl create -f manifest/spark-operator.yaml 
+kubectl create -f manifest/
+```
+
+This will create a namespace `sparkoperator`, setup RBAC for the Spark Operator to run in the namespace, and create a Deployment named 
+`sparkoperator` in the namespace.
+
+Due to a [known issue](https://cloud.google.com/kubernetes-engine/docs/how-to/role-based-access-control#defining_permissions_in_a_role) 
+in GKE, you will need to first grant yourself cluster-admin privileges before you can create custom roles and role bindings on a 
+GKE cluster versioned 1.6 and up.
+
+```bash
+$ kubectl create clusterrolebinding <user>-cluster-admin-binding --clusterrole=cluster-admin --user=<user>@<domain>
 ```
 
 ### Configuring Spark Operator

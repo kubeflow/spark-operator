@@ -1,4 +1,3 @@
-
 #
 # Copyright 2017 Google LLC
 #
@@ -18,24 +17,25 @@
 apiVersion: apps/v1beta1
 kind: Deployment
 metadata:
-  name: spark-operator
-  namespace: default
+  name: sparkoperator
+  namespace: sparkoperator
   labels:
-    app: spark-operator
+    app: sparkoperator
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: spark-operator
+      app: sparkoperator
   template:
     metadata:
       labels:
-        app: spark-operator
+        app: sparkoperator
       initializers:
         pending: []  
     spec:
+      serviceAccountName: sparkoperator
       containers:
-      - name: spark-operator
+      - name: sparkoperator
         image: liyinan926/spark-operator:v2.3.0
         imagePullPolicy: Always
         command: ["/usr/bin/spark-operator"]
