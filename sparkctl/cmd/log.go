@@ -19,6 +19,7 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -28,6 +29,8 @@ import (
 
 	crdclientset "k8s.io/spark-on-k8s-operator/pkg/client/clientset/versioned"
 )
+
+var ExecutorId int32
 
 var logCommand = &cobra.Command{
 	Use:   "log <name>",
@@ -57,22 +60,33 @@ var logCommand = &cobra.Command{
 	},
 }
 
+func init() {
+	logCommand.Flags().Int32VarP(&ExecutorId, "executor", "e", -1, "executor id")
+}
+
 func doLog(name string, kubeClientset clientset.Interface, crdClientset crdclientset.Interface) error {
 	app, err := crdClientset.SparkoperatorV1alpha1().SparkApplications(Namespace).Get(name, metav1.GetOptions{})
 	if err != nil {
 		return fmt.Errorf("failed to get SparkApplication %s: %v", name, err)
 	}
 
-	if app.Status.DriverInfo.PodName != "" {
-		rawLogs, err := kubeClientset.CoreV1().Pods(Namespace).GetLogs(app.Status.DriverInfo.PodName,
-			&apiv1.PodLogOptions{}).Do().Raw()
-		if err != nil {
-			return err
-		}
-		fmt.Println(string(rawLogs))
+	var podName string
+	if ExecutorId < 0 {
+		podName = app.Status.DriverInfo.PodName
 	} else {
-		fmt.Fprintf(os.Stderr, "driver pod name is unknown for SparkApplication %s", name)
+		podName = strings.NewReplacer("driver", fmt.Sprintf("exec-%d", ExecutorId)).
+			Replace(app.Status.DriverInfo.PodName)
 	}
+
+	if podName == "" {
+		return fmt.Errorf("unable to fetch logs as the name of the target pod is empty")
+	}
+
+	rawLogs, err := kubeClientset.CoreV1().Pods(Namespace).GetLogs(podName, &apiv1.PodLogOptions{}).Do().Raw()
+	if err != nil {
+		return err
+	}
+	fmt.Println(string(rawLogs))
 
 	return nil
 }
