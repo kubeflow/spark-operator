@@ -73,12 +73,17 @@ type SparkApplicationSpec struct {
 	Type SparkApplicationType `json:"type"`
 	// Mode is the deployment mode of the Spark application.
 	Mode DeployMode `json:"mode,omitempty"`
+	// Image is the container image for the driver, executor, and init-container. Any custom container images for the
+	// driver, executor, or init-container takes precedence over this.
+	// Optional.
+	Image *string `json:"image,omitempty"`
 	// MainClass is the fully-qualified main class of the Spark application.
 	// This only applies to Java/Scala Spark applications.
 	// Optional.
 	MainClass *string `json:"mainClass,omitempty"`
 	// MainFile is the path to a bundled JAR, Python, or R file of the application.
-	MainApplicationFile string `json:"mainApplicationFile"`
+	// Optional.
+	MainApplicationFile *string `json:"mainApplicationFile"`
 	// Arguments is a list of arguments to be passed to the application.
 	// Optional.
 	Arguments []string `json:"arguments,omitempty"`
@@ -196,8 +201,9 @@ type DriverSpec struct {
 	// Memory is used to set spark.driver.memory.
 	// Optional.
 	Memory *string `json:"memory,omitempty"`
-	// Image is the driver Docker image to use.
-	Image string `json:"image"`
+	// Image is the driver container image to use. Overrides Spec.Image if set.
+	// Optional.
+	Image *string `json:"image,omitempty"`
 	// ConfigMaps carries information of other ConfigMaps to add to the driver Pod.
 	// Optional.
 	ConfigMaps []NamePath `json:"configMaps,omitempty"`
@@ -217,8 +223,9 @@ type ExecutorSpec struct {
 	// Memory is used to set spark.executor.memory.
 	// Optional.
 	Memory *string `json:"memory,omitempty"`
-	// Image is the executor Docker image to use.
-	Image string `json:"image"`
+	// Image is the executor container image to use. Overrides Spec.Image if set.
+	// Optional.
+	Image *string `json:"image,omitempty"`
 	// Instances is the number of executor instances.
 	Instances *int32 `json:"instances,omitempty"`
 	// ConfigMaps carries information of other ConfigMaps to add to the executor Pods.
