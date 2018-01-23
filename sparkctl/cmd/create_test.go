@@ -78,9 +78,9 @@ func TestLoadFromYAML(t *testing.T) {
 
 	assert.Equal(t, app.Name, "example")
 	assert.Equal(t, *app.Spec.MainClass, "org.examples.SparkExample")
-	assert.Equal(t, app.Spec.MainApplicationFile, "local:///path/to/example.jar")
-	assert.Equal(t, app.Spec.Driver.Image, "spark")
-	assert.Equal(t, app.Spec.Executor.Image, "spark")
+	assert.Equal(t, *app.Spec.MainApplicationFile, "local:///path/to/example.jar")
+	assert.Equal(t, *app.Spec.Driver.Image, "spark")
+	assert.Equal(t, *app.Spec.Executor.Image, "spark")
 	assert.Equal(t, int(*app.Spec.Executor.Instances), 1)
 }
 

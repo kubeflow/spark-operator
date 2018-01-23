@@ -22,13 +22,12 @@ metadata:
 spec:
   type: Scala
   mode: cluster
+  image: "liyinan926/spark:v2.3.0"
   mainClass: org.apache.spark.examples.SparkPi
   mainApplicationFile: "local:///opt/spark/examples/jars/spark-examples_2.11-2.4.0-SNAPSHOT.jar"
   driver:
-    image: "liyinan926/spark:v2.3.0"
     cores: "0.1"
   executor:
-    image: "liyinan926/spark:v2.3.0"
     instances: 1
     memory: "512m"
   restartPolicy: Never

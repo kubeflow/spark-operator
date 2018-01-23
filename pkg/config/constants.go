@@ -87,4 +87,7 @@ const (
 	SparkExecutorLabelKeyPrefix = "spark.kubernetes.executor.label."
 	// SparkDriverPodNameKey is the Spark configuration key for driver pod name.
 	SparkDriverPodNameKey = "spark.kubernetes.driver.pod.name"
+	SparkContainerImageKey = "spark.kubernetes.container.image"
+	SparkDriverContainerImageKey = "spark.kubernetes.driver.container.image"
+	SparkExecutorContainerImageKey = "spark.kubernetes.executor.container.image"
 )
