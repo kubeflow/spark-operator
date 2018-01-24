@@ -42,7 +42,6 @@ type sparkSubmitRunner struct {
 type appStateUpdate struct {
 	appID          string
 	submissionTime metav1.Time
-	completionTime metav1.Time
 	state          v1alpha1.ApplicationStateType
 	errorMessage   string
 }
@@ -79,23 +78,27 @@ func (r *sparkSubmitRunner) runWorker() {
 	for s := range r.queue {
 		cmd := exec.Command(command, s.args...)
 		glog.Infof("spark-submit arguments: %v", cmd.Args)
-		stateUpdate := appStateUpdate{
-			appID:          s.appID,
-			submissionTime: metav1.Now(),
-		}
+
 		if _, err := cmd.Output(); err != nil {
-			stateUpdate.state = v1alpha1.FailedSubmissionState
+			// Only send an application state update if the submission fails.
+			// The application state is otherwise solely based on the driver pod phase if submission succeeds and
+			// driver pod starts running.
+			stateUpdate := appStateUpdate{
+				appID:          s.appID,
+				submissionTime: metav1.Now(),
+				state: v1alpha1.FailedSubmissionState,
+			}
+
 			if exitErr, ok := err.(*exec.ExitError); ok {
-				glog.Errorf("failed to submit Spark application %s: %s", s.appName, string(exitErr.Stderr))
+				glog.Errorf("failed to run spark-submit for SparkApplication %s: %s", s.appName,
+					string(exitErr.Stderr))
 				stateUpdate.errorMessage = string(exitErr.Stderr)
 			}
+
+			r.appStateReportingChan <- stateUpdate
 		} else {
-			glog.Infof("Spark application %s completed", s.appName)
-			stateUpdate.state = v1alpha1.CompletedState
-			stateUpdate.completionTime = metav1.Now()
+			glog.Infof("spark-submit completed for SparkApplication %s", s.appName)
 		}
-		// Report the application state back to the controller.
-		r.appStateReportingChan <- stateUpdate
 	}
 }
 

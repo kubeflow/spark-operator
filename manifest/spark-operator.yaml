@@ -40,4 +40,4 @@ spec:
         imagePullPolicy: Always
         command: ["/usr/bin/spark-operator"]
         args:
-        - --logtostderr
+        - -logtostderr

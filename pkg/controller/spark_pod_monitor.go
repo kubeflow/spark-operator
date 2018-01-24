@@ -54,6 +54,7 @@ type driverStateUpdate struct {
 	podName  string
 	nodeName string
 	podPhase apiv1.PodPhase
+	completionTime metav1.Time
 }
 
 // executorStateUpdate encapsulates state update of an executor.
@@ -151,12 +152,17 @@ func (s *sparkPodMonitor) onPodDeleted(obj interface{}) {
 
 func (s *sparkPodMonitor) updateDriverState(pod *apiv1.Pod) {
 	if appID, ok := getAppID(pod); ok {
-		s.driverStateReportingChan <- driverStateUpdate{
+		update := driverStateUpdate{
 			appID:    appID,
 			podName:  pod.Name,
 			nodeName: pod.Spec.NodeName,
 			podPhase: pod.Status.Phase,
 		}
+		if pod.Status.Phase == apiv1.PodSucceeded {
+			update.completionTime = metav1.Now()
+		}
+
+		s.driverStateReportingChan <- update
 	}
 }
 
@@ -195,7 +201,7 @@ func podPhaseToExecutorState(podPhase apiv1.PodPhase) v1alpha1.ExecutorState {
 	case apiv1.PodFailed:
 		return v1alpha1.ExecutorFailedState
 	default:
-		return ""
+		return v1alpha1.ExecutorUnknownState
 	}
 }
 

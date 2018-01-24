@@ -319,15 +319,17 @@ func (s *SparkApplicationController) processSingleDriverStateUpdate(update drive
 			if update.nodeName != "" {
 				nodeIP := s.getNodeExternalIP(update.nodeName)
 				if nodeIP != "" {
-					toUpdate.Status.DriverInfo.WebUIAddress = fmt.Sprintf(
-						"%s:%d", nodeIP, toUpdate.Status.DriverInfo.WebUIPort)
+					toUpdate.Status.DriverInfo.WebUIAddress = fmt.Sprintf("%s:%d", nodeIP,
+						toUpdate.Status.DriverInfo.WebUIPort)
 				}
 			}
 
-			appState := driverPodPhaseToApplicationState(update.podPhase)
-			// Update the application based on the driver pod phase if the driver has terminated.
-			if isAppTerminated(appState) {
-				toUpdate.Status.AppState.State = appState
+			// Update the application based on the driver pod phase.
+			// The application state is solely based on the driver pod phase except when submission fails and
+			// no driver pod is launched.
+			toUpdate.Status.AppState.State = driverPodPhaseToApplicationState(update.podPhase)
+			if !update.completionTime.IsZero() {
+				toUpdate.Status.CompletionTime = update.completionTime
 			}
 		})
 
@@ -346,18 +348,10 @@ func (s *SparkApplicationController) processAppStateUpdates() {
 func (s *SparkApplicationController) processSingleAppStateUpdate(update appStateUpdate) {
 	if app, ok := s.runningApps[update.appID]; ok {
 		updated := s.updateSparkApplicationWithRetries(app, app.DeepCopy(), func(toUpdate *v1alpha1.SparkApplication) {
-			// The application termination state is set based on the driver pod termination state. So if the app state
-			// is already a termination state, skip updating the state here. Otherwise, if the submission runner fails
-			// to submit the application, the application state is set to FailedSubmissionState.
-			if !isAppTerminated(toUpdate.Status.AppState.State) || update.state == v1alpha1.FailedSubmissionState {
-				toUpdate.Status.AppState.State = update.state
-				toUpdate.Status.AppState.ErrorMessage = update.errorMessage
-			}
+			toUpdate.Status.AppState.State = update.state
+			toUpdate.Status.AppState.ErrorMessage = update.errorMessage
 			if !update.submissionTime.IsZero() {
 				toUpdate.Status.SubmissionTime = update.submissionTime
-			}
-			if !update.completionTime.IsZero() {
-				toUpdate.Status.CompletionTime = update.completionTime
 			}
 		})
 
@@ -505,6 +499,6 @@ func driverPodPhaseToApplicationState(podPhase apiv1.PodPhase) v1alpha1.Applicat
 	case apiv1.PodFailed:
 		return v1alpha1.FailedState
 	default:
-		return ""
+		return v1alpha1.UnknownState
 	}
 }
