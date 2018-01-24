@@ -129,6 +129,7 @@ const (
 	CompletedState        ApplicationStateType = "COMPLETED"
 	FailedState           ApplicationStateType = "FAILED"
 	FailedSubmissionState ApplicationStateType = "SUBMISSION_FAILED"
+	UnknownState          ApplicationStateType = "UNKNOWN"
 )
 
 // ApplicationState tells the current state of the application and an error message in case of failures.
@@ -146,6 +147,7 @@ const (
 	ExecutorRunningState   ExecutorState = "RUNNING"
 	ExecutorCompletedState ExecutorState = "COMPLETED"
 	ExecutorFailedState    ExecutorState = "FAILED"
+	ExecutorUnknownState   ExecutorState = "UNKNOWN"
 )
 
 // SparkApplicationStatus describes the current status of a Spark application.
