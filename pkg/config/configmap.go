@@ -125,6 +125,12 @@ func MountSparkConfigMapToContainer(volumeName string, mountPath string, contain
 // MountHadoopConfigMapToContainer mounts the ConfigMap for Hadoop configuration files into the given container.
 func MountHadoopConfigMapToContainer(volumeName string, mountPath string, container *apiv1.Container) {
 	mountConfigMapToContainer(volumeName, mountPath, HadoopConfDirEnvVar, container)
+	container.Env = append(
+		container.Env,
+		apiv1.EnvVar{
+			Name: SparkClasspathEnvVar,
+			Value: fmt.Sprintf("$%s:$%s", HadoopConfDirEnvVar, SparkClasspathEnvVar),
+		})
 }
 
 // MountConfigMapToContainer mounts the ConfigMap volume named volumeName onto mountPath into the given container.
