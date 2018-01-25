@@ -68,42 +68,47 @@ functionality to add to the CRD controller. We also have full control over code 
 To get Spark Operator, run the following commands:
 
 ```bash
-make -p $GOPATH/src/k8s.io
-cd $GOPATH/src/k8s.io
-git clone git@github.com:GoogleCloudPlatform/spark-on-k8s-operator.git
+$ make -p $GOPATH/src/k8s.io
+$ cd $GOPATH/src/k8s.io
+$ git clone git@github.com:GoogleCloudPlatform/spark-on-k8s-operator.git
 ```
 
-Spark Operator uses [Glide](http://glide.sh/) for dependency management. Please install Glide following the instruction on 
-the website if you don't have it available locally. To install the dependencies, run the following command:
+Spark Operator uses [dep](https://golang.github.io/dep/) for dependency management. Please install ``dep following the 
+instruction on the website if you don't have it available locally. To install the dependencies, run the following command:
 
 ```bash
-glide install --strip-vendor
+$ dep ensure
 ```  
+To update the dependencies, run the following command:
+
+```bash
+$ dep ensure -update
+```
 
 Before building the Spark operator the first time, run the following commands to get the required Kubernetes code generators:
 
 ```bash
-go get -u k8s.io/code-generator/cmd/deepcopy-gen
-go get -u k8s.io/code-generator/cmd/defaulter-gen
+$ go get -u k8s.io/code-generator/cmd/deepcopy-gen
+$ go get -u k8s.io/code-generator/cmd/defaulter-gen
 ```
 
 To build the Spark operator, run the following command:
 
 ```bash
-make build
+$ make build
 ```
 
 To additionally build a Docker image of the Spark operator, run the following command:
 
 ```bash
-make image-tag=<image tag> image
+$ make image-tag=<image tag> image
 ```
 
 To further push the Docker image to Docker hub, run the following command:
 console
 
 ```bash
-make image-tag=<image tag> push
+$ make image-tag=<image tag> push
 ```
 
 ### Deploying Spark Operator
@@ -111,7 +116,7 @@ make image-tag=<image tag> push
 To deploy the Spark operator, run the following command:
 
 ```bash
-kubectl create -f manifest/
+$ kubectl create -f manifest/
 ```
 
 This will create a namespace `sparkoperator`, setup RBAC for the Spark Operator to run in the namespace, and create a Deployment named 
@@ -140,13 +145,13 @@ respectively. The default values for both flags are 10 and 3, respectively.
 To run the Spark Pi example, run the following command:
 
 ```bash
-kubectl create -f examples/spark-pi.yaml
+$ kubectl create -f examples/spark-pi.yaml
 ```
 
 This will create a `SparkApplication` object named `spark-pi`. Check the object by running the following command:
 
 ```bash
-kubectl get sparkapplications spark-pi -o=yaml
+$ kubectl get sparkapplications spark-pi -o=yaml
 ```
 
 This will show something similar to the following:
