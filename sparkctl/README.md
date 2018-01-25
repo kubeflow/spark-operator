@@ -36,7 +36,44 @@ environment variable `HADOOP_CONF_DIR`, create a Kubernetes `ConfigMap` from the
 the `SparkApplication` object so it gets mounted into the driver and executor pods by the Spark Operator. The 
 environment variable `HADOOP_CONF_DIR` is also set in the driver and executor containers.    
 
-It is planned to add support for staging local application dependencies as part of the `create` command in the future.
+The `create` command also supports staging local application dependencies, though currently only uploading to a Google 
+Cloud Storage (GCS) bucket is supported. The way it works is as follows. It checks if there is any local dependencies 
+in `spec.mainApplicationFile`, `spec.deps.jars`, `spec.deps.files`, etc. in the parsed `SaprkApplication` object. If so, 
+it tries to upload the local dependencies to the remote location specified by `--upload-to`. The command fails if local
+dependencies are used but `--upload-to` is not specified.
+
+For uploading to GCS, the value should be in the form of `gs://<bucket>`. The bucket must exist and uploading fails if 
+otherwise. The local dependencies will be uploaded to the path 
+`spark-app-dependencies/<SaprkApplication namespace>/<SparkApplication name>` in the given bucket. It replaces the 
+file path of each local dependency with the URI of the remote copy in the parsed `SaprkApplication` object if uploading
+is successful. 
+
+Usage:
+```base
+$ sparkctl create <path to YAML file> --upload-to gs://<bucket> --project <GCP project the GCS bucket is associated to>
+```
+
+Note that uploading to GCS requires a GCP service account with the necessary IAM permission to use the GCP project 
+specified by `--project` (`serviceusage.services.use`) and the permission to create GCS objects (`storage.object.create`). 
+The service account JSON key file must be locally available and be pointed to by the environment variable 
+`GOOGLE_APPLICATION_CREDENTIALS`. For more information on IAM authentication, please check 
+[Getting Started with Authentication](https://cloud.google.com/docs/authentication/getting-started).
+
+By default, the uploaded dependencies are not made publicly accessible and are referenced using URIs in the form of 
+`gs://bucket/path/to/file`. Such dependencies are referenced through URIs of the form `gs://bucket/path/to/file`. To 
+download the dependencies from GCS, a custom-built Spark init-container with the 
+[GCS connector](https://cloud.google.com/dataproc/docs/concepts/connectors/cloud-storage) installed and necessary
+Hadoop configuration properties specified is needed. An example Docker file of such an init-container can be found 
+[here](https://gist.github.com/liyinan926/f9e81f7b54d94c05171a663345eb58bf). 
+
+If you want to make uploaded dependencies publicly available so they can be downloaded by the built-in init-container,
+simply add `--public` to the `create` command, as the following example shows:
+
+```bash
+$ sparkctl create <path to YAML file> --upload-to gs://<bucket> --project <GCP project the GCS bucket is associated to> --public
+``` 
+
+Publicly available files are referenced through URIs of the form `https://storage.googleapis.com/bucket/path/to/file`.
 
 ### List
 

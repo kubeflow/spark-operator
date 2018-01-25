@@ -51,6 +51,7 @@ func TestIsLocalFile(t *testing.T) {
 
 func TestFilterLocalFiles(t *testing.T) {
 	files := []string{
+		"path/to/file",
 		"/path/to/file",
 		"file:///file/to/path",
 		"http://localhost/path/to/file",
@@ -59,6 +60,7 @@ func TestFilterLocalFiles(t *testing.T) {
 	}
 
 	expected := []string{
+		"path/to/file",
 		"/path/to/file",
 		"file:///file/to/path",
 	}

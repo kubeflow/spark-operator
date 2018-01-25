@@ -38,7 +38,7 @@ var rootCmd = &cobra.Command{
 func init() {
 	rootCmd.PersistentFlags().StringVarP(&Namespace, "namespace", "n", "default",
 		"The namespace in which the SparkApplication is to be created")
-	rootCmd.PersistentFlags().StringVarP(&KubeConfig, "kubeconfig", "c", defaultKubeConfig,
+	rootCmd.PersistentFlags().StringVarP(&KubeConfig, "kubeconfig", "k", defaultKubeConfig,
 		"The namespace in which the SparkApplication is to be created")
 	rootCmd.AddCommand(createCmd, deleteCmd, statusCmd, logCommand, listCmd, forwardCmd)
 }
