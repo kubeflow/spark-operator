@@ -21,6 +21,7 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
+	"github.com/olekukonko/tablewriter"
 
 	"k8s.io/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1alpha1"
 	crdclientset "k8s.io/spark-on-k8s-operator/pkg/client/clientset/versioned"
@@ -65,7 +66,7 @@ func printStatus(app *v1alpha1.SparkApplication) {
 	}
 
 	if app.Status.DriverInfo.PodName != "" {
-		fmt.Printf("Driver pod name: %s\n", app.Status.DriverInfo.PodName)
+		fmt.Printf("Driver pod name:   %s\n", app.Status.DriverInfo.PodName)
 	}
 	if app.Status.DriverInfo.WebUIAddress != "" {
 		fmt.Printf("Driver UI address: %s\n", app.Status.DriverInfo.WebUIAddress)
@@ -73,8 +74,12 @@ func printStatus(app *v1alpha1.SparkApplication) {
 
 	if len(app.Status.ExecutorState) > 0 {
 		fmt.Println("Executor state:")
+		table := tablewriter.NewWriter(os.Stdout)
+		table.SetHeader([]string{"Executor Pod", "State"})
+		table.SetColumnColor(tablewriter.Colors{tablewriter.FgBlueColor}, tablewriter.Colors{tablewriter.FgGreenColor})
 		for executorPod, state := range app.Status.ExecutorState {
-			fmt.Printf("\t%s: %s\n", executorPod, state)
+			table.Append([]string{executorPod, string(state)})
 		}
+		table.Render()
 	}
 }

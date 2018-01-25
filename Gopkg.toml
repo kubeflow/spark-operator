@@ -69,3 +69,7 @@
 [[constraint]]
   name = "k8s.io/client-go"
   version = "kubernetes-1.8.2"
+
+[[constraint]]
+  branch = "master"
+  name = "github.com/olekukonko/tablewriter"
