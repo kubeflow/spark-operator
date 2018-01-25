@@ -60,20 +60,20 @@ func doStatus(name string, crdClientset crdclientset.Interface) error {
 }
 
 func printStatus(app *v1alpha1.SparkApplication) {
-	fmt.Printf("Application state: %s\n", app.Status.AppState.State)
+	fmt.Printf("application state: %s\n", app.Status.AppState.State)
 	if app.Status.AppState.ErrorMessage != "" {
-		fmt.Printf("Application error message: %s\n", app.Status.AppState.ErrorMessage)
+		fmt.Printf("application error message: %s\n", app.Status.AppState.ErrorMessage)
 	}
 
 	if app.Status.DriverInfo.PodName != "" {
-		fmt.Printf("Driver pod name:   %s\n", app.Status.DriverInfo.PodName)
+		fmt.Printf("driver pod name:   %s\n", app.Status.DriverInfo.PodName)
 	}
 	if app.Status.DriverInfo.WebUIAddress != "" {
-		fmt.Printf("Driver UI address: %s\n", app.Status.DriverInfo.WebUIAddress)
+		fmt.Printf("driver UI address: %s\n", app.Status.DriverInfo.WebUIAddress)
 	}
 
 	if len(app.Status.ExecutorState) > 0 {
-		fmt.Println("Executor state:")
+		fmt.Println("executor state:")
 		table := tablewriter.NewWriter(os.Stdout)
 		table.SetHeader([]string{"Executor Pod", "State"})
 		table.SetColumnColor(tablewriter.Colors{tablewriter.FgBlueColor}, tablewriter.Colors{tablewriter.FgGreenColor})

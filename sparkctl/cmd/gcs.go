@@ -55,14 +55,21 @@ func newGcsUploader(bucket string, path string, projectID string, ctx context.Co
 	return uploader, nil
 }
 
-func (g *gcsUploader) upload(ctx context.Context, localFile string, public bool) (string, error) {
-	fmt.Printf("Uploading local file: %s\n", localFile)
+func (g *gcsUploader) upload(ctx context.Context, localFile string, public bool, override bool) (string, error) {
 	file, err := os.Open(localFile)
 	if err != nil {
 		return "", fmt.Errorf("failed to open file %s: %v", localFile, err)
 	}
 
 	object := g.handle.Object(filepath.Join(g.path, filepath.Base(localFile)))
+	// Check if a file with the same name already exists remotely.
+	objectAttrs, err := object.Attrs(ctx)
+	if err == nil && !override {
+		fmt.Printf("not uploading file %s as it already exists remotely\n", filepath.Base(localFile))
+		return getRemoteFileUrl(objectAttrs.Bucket, objectAttrs.Name, public), nil
+	}
+
+	fmt.Printf("uploading local file: %s\n", localFile)
 	writer := object.NewWriter(ctx)
 	if _, err = io.Copy(writer, file); err != nil {
 		return "", fmt.Errorf("failed to copy file %s to GCS: %v", localFile, err)
@@ -71,7 +78,7 @@ func (g *gcsUploader) upload(ctx context.Context, localFile string, public bool)
 		return "", err
 	}
 
-	objectAttrs, err := object.Attrs(ctx)
+	objectAttrs, err = object.Attrs(ctx)
 	if err != nil {
 		return "", err
 	}
@@ -80,9 +87,9 @@ func (g *gcsUploader) upload(ctx context.Context, localFile string, public bool)
 		if err = object.ACL().Set(ctx, storage.AllUsers, storage.RoleReader); err != nil {
 			return "", fmt.Errorf("failed to set ACL on GCS object %s: %v", objectAttrs.Name, err)
 		}
-		return fmt.Sprintf("https://storage.googleapis.com/%s/%s", objectAttrs.Bucket, objectAttrs.Name), nil
 	}
-	return fmt.Sprintf("gs://%s/%s", objectAttrs.Bucket, objectAttrs.Name), nil
+
+	return getRemoteFileUrl(objectAttrs.Bucket, objectAttrs.Name, public), nil
 }
 
 func uploadToGCS(
@@ -91,7 +98,8 @@ func uploadToGCS(
 	appName string,
 	projectID string,
 	files []string,
-	public bool) ([]string, error) {
+	public bool,
+	override bool) ([]string, error) {
 	ctx := context.Background()
 	uploader, err := newGcsUploader(bucket, filepath.Join(rootPath, appNamespace, appName), projectID, ctx)
 	if err != nil {
@@ -101,7 +109,7 @@ func uploadToGCS(
 
 	var uploadedFiles []string
 	for _, file := range files {
-		remoteFile, err := uploader.upload(ctx, file, public)
+		remoteFile, err := uploader.upload(ctx, file, public, override)
 		if err != nil {
 			return nil, err
 		}
@@ -109,4 +117,11 @@ func uploadToGCS(
 	}
 
 	return uploadedFiles, nil
+}
+
+func getRemoteFileUrl(bucket, name string, public bool) string {
+	if public {
+		return fmt.Sprintf("https://storage.googleapis.com/%s/%s", bucket, name)
+	}
+	return fmt.Sprintf("gs://%s/%s", bucket, name)
 }

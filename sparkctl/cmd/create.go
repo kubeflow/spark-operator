@@ -40,6 +40,7 @@ const bufferSize = 1024
 var UploadTo string
 var Project string
 var Public bool
+var Override bool
 
 var createCmd = &cobra.Command{
 	Use:   "create <yaml file>",
@@ -71,11 +72,13 @@ var createCmd = &cobra.Command{
 
 func init() {
 	createCmd.Flags().StringVarP(&UploadTo, "upload-to", "u", "",
-		"A URL of the remote location where local application dependencies are to be submitted to")
+		"a URL of the remote location where local application dependencies are to be submitted to")
 	createCmd.Flags().StringVarP(&Project, "project", "p", "",
-		"The GCP project with which the GCS bucket is associated")
+		"the GCP project with which the GCS bucket is associated")
 	createCmd.Flags().BoolVarP(&Public, "public", "c", false,
-		"Whether to make uploaded files publicly available")
+		"whether to make uploaded files publicly available")
+	createCmd.Flags().BoolVarP(&Override, "override", "o", false,
+		"whether to override remote files with the same names")
 }
 
 func doCreate(yamlFile string, kubeClientset clientset.Interface, crdClientset crdclientset.Interface) error {
@@ -89,7 +92,7 @@ func doCreate(yamlFile string, kubeClientset clientset.Interface, crdClientset c
 	}
 
 	if hadoopConfDir := os.Getenv("HADOOP_CONF_DIR"); hadoopConfDir != "" {
-		fmt.Println("Creating a ConfigMap for Hadoop configuration files in HADOOP_CONF_DIR")
+		fmt.Println("creating a ConfigMap for Hadoop configuration files in HADOOP_CONF_DIR")
 		if err = handleHadoopConfiguration(app, hadoopConfDir, kubeClientset); err != nil {
 			return err
 		}
@@ -208,7 +211,7 @@ func uploadLocalDependencies(app *v1alpha1.SparkApplication, files []string) ([]
 		if Project == "" {
 			return nil, fmt.Errorf("--project must be specified to upload dependencies to GCS")
 		}
-		return uploadToGCS(uploadLocationUrl.Host, app.Namespace, app.Name, Project, files, Public)
+		return uploadToGCS(uploadLocationUrl.Host, app.Namespace, app.Name, Project, files, Public, Override)
 	case "s3":
 		return nil, nil
 	default:
