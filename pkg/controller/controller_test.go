@@ -164,7 +164,7 @@ func TestProcessSingleDriverStateUpdate(t *testing.T) {
 				nodeName: "node1",
 				podPhase: apiv1.PodRunning,
 			},
-			expectedAppState: v1alpha1.NewState,
+			expectedAppState: v1alpha1.RunningState,
 		},
 	}
 
@@ -251,21 +251,11 @@ func TestProcessSingleAppStateUpdate(t *testing.T) {
 			name: "completed app with initial state SubmittedState",
 			update: appStateUpdate{
 				appID:        appID,
-				state:        v1alpha1.SubmittedState,
+				state:        v1alpha1.FailedSubmissionState,
 				errorMessage: "",
 			},
-			initialAppState:  v1alpha1.CompletedState,
-			expectedAppState: v1alpha1.CompletedState,
-		},
-		{
-			name: "failed app with initial state SubmittedState",
-			update: appStateUpdate{
-				appID:        appID,
-				state:        v1alpha1.SubmittedState,
-				errorMessage: "",
-			},
-			initialAppState:  v1alpha1.FailedState,
-			expectedAppState: v1alpha1.FailedState,
+			initialAppState:  v1alpha1.RunningState,
+			expectedAppState: v1alpha1.FailedSubmissionState,
 		},
 	}
 

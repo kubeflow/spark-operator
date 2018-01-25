@@ -37,6 +37,10 @@ import (
 
 const bufferSize = 1024
 
+var UploadTo string
+var Project string
+var Public bool
+
 var createCmd = &cobra.Command{
 	Use:   "create <yaml file>",
 	Short: "Create a SparkApplication object",
@@ -63,6 +67,15 @@ var createCmd = &cobra.Command{
 			fmt.Fprintf(os.Stderr, "%v\n", err)
 		}
 	},
+}
+
+func init() {
+	createCmd.Flags().StringVarP(&UploadTo, "upload-to", "u", "",
+		"A URL of the remote location where local application dependencies are to be submitted to")
+	createCmd.Flags().StringVarP(&Project, "project", "p", "",
+		"The GCP project with which the GCS bucket is associated")
+	createCmd.Flags().BoolVarP(&Public, "public", "c", false,
+		"Whether to make uploaded files publicly available")
 }
 
 func doCreate(yamlFile string, kubeClientset clientset.Interface, crdClientset crdclientset.Interface) error {
@@ -109,20 +122,45 @@ func loadFromYAML(yamlFile string) (*v1alpha1.SparkApplication, error) {
 }
 
 func handleLocalDependencies(app *v1alpha1.SparkApplication) error {
+	if app.Spec.MainApplicationFile != nil {
+		isMainAppFileLocal, err := isLocalFile(*app.Spec.MainApplicationFile)
+		if err != nil {
+			return err
+		}
+
+		if isMainAppFileLocal {
+			uploadedMainFile, err := uploadLocalDependencies(app, []string{*app.Spec.MainApplicationFile})
+			if err != nil {
+				return fmt.Errorf("failed to upload local main application file: %v", err)
+			}
+			app.Spec.MainApplicationFile = &uploadedMainFile[0]
+		}
+	}
+
 	localJars, err := filterLocalFiles(app.Spec.Deps.Jars)
 	if err != nil {
 		return fmt.Errorf("failed to filter local jars: %v", err)
 	}
-	if err = uploadLocalFiles(localJars); err != nil {
-		return fmt.Errorf("failed to upload local jars: %v", err)
+
+	if len(localJars) > 0 {
+		uploadedJars, err := uploadLocalDependencies(app, localJars)
+		if err != nil {
+			return fmt.Errorf("failed to upload local jars: %v", err)
+		}
+		app.Spec.Deps.Jars = uploadedJars
 	}
 
 	localFiles, err := filterLocalFiles(app.Spec.Deps.Files)
 	if err != nil {
 		return fmt.Errorf("failed to filter local files: %v", err)
 	}
-	if err = uploadLocalFiles(localFiles); err != nil {
-		return fmt.Errorf("failed to upload local files: %v", err)
+
+	if len(localFiles) > 0 {
+		uploadedFiles, err := uploadLocalDependencies(app, localFiles)
+		if err != nil {
+			return fmt.Errorf("failed to upload local files: %v", err)
+		}
+		app.Spec.Deps.Files = uploadedFiles
 	}
 
 	return nil
@@ -154,8 +192,28 @@ func isLocalFile(file string) (bool, error) {
 	return false, nil
 }
 
-func uploadLocalFiles(files []string) error {
-	return nil
+func uploadLocalDependencies(app *v1alpha1.SparkApplication, files []string) ([]string, error) {
+	if UploadTo == "" {
+		return nil, fmt.Errorf(
+			"unable to upload local dependencies: no upload location specified via --upload-to")
+	}
+
+	uploadLocationUrl, err  := url.Parse(UploadTo)
+	if err != nil {
+		return nil, err
+	}
+
+	switch uploadLocationUrl.Scheme {
+	case "gs":
+		if Project == "" {
+			return nil, fmt.Errorf("--project must be specified to upload dependencies to GCS")
+		}
+		return uploadToGCS(uploadLocationUrl.Host, app.Namespace, app.Name, Project, files, Public)
+	case "s3":
+		return nil, nil
+	default:
+		return nil, fmt.Errorf("unsupported upload location URL scheme: %s", uploadLocationUrl.Scheme)
+	}
 }
 
 func handleHadoopConfiguration(
