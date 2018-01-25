@@ -36,11 +36,17 @@ environment variable `HADOOP_CONF_DIR`, create a Kubernetes `ConfigMap` from the
 the `SparkApplication` object so it gets mounted into the driver and executor pods by the Spark Operator. The 
 environment variable `HADOOP_CONF_DIR` is also set in the driver and executor containers.    
 
+#### Staging local dependencies
+
 The `create` command also supports staging local application dependencies, though currently only uploading to a Google 
 Cloud Storage (GCS) bucket is supported. The way it works is as follows. It checks if there is any local dependencies 
 in `spec.mainApplicationFile`, `spec.deps.jars`, `spec.deps.files`, etc. in the parsed `SaprkApplication` object. If so, 
 it tries to upload the local dependencies to the remote location specified by `--upload-to`. The command fails if local
-dependencies are used but `--upload-to` is not specified.
+dependencies are used but `--upload-to` is not specified. By default, a local file that already exists remotely, i.e., 
+there exists a file with the same name and upload path remotely, will be ignored. If the remote file should be overridden
+instead, the `--override` flag should be specified.
+
+##### Uploading to GCS
 
 For uploading to GCS, the value should be in the form of `gs://<bucket>`. The bucket must exist and uploading fails if 
 otherwise. The local dependencies will be uploaded to the path 

@@ -85,7 +85,7 @@ var forwardCmd = &cobra.Command{
 			return
 		}
 
-		fmt.Printf("Forwarding from %d -> %d\n", LocalPort, RemotePort)
+		fmt.Printf("forwarding from %d -> %d\n", LocalPort, RemotePort)
 		if err = runPortForward(driverPodName, stopCh, forwarder, kubeClientset); err != nil {
 			fmt.Fprintf(os.Stderr, "failed to run port forwarding: %v\n", err)
 		}
@@ -161,7 +161,7 @@ func runPortForward(
 			}
 			time.Sleep(1 * time.Second)
 		}
-		fmt.Println("Stopping forwarding as the driver pod has terminated")
+		fmt.Println("stopping forwarding as the driver pod has terminated")
 	}()
 
 	go func() {
