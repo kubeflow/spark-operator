@@ -76,10 +76,12 @@ func buildSubmissionCommandArgs(app *v1alpha1.SparkApplication) ([]string, error
 	}
 
 	if app.Spec.Image != nil {
-		args = append(
-			args,
-			"--conf",
+		args = append(args, "--conf",
 			fmt.Sprintf("%s=%s", config.SparkContainerImageKey, *app.Spec.Image))
+	}
+	if app.Spec.ImagePullPolicy != nil {
+		args = append(args, "--conf",
+			fmt.Sprintf("%s=%s", config.SparkContainerImagePullPolicyKey, *app.Spec.ImagePullPolicy))
 	}
 
 	if app.Spec.SparkConfigMap != nil {
@@ -104,6 +106,11 @@ func buildSubmissionCommandArgs(app *v1alpha1.SparkApplication) ([]string, error
 	// Add Hadoop configuration properties.
 	for key, value := range app.Spec.HadoopConf {
 		args = append(args, "--conf", fmt.Sprintf("spark.hadoop.%s=%s", key, value))
+	}
+
+	for key, value := range app.Spec.NodeSelector {
+		conf := fmt.Sprintf("%s%s=%s", config.SparkNodeSelectorKeyPrefix, key, value)
+		args = append(args, "--conf", conf)
 	}
 
 	// Add the driver and executor configuration options.
@@ -180,9 +187,23 @@ func addDriverConfOptions(app *v1alpha1.SparkApplication) []string {
 		conf := fmt.Sprintf("spark.driver.cores=%s", *app.Spec.Driver.Cores)
 		driverConfOptions = append(driverConfOptions, "--conf", conf)
 	}
+	if app.Spec.Driver.CoreLimit != nil {
+		conf := fmt.Sprintf("%s=%s", config.SparkDriverCoreLimitKey, *app.Spec.Driver.CoreLimit)
+		driverConfOptions = append(driverConfOptions, "--conf", conf)
+	}
 	if app.Spec.Driver.Memory != nil {
 		conf := fmt.Sprintf("spark.driver.memory=%s", *app.Spec.Driver.Memory)
 		driverConfOptions = append(driverConfOptions, "--conf", conf)
+	}
+
+	for key, value := range app.Spec.Driver.Labels {
+		driverConfOptions = append(driverConfOptions, "--conf",
+			fmt.Sprintf("%s%s=%s", config.SparkDriverLabelKeyPrefix, key, value))
+	}
+
+	for key, value := range app.Spec.Driver.Annotations {
+		driverConfOptions = append(driverConfOptions, "--conf",
+			fmt.Sprintf("%s%s=%s", config.SparkDriverAnnotationKeyPrefix, key, value))
 	}
 
 	driverConfOptions = append(driverConfOptions, getDriverEnvVarConfOptions(app)...)
@@ -215,9 +236,23 @@ func addExecutorConfOptions(app *v1alpha1.SparkApplication) []string {
 		conf := fmt.Sprintf("spark.executor.cores=%s", *app.Spec.Executor.Cores)
 		executorConfOptions = append(executorConfOptions, "--conf", conf)
 	}
+	if app.Spec.Executor.CoreLimit != nil {
+		conf := fmt.Sprintf("%s=%s", config.SparkExecutorCoreLimitKey, *app.Spec.Executor.CoreLimit)
+		executorConfOptions = append(executorConfOptions, "--conf", conf)
+	}
 	if app.Spec.Executor.Memory != nil {
 		conf := fmt.Sprintf("spark.executor.memory=%s", *app.Spec.Executor.Memory)
 		executorConfOptions = append(executorConfOptions, "--conf", conf)
+	}
+
+	for key, value := range app.Spec.Executor.Labels {
+		executorConfOptions = append(executorConfOptions, "--conf",
+			fmt.Sprintf("%s%s=%s", config.SparkExecutorLabelKeyPrefix, key, value))
+	}
+
+	for key, value := range app.Spec.Executor.Annotations {
+		executorConfOptions = append(executorConfOptions, "--conf",
+			fmt.Sprintf("%s%s=%s", config.SparkExecutorAnnotationKeyPrefix, key, value))
 	}
 
 	executorConfOptions = append(executorConfOptions, getExecutorEnvVarConfOptions(app)...)
