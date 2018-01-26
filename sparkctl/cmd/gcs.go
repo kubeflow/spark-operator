@@ -60,6 +60,7 @@ func (g *gcsUploader) upload(ctx context.Context, localFile string, public bool,
 	if err != nil {
 		return "", fmt.Errorf("failed to open file %s: %v", localFile, err)
 	}
+	defer file.Close()
 
 	object := g.handle.Object(filepath.Join(g.path, filepath.Base(localFile)))
 	// Check if a file with the same name already exists remotely.
