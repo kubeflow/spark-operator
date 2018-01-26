@@ -30,7 +30,7 @@ custom resources which are in Kubernetes 1.8+.
 
 Spark Operator is an experimental project aiming to make specifying and running [Spark](https://github.com/apache/spark) 
 applications as easy and idiomatic as running other workloads on Kubernetes. It requires Spark 2.3 and above that supports 
-Kubernetes as a native scheduler backend. Below are some example things that the Spark Operator is able to automate``:
+Kubernetes as a native scheduler backend. Below are some example things that the Spark Operator is able to automate:
 * Submitting applications on behalf of users so they don't need to deal with the submission process and the `spark-submit` command.
 * Mounting user-specified secrets into the driver and executor Pods.
 * Mounting user-specified ConfigMaps into the driver and executor Pods.
@@ -73,7 +73,7 @@ $ cd $GOPATH/src/k8s.io
 $ git clone git@github.com:GoogleCloudPlatform/spark-on-k8s-operator.git
 ```
 
-Spark Operator uses [dep](https://golang.github.io/dep/) for dependency management. Please install ``dep following the 
+Spark Operator uses [dep](https://golang.github.io/dep/) for dependency management. Please install `dep` following the 
 instruction on the website if you don't have it available locally. To install the dependencies, run the following command:
 
 ```bash

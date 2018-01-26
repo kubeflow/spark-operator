@@ -7,7 +7,7 @@ accessing the Spark web UI on the driver. Each function is implemented as a sub-
 To build `sparkctl`, run the following command from within `sparkctl/`:
 
 ```bash
-go build -o sparkctl
+$ go build -o sparkctl
 ```
 
 ## Flags
@@ -55,7 +55,7 @@ file path of each local dependency with the URI of the remote copy in the parsed
 is successful. 
 
 Usage:
-```base
+```bash
 $ sparkctl create <path to YAML file> --upload-to gs://<bucket> --project <GCP project the GCS bucket is associated to>
 ```
 
