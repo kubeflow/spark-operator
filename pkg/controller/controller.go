@@ -136,10 +136,10 @@ func newSparkApplicationController(
 func (s *SparkApplicationController) Start(workers int, stopCh <-chan struct{}) error {
 	glog.Info("Starting the SparkApplication controller")
 
-	glog.Infof("Creating the CustomResourceDefinition %s", crd.FullName)
+	glog.Infof("Creating CustomResourceDefinition %s", crd.FullName)
 	err := crd.CreateCRD(s.extensionsClient)
 	if err != nil {
-		return fmt.Errorf("failed to create the CustomResourceDefinition %s: %v", crd.FullName, err)
+		return fmt.Errorf("failed to create CustomResourceDefinition %s: %v", crd.FullName, err)
 	}
 
 	glog.Info("Starting the SparkApplication informer")
@@ -169,6 +169,10 @@ func (s *SparkApplicationController) Start(workers int, stopCh <-chan struct{}) 
 func (s *SparkApplicationController) Stop() {
 	glog.Info("Stopping the SparkApplication controller")
 	s.queue.ShutDown()
+	glog.Infof("Deleting CustomResourceDefinition %s", crd.FullName)
+	if err := crd.DeleteCRD(s.extensionsClient); err != nil {
+		glog.Errorf("failed to delete CustomResourceDefinition %s: %v", crd.FullName, err)
+	}
 }
 
 // Callback function called when a new SparkApplication object gets created.

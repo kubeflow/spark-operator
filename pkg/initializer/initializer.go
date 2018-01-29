@@ -210,9 +210,10 @@ func (ic *SparkPodInitializer) addInitializationConfig() error {
 
 func (ic *SparkPodInitializer) deleteInitializationConfig() error {
 	glog.Infof("Deleting the InitializerConfiguration %s", sparkPodInitializerConfigName)
+	var zero int64 = 0
 	err := ic.kubeClient.AdmissionregistrationV1alpha1().InitializerConfigurations().Delete(
 		sparkPodInitializerConfigName,
-		&metav1.DeleteOptions{})
+		&metav1.DeleteOptions{GracePeriodSeconds: &zero})
 	if err != nil && !errors.IsNotFound(err) {
 		return fmt.Errorf("failed to delete InitializerConfiguration: %v", err)
 	}
