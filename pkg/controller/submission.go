@@ -71,6 +71,10 @@ func buildSubmissionCommandArgs(app *v1alpha1.SparkApplication) ([]string, error
 		args = append(args, "--conf",
 			fmt.Sprintf("%s=%s", config.SparkContainerImageKey, *app.Spec.Image))
 	}
+	if app.Spec.InitContainerImage != nil {
+		args = append(args, "--conf",
+			fmt.Sprintf("%s=%s", config.SparkInitContainerImage, *app.Spec.InitContainerImage))
+	}
 	if app.Spec.ImagePullPolicy != nil {
 		args = append(args, "--conf",
 			fmt.Sprintf("%s=%s", config.SparkContainerImagePullPolicyKey, *app.Spec.ImagePullPolicy))

@@ -291,6 +291,15 @@ func (in *SparkApplicationSpec) DeepCopyInto(out *SparkApplicationSpec) {
 			**out = **in
 		}
 	}
+	if in.InitContainerImage != nil {
+		in, out := &in.InitContainerImage, &out.InitContainerImage
+		if *in == nil {
+			*out = nil
+		} else {
+			*out = new(string)
+			**out = **in
+		}
+	}
 	if in.ImagePullPolicy != nil {
 		in, out := &in.ImagePullPolicy, &out.ImagePullPolicy
 		if *in == nil {
