@@ -19,8 +19,8 @@ package cmd
 import (
 	"fmt"
 	"io"
-	"path/filepath"
 	"os"
+	"path/filepath"
 
 	"cloud.google.com/go/storage"
 	"golang.org/x/net/context"
@@ -32,7 +32,7 @@ type gcsUploader struct {
 	client *storage.Client
 	handle *storage.BucketHandle
 	bucket string
-	path string
+	path   string
 }
 
 func newGcsUploader(bucket string, path string, projectID string, ctx context.Context) (*gcsUploader, error) {
@@ -50,7 +50,7 @@ func newGcsUploader(bucket string, path string, projectID string, ctx context.Co
 		client: client,
 		handle: handle.UserProject(projectID),
 		bucket: bucket,
-		path: path}
+		path:   path}
 
 	return uploader, nil
 }

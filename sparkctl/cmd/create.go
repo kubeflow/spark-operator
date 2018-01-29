@@ -18,9 +18,9 @@ package cmd
 
 import (
 	"fmt"
+	"io/ioutil"
 	"net/url"
 	"os"
-	"io/ioutil"
 	"path/filepath"
 
 	"github.com/spf13/cobra"
@@ -259,7 +259,7 @@ func uploadLocalDependencies(app *v1alpha1.SparkApplication, files []string) ([]
 			"unable to upload local dependencies: no upload location specified via --upload-to")
 	}
 
-	uploadLocationUrl, err  := url.Parse(UploadTo)
+	uploadLocationUrl, err := url.Parse(UploadTo)
 	if err != nil {
 		return nil, err
 	}

@@ -39,7 +39,7 @@ func TestIsLocalFile(t *testing.T) {
 		assert.Equal(t, test.isLocal, isLocal, "%s: expected %v got %v", test.file, test.isLocal, isLocal)
 	}
 
-	testcases := []testcase {
+	testcases := []testcase{
 		{file: "/path/to/file", isLocal: true},
 		{file: "file:///path/to/file", isLocal: true},
 		{file: "local:///path/to/file", isLocal: false},
@@ -89,7 +89,7 @@ func TestIsContainerLocalFile(t *testing.T) {
 			"%s: expected %v got %v", test.file, test.isContainerLocal, isLocal)
 	}
 
-	testcases := []testcase {
+	testcases := []testcase{
 		{file: "/path/to/file", isContainerLocal: false},
 		{file: "file:///path/to/file", isContainerLocal: false},
 		{file: "local:///path/to/file", isContainerLocal: true},
@@ -103,8 +103,8 @@ func TestIsContainerLocalFile(t *testing.T) {
 
 func TestHasNonContainerLocalFiles(t *testing.T) {
 	type testcase struct {
-		name string
-		spec v1alpha1.SparkApplicationSpec
+		name                      string
+		spec                      v1alpha1.SparkApplicationSpec
 		hasNonContainerLocalFiles bool
 	}
 
@@ -161,8 +161,8 @@ func TestHasNonContainerLocalFiles(t *testing.T) {
 
 func TestValidateSpec(t *testing.T) {
 	type testcase struct {
-		name string
-		spec v1alpha1.SparkApplicationSpec
+		name                   string
+		spec                   v1alpha1.SparkApplicationSpec
 		expectsValidationError bool
 	}
 
@@ -218,7 +218,7 @@ func TestValidateSpec(t *testing.T) {
 		{
 			name: "application with remote main file and spec.image",
 			spec: v1alpha1.SparkApplicationSpec{
-				Image: &image,
+				Image:               &image,
 				MainApplicationFile: &remoteMainAppFile,
 			},
 			expectsValidationError: false,
@@ -226,7 +226,7 @@ func TestValidateSpec(t *testing.T) {
 		{
 			name: "application with remote main file and spec.initContainerImage",
 			spec: v1alpha1.SparkApplicationSpec{
-				InitContainerImage: &image,
+				InitContainerImage:  &image,
 				MainApplicationFile: &remoteMainAppFile,
 				Driver: v1alpha1.DriverSpec{
 					SparkPodSpec: v1alpha1.SparkPodSpec{
