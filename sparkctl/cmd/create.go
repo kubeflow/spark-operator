@@ -87,6 +87,11 @@ func doCreate(yamlFile string, kubeClientset clientset.Interface, crdClientset c
 		return err
 	}
 
+	v1alpha1.SetSparkApplicationDefaults(app)
+	if err = validateSpec(app.Spec); err != nil {
+		return fmt.Errorf("validation failed for SparkApplication %s: %v", app.Name, err)
+	}
+
 	if err = handleLocalDependencies(app); err != nil {
 		return err
 	}
@@ -122,6 +127,24 @@ func loadFromYAML(yamlFile string) (*v1alpha1.SparkApplication, error) {
 	}
 
 	return app, nil
+}
+
+func validateSpec(spec v1alpha1.SparkApplicationSpec) error {
+	if spec.Image == nil && (spec.Driver.Image == nil || spec.Executor.Image == nil) {
+		return fmt.Errorf("'spec.driver.image' and 'spec.executor.image' cannot be empty when 'spec.image' " +
+			"is not set")
+	}
+
+	yes, err := hasNonContainerLocalFiles(spec)
+	if err != nil {
+		return err
+	}
+	if spec.Image == nil && spec.InitContainerImage == nil && yes {
+		return fmt.Errorf("'spec.image' and 'spec.initContainerImage' cannot be both empty when " +
+			"non-container-local dependencies are used")
+	}
+
+	return nil
 }
 
 func handleLocalDependencies(app *v1alpha1.SparkApplication) error {
@@ -189,6 +212,41 @@ func isLocalFile(file string) (bool, error) {
 	}
 
 	if fileUrl.Scheme == "file" || fileUrl.Scheme == "" {
+		return true, nil
+	}
+
+	return false, nil
+}
+
+func hasNonContainerLocalFiles(spec v1alpha1.SparkApplicationSpec) (bool, error) {
+	var files []string
+	if spec.MainApplicationFile != nil {
+		files = append(files, *spec.MainApplicationFile)
+	}
+
+	files = append(files, spec.Deps.Jars...)
+	files = append(files, spec.Deps.Files...)
+
+	for _, file := range files {
+		containerLocal, err := isContainerLocalFile(file)
+		if err != nil {
+			return containerLocal, err
+		}
+		if !containerLocal {
+			return true, nil
+		}
+	}
+
+	return false, nil
+}
+
+func isContainerLocalFile(file string) (bool, error) {
+	fileUrl, err := url.Parse(file)
+	if err != nil {
+		return false, err
+	}
+
+	if fileUrl.Scheme == "local" {
 		return true, nil
 	}
 

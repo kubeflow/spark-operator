@@ -21,6 +21,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+
+	"k8s.io/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1alpha1"
 )
 
 func TestIsLocalFile(t *testing.T) {
@@ -70,6 +72,197 @@ func TestFilterLocalFiles(t *testing.T) {
 		t.Fatal(err)
 	}
 	assert.Equal(t, expected, actual)
+}
+
+func TestIsContainerLocalFile(t *testing.T) {
+	type testcase struct {
+		file             string
+		isContainerLocal bool
+	}
+
+	testFn := func(test testcase, t *testing.T) {
+		isLocal, err := isContainerLocalFile(test.file)
+		if err != nil {
+			t.Fatal(err)
+		}
+		assert.Equal(t, test.isContainerLocal, isLocal,
+			"%s: expected %v got %v", test.file, test.isContainerLocal, isLocal)
+	}
+
+	testcases := []testcase {
+		{file: "/path/to/file", isContainerLocal: false},
+		{file: "file:///path/to/file", isContainerLocal: false},
+		{file: "local:///path/to/file", isContainerLocal: true},
+		{file: "https://localhost/path/to/file", isContainerLocal: false},
+	}
+
+	for _, test := range testcases {
+		testFn(test, t)
+	}
+}
+
+func TestHasNonContainerLocalFiles(t *testing.T) {
+	type testcase struct {
+		name string
+		spec v1alpha1.SparkApplicationSpec
+		hasNonContainerLocalFiles bool
+	}
+
+	testFn := func(test testcase, t *testing.T) {
+		yes, err := hasNonContainerLocalFiles(test.spec)
+		if err != nil {
+			t.Fatal(err)
+		}
+		assert.Equal(t, test.hasNonContainerLocalFiles, yes, "%s: expected %v got %v",
+			test.name, test.hasNonContainerLocalFiles, yes)
+	}
+
+	mainAppFile := "/path/to/main/app/file"
+	containerLocalMainAppFile := "local:///path/to/main/app/file"
+	testcases := []testcase{
+		{
+			name: "application with submission local main file",
+			spec: v1alpha1.SparkApplicationSpec{
+				MainApplicationFile: &mainAppFile,
+			},
+			hasNonContainerLocalFiles: true,
+		},
+		{
+			name: "application with container local main file",
+			spec: v1alpha1.SparkApplicationSpec{
+				MainApplicationFile: &containerLocalMainAppFile,
+			},
+			hasNonContainerLocalFiles: false,
+		},
+		{
+			name: "application with remote jars",
+			spec: v1alpha1.SparkApplicationSpec{
+				Deps: v1alpha1.Dependencies{
+					Jars: []string{"https://localhost/path/to/foo.jar"},
+				},
+			},
+			hasNonContainerLocalFiles: true,
+		},
+		{
+			name: "application with container-local jars",
+			spec: v1alpha1.SparkApplicationSpec{
+				Deps: v1alpha1.Dependencies{
+					Jars: []string{"local:///path/to/foo.jar"},
+				},
+			},
+			hasNonContainerLocalFiles: false,
+		},
+	}
+
+	for _, test := range testcases {
+		testFn(test, t)
+	}
+}
+
+func TestValidateSpec(t *testing.T) {
+	type testcase struct {
+		name string
+		spec v1alpha1.SparkApplicationSpec
+		expectsValidationError bool
+	}
+
+	testFn := func(test testcase, t *testing.T) {
+		err := validateSpec(test.spec)
+		if test.expectsValidationError {
+			assert.True(t, err != nil, "%s: expected error got nothing", test.name)
+		} else {
+			assert.True(t, err == nil, "%s: did not expect error got %v", test.name, err)
+		}
+	}
+
+	image := "spark"
+	remoteMainAppFile := "https://localhost/path/to/main/app/file"
+	containerLocalMainAppFile := "local:///path/to/main/app/file"
+	testcases := []testcase{
+		{
+			name: "application with spec.image set",
+			spec: v1alpha1.SparkApplicationSpec{
+				Image: &image,
+			},
+			expectsValidationError: false,
+		},
+		{
+			name: "application with no spec.image and spec.driver.image",
+			spec: v1alpha1.SparkApplicationSpec{
+				Executor: v1alpha1.ExecutorSpec{
+					SparkPodSpec: v1alpha1.SparkPodSpec{
+						Image: &image,
+					},
+				},
+			},
+			expectsValidationError: true,
+		},
+		{
+			name: "application with no spec.image and spec.executor.image",
+			spec: v1alpha1.SparkApplicationSpec{
+				Driver: v1alpha1.DriverSpec{
+					SparkPodSpec: v1alpha1.SparkPodSpec{
+						Image: &image,
+					},
+				},
+			},
+			expectsValidationError: true,
+		},
+		{
+			name: "application with remote main file and no init-container",
+			spec: v1alpha1.SparkApplicationSpec{
+				MainApplicationFile: &remoteMainAppFile,
+			},
+			expectsValidationError: true,
+		},
+		{
+			name: "application with remote main file and spec.image",
+			spec: v1alpha1.SparkApplicationSpec{
+				Image: &image,
+				MainApplicationFile: &remoteMainAppFile,
+			},
+			expectsValidationError: false,
+		},
+		{
+			name: "application with remote main file and spec.initContainerImage",
+			spec: v1alpha1.SparkApplicationSpec{
+				InitContainerImage: &image,
+				MainApplicationFile: &remoteMainAppFile,
+				Driver: v1alpha1.DriverSpec{
+					SparkPodSpec: v1alpha1.SparkPodSpec{
+						Image: &image,
+					},
+				},
+				Executor: v1alpha1.ExecutorSpec{
+					SparkPodSpec: v1alpha1.SparkPodSpec{
+						Image: &image,
+					},
+				},
+			},
+			expectsValidationError: false,
+		},
+		{
+			name: "application with container local main file and no init-container",
+			spec: v1alpha1.SparkApplicationSpec{
+				MainApplicationFile: &containerLocalMainAppFile,
+				Driver: v1alpha1.DriverSpec{
+					SparkPodSpec: v1alpha1.SparkPodSpec{
+						Image: &image,
+					},
+				},
+				Executor: v1alpha1.ExecutorSpec{
+					SparkPodSpec: v1alpha1.SparkPodSpec{
+						Image: &image,
+					},
+				},
+			},
+			expectsValidationError: false,
+		},
+	}
+
+	for _, test := range testcases {
+		testFn(test, t)
+	}
 }
 
 func TestLoadFromYAML(t *testing.T) {
