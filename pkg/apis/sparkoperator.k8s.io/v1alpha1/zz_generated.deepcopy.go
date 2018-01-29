@@ -58,6 +58,42 @@ func (in *Dependencies) DeepCopyInto(out *Dependencies) {
 		*out = make([]string, len(*in))
 		copy(*out, *in)
 	}
+	if in.JarsDownloadDir != nil {
+		in, out := &in.JarsDownloadDir, &out.JarsDownloadDir
+		if *in == nil {
+			*out = nil
+		} else {
+			*out = new(string)
+			**out = **in
+		}
+	}
+	if in.FilesDownloadDir != nil {
+		in, out := &in.FilesDownloadDir, &out.FilesDownloadDir
+		if *in == nil {
+			*out = nil
+		} else {
+			*out = new(string)
+			**out = **in
+		}
+	}
+	if in.DownloadTimeout != nil {
+		in, out := &in.DownloadTimeout, &out.DownloadTimeout
+		if *in == nil {
+			*out = nil
+		} else {
+			*out = new(int32)
+			**out = **in
+		}
+	}
+	if in.MaxSimultaneousDownloads != nil {
+		in, out := &in.MaxSimultaneousDownloads, &out.MaxSimultaneousDownloads
+		if *in == nil {
+			*out = nil
+		} else {
+			*out = new(int32)
+			**out = **in
+		}
+	}
 	return
 }
 
@@ -93,6 +129,15 @@ func (in *DriverSpec) DeepCopyInto(out *DriverSpec) {
 	in.SparkPodSpec.DeepCopyInto(&out.SparkPodSpec)
 	if in.PodName != nil {
 		in, out := &in.PodName, &out.PodName
+		if *in == nil {
+			*out = nil
+		} else {
+			*out = new(string)
+			**out = **in
+		}
+	}
+	if in.ServiceAccount != nil {
+		in, out := &in.ServiceAccount, &out.ServiceAccount
 		if *in == nil {
 			*out = nil
 		} else {

@@ -191,6 +191,16 @@ type Dependencies struct {
 	// PyFiles is a list of Python files the Spark application depends on.
 	// Optional.
 	PyFiles []string `json:"pyFiles,omitempty"`
+	// JarsDownloadDir is the location to download jars to in the driver and executors.
+	JarsDownloadDir *string `json:"jarsDownloadDir,omitempty"`
+	// FilesDownloadDir is the location to download files to in the driver and executors.
+	FilesDownloadDir *string `json:"filesDownloadDir,omitempty"`
+	// DownloadTimeout specifies the timeout in seconds before aborting the attempt to download
+	// and unpack dependencies from remote locations into the driver and executor pods.
+	DownloadTimeout *int32 `json:"downloadTimeout,omitempty"`
+	// MaxSimultaneousDownloads specifies the maximum number of remote dependencies to download
+	// simultaneously in a driver or executor pod.
+	MaxSimultaneousDownloads *int32 `json:"maxSimultaneousDownloads,omitempty"`
 }
 
 // SparkPodSpec defines common things that can be customized for a Spark driver or executor pod.
@@ -234,6 +244,9 @@ type DriverSpec struct {
 	// in-cluster-client.
 	// Optional.
 	PodName *string `json:"podName,omitempty"`
+	// ServiceAccount is the name of the Kubernetes service account used by the driver pod
+	// when requesting executor pods from the API server.
+	ServiceAccount *string `json:"serviceAccount,omitempty"`
 }
 
 // ExecutorSpec is specification of the executor.

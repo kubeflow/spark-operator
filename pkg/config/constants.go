@@ -104,4 +104,19 @@ const (
 	SparkExecutorLabelKeyPrefix = "spark.kubernetes.executor.label."
 	// SparkDriverPodNameKey is the Spark configuration key for driver pod name.
 	SparkDriverPodNameKey = "spark.kubernetes.driver.pod.name"
+	// SparkDriverServiceAccountName is the Spark configuration key for specifying name of the Kubernetes service
+	// account used by the driver pod.
+	SparkDriverServiceAccountName = "spark.kubernetes.authenticate.driver.serviceAccountName"
+	// SparkJarsDownloadDir is the Spark configuration key for specifying the download path in the driver and
+	// executors for remote jars.
+	SparkJarsDownloadDir = "spark.kubernetes.mountDependencies.jarsDownloadDir"
+	// SparkFilesDownloadDir is the Spark configuration key for specifying the download path in the driver and
+	// executors for remote files.
+	SparkFilesDownloadDir = "spark.kubernetes.mountDependencies.filesDownloadDir"
+	// SparkDownloadTimeout is the Spark configuration key for specifying the timeout in seconds of downloading
+	// remote dependencies.
+	SparkDownloadTimeout = "spark.kubernetes.mountDependencies.timeout"
+	// SparkMaxSimultaneousDownloads is the Spark configuration key for specifying the maximum number of remote
+	// dependencies to download.
+	SparkMaxSimultaneousDownloads = "spark.kubernetes.mountDependencies.maxSimultaneousDownloads"
 )
