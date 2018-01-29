@@ -65,15 +65,7 @@ func buildSubmissionCommandArgs(app *v1alpha1.SparkApplication) ([]string, error
 	args = append(args, "--conf", fmt.Sprintf("spark.app.name=%s", app.Name))
 
 	// Add application dependencies.
-	if len(app.Spec.Deps.Jars) > 0 {
-		args = append(args, "--jars", strings.Join(app.Spec.Deps.Jars, ","))
-	}
-	if len(app.Spec.Deps.Files) > 0 {
-		args = append(args, "--files", strings.Join(app.Spec.Deps.Files, ","))
-	}
-	if len(app.Spec.Deps.PyFiles) > 0 {
-		args = append(args, "--py-files", strings.Join(app.Spec.Deps.PyFiles, ","))
-	}
+	args = append(args, addDependenciesConfOptions(app)...)
 
 	if app.Spec.Image != nil {
 		args = append(args, "--conf",
@@ -161,6 +153,42 @@ func getOwnerReference(app *v1alpha1.SparkApplication) metav1.OwnerReference {
 	}
 }
 
+func addDependenciesConfOptions(app *v1alpha1.SparkApplication) []string {
+	var depsConfOptions []string
+
+	if len(app.Spec.Deps.Jars) > 0 {
+		depsConfOptions = append(depsConfOptions, "--jars", strings.Join(app.Spec.Deps.Jars, ","))
+	}
+	if len(app.Spec.Deps.Files) > 0 {
+		depsConfOptions = append(depsConfOptions, "--files", strings.Join(app.Spec.Deps.Files, ","))
+	}
+	if len(app.Spec.Deps.PyFiles) > 0 {
+		depsConfOptions = append(depsConfOptions, "--py-files", strings.Join(app.Spec.Deps.PyFiles, ","))
+	}
+
+	if app.Spec.Deps.JarsDownloadDir != nil {
+		depsConfOptions = append(depsConfOptions, "--conf",
+			fmt.Sprintf("%s=%s", config.SparkJarsDownloadDir, *app.Spec.Deps.JarsDownloadDir))
+	}
+
+	if app.Spec.Deps.FilesDownloadDir != nil {
+		depsConfOptions = append(depsConfOptions, "--conf",
+			fmt.Sprintf("%s=%s", config.SparkFilesDownloadDir, *app.Spec.Deps.FilesDownloadDir))
+	}
+
+	if app.Spec.Deps.DownloadTimeout != nil {
+		depsConfOptions = append(depsConfOptions, "--conf",
+			fmt.Sprintf("%s=%d", config.SparkDownloadTimeout, *app.Spec.Deps.DownloadTimeout))
+	}
+
+	if app.Spec.Deps.MaxSimultaneousDownloads != nil {
+		depsConfOptions = append(depsConfOptions, "--conf",
+			fmt.Sprintf("%s=%d", config.SparkMaxSimultaneousDownloads, *app.Spec.Deps.MaxSimultaneousDownloads))
+	}
+
+	return depsConfOptions
+}
+
 func addDriverConfOptions(app *v1alpha1.SparkApplication) []string {
 	var driverConfOptions []string
 
@@ -184,16 +212,21 @@ func addDriverConfOptions(app *v1alpha1.SparkApplication) []string {
 	}
 
 	if app.Spec.Driver.Cores != nil {
-		conf := fmt.Sprintf("spark.driver.cores=%s", *app.Spec.Driver.Cores)
-		driverConfOptions = append(driverConfOptions, "--conf", conf)
+		driverConfOptions = append(driverConfOptions, "--conf",
+			fmt.Sprintf("spark.driver.cores=%s", *app.Spec.Driver.Cores))
 	}
 	if app.Spec.Driver.CoreLimit != nil {
-		conf := fmt.Sprintf("%s=%s", config.SparkDriverCoreLimitKey, *app.Spec.Driver.CoreLimit)
-		driverConfOptions = append(driverConfOptions, "--conf", conf)
+		driverConfOptions = append(driverConfOptions, "--conf",
+			fmt.Sprintf("%s=%s", config.SparkDriverCoreLimitKey, *app.Spec.Driver.CoreLimit))
 	}
 	if app.Spec.Driver.Memory != nil {
-		conf := fmt.Sprintf("spark.driver.memory=%s", *app.Spec.Driver.Memory)
-		driverConfOptions = append(driverConfOptions, "--conf", conf)
+		driverConfOptions = append(driverConfOptions, "--conf",
+			fmt.Sprintf("spark.driver.memory=%s", *app.Spec.Driver.Memory))
+	}
+
+	if app.Spec.Driver.ServiceAccount != nil {
+		driverConfOptions = append(driverConfOptions, "--conf",
+			fmt.Sprintf("%s=%s", config.SparkDriverServiceAccountName, *app.Spec.Driver.ServiceAccount))
 	}
 
 	for key, value := range app.Spec.Driver.Labels {
