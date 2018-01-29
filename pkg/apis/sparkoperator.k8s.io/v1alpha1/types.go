@@ -77,6 +77,8 @@ type SparkApplicationSpec struct {
 	// driver, executor, or init-container takes precedence over this.
 	// Optional.
 	Image *string `json:"image,omitempty"`
+	// InitContainerImage is the image of the init-container to use. Overrides Spec.Image if set.
+	InitContainerImage *string `json:"initContainerImage,omitempty"`
 	// ImagePullPolicy is the image pull policy for the driver, executor, and init-container.
 	ImagePullPolicy *string `json:"imagePullPolicy,omitempty"`
 	// MainClass is the fully-qualified main class of the Spark application.
