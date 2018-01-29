@@ -49,7 +49,7 @@ func AddConfigMapAnnotation(app *v1alpha1.SparkApplication, annotationKeyPrefix 
 	if app.Spec.SparkConf == nil {
 		app.Spec.SparkConf = make(map[string]string)
 	}
-	
+
 	annotationConfKey := fmt.Sprintf("%s%s", annotationKeyPrefix, key)
 	_, ok := app.Spec.SparkConf[annotationConfKey]
 	if !ok {
@@ -128,7 +128,7 @@ func MountHadoopConfigMapToContainer(volumeName string, mountPath string, contai
 	container.Env = append(
 		container.Env,
 		apiv1.EnvVar{
-			Name: SparkClasspathEnvVar,
+			Name:  SparkClasspathEnvVar,
 			Value: fmt.Sprintf("$%s:$%s", HadoopConfDirEnvVar, SparkClasspathEnvVar),
 		})
 }

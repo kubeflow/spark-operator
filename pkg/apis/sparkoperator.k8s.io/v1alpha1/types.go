@@ -60,10 +60,10 @@ const (
 
 // SparkApplication represents a Spark application running on and using Kubernetes as a cluster manager.
 type SparkApplication struct {
-	metav1.TypeMeta               `json:",inline"`
-	metav1.ObjectMeta             `json:"metadata"`
-	Spec   SparkApplicationSpec   `json:"spec"`
-	Status SparkApplicationStatus `json:"status,omitempty"`
+	metav1.TypeMeta   `json:",inline"`
+	metav1.ObjectMeta `json:"metadata"`
+	Spec              SparkApplicationSpec   `json:"spec"`
+	Status            SparkApplicationStatus `json:"status,omitempty"`
 }
 
 // SparkApplicationSpec describes the specification of a Spark application using Kubernetes as a cluster manager.
@@ -177,9 +177,9 @@ type SparkApplicationStatus struct {
 
 // SparkApplicationList carries a list of SparkApplication objects.
 type SparkApplicationList struct {
-	metav1.TypeMeta          `json:",inline"`
-	metav1.ListMeta          `json:"metadata,omitempty"`
-	Items []SparkApplication `json:"items,omitempty"`
+	metav1.TypeMeta `json:",inline"`
+	metav1.ListMeta `json:"metadata,omitempty"`
+	Items           []SparkApplication `json:"items,omitempty"`
 }
 
 // Dependencies specifies all possible types of dependencies of a Spark application.

@@ -25,10 +25,6 @@ import (
 
 	"github.com/golang/glog"
 
-	"k8s.io/spark-on-k8s-operator/pkg/controller"
-	"k8s.io/spark-on-k8s-operator/pkg/initializer"
-	crdclientset "k8s.io/spark-on-k8s-operator/pkg/client/clientset/versioned"
-
 	apiextensionsclient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -36,6 +32,10 @@ import (
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
+
+	crdclientset "k8s.io/spark-on-k8s-operator/pkg/client/clientset/versioned"
+	"k8s.io/spark-on-k8s-operator/pkg/controller"
+	"k8s.io/spark-on-k8s-operator/pkg/initializer"
 )
 
 var (
@@ -43,7 +43,7 @@ var (
 		"Overrides any value in kubeconfig. Only required if out-of-cluster.")
 	kubeConfig = flag.String("kubeConfig", "", "Path to a kube config. Only required if "+
 		"out-of-cluster.")
-	enableInitializer = flag.Bool("enable-initializer", true, "Whether to enable the " +
+	enableInitializer = flag.Bool("enable-initializer", true, "Whether to enable the "+
 		"Spark pod initializer.")
 	initializerThreads = flag.Int("initializer-threads", 10, "Number of worker threads "+
 		"used by the Spark Pod initializer (if it's enabled).")

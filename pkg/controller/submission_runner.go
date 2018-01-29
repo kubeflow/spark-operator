@@ -48,8 +48,8 @@ type appStateUpdate struct {
 
 func newSparkSubmitRunner(workers int, appStateReportingChan chan<- appStateUpdate) *sparkSubmitRunner {
 	return &sparkSubmitRunner{
-		workers:               workers,
-		queue:                 make(chan *submission, workers),
+		workers: workers,
+		queue:   make(chan *submission, workers),
 		appStateReportingChan: appStateReportingChan,
 	}
 }
@@ -86,7 +86,7 @@ func (r *sparkSubmitRunner) runWorker() {
 			stateUpdate := appStateUpdate{
 				appID:          s.appID,
 				submissionTime: metav1.Now(),
-				state: v1alpha1.FailedSubmissionState,
+				state:          v1alpha1.FailedSubmissionState,
 			}
 
 			if exitErr, ok := err.(*exec.ExitError); ok {

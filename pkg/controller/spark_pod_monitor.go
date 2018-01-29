@@ -50,10 +50,10 @@ type sparkPodMonitor struct {
 
 // driverStateUpdate encapsulates state update of the driver.
 type driverStateUpdate struct {
-	appID    string
-	podName  string
-	nodeName string
-	podPhase apiv1.PodPhase
+	appID          string
+	podName        string
+	nodeName       string
+	podPhase       apiv1.PodPhase
 	completionTime metav1.Time
 }
 
