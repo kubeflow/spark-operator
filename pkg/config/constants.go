@@ -74,6 +74,20 @@ const (
 )
 
 const (
+	// SparkContainerImageKey is the configuration property for specifying the unified container image.
+	SparkContainerImageKey = "spark.kubernetes.container.image"
+	// SparkContainerImageKey is the configuration property for specifying the container image pull policy.
+	SparkContainerImagePullPolicyKey = "spark.kubernetes.container.image.pullPolicy"
+	// SparkNodeSelectorKeyPrefix is the configuration property prefix for specifying node selector for the pods.
+	SparkNodeSelectorKeyPrefix = "spark.kubernetes.node.selector."
+	// SparkDriverContainerImageKey is the configuration property for specifying a custom driver container image.
+	SparkDriverContainerImageKey = "spark.kubernetes.driver.container.image"
+	// SparkExecutorContainerImageKey is the configuration property for specifying a custom executor container image.
+	SparkExecutorContainerImageKey = "spark.kubernetes.executor.container.image"
+	// SparkDriverCoreLimitKey is the configuration property for specifying the hard CPU limit for the driver pod.
+	SparkDriverCoreLimitKey = "spark.kubernetes.driver.limit.cores"
+	// SparkDriverCoreLimitKey is the configuration property for specifying the hard CPU limit for the executor pods.
+	SparkExecutorCoreLimitKey = "spark.kubernetes.executor.limit.cores"
 	// DriverEnvVarConfigKeyPrefix is the Spark configuration prefix for setting environment variables
 	// into the driver.
 	DriverEnvVarConfigKeyPrefix = "spark.kubernetes.driverEnv."
@@ -90,7 +104,4 @@ const (
 	SparkExecutorLabelKeyPrefix = "spark.kubernetes.executor.label."
 	// SparkDriverPodNameKey is the Spark configuration key for driver pod name.
 	SparkDriverPodNameKey = "spark.kubernetes.driver.pod.name"
-	SparkContainerImageKey = "spark.kubernetes.container.image"
-	SparkDriverContainerImageKey = "spark.kubernetes.driver.container.image"
-	SparkExecutorContainerImageKey = "spark.kubernetes.executor.container.image"
 )

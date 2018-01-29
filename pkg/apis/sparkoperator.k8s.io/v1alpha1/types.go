@@ -77,6 +77,8 @@ type SparkApplicationSpec struct {
 	// driver, executor, or init-container takes precedence over this.
 	// Optional.
 	Image *string `json:"image,omitempty"`
+	// ImagePullPolicy is the image pull policy for the driver, executor, and init-container.
+	ImagePullPolicy *string `json:"imagePullPolicy,omitempty"`
 	// MainClass is the fully-qualified main class of the Spark application.
 	// This only applies to Java/Scala Spark applications.
 	// Optional.
@@ -112,6 +114,8 @@ type SparkApplicationSpec struct {
 	Deps Dependencies `json:"deps"`
 	// RestartPolicy defines the policy on if and in which conditions the controller should restart a failed application.
 	RestartPolicy RestartPolicy `json:"restartPolicy,omitempty"`
+	// NodeSelector is the Kubernetes node selector to be added to the driver and executor pods.
+	NodeSelector map[string]string `json:"nodeSelector,omitempty"`
 	// SubmissionByUser indicates if the application is to be submitted by the user.
 	// The custom controller should not submit the application on behalf of the user if this is true.
 	// It defaults to false.
@@ -189,56 +193,55 @@ type Dependencies struct {
 	PyFiles []string `json:"pyFiles,omitempty"`
 }
 
+// SparkPodSpec defines common things that can be customized for a Spark driver or executor pod.
+// TODO: investigate if we should use v1.PodSpec and limit what can be set instead.
+type SparkPodSpec struct {
+	// Cores is the number of CPU cores to request for the pod.
+	// Optional.
+	Cores *string `json:"cores,omitempty"`
+	// CoreLimit specifies a hard limit on CPU cores for the pod.
+	// Optional
+	CoreLimit *string `json:"coreLimit,omitempty"`
+	// Memory is the amount of memory to request for the pod.
+	// Optional.
+	Memory *string `json:"memory,omitempty"`
+	// Image is the container image to use. Overrides Spec.Image if set.
+	// Optional.
+	Image *string `json:"image,omitempty"`
+	// ConfigMaps carries information of other ConfigMaps to add to the pod.
+	// Optional.
+	ConfigMaps []NamePath `json:"configMaps,omitempty"`
+	// Secrets carries information of secrets to add to the pod.
+	// Optional.
+	Secrets []SecretInfo `json:"secrets,omitempty"`
+	// EnvVars carries the environment variables to add to the pod.
+	// Optional.
+	EnvVars map[string]string `json:"envVars,omitempty"`
+	// Labels are the Kubernetes labels to be added to the pod.
+	// Optional.
+	Labels map[string]string `json:"labels,omitempty"`
+	// Annotations are the Kubernetes annotations to be added to the pod.
+	// Optional.
+	Annotations map[string]string `json:"annotations,omitempty"`
+}
+
 // DriverSpec is specification of the driver.
 type DriverSpec struct {
+	SparkPodSpec
 	// PodName is the name of the driver pod that the user creates. This is used for the
 	// in-cluster client mode in which the user creates a client pod where the driver of
 	// the user application runs. It's an error to set this field if Mode is not
 	// in-cluster-client.
 	// Optional.
 	PodName *string `json:"podName,omitempty"`
-	// Cores is used to set spark.driver.cores.
-	// Optional.
-	Cores *string `json:"cores,omitempty"`
-	// Memory is used to set spark.driver.memory.
-	// Optional.
-	Memory *string `json:"memory,omitempty"`
-	// Image is the driver container image to use. Overrides Spec.Image if set.
-	// Optional.
-	Image *string `json:"image,omitempty"`
-	// ConfigMaps carries information of other ConfigMaps to add to the driver Pod.
-	// Optional.
-	ConfigMaps []NamePath `json:"configMaps,omitempty"`
-	// Secrets carries information of secrets to add to the driver Pod.
-	// Optional.
-	Secrets []SecretInfo `json:"secrets,omitempty"`
-	// EnvVars carries the environment variables to add to the driver Pod.
-	// Optional.
-	EnvVars map[string]string `json:"envVars,omitempty"`
 }
 
 // ExecutorSpec is specification of the executor.
 type ExecutorSpec struct {
-	// Cores is used to set spark.executor.cores.
-	// Optional.
-	Cores *string `json:"cores,omitempty"`
-	// Memory is used to set spark.executor.memory.
-	// Optional.
-	Memory *string `json:"memory,omitempty"`
-	// Image is the executor container image to use. Overrides Spec.Image if set.
-	// Optional.
-	Image *string `json:"image,omitempty"`
+	SparkPodSpec
 	// Instances is the number of executor instances.
+	// Optional.
 	Instances *int32 `json:"instances,omitempty"`
-	// ConfigMaps carries information of other ConfigMaps to add to the executor Pods.
-	// Optional.
-	ConfigMaps []NamePath `json:"configMaps,omitempty"`
-	// Secrets carries information of secrets to add to the executor Pods.
-	// Optional.
-	Secrets []SecretInfo `json:"secrets,omitempty"`
-	// EnvVars carries the environment variables to add to the executor Pods.
-	// Optional.
-	EnvVars map[string]string `json:"envVars,omitempty"`
 }
 
 // NamePath is a pair of a name and a path to which the named objects should be mounted to.
