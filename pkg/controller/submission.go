@@ -130,7 +130,7 @@ func buildSubmissionCommandArgs(app *v1alpha1.SparkApplication) ([]string, error
 
 	// Add application arguments.
 	for _, argument := range app.Spec.Arguments {
-		args = append(args, argument)
+		args = append(args, fmt.Sprintf("\"%s\"", argument))
 	}
 
 	return args, nil
