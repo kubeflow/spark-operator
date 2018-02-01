@@ -121,4 +121,6 @@ const (
 	// SparkMaxSimultaneousDownloads is the Spark configuration key for specifying the maximum number of remote
 	// dependencies to download.
 	SparkMaxSimultaneousDownloads = "spark.kubernetes.mountDependencies.maxSimultaneousDownloads"
+	// SparkWaitAppCompletion is the Spark configuration key for specifying whether to wait for application to complete.
+	SparkWaitAppCompletion = "spark.kubernetes.submission.waitAppCompletion"
 )
