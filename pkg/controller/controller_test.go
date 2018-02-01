@@ -170,7 +170,7 @@ func TestProcessSingleDriverStateUpdate(t *testing.T) {
 
 	testFn := func(test testcase, t *testing.T) {
 		ctrl.runningApps[test.update.appID].Status.AppState.State = v1alpha1.NewState
-		ctrl.processSingleDriverStateUpdate(test.update)
+		ctrl.processSingleDriverStateUpdate(&test.update)
 		app, ok := ctrl.runningApps[test.update.appID]
 		if !ok {
 			t.Errorf("%s: SparkApplication %s not found", test.name, test.update.appID)
@@ -364,7 +364,7 @@ func TestProcessSingleExecutorStateUpdate(t *testing.T) {
 	}
 
 	testFn := func(test testcase, t *testing.T) {
-		ctrl.processSingleExecutorStateUpdate(test.update)
+		ctrl.processSingleExecutorStateUpdate(&test.update)
 		app, ok := ctrl.runningApps[test.update.appID]
 		if !ok {
 			t.Errorf("%s: SparkApplication %s not found", test.name, test.update.appID)

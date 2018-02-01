@@ -65,8 +65,7 @@ type SparkApplicationController struct {
 	runner                     *sparkSubmitRunner
 	sparkPodMonitor            *sparkPodMonitor
 	appStateReportingChan      <-chan appStateUpdate
-	driverStateReportingChan   <-chan driverStateUpdate
-	executorStateReportingChan <-chan executorStateUpdate
+	podStateReportingChan      <-chan interface{}
 	mutex                      sync.Mutex                            // Guard SparkApplication updates to the API server and runningApps.
 	runningApps                map[string]*v1alpha1.SparkApplication // Guarded by mutex.
 }
@@ -98,23 +97,22 @@ func newSparkApplicationController(
 		"spark-application-controller")
 
 	appStateReportingChan := make(chan appStateUpdate, submissionRunnerWorkers)
-	driverStateReportingChan := make(chan driverStateUpdate)
-	executorStateReportingChan := make(chan executorStateUpdate)
+	podStateReportingChan := make(chan interface{})
+
 	runner := newSparkSubmitRunner(submissionRunnerWorkers, appStateReportingChan)
-	sparkPodMonitor := newSparkPodMonitor(kubeClient, driverStateReportingChan, executorStateReportingChan)
+	sparkPodMonitor := newSparkPodMonitor(kubeClient, podStateReportingChan)
 
 	controller := &SparkApplicationController{
-		crdClient:                  crdClient,
-		kubeClient:                 kubeClient,
-		extensionsClient:           extensionsClient,
-		recorder:                   eventRecorder,
-		queue:                      queue,
-		runner:                     runner,
-		sparkPodMonitor:            sparkPodMonitor,
-		appStateReportingChan:      appStateReportingChan,
-		driverStateReportingChan:   driverStateReportingChan,
-		executorStateReportingChan: executorStateReportingChan,
-		runningApps:                make(map[string]*v1alpha1.SparkApplication),
+		crdClient:             crdClient,
+		kubeClient:            kubeClient,
+		extensionsClient:      extensionsClient,
+		recorder:              eventRecorder,
+		queue:                 queue,
+		runner:                runner,
+		sparkPodMonitor:       sparkPodMonitor,
+		appStateReportingChan: appStateReportingChan,
+		podStateReportingChan: podStateReportingChan,
+		runningApps:           make(map[string]*v1alpha1.SparkApplication),
 	}
 
 	informerFactory := crdinformers.NewSharedInformerFactory(
@@ -160,8 +158,7 @@ func (s *SparkApplicationController) Start(workers int, stopCh <-chan struct{}) 
 	go s.sparkPodMonitor.run(stopCh)
 
 	go s.processAppStateUpdates()
-	go s.processDriverStateUpdates()
-	go s.processExecutorStateUpdates()
+	go s.processPodStateUpdates()
 
 	return nil
 }
@@ -295,23 +292,29 @@ func (s *SparkApplicationController) submitApp(app *v1alpha1.SparkApplication, r
 	}
 }
 
-func (s *SparkApplicationController) processDriverStateUpdates() {
-	for update := range s.driverStateReportingChan {
-		updatedApp := s.processSingleDriverStateUpdate(update)
-		if updatedApp != nil && isAppTerminated(updatedApp.Status.AppState.State) {
-			s.recorder.Eventf(
-				updatedApp,
-				apiv1.EventTypeNormal,
-				"SparkApplicationTermination",
-				"SparkApplication %s terminated with state: %v",
-				updatedApp.Name,
-				updatedApp.Status.AppState)
-			s.handleRestart(updatedApp)
+func (s *SparkApplicationController) processPodStateUpdates() {
+	for update := range s.podStateReportingChan {
+		switch update.(type) {
+		case *driverStateUpdate:
+			updatedApp := s.processSingleDriverStateUpdate(update.(*driverStateUpdate))
+			if updatedApp != nil && isAppTerminated(updatedApp.Status.AppState.State) {
+				s.recorder.Eventf(
+					updatedApp,
+					apiv1.EventTypeNormal,
+					"SparkApplicationTermination",
+					"SparkApplication %s terminated with state: %v",
+					updatedApp.Name,
+					updatedApp.Status.AppState)
+				s.handleRestart(updatedApp)
+			}
+			continue
+		case *executorStateUpdate:
+			s.processSingleExecutorStateUpdate(update.(*executorStateUpdate))
 		}
 	}
 }
 
-func (s *SparkApplicationController) processSingleDriverStateUpdate(update driverStateUpdate) *v1alpha1.SparkApplication {
+func (s *SparkApplicationController) processSingleDriverStateUpdate(update *driverStateUpdate) *v1alpha1.SparkApplication {
 	glog.V(2).Infof(
 		"Received driver state update for %s with phase %s",
 		update.appID,
@@ -370,13 +373,7 @@ func (s *SparkApplicationController) processSingleAppStateUpdate(update appState
 	}
 }
 
-func (s *SparkApplicationController) processExecutorStateUpdates() {
-	for update := range s.executorStateReportingChan {
-		s.processSingleExecutorStateUpdate(update)
-	}
-}
-
-func (s *SparkApplicationController) processSingleExecutorStateUpdate(update executorStateUpdate) {
+func (s *SparkApplicationController) processSingleExecutorStateUpdate(update *executorStateUpdate) {
 	glog.V(2).Infof(
 		"Received state update of executor %s for %s with state %s",
 		update.executorID,

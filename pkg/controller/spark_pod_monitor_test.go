@@ -30,7 +30,7 @@ import (
 )
 
 func TestOnPodAdded(t *testing.T) {
-	monitor, driverStateReportingChan, executorStateReportingChan := newMonitor()
+	monitor, podStateReportingChan := newMonitor()
 
 	driverPod := &apiv1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
@@ -45,7 +45,9 @@ func TestOnPodAdded(t *testing.T) {
 		},
 	}
 	go monitor.onPodAdded(driverPod)
-	driverUpdate := <-driverStateReportingChan
+
+	update := <-podStateReportingChan
+	driverUpdate := update.(*driverStateUpdate)
 	assert.Equal(
 		t,
 		driverUpdate.podName,
@@ -75,7 +77,9 @@ func TestOnPodAdded(t *testing.T) {
 		},
 	}
 	go monitor.onPodAdded(executorPod)
-	executorUpdate := <-executorStateReportingChan
+
+	update = <-podStateReportingChan
+	executorUpdate := update.(*executorStateUpdate)
 	assert.Equal(
 		t,
 		executorUpdate.podName,
@@ -93,7 +97,7 @@ func TestOnPodAdded(t *testing.T) {
 }
 
 func TestOnPodUpdated(t *testing.T) {
-	monitor, driverStateReportingChan, executorStateReportingChan := newMonitor()
+	monitor, podStateReportingChan := newMonitor()
 
 	oldDriverPod := &apiv1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
@@ -110,7 +114,9 @@ func TestOnPodUpdated(t *testing.T) {
 	newDriverPod := oldDriverPod.DeepCopy()
 	newDriverPod.Status.Phase = apiv1.PodSucceeded
 	go monitor.onPodUpdated(oldDriverPod, newDriverPod)
-	driverUpdate := <-driverStateReportingChan
+
+	update := <-podStateReportingChan
+	driverUpdate := update.(*driverStateUpdate)
 	assert.Equal(
 		t,
 		driverUpdate.podName,
@@ -142,7 +148,9 @@ func TestOnPodUpdated(t *testing.T) {
 	newExecutorPod := oldExecutorPod.DeepCopy()
 	newExecutorPod.Status.Phase = apiv1.PodFailed
 	go monitor.onPodUpdated(oldExecutorPod, newExecutorPod)
-	executorUpdate := <-executorStateReportingChan
+
+	update = <-podStateReportingChan
+	executorUpdate := update.(*executorStateUpdate)
 	assert.Equal(
 		t,
 		executorUpdate.podName,
@@ -160,7 +168,7 @@ func TestOnPodUpdated(t *testing.T) {
 }
 
 func TestOnPodDeleted(t *testing.T) {
-	monitor, _, executorStateReportingChan := newMonitor()
+	monitor, podStateReportingChan := newMonitor()
 
 	executorPod := &apiv1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
@@ -176,7 +184,9 @@ func TestOnPodDeleted(t *testing.T) {
 		},
 	}
 	go monitor.onPodDeleted(executorPod)
-	executorUpdate := <-executorStateReportingChan
+
+	update := <-podStateReportingChan
+	executorUpdate := update.(*executorStateUpdate)
 	assert.Equal(
 		t,
 		executorUpdate.podName,
@@ -194,7 +204,9 @@ func TestOnPodDeleted(t *testing.T) {
 
 	executorPod.Status.Phase = apiv1.PodFailed
 	go monitor.onPodDeleted(executorPod)
-	executorUpdate = <-executorStateReportingChan
+
+	update = <-podStateReportingChan
+	executorUpdate = update.(*executorStateUpdate)
 	assert.Equal(
 		t,
 		executorUpdate.podName,
@@ -211,9 +223,8 @@ func TestOnPodDeleted(t *testing.T) {
 		executorUpdate.state)
 }
 
-func newMonitor() (*sparkPodMonitor, <-chan driverStateUpdate, <-chan executorStateUpdate) {
-	driverStateReportingChan := make(chan driverStateUpdate)
-	executorStateReportingChan := make(chan executorStateUpdate)
-	monitor := newSparkPodMonitor(kubeclientfake.NewSimpleClientset(), driverStateReportingChan, executorStateReportingChan)
-	return monitor, driverStateReportingChan, executorStateReportingChan
+func newMonitor() (*sparkPodMonitor, <-chan interface{}) {
+	podStateReportingChan := make(chan interface{})
+	monitor := newSparkPodMonitor(kubeclientfake.NewSimpleClientset(), podStateReportingChan)
+	return monitor, podStateReportingChan
 }
