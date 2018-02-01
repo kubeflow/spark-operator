@@ -22,9 +22,9 @@ metadata:
 spec:
   type: Scala
   mode: cluster
-  image: "liyinan926/spark:v2.3.0"
+  image: "gcr.io/ynli-k8s/spark:v2.3.0"
   mainClass: org.apache.spark.examples.SparkPi
-  mainApplicationFile: "local:///opt/spark/examples/jars/spark-examples_2.11-2.4.0-SNAPSHOT.jar"
+  mainApplicationFile: "local:///opt/spark/examples/jars/spark-examples_2.11-2.3.0.jar"
   driver:
     cores: "0.1"
     labels:
