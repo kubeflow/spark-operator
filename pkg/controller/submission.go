@@ -80,6 +80,11 @@ func buildSubmissionCommandArgs(app *v1alpha1.SparkApplication) ([]string, error
 			fmt.Sprintf("%s=%s", config.SparkContainerImagePullPolicyKey, *app.Spec.ImagePullPolicy))
 	}
 
+	if app.Spec.SparkConf == nil {
+		app.Spec.SparkConf = make(map[string]string)
+		app.Spec.SparkConf[config.SparkWaitAppCompletion] = "false"
+	}
+
 	if app.Spec.SparkConfigMap != nil {
 		config.AddConfigMapAnnotation(app, config.SparkDriverAnnotationKeyPrefix, config.SparkConfigMapAnnotation,
 			*app.Spec.SparkConfigMap)
