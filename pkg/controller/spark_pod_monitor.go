@@ -42,10 +42,8 @@ type sparkPodMonitor struct {
 	kubeClient clientset.Interface
 	// sparkPodInformer is a controller for listing uninitialized Spark Pods.
 	sparkPodInformer cache.Controller
-	// driverStateReportingChan is a channel used to notify the controller of driver state updates.
-	driverStateReportingChan chan<- driverStateUpdate
-	// executorStateUpdateChan is a channel used to notify the controller of executor state updates.
-	executorStateReportingChan chan<- executorStateUpdate
+	// podStateReportingChan is a channel used to notify the controller of Spark pod state updates.
+	podStateReportingChan chan<- interface{}
 }
 
 // driverStateUpdate encapsulates state update of the driver.
@@ -68,12 +66,10 @@ type executorStateUpdate struct {
 // newSparkPodMonitor creates a new sparkPodMonitor instance.
 func newSparkPodMonitor(
 	kubeClient clientset.Interface,
-	driverStateReportingChan chan<- driverStateUpdate,
-	executorStateReportingChan chan<- executorStateUpdate) *sparkPodMonitor {
+	podStateReportingChan chan<- interface{}) *sparkPodMonitor {
 	monitor := &sparkPodMonitor{
-		kubeClient:                 kubeClient,
-		driverStateReportingChan:   driverStateReportingChan,
-		executorStateReportingChan: executorStateReportingChan,
+		kubeClient:            kubeClient,
+		podStateReportingChan: podStateReportingChan,
 	}
 
 	podInterface := kubeClient.CoreV1().Pods(apiv1.NamespaceAll)
@@ -120,8 +116,7 @@ func (s *sparkPodMonitor) run(stopCh <-chan struct{}) {
 	}
 
 	<-stopCh
-	close(s.driverStateReportingChan)
-	close(s.executorStateReportingChan)
+	close(s.podStateReportingChan)
 }
 
 func (s *sparkPodMonitor) onPodAdded(obj interface{}) {
@@ -162,13 +157,13 @@ func (s *sparkPodMonitor) updateDriverState(pod *apiv1.Pod) {
 			update.completionTime = metav1.Now()
 		}
 
-		s.driverStateReportingChan <- update
+		s.podStateReportingChan <- &update
 	}
 }
 
 func (s *sparkPodMonitor) updateExecutorState(pod *apiv1.Pod) {
 	if appID, ok := getAppID(pod); ok {
-		s.executorStateReportingChan <- executorStateUpdate{
+		s.podStateReportingChan <- &executorStateUpdate{
 			appID:      appID,
 			podName:    pod.Name,
 			executorID: getExecutorID(pod),
