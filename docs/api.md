@@ -1,7 +1,7 @@
 # SparkApplication API
 
 The Spark Operator uses a [CustomResourceDefinition](https://kubernetes.io/docs/concepts/api-extension/custom-resources/) 
-named `SparkApplication` for specifying Spark applications to be run in a Kubernetes cluster. Similarly to other kinds of Kubernetes resources, a `SparkApplication` consists of a specification in a `Spec` field of type `SparkApplicationSpec`and a `Status` field of type `SparkApplicationStatus`. The definition is organized in the following structure. The v1alpha1 version of the API definition is implemented [here](../pkg/apis/sparkoperator.k8s.io/v1alpha1/typpes.go).
+named `SparkApplication` for specifying Spark applications to be run in a Kubernetes cluster. Similarly to other kinds of Kubernetes resources, a `SparkApplication` consists of a specification in a `Spec` field of type `SparkApplicationSpec`and a `Status` field of type `SparkApplicationStatus`. The definition is organized in the following structure. The v1alpha1 version of the API definition is implemented [here](../pkg/apis/sparkoperator.k8s.io/v1alpha1/types.go).
 
 ```
 SparkApplication
@@ -24,7 +24,7 @@ A `SparkApplicationSpec` has the following top-level fields:
 | Field | Spark configuration property or `spark-submit` option | Note |
 | ------------- | ------------- | ------------- |
 | `Type`  | N/A  | The type of the Spark application. Valid values are `Java`, `Scala`, `Python`, and `R`. |
-| `Mode`  | `--mode` | Spark deployment mode. Valid values are `clsuter` and `client`. |
+| `Mode`  | `--mode` | Spark deployment mode. Valid values are `cluster` and `client`. |
 | `Image` | `spark.kubernetes.container.image` | Unified container image for the driver, executor, and init-container. |
 | `InitContainerImage` | `spark.kubernetes.initContainer.image` | Custom init-container image. |
 | `ImagePullPolicy` | `spark.kubernetes.container.image.pullPolicy` | Container image pull policy. |

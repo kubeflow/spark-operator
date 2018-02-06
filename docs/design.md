@@ -24,7 +24,7 @@ The Spark Operator consists of:
 `SparkApplication` objects and acts on the watch events,
 * a *submission runner* that runs `spark-submit` for submissions received from the controller,
 * a *Spark pod monitor* that watches for Spark pods and sends pod status updates to the controller,
-* a Spark pod [initializer](https://kubernetes.io/docs/admin/extensible-admission-controllers/#initializers)that performs initialization tasks on Spark driver and executor pods based on the annotations on the pods added by the controller,
+* a Spark pod [initializer](https://kubernetes.io/docs/admin/extensible-admission-controllers/#initializers) that performs initialization tasks on Spark driver and executor pods based on the annotations on the pods added by the controller,
 * and also a command-line tool named `sparkctl` for working with the operator. 
 
 The following diagram shows how different components interact and work together.
