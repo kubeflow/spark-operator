@@ -48,19 +48,21 @@ type sparkPodMonitor struct {
 
 // driverStateUpdate encapsulates state update of the driver.
 type driverStateUpdate struct {
-	appID          string
-	podName        string
-	nodeName       string
-	podPhase       apiv1.PodPhase
-	completionTime metav1.Time
+	appNamespace   string         // Namespace in which the application and driver pod run.
+	appName        string         // Name of the application.
+	podName        string         // Name of the driver pod.
+	nodeName       string         // Name of the node the driver pod runs on.
+	podPhase       apiv1.PodPhase // Driver pod phase.
+	completionTime metav1.Time    // Time the driver completes.
 }
 
 // executorStateUpdate encapsulates state update of an executor.
 type executorStateUpdate struct {
-	appID      string
-	podName    string
-	executorID string
-	state      v1alpha1.ExecutorState
+	appNamespace string                 // Namespace in which the application and executor pods run.
+	appName      string                 // Name of the application.
+	podName      string                 // Name of the executor pod.
+	executorID   string                 // Spark executor ID.
+	state        v1alpha1.ExecutorState // Executor state.
 }
 
 // newSparkPodMonitor creates a new sparkPodMonitor instance.
@@ -138,20 +140,28 @@ func (s *sparkPodMonitor) onPodUpdated(old, updated interface{}) {
 }
 
 func (s *sparkPodMonitor) onPodDeleted(obj interface{}) {
-	deletedPod := obj.(*apiv1.Pod)
-	if !isExecutorPod(deletedPod) {
-		return
+	deletedPod := obj.(*apiv1.Pod).DeepCopy()
+	if isDriverPod(deletedPod) {
+		if deletedPod.Status.Phase != apiv1.PodSucceeded && deletedPod.Status.Phase != apiv1.PodFailed {
+			// The driver pod was deleted before it succeeded or failed. Treat deletion as failure in this case so the
+			// application gets restarted if the RestartPolicy is Always or OnFailure.
+			deletedPod.Status.Phase = apiv1.PodFailed
+			// No update is reported if the deleted driver pod already terminated.
+			s.updateDriverState(deletedPod)
+		}
+	} else if isExecutorPod(deletedPod) {
+		s.updateExecutorState(deletedPod)
 	}
-	s.updateExecutorState(deletedPod)
 }
 
 func (s *sparkPodMonitor) updateDriverState(pod *apiv1.Pod) {
-	if appID, ok := getAppID(pod); ok {
+	if appName, ok := getAppName(pod); ok {
 		update := driverStateUpdate{
-			appID:    appID,
-			podName:  pod.Name,
-			nodeName: pod.Spec.NodeName,
-			podPhase: pod.Status.Phase,
+			appNamespace: pod.Namespace,
+			appName:      appName,
+			podName:      pod.Name,
+			nodeName:     pod.Spec.NodeName,
+			podPhase:     pod.Status.Phase,
 		}
 		if pod.Status.Phase == apiv1.PodSucceeded {
 			update.completionTime = metav1.Now()
@@ -162,19 +172,20 @@ func (s *sparkPodMonitor) updateDriverState(pod *apiv1.Pod) {
 }
 
 func (s *sparkPodMonitor) updateExecutorState(pod *apiv1.Pod) {
-	if appID, ok := getAppID(pod); ok {
+	if appName, ok := getAppName(pod); ok {
 		s.podStateReportingChan <- &executorStateUpdate{
-			appID:      appID,
-			podName:    pod.Name,
-			executorID: getExecutorID(pod),
-			state:      podPhaseToExecutorState(pod.Status.Phase),
+			appNamespace: pod.Namespace,
+			appName:      appName,
+			podName:      pod.Name,
+			executorID:   getExecutorID(pod),
+			state:        podPhaseToExecutorState(pod.Status.Phase),
 		}
 	}
 }
 
-func getAppID(pod *apiv1.Pod) (string, bool) {
-	appID, ok := pod.Labels[config.SparkAppIDLabel]
-	return appID, ok
+func getAppName(pod *apiv1.Pod) (string, bool) {
+	appName, ok := pod.Labels[config.SparkAppNameLabel]
+	return appName, ok
 }
 
 func isDriverPod(pod *apiv1.Pod) bool {

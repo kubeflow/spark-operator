@@ -40,7 +40,8 @@ type sparkSubmitRunner struct {
 
 // appStateUpdate encapsulates overall state update of a Spark application.
 type appStateUpdate struct {
-	appID          string
+	namespace      string
+	name           string
 	submissionTime metav1.Time
 	state          v1alpha1.ApplicationStateType
 	errorMessage   string
@@ -84,20 +85,21 @@ func (r *sparkSubmitRunner) runWorker() {
 			// The application state is otherwise solely based on the driver pod phase if submission succeeds and
 			// driver pod starts running.
 			stateUpdate := appStateUpdate{
-				appID:          s.appID,
+				namespace:      s.namespace,
+				name:           s.name,
 				submissionTime: metav1.Now(),
 				state:          v1alpha1.FailedSubmissionState,
 			}
 
 			if exitErr, ok := err.(*exec.ExitError); ok {
-				glog.Errorf("failed to run spark-submit for SparkApplication %s: %s", s.appName,
-					string(exitErr.Stderr))
+				glog.Errorf("failed to run spark-submit for SparkApplication %s in namespace %s: %s", s.name,
+					s.namespace, string(exitErr.Stderr))
 				stateUpdate.errorMessage = string(exitErr.Stderr)
 			}
 
 			r.appStateReportingChan <- stateUpdate
 		} else {
-			glog.Infof("spark-submit completed for SparkApplication %s", s.appName)
+			glog.Infof("spark-submit completed for SparkApplication %s in namespace %s", s.name, s.namespace)
 		}
 	}
 }

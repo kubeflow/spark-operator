@@ -34,10 +34,12 @@ func TestOnPodAdded(t *testing.T) {
 
 	driverPod := &apiv1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: "foo-driver",
+			Name:      "foo-driver",
+			Namespace: "default",
 			Labels: map[string]string{
-				sparkRoleLabel:         sparkDriverRole,
-				config.SparkAppIDLabel: "foo-123",
+				sparkRoleLabel:           sparkDriverRole,
+				config.SparkAppIDLabel:   "foo-123",
+				config.SparkAppNameLabel: "foo",
 			},
 		},
 		Status: apiv1.PodStatus{
@@ -50,15 +52,15 @@ func TestOnPodAdded(t *testing.T) {
 	driverUpdate := update.(*driverStateUpdate)
 	assert.Equal(
 		t,
-		driverUpdate.podName,
 		driverPod.Name,
+		driverUpdate.podName,
 		"wanted driver pod name %s got %s",
 		driverPod.Name,
 		driverUpdate.podName)
 	assert.Equal(
 		t,
-		driverUpdate.podPhase,
 		apiv1.PodPending,
+		driverUpdate.podPhase,
 		"wanted driver pod phase %s got %s",
 		apiv1.PodPending,
 		driverUpdate.podPhase)
@@ -67,9 +69,10 @@ func TestOnPodAdded(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "foo-driver",
 			Labels: map[string]string{
-				sparkRoleLabel:         sparkExecutorRole,
-				config.SparkAppIDLabel: "foo-123",
-				sparkExecutorIDLabel:   "1",
+				sparkRoleLabel:           sparkExecutorRole,
+				config.SparkAppIDLabel:   "foo-123",
+				config.SparkAppNameLabel: "foo",
+				sparkExecutorIDLabel:     "1",
 			},
 		},
 		Status: apiv1.PodStatus{
@@ -82,15 +85,15 @@ func TestOnPodAdded(t *testing.T) {
 	executorUpdate := update.(*executorStateUpdate)
 	assert.Equal(
 		t,
-		executorUpdate.podName,
 		executorPod.Name,
+		executorUpdate.podName,
 		"wanted executor pod name %s got %s",
 		executorPod.Name,
 		executorUpdate.podName)
 	assert.Equal(
 		t,
-		executorUpdate.state,
 		v1alpha1.ExecutorRunningState,
+		executorUpdate.state,
 		"wanted executor state %s got %s",
 		v1alpha1.ExecutorRunningState,
 		executorUpdate.state)
@@ -103,8 +106,9 @@ func TestOnPodUpdated(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "foo-driver",
 			Labels: map[string]string{
-				sparkRoleLabel:         sparkDriverRole,
-				config.SparkAppIDLabel: "foo-123",
+				sparkRoleLabel:           sparkDriverRole,
+				config.SparkAppIDLabel:   "foo-123",
+				config.SparkAppNameLabel: "foo",
 			},
 		},
 		Status: apiv1.PodStatus{
@@ -119,15 +123,15 @@ func TestOnPodUpdated(t *testing.T) {
 	driverUpdate := update.(*driverStateUpdate)
 	assert.Equal(
 		t,
-		driverUpdate.podName,
 		newDriverPod.Name,
+		driverUpdate.podName,
 		"wanted driver pod name %s got %s",
 		newDriverPod.Name,
 		driverUpdate.podName)
 	assert.Equal(
 		t,
-		driverUpdate.podPhase,
 		apiv1.PodSucceeded,
+		driverUpdate.podPhase,
 		"wanted driver pod phase %s got %s",
 		apiv1.PodSucceeded,
 		driverUpdate.podPhase)
@@ -136,9 +140,10 @@ func TestOnPodUpdated(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "foo-driver",
 			Labels: map[string]string{
-				sparkRoleLabel:         sparkExecutorRole,
-				config.SparkAppIDLabel: "foo-123",
-				sparkExecutorIDLabel:   "1",
+				sparkRoleLabel:           sparkExecutorRole,
+				config.SparkAppIDLabel:   "foo-123",
+				config.SparkAppNameLabel: "foo",
+				sparkExecutorIDLabel:     "1",
 			},
 		},
 		Status: apiv1.PodStatus{
@@ -153,15 +158,15 @@ func TestOnPodUpdated(t *testing.T) {
 	executorUpdate := update.(*executorStateUpdate)
 	assert.Equal(
 		t,
-		executorUpdate.podName,
 		newExecutorPod.Name,
+		executorUpdate.podName,
 		"wanted executor pod name %s got %s",
 		newExecutorPod.Name,
 		executorUpdate.podName)
 	assert.Equal(
 		t,
-		executorUpdate.state,
 		v1alpha1.ExecutorFailedState,
+		executorUpdate.state,
 		"wanted executor state %s got %s",
 		v1alpha1.ExecutorFailedState,
 		executorUpdate.state)
@@ -170,13 +175,50 @@ func TestOnPodUpdated(t *testing.T) {
 func TestOnPodDeleted(t *testing.T) {
 	monitor, podStateReportingChan := newMonitor()
 
-	executorPod := &apiv1.Pod{
+	driverPod := &apiv1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "foo-driver",
 			Labels: map[string]string{
-				sparkRoleLabel:         sparkExecutorRole,
-				config.SparkAppIDLabel: "foo-123",
-				sparkExecutorIDLabel:   "1",
+				sparkRoleLabel:           sparkDriverRole,
+				config.SparkAppIDLabel:   "foo-123",
+				config.SparkAppNameLabel: "foo",
+			},
+		},
+		Status: apiv1.PodStatus{
+			Phase: apiv1.PodRunning,
+		},
+	}
+	go monitor.onPodDeleted(driverPod)
+
+	update := <-podStateReportingChan
+	driverUpdate := update.(*driverStateUpdate)
+	assert.Equal(
+		t,
+		driverPod.Name,
+		driverUpdate.podName,
+		"wanted driver pod name %s got %s",
+		driverPod.Name,
+		driverUpdate.podName)
+	assert.Equal(
+		t,
+		apiv1.PodFailed,
+		driverUpdate.podPhase,
+		"wanted driver pod phase %s got %s",
+		apiv1.PodFailed,
+		driverUpdate.podPhase)
+
+	driverPod.Status.Phase = apiv1.PodSucceeded
+	go monitor.onPodDeleted(driverPod)
+	assert.True(t, len(podStateReportingChan) == 0)
+
+	executorPod := &apiv1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "foo-exec-1",
+			Labels: map[string]string{
+				sparkRoleLabel:           sparkExecutorRole,
+				config.SparkAppIDLabel:   "foo-123",
+				config.SparkAppNameLabel: "foo",
+				sparkExecutorIDLabel:     "1",
 			},
 		},
 		Status: apiv1.PodStatus{
@@ -185,19 +227,19 @@ func TestOnPodDeleted(t *testing.T) {
 	}
 	go monitor.onPodDeleted(executorPod)
 
-	update := <-podStateReportingChan
+	update = <-podStateReportingChan
 	executorUpdate := update.(*executorStateUpdate)
 	assert.Equal(
 		t,
-		executorUpdate.podName,
 		executorPod.Name,
+		executorUpdate.podName,
 		"wanted executor pod name %s got %s",
 		executorPod.Name,
 		executorUpdate.podName)
 	assert.Equal(
 		t,
-		executorUpdate.state,
 		v1alpha1.ExecutorCompletedState,
+		executorUpdate.state,
 		"wanted executor state %s got %s",
 		v1alpha1.ExecutorCompletedState,
 		executorUpdate.state)
@@ -209,15 +251,15 @@ func TestOnPodDeleted(t *testing.T) {
 	executorUpdate = update.(*executorStateUpdate)
 	assert.Equal(
 		t,
-		executorUpdate.podName,
 		executorPod.Name,
+		executorUpdate.podName,
 		"wanted executor pod name %s got %s",
 		executorPod.Name,
 		executorUpdate.podName)
 	assert.Equal(
 		t,
-		executorUpdate.state,
 		v1alpha1.ExecutorFailedState,
+		executorUpdate.state,
 		"wanted executor state %s got %s",
 		v1alpha1.ExecutorFailedState,
 		executorUpdate.state)
