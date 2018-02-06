@@ -422,7 +422,7 @@ func (in *SparkPodSpec) DeepCopyInto(out *SparkPodSpec) {
 		if *in == nil {
 			*out = nil
 		} else {
-			*out = new(string)
+			*out = new(float32)
 			**out = **in
 		}
 	}

@@ -26,14 +26,15 @@ spec:
   mainClass: org.apache.spark.examples.SparkPi
   mainApplicationFile: "local:///opt/spark/examples/jars/spark-examples_2.11-2.3.0.jar"
   driver:
-    cores: "0.1"
+    cores: 0.1
+    coreLimit: "200m"
+    memory: "512m"
     labels:
       version: 2.3.0
   executor:
+    cores: 1
     instances: 1
-    coreLimit: "1"
     memory: "512m"
     labels:
       version: 2.3.0
   restartPolicy: Never
-  submissionByUser: false

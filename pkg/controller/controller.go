@@ -264,9 +264,8 @@ func (s *SparkApplicationController) submitApp(app *v1alpha1.SparkApplication, r
 			updatedApp.Name,
 			err)
 	}
-	if !updatedApp.Spec.SubmissionByUser {
-		s.runner.submit(newSubmission(submissionCmdArgs, updatedApp))
-	}
+	
+	s.runner.submit(newSubmission(submissionCmdArgs, updatedApp))
 }
 
 func (s *SparkApplicationController) processPodStateUpdates() {
