@@ -18,6 +18,7 @@ package controller
 
 import (
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -32,9 +33,10 @@ import (
 	crdfake "k8s.io/spark-on-k8s-operator/pkg/client/clientset/versioned/fake"
 )
 
-func newFakeController() *SparkApplicationController {
+func newFakeController() (*SparkApplicationController, *record.FakeRecorder) {
 	crdClient := crdfake.NewSimpleClientset()
 	kubeClient := kubeclientfake.NewSimpleClientset()
+	apiExtensionsClient := apiextensionsfake.NewSimpleClientset()
 	kubeClient.CoreV1().Nodes().Create(&apiv1.Node{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "node1",
@@ -48,12 +50,14 @@ func newFakeController() *SparkApplicationController {
 			},
 		},
 	})
-	return newSparkApplicationController(crdClient, kubeClient, apiextensionsfake.NewSimpleClientset(),
-		record.NewFakeRecorder(3), 0)
+
+	recorder := record.NewFakeRecorder(3)
+	return newSparkApplicationController(crdClient, kubeClient, apiExtensionsClient,
+		recorder, 0), recorder
 }
 
 func TestSubmitApp(t *testing.T) {
-	ctrl := newFakeController()
+	ctrl, _ := newFakeController()
 
 	os.Setenv(kubernetesServiceHostEnvVar, "localhost")
 	os.Setenv(kubernetesServicePortEnvVar, "443")
@@ -68,14 +72,12 @@ func TestSubmitApp(t *testing.T) {
 
 	go ctrl.submitApp(app, false)
 	submission := <-ctrl.runner.queue
-	assert.Equal(t, submission.appName, app.Name, "wanted application name %s got %s", app.Name, submission.appName)
+	assert.Equal(t, app.Name, submission.name)
+	assert.Equal(t, app.Namespace, submission.namespace)
 }
 
-func TestOnDelete(t *testing.T) {
-	ctrl := newFakeController()
-
-	os.Setenv(kubernetesServiceHostEnvVar, "localhost")
-	os.Setenv(kubernetesServicePortEnvVar, "443")
+func TestOnAdd(t *testing.T) {
+	ctrl, recorder := newFakeController()
 
 	app := &v1alpha1.SparkApplication{
 		ObjectMeta: metav1.ObjectMeta{
@@ -86,27 +88,41 @@ func TestOnDelete(t *testing.T) {
 			AppID: "foo-123",
 		},
 	}
-	ctrl.crdClient.SparkoperatorV1alpha1().SparkApplications(app.Namespace).Create(app)
+	ctrl.onAdd(app)
 
-	driverPod := &apiv1.Pod{
+	item, _ := ctrl.queue.Get()
+	defer ctrl.queue.Done(item)
+	key, ok := item.(string)
+	assert.True(t, ok)
+	assert.Equal(t, getApplicationKey(app.Namespace, app.Name), key)
+
+	assert.Equal(t, 1, len(recorder.Events))
+	event := <-recorder.Events
+	assert.True(t, strings.Contains(event, "SparkApplicationSubmission"))
+}
+
+func TestOnDelete(t *testing.T) {
+	ctrl, recorder := newFakeController()
+
+	app := &v1alpha1.SparkApplication{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "foo-driver",
-			Namespace: app.Namespace,
+			Name:      "foo",
+			Namespace: "default",
+		},
+		Status: v1alpha1.SparkApplicationStatus{
+			AppID: "foo-123",
 		},
 	}
-	ctrl.kubeClient.CoreV1().Pods(app.Namespace).Create(driverPod)
-
-	_, err := ctrl.kubeClient.CoreV1().Pods(app.Namespace).Get(driverPod.Name, metav1.GetOptions{})
-	assert.True(t, err == nil)
-
-	createSparkUIService(app, ctrl.kubeClient)
-	app.Annotations = make(map[string]string)
-	app.Status.DriverInfo.PodName = driverPod.Name
+	ctrl.onAdd(app)
+	ctrl.queue.Get()
+	<-recorder.Events
 
 	ctrl.onDelete(app)
-
-	_, ok := ctrl.runningApps[app.Status.AppID]
-	assert.False(t, ok)
+	ctrl.queue.ShutDown()
+	item, _ := ctrl.queue.Get()
+	assert.True(t, item == nil)
+	event := <-recorder.Events
+	assert.True(t, strings.Contains(event, "SparkApplicationDeletion"))
 }
 
 func TestProcessSingleDriverStateUpdate(t *testing.T) {
@@ -116,16 +132,15 @@ func TestProcessSingleDriverStateUpdate(t *testing.T) {
 		expectedAppState v1alpha1.ApplicationStateType
 	}
 
-	ctrl := newFakeController()
+	ctrl, recorder := newFakeController()
 
-	appID := "foo-123"
 	app := &v1alpha1.SparkApplication{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "foo",
 			Namespace: "default",
 		},
 		Status: v1alpha1.SparkApplicationStatus{
-			AppID: appID,
+			AppID: "foo-123",
 			AppState: v1alpha1.ApplicationState{
 				State:        v1alpha1.NewState,
 				ErrorMessage: "",
@@ -133,55 +148,65 @@ func TestProcessSingleDriverStateUpdate(t *testing.T) {
 		},
 	}
 	ctrl.crdClient.SparkoperatorV1alpha1().SparkApplications(app.Namespace).Create(app)
-	ctrl.runningApps[app.Status.AppID] = app
+	ctrl.store.Add(app)
 
 	testcases := []testcase{
 		{
 			name: "succeeded driver",
 			update: driverStateUpdate{
-				appID:    appID,
-				podName:  "foo-driver",
-				nodeName: "node1",
-				podPhase: apiv1.PodSucceeded,
+				appName:      "foo",
+				appNamespace: "default",
+				podName:      "foo-driver",
+				nodeName:     "node1",
+				podPhase:     apiv1.PodSucceeded,
 			},
 			expectedAppState: v1alpha1.CompletedState,
 		},
 		{
 			name: "failed driver",
 			update: driverStateUpdate{
-				appID:    appID,
-				podName:  "foo-driver",
-				nodeName: "node1",
-				podPhase: apiv1.PodFailed,
+				appName:      "foo",
+				appNamespace: "default",
+				podName:      "foo-driver",
+				nodeName:     "node1",
+				podPhase:     apiv1.PodFailed,
 			},
 			expectedAppState: v1alpha1.FailedState,
 		},
 		{
 			name: "running driver",
 			update: driverStateUpdate{
-				appID:    appID,
-				podName:  "foo-driver",
-				nodeName: "node1",
-				podPhase: apiv1.PodRunning,
+				appName:      "foo",
+				appNamespace: "default",
+				podName:      "foo-driver",
+				nodeName:     "node1",
+				podPhase:     apiv1.PodRunning,
 			},
 			expectedAppState: v1alpha1.RunningState,
 		},
 	}
 
 	testFn := func(test testcase, t *testing.T) {
-		ctrl.runningApps[test.update.appID].Status.AppState.State = v1alpha1.NewState
 		ctrl.processSingleDriverStateUpdate(&test.update)
-		app, ok := ctrl.runningApps[test.update.appID]
-		if !ok {
-			t.Errorf("%s: SparkApplication %s not found", test.name, test.update.appID)
+		app, err := ctrl.crdClient.SparkoperatorV1alpha1().SparkApplications(app.Namespace).Get(app.Name,
+			metav1.GetOptions{})
+		if err != nil {
+			t.Error(err)
 		}
 		assert.Equal(
 			t,
-			app.Status.AppState.State,
 			test.expectedAppState,
+			app.Status.AppState.State,
 			"wanted application state %s got %s",
 			test.expectedAppState,
 			app.Status.AppState.State)
+
+		if isAppTerminated(app.Status.AppState.State) {
+			event := <-recorder.Events
+			assert.True(t, strings.Contains(event, "SparkApplicationTermination"))
+		}
+
+		ctrl.store.Update(app)
 	}
 
 	for _, test := range testcases {
@@ -197,16 +222,15 @@ func TestProcessSingleAppStateUpdate(t *testing.T) {
 		expectedAppState v1alpha1.ApplicationStateType
 	}
 
-	ctrl := newFakeController()
+	ctrl, recorder := newFakeController()
 
-	appID := "foo-123"
 	app := &v1alpha1.SparkApplication{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "foo",
 			Namespace: "default",
 		},
 		Status: v1alpha1.SparkApplicationStatus{
-			AppID: appID,
+			AppID: "foo-123",
 			AppState: v1alpha1.ApplicationState{
 				State:        v1alpha1.NewState,
 				ErrorMessage: "",
@@ -214,13 +238,14 @@ func TestProcessSingleAppStateUpdate(t *testing.T) {
 		},
 	}
 	ctrl.crdClient.SparkoperatorV1alpha1().SparkApplications(app.Namespace).Create(app)
-	ctrl.runningApps[app.Status.AppID] = app
+	ctrl.store.Add(app)
 
 	testcases := []testcase{
 		{
 			name: "succeeded app",
 			update: appStateUpdate{
-				appID:        appID,
+				namespace:    "default",
+				name:         "foo",
 				state:        v1alpha1.CompletedState,
 				errorMessage: "",
 			},
@@ -230,7 +255,8 @@ func TestProcessSingleAppStateUpdate(t *testing.T) {
 		{
 			name: "failed app",
 			update: appStateUpdate{
-				appID:        appID,
+				namespace:    "default",
+				name:         "foo",
 				state:        v1alpha1.FailedState,
 				errorMessage: "",
 			},
@@ -240,7 +266,8 @@ func TestProcessSingleAppStateUpdate(t *testing.T) {
 		{
 			name: "running app",
 			update: appStateUpdate{
-				appID:        appID,
+				namespace:    "default",
+				name:         "foo",
 				state:        v1alpha1.RunningState,
 				errorMessage: "",
 			},
@@ -250,7 +277,8 @@ func TestProcessSingleAppStateUpdate(t *testing.T) {
 		{
 			name: "completed app with initial state SubmittedState",
 			update: appStateUpdate{
-				appID:        appID,
+				namespace:    "default",
+				name:         "foo",
 				state:        v1alpha1.FailedSubmissionState,
 				errorMessage: "",
 			},
@@ -260,19 +288,26 @@ func TestProcessSingleAppStateUpdate(t *testing.T) {
 	}
 
 	testFn := func(test testcase, t *testing.T) {
-		ctrl.runningApps[test.update.appID].Status.AppState.State = test.initialAppState
 		ctrl.processSingleAppStateUpdate(test.update)
-		app, ok := ctrl.runningApps[test.update.appID]
-		if !ok {
-			t.Errorf("%s: SparkApplication %s not found", test.name, test.update.appID)
+		app, err := ctrl.crdClient.SparkoperatorV1alpha1().SparkApplications(app.Namespace).Get(app.Name,
+			metav1.GetOptions{})
+		if err != nil {
+			t.Error(err)
 		}
 		assert.Equal(
 			t,
-			app.Status.AppState.State,
 			test.expectedAppState,
+			app.Status.AppState.State,
 			"wanted application state %s got %s",
 			test.expectedAppState,
 			app.Status.AppState.State)
+
+		if app.Status.AppState.State == v1alpha1.FailedSubmissionState {
+			event := <-recorder.Events
+			assert.True(t, strings.Contains(event, "SparkApplicationSubmissionFailure"))
+		}
+
+		ctrl.store.Update(app)
 	}
 
 	for _, test := range testcases {
@@ -287,7 +322,7 @@ func TestProcessSingleExecutorStateUpdate(t *testing.T) {
 		expectedExecutorStates map[string]v1alpha1.ExecutorState
 	}
 
-	ctrl := newFakeController()
+	ctrl, _ := newFakeController()
 
 	appID := "foo-123"
 	app := &v1alpha1.SparkApplication{
@@ -305,16 +340,17 @@ func TestProcessSingleExecutorStateUpdate(t *testing.T) {
 		},
 	}
 	ctrl.crdClient.SparkoperatorV1alpha1().SparkApplications(app.Namespace).Create(app)
-	ctrl.runningApps[app.Status.AppID] = app
+	ctrl.store.Add(app)
 
 	testcases := []testcase{
 		{
 			name: "completed executor",
 			update: executorStateUpdate{
-				appID:      appID,
-				podName:    "foo-exec-1",
-				executorID: "1",
-				state:      v1alpha1.ExecutorCompletedState,
+				appNamespace: "default",
+				appName:      "foo",
+				podName:      "foo-exec-1",
+				executorID:   "1",
+				state:        v1alpha1.ExecutorCompletedState,
 			},
 			expectedExecutorStates: map[string]v1alpha1.ExecutorState{
 				"foo-exec-1": v1alpha1.ExecutorCompletedState,
@@ -323,10 +359,11 @@ func TestProcessSingleExecutorStateUpdate(t *testing.T) {
 		{
 			name: "failed executor",
 			update: executorStateUpdate{
-				appID:      appID,
-				podName:    "foo-exec-2",
-				executorID: "2",
-				state:      v1alpha1.ExecutorFailedState,
+				appNamespace: "default",
+				appName:      "foo",
+				podName:      "foo-exec-2",
+				executorID:   "2",
+				state:        v1alpha1.ExecutorFailedState,
 			},
 			expectedExecutorStates: map[string]v1alpha1.ExecutorState{
 				"foo-exec-1": v1alpha1.ExecutorCompletedState,
@@ -336,10 +373,11 @@ func TestProcessSingleExecutorStateUpdate(t *testing.T) {
 		{
 			name: "running executor",
 			update: executorStateUpdate{
-				appID:      appID,
-				podName:    "foo-exec-3",
-				executorID: "3",
-				state:      v1alpha1.ExecutorRunningState,
+				appNamespace: "default",
+				appName:      "foo",
+				podName:      "foo-exec-3",
+				executorID:   "3",
+				state:        v1alpha1.ExecutorRunningState,
 			},
 			expectedExecutorStates: map[string]v1alpha1.ExecutorState{
 				"foo-exec-1": v1alpha1.ExecutorCompletedState,
@@ -350,10 +388,11 @@ func TestProcessSingleExecutorStateUpdate(t *testing.T) {
 		{
 			name: "pending executor",
 			update: executorStateUpdate{
-				appID:      appID,
-				podName:    "foo-exec-4",
-				executorID: "4",
-				state:      v1alpha1.ExecutorPendingState,
+				appNamespace: "default",
+				appName:      "foo",
+				podName:      "foo-exec-4",
+				executorID:   "4",
+				state:        v1alpha1.ExecutorPendingState,
 			},
 			expectedExecutorStates: map[string]v1alpha1.ExecutorState{
 				"foo-exec-1": v1alpha1.ExecutorCompletedState,
@@ -365,17 +404,120 @@ func TestProcessSingleExecutorStateUpdate(t *testing.T) {
 
 	testFn := func(test testcase, t *testing.T) {
 		ctrl.processSingleExecutorStateUpdate(&test.update)
-		app, ok := ctrl.runningApps[test.update.appID]
-		if !ok {
-			t.Errorf("%s: SparkApplication %s not found", test.name, test.update.appID)
+		app, err := ctrl.crdClient.SparkoperatorV1alpha1().SparkApplications(app.Namespace).Get(app.Name,
+			metav1.GetOptions{})
+		if err != nil {
+			t.Error(err)
 		}
 		assert.Equal(
 			t,
-			app.Status.ExecutorState,
 			test.expectedExecutorStates,
+			app.Status.ExecutorState,
 			"wanted executor states %s got %s",
 			test.expectedExecutorStates,
 			app.Status.ExecutorState)
+
+		ctrl.store.Update(app)
+	}
+
+	for _, test := range testcases {
+		testFn(test, t)
+	}
+}
+
+func TestHandleRestart(t *testing.T) {
+	type testcase struct {
+		name          string
+		app           *v1alpha1.SparkApplication
+		expectRestart bool
+	}
+
+	os.Setenv(kubernetesServiceHostEnvVar, "localhost")
+	os.Setenv(kubernetesServicePortEnvVar, "443")
+
+	ctrl, recorder := newFakeController()
+
+	testFn := func(test testcase, t *testing.T) {
+		ctrl.crdClient.SparkoperatorV1alpha1().SparkApplications(test.app.Namespace).Create(test.app)
+		defer ctrl.crdClient.SparkoperatorV1alpha1().SparkApplications(test.app.Namespace).Delete(test.app.Name,
+			&metav1.DeleteOptions{})
+		go ctrl.handleRestart(test.app)
+		if test.expectRestart {
+			submission := <-ctrl.runner.queue
+			assert.Equal(t, test.app.Name, submission.name)
+			assert.Equal(t, test.app.Namespace, submission.namespace)
+			event := <-recorder.Events
+			assert.True(t, strings.Contains(event, "SparkApplicationResubmission"))
+		}
+	}
+
+	testcases := []testcase{
+		{
+			name: "completed application with restart policy never",
+			app: &v1alpha1.SparkApplication{
+				ObjectMeta: metav1.ObjectMeta{Name: "foo", Namespace: "default"},
+				Spec:       v1alpha1.SparkApplicationSpec{RestartPolicy: v1alpha1.Never},
+				Status: v1alpha1.SparkApplicationStatus{
+					AppState: v1alpha1.ApplicationState{State: v1alpha1.CompletedState},
+				},
+			},
+			expectRestart: false,
+		},
+		{
+			name: "completed application with restart policy never",
+			app: &v1alpha1.SparkApplication{
+				ObjectMeta: metav1.ObjectMeta{Name: "foo", Namespace: "default"},
+				Spec:       v1alpha1.SparkApplicationSpec{RestartPolicy: v1alpha1.OnFailure},
+				Status: v1alpha1.SparkApplicationStatus{
+					AppState: v1alpha1.ApplicationState{State: v1alpha1.CompletedState},
+				},
+			},
+			expectRestart: false,
+		},
+		{
+			name: "completed application with restart policy never",
+			app: &v1alpha1.SparkApplication{
+				ObjectMeta: metav1.ObjectMeta{Name: "foo", Namespace: "default"},
+				Spec:       v1alpha1.SparkApplicationSpec{RestartPolicy: v1alpha1.Always},
+				Status: v1alpha1.SparkApplicationStatus{
+					AppState: v1alpha1.ApplicationState{State: v1alpha1.CompletedState},
+				},
+			},
+			expectRestart: true,
+		},
+		{
+			name: "completed application with restart policy never",
+			app: &v1alpha1.SparkApplication{
+				ObjectMeta: metav1.ObjectMeta{Name: "foo", Namespace: "default"},
+				Spec:       v1alpha1.SparkApplicationSpec{RestartPolicy: v1alpha1.Never},
+				Status: v1alpha1.SparkApplicationStatus{
+					AppState: v1alpha1.ApplicationState{State: v1alpha1.FailedState},
+				},
+			},
+			expectRestart: false,
+		},
+		{
+			name: "completed application with restart policy never",
+			app: &v1alpha1.SparkApplication{
+				ObjectMeta: metav1.ObjectMeta{Name: "foo", Namespace: "default"},
+				Spec:       v1alpha1.SparkApplicationSpec{RestartPolicy: v1alpha1.OnFailure},
+				Status: v1alpha1.SparkApplicationStatus{
+					AppState: v1alpha1.ApplicationState{State: v1alpha1.FailedState},
+				},
+			},
+			expectRestart: true,
+		},
+		{
+			name: "completed application with restart policy never",
+			app: &v1alpha1.SparkApplication{
+				ObjectMeta: metav1.ObjectMeta{Name: "foo", Namespace: "default"},
+				Spec:       v1alpha1.SparkApplicationSpec{RestartPolicy: v1alpha1.Always},
+				Status: v1alpha1.SparkApplicationStatus{
+					AppState: v1alpha1.ApplicationState{State: v1alpha1.FailedState},
+				},
+			},
+			expectRestart: true,
+		},
 	}
 
 	for _, test := range testcases {

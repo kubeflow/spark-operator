@@ -36,16 +36,16 @@ const (
 
 // submission includes information of a Spark application to be submitted.
 type submission struct {
-	appName string
-	appID   string
-	args    []string
+	namespace string
+	name      string
+	args      []string
 }
 
 func newSubmission(args []string, app *v1alpha1.SparkApplication) *submission {
 	return &submission{
-		appName: app.Name,
-		appID:   app.Status.AppID,
-		args:    args,
+		namespace: app.Namespace,
+		name:      app.Name,
+		args:      args,
 	}
 }
 
@@ -204,6 +204,10 @@ func addDriverConfOptions(app *v1alpha1.SparkApplication) []string {
 	driverConfOptions = append(
 		driverConfOptions,
 		"--conf",
+		fmt.Sprintf("%s%s=%s", config.SparkDriverLabelKeyPrefix, config.SparkAppNameLabel, app.Name))
+	driverConfOptions = append(
+		driverConfOptions,
+		"--conf",
 		fmt.Sprintf("%s%s=%s", config.SparkDriverLabelKeyPrefix, config.SparkAppIDLabel, app.Status.AppID))
 
 	if app.Spec.Driver.PodName != nil {
@@ -257,6 +261,10 @@ func addDriverConfOptions(app *v1alpha1.SparkApplication) []string {
 func addExecutorConfOptions(app *v1alpha1.SparkApplication) []string {
 	var executorConfOptions []string
 
+	executorConfOptions = append(
+		executorConfOptions,
+		"--conf",
+		fmt.Sprintf("%s%s=%s", config.SparkExecutorLabelKeyPrefix, config.SparkAppNameLabel, app.Name))
 	executorConfOptions = append(
 		executorConfOptions,
 		"--conf",

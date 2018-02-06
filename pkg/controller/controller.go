@@ -18,9 +18,9 @@ package controller
 
 import (
 	"fmt"
+	"net/http"
 	"reflect"
 	"strconv"
-	"sync"
 	"time"
 
 	"github.com/golang/glog"
@@ -55,19 +55,17 @@ const (
 
 // SparkApplicationController manages instances of SparkApplication.
 type SparkApplicationController struct {
-	crdClient                  crdclientset.Interface
-	kubeClient                 clientset.Interface
-	extensionsClient           apiextensionsclient.Interface
-	queue                      workqueue.RateLimitingInterface
-	informer                   cache.SharedIndexInformer
-	store                      cache.Store
-	recorder                   record.EventRecorder
-	runner                     *sparkSubmitRunner
-	sparkPodMonitor            *sparkPodMonitor
-	appStateReportingChan      <-chan appStateUpdate
-	podStateReportingChan      <-chan interface{}
-	mutex                      sync.Mutex                            // Guard SparkApplication updates to the API server and runningApps.
-	runningApps                map[string]*v1alpha1.SparkApplication // Guarded by mutex.
+	crdClient             crdclientset.Interface
+	kubeClient            clientset.Interface
+	extensionsClient      apiextensionsclient.Interface
+	queue                 workqueue.RateLimitingInterface
+	informer              cache.SharedIndexInformer
+	store                 cache.Store
+	recorder              record.EventRecorder
+	runner                *sparkSubmitRunner
+	sparkPodMonitor       *sparkPodMonitor
+	appStateReportingChan <-chan appStateUpdate
+	podStateReportingChan <-chan interface{}
 }
 
 // New creates a new SparkApplicationController.
@@ -112,7 +110,6 @@ func newSparkApplicationController(
 		sparkPodMonitor:       sparkPodMonitor,
 		appStateReportingChan: appStateReportingChan,
 		podStateReportingChan: podStateReportingChan,
-		runningApps:           make(map[string]*v1alpha1.SparkApplication),
 	}
 
 	informerFactory := crdinformers.NewSharedInformerFactory(
@@ -183,11 +180,7 @@ func (s *SparkApplicationController) onAdd(obj interface{}) {
 		"Submitting SparkApplication: %s",
 		app.Name)
 
-	key, err := cache.MetaNamespaceKeyFunc(app)
-	if err != nil {
-		glog.Errorf("failed to get queue key for %v", app)
-	}
-
+	key := getApplicationKey(app.Namespace, app.Name)
 	s.queue.AddRateLimited(key)
 }
 
@@ -201,15 +194,7 @@ func (s *SparkApplicationController) onDelete(obj interface{}) {
 		"Deleting SparkApplication: %s",
 		app.Name)
 
-	s.mutex.Lock()
-	delete(s.runningApps, app.Status.AppID)
-	s.mutex.Unlock()
-
-	key, err := cache.MetaNamespaceKeyFunc(app)
-	if err != nil {
-		glog.Errorf("failed to get queue key for %v", app)
-	}
-
+	key := getApplicationKey(app.Namespace, app.Name)
 	s.queue.Forget(key)
 	s.queue.Done(key)
 }
@@ -249,19 +234,11 @@ func (s *SparkApplicationController) processNextItem() bool {
 }
 
 func (s *SparkApplicationController) syncSparkApplication(key string) error {
-	item, exists, err := s.store.GetByKey(key)
+	app, err := s.getSparkApplicationFromStore(key)
 	if err != nil {
-		if errors.IsNotFound(err) {
-			return nil
-		}
 		return err
 	}
-
-	if !exists {
-		return nil
-	}
-
-	s.submitApp(item.(*v1alpha1.SparkApplication), false)
+	s.submitApp(app, false)
 	return nil
 }
 
@@ -298,13 +275,6 @@ func (s *SparkApplicationController) processPodStateUpdates() {
 		case *driverStateUpdate:
 			updatedApp := s.processSingleDriverStateUpdate(update.(*driverStateUpdate))
 			if updatedApp != nil && isAppTerminated(updatedApp.Status.AppState.State) {
-				s.recorder.Eventf(
-					updatedApp,
-					apiv1.EventTypeNormal,
-					"SparkApplicationTermination",
-					"SparkApplication %s terminated with state: %v",
-					updatedApp.Name,
-					updatedApp.Status.AppState)
 				s.handleRestart(updatedApp)
 			}
 			continue
@@ -314,36 +284,53 @@ func (s *SparkApplicationController) processPodStateUpdates() {
 	}
 }
 
-func (s *SparkApplicationController) processSingleDriverStateUpdate(update *driverStateUpdate) *v1alpha1.SparkApplication {
+func (s *SparkApplicationController) processSingleDriverStateUpdate(
+	update *driverStateUpdate) *v1alpha1.SparkApplication {
 	glog.V(2).Infof(
-		"Received driver state update for %s with phase %s",
-		update.appID,
-		update.podPhase)
+		"Received driver state update for SparkApplication %s in namespace %s with phase %s",
+		update.appName, update.appNamespace, update.podPhase)
 
-	if app, ok := s.runningApps[update.appID]; ok {
-		updated := s.updateSparkApplicationWithRetries(app, app.DeepCopy(), func(toUpdate *v1alpha1.SparkApplication) {
-			toUpdate.Status.DriverInfo.PodName = update.podName
-			if update.nodeName != "" {
-				nodeIP := s.getNodeExternalIP(update.nodeName)
-				if nodeIP != "" {
-					toUpdate.Status.DriverInfo.WebUIAddress = fmt.Sprintf("%s:%d", nodeIP,
-						toUpdate.Status.DriverInfo.WebUIPort)
-				}
-			}
-
-			// Update the application based on the driver pod phase.
-			// The application state is solely based on the driver pod phase except when submission fails and
-			// no driver pod is launched.
-			toUpdate.Status.AppState.State = driverPodPhaseToApplicationState(update.podPhase)
-			if !update.completionTime.IsZero() {
-				toUpdate.Status.CompletionTime = update.completionTime
-			}
-		})
-
-		return updated
+	key := getApplicationKey(update.appNamespace, update.appName)
+	app, err := s.getSparkApplicationFromStore(key)
+	if err != nil {
+		// Update may be the result of pod deletion due to deletion of the owning SparkApplication object.
+		// Ignore the error if the owning SparkApplication object does not exist.
+		if !errors.IsNotFound(err) {
+			glog.Errorf("failed to get SparkApplication %s in namespace %s from the store: %v", update.appName,
+				update.appNamespace, err)
+		}
+		return nil
 	}
 
-	return nil
+	updated := s.updateSparkApplicationWithRetries(app, app.DeepCopy(), func(toUpdate *v1alpha1.SparkApplication) {
+		toUpdate.Status.DriverInfo.PodName = update.podName
+		if update.nodeName != "" {
+			if nodeIP := s.getNodeExternalIP(update.nodeName); nodeIP != "" {
+				toUpdate.Status.DriverInfo.WebUIAddress = fmt.Sprintf("%s:%d", nodeIP,
+					toUpdate.Status.DriverInfo.WebUIPort)
+			}
+		}
+
+		// Update the application based on the driver pod phase.
+		// The application state is solely based on the driver pod phase except when submission fails and
+		// no driver pod is launched.
+		toUpdate.Status.AppState.State = driverPodPhaseToApplicationState(update.podPhase)
+		if !update.completionTime.IsZero() {
+			toUpdate.Status.CompletionTime = update.completionTime
+		}
+	})
+
+	if updated != nil && isAppTerminated(updated.Status.AppState.State) {
+		s.recorder.Eventf(
+			updated,
+			apiv1.EventTypeNormal,
+			"SparkApplicationTermination",
+			"SparkApplication %s terminated with state: %v",
+			updated.Name,
+			updated.Status.AppState)
+	}
+
+	return updated
 }
 
 func (s *SparkApplicationController) processAppStateUpdates() {
@@ -353,43 +340,57 @@ func (s *SparkApplicationController) processAppStateUpdates() {
 }
 
 func (s *SparkApplicationController) processSingleAppStateUpdate(update appStateUpdate) {
-	if app, ok := s.runningApps[update.appID]; ok {
-		updated := s.updateSparkApplicationWithRetries(app, app.DeepCopy(), func(toUpdate *v1alpha1.SparkApplication) {
-			toUpdate.Status.AppState.State = update.state
-			toUpdate.Status.AppState.ErrorMessage = update.errorMessage
-			if !update.submissionTime.IsZero() {
-				toUpdate.Status.SubmissionTime = update.submissionTime
-			}
-		})
+	key := getApplicationKey(update.namespace, update.name)
+	app, err := s.getSparkApplicationFromStore(key)
+	if err != nil {
+		glog.Errorf("failed to get SparkApplication %s in namespace %s from the store: %v", update.name,
+			update.namespace, err)
+		return
+	}
 
-		if updated != nil && updated.Status.AppState.State == v1alpha1.FailedSubmissionState {
-			s.recorder.Eventf(
-				updated,
-				apiv1.EventTypeNormal,
-				"SparkApplicationSubmissionFailure",
-				"SparkApplication %s failed submission",
-				updated.Name)
+	updated := s.updateSparkApplicationWithRetries(app, app.DeepCopy(), func(toUpdate *v1alpha1.SparkApplication) {
+		toUpdate.Status.AppState.State = update.state
+		toUpdate.Status.AppState.ErrorMessage = update.errorMessage
+		if !update.submissionTime.IsZero() {
+			toUpdate.Status.SubmissionTime = update.submissionTime
 		}
+	})
+
+	if updated != nil && updated.Status.AppState.State == v1alpha1.FailedSubmissionState {
+		s.recorder.Eventf(
+			updated,
+			apiv1.EventTypeNormal,
+			"SparkApplicationSubmissionFailure",
+			"SparkApplication %s failed submission",
+			updated.Name)
 	}
 }
 
 func (s *SparkApplicationController) processSingleExecutorStateUpdate(update *executorStateUpdate) {
 	glog.V(2).Infof(
-		"Received state update of executor %s for %s with state %s",
-		update.executorID,
-		update.appID,
-		update.state)
+		"Received state update of executor %s for SparkApplication %s in namespace %s with state %s",
+		update.executorID, update.appName, update.appNamespace, update.state)
 
-	if app, ok := s.runningApps[update.appID]; ok {
-		s.updateSparkApplicationWithRetries(app, app.DeepCopy(), func(toUpdate *v1alpha1.SparkApplication) {
-			if toUpdate.Status.ExecutorState == nil {
-				toUpdate.Status.ExecutorState = make(map[string]v1alpha1.ExecutorState)
-			}
-			if update.state != v1alpha1.ExecutorPendingState {
-				toUpdate.Status.ExecutorState[update.podName] = update.state
-			}
-		})
+	key := getApplicationKey(update.appNamespace, update.appName)
+	app, err := s.getSparkApplicationFromStore(key)
+	if err != nil {
+		// Update may be the result of pod deletion due to deletion of the owning SparkApplication object.
+		// Ignore the error if the owning SparkApplication object does not exist.
+		if !errors.IsNotFound(err) {
+			glog.Errorf("failed to get SparkApplication %s in namespace %s from the store: %v", update.appName,
+				update.appNamespace, err)
+		}
+		return
 	}
+
+	s.updateSparkApplicationWithRetries(app, app.DeepCopy(), func(toUpdate *v1alpha1.SparkApplication) {
+		if toUpdate.Status.ExecutorState == nil {
+			toUpdate.Status.ExecutorState = make(map[string]v1alpha1.ExecutorState)
+		}
+		if update.state != v1alpha1.ExecutorPendingState {
+			toUpdate.Status.ExecutorState[update.podName] = update.state
+		}
+	})
 }
 
 func (s *SparkApplicationController) updateSparkApplicationWithRetries(
@@ -407,7 +408,8 @@ func (s *SparkApplicationController) updateSparkApplicationWithRetries(
 		// Failed update to the API server.
 		// Get the latest version from the API server first and re-apply the update.
 		name := toUpdate.Name
-		toUpdate, err = s.crdClient.SparkoperatorV1alpha1().SparkApplications(toUpdate.Namespace).Get(name, metav1.GetOptions{})
+		toUpdate, err = s.crdClient.SparkoperatorV1alpha1().SparkApplications(toUpdate.Namespace).Get(name,
+			metav1.GetOptions{})
 		if err != nil {
 			glog.Errorf("failed to get SparkApplication %s: %v", name, err)
 			return nil
@@ -430,16 +432,30 @@ func (s *SparkApplicationController) tryUpdate(
 		return nil, nil
 	}
 
-	s.mutex.Lock()
-	defer s.mutex.Unlock()
+	return s.crdClient.SparkoperatorV1alpha1().SparkApplications(toUpdate.Namespace).Update(toUpdate)
+}
 
-	updated, err := s.crdClient.SparkoperatorV1alpha1().SparkApplications(toUpdate.Namespace).Update(toUpdate)
-	if err == nil {
-		s.runningApps[updated.Status.AppID] = updated
-		return updated, nil
+func (s *SparkApplicationController) getSparkApplicationFromStore(key string) (*v1alpha1.SparkApplication, error) {
+	item, exists, err := s.store.GetByKey(key)
+	if err != nil {
+		return nil, err
 	}
 
-	return nil, err
+	if !exists {
+		return nil, &errors.StatusError{
+			ErrStatus: metav1.Status{
+				Status: metav1.StatusFailure,
+				Code:   http.StatusNotFound,
+				Reason: metav1.StatusReasonNotFound,
+			},
+		}
+	}
+
+	return item.(*v1alpha1.SparkApplication), nil
+}
+
+func getApplicationKey(namespace, name string) string {
+	return fmt.Sprintf("%s/%s", namespace, name)
 }
 
 func (s *SparkApplicationController) getNodeExternalIP(nodeName string) string {
@@ -448,6 +464,7 @@ func (s *SparkApplicationController) getNodeExternalIP(nodeName string) string {
 		glog.Errorf("failed to get node %s", nodeName)
 		return ""
 	}
+
 	for _, address := range node.Status.Addresses {
 		if address.Type == apiv1.NodeExternalIP {
 			return address.Address
@@ -471,6 +488,7 @@ func (s *SparkApplicationController) handleRestart(app *v1alpha1.SparkApplicatio
 			"SparkApplicationResubmission",
 			"Re-submitting SparkApplication: %s",
 			app.Name)
+
 		s.submitApp(app, true)
 	}
 }

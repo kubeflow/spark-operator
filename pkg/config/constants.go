@@ -71,6 +71,8 @@ const (
 	// SparkAppIDLabel is the name of the label used to group API objects, e.g., Spark UI service, Pods,
 	// ConfigMaps, etc., belonging to the same Spark application.
 	SparkAppIDLabel = LabelAnnotationPrefix + "appId"
+	// SparkAppNameLabel is the name of the label for the SparkApplication object name.
+	SparkAppNameLabel = LabelAnnotationPrefix + "appName"
 )
 
 const (
