@@ -226,7 +226,7 @@ func addDriverConfOptions(app *v1alpha1.SparkApplication) []string {
 
 	if app.Spec.Driver.Cores != nil {
 		driverConfOptions = append(driverConfOptions, "--conf",
-			fmt.Sprintf("spark.driver.cores=%s", *app.Spec.Driver.Cores))
+			fmt.Sprintf("spark.driver.cores=%f", *app.Spec.Driver.Cores))
 	}
 	if app.Spec.Driver.CoreLimit != nil {
 		driverConfOptions = append(driverConfOptions, "--conf",
@@ -283,7 +283,8 @@ func addExecutorConfOptions(app *v1alpha1.SparkApplication) []string {
 	}
 
 	if app.Spec.Executor.Cores != nil {
-		conf := fmt.Sprintf("spark.executor.cores=%s", *app.Spec.Executor.Cores)
+		// Property "spark.executor.cores" does not allow float values.
+		conf := fmt.Sprintf("spark.executor.cores=%d", int32(*app.Spec.Executor.Cores))
 		executorConfOptions = append(executorConfOptions, "--conf", conf)
 	}
 	if app.Spec.Executor.CoreLimit != nil {

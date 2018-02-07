@@ -118,10 +118,6 @@ type SparkApplicationSpec struct {
 	RestartPolicy RestartPolicy `json:"restartPolicy,omitempty"`
 	// NodeSelector is the Kubernetes node selector to be added to the driver and executor pods.
 	NodeSelector map[string]string `json:"nodeSelector,omitempty"`
-	// SubmissionByUser indicates if the application is to be submitted by the user.
-	// The custom controller should not submit the application on behalf of the user if this is true.
-	// It defaults to false.
-	SubmissionByUser bool `json:"submissionByUser"`
 }
 
 // ApplicationStateType represents the type of the current state of an application.
@@ -210,7 +206,7 @@ type Dependencies struct {
 type SparkPodSpec struct {
 	// Cores is the number of CPU cores to request for the pod.
 	// Optional.
-	Cores *string `json:"cores,omitempty"`
+	Cores *float32 `json:"cores,omitempty"`
 	// CoreLimit specifies a hard limit on CPU cores for the pod.
 	// Optional
 	CoreLimit *string `json:"coreLimit,omitempty"`

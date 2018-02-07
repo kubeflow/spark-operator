@@ -62,6 +62,7 @@ func CreateCRD(clientset apiextensionsclient.Interface) error {
 				ShortNames: []string{ShortName},
 				Kind:       reflect.TypeOf(v1alpha1.SparkApplication{}).Name(),
 			},
+			Validation: getCustomResourceValidation(),
 		},
 	}
 	_, err := clientset.ApiextensionsV1beta1().CustomResourceDefinitions().Create(sparkAppCrd)
@@ -120,4 +121,78 @@ func waitForCRDEstablishment(clientset apiextensionsclient.Interface) error {
 		}
 		return false, err
 	})
+}
+
+func getCustomResourceValidation() *apiextensionsv1beta1.CustomResourceValidation {
+	return &apiextensionsv1beta1.CustomResourceValidation{
+		OpenAPIV3Schema: &apiextensionsv1beta1.JSONSchemaProps{
+			Properties: map[string]apiextensionsv1beta1.JSONSchemaProps{
+				"spec": {
+					Properties: map[string]apiextensionsv1beta1.JSONSchemaProps{
+						"type": {
+							Enum: []apiextensionsv1beta1.JSON{
+								{Raw: []byte(`"Java"`)},
+								{Raw: []byte(`"Scala"`)},
+								{Raw: []byte(`"Python"`)},
+								{Raw: []byte(`"R"`)},
+							},
+						},
+						"mode": {
+							Enum: []apiextensionsv1beta1.JSON{
+								{Raw: []byte(`"cluster"`)},
+								{Raw: []byte(`"client"`)},
+							},
+						},
+						"driver": {
+							Properties: map[string]apiextensionsv1beta1.JSONSchemaProps{
+								"cores": {
+									Type: "number",
+									Minimum: float64Ptr(0),
+									ExclusiveMinimum: true,
+								},
+								"podName": {
+									Pattern: "[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*",
+								},
+							},
+						},
+						"executor": {
+							Properties: map[string]apiextensionsv1beta1.JSONSchemaProps{
+								"cores": {
+									Type: "integer",
+									Minimum: float64Ptr(1),
+								},
+								"instances": {
+									Type: "integer",
+									Minimum: float64Ptr(1),
+								},
+							},
+						},
+						"deps": {
+							Properties: map[string]apiextensionsv1beta1.JSONSchemaProps{
+								"downloadTimeout": {
+									Type: "integer",
+									Minimum: float64Ptr(1),
+								},
+								"maxSimultaneousDownloads": {
+									Type: "integer",
+									Minimum: float64Ptr(1),
+								},
+							},
+						},
+						"restartPolicy": {
+							Enum: []apiextensionsv1beta1.JSON{
+								{Raw: []byte(`"Never"`)},
+								{Raw: []byte(`"OnFailure"`)},
+								{Raw: []byte(`"Always"`)},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+func float64Ptr(f float64) *float64 {
+	return &f
 }
