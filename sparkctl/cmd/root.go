@@ -39,7 +39,7 @@ func init() {
 	rootCmd.PersistentFlags().StringVarP(&Namespace, "namespace", "n", "default",
 		"The namespace in which the SparkApplication is to be created")
 	rootCmd.PersistentFlags().StringVarP(&KubeConfig, "kubeconfig", "k", defaultKubeConfig,
-		"The namespace in which the SparkApplication is to be created")
+		"The path to the local Kubernetes configuration file")
 	rootCmd.AddCommand(createCmd, deleteCmd, statusCmd, logCommand, listCmd, forwardCmd)
 }
 

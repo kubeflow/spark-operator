@@ -61,7 +61,8 @@ var logCommand = &cobra.Command{
 }
 
 func init() {
-	logCommand.Flags().Int32VarP(&ExecutorId, "executor", "e", -1, "executor id")
+	logCommand.Flags().Int32VarP(&ExecutorId, "executor", "e", -1,
+		"id of the executor to fetch logs for")
 }
 
 func doLog(name string, kubeClientset clientset.Interface, crdClientset crdclientset.Interface) error {
