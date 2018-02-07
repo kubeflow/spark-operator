@@ -72,9 +72,9 @@ var createCmd = &cobra.Command{
 
 func init() {
 	createCmd.Flags().StringVarP(&UploadTo, "upload-to", "u", "",
-		"a URL of the remote location where local application dependencies are to be submitted to")
+		"a URL of the remote location where local application dependencies are to be uploaded to")
 	createCmd.Flags().StringVarP(&Project, "project", "p", "",
-		"the GCP project with which the GCS bucket is associated")
+		"the GCP project to which the GCS bucket for hosting uploaded dependencies is associated")
 	createCmd.Flags().BoolVarP(&Public, "public", "c", false,
 		"whether to make uploaded files publicly available")
 	createCmd.Flags().BoolVarP(&Override, "override", "o", false,
