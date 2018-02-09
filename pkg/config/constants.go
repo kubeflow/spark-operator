@@ -58,13 +58,6 @@ const (
 	// GeneralConfigMapsAnnotationPrefix is the name of the general annotation that specifies the name
 	// and mount paths of additional ConfigMaps to be mounted.
 	GeneralConfigMapsAnnotationPrefix = LabelAnnotationPrefix + "configMap."
-	// GeneralSecretsAnnotationPrefix is the name of the general annotation that specifies the name,
-	// mount path, and type of secrets to be mounted.
-	GeneralSecretsAnnotationPrefix = LabelAnnotationPrefix + "secret."
-	// GCPServiceAccountSecretAnnotationPrefix is the prefix of annotation that specifies a GCP service
-	// account secret to be mounted. GCP service account secret needs the special handling of also
-	// setting the environment variable GOOGLE_APPLICATION_CREDENTIALS.
-	GCPServiceAccountSecretAnnotationPrefix = LabelAnnotationPrefix + "GCPServiceAccount."
 	// OwnerReferenceAnnotation is the name of the annotation added to the driver and executor Pods
 	// that specifies the OwnerReference of the owning SparkApplication.
 	OwnerReferenceAnnotation = LabelAnnotationPrefix + "ownerReference"
@@ -90,6 +83,12 @@ const (
 	SparkDriverCoreLimitKey = "spark.kubernetes.driver.limit.cores"
 	// SparkDriverCoreLimitKey is the configuration property for specifying the hard CPU limit for the executor pods.
 	SparkExecutorCoreLimitKey = "spark.kubernetes.executor.limit.cores"
+	// SparkDriverSecretKeyPrefix is the configuration property prefix for specifying secrets to be mounted into the
+	// driver.
+	SparkDriverSecretKeyPrefix = "spark.kubernetes.driver.secrets."
+	// SparkDriverSecretKeyPrefix is the configuration property prefix for specifying secrets to be mounted into the
+	// executors.
+	SparkExecutorSecretKeyPrefix = "spark.kubernetes.executor.secrets."
 	// DriverEnvVarConfigKeyPrefix is the Spark configuration prefix for setting environment variables
 	// into the driver.
 	DriverEnvVarConfigKeyPrefix = "spark.kubernetes.driverEnv."
@@ -125,4 +124,22 @@ const (
 	SparkMaxSimultaneousDownloads = "spark.kubernetes.mountDependencies.maxSimultaneousDownloads"
 	// SparkWaitAppCompletion is the Spark configuration key for specifying whether to wait for application to complete.
 	SparkWaitAppCompletion = "spark.kubernetes.submission.waitAppCompletion"
+)
+
+const (
+	// GoogleApplicationCredentialsEnvVar is the environment variable used by the
+	// Application Default Credentials mechanism. More details can be found at
+	// https://developers.google.com/identity/protocols/application-default-credentials.
+	GoogleApplicationCredentialsEnvVar = "GOOGLE_APPLICATION_CREDENTIALS"
+	// ServiceAccountJSONKeyFileName is the assumed name of the service account
+	// Json key file. This name is added to the service account secret mount path to
+	// form the path to the Json key file referred to by GOOGLE_APPLICATION_CREDENTIALS.
+	ServiceAccountJSONKeyFileName = "key.json"
+	// HadoopTokenFileLocationEnvVar is the environment variable for specifying the location
+	// where the file storing the Hadoop delegation token is located.
+	HadoopTokenFileLocationEnvVar = "HADOOP_TOKEN_FILE_LOCATION"
+	// HadoopDelegationTokenFileName is the assumed name of the file storing the Hadoop
+	// delegation token. This name is added to the delegation token secret mount path to
+	// form the path to the file referred to by HADOOP_TOKEN_FILE_LOCATION.
+	HadoopDelegationTokenFileName = "hadoop.token"
 )

@@ -38,7 +38,6 @@ import (
 	"k8s.io/client-go/util/workqueue"
 
 	"k8s.io/spark-on-k8s-operator/pkg/config"
-	"k8s.io/spark-on-k8s-operator/pkg/secret"
 )
 
 const (
@@ -295,7 +294,6 @@ func (ic *SparkPodInitializer) initializeSparkPod(pod *apiv1.Pod) (*apiv1.Pod, e
 	// Perform the initialization tasks.
 	addOwnerReference(podCopy)
 	handleConfigMaps(podCopy, appContainer)
-	handleSecrets(podCopy, appContainer)
 	// Remove this initializer from the list of pending initializer and update the Pod.
 	removeSelf(podCopy)
 
@@ -403,23 +401,6 @@ func handleConfigMaps(pod *apiv1.Pod, container *apiv1.Container) {
 		volumeName := name + "-volume"
 		config.AddConfigMapVolumeToPod(volumeName, name, pod)
 		config.MountConfigMapToContainer(volumeName, mountPath, container)
-	}
-}
-
-func handleSecrets(pod *apiv1.Pod, container *apiv1.Container) {
-	secretName, mountPath, found := secret.FindGCPServiceAccountSecret(pod.Annotations)
-	if found {
-		glog.Infof("Mounting GCP service account secret %s to pod %s", secretName, pod.Name)
-		secret.AddSecretVolumeToPod(secret.ServiceAccountSecretVolumeName, secretName, pod)
-		secret.MountServiceAccountSecretToContainer(mountPath, container)
-	}
-
-	secrets := secret.FindGeneralSecrets(pod.Annotations)
-	for name, mountPath := range secrets {
-		glog.Infof("Mounting secret %s to pod %s", name, pod.Name)
-		volumeName := name + "-volume"
-		secret.AddSecretVolumeToPod(volumeName, name, pod)
-		secret.MountSecretToContainer(volumeName, mountPath, container)
 	}
 }
 

@@ -19,6 +19,7 @@ package controller
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"reflect"
 	"strings"
 
@@ -314,20 +315,20 @@ func addExecutorConfOptions(app *v1alpha1.SparkApplication) []string {
 
 func getDriverSecretConfOptions(app *v1alpha1.SparkApplication) []string {
 	var secretConfOptions []string
-	for _, secret := range app.Spec.Driver.Secrets {
-		if secret.Type == v1alpha1.GCPServiceAccountSecret {
-			conf := fmt.Sprintf("%s%s%s=%s",
+	for _, s := range app.Spec.Driver.Secrets {
+		conf := fmt.Sprintf("%s%s=%s", config.SparkDriverSecretKeyPrefix, s.Name, s.Path)
+		secretConfOptions = append(secretConfOptions, "--conf", conf)
+		if s.Type == v1alpha1.GCPServiceAccountSecret {
+			conf = fmt.Sprintf("%s%s=%s",
 				config.SparkDriverAnnotationKeyPrefix,
-				config.GCPServiceAccountSecretAnnotationPrefix,
-				secret.Name,
-				secret.Path)
+				config.GoogleApplicationCredentialsEnvVar,
+				filepath.Join(s.Path, config.ServiceAccountJSONKeyFileName))
 			secretConfOptions = append(secretConfOptions, "--conf", conf)
-		} else {
-			conf := fmt.Sprintf("%s%s%s=%s",
+		} else if s.Type == v1alpha1.HDFSDelegationTokenSecret {
+			conf = fmt.Sprintf("%s%s=%s",
 				config.SparkDriverAnnotationKeyPrefix,
-				config.GeneralSecretsAnnotationPrefix,
-				secret.Name,
-				secret.Path)
+				config.HadoopTokenFileLocationEnvVar,
+				filepath.Join(s.Path, config.HadoopDelegationTokenFileName))
 			secretConfOptions = append(secretConfOptions, "--conf", conf)
 		}
 	}
@@ -336,20 +337,20 @@ func getDriverSecretConfOptions(app *v1alpha1.SparkApplication) []string {
 
 func getExecutorSecretConfOptions(app *v1alpha1.SparkApplication) []string {
 	var secretConfOptions []string
-	for _, secret := range app.Spec.Executor.Secrets {
-		if secret.Type == v1alpha1.GCPServiceAccountSecret {
-			conf := fmt.Sprintf("%s%s%s=%s",
+	for _, s := range app.Spec.Executor.Secrets {
+		conf := fmt.Sprintf("%s%s=%s", config.SparkExecutorSecretKeyPrefix, s.Name, s.Path)
+		secretConfOptions = append(secretConfOptions, "--conf", conf)
+		if s.Type == v1alpha1.GCPServiceAccountSecret {
+			conf = fmt.Sprintf("%s%s=%s",
 				config.SparkExecutorAnnotationKeyPrefix,
-				config.GCPServiceAccountSecretAnnotationPrefix,
-				secret.Name,
-				secret.Path)
+				config.GoogleApplicationCredentialsEnvVar,
+				filepath.Join(s.Path, config.ServiceAccountJSONKeyFileName))
 			secretConfOptions = append(secretConfOptions, "--conf", conf)
-		} else {
-			conf := fmt.Sprintf("%s%s%s=%s",
+		} else if s.Type == v1alpha1.HDFSDelegationTokenSecret {
+			conf = fmt.Sprintf("%s%s=%s",
 				config.SparkExecutorAnnotationKeyPrefix,
-				config.GeneralSecretsAnnotationPrefix,
-				secret.Name,
-				secret.Path)
+				config.HadoopTokenFileLocationEnvVar,
+				filepath.Join(s.Path, config.HadoopDelegationTokenFileName))
 			secretConfOptions = append(secretConfOptions, "--conf", conf)
 		}
 	}

@@ -18,7 +18,6 @@ package initializer
 
 import (
 	"encoding/json"
-	"fmt"
 	"reflect"
 	"testing"
 
@@ -31,7 +30,6 @@ import (
 	"k8s.io/client-go/tools/cache"
 
 	"k8s.io/spark-on-k8s-operator/pkg/config"
-	"k8s.io/spark-on-k8s-operator/pkg/secret"
 )
 
 func TestAddAndDeleteInitializationConfig(t *testing.T) {
@@ -405,11 +403,6 @@ func TestSyncSparkPod(t *testing.T) {
 				if !hasEnvVar(config.HadoopConfDirEnvVar, volumeMount.MountPath, container.Env) {
 					t.Errorf("expected environment variable %s but not found", config.HadoopConfDirEnvVar)
 				}
-			} else if volumeMount.Name == secret.ServiceAccountSecretVolumeName {
-				keyFilePath := fmt.Sprintf("%s/%s", volumeMount.MountPath, secret.ServiceAccountJSONKeyFileName)
-				if !hasEnvVar(secret.GoogleApplicationCredentialsEnvVar, keyFilePath, container.Env) {
-					t.Errorf("expected environment variable %s but not found", secret.GoogleApplicationCredentialsEnvVar)
-				}
 			}
 		}
 	}
@@ -469,20 +462,6 @@ func TestSyncSparkPod(t *testing.T) {
 			},
 		},
 	}
-	pod5 := &apiv1.Pod{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "pod5",
-			Namespace: "default",
-			Annotations: map[string]string{
-				config.GCPServiceAccountSecretAnnotationPrefix + "gcp-service-account": "/etc/secrets",
-			},
-		},
-		Spec: apiv1.PodSpec{
-			Containers: []apiv1.Container{
-				{Name: "foo"},
-			},
-		},
-	}
 	testcases := []testcase{
 		{
 			name:                "pod without SparkConfigMap or HadoopConfigMap annotation",
@@ -507,12 +486,6 @@ func TestSyncSparkPod(t *testing.T) {
 			pod:                 pod4,
 			expectedVolumeNames: []string{config.HadoopConfigMapVolumeName},
 			expectedObjectNames: []string{"hadoop-config-map"},
-		},
-		{
-			name:                "pod with GCP service account secret annotation",
-			pod:                 pod5,
-			expectedVolumeNames: []string{secret.ServiceAccountSecretVolumeName},
-			expectedObjectNames: []string{"gcp-service-account"},
 		},
 	}
 	for _, test := range testcases {
