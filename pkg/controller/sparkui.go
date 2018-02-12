@@ -25,6 +25,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	clientset "k8s.io/client-go/kubernetes"
 
+	"fmt"
 	"k8s.io/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1alpha1"
 	"k8s.io/spark-on-k8s-operator/pkg/config"
 )
@@ -34,20 +35,22 @@ const (
 	defaultSparkWebUIPort       = "4040"
 )
 
-func createSparkUIService(app *v1alpha1.SparkApplication, kubeClient clientset.Interface) {
+func createSparkUIService(
+	app *v1alpha1.SparkApplication,
+	appID string,
+	kubeClient clientset.Interface) (string, int32, error) {
 	portStr := getUITargetPort(app)
 	port, err := strconv.Atoi(portStr)
 	if err != nil {
-		glog.Errorf("invalid Spark UI port: %s", portStr)
-		return
+		return "", -1, fmt.Errorf("invalid Spark UI port: %s", portStr)
 	}
 
 	service := &apiv1.Service{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      app.Status.AppID + "-ui-svc",
+			Name:      appID + "-ui-svc",
 			Namespace: app.Namespace,
 			Labels: map[string]string{
-				config.SparkAppIDLabel: app.Status.AppID,
+				config.SparkAppIDLabel: appID,
 			},
 			OwnerReferences: []metav1.OwnerReference{getOwnerReference(app)},
 		},
@@ -59,7 +62,7 @@ func createSparkUIService(app *v1alpha1.SparkApplication, kubeClient clientset.I
 				},
 			},
 			Selector: map[string]string{
-				config.SparkAppIDLabel: app.Status.AppID,
+				config.SparkAppIDLabel: appID,
 				sparkRoleLabel:         sparkDriverRole,
 			},
 			Type: apiv1.ServiceTypeNodePort,
@@ -69,14 +72,10 @@ func createSparkUIService(app *v1alpha1.SparkApplication, kubeClient clientset.I
 	glog.Infof("Creating a service %s for the Spark UI for application %s", service.Name, app.Name)
 	service, err = kubeClient.CoreV1().Services(app.Namespace).Create(service)
 	if err != nil {
-		glog.Errorf("failed to create a UI service for SparkApplication %s: %v", app.Name, err)
-		return
+		return "", -1, err
 	}
 
-	app.Status.DriverInfo = v1alpha1.DriverInfo{
-		WebUIServiceName: service.Name,
-		WebUIPort:        service.Spec.Ports[0].NodePort,
-	}
+	return service.Name, service.Spec.Ports[0].NodePort, nil
 }
 
 // getWebUITargetPort attempts to get the Spark web UI port from configuration property spark.ui.port

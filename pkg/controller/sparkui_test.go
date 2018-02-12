@@ -40,7 +40,15 @@ func TestCreateSparkUIService(t *testing.T) {
 	}
 	testFn := func(test testcase, t *testing.T) {
 		fakeClient := fake.NewSimpleClientset()
-		createSparkUIService(test.app, fakeClient)
+		uiServiceName, uiServicePort, err := createSparkUIService(test.app, test.app.Status.AppID, fakeClient)
+		if err != nil {
+			if test.expectError {
+				return
+			}
+			t.Fatal(err)
+		}
+		test.app.Status.DriverInfo.WebUIServiceName = uiServiceName
+		test.app.Status.DriverInfo.WebUIPort = uiServicePort
 
 		if test.app.Status.DriverInfo.WebUIServiceName != test.expectedServiceName {
 			t.Errorf("%s: for service name wanted %s got %s", test.name, test.expectedServiceName, test.app.Status.DriverInfo.WebUIServiceName)
@@ -72,6 +80,11 @@ func TestCreateSparkUIService(t *testing.T) {
 		}
 	}
 
+	defaultPort, err := strconv.Atoi(defaultSparkWebUIPort)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	app1 := &v1alpha1.SparkApplication{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "foo",
@@ -96,10 +109,6 @@ func TestCreateSparkUIService(t *testing.T) {
 		Status: v1alpha1.SparkApplicationStatus{
 			AppID: "foo-2",
 		},
-	}
-	defaultPort, err := strconv.Atoi(defaultSparkWebUIPort)
-	if err != nil {
-		t.Fatal(err)
 	}
 	app3 := &v1alpha1.SparkApplication{
 		ObjectMeta: metav1.ObjectMeta{

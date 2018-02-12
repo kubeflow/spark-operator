@@ -35,7 +35,7 @@ import (
 type sparkSubmitRunner struct {
 	workers               int
 	queue                 chan *submission
-	appStateReportingChan chan<- appStateUpdate
+	appStateReportingChan chan<- *appStateUpdate
 }
 
 // appStateUpdate encapsulates overall state update of a Spark application.
@@ -47,7 +47,7 @@ type appStateUpdate struct {
 	errorMessage   string
 }
 
-func newSparkSubmitRunner(workers int, appStateReportingChan chan<- appStateUpdate) *sparkSubmitRunner {
+func newSparkSubmitRunner(workers int, appStateReportingChan chan<- *appStateUpdate) *sparkSubmitRunner {
 	return &sparkSubmitRunner{
 		workers: workers,
 		queue:   make(chan *submission, workers),
@@ -97,7 +97,7 @@ func (r *sparkSubmitRunner) runWorker() {
 				stateUpdate.errorMessage = string(exitErr.Stderr)
 			}
 
-			r.appStateReportingChan <- stateUpdate
+			r.appStateReportingChan <- &stateUpdate
 		} else {
 			glog.Infof("spark-submit completed for SparkApplication %s in namespace %s", s.name, s.namespace)
 		}

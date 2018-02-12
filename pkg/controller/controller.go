@@ -64,7 +64,7 @@ type SparkApplicationController struct {
 	recorder              record.EventRecorder
 	runner                *sparkSubmitRunner
 	sparkPodMonitor       *sparkPodMonitor
-	appStateReportingChan <-chan appStateUpdate
+	appStateReportingChan <-chan *appStateUpdate
 	podStateReportingChan <-chan interface{}
 }
 
@@ -94,7 +94,7 @@ func newSparkApplicationController(
 	queue := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(),
 		"spark-application-controller")
 
-	appStateReportingChan := make(chan appStateUpdate, submissionRunnerWorkers)
+	appStateReportingChan := make(chan *appStateUpdate, submissionRunnerWorkers)
 	podStateReportingChan := make(chan interface{})
 
 	runner := newSparkSubmitRunner(submissionRunnerWorkers, appStateReportingChan)
@@ -238,21 +238,28 @@ func (s *SparkApplicationController) syncSparkApplication(key string) error {
 	if err != nil {
 		return err
 	}
-	s.submitApp(app, false)
+	s.submitApp(app)
 	return nil
 }
 
-func (s *SparkApplicationController) submitApp(app *v1alpha1.SparkApplication, resubmission bool) {
-	updatedApp := s.updateSparkApplicationWithRetries(app, app.DeepCopy(), func(toUpdate *v1alpha1.SparkApplication) {
-		if resubmission {
-			// Clear the Status field if it's a resubmission.
-			toUpdate.Status = v1alpha1.SparkApplicationStatus{}
-		}
-		toUpdate.Status.AppID = buildAppID(toUpdate)
-		toUpdate.Status.AppState.State = v1alpha1.NewState
-		createSparkUIService(toUpdate, s.kubeClient)
-	})
+func (s *SparkApplicationController) submitApp(app *v1alpha1.SparkApplication) {
+	appStatus := v1alpha1.SparkApplicationStatus{
+		AppID: buildAppID(app),
+		AppState: v1alpha1.ApplicationState{
+			State: v1alpha1.NewState,
+		},
+	}
+	name, port, err := createSparkUIService(app, appStatus.AppID, s.kubeClient)
+	if err != nil {
+		glog.Errorf("failed to create a UI service for SparkApplication %s: %v", app.Name, err)
+	} else {
+		appStatus.DriverInfo.WebUIServiceName = name
+		appStatus.DriverInfo.WebUIPort = port
+	}
 
+	updatedApp := s.updateSparkApplicationStatusWithRetries(app, func(status *v1alpha1.SparkApplicationStatus) {
+		*status = appStatus
+	})
 	if updatedApp == nil {
 		return
 	}
@@ -264,7 +271,7 @@ func (s *SparkApplicationController) submitApp(app *v1alpha1.SparkApplication, r
 			updatedApp.Name,
 			err)
 	}
-	
+
 	s.runner.submit(newSubmission(submissionCmdArgs, updatedApp))
 }
 
@@ -301,33 +308,33 @@ func (s *SparkApplicationController) processSingleDriverStateUpdate(
 		return nil
 	}
 
-	updated := s.updateSparkApplicationWithRetries(app, app.DeepCopy(), func(toUpdate *v1alpha1.SparkApplication) {
-		toUpdate.Status.DriverInfo.PodName = update.podName
-		if update.nodeName != "" {
-			if nodeIP := s.getNodeExternalIP(update.nodeName); nodeIP != "" {
-				toUpdate.Status.DriverInfo.WebUIAddress = fmt.Sprintf("%s:%d", nodeIP,
-					toUpdate.Status.DriverInfo.WebUIPort)
-			}
-		}
-
-		// Update the application based on the driver pod phase.
-		// The application state is solely based on the driver pod phase except when submission fails and
-		// no driver pod is launched.
-		toUpdate.Status.AppState.State = driverPodPhaseToApplicationState(update.podPhase)
-		if !update.completionTime.IsZero() {
-			toUpdate.Status.CompletionTime = update.completionTime
-		}
-	})
-
-	if updated != nil && isAppTerminated(updated.Status.AppState.State) {
+	// The application state is solely based on the driver pod phase except when submission fails and
+	// no driver pod is launched.
+	appState := driverPodPhaseToApplicationState(update.podPhase)
+	if isAppTerminated(appState) {
 		s.recorder.Eventf(
-			updated,
+			app,
 			apiv1.EventTypeNormal,
 			"SparkApplicationTermination",
 			"SparkApplication %s terminated with state: %v",
-			updated.Name,
-			updated.Status.AppState)
+			update.appName,
+			appState)
 	}
+
+	updated := s.updateSparkApplicationStatusWithRetries(app, func(status *v1alpha1.SparkApplicationStatus) {
+		status.DriverInfo.PodName = update.podName
+		if update.nodeName != "" {
+			if nodeIP := s.getNodeExternalIP(update.nodeName); nodeIP != "" {
+				status.DriverInfo.WebUIAddress = fmt.Sprintf("%s:%d", nodeIP,
+					status.DriverInfo.WebUIPort)
+			}
+		}
+
+		status.AppState.State = appState
+		if !update.completionTime.IsZero() {
+			status.CompletionTime = update.completionTime
+		}
+	})
 
 	return updated
 }
@@ -338,7 +345,7 @@ func (s *SparkApplicationController) processAppStateUpdates() {
 	}
 }
 
-func (s *SparkApplicationController) processSingleAppStateUpdate(update appStateUpdate) {
+func (s *SparkApplicationController) processSingleAppStateUpdate(update *appStateUpdate) {
 	key := getApplicationKey(update.namespace, update.name)
 	app, err := s.getSparkApplicationFromStore(key)
 	if err != nil {
@@ -347,22 +354,40 @@ func (s *SparkApplicationController) processSingleAppStateUpdate(update appState
 		return
 	}
 
-	updated := s.updateSparkApplicationWithRetries(app, app.DeepCopy(), func(toUpdate *v1alpha1.SparkApplication) {
-		toUpdate.Status.AppState.State = update.state
-		toUpdate.Status.AppState.ErrorMessage = update.errorMessage
-		if !update.submissionTime.IsZero() {
-			toUpdate.Status.SubmissionTime = update.submissionTime
-		}
-	})
-
-	if updated != nil && updated.Status.AppState.State == v1alpha1.FailedSubmissionState {
+	submissionRetries := app.Status.SubmissionRetries
+	if update.state == v1alpha1.FailedSubmissionState {
 		s.recorder.Eventf(
-			updated,
+			app,
 			apiv1.EventTypeNormal,
 			"SparkApplicationSubmissionFailure",
 			"SparkApplication %s failed submission",
-			updated.Name)
+			update.name)
+
+		if submissionRetries < app.Spec.MaxSubmissionRetries {
+			glog.Infof("Retrying submission of SparkApplication %s", update.name)
+			key := getApplicationKey(update.namespace, update.name)
+			s.queue.AddRateLimited(key)
+			submissionRetries++
+			s.recorder.Eventf(
+				app,
+				apiv1.EventTypeNormal,
+				"SparkApplicationSubmissionRetry",
+				"Retried submission of SparkApplication %s",
+				update.name)
+		} else {
+			glog.Errorf("maximum number of submission retries of SparkApplication %s has been reached, not "+
+				"attempting more retries", update.name)
+		}
 	}
+
+	s.updateSparkApplicationStatusWithRetries(app, func(status *v1alpha1.SparkApplicationStatus) {
+		status.AppState.State = update.state
+		status.AppState.ErrorMessage = update.errorMessage
+		status.SubmissionRetries = submissionRetries
+		if !update.submissionTime.IsZero() {
+			status.SubmissionTime = update.submissionTime
+		}
+	})
 }
 
 func (s *SparkApplicationController) processSingleExecutorStateUpdate(update *executorStateUpdate) {
@@ -382,23 +407,24 @@ func (s *SparkApplicationController) processSingleExecutorStateUpdate(update *ex
 		return
 	}
 
-	s.updateSparkApplicationWithRetries(app, app.DeepCopy(), func(toUpdate *v1alpha1.SparkApplication) {
-		if toUpdate.Status.ExecutorState == nil {
-			toUpdate.Status.ExecutorState = make(map[string]v1alpha1.ExecutorState)
+	s.updateSparkApplicationStatusWithRetries(app, func(status *v1alpha1.SparkApplicationStatus) {
+		if status.ExecutorState == nil {
+			status.ExecutorState = make(map[string]v1alpha1.ExecutorState)
 		}
 		if update.state != v1alpha1.ExecutorPendingState {
-			toUpdate.Status.ExecutorState[update.podName] = update.state
+			status.ExecutorState[update.podName] = update.state
 		}
 	})
 }
 
-func (s *SparkApplicationController) updateSparkApplicationWithRetries(
+func (s *SparkApplicationController) updateSparkApplicationStatusWithRetries(
 	original *v1alpha1.SparkApplication,
-	toUpdate *v1alpha1.SparkApplication,
-	updateFunc func(*v1alpha1.SparkApplication)) *v1alpha1.SparkApplication {
+	updateFunc func(*v1alpha1.SparkApplicationStatus)) *v1alpha1.SparkApplication {
+	toUpdate := original.DeepCopy()
+
 	var lastUpdateErr error
 	for i := 0; i < maximumUpdateRetries; i++ {
-		updated, err := s.tryUpdate(original, toUpdate, updateFunc)
+		updated, err := s.tryUpdateStatus(original, toUpdate, updateFunc)
 		if err == nil {
 			return updated
 		}
@@ -422,11 +448,11 @@ func (s *SparkApplicationController) updateSparkApplicationWithRetries(
 	return nil
 }
 
-func (s *SparkApplicationController) tryUpdate(
+func (s *SparkApplicationController) tryUpdateStatus(
 	original *v1alpha1.SparkApplication,
 	toUpdate *v1alpha1.SparkApplication,
-	updateFunc func(*v1alpha1.SparkApplication)) (*v1alpha1.SparkApplication, error) {
-	updateFunc(toUpdate)
+	updateFunc func(*v1alpha1.SparkApplicationStatus)) (*v1alpha1.SparkApplication, error) {
+	updateFunc(&toUpdate.Status)
 	if reflect.DeepEqual(original.Status, toUpdate.Status) {
 		return nil, nil
 	}
@@ -473,10 +499,6 @@ func (s *SparkApplicationController) getNodeExternalIP(nodeName string) string {
 }
 
 func (s *SparkApplicationController) handleRestart(app *v1alpha1.SparkApplication) {
-	if app.Spec.RestartPolicy == v1alpha1.Never || app.Spec.RestartPolicy == v1alpha1.Undefined {
-		return
-	}
-
 	if (app.Status.AppState.State == v1alpha1.FailedState && app.Spec.RestartPolicy == v1alpha1.OnFailure) ||
 		app.Spec.RestartPolicy == v1alpha1.Always {
 		glog.Infof("SparkApplication %s failed or terminated, restarting it with RestartPolicy %s",
@@ -484,11 +506,31 @@ func (s *SparkApplicationController) handleRestart(app *v1alpha1.SparkApplicatio
 		s.recorder.Eventf(
 			app,
 			apiv1.EventTypeNormal,
-			"SparkApplicationResubmission",
-			"Re-submitting SparkApplication: %s",
+			"SparkApplicationRestart",
+			"Re-starting SparkApplication: %s",
 			app.Name)
 
-		s.submitApp(app, true)
+		// Cleanup old driver pod and UI service if necessary.
+		if app.Status.DriverInfo.PodName != "" {
+			err := s.kubeClient.CoreV1().Pods(app.Namespace).Delete(app.Status.DriverInfo.PodName,
+				&metav1.DeleteOptions{})
+			if err != nil {
+				glog.Errorf("failed to delete old driver pod %s of SparkApplication %s: %v",
+					app.Status.DriverInfo.PodName, app.Name, err)
+			}
+		}
+		if app.Status.DriverInfo.WebUIServiceName != "" {
+			err := s.kubeClient.CoreV1().Services(app.Namespace).Delete(app.Status.DriverInfo.WebUIServiceName,
+				&metav1.DeleteOptions{})
+			if err != nil {
+				glog.Errorf("failed to delete old web UI service %s of SparkApplication %s: %v",
+					app.Status.DriverInfo.WebUIServiceName, app.Name, err)
+			}
+		}
+
+		// Add the application key to the queue for re-submission.
+		key := getApplicationKey(app.Namespace, app.Name)
+		s.queue.AddRateLimited(key)
 	}
 }
 

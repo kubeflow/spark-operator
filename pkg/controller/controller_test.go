@@ -70,7 +70,7 @@ func TestSubmitApp(t *testing.T) {
 	}
 	ctrl.crdClient.SparkoperatorV1alpha1().SparkApplications(app.Namespace).Create(app)
 
-	go ctrl.submitApp(app, false)
+	go ctrl.submitApp(app)
 	submission := <-ctrl.runner.queue
 	assert.Equal(t, app.Name, submission.name)
 	assert.Equal(t, app.Namespace, submission.namespace)
@@ -95,6 +95,7 @@ func TestOnAdd(t *testing.T) {
 	key, ok := item.(string)
 	assert.True(t, ok)
 	assert.Equal(t, getApplicationKey(app.Namespace, app.Name), key)
+	ctrl.queue.Forget(item)
 
 	assert.Equal(t, 1, len(recorder.Events))
 	event := <-recorder.Events
@@ -120,9 +121,11 @@ func TestOnDelete(t *testing.T) {
 	ctrl.onDelete(app)
 	ctrl.queue.ShutDown()
 	item, _ := ctrl.queue.Get()
+	defer ctrl.queue.Done(item)
 	assert.True(t, item == nil)
 	event := <-recorder.Events
 	assert.True(t, strings.Contains(event, "SparkApplicationDeletion"))
+	ctrl.queue.Forget(item)
 }
 
 func TestProcessSingleDriverStateUpdate(t *testing.T) {
@@ -288,7 +291,7 @@ func TestProcessSingleAppStateUpdate(t *testing.T) {
 	}
 
 	testFn := func(test testcase, t *testing.T) {
-		ctrl.processSingleAppStateUpdate(test.update)
+		ctrl.processSingleAppStateUpdate(&test.update)
 		app, err := ctrl.crdClient.SparkoperatorV1alpha1().SparkApplications(app.Namespace).Get(app.Name,
 			metav1.GetOptions{})
 		if err != nil {
@@ -324,14 +327,13 @@ func TestProcessSingleExecutorStateUpdate(t *testing.T) {
 
 	ctrl, _ := newFakeController()
 
-	appID := "foo-123"
 	app := &v1alpha1.SparkApplication{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "foo",
 			Namespace: "default",
 		},
 		Status: v1alpha1.SparkApplicationStatus{
-			AppID: appID,
+			AppID: "foo-123",
 			AppState: v1alpha1.ApplicationState{
 				State:        v1alpha1.NewState,
 				ErrorMessage: "",
@@ -439,23 +441,23 @@ func TestHandleRestart(t *testing.T) {
 
 	testFn := func(test testcase, t *testing.T) {
 		ctrl.crdClient.SparkoperatorV1alpha1().SparkApplications(test.app.Namespace).Create(test.app)
-		defer ctrl.crdClient.SparkoperatorV1alpha1().SparkApplications(test.app.Namespace).Delete(test.app.Name,
-			&metav1.DeleteOptions{})
-		go ctrl.handleRestart(test.app)
+		ctrl.store.Add(test.app)
+		ctrl.handleRestart(test.app)
 		if test.expectRestart {
+			go ctrl.processNextItem()
 			submission := <-ctrl.runner.queue
 			assert.Equal(t, test.app.Name, submission.name)
 			assert.Equal(t, test.app.Namespace, submission.namespace)
 			event := <-recorder.Events
-			assert.True(t, strings.Contains(event, "SparkApplicationResubmission"))
+			assert.True(t, strings.Contains(event, "SparkApplicationRestart"))
 		}
 	}
 
 	testcases := []testcase{
 		{
-			name: "completed application with restart policy never",
+			name: "completed application with restart policy Never",
 			app: &v1alpha1.SparkApplication{
-				ObjectMeta: metav1.ObjectMeta{Name: "foo", Namespace: "default"},
+				ObjectMeta: metav1.ObjectMeta{Name: "foo1", Namespace: "default"},
 				Spec:       v1alpha1.SparkApplicationSpec{RestartPolicy: v1alpha1.Never},
 				Status: v1alpha1.SparkApplicationStatus{
 					AppState: v1alpha1.ApplicationState{State: v1alpha1.CompletedState},
@@ -464,9 +466,9 @@ func TestHandleRestart(t *testing.T) {
 			expectRestart: false,
 		},
 		{
-			name: "completed application with restart policy never",
+			name: "completed application with restart policy OnFailure",
 			app: &v1alpha1.SparkApplication{
-				ObjectMeta: metav1.ObjectMeta{Name: "foo", Namespace: "default"},
+				ObjectMeta: metav1.ObjectMeta{Name: "foo2", Namespace: "default"},
 				Spec:       v1alpha1.SparkApplicationSpec{RestartPolicy: v1alpha1.OnFailure},
 				Status: v1alpha1.SparkApplicationStatus{
 					AppState: v1alpha1.ApplicationState{State: v1alpha1.CompletedState},
@@ -475,9 +477,9 @@ func TestHandleRestart(t *testing.T) {
 			expectRestart: false,
 		},
 		{
-			name: "completed application with restart policy never",
+			name: "completed application with restart policy Always",
 			app: &v1alpha1.SparkApplication{
-				ObjectMeta: metav1.ObjectMeta{Name: "foo", Namespace: "default"},
+				ObjectMeta: metav1.ObjectMeta{Name: "foo3", Namespace: "default"},
 				Spec:       v1alpha1.SparkApplicationSpec{RestartPolicy: v1alpha1.Always},
 				Status: v1alpha1.SparkApplicationStatus{
 					AppState: v1alpha1.ApplicationState{State: v1alpha1.CompletedState},
@@ -486,9 +488,9 @@ func TestHandleRestart(t *testing.T) {
 			expectRestart: true,
 		},
 		{
-			name: "completed application with restart policy never",
+			name: "failed application with restart policy Never",
 			app: &v1alpha1.SparkApplication{
-				ObjectMeta: metav1.ObjectMeta{Name: "foo", Namespace: "default"},
+				ObjectMeta: metav1.ObjectMeta{Name: "foo4", Namespace: "default"},
 				Spec:       v1alpha1.SparkApplicationSpec{RestartPolicy: v1alpha1.Never},
 				Status: v1alpha1.SparkApplicationStatus{
 					AppState: v1alpha1.ApplicationState{State: v1alpha1.FailedState},
@@ -497,9 +499,9 @@ func TestHandleRestart(t *testing.T) {
 			expectRestart: false,
 		},
 		{
-			name: "completed application with restart policy never",
+			name: "failed application with restart policy OnFailure",
 			app: &v1alpha1.SparkApplication{
-				ObjectMeta: metav1.ObjectMeta{Name: "foo", Namespace: "default"},
+				ObjectMeta: metav1.ObjectMeta{Name: "foo5", Namespace: "default"},
 				Spec:       v1alpha1.SparkApplicationSpec{RestartPolicy: v1alpha1.OnFailure},
 				Status: v1alpha1.SparkApplicationStatus{
 					AppState: v1alpha1.ApplicationState{State: v1alpha1.FailedState},
@@ -508,9 +510,9 @@ func TestHandleRestart(t *testing.T) {
 			expectRestart: true,
 		},
 		{
-			name: "completed application with restart policy never",
+			name: "failed application with restart policy Always",
 			app: &v1alpha1.SparkApplication{
-				ObjectMeta: metav1.ObjectMeta{Name: "foo", Namespace: "default"},
+				ObjectMeta: metav1.ObjectMeta{Name: "foo6", Namespace: "default"},
 				Spec:       v1alpha1.SparkApplicationSpec{RestartPolicy: v1alpha1.Always},
 				Status: v1alpha1.SparkApplicationStatus{
 					AppState: v1alpha1.ApplicationState{State: v1alpha1.FailedState},
@@ -523,4 +525,67 @@ func TestHandleRestart(t *testing.T) {
 	for _, test := range testcases {
 		testFn(test, t)
 	}
+}
+
+func TestResubmissionOnFailures(t *testing.T) {
+	ctrl, recorder := newFakeController()
+
+	os.Setenv(kubernetesServiceHostEnvVar, "localhost")
+	os.Setenv(kubernetesServicePortEnvVar, "443")
+
+	app := &v1alpha1.SparkApplication{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "foo",
+			Namespace: "default",
+		},
+		Spec: v1alpha1.SparkApplicationSpec{
+			MaxSubmissionRetries: 2,
+		},
+		Status: v1alpha1.SparkApplicationStatus{
+			AppID: "foo-123",
+			AppState: v1alpha1.ApplicationState{
+				State:        v1alpha1.NewState,
+				ErrorMessage: "",
+			},
+		},
+	}
+
+	ctrl.crdClient.SparkoperatorV1alpha1().SparkApplications(app.Namespace).Create(app)
+	ctrl.store.Add(app)
+
+	testFn := func(t *testing.T, update *appStateUpdate) {
+		ctrl.processSingleAppStateUpdate(update)
+		item, _ := ctrl.queue.Get()
+		key, ok := item.(string)
+		assert.True(t, ok)
+		assert.Equal(t, getApplicationKey(app.Namespace, app.Name), key)
+		ctrl.queue.Forget(item)
+		ctrl.queue.Done(item)
+
+		updatedApp, err := ctrl.crdClient.SparkoperatorV1alpha1().SparkApplications(app.Namespace).Get(app.Name,
+			metav1.GetOptions{})
+		if err != nil {
+			t.Fatal(err)
+		}
+		assert.Equal(t, int32(1), updatedApp.Status.SubmissionRetries)
+
+		event := <-recorder.Events
+		assert.True(t, strings.Contains(event, "SparkApplicationSubmissionFailure"))
+		event = <-recorder.Events
+		assert.True(t, strings.Contains(event, "SparkApplicationSubmissionRetry"))
+	}
+
+	update := &appStateUpdate{
+		namespace: app.Namespace,
+		name:      app.Name,
+		state:     v1alpha1.FailedSubmissionState,
+	}
+
+	// First 2 failed submissions should result in re-submission attempts.
+	testFn(t, update)
+	testFn(t, update)
+
+	// The next failed submission should not cause a re-submission attempt.
+	ctrl.processSingleAppStateUpdate(update)
+	assert.Equal(t, 0, ctrl.queue.Len())
 }

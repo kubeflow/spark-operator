@@ -146,8 +146,8 @@ func getCustomResourceValidation() *apiextensionsv1beta1.CustomResourceValidatio
 						"driver": {
 							Properties: map[string]apiextensionsv1beta1.JSONSchemaProps{
 								"cores": {
-									Type: "number",
-									Minimum: float64Ptr(0),
+									Type:             "number",
+									Minimum:          float64Ptr(0),
 									ExclusiveMinimum: true,
 								},
 								"podName": {
@@ -158,11 +158,11 @@ func getCustomResourceValidation() *apiextensionsv1beta1.CustomResourceValidatio
 						"executor": {
 							Properties: map[string]apiextensionsv1beta1.JSONSchemaProps{
 								"cores": {
-									Type: "integer",
+									Type:    "integer",
 									Minimum: float64Ptr(1),
 								},
 								"instances": {
-									Type: "integer",
+									Type:    "integer",
 									Minimum: float64Ptr(1),
 								},
 							},
@@ -170,11 +170,11 @@ func getCustomResourceValidation() *apiextensionsv1beta1.CustomResourceValidatio
 						"deps": {
 							Properties: map[string]apiextensionsv1beta1.JSONSchemaProps{
 								"downloadTimeout": {
-									Type: "integer",
+									Type:    "integer",
 									Minimum: float64Ptr(1),
 								},
 								"maxSimultaneousDownloads": {
-									Type: "integer",
+									Type:    "integer",
 									Minimum: float64Ptr(1),
 								},
 							},

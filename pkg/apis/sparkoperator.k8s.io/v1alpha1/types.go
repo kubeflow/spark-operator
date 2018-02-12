@@ -118,6 +118,8 @@ type SparkApplicationSpec struct {
 	RestartPolicy RestartPolicy `json:"restartPolicy,omitempty"`
 	// NodeSelector is the Kubernetes node selector to be added to the driver and executor pods.
 	NodeSelector map[string]string `json:"nodeSelector,omitempty"`
+	// MaxSubmissionRetries is the maximum number of times to retry a failed submission.
+	MaxSubmissionRetries int32 `json:"maxSubmissionRetries,omitempty"`
 }
 
 // ApplicationStateType represents the type of the current state of an application.
@@ -167,6 +169,8 @@ type SparkApplicationStatus struct {
 	AppState ApplicationState `json:"applicationState"`
 	// ExecutorState records the state of executors by executor Pod names.
 	ExecutorState map[string]ExecutorState `json:"executorState,omitempty"`
+	// SubmissionRetries is the number of retries attempted for a failed submission.
+	SubmissionRetries int32 `json:"submissionRetries,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
