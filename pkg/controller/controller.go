@@ -180,8 +180,7 @@ func (s *SparkApplicationController) onAdd(obj interface{}) {
 		"Submitting SparkApplication: %s",
 		app.Name)
 
-	key := getApplicationKey(app.Namespace, app.Name)
-	s.queue.AddRateLimited(key)
+	s.enqueue(app)
 }
 
 func (s *SparkApplicationController) onDelete(obj interface{}) {
@@ -194,9 +193,7 @@ func (s *SparkApplicationController) onDelete(obj interface{}) {
 		"Deleting SparkApplication: %s",
 		app.Name)
 
-	key := getApplicationKey(app.Namespace, app.Name)
-	s.queue.Forget(key)
-	s.queue.Done(key)
+	s.dequeue(app)
 }
 
 // runWorker runs a single controller worker.
@@ -296,7 +293,7 @@ func (s *SparkApplicationController) processSingleDriverStateUpdate(
 		"Received driver state update for SparkApplication %s in namespace %s with phase %s",
 		update.appName, update.appNamespace, update.podPhase)
 
-	key := getApplicationKey(update.appNamespace, update.appName)
+	key, _ := getApplicationKey(update.appNamespace, update.appName)
 	app, err := s.getSparkApplicationFromStore(key)
 	if err != nil {
 		// Update may be the result of pod deletion due to deletion of the owning SparkApplication object.
@@ -346,7 +343,7 @@ func (s *SparkApplicationController) processAppStateUpdates() {
 }
 
 func (s *SparkApplicationController) processSingleAppStateUpdate(update *appStateUpdate) {
-	key := getApplicationKey(update.namespace, update.name)
+	key, _ := getApplicationKey(update.namespace, update.name)
 	app, err := s.getSparkApplicationFromStore(key)
 	if err != nil {
 		glog.Errorf("failed to get SparkApplication %s in namespace %s from the store: %v", update.name,
@@ -365,7 +362,6 @@ func (s *SparkApplicationController) processSingleAppStateUpdate(update *appStat
 
 		if submissionRetries < app.Spec.MaxSubmissionRetries {
 			glog.Infof("Retrying submission of SparkApplication %s", update.name)
-			key := getApplicationKey(update.namespace, update.name)
 			s.queue.AddRateLimited(key)
 			submissionRetries++
 			s.recorder.Eventf(
@@ -395,7 +391,7 @@ func (s *SparkApplicationController) processSingleExecutorStateUpdate(update *ex
 		"Received state update of executor %s for SparkApplication %s in namespace %s with state %s",
 		update.executorID, update.appName, update.appNamespace, update.state)
 
-	key := getApplicationKey(update.appNamespace, update.appName)
+	key, _ := getApplicationKey(update.appNamespace, update.appName)
 	app, err := s.getSparkApplicationFromStore(key)
 	if err != nil {
 		// Update may be the result of pod deletion due to deletion of the owning SparkApplication object.
@@ -479,8 +475,25 @@ func (s *SparkApplicationController) getSparkApplicationFromStore(key string) (*
 	return item.(*v1alpha1.SparkApplication), nil
 }
 
-func getApplicationKey(namespace, name string) string {
-	return fmt.Sprintf("%s/%s", namespace, name)
+func (s *SparkApplicationController) enqueue(app *v1alpha1.SparkApplication) {
+	key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(app)
+	if err != nil {
+		glog.Errorf("failed to enqueue SparkApplication %s: %v", app.Name, err)
+		return
+	}
+
+	s.queue.AddRateLimited(key)
+}
+
+func (s *SparkApplicationController) dequeue(app *v1alpha1.SparkApplication) {
+	key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(app)
+	if err != nil {
+		glog.Errorf("failed to enqueue SparkApplication %s: %v", app.Name, err)
+		return
+	}
+
+	s.queue.Forget(key)
+	s.queue.Done(key)
 }
 
 func (s *SparkApplicationController) getNodeExternalIP(nodeName string) string {
@@ -528,10 +541,16 @@ func (s *SparkApplicationController) handleRestart(app *v1alpha1.SparkApplicatio
 			}
 		}
 
-		// Add the application key to the queue for re-submission.
-		key := getApplicationKey(app.Namespace, app.Name)
-		s.queue.AddRateLimited(key)
+		//Enqueue the object for re-submission.
+		s.enqueue(app)
 	}
+}
+
+func getApplicationKey(namespace, name string) (string, error) {
+	return cache.MetaNamespaceKeyFunc(&metav1.ObjectMeta{
+		Namespace: namespace,
+		Name:      name,
+	})
 }
 
 // buildAppID builds an application ID in the form of <application name>-<32-bit hash>.
