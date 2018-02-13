@@ -27,6 +27,7 @@ import (
 	apiextensionsfake "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset/fake"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kubeclientfake "k8s.io/client-go/kubernetes/fake"
+	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
 
 	"k8s.io/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1alpha1"
@@ -94,7 +95,8 @@ func TestOnAdd(t *testing.T) {
 	defer ctrl.queue.Done(item)
 	key, ok := item.(string)
 	assert.True(t, ok)
-	assert.Equal(t, getApplicationKey(app.Namespace, app.Name), key)
+	expectedKey, _ := cache.MetaNamespaceKeyFunc(app)
+	assert.Equal(t, expectedKey, key)
 	ctrl.queue.Forget(item)
 
 	assert.Equal(t, 1, len(recorder.Events))
@@ -558,7 +560,8 @@ func TestResubmissionOnFailures(t *testing.T) {
 		item, _ := ctrl.queue.Get()
 		key, ok := item.(string)
 		assert.True(t, ok)
-		assert.Equal(t, getApplicationKey(app.Namespace, app.Name), key)
+		expectedKey, _ := getApplicationKey(app.Namespace, app.Name)
+		assert.Equal(t, expectedKey, key)
 		ctrl.queue.Forget(item)
 		ctrl.queue.Done(item)
 
