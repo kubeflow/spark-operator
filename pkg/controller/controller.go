@@ -120,6 +120,7 @@ func newSparkApplicationController(
 	controller.informer = informerFactory.Sparkoperator().V1alpha1().SparkApplications().Informer()
 	controller.informer.AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc:    controller.onAdd,
+		UpdateFunc: controller.onUpdate,
 		DeleteFunc: controller.onDelete,
 	})
 	controller.store = controller.informer.GetStore()
@@ -171,29 +172,49 @@ func (s *SparkApplicationController) Stop() {
 
 // Callback function called when a new SparkApplication object gets created.
 func (s *SparkApplicationController) onAdd(obj interface{}) {
+	s.enqueue(obj)
 	app := obj.(*v1alpha1.SparkApplication)
-
 	s.recorder.Eventf(
 		app,
 		apiv1.EventTypeNormal,
 		"SparkApplicationSubmission",
-		"Submitting SparkApplication: %s",
-		app.Name)
+		"SparkApplication %s in namespace %s",
+		app.Name,
+		app.Namespace)
+}
 
-	s.enqueue(app)
+func (s *SparkApplicationController) onUpdate(oldObj, newObj interface{}) {
+	oldApp := oldObj.(*v1alpha1.SparkApplication)
+	newApp := newObj.(*v1alpha1.SparkApplication)
+
+	if reflect.DeepEqual(oldApp.Spec, newApp.Spec) {
+		return
+	}
+
+	// TODO(#83): handle changes in SparkApplicationSpec.
 }
 
 func (s *SparkApplicationController) onDelete(obj interface{}) {
-	app := obj.(*v1alpha1.SparkApplication)
+	s.dequeue(obj)
 
-	s.recorder.Eventf(
-		app,
-		apiv1.EventTypeNormal,
-		"SparkApplicationDeletion",
-		"Deleting SparkApplication: %s",
-		app.Name)
+	var app *v1alpha1.SparkApplication
+	switch obj.(type) {
+	case *v1alpha1.SparkApplication:
+		app = obj.(*v1alpha1.SparkApplication)
+	case cache.DeletedFinalStateUnknown:
+		deletedObj := obj.(cache.DeletedFinalStateUnknown).Obj
+		app = deletedObj.(*v1alpha1.SparkApplication)
+	}
 
-	s.dequeue(app)
+	if app != nil {
+		s.recorder.Eventf(
+			app,
+			apiv1.EventTypeNormal,
+			"SparkApplicationDeletion",
+			"SparkApplication %s in namespace %s",
+			app.Name,
+			app.Namespace)
+	}
 }
 
 // runWorker runs a single controller worker.
@@ -313,8 +334,9 @@ func (s *SparkApplicationController) processSingleDriverStateUpdate(
 			app,
 			apiv1.EventTypeNormal,
 			"SparkApplicationTermination",
-			"SparkApplication %s terminated with state: %v",
+			"SparkApplication %s in namespace %s terminated with state: %v",
 			update.appName,
+			update.appNamespace,
 			appState)
 	}
 
@@ -357,8 +379,9 @@ func (s *SparkApplicationController) processSingleAppStateUpdate(update *appStat
 			app,
 			apiv1.EventTypeNormal,
 			"SparkApplicationSubmissionFailure",
-			"SparkApplication %s failed submission",
-			update.name)
+			"SparkApplication %s in namespace %s",
+			update.name,
+			update.namespace)
 
 		if submissionRetries < app.Spec.MaxSubmissionRetries {
 			glog.Infof("Retrying submission of SparkApplication %s", update.name)
@@ -368,8 +391,9 @@ func (s *SparkApplicationController) processSingleAppStateUpdate(update *appStat
 				app,
 				apiv1.EventTypeNormal,
 				"SparkApplicationSubmissionRetry",
-				"Retried submission of SparkApplication %s",
-				update.name)
+				"SparkApplication %s in namespace %s",
+				update.name,
+				update.namespace)
 		} else {
 			glog.Errorf("maximum number of submission retries of SparkApplication %s has been reached, not "+
 				"attempting more retries", update.name)
@@ -475,20 +499,20 @@ func (s *SparkApplicationController) getSparkApplicationFromStore(key string) (*
 	return item.(*v1alpha1.SparkApplication), nil
 }
 
-func (s *SparkApplicationController) enqueue(app *v1alpha1.SparkApplication) {
-	key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(app)
+func (s *SparkApplicationController) enqueue(obj interface{}) {
+	key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(obj)
 	if err != nil {
-		glog.Errorf("failed to enqueue SparkApplication %s: %v", app.Name, err)
+		glog.Errorf("failed to get key for %v: %v", obj, err)
 		return
 	}
 
 	s.queue.AddRateLimited(key)
 }
 
-func (s *SparkApplicationController) dequeue(app *v1alpha1.SparkApplication) {
-	key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(app)
+func (s *SparkApplicationController) dequeue(obj interface{}) {
+	key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(obj)
 	if err != nil {
-		glog.Errorf("failed to enqueue SparkApplication %s: %v", app.Name, err)
+		glog.Errorf("failed to get key for %v: %v", obj, err)
 		return
 	}
 
@@ -520,8 +544,9 @@ func (s *SparkApplicationController) handleRestart(app *v1alpha1.SparkApplicatio
 			app,
 			apiv1.EventTypeNormal,
 			"SparkApplicationRestart",
-			"Re-starting SparkApplication: %s",
-			app.Name)
+			"SparkApplication %s in namespace %s",
+			app.Name,
+			app.Namespace)
 
 		// Cleanup old driver pod and UI service if necessary.
 		if app.Status.DriverInfo.PodName != "" {
