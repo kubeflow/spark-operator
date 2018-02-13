@@ -140,7 +140,21 @@ func (s *sparkPodMonitor) onPodUpdated(old, updated interface{}) {
 }
 
 func (s *sparkPodMonitor) onPodDeleted(obj interface{}) {
-	deletedPod := obj.(*apiv1.Pod).DeepCopy()
+	var deletedPod *apiv1.Pod
+
+	switch obj.(type) {
+	case *apiv1.Pod:
+		deletedPod = obj.(*apiv1.Pod)
+	case cache.DeletedFinalStateUnknown:
+		deletedObj := obj.(cache.DeletedFinalStateUnknown).Obj
+		deletedPod = deletedObj.(*apiv1.Pod)
+	}
+
+	if deletedPod == nil {
+		return
+	}
+
+	deletedPod = deletedPod.DeepCopy()
 	if isDriverPod(deletedPod) {
 		if deletedPod.Status.Phase != apiv1.PodSucceeded && deletedPod.Status.Phase != apiv1.PodFailed {
 			// The driver pod was deleted before it succeeded or failed. Treat deletion as failure in this case so the

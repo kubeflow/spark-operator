@@ -431,9 +431,11 @@ func (s *SparkApplicationController) processSingleExecutorStateUpdate(update *ex
 		if status.ExecutorState == nil {
 			status.ExecutorState = make(map[string]v1alpha1.ExecutorState)
 		}
-		if update.state != v1alpha1.ExecutorPendingState {
-			status.ExecutorState[update.podName] = update.state
+		existingState, ok := status.ExecutorState[update.podName]
+		if ok && isExecutorTerminated(existingState) {
+			return
 		}
+		status.ExecutorState[update.podName] = update.state
 	})
 }
 
@@ -590,6 +592,10 @@ func buildAppID(app *v1alpha1.SparkApplication) string {
 
 func isAppTerminated(appState v1alpha1.ApplicationStateType) bool {
 	return appState == v1alpha1.CompletedState || appState == v1alpha1.FailedState
+}
+
+func isExecutorTerminated(executorState v1alpha1.ExecutorState) bool {
+	return executorState == v1alpha1.ExecutorCompletedState || executorState == v1alpha1.ExecutorFailedState
 }
 
 func driverPodPhaseToApplicationState(podPhase apiv1.PodPhase) v1alpha1.ApplicationStateType {
