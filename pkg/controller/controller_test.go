@@ -390,6 +390,21 @@ func TestProcessSingleExecutorStateUpdate(t *testing.T) {
 			},
 		},
 		{
+			name: "pending state update for a terminated executor",
+			update: executorStateUpdate{
+				appNamespace: "default",
+				appName:      "foo",
+				podName:      "foo-exec-1",
+				executorID:   "1",
+				state:        v1alpha1.ExecutorPendingState,
+			},
+			expectedExecutorStates: map[string]v1alpha1.ExecutorState{
+				"foo-exec-1": v1alpha1.ExecutorCompletedState,
+				"foo-exec-2": v1alpha1.ExecutorFailedState,
+				"foo-exec-3": v1alpha1.ExecutorRunningState,
+			},
+		},
+		{
 			name: "pending executor",
 			update: executorStateUpdate{
 				appNamespace: "default",
@@ -402,6 +417,7 @@ func TestProcessSingleExecutorStateUpdate(t *testing.T) {
 				"foo-exec-1": v1alpha1.ExecutorCompletedState,
 				"foo-exec-2": v1alpha1.ExecutorFailedState,
 				"foo-exec-3": v1alpha1.ExecutorRunningState,
+				"foo-exec-4": v1alpha1.ExecutorPendingState,
 			},
 		},
 	}
