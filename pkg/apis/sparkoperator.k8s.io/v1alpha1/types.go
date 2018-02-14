@@ -158,15 +158,15 @@ const (
 type SparkApplicationStatus struct {
 	// AppId is the application ID that's also added as a label to the SparkApplication object
 	// and driver and executor Pods, and is used to group the objects for the same application.
-	AppID string `json:"appId"`
+	AppID string `json:"appId,omitempty"`
 	// SubmissionTime is the time when the application is submitted.
-	SubmissionTime metav1.Time `json:"submissionTime"`
+	SubmissionTime metav1.Time `json:"submissionTime,omitempty"`
 	// CompletionTime is the time when the application runs to completion if it does.
-	CompletionTime metav1.Time `json:"completionTime"`
+	CompletionTime metav1.Time `json:"completionTime,omitempty"`
 	// DriverInfo has information about the driver.
 	DriverInfo DriverInfo `json:"driverInfo"`
 	// AppState tells the overall application state.
-	AppState ApplicationState `json:"applicationState"`
+	AppState ApplicationState `json:"applicationState,omitempty"`
 	// ExecutorState records the state of executors by executor Pod names.
 	ExecutorState map[string]ExecutorState `json:"executorState,omitempty"`
 	// SubmissionRetries is the number of retries attempted for a failed submission.
@@ -282,10 +282,10 @@ const (
 
 // DriverInfo captures information about the driver.
 type DriverInfo struct {
-	WebUIServiceName string `json:"webUIServiceName"`
-	WebUIPort        int32  `json:"webUIPort"`
-	WebUIAddress     string `json:"webUIAddress"`
-	PodName          string `json:"podName"`
+	WebUIServiceName string `json:"webUIServiceName,omitempty"`
+	WebUIPort        int32  `json:"webUIPort,omitempty"`
+	WebUIAddress     string `json:"webUIAddress,omitempty"`
+	PodName          string `json:"podName,omitempty"`
 }
 
 // SecretInfo captures information of a secret.
