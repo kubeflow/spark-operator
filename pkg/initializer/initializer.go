@@ -227,6 +227,16 @@ func (ic *SparkPodInitializer) runWorker() {
 	}
 }
 
+// onPodAdded is the callback function called when an event for a new Pod is informed.
+func (ic *SparkPodInitializer) onPodAdded(obj interface{}) {
+	ic.enqueue(obj)
+}
+
+// onPodDeleted is the callback function called when an event for a deleted Pod is informed.
+func (ic *SparkPodInitializer) onPodDeleted(obj interface{}) {
+	ic.dequeue(obj)
+}
+
 // processNextItem processes the next item in the queue.
 func (ic *SparkPodInitializer) processNextItem() bool {
 	key, quit := ic.queue.Get()
@@ -258,24 +268,23 @@ func (ic *SparkPodInitializer) processNextItem() bool {
 func (ic *SparkPodInitializer) syncSparkPod(key string) error {
 	item, exists, err := ic.podStore.GetByKey(key)
 	if err != nil {
-		if errors.IsNotFound(err) {
-			return nil
-		}
 		return err
 	}
-
 	if !exists {
 		return nil
 	}
 
 	pod := item.(*apiv1.Pod)
+	if !isInitializerPresent(pod) {
+		return nil
+	}
 	if isSparkPod(pod) {
-		ic.initializeSparkPod(pod)
+		_, err = ic.initializeSparkPod(pod)
 	} else {
-		ic.handleNonSparkPod(pod)
+		err = ic.handleNonSparkPod(pod)
 	}
 
-	return nil
+	return err
 }
 
 // initializeSparkPod does the actual initialization of the given Spark Pod.
@@ -300,44 +309,33 @@ func (ic *SparkPodInitializer) initializeSparkPod(pod *apiv1.Pod) (*apiv1.Pod, e
 	return patchPod(pod, podCopy, ic.kubeClient)
 }
 
-// onPodAdded is the callback function called when an event for a new Pod is informed.
-func (ic *SparkPodInitializer) onPodAdded(obj interface{}) {
-	pod, ok := obj.(*apiv1.Pod)
-	if !ok {
-		glog.Errorf("received non-pod object: %v", obj)
+func (ic *SparkPodInitializer) handleNonSparkPod(pod *apiv1.Pod) error {
+	// Make a copy.
+	podCopy := pod.DeepCopy()
+	// Remove the name of itself from the list of pending initializer and update the Pod.
+	removeSelf(podCopy)
+	return updatePod(podCopy, ic.kubeClient)
+}
+
+func (ic *SparkPodInitializer) enqueue(obj interface{}) {
+	key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(obj)
+	if err != nil {
+		glog.Errorf("failed to get key for %v: %v", obj, err)
 		return
 	}
 
-	// The presence of the Initializer in the pending list of Initializers in the pod
-	// is a sign that the pod is uninitialized.
-	if isInitializerPresent(pod) {
-		key, err := cache.MetaNamespaceKeyFunc(pod)
-		if err != nil {
-			glog.Errorf("failed to get queue key for %v", pod)
-		}
-
-		ic.queue.AddRateLimited(key)
-	}
+	ic.queue.AddRateLimited(key)
 }
 
-// onPodDeleted is the callback function called when an event for a deleted Pod is informed.
-func (ic *SparkPodInitializer) onPodDeleted(obj interface{}) {
-	pod, ok := obj.(*apiv1.Pod)
-	if !ok {
-		glog.Errorf("received non-pod object: %v", obj)
+func (ic *SparkPodInitializer) dequeue(obj interface{}) {
+	key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(obj)
+	if err != nil {
+		glog.Errorf("failed to get key for %v: %v", obj, err)
+		return
 	}
 
-	// Non-Spark Pods are removed from the queue in handleNonSparkPod
-	// so we don't need to worry about removing them here.
-	if isSparkPod(pod) {
-		key, err := cache.MetaNamespaceKeyFunc(pod)
-		if err != nil {
-			glog.Errorf("failed to get queue key for %v", pod)
-		}
-
-		ic.queue.Forget(key)
-		ic.queue.Done(key)
-	}
+	ic.queue.Forget(key)
+	ic.queue.Done(key)
 }
 
 // isInitializerPresent returns if the list of pending Initializer of the given pod
@@ -359,25 +357,6 @@ func isInitializerPresent(pod *apiv1.Pod) bool {
 func isSparkPod(pod *apiv1.Pod) bool {
 	sparkRole, ok := pod.Labels[sparkRoleLabel]
 	return ok && (sparkRole == sparkDriverRole || sparkRole == sparkExecutorRole)
-}
-
-func (ic *SparkPodInitializer) handleNonSparkPod(pod *apiv1.Pod) error {
-	// Remove the non-Spark Pod from the queue.
-	key, err := cache.MetaNamespaceKeyFunc(pod)
-	if err != nil {
-		return err
-	}
-
-	ic.queue.Forget(key)
-	ic.queue.Done(key)
-
-	// Make a copy.
-	podCopy := pod.DeepCopy()
-
-	// Remove the name of itself from the list of pending initializer and update the Pod.
-	removeSelf(podCopy)
-
-	return updatePod(podCopy, ic.kubeClient)
 }
 
 func handleConfigMaps(pod *apiv1.Pod, container *apiv1.Container) {

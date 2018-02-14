@@ -385,7 +385,7 @@ func (s *SparkApplicationController) processSingleAppStateUpdate(update *appStat
 
 		if submissionRetries < app.Spec.MaxSubmissionRetries {
 			glog.Infof("Retrying submission of SparkApplication %s", update.name)
-			s.queue.AddRateLimited(key)
+			s.enqueue(app)
 			submissionRetries++
 			s.recorder.Eventf(
 				app,
