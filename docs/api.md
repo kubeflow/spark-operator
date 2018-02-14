@@ -40,6 +40,8 @@ A `SparkApplicationSpec` has the following top-level fields:
 | `Deps` | N/A | A [`Dependencies`](#dependencies) field. |
 | `RestartPolicy` | N/A | The policy regarding if and in which conditions the controller should restart a terminated application. Valid values are `Never`, `Always`, and `OnFailure`. |
 | `NodeSelector` | `spark.kubernetes.node.selector.[labelKey]` | Node selector of the driver pod and executor pods, with key `labelKey` and value as the label's value. |
+| `MaxSubmissionRetries` | N/A | The maximum number of times to retry a failed submission. |
+| `SubmissionRetryInterval` | N/A | The unit of intervals in seconds between submission retries. Depending on the implementation, the actual interval between two submission retries may be a multiple of `SubmissionRetryInterval`, e.g., if linear or expotential backoff is used. |
 
 #### `DriverSpec`
 
@@ -95,6 +97,7 @@ A `SparkApplicationStatus` captures the status of a Spark application including 
 | `DriverInfo` | A [`DriverInfo`](#driverinfo) field. |
 | `AppState` | Current state of the application. |
 | `ExecutorState` | A map of executor pod names to executor state. |
+| `SubmissionRetries` | The number of submission retries for an application. |
 
 #### `DriverInfo`
 
