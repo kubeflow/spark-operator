@@ -50,6 +50,7 @@ type sparkPodMonitor struct {
 type driverStateUpdate struct {
 	appNamespace   string         // Namespace in which the application and driver pod run.
 	appName        string         // Name of the application.
+	appID          string         // Application ID.
 	podName        string         // Name of the driver pod.
 	nodeName       string         // Name of the node the driver pod runs on.
 	podPhase       apiv1.PodPhase // Driver pod phase.
@@ -60,6 +61,7 @@ type driverStateUpdate struct {
 type executorStateUpdate struct {
 	appNamespace string                 // Namespace in which the application and executor pods run.
 	appName      string                 // Name of the application.
+	appID        string                 // Application ID.
 	podName      string                 // Name of the executor pod.
 	executorID   string                 // Spark executor ID.
 	state        v1alpha1.ExecutorState // Executor state.
@@ -173,6 +175,7 @@ func (s *sparkPodMonitor) updateDriverState(pod *apiv1.Pod) {
 		update := driverStateUpdate{
 			appNamespace: pod.Namespace,
 			appName:      appName,
+			appID:        getAppID(pod),
 			podName:      pod.Name,
 			nodeName:     pod.Spec.NodeName,
 			podPhase:     pod.Status.Phase,
@@ -190,6 +193,7 @@ func (s *sparkPodMonitor) updateExecutorState(pod *apiv1.Pod) {
 		s.podStateReportingChan <- &executorStateUpdate{
 			appNamespace: pod.Namespace,
 			appName:      appName,
+			appID:        getAppID(pod),
 			podName:      pod.Name,
 			executorID:   getExecutorID(pod),
 			state:        podPhaseToExecutorState(pod.Status.Phase),
@@ -200,6 +204,10 @@ func (s *sparkPodMonitor) updateExecutorState(pod *apiv1.Pod) {
 func getAppName(pod *apiv1.Pod) (string, bool) {
 	appName, ok := pod.Labels[config.SparkAppNameLabel]
 	return appName, ok
+}
+
+func getAppID(pod *apiv1.Pod) string {
+	return pod.Labels[config.SparkAppIDLabel]
 }
 
 func isDriverPod(pod *apiv1.Pod) bool {

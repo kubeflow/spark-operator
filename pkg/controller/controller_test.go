@@ -104,6 +104,81 @@ func TestOnAdd(t *testing.T) {
 	assert.True(t, strings.Contains(event, "SparkApplicationSubmission"))
 }
 
+func TestOnUpdate(t *testing.T) {
+	ctrl, recorder := newFakeController()
+
+	type testcase struct {
+		name          string
+		oldApp        *v1alpha1.SparkApplication
+		newApp        *v1alpha1.SparkApplication
+		expectEnqueue bool
+	}
+
+	testFn := func(t *testing.T, test testcase) {
+		ctrl.onUpdate(test.oldApp, test.newApp)
+		if test.expectEnqueue {
+			item, _ := ctrl.queue.Get()
+			defer ctrl.queue.Done(item)
+			key, ok := item.(string)
+			assert.True(t, ok)
+			expectedKey, _ := cache.MetaNamespaceKeyFunc(test.newApp)
+			assert.Equal(t, expectedKey, key)
+			ctrl.queue.Forget(item)
+
+			event := <-recorder.Events
+			assert.True(t, strings.Contains(event, "SparkApplicationSubmission"))
+		} else {
+			assert.Equal(t, 0, ctrl.queue.Len())
+			assert.Equal(t, 0, len(recorder.Events))
+		}
+	}
+
+	appTemplate := v1alpha1.SparkApplication{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "foo",
+			Namespace: "default",
+		},
+		Spec: v1alpha1.SparkApplicationSpec{
+			Mode:  v1alpha1.ClusterMode,
+			Image: stringptr("foo-image:v1"),
+			Executor: v1alpha1.ExecutorSpec{
+				Instances: int32ptr(1),
+			},
+		},
+	}
+
+	copyWithDifferentImage := appTemplate.DeepCopy()
+	copyWithDifferentImage.Spec.Image = stringptr("foo-image:v2")
+
+	copyWithDifferentExecutorInstances := appTemplate.DeepCopy()
+	copyWithDifferentExecutorInstances.Spec.Executor.Instances = int32ptr(3)
+
+	testcases := []testcase{
+		{
+			name:          "update with identical spec",
+			oldApp:        appTemplate.DeepCopy(),
+			newApp:        appTemplate.DeepCopy(),
+			expectEnqueue: false,
+		},
+		{
+			name:          "update with different image",
+			oldApp:        appTemplate.DeepCopy(),
+			newApp:        copyWithDifferentImage,
+			expectEnqueue: true,
+		},
+		{
+			name:          "update with different executor instances",
+			oldApp:        appTemplate.DeepCopy(),
+			newApp:        copyWithDifferentExecutorInstances,
+			expectEnqueue: true,
+		},
+	}
+
+	for _, test := range testcases {
+		testFn(t, test)
+	}
+}
+
 func TestOnDelete(t *testing.T) {
 	ctrl, recorder := newFakeController()
 
@@ -161,6 +236,7 @@ func TestProcessSingleDriverStateUpdate(t *testing.T) {
 			update: driverStateUpdate{
 				appName:      "foo",
 				appNamespace: "default",
+				appID:        "foo-123",
 				podName:      "foo-driver",
 				nodeName:     "node1",
 				podPhase:     apiv1.PodSucceeded,
@@ -172,6 +248,7 @@ func TestProcessSingleDriverStateUpdate(t *testing.T) {
 			update: driverStateUpdate{
 				appName:      "foo",
 				appNamespace: "default",
+				appID:        "foo-123",
 				podName:      "foo-driver",
 				nodeName:     "node1",
 				podPhase:     apiv1.PodFailed,
@@ -183,6 +260,7 @@ func TestProcessSingleDriverStateUpdate(t *testing.T) {
 			update: driverStateUpdate{
 				appName:      "foo",
 				appNamespace: "default",
+				appID:        "foo-123",
 				podName:      "foo-driver",
 				nodeName:     "node1",
 				podPhase:     apiv1.PodRunning,
@@ -352,6 +430,7 @@ func TestProcessSingleExecutorStateUpdate(t *testing.T) {
 			update: executorStateUpdate{
 				appNamespace: "default",
 				appName:      "foo",
+				appID:        "foo-123",
 				podName:      "foo-exec-1",
 				executorID:   "1",
 				state:        v1alpha1.ExecutorCompletedState,
@@ -365,6 +444,7 @@ func TestProcessSingleExecutorStateUpdate(t *testing.T) {
 			update: executorStateUpdate{
 				appNamespace: "default",
 				appName:      "foo",
+				appID:        "foo-123",
 				podName:      "foo-exec-2",
 				executorID:   "2",
 				state:        v1alpha1.ExecutorFailedState,
@@ -379,6 +459,7 @@ func TestProcessSingleExecutorStateUpdate(t *testing.T) {
 			update: executorStateUpdate{
 				appNamespace: "default",
 				appName:      "foo",
+				appID:        "foo-123",
 				podName:      "foo-exec-3",
 				executorID:   "3",
 				state:        v1alpha1.ExecutorRunningState,
@@ -394,6 +475,7 @@ func TestProcessSingleExecutorStateUpdate(t *testing.T) {
 			update: executorStateUpdate{
 				appNamespace: "default",
 				appName:      "foo",
+				appID:        "foo-123",
 				podName:      "foo-exec-1",
 				executorID:   "1",
 				state:        v1alpha1.ExecutorPendingState,
@@ -409,6 +491,7 @@ func TestProcessSingleExecutorStateUpdate(t *testing.T) {
 			update: executorStateUpdate{
 				appNamespace: "default",
 				appName:      "foo",
+				appID:        "foo-123",
 				podName:      "foo-exec-4",
 				executorID:   "4",
 				state:        v1alpha1.ExecutorPendingState,
@@ -607,4 +690,12 @@ func TestResubmissionOnFailures(t *testing.T) {
 	// The next failed submission should not cause a re-submission attempt.
 	ctrl.processSingleAppStateUpdate(update)
 	assert.Equal(t, 0, ctrl.queue.Len())
+}
+
+func stringptr(s string) *string {
+	return &s
+}
+
+func int32ptr(n int32) *int32 {
+	return &n
 }

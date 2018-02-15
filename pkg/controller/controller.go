@@ -191,7 +191,22 @@ func (s *SparkApplicationController) onUpdate(oldObj, newObj interface{}) {
 		return
 	}
 
-	// TODO(#83): handle changes in SparkApplicationSpec.
+	// Delete the driver pod and UI service of the old application. Note that deleting the driver pod kills the
+	// application if it is still running. Skip submitting the new application if cleanup for the old application
+	// failed to avoid potentially running both the old and new applications at the same time.
+	if err := s.deleteDriverAndUIService(oldApp, true); err != nil {
+		glog.Error(err)
+		return
+	}
+
+	s.enqueue(newApp)
+	s.recorder.Eventf(
+		newApp,
+		apiv1.EventTypeNormal,
+		"SparkApplicationSubmission",
+		"SparkApplication %s in namespace %s",
+		newApp.Name,
+		newApp.Namespace)
 }
 
 func (s *SparkApplicationController) onDelete(obj interface{}) {
@@ -276,7 +291,8 @@ func (s *SparkApplicationController) submitApp(app *v1alpha1.SparkApplication) {
 	}
 
 	updatedApp := s.updateSparkApplicationStatusWithRetries(app, func(status *v1alpha1.SparkApplicationStatus) {
-		*status = appStatus
+		*status = v1alpha1.SparkApplicationStatus{}
+		appStatus.DeepCopyInto(status)
 	})
 	if updatedApp == nil {
 		return
@@ -323,6 +339,10 @@ func (s *SparkApplicationController) processSingleDriverStateUpdate(
 			glog.Errorf("failed to get SparkApplication %s in namespace %s from the store: %v", update.appName,
 				update.appNamespace, err)
 		}
+		return nil
+	}
+
+	if update.appID != app.Status.AppID {
 		return nil
 	}
 
@@ -424,6 +444,14 @@ func (s *SparkApplicationController) processSingleExecutorStateUpdate(update *ex
 			glog.Errorf("failed to get SparkApplication %s in namespace %s from the store: %v", update.appName,
 				update.appNamespace, err)
 		}
+		return
+	}
+
+	// The controller may receive status updates of executors belonging to the previous run of the application and
+	// should ignore such updates. For example, if a user makes some change to a SparkApplication and does 'kube apply'
+	// to update the SparkApplication object on the API server while the application is running, the controller may
+	// still receive status updates of executors of the old application run even after the new run starts.
+	if update.appID != app.Status.AppID {
 		return
 	}
 
@@ -550,27 +578,53 @@ func (s *SparkApplicationController) handleRestart(app *v1alpha1.SparkApplicatio
 			app.Name,
 			app.Namespace)
 
-		// Cleanup old driver pod and UI service if necessary.
-		if app.Status.DriverInfo.PodName != "" {
-			err := s.kubeClient.CoreV1().Pods(app.Namespace).Delete(app.Status.DriverInfo.PodName,
-				&metav1.DeleteOptions{})
-			if err != nil {
-				glog.Errorf("failed to delete old driver pod %s of SparkApplication %s: %v",
-					app.Status.DriverInfo.PodName, app.Name, err)
-			}
-		}
-		if app.Status.DriverInfo.WebUIServiceName != "" {
-			err := s.kubeClient.CoreV1().Services(app.Namespace).Delete(app.Status.DriverInfo.WebUIServiceName,
-				&metav1.DeleteOptions{})
-			if err != nil {
-				glog.Errorf("failed to delete old web UI service %s of SparkApplication %s: %v",
-					app.Status.DriverInfo.WebUIServiceName, app.Name, err)
-			}
+		// Delete the old driver pod and UI service if necessary. Note that in case an error occurred here, we simply
+		// log the error and continue enqueueing the application for resubmission because the driver has already
+		// terminated so failure to cleanup the old driver pod and UI service is not a blocker.
+		if err := s.deleteDriverAndUIService(app, false); err != nil {
+			glog.Error(err)
 		}
 
 		//Enqueue the object for re-submission.
 		s.enqueue(app)
 	}
+}
+
+func (s *SparkApplicationController) deleteDriverAndUIService(
+	app *v1alpha1.SparkApplication,
+	waitForDriverDeletion bool) error {
+	var zero int64 = 0
+	if app.Status.DriverInfo.PodName != "" {
+		err := s.kubeClient.CoreV1().Pods(app.Namespace).Delete(app.Status.DriverInfo.PodName,
+			&metav1.DeleteOptions{GracePeriodSeconds: &zero})
+		if err != nil {
+			return fmt.Errorf("failed to delete old driver pod %s of SparkApplication %s: %v",
+				app.Status.DriverInfo.PodName, app.Name, err)
+		}
+	}
+	if app.Status.DriverInfo.WebUIServiceName != "" {
+		err := s.kubeClient.CoreV1().Services(app.Namespace).Delete(app.Status.DriverInfo.WebUIServiceName,
+			&metav1.DeleteOptions{GracePeriodSeconds: &zero})
+		if err != nil {
+			return fmt.Errorf("failed to delete old web UI service %s of SparkApplication %s: %v",
+				app.Status.DriverInfo.WebUIServiceName, app.Name, err)
+		}
+	}
+
+	if waitForDriverDeletion {
+		wait.Poll(500*time.Millisecond, 60*time.Second, func() (bool, error) {
+			_, err := s.kubeClient.CoreV1().Pods(app.Namespace).Get(app.Status.DriverInfo.PodName, metav1.GetOptions{})
+			if err != nil {
+				if errors.IsNotFound(err) {
+					return true, nil
+				}
+				return false, err
+			}
+			return false, nil
+		})
+	}
+
+	return nil
 }
 
 func getApplicationKey(namespace, name string) (string, error) {
