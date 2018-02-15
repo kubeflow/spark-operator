@@ -312,6 +312,10 @@ func TestProcessSingleAppStateUpdate(t *testing.T) {
 			Name:      "foo",
 			Namespace: "default",
 		},
+		Spec: v1alpha1.SparkApplicationSpec{
+			MaxSubmissionRetries: int32ptr(1),
+			SubmissionRetryInterval: int64ptr(300),
+		},
 		Status: v1alpha1.SparkApplicationStatus{
 			AppID: "foo-123",
 			AppState: v1alpha1.ApplicationState{
@@ -640,7 +644,8 @@ func TestResubmissionOnFailures(t *testing.T) {
 			Namespace: "default",
 		},
 		Spec: v1alpha1.SparkApplicationSpec{
-			MaxSubmissionRetries: 2,
+			MaxSubmissionRetries: int32ptr(2),
+			SubmissionRetryInterval: int64ptr(1),
 		},
 		Status: v1alpha1.SparkApplicationStatus{
 			AppID: "foo-123",
@@ -694,6 +699,10 @@ func TestResubmissionOnFailures(t *testing.T) {
 
 func stringptr(s string) *string {
 	return &s
+}
+
+func int64ptr(n int64) *int64 {
+	return &n
 }
 
 func int32ptr(n int32) *int32 {

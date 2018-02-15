@@ -119,7 +119,9 @@ type SparkApplicationSpec struct {
 	// NodeSelector is the Kubernetes node selector to be added to the driver and executor pods.
 	NodeSelector map[string]string `json:"nodeSelector,omitempty"`
 	// MaxSubmissionRetries is the maximum number of times to retry a failed submission.
-	MaxSubmissionRetries int32 `json:"maxSubmissionRetries,omitempty"`
+	MaxSubmissionRetries *int32 `json:"maxSubmissionRetries,omitempty"`
+	// SubmissionRetryInterval is the unit of intervals in seconds between submission retries.
+	SubmissionRetryInterval *int64 `json:"submissionRetryInterval,omitempty"`
 }
 
 // ApplicationStateType represents the type of the current state of an application.

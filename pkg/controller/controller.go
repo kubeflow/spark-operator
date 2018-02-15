@@ -53,6 +53,10 @@ const (
 	maximumUpdateRetries = 3
 )
 
+var (
+	KeyFunc = cache.DeletionHandlingMetaNamespaceKeyFunc
+)
+
 // SparkApplicationController manages instances of SparkApplication.
 type SparkApplicationController struct {
 	crdClient             crdclientset.Interface
@@ -403,20 +407,26 @@ func (s *SparkApplicationController) processSingleAppStateUpdate(update *appStat
 			update.name,
 			update.namespace)
 
-		if submissionRetries < app.Spec.MaxSubmissionRetries {
-			glog.Infof("Retrying submission of SparkApplication %s", update.name)
-			s.enqueue(app)
-			submissionRetries++
-			s.recorder.Eventf(
-				app,
-				apiv1.EventTypeNormal,
-				"SparkApplicationSubmissionRetry",
-				"SparkApplication %s in namespace %s",
-				update.name,
-				update.namespace)
+		if app.Spec.MaxSubmissionRetries == nil || app.Spec.SubmissionRetryInterval == nil {
+			glog.Infof("Not retrying the failed submission of SparkApplication %s as either " +
+				"spec.MaxSubmissionRetries or spec.SubmissionRetryInterval is not set", app.Name)
 		} else {
-			glog.Errorf("maximum number of submission retries of SparkApplication %s has been reached, not "+
-				"attempting more retries", update.name)
+			if submissionRetries < *app.Spec.MaxSubmissionRetries {
+				glog.Infof("Retrying submission of SparkApplication %s", update.name)
+				submissionRetries++
+				interval := time.Duration(*app.Spec.SubmissionRetryInterval) * time.Second
+				s.enqueueAfter(app, time.Duration(submissionRetries)*interval)
+				s.recorder.Eventf(
+					app,
+					apiv1.EventTypeNormal,
+					"SparkApplicationSubmissionRetry",
+					"SparkApplication %s in namespace %s",
+					update.name,
+					update.namespace)
+			} else {
+				glog.Errorf("maximum number of submission retries of SparkApplication %s has been reached, " +
+					"not attempting more retries", update.name)
+			}
 		}
 	}
 
@@ -530,7 +540,7 @@ func (s *SparkApplicationController) getSparkApplicationFromStore(key string) (*
 }
 
 func (s *SparkApplicationController) enqueue(obj interface{}) {
-	key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(obj)
+	key, err := KeyFunc(obj)
 	if err != nil {
 		glog.Errorf("failed to get key for %v: %v", obj, err)
 		return
@@ -539,8 +549,18 @@ func (s *SparkApplicationController) enqueue(obj interface{}) {
 	s.queue.AddRateLimited(key)
 }
 
+func (s *SparkApplicationController) enqueueAfter(obj interface{}, after time.Duration) {
+	key, err := KeyFunc(obj)
+	if err != nil {
+		glog.Errorf("failed to get key for %v: %v", obj, err)
+		return
+	}
+
+	s.queue.AddAfter(key, after)
+}
+
 func (s *SparkApplicationController) dequeue(obj interface{}) {
-	key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(obj)
+	key, err := KeyFunc(obj)
 	if err != nil {
 		glog.Errorf("failed to get key for %v: %v", obj, err)
 		return

@@ -29,32 +29,42 @@ func SetSparkApplicationDefaults(app *SparkApplication) {
 		app.Spec.RestartPolicy = Never
 	}
 
+	if app.Spec.MaxSubmissionRetries == nil {
+		app.Spec.MaxSubmissionRetries = new(int32)
+		*app.Spec.MaxSubmissionRetries = 3
+	}
+
+	if app.Spec.SubmissionRetryInterval == nil {
+		app.Spec.SubmissionRetryInterval = new(int64)
+		*app.Spec.SubmissionRetryInterval = 300
+	}
+
 	setDriverSpecDefaults(app.Spec.Driver)
 	setExecutorSpecDefaults(app.Spec.Executor)
 }
 
 func setDriverSpecDefaults(spec DriverSpec) {
 	if spec.Cores == nil {
-		oneCore := float32(1)
-		spec.Cores = &oneCore
+		spec.Cores = new(float32)
+		*spec.Cores = 1
 	}
 	if spec.Memory == nil {
-		oneGMemory := "1g"
-		spec.Memory = &oneGMemory
+		spec.Memory = new(string)
+		*spec.Memory = "1g"
 	}
 }
 
 func setExecutorSpecDefaults(spec ExecutorSpec) {
 	if spec.Cores == nil {
-		oneCore := float32(1)
-		spec.Cores = &oneCore
+		spec.Cores = new(float32)
+		*spec.Cores = 1
 	}
 	if spec.Memory == nil {
-		oneGMemory := "1g"
-		spec.Memory = &oneGMemory
+		spec.Memory = new(string)
+		*spec.Memory = "1g"
 	}
 	if spec.Instances == nil {
-		one := int32(1)
-		spec.Instances = &one
+		spec.Instances = new(int32)
+		*spec.Instances = 1
 	}
 }
