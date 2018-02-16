@@ -20,6 +20,7 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 
@@ -27,17 +28,23 @@ import (
 	apiextensionsfake "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset/fake"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kubeclientfake "k8s.io/client-go/kubernetes/fake"
+	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
 
 	"k8s.io/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1alpha1"
-	crdfake "k8s.io/spark-on-k8s-operator/pkg/client/clientset/versioned/fake"
+	crdclientfake "k8s.io/spark-on-k8s-operator/pkg/client/clientset/versioned/fake"
+	crdinformers "k8s.io/spark-on-k8s-operator/pkg/client/informers/externalversions"
 )
 
-func newFakeController() (*SparkApplicationController, *record.FakeRecorder) {
-	crdClient := crdfake.NewSimpleClientset()
+func newFakeController(apps ...*v1alpha1.SparkApplication) (*SparkApplicationController, *record.FakeRecorder) {
+	crdclientfake.AddToScheme(scheme.Scheme)
+	crdClient := crdclientfake.NewSimpleClientset()
 	kubeClient := kubeclientfake.NewSimpleClientset()
 	apiExtensionsClient := apiextensionsfake.NewSimpleClientset()
+	informerFactory := crdinformers.NewSharedInformerFactory(crdClient, 0*time.Second)
+	recorder := record.NewFakeRecorder(3)
+
 	kubeClient.CoreV1().Nodes().Create(&apiv1.Node{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "node1",
@@ -52,14 +59,16 @@ func newFakeController() (*SparkApplicationController, *record.FakeRecorder) {
 		},
 	})
 
-	recorder := record.NewFakeRecorder(3)
-	return newSparkApplicationController(crdClient, kubeClient, apiExtensionsClient,
-		recorder, 0), recorder
+	controller := newSparkApplicationController(crdClient, kubeClient, apiExtensionsClient, informerFactory, recorder,
+		1)
+	for _, app := range apps {
+		controller.informer.GetIndexer().Add(app)
+	}
+
+	return controller, recorder
 }
 
 func TestSubmitApp(t *testing.T) {
-	ctrl, _ := newFakeController()
-
 	os.Setenv(kubernetesServiceHostEnvVar, "localhost")
 	os.Setenv(kubernetesServicePortEnvVar, "443")
 
@@ -69,7 +78,12 @@ func TestSubmitApp(t *testing.T) {
 			Namespace: "default",
 		},
 	}
-	ctrl.crdClient.SparkoperatorV1alpha1().SparkApplications(app.Namespace).Create(app)
+
+	ctrl, _ := newFakeController(app)
+	_, err := ctrl.crdClient.SparkoperatorV1alpha1().SparkApplications(app.Namespace).Create(app)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	go ctrl.submitApp(app)
 	submission := <-ctrl.runner.queue
@@ -212,8 +226,6 @@ func TestProcessSingleDriverStateUpdate(t *testing.T) {
 		expectedAppState v1alpha1.ApplicationStateType
 	}
 
-	ctrl, recorder := newFakeController()
-
 	app := &v1alpha1.SparkApplication{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "foo",
@@ -227,8 +239,12 @@ func TestProcessSingleDriverStateUpdate(t *testing.T) {
 			},
 		},
 	}
-	ctrl.crdClient.SparkoperatorV1alpha1().SparkApplications(app.Namespace).Create(app)
-	ctrl.store.Add(app)
+
+	ctrl, recorder := newFakeController(app)
+	_, err := ctrl.crdClient.SparkoperatorV1alpha1().SparkApplications(app.Namespace).Create(app)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	testcases := []testcase{
 		{
@@ -270,26 +286,23 @@ func TestProcessSingleDriverStateUpdate(t *testing.T) {
 	}
 
 	testFn := func(test testcase, t *testing.T) {
-		ctrl.processSingleDriverStateUpdate(&test.update)
-		app, err := ctrl.crdClient.SparkoperatorV1alpha1().SparkApplications(app.Namespace).Get(app.Name,
-			metav1.GetOptions{})
-		if err != nil {
-			t.Error(err)
+		updatedApp := ctrl.processSingleDriverStateUpdate(&test.update)
+		if updatedApp == nil {
+			t.Fatal()
 		}
+
 		assert.Equal(
 			t,
 			test.expectedAppState,
-			app.Status.AppState.State,
+			updatedApp.Status.AppState.State,
 			"wanted application state %s got %s",
 			test.expectedAppState,
-			app.Status.AppState.State)
+			updatedApp.Status.AppState.State)
 
-		if isAppTerminated(app.Status.AppState.State) {
+		if isAppTerminated(updatedApp.Status.AppState.State) {
 			event := <-recorder.Events
 			assert.True(t, strings.Contains(event, "SparkApplicationTermination"))
 		}
-
-		ctrl.store.Update(app)
 	}
 
 	for _, test := range testcases {
@@ -305,15 +318,13 @@ func TestProcessSingleAppStateUpdate(t *testing.T) {
 		expectedAppState v1alpha1.ApplicationStateType
 	}
 
-	ctrl, recorder := newFakeController()
-
 	app := &v1alpha1.SparkApplication{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "foo",
 			Namespace: "default",
 		},
 		Spec: v1alpha1.SparkApplicationSpec{
-			MaxSubmissionRetries: int32ptr(1),
+			MaxSubmissionRetries:    int32ptr(1),
 			SubmissionRetryInterval: int64ptr(300),
 		},
 		Status: v1alpha1.SparkApplicationStatus{
@@ -324,8 +335,12 @@ func TestProcessSingleAppStateUpdate(t *testing.T) {
 			},
 		},
 	}
-	ctrl.crdClient.SparkoperatorV1alpha1().SparkApplications(app.Namespace).Create(app)
-	ctrl.store.Add(app)
+
+	ctrl, recorder := newFakeController(app)
+	_, err := ctrl.crdClient.SparkoperatorV1alpha1().SparkApplications(app.Namespace).Create(app)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	testcases := []testcase{
 		{
@@ -375,26 +390,23 @@ func TestProcessSingleAppStateUpdate(t *testing.T) {
 	}
 
 	testFn := func(test testcase, t *testing.T) {
-		ctrl.processSingleAppStateUpdate(&test.update)
-		app, err := ctrl.crdClient.SparkoperatorV1alpha1().SparkApplications(app.Namespace).Get(app.Name,
-			metav1.GetOptions{})
-		if err != nil {
-			t.Error(err)
+		updatedApp := ctrl.processSingleAppStateUpdate(&test.update)
+		if updatedApp == nil {
+			t.Fatal()
 		}
+
 		assert.Equal(
 			t,
 			test.expectedAppState,
-			app.Status.AppState.State,
+			updatedApp.Status.AppState.State,
 			"wanted application state %s got %s",
 			test.expectedAppState,
-			app.Status.AppState.State)
+			updatedApp.Status.AppState.State)
 
-		if app.Status.AppState.State == v1alpha1.FailedSubmissionState {
+		if updatedApp.Status.AppState.State == v1alpha1.FailedSubmissionState {
 			event := <-recorder.Events
 			assert.True(t, strings.Contains(event, "SparkApplicationSubmissionFailure"))
 		}
-
-		ctrl.store.Update(app)
 	}
 
 	for _, test := range testcases {
@@ -406,10 +418,9 @@ func TestProcessSingleExecutorStateUpdate(t *testing.T) {
 	type testcase struct {
 		name                   string
 		update                 executorStateUpdate
+		shouldUpdate           bool
 		expectedExecutorStates map[string]v1alpha1.ExecutorState
 	}
-
-	ctrl, _ := newFakeController()
 
 	app := &v1alpha1.SparkApplication{
 		ObjectMeta: metav1.ObjectMeta{
@@ -419,14 +430,20 @@ func TestProcessSingleExecutorStateUpdate(t *testing.T) {
 		Status: v1alpha1.SparkApplicationStatus{
 			AppID: "foo-123",
 			AppState: v1alpha1.ApplicationState{
-				State:        v1alpha1.NewState,
+				State:        v1alpha1.RunningState,
 				ErrorMessage: "",
 			},
-			ExecutorState: make(map[string]v1alpha1.ExecutorState),
+			ExecutorState: map[string]v1alpha1.ExecutorState{
+				"foo-exec-1": v1alpha1.ExecutorCompletedState,
+			},
 		},
 	}
-	ctrl.crdClient.SparkoperatorV1alpha1().SparkApplications(app.Namespace).Create(app)
-	ctrl.store.Add(app)
+
+	ctrl, _ := newFakeController(app)
+	_, err := ctrl.crdClient.SparkoperatorV1alpha1().SparkApplications(app.Namespace).Create(app)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	testcases := []testcase{
 		{
@@ -435,12 +452,14 @@ func TestProcessSingleExecutorStateUpdate(t *testing.T) {
 				appNamespace: "default",
 				appName:      "foo",
 				appID:        "foo-123",
-				podName:      "foo-exec-1",
-				executorID:   "1",
+				podName:      "foo-exec-2",
+				executorID:   "2",
 				state:        v1alpha1.ExecutorCompletedState,
 			},
+			shouldUpdate: true,
 			expectedExecutorStates: map[string]v1alpha1.ExecutorState{
 				"foo-exec-1": v1alpha1.ExecutorCompletedState,
+				"foo-exec-2": v1alpha1.ExecutorCompletedState,
 			},
 		},
 		{
@@ -449,13 +468,14 @@ func TestProcessSingleExecutorStateUpdate(t *testing.T) {
 				appNamespace: "default",
 				appName:      "foo",
 				appID:        "foo-123",
-				podName:      "foo-exec-2",
-				executorID:   "2",
+				podName:      "foo-exec-3",
+				executorID:   "3",
 				state:        v1alpha1.ExecutorFailedState,
 			},
+			shouldUpdate: true,
 			expectedExecutorStates: map[string]v1alpha1.ExecutorState{
 				"foo-exec-1": v1alpha1.ExecutorCompletedState,
-				"foo-exec-2": v1alpha1.ExecutorFailedState,
+				"foo-exec-3": v1alpha1.ExecutorFailedState,
 			},
 		},
 		{
@@ -464,14 +484,14 @@ func TestProcessSingleExecutorStateUpdate(t *testing.T) {
 				appNamespace: "default",
 				appName:      "foo",
 				appID:        "foo-123",
-				podName:      "foo-exec-3",
-				executorID:   "3",
+				podName:      "foo-exec-4",
+				executorID:   "4",
 				state:        v1alpha1.ExecutorRunningState,
 			},
+			shouldUpdate: true,
 			expectedExecutorStates: map[string]v1alpha1.ExecutorState{
 				"foo-exec-1": v1alpha1.ExecutorCompletedState,
-				"foo-exec-2": v1alpha1.ExecutorFailedState,
-				"foo-exec-3": v1alpha1.ExecutorRunningState,
+				"foo-exec-4": v1alpha1.ExecutorRunningState,
 			},
 		},
 		{
@@ -484,10 +504,9 @@ func TestProcessSingleExecutorStateUpdate(t *testing.T) {
 				executorID:   "1",
 				state:        v1alpha1.ExecutorPendingState,
 			},
+			shouldUpdate: false,
 			expectedExecutorStates: map[string]v1alpha1.ExecutorState{
 				"foo-exec-1": v1alpha1.ExecutorCompletedState,
-				"foo-exec-2": v1alpha1.ExecutorFailedState,
-				"foo-exec-3": v1alpha1.ExecutorRunningState,
 			},
 		},
 		{
@@ -496,35 +515,35 @@ func TestProcessSingleExecutorStateUpdate(t *testing.T) {
 				appNamespace: "default",
 				appName:      "foo",
 				appID:        "foo-123",
-				podName:      "foo-exec-4",
-				executorID:   "4",
+				podName:      "foo-exec-5",
+				executorID:   "5",
 				state:        v1alpha1.ExecutorPendingState,
 			},
+			shouldUpdate: true,
 			expectedExecutorStates: map[string]v1alpha1.ExecutorState{
 				"foo-exec-1": v1alpha1.ExecutorCompletedState,
-				"foo-exec-2": v1alpha1.ExecutorFailedState,
-				"foo-exec-3": v1alpha1.ExecutorRunningState,
-				"foo-exec-4": v1alpha1.ExecutorPendingState,
+				"foo-exec-5": v1alpha1.ExecutorPendingState,
 			},
 		},
 	}
 
 	testFn := func(test testcase, t *testing.T) {
-		ctrl.processSingleExecutorStateUpdate(&test.update)
-		app, err := ctrl.crdClient.SparkoperatorV1alpha1().SparkApplications(app.Namespace).Get(app.Name,
-			metav1.GetOptions{})
-		if err != nil {
-			t.Error(err)
+		updatedApp := ctrl.processSingleExecutorStateUpdate(&test.update)
+		if test.shouldUpdate {
+			if updatedApp == nil {
+				t.Fatal()
+			}
+		} else {
+			return
 		}
+
 		assert.Equal(
 			t,
 			test.expectedExecutorStates,
-			app.Status.ExecutorState,
+			updatedApp.Status.ExecutorState,
 			"wanted executor states %s got %s",
 			test.expectedExecutorStates,
-			app.Status.ExecutorState)
-
-		ctrl.store.Update(app)
+			updatedApp.Status.ExecutorState)
 	}
 
 	for _, test := range testcases {
@@ -542,11 +561,13 @@ func TestHandleRestart(t *testing.T) {
 	os.Setenv(kubernetesServiceHostEnvVar, "localhost")
 	os.Setenv(kubernetesServicePortEnvVar, "443")
 
-	ctrl, recorder := newFakeController()
-
 	testFn := func(test testcase, t *testing.T) {
-		ctrl.crdClient.SparkoperatorV1alpha1().SparkApplications(test.app.Namespace).Create(test.app)
-		ctrl.store.Add(test.app)
+		ctrl, recorder := newFakeController(test.app)
+		_, err := ctrl.crdClient.SparkoperatorV1alpha1().SparkApplications(test.app.Namespace).Create(test.app)
+		if err != nil {
+			t.Fatal(err)
+		}
+
 		ctrl.handleRestart(test.app)
 		if test.expectRestart {
 			go ctrl.processNextItem()
@@ -633,8 +654,6 @@ func TestHandleRestart(t *testing.T) {
 }
 
 func TestResubmissionOnFailures(t *testing.T) {
-	ctrl, recorder := newFakeController()
-
 	os.Setenv(kubernetesServiceHostEnvVar, "localhost")
 	os.Setenv(kubernetesServicePortEnvVar, "443")
 
@@ -644,7 +663,7 @@ func TestResubmissionOnFailures(t *testing.T) {
 			Namespace: "default",
 		},
 		Spec: v1alpha1.SparkApplicationSpec{
-			MaxSubmissionRetries: int32ptr(2),
+			MaxSubmissionRetries:    int32ptr(2),
 			SubmissionRetryInterval: int64ptr(1),
 		},
 		Status: v1alpha1.SparkApplicationStatus{
@@ -656,24 +675,23 @@ func TestResubmissionOnFailures(t *testing.T) {
 		},
 	}
 
+	ctrl, recorder := newFakeController(app)
 	ctrl.crdClient.SparkoperatorV1alpha1().SparkApplications(app.Namespace).Create(app)
-	ctrl.store.Add(app)
 
 	testFn := func(t *testing.T, update *appStateUpdate) {
-		ctrl.processSingleAppStateUpdate(update)
+		updatedApp := ctrl.processSingleAppStateUpdate(update)
+		if updatedApp == nil {
+			t.Fatal()
+		}
+
 		item, _ := ctrl.queue.Get()
 		key, ok := item.(string)
 		assert.True(t, ok)
-		expectedKey, _ := getApplicationKey(app.Namespace, app.Name)
+		expectedKey, _ := getApplicationKey(updatedApp.Namespace, updatedApp.Name)
 		assert.Equal(t, expectedKey, key)
 		ctrl.queue.Forget(item)
 		ctrl.queue.Done(item)
 
-		updatedApp, err := ctrl.crdClient.SparkoperatorV1alpha1().SparkApplications(app.Namespace).Get(app.Name,
-			metav1.GetOptions{})
-		if err != nil {
-			t.Fatal(err)
-		}
 		assert.Equal(t, int32(1), updatedApp.Status.SubmissionRetries)
 
 		event := <-recorder.Events
