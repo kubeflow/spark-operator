@@ -18,7 +18,6 @@ package controller
 
 import (
 	"fmt"
-	"net/http"
 	"reflect"
 	"strconv"
 	"time"
@@ -40,7 +39,9 @@ import (
 
 	"k8s.io/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1alpha1"
 	crdclientset "k8s.io/spark-on-k8s-operator/pkg/client/clientset/versioned"
+	crdscheme "k8s.io/spark-on-k8s-operator/pkg/client/clientset/versioned/scheme"
 	crdinformers "k8s.io/spark-on-k8s-operator/pkg/client/informers/externalversions"
+	crdlisters "k8s.io/spark-on-k8s-operator/pkg/client/listers/sparkoperator.k8s.io/v1alpha1"
 	"k8s.io/spark-on-k8s-operator/pkg/crd"
 	"k8s.io/spark-on-k8s-operator/pkg/util"
 )
@@ -64,7 +65,7 @@ type SparkApplicationController struct {
 	extensionsClient      apiextensionsclient.Interface
 	queue                 workqueue.RateLimitingInterface
 	informer              cache.SharedIndexInformer
-	store                 cache.Store
+	lister                crdlisters.SparkApplicationLister
 	recorder              record.EventRecorder
 	runner                *sparkSubmitRunner
 	sparkPodMonitor       *sparkPodMonitor
@@ -78,7 +79,14 @@ func New(
 	kubeClient clientset.Interface,
 	extensionsClient apiextensionsclient.Interface,
 	submissionRunnerWorkers int) *SparkApplicationController {
-	v1alpha1.AddToScheme(scheme.Scheme)
+	crdscheme.AddToScheme(scheme.Scheme)
+
+	informerFactory := crdinformers.NewSharedInformerFactory(
+		crdClient,
+		// resyncPeriod. Every resyncPeriod, all resources in the cache will re-trigger events.
+		// Set to 0 to disable the resync.
+		0*time.Second)
+
 	eventBroadcaster := record.NewBroadcaster()
 	eventBroadcaster.StartLogging(glog.V(2).Infof)
 	eventBroadcaster.StartRecordingToSink(&typedcorev1.EventSinkImpl{
@@ -86,13 +94,15 @@ func New(
 	})
 	recorder := eventBroadcaster.NewRecorder(scheme.Scheme, apiv1.EventSource{Component: "spark-operator"})
 
-	return newSparkApplicationController(crdClient, kubeClient, extensionsClient, recorder, submissionRunnerWorkers)
+	return newSparkApplicationController(crdClient, kubeClient, extensionsClient, informerFactory, recorder,
+		submissionRunnerWorkers)
 }
 
 func newSparkApplicationController(
 	crdClient crdclientset.Interface,
 	kubeClient clientset.Interface,
 	extensionsClient apiextensionsclient.Interface,
+	informerFactory crdinformers.SharedInformerFactory,
 	eventRecorder record.EventRecorder,
 	submissionRunnerWorkers int) *SparkApplicationController {
 	queue := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(),
@@ -116,18 +126,14 @@ func newSparkApplicationController(
 		podStateReportingChan: podStateReportingChan,
 	}
 
-	informerFactory := crdinformers.NewSharedInformerFactory(
-		crdClient,
-		// resyncPeriod. Every resyncPeriod, all resources in the cache will re-trigger events.
-		// Set to 0 to disable the resync.
-		0*time.Second)
-	controller.informer = informerFactory.Sparkoperator().V1alpha1().SparkApplications().Informer()
+	informer := informerFactory.Sparkoperator().V1alpha1().SparkApplications()
+	controller.informer = informer.Informer()
 	controller.informer.AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc:    controller.onAdd,
 		UpdateFunc: controller.onUpdate,
 		DeleteFunc: controller.onDelete,
 	})
-	controller.store = controller.informer.GetStore()
+	controller.lister = informer.Lister()
 
 	return controller
 }
@@ -271,7 +277,11 @@ func (s *SparkApplicationController) processNextItem() bool {
 }
 
 func (s *SparkApplicationController) syncSparkApplication(key string) error {
-	app, err := s.getSparkApplicationFromStore(key)
+	namespace, name, err := cache.SplitMetaNamespaceKey(key)
+	if err != nil {
+		return fmt.Errorf("failed to get the namespace and name from key %s: %v", key, err)
+	}
+	app, err := s.getSparkApplication(namespace, name)
 	if err != nil {
 		return err
 	}
@@ -334,8 +344,7 @@ func (s *SparkApplicationController) processSingleDriverStateUpdate(
 		"Received driver state update for SparkApplication %s in namespace %s with phase %s",
 		update.appName, update.appNamespace, update.podPhase)
 
-	key, _ := getApplicationKey(update.appNamespace, update.appName)
-	app, err := s.getSparkApplicationFromStore(key)
+	app, err := s.getSparkApplication(update.appNamespace, update.appName)
 	if err != nil {
 		// Update may be the result of pod deletion due to deletion of the owning SparkApplication object.
 		// Ignore the error if the owning SparkApplication object does not exist.
@@ -346,6 +355,10 @@ func (s *SparkApplicationController) processSingleDriverStateUpdate(
 		return nil
 	}
 
+	// The controller may receive a status update of the driver of the previous run of the application and
+	// should ignore such updates in this case. This may happen if the user updated the SparkApplication
+	// object using a 'kubectl apply' while the application is running. The controller kills the running
+	// application and submits a new run in this case.
 	if update.appID != app.Status.AppID {
 		return nil
 	}
@@ -364,7 +377,7 @@ func (s *SparkApplicationController) processSingleDriverStateUpdate(
 			appState)
 	}
 
-	updated := s.updateSparkApplicationStatusWithRetries(app, func(status *v1alpha1.SparkApplicationStatus) {
+	return s.updateSparkApplicationStatusWithRetries(app, func(status *v1alpha1.SparkApplicationStatus) {
 		status.DriverInfo.PodName = update.podName
 		if update.nodeName != "" {
 			if nodeIP := s.getNodeExternalIP(update.nodeName); nodeIP != "" {
@@ -378,8 +391,6 @@ func (s *SparkApplicationController) processSingleDriverStateUpdate(
 			status.CompletionTime = update.completionTime
 		}
 	})
-
-	return updated
 }
 
 func (s *SparkApplicationController) processAppStateUpdates() {
@@ -388,13 +399,12 @@ func (s *SparkApplicationController) processAppStateUpdates() {
 	}
 }
 
-func (s *SparkApplicationController) processSingleAppStateUpdate(update *appStateUpdate) {
-	key, _ := getApplicationKey(update.namespace, update.name)
-	app, err := s.getSparkApplicationFromStore(key)
+func (s *SparkApplicationController) processSingleAppStateUpdate(update *appStateUpdate) *v1alpha1.SparkApplication {
+	app, err := s.getSparkApplication(update.namespace, update.name)
 	if err != nil {
 		glog.Errorf("failed to get SparkApplication %s in namespace %s from the store: %v", update.name,
 			update.namespace, err)
-		return
+		return nil
 	}
 
 	submissionRetries := app.Status.SubmissionRetries
@@ -408,7 +418,7 @@ func (s *SparkApplicationController) processSingleAppStateUpdate(update *appStat
 			update.namespace)
 
 		if app.Spec.MaxSubmissionRetries == nil || app.Spec.SubmissionRetryInterval == nil {
-			glog.Infof("Not retrying the failed submission of SparkApplication %s as either " +
+			glog.Infof("Not retrying the failed submission of SparkApplication %s as either "+
 				"spec.MaxSubmissionRetries or spec.SubmissionRetryInterval is not set", app.Name)
 		} else {
 			if submissionRetries < *app.Spec.MaxSubmissionRetries {
@@ -424,13 +434,13 @@ func (s *SparkApplicationController) processSingleAppStateUpdate(update *appStat
 					update.name,
 					update.namespace)
 			} else {
-				glog.Errorf("maximum number of submission retries of SparkApplication %s has been reached, " +
+				glog.Errorf("maximum number of submission retries of SparkApplication %s has been reached, "+
 					"not attempting more retries", update.name)
 			}
 		}
 	}
 
-	s.updateSparkApplicationStatusWithRetries(app, func(status *v1alpha1.SparkApplicationStatus) {
+	return s.updateSparkApplicationStatusWithRetries(app, func(status *v1alpha1.SparkApplicationStatus) {
 		status.AppState.State = update.state
 		status.AppState.ErrorMessage = update.errorMessage
 		status.SubmissionRetries = submissionRetries
@@ -440,13 +450,13 @@ func (s *SparkApplicationController) processSingleAppStateUpdate(update *appStat
 	})
 }
 
-func (s *SparkApplicationController) processSingleExecutorStateUpdate(update *executorStateUpdate) {
+func (s *SparkApplicationController) processSingleExecutorStateUpdate(
+	update *executorStateUpdate) *v1alpha1.SparkApplication {
 	glog.V(2).Infof(
 		"Received state update of executor %s for SparkApplication %s in namespace %s with state %s",
 		update.executorID, update.appName, update.appNamespace, update.state)
 
-	key, _ := getApplicationKey(update.appNamespace, update.appName)
-	app, err := s.getSparkApplicationFromStore(key)
+	app, err := s.getSparkApplication(update.appNamespace, update.appName)
 	if err != nil {
 		// Update may be the result of pod deletion due to deletion of the owning SparkApplication object.
 		// Ignore the error if the owning SparkApplication object does not exist.
@@ -454,7 +464,7 @@ func (s *SparkApplicationController) processSingleExecutorStateUpdate(update *ex
 			glog.Errorf("failed to get SparkApplication %s in namespace %s from the store: %v", update.appName,
 				update.appNamespace, err)
 		}
-		return
+		return nil
 	}
 
 	// The controller may receive status updates of executors belonging to the previous run of the application and
@@ -462,10 +472,10 @@ func (s *SparkApplicationController) processSingleExecutorStateUpdate(update *ex
 	// to update the SparkApplication object on the API server while the application is running, the controller may
 	// still receive status updates of executors of the old application run even after the new run starts.
 	if update.appID != app.Status.AppID {
-		return
+		return nil
 	}
 
-	s.updateSparkApplicationStatusWithRetries(app, func(status *v1alpha1.SparkApplicationStatus) {
+	return s.updateSparkApplicationStatusWithRetries(app, func(status *v1alpha1.SparkApplicationStatus) {
 		if status.ExecutorState == nil {
 			status.ExecutorState = make(map[string]v1alpha1.ExecutorState)
 		}
@@ -520,23 +530,9 @@ func (s *SparkApplicationController) tryUpdateStatus(
 	return s.crdClient.SparkoperatorV1alpha1().SparkApplications(toUpdate.Namespace).Update(toUpdate)
 }
 
-func (s *SparkApplicationController) getSparkApplicationFromStore(key string) (*v1alpha1.SparkApplication, error) {
-	item, exists, err := s.store.GetByKey(key)
-	if err != nil {
-		return nil, err
-	}
-
-	if !exists {
-		return nil, &errors.StatusError{
-			ErrStatus: metav1.Status{
-				Status: metav1.StatusFailure,
-				Code:   http.StatusNotFound,
-				Reason: metav1.StatusReasonNotFound,
-			},
-		}
-	}
-
-	return item.(*v1alpha1.SparkApplication), nil
+func (s *SparkApplicationController) getSparkApplication(namespace string, name string) (
+	*v1alpha1.SparkApplication, error) {
+	return s.lister.SparkApplications(namespace).Get(name)
 }
 
 func (s *SparkApplicationController) enqueue(obj interface{}) {
