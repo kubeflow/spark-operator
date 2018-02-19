@@ -715,6 +715,222 @@ func TestResubmissionOnFailures(t *testing.T) {
 	assert.Equal(t, 0, ctrl.queue.Len())
 }
 
+func TestShouldSubmit(t *testing.T) {
+	type testcase struct {
+		app          *v1alpha1.SparkApplication
+		shouldSubmit bool
+	}
+
+	testFn := func(test testcase, t *testing.T) {
+		assert.Equal(t, test.shouldSubmit, shouldSubmit(test.app))
+	}
+
+	testcases := []testcase{
+		{
+			app:          &v1alpha1.SparkApplication{},
+			shouldSubmit: true,
+		},
+		{
+			app: &v1alpha1.SparkApplication{
+				Status: v1alpha1.SparkApplicationStatus{
+					AppState: v1alpha1.ApplicationState{State: v1alpha1.NewState},
+				},
+			},
+			shouldSubmit: true,
+		},
+		{
+			app: &v1alpha1.SparkApplication{
+				Status: v1alpha1.SparkApplicationStatus{
+					AppState: v1alpha1.ApplicationState{State: v1alpha1.SubmittedState},
+				},
+			},
+			shouldSubmit: false,
+		},
+		{
+			app: &v1alpha1.SparkApplication{
+				Status: v1alpha1.SparkApplicationStatus{
+					AppState: v1alpha1.ApplicationState{State: v1alpha1.RunningState},
+				},
+			},
+			shouldSubmit: false,
+		},
+		{
+			app: &v1alpha1.SparkApplication{
+				Status: v1alpha1.SparkApplicationStatus{
+					AppState: v1alpha1.ApplicationState{State: v1alpha1.FailedState},
+				},
+			},
+			shouldSubmit: false,
+		},
+		{
+			app: &v1alpha1.SparkApplication{
+				Status: v1alpha1.SparkApplicationStatus{
+					AppState: v1alpha1.ApplicationState{State: v1alpha1.CompletedState},
+				},
+			},
+			shouldSubmit: false,
+		},
+		{
+			app: &v1alpha1.SparkApplication{
+				Spec: v1alpha1.SparkApplicationSpec{RestartPolicy: v1alpha1.OnFailure},
+				Status: v1alpha1.SparkApplicationStatus{
+					AppState: v1alpha1.ApplicationState{State: v1alpha1.FailedState},
+				},
+			},
+			shouldSubmit: true,
+		},
+		{
+			app: &v1alpha1.SparkApplication{
+				Spec: v1alpha1.SparkApplicationSpec{RestartPolicy: v1alpha1.Always},
+				Status: v1alpha1.SparkApplicationStatus{
+					AppState: v1alpha1.ApplicationState{State: v1alpha1.FailedState},
+				},
+			},
+			shouldSubmit: true,
+		},
+		{
+			app: &v1alpha1.SparkApplication{
+				Spec: v1alpha1.SparkApplicationSpec{RestartPolicy: v1alpha1.Always},
+				Status: v1alpha1.SparkApplicationStatus{
+					AppState: v1alpha1.ApplicationState{State: v1alpha1.CompletedState},
+				},
+			},
+			shouldSubmit: true,
+		},
+		{
+			app: &v1alpha1.SparkApplication{
+				Spec: v1alpha1.SparkApplicationSpec{MaxSubmissionRetries: int32ptr(1)},
+				Status: v1alpha1.SparkApplicationStatus{
+					SubmissionRetries: 0,
+					AppState:          v1alpha1.ApplicationState{State: v1alpha1.FailedSubmissionState},
+				},
+			},
+			shouldSubmit: true,
+		},
+		{
+			app: &v1alpha1.SparkApplication{
+				Spec: v1alpha1.SparkApplicationSpec{MaxSubmissionRetries: int32ptr(1)},
+				Status: v1alpha1.SparkApplicationStatus{
+					SubmissionRetries: 1,
+					AppState:          v1alpha1.ApplicationState{State: v1alpha1.FailedSubmissionState},
+				},
+			},
+			shouldSubmit: false,
+		},
+	}
+
+	for _, test := range testcases {
+		testFn(test, t)
+	}
+}
+
+func TestShouldRestart(t *testing.T) {
+	type testcase struct {
+		app           *v1alpha1.SparkApplication
+		shouldRestart bool
+	}
+
+	testFn := func(test testcase, t *testing.T) {
+		assert.Equal(t, test.shouldRestart, shouldRestart(test.app))
+	}
+
+	testcases := []testcase{
+		{
+			app: &v1alpha1.SparkApplication{
+				Status: v1alpha1.SparkApplicationStatus{
+					AppState: v1alpha1.ApplicationState{State: v1alpha1.FailedState},
+				},
+			},
+			shouldRestart: false,
+		},
+		{
+			app: &v1alpha1.SparkApplication{
+				Status: v1alpha1.SparkApplicationStatus{
+					AppState: v1alpha1.ApplicationState{State: v1alpha1.CompletedState},
+				},
+			},
+			shouldRestart: false,
+		},
+		{
+			app: &v1alpha1.SparkApplication{
+				Spec: v1alpha1.SparkApplicationSpec{RestartPolicy: v1alpha1.OnFailure},
+				Status: v1alpha1.SparkApplicationStatus{
+					AppState: v1alpha1.ApplicationState{State: v1alpha1.FailedState},
+				},
+			},
+			shouldRestart: true,
+		},
+		{
+			app: &v1alpha1.SparkApplication{
+				Spec: v1alpha1.SparkApplicationSpec{RestartPolicy: v1alpha1.Always},
+				Status: v1alpha1.SparkApplicationStatus{
+					AppState: v1alpha1.ApplicationState{State: v1alpha1.FailedState},
+				},
+			},
+			shouldRestart: true,
+		},
+		{
+			app: &v1alpha1.SparkApplication{
+				Spec: v1alpha1.SparkApplicationSpec{RestartPolicy: v1alpha1.Always},
+				Status: v1alpha1.SparkApplicationStatus{
+					AppState: v1alpha1.ApplicationState{State: v1alpha1.CompletedState},
+				},
+			},
+			shouldRestart: true,
+		},
+	}
+
+	for _, test := range testcases {
+		testFn(test, t)
+	}
+}
+
+func TestShouldRetrySubmission(t *testing.T) {
+	type testcase struct {
+		app                   *v1alpha1.SparkApplication
+		shouldRetrySubmission bool
+	}
+
+	testFn := func(test testcase, t *testing.T) {
+		assert.Equal(t, test.shouldRetrySubmission, shouldRetrySubmission(test.app))
+	}
+
+	testcases := []testcase{
+		{
+			app: &v1alpha1.SparkApplication{
+				Status: v1alpha1.SparkApplicationStatus{
+					AppState: v1alpha1.ApplicationState{State: v1alpha1.FailedSubmissionState},
+				},
+			},
+			shouldRetrySubmission: false,
+		},
+		{
+			app: &v1alpha1.SparkApplication{
+				Spec: v1alpha1.SparkApplicationSpec{MaxSubmissionRetries: int32ptr(1)},
+				Status: v1alpha1.SparkApplicationStatus{
+					SubmissionRetries: 0,
+					AppState:          v1alpha1.ApplicationState{State: v1alpha1.FailedSubmissionState},
+				},
+			},
+			shouldRetrySubmission: true,
+		},
+		{
+			app: &v1alpha1.SparkApplication{
+				Spec: v1alpha1.SparkApplicationSpec{MaxSubmissionRetries: int32ptr(1)},
+				Status: v1alpha1.SparkApplicationStatus{
+					SubmissionRetries: 1,
+					AppState:          v1alpha1.ApplicationState{State: v1alpha1.FailedSubmissionState},
+				},
+			},
+			shouldRetrySubmission: false,
+		},
+	}
+
+	for _, test := range testcases {
+		testFn(test, t)
+	}
+}
+
 func stringptr(s string) *string {
 	return &s
 }

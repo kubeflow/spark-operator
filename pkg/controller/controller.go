@@ -55,7 +55,7 @@ const (
 )
 
 var (
-	KeyFunc = cache.DeletionHandlingMetaNamespaceKeyFunc
+	keyFunc = cache.DeletionHandlingMetaNamespaceKeyFunc
 )
 
 // SparkApplicationController manages instances of SparkApplication.
@@ -171,6 +171,7 @@ func (s *SparkApplicationController) Start(workers int, stopCh <-chan struct{}) 
 	return nil
 }
 
+// Stop stops the controller.
 func (s *SparkApplicationController) Stop() {
 	glog.Info("Stopping the SparkApplication controller")
 	s.queue.ShutDown()
@@ -182,15 +183,17 @@ func (s *SparkApplicationController) Stop() {
 
 // Callback function called when a new SparkApplication object gets created.
 func (s *SparkApplicationController) onAdd(obj interface{}) {
-	s.enqueue(obj)
 	app := obj.(*v1alpha1.SparkApplication)
-	s.recorder.Eventf(
-		app,
-		apiv1.EventTypeNormal,
-		"SparkApplicationSubmission",
-		"SparkApplication %s in namespace %s",
-		app.Name,
-		app.Namespace)
+	if shouldSubmit(app) {
+		s.enqueue(app)
+		s.recorder.Eventf(
+			app,
+			apiv1.EventTypeNormal,
+			"SparkApplicationSubmission",
+			"SparkApplication %s in namespace %s",
+			app.Name,
+			app.Namespace)
+	}
 }
 
 func (s *SparkApplicationController) onUpdate(oldObj, newObj interface{}) {
@@ -328,7 +331,7 @@ func (s *SparkApplicationController) processPodStateUpdates() {
 		switch update.(type) {
 		case *driverStateUpdate:
 			updatedApp := s.processSingleDriverStateUpdate(update.(*driverStateUpdate))
-			if updatedApp != nil && isAppTerminated(updatedApp.Status.AppState.State) {
+			if updatedApp != nil && shouldRestart(updatedApp) {
 				s.handleRestart(updatedApp)
 			}
 			continue
@@ -417,26 +420,26 @@ func (s *SparkApplicationController) processSingleAppStateUpdate(update *appStat
 			update.name,
 			update.namespace)
 
-		if app.Spec.MaxSubmissionRetries == nil || app.Spec.SubmissionRetryInterval == nil {
-			glog.Infof("Not retrying the failed submission of SparkApplication %s as either "+
-				"spec.MaxSubmissionRetries or spec.SubmissionRetryInterval is not set", app.Name)
-		} else {
-			if submissionRetries < *app.Spec.MaxSubmissionRetries {
-				glog.Infof("Retrying submission of SparkApplication %s", update.name)
-				submissionRetries++
+		if shouldRetrySubmission(app) {
+			glog.Infof("Retrying submission of SparkApplication %s", update.name)
+
+			submissionRetries++
+			if app.Spec.SubmissionRetryInterval != nil {
 				interval := time.Duration(*app.Spec.SubmissionRetryInterval) * time.Second
 				s.enqueueAfter(app, time.Duration(submissionRetries)*interval)
-				s.recorder.Eventf(
-					app,
-					apiv1.EventTypeNormal,
-					"SparkApplicationSubmissionRetry",
-					"SparkApplication %s in namespace %s",
-					update.name,
-					update.namespace)
 			} else {
-				glog.Errorf("maximum number of submission retries of SparkApplication %s has been reached, "+
-					"not attempting more retries", update.name)
+				s.enqueue(app)
 			}
+
+			s.recorder.Eventf(
+				app,
+				apiv1.EventTypeNormal,
+				"SparkApplicationSubmissionRetry",
+				"SparkApplication %s in namespace %s",
+				update.name,
+				update.namespace)
+		} else {
+			glog.Infof("Not retrying submission of SparkApplication %s", update.name)
 		}
 	}
 
@@ -536,7 +539,7 @@ func (s *SparkApplicationController) getSparkApplication(namespace string, name 
 }
 
 func (s *SparkApplicationController) enqueue(obj interface{}) {
-	key, err := KeyFunc(obj)
+	key, err := keyFunc(obj)
 	if err != nil {
 		glog.Errorf("failed to get key for %v: %v", obj, err)
 		return
@@ -546,7 +549,7 @@ func (s *SparkApplicationController) enqueue(obj interface{}) {
 }
 
 func (s *SparkApplicationController) enqueueAfter(obj interface{}, after time.Duration) {
-	key, err := KeyFunc(obj)
+	key, err := keyFunc(obj)
 	if err != nil {
 		glog.Errorf("failed to get key for %v: %v", obj, err)
 		return
@@ -556,7 +559,7 @@ func (s *SparkApplicationController) enqueueAfter(obj interface{}, after time.Du
 }
 
 func (s *SparkApplicationController) dequeue(obj interface{}) {
-	key, err := KeyFunc(obj)
+	key, err := keyFunc(obj)
 	if err != nil {
 		glog.Errorf("failed to get key for %v: %v", obj, err)
 		return
@@ -582,34 +585,31 @@ func (s *SparkApplicationController) getNodeExternalIP(nodeName string) string {
 }
 
 func (s *SparkApplicationController) handleRestart(app *v1alpha1.SparkApplication) {
-	if (app.Status.AppState.State == v1alpha1.FailedState && app.Spec.RestartPolicy == v1alpha1.OnFailure) ||
-		app.Spec.RestartPolicy == v1alpha1.Always {
-		glog.Infof("SparkApplication %s failed or terminated, restarting it with RestartPolicy %s",
-			app.Name, app.Spec.RestartPolicy)
-		s.recorder.Eventf(
-			app,
-			apiv1.EventTypeNormal,
-			"SparkApplicationRestart",
-			"SparkApplication %s in namespace %s",
-			app.Name,
-			app.Namespace)
+	glog.Infof("SparkApplication %s failed or terminated, restarting it with RestartPolicy %s",
+		app.Name, app.Spec.RestartPolicy)
+	s.recorder.Eventf(
+		app,
+		apiv1.EventTypeNormal,
+		"SparkApplicationRestart",
+		"SparkApplication %s in namespace %s",
+		app.Name,
+		app.Namespace)
 
-		// Delete the old driver pod and UI service if necessary. Note that in case an error occurred here, we simply
-		// log the error and continue enqueueing the application for resubmission because the driver has already
-		// terminated so failure to cleanup the old driver pod and UI service is not a blocker.
-		if err := s.deleteDriverAndUIService(app, false); err != nil {
-			glog.Error(err)
-		}
-
-		//Enqueue the object for re-submission.
-		s.enqueue(app)
+	// Delete the old driver pod and UI service if necessary. Note that in case an error occurred here, we simply
+	// log the error and continue enqueueing the application for resubmission because the driver has already
+	// terminated so failure to cleanup the old driver pod and UI service is not a blocker.
+	if err := s.deleteDriverAndUIService(app, false); err != nil {
+		glog.Error(err)
 	}
+
+	//Enqueue the object for re-submission.
+	s.enqueue(app)
 }
 
 func (s *SparkApplicationController) deleteDriverAndUIService(
 	app *v1alpha1.SparkApplication,
 	waitForDriverDeletion bool) error {
-	var zero int64 = 0
+	var zero int64
 	if app.Status.DriverInfo.PodName != "" {
 		err := s.kubeClient.CoreV1().Pods(app.Namespace).Delete(app.Status.DriverInfo.PodName,
 			&metav1.DeleteOptions{GracePeriodSeconds: &zero})
@@ -641,6 +641,30 @@ func (s *SparkApplicationController) deleteDriverAndUIService(
 	}
 
 	return nil
+}
+
+// shouldSubmit determines if a given application informed by onAdd should be submitted or not.
+func shouldSubmit(app *v1alpha1.SparkApplication) bool {
+	// The application should be submitted if one of the following conditions is satisfied:
+	// 1. The application has not been submitted to run yet.
+	// 2. The previous submission of the application failed and it is subject to re-submission based on the
+	//    observed application state and submission failure tracking information.
+	// 3. The application terminated and is subject to restart based on the observed application state and
+	//    restart policy.
+	return app.Status.AppState.State == "" ||
+		app.Status.AppState.State == v1alpha1.NewState ||
+		(app.Status.AppState.State == v1alpha1.FailedSubmissionState && shouldRetrySubmission(app)) ||
+		shouldRestart(app)
+}
+
+func shouldRestart(app *v1alpha1.SparkApplication) bool {
+	return (app.Status.AppState.State == v1alpha1.FailedState && app.Spec.RestartPolicy == v1alpha1.OnFailure) ||
+		(isAppTerminated(app.Status.AppState.State) && app.Spec.RestartPolicy == v1alpha1.Always)
+}
+
+func shouldRetrySubmission(app *v1alpha1.SparkApplication) bool {
+	return app.Spec.MaxSubmissionRetries != nil &&
+		app.Status.SubmissionRetries < *app.Spec.MaxSubmissionRetries
 }
 
 func getApplicationKey(namespace, name string) (string, error) {
