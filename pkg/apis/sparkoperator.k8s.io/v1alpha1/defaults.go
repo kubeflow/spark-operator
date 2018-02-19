@@ -16,6 +16,7 @@ limitations under the License.
 
 package v1alpha1
 
+// SetSparkApplicationDefaults sets default values for certain fields of a SparkApplication.
 func SetSparkApplicationDefaults(app *SparkApplication) {
 	if app == nil {
 		return
@@ -27,16 +28,6 @@ func SetSparkApplicationDefaults(app *SparkApplication) {
 
 	if app.Spec.RestartPolicy == "" {
 		app.Spec.RestartPolicy = Never
-	}
-
-	if app.Spec.MaxSubmissionRetries == nil {
-		app.Spec.MaxSubmissionRetries = new(int32)
-		*app.Spec.MaxSubmissionRetries = 3
-	}
-
-	if app.Spec.SubmissionRetryInterval == nil {
-		app.Spec.SubmissionRetryInterval = new(int64)
-		*app.Spec.SubmissionRetryInterval = 300
 	}
 
 	setDriverSpecDefaults(app.Spec.Driver)
