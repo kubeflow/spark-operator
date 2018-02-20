@@ -186,6 +186,14 @@ func getCustomResourceValidation() *apiextensionsv1beta1.CustomResourceValidatio
 								{Raw: []byte(`"Always"`)},
 							},
 						},
+						"maxSubmissionRetries": {
+							Type: "integer",
+							Minimum: float64Ptr(1),
+						},
+						"submissionRetryInterval": {
+							Type: "integer",
+							Minimum: float64Ptr(1),
+						},
 					},
 				},
 			},
