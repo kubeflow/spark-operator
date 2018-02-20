@@ -78,7 +78,7 @@ func CreateCRD(clientset apiextensionsclient.Interface) error {
 	err = waitForCRDEstablishment(clientset)
 	// Try deleting the CustomResourceDefinition if it fails to be registered on time.
 	if err != nil {
-		deleteErr := clientset.ApiextensionsV1beta1().CustomResourceDefinitions().Delete(FullName, &metav1.DeleteOptions{})
+		deleteErr := deleteCRD(clientset)
 		if deleteErr != nil {
 			return errors.NewAggregate([]error{err, deleteErr})
 		}
@@ -88,8 +88,8 @@ func CreateCRD(clientset apiextensionsclient.Interface) error {
 	return nil
 }
 
-func DeleteCRD(clientset apiextensionsclient.Interface) error {
-	var zero int64 = 0
+func deleteCRD(clientset apiextensionsclient.Interface) error {
+	var zero int64
 	err := clientset.ApiextensionsV1beta1().CustomResourceDefinitions().Delete(FullName,
 		&metav1.DeleteOptions{GracePeriodSeconds: &zero})
 	if err != nil && !apierrors.IsNotFound(err) {
