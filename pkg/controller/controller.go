@@ -175,10 +175,6 @@ func (s *SparkApplicationController) Start(workers int, stopCh <-chan struct{}) 
 func (s *SparkApplicationController) Stop() {
 	glog.Info("Stopping the SparkApplication controller")
 	s.queue.ShutDown()
-	glog.Infof("Deleting CustomResourceDefinition %s", crd.FullName)
-	if err := crd.DeleteCRD(s.extensionsClient); err != nil {
-		glog.Errorf("failed to delete CustomResourceDefinition %s: %v", crd.FullName, err)
-	}
 }
 
 // Callback function called when a new SparkApplication object gets created.
