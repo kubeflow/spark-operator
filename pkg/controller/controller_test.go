@@ -151,6 +151,7 @@ func TestOnUpdate(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "foo",
 			Namespace: "default",
+			ResourceVersion: "1",
 		},
 		Spec: v1alpha1.SparkApplicationSpec{
 			Mode:  v1alpha1.ClusterMode,
@@ -163,9 +164,11 @@ func TestOnUpdate(t *testing.T) {
 
 	copyWithDifferentImage := appTemplate.DeepCopy()
 	copyWithDifferentImage.Spec.Image = stringptr("foo-image:v2")
+	copyWithDifferentImage.ResourceVersion = "2"
 
 	copyWithDifferentExecutorInstances := appTemplate.DeepCopy()
 	copyWithDifferentExecutorInstances.Spec.Executor.Instances = int32ptr(3)
+	copyWithDifferentExecutorInstances.ResourceVersion = "2"
 
 	testcases := []testcase{
 		{

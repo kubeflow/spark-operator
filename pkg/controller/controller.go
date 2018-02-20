@@ -84,8 +84,7 @@ func New(
 	informerFactory := crdinformers.NewSharedInformerFactory(
 		crdClient,
 		// resyncPeriod. Every resyncPeriod, all resources in the cache will re-trigger events.
-		// Set to 0 to disable the resync.
-		0*time.Second)
+		300*time.Second)
 
 	eventBroadcaster := record.NewBroadcaster()
 	eventBroadcaster.StartLogging(glog.V(2).Infof)
@@ -196,7 +195,7 @@ func (s *SparkApplicationController) onUpdate(oldObj, newObj interface{}) {
 	oldApp := oldObj.(*v1alpha1.SparkApplication)
 	newApp := newObj.(*v1alpha1.SparkApplication)
 
-	if reflect.DeepEqual(oldApp.Spec, newApp.Spec) {
+	if oldApp.ResourceVersion == newApp.ResourceVersion || reflect.DeepEqual(oldApp.Spec, newApp.Spec) {
 		return
 	}
 
