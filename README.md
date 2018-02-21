@@ -6,12 +6,14 @@
 ## Table of Contents
 1. [Project Status](#project-status)
 2. [Prerequisites](#prerequisites)
-3. [Spark Operator](#spark-operator)
-   1. [Build Spark Operator](#build-spark-operator)
-   2. [Deploying Spark Operator](#deploying-spark-operator)
-   3. [Configuring Spark Operator](#configuring-spark-operator)
-   4. [Running the Example Spark Application](#running-the-example-spark-application)
-   5. [Using the Initializer](#using-the-initializer)
+3. [Overview](#overview)
+4. [Features](#features)
+5. [Installation](#installation)
+   1. [Build](#build)
+   2. [Deployment](#deployment)
+   3. [Configuration](#configuration)
+   4. [Running the Example](#running-the-example)
+6. [Using the Initializer](#using-the-initializer)
 
 ## Project Status
 
@@ -27,13 +29,16 @@ Spark Operator relies on [Initializers](https://kubernetes.io/docs/admin/extensi
 and [garbage collection](https://kubernetes.io/docs/concepts/workloads/controllers/garbage-collection/) support for 
 custom resources which are in Kubernetes 1.8+.
 
-## Spark Operator
+## Overview
 
-Spark Operator is an experimental project aiming to make specifying and running [Spark](https://github.com/apache/spark) 
-applications as easy and idiomatic as running other workloads on Kubernetes. It requires Spark 2.3 and above that supports 
-Kubernetes as a native scheduler backend. Below are some example things that the Spark Operator is able to automate:
+Spark Operator aims to make specifying and running [Spark](https://github.com/apache/spark) 
+applications as easy and idiomatic as running other workloads on Kubernetes. It uses a 
+[CustomResourceDefinition (CRD)](https://kubernetes.io/docs/tasks/access-kubernetes-api/extend-api-custom-resource-definitions/) of 
+`SparkApplication` objects for specifying, running, and surfacing status of Spark applications. For a complete reference 
+of the API definition of the `SparkApplication` CRD, please refer to [API Definition](docs/api.md). For details on its design, 
+please refer to the [design doc](docs/design.md). It requires Spark 2.3 and above that supports Kubernetes as a native scheduler 
+backend. Below are some example things that the Spark Operator is able to automate:
 * Submitting applications on behalf of users so they don't need to deal with the submission process and the `spark-submit` command.
-* Mounting user-specified secrets into the driver and executor Pods.
 * Mounting user-specified ConfigMaps into the driver and executor Pods.
 * Mounting ConfigMaps carrying Spark or Hadoop configuration files that are to be put into a directory referred to by the 
 environment variable `SPARK_CONF_DIR` or `HADOOP_CONF_DIR` into the driver and executor Pods. Example use cases include 
@@ -41,12 +46,11 @@ shipping a `log4j.properties` file for configuring logging and a `core-site.xml`
 access.
 * Creating a `NodePort` service for the Spark UI running on the driver so the UI can be accessed from outside the Kubernetes 
 cluster, without needing to use API server proxy or port forwarding.
-* Copying application logs to a central place, e.g., a GCS bucket, for bookkeeping, post-run checking, and analysis.
-* Automatically creating namespaces and setting up RBAC roles and quotas, and running users' applications in separate 
-namespaces for better resource isolation and quota management. 
 
-To make such automation possible, Spark Operator uses the Kubernetes 
-[CustomResourceDefinition (CRD)](https://kubernetes.io/docs/tasks/access-kubernetes-api/extend-api-custom-resource-definitions/) and a corresponding CRD controller as well as an [initializer](https://kubernetes.io/docs/admin/extensible-admission-controllers/#initializers). The CRD controller setups the environment for an application and submits the application to run on behalf of the user, whereas the initializer handles customization of the Spark Pods.
+To make such automation possible, Spark Operator uses the `SparkApplication` CRD and a corresponding CRD controller as well as an 
+[initializer](https://kubernetes.io/docs/admin/extensible-admission-controllers/#initializers). The CRD controller setups the 
+environment for an application and submits the application to run on behalf of the user, whereas the initializer handles customization 
+of the Spark Pods.
 
 This approach is completely different than the one that has the submission client creates a CRD object. Having externally 
 created and managed CRD objects offer the following benefits:
@@ -64,7 +68,30 @@ need additional command-line options to get passed in.
 Additionally, keeping the CRD implementation outside the Spark repository gives us a lot of flexibility in terms of 
 functionality to add to the CRD controller. We also have full control over code review and release process.
 
-### Build Spark Operator
+## Features
+
+Spark Operator currently supports the following list of features:
+
+* Supports Spark 2.3 and up.
+* Supports automatic application submission for newly added `SparkApplication` objects.
+* Supports automatic application re-submission for updated `SparkAppliation` objects with updated specification.
+* Supports automatic application restart with a configurable restart policy.
+* Supports automatic retries of failed submissions with optional linear back-off.
+* Supports mounting local Hadoop configuration as a Kubernetes ConfigMap automatically via `sparkctl`.
+* Supports automatically staging local application dependencies to Google Cloud Storage (GCS) via `sparkctl`.
+
+The following list of features is planned:
+
+* Supports automatically staging local application dependencies to HTTP servers and S3.
+* Supports exporting Kubernetes events to Stackdriver.
+* Supports automatic scale up and down when the number of executor instances changes.
+* Supports automatically copying application logs to a central place, e.g., a GCS bucket, for bookkeeping, post-run checking, and analysis.
+* Supports automatically creating namespaces and setting up RBAC roles and quotas, and running users' applications in separate 
+namespaces for better resource isolation and quota management. 
+
+## Installation
+
+### Build
 
 To get Spark Operator, run the following commands:
 
@@ -112,7 +139,7 @@ console
 $ make image-tag=<image tag> push
 ```
 
-### Deploying Spark Operator
+### Deployment
 
 To deploy the Spark operator, run the following command:
 
@@ -131,22 +158,24 @@ GKE cluster versioned 1.6 and up.
 $ kubectl create clusterrolebinding <user>-cluster-admin-binding --clusterrole=cluster-admin --user=<user>@<domain>
 ```
 
-### Configuring Spark Operator
+### Configuration
 
 Spark Operator is typically deployed and run using `manifest/spark-operator.yaml` through a Kubernetes `Deployment`. 
 However, users can still run it outside a Kubernetes cluster and make it talk to the Kubernetes API server of a cluster 
 by specifying path to `kubeconfig`, which can be done using the `--kubeconfig` flag. 
 
-Spark Operator uses multiple workers in the initializer controller and the submission runner. The number of worker 
-threads to use in the two places are controlled using command-line flags `--initializer-threads` and `--submission-threads`, 
-respectively. The default values for both flags are 10 and 3, respectively.
+Spark Operator uses multiple workers in the `SparkApplication` controller, the initializer, and the submission runner. The number of worker 
+threads to use in the three places are controlled using command-line flags `--controller-threads`, `--initializer-threads` and `--submission-threads`, 
+respectively. The default values for the flags are 10, 10, and 3, respectively.
 
-### Running the Example Spark Application
+The initializer is an optional component and can be enabled or disabled using the `--enable-initializer` flag, which defaults to `true`. 
+
+### Running the Example
 
 To run the Spark Pi example, run the following command:
 
 ```bash
-$ kubectl create -f examples/spark-pi.yaml
+$ kubectl apply -f examples/spark-pi.yaml
 ```
 
 This will create a `SparkApplication` object named `spark-pi`. Check the object by running the following command:
@@ -165,34 +194,39 @@ metadata:
 spec:
   deps: {}
   driver:
-    cores: "0.1"
-    image: liyinan926/spark-driver:v2.3.0
-  executor:
-    image: liyinan926/spark-executor:v2.3.0
-    instances: 1
+    coreLimit: 200m
+    cores: 0.1
+    labels:
+      version: 2.3.0
     memory: 512m
-  mainApplicationFile: local:///opt/spark/examples/jars/spark-examples_2.11-2.3.0-SNAPSHOT.jar
+    serviceAccount: spark
+  executor:
+    cores: 1
+    instances: 1
+    labels:
+      version: 2.3.0
+    memory: 512m
+  image: gcr.io/ynli-k8s/spark:v2.3.0
+  mainApplicationFile: local:///opt/spark/examples/jars/spark-examples_2.11-2.3.0.jar
   mainClass: org.apache.spark.examples.SparkPi
   mode: cluster
-  submissionByUser: false
+  restartPolicy: Never
   type: Scala
 status:
-  appId: spark-app-example-666247082
+  appId: spark-pi-2402118027
   applicationState:
-    errorMessage: ""
     state: COMPLETED
-  completionTime: 2018-01-09T23:19:59Z
+  completionTime: 2018-02-20T23:33:55Z
   driverInfo:
-    podName: spark-app-example-a751930f68d23676aa1f0c2cee31f083-driver
-    webUIAddress: 35.225.33.10:30569
-    webUIPort: 30569
-    webUIServiceName: spark-app-example-ui-666247082
+    podName: spark-pi-83ba921c85ff3f1cb04bef324f9154c9-driver
+    webUIAddress: 35.192.234.248:31064
+    webUIPort: 31064
+    webUIServiceName: spark-pi-2402118027-ui-svc
   executorState:
-    spark-app-example-a751930f68d23676aa1f0c2cee31f083-exec-1: COMPLETED
-  submissionTime: 2018-01-09T23:19:43Z
+    spark-pi-83ba921c85ff3f1cb04bef324f9154c9-exec-1: COMPLETED
 ```
 
-### Using the Initializer
+## Using the Initializer
 
 The initializer works independently with or without the CRD controller. The initializer looks for certain custom 
 annotations on Spark driver and executor Pods to perform its tasks. To use the initializer without leveraging the CRD, 
