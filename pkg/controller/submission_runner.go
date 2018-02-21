@@ -80,27 +80,27 @@ func (r *sparkSubmitRunner) runWorker() {
 		cmd := exec.Command(command, s.args...)
 		glog.Infof("spark-submit arguments: %v", cmd.Args)
 
-		if _, err := cmd.Output(); err != nil {
-			// Only send an application state update if the submission fails.
-			// The application state is otherwise solely based on the driver pod phase if submission succeeds and
-			// driver pod starts running.
-			stateUpdate := appStateUpdate{
-				namespace:      s.namespace,
-				name:           s.name,
-				submissionTime: metav1.Now(),
-				state:          v1alpha1.FailedSubmissionState,
-			}
+		// Send an application state update that tells if the submission succeeded or failed.
+		// Once the application is submitted, the application state is solely based on the driver pod phase.
+		stateUpdate := appStateUpdate{
+			namespace:      s.namespace,
+			name:           s.name,
+			submissionTime: metav1.Now(),
+		}
 
+		if _, err := cmd.Output(); err != nil {
 			if exitErr, ok := err.(*exec.ExitError); ok {
 				glog.Errorf("failed to run spark-submit for SparkApplication %s in namespace %s: %s", s.name,
 					s.namespace, string(exitErr.Stderr))
+				stateUpdate.state = v1alpha1.FailedSubmissionState
 				stateUpdate.errorMessage = string(exitErr.Stderr)
 			}
-
-			r.appStateReportingChan <- &stateUpdate
 		} else {
 			glog.Infof("spark-submit completed for SparkApplication %s in namespace %s", s.name, s.namespace)
+			stateUpdate.state = v1alpha1.SubmittedState
 		}
+
+		r.appStateReportingChan <- &stateUpdate
 	}
 }
 

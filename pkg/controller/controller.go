@@ -361,8 +361,8 @@ func (s *SparkApplicationController) processSingleDriverStateUpdate(
 		return nil
 	}
 
-	// The application state is solely based on the driver pod phase except when submission fails and
-	// no driver pod is launched.
+	// The application state is solely based on the driver pod phase once the application is successfully
+	// submitted and the driver pod is created.
 	appState := driverPodPhaseToApplicationState(update.podPhase)
 	if isAppTerminated(appState) {
 		s.recorder.Eventf(
