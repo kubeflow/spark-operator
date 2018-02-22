@@ -149,8 +149,8 @@ func TestOnUpdate(t *testing.T) {
 
 	appTemplate := v1alpha1.SparkApplication{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "foo",
-			Namespace: "default",
+			Name:            "foo",
+			Namespace:       "default",
 			ResourceVersion: "1",
 		},
 		Spec: v1alpha1.SparkApplicationSpec{

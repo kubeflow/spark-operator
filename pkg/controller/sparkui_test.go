@@ -62,7 +62,8 @@ func TestCreateSparkUIService(t *testing.T) {
 			}
 			t.Fatal(err)
 		}
-		if len(service.Labels) != 1 || service.Labels[config.SparkAppIDLabel] != test.app.Status.AppID {
+		if len(service.Labels) != 2 || service.Labels[config.SparkAppIDLabel] != test.app.Status.AppID ||
+			service.Labels[config.SparkAppNameLabel] != test.app.Name {
 			t.Errorf("%s: service of app %s has the wrong labels", test.name, test.app.Name)
 		}
 		if !reflect.DeepEqual(test.expectedSelector, service.Spec.Selector) {
@@ -132,8 +133,9 @@ func TestCreateSparkUIService(t *testing.T) {
 			expectedServiceName: app1.Status.AppID + "-ui-svc",
 			expectedServicePort: 4041,
 			expectedSelector: map[string]string{
-				config.SparkAppIDLabel: "foo-1",
-				sparkRoleLabel:         sparkDriverRole,
+				config.SparkAppNameLabel: "foo",
+				config.SparkAppIDLabel:   "foo-1",
+				sparkRoleLabel:           sparkDriverRole,
 			},
 			expectError: false,
 		},
@@ -143,8 +145,9 @@ func TestCreateSparkUIService(t *testing.T) {
 			expectedServiceName: app2.Status.AppID + "-ui-svc",
 			expectedServicePort: int32(defaultPort),
 			expectedSelector: map[string]string{
-				config.SparkAppIDLabel: "foo-2",
-				sparkRoleLabel:         sparkDriverRole,
+				config.SparkAppNameLabel: "foo",
+				config.SparkAppIDLabel:   "foo-2",
+				sparkRoleLabel:           sparkDriverRole,
 			},
 			expectError: false,
 		},
