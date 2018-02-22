@@ -187,11 +187,11 @@ func getCustomResourceValidation() *apiextensionsv1beta1.CustomResourceValidatio
 							},
 						},
 						"maxSubmissionRetries": {
-							Type: "integer",
+							Type:    "integer",
 							Minimum: float64Ptr(1),
 						},
 						"submissionRetryInterval": {
-							Type: "integer",
+							Type:    "integer",
 							Minimum: float64Ptr(1),
 						},
 					},

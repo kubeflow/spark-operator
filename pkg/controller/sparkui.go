@@ -50,7 +50,8 @@ func createSparkUIService(
 			Name:      appID + "-ui-svc",
 			Namespace: app.Namespace,
 			Labels: map[string]string{
-				config.SparkAppIDLabel: appID,
+				config.SparkAppNameLabel: app.Name,
+				config.SparkAppIDLabel:   appID,
 			},
 			OwnerReferences: []metav1.OwnerReference{getOwnerReference(app)},
 		},
@@ -62,8 +63,9 @@ func createSparkUIService(
 				},
 			},
 			Selector: map[string]string{
-				config.SparkAppIDLabel: appID,
-				sparkRoleLabel:         sparkDriverRole,
+				config.SparkAppNameLabel: app.Name,
+				config.SparkAppIDLabel:   appID,
+				sparkRoleLabel:           sparkDriverRole,
 			},
 			Type: apiv1.ServiceTypeNodePort,
 		},
