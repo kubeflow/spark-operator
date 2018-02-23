@@ -26,6 +26,8 @@ spec:
   selector:
     matchLabels:
       app: sparkoperator
+  strategy:
+    type: Recreate
   template:
     metadata:
       labels:
