@@ -110,12 +110,14 @@ func TestOnPodUpdated(t *testing.T) {
 				config.SparkAppIDLabel:   "foo-123",
 				config.SparkAppNameLabel: "foo",
 			},
+			ResourceVersion: "1",
 		},
 		Status: apiv1.PodStatus{
 			Phase: apiv1.PodPending,
 		},
 	}
 	newDriverPod := oldDriverPod.DeepCopy()
+	newDriverPod.ResourceVersion = "2"
 	newDriverPod.Status.Phase = apiv1.PodSucceeded
 	go monitor.onPodUpdated(oldDriverPod, newDriverPod)
 
@@ -145,12 +147,14 @@ func TestOnPodUpdated(t *testing.T) {
 				config.SparkAppNameLabel: "foo",
 				sparkExecutorIDLabel:     "1",
 			},
+			ResourceVersion: "1",
 		},
 		Status: apiv1.PodStatus{
 			Phase: apiv1.PodRunning,
 		},
 	}
 	newExecutorPod := oldExecutorPod.DeepCopy()
+	newExecutorPod.ResourceVersion = "2"
 	newExecutorPod.Status.Phase = apiv1.PodFailed
 	go monitor.onPodUpdated(oldExecutorPod, newExecutorPod)
 

@@ -93,7 +93,7 @@ func newSparkPodMonitor(
 		&apiv1.Pod{},
 		// resyncPeriod. Every resyncPeriod, all resources in the cache will retrigger events.
 		// Set to 0 to disable the resync.
-		0*time.Second,
+		60*time.Second,
 		cache.ResourceEventHandlerFuncs{
 			AddFunc:    monitor.onPodAdded,
 			UpdateFunc: monitor.onPodUpdated,
@@ -133,7 +133,13 @@ func (s *sparkPodMonitor) onPodAdded(obj interface{}) {
 }
 
 func (s *sparkPodMonitor) onPodUpdated(old, updated interface{}) {
+	oldPod := old.(*apiv1.Pod)
 	updatedPod := updated.(*apiv1.Pod)
+
+	if updatedPod.ResourceVersion == oldPod.ResourceVersion {
+		return
+	}
+
 	if isDriverPod(updatedPod) {
 		s.updateDriverState(updatedPod)
 	} else if isExecutorPod(updatedPod) {
