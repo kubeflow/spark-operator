@@ -180,6 +180,7 @@ func (s *SparkApplicationController) Stop() {
 func (s *SparkApplicationController) onAdd(obj interface{}) {
 	app := obj.(*v1alpha1.SparkApplication)
 	if shouldSubmit(app) {
+		glog.Infof("SparkApplication %s was added, enqueueing it for submission")
 		s.enqueue(app)
 		s.recorder.Eventf(
 			app,
@@ -199,6 +200,19 @@ func (s *SparkApplicationController) onUpdate(oldObj, newObj interface{}) {
 		return
 	}
 
+	if oldApp.Status.DriverInfo.PodName != "" {
+		// Clear the application ID if the driver pod of the old application is to be deleted. This is important as
+		// otherwise deleting the driver pod of the old application if it's still running will result in a driver state
+		// update by the sparkPodMonitor with the driver pod phase set to PodFailed. This may lead to a restart of the
+		// application if it's subject to a restart because of the failure state update of the driver pod. Clearing the
+		// application ID causes the state update regarding the old driver pod to be ignored in
+		// processSingleDriverStateUpdate because of mismatched application IDs and as a consequence no restart to be
+		// triggered. This prevents the application to be submitted twice: one from the restart and one from below.
+		s.updateSparkApplicationStatusWithRetries(newApp, func(status *v1alpha1.SparkApplicationStatus){
+			status.AppID = ""
+		})
+	}
+
 	// Delete the driver pod and UI service of the old application. Note that deleting the driver pod kills the
 	// application if it is still running. Skip submitting the new application if cleanup for the old application
 	// failed to avoid potentially running both the old and new applications at the same time.
@@ -207,6 +221,7 @@ func (s *SparkApplicationController) onUpdate(oldObj, newObj interface{}) {
 		return
 	}
 
+	glog.Infof("SparkApplication %s was updated, enqueueing it for submission")
 	s.enqueue(newApp)
 	s.recorder.Eventf(
 		newApp,
@@ -579,6 +594,8 @@ func (s *SparkApplicationController) getNodeExternalIP(nodeName string) string {
 	return ""
 }
 
+// handleRestart handles application restart if the application has terminated and is subject to restart according to
+// the restart policy.
 func (s *SparkApplicationController) handleRestart(app *v1alpha1.SparkApplication) {
 	glog.Infof("SparkApplication %s failed or terminated, restarting it with RestartPolicy %s",
 		app.Name, app.Spec.RestartPolicy)
@@ -592,7 +609,9 @@ func (s *SparkApplicationController) handleRestart(app *v1alpha1.SparkApplicatio
 
 	// Delete the old driver pod and UI service if necessary. Note that in case an error occurred here, we simply
 	// log the error and continue enqueueing the application for resubmission because the driver has already
-	// terminated so failure to cleanup the old driver pod and UI service is not a blocker.
+	// terminated so failure to cleanup the old driver pod and UI service is not a blocker. Also note that because
+	// deleting a already terminated driver pod won't trigger a driver state update by the sparkPodMonitor so won't
+	// cause repetitive restart handling.
 	if err := s.deleteDriverAndUIService(app, false); err != nil {
 		glog.Error(err)
 	}
@@ -652,11 +671,14 @@ func shouldSubmit(app *v1alpha1.SparkApplication) bool {
 		shouldRestart(app)
 }
 
+// shouldRestart determines if a given application has terminated and is subject to restart according to the restart
+// policy in the specification.
 func shouldRestart(app *v1alpha1.SparkApplication) bool {
 	return (app.Status.AppState.State == v1alpha1.FailedState && app.Spec.RestartPolicy == v1alpha1.OnFailure) ||
 		(isAppTerminated(app.Status.AppState.State) && app.Spec.RestartPolicy == v1alpha1.Always)
 }
 
+// shouldRetrySubmission determines if a given application is subject to a submission retry.
 func shouldRetrySubmission(app *v1alpha1.SparkApplication) bool {
 	return app.Spec.MaxSubmissionRetries != nil &&
 		app.Status.SubmissionRetries < *app.Spec.MaxSubmissionRetries
