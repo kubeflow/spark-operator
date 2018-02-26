@@ -180,7 +180,7 @@ func (s *SparkApplicationController) Stop() {
 func (s *SparkApplicationController) onAdd(obj interface{}) {
 	app := obj.(*v1alpha1.SparkApplication)
 	if shouldSubmit(app) {
-		glog.Infof("SparkApplication %s was added, enqueueing it for submission")
+		glog.Infof("SparkApplication %s was added, enqueueing it for submission", app.Name)
 		s.enqueue(app)
 		s.recorder.Eventf(
 			app,
@@ -221,7 +221,7 @@ func (s *SparkApplicationController) onUpdate(oldObj, newObj interface{}) {
 		return
 	}
 
-	glog.Infof("SparkApplication %s was updated, enqueueing it for submission")
+	glog.Infof("SparkApplication %s was updated, enqueueing it for submission", newApp.Name)
 	s.enqueue(newApp)
 	s.recorder.Eventf(
 		newApp,
