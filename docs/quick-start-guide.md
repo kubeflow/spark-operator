@@ -1,5 +1,8 @@
 # Quick Start Guide
 
+For a more detailed guide on how to use, compose, and work with `SparkAppliction`s, please refer to the
+[User Guide](user-guide.md).
+
 ## Table of Contents
 1. [Build and Installation](#build-and-installation)
 2. [Configuration](#configuration)
@@ -86,15 +89,17 @@ $ kubectl describe deployment sparkoperator
 
 Spark Operator is typically deployed and run using `manifest/spark-operator.yaml` through a Kubernetes `Deployment`. 
 However, users can still run it outside a Kubernetes cluster and make it talk to the Kubernetes API server of a cluster 
-by specifying path to `kubeconfig`, which can be done using the `--kubeconfig` flag. 
+by specifying path to `kubeconfig`, which can be done using the `-kubeconfig` flag. 
 
 Spark Operator uses multiple workers in the `SparkApplication` controller, the initializer, and the submission runner. 
-The number of worker threads to use in the three places are controlled using command-line flags `--controller-threads`, 
-`--initializer-threads` and `--submission-threads`, respectively. The default values for the flags are 10, 10, and 3, 
+The number of worker threads to use in the three places are controlled using command-line flags `-controller-threads`, 
+`-initializer-threads` and `-submission-threads`, respectively. The default values for the flags are 10, 10, and 3, 
 respectively.
 
-The initializer is an optional component and can be enabled or disabled using the `--enable-initializer` flag, which 
-defaults to `true`.
+The initializer is an **optional** component and can be enabled or disabled using the `-enable-initializer` flag, which 
+defaults to `true`. Since the initializer is an alpha feature, it won't function in Kubernetes clusters without alpha
+features enabled. In this case, it can be disabled by adding the argument `-enable-initializer=false` to 
+[spark-operator.yaml](../manifest/spark-operator.yaml).
 
 ## Upgrade
 
@@ -163,8 +168,25 @@ status:
   submissionTime: 2018-02-20T23:32:27Z
 ```
 
+To check events for the `SparkApplication` object, run the following command:
+
+```bash
+$ kubectl describe sparkapplications spark-pi
+
+```
+
+This will show the events similarly to the following:
+
+```
+Events:
+  Type    Reason                      Age   From            Message
+  ----    ------                      ----  ----            -------
+  Normal  SparkApplicationAdded       5m    spark-operator  SparkApplication spark-pi was added, enqueued it for submission
+  Normal  SparkApplicationTerminated  4m    spark-operator  SparkApplication spark-pi terminated with state: COMPLETED
+```
+
 The Spark Operator submits the Spark Pi example to run once it receives an event indicating the `SparkApplication` 
-object was added.
+object was added. 
 
 ## Using the Initializer
 

@@ -41,7 +41,7 @@ A `SparkApplicationSpec` has the following top-level fields:
 | `RestartPolicy` | N/A | The policy regarding if and in which conditions the controller should restart a terminated application. Valid values are `Never`, `Always`, and `OnFailure`. |
 | `NodeSelector` | `spark.kubernetes.node.selector.[labelKey]` | Node selector of the driver pod and executor pods, with key `labelKey` and value as the label's value. |
 | `MaxSubmissionRetries` | N/A | The maximum number of times to retry a failed submission. |
-| `SubmissionRetryInterval` | N/A | The unit of intervals in seconds between submission retries. Depending on the implementation, the actual interval between two submission retries may be a multiple of `SubmissionRetryInterval`, e.g., if linear or expotential backoff is used. |
+| `SubmissionRetryInterval` | N/A | The unit of intervals in seconds between submission retries. Depending on the implementation, the actual interval between two submission retries may be a multiple of `SubmissionRetryInterval`, e.g., if linear or exponential backoff is used. |
 
 #### `DriverSpec`
 
@@ -71,7 +71,7 @@ A `SparkPodSpec` defines common attributes of a driver or executor pod, summariz
 | `Memory` | `spark.driver.memory` or `spark.executor.memory` | Amount of memory to request for the driver or executor pod. |
 | `Image` | `spark.kubernetes.driver.container.image` or `spark.kubernetes.executor.container.image` | Custom container image for the driver or executor. |
 | `ConfigMaps` | N/A | A map of Kubernetes ConfigMaps to mount into the driver or executor pod. Keys are ConfigMap names and values are mount paths. |
-| `Secrets` | `spark.kubernetes.driver.secrets.[SecretName]` or `spark.kubernetes.executor.secrets.[SecretName]` | A map of Kubernetes secrets to mount into the driver or executor pod. Keys are secret names and values are mount paths. |
+| `Secrets` | `spark.kubernetes.driver.secrets.[SecretName]` or `spark.kubernetes.executor.secrets.[SecretName]` | A map of Kubernetes secrets to mount into the driver or executor pod. Keys are secret names and values specify the mount paths and secret types. |
 | `EnvVars` | `spark.kubernetes.driverEnv.[EnvironmentVariableName]` or `spark.executorEnv.[EnvironmentVariableName]` | A map of environment variables to add to the driver or executor pod. Keys are variable names and values are variable values. |
 | `Labels` | `spark.kubernetes.driver.label.[LabelName]` or `spark.kubernetes.executor.label.[LabelName]` | A map of Kubernetes labels to add to the driver or executor pod. Keys are label names and values are label values. |
 | `Annotations` | `spark.kubernetes.driver.annotation.[AnnotationName]` or `spark.kubernetes.executor.annotation.[AnnotationName]` | A map of Kubernetes annotations to add to the driver or executor pod. Keys are annotation names and values are annotation values. |
