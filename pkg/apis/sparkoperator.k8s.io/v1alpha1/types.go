@@ -275,9 +275,9 @@ const (
 	// GCPServiceAccountSecret is for secrets from a GCP service account Json key file that needs
 	// the environment variable GOOGLE_APPLICATION_CREDENTIALS.
 	GCPServiceAccountSecret SecretType = "GCPServiceAccount"
-	// HDFSDelegationTokenSecret is for secrets from an HDFS delegation token that needs the
+	// HDFSDelegationTokenSecret is for secrets from an Hadoop delegation token that needs the
 	// environment variable HADOOP_TOKEN_FILE_LOCATION.
-	HDFSDelegationTokenSecret SecretType = "HDFSDelegationToken"
+	HDFSDelegationTokenSecret SecretType = "HadoopDelegationToken"
 	// GenericType is for secrets that needs no special handling.
 	GenericType SecretType = "Generic"
 )

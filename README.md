@@ -30,6 +30,7 @@ custom resources which are in Kubernetes 1.8+.
 * [API Specification](docs/api.md)
 * [Quick Start Guide](docs/quick-start-guide.md)
 * [User Guide](docs/user-guide.md)
+* [User Guide of sparkctl](sparkctl/README.md)
 
 ## Overview
 
