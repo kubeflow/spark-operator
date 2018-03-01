@@ -185,10 +185,9 @@ func (s *SparkApplicationController) onAdd(obj interface{}) {
 		s.recorder.Eventf(
 			app,
 			apiv1.EventTypeNormal,
-			"SparkApplicationSubmission",
-			"SparkApplication %s in namespace %s",
-			app.Name,
-			app.Namespace)
+			"SparkApplicationAdded",
+			"SparkApplication %s was added, enqueued it for submission",
+			app.Name)
 	}
 }
 
@@ -208,7 +207,7 @@ func (s *SparkApplicationController) onUpdate(oldObj, newObj interface{}) {
 		// application ID causes the state update regarding the old driver pod to be ignored in
 		// processSingleDriverStateUpdate because of mismatched application IDs and as a consequence no restart to be
 		// triggered. This prevents the application to be submitted twice: one from the restart and one from below.
-		s.updateSparkApplicationStatusWithRetries(newApp, func(status *v1alpha1.SparkApplicationStatus){
+		s.updateSparkApplicationStatusWithRetries(newApp, func(status *v1alpha1.SparkApplicationStatus) {
 			status.AppID = ""
 		})
 	}
@@ -226,10 +225,9 @@ func (s *SparkApplicationController) onUpdate(oldObj, newObj interface{}) {
 	s.recorder.Eventf(
 		newApp,
 		apiv1.EventTypeNormal,
-		"SparkApplicationSubmission",
-		"SparkApplication %s in namespace %s",
-		newApp.Name,
-		newApp.Namespace)
+		"SparkApplicationUpdated",
+		"SparkApplication %s was updated, enqueued it for submission",
+		newApp.Name)
 }
 
 func (s *SparkApplicationController) onDelete(obj interface{}) {
@@ -248,10 +246,9 @@ func (s *SparkApplicationController) onDelete(obj interface{}) {
 		s.recorder.Eventf(
 			app,
 			apiv1.EventTypeNormal,
-			"SparkApplicationDeletion",
-			"SparkApplication %s in namespace %s",
-			app.Name,
-			app.Namespace)
+			"SparkApplicationDeleted",
+			"SparkApplication %s was deleted",
+			app.Name)
 	}
 }
 
@@ -294,15 +291,29 @@ func (s *SparkApplicationController) syncSparkApplication(key string) error {
 	if err != nil {
 		return fmt.Errorf("failed to get the namespace and name from key %s: %v", key, err)
 	}
+
 	app, err := s.getSparkApplication(namespace, name)
 	if err != nil {
 		return err
 	}
-	s.submitApp(app)
+
+	err = s.createSubmission(app)
+	if err != nil {
+		s.recorder.Eventf(
+			app,
+			apiv1.EventTypeWarning,
+			"SparkApplicationSubmissionCreationFailed",
+			"failed to create a submission for SparkApplication %s: %s",
+			app.Name,
+			err.Error())
+		return err
+	}
+
 	return nil
 }
 
-func (s *SparkApplicationController) submitApp(app *v1alpha1.SparkApplication) {
+// createSubmission creates a new submission for the given SparkApplication and send it to the submission runner.
+func (s *SparkApplicationController) createSubmission(app *v1alpha1.SparkApplication) error {
 	appStatus := v1alpha1.SparkApplicationStatus{
 		AppID: buildAppID(app),
 		AppState: v1alpha1.ApplicationState{
@@ -322,18 +333,19 @@ func (s *SparkApplicationController) submitApp(app *v1alpha1.SparkApplication) {
 		appStatus.DeepCopyInto(status)
 	})
 	if updatedApp == nil {
-		return
+		return nil
 	}
 
 	submissionCmdArgs, err := buildSubmissionCommandArgs(updatedApp)
 	if err != nil {
-		glog.Errorf(
+		return fmt.Errorf(
 			"failed to build the submission command for SparkApplication %s: %v",
 			updatedApp.Name,
 			err)
 	}
 
 	s.runner.submit(newSubmission(submissionCmdArgs, updatedApp))
+	return nil
 }
 
 func (s *SparkApplicationController) processPodStateUpdates() {
@@ -383,10 +395,9 @@ func (s *SparkApplicationController) processSingleDriverStateUpdate(
 		s.recorder.Eventf(
 			app,
 			apiv1.EventTypeNormal,
-			"SparkApplicationTermination",
-			"SparkApplication %s in namespace %s terminated with state: %v",
+			"SparkApplicationTerminated",
+			"SparkApplication %s terminated with state: %v",
 			update.appName,
-			update.appNamespace,
 			appState)
 	}
 
@@ -424,11 +435,11 @@ func (s *SparkApplicationController) processSingleAppStateUpdate(update *appStat
 	if update.state == v1alpha1.FailedSubmissionState {
 		s.recorder.Eventf(
 			app,
-			apiv1.EventTypeNormal,
-			"SparkApplicationSubmissionFailure",
-			"SparkApplication %s in namespace %s",
+			apiv1.EventTypeWarning,
+			"SparkApplicationSubmissionFailed",
+			"SparkApplication %s failed submission: %s",
 			update.name,
-			update.namespace)
+			update.errorMessage)
 
 		if shouldRetrySubmission(app) {
 			glog.Infof("Retrying submission of SparkApplication %s", update.name)
@@ -445,9 +456,8 @@ func (s *SparkApplicationController) processSingleAppStateUpdate(update *appStat
 				app,
 				apiv1.EventTypeNormal,
 				"SparkApplicationSubmissionRetry",
-				"SparkApplication %s in namespace %s",
-				update.name,
-				update.namespace)
+				"SparkApplication %s is scheduled for a submission retry",
+				update.name)
 		} else {
 			glog.Infof("Not retrying submission of SparkApplication %s", update.name)
 		}
@@ -603,9 +613,8 @@ func (s *SparkApplicationController) handleRestart(app *v1alpha1.SparkApplicatio
 		app,
 		apiv1.EventTypeNormal,
 		"SparkApplicationRestart",
-		"SparkApplication %s in namespace %s",
-		app.Name,
-		app.Namespace)
+		"SparkApplication %s is subject to restart",
+		app.Name)
 
 	// Delete the old driver pod and UI service if necessary. Note that in case an error occurred here, we simply
 	// log the error and continue enqueueing the application for resubmission because the driver has already

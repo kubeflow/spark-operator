@@ -85,7 +85,7 @@ func TestSubmitApp(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	go ctrl.submitApp(app)
+	go ctrl.createSubmission(app)
 	submission := <-ctrl.runner.queue
 	assert.Equal(t, app.Name, submission.name)
 	assert.Equal(t, app.Namespace, submission.namespace)
@@ -115,7 +115,7 @@ func TestOnAdd(t *testing.T) {
 
 	assert.Equal(t, 1, len(recorder.Events))
 	event := <-recorder.Events
-	assert.True(t, strings.Contains(event, "SparkApplicationSubmission"))
+	assert.True(t, strings.Contains(event, "SparkApplicationAdded"))
 }
 
 func TestOnUpdate(t *testing.T) {
@@ -140,7 +140,7 @@ func TestOnUpdate(t *testing.T) {
 			ctrl.queue.Forget(item)
 
 			event := <-recorder.Events
-			assert.True(t, strings.Contains(event, "SparkApplicationSubmission"))
+			assert.True(t, strings.Contains(event, "SparkApplicationUpdated"))
 		} else {
 			assert.Equal(t, 0, ctrl.queue.Len())
 			assert.Equal(t, 0, len(recorder.Events))
@@ -218,7 +218,7 @@ func TestOnDelete(t *testing.T) {
 	defer ctrl.queue.Done(item)
 	assert.True(t, item == nil)
 	event := <-recorder.Events
-	assert.True(t, strings.Contains(event, "SparkApplicationDeletion"))
+	assert.True(t, strings.Contains(event, "SparkApplicationDeleted"))
 	ctrl.queue.Forget(item)
 }
 
@@ -304,7 +304,7 @@ func TestProcessSingleDriverStateUpdate(t *testing.T) {
 
 		if isAppTerminated(updatedApp.Status.AppState.State) {
 			event := <-recorder.Events
-			assert.True(t, strings.Contains(event, "SparkApplicationTermination"))
+			assert.True(t, strings.Contains(event, "SparkApplicationTerminated"))
 		}
 	}
 
@@ -408,7 +408,7 @@ func TestProcessSingleAppStateUpdate(t *testing.T) {
 
 		if updatedApp.Status.AppState.State == v1alpha1.FailedSubmissionState {
 			event := <-recorder.Events
-			assert.True(t, strings.Contains(event, "SparkApplicationSubmissionFailure"))
+			assert.True(t, strings.Contains(event, "SparkApplicationSubmissionFailed"))
 		}
 	}
 
@@ -698,7 +698,7 @@ func TestResubmissionOnFailures(t *testing.T) {
 		assert.Equal(t, int32(1), updatedApp.Status.SubmissionRetries)
 
 		event := <-recorder.Events
-		assert.True(t, strings.Contains(event, "SparkApplicationSubmissionFailure"))
+		assert.True(t, strings.Contains(event, "SparkApplicationSubmissionFailed"))
 		event = <-recorder.Events
 		assert.True(t, strings.Contains(event, "SparkApplicationSubmissionRetry"))
 	}
