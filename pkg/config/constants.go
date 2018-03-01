@@ -50,22 +50,24 @@ const (
 	// SparkConfigMapAnnotation is the name of the annotation added to the driver and executor Pods
 	// that indicates the presence of a Spark ConfigMap that should be mounted to the driver and
 	// executor Pods with the environment variable SPARK_CONF_DIR set to point to the mount path.
-	SparkConfigMapAnnotation = LabelAnnotationPrefix + "sparkConfigMap"
+	SparkConfigMapAnnotation = LabelAnnotationPrefix + "spark-configmap"
 	// HadoopConfigMapAnnotation is the name of the annotation added to the driver and executor Pods
 	// that indicates the presence of a Hadoop ConfigMap that should be mounted to the driver and
 	// executor Pods with the environment variable HADOOP_CONF_DIR set to point to the mount path.
-	HadoopConfigMapAnnotation = LabelAnnotationPrefix + "hadoopConfigMap"
+	HadoopConfigMapAnnotation = LabelAnnotationPrefix + "hadoop-configmap"
 	// GeneralConfigMapsAnnotationPrefix is the name of the general annotation that specifies the name
 	// and mount paths of additional ConfigMaps to be mounted.
-	GeneralConfigMapsAnnotationPrefix = LabelAnnotationPrefix + "configMap."
+	GeneralConfigMapsAnnotationPrefix = LabelAnnotationPrefix + "configmap."
 	// OwnerReferenceAnnotation is the name of the annotation added to the driver and executor Pods
 	// that specifies the OwnerReference of the owning SparkApplication.
-	OwnerReferenceAnnotation = LabelAnnotationPrefix + "ownerReference"
+	OwnerReferenceAnnotation = LabelAnnotationPrefix + "ownerreference"
 	// SparkAppIDLabel is the name of the label used to group API objects, e.g., Spark UI service, Pods,
 	// ConfigMaps, etc., belonging to the same Spark application.
-	SparkAppIDLabel = LabelAnnotationPrefix + "appId"
+	SparkAppIDLabel = LabelAnnotationPrefix + "app-id"
 	// SparkAppNameLabel is the name of the label for the SparkApplication object name.
-	SparkAppNameLabel = LabelAnnotationPrefix + "appName"
+	SparkAppNameLabel = LabelAnnotationPrefix + "app-name"
+	// LaunchedBySparkOperatorLabel is a label on Spark pods launched through the Spark Operator.
+	LaunchedBySparkOperatorLabel = LabelAnnotationPrefix + "launched-by-spark-operator"
 )
 
 const (

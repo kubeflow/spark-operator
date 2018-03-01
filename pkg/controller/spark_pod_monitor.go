@@ -79,11 +79,11 @@ func newSparkPodMonitor(
 	podInterface := kubeClient.CoreV1().Pods(apiv1.NamespaceAll)
 	sparkPodWatchList := &cache.ListWatch{
 		ListFunc: func(options metav1.ListOptions) (runtime.Object, error) {
-			options.LabelSelector = sparkRoleLabel
+			options.LabelSelector = fmt.Sprintf("%s,%s", sparkRoleLabel, config.LaunchedBySparkOperatorLabel)
 			return podInterface.List(options)
 		},
 		WatchFunc: func(options metav1.ListOptions) (watch.Interface, error) {
-			options.LabelSelector = sparkRoleLabel
+			options.LabelSelector = fmt.Sprintf("%s,%s", sparkRoleLabel, config.LaunchedBySparkOperatorLabel)
 			return podInterface.Watch(options)
 		},
 	}

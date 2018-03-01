@@ -210,6 +210,10 @@ func addDriverConfOptions(app *v1alpha1.SparkApplication) []string {
 		driverConfOptions,
 		"--conf",
 		fmt.Sprintf("%s%s=%s", config.SparkDriverLabelKeyPrefix, config.SparkAppIDLabel, app.Status.AppID))
+	driverConfOptions = append(
+		driverConfOptions,
+		"--conf",
+		fmt.Sprintf("%s%s=%s", config.SparkDriverLabelKeyPrefix, config.LaunchedBySparkOperatorLabel, "true"))
 
 	if app.Spec.Driver.PodName != nil {
 		driverConfOptions = append(
@@ -270,6 +274,10 @@ func addExecutorConfOptions(app *v1alpha1.SparkApplication) []string {
 		executorConfOptions,
 		"--conf",
 		fmt.Sprintf("%s%s=%s", config.SparkExecutorLabelKeyPrefix, config.SparkAppIDLabel, app.Status.AppID))
+	executorConfOptions = append(
+		executorConfOptions,
+		"--conf",
+		fmt.Sprintf("%s%s=%s", config.SparkExecutorLabelKeyPrefix, config.LaunchedBySparkOperatorLabel, "true"))
 
 	if app.Spec.Executor.Image != nil {
 		executorConfOptions = append(
