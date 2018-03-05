@@ -17,6 +17,7 @@ limitations under the License.
 package controller
 
 import (
+	"fmt"
 	"strconv"
 
 	"github.com/golang/glog"
@@ -25,7 +26,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	clientset "k8s.io/client-go/kubernetes"
 
-	"fmt"
 	"k8s.io/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1alpha1"
 	"k8s.io/spark-on-k8s-operator/pkg/config"
 )
@@ -53,7 +53,7 @@ func createSparkUIService(
 				config.SparkAppNameLabel: app.Name,
 				config.SparkAppIDLabel:   appID,
 			},
-			OwnerReferences: []metav1.OwnerReference{getOwnerReference(app)},
+			OwnerReferences: []metav1.OwnerReference{*getOwnerReference(app)},
 		},
 		Spec: apiv1.ServiceSpec{
 			Ports: []apiv1.ServicePort{

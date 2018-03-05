@@ -20,19 +20,13 @@ const (
 	// DefaultSparkConfDir is the default directory for Spark configuration files if not specified.
 	// This directory is where the Spark ConfigMap is mounted in the driver and executor containers.
 	DefaultSparkConfDir = "/etc/spark/conf"
-	// SparkConfigMapNamePrefix is the name prefix of the Spark ConfigMap created from the directory
-	// in the submission client container specified by SparkApplicationSpec.SparkConfDir.
-	SparkConfigMapNamePrefix = "spark-config-map"
 	// SparkConfigMapVolumeName is the name of the ConfigMap volume of Spark configuration files.
-	SparkConfigMapVolumeName = "spark-config-map-volume"
+	SparkConfigMapVolumeName = "spark-configmap-volume"
 	// DefaultHadoopConfDir is the default directory for Spark configuration files if not specified.
 	// This directory is where the Hadoop ConfigMap is mounted in the driver and executor containers.
 	DefaultHadoopConfDir = "/etc/hadoop/conf"
-	// HadoopConfigMapNamePrefix is the name prefix of the Hadoop ConfigMap created from the directory
-	// in the submission client container specified by.
-	HadoopConfigMapNamePrefix = "hadoop-config-map"
 	// HadoopConfigMapVolumeName is the name of the ConfigMap volume of Hadoop configuration files.
-	HadoopConfigMapVolumeName = "hadoop-config-map-volume"
+	HadoopConfigMapVolumeName = "hadoop-configmap-volume"
 	// SparkConfDirEnvVar is the environment variable to add to the driver and executor Pods that point
 	// to the directory where the Spark ConfigMap is mounted.
 	SparkConfDirEnvVar = "SPARK_CONF_DIR"
@@ -55,9 +49,13 @@ const (
 	// that indicates the presence of a Hadoop ConfigMap that should be mounted to the driver and
 	// executor Pods with the environment variable HADOOP_CONF_DIR set to point to the mount path.
 	HadoopConfigMapAnnotation = LabelAnnotationPrefix + "hadoop-configmap"
-	// GeneralConfigMapsAnnotationPrefix is the name of the general annotation that specifies the name
+	// GeneralConfigMapsAnnotationPrefix is the prefix of general annotations that specifies the name
 	// and mount paths of additional ConfigMaps to be mounted.
 	GeneralConfigMapsAnnotationPrefix = LabelAnnotationPrefix + "configmap."
+	// VolumesAnnotationPrefix is the prefix of annotations that specify a Volume.
+	VolumesAnnotationPrefix = LabelAnnotationPrefix + "volumes."
+	// VolumeMountsAnnotationPrefix is the prefix of annotations that specify a VolumeMount.
+	VolumeMountsAnnotationPrefix = LabelAnnotationPrefix + "volumemounts."
 	// OwnerReferenceAnnotation is the name of the annotation added to the driver and executor Pods
 	// that specifies the OwnerReference of the owning SparkApplication.
 	OwnerReferenceAnnotation = LabelAnnotationPrefix + "ownerreference"
@@ -91,12 +89,12 @@ const (
 	// SparkDriverSecretKeyPrefix is the configuration property prefix for specifying secrets to be mounted into the
 	// executors.
 	SparkExecutorSecretKeyPrefix = "spark.kubernetes.executor.secrets."
-	// DriverEnvVarConfigKeyPrefix is the Spark configuration prefix for setting environment variables
+	// SparkDriverEnvVarConfigKeyPrefix is the Spark configuration prefix for setting environment variables
 	// into the driver.
-	DriverEnvVarConfigKeyPrefix = "spark.kubernetes.driverEnv."
-	// ExecutorEnvVarConfigKeyPrefix is the Spark configuration prefix for setting environment variables
+	SparkDriverEnvVarConfigKeyPrefix = "spark.kubernetes.driverEnv."
+	// SparkExecutorEnvVarConfigKeyPrefix is the Spark configuration prefix for setting environment variables
 	// into the executor.
-	ExecutorEnvVarConfigKeyPrefix = "spark.executorEnv."
+	SparkExecutorEnvVarConfigKeyPrefix = "spark.executorEnv."
 	// SparkDriverAnnotationKeyPrefix is the Spark configuration key prefix for annotations on the driver Pod.
 	SparkDriverAnnotationKeyPrefix = "spark.kubernetes.driver.annotation."
 	// SparkExecutorAnnotationKeyPrefix is the Spark configuration key prefix for annotations on the executor Pods.

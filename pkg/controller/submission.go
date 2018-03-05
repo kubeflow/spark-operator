@@ -19,7 +19,6 @@ package controller
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 	"reflect"
 	"strings"
 
@@ -27,6 +26,7 @@ import (
 
 	"k8s.io/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1alpha1"
 	"k8s.io/spark-on-k8s-operator/pkg/config"
+	"k8s.io/spark-on-k8s-operator/pkg/util"
 )
 
 const (
@@ -87,17 +87,17 @@ func buildSubmissionCommandArgs(app *v1alpha1.SparkApplication) ([]string, error
 	}
 
 	if app.Spec.SparkConfigMap != nil {
-		config.AddConfigMapAnnotation(app, config.SparkDriverAnnotationKeyPrefix, config.SparkConfigMapAnnotation,
-			*app.Spec.SparkConfigMap)
-		config.AddConfigMapAnnotation(app, config.SparkExecutorAnnotationKeyPrefix, config.SparkConfigMapAnnotation,
-			*app.Spec.SparkConfigMap)
+		args = append(args, "--conf", config.GetDriverAnnotationOption(config.SparkConfigMapAnnotation,
+			*app.Spec.SparkConfigMap))
+		args = append(args, "--conf", config.GetExecutorAnnotationOption(config.SparkConfigMapAnnotation,
+			*app.Spec.SparkConfigMap))
 	}
 
 	if app.Spec.HadoopConfigMap != nil {
-		config.AddConfigMapAnnotation(app, config.SparkDriverAnnotationKeyPrefix, config.HadoopConfigMapAnnotation,
-			*app.Spec.HadoopConfigMap)
-		config.AddConfigMapAnnotation(app, config.SparkExecutorAnnotationKeyPrefix, config.HadoopConfigMapAnnotation,
-			*app.Spec.HadoopConfigMap)
+		args = append(args, "--conf", config.GetDriverAnnotationOption(config.HadoopConfigMapAnnotation,
+			*app.Spec.HadoopConfigMap))
+		args = append(args, "--conf", config.GetExecutorAnnotationOption(config.HadoopConfigMapAnnotation,
+			*app.Spec.HadoopConfigMap))
 	}
 
 	// Add Spark configuration properties.
@@ -118,16 +118,27 @@ func buildSubmissionCommandArgs(app *v1alpha1.SparkApplication) ([]string, error
 	// Add the driver and executor configuration options.
 	// Note that when the controller submits the application, it expects that all dependencies are local
 	// so init-container is not needed and therefore no init-container image needs to be specified.
-	args = append(args, addDriverConfOptions(app)...)
-	args = append(args, addExecutorConfOptions(app)...)
-
-	reference := getOwnerReference(app)
-	referenceData, err := reference.Marshal()
+	options, err := addDriverConfOptions(app)
 	if err != nil {
 		return nil, err
 	}
-	args = append(args, "--conf", fmt.Sprintf("%s%s=%s", config.SparkDriverAnnotationKeyPrefix,
-		config.OwnerReferenceAnnotation, string(referenceData)))
+	for _, option := range options {
+		args = append(args, "--conf", option)
+	}
+	options, err = addExecutorConfOptions(app)
+	if err != nil {
+		return nil, err
+	}
+	for _, option := range options {
+		args = append(args, "--conf", option)
+	}
+
+	reference := getOwnerReference(app)
+	referenceStr, err := util.MarshalOwnerReference(reference)
+	if err != nil {
+		return nil, err
+	}
+	args = append(args, "--conf", config.GetDriverAnnotationOption(config.OwnerReferenceAnnotation, referenceStr))
 
 	if app.Spec.MainApplicationFile != nil {
 		// Add the main application file if it is present.
@@ -154,8 +165,8 @@ func getMasterURL() (string, error) {
 	return fmt.Sprintf("k8s://https://%s:%s", kubernetesServiceHost, kubernetesServicePort), nil
 }
 
-func getOwnerReference(app *v1alpha1.SparkApplication) metav1.OwnerReference {
-	return metav1.OwnerReference{
+func getOwnerReference(app *v1alpha1.SparkApplication) *metav1.OwnerReference {
+	return &metav1.OwnerReference{
 		APIVersion: v1alpha1.SchemeGroupVersion.String(),
 		Kind:       reflect.TypeOf(v1alpha1.SparkApplication{}).Name(),
 		Name:       app.Name,
@@ -199,186 +210,120 @@ func addDependenciesConfOptions(app *v1alpha1.SparkApplication) []string {
 	return depsConfOptions
 }
 
-func addDriverConfOptions(app *v1alpha1.SparkApplication) []string {
+func addDriverConfOptions(app *v1alpha1.SparkApplication) ([]string, error) {
 	var driverConfOptions []string
 
-	driverConfOptions = append(
-		driverConfOptions,
-		"--conf",
+	driverConfOptions = append(driverConfOptions,
 		fmt.Sprintf("%s%s=%s", config.SparkDriverLabelKeyPrefix, config.SparkAppNameLabel, app.Name))
-	driverConfOptions = append(
-		driverConfOptions,
-		"--conf",
+	driverConfOptions = append(driverConfOptions,
 		fmt.Sprintf("%s%s=%s", config.SparkDriverLabelKeyPrefix, config.SparkAppIDLabel, app.Status.AppID))
-	driverConfOptions = append(
-		driverConfOptions,
-		"--conf",
+	driverConfOptions = append(driverConfOptions,
 		fmt.Sprintf("%s%s=%s", config.SparkDriverLabelKeyPrefix, config.LaunchedBySparkOperatorLabel, "true"))
 
 	if app.Spec.Driver.PodName != nil {
-		driverConfOptions = append(
-			driverConfOptions,
-			"--conf",
+		driverConfOptions = append(driverConfOptions,
 			fmt.Sprintf("%s=%s", config.SparkDriverPodNameKey, *app.Spec.Driver.PodName))
 	}
 
 	if app.Spec.Driver.Image != nil {
-		driverConfOptions = append(
-			driverConfOptions,
-			"--conf",
+		driverConfOptions = append(driverConfOptions,
 			fmt.Sprintf("%s=%s", config.SparkDriverContainerImageKey, *app.Spec.Driver.Image))
 	}
 
 	if app.Spec.Driver.Cores != nil {
-		driverConfOptions = append(driverConfOptions, "--conf",
+		driverConfOptions = append(driverConfOptions,
 			fmt.Sprintf("spark.driver.cores=%f", *app.Spec.Driver.Cores))
 	}
 	if app.Spec.Driver.CoreLimit != nil {
-		driverConfOptions = append(driverConfOptions, "--conf",
+		driverConfOptions = append(driverConfOptions,
 			fmt.Sprintf("%s=%s", config.SparkDriverCoreLimitKey, *app.Spec.Driver.CoreLimit))
 	}
 	if app.Spec.Driver.Memory != nil {
-		driverConfOptions = append(driverConfOptions, "--conf",
+		driverConfOptions = append(driverConfOptions,
 			fmt.Sprintf("spark.driver.memory=%s", *app.Spec.Driver.Memory))
 	}
 
 	if app.Spec.Driver.ServiceAccount != nil {
-		driverConfOptions = append(driverConfOptions, "--conf",
+		driverConfOptions = append(driverConfOptions,
 			fmt.Sprintf("%s=%s", config.SparkDriverServiceAccountName, *app.Spec.Driver.ServiceAccount))
 	}
 
 	for key, value := range app.Spec.Driver.Labels {
-		driverConfOptions = append(driverConfOptions, "--conf",
+		driverConfOptions = append(driverConfOptions,
 			fmt.Sprintf("%s%s=%s", config.SparkDriverLabelKeyPrefix, key, value))
 	}
 
 	for key, value := range app.Spec.Driver.Annotations {
-		driverConfOptions = append(driverConfOptions, "--conf",
+		driverConfOptions = append(driverConfOptions,
 			fmt.Sprintf("%s%s=%s", config.SparkDriverAnnotationKeyPrefix, key, value))
 	}
 
-	driverConfOptions = append(driverConfOptions, getDriverEnvVarConfOptions(app)...)
-	driverConfOptions = append(driverConfOptions, getDriverSecretConfOptions(app)...)
+	driverConfOptions = append(driverConfOptions, config.GetDriverSecretConfOptions(app)...)
+	driverConfOptions = append(driverConfOptions, config.GetDriverConfigMapConfOptions(app)...)
+	driverConfOptions = append(driverConfOptions, config.GetDriverEnvVarConfOptions(app)...)
 
-	return driverConfOptions
+	options, err := config.GetDriverVolumeMountConfOptions(app)
+	if err != nil {
+		return nil, err
+	}
+	driverConfOptions = append(driverConfOptions, options...)
+
+	return driverConfOptions, nil
 }
 
-func addExecutorConfOptions(app *v1alpha1.SparkApplication) []string {
+func addExecutorConfOptions(app *v1alpha1.SparkApplication) ([]string, error) {
 	var executorConfOptions []string
 
-	executorConfOptions = append(
-		executorConfOptions,
-		"--conf",
+	executorConfOptions = append(executorConfOptions,
 		fmt.Sprintf("%s%s=%s", config.SparkExecutorLabelKeyPrefix, config.SparkAppNameLabel, app.Name))
-	executorConfOptions = append(
-		executorConfOptions,
-		"--conf",
+	executorConfOptions = append(executorConfOptions,
 		fmt.Sprintf("%s%s=%s", config.SparkExecutorLabelKeyPrefix, config.SparkAppIDLabel, app.Status.AppID))
-	executorConfOptions = append(
-		executorConfOptions,
-		"--conf",
+	executorConfOptions = append(executorConfOptions,
 		fmt.Sprintf("%s%s=%s", config.SparkExecutorLabelKeyPrefix, config.LaunchedBySparkOperatorLabel, "true"))
 
 	if app.Spec.Executor.Image != nil {
-		executorConfOptions = append(
-			executorConfOptions,
-			"--conf",
+		executorConfOptions = append(executorConfOptions,
 			fmt.Sprintf("%s=%s", config.SparkExecutorContainerImageKey, *app.Spec.Executor.Image))
 	}
 
 	if app.Spec.Executor.Instances != nil {
 		conf := fmt.Sprintf("spark.executor.instances=%d", *app.Spec.Executor.Instances)
-		executorConfOptions = append(executorConfOptions, "--conf", conf)
+		executorConfOptions = append(executorConfOptions, conf)
 	}
 
 	if app.Spec.Executor.Cores != nil {
 		// Property "spark.executor.cores" does not allow float values.
 		conf := fmt.Sprintf("spark.executor.cores=%d", int32(*app.Spec.Executor.Cores))
-		executorConfOptions = append(executorConfOptions, "--conf", conf)
+		executorConfOptions = append(executorConfOptions, conf)
 	}
 	if app.Spec.Executor.CoreLimit != nil {
 		conf := fmt.Sprintf("%s=%s", config.SparkExecutorCoreLimitKey, *app.Spec.Executor.CoreLimit)
-		executorConfOptions = append(executorConfOptions, "--conf", conf)
+		executorConfOptions = append(executorConfOptions, conf)
 	}
 	if app.Spec.Executor.Memory != nil {
 		conf := fmt.Sprintf("spark.executor.memory=%s", *app.Spec.Executor.Memory)
-		executorConfOptions = append(executorConfOptions, "--conf", conf)
+		executorConfOptions = append(executorConfOptions, conf)
 	}
 
 	for key, value := range app.Spec.Executor.Labels {
-		executorConfOptions = append(executorConfOptions, "--conf",
+		executorConfOptions = append(executorConfOptions,
 			fmt.Sprintf("%s%s=%s", config.SparkExecutorLabelKeyPrefix, key, value))
 	}
 
 	for key, value := range app.Spec.Executor.Annotations {
-		executorConfOptions = append(executorConfOptions, "--conf",
+		executorConfOptions = append(executorConfOptions,
 			fmt.Sprintf("%s%s=%s", config.SparkExecutorAnnotationKeyPrefix, key, value))
 	}
 
-	executorConfOptions = append(executorConfOptions, getExecutorEnvVarConfOptions(app)...)
-	executorConfOptions = append(executorConfOptions, getExecutorSecretConfOptions(app)...)
+	executorConfOptions = append(executorConfOptions, config.GetExecutorSecretConfOptions(app)...)
+	executorConfOptions = append(executorConfOptions, config.GetExecutorConfigMapConfOptions(app)...)
+	executorConfOptions = append(executorConfOptions, config.GetExecutorEnvVarConfOptions(app)...)
 
-	return executorConfOptions
-}
-
-func getDriverSecretConfOptions(app *v1alpha1.SparkApplication) []string {
-	var secretConfOptions []string
-	for _, s := range app.Spec.Driver.Secrets {
-		conf := fmt.Sprintf("%s%s=%s", config.SparkDriverSecretKeyPrefix, s.Name, s.Path)
-		secretConfOptions = append(secretConfOptions, "--conf", conf)
-		if s.Type == v1alpha1.GCPServiceAccountSecret {
-			conf = fmt.Sprintf("%s%s=%s",
-				config.SparkDriverAnnotationKeyPrefix,
-				config.GoogleApplicationCredentialsEnvVar,
-				filepath.Join(s.Path, config.ServiceAccountJSONKeyFileName))
-			secretConfOptions = append(secretConfOptions, "--conf", conf)
-		} else if s.Type == v1alpha1.HDFSDelegationTokenSecret {
-			conf = fmt.Sprintf("%s%s=%s",
-				config.SparkDriverAnnotationKeyPrefix,
-				config.HadoopTokenFileLocationEnvVar,
-				filepath.Join(s.Path, config.HadoopDelegationTokenFileName))
-			secretConfOptions = append(secretConfOptions, "--conf", conf)
-		}
+	options, err := config.GetExecutorVolumeMountConfOptions(app)
+	if err != nil {
+		return nil, err
 	}
-	return secretConfOptions
-}
+	executorConfOptions = append(executorConfOptions, options...)
 
-func getExecutorSecretConfOptions(app *v1alpha1.SparkApplication) []string {
-	var secretConfOptions []string
-	for _, s := range app.Spec.Executor.Secrets {
-		conf := fmt.Sprintf("%s%s=%s", config.SparkExecutorSecretKeyPrefix, s.Name, s.Path)
-		secretConfOptions = append(secretConfOptions, "--conf", conf)
-		if s.Type == v1alpha1.GCPServiceAccountSecret {
-			conf = fmt.Sprintf("%s%s=%s",
-				config.SparkExecutorAnnotationKeyPrefix,
-				config.GoogleApplicationCredentialsEnvVar,
-				filepath.Join(s.Path, config.ServiceAccountJSONKeyFileName))
-			secretConfOptions = append(secretConfOptions, "--conf", conf)
-		} else if s.Type == v1alpha1.HDFSDelegationTokenSecret {
-			conf = fmt.Sprintf("%s%s=%s",
-				config.SparkExecutorAnnotationKeyPrefix,
-				config.HadoopTokenFileLocationEnvVar,
-				filepath.Join(s.Path, config.HadoopDelegationTokenFileName))
-			secretConfOptions = append(secretConfOptions, "--conf", conf)
-		}
-	}
-	return secretConfOptions
-}
-
-func getDriverEnvVarConfOptions(app *v1alpha1.SparkApplication) []string {
-	var envVarConfOptions []string
-	for key, value := range app.Spec.Driver.EnvVars {
-		envVar := fmt.Sprintf("%s%s=%s", config.DriverEnvVarConfigKeyPrefix, key, value)
-		envVarConfOptions = append(envVarConfOptions, "--conf", envVar)
-	}
-	return envVarConfOptions
-}
-
-func getExecutorEnvVarConfOptions(app *v1alpha1.SparkApplication) []string {
-	var envVarConfOptions []string
-	for key, value := range app.Spec.Executor.EnvVars {
-		envVar := fmt.Sprintf("%s%s=%s", config.ExecutorEnvVarConfigKeyPrefix, key, value)
-		envVarConfOptions = append(envVarConfOptions, "--conf", envVar)
-	}
-	return envVarConfOptions
+	return executorConfOptions, nil
 }

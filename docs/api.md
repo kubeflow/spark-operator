@@ -35,6 +35,7 @@ A `SparkApplicationSpec` has the following top-level fields:
 | `HadoopConf` | N/A | A map of Hadoop configuration properties. The operator will add the prefix `spark.hadoop.` to the properties when adding it through the `--conf` option. |
 | `SparkConfigMap` | N/A | Name of a Kubernetes ConfigMap carrying Spark configuration files, e.g., `spark-env.sh`. The controller sets the environment variable `SPARK_CONF_DIR` to where the ConfigMap is mounted. |
 | `HadoopConfigMap` | N/A | Name of a Kubernetes ConfigMap carrying Hadoop configuration files, e.g., `core-site.xml`. The controller sets the environment variable `HADOOP_CONF_DIR` to where the ConfigMap is mounted. |
+| `Volumes` | N/A | List of Kubernetes [volumes](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.9/#volume-v1-core) the driver and executors need collectively. |
 | `Driver` | N/A | A [`DriverSpec`](#driverspec) field. |
 | `Executor` | N/A | An [`ExecutorSpec`](#executorspec) field. |
 | `Deps` | N/A | A [`Dependencies`](#dependencies) field. |
@@ -75,6 +76,7 @@ A `SparkPodSpec` defines common attributes of a driver or executor pod, summariz
 | `EnvVars` | `spark.kubernetes.driverEnv.[EnvironmentVariableName]` or `spark.executorEnv.[EnvironmentVariableName]` | A map of environment variables to add to the driver or executor pod. Keys are variable names and values are variable values. |
 | `Labels` | `spark.kubernetes.driver.label.[LabelName]` or `spark.kubernetes.executor.label.[LabelName]` | A map of Kubernetes labels to add to the driver or executor pod. Keys are label names and values are label values. |
 | `Annotations` | `spark.kubernetes.driver.annotation.[AnnotationName]` or `spark.kubernetes.executor.annotation.[AnnotationName]` | A map of Kubernetes annotations to add to the driver or executor pod. Keys are annotation names and values are annotation values. |
+| `VolumeMounts` | N/A | List of Kubernetes [volume mounts](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.9/#volumemount-v1-core) for volumes that should be mounted to the pod. |
 
 #### `Dependencies`
 
