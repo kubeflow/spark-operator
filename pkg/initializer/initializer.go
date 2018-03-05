@@ -38,6 +38,7 @@ import (
 	"k8s.io/client-go/util/workqueue"
 
 	"k8s.io/spark-on-k8s-operator/pkg/config"
+	"k8s.io/spark-on-k8s-operator/pkg/util"
 )
 
 const (
@@ -303,6 +304,7 @@ func (ic *SparkPodInitializer) initializeSparkPod(pod *apiv1.Pod) (*apiv1.Pod, e
 	// Perform the initialization tasks.
 	addOwnerReference(podCopy)
 	handleConfigMaps(podCopy, appContainer)
+	handleVolumes(podCopy, appContainer)
 	// Remove this initializer from the list of pending initializer and update the Pod.
 	removeSelf(podCopy)
 
@@ -359,19 +361,31 @@ func isSparkPod(pod *apiv1.Pod) bool {
 	return ok && (sparkRole == sparkDriverRole || sparkRole == sparkExecutorRole)
 }
 
+func addOwnerReference(pod *apiv1.Pod) error {
+	ownerReferenceStr, ok := pod.Annotations[config.OwnerReferenceAnnotation]
+	if ok {
+		ownerReference, err := util.UnmarshalOwnerReference(ownerReferenceStr)
+		if err != nil {
+			return err
+		}
+		pod.ObjectMeta.OwnerReferences = append(pod.ObjectMeta.OwnerReferences, *ownerReference)
+	}
+	return nil
+}
+
 func handleConfigMaps(pod *apiv1.Pod, container *apiv1.Container) {
 	sparkConfigMapName, ok := pod.Annotations[config.SparkConfigMapAnnotation]
 	if ok {
 		glog.Infof("Mounting Spark ConfigMap %s to pod %s", sparkConfigMapName, pod.Name)
-		volumeName := config.AddSparkConfigMapVolumeToPod(sparkConfigMapName, pod)
-		config.MountSparkConfigMapToContainer(volumeName, config.DefaultSparkConfDir, container)
+		config.AddSparkConfigMapVolumeToPod(sparkConfigMapName, pod)
+		config.MountSparkConfigMapToContainer(container)
 	}
 
 	hadoopConfigMapName, ok := pod.Annotations[config.HadoopConfigMapAnnotation]
 	if ok {
 		glog.Infof("Mounting Hadoop ConfigMap %s to pod %s", hadoopConfigMapName, pod.Name)
-		volumeName := config.AddHadoopConfigMapVolumeToPod(hadoopConfigMapName, pod)
-		config.MountHadoopConfigMapToContainer(volumeName, config.DefaultHadoopConfDir, container)
+		config.AddHadoopConfigMapVolumeToPod(hadoopConfigMapName, pod)
+		config.MountHadoopConfigMapToContainer(container)
 	}
 
 	configMaps := config.FindGeneralConfigMaps(pod.Annotations)
@@ -383,16 +397,22 @@ func handleConfigMaps(pod *apiv1.Pod, container *apiv1.Container) {
 	}
 }
 
-func addOwnerReference(pod *apiv1.Pod) {
-	ownerReferenceStr, ok := pod.Annotations[config.OwnerReferenceAnnotation]
-	if ok {
-		ownerReference := &metav1.OwnerReference{}
-		err := ownerReference.Unmarshal([]byte(ownerReferenceStr))
-		if err != nil {
-			glog.Errorf("failed to add OwnerReference to Pod %s: %v", pod.Name, err)
-		}
-		pod.ObjectMeta.OwnerReferences = append(pod.ObjectMeta.OwnerReferences, *ownerReference)
+func handleVolumes(pod *apiv1.Pod, container *apiv1.Container) error {
+	volumes, err := config.FindVolumes(pod.Annotations)
+	if err != nil {
+		return err
 	}
+	volumeMounts, err := config.FindVolumeMounts(pod.Annotations)
+	if err != nil {
+		return err
+	}
+	for name := range volumeMounts {
+		if volume, ok := volumes[name]; ok {
+			config.AddVolumeToPod(volume, pod)
+			config.MountVolumeToContainer(volumeMounts[name], container)
+		}
+	}
+	return nil
 }
 
 // removeSelf removes the initializer from the list of pending initializers of the given Pod.

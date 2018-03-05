@@ -21,6 +21,7 @@ limitations under the License.
 package v1alpha1
 
 import (
+	v1 "k8s.io/api/core/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 )
 
@@ -364,6 +365,13 @@ func (in *SparkApplicationSpec) DeepCopyInto(out *SparkApplicationSpec) {
 			**out = **in
 		}
 	}
+	if in.Volumes != nil {
+		in, out := &in.Volumes, &out.Volumes
+		*out = make([]v1.Volume, len(*in))
+		for i := range *in {
+			(*in)[i].DeepCopyInto(&(*out)[i])
+		}
+	}
 	in.Driver.DeepCopyInto(&out.Driver)
 	in.Executor.DeepCopyInto(&out.Executor)
 	in.Deps.DeepCopyInto(&out.Deps)
@@ -500,6 +508,13 @@ func (in *SparkPodSpec) DeepCopyInto(out *SparkPodSpec) {
 		*out = make(map[string]string, len(*in))
 		for key, val := range *in {
 			(*out)[key] = val
+		}
+	}
+	if in.VolumeMounts != nil {
+		in, out := &in.VolumeMounts, &out.VolumeMounts
+		*out = make([]v1.VolumeMount, len(*in))
+		for i := range *in {
+			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
 	}
 	return

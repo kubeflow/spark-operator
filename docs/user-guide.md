@@ -16,6 +16,9 @@ on `sparkctl` can be found in [README](../sparkctl/README.md).
     * [Writing Executor Specification](#writing-executor-specification)
     * [Mounting Secrets](#mounting-secrets)
     * [Mounting ConfigMaps](#mounting-configmaps)
+        * [Mounting a ConfigMap storing Spark Configuration Files](#mounting-a-configmap-storing-spark-configuration-files)
+        * [Mounting a ConfigMap storing Hadoop Configuration Files](#mounting-a-configmap-storing-hadoop-configuration-files)
+    * [Mounting Volumes](#mounting-volumes)
 * [Working with SparkApplications](#working-with-sparkapplications)
     * [Creating a New SparkApplication](#creating-a-new-sparkapplication)
     * [Deleting a SparkApplication](#deleting-a-sparkapplication)
@@ -193,7 +196,7 @@ spec:
 
 ### Mounting Secrets
 
-As mentioned above, both the driver specification and executor specification have an optional field for configuring
+As mentioned above, both the driver specification and executor specification have an optional field `secrets` for configuring
 the list of Kubernetes Secrets to be mounted into the driver and executors, respectively. The field is a map with the
 names of the Secrets as keys and values specifying the mount path and type of each Secret. For instance, the following 
 example shows a driver specification with a Secret named `gcp-svc-account` of type `GCPServiceAccount` to be mounted to 
@@ -222,19 +225,78 @@ map is **`hadoop.token`**.
 
 ### Mounting ConfigMaps
 
-both the driver specification and executor specification have an optional field for configuring
+Both the driver specification and executor specifications have an optional field for configuring
 the list of Kubernetes ConfigMaps to be mounted into the driver and executors, respectively. The field is a map with
 keys being the names of the ConfigMaps and values specifying the mount path of each ConfigMap. For instance, the 
-following example shows a driver specification with a ConfigMap named `hadoop-configuration` to be mounted to 
+following example shows a driver specification with a ConfigMap named `configmap1` to be mounted to 
 `/mnt/config-maps` in the driver pod.
 
 ```yaml
 spec:
   driver:
     configMaps:
-      - name: hadoop-configuration
+      - name: configmap1
         path: /mnt/config-maps
 ```
+
+Note that the initializer needs to be enabled to use this feature. Please refer to the 
+[Quick Start Guide](quick-start-guide.md#configuration) on how to enable the initializer.
+
+#### Mounting a ConfigMap storing Spark Configuration Files
+
+A `SparkApplication` can specify a Kubernetes ConfigMap storing Spark configuration files such as `spark-env.sh` or 
+`spark-defaults.conf` using the optional field `.spec.sparkConfigMap` whose value is the name of the ConfigMap. The
+ConfigMap is assumed to be in the same namespace as that of the `SparkApplication`. The Spark Operator mounts the 
+ConfigMap onto path `/etc/spark/conf` in both the driver and executors. Additionally, it also sets the environment 
+variable `SPARK_CONF_DIR` to point to `/etc/spark/conf` in the driver and executors.
+
+Note that the initializer needs to be enabled to use this feature. Please refer to the 
+[Quick Start Guide](quick-start-guide.md#configuration) on how to enable the initializer.
+
+#### Mounting a ConfigMap storing Hadoop Configuration Files
+
+A `SparkApplication` can specify a Kubernetes ConfigMap storing Hadoop configuration files such as `core-site.xml`
+ using the optional field `.spec.hadoopConfigMap` whose value is the name of the ConfigMap. The ConfigMap is assumed to 
+ be in the same namespace as that of the `SparkApplication`. The Spark Operator mounts the ConfigMap onto path 
+ `/etc/hadoop/conf` in both the driver and executors. Additionally, it also sets the environment 
+variable `HADOOP_CONF_DIR` to point to `/etc/hadoop/conf` in the driver and executors.
+
+Note that the initializer needs to be enabled to use this feature. Please refer to the 
+[Quick Start Guide](quick-start-guide.md#configuration) on how to enable the initializer.
+
+### Mounting Volumes
+
+The Spark Operator also supports mounting user-specified Kubernetes volumes into the driver and executors. A 
+`SparkApplication` has an optional field `.spec.volumes` for specifying the list of 
+[volumes](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.9/#volume-v1-core) the driver and the 
+executors need collectively. Then both the driver and executor specifications have an optional field `volumeMounts` 
+that specifies the [volume mounts](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.9/#volumemount-v1-core) 
+for the volumes needed by the driver and executors, respectively. The following is an
+example showing a `SparkApplication` with both driver and executor volume mounts.
+
+```yaml
+spec:
+  volumes:
+    - name: spark-data
+      persistentVolumeClaim:
+        claimName: my-pvc
+    - name: spark-work
+      emptyDir: {}
+  driver:
+    volumeMounts:
+      - name: spark-work
+        mountPath: /mnt/spark/work
+  executor:
+    volumeMounts:
+      - name: spark-data
+        mountPath: /mnt/spark/data
+      - name: spark-work
+        mountPath: /mnt/spark/work
+    
+```
+
+Note that the initializer needs to be enabled to use this feature. Please refer to the 
+[Quick Start Guide](quick-start-guide.md#configuration) on how to enable the initializer.
 
 ## Working with SparkApplications
 

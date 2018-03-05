@@ -18,16 +18,11 @@ package config
 
 import (
 	"fmt"
-	"io/ioutil"
-	"path/filepath"
 	"strings"
 
 	apiv1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	clientset "k8s.io/client-go/kubernetes"
 
 	"k8s.io/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1alpha1"
-	"k8s.io/spark-on-k8s-operator/pkg/util"
 )
 
 // FindGeneralConfigMaps finds the annotations for specifying general secrets and returns
@@ -44,51 +39,34 @@ func FindGeneralConfigMaps(annotations map[string]string) map[string]string {
 	return configMaps
 }
 
-// AddConfigMapAnnotation adds an annotation key=value using the --conf option.
-func AddConfigMapAnnotation(app *v1alpha1.SparkApplication, annotationKeyPrefix string, key string, value string) {
-	if app.Spec.SparkConf == nil {
-		app.Spec.SparkConf = make(map[string]string)
+// GetDriverConfigMapConfOptions returns a list of spark-submit options for driver annotations for ConfigMaps to be
+// mounted into the driver.
+func GetDriverConfigMapConfOptions(app *v1alpha1.SparkApplication) []string {
+	var options []string
+	for key, value := range getConfigMapAnnotations(app.Spec.Driver.ConfigMaps) {
+		options = append(options, GetDriverAnnotationOption(key, value))
 	}
-
-	annotationConfKey := fmt.Sprintf("%s%s", annotationKeyPrefix, key)
-	_, ok := app.Spec.SparkConf[annotationConfKey]
-	if !ok {
-		app.Spec.SparkConf[annotationConfKey] = value
-	}
+	return options
 }
 
-// CreateSparkConfigMap is to be used by the SparkApplication controller to create a ConfigMap from a directory of Spark configuration files.
-func CreateSparkConfigMap(sparkConfDir string, namespace string, app *v1alpha1.SparkApplication, kubeClient clientset.Interface) error {
-	name, err := createConfigMap(sparkConfDir, namespace, SparkConfigMapNamePrefix, app, kubeClient)
-	if err != nil {
-		return err
+// GetExecutorConfigMapConfOptions returns a list of spark-submit options for executor annotations for ConfigMaps to be
+// mounted into the executors.
+func GetExecutorConfigMapConfOptions(app *v1alpha1.SparkApplication) []string {
+	var options []string
+	for key, value := range getConfigMapAnnotations(app.Spec.Executor.ConfigMaps) {
+		options = append(options, GetExecutorAnnotationOption(key, value))
 	}
-
-	// Add an annotation to the driver and executor Pods so the initializer gets informed.
-	AddConfigMapAnnotation(app, SparkDriverAnnotationKeyPrefix, SparkConfigMapAnnotation, name)
-	AddConfigMapAnnotation(app, SparkExecutorAnnotationKeyPrefix, SparkConfigMapAnnotation, name)
-	// Update the Spec to include the name of the newly created ConfigMap.
-	app.Spec.SparkConfigMap = new(string)
-	*app.Spec.SparkConfigMap = name
-
-	return nil
+	return options
 }
 
-// CreateHadoopConfigMap is to be used by the SparkApplication controller to create a ConfigMap from a directory of Hadoop configuration files.
-func CreateHadoopConfigMap(hadoopConfDir string, namespace string, app *v1alpha1.SparkApplication, kubeClient clientset.Interface) error {
-	name, err := createConfigMap(hadoopConfDir, namespace, HadoopConfigMapNamePrefix, app, kubeClient)
-	if err != nil {
-		return err
+func getConfigMapAnnotations(namePaths []v1alpha1.NamePath) map[string]string {
+	annotations := make(map[string]string)
+	for _, np := range namePaths {
+		key := fmt.Sprintf("%s%s", GeneralConfigMapsAnnotationPrefix, np.Name)
+		annotations[key] = np.Path
 	}
 
-	// Add an annotation to the driver and executor Pods so the initializer gets informed.
-	AddConfigMapAnnotation(app, SparkDriverAnnotationKeyPrefix, HadoopConfigMapAnnotation, name)
-	AddConfigMapAnnotation(app, SparkExecutorAnnotationKeyPrefix, HadoopConfigMapAnnotation, name)
-	// Update the Spec to include the name of the newly created ConfigMap.
-	app.Spec.HadoopConfigMap = new(string)
-	*app.Spec.HadoopConfigMap = name
-
-	return nil
+	return annotations
 }
 
 // AddSparkConfigMapVolumeToPod add a ConfigMap volume for Spark configuration files into the given pod.
@@ -118,18 +96,24 @@ func AddConfigMapVolumeToPod(configMapVolumeName string, configMapName string, p
 }
 
 // MountSparkConfigMapToContainer mounts the ConfigMap for Spark configuration files into the given container.
-func MountSparkConfigMapToContainer(volumeName string, mountPath string, container *apiv1.Container) {
-	mountConfigMapToContainer(volumeName, mountPath, SparkConfDirEnvVar, container)
-}
-
-// MountHadoopConfigMapToContainer mounts the ConfigMap for Hadoop configuration files into the given container.
-func MountHadoopConfigMapToContainer(volumeName string, mountPath string, container *apiv1.Container) {
-	mountConfigMapToContainer(volumeName, mountPath, HadoopConfDirEnvVar, container)
+func MountSparkConfigMapToContainer(container *apiv1.Container) {
+	mountConfigMapToContainer(SparkConfigMapVolumeName, DefaultSparkConfDir, SparkConfDirEnvVar, container)
 	container.Env = append(
 		container.Env,
 		apiv1.EnvVar{
 			Name:  SparkClasspathEnvVar,
-			Value: fmt.Sprintf("$%s:$%s", HadoopConfDirEnvVar, SparkClasspathEnvVar),
+			Value: fmt.Sprintf("%s:$%s", DefaultSparkConfDir, SparkClasspathEnvVar),
+		})
+}
+
+// MountHadoopConfigMapToContainer mounts the ConfigMap for Hadoop configuration files into the given container.
+func MountHadoopConfigMapToContainer(container *apiv1.Container) {
+	mountConfigMapToContainer(HadoopConfigMapVolumeName, DefaultHadoopConfDir, HadoopConfDirEnvVar, container)
+	container.Env = append(
+		container.Env,
+		apiv1.EnvVar{
+			Name:  SparkClasspathEnvVar,
+			Value: fmt.Sprintf("%s:$%s", DefaultHadoopConfDir, SparkClasspathEnvVar),
 		})
 }
 
@@ -149,51 +133,4 @@ func mountConfigMapToContainer(volumeName string, mountPath string, env string, 
 		appCredentialEnvVar := apiv1.EnvVar{Name: env, Value: mountPath}
 		container.Env = append(container.Env, appCredentialEnvVar)
 	}
-}
-
-func createConfigMap(dir string, namespace string, namePrefix string, app *v1alpha1.SparkApplication, kubeClient clientset.Interface) (string, error) {
-	configMap, err := buildConfigMapFromConfigDir(dir, namePrefix, namespace, string(app.UID))
-	if err != nil {
-		return configMap.Name, err
-	}
-	configMap, err = kubeClient.CoreV1().ConfigMaps(namespace).Create(configMap)
-	if err != nil {
-		return configMap.Name, err
-	}
-	return configMap.Name, nil
-}
-
-func buildConfigMapFromConfigDir(dir string, namePrefix string, namespace string, appUID string) (*apiv1.ConfigMap, error) {
-	files, err := ioutil.ReadDir(dir)
-	if err != nil {
-		return nil, err
-	}
-
-	configMap := &apiv1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: namespace,
-		},
-	}
-
-	hasher := util.NewHash32()
-	data := make(map[string]string)
-	for _, file := range files {
-		if file.IsDir() {
-			continue
-		}
-		bytes, err := ioutil.ReadFile(filepath.Join(dir, file.Name()))
-		if err != nil {
-			return nil, err
-		}
-		hasher.Write(bytes)
-		data[file.Name()] = string(bytes)
-	}
-	configMap.Data = data
-
-	hasher.Write([]byte(dir))
-	hasher.Write([]byte(namespace))
-	hasher.Write([]byte(appUID))
-	configMap.Name = fmt.Sprintf("%s-%d", namePrefix, hasher.Sum32())
-
-	return configMap, nil
 }

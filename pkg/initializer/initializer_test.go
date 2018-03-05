@@ -18,8 +18,11 @@ package initializer
 
 import (
 	"encoding/json"
+	"fmt"
 	"reflect"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 
 	apiv1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -30,6 +33,7 @@ import (
 	"k8s.io/client-go/tools/cache"
 
 	"k8s.io/spark-on-k8s-operator/pkg/config"
+	"k8s.io/spark-on-k8s-operator/pkg/util"
 )
 
 func TestAddAndDeleteInitializationConfig(t *testing.T) {
@@ -610,21 +614,19 @@ func TestAddOwnerReference(t *testing.T) {
 	}
 
 	pod0 := &apiv1.Pod{}
-	ownerReference := metav1.OwnerReference{
+	ownerReference := &metav1.OwnerReference{
 		APIVersion: "v1alpha1",
 		Kind:       "SparkApp",
 		Name:       "TestSparkApp",
 		Controller: new(bool),
 	}
-	ownerReferenceBytes, err := ownerReference.Marshal()
+	ownerReferenceStr, err := util.MarshalOwnerReference(ownerReference)
 	if err != nil {
 		t.Fatal(err)
 	}
 	pod1 := &apiv1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
-			Annotations: map[string]string{
-				config.OwnerReferenceAnnotation: string(ownerReferenceBytes),
-			},
+			Annotations: map[string]string{config.OwnerReferenceAnnotation: ownerReferenceStr},
 		},
 	}
 	testcases := []testcase{
@@ -638,12 +640,114 @@ func TestAddOwnerReference(t *testing.T) {
 			name:                   "Pod with OwnerReference annotation",
 			pod:                    pod1,
 			hasOwnerReference:      true,
-			expectedOwnerReference: &ownerReference,
+			expectedOwnerReference: ownerReference,
 		},
 	}
 	for _, test := range testcases {
 		testFn(test, t)
 	}
+}
+
+func TestHandleConfigMaps(t *testing.T) {
+	type testcase struct {
+		name          string
+		pod           *apiv1.Pod
+		configMapName string
+		volumeName    string
+		mountPath     string
+	}
+
+	testFn := func(test testcase, t *testing.T) {
+		handleConfigMaps(test.pod, &test.pod.Spec.Containers[0])
+		assert.Equal(t, 1, len(test.pod.Spec.Volumes))
+		assert.Equal(t, test.volumeName, test.pod.Spec.Volumes[0].Name)
+		assert.Equal(t, test.configMapName, test.pod.Spec.Volumes[0].ConfigMap.Name)
+		assert.Equal(t, test.volumeName, test.pod.Spec.Containers[0].VolumeMounts[0].Name)
+		assert.Equal(t, test.mountPath, test.pod.Spec.Containers[0].VolumeMounts[0].MountPath)
+	}
+
+	testcases := []testcase{
+		{
+			name: "pod with general ConfigMap",
+			pod: &apiv1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{
+						fmt.Sprintf("%s%s", config.GeneralConfigMapsAnnotationPrefix, "configmap1"): "/etc/config",
+					},
+				},
+				Spec: apiv1.PodSpec{
+					Containers: []apiv1.Container{{Name: "spark-driver-container"}},
+				},
+			},
+			configMapName: "configmap1",
+			volumeName:    "configmap1-volume",
+			mountPath:     "/etc/config",
+		},
+		{
+			name: "pod with Spark configuration ConfigMap",
+			pod: &apiv1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{config.SparkConfigMapAnnotation: "spark-config"},
+				},
+				Spec: apiv1.PodSpec{
+					Containers: []apiv1.Container{{Name: "spark-driver-container"}},
+				},
+			},
+			configMapName: "spark-config",
+			volumeName:    config.SparkConfigMapVolumeName,
+			mountPath:     config.DefaultSparkConfDir,
+		},
+		{
+			name: "pod with Hadoop configuration ConfigMap",
+			pod: &apiv1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{config.HadoopConfigMapAnnotation: "hadoop-config"},
+				},
+				Spec: apiv1.PodSpec{
+					Containers: []apiv1.Container{{Name: "spark-driver-container"}},
+				},
+			},
+			configMapName: "hadoop-config",
+			volumeName:    config.HadoopConfigMapVolumeName,
+			mountPath:     config.DefaultHadoopConfDir,
+		},
+	}
+
+	for _, test := range testcases {
+		testFn(test, t)
+	}
+}
+
+func TestHandleVolumes(t *testing.T) {
+	volume := &apiv1.Volume{
+		Name:         "volume1",
+		VolumeSource: apiv1.VolumeSource{HostPath: &apiv1.HostPathVolumeSource{Path: "/etc/spark/data"}},
+	}
+	volumeStr, _ := util.MarshalVolume(volume)
+
+	volumeMount := &apiv1.VolumeMount{
+		Name:      "volume1",
+		MountPath: "/etc/spark/data",
+	}
+	volumeMountStr, _ := util.MarshalVolumeMount(volumeMount)
+
+	pod := &apiv1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Annotations: map[string]string{
+				fmt.Sprintf("%s%s", config.VolumesAnnotationPrefix, "volume1"):      volumeStr,
+				fmt.Sprintf("%s%s", config.VolumeMountsAnnotationPrefix, "volume1"): volumeMountStr,
+			},
+		},
+		Spec: apiv1.PodSpec{
+			Containers: []apiv1.Container{{Name: "spark-driver-container"}},
+		},
+	}
+
+	handleVolumes(pod, &pod.Spec.Containers[0])
+	assert.Equal(t, 1, len(pod.Spec.Volumes))
+	assert.Equal(t, 1, len(pod.Spec.Containers[0].VolumeMounts))
+	assert.Equal(t, *volume, pod.Spec.Volumes[0])
+	assert.Equal(t, *volumeMount, pod.Spec.Containers[0].VolumeMounts[0])
 }
 
 func hasEnvVar(name, value string, envVars []apiv1.EnvVar) bool {

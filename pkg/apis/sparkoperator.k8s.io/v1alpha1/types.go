@@ -17,6 +17,7 @@ limitations under the License.
 package v1alpha1
 
 import (
+	apiv1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -108,6 +109,9 @@ type SparkApplicationSpec struct {
 	// The controller will add environment variable HADOOP_CONF_DIR to the path where the ConfigMap is mounted to.
 	// Optional.
 	HadoopConfigMap *string `json:"hadoopConfigMap,omitempty"`
+	// Volumes is the list of Kubernetes volumes that can be mounted by the driver and/or executors.
+	// Optional.
+	Volumes []apiv1.Volume `json:"volumes,omitempty"`
 	// Driver is the driver specification.
 	Driver DriverSpec `json:"driver"`
 	// Executor is the executor specification.
@@ -237,6 +241,9 @@ type SparkPodSpec struct {
 	// Annotations are the Kubernetes annotations to be added to the pod.
 	// Optional.
 	Annotations map[string]string `json:"annotations,omitempty"`
+	// VolumeMounts specifies the volumes listed in ".spec.volumes" to mount into the main container's filesystem.
+	// Optional.
+	VolumeMounts []apiv1.VolumeMount `json:"volumeMounts,omitempty"`
 }
 
 // DriverSpec is specification of the driver.
@@ -275,9 +282,9 @@ const (
 	// GCPServiceAccountSecret is for secrets from a GCP service account Json key file that needs
 	// the environment variable GOOGLE_APPLICATION_CREDENTIALS.
 	GCPServiceAccountSecret SecretType = "GCPServiceAccount"
-	// HDFSDelegationTokenSecret is for secrets from an Hadoop delegation token that needs the
+	// HadoopDelegationTokenSecret is for secrets from an Hadoop delegation token that needs the
 	// environment variable HADOOP_TOKEN_FILE_LOCATION.
-	HDFSDelegationTokenSecret SecretType = "HadoopDelegationToken"
+	HadoopDelegationTokenSecret SecretType = "HadoopDelegationToken"
 	// GenericType is for secrets that needs no special handling.
 	GenericType SecretType = "Generic"
 )

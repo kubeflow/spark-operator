@@ -80,6 +80,7 @@ Spark Operator currently supports the following list of features:
 * Supports automatic application re-submission for updated `SparkAppliation` objects with updated specification.
 * Supports automatic application restart with a configurable restart policy.
 * Supports automatic retries of failed submissions with optional linear back-off.
+* Supports mounting user-specified ConfigMaps and volumes (not supported by Spark itself).
 * Supports mounting local Hadoop configuration as a Kubernetes ConfigMap automatically via `sparkctl`.
 * Supports automatically staging local application dependencies to Google Cloud Storage (GCS) via `sparkctl`.
 
