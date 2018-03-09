@@ -101,14 +101,14 @@ func main() {
 	signal.Notify(signalCh, syscall.SIGINT, syscall.SIGTERM)
 	<-signalCh
 
+	// This causes the workers of the initializer and SparkApplication controller to stop.
+	close(stopCh)
+
 	glog.Info("Shutting down the Spark operator")
 	sparkApplicationController.Stop()
 	if *enableInitializer {
 		sparkPodInitializer.Stop()
 	}
-
-	// This causes the workers of the initializer and SparkApplication controller to stop.
-	close(stopCh)
 }
 
 func buildConfig(masterUrl string, kubeConfig string) (*rest.Config, error) {
