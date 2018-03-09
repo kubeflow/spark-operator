@@ -24,6 +24,11 @@ Spark Operator relies on [Initializers](https://kubernetes.io/docs/admin/extensi
 and [garbage collection](https://kubernetes.io/docs/concepts/workloads/controllers/garbage-collection/) support for 
 custom resources which are in Kubernetes 1.8+.
 
+**Due to this [bug](https://github.com/kubernetes/kubernetes/issues/56018) in Kubernetes 1.9 and earlier, CRD objects with
+escaped quotes (e.g., `spark.ui.port\"`) in map keys can cause serialization problems in the API server. So please pay
+extra attention to make sure no offending escaping is in your `SparkAppliction` CRD objects, particularly if you use 
+Kubernetes prior to 1.10.**   
+
 ## Documentation
 
 * [Design](docs/design.md)
