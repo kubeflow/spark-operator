@@ -1,7 +1,6 @@
 # Spark Operator Design
 
-Table of Contents
-=================
+## Table of Contents
 * [Introduction](#introduction)
 * [Architecture](#architecture)
 * [The CRD Controller](#the-crd-controller)
