@@ -22,6 +22,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/golang/glog"
 
@@ -34,6 +35,7 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 
 	crdclientset "k8s.io/spark-on-k8s-operator/pkg/client/clientset/versioned"
+	crdinformers "k8s.io/spark-on-k8s-operator/pkg/client/informers/externalversions"
 	"k8s.io/spark-on-k8s-operator/pkg/controller"
 	"k8s.io/spark-on-k8s-operator/pkg/initializer"
 )
@@ -84,7 +86,15 @@ func main() {
 		glog.Fatal(err)
 	}
 
-	sparkApplicationController := controller.New(crdClient, kubeClient, apiExtensionsClient, *submissionRunnerThreads)
+	factory := crdinformers.NewSharedInformerFactory(
+		crdClient,
+		// resyncPeriod. Every resyncPeriod, all resources in the cache will re-trigger events.
+		300*time.Second)
+	sparkApplicationController := controller.New(crdClient, kubeClient, apiExtensionsClient, factory,
+		*submissionRunnerThreads)
+
+	// Start the informer factory that in turn starts the informer.
+	go factory.Start(stopCh)
 	if err = sparkApplicationController.Start(*controllerThreads, stopCh); err != nil {
 		glog.Fatal(err)
 	}

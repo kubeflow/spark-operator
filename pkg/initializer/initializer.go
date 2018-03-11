@@ -115,7 +115,6 @@ func (ic *SparkPodInitializer) Start(workers int, stopCh <-chan struct{}) error 
 		return err
 	}
 
-	glog.Info("Starting the Pod informer of the Spark Pod initializer")
 	go ic.podInformer.Run(stopCh)
 
 	// Wait for all involved caches to be synced, before processing items from the queue is started

@@ -64,7 +64,7 @@ type SparkApplicationController struct {
 	kubeClient            clientset.Interface
 	extensionsClient      apiextensionsclient.Interface
 	queue                 workqueue.RateLimitingInterface
-	informer              cache.SharedIndexInformer
+	cacheSynced           cache.InformerSynced
 	lister                crdlisters.SparkApplicationLister
 	recorder              record.EventRecorder
 	runner                *sparkSubmitRunner
@@ -78,13 +78,9 @@ func New(
 	crdClient crdclientset.Interface,
 	kubeClient clientset.Interface,
 	extensionsClient apiextensionsclient.Interface,
+	informerFactory crdinformers.SharedInformerFactory,
 	submissionRunnerWorkers int) *SparkApplicationController {
 	crdscheme.AddToScheme(scheme.Scheme)
-
-	informerFactory := crdinformers.NewSharedInformerFactory(
-		crdClient,
-		// resyncPeriod. Every resyncPeriod, all resources in the cache will re-trigger events.
-		300*time.Second)
 
 	eventBroadcaster := record.NewBroadcaster()
 	eventBroadcaster.StartLogging(glog.V(2).Infof)
@@ -126,12 +122,12 @@ func newSparkApplicationController(
 	}
 
 	informer := informerFactory.Sparkoperator().V1alpha1().SparkApplications()
-	controller.informer = informer.Informer()
-	controller.informer.AddEventHandler(cache.ResourceEventHandlerFuncs{
+	informer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc:    controller.onAdd,
 		UpdateFunc: controller.onUpdate,
 		DeleteFunc: controller.onDelete,
 	})
+	controller.cacheSynced = informer.Informer().HasSynced
 	controller.lister = informer.Lister()
 
 	return controller
@@ -147,10 +143,7 @@ func (s *SparkApplicationController) Start(workers int, stopCh <-chan struct{}) 
 		return fmt.Errorf("failed to create CustomResourceDefinition %s: %v", crd.FullName, err)
 	}
 
-	glog.Info("Starting the SparkApplication informer")
-	go s.informer.Run(stopCh)
-
-	if !cache.WaitForCacheSync(stopCh, s.informer.HasSynced) {
+	if !cache.WaitForCacheSync(stopCh, s.cacheSynced) {
 		return fmt.Errorf("timed out waiting for cache to sync")
 	}
 
