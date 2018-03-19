@@ -15,7 +15,7 @@ For a more detailed guide on how to use, compose, and work with `SparkAppliction
 To get the Spark Operator, run the following commands:
 
 ```bash
-$ make -p $GOPATH/src/k8s.io
+$ mkdir -p $GOPATH/src/k8s.io
 $ cd $GOPATH/src/k8s.io
 $ git clone git@github.com:GoogleCloudPlatform/spark-on-k8s-operator.git
 ```
