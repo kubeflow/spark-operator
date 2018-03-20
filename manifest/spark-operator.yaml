@@ -38,7 +38,7 @@ spec:
       serviceAccountName: sparkoperator
       containers:
       - name: sparkoperator
-        image: gcr.io/ynli-k8s/spark-operator:v2.3.0
+        image: gcr.io/spark-operator/spark-operator:v2.3.0-v1alpha1-0.1
         imagePullPolicy: Always
         command: ["/usr/bin/spark-operator"]
         args:
