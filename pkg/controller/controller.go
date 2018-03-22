@@ -381,6 +381,8 @@ func (s *SparkApplicationController) processSingleDriverStateUpdate(
 		return nil
 	}
 
+	s.recordDriverEvent(app, update.podPhase, update.podName)
+
 	// The application state is solely based on the driver pod phase once the application is successfully
 	// submitted and the driver pod is created.
 	appState := driverPodPhaseToApplicationState(update.podPhase)
@@ -490,6 +492,8 @@ func (s *SparkApplicationController) processSingleExecutorStateUpdate(
 	if update.appID != app.Status.AppID {
 		return nil
 	}
+
+	s.recordExecutorEvent(app, update.state, update.podName)
 
 	return s.updateSparkApplicationStatusWithRetries(app, func(status *v1alpha1.SparkApplicationStatus) {
 		if status.ExecutorState == nil {
@@ -657,6 +661,24 @@ func (s *SparkApplicationController) deleteDriverAndUIService(
 	}
 
 	return nil
+}
+
+func (s *SparkApplicationController) recordDriverEvent(
+	app *v1alpha1.SparkApplication, phase apiv1.PodPhase, name string) {
+	if phase == apiv1.PodSucceeded {
+		s.recorder.Eventf(app, apiv1.EventTypeNormal, "SparkDriverCompleted", "Driver %s completed", name)
+	} else if phase == apiv1.PodFailed {
+		s.recorder.Eventf(app, apiv1.EventTypeWarning, "SparkDriverFailed", "Driver %s failed", name)
+	}
+}
+
+func (s *SparkApplicationController) recordExecutorEvent(
+	app *v1alpha1.SparkApplication, state v1alpha1.ExecutorState, name string) {
+	if state == v1alpha1.ExecutorCompletedState {
+		s.recorder.Eventf(app, apiv1.EventTypeNormal, "SparkExecutorCompleted", "Executor %s completed", name)
+	} else if state == v1alpha1.ExecutorFailedState {
+		s.recorder.Eventf(app, apiv1.EventTypeWarning, "SparkExecutorFailed", "Executor %s failed", name)
+	}
 }
 
 // shouldSubmit determines if a given application informed by onAdd should be submitted or not.
