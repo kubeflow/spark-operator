@@ -305,6 +305,13 @@ func TestProcessSingleDriverStateUpdate(t *testing.T) {
 
 		if isAppTerminated(updatedApp.Status.AppState.State) {
 			event := <-recorder.Events
+			if updatedApp.Status.AppState.State == v1alpha1.CompletedState {
+				assert.True(t, strings.Contains(event, "SparkDriverCompleted"))
+			} else if updatedApp.Status.AppState.State == v1alpha1.FailedState {
+				assert.True(t, strings.Contains(event, "SparkDriverFailed"))
+			}
+
+			event = <-recorder.Events
 			assert.True(t, strings.Contains(event, "SparkApplicationTerminated"))
 		}
 	}
@@ -443,7 +450,7 @@ func TestProcessSingleExecutorStateUpdate(t *testing.T) {
 		},
 	}
 
-	ctrl, _ := newFakeController(app)
+	ctrl, recorder := newFakeController(app)
 	_, err := ctrl.crdClient.SparkoperatorV1alpha1().SparkApplications(app.Namespace).Create(app)
 	if err != nil {
 		t.Fatal(err)
@@ -548,6 +555,14 @@ func TestProcessSingleExecutorStateUpdate(t *testing.T) {
 			"wanted executor states %s got %s",
 			test.expectedExecutorStates,
 			updatedApp.Status.ExecutorState)
+
+		if test.update.state == v1alpha1.ExecutorCompletedState {
+			event := <-recorder.Events
+			assert.True(t, strings.Contains(event, "SparkExecutorCompleted"))
+		} else if test.update.state == v1alpha1.ExecutorFailedState {
+			event := <-recorder.Events
+			assert.True(t, strings.Contains(event, "SparkExecutorFailed"))
+		}
 	}
 
 	for _, test := range testcases {
