@@ -16,13 +16,18 @@
 
 Spark Operator is still under active development and has not been extensively tested yet. Use at your own risk. Backward-compatibility is not supported for alpha releases.
 
+Customization of Spark pods, e.g., mounting ConfigMaps and PersistentVolumes is currently experimental and implemented using a Kubernetes
+[Initializer](https://kubernetes.io/docs/admin/extensible-admission-controllers/#initializers), which is a Kubernetes **alpha** feature and 
+requires a Kubernetes cluster with alpha features enabled. The Initializer can be disabled if there's no need for pod customization or
+ if running on an alpha cluster is not desirable. Check out the [Quick Start Guide](docs/quick-start-guide.md#configuration) on how to disable
+ the Initializer.
+
 ## Prerequisites
 
 * Version >= 1.8 of Kubernetes.
 
-Spark Operator relies on [Initializers](https://kubernetes.io/docs/admin/extensible-admission-controllers/#initializers) 
-and [garbage collection](https://kubernetes.io/docs/concepts/workloads/controllers/garbage-collection/) support for 
-custom resources which are in Kubernetes 1.8+.
+Spark Operator relies on [garbage collection](https://kubernetes.io/docs/concepts/workloads/controllers/garbage-collection/) support for 
+custom resources and **optionally** the [Initializers](https://kubernetes.io/docs/admin/extensible-admission-controllers/#initializers) which are in Kubernetes 1.8+.
 
 **Due to this [bug](https://github.com/kubernetes/kubernetes/issues/56018) in Kubernetes 1.9 and earlier, CRD objects with
 escaped quotes (e.g., `spark.ui.port\"`) in map keys can cause serialization problems in the API server. So please pay
