@@ -16,4 +16,4 @@
 
 FROM gcr.io/ynli-k8s/spark:v2.3.0
 COPY spark-operator /usr/bin/
-ENTRYPOINT ["/user/bin/spark-operator"]
+ENTRYPOINT ["/usr/bin/spark-operator"]
