@@ -43,3 +43,4 @@ spec:
         command: ["/usr/bin/spark-operator"]
         args:
         - -logtostderr
+        - -enable-initializer=false

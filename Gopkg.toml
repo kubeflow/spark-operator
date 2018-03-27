@@ -35,6 +35,21 @@
 #  name = "github.com/x/y"
 #  version = "2.4.0"
 
+[[override]]
+  name = "k8s.io/api"
+  version = "kubernetes-1.8.2"
+
+[[override]]
+  name = "k8s.io/apimachinery"
+  version = "kubernetes-1.8.2"
+
+[[override]]
+  name = "k8s.io/client-go"
+  version = "kubernetes-1.8.2"
+
+[[override]]
+  name = "k8s.io/apiextensions-apiserver"
+  version = "kubernetes-1.8.2"
 
 [[constraint]]
   name = "cloud.google.com/go"
@@ -53,22 +68,6 @@
 
 [[constraint]]
   name = "golang.org/x/net"
-
-[[constraint]]
-  name = "k8s.io/api"
-  version = "kubernetes-1.8.2"
-
-[[constraint]]
-  name = "k8s.io/apiextensions-apiserver"
-  version = "kubernetes-1.8.2"
-
-[[constraint]]
-  name = "k8s.io/apimachinery"
-  version = "kubernetes-1.8.2"
-
-[[constraint]]
-  name = "k8s.io/client-go"
-  version = "kubernetes-1.8.2"
 
 [[constraint]]
   branch = "master"
