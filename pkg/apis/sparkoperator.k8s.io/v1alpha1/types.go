@@ -59,6 +59,74 @@ const (
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // +k8s:defaulter-gen=true
 
+type ScheduledSparkApplication struct {
+	metav1.TypeMeta   `json:",inline"`
+	metav1.ObjectMeta `json:"metadata"`
+	Spec              ScheduledSparkApplicationSpec   `json:"spec"`
+	Status            ScheduledSparkApplicationStatus `json:"status,omitempty"`
+}
+
+type ConcurrencyPolicy string
+
+const (
+	// ConcurrencyAllow allows SparkApplications to run concurrently.
+	ConcurrencyAllow ConcurrencyPolicy = "Allow"
+	// ConcurrencyForbid forbids concurrent runs of SparkApplications, skipping the next run if the previous
+	// one hasn't finished yet.
+	ConcurrencyForbid ConcurrencyPolicy = "Forbid"
+	// ConcurrencyReplace kills the currently running SparkApplication instance and replaces it with a new one.
+	ConcurrencyReplace ConcurrencyPolicy = "Replace"
+)
+
+type ScheduledSparkApplicationSpec struct {
+	// Schedule is a cron schedule on which the application should run.
+	Schedule string `json:"schedule"`
+	// Template is a template from which SparkApplication instances can be created.
+	Template SparkApplicationSpec `json:"template"`
+	// Suspend is a flag telling the controller to suspend subsequent runs of the application if set to true.
+	Suspend *bool `json:"suspend,omitempty"`
+	// ConcurrencyPolicy is the policy governing concurrent SparkApplication runs.
+	ConcurrencyPolicy ConcurrencyPolicy `json:"concurrencyPolicy,omitempty"`
+	// RunHistoryLimit specifies the number of past runs of the application to remember.
+	RunHistoryLimit *int32 `json:"runHistoryLimit,omitempty"`
+}
+
+type ScheduleState string
+
+const (
+	FailedValidationState ScheduleState = "FailedValidation"
+	ScheduledState        ScheduleState = "Scheduled"
+)
+
+type ScheduledSparkApplicationStatus struct {
+	// LastRun is the time when the last run of the application started.
+	LastRun metav1.Time `json:"lastRun,omitempty"`
+	// NextRun is the time when the next run of the application will start.
+	NextRun metav1.Time `json:"nextRun,omitempty"`
+	// PastRunNames keeps the names of SparkApplications for past runs.
+	// It keeps up to Spec.RunHistoryLimit number of past SparkApplication names,
+	// in reverse order of time when the SparkApplications get created.
+	PastRunNames []string `json:"pastRunNames,omitempty"`
+	// ScheduleState is the current scheduling state of the application.
+	ScheduleState ScheduleState `json:"scheduleState,omitempty"`
+	// Reason tells why the ScheduledSparkApplication is in the particular ScheduleState.
+	Reason string `json:"reason,omitempty"`
+}
+
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+// ScheduledSparkApplicationList carries a list of ScheduledSparkApplication objects.
+type ScheduledSparkApplicationList struct {
+	metav1.TypeMeta `json:",inline"`
+	metav1.ListMeta `json:"metadata,omitempty"`
+	Items           []ScheduledSparkApplication `json:"items,omitempty"`
+}
+
+// +genclient
+// +genclient:noStatus
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+// +k8s:defaulter-gen=true
+
 // SparkApplication represents a Spark application running on and using Kubernetes as a cluster manager.
 type SparkApplication struct {
 	metav1.TypeMeta   `json:",inline"`

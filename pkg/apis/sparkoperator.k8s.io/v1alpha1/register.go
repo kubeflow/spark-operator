@@ -45,6 +45,8 @@ func addKnownTypes(scheme *runtime.Scheme) error {
 	scheme.AddKnownTypes(SchemeGroupVersion,
 		&SparkApplication{},
 		&SparkApplicationList{},
+		&ScheduledSparkApplication{},
+		&ScheduledSparkApplicationList{},
 	)
 	metav1.AddToGroupVersion(scheme, SchemeGroupVersion)
 	return nil

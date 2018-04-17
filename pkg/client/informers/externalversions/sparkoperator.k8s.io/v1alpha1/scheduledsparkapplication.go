@@ -31,59 +31,59 @@ import (
 	v1alpha1 "k8s.io/spark-on-k8s-operator/pkg/client/listers/sparkoperator.k8s.io/v1alpha1"
 )
 
-// SparkApplicationInformer provides access to a shared informer and lister for
-// SparkApplications.
-type SparkApplicationInformer interface {
+// ScheduledSparkApplicationInformer provides access to a shared informer and lister for
+// ScheduledSparkApplications.
+type ScheduledSparkApplicationInformer interface {
 	Informer() cache.SharedIndexInformer
-	Lister() v1alpha1.SparkApplicationLister
+	Lister() v1alpha1.ScheduledSparkApplicationLister
 }
 
-type sparkApplicationInformer struct {
+type scheduledSparkApplicationInformer struct {
 	factory          internalinterfaces.SharedInformerFactory
 	tweakListOptions internalinterfaces.TweakListOptionsFunc
 	namespace        string
 }
 
-// NewSparkApplicationInformer constructs a new informer for SparkApplication type.
+// NewScheduledSparkApplicationInformer constructs a new informer for ScheduledSparkApplication type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
-func NewSparkApplicationInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
-	return NewFilteredSparkApplicationInformer(client, namespace, resyncPeriod, indexers, nil)
+func NewScheduledSparkApplicationInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
+	return NewFilteredScheduledSparkApplicationInformer(client, namespace, resyncPeriod, indexers, nil)
 }
 
-// NewFilteredSparkApplicationInformer constructs a new informer for SparkApplication type.
+// NewFilteredScheduledSparkApplicationInformer constructs a new informer for ScheduledSparkApplication type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
-func NewFilteredSparkApplicationInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
+func NewFilteredScheduledSparkApplicationInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
 	return cache.NewSharedIndexInformer(
 		&cache.ListWatch{
 			ListFunc: func(options v1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.SparkoperatorV1alpha1().SparkApplications(namespace).List(options)
+				return client.SparkoperatorV1alpha1().ScheduledSparkApplications(namespace).List(options)
 			},
 			WatchFunc: func(options v1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.SparkoperatorV1alpha1().SparkApplications(namespace).Watch(options)
+				return client.SparkoperatorV1alpha1().ScheduledSparkApplications(namespace).Watch(options)
 			},
 		},
-		&sparkoperator_k8s_io_v1alpha1.SparkApplication{},
+		&sparkoperator_k8s_io_v1alpha1.ScheduledSparkApplication{},
 		resyncPeriod,
 		indexers,
 	)
 }
 
-func (f *sparkApplicationInformer) defaultInformer(client versioned.Interface, resyncPeriod time.Duration) cache.SharedIndexInformer {
-	return NewFilteredSparkApplicationInformer(client, f.namespace, resyncPeriod, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, f.tweakListOptions)
+func (f *scheduledSparkApplicationInformer) defaultInformer(client versioned.Interface, resyncPeriod time.Duration) cache.SharedIndexInformer {
+	return NewFilteredScheduledSparkApplicationInformer(client, f.namespace, resyncPeriod, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, f.tweakListOptions)
 }
 
-func (f *sparkApplicationInformer) Informer() cache.SharedIndexInformer {
-	return f.factory.InformerFor(&sparkoperator_k8s_io_v1alpha1.SparkApplication{}, f.defaultInformer)
+func (f *scheduledSparkApplicationInformer) Informer() cache.SharedIndexInformer {
+	return f.factory.InformerFor(&sparkoperator_k8s_io_v1alpha1.ScheduledSparkApplication{}, f.defaultInformer)
 }
 
-func (f *sparkApplicationInformer) Lister() v1alpha1.SparkApplicationLister {
-	return v1alpha1.NewSparkApplicationLister(f.Informer().GetIndexer())
+func (f *scheduledSparkApplicationInformer) Lister() v1alpha1.ScheduledSparkApplicationLister {
+	return v1alpha1.NewScheduledSparkApplicationLister(f.Informer().GetIndexer())
 }

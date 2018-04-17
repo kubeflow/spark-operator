@@ -29,6 +29,7 @@ import (
 	apiextensionsclient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/clock"
 	clientset "k8s.io/client-go/kubernetes"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	"k8s.io/client-go/rest"
@@ -36,7 +37,10 @@ import (
 
 	crdclientset "k8s.io/spark-on-k8s-operator/pkg/client/clientset/versioned"
 	crdinformers "k8s.io/spark-on-k8s-operator/pkg/client/informers/externalversions"
-	"k8s.io/spark-on-k8s-operator/pkg/controller"
+	"k8s.io/spark-on-k8s-operator/pkg/controller/scheduledsparkapplication"
+	"k8s.io/spark-on-k8s-operator/pkg/controller/sparkapplication"
+	ssacrd "k8s.io/spark-on-k8s-operator/pkg/crd/scheduledsparkapplication"
+	sacrd "k8s.io/spark-on-k8s-operator/pkg/crd/sparkapplication"
 	"k8s.io/spark-on-k8s-operator/pkg/initializer"
 )
 
@@ -47,12 +51,14 @@ var (
 		"out-of-cluster.")
 	enableInitializer = flag.Bool("enable-initializer", true, "Whether to enable the "+
 		"Spark pod initializer.")
+	installCRDs        = flag.Bool("install-crds", true, "Whether to install CRDs")
 	initializerThreads = flag.Int("initializer-threads", 10, "Number of worker threads "+
 		"used by the Spark Pod initializer (if it's enabled).")
 	controllerThreads = flag.Int("controller-threads", 10, "Number of worker threads "+
 		"used by the SparkApplication controller.")
 	submissionRunnerThreads = flag.Int("submission-threads", 3, "Number of worker threads "+
 		"used by the SparkApplication submission runner.")
+	resyncInterval = flag.Int("resync-interval", 30, "Informer resync interval in seconds")
 )
 
 func main() {
@@ -86,16 +92,35 @@ func main() {
 		glog.Fatal(err)
 	}
 
+	if *installCRDs {
+		glog.Infof("Creating CustomResourceDefinition %s", sacrd.FullName)
+		err = sacrd.CreateCRD(apiExtensionsClient)
+		if err != nil {
+			glog.Fatalf("failed to create CustomResourceDefinition %s: %v", sacrd.FullName, err)
+		}
+
+		glog.Infof("Creating CustomResourceDefinition %s", ssacrd.FullName)
+		err = ssacrd.CreateCRD(apiExtensionsClient)
+		if err != nil {
+			glog.Fatalf("failed to create CustomResourceDefinition %s: %v", ssacrd.FullName, err)
+		}
+	}
+
 	factory := crdinformers.NewSharedInformerFactory(
 		crdClient,
 		// resyncPeriod. Every resyncPeriod, all resources in the cache will re-trigger events.
-		300*time.Second)
-	sparkApplicationController := controller.New(crdClient, kubeClient, apiExtensionsClient, factory,
-		*submissionRunnerThreads)
+		time.Duration(*resyncInterval)*time.Second)
+	applicationController := sparkapplication.NewController(
+		crdClient, kubeClient, apiExtensionsClient, factory, *submissionRunnerThreads)
+	scheduledApplicationController := scheduledsparkapplication.NewController(
+		crdClient, kubeClient, apiExtensionsClient, factory, clock.RealClock{})
 
 	// Start the informer factory that in turn starts the informer.
 	go factory.Start(stopCh)
-	if err = sparkApplicationController.Start(*controllerThreads, stopCh); err != nil {
+	if err = applicationController.Start(*controllerThreads, stopCh); err != nil {
+		glog.Fatal(err)
+	}
+	if err = scheduledApplicationController.Start(*controllerThreads, stopCh); err != nil {
 		glog.Fatal(err)
 	}
 
@@ -115,7 +140,8 @@ func main() {
 	close(stopCh)
 
 	glog.Info("Shutting down the Spark operator")
-	sparkApplicationController.Stop()
+	applicationController.Stop()
+	scheduledApplicationController.Stop()
 	if *enableInitializer {
 		sparkPodInitializer.Stop()
 	}
