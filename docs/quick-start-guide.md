@@ -4,62 +4,14 @@ For a more detailed guide on how to use, compose, and work with `SparkAppliction
 [User Guide](user-guide.md).
 
 ## Table of Contents
-1. [Build and Installation](#build-and-installation)
+1. [Installation](#installation)
 2. [Configuration](#configuration)
 3. [Upgrade](#upgrade)
 4. [Running the Examples](#running-the-examples)
 5. [Using the Initializer](#using-the-initializer)
+6. [Build](#build)
 
-## Build and Installation
-
-To get the Spark Operator, run the following commands:
-
-```bash
-$ mkdir -p $GOPATH/src/k8s.io
-$ cd $GOPATH/src/k8s.io
-$ git clone git@github.com:GoogleCloudPlatform/spark-on-k8s-operator.git
-```
-
-The Spark Operator uses [dep](https://golang.github.io/dep/) for dependency management. Please install `dep` following 
-the instruction on the website if you don't have it available locally. To install the dependencies, run the following 
-command:
-
-```bash
-$ dep ensure
-```  
-
-To update the dependencies, run the following command:
-
-```bash
-$ dep ensure -update
-```
-
-Before building the Spark Operator the first time, run the following commands to get the required Kubernetes code 
-generators:
-
-```bash
-$ go get -u k8s.io/code-generator/cmd/deepcopy-gen
-$ go get -u k8s.io/code-generator/cmd/defaulter-gen
-```
-
-To build the Spark Operator, run the following command:
-
-```bash
-$ make build
-```
-
-To build a Docker image of the Spark Operator, run the following command:
-
-```bash
-$ make image-tag=<image tag> image
-```
-
-To push the Docker image to Docker Hub, run the following command:
-console
-
-```bash
-$ make image-tag=<image tag> push
-```
+## Installation
 
 To install the Spark Operator on a Kubernetes cluster, run the following command:
 
@@ -212,3 +164,69 @@ Currently the following annotations are supported:
 |`sparkoperator.k8s.io/hadoopConfigMap`|Name of the Kubernetes ConfigMap storing Hadoop configuration files (to which `HADOOP_CONF_DIR` applies)|
 |`sparkoperator.k8s.io/configMap.[ConfigMapName]`|Mount path of the ConfigMap named `ConfigMapName`|
 |`sparkoperator.k8s.io/GCPServiceAccount.[SeviceAccountSecretName]`|Mount path of the secret storing GCP service account credentials (typically a JSON key file) named `SeviceAccountSecretName`|
+
+## Build
+
+In case you want to build the Spark Operator from the source code, e.g., to test a fix or a feature you write, you can do so following the instructions below.
+
+To get the Spark Operator, run the following commands:
+
+```bash
+$ mkdir -p $GOPATH/src/k8s.io
+$ cd $GOPATH/src/k8s.io
+$ git clone git@github.com:GoogleCloudPlatform/spark-on-k8s-operator.git
+```
+
+The Spark Operator uses [dep](https://golang.github.io/dep/) for dependency management. Please install `dep` following 
+the instruction on the website if you don't have it available locally. To install the dependencies, run the following 
+command:
+
+```bash
+$ dep ensure
+```  
+
+To update the dependencies, run the following command:
+
+```bash
+$ dep ensure -update
+```
+
+Before building the Spark Operator the first time, run the following commands to get the required Kubernetes code 
+generators:
+
+```bash
+$ go get -u k8s.io/code-generator/cmd/client-gen
+$ go get -u k8s.io/code-generator/cmd/deepcopy-gen
+$ go get -u k8s.io/code-generator/cmd/defaulter-gen
+```
+
+To update the auto-generated code, run the followin command:
+
+```bash
+$ hack/update-codegen.sh
+```
+
+To verify auto-generated code, run the following command:
+
+```bash
+$ hack/verify-codegen.sh
+```
+
+To build the Spark Operator, run the following command:
+
+```bash
+$ make build
+```
+
+To build a Docker image of the Spark Operator, run the following command:
+
+```bash
+$ make image-tag=<image tag> image
+```
+
+To push the Docker image to Docker Hub, run the following command:
+console
+
+```bash
+$ make image-tag=<image tag> push
+```
