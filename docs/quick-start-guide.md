@@ -96,6 +96,14 @@ The number of worker threads to use in the three places are controlled using com
 `-initializer-threads` and `-submission-threads`, respectively. The default values for the flags are 10, 10, and 3, 
 respectively.
 
+Spark Operator enables cache resynchronization so periodically the informers used by the operator will re-list existing
+objects it manages and re-trigger resource events. The resynchronization interval in seconds can be configured using the 
+flag `-resync-interval`, with a default value of 30 seconds. 
+
+By default, Spark Operator will install the 
+[CustomResourceDefinitions](https://kubernetes.io/docs/tasks/access-kubernetes-api/extend-api-custom-resource-definitions/) 
+for the custom resources it managers. This can be disabled by setting the flag `-install-crds=false.`.  
+
 The initializer is an **optional** component and can be enabled or disabled using the `-enable-initializer` flag, which 
 defaults to `true`. Since the initializer is an alpha feature, it won't function in Kubernetes clusters without alpha
 features enabled. In this case, it can be disabled by adding the argument `-enable-initializer=false` to 

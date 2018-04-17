@@ -55,21 +55,29 @@
   name = "golang.org/x/net"
 
 [[constraint]]
+  branch = "release-1.9"
   name = "k8s.io/api"
-  version = "kubernetes-1.8.2"
 
 [[constraint]]
+  branch = "release-1.9"
   name = "k8s.io/apiextensions-apiserver"
-  version = "kubernetes-1.8.2"
 
 [[constraint]]
+  branch = "release-1.9"
   name = "k8s.io/apimachinery"
-  version = "kubernetes-1.8.2"
 
 [[constraint]]
+  branch = "release-6.0"
   name = "k8s.io/client-go"
-  version = "kubernetes-1.8.2"
+
+[[override]]
+  name = "github.com/Azure/go-autorest"
+  version = "v9.1.0"
 
 [[constraint]]
   branch = "master"
   name = "github.com/olekukonko/tablewriter"
+
+[[constraint]]
+  name = "github.com/robfig/cron"
+  revision = "df38d32658d8788cd446ba74db4bb5375c4b0cb3"

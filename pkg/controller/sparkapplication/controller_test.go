@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package controller
+package sparkapplication
 
 import (
 	"os"
@@ -37,7 +37,7 @@ import (
 	crdinformers "k8s.io/spark-on-k8s-operator/pkg/client/informers/externalversions"
 )
 
-func newFakeController(apps ...*v1alpha1.SparkApplication) (*SparkApplicationController, *record.FakeRecorder) {
+func newFakeController(apps ...*v1alpha1.SparkApplication) (*Controller, *record.FakeRecorder) {
 	crdclientfake.AddToScheme(scheme.Scheme)
 	crdClient := crdclientfake.NewSimpleClientset()
 	kubeClient := kubeclientfake.NewSimpleClientset()
