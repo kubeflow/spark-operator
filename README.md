@@ -15,7 +15,7 @@
 
 **Project status:** *alpha* 
 
-Spark Operator is still under active development and has not been extensively tested yet. Use at your own risk. Backward-compatibility is not supported for alpha releases.
+Spark Operator is still under active development and has not been extensively tested in production environment yet. Backward compatibility of the APIs is not guaranteed for alpha releases.
 
 Customization of Spark pods, e.g., mounting ConfigMaps and PersistentVolumes is currently experimental and implemented using a Kubernetes
 [Initializer](https://kubernetes.io/docs/admin/extensible-admission-controllers/#initializers), which is a Kubernetes **alpha** feature and 
