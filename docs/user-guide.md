@@ -2,9 +2,9 @@
 
 For a quick introduction on how to build and install the Spark Operator, and how to run some example applications,
 please refer to the [Quick Start Guide](quick-start-guide.md). For a complete reference of the API definition of the 
-`SparkApplication` custom resources, please refer to the [API Specification](api.md). The Spark Operator ships with a 
-command-line tool called `sparkctl` that offers additional features beyond what `kubectl` is able to do. Documentation
-on `sparkctl` can be found in [README](../sparkctl/README.md). 
+`SparkApplication` and `ScheduledSparkApplication` custom resources, please refer to the [API Specification](api.md). 
+The Spark Operator ships with a command-line tool called `sparkctl` that offers additional features beyond what `kubectl` 
+is able to do. Documentation on `sparkctl` can be found in [README](../sparkctl/README.md). 
 
 ## Table of Contents
 * [Using a SparkApplication](#using-a-sparkapplication)
@@ -26,9 +26,10 @@ on `sparkctl` can be found in [README](../sparkctl/README.md).
     * [Checking a SparkApplication](#checking-a-sparkapplication)
     * [Configuring Automatic Application Restart](#configuring-automatic-application-restart)
     * [Configuring Automatic Application Re-submission on Submission Failures](#configuring-automatic-application-re-submission-on-submission-failures)
+* [Running Spark Applications on a Schedule using a ScheduledSparkApplication](#running-spark-applications-on-a-schedule-using-a-scheduledsparkapplication)
 
 ## Using a SparkApplication
-
+The Spark Operator runs Spark applications specified in Kubernetes objects of the `SparkApplication` custom resource type.
 The most common way of using a `SparkApplication` is store the `SparkApplication` specification in a YAML file and use
 the `kubectl` command or alternatively the `sparkctl` command to work with the `SparkApplication`. The Spark Operator
 automatically submits the application as configured in a `SparkApplication` to run on the Kubernetes cluster and uses
@@ -64,7 +65,7 @@ metadata:
 spec:
   type: Scala
   mode: cluster
-  image: gcr.io/spark/spark:v2.3.0"
+  image: gcr.io/spark/spark:v2.3.0
   mainClass: org.apache.spark.examples.SparkPi
   mainApplicationFile: local:///opt/spark/examples/jars/spark-examples_2.11-2.3.0.jar
 ```
@@ -350,3 +351,63 @@ application, it determines if the application is subject to a submission retry b
 maximum submission retries has not been reached, the Spark Operator retries submitting the application using a linear
 backoff with the interval specified by `.spec.submissionRetryInterval`. If `.spec.submissionRetryInterval` is not set,
 the Spark Operator retries submitting the application immediately.
+
+## Running Spark Applications on a Schedule using a ScheduledSparkApplication 
+
+The Spark Operator supports running a Spark application on a standard [cron](https://en.wikipedia.org/wiki/Cron) 
+schedule using objects of the `ScheduledSparkApplication` custom resource type. A `ScheduledSparkApplication` object 
+specifies a cron schedule on which the application should run and a `SparkApplication` template from which 
+a `SparkApplication` object for each run of the application is created. The following is an example 
+`ScheduledSparkApplication`:
+
+```yaml
+apiVersion: "sparkoperator.k8s.io/v1alpha1"
+kind: ScheduledSparkApplication
+metadata:
+  name: spark-pi-scheduled
+  namespace: default
+spec:
+  schedule: "@every 5m"
+  concurrencyPolicy: Allow
+  runHistoryLimit: 3
+  template:
+    type: Scala
+    mode: cluster
+    image: gcr.io/spark/spark:v2.3.0
+    mainClass: org.apache.spark.examples.SparkPi
+    mainApplicationFile: local:///opt/spark/examples/jars/spark-examples_2.11-2.3.0.jar
+    driver:
+      cores: 0.5
+      memory: 512m
+    executor:
+      cores: 1
+      instances: 1
+      memory: 512m
+    restartPolicy: Never
+```
+
+The concurrency of runs of an application is controlled by `.spec.concurrencyPolicy`, whose valid values are `Allow`, 
+`Forbid`, and `Replace`, with `Allow` being the default. The meanings of each value is described below:
+* `Allow`: more than one run of an application are allowed if for example the next run of the application is due even 
+though the previous run has not completed yet.
+* `Forbid`: no more than one run of an application is allowed. The next run of the application can only start if the 
+previous run has completed.
+* `Replace`: no more than one run of an application is allowed. When the next run of the application is due, the previous 
+run is killed and the next run starts as a replacement.
+
+A scheduled `ScheduledSparkApplication` can be temporarily suspended (no future scheduled runs of the application will
+be triggered) by setting `.spec.suspend` to `true`. The schedule can be resumed by removing `.spec.suspend` or setting
+it to `false`. A `ScheduledSparkApplication` can have names of `SparkApplication` objects for the past runs of the 
+application tracked in the `Status` section as discussed below. The number of past runs to keep track of is controlled 
+by the field `.spec.runHistoryLimit`. The example above allows 3 past runs to be tracked.
+
+The `Status` section of a `ScheduledSparkApplication` object shows the time of the last run and the proposed time of the 
+next run of the application, through `.status.lastRun` and `.status.nextRun`, respectively. The names of `SparkApplication`
+objects for the past runs of the application are stored in `.status.pastRunNames`.
+
+Note that certain restart policies (specified in `.spec.template.restartPolicy`) may not work well with the specified 
+schedule and concurrency policy of a `ScheduledSparkApplication`. For example, a restart policy of `Always` should never
+be used with a `ScheduledSparkApplication`. In most cases, a restart policy of `OnFailure` may not be a good choice as 
+the next run usually picks up where the previous run left anyway. For these reasons, it's often the right choice to use
+a restart policy of `Never` as the example above shows. 
+ 
