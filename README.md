@@ -9,6 +9,7 @@
 3. [Documentation](#documentation)
 4. [Overview](#overview)
 5. [Features](#features)
+6. [Motivations](#motivations)
 
 ## Project Status
 
@@ -52,7 +53,7 @@ of the API definition of the `SparkApplication` CRD, please refer to [API Defini
 please refer to the [design doc](docs/design.md). It requires Spark 2.3 and above that supports Kubernetes as a native scheduler 
 backend. Below are some example things that the Spark Operator is able to automate (some are to be implemented):
 * Submitting applications on behalf of users so they don't need to deal with the submission process and the `spark-submit` command.
-* Mounting user-specified ConfigMaps into the driver and executor Pods.
+* Mounting user-specified ConfigMaps and volumes into the driver and executor Pods.
 * Mounting ConfigMaps carrying Spark or Hadoop configuration files that are to be put into a directory referred to by the 
 environment variable `SPARK_CONF_DIR` or `HADOOP_CONF_DIR` into the driver and executor Pods. Example use cases include 
 shipping a `log4j.properties` file for configuring logging and a `core-site.xml` file for configuring Hadoop and/or HDFS 
@@ -63,7 +64,33 @@ cluster, without needing to use API server proxy or port forwarding.
 To make such automation possible, Spark Operator uses the `SparkApplication` CRD and a corresponding CRD controller as well as an 
 [initializer](https://kubernetes.io/docs/admin/extensible-admission-controllers/#initializers). The CRD controller setups the 
 environment for an application and submits the application to run on behalf of the user, whereas the initializer handles customization 
-of the Spark Pods.
+of the Spark Pods. It also supports running Spark applications on standard [cron](https://en.wikipedia.org/wiki/Cron) schedules using 
+the `ScheduledSparkApplication` CRD and teh corresponding CRD controller.
+
+## Features
+
+Spark Operator currently supports the following list of features:
+
+* Supports Spark 2.3 and up.
+* Supports automatic application submission on behalf of users for each new `SparkAppliation` object observed.
+* Supports running an application on a standard [cron](https://en.wikipedia.org/wiki/Cron) schedule.
+* Supports automatic application re-submission for updated `SparkAppliation` objects with updated specification.
+* Supports automatic application restart with a configurable restart policy.
+* Supports automatic retries of failed submissions with optional linear back-off.
+* Supports mounting user-specified ConfigMaps and volumes (not supported by Spark itself).
+* Supports mounting local Hadoop configuration as a Kubernetes ConfigMap automatically via `sparkctl`.
+* Supports automatically staging local application dependencies to Google Cloud Storage (GCS) via `sparkctl`.
+
+The following list of features is planned:
+
+* Supports automatically staging local application dependencies to HTTP servers and S3.
+* Supports exporting Kubernetes events to Stackdriver.
+* Supports automatic scale up and down when the number of executor instances changes.
+* Supports automatically copying application logs to a central place, e.g., a GCS bucket, for bookkeeping, post-run checking, and analysis.
+* Supports automatically creating namespaces and setting up RBAC roles and quotas, and running users' applications in separate 
+namespaces for better resource isolation and quota management. 
+
+## Motivations
 
 This approach is completely different than the one that has the submission client creates a CRD object. Having externally 
 created and managed CRD objects offer the following benefits:
@@ -80,25 +107,3 @@ need additional command-line options to get passed in.
 
 Additionally, keeping the CRD implementation outside the Spark repository gives us a lot of flexibility in terms of 
 functionality to add to the CRD controller. We also have full control over code review and release process.
-
-## Features
-
-Spark Operator currently supports the following list of features:
-
-* Supports Spark 2.3 and up.
-* Supports automatic application submission for newly added `SparkApplication` objects.
-* Supports automatic application re-submission for updated `SparkAppliation` objects with updated specification.
-* Supports automatic application restart with a configurable restart policy.
-* Supports automatic retries of failed submissions with optional linear back-off.
-* Supports mounting user-specified ConfigMaps and volumes (not supported by Spark itself).
-* Supports mounting local Hadoop configuration as a Kubernetes ConfigMap automatically via `sparkctl`.
-* Supports automatically staging local application dependencies to Google Cloud Storage (GCS) via `sparkctl`.
-
-The following list of features is planned:
-
-* Supports automatically staging local application dependencies to HTTP servers and S3.
-* Supports exporting Kubernetes events to Stackdriver.
-* Supports automatic scale up and down when the number of executor instances changes.
-* Supports automatically copying application logs to a central place, e.g., a GCS bucket, for bookkeeping, post-run checking, and analysis.
-* Supports automatically creating namespaces and setting up RBAC roles and quotas, and running users' applications in separate 
-namespaces for better resource isolation and quota management. 
