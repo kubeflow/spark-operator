@@ -39,6 +39,7 @@ import (
 	crdinformers "k8s.io/spark-on-k8s-operator/pkg/client/informers/externalversions"
 	"k8s.io/spark-on-k8s-operator/pkg/controller/scheduledsparkapplication"
 	"k8s.io/spark-on-k8s-operator/pkg/controller/sparkapplication"
+	"k8s.io/spark-on-k8s-operator/pkg/crd"
 	ssacrd "k8s.io/spark-on-k8s-operator/pkg/crd/scheduledsparkapplication"
 	sacrd "k8s.io/spark-on-k8s-operator/pkg/crd/sparkapplication"
 	"k8s.io/spark-on-k8s-operator/pkg/initializer"
@@ -93,16 +94,14 @@ func main() {
 	}
 
 	if *installCRDs {
-		glog.Infof("Creating CustomResourceDefinition %s", sacrd.FullName)
-		err = sacrd.CreateCRD(apiExtensionsClient)
+		err = crd.CreateOrUpdateCRD(apiExtensionsClient, sacrd.GetCRD())
 		if err != nil {
-			glog.Fatalf("failed to create CustomResourceDefinition %s: %v", sacrd.FullName, err)
+			glog.Fatalf("failed to create or update CustomResourceDefinition %s: %v", sacrd.FullName, err)
 		}
 
-		glog.Infof("Creating CustomResourceDefinition %s", ssacrd.FullName)
-		err = ssacrd.CreateCRD(apiExtensionsClient)
+		err = crd.CreateOrUpdateCRD(apiExtensionsClient, ssacrd.GetCRD())
 		if err != nil {
-			glog.Fatalf("failed to create CustomResourceDefinition %s: %v", ssacrd.FullName, err)
+			glog.Fatalf("failed to create or update CustomResourceDefinition %s: %v", ssacrd.FullName, err)
 		}
 	}
 
