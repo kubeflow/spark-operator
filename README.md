@@ -65,7 +65,7 @@ To make such automation possible, Spark Operator uses the `SparkApplication` CRD
 [initializer](https://kubernetes.io/docs/admin/extensible-admission-controllers/#initializers). The CRD controller setups the 
 environment for an application and submits the application to run on behalf of the user, whereas the initializer handles customization 
 of the Spark Pods. It also supports running Spark applications on standard [cron](https://en.wikipedia.org/wiki/Cron) schedules using 
-the `ScheduledSparkApplication` CRD and teh corresponding CRD controller.
+the `ScheduledSparkApplication` CRD and the corresponding CRD controller.
 
 ## Features
 
