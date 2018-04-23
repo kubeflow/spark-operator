@@ -16,6 +16,7 @@ language: go
 
 go:
   - 1.9.x
+  - 1.10.x
 
 env:
   - DEP_VERSION="0.4.1"
