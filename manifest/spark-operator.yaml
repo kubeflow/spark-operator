@@ -20,18 +20,21 @@ metadata:
   name: sparkoperator
   namespace: sparkoperator
   labels:
-    app: sparkoperator
+    app.kubernetes.io/name: sparkoperator
+    app.kubernetes.io/version: v2.3.0-v1alpha1
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: sparkoperator
+      app.kubernetes.io/name: sparkoperator
+      app.kubernetes.io/version: v2.3.0-v1alpha1
   strategy:
     type: Recreate
   template:
     metadata:
       labels:
-        app: sparkoperator
+        app.kubernetes.io/name: sparkoperator
+        app.kubernetes.io/version: v2.3.0-v1alpha1
       initializers:
         pending: []  
     spec:
@@ -43,3 +46,4 @@ spec:
         command: ["/usr/bin/spark-operator"]
         args:
         - -logtostderr
+        - -enable-initializer=false
