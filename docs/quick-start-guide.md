@@ -22,6 +22,10 @@ $ kubectl apply -f manifest/
 This will create a namespace `sparkoperator`, setup RBAC for the Spark Operator to run in the namespace, and create a 
 Deployment named `sparkoperator` in the namespace.
 
+The [initializer](design.md#spark-pod-initializer) is disabled by default using the Spark Operator manifest at
+`manifest/spark-operator.yaml`. It can be enabled by removing the flag `-enable-initializer=false` or setting it to
+`true`, and running `kubectl apply -f manifest/spark-operator.yaml`.
+
 Due to a [known issue](https://cloud.google.com/kubernetes-engine/docs/how-to/role-based-access-control#defining_permissions_in_a_role) 
 in GKE, you will need to first grant yourself cluster-admin privileges before you can create custom roles and role 
 bindings on a GKE cluster versioned 1.6 and up.
