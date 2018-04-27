@@ -18,6 +18,7 @@ package cmd
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"strings"
 
@@ -31,6 +32,7 @@ import (
 )
 
 var ExecutorId int32
+var Follow bool
 
 var logCommand = &cobra.Command{
 	Use:   "log <name>",
@@ -63,6 +65,7 @@ var logCommand = &cobra.Command{
 func init() {
 	logCommand.Flags().Int32VarP(&ExecutorId, "executor", "e", -1,
 		"id of the executor to fetch logs for")
+	logCommand.Flags().BoolVarP(&Follow, "follow", "f", false, "whether to stream the logs")
 }
 
 func doLog(name string, kubeClientset clientset.Interface, crdClientset crdclientset.Interface) error {
@@ -83,11 +86,40 @@ func doLog(name string, kubeClientset clientset.Interface, crdClientset crdclien
 		return fmt.Errorf("unable to fetch logs as the name of the target pod is empty")
 	}
 
+	out := os.Stdout
+	if Follow {
+		if err := streamLogs(out, kubeClientset, podName); err != nil {
+			return err
+		}
+	} else {
+		if err := printLogs(out, kubeClientset, podName); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// printLogs is a one time operation that prints the fetched logs of the given pod.
+func printLogs(out io.Writer, kubeClientset clientset.Interface, podName string) error {
 	rawLogs, err := kubeClientset.CoreV1().Pods(Namespace).GetLogs(podName, &apiv1.PodLogOptions{}).Do().Raw()
 	if err != nil {
 		return err
 	}
-	fmt.Println(string(rawLogs))
+	fmt.Fprintln(out, string(rawLogs))
+	return nil
+}
 
+// streamLogs streams the logs of the given pod until there are no more logs available.
+func streamLogs(out io.Writer, kubeClientset clientset.Interface, podName string) error {
+	request := kubeClientset.CoreV1().Pods(Namespace).GetLogs(podName, &apiv1.PodLogOptions{Follow: true})
+	reader, err := request.Stream()
+	if err != nil {
+		return err
+	}
+	defer reader.Close()
+	if _, err := io.Copy(out, reader); err != nil {
+		return err
+	}
 	return nil
 }
