@@ -105,11 +105,15 @@ $ sparkctl status <SparkApplication name>
 
 `log` is a sub command of `sparkctl` for fetching the logs of a pod of `SparkApplication` with the given name in the 
 namespace specified by `--namespace`. The command by default fetches the logs of the driver pod. To make it fetch logs
-of an executor pod instead, use the flag `--executor` to specify the ID of the executor whose logs should be fetched.
+of an executor pod instead, use the flag `--executor` or `-e` to specify the ID of the executor whose logs should be 
+fetched.
+
+The `log` command also supports streaming the driver or executor logs with the `--follow` or `-f` flag. It works in the 
+same way as `kubectl logs -f`, i.e., it streams logs until no more logs are available.
 
 Usage:
 ```bash
-$ sparkctl log <SparkApplication name> [--executor <executor ID, e.g., 1>]
+$ sparkctl log <SparkApplication name> [-e <executor ID, e.g., 1>] [-f]
 ```
 
 ### Delete
