@@ -76,9 +76,9 @@ const (
 	// SparkNodeSelectorKeyPrefix is the configuration property prefix for specifying node selector for the pods.
 	SparkNodeSelectorKeyPrefix = "spark.kubernetes.node.selector."
 	// SparkDriverContainerImageKey is the configuration property for specifying a custom driver container image.
-	SparkDriverContainerImageKey = "spark.kubernetes.driver.container.image"
+	SparkDriverContainerImageKey = "spark.kubernetes.driver.docker.image"
 	// SparkExecutorContainerImageKey is the configuration property for specifying a custom executor container image.
-	SparkExecutorContainerImageKey = "spark.kubernetes.executor.container.image"
+	SparkExecutorContainerImageKey = "spark.kubernetes.executor.docker.image"
 	// SparkDriverCoreLimitKey is the configuration property for specifying the hard CPU limit for the driver pod.
 	SparkDriverCoreLimitKey = "spark.kubernetes.driver.limit.cores"
 	// SparkDriverCoreLimitKey is the configuration property for specifying the hard CPU limit for the executor pods.
