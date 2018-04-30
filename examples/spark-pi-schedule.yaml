@@ -25,20 +25,21 @@ spec:
   template:
     type: Scala
     mode: cluster
-    image: "gcr.io/ynli-k8s/spark:v2.3.0"
     mainClass: org.apache.spark.examples.SparkPi
-    mainApplicationFile: "local:///opt/spark/examples/jars/spark-examples_2.11-2.3.0.jar"
+    mainApplicationFile: "local:///opt/spark/examples/jars/spark-examples_2.11-2.2.0-k8s-0.5.0.jar"
     driver:
       cores: 0.1
       coreLimit: "200m"
       memory: "512m"
+      image: "kubespark/spark-driver:v2.2.0-kubernetes-0.5.0"
       labels:
-        version: 2.3.0
+        version: 2.2.0
       serviceAccount: spark
     executor:
       cores: 1
       instances: 1
       memory: "512m"
+      image: "kubespark/spark-executor:v2.2.0-kubernetes-0.5.0"
       labels:
-        version: 2.3.0
+        version: 2.2.0
     restartPolicy: Never

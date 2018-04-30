@@ -1,6 +1,4 @@
 #
-# Copyright 2017 Google LLC
-#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -17,13 +15,17 @@
 apiVersion: "sparkoperator.k8s.io/v1alpha1"
 kind: SparkApplication
 metadata:
-  name: spark-pi
+  name: spark-pi-py
   namespace: default
 spec:
-  type: Scala
+  type: Python
   mode: cluster
-  mainClass: org.apache.spark.examples.SparkPi
-  mainApplicationFile: "local:///opt/spark/examples/jars/spark-examples_2.11-2.2.0-k8s-0.5.0.jar"
+  mainApplicationFile: "local:///opt/spark/examples/src/main/python/pi.py"
+  Arguments:
+   - "10"
+  deps:
+    jars:
+      - "local:///opt/spark/examples/jars/spark-examples_2.11-2.2.0-k8s-0.5.0.jar"
   volumes:
     - name: "test-volume"
       hostPath:
@@ -31,9 +33,9 @@ spec:
         type: Directory
   driver:
     cores: 0.1
+    image: kubespark/spark-driver-py:v2.2.0-kubernetes-0.5.0
     coreLimit: "200m"
     memory: "512m"
-    image: "kubespark/spark-driver:v2.2.0-kubernetes-0.5.0"
     labels:
       version: 2.2.0
     serviceAccount: spark
@@ -42,9 +44,9 @@ spec:
         mountPath: "/tmp"
   executor:
     cores: 1
-    instances: 1
+    instances: 4
+    image: kubespark/spark-executor-py:v2.2.0-kubernetes-0.5.0
     memory: "512m"
-    image: "kubespark/spark-executor:v2.2.0-kubernetes-0.5.0"
     labels:
       version: 2.2.0
     volumeMounts:
