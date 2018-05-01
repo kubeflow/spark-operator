@@ -41,7 +41,7 @@ spec:
       serviceAccountName: sparkoperator
       containers:
       - name: sparkoperator
-        image: #placeholder for spark 2.2 operator image
+        image: gcr.io/spark-operator/spark-operator:v2.2.0
         imagePullPolicy: Always
         command: ["/usr/bin/spark-operator"]
         args:
