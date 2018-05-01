@@ -71,7 +71,7 @@ the `ScheduledSparkApplication` CRD and the corresponding CRD controller.
 
 Spark Operator currently supports the following list of features:
 
-* This branch specifically supports Spark 2.2 fork with Kubernetes Support (https://github.com/apache-spark-on-k8s/spark)
+* This branch specifically supports Spark 2.2 fork with Kubernetes Support (https://github.com/apache-spark-on-k8s/spark) to add support for PySpark. This branch will be deprecated once PySpark support is added in Spark 2.4.
 * Supports automatic application submission on behalf of users for each new `SparkAppliation` object observed.
 * Supports running an application on a standard [cron](https://en.wikipedia.org/wiki/Cron) schedule.
 * Supports automatic application re-submission for updated `SparkAppliation` objects with updated specification.

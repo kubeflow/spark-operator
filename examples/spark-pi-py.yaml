@@ -26,6 +26,7 @@ spec:
   deps:
     jars:
       - "local:///opt/spark/examples/jars/spark-examples_2.11-2.2.0-k8s-0.5.0.jar"
+  # Volumes are not required for this example to run.
   volumes:
     - name: "test-volume"
       hostPath:
