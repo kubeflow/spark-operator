@@ -152,7 +152,7 @@ Events:
 The Spark Operator submits the Spark Pi example to run once it receives an event indicating the `SparkApplication` 
 object was added.
 
-This operator branch is build on Spark 2.2 fork with Kubernetes which supports PySpark executions. To run the PySpark Spark Pi example, run the following command:
+This operator branch is built on [Spark 2.2 fork with Kubernetes support](https://github.com/apache-spark-on-k8s/spark) which supports PySpark executions. To run the PySpark Spark Pi example, run the following command:
 
 ```bash
 $ kubectl apply -f examples/spark-pi-py.yaml
