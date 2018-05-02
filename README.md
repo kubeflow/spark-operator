@@ -3,14 +3,6 @@
 
 **This is not an officially supported Google product.**
 
-## Table of Contents
-1. [Project Status](#project-status)
-2. [Prerequisites](#prerequisites)
-3. [Documentation](#documentation)
-4. [Overview](#overview)
-5. [Features](#features)
-6. [Motivations](#motivations)
-
 ## Project Status
 
 **Project status:** *alpha* 
@@ -35,13 +27,13 @@ escaped quotes (e.g., `spark.ui.port\"`) in map keys can cause serialization pro
 extra attention to make sure no offending escaping is in your `SparkAppliction` CRD objects, particularly if you use 
 Kubernetes prior to 1.10.**   
 
-## Documentation
+## Get Started
 
-* [Design](docs/design.md)
-* [API Specification](docs/api.md)
-* [Quick Start Guide](docs/quick-start-guide.md)
-* [User Guide](docs/user-guide.md)
-* [User Guide of sparkctl](sparkctl/README.md)
+Get started quickly with the Spark Operator using [Quick Start Guide](docs/quick-start-guide.md). 
+
+If you are running the Spark Operator on Google Kubernetes Engine and want to use Google Cloud Storage (GCS) and/or BigQuery for reading/writing data, also refer to the [GCP guide](docs/gcp.md).
+
+For more information, check the [Design](docs/design.md), [API Specification](docs/api.md) and detailed [User Guide](docs/user-guide.md).
 
 ## Overview
 
@@ -65,7 +57,7 @@ To make such automation possible, Spark Operator uses the `SparkApplication` CRD
 [initializer](https://kubernetes.io/docs/admin/extensible-admission-controllers/#initializers). The CRD controller setups the 
 environment for an application and submits the application to run on behalf of the user, whereas the initializer handles customization 
 of the Spark Pods. It also supports running Spark applications on standard [cron](https://en.wikipedia.org/wiki/Cron) schedules using 
-the `ScheduledSparkApplication` CRD and the corresponding CRD controller.
+the `ScheduledSparkApplication` CRD and the corresponding CRD controller.y
 
 ## Features
 
