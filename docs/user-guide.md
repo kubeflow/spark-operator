@@ -4,7 +4,7 @@ For a quick introduction on how to build and install the Spark Operator, and how
 please refer to the [Quick Start Guide](quick-start-guide.md). For a complete reference of the API definition of the 
 `SparkApplication` and `ScheduledSparkApplication` custom resources, please refer to the [API Specification](api.md). 
 The Spark Operator ships with a command-line tool called `sparkctl` that offers additional features beyond what `kubectl` 
-is able to do. Documentation on `sparkctl` can be found in [README](../sparkctl/README.md). 
+is able to do. Documentation on `sparkctl` can be found in [README](../sparkctl/README.md). If you are running the Spark Operator on Google Kubernetes Engine and want to use Google Cloud Storage (GCS) and/or BigQuery for reading/writing data, also refer to the [GCP guide](docs/gcp.md). 
 
 ## Table of Contents
 * [Using a SparkApplication](#using-a-sparkapplication)
