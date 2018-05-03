@@ -29,7 +29,7 @@ Kubernetes prior to 1.10.**
 
 ## Get Started
 
-Get started quickly with the Spark Operator using [Quick Start Guide](docs/quick-start-guide.md). 
+Get started quickly with the Spark Operator using the [Quick Start Guide](docs/quick-start-guide.md). 
 
 If you are running the Spark Operator on Google Kubernetes Engine and want to use Google Cloud Storage (GCS) and/or BigQuery for reading/writing data, also refer to the [GCP guide](docs/gcp.md).
 
@@ -57,7 +57,7 @@ To make such automation possible, Spark Operator uses the `SparkApplication` CRD
 [initializer](https://kubernetes.io/docs/admin/extensible-admission-controllers/#initializers). The CRD controller setups the 
 environment for an application and submits the application to run on behalf of the user, whereas the initializer handles customization 
 of the Spark Pods. It also supports running Spark applications on standard [cron](https://en.wikipedia.org/wiki/Cron) schedules using 
-the `ScheduledSparkApplication` CRD and the corresponding CRD controller.y
+the `ScheduledSparkApplication` CRD and the corresponding CRD controller.
 
 ## Features
 
