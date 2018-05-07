@@ -272,12 +272,14 @@ func (c *Controller) startNextRun(
 	status *v1alpha1.ScheduledSparkApplicationStatus,
 	schedule cron.Schedule) error {
 	glog.Infof("Next run of %s is due, creating a new SparkApplication instance", app.Name)
-	status.LastRun = metav1.Now()
-	name, err := c.createSparkApplication(app, status.LastRun.Time)
+	now := metav1.Now()
+	name, err := c.createSparkApplication(app, now.Time)
 	if err != nil {
 		glog.Errorf("failed to create a SparkApplication instance for %s: %v", app.Name, err)
 		return err
 	}
+
+	status.LastRun = now
 	status.NextRun = metav1.NewTime(schedule.Next(status.LastRun.Time))
 
 	var limit int32 = 1
