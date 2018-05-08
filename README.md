@@ -3,6 +3,10 @@
 
 **This is not an officially supported Google product.**
 
+## Community
+
+* [Slack](https://kubernetes.slack.com/messages/CALBDHMTL) channel
+
 ## Project Status
 
 **Project status:** *alpha* 
