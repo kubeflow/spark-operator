@@ -37,7 +37,7 @@ $ kubectl create clusterrolebinding <user>-cluster-admin-binding --clusterrole=c
 Now you should see the Spark Operator running in the cluster by checking the status of the Deployment.
 
 ```bash
-$ kubectl describe deployment sparkoperator
+$ kubectl describe deployment sparkoperator -n sparkoperator
 
 ```
 
@@ -135,7 +135,7 @@ status:
 To check events for the `SparkApplication` object, run the following command:
 
 ```bash
-$ kubectl describe sparkapplications spark-pi
+$ kubectl describe sparkapplication spark-pi
 
 ```
 
@@ -155,7 +155,7 @@ object was added.
 ## Using the Initializer
 
 The Spark Operator comes with an optional [initializer](design.md#spark-pod-initializer) for customizing Spark driver 
-and executor pods based on the specification in `SparkApplication` objectse, e.g., mounting user-specified ConfigMaps. 
+and executor pods based on the specification in `SparkApplication` objects, e.g., mounting user-specified ConfigMaps. 
 The initializer works independently with or without the [CRD controller](design.md#the-crd-controller). It works by 
 looking for certain custom annotations on Spark driver and executor Pods to perform its tasks. The annotations are 
 added by the CRD controller automatically based on application specifications in the `SparkApplication`objects. 
@@ -237,7 +237,6 @@ $ make image-tag=<image tag> image
 ```
 
 To push the Docker image to Docker Hub, run the following command:
-console
 
 ```bash
 $ make image-tag=<image tag> push
