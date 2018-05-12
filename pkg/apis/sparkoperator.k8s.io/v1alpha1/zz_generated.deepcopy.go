@@ -275,8 +275,17 @@ func (in *ScheduledSparkApplicationSpec) DeepCopyInto(out *ScheduledSparkApplica
 			**out = **in
 		}
 	}
-	if in.RunHistoryLimit != nil {
-		in, out := &in.RunHistoryLimit, &out.RunHistoryLimit
+	if in.SuccessfulRunHistoryLimit != nil {
+		in, out := &in.SuccessfulRunHistoryLimit, &out.SuccessfulRunHistoryLimit
+		if *in == nil {
+			*out = nil
+		} else {
+			*out = new(int32)
+			**out = **in
+		}
+	}
+	if in.FailedRunHistoryLimit != nil {
+		in, out := &in.FailedRunHistoryLimit, &out.FailedRunHistoryLimit
 		if *in == nil {
 			*out = nil
 		} else {
@@ -302,8 +311,13 @@ func (in *ScheduledSparkApplicationStatus) DeepCopyInto(out *ScheduledSparkAppli
 	*out = *in
 	in.LastRun.DeepCopyInto(&out.LastRun)
 	in.NextRun.DeepCopyInto(&out.NextRun)
-	if in.PastRunNames != nil {
-		in, out := &in.PastRunNames, &out.PastRunNames
+	if in.PastSuccessfulRunNames != nil {
+		in, out := &in.PastSuccessfulRunNames, &out.PastSuccessfulRunNames
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
+	if in.PastFailedRunNames != nil {
+		in, out := &in.PastFailedRunNames, &out.PastFailedRunNames
 		*out = make([]string, len(*in))
 		copy(*out, *in)
 	}
