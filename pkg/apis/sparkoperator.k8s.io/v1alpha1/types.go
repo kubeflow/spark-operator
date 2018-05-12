@@ -84,11 +84,19 @@ type ScheduledSparkApplicationSpec struct {
 	// Template is a template from which SparkApplication instances can be created.
 	Template SparkApplicationSpec `json:"template"`
 	// Suspend is a flag telling the controller to suspend subsequent runs of the application if set to true.
+	// Optional.
+	// Defaults to false.
 	Suspend *bool `json:"suspend,omitempty"`
 	// ConcurrencyPolicy is the policy governing concurrent SparkApplication runs.
 	ConcurrencyPolicy ConcurrencyPolicy `json:"concurrencyPolicy,omitempty"`
-	// RunHistoryLimit specifies the number of past runs of the application to remember.
-	RunHistoryLimit *int32 `json:"runHistoryLimit,omitempty"`
+	// SuccessfulRunHistoryLimit is the number of past successful runs of the application to keep.
+	// Optional.
+	// Defaults to 1.
+	SuccessfulRunHistoryLimit *int32 `json:"successfulRunHistoryLimit,omitempty"`
+	// FailedRunHistoryLimit is the number of past failed runs of the application to keep.
+	// Optional.
+	// Defaults to 1.
+	FailedRunHistoryLimit *int32 `json:"failedRunHistoryLimit,omitempty"`
 }
 
 type ScheduleState string
@@ -103,10 +111,12 @@ type ScheduledSparkApplicationStatus struct {
 	LastRun metav1.Time `json:"lastRun,omitempty"`
 	// NextRun is the time when the next run of the application will start.
 	NextRun metav1.Time `json:"nextRun,omitempty"`
-	// PastRunNames keeps the names of SparkApplications for past runs.
-	// It keeps up to Spec.RunHistoryLimit number of past SparkApplication names,
-	// in reverse order of time when the SparkApplications get created.
-	PastRunNames []string `json:"pastRunNames,omitempty"`
+	// LastRunName is the name of the SparkApplication for the most recent run of the application.
+	LastRunName string `json:"lastRunName,omitempty"`
+	// PastSuccessfulRunNames keeps the names of SparkApplications for past successful runs.
+	PastSuccessfulRunNames []string `json:"pastSuccessfulRunNames,omitempty"`
+	// PastFailedRunNames keeps the names of SparkApplications for past failed runs.
+	PastFailedRunNames []string `json:"pastFailedRunNames,omitempty"`
 	// ScheduleState is the current scheduling state of the application.
 	ScheduleState ScheduleState `json:"scheduleState,omitempty"`
 	// Reason tells why the ScheduledSparkApplication is in the particular ScheduleState.

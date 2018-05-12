@@ -369,7 +369,8 @@ metadata:
 spec:
   schedule: "@every 5m"
   concurrencyPolicy: Allow
-  runHistoryLimit: 3
+  successfulRunHistoryLimit: 1
+  failedRunHistoryLimit: 3
   template:
     type: Scala
     mode: cluster
@@ -398,12 +399,16 @@ run is killed and the next run starts as a replacement.
 A scheduled `ScheduledSparkApplication` can be temporarily suspended (no future scheduled runs of the application will
 be triggered) by setting `.spec.suspend` to `true`. The schedule can be resumed by removing `.spec.suspend` or setting
 it to `false`. A `ScheduledSparkApplication` can have names of `SparkApplication` objects for the past runs of the 
-application tracked in the `Status` section as discussed below. The number of past runs to keep track of is controlled 
-by the field `.spec.runHistoryLimit`. The example above allows 3 past runs to be tracked.
+application tracked in the `Status` section as discussed below. The numbers of past successful runs and past failed runs 
+to keep track of are controlled by field `.spec.successfulRunHistoryLimit` and field `.spec.failedRunHistoryLimit`, 
+respectively. The example above allows 1 past successful run and 3 past failed runs to be tracked.
 
 The `Status` section of a `ScheduledSparkApplication` object shows the time of the last run and the proposed time of the 
-next run of the application, through `.status.lastRun` and `.status.nextRun`, respectively. The names of `SparkApplication`
-objects for the past runs of the application are stored in `.status.pastRunNames`.
+next run of the application, through `.status.lastRun` and `.status.nextRun`, respectively. The names of the 
+`SparkApplication` object for the most recent run (which may  or may not be running) of the application are stored in 
+`.status.lastRunName`. The names of `SparkApplication` objects of the past successful runs of the application are stored
+in `.status.pastSuccessfulRunNames`. Similarly, the names of `SparkApplication` objects of the past failed runs of 
+the application are stored in `.status.pastFailedRunNames`.
 
 Note that certain restart policies (specified in `.spec.template.restartPolicy`) may not work well with the specified 
 schedule and concurrency policy of a `ScheduledSparkApplication`. For example, a restart policy of `Always` should never

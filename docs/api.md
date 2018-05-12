@@ -131,7 +131,8 @@ A `ScheduledSparkApplicationSpec` has the following top-level fields:
 | `Template` | No | N/A | A template from which `SparkApplication` instances of scheduled runs of the application can be created. |
 | `Suspend` | Yes | `false` | A flag telling the controller to suspend subsequent runs of the application if set to `true`. |
 | `ConcurrencyPolicy` | `Allow` | Yes | the policy governing concurrent runs of the application. Valid values are `Allow`, `Forbid`, and `Replace` |
-| `RunHistoryLimit` | Yes | 1 | The number of past runs of the application to keep track of. |
+| `SuccessfulRunHistoryLimit` | Yes | 1 | The number of past successful runs of the application to keep track of. |
+| `FailedRunHistoryLimit` | Yes | 1 | The number of past failed runs of the application to keep track of. |
 
 ### `ScheduledSparkApplicationStatus`
 
@@ -141,6 +142,7 @@ A `ScheduledSparkApplicationStatus` captures the status of a Spark application i
 | ------------- | ------------- |
 | `LastRun` | The time when the last run of the application started. |
 | `NextRun` | The time when the next run of the application is estimated to start. |
-| `PastRunNames` | The names of `SparkApplication` objects for past runs of the application. The maximum number of names to keep track of is controlled by `RunHistoryLimit`. |
+| `PastSuccessfulRunNames` | The names of `SparkApplication` objects of past successful runs of the application. The maximum number of names to keep track of is controlled by `SuccessfulRunHistoryLimit`. |
+| `PastFailedRunNames` | The names of `SparkApplication` objects of past failed runs of the application. The maximum number of names to keep track of is controlled by `FailedRunHistoryLimit`. |
 | `ScheduleState` | The current scheduling state of the application. Valid values are `FailedValidation` and `Scheduled`. |
 | `Reason` | Human readable message on why the `ScheduledSparkApplication` is in the particular `ScheduleState`. |
