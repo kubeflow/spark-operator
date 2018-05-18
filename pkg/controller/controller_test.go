@@ -126,12 +126,13 @@ func TestOnUpdate(t *testing.T) {
 		name          string
 		oldApp        *v1alpha1.SparkApplication
 		newApp        *v1alpha1.SparkApplication
-		expectEnqueue bool
+		expectUpdate  bool
+		expectRestart bool
 	}
 
 	testFn := func(t *testing.T, test testcase) {
 		ctrl.onUpdate(test.oldApp, test.newApp)
-		if test.expectEnqueue {
+		if test.expectUpdate {
 			item, _ := ctrl.queue.Get()
 			defer ctrl.queue.Done(item)
 			key, ok := item.(string)
@@ -142,6 +143,17 @@ func TestOnUpdate(t *testing.T) {
 
 			event := <-recorder.Events
 			assert.True(t, strings.Contains(event, "SparkApplicationUpdated"))
+		} else if test.expectRestart {
+			item, _ := ctrl.queue.Get()
+			defer ctrl.queue.Done(item)
+			key, ok := item.(string)
+			assert.True(t, ok)
+			expectedKey, _ := cache.MetaNamespaceKeyFunc(test.newApp)
+			assert.Equal(t, expectedKey, key)
+			ctrl.queue.Forget(item)
+
+			event := <-recorder.Events
+			assert.True(t, strings.Contains(event, "SparkApplicationRestart"))
 		} else {
 			assert.Equal(t, 0, ctrl.queue.Len())
 			assert.Equal(t, 0, len(recorder.Events))
@@ -171,24 +183,75 @@ func TestOnUpdate(t *testing.T) {
 	copyWithDifferentExecutorInstances.Spec.Executor.Instances = int32ptr(3)
 	copyWithDifferentExecutorInstances.ResourceVersion = "2"
 
+	appWithAlwaysRestartPolicy := appTemplate.DeepCopy()
+	appWithAlwaysRestartPolicy.Spec.RestartPolicy = v1alpha1.Always
+	appWithAlwaysRestartPolicyCompleted := appWithAlwaysRestartPolicy.DeepCopy()
+	appWithAlwaysRestartPolicyCompleted.Status.AppState.State = v1alpha1.CompletedState
+	appWithAlwaysRestartPolicyCompleted.ResourceVersion = "2"
+
+	appWithAlwaysRestartPolicyFailed := appWithAlwaysRestartPolicy.DeepCopy()
+	appWithAlwaysRestartPolicyFailed.Status.AppState.State = v1alpha1.FailedState
+	appWithAlwaysRestartPolicyFailed.ResourceVersion = "2"
+
+	appWithOnFailureRestartPolicy := appTemplate.DeepCopy()
+	appWithOnFailureRestartPolicy.Spec.RestartPolicy = v1alpha1.OnFailure
+	appWithOnFailureRestartPolicyFailed := appWithOnFailureRestartPolicy.DeepCopy()
+	appWithOnFailureRestartPolicyFailed.Status.AppState.State = v1alpha1.FailedState
+	appWithOnFailureRestartPolicyFailed.ResourceVersion = "2"
+
+	appWithOnFailureRestartPolicyCompleted := appWithOnFailureRestartPolicy.DeepCopy()
+	appWithOnFailureRestartPolicyCompleted.Status.AppState.State = v1alpha1.CompletedState
+	appWithOnFailureRestartPolicyCompleted.ResourceVersion = "2"
+
 	testcases := []testcase{
 		{
 			name:          "update with identical spec",
 			oldApp:        appTemplate.DeepCopy(),
 			newApp:        appTemplate.DeepCopy(),
-			expectEnqueue: false,
+			expectUpdate:  false,
+			expectRestart: false,
 		},
 		{
 			name:          "update with different image",
 			oldApp:        appTemplate.DeepCopy(),
 			newApp:        copyWithDifferentImage,
-			expectEnqueue: true,
+			expectUpdate:  true,
+			expectRestart: false,
 		},
 		{
 			name:          "update with different executor instances",
 			oldApp:        appTemplate.DeepCopy(),
 			newApp:        copyWithDifferentExecutorInstances,
-			expectEnqueue: true,
+			expectUpdate:  true,
+			expectRestart: false,
+		},
+		{
+			name:          "update with Completed state and Always restart policy",
+			oldApp:        appWithAlwaysRestartPolicy,
+			newApp:        appWithAlwaysRestartPolicyCompleted,
+			expectUpdate:  false,
+			expectRestart: true,
+		},
+		{
+			name:          "update with Failed state and Always restart policy",
+			oldApp:        appWithAlwaysRestartPolicy,
+			newApp:        appWithAlwaysRestartPolicyFailed,
+			expectUpdate:  false,
+			expectRestart: true,
+		},
+		{
+			name:          "update with Failed state and OnFailure restart policy",
+			oldApp:        appWithOnFailureRestartPolicy,
+			newApp:        appWithOnFailureRestartPolicyFailed,
+			expectUpdate:  false,
+			expectRestart: true,
+		},
+		{
+			name:          "update with Completed state and OnFailure restart policy",
+			oldApp:        appWithOnFailureRestartPolicy,
+			newApp:        appWithOnFailureRestartPolicyCompleted,
+			expectUpdate:  false,
+			expectRestart: false,
 		},
 	}
 
