@@ -188,7 +188,16 @@ func (s *SparkApplicationController) onUpdate(oldObj, newObj interface{}) {
 	oldApp := oldObj.(*v1alpha1.SparkApplication)
 	newApp := newObj.(*v1alpha1.SparkApplication)
 
-	if oldApp.ResourceVersion == newApp.ResourceVersion || reflect.DeepEqual(oldApp.Spec, newApp.Spec) {
+	// The resource version has not changed, nothing to do.
+	if oldApp.ResourceVersion == newApp.ResourceVersion {
+		return
+	}
+
+	if reflect.DeepEqual(oldApp.Spec, newApp.Spec) {
+		// The spec has not changed but the application is subject to restart.
+		if shouldRestart(newApp) {
+			s.handleRestart(newApp)
+		}
 		return
 	}
 
@@ -219,7 +228,7 @@ func (s *SparkApplicationController) onUpdate(oldObj, newObj interface{}) {
 		newApp,
 		apiv1.EventTypeNormal,
 		"SparkApplicationUpdated",
-		"SparkApplication %s was updated, enqueued it for submission",
+		"SparkApplication %s was updated and enqueued for submission",
 		newApp.Name)
 }
 
@@ -345,11 +354,7 @@ func (s *SparkApplicationController) processPodStateUpdates() {
 	for update := range s.podStateReportingChan {
 		switch update.(type) {
 		case *driverStateUpdate:
-			updatedApp := s.processSingleDriverStateUpdate(update.(*driverStateUpdate))
-			if updatedApp != nil && shouldRestart(updatedApp) {
-				s.handleRestart(updatedApp)
-			}
-			continue
+			s.processSingleDriverStateUpdate(update.(*driverStateUpdate))
 		case *executorStateUpdate:
 			s.processSingleExecutorStateUpdate(update.(*executorStateUpdate))
 		}
@@ -437,22 +442,8 @@ func (s *SparkApplicationController) processSingleAppStateUpdate(update *appStat
 			update.errorMessage)
 
 		if shouldRetrySubmission(app) {
-			glog.Infof("Retrying submission of SparkApplication %s", update.name)
-
 			submissionRetries++
-			if app.Spec.SubmissionRetryInterval != nil {
-				interval := time.Duration(*app.Spec.SubmissionRetryInterval) * time.Second
-				s.enqueueAfter(app, time.Duration(submissionRetries)*interval)
-			} else {
-				s.enqueue(app)
-			}
-
-			s.recorder.Eventf(
-				app,
-				apiv1.EventTypeNormal,
-				"SparkApplicationSubmissionRetry",
-				"SparkApplication %s is scheduled for a submission retry",
-				update.name)
+			s.handleResubmission(app, submissionRetries)
 		} else {
 			glog.Infof("Not retrying submission of SparkApplication %s", update.name)
 		}
@@ -555,6 +546,87 @@ func (s *SparkApplicationController) getSparkApplication(namespace string, name 
 	return s.lister.SparkApplications(namespace).Get(name)
 }
 
+// handleRestart handles application restart if the application has terminated and is subject to restart according to
+// the restart policy.
+func (s *SparkApplicationController) handleRestart(app *v1alpha1.SparkApplication) {
+	glog.Infof("SparkApplication %s failed or terminated, restarting it with RestartPolicy %s",
+		app.Name, app.Spec.RestartPolicy)
+
+	// Delete the old driver pod and UI service if necessary. Note that in case an error occurred here, we simply
+	// log the error and continue enqueueing the application for resubmission because the driver has already
+	// terminated so failure to cleanup the old driver pod and UI service is not a blocker. Also note that because
+	// deleting a already terminated driver pod won't trigger a driver state update by the sparkPodMonitor so won't
+	// cause repetitive restart handling.
+	if err := s.deleteDriverAndUIService(app, false); err != nil {
+		glog.Error(err)
+	}
+
+	//Enqueue the object for re-submission.
+	s.enqueue(app)
+
+	s.recorder.Eventf(
+		app,
+		apiv1.EventTypeNormal,
+		"SparkApplicationRestart",
+		"SparkApplication %s was enqueued for restart",
+		app.Name)
+}
+
+func (s *SparkApplicationController) handleResubmission(app *v1alpha1.SparkApplication, submissionRetries int32) {
+	glog.Infof("Retrying submission of SparkApplication %s", app.Name)
+
+	if app.Spec.SubmissionRetryInterval != nil {
+		interval := time.Duration(*app.Spec.SubmissionRetryInterval) * time.Second
+		s.enqueueAfter(app, time.Duration(submissionRetries)*interval)
+	} else {
+		s.enqueue(app)
+	}
+
+	s.recorder.Eventf(
+		app,
+		apiv1.EventTypeNormal,
+		"SparkApplicationSubmissionRetry",
+		"SparkApplication %s was enqueued for submission retry",
+		app.Name)
+}
+
+func (s *SparkApplicationController) deleteDriverAndUIService(
+	app *v1alpha1.SparkApplication,
+	waitForDriverDeletion bool) error {
+	var zero int64
+	if app.Status.DriverInfo.PodName != "" {
+		err := s.kubeClient.CoreV1().Pods(app.Namespace).Delete(app.Status.DriverInfo.PodName,
+			&metav1.DeleteOptions{GracePeriodSeconds: &zero})
+		if err != nil {
+			return fmt.Errorf("failed to delete old driver pod %s of SparkApplication %s: %v",
+				app.Status.DriverInfo.PodName, app.Name, err)
+		}
+	}
+	if app.Status.DriverInfo.WebUIServiceName != "" {
+		err := s.kubeClient.CoreV1().Services(app.Namespace).Delete(app.Status.DriverInfo.WebUIServiceName,
+			&metav1.DeleteOptions{GracePeriodSeconds: &zero})
+		if err != nil {
+			return fmt.Errorf("failed to delete old web UI service %s of SparkApplication %s: %v",
+				app.Status.DriverInfo.WebUIServiceName, app.Name, err)
+		}
+	}
+
+	if waitForDriverDeletion {
+		wait.Poll(500*time.Millisecond, 60*time.Second, func() (bool, error) {
+			_, err := s.kubeClient.CoreV1().Pods(app.Namespace).Get(app.Status.DriverInfo.PodName, metav1.GetOptions{})
+			if err != nil {
+				if errors.IsNotFound(err) {
+					return true, nil
+				}
+				return false, err
+			}
+			return false, nil
+		})
+	}
+
+	return nil
+}
+
 func (s *SparkApplicationController) enqueue(obj interface{}) {
 	key, err := keyFunc(obj)
 	if err != nil {
@@ -599,68 +671,6 @@ func (s *SparkApplicationController) getNodeExternalIP(nodeName string) string {
 		}
 	}
 	return ""
-}
-
-// handleRestart handles application restart if the application has terminated and is subject to restart according to
-// the restart policy.
-func (s *SparkApplicationController) handleRestart(app *v1alpha1.SparkApplication) {
-	glog.Infof("SparkApplication %s failed or terminated, restarting it with RestartPolicy %s",
-		app.Name, app.Spec.RestartPolicy)
-	s.recorder.Eventf(
-		app,
-		apiv1.EventTypeNormal,
-		"SparkApplicationRestart",
-		"SparkApplication %s is subject to restart",
-		app.Name)
-
-	// Delete the old driver pod and UI service if necessary. Note that in case an error occurred here, we simply
-	// log the error and continue enqueueing the application for resubmission because the driver has already
-	// terminated so failure to cleanup the old driver pod and UI service is not a blocker. Also note that because
-	// deleting a already terminated driver pod won't trigger a driver state update by the sparkPodMonitor so won't
-	// cause repetitive restart handling.
-	if err := s.deleteDriverAndUIService(app, false); err != nil {
-		glog.Error(err)
-	}
-
-	//Enqueue the object for re-submission.
-	s.enqueue(app)
-}
-
-func (s *SparkApplicationController) deleteDriverAndUIService(
-	app *v1alpha1.SparkApplication,
-	waitForDriverDeletion bool) error {
-	var zero int64
-	if app.Status.DriverInfo.PodName != "" {
-		err := s.kubeClient.CoreV1().Pods(app.Namespace).Delete(app.Status.DriverInfo.PodName,
-			&metav1.DeleteOptions{GracePeriodSeconds: &zero})
-		if err != nil {
-			return fmt.Errorf("failed to delete old driver pod %s of SparkApplication %s: %v",
-				app.Status.DriverInfo.PodName, app.Name, err)
-		}
-	}
-	if app.Status.DriverInfo.WebUIServiceName != "" {
-		err := s.kubeClient.CoreV1().Services(app.Namespace).Delete(app.Status.DriverInfo.WebUIServiceName,
-			&metav1.DeleteOptions{GracePeriodSeconds: &zero})
-		if err != nil {
-			return fmt.Errorf("failed to delete old web UI service %s of SparkApplication %s: %v",
-				app.Status.DriverInfo.WebUIServiceName, app.Name, err)
-		}
-	}
-
-	if waitForDriverDeletion {
-		wait.Poll(500*time.Millisecond, 60*time.Second, func() (bool, error) {
-			_, err := s.kubeClient.CoreV1().Pods(app.Namespace).Get(app.Status.DriverInfo.PodName, metav1.GetOptions{})
-			if err != nil {
-				if errors.IsNotFound(err) {
-					return true, nil
-				}
-				return false, err
-			}
-			return false, nil
-		})
-	}
-
-	return nil
 }
 
 func (s *SparkApplicationController) recordDriverEvent(
