@@ -558,6 +558,12 @@ func (s *SparkApplicationController) handleRestart(app *v1alpha1.SparkApplicatio
 	// deleting a already terminated driver pod won't trigger a driver state update by the sparkPodMonitor so won't
 	// cause repetitive restart handling.
 	if err := s.deleteDriverAndUIService(app, false); err != nil {
+		// If the error was because the old driver pod or UI service was not found, skip because very likely the
+		// application has already been restarted and the driver pod/service have already been deleted.
+		// TODO: This is a hacky way of solving the issue of duplicated restarts. Need a long-term solution.
+		if errors.IsNotFound(err) {
+			return
+		}
 		glog.Error(err)
 	}
 
@@ -593,10 +599,9 @@ func (s *SparkApplicationController) handleResubmission(app *v1alpha1.SparkAppli
 func (s *SparkApplicationController) deleteDriverAndUIService(
 	app *v1alpha1.SparkApplication,
 	waitForDriverDeletion bool) error {
-	var zero int64
 	if app.Status.DriverInfo.PodName != "" {
 		err := s.kubeClient.CoreV1().Pods(app.Namespace).Delete(app.Status.DriverInfo.PodName,
-			&metav1.DeleteOptions{GracePeriodSeconds: &zero})
+			metav1.NewDeleteOptions(0))
 		if err != nil {
 			return fmt.Errorf("failed to delete old driver pod %s of SparkApplication %s: %v",
 				app.Status.DriverInfo.PodName, app.Name, err)
@@ -604,7 +609,7 @@ func (s *SparkApplicationController) deleteDriverAndUIService(
 	}
 	if app.Status.DriverInfo.WebUIServiceName != "" {
 		err := s.kubeClient.CoreV1().Services(app.Namespace).Delete(app.Status.DriverInfo.WebUIServiceName,
-			&metav1.DeleteOptions{GracePeriodSeconds: &zero})
+			metav1.NewDeleteOptions(0))
 		if err != nil {
 			return fmt.Errorf("failed to delete old web UI service %s of SparkApplication %s: %v",
 				app.Status.DriverInfo.WebUIServiceName, app.Name, err)
