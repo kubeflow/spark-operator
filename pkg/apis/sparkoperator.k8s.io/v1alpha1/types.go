@@ -157,9 +157,14 @@ type SparkApplicationSpec struct {
 	// Optional.
 	Image *string `json:"image,omitempty"`
 	// InitContainerImage is the image of the init-container to use. Overrides Spec.Image if set.
+	// Optional.
 	InitContainerImage *string `json:"initContainerImage,omitempty"`
 	// ImagePullPolicy is the image pull policy for the driver, executor, and init-container.
+	// Optional.
 	ImagePullPolicy *string `json:"imagePullPolicy,omitempty"`
+	// ImagePullSecrets is the list of image-pull secrets.
+	// Optional.
+	ImagePullSecrets []string `json:"imagePullSecrets,omitempty"`
 	// MainClass is the fully-qualified main class of the Spark application.
 	// This only applies to Java/Scala Spark applications.
 	// Optional.
@@ -199,10 +204,13 @@ type SparkApplicationSpec struct {
 	// RestartPolicy defines the policy on if and in which conditions the controller should restart a failed application.
 	RestartPolicy RestartPolicy `json:"restartPolicy,omitempty"`
 	// NodeSelector is the Kubernetes node selector to be added to the driver and executor pods.
+	// Optional.
 	NodeSelector map[string]string `json:"nodeSelector,omitempty"`
 	// MaxSubmissionRetries is the maximum number of times to retry a failed submission.
+	// Optional.
 	MaxSubmissionRetries *int32 `json:"maxSubmissionRetries,omitempty"`
 	// SubmissionRetryInterval is the unit of intervals in seconds between submission retries.
+	// Optional.
 	SubmissionRetryInterval *int64 `json:"submissionRetryInterval,omitempty"`
 }
 
@@ -313,6 +321,9 @@ type SparkPodSpec struct {
 	// EnvVars carries the environment variables to add to the pod.
 	// Optional.
 	EnvVars map[string]string `json:"envVars,omitempty"`
+	// EnvSecretKeyRefs holds a mapping from environment variable names to SecretKeyRefs.
+	// Optional.
+	EnvSecretKeyRefs map[string]NameKey `json:"envSecretKeyRefs,omitempty"`
 	// Labels are the Kubernetes labels to be added to the pod.
 	// Optional.
 	Labels map[string]string `json:"labels,omitempty"`
@@ -344,6 +355,9 @@ type ExecutorSpec struct {
 	// Instances is the number of executor instances.
 	// Optional.
 	Instances *int32 `json:"instances,omitempty"`
+	// CoreRequest is the physical CPU core request for the executors.
+	// Optional.
+	CoreRequest *string `json:"coreRequest,omitempty"`
 }
 
 // NamePath is a pair of a name and a path to which the named objects should be mounted to.
@@ -380,4 +394,10 @@ type SecretInfo struct {
 	Name string     `json:"name"`
 	Path string     `json:"path"`
 	Type SecretType `json:"secretType"`
+}
+
+// NameKey represents the name and key of a SecretKeyRef.
+type NameKey struct {
+	Name string `json:"name"`
+	Key  string `json:"key"`
 }
