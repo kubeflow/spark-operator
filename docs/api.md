@@ -37,6 +37,7 @@ A `SparkApplicationSpec` has the following top-level fields:
 | `Image` | `spark.kubernetes.container.image` | Unified container image for the driver, executor, and init-container. |
 | `InitContainerImage` | `spark.kubernetes.initContainer.image` | Custom init-container image. |
 | `ImagePullPolicy` | `spark.kubernetes.container.image.pullPolicy` | Container image pull policy. |
+| `ImagePullSecrets` | `spark.kubernetes.container.image.pullSecrets` | Container image pull secrets. |
 | `MainClass` | `--class` | Main application class to run. |
 | `MainApplicationFile` | N/A | Main application file, e.g., a bundled jar containing the main class and its dependencies. |
 | `Arguments` | N/A | List of application arguments. |
@@ -69,6 +70,7 @@ Similarly to the `DriverSpec`, an `ExecutorSpec` also embeds a a [`SparkPodSpec`
 | Field | Spark configuration property or `spark-submit` option | Note |
 | ------------- | ------------- | ------------- |
 | `Instances` | `spark.executor.instances` | Number of executor instances to request for. |
+| `CoreRequest` | `spark.kubernetes.executor.request.cores` | Physical CPU request for the executors. |
 
 #### `SparkPodSpec`
 
@@ -83,6 +85,7 @@ A `SparkPodSpec` defines common attributes of a driver or executor pod, summariz
 | `ConfigMaps` | N/A | A map of Kubernetes ConfigMaps to mount into the driver or executor pod. Keys are ConfigMap names and values are mount paths. |
 | `Secrets` | `spark.kubernetes.driver.secrets.[SecretName]` or `spark.kubernetes.executor.secrets.[SecretName]` | A map of Kubernetes secrets to mount into the driver or executor pod. Keys are secret names and values specify the mount paths and secret types. |
 | `EnvVars` | `spark.kubernetes.driverEnv.[EnvironmentVariableName]` or `spark.executorEnv.[EnvironmentVariableName]` | A map of environment variables to add to the driver or executor pod. Keys are variable names and values are variable values. |
+| `EnvSecretKeyRefs` | `spark.kubernetes.driver.secretKeyRef.[EnvironmentVariableName]` or `spark.kubernetes.executor.secretKeyRef.[EnvironmentVariableName]` | A map of environment variables to SecretKeyRefs. Keys are variable names and values are pairs of a secret name and a secret key. |
 | `Labels` | `spark.kubernetes.driver.label.[LabelName]` or `spark.kubernetes.executor.label.[LabelName]` | A map of Kubernetes labels to add to the driver or executor pod. Keys are label names and values are label values. |
 | `Annotations` | `spark.kubernetes.driver.annotation.[AnnotationName]` or `spark.kubernetes.executor.annotation.[AnnotationName]` | A map of Kubernetes annotations to add to the driver or executor pod. Keys are annotation names and values are annotation values. |
 | `VolumeMounts` | N/A | List of Kubernetes [volume mounts](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.9/#volumemount-v1-core) for volumes that should be mounted to the pod. |

@@ -299,6 +299,41 @@ spec:
 Note that the initializer needs to be enabled to use this feature. Please refer to the 
 [Quick Start Guide](quick-start-guide.md#configuration) on how to enable the initializer.
 
+### Using Secrets As Environment Variables
+
+**Note that this feature requires an image based on the latest Spark master branch.** 
+
+A `SparkApplication` can use [secrets as environment variables](https://kubernetes.io/docs/concepts/configuration/secret/#using-secrets-as-environment-variables),
+through the optional field `.spec.driver.envSecretKeyRefs` for the driver pod and the optional field 
+`.spec.executor.envSecretKeyRefs` for the executor pods. A `envSecretKeyRefs` is a map from environment variable names 
+to pairs consisting of a secret name and a secret key. Below is an example:
+
+```yaml
+spec:
+  driver:
+    envSecretKeyRefs:
+      SECRET_USERNAME:
+        name: mysecret
+        key: username
+      SECRET_PASSWORD:
+        name: mysecret
+        key: password 
+``` 
+
+### Using Image Pull Secrets
+
+**Note that this feature requires an image based on the latest Spark master branch.**
+
+For images that need image-pull secrets to be pulled, a `SparkApplication` has an optional field `.spec.imagePullSecrets`
+for specifying a list of image-pull secrets. Below is an example:
+
+```yaml
+spec:
+  imagePullSecrets:
+    - secret1
+    - secret2
+```
+
 ## Working with SparkApplications
 
 #### Creating a New SparkApplication

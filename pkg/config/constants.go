@@ -71,6 +71,9 @@ const (
 const (
 	// SparkContainerImageKey is the configuration property for specifying the unified container image.
 	SparkContainerImageKey = "spark.kubernetes.container.image"
+	// SparkImagePullSecretKey is the configuration property for specifying the comma-separated list of image-pull
+	// secrets.
+	SparkImagePullSecretKey = "spark.kubernetes.container.image.pullSecrets"
 	// SparkContainerImageKey is the configuration property for specifying the container image pull policy.
 	SparkContainerImagePullPolicyKey = "spark.kubernetes.container.image.pullPolicy"
 	// SparkNodeSelectorKeyPrefix is the configuration property prefix for specifying node selector for the pods.
@@ -83,12 +86,20 @@ const (
 	SparkDriverCoreLimitKey = "spark.kubernetes.driver.limit.cores"
 	// SparkDriverCoreLimitKey is the configuration property for specifying the hard CPU limit for the executor pods.
 	SparkExecutorCoreLimitKey = "spark.kubernetes.executor.limit.cores"
+	// SparkExecutorCoreRequestKey is the configuration property for specifying the physical CPU request for executors.
+	SparkExecutorCoreRequestKey = "spark.kubernetes.executor.request.cores"
 	// SparkDriverSecretKeyPrefix is the configuration property prefix for specifying secrets to be mounted into the
 	// driver.
 	SparkDriverSecretKeyPrefix = "spark.kubernetes.driver.secrets."
 	// SparkDriverSecretKeyPrefix is the configuration property prefix for specifying secrets to be mounted into the
 	// executors.
 	SparkExecutorSecretKeyPrefix = "spark.kubernetes.executor.secrets."
+	// SparkDriverSecretKeyRefKeyPrefix is the configuration property prefix for specifying environment variables
+	// from SecretKeyRefs for the driver.
+	SparkDriverSecretKeyRefKeyPrefix = "spark.kubernetes.driver.secretKeyRef."
+	// SparkDriverSecretKeyRefKeyPrefix is the configuration property prefix for specifying environment variables
+	// from SecretKeyRefs for the executors.
+	SparkExecutorSecretKeyRefKeyPrefix = "spark.kubernetes.executor.secretKeyRef."
 	// SparkDriverEnvVarConfigKeyPrefix is the Spark configuration prefix for setting environment variables
 	// into the driver.
 	SparkDriverEnvVarConfigKeyPrefix = "spark.kubernetes.driverEnv."
