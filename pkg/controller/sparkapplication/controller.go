@@ -244,6 +244,11 @@ func (c *Controller) onDelete(obj interface{}) {
 			"SparkApplicationDeleted",
 			"SparkApplication %s was deleted",
 			app.Name)
+
+		if err := c.deleteDriverAndUIService(app, false); err != nil {
+			glog.Errorf("failed to delete the driver pod and UI service for deleted SparkApplication %s: $v",
+				app.Name, err)
+		}
 	}
 }
 
