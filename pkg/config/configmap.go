@@ -98,28 +98,34 @@ func AddConfigMapVolumeToPod(configMapVolumeName string, configMapName string, p
 // MountSparkConfigMapToContainer mounts the ConfigMap for Spark configuration files into the given container.
 func MountSparkConfigMapToContainer(container *apiv1.Container) {
 	mountConfigMapToContainer(SparkConfigMapVolumeName, DefaultSparkConfDir, SparkConfDirEnvVar, container)
-	container.Env = append(
-		container.Env,
-		apiv1.EnvVar{
-			Name:  SparkClasspathEnvVar,
-			Value: fmt.Sprintf("%s:$%s", DefaultSparkConfDir, SparkClasspathEnvVar),
-		})
+	appendSparkClasspathEnvVar(DefaultSparkConfDir, container)
 }
 
 // MountHadoopConfigMapToContainer mounts the ConfigMap for Hadoop configuration files into the given container.
 func MountHadoopConfigMapToContainer(container *apiv1.Container) {
 	mountConfigMapToContainer(HadoopConfigMapVolumeName, DefaultHadoopConfDir, HadoopConfDirEnvVar, container)
-	container.Env = append(
-		container.Env,
-		apiv1.EnvVar{
-			Name:  SparkClasspathEnvVar,
-			Value: fmt.Sprintf("%s:$%s", DefaultHadoopConfDir, SparkClasspathEnvVar),
-		})
+	appendSparkClasspathEnvVar(DefaultHadoopConfDir, container)
 }
 
 // MountConfigMapToContainer mounts the ConfigMap volume named volumeName onto mountPath into the given container.
 func MountConfigMapToContainer(volumeName string, mountPath string, container *apiv1.Container) {
 	mountConfigMapToContainer(volumeName, mountPath, "", container)
+}
+
+func appendSparkClasspathEnvVar(sparkClasspath string, container *apiv1.Container) {
+	for i, envVar := range container.Env {
+		if envVar.Name == SparkClasspathEnvVar {
+			container.Env[i].Value = fmt.Sprintf("%s:%s", sparkClasspath, envVar.Value)
+			return
+		}
+	}
+
+	container.Env = append(
+		container.Env,
+		apiv1.EnvVar{
+			Name:  SparkClasspathEnvVar,
+			Value: fmt.Sprintf("%s:$%s", sparkClasspath, SparkClasspathEnvVar),
+		})
 }
 
 func mountConfigMapToContainer(volumeName string, mountPath string, env string, container *apiv1.Container) {
