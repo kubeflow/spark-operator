@@ -60,6 +60,8 @@ var (
 	submissionRunnerThreads = flag.Int("submission-threads", 3, "Number of worker threads "+
 		"used by the SparkApplication submission runner.")
 	resyncInterval = flag.Int("resync-interval", 30, "Informer resync interval in seconds")
+	namespace = flag.String("namespace", "", "The Kubernetes namespace to manage. "+
+		"Will manage CRDs for the whole cluster if unset.")
 )
 
 func main() {
@@ -105,12 +107,17 @@ func main() {
 		}
 	}
 
-	factory := crdinformers.NewSharedInformerFactory(
+	var factoryOpts []crdinformers.SharedInformerOption
+	if *namespace != "" {
+		factoryOpts = append(factoryOpts, crdinformers.WithNamespace(*namespace))
+	}
+	factory := crdinformers.NewSharedInformerFactoryWithOptions(
 		crdClient,
 		// resyncPeriod. Every resyncPeriod, all resources in the cache will re-trigger events.
-		time.Duration(*resyncInterval)*time.Second)
+		time.Duration(*resyncInterval)*time.Second,
+		factoryOpts...)
 	applicationController := sparkapplication.NewController(
-		crdClient, kubeClient, apiExtensionsClient, factory, *submissionRunnerThreads)
+		crdClient, kubeClient, apiExtensionsClient, factory, *submissionRunnerThreads, *namespace)
 	scheduledApplicationController := scheduledsparkapplication.NewController(
 		crdClient, kubeClient, apiExtensionsClient, factory, clock.RealClock{})
 

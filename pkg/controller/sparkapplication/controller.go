@@ -78,18 +78,22 @@ func NewController(
 	kubeClient clientset.Interface,
 	extensionsClient apiextensionsclient.Interface,
 	informerFactory crdinformers.SharedInformerFactory,
-	submissionRunnerWorkers int) *Controller {
+	submissionRunnerWorkers int,
+	namespace string) *Controller {
+	if namespace == "" {
+		namespace = apiv1.NamespaceAll
+	}
 	crdscheme.AddToScheme(scheme.Scheme)
 
 	eventBroadcaster := record.NewBroadcaster()
 	eventBroadcaster.StartLogging(glog.V(2).Infof)
 	eventBroadcaster.StartRecordingToSink(&typedcorev1.EventSinkImpl{
-		Interface: kubeClient.CoreV1().Events(apiv1.NamespaceAll),
+		Interface: kubeClient.CoreV1().Events(namespace),
 	})
 	recorder := eventBroadcaster.NewRecorder(scheme.Scheme, apiv1.EventSource{Component: "spark-operator"})
 
 	return newSparkApplicationController(crdClient, kubeClient, extensionsClient, informerFactory, recorder,
-		submissionRunnerWorkers)
+		submissionRunnerWorkers, namespace)
 }
 
 func newSparkApplicationController(
@@ -98,7 +102,8 @@ func newSparkApplicationController(
 	extensionsClient apiextensionsclient.Interface,
 	informerFactory crdinformers.SharedInformerFactory,
 	eventRecorder record.EventRecorder,
-	submissionRunnerWorkers int) *Controller {
+	submissionRunnerWorkers int,
+	namespace string) *Controller {
 	queue := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(),
 		"spark-application-controller")
 
@@ -106,7 +111,7 @@ func newSparkApplicationController(
 	podStateReportingChan := make(chan interface{})
 
 	runner := newSparkSubmitRunner(submissionRunnerWorkers, appStateReportingChan)
-	sparkPodMonitor := newSparkPodMonitor(kubeClient, podStateReportingChan)
+	sparkPodMonitor := newSparkPodMonitor(kubeClient, namespace, podStateReportingChan)
 
 	controller := &Controller{
 		crdClient:             crdClient,
