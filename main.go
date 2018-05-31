@@ -61,7 +61,7 @@ var (
 		"used by the SparkApplication submission runner.")
 	resyncInterval = flag.Int("resync-interval", 30, "Informer resync interval in seconds")
 	namespace = flag.String("namespace", "", "The Kubernetes namespace to manage. "+
-		"Will manage CRDs for the whole cluster if unset.")
+		"Will manage custom resource objects of the managed CRD types for the whole cluster if unset.")
 )
 
 func main() {
@@ -108,7 +108,7 @@ func main() {
 	}
 
 	var factoryOpts []crdinformers.SharedInformerOption
-	if *namespace != "" {
+	if namespace != nil && *namespace != "" {
 		factoryOpts = append(factoryOpts, crdinformers.WithNamespace(*namespace))
 	}
 	factory := crdinformers.NewSharedInformerFactoryWithOptions(
@@ -132,7 +132,7 @@ func main() {
 
 	var sparkPodInitializer *initializer.SparkPodInitializer
 	if *enableInitializer {
-		sparkPodInitializer = initializer.New(kubeClient)
+		sparkPodInitializer = initializer.New(kubeClient, *namespace)
 		if err = sparkPodInitializer.Start(*initializerThreads, stopCh); err != nil {
 			glog.Fatal(err)
 		}

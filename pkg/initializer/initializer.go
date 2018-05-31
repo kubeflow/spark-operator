@@ -71,7 +71,11 @@ type SparkPodInitializer struct {
 }
 
 // New creates a new instance of Initializer.
-func New(kubeClient clientset.Interface) *SparkPodInitializer {
+func New(kubeClient clientset.Interface, namespace string) *SparkPodInitializer {
+	if namespace == "" {
+		namespace = apiv1.NamespaceAll
+	}
+
 	initializer := &SparkPodInitializer{
 		kubeClient: kubeClient,
 		queue: workqueue.NewNamedRateLimitingQueue(
@@ -80,7 +84,7 @@ func New(kubeClient clientset.Interface) *SparkPodInitializer {
 	}
 	initializer.syncHandler = initializer.syncSparkPod
 
-	podInterface := kubeClient.CoreV1().Pods(apiv1.NamespaceAll)
+	podInterface := kubeClient.CoreV1().Pods(namespace)
 	includeUninitializedWatchlist := &cache.ListWatch{
 		ListFunc: func(options metav1.ListOptions) (runtime.Object, error) {
 			options.IncludeUninitialized = true
