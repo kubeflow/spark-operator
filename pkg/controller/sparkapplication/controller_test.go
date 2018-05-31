@@ -60,7 +60,7 @@ func newFakeController(apps ...*v1alpha1.SparkApplication) (*Controller, *record
 	})
 
 	controller := newSparkApplicationController(crdClient, kubeClient, apiExtensionsClient, informerFactory, recorder,
-		1)
+		1, "test")
 	informer := informerFactory.Sparkoperator().V1alpha1().SparkApplications().Informer()
 	for _, app := range apps {
 		informer.GetIndexer().Add(app)

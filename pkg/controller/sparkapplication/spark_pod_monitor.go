@@ -70,13 +70,14 @@ type executorStateUpdate struct {
 // newSparkPodMonitor creates a new sparkPodMonitor instance.
 func newSparkPodMonitor(
 	kubeClient clientset.Interface,
+	namespace string,
 	podStateReportingChan chan<- interface{}) *sparkPodMonitor {
 	monitor := &sparkPodMonitor{
 		kubeClient:            kubeClient,
 		podStateReportingChan: podStateReportingChan,
 	}
 
-	podInterface := kubeClient.CoreV1().Pods(apiv1.NamespaceAll)
+	podInterface := kubeClient.CoreV1().Pods(namespace)
 	sparkPodWatchList := &cache.ListWatch{
 		ListFunc: func(options metav1.ListOptions) (runtime.Object, error) {
 			options.LabelSelector = fmt.Sprintf("%s,%s", sparkRoleLabel, config.LaunchedBySparkOperatorLabel)

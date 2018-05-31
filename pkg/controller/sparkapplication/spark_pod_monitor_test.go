@@ -271,6 +271,6 @@ func TestOnPodDeleted(t *testing.T) {
 
 func newMonitor() (*sparkPodMonitor, <-chan interface{}) {
 	podStateReportingChan := make(chan interface{})
-	monitor := newSparkPodMonitor(kubeclientfake.NewSimpleClientset(), podStateReportingChan)
+	monitor := newSparkPodMonitor(kubeclientfake.NewSimpleClientset(), "test",podStateReportingChan)
 	return monitor, podStateReportingChan
 }
