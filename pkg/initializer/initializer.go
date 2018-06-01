@@ -72,10 +72,6 @@ type SparkPodInitializer struct {
 
 // New creates a new instance of Initializer.
 func New(kubeClient clientset.Interface, namespace string) *SparkPodInitializer {
-	if namespace == "" {
-		namespace = apiv1.NamespaceAll
-	}
-
 	initializer := &SparkPodInitializer{
 		kubeClient: kubeClient,
 		queue: workqueue.NewNamedRateLimitingQueue(

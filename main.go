@@ -26,6 +26,7 @@ import (
 
 	"github.com/golang/glog"
 
+	apiv1 "k8s.io/api/core/v1"
 	apiextensionsclient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -60,7 +61,7 @@ var (
 	submissionRunnerThreads = flag.Int("submission-threads", 3, "Number of worker threads "+
 		"used by the SparkApplication submission runner.")
 	resyncInterval = flag.Int("resync-interval", 30, "Informer resync interval in seconds")
-	namespace = flag.String("namespace", "", "The Kubernetes namespace to manage. "+
+	namespace = flag.String("namespace", apiv1.NamespaceAll, "The Kubernetes namespace to manage. "+
 		"Will manage custom resource objects of the managed CRD types for the whole cluster if unset.")
 )
 
@@ -108,7 +109,10 @@ func main() {
 	}
 
 	var factoryOpts []crdinformers.SharedInformerOption
-	if namespace != nil && *namespace != "" {
+	if namespace == nil {
+		ns := apiv1.NamespaceAll
+		namespace = &ns
+	} else if *namespace != apiv1.NamespaceAll {
 		factoryOpts = append(factoryOpts, crdinformers.WithNamespace(*namespace))
 	}
 	factory := crdinformers.NewSharedInformerFactoryWithOptions(

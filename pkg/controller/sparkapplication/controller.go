@@ -80,9 +80,6 @@ func NewController(
 	informerFactory crdinformers.SharedInformerFactory,
 	submissionRunnerWorkers int,
 	namespace string) *Controller {
-	if namespace == "" {
-		namespace = apiv1.NamespaceAll
-	}
 	crdscheme.AddToScheme(scheme.Scheme)
 
 	eventBroadcaster := record.NewBroadcaster()
