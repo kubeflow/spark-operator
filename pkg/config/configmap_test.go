@@ -190,5 +190,6 @@ func TestMountHadoopAndSparkConfigMapToContainer(t *testing.T) {
 
 	// SPARK_CLASSPATH has been first created, and then replaced
 	assert.Equal(t, SparkClasspathEnvVar, container.Env[1].Name)
-	assert.Equal(t, fmt.Sprintf("%s:%s:$%s", DefaultSparkConfDir, DefaultHadoopConfDir, SparkClasspathEnvVar), container.Env[1].Value)
+	assert.Equal(t, fmt.Sprintf("%s:%s:$%s", DefaultSparkConfDir, DefaultHadoopConfDir, SparkClasspathEnvVar),
+		container.Env[1].Value)
 }

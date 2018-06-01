@@ -63,7 +63,7 @@ var (
 	submissionRunnerThreads = flag.Int("submission-threads", 3, "Number of worker threads "+
 		"used by the SparkApplication submission runner.")
 	resyncInterval = flag.Int("resync-interval", 30, "Informer resync interval in seconds")
-	namespace = flag.String("namespace", apiv1.NamespaceAll, "The Kubernetes namespace to manage. "+
+	namespace      = flag.String("namespace", apiv1.NamespaceAll, "The Kubernetes namespace to manage. "+
 		"Will manage custom resource objects of the managed CRD types for the whole cluster if unset.")
 )
 
