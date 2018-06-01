@@ -109,10 +109,7 @@ func main() {
 	}
 
 	var factoryOpts []crdinformers.SharedInformerOption
-	if namespace == nil {
-		ns := apiv1.NamespaceAll
-		namespace = &ns
-	} else if *namespace != apiv1.NamespaceAll {
+	if *namespace != apiv1.NamespaceAll {
 		factoryOpts = append(factoryOpts, crdinformers.WithNamespace(*namespace))
 	}
 	factory := crdinformers.NewSharedInformerFactoryWithOptions(
