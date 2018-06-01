@@ -184,7 +184,13 @@ Currently the following annotations are supported:
 
 In case you want to build the Spark Operator from the source code, e.g., to test a fix or a feature you write, you can do so following the instructions below.
 
-To get the Spark Operator, run the following commands:
+The easiest way to build without worrying about dependencies is to just build the Dockerfile.
+
+```bash
+$ docker build -t <image-tag> .
+```
+
+If you'd like to build/test the spark-operator locally, follow the instructions below:
 
 ```bash
 $ mkdir -p $GOPATH/src/k8s.io
@@ -200,7 +206,7 @@ command:
 $ dep ensure
 ```
 
-To update the dependencies, run the following command:
+To update the dependencies, run the following command. (You can skip this unless you know there's a dependency that needs updating):
 
 ```bash
 $ dep ensure -update
@@ -215,13 +221,13 @@ $ go get -u k8s.io/code-generator/cmd/deepcopy-gen
 $ go get -u k8s.io/code-generator/cmd/defaulter-gen
 ```
 
-To update the auto-generated code, run the followin command:
+To update the auto-generated code, run the following command. (This step is only required if the CRD types have been changed):
 
 ```bash
-$ hack/update-codegen.sh
+$ go generate
 ```
 
-To verify auto-generated code, run the following command:
+You can verify the current auto-generated code is up to date with:
 
 ```bash
 $ hack/verify-codegen.sh
@@ -230,17 +236,11 @@ $ hack/verify-codegen.sh
 To build the Spark Operator, run the following command:
 
 ```bash
-$ make build
+$ go build -o spark-operator
 ```
 
-To build a Docker image of the Spark Operator, run the following command:
+To run unit tests, run the following command:
 
 ```bash
-$ make image-tag=<image tag> image
-```
-
-To push the Docker image to Docker Hub, run the following command:
-
-```bash
-$ make image-tag=<image tag> push
+$ go test ./...
 ```

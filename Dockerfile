@@ -14,6 +14,19 @@
 # limitations under the License.
 #
 
+FROM golang:1.10.2-alpine as builder
+ARG DEP_VERSION="0.4.1"
+RUN apk update && apk add bash git
+ADD https://github.com/golang/dep/releases/download/v${DEP_VERSION}/dep-linux-amd64 /usr/bin/dep
+RUN chmod +x /usr/bin/dep
+
+WORKDIR ${GOPATH}/src/k8s.io/spark-on-k8s-operator
+COPY Gopkg.toml Gopkg.lock ./
+RUN dep ensure -vendor-only
+COPY . ./
+RUN go generate && go build -o /usr/bin/spark-operator
+
+
 FROM gcr.io/ynli-k8s/spark:v2.3.0
-COPY spark-operator /usr/bin/
+COPY --from=builder /usr/bin/spark-operator /usr/bin/
 ENTRYPOINT ["/usr/bin/spark-operator"]
