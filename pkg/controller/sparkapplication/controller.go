@@ -213,7 +213,8 @@ func (c *Controller) onUpdate(oldObj, newObj interface{}) {
 	// application if it is still running. Skip submitting the new application if cleanup for the old application
 	// failed to avoid potentially running both the old and new applications at the same time.
 	if err := c.deleteDriverAndUIService(oldApp, true); err != nil {
-		glog.Error(err)
+		glog.Errorf("failed to delete the driver pod and UI service for SparkApplication %s: %v",
+			oldApp.Name, err)
 		return
 	}
 
@@ -248,7 +249,7 @@ func (c *Controller) onDelete(obj interface{}) {
 			app.Name)
 
 		if err := c.deleteDriverAndUIService(app, false); err != nil {
-			glog.Errorf("failed to delete the driver pod and UI service for deleted SparkApplication %s: $v",
+			glog.Errorf("failed to delete the driver pod and UI service for deleted SparkApplication %s: %v",
 				app.Name, err)
 		}
 	}
@@ -561,7 +562,8 @@ func (c *Controller) handleRestart(app *v1alpha1.SparkApplication) {
 		if errors.IsNotFound(err) {
 			return
 		}
-		glog.Error(err)
+		glog.Errorf("failed to delete the driver pod and UI service for SparkApplication %s: %v",
+			app.Name, err)
 	}
 
 	//Enqueue the object for re-submission.
@@ -597,17 +599,15 @@ func (c *Controller) deleteDriverAndUIService(app *v1alpha1.SparkApplication, wa
 	if app.Status.DriverInfo.PodName != "" {
 		err := c.kubeClient.CoreV1().Pods(app.Namespace).Delete(app.Status.DriverInfo.PodName,
 			metav1.NewDeleteOptions(0))
-		if err != nil {
-			return fmt.Errorf("failed to delete old driver pod %s of SparkApplication %s: %v",
-				app.Status.DriverInfo.PodName, app.Name, err)
+		if err != nil && !errors.IsNotFound(err) {
+			return err
 		}
 	}
 	if app.Status.DriverInfo.WebUIServiceName != "" {
 		err := c.kubeClient.CoreV1().Services(app.Namespace).Delete(app.Status.DriverInfo.WebUIServiceName,
 			metav1.NewDeleteOptions(0))
-		if err != nil {
-			return fmt.Errorf("failed to delete old web UI service %s of SparkApplication %s: %v",
-				app.Status.DriverInfo.WebUIServiceName, app.Name, err)
+		if err != nil && !errors.IsNotFound(err) {
+			return err
 		}
 	}
 
