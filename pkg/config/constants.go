@@ -72,7 +72,7 @@ const (
 	// SparkContainerImageKey is the configuration property for specifying the unified container image.
 	SparkContainerImageKey = "spark.kubernetes.container.image"
 	// SparkContainerImageKey is the configuration property for specifying the container image pull policy.
-	SparkContainerImagePullPolicyKey = "spark.kubernetes.container.image.pullPolicy"
+	SparkContainerImagePullPolicyKey = "spark.kubernetes.docker.image.pullPolicy"
 	// SparkNodeSelectorKeyPrefix is the configuration property prefix for specifying node selector for the pods.
 	SparkNodeSelectorKeyPrefix = "spark.kubernetes.node.selector."
 	// SparkDriverContainerImageKey is the configuration property for specifying a custom driver container image.
@@ -109,16 +109,16 @@ const (
 	// account used by the driver pod.
 	SparkDriverServiceAccountName = "spark.kubernetes.authenticate.driver.serviceAccountName"
 	// SparkInitContainerImage is the Spark configuration key for specifying a custom init-container image.
-	SparkInitContainerImage = "spark.kubernetes.initContainer.image"
+	SparkInitContainerImage = "spark.kubernetes.initcontainer.docker.image"
 	// SparkJarsDownloadDir is the Spark configuration key for specifying the download path in the driver and
 	// executors for remote jars.
-	SparkJarsDownloadDir = "spark.kubernetes.mountDependencies.jarsDownloadDir"
+	SparkJarsDownloadDir = "spark.kubernetes.mountdependencies.jarsDownloadDir"
 	// SparkFilesDownloadDir is the Spark configuration key for specifying the download path in the driver and
 	// executors for remote files.
-	SparkFilesDownloadDir = "spark.kubernetes.mountDependencies.filesDownloadDir"
+	SparkFilesDownloadDir = "spark.kubernetes.mountdependencies.filesDownloadDir"
 	// SparkDownloadTimeout is the Spark configuration key for specifying the timeout in seconds of downloading
 	// remote dependencies.
-	SparkDownloadTimeout = "spark.kubernetes.mountDependencies.timeout"
+	SparkDownloadTimeout = "spark.kubernetes.mountdependencies.timeout"
 	// SparkMaxSimultaneousDownloads is the Spark configuration key for specifying the maximum number of remote
 	// dependencies to download.
 	SparkMaxSimultaneousDownloads = "spark.kubernetes.mountDependencies.maxSimultaneousDownloads"
