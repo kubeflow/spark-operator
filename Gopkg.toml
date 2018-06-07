@@ -50,6 +50,10 @@ required = [
   version = "0.18.0"
 
 [[constraint]]
+  name = "github.com/aws/aws-sdk-go"
+  version = "1.14.6"
+
+[[constraint]]
   branch = "master"
   name = "github.com/golang/glog"
 

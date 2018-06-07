@@ -31,28 +31,9 @@ const rootPath = "spark-app-dependencies"
 type gcsUploader struct {
 	client *storage.Client
 	handle *storage.BucketHandle
+	endpointURL string
 	bucket string
 	path   string
-}
-
-func newGcsUploader(bucket string, path string, projectID string, ctx context.Context) (*gcsUploader, error) {
-	client, err := storage.NewClient(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	handle := client.Bucket(bucket)
-	// Check if the bucket exists.
-	if _, err := handle.Attrs(ctx); err != nil {
-		return nil, err
-	}
-	uploader := &gcsUploader{
-		client: client,
-		handle: handle.UserProject(projectID),
-		bucket: bucket,
-		path:   path}
-
-	return uploader, nil
 }
 
 func (g *gcsUploader) upload(ctx context.Context, localFile string, public bool, override bool) (string, error) {
@@ -67,7 +48,7 @@ func (g *gcsUploader) upload(ctx context.Context, localFile string, public bool,
 	objectAttrs, err := object.Attrs(ctx)
 	if err == nil && !override {
 		fmt.Printf("not uploading file %s as it already exists remotely\n", filepath.Base(localFile))
-		return getRemoteFileUrl(objectAttrs.Bucket, objectAttrs.Name, public), nil
+		return g.getRemoteFileUrl(objectAttrs.Name, public), nil
 	}
 
 	fmt.Printf("uploading local file: %s\n", localFile)
@@ -90,19 +71,53 @@ func (g *gcsUploader) upload(ctx context.Context, localFile string, public bool,
 		}
 	}
 
-	return getRemoteFileUrl(objectAttrs.Bucket, objectAttrs.Name, public), nil
+	return g.getRemoteFileUrl(objectAttrs.Name, public), nil
+}
+
+func (g *gcsUploader) getRemoteFileUrl(name string, public bool) string {
+	if public {
+		return fmt.Sprintf("%s/%s/%s", g.endpointURL, g.bucket, name)
+	}
+	return fmt.Sprintf("gs://%s/%s", g.bucket, name)
+}
+
+func newGcsUploader(
+	bucket string,
+	path string,
+	projectID string,
+	endpointURL string,
+	ctx context.Context) (*gcsUploader, error) {
+	client, err := storage.NewClient(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	handle := client.Bucket(bucket)
+	// Check if the bucket exists.
+	if _, err := handle.Attrs(ctx); err != nil {
+		return nil, err
+	}
+	uploader := &gcsUploader{
+		client: client,
+		handle: handle.UserProject(projectID),
+		endpointURL: endpointURL,
+		bucket: bucket,
+		path:   path}
+
+	return uploader, nil
 }
 
 func uploadToGCS(
 	bucket string,
 	appNamespace string,
 	appName string,
+	endpointURL string,
 	projectID string,
 	files []string,
 	public bool,
 	override bool) ([]string, error) {
 	ctx := context.Background()
-	uploader, err := newGcsUploader(bucket, filepath.Join(rootPath, appNamespace, appName), projectID, ctx)
+	uploader, err := newGcsUploader(bucket, filepath.Join(rootPath, appNamespace, appName), projectID, endpointURL, ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -118,11 +133,4 @@ func uploadToGCS(
 	}
 
 	return uploadedFiles, nil
-}
-
-func getRemoteFileUrl(bucket, name string, public bool) string {
-	if public {
-		return fmt.Sprintf("https://storage.googleapis.com/%s/%s", bucket, name)
-	}
-	return fmt.Sprintf("gs://%s/%s", bucket, name)
 }

@@ -39,6 +39,8 @@ import (
 const bufferSize = 1024
 
 var UploadTo string
+var EndpointURL string
+var Region string
 var Project string
 var Public bool
 var Override bool
@@ -74,6 +76,10 @@ var createCmd = &cobra.Command{
 func init() {
 	createCmd.Flags().StringVarP(&UploadTo, "upload-to", "u", "",
 		"a URL of the remote location where local application dependencies are to be uploaded to")
+	createCmd.Flags().StringVarP(&Region, "region", "r", "",
+		"the GCS or S3 storage region for the bucket")
+	createCmd.Flags().StringVarP(&EndpointURL, "endpoint-url", "e",
+		"https://storage.googleapis.com", "the GCS or S3 storage api endpoint url")
 	createCmd.Flags().StringVarP(&Project, "project", "p", "",
 		"the GCP project to which the GCS bucket for hosting uploaded dependencies is associated")
 	createCmd.Flags().BoolVarP(&Public, "public", "c", false,
@@ -283,9 +289,25 @@ func uploadLocalDependencies(app *v1alpha1.SparkApplication, files []string) ([]
 		if Project == "" {
 			return nil, fmt.Errorf("--project must be specified to upload dependencies to GCS")
 		}
-		return uploadToGCS(uploadLocationUrl.Host, app.Namespace, app.Name, Project, files, Public, Override)
-	case "s3":
-		return nil, nil
+		return uploadToGCS(
+			uploadLocationUrl.Host,
+			app.Namespace,
+			app.Name,
+			EndpointURL,
+			Project,
+			files,
+			Public,
+			Override)
+	case "s3a":
+		return uploadToS3(
+			uploadLocationUrl.Host,
+			app.Namespace,
+			app.Name,
+			EndpointURL,
+			Region,
+			files,
+			Public,
+			Override)
 	default:
 		return nil, fmt.Errorf("unsupported upload location URL scheme: %s", uploadLocationUrl.Scheme)
 	}
