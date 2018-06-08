@@ -56,6 +56,10 @@ Spark Operator enables cache resynchronization so periodically the informers use
 objects it manages and re-trigger resource events. The resynchronization interval in seconds can be configured using the
 flag `-resync-interval`, with a default value of 30 seconds.
 
+Spark on Kubernetes needs DNS resolution for the FQDN of the driver pod used by executors to connect to the driver. By
+default, Spark Operator checks the presence of `kube-dns` in the cluster and fails fast if it cannot find it. The check 
+can be disabled if desirable by setting the flag `-check-dns=false`.
+
 By default, Spark Operator will install the
 [CustomResourceDefinitions](https://kubernetes.io/docs/tasks/access-kubernetes-api/extend-api-custom-resource-definitions/)
 for the custom resources it managers. This can be disabled by setting the flag `-install-crds=false.`.

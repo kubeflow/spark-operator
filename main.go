@@ -53,6 +53,7 @@ var (
 		"Overrides any value in kubeconfig. Only required if out-of-cluster.")
 	kubeConfig = flag.String("kubeConfig", "", "Path to a kube config. Only required if "+
 		"out-of-cluster.")
+	checkDns          = flag.Bool("check-dns", true, "Whether to check the presence of kube-dns")
 	enableInitializer = flag.Bool("enable-initializer", true, "Whether to enable the "+
 		"Spark pod initializer.")
 	installCRDs        = flag.Bool("install-crds", true, "Whether to install CRDs")
@@ -80,9 +81,11 @@ func main() {
 		glog.Fatal(err)
 	}
 
-	glog.Info("Checking the kube-dns add-on")
-	if err = checkKubeDNS(kubeClient); err != nil {
-		glog.Fatal(err)
+	if *checkDns {
+		glog.Info("Checking the kube-dns add-on")
+		if err = checkKubeDNS(kubeClient); err != nil {
+			glog.Fatal(err)
+		}
 	}
 
 	glog.Info("Starting the Spark operator")
