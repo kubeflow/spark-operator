@@ -68,23 +68,15 @@ the `ScheduledSparkApplication` CRD and the corresponding CRD controller.
 Spark Operator currently supports the following list of features:
 
 * Supports Spark 2.3 and up.
-* Supports automatic application submission on behalf of users for each new `SparkAppliation` object observed.
-* Supports running an application on a standard [cron](https://en.wikipedia.org/wiki/Cron) schedule.
+* Enables declarative application specification and management of applications by manipulating `SparkApplication` resources. 
+* Automatically runs `spark-submit` on behalf of users for each `SparkApplication` eligible for submission.
+* Provides native [cron](https://en.wikipedia.org/wiki/Cron) support for running scheduled applications.
 * Supports automatic application re-submission for updated `SparkAppliation` objects with updated specification.
 * Supports automatic application restart with a configurable restart policy.
 * Supports automatic retries of failed submissions with optional linear back-off.
-* Supports mounting user-specified ConfigMaps and volumes (not supported by Spark itself).
+* Supports mounting user-specified ConfigMaps and volumes (currently through the Initializer).
 * Supports mounting local Hadoop configuration as a Kubernetes ConfigMap automatically via `sparkctl`.
 * Supports automatically staging local application dependencies to Google Cloud Storage (GCS) via `sparkctl`.
-
-The following list of features is planned:
-
-* Supports automatically staging local application dependencies to HTTP servers and S3.
-* Supports exporting Kubernetes events to Stackdriver.
-* Supports automatic scale up and down when the number of executor instances changes.
-* Supports automatically copying application logs to a central place, e.g., a GCS bucket, for bookkeeping, post-run checking, and analysis.
-* Supports automatically creating namespaces and setting up RBAC roles and quotas, and running users' applications in separate 
-namespaces for better resource isolation and quota management. 
 
 ## Motivations
 
