@@ -43,6 +43,8 @@ spec:
       - name: sparkoperator
         image: gcr.io/spark-operator/spark-operator:v2.3.0-v1alpha1-latest
         imagePullPolicy: Always
+        command: ["/entrypoint"]
         args:
+        - /usr/bin/spark-operator
         - -logtostderr
         - -enable-initializer=false
