@@ -62,19 +62,19 @@ required = [
   name = "golang.org/x/net"
 
 [[constraint]]
-  branch = "release-1.9"
+  branch = "release-1.10"
   name = "k8s.io/api"
 
 [[constraint]]
-  branch = "release-1.9"
+  branch = "release-1.10"
   name = "k8s.io/apiextensions-apiserver"
 
 [[constraint]]
-  branch = "release-1.9"
+  branch = "release-1.10"
   name = "k8s.io/apimachinery"
 
 [[constraint]]
-  branch = "release-6.0"
+  branch = "release-7.0"
   name = "k8s.io/client-go"
 
 [[override]]
