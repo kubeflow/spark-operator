@@ -163,3 +163,33 @@ func TestMountSparkConfigMapToContainer(t *testing.T) {
 	assert.Equal(t, DefaultSparkConfDir, container.Env[0].Value)
 	assert.Equal(t, SparkClasspathEnvVar, container.Env[1].Name)
 }
+
+func TestMountHadoopAndSparkConfigMapToContainer(t *testing.T) {
+	container := &apiv1.Container{}
+
+	MountHadoopConfigMapToContainer(container)
+	MountSparkConfigMapToContainer(container)
+
+	// We expect only 3 env variables (we can only have 1 SPARK_CLASSPATH)
+	assert.Equal(t, 2, len(container.VolumeMounts))
+	assert.Equal(t, 3, len(container.Env))
+	assert.Equal(t, HadoopConfigMapVolumeName, container.VolumeMounts[0].Name)
+	assert.Equal(t, SparkConfigMapVolumeName, container.VolumeMounts[1].Name)
+	assert.Equal(t, DefaultHadoopConfDir, container.VolumeMounts[0].MountPath)
+	assert.Equal(t, DefaultSparkConfDir, container.VolumeMounts[1].MountPath)
+
+	// MountHadoopConfigMapToContainer should first append HADOOP_CONF_DIR
+	// and then create SPARK_CLASSPATH
+	assert.Equal(t, HadoopConfDirEnvVar, container.Env[0].Name)
+	assert.Equal(t, DefaultHadoopConfDir, container.Env[0].Value)
+
+	// MountSparkConfigMapToContainer should first append SPARK_CONF_DIR
+	// and then search and replace SPARK_CLASSPATH
+	assert.Equal(t, SparkConfDirEnvVar, container.Env[2].Name)
+	assert.Equal(t, DefaultSparkConfDir, container.Env[2].Value)
+
+	// SPARK_CLASSPATH has been first created, and then replaced
+	assert.Equal(t, SparkClasspathEnvVar, container.Env[1].Name)
+	assert.Equal(t, fmt.Sprintf("%s:%s:$%s", DefaultSparkConfDir, DefaultHadoopConfDir, SparkClasspathEnvVar),
+		container.Env[1].Value)
+}

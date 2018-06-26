@@ -80,6 +80,10 @@ func buildSubmissionCommandArgs(app *v1alpha1.SparkApplication) ([]string, error
 		args = append(args, "--conf",
 			fmt.Sprintf("%s=%s", config.SparkContainerImagePullPolicyKey, *app.Spec.ImagePullPolicy))
 	}
+	if len(app.Spec.ImagePullSecrets) > 0 {
+		secretNames := strings.Join(app.Spec.ImagePullSecrets, ",")
+		args = append(args, "--conf", fmt.Sprintf("%s=%s", config.SparkImagePullSecretKey, secretNames))
+	}
 
 	if app.Spec.SparkConf == nil {
 		app.Spec.SparkConf = make(map[string]string)
@@ -258,6 +262,11 @@ func addDriverConfOptions(app *v1alpha1.SparkApplication) ([]string, error) {
 			fmt.Sprintf("%s%s=%s", config.SparkDriverAnnotationKeyPrefix, key, value))
 	}
 
+	for key, value := range app.Spec.Driver.EnvSecretKeyRefs {
+		driverConfOptions = append(driverConfOptions,
+			fmt.Sprintf("%s%s=%s:%s", config.SparkDriverSecretKeyRefKeyPrefix, key, value.Name, value.Key))
+	}
+
 	driverConfOptions = append(driverConfOptions, config.GetDriverSecretConfOptions(app)...)
 	driverConfOptions = append(driverConfOptions, config.GetDriverConfigMapConfOptions(app)...)
 	driverConfOptions = append(driverConfOptions, config.GetDriverEnvVarConfOptions(app)...)
@@ -281,16 +290,20 @@ func addExecutorConfOptions(app *v1alpha1.SparkApplication) ([]string, error) {
 	executorConfOptions = append(executorConfOptions,
 		fmt.Sprintf("%s%s=%s", config.SparkExecutorLabelKeyPrefix, config.LaunchedBySparkOperatorLabel, "true"))
 
-	if app.Spec.Executor.Image != nil {
-		executorConfOptions = append(executorConfOptions,
-			fmt.Sprintf("%s=%s", config.SparkExecutorContainerImageKey, *app.Spec.Executor.Image))
-	}
-
 	if app.Spec.Executor.Instances != nil {
 		conf := fmt.Sprintf("spark.executor.instances=%d", *app.Spec.Executor.Instances)
 		executorConfOptions = append(executorConfOptions, conf)
 	}
 
+	if app.Spec.Executor.Image != nil {
+		executorConfOptions = append(executorConfOptions,
+			fmt.Sprintf("%s=%s", config.SparkExecutorContainerImageKey, *app.Spec.Executor.Image))
+	}
+
+	if app.Spec.Executor.CoreRequest != nil {
+		executorConfOptions = append(executorConfOptions,
+			fmt.Sprintf("%s=%s", config.SparkExecutorCoreRequestKey, *app.Spec.Executor.CoreRequest))
+	}
 	if app.Spec.Executor.Cores != nil {
 		// Property "spark.executor.cores" does not allow float values.
 		conf := fmt.Sprintf("spark.executor.cores=%d", int32(*app.Spec.Executor.Cores))
@@ -313,6 +326,11 @@ func addExecutorConfOptions(app *v1alpha1.SparkApplication) ([]string, error) {
 	for key, value := range app.Spec.Executor.Annotations {
 		executorConfOptions = append(executorConfOptions,
 			fmt.Sprintf("%s%s=%s", config.SparkExecutorAnnotationKeyPrefix, key, value))
+	}
+
+	for key, value := range app.Spec.Executor.EnvSecretKeyRefs {
+		executorConfOptions = append(executorConfOptions,
+			fmt.Sprintf("%s%s=%s:%s", config.SparkExecutorSecretKeyRefKeyPrefix, key, value.Name, value.Key))
 	}
 
 	executorConfOptions = append(executorConfOptions, config.GetExecutorSecretConfOptions(app)...)
