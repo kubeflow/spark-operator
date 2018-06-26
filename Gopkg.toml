@@ -35,12 +35,18 @@
 #  name = "github.com/x/y"
 #  version = "2.4.0"
 
+required = [
+  "k8s.io/code-generator/cmd/client-gen",
+  "k8s.io/code-generator/cmd/deepcopy-gen",
+  "k8s.io/code-generator/cmd/defaulter-gen",
+]
 
 [[constraint]]
   name = "cloud.google.com/go"
   version = "0.18.0"
 
 [[constraint]]
+  branch = "master"
   name = "github.com/golang/glog"
 
 [[constraint]]
@@ -52,6 +58,7 @@
   version = "1.1.4"
 
 [[constraint]]
+  branch = "master"
   name = "golang.org/x/net"
 
 [[constraint]]
@@ -81,3 +88,7 @@
 [[constraint]]
   name = "github.com/robfig/cron"
   revision = "df38d32658d8788cd446ba74db4bb5375c4b0cb3"
+
+[[constraint]]
+  branch = "master"
+  name = "k8s.io/code-generator"

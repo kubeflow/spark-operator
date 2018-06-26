@@ -382,6 +382,16 @@
 
 [[projects]]
   branch = "master"
+  name = "golang.org/x/tools"
+  packages = [
+    "go/ast/astutil",
+    "imports",
+    "internal/fastwalk"
+  ]
+  revision = "a5b4c53f6e8bdcafa95a94671bf2d1203365858b"
+
+[[projects]]
+  branch = "master"
   name = "google.golang.org/api"
   packages = [
     "gensupport",
@@ -666,6 +676,41 @@
 
 [[projects]]
   branch = "master"
+  name = "k8s.io/code-generator"
+  packages = [
+    "cmd/client-gen",
+    "cmd/client-gen/args",
+    "cmd/client-gen/generators",
+    "cmd/client-gen/generators/fake",
+    "cmd/client-gen/generators/scheme",
+    "cmd/client-gen/generators/util",
+    "cmd/client-gen/path",
+    "cmd/client-gen/types",
+    "cmd/deepcopy-gen",
+    "cmd/deepcopy-gen/args",
+    "cmd/defaulter-gen",
+    "cmd/defaulter-gen/args",
+    "pkg/util"
+  ]
+  revision = "2381612e86473457f7e1b8f7edf16cf1e191d859"
+
+[[projects]]
+  branch = "master"
+  name = "k8s.io/gengo"
+  packages = [
+    "args",
+    "examples/deepcopy-gen/generators",
+    "examples/defaulter-gen/generators",
+    "examples/set-gen/sets",
+    "generator",
+    "namer",
+    "parser",
+    "types"
+  ]
+  revision = "2e1a79edcaecf0bfbde129a1fd55624b66adb699"
+
+[[projects]]
+  branch = "master"
   name = "k8s.io/kube-openapi"
   packages = [
     "pkg/common",
@@ -676,6 +721,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "3ab80822024d0dfcc1bb6ef3ae7c320a901d43b06f31fd1594704e6d836185af"
+  inputs-digest = "8047d9fffdb764973fe64215982eccea2db3514fe7ea03c546d7b1d03c6083b5"
   solver-name = "gps-cdcl"
   solver-version = 1

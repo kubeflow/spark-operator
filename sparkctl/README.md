@@ -4,7 +4,7 @@
 and deleting `SparkApplication`s. It can also do port forwarding from a local port to the Spark web UI port for 
 accessing the Spark web UI on the driver. Each function is implemented as a sub-command of `sparkctl`.
 
-To build `sparkctl`, run the following command from within `sparkctl/`:
+To build `sparkctl`, make sure you followed build steps [here](https://github.com/GoogleCloudPlatform/spark-on-k8s-operator/blob/master/docs/quick-start-guide.md#build) and have all the dependencies, then run the following command from within `sparkctl/`:
 
 ```bash
 $ go build -o sparkctl
@@ -105,11 +105,15 @@ $ sparkctl status <SparkApplication name>
 
 `log` is a sub command of `sparkctl` for fetching the logs of a pod of `SparkApplication` with the given name in the 
 namespace specified by `--namespace`. The command by default fetches the logs of the driver pod. To make it fetch logs
-of an executor pod instead, use the flag `--executor` to specify the ID of the executor whose logs should be fetched.
+of an executor pod instead, use the flag `--executor` or `-e` to specify the ID of the executor whose logs should be 
+fetched.
+
+The `log` command also supports streaming the driver or executor logs with the `--follow` or `-f` flag. It works in the 
+same way as `kubectl logs -f`, i.e., it streams logs until no more logs are available.
 
 Usage:
 ```bash
-$ sparkctl log <SparkApplication name> [--executor <executor ID, e.g., 1>]
+$ sparkctl log <SparkApplication name> [-e <executor ID, e.g., 1>] [-f]
 ```
 
 ### Delete
