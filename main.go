@@ -14,6 +14,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+//go:generate hack/update-codegen.sh
+
 package main
 
 import (
@@ -26,6 +28,7 @@ import (
 
 	"github.com/golang/glog"
 
+	apiv1 "k8s.io/api/core/v1"
 	apiextensionsclient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -50,6 +53,7 @@ var (
 		"Overrides any value in kubeconfig. Only required if out-of-cluster.")
 	kubeConfig = flag.String("kubeConfig", "", "Path to a kube config. Only required if "+
 		"out-of-cluster.")
+	checkDns          = flag.Bool("check-dns", true, "Whether to check the presence of kube-dns")
 	enableInitializer = flag.Bool("enable-initializer", true, "Whether to enable the "+
 		"Spark pod initializer.")
 	installCRDs        = flag.Bool("install-crds", true, "Whether to install CRDs")
@@ -60,6 +64,8 @@ var (
 	submissionRunnerThreads = flag.Int("submission-threads", 3, "Number of worker threads "+
 		"used by the SparkApplication submission runner.")
 	resyncInterval = flag.Int("resync-interval", 30, "Informer resync interval in seconds")
+	namespace      = flag.String("namespace", apiv1.NamespaceAll, "The Kubernetes namespace to manage. "+
+		"Will manage custom resource objects of the managed CRD types for the whole cluster if unset.")
 )
 
 func main() {
@@ -75,9 +81,11 @@ func main() {
 		glog.Fatal(err)
 	}
 
-	glog.Info("Checking the kube-dns add-on")
-	if err = checkKubeDNS(kubeClient); err != nil {
-		glog.Fatal(err)
+	if *checkDns {
+		glog.Info("Checking the kube-dns add-on")
+		if err = checkKubeDNS(kubeClient); err != nil {
+			glog.Fatal(err)
+		}
 	}
 
 	glog.Info("Starting the Spark operator")
@@ -105,12 +113,17 @@ func main() {
 		}
 	}
 
-	factory := crdinformers.NewSharedInformerFactory(
+	var factoryOpts []crdinformers.SharedInformerOption
+	if *namespace != apiv1.NamespaceAll {
+		factoryOpts = append(factoryOpts, crdinformers.WithNamespace(*namespace))
+	}
+	factory := crdinformers.NewSharedInformerFactoryWithOptions(
 		crdClient,
 		// resyncPeriod. Every resyncPeriod, all resources in the cache will re-trigger events.
-		time.Duration(*resyncInterval)*time.Second)
+		time.Duration(*resyncInterval)*time.Second,
+		factoryOpts...)
 	applicationController := sparkapplication.NewController(
-		crdClient, kubeClient, apiExtensionsClient, factory, *submissionRunnerThreads)
+		crdClient, kubeClient, apiExtensionsClient, factory, *submissionRunnerThreads, *namespace)
 	scheduledApplicationController := scheduledsparkapplication.NewController(
 		crdClient, kubeClient, apiExtensionsClient, factory, clock.RealClock{})
 
@@ -125,7 +138,7 @@ func main() {
 
 	var sparkPodInitializer *initializer.SparkPodInitializer
 	if *enableInitializer {
-		sparkPodInitializer = initializer.New(kubeClient)
+		sparkPodInitializer = initializer.New(kubeClient, *namespace)
 		if err = sparkPodInitializer.Start(*initializerThreads, stopCh); err != nil {
 			glog.Fatal(err)
 		}
