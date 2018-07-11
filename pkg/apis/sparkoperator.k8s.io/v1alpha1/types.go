@@ -29,7 +29,7 @@ const (
 	JavaApplicationType   SparkApplicationType = "Java"
 	ScalaApplicationType  SparkApplicationType = "Scala"
 	PythonApplicationType SparkApplicationType = "Python"
-	RApplocationType      SparkApplicationType = "R"
+	RApplicationType      SparkApplicationType = "R"
 )
 
 // DeployMode describes the type of deployment of a Spark application.
