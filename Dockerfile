@@ -14,10 +14,6 @@
 # limitations under the License.
 #
 
-<<<<<<< HEAD
-FROM kubespark/spark-base:v2.2.0-kubernetes-0.5.0
-COPY spark-operator /usr/bin/
-=======
 FROM golang:1.10.2-alpine as builder
 ARG DEP_VERSION="0.4.1"
 RUN apk update && apk add bash git
@@ -31,7 +27,6 @@ COPY . ./
 RUN go generate && go build -o /usr/bin/spark-operator
 
 
-FROM gcr.io/ynli-k8s/spark:v2.3.0
+FROM kubespark/spark-base:v2.2.0-kubernetes-0.5.0
 COPY --from=builder /usr/bin/spark-operator /usr/bin/
->>>>>>> master
 ENTRYPOINT ["/usr/bin/spark-operator"]
