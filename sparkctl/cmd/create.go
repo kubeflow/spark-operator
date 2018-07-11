@@ -344,7 +344,7 @@ func buildHadoopConfigMap(appName string, hadoopConfDir string) (*apiv1.ConfigMa
 			Name:      appName + "-hadoop-config",
 			Namespace: Namespace,
 		},
-		Data: hadoopStringConfigFiles,
+		Data:       hadoopStringConfigFiles,
 		BinaryData: hadoopBinaryConfigFiles,
 	}
 
