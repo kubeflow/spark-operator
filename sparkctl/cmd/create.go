@@ -33,6 +33,7 @@ import (
 
 	"k8s.io/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1alpha1"
 	crdclientset "k8s.io/spark-on-k8s-operator/pkg/client/clientset/versioned"
+	"unicode/utf8"
 )
 
 const bufferSize = 1024
@@ -320,7 +321,8 @@ func buildHadoopConfigMap(appName string, hadoopConfDir string) (*apiv1.ConfigMa
 		return nil, fmt.Errorf("no Hadoop configuration file found in %s", hadoopConfDir)
 	}
 
-	hadoopConfigFiles := make(map[string]string)
+	hadoopStringConfigFiles := make(map[string]string)
+	hadoopBinaryConfigFiles := make(map[string][]byte)
 	for _, file := range files {
 		if file.IsDir() {
 			continue
@@ -329,7 +331,12 @@ func buildHadoopConfigMap(appName string, hadoopConfDir string) (*apiv1.ConfigMa
 		if err != nil {
 			return nil, err
 		}
-		hadoopConfigFiles[file.Name()] = string(content)
+
+		if utf8.Valid(content) {
+			hadoopStringConfigFiles[file.Name()] = string(content)
+		} else {
+			hadoopBinaryConfigFiles[file.Name()] = content
+		}
 	}
 
 	configMap := &apiv1.ConfigMap{
@@ -337,7 +344,8 @@ func buildHadoopConfigMap(appName string, hadoopConfDir string) (*apiv1.ConfigMa
 			Name:      appName + "-hadoop-config",
 			Namespace: Namespace,
 		},
-		Data: hadoopConfigFiles,
+		Data:       hadoopStringConfigFiles,
+		BinaryData: hadoopBinaryConfigFiles,
 	}
 
 	return configMap, nil

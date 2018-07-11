@@ -4,7 +4,7 @@ For a quick introduction on how to build and install the Spark Operator, and how
 please refer to the [Quick Start Guide](quick-start-guide.md). For a complete reference of the API definition of the 
 `SparkApplication` and `ScheduledSparkApplication` custom resources, please refer to the [API Specification](api.md). 
 The Spark Operator ships with a command-line tool called `sparkctl` that offers additional features beyond what `kubectl` 
-is able to do. Documentation on `sparkctl` can be found in [README](../sparkctl/README.md). 
+is able to do. Documentation on `sparkctl` can be found in [README](../sparkctl/README.md). If you are running the Spark Operator on Google Kubernetes Engine and want to use Google Cloud Storage (GCS) and/or BigQuery for reading/writing data, also refer to the [GCP guide](docs/gcp.md). 
 
 ## Table of Contents
 * [Using a SparkApplication](#using-a-sparkapplication)
@@ -27,6 +27,7 @@ is able to do. Documentation on `sparkctl` can be found in [README](../sparkctl/
     * [Configuring Automatic Application Restart](#configuring-automatic-application-restart)
     * [Configuring Automatic Application Re-submission on Submission Failures](#configuring-automatic-application-re-submission-on-submission-failures)
 * [Running Spark Applications on a Schedule using a ScheduledSparkApplication](#running-spark-applications-on-a-schedule-using-a-scheduledsparkapplication)
+* [Customizing the Spark Operator](#customizing-the-spark-operator)
 
 ## Using a SparkApplication
 The Spark Operator runs Spark applications specified in Kubernetes objects of the `SparkApplication` custom resource type.
@@ -299,6 +300,41 @@ spec:
 Note that the initializer needs to be enabled to use this feature. Please refer to the 
 [Quick Start Guide](quick-start-guide.md#configuration) on how to enable the initializer.
 
+### Using Secrets As Environment Variables
+
+**Note that this feature requires an image based on the latest Spark master branch.** 
+
+A `SparkApplication` can use [secrets as environment variables](https://kubernetes.io/docs/concepts/configuration/secret/#using-secrets-as-environment-variables),
+through the optional field `.spec.driver.envSecretKeyRefs` for the driver pod and the optional field 
+`.spec.executor.envSecretKeyRefs` for the executor pods. A `envSecretKeyRefs` is a map from environment variable names 
+to pairs consisting of a secret name and a secret key. Below is an example:
+
+```yaml
+spec:
+  driver:
+    envSecretKeyRefs:
+      SECRET_USERNAME:
+        name: mysecret
+        key: username
+      SECRET_PASSWORD:
+        name: mysecret
+        key: password 
+``` 
+
+### Using Image Pull Secrets
+
+**Note that this feature requires an image based on the latest Spark master branch.**
+
+For images that need image-pull secrets to be pulled, a `SparkApplication` has an optional field `.spec.imagePullSecrets`
+for specifying a list of image-pull secrets. Below is an example:
+
+```yaml
+spec:
+  imagePullSecrets:
+    - secret1
+    - secret2
+```
+
 ## Working with SparkApplications
 
 #### Creating a New SparkApplication
@@ -369,7 +405,8 @@ metadata:
 spec:
   schedule: "@every 5m"
   concurrencyPolicy: Allow
-  runHistoryLimit: 3
+  successfulRunHistoryLimit: 1
+  failedRunHistoryLimit: 3
   template:
     type: Scala
     mode: cluster
@@ -398,12 +435,16 @@ run is killed and the next run starts as a replacement.
 A scheduled `ScheduledSparkApplication` can be temporarily suspended (no future scheduled runs of the application will
 be triggered) by setting `.spec.suspend` to `true`. The schedule can be resumed by removing `.spec.suspend` or setting
 it to `false`. A `ScheduledSparkApplication` can have names of `SparkApplication` objects for the past runs of the 
-application tracked in the `Status` section as discussed below. The number of past runs to keep track of is controlled 
-by the field `.spec.runHistoryLimit`. The example above allows 3 past runs to be tracked.
+application tracked in the `Status` section as discussed below. The numbers of past successful runs and past failed runs 
+to keep track of are controlled by field `.spec.successfulRunHistoryLimit` and field `.spec.failedRunHistoryLimit`, 
+respectively. The example above allows 1 past successful run and 3 past failed runs to be tracked.
 
 The `Status` section of a `ScheduledSparkApplication` object shows the time of the last run and the proposed time of the 
-next run of the application, through `.status.lastRun` and `.status.nextRun`, respectively. The names of `SparkApplication`
-objects for the past runs of the application are stored in `.status.pastRunNames`.
+next run of the application, through `.status.lastRun` and `.status.nextRun`, respectively. The names of the 
+`SparkApplication` object for the most recent run (which may  or may not be running) of the application are stored in 
+`.status.lastRunName`. The names of `SparkApplication` objects of the past successful runs of the application are stored
+in `.status.pastSuccessfulRunNames`. Similarly, the names of `SparkApplication` objects of the past failed runs of 
+the application are stored in `.status.pastFailedRunNames`.
 
 Note that certain restart policies (specified in `.spec.template.restartPolicy`) may not work well with the specified 
 schedule and concurrency policy of a `ScheduledSparkApplication`. For example, a restart policy of `Always` should never
@@ -411,3 +452,16 @@ be used with a `ScheduledSparkApplication`. In most cases, a restart policy of `
 the next run usually picks up where the previous run left anyway. For these reasons, it's often the right choice to use
 a restart policy of `Never` as the example above shows. 
  
+## Customizing the Spark Operator
+
+To customize the Spark Operator, you can follow the steps below:
+
+1. Compile Spark distribution with Kubernetes support as per [Spark documentation](https://spark.apache.org/docs/latest/building-spark.html#building-with-kubernetes-support).
+
+2. Create docker images to be used for Spark with [docker-image tool](https://spark.apache.org/docs/latest/running-on-kubernetes.html#docker-images).
+
+3. Create a new Spark Operator image based on the above image. You need to modify the `FROM` tag in the [Dockerfile](https://github.com/GoogleCloudPlatform/spark-on-k8s-operator/blob/master/Dockerfile) with your Spark image.
+
+4. Build and push your Spark Operator image built above. 
+
+5. Deploy the new image by modifying the [/manifest/spark-operator.yaml](https://github.com/GoogleCloudPlatform/spark-on-k8s-operator/blob/master/manifest/spark-operator.yaml) file and specfiying your Spark Operator image.

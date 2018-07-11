@@ -286,6 +286,7 @@ func TestHandleHadoopConfiguration(t *testing.T) {
 	}
 
 	assert.Equal(t, configMap.Name, "test-hadoop-config")
+	assert.Equal(t, len(configMap.BinaryData), 1)
 	assert.Equal(t, len(configMap.Data), 1)
 	assert.True(t, strings.Contains(configMap.Data["core-site.xml"], "fs.gs.impl"))
 }

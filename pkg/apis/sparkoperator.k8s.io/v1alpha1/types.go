@@ -29,7 +29,7 @@ const (
 	JavaApplicationType   SparkApplicationType = "Java"
 	ScalaApplicationType  SparkApplicationType = "Scala"
 	PythonApplicationType SparkApplicationType = "Python"
-	RApplocationType      SparkApplicationType = "R"
+	RApplicationType      SparkApplicationType = "R"
 )
 
 // DeployMode describes the type of deployment of a Spark application.
@@ -84,11 +84,19 @@ type ScheduledSparkApplicationSpec struct {
 	// Template is a template from which SparkApplication instances can be created.
 	Template SparkApplicationSpec `json:"template"`
 	// Suspend is a flag telling the controller to suspend subsequent runs of the application if set to true.
+	// Optional.
+	// Defaults to false.
 	Suspend *bool `json:"suspend,omitempty"`
 	// ConcurrencyPolicy is the policy governing concurrent SparkApplication runs.
 	ConcurrencyPolicy ConcurrencyPolicy `json:"concurrencyPolicy,omitempty"`
-	// RunHistoryLimit specifies the number of past runs of the application to remember.
-	RunHistoryLimit *int32 `json:"runHistoryLimit,omitempty"`
+	// SuccessfulRunHistoryLimit is the number of past successful runs of the application to keep.
+	// Optional.
+	// Defaults to 1.
+	SuccessfulRunHistoryLimit *int32 `json:"successfulRunHistoryLimit,omitempty"`
+	// FailedRunHistoryLimit is the number of past failed runs of the application to keep.
+	// Optional.
+	// Defaults to 1.
+	FailedRunHistoryLimit *int32 `json:"failedRunHistoryLimit,omitempty"`
 }
 
 type ScheduleState string
@@ -103,10 +111,12 @@ type ScheduledSparkApplicationStatus struct {
 	LastRun metav1.Time `json:"lastRun,omitempty"`
 	// NextRun is the time when the next run of the application will start.
 	NextRun metav1.Time `json:"nextRun,omitempty"`
-	// PastRunNames keeps the names of SparkApplications for past runs.
-	// It keeps up to Spec.RunHistoryLimit number of past SparkApplication names,
-	// in reverse order of time when the SparkApplications get created.
-	PastRunNames []string `json:"pastRunNames,omitempty"`
+	// LastRunName is the name of the SparkApplication for the most recent run of the application.
+	LastRunName string `json:"lastRunName,omitempty"`
+	// PastSuccessfulRunNames keeps the names of SparkApplications for past successful runs.
+	PastSuccessfulRunNames []string `json:"pastSuccessfulRunNames,omitempty"`
+	// PastFailedRunNames keeps the names of SparkApplications for past failed runs.
+	PastFailedRunNames []string `json:"pastFailedRunNames,omitempty"`
 	// ScheduleState is the current scheduling state of the application.
 	ScheduleState ScheduleState `json:"scheduleState,omitempty"`
 	// Reason tells why the ScheduledSparkApplication is in the particular ScheduleState.
@@ -147,9 +157,14 @@ type SparkApplicationSpec struct {
 	// Optional.
 	Image *string `json:"image,omitempty"`
 	// InitContainerImage is the image of the init-container to use. Overrides Spec.Image if set.
+	// Optional.
 	InitContainerImage *string `json:"initContainerImage,omitempty"`
 	// ImagePullPolicy is the image pull policy for the driver, executor, and init-container.
+	// Optional.
 	ImagePullPolicy *string `json:"imagePullPolicy,omitempty"`
+	// ImagePullSecrets is the list of image-pull secrets.
+	// Optional.
+	ImagePullSecrets []string `json:"imagePullSecrets,omitempty"`
 	// MainClass is the fully-qualified main class of the Spark application.
 	// This only applies to Java/Scala Spark applications.
 	// Optional.
@@ -189,10 +204,13 @@ type SparkApplicationSpec struct {
 	// RestartPolicy defines the policy on if and in which conditions the controller should restart a failed application.
 	RestartPolicy RestartPolicy `json:"restartPolicy,omitempty"`
 	// NodeSelector is the Kubernetes node selector to be added to the driver and executor pods.
+	// Optional.
 	NodeSelector map[string]string `json:"nodeSelector,omitempty"`
 	// MaxSubmissionRetries is the maximum number of times to retry a failed submission.
+	// Optional.
 	MaxSubmissionRetries *int32 `json:"maxSubmissionRetries,omitempty"`
 	// SubmissionRetryInterval is the unit of intervals in seconds between submission retries.
+	// Optional.
 	SubmissionRetryInterval *int64 `json:"submissionRetryInterval,omitempty"`
 }
 
@@ -303,6 +321,9 @@ type SparkPodSpec struct {
 	// EnvVars carries the environment variables to add to the pod.
 	// Optional.
 	EnvVars map[string]string `json:"envVars,omitempty"`
+	// EnvSecretKeyRefs holds a mapping from environment variable names to SecretKeyRefs.
+	// Optional.
+	EnvSecretKeyRefs map[string]NameKey `json:"envSecretKeyRefs,omitempty"`
 	// Labels are the Kubernetes labels to be added to the pod.
 	// Optional.
 	Labels map[string]string `json:"labels,omitempty"`
@@ -334,6 +355,9 @@ type ExecutorSpec struct {
 	// Instances is the number of executor instances.
 	// Optional.
 	Instances *int32 `json:"instances,omitempty"`
+	// CoreRequest is the physical CPU core request for the executors.
+	// Optional.
+	CoreRequest *string `json:"coreRequest,omitempty"`
 }
 
 // NamePath is a pair of a name and a path to which the named objects should be mounted to.
@@ -370,4 +394,10 @@ type SecretInfo struct {
 	Name string     `json:"name"`
 	Path string     `json:"path"`
 	Type SecretType `json:"secretType"`
+}
+
+// NameKey represents the name and key of a SecretKeyRef.
+type NameKey struct {
+	Name string `json:"name"`
+	Key  string `json:"key"`
 }

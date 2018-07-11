@@ -37,7 +37,7 @@ import (
 )
 
 func TestAddAndDeleteInitializationConfig(t *testing.T) {
-	controller := New(fake.NewSimpleClientset())
+	controller := New(fake.NewSimpleClientset(), "test")
 	client := controller.kubeClient.AdmissionregistrationV1alpha1()
 
 	controller.addInitializationConfig()
@@ -248,7 +248,7 @@ func TestAddPod(t *testing.T) {
 		pod    *apiv1.Pod
 		queued bool
 	}
-	controller := New(fake.NewSimpleClientset())
+	controller := New(fake.NewSimpleClientset(), "test")
 	testFn := func(test testcase, t *testing.T) {
 		controller.onPodAdded(test.pod)
 		if test.queued {
@@ -350,7 +350,7 @@ func TestSyncSparkPod(t *testing.T) {
 		json.Unmarshal(patch, obj)
 		return true, obj, nil
 	})
-	controller := New(clientset)
+	controller := New(clientset, "test")
 
 	testFn := func(test testcase, t *testing.T) {
 		_, err := controller.kubeClient.CoreV1().Pods(test.pod.Namespace).Create(test.pod)
@@ -504,7 +504,7 @@ func TestDeletePod(t *testing.T) {
 		queued bool
 	}
 
-	controller := New(fake.NewSimpleClientset())
+	controller := New(fake.NewSimpleClientset(), "test")
 	testFn := func(test testcase, t *testing.T) {
 		controller.onPodAdded(test.pod)
 		if test.queued {

@@ -3,13 +3,9 @@
 
 **This is not an officially supported Google product.**
 
-## Table of Contents
-1. [Project Status](#project-status)
-2. [Prerequisites](#prerequisites)
-3. [Documentation](#documentation)
-4. [Overview](#overview)
-5. [Features](#features)
-6. [Motivations](#motivations)
+## Community
+
+* [Slack](https://kubernetes.slack.com/messages/CALBDHMTL) channel
 
 ## Project Status
 
@@ -35,13 +31,13 @@ escaped quotes (e.g., `spark.ui.port\"`) in map keys can cause serialization pro
 extra attention to make sure no offending escaping is in your `SparkAppliction` CRD objects, particularly if you use 
 Kubernetes prior to 1.10.**   
 
-## Documentation
+## Get Started
 
-* [Design](docs/design.md)
-* [API Specification](docs/api.md)
-* [Quick Start Guide](docs/quick-start-guide.md)
-* [User Guide](docs/user-guide.md)
-* [User Guide of sparkctl](sparkctl/README.md)
+Get started quickly with the Spark Operator using the [Quick Start Guide](docs/quick-start-guide.md). 
+
+If you are running the Spark Operator on Google Kubernetes Engine and want to use Google Cloud Storage (GCS) and/or BigQuery for reading/writing data, also refer to the [GCP guide](docs/gcp.md).
+
+For more information, check the [Design](docs/design.md), [API Specification](docs/api.md) and detailed [User Guide](docs/user-guide.md).
 
 ## Overview
 
@@ -72,23 +68,15 @@ the `ScheduledSparkApplication` CRD and the corresponding CRD controller.
 Spark Operator currently supports the following list of features:
 
 * This branch specifically supports [Spark 2.2 fork with Kubernetes support](https://github.com/apache-spark-on-k8s/spark) to add support for PySpark. This branch will be deprecated once PySpark support is added in Spark 2.4.
-* Supports automatic application submission on behalf of users for each new `SparkAppliation` object observed.
-* Supports running an application on a standard [cron](https://en.wikipedia.org/wiki/Cron) schedule.
+* Enables declarative application specification and management of applications by manipulating `SparkApplication` resources. 
+* Automatically runs `spark-submit` on behalf of users for each `SparkApplication` eligible for submission.
+* Provides native [cron](https://en.wikipedia.org/wiki/Cron) support for running scheduled applications.
 * Supports automatic application re-submission for updated `SparkAppliation` objects with updated specification.
 * Supports automatic application restart with a configurable restart policy.
 * Supports automatic retries of failed submissions with optional linear back-off.
-* Supports mounting user-specified ConfigMaps and volumes (not supported by Spark itself).
+* Supports mounting user-specified ConfigMaps and volumes (currently through the Initializer).
 * Supports mounting local Hadoop configuration as a Kubernetes ConfigMap automatically via `sparkctl`.
 * Supports automatically staging local application dependencies to Google Cloud Storage (GCS) via `sparkctl`.
-
-The following list of features is planned:
-
-* Supports automatically staging local application dependencies to HTTP servers and S3.
-* Supports exporting Kubernetes events to Stackdriver.
-* Supports automatic scale up and down when the number of executor instances changes.
-* Supports automatically copying application logs to a central place, e.g., a GCS bucket, for bookkeeping, post-run checking, and analysis.
-* Supports automatically creating namespaces and setting up RBAC roles and quotas, and running users' applications in separate 
-namespaces for better resource isolation and quota management. 
 
 ## Motivations
 
