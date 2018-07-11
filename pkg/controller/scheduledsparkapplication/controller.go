@@ -324,14 +324,6 @@ func (c *Controller) killLastRunIfNotFinished(namespace string, lastRunName stri
 		return nil
 	}
 
-	// Delete the driver pod of the last run if applicable.
-	if app.Status.DriverInfo.PodName != "" {
-		if err = c.kubeClient.CoreV1().Pods(namespace).Delete(app.Status.DriverInfo.PodName,
-			metav1.NewDeleteOptions(0)); err != nil {
-			return err
-		}
-	}
-
 	// Delete the SparkApplication object of the last run.
 	if err = c.crdClient.SparkoperatorV1alpha1().SparkApplications(namespace).Delete(lastRunName,
 		metav1.NewDeleteOptions(0)); err != nil {

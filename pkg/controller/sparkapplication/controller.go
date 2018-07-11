@@ -189,8 +189,9 @@ func (c *Controller) onUpdate(oldObj, newObj interface{}) {
 	}
 
 	if reflect.DeepEqual(oldApp.Spec, newApp.Spec) {
-		// The spec has not changed but the application is subject to restart.
-		if shouldRestart(newApp) {
+		// The spec has not changed but the application is subject to restart if the application state has changed.
+		// If the application state remains the same, it doesn't make sense to even check the restart eligibility.
+		if oldApp.Status.AppState.State != newApp.Status.AppState.State && shouldRestart(newApp) {
 			c.handleRestart(newApp)
 		}
 		return
@@ -213,7 +214,7 @@ func (c *Controller) onUpdate(oldObj, newObj interface{}) {
 	// application if it is still running. Skip submitting the new application if cleanup for the old application
 	// failed to avoid potentially running both the old and new applications at the same time.
 	if err := c.deleteDriverAndUIService(oldApp, true); err != nil {
-		glog.Errorf("failed to delete the driver pod and UI service for SparkApplication %s: %v",
+		glog.Errorf("failed to delete the old driver pod and UI service for SparkApplication %s: %v",
 			oldApp.Name, err)
 		return
 	}
@@ -556,13 +557,7 @@ func (c *Controller) handleRestart(app *v1alpha1.SparkApplication) {
 	// deleting a already terminated driver pod won't trigger a driver state update by the sparkPodMonitor so won't
 	// cause repetitive restart handling.
 	if err := c.deleteDriverAndUIService(app, false); err != nil {
-		// If the error was because the old driver pod or UI service was not found, skip because very likely the
-		// application has already been restarted and the driver pod/service have already been deleted.
-		// TODO: This is a hacky way of solving the issue of duplicated restarts. Need a long-term solution.
-		if errors.IsNotFound(err) {
-			return
-		}
-		glog.Errorf("failed to delete the driver pod and UI service for SparkApplication %s: %v",
+		glog.Errorf("failed to delete the old driver pod and UI service for SparkApplication %s: %v",
 			app.Name, err)
 	}
 
@@ -579,6 +574,11 @@ func (c *Controller) handleRestart(app *v1alpha1.SparkApplication) {
 
 func (c *Controller) handleResubmission(app *v1alpha1.SparkApplication, submissionRetries int32) {
 	glog.Infof("Retrying submission of SparkApplication %s", app.Name)
+
+	if err := c.deleteDriverAndUIService(app, false); err != nil {
+		glog.Errorf("failed to delete the old driver pod and UI service for SparkApplication %s: %v",
+			app.Name, err)
+	}
 
 	if app.Spec.SubmissionRetryInterval != nil {
 		interval := time.Duration(*app.Spec.SubmissionRetryInterval) * time.Second
