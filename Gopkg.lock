@@ -47,6 +47,12 @@
   revision = "bc6354cbbc295e925e4c611ffe90c1f287ee54db"
 
 [[projects]]
+  name = "github.com/evanphx/json-patch"
+  packages = ["."]
+  revision = "afac545df32f2287a079e2dfb7ba2745a643747e"
+  version = "v3.0.0"
+
+[[projects]]
   name = "github.com/ghodss/yaml"
   packages = ["."]
   revision = "0ca9ea5df5451ffdf184b4428c902747c2c11cd7"
@@ -397,6 +403,7 @@
   branch = "release-1.10"
   name = "k8s.io/api"
   packages = [
+    "admission/v1beta1",
     "admissionregistration/v1alpha1",
     "admissionregistration/v1beta1",
     "apps/v1",
@@ -639,6 +646,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "28658d55a72e1c5e3f8f277ac9fc114067f74f5cb0a681fbc8c6375fe0d80317"
+  inputs-digest = "f21002511798e7e4396ccc14e7762e00556f425771101da81efeaaa5b26cea1a"
   solver-name = "gps-cdcl"
   solver-version = 1

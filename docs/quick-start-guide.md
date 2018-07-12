@@ -8,23 +8,32 @@ For a more detailed guide on how to use, compose, and work with `SparkAppliction
 2. [Configuration](#configuration)
 3. [Upgrade](#upgrade)
 4. [Running the Examples](#running-the-examples)
-5. [Using the Initializer](#using-the-initializer)
+5. [Using the Mutating Admission Webhook](#using-the-mutating-admission-webhook)
 6. [Build](#build)
 
 ## Installation
 
-To install the Spark Operator on a Kubernetes cluster, run the following command:
+Before installing the Spark Operator, run the following command to setup the environment for the operator:
 
 ```bash
-$ kubectl apply -f manifest/
+$ kubectl apply -f manifest/spark-operator-rbac.yaml
+$ kubectl apply -f manifest/spark-rbac.yaml
 ```
 
-This will create a namespace `sparkoperator`, setup RBAC for the Spark Operator to run in the namespace, and create a
-Deployment named `sparkoperator` in the namespace.
+This will create a namespace `sparkoperator`, setup RBAC for the Spark Operator to run in the namespace. It will also
+setup RBAC for driver pods of your Spark applications to be able to manipulate executor pods. 
 
-The [initializer](design.md#spark-pod-initializer) is disabled by default using the Spark Operator manifest at
-`manifest/spark-operator.yaml`. It can be enabled by removing the flag `-enable-initializer=false` or setting it to
-`true`, and running `kubectl apply -f manifest/spark-operator.yaml`.
+The Spark Operator optionally uses a [Mutating Admission Webhook](https://kubernetes.io/docs/reference/access-authn-authz/extensible-admission-controllers/)
+for Spark pod customization. To install the Spark Operator **without** the mutating admission webhook on a Kubernetes cluster, run the following command:
+
+```bash
+$ kubectl apply -f manifest/spark-operator.yaml
+```
+
+This will create a Deployment named `sparkoperator` in namespace `sparkoperator`.
+
+Alternatively, follow [Using the Mutating Admission Webhook](#using-the-mutating-admission-webhook) for instructions on
+how to install the operator with the mutating admission webhook.
 
 Due to a [known issue](https://cloud.google.com/kubernetes-engine/docs/how-to/role-based-access-control#defining_permissions_in_a_role)
 in GKE, you will need to first grant yourself cluster-admin privileges before you can create custom roles and role
@@ -56,18 +65,12 @@ Spark Operator enables cache resynchronization so periodically the informers use
 objects it manages and re-trigger resource events. The resynchronization interval in seconds can be configured using the
 flag `-resync-interval`, with a default value of 30 seconds.
 
-Spark on Kubernetes needs DNS resolution for the FQDN of the driver pod used by executors to connect to the driver. By
-default, Spark Operator checks the presence of `kube-dns` in the cluster and fails fast if it cannot find it. The check 
-can be disabled if desirable by setting the flag `-check-dns=false`.
-
 By default, Spark Operator will install the
 [CustomResourceDefinitions](https://kubernetes.io/docs/tasks/access-kubernetes-api/extend-api-custom-resource-definitions/)
 for the custom resources it managers. This can be disabled by setting the flag `-install-crds=false.`.
 
-The initializer is an **optional** component and can be enabled or disabled using the `-enable-initializer` flag, which
-defaults to `true`. Since the initializer is an alpha feature, it won't function in Kubernetes clusters without alpha
-features enabled. In this case, it can be disabled by adding the argument `-enable-initializer=false` to
-[spark-operator.yaml](../manifest/spark-operator.yaml).
+The mutating admission webhook is an **optional** component and can be enabled or disabled using the `-enable-webhook` flag, 
+which defaults to `false`.
 
 By default, Spark Operator will manage custom resource objects of the managed CRD types for the whole cluster.
 It can be configured to manage only the custom resource objects in a specific namespace with the flag `-namespace=<namespace>`
@@ -159,30 +162,30 @@ Events:
 The Spark Operator submits the Spark Pi example to run once it receives an event indicating the `SparkApplication`
 object was added.
 
-## Using the Initializer
+## Using the Mutating Admission Webhook
 
-The Spark Operator comes with an optional [initializer](design.md#spark-pod-initializer) for customizing Spark driver
-and executor pods based on the specification in `SparkApplication` objects, e.g., mounting user-specified ConfigMaps.
-The initializer works independently with or without the [CRD controller](design.md#the-crd-controller). It works by
-looking for certain custom annotations on Spark driver and executor Pods to perform its tasks. The annotations are
-added by the CRD controller automatically based on application specifications in the `SparkApplication`objects.
-Alternatively, to use the initializer without the controller, the needed annotations can be added manually to the driver
-and executor Pods using the following Spark configuration properties when submitting your Spark applications using the
-`spark-submit` script.
+The Spark Operator comes with an optional mutating admission webhook for customizing Spark driver and executor pods based 
+on the specification in `SparkApplication` objects, e.g., mounting user-specified ConfigMaps and volumes, and setting
+pod affinity/anti-affinity.
 
+The webhook requires a X509 certificate for TLS for pod admission requests and responses between the Kubernetes API 
+server and the webhook server running inside the operator. For that, the certificate and key files must be accessible
+by the webhook server and a Kubernetes secret can be used to store the files.
+
+The Spark Operator ships with a tool at `hack/gencerts.sh` for generating the CA and server certificate and putting the 
+certificate and key files into a secret. Running `hack/gencerts.sh` will generate a CA certificate and a certificate
+for the webhook server signed by the CA, and create a secret named `spark-webhook-certs` in namespace `sparkoperator`. 
+This secret will be mounted into the Spark Operator pod.  
+
+With the secret storing the certificate and key files available, run the following command to install the Spark Operator
+with the mutating admission webhook:
+
+```bash
+$ kubectl apply -f manifest/spark-operator-with-webhook.yaml
 ```
---conf spark.kubernetes.driver.annotations.[AnnotationName]=value
---conf spark.kubernetes.executor.annotations.[AnnotationName]=value
-```
 
-Currently the following annotations are supported:
-
-|Annotation|Value|
-| ------------- | ------------- |
-|`sparkoperator.k8s.io/sparkConfigMap`|Name of the Kubernetes ConfigMap storing Spark configuration files (to which `SPARK_CONF_DIR` applies)|
-|`sparkoperator.k8s.io/hadoopConfigMap`|Name of the Kubernetes ConfigMap storing Hadoop configuration files (to which `HADOOP_CONF_DIR` applies)|
-|`sparkoperator.k8s.io/configMap.[ConfigMapName]`|Mount path of the ConfigMap named `ConfigMapName`|
-|`sparkoperator.k8s.io/GCPServiceAccount.[SeviceAccountSecretName]`|Mount path of the secret storing GCP service account credentials (typically a JSON key file) named `SeviceAccountSecretName`|
+This will create a Deployment named `sparkoperator` and a Service named `spark-webhook` for the webhook in namespace 
+`sparkoperator`.
 
 ## Build
 
@@ -240,7 +243,7 @@ $ hack/verify-codegen.sh
 To build the Spark Operator, run the following command:
 
 ```bash
-$ go build -o spark-operator
+$ GOOS=linux go build -o spark-operator
 ```
 
 To run unit tests, run the following command:
