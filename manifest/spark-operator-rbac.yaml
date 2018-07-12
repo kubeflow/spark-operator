@@ -37,7 +37,7 @@ rules:
   resources: ["services", "configmaps"]
   verbs: ["create", "get", "delete"]
 - apiGroups: [""]
-  resources: ["nodes", "endpoints"]
+  resources: ["nodes"]
   verbs: ["get"]
 - apiGroups: [""]
   resources: ["events"]
