@@ -20,7 +20,6 @@ package main
 
 import (
 	"flag"
-	"fmt"
 	"os"
 	"os/signal"
 	"syscall"
@@ -30,8 +29,6 @@ import (
 
 	apiv1 "k8s.io/api/core/v1"
 	apiextensionsclient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
-	"k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/clock"
 	clientset "k8s.io/client-go/kubernetes"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
@@ -53,7 +50,6 @@ var (
 		"Overrides any value in kubeconfig. Only required if out-of-cluster.")
 	kubeConfig = flag.String("kubeConfig", "", "Path to a kube config. Only required if "+
 		"out-of-cluster.")
-	checkDns          = flag.Bool("check-dns", true, "Whether to check the presence of kube-dns")
 	enableInitializer = flag.Bool("enable-initializer", true, "Whether to enable the "+
 		"Spark pod initializer.")
 	installCRDs        = flag.Bool("install-crds", true, "Whether to install CRDs")
@@ -79,13 +75,6 @@ func main() {
 	kubeClient, err := clientset.NewForConfig(config)
 	if err != nil {
 		glog.Fatal(err)
-	}
-
-	if *checkDns {
-		glog.Info("Checking the kube-dns add-on")
-		if err = checkKubeDNS(kubeClient); err != nil {
-			glog.Fatal(err)
-		}
 	}
 
 	glog.Info("Starting the Spark operator")
@@ -164,24 +153,4 @@ func buildConfig(masterUrl string, kubeConfig string) (*rest.Config, error) {
 		return clientcmd.BuildConfigFromFlags(masterUrl, kubeConfig)
 	}
 	return rest.InClusterConfig()
-}
-
-func checkKubeDNS(kubeClient clientset.Interface) error {
-	endpoints, err := kubeClient.CoreV1().Endpoints("kube-system").Get("kube-dns", metav1.GetOptions{})
-	if err != nil {
-		if errors.IsNotFound(err) {
-			glog.Error("no endpoints for kube-dns found in namespace kube-system")
-		} else {
-			glog.Errorf("failed to get endpoints for kube-dns in namespace kube-system: %v", err)
-		}
-		glog.Error("cluster add-on kube-dns is required to run Spark applications")
-		return err
-	}
-
-	if len(endpoints.Subsets) == 0 {
-		glog.Error("cluster add-on kube-dns is required to run Spark applications")
-		return fmt.Errorf("no endpoints for kube-dns available in namespace kube-system")
-	}
-
-	return nil
 }
