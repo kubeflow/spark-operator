@@ -59,6 +59,9 @@ const (
 	// OwnerReferenceAnnotation is the name of the annotation added to the driver and executor Pods
 	// that specifies the OwnerReference of the owning SparkApplication.
 	OwnerReferenceAnnotation = LabelAnnotationPrefix + "ownerreference"
+	// AffinityAnnotation is the name of the annotation added to the driver and executor Pods that
+	// specifies the value of the Pod Affinity.
+	AffinityAnnotation = LabelAnnotationPrefix + "affinity"
 	// SparkAppIDLabel is the name of the label used to group API objects, e.g., Spark UI service, Pods,
 	// ConfigMaps, etc., belonging to the same Spark application.
 	SparkAppIDLabel = LabelAnnotationPrefix + "app-id"
