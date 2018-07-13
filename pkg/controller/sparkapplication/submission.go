@@ -267,6 +267,16 @@ func addDriverConfOptions(app *v1alpha1.SparkApplication) ([]string, error) {
 			fmt.Sprintf("%s%s=%s:%s", config.SparkDriverSecretKeyRefKeyPrefix, key, value.Name, value.Key))
 	}
 
+	if app.Spec.Driver.Affinity != nil {
+		affinityString, err := util.MarshalAffinity(app.Spec.Driver.Affinity)
+		if err != nil {
+			return nil, err
+		}
+		driverConfOptions = append(driverConfOptions,
+			fmt.Sprintf("%s%s=%s", config.SparkDriverAnnotationKeyPrefix, config.AffinityAnnotation,
+				affinityString))
+	}
+
 	driverConfOptions = append(driverConfOptions, config.GetDriverSecretConfOptions(app)...)
 	driverConfOptions = append(driverConfOptions, config.GetDriverConfigMapConfOptions(app)...)
 	driverConfOptions = append(driverConfOptions, config.GetDriverEnvVarConfOptions(app)...)
@@ -331,6 +341,16 @@ func addExecutorConfOptions(app *v1alpha1.SparkApplication) ([]string, error) {
 	for key, value := range app.Spec.Executor.EnvSecretKeyRefs {
 		executorConfOptions = append(executorConfOptions,
 			fmt.Sprintf("%s%s=%s:%s", config.SparkExecutorSecretKeyRefKeyPrefix, key, value.Name, value.Key))
+	}
+
+	if app.Spec.Executor.Affinity != nil {
+		affinityString, err := util.MarshalAffinity(app.Spec.Executor.Affinity)
+		if err != nil {
+			return nil, err
+		}
+		executorConfOptions = append(executorConfOptions,
+			fmt.Sprintf("%s%s=%s", config.SparkExecutorAnnotationKeyPrefix, config.AffinityAnnotation,
+				affinityString))
 	}
 
 	executorConfOptions = append(executorConfOptions, config.GetExecutorSecretConfOptions(app)...)
