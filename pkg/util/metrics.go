@@ -136,8 +136,6 @@ func (p *PrometheusMetrics) NewDepthMetric(name string) workqueue.GaugeMetric {
 }
 
 func (p *PrometheusMetrics) NewAddsMetric(name string) workqueue.CounterMetric {
-	name = strings.Replace(p.prefix+name, "-", "_", -1)
-
 	addsMetric := prometheus.NewCounter(prometheus.CounterOpts{
 		Name: CreateValidMetric(p.prefix, name+"_adds"),
 		Help: "Total number of adds handled by workqueue: " + name,
@@ -156,8 +154,6 @@ func (p *PrometheusMetrics) NewLatencyMetric(name string) workqueue.SummaryMetri
 }
 
 func (p *PrometheusMetrics) NewWorkDurationMetric(name string) workqueue.SummaryMetric {
-	name = strings.Replace(p.prefix+name, "-", "_", -1)
-
 	workDurationMetric := prometheus.NewSummary(prometheus.SummaryOpts{
 		Name: CreateValidMetric(p.prefix, name+"_work_duration"),
 		Help: "How long processing an item from workqueue" + name + " takes.",
@@ -167,8 +163,6 @@ func (p *PrometheusMetrics) NewWorkDurationMetric(name string) workqueue.Summary
 }
 
 func (p *PrometheusMetrics) NewRetriesMetric(name string) workqueue.CounterMetric {
-	name = strings.Replace(p.prefix+name, "-", "_", -1)
-
 	retriesMetrics := prometheus.NewCounter(prometheus.CounterOpts{
 		Name: CreateValidMetric(p.prefix, name+"_retries"),
 		Help: "Total number of retries handled by workqueue: " + name,
