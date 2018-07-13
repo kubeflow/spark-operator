@@ -20,13 +20,8 @@ package main
 
 import (
 	"flag"
-	"os"
-	"os/signal"
-	"syscall"
-	"time"
 
 	"github.com/golang/glog"
-
 	apiv1 "k8s.io/api/core/v1"
 	apiextensionsclient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	"k8s.io/apimachinery/pkg/util/clock"
@@ -34,6 +29,11 @@ import (
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
+	"os"
+	"os/signal"
+	"strings"
+	"syscall"
+	"time"
 
 	crdclientset "k8s.io/spark-on-k8s-operator/pkg/client/clientset/versioned"
 	crdinformers "k8s.io/spark-on-k8s-operator/pkg/client/informers/externalversions"
@@ -43,6 +43,7 @@ import (
 	ssacrd "k8s.io/spark-on-k8s-operator/pkg/crd/scheduledsparkapplication"
 	sacrd "k8s.io/spark-on-k8s-operator/pkg/crd/sparkapplication"
 	"k8s.io/spark-on-k8s-operator/pkg/webhook"
+	"k8s.io/spark-on-k8s-operator/pkg/util"
 )
 
 var (
@@ -58,6 +59,13 @@ var (
 	webhookSvcNamespace     = flag.String("webhook-svc-namespace", "sparkoperator", "The namespace of the Service for the webhook server")
 	webhookSvcName          = flag.String("webhook-svc-name", "spark-webhook", "The name of the Service for the webhook server")
 	webhookPort             = flag.Int("webhook-port", 8080, "Service port of the webhook server")
+
+	enableMetrics = flag.Bool("enable-metrics", false, "Whether to enable the "+
+		"metrics endpoint.")
+	metricsPort     = flag.String("metrics-port", ":10254", "Port for the metrics endpoint.")
+	metricsEndpoint = flag.String("metrics-endpoint", "/metrics", "Metrics endpoint")
+	metricsLabels   = flag.String("metrics-labels", "", "Labels for the metrics")
+	metricsPrefix   = flag.String("metrics-prefix", "", "Prefix for the metrics")
 )
 
 func main() {
@@ -71,6 +79,18 @@ func main() {
 	kubeClient, err := clientset.NewForConfig(config)
 	if err != nil {
 		glog.Fatal(err)
+	}
+
+	var metricsBundle *util.PrometheusMetrics
+	if *enableMetrics {
+		glog.Info("Enabling metrics")
+
+		var labels []string
+		if *metricsLabels != "" {
+			labels = strings.Split(*metricsLabels, ",")
+		}
+
+		metricsBundle = util.NewPrometheusMetrics(*metricsEndpoint, *metricsPort, *metricsPrefix, labels)
 	}
 
 	glog.Info("Starting the Spark operator")
@@ -114,7 +134,7 @@ func main() {
 
 	// Start the informer factory that in turn starts the informer.
 	go factory.Start(stopCh)
-	if err = applicationController.Start(*controllerThreads, stopCh); err != nil {
+	if err = applicationController.Start(*controllerThreads, stopCh, *metricsBundle); err != nil {
 		glog.Fatal(err)
 	}
 	if err = scheduledApplicationController.Start(*controllerThreads, stopCh); err != nil {

@@ -35,6 +35,33 @@ This will create a Deployment named `sparkoperator` in namespace `sparkoperator`
 Alternatively, follow [Using the Mutating Admission Webhook](#using-the-mutating-admission-webhook) for instructions on
 how to install the operator with the mutating admission webhook.
 
+The operator exposes a set of metrics via the metric endpoint to be scraped by `Prometheus`. This is enabled by default and can be disabled by setting  the flag `-enable-metrics=false` and running 
+ `kubectl apply -f manifest/spark-operator.yaml`. You might also want to remove the prometheus annotations `prometheus.io/scrape`
+  and `prometheus.io/port` which are used by Prometheus to scrape the metric endpoint if you are no longer enabling metrics.
+  
+If enabled, the operator generates the following metrics:
+```bash
+spark_app_submit_count
+spark_app_success_count
+spark_app_failure_count
+spark_app_running_count
+spark_app_success_execution_time
+spark_app_failure_execution_time
+spark_app_running_executor_count
+spark_app_failed_executor_count
+```
+The following is a list of all the configurations the operators supports for metrics: 
+```bash
+-enable-metrics=true
+-metrics-port=10254
+-metrics-endpoint=/metrics
+-metrics-prefix=myServiceName 
+-metrics-labels=label1Key,label2Key
+```
+A note about `metrics-labels`: In `Prometheus`, every unique combination of key-value label pair represents a new time series,
+ which can dramatically increase the amount of data stored.  Hence labels should not be used to store dimensions with high 
+ cardinality with potentially a large or unbounded value range.
+
 Due to a [known issue](https://cloud.google.com/kubernetes-engine/docs/how-to/role-based-access-control#defining_permissions_in_a_role)
 in GKE, you will need to first grant yourself cluster-admin privileges before you can create custom roles and role
 bindings on a GKE cluster versioned 1.6 and up.
