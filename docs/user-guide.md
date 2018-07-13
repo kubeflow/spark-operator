@@ -4,7 +4,9 @@ For a quick introduction on how to build and install the Spark Operator, and how
 please refer to the [Quick Start Guide](quick-start-guide.md). For a complete reference of the API definition of the 
 `SparkApplication` and `ScheduledSparkApplication` custom resources, please refer to the [API Specification](api.md). 
 The Spark Operator ships with a command-line tool called `sparkctl` that offers additional features beyond what `kubectl` 
-is able to do. Documentation on `sparkctl` can be found in [README](../sparkctl/README.md). If you are running the Spark Operator on Google Kubernetes Engine and want to use Google Cloud Storage (GCS) and/or BigQuery for reading/writing data, also refer to the [GCP guide](docs/gcp.md). 
+is able to do. Documentation on `sparkctl` can be found in [README](../sparkctl/README.md). If you are running the Spark 
+Operator on Google Kubernetes Engine and want to use Google Cloud Storage (GCS) and/or BigQuery for reading/writing data, 
+also refer to the [GCP guide](gcp.md). 
 
 ## Table of Contents
 * [Using a SparkApplication](#using-a-sparkapplication)
@@ -19,6 +21,9 @@ is able to do. Documentation on `sparkctl` can be found in [README](../sparkctl/
         * [Mounting a ConfigMap storing Spark Configuration Files](#mounting-a-configmap-storing-spark-configuration-files)
         * [Mounting a ConfigMap storing Hadoop Configuration Files](#mounting-a-configmap-storing-hadoop-configuration-files)
     * [Mounting Volumes](#mounting-volumes)
+    * [Using Secrets As Environment Variables](#using-secrets-as-environment-variables)
+    * [Using Image Pull Secrets](#using-image-pull-secrets)
+    * [Using Pod Affinity](#using-pod-affinity)
 * [Working with SparkApplications](#working-with-sparkapplications)
     * [Creating a New SparkApplication](#creating-a-new-sparkapplication)
     * [Deleting a SparkApplication](#deleting-a-sparkapplication)
@@ -241,8 +246,8 @@ spec:
         path: /mnt/config-maps
 ```
 
-Note that the initializer needs to be enabled to use this feature. Please refer to the 
-[Quick Start Guide](quick-start-guide.md#configuration) on how to enable the initializer.
+Note that the mutating admission webhook is needed to use this feature. Please refer to the 
+[Quick Start Guide](quick-start-guide.md) on how to enable the mutating admission webhook.
 
 #### Mounting a ConfigMap storing Spark Configuration Files
 
@@ -252,8 +257,8 @@ ConfigMap is assumed to be in the same namespace as that of the `SparkApplicatio
 ConfigMap onto path `/etc/spark/conf` in both the driver and executors. Additionally, it also sets the environment 
 variable `SPARK_CONF_DIR` to point to `/etc/spark/conf` in the driver and executors.
 
-Note that the initializer needs to be enabled to use this feature. Please refer to the 
-[Quick Start Guide](quick-start-guide.md#configuration) on how to enable the initializer.
+Note that the mutating admission webhook is needed to use this feature. Please refer to the 
+[Quick Start Guide](quick-start-guide.md) on how to enable the mutating admission webhook.
 
 #### Mounting a ConfigMap storing Hadoop Configuration Files
 
@@ -263,8 +268,8 @@ A `SparkApplication` can specify a Kubernetes ConfigMap storing Hadoop configura
  `/etc/hadoop/conf` in both the driver and executors. Additionally, it also sets the environment 
 variable `HADOOP_CONF_DIR` to point to `/etc/hadoop/conf` in the driver and executors.
 
-Note that the initializer needs to be enabled to use this feature. Please refer to the 
-[Quick Start Guide](quick-start-guide.md#configuration) on how to enable the initializer.
+Note that the mutating admission webhook is needed to use this feature. Please refer to the 
+[Quick Start Guide](quick-start-guide.md) on how to enable the mutating admission webhook.
 
 ### Mounting Volumes
 
@@ -297,8 +302,8 @@ spec:
     
 ```
 
-Note that the initializer needs to be enabled to use this feature. Please refer to the 
-[Quick Start Guide](quick-start-guide.md#configuration) on how to enable the initializer.
+Note that the mutating admission webhook is needed to use this feature. Please refer to the 
+[Quick Start Guide](quick-start-guide.md) on how to enable the mutating admission webhook.
 
 ### Using Secrets As Environment Variables
 
@@ -335,9 +340,31 @@ spec:
     - secret2
 ```
 
+### Using Pod Affinity
+
+A `SparkApplication` can specify an `Affinity` for the driver or executor pod, using the optional field `.spec.driver.affinity`
+or `.spec.executor.affinity`. Below is an example:
+
+```yaml
+spec:
+  driver:
+    affinity:
+      podAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution:
+          ...    
+  executor:
+    affinity:
+      podAntiAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution:
+          ...    
+```
+
+Note that the mutating admission webhook is needed to use this feature. Please refer to the 
+[Quick Start Guide](quick-start-guide.md) on how to enable the mutating admission webhook.
+
 ## Working with SparkApplications
 
-#### Creating a New SparkApplication
+### Creating a New SparkApplication
 
 A `SparkApplication` can be created from a YAML file storing the `SparkApplication` specification using either the 
 `kubectl apply -f <YAML file path>` command or the `sparkctl create <YAML file path>` command. Please refer to the 
@@ -345,7 +372,7 @@ A `SparkApplication` can be created from a YAML file storing the `SparkApplicati
 is successfully created, the Spark Operator will receive it and submits the application as configured in the 
 specification to run on the Kubernetes cluster.
 
-#### Deleting a SparkApplication
+### Deleting a SparkApplication
 
 A `SparkApplication` can be deleted using either the `kubectl delete <name>` command or the `sparkctl delete <name>`
 command. Please refer to the `sparkctl` [README](../sparkctl/README.md#delete) for usage of the `sparkctl delete` 
@@ -353,7 +380,7 @@ command. Deleting a `SparkApplication` deletes the Spark application associated 
 when the deletion happens, the application is killed and all Kubernetes resources associated with the application are
 deleted or garbage collected. 
 
-#### Updating a SparkApplication
+### Updating a SparkApplication
 
 A `SparkApplication` can be updated using the `kubectl apply -f <updated YAML file>` command. When a `SparkApplication` 
 is successfully updated, the Spark Operator will receive both the updated and old `SparkApplication` objects. If the 
@@ -364,13 +391,13 @@ are handled. For example, if the change was to increase the number of executor i
 currently running application and starting a new run, it is a much better user experience to incrementally launch the 
 additional executor pods.
 
-#### Checking a SparkApplication
+### Checking a SparkApplication
 
 A `SparkApplication` can be checked using the `kubectl describe sparkapplications <name>` command. The output of the 
 command shows the specification and status of the `SparkApplication` as well as events associated with it. The events
 communicate the overall process and errors of the `SparkApplication`. 
 
-#### Configuring Automatic Application Restart
+### Configuring Automatic Application Restart
 
 The Spark Operator supports automatic application restart with a configurable `RestartPolicy` using the optional field 
 `.spec.restartPolicy`, whose valid values include `Never`, `OnFailure`, and `Always`. Upon termination of an application,
@@ -379,7 +406,7 @@ the Spark Operator determines if the application is subject to restart based on 
 submitting a new run of it. The old driver pod is deleted if it still exists before submitting the new run, and a new 
 driver pod is created by the submission client so effectively the driver gets restarted. 
 
-#### Configuring Automatic Application Re-submission on Submission Failures
+### Configuring Automatic Application Re-submission on Submission Failures
 
 The Spark Operator supports automatically retrying failed submissions. When the Spark Operator failed to submit an
 application, it determines if the application is subject to a submission retry based on if the optional field 

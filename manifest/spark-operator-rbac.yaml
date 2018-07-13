@@ -46,7 +46,7 @@ rules:
   resources: ["customresourcedefinitions"]
   verbs: ["create", "get", "update", "delete"]
 - apiGroups: ["admissionregistration.k8s.io"]
-  resources: ["initializerconfigurations"]
+  resources: ["mutatingwebhookconfigurations"]
   verbs: ["create", "get", "update", "delete"]
 - apiGroups: ["sparkoperator.k8s.io"]
   resources: ["sparkapplications", "scheduledsparkapplications"]

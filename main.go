@@ -42,26 +42,22 @@ import (
 	"k8s.io/spark-on-k8s-operator/pkg/crd"
 	ssacrd "k8s.io/spark-on-k8s-operator/pkg/crd/scheduledsparkapplication"
 	sacrd "k8s.io/spark-on-k8s-operator/pkg/crd/sparkapplication"
-	"k8s.io/spark-on-k8s-operator/pkg/initializer"
+	"k8s.io/spark-on-k8s-operator/pkg/webhook"
 )
 
 var (
-	master = flag.String("master", "", "The address of the Kubernetes API server. "+
-		"Overrides any value in kubeconfig. Only required if out-of-cluster.")
-	kubeConfig = flag.String("kubeConfig", "", "Path to a kube config. Only required if "+
-		"out-of-cluster.")
-	enableInitializer = flag.Bool("enable-initializer", true, "Whether to enable the "+
-		"Spark pod initializer.")
-	installCRDs        = flag.Bool("install-crds", true, "Whether to install CRDs")
-	initializerThreads = flag.Int("initializer-threads", 10, "Number of worker threads "+
-		"used by the Spark Pod initializer (if it's enabled).")
-	controllerThreads = flag.Int("controller-threads", 10, "Number of worker threads "+
-		"used by the SparkApplication controller.")
-	submissionRunnerThreads = flag.Int("submission-threads", 3, "Number of worker threads "+
-		"used by the SparkApplication submission runner.")
-	resyncInterval = flag.Int("resync-interval", 30, "Informer resync interval in seconds")
-	namespace      = flag.String("namespace", apiv1.NamespaceAll, "The Kubernetes namespace to manage. "+
-		"Will manage custom resource objects of the managed CRD types for the whole cluster if unset.")
+	master                  = flag.String("master", "", "The address of the Kubernetes API server. Overrides any value in kubeconfig. Only required if out-of-cluster.")
+	kubeConfig              = flag.String("kubeConfig", "", "Path to a kube config. Only required if out-of-cluster.")
+	installCRDs             = flag.Bool("install-crds", true, "Whether to install CRDs")
+	controllerThreads       = flag.Int("controller-threads", 10, "Number of worker threads used by the SparkApplication controller.")
+	submissionRunnerThreads = flag.Int("submission-threads", 3, "Number of worker threads used by the SparkApplication submission runner.")
+	resyncInterval          = flag.Int("resync-interval", 30, "Informer resync interval in seconds")
+	namespace               = flag.String("namespace", apiv1.NamespaceAll, "The Kubernetes namespace to manage. Will manage custom resource objects of the managed CRD types for the whole cluster if unset.")
+	enableWebhook           = flag.Bool("enable-webhook", false, "Whether to enable the mutating admission webhook for admitting and patching Spark pods")
+	webhookCertDir          = flag.String("webhook-cert-dir", "/etc/webhook-certs", "The directory where x509 certificate and key files are stored")
+	webhookSvcNamespace     = flag.String("webhook-svc-namespace", "sparkoperator", "The namespace of the Service for the webhook server")
+	webhookSvcName          = flag.String("webhook-svc-name", "spark-webhook", "The name of the Service for the webhook server")
+	webhookPort             = flag.Int("webhook-port", 8080, "Service port of the webhook server")
 )
 
 func main() {
@@ -125,10 +121,14 @@ func main() {
 		glog.Fatal(err)
 	}
 
-	var sparkPodInitializer *initializer.SparkPodInitializer
-	if *enableInitializer {
-		sparkPodInitializer = initializer.New(kubeClient, *namespace)
-		if err = sparkPodInitializer.Start(*initializerThreads, stopCh); err != nil {
+	var hook *webhook.WebHook
+	if *enableWebhook {
+		var err error
+		hook, err = webhook.New(kubeClient, *webhookCertDir, *webhookSvcNamespace, *webhookSvcName, *webhookPort)
+		if err != nil {
+			glog.Fatal(err)
+		}
+		if err = hook.Start(); err != nil {
 			glog.Fatal(err)
 		}
 	}
@@ -143,8 +143,10 @@ func main() {
 	glog.Info("Shutting down the Spark operator")
 	applicationController.Stop()
 	scheduledApplicationController.Stop()
-	if *enableInitializer {
-		sparkPodInitializer.Stop()
+	if *enableWebhook {
+		if err := hook.Stop(); err != nil {
+			glog.Fatal(err)
+		}
 	}
 }
 

@@ -6,8 +6,8 @@
 * [The CRD Controller](#the-crd-controller)
 * [Handling Application Restart](#handling-application-restart)
 * [Handling Retries of Failed Submissions](#handling-retries-of-failed-submissions)
-* [Spark Pod Initializer](#spark-pod-initializer)
-* [Command-line Tool: Sparkctl](#command-line-tool-sparkctl)
+* [Mutating Admission Webhook](#mutating-admission-webhook)
+* [Command-line Tool: Sparkctl](#command-line-tool:-sparkctl)
 
 ## Introduction
 
@@ -57,17 +57,9 @@ When the operator decides to restart an application, it cleans up the Kubernetes
 
 The submission of an application may fail for various reasons. Sometimes a submission may fail due to transient errors and a retry may succeed. The Spark Operator supports retries of failed submissions through a combination of the `MaxSubmissionRetries` field of `SparkApplicationSpec` and the `SubmissionRetries` field of `SparkApplicationStatus` (see the [API Definition](api.md) for more details). When the operator decides to retry a failed submission, it simply enqueues the `SparkApplication` object of the application into the internal work queue, from which it gets picked up by a worker who will handle the submission.   
 
-## Spark Pod Initializer
+## Mutating Admission Webhook
 
-NOTE: it is planned to migrate from using an Initializer to instead using an [external admission webhook](https://kubernetes.io/docs/admin/extensible-admission-controllers/#external-admission-webhooks).
-
-The Spark pod initializer is responsible for configuring pods of Spark applications based on certain annotations on the pods added by the CRD controller. All Spark pod customization needs except for those natively support by Spark on Kubernetes are handled by the initializer. The following annotations for pod customization are supported:
-
-|Annotation|Value|Note|
-| ------------- | ------------- | ------------- |
-|`sparkoperator.k8s.io/sparkConfigMap`|Name of the Kubernetes ConfigMap storing Spark configuration files (to which `SPARK_CONF_DIR` applies)|Environment variable `SPARK_CONF_DIR` is set to point to the mount path.|
-|`sparkoperator.k8s.io/hadoopConfigMap`|Name of the Kubernetes ConfigMap storing Hadoop configuration files (to which `HADOOP_CONF_DIR` applies)|Environment variable `HADOOP_CONF_DIR` is set to point to the mount path.|
-|`sparkoperator.k8s.io/configMap.[ConfigMapName]`|Mount path of the ConfigMap named `ConfigMapName`|N/A|
+The Spark Operator comes with an optional mutating admission webhook for customizing Spark driver and executor pods based on certain annotations on the pods added by the CRD controller. The annotations are set by the operator based on the application specifications. All Spark pod customization needs except for those natively support by Spark on Kubernetes are handled by the mutating admission webhook.
 
 ## Command-line Tool: Sparkctl 
 

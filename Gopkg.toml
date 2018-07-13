@@ -92,3 +92,7 @@ required = [
 [[constraint]]
   branch = "master"
   name = "k8s.io/code-generator"
+
+[[constraint]]
+  name = "github.com/evanphx/json-patch"
+  version = "3.0.0"
