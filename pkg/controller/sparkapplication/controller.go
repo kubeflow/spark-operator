@@ -668,6 +668,7 @@ func (c *Controller) updateApplicationStatusWithRetries(
 		}
 
 		lastUpdateErr = err
+		glog.Errorf("[Attempt: %v] failed to update SparkApplication [%v] %v", i, toUpdate, err)
 
 		// Failed to update to the API server.
 		// Get the latest version from the API server first and re-apply the update.
