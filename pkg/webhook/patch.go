@@ -55,6 +55,10 @@ func patchSparkPod(pod *corev1.Pod) ([]*patchOperation, error) {
 	}
 	patchOps = append(patchOps, ops...)
 
+	patchOps = append(patchOps, addGeneralConfigMaps(pod)...)
+	patchOps = append(patchOps, addSparkConfigMap(pod)...)
+	patchOps = append(patchOps, addHadoopConfigMap(pod)...)
+
 	op, err = addAffinity(pod)
 	if err != nil {
 		return nil, err
@@ -143,6 +147,86 @@ func addVolumeMount(pod *corev1.Pod, mount *corev1.VolumeMount) *patchOperation 
 	}
 
 	return &patchOperation{Op: "add", Path: path, Value: value}
+}
+
+func addEnvironmentVariable(pod *corev1.Pod, envName, envValue string) *patchOperation {
+	i := 0
+	// Find the driver or executor container in the pod.
+	for ; i < len(pod.Spec.Containers); i++ {
+		if pod.Spec.Containers[i].Name == sparkDriverContainerName ||
+			pod.Spec.Containers[i].Name == sparkExecutorContainerName {
+			break
+		}
+	}
+
+	path := fmt.Sprintf("/spec/containers/%d/env", i)
+	var value interface{}
+	if len(pod.Spec.Containers[i].Env) == 0 {
+		value = []corev1.EnvVar{{Name: envName, Value: envValue}}
+	} else {
+		path += "/-"
+		value = corev1.EnvVar{Name: envName, Value: envValue}
+	}
+
+	return &patchOperation{Op: "add", Path: path, Value: value}
+}
+
+func addSparkConfigMap(pod *corev1.Pod) []*patchOperation {
+	var patchOps []*patchOperation
+	sparkConfigMapName, ok := pod.Annotations[config.SparkConfigMapAnnotation]
+	if ok {
+		patchOps = append(patchOps, addConfigMapVolume(pod, sparkConfigMapName, config.SparkConfigMapVolumeName))
+		patchOps = append(patchOps, addConfigMapVolumeMount(pod, config.SparkConfigMapVolumeName,
+			config.DefaultSparkConfDir))
+		patchOps = append(patchOps, addEnvironmentVariable(pod, config.SparkConfDirEnvVar, config.DefaultSparkConfDir))
+	}
+	return patchOps
+}
+
+func addHadoopConfigMap(pod *corev1.Pod) []*patchOperation {
+	var patchOps []*patchOperation
+	hadoopConfigMapName, ok := pod.Annotations[config.HadoopConfigMapAnnotation]
+	if ok {
+		patchOps = append(patchOps, addConfigMapVolume(pod, hadoopConfigMapName, config.HadoopConfigMapVolumeName))
+		patchOps = append(patchOps, addConfigMapVolumeMount(pod, config.HadoopConfigMapVolumeName,
+			config.DefaultHadoopConfDir))
+		patchOps = append(patchOps, addEnvironmentVariable(pod, config.HadoopConfDirEnvVar, config.DefaultHadoopConfDir))
+	}
+	return patchOps
+}
+
+func addGeneralConfigMaps(pod *corev1.Pod) []*patchOperation {
+	var patchOps []*patchOperation
+	namesToMountPaths := config.FindGeneralConfigMaps(pod.Annotations)
+	for name, mountPath := range namesToMountPaths {
+		volumeName := name + "-volume"
+		patchOps = append(patchOps, addConfigMapVolume(pod, name, volumeName))
+		patchOps = append(patchOps, addConfigMapVolumeMount(pod, volumeName, mountPath))
+	}
+	return patchOps
+}
+
+func addConfigMapVolume(pod *corev1.Pod, configMapName string, configMapVolumeName string) *patchOperation {
+	volume := &corev1.Volume{
+		Name: configMapVolumeName,
+		VolumeSource: corev1.VolumeSource{
+			ConfigMap: &corev1.ConfigMapVolumeSource{
+				LocalObjectReference: corev1.LocalObjectReference{
+					Name: configMapName,
+				},
+			},
+		},
+	}
+	return addVolume(pod, volume)
+}
+
+func addConfigMapVolumeMount(pod *corev1.Pod, configMapVolumeName string, mountPath string) *patchOperation {
+	mount := &corev1.VolumeMount{
+		Name:      configMapVolumeName,
+		ReadOnly:  true,
+		MountPath: mountPath,
+	}
+	return addVolumeMount(pod, mount)
 }
 
 func addAffinity(pod *corev1.Pod) (*patchOperation, error) {

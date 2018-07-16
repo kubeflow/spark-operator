@@ -137,10 +137,13 @@ func TestMutatePod(t *testing.T) {
 	volumeAnnotation := fmt.Sprintf("%s%s", config.VolumesAnnotationPrefix, volume.Name)
 	volumeMountAnnotation := fmt.Sprintf("%s%s", config.VolumeMountsAnnotationPrefix, volumeMount.Name)
 	pod1.Annotations = map[string]string{
-		config.OwnerReferenceAnnotation: referenceStr,
-		volumeAnnotation:                volumeStr,
-		volumeMountAnnotation:           volumeMountStr,
-		config.AffinityAnnotation:       affinityStr,
+		config.OwnerReferenceAnnotation:                  referenceStr,
+		volumeAnnotation:                                 volumeStr,
+		volumeMountAnnotation:                            volumeMountStr,
+		config.AffinityAnnotation:                        affinityStr,
+		config.GeneralConfigMapsAnnotationPrefix + "foo": "/path/to/foo",
+		config.SparkConfigMapAnnotation:                  "spark-conf",
+		config.HadoopConfigMapAnnotation:                 "hadoop-conf",
 	}
 
 	podBytes, err = serializePod(pod1)
@@ -154,7 +157,7 @@ func TestMutatePod(t *testing.T) {
 	assert.True(t, len(response.Patch) > 0)
 	var patchOps []*patchOperation
 	json.Unmarshal(response.Patch, &patchOps)
-	assert.Equal(t, 4, len(patchOps))
+	assert.Equal(t, 12, len(patchOps))
 }
 
 func serializePod(pod *corev1.Pod) ([]byte, error) {
