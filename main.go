@@ -31,7 +31,6 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	"os"
 	"os/signal"
-	"strings"
 	"syscall"
 	"time"
 
@@ -60,15 +59,16 @@ var (
 	webhookSvcName          = flag.String("webhook-svc-name", "spark-webhook", "The name of the Service for the webhook server")
 	webhookPort             = flag.Int("webhook-port", 8080, "Service port of the webhook server")
 
-	enableMetrics = flag.Bool("enable-metrics", false, "Whether to enable the "+
+	enableMetrics = flag.Bool("enable-metrics", true, "Whether to enable the "+
 		"metrics endpoint.")
 	metricsPort     = flag.String("metrics-port", ":10254", "Port for the metrics endpoint.")
 	metricsEndpoint = flag.String("metrics-endpoint", "/metrics", "Metrics endpoint")
-	metricsLabels   = flag.String("metrics-labels", "", "Labels for the metrics")
 	metricsPrefix   = flag.String("metrics-prefix", "", "Prefix for the metrics")
 )
 
 func main() {
+	var metricsLabels arrayFlags
+	flag.Var(&metricsLabels, "metrics-labels", "Labels for the metrics")
 	flag.Parse()
 
 	// Create the client config. Use kubeConfig if given, otherwise assume in-cluster.
@@ -84,13 +84,7 @@ func main() {
 	var metricsBundle *util.PrometheusMetrics
 	if *enableMetrics {
 		glog.Info("Enabling metrics")
-
-		var labels []string
-		if *metricsLabels != "" {
-			labels = strings.Split(*metricsLabels, ",")
-		}
-
-		metricsBundle = util.NewPrometheusMetrics(*metricsEndpoint, *metricsPort, *metricsPrefix, labels)
+		metricsBundle = util.NewPrometheusMetrics(*metricsEndpoint, *metricsPort, *metricsPrefix, metricsLabels)
 	}
 
 	glog.Info("Starting the Spark operator")
@@ -128,13 +122,13 @@ func main() {
 		time.Duration(*resyncInterval)*time.Second,
 		factoryOpts...)
 	applicationController := sparkapplication.NewController(
-		crdClient, kubeClient, apiExtensionsClient, factory, *submissionRunnerThreads, *namespace)
+		crdClient, kubeClient, apiExtensionsClient, factory, *submissionRunnerThreads, metricsBundle, *namespace)
 	scheduledApplicationController := scheduledsparkapplication.NewController(
 		crdClient, kubeClient, apiExtensionsClient, factory, clock.RealClock{})
 
 	// Start the informer factory that in turn starts the informer.
 	go factory.Start(stopCh)
-	if err = applicationController.Start(*controllerThreads, stopCh, *metricsBundle); err != nil {
+	if err = applicationController.Start(*controllerThreads, stopCh); err != nil {
 		glog.Fatal(err)
 	}
 	if err = scheduledApplicationController.Start(*controllerThreads, stopCh); err != nil {
@@ -174,4 +168,15 @@ func buildConfig(masterUrl string, kubeConfig string) (*rest.Config, error) {
 		return clientcmd.BuildConfigFromFlags(masterUrl, kubeConfig)
 	}
 	return rest.InClusterConfig()
+}
+
+type arrayFlags []string
+
+func (a *arrayFlags) String() string {
+	return fmt.Sprint(*a)
+}
+
+func (a *arrayFlags) Set(value string) error {
+	*a = append(*a, value)
+	return nil
 }
