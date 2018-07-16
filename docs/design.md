@@ -22,7 +22,7 @@ The Spark Operator consists of:
 `SparkApplication` objects and acts on the watch events,
 * a *submission runner* that runs `spark-submit` for submissions received from the controller,
 * a *Spark pod monitor* that watches for Spark pods and sends pod status updates to the controller,
-* a Spark pod [initializer](https://kubernetes.io/docs/admin/extensible-admission-controllers/#initializers) that performs initialization tasks on Spark driver and executor pods based on the annotations on the pods added by the controller,
+* a [Mutating Admission Webhook](https://kubernetes.io/docs/reference/access-authn-authz/extensible-admission-controllers/) that handles customizations for Spark driver and executor pods based on the annotations on the pods added by the controller,
 * and also a command-line tool named `sparkctl` for working with the operator. 
 
 The following diagram shows how different components interact and work together.
@@ -41,7 +41,7 @@ The controller is also responsible for updating the status of a `SparkApplicatio
 
 As described in [API Definition](api.md), the `Status` field (of type `SparkApplicationStatus`) records the overall state of the application as well as the state of each executor pod. Note that the overall state of an application is determined by the driver pod state, except when submission fails, in which case no driver pod gets launched. Particulrly, the final application state is set to the termination state of the driver pod when applicable, i.e., `COMPLETED` if the driver pod completed or `FAILED` if the driver pod failed. If the driver pod gets deleted while running, the final application state is set to `FAILED`. If submission fails, the application state is set to `FAILED_SUBMISSION`.
 
-As part of preparing a submission for a newly created `SparkApplication` object, the controller parses the object and adds configuration options for adding certain annotations to the driver and executor pods of the application. The annotations are later used by the Spark pod initializer to configure the pods before they start to run. For example,if a Spark application needs a certain Kubernetes ConfigMap to be mounted into the driver and executor pods, the controller adds an annotation that specifies the name of the ConfigMap to mount. Later the Spark pod initializer sees the annotation on the pods and mount the ConfigMap to the pods.
+As part of preparing a submission for a newly created `SparkApplication` object, the controller parses the object and adds configuration options for adding certain annotations to the driver and executor pods of the application. The annotations are later used by the mutating admission webhook to configure the pods before they start to run. For example,if a Spark application needs a certain Kubernetes ConfigMap to be mounted into the driver and executor pods, the controller adds an annotation that specifies the name of the ConfigMap to mount. Later the mutating admission webhook sees the annotation on the pods and mount the ConfigMap to the pods.
 
 ## Handling Application Restart
 

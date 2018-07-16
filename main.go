@@ -137,7 +137,6 @@ func main() {
 	signal.Notify(signalCh, syscall.SIGINT, syscall.SIGTERM)
 	<-signalCh
 
-	// This causes the workers of the initializer and SparkApplication controller to stop.
 	close(stopCh)
 
 	glog.Info("Shutting down the Spark operator")
