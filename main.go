@@ -38,7 +38,6 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	"os"
 	"os/signal"
-	"strings"
 	"syscall"
 	"time"
 

@@ -23,6 +23,7 @@ import (
 	"sync"
 
 	"github.com/golang/glog"
+	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	prometheusmodel "github.com/prometheus/client_model/go"

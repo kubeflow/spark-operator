@@ -102,6 +102,13 @@ func TestOnAdd(t *testing.T) {
 	ctrl.queue.Forget(item)
 }
 
+func fetchCounterValue(m *prometheus.CounterVec, labels map[string]string) float64 {
+	pb := &prometheus_model.Metric{}
+
+	m.With(labels).Write(pb)
+	return pb.GetCounter().GetValue()
+}
+
 func TestOnUpdate(t *testing.T) {
 	ctrl, recorder := newFakeController(nil)
 

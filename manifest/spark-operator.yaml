@@ -49,3 +49,4 @@ spec:
         args:
         - -logtostderr
         - -enable-metrics=true
+        - -metrics-labels=app_type
