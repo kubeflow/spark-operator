@@ -157,7 +157,7 @@ func NewPrometheusMetrics(endpoint string, port string, prefix string, labels []
 	sparkAppExecutorSuccessCount := prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: CreateValidMetric(prefix, "spark_app_executor_success_count"),
-			Help: "Spark App Failed Executor Count via the Operator",
+			Help: "Spark App Successful Executor Count via the Operator",
 		},
 		labels,
 	)
@@ -223,7 +223,7 @@ func (p *PrometheusMetrics) NewAddsMetric(name string) workqueue.CounterMetric {
 func (p *PrometheusMetrics) NewLatencyMetric(name string) workqueue.SummaryMetric {
 	latencyMetric := prometheus.NewSummary(prometheus.SummaryOpts{
 		Name: CreateValidMetric(p.prefix, name+"_latency"),
-		Help: "Latency workqueue: " + name,
+		Help: "Latency for workqueue: " + name,
 	})
 	prometheus.Register(latencyMetric)
 	return latencyMetric
