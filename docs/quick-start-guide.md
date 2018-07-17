@@ -19,6 +19,7 @@ Before installing the Spark Operator, run the following command to setup the env
 $ kubectl apply -f manifest/spark-operator-rbac.yaml
 $ kubectl apply -f manifest/spark-rbac.yaml
 ```
+
 This will create a namespace `sparkoperator`, setup RBAC for the Spark Operator to run in the namespace. It will also
 setup RBAC for driver pods of your Spark applications to be able to manipulate executor pods. 
 
@@ -33,7 +34,6 @@ This will create a Deployment named `sparkoperator` in namespace `sparkoperator`
 
 Alternatively, follow [Using the Mutating Admission Webhook](#using-the-mutating-admission-webhook) for instructions on
 how to install the operator with the mutating admission webhook.
-This will create a namespace `sparkoperator`, setup RBAC for the Spark Operator to run in the namespace, and create a
 
 Due to a [known issue](https://cloud.google.com/kubernetes-engine/docs/how-to/role-based-access-control#defining_permissions_in_a_role)
 in GKE, you will need to first grant yourself cluster-admin privileges before you can create custom roles and role
