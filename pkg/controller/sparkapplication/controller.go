@@ -54,6 +54,7 @@ const (
 var (
 	keyFunc = cache.DeletionHandlingMetaNamespaceKeyFunc
 
+	// Valid Driver State Transitions: map with valid pairs of oldState-> {newStates}
 	validDriverStateTransitions = map[v1alpha1.ApplicationStateType][]v1alpha1.ApplicationStateType{
 		"": {v1alpha1.NewState, v1alpha1.UnknownState, v1alpha1.SubmittedState,
 			v1alpha1.RunningState, v1alpha1.CompletedState, v1alpha1.FailedSubmissionState, v1alpha1.FailedState},
@@ -71,6 +72,7 @@ var (
 		v1alpha1.RunningState:   {v1alpha1.CompletedState, v1alpha1.FailedState},
 	}
 
+	// Valid Executor State Transitions: map with valid paris of oldState-> {newStates}
 	validExecutorStateTransitions = map[v1alpha1.ExecutorState][]v1alpha1.ExecutorState{
 		"": {v1alpha1.ExecutorUnknownState, v1alpha1.ExecutorRunningState, v1alpha1.ExecutorPendingState,
 			v1alpha1.ExecutorFailedState, v1alpha1.ExecutorCompletedState},

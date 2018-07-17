@@ -403,7 +403,7 @@ func TestProcessSingleDriverStateUpdate(t *testing.T) {
 
 		assert.Equal(t, test.expectedMetrics.successMetricCount, fetchCounterValue(ctrl.metrics.SparkAppSuccessCount, map[string]string{}))
 		assert.Equal(t, test.expectedMetrics.failedMetricCount, fetchCounterValue(ctrl.metrics.SparkAppFailureCount, map[string]string{}))
-		runningCount, _ := ctrl.metrics.SparkAppRunningCount.Value(map[string]string{})
+		runningCount := ctrl.metrics.SparkAppRunningCount.Value(map[string]string{})
 		assert.Equal(t, test.expectedMetrics.runningMetricCount, runningCount)
 
 		if isAppTerminated(updatedApp.Status.AppState.State) {
@@ -543,7 +543,7 @@ func TestProcessSingleAppStateUpdate(t *testing.T) {
 
 		assert.Equal(t, test.expectedMetrics.successMetricCount, fetchCounterValue(ctrl.metrics.SparkAppSuccessCount, map[string]string{}))
 		assert.Equal(t, test.expectedMetrics.failedMetricCount, fetchCounterValue(ctrl.metrics.SparkAppFailureCount, map[string]string{}))
-		runningCount, _ := ctrl.metrics.SparkAppRunningCount.Value(map[string]string{})
+		runningCount := ctrl.metrics.SparkAppRunningCount.Value(map[string]string{})
 		assert.Equal(t, test.expectedMetrics.runningMetricCount, runningCount)
 
 		if updatedApp.Status.AppState.State == v1alpha1.FailedSubmissionState {
@@ -720,7 +720,7 @@ func TestProcessSingleExecutorStateUpdate(t *testing.T) {
 
 		assert.Equal(t, test.expectedMetrics.executorFailedCount, fetchCounterValue(ctrl.metrics.SparkAppExecutorFailureCount, map[string]string{}))
 		assert.Equal(t, test.expectedMetrics.executorSuccessCount, fetchCounterValue(ctrl.metrics.SparkAppExecutorSuccessCount, map[string]string{}))
-		runningCount, _ := ctrl.metrics.SparkAppExecutorRunningCount.Value(map[string]string{})
+		runningCount := ctrl.metrics.SparkAppExecutorRunningCount.Value(map[string]string{})
 		assert.Equal(t, test.expectedMetrics.executorRunningCount, runningCount)
 
 		if test.update.state == v1alpha1.ExecutorCompletedState {

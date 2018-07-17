@@ -1,11 +1,10 @@
 package util
 
 import (
-	"fmt"
 	"github.com/golang/glog"
-	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	prometheus_model "github.com/prometheus/client_model/go"
 	"k8s.io/client-go/util/workqueue"
 	"net/http"
 	"strings"
@@ -30,15 +29,13 @@ type PrometheusMetrics struct {
 
 func CreateValidMetric(prefix, name string) string {
 	// "-" aren't valid characters for prometheus metric names
-	return strings.Replace(prefix + name, "-", "_", -1)
+	return strings.Replace(prefix+name, "-", "_", -1)
 }
 
 type PositiveGauge struct {
 	mux         sync.RWMutex
 	name        string
 	gaugeMetric *prometheus.GaugeVec
-	valueMap    map[string]float64
-	labels      []string
 }
 
 // Gauge with conditional decrement ensuring its value is never negative.
@@ -56,81 +53,55 @@ func NewPositiveGauge(name string, description string, labels []string) *Positiv
 	return &PositiveGauge{
 		gaugeMetric: gauge,
 		name:        name,
-		labels:      labels,
-		valueMap:    make(map[string]float64),
 	}
 }
 
-// fetch value for the Gauge with the labels specificed
-func (c *PositiveGauge) Value(labelMap map[string]string) (float64, error) {
-	labelsStr, err := getLabelValuesStr(c.labels, labelMap)
 
-	if err != nil {
-		glog.Warningf("Invalid labelValues. Expected: %v. Received: %v", c.labels, labelMap)
-		return -1, errors.New(fmt.Sprintf("Invalid labelValues. Expected: %v. Received: %v", c.labels, labelMap))
-	}
+func fetchGaugeValue(m *prometheus.GaugeVec, labels map[string]string) float64 {
+	// Hack to get the current value of the metric to support PositiveGauge
+	pb := &prometheus_model.Metric{}
+
+	m.With(labels).Write(pb)
+	return pb.GetGauge().GetValue()
+}
+
+func (c* PositiveGauge) Value(labelMap map[string]string) float64 {
 	c.mux.RLock()
 	defer c.mux.RUnlock()
-	return c.valueMap[labelsStr], nil
+	return fetchGaugeValue(c.gaugeMetric, labelMap)
 }
 
 // Increment the Metric for the labels specified
 func (c *PositiveGauge) Inc(labelMap map[string]string) {
 
-	labelsStr, err := getLabelValuesStr(c.labels, labelMap)
-
-	if err != nil {
-		glog.Warningf("Invalid labelValues. Skipping Metrics. Expected: %v. Received: %v", c.labels, labelMap)
-		return
-	}
-
 	c.mux.Lock()
 	defer c.mux.Unlock()
 
-	val := c.valueMap[labelsStr]
-	val = val + 1
+	if m, err := c.gaugeMetric.GetMetricWith(labelMap); err != nil {
+		glog.Errorf("Error while posting metrics: %v", err)
 
-	c.valueMap[labelsStr] = val
-	c.gaugeMetric.With(labelMap).Set(val)
-}
-
-func getLabelValuesStr(labels []string, labelMap map[string]string) (string, error) {
-
-	var labelsStr strings.Builder
-	if len(labelMap) != len(labels) {
-		return "", errors.New(fmt.Sprintf("Incorrect Label cardinality"))
+	} else {
+		glog.V(2).Infof("Incrementing %s with labels %s", c.name, labelMap)
+		m.Inc()
 	}
-
-	for _, k := range labels {
-		if labelMap[k] == "" {
-		}
-
-		labelsStr.WriteString(fmt.Sprintf("|%s=\"%s\"", k, labelMap[k]))
-	}
-	return labelsStr.String(), nil
 }
 
 // Decrement the metric only if its positive for the labels specified
 func (c *PositiveGauge) Dec(labelMap map[string]string) {
 
-	labelsStr, err := getLabelValuesStr(c.labels, labelMap)
-	if err != nil {
-		glog.Warningf("Invalid labelValues. Skipping Metrics. Expected: %v. Received: %v", c.labels, labelMap)
-		return
-		return
-	}
-
 	c.mux.Lock()
 	defer c.mux.Unlock()
 
-	val := c.valueMap[labelsStr]
 	// Decrement only if positive
+	val := fetchGaugeValue(c.gaugeMetric, labelMap)
 	if val > 0 {
-		glog.V(2).Infof("Decrementing %s with labels %s metricVal to %v", c.name, labelsStr, val-1)
-		val = val - 1
+		glog.V(2).Infof("Decrementing %s with labels %s metricVal to %v", c.name, labelMap, val-1)
+		if m, err := c.gaugeMetric.GetMetricWith(labelMap); err != nil {
+			glog.Errorf("Error while posting metrics: %v", err)
+		} else {
+			m.Dec()
+		}
 	}
-	c.valueMap[labelsStr] = val
-	c.gaugeMetric.With(labelMap).Set(val)
 }
 
 func NewPrometheusMetrics(endpoint string, port string, prefix string, labels []string) *PrometheusMetrics {

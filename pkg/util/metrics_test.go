@@ -9,14 +9,6 @@ import (
 	"testing"
 )
 
-func fetchGaugeValue(m *prometheus.GaugeVec, labels map[string]string) float64 {
-	// TODO: Revisit this once client_golang offers better testing tools(https://github.com/prometheus/client_golang/issues/422)
-	pb := &prometheus_model.Metric{}
-
-	m.With(labels).Write(pb)
-	return pb.GetGauge().GetValue()
-}
-
 func fetchCounterValue(m *prometheus.CounterVec, labels map[string]string) float64 {
 	// TODO: Revisit this once client_golang offers better testing tools(https://github.com/prometheus/client_golang/issues/422)
 	pb := &prometheus_model.Metric{}
