@@ -20,7 +20,7 @@ package main
 
 import (
 	"flag"
-
+	"fmt"
 	"github.com/golang/glog"
 	apiv1 "k8s.io/api/core/v1"
 	apiextensionsclient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
@@ -29,11 +29,6 @@ import (
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
-	"os"
-	"os/signal"
-	"syscall"
-	"time"
-
 	crdclientset "k8s.io/spark-on-k8s-operator/pkg/client/clientset/versioned"
 	crdinformers "k8s.io/spark-on-k8s-operator/pkg/client/informers/externalversions"
 	"k8s.io/spark-on-k8s-operator/pkg/controller/scheduledsparkapplication"
@@ -41,8 +36,12 @@ import (
 	"k8s.io/spark-on-k8s-operator/pkg/crd"
 	ssacrd "k8s.io/spark-on-k8s-operator/pkg/crd/scheduledsparkapplication"
 	sacrd "k8s.io/spark-on-k8s-operator/pkg/crd/sparkapplication"
-	"k8s.io/spark-on-k8s-operator/pkg/webhook"
 	"k8s.io/spark-on-k8s-operator/pkg/util"
+	"k8s.io/spark-on-k8s-operator/pkg/webhook"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
 )
 
 var (

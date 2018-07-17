@@ -65,7 +65,7 @@ func fetchGaugeValue(m *prometheus.GaugeVec, labels map[string]string) float64 {
 	return pb.GetGauge().GetValue()
 }
 
-func (c* PositiveGauge) Value(labelMap map[string]string) float64 {
+func (c *PositiveGauge) Value(labelMap map[string]string) float64 {
 	c.mux.RLock()
 	defer c.mux.RUnlock()
 	return fetchGaugeValue(c.gaugeMetric, labelMap)
