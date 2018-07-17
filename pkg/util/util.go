@@ -103,3 +103,25 @@ func UnmarshalOwnerReference(ownerReferenceStr string) (*metav1.OwnerReference, 
 	}
 	return ownerReference, nil
 }
+
+// MarshalAffinity encodes the given Affinity into a string.
+func MarshalAffinity(affinity *apiv1.Affinity) (string, error) {
+	affinityData, err := affinity.Marshal()
+	if err != nil {
+		return "", err
+	}
+	return encodeToString(affinityData), nil
+}
+
+// UnmarshalAffinity decodes a Affinity from the given string.
+func UnmarshalAffinity(affinityStr string) (*apiv1.Affinity, error) {
+	affinity := &apiv1.Affinity{}
+	decoded, err := decodeString(affinityStr)
+	if err != nil {
+		return nil, err
+	}
+	if err = affinity.Unmarshal(decoded); err != nil {
+		return nil, err
+	}
+	return affinity, nil
+}

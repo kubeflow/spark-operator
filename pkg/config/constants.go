@@ -33,9 +33,6 @@ const (
 	// HadoopConfDirEnvVar is the environment variable to add to the driver and executor Pods that point
 	// to the directory where the Hadoop ConfigMap is mounted.
 	HadoopConfDirEnvVar = "HADOOP_CONF_DIR"
-	// SparkClasspathEnvVar is the environment variable in the driver and executor containers for
-	// specifying the classpath.
-	SparkClasspathEnvVar = "SPARK_CLASSPATH"
 )
 
 const (
@@ -59,6 +56,9 @@ const (
 	// OwnerReferenceAnnotation is the name of the annotation added to the driver and executor Pods
 	// that specifies the OwnerReference of the owning SparkApplication.
 	OwnerReferenceAnnotation = LabelAnnotationPrefix + "ownerreference"
+	// AffinityAnnotation is the name of the annotation added to the driver and executor Pods that
+	// specifies the value of the Pod Affinity.
+	AffinityAnnotation = LabelAnnotationPrefix + "affinity"
 	// SparkAppIDLabel is the name of the label used to group API objects, e.g., Spark UI service, Pods,
 	// ConfigMaps, etc., belonging to the same Spark application.
 	SparkAppIDLabel = LabelAnnotationPrefix + "app-id"

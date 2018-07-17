@@ -1,5 +1,5 @@
 /*
-Copyright 2017 Google LLC
+Copyright 2018 Google LLC
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -14,10 +14,25 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package initializer
+package webhook
 
-// Package initializer implements the initializer for Spark pods. It looks for certain annotations on
-// the Spark driver and executor pods and modifies the pod spec based on the annotations. For example,
-// it is able to inject user-specified secrets and ConfigMaps into the Spark pods. It can also set
-// user-defined environment variables. It removes its name from the list of pending initializers from
-// pods it has processed.
+import (
+	admissionv1beta1 "k8s.io/api/admission/v1beta1"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/serializer"
+)
+
+var (
+	scheme = runtime.NewScheme()
+	codecs = serializer.NewCodecFactory(scheme)
+)
+
+func init() {
+	addToScheme(scheme)
+}
+
+func addToScheme(scheme *runtime.Scheme) {
+	corev1.AddToScheme(scheme)
+	admissionv1beta1.AddToScheme(scheme)
+}

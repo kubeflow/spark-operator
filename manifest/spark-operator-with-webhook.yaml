@@ -39,10 +39,32 @@ spec:
         pending: []
     spec:
       serviceAccountName: sparkoperator
+      volumes:
+        - name: webhook-certs
+          secret:
+            secretName: spark-webhook-certs
       containers:
       - name: sparkoperator
         image: gcr.io/spark-operator/spark-operator:v2.3.0-v1alpha1-latest
         imagePullPolicy: Always
+        volumeMounts:
+          - name: webhook-certs
+            mountPath: /etc/webhook-certs
         command: ["/usr/bin/spark-operator"]
         args:
         - -logtostderr
+        - -enable-webhook=true
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: spark-webhook
+  namespace: sparkoperator
+spec:
+  ports:
+    - port: 443
+      targetPort: 8080
+      name: webhook
+  selector:
+    app.kubernetes.io/name: sparkoperator
+    app.kubernetes.io/version: v2.3.0-v1alpha1

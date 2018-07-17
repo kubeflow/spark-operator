@@ -144,13 +144,3 @@ func FindVolumeMounts(annotations map[string]string) (map[string]*apiv1.VolumeMo
 
 	return volumeMounts, nil
 }
-
-// AddVolumeToPod adds the given Volume to the given pod.
-func AddVolumeToPod(volume *apiv1.Volume, pod *apiv1.Pod) {
-	pod.Spec.Volumes = append(pod.Spec.Volumes, *volume)
-}
-
-// MountVolumeToContainer mounts the given VolumeMount into the given container.
-func MountVolumeToContainer(mount *apiv1.VolumeMount, container *apiv1.Container) {
-	container.VolumeMounts = append(container.VolumeMounts, *mount)
-}

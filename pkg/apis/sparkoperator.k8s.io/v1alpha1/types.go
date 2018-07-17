@@ -333,6 +333,9 @@ type SparkPodSpec struct {
 	// VolumeMounts specifies the volumes listed in ".spec.volumes" to mount into the main container's filesystem.
 	// Optional.
 	VolumeMounts []apiv1.VolumeMount `json:"volumeMounts,omitempty"`
+	// Affinity specifies the affinity/anti-affinity settings for the pod.
+	// Optional.
+	Affinity *apiv1.Affinity `json:"affinity,omitempty"`
 }
 
 // DriverSpec is specification of the driver.

@@ -35,8 +35,6 @@ import (
 )
 
 // sparkPodMonitor monitors Spark executor pods and update the SparkApplication objects accordingly.
-// Note that no work queue is used as in the initializer because sparkPodMonitor is only informed of
-// Spark Pods and it never modifies the Pods.
 type sparkPodMonitor struct {
 	// Client to the Kubernetes API.
 	kubeClient clientset.Interface

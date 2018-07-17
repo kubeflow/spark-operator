@@ -1,5 +1,5 @@
 /*
-Copyright 2017 Google LLC
+Copyright 2018 Google LLC
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -14,7 +14,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package config
+package webhook
 
-// Package config contains code that deals with configuration of Spark driver and executor pods, e.g., mounting
-// user-specified ConfigMaps, volumes, secrets, etc.
+// Package webhook implements a mutating admission webhook for patching Spark driver and executor pods.
+// The webhook supports mutations that are not supported by Spark on Kubernetes itself, e.g., adding an
+// OwnerReference to the driver pod for the owning SparkApplications or setting the SecurityContext.

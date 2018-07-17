@@ -24,7 +24,7 @@ WORKDIR ${GOPATH}/src/k8s.io/spark-on-k8s-operator
 COPY Gopkg.toml Gopkg.lock ./
 RUN dep ensure -vendor-only
 COPY . ./
-RUN go generate && go build -o /usr/bin/spark-operator
+RUN go generate && CGO_ENABLED=0 GOOS=linux go build -o /usr/bin/spark-operator
 
 
 FROM gcr.io/ynli-k8s/spark:v2.3.0
