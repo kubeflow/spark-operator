@@ -46,10 +46,6 @@ required = [
   name = "github.com/prometheus/client_golang"
 
 [[constraint]]
-  branch = "master"
-  name = "github.com/pkg/errors"
-
-[[constraint]]
   name = "cloud.google.com/go"
   version = "0.18.0"
 
