@@ -19,11 +19,14 @@ package sparkapplication
 import (
 	"fmt"
 	"strconv"
+	"time"
 
 	"github.com/golang/glog"
 
 	apiv1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/wait"
 	clientset "k8s.io/client-go/kubernetes"
 
 	"k8s.io/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1alpha1"
@@ -45,9 +48,22 @@ func createSparkUIService(
 		return "", -1, fmt.Errorf("invalid Spark UI port: %s", portStr)
 	}
 
+	serviceName := app.Name + "-ui-svc"
+	if _, err = kubeClient.CoreV1().Services(app.Namespace).Get(serviceName, metav1.GetOptions{}); err == nil {
+		// Delete the service if it already exists and wait for the service to be gone.
+		kubeClient.CoreV1().Services(app.Namespace).Delete(serviceName, metav1.NewDeleteOptions(0))
+		wait.Poll(100*time.Millisecond, 10*time.Second, func() (done bool, err error) {
+			_, err = kubeClient.CoreV1().Services(app.Namespace).Get(serviceName, metav1.GetOptions{})
+			if errors.IsNotFound(err) {
+				return true, nil
+			}
+			return false, err
+		})
+	}
+
 	service := &apiv1.Service{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      appID + "-ui-svc",
+			Name:      serviceName,
 			Namespace: app.Namespace,
 			Labels: map[string]string{
 				config.SparkAppNameLabel: app.Name,

@@ -38,8 +38,9 @@ func TestCreateSparkUIService(t *testing.T) {
 		expectedSelector    map[string]string
 		expectError         bool
 	}
+
+	fakeClient := fake.NewSimpleClientset()
 	testFn := func(test testcase, t *testing.T) {
-		fakeClient := fake.NewSimpleClientset()
 		uiServiceName, uiServicePort, err := createSparkUIService(test.app, test.app.Status.AppID, fakeClient)
 		if err != nil {
 			if test.expectError {
@@ -130,7 +131,7 @@ func TestCreateSparkUIService(t *testing.T) {
 		{
 			name:                "service with custom port",
 			app:                 app1,
-			expectedServiceName: app1.Status.AppID + "-ui-svc",
+			expectedServiceName: app1.Name + "-ui-svc",
 			expectedServicePort: 4041,
 			expectedSelector: map[string]string{
 				config.SparkAppNameLabel: "foo",
@@ -142,7 +143,7 @@ func TestCreateSparkUIService(t *testing.T) {
 		{
 			name:                "service with default port",
 			app:                 app2,
-			expectedServiceName: app2.Status.AppID + "-ui-svc",
+			expectedServiceName: app2.Name + "-ui-svc",
 			expectedServicePort: int32(defaultPort),
 			expectedSelector: map[string]string{
 				config.SparkAppNameLabel: "foo",
