@@ -246,6 +246,10 @@ func addDriverConfOptions(app *v1alpha1.SparkApplication) ([]string, error) {
 		driverConfOptions = append(driverConfOptions,
 			fmt.Sprintf("spark.driver.memory=%s", *app.Spec.Driver.Memory))
 	}
+	if app.Spec.Driver.MemoryOverhead != nil {
+		driverConfOptions = append(driverConfOptions,
+			fmt.Sprintf("spark.driver.memoryOverhead=%s", *app.Spec.Driver.MemoryOverhead))
+	}
 
 	if app.Spec.Driver.ServiceAccount != nil {
 		driverConfOptions = append(driverConfOptions,
@@ -316,16 +320,20 @@ func addExecutorConfOptions(app *v1alpha1.SparkApplication) ([]string, error) {
 	}
 	if app.Spec.Executor.Cores != nil {
 		// Property "spark.executor.cores" does not allow float values.
-		conf := fmt.Sprintf("spark.executor.cores=%d", int32(*app.Spec.Executor.Cores))
-		executorConfOptions = append(executorConfOptions, conf)
+		executorConfOptions = append(executorConfOptions,
+			fmt.Sprintf("spark.executor.cores=%d", int32(*app.Spec.Executor.Cores)))
 	}
 	if app.Spec.Executor.CoreLimit != nil {
-		conf := fmt.Sprintf("%s=%s", config.SparkExecutorCoreLimitKey, *app.Spec.Executor.CoreLimit)
-		executorConfOptions = append(executorConfOptions, conf)
+		executorConfOptions = append(executorConfOptions,
+			fmt.Sprintf("%s=%s", config.SparkExecutorCoreLimitKey, *app.Spec.Executor.CoreLimit))
 	}
 	if app.Spec.Executor.Memory != nil {
-		conf := fmt.Sprintf("spark.executor.memory=%s", *app.Spec.Executor.Memory)
-		executorConfOptions = append(executorConfOptions, conf)
+		executorConfOptions = append(executorConfOptions,
+			fmt.Sprintf("spark.executor.memory=%s", *app.Spec.Executor.Memory))
+	}
+	if app.Spec.Executor.MemoryOverhead != nil {
+		executorConfOptions = append(executorConfOptions,
+			fmt.Sprintf("spark.executor.memoryOverhead=%s", *app.Spec.Executor.MemoryOverhead))
 	}
 
 	for key, value := range app.Spec.Executor.Labels {
