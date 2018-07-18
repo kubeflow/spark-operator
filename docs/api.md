@@ -81,6 +81,7 @@ A `SparkPodSpec` defines common attributes of a driver or executor pod, summariz
 | `Cores` | `spark.driver.cores` or `spark.executor.cores` | Number of CPU cores for the driver or executor pod. |
 | `CoreLimit` | `spark.kubernetes.driver.limit.cores` or `spark.kubernetes.executor.limit.cores` | Hard limit on the number of CPU cores for the driver or executor pod. |
 | `Memory` | `spark.driver.memory` or `spark.executor.memory` | Amount of memory to request for the driver or executor pod. |
+| `MemoryOverhead` | `spark.driver.memoryOverhead` or `spark.executor.memoryOverhead` | Amount of off-heap memory to allocate for the driver or executor pod in cluster mode, in `MiB` unless otherwise specified. |
 | `Image` | `spark.kubernetes.driver.container.image` or `spark.kubernetes.executor.container.image` | Custom container image for the driver or executor. |
 | `ConfigMaps` | N/A | A map of Kubernetes ConfigMaps to mount into the driver or executor pod. Keys are ConfigMap names and values are mount paths. |
 | `Secrets` | `spark.kubernetes.driver.secrets.[SecretName]` or `spark.kubernetes.executor.secrets.[SecretName]` | A map of Kubernetes secrets to mount into the driver or executor pod. Keys are secret names and values specify the mount paths and secret types. |

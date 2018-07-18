@@ -309,6 +309,9 @@ type SparkPodSpec struct {
 	// Memory is the amount of memory to request for the pod.
 	// Optional.
 	Memory *string `json:"memory,omitempty"`
+	// MemoryOverhead is the amount of off-heap memory to allocate in cluster mode, in MiB unless otherwise specified.
+	// Optional.
+	MemoryOverhead *string `json:"memoryOverhead,omitempty"`
 	// Image is the container image to use. Overrides Spec.Image if set.
 	// Optional.
 	Image *string `json:"image,omitempty"`
