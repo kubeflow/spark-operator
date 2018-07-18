@@ -45,9 +45,15 @@ func createSparkUIService(
 		return "", -1, fmt.Errorf("invalid Spark UI port: %s", portStr)
 	}
 
+	serviceName := app.Name + "-ui-svc"
+	if _, err = kubeClient.CoreV1().Services(app.Namespace).Get(serviceName, metav1.GetOptions{}); err == nil {
+		// Delete the service if it already exists.
+		kubeClient.CoreV1().Services(app.Namespace).Delete(serviceName, metav1.NewDeleteOptions(0))
+	}
+
 	service := &apiv1.Service{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      appID + "-ui-svc",
+			Name:      serviceName,
 			Namespace: app.Namespace,
 			Labels: map[string]string{
 				config.SparkAppNameLabel: app.Name,
