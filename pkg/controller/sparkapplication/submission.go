@@ -87,8 +87,9 @@ func buildSubmissionCommandArgs(app *v1alpha1.SparkApplication) ([]string, error
 
 	if app.Spec.SparkConf == nil {
 		app.Spec.SparkConf = make(map[string]string)
-		app.Spec.SparkConf[config.SparkWaitAppCompletion] = "false"
 	}
+	// Operator triggered spark-submit should never wait for App completion
+	app.Spec.SparkConf[config.SparkWaitAppCompletion] = "false"
 
 	if app.Spec.SparkConfigMap != nil {
 		args = append(args, "--conf", config.GetDriverAnnotationOption(config.SparkConfigMapAnnotation,
