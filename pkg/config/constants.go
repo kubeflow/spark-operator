@@ -135,6 +135,10 @@ const (
 	SparkMaxSimultaneousDownloads = "spark.kubernetes.mountDependencies.maxSimultaneousDownloads"
 	// SparkWaitAppCompletion is the Spark configuration key for specifying whether to wait for application to complete.
 	SparkWaitAppCompletion = "spark.kubernetes.submission.waitAppCompletion"
+	// SparkPythonVersion is the Spark configuration key for specifying python version used.
+	SparkPythonVersion = "spark.kubernetes.pyspark.pythonversion"
+	// SparkPythonVersion is the Spark configuration key for specifying memory overhead factor used for Non-JVM memory.
+	SparkMemoryOverheadFactor = "spark.kubernetes.memoryOverheadFactor"
 )
 
 const (

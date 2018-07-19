@@ -33,6 +33,7 @@ A `SparkApplicationSpec` has the following top-level fields:
 | Field | Spark configuration property or `spark-submit` option | Note |
 | ------------- | ------------- | ------------- |
 | `Type`  | N/A  | The type of the Spark application. Valid values are `Java`, `Scala`, `Python`, and `R`. |
+| `PythonVersion`  | `spark.kubernetes.pyspark.pythonversion`  | This sets the major Python version of the docker image used to run the driver and executor containers. Can either be 2 or 3, default 2. |
 | `Mode`  | `--mode` | Spark deployment mode. Valid values are `cluster` and `client`. |
 | `Image` | `spark.kubernetes.container.image` | Unified container image for the driver, executor, and init-container. |
 | `InitContainerImage` | `spark.kubernetes.initContainer.image` | Custom init-container image. |
@@ -53,6 +54,7 @@ A `SparkApplicationSpec` has the following top-level fields:
 | `NodeSelector` | `spark.kubernetes.node.selector.[labelKey]` | Node selector of the driver pod and executor pods, with key `labelKey` and value as the label's value. |
 | `MaxSubmissionRetries` | N/A | The maximum number of times to retry a failed submission. |
 | `SubmissionRetryInterval` | N/A | The unit of intervals in seconds between submission retries. Depending on the implementation, the actual interval between two submission retries may be a multiple of `SubmissionRetryInterval`, e.g., if linear or exponential backoff is used. |
+| `MemoryOverheadFactor` | `spark.kubernetes.memoryOverheadFactor` | This sets the Memory Overhead Factor that will allocate memory to non-JVM memory. For JVM-based jobs this value will default to 0.10, for non-JVM jobs 0.40. Value of this field will be overridden by `Spec.Driver.MemoryOverhead` and `Spec.Executor.MemoryOverhead` if they are set. |
 
 #### `DriverSpec`
 

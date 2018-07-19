@@ -50,7 +50,7 @@ For general information about working with manifests, see
 A `SparkApplication` also needs a 
 [`.spec` section](https://git.k8s.io/community/contributors/devel/api-conventions.md#spec-and-status). This section
 contains fields for specifying various aspects of an application including its type (`Scala`, `Java`, `Python`, or `R`), 
-deployment mode (`clsuter` or `client`), main application resource URI (e.g., the URI of the application jar), 
+deployment mode (`cluster` or `client`), main application resource URI (e.g., the URI of the application jar), 
 main class, arguments, etc. Node selectors are also supported via the optional field `.spec.nodeSelector`.
 
 It also has fields for specifying the unified container image (to use for both the driver and executors) and the image 
@@ -361,6 +361,42 @@ spec:
 
 Note that the mutating admission webhook is needed to use this feature. Please refer to the 
 [Quick Start Guide](quick-start-guide.md) on how to enable the mutating admission webhook.
+
+### Python Support
+
+Python support can be enabled by setting `.spec.mainApplicationFile` with path to your python application.
+Optionaly, `.spec.pythonVersion` parameter can be used to set the major Python version of the docker image used 
+to run the driver and executor containers. Below is an example showing part of a `SparkApplication` specification:
+
+```yaml
+spec:
+  type: Python
+  pythonVersion: 2
+  mainApplicationFile: local:///opt/spark/examples/src/main/python/pyfiles.py
+```
+
+Some PySpark applications need additional Python packages to run. 
+Such dependencies are specified using the optional field `.spec.deps.pyFiles` , which translates to the --py-files 
+option of the spark-submit command.
+
+```yaml
+spec:
+  deps:
+    pyfiles:
+       - local:///opt/spark/examples/src/main/python/py_container_checks.py
+       - gs://spark-data/python-dep.zip
+``` 
+
+In order to use the dependencies that are hosted remotely, the following PySpark code
+can be used in Spark 2.4.
+  
+```
+python_dep_file_path = SparkFiles.get("python-dep.zip")
+spark.sparkContext.addPyFile(dep_file_path)
+``` 
+
+Note that Python binding for PySpark will be available in Apache Spark 2.4, 
+and currently requires building a custom Docker image from the Spark master branch.
 
 ## Working with SparkApplications
 

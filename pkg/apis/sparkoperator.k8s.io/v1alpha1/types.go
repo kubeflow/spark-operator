@@ -212,6 +212,15 @@ type SparkApplicationSpec struct {
 	// SubmissionRetryInterval is the unit of intervals in seconds between submission retries.
 	// Optional.
 	SubmissionRetryInterval *int64 `json:"submissionRetryInterval,omitempty"`
+	// This sets the major Python version of the docker
+	// image used to run the driver and executor containers. Can either be 2 or 3, default 2.
+	// Optional.
+	PythonVersion *string `json:"pythonVersion,omitempty"`
+	// This sets the Memory Overhead Factor that will allocate memory to non-JVM memory.
+	// For JVM-based jobs this value will default to 0.10, for non-JVM jobs 0.40. Value of this field will
+	// be overridden by `Spec.Driver.MemoryOverhead` and `Spec.Executor.MemoryOverhead` if they are set.
+	// Optional.
+	MemoryOverheadFactor *string `json:"memoryOverheadFactor,omitempty"`
 }
 
 // ApplicationStateType represents the type of the current state of an application.
