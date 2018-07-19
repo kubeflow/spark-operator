@@ -1,6 +1,6 @@
 # Quick Start Guide
 
-For a more detailed guide on how to use, compose, and work with `SparkAppliction`s, please refer to the
+For a more detailed guide on how to use, compose, and work with `SparkApplication`s, please refer to the
 [User Guide](user-guide.md). If you are running the Spark Operator on Google Kubernetes Engine and want to use Google Cloud Storage (GCS) and/or BigQuery for reading/writing data, also refer to the [GCP guide](gcp.md).
 
 ## Table of Contents
