@@ -84,6 +84,14 @@ func buildSubmissionCommandArgs(app *v1alpha1.SparkApplication) ([]string, error
 		secretNames := strings.Join(app.Spec.ImagePullSecrets, ",")
 		args = append(args, "--conf", fmt.Sprintf("%s=%s", config.SparkImagePullSecretKey, secretNames))
 	}
+	if app.Spec.PythonVersion != nil {
+		args = append(args, "--conf",
+			fmt.Sprintf("%s=%s", config.SparkPythonVersion, *app.Spec.PythonVersion))
+	}
+	if app.Spec.MemoryOverheadFactor != nil {
+		args = append(args, "--conf",
+			fmt.Sprintf("%s=%s", config.SparkMemoryOverheadFactor, *app.Spec.MemoryOverheadFactor))
+	}
 
 	if app.Spec.SparkConf == nil {
 		app.Spec.SparkConf = make(map[string]string)
