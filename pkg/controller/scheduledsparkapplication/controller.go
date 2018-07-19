@@ -256,6 +256,7 @@ func (c *Controller) createSparkApplication(
 		Name:       scheduledApp.Name,
 		UID:        scheduledApp.UID,
 	})
+	app.ObjectMeta.SetLabels(scheduledApp.GetLabels())
 	_, err := c.crdClient.SparkoperatorV1alpha1().SparkApplications(scheduledApp.Namespace).Create(app)
 	if err != nil {
 		return "", err
