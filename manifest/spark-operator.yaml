@@ -32,9 +32,6 @@ spec:
     type: Recreate
   template:
     metadata:
-      annotations:
-        prometheus.io/scrape: "true"
-        prometheus.io/port: "10254"
       labels:
         app.kubernetes.io/name: sparkoperator
         app.kubernetes.io/version: v2.4.0-v1beta1
@@ -48,5 +45,4 @@ spec:
         imagePullPolicy: Always
         args:
         - -logtostderr
-        - -enable-metrics=true
-        - -metrics-labels=app_type
+        - -enable-metrics=false
