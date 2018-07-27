@@ -17,12 +17,15 @@ limitations under the License.
 package sparkapplication
 
 import (
-	"github.com/stretchr/testify/assert"
 	"os"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
+
+	"github.com/prometheus/client_golang/prometheus"
+	prometheus_model "github.com/prometheus/client_model/go"
 	apiv1 "k8s.io/api/core/v1"
 	apiextensionsfake "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset/fake"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -30,14 +33,9 @@ import (
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
-
-	"github.com/prometheus/client_golang/prometheus"
-	prometheus_model "github.com/prometheus/client_model/go"
 	"k8s.io/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1alpha1"
 	crdclientfake "k8s.io/spark-on-k8s-operator/pkg/client/clientset/versioned/fake"
 	crdinformers "k8s.io/spark-on-k8s-operator/pkg/client/informers/externalversions"
-	"k8s.io/spark-on-k8s-operator/pkg/util"
-	"net/http"
 )
 
 func newFakeController(apps ...*v1alpha1.SparkApplication) (*Controller, *record.FakeRecorder) {
@@ -62,12 +60,8 @@ func newFakeController(apps ...*v1alpha1.SparkApplication) (*Controller, *record
 		},
 	})
 
-	// Reset previous test handlers.
-	http.DefaultServeMux = new(http.ServeMux)
-	metrics := util.NewPrometheusMetrics("/metrics-test", ":10254", "", []string{})
-
 	controller := newSparkApplicationController(crdClient, kubeClient, apiExtensionsClient, informerFactory, recorder,
-		1, metrics, "test")
+		1, true, "", []string{}, "test")
 
 	informer := informerFactory.Sparkoperator().V1alpha1().SparkApplications().Informer()
 	for _, app := range apps {

@@ -21,6 +21,11 @@ package main
 import (
 	"flag"
 	"fmt"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
+
 	"github.com/golang/glog"
 	apiv1 "k8s.io/api/core/v1"
 	apiextensionsclient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
@@ -38,10 +43,6 @@ import (
 	sacrd "k8s.io/spark-on-k8s-operator/pkg/crd/sparkapplication"
 	"k8s.io/spark-on-k8s-operator/pkg/util"
 	"k8s.io/spark-on-k8s-operator/pkg/webhook"
-	"os"
-	"os/signal"
-	"syscall"
-	"time"
 )
 
 var (
@@ -58,7 +59,7 @@ var (
 	webhookSvcName          = flag.String("webhook-svc-name", "spark-webhook", "The name of the Service for the webhook server")
 	webhookPort             = flag.Int("webhook-port", 8080, "Service port of the webhook server")
 
-	enableMetrics = flag.Bool("enable-metrics", true, "Whether to enable the "+
+	enableMetrics = flag.Bool("enable-metrics", false, "Whether to enable the "+
 		"metrics endpoint.")
 	metricsPort     = flag.String("metrics-port", ":10254", "Port for the metrics endpoint.")
 	metricsEndpoint = flag.String("metrics-endpoint", "/metrics", "Metrics endpoint")
@@ -80,10 +81,9 @@ func main() {
 		glog.Fatal(err)
 	}
 
-	var metricsBundle *util.PrometheusMetrics
 	if *enableMetrics {
-		glog.Info("Enabling metrics")
-		metricsBundle = util.NewPrometheusMetrics(*metricsEndpoint, *metricsPort, *metricsPrefix, metricsLabels)
+		glog.Info("Enabling metrics collecting and exporting to Prometheus")
+		util.InitializeMetrics(*metricsEndpoint, *metricsPort, *metricsPrefix)
 	}
 
 	glog.Info("Starting the Spark operator")
@@ -121,7 +121,7 @@ func main() {
 		time.Duration(*resyncInterval)*time.Second,
 		factoryOpts...)
 	applicationController := sparkapplication.NewController(
-		crdClient, kubeClient, apiExtensionsClient, factory, *submissionRunnerThreads, metricsBundle, *namespace)
+		crdClient, kubeClient, apiExtensionsClient, factory, *submissionRunnerThreads, *enableMetrics, *metricsPrefix, metricsLabels, *namespace)
 	scheduledApplicationController := scheduledsparkapplication.NewController(
 		crdClient, kubeClient, apiExtensionsClient, factory, clock.RealClock{})
 

@@ -1,35 +1,43 @@
+/*
+Copyright 2018 Google LLC
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    https://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package util
 
 import (
+	"net/http"
+	"strings"
+	"sync"
+
 	"github.com/golang/glog"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	prometheus_model "github.com/prometheus/client_model/go"
 	"k8s.io/client-go/util/workqueue"
-	"net/http"
-	"strings"
-	"sync"
 )
 
-type PrometheusMetrics struct {
-	Labels               []string
-	prefix               string
-	SparkAppSubmitCount  *prometheus.CounterVec
-	SparkAppSuccessCount *prometheus.CounterVec
-	SparkAppFailureCount *prometheus.CounterVec
-	SparkAppRunningCount *PositiveGauge
-
-	SparkAppSuccessExecutionTime *prometheus.SummaryVec
-	SparkAppFailureExecutionTime *prometheus.SummaryVec
-
-	SparkAppExecutorRunningCount *PositiveGauge
-	SparkAppExecutorFailureCount *prometheus.CounterVec
-	SparkAppExecutorSuccessCount *prometheus.CounterVec
+func CreateValidMetricNameLabel(prefix, name string) string {
+	// "-" aren't valid characters for prometheus metric names or labels
+	return strings.Replace(prefix+name, "-", "_", -1)
 }
 
-func CreateValidMetric(prefix, name string) string {
-	// "-" aren't valid characters for prometheus metric names
-	return strings.Replace(prefix+name, "-", "_", -1)
+// Best effort metric registration with Prometheus.
+func RegisterMetric(metric prometheus.Collector) {
+	if err := prometheus.Register(metric); err != nil {
+		glog.Warningf("Error while registering Prometheus metric: [%v]", err)
+	}
 }
 
 type PositiveGauge struct {
@@ -40,6 +48,11 @@ type PositiveGauge struct {
 
 // Gauge with conditional decrement ensuring its value is never negative.
 func NewPositiveGauge(name string, description string, labels []string) *PositiveGauge {
+
+	for i, label := range labels {
+		labels[i] = CreateValidMetricNameLabel("", label)
+	}
+
 	gauge := prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
 			Name: name,
@@ -48,14 +61,13 @@ func NewPositiveGauge(name string, description string, labels []string) *Positiv
 		labels,
 	)
 
-	prometheus.Register(gauge)
+	RegisterMetric(gauge)
 
 	return &PositiveGauge{
 		gaugeMetric: gauge,
 		name:        name,
 	}
 }
-
 
 func fetchGaugeValue(m *prometheus.GaugeVec, labels map[string]string) float64 {
 	// Hack to get the current value of the metric to support PositiveGauge
@@ -104,147 +116,69 @@ func (c *PositiveGauge) Dec(labelMap map[string]string) {
 	}
 }
 
-func NewPrometheusMetrics(endpoint string, port string, prefix string, labels []string) *PrometheusMetrics {
+type WorkQueueMetrics struct {
+	prefix string
+}
 
-	sparkAppSubmitCount := prometheus.NewCounterVec(
-		prometheus.CounterOpts{
-			Name: CreateValidMetric(prefix, "spark_app_submit_count"),
-			Help: "Spark App Submits via the Operator",
-		},
-		labels,
-	)
-
-	sparkAppSuccessCount := prometheus.NewCounterVec(
-		prometheus.CounterOpts{
-			Name: CreateValidMetric(prefix, "spark_app_success_count"),
-			Help: "Spark App Success Count via the Operator",
-		},
-		labels,
-	)
-
-	sparkAppFailureCount := prometheus.NewCounterVec(
-		prometheus.CounterOpts{
-			Name: CreateValidMetric(prefix, "spark_app_failure_count"),
-			Help: "Spark App Failure Count via the Operator",
-		},
-		labels,
-	)
-
-	sparkAppSuccessExecutionTime := prometheus.NewSummaryVec(
-		prometheus.SummaryOpts{
-			Name: CreateValidMetric(prefix, "spark_app_success_execution_time_microseconds"),
-			Help: "Spark App Runtime via the Operator",
-		},
-		labels,
-	)
-
-	sparkAppFailureExecutionTime := prometheus.NewSummaryVec(
-		prometheus.SummaryOpts{
-			Name: CreateValidMetric(prefix, "spark_app_failure_execution_time_microseconds"),
-			Help: "Spark App Runtime via the Operator",
-		},
-		labels,
-	)
-
-	sparkAppExecutorFailureCount := prometheus.NewCounterVec(
-		prometheus.CounterOpts{
-			Name: CreateValidMetric(prefix, "spark_app_executor_failure_count"),
-			Help: "Spark App Failed Executor Count via the Operator",
-		},
-		labels,
-	)
-
-	sparkAppExecutorSuccessCount := prometheus.NewCounterVec(
-		prometheus.CounterOpts{
-			Name: CreateValidMetric(prefix, "spark_app_executor_success_count"),
-			Help: "Spark App Successful Executor Count via the Operator",
-		},
-		labels,
-	)
-
-	sparkAppRunningCount := NewPositiveGauge(CreateValidMetric(prefix, "spark_app_running_count"),
-		"Spark App Running Count via the Operator", labels)
-
-	sparkAppExecutorRunningCount := NewPositiveGauge(CreateValidMetric(prefix,
-		"spark_app_executor_running_count"), "Spark App Executor Running Count via the Operator", labels)
+func InitializeMetrics(endpoint string, port string, prefix string) {
 
 	// Start the metrics endpoint for Prometheus to scrape
 	http.Handle(endpoint, promhttp.Handler())
 	go http.ListenAndServe(port, nil)
 	glog.Infof("Started Metrics server at localhost%s%s", port, endpoint)
 
-	prometheus.Register(sparkAppSubmitCount)
-	prometheus.Register(sparkAppSuccessCount)
-	prometheus.Register(sparkAppFailureCount)
-	prometheus.Register(sparkAppSuccessExecutionTime)
-	prometheus.Register(sparkAppFailureExecutionTime)
-	prometheus.Register(sparkAppExecutorFailureCount)
-	prometheus.Register(sparkAppExecutorSuccessCount)
-
-	metricBundle := &PrometheusMetrics{
-		labels,
-		prefix,
-		sparkAppSubmitCount,
-		sparkAppSuccessCount,
-		sparkAppFailureCount,
-		sparkAppRunningCount,
-		sparkAppSuccessExecutionTime,
-		sparkAppFailureExecutionTime,
-		sparkAppExecutorRunningCount,
-		sparkAppExecutorFailureCount,
-		sparkAppExecutorSuccessCount,
-	}
-	workqueue.SetProvider(metricBundle)
-	return metricBundle
+	workQueueMetrics := WorkQueueMetrics{prefix: prefix}
+	workqueue.SetProvider(&workQueueMetrics)
 }
 
 // Depth Metric for kubernetes workqueue
-func (p *PrometheusMetrics) NewDepthMetric(name string) workqueue.GaugeMetric {
+func (p *WorkQueueMetrics) NewDepthMetric(name string) workqueue.GaugeMetric {
 	depthMetric := prometheus.NewGauge(prometheus.GaugeOpts{
-		Name: CreateValidMetric(p.prefix, name+"_depth"),
+		Name: CreateValidMetricNameLabel(p.prefix, name+"_depth"),
 		Help: "Current depth of workqueue: " + name,
 	},
 	)
-	prometheus.Register(depthMetric)
+	RegisterMetric(depthMetric)
 	return depthMetric
 }
 
 // Adds Count Metrics for kubernetes workqueue
-func (p *PrometheusMetrics) NewAddsMetric(name string) workqueue.CounterMetric {
+func (p *WorkQueueMetrics) NewAddsMetric(name string) workqueue.CounterMetric {
 	addsMetric := prometheus.NewCounter(prometheus.CounterOpts{
-		Name: CreateValidMetric(p.prefix, name+"_adds"),
+		Name: CreateValidMetricNameLabel(p.prefix, name+"_adds"),
 		Help: "Total number of adds handled by workqueue: " + name,
 	})
-	prometheus.Register(addsMetric)
+	RegisterMetric(addsMetric)
 	return addsMetric
 }
 
 // Latency Metric for kubernetes workqueue
-func (p *PrometheusMetrics) NewLatencyMetric(name string) workqueue.SummaryMetric {
+func (p *WorkQueueMetrics) NewLatencyMetric(name string) workqueue.SummaryMetric {
 	latencyMetric := prometheus.NewSummary(prometheus.SummaryOpts{
-		Name: CreateValidMetric(p.prefix, name+"_latency"),
+		Name: CreateValidMetricNameLabel(p.prefix, name+"_latency"),
 		Help: "Latency for workqueue: " + name,
 	})
-	prometheus.Register(latencyMetric)
+	RegisterMetric(latencyMetric)
 	return latencyMetric
 }
 
 // WorkDuration Metric for kubernetes workqueue
-func (p *PrometheusMetrics) NewWorkDurationMetric(name string) workqueue.SummaryMetric {
+func (p *WorkQueueMetrics) NewWorkDurationMetric(name string) workqueue.SummaryMetric {
 	workDurationMetric := prometheus.NewSummary(prometheus.SummaryOpts{
-		Name: CreateValidMetric(p.prefix, name+"_work_duration"),
+		Name: CreateValidMetricNameLabel(p.prefix, name+"_work_duration"),
 		Help: "How long processing an item from workqueue" + name + " takes.",
 	})
-	prometheus.Register(workDurationMetric)
+	RegisterMetric(workDurationMetric)
 	return workDurationMetric
 }
 
 // Retry Metric for kubernetes workqueue
-func (p *PrometheusMetrics) NewRetriesMetric(name string) workqueue.CounterMetric {
+func (p *WorkQueueMetrics) NewRetriesMetric(name string) workqueue.CounterMetric {
 	retriesMetrics := prometheus.NewCounter(prometheus.CounterOpts{
-		Name: CreateValidMetric(p.prefix, name+"_retries"),
+		Name: CreateValidMetricNameLabel(p.prefix, name+"_retries"),
 		Help: "Total number of retries handled by workqueue: " + name,
 	})
-	prometheus.Register(retriesMetrics)
+	RegisterMetric(retriesMetrics)
+	RegisterMetric(retriesMetrics)
 	return retriesMetrics
 }

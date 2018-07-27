@@ -32,9 +32,6 @@ spec:
     type: Recreate
   template:
     metadata:
-      annotations:
-        prometheus.io/scrape: "true"
-        prometheus.io/port: "10254"
       labels:
         app.kubernetes.io/name: sparkoperator
         app.kubernetes.io/version: v2.3.0-v1alpha1
@@ -51,5 +48,4 @@ spec:
           - containerPort: 10254
         args:
         - -logtostderr
-        - -enable-metrics=true
-        - -metrics-labels=app_type
+        - -enable-metrics=false

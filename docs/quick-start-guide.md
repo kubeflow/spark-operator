@@ -52,9 +52,9 @@ $ kubectl describe deployment sparkoperator -n sparkoperator
 
 ### Metrics
 
-The operator exposes a set of metrics via the metric endpoint to be scraped by `Prometheus`. This is enabled by default and can be disabled by setting  the flag `-enable-metrics=false` and running 
- `kubectl apply -f manifest/spark-operator.yaml`. You might also want to remove the prometheus annotations `prometheus.io/scrape`
-  and `prometheus.io/port` which are used by Prometheus to scrape the metric endpoint if you are no longer enabling metrics.
+The operator exposes a set of metrics via the metric endpoint to be scraped by `Prometheus`. This is disabled by default and can be enabled by setting  the flag `-enable-metrics=true` and running 
+ `kubectl apply -f manifest/spark-operator.yaml`. You will also need to add the prometheus annotations `prometheus.io/scrape`
+  and `prometheus.io/port` which are used by Prometheus to scrape the metric endpoint if you are enabling metrics.
   
 If enabled, the operator generates the following metrics:
 ```bash
