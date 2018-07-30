@@ -25,13 +25,15 @@ import (
 	rest "k8s.io/client-go/rest"
 	flowcontrol "k8s.io/client-go/util/flowcontrol"
 	sparkoperatorv1alpha1 "k8s.io/spark-on-k8s-operator/pkg/client/clientset/versioned/typed/sparkoperator.k8s.io/v1alpha1"
+	sparkoperatorv1beta1 "k8s.io/spark-on-k8s-operator/pkg/client/clientset/versioned/typed/sparkoperator.k8s.io/v1beta1"
 )
 
 type Interface interface {
 	Discovery() discovery.DiscoveryInterface
 	SparkoperatorV1alpha1() sparkoperatorv1alpha1.SparkoperatorV1alpha1Interface
+	SparkoperatorV1beta1() sparkoperatorv1beta1.SparkoperatorV1beta1Interface
 	// Deprecated: please explicitly pick a version if possible.
-	Sparkoperator() sparkoperatorv1alpha1.SparkoperatorV1alpha1Interface
+	Sparkoperator() sparkoperatorv1beta1.SparkoperatorV1beta1Interface
 }
 
 // Clientset contains the clients for groups. Each group has exactly one
@@ -39,6 +41,7 @@ type Interface interface {
 type Clientset struct {
 	*discovery.DiscoveryClient
 	sparkoperatorV1alpha1 *sparkoperatorv1alpha1.SparkoperatorV1alpha1Client
+	sparkoperatorV1beta1  *sparkoperatorv1beta1.SparkoperatorV1beta1Client
 }
 
 // SparkoperatorV1alpha1 retrieves the SparkoperatorV1alpha1Client
@@ -46,10 +49,15 @@ func (c *Clientset) SparkoperatorV1alpha1() sparkoperatorv1alpha1.SparkoperatorV
 	return c.sparkoperatorV1alpha1
 }
 
+// SparkoperatorV1beta1 retrieves the SparkoperatorV1beta1Client
+func (c *Clientset) SparkoperatorV1beta1() sparkoperatorv1beta1.SparkoperatorV1beta1Interface {
+	return c.sparkoperatorV1beta1
+}
+
 // Deprecated: Sparkoperator retrieves the default version of SparkoperatorClient.
 // Please explicitly pick a version.
-func (c *Clientset) Sparkoperator() sparkoperatorv1alpha1.SparkoperatorV1alpha1Interface {
-	return c.sparkoperatorV1alpha1
+func (c *Clientset) Sparkoperator() sparkoperatorv1beta1.SparkoperatorV1beta1Interface {
+	return c.sparkoperatorV1beta1
 }
 
 // Discovery retrieves the DiscoveryClient
@@ -72,6 +80,10 @@ func NewForConfig(c *rest.Config) (*Clientset, error) {
 	if err != nil {
 		return nil, err
 	}
+	cs.sparkoperatorV1beta1, err = sparkoperatorv1beta1.NewForConfig(&configShallowCopy)
+	if err != nil {
+		return nil, err
+	}
 
 	cs.DiscoveryClient, err = discovery.NewDiscoveryClientForConfig(&configShallowCopy)
 	if err != nil {
@@ -85,6 +97,7 @@ func NewForConfig(c *rest.Config) (*Clientset, error) {
 func NewForConfigOrDie(c *rest.Config) *Clientset {
 	var cs Clientset
 	cs.sparkoperatorV1alpha1 = sparkoperatorv1alpha1.NewForConfigOrDie(c)
+	cs.sparkoperatorV1beta1 = sparkoperatorv1beta1.NewForConfigOrDie(c)
 
 	cs.DiscoveryClient = discovery.NewDiscoveryClientForConfigOrDie(c)
 	return &cs
@@ -94,6 +107,7 @@ func NewForConfigOrDie(c *rest.Config) *Clientset {
 func New(c rest.Interface) *Clientset {
 	var cs Clientset
 	cs.sparkoperatorV1alpha1 = sparkoperatorv1alpha1.New(c)
+	cs.sparkoperatorV1beta1 = sparkoperatorv1beta1.New(c)
 
 	cs.DiscoveryClient = discovery.NewDiscoveryClient(c)
 	return &cs
