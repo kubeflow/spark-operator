@@ -26,6 +26,7 @@ import (
 	schema "k8s.io/apimachinery/pkg/runtime/schema"
 	serializer "k8s.io/apimachinery/pkg/runtime/serializer"
 	sparkoperatorv1alpha1 "k8s.io/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1alpha1"
+	sparkoperatorv1beta1 "k8s.io/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta1"
 )
 
 var scheme = runtime.NewScheme()
@@ -53,4 +54,5 @@ func init() {
 // correctly.
 func AddToScheme(scheme *runtime.Scheme) {
 	sparkoperatorv1alpha1.AddToScheme(scheme)
+	sparkoperatorv1beta1.AddToScheme(scheme)
 }

@@ -290,6 +290,11 @@ func addDriverConfOptions(app *v1alpha1.SparkApplication) ([]string, error) {
 				affinityString))
 	}
 
+	if app.Spec.Driver.JavaOptions != nil {
+		driverConfOptions = append(driverConfOptions,
+			fmt.Sprintf("%s=%s", config.SparkDriverJavaOptions, *app.Spec.Driver.JavaOptions))
+	}
+
 	driverConfOptions = append(driverConfOptions, config.GetDriverSecretConfOptions(app)...)
 	driverConfOptions = append(driverConfOptions, config.GetDriverConfigMapConfOptions(app)...)
 	driverConfOptions = append(driverConfOptions, config.GetDriverEnvVarConfOptions(app)...)
@@ -368,6 +373,11 @@ func addExecutorConfOptions(app *v1alpha1.SparkApplication) ([]string, error) {
 		executorConfOptions = append(executorConfOptions,
 			fmt.Sprintf("%s%s=%s", config.SparkExecutorAnnotationKeyPrefix, config.AffinityAnnotation,
 				affinityString))
+	}
+
+	if app.Spec.Executor.JavaOptions != nil {
+		executorConfOptions = append(executorConfOptions,
+			fmt.Sprintf("%s=%s", config.SparkExecutorJavaOptions, *app.Spec.Executor.JavaOptions))
 	}
 
 	executorConfOptions = append(executorConfOptions, config.GetExecutorSecretConfOptions(app)...)

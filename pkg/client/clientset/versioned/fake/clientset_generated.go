@@ -29,6 +29,8 @@ import (
 	clientset "k8s.io/spark-on-k8s-operator/pkg/client/clientset/versioned"
 	sparkoperatorv1alpha1 "k8s.io/spark-on-k8s-operator/pkg/client/clientset/versioned/typed/sparkoperator.k8s.io/v1alpha1"
 	fakesparkoperatorv1alpha1 "k8s.io/spark-on-k8s-operator/pkg/client/clientset/versioned/typed/sparkoperator.k8s.io/v1alpha1/fake"
+	sparkoperatorv1beta1 "k8s.io/spark-on-k8s-operator/pkg/client/clientset/versioned/typed/sparkoperator.k8s.io/v1beta1"
+	fakesparkoperatorv1beta1 "k8s.io/spark-on-k8s-operator/pkg/client/clientset/versioned/typed/sparkoperator.k8s.io/v1beta1/fake"
 )
 
 // NewSimpleClientset returns a clientset that will respond with the provided objects.
@@ -43,11 +45,20 @@ func NewSimpleClientset(objects ...runtime.Object) *Clientset {
 		}
 	}
 
-	fakePtr := testing.Fake{}
-	fakePtr.AddReactor("*", "*", testing.ObjectReaction(o))
-	fakePtr.AddWatchReactor("*", testing.DefaultWatchReactor(watch.NewFake(), nil))
+	cs := &Clientset{}
+	cs.discovery = &fakediscovery.FakeDiscovery{Fake: &cs.Fake}
+	cs.AddReactor("*", "*", testing.ObjectReaction(o))
+	cs.AddWatchReactor("*", func(action testing.Action) (handled bool, ret watch.Interface, err error) {
+		gvr := action.GetResource()
+		ns := action.GetNamespace()
+		watch, err := o.Watch(gvr, ns)
+		if err != nil {
+			return false, nil, err
+		}
+		return true, watch, nil
+	})
 
-	return &Clientset{fakePtr, &fakediscovery.FakeDiscovery{Fake: &fakePtr}}
+	return cs
 }
 
 // Clientset implements clientset.Interface. Meant to be embedded into a
@@ -69,7 +80,12 @@ func (c *Clientset) SparkoperatorV1alpha1() sparkoperatorv1alpha1.SparkoperatorV
 	return &fakesparkoperatorv1alpha1.FakeSparkoperatorV1alpha1{Fake: &c.Fake}
 }
 
-// Sparkoperator retrieves the SparkoperatorV1alpha1Client
-func (c *Clientset) Sparkoperator() sparkoperatorv1alpha1.SparkoperatorV1alpha1Interface {
-	return &fakesparkoperatorv1alpha1.FakeSparkoperatorV1alpha1{Fake: &c.Fake}
+// SparkoperatorV1beta1 retrieves the SparkoperatorV1beta1Client
+func (c *Clientset) SparkoperatorV1beta1() sparkoperatorv1beta1.SparkoperatorV1beta1Interface {
+	return &fakesparkoperatorv1beta1.FakeSparkoperatorV1beta1{Fake: &c.Fake}
+}
+
+// Sparkoperator retrieves the SparkoperatorV1beta1Client
+func (c *Clientset) Sparkoperator() sparkoperatorv1beta1.SparkoperatorV1beta1Interface {
+	return &fakesparkoperatorv1beta1.FakeSparkoperatorV1beta1{Fake: &c.Fake}
 }
