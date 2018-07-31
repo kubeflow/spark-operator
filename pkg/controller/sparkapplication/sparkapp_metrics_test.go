@@ -27,7 +27,7 @@ import (
 func TestSparkAppMetrics(t *testing.T) {
 	http.DefaultServeMux = new(http.ServeMux)
 	// Invalid label.
-	metrics := NewSparkAppMetrics("", []string{"app-name"})
+	metrics := newSparkAppMetrics("", []string{"app-name"})
 	app1 := map[string]string{"app_name": "test1"}
 
 	var wg sync.WaitGroup

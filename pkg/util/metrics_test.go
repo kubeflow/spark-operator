@@ -24,7 +24,6 @@ import (
 )
 
 func TestPositiveGauge_EmptyLabels(t *testing.T) {
-
 	gauge := NewPositiveGauge("testGauge", "test-description", []string{})
 	emptyMap := map[string]string{}
 	gauge.Dec(emptyMap)
@@ -37,7 +36,6 @@ func TestPositiveGauge_EmptyLabels(t *testing.T) {
 }
 
 func TestPositiveGauge_WithLabels(t *testing.T) {
-
 	gauge := NewPositiveGauge("testGauge1", "test-description-1", []string{"app_name"})
 	app1 := map[string]string{"app_name": "test1"}
 	app2 := map[string]string{"app_name": "test2"}

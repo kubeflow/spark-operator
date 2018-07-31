@@ -57,20 +57,20 @@ var (
 	}
 )
 
-// isValidDriverStatusTransition determines if the driver state transition is valid
-func isValidDriverStatusTransition(oldStatus, newStatus v1alpha1.ApplicationStateType) bool {
-	for _, validStatus := range validDriverStateTransitions[oldStatus] {
-		if newStatus == validStatus {
+// isValidDriverStateTransition determines if the driver state transition is valid
+func isValidDriverStateTransition(oldState, newState v1alpha1.ApplicationStateType) bool {
+	for _, validState := range validDriverStateTransitions[oldState] {
+		if newState == validState {
 			return true
 		}
 	}
 	return false
 }
 
-// isValidExecutorStatusTransition determines if the executor state transition is valid
-func isValidExecutorStatusTransition(oldStatus, newStatus v1alpha1.ExecutorState) bool {
-	for _, validStatus := range validExecutorStateTransitions[oldStatus] {
-		if newStatus == validStatus {
+// isValidExecutorStateTransition determines if the executor state transition is valid
+func isValidExecutorStateTransition(oldState, newState v1alpha1.ExecutorState) bool {
+	for _, validState := range validExecutorStateTransitions[oldState] {
+		if newState == validState {
 			return true
 		}
 	}

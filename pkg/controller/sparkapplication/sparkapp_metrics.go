@@ -25,7 +25,7 @@ import (
 	"k8s.io/spark-on-k8s-operator/pkg/util"
 )
 
-type SparkAppMetrics struct {
+type sparkAppMetrics struct {
 	Labels               []string
 	prefix               string
 	SparkAppSubmitCount  *prometheus.CounterVec
@@ -41,8 +41,7 @@ type SparkAppMetrics struct {
 	SparkAppExecutorSuccessCount *prometheus.CounterVec
 }
 
-func NewSparkAppMetrics(prefix string, labels []string) *SparkAppMetrics {
-
+func newSparkAppMetrics(prefix string, labels []string) *sparkAppMetrics {
 	for i, label := range labels {
 		labels[i] = util.CreateValidMetricNameLabel("", label)
 	}
@@ -109,7 +108,7 @@ func NewSparkAppMetrics(prefix string, labels []string) *SparkAppMetrics {
 	util.RegisterMetric(sparkAppExecutorFailureCount)
 	util.RegisterMetric(sparkAppExecutorSuccessCount)
 
-	metricBundle := &SparkAppMetrics{
+	return &sparkAppMetrics{
 		labels,
 		prefix,
 		sparkAppSubmitCount,
@@ -122,11 +121,9 @@ func NewSparkAppMetrics(prefix string, labels []string) *SparkAppMetrics {
 		sparkAppExecutorFailureCount,
 		sparkAppExecutorSuccessCount,
 	}
-	return metricBundle
 }
 
 func fetchMetricLabels(specLabels map[string]string, labels []string) map[string]string {
-
 	// Transform spec labels since our labels names might be not same as specLabels if we removed invalid characters.
 	validSpecLabels := make(map[string]string)
 	for labelKey, v := range specLabels {
@@ -144,16 +141,15 @@ func fetchMetricLabels(specLabels map[string]string, labels []string) map[string
 	return metricLabels
 }
 
-func (sm *SparkAppMetrics) exportMetrics(oldApp, newApp *v1alpha1.SparkApplication) {
-
+func (sm *sparkAppMetrics) exportMetrics(oldApp, newApp *v1alpha1.SparkApplication) {
 	metricLabels := fetchMetricLabels(newApp.Labels, sm.Labels)
 	glog.V(2).Infof("Posting Metrics for %s. OldStatus: %v NewStatus: %v", newApp.GetName(), oldApp.Status, newApp.Status)
 
-	oldStatus := oldApp.Status.AppState.State
-	newStatus := newApp.Status.AppState.State
-	switch newStatus {
+	oldState := oldApp.Status.AppState.State
+	newState := newApp.Status.AppState.State
+	switch newState {
 	case v1alpha1.SubmittedState:
-		if isValidDriverStatusTransition(oldStatus, newStatus) {
+		if isValidDriverStateTransition(oldState, newState) {
 			if m, err := sm.SparkAppSubmitCount.GetMetricWith(metricLabels); err != nil {
 				glog.Errorf("Error while posting metrics: %v", err)
 			} else {
@@ -161,11 +157,11 @@ func (sm *SparkAppMetrics) exportMetrics(oldApp, newApp *v1alpha1.SparkApplicati
 			}
 		}
 	case v1alpha1.RunningState:
-		if isValidDriverStatusTransition(oldStatus, newStatus) {
+		if isValidDriverStateTransition(oldState, newState) {
 			sm.SparkAppRunningCount.Inc(metricLabels)
 		}
 	case v1alpha1.CompletedState:
-		if isValidDriverStatusTransition(oldStatus, newStatus) {
+		if isValidDriverStateTransition(oldState, newState) {
 			if !newApp.Status.SubmissionTime.Time.IsZero() && !newApp.Status.CompletionTime.Time.IsZero() {
 				d := newApp.Status.CompletionTime.Time.Sub(newApp.Status.SubmissionTime.Time)
 
@@ -185,7 +181,7 @@ func (sm *SparkAppMetrics) exportMetrics(oldApp, newApp *v1alpha1.SparkApplicati
 	case v1alpha1.FailedSubmissionState:
 		fallthrough
 	case v1alpha1.FailedState:
-		if isValidDriverStatusTransition(oldStatus, newStatus) {
+		if isValidDriverStateTransition(oldState, newState) {
 			if !newApp.Status.SubmissionTime.Time.IsZero() && !newApp.Status.CompletionTime.Time.IsZero() {
 				d := newApp.Status.CompletionTime.Time.Sub(newApp.Status.SubmissionTime.Time)
 				if m, err := sm.SparkAppFailureExecutionTime.GetMetricWith(metricLabels); err != nil {
@@ -204,14 +200,14 @@ func (sm *SparkAppMetrics) exportMetrics(oldApp, newApp *v1alpha1.SparkApplicati
 	}
 
 	// Potential Executor status updates
-	for executor, newExecStatus := range newApp.Status.ExecutorState {
-		if newExecStatus == v1alpha1.ExecutorRunningState && (isValidExecutorStatusTransition(oldApp.Status.ExecutorState[executor], newExecStatus)) {
-			glog.V(2).Infof("Posting Metrics for Executor %s. OldStatus: %v NewStatus: %v", executor, oldApp.Status.ExecutorState[executor], newExecStatus)
+	for executor, newExecState := range newApp.Status.ExecutorState {
+		if newExecState == v1alpha1.ExecutorRunningState && (isValidExecutorStateTransition(oldApp.Status.ExecutorState[executor], newExecState)) {
+			glog.V(2).Infof("Posting Metrics for Executor %s. OldState: %v NewState: %v", executor, oldApp.Status.ExecutorState[executor], newExecState)
 			sm.SparkAppExecutorRunningCount.Inc(metricLabels)
 		}
-		if newExecStatus == v1alpha1.ExecutorCompletedState &&
-			isValidExecutorStatusTransition(oldApp.Status.ExecutorState[executor], newExecStatus) {
-			glog.V(2).Infof("Posting Metrics for Executor %s. OldStatus: %v NewStatus: %v", executor, oldApp.Status.ExecutorState[executor], newExecStatus)
+		if newExecState == v1alpha1.ExecutorCompletedState &&
+			isValidExecutorStateTransition(oldApp.Status.ExecutorState[executor], newExecState) {
+			glog.V(2).Infof("Posting Metrics for Executor %s. OldState: %v NewState: %v", executor, oldApp.Status.ExecutorState[executor], newExecState)
 			sm.SparkAppExecutorRunningCount.Dec(metricLabels)
 			if m, err := sm.SparkAppExecutorSuccessCount.GetMetricWith(metricLabels); err != nil {
 				glog.Errorf("Error while posting metrics: %v", err)
@@ -219,9 +215,9 @@ func (sm *SparkAppMetrics) exportMetrics(oldApp, newApp *v1alpha1.SparkApplicati
 				m.Inc()
 			}
 		}
-		if newExecStatus == v1alpha1.ExecutorFailedState &&
-			isValidExecutorStatusTransition(oldApp.Status.ExecutorState[executor], newExecStatus) {
-			glog.V(2).Infof("Posting Metrics for Executor %s. OldStatus: %v NewStatus: %v", executor, oldApp.Status.ExecutorState[executor], newExecStatus)
+		if newExecState == v1alpha1.ExecutorFailedState &&
+			isValidExecutorStateTransition(oldApp.Status.ExecutorState[executor], newExecState) {
+			glog.V(2).Infof("Posting Metrics for Executor %s. OldState: %v NewState: %v", executor, oldApp.Status.ExecutorState[executor], newExecState)
 			sm.SparkAppExecutorRunningCount.Dec(metricLabels)
 			if m, err := sm.SparkAppExecutorFailureCount.GetMetricWith(metricLabels); err != nil {
 				glog.Errorf("Error while posting metrics: %v", err)

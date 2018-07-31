@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/golang/glog"
+
 	apiv1 "k8s.io/api/core/v1"
 	apiextensionsclient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -68,7 +69,7 @@ type Controller struct {
 	sparkPodMonitor       *sparkPodMonitor
 	appStateReportingChan <-chan *appStateUpdate
 	podStateReportingChan <-chan interface{}
-	metrics               *SparkAppMetrics
+	metrics               *sparkAppMetrics
 }
 
 // NewController creates a new Controller.
@@ -128,7 +129,7 @@ func newSparkApplicationController(
 	}
 
 	if enableMetrics {
-		controller.metrics = NewSparkAppMetrics(metricsPrefix, metricsLabels)
+		controller.metrics = newSparkAppMetrics(metricsPrefix, metricsLabels)
 	}
 
 	informer := informerFactory.Sparkoperator().V1alpha1().SparkApplications()
@@ -157,6 +158,7 @@ func (c *Controller) Start(workers int, stopCh <-chan struct{}) error {
 		// the worker after one second.
 		go wait.Until(c.runWorker, time.Second, stopCh)
 	}
+
 	go c.runner.run(stopCh)
 	go c.sparkPodMonitor.run(stopCh)
 
@@ -394,6 +396,7 @@ func (c *Controller) processSingleDriverStateUpdate(update *driverStateUpdate) *
 	if update.appID != app.Status.AppID {
 		return nil
 	}
+
 	c.recordDriverEvent(app, update.podPhase, update.podName)
 
 	// The application state is solely based on the driver pod phase once the application is successfully
@@ -517,12 +520,14 @@ func (c *Controller) updateSparkApplicationStatusWithRetries(
 		updateFunc(&toUpdate.Status)
 
 		// Let's keep the old App status if this is not a valid transition.
-		if !isValidDriverStatusTransition(original.Status.AppState.State, toUpdate.Status.AppState.State) {
+		if !isValidDriverStateTransition(original.Status.AppState.State, toUpdate.Status.AppState.State) {
 			toUpdate.Status.AppState = original.Status.AppState
 		}
 		updated, err := c.tryUpdateStatus(original, toUpdate)
 		if err == nil {
-			c.postMetrics(original, updated)
+			if c.metrics != nil && updated != nil {
+				c.metrics.exportMetrics(original, updated)
+			}
 			return updated
 		}
 		lastUpdateErr = err
@@ -544,21 +549,6 @@ func (c *Controller) updateSparkApplicationStatusWithRetries(
 	}
 
 	return nil
-}
-
-func (c *Controller) postMetrics(oldApp, newApp *v1alpha1.SparkApplication) {
-
-	if c.metrics == nil {
-		glog.V(2).Infof("Metrics not enabled so skipping exporting metrics")
-		return
-	}
-
-	if newApp == nil {
-		glog.V(2).Infof("Found nil Spark App state so skipping exporting metrics")
-		return
-	}
-
-	c.metrics.exportMetrics(oldApp, newApp)
 }
 
 func (c *Controller) tryUpdateStatus(

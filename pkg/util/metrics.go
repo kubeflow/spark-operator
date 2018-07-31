@@ -48,7 +48,6 @@ type PositiveGauge struct {
 
 // Gauge with conditional decrement ensuring its value is never negative.
 func NewPositiveGauge(name string, description string, labels []string) *PositiveGauge {
-
 	for i, label := range labels {
 		labels[i] = CreateValidMetricNameLabel("", label)
 	}
@@ -178,7 +177,6 @@ func (p *WorkQueueMetrics) NewRetriesMetric(name string) workqueue.CounterMetric
 		Name: CreateValidMetricNameLabel(p.prefix, name+"_retries"),
 		Help: "Total number of retries handled by workqueue: " + name,
 	})
-	RegisterMetric(retriesMetrics)
 	RegisterMetric(retriesMetrics)
 	return retriesMetrics
 }
