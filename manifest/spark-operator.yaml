@@ -45,4 +45,3 @@ spec:
         imagePullPolicy: Always
         args:
         - -logtostderr
-        - -enable-metrics=false
