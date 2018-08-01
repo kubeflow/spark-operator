@@ -17,12 +17,15 @@ limitations under the License.
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"io/ioutil"
 	"net/url"
 	"os"
 	"path/filepath"
+	"unicode/utf8"
 
+	"github.com/google/go-cloud/blob"
 	"github.com/spf13/cobra"
 
 	apiv1 "k8s.io/api/core/v1"
@@ -30,18 +33,16 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/yaml"
 	clientset "k8s.io/client-go/kubernetes"
-
 	"k8s.io/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1alpha1"
 	crdclientset "k8s.io/spark-on-k8s-operator/pkg/client/clientset/versioned"
-	"unicode/utf8"
 )
 
 const bufferSize = 1024
+const rootPath = "spark-app-dependencies"
 
-var UploadTo string
-var EndpointURL string
-var Region string
-var Project string
+var UploadToPath string
+var UploadToEndpoint string
+var UploadToRegion string
 var Public bool
 var Override bool
 
@@ -74,14 +75,12 @@ var createCmd = &cobra.Command{
 }
 
 func init() {
-	createCmd.Flags().StringVarP(&UploadTo, "upload-to", "u", "",
+	createCmd.Flags().StringVarP(&UploadToPath, "upload-to", "u", "",
 		"a URL of the remote location where local application dependencies are to be uploaded to")
-	createCmd.Flags().StringVarP(&Region, "region", "r", "",
+	createCmd.Flags().StringVarP(&UploadToRegion, "upload-to-region", "r", "",
 		"the GCS or S3 storage region for the bucket")
-	createCmd.Flags().StringVarP(&EndpointURL, "endpoint-url", "e",
+	createCmd.Flags().StringVarP(&UploadToEndpoint, "upload-to-endpoint", "e",
 		"https://storage.googleapis.com", "the GCS or S3 storage api endpoint url")
-	createCmd.Flags().StringVarP(&Project, "project", "p", "",
-		"the GCP project to which the GCS bucket for hosting uploaded dependencies is associated")
 	createCmd.Flags().BoolVarP(&Public, "public", "c", false,
 		"whether to make uploaded files publicly available")
 	createCmd.Flags().BoolVarP(&Override, "override", "o", false,
@@ -273,44 +272,119 @@ func isContainerLocalFile(file string) (bool, error) {
 	return false, nil
 }
 
+type blobHandler interface {
+	// TODO: With go-cloud supporting setting ACLs, remove implementations of interface
+	setPublicACL(ctx context.Context, bucket string, filePath string) error
+}
+
+type uploadHandler struct {
+	blob             blobHandler
+	blobUploadBucket string
+	blobEndpoint     string
+	hdpScheme        string
+	ctx              context.Context
+	b                *blob.Bucket
+}
+
+func (uh uploadHandler) uploadToBucket(uploadPath, localFilePath string) (string, error) {
+	fileName := filepath.Base(localFilePath)
+	uploadFilePath := filepath.Join(uploadPath, fileName)
+	// Check if exists by trying to fetch metadata
+	reader, err := uh.b.NewRangeReader(uh.ctx, uploadFilePath, 0, 0)
+	reader.Close()
+	if (blob.IsNotExist(err)) || (err == nil && Override) {
+		fmt.Printf("uploading local file: %s\n", fileName)
+
+		// Prepare the file for upload.
+		data, err := ioutil.ReadFile(localFilePath)
+		if err != nil {
+			return "", fmt.Errorf("failed to read file: %s", err)
+		}
+
+		// Open Bucket
+		w, err := uh.b.NewWriter(uh.ctx, uploadFilePath, nil)
+		if err != nil {
+			return "", fmt.Errorf("failed to obtain bucket writer: %s", err)
+		}
+
+		// Write data to bucket and close bucket writer
+		_, writeErr := w.Write(data)
+		if err := w.Close(); err != nil {
+			return "", fmt.Errorf("failed to close bucket writer: %s", err)
+		}
+
+		// Check if write has been successful
+		if writeErr != nil {
+			return "", fmt.Errorf("failed to write to bucket: %s", err)
+		}
+
+		// Set public ACL if needed
+		if Public {
+			err := uh.blob.setPublicACL(uh.ctx, uh.blobUploadBucket, uploadFilePath)
+			if err != nil {
+				return "", err
+			}
+
+			endpointURL, err := url.Parse(uh.blobEndpoint)
+			if err != nil {
+				return "", err
+			}
+			// Public needs full bucket endpoint
+			return fmt.Sprintf("%s://%s/%s/%s",
+				endpointURL.Scheme,
+				endpointURL.Host,
+				uh.blobUploadBucket,
+				uploadFilePath), nil
+		}
+	} else if err == nil {
+		fmt.Printf("not uploading file %s as it already exists remotely\n", fileName)
+	} else {
+		return "", err
+	}
+	// Return path to file with proper hadoop-connector scheme
+	return fmt.Sprintf("%s://%s/%s", uh.hdpScheme, uh.blobUploadBucket, uploadFilePath), nil
+}
+
 func uploadLocalDependencies(app *v1alpha1.SparkApplication, files []string) ([]string, error) {
-	if UploadTo == "" {
+	if UploadToPath == "" {
 		return nil, fmt.Errorf(
 			"unable to upload local dependencies: no upload location specified via --upload-to")
 	}
 
-	uploadLocationUrl, err := url.Parse(UploadTo)
+	uploadLocationUrl, err := url.Parse(UploadToPath)
+	if err != nil {
+		return nil, err
+	}
+	uploadBucket := uploadLocationUrl.Host
+
+	var uh *uploadHandler
+	ctx := context.Background()
+	switch uploadLocationUrl.Scheme {
+	case "gs":
+		uh, err = newGCSBlob(ctx, uploadBucket, UploadToEndpoint, UploadToRegion)
+	case "s3":
+		uh, err = newS3Blob(ctx, uploadBucket, UploadToEndpoint, UploadToRegion)
+	default:
+		return nil, fmt.Errorf("unsupported upload location URL scheme: %s", uploadLocationUrl.Scheme)
+	}
+
+	// Check if bucket has been successfully setup
 	if err != nil {
 		return nil, err
 	}
 
-	switch uploadLocationUrl.Scheme {
-	case "gs":
-		if Project == "" {
-			return nil, fmt.Errorf("--project must be specified to upload dependencies to GCS")
+	var uploadedFilePaths []string
+	uploadPath := filepath.Join(rootPath, app.Namespace, app.Name)
+	for _, localFilePath := range files {
+		uploadFilePath, err := uh.uploadToBucket(uploadPath, localFilePath)
+		if err != nil {
+			return nil, err
 		}
-		return uploadToGCS(
-			uploadLocationUrl.Host,
-			app.Namespace,
-			app.Name,
-			EndpointURL,
-			Project,
-			files,
-			Public,
-			Override)
-	case "s3a":
-		return uploadToS3(
-			uploadLocationUrl.Host,
-			app.Namespace,
-			app.Name,
-			EndpointURL,
-			Region,
-			files,
-			Public,
-			Override)
-	default:
-		return nil, fmt.Errorf("unsupported upload location URL scheme: %s", uploadLocationUrl.Scheme)
+
+		uploadedFilePaths = append(uploadedFilePaths, uploadFilePath)
 	}
+
+	return uploadedFilePaths, nil
 }
 
 func handleHadoopConfiguration(

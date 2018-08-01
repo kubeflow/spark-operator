@@ -65,6 +65,12 @@
   version = "v1.14.6"
 
 [[projects]]
+  branch = "master"
+  name = "github.com/beorn7/perks"
+  packages = ["quantile"]
+  revision = "3a771d992973f24aa725d07868b467d1ddfceafb"
+
+[[projects]]
   name = "github.com/davecgh/go-spew"
   packages = ["spew"]
   revision = "346938d642f2ec3594ed81d874461961cd0faa76"
@@ -136,6 +142,19 @@
   ]
   revision = "b4deda0973fb4c70b50d226b1af49f3da59f5265"
   version = "v1.1.0"
+
+[[projects]]
+  name = "github.com/google/go-cloud"
+  packages = [
+    "blob",
+    "blob/driver",
+    "blob/gcsblob",
+    "blob/s3blob",
+    "gcp",
+    "wire"
+  ]
+  revision = "354ed1d60b1bb1e190b483a8e8ce88053f83e904"
+  version = "v0.1.0"
 
 [[projects]]
   branch = "master"
@@ -738,6 +757,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "5233e038fedfc1ab3f03e8752a5a58e7749bc05b96ab4a924ce0c3781666771b"
+  inputs-digest = "9b7963ba9e67b29c9399a2c397b014720db36b9d0f8f03e13091c8274607f808"
   solver-name = "gps-cdcl"
   solver-version = 1
