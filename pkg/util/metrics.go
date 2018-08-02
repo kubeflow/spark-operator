@@ -21,6 +21,8 @@ import (
 	"strings"
 	"sync"
 
+	"fmt"
+
 	"github.com/golang/glog"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -36,8 +38,15 @@ func CreateValidMetricNameLabel(prefix, name string) string {
 // Best effort metric registration with Prometheus.
 func RegisterMetric(metric prometheus.Collector) {
 	if err := prometheus.Register(metric); err != nil {
-		glog.Warningf("Error while registering Prometheus metric: [%v]", err)
+		glog.Errorf("Error while registering Prometheus metric: [%v]", err)
 	}
+}
+
+type MetricConfig struct {
+	MetricsEndpoint string
+	MetricsPort     string
+	MetricsPrefix   string
+	MetricsLabels   []string
 }
 
 type PositiveGauge struct {
@@ -84,13 +93,11 @@ func (c *PositiveGauge) Value(labelMap map[string]string) float64 {
 
 // Increment the Metric for the labels specified
 func (c *PositiveGauge) Inc(labelMap map[string]string) {
-
 	c.mux.Lock()
 	defer c.mux.Unlock()
 
 	if m, err := c.gaugeMetric.GetMetricWith(labelMap); err != nil {
-		glog.Errorf("Error while posting metrics: %v", err)
-
+		glog.Errorf("Error while exporting metrics: %v", err)
 	} else {
 		glog.V(2).Infof("Incrementing %s with labels %s", c.name, labelMap)
 		m.Inc()
@@ -99,7 +106,6 @@ func (c *PositiveGauge) Inc(labelMap map[string]string) {
 
 // Decrement the metric only if its positive for the labels specified
 func (c *PositiveGauge) Dec(labelMap map[string]string) {
-
 	c.mux.Lock()
 	defer c.mux.Unlock()
 
@@ -108,7 +114,7 @@ func (c *PositiveGauge) Dec(labelMap map[string]string) {
 	if val > 0 {
 		glog.V(2).Infof("Decrementing %s with labels %s metricVal to %v", c.name, labelMap, val-1)
 		if m, err := c.gaugeMetric.GetMetricWith(labelMap); err != nil {
-			glog.Errorf("Error while posting metrics: %v", err)
+			glog.Errorf("Error while exporting metrics: %v", err)
 		} else {
 			m.Dec()
 		}
@@ -119,14 +125,13 @@ type WorkQueueMetrics struct {
 	prefix string
 }
 
-func InitializeMetrics(endpoint string, port string, prefix string) {
-
+func InitializeMetrics(metricsConfig *MetricConfig) {
 	// Start the metrics endpoint for Prometheus to scrape
-	http.Handle(endpoint, promhttp.Handler())
-	go http.ListenAndServe(port, nil)
-	glog.Infof("Started Metrics server at localhost%s%s", port, endpoint)
+	http.Handle(metricsConfig.MetricsEndpoint, promhttp.Handler())
+	go http.ListenAndServe(fmt.Sprintf(":%s", metricsConfig.MetricsPort), nil)
+	glog.Infof("Started Metrics server at localhost:%s%s", metricsConfig.MetricsPort, metricsConfig.MetricsEndpoint)
 
-	workQueueMetrics := WorkQueueMetrics{prefix: prefix}
+	workQueueMetrics := WorkQueueMetrics{prefix: metricsConfig.MetricsPrefix}
 	workqueue.SetProvider(&workQueueMetrics)
 }
 
@@ -134,7 +139,7 @@ func InitializeMetrics(endpoint string, port string, prefix string) {
 func (p *WorkQueueMetrics) NewDepthMetric(name string) workqueue.GaugeMetric {
 	depthMetric := prometheus.NewGauge(prometheus.GaugeOpts{
 		Name: CreateValidMetricNameLabel(p.prefix, name+"_depth"),
-		Help: "Current depth of workqueue: " + name,
+		Help: fmt.Sprintf("Current depth of workqueue: %s", name),
 	},
 	)
 	RegisterMetric(depthMetric)
@@ -145,7 +150,7 @@ func (p *WorkQueueMetrics) NewDepthMetric(name string) workqueue.GaugeMetric {
 func (p *WorkQueueMetrics) NewAddsMetric(name string) workqueue.CounterMetric {
 	addsMetric := prometheus.NewCounter(prometheus.CounterOpts{
 		Name: CreateValidMetricNameLabel(p.prefix, name+"_adds"),
-		Help: "Total number of adds handled by workqueue: " + name,
+		Help: fmt.Sprintf("Total number of adds handled by workqueue: %s", name),
 	})
 	RegisterMetric(addsMetric)
 	return addsMetric
@@ -155,7 +160,7 @@ func (p *WorkQueueMetrics) NewAddsMetric(name string) workqueue.CounterMetric {
 func (p *WorkQueueMetrics) NewLatencyMetric(name string) workqueue.SummaryMetric {
 	latencyMetric := prometheus.NewSummary(prometheus.SummaryOpts{
 		Name: CreateValidMetricNameLabel(p.prefix, name+"_latency"),
-		Help: "Latency for workqueue: " + name,
+		Help: fmt.Sprintf("Latency for workqueue: %s", name),
 	})
 	RegisterMetric(latencyMetric)
 	return latencyMetric
@@ -165,7 +170,7 @@ func (p *WorkQueueMetrics) NewLatencyMetric(name string) workqueue.SummaryMetric
 func (p *WorkQueueMetrics) NewWorkDurationMetric(name string) workqueue.SummaryMetric {
 	workDurationMetric := prometheus.NewSummary(prometheus.SummaryOpts{
 		Name: CreateValidMetricNameLabel(p.prefix, name+"_work_duration"),
-		Help: "How long processing an item from workqueue" + name + " takes.",
+		Help: fmt.Sprintf("How long processing an item from workqueue %s takes.", name),
 	})
 	RegisterMetric(workDurationMetric)
 	return workDurationMetric
@@ -175,7 +180,7 @@ func (p *WorkQueueMetrics) NewWorkDurationMetric(name string) workqueue.SummaryM
 func (p *WorkQueueMetrics) NewRetriesMetric(name string) workqueue.CounterMetric {
 	retriesMetrics := prometheus.NewCounter(prometheus.CounterOpts{
 		Name: CreateValidMetricNameLabel(p.prefix, name+"_retries"),
-		Help: "Total number of retries handled by workqueue: " + name,
+		Help: fmt.Sprintf("Total number of retries handled by workqueue: %s", name),
 	})
 	RegisterMetric(retriesMetrics)
 	return retriesMetrics

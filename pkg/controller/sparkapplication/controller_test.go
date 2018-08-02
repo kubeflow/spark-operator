@@ -36,6 +36,7 @@ import (
 	"k8s.io/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1alpha1"
 	crdclientfake "k8s.io/spark-on-k8s-operator/pkg/client/clientset/versioned/fake"
 	crdinformers "k8s.io/spark-on-k8s-operator/pkg/client/informers/externalversions"
+	"k8s.io/spark-on-k8s-operator/pkg/util"
 )
 
 func newFakeController(apps ...*v1alpha1.SparkApplication) (*Controller, *record.FakeRecorder) {
@@ -61,7 +62,7 @@ func newFakeController(apps ...*v1alpha1.SparkApplication) (*Controller, *record
 	})
 
 	controller := newSparkApplicationController(crdClient, kubeClient, apiExtensionsClient, informerFactory, recorder,
-		1, true, "", []string{}, "test")
+		1, &util.MetricConfig{}, "test")
 
 	informer := informerFactory.Sparkoperator().V1alpha1().SparkApplications().Informer()
 	for _, app := range apps {
@@ -296,7 +297,6 @@ func TestOnDelete(t *testing.T) {
 }
 
 func TestProcessSingleDriverStateUpdate(t *testing.T) {
-
 	type metrics struct {
 		runningMetricCount float64
 		successMetricCount float64
@@ -395,9 +395,9 @@ func TestProcessSingleDriverStateUpdate(t *testing.T) {
 			test.expectedAppState,
 			updatedApp.Status.AppState.State)
 
-		assert.Equal(t, test.expectedMetrics.successMetricCount, fetchCounterValue(ctrl.metrics.SparkAppSuccessCount, map[string]string{}))
-		assert.Equal(t, test.expectedMetrics.failedMetricCount, fetchCounterValue(ctrl.metrics.SparkAppFailureCount, map[string]string{}))
-		runningCount := ctrl.metrics.SparkAppRunningCount.Value(map[string]string{})
+		assert.Equal(t, test.expectedMetrics.successMetricCount, fetchCounterValue(ctrl.metrics.sparkAppSuccessCount, map[string]string{}))
+		assert.Equal(t, test.expectedMetrics.failedMetricCount, fetchCounterValue(ctrl.metrics.sparkAppFailureCount, map[string]string{}))
+		runningCount := ctrl.metrics.sparkAppRunningCount.Value(map[string]string{})
 		assert.Equal(t, test.expectedMetrics.runningMetricCount, runningCount)
 
 		if isAppTerminated(updatedApp.Status.AppState.State) {
@@ -535,9 +535,9 @@ func TestProcessSingleAppStateUpdate(t *testing.T) {
 			test.expectedAppState,
 			updatedApp.Status.AppState.State)
 
-		assert.Equal(t, test.expectedMetrics.successMetricCount, fetchCounterValue(ctrl.metrics.SparkAppSuccessCount, map[string]string{}))
-		assert.Equal(t, test.expectedMetrics.failedMetricCount, fetchCounterValue(ctrl.metrics.SparkAppFailureCount, map[string]string{}))
-		runningCount := ctrl.metrics.SparkAppRunningCount.Value(map[string]string{})
+		assert.Equal(t, test.expectedMetrics.successMetricCount, fetchCounterValue(ctrl.metrics.sparkAppSuccessCount, map[string]string{}))
+		assert.Equal(t, test.expectedMetrics.failedMetricCount, fetchCounterValue(ctrl.metrics.sparkAppFailureCount, map[string]string{}))
+		runningCount := ctrl.metrics.sparkAppRunningCount.Value(map[string]string{})
 		assert.Equal(t, test.expectedMetrics.runningMetricCount, runningCount)
 
 		if updatedApp.Status.AppState.State == v1alpha1.FailedSubmissionState {
@@ -712,9 +712,9 @@ func TestProcessSingleExecutorStateUpdate(t *testing.T) {
 			test.expectedExecutorStates,
 			updatedApp.Status.ExecutorState)
 
-		assert.Equal(t, test.expectedMetrics.executorFailedCount, fetchCounterValue(ctrl.metrics.SparkAppExecutorFailureCount, map[string]string{}))
-		assert.Equal(t, test.expectedMetrics.executorSuccessCount, fetchCounterValue(ctrl.metrics.SparkAppExecutorSuccessCount, map[string]string{}))
-		runningCount := ctrl.metrics.SparkAppExecutorRunningCount.Value(map[string]string{})
+		assert.Equal(t, test.expectedMetrics.executorFailedCount, fetchCounterValue(ctrl.metrics.sparkAppExecutorFailureCount, map[string]string{}))
+		assert.Equal(t, test.expectedMetrics.executorSuccessCount, fetchCounterValue(ctrl.metrics.sparkAppExecutorSuccessCount, map[string]string{}))
+		runningCount := ctrl.metrics.sparkAppExecutorRunningCount.Value(map[string]string{})
 		assert.Equal(t, test.expectedMetrics.executorRunningCount, runningCount)
 
 		if test.update.state == v1alpha1.ExecutorCompletedState {

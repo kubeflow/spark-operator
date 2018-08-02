@@ -79,9 +79,7 @@ func NewController(
 	extensionsClient apiextensionsclient.Interface,
 	informerFactory crdinformers.SharedInformerFactory,
 	submissionRunnerWorkers int,
-	enableMetrics bool,
-	metricsPrefix string,
-	metricsLabels []string,
+	metricsConfig *util.MetricConfig,
 	namespace string) *Controller {
 	crdscheme.AddToScheme(scheme.Scheme)
 
@@ -93,7 +91,7 @@ func NewController(
 	recorder := eventBroadcaster.NewRecorder(scheme.Scheme, apiv1.EventSource{Component: "spark-operator"})
 
 	return newSparkApplicationController(crdClient, kubeClient, extensionsClient, informerFactory, recorder,
-		submissionRunnerWorkers, enableMetrics, metricsPrefix, metricsLabels, namespace)
+		submissionRunnerWorkers, metricsConfig, namespace)
 }
 
 func newSparkApplicationController(
@@ -103,9 +101,7 @@ func newSparkApplicationController(
 	informerFactory crdinformers.SharedInformerFactory,
 	eventRecorder record.EventRecorder,
 	submissionRunnerWorkers int,
-	enableMetrics bool,
-	metricsPrefix string,
-	metricsLabels []string,
+	metricsConfig *util.MetricConfig,
 	namespace string) *Controller {
 	queue := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(),
 		"spark-application-controller")
@@ -128,8 +124,8 @@ func newSparkApplicationController(
 		podStateReportingChan: podStateReportingChan,
 	}
 
-	if enableMetrics {
-		controller.metrics = newSparkAppMetrics(metricsPrefix, metricsLabels)
+	if metricsConfig != nil {
+		controller.metrics = newSparkAppMetrics(metricsConfig.MetricsPrefix, metricsConfig.MetricsLabels)
 	}
 
 	informer := informerFactory.Sparkoperator().V1alpha1().SparkApplications()

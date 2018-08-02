@@ -36,13 +36,16 @@ var (
 			v1alpha1.RunningState, v1alpha1.CompletedState, v1alpha1.FailedState},
 
 		v1alpha1.SubmittedState: {v1alpha1.RunningState, v1alpha1.CompletedState, v1alpha1.FailedState},
+
 		v1alpha1.RunningState:   {v1alpha1.CompletedState, v1alpha1.FailedState},
+
 		// The application can be potentially restarted based on the RestartPolicy
 		v1alpha1.FailedState:    {v1alpha1.SubmittedState},
+
 		v1alpha1.CompletedState: {v1alpha1.SubmittedState},
 	}
 
-	// Valid Executor State Transitions: map with valid paris of oldState-> {newStates}
+	// Valid Executor State Transitions: map with valid pairs of oldState-> {newStates}
 	validExecutorStateTransitions = map[v1alpha1.ExecutorState][]v1alpha1.ExecutorState{
 		"": {v1alpha1.ExecutorUnknownState, v1alpha1.ExecutorRunningState, v1alpha1.ExecutorPendingState,
 			v1alpha1.ExecutorFailedState, v1alpha1.ExecutorCompletedState},

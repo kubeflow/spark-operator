@@ -62,7 +62,7 @@ var (
 
 	enableMetrics = flag.Bool("enable-metrics", false, "Whether to enable the "+
 		"metrics endpoint.")
-	metricsPort     = flag.String("metrics-port", ":10254", "Port for the metrics endpoint.")
+	metricsPort     = flag.String("metrics-port", "10254", "Port for the metrics endpoint.")
 	metricsEndpoint = flag.String("metrics-endpoint", "/metrics", "Metrics endpoint")
 	metricsPrefix   = flag.String("metrics-prefix", "", "Prefix for the metrics")
 )
@@ -82,9 +82,17 @@ func main() {
 		glog.Fatal(err)
 	}
 
+	var metricConfig *util.MetricConfig
 	if *enableMetrics {
+		metricConfig = &util.MetricConfig{
+			MetricsEndpoint: *metricsEndpoint,
+			MetricsPort:     *metricsPort,
+			MetricsPrefix:   *metricsPrefix,
+			MetricsLabels:   metricsLabels,
+		}
+
 		glog.Info("Enabling metrics collecting and exporting to Prometheus")
-		util.InitializeMetrics(*metricsEndpoint, *metricsPort, *metricsPrefix)
+		util.InitializeMetrics(metricConfig)
 	}
 
 	glog.Info("Starting the Spark operator")
@@ -122,7 +130,7 @@ func main() {
 		time.Duration(*resyncInterval)*time.Second,
 		factoryOpts...)
 	applicationController := sparkapplication.NewController(
-		crdClient, kubeClient, apiExtensionsClient, factory, *submissionRunnerThreads, *enableMetrics, *metricsPrefix, metricsLabels, *namespace)
+		crdClient, kubeClient, apiExtensionsClient, factory, *submissionRunnerThreads, metricConfig, *namespace)
 	scheduledApplicationController := scheduledsparkapplication.NewController(
 		crdClient, kubeClient, apiExtensionsClient, factory, clock.RealClock{})
 
