@@ -508,8 +508,8 @@ func (c *Controller) updateSparkApplicationStatusWithRetries(
 	original *v1alpha1.SparkApplication,
 	updateFunc func(*v1alpha1.SparkApplicationStatus)) *v1alpha1.SparkApplication {
 	var lastUpdateErr error
-	toUpdate := original.DeepCopy()
 	for i := 0; i < maximumUpdateRetries; i++ {
+		toUpdate := original.DeepCopy()
 
 		glog.V(2).Infof("Trying to update SparkApplication %s", original.Name)
 		// Apply update
@@ -522,6 +522,7 @@ func (c *Controller) updateSparkApplicationStatusWithRetries(
 		updated, err := c.tryUpdateStatus(original, toUpdate)
 		if err == nil {
 			if c.metrics != nil && updated != nil {
+				// Original is the last state returned by API Server before update.
 				c.metrics.exportMetrics(original, updated)
 			}
 			return updated
@@ -532,7 +533,7 @@ func (c *Controller) updateSparkApplicationStatusWithRetries(
 		// Failed update to the API server.
 		// Get the latest version from the API server first and re-apply the update.
 		name := toUpdate.Name
-		toUpdate, err = c.crdClient.SparkoperatorV1alpha1().SparkApplications(toUpdate.Namespace).Get(name,
+		original, err = c.crdClient.SparkoperatorV1alpha1().SparkApplications(toUpdate.Namespace).Get(name,
 			metav1.GetOptions{})
 		if err != nil {
 			glog.Errorf("failed to get SparkApplication %s: %v", name, err)
