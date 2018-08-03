@@ -303,7 +303,6 @@ type metrics struct {
 }
 
 func TestProcessSingleDriverStateUpdate(t *testing.T) {
-
 	type testcase struct {
 		name             string
 		update           driverStateUpdate
@@ -420,7 +419,6 @@ func TestProcessSingleDriverStateUpdate(t *testing.T) {
 }
 
 func TestProcessSingleAppStateUpdate(t *testing.T) {
-
 	type testcase struct {
 		name             string
 		update           appStateUpdate
@@ -548,7 +546,6 @@ func TestProcessSingleAppStateUpdate(t *testing.T) {
 }
 
 func TestProcessSingleExecutorStateUpdate(t *testing.T) {
-
 	type testcase struct {
 		name                    string
 		update                  executorStateUpdate
