@@ -20,7 +20,6 @@ package main
 
 import (
 	"flag"
-	"fmt"
 	"os"
 	"os/signal"
 	"syscall"
@@ -35,6 +34,7 @@ import (
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
+
 	crdclientset "k8s.io/spark-on-k8s-operator/pkg/client/clientset/versioned"
 	crdinformers "k8s.io/spark-on-k8s-operator/pkg/client/informers/externalversions"
 	"k8s.io/spark-on-k8s-operator/pkg/controller/scheduledsparkapplication"
@@ -52,23 +52,21 @@ var (
 	installCRDs             = flag.Bool("install-crds", true, "Whether to install CRDs")
 	controllerThreads       = flag.Int("controller-threads", 10, "Number of worker threads used by the SparkApplication controller.")
 	submissionRunnerThreads = flag.Int("submission-threads", 3, "Number of worker threads used by the SparkApplication submission runner.")
-	resyncInterval          = flag.Int("resync-interval", 30, "Informer resync interval in seconds")
+	resyncInterval          = flag.Int("resync-interval", 30, "Informer resync interval in seconds.")
 	namespace               = flag.String("namespace", apiv1.NamespaceAll, "The Kubernetes namespace to manage. Will manage custom resource objects of the managed CRD types for the whole cluster if unset.")
-	enableWebhook           = flag.Bool("enable-webhook", false, "Whether to enable the mutating admission webhook for admitting and patching Spark pods")
-	webhookCertDir          = flag.String("webhook-cert-dir", "/etc/webhook-certs", "The directory where x509 certificate and key files are stored")
-	webhookSvcNamespace     = flag.String("webhook-svc-namespace", "sparkoperator", "The namespace of the Service for the webhook server")
-	webhookSvcName          = flag.String("webhook-svc-name", "spark-webhook", "The name of the Service for the webhook server")
-	webhookPort             = flag.Int("webhook-port", 8080, "Service port of the webhook server")
-
-	enableMetrics = flag.Bool("enable-metrics", false, "Whether to enable the "+
-		"metrics endpoint.")
-	metricsPort     = flag.String("metrics-port", "10254", "Port for the metrics endpoint.")
-	metricsEndpoint = flag.String("metrics-endpoint", "/metrics", "Metrics endpoint")
-	metricsPrefix   = flag.String("metrics-prefix", "", "Prefix for the metrics")
+	enableWebhook           = flag.Bool("enable-webhook", false, "Whether to enable the mutating admission webhook for admitting and patching Spark pods.")
+	webhookCertDir          = flag.String("webhook-cert-dir", "/etc/webhook-certs", "The directory where x509 certificate and key files are stored.")
+	webhookSvcNamespace     = flag.String("webhook-svc-namespace", "sparkoperator", "The namespace of the Service for the webhook server.")
+	webhookSvcName          = flag.String("webhook-svc-name", "spark-webhook", "The name of the Service for the webhook server.")
+	webhookPort             = flag.Int("webhook-port", 8080, "Service port of the webhook server.")
+	enableMetrics           = flag.Bool("enable-metrics", false, "Whether to enable the metrics endpoint.")
+	metricsPort             = flag.String("metrics-port", "10254", "Port for the metrics endpoint.")
+	metricsEndpoint         = flag.String("metrics-endpoint", "/metrics", "Metrics endpoint.")
+	metricsPrefix           = flag.String("metrics-prefix", "", "Prefix for the metrics.")
 )
 
 func main() {
-	var metricsLabels arrayFlags
+	var metricsLabels util.ArrayFlags
 	flag.Var(&metricsLabels, "metrics-labels", "Labels for the metrics")
 	flag.Parse()
 
@@ -176,15 +174,4 @@ func buildConfig(masterUrl string, kubeConfig string) (*rest.Config, error) {
 		return clientcmd.BuildConfigFromFlags(masterUrl, kubeConfig)
 	}
 	return rest.InClusterConfig()
-}
-
-type arrayFlags []string
-
-func (a *arrayFlags) String() string {
-	return fmt.Sprint(*a)
-}
-
-func (a *arrayFlags) Set(value string) error {
-	*a = append(*a, value)
-	return nil
 }

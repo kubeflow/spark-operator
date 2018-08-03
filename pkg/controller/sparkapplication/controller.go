@@ -126,6 +126,7 @@ func newSparkApplicationController(
 
 	if metricsConfig != nil {
 		controller.metrics = newSparkAppMetrics(metricsConfig.MetricsPrefix, metricsConfig.MetricsLabels)
+		controller.metrics.registerMetrics()
 	}
 
 	informer := informerFactory.Sparkoperator().V1alpha1().SparkApplications()

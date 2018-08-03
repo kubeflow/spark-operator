@@ -18,7 +18,6 @@ package util
 
 import (
 	"fmt"
-
 	"net/http"
 	"strings"
 	"sync"
@@ -26,22 +25,29 @@ import (
 	"github.com/golang/glog"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	prometheus_model "github.com/prometheus/client_model/go"
+	prometheusmodel "github.com/prometheus/client_model/go"
+
 	"k8s.io/client-go/util/workqueue"
 )
 
 func CreateValidMetricNameLabel(prefix, name string) string {
-	// "-" aren't valid characters for prometheus metric names or labels
+	// "-" is not a valid character for prometheus metric names or labels.
 	return strings.Replace(prefix+name, "-", "_", -1)
 }
 
 // Best effort metric registration with Prometheus.
 func RegisterMetric(metric prometheus.Collector) {
 	if err := prometheus.Register(metric); err != nil {
-		glog.Errorf("Error while registering Prometheus metric: [%v]", err)
+		// Ignore AlreadyRegisteredError.
+		if _, ok := err.(prometheus.AlreadyRegisteredError); ok {
+			return
+		}
+		glog.Errorf("failed to register metric: %v", err)
 	}
 }
 
+// MetricConfig is a container of configuration properties for the collection and exporting of
+// application metrics to Prometheus.
 type MetricConfig struct {
 	MetricsEndpoint string
 	MetricsPort     string
@@ -70,8 +76,6 @@ func NewPositiveGauge(name string, description string, labels []string) *Positiv
 		validLabels,
 	)
 
-	RegisterMetric(gauge)
-
 	return &PositiveGauge{
 		gaugeMetric: gauge,
 		name:        name,
@@ -80,41 +84,45 @@ func NewPositiveGauge(name string, description string, labels []string) *Positiv
 
 func fetchGaugeValue(m *prometheus.GaugeVec, labels map[string]string) float64 {
 	// Hack to get the current value of the metric to support PositiveGauge
-	pb := &prometheus_model.Metric{}
+	pb := &prometheusmodel.Metric{}
 
 	m.With(labels).Write(pb)
 	return pb.GetGauge().GetValue()
 }
 
-func (c *PositiveGauge) Value(labelMap map[string]string) float64 {
-	c.mux.RLock()
-	defer c.mux.RUnlock()
-	return fetchGaugeValue(c.gaugeMetric, labelMap)
+func (p *PositiveGauge) Register() {
+	RegisterMetric(p.gaugeMetric)
+}
+
+func (p *PositiveGauge) Value(labelMap map[string]string) float64 {
+	p.mux.RLock()
+	defer p.mux.RUnlock()
+	return fetchGaugeValue(p.gaugeMetric, labelMap)
 }
 
 // Increment the Metric for the labels specified
-func (c *PositiveGauge) Inc(labelMap map[string]string) {
-	c.mux.Lock()
-	defer c.mux.Unlock()
+func (p *PositiveGauge) Inc(labelMap map[string]string) {
+	p.mux.Lock()
+	defer p.mux.Unlock()
 
-	if m, err := c.gaugeMetric.GetMetricWith(labelMap); err != nil {
+	if m, err := p.gaugeMetric.GetMetricWith(labelMap); err != nil {
 		glog.Errorf("Error while exporting metrics: %v", err)
 	} else {
-		glog.V(2).Infof("Incrementing %s with labels %s", c.name, labelMap)
+		glog.V(2).Infof("Incrementing %s with labels %s", p.name, labelMap)
 		m.Inc()
 	}
 }
 
 // Decrement the metric only if its positive for the labels specified
-func (c *PositiveGauge) Dec(labelMap map[string]string) {
-	c.mux.Lock()
-	defer c.mux.Unlock()
+func (p *PositiveGauge) Dec(labelMap map[string]string) {
+	p.mux.Lock()
+	defer p.mux.Unlock()
 
 	// Decrement only if positive
-	val := fetchGaugeValue(c.gaugeMetric, labelMap)
+	val := fetchGaugeValue(p.gaugeMetric, labelMap)
 	if val > 0 {
-		glog.V(2).Infof("Decrementing %s with labels %s metricVal to %v", c.name, labelMap, val-1)
-		if m, err := c.gaugeMetric.GetMetricWith(labelMap); err != nil {
+		glog.V(2).Infof("Decrementing %s with labels %s metricVal to %v", p.name, labelMap, val-1)
+		if m, err := p.gaugeMetric.GetMetricWith(labelMap); err != nil {
 			glog.Errorf("Error while exporting metrics: %v", err)
 		} else {
 			m.Dec()
@@ -136,7 +144,7 @@ func InitializeMetrics(metricsConfig *MetricConfig) {
 	workqueue.SetProvider(&workQueueMetrics)
 }
 
-// Depth Metric for kubernetes workqueue
+// Depth Metric for the kubernetes workqueue.
 func (p *WorkQueueMetrics) NewDepthMetric(name string) workqueue.GaugeMetric {
 	depthMetric := prometheus.NewGauge(prometheus.GaugeOpts{
 		Name: CreateValidMetricNameLabel(p.prefix, name+"_depth"),
@@ -147,7 +155,7 @@ func (p *WorkQueueMetrics) NewDepthMetric(name string) workqueue.GaugeMetric {
 	return depthMetric
 }
 
-// Adds Count Metrics for kubernetes workqueue
+// Adds Count Metrics for the kubernetes workqueue.
 func (p *WorkQueueMetrics) NewAddsMetric(name string) workqueue.CounterMetric {
 	addsMetric := prometheus.NewCounter(prometheus.CounterOpts{
 		Name: CreateValidMetricNameLabel(p.prefix, name+"_adds"),
@@ -157,7 +165,7 @@ func (p *WorkQueueMetrics) NewAddsMetric(name string) workqueue.CounterMetric {
 	return addsMetric
 }
 
-// Latency Metric for kubernetes workqueue
+// Latency Metric for the kubernetes workqueue.
 func (p *WorkQueueMetrics) NewLatencyMetric(name string) workqueue.SummaryMetric {
 	latencyMetric := prometheus.NewSummary(prometheus.SummaryOpts{
 		Name: CreateValidMetricNameLabel(p.prefix, name+"_latency"),
@@ -167,7 +175,7 @@ func (p *WorkQueueMetrics) NewLatencyMetric(name string) workqueue.SummaryMetric
 	return latencyMetric
 }
 
-// WorkDuration Metric for kubernetes workqueue
+// WorkDuration Metric for the kubernetes workqueue.
 func (p *WorkQueueMetrics) NewWorkDurationMetric(name string) workqueue.SummaryMetric {
 	workDurationMetric := prometheus.NewSummary(prometheus.SummaryOpts{
 		Name: CreateValidMetricNameLabel(p.prefix, name+"_work_duration"),
@@ -177,7 +185,7 @@ func (p *WorkQueueMetrics) NewWorkDurationMetric(name string) workqueue.SummaryM
 	return workDurationMetric
 }
 
-// Retry Metric for kubernetes workqueue
+// Retry Metric for the kubernetes workqueue.
 func (p *WorkQueueMetrics) NewRetriesMetric(name string) workqueue.CounterMetric {
 	retriesMetrics := prometheus.NewCounter(prometheus.CounterOpts{
 		Name: CreateValidMetricNameLabel(p.prefix, name+"_retries"),
