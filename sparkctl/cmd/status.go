@@ -54,32 +54,37 @@ func doStatus(name string, crdClientset crdclientset.Interface) error {
 	if err != nil {
 		return fmt.Errorf("failed to get SparkApplication %s: %v", name, err)
 	}
+
 	printStatus(app)
 
 	return nil
 }
 
 func printStatus(app *v1alpha1.SparkApplication) {
-	fmt.Printf("application state: %s\n", app.Status.AppState.State)
-	if app.Status.AppState.ErrorMessage != "" {
-		fmt.Printf("application error message: %s\n", app.Status.AppState.ErrorMessage)
-	}
-
-	if app.Status.DriverInfo.PodName != "" {
-		fmt.Printf("driver pod name:   %s\n", app.Status.DriverInfo.PodName)
-	}
-	if app.Status.DriverInfo.WebUIAddress != "" {
-		fmt.Printf("driver UI address: %s\n", app.Status.DriverInfo.WebUIAddress)
-	}
+	fmt.Println("application state:")
+	table := tablewriter.NewWriter(os.Stdout)
+	table.SetHeader([]string{"State", "Submitted age", "Completed age", "Driver Pod", "Driver UI", "Retries"})
+	table.Append([]string{
+		string(app.Status.AppState.State),
+		getSinceTime(app.Status.SubmissionTime),
+		getSinceTime(app.Status.CompletionTime),
+		formatNotAvailable(app.Status.DriverInfo.PodName),
+		formatNotAvailable(app.Status.DriverInfo.WebUIAddress),
+		fmt.Sprintf("%v", app.Status.SubmissionRetries),
+	})
+	table.Render()
 
 	if len(app.Status.ExecutorState) > 0 {
 		fmt.Println("executor state:")
 		table := tablewriter.NewWriter(os.Stdout)
 		table.SetHeader([]string{"Executor Pod", "State"})
-		table.SetColumnColor(tablewriter.Colors{tablewriter.FgBlueColor}, tablewriter.Colors{tablewriter.FgGreenColor})
 		for executorPod, state := range app.Status.ExecutorState {
 			table.Append([]string{executorPod, string(state)})
 		}
 		table.Render()
+	}
+
+	if app.Status.AppState.ErrorMessage != "" {
+		fmt.Printf("\napplication error message: %s\n", app.Status.AppState.ErrorMessage)
 	}
 }

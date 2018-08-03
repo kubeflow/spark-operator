@@ -32,7 +32,7 @@ import (
 )
 
 var ExecutorId int32
-var Follow bool
+var FollowLogs bool
 
 var logCommand = &cobra.Command{
 	Use:   "log <name>",
@@ -65,7 +65,7 @@ var logCommand = &cobra.Command{
 func init() {
 	logCommand.Flags().Int32VarP(&ExecutorId, "executor", "e", -1,
 		"id of the executor to fetch logs for")
-	logCommand.Flags().BoolVarP(&Follow, "follow", "f", false, "whether to stream the logs")
+	logCommand.Flags().BoolVarP(&FollowLogs, "follow", "f", false, "whether to stream the logs")
 }
 
 func doLog(name string, kubeClientset clientset.Interface, crdClientset crdclientset.Interface) error {
@@ -87,7 +87,7 @@ func doLog(name string, kubeClientset clientset.Interface, crdClientset crdclien
 	}
 
 	out := os.Stdout
-	if Follow {
+	if FollowLogs {
 		if err := streamLogs(out, kubeClientset, podName); err != nil {
 			return err
 		}

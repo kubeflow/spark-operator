@@ -692,7 +692,7 @@ func (c *Controller) recordDriverEvent(
 
 func (c *Controller) recordExecutorEvent(
 	app *v1alpha1.SparkApplication, state v1alpha1.ExecutorState, name string) {
-		
+
 	switch state {
 	case v1alpha1.ExecutorCompletedState:
 		c.recorder.Eventf(app, apiv1.EventTypeNormal, "SparkExecutorCompleted", "Executor %s completed", name)
