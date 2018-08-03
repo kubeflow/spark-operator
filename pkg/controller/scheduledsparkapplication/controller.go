@@ -217,6 +217,13 @@ func (c *Controller) onAdd(obj interface{}) {
 }
 
 func (c *Controller) onUpdate(oldObj, newObj interface{}) {
+	oldApp := oldObj.(*v1alpha1.ScheduledSparkApplication)
+	newApp := newObj.(*v1alpha1.ScheduledSparkApplication)
+	// The resource version has not changed, nothing to do.
+	if oldApp.ResourceVersion == newApp.ResourceVersion {
+		return
+	}
+
 	c.enqueue(newObj)
 }
 
