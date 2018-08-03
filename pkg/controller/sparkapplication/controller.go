@@ -515,7 +515,8 @@ func (c *Controller) updateSparkApplicationStatusWithRetries(
 		updateFunc(&toUpdate.Status)
 
 		// Let's keep the old App status if this is not a valid transition.
-		if !isValidDriverStateTransition(original.Status.AppState.State, toUpdate.Status.AppState.State) {
+		if original.Status.AppState.State != toUpdate.Status.AppState.State &&
+			!isValidDriverStateTransition(original.Status.AppState.State, toUpdate.Status.AppState.State) {
 			glog.Warningf("Invalid Driver State Transition. From:[%v] To:[%v]", original.Status.AppState.State, toUpdate.Status.AppState.State)
 			toUpdate.Status.AppState = original.Status.AppState
 		}
