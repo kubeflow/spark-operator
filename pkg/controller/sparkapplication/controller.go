@@ -675,19 +675,35 @@ func (c *Controller) getNodeExternalIP(nodeName string) string {
 
 func (c *Controller) recordDriverEvent(
 	app *v1alpha1.SparkApplication, phase apiv1.PodPhase, name string) {
-	if phase == apiv1.PodSucceeded {
+
+	switch phase {
+	case apiv1.PodSucceeded:
 		c.recorder.Eventf(app, apiv1.EventTypeNormal, "SparkDriverCompleted", "Driver %s completed", name)
-	} else if phase == apiv1.PodFailed {
+	case apiv1.PodPending:
+		c.recorder.Eventf(app, apiv1.EventTypeNormal, "SparkDriverPending", "Driver %s is pending", name)
+	case apiv1.PodRunning:
+		c.recorder.Eventf(app, apiv1.EventTypeNormal, "SparkDriverRunning", "Driver %s is running", name)
+	case apiv1.PodFailed:
 		c.recorder.Eventf(app, apiv1.EventTypeWarning, "SparkDriverFailed", "Driver %s failed", name)
+	case apiv1.PodUnknown:
+		c.recorder.Eventf(app, apiv1.EventTypeWarning, "SparkDriverUnknownState", "Driver %s in unknown state", name)
 	}
 }
 
 func (c *Controller) recordExecutorEvent(
 	app *v1alpha1.SparkApplication, state v1alpha1.ExecutorState, name string) {
-	if state == v1alpha1.ExecutorCompletedState {
+		
+	switch state {
+	case v1alpha1.ExecutorCompletedState:
 		c.recorder.Eventf(app, apiv1.EventTypeNormal, "SparkExecutorCompleted", "Executor %s completed", name)
-	} else if state == v1alpha1.ExecutorFailedState {
+	case v1alpha1.ExecutorPendingState:
+		c.recorder.Eventf(app, apiv1.EventTypeNormal, "SparkExecutorPending", "Executor %s is pending", name)
+	case v1alpha1.ExecutorRunningState:
+		c.recorder.Eventf(app, apiv1.EventTypeNormal, "SparkExecutorRunning", "Executor %s is running", name)
+	case v1alpha1.ExecutorFailedState:
 		c.recorder.Eventf(app, apiv1.EventTypeWarning, "SparkExecutorFailed", "Executor %s failed", name)
+	case v1alpha1.ExecutorUnknownState:
+		c.recorder.Eventf(app, apiv1.EventTypeWarning, "SparkExecutorUnknownState", "Executor %s in unknown state", name)
 	}
 }
 
