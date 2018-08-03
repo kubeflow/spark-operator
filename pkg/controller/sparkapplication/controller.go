@@ -510,13 +510,13 @@ func (c *Controller) updateSparkApplicationStatusWithRetries(
 	var lastUpdateErr error
 	for i := 0; i < maximumUpdateRetries; i++ {
 		toUpdate := original.DeepCopy()
-
 		glog.V(2).Infof("Trying to update SparkApplication %s", original.Name)
 		// Apply update
 		updateFunc(&toUpdate.Status)
 
 		// Let's keep the old App status if this is not a valid transition.
 		if !isValidDriverStateTransition(original.Status.AppState.State, toUpdate.Status.AppState.State) {
+			glog.Warningf("Invalid Driver State Transition. From:[%v] To:[%v]", original.Status.AppState.State, toUpdate.Status.AppState.State)
 			toUpdate.Status.AppState = original.Status.AppState
 		}
 		updated, err := c.tryUpdateStatus(original, toUpdate)

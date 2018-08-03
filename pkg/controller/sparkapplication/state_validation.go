@@ -37,10 +37,10 @@ var (
 
 		v1alpha1.SubmittedState: {v1alpha1.RunningState, v1alpha1.CompletedState, v1alpha1.FailedState},
 
-		v1alpha1.RunningState:   {v1alpha1.CompletedState, v1alpha1.FailedState},
+		v1alpha1.RunningState: {v1alpha1.CompletedState, v1alpha1.FailedState},
 
 		// The application can be potentially restarted based on the RestartPolicy
-		v1alpha1.FailedState:    {v1alpha1.SubmittedState},
+		v1alpha1.FailedState: {v1alpha1.SubmittedState},
 
 		v1alpha1.CompletedState: {v1alpha1.SubmittedState},
 	}

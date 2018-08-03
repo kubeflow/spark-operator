@@ -44,8 +44,9 @@ type sparkAppMetrics struct {
 }
 
 func newSparkAppMetrics(prefix string, labels []string) *sparkAppMetrics {
+	validLabels := make([]string, len(labels))
 	for i, label := range labels {
-		labels[i] = util.CreateValidMetricNameLabel("", label)
+		validLabels[i] = util.CreateValidMetricNameLabel("", label)
 	}
 
 	sparkAppSubmitCount := prometheus.NewCounterVec(
@@ -53,54 +54,54 @@ func newSparkAppMetrics(prefix string, labels []string) *sparkAppMetrics {
 			Name: util.CreateValidMetricNameLabel(prefix, "spark_app_submit_count"),
 			Help: "Spark App Submits via the Operator",
 		},
-		labels,
+		validLabels,
 	)
 	sparkAppSuccessCount := prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: util.CreateValidMetricNameLabel(prefix, "spark_app_success_count"),
 			Help: "Spark App Success Count via the Operator",
 		},
-		labels,
+		validLabels,
 	)
 	sparkAppFailureCount := prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: util.CreateValidMetricNameLabel(prefix, "spark_app_failure_count"),
 			Help: "Spark App Failure Count via the Operator",
 		},
-		labels,
+		validLabels,
 	)
 	sparkAppSuccessExecutionTime := prometheus.NewSummaryVec(
 		prometheus.SummaryOpts{
 			Name: util.CreateValidMetricNameLabel(prefix, "spark_app_success_execution_time_microseconds"),
 			Help: "Spark App Successful Execution Runtime via the Operator",
 		},
-		labels,
+		validLabels,
 	)
 	sparkAppFailureExecutionTime := prometheus.NewSummaryVec(
 		prometheus.SummaryOpts{
 			Name: util.CreateValidMetricNameLabel(prefix, "spark_app_failure_execution_time_microseconds"),
 			Help: "Spark App Failed Execution Runtime via the Operator",
 		},
-		labels,
+		validLabels,
 	)
 	sparkAppExecutorFailureCount := prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: util.CreateValidMetricNameLabel(prefix, "spark_app_executor_failure_count"),
 			Help: "Spark App Failed Executor Count via the Operator",
 		},
-		labels,
+		validLabels,
 	)
 	sparkAppExecutorSuccessCount := prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: util.CreateValidMetricNameLabel(prefix, "spark_app_executor_success_count"),
 			Help: "Spark App Successful Executor Count via the Operator",
 		},
-		labels,
+		validLabels,
 	)
 	sparkAppRunningCount := util.NewPositiveGauge(util.CreateValidMetricNameLabel(prefix, "spark_app_running_count"),
-		"Spark App Running Count via the Operator", labels)
+		"Spark App Running Count via the Operator", validLabels)
 	sparkAppExecutorRunningCount := util.NewPositiveGauge(util.CreateValidMetricNameLabel(prefix,
-		"spark_app_executor_running_count"), "Spark App Running Executor Count via the Operator", labels)
+		"spark_app_executor_running_count"), "Spark App Running Executor Count via the Operator", validLabels)
 
 	util.RegisterMetric(sparkAppSubmitCount)
 	util.RegisterMetric(sparkAppSuccessCount)
@@ -111,17 +112,17 @@ func newSparkAppMetrics(prefix string, labels []string) *sparkAppMetrics {
 	util.RegisterMetric(sparkAppExecutorSuccessCount)
 
 	return &sparkAppMetrics{
-		labels,
-		prefix,
-		sparkAppSubmitCount,
-		sparkAppSuccessCount,
-		sparkAppFailureCount,
-		sparkAppRunningCount,
-		sparkAppSuccessExecutionTime,
-		sparkAppFailureExecutionTime,
-		sparkAppExecutorRunningCount,
-		sparkAppExecutorFailureCount,
-		sparkAppExecutorSuccessCount,
+		labels:                       validLabels,
+		prefix:                       prefix,
+		sparkAppSubmitCount:          sparkAppSubmitCount,
+		sparkAppSuccessCount:         sparkAppSuccessCount,
+		sparkAppFailureCount:         sparkAppFailureCount,
+		sparkAppRunningCount:         sparkAppRunningCount,
+		sparkAppSuccessExecutionTime: sparkAppSuccessExecutionTime,
+		sparkAppFailureExecutionTime: sparkAppFailureExecutionTime,
+		sparkAppExecutorRunningCount: sparkAppExecutorRunningCount,
+		sparkAppExecutorFailureCount: sparkAppExecutorFailureCount,
+		sparkAppExecutorSuccessCount: sparkAppExecutorSuccessCount,
 	}
 }
 

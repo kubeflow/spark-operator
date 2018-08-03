@@ -17,11 +17,11 @@ limitations under the License.
 package util
 
 import (
+	"fmt"
+
 	"net/http"
 	"strings"
 	"sync"
-
-	"fmt"
 
 	"github.com/golang/glog"
 	"github.com/prometheus/client_golang/prometheus"
@@ -49,16 +49,17 @@ type MetricConfig struct {
 	MetricsLabels   []string
 }
 
+// A variant of Prometheus Gauge that only holds non-negative values.
 type PositiveGauge struct {
 	mux         sync.RWMutex
 	name        string
 	gaugeMetric *prometheus.GaugeVec
 }
 
-// Gauge with conditional decrement ensuring its value is never negative.
 func NewPositiveGauge(name string, description string, labels []string) *PositiveGauge {
+	validLabels := make([]string, len(labels))
 	for i, label := range labels {
-		labels[i] = CreateValidMetricNameLabel("", label)
+		validLabels[i] = CreateValidMetricNameLabel("", label)
 	}
 
 	gauge := prometheus.NewGaugeVec(
@@ -66,7 +67,7 @@ func NewPositiveGauge(name string, description string, labels []string) *Positiv
 			Name: name,
 			Help: description,
 		},
-		labels,
+		validLabels,
 	)
 
 	RegisterMetric(gauge)
