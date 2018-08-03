@@ -184,7 +184,7 @@ func (s *sparkPodMonitor) updateDriverState(pod *apiv1.Pod) {
 			nodeName:     pod.Spec.NodeName,
 			podPhase:     pod.Status.Phase,
 		}
-		if pod.Status.Phase == apiv1.PodSucceeded {
+		if pod.Status.Phase == apiv1.PodSucceeded || pod.Status.Phase == apiv1.PodFailed {
 			update.completionTime = metav1.Now()
 		}
 

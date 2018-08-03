@@ -36,7 +36,6 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/workqueue"
-
 	"k8s.io/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1alpha1"
 	crdclientset "k8s.io/spark-on-k8s-operator/pkg/client/clientset/versioned"
 	crdscheme "k8s.io/spark-on-k8s-operator/pkg/client/clientset/versioned/scheme"
@@ -70,6 +69,7 @@ type Controller struct {
 	sparkPodMonitor       *sparkPodMonitor
 	appStateReportingChan <-chan *appStateUpdate
 	podStateReportingChan <-chan interface{}
+	metrics               *sparkAppMetrics
 }
 
 // NewController creates a new Controller.
@@ -79,6 +79,7 @@ func NewController(
 	extensionsClient apiextensionsclient.Interface,
 	informerFactory crdinformers.SharedInformerFactory,
 	submissionRunnerWorkers int,
+	metricsConfig *util.MetricConfig,
 	namespace string) *Controller {
 	crdscheme.AddToScheme(scheme.Scheme)
 
@@ -90,7 +91,7 @@ func NewController(
 	recorder := eventBroadcaster.NewRecorder(scheme.Scheme, apiv1.EventSource{Component: "spark-operator"})
 
 	return newSparkApplicationController(crdClient, kubeClient, extensionsClient, informerFactory, recorder,
-		submissionRunnerWorkers, namespace)
+		submissionRunnerWorkers, metricsConfig, namespace)
 }
 
 func newSparkApplicationController(
@@ -100,6 +101,7 @@ func newSparkApplicationController(
 	informerFactory crdinformers.SharedInformerFactory,
 	eventRecorder record.EventRecorder,
 	submissionRunnerWorkers int,
+	metricsConfig *util.MetricConfig,
 	namespace string) *Controller {
 	queue := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(),
 		"spark-application-controller")
@@ -120,6 +122,10 @@ func newSparkApplicationController(
 		sparkPodMonitor:       sparkPodMonitor,
 		appStateReportingChan: appStateReportingChan,
 		podStateReportingChan: podStateReportingChan,
+	}
+
+	if metricsConfig != nil {
+		controller.metrics = newSparkAppMetrics(metricsConfig.MetricsPrefix, metricsConfig.MetricsLabels)
 	}
 
 	informer := informerFactory.Sparkoperator().V1alpha1().SparkApplications()
@@ -501,20 +507,34 @@ func (c *Controller) processSingleExecutorStateUpdate(update *executorStateUpdat
 func (c *Controller) updateSparkApplicationStatusWithRetries(
 	original *v1alpha1.SparkApplication,
 	updateFunc func(*v1alpha1.SparkApplicationStatus)) *v1alpha1.SparkApplication {
-	toUpdate := original.DeepCopy()
-
 	var lastUpdateErr error
 	for i := 0; i < maximumUpdateRetries; i++ {
-		updated, err := c.tryUpdateStatus(original, toUpdate, updateFunc)
+		toUpdate := original.DeepCopy()
+		glog.V(2).Infof("Trying to update SparkApplication %s", original.Name)
+		// Apply update
+		updateFunc(&toUpdate.Status)
+
+		// Let's keep the old App status if this is not a valid transition.
+		if original.Status.AppState.State != toUpdate.Status.AppState.State &&
+			!isValidDriverStateTransition(original.Status.AppState.State, toUpdate.Status.AppState.State) {
+			glog.Warningf("Invalid Driver State Transition. From:[%v] To:[%v]", original.Status.AppState.State, toUpdate.Status.AppState.State)
+			toUpdate.Status.AppState = original.Status.AppState
+		}
+		updated, err := c.tryUpdateStatus(original, toUpdate)
 		if err == nil {
+			if c.metrics != nil && updated != nil {
+				// Original is the last state returned by API Server before update.
+				c.metrics.exportMetrics(original, updated)
+			}
 			return updated
 		}
 		lastUpdateErr = err
+		glog.Errorf("[Attempt: %d] failed to update SparkApplication [%s]. Error: [%v]", i, toUpdate.Name, err)
 
 		// Failed update to the API server.
 		// Get the latest version from the API server first and re-apply the update.
 		name := toUpdate.Name
-		toUpdate, err = c.crdClient.SparkoperatorV1alpha1().SparkApplications(toUpdate.Namespace).Get(name,
+		original, err = c.crdClient.SparkoperatorV1alpha1().SparkApplications(toUpdate.Namespace).Get(name,
 			metav1.GetOptions{})
 		if err != nil {
 			glog.Errorf("failed to get SparkApplication %s: %v", name, err)
@@ -523,7 +543,7 @@ func (c *Controller) updateSparkApplicationStatusWithRetries(
 	}
 
 	if lastUpdateErr != nil {
-		glog.Errorf("failed to update SparkApplication %s: %v", toUpdate.Name, lastUpdateErr)
+		glog.Errorf("failed to update SparkApplication %s: %v", original.Name, lastUpdateErr)
 	}
 
 	return nil
@@ -531,9 +551,7 @@ func (c *Controller) updateSparkApplicationStatusWithRetries(
 
 func (c *Controller) tryUpdateStatus(
 	original *v1alpha1.SparkApplication,
-	toUpdate *v1alpha1.SparkApplication,
-	updateFunc func(*v1alpha1.SparkApplicationStatus)) (*v1alpha1.SparkApplication, error) {
-	updateFunc(&toUpdate.Status)
+	toUpdate *v1alpha1.SparkApplication) (*v1alpha1.SparkApplication, error) {
 	if reflect.DeepEqual(original.Status, toUpdate.Status) {
 		return nil, nil
 	}

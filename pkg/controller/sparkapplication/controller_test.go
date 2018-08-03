@@ -24,6 +24,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
+	"github.com/prometheus/client_golang/prometheus"
+	prometheus_model "github.com/prometheus/client_model/go"
 	apiv1 "k8s.io/api/core/v1"
 	apiextensionsfake "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset/fake"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -31,10 +33,10 @@ import (
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
-
 	"k8s.io/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1alpha1"
 	crdclientfake "k8s.io/spark-on-k8s-operator/pkg/client/clientset/versioned/fake"
 	crdinformers "k8s.io/spark-on-k8s-operator/pkg/client/informers/externalversions"
+	"k8s.io/spark-on-k8s-operator/pkg/util"
 )
 
 func newFakeController(apps ...*v1alpha1.SparkApplication) (*Controller, *record.FakeRecorder) {
@@ -60,7 +62,8 @@ func newFakeController(apps ...*v1alpha1.SparkApplication) (*Controller, *record
 	})
 
 	controller := newSparkApplicationController(crdClient, kubeClient, apiExtensionsClient, informerFactory, recorder,
-		1, "test")
+		1, &util.MetricConfig{}, "test")
+
 	informer := informerFactory.Sparkoperator().V1alpha1().SparkApplications().Informer()
 	for _, app := range apps {
 		informer.GetIndexer().Add(app)
@@ -117,6 +120,13 @@ func TestOnAdd(t *testing.T) {
 	assert.Equal(t, 1, len(recorder.Events))
 	event := <-recorder.Events
 	assert.True(t, strings.Contains(event, "SparkApplicationAdded"))
+}
+
+func fetchCounterValue(m *prometheus.CounterVec, labels map[string]string) float64 {
+	pb := &prometheus_model.Metric{}
+
+	m.With(labels).Write(pb)
+	return pb.GetCounter().GetValue()
 }
 
 func TestOnUpdate(t *testing.T) {
@@ -286,11 +296,19 @@ func TestOnDelete(t *testing.T) {
 	ctrl.queue.Forget(item)
 }
 
+type metrics struct {
+	runningMetricCount float64
+	successMetricCount float64
+	failedMetricCount  float64
+}
+
 func TestProcessSingleDriverStateUpdate(t *testing.T) {
+
 	type testcase struct {
 		name             string
 		update           driverStateUpdate
 		expectedAppState v1alpha1.ApplicationStateType
+		expectedMetrics  metrics
 	}
 
 	app := &v1alpha1.SparkApplication{
@@ -325,6 +343,9 @@ func TestProcessSingleDriverStateUpdate(t *testing.T) {
 				podPhase:     apiv1.PodSucceeded,
 			},
 			expectedAppState: v1alpha1.CompletedState,
+			expectedMetrics: metrics{
+				successMetricCount: 1,
+			},
 		},
 		{
 			name: "failed driver",
@@ -337,6 +358,10 @@ func TestProcessSingleDriverStateUpdate(t *testing.T) {
 				podPhase:     apiv1.PodFailed,
 			},
 			expectedAppState: v1alpha1.FailedState,
+			expectedMetrics: metrics{
+				successMetricCount: 1,
+				failedMetricCount:  1,
+			},
 		},
 		{
 			name: "running driver",
@@ -349,6 +374,11 @@ func TestProcessSingleDriverStateUpdate(t *testing.T) {
 				podPhase:     apiv1.PodRunning,
 			},
 			expectedAppState: v1alpha1.RunningState,
+			expectedMetrics: metrics{
+				runningMetricCount: 1,
+				successMetricCount: 1,
+				failedMetricCount:  1,
+			},
 		},
 	}
 
@@ -365,6 +395,11 @@ func TestProcessSingleDriverStateUpdate(t *testing.T) {
 			"wanted application state %s got %s",
 			test.expectedAppState,
 			updatedApp.Status.AppState.State)
+
+		assert.Equal(t, test.expectedMetrics.successMetricCount, fetchCounterValue(ctrl.metrics.sparkAppSuccessCount, map[string]string{}))
+		assert.Equal(t, test.expectedMetrics.failedMetricCount, fetchCounterValue(ctrl.metrics.sparkAppFailureCount, map[string]string{}))
+		runningCount := ctrl.metrics.sparkAppRunningCount.Value(map[string]string{})
+		assert.Equal(t, test.expectedMetrics.runningMetricCount, runningCount)
 
 		if isAppTerminated(updatedApp.Status.AppState.State) {
 			event := <-recorder.Events
@@ -385,11 +420,13 @@ func TestProcessSingleDriverStateUpdate(t *testing.T) {
 }
 
 func TestProcessSingleAppStateUpdate(t *testing.T) {
+
 	type testcase struct {
 		name             string
 		update           appStateUpdate
 		initialAppState  v1alpha1.ApplicationStateType
 		expectedAppState v1alpha1.ApplicationStateType
+		expectedMetrics  metrics
 	}
 
 	app := &v1alpha1.SparkApplication{
@@ -427,6 +464,9 @@ func TestProcessSingleAppStateUpdate(t *testing.T) {
 			},
 			initialAppState:  v1alpha1.RunningState,
 			expectedAppState: v1alpha1.CompletedState,
+			expectedMetrics: metrics{
+				successMetricCount: 1,
+			},
 		},
 		{
 			name: "failed app",
@@ -438,6 +478,10 @@ func TestProcessSingleAppStateUpdate(t *testing.T) {
 			},
 			initialAppState:  v1alpha1.RunningState,
 			expectedAppState: v1alpha1.FailedState,
+			expectedMetrics: metrics{
+				failedMetricCount:  1,
+				successMetricCount: 1,
+			},
 		},
 		{
 			name: "running app",
@@ -449,6 +493,11 @@ func TestProcessSingleAppStateUpdate(t *testing.T) {
 			},
 			initialAppState:  v1alpha1.NewState,
 			expectedAppState: v1alpha1.RunningState,
+			expectedMetrics: metrics{
+				runningMetricCount: 1,
+				failedMetricCount:  1,
+				successMetricCount: 1,
+			},
 		},
 		{
 			name: "completed app with initial state SubmittedState",
@@ -460,6 +509,11 @@ func TestProcessSingleAppStateUpdate(t *testing.T) {
 			},
 			initialAppState:  v1alpha1.RunningState,
 			expectedAppState: v1alpha1.FailedSubmissionState,
+			expectedMetrics: metrics{
+				runningMetricCount: 0,
+				failedMetricCount:  2,
+				successMetricCount: 1,
+			},
 		},
 	}
 
@@ -477,6 +531,11 @@ func TestProcessSingleAppStateUpdate(t *testing.T) {
 			test.expectedAppState,
 			updatedApp.Status.AppState.State)
 
+		assert.Equal(t, test.expectedMetrics.successMetricCount, fetchCounterValue(ctrl.metrics.sparkAppSuccessCount, map[string]string{}))
+		assert.Equal(t, test.expectedMetrics.failedMetricCount, fetchCounterValue(ctrl.metrics.sparkAppFailureCount, map[string]string{}))
+		runningCount := ctrl.metrics.sparkAppRunningCount.Value(map[string]string{})
+		assert.Equal(t, test.expectedMetrics.runningMetricCount, runningCount)
+
 		if updatedApp.Status.AppState.State == v1alpha1.FailedSubmissionState {
 			event := <-recorder.Events
 			assert.True(t, strings.Contains(event, "SparkApplicationSubmissionFailed"))
@@ -489,11 +548,13 @@ func TestProcessSingleAppStateUpdate(t *testing.T) {
 }
 
 func TestProcessSingleExecutorStateUpdate(t *testing.T) {
+
 	type testcase struct {
-		name                   string
-		update                 executorStateUpdate
-		shouldUpdate           bool
-		expectedExecutorStates map[string]v1alpha1.ExecutorState
+		name                    string
+		update                  executorStateUpdate
+		shouldUpdate            bool
+		expectedExecutorStates  map[string]v1alpha1.ExecutorState
+		expectedExecutorMetrics metrics
 	}
 
 	app := &v1alpha1.SparkApplication{
@@ -535,6 +596,10 @@ func TestProcessSingleExecutorStateUpdate(t *testing.T) {
 				"foo-exec-1": v1alpha1.ExecutorCompletedState,
 				"foo-exec-2": v1alpha1.ExecutorCompletedState,
 			},
+			expectedExecutorMetrics: metrics{
+				// One new executor completed
+				successMetricCount: 1,
+			},
 		},
 		{
 			name: "failed executor",
@@ -550,6 +615,10 @@ func TestProcessSingleExecutorStateUpdate(t *testing.T) {
 			expectedExecutorStates: map[string]v1alpha1.ExecutorState{
 				"foo-exec-1": v1alpha1.ExecutorCompletedState,
 				"foo-exec-3": v1alpha1.ExecutorFailedState,
+			},
+			expectedExecutorMetrics: metrics{
+				successMetricCount: 1,
+				failedMetricCount:  1,
 			},
 		},
 		{
@@ -567,6 +636,11 @@ func TestProcessSingleExecutorStateUpdate(t *testing.T) {
 				"foo-exec-1": v1alpha1.ExecutorCompletedState,
 				"foo-exec-4": v1alpha1.ExecutorRunningState,
 			},
+			expectedExecutorMetrics: metrics{
+				successMetricCount: 1,
+				runningMetricCount: 1,
+				failedMetricCount:  1,
+			},
 		},
 		{
 			name: "pending state update for a terminated executor",
@@ -581,6 +655,11 @@ func TestProcessSingleExecutorStateUpdate(t *testing.T) {
 			shouldUpdate: false,
 			expectedExecutorStates: map[string]v1alpha1.ExecutorState{
 				"foo-exec-1": v1alpha1.ExecutorCompletedState,
+			},
+			expectedExecutorMetrics: metrics{
+				successMetricCount: 1,
+				runningMetricCount: 1,
+				failedMetricCount:  1,
 			},
 		},
 		{
@@ -597,6 +676,11 @@ func TestProcessSingleExecutorStateUpdate(t *testing.T) {
 			expectedExecutorStates: map[string]v1alpha1.ExecutorState{
 				"foo-exec-1": v1alpha1.ExecutorCompletedState,
 				"foo-exec-5": v1alpha1.ExecutorPendingState,
+			},
+			expectedExecutorMetrics: metrics{
+				successMetricCount: 1,
+				runningMetricCount: 1,
+				failedMetricCount:  1,
 			},
 		},
 	}
@@ -618,6 +702,11 @@ func TestProcessSingleExecutorStateUpdate(t *testing.T) {
 			"wanted executor states %s got %s",
 			test.expectedExecutorStates,
 			updatedApp.Status.ExecutorState)
+
+		assert.Equal(t, test.expectedExecutorMetrics.failedMetricCount, fetchCounterValue(ctrl.metrics.sparkAppExecutorFailureCount, map[string]string{}))
+		assert.Equal(t, test.expectedExecutorMetrics.successMetricCount, fetchCounterValue(ctrl.metrics.sparkAppExecutorSuccessCount, map[string]string{}))
+		runningCount := ctrl.metrics.sparkAppExecutorRunningCount.Value(map[string]string{})
+		assert.Equal(t, test.expectedExecutorMetrics.runningMetricCount, runningCount)
 
 		if test.update.state == v1alpha1.ExecutorCompletedState {
 			event := <-recorder.Events

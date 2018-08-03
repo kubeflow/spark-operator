@@ -20,6 +20,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"os"
 	"os/signal"
 	"syscall"
@@ -34,7 +35,6 @@ import (
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
-
 	crdclientset "k8s.io/spark-on-k8s-operator/pkg/client/clientset/versioned"
 	crdinformers "k8s.io/spark-on-k8s-operator/pkg/client/informers/externalversions"
 	"k8s.io/spark-on-k8s-operator/pkg/controller/scheduledsparkapplication"
@@ -42,6 +42,7 @@ import (
 	"k8s.io/spark-on-k8s-operator/pkg/crd"
 	ssacrd "k8s.io/spark-on-k8s-operator/pkg/crd/scheduledsparkapplication"
 	sacrd "k8s.io/spark-on-k8s-operator/pkg/crd/sparkapplication"
+	"k8s.io/spark-on-k8s-operator/pkg/util"
 	"k8s.io/spark-on-k8s-operator/pkg/webhook"
 )
 
@@ -58,9 +59,17 @@ var (
 	webhookSvcNamespace     = flag.String("webhook-svc-namespace", "sparkoperator", "The namespace of the Service for the webhook server")
 	webhookSvcName          = flag.String("webhook-svc-name", "spark-webhook", "The name of the Service for the webhook server")
 	webhookPort             = flag.Int("webhook-port", 8080, "Service port of the webhook server")
+
+	enableMetrics = flag.Bool("enable-metrics", false, "Whether to enable the "+
+		"metrics endpoint.")
+	metricsPort     = flag.String("metrics-port", "10254", "Port for the metrics endpoint.")
+	metricsEndpoint = flag.String("metrics-endpoint", "/metrics", "Metrics endpoint")
+	metricsPrefix   = flag.String("metrics-prefix", "", "Prefix for the metrics")
 )
 
 func main() {
+	var metricsLabels arrayFlags
+	flag.Var(&metricsLabels, "metrics-labels", "Labels for the metrics")
 	flag.Parse()
 
 	// Create the client config. Use kubeConfig if given, otherwise assume in-cluster.
@@ -71,6 +80,19 @@ func main() {
 	kubeClient, err := clientset.NewForConfig(config)
 	if err != nil {
 		glog.Fatal(err)
+	}
+
+	var metricConfig *util.MetricConfig
+	if *enableMetrics {
+		metricConfig = &util.MetricConfig{
+			MetricsEndpoint: *metricsEndpoint,
+			MetricsPort:     *metricsPort,
+			MetricsPrefix:   *metricsPrefix,
+			MetricsLabels:   metricsLabels,
+		}
+
+		glog.Info("Enabling metrics collecting and exporting to Prometheus")
+		util.InitializeMetrics(metricConfig)
 	}
 
 	glog.Info("Starting the Spark operator")
@@ -108,7 +130,7 @@ func main() {
 		time.Duration(*resyncInterval)*time.Second,
 		factoryOpts...)
 	applicationController := sparkapplication.NewController(
-		crdClient, kubeClient, apiExtensionsClient, factory, *submissionRunnerThreads, *namespace)
+		crdClient, kubeClient, apiExtensionsClient, factory, *submissionRunnerThreads, metricConfig, *namespace)
 	scheduledApplicationController := scheduledsparkapplication.NewController(
 		crdClient, kubeClient, apiExtensionsClient, factory, clock.RealClock{})
 
@@ -154,4 +176,15 @@ func buildConfig(masterUrl string, kubeConfig string) (*rest.Config, error) {
 		return clientcmd.BuildConfigFromFlags(masterUrl, kubeConfig)
 	}
 	return rest.InClusterConfig()
+}
+
+type arrayFlags []string
+
+func (a *arrayFlags) String() string {
+	return fmt.Sprint(*a)
+}
+
+func (a *arrayFlags) Set(value string) error {
+	*a = append(*a, value)
+	return nil
 }
