@@ -79,8 +79,8 @@ The following is a list of all the configurations the operators supports for met
 -metrics-label=label1Key
 -metrics-label=label2Key
 ```
-All configs except `-enable-metrics` are option. If port and/or endpoint are specified, please ensure that the annotations `prometheus.io/port`,
- `prometheus.io/path` and `containerPort` are also updated in `spark-operator-with-metrics.yaml`.
+All configs except `-enable-metrics` are optional. If port and/or endpoint are specified, please ensure that the annotations `prometheus.io/port`,
+ `prometheus.io/path` and `containerPort` in `spark-operator-with-metrics.yaml` are updated as well.
 
 A note about `metrics-labels`: In `Prometheus`, every unique combination of key-value label pair represents a new time series,
 which can dramatically increase the amount of data stored.  Hence labels should not be used to store dimensions with high
