@@ -61,6 +61,7 @@ Spark Operator currently supports the following list of features:
 * Supports automatic retries of failed submissions with optional linear back-off.
 * Supports mounting local Hadoop configuration as a Kubernetes ConfigMap automatically via `sparkctl`.
 * Supports automatically staging local application dependencies to Google Cloud Storage (GCS) via `sparkctl`.
+* Supports collecting and exporting application metrics to Prometheus. 
 
 ## Motivations
 
