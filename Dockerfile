@@ -27,6 +27,9 @@ COPY . ./
 RUN go generate && CGO_ENABLED=0 GOOS=linux go build -o /usr/bin/spark-operator
 
 
-FROM gcr.io/ynli-k8s/spark:v2.3.0
+FROM gcr.io/spark-operator/spark:v2.3.1
 COPY --from=builder /usr/bin/spark-operator /usr/bin/
+RUN apk add --update openssl && rm -rf /var/cache/apk/*
+RUN apk add --update curl && rm -rf /var/cache/apk/*
+COPY hack/gencerts.sh /usr/bin/
 ENTRYPOINT ["/usr/bin/spark-operator"]

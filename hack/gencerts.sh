@@ -18,6 +18,11 @@
 
 set -e
 
+NAMESPACE=$1
+if [ -z $NAMESPACE ]; then
+	NAMESPACE="sparkoperator"
+fi
+
 CN_BASE="spark-webhook"
 TMP_DIR="/tmp/spark-pod-webhook-certs"
 
@@ -44,9 +49,35 @@ openssl genrsa -out ${TMP_DIR}/server-key.pem 2048
 openssl req -new -key ${TMP_DIR}/server-key.pem -out ${TMP_DIR}/server.csr -subj "/CN=spark-webhook.sparkoperator.svc" -config ${TMP_DIR}/server.conf
 openssl x509 -req -in ${TMP_DIR}/server.csr -CA ${TMP_DIR}/ca-cert.pem -CAkey ${TMP_DIR}/ca-key.pem -CAcreateserial -out ${TMP_DIR}/server-cert.pem -days 100000 -extensions v3_req -extfile ${TMP_DIR}/server.conf
 
+# Base64 encode secrets and then remove the trailing newline to avoid issues in the curl command
+ca_cert=$(cat ${TMP_DIR}/ca-cert.pem | base64 | tr -d '\n')
+ca_key=$(cat ${TMP_DIR}/ca-key.pem | base64 | tr -d '\n')
+server_cert=$(cat ${TMP_DIR}/server-cert.pem | base64 | tr -d '\n')
+server_key=$(cat ${TMP_DIR}/server-key.pem | base64 | tr -d '\n')
+
+# Create the secret resource
 echo "Creating a secret for the certificate and keys"
-kubectl create secret --namespace=sparkoperator generic spark-webhook-certs --from-file=${TMP_DIR}/ca-key.pem --from-file=${TMP_DIR}/ca-cert.pem --from-file=${TMP_DIR}/server-key.pem --from-file=${TMP_DIR}/server-cert.pem
+curl -ik \
+  -X POST \
+  -H "Authorization: Bearer $(cat /var/run/secrets/kubernetes.io/serviceaccount/token)" \
+  -H 'Accept: application/json' \
+  -H 'Content-Type: application/json' \
+  -d '{
+  "kind": "Secret",
+  "apiVersion": "v1",
+  "metadata": {
+    "name": "spark-webhook-certs",
+    "namespace": "'"$NAMESPACE"'"
+  },
+  "data": {
+    "ca-cert.pem": "'"$ca_cert"'",
+    "ca-key.pem": "'"$ca_key"'",
+    "server-cert.pem": "'"$server_cert"'",
+    "server-key.pem": "'"$server_key"'"
+  }
+}' \
+https://kubernetes.default.svc/api/v1/namespaces/${NAMESPACE}/secrets
 
 # Clean up after we're done.
-echo "Deleting ${TMP_DIR}."
+printf "\nDeleting ${TMP_DIR}.\n"
 rm -rf ${TMP_DIR}
