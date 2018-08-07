@@ -26,7 +26,6 @@ RUN dep ensure -vendor-only
 COPY . ./
 RUN go generate && CGO_ENABLED=0 GOOS=linux go build -o /usr/bin/spark-operator
 
-
 FROM gcr.io/spark-operator/spark:v2.3.1
 COPY --from=builder /usr/bin/spark-operator /usr/bin/
 RUN apk add --update openssl && rm -rf /var/cache/apk/*
