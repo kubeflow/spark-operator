@@ -30,6 +30,7 @@ import (
 	clientset "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 
+	"k8s.io/client-go/util/workqueue"
 	"k8s.io/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1alpha1"
 	"k8s.io/spark-on-k8s-operator/pkg/config"
 )
@@ -40,39 +41,18 @@ type sparkPodMonitor struct {
 	kubeClient clientset.Interface
 	// sparkPodInformer is a controller for listing uninitialized Spark Pods.
 	sparkPodInformer cache.Controller
-	// podStateReportingChan is a channel used to notify the controller of Spark pod state updates.
-	podStateReportingChan chan<- interface{}
-}
-
-// driverStateUpdate encapsulates state update of the driver.
-type driverStateUpdate struct {
-	appNamespace   string         // Namespace in which the application and driver pod run.
-	appName        string         // Name of the application.
-	appID          string         // Application ID.
-	podName        string         // Name of the driver pod.
-	nodeName       string         // Name of the node the driver pod runs on.
-	podPhase       apiv1.PodPhase // Driver pod phase.
-	completionTime metav1.Time    // Time the driver completes.
-}
-
-// executorStateUpdate encapsulates state update of an executor.
-type executorStateUpdate struct {
-	appNamespace string                 // Namespace in which the application and executor pods run.
-	appName      string                 // Name of the application.
-	appID        string                 // Application ID.
-	podName      string                 // Name of the executor pod.
-	executorID   string                 // Spark executor ID.
-	state        v1alpha1.ExecutorState // Executor state.
+	// workQueue is a channel used to notify the controller of SparkApp updates.
+	workQueue workqueue.RateLimitingInterface
 }
 
 // newSparkPodMonitor creates a new sparkPodMonitor instance.
 func newSparkPodMonitor(
 	kubeClient clientset.Interface,
 	namespace string,
-	podStateReportingChan chan<- interface{}) *sparkPodMonitor {
+	workQueue workqueue.RateLimitingInterface) *sparkPodMonitor {
 	monitor := &sparkPodMonitor{
-		kubeClient:            kubeClient,
-		podStateReportingChan: podStateReportingChan,
+		kubeClient: kubeClient,
+		workQueue:  workQueue,
 	}
 
 	podInterface := kubeClient.CoreV1().Pods(namespace)
@@ -118,16 +98,11 @@ func (s *sparkPodMonitor) run(stopCh <-chan struct{}) {
 	}
 
 	<-stopCh
-	close(s.podStateReportingChan)
 }
 
 func (s *sparkPodMonitor) onPodAdded(obj interface{}) {
 	pod := obj.(*apiv1.Pod)
-	if isDriverPod(pod) {
-		s.updateDriverState(pod)
-	} else if isExecutorPod(pod) {
-		s.updateExecutorState(pod)
-	}
+	s.enqueueSparkAppForUpdate(pod)
 }
 
 func (s *sparkPodMonitor) onPodUpdated(old, updated interface{}) {
@@ -138,11 +113,8 @@ func (s *sparkPodMonitor) onPodUpdated(old, updated interface{}) {
 		return
 	}
 
-	if isDriverPod(updatedPod) {
-		s.updateDriverState(updatedPod)
-	} else if isExecutorPod(updatedPod) {
-		s.updateExecutorState(updatedPod)
-	}
+	s.enqueueSparkAppForUpdate(updatedPod)
+
 }
 
 func (s *sparkPodMonitor) onPodDeleted(obj interface{}) {
@@ -159,50 +131,23 @@ func (s *sparkPodMonitor) onPodDeleted(obj interface{}) {
 	if deletedPod == nil {
 		return
 	}
+	s.enqueueSparkAppForUpdate(deletedPod)
+}
 
-	deletedPod = deletedPod.DeepCopy()
-	if isDriverPod(deletedPod) {
-		if deletedPod.Status.Phase != apiv1.PodSucceeded && deletedPod.Status.Phase != apiv1.PodFailed {
-			// The driver pod was deleted before it succeeded or failed. Treat deletion as failure in this case so the
-			// application gets restarted if the RestartPolicy is Always or OnFailure.
-			deletedPod.Status.Phase = apiv1.PodFailed
-			// No update is reported if the deleted driver pod already terminated.
-			s.updateDriverState(deletedPod)
-		}
-	} else if isExecutorPod(deletedPod) {
-		s.updateExecutorState(deletedPod)
+func (s *sparkPodMonitor) enqueueSparkAppForUpdate(pod *apiv1.Pod) {
+
+	if appKey, ok := createMetaNamespaceKey(pod); ok {
+		glog.V(2).Infof("Enqueuing SparkApp %s", appKey)
+		s.workQueue.AddRateLimited(appKey)
 	}
 }
 
-func (s *sparkPodMonitor) updateDriverState(pod *apiv1.Pod) {
+// Helper method to create a key with namespace and appName
+func createMetaNamespaceKey(pod *apiv1.Pod) (string, bool) {
 	if appName, ok := getAppName(pod); ok {
-		update := driverStateUpdate{
-			appNamespace: pod.Namespace,
-			appName:      appName,
-			appID:        getAppID(pod),
-			podName:      pod.Name,
-			nodeName:     pod.Spec.NodeName,
-			podPhase:     pod.Status.Phase,
-		}
-		if pod.Status.Phase == apiv1.PodSucceeded || pod.Status.Phase == apiv1.PodFailed {
-			update.completionTime = metav1.Now()
-		}
-
-		s.podStateReportingChan <- &update
+		return fmt.Sprintf("%s/%s", pod.GetNamespace(), appName), true
 	}
-}
-
-func (s *sparkPodMonitor) updateExecutorState(pod *apiv1.Pod) {
-	if appName, ok := getAppName(pod); ok {
-		s.podStateReportingChan <- &executorStateUpdate{
-			appNamespace: pod.Namespace,
-			appName:      appName,
-			appID:        getAppID(pod),
-			podName:      pod.Name,
-			executorID:   getExecutorID(pod),
-			state:        podPhaseToExecutorState(pod.Status.Phase),
-		}
-	}
+	return "", false
 }
 
 func getAppName(pod *apiv1.Pod) (string, bool) {
@@ -235,8 +180,4 @@ func podPhaseToExecutorState(podPhase apiv1.PodPhase) v1alpha1.ExecutorState {
 	default:
 		return v1alpha1.ExecutorUnknownState
 	}
-}
-
-func getExecutorID(pod *apiv1.Pod) string {
-	return pod.Labels[sparkExecutorIDLabel]
 }

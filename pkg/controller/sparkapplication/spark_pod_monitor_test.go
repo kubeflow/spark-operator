@@ -25,21 +25,24 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kubeclientfake "k8s.io/client-go/kubernetes/fake"
 
-	"k8s.io/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1alpha1"
+	"k8s.io/client-go/tools/cache"
+	"k8s.io/client-go/util/workqueue"
 	"k8s.io/spark-on-k8s-operator/pkg/config"
 )
 
 func TestOnPodAdded(t *testing.T) {
-	monitor, podStateReportingChan := newMonitor()
+	monitor, queue := newMonitor()
 
+	appName := "foo-1"
+	namespace := "foo-namespace"
 	driverPod := &apiv1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "foo-driver",
-			Namespace: "default",
+			Namespace: namespace,
 			Labels: map[string]string{
 				sparkRoleLabel:           sparkDriverRole,
 				config.SparkAppIDLabel:   "foo-123",
-				config.SparkAppNameLabel: "foo",
+				config.SparkAppNameLabel: appName,
 			},
 		},
 		Status: apiv1.PodStatus{
@@ -48,30 +51,35 @@ func TestOnPodAdded(t *testing.T) {
 	}
 	go monitor.onPodAdded(driverPod)
 
-	update := <-podStateReportingChan
-	driverUpdate := update.(*driverStateUpdate)
-	assert.Equal(
-		t,
-		driverPod.Name,
-		driverUpdate.podName,
-		"wanted driver pod name %s got %s",
-		driverPod.Name,
-		driverUpdate.podName)
-	assert.Equal(
-		t,
-		apiv1.PodPending,
-		driverUpdate.podPhase,
-		"wanted driver pod phase %s got %s",
-		apiv1.PodPending,
-		driverUpdate.podPhase)
+	key, _ := queue.Get()
+	actualNamespace, actualAppName, err := cache.SplitMetaNamespaceKey(key.(string))
+	assert.Nil(t, err)
 
+	assert.Equal(
+		t,
+		appName,
+		actualAppName,
+		"wanted app name %s got %s",
+		appName,
+		actualAppName)
+
+	assert.Equal(
+		t,
+		namespace,
+		actualNamespace,
+		"wanted app namespace %s got %s",
+		namespace,
+		actualNamespace)
+
+	appName = "foo-2"
 	executorPod := &apiv1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: "foo-driver",
+			Name:      "foo-driver",
+			Namespace: "foo-namespace",
 			Labels: map[string]string{
 				sparkRoleLabel:           sparkExecutorRole,
 				config.SparkAppIDLabel:   "foo-123",
-				config.SparkAppNameLabel: "foo",
+				config.SparkAppNameLabel: appName,
 				sparkExecutorIDLabel:     "1",
 			},
 		},
@@ -81,34 +89,41 @@ func TestOnPodAdded(t *testing.T) {
 	}
 	go monitor.onPodAdded(executorPod)
 
-	update = <-podStateReportingChan
-	executorUpdate := update.(*executorStateUpdate)
+	key, _ = queue.Get()
+
+	actualNamespace, actualAppName, err = cache.SplitMetaNamespaceKey(key.(string))
+	assert.Nil(t, err)
+
 	assert.Equal(
 		t,
-		executorPod.Name,
-		executorUpdate.podName,
-		"wanted executor pod name %s got %s",
-		executorPod.Name,
-		executorUpdate.podName)
+		appName,
+		actualAppName,
+		"wanted app name %s got %s",
+		appName,
+		actualAppName)
+
 	assert.Equal(
 		t,
-		v1alpha1.ExecutorRunningState,
-		executorUpdate.state,
-		"wanted executor state %s got %s",
-		v1alpha1.ExecutorRunningState,
-		executorUpdate.state)
+		namespace,
+		actualNamespace,
+		"wanted app namespace %s got %s",
+		namespace,
+		actualNamespace)
 }
 
 func TestOnPodUpdated(t *testing.T) {
-	monitor, podStateReportingChan := newMonitor()
+	monitor, queue := newMonitor()
 
+	appName := "foo-3"
+	namespace := "foo-namespace"
 	oldDriverPod := &apiv1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: "foo-driver",
+			Name:      "foo-driver",
+			Namespace: namespace,
 			Labels: map[string]string{
 				sparkRoleLabel:           sparkDriverRole,
 				config.SparkAppIDLabel:   "foo-123",
-				config.SparkAppNameLabel: "foo",
+				config.SparkAppNameLabel: appName,
 			},
 			ResourceVersion: "1",
 		},
@@ -121,30 +136,36 @@ func TestOnPodUpdated(t *testing.T) {
 	newDriverPod.Status.Phase = apiv1.PodSucceeded
 	go monitor.onPodUpdated(oldDriverPod, newDriverPod)
 
-	update := <-podStateReportingChan
-	driverUpdate := update.(*driverStateUpdate)
-	assert.Equal(
-		t,
-		newDriverPod.Name,
-		driverUpdate.podName,
-		"wanted driver pod name %s got %s",
-		newDriverPod.Name,
-		driverUpdate.podName)
-	assert.Equal(
-		t,
-		apiv1.PodSucceeded,
-		driverUpdate.podPhase,
-		"wanted driver pod phase %s got %s",
-		apiv1.PodSucceeded,
-		driverUpdate.podPhase)
+	key, _ := queue.Get()
 
+	actualNamespace, actualAppName, err := cache.SplitMetaNamespaceKey(key.(string))
+	assert.Nil(t, err)
+
+	assert.Equal(
+		t,
+		appName,
+		actualAppName,
+		"wanted app name %s got %s",
+		appName,
+		actualAppName)
+
+	assert.Equal(
+		t,
+		namespace,
+		actualNamespace,
+		"wanted app namespace %s got %s",
+		namespace,
+		actualNamespace)
+
+	appName = "foo-4"
 	oldExecutorPod := &apiv1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: "foo-driver",
+			Name:      "foo-driver",
+			Namespace: namespace,
 			Labels: map[string]string{
 				sparkRoleLabel:           sparkExecutorRole,
 				config.SparkAppIDLabel:   "foo-123",
-				config.SparkAppNameLabel: "foo",
+				config.SparkAppNameLabel: appName,
 				sparkExecutorIDLabel:     "1",
 			},
 			ResourceVersion: "1",
@@ -158,34 +179,41 @@ func TestOnPodUpdated(t *testing.T) {
 	newExecutorPod.Status.Phase = apiv1.PodFailed
 	go monitor.onPodUpdated(oldExecutorPod, newExecutorPod)
 
-	update = <-podStateReportingChan
-	executorUpdate := update.(*executorStateUpdate)
+	key, _ = queue.Get()
+
+	actualNamespace, actualAppName, err = cache.SplitMetaNamespaceKey(key.(string))
+	assert.Nil(t, err)
+
 	assert.Equal(
 		t,
-		newExecutorPod.Name,
-		executorUpdate.podName,
-		"wanted executor pod name %s got %s",
-		newExecutorPod.Name,
-		executorUpdate.podName)
+		appName,
+		actualAppName,
+		"wanted app name %s got %s",
+		appName,
+		actualAppName)
+
 	assert.Equal(
 		t,
-		v1alpha1.ExecutorFailedState,
-		executorUpdate.state,
-		"wanted executor state %s got %s",
-		v1alpha1.ExecutorFailedState,
-		executorUpdate.state)
+		namespace,
+		actualNamespace,
+		"wanted app namespace %s got %s",
+		namespace,
+		actualNamespace)
 }
 
 func TestOnPodDeleted(t *testing.T) {
-	monitor, podStateReportingChan := newMonitor()
+	monitor, queue := newMonitor()
 
+	appName := "foo-5"
+	namespace := "foo-namespace"
 	driverPod := &apiv1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: "foo-driver",
+			Name:      "foo-driver",
+			Namespace: namespace,
 			Labels: map[string]string{
 				sparkRoleLabel:           sparkDriverRole,
 				config.SparkAppIDLabel:   "foo-123",
-				config.SparkAppNameLabel: "foo",
+				config.SparkAppNameLabel: appName,
 			},
 		},
 		Status: apiv1.PodStatus{
@@ -194,34 +222,35 @@ func TestOnPodDeleted(t *testing.T) {
 	}
 	go monitor.onPodDeleted(driverPod)
 
-	update := <-podStateReportingChan
-	driverUpdate := update.(*driverStateUpdate)
+	key, _ := queue.Get()
+	actualNamespace, actualAppName, err := cache.SplitMetaNamespaceKey(key.(string))
+	assert.Nil(t, err)
+
 	assert.Equal(
 		t,
-		driverPod.Name,
-		driverUpdate.podName,
-		"wanted driver pod name %s got %s",
-		driverPod.Name,
-		driverUpdate.podName)
+		appName,
+		actualAppName,
+		"wanted app name %s got %s",
+		appName,
+		actualAppName)
+
 	assert.Equal(
 		t,
-		apiv1.PodFailed,
-		driverUpdate.podPhase,
-		"wanted driver pod phase %s got %s",
-		apiv1.PodFailed,
-		driverUpdate.podPhase)
+		namespace,
+		actualNamespace,
+		"wanted app namespace %s got %s",
+		namespace,
+		actualNamespace)
 
-	driverPod.Status.Phase = apiv1.PodSucceeded
-	go monitor.onPodDeleted(driverPod)
-	assert.True(t, len(podStateReportingChan) == 0)
-
+	appName = "foo-6"
 	executorPod := &apiv1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: "foo-exec-1",
+			Name:      "foo-exec-1",
+			Namespace: namespace,
 			Labels: map[string]string{
 				sparkRoleLabel:           sparkExecutorRole,
 				config.SparkAppIDLabel:   "foo-123",
-				config.SparkAppNameLabel: "foo",
+				config.SparkAppNameLabel: appName,
 				sparkExecutorIDLabel:     "1",
 			},
 		},
@@ -231,46 +260,30 @@ func TestOnPodDeleted(t *testing.T) {
 	}
 	go monitor.onPodDeleted(executorPod)
 
-	update = <-podStateReportingChan
-	executorUpdate := update.(*executorStateUpdate)
-	assert.Equal(
-		t,
-		executorPod.Name,
-		executorUpdate.podName,
-		"wanted executor pod name %s got %s",
-		executorPod.Name,
-		executorUpdate.podName)
-	assert.Equal(
-		t,
-		v1alpha1.ExecutorCompletedState,
-		executorUpdate.state,
-		"wanted executor state %s got %s",
-		v1alpha1.ExecutorCompletedState,
-		executorUpdate.state)
+	key, _ = queue.Get()
+	actualNamespace, actualAppName, err = cache.SplitMetaNamespaceKey(key.(string))
+	assert.Nil(t, err)
 
-	executorPod.Status.Phase = apiv1.PodFailed
-	go monitor.onPodDeleted(executorPod)
+	assert.Equal(
+		t,
+		appName,
+		actualAppName,
+		"wanted app name %s got %s",
+		appName,
+		actualAppName)
 
-	update = <-podStateReportingChan
-	executorUpdate = update.(*executorStateUpdate)
 	assert.Equal(
 		t,
-		executorPod.Name,
-		executorUpdate.podName,
-		"wanted executor pod name %s got %s",
-		executorPod.Name,
-		executorUpdate.podName)
-	assert.Equal(
-		t,
-		v1alpha1.ExecutorFailedState,
-		executorUpdate.state,
-		"wanted executor state %s got %s",
-		v1alpha1.ExecutorFailedState,
-		executorUpdate.state)
+		namespace,
+		actualNamespace,
+		"wanted app namespace %s got %s",
+		namespace,
+		actualNamespace)
 }
 
-func newMonitor() (*sparkPodMonitor, <-chan interface{}) {
-	podStateReportingChan := make(chan interface{})
-	monitor := newSparkPodMonitor(kubeclientfake.NewSimpleClientset(), "test", podStateReportingChan)
-	return monitor, podStateReportingChan
+func newMonitor() (*sparkPodMonitor, workqueue.RateLimitingInterface) {
+	queue := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(),
+		"spark-application-controller-test")
+	monitor := newSparkPodMonitor(kubeclientfake.NewSimpleClientset(), "test", queue)
+	return monitor, queue
 }

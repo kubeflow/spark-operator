@@ -37,6 +37,11 @@ import (
 	crdclientfake "k8s.io/spark-on-k8s-operator/pkg/client/clientset/versioned/fake"
 	crdinformers "k8s.io/spark-on-k8s-operator/pkg/client/informers/externalversions"
 	"k8s.io/spark-on-k8s-operator/pkg/util"
+	//	"context"
+	"fmt"
+	"os/exec"
+
+	"k8s.io/spark-on-k8s-operator/pkg/config"
 )
 
 func newFakeController(apps ...*v1alpha1.SparkApplication) (*Controller, *record.FakeRecorder) {
@@ -46,6 +51,8 @@ func newFakeController(apps ...*v1alpha1.SparkApplication) (*Controller, *record
 	apiExtensionsClient := apiextensionsfake.NewSimpleClientset()
 	informerFactory := crdinformers.NewSharedInformerFactory(crdClient, 0*time.Second)
 	recorder := record.NewFakeRecorder(3)
+
+	//	ctx, _ := context.WithTimeout(context.Background(), 5*time.Second)
 
 	kubeClient.CoreV1().Nodes().Create(&apiv1.Node{
 		ObjectMeta: metav1.ObjectMeta{
@@ -62,7 +69,7 @@ func newFakeController(apps ...*v1alpha1.SparkApplication) (*Controller, *record
 	})
 
 	controller := newSparkApplicationController(crdClient, kubeClient, apiExtensionsClient, informerFactory, recorder,
-		1, &util.MetricConfig{}, "test")
+		&util.MetricConfig{}, "test")
 
 	informer := informerFactory.Sparkoperator().V1alpha1().SparkApplications().Informer()
 	for _, app := range apps {
@@ -70,29 +77,6 @@ func newFakeController(apps ...*v1alpha1.SparkApplication) (*Controller, *record
 	}
 
 	return controller, recorder
-}
-
-func TestSubmitApp(t *testing.T) {
-	os.Setenv(kubernetesServiceHostEnvVar, "localhost")
-	os.Setenv(kubernetesServicePortEnvVar, "443")
-
-	app := &v1alpha1.SparkApplication{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "foo",
-			Namespace: "default",
-		},
-	}
-
-	ctrl, _ := newFakeController(app)
-	_, err := ctrl.crdClient.SparkoperatorV1alpha1().SparkApplications(app.Namespace).Create(app)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	go ctrl.createSubmission(app)
-	submission := <-ctrl.runner.queue
-	assert.Equal(t, app.Name, submission.name)
-	assert.Equal(t, app.Namespace, submission.namespace)
 }
 
 func TestOnAdd(t *testing.T) {
@@ -120,13 +104,6 @@ func TestOnAdd(t *testing.T) {
 	assert.Equal(t, 1, len(recorder.Events))
 	event := <-recorder.Events
 	assert.True(t, strings.Contains(event, "SparkApplicationAdded"))
-}
-
-func fetchCounterValue(m *prometheus.CounterVec, labels map[string]string) float64 {
-	pb := &prometheus_model.Metric{}
-
-	m.With(labels).Write(pb)
-	return pb.GetCounter().GetValue()
 }
 
 func TestOnUpdate(t *testing.T) {
@@ -296,20 +273,44 @@ func TestOnDelete(t *testing.T) {
 	ctrl.queue.Forget(item)
 }
 
+func TestHelperProcessFailure(t *testing.T) {
+	if os.Getenv("GO_WANT_HELPER_PROCESS") != "1" {
+		return
+	}
+	os.Exit(2)
+}
+
+func TestHelperProcessSuccess(t *testing.T) {
+	if os.Getenv("GO_WANT_HELPER_PROCESS") != "1" {
+		return
+	}
+	os.Exit(0)
+}
+
+func fetchCounterValue(m *prometheus.CounterVec, labels map[string]string) float64 {
+	pb := &prometheus_model.Metric{}
+
+	m.With(labels).Write(pb)
+	return pb.GetCounter().GetValue()
+}
+
 type metrics struct {
+	submitMetricCount  float64
 	runningMetricCount float64
 	successMetricCount float64
 	failedMetricCount  float64
 }
 
-func TestProcessSingleDriverStateUpdate(t *testing.T) {
+type executorMetrics struct {
+	runningMetricCount float64
+	successMetricCount float64
+	failedMetricCount  float64
+}
 
-	type testcase struct {
-		name             string
-		update           driverStateUpdate
-		expectedAppState v1alpha1.ApplicationStateType
-		expectedMetrics  metrics
-	}
+func TestSyncSparkApplication_NewAppSubmissionSuccess(t *testing.T) {
+
+	os.Setenv(kubernetesServiceHostEnvVar, "localhost")
+	os.Setenv(kubernetesServicePortEnvVar, "443")
 
 	app := &v1alpha1.SparkApplication{
 		ObjectMeta: metav1.ObjectMeta{
@@ -325,118 +326,39 @@ func TestProcessSingleDriverStateUpdate(t *testing.T) {
 		},
 	}
 
-	ctrl, recorder := newFakeController(app)
+	ctrl, _ := newFakeController(app)
 	_, err := ctrl.crdClient.SparkoperatorV1alpha1().SparkApplications(app.Namespace).Create(app)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	testcases := []testcase{
-		{
-			name: "succeeded driver",
-			update: driverStateUpdate{
-				appName:      "foo",
-				appNamespace: "default",
-				appID:        "foo-123",
-				podName:      "foo-driver",
-				nodeName:     "node1",
-				podPhase:     apiv1.PodSucceeded,
-			},
-			expectedAppState: v1alpha1.CompletedState,
-			expectedMetrics: metrics{
-				successMetricCount: 1,
-			},
-		},
-		{
-			name: "failed driver",
-			update: driverStateUpdate{
-				appName:      "foo",
-				appNamespace: "default",
-				appID:        "foo-123",
-				podName:      "foo-driver",
-				nodeName:     "node1",
-				podPhase:     apiv1.PodFailed,
-			},
-			expectedAppState: v1alpha1.FailedState,
-			expectedMetrics: metrics{
-				successMetricCount: 1,
-				failedMetricCount:  1,
-			},
-		},
-		{
-			name: "running driver",
-			update: driverStateUpdate{
-				appName:      "foo",
-				appNamespace: "default",
-				appID:        "foo-123",
-				podName:      "foo-driver",
-				nodeName:     "node1",
-				podPhase:     apiv1.PodRunning,
-			},
-			expectedAppState: v1alpha1.RunningState,
-			expectedMetrics: metrics{
-				runningMetricCount: 1,
-				successMetricCount: 1,
-				failedMetricCount:  1,
-			},
-		},
+	execCommand = func(command string, args ...string) *exec.Cmd {
+		cs := []string{"-test.run=TestHelperProcessSuccess", "--", command}
+		cs = append(cs, args...)
+		cmd := exec.Command(os.Args[0], cs...)
+		cmd.Env = []string{"GO_WANT_HELPER_PROCESS=1"}
+		return cmd
 	}
 
-	testFn := func(test testcase, t *testing.T) {
-		updatedApp := ctrl.processSingleDriverStateUpdate(&test.update)
-		if updatedApp == nil {
-			t.Fatal()
-		}
+	ctrl.syncSparkApplication("default/foo")
+	updatedApp, err := ctrl.crdClient.SparkoperatorV1alpha1().SparkApplications(app.Namespace).Get(app.Name, metav1.GetOptions{})
+	assert.Equal(t, v1alpha1.SubmittedState, updatedApp.Status.AppState.State)
 
-		assert.Equal(
-			t,
-			test.expectedAppState,
-			updatedApp.Status.AppState.State,
-			"wanted application state %s got %s",
-			test.expectedAppState,
-			updatedApp.Status.AppState.State)
-
-		assert.Equal(t, test.expectedMetrics.successMetricCount, fetchCounterValue(ctrl.metrics.sparkAppSuccessCount, map[string]string{}))
-		assert.Equal(t, test.expectedMetrics.failedMetricCount, fetchCounterValue(ctrl.metrics.sparkAppFailureCount, map[string]string{}))
-		runningCount := ctrl.metrics.sparkAppRunningCount.Value(map[string]string{})
-		assert.Equal(t, test.expectedMetrics.runningMetricCount, runningCount)
-
-		if isAppTerminated(updatedApp.Status.AppState.State) {
-			event := <-recorder.Events
-			if updatedApp.Status.AppState.State == v1alpha1.CompletedState {
-				assert.True(t, strings.Contains(event, "SparkDriverCompleted"))
-			} else if updatedApp.Status.AppState.State == v1alpha1.FailedState {
-				assert.True(t, strings.Contains(event, "SparkDriverFailed"))
-			}
-
-			event = <-recorder.Events
-			assert.True(t, strings.Contains(event, "SparkApplicationTerminated"))
-		}
-	}
-
-	for _, test := range testcases {
-		testFn(test, t)
-	}
+	assert.Equal(t, float64(1), fetchCounterValue(ctrl.metrics.sparkAppSubmitCount, map[string]string{}))
 }
 
-func TestProcessSingleAppStateUpdate(t *testing.T) {
+func TestSyncSparkApplication_NewAppSubmissionFailed(t *testing.T) {
+	os.Setenv(kubernetesServiceHostEnvVar, "localhost")
+	os.Setenv(kubernetesServicePortEnvVar, "443")
 
-	type testcase struct {
-		name             string
-		update           appStateUpdate
-		initialAppState  v1alpha1.ApplicationStateType
-		expectedAppState v1alpha1.ApplicationStateType
-		expectedMetrics  metrics
-	}
-
+	submissionRetries := int32(1)
 	app := &v1alpha1.SparkApplication{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "foo",
 			Namespace: "default",
 		},
 		Spec: v1alpha1.SparkApplicationSpec{
-			MaxSubmissionRetries:    int32ptr(1),
-			SubmissionRetryInterval: int64ptr(300),
+			MaxSubmissionRetries: &submissionRetries,
 		},
 		Status: v1alpha1.SparkApplicationStatus{
 			AppID: "foo-123",
@@ -453,268 +375,213 @@ func TestProcessSingleAppStateUpdate(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	testcases := []testcase{
-		{
-			name: "succeeded app",
-			update: appStateUpdate{
-				namespace:    "default",
-				name:         "foo",
-				state:        v1alpha1.CompletedState,
-				errorMessage: "",
-			},
-			initialAppState:  v1alpha1.RunningState,
-			expectedAppState: v1alpha1.CompletedState,
-			expectedMetrics: metrics{
-				successMetricCount: 1,
-			},
-		},
-		{
-			name: "failed app",
-			update: appStateUpdate{
-				namespace:    "default",
-				name:         "foo",
-				state:        v1alpha1.FailedState,
-				errorMessage: "",
-			},
-			initialAppState:  v1alpha1.RunningState,
-			expectedAppState: v1alpha1.FailedState,
-			expectedMetrics: metrics{
-				failedMetricCount:  1,
-				successMetricCount: 1,
-			},
-		},
-		{
-			name: "running app",
-			update: appStateUpdate{
-				namespace:    "default",
-				name:         "foo",
-				state:        v1alpha1.RunningState,
-				errorMessage: "",
-			},
-			initialAppState:  v1alpha1.NewState,
-			expectedAppState: v1alpha1.RunningState,
-			expectedMetrics: metrics{
-				runningMetricCount: 1,
-				failedMetricCount:  1,
-				successMetricCount: 1,
-			},
-		},
-		{
-			name: "completed app with initial state SubmittedState",
-			update: appStateUpdate{
-				namespace:    "default",
-				name:         "foo",
-				state:        v1alpha1.FailedSubmissionState,
-				errorMessage: "",
-			},
-			initialAppState:  v1alpha1.RunningState,
-			expectedAppState: v1alpha1.FailedSubmissionState,
-			expectedMetrics: metrics{
-				runningMetricCount: 0,
-				failedMetricCount:  2,
-				successMetricCount: 1,
-			},
-		},
+	execCommand = func(command string, args ...string) *exec.Cmd {
+		cs := []string{"-test.run=TestHelperProcessFailure", "--", command}
+		cs = append(cs, args...)
+		cmd := exec.Command(os.Args[0], cs...)
+		cmd.Env = []string{"GO_WANT_HELPER_PROCESS=1"}
+		return cmd
 	}
 
-	testFn := func(test testcase, t *testing.T) {
-		updatedApp := ctrl.processSingleAppStateUpdate(&test.update)
-		if updatedApp == nil {
-			t.Fatal()
-		}
+	ctrl.syncSparkApplication("default/foo")
+	updatedApp, err := ctrl.crdClient.SparkoperatorV1alpha1().SparkApplications(app.Namespace).Get(app.Name, metav1.GetOptions{})
+	assert.Equal(t, v1alpha1.FailedSubmissionState, updatedApp.Status.AppState.State)
+	assert.Equal(t, float64(0), fetchCounterValue(ctrl.metrics.sparkAppSubmitCount, map[string]string{}))
+	assert.Equal(t, float64(1), fetchCounterValue(ctrl.metrics.sparkAppFailureCount, map[string]string{}))
 
-		assert.Equal(
-			t,
-			test.expectedAppState,
-			updatedApp.Status.AppState.State,
-			"wanted application state %s got %s",
-			test.expectedAppState,
-			updatedApp.Status.AppState.State)
+	event := <-recorder.Events
+	assert.True(t, strings.Contains(event, "SparkApplicationSubmissionFailed"))
 
-		assert.Equal(t, test.expectedMetrics.successMetricCount, fetchCounterValue(ctrl.metrics.sparkAppSuccessCount, map[string]string{}))
-		assert.Equal(t, test.expectedMetrics.failedMetricCount, fetchCounterValue(ctrl.metrics.sparkAppFailureCount, map[string]string{}))
-		runningCount := ctrl.metrics.sparkAppRunningCount.Value(map[string]string{})
-		assert.Equal(t, test.expectedMetrics.runningMetricCount, runningCount)
+	// Verify App was retried on SubmissionFailure
+	event = <-recorder.Events
+	assert.True(t, strings.Contains(event, "SparkApplicationSubmissionRetry"))
 
-		if updatedApp.Status.AppState.State == v1alpha1.FailedSubmissionState {
-			event := <-recorder.Events
-			assert.True(t, strings.Contains(event, "SparkApplicationSubmissionFailed"))
-		}
-	}
+	item, _ := ctrl.queue.Get()
+	defer ctrl.queue.Done(item)
+	key, ok := item.(string)
+	assert.True(t, ok)
+	expectedKey, _ := cache.MetaNamespaceKeyFunc(app)
+	assert.Equal(t, expectedKey, key)
 
-	for _, test := range testcases {
-		testFn(test, t)
-	}
+	// Try submitting again
+	ctrl.syncSparkApplication("default/foo")
+
+	// Verify App Failed again but not retried as we have exhausted MaxSubmissionRetries
+	updatedApp, err = ctrl.crdClient.SparkoperatorV1alpha1().SparkApplications(app.Namespace).Get(app.Name, metav1.GetOptions{})
+	assert.Equal(t, v1alpha1.FailedSubmissionState, updatedApp.Status.AppState.State)
+	assert.Equal(t, int32(1), updatedApp.Status.SubmissionRetries)
+	assert.Equal(t, float64(0), fetchCounterValue(ctrl.metrics.sparkAppSubmitCount, map[string]string{}))
+	// We currently don't increment failure count if the same app is stuck in SubmissionFailed state.
+	assert.Equal(t, float64(1), fetchCounterValue(ctrl.metrics.sparkAppFailureCount, map[string]string{}))
+
+	event = <-recorder.Events
+	assert.True(t, strings.Contains(event, "SparkApplicationSubmissionFailed"))
 }
 
-func TestProcessSingleExecutorStateUpdate(t *testing.T) {
+func TestSyncSparkApplication_RunningState(t *testing.T) {
 
 	type testcase struct {
-		name                    string
-		update                  executorStateUpdate
-		shouldUpdate            bool
-		expectedExecutorStates  map[string]v1alpha1.ExecutorState
-		expectedExecutorMetrics metrics
+		oldAppStatus            v1alpha1.ApplicationStateType
+		oldExecutorStatus       map[string]v1alpha1.ExecutorState
+		driverPod               *apiv1.Pod
+		executorPod             *apiv1.Pod
+		expectedAppState        v1alpha1.ApplicationStateType
+		expectedExecutorState   map[string]v1alpha1.ExecutorState
+		expectedAppMetrics      metrics
+		expectedExecutorMetrics executorMetrics
 	}
 
+	os.Setenv(kubernetesServiceHostEnvVar, "localhost")
+	os.Setenv(kubernetesServicePortEnvVar, "443")
+
+	submissionRetries := int32(1)
 	app := &v1alpha1.SparkApplication{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "foo",
 			Namespace: "default",
 		},
+		Spec: v1alpha1.SparkApplicationSpec{
+			MaxSubmissionRetries: &submissionRetries,
+		},
 		Status: v1alpha1.SparkApplicationStatus{
 			AppID: "foo-123",
 			AppState: v1alpha1.ApplicationState{
-				State:        v1alpha1.RunningState,
+				State:        v1alpha1.SubmittedState,
 				ErrorMessage: "",
 			},
-			ExecutorState: map[string]v1alpha1.ExecutorState{
-				"foo-exec-1": v1alpha1.ExecutorCompletedState,
-			},
+			ExecutorState: map[string]v1alpha1.ExecutorState{"exec-1": v1alpha1.ExecutorRunningState},
 		},
 	}
-
-	ctrl, recorder := newFakeController(app)
-	_, err := ctrl.crdClient.SparkoperatorV1alpha1().SparkApplications(app.Namespace).Create(app)
-	if err != nil {
-		t.Fatal(err)
-	}
-
 	testcases := []testcase{
 		{
-			name: "completed executor",
-			update: executorStateUpdate{
-				appNamespace: "default",
-				appName:      "foo",
-				appID:        "foo-123",
-				podName:      "foo-exec-2",
-				executorID:   "2",
-				state:        v1alpha1.ExecutorCompletedState,
+			oldAppStatus:          v1alpha1.SubmittedState,
+			oldExecutorStatus:     map[string]v1alpha1.ExecutorState{"exec-1": v1alpha1.ExecutorRunningState},
+			expectedAppState:      v1alpha1.FailedState,
+			expectedExecutorState: map[string]v1alpha1.ExecutorState{"exec-1": v1alpha1.ExecutorFailedState},
+			expectedAppMetrics: metrics{
+				failedMetricCount: 1,
 			},
-			shouldUpdate: true,
-			expectedExecutorStates: map[string]v1alpha1.ExecutorState{
-				"foo-exec-1": v1alpha1.ExecutorCompletedState,
-				"foo-exec-2": v1alpha1.ExecutorCompletedState,
-			},
-			expectedExecutorMetrics: metrics{
-				// One new executor completed
-				successMetricCount: 1,
+			expectedExecutorMetrics: executorMetrics{
+				failedMetricCount: 1,
 			},
 		},
 		{
-			name: "failed executor",
-			update: executorStateUpdate{
-				appNamespace: "default",
-				appName:      "foo",
-				appID:        "foo-123",
-				podName:      "foo-exec-3",
-				executorID:   "3",
-				state:        v1alpha1.ExecutorFailedState,
+			oldAppStatus:      v1alpha1.SubmittedState,
+			oldExecutorStatus: map[string]v1alpha1.ExecutorState{"exec-1": v1alpha1.ExecutorRunningState},
+			driverPod: &apiv1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "foo-driver",
+					Namespace: "default",
+					Labels: map[string]string{
+						sparkRoleLabel:           sparkDriverRole,
+						config.SparkAppIDLabel:   "foo-123",
+						config.SparkAppNameLabel: "foo",
+					},
+					ResourceVersion: "1",
+				},
+				Status: apiv1.PodStatus{
+					Phase: apiv1.PodRunning,
+				},
 			},
-			shouldUpdate: true,
-			expectedExecutorStates: map[string]v1alpha1.ExecutorState{
-				"foo-exec-1": v1alpha1.ExecutorCompletedState,
-				"foo-exec-3": v1alpha1.ExecutorFailedState,
+			executorPod: &apiv1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "exec-1",
+					Namespace: "default",
+					Labels: map[string]string{
+						sparkRoleLabel:           sparkExecutorRole,
+						config.SparkAppIDLabel:   "foo-123",
+						config.SparkAppNameLabel: "foo",
+					},
+					ResourceVersion: "1",
+				},
+				Status: apiv1.PodStatus{
+					Phase: apiv1.PodSucceeded,
+				},
 			},
-			expectedExecutorMetrics: metrics{
-				successMetricCount: 1,
-				failedMetricCount:  1,
-			},
-		},
-		{
-			name: "running executor",
-			update: executorStateUpdate{
-				appNamespace: "default",
-				appName:      "foo",
-				appID:        "foo-123",
-				podName:      "foo-exec-4",
-				executorID:   "4",
-				state:        v1alpha1.ExecutorRunningState,
-			},
-			shouldUpdate: true,
-			expectedExecutorStates: map[string]v1alpha1.ExecutorState{
-				"foo-exec-1": v1alpha1.ExecutorCompletedState,
-				"foo-exec-4": v1alpha1.ExecutorRunningState,
-			},
-			expectedExecutorMetrics: metrics{
-				successMetricCount: 1,
+			expectedAppState:      v1alpha1.RunningState,
+			expectedExecutorState: map[string]v1alpha1.ExecutorState{"exec-1": v1alpha1.ExecutorCompletedState},
+			expectedAppMetrics: metrics{
 				runningMetricCount: 1,
-				failedMetricCount:  1,
+			},
+			expectedExecutorMetrics: executorMetrics{
+				successMetricCount: 1,
 			},
 		},
 		{
-			name: "pending state update for a terminated executor",
-			update: executorStateUpdate{
-				appNamespace: "default",
-				appName:      "foo",
-				appID:        "foo-123",
-				podName:      "foo-exec-1",
-				executorID:   "1",
-				state:        v1alpha1.ExecutorPendingState,
+			oldAppStatus:      v1alpha1.FailedState,
+			oldExecutorStatus: map[string]v1alpha1.ExecutorState{"exec-1": v1alpha1.ExecutorCompletedState},
+			driverPod: &apiv1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "foo-driver",
+					Namespace: "default",
+					Labels: map[string]string{
+						sparkRoleLabel:           sparkDriverRole,
+						config.SparkAppIDLabel:   "foo-123",
+						config.SparkAppNameLabel: "foo",
+					},
+					ResourceVersion: "1",
+				},
+				Status: apiv1.PodStatus{
+					Phase: apiv1.PodRunning,
+				},
 			},
-			shouldUpdate: false,
-			expectedExecutorStates: map[string]v1alpha1.ExecutorState{
-				"foo-exec-1": v1alpha1.ExecutorCompletedState,
+			executorPod: &apiv1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "exec-1",
+					Namespace: "default",
+					Labels: map[string]string{
+						sparkRoleLabel:           sparkExecutorRole,
+						config.SparkAppIDLabel:   "foo-123",
+						config.SparkAppNameLabel: "foo",
+					},
+					ResourceVersion: "1",
+				},
+				Status: apiv1.PodStatus{
+					Phase: apiv1.PodFailed,
+				},
 			},
-			expectedExecutorMetrics: metrics{
-				successMetricCount: 1,
-				runningMetricCount: 1,
-				failedMetricCount:  1,
-			},
-		},
-		{
-			name: "pending executor",
-			update: executorStateUpdate{
-				appNamespace: "default",
-				appName:      "foo",
-				appID:        "foo-123",
-				podName:      "foo-exec-5",
-				executorID:   "5",
-				state:        v1alpha1.ExecutorPendingState,
-			},
-			shouldUpdate: true,
-			expectedExecutorStates: map[string]v1alpha1.ExecutorState{
-				"foo-exec-1": v1alpha1.ExecutorCompletedState,
-				"foo-exec-5": v1alpha1.ExecutorPendingState,
-			},
-			expectedExecutorMetrics: metrics{
-				successMetricCount: 1,
-				runningMetricCount: 1,
-				failedMetricCount:  1,
-			},
+			expectedAppState:        v1alpha1.FailedState,
+			expectedExecutorState:   map[string]v1alpha1.ExecutorState{"exec-1": v1alpha1.ExecutorCompletedState},
+			expectedAppMetrics:      metrics{},
+			expectedExecutorMetrics: executorMetrics{},
 		},
 	}
 
 	testFn := func(test testcase, t *testing.T) {
-		updatedApp := ctrl.processSingleExecutorStateUpdate(&test.update)
-		if test.shouldUpdate {
-			if updatedApp == nil {
-				t.Fatal()
-			}
-		} else {
-			return
+
+		app.Status.AppState.State = test.oldAppStatus
+		app.Status.ExecutorState = test.oldExecutorStatus
+		ctrl, _ := newFakeController(app)
+		_, err := ctrl.crdClient.SparkoperatorV1alpha1().SparkApplications(app.Namespace).Create(app)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if test.driverPod != nil {
+			ctrl.kubeClient.CoreV1().Pods(app.Namespace).Create(test.driverPod)
+		}
+		if test.executorPod != nil {
+			ctrl.kubeClient.CoreV1().Pods(app.Namespace).Create(test.executorPod)
 		}
 
-		assert.Equal(
-			t,
-			test.expectedExecutorStates,
-			updatedApp.Status.ExecutorState,
-			"wanted executor states %s got %s",
-			test.expectedExecutorStates,
-			updatedApp.Status.ExecutorState)
+		err = ctrl.syncSparkApplication(fmt.Sprintf("%s/%s", app.GetNamespace(), app.GetName()))
+		assert.Nil(t, err)
 
-		assert.Equal(t, test.expectedExecutorMetrics.failedMetricCount, fetchCounterValue(ctrl.metrics.sparkAppExecutorFailureCount, map[string]string{}))
+		updatedApp, err := ctrl.crdClient.SparkoperatorV1alpha1().SparkApplications(app.Namespace).Get(app.Name, metav1.GetOptions{})
+
+		// Verify App/Executor Statuses
+		assert.Equal(t, test.expectedAppState, updatedApp.Status.AppState.State)
+		assert.Equal(t, test.expectedExecutorState, updatedApp.Status.ExecutorState)
+
+		// Verify App Metrics
+		assert.Equal(t, test.expectedAppMetrics.runningMetricCount, ctrl.metrics.sparkAppRunningCount.Value(map[string]string{}))
+		assert.Equal(t, test.expectedAppMetrics.successMetricCount, fetchCounterValue(ctrl.metrics.sparkAppSuccessCount, map[string]string{}))
+		assert.Equal(t, test.expectedAppMetrics.submitMetricCount, fetchCounterValue(ctrl.metrics.sparkAppSubmitCount, map[string]string{}))
+		assert.Equal(t, test.expectedAppMetrics.failedMetricCount, fetchCounterValue(ctrl.metrics.sparkAppFailureCount, map[string]string{}))
+
+		// Verify Executor Metrivs
+		assert.Equal(t, test.expectedExecutorMetrics.runningMetricCount, ctrl.metrics.sparkAppExecutorRunningCount.Value(map[string]string{}))
 		assert.Equal(t, test.expectedExecutorMetrics.successMetricCount, fetchCounterValue(ctrl.metrics.sparkAppExecutorSuccessCount, map[string]string{}))
-		runningCount := ctrl.metrics.sparkAppExecutorRunningCount.Value(map[string]string{})
-		assert.Equal(t, test.expectedExecutorMetrics.runningMetricCount, runningCount)
-
-		if test.update.state == v1alpha1.ExecutorCompletedState {
-			event := <-recorder.Events
-			assert.True(t, strings.Contains(event, "SparkExecutorCompleted"))
-		} else if test.update.state == v1alpha1.ExecutorFailedState {
-			event := <-recorder.Events
-			assert.True(t, strings.Contains(event, "SparkExecutorFailed"))
-		}
+		assert.Equal(t, test.expectedExecutorMetrics.failedMetricCount, fetchCounterValue(ctrl.metrics.sparkAppExecutorFailureCount, map[string]string{}))
 	}
 
 	for _, test := range testcases {
@@ -742,9 +609,11 @@ func TestHandleRestart(t *testing.T) {
 		ctrl.handleRestart(test.app)
 		if test.expectRestart {
 			go ctrl.processNextItem()
-			submission := <-ctrl.runner.queue
-			assert.Equal(t, test.app.Name, submission.name)
-			assert.Equal(t, test.app.Namespace, submission.namespace)
+			item, _ := ctrl.queue.Get()
+			key, ok := item.(string)
+			assert.True(t, ok)
+			expectedKey, _ := getApplicationKey(test.app.Namespace, test.app.Name)
+			assert.Equal(t, expectedKey, key)
 			event := <-recorder.Events
 			assert.True(t, strings.Contains(event, "SparkApplicationRestart"))
 		}
@@ -822,68 +691,6 @@ func TestHandleRestart(t *testing.T) {
 	for _, test := range testcases {
 		testFn(test, t)
 	}
-}
-
-func TestResubmissionOnFailures(t *testing.T) {
-	os.Setenv(kubernetesServiceHostEnvVar, "localhost")
-	os.Setenv(kubernetesServicePortEnvVar, "443")
-
-	app := &v1alpha1.SparkApplication{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "foo",
-			Namespace: "default",
-		},
-		Spec: v1alpha1.SparkApplicationSpec{
-			MaxSubmissionRetries:    int32ptr(2),
-			SubmissionRetryInterval: int64ptr(1),
-		},
-		Status: v1alpha1.SparkApplicationStatus{
-			AppID: "foo-123",
-			AppState: v1alpha1.ApplicationState{
-				State:        v1alpha1.NewState,
-				ErrorMessage: "",
-			},
-		},
-	}
-
-	ctrl, recorder := newFakeController(app)
-	ctrl.crdClient.SparkoperatorV1alpha1().SparkApplications(app.Namespace).Create(app)
-
-	testFn := func(t *testing.T, update *appStateUpdate) {
-		updatedApp := ctrl.processSingleAppStateUpdate(update)
-		if updatedApp == nil {
-			t.Fatal()
-		}
-
-		item, _ := ctrl.queue.Get()
-		key, ok := item.(string)
-		assert.True(t, ok)
-		expectedKey, _ := getApplicationKey(updatedApp.Namespace, updatedApp.Name)
-		assert.Equal(t, expectedKey, key)
-		ctrl.queue.Forget(item)
-		ctrl.queue.Done(item)
-
-		assert.Equal(t, int32(1), updatedApp.Status.SubmissionRetries)
-
-		event := <-recorder.Events
-		assert.True(t, strings.Contains(event, "SparkApplicationSubmissionFailed"))
-		event = <-recorder.Events
-		assert.True(t, strings.Contains(event, "SparkApplicationSubmissionRetry"))
-	}
-
-	update := &appStateUpdate{
-		namespace: app.Namespace,
-		name:      app.Name,
-		state:     v1alpha1.FailedSubmissionState,
-	}
-
-	// First 2 failed submissions should result in re-submission attempts.
-	testFn(t, update)
-	testFn(t, update)
-
-	// The next failed submission should not cause a re-submission attempt.
-	ctrl.processSingleAppStateUpdate(update)
-	assert.Equal(t, 0, ctrl.queue.Len())
 }
 
 func TestShouldSubmit(t *testing.T) {
@@ -1104,10 +911,6 @@ func TestShouldRetrySubmission(t *testing.T) {
 
 func stringptr(s string) *string {
 	return &s
-}
-
-func int64ptr(n int64) *int64 {
-	return &n
 }
 
 func int32ptr(n int32) *int32 {

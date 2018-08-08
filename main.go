@@ -47,22 +47,21 @@ import (
 )
 
 var (
-	master                  = flag.String("master", "", "The address of the Kubernetes API server. Overrides any value in kubeconfig. Only required if out-of-cluster.")
-	kubeConfig              = flag.String("kubeConfig", "", "Path to a kube config. Only required if out-of-cluster.")
-	installCRDs             = flag.Bool("install-crds", true, "Whether to install CRDs")
-	controllerThreads       = flag.Int("controller-threads", 10, "Number of worker threads used by the SparkApplication controller.")
-	submissionRunnerThreads = flag.Int("submission-threads", 3, "Number of worker threads used by the SparkApplication submission runner.")
-	resyncInterval          = flag.Int("resync-interval", 30, "Informer resync interval in seconds.")
-	namespace               = flag.String("namespace", apiv1.NamespaceAll, "The Kubernetes namespace to manage. Will manage custom resource objects of the managed CRD types for the whole cluster if unset.")
-	enableWebhook           = flag.Bool("enable-webhook", false, "Whether to enable the mutating admission webhook for admitting and patching Spark pods.")
-	webhookCertDir          = flag.String("webhook-cert-dir", "/etc/webhook-certs", "The directory where x509 certificate and key files are stored.")
-	webhookSvcNamespace     = flag.String("webhook-svc-namespace", "sparkoperator", "The namespace of the Service for the webhook server.")
-	webhookSvcName          = flag.String("webhook-svc-name", "spark-webhook", "The name of the Service for the webhook server.")
-	webhookPort             = flag.Int("webhook-port", 8080, "Service port of the webhook server.")
-	enableMetrics           = flag.Bool("enable-metrics", false, "Whether to enable the metrics endpoint.")
-	metricsPort             = flag.String("metrics-port", "10254", "Port for the metrics endpoint.")
-	metricsEndpoint         = flag.String("metrics-endpoint", "/metrics", "Metrics endpoint.")
-	metricsPrefix           = flag.String("metrics-prefix", "", "Prefix for the metrics.")
+	master              = flag.String("master", "", "The address of the Kubernetes API server. Overrides any value in kubeconfig. Only required if out-of-cluster.")
+	kubeConfig          = flag.String("kubeConfig", "", "Path to a kube config. Only required if out-of-cluster.")
+	installCRDs         = flag.Bool("install-crds", true, "Whether to install CRDs")
+	controllerThreads   = flag.Int("controller-threads", 10, "Number of worker threads used by the SparkApplication controller.")
+	resyncInterval      = flag.Int("resync-interval", 30, "Informer resync interval in seconds.")
+	namespace           = flag.String("namespace", apiv1.NamespaceAll, "The Kubernetes namespace to manage. Will manage custom resource objects of the managed CRD types for the whole cluster if unset.")
+	enableWebhook       = flag.Bool("enable-webhook", false, "Whether to enable the mutating admission webhook for admitting and patching Spark pods.")
+	webhookCertDir      = flag.String("webhook-cert-dir", "/etc/webhook-certs", "The directory where x509 certificate and key files are stored.")
+	webhookSvcNamespace = flag.String("webhook-svc-namespace", "sparkoperator", "The namespace of the Service for the webhook server.")
+	webhookSvcName      = flag.String("webhook-svc-name", "spark-webhook", "The name of the Service for the webhook server.")
+	webhookPort         = flag.Int("webhook-port", 8080, "Service port of the webhook server.")
+	enableMetrics       = flag.Bool("enable-metrics", false, "Whether to enable the metrics endpoint.")
+	metricsPort         = flag.String("metrics-port", "10254", "Port for the metrics endpoint.")
+	metricsEndpoint     = flag.String("metrics-endpoint", "/metrics", "Metrics endpoint.")
+	metricsPrefix       = flag.String("metrics-prefix", "", "Prefix for the metrics.")
 )
 
 func main() {
@@ -128,7 +127,7 @@ func main() {
 		time.Duration(*resyncInterval)*time.Second,
 		factoryOpts...)
 	applicationController := sparkapplication.NewController(
-		crdClient, kubeClient, apiExtensionsClient, factory, *submissionRunnerThreads, metricConfig, *namespace)
+		crdClient, kubeClient, apiExtensionsClient, factory, metricConfig, *namespace)
 	scheduledApplicationController := scheduledsparkapplication.NewController(
 		crdClient, kubeClient, apiExtensionsClient, factory, clock.RealClock{})
 
