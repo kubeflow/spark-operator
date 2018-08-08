@@ -43,7 +43,7 @@ function parse_arguments {
       shift 2
       continue
       ;;
-      -p|--pod-container) # Whether the script is running inside a pod container or invoked manually
+      -p|--in-pod)
       export IN_POD=true
       shift 1
       continue
