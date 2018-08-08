@@ -190,6 +190,19 @@ func handleLocalDependencies(app *v1alpha1.SparkApplication) error {
 		app.Spec.Deps.Files = uploadedFiles
 	}
 
+	localPyFiles, err := filterLocalFiles(app.Spec.Deps.PyFiles)
+	if err != nil {
+		return fmt.Errorf("failed to filter local pyfiles: %v", err)
+	}
+
+	if len(localPyFiles) > 0 {
+		uploadedPyFiles, err := uploadLocalDependencies(app, localPyFiles)
+		if err != nil {
+			return fmt.Errorf("failed to upload local pyfiles: %v", err)
+		}
+		app.Spec.Deps.PyFiles = uploadedPyFiles
+	}
+
 	return nil
 }
 

@@ -27,34 +27,34 @@ import (
 	types "k8s.io/apimachinery/pkg/types"
 	watch "k8s.io/apimachinery/pkg/watch"
 	testing "k8s.io/client-go/testing"
-	v1alpha1 "k8s.io/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1alpha1"
+	v1beta1 "k8s.io/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta1"
 )
 
 // FakeSparkApplications implements SparkApplicationInterface
 type FakeSparkApplications struct {
-	Fake *FakeSparkoperatorV1alpha1
+	Fake *FakeSparkoperatorV1beta1
 	ns   string
 }
 
-var sparkapplicationsResource = schema.GroupVersionResource{Group: "sparkoperator", Version: "v1alpha1", Resource: "sparkapplications"}
+var sparkapplicationsResource = schema.GroupVersionResource{Group: "sparkoperator", Version: "v1beta1", Resource: "sparkapplications"}
 
-var sparkapplicationsKind = schema.GroupVersionKind{Group: "sparkoperator", Version: "v1alpha1", Kind: "SparkApplication"}
+var sparkapplicationsKind = schema.GroupVersionKind{Group: "sparkoperator", Version: "v1beta1", Kind: "SparkApplication"}
 
 // Get takes name of the sparkApplication, and returns the corresponding sparkApplication object, and an error if there is any.
-func (c *FakeSparkApplications) Get(name string, options v1.GetOptions) (result *v1alpha1.SparkApplication, err error) {
+func (c *FakeSparkApplications) Get(name string, options v1.GetOptions) (result *v1beta1.SparkApplication, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewGetAction(sparkapplicationsResource, c.ns, name), &v1alpha1.SparkApplication{})
+		Invokes(testing.NewGetAction(sparkapplicationsResource, c.ns, name), &v1beta1.SparkApplication{})
 
 	if obj == nil {
 		return nil, err
 	}
-	return obj.(*v1alpha1.SparkApplication), err
+	return obj.(*v1beta1.SparkApplication), err
 }
 
 // List takes label and field selectors, and returns the list of SparkApplications that match those selectors.
-func (c *FakeSparkApplications) List(opts v1.ListOptions) (result *v1alpha1.SparkApplicationList, err error) {
+func (c *FakeSparkApplications) List(opts v1.ListOptions) (result *v1beta1.SparkApplicationList, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewListAction(sparkapplicationsResource, sparkapplicationsKind, c.ns, opts), &v1alpha1.SparkApplicationList{})
+		Invokes(testing.NewListAction(sparkapplicationsResource, sparkapplicationsKind, c.ns, opts), &v1beta1.SparkApplicationList{})
 
 	if obj == nil {
 		return nil, err
@@ -64,8 +64,8 @@ func (c *FakeSparkApplications) List(opts v1.ListOptions) (result *v1alpha1.Spar
 	if label == nil {
 		label = labels.Everything()
 	}
-	list := &v1alpha1.SparkApplicationList{ListMeta: obj.(*v1alpha1.SparkApplicationList).ListMeta}
-	for _, item := range obj.(*v1alpha1.SparkApplicationList).Items {
+	list := &v1beta1.SparkApplicationList{ListMeta: obj.(*v1beta1.SparkApplicationList).ListMeta}
+	for _, item := range obj.(*v1beta1.SparkApplicationList).Items {
 		if label.Matches(labels.Set(item.Labels)) {
 			list.Items = append(list.Items, item)
 		}
@@ -81,31 +81,31 @@ func (c *FakeSparkApplications) Watch(opts v1.ListOptions) (watch.Interface, err
 }
 
 // Create takes the representation of a sparkApplication and creates it.  Returns the server's representation of the sparkApplication, and an error, if there is any.
-func (c *FakeSparkApplications) Create(sparkApplication *v1alpha1.SparkApplication) (result *v1alpha1.SparkApplication, err error) {
+func (c *FakeSparkApplications) Create(sparkApplication *v1beta1.SparkApplication) (result *v1beta1.SparkApplication, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewCreateAction(sparkapplicationsResource, c.ns, sparkApplication), &v1alpha1.SparkApplication{})
+		Invokes(testing.NewCreateAction(sparkapplicationsResource, c.ns, sparkApplication), &v1beta1.SparkApplication{})
 
 	if obj == nil {
 		return nil, err
 	}
-	return obj.(*v1alpha1.SparkApplication), err
+	return obj.(*v1beta1.SparkApplication), err
 }
 
 // Update takes the representation of a sparkApplication and updates it. Returns the server's representation of the sparkApplication, and an error, if there is any.
-func (c *FakeSparkApplications) Update(sparkApplication *v1alpha1.SparkApplication) (result *v1alpha1.SparkApplication, err error) {
+func (c *FakeSparkApplications) Update(sparkApplication *v1beta1.SparkApplication) (result *v1beta1.SparkApplication, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewUpdateAction(sparkapplicationsResource, c.ns, sparkApplication), &v1alpha1.SparkApplication{})
+		Invokes(testing.NewUpdateAction(sparkapplicationsResource, c.ns, sparkApplication), &v1beta1.SparkApplication{})
 
 	if obj == nil {
 		return nil, err
 	}
-	return obj.(*v1alpha1.SparkApplication), err
+	return obj.(*v1beta1.SparkApplication), err
 }
 
 // Delete takes name of the sparkApplication and deletes it. Returns an error if one occurs.
 func (c *FakeSparkApplications) Delete(name string, options *v1.DeleteOptions) error {
 	_, err := c.Fake.
-		Invokes(testing.NewDeleteAction(sparkapplicationsResource, c.ns, name), &v1alpha1.SparkApplication{})
+		Invokes(testing.NewDeleteAction(sparkapplicationsResource, c.ns, name), &v1beta1.SparkApplication{})
 
 	return err
 }
@@ -114,17 +114,17 @@ func (c *FakeSparkApplications) Delete(name string, options *v1.DeleteOptions) e
 func (c *FakeSparkApplications) DeleteCollection(options *v1.DeleteOptions, listOptions v1.ListOptions) error {
 	action := testing.NewDeleteCollectionAction(sparkapplicationsResource, c.ns, listOptions)
 
-	_, err := c.Fake.Invokes(action, &v1alpha1.SparkApplicationList{})
+	_, err := c.Fake.Invokes(action, &v1beta1.SparkApplicationList{})
 	return err
 }
 
 // Patch applies the patch and returns the patched sparkApplication.
-func (c *FakeSparkApplications) Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *v1alpha1.SparkApplication, err error) {
+func (c *FakeSparkApplications) Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *v1beta1.SparkApplication, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewPatchSubresourceAction(sparkapplicationsResource, c.ns, name, data, subresources...), &v1alpha1.SparkApplication{})
+		Invokes(testing.NewPatchSubresourceAction(sparkapplicationsResource, c.ns, name, data, subresources...), &v1beta1.SparkApplication{})
 
 	if obj == nil {
 		return nil, err
 	}
-	return obj.(*v1alpha1.SparkApplication), err
+	return obj.(*v1beta1.SparkApplication), err
 }

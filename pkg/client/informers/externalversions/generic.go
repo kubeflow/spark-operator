@@ -26,6 +26,7 @@ import (
 	schema "k8s.io/apimachinery/pkg/runtime/schema"
 	cache "k8s.io/client-go/tools/cache"
 	v1alpha1 "k8s.io/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1alpha1"
+	v1beta1 "k8s.io/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta1"
 )
 
 // GenericInformer is type of SharedIndexInformer which will locate and delegate to other
@@ -59,6 +60,12 @@ func (f *sharedInformerFactory) ForResource(resource schema.GroupVersionResource
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Sparkoperator().V1alpha1().ScheduledSparkApplications().Informer()}, nil
 	case v1alpha1.SchemeGroupVersion.WithResource("sparkapplications"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Sparkoperator().V1alpha1().SparkApplications().Informer()}, nil
+
+		// Group=sparkoperator, Version=v1beta1
+	case v1beta1.SchemeGroupVersion.WithResource("scheduledsparkapplications"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Sparkoperator().V1beta1().ScheduledSparkApplications().Informer()}, nil
+	case v1beta1.SchemeGroupVersion.WithResource("sparkapplications"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Sparkoperator().V1beta1().SparkApplications().Informer()}, nil
 
 	}
 

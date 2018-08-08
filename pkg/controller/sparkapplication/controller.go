@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/golang/glog"
+
 	apiv1 "k8s.io/api/core/v1"
 	apiextensionsclient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -53,38 +54,6 @@ const (
 
 var (
 	keyFunc = cache.DeletionHandlingMetaNamespaceKeyFunc
-
-	// Valid Driver State Transitions: map with valid pairs of oldState-> {newStates}
-	validDriverStateTransitions = map[v1alpha1.ApplicationStateType][]v1alpha1.ApplicationStateType{
-		"": {v1alpha1.NewState, v1alpha1.UnknownState, v1alpha1.SubmittedState,
-			v1alpha1.RunningState, v1alpha1.CompletedState, v1alpha1.FailedSubmissionState, v1alpha1.FailedState},
-
-		v1alpha1.NewState: {v1alpha1.UnknownState, v1alpha1.SubmittedState,
-			v1alpha1.RunningState, v1alpha1.CompletedState, v1alpha1.FailedSubmissionState, v1alpha1.FailedState},
-
-		v1alpha1.UnknownState: {v1alpha1.NewState, v1alpha1.SubmittedState,
-			v1alpha1.RunningState, v1alpha1.CompletedState, v1alpha1.FailedSubmissionState, v1alpha1.FailedState},
-
-		v1alpha1.FailedSubmissionState: {v1alpha1.UnknownState, v1alpha1.SubmittedState,
-			v1alpha1.RunningState, v1alpha1.CompletedState, v1alpha1.FailedState},
-
-		v1alpha1.SubmittedState: {v1alpha1.RunningState, v1alpha1.CompletedState, v1alpha1.FailedState},
-		v1alpha1.RunningState:   {v1alpha1.CompletedState, v1alpha1.FailedState},
-	}
-
-	// Valid Executor State Transitions: map with valid paris of oldState-> {newStates}
-	validExecutorStateTransitions = map[v1alpha1.ExecutorState][]v1alpha1.ExecutorState{
-		"": {v1alpha1.ExecutorUnknownState, v1alpha1.ExecutorRunningState, v1alpha1.ExecutorPendingState,
-			v1alpha1.ExecutorFailedState, v1alpha1.ExecutorCompletedState},
-
-		v1alpha1.ExecutorUnknownState: {v1alpha1.ExecutorRunningState, v1alpha1.ExecutorPendingState,
-			v1alpha1.ExecutorFailedState, v1alpha1.ExecutorCompletedState},
-
-		v1alpha1.ExecutorPendingState: {v1alpha1.ExecutorUnknownState, v1alpha1.ExecutorRunningState,
-			v1alpha1.ExecutorFailedState, v1alpha1.ExecutorCompletedState},
-
-		v1alpha1.ExecutorRunningState: {v1alpha1.ExecutorFailedState, v1alpha1.ExecutorCompletedState},
-	}
 )
 
 // Controller manages instances of SparkApplication.
@@ -100,7 +69,7 @@ type Controller struct {
 	sparkPodMonitor       *sparkPodMonitor
 	appStateReportingChan <-chan *appStateUpdate
 	podStateReportingChan <-chan interface{}
-	metrics               *util.PrometheusMetrics
+	metrics               *sparkAppMetrics
 }
 
 // NewController creates a new Controller.
@@ -110,7 +79,7 @@ func NewController(
 	extensionsClient apiextensionsclient.Interface,
 	informerFactory crdinformers.SharedInformerFactory,
 	submissionRunnerWorkers int,
-	metrics *util.PrometheusMetrics,
+	metricsConfig *util.MetricConfig,
 	namespace string) *Controller {
 	crdscheme.AddToScheme(scheme.Scheme)
 
@@ -122,7 +91,7 @@ func NewController(
 	recorder := eventBroadcaster.NewRecorder(scheme.Scheme, apiv1.EventSource{Component: "spark-operator"})
 
 	return newSparkApplicationController(crdClient, kubeClient, extensionsClient, informerFactory, recorder,
-		submissionRunnerWorkers, metrics, namespace)
+		submissionRunnerWorkers, metricsConfig, namespace)
 }
 
 func newSparkApplicationController(
@@ -132,7 +101,7 @@ func newSparkApplicationController(
 	informerFactory crdinformers.SharedInformerFactory,
 	eventRecorder record.EventRecorder,
 	submissionRunnerWorkers int,
-	metrics *util.PrometheusMetrics,
+	metricsConfig *util.MetricConfig,
 	namespace string) *Controller {
 	queue := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(),
 		"spark-application-controller")
@@ -150,10 +119,14 @@ func newSparkApplicationController(
 		recorder:              eventRecorder,
 		queue:                 queue,
 		runner:                runner,
-		metrics:               metrics,
 		sparkPodMonitor:       sparkPodMonitor,
 		appStateReportingChan: appStateReportingChan,
 		podStateReportingChan: podStateReportingChan,
+	}
+
+	if metricsConfig != nil {
+		controller.metrics = newSparkAppMetrics(metricsConfig.MetricsPrefix, metricsConfig.MetricsLabels)
+		controller.metrics.registerMetrics()
 	}
 
 	informer := informerFactory.Sparkoperator().V1alpha1().SparkApplications()
@@ -182,6 +155,7 @@ func (c *Controller) Start(workers int, stopCh <-chan struct{}) error {
 		// the worker after one second.
 		go wait.Until(c.runWorker, time.Second, stopCh)
 	}
+
 	go c.runner.run(stopCh)
 	go c.sparkPodMonitor.run(stopCh)
 
@@ -419,6 +393,7 @@ func (c *Controller) processSingleDriverStateUpdate(update *driverStateUpdate) *
 	if update.appID != app.Status.AppID {
 		return nil
 	}
+
 	c.recordDriverEvent(app, update.podPhase, update.podName)
 
 	// The application state is solely based on the driver pod phase once the application is successfully
@@ -532,28 +507,30 @@ func (c *Controller) processSingleExecutorStateUpdate(update *executorStateUpdat
 
 func (c *Controller) updateSparkApplicationStatusWithRetries(
 	original *v1alpha1.SparkApplication,
-	updateFunc func(*v1alpha1.SparkApplicationStatus),
-) *v1alpha1.SparkApplication {
-
+	updateFunc func(*v1alpha1.SparkApplicationStatus)) *v1alpha1.SparkApplication {
 	var lastUpdateErr error
 	for i := 0; i < maximumUpdateRetries; i++ {
 		toUpdate := original.DeepCopy()
-
 		glog.V(2).Infof("Trying to update SparkApplication %s", original.Name)
 		// Apply update
 		updateFunc(&toUpdate.Status)
 
 		// Let's keep the old App status if this is not a valid transition.
-		if !isValidDriverStatusTransition(original.Status.AppState.State, toUpdate.Status.AppState.State) {
+		if original.Status.AppState.State != toUpdate.Status.AppState.State &&
+			!isValidDriverStateTransition(original.Status.AppState.State, toUpdate.Status.AppState.State) {
+			glog.Warningf("Invalid Driver State Transition. From:[%v] To:[%v]", original.Status.AppState.State, toUpdate.Status.AppState.State)
 			toUpdate.Status.AppState = original.Status.AppState
 		}
 		updated, err := c.tryUpdateStatus(original, toUpdate)
 		if err == nil {
-			c.postMetrics(original, updated)
+			if c.metrics != nil && updated != nil {
+				// Original is the last state returned by API Server before update.
+				c.metrics.exportMetrics(original, updated)
+			}
 			return updated
 		}
 		lastUpdateErr = err
-		glog.Errorf("[Attempt: %v] failed to update SparkApplication [%v] %v", i, toUpdate, err)
+		glog.Errorf("[Attempt: %d] failed to update SparkApplication [%s]. Error: [%v]", i, toUpdate.Name, err)
 
 		// Failed update to the API server.
 		// Get the latest version from the API server first and re-apply the update.
@@ -571,140 +548,6 @@ func (c *Controller) updateSparkApplicationStatusWithRetries(
 	}
 
 	return nil
-}
-
-// isValidDriverStatusTransition determines if the driver state transition is valid
-func isValidDriverStatusTransition(oldStatus, newStatus v1alpha1.ApplicationStateType) bool {
-	for _, validStatus := range validDriverStateTransitions[oldStatus] {
-		if newStatus == validStatus {
-			return true
-		}
-	}
-	return false
-}
-
-// isValidExecutorStatusTransition determines if the executor state transition is valid
-func isValidExecutorStatusTransition(oldStatus, newStatus v1alpha1.ExecutorState) bool {
-
-	for _, validStatus := range validExecutorStateTransitions[oldStatus] {
-		if newStatus == validStatus {
-			return true
-		}
-	}
-
-	return false
-}
-
-func fetchMetricLabels(specLabels map[string]string, labels []string) map[string]string {
-
-	metricLabels := map[string]string{}
-
-	for _, label := range labels {
-		metricLabels[label] = specLabels[label]
-		if metricLabels[label] == "" {
-			metricLabels[label] = "Unknown"
-		}
-	}
-	return metricLabels
-}
-
-func (c *Controller) postMetrics(oldState, newState *v1alpha1.SparkApplication) {
-	if c.metrics == nil {
-		glog.V(2).Infof("Metrics not enabled. Skipping posting metrics")
-		return
-	}
-
-	if newState == nil {
-		glog.V(2).Infof("Found nil Spark App state. Skipping posting metrics")
-		return
-	}
-	metricLabels := fetchMetricLabels(newState.Labels, c.metrics.Labels)
-	glog.V(2).Infof("Posting Metrics for %s. OldStatus: %v NewStatus: %v", newState.GetName(), oldState.Status, newState.Status)
-
-	oldStatus := oldState.Status.AppState.State
-	newStatus := newState.Status.AppState.State
-
-	switch newStatus {
-	case v1alpha1.SubmittedState:
-		if isValidDriverStatusTransition(oldStatus, newStatus) {
-			if m, err := c.metrics.SparkAppSubmitCount.GetMetricWith(metricLabels); err != nil {
-				glog.Errorf("Error while posting metrics: %v", err)
-			} else {
-				m.Inc()
-			}
-		}
-	case v1alpha1.RunningState:
-		if isValidDriverStatusTransition(oldStatus, newStatus) {
-			c.metrics.SparkAppRunningCount.Inc(metricLabels)
-		}
-	case v1alpha1.CompletedState:
-		if isValidDriverStatusTransition(oldStatus, newStatus) {
-			if !newState.Status.SubmissionTime.Time.IsZero() && !newState.Status.CompletionTime.Time.IsZero() {
-				d := newState.Status.CompletionTime.Time.Sub(newState.Status.SubmissionTime.Time)
-
-				if m, err := c.metrics.SparkAppSuccessExecutionTime.GetMetricWith(metricLabels); err != nil {
-					glog.Errorf("Error while posting metrics: %v", err)
-				} else {
-					m.Observe(float64(d/time.Microsecond))
-				}
-			}
-			c.metrics.SparkAppRunningCount.Dec(metricLabels)
-			if m, err := c.metrics.SparkAppSuccessCount.GetMetricWith(metricLabels); err != nil {
-				glog.Errorf("Error while posting metrics: %v", err)
-			} else {
-				m.Inc()
-			}
-		}
-	case v1alpha1.FailedSubmissionState:
-		fallthrough
-	case v1alpha1.FailedState:
-		if isValidDriverStatusTransition(oldStatus, newStatus) {
-			if !newState.Status.SubmissionTime.Time.IsZero() && !newState.Status.CompletionTime.Time.IsZero() {
-				d := newState.Status.CompletionTime.Time.Sub(newState.Status.SubmissionTime.Time)
-				if m, err := c.metrics.SparkAppFailureExecutionTime.GetMetricWith(metricLabels); err != nil {
-					glog.Errorf("Error while posting metrics: %v", err)
-				} else {
-					m.Observe(float64(d/time.Microsecond))
-				}
-			}
-			c.metrics.SparkAppRunningCount.Dec(metricLabels)
-			if m, err := c.metrics.SparkAppFailureCount.GetMetricWith(metricLabels); err != nil {
-				glog.Errorf("Error while posting metrics: %v", err)
-			} else {
-				m.Inc()
-			}
-		}
-	}
-
-	// Potential Executor status updates
-	for executor, newExecStatus := range newState.Status.ExecutorState {
-		if newExecStatus == v1alpha1.ExecutorRunningState && (isValidExecutorStatusTransition(oldState.Status.ExecutorState[executor], newExecStatus)) {
-			glog.V(2).Infof("Posting Metrics for Executor %s. OldStatus: %v NewStatus: %v", executor, oldState.Status.ExecutorState[executor], newExecStatus)
-			c.metrics.SparkAppExecutorRunningCount.Inc(metricLabels)
-		}
-
-		if newExecStatus == v1alpha1.ExecutorCompletedState &&
-			isValidExecutorStatusTransition(oldState.Status.ExecutorState[executor], newExecStatus) {
-			glog.V(2).Infof("Posting Metrics for Executor %s. OldStatus: %v NewStatus: %v", executor, oldState.Status.ExecutorState[executor], newExecStatus)
-			c.metrics.SparkAppExecutorRunningCount.Dec(metricLabels)
-			if m, err := c.metrics.SparkAppExecutorSuccessCount.GetMetricWith(metricLabels); err != nil {
-				glog.Errorf("Error while posting metrics: %v", err)
-			} else {
-				m.Inc()
-			}
-		}
-
-		if newExecStatus == v1alpha1.ExecutorFailedState &&
-			isValidExecutorStatusTransition(oldState.Status.ExecutorState[executor], newExecStatus) {
-			glog.V(2).Infof("Posting Metrics for Executor %s. OldStatus: %v NewStatus: %v", executor, oldState.Status.ExecutorState[executor], newExecStatus)
-			c.metrics.SparkAppExecutorRunningCount.Dec(metricLabels)
-			if m, err := c.metrics.SparkAppExecutorFailureCount.GetMetricWith(metricLabels); err != nil {
-				glog.Errorf("Error while posting metrics: %v", err)
-			} else {
-				m.Inc()
-			}
-		}
-	}
 }
 
 func (c *Controller) tryUpdateStatus(

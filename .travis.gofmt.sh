@@ -1,5 +1,6 @@
+#!/bin/bash
 #
-# Copyright 2017 Google LLC
+# Copyright 2018 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,31 +13,9 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-#
 
-language: go
-
-go:
-  - 1.9.x
-  - 1.10.x
-
-env:
-  - DEP_VERSION="0.4.1"
-
-before_install:
-  # Download the binary to bin folder in $GOPATH
-  - curl -L -s https://github.com/golang/dep/releases/download/v${DEP_VERSION}/dep-linux-amd64 -o $GOPATH/bin/dep
-  # Make the binary executable
-  - chmod +x $GOPATH/bin/dep
-
-install:
-  - dep ensure
-
-go_import_path: k8s.io/spark-on-k8s-operator
-
-script:
-  - go test -v ./...
-  - ./.travis.gofmt.sh
-
-
-
+cd "$(dirname $0)"
+if [ -n "$(go fmt ./...)" ]; then
+  echo "Go code is not formatted, please run 'go fmt ./...'." >&2
+  exit 1
+fi

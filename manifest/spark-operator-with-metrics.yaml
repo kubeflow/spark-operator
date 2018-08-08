@@ -1,5 +1,5 @@
 #
-# Copyright 2017 Google LLC
+# Copyright 2018 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -35,6 +35,7 @@ spec:
       annotations:
         prometheus.io/scrape: "true"
         prometheus.io/port: "10254"
+        prometheus.io/path: "/metrics"
       labels:
         app.kubernetes.io/name: sparkoperator
         app.kubernetes.io/version: v2.3.0-v1alpha1
@@ -44,8 +45,12 @@ spec:
       serviceAccountName: sparkoperator
       containers:
       - name: sparkoperator
-        image: gcr.io/spark-operator/spark-operator:v2.3.0-v1alpha1-latest
+        image: #operator-with-metrics image placeholder
         imagePullPolicy: Always
         command: ["/usr/bin/spark-operator"]
+        ports:
+          - containerPort: 10254
         args:
         - -logtostderr
+        - -enable-metrics=true
+        - -metrics-labels=app_type

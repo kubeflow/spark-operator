@@ -306,6 +306,7 @@ func (c *Controller) hasLastRunFinished(
 	lastRunName string) (bool, *v1alpha1.SparkApplication, error) {
 	app, err := c.saLister.SparkApplications(namespace).Get(lastRunName)
 	if err != nil {
+		// The SparkApplication of the last run may have been deleted already (e.g., manually by the user).
 		if errors.IsNotFound(err) {
 			return true, nil, nil
 		}
@@ -340,6 +341,10 @@ func (c *Controller) checkAndUpdatePastRuns(
 	lastRunName := status.LastRunName
 	lastRunApp, err := c.saLister.SparkApplications(app.Namespace).Get(lastRunName)
 	if err != nil {
+		// The SparkApplication of the last run may have been deleted already (e.g., manually by the user).
+		if errors.IsNotFound(err) {
+			return nil
+		}
 		return err
 	}
 
