@@ -24,8 +24,12 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
+	"fmt"
+	"os/exec"
+
 	"github.com/prometheus/client_golang/prometheus"
 	prometheus_model "github.com/prometheus/client_model/go"
+
 	apiv1 "k8s.io/api/core/v1"
 	apiextensionsfake "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset/fake"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -37,10 +41,6 @@ import (
 	crdclientfake "k8s.io/spark-on-k8s-operator/pkg/client/clientset/versioned/fake"
 	crdinformers "k8s.io/spark-on-k8s-operator/pkg/client/informers/externalversions"
 	"k8s.io/spark-on-k8s-operator/pkg/util"
-	//	"context"
-	"fmt"
-	"os/exec"
-
 	"k8s.io/spark-on-k8s-operator/pkg/config"
 )
 
@@ -51,8 +51,6 @@ func newFakeController(apps ...*v1alpha1.SparkApplication) (*Controller, *record
 	apiExtensionsClient := apiextensionsfake.NewSimpleClientset()
 	informerFactory := crdinformers.NewSharedInformerFactory(crdClient, 0*time.Second)
 	recorder := record.NewFakeRecorder(3)
-
-	//	ctx, _ := context.WithTimeout(context.Background(), 5*time.Second)
 
 	kubeClient.CoreV1().Nodes().Create(&apiv1.Node{
 		ObjectMeta: metav1.ObjectMeta{

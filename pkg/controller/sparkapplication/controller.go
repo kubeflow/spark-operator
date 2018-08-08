@@ -24,6 +24,10 @@ import (
 	"time"
 
 	"github.com/golang/glog"
+
+	"os"
+	"path/filepath"
+
 	apiv1 "k8s.io/api/core/v1"
 	apiextensionsclient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -41,8 +45,6 @@ import (
 	crdscheme "k8s.io/spark-on-k8s-operator/pkg/client/clientset/versioned/scheme"
 	crdinformers "k8s.io/spark-on-k8s-operator/pkg/client/informers/externalversions"
 	"k8s.io/spark-on-k8s-operator/pkg/util"
-	"os"
-	"path/filepath"
 )
 
 const (
@@ -540,7 +542,6 @@ func (c *Controller) updateSparkApplicationStatusWithRetries(
 		}
 
 		updated, err := c.tryUpdateStatus(original, toUpdate)
-
 		if err == nil {
 			if c.metrics != nil && updated != nil {
 				// Original is the last state returned by API Server before update.
@@ -580,7 +581,6 @@ func (c *Controller) tryUpdateStatus(
 }
 
 func (c *Controller) getSparkApplication(namespace string, name string) (*v1alpha1.SparkApplication, error) {
-
 	return c.crdClient.SparkoperatorV1alpha1().SparkApplications(namespace).Get(name,
 		metav1.GetOptions{})
 }
@@ -613,7 +613,6 @@ func (c *Controller) handleRestart(app *v1alpha1.SparkApplication) {
 }
 
 func (c *Controller) handleResubmission(namespace string, appName string) {
-
 	app, err := c.getSparkApplication(namespace, appName)
 	if err != nil {
 		glog.Errorf("Failed to fetch SparkApplication %s in namespace %s", appName, namespace)
@@ -625,7 +624,6 @@ func (c *Controller) handleResubmission(namespace string, appName string) {
 	}
 
 	glog.Infof("Retrying submission of SparkApplication %s", app.Name)
-
 	if err := c.deleteDriverAndUIService(app, false); err != nil {
 		glog.Errorf("failed to delete the old driver pod and UI service for SparkApplication %s: %v",
 			app.Name, err)
