@@ -25,7 +25,7 @@ function usage {
   Options:
   -h | --help               	   Display help information.
   -n | --namespace <namespace>   The namespace where the Spark operator is installed.			
-  -p | --pod-container           whether the script is running inside a pod container or manually invoked.
+  -p | --in-pod                  Whether the script is running inside a pod or not.
 EOF
 }
 
