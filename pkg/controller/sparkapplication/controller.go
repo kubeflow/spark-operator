@@ -362,6 +362,7 @@ func (c *Controller) getAndUpdateExecutorState(app *v1beta1.SparkApplication) er
 	if executorApplicationID != "" {
 		app.Status.SparkApplicationID = executorApplicationID
 	}
+	submission := newSubmission(submissionCmdArgs, appCopy)
 
 	if app.Status.ExecutorState == nil {
 		app.Status.ExecutorState = make(map[string]v1beta1.ExecutorState)
