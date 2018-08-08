@@ -150,6 +150,8 @@ type SparkApplication struct {
 type SparkApplicationSpec struct {
 	// Type tells the type of the Spark application.
 	Type SparkApplicationType `json:"type"`
+	// SparkVersion is the version of Spark the application uses.
+	SparkVersion string `json:"sparkVersion"`
 	// Mode is the deployment mode of the Spark application.
 	Mode DeployMode `json:"mode,omitempty"`
 	// Image is the container image for the driver, executor, and init-container. Any custom container images for the
