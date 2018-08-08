@@ -32,7 +32,7 @@ const (
 	Singular  = "scheduledsparkapplication"
 	ShortName = "scheduledsparkapp"
 	Group     = sparkoperator.GroupName
-	Version   = "v1alpha1"
+	Version   = v1alpha1.Version
 	FullName  = Plural + "." + Group
 )
 
