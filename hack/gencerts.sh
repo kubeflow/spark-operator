@@ -23,9 +23,9 @@ function usage {
   cat<< EOF
   Usage: $SCRIPT
   Options:
-  -h | --help               	   This help info.
+  -h | --help               	   Display help information.
   -n | --namespace <namespace>   The namespace where the Spark operator is installed.			
-  -p | --pod-container           whether the script is running inside a pod container or manually invoked
+  -p | --pod-container           whether the script is running inside a pod container or manually invoked.
 EOF
 }
 
