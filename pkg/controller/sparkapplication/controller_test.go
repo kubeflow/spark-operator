@@ -49,8 +49,6 @@ func newFakeController(app *v1beta1.SparkApplication, pods ...*apiv1.Pod) (*Cont
 	informerFactory := crdinformers.NewSharedInformerFactory(crdClient, 0*time.Second)
 	recorder := record.NewFakeRecorder(3)
 
-	//	ctx, _ := context.WithTimeout(context.Background(), 5*time.Second)
-
 	kubeClient.CoreV1().Nodes().Create(&apiv1.Node{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "node1",
