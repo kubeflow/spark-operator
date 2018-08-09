@@ -18,11 +18,12 @@ package cmd
 
 import (
 	"fmt"
-	"github.com/olekukonko/tablewriter"
-	"github.com/spf13/cobra"
 	"os"
 	"strings"
 	"time"
+
+	"github.com/olekukonko/tablewriter"
+	"github.com/spf13/cobra"
 
 	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -34,8 +35,8 @@ import (
 
 var FollowEvents bool
 
-var eventsCommand = &cobra.Command{
-	Use:   "events <name>",
+var eventCommand = &cobra.Command{
+	Use:   "event <name>",
 	Short: "Shows SparkApplication events",
 	Long:  `Shows events associated with SparkApplication of a given name`,
 	Run: func(cmd *cobra.Command, args []string) {
@@ -63,7 +64,7 @@ var eventsCommand = &cobra.Command{
 }
 
 func init() {
-	eventsCommand.Flags().BoolVarP(&FollowEvents, "follow", "f", false,
+	eventCommand.Flags().BoolVarP(&FollowEvents, "follow", "f", false,
 		"whether to stream the events for the specified SparkApplication name")
 }
 

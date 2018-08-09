@@ -588,6 +588,7 @@
     "pkg/util/cache",
     "pkg/util/clock",
     "pkg/util/diff",
+    "pkg/util/duration",
     "pkg/util/errors",
     "pkg/util/framer",
     "pkg/util/httpstream",
@@ -754,9 +755,15 @@
   packages = ["pkg/util/proto"]
   revision = "bf40560368791a7dddfeea9b3cfcf89b34139f44"
 
+[[projects]]
+  name = "k8s.io/kubernetes"
+  packages = ["pkg/util/interrupt"]
+  revision = "bb9ffb1654d4a729bb4cec18ff088eacc153c239"
+  version = "v1.11.2"
+
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "9b7963ba9e67b29c9399a2c397b014720db36b9d0f8f03e13091c8274607f808"
+  inputs-digest = "a6b3389ce59992ab7fa5c82b0dc47146142d0df41c7295526c39bacc4de07289"
   solver-name = "gps-cdcl"
   solver-version = 1
