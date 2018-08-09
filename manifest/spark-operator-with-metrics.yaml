@@ -21,13 +21,13 @@ metadata:
   namespace: sparkoperator
   labels:
     app.kubernetes.io/name: sparkoperator
-    app.kubernetes.io/version: v2.3.0-v1alpha1
+    app.kubernetes.io/version: v2.3.1-v1alpha1
 spec:
   replicas: 1
   selector:
     matchLabels:
       app.kubernetes.io/name: sparkoperator
-      app.kubernetes.io/version: v2.3.0-v1alpha1
+      app.kubernetes.io/version: v2.3.1-v1alpha1
   strategy:
     type: Recreate
   template:
@@ -38,7 +38,7 @@ spec:
         prometheus.io/path: "/metrics"
       labels:
         app.kubernetes.io/name: sparkoperator
-        app.kubernetes.io/version: v2.3.0-v1alpha1
+        app.kubernetes.io/version: v2.3.1-v1alpha1
       initializers:
         pending: []
     spec:
