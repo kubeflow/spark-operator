@@ -166,6 +166,20 @@ Usage:
 $ sparkctl status <SparkApplication name>
 ```
 
+### Events
+
+`events` is a sub command of `sparkctl` for listing `SparkApplication` events in the namespace 
+specified by `--namespace`. 
+
+The `events` command also supports streaming the events with the `--follow` or `-f` flag. 
+The command will display events since last creation of the `SparkApplication`
+for the specific `name`, and continues to stream events even if `ResourceVersion` changes.
+
+Usage:
+```bash
+$ sparkctl events <SparkApplication name> [-f]
+```
+
 ### Log
 
 `log` is a sub command of `sparkctl` for fetching the logs of a pod of `SparkApplication` with the given name in the 
