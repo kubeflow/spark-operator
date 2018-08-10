@@ -18,111 +18,63 @@ package cmd
 
 import (
 	"fmt"
-	"io"
-	"os"
-	"path/filepath"
 
 	"cloud.google.com/go/storage"
+	"github.com/google/go-cloud/blob/gcsblob"
+	"github.com/google/go-cloud/gcp"
 	"golang.org/x/net/context"
 )
 
-const rootPath = "spark-app-dependencies"
-
-type gcsUploader struct {
-	client *storage.Client
-	handle *storage.BucketHandle
-	bucket string
-	path   string
+type blobGCS struct {
+	projectId string
+	endpoint  string
+	region    string
 }
 
-func newGcsUploader(bucket string, path string, projectID string, ctx context.Context) (*gcsUploader, error) {
+func (blob blobGCS) setPublicACL(
+	ctx context.Context,
+	bucket string,
+	filePath string) error {
 	client, err := storage.NewClient(ctx)
 	if err != nil {
-		return nil, err
+		return err
 	}
+	defer client.Close()
 
-	handle := client.Bucket(bucket)
-	// Check if the bucket exists.
-	if _, err := handle.Attrs(ctx); err != nil {
-		return nil, err
+	handle := client.Bucket(bucket).UserProject(blob.projectId)
+	if err = handle.Object(filePath).ACL().Set(ctx, storage.AllUsers, storage.RoleReader); err != nil {
+		return fmt.Errorf("failed to set ACL on GCS object %s: %v", filePath, err)
 	}
-	uploader := &gcsUploader{
-		client: client,
-		handle: handle.UserProject(projectID),
-		bucket: bucket,
-		path:   path}
-
-	return uploader, nil
+	return nil
 }
 
-func (g *gcsUploader) upload(ctx context.Context, localFile string, public bool, override bool) (string, error) {
-	file, err := os.Open(localFile)
-	if err != nil {
-		return "", fmt.Errorf("failed to open file %s: %v", localFile, err)
-	}
-	defer file.Close()
-
-	object := g.handle.Object(filepath.Join(g.path, filepath.Base(localFile)))
-	// Check if a file with the same name already exists remotely.
-	objectAttrs, err := object.Attrs(ctx)
-	if err == nil && !override {
-		fmt.Printf("not uploading file %s as it already exists remotely\n", filepath.Base(localFile))
-		return getRemoteFileUrl(objectAttrs.Bucket, objectAttrs.Name, public), nil
-	}
-
-	fmt.Printf("uploading local file: %s\n", localFile)
-	writer := object.NewWriter(ctx)
-	if _, err = io.Copy(writer, file); err != nil {
-		return "", fmt.Errorf("failed to copy file %s to GCS: %v", localFile, err)
-	}
-	if err = writer.Close(); err != nil {
-		return "", err
-	}
-
-	objectAttrs, err = object.Attrs(ctx)
-	if err != nil {
-		return "", err
-	}
-
-	if public {
-		if err = object.ACL().Set(ctx, storage.AllUsers, storage.RoleReader); err != nil {
-			return "", fmt.Errorf("failed to set ACL on GCS object %s: %v", objectAttrs.Name, err)
-		}
-	}
-
-	return getRemoteFileUrl(objectAttrs.Bucket, objectAttrs.Name, public), nil
-}
-
-func uploadToGCS(
+func newGCSBlob(
+	ctx context.Context,
 	bucket string,
-	appNamespace string,
-	appName string,
-	projectID string,
-	files []string,
-	public bool,
-	override bool) ([]string, error) {
-	ctx := context.Background()
-	uploader, err := newGcsUploader(bucket, filepath.Join(rootPath, appNamespace, appName), projectID, ctx)
+	endpoint string,
+	region string) (*uploadHandler, error) {
+	creds, err := gcp.DefaultCredentials(ctx)
 	if err != nil {
 		return nil, err
 	}
-	defer uploader.client.Close()
 
-	var uploadedFiles []string
-	for _, file := range files {
-		remoteFile, err := uploader.upload(ctx, file, public, override)
-		if err != nil {
-			return nil, err
-		}
-		uploadedFiles = append(uploadedFiles, remoteFile)
+	projectId, err := gcp.DefaultProjectID(creds)
+	if err != nil {
+		return nil, err
 	}
 
-	return uploadedFiles, nil
-}
-
-func getRemoteFileUrl(bucket, name string, public bool) string {
-	if public {
-		return fmt.Sprintf("https://storage.googleapis.com/%s/%s", bucket, name)
+	c, err := gcp.NewHTTPClient(gcp.DefaultTransport(), gcp.CredentialsTokenSource(creds))
+	if err != nil {
+		return nil, err
 	}
-	return fmt.Sprintf("gs://%s/%s", bucket, name)
+
+	b, err := gcsblob.OpenBucket(ctx, bucket, c)
+	return &uploadHandler{
+		blob:             blobGCS{endpoint: endpoint, region: region, projectId: string(projectId)},
+		ctx:              ctx,
+		b:                b,
+		blobUploadBucket: bucket,
+		blobEndpoint:     endpoint,
+		hdpScheme:        "gs",
+	}, err
 }
