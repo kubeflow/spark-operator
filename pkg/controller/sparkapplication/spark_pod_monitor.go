@@ -49,7 +49,7 @@ type driverStateUpdate struct {
 	appNamespace       string         // Namespace in which the application and driver pod run.
 	appName            string         // Name of the application.
 	appID              string         // Application ID.
-	SparkApplicationID string         // SparkApplicationID.
+	sparkApplicationID string         // sparkApplicationID.
 	podName            string         // Name of the driver pod.
 	nodeName           string         // Name of the node the driver pod runs on.
 	podPhase           apiv1.PodPhase // Driver pod phase.
@@ -181,7 +181,7 @@ func (s *sparkPodMonitor) updateDriverState(pod *apiv1.Pod) {
 			appNamespace:       pod.Namespace,
 			appName:            appName,
 			appID:              getAppID(pod),
-			SparkApplicationID: getSparkApplicationID(pod),
+			sparkApplicationID: getSparkApplicationID(pod),
 			podName:            pod.Name,
 			nodeName:           pod.Spec.NodeName,
 			podPhase:           pod.Status.Phase,

@@ -338,7 +338,7 @@ func TestProcessSingleDriverStateUpdate(t *testing.T) {
 				appName:            "foo",
 				appNamespace:       "default",
 				appID:              "foo-123",
-				SparkApplicationID: "spark-123",
+				sparkApplicationID: "spark-123",
 				podName:            "foo-driver",
 				nodeName:           "node1",
 				podPhase:           apiv1.PodSucceeded,
@@ -354,7 +354,7 @@ func TestProcessSingleDriverStateUpdate(t *testing.T) {
 				appName:            "foo",
 				appNamespace:       "default",
 				appID:              "foo-123",
-				SparkApplicationID: "spark-123",
+				sparkApplicationID: "spark-123",
 				podName:            "foo-driver",
 				nodeName:           "node1",
 				podPhase:           apiv1.PodFailed,
@@ -371,7 +371,7 @@ func TestProcessSingleDriverStateUpdate(t *testing.T) {
 				appName:            "foo",
 				appNamespace:       "default",
 				appID:              "foo-123",
-				SparkApplicationID: "spark-123",
+				sparkApplicationID: "spark-123",
 				podName:            "foo-driver",
 				nodeName:           "node1",
 				podPhase:           apiv1.PodRunning,
@@ -403,7 +403,7 @@ func TestProcessSingleDriverStateUpdate(t *testing.T) {
 		assert.Equal(t, test.expectedMetrics.failedMetricCount, fetchCounterValue(ctrl.metrics.sparkAppFailureCount, map[string]string{}))
 		runningCount := ctrl.metrics.sparkAppRunningCount.Value(map[string]string{})
 		assert.Equal(t, test.expectedMetrics.runningMetricCount, runningCount)
-		assert.Equal(t, test.update.SparkApplicationID, updatedApp.Status.SparkApplicationID)
+		assert.Equal(t, test.update.sparkApplicationID, updatedApp.Status.SparkApplicationID)
 		if isAppTerminated(updatedApp.Status.AppState.State) {
 			event := <-recorder.Events
 			if updatedApp.Status.AppState.State == v1alpha1.CompletedState {
