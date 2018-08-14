@@ -419,6 +419,7 @@ func (c *Controller) processSingleDriverStateUpdate(update *driverStateUpdate) *
 		}
 
 		status.AppState.State = appState
+		status.SparkApplicationID = update.SparkApplicationID
 		if !update.completionTime.IsZero() {
 			status.CompletionTime = update.completionTime
 		}
