@@ -37,9 +37,10 @@ func TestOnPodAdded(t *testing.T) {
 			Name:      "foo-driver",
 			Namespace: "default",
 			Labels: map[string]string{
-				sparkRoleLabel:           sparkDriverRole,
-				config.SparkAppIDLabel:   "foo-123",
-				config.SparkAppNameLabel: "foo",
+				sparkRoleLabel:            sparkDriverRole,
+				config.SparkAppIDLabel:    "foo-123",
+				config.SparkAppNameLabel:  "foo",
+				config.SparkApplicationID: "spark-123",
 			},
 		},
 		Status: apiv1.PodStatus{

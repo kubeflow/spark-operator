@@ -260,6 +260,8 @@ type SparkApplicationStatus struct {
 	// AppId is the application ID that's also added as a label to the SparkApplication object
 	// and driver and executor Pods, and is used to group the objects for the same application.
 	AppID string `json:"appId,omitempty"`
+	// SparkApplicationID is set by the spark-distribution(via spark.app.id config) on the driver and executor pods
+	SparkApplicationID string `json:"sparkApplicationId,omitempty"`
 	// SubmissionTime is the time when the application is submitted.
 	SubmissionTime metav1.Time `json:"submissionTime,omitempty"`
 	// CompletionTime is the time when the application runs to completion if it does.

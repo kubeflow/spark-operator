@@ -46,13 +46,14 @@ type sparkPodMonitor struct {
 
 // driverStateUpdate encapsulates state update of the driver.
 type driverStateUpdate struct {
-	appNamespace   string         // Namespace in which the application and driver pod run.
-	appName        string         // Name of the application.
-	appID          string         // Application ID.
-	podName        string         // Name of the driver pod.
-	nodeName       string         // Name of the node the driver pod runs on.
-	podPhase       apiv1.PodPhase // Driver pod phase.
-	completionTime metav1.Time    // Time the driver completes.
+	appNamespace       string         // Namespace in which the application and driver pod run.
+	appName            string         // Name of the application.
+	appID              string         // Application ID.
+	sparkApplicationID string         // sparkApplicationID.
+	podName            string         // Name of the driver pod.
+	nodeName           string         // Name of the node the driver pod runs on.
+	podPhase           apiv1.PodPhase // Driver pod phase.
+	completionTime     metav1.Time    // Time the driver completes.
 }
 
 // executorStateUpdate encapsulates state update of an executor.
@@ -177,12 +178,13 @@ func (s *sparkPodMonitor) onPodDeleted(obj interface{}) {
 func (s *sparkPodMonitor) updateDriverState(pod *apiv1.Pod) {
 	if appName, ok := getAppName(pod); ok {
 		update := driverStateUpdate{
-			appNamespace: pod.Namespace,
-			appName:      appName,
-			appID:        getAppID(pod),
-			podName:      pod.Name,
-			nodeName:     pod.Spec.NodeName,
-			podPhase:     pod.Status.Phase,
+			appNamespace:       pod.Namespace,
+			appName:            appName,
+			appID:              getAppID(pod),
+			sparkApplicationID: getSparkApplicationID(pod),
+			podName:            pod.Name,
+			nodeName:           pod.Spec.NodeName,
+			podPhase:           pod.Status.Phase,
 		}
 		if pod.Status.Phase == apiv1.PodSucceeded || pod.Status.Phase == apiv1.PodFailed {
 			update.completionTime = metav1.Now()
@@ -212,6 +214,10 @@ func getAppName(pod *apiv1.Pod) (string, bool) {
 
 func getAppID(pod *apiv1.Pod) string {
 	return pod.Labels[config.SparkAppIDLabel]
+}
+
+func getSparkApplicationID(pod *apiv1.Pod) string {
+	return pod.Labels[config.SparkApplicationID]
 }
 
 func isDriverPod(pod *apiv1.Pod) bool {

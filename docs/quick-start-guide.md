@@ -168,6 +168,7 @@ spec:
   type: Scala
 status:
   appId: spark-pi-2402118027
+  sparkApplicationId: spark-5f4ba921c85ff3f1cb04bef324f9154c9
   applicationState:
     state: COMPLETED
   completionTime: 2018-02-20T23:33:55Z
