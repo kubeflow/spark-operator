@@ -1,0 +1,46 @@
+#
+# Copyright 2018 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+---
+lowercaseOutputName: true
+attrNameSnakeCase: true
+rules:
+  # These come from the application driver
+  # Example: app-20160809000059-0000.driver.DAGScheduler.stage.failedStages
+  - pattern: metrics<name=(\S+)\.driver\.(BlockManager|DAGScheduler)\.(\S+)><>Value
+    name: spark_driver_$2_$3
+    labels:
+      app_name: "$1"
+  # These come from the application driver if it's a streaming application
+  # Example: app-20160809000059-0000.driver.com.example.ClassName.StreamingMetrics.streaming.lastCompletedBatch_schedulingDelay
+  - pattern: metrics<name=(\S+)\.driver\.(\S+)\.StreamingMetrics\.streaming\.(\S+)><>Value
+    name: spark_streaming_driver_$3
+    labels:
+      app_name: "$1"
+  # These come from the application driver if it's a structured streaming application
+  # Example: app-20160809000059-0000.driver.spark.streaming.QueryName.inputRate-total
+  - pattern: metrics<name=(\S+)\.driver\.spark\.streaming\.(\S+)\.(\S+)><>Value
+    name: spark_structured_streaming_driver_$3
+    labels:
+      app_name: "$1"
+      query_name: "$2"
+  # These come from the application executors
+  # Example: app-20160809000059-0000.0.executor.threadpool.activeTasks
+  - pattern: metrics<name=(\S+)\.(\S+)\.executor\.(\S+)><>Value
+    name: spark_executor_$3
+    labels:
+      app_name: "$1"
+      executor_id: "$2"
