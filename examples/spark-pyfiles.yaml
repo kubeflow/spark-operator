@@ -25,7 +25,7 @@ spec:
   type: Python
   pythonVersion: "2"
   mode: cluster
-  image: "gcr.io/ynli-k8s/spark-py:v2.4.0-SNAPSHOT"
+  image: "gcr.io/spark-operator/spark-py:v2.4.0-SNAPSHOT"
   imagePullPolicy: Always
   mainApplicationFile: local:///opt/spark/examples/src/main/python/pyfiles.py
   arguments:
