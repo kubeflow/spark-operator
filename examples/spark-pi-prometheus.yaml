@@ -28,7 +28,7 @@ spec:
   mainApplicationFile: "local:///opt/spark/examples/jars/spark-examples_2.11-2.3.1.jar"
   sparkConf:
     "spark.metrics.conf": "/prometheus/metrics.properties"
-    "spark.metrics.namespace": "spark-pi"
+    "spark.metrics.namespace": "default/spark-pi"
     "spark.driver.extraJavaOptions": "-javaagent:/prometheus/jmx_prometheus_javaagent-0.3.1.jar=8090:/prometheus/prometheus.yaml"
   driver:
     annotations:

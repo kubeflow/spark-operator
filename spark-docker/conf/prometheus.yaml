@@ -19,28 +19,32 @@ lowercaseOutputName: true
 attrNameSnakeCase: true
 rules:
   # These come from the application driver
-  # Example: app-20160809000059-0000.driver.DAGScheduler.stage.failedStages
-  - pattern: metrics<name=(\S+)\.driver\.(BlockManager|DAGScheduler)\.(\S+)><>Value
-    name: spark_driver_$2_$3
+  # Example: default/spark-pi.driver.DAGScheduler.stage.failedStages
+  - pattern: metrics<name=(\S+)/(\S+)\.driver\.(BlockManager|DAGScheduler)\.(\S+)><>Value
+    name: spark_driver_$3_$4
     labels:
-      app_name: "$1"
+      app_namespace: "$1"
+      app_name: "$2"
   # These come from the application driver if it's a streaming application
-  # Example: app-20160809000059-0000.driver.com.example.ClassName.StreamingMetrics.streaming.lastCompletedBatch_schedulingDelay
-  - pattern: metrics<name=(\S+)\.driver\.(\S+)\.StreamingMetrics\.streaming\.(\S+)><>Value
-    name: spark_streaming_driver_$3
+  # Example: default/streaming.driver.com.example.ClassName.StreamingMetrics.streaming.lastCompletedBatch_schedulingDelay
+  - pattern: metrics<name=(\S+)/(\S+)\.driver\.(\S+)\.StreamingMetrics\.streaming\.(\S+)><>Value
+    name: spark_streaming_driver_$4
     labels:
-      app_name: "$1"
+      app_namespace: "$1"
+      app_name: "$2"
   # These come from the application driver if it's a structured streaming application
-  # Example: app-20160809000059-0000.driver.spark.streaming.QueryName.inputRate-total
-  - pattern: metrics<name=(\S+)\.driver\.spark\.streaming\.(\S+)\.(\S+)><>Value
-    name: spark_structured_streaming_driver_$3
+  # Example: default/sstreaming.driver.spark.streaming.QueryName.inputRate-total
+  - pattern: metrics<name=(\S+)/(\S+)\.driver\.spark\.streaming\.(\S+)\.(\S+)><>Value
+    name: spark_structured_streaming_driver_$4
     labels:
-      app_name: "$1"
-      query_name: "$2"
+      app_namespace: "$1"
+      app_name: "$2"
+      query_name: "$3"
   # These come from the application executors
-  # Example: app-20160809000059-0000.0.executor.threadpool.activeTasks
-  - pattern: metrics<name=(\S+)\.(\S+)\.executor\.(\S+)><>Value
-    name: spark_executor_$3
+  # Example: default/spark-pi.0.executor.threadpool.activeTasks
+  - pattern: metrics<name=(\S+)/(\S+)\.(\S+)\.executor\.(\S+)><>Value
+    name: spark_executor_$4
     labels:
-      app_name: "$1"
-      executor_id: "$2"
+      app_namespace: "$1"
+      app_name: "$2"
+      executor_id: "$3"
