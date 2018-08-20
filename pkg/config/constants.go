@@ -162,3 +162,37 @@ const (
 	// form the path to the file referred to by HADOOP_TOKEN_FILE_LOCATION.
 	HadoopDelegationTokenFileName = "hadoop.token"
 )
+
+const DefaultMetricsProperties = `
+*.sink.jmx.class=org.apache.spark.metrics.sink.JmxSink
+driver.source.jvm.class=org.apache.spark.metrics.source.JvmSource
+executor.source.jvm.class=org.apache.spark.metrics.source.JvmSource`
+
+const DefaultPrometheusConfiguration = `
+lowercaseOutputName: true
+attrNameSnakeCase: true
+rules:
+  - pattern: metrics<name=(\S+)/(\S+)\.driver\.(BlockManager|DAGScheduler)\.(\S+)><>Value
+    name: spark_driver_$3_$4
+    labels:
+      app_namespace: "$1"
+      app_name: "$2"
+  - pattern: metrics<name=(\S+)/(\S+)\.driver\.(\S+)\.StreamingMetrics\.streaming\.(\S+)><>Value
+    name: spark_streaming_driver_$4
+    labels:
+      app_namespace: "$1"
+      app_name: "$2"
+  - pattern: metrics<name=(\S+)/(\S+)\.driver\.spark\.streaming\.(\S+)\.(\S+)><>Value
+    name: spark_structured_streaming_driver_$4
+    labels:
+      app_namespace: "$1"
+      app_name: "$2"
+      query_name: "$3"
+  - pattern: metrics<name=(\S+)/(\S+)\.(\S+)\.executor\.(\S+)><>Value
+    name: spark_executor_$4
+    labels:
+      app_namespace: "$1"
+      app_name: "$2"
+      executor_id: "$3"
+`
+const DefaultPrometheusJavaAgentPort int32 = 8090
