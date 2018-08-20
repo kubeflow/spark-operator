@@ -93,11 +93,8 @@ func buildSubmissionCommandArgs(app *v1alpha1.SparkApplication) ([]string, error
 			fmt.Sprintf("%s=%s", config.SparkMemoryOverheadFactor, *app.Spec.MemoryOverheadFactor))
 	}
 
-	if app.Spec.SparkConf == nil {
-		app.Spec.SparkConf = make(map[string]string)
-	}
 	// Operator triggered spark-submit should never wait for App completion
-	app.Spec.SparkConf[config.SparkWaitAppCompletion] = "false"
+	args = append(args, "--conf", fmt.Sprintf("%s=false", config.SparkWaitAppCompletion))
 
 	if app.Spec.SparkConfigMap != nil {
 		args = append(args, "--conf", config.GetDriverAnnotationOption(config.SparkConfigMapAnnotation,
