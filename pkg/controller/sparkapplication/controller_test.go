@@ -317,6 +317,7 @@ func TestSyncSparkApplication_NewAppSubmissionSuccess(t *testing.T) {
 		},
 		Status: v1alpha1.SparkApplicationStatus{
 			AppID: "foo-123",
+			SparkApplicationID: "spark-123",
 			AppState: v1alpha1.ApplicationState{
 				State:        v1alpha1.NewState,
 				ErrorMessage: "",

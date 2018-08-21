@@ -39,6 +39,7 @@ import (
 	typedcorev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
+	"k8s.io/spark-on-k8s-operator/pkg/config"
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1alpha1"
 	crdclientset "k8s.io/spark-on-k8s-operator/pkg/client/clientset/versioned"
@@ -283,6 +284,7 @@ func (c *Controller) processNextItem() bool {
 // driverStateUpdate encapsulates state update of the driver.
 type driverStateUpdate struct {
 	podName        string         // Name of the driver pod.
+	sparkApplicationID string         // sparkApplicationID.
 	nodeName       string         // Name of the node the driver pod runs on.
 	podPhase       apiv1.PodPhase // Driver pod phase.
 	completionTime metav1.Time    // Time the driver completes.
@@ -359,6 +361,7 @@ func (c *Controller) syncSparkApplication(key string) error {
 					podName:  pod.Name,
 					nodeName: pod.Spec.NodeName,
 					podPhase: pod.Status.Phase,
+					sparkApplicationID: getSparkApplicationID(&pod),
 				}
 				if pod.Status.Phase == apiv1.PodSucceeded || pod.Status.Phase == apiv1.PodFailed {
 					driverStateUpdates.completionTime = metav1.Now()
@@ -791,6 +794,10 @@ func isAppTerminated(appState v1alpha1.ApplicationStateType) bool {
 
 func isExecutorTerminated(executorState v1alpha1.ExecutorState) bool {
 	return executorState == v1alpha1.ExecutorCompletedState || executorState == v1alpha1.ExecutorFailedState
+}
+
+func getSparkApplicationID(pod *apiv1.Pod) string {
+	return pod.Labels[config.SparkApplicationID]
 }
 
 func driverPodPhaseToApplicationState(podPhase apiv1.PodPhase) v1alpha1.ApplicationStateType {
