@@ -143,10 +143,14 @@ func buildSubmissionCommandArgs(app *v1beta1.SparkApplication, submissionID stri
 			*app.Spec.HadoopConfigMap))
 	}
 
-	// Add Spark configuration properties.
-	for key, value := range app.Spec.SparkConf {
-		args = append(args, "--conf", fmt.Sprintf("%s=%s", key, value))
+	if app.Spec.SparkConf != nil {
+		// Add Spark configuration properties.
+		for key, value := range app.Spec.SparkConf {
+			args = append(args, "--conf", fmt.Sprintf("%s=%s", key, value))
+		}
 	}
+	// Operator triggered spark-submit should never wait for App completion
+	args = append(args, "--conf", fmt.Sprintf("%s=%s", config.SparkWaitAppCompletion, "false"))
 
 	// Add Hadoop configuration properties.
 	for key, value := range app.Spec.HadoopConf {

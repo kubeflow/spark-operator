@@ -422,6 +422,8 @@ func shouldRetry(app *v1beta1.SparkApplication) bool {
 			if app.Spec.RestartPolicy.OnSubmissionFailureRetries != nil && app.Status.SubmissionAttempts <= *app.Spec.RestartPolicy.OnSubmissionFailureRetries {
 				return true
 			}
+		} else {
+			glog.Warningf("Invalid Driver State: " + err.Error())
 		}
 	}
 	return false
@@ -753,7 +755,6 @@ func (c *Controller) deleteSparkResources(app *v1beta1.SparkApplication) error {
 			return err
 		}
 	}
-
 	return nil
 }
 
