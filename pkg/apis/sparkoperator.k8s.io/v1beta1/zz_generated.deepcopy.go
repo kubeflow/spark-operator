@@ -483,13 +483,13 @@ func (in *SparkApplicationSpec) DeepCopyInto(out *SparkApplicationSpec) {
 			(*out)[key] = val
 		}
 	}
-	if in.MaxSubmissionRetries != nil {
-		in, out := &in.MaxSubmissionRetries, &out.MaxSubmissionRetries
+	if in.FailureRetries != nil {
+		in, out := &in.FailureRetries, &out.FailureRetries
 		*out = new(int32)
 		**out = **in
 	}
-	if in.SubmissionRetryInterval != nil {
-		in, out := &in.SubmissionRetryInterval, &out.SubmissionRetryInterval
+	if in.RetryInterval != nil {
+		in, out := &in.RetryInterval, &out.RetryInterval
 		*out = new(int64)
 		**out = **in
 	}

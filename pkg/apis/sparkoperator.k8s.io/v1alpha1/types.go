@@ -201,17 +201,16 @@ type SparkApplicationSpec struct {
 	Executor ExecutorSpec `json:"executor"`
 	// Deps captures all possible types of dependencies of a Spark application.
 	Deps Dependencies `json:"deps"`
-	// RestartPolicy defines the policy on if and in which conditions the controller should restart a failed application.
-	RestartPolicy RestartPolicy `json:"restartPolicy,omitempty"`
 	// NodeSelector is the Kubernetes node selector to be added to the driver and executor pods.
 	// Optional.
 	NodeSelector map[string]string `json:"nodeSelector,omitempty"`
-	// MaxSubmissionRetries is the maximum number of times to retry a failed submission.
+	// FailureRetries is the number of times to retry a failed application before giving up.
+	// This is best effort and actual retry attempts can be >= the value specified.
 	// Optional.
-	MaxSubmissionRetries *int32 `json:"maxSubmissionRetries,omitempty"`
-	// SubmissionRetryInterval is the unit of intervals in seconds between submission retries.
+	FailureRetries *int32 `json:"failureRetries,omitempty"`
+	// RetryInterval is the unit of intervals in seconds between submission retries.
 	// Optional.
-	SubmissionRetryInterval *int64 `json:"submissionRetryInterval,omitempty"`
+	RetryInterval *int64 `json:"retryInterval,omitempty"`
 	// This sets the major Python version of the docker
 	// image used to run the driver and executor containers. Can either be 2 or 3, default 2.
 	// Optional.
@@ -228,13 +227,11 @@ type ApplicationStateType string
 
 // Different states an application may have.
 const (
-	NewState              ApplicationStateType = "NEW"
-	SubmittedState        ApplicationStateType = "SUBMITTED"
-	RunningState          ApplicationStateType = "RUNNING"
-	CompletedState        ApplicationStateType = "COMPLETED"
-	FailedState           ApplicationStateType = "FAILED"
-	FailedSubmissionState ApplicationStateType = "SUBMISSION_FAILED"
-	UnknownState          ApplicationStateType = "UNKNOWN"
+	NewState       ApplicationStateType = "NEW"
+	SubmittedState ApplicationStateType = "SUBMITTED"
+	RunningState   ApplicationStateType = "RUNNING"
+	CompletedState ApplicationStateType = "COMPLETED"
+	FailedState    ApplicationStateType = "FAILED"
 )
 
 // ApplicationState tells the current state of the application and an error message in case of failures.
@@ -257,9 +254,6 @@ const (
 
 // SparkApplicationStatus describes the current status of a Spark application.
 type SparkApplicationStatus struct {
-	// AppId is the application ID that's also added as a label to the SparkApplication object
-	// and driver and executor Pods, and is used to group the objects for the same application.
-	AppID string `json:"appId,omitempty"`
 	// SparkApplicationID is set by the spark-distribution(via spark.app.id config) on the driver and executor pods
 	SparkApplicationID string `json:"sparkApplicationId,omitempty"`
 	// SubmissionTime is the time when the application is submitted.
@@ -272,8 +266,8 @@ type SparkApplicationStatus struct {
 	AppState ApplicationState `json:"applicationState,omitempty"`
 	// ExecutorState records the state of executors by executor Pod names.
 	ExecutorState map[string]ExecutorState `json:"executorState,omitempty"`
-	// SubmissionRetries is the number of retries attempted for a failed submission.
-	SubmissionRetries int32 `json:"submissionRetries,omitempty"`
+	// Attempts is the total number of attempts made to run a Spark App to successful completion.
+	Attempts int32 `json:"attempts,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object

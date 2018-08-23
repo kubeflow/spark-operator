@@ -168,8 +168,6 @@ func (sm *sparkAppMetrics) exportMetrics(oldApp, newApp *v1alpha1.SparkApplicati
 				m.Inc()
 			}
 		}
-	case v1alpha1.FailedSubmissionState:
-		fallthrough
 	case v1alpha1.FailedState:
 		if isValidDriverStateTransition(oldState, newState) {
 			if !newApp.Status.SubmissionTime.Time.IsZero() && !newApp.Status.CompletionTime.Time.IsZero() {

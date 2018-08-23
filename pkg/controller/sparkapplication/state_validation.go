@@ -23,16 +23,10 @@ import (
 var (
 	// Valid driver state transitions: map with valid pairs of current state -> set of new states.
 	validDriverStateTransitions = map[v1alpha1.ApplicationStateType][]v1alpha1.ApplicationStateType{
-		"": {v1alpha1.NewState, v1alpha1.UnknownState, v1alpha1.SubmittedState,
-			v1alpha1.RunningState, v1alpha1.CompletedState, v1alpha1.FailedSubmissionState, v1alpha1.FailedState},
+		"": {v1alpha1.NewState, v1alpha1.SubmittedState,
+			v1alpha1.RunningState, v1alpha1.CompletedState, v1alpha1.FailedState},
 
-		v1alpha1.NewState: {v1alpha1.UnknownState, v1alpha1.SubmittedState,
-			v1alpha1.RunningState, v1alpha1.CompletedState, v1alpha1.FailedSubmissionState, v1alpha1.FailedState},
-
-		v1alpha1.UnknownState: {v1alpha1.NewState, v1alpha1.SubmittedState,
-			v1alpha1.RunningState, v1alpha1.CompletedState, v1alpha1.FailedSubmissionState, v1alpha1.FailedState},
-
-		v1alpha1.FailedSubmissionState: {v1alpha1.UnknownState, v1alpha1.SubmittedState,
+		v1alpha1.NewState: {v1alpha1.SubmittedState,
 			v1alpha1.RunningState, v1alpha1.CompletedState, v1alpha1.FailedState},
 
 		v1alpha1.SubmittedState: {v1alpha1.RunningState, v1alpha1.CompletedState, v1alpha1.FailedState},

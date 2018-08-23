@@ -37,7 +37,6 @@ const (
 
 func createSparkUIService(
 	app *v1alpha1.SparkApplication,
-	appID string,
 	kubeClient clientset.Interface) (string, int32, error) {
 	portStr := getUITargetPort(app)
 	port, err := strconv.Atoi(portStr)
@@ -47,11 +46,10 @@ func createSparkUIService(
 
 	service := &apiv1.Service{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      appID + "-ui-svc",
+			Name:      app.GetName() + "-ui-svc",
 			Namespace: app.Namespace,
 			Labels: map[string]string{
 				config.SparkAppNameLabel: app.Name,
-				config.SparkAppIDLabel:   appID,
 			},
 			OwnerReferences: []metav1.OwnerReference{*getOwnerReference(app)},
 		},
@@ -64,7 +62,6 @@ func createSparkUIService(
 			},
 			Selector: map[string]string{
 				config.SparkAppNameLabel: app.Name,
-				config.SparkAppIDLabel:   appID,
 				sparkRoleLabel:           sparkDriverRole,
 			},
 			Type: apiv1.ServiceTypeNodePort,

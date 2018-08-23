@@ -23,7 +23,6 @@ import (
 
 	apiv1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	kubeclientfake "k8s.io/client-go/kubernetes/fake"
 
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
@@ -40,9 +39,9 @@ func TestOnPodAdded(t *testing.T) {
 			Name:      "foo-driver",
 			Namespace: namespace,
 			Labels: map[string]string{
-				sparkRoleLabel:           sparkDriverRole,
-				config.SparkAppIDLabel:   "foo-123",
-				config.SparkAppNameLabel: appName,
+				sparkRoleLabel:                 sparkDriverRole,
+				config.SparkApplicationIDLabel: "foo-123",
+				config.SparkAppNameLabel:       appName,
 			},
 		},
 		Status: apiv1.PodStatus{
@@ -77,10 +76,10 @@ func TestOnPodAdded(t *testing.T) {
 			Name:      "foo-driver",
 			Namespace: "foo-namespace",
 			Labels: map[string]string{
-				sparkRoleLabel:           sparkExecutorRole,
-				config.SparkAppIDLabel:   "foo-123",
-				config.SparkAppNameLabel: appName,
-				sparkExecutorIDLabel:     "1",
+				sparkRoleLabel:                 sparkExecutorRole,
+				config.SparkApplicationIDLabel: "foo-123",
+				config.SparkAppNameLabel:       appName,
+				sparkExecutorIDLabel:           "1",
 			},
 		},
 		Status: apiv1.PodStatus{
@@ -121,9 +120,9 @@ func TestOnPodUpdated(t *testing.T) {
 			Name:      "foo-driver",
 			Namespace: namespace,
 			Labels: map[string]string{
-				sparkRoleLabel:           sparkDriverRole,
-				config.SparkAppIDLabel:   "foo-123",
-				config.SparkAppNameLabel: appName,
+				sparkRoleLabel:                 sparkDriverRole,
+				config.SparkApplicationIDLabel: "foo-123",
+				config.SparkAppNameLabel:       appName,
 			},
 			ResourceVersion: "1",
 		},
@@ -163,10 +162,10 @@ func TestOnPodUpdated(t *testing.T) {
 			Name:      "foo-driver",
 			Namespace: namespace,
 			Labels: map[string]string{
-				sparkRoleLabel:           sparkExecutorRole,
-				config.SparkAppIDLabel:   "foo-123",
-				config.SparkAppNameLabel: appName,
-				sparkExecutorIDLabel:     "1",
+				sparkRoleLabel:                 sparkExecutorRole,
+				config.SparkApplicationIDLabel: "foo-123",
+				config.SparkAppNameLabel:       appName,
+				sparkExecutorIDLabel:           "1",
 			},
 			ResourceVersion: "1",
 		},
@@ -211,9 +210,9 @@ func TestOnPodDeleted(t *testing.T) {
 			Name:      "foo-driver",
 			Namespace: namespace,
 			Labels: map[string]string{
-				sparkRoleLabel:           sparkDriverRole,
-				config.SparkAppIDLabel:   "foo-123",
-				config.SparkAppNameLabel: appName,
+				sparkRoleLabel:                 sparkDriverRole,
+				config.SparkApplicationIDLabel: "foo-123",
+				config.SparkAppNameLabel:       appName,
 			},
 		},
 		Status: apiv1.PodStatus{
@@ -248,10 +247,10 @@ func TestOnPodDeleted(t *testing.T) {
 			Name:      "foo-exec-1",
 			Namespace: namespace,
 			Labels: map[string]string{
-				sparkRoleLabel:           sparkExecutorRole,
-				config.SparkAppIDLabel:   "foo-123",
-				config.SparkAppNameLabel: appName,
-				sparkExecutorIDLabel:     "1",
+				sparkRoleLabel:                 sparkExecutorRole,
+				config.SparkApplicationIDLabel: "foo-123",
+				config.SparkAppNameLabel:       appName,
+				sparkExecutorIDLabel:           "1",
 			},
 		},
 		Status: apiv1.PodStatus{
@@ -281,9 +280,9 @@ func TestOnPodDeleted(t *testing.T) {
 		actualNamespace)
 }
 
-func newMonitor() (*sparkPodMonitor, workqueue.RateLimitingInterface) {
+func newMonitor() (*sparkPodEventHandler, workqueue.RateLimitingInterface) {
 	queue := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(),
 		"spark-application-controller-test")
-	monitor := newSparkPodMonitor(kubeclientfake.NewSimpleClientset(), "test", queue)
+	monitor := newSparkPodEventHandler(queue.AddRateLimited)
 	return monitor, queue
 }

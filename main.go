@@ -126,8 +126,9 @@ func main() {
 		// resyncPeriod. Every resyncPeriod, all resources in the cache will re-trigger events.
 		time.Duration(*resyncInterval)*time.Second,
 		factoryOpts...)
+
 	applicationController := sparkapplication.NewController(
-		crdClient, kubeClient, apiExtensionsClient, factory, metricConfig, *namespace)
+		crdClient, kubeClient, apiExtensionsClient, factory, metricConfig, *namespace, stopCh)
 	scheduledApplicationController := scheduledsparkapplication.NewController(
 		crdClient, kubeClient, apiExtensionsClient, factory, clock.RealClock{})
 

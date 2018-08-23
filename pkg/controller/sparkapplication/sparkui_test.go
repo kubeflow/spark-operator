@@ -40,7 +40,7 @@ func TestCreateSparkUIService(t *testing.T) {
 	}
 	testFn := func(test testcase, t *testing.T) {
 		fakeClient := fake.NewSimpleClientset()
-		uiServiceName, uiServicePort, err := createSparkUIService(test.app, test.app.Status.AppID, fakeClient)
+		uiServiceName, uiServicePort, err := createSparkUIService(test.app, fakeClient)
 		if err != nil {
 			if test.expectError {
 				return
@@ -62,7 +62,7 @@ func TestCreateSparkUIService(t *testing.T) {
 			}
 			t.Fatal(err)
 		}
-		if len(service.Labels) != 2 || service.Labels[config.SparkAppIDLabel] != test.app.Status.AppID ||
+		if len(service.Labels) != 1 ||
 			service.Labels[config.SparkAppNameLabel] != test.app.Name {
 			t.Errorf("%s: service of app %s has the wrong labels", test.name, test.app.Name)
 		}
@@ -98,7 +98,7 @@ func TestCreateSparkUIService(t *testing.T) {
 			},
 		},
 		Status: v1alpha1.SparkApplicationStatus{
-			AppID: "foo-1",
+			SparkApplicationID: "foo-1",
 		},
 	}
 	app2 := &v1alpha1.SparkApplication{
@@ -108,7 +108,7 @@ func TestCreateSparkUIService(t *testing.T) {
 			UID:       "foo-123",
 		},
 		Status: v1alpha1.SparkApplicationStatus{
-			AppID: "foo-2",
+			SparkApplicationID: "foo-2",
 		},
 	}
 	app3 := &v1alpha1.SparkApplication{
@@ -123,18 +123,17 @@ func TestCreateSparkUIService(t *testing.T) {
 			},
 		},
 		Status: v1alpha1.SparkApplicationStatus{
-			AppID: "foo-3",
+			SparkApplicationID: "foo-3",
 		},
 	}
 	testcases := []testcase{
 		{
 			name:                "service with custom port",
 			app:                 app1,
-			expectedServiceName: app1.Status.AppID + "-ui-svc",
+			expectedServiceName: app1.GetName() + "-ui-svc",
 			expectedServicePort: 4041,
 			expectedSelector: map[string]string{
 				config.SparkAppNameLabel: "foo",
-				config.SparkAppIDLabel:   "foo-1",
 				sparkRoleLabel:           sparkDriverRole,
 			},
 			expectError: false,
@@ -142,11 +141,10 @@ func TestCreateSparkUIService(t *testing.T) {
 		{
 			name:                "service with default port",
 			app:                 app2,
-			expectedServiceName: app2.Status.AppID + "-ui-svc",
+			expectedServiceName: app2.GetName() + "-ui-svc",
 			expectedServicePort: int32(defaultPort),
 			expectedSelector: map[string]string{
 				config.SparkAppNameLabel: "foo",
-				config.SparkAppIDLabel:   "foo-2",
 				sparkRoleLabel:           sparkDriverRole,
 			},
 			expectError: false,

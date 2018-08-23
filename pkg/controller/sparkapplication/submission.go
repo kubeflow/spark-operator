@@ -64,6 +64,7 @@ func buildSubmissionCommandArgs(app *v1alpha1.SparkApplication) ([]string, error
 	args = append(args, "--deploy-mode", string(app.Spec.Mode))
 	args = append(args, "--conf", fmt.Sprintf("spark.kubernetes.namespace=%s", app.Namespace))
 	args = append(args, "--conf", fmt.Sprintf("spark.app.name=%s", app.Name))
+	args = append(args, "--conf", fmt.Sprintf("spark.kubernetes.driver.pod.name=%s-driver", app.Name))
 
 	// Add application dependencies.
 	args = append(args, addDependenciesConfOptions(app)...)
@@ -93,12 +94,6 @@ func buildSubmissionCommandArgs(app *v1alpha1.SparkApplication) ([]string, error
 			fmt.Sprintf("%s=%s", config.SparkMemoryOverheadFactor, *app.Spec.MemoryOverheadFactor))
 	}
 
-	if app.Spec.SparkConf == nil {
-		app.Spec.SparkConf = make(map[string]string)
-	}
-	// Operator triggered spark-submit should never wait for App completion
-	app.Spec.SparkConf[config.SparkWaitAppCompletion] = "false"
-
 	if app.Spec.SparkConfigMap != nil {
 		args = append(args, "--conf", config.GetDriverAnnotationOption(config.SparkConfigMapAnnotation,
 			*app.Spec.SparkConfigMap))
@@ -113,10 +108,14 @@ func buildSubmissionCommandArgs(app *v1alpha1.SparkApplication) ([]string, error
 			*app.Spec.HadoopConfigMap))
 	}
 
-	// Add Spark configuration properties.
-	for key, value := range app.Spec.SparkConf {
-		args = append(args, "--conf", fmt.Sprintf("%s=%s", key, value))
+	if app.Spec.SparkConf != nil {
+		// Add Spark configuration properties.
+		for key, value := range app.Spec.SparkConf {
+			args = append(args, "--conf", fmt.Sprintf("%s=%s", key, value))
+		}
 	}
+	// Operator triggered spark-submit should never wait for App completion
+	args = append(args, "--conf", fmt.Sprintf("%s=%s", config.SparkWaitAppCompletion, "false"))
 
 	// Add Hadoop configuration properties.
 	for key, value := range app.Spec.HadoopConf {
@@ -229,8 +228,6 @@ func addDriverConfOptions(app *v1alpha1.SparkApplication) ([]string, error) {
 	driverConfOptions = append(driverConfOptions,
 		fmt.Sprintf("%s%s=%s", config.SparkDriverLabelKeyPrefix, config.SparkAppNameLabel, app.Name))
 	driverConfOptions = append(driverConfOptions,
-		fmt.Sprintf("%s%s=%s", config.SparkDriverLabelKeyPrefix, config.SparkAppIDLabel, app.Status.AppID))
-	driverConfOptions = append(driverConfOptions,
 		fmt.Sprintf("%s%s=%s", config.SparkDriverLabelKeyPrefix, config.LaunchedBySparkOperatorLabel, "true"))
 
 	if app.Spec.Driver.PodName != nil {
@@ -313,8 +310,6 @@ func addExecutorConfOptions(app *v1alpha1.SparkApplication) ([]string, error) {
 
 	executorConfOptions = append(executorConfOptions,
 		fmt.Sprintf("%s%s=%s", config.SparkExecutorLabelKeyPrefix, config.SparkAppNameLabel, app.Name))
-	executorConfOptions = append(executorConfOptions,
-		fmt.Sprintf("%s%s=%s", config.SparkExecutorLabelKeyPrefix, config.SparkAppIDLabel, app.Status.AppID))
 	executorConfOptions = append(executorConfOptions,
 		fmt.Sprintf("%s%s=%s", config.SparkExecutorLabelKeyPrefix, config.LaunchedBySparkOperatorLabel, "true"))
 
