@@ -35,7 +35,7 @@ A `SparkApplicationSpec` has the following top-level fields:
 | Field | Spark configuration property or `spark-submit` option | Note |
 | ------------- | ------------- | ------------- |
 | `Type`  | N/A  | The type of the Spark application. Valid values are `Java`, `Scala`, `Python`, and `R`. |
-| `PythonVersion`  | `spark.kubernetes.pyspark.pythonversion`  | This sets the major Python version of the docker image used to run the driver and executor containers. Can either be 2 or 3, default 2. |
+| `PythonVersion`  | `spark.kubernetes.pyspark.pythonVersion`  | This sets the major Python version of the docker image used to run the driver and executor containers. Can either be 2 or 3, default 2. |
 | `Mode`  | `--mode` | Spark deployment mode. Valid values are `cluster` and `client`. |
 | `Image` | `spark.kubernetes.container.image` | Unified container image for the driver, executor, and init-container. |
 | `InitContainerImage` | `spark.kubernetes.initContainer.image` | Custom init-container image. |

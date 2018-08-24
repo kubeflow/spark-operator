@@ -136,7 +136,7 @@ const (
 	// SparkWaitAppCompletion is the Spark configuration key for specifying whether to wait for application to complete.
 	SparkWaitAppCompletion = "spark.kubernetes.submission.waitAppCompletion"
 	// SparkPythonVersion is the Spark configuration key for specifying python version used.
-	SparkPythonVersion = "spark.kubernetes.pyspark.pythonversion"
+	SparkPythonVersion = "spark.kubernetes.pyspark.pythonVersion"
 	// SparkPythonVersion is the Spark configuration key for specifying memory overhead factor used for Non-JVM memory.
 	SparkMemoryOverheadFactor = "spark.kubernetes.memoryOverheadFactor"
 	// SparkDriverJavaOptions is the Spark configuration key for a string of extra JVM options to pass to driver.
