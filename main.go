@@ -20,20 +20,23 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
 	"github.com/golang/glog"
-
 	apiv1 "k8s.io/api/core/v1"
 	apiextensionsclient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/clock"
+	"k8s.io/client-go/informers"
 	clientset "k8s.io/client-go/kubernetes"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
+	operatorConfig "k8s.io/spark-on-k8s-operator/pkg/config"
 
 	crdclientset "k8s.io/spark-on-k8s-operator/pkg/client/clientset/versioned"
 	crdinformers "k8s.io/spark-on-k8s-operator/pkg/client/informers/externalversions"
@@ -127,13 +130,22 @@ func main() {
 		time.Duration(*resyncInterval)*time.Second,
 		factoryOpts...)
 
+	// Create Informer & Lister for pods.
+	tweakListOptionsFunc := func(options *metav1.ListOptions) {
+		options.LabelSelector = fmt.Sprintf("%s,%s", operatorConfig.SparkRoleLabel, operatorConfig.LaunchedBySparkOperatorLabel)
+	}
+	podInformerFactory := informers.NewFilteredSharedInformerFactory(kubeClient,
+		60*time.Second, *namespace, tweakListOptionsFunc)
+
 	applicationController := sparkapplication.NewController(
-		crdClient, kubeClient, apiExtensionsClient, factory, metricConfig, *namespace, stopCh)
+		crdClient, kubeClient, apiExtensionsClient, factory, podInformerFactory, metricConfig, *namespace)
 	scheduledApplicationController := scheduledsparkapplication.NewController(
 		crdClient, kubeClient, apiExtensionsClient, factory, clock.RealClock{})
 
 	// Start the informer factory that in turn starts the informer.
 	go factory.Start(stopCh)
+	go podInformerFactory.Start(stopCh)
+
 	if err = applicationController.Start(*controllerThreads, stopCh); err != nil {
 		glog.Fatal(err)
 	}

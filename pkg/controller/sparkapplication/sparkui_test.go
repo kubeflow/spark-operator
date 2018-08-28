@@ -134,7 +134,7 @@ func TestCreateSparkUIService(t *testing.T) {
 			expectedServicePort: 4041,
 			expectedSelector: map[string]string{
 				config.SparkAppNameLabel: "foo",
-				sparkRoleLabel:           sparkDriverRole,
+				config.SparkRoleLabel:    sparkDriverRole,
 			},
 			expectError: false,
 		},
@@ -145,7 +145,7 @@ func TestCreateSparkUIService(t *testing.T) {
 			expectedServicePort: int32(defaultPort),
 			expectedSelector: map[string]string{
 				config.SparkAppNameLabel: "foo",
-				sparkRoleLabel:           sparkDriverRole,
+				config.SparkRoleLabel:    sparkDriverRole,
 			},
 			expectError: false,
 		},

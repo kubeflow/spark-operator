@@ -33,6 +33,7 @@ import (
 	apiv1 "k8s.io/api/core/v1"
 	apiextensionsfake "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset/fake"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/informers"
 	kubeclientfake "k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/tools/cache"
@@ -44,7 +45,7 @@ import (
 	"k8s.io/spark-on-k8s-operator/pkg/util"
 )
 
-func newFakeController(apps ...*v1alpha1.SparkApplication) (*Controller, *record.FakeRecorder) {
+func newFakeController(app *v1alpha1.SparkApplication, pods ...*apiv1.Pod) (*Controller, *record.FakeRecorder) {
 	crdclientfake.AddToScheme(scheme.Scheme)
 	crdClient := crdclientfake.NewSimpleClientset()
 	kubeClient := kubeclientfake.NewSimpleClientset()
@@ -65,20 +66,27 @@ func newFakeController(apps ...*v1alpha1.SparkApplication) (*Controller, *record
 			},
 		},
 	})
-	stopCh := make(chan struct{})
-	controller := newSparkApplicationController(crdClient, kubeClient, apiExtensionsClient, informerFactory, recorder,
-		&util.MetricConfig{}, "test", stopCh)
+
+	podInformerFactory := informers.NewSharedInformerFactory(kubeClient, 0*time.Second)
+	controller := newSparkApplicationController(crdClient, kubeClient, apiExtensionsClient, informerFactory, podInformerFactory, recorder,
+		&util.MetricConfig{})
 
 	informer := informerFactory.Sparkoperator().V1alpha1().SparkApplications().Informer()
-	for _, app := range apps {
+	if app != nil {
 		informer.GetIndexer().Add(app)
 	}
 
+	podInformer := podInformerFactory.Core().V1().Pods().Informer()
+	for _, pod := range pods {
+		if pod != nil {
+			podInformer.GetIndexer().Add(pod)
+		}
+	}
 	return controller, recorder
 }
 
 func TestOnAdd(t *testing.T) {
-	ctrl, recorder := newFakeController()
+	ctrl, recorder := newFakeController(nil)
 
 	app := &v1alpha1.SparkApplication{
 		ObjectMeta: metav1.ObjectMeta{
@@ -103,7 +111,7 @@ func TestOnAdd(t *testing.T) {
 }
 
 func TestOnUpdate(t *testing.T) {
-	ctrl, recorder := newFakeController()
+	ctrl, recorder := newFakeController(nil)
 
 	appTemplate := &v1alpha1.SparkApplication{
 		ObjectMeta: metav1.ObjectMeta{
@@ -151,7 +159,7 @@ func TestOnUpdate(t *testing.T) {
 }
 
 func TestOnDelete(t *testing.T) {
-	ctrl, recorder := newFakeController()
+	ctrl, recorder := newFakeController(nil)
 
 	app := &v1alpha1.SparkApplication{
 		ObjectMeta: metav1.ObjectMeta{
@@ -252,14 +260,20 @@ func TestSyncSparkApplication_NewAppSubmissionFailed(t *testing.T) {
 	os.Setenv(kubernetesServiceHostEnvVar, "localhost")
 	os.Setenv(kubernetesServicePortEnvVar, "443")
 
-	failureRetries := int32(1)
+	restartPolicyOnFailure := v1alpha1.RestartPolicy{
+		Type:                             v1alpha1.OnFailure,
+		OnFailureRetries:                 int32ptr(1),
+		OnFailureRetryInterval:           int64ptr(100),
+		OnSubmissionFailureRetryInterval: int64ptr(100),
+		OnSubmissionFailureRetries:       int32ptr(1),
+	}
 	app := &v1alpha1.SparkApplication{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "foo",
 			Namespace: "default",
 		},
 		Spec: v1alpha1.SparkApplicationSpec{
-			FailureRetries: &failureRetries,
+			RestartPolicy: restartPolicyOnFailure,
 		},
 		Status: v1alpha1.SparkApplicationStatus{
 			AppState: v1alpha1.ApplicationState{
@@ -283,29 +297,52 @@ func TestSyncSparkApplication_NewAppSubmissionFailed(t *testing.T) {
 		return cmd
 	}
 
+	// Attempt 1
 	err = ctrl.syncSparkApplication("default/foo")
 	updatedApp, err := ctrl.crdClient.SparkoperatorV1alpha1().SparkApplications(app.Namespace).Get(app.Name, metav1.GetOptions{})
 
-	assert.Equal(t, v1alpha1.FailedState, updatedApp.Status.AppState.State)
-	assert.Equal(t, int32(1), updatedApp.Status.Attempts)
+	assert.Equal(t, v1alpha1.FailedSubmissionState, updatedApp.Status.AppState.State)
+	assert.Equal(t, int32(1), updatedApp.Status.SubmissionAttempts)
 	assert.Equal(t, float64(0), fetchCounterValue(ctrl.metrics.sparkAppSubmitCount, map[string]string{}))
 	assert.Equal(t, float64(1), fetchCounterValue(ctrl.metrics.sparkAppFailureCount, map[string]string{}))
 
 	event := <-recorder.Events
 	assert.True(t, strings.Contains(event, "SparkApplicationSubmissionFailed"))
 
-	// Try submitting again.
+	// Attempt 2: Retry again
+	updatedApp.Status.SubmissionTime = metav1.Time{metav1.Now().Add(-100 * time.Second)}
+	ctrl, recorder = newFakeController(updatedApp)
+	_, err = ctrl.crdClient.SparkoperatorV1alpha1().SparkApplications(app.Namespace).Create(updatedApp)
+	if err != nil {
+		t.Fatal(err)
+	}
 	err = ctrl.syncSparkApplication("default/foo")
 
 	// Verify App Failed again.
 	updatedApp, err = ctrl.crdClient.SparkoperatorV1alpha1().SparkApplications(app.Namespace).Get(app.Name, metav1.GetOptions{})
-	assert.Equal(t, v1alpha1.FailedState, updatedApp.Status.AppState.State)
+	assert.Nil(t, err)
+	assert.Equal(t, v1alpha1.FailedSubmissionState, updatedApp.Status.AppState.State)
+	assert.Equal(t, int32(2), updatedApp.Status.SubmissionAttempts)
 	assert.Equal(t, float64(0), fetchCounterValue(ctrl.metrics.sparkAppSubmitCount, map[string]string{}))
-	assert.Equal(t, float64(2), fetchCounterValue(ctrl.metrics.sparkAppFailureCount, map[string]string{}))
 
 	event = <-recorder.Events
 	assert.True(t, strings.Contains(event, "SparkApplicationSubmissionFailed"))
 
+	// Attempt 3: No more retries
+	updatedApp.Status.SubmissionTime = metav1.Time{metav1.Now().Add(-100 * time.Second)}
+	ctrl, recorder = newFakeController(updatedApp)
+	_, err = ctrl.crdClient.SparkoperatorV1alpha1().SparkApplications(app.Namespace).Create(updatedApp)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = ctrl.syncSparkApplication("default/foo")
+
+	// Verify App Failed again.
+	updatedApp, err = ctrl.crdClient.SparkoperatorV1alpha1().SparkApplications(app.Namespace).Get(app.Name, metav1.GetOptions{})
+	assert.Nil(t, err)
+	assert.Equal(t, v1alpha1.FailedSubmissionState, updatedApp.Status.AppState.State)
+	// No more submission attempts made.
+	assert.Equal(t, int32(2), updatedApp.Status.SubmissionAttempts)
 }
 
 func TestSyncSparkApplication_RunningState(t *testing.T) {
@@ -325,14 +362,15 @@ func TestSyncSparkApplication_RunningState(t *testing.T) {
 	os.Setenv(kubernetesServiceHostEnvVar, "localhost")
 	os.Setenv(kubernetesServicePortEnvVar, "443")
 
-	submissionRetries := int32(0)
 	app := &v1alpha1.SparkApplication{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "foo",
 			Namespace: "test",
 		},
 		Spec: v1alpha1.SparkApplicationSpec{
-			FailureRetries: &submissionRetries,
+			RestartPolicy: v1alpha1.RestartPolicy{
+				Type: v1alpha1.Never,
+			},
 		},
 		Status: v1alpha1.SparkApplicationStatus{
 			AppState: v1alpha1.ApplicationState{
@@ -363,7 +401,7 @@ func TestSyncSparkApplication_RunningState(t *testing.T) {
 					Name:      "foo-driver",
 					Namespace: "test",
 					Labels: map[string]string{
-						sparkRoleLabel:           sparkDriverRole,
+						config.SparkRoleLabel:    sparkDriverRole,
 						config.SparkAppNameLabel: "foo-2",
 					},
 					ResourceVersion: "1",
@@ -377,7 +415,7 @@ func TestSyncSparkApplication_RunningState(t *testing.T) {
 					Name:      "exec-1",
 					Namespace: "test",
 					Labels: map[string]string{
-						sparkRoleLabel:           sparkExecutorRole,
+						config.SparkRoleLabel:    sparkExecutorRole,
 						config.SparkAppNameLabel: "foo-2",
 					},
 					ResourceVersion: "1",
@@ -404,7 +442,7 @@ func TestSyncSparkApplication_RunningState(t *testing.T) {
 					Name:      "foo-driver",
 					Namespace: "test",
 					Labels: map[string]string{
-						sparkRoleLabel:           sparkDriverRole,
+						config.SparkRoleLabel:    sparkDriverRole,
 						config.SparkAppNameLabel: "foo-3",
 					},
 					ResourceVersion: "1",
@@ -418,7 +456,7 @@ func TestSyncSparkApplication_RunningState(t *testing.T) {
 					Name:      "exec-1",
 					Namespace: "test",
 					Labels: map[string]string{
-						sparkRoleLabel:           sparkExecutorRole,
+						config.SparkRoleLabel:    sparkExecutorRole,
 						config.SparkAppNameLabel: "foo-3",
 					},
 					ResourceVersion: "1",
@@ -440,7 +478,7 @@ func TestSyncSparkApplication_RunningState(t *testing.T) {
 		app.Status.ExecutorState = test.oldExecutorStatus
 		app.Name = test.appName
 		app.Status.Attempts = 1
-		ctrl, _ := newFakeController(app)
+		ctrl, _ := newFakeController(app, test.driverPod, test.executorPod)
 		_, err := ctrl.crdClient.SparkoperatorV1alpha1().SparkApplications(app.Namespace).Create(app)
 		if err != nil {
 			t.Fatal(err)
@@ -486,6 +524,24 @@ func TestShouldSubmit(t *testing.T) {
 		assert.Equal(t, test.shouldSubmit, shouldSubmit(test.app))
 	}
 
+	restartPolicyAlways := v1alpha1.RestartPolicy{
+		Type: v1alpha1.Always,
+		OnSubmissionFailureRetryInterval: int64ptr(100),
+		OnFailureRetryInterval:           int64ptr(100),
+	}
+
+	restartPolicyNever := v1alpha1.RestartPolicy{
+		Type: v1alpha1.Never,
+	}
+
+	restartPolicyOnFailure := v1alpha1.RestartPolicy{
+		Type:                             v1alpha1.OnFailure,
+		OnFailureRetries:                 int32ptr(1),
+		OnFailureRetryInterval:           int64ptr(100),
+		OnSubmissionFailureRetryInterval: int64ptr(100),
+		OnSubmissionFailureRetries:       int32ptr(2),
+	}
+
 	testcases := []testcase{
 		{
 			app:          &v1alpha1.SparkApplication{},
@@ -493,22 +549,111 @@ func TestShouldSubmit(t *testing.T) {
 		},
 		{
 			app: &v1alpha1.SparkApplication{
-				Status: v1alpha1.SparkApplicationStatus{
-					Attempts: 1,
-				},
 				Spec: v1alpha1.SparkApplicationSpec{
-					FailureRetries: int32ptr(1),
+					RestartPolicy: restartPolicyAlways,
+				},
+				Status: v1alpha1.SparkApplicationStatus{
+					AppState: v1alpha1.ApplicationState{
+						State: v1alpha1.CompletedState,
+					},
 				},
 			},
 			shouldSubmit: true,
 		},
 		{
 			app: &v1alpha1.SparkApplication{
+				Spec: v1alpha1.SparkApplicationSpec{
+					RestartPolicy: restartPolicyAlways,
+				},
 				Status: v1alpha1.SparkApplicationStatus{
+					AppState: v1alpha1.ApplicationState{
+						State: v1alpha1.FailedSubmissionState,
+					},
+					SubmissionTime: metav1.Time{Time: metav1.Now().Add(-2000 * time.Second)},
+				},
+			},
+			shouldSubmit: true,
+		},
+		{
+			app: &v1alpha1.SparkApplication{
+				Spec: v1alpha1.SparkApplicationSpec{
+					RestartPolicy: restartPolicyAlways,
+				},
+				Status: v1alpha1.SparkApplicationStatus{
+					AppState: v1alpha1.ApplicationState{
+						State: v1alpha1.FailedState,
+					},
+					CompletionTime: metav1.Time{Time: metav1.Now().Add(-2000 * time.Second)},
+				},
+			},
+			shouldSubmit: true,
+		},
+		{
+			app: &v1alpha1.SparkApplication{
+				Spec: v1alpha1.SparkApplicationSpec{
+					RestartPolicy: restartPolicyAlways,
+				},
+				Status: v1alpha1.SparkApplicationStatus{
+					AppState: v1alpha1.ApplicationState{
+						State: v1alpha1.RunningState,
+					},
+				},
+			},
+			shouldSubmit: false,
+		},
+		{
+			app: &v1alpha1.SparkApplication{
+				Spec: v1alpha1.SparkApplicationSpec{
+					RestartPolicy: restartPolicyAlways,
+				},
+				Status: v1alpha1.SparkApplicationStatus{
+					AppState: v1alpha1.ApplicationState{
+						State: v1alpha1.SubmittedState,
+					},
+				},
+			},
+			shouldSubmit: false,
+		},
+		{
+			app: &v1alpha1.SparkApplication{
+				Spec: v1alpha1.SparkApplicationSpec{
+					RestartPolicy: restartPolicyNever,
+				},
+				Status: v1alpha1.SparkApplicationStatus{
+					AppState: v1alpha1.ApplicationState{
+						State: v1alpha1.CompletedState,
+					},
+				},
+			},
+			shouldSubmit: false,
+		},
+		{
+			app: &v1alpha1.SparkApplication{
+				Spec: v1alpha1.SparkApplicationSpec{
+					RestartPolicy: restartPolicyNever,
+				},
+				Status: v1alpha1.SparkApplicationStatus{
+					AppState: v1alpha1.ApplicationState{
+						State: v1alpha1.NewState,
+					},
+				},
+			},
+			shouldSubmit: true,
+		},
+		{
+			app:          &v1alpha1.SparkApplication{},
+			shouldSubmit: true,
+		},
+		{
+			app: &v1alpha1.SparkApplication{
+				Status: v1alpha1.SparkApplicationStatus{
+					AppState: v1alpha1.ApplicationState{
+						State: v1alpha1.FailedState,
+					},
 					Attempts: 2,
 				},
 				Spec: v1alpha1.SparkApplicationSpec{
-					FailureRetries: int32ptr(1),
+					RestartPolicy: restartPolicyOnFailure,
 				},
 			},
 			shouldSubmit: false,
@@ -516,12 +661,14 @@ func TestShouldSubmit(t *testing.T) {
 		{
 			app: &v1alpha1.SparkApplication{
 				Status: v1alpha1.SparkApplicationStatus{
+					AppState: v1alpha1.ApplicationState{
+						State: v1alpha1.FailedState,
+					},
 					Attempts:       1,
-					SubmissionTime: metav1.Now(),
+					CompletionTime: metav1.Now(),
 				},
 				Spec: v1alpha1.SparkApplicationSpec{
-					FailureRetries: int32ptr(2),
-					RetryInterval:  int64ptr(1000),
+					RestartPolicy: restartPolicyOnFailure,
 				},
 			},
 			shouldSubmit: false,
@@ -529,12 +676,14 @@ func TestShouldSubmit(t *testing.T) {
 		{
 			app: &v1alpha1.SparkApplication{
 				Status: v1alpha1.SparkApplicationStatus{
+					AppState: v1alpha1.ApplicationState{
+						State: v1alpha1.FailedState,
+					},
 					Attempts:       1,
-					SubmissionTime: metav1.Time{Time: metav1.Now().Add(-2000 * time.Second)},
+					CompletionTime: metav1.Time{Time: metav1.Now().Add(-2000 * time.Second)},
 				},
 				Spec: v1alpha1.SparkApplicationSpec{
-					FailureRetries: int32ptr(2),
-					RetryInterval:  int64ptr(1000),
+					RestartPolicy: restartPolicyOnFailure,
 				},
 			},
 			shouldSubmit: true,
@@ -542,13 +691,13 @@ func TestShouldSubmit(t *testing.T) {
 		{
 			app: &v1alpha1.SparkApplication{
 				Status: v1alpha1.SparkApplicationStatus{
-					Attempts:       1,
-					SubmissionTime: metav1.Time{Time: metav1.Now().Add(-2000 * time.Second)},
-					CompletionTime: metav1.Now(),
+					AppState: v1alpha1.ApplicationState{
+						State: v1alpha1.FailedSubmissionState,
+					},
+					SubmissionAttempts: 3,
 				},
 				Spec: v1alpha1.SparkApplicationSpec{
-					FailureRetries: int32ptr(2),
-					RetryInterval:  int64ptr(1000),
+					RestartPolicy: restartPolicyOnFailure,
 				},
 			},
 			shouldSubmit: false,
@@ -556,13 +705,29 @@ func TestShouldSubmit(t *testing.T) {
 		{
 			app: &v1alpha1.SparkApplication{
 				Status: v1alpha1.SparkApplicationStatus{
-					Attempts:       1,
-					SubmissionTime: metav1.Time{Time: metav1.Now().Add(-2000 * time.Second)},
-					CompletionTime: metav1.Time{Time: metav1.Now().Add(-2000 * time.Second)},
+					AppState: v1alpha1.ApplicationState{
+						State: v1alpha1.FailedSubmissionState,
+					},
+					SubmissionAttempts: 1,
+					SubmissionTime:     metav1.Now(),
 				},
 				Spec: v1alpha1.SparkApplicationSpec{
-					FailureRetries: int32ptr(2),
-					RetryInterval:  int64ptr(1000),
+					RestartPolicy: restartPolicyOnFailure,
+				},
+			},
+			shouldSubmit: false,
+		},
+		{
+			app: &v1alpha1.SparkApplication{
+				Status: v1alpha1.SparkApplicationStatus{
+					AppState: v1alpha1.ApplicationState{
+						State: v1alpha1.FailedSubmissionState,
+					},
+					SubmissionAttempts: 1,
+					SubmissionTime:     metav1.Time{Time: metav1.Now().Add(-2000 * time.Second)},
+				},
+				Spec: v1alpha1.SparkApplicationSpec{
+					RestartPolicy: restartPolicyOnFailure,
 				},
 			},
 			shouldSubmit: true,

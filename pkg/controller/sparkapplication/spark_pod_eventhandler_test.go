@@ -39,7 +39,7 @@ func TestOnPodAdded(t *testing.T) {
 			Name:      "foo-driver",
 			Namespace: namespace,
 			Labels: map[string]string{
-				sparkRoleLabel:                 sparkDriverRole,
+				config.SparkRoleLabel:          sparkDriverRole,
 				config.SparkApplicationIDLabel: "foo-123",
 				config.SparkAppNameLabel:       appName,
 			},
@@ -76,7 +76,7 @@ func TestOnPodAdded(t *testing.T) {
 			Name:      "foo-driver",
 			Namespace: "foo-namespace",
 			Labels: map[string]string{
-				sparkRoleLabel:                 sparkExecutorRole,
+				config.SparkRoleLabel:          sparkExecutorRole,
 				config.SparkApplicationIDLabel: "foo-123",
 				config.SparkAppNameLabel:       appName,
 				sparkExecutorIDLabel:           "1",
@@ -120,7 +120,7 @@ func TestOnPodUpdated(t *testing.T) {
 			Name:      "foo-driver",
 			Namespace: namespace,
 			Labels: map[string]string{
-				sparkRoleLabel:                 sparkDriverRole,
+				config.SparkRoleLabel:          sparkDriverRole,
 				config.SparkApplicationIDLabel: "foo-123",
 				config.SparkAppNameLabel:       appName,
 			},
@@ -162,7 +162,7 @@ func TestOnPodUpdated(t *testing.T) {
 			Name:      "foo-driver",
 			Namespace: namespace,
 			Labels: map[string]string{
-				sparkRoleLabel:                 sparkExecutorRole,
+				config.SparkRoleLabel:          sparkExecutorRole,
 				config.SparkApplicationIDLabel: "foo-123",
 				config.SparkAppNameLabel:       appName,
 				sparkExecutorIDLabel:           "1",
@@ -210,7 +210,7 @@ func TestOnPodDeleted(t *testing.T) {
 			Name:      "foo-driver",
 			Namespace: namespace,
 			Labels: map[string]string{
-				sparkRoleLabel:                 sparkDriverRole,
+				config.SparkRoleLabel:          sparkDriverRole,
 				config.SparkApplicationIDLabel: "foo-123",
 				config.SparkAppNameLabel:       appName,
 			},
@@ -247,7 +247,7 @@ func TestOnPodDeleted(t *testing.T) {
 			Name:      "foo-exec-1",
 			Namespace: namespace,
 			Labels: map[string]string{
-				sparkRoleLabel:                 sparkExecutorRole,
+				config.SparkRoleLabel:          sparkExecutorRole,
 				config.SparkApplicationIDLabel: "foo-123",
 				config.SparkAppNameLabel:       appName,
 				sparkExecutorIDLabel:           "1",

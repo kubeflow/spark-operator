@@ -62,7 +62,7 @@ func createSparkUIService(
 			},
 			Selector: map[string]string{
 				config.SparkAppNameLabel: app.Name,
-				sparkRoleLabel:           sparkDriverRole,
+				config.SparkRoleLabel:    sparkDriverRole,
 			},
 			Type: apiv1.ServiceTypeNodePort,
 		},

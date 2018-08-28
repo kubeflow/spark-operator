@@ -43,15 +43,28 @@ const (
 )
 
 // RestartPolicy is the policy of if and in which conditions the controller should restart a terminated application.
-// The decision is based on the policy and termination state of the driver pod. An application that fails submission
-// won't be restarted regardless of the policy.
-type RestartPolicy string
+// This completely defines actions to be taken on any kind of Failures during an application run.
+type RestartPolicy struct {
+	Type RestartPolicyType `json:"type,omitempty""`
+
+	// FailureRetries are the number of times to retry a failed application before giving up in a particular case.
+	// This is best effort and actual retry attempts can be >= the value specified due to caching.
+	// These are required if RestartPolicy is onFailure.
+	OnSubmissionFailureRetries *int32 `json:"onSubmissionFailureRetries,omitempty"`
+	OnFailureRetries           *int32 `json:"onFailureRetries,omitempty"`
+
+	// Interval to wait between successive retries of a failed application.
+	// Required if the RestartPolicy is onFailure or Always.
+	OnSubmissionFailureRetryInterval *int64 `json:"onSubmissionFailureRetryInterval,omitempty"`
+	OnFailureRetryInterval           *int64 `json:"onFailureRetryInterval,omitempty"`
+}
+
+type RestartPolicyType string
 
 const (
-	Undefined RestartPolicy = ""
-	Never     RestartPolicy = "Never"
-	OnFailure RestartPolicy = "OnFailure"
-	Always    RestartPolicy = "Always"
+	Never     RestartPolicyType = ""
+	OnFailure RestartPolicyType = "OnFailure"
+	Always    RestartPolicyType = "Always"
 )
 
 // +genclient
@@ -201,6 +214,8 @@ type SparkApplicationSpec struct {
 	Executor ExecutorSpec `json:"executor"`
 	// Deps captures all possible types of dependencies of a Spark application.
 	Deps Dependencies `json:"deps"`
+	// RestartPolicy defines the policy on if and in which conditions the controller should restart an application.
+	RestartPolicy RestartPolicy `json:"restartPolicy,omitempty"`
 	// NodeSelector is the Kubernetes node selector to be added to the driver and executor pods.
 	// Optional.
 	NodeSelector map[string]string `json:"nodeSelector,omitempty"`
@@ -227,7 +242,7 @@ type ApplicationStateType string
 
 // Different states an application may have.
 const (
-	NewState       ApplicationStateType = "NEW"
+	NewState       ApplicationStateType = ""
 	SubmittedState ApplicationStateType = "SUBMITTED"
 	RunningState   ApplicationStateType = "RUNNING"
 	CompletedState ApplicationStateType = "COMPLETED"

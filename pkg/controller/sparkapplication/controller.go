@@ -33,6 +33,8 @@ import (
 	apiextensionsclient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/selection"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/informers"
@@ -53,7 +55,6 @@ import (
 )
 
 const (
-	sparkRoleLabel            = "spark-role"
 	sparkDriverRole           = "driver"
 	sparkExecutorRole         = "executor"
 	sparkExecutorIDLabel      = "spark-exec-id"
@@ -84,9 +85,9 @@ func NewController(
 	kubeClient clientset.Interface,
 	extensionsClient apiextensionsclient.Interface,
 	crdInformerFactory crdinformers.SharedInformerFactory,
+	podInformerFactory informers.SharedInformerFactory,
 	metricsConfig *util.MetricConfig,
-	namespace string,
-	stopCh <-chan struct{}) *Controller {
+	namespace string) *Controller {
 	crdscheme.AddToScheme(scheme.Scheme)
 
 	eventBroadcaster := record.NewBroadcaster()
@@ -95,7 +96,8 @@ func NewController(
 		Interface: kubeClient.CoreV1().Events(namespace),
 	})
 	recorder := eventBroadcaster.NewRecorder(scheme.Scheme, apiv1.EventSource{Component: "spark-operator"})
-	return newSparkApplicationController(crdClient, kubeClient, extensionsClient, crdInformerFactory, recorder, metricsConfig, namespace, stopCh)
+
+	return newSparkApplicationController(crdClient, kubeClient, extensionsClient, crdInformerFactory, podInformerFactory, recorder, metricsConfig)
 }
 
 func newSparkApplicationController(
@@ -103,10 +105,9 @@ func newSparkApplicationController(
 	kubeClient clientset.Interface,
 	extensionsClient apiextensionsclient.Interface,
 	crdInformerFactory crdinformers.SharedInformerFactory,
+	podInformerFactory informers.SharedInformerFactory,
 	eventRecorder record.EventRecorder,
-	metricsConfig *util.MetricConfig,
-	namespace string,
-	stopCh <-chan struct{}) *Controller {
+	metricsConfig *util.MetricConfig) *Controller {
 	queue := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(),
 		"spark-application-controller")
 
@@ -131,25 +132,14 @@ func newSparkApplicationController(
 	})
 	controller.applicationLister = crdInformer.Lister()
 
-	// Create Informer & Lister for pods.
-	tweakListOptionsFunc := func(options *metav1.ListOptions) {
-		options.LabelSelector = fmt.Sprintf("%s,%s", sparkRoleLabel, config.LaunchedBySparkOperatorLabel)
-	}
-	informerFactory := informers.NewFilteredSharedInformerFactory(kubeClient,
-		60*time.Second, namespace, tweakListOptionsFunc)
-
-	podsInformer := informerFactory.Core().V1().Pods()
-
+	podsInformer := podInformerFactory.Core().V1().Pods()
 	sparkPodEventHandler := newSparkPodEventHandler(controller.queue.AddRateLimited)
-
 	podsInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc:    sparkPodEventHandler.onPodAdded,
 		UpdateFunc: sparkPodEventHandler.onPodUpdated,
 		DeleteFunc: sparkPodEventHandler.onPodDeleted,
 	})
-
 	controller.podLister = podsInformer.Lister()
-	go informerFactory.Start(stopCh)
 
 	controller.cacheSynced = func() bool {
 		return crdInformer.Informer().HasSynced() && podsInformer.Informer().HasSynced()
@@ -205,7 +195,7 @@ func (c *Controller) onUpdate(oldObj, newObj interface{}) {
 			newApp,
 			apiv1.EventTypeWarning,
 			"SparkApplicationUpdateFailed",
-			"Spark Application update is not supported. Please delete and re-create the SparkApplication %s for the new Specification to have effect",
+			"Spark Application update is not supported. Please delete and re-create the SparkApplication %s for the new Specification to have effect.",
 			newApp.Name)
 		return
 	}
@@ -298,10 +288,10 @@ type driverState struct {
 
 func (c *Controller) getUpdatedAppStatus(app *v1alpha1.SparkApplication) *v1alpha1.SparkApplication {
 
-	selector := fmt.Sprintf("%s=%s", config.SparkAppNameLabel, app.Name)
-	listOptions := metav1.ListOptions{LabelSelector: selector}
+	// Fetch all the pods for the App.
+	selector, err := labels.NewRequirement(config.SparkAppNameLabel, selection.Equals, []string{app.Name})
+	pods, err := c.podLister.List(labels.NewSelector().Add(*selector))
 
-	pods, err := c.kubeClient.CoreV1().Pods(app.GetNamespace()).List(listOptions)
 	if err != nil {
 		glog.Errorf("Error while fetching pods for %v in namespace: %v. Error: %v", app.Name, app.Namespace, err)
 		return nil
@@ -309,26 +299,24 @@ func (c *Controller) getUpdatedAppStatus(app *v1alpha1.SparkApplication) *v1alph
 	executorStateMap := map[string]v1alpha1.ExecutorState{}
 	var currentDriverState *driverState
 
-	for _, pod := range pods.Items {
-		if isDriverPod(&pod) {
+	for _, pod := range pods {
+		if isDriverPod(pod) {
 			currentDriverState = &driverState{
 				podName:            pod.Name,
 				nodeName:           pod.Spec.NodeName,
 				podPhase:           pod.Status.Phase,
-				sparkApplicationID: getSparkApplicationID(&pod),
+				sparkApplicationID: getSparkApplicationID(pod),
 			}
 			if pod.Status.Phase == apiv1.PodSucceeded || pod.Status.Phase == apiv1.PodFailed {
 				currentDriverState.completionTime = metav1.Now()
 			}
 			c.recordDriverEvent(app, pod.Status.Phase, pod.Name)
 		}
-		if isExecutorPod(&pod) {
+		if isExecutorPod(pod) {
 			c.recordExecutorEvent(app, podPhaseToExecutorState(pod.Status.Phase), pod.Name)
 			executorStateMap[pod.Name] = podPhaseToExecutorState(pod.Status.Phase)
 		}
 	}
-
-	glog.V(2).Infof("Trying to apply updates: Driver: %+v, Executor: %+v", currentDriverState, executorStateMap)
 
 	if currentDriverState != nil {
 		if newAppState, err := driverPodPhaseToApplicationState(currentDriverState.podPhase); err == nil {
@@ -376,7 +364,7 @@ func (c *Controller) getUpdatedAppStatus(app *v1alpha1.SparkApplication) *v1alph
 		}
 	}
 
-	// Missing/deleted executors
+	// Handle missing/deleted executors.
 	for name, oldStatus := range app.Status.ExecutorState {
 		_, exists := executorStateMap[name]
 		if !isExecutorTerminated(oldStatus) && !exists {
@@ -403,19 +391,25 @@ func (c *Controller) syncSparkApplication(key string) error {
 	appToUpdate := app.DeepCopy()
 	var updatedApp *v1alpha1.SparkApplication
 	switch app.Status.AppState.State {
-	case "", v1alpha1.NewState, v1alpha1.FailedState:
-		if shouldSubmit(app) {
-			glog.V(2).Infof("Creating Submission for SparkApp: %s", key)
-			attempt := app.Status.Attempts + 1
-			updatedApp = c.submitSparkApplication(appToUpdate, attempt)
+	case v1alpha1.NewState, v1alpha1.FailedState, v1alpha1.CompletedState:
+		if shouldSubmit(appToUpdate) {
+			// Reset SubmissionAttempts Count since this is a new overall retry.
+			appToUpdate.Status.SubmissionAttempts = 0
+			glog.Infof("Creating Submission for SparkApp: %s", key)
+			updatedApp = c.submitSparkApplication(appToUpdate)
 		} else {
-			glog.V(2).Infof(" Not retrying Failed app %s for now.", appToUpdate.Name)
+			glog.V(2).Infof(" Not Submitting App %s for now.", appToUpdate.Name)
+		}
+	case v1alpha1.FailedSubmissionState:
+		if shouldSubmit(appToUpdate) {
+			glog.Infof("Creating Submission for SparkApp: %s", key)
+			updatedApp = c.submitSparkApplication(appToUpdate)
+		} else {
+			glog.V(2).Infof(" Not Submitting App %s for now.", appToUpdate.Name)
 		}
 	case v1alpha1.SubmittedState, v1alpha1.RunningState:
 		//App already submitted, get driver and executor pods and update Status.
 		updatedApp = c.getUpdatedAppStatus(appToUpdate)
-	case v1alpha1.CompletedState:
-		glog.V(2).Infof("SparkApp %s completed successfully, no action taken", key)
 	}
 
 	// Update CRD if not nil.
@@ -431,17 +425,17 @@ func (c *Controller) syncSparkApplication(key string) error {
 }
 
 // submitSparkApplication creates a new submission for the given SparkApplication and submits it using spark-submit.
-func (c *Controller) submitSparkApplication(app *v1alpha1.SparkApplication, attempt int32) *v1alpha1.SparkApplication {
+func (c *Controller) submitSparkApplication(app *v1alpha1.SparkApplication) *v1alpha1.SparkApplication {
 
 	submissionCmdArgs, err := buildSubmissionCommandArgs(app)
 	if err != nil {
 		app.Status = v1alpha1.SparkApplicationStatus{
 			AppState: v1alpha1.ApplicationState{
-				State:        v1alpha1.FailedState,
+				State:        v1alpha1.FailedSubmissionState,
 				ErrorMessage: err.Error(),
 			},
-			Attempts:       attempt,
-			SubmissionTime: metav1.Now(),
+			SubmissionAttempts: app.Status.SubmissionAttempts + 1,
+			SubmissionTime:     metav1.Now(),
 		}
 		return app
 	}
@@ -471,11 +465,11 @@ func (c *Controller) submitSparkApplication(app *v1alpha1.SparkApplication, atte
 			submission.namespace, errorMsg)
 		app.Status = v1alpha1.SparkApplicationStatus{
 			AppState: v1alpha1.ApplicationState{
-				State:        v1alpha1.FailedState,
-				ErrorMessage: err.Error(),
+				State:        v1alpha1.FailedSubmissionState,
+				ErrorMessage: errorMsg,
 			},
-			Attempts:       attempt,
-			SubmissionTime: metav1.Now(),
+			SubmissionAttempts: app.Status.SubmissionAttempts + 1,
+			SubmissionTime:     metav1.Now(),
 		}
 		c.recorder.Eventf(
 			app,
@@ -490,10 +484,11 @@ func (c *Controller) submitSparkApplication(app *v1alpha1.SparkApplication, atte
 			AppState: v1alpha1.ApplicationState{
 				State: v1alpha1.SubmittedState,
 			},
-			Attempts:       attempt,
-			SubmissionTime: metav1.Now(),
+			SubmissionAttempts: app.Status.SubmissionAttempts + 1,
+			Attempts:           app.Status.Attempts + 1,
+			SubmissionTime:     metav1.Now(),
 		}
-		// Add driver as a finalizer to prevent CRD deletion till driver is deleted.
+		// Add driver as a finalizer to prevent SparkApplication deletion till driver is deleted.
 		if app.ObjectMeta.Finalizers == nil {
 			app.ObjectMeta.Finalizers = []string{sparkDriverRole}
 		} else {
@@ -607,37 +602,55 @@ func (c *Controller) recordExecutorEvent(
 	}
 }
 
-// shouldSubmit determines if a given application is subject to a submission retry.
+// shouldSubmit determines if a given application is subject to a retry.
 func shouldSubmit(app *v1alpha1.SparkApplication) bool {
-	// App was never attempted. Should submit.
-	if app.Status.Attempts == 0 {
-		return true
-	}
 
-	// No retries specified or all retries exhaused.
-	if app.Spec.FailureRetries == nil ||
-		app.Status.Attempts >= (*app.Spec.FailureRetries)+1 {
+	switch app.Status.AppState.State {
+	case v1alpha1.NewState:
+		return true
+	case v1alpha1.SubmittedState, v1alpha1.RunningState:
 		return false
+	case v1alpha1.CompletedState:
+		if app.Spec.RestartPolicy.Type == v1alpha1.Always {
+			return true
+		}
+	case v1alpha1.FailedState:
+		shouldRetry := false
+		if app.Spec.RestartPolicy.Type == v1alpha1.Always {
+			shouldRetry = true
+		} else if app.Spec.RestartPolicy.Type == v1alpha1.OnFailure {
+			// We Retry if we haven't hit the retry limit.
+			if app.Spec.RestartPolicy.OnFailureRetries != nil && app.Status.Attempts < (*app.Spec.RestartPolicy.OnFailureRetries)+1 {
+				shouldRetry = true
+			}
+		}
+
+		if shouldRetry && app.Spec.RestartPolicy.OnFailureRetryInterval != nil {
+			// Retry if we have waited at-least equal to attempts*RetryInterval since we do a linear back-off.
+			interval := time.Duration(*app.Spec.RestartPolicy.OnFailureRetryInterval) * time.Second * time.Duration(app.Status.Attempts)
+			currentTime := time.Now()
+			return currentTime.After(app.Status.CompletionTime.Time.Add(interval))
+		}
+
+	case v1alpha1.FailedSubmissionState:
+		shouldRetry := false
+		if app.Spec.RestartPolicy.Type == v1alpha1.Always {
+			shouldRetry = true
+		} else if app.Spec.RestartPolicy.Type == v1alpha1.OnFailure {
+			// We Retry if we haven't hit the retry limit.
+			if app.Spec.RestartPolicy.OnSubmissionFailureRetries != nil && app.Status.SubmissionAttempts < (*app.Spec.RestartPolicy.OnSubmissionFailureRetries)+1 {
+				shouldRetry = true
+			}
+		}
+
+		if shouldRetry && app.Spec.RestartPolicy.OnSubmissionFailureRetryInterval != nil {
+			// Retry if we have waited at-least equal to attempts*RetryInterval since we do a linear back-off.
+			interval := time.Duration(*app.Spec.RestartPolicy.OnSubmissionFailureRetryInterval) * time.Second * time.Duration(app.Status.SubmissionAttempts)
+			currentTime := time.Now()
+			return currentTime.After(app.Status.SubmissionTime.Time.Add(interval))
+		}
 	}
 
-	// Retries not exhaused and no Interval Specified.
-	if app.Spec.RetryInterval == nil {
-		return true
-	}
-
-	// Retry if we have waited atleast equal to RetryInterval.
-	interval := time.Duration(*app.Spec.RetryInterval) * time.Second
-	currentTime := time.Now()
-
-	var lastEventTime metav1.Time
-	if !app.Status.CompletionTime.IsZero() {
-		lastEventTime = app.Status.CompletionTime
-	} else {
-		lastEventTime = app.Status.SubmissionTime
-	}
-	if currentTime.After(lastEventTime.Time.Add(interval)) {
-		return true
-	}
-	// Should retry but we haven't waited enough.
+	// Shouldn't submit.
 	return false
 }

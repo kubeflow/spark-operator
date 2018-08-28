@@ -433,14 +433,28 @@ A `SparkApplication` can be checked using the `kubectl describe sparkapplication
 command shows the specification and status of the `SparkApplication` as well as events associated with it. The events
 communicate the overall process and errors of the `SparkApplication`. 
 
-### Configuring Automatic Application Restart
+### Configuring Automatic Application Restart and Failure Handling
 
 The Spark Operator supports automatic application restart with a configurable `RestartPolicy` using the optional field 
-`.spec.restartPolicy`, whose valid values include `Never`, `OnFailure`, and `Always`. Upon termination of an application,
-the Spark Operator determines if the application is subject to restart based on its termination state and the 
-`RestartPolicy` in the specification. If the application is subject to restart, the Spark Operator restarts it by 
-submitting a new run of it. The old driver pod is deleted if it still exists before submitting the new run, and a new 
-driver pod is created by the submission client so effectively the driver gets restarted. 
+`.spec.restartPolicy`. The following is an example of a sample `RestartPolicy`:
+
+ ```yaml
+  restartPolicy:
+     type: OnFailure
+     onFailureRetries: 3
+     onFailureRetryInterval: 10
+     onSubmissionFailureRetries: 5
+     onSubmissionFailureRetryInterval: 20
+```
+The valid types of restartPolicy include `Never`, `OnFailure`, and `Always`. Upon termination of an application,
+the Spark Operator determines if the application is subject to restart based on its termination state and the
+`RestartPolicy` in the specification. If the application is subject to restart, the Spark Operator restarts it by
+submitting a new run of it. For `OnFailure`, the Operator further supports setting limits on number of retries
+via the `onFailureRetries` and `onSubmissionFailureRetries` fields. In-addition, if the  submission retries has not been reached,
+the Spark Operator retries submitting the application using a linear backoff with the interval specified by
+`onFailureRetryInterval` and `onSubmissionFailureRetryInterval` which are valid for both `OnFailure` and `Always` `RestartPolicy`.
+The old driver pod is deleted if it still exists before submitting the new run, and a new  driver pod is created by the submission
+client so effectively the driver gets restarted.
 
 ### Configuring Automatic Application Re-submission on Submission Failures
 
@@ -483,7 +497,8 @@ spec:
       cores: 1
       instances: 1
       memory: 512m
-    restartPolicy: Never
+    restartPolicy:
+        type: Never
 ```
 
 The concurrency of runs of an application is controlled by `.spec.concurrencyPolicy`, whose valid values are `Allow`, 
