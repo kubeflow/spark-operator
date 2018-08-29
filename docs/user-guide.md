@@ -456,14 +456,6 @@ the Spark Operator retries submitting the application using a linear backoff wit
 The old driver pod is deleted if it still exists before submitting the new run, and a new  driver pod is created by the submission
 client so effectively the driver gets restarted.
 
-### Configuring Automatic Application Re-submission on Submission Failures
-
-The Spark Operator supports automatically retrying failed submissions. When the Spark Operator failed to submit an
-application, it determines if the application is subject to a submission retry based on if the optional field 
-`.spec.maxSubmissionRetries` is set and has a positive value and the number of times it has already retried. If the
-maximum submission retries has not been reached, the Spark Operator retries submitting the application using a linear
-backoff with the interval specified by `.spec.submissionRetryInterval`. If `.spec.submissionRetryInterval` is not set,
-the Spark Operator retries submitting the application immediately.
 
 ## Running Spark Applications on a Schedule using a ScheduledSparkApplication 
 
