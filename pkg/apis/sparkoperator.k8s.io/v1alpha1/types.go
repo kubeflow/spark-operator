@@ -277,7 +277,7 @@ type SparkApplicationStatus struct {
 	ExecutorState map[string]ExecutorState `json:"executorState,omitempty"`
 	// Attempts is the total number of attempts made to run a Spark App to successful completion.
 	Attempts int32 `json:"attempts,omitempty"`
-	// Attempts is the total number of submission attempts made to submit a Spark App.
+	// SubmissionAttempts is the total number of submission attempts made to submit a Spark App.
 	SubmissionAttempts int32 `json:"submissionAttempts,omitempty"`
 }
 

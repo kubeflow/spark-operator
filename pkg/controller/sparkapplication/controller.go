@@ -390,22 +390,58 @@ func (c *Controller) syncSparkApplication(key string) error {
 
 	appToUpdate := app.DeepCopy()
 	var updatedApp *v1alpha1.SparkApplication
+
 	switch app.Status.AppState.State {
-	case v1alpha1.NewState, v1alpha1.FailedState, v1alpha1.CompletedState:
-		if shouldSubmit(appToUpdate) {
+	case v1alpha1.NewState:
+		appToUpdate.Status.SubmissionAttempts = 0
+		glog.Infof("Creating Submission for SparkApp: %s", key)
+		updatedApp = c.submitSparkApplication(appToUpdate)
+	case v1alpha1.CompletedState:
+		if app.Spec.RestartPolicy.Type == v1alpha1.Always {
 			// Reset SubmissionAttempts Count since this is a new overall retry.
 			appToUpdate.Status.SubmissionAttempts = 0
 			glog.Infof("Creating Submission for SparkApp: %s", key)
 			updatedApp = c.submitSparkApplication(appToUpdate)
-		} else {
-			glog.V(2).Infof(" Not Submitting App %s for now.", appToUpdate.Name)
+		}
+	case v1alpha1.FailedState:
+		shouldRetry := false
+		if app.Spec.RestartPolicy.Type == v1alpha1.Always {
+			shouldRetry = true
+		} else if app.Spec.RestartPolicy.Type == v1alpha1.OnFailure {
+			// We Retry if we haven't hit the retry limit.
+			if app.Spec.RestartPolicy.OnFailureRetries != nil && app.Status.Attempts < (*app.Spec.RestartPolicy.OnFailureRetries)+1 {
+				shouldRetry = true
+			}
+		}
+		if shouldRetry && app.Spec.RestartPolicy.OnFailureRetryInterval != nil {
+			// Retry if we have waited at-least equal to attempts*RetryInterval since we do a linear back-off.
+			interval := time.Duration(*app.Spec.RestartPolicy.OnFailureRetryInterval) * time.Second * time.Duration(app.Status.Attempts)
+			currentTime := time.Now()
+			if currentTime.After(app.Status.CompletionTime.Time.Add(interval)) {
+				// Reset SubmissionAttempts Count since this is a new overall retry.
+				appToUpdate.Status.SubmissionAttempts = 0
+				glog.Infof("Creating Submission for SparkApp: %s", key)
+				updatedApp = c.submitSparkApplication(appToUpdate)
+			}
 		}
 	case v1alpha1.FailedSubmissionState:
-		if shouldSubmit(appToUpdate) {
-			glog.Infof("Creating Submission for SparkApp: %s", key)
-			updatedApp = c.submitSparkApplication(appToUpdate)
-		} else {
-			glog.V(2).Infof(" Not Submitting App %s for now.", appToUpdate.Name)
+		shouldRetry := false
+		if app.Spec.RestartPolicy.Type == v1alpha1.Always {
+			shouldRetry = true
+		} else if app.Spec.RestartPolicy.Type == v1alpha1.OnFailure {
+			// We Retry if we haven't hit the retry limit.
+			if app.Spec.RestartPolicy.OnSubmissionFailureRetries != nil && app.Status.SubmissionAttempts < (*app.Spec.RestartPolicy.OnSubmissionFailureRetries)+1 {
+				shouldRetry = true
+			}
+		}
+		if shouldRetry && app.Spec.RestartPolicy.OnSubmissionFailureRetryInterval != nil {
+			// Retry if we have waited at-least equal to attempts*RetryInterval since we do a linear back-off.
+			interval := time.Duration(*app.Spec.RestartPolicy.OnSubmissionFailureRetryInterval) * time.Second * time.Duration(app.Status.SubmissionAttempts)
+			currentTime := time.Now()
+			if currentTime.After(app.Status.SubmissionTime.Time.Add(interval)) {
+				glog.Infof("Creating Submission for SparkApp: %s", key)
+				updatedApp = c.submitSparkApplication(appToUpdate)
+			}
 		}
 	case v1alpha1.SubmittedState, v1alpha1.RunningState:
 		//App already submitted, get driver and executor pods and update Status.
@@ -600,57 +636,4 @@ func (c *Controller) recordExecutorEvent(
 	} else if state == v1alpha1.ExecutorFailedState {
 		c.recorder.Eventf(app, apiv1.EventTypeWarning, "SparkExecutorFailed", "Executor %s failed", name)
 	}
-}
-
-// shouldSubmit determines if a given application is subject to a retry.
-func shouldSubmit(app *v1alpha1.SparkApplication) bool {
-
-	switch app.Status.AppState.State {
-	case v1alpha1.NewState:
-		return true
-	case v1alpha1.SubmittedState, v1alpha1.RunningState:
-		return false
-	case v1alpha1.CompletedState:
-		if app.Spec.RestartPolicy.Type == v1alpha1.Always {
-			return true
-		}
-	case v1alpha1.FailedState:
-		shouldRetry := false
-		if app.Spec.RestartPolicy.Type == v1alpha1.Always {
-			shouldRetry = true
-		} else if app.Spec.RestartPolicy.Type == v1alpha1.OnFailure {
-			// We Retry if we haven't hit the retry limit.
-			if app.Spec.RestartPolicy.OnFailureRetries != nil && app.Status.Attempts < (*app.Spec.RestartPolicy.OnFailureRetries)+1 {
-				shouldRetry = true
-			}
-		}
-
-		if shouldRetry && app.Spec.RestartPolicy.OnFailureRetryInterval != nil {
-			// Retry if we have waited at-least equal to attempts*RetryInterval since we do a linear back-off.
-			interval := time.Duration(*app.Spec.RestartPolicy.OnFailureRetryInterval) * time.Second * time.Duration(app.Status.Attempts)
-			currentTime := time.Now()
-			return currentTime.After(app.Status.CompletionTime.Time.Add(interval))
-		}
-
-	case v1alpha1.FailedSubmissionState:
-		shouldRetry := false
-		if app.Spec.RestartPolicy.Type == v1alpha1.Always {
-			shouldRetry = true
-		} else if app.Spec.RestartPolicy.Type == v1alpha1.OnFailure {
-			// We Retry if we haven't hit the retry limit.
-			if app.Spec.RestartPolicy.OnSubmissionFailureRetries != nil && app.Status.SubmissionAttempts < (*app.Spec.RestartPolicy.OnSubmissionFailureRetries)+1 {
-				shouldRetry = true
-			}
-		}
-
-		if shouldRetry && app.Spec.RestartPolicy.OnSubmissionFailureRetryInterval != nil {
-			// Retry if we have waited at-least equal to attempts*RetryInterval since we do a linear back-off.
-			interval := time.Duration(*app.Spec.RestartPolicy.OnSubmissionFailureRetryInterval) * time.Second * time.Duration(app.Status.SubmissionAttempts)
-			currentTime := time.Now()
-			return currentTime.After(app.Status.SubmissionTime.Time.Add(interval))
-		}
-	}
-
-	// Shouldn't submit.
-	return false
 }

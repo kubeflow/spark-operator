@@ -242,11 +242,12 @@ type ApplicationStateType string
 
 // Different states an application may have.
 const (
-	NewState       ApplicationStateType = ""
-	SubmittedState ApplicationStateType = "SUBMITTED"
-	RunningState   ApplicationStateType = "RUNNING"
-	CompletedState ApplicationStateType = "COMPLETED"
-	FailedState    ApplicationStateType = "FAILED"
+	NewState              ApplicationStateType = ""
+	SubmittedState        ApplicationStateType = "SUBMITTED"
+	RunningState          ApplicationStateType = "RUNNING"
+	CompletedState        ApplicationStateType = "COMPLETED"
+	FailedState           ApplicationStateType = "FAILED"
+	FailedSubmissionState ApplicationStateType = "SUBMISSION_FAILED"
 )
 
 // ApplicationState tells the current state of the application and an error message in case of failures.
@@ -283,6 +284,8 @@ type SparkApplicationStatus struct {
 	ExecutorState map[string]ExecutorState `json:"executorState,omitempty"`
 	// Attempts is the total number of attempts made to run a Spark App to successful completion.
 	Attempts int32 `json:"attempts,omitempty"`
+	// SubmissionAttempts is the total number of submission attempts made to submit a Spark App.
+	SubmissionAttempts int32 `json:"submissionAttempts,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
