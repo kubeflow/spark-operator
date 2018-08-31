@@ -703,6 +703,12 @@ func (c *Controller) updateStatusAndExportMetrics(oldApp, newApp *v1beta1.SparkA
 		*status = newApp.Status
 	})
 
+	// Skip update if nothing changed.
+	if reflect.DeepEqual(oldApp, newApp) {
+		return nil
+	}
+
+	app, err := c.crdClient.SparkoperatorV1alpha1().SparkApplications(newApp.Namespace).Update(newApp)
 	// Export metrics if the update was successful.
 	if err == nil && c.metrics != nil {
 		c.metrics.exportMetrics(oldApp, updatedApp)
