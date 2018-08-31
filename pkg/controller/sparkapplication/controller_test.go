@@ -398,6 +398,44 @@ func TestSyncSparkApp_SubmissionSuccess(t *testing.T) {
 					SubmissionTime: metav1.Time{Time: metav1.Now().Add(-2000 * time.Second)},
 				},
 			},
+			expectedState: v1alpha1.FailedSubmissionState,
+		},
+		{
+			app: &v1alpha1.SparkApplication{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "foo",
+					Namespace: "default",
+				},
+				Spec: v1alpha1.SparkApplicationSpec{
+					RestartPolicy: restartPolicyAlways,
+				},
+				Status: v1alpha1.SparkApplicationStatus{
+					AppState: v1alpha1.ApplicationState{
+						State: v1alpha1.FailedSubmissionState,
+					},
+					SubmissionAttempts: 1,
+					SubmissionTime:     metav1.Time{Time: metav1.Now().Add(-2000 * time.Second)},
+				},
+			},
+			expectedState: v1alpha1.SubmittedState,
+		},
+		{
+			app: &v1alpha1.SparkApplication{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "foo",
+					Namespace: "default",
+				},
+				Spec: v1alpha1.SparkApplicationSpec{
+					RestartPolicy: restartPolicyAlways,
+				},
+				Status: v1alpha1.SparkApplicationStatus{
+					AppState: v1alpha1.ApplicationState{
+						State: v1alpha1.FailedState,
+					},
+					Attempts:       1,
+					CompletionTime: metav1.Time{Time: metav1.Now().Add(-2000 * time.Second)},
+				},
+			},
 			expectedState: v1alpha1.SubmittedState,
 		},
 		{
@@ -416,7 +454,7 @@ func TestSyncSparkApp_SubmissionSuccess(t *testing.T) {
 					CompletionTime: metav1.Time{Time: metav1.Now().Add(-2000 * time.Second)},
 				},
 			},
-			expectedState: v1alpha1.SubmittedState,
+			expectedState: v1alpha1.FailedState,
 		},
 		{
 			app: &v1alpha1.SparkApplication{
@@ -738,6 +776,19 @@ func TestSyncSparkApplication_ExecutingState(t *testing.T) {
 	for _, test := range testcases {
 		testFn(test, t)
 	}
+}
+
+func TestHasRetryIntervalPassed(t *testing.T) {
+
+	// Failure Cases
+	assert.False(t, hasRetryIntervalPassed(nil, 3, metav1.Time{metav1.Now().Add(-100 * time.Second)}))
+	assert.False(t, hasRetryIntervalPassed(int64ptr(5), 0, metav1.Time{metav1.Now().Add(-100 * time.Second)}))
+	assert.False(t, hasRetryIntervalPassed(int64ptr(5), 3, metav1.Time{}))
+
+	// Not enough time passed.
+	assert.False(t, hasRetryIntervalPassed(int64ptr(50), 3, metav1.Time{metav1.Now().Add(-100 * time.Second)}))
+
+	assert.True(t, hasRetryIntervalPassed(int64ptr(50), 3, metav1.Time{metav1.Now().Add(-151 * time.Second)}))
 }
 
 func stringptr(s string) *string {

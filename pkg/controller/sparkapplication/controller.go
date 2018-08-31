@@ -358,10 +358,7 @@ func (c *Controller) getUpdatedAppStatus(app *v1alpha1.SparkApplication) *v1alph
 	}
 
 	for name, execStatus := range executorStateMap {
-		existingState, ok := app.Status.ExecutorState[name]
-		if !ok || isValidExecutorStateTransition(existingState, execStatus) {
-			app.Status.ExecutorState[name] = execStatus
-		}
+		app.Status.ExecutorState[name] = execStatus
 	}
 
 	// Handle missing/deleted executors.
@@ -413,11 +410,8 @@ func (c *Controller) syncSparkApplication(key string) error {
 				shouldRetry = true
 			}
 		}
-		if shouldRetry && app.Spec.RestartPolicy.OnFailureRetryInterval != nil {
-			// Retry if we have waited at-least equal to attempts*RetryInterval since we do a linear back-off.
-			interval := time.Duration(*app.Spec.RestartPolicy.OnFailureRetryInterval) * time.Second * time.Duration(app.Status.Attempts)
-			currentTime := time.Now()
-			if currentTime.After(app.Status.CompletionTime.Time.Add(interval)) {
+		if shouldRetry && hasRetryIntervalPassed(app.Spec.RestartPolicy.OnFailureRetryInterval, app.Status.Attempts, app.Status.CompletionTime) {
+			{
 				// Reset SubmissionAttempts Count since this is a new overall retry.
 				appToUpdate.Status.SubmissionAttempts = 0
 				glog.Infof("Creating Submission for SparkApp: %s", key)
@@ -434,14 +428,9 @@ func (c *Controller) syncSparkApplication(key string) error {
 				shouldRetry = true
 			}
 		}
-		if shouldRetry && app.Spec.RestartPolicy.OnSubmissionFailureRetryInterval != nil {
-			// Retry if we have waited at-least equal to attempts*RetryInterval since we do a linear back-off.
-			interval := time.Duration(*app.Spec.RestartPolicy.OnSubmissionFailureRetryInterval) * time.Second * time.Duration(app.Status.SubmissionAttempts)
-			currentTime := time.Now()
-			if currentTime.After(app.Status.SubmissionTime.Time.Add(interval)) {
-				glog.Infof("Creating Submission for SparkApp: %s", key)
-				updatedApp = c.submitSparkApplication(appToUpdate)
-			}
+		if shouldRetry && hasRetryIntervalPassed(app.Spec.RestartPolicy.OnSubmissionFailureRetryInterval, app.Status.SubmissionAttempts, app.Status.SubmissionTime) {
+			glog.Infof("Creating Submission for SparkApp: %s", key)
+			updatedApp = c.submitSparkApplication(appToUpdate)
 		}
 	case v1alpha1.SubmittedState, v1alpha1.RunningState:
 		//App already submitted, get driver and executor pods and update Status.
@@ -451,13 +440,29 @@ func (c *Controller) syncSparkApplication(key string) error {
 	// Update CRD if not nil.
 	if updatedApp != nil {
 		glog.V(2).Infof("Trying to update App %s, from: [%v] to :[%v]", app.Name, app.Status, updatedApp.Status)
-		_, err = c.updateAppAndExportMetrics(app, updatedApp)
-		if err != nil {
+		if c.updateAppAndExportMetrics(app, updatedApp) != nil {
 			glog.Errorf("Failed to update App: %s. Error: %v", app.GetName(), err)
 			return err
 		}
 	}
 	return nil
+}
+
+// Helper func to determine if we have waited enough to retry the SparkApplication.
+func hasRetryIntervalPassed(retryInterval *int64, attemptsDone int32, lastEventTime metav1.Time) bool {
+
+	if retryInterval == nil || lastEventTime.IsZero() || attemptsDone <= 0 {
+		glog.Errorf("Invalid Parameters passed: retryInterval %v, attemptsDone: %v, lastEventTime: %v", retryInterval, attemptsDone, lastEventTime)
+		return false
+	}
+
+	// Retry if we have waited at-least equal to attempts*RetryInterval since we do a linear back-off.
+	interval := time.Duration(*retryInterval) * time.Second * time.Duration(attemptsDone)
+	currentTime := time.Now()
+	if currentTime.After(lastEventTime.Add(interval)) {
+		return true
+	}
+	return false
 }
 
 // submitSparkApplication creates a new submission for the given SparkApplication and submits it using spark-submit.
@@ -534,14 +539,19 @@ func (c *Controller) submitSparkApplication(app *v1alpha1.SparkApplication) *v1a
 	return app
 }
 
-func (c *Controller) updateAppAndExportMetrics(oldApp, toUpdate *v1alpha1.SparkApplication) (*v1alpha1.SparkApplication, error) {
-	app, err := c.crdClient.SparkoperatorV1alpha1().SparkApplications(toUpdate.Namespace).Update(toUpdate)
+func (c *Controller) updateAppAndExportMetrics(oldApp, newApp *v1alpha1.SparkApplication) error {
 
+	// Skip update if nothing changed.
+	if reflect.DeepEqual(oldApp, newApp) {
+		return nil
+	}
+
+	app, err := c.crdClient.SparkoperatorV1alpha1().SparkApplications(newApp.Namespace).Update(newApp)
 	// Export metrics if the update was successful.
 	if err == nil && c.metrics != nil {
 		c.metrics.exportMetrics(oldApp, app)
 	}
-	return app, err
+	return err
 }
 
 func (c *Controller) updateApp(toUpdate *v1alpha1.SparkApplication) error {
