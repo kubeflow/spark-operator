@@ -20,20 +20,23 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
 	"github.com/golang/glog"
-
 	apiv1 "k8s.io/api/core/v1"
 	apiextensionsclient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/clock"
+	"k8s.io/client-go/informers"
 	clientset "k8s.io/client-go/kubernetes"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
+	operatorConfig "k8s.io/spark-on-k8s-operator/pkg/config"
 
 	crdclientset "k8s.io/spark-on-k8s-operator/pkg/client/clientset/versioned"
 	crdinformers "k8s.io/spark-on-k8s-operator/pkg/client/informers/externalversions"
@@ -47,22 +50,21 @@ import (
 )
 
 var (
-	master                  = flag.String("master", "", "The address of the Kubernetes API server. Overrides any value in kubeconfig. Only required if out-of-cluster.")
-	kubeConfig              = flag.String("kubeConfig", "", "Path to a kube config. Only required if out-of-cluster.")
-	installCRDs             = flag.Bool("install-crds", true, "Whether to install CRDs")
-	controllerThreads       = flag.Int("controller-threads", 10, "Number of worker threads used by the SparkApplication controller.")
-	submissionRunnerThreads = flag.Int("submission-threads", 3, "Number of worker threads used by the SparkApplication submission runner.")
-	resyncInterval          = flag.Int("resync-interval", 30, "Informer resync interval in seconds.")
-	namespace               = flag.String("namespace", apiv1.NamespaceAll, "The Kubernetes namespace to manage. Will manage custom resource objects of the managed CRD types for the whole cluster if unset.")
-	enableWebhook           = flag.Bool("enable-webhook", false, "Whether to enable the mutating admission webhook for admitting and patching Spark pods.")
-	webhookCertDir          = flag.String("webhook-cert-dir", "/etc/webhook-certs", "The directory where x509 certificate and key files are stored.")
-	webhookSvcNamespace     = flag.String("webhook-svc-namespace", "sparkoperator", "The namespace of the Service for the webhook server.")
-	webhookSvcName          = flag.String("webhook-svc-name", "spark-webhook", "The name of the Service for the webhook server.")
-	webhookPort             = flag.Int("webhook-port", 8080, "Service port of the webhook server.")
-	enableMetrics           = flag.Bool("enable-metrics", false, "Whether to enable the metrics endpoint.")
-	metricsPort             = flag.String("metrics-port", "10254", "Port for the metrics endpoint.")
-	metricsEndpoint         = flag.String("metrics-endpoint", "/metrics", "Metrics endpoint.")
-	metricsPrefix           = flag.String("metrics-prefix", "", "Prefix for the metrics.")
+	master              = flag.String("master", "", "The address of the Kubernetes API server. Overrides any value in kubeconfig. Only required if out-of-cluster.")
+	kubeConfig          = flag.String("kubeConfig", "", "Path to a kube config. Only required if out-of-cluster.")
+	installCRDs         = flag.Bool("install-crds", true, "Whether to install CRDs")
+	controllerThreads   = flag.Int("controller-threads", 10, "Number of worker threads used by the SparkApplication controller.")
+	resyncInterval      = flag.Int("resync-interval", 30, "Informer resync interval in seconds.")
+	namespace           = flag.String("namespace", apiv1.NamespaceAll, "The Kubernetes namespace to manage. Will manage custom resource objects of the managed CRD types for the whole cluster if unset.")
+	enableWebhook       = flag.Bool("enable-webhook", false, "Whether to enable the mutating admission webhook for admitting and patching Spark pods.")
+	webhookCertDir      = flag.String("webhook-cert-dir", "/etc/webhook-certs", "The directory where x509 certificate and key files are stored.")
+	webhookSvcNamespace = flag.String("webhook-svc-namespace", "sparkoperator", "The namespace of the Service for the webhook server.")
+	webhookSvcName      = flag.String("webhook-svc-name", "spark-webhook", "The name of the Service for the webhook server.")
+	webhookPort         = flag.Int("webhook-port", 8080, "Service port of the webhook server.")
+	enableMetrics       = flag.Bool("enable-metrics", false, "Whether to enable the metrics endpoint.")
+	metricsPort         = flag.String("metrics-port", "10254", "Port for the metrics endpoint.")
+	metricsEndpoint     = flag.String("metrics-endpoint", "/metrics", "Metrics endpoint.")
+	metricsPrefix       = flag.String("metrics-prefix", "", "Prefix for the metrics.")
 )
 
 func main() {
@@ -127,13 +129,23 @@ func main() {
 		// resyncPeriod. Every resyncPeriod, all resources in the cache will re-trigger events.
 		time.Duration(*resyncInterval)*time.Second,
 		factoryOpts...)
+
+	// Create Informer & Lister for pods.
+	tweakListOptionsFunc := func(options *metav1.ListOptions) {
+		options.LabelSelector = fmt.Sprintf("%s,%s", operatorConfig.SparkRoleLabel, operatorConfig.LaunchedBySparkOperatorLabel)
+	}
+	podInformerFactory := informers.NewFilteredSharedInformerFactory(kubeClient,
+		60*time.Second, *namespace, tweakListOptionsFunc)
+
 	applicationController := sparkapplication.NewController(
-		crdClient, kubeClient, apiExtensionsClient, factory, *submissionRunnerThreads, metricConfig, *namespace)
+		crdClient, kubeClient, apiExtensionsClient, factory, podInformerFactory, metricConfig, *namespace)
 	scheduledApplicationController := scheduledsparkapplication.NewController(
 		crdClient, kubeClient, apiExtensionsClient, factory, clock.RealClock{})
 
 	// Start the informer factory that in turn starts the informer.
 	go factory.Start(stopCh)
+	go podInformerFactory.Start(stopCh)
+
 	if err = applicationController.Start(*controllerThreads, stopCh); err != nil {
 		glog.Fatal(err)
 	}

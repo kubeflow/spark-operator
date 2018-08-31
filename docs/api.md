@@ -50,10 +50,8 @@ A `SparkApplicationSpec` has the following top-level fields:
 | `Driver` | N/A | A [`DriverSpec`](#driverspec) field. |
 | `Executor` | N/A | An [`ExecutorSpec`](#executorspec) field. |
 | `Deps` | N/A | A [`Dependencies`](#dependencies) field. |
-| `RestartPolicy` | N/A | The policy regarding if and in which conditions the controller should restart a terminated application. Valid values are `Never`, `Always`, and `OnFailure`. |
+| `RestartPolicy` | N/A | The policy regarding if and in which conditions the controller should restart a terminated application. |
 | `NodeSelector` | `spark.kubernetes.node.selector.[labelKey]` | Node selector of the driver pod and executor pods, with key `labelKey` and value as the label's value. |
-| `MaxSubmissionRetries` | N/A | The maximum number of times to retry a failed submission. |
-| `SubmissionRetryInterval` | N/A | The unit of intervals in seconds between submission retries. Depending on the implementation, the actual interval between two submission retries may be a multiple of `SubmissionRetryInterval`, e.g., if linear or exponential backoff is used. |
 | `MemoryOverheadFactor` | `spark.kubernetes.memoryOverheadFactor` | This sets the Memory Overhead Factor that will allocate memory to non-JVM memory. For JVM-based jobs this value will default to 0.10, for non-JVM jobs 0.40. Value of this field will be overridden by `Spec.Driver.MemoryOverhead` and `Spec.Executor.MemoryOverhead` if they are set. |
 
 #### `DriverSpec`
@@ -114,7 +112,9 @@ A `SparkApplicationStatus` captures the status of a Spark application including 
 | `DriverInfo` | A [`DriverInfo`](#driverinfo) field. |
 | `AppState` | Current state of the application. |
 | `ExecutorState` | A map of executor pod names to executor state. |
-| `SubmissionRetries` | The number of submission retries for an application. |
+| `Attempts` | The number of attempts made for an application. |
+| `SubmissionAttempts` | The number of submission attempts made for an application. |
+
 
 #### `DriverInfo`
 

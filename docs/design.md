@@ -43,19 +43,15 @@ As described in [API Definition](api.md), the `Status` field (of type `SparkAppl
 
 As part of preparing a submission for a newly created `SparkApplication` object, the controller parses the object and adds configuration options for adding certain annotations to the driver and executor pods of the application. The annotations are later used by the mutating admission webhook to configure the pods before they start to run. For example,if a Spark application needs a certain Kubernetes ConfigMap to be mounted into the driver and executor pods, the controller adds an annotation that specifies the name of the ConfigMap to mount. Later the mutating admission webhook sees the annotation on the pods and mount the ConfigMap to the pods.
 
-## Handling Application Restart
+## Handling Application Restart And Failures
 
-The Spark Operator provides a configurable option through the `RestartPolicy` field of `SparkApplicationSpec` (see the [API Definition](api.md) for more details) for specifying the application restart policy. The operator determines if an application should be restarted based on its termination state and the restart policy. As discussed above, the termination state of an application is based on the termination state of the driver pod. So effectively the decision is based on the termination state of the driver pod and the restart policy. Specifically, one of the following conditions applies:
+The Spark Operator provides a configurable option through the `RestartPolicy` field of `SparkApplicationSpec` (see the [Configuring Automatic Application Restart and Failure Handling](user-guide.md) for more details) for specifying the application restart policy. The operator determines if an application should be restarted based on its termination state and the restart policy. As discussed above, the termination state of an application is based on the termination state of the driver pod. So effectively the decision is based on the termination state of the driver pod and the restart policy. Specifically, one of the following conditions applies:
 
-* If the restart policy is `Never`, the application is not restarted upon terminating.
-* If the restart policy is `Always`, the application gets restarted regardless of the termination state of the application.
-* If the restart policy is `OnFailure`, the application gets restarted if and only if the application failed. Note that in case the driver pod gets deleted while running, the application is considered being failed as discussed above. In this case, the application gets restarted if the restart policy is `OnFailure`.
+* If the restart policy type is `Never`, the application is not restarted upon terminating.
+* If the restart policy type is `Always`, the application gets restarted regardless of the termination state of the application.
+* If the restart policy type  is `OnFailure`, the application gets restarted if and only if the application failed and the retry limit is not breached. Note that in case the driver pod gets deleted while running, the application is considered being failed as discussed above. In this case, the application gets restarted if the restart policy is `OnFailure`.
 
 When the operator decides to restart an application, it cleans up the Kubernetes resources associated with the previous terminated run of the application and enqueues the `SparkApplication` object of the application into the internal work queue, from which it gets picked up by a worker who will handle the submission. Note that instead of restarting the driver pod, the operator simply re-submits the application and lets the submission client create a new driver pod.
-
-## Handling Retries of Failed Submissions
-
-The submission of an application may fail for various reasons. Sometimes a submission may fail due to transient errors and a retry may succeed. The Spark Operator supports retries of failed submissions through a combination of the `MaxSubmissionRetries` field of `SparkApplicationSpec` and the `SubmissionRetries` field of `SparkApplicationStatus` (see the [API Definition](api.md) for more details). When the operator decides to retry a failed submission, it simply enqueues the `SparkApplication` object of the application into the internal work queue, from which it gets picked up by a worker who will handle the submission.   
 
 ## Mutating Admission Webhook
 

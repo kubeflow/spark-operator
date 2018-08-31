@@ -41,4 +41,3 @@ spec:
       memory: "512m"
       labels:
         version: 2.3.0
-    restartPolicy: Never

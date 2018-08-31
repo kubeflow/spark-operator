@@ -164,7 +164,12 @@ spec:
   mainApplicationFile: local:///opt/spark/examples/jars/spark-examples_2.11-2.3.0.jar
   mainClass: org.apache.spark.examples.SparkPi
   mode: cluster
-  restartPolicy: Never
+  restartPolicy:
+      type: OnFailure
+      onFailureRetries: 3
+      onFailureRetryInterval: 10
+      onSubmissionFailureRetries: 5
+      onSubmissionFailureRetryInterval: 20
   type: Scala
 status:
   appId: spark-pi-2402118027
