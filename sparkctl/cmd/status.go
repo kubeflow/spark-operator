@@ -63,7 +63,7 @@ func doStatus(name string, crdClientset crdclientset.Interface) error {
 func printStatus(app *v1alpha1.SparkApplication) {
 	fmt.Println("application state:")
 	table := tablewriter.NewWriter(os.Stdout)
-	table.SetHeader([]string{"State", "Submitted age", "Completed age", "Driver Pod", "Driver UI", "Retries"})
+	table.SetHeader([]string{"State", "Submission Age", "Completion Age", "Driver Pod", "Driver UI", "Retries"})
 	table.Append([]string{
 		string(app.Status.AppState.State),
 		getSinceTime(app.Status.SubmissionTime),
