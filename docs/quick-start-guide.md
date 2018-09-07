@@ -193,7 +193,7 @@ $ kubectl apply -f manifest/spark-operator-with-webhook.yaml
 
 This will create a Deployment named `sparkoperator` and a Service named `spark-webhook` for the webhook in namespace `sparkoperator`.
 
-If using the Helm chart to install the Spark operator, the above steps are all automated for you.
+If the operator is installed via the Helm chart using the default settings (i.e. with webhook enabled), the above steps are all automated for you. When the chart is installed, a webhook service called `spark-webhook` and a secret storing the x509 certificate called `spark-webhook-certs` are created.
 
 ## Build
 
