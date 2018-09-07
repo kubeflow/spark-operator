@@ -20,7 +20,7 @@ $ helm repo add incubator http://storage.googleapis.com/kubernetes-charts-incuba
 $ helm install incubator/sparkoperator
 ```
 
-Installing the chart will create a namespace `spark-operator`, set up RBAC for the Spark Operator to run in the namespace. It will also set up RBAC for driver pods of your Spark applications to be able to manipulate executor pods. In addition, the chart will create a Deployment named `sparkoperator` in namespace `spark-operator`. The chart by default enables a [Mutating Admission Webhook](https://kubernetes.io/docs/reference/access-authn-authz/extensible-admission-controllers/) for Spark pod customization. To install the Spark Operator **without** the mutating admission webhook on a Kubernetes cluster, install the chart with the flag `enableWebhook=false`:
+Installing the chart will create a namespace `spark-operator`, set up RBAC for the Spark Operator to run in the namespace. It will also set up RBAC for driver pods of your Spark applications to be able to manipulate executor pods. In addition, the chart will create a Deployment named `sparkoperator` in namespace `spark-operator`. The chart by default enables a [Mutating Admission Webhook](https://kubernetes.io/docs/reference/access-authn-authz/extensible-admission-controllers/) for Spark pod customization. A webhook service called `spark-webhook` and a secret storing the x509 certificate called `spark-webhook-certs` are created for that purpose. To install the Spark Operator **without** the mutating admission webhook on a Kubernetes cluster, install the chart with the flag `enableWebhook=false`:
 
 ```bash
 $ helm install incubator/sparkoperator --set enableWebhook=false
@@ -193,7 +193,7 @@ $ kubectl apply -f manifest/spark-operator-with-webhook.yaml
 
 This will create a Deployment named `sparkoperator` and a Service named `spark-webhook` for the webhook in namespace `sparkoperator`.
 
-If the operator is installed via the Helm chart using the default settings (i.e. with webhook enabled), the above steps are all automated for you. When the chart is installed, a webhook service called `spark-webhook` and a secret storing the x509 certificate called `spark-webhook-certs` are created.
+If the operator is installed via the Helm chart using the default settings (i.e. with webhook enabled), the above steps are all automated for you.
 
 ## Build
 
