@@ -14,6 +14,8 @@
 # limitations under the License.
 #
 
+ARG SPARK_IMAGE=gcr.io/spark-operator/spark:v2.3.1
+
 FROM golang:1.10.2-alpine as builder
 ARG DEP_VERSION="0.4.1"
 RUN apk update && apk add bash git
@@ -26,7 +28,7 @@ RUN dep ensure -vendor-only
 COPY . ./
 RUN go generate && CGO_ENABLED=0 GOOS=linux go build -o /usr/bin/spark-operator
 
-FROM gcr.io/spark-operator/spark:v2.3.1
+FROM ${SPARK_IMAGE}
 COPY --from=builder /usr/bin/spark-operator /usr/bin/
 RUN apk add --update openssl && rm -rf /var/cache/apk/*
 RUN apk add --update curl && rm -rf /var/cache/apk/*
