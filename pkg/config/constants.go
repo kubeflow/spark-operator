@@ -172,10 +172,6 @@ const DefaultPrometheusConfiguration = `
 lowercaseOutputName: true
 attrNameSnakeCase: true
 rules:
-  - pattern: "metrics<name=master\\.(.*)><>Value"
-    name: spark_master_$1
-  - pattern: "metrics<name=worker\\.(.*)><>Value"
-    name: spark_worker_$1
   - pattern: metrics<name=(\S+)/(\S+)\.driver\.(BlockManager|DAGScheduler|jvm)\.(\S+)><>Value
     name: spark_driver_$3_$4
     type: GAUGE
@@ -202,58 +198,58 @@ rules:
       app_namespace: "$1"
       app_name: "$2"
       executor_id: "$3"
-  - pattern: "metrics<name=(\S+)/(\S+)\.driver\\.DAGScheduler\\.(.*)><>Count"
+  - pattern: metrics<name=(\S+)/(\S+)\.driver\\.DAGScheduler\\.(.*)><>Count
     name: spark_driver_DAGScheduler_$3_count
     type: COUNTER
     labels:
       app_namespace: "$1"
       app_name: "$2"
-  - pattern: "metrics<name=(\S+)/(\S+)\.driver\\.HiveExternalCatalog\\.(.*)><>Count"
+  - pattern: metrics<name=(\S+)/(\S+)\.driver\\.HiveExternalCatalog\\.(.*)><>Count
     name: spark_driver_HiveExternalCatalog_$3_total
     type: COUNTER
     labels:
       app_namespace: "$1"
       app_name: "$2"
-  - pattern: "metrics<name=(\S+)/(\S+)\.driver\\.CodeGenerator\\.(.*)><>Count"
+  - pattern: metrics<name=(\S+)/(\S+)\.driver\\.CodeGenerator\\.(.*)><>Count
     name: spark_driver_CodeGenerator_$3_count
     type: COUNTER
     labels:
       app_namespace: "$1"
       app_name: "$2"
-  - pattern: "metrics<name=(\S+)/(\S+)\.driver\\.LiveListenerBus\\.(.*)><>Count"
+  - pattern: metrics<name=(\S+)/(\S+)\.driver\\.LiveListenerBus\\.(.*)><>Count
     name: spark_driver_LiveListenerBus_$3_count
     type: COUNTER
     labels:
       app_namespace: "$1"
       app_name: "$2"
-  - pattern: "metrics<name=(\S+)/(\S+)\.driver\\.LiveListenerBus\\.(.*)><>Value"
+  - pattern: metrics<name=(\S+)/(\S+)\.driver\\.LiveListenerBus\\.(.*)><>Value
     name: spark_driver_LiveListenerBus_$3
     type: GAUGE
     labels:
       app_namespace: "$1"
       app_name: "$2"
-  - pattern: "metrics<name=(\S+)/(\S+)\.(.*)\\.executor\\.(.*)><>Count"
+  - pattern: metrics<name=(\S+)/(\S+)\.(.*)\\.executor\\.(.*)><>Count
     name: spark_executor_$4_total
     type: COUNTER
     labels:
       app_namespace: "$1"
       app_name: "$2"
       executor_id: "$3"
-  - pattern: "metrics<name=(\S+)/(\S+)\.([0-9]+)\\.(jvm|NettyBlockTransfer)\\.(.*)><>Value"
+  - pattern: metrics<name=(\S+)/(\S+)\.([0-9]+)\\.(jvm|NettyBlockTransfer)\\.(.*)><>Value
     name: spark_executor_$4_$5
     type: GAUGE
     labels:
       app_namespace: "$1"
       app_name: "$2"
       executor_id: "$3"
-  - pattern: "metrics<name=(\S+)/(\S+)\.([0-9]+)\\.HiveExternalCatalog\\.(.*)><>Count"
+  - pattern: metrics<name=(\S+)/(\S+)\.([0-9]+)\\.HiveExternalCatalog\\.(.*)><>Count
     name: spark_executor_HiveExternalCatalog_$4_count
     type: COUNTER
     labels:
       app_namespace: "$1"
       app_name: "$2"
       executor_id: "$3"
-  - pattern: "metrics<name=(\S+)/(\S+)\.([0-9]+)\\.CodeGenerator\\.(.*)><>Count"
+  - pattern: metrics<name=(\S+)/(\S+)\.([0-9]+)\\.CodeGenerator\\.(.*)><>Count
     name: spark_executor_CodeGenerator_$4_count
     type: COUNTER
     labels:
