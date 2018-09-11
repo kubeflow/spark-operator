@@ -205,7 +205,7 @@ rules:
       app_namespace: "$1"
       app_name: "$2"
   - pattern: metrics<name=(\S+)/(\S+)\.driver\.HiveExternalCatalog\.(.*)><>Count
-    name: spark_driver_HiveExternalCatalog_$3_total
+    name: spark_driver_HiveExternalCatalog_$3_count
     type: COUNTER
     labels:
       app_namespace: "$1"
@@ -229,7 +229,7 @@ rules:
       app_namespace: "$1"
       app_name: "$2"
   - pattern: metrics<name=(\S+)/(\S+)\.(.*)\.executor\.(.*)><>Count
-    name: spark_executor_$4_total
+    name: spark_executor_$4_count
     type: COUNTER
     labels:
       app_namespace: "$1"
