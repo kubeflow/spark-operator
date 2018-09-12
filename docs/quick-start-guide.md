@@ -181,11 +181,10 @@ The operator submits the Spark Pi example to run once it receives an event indic
 
 The Kubernetes Operator for "Apache Spark comes with an optional mutating admission webhook for customizing Spark driver and executor pods based on the specification in `SparkApplication` objects, e.g., mounting user-specified ConfigMaps and volumes, and setting pod affinity/anti-affinity.
 
-The webhook requires a X509 certificate for TLS for pod admission requests and responses between the Kubernetes API server and the webhook server running inside the operator. For that, the certificate and key files must be accessible by the webhook server and a Kubernetes secret can be used to store the files.
+The webhook requires a X509 certificate for TLS for pod admission requests and responses between the Kubernetes API server and the webhook server running inside the operator. For that, the certificate and key files must be accessible by the webhook server.
+The Spark Operator ships with a tool at `hack/gencerts.sh` for generating the CA and server certificate and putting the certificate and key files into a secret named `spark-webhook-certs` in namespace `sparkoperator`. This secret will be mounted into the Spark Operator pod.  
 
-The operator ships with a tool at `hack/gencerts.sh` for generating the CA and server certificate and putting the certificate and key files into a secret. Running `hack/gencerts.sh` will generate a CA certificate and a certificate for the webhook server signed by the CA, and create a secret named `spark-webhook-certs` in namespace `sparkoperator`. This secret will be mounted into the operator pod.  
-
-With the secret storing the certificate and key files available, run the following command to install the operatorr with the mutating admission webhook:
+Run the following command to create secret with certificate and key files using Batch Job, and install the Spark Operator Deployment with the mutating admission webhook:
 
 ```bash
 $ kubectl apply -f manifest/spark-operator-with-webhook.yaml

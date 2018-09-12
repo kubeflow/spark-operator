@@ -100,6 +100,8 @@ openssl req -new -key ${TMP_DIR}/server-key.pem -out ${TMP_DIR}/server.csr -subj
 openssl x509 -req -in ${TMP_DIR}/server.csr -CA ${TMP_DIR}/ca-cert.pem -CAkey ${TMP_DIR}/ca-key.pem -CAcreateserial -out ${TMP_DIR}/server-cert.pem -days 100000 -extensions v3_req -extfile ${TMP_DIR}/server.conf
 
 if [ "$IN_POD" == "true" ];  then
+	TOKEN=$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)
+
 	# Base64 encode secrets and then remove the trailing newline to avoid issues in the curl command
 	ca_cert=$(cat ${TMP_DIR}/ca-cert.pem | base64 | tr -d '\n')
 	ca_key=$(cat ${TMP_DIR}/ca-key.pem | base64 | tr -d '\n')
@@ -108,9 +110,11 @@ if [ "$IN_POD" == "true" ];  then
 
 	# Create the secret resource
 	echo "Creating a secret for the certificate and keys"
-	curl -ik \
+	STATUS=$(curl -ik \
+	  -o ${TMP_DIR}/output \
+	  -w "%{http_code}" \
 	  -X POST \
-	  -H "Authorization: Bearer $(cat /var/run/secrets/kubernetes.io/serviceaccount/token)" \
+	  -H "Authorization: Bearer $TOKEN" \
 	  -H 'Accept: application/json' \
 	  -H 'Content-Type: application/json' \
 	  -d '{
@@ -127,7 +131,22 @@ if [ "$IN_POD" == "true" ];  then
 	    "server-key.pem": "'"$server_key"'"
 	  }
 	}' \
-	https://kubernetes.default.svc/api/v1/namespaces/${NAMESPACE}/secrets
+	https://kubernetes.default.svc/api/v1/namespaces/${NAMESPACE}/secrets)
+
+	cat ${TMP_DIR}/output
+
+	case "$STATUS" in
+	  201)
+	    printf "\nSuccess - secret created.\n"
+	  ;;
+	  409)
+	    printf "\nSuccess - secret already exists.\n"
+	  ;;
+	  *)
+	    printf "\nFailed creating secret.\n"
+	    exit 1
+	  ;;
+    esac
 else
 	kubectl create secret --namespace=${NAMESPACE} generic spark-webhook-certs --from-file=${TMP_DIR}/ca-key.pem --from-file=${TMP_DIR}/ca-cert.pem --from-file=${TMP_DIR}/server-key.pem --from-file=${TMP_DIR}/server-cert.pem
 fi
