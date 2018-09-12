@@ -223,6 +223,9 @@ type SparkApplicationSpec struct {
 	// be overridden by `Spec.Driver.MemoryOverhead` and `Spec.Executor.MemoryOverhead` if they are set.
 	// Optional.
 	MemoryOverheadFactor *string `json:"memoryOverheadFactor,omitempty"`
+	// Monitoring configures how monitoring is handled.
+	// Optional.
+	Monitoring *MonitoringSpec `json:"monitoring,omitempty"`
 }
 
 // ApplicationStateType represents the type of the current state of an application.
@@ -423,4 +426,34 @@ type SecretInfo struct {
 type NameKey struct {
 	Name string `json:"name"`
 	Key  string `json:"key"`
+}
+
+// MonitoringSpec defines the monitoring specification.
+type MonitoringSpec struct {
+	// ExposeDriverMetrics specifies whether to expose metrics on the driver.
+	ExposeDriverMetrics bool `json:"exposeDriverMetrics"`
+	// ExposeExecutorMetrics specifies whether to expose metrics on the executors.
+	ExposeExecutorMetrics bool `json:"exposeExecutorMetrics"`
+	// MetricsProperties is the content of a custom metrics.properties for configuring the Spark metric system.
+	// Optional.
+	// If not specified, the content in spark-docker/conf/metrics.properties will be used.
+	MetricsProperties *string `json:"metricsProperties,omitempty"`
+	// Prometheus is for configuring the Prometheus JMX exporter.
+	// Optional.
+	Prometheus *PrometheusSpec `json:"prometheus,omitempty"`
+}
+
+// PrometheusSpec defines the Prometheus specification when Prometheus is to be used for
+// collecting and exposing metrics.
+type PrometheusSpec struct {
+	// JmxExporterJar is the path to the Prometheus JMX exporter jar in the container.
+	JmxExporterJar string `json:"jmxExporterJar"`
+	// Port is the port of the HTTP server run by the Prometheus JMX exporter.
+	// Optional.
+	// If not specified, 8090 will be used as the default.
+	Port *int32 `json:"port"`
+	// Configuration is the content of the Prometheus configuration needed by the Prometheus JMX exporter.
+	// Optional.
+	// If not specified, the content in spark-docker/conf/prometheus.yaml will be used.
+	Configuration *string `json:"configuration"`
 }

@@ -36,6 +36,7 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/workqueue"
+
 	"k8s.io/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1alpha1"
 	crdclientset "k8s.io/spark-on-k8s-operator/pkg/client/clientset/versioned"
 	crdscheme "k8s.io/spark-on-k8s-operator/pkg/client/clientset/versioned/scheme"
@@ -337,6 +338,11 @@ func (c *Controller) createSubmission(app *v1alpha1.SparkApplication) error {
 	} else {
 		appStatus.DriverInfo.WebUIServiceName = name
 		appStatus.DriverInfo.WebUIPort = port
+	}
+
+	if app.Spec.Monitoring != nil && app.Spec.Monitoring.Prometheus != nil {
+		// configPrometheusMonitoring may update app.Spec.
+		configPrometheusMonitoring(app, c.kubeClient)
 	}
 
 	updatedApp := c.updateSparkApplicationStatusWithRetries(app, func(status *v1alpha1.SparkApplicationStatus) {

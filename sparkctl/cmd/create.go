@@ -289,9 +289,12 @@ type uploadHandler struct {
 func (uh uploadHandler) uploadToBucket(uploadPath, localFilePath string) (string, error) {
 	fileName := filepath.Base(localFilePath)
 	uploadFilePath := filepath.Join(uploadPath, fileName)
+
 	// Check if exists by trying to fetch metadata
 	reader, err := uh.b.NewRangeReader(uh.ctx, uploadFilePath, 0, 0)
-	reader.Close()
+	if err == nil {
+		reader.Close()
+	}
 	if (blob.IsNotExist(err)) || (err == nil && Override) {
 		fmt.Printf("uploading local file: %s\n", fileName)
 
