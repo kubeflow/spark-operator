@@ -103,8 +103,9 @@ func getCustomResourceValidation() *apiextensionsv1beta1.CustomResourceValidatio
 								"executor": {
 									Properties: map[string]apiextensionsv1beta1.JSONSchemaProps{
 										"cores": {
-											Type:    "integer",
-											Minimum: float64Ptr(1),
+											Type:             "number",
+											Minimum:          float64Ptr(0),
+											ExclusiveMinimum: true,
 										},
 										"instances": {
 											Type:    "integer",
@@ -138,6 +139,25 @@ func getCustomResourceValidation() *apiextensionsv1beta1.CustomResourceValidatio
 								"submissionRetryInterval": {
 									Type:    "integer",
 									Minimum: float64Ptr(1),
+								},
+								"pythonVersion": {
+									Enum: []apiextensionsv1beta1.JSON{
+										{Raw: []byte(`"2"`)},
+										{Raw: []byte(`"3"`)},
+									},
+								},
+								"monitoring": {
+									Properties: map[string]apiextensionsv1beta1.JSONSchemaProps{
+										"prometheus": {
+											Properties: map[string]apiextensionsv1beta1.JSONSchemaProps{
+												"port": {
+													Type:    "integer",
+													Minimum: float64Ptr(1024),
+													Maximum: float64Ptr(49151),
+												},
+											},
+										},
+									},
 								},
 							},
 						},
