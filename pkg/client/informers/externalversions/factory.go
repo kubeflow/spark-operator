@@ -25,13 +25,13 @@ import (
 	sync "sync"
 	time "time"
 
+	versioned "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/client/clientset/versioned"
+	internalinterfaces "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/client/informers/externalversions/internalinterfaces"
+	sparkoperator_k8s_io "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/client/informers/externalversions/sparkoperator.k8s.io"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"
 	cache "k8s.io/client-go/tools/cache"
-	versioned "k8s.io/spark-on-k8s-operator/pkg/client/clientset/versioned"
-	internalinterfaces "k8s.io/spark-on-k8s-operator/pkg/client/informers/externalversions/internalinterfaces"
-	sparkoperator_k8s_io "k8s.io/spark-on-k8s-operator/pkg/client/informers/externalversions/sparkoperator.k8s.io"
 )
 
 // SharedInformerOption defines the functional option type for SharedInformerFactory.

@@ -23,14 +23,14 @@ package v1beta1
 import (
 	time "time"
 
+	sparkoperator_k8s_io_v1beta1 "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta1"
+	versioned "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/client/clientset/versioned"
+	internalinterfaces "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/client/informers/externalversions/internalinterfaces"
+	v1beta1 "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/client/listers/sparkoperator.k8s.io/v1beta1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	watch "k8s.io/apimachinery/pkg/watch"
 	cache "k8s.io/client-go/tools/cache"
-	sparkoperator_k8s_io_v1beta1 "k8s.io/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta1"
-	versioned "k8s.io/spark-on-k8s-operator/pkg/client/clientset/versioned"
-	internalinterfaces "k8s.io/spark-on-k8s-operator/pkg/client/informers/externalversions/internalinterfaces"
-	v1beta1 "k8s.io/spark-on-k8s-operator/pkg/client/listers/sparkoperator.k8s.io/v1beta1"
 )
 
 // SparkApplicationInformer provides access to a shared informer and lister for
