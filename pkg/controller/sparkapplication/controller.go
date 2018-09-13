@@ -30,7 +30,6 @@ import (
 	"strings"
 
 	apiv1 "k8s.io/api/core/v1"
-	apiextensionsclient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -41,6 +40,7 @@ import (
 	clientset "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
 	typedcorev1 "k8s.io/client-go/kubernetes/typed/core/v1"
+	"k8s.io/client-go/kubernetes/typed/extensions/v1beta1"
 	"k8s.io/client-go/listers/core/v1"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
@@ -70,24 +70,26 @@ var (
 type Controller struct {
 	crdClient         crdclientset.Interface
 	kubeClient        clientset.Interface
-	extensionsClient  apiextensionsclient.Interface
+	extensionsClient  v1beta1.ExtensionsV1beta1Interface
 	queue             workqueue.RateLimitingInterface
 	cacheSynced       cache.InformerSynced
 	recorder          record.EventRecorder
 	metrics           *sparkAppMetrics
 	applicationLister crdlisters.SparkApplicationLister
 	podLister         v1.PodLister
+	ingressUrlFormat  string
 }
 
 // NewController creates a new Controller.
 func NewController(
 	crdClient crdclientset.Interface,
 	kubeClient clientset.Interface,
-	extensionsClient apiextensionsclient.Interface,
+	extensionsClient v1beta1.ExtensionsV1beta1Interface,
 	crdInformerFactory crdinformers.SharedInformerFactory,
 	podInformerFactory informers.SharedInformerFactory,
 	metricsConfig *util.MetricConfig,
-	namespace string) *Controller {
+	namespace string,
+	ingressUrlFormat string) *Controller {
 	crdscheme.AddToScheme(scheme.Scheme)
 
 	eventBroadcaster := record.NewBroadcaster()
@@ -97,17 +99,18 @@ func NewController(
 	})
 	recorder := eventBroadcaster.NewRecorder(scheme.Scheme, apiv1.EventSource{Component: "spark-operator"})
 
-	return newSparkApplicationController(crdClient, kubeClient, extensionsClient, crdInformerFactory, podInformerFactory, recorder, metricsConfig)
+	return newSparkApplicationController(crdClient, kubeClient, extensionsClient, crdInformerFactory, podInformerFactory, recorder, metricsConfig, ingressUrlFormat)
 }
 
 func newSparkApplicationController(
 	crdClient crdclientset.Interface,
 	kubeClient clientset.Interface,
-	extensionsClient apiextensionsclient.Interface,
+	extensionsClient v1beta1.ExtensionsV1beta1Interface,
 	crdInformerFactory crdinformers.SharedInformerFactory,
 	podInformerFactory informers.SharedInformerFactory,
 	eventRecorder record.EventRecorder,
-	metricsConfig *util.MetricConfig) *Controller {
+	metricsConfig *util.MetricConfig,
+	ingressUrlFormat string) *Controller {
 	queue := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(),
 		"spark-application-controller")
 
@@ -117,6 +120,7 @@ func newSparkApplicationController(
 		extensionsClient: extensionsClient,
 		recorder:         eventRecorder,
 		queue:            queue,
+		ingressUrlFormat: ingressUrlFormat,
 	}
 
 	if metricsConfig != nil {
@@ -535,6 +539,26 @@ func (c *Controller) submitSparkApplication(app *v1alpha1.SparkApplication) *v1a
 		} else {
 			app.ObjectMeta.Finalizers = append(app.ObjectMeta.Finalizers, sparkDriverRole)
 		}
+
+		// Create Spark UI Service.
+		name, port, err := createSparkUIService(app, c.kubeClient)
+		if err != nil {
+			glog.Errorf("Failed to create a UI service for SparkApplication %s: %v", app.Name, err)
+		} else {
+			app.Status.DriverInfo.WebUIServiceName = name
+			app.Status.DriverInfo.WebUIPort = port
+
+			// Create UI Ingress if ingress-format is set.
+			if c.ingressUrlFormat != "" {
+				ingressName, ingressUrl, err := createSparkUIIngress(app, name, port, c.ingressUrlFormat, c.extensionsClient)
+				if err != nil {
+					glog.Errorf("Failed to create a UI service for SparkApplication %s: %v", app.Name, err)
+				} else {
+					app.Status.DriverInfo.WebUIIngressUrl = ingressUrl
+					app.Status.DriverInfo.WebUIIngressName = ingressName
+				}
+			}
+		}
 	}
 	return app
 }
@@ -573,6 +597,14 @@ func (c *Controller) deleteDriverAndUIService(app *v1alpha1.SparkApplication, wa
 	}
 	if app.Status.DriverInfo.WebUIServiceName != "" {
 		err := c.kubeClient.CoreV1().Services(app.Namespace).Delete(app.Status.DriverInfo.WebUIServiceName,
+			metav1.NewDeleteOptions(0))
+		if err != nil && !errors.IsNotFound(err) {
+			return err
+		}
+	}
+
+	if app.Status.DriverInfo.WebUIIngressName != "" {
+		err := c.extensionsClient.Ingresses(app.Namespace).Delete(app.Status.DriverInfo.WebUIIngressName,
 			metav1.NewDeleteOptions(0))
 		if err != nil && !errors.IsNotFound(err) {
 			return err

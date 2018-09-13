@@ -421,6 +421,8 @@ type DriverInfo struct {
 	WebUIServiceName string `json:"webUIServiceName,omitempty"`
 	WebUIPort        int32  `json:"webUIPort,omitempty"`
 	WebUIAddress     string `json:"webUIAddress,omitempty"`
+	WebUIIngressName string `json:"webUIIngressName,omitempty"`
+	WebUIIngressUrl  string `json:"webUIIngressUrl,omitempty"`
 	PodName          string `json:"podName,omitempty"`
 }
 

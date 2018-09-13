@@ -23,17 +23,67 @@ import (
 	"github.com/golang/glog"
 
 	apiv1 "k8s.io/api/core/v1"
+	extensions "k8s.io/api/extensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	clientset "k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/kubernetes/typed/extensions/v1beta1"
 
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1alpha1"
 	"k8s.io/spark-on-k8s-operator/pkg/config"
+	"regexp"
 )
 
 const (
 	sparkUIPortConfigurationKey = "spark.ui.port"
 	defaultSparkWebUIPort       = "4040"
 )
+
+var ingressUrlRegex = regexp.MustCompile("{{\\s*[$]appName\\s*}}")
+
+func getSparkUIIngressURL(ingressUrlFormat string, appName string) string {
+	return ingressUrlRegex.ReplaceAllString(ingressUrlFormat, appName)
+}
+
+func createSparkUIIngress(app *v1alpha1.SparkApplication, serviceName string, servicePort int32, ingressUrlFormat string, extensionsClient v1beta1.ExtensionsV1beta1Interface) (string, string, error) {
+
+	ingressUrl := getSparkUIIngressURL(ingressUrlFormat, app.GetName())
+	ingress := extensions.Ingress{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      app.GetName() + "-ui-ingress",
+			Namespace: app.Namespace,
+			Labels: map[string]string{
+				config.SparkAppNameLabel: app.Name,
+			},
+			OwnerReferences: []metav1.OwnerReference{*getOwnerReference(app)},
+		},
+		Spec: extensions.IngressSpec{
+			Rules: []extensions.IngressRule{{
+				Host: ingressUrl,
+				IngressRuleValue: extensions.IngressRuleValue{
+					HTTP: &extensions.HTTPIngressRuleValue{
+						Paths: []extensions.HTTPIngressPath{{
+							Backend: extensions.IngressBackend{
+								ServiceName: serviceName,
+								ServicePort: intstr.IntOrString{
+									Type:   intstr.Int,
+									IntVal: servicePort,
+								},
+							},
+						}},
+					},
+				},
+			}},
+		},
+	}
+	glog.Infof("Creating an Ingress %s for the Spark UI for application %s", ingress.Name, app.Name)
+	_, err := extensionsClient.Ingresses(ingress.Namespace).Create(&ingress)
+
+	if err != nil {
+		return "", "", err
+	}
+	return ingress.Name, ingressUrl, nil
+}
 
 func createSparkUIService(
 	app *v1alpha1.SparkApplication,
