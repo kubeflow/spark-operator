@@ -21,12 +21,12 @@ limitations under the License.
 package v1beta1
 
 import (
+	v1beta1 "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta1"
+	scheme "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/client/clientset/versioned/scheme"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"
 	watch "k8s.io/apimachinery/pkg/watch"
 	rest "k8s.io/client-go/rest"
-	v1beta1 "k8s.io/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta1"
-	scheme "k8s.io/spark-on-k8s-operator/pkg/client/clientset/versioned/scheme"
 )
 
 // ScheduledSparkApplicationsGetter has a method to return a ScheduledSparkApplicationInterface.

@@ -30,7 +30,8 @@ import (
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/kubernetes/pkg/util/interrupt"
-	crdclientset "k8s.io/spark-on-k8s-operator/pkg/client/clientset/versioned"
+
+	crdclientset "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/client/clientset/versioned"
 )
 
 var FollowEvents bool
