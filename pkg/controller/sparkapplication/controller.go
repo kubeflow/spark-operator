@@ -682,6 +682,26 @@ func (c *Controller) updateApplicationStatusWithRetries(
 			glog.Errorf("failed to get SparkApplication %s/%s: %v", original.Namespace, name, err)
 			return nil, err
 		}
+
+		// Create Spark UI Service.
+		name, port, err := createSparkUIService(app, c.kubeClient)
+		if err != nil {
+			glog.Errorf("Failed to create a UI service for SparkApplication %s: %v", app.Name, err)
+		} else {
+			app.Status.DriverInfo.WebUIServiceName = name
+			app.Status.DriverInfo.WebUIPort = port
+
+			// Create UI Ingress if ingress-format is set.
+			if c.ingressUrlFormat != "" {
+				ingressName, ingressUrl, err := createSparkUIIngress(app, name, port, c.ingressUrlFormat, c.extensionsClient)
+				if err != nil {
+					glog.Errorf("Failed to create a UI service for SparkApplication %s: %v", app.Name, err)
+				} else {
+					app.Status.DriverInfo.WebUIIngressUrl = ingressUrl
+					app.Status.DriverInfo.WebUIIngressName = ingressName
+				}
+			}
+		}
 	}
 
 	if lastUpdateErr != nil {
