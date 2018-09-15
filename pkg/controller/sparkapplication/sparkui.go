@@ -45,8 +45,20 @@ func getSparkUIIngressURL(ingressUrlFormat string, appName string) string {
 	return ingressUrlRegex.ReplaceAllString(ingressUrlFormat, appName)
 }
 
-func createSparkUIIngress(app *v1alpha1.SparkApplication, serviceName string, servicePort int32, ingressUrlFormat string, extensionsClient v1beta1.ExtensionsV1beta1Interface) (string, string, error) {
+// Struct to encapsulate service
+type SparkService struct {
+	serviceName string
+	servicePort int32
+	nodePort    int32
+}
 
+// Struct to encapsulate SparkIngress
+type SparkIngress struct {
+	ingressName string
+	ingressUrl  string
+}
+
+func createSparkUIIngress(app *v1alpha1.SparkApplication, service SparkService, ingressUrlFormat string, extensionsClient v1beta1.ExtensionsV1beta1Interface) (*SparkIngress, error) {
 	ingressUrl := getSparkUIIngressURL(ingressUrlFormat, app.GetName())
 	ingress := extensions.Ingress{
 		ObjectMeta: metav1.ObjectMeta{
@@ -64,10 +76,10 @@ func createSparkUIIngress(app *v1alpha1.SparkApplication, serviceName string, se
 					HTTP: &extensions.HTTPIngressRuleValue{
 						Paths: []extensions.HTTPIngressPath{{
 							Backend: extensions.IngressBackend{
-								ServiceName: serviceName,
+								ServiceName: service.serviceName,
 								ServicePort: intstr.IntOrString{
 									Type:   intstr.Int,
-									IntVal: servicePort,
+									IntVal: service.servicePort,
 								},
 							},
 						}},
@@ -80,18 +92,21 @@ func createSparkUIIngress(app *v1alpha1.SparkApplication, serviceName string, se
 	_, err := extensionsClient.Ingresses(ingress.Namespace).Create(&ingress)
 
 	if err != nil {
-		return "", "", err
+		return nil, err
 	}
-	return ingress.Name, ingressUrl, nil
+	return &SparkIngress{
+		ingressName: ingress.Name,
+		ingressUrl:  ingressUrl,
+	}, nil
 }
 
 func createSparkUIService(
 	app *v1alpha1.SparkApplication,
-	kubeClient clientset.Interface) (string, int32, error) {
+	kubeClient clientset.Interface) (*SparkService, error) {
 	portStr := getUITargetPort(app)
 	port, err := strconv.Atoi(portStr)
 	if err != nil {
-		return "", -1, fmt.Errorf("invalid Spark UI port: %s", portStr)
+		return nil, fmt.Errorf("invalid Spark UI port: %s", portStr)
 	}
 
 	service := &apiv1.Service{
@@ -121,10 +136,14 @@ func createSparkUIService(
 	glog.Infof("Creating a service %s for the Spark UI for application %s", service.Name, app.Name)
 	service, err = kubeClient.CoreV1().Services(app.Namespace).Create(service)
 	if err != nil {
-		return "", -1, err
+		return nil, err
 	}
 
-	return service.Name, service.Spec.Ports[0].NodePort, nil
+	return &SparkService{
+		serviceName: service.Name,
+		servicePort: int32(port),
+		nodePort:    service.Spec.Ports[0].NodePort,
+	}, nil
 }
 
 // getWebUITargetPort attempts to get the Spark web UI port from configuration property spark.ui.port

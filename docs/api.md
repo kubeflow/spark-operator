@@ -123,8 +123,10 @@ A `DriverInfo` captures information about the driver pod and the Spark web UI ru
 | Field | Note |
 | ------------- | ------------- |
 | `WebUIServiceName` | Name of the service for the Spark web UI. |
-| `WebUIPort` | Port on which the Spark web UI runs. |
-| `WebUIAddress` | Address to access the web UI from outside the cluster. |
+| `WebUIPort` | Port on which the Spark web UI runs on the Node. |
+| `WebUIAddress` | Address to access the web UI from outside the cluster via the Node. |
+| `WebUIIngressName` | Name of the ingress for the Spark web UI. |
+| `WebUIIngressAddress` | Address to access the web UI via the Ingress. |
 | `PodName` | Name of the driver pod. |
 
 ### `ScheduledSparkApplicationSpec`

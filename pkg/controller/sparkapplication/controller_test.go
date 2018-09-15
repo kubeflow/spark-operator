@@ -48,7 +48,7 @@ func newFakeController(app *v1alpha1.SparkApplication, pods ...*apiv1.Pod) (*Con
 	crdclientfake.AddToScheme(scheme.Scheme)
 	crdClient := crdclientfake.NewSimpleClientset()
 	kubeClient := kubeclientfake.NewSimpleClientset()
-    informerFactory := crdinformers.NewSharedInformerFactory(crdClient, 0*time.Second)
+	informerFactory := crdinformers.NewSharedInformerFactory(crdClient, 0*time.Second)
 	recorder := record.NewFakeRecorder(3)
 
 	kubeClient.CoreV1().Nodes().Create(&apiv1.Node{
