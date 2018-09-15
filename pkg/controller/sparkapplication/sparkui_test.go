@@ -21,7 +21,6 @@ import (
 	"strconv"
 	"testing"
 
-	"fmt"
 	apiv1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
@@ -74,7 +73,6 @@ func TestCreateSparkUIService(t *testing.T) {
 			t.Errorf("%s: wanted a single port got %d ports", test.name, len(service.Spec.Ports))
 		}
 		port := service.Spec.Ports[0]
-		fmt.Printf("%+v", port)
 		if port.Port != test.expectedService.servicePort {
 			t.Errorf("%s: unexpected port wanted %d got %d", test.name, test.expectedService.servicePort, port.Port)
 		}
