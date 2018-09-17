@@ -206,7 +206,7 @@ func (c *Controller) onUpdate(oldObj, newObj interface{}) {
 
 	if !newApp.GetObjectMeta().GetDeletionTimestamp().IsZero() {
 		// CRD deletion requested, lets delete driver and UI.
-		if err := c.deleteDriverAndUIService(newApp, true); err != nil {
+		if err := c.deleteDriver(newApp, true); err != nil {
 			glog.Errorf("failed to delete the driver pod and UI service for deleted SparkApplication %s: %v",
 				newApp.Name, err)
 			return
@@ -587,24 +587,9 @@ func (c *Controller) getSparkApplication(namespace string, name string) (*v1alph
 	return c.applicationLister.SparkApplications(namespace).Get(name)
 }
 
-func (c *Controller) deleteDriverAndUIService(app *v1alpha1.SparkApplication, waitForDriverDeletion bool) error {
+func (c *Controller) deleteDriver(app *v1alpha1.SparkApplication, waitForDriverDeletion bool) error {
 	if app.Status.DriverInfo.PodName != "" {
 		err := c.kubeClient.CoreV1().Pods(app.Namespace).Delete(app.Status.DriverInfo.PodName,
-			metav1.NewDeleteOptions(0))
-		if err != nil && !errors.IsNotFound(err) {
-			return err
-		}
-	}
-	if app.Status.DriverInfo.WebUIServiceName != "" {
-		err := c.kubeClient.CoreV1().Services(app.Namespace).Delete(app.Status.DriverInfo.WebUIServiceName,
-			metav1.NewDeleteOptions(0))
-		if err != nil && !errors.IsNotFound(err) {
-			return err
-		}
-	}
-
-	if app.Status.DriverInfo.WebUIIngressName != "" {
-		err := c.extensionsClient.Ingresses(app.Namespace).Delete(app.Status.DriverInfo.WebUIIngressName,
 			metav1.NewDeleteOptions(0))
 		if err != nil && !errors.IsNotFound(err) {
 			return err
