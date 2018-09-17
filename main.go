@@ -33,6 +33,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/clock"
 	"k8s.io/client-go/informers"
 	clientset "k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/kubernetes/typed/extensions/v1beta1"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
@@ -65,6 +66,7 @@ var (
 	metricsPort         = flag.String("metrics-port", "10254", "Port for the metrics endpoint.")
 	metricsEndpoint     = flag.String("metrics-endpoint", "/metrics", "Metrics endpoint.")
 	metricsPrefix       = flag.String("metrics-prefix", "", "Prefix for the metrics.")
+	ingressUrlFormat    = flag.String("ingress-url-format", "", "Ingress URL format.")
 )
 
 func main() {
@@ -137,8 +139,13 @@ func main() {
 	podInformerFactory := informers.NewFilteredSharedInformerFactory(kubeClient,
 		60*time.Second, *namespace, tweakListOptionsFunc)
 
+	extensionsClient, err := v1beta1.NewForConfig(config)
+	if err != nil {
+		glog.Fatal(err)
+	}
+
 	applicationController := sparkapplication.NewController(
-		crdClient, kubeClient, apiExtensionsClient, factory, podInformerFactory, metricConfig, *namespace)
+		crdClient, kubeClient, extensionsClient, factory, podInformerFactory, metricConfig, *namespace, *ingressUrlFormat)
 	scheduledApplicationController := scheduledsparkapplication.NewController(
 		crdClient, kubeClient, apiExtensionsClient, factory, clock.RealClock{})
 

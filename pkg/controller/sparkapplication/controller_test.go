@@ -31,7 +31,6 @@ import (
 	prometheus_model "github.com/prometheus/client_model/go"
 
 	apiv1 "k8s.io/api/core/v1"
-	apiextensionsfake "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset/fake"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/informers"
 	kubeclientfake "k8s.io/client-go/kubernetes/fake"
@@ -49,7 +48,6 @@ func newFakeController(app *v1alpha1.SparkApplication, pods ...*apiv1.Pod) (*Con
 	crdclientfake.AddToScheme(scheme.Scheme)
 	crdClient := crdclientfake.NewSimpleClientset()
 	kubeClient := kubeclientfake.NewSimpleClientset()
-	apiExtensionsClient := apiextensionsfake.NewSimpleClientset()
 	informerFactory := crdinformers.NewSharedInformerFactory(crdClient, 0*time.Second)
 	recorder := record.NewFakeRecorder(3)
 
@@ -68,8 +66,8 @@ func newFakeController(app *v1alpha1.SparkApplication, pods ...*apiv1.Pod) (*Con
 	})
 
 	podInformerFactory := informers.NewSharedInformerFactory(kubeClient, 0*time.Second)
-	controller := newSparkApplicationController(crdClient, kubeClient, apiExtensionsClient, informerFactory, podInformerFactory, recorder,
-		&util.MetricConfig{})
+	controller := newSparkApplicationController(crdClient, kubeClient, nil, informerFactory, podInformerFactory, recorder,
+		&util.MetricConfig{}, "")
 
 	informer := informerFactory.Sparkoperator().V1alpha1().SparkApplications().Informer()
 	if app != nil {

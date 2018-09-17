@@ -419,9 +419,14 @@ const (
 // DriverInfo captures information about the driver.
 type DriverInfo struct {
 	WebUIServiceName string `json:"webUIServiceName,omitempty"`
-	WebUIPort        int32  `json:"webUIPort,omitempty"`
-	WebUIAddress     string `json:"webUIAddress,omitempty"`
-	PodName          string `json:"podName,omitempty"`
+	// UI Details for the UI created via NodePort service.
+	// TODO: Remove this in favor of UI access via Ingress.
+	WebUIPort    int32  `json:"webUIPort,omitempty"`
+	WebUIAddress string `json:"webUIAddress,omitempty"`
+	// Ingress Details if an ingress for the UI was created.
+	WebUIIngressName    string `json:"webUIIngressName,omitempty"`
+	WebUIIngressAddress string `json:"webUIIngressAddress,omitempty"`
+	PodName             string `json:"podName,omitempty"`
 }
 
 // SecretInfo captures information of a secret.
