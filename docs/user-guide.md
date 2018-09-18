@@ -24,6 +24,8 @@ also refer to the [GCP guide](gcp.md).
     * [Using Secrets As Environment Variables](#using-secrets-as-environment-variables)
     * [Using Image Pull Secrets](#using-image-pull-secrets)
     * [Using Pod Affinity](#using-pod-affinity)
+    * [Python Support](#python-support)
+    * [Monitoring](#monitoring) 
 * [Working with SparkApplications](#working-with-sparkapplications)
     * [Creating a New SparkApplication](#creating-a-new-sparkapplication)
     * [Deleting a SparkApplication](#deleting-a-sparkapplication)
@@ -365,7 +367,7 @@ Note that the mutating admission webhook is needed to use this feature. Please r
 ### Python Support
 
 Python support can be enabled by setting `.spec.mainApplicationFile` with path to your python application.
-Optionaly, `.spec.pythonVersion` parameter can be used to set the major Python version of the docker image used 
+Optionaly, the `.spec.pythonVersion` field can be used to set the major Python version of the docker image used 
 to run the driver and executor containers. Below is an example showing part of a `SparkApplication` specification:
 
 ```yaml
@@ -397,6 +399,27 @@ spark.sparkContext.addPyFile(dep_file_path)
 
 Note that Python binding for PySpark will be available in Apache Spark 2.4, 
 and currently requires building a custom Docker image from the Spark master branch.
+
+### Monitoring
+
+The Spark Operator supports using the Spark metric system to expose metrics to a varity of sinks. Particularly, it is able to automatically configure the metric system to expose metrics to [Prometheus](https://prometheus.io/). Specifically, the field `.spec.monitoring` specifies how application monitoring is handled and particularly how metrics are to be reported. The metric system is configured through the configuration file `metrics.properties`, which gets its content from the field `.spec.monitoring.metricsProperties`. The content of [metrics.properties](../spark-docker/conf/metrics.properties) will be used by default if `.spec.monitoring.metricsProperties` is not specified. You can choose to enable or disable reporting driver and executor metrics using the fields `.spec.monitoring.exposeDriverMetrics` and `.spec.monitoring.exposeExecutorMetrics`, respectively. 
+
+Further, the field `.spec.monitoring.prometheus` specifies how metrics are exposed to Prometheus using the [Prometheus JMX exporter](https://github.com/prometheus/jmx_exporter). When `.spec.monitoring.prometheus` is specified, the operator automatically configures the JMX exporter to run as a Java agent. The only required field of `.spec.monitoring.prometheus` is `jmxExporterJar`, which specified the path to the Prometheus JMX exporter Java agent jar in the container. If you use the image `gcr.io/spark-operator/spark:v2.3.1-gcs-prometheus`, the jar is located at `/prometheus/jmx_prometheus_javaagent-0.3.1.jar`. The field `.spec.monitoring.prometheus.port` specifies the port the JMX exporter Java agent binds to and defaults to `8090` if not specified. The field `.spec.monitoring.prometheus.configuration` specifies the content of the configuration to be used with the JMX exporter. The content of [prometheus.yaml](../spark-docker/conf/prometheus.yaml) will be used by default if `.spec.monitoring.prometheus.configuration` is not specified.    
+
+Below is an example that shows how to configure the metric system to expose metrics to Prometheus using the Prometheus JMX exporter. Note that the JMX exporter Java agent jar is listed as a dependency and will be downloaded to where `.spec.dep.jarsDownloadDir` points to in Spark 2.3.x, which is `/var/spark-data/spark-jars` by default. Things will be different in Spark 2.4 as dependencies will be downloaded to the local working directory instead in Spark 2.4. A complete example can be found in [examples/spark-pi-prometheus.yaml](../examples/spark-pi-prometheus.yaml).
+
+```yaml
+spec:
+  dep:
+    jars:
+    - http://central.maven.org/maven2/io/prometheus/jmx/jmx_prometheus_javaagent/0.3.1/jmx_prometheus_javaagent-0.3.1.jar
+  monitoring:
+    exposeDriverMetrics: true
+    prometheus:
+      jmxExporterJar: "/var/spark-data/spark-jars/jmx_prometheus_javaagent-0.3.1.jar"    
+```
+
+The operator automatically adds the annotations such as `prometheus.io/scrape=true` on the driver and/or executor pods so the metrics exposed on the pods can be scraped by the Prometheus server in the same cluster.
 
 ## Working with SparkApplications
 
@@ -527,11 +550,7 @@ a restart policy of `Never` as the example above shows.
 To customize the Spark Operator, you can follow the steps below:
 
 1. Compile Spark distribution with Kubernetes support as per [Spark documentation](https://spark.apache.org/docs/latest/building-spark.html#building-with-kubernetes-support).
-
 2. Create docker images to be used for Spark with [docker-image tool](https://spark.apache.org/docs/latest/running-on-kubernetes.html#docker-images).
-
 3. Create a new Spark Operator image based on the above image. You need to modify the `FROM` tag in the [Dockerfile](https://github.com/GoogleCloudPlatform/spark-on-k8s-operator/blob/master/Dockerfile) with your Spark image.
-
 4. Build and push your Spark Operator image built above. 
-
 5. Deploy the new image by modifying the [/manifest/spark-operator.yaml](https://github.com/GoogleCloudPlatform/spark-on-k8s-operator/blob/master/manifest/spark-operator.yaml) file and specfiying your Spark Operator image.

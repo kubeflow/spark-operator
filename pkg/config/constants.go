@@ -138,7 +138,7 @@ const (
 	// SparkWaitAppCompletion is the Spark configuration key for specifying whether to wait for application to complete.
 	SparkWaitAppCompletion = "spark.kubernetes.submission.waitAppCompletion"
 	// SparkPythonVersion is the Spark configuration key for specifying python version used.
-	SparkPythonVersion = "spark.kubernetes.pyspark.pythonversion"
+	SparkPythonVersion = "spark.kubernetes.pyspark.pythonVersion"
 	// SparkPythonVersion is the Spark configuration key for specifying memory overhead factor used for Non-JVM memory.
 	SparkMemoryOverheadFactor = "spark.kubernetes.memoryOverheadFactor"
 	// SparkDriverJavaOptions is the Spark configuration key for a string of extra JVM options to pass to driver.
@@ -164,3 +164,99 @@ const (
 	// form the path to the file referred to by HADOOP_TOKEN_FILE_LOCATION.
 	HadoopDelegationTokenFileName = "hadoop.token"
 )
+
+const DefaultMetricsProperties = `
+*.sink.jmx.class=org.apache.spark.metrics.sink.JmxSink
+driver.source.jvm.class=org.apache.spark.metrics.source.JvmSource
+executor.source.jvm.class=org.apache.spark.metrics.source.JvmSource`
+
+const DefaultPrometheusConfiguration = `
+lowercaseOutputName: true
+attrNameSnakeCase: true
+rules:
+  - pattern: metrics<name=(\S+)/(\S+)\.driver\.(BlockManager|DAGScheduler|jvm)\.(\S+)><>Value
+    name: spark_driver_$3_$4
+    type: GAUGE
+    labels:
+      app_namespace: "$1"
+      app_name: "$2"
+  - pattern: metrics<name=(\S+)/(\S+)\.driver\.(\S+)\.StreamingMetrics\.streaming\.(\S+)><>Value
+    name: spark_streaming_driver_$4
+    type: GAUGE
+    labels:
+      app_namespace: "$1"
+      app_name: "$2"
+  - pattern: metrics<name=(\S+)/(\S+)\.driver\.spark\.streaming\.(\S+)\.(\S+)><>Value
+    name: spark_structured_streaming_driver_$4
+    type: GAUGE
+    labels:
+      app_namespace: "$1"
+      app_name: "$2"
+      query_name: "$3"
+  - pattern: metrics<name=(\S+)/(\S+)\.(\S+)\.executor\.(\S+)><>Value
+    name: spark_executor_$4
+    type: GAUGE
+    labels:
+      app_namespace: "$1"
+      app_name: "$2"
+      executor_id: "$3"
+  - pattern: metrics<name=(\S+)/(\S+)\.driver\.DAGScheduler\.(.*)><>Count
+    name: spark_driver_DAGScheduler_$3_count
+    type: COUNTER
+    labels:
+      app_namespace: "$1"
+      app_name: "$2"
+  - pattern: metrics<name=(\S+)/(\S+)\.driver\.HiveExternalCatalog\.(.*)><>Count
+    name: spark_driver_HiveExternalCatalog_$3_count
+    type: COUNTER
+    labels:
+      app_namespace: "$1"
+      app_name: "$2"
+  - pattern: metrics<name=(\S+)/(\S+)\.driver\.CodeGenerator\.(.*)><>Count
+    name: spark_driver_CodeGenerator_$3_count
+    type: COUNTER
+    labels:
+      app_namespace: "$1"
+      app_name: "$2"
+  - pattern: metrics<name=(\S+)/(\S+)\.driver\.LiveListenerBus\.(.*)><>Count
+    name: spark_driver_LiveListenerBus_$3_count
+    type: COUNTER
+    labels:
+      app_namespace: "$1"
+      app_name: "$2"
+  - pattern: metrics<name=(\S+)/(\S+)\.driver\.LiveListenerBus\.(.*)><>Value
+    name: spark_driver_LiveListenerBus_$3
+    type: GAUGE
+    labels:
+      app_namespace: "$1"
+      app_name: "$2"
+  - pattern: metrics<name=(\S+)/(\S+)\.(.*)\.executor\.(.*)><>Count
+    name: spark_executor_$4_count
+    type: COUNTER
+    labels:
+      app_namespace: "$1"
+      app_name: "$2"
+      executor_id: "$3"
+  - pattern: metrics<name=(\S+)/(\S+)\.([0-9]+)\.(jvm|NettyBlockTransfer)\.(.*)><>Value
+    name: spark_executor_$4_$5
+    type: GAUGE
+    labels:
+      app_namespace: "$1"
+      app_name: "$2"
+      executor_id: "$3"
+  - pattern: metrics<name=(\S+)/(\S+)\.([0-9]+)\.HiveExternalCatalog\.(.*)><>Count
+    name: spark_executor_HiveExternalCatalog_$4_count
+    type: COUNTER
+    labels:
+      app_namespace: "$1"
+      app_name: "$2"
+      executor_id: "$3"
+  - pattern: metrics<name=(\S+)/(\S+)\.([0-9]+)\.CodeGenerator\.(.*)><>Count
+    name: spark_executor_CodeGenerator_$4_count
+    type: COUNTER
+    labels:
+      app_namespace: "$1"
+      app_name: "$2"
+      executor_id: "$3"
+`
+const DefaultPrometheusJavaAgentPort int32 = 8090

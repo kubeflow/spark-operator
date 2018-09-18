@@ -21,10 +21,10 @@ limitations under the License.
 package v1beta1
 
 import (
+	v1beta1 "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/tools/cache"
-	v1beta1 "k8s.io/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta1"
 )
 
 // SparkApplicationLister helps list SparkApplications.

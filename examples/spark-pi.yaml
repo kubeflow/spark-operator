@@ -22,9 +22,10 @@ metadata:
 spec:
   type: Scala
   mode: cluster
-  image: "gcr.io/ynli-k8s/spark:v2.3.0"
+  image: "gcr.io/spark-operator/spark:v2.3.1"
+  imagePullPolicy: Always
   mainClass: org.apache.spark.examples.SparkPi
-  mainApplicationFile: "local:///opt/spark/examples/jars/spark-examples_2.11-2.3.0.jar"
+  mainApplicationFile: "local:///opt/spark/examples/jars/spark-examples_2.11-2.3.1.jar"
   volumes:
     - name: "test-volume"
       hostPath:
@@ -35,7 +36,7 @@ spec:
     coreLimit: "200m"
     memory: "512m"
     labels:
-      version: 2.3.0
+      version: 2.3.1
     serviceAccount: spark
     volumeMounts:
       - name: "test-volume"
@@ -45,7 +46,7 @@ spec:
     instances: 1
     memory: "512m"
     labels:
-      version: 2.3.0
+      version: 2.3.1
     volumeMounts:
       - name: "test-volume"
         mountPath: "/tmp"

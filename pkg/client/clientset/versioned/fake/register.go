@@ -21,12 +21,12 @@ limitations under the License.
 package fake
 
 import (
+	sparkoperatorv1alpha1 "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1alpha1"
+	sparkoperatorv1beta1 "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"
 	serializer "k8s.io/apimachinery/pkg/runtime/serializer"
-	sparkoperatorv1alpha1 "k8s.io/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1alpha1"
-	sparkoperatorv1beta1 "k8s.io/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta1"
 )
 
 var scheme = runtime.NewScheme()

@@ -20,6 +20,8 @@ ScheduledSparkApplication
     |__ ExecutorSpec
         |__ SparkPodSpec
     |__ Dependencies
+    |__ MonitoringSpec
+        |__ PrometheusSpec
 |__ SparkApplicationStatus
     |__ DriverInfo    
 ```
@@ -33,7 +35,7 @@ A `SparkApplicationSpec` has the following top-level fields:
 | Field | Spark configuration property or `spark-submit` option | Note |
 | ------------- | ------------- | ------------- |
 | `Type`  | N/A  | The type of the Spark application. Valid values are `Java`, `Scala`, `Python`, and `R`. |
-| `PythonVersion`  | `spark.kubernetes.pyspark.pythonversion`  | This sets the major Python version of the docker image used to run the driver and executor containers. Can either be 2 or 3, default 2. |
+| `PythonVersion`  | `spark.kubernetes.pyspark.pythonVersion`  | This sets the major Python version of the docker image used to run the driver and executor containers. Can either be 2 or 3, default 2. |
 | `Mode`  | `--mode` | Spark deployment mode. Valid values are `cluster` and `client`. |
 | `Image` | `spark.kubernetes.container.image` | Unified container image for the driver, executor, and init-container. |
 | `InitContainerImage` | `spark.kubernetes.initContainer.image` | Custom init-container image. |
@@ -53,6 +55,8 @@ A `SparkApplicationSpec` has the following top-level fields:
 | `RestartPolicy` | N/A | The policy regarding if and in which conditions the controller should restart a terminated application. |
 | `NodeSelector` | `spark.kubernetes.node.selector.[labelKey]` | Node selector of the driver pod and executor pods, with key `labelKey` and value as the label's value. |
 | `MemoryOverheadFactor` | `spark.kubernetes.memoryOverheadFactor` | This sets the Memory Overhead Factor that will allocate memory to non-JVM memory. For JVM-based jobs this value will default to 0.10, for non-JVM jobs 0.40. Value of this field will be overridden by `Spec.Driver.MemoryOverhead` and `Spec.Executor.MemoryOverhead` if they are set. |
+| `Monitoring` | N/A | This specifies how monitoring of the Spark application should be handled, e.g., how driver and executor metrics are to be exposed. Currently only exposing metrics to Prometheus is supported. |
+
 
 #### `DriverSpec`
 
@@ -99,6 +103,27 @@ A `Dependencies` specifies the various types of dependencies of a Spark applicat
 | ------------- | ------------- | ------------- |
 | `Jars` | `spark.jars` or `--jars` | List of jars the application depends on. |
 | `Files` | `spark.files` or `--files` | List of files the application depends on. |
+
+#### `MonitoringSpec`
+
+A `MonitoringSpec` specifies how monitoring of the Spark application should be handled, e.g., how driver and executor metrics are to be exposed. Currently only exposing metrics to Prometheus is supported.
+
+| Field | Spark configuration property or `spark-submit` option | Note |
+| ------------- | ------------- | ------------- |
+| `ExposeDriverMetrics` | N/A | This specifies if driver metrics should be exposed. Defaults to `false`. |
+| `ExposeExecutorMetrics` | N/A | This specifies if executor metrics should be exposed. Defaults to `false`. |
+| `MetricsProperties` | N/A | If specified, this contains the content of a custom `metrics.properties` that configures the Spark metrics system. Otherwise, the content of `spark-docker/conf/metrics.properties` will be used. |
+| `PrometheusSpec` | N/A | If specified, this configures how metrics are exposed to Prometheus. |
+
+#### `PrometheusSpec`
+
+A `PrometheusSpec` configures how metrics are exposed to Prometheus.
+
+| Field | Spark configuration property or `spark-submit` option | Note |
+| ------------- | ------------- | ------------- |
+| `JmxExporterJar` | N/A | This specifies the path to the [Prometheus JMX exporter](https://github.com/prometheus/jmx_exporter) jar. |
+| `Port` | N/A | If specified, the value will be used in the Java agent configuration for the Prometheus JMX exporter. The Java agent gets bound to the specified port if specified or `8090` otherwise by default. |
+| `Configuration` | N/A | If specified, this contains the content of a custom Prometheus configuration used by the Prometheus JMX exporter. Otherwise, the content of `spark-docker/conf/prometheus.yaml` will be used. |
 
 ### `SparkApplicationStatus`
 

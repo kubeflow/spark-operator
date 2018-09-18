@@ -20,11 +20,12 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/olekukonko/tablewriter"
 	"github.com/spf13/cobra"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	crdclientset "k8s.io/spark-on-k8s-operator/pkg/client/clientset/versioned"
+	crdclientset "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/client/clientset/versioned"
 )
 
 var listCmd = &cobra.Command{
@@ -50,9 +51,17 @@ func doList(crdClientset crdclientset.Interface) error {
 		return err
 	}
 
+	table := tablewriter.NewWriter(os.Stdout)
+	table.SetHeader([]string{"Name", "State", "Submission Age", "Completion Age"})
 	for _, app := range apps.Items {
-		fmt.Println(app.Name)
+		table.Append([]string{
+			string(app.Name),
+			string(app.Status.AppState.State),
+			getSinceTime(app.Status.SubmissionTime),
+			getSinceTime(app.Status.CompletionTime),
+		})
 	}
+	table.Render()
 
 	return nil
 }
