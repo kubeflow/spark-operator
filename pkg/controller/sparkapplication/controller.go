@@ -52,6 +52,8 @@ import (
 	crdinformers "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/client/informers/externalversions"
 	crdlisters "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/client/listers/sparkoperator.k8s.io/v1alpha1"
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/util"
+	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/config"
+
 )
 
 const (
