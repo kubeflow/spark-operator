@@ -60,7 +60,7 @@ specified by `.spec.image` will be used for the init-container. It is invalid if
 Below is an example showing part of a `SparkApplication` specification:
 
 ```yaml
-apiVersion: sparkoperator.k8s.io/v1alpha1
+apiVersion: sparkoperator.k8s.io/v1beta1
 kind: SparkApplication
 metadata:
   name: spark-pi
@@ -478,7 +478,7 @@ a `SparkApplication` object for each run of the application is created. The foll
 `ScheduledSparkApplication`:
 
 ```yaml
-apiVersion: "sparkoperator.k8s.io/v1alpha1"
+apiVersion: "sparkoperator.k8s.io/v1beta1"
 kind: ScheduledSparkApplication
 metadata:
   name: spark-pi-scheduled

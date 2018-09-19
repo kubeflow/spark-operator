@@ -34,7 +34,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/yaml"
 	clientset "k8s.io/client-go/kubernetes"
 
-	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1alpha1"
+	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta1"
 	crdclientset "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/client/clientset/versioned"
 )
 
@@ -94,7 +94,6 @@ func doCreate(yamlFile string, kubeClientset clientset.Interface, crdClientset c
 		return err
 	}
 
-	v1alpha1.SetSparkApplicationDefaults(app)
 	if err = validateSpec(app.Spec); err != nil {
 		return fmt.Errorf("validation failed for SparkApplication %s: %v", app.Name, err)
 	}
@@ -110,7 +109,7 @@ func doCreate(yamlFile string, kubeClientset clientset.Interface, crdClientset c
 		}
 	}
 
-	if _, err = crdClientset.SparkoperatorV1alpha1().SparkApplications(Namespace).Create(app); err != nil {
+	if _, err = crdClientset.SparkoperatorV1beta1().SparkApplications(Namespace).Create(app); err != nil {
 		return fmt.Errorf("failed to create SparkApplication %s: %v", app.Name, err)
 	}
 
@@ -119,7 +118,7 @@ func doCreate(yamlFile string, kubeClientset clientset.Interface, crdClientset c
 	return nil
 }
 
-func loadFromYAML(yamlFile string) (*v1alpha1.SparkApplication, error) {
+func loadFromYAML(yamlFile string) (*v1beta1.SparkApplication, error) {
 	file, err := os.Open(yamlFile)
 	if err != nil {
 		return nil, err
@@ -127,7 +126,7 @@ func loadFromYAML(yamlFile string) (*v1alpha1.SparkApplication, error) {
 	defer file.Close()
 
 	decoder := yaml.NewYAMLOrJSONDecoder(file, bufferSize)
-	app := &v1alpha1.SparkApplication{}
+	app := &v1beta1.SparkApplication{}
 	err = decoder.Decode(app)
 	if err != nil {
 		return nil, err
@@ -136,7 +135,7 @@ func loadFromYAML(yamlFile string) (*v1alpha1.SparkApplication, error) {
 	return app, nil
 }
 
-func validateSpec(spec v1alpha1.SparkApplicationSpec) error {
+func validateSpec(spec v1beta1.SparkApplicationSpec) error {
 	if spec.Image == nil && (spec.Driver.Image == nil || spec.Executor.Image == nil) {
 		return fmt.Errorf("'spec.driver.image' and 'spec.executor.image' cannot be empty when 'spec.image' " +
 			"is not set")
@@ -154,7 +153,7 @@ func validateSpec(spec v1alpha1.SparkApplicationSpec) error {
 	return nil
 }
 
-func handleLocalDependencies(app *v1alpha1.SparkApplication) error {
+func handleLocalDependencies(app *v1beta1.SparkApplication) error {
 	if app.Spec.MainApplicationFile != nil {
 		isMainAppFileLocal, err := isLocalFile(*app.Spec.MainApplicationFile)
 		if err != nil {
@@ -238,7 +237,7 @@ func isLocalFile(file string) (bool, error) {
 	return false, nil
 }
 
-func hasNonContainerLocalFiles(spec v1alpha1.SparkApplicationSpec) (bool, error) {
+func hasNonContainerLocalFiles(spec v1beta1.SparkApplicationSpec) (bool, error) {
 	var files []string
 	if spec.MainApplicationFile != nil {
 		files = append(files, *spec.MainApplicationFile)
@@ -349,7 +348,7 @@ func (uh uploadHandler) uploadToBucket(uploadPath, localFilePath string) (string
 	return fmt.Sprintf("%s://%s/%s", uh.hdpScheme, uh.blobUploadBucket, uploadFilePath), nil
 }
 
-func uploadLocalDependencies(app *v1alpha1.SparkApplication, files []string) ([]string, error) {
+func uploadLocalDependencies(app *v1beta1.SparkApplication, files []string) ([]string, error) {
 	if UploadToPath == "" {
 		return nil, fmt.Errorf(
 			"unable to upload local dependencies: no upload location specified via --upload-to")
@@ -392,7 +391,7 @@ func uploadLocalDependencies(app *v1alpha1.SparkApplication, files []string) ([]
 }
 
 func handleHadoopConfiguration(
-	app *v1alpha1.SparkApplication,
+	app *v1beta1.SparkApplication,
 	hadoopConfDir string,
 	kubeClientset clientset.Interface) error {
 	configMap, err := buildHadoopConfigMap(app.Name, hadoopConfDir)

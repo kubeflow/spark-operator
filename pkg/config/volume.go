@@ -22,7 +22,7 @@ import (
 
 	apiv1 "k8s.io/api/core/v1"
 
-	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1alpha1"
+	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta1"
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/util"
 )
 
@@ -51,7 +51,7 @@ func getVolumeAnnotationsForMounts(volumes []apiv1.Volume, mounts []apiv1.Volume
 
 // GetDriverVolumeMountConfOptions returns a list of spark-submit options for driver annotations for volumes to be
 // mounted into the driver.
-func GetDriverVolumeMountConfOptions(app *v1alpha1.SparkApplication) ([]string, error) {
+func GetDriverVolumeMountConfOptions(app *v1beta1.SparkApplication) ([]string, error) {
 	var options []string
 
 	annotations, err := getVolumeMountAnnotations(app.Spec.Driver.VolumeMounts)
@@ -75,7 +75,7 @@ func GetDriverVolumeMountConfOptions(app *v1alpha1.SparkApplication) ([]string, 
 
 // GetExecutorVolumeMountConfOptions returns a list of spark-submit options for executor annotations for volumes to be
 // mounted into the executors.
-func GetExecutorVolumeMountConfOptions(app *v1alpha1.SparkApplication) ([]string, error) {
+func GetExecutorVolumeMountConfOptions(app *v1beta1.SparkApplication) ([]string, error) {
 	var options []string
 
 	annotations, err := getVolumeMountAnnotations(app.Spec.Executor.VolumeMounts)

@@ -28,15 +28,15 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1alpha1"
+	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta1"
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/config"
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/util"
 )
 
 func TestPatchSparkPod_OwnerReference(t *testing.T) {
 	ownerReference := metav1.OwnerReference{
-		APIVersion: v1alpha1.SchemeGroupVersion.String(),
-		Kind:       reflect.TypeOf(v1alpha1.SparkApplication{}).Name(),
+		APIVersion: v1beta1.SchemeGroupVersion.String(),
+		Kind:       reflect.TypeOf(v1beta1.SparkApplication{}).Name(),
 		Name:       "spark-test",
 		UID:        "spark-test-1",
 	}

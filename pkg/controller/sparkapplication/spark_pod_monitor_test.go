@@ -25,7 +25,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kubeclientfake "k8s.io/client-go/kubernetes/fake"
 
-	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1alpha1"
+	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta1"
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/config"
 )
 
@@ -92,10 +92,10 @@ func TestOnPodAdded(t *testing.T) {
 		executorUpdate.podName)
 	assert.Equal(
 		t,
-		v1alpha1.ExecutorRunningState,
+		v1beta1.ExecutorRunningState,
 		executorUpdate.state,
 		"wanted executor state %s got %s",
-		v1alpha1.ExecutorRunningState,
+		v1beta1.ExecutorRunningState,
 		executorUpdate.state)
 }
 
@@ -169,10 +169,10 @@ func TestOnPodUpdated(t *testing.T) {
 		executorUpdate.podName)
 	assert.Equal(
 		t,
-		v1alpha1.ExecutorFailedState,
+		v1beta1.ExecutorFailedState,
 		executorUpdate.state,
 		"wanted executor state %s got %s",
-		v1alpha1.ExecutorFailedState,
+		v1beta1.ExecutorFailedState,
 		executorUpdate.state)
 }
 
@@ -242,10 +242,10 @@ func TestOnPodDeleted(t *testing.T) {
 		executorUpdate.podName)
 	assert.Equal(
 		t,
-		v1alpha1.ExecutorCompletedState,
+		v1beta1.ExecutorCompletedState,
 		executorUpdate.state,
 		"wanted executor state %s got %s",
-		v1alpha1.ExecutorCompletedState,
+		v1beta1.ExecutorCompletedState,
 		executorUpdate.state)
 
 	executorPod.Status.Phase = apiv1.PodFailed
@@ -262,10 +262,10 @@ func TestOnPodDeleted(t *testing.T) {
 		executorUpdate.podName)
 	assert.Equal(
 		t,
-		v1alpha1.ExecutorFailedState,
+		v1beta1.ExecutorFailedState,
 		executorUpdate.state,
 		"wanted executor state %s got %s",
-		v1alpha1.ExecutorFailedState,
+		v1beta1.ExecutorFailedState,
 		executorUpdate.state)
 }
 

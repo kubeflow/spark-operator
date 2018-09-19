@@ -10,9 +10,11 @@
 
 ## Project Status
 
-**Project status:** *alpha* 
+**Project status:** *beta* 
 
-The Kubernetes Operator for Apache Spark is still under active development. Backward compatibility of the APIs is not guaranteed for alpha releases.
+The Kubernetes Operator for Apache Spark is under active development, but backward compatibility of the APIs is guaranteed for beta releases. 
+
+**If you are currently using the `v1alpha1` version of the APIs in your manifests, please update them to use the `v1beta1` version by changing `apiVersion: "sparkoperator.k8s.io/v1alpha1"` to `apiVersion: "sparkoperator.k8s.io/v1beta1"`.**
 
 Customization of Spark pods, e.g., mounting arbitrary volumes and setting pod affinity, is currently experimental and implemented using a Kubernetes
 [Mutating Admission Webhook](https://kubernetes.io/docs/reference/access-authn-authz/extensible-admission-controllers/), which became beta in Kubernetes 1.9. 

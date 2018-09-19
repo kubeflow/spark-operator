@@ -23,7 +23,7 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1alpha1"
+	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta1"
 )
 
 func TestNewRunner(t *testing.T) {
@@ -36,7 +36,7 @@ func TestNewRunner(t *testing.T) {
 func TestSubmit(t *testing.T) {
 	appStateReportingChan := make(chan<- *appStateUpdate)
 	runner := newSparkSubmitRunner(1, appStateReportingChan)
-	app := &v1alpha1.SparkApplication{ObjectMeta: metav1.ObjectMeta{Namespace: "default", Name: "foo"}}
+	app := &v1beta1.SparkApplication{ObjectMeta: metav1.ObjectMeta{Namespace: "default", Name: "foo"}}
 	submitCommandArgs := []string{"--master", "localhost", "-class", "foo"}
 	go func() {
 		runner.submit(newSubmission(submitCommandArgs, app))

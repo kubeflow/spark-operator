@@ -24,12 +24,12 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"k8s.io/api/admission/v1beta1"
+	admissionv1beta1 "k8s.io/api/admission/v1beta1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 
-	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1alpha1"
+	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta1"
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/config"
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/util"
 )
@@ -54,8 +54,8 @@ func TestMutatePod(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	review := &v1beta1.AdmissionReview{
-		Request: &v1beta1.AdmissionRequest{
+	review := &admissionv1beta1.AdmissionReview{
+		Request: &admissionv1beta1.AdmissionRequest{
 			Resource: metav1.GroupVersionResource{
 				Group:    corev1.SchemeGroupVersion.Group,
 				Version:  corev1.SchemeGroupVersion.Version,
@@ -86,8 +86,8 @@ func TestMutatePod(t *testing.T) {
 
 	// Test processing Spark pod with patches.
 	ownerReference := metav1.OwnerReference{
-		APIVersion: v1alpha1.SchemeGroupVersion.String(),
-		Kind:       reflect.TypeOf(v1alpha1.SparkApplication{}).Name(),
+		APIVersion: v1beta1.SchemeGroupVersion.String(),
+		Kind:       reflect.TypeOf(v1beta1.SparkApplication{}).Name(),
 		Name:       "spark-test",
 		UID:        "spark-test-1",
 	}
@@ -153,7 +153,7 @@ func TestMutatePod(t *testing.T) {
 	review.Request.Object.Raw = podBytes
 	response = mutatePods(review)
 	assert.True(t, response.Allowed)
-	assert.Equal(t, v1beta1.PatchTypeJSONPatch, *response.PatchType)
+	assert.Equal(t, admissionv1beta1.PatchTypeJSONPatch, *response.PatchType)
 	assert.True(t, len(response.Patch) > 0)
 	var patchOps []*patchOperation
 	json.Unmarshal(response.Patch, &patchOps)

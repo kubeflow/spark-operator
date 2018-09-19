@@ -4,8 +4,8 @@ The Kubernetes Operator for Apache Spark uses  [CustomResourceDefinitions](https
 named `SparkApplication` and `ScheduledSparkApplication` for specifying one-time Spark applications and Spark applications
 that are supposed to run on a standard [cron](https://en.wikipedia.org/wiki/Cron) schedule. Similarly to other kinds of 
 Kubernetes resources, they consist of a specification in a `Spec` field and a `Status` field. The definitions are organized 
-in the following structure. The v1alpha1 version of the API definition is implemented 
-[here](../pkg/apis/sparkoperator.k8s.io/v1alpha1/types.go).
+in the following structure. The v1beta1 version of the API definition is implemented 
+[here](../pkg/apis/sparkoperator.k8s.io/v1beta1/types.go).
 
 ```
 ScheduledSparkApplication

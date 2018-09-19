@@ -119,7 +119,7 @@ $ kubectl get sparkapplications spark-pi -o=yaml
 This will show something similar to the following:
 
 ```yaml
-apiVersion: sparkoperator.k8s.io/v1alpha1
+apiVersion: sparkoperator.k8s.io/v1beta1
 kind: SparkApplication
 metadata:
   ...

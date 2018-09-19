@@ -30,7 +30,7 @@ import (
 	clientset "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 
-	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1alpha1"
+	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta1"
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/config"
 )
 
@@ -57,12 +57,12 @@ type driverStateUpdate struct {
 
 // executorStateUpdate encapsulates state update of an executor.
 type executorStateUpdate struct {
-	appNamespace string                 // Namespace in which the application and executor pods run.
-	appName      string                 // Name of the application.
-	appID        string                 // Application ID.
-	podName      string                 // Name of the executor pod.
-	executorID   string                 // Spark executor ID.
-	state        v1alpha1.ExecutorState // Executor state.
+	appNamespace string                // Namespace in which the application and executor pods run.
+	appName      string                // Name of the application.
+	appID        string                // Application ID.
+	podName      string                // Name of the executor pod.
+	executorID   string                // Spark executor ID.
+	state        v1beta1.ExecutorState // Executor state.
 }
 
 // newSparkPodMonitor creates a new sparkPodMonitor instance.
@@ -222,18 +222,18 @@ func isExecutorPod(pod *apiv1.Pod) bool {
 	return pod.Labels[sparkRoleLabel] == sparkExecutorRole
 }
 
-func podPhaseToExecutorState(podPhase apiv1.PodPhase) v1alpha1.ExecutorState {
+func podPhaseToExecutorState(podPhase apiv1.PodPhase) v1beta1.ExecutorState {
 	switch podPhase {
 	case apiv1.PodPending:
-		return v1alpha1.ExecutorPendingState
+		return v1beta1.ExecutorPendingState
 	case apiv1.PodRunning:
-		return v1alpha1.ExecutorRunningState
+		return v1beta1.ExecutorRunningState
 	case apiv1.PodSucceeded:
-		return v1alpha1.ExecutorCompletedState
+		return v1beta1.ExecutorCompletedState
 	case apiv1.PodFailed:
-		return v1alpha1.ExecutorFailedState
+		return v1beta1.ExecutorFailedState
 	default:
-		return v1alpha1.ExecutorUnknownState
+		return v1beta1.ExecutorUnknownState
 	}
 }
 

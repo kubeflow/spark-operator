@@ -26,7 +26,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	clientset "k8s.io/client-go/kubernetes"
 
-	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1alpha1"
+	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta1"
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/config"
 )
 
@@ -36,7 +36,7 @@ const (
 )
 
 func createSparkUIService(
-	app *v1alpha1.SparkApplication,
+	app *v1beta1.SparkApplication,
 	appID string,
 	kubeClient clientset.Interface) (string, int32, error) {
 	portStr := getUITargetPort(app)
@@ -83,7 +83,7 @@ func createSparkUIService(
 // getWebUITargetPort attempts to get the Spark web UI port from configuration property spark.ui.port
 // in Spec.SparkConf if it is present, otherwise the default port is returned.
 // Note that we don't attempt to get the port from Spec.SparkConfigMap.
-func getUITargetPort(app *v1alpha1.SparkApplication) string {
+func getUITargetPort(app *v1beta1.SparkApplication) string {
 	port, ok := app.Spec.SparkConf[sparkUIPortConfigurationKey]
 	if ok {
 		return port

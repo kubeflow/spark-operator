@@ -28,7 +28,7 @@ import (
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
 
-	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1alpha1"
+	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta1"
 )
 
 // sparkSubmitRunner is responsible for running user-specified Spark applications.
@@ -43,7 +43,7 @@ type appStateUpdate struct {
 	namespace      string
 	name           string
 	submissionTime metav1.Time
-	state          v1alpha1.ApplicationStateType
+	state          v1beta1.ApplicationStateType
 	errorMessage   string
 }
 
@@ -92,12 +92,12 @@ func (r *sparkSubmitRunner) runWorker() {
 			if exitErr, ok := err.(*exec.ExitError); ok {
 				glog.Errorf("failed to run spark-submit for SparkApplication %s in namespace %s: %s", s.name,
 					s.namespace, string(exitErr.Stderr))
-				stateUpdate.state = v1alpha1.FailedSubmissionState
+				stateUpdate.state = v1beta1.FailedSubmissionState
 				stateUpdate.errorMessage = string(exitErr.Stderr)
 			}
 		} else {
 			glog.Infof("spark-submit completed for SparkApplication %s in namespace %s", s.name, s.namespace)
-			stateUpdate.state = v1alpha1.SubmittedState
+			stateUpdate.state = v1beta1.SubmittedState
 		}
 
 		r.appStateReportingChan <- &stateUpdate

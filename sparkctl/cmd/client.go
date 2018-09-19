@@ -22,7 +22,7 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 
-	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1alpha1"
+	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta1"
 	crdclientset "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/client/clientset/versioned"
 )
 
@@ -54,8 +54,8 @@ func getSparkApplicationClientForConfig(config *rest.Config) (crdclientset.Inter
 	return crdclientset.NewForConfig(config)
 }
 
-func getSparkApplication(name string, crdClientset crdclientset.Interface) (*v1alpha1.SparkApplication, error) {
-	app, err := crdClientset.SparkoperatorV1alpha1().SparkApplications(Namespace).Get(name, metav1.GetOptions{})
+func getSparkApplication(name string, crdClientset crdclientset.Interface) (*v1beta1.SparkApplication, error) {
+	app, err := crdClientset.SparkoperatorV1beta1().SparkApplications(Namespace).Get(name, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}

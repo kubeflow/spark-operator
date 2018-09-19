@@ -23,7 +23,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	clientset "k8s.io/client-go/kubernetes"
 
-	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1alpha1"
+	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta1"
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/config"
 )
 
@@ -37,7 +37,7 @@ const (
 	prometheusPathAnnotation      = "prometheus.io/path"
 )
 
-func configPrometheusMonitoring(app *v1alpha1.SparkApplication, kubeClient clientset.Interface) error {
+func configPrometheusMonitoring(app *v1beta1.SparkApplication, kubeClient clientset.Interface) error {
 	prometheusConfigMapName := fmt.Sprintf("%s-%s", app.Name, prometheusConfigMapNameSuffix)
 	configMap := buildPrometheusConfigMap(app, prometheusConfigMapName)
 	if _, err := kubeClient.CoreV1().ConfigMaps(app.Namespace).Create(configMap); err != nil {
@@ -60,7 +60,7 @@ func configPrometheusMonitoring(app *v1alpha1.SparkApplication, kubeClient clien
 		port, prometheusConfigMapMountPath, prometheusConfigKey)
 
 	if app.Spec.Monitoring.ExposeDriverMetrics {
-		app.Spec.Driver.ConfigMaps = append(app.Spec.Driver.ConfigMaps, v1alpha1.NamePath{
+		app.Spec.Driver.ConfigMaps = append(app.Spec.Driver.ConfigMaps, v1beta1.NamePath{
 			Name: prometheusConfigMapName,
 			Path: prometheusConfigMapMountPath,
 		})
@@ -79,7 +79,7 @@ func configPrometheusMonitoring(app *v1alpha1.SparkApplication, kubeClient clien
 		}
 	}
 	if app.Spec.Monitoring.ExposeExecutorMetrics {
-		app.Spec.Executor.ConfigMaps = append(app.Spec.Executor.ConfigMaps, v1alpha1.NamePath{
+		app.Spec.Executor.ConfigMaps = append(app.Spec.Executor.ConfigMaps, v1beta1.NamePath{
 			Name: prometheusConfigMapName,
 			Path: prometheusConfigMapMountPath,
 		})
@@ -101,7 +101,7 @@ func configPrometheusMonitoring(app *v1alpha1.SparkApplication, kubeClient clien
 	return nil
 }
 
-func buildPrometheusConfigMap(app *v1alpha1.SparkApplication, prometheusConfigMapName string) *corev1.ConfigMap {
+func buildPrometheusConfigMap(app *v1beta1.SparkApplication, prometheusConfigMapName string) *corev1.ConfigMap {
 	metricsProperties := config.DefaultMetricsProperties
 	if app.Spec.Monitoring.MetricsProperties != nil {
 		metricsProperties = *app.Spec.Monitoring.MetricsProperties
