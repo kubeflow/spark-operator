@@ -1,4 +1,4 @@
-## Who Is Using the Spark Operator?
+## Who Is Using the Kubernetes Operator for Apache Spark?
 
 | Organization | Contact (Github User Name) | Environment | Description of Use |
 | ------------- | ------------- | ------------- | ------------- |
