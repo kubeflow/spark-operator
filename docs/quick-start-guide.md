@@ -88,8 +88,7 @@ The operator also sets both `WebUIAddress` which uses the Node's public IP as we
 
 Spark Operator is typically deployed and run using the Helm chart. However, users can still run it outside a Kubernetes cluster and make it talk to the Kubernetes API server of a cluster by specifying path to `kubeconfig`, which can be done using the `-kubeconfig` flag.
 
-Spark Operator uses multiple workers in the `SparkApplication` controller and and the submission runner.
-The number of worker threads to use in the three places are controlled using command-line flags `-controller-threads` and `-submission-threads`, respectively. The default values for the flags are 10 and 3, respectively.
+Spark Operator uses multiple workers in the `SparkApplication` controller. The number of worker threads are controlled using command-line flag `-controller-threads` which has a default value of 10.
 
 Spark Operator enables cache resynchronization so periodically the informers used by the operator will re-list existing objects it manages and re-trigger resource events. The resynchronization interval in seconds can be configured using the flag `-resync-interval`, with a default value of 30 seconds.
 
