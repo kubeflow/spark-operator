@@ -26,6 +26,7 @@ import (
 	"syscall"
 	"time"
 
+	operatorConfig "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/config"
 	"github.com/golang/glog"
 	apiv1 "k8s.io/api/core/v1"
 	apiextensionsclient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
@@ -33,7 +34,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/clock"
 	"k8s.io/client-go/informers"
 	clientset "k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/kubernetes/typed/extensions/v1beta1"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
