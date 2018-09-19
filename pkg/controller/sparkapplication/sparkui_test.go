@@ -17,6 +17,7 @@ limitations under the License.
 package sparkapplication
 
 import (
+	"fmt"
 	"reflect"
 	"strconv"
 	"testing"
@@ -97,6 +98,7 @@ func TestCreateSparkUIService(t *testing.T) {
 		},
 		Status: v1alpha1.SparkApplicationStatus{
 			SparkApplicationID: "foo-1",
+			Attempts:           1,
 		},
 	}
 	app2 := &v1alpha1.SparkApplication{
@@ -107,6 +109,7 @@ func TestCreateSparkUIService(t *testing.T) {
 		},
 		Status: v1alpha1.SparkApplicationStatus{
 			SparkApplicationID: "foo-2",
+			Attempts:           2,
 		},
 	}
 	app3 := &v1alpha1.SparkApplication{
@@ -129,7 +132,7 @@ func TestCreateSparkUIService(t *testing.T) {
 			name: "service with custom port",
 			app:  app1,
 			expectedService: SparkService{
-				serviceName: app1.GetName() + "-ui-svc",
+				serviceName: fmt.Sprintf("%s-%d-ui-svc", app1.GetName(), app1.Status.Attempts+1),
 				servicePort: 4041,
 			},
 			expectedSelector: map[string]string{
@@ -142,7 +145,7 @@ func TestCreateSparkUIService(t *testing.T) {
 			name: "service with default port",
 			app:  app2,
 			expectedService: SparkService{
-				serviceName: app1.GetName() + "-ui-svc",
+				serviceName: fmt.Sprintf("%s-%d-ui-svc", app2.GetName(), app2.Status.Attempts+1),
 				servicePort: int32(defaultPort),
 			},
 			expectedSelector: map[string]string{
@@ -185,11 +188,11 @@ func TestCreateSparkUIIngress(t *testing.T) {
 	ingressFormat := "{{$appName}}.ingress.clusterName.com"
 
 	expectedIngress := SparkIngress{
-		ingressName: app.GetName() + "-ui-ingress",
-		ingressUrl:  app.GetName() + ".ingress.clusterName.com",
+		ingressName: fmt.Sprintf("%s-%d-ui-ingress", app.GetName(), app.Status.Attempts+1),
+		ingressUrl:  fmt.Sprintf("%s-%d", app.GetName(), app.Status.Attempts+1) + ".ingress.clusterName.com",
 	}
 	fakeClient := fake.NewSimpleClientset()
-	sparkIngress, err := createSparkUIIngress(app, service, ingressFormat, fakeClient.Extensions())
+	sparkIngress, err := createSparkUIIngress(app, service, ingressFormat, fakeClient)
 	if err != nil {
 		t.Fatal(err)
 	}

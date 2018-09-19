@@ -26,7 +26,6 @@ import (
 	extensions "k8s.io/api/extensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	clientset "k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/kubernetes/typed/extensions/v1beta1"
 
 	"regexp"
 
@@ -42,8 +41,8 @@ const (
 
 var ingressUrlRegex = regexp.MustCompile("{{\\s*[$]appName\\s*}}")
 
-func getSparkUIIngressURL(ingressUrlFormat string, appName string) string {
-	return ingressUrlRegex.ReplaceAllString(ingressUrlFormat, appName)
+func getSparkUIIngressURL(ingressUrlFormat string, appName string, attempt int32) string {
+	return ingressUrlRegex.ReplaceAllString(ingressUrlFormat, fmt.Sprintf("%s-%d", appName, attempt))
 }
 
 // Struct to encapsulate service
@@ -59,11 +58,11 @@ type SparkIngress struct {
 	ingressUrl  string
 }
 
-func createSparkUIIngress(app *v1alpha1.SparkApplication, service SparkService, ingressUrlFormat string, extensionsClient v1beta1.ExtensionsV1beta1Interface) (*SparkIngress, error) {
-	ingressUrl := getSparkUIIngressURL(ingressUrlFormat, app.GetName())
+func createSparkUIIngress(app *v1alpha1.SparkApplication, service SparkService, ingressUrlFormat string, kubeClient clientset.Interface) (*SparkIngress, error) {
+	ingressUrl := getSparkUIIngressURL(ingressUrlFormat, app.GetName(), app.Status.Attempts+1)
 	ingress := extensions.Ingress{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      app.GetName() + "-ui-ingress",
+			Name:      fmt.Sprintf("%s-%d-ui-ingress", app.GetName(), app.Status.Attempts+1),
 			Namespace: app.Namespace,
 			Labels: map[string]string{
 				config.SparkAppNameLabel: app.Name,
@@ -90,7 +89,7 @@ func createSparkUIIngress(app *v1alpha1.SparkApplication, service SparkService, 
 		},
 	}
 	glog.Infof("Creating an Ingress %s for the Spark UI for application %s", ingress.Name, app.Name)
-	_, err := extensionsClient.Ingresses(ingress.Namespace).Create(&ingress)
+	_, err := kubeClient.ExtensionsV1beta1().Ingresses(ingress.Namespace).Create(&ingress)
 
 	if err != nil {
 		return nil, err
@@ -112,7 +111,7 @@ func createSparkUIService(
 
 	service := &apiv1.Service{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      app.GetName() + "-ui-svc",
+			Name:      fmt.Sprintf("%s-%d-ui-svc", app.GetName(), app.Status.Attempts+1),
 			Namespace: app.Namespace,
 			Labels: map[string]string{
 				config.SparkAppNameLabel: app.Name,

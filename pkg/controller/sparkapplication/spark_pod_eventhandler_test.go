@@ -24,9 +24,9 @@ import (
 	apiv1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/config"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
-	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/config"
 )
 
 func TestOnPodAdded(t *testing.T) {
