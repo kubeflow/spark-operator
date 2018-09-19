@@ -1,6 +1,6 @@
 # SparkApplication API
 
-The Spark Operator uses  [CustomResourceDefinitions](https://kubernetes.io/docs/concepts/api-extension/custom-resources/) 
+The Kubernetes Operator for Apache Spark uses  [CustomResourceDefinitions](https://kubernetes.io/docs/concepts/api-extension/custom-resources/) 
 named `SparkApplication` and `ScheduledSparkApplication` for specifying one-time Spark applications and Spark applications
 that are supposed to run on a standard [cron](https://en.wikipedia.org/wiki/Cron) schedule. Similarly to other kinds of 
 Kubernetes resources, they consist of a specification in a `Spec` field and a `Status` field. The definitions are organized 
