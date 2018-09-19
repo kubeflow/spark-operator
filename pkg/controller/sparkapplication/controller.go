@@ -45,13 +45,15 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/workqueue"
-	"k8s.io/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1alpha1"
-	crdclientset "k8s.io/spark-on-k8s-operator/pkg/client/clientset/versioned"
-	crdscheme "k8s.io/spark-on-k8s-operator/pkg/client/clientset/versioned/scheme"
-	crdinformers "k8s.io/spark-on-k8s-operator/pkg/client/informers/externalversions"
-	crdlisters "k8s.io/spark-on-k8s-operator/pkg/client/listers/sparkoperator.k8s.io/v1alpha1"
-	"k8s.io/spark-on-k8s-operator/pkg/config"
-	"k8s.io/spark-on-k8s-operator/pkg/util"
+
+	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1alpha1"
+	crdclientset "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/client/clientset/versioned"
+	crdscheme "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/client/clientset/versioned/scheme"
+	crdinformers "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/client/informers/externalversions"
+	crdlisters "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/client/listers/sparkoperator.k8s.io/v1alpha1"
+	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/util"
+	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/config"
+
 )
 
 const (
@@ -540,6 +542,11 @@ func (c *Controller) submitSparkApplication(app *v1alpha1.SparkApplication) *v1a
 			app.ObjectMeta.Finalizers = append(app.ObjectMeta.Finalizers, sparkDriverRole)
 		}
 
+		if app.Spec.Monitoring != nil && app.Spec.Monitoring.Prometheus != nil {
+			// configPrometheusMonitoring may update app.Spec.
+			configPrometheusMonitoring(app, c.kubeClient)
+		}
+
 		// Create Spark UI Service.
 		service, err := createSparkUIService(app, c.kubeClient)
 		if err != nil {
@@ -649,18 +656,34 @@ func (c *Controller) getNodeExternalIP(nodeName string) string {
 
 func (c *Controller) recordDriverEvent(
 	app *v1alpha1.SparkApplication, phase apiv1.PodPhase, name string) {
-	if phase == apiv1.PodSucceeded {
+
+	switch phase {
+	case apiv1.PodSucceeded:
 		c.recorder.Eventf(app, apiv1.EventTypeNormal, "SparkDriverCompleted", "Driver %s completed", name)
-	} else if phase == apiv1.PodFailed {
+	case apiv1.PodPending:
+		c.recorder.Eventf(app, apiv1.EventTypeNormal, "SparkDriverPending", "Driver %s is pending", name)
+	case apiv1.PodRunning:
+		c.recorder.Eventf(app, apiv1.EventTypeNormal, "SparkDriverRunning", "Driver %s is running", name)
+	case apiv1.PodFailed:
 		c.recorder.Eventf(app, apiv1.EventTypeWarning, "SparkDriverFailed", "Driver %s failed", name)
+	case apiv1.PodUnknown:
+		c.recorder.Eventf(app, apiv1.EventTypeWarning, "SparkDriverUnknownState", "Driver %s in unknown state", name)
 	}
 }
 
 func (c *Controller) recordExecutorEvent(
 	app *v1alpha1.SparkApplication, state v1alpha1.ExecutorState, name string) {
-	if state == v1alpha1.ExecutorCompletedState {
+
+	switch state {
+	case v1alpha1.ExecutorCompletedState:
 		c.recorder.Eventf(app, apiv1.EventTypeNormal, "SparkExecutorCompleted", "Executor %s completed", name)
-	} else if state == v1alpha1.ExecutorFailedState {
+	case v1alpha1.ExecutorPendingState:
+		c.recorder.Eventf(app, apiv1.EventTypeNormal, "SparkExecutorPending", "Executor %s is pending", name)
+	case v1alpha1.ExecutorRunningState:
+		c.recorder.Eventf(app, apiv1.EventTypeNormal, "SparkExecutorRunning", "Executor %s is running", name)
+	case v1alpha1.ExecutorFailedState:
 		c.recorder.Eventf(app, apiv1.EventTypeWarning, "SparkExecutorFailed", "Executor %s failed", name)
+	case v1alpha1.ExecutorUnknownState:
+		c.recorder.Eventf(app, apiv1.EventTypeWarning, "SparkExecutorUnknownState", "Executor %s in unknown state", name)
 	}
 }

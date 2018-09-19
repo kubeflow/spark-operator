@@ -22,8 +22,8 @@ import (
 	apiextensionsv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"k8s.io/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io"
-	"k8s.io/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1alpha1"
+	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io"
+	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1alpha1"
 )
 
 // CRD metadata.
@@ -32,7 +32,7 @@ const (
 	Singular  = "sparkapplication"
 	ShortName = "sparkapp"
 	Group     = sparkoperator.GroupName
-	Version   = "v1alpha1"
+	Version   = v1alpha1.Version
 	FullName  = Plural + "." + Group
 )
 
@@ -91,8 +91,9 @@ func getCustomResourceValidation() *apiextensionsv1beta1.CustomResourceValidatio
 						"executor": {
 							Properties: map[string]apiextensionsv1beta1.JSONSchemaProps{
 								"cores": {
-									Type:    "integer",
-									Minimum: float64Ptr(1),
+									Type:             "number",
+									Minimum:          float64Ptr(0),
+									ExclusiveMinimum: true,
 								},
 								"instances": {
 									Type:    "integer",
@@ -136,6 +137,25 @@ func getCustomResourceValidation() *apiextensionsv1beta1.CustomResourceValidatio
 								"onFailureRetryInterval": {
 									Type:    "integer",
 									Minimum: float64Ptr(1),
+								},
+							},
+						},
+						"pythonVersion": {
+							Enum: []apiextensionsv1beta1.JSON{
+								{Raw: []byte(`"2"`)},
+								{Raw: []byte(`"3"`)},
+							},
+						},
+						"monitoring": {
+							Properties: map[string]apiextensionsv1beta1.JSONSchemaProps{
+								"prometheus": {
+									Properties: map[string]apiextensionsv1beta1.JSONSchemaProps{
+										"port": {
+											Type:    "integer",
+											Minimum: float64Ptr(1024),
+											Maximum: float64Ptr(49151),
+										},
+									},
 								},
 							},
 						},

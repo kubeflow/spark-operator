@@ -33,7 +33,7 @@ import (
 	"k8s.io/client-go/tools/portforward"
 	"k8s.io/client-go/transport/spdy"
 
-	crdclientset "k8s.io/spark-on-k8s-operator/pkg/client/clientset/versioned"
+	crdclientset "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/client/clientset/versioned"
 )
 
 var LocalPort int32

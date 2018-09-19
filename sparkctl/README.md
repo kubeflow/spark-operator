@@ -40,7 +40,7 @@ environment variable `HADOOP_CONF_DIR` is also set in the driver and executor co
 
 The `create` command also supports staging local application dependencies, though currently only uploading to a Google 
 Cloud Storage (GCS) bucket is supported. The way it works is as follows. It checks if there is any local dependencies 
-in `spec.mainApplicationFile`, `spec.deps.jars`, `spec.deps.files`, etc. in the parsed `SaprkApplication` object. If so, 
+in `spec.mainApplicationFile`, `spec.deps.jars`, `spec.deps.files`, etc. in the parsed `SparkApplication` object. If so, 
 it tries to upload the local dependencies to the remote location specified by `--upload-to`. The command fails if local
 dependencies are used but `--upload-to` is not specified. By default, a local file that already exists remotely, i.e., 
 there exists a file with the same name and upload path remotely, will be ignored. If the remote file should be overridden
@@ -54,16 +54,17 @@ otherwise. The local dependencies will be uploaded to the path
 file path of each local dependency with the URI of the remote copy in the parsed `SaprkApplication` object if uploading
 is successful. 
 
-Usage:
-```bash
-$ sparkctl create <path to YAML file> --upload-to gs://<bucket> --project <GCP project the GCS bucket is associated to>
-```
-
 Note that uploading to GCS requires a GCP service account with the necessary IAM permission to use the GCP project 
-specified by `--project` (`serviceusage.services.use`) and the permission to create GCS objects (`storage.object.create`). 
+specified by service account JSON key file (`serviceusage.services.use`) and the permission to create GCS objects (`storage.object.create`). 
 The service account JSON key file must be locally available and be pointed to by the environment variable 
 `GOOGLE_APPLICATION_CREDENTIALS`. For more information on IAM authentication, please check 
 [Getting Started with Authentication](https://cloud.google.com/docs/authentication/getting-started).
+
+Usage:
+```bash
+$ export GOOGLE_APPLICATION_CREDENTIALS="[PATH]/[FILE_NAME].json"
+$ sparkctl create <path to YAML file> --upload-to gs://<bucket>
+```
 
 By default, the uploaded dependencies are not made publicly accessible and are referenced using URIs in the form of 
 `gs://bucket/path/to/file`. Such dependencies are referenced through URIs of the form `gs://bucket/path/to/file`. To 
@@ -76,10 +77,74 @@ If you want to make uploaded dependencies publicly available so they can be down
 simply add `--public` to the `create` command, as the following example shows:
 
 ```bash
-$ sparkctl create <path to YAML file> --upload-to gs://<bucket> --project <GCP project the GCS bucket is associated to> --public
+$ sparkctl create <path to YAML file> --upload-to gs://<bucket> --public
 ``` 
 
 Publicly available files are referenced through URIs of the form `https://storage.googleapis.com/bucket/path/to/file`.
+
+##### Uploading to S3
+
+For uploading to S3, the value should be in the form of `s3://<bucket>`. The bucket must exist and uploading fails if
+otherwise. The local dependencies will be uploaded to the path
+`spark-app-dependencies/<SparkApplication namespace>/<SparkApplication name>` in the given bucket. It replaces the
+file path of each local dependency with the URI of the remote copy in the parsed `SparkApplication` object if uploading
+is successful.
+
+Note that uploading to S3 with [AWS SDK](https://docs.aws.amazon.com/sdk-for-go/v1/developer-guide/configuring-sdk.html) 
+requires credentials to be specified. For GCP, the S3 Interoperability credentials can be retrieved as 
+described [here](https://cloud.google.com/storage/docs/migrating#keys).
+SDK uses the default credential provider chain to find AWS credentials. 
+The SDK uses the first provider in the chain that returns credentials without an error.
+The default provider chain looks for credentials in the following order:
+
+- Environment variables
+    ```
+    AWS_ACCESS_KEY_ID
+    AWS_SECRET_ACCESS_KEY
+    ```
+- Shared credentials file (.aws/credentials)
+
+For more information about AWS SDK authentication, please check
+[Specifying Credentials](https://docs.aws.amazon.com/sdk-for-go/v1/developer-guide/configuring-sdk.html#specifying-credentials).
+
+Usage:
+```bash
+$ export AWS_ACCESS_KEY_ID=[KEY]
+$ export AWS_SECRET_ACCESS_KEY=[SECRET]
+$ sparkctl create <path to YAML file> --upload-to s3://<bucket>
+```
+
+By default, the uploaded dependencies are not made publicly accessible and are referenced using URIs in the form of
+`s3a://bucket/path/to/file`. To download the dependencies from S3, a custom-built Spark Docker image with the required
+jars for `S3A Connector` (`hadoop-aws-2.7.6.jar`, `aws-java-sdk-1.7.6.jar` for Spark build with Hadoop2.7 profile, or `hadoop-aws-3.1.0.jar`, `aws-java-sdk-bundle-1.11.271.jar` for Hadoop3.1) need to be available in the classpath,
+and `spark-default.conf` with the AWS keys and the S3A FileSystemClass needs to be set (you can also use `spec.hadoopConf` in the SparkApplication YAML):
+
+```
+spark.hadoop.fs.s3a.endpoint https://storage.googleapis.com
+spark.hadoop.fs.s3a.access.key [KEY]
+spark.hadoop.fs.s3a.secret.key [SECRET]
+spark.hadoop.fs.s3a.impl org.apache.hadoop.fs.s3a.S3AFileSystem
+```
+
+NOTE: In Spark 2.3 init-containers are used for downloading remote application dependencies. In future versions, init-containers are removed. 
+It is recommended to use Apache Spark 2.4 for staging local dependencies with `s3`, 
+which currently requires building a custom Docker image from the Spark master branch. Additionaly, since Spark 2.4.0 
+there are two available build profiles, Hadoop2.7 and Hadoop3.1. For use of Spark with `S3A Connector`, Hadoop3.1 profile
+is recommended as this allows to use newer version of `aws-java-sdk-bundle`.
+
+If you want to use custom S3 endpoint or region, add `--upload-to-endpoint` and `--upload-to-region`: 
+
+```bash
+$ sparkctl create <path to YAML file> --upload-to-endpoint https://<endpoint-url> --upload-to-region <endpoint-region> --upload-to s3://<bucket>
+```
+
+If you want to make uploaded dependencies publicly available, add `--public` to the `create` command, as the following example shows:
+
+```bash
+$ sparkctl create <path to YAML file> --upload-to s3://<bucket> --public
+```
+
+Publicly available files are referenced through URIs in the default form `https://<endpoint-url>/bucket/path/to/file`.
 
 ### List
 
@@ -99,6 +164,20 @@ specified by `--namespace`.
 Usage:
 ```bash
 $ sparkctl status <SparkApplication name>
+```
+
+### Event
+
+`event` is a sub command of `sparkctl` for listing `SparkApplication` events in the namespace 
+specified by `--namespace`. 
+
+The `event` command also supports streaming the events with the `--follow` or `-f` flag. 
+The command will display events since last creation of the `SparkApplication`
+for the specific `name`, and continues to stream events even if `ResourceVersion` changes.
+
+Usage:
+```bash
+$ sparkctl event <SparkApplication name> [-f]
 ```
 
 ### Log
