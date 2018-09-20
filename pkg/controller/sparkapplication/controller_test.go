@@ -379,6 +379,23 @@ func TestSyncSparkApp_SubmissionSuccess(t *testing.T) {
 					},
 				},
 			},
+			expectedState: v1alpha1.PendingRetryState,
+		},
+		{
+			app: &v1alpha1.SparkApplication{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "foo",
+					Namespace: "default",
+				},
+				Spec: v1alpha1.SparkApplicationSpec{
+					RestartPolicy: restartPolicyAlways,
+				},
+				Status: v1alpha1.SparkApplicationStatus{
+					AppState: v1alpha1.ApplicationState{
+						State: v1alpha1.PendingRetryState,
+					},
+				},
+			},
 			expectedState: v1alpha1.SubmittedState,
 		},
 		{
@@ -435,7 +452,7 @@ func TestSyncSparkApp_SubmissionSuccess(t *testing.T) {
 					CompletionTime: metav1.Time{Time: metav1.Now().Add(-2000 * time.Second)},
 				},
 			},
-			expectedState: v1alpha1.SubmittedState,
+			expectedState: v1alpha1.PendingRetryState,
 		},
 		{
 			app: &v1alpha1.SparkApplication{
@@ -543,7 +560,7 @@ func TestSyncSparkApp_SubmissionSuccess(t *testing.T) {
 					RestartPolicy: restartPolicyOnFailure,
 				},
 			},
-			expectedState: v1alpha1.SubmittedState,
+			expectedState: v1alpha1.PendingRetryState,
 		},
 		{
 			app: &v1alpha1.SparkApplication{

@@ -253,6 +253,7 @@ const (
 	CompletedState        ApplicationStateType = "COMPLETED"
 	FailedState           ApplicationStateType = "FAILED"
 	FailedSubmissionState ApplicationStateType = "SUBMISSION_FAILED"
+	PendingRetryState     ApplicationStateType = "PENDING_RETRY"
 )
 
 // ApplicationState tells the current state of the application and an error message in case of failures.

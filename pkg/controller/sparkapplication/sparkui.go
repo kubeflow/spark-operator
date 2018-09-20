@@ -41,8 +41,8 @@ const (
 
 var ingressUrlRegex = regexp.MustCompile("{{\\s*[$]appName\\s*}}")
 
-func getSparkUIIngressURL(ingressUrlFormat string, appName string, attempt int32) string {
-	return ingressUrlRegex.ReplaceAllString(ingressUrlFormat, fmt.Sprintf("%s-%d", appName, attempt))
+func getSparkUIIngressURL(ingressUrlFormat string, appName string) string {
+	return ingressUrlRegex.ReplaceAllString(ingressUrlFormat, appName)
 }
 
 // Struct to encapsulate service
@@ -59,10 +59,10 @@ type SparkIngress struct {
 }
 
 func createSparkUIIngress(app *v1alpha1.SparkApplication, service SparkService, ingressUrlFormat string, kubeClient clientset.Interface) (*SparkIngress, error) {
-	ingressUrl := getSparkUIIngressURL(ingressUrlFormat, app.GetName(), app.Status.Attempts+1)
+	ingressUrl := getSparkUIIngressURL(ingressUrlFormat, app.GetName())
 	ingress := extensions.Ingress{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      fmt.Sprintf("%s-%d-ui-ingress", app.GetName(), app.Status.Attempts+1),
+			Name:      fmt.Sprintf("%s-ui-ingress", app.GetName()),
 			Namespace: app.Namespace,
 			Labels: map[string]string{
 				config.SparkAppNameLabel: app.Name,
@@ -111,7 +111,7 @@ func createSparkUIService(
 
 	service := &apiv1.Service{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      fmt.Sprintf("%s-%d-ui-svc", app.GetName(), app.Status.Attempts+1),
+			Name:      fmt.Sprintf("%s-ui-svc", app.GetName()),
 			Namespace: app.Namespace,
 			Labels: map[string]string{
 				config.SparkAppNameLabel: app.Name,

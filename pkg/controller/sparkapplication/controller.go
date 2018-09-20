@@ -200,17 +200,27 @@ func (c *Controller) onUpdate(oldObj, newObj interface{}) {
 		return
 	}
 
+	// CRD Delete requested.
 	if !newApp.GetObjectMeta().GetDeletionTimestamp().IsZero() {
-		// CRD deletion requested, lets delete any resources created.
-		newApp, err := c.deleteSparkK8Resources(newApp)
-		if err != nil {
-			glog.Errorf("failed to delete the driver pod and UI service for deleted SparkApplication %s: %v",
-				newApp.Name, err)
-			return
-		}
-
-		if err := c.updateApp(newApp); err != nil {
-			glog.Errorf("Failed to update App %s. Error:%v", newApp.GetName(), err)
+		// Validate if the driver pod no longer exists.
+		if c.validateSparkResourceDeletion(newApp, false) {
+			// Successfully deleted driver or driver doesn't exist. Remove it from the Finalizer List.
+			for k, elem := range newApp.Finalizers {
+				if elem == sparkDriverRole {
+					newApp.Finalizers = append(newApp.Finalizers[:k], newApp.Finalizers[k+1:]...)
+					break
+				}
+			}
+			if err := c.updateApp(newApp); err != nil {
+				glog.Errorf("Failed to update App %s. Error:%v", newApp.GetName(), err)
+			}
+		} else {
+			// CRD deletion requested, lets delete driver pod.
+			err := c.deleteSparkResources(newApp, false)
+			if err != nil {
+				glog.Errorf("failed to delete the driver pod for deleted SparkApplication %s: %v",
+					newApp.Name, err)
+			}
 		}
 		return
 	}
@@ -381,60 +391,76 @@ func (c *Controller) syncSparkApplication(key string) error {
 	}
 
 	appToUpdate := app.DeepCopy()
-	var updatedApp *v1alpha1.SparkApplication
-
-	switch app.Status.AppState.State {
+	switch appToUpdate.Status.AppState.State {
 	case v1alpha1.NewState:
 		appToUpdate.Status.SubmissionAttempts = 0
 		glog.Infof("Creating Submission for SparkApp: %s", key)
-		updatedApp = c.submitSparkApplication(appToUpdate)
+		appToUpdate = c.submitSparkApplication(appToUpdate)
 	case v1alpha1.CompletedState:
-		if app.Spec.RestartPolicy.Type == v1alpha1.Always {
-			// Reset SubmissionAttempts Count since this is a new overall retry.
-			appToUpdate.Status.SubmissionAttempts = 0
-			glog.Infof("Creating Submission for SparkApp: %s", key)
-			updatedApp = c.submitSparkApplication(appToUpdate)
+		if appToUpdate.Spec.RestartPolicy.Type == v1alpha1.Always {
+			if err := c.deleteSparkResources(appToUpdate, true); err != nil {
+				glog.Errorf("failed to delete the driver pod and UI service for deleted SparkApplication %s: %v",
+					appToUpdate.Name, err)
+				return err
+			}
+			appToUpdate.Status.AppState.State = v1alpha1.PendingRetryState
 		}
 	case v1alpha1.FailedState:
 		shouldRetry := false
-		if app.Spec.RestartPolicy.Type == v1alpha1.Always {
+		if appToUpdate.Spec.RestartPolicy.Type == v1alpha1.Always {
 			shouldRetry = true
-		} else if app.Spec.RestartPolicy.Type == v1alpha1.OnFailure {
+		} else if appToUpdate.Spec.RestartPolicy.Type == v1alpha1.OnFailure {
 			// We Retry if we haven't hit the retry limit.
-			if app.Spec.RestartPolicy.OnFailureRetries != nil && app.Status.Attempts < (*app.Spec.RestartPolicy.OnFailureRetries)+1 {
+			if appToUpdate.Spec.RestartPolicy.OnFailureRetries != nil && appToUpdate.Status.Attempts < (*appToUpdate.Spec.RestartPolicy.OnFailureRetries)+1 {
 				shouldRetry = true
 			}
 		}
-		if shouldRetry && hasRetryIntervalPassed(app.Spec.RestartPolicy.OnFailureRetryInterval, app.Status.Attempts, app.Status.CompletionTime) {
-			// Reset SubmissionAttempts Count since this is a new overall retry.
-			appToUpdate.Status.SubmissionAttempts = 0
-			glog.Infof("Creating Submission for SparkApp: %s", key)
-			updatedApp = c.submitSparkApplication(appToUpdate)
+		if shouldRetry && hasRetryIntervalPassed(appToUpdate.Spec.RestartPolicy.OnFailureRetryInterval, appToUpdate.Status.Attempts, appToUpdate.Status.CompletionTime) {
+			if err := c.deleteSparkResources(appToUpdate, true); err != nil {
+				glog.Errorf("failed to delete the driver pod and UI service for deleted SparkApplication %s: %v",
+					appToUpdate.Name, err)
+				return err
+			}
+			appToUpdate.Status.AppState.State = v1alpha1.PendingRetryState
 
 		}
 	case v1alpha1.FailedSubmissionState:
 		shouldRetry := false
-		if app.Spec.RestartPolicy.Type == v1alpha1.Always {
+		if appToUpdate.Spec.RestartPolicy.Type == v1alpha1.Always {
 			shouldRetry = true
-		} else if app.Spec.RestartPolicy.Type == v1alpha1.OnFailure {
+		} else if appToUpdate.Spec.RestartPolicy.Type == v1alpha1.OnFailure {
 			// We Retry if we haven't hit the retry limit.
-			if app.Spec.RestartPolicy.OnSubmissionFailureRetries != nil && app.Status.SubmissionAttempts < (*app.Spec.RestartPolicy.OnSubmissionFailureRetries)+1 {
+			if appToUpdate.Spec.RestartPolicy.OnSubmissionFailureRetries != nil && appToUpdate.Status.SubmissionAttempts < (*appToUpdate.Spec.RestartPolicy.OnSubmissionFailureRetries)+1 {
 				shouldRetry = true
 			}
 		}
-		if shouldRetry && hasRetryIntervalPassed(app.Spec.RestartPolicy.OnSubmissionFailureRetryInterval, app.Status.SubmissionAttempts, app.Status.SubmissionTime) {
+		if shouldRetry && hasRetryIntervalPassed(appToUpdate.Spec.RestartPolicy.OnSubmissionFailureRetryInterval, appToUpdate.Status.SubmissionAttempts, appToUpdate.Status.SubmissionTime) {
 			glog.Infof("Creating Submission for SparkApp: %s", key)
-			updatedApp = c.submitSparkApplication(appToUpdate)
+			appToUpdate = c.submitSparkApplication(appToUpdate)
+		}
+	case v1alpha1.PendingRetryState:
+		if c.validateSparkResourceDeletion(appToUpdate, true) {
+			// Reset SubmissionAttempts Count since this is a new overall run.
+			appToUpdate.Status.SubmissionAttempts = 0
+			// Successfully deleted driver or driver doesn't exist. Remove it from the Finalizer List.
+			for k, elem := range appToUpdate.Finalizers {
+				if elem == sparkDriverRole {
+					appToUpdate.Finalizers = append(appToUpdate.Finalizers[:k], appToUpdate.Finalizers[k+1:]...)
+					break
+				}
+			}
+			glog.Infof("Creating Submission for SparkApp: %s", key)
+			appToUpdate = c.submitSparkApplication(appToUpdate)
 		}
 	case v1alpha1.SubmittedState, v1alpha1.RunningState:
 		//App already submitted, get driver and executor pods and update Status.
-		updatedApp = c.getUpdatedAppStatus(appToUpdate)
+		appToUpdate = c.getUpdatedAppStatus(appToUpdate)
 	}
 
 	// Update CRD if not nil.
-	if updatedApp != nil {
-		glog.V(2).Infof("Trying to update App %s, from: [%v] to :[%v]", app.Name, app.Status, updatedApp.Status)
-		if c.updateAppAndExportMetrics(app, updatedApp) != nil {
+	if appToUpdate != nil {
+		glog.V(2).Infof("Trying to update App %s, from: [%v] to :[%v]", app.Name, app.Status, appToUpdate.Status)
+		if c.updateAppAndExportMetrics(app, appToUpdate) != nil {
 			glog.Errorf("Failed to update App: %s. Error: %v", app.GetName(), err)
 			return err
 		}
@@ -461,14 +487,6 @@ func hasRetryIntervalPassed(retryInterval *int64, attemptsDone int32, lastEventT
 
 // submitSparkApplication creates a new submission for the given SparkApplication and submits it using spark-submit.
 func (c *Controller) submitSparkApplication(app *v1alpha1.SparkApplication) *v1alpha1.SparkApplication {
-
-	// Clean-up any previous run resources since this can be re-run.
-	app, err := c.deleteSparkK8Resources(app)
-	if err != nil {
-		glog.Errorf("failed to delete the driver pod and UI service for deleted SparkApplication %s: %v",
-			app.Name, err)
-		return app
-	}
 
 	submissionCmdArgs, err := buildSubmissionCommandArgs(app)
 	if err != nil {
@@ -536,21 +554,6 @@ func (c *Controller) submitSparkApplication(app *v1alpha1.SparkApplication) *v1a
 			configPrometheusMonitoring(app, c.kubeClient)
 		}
 
-		// Create Spark UI Service.
-		service, err := createSparkUIService(app, c.kubeClient)
-		var ingress *SparkIngress
-		if err != nil {
-			glog.Errorf("Failed to create UI service for SparkApplication %s: %v", app.Name, err)
-		} else {
-			// Create UI Ingress if ingress-format is set.
-			if c.ingressUrlFormat != "" {
-				ingress, err = createSparkUIIngress(app, *service, c.ingressUrlFormat, c.kubeClient)
-				if err != nil {
-					glog.Errorf("Failed to create UI Ingress for SparkApplication %s: %v", app.Name, err)
-				}
-			}
-		}
-
 		// Update AppStatus to submitted.
 		app.Status = v1alpha1.SparkApplicationStatus{
 			AppState: v1alpha1.ApplicationState{
@@ -561,13 +564,23 @@ func (c *Controller) submitSparkApplication(app *v1alpha1.SparkApplication) *v1a
 			SubmissionTime:     metav1.Now(),
 		}
 
-		if service != nil {
+		// Create Spark UI Service.
+		service, err := createSparkUIService(app, c.kubeClient)
+		if err != nil {
+			glog.Errorf("Failed to create UI service for SparkApplication %s: %v", app.Name, err)
+		} else {
 			app.Status.DriverInfo.WebUIServiceName = service.serviceName
 			app.Status.DriverInfo.WebUIPort = service.nodePort
-		}
-		if ingress != nil {
-			app.Status.DriverInfo.WebUIIngressAddress = ingress.ingressUrl
-			app.Status.DriverInfo.WebUIIngressName = ingress.ingressName
+			// Create UI Ingress if ingress-format is set.
+			if c.ingressUrlFormat != "" {
+				ingress, err := createSparkUIIngress(app, *service, c.ingressUrlFormat, c.kubeClient)
+				if err != nil {
+					glog.Errorf("Failed to create UI Ingress for SparkApplication %s: %v", app.Name, err)
+				} else {
+					app.Status.DriverInfo.WebUIIngressAddress = ingress.ingressUrl
+					app.Status.DriverInfo.WebUIIngressName = ingress.ingressName
+				}
+			}
 		}
 	}
 	return app
@@ -597,96 +610,58 @@ func (c *Controller) getSparkApplication(namespace string, name string) (*v1alph
 	return c.applicationLister.SparkApplications(namespace).Get(name)
 }
 
-// Delete any Spark Resources(driver/UI/Ingress) created for the Application.
-func (c *Controller) deleteSparkK8Resources(app *v1alpha1.SparkApplication) (*v1alpha1.SparkApplication, error) {
+// Delete driver pod and optional UI Resources(UI/Ingress) created for the Application.
+func (c *Controller) deleteSparkResources(app *v1alpha1.SparkApplication, deleteUI bool) error {
 	if app.Status.DriverInfo.PodName != "" {
 		err := c.kubeClient.CoreV1().Pods(app.Namespace).Delete(app.Status.DriverInfo.PodName,
 			metav1.NewDeleteOptions(0))
 		if err != nil && !errors.IsNotFound(err) {
-			return app, err
+			return err
 		}
 	}
-	if app.Status.DriverInfo.WebUIServiceName != "" {
+
+	// TODO: Right now, we need to delete UI Service/Ingress since we create a NodePort service-type. Remove this if we migrate to only have Ingress based UI.
+	if deleteUI && app.Status.DriverInfo.WebUIServiceName != "" {
 		err := c.kubeClient.CoreV1().Services(app.Namespace).Delete(app.Status.DriverInfo.WebUIServiceName,
 			metav1.NewDeleteOptions(0))
 		if err != nil && !errors.IsNotFound(err) {
-			return app, err
+			return err
 		}
 	}
 
-	if app.Status.DriverInfo.WebUIIngressName != "" {
+	if deleteUI && app.Status.DriverInfo.WebUIIngressName != "" {
 		err := c.kubeClient.ExtensionsV1beta1().Ingresses(app.Namespace).Delete(app.Status.DriverInfo.WebUIIngressName,
 			metav1.NewDeleteOptions(0))
 		if err != nil && !errors.IsNotFound(err) {
-			return app, err
+			return err
 		}
 	}
+	return nil
+}
 
-	// Wait for Driver deletion to complete
+// Validate that any Spark Resources(driver/UI/Ingress) created for the Application have been deleted.
+func (c *Controller) validateSparkResourceDeletion(app *v1alpha1.SparkApplication, validateUIDeletion bool) bool {
 	if app.Status.DriverInfo.PodName != "" {
-		waitErr := wait.Poll(500*time.Millisecond, 60*time.Second, func() (bool, error) {
-			_, err := c.kubeClient.CoreV1().Pods(app.Namespace).Get(app.Status.DriverInfo.PodName, metav1.GetOptions{})
-
-			if err != nil {
-				if errors.IsNotFound(err) {
-					return true, nil
-				}
-				return false, err
-			}
-
-			return false, nil
-		})
-		if waitErr != nil {
-			return app, waitErr
-		}
-
-		// Successfully deleted driver. Remove finalizer.
-		for k, elem := range app.Finalizers {
-			if elem == sparkDriverRole {
-				app.Finalizers = append(app.Finalizers[:k], app.Finalizers[k+1:]...)
-				break
-			}
+		_, err := c.kubeClient.CoreV1().Pods(app.Namespace).Get(app.Status.DriverInfo.PodName, metav1.GetOptions{})
+		if err == nil || !errors.IsNotFound(err) {
+			return false
 		}
 	}
 
-	// Wait for UI Service deletion to complete.
-	if app.Status.DriverInfo.WebUIServiceName != "" {
-		waitErr := wait.Poll(500*time.Millisecond, 60*time.Second, func() (bool, error) {
-			_, err := c.kubeClient.CoreV1().Services(app.Namespace).Get(app.Status.DriverInfo.WebUIServiceName, metav1.GetOptions{})
-
-			if err != nil {
-				if errors.IsNotFound(err) {
-					return true, nil
-				}
-				return false, err
-			}
-
-			return false, nil
-		})
-
-		if waitErr != nil {
-			return app, waitErr
+	if validateUIDeletion && app.Status.DriverInfo.WebUIServiceName != "" {
+		_, err := c.kubeClient.CoreV1().Services(app.Namespace).Get(app.Status.DriverInfo.WebUIServiceName, metav1.GetOptions{})
+		if err == nil || !errors.IsNotFound(err) {
+			return false
 		}
 	}
 
-	// Wait for UI Ingress deletion to complete.
-	if app.Status.DriverInfo.WebUIIngressName != "" {
-		waitErr := wait.Poll(500*time.Millisecond, 60*time.Second, func() (bool, error) {
-			_, err := c.kubeClient.ExtensionsV1beta1().Ingresses(app.Namespace).Get(app.Status.DriverInfo.WebUIIngressName, metav1.GetOptions{})
-
-			if err != nil {
-				if errors.IsNotFound(err) {
-					return true, nil
-				}
-				return false, err
-			}
-			return false, nil
-		})
-		if waitErr != nil {
-			return app, waitErr
+	if validateUIDeletion && app.Status.DriverInfo.WebUIIngressName != "" {
+		_, err := c.kubeClient.ExtensionsV1beta1().Ingresses(app.Namespace).Get(app.Status.DriverInfo.WebUIIngressName, metav1.GetOptions{})
+		if err == nil || !errors.IsNotFound(err) {
+			return false
 		}
 	}
-	return app, nil
+	return true
 }
 
 func (c *Controller) enqueue(obj interface{}) {

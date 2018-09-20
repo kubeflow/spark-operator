@@ -132,7 +132,7 @@ func TestCreateSparkUIService(t *testing.T) {
 			name: "service with custom port",
 			app:  app1,
 			expectedService: SparkService{
-				serviceName: fmt.Sprintf("%s-%d-ui-svc", app1.GetName(), app1.Status.Attempts+1),
+				serviceName: fmt.Sprintf("%s-ui-svc", app1.GetName()),
 				servicePort: 4041,
 			},
 			expectedSelector: map[string]string{
@@ -145,7 +145,7 @@ func TestCreateSparkUIService(t *testing.T) {
 			name: "service with default port",
 			app:  app2,
 			expectedService: SparkService{
-				serviceName: fmt.Sprintf("%s-%d-ui-svc", app2.GetName(), app2.Status.Attempts+1),
+				serviceName: fmt.Sprintf("%s-ui-svc", app2.GetName()),
 				servicePort: int32(defaultPort),
 			},
 			expectedSelector: map[string]string{
@@ -188,8 +188,8 @@ func TestCreateSparkUIIngress(t *testing.T) {
 	ingressFormat := "{{$appName}}.ingress.clusterName.com"
 
 	expectedIngress := SparkIngress{
-		ingressName: fmt.Sprintf("%s-%d-ui-ingress", app.GetName(), app.Status.Attempts+1),
-		ingressUrl:  fmt.Sprintf("%s-%d", app.GetName(), app.Status.Attempts+1) + ".ingress.clusterName.com",
+		ingressName: fmt.Sprintf("%s-ui-ingress", app.GetName()),
+		ingressUrl:  app.GetName() + ".ingress.clusterName.com",
 	}
 	fakeClient := fake.NewSimpleClientset()
 	sparkIngress, err := createSparkUIIngress(app, service, ingressFormat, fakeClient)
