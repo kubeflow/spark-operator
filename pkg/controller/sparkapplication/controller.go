@@ -685,21 +685,6 @@ func (c *Controller) updateApplicationStatusWithRetries(
 			return nil, err
 		}
 
-		// Create Spark UI Service.
-		service, err := createSparkUIService(app, c.kubeClient)
-		var ingress *SparkIngress
-		if err != nil {
-			glog.Errorf("Failed to create UI service for SparkApplication %s: %v", app.Name, err)
-		} else {
-			// Create UI Ingress if ingress-format is set.
-			if c.ingressUrlFormat != "" {
-				ingress, err = createSparkUIIngress(app, *service, c.ingressUrlFormat, c.kubeClient)
-				if err != nil {
-					glog.Errorf("Failed to create UI Ingress for SparkApplication %s: %v", app.Name, err)
-				}
-			}
-		}
-
 		// Update AppStatus to submitted.
 		app.Status = v1alpha1.SparkApplicationStatus{
 			AppState: v1alpha1.ApplicationState{
@@ -710,13 +695,23 @@ func (c *Controller) updateApplicationStatusWithRetries(
 			SubmissionTime:     metav1.Now(),
 		}
 
-		if service != nil {
+		// Create Spark UI Service.
+		service, err := createSparkUIService(app, c.kubeClient)
+		if err != nil {
+			glog.Errorf("Failed to create UI service for SparkApplication %s: %v", app.Name, err)
+		} else {
 			app.Status.DriverInfo.WebUIServiceName = service.serviceName
 			app.Status.DriverInfo.WebUIPort = service.nodePort
-		}
-		if ingress != nil {
-			app.Status.DriverInfo.WebUIIngressAddress = ingress.ingressUrl
-			app.Status.DriverInfo.WebUIIngressName = ingress.ingressName
+			// Create UI Ingress if ingress-format is set.
+			if c.ingressUrlFormat != "" {
+				ingress, err := createSparkUIIngress(app, *service, c.ingressUrlFormat, c.kubeClient)
+				if err != nil {
+					glog.Errorf("Failed to create UI Ingress for SparkApplication %s: %v", app.Name, err)
+				} else {
+					app.Status.DriverInfo.WebUIIngressAddress = ingress.ingressUrl
+					app.Status.DriverInfo.WebUIIngressName = ingress.ingressName
+				}
+			}
 		}
 	}
 
@@ -776,24 +771,28 @@ func (c *Controller) deleteSparkResources(app *v1beta1.SparkApplication) error {
 		glog.V(2).Infof("Deleting pod %s in namespace %s", driverPodName, app.Namespace)
 		err := c.kubeClient.CoreV1().Pods(app.Namespace).Delete(driverPodName, metav1.NewDeleteOptions(0))
 		if err != nil && !errors.IsNotFound(err) {
-			return app, err
-		}
-	}
-	if app.Status.DriverInfo.WebUIServiceName != "" {
-		err := c.kubeClient.CoreV1().Services(app.Namespace).Delete(app.Status.DriverInfo.WebUIServiceName,
-			metav1.NewDeleteOptions(0))
-		if err != nil && !errors.IsNotFound(err) {
-			return app, err
+			return err
 		}
 	}
 
-	if app.Status.DriverInfo.WebUIIngressName != "" {
+	// TODO: Right now, we need to delete UI Service/Ingress since we create a NodePort service-type. Remove this if we migrate to only have Ingress based UI.
+	if deleteUI && app.Status.DriverInfo.WebUIServiceName != "" {
+		err := c.kubeClient.CoreV1().Services(app.Namespace).Delete(app.Status.DriverInfo.WebUIServiceName,
+			metav1.NewDeleteOptions(0))
+		if err != nil && !errors.IsNotFound(err) {
+			return err
+		}
+	}
+
+	if deleteUI && app.Status.DriverInfo.WebUIIngressName != "" {
 		err := c.kubeClient.ExtensionsV1beta1().Ingresses(app.Namespace).Delete(app.Status.DriverInfo.WebUIIngressName,
 			metav1.NewDeleteOptions(0))
 		if err != nil && !errors.IsNotFound(err) {
-			return app, err
+			return err
 		}
 	}
+	return nil
+}
 
 	sparkUIServiceName := app.Status.DriverInfo.WebUIServiceName
 	if sparkUIServiceName != "" {
@@ -813,44 +812,20 @@ func (c *Controller) deleteSparkResources(app *v1beta1.SparkApplication) error {
 		}
 	}
 
-	// Wait for UI Service deletion to complete.
-	if app.Status.DriverInfo.WebUIServiceName != "" {
-		waitErr := wait.Poll(500*time.Millisecond, 60*time.Second, func() (bool, error) {
-			_, err := c.kubeClient.CoreV1().Services(app.Namespace).Get(app.Status.DriverInfo.WebUIServiceName, metav1.GetOptions{})
-
-			if err != nil {
-				if errors.IsNotFound(err) {
-					return true, nil
-				}
-				return false, err
-			}
-
-			return false, nil
-		})
-
-		if waitErr != nil {
-			return app, waitErr
+	if validateUIDeletion && app.Status.DriverInfo.WebUIServiceName != "" {
+		_, err := c.kubeClient.CoreV1().Services(app.Namespace).Get(app.Status.DriverInfo.WebUIServiceName, metav1.GetOptions{})
+		if err == nil || !errors.IsNotFound(err) {
+			return false
 		}
 	}
 
-	// Wait for UI Ingress deletion to complete.
-	if app.Status.DriverInfo.WebUIIngressName != "" {
-		waitErr := wait.Poll(500*time.Millisecond, 60*time.Second, func() (bool, error) {
-			_, err := c.kubeClient.ExtensionsV1beta1().Ingresses(app.Namespace).Get(app.Status.DriverInfo.WebUIIngressName, metav1.GetOptions{})
-
-			if err != nil {
-				if errors.IsNotFound(err) {
-					return true, nil
-				}
-				return false, err
-			}
-			return false, nil
-		})
-		if waitErr != nil {
-			return app, waitErr
+	if validateUIDeletion && app.Status.DriverInfo.WebUIIngressName != "" {
+		_, err := c.kubeClient.ExtensionsV1beta1().Ingresses(app.Namespace).Get(app.Status.DriverInfo.WebUIIngressName, metav1.GetOptions{})
+		if err == nil || !errors.IsNotFound(err) {
+			return false
 		}
 	}
-	return app, nil
+	return true
 }
 
 // Validate that any Spark resources (driver/Service/Ingress) created for the application have been deleted.
