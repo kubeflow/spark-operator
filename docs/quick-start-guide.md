@@ -214,9 +214,10 @@ $ docker build --build-arg SPARK_IMAGE=<your Spark image> -t <image-tag> .
 If you'd like to build/test the spark-operator locally, follow the instructions below:
 
 ```bash
-$ mkdir -p $GOPATH/src/k8s.io
-$ cd $GOPATH/src/k8s.io
+$ mkdir -p $GOPATH/src/github.com/GoogleCloudPlatform
+$ cd $GOPATH/src/github.com/GoogleCloudPlatform
 $ git clone git@github.com:GoogleCloudPlatform/spark-on-k8s-operator.git
+$ cd spark-on-k8s-operator
 ```
 
 The operator uses [dep](https://golang.github.io/dep/) for dependency management. Please install `dep` following
