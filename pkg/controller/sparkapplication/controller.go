@@ -392,7 +392,7 @@ func (c *Controller) syncSparkApplication(key string) error {
 
 	// CRD Delete requested.
 	if !appToUpdate.GetObjectMeta().GetDeletionTimestamp().IsZero() {
-		appToUpdate = c.handleSparkApplicationDeletion(app)
+		appToUpdate = c.handleSparkApplicationDeletion(appToUpdate)
 	} else {
 		// Take action based on AppState.
 		switch appToUpdate.Status.AppState.State {
