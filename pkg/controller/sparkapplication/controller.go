@@ -685,16 +685,6 @@ func (c *Controller) updateApplicationStatusWithRetries(
 			return nil, err
 		}
 
-		// Update AppStatus to submitted.
-		app.Status = v1alpha1.SparkApplicationStatus{
-			AppState: v1alpha1.ApplicationState{
-				State: v1alpha1.SubmittedState,
-			},
-			SubmissionAttempts: app.Status.SubmissionAttempts + 1,
-			Attempts:           app.Status.Attempts + 1,
-			SubmissionTime:     metav1.Now(),
-		}
-
 		// Create Spark UI Service.
 		service, err := createSparkUIService(app, c.kubeClient)
 		if err != nil {
