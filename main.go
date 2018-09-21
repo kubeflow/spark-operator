@@ -35,15 +35,15 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 
-	crdclientset "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/client/clientset/versioned"
-	crdinformers "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/client/informers/externalversions"
-	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/controller/scheduledsparkapplication"
-	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/controller/sparkapplication"
-	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/crd"
-	ssacrd "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/crd/scheduledsparkapplication"
-	sacrd "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/crd/sparkapplication"
-	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/util"
-	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/webhook"
+	crdclientset "github.com/googlecloudplatform/spark-on-k8s-operator/pkg/client/clientset/versioned"
+	crdinformers "github.com/googlecloudplatform/spark-on-k8s-operator/pkg/client/informers/externalversions"
+	"github.com/googlecloudplatform/spark-on-k8s-operator/pkg/controller/scheduledsparkapplication"
+	"github.com/googlecloudplatform/spark-on-k8s-operator/pkg/controller/sparkapplication"
+	"github.com/googlecloudplatform/spark-on-k8s-operator/pkg/crd"
+	ssacrd "github.com/googlecloudplatform/spark-on-k8s-operator/pkg/crd/scheduledsparkapplication"
+	sacrd "github.com/googlecloudplatform/spark-on-k8s-operator/pkg/crd/sparkapplication"
+	"github.com/googlecloudplatform/spark-on-k8s-operator/pkg/util"
+	"github.com/googlecloudplatform/spark-on-k8s-operator/pkg/webhook"
 )
 
 var (

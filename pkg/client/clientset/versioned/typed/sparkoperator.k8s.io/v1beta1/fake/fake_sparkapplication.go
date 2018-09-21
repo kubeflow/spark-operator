@@ -21,7 +21,7 @@ limitations under the License.
 package fake
 
 import (
-	v1beta1 "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta1"
+	v1beta1 "github.com/googlecloudplatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"

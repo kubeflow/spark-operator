@@ -28,7 +28,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	clientset "k8s.io/client-go/kubernetes"
 
-	crdclientset "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/client/clientset/versioned"
+	crdclientset "github.com/googlecloudplatform/spark-on-k8s-operator/pkg/client/clientset/versioned"
 )
 
 var ExecutorId int32
