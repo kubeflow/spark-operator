@@ -23,7 +23,15 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var defaultKubeConfig = os.Getenv("HOME") + "/.kube/config"
+func getKubeConfigPath() string {
+	var kubeConfigEnv = os.Getenv("KUBECONFIG")
+	if len(kubeConfigEnv) == 0 {
+		return os.Getenv("HOME") + "/.kube/config"
+	}
+	return kubeConfigEnv
+}
+
+var defaultKubeConfig = getKubeConfigPath()
 
 var Namespace string
 var KubeConfig string
