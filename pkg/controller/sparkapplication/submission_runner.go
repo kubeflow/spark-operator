@@ -28,7 +28,7 @@ import (
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
 
-	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1alpha1"
+	"github.com/googlecloudplatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1alpha1"
 )
 
 // sparkSubmitRunner is responsible for running user-specified Spark applications.

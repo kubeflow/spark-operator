@@ -22,7 +22,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1alpha1"
+	"github.com/googlecloudplatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1alpha1"
 )
 
 func TestIsLocalFile(t *testing.T) {
