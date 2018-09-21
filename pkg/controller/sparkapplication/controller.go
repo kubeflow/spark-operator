@@ -205,7 +205,6 @@ func (c *Controller) onUpdate(oldObj, newObj interface{}) {
 }
 
 func (c *Controller) onDelete(obj interface{}) {
-
 	c.dequeue(obj)
 
 	var app *v1alpha1.SparkApplication
@@ -603,11 +602,6 @@ func (c *Controller) updateAppAndExportMetrics(oldApp, newApp *v1alpha1.SparkApp
 	if err == nil && c.metrics != nil {
 		c.metrics.exportMetrics(oldApp, app)
 	}
-	return err
-}
-
-func (c *Controller) updateApp(toUpdate *v1alpha1.SparkApplication) error {
-	_, err := c.crdClient.SparkoperatorV1alpha1().SparkApplications(toUpdate.Namespace).Update(toUpdate)
 	return err
 }
 
