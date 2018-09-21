@@ -66,7 +66,7 @@ const (
 
 	// SparkApplicationIDLabel is the AppID set by the spark-distribution on the driver/executors Pods.
 	SparkApplicationIDLabel = "spark-app-selector"
-	// SparkApplicationIDLabel is the driver/executor label set by the operator/spark-distribution on the driver/executors Pods.
+	// SparkRoleLabel is the driver/executor label set by the operator/spark-distribution on the driver/executors Pods.
 	SparkRoleLabel = "spark-role"
 )
 
