@@ -377,6 +377,43 @@ func (c *Controller) handleSparkApplicationDeletion(app *v1alpha1.SparkApplicati
 	return app
 }
 
+
+//
+// State Machine Transition for Spark Application:
+//
+//          +---------+
+//          |         |
+//          |         |
+//          |Submission
+//     +----> Failed  +-----+
+//     |    |         |     |
+//     |    |         |     |
+//     |    +----^----+     |
+//     |         |          |
+//     |         |          |
+//+----+----+    |    +-----v----+          +----------+           +-----------+
+//|         |    |    |          |          |          |           |           |
+//|         |    |    |          |          |          |           |           |
+//|   New   +---------> Submitted+----------> Running  +-----------> Completed |
+//|         |    |    |          |          |          |           |           |
+//|         |    |    |          |          |          |           |           |
+//|         |    |    |          |          |          |           |           |
+//+---------+    |    +----^-----+          +-----+----+           +-----+-----+
+//               |         |                      |                      |
+//               |         |                      |                      |
+//               |         |             +-------------------------------+
+//               |   +-----+-----+       |        |                +-----------+
+//               |   |           |       |        |                |           |
+//               |   |  Pending  |       |        |                |           |
+//               +---+   Retry   <-------+        +---------------->  Failed   |
+//                   |           <-------+                         |           |
+//                   |           |       |                         |           |
+//                   |           |       |                         |           |
+//                   +-----------+       |                         +-----+-----+
+//                                       |                               |
+//                                       |                               |
+//                                       +-------------------------------+
+//
 func (c *Controller) syncSparkApplication(key string) error {
 	namespace, name, err := cache.SplitMetaNamespaceKey(key)
 	if err != nil {
