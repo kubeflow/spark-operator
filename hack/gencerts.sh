@@ -69,7 +69,7 @@ function parse_arguments {
 
 # Set the namespace to "sparkoperator" by default if not provided
 IN_POD=false
-NAMESPACE="sparkoperator"
+NAMESPACE="spark-operator"
 parse_arguments "$@"
 
 
