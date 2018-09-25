@@ -35,7 +35,7 @@ $ kubectl create clusterrolebinding <user>-cluster-admin-binding --clusterrole=c
 Now you should see the operator running in the cluster by checking the status of the Deployment.
 
 ```bash
-$ kubectl describe deployment sparkoperator -n sparkoperator
+$ kubectl describe deployment sparkoperator -n spark-operator
 ```
 
 ### Metrics
