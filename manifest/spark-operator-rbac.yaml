@@ -17,13 +17,13 @@
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: sparkoperator
+  name: spark-operator
 ---
 apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: sparkoperator
-  namespace: sparkoperator
+  namespace: spark-operator
 ---
 apiVersion: rbac.authorization.k8s.io/v1beta1
 kind: ClusterRole
@@ -59,7 +59,7 @@ metadata:
 subjects:
   - kind: ServiceAccount
     name: sparkoperator
-    namespace: sparkoperator
+    namespace: spark-operator
 roleRef:
   kind: ClusterRole
   name: sparkoperator
