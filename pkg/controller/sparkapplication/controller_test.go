@@ -62,8 +62,14 @@ func newFakeController(apps ...*v1alpha1.SparkApplication) (*Controller, *record
 		},
 	})
 
-	controller := newSparkApplicationController(crdClient, kubeClient, apiExtensionsClient, informerFactory, recorder,
-		1, &util.MetricConfig{}, "test")
+	operatorConfig := util.OperatorConfig{
+		Namespace:               "test",
+		SubmissionRunnerThreads: 1,
+		MetricsEnable:           true,
+	}
+
+	controller := newSparkApplicationController(crdClient, kubeClient, apiExtensionsClient,
+		informerFactory, recorder, operatorConfig)
 
 	informer := informerFactory.Sparkoperator().V1alpha1().SparkApplications().Informer()
 	for _, app := range apps {
@@ -77,23 +83,104 @@ func TestSubmitApp(t *testing.T) {
 	os.Setenv(kubernetesServiceHostEnvVar, "localhost")
 	os.Setenv(kubernetesServicePortEnvVar, "443")
 
-	app := &v1alpha1.SparkApplication{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "foo",
-			Namespace: "default",
+	type testcase struct {
+		name                  string
+		app                   *v1alpha1.SparkApplication
+		defaultAppImageString string
+		expectedImage         string
+	}
+
+	customSparkImage := "custom-spark-image"
+	testcases := []testcase{
+		{
+			name: "create spark application with user provided spark image",
+			app: &v1alpha1.SparkApplication{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "foo",
+					Namespace: "default",
+				},
+				Spec: v1alpha1.SparkApplicationSpec{
+					Image: &customSparkImage,
+				},
+			},
+			defaultAppImageString: "",
+			expectedImage:         "custom-spark-image",
+		},
+		{
+			name: "create spark application without both default and custom images specified",
+			app: &v1alpha1.SparkApplication{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "foo",
+					Namespace: "default",
+				},
+				Spec: v1alpha1.SparkApplicationSpec{},
+			},
+			defaultAppImageString: "",
+			expectedImage:         "",
+		},
+		{
+			name: "create spark application with user provided spark image despite default provided",
+			app: &v1alpha1.SparkApplication{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "foo",
+					Namespace: "default",
+				},
+				Spec: v1alpha1.SparkApplicationSpec{
+					Image: &customSparkImage,
+				},
+			},
+			defaultAppImageString: "spark",
+			expectedImage:         "custom-spark-image",
+		},
+		{
+			name: "create spark application with default image, but default not specified in app default config",
+			app: &v1alpha1.SparkApplication{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "foo",
+					Namespace: "default",
+				},
+				Spec: v1alpha1.SparkApplicationSpec{},
+			},
+			defaultAppImageString: "",
+			expectedImage:         "",
+		},
+		{
+			name: "create spark application using default spark image provided in default app config",
+			app: &v1alpha1.SparkApplication{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "foo",
+					Namespace: "default",
+				},
+				Spec: v1alpha1.SparkApplicationSpec{},
+			},
+			defaultAppImageString: "default-spark-image",
+			expectedImage:         "default-spark-image",
 		},
 	}
 
-	ctrl, _ := newFakeController(app)
-	_, err := ctrl.crdClient.SparkoperatorV1alpha1().SparkApplications(app.Namespace).Create(app)
-	if err != nil {
-		t.Fatal(err)
+	testFn := func(t *testing.T, test testcase) {
+		app := test.app.DeepCopy()
+		ctrl, _ := newFakeController(app)
+
+		ctrl.operatorConfig = util.OperatorConfig{
+			UnifiedSparkImage: test.defaultAppImageString,
+		}
+
+		_, err := ctrl.crdClient.SparkoperatorV1alpha1().SparkApplications(app.Namespace).Create(app)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		go ctrl.createSubmission(app)
+		submission := <-ctrl.runner.queue
+		assert.Equal(t, *app.Spec.Image, test.expectedImage)
+		assert.Equal(t, app.Name, submission.name)
+		assert.Equal(t, app.Namespace, submission.namespace)
 	}
 
-	go ctrl.createSubmission(app)
-	submission := <-ctrl.runner.queue
-	assert.Equal(t, app.Name, submission.name)
-	assert.Equal(t, app.Namespace, submission.namespace)
+	for _, test := range testcases {
+		testFn(t, test)
+	}
 }
 
 func TestOnAdd(t *testing.T) {

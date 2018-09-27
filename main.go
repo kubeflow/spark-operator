@@ -63,6 +63,7 @@ var (
 	metricsPort             = flag.String("metrics-port", "10254", "Port for the metrics endpoint.")
 	metricsEndpoint         = flag.String("metrics-endpoint", "/metrics", "Metrics endpoint.")
 	metricsPrefix           = flag.String("metrics-prefix", "", "Prefix for the metrics.")
+	defaultSparkImage       = flag.String("default-spark-image", "", "Default unified container image for the Spark application (for both the driver and executor)")
 )
 
 func main() {
@@ -80,17 +81,20 @@ func main() {
 		glog.Fatal(err)
 	}
 
-	var metricConfig *util.MetricConfig
-	if *enableMetrics {
-		metricConfig = &util.MetricConfig{
-			MetricsEndpoint: *metricsEndpoint,
-			MetricsPort:     *metricsPort,
-			MetricsPrefix:   *metricsPrefix,
-			MetricsLabels:   metricsLabels,
-		}
+	operatorConfig := util.OperatorConfig{
+		Namespace:               *namespace,
+		SubmissionRunnerThreads: *submissionRunnerThreads,
+		UnifiedSparkImage:       *defaultSparkImage,
+		MetricsEnable:           *enableMetrics,
+		MetricsEndpoint:         *metricsEndpoint,
+		MetricsPort:             *metricsPort,
+		MetricsPrefix:           *metricsPrefix,
+		MetricsLabels:           metricsLabels,
+	}
 
+	if operatorConfig.MetricsEnable {
 		glog.Info("Enabling metrics collecting and exporting to Prometheus")
-		util.InitializeMetrics(metricConfig)
+		util.InitializeMetrics(operatorConfig.MetricsEndpoint, operatorConfig.MetricsPort, operatorConfig.MetricsPrefix)
 	}
 
 	glog.Info("Starting the Spark operator")
@@ -128,9 +132,9 @@ func main() {
 		time.Duration(*resyncInterval)*time.Second,
 		factoryOpts...)
 	applicationController := sparkapplication.NewController(
-		crdClient, kubeClient, apiExtensionsClient, factory, *submissionRunnerThreads, metricConfig, *namespace)
+		crdClient, kubeClient, apiExtensionsClient, factory, operatorConfig)
 	scheduledApplicationController := scheduledsparkapplication.NewController(
-		crdClient, kubeClient, apiExtensionsClient, factory, clock.RealClock{})
+		crdClient, kubeClient, apiExtensionsClient, factory, clock.RealClock{}, operatorConfig)
 
 	// Start the informer factory that in turn starts the informer.
 	go factory.Start(stopCh)

@@ -50,7 +50,7 @@ contains fields for specifying various aspects of an application including its t
 deployment mode (`cluster` or `client`), main application resource URI (e.g., the URI of the application jar), 
 main class, arguments, etc. Node selectors are also supported via the optional field `.spec.nodeSelector`.
 
-It also has fields for specifying the unified container image (to use for both the driver and executors) and the image 
+A `SparkApplication` has fields for specifying the custom unified container image (to use for both the driver and executors) and the image 
 pull policy, namely, `.spec.image` and `.spec.imagePullPolicy` respectively. If a custom init-container (in both the 
 driver and executor pods) image needs to be used, the optional field `.spec.initContainerImage` can be used to specify 
 it. If set, `.spec.initContainerImage` overrides `.spec.image` for the init-container image. Otherwise, the image 
@@ -72,6 +72,8 @@ spec:
   mainClass: org.apache.spark.examples.SparkPi
   mainApplicationFile: local:///opt/spark/examples/jars/spark-examples_2.11-2.3.0.jar
 ```
+
+The operator can set default unified spark image for both the driver and executors. Please refer to the [Quick Start Guide](quick-start-guide.md#default-spark-image) on how to set default unified spark image in operator.
 
 ### Specifying Application Dependencies
 

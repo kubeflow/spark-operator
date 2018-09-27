@@ -17,6 +17,7 @@ limitations under the License.
 package scheduledsparkapplication
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -34,7 +35,82 @@ import (
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1alpha1"
 	crdclientfake "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/client/clientset/versioned/fake"
 	crdinformers "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/client/informers/externalversions"
+	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/util"
 )
+
+func TestSubmitApp(t *testing.T) {
+	type testcase struct {
+		name                  string
+		app                   *v1alpha1.ScheduledSparkApplication
+		defaultAppImageString string
+		expectedImage         string
+	}
+
+	customSparkImage := "custom-spark-image"
+	testcases := []testcase{
+		{
+			name: "create spark application with user provided spark image, without default",
+			app: &v1alpha1.ScheduledSparkApplication{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "foo",
+					Namespace: "default",
+				},
+				Spec: v1alpha1.ScheduledSparkApplicationSpec{
+					Schedule:          "@every 1m",
+					ConcurrencyPolicy: v1alpha1.ConcurrencyAllow,
+					Template: v1alpha1.SparkApplicationSpec{
+						Image: &customSparkImage,
+					},
+				},
+			},
+			defaultAppImageString: "",
+			expectedImage:         customSparkImage,
+		},
+		{
+			name: "create spark application using default spark image provided in default app config",
+			app: &v1alpha1.ScheduledSparkApplication{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "foo",
+					Namespace: "default",
+				},
+				Spec: v1alpha1.ScheduledSparkApplicationSpec{
+					Schedule:          "@every 1m",
+					ConcurrencyPolicy: v1alpha1.ConcurrencyAllow,
+					Template:          v1alpha1.SparkApplicationSpec{},
+				},
+			},
+			defaultAppImageString: "default-spark-image",
+			expectedImage:         "default-spark-image",
+		},
+	}
+
+	testFn := func(t *testing.T, test testcase) {
+		app := test.app.DeepCopy()
+		ctrl, _, _, _ := newFakeController(app)
+
+		ctrl.operatorConfig = util.OperatorConfig{
+			UnifiedSparkImage: test.defaultAppImageString,
+		}
+
+		now := ctrl.clock.Now()
+		appName, err := ctrl.createSparkApplication(app, now)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		options := metav1.GetOptions{}
+		scheduledApp, _ :=
+			ctrl.crdClient.SparkoperatorV1alpha1().SparkApplications(app.Namespace).Get(appName, options)
+		assert.Equal(t, test.expectedImage, *scheduledApp.Spec.Image)
+		expectedAppName := fmt.Sprintf("%s-%d", app.Name, now.UnixNano())
+		assert.Equal(t, expectedAppName, scheduledApp.Name)
+		assert.Equal(t, app.Namespace, scheduledApp.Namespace)
+	}
+
+	for _, test := range testcases {
+		testFn(t, test)
+	}
+}
 
 func TestSyncScheduledSparkApplication_Allow(t *testing.T) {
 	app := &v1alpha1.ScheduledSparkApplication{
@@ -533,7 +609,8 @@ func newFakeController(apps ...*v1alpha1.ScheduledSparkApplication) (*Controller
 	apiExtensionsClient := apiextensionsfake.NewSimpleClientset()
 	informerFactory := crdinformers.NewSharedInformerFactory(crdClient, 1*time.Second)
 	clk := clock.NewFakeClock(time.Now())
-	controller := NewController(crdClient, kubeClient, apiExtensionsClient, informerFactory, clk)
+	operatorConfig := util.OperatorConfig{}
+	controller := NewController(crdClient, kubeClient, apiExtensionsClient, informerFactory, clk, operatorConfig)
 
 	ssaInformer := informerFactory.Sparkoperator().V1alpha1().ScheduledSparkApplications().Informer()
 	for _, app := range apps {

@@ -189,20 +189,15 @@ func loadFromYAML(yamlFile string) (*v1alpha1.SparkApplication, error) {
 }
 
 func validateSpec(spec v1alpha1.SparkApplicationSpec) error {
-	if spec.Image == nil && (spec.Driver.Image == nil || spec.Executor.Image == nil) {
-		return fmt.Errorf("'spec.driver.image' and 'spec.executor.image' cannot be empty when 'spec.image' " +
-			"is not set")
+	if spec.MainApplicationFile == nil && len(spec.Deps.Files) == 0 && len(spec.Deps.PyFiles) == 0 {
+		return fmt.Errorf("'spec.mainapplicationfile' and 'spec.deps.files' and 'spec.deps.pyfiles' " +
+			"cannot be all not set")
 	}
 
-	yes, err := hasNonContainerLocalFiles(spec)
-	if err != nil {
-		return err
+	if spec.Image == nil {
+		// SparkOperator provides default spark application image, no need to validate whether image has been set
+		fmt.Printf("Using Spark Operator default image for driver/executor\n")
 	}
-	if spec.Image == nil && spec.InitContainerImage == nil && yes {
-		return fmt.Errorf("'spec.image' and 'spec.initContainerImage' cannot be both empty when " +
-			"non-container-local dependencies are used")
-	}
-
 	return nil
 }
 
@@ -285,28 +280,6 @@ func isLocalFile(file string) (bool, error) {
 
 	if fileUrl.Scheme == "file" || fileUrl.Scheme == "" {
 		return true, nil
-	}
-
-	return false, nil
-}
-
-func hasNonContainerLocalFiles(spec v1alpha1.SparkApplicationSpec) (bool, error) {
-	var files []string
-	if spec.MainApplicationFile != nil {
-		files = append(files, *spec.MainApplicationFile)
-	}
-
-	files = append(files, spec.Deps.Jars...)
-	files = append(files, spec.Deps.Files...)
-
-	for _, file := range files {
-		containerLocal, err := isContainerLocalFile(file)
-		if err != nil {
-			return containerLocal, err
-		}
-		if !containerLocal {
-			return true, nil
-		}
 	}
 
 	return false, nil

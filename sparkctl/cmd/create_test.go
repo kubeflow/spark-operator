@@ -101,64 +101,6 @@ func TestIsContainerLocalFile(t *testing.T) {
 	}
 }
 
-func TestHasNonContainerLocalFiles(t *testing.T) {
-	type testcase struct {
-		name                      string
-		spec                      v1alpha1.SparkApplicationSpec
-		hasNonContainerLocalFiles bool
-	}
-
-	testFn := func(test testcase, t *testing.T) {
-		yes, err := hasNonContainerLocalFiles(test.spec)
-		if err != nil {
-			t.Fatal(err)
-		}
-		assert.Equal(t, test.hasNonContainerLocalFiles, yes, "%s: expected %v got %v",
-			test.name, test.hasNonContainerLocalFiles, yes)
-	}
-
-	mainAppFile := "/path/to/main/app/file"
-	containerLocalMainAppFile := "local:///path/to/main/app/file"
-	testcases := []testcase{
-		{
-			name: "application with submission local main file",
-			spec: v1alpha1.SparkApplicationSpec{
-				MainApplicationFile: &mainAppFile,
-			},
-			hasNonContainerLocalFiles: true,
-		},
-		{
-			name: "application with container local main file",
-			spec: v1alpha1.SparkApplicationSpec{
-				MainApplicationFile: &containerLocalMainAppFile,
-			},
-			hasNonContainerLocalFiles: false,
-		},
-		{
-			name: "application with remote jars",
-			spec: v1alpha1.SparkApplicationSpec{
-				Deps: v1alpha1.Dependencies{
-					Jars: []string{"https://localhost/path/to/foo.jar"},
-				},
-			},
-			hasNonContainerLocalFiles: true,
-		},
-		{
-			name: "application with container-local jars",
-			spec: v1alpha1.SparkApplicationSpec{
-				Deps: v1alpha1.Dependencies{
-					Jars: []string{"local:///path/to/foo.jar"},
-				},
-			},
-			hasNonContainerLocalFiles: false,
-		},
-	}
-
-	for _, test := range testcases {
-		testFn(test, t)
-	}
-}
-
 func TestValidateSpec(t *testing.T) {
 	type testcase struct {
 		name                   string
@@ -176,85 +118,25 @@ func TestValidateSpec(t *testing.T) {
 	}
 
 	image := "spark"
-	remoteMainAppFile := "https://localhost/path/to/main/app/file"
 	containerLocalMainAppFile := "local:///path/to/main/app/file"
 	testcases := []testcase{
 		{
-			name: "application with spec.image set",
-			spec: v1alpha1.SparkApplicationSpec{
-				Image: &image,
-			},
-			expectsValidationError: false,
-		},
-		{
-			name: "application with no spec.image and spec.driver.image",
-			spec: v1alpha1.SparkApplicationSpec{
-				Executor: v1alpha1.ExecutorSpec{
-					SparkPodSpec: v1alpha1.SparkPodSpec{
-						Image: &image,
-					},
-				},
-			},
+			name: "application without main file set",
+			spec: v1alpha1.SparkApplicationSpec{},
 			expectsValidationError: true,
 		},
 		{
-			name: "application with no spec.image and spec.executor.image",
-			spec: v1alpha1.SparkApplicationSpec{
-				Driver: v1alpha1.DriverSpec{
-					SparkPodSpec: v1alpha1.SparkPodSpec{
-						Image: &image,
-					},
-				},
-			},
-			expectsValidationError: true,
-		},
-		{
-			name: "application with remote main file and no init-container",
-			spec: v1alpha1.SparkApplicationSpec{
-				MainApplicationFile: &remoteMainAppFile,
-			},
-			expectsValidationError: true,
-		},
-		{
-			name: "application with remote main file and spec.image",
-			spec: v1alpha1.SparkApplicationSpec{
-				Image:               &image,
-				MainApplicationFile: &remoteMainAppFile,
-			},
-			expectsValidationError: false,
-		},
-		{
-			name: "application with remote main file and spec.initContainerImage",
-			spec: v1alpha1.SparkApplicationSpec{
-				InitContainerImage:  &image,
-				MainApplicationFile: &remoteMainAppFile,
-				Driver: v1alpha1.DriverSpec{
-					SparkPodSpec: v1alpha1.SparkPodSpec{
-						Image: &image,
-					},
-				},
-				Executor: v1alpha1.ExecutorSpec{
-					SparkPodSpec: v1alpha1.SparkPodSpec{
-						Image: &image,
-					},
-				},
-			},
-			expectsValidationError: false,
-		},
-		{
-			name: "application with container local main file and no init-container",
+			name: "application with main file set and default image used",
 			spec: v1alpha1.SparkApplicationSpec{
 				MainApplicationFile: &containerLocalMainAppFile,
-				Driver: v1alpha1.DriverSpec{
-					SparkPodSpec: v1alpha1.SparkPodSpec{
-						Image: &image,
-					},
-				},
-				Executor: v1alpha1.ExecutorSpec{
-					SparkPodSpec: v1alpha1.SparkPodSpec{
-						Image: &image,
-					},
-				},
+			},
+			expectsValidationError: false,
+		},
+		{
+			name: "application with main file set and custom image used",
+			spec: v1alpha1.SparkApplicationSpec{
+				MainApplicationFile: &containerLocalMainAppFile,
+				Image:               &image,
 			},
 			expectsValidationError: false,
 		},

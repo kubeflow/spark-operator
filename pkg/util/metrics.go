@@ -134,13 +134,13 @@ type WorkQueueMetrics struct {
 	prefix string
 }
 
-func InitializeMetrics(metricsConfig *MetricConfig) {
+func InitializeMetrics(metricsEndpoint string, metricsPort string, metricsPrefix string) {
 	// Start the metrics endpoint for Prometheus to scrape
-	http.Handle(metricsConfig.MetricsEndpoint, promhttp.Handler())
-	go http.ListenAndServe(fmt.Sprintf(":%s", metricsConfig.MetricsPort), nil)
-	glog.Infof("Started Metrics server at localhost:%s%s", metricsConfig.MetricsPort, metricsConfig.MetricsEndpoint)
+	http.Handle(metricsEndpoint, promhttp.Handler())
+	go http.ListenAndServe(fmt.Sprintf(":%s", metricsPort), nil)
+	glog.Infof("Started Metrics server at localhost:%s%s", metricsPort, metricsEndpoint)
 
-	workQueueMetrics := WorkQueueMetrics{prefix: metricsConfig.MetricsPrefix}
+	workQueueMetrics := WorkQueueMetrics{prefix: metricsPrefix}
 	workqueue.SetProvider(&workQueueMetrics)
 }
 

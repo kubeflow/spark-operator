@@ -41,6 +41,7 @@ import (
 	crdscheme "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/client/clientset/versioned/scheme"
 	crdinformers "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/client/informers/externalversions"
 	crdlisters "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/client/listers/sparkoperator.k8s.io/v1alpha1"
+	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/util"
 )
 
 var (
@@ -56,6 +57,7 @@ type Controller struct {
 	ssaLister        crdlisters.ScheduledSparkApplicationLister
 	saLister         crdlisters.SparkApplicationLister
 	clock            clock.Clock
+	operatorConfig   util.OperatorConfig
 }
 
 func NewController(
@@ -63,7 +65,8 @@ func NewController(
 	kubeClient kubernetes.Interface,
 	extensionsClient apiextensionsclient.Interface,
 	informerFactory crdinformers.SharedInformerFactory,
-	clock clock.Clock) *Controller {
+	clock clock.Clock,
+	operatorConfig util.OperatorConfig) *Controller {
 	crdscheme.AddToScheme(scheme.Scheme)
 
 	queue := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(),
@@ -75,6 +78,7 @@ func NewController(
 		extensionsClient: extensionsClient,
 		queue:            queue,
 		clock:            clock,
+		operatorConfig:   operatorConfig,
 	}
 
 	informer := informerFactory.Sparkoperator().V1alpha1().ScheduledSparkApplications()
@@ -250,6 +254,10 @@ func (c *Controller) createSparkApplication(
 	scheduledApp *v1alpha1.ScheduledSparkApplication, t time.Time) (string, error) {
 	app := &v1alpha1.SparkApplication{}
 	app.Spec = scheduledApp.Spec.Template
+	if app.Spec.Image == nil {
+		app.Spec.Image = &c.operatorConfig.UnifiedSparkImage
+	}
+
 	app.Name = fmt.Sprintf("%s-%d", scheduledApp.Name, t.UnixNano())
 	app.OwnerReferences = append(app.OwnerReferences, metav1.OwnerReference{
 		APIVersion: v1alpha1.SchemeGroupVersion.String(),
@@ -258,6 +266,7 @@ func (c *Controller) createSparkApplication(
 		UID:        scheduledApp.UID,
 	})
 	app.ObjectMeta.SetLabels(scheduledApp.GetLabels())
+
 	_, err := c.crdClient.SparkoperatorV1alpha1().SparkApplications(scheduledApp.Namespace).Create(app)
 	if err != nil {
 		return "", err

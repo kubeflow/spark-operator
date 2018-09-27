@@ -70,6 +70,7 @@ type Controller struct {
 	sparkPodMonitor       *sparkPodMonitor
 	appStateReportingChan <-chan *appStateUpdate
 	podStateReportingChan <-chan interface{}
+	operatorConfig        util.OperatorConfig
 	metrics               *sparkAppMetrics
 }
 
@@ -79,20 +80,18 @@ func NewController(
 	kubeClient clientset.Interface,
 	extensionsClient apiextensionsclient.Interface,
 	informerFactory crdinformers.SharedInformerFactory,
-	submissionRunnerWorkers int,
-	metricsConfig *util.MetricConfig,
-	namespace string) *Controller {
+	operatorConfig util.OperatorConfig) *Controller {
 	crdscheme.AddToScheme(scheme.Scheme)
 
 	eventBroadcaster := record.NewBroadcaster()
 	eventBroadcaster.StartLogging(glog.V(2).Infof)
 	eventBroadcaster.StartRecordingToSink(&typedcorev1.EventSinkImpl{
-		Interface: kubeClient.CoreV1().Events(namespace),
+		Interface: kubeClient.CoreV1().Events(operatorConfig.Namespace),
 	})
 	recorder := eventBroadcaster.NewRecorder(scheme.Scheme, apiv1.EventSource{Component: "spark-operator"})
 
-	return newSparkApplicationController(crdClient, kubeClient, extensionsClient, informerFactory, recorder,
-		submissionRunnerWorkers, metricsConfig, namespace)
+	return newSparkApplicationController(crdClient, kubeClient, extensionsClient,
+		informerFactory, recorder, operatorConfig)
 }
 
 func newSparkApplicationController(
@@ -101,17 +100,15 @@ func newSparkApplicationController(
 	extensionsClient apiextensionsclient.Interface,
 	informerFactory crdinformers.SharedInformerFactory,
 	eventRecorder record.EventRecorder,
-	submissionRunnerWorkers int,
-	metricsConfig *util.MetricConfig,
-	namespace string) *Controller {
+	operatorConfig util.OperatorConfig) *Controller {
 	queue := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(),
 		"spark-application-controller")
 
-	appStateReportingChan := make(chan *appStateUpdate, submissionRunnerWorkers)
+	appStateReportingChan := make(chan *appStateUpdate, operatorConfig.SubmissionRunnerThreads)
 	podStateReportingChan := make(chan interface{})
 
-	runner := newSparkSubmitRunner(submissionRunnerWorkers, appStateReportingChan)
-	sparkPodMonitor := newSparkPodMonitor(kubeClient, namespace, podStateReportingChan)
+	runner := newSparkSubmitRunner(operatorConfig.SubmissionRunnerThreads, appStateReportingChan)
+	sparkPodMonitor := newSparkPodMonitor(kubeClient, operatorConfig.Namespace, podStateReportingChan)
 
 	controller := &Controller{
 		crdClient:             crdClient,
@@ -123,10 +120,11 @@ func newSparkApplicationController(
 		sparkPodMonitor:       sparkPodMonitor,
 		appStateReportingChan: appStateReportingChan,
 		podStateReportingChan: podStateReportingChan,
+		operatorConfig:        operatorConfig,
 	}
 
-	if metricsConfig != nil {
-		controller.metrics = newSparkAppMetrics(metricsConfig.MetricsPrefix, metricsConfig.MetricsLabels)
+	if operatorConfig.MetricsEnable {
+		controller.metrics = newSparkAppMetrics(operatorConfig.MetricsPrefix, operatorConfig.MetricsLabels)
 		controller.metrics.registerMetrics()
 	}
 
@@ -338,6 +336,15 @@ func (c *Controller) createSubmission(app *v1alpha1.SparkApplication) error {
 	} else {
 		appStatus.DriverInfo.WebUIServiceName = name
 		appStatus.DriverInfo.WebUIPort = port
+	}
+
+	if app.Spec.Image == nil && c.operatorConfig.UnifiedSparkImage == "" {
+		glog.Errorf("failed to create SparkApplication, " +
+			"both app.spec.image and default unified image are empty ")
+	}
+
+	if app.Spec.Image == nil {
+		app.Spec.Image = &c.operatorConfig.UnifiedSparkImage
 	}
 
 	if app.Spec.Monitoring != nil && app.Spec.Monitoring.Prometheus != nil {
