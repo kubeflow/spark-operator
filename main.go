@@ -56,7 +56,7 @@ var (
 	namespace               = flag.String("namespace", apiv1.NamespaceAll, "The Kubernetes namespace to manage. Will manage custom resource objects of the managed CRD types for the whole cluster if unset.")
 	enableWebhook           = flag.Bool("enable-webhook", false, "Whether to enable the mutating admission webhook for admitting and patching Spark pods.")
 	webhookCertDir          = flag.String("webhook-cert-dir", "/etc/webhook-certs", "The directory where x509 certificate and key files are stored.")
-	webhookSvcNamespace     = flag.String("webhook-svc-namespace", "sparkoperator", "The namespace of the Service for the webhook server.")
+	webhookSvcNamespace     = flag.String("webhook-svc-namespace", "spark-operator", "The namespace of the Service for the webhook server.")
 	webhookSvcName          = flag.String("webhook-svc-name", "spark-webhook", "The name of the Service for the webhook server.")
 	webhookPort             = flag.Int("webhook-port", 8080, "Service port of the webhook server.")
 	enableMetrics           = flag.Bool("enable-metrics", false, "Whether to enable the metrics endpoint.")

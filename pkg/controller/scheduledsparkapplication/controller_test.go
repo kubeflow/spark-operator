@@ -52,14 +52,24 @@ func TestSyncScheduledSparkApplication_Allow(t *testing.T) {
 
 	options := metav1.GetOptions{}
 
-	// The first sync should start the first run.
 	if err := c.syncScheduledSparkApplication(key); err != nil {
 		t.Fatal(err)
 	}
 	app, _ = c.crdClient.SparkoperatorV1alpha1().ScheduledSparkApplications(app.Namespace).Get(app.Name, options)
 	assert.Equal(t, v1alpha1.ScheduledState, app.Status.ScheduleState)
+	// The first run should not have been triggered.
+	assert.True(t, app.Status.LastRunName == "")
+
+	ssaInformer.GetIndexer().Add(app)
+	// Advance the clock by 1 minute.
+	clk.Step(1 * time.Minute)
+
+	if err := c.syncScheduledSparkApplication(key); err != nil {
+		t.Fatal(err)
+	}
+	app, _ = c.crdClient.SparkoperatorV1alpha1().ScheduledSparkApplications(app.Namespace).Get(app.Name, options)
 	firstRunName := app.Status.LastRunName
-	// The first run should have been started.
+	// The first run should have been triggered.
 	assert.True(t, firstRunName != "")
 	assert.False(t, app.Status.LastRun.IsZero())
 	assert.True(t, app.Status.NextRun.Time.After(app.Status.LastRun.Time))
@@ -167,14 +177,25 @@ func TestSyncScheduledSparkApplication_Forbid(t *testing.T) {
 
 	options := metav1.GetOptions{}
 
-	// The first sync should start the first run.
+	if err := c.syncScheduledSparkApplication(key); err != nil {
+		t.Fatal(err)
+	}
+	app, _ = c.crdClient.SparkoperatorV1alpha1().ScheduledSparkApplications(app.Namespace).Get(app.Name, options)
+	assert.Equal(t, v1alpha1.ScheduledState, app.Status.ScheduleState)
+	// The first run should not have been triggered.
+	assert.True(t, app.Status.LastRunName == "")
+
+	ssaInformer.GetIndexer().Add(app)
+	// Advance the clock by 1 minute.
+	clk.Step(1 * time.Minute)
+
 	if err := c.syncScheduledSparkApplication(key); err != nil {
 		t.Fatal(err)
 	}
 	app, _ = c.crdClient.SparkoperatorV1alpha1().ScheduledSparkApplications(app.Namespace).Get(app.Name, options)
 	assert.Equal(t, v1alpha1.ScheduledState, app.Status.ScheduleState)
 	firstRunName := app.Status.LastRunName
-	// The first run should have been started.
+	// The first run should have been triggered.
 	assert.True(t, firstRunName != "")
 	assert.False(t, app.Status.LastRun.IsZero())
 	assert.True(t, app.Status.NextRun.Time.After(app.Status.LastRun.Time))
@@ -224,14 +245,25 @@ func TestSyncScheduledSparkApplication_Replace(t *testing.T) {
 
 	options := metav1.GetOptions{}
 
-	// The first sync should start the first run.
+	if err := c.syncScheduledSparkApplication(key); err != nil {
+		t.Fatal(err)
+	}
+	app, _ = c.crdClient.SparkoperatorV1alpha1().ScheduledSparkApplications(app.Namespace).Get(app.Name, options)
+	assert.Equal(t, v1alpha1.ScheduledState, app.Status.ScheduleState)
+	// The first run should not have been triggered.
+	assert.True(t, app.Status.LastRunName == "")
+
+	ssaInformer.GetIndexer().Add(app)
+	// Advance the clock by 1 minute.
+	clk.Step(1 * time.Minute)
+
 	if err := c.syncScheduledSparkApplication(key); err != nil {
 		t.Fatal(err)
 	}
 	app, _ = c.crdClient.SparkoperatorV1alpha1().ScheduledSparkApplications(app.Namespace).Get(app.Name, options)
 	assert.Equal(t, v1alpha1.ScheduledState, app.Status.ScheduleState)
 	firstRunName := app.Status.LastRunName
-	// The first run should have been started.
+	// The first run should have been triggered.
 	assert.True(t, firstRunName != "")
 	assert.False(t, app.Status.LastRun.IsZero())
 	assert.True(t, app.Status.NextRun.Time.After(app.Status.LastRun.Time))
