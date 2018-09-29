@@ -21,12 +21,12 @@ limitations under the License.
 package v1alpha1
 
 import (
+	v1alpha1 "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1alpha1"
+	scheme "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/client/clientset/versioned/scheme"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"
 	watch "k8s.io/apimachinery/pkg/watch"
 	rest "k8s.io/client-go/rest"
-	v1alpha1 "k8s.io/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1alpha1"
-	scheme "k8s.io/spark-on-k8s-operator/pkg/client/clientset/versioned/scheme"
 )
 
 // SparkApplicationsGetter has a method to return a SparkApplicationInterface.

@@ -14,7 +14,8 @@
 # limitations under the License.
 #
 
-FROM gcr.io/spark-operator/spark:v2.3.1
+ARG SPARK_IMAGE=gcr.io/spark-operator/spark:v2.3.1
+FROM ${SPARK_IMAGE}
 
 # Setup dependencies for Google Cloud Storage access.
 RUN rm $SPARK_HOME/jars/guava-14.0.1.jar
@@ -23,10 +24,10 @@ ADD http://central.maven.org/maven2/com/google/guava/guava/23.0/guava-23.0.jar $
 ADD https://storage.googleapis.com/hadoop-lib/gcs/gcs-connector-latest-hadoop2.jar $SPARK_HOME/jars
 
 # Setup for the Prometheus JMX exporter.
-RUN mkdir /prometheus
+RUN mkdir -p /etc/metrics/conf
 # Add the Prometheus JMX exporter Java agent jar for exposing metrics sent to the JmxSink to Prometheus.
 ADD https://repo1.maven.org/maven2/io/prometheus/jmx/jmx_prometheus_javaagent/0.3.1/jmx_prometheus_javaagent-0.3.1.jar /prometheus/
-COPY conf/metrics.properties /prometheus/
-COPY conf/prometheus.yaml /prometheus/
+COPY conf/metrics.properties /etc/metrics/conf
+COPY conf/prometheus.yaml /etc/metrics/conf
 
 ENTRYPOINT ["/opt/entrypoint.sh"]

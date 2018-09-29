@@ -23,7 +23,8 @@ import (
 	"github.com/spf13/cobra"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	crdclientset "k8s.io/spark-on-k8s-operator/pkg/client/clientset/versioned"
+
+	crdclientset "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/client/clientset/versioned"
 )
 
 var deleteCmd = &cobra.Command{

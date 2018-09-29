@@ -1,4 +1,4 @@
-# Spark Operator Design
+# Kubernetes Operator for Apache Spark Design
 
 ## Table of Contents
 * [Introduction](#introduction)
@@ -11,13 +11,13 @@
 
 ## Introduction
 
-In Spark 2.3, Kubernetes becomes an official scheduler backend for Spark, additionally to the standalone scheduler, Mesos, and Yarn. Compared with the alternative approach of deploying a standalone Spark cluster on top of Kubernetes and submit applications to run on the standalone cluster, having Kubernetes as a native scheduler backend offers some important benefits as discussed in [SPARK-18278](https://issues.apache.org/jira/browse/SPARK-18278) and is a huge leap forward. However, the way life cycle of Spark applications are managed, e.g., how applications get submitted to run on Kubernetes and how application status is tracked, are vastly different from that of other types of workloads on Kubernetes, e.g., Deployments, DaemonSets, and StatefulSets. The Spark Operator reduces the gap and allow Spark applications to be specified, run, and monitored idiomatically on Kubernetes.
+In Spark 2.3, Kubernetes becomes an official scheduler backend for Spark, additionally to the standalone scheduler, Mesos, and Yarn. Compared with the alternative approach of deploying a standalone Spark cluster on top of Kubernetes and submit applications to run on the standalone cluster, having Kubernetes as a native scheduler backend offers some important benefits as discussed in [SPARK-18278](https://issues.apache.org/jira/browse/SPARK-18278) and is a huge leap forward. However, the way life cycle of Spark applications are managed, e.g., how applications get submitted to run on Kubernetes and how application status is tracked, are vastly different from that of other types of workloads on Kubernetes, e.g., Deployments, DaemonSets, and StatefulSets. The Kubernetes Operator for Apache Spark reduces the gap and allow Spark applications to be specified, run, and monitored idiomatically on Kubernetes.
 
-Specifically, the Spark Operator follows the recent trend of leveraging the [operator](https://coreos.com/blog/introducing-operators.html) pattern for managing the life cycle of Spark applications on a Kubernetes cluster. The Spark Operator allows Spark applications to be specified in a declarative manner (e.g., in a YAML file) and run without the need to deal with the spark submission process. It also enables status of Spark applications to be tracked and presented idiomatically like other types of workloads on Kubernetes. This document discusses the design and architecture of the Spark Operator. For documentation of the [CustomResourceDefinition](https://kubernetes.io/docs/concepts/api-extension/custom-resources/) for specification of Spark applications, please refer to [API Definition](api.md)      
+Specifically, the Kubernetes Operator for Apache Spark follows the recent trend of leveraging the [operator](https://coreos.com/blog/introducing-operators.html) pattern for managing the life cycle of Spark applications on a Kubernetes cluster. The operator allows Spark applications to be specified in a declarative manner (e.g., in a YAML file) and run without the need to deal with the spark submission process. It also enables status of Spark applications to be tracked and presented idiomatically like other types of workloads on Kubernetes. This document discusses the design and architecture of the operator. For documentation of the [CustomResourceDefinition](https://kubernetes.io/docs/concepts/api-extension/custom-resources/) for specification of Spark applications, please refer to [API Definition](api.md)      
 
 ## Architecture
 
-The Spark Operator consists of:
+The operator consists of:
 * a `SparkApplication` controller that watches events of creation, updates, and deletion of 
 `SparkApplication` objects and acts on the watch events,
 * a *submission runner* that runs `spark-submit` for submissions received from the controller,
@@ -45,7 +45,7 @@ As part of preparing a submission for a newly created `SparkApplication` object,
 
 ## Handling Application Restart
 
-The Spark Operator provides a configurable option through the `RestartPolicy` field of `SparkApplicationSpec` (see the [API Definition](api.md) for more details) for specifying the application restart policy. The operator determines if an application should be restarted based on its termination state and the restart policy. As discussed above, the termination state of an application is based on the termination state of the driver pod. So effectively the decision is based on the termination state of the driver pod and the restart policy. Specifically, one of the following conditions applies:
+The operator provides a configurable option through the `RestartPolicy` field of `SparkApplicationSpec` (see the [API Definition](api.md) for more details) for specifying the application restart policy. The operator determines if an application should be restarted based on its termination state and the restart policy. As discussed above, the termination state of an application is based on the termination state of the driver pod. So effectively the decision is based on the termination state of the driver pod and the restart policy. Specifically, one of the following conditions applies:
 
 * If the restart policy is `Never`, the application is not restarted upon terminating.
 * If the restart policy is `Always`, the application gets restarted regardless of the termination state of the application.
@@ -55,11 +55,11 @@ When the operator decides to restart an application, it cleans up the Kubernetes
 
 ## Handling Retries of Failed Submissions
 
-The submission of an application may fail for various reasons. Sometimes a submission may fail due to transient errors and a retry may succeed. The Spark Operator supports retries of failed submissions through a combination of the `MaxSubmissionRetries` field of `SparkApplicationSpec` and the `SubmissionRetries` field of `SparkApplicationStatus` (see the [API Definition](api.md) for more details). When the operator decides to retry a failed submission, it simply enqueues the `SparkApplication` object of the application into the internal work queue, from which it gets picked up by a worker who will handle the submission.   
+The submission of an application may fail for various reasons. Sometimes a submission may fail due to transient errors and a retry may succeed. The operator supports retries of failed submissions through a combination of the `MaxSubmissionRetries` field of `SparkApplicationSpec` and the `SubmissionRetries` field of `SparkApplicationStatus` (see the [API Definition](api.md) for more details). When the operator decides to retry a failed submission, it simply enqueues the `SparkApplication` object of the application into the internal work queue, from which it gets picked up by a worker who will handle the submission.   
 
 ## Mutating Admission Webhook
 
-The Spark Operator comes with an optional mutating admission webhook for customizing Spark driver and executor pods based on certain annotations on the pods added by the CRD controller. The annotations are set by the operator based on the application specifications. All Spark pod customization needs except for those natively support by Spark on Kubernetes are handled by the mutating admission webhook.
+The operator comes with an optional mutating admission webhook for customizing Spark driver and executor pods based on certain annotations on the pods added by the CRD controller. The annotations are set by the operator based on the application specifications. All Spark pod customization needs except for those natively support by Spark on Kubernetes are handled by the mutating admission webhook.
 
 ## Command-line Tool: Sparkctl 
 

@@ -1,12 +1,7 @@
 # User Guide
 
-For a quick introduction on how to build and install the Spark Operator, and how to run some example applications,
-please refer to the [Quick Start Guide](quick-start-guide.md). For a complete reference of the API definition of the 
-`SparkApplication` and `ScheduledSparkApplication` custom resources, please refer to the [API Specification](api.md). 
-The Spark Operator ships with a command-line tool called `sparkctl` that offers additional features beyond what `kubectl` 
-is able to do. Documentation on `sparkctl` can be found in [README](../sparkctl/README.md). If you are running the Spark 
-Operator on Google Kubernetes Engine and want to use Google Cloud Storage (GCS) and/or BigQuery for reading/writing data, 
-also refer to the [GCP guide](gcp.md). 
+For a quick introduction on how to build and install the Kubernetes Operator for Apache Spark, and how to run some example applications, please refer to the [Quick Start Guide](quick-start-guide.md). For a complete reference of the API definition of the `SparkApplication` and `ScheduledSparkApplication` custom resources, please refer to the [API Specification](api.md). 
+The Kubernetes Operator for Apache Spark ships with a command-line tool called `sparkctl` that offers additional features beyond what `kubectl` is able to do. Documentation on `sparkctl` can be found in [README](../sparkctl/README.md). If you are running the Spark Operator on Google Kubernetes Engine and want to use Google Cloud Storage (GCS) and/or BigQuery for reading/writing data, also refer to the [GCP guide](gcp.md). The Kubernetes Operator for Apache Spark will simply be referred to as the operator for the rest of this guide.  
 
 ## Table of Contents
 * [Using a SparkApplication](#using-a-sparkapplication)
@@ -34,12 +29,12 @@ also refer to the [GCP guide](gcp.md).
     * [Configuring Automatic Application Restart](#configuring-automatic-application-restart)
     * [Configuring Automatic Application Re-submission on Submission Failures](#configuring-automatic-application-re-submission-on-submission-failures)
 * [Running Spark Applications on a Schedule using a ScheduledSparkApplication](#running-spark-applications-on-a-schedule-using-a-scheduledsparkapplication)
-* [Customizing the Spark Operator](#customizing-the-spark-operator)
+* [Customizing the Operator](#customizing-the-operator)
 
 ## Using a SparkApplication
-The Spark Operator runs Spark applications specified in Kubernetes objects of the `SparkApplication` custom resource type.
+The operator runs Spark applications specified in Kubernetes objects of the `SparkApplication` custom resource type.
 The most common way of using a `SparkApplication` is store the `SparkApplication` specification in a YAML file and use
-the `kubectl` command or alternatively the `sparkctl` command to work with the `SparkApplication`. The Spark Operator
+the `kubectl` command or alternatively the `sparkctl` command to work with the `SparkApplication`. The operator
 automatically submits the application as configured in a `SparkApplication` to run on the Kubernetes cluster and uses
 the `SparkApplication` to collect and surface the status of the driver and executors to the user.
 
@@ -103,14 +98,14 @@ spec:
     files:
       - gs://spark-data/data-file-1.txt
       - gs://spark-data/data-file-2.txt
-``` 
+```
 
 ### Specifying Spark Configuration
 
 There are two ways to add Spark configuration: setting individual Spark configuration properties using the optional
 field `.spec.sparkConf` or mounting a special Kubernetes ConfigMap storing Spark configuration files, e.g., 
 `spark-defaults.conf`, `spark-env.sh`, `log4j.properties`, etc. using the optional field `.spec.sparkConfigMap`. If
-`.spec.sparkConfigMap` is used, additionally to mounting the ConfigMap into the driver and executors, the Spark Operator 
+`.spec.sparkConfigMap` is used, additionally to mounting the ConfigMap into the driver and executors, the operator
 additionally sets the environment variable `SPARK_CONF_DIR` to point to the mount path of the ConfigMap.
 
 ```yaml
@@ -125,7 +120,7 @@ spec:
 
 There are two ways to add Hadoop configuration: setting individual Hadoop configuration properties using the optional
 field `.spec.hadoopConf` or mounting a special Kubernetes ConfigMap storing Hadoop configuration files, e.g., 
-`core-site.xml`, using the optional field `.spec.hadoopConfigMap`. The Spark Operator automatically adds the prefix 
+`core-site.xml`, using the optional field `.spec.hadoopConfigMap`. The operator automatically adds the prefix 
 `spark.hadoop.` to the names of individual Hadoop configuration properties in `.spec.hadoopConf`. If 
 `.spec.hadoopConfigMap` is used, additionally to mounting the ConfigMap into the driver and executors, the Spark 
 Operator additionally sets the environment variable `HADOOP_CONF_DIR` to point to the mount path of the ConfigMap.
@@ -218,18 +213,18 @@ spec:
       - name: gcp-svc-account
         path: /mnt/secrets
         secretType: GCPServiceAccount
-```  
+```
 
-The type of a Secret as specified by the `secretType` field is a hint to the Spark Operator on what extra configuration
+The type of a Secret as specified by the `secretType` field is a hint to the operator on what extra configuration
 it needs to take care of for the specific type of Secrets. For example, if a Secret is of type **`GCPServiceAccount`**, the
-Spark Operator additionally sets the environment variable **`GOOGLE_APPLICATION_CREDENTIALS`** to point to the JSON key file 
+operator additionally sets the environment variable **`GOOGLE_APPLICATION_CREDENTIALS`** to point to the JSON key file 
 stored in the secret. Please refer to 
 [Getting Started with Authentication](https://cloud.google.com/docs/authentication/getting-started) for more information
-on how to authenticate with GCP services using a service account JSON key file. Note that the Spark Operator assumes
+on how to authenticate with GCP services using a service account JSON key file. Note that the operator assumes
 that the key of the service account JSON key file in the Secret data map is **`key.json`** so it is able to set the
-environment variable automatically. Similarly, if the type of a Secret is **`HadoopDelegationToken`**, the Spark Operator
+environment variable automatically. Similarly, if the type of a Secret is **`HadoopDelegationToken`**, the operator
 additionally sets the environment variable **`HADOOP_TOKEN_FILE_LOCATION`** to point to the file storing the Hadoop
-delegation token. In this case, the Spark Operator assumes that the key of the delegation token file in the Secret data
+delegation token. In this case, the operator assumes that the key of the delegation token file in the Secret data
 map is **`hadoop.token`**.
 
 ### Mounting ConfigMaps
@@ -255,7 +250,7 @@ Note that the mutating admission webhook is needed to use this feature. Please r
 
 A `SparkApplication` can specify a Kubernetes ConfigMap storing Spark configuration files such as `spark-env.sh` or 
 `spark-defaults.conf` using the optional field `.spec.sparkConfigMap` whose value is the name of the ConfigMap. The
-ConfigMap is assumed to be in the same namespace as that of the `SparkApplication`. The Spark Operator mounts the 
+ConfigMap is assumed to be in the same namespace as that of the `SparkApplication`. The operator mounts the 
 ConfigMap onto path `/etc/spark/conf` in both the driver and executors. Additionally, it also sets the environment 
 variable `SPARK_CONF_DIR` to point to `/etc/spark/conf` in the driver and executors.
 
@@ -266,7 +261,7 @@ Note that the mutating admission webhook is needed to use this feature. Please r
 
 A `SparkApplication` can specify a Kubernetes ConfigMap storing Hadoop configuration files such as `core-site.xml`
  using the optional field `.spec.hadoopConfigMap` whose value is the name of the ConfigMap. The ConfigMap is assumed to 
- be in the same namespace as that of the `SparkApplication`. The Spark Operator mounts the ConfigMap onto path 
+ be in the same namespace as that of the `SparkApplication`. The operator mounts the ConfigMap onto path 
  `/etc/hadoop/conf` in both the driver and executors. Additionally, it also sets the environment 
 variable `HADOOP_CONF_DIR` to point to `/etc/hadoop/conf` in the driver and executors.
 
@@ -275,7 +270,7 @@ Note that the mutating admission webhook is needed to use this feature. Please r
 
 ### Mounting Volumes
 
-The Spark Operator also supports mounting user-specified Kubernetes volumes into the driver and executors. A 
+The operator also supports mounting user-specified Kubernetes volumes into the driver and executors. A 
 `SparkApplication` has an optional field `.spec.volumes` for specifying the list of 
 [volumes](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.9/#volume-v1-core) the driver and the 
 executors need collectively. Then both the driver and executor specifications have an optional field `volumeMounts` 
@@ -326,7 +321,7 @@ spec:
       SECRET_PASSWORD:
         name: mysecret
         key: password 
-``` 
+```
 
 ### Using Image Pull Secrets
 
@@ -387,22 +382,22 @@ spec:
     pyfiles:
        - local:///opt/spark/examples/src/main/python/py_container_checks.py
        - gs://spark-data/python-dep.zip
-``` 
+```
 
 In order to use the dependencies that are hosted remotely, the following PySpark code
 can be used in Spark 2.4.
-  
+
 ```
 python_dep_file_path = SparkFiles.get("python-dep.zip")
 spark.sparkContext.addPyFile(dep_file_path)
-``` 
+```
 
 Note that Python binding for PySpark will be available in Apache Spark 2.4, 
 and currently requires building a custom Docker image from the Spark master branch.
 
 ### Monitoring
 
-The Spark Operator supports using the Spark metric system to expose metrics to a varity of sinks. Particularly, it is able to automatically configure the metric system to expose metrics to [Prometheus](https://prometheus.io/). Specifically, the field `.spec.monitoring` specifies how application monitoring is handled and particularly how metrics are to be reported. The metric system is configured through the configuration file `metrics.properties`, which gets its content from the field `.spec.monitoring.metricsProperties`. The content of [metrics.properties](../spark-docker/conf/metrics.properties) will be used by default if `.spec.monitoring.metricsProperties` is not specified. You can choose to enable or disable reporting driver and executor metrics using the fields `.spec.monitoring.exposeDriverMetrics` and `.spec.monitoring.exposeExecutorMetrics`, respectively. 
+The operator supports using the Spark metric system to expose metrics to a variety of sinks. Particularly, it is able to automatically configure the metric system to expose metrics to [Prometheus](https://prometheus.io/). Specifically, the field `.spec.monitoring` specifies how application monitoring is handled and particularly how metrics are to be reported. The metric system is configured through the configuration file `metrics.properties`, which gets its content from the field `.spec.monitoring.metricsProperties`. The content of [metrics.properties](../spark-docker/conf/metrics.properties) will be used by default if `.spec.monitoring.metricsProperties` is not specified. You can choose to enable or disable reporting driver and executor metrics using the fields `.spec.monitoring.exposeDriverMetrics` and `.spec.monitoring.exposeExecutorMetrics`, respectively. 
 
 Further, the field `.spec.monitoring.prometheus` specifies how metrics are exposed to Prometheus using the [Prometheus JMX exporter](https://github.com/prometheus/jmx_exporter). When `.spec.monitoring.prometheus` is specified, the operator automatically configures the JMX exporter to run as a Java agent. The only required field of `.spec.monitoring.prometheus` is `jmxExporterJar`, which specified the path to the Prometheus JMX exporter Java agent jar in the container. If you use the image `gcr.io/spark-operator/spark:v2.3.1-gcs-prometheus`, the jar is located at `/prometheus/jmx_prometheus_javaagent-0.3.1.jar`. The field `.spec.monitoring.prometheus.port` specifies the port the JMX exporter Java agent binds to and defaults to `8090` if not specified. The field `.spec.monitoring.prometheus.configuration` specifies the content of the configuration to be used with the JMX exporter. The content of [prometheus.yaml](../spark-docker/conf/prometheus.yaml) will be used by default if `.spec.monitoring.prometheus.configuration` is not specified.    
 
@@ -419,7 +414,7 @@ spec:
       jmxExporterJar: "/var/spark-data/spark-jars/jmx_prometheus_javaagent-0.3.1.jar"    
 ```
 
-The operator automatically adds the annotations such as `prometheus.io/scrape=true` on the driver and/or executor pods so the metrics exposed on the pods can be scraped by the Prometheus server in the same cluster.
+The operator automatically adds the annotations such as `prometheus.io/scrape=true` on the driver and/or executor pods (depending on the values of  `.spec.monitoring.exposeDriverMetrics` and `.spec.monitoring.exposeExecutorMetrics`) so the metrics exposed on the pods can be scraped by the Prometheus server in the same cluster.
 
 ## Working with SparkApplications
 
@@ -428,7 +423,7 @@ The operator automatically adds the annotations such as `prometheus.io/scrape=tr
 A `SparkApplication` can be created from a YAML file storing the `SparkApplication` specification using either the 
 `kubectl apply -f <YAML file path>` command or the `sparkctl create <YAML file path>` command. Please refer to the 
 `sparkctl` [README](../sparkctl/README.md#create) for usage of the `sparkctl create` command. Once a `SparkApplication` 
-is successfully created, the Spark Operator will receive it and submits the application as configured in the 
+is successfully created, the operator will receive it and submits the application as configured in the 
 specification to run on the Kubernetes cluster.
 
 ### Deleting a SparkApplication
@@ -442,9 +437,9 @@ deleted or garbage collected.
 ### Updating a SparkApplication
 
 A `SparkApplication` can be updated using the `kubectl apply -f <updated YAML file>` command. When a `SparkApplication` 
-is successfully updated, the Spark Operator will receive both the updated and old `SparkApplication` objects. If the 
-specification of the `SparkApplication` has changed, the Spark Operator submits the application to run, using the 
-updated specification. If the application is currently running, the Spark Operator kills the running application before 
+is successfully updated, the operator will receive both the updated and old `SparkApplication` objects. If the 
+specification of the `SparkApplication` has changed, the operator submits the application to run, using the 
+updated specification. If the application is currently running, the operator kills the running application before 
 submitting a new run with the updated specification. There is planned work to enhance the way `SparkApplication` updates 
 are handled. For example, if the change was to increase the number of executor instances, instead of killing the 
 currently running application and starting a new run, it is a much better user experience to incrementally launch the 
@@ -458,25 +453,25 @@ communicate the overall process and errors of the `SparkApplication`.
 
 ### Configuring Automatic Application Restart
 
-The Spark Operator supports automatic application restart with a configurable `RestartPolicy` using the optional field 
+The operator supports automatic application restart with a configurable `RestartPolicy` using the optional field 
 `.spec.restartPolicy`, whose valid values include `Never`, `OnFailure`, and `Always`. Upon termination of an application,
-the Spark Operator determines if the application is subject to restart based on its termination state and the 
-`RestartPolicy` in the specification. If the application is subject to restart, the Spark Operator restarts it by 
+the operator determines if the application is subject to restart based on its termination state and the 
+`RestartPolicy` in the specification. If the application is subject to restart, the operator restarts it by 
 submitting a new run of it. The old driver pod is deleted if it still exists before submitting the new run, and a new 
 driver pod is created by the submission client so effectively the driver gets restarted. 
 
 ### Configuring Automatic Application Re-submission on Submission Failures
 
-The Spark Operator supports automatically retrying failed submissions. When the Spark Operator failed to submit an
+The operator supports automatically retrying failed submissions. When the operator failed to submit an
 application, it determines if the application is subject to a submission retry based on if the optional field 
 `.spec.maxSubmissionRetries` is set and has a positive value and the number of times it has already retried. If the
-maximum submission retries has not been reached, the Spark Operator retries submitting the application using a linear
+maximum submission retries has not been reached, the operator retries submitting the application using a linear
 backoff with the interval specified by `.spec.submissionRetryInterval`. If `.spec.submissionRetryInterval` is not set,
-the Spark Operator retries submitting the application immediately.
+the operator retries submitting the application immediately.
 
 ## Running Spark Applications on a Schedule using a ScheduledSparkApplication 
 
-The Spark Operator supports running a Spark application on a standard [cron](https://en.wikipedia.org/wiki/Cron) 
+The operator supports running a Spark application on a standard [cron](https://en.wikipedia.org/wiki/Cron) 
 schedule using objects of the `ScheduledSparkApplication` custom resource type. A `ScheduledSparkApplication` object 
 specifies a cron schedule on which the application should run and a `SparkApplication` template from which 
 a `SparkApplication` object for each run of the application is created. The following is an example 
@@ -537,13 +532,13 @@ schedule and concurrency policy of a `ScheduledSparkApplication`. For example, a
 be used with a `ScheduledSparkApplication`. In most cases, a restart policy of `OnFailure` may not be a good choice as 
 the next run usually picks up where the previous run left anyway. For these reasons, it's often the right choice to use
 a restart policy of `Never` as the example above shows. 
- 
-## Customizing the Spark Operator
 
-To customize the Spark Operator, you can follow the steps below:
+## Customizing the Operator
+
+To customize the operator, you can follow the steps below:
 
 1. Compile Spark distribution with Kubernetes support as per [Spark documentation](https://spark.apache.org/docs/latest/building-spark.html#building-with-kubernetes-support).
 2. Create docker images to be used for Spark with [docker-image tool](https://spark.apache.org/docs/latest/running-on-kubernetes.html#docker-images).
-3. Create a new Spark Operator image based on the above image. You need to modify the `FROM` tag in the [Dockerfile](https://github.com/GoogleCloudPlatform/spark-on-k8s-operator/blob/master/Dockerfile) with your Spark image.
-4. Build and push your Spark Operator image built above. 
-5. Deploy the new image by modifying the [/manifest/spark-operator.yaml](https://github.com/GoogleCloudPlatform/spark-on-k8s-operator/blob/master/manifest/spark-operator.yaml) file and specfiying your Spark Operator image.
+3. Create a new operator image based on the above image. You need to modify the `FROM` tag in the [Dockerfile](https://github.com/GoogleCloudPlatform/spark-on-k8s-operator/blob/master/Dockerfile) with your Spark image.
+4. Build and push your operator image built above. 
+5. Deploy the new image by modifying the [/manifest/spark-operator.yaml](https://github.com/GoogleCloudPlatform/spark-on-k8s-operator/blob/master/manifest/spark-operator.yaml) file and specfiying your operator image.

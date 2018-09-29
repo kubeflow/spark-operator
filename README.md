@@ -6,13 +6,13 @@
 ## Community
 
 * Join our [Slack](https://kubernetes.slack.com/messages/CALBDHMTL) channel.
-* Check out [who is using the Spark Operator](docs/who-is-using.md).
+* Check out [who is using the Kubernetes Operator for Apache Spark](docs/who-is-using.md).
 
 ## Project Status
 
 **Project status:** *alpha* 
 
-Spark Operator is still under active development. Backward compatibility of the APIs is not guaranteed for alpha releases.
+The Kubernetes Operator for Apache Spark is still under active development. Backward compatibility of the APIs is not guaranteed for alpha releases.
 
 Customization of Spark pods, e.g., mounting arbitrary volumes and setting pod affinity, is currently experimental and implemented using a Kubernetes
 [Mutating Admission Webhook](https://kubernetes.io/docs/reference/access-authn-authz/extensible-admission-controllers/), which became beta in Kubernetes 1.9. 
@@ -24,7 +24,7 @@ on how to enable the webhook.
 * Version >= 1.8 of Kubernetes.
 * Version >= 1.9 of Kubernetes if **using the mutating admission webhook for Spark pod customization**.
 
-Spark Operator relies on [garbage collection](https://kubernetes.io/docs/concepts/workloads/controllers/garbage-collection/) support for custom resources that is available in Kubernetes 1.8+ 
+The Kubernetes Operator for Apache Spark relies on [garbage collection](https://kubernetes.io/docs/concepts/workloads/controllers/garbage-collection/) support for custom resources that is available in Kubernetes 1.8+ 
 and **optionally** the [Mutating Admission Webhook](https://kubernetes.io/docs/reference/access-authn-authz/extensible-admission-controllers/) which is available in Kubernetes 1.9+.
 
 **Due to this [bug](https://github.com/kubernetes/kubernetes/issues/56018) in Kubernetes 1.9 and earlier, CRD objects with
@@ -32,24 +32,33 @@ escaped quotes (e.g., `spark.ui.port\"`) in map keys can cause serialization pro
 extra attention to make sure no offending escaping is in your `SparkAppliction` CRD objects, particularly if you use 
 Kubernetes prior to 1.10.**
 
+## Installation
+
+The easiest way to install the Kubernetes Operator for Apache Spark is to use the Helm [chart](https://github.com/helm/charts/tree/master/incubator/sparkoperator).
+
+```bash
+$ helm repo add incubator http://storage.googleapis.com/kubernetes-charts-incubator
+$ helm install incubator/sparkoperator
+``` 
+
 ## Get Started
 
-Get started quickly with the Spark Operator using the [Quick Start Guide](docs/quick-start-guide.md). 
+Get started quickly with the Kubernetes Operator for Apache Spark using the [Quick Start Guide](docs/quick-start-guide.md). 
 
-If you are running the Spark Operator on Google Kubernetes Engine and want to use Google Cloud Storage (GCS) and/or BigQuery for reading/writing data, also refer to the [GCP guide](docs/gcp.md).
+If you are running the Kubernetes Operator for Apache Spark on Google Kubernetes Engine and want to use Google Cloud Storage (GCS) and/or BigQuery for reading/writing data, also refer to the [GCP guide](docs/gcp.md).
 
 For more information, check the [Design](docs/design.md), [API Specification](docs/api.md) and detailed [User Guide](docs/user-guide.md).
 
 ## Overview
 
-Spark Operator aims to make specifying and running [Spark](https://github.com/apache/spark) 
+The Kubernetes Operator for Apache Spark aims to make specifying and running [Spark](https://github.com/apache/spark) 
 applications as easy and idiomatic as running other workloads on Kubernetes. It uses 
 [Kubernetes custom resources](https://kubernetes.io/docs/concepts/extend-kubernetes/api-extension/custom-resources/) 
 for specifying, running, and surfacing status of Spark applications. For a complete reference of the custom resource definitions, 
 please refer to the [API Definition](docs/api.md). For details on its design, please refer to the [design doc](docs/design.md). 
 It requires Spark 2.3 and above that supports Kubernetes as a native scheduler backend.
 
-Spark Operator currently supports the following list of features:
+The Kubernetes Operator for Apache Spark currently supports the following list of features:
 
 * Supports Spark 2.3 and up.
 * Enables declarative application specification and management of applications through custom resources. 
@@ -63,20 +72,6 @@ Spark Operator currently supports the following list of features:
 * Supports automatically staging local application dependencies to Google Cloud Storage (GCS) via `sparkctl`.
 * Supports collecting and exporting application-level metrics and driver/executor metrics to Prometheus. 
 
-## Motivations
+## Contributing
 
-This approach is completely different than the one that has the submission client creates a CRD object. Having externally 
-created and managed CRD objects offer the following benefits:
-* Things like creating namespaces and setting up RBAC roles and resource quotas represent a separate concern and are better 
-done before applications get submitted.
-* With the external CRD controller submitting applications on behalf of users, they don't need to deal with the submission 
-process and the `spark-submit` command. Instead, the focus is shifted from thinking about commands to thinking about declarative 
-YAML files describing Spark applications that can be easily version controlled. 
-* Externally created CRD objects make it easier to integrate Spark application submission and monitoring with users' existing 
-pipelines and tooling on Kubernetes.
-* Internally created CRD objects are good for capturing and communicating application/executor status to the users, but not 
-for driver/executor pod configuration/customization as very likely it needs external input. Such external input most likely 
-need additional command-line options to get passed in.
-
-Additionally, keeping the CRD implementation outside the Spark repository gives us a lot of flexibility in terms of 
-functionality to add to the CRD controller. We also have full control over code review and release process.
+Please check [CONTRIBUTING.md](CONTRIBUTING.md) and the [Developer Guide](docs/developer-guide.md) out. 

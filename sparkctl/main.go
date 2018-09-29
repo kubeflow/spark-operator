@@ -19,7 +19,7 @@ package main
 import (
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
-	"k8s.io/spark-on-k8s-operator/sparkctl/cmd"
+	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/sparkctl/cmd"
 )
 
 func main() {
