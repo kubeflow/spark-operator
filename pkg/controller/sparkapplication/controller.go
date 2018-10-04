@@ -314,16 +314,6 @@ func (c *Controller) getUpdatedAppStatus(app *v1alpha1.SparkApplication) *v1alph
 			if app.Status.CompletionTime.IsZero() && !currentDriverState.completionTime.IsZero() {
 				app.Status.CompletionTime = currentDriverState.completionTime
 			}
-
-			if isAppTerminated(newAppState) {
-				c.recorder.Eventf(
-					app,
-					apiv1.EventTypeNormal,
-					"SparkApplicationTerminated",
-					"SparkApplication %s terminated with state: %v",
-					currentDriverState.podName,
-					newAppState)
-			}
 		} else {
 			glog.Warningf("Invalid Driver State: " + err.Error())
 		}
@@ -377,7 +367,6 @@ func (c *Controller) handleSparkApplicationDeletion(app *v1alpha1.SparkApplicati
 	return app
 }
 
-
 // State Machine Transition for Spark Application:
 //+--------------------------------------------------------------------------------------------------------------------+
 //|                                                                                                                    |
@@ -393,8 +382,8 @@ func (c *Controller) handleSparkApplicationDeletion(app *v1alpha1.SparkApplicati
 //|           |         |          |                                                                  |                |
 //|      +----+----+    |    +-----v----+          +----------+           +-----------+          +----v-----+          |
 //|      |         |    |    |          |          |          |           |           |          |          |          |
-//|      |         |    |    |          |          |          |           |           |          |Terminated|          |
-//|      |   New   +---------> Submitted+----------> Running  +----------->   Failed  +---------->  Failed  |          |
+//|      |         |    |    |          |          |          |           |           |          |			|          |
+//|      |   New   +---------> Submitted+----------> Running  +----------->  Failing  +---------->  Failed  |          |
 //|      |         |    |    |          |          |          |           |           |          |          |          |
 //|      |         |    |    |          |          |          |           |           |          |          |          |
 //|      |         |    |    |          |          |          |           |           |          |          |          |
@@ -403,9 +392,8 @@ func (c *Controller) handleSparkApplicationDeletion(app *v1alpha1.SparkApplicati
 //|                     |         |                      |                      |                                      |
 //|                     |         |             +-------------------------------+                                      |
 //|                     |   +-----+-----+       |        |                +-----------+          +----------+          |
-//|                     |   |           |       |        |                |           |          |          |          |
-//|                     |   |  Pending  |       |        |                |           |          |Terminated|          |
-//|                     +---+   Retry   <-------+        +----------------> Completed +---------->Completed |          |
+//|                     |   |  Pending  |       |        |                |           |          |          |          |
+//|                     +---+   Retry   <-------+        +---------------->Succeeding +---------->Completed |          |
 //|                         |           <-------+                         |           |          |          |          |
 //|                         |           |       |                         |           |          |          |          |
 //|                         |           |       |                         |           |          |          |          |
@@ -437,7 +425,7 @@ func (c *Controller) syncSparkApplication(key string) error {
 			appToUpdate.Status.SubmissionAttempts = 0
 			glog.Infof("Creating Submission for SparkApp: %s", key)
 			appToUpdate = c.submitSparkApplication(appToUpdate)
-		case v1alpha1.CompletedState:
+		case v1alpha1.SucceedingState:
 			if appToUpdate.Spec.RestartPolicy.Type == v1alpha1.Always {
 				if err := c.deleteSparkResources(appToUpdate, true); err != nil {
 					glog.Errorf("failed to delete the driver pod and UI service for deleted SparkApplication %s: %v",
@@ -447,9 +435,9 @@ func (c *Controller) syncSparkApplication(key string) error {
 				appToUpdate.Status.AppState.State = v1alpha1.PendingRetryState
 			} else {
 				// App will never be retried. Move to Terminal Completed State.
-				appToUpdate.Status.AppState.State = v1alpha1.TerminatedCompletedState
+				appToUpdate.Status.AppState.State = v1alpha1.CompletedState
 			}
-		case v1alpha1.FailedState:
+		case v1alpha1.FailingState:
 			shouldRetry := false
 			if appToUpdate.Spec.RestartPolicy.Type == v1alpha1.Always {
 				shouldRetry = true
@@ -462,7 +450,7 @@ func (c *Controller) syncSparkApplication(key string) error {
 
 			if !shouldRetry {
 				// App will never be retried. Move to Terminal Failure State.
-				appToUpdate.Status.AppState.State = v1alpha1.TerminatedFailedState
+				appToUpdate.Status.AppState.State = v1alpha1.FailedState
 			} else if hasRetryIntervalPassed(appToUpdate.Spec.RestartPolicy.OnFailureRetryInterval, appToUpdate.Status.Attempts, appToUpdate.Status.CompletionTime) {
 				if err := c.deleteSparkResources(appToUpdate, true); err != nil {
 					glog.Errorf("failed to delete the driver pod and UI service for deleted SparkApplication %s: %v",
@@ -484,7 +472,7 @@ func (c *Controller) syncSparkApplication(key string) error {
 
 			if !shouldRetry {
 				// App will never be retried. Move to Terminal Failure State.
-				appToUpdate.Status.AppState.State = v1alpha1.TerminatedFailedState
+				appToUpdate.Status.AppState.State = v1alpha1.FailedState
 			} else if hasRetryIntervalPassed(appToUpdate.Spec.RestartPolicy.OnSubmissionFailureRetryInterval, appToUpdate.Status.SubmissionAttempts, appToUpdate.Status.SubmissionTime) {
 				glog.Infof("Creating Submission for SparkApp: %s", key)
 				appToUpdate = c.submitSparkApplication(appToUpdate)
@@ -515,6 +503,16 @@ func (c *Controller) syncSparkApplication(key string) error {
 		if c.updateAppAndExportMetrics(app, appToUpdate) != nil {
 			glog.Errorf("Failed to update App: %s. Error: %v", app.GetName(), err)
 			return err
+		}
+
+		if isAppTerminated(appToUpdate.Status.AppState.State) {
+			c.recorder.Eventf(
+				app,
+				apiv1.EventTypeNormal,
+				"SparkApplicationTerminated",
+				"SparkApplication %s terminated with state: %v",
+				appToUpdate.GetName(),
+				appToUpdate.Status.AppState.State)
 		}
 	}
 	return nil

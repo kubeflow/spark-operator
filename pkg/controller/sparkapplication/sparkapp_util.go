@@ -7,8 +7,6 @@ import (
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1alpha1"
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/config"
 	apiv1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/tools/cache"
 )
 
 // Helper method to create a key with namespace and appName
@@ -51,13 +49,6 @@ func podPhaseToExecutorState(podPhase apiv1.PodPhase) v1alpha1.ExecutorState {
 	}
 }
 
-func getApplicationKey(namespace, name string) (string, error) {
-	return cache.MetaNamespaceKeyFunc(&metav1.ObjectMeta{
-		Namespace: namespace,
-		Name:      name,
-	})
-}
-
 func isAppTerminated(appState v1alpha1.ApplicationStateType) bool {
 	return appState == v1alpha1.CompletedState || appState == v1alpha1.FailedState
 }
@@ -73,9 +64,9 @@ func driverPodPhaseToApplicationState(podPhase apiv1.PodPhase) (v1alpha1.Applica
 	case apiv1.PodRunning:
 		return v1alpha1.RunningState, nil
 	case apiv1.PodSucceeded:
-		return v1alpha1.CompletedState, nil
+		return v1alpha1.SucceedingState, nil
 	case apiv1.PodFailed:
-		return v1alpha1.FailedState, nil
+		return v1alpha1.FailingState, nil
 	}
 	return "", errors.New(fmt.Sprintf("Invalid driver Pod Phase found: %s", podPhase))
 }
