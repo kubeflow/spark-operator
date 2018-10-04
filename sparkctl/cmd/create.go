@@ -23,6 +23,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"reflect"
 	"unicode/utf8"
 
 	"github.com/google/go-cloud/blob"
@@ -46,31 +47,43 @@ var UploadToEndpoint string
 var UploadToRegion string
 var Public bool
 var Override bool
+var From string
 
 var createCmd = &cobra.Command{
 	Use:   "create <yaml file>",
 	Short: "Create a SparkApplication object",
 	Long:  `Create a SparkApplication from a given YAML file storing the application specification.`,
 	Run: func(cmd *cobra.Command, args []string) {
+		if From != "" && len(args) != 1 {
+			fmt.Fprintln(os.Stderr, "must specify the name of a ScheduledSparkApplication")
+			return
+		}
+
 		if len(args) != 1 {
 			fmt.Fprintln(os.Stderr, "must specify a YAML file of a SparkApplication")
 			return
 		}
 
-		kubeClientset, err := getKubeClient()
+		kubeClient, err := getKubeClient()
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "failed to get Kubernetes client: %v\n", err)
 			return
 		}
 
-		crdClientset, err := getSparkApplicationClient()
+		crdClient, err := getSparkApplicationClient()
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "failed to get SparkApplication client: %v\n", err)
 			return
 		}
 
-		if err := doCreate(args[0], kubeClientset, crdClientset); err != nil {
-			fmt.Fprintf(os.Stderr, "%v\n", err)
+		if From != "" {
+			if err := createFromScheduledSparkApplication(args[0], kubeClient, crdClient); err != nil {
+				fmt.Fprintf(os.Stderr, "%v\n", err)
+			}
+		} else {
+			if err := createFromYaml(args[0], kubeClient, crdClient); err != nil {
+				fmt.Fprintf(os.Stderr, "%v\n", err)
+			}
 		}
 	},
 }
@@ -86,32 +99,71 @@ func init() {
 		"whether to make uploaded files publicly available")
 	createCmd.Flags().BoolVarP(&Override, "override", "o", false,
 		"whether to override remote files with the same names")
+	createCmd.Flags().StringVarP(&From, "from", "f", "",
+		"the name of ScheduledSparkApplication from which a forced SparkApplication run is created")
 }
 
-func doCreate(yamlFile string, kubeClientset clientset.Interface, crdClientset crdclientset.Interface) error {
+func createFromYaml(yamlFile string, kubeClient clientset.Interface, crdClient crdclientset.Interface) error {
 	app, err := loadFromYAML(yamlFile)
 	if err != nil {
+		return fmt.Errorf("failed to read a SparkApplication from %s: %v", yamlFile, err)
+	}
+
+	if err := createSparkApplication(app, kubeClient, crdClient); err != nil {
+		return fmt.Errorf("failed to create SparkApplication %s: %v", app.Name, err)
+	}
+
+	return nil
+}
+
+func createFromScheduledSparkApplication(name string, kubeClient clientset.Interface, crdClient crdclientset.Interface) error {
+	sapp, err := crdClient.SparkoperatorV1alpha1().ScheduledSparkApplications(Namespace).Get(From, metav1.GetOptions{})
+	if err != nil {
+		return fmt.Errorf("failed to get ScheduledSparkApplication %s: %v", From, err)
+	}
+
+	app := &v1alpha1.SparkApplication{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: Namespace,
+			Name:      name,
+			OwnerReferences: []metav1.OwnerReference{
+				{
+					APIVersion: v1alpha1.SchemeGroupVersion.String(),
+					Kind:       reflect.TypeOf(v1alpha1.ScheduledSparkApplication{}).Name(),
+					Name:       sapp.Name,
+					UID:        sapp.UID,
+				},
+			},
+		},
+		Spec: *sapp.Spec.Template.DeepCopy(),
+	}
+
+	if err := createSparkApplication(app, kubeClient, crdClient); err != nil {
+		return fmt.Errorf("failed to create SparkApplication %s: %v", app.Name, err)
+	}
+
+	return nil
+}
+
+func createSparkApplication(app *v1alpha1.SparkApplication, kubeClient clientset.Interface, crdClient crdclientset.Interface) error {
+	v1alpha1.SetSparkApplicationDefaults(app)
+	if err := validateSpec(app.Spec); err != nil {
 		return err
 	}
 
-	v1alpha1.SetSparkApplicationDefaults(app)
-	if err = validateSpec(app.Spec); err != nil {
-		return fmt.Errorf("validation failed for SparkApplication %s: %v", app.Name, err)
-	}
-
-	if err = handleLocalDependencies(app); err != nil {
+	if err := handleLocalDependencies(app); err != nil {
 		return err
 	}
 
 	if hadoopConfDir := os.Getenv("HADOOP_CONF_DIR"); hadoopConfDir != "" {
 		fmt.Println("creating a ConfigMap for Hadoop configuration files in HADOOP_CONF_DIR")
-		if err = handleHadoopConfiguration(app, hadoopConfDir, kubeClientset); err != nil {
+		if err := handleHadoopConfiguration(app, hadoopConfDir, kubeClient); err != nil {
 			return err
 		}
 	}
 
-	if _, err = crdClientset.SparkoperatorV1alpha1().SparkApplications(Namespace).Create(app); err != nil {
-		return fmt.Errorf("failed to create SparkApplication %s: %v", app.Name, err)
+	if _, err := crdClient.SparkoperatorV1alpha1().SparkApplications(Namespace).Create(app); err != nil {
+		return err
 	}
 
 	fmt.Printf("SparkApplication \"%s\" created\n", app.Name)
