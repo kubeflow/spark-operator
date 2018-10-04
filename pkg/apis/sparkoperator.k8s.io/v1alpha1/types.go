@@ -238,13 +238,15 @@ type ApplicationStateType string
 
 // Different states an application may have.
 const (
-	NewState              ApplicationStateType = ""
-	SubmittedState        ApplicationStateType = "SUBMITTED"
-	RunningState          ApplicationStateType = "RUNNING"
-	CompletedState        ApplicationStateType = "COMPLETED"
-	FailedState           ApplicationStateType = "FAILED"
-	FailedSubmissionState ApplicationStateType = "SUBMISSION_FAILED"
-	PendingRetryState     ApplicationStateType = "PENDING_RETRY"
+	NewState                 ApplicationStateType = ""
+	SubmittedState           ApplicationStateType = "SUBMITTED"
+	RunningState             ApplicationStateType = "RUNNING"
+	CompletedState           ApplicationStateType = "COMPLETED"
+	FailedState              ApplicationStateType = "FAILED"
+	FailedSubmissionState    ApplicationStateType = "SUBMISSION_FAILED"
+	PendingRetryState        ApplicationStateType = "PENDING_RETRY"
+	TerminatedCompletedState ApplicationStateType = "TERMINATED_COMPLETED"
+	TerminatedFailedState    ApplicationStateType = "TERMINATED_FAILED"
 )
 
 // ApplicationState tells the current state of the application and an error message in case of failures.

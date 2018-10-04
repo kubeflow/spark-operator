@@ -299,7 +299,7 @@ func TestSyncSparkApplication_SubmissionFailed(t *testing.T) {
 	// Verify App Failed again.
 	updatedApp, err = ctrl.crdClient.SparkoperatorV1alpha1().SparkApplications(app.Namespace).Get(app.Name, metav1.GetOptions{})
 	assert.Nil(t, err)
-	assert.Equal(t, v1alpha1.FailedSubmissionState, updatedApp.Status.AppState.State)
+	assert.Equal(t, v1alpha1.TerminatedFailedState, updatedApp.Status.AppState.State)
 	// No more submission attempts made.
 	assert.Equal(t, int32(2), updatedApp.Status.SubmissionAttempts)
 }
@@ -487,7 +487,7 @@ func TestSyncSparkApp_SubmissionSuccess(t *testing.T) {
 					},
 				},
 			},
-			expectedState: v1alpha1.CompletedState,
+			expectedState: v1alpha1.TerminatedCompletedState,
 		},
 		{
 			app: &v1alpha1.SparkApplication{
@@ -522,7 +522,7 @@ func TestSyncSparkApp_SubmissionSuccess(t *testing.T) {
 					RestartPolicy: restartPolicyOnFailure,
 				},
 			},
-			expectedState: v1alpha1.FailedState,
+			expectedState: v1alpha1.TerminatedFailedState,
 		},
 		{
 			app: &v1alpha1.SparkApplication{
@@ -578,7 +578,7 @@ func TestSyncSparkApp_SubmissionSuccess(t *testing.T) {
 					RestartPolicy: restartPolicyOnFailure,
 				},
 			},
-			expectedState: v1alpha1.FailedSubmissionState,
+			expectedState: v1alpha1.TerminatedFailedState,
 		},
 		{
 			app: &v1alpha1.SparkApplication{
@@ -745,7 +745,7 @@ func TestSyncSparkApplication_ExecutingState(t *testing.T) {
 					Phase: apiv1.PodFailed,
 				},
 			},
-			expectedAppState:        v1alpha1.FailedState,
+			expectedAppState:        v1alpha1.TerminatedFailedState,
 			expectedExecutorState:   map[string]v1alpha1.ExecutorState{"exec-1": v1alpha1.ExecutorCompletedState},
 			expectedAppMetrics:      metrics{},
 			expectedExecutorMetrics: executorMetrics{},

@@ -378,42 +378,43 @@ func (c *Controller) handleSparkApplicationDeletion(app *v1alpha1.SparkApplicati
 }
 
 
-//
 // State Machine Transition for Spark Application:
-//
-//          +---------+
-//          |         |
-//          |         |
-//          |Submission
-//     +----> Failed  +-----+
-//     |    |         |     |
-//     |    |         |     |
-//     |    +----^----+     |
-//     |         |          |
-//     |         |          |
-//+----+----+    |    +-----v----+          +----------+           +-----------+
-//|         |    |    |          |          |          |           |           |
-//|         |    |    |          |          |          |           |           |
-//|   New   +---------> Submitted+----------> Running  +-----------> Completed |
-//|         |    |    |          |          |          |           |           |
-//|         |    |    |          |          |          |           |           |
-//|         |    |    |          |          |          |           |           |
-//+---------+    |    +----^-----+          +-----+----+           +-----+-----+
-//               |         |                      |                      |
-//               |         |                      |                      |
-//               |         |             +-------------------------------+
-//               |   +-----+-----+       |        |                +-----------+
-//               |   |           |       |        |                |           |
-//               |   |  Pending  |       |        |                |           |
-//               +---+   Retry   <-------+        +---------------->  Failed   |
-//                   |           <-------+                         |           |
-//                   |           |       |                         |           |
-//                   |           |       |                         |           |
-//                   +-----------+       |                         +-----+-----+
-//                                       |                               |
-//                                       |                               |
-//                                       +-------------------------------+
-//
+//+--------------------------------------------------------------------------------------------------------------------+
+//|                                                                                                                    |
+//|                +---------+                                                                                         |
+//|                |         |                                                                                         |
+//|                |         +                                                                                         |
+//|                |Submission                                                                                         |
+//|           +----> Failed  +-----+------------------------------------------------------------------+                |
+//|           |    |         |     |                                                                  |                |
+//|           |    |         |     |                                                                  |                |
+//|           |    +----^----+     |                                                                  |                |
+//|           |         |          |                                                                  |                |
+//|           |         |          |                                                                  |                |
+//|      +----+----+    |    +-----v----+          +----------+           +-----------+          +----v-----+          |
+//|      |         |    |    |          |          |          |           |           |          |          |          |
+//|      |         |    |    |          |          |          |           |           |          |Terminated|          |
+//|      |   New   +---------> Submitted+----------> Running  +----------->   Failed  +---------->  Failed  |          |
+//|      |         |    |    |          |          |          |           |           |          |          |          |
+//|      |         |    |    |          |          |          |           |           |          |          |          |
+//|      |         |    |    |          |          |          |           |           |          |          |          |
+//|      +---------+    |    +----^-----+          +-----+----+           +-----+-----+          +----------+          |
+//|                     |         |                      |                      |                                      |
+//|                     |         |                      |                      |                                      |
+//|                     |         |             +-------------------------------+                                      |
+//|                     |   +-----+-----+       |        |                +-----------+          +----------+          |
+//|                     |   |           |       |        |                |           |          |          |          |
+//|                     |   |  Pending  |       |        |                |           |          |Terminated|          |
+//|                     +---+   Retry   <-------+        +----------------> Completed +---------->Completed |          |
+//|                         |           <-------+                         |           |          |          |          |
+//|                         |           |       |                         |           |          |          |          |
+//|                         |           |       |                         |           |          |          |          |
+//|                         +-----------+       |                         +-----+-----+          +----------+          |
+//|                                             |                               |                                      |
+//|                                             |                               |                                      |
+//|                                             +-------------------------------+                                      |
+//|                                                                                                                    |
+//+--------------------------------------------------------------------------------------------------------------------+
 func (c *Controller) syncSparkApplication(key string) error {
 	namespace, name, err := cache.SplitMetaNamespaceKey(key)
 	if err != nil {
@@ -444,6 +445,9 @@ func (c *Controller) syncSparkApplication(key string) error {
 					return err
 				}
 				appToUpdate.Status.AppState.State = v1alpha1.PendingRetryState
+			} else {
+				// App will never be retried. Move to Terminal Completed State.
+				appToUpdate.Status.AppState.State = v1alpha1.TerminatedCompletedState
 			}
 		case v1alpha1.FailedState:
 			shouldRetry := false
@@ -455,14 +459,17 @@ func (c *Controller) syncSparkApplication(key string) error {
 					shouldRetry = true
 				}
 			}
-			if shouldRetry && hasRetryIntervalPassed(appToUpdate.Spec.RestartPolicy.OnFailureRetryInterval, appToUpdate.Status.Attempts, appToUpdate.Status.CompletionTime) {
+
+			if !shouldRetry {
+				// App will never be retried. Move to Terminal Failure State.
+				appToUpdate.Status.AppState.State = v1alpha1.TerminatedFailedState
+			} else if hasRetryIntervalPassed(appToUpdate.Spec.RestartPolicy.OnFailureRetryInterval, appToUpdate.Status.Attempts, appToUpdate.Status.CompletionTime) {
 				if err := c.deleteSparkResources(appToUpdate, true); err != nil {
 					glog.Errorf("failed to delete the driver pod and UI service for deleted SparkApplication %s: %v",
 						appToUpdate.Name, err)
 					return err
 				}
 				appToUpdate.Status.AppState.State = v1alpha1.PendingRetryState
-
 			}
 		case v1alpha1.FailedSubmissionState:
 			shouldRetry := false
@@ -474,7 +481,11 @@ func (c *Controller) syncSparkApplication(key string) error {
 					shouldRetry = true
 				}
 			}
-			if shouldRetry && hasRetryIntervalPassed(appToUpdate.Spec.RestartPolicy.OnSubmissionFailureRetryInterval, appToUpdate.Status.SubmissionAttempts, appToUpdate.Status.SubmissionTime) {
+
+			if !shouldRetry {
+				// App will never be retried. Move to Terminal Failure State.
+				appToUpdate.Status.AppState.State = v1alpha1.TerminatedFailedState
+			} else if hasRetryIntervalPassed(appToUpdate.Spec.RestartPolicy.OnSubmissionFailureRetryInterval, appToUpdate.Status.SubmissionAttempts, appToUpdate.Status.SubmissionTime) {
 				glog.Infof("Creating Submission for SparkApp: %s", key)
 				appToUpdate = c.submitSparkApplication(appToUpdate)
 			}
