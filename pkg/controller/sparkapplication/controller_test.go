@@ -942,7 +942,7 @@ func TestSyncSparkApplication_ExecutingState(t *testing.T) {
 					ResourceVersion: "1",
 				},
 				Status: apiv1.PodStatus{
-					Phase: apiv1.PodFailed,
+					Phase: apiv1.PodSucceeded,
 				},
 			},
 			expectedAppState:      v1beta1.FailingState,

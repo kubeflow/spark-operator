@@ -558,6 +558,16 @@ func (c *Controller) syncSparkApplication(key string) error {
 			glog.Errorf("failed to update SparkApplication %s/%s: %v", app.Namespace, app.Name, err)
 			return err
 		}
+
+		if isAppTerminated(appToUpdate.Status.AppState.State) {
+			c.recorder.Eventf(
+				app,
+				apiv1.EventTypeNormal,
+				"SparkApplicationTerminated",
+				"SparkApplication %s terminated with state: %v",
+				appToUpdate.GetName(),
+				appToUpdate.Status.AppState.State)
+		}
 	}
 
 	return nil
