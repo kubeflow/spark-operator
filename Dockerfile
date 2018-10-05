@@ -33,5 +33,4 @@ COPY --from=builder /usr/bin/spark-operator /usr/bin/
 RUN apk add --update openssl && rm -rf /var/cache/apk/*
 RUN apk add --update curl && rm -rf /var/cache/apk/*
 COPY hack/gencerts.sh /usr/bin/
-COPY hack/delete-resource.sh /usr/bin/
 ENTRYPOINT ["/usr/bin/spark-operator"]

@@ -23,7 +23,7 @@ package v1alpha1
 import (
 	time "time"
 
-	sparkoperator_k8s_io_v1alpha1 "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1alpha1"
+	sparkoperatork8siov1alpha1 "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1alpha1"
 	versioned "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/client/clientset/versioned"
 	internalinterfaces "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/client/informers/externalversions/internalinterfaces"
 	v1alpha1 "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/client/listers/sparkoperator.k8s.io/v1alpha1"
@@ -72,7 +72,7 @@ func NewFilteredScheduledSparkApplicationInformer(client versioned.Interface, na
 				return client.SparkoperatorV1alpha1().ScheduledSparkApplications(namespace).Watch(options)
 			},
 		},
-		&sparkoperator_k8s_io_v1alpha1.ScheduledSparkApplication{},
+		&sparkoperatork8siov1alpha1.ScheduledSparkApplication{},
 		resyncPeriod,
 		indexers,
 	)
@@ -83,7 +83,7 @@ func (f *scheduledSparkApplicationInformer) defaultInformer(client versioned.Int
 }
 
 func (f *scheduledSparkApplicationInformer) Informer() cache.SharedIndexInformer {
-	return f.factory.InformerFor(&sparkoperator_k8s_io_v1alpha1.ScheduledSparkApplication{}, f.defaultInformer)
+	return f.factory.InformerFor(&sparkoperatork8siov1alpha1.ScheduledSparkApplication{}, f.defaultInformer)
 }
 
 func (f *scheduledSparkApplicationInformer) Lister() v1alpha1.ScheduledSparkApplicationLister {
