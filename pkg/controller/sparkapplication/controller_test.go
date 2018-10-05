@@ -299,7 +299,7 @@ func TestSyncSparkApplication_SubmissionFailed(t *testing.T) {
 	// Verify App Failed again.
 	updatedApp, err = ctrl.crdClient.SparkoperatorV1alpha1().SparkApplications(app.Namespace).Get(app.Name, metav1.GetOptions{})
 	assert.Nil(t, err)
-	assert.Equal(t, v1alpha1.FailedSubmissionState, updatedApp.Status.AppState.State)
+	assert.Equal(t, v1alpha1.FailedState, updatedApp.Status.AppState.State)
 	// No more submission attempts made.
 	assert.Equal(t, int32(2), updatedApp.Status.SubmissionAttempts)
 }
@@ -375,7 +375,7 @@ func TestSyncSparkApp_SubmissionSuccess(t *testing.T) {
 				},
 				Status: v1alpha1.SparkApplicationStatus{
 					AppState: v1alpha1.ApplicationState{
-						State: v1alpha1.CompletedState,
+						State: v1alpha1.SucceedingState,
 					},
 				},
 			},
@@ -446,7 +446,7 @@ func TestSyncSparkApp_SubmissionSuccess(t *testing.T) {
 				},
 				Status: v1alpha1.SparkApplicationStatus{
 					AppState: v1alpha1.ApplicationState{
-						State: v1alpha1.FailedState,
+						State: v1alpha1.FailingState,
 					},
 					Attempts:       1,
 					CompletionTime: metav1.Time{Time: metav1.Now().Add(-2000 * time.Second)},
@@ -465,12 +465,12 @@ func TestSyncSparkApp_SubmissionSuccess(t *testing.T) {
 				},
 				Status: v1alpha1.SparkApplicationStatus{
 					AppState: v1alpha1.ApplicationState{
-						State: v1alpha1.FailedState,
+						State: v1alpha1.FailingState,
 					},
 					CompletionTime: metav1.Time{Time: metav1.Now().Add(-2000 * time.Second)},
 				},
 			},
-			expectedState: v1alpha1.FailedState,
+			expectedState: v1alpha1.FailingState,
 		},
 		{
 			app: &v1alpha1.SparkApplication{
@@ -483,7 +483,7 @@ func TestSyncSparkApp_SubmissionSuccess(t *testing.T) {
 				},
 				Status: v1alpha1.SparkApplicationStatus{
 					AppState: v1alpha1.ApplicationState{
-						State: v1alpha1.CompletedState,
+						State: v1alpha1.SucceedingState,
 					},
 				},
 			},
@@ -514,7 +514,7 @@ func TestSyncSparkApp_SubmissionSuccess(t *testing.T) {
 				},
 				Status: v1alpha1.SparkApplicationStatus{
 					AppState: v1alpha1.ApplicationState{
-						State: v1alpha1.FailedState,
+						State: v1alpha1.FailingState,
 					},
 					Attempts: 2,
 				},
@@ -532,7 +532,7 @@ func TestSyncSparkApp_SubmissionSuccess(t *testing.T) {
 				},
 				Status: v1alpha1.SparkApplicationStatus{
 					AppState: v1alpha1.ApplicationState{
-						State: v1alpha1.FailedState,
+						State: v1alpha1.FailingState,
 					},
 					Attempts:       1,
 					CompletionTime: metav1.Now(),
@@ -541,7 +541,7 @@ func TestSyncSparkApp_SubmissionSuccess(t *testing.T) {
 					RestartPolicy: restartPolicyOnFailure,
 				},
 			},
-			expectedState: v1alpha1.FailedState,
+			expectedState: v1alpha1.FailingState,
 		},
 		{
 			app: &v1alpha1.SparkApplication{
@@ -551,7 +551,7 @@ func TestSyncSparkApp_SubmissionSuccess(t *testing.T) {
 				},
 				Status: v1alpha1.SparkApplicationStatus{
 					AppState: v1alpha1.ApplicationState{
-						State: v1alpha1.FailedState,
+						State: v1alpha1.FailingState,
 					},
 					Attempts:       1,
 					CompletionTime: metav1.Time{Time: metav1.Now().Add(-2000 * time.Second)},
@@ -578,7 +578,7 @@ func TestSyncSparkApp_SubmissionSuccess(t *testing.T) {
 					RestartPolicy: restartPolicyOnFailure,
 				},
 			},
-			expectedState: v1alpha1.FailedSubmissionState,
+			expectedState: v1alpha1.FailedState,
 		},
 		{
 			app: &v1alpha1.SparkApplication{
@@ -715,7 +715,7 @@ func TestSyncSparkApplication_ExecutingState(t *testing.T) {
 		},
 		{
 			appName:           "foo-3",
-			oldAppStatus:      v1alpha1.FailedState,
+			oldAppStatus:      v1alpha1.RunningState,
 			oldExecutorStatus: map[string]v1alpha1.ExecutorState{"exec-1": v1alpha1.ExecutorCompletedState},
 			driverPod: &apiv1.Pod{
 				ObjectMeta: metav1.ObjectMeta{
@@ -728,7 +728,7 @@ func TestSyncSparkApplication_ExecutingState(t *testing.T) {
 					ResourceVersion: "1",
 				},
 				Status: apiv1.PodStatus{
-					Phase: apiv1.PodRunning,
+					Phase: apiv1.PodFailed,
 				},
 			},
 			executorPod: &apiv1.Pod{
@@ -742,12 +742,53 @@ func TestSyncSparkApplication_ExecutingState(t *testing.T) {
 					ResourceVersion: "1",
 				},
 				Status: apiv1.PodStatus{
-					Phase: apiv1.PodFailed,
+					Phase: apiv1.PodSucceeded,
 				},
 			},
-			expectedAppState:        v1alpha1.FailedState,
-			expectedExecutorState:   map[string]v1alpha1.ExecutorState{"exec-1": v1alpha1.ExecutorCompletedState},
-			expectedAppMetrics:      metrics{},
+			expectedAppState:      v1alpha1.FailingState,
+			expectedExecutorState: map[string]v1alpha1.ExecutorState{"exec-1": v1alpha1.ExecutorCompletedState},
+			expectedAppMetrics: metrics{
+				failedMetricCount: 1,
+			},
+			expectedExecutorMetrics: executorMetrics{},
+		},
+		{
+			appName:           "foo-3",
+			oldAppStatus:      v1alpha1.RunningState,
+			oldExecutorStatus: map[string]v1alpha1.ExecutorState{"exec-1": v1alpha1.ExecutorCompletedState},
+			driverPod: &apiv1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "foo-driver",
+					Namespace: "test",
+					Labels: map[string]string{
+						config.SparkRoleLabel:    sparkDriverRole,
+						config.SparkAppNameLabel: "foo-3",
+					},
+					ResourceVersion: "1",
+				},
+				Status: apiv1.PodStatus{
+					Phase: apiv1.PodSucceeded,
+				},
+			},
+			executorPod: &apiv1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "exec-1",
+					Namespace: "test",
+					Labels: map[string]string{
+						config.SparkRoleLabel:    sparkExecutorRole,
+						config.SparkAppNameLabel: "foo-3",
+					},
+					ResourceVersion: "1",
+				},
+				Status: apiv1.PodStatus{
+					Phase: apiv1.PodSucceeded,
+				},
+			},
+			expectedAppState:      v1alpha1.SucceedingState,
+			expectedExecutorState: map[string]v1alpha1.ExecutorState{"exec-1": v1alpha1.ExecutorCompletedState},
+			expectedAppMetrics: metrics{
+				successMetricCount: 1,
+			},
 			expectedExecutorMetrics: executorMetrics{},
 		},
 	}
