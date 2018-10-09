@@ -21,13 +21,18 @@ The following global flags are available for all the sub commands:
 
 ### Create
 
-`create` is a sub command of `sparkctl` for parsing and creating a `SparkApplication` object in namespace specified by 
-`--namespace` the from a given YAML file. It parses the YAML file, and sends the parsed `SparkApplication` object 
-parsed to the Kubernetes API server.
+`create` is a sub command of `sparkctl` for creating a `SparkApplication` object. There are two ways to create a `SparkApplication` object. One is parsing and creating a `SparkApplication` object in namespace specified by 
+`--namespace` the from a given YAML file. In this way, `create` parses the YAML file, and sends the parsed `SparkApplication` object parsed to the Kubernetes API server. Usage of this way looks like the following:
 
 Usage:
 ```bash
 $ sparkctl create <path to YAML file>
+```
+The other way is creating a `SparkApplication` object from a named `ScheduledSparkApplication` to manually force a run of the `ScheduledSparkApplication`. Usage of this way looks like the following:
+
+Usage:
+```bash
+$ sparkctl create <name of the SparkApplication> --from <name of the ScheduledSparkApplication>
 ```
 
 The `create` command also supports shipping local Hadoop configuration files into the driver and executor pods. 
