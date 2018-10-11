@@ -742,6 +742,21 @@ func (c *Controller) recordSparkApplicationEvent(app *v1alpha1.SparkApplication)
 			"SparkApplicationAdded",
 			"SparkApplication %s was added, Enqueuing it for submission",
 			app.Name)
+	case v1alpha1.SubmittedState:
+		c.recorder.Eventf(
+			app,
+			apiv1.EventTypeNormal,
+			"SparkApplicationSubmitted",
+			"SparkApplication submitted successfully: %s",
+			app.Name)
+	case v1alpha1.FailedSubmissionState:
+		c.recorder.Eventf(
+			app,
+			apiv1.EventTypeWarning,
+			"SparkApplicationSubmissionFailed",
+			"failed to create a submission for SparkApplication %s: %s",
+			app.Name,
+			app.Status.AppState.ErrorMessage)
 	case v1alpha1.CompletedState:
 		c.recorder.Eventf(
 			app,
@@ -753,26 +768,11 @@ func (c *Controller) recordSparkApplicationEvent(app *v1alpha1.SparkApplication)
 	case v1alpha1.FailedState:
 		c.recorder.Eventf(
 			app,
-			apiv1.EventTypeNormal,
+			apiv1.EventTypeWarning,
 			"SparkApplicationFailed",
 			"SparkApplication %s terminated with state: %v",
 			app.GetName(),
 			app.Status.AppState.State)
-	case v1alpha1.FailedSubmissionState:
-		c.recorder.Eventf(
-			app,
-			apiv1.EventTypeWarning,
-			"SparkApplicationSubmissionFailed",
-			"failed to create a submission for SparkApplication %s: %s",
-			app.Name,
-			app.Status.AppState.ErrorMessage)
-	case v1alpha1.SubmittedState:
-		c.recorder.Eventf(
-			app,
-			apiv1.EventTypeWarning,
-			"SparkApplicationSubmitted",
-			"SparkApplication submitted successfully: %s",
-			app.Name)
 	}
 }
 
