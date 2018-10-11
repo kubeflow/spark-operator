@@ -52,6 +52,7 @@ import (
 	crdlisters "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/client/listers/sparkoperator.k8s.io/v1alpha1"
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/config"
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/util"
+	"golang.org/x/time/rate"
 )
 
 const (
@@ -59,6 +60,8 @@ const (
 	sparkExecutorRole         = "executor"
 	sparkExecutorIDLabel      = "spark-exec-id"
 	podAlreadyExistsErrorCode = "code=409"
+	queueTokenRefillRate      = 25
+	queueTokenBucketSize      = 1000
 )
 
 var (
@@ -108,7 +111,7 @@ func newSparkApplicationController(
 	eventRecorder record.EventRecorder,
 	metricsConfig *util.MetricConfig,
 	ingressUrlFormat string) *Controller {
-	queue := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(),
+	queue := workqueue.NewNamedRateLimitingQueue(&workqueue.BucketRateLimiter{Limiter: rate.NewLimiter(rate.Limit(queueTokenRefillRate), queueTokenBucketSize)},
 		"spark-application-controller")
 
 	controller := &Controller{
@@ -175,12 +178,6 @@ func (c *Controller) onAdd(obj interface{}) {
 
 	glog.Infof("SparkApplication %s was added, enqueueing it for submission", app.Name)
 	c.enqueue(app)
-	c.recorder.Eventf(
-		app,
-		apiv1.EventTypeNormal,
-		"SparkApplicationAdded",
-		"SparkApplication %s was added, enqueued it for submission",
-		app.Name)
 }
 
 func (c *Controller) onUpdate(oldObj, newObj interface{}) {
@@ -422,6 +419,7 @@ func (c *Controller) syncSparkApplication(key string) error {
 		// Take action based on AppState.
 		switch appToUpdate.Status.AppState.State {
 		case v1alpha1.NewState:
+			c.recordSparkApplicationEvent(app)
 			appToUpdate.Status.SubmissionAttempts = 0
 			glog.Infof("Creating Submission for SparkApp: %s", key)
 			appToUpdate = c.submitSparkApplication(appToUpdate)
@@ -436,6 +434,7 @@ func (c *Controller) syncSparkApplication(key string) error {
 			} else {
 				// App will never be retried. Move to Terminal Completed State.
 				appToUpdate.Status.AppState.State = v1alpha1.CompletedState
+				c.recordSparkApplicationEvent(app)
 			}
 		case v1alpha1.FailingState:
 			shouldRetry := false
@@ -451,6 +450,8 @@ func (c *Controller) syncSparkApplication(key string) error {
 			if !shouldRetry {
 				// App will never be retried. Move to Terminal Failure State.
 				appToUpdate.Status.AppState.State = v1alpha1.FailedState
+				c.recordSparkApplicationEvent(app)
+
 			} else if hasRetryIntervalPassed(appToUpdate.Spec.RestartPolicy.OnFailureRetryInterval, appToUpdate.Status.Attempts, appToUpdate.Status.CompletionTime) {
 				if err := c.deleteSparkResources(appToUpdate, true); err != nil {
 					glog.Errorf("failed to delete the driver pod and UI service for deleted SparkApplication %s: %v",
@@ -473,6 +474,8 @@ func (c *Controller) syncSparkApplication(key string) error {
 			if !shouldRetry {
 				// App will never be retried. Move to Terminal Failure State.
 				appToUpdate.Status.AppState.State = v1alpha1.FailedState
+				c.recordSparkApplicationEvent(app)
+
 			} else if hasRetryIntervalPassed(appToUpdate.Spec.RestartPolicy.OnSubmissionFailureRetryInterval, appToUpdate.Status.SubmissionAttempts, appToUpdate.Status.SubmissionTime) {
 				glog.Infof("Creating Submission for SparkApp: %s", key)
 				appToUpdate = c.submitSparkApplication(appToUpdate)
@@ -503,16 +506,6 @@ func (c *Controller) syncSparkApplication(key string) error {
 		if c.updateAppAndExportMetrics(app, appToUpdate) != nil {
 			glog.Errorf("Failed to update App: %s. Error: %v", app.GetName(), err)
 			return err
-		}
-
-		if isAppTerminated(appToUpdate.Status.AppState.State) {
-			c.recorder.Eventf(
-				app,
-				apiv1.EventTypeNormal,
-				"SparkApplicationTerminated",
-				"SparkApplication %s terminated with state: %v",
-				appToUpdate.GetName(),
-				appToUpdate.Status.AppState.State)
 		}
 	}
 	return nil
@@ -582,13 +575,7 @@ func (c *Controller) submitSparkApplication(app *v1alpha1.SparkApplication) *v1a
 			SubmissionAttempts: app.Status.SubmissionAttempts + 1,
 			SubmissionTime:     metav1.Now(),
 		}
-		c.recorder.Eventf(
-			app,
-			apiv1.EventTypeWarning,
-			"SparkApplicationSubmissionFailed",
-			"failed to create a submission for SparkApplication %s: %s",
-			app.Name,
-			errorMsg)
+		c.recordSparkApplicationEvent(app)
 	} else {
 		glog.Infof("spark-submit completed for SparkApplication %s in namespace %s", submission.name, submission.namespace)
 
@@ -601,6 +588,7 @@ func (c *Controller) submitSparkApplication(app *v1alpha1.SparkApplication) *v1a
 			Attempts:           app.Status.Attempts + 1,
 			SubmissionTime:     metav1.Now(),
 		}
+		c.recordSparkApplicationEvent(app)
 
 		// Add driver as a finalizer to prevent SparkApplication deletion till driver is deleted.
 		if app.ObjectMeta.Finalizers == nil {
@@ -743,6 +731,49 @@ func (c *Controller) getNodeExternalIP(nodeName string) string {
 		}
 	}
 	return ""
+}
+
+func (c *Controller) recordSparkApplicationEvent(app *v1alpha1.SparkApplication) {
+	switch app.Status.AppState.State {
+	case v1alpha1.NewState:
+		c.recorder.Eventf(
+			app,
+			apiv1.EventTypeNormal,
+			"SparkApplicationAdded",
+			"SparkApplication %s was added, Enqueuing it for submission",
+			app.Name)
+	case v1alpha1.CompletedState:
+		c.recorder.Eventf(
+			app,
+			apiv1.EventTypeNormal,
+			"SparkApplicationCompleted",
+			"SparkApplication %s terminated with state: %v",
+			app.GetName(),
+			app.Status.AppState.State)
+	case v1alpha1.FailedState:
+		c.recorder.Eventf(
+			app,
+			apiv1.EventTypeNormal,
+			"SparkApplicationFailed",
+			"SparkApplication %s terminated with state: %v",
+			app.GetName(),
+			app.Status.AppState.State)
+	case v1alpha1.FailedSubmissionState:
+		c.recorder.Eventf(
+			app,
+			apiv1.EventTypeWarning,
+			"SparkApplicationSubmissionFailed",
+			"failed to create a submission for SparkApplication %s: %s",
+			app.Name,
+			app.Status.AppState.ErrorMessage)
+	case v1alpha1.SubmittedState:
+		c.recorder.Eventf(
+			app,
+			apiv1.EventTypeWarning,
+			"SparkApplicationSubmitted",
+			"SparkApplication submitted successfully: %s",
+			app.Name)
+	}
 }
 
 func (c *Controller) recordDriverEvent(
