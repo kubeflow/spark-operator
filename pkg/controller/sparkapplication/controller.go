@@ -419,7 +419,7 @@ func (c *Controller) syncSparkApplication(key string) error {
 		// Take action based on AppState.
 		switch appToUpdate.Status.AppState.State {
 		case v1alpha1.NewState:
-			c.recordSparkApplicationEvent(app)
+			c.recordSparkApplicationEvent(appToUpdate)
 			appToUpdate.Status.SubmissionAttempts = 0
 			glog.Infof("Creating Submission for SparkApp: %s", key)
 			appToUpdate = c.submitSparkApplication(appToUpdate)
@@ -434,7 +434,7 @@ func (c *Controller) syncSparkApplication(key string) error {
 			} else {
 				// App will never be retried. Move to Terminal Completed State.
 				appToUpdate.Status.AppState.State = v1alpha1.CompletedState
-				c.recordSparkApplicationEvent(app)
+				c.recordSparkApplicationEvent(appToUpdate)
 			}
 		case v1alpha1.FailingState:
 			shouldRetry := false
@@ -450,7 +450,7 @@ func (c *Controller) syncSparkApplication(key string) error {
 			if !shouldRetry {
 				// App will never be retried. Move to Terminal Failure State.
 				appToUpdate.Status.AppState.State = v1alpha1.FailedState
-				c.recordSparkApplicationEvent(app)
+				c.recordSparkApplicationEvent(appToUpdate)
 
 			} else if hasRetryIntervalPassed(appToUpdate.Spec.RestartPolicy.OnFailureRetryInterval, appToUpdate.Status.Attempts, appToUpdate.Status.CompletionTime) {
 				if err := c.deleteSparkResources(appToUpdate, true); err != nil {
@@ -474,7 +474,7 @@ func (c *Controller) syncSparkApplication(key string) error {
 			if !shouldRetry {
 				// App will never be retried. Move to Terminal Failure State.
 				appToUpdate.Status.AppState.State = v1alpha1.FailedState
-				c.recordSparkApplicationEvent(app)
+				c.recordSparkApplicationEvent(appToUpdate)
 
 			} else if hasRetryIntervalPassed(appToUpdate.Spec.RestartPolicy.OnSubmissionFailureRetryInterval, appToUpdate.Status.SubmissionAttempts, appToUpdate.Status.SubmissionTime) {
 				glog.Infof("Creating Submission for SparkApp: %s", key)
