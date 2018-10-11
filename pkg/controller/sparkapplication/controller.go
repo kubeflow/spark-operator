@@ -48,6 +48,7 @@ import (
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/util"
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/config"
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/util"
+	"golang.org/x/time/rate"
 )
 
 const (
@@ -557,16 +558,6 @@ func (c *Controller) syncSparkApplication(key string) error {
 		if err != nil {
 			glog.Errorf("failed to update SparkApplication %s/%s: %v", app.Namespace, app.Name, err)
 			return err
-		}
-
-		if isAppTerminated(appToUpdate.Status.AppState.State) {
-			c.recorder.Eventf(
-				app,
-				apiv1.EventTypeNormal,
-				"SparkApplicationTerminated",
-				"SparkApplication %s terminated with state: %v",
-				appToUpdate.GetName(),
-				appToUpdate.Status.AppState.State)
 		}
 	}
 
