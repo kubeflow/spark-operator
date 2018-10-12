@@ -85,7 +85,7 @@ func newFakeController(app *v1alpha1.SparkApplication, pods ...*apiv1.Pod) (*Con
 }
 
 func TestOnAdd(t *testing.T) {
-	ctrl, recorder := newFakeController(nil)
+	ctrl, _ := newFakeController(nil)
 
 	app := &v1alpha1.SparkApplication{
 		ObjectMeta: metav1.ObjectMeta{
@@ -103,10 +103,6 @@ func TestOnAdd(t *testing.T) {
 	expectedKey, _ := cache.MetaNamespaceKeyFunc(app)
 	assert.Equal(t, expectedKey, key)
 	ctrl.queue.Forget(item)
-
-	assert.Equal(t, 1, len(recorder.Events))
-	event := <-recorder.Events
-	assert.True(t, strings.Contains(event, "SparkApplicationAdded"))
 }
 
 func TestOnUpdate(t *testing.T) {
@@ -169,7 +165,6 @@ func TestOnDelete(t *testing.T) {
 	}
 	ctrl.onAdd(app)
 	ctrl.queue.Get()
-	<-recorder.Events
 
 	ctrl.onDelete(app)
 	ctrl.queue.ShutDown()
@@ -266,6 +261,8 @@ func TestSyncSparkApplication_SubmissionFailed(t *testing.T) {
 	assert.Equal(t, float64(1), fetchCounterValue(ctrl.metrics.sparkAppFailureCount, map[string]string{}))
 
 	event := <-recorder.Events
+	assert.True(t, strings.Contains(event, "SparkApplicationAdded"))
+	event = <-recorder.Events
 	assert.True(t, strings.Contains(event, "SparkApplicationSubmissionFailed"))
 
 	// Attempt 2: Retry again
