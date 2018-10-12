@@ -61,7 +61,7 @@ const (
 	sparkExecutorIDLabel      = "spark-exec-id"
 	podAlreadyExistsErrorCode = "code=409"
 	queueTokenRefillRate      = 25
-	queueTokenBucketSize      = 1000
+	queueTokenBucketSize      = 200
 )
 
 var (
