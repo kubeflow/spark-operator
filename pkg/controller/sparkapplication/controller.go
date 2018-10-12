@@ -60,8 +60,8 @@ const (
 	sparkExecutorRole         = "executor"
 	sparkExecutorIDLabel      = "spark-exec-id"
 	podAlreadyExistsErrorCode = "code=409"
-	queueTokenRefillRate      = 25
-	queueTokenBucketSize      = 200
+	queueTokenRefillRate      = 50
+	queueTokenBucketSize      = 500
 )
 
 var (
