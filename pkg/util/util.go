@@ -125,3 +125,25 @@ func UnmarshalAffinity(affinityStr string) (*apiv1.Affinity, error) {
 	}
 	return affinity, nil
 }
+
+// MarshalToleration encodes the given Toleration into a string.
+func MarshalToleration(toleration *apiv1.Toleration) (string, error) {
+	tolerationData, err := toleration.Marshal()
+	if err != nil {
+		return "", err
+	}
+	return encodeToString(tolerationData), nil
+}
+
+// UnmarshalToleration decodes a Toleration from the given string.
+func UnmarshalToleration(tolerationStr string) (*apiv1.Toleration, error) {
+	toleration := &apiv1.Toleration{}
+	decoded, err := decodeString(tolerationStr)
+	if err != nil {
+		return nil, err
+	}
+	if err = toleration.Unmarshal(decoded); err != nil {
+		return nil, err
+	}
+	return toleration, nil
+}

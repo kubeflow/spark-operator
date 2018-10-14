@@ -320,3 +320,44 @@ func getModifiedPod(pod *corev1.Pod) (*corev1.Pod, error) {
 
 	return modifiedPod, nil
 }
+
+func TestPatchSparkPod_Tolerations(t *testing.T) {
+	toleration := &corev1.Toleration{
+		Key:      "Key",
+		Operator: "Equal",
+		Value:    "Value",
+		Effect:   "NoEffect",
+	}
+
+	tolerationStr, err := util.MarshalToleration(toleration)
+	if err != nil {
+		t.Error(err)
+	}
+
+	tolerationAnnotation := fmt.Sprintf("%s%s", config.TolerationsAnnotationPrefix, "toleration1")
+
+	// Test patching a pod with a Toleration.
+	pod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:        "spark-driver",
+			Labels:      map[string]string{sparkRoleLabel: sparkDriverRole},
+			Annotations: map[string]string{tolerationAnnotation: tolerationStr},
+		},
+		Spec: corev1.PodSpec{
+			Containers: []corev1.Container{
+				{
+					Name:  sparkDriverContainerName,
+					Image: "spark-driver:latest",
+				},
+			},
+		},
+	}
+
+	modifiedPod, err := getModifiedPod(pod)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	assert.Equal(t, 1, len(modifiedPod.Spec.Tolerations))
+	assert.Equal(t, *toleration, modifiedPod.Spec.Tolerations[0])
+}
