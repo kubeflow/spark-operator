@@ -67,6 +67,12 @@ func patchSparkPod(pod *corev1.Pod) ([]*patchOperation, error) {
 		patchOps = append(patchOps, op)
 	}
 
+	ops, err = addTolerations(pod)
+	if err != nil {
+		return nil, err
+	}
+	patchOps = append(patchOps, ops...)
+
 	return patchOps, nil
 }
 
@@ -241,4 +247,29 @@ func addAffinity(pod *corev1.Pod) (*patchOperation, error) {
 	}
 
 	return &patchOperation{Op: "add", Path: "/spec/affinity", Value: *affinity}, nil
+}
+
+func addTolerations(pod *corev1.Pod) ([]*patchOperation, error) {
+	tolerations, err := config.FindTolerations(pod.Annotations)
+	if err != nil {
+		return nil, err
+	}
+	var ops []*patchOperation
+	for _, v := range tolerations {
+		ops = append(ops, addToleration(pod, v))
+	}
+	return ops, nil
+}
+
+func addToleration(pod *corev1.Pod, toleration *corev1.Toleration) *patchOperation {
+	path := "/spec/tolerations"
+	var value interface{}
+	if len(pod.Spec.Tolerations) == 0 {
+		value = []corev1.Toleration{*toleration}
+	} else {
+		path += "/-"
+		value = *toleration
+	}
+
+	return &patchOperation{Op: "add", Path: path, Value: value}
 }

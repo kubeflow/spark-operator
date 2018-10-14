@@ -353,6 +353,9 @@ type SparkPodSpec struct {
 	// Affinity specifies the affinity/anti-affinity settings for the pod.
 	// Optional.
 	Affinity *apiv1.Affinity `json:"affinity,omitempty"`
+	// Tolerations specifies the tolerations listed in ".spec.tolerations" to be applied to the pod.
+	// Optional.
+	Tolerations []apiv1.Toleration `json:"tolerations,omitempty"`
 }
 
 // DriverSpec is specification of the driver.

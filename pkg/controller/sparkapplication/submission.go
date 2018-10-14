@@ -302,6 +302,12 @@ func addDriverConfOptions(app *v1alpha1.SparkApplication) ([]string, error) {
 	}
 	driverConfOptions = append(driverConfOptions, options...)
 
+	options, err = config.GetDriverTolerationConfOptions(app)
+	if err != nil {
+		return nil, err
+	}
+	driverConfOptions = append(driverConfOptions, options...)
+
 	return driverConfOptions, nil
 }
 
@@ -382,6 +388,12 @@ func addExecutorConfOptions(app *v1alpha1.SparkApplication) ([]string, error) {
 	executorConfOptions = append(executorConfOptions, config.GetExecutorEnvVarConfOptions(app)...)
 
 	options, err := config.GetExecutorVolumeMountConfOptions(app)
+	if err != nil {
+		return nil, err
+	}
+	executorConfOptions = append(executorConfOptions, options...)
+
+	options, err = config.GetExecutorTolerationConfOptions(app)
 	if err != nil {
 		return nil, err
 	}

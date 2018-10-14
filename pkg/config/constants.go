@@ -66,6 +66,8 @@ const (
 	SparkAppNameLabel = LabelAnnotationPrefix + "app-name"
 	// LaunchedBySparkOperatorLabel is a label on Spark pods launched through the Spark Operator.
 	LaunchedBySparkOperatorLabel = LabelAnnotationPrefix + "launched-by-spark-operator"
+	// TolerationsAnnotationPrefix is the prefix of annotations that specify a Toleration.
+	TolerationsAnnotationPrefix = LabelAnnotationPrefix + "tolerations."
 )
 
 const (
