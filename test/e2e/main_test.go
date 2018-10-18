@@ -22,7 +22,7 @@ import (
 	"os"
 	"testing"
 
-	operatorFramework "framework"
+	operatorFramework "github.com/GoogleCloudPlatform/spark-on-k8s-operator/test/e2e/framework"
 )
 
 var framework *operatorFramework.Framework
