@@ -33,11 +33,6 @@ func TestMain(m *testing.M) {
 	ns := flag.String("namespace", "spark-operator", "e2e test namespace")
 	flag.Parse()
 
-	var (
-		err  error
-		code int
-	)
-
 	if *kubeconfig == "" {
 		log.Printf("No kubeconfig found. Bypassing e2e tests")
 		os.Exit(0)
@@ -51,8 +46,8 @@ func TestMain(m *testing.M) {
 		if err := framework.Teardown(); err != nil {
 			log.Fatalf("failed to tear down framework: %v\n", err)
 		}
-		os.Exit(code)
+		os.Exit(0)
 	}()
 
-	code = m.Run()
+	os.Exit(m.Run())
 }

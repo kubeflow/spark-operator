@@ -49,22 +49,6 @@ required = [
   name = "github.com/google/go-cloud"
   version = "0.1.0"
 
-[[override]]
-  name = "k8s.io/api"
-  branch = "release-1.11"
-
-[[override]]
-  name = "k8s.io/apimachinery"
-  branch = "release-1.11"
-
-[[override]]
-  name = "k8s.io/client-go"
-  branch = "release-8.0"
-
-[[override]]
-  name = "k8s.io/apiextensions-apiserver"
-  branch = "release-1.11"
-
 [[constraint]]
   name = "cloud.google.com/go"
   version = "0.18.0"

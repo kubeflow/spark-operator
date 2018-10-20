@@ -29,7 +29,9 @@ import (
 )
 
 func CreateClusterRoleBinding(kubeClient kubernetes.Interface, ns string, relativePath string) (finalizerFn, error) {
-	finalizerFn := func() error { return DeleteClusterRoleBinding(kubeClient, relativePath) }
+	finalizerFn := func() error {
+		return DeleteClusterRoleBinding(kubeClient, relativePath)
+	}
 	clusterRoleBinding, err := parseClusterRoleBindingYaml(relativePath)
 	if err != nil {
 		return finalizerFn, err
