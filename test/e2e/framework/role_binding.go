@@ -24,7 +24,9 @@ import (
 )
 
 func CreateRoleBinding(kubeClient kubernetes.Interface, ns string, relativePath string) (finalizerFn, error) {
-	finalizerFn := func() error { return DeleteRoleBinding(kubeClient, ns, relativePath) }
+	finalizerFn := func() error {
+		return DeleteRoleBinding(kubeClient, ns, relativePath)
+	}
 	roleBinding, err := parseRoleBindingYaml(relativePath)
 	if err != nil {
 		return finalizerFn, err

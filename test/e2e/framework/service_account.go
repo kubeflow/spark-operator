@@ -28,7 +28,9 @@ import (
 )
 
 func CreateServiceAccount(kubeClient kubernetes.Interface, namespace string, relativPath string) (finalizerFn, error) {
-	finalizerFn := func() error { return DeleteServiceAccount(kubeClient, namespace, relativPath) }
+	finalizerFn := func() error {
+		return DeleteServiceAccount(kubeClient, namespace, relativPath)
+	}
 
 	serviceAccount, err := parseServiceAccountYaml(relativPath)
 	if err != nil {

@@ -33,15 +33,12 @@ func TestMain(m *testing.M) {
 	ns := flag.String("namespace", "spark-operator", "e2e test namespace")
 	flag.Parse()
 
-	var (
-		err error
-	)
-
 	if *kubeconfig == "" {
 		log.Printf("No kubeconfig found. Bypassing e2e tests")
 		os.Exit(0)
 	}
 
+	var err error
 	if framework, err = operatorFramework.New(*ns, *kubeconfig, *opImage); err != nil {
 		log.Fatalf("failed to set up framework: %v\n", err)
 	}
