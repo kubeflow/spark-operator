@@ -33,6 +33,10 @@ func TestMain(m *testing.M) {
 	ns := flag.String("namespace", "spark-operator", "e2e test namespace")
 	flag.Parse()
 
+	var (
+		err error
+	)
+
 	if *kubeconfig == "" {
 		log.Printf("No kubeconfig found. Bypassing e2e tests")
 		os.Exit(0)
