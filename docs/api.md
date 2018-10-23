@@ -94,6 +94,7 @@ A `SparkPodSpec` defines common attributes of a driver or executor pod, summariz
 | `Labels` | `spark.kubernetes.driver.label.[LabelName]` or `spark.kubernetes.executor.label.[LabelName]` | A map of Kubernetes labels to add to the driver or executor pod. Keys are label names and values are label values. |
 | `Annotations` | `spark.kubernetes.driver.annotation.[AnnotationName]` or `spark.kubernetes.executor.annotation.[AnnotationName]` | A map of Kubernetes annotations to add to the driver or executor pod. Keys are annotation names and values are annotation values. |
 | `VolumeMounts` | N/A | List of Kubernetes [volume mounts](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.9/#volumemount-v1-core) for volumes that should be mounted to the pod. |
+| `Tolerations` | N/A | List of Kubernetes [tolerations](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.9/#toleration-v1-core) that should be applied to the pod. |
 
 #### `Dependencies`
 

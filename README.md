@@ -32,6 +32,15 @@ escaped quotes (e.g., `spark.ui.port\"`) in map keys can cause serialization pro
 extra attention to make sure no offending escaping is in your `SparkAppliction` CRD objects, particularly if you use 
 Kubernetes prior to 1.10.**
 
+## Installation
+
+The easiest way to install the Kubernetes Operator for Apache Spark is to use the Helm [chart](https://github.com/helm/charts/tree/master/incubator/sparkoperator).
+
+```bash
+$ helm repo add incubator http://storage.googleapis.com/kubernetes-charts-incubator
+$ helm install incubator/sparkoperator
+``` 
+
 ## Get Started
 
 Get started quickly with the Kubernetes Operator for Apache Spark using the [Quick Start Guide](docs/quick-start-guide.md). 
@@ -63,20 +72,6 @@ The Kubernetes Operator for Apache Spark currently supports the following list o
 * Supports automatically staging local application dependencies to Google Cloud Storage (GCS) via `sparkctl`.
 * Supports collecting and exporting application-level metrics and driver/executor metrics to Prometheus. 
 
-## Motivations
+## Contributing
 
-This approach is completely different than the one that has the submission client creates a CRD object. Having externally 
-created and managed CRD objects offer the following benefits:
-* Things like creating namespaces and setting up RBAC roles and resource quotas represent a separate concern and are better 
-done before applications get submitted.
-* With the external CRD controller submitting applications on behalf of users, they don't need to deal with the submission 
-process and the `spark-submit` command. Instead, the focus is shifted from thinking about commands to thinking about declarative 
-YAML files describing Spark applications that can be easily version controlled. 
-* Externally created CRD objects make it easier to integrate Spark application submission and monitoring with users' existing 
-pipelines and tooling on Kubernetes.
-* Internally created CRD objects are good for capturing and communicating application/executor status to the users, but not 
-for driver/executor pod configuration/customization as very likely it needs external input. Such external input most likely 
-need additional command-line options to get passed in.
-
-Additionally, keeping the CRD implementation outside the Spark repository gives us a lot of flexibility in terms of 
-functionality to add to the CRD controller. We also have full control over code review and release process.
+Please check [CONTRIBUTING.md](CONTRIBUTING.md) and the [Developer Guide](docs/developer-guide.md) out. 

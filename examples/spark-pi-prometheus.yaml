@@ -22,7 +22,7 @@ metadata:
 spec:
   type: Scala
   mode: cluster
-  image: "gcr.io/spark-operator/spark:v2.3.1"
+  image: "gcr.io/spark-operator/spark:v2.3.1-gcs-prometheus"
   imagePullPolicy: Always
   mainClass: org.apache.spark.examples.SparkPi
   mainApplicationFile: "local:///opt/spark/examples/jars/spark-examples_2.11-2.3.1.jar"
@@ -44,6 +44,8 @@ spec:
       version: 2.3.1
   monitoring:
     exposeDriverMetrics: true
+    exposeExecutorMetrics: true
     prometheus:
-      jmxExporterJar: "/var/spark-data/spark-jars/jmx_prometheus_javaagent-0.3.1.jar"    
+      jmxExporterJar: "/var/spark-data/spark-jars/jmx_prometheus_javaagent-0.3.1.jar"
+      port: 8090    
   restartPolicy: Never

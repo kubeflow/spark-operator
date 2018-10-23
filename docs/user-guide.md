@@ -1,12 +1,7 @@
 # User Guide
 
-For a quick introduction on how to build and install the Kubernetes Operator for Apache Spark, and how to run some example applications,
-please refer to the [Quick Start Guide](quick-start-guide.md). For a complete reference of the API definition of the 
-`SparkApplication` and `ScheduledSparkApplication` custom resources, please refer to the [API Specification](api.md). 
-The Kubernetes Operator for Apache Spark ships with a command-line tool called `sparkctl` that offers additional features beyond what `kubectl` 
-is able to do. Documentation on `sparkctl` can be found in [README](../sparkctl/README.md). If you are running the Spark 
-Operator on Google Kubernetes Engine and want to use Google Cloud Storage (GCS) and/or BigQuery for reading/writing data, 
-also refer to the [GCP guide](gcp.md). The Kubernetes Operator for Apache Spark will simply be referred to as the operator for the rest of this guide.  
+For a quick introduction on how to build and install the Kubernetes Operator for Apache Spark, and how to run some example applications, please refer to the [Quick Start Guide](quick-start-guide.md). For a complete reference of the API definition of the `SparkApplication` and `ScheduledSparkApplication` custom resources, please refer to the [API Specification](api.md). 
+The Kubernetes Operator for Apache Spark ships with a command-line tool called `sparkctl` that offers additional features beyond what `kubectl` is able to do. Documentation on `sparkctl` can be found in [README](../sparkctl/README.md). If you are running the Spark Operator on Google Kubernetes Engine and want to use Google Cloud Storage (GCS) and/or BigQuery for reading/writing data, also refer to the [GCP guide](gcp.md). The Kubernetes Operator for Apache Spark will simply be referred to as the operator for the rest of this guide.  
 
 ## Table of Contents
 * [Using a SparkApplication](#using-a-sparkapplication)
@@ -103,7 +98,7 @@ spec:
     files:
       - gs://spark-data/data-file-1.txt
       - gs://spark-data/data-file-2.txt
-``` 
+```
 
 ### Specifying Spark Configuration
 
@@ -218,7 +213,7 @@ spec:
       - name: gcp-svc-account
         path: /mnt/secrets
         secretType: GCPServiceAccount
-```  
+```
 
 The type of a Secret as specified by the `secretType` field is a hint to the operator on what extra configuration
 it needs to take care of for the specific type of Secrets. For example, if a Secret is of type **`GCPServiceAccount`**, the
@@ -326,7 +321,7 @@ spec:
       SECRET_PASSWORD:
         name: mysecret
         key: password 
-``` 
+```
 
 ### Using Image Pull Secrets
 
@@ -361,6 +356,27 @@ spec:
           ...    
 ```
 
+### Adding Tolerations
+
+A `SparkApplication` can specify an `Tolerations` for the driver or executor pod, using the optional field `.spec.driver.tolerations`
+or `.spec.executor.tolerations`. Below is an example:
+
+```yaml
+spec:
+  driver:
+    tolerations:
+    - key: Key
+      operator: Exists
+      effect: NoSchedule
+            
+  executor:
+    tolerations:
+    - key: Key
+      operator: Equal
+      value: Value
+      effect: NoSchedule    
+```
+
 Note that the mutating admission webhook is needed to use this feature. Please refer to the 
 [Quick Start Guide](quick-start-guide.md) on how to enable the mutating admission webhook.
 
@@ -387,22 +403,22 @@ spec:
     pyfiles:
        - local:///opt/spark/examples/src/main/python/py_container_checks.py
        - gs://spark-data/python-dep.zip
-``` 
+```
 
 In order to use the dependencies that are hosted remotely, the following PySpark code
 can be used in Spark 2.4.
-  
+
 ```
 python_dep_file_path = SparkFiles.get("python-dep.zip")
 spark.sparkContext.addPyFile(dep_file_path)
-``` 
+```
 
 Note that Python binding for PySpark will be available in Apache Spark 2.4, 
 and currently requires building a custom Docker image from the Spark master branch.
 
 ### Monitoring
 
-The operator supports using the Spark metric system to expose metrics to a varity of sinks. Particularly, it is able to automatically configure the metric system to expose metrics to [Prometheus](https://prometheus.io/). Specifically, the field `.spec.monitoring` specifies how application monitoring is handled and particularly how metrics are to be reported. The metric system is configured through the configuration file `metrics.properties`, which gets its content from the field `.spec.monitoring.metricsProperties`. The content of [metrics.properties](../spark-docker/conf/metrics.properties) will be used by default if `.spec.monitoring.metricsProperties` is not specified. You can choose to enable or disable reporting driver and executor metrics using the fields `.spec.monitoring.exposeDriverMetrics` and `.spec.monitoring.exposeExecutorMetrics`, respectively. 
+The operator supports using the Spark metric system to expose metrics to a variety of sinks. Particularly, it is able to automatically configure the metric system to expose metrics to [Prometheus](https://prometheus.io/). Specifically, the field `.spec.monitoring` specifies how application monitoring is handled and particularly how metrics are to be reported. The metric system is configured through the configuration file `metrics.properties`, which gets its content from the field `.spec.monitoring.metricsProperties`. The content of [metrics.properties](../spark-docker/conf/metrics.properties) will be used by default if `.spec.monitoring.metricsProperties` is not specified. You can choose to enable or disable reporting driver and executor metrics using the fields `.spec.monitoring.exposeDriverMetrics` and `.spec.monitoring.exposeExecutorMetrics`, respectively. 
 
 Further, the field `.spec.monitoring.prometheus` specifies how metrics are exposed to Prometheus using the [Prometheus JMX exporter](https://github.com/prometheus/jmx_exporter). When `.spec.monitoring.prometheus` is specified, the operator automatically configures the JMX exporter to run as a Java agent. The only required field of `.spec.monitoring.prometheus` is `jmxExporterJar`, which specified the path to the Prometheus JMX exporter Java agent jar in the container. If you use the image `gcr.io/spark-operator/spark:v2.3.1-gcs-prometheus`, the jar is located at `/prometheus/jmx_prometheus_javaagent-0.3.1.jar`. The field `.spec.monitoring.prometheus.port` specifies the port the JMX exporter Java agent binds to and defaults to `8090` if not specified. The field `.spec.monitoring.prometheus.configuration` specifies the content of the configuration to be used with the JMX exporter. The content of [prometheus.yaml](../spark-docker/conf/prometheus.yaml) will be used by default if `.spec.monitoring.prometheus.configuration` is not specified.    
 
@@ -419,7 +435,7 @@ spec:
       jmxExporterJar: "/var/spark-data/spark-jars/jmx_prometheus_javaagent-0.3.1.jar"    
 ```
 
-The operator automatically adds the annotations such as `prometheus.io/scrape=true` on the driver and/or executor pods so the metrics exposed on the pods can be scraped by the Prometheus server in the same cluster.
+The operator automatically adds the annotations such as `prometheus.io/scrape=true` on the driver and/or executor pods (depending on the values of  `.spec.monitoring.exposeDriverMetrics` and `.spec.monitoring.exposeExecutorMetrics`) so the metrics exposed on the pods can be scraped by the Prometheus server in the same cluster.
 
 ## Working with SparkApplications
 
@@ -543,7 +559,7 @@ schedule and concurrency policy of a `ScheduledSparkApplication`. For example, a
 be used with a `ScheduledSparkApplication`. In most cases, a restart policy of `OnFailure` may not be a good choice as 
 the next run usually picks up where the previous run left anyway. For these reasons, it's often the right choice to use
 a restart policy of `Never` as the example above shows. 
- 
+
 ## Customizing the Operator
 
 To customize the operator, you can follow the steps below:

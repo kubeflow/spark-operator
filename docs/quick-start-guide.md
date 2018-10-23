@@ -35,7 +35,7 @@ $ kubectl create clusterrolebinding <user>-cluster-admin-binding --clusterrole=c
 Now you should see the operator running in the cluster by checking the status of the Deployment.
 
 ```bash
-$ kubectl describe deployment sparkoperator -n sparkoperator
+$ kubectl describe deployment sparkoperator -n spark-operator
 ```
 
 ### Metrics
@@ -192,13 +192,12 @@ The operator submits the Spark Pi example to run once it receives an event indic
 
 ## Using the Mutating Admission Webhook
 
-The Kubernetes Operator for "Apache Spark comes with an optional mutating admission webhook for customizing Spark driver and executor pods based on the specification in `SparkApplication` objects, e.g., mounting user-specified ConfigMaps and volumes, and setting pod affinity/anti-affinity.
+The Kubernetes Operator for "Apache Spark comes with an optional mutating admission webhook for customizing Spark driver and executor pods based on the specification in `SparkApplication` objects, e.g., mounting user-specified ConfigMaps and volumes, and setting pod affinity/anti-affinity, and adding tolerations.
 
-The webhook requires a X509 certificate for TLS for pod admission requests and responses between the Kubernetes API server and the webhook server running inside the operator. For that, the certificate and key files must be accessible by the webhook server and a Kubernetes secret can be used to store the files.
+The webhook requires a X509 certificate for TLS for pod admission requests and responses between the Kubernetes API server and the webhook server running inside the operator. For that, the certificate and key files must be accessible by the webhook server.
+The Spark Operator ships with a tool at `hack/gencerts.sh` for generating the CA and server certificate and putting the certificate and key files into a secret named `spark-webhook-certs` in namespace `sparkoperator`. This secret will be mounted into the Spark Operator pod.  
 
-The operator ships with a tool at `hack/gencerts.sh` for generating the CA and server certificate and putting the certificate and key files into a secret. Running `hack/gencerts.sh` will generate a CA certificate and a certificate for the webhook server signed by the CA, and create a secret named `spark-webhook-certs` in namespace `sparkoperator`. This secret will be mounted into the operator pod.  
-
-With the secret storing the certificate and key files available, run the following command to install the operatorr with the mutating admission webhook:
+Run the following command to create secret with certificate and key files using Batch Job, and install the Spark Operator Deployment with the mutating admission webhook:
 
 ```bash
 $ kubectl apply -f manifest/spark-operator-with-webhook.yaml
@@ -207,72 +206,3 @@ $ kubectl apply -f manifest/spark-operator-with-webhook.yaml
 This will create a Deployment named `sparkoperator` and a Service named `spark-webhook` for the webhook in namespace `sparkoperator`.
 
 If the operator is installed via the Helm chart using the default settings (i.e. with webhook enabled), the above steps are all automated for you.
-
-## Build
-
-In case you want to build the operator from the source code, e.g., to test a fix or a feature you write, you can do so following the instructions below.
-
-The easiest way to build without worrying about dependencies is to just build the Dockerfile.
-
-```bash
-$ docker build -t <image-tag> .
-```
-
-The operator image is built upon a base Spark image that defaults to `gcr.io/spark-operator/spark:v2.3.1`. If you want to use your own Spark image (e.g., an image with a different version of Spark or some custom dependencies), specify the argument `SPARK_IMAGE` as the following example shows: 
-
-```bash
-$ docker build --build-arg SPARK_IMAGE=<your Spark image> -t <image-tag> .
-```
-
-If you'd like to build/test the spark-operator locally, follow the instructions below:
-
-```bash
-$ mkdir -p $GOPATH/src/k8s.io
-$ cd $GOPATH/src/k8s.io
-$ git clone git@github.com:GoogleCloudPlatform/spark-on-k8s-operator.git
-```
-
-The operator uses [dep](https://golang.github.io/dep/) for dependency management. Please install `dep` following
-the instruction on the website if you don't have it available locally. To install the dependencies, run the following command:
-
-```bash
-$ dep ensure
-```
-
-To update the dependencies, run the following command. (You can skip this unless you know there's a dependency that needs updating):
-
-```bash
-$ dep ensure -update
-```
-
-Before building the operator the first time, run the following commands to get the required Kubernetes code generators:
-
-```bash
-$ go get -u k8s.io/code-generator/cmd/client-gen
-$ go get -u k8s.io/code-generator/cmd/deepcopy-gen
-$ go get -u k8s.io/code-generator/cmd/defaulter-gen
-```
-
-To update the auto-generated code, run the following command. (This step is only required if the CRD types have been changed):
-
-```bash
-$ go generate
-```
-
-You can verify the current auto-generated code is up to date with:
-
-```bash
-$ hack/verify-codegen.sh
-```
-
-To build the operator, run the following command:
-
-```bash
-$ GOOS=linux go build -o spark-operator
-```
-
-To run unit tests, run the following command:
-
-```bash
-$ go test ./...
-```

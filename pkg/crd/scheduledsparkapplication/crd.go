@@ -72,6 +72,14 @@ func getCustomResourceValidation() *apiextensionsv1beta1.CustomResourceValidatio
 								{Raw: []byte(`"Replace"`)},
 							},
 						},
+						"successfulRunHistoryLimit": {
+							Type:    "integer",
+							Minimum: float64Ptr(1),
+						},
+						"failedRunHistoryLimit": {
+							Type:    "integer",
+							Minimum: float64Ptr(1),
+						},
 						"template": {
 							Properties: map[string]apiextensionsv1beta1.JSONSchemaProps{
 								"type": {

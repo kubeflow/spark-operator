@@ -168,12 +168,13 @@ func (c *Controller) syncScheduledSparkApplication(key string) error {
 		status.Reason = err.Error()
 	} else {
 		status.ScheduleState = v1alpha1.ScheduledState
+		now := c.clock.Now()
 		nextRunTime := status.NextRun.Time
 		if nextRunTime.IsZero() {
-			nextRunTime = schedule.Next(status.LastRun.Time)
+			// The first run of the application.
+			nextRunTime = schedule.Next(now)
 			status.NextRun = metav1.NewTime(nextRunTime)
 		}
-		now := c.clock.Now()
 		if nextRunTime.Before(now) {
 			// The next run is due. Check if this is the first run of the application.
 			if status.LastRunName == "" {

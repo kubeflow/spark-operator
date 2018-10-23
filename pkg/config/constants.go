@@ -68,6 +68,9 @@ const (
 	SparkApplicationIDLabel = "spark-app-selector"
 	// SparkRoleLabel is the driver/executor label set by the operator/spark-distribution on the driver/executors Pods.
 	SparkRoleLabel = "spark-role"
+
+	// TolerationsAnnotationPrefix is the prefix of annotations that specify a Toleration.
+	TolerationsAnnotationPrefix = LabelAnnotationPrefix + "tolerations."
 )
 
 const (
