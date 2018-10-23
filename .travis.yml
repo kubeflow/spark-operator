@@ -17,10 +17,10 @@
 language: go
 
 go:
-  - 1.10.x
+  - 1.11.x
 
 env:
-  - DEP_VERSION="0.4.1"
+  - DEP_VERSION="0.5.0"
 
 before_install:
   # Download the binary to bin folder in $GOPATH
