@@ -82,13 +82,13 @@ The operator, by default, makes the Spark UI accessible by creating a service of
 The operator also supports creating an Ingress for the UI. This can be turned on by setting the `ingress-url-format` command-line flag. The `ingress-url-format`
 should be a template like `{{$appName}}.ingress.cluster.com` and the operator will replace the `{{$appName}}` with the appropriate appName.
 
-The operator also sets both `WebUIAddress` which uses the Node's public IP as well as `WebUIIngressAddress` as part of the `DriverInfo` field of the `SparkApplication` CRD.
+The operator also sets both `WebUIAddress` which uses the Node's public IP as well as `WebUIIngressAddress` as part of the `DriverInfo` field of the `SparkApplication`.
 
 ## Configuration
 
 The operator is typically deployed and run using the Helm chart. However, users can still run it outside a Kubernetes cluster and make it talk to the Kubernetes API server of a cluster by specifying path to `kubeconfig`, which can be done using the `-kubeconfig` flag.
 
-Spark Operator uses multiple workers in the `SparkApplication` controller. The number of worker threads are controlled using command-line flag `-controller-threads` which has a default value of 10.
+The operator uses multiple workers in the `SparkApplication` controller. The number of worker threads are controlled using command-line flag `-controller-threads` which has a default value of 10.
 
 The operator enables cache resynchronization so periodically the informers used by the operator will re-list existing objects it manages and re-trigger resource events. The resynchronization interval in seconds can be configured using the flag `-resync-interval`, with a default value of 30 seconds.
 

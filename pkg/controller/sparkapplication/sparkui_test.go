@@ -98,7 +98,7 @@ func TestCreateSparkUIService(t *testing.T) {
 		},
 		Status: v1alpha1.SparkApplicationStatus{
 			SparkApplicationID: "foo-1",
-			Attempts:           1,
+			ExecutionAttempts:  1,
 		},
 	}
 	app2 := &v1alpha1.SparkApplication{
@@ -109,7 +109,7 @@ func TestCreateSparkUIService(t *testing.T) {
 		},
 		Status: v1alpha1.SparkApplicationStatus{
 			SparkApplicationID: "foo-2",
-			Attempts:           2,
+			ExecutionAttempts:  2,
 		},
 	}
 	app3 := &v1alpha1.SparkApplication{

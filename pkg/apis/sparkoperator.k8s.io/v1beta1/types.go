@@ -62,7 +62,7 @@ type RestartPolicy struct {
 type RestartPolicyType string
 
 const (
-	Never     RestartPolicyType = ""
+	Never     RestartPolicyType = "Never"
 	OnFailure RestartPolicyType = "OnFailure"
 	Always    RestartPolicyType = "Always"
 )
@@ -290,8 +290,8 @@ type SparkApplicationStatus struct {
 	AppState ApplicationState `json:"applicationState,omitempty"`
 	// ExecutorState records the state of executors by executor Pod names.
 	ExecutorState map[string]ExecutorState `json:"executorState,omitempty"`
-	// Attempts is the total number of attempts made to run a Spark App to successful completion.
-	Attempts int32 `json:"attempts,omitempty"`
+	// ExecutionAttempts is the total number of attempts made to run a submitted Spark App to successful completion.
+	ExecutionAttempts int32 `json:"executionAttempts,omitempty"`
 	// SubmissionAttempts is the total number of submission attempts made to submit a Spark App.
 	SubmissionAttempts int32 `json:"submissionAttempts,omitempty"`
 }

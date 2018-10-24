@@ -26,6 +26,8 @@ spec:
   imagePullPolicy: Always
   mainClass: org.apache.spark.examples.SparkPi
   mainApplicationFile: "local:///opt/spark/examples/jars/spark-examples_2.11-2.3.1.jar"
+  restartPolicy:
+    type: Always
   volumes:
     - name: "test-volume"
       hostPath:

@@ -18,16 +18,17 @@ package sparkapplication
 
 import (
 	"fmt"
+	"os"
 	"os/exec"
 	"reflect"
+	"strings"
 	"time"
 
 	"github.com/golang/glog"
 
-	"os"
 	"path/filepath"
 
-	"strings"
+	"golang.org/x/time/rate"
 
 	apiv1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -52,7 +53,6 @@ import (
 	crdlisters "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/client/listers/sparkoperator.k8s.io/v1alpha1"
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/config"
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/util"
-	"golang.org/x/time/rate"
 )
 
 const (
@@ -322,7 +322,6 @@ func (c *Controller) getUpdatedAppStatus(app *v1alpha1.SparkApplication) *v1alph
 	if app.Status.ExecutorState == nil {
 		app.Status.ExecutorState = make(map[string]v1alpha1.ExecutorState)
 	}
-
 	for name, execStatus := range executorStateMap {
 		app.Status.ExecutorState[name] = execStatus
 	}
@@ -341,18 +340,21 @@ func (c *Controller) getUpdatedAppStatus(app *v1alpha1.SparkApplication) *v1alph
 	return app
 }
 
-func (c *Controller) handleSparkApplicationDeletion(app *v1alpha1.SparkApplication) *v1alpha1.SparkApplication {
+func removeFinalizer(app *v1alpha1.SparkApplication, finalizerToRemove string) *v1alpha1.SparkApplication {
+	for k, elem := range app.Finalizers {
+		if elem == finalizerToRemove {
+			app.Finalizers = append(app.Finalizers[:k], app.Finalizers[k+1:]...)
+			break
+		}
+	}
+	return app
+}
 
+func (c *Controller) handleSparkApplicationDeletion(app *v1alpha1.SparkApplication) *v1alpha1.SparkApplication {
 	// Validate if the driver pod no longer exists.
 	if c.validateSparkResourceDeletion(app, false) {
 		// Successfully deleted driver or driver doesn't exist. Remove it from the Finalizer List.
-		for k, elem := range app.Finalizers {
-			if elem == sparkDriverRole {
-				app.Finalizers = append(app.Finalizers[:k], app.Finalizers[k+1:]...)
-				break
-			}
-		}
-
+		app = removeFinalizer(app, sparkDriverRole)
 	} else {
 		// CRD deletion requested, lets delete driver pod.
 		err := c.deleteSparkResources(app, false)
@@ -362,6 +364,33 @@ func (c *Controller) handleSparkApplicationDeletion(app *v1alpha1.SparkApplicati
 		}
 	}
 	return app
+}
+
+// ShouldRetry determines if SparkApplication in a given state should be retried.
+func shouldRetry(app *v1alpha1.SparkApplication) bool {
+	switch app.Status.AppState.State {
+	case v1alpha1.SucceedingState:
+		return app.Spec.RestartPolicy.Type == v1alpha1.Always
+	case v1alpha1.FailingState:
+		if app.Spec.RestartPolicy.Type == v1alpha1.Always {
+			return true
+		} else if app.Spec.RestartPolicy.Type == v1alpha1.OnFailure {
+			// We Retry if we haven't hit the retry limit.
+			if app.Spec.RestartPolicy.OnFailureRetries != nil && app.Status.ExecutionAttempts < (*app.Spec.RestartPolicy.OnFailureRetries)+1 {
+				return true
+			}
+		}
+	case v1alpha1.FailedSubmissionState:
+		if app.Spec.RestartPolicy.Type == v1alpha1.Always {
+			return true
+		} else if app.Spec.RestartPolicy.Type == v1alpha1.OnFailure {
+			// We Retry if we haven't hit the retry limit.
+			if app.Spec.RestartPolicy.OnSubmissionFailureRetries != nil && app.Status.SubmissionAttempts < (*app.Spec.RestartPolicy.OnSubmissionFailureRetries)+1 {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // State Machine Transition for Spark Application:
@@ -409,7 +438,6 @@ func (c *Controller) syncSparkApplication(key string) error {
 	if err != nil {
 		return err
 	}
-
 	appToUpdate := app.DeepCopy()
 
 	// CRD Delete requested.
@@ -424,7 +452,7 @@ func (c *Controller) syncSparkApplication(key string) error {
 			glog.Infof("Creating Submission for SparkApp: %s", key)
 			appToUpdate = c.submitSparkApplication(appToUpdate)
 		case v1alpha1.SucceedingState:
-			if appToUpdate.Spec.RestartPolicy.Type == v1alpha1.Always {
+			if shouldRetry(appToUpdate) {
 				if err := c.deleteSparkResources(appToUpdate, true); err != nil {
 					glog.Errorf("failed to delete the driver pod and UI service for deleted SparkApplication %s: %v",
 						appToUpdate.Name, err)
@@ -437,22 +465,11 @@ func (c *Controller) syncSparkApplication(key string) error {
 				c.recordSparkApplicationEvent(appToUpdate)
 			}
 		case v1alpha1.FailingState:
-			shouldRetry := false
-			if appToUpdate.Spec.RestartPolicy.Type == v1alpha1.Always {
-				shouldRetry = true
-			} else if appToUpdate.Spec.RestartPolicy.Type == v1alpha1.OnFailure {
-				// We Retry if we haven't hit the retry limit.
-				if appToUpdate.Spec.RestartPolicy.OnFailureRetries != nil && appToUpdate.Status.Attempts < (*appToUpdate.Spec.RestartPolicy.OnFailureRetries)+1 {
-					shouldRetry = true
-				}
-			}
-
-			if !shouldRetry {
+			if !shouldRetry(appToUpdate) {
 				// App will never be retried. Move to Terminal Failure State.
 				appToUpdate.Status.AppState.State = v1alpha1.FailedState
 				c.recordSparkApplicationEvent(appToUpdate)
-
-			} else if hasRetryIntervalPassed(appToUpdate.Spec.RestartPolicy.OnFailureRetryInterval, appToUpdate.Status.Attempts, appToUpdate.Status.CompletionTime) {
+			} else if hasRetryIntervalPassed(appToUpdate.Spec.RestartPolicy.OnFailureRetryInterval, appToUpdate.Status.ExecutionAttempts, appToUpdate.Status.CompletionTime) {
 				if err := c.deleteSparkResources(appToUpdate, true); err != nil {
 					glog.Errorf("failed to delete the driver pod and UI service for deleted SparkApplication %s: %v",
 						appToUpdate.Name, err)
@@ -461,21 +478,10 @@ func (c *Controller) syncSparkApplication(key string) error {
 				appToUpdate.Status.AppState.State = v1alpha1.PendingRetryState
 			}
 		case v1alpha1.FailedSubmissionState:
-			shouldRetry := false
-			if appToUpdate.Spec.RestartPolicy.Type == v1alpha1.Always {
-				shouldRetry = true
-			} else if appToUpdate.Spec.RestartPolicy.Type == v1alpha1.OnFailure {
-				// We Retry if we haven't hit the retry limit.
-				if appToUpdate.Spec.RestartPolicy.OnSubmissionFailureRetries != nil && appToUpdate.Status.SubmissionAttempts < (*appToUpdate.Spec.RestartPolicy.OnSubmissionFailureRetries)+1 {
-					shouldRetry = true
-				}
-			}
-
-			if !shouldRetry {
+			if !shouldRetry(appToUpdate) {
 				// App will never be retried. Move to Terminal Failure State.
 				appToUpdate.Status.AppState.State = v1alpha1.FailedState
 				c.recordSparkApplicationEvent(appToUpdate)
-
 			} else if hasRetryIntervalPassed(appToUpdate.Spec.RestartPolicy.OnSubmissionFailureRetryInterval, appToUpdate.Status.SubmissionAttempts, appToUpdate.Status.SubmissionTime) {
 				glog.Infof("Creating Submission for SparkApp: %s", key)
 				appToUpdate = c.submitSparkApplication(appToUpdate)
@@ -485,12 +491,7 @@ func (c *Controller) syncSparkApplication(key string) error {
 				// Reset SubmissionAttempts Count since this is a new overall run.
 				appToUpdate.Status.SubmissionAttempts = 0
 				// Successfully deleted driver or driver doesn't exist. Remove it from the Finalizer List.
-				for k, elem := range appToUpdate.Finalizers {
-					if elem == sparkDriverRole {
-						appToUpdate.Finalizers = append(appToUpdate.Finalizers[:k], appToUpdate.Finalizers[k+1:]...)
-						break
-					}
-				}
+				appToUpdate = removeFinalizer(appToUpdate, sparkDriverRole)
 				glog.Infof("Creating Submission for SparkApp: %s", key)
 				appToUpdate = c.submitSparkApplication(appToUpdate)
 			}
@@ -585,7 +586,7 @@ func (c *Controller) submitSparkApplication(app *v1alpha1.SparkApplication) *v1a
 				State: v1alpha1.SubmittedState,
 			},
 			SubmissionAttempts: app.Status.SubmissionAttempts + 1,
-			Attempts:           app.Status.Attempts + 1,
+			ExecutionAttempts:  app.Status.ExecutionAttempts + 1,
 			SubmissionTime:     metav1.Now(),
 		}
 		c.recordSparkApplicationEvent(app)

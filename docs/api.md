@@ -138,7 +138,7 @@ A `SparkApplicationStatus` captures the status of a Spark application including 
 | `DriverInfo` | A [`DriverInfo`](#driverinfo) field. |
 | `AppState` | Current state of the application. |
 | `ExecutorState` | A map of executor pod names to executor state. |
-| `Attempts` | The number of attempts made for an application. |
+| `ExecutionAttempts` | The number of attempts made for an application. |
 | `SubmissionAttempts` | The number of submission attempts made for an application. |
 
 

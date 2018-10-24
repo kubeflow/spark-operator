@@ -26,6 +26,10 @@ func SetSparkApplicationDefaults(app *SparkApplication) {
 		app.Spec.Mode = ClusterMode
 	}
 
+	if app.Spec.RestartPolicy.Type == "" {
+		app.Spec.RestartPolicy.Type = Never
+	}
+
 	setDriverSpecDefaults(app.Spec.Driver)
 	setExecutorSpecDefaults(app.Spec.Executor)
 }
