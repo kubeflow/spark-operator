@@ -400,7 +400,7 @@ option of the spark-submit command.
 ```yaml
 spec:
   deps:
-    pyfiles:
+    pyFiles:
        - local:///opt/spark/examples/src/main/python/py_container_checks.py
        - gs://spark-data/python-dep.zip
 ```
