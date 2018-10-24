@@ -18,8 +18,10 @@ package sparkapplication
 
 import (
 	"fmt"
+	"os"
 	"os/exec"
 	"reflect"
+	"strings"
 	"time"
 
 	"github.com/golang/glog"
@@ -48,7 +50,6 @@ import (
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/util"
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/config"
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/util"
-	"golang.org/x/time/rate"
 )
 
 const (
