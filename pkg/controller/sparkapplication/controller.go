@@ -177,6 +177,43 @@ func (c *Controller) onAdd(obj interface{}) {
 	c.enqueue(app)
 }
 
+func (c *Controller) updateSparkApplicationStatusWithRetries(
+	original *v1alpha1.SparkApplication,
+	updateFunc func(status *v1alpha1.SparkApplicationStatus)) error {
+	toUpdate := original.DeepCopy()
+
+	var lastUpdateErr error
+	for i := 0; i < maximumUpdateRetries; i++ {
+		updateFunc(&toUpdate.Status)
+		if reflect.DeepEqual(original.Status, toUpdate.Status) {
+			return nil
+		}
+		_, err := c.crdClient.SparkoperatorV1alpha1().SparkApplications(toUpdate.Namespace).Update(toUpdate)
+		if err == nil {
+			return nil
+		}
+
+		lastUpdateErr = err
+
+		// Failed update to the API server.
+		// Get the latest version from the API server first and re-apply the update.
+		name := toUpdate.Name
+		toUpdate, err = c.crdClient.SparkoperatorV1alpha1().SparkApplications(toUpdate.Namespace).Get(name,
+			metav1.GetOptions{})
+		if err != nil {
+			glog.Errorf("failed to get SparkApplication %s: %v", name, err)
+			return err
+		}
+	}
+
+	if lastUpdateErr != nil {
+		glog.Errorf("failed to update SparkApplication %s: %v", toUpdate.Name, lastUpdateErr)
+		return lastUpdateErr
+	}
+
+	return nil
+}
+
 func (c *Controller) onUpdate(oldObj, newObj interface{}) {
 	oldApp := oldObj.(*v1beta1.SparkApplication)
 	newApp := newObj.(*v1beta1.SparkApplication)
