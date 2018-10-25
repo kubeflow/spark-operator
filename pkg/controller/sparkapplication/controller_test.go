@@ -129,7 +129,7 @@ func TestOnUpdate(t *testing.T) {
 
 	ctrl.onUpdate(appTemplate, copyWithSameSpec)
 
-	// Verify that the App was enqueued but no events fired.
+	// Verify that the App was enqueued but no spec update events fired.
 	item, _ := ctrl.queue.Get()
 	key, ok := item.(string)
 	assert.True(t, ok)
@@ -139,17 +139,39 @@ func TestOnUpdate(t *testing.T) {
 	ctrl.queue.Done(item)
 	assert.Equal(t, 0, len(recorder.Events))
 
-	// Case2: Spec Update.
+	// Case2: Spec Update Failed.
 	copyWithSpecUpdate := appTemplate.DeepCopy()
 	copyWithSpecUpdate.Spec.Image = stringptr("foo-image:v2")
 	copyWithSpecUpdate.ResourceVersion = "2"
 
 	ctrl.onUpdate(appTemplate, copyWithSpecUpdate)
 
-	// Verify that update warning event fired.
+	// Verify that Update failed due to non-existance of SparkApplication.
 	assert.Equal(t, 1, len(recorder.Events))
 	event := <-recorder.Events
 	assert.True(t, strings.Contains(event, "SparkApplicationUpdateFailed"))
+
+	// Case3: Spec Update Successful.
+	ctrl.crdClient.SparkoperatorV1alpha1().SparkApplications(appTemplate.Namespace).Create(appTemplate)
+	ctrl.onUpdate(appTemplate, copyWithSpecUpdate)
+
+	// Verify App was enqueued.
+	item, _ = ctrl.queue.Get()
+	key, ok = item.(string)
+	assert.True(t, ok)
+	expectedKey, _ = cache.MetaNamespaceKeyFunc(appTemplate)
+	assert.Equal(t, expectedKey, key)
+	ctrl.queue.Forget(item)
+	ctrl.queue.Done(item)
+	// Verify that Update succeeded but a warning event was fired.
+	assert.Equal(t, 1, len(recorder.Events))
+	event = <-recorder.Events
+	assert.True(t, strings.Contains(event, "SparkApplicationUpdateWarning"))
+
+	// Verify the App state was updated to PendingRetry.
+	app, err := ctrl.crdClient.SparkoperatorV1alpha1().SparkApplications(appTemplate.Namespace).Get(appTemplate.Name, metav1.GetOptions{})
+	assert.Nil(t, err)
+	assert.Equal(t, v1alpha1.PendingRetryState, app.Status.AppState.State)
 }
 
 func TestOnDelete(t *testing.T) {

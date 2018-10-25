@@ -62,6 +62,7 @@ const (
 	podAlreadyExistsErrorCode = "code=409"
 	queueTokenRefillRate      = 50
 	queueTokenBucketSize      = 500
+	maximumUpdateRetries      = 3
 )
 
 var (
@@ -180,21 +181,79 @@ func (c *Controller) onAdd(obj interface{}) {
 	c.enqueue(app)
 }
 
+func (c *Controller) updateSparkApplicationStatusWithRetries(
+	original *v1alpha1.SparkApplication,
+	updateFunc func(status *v1alpha1.SparkApplicationStatus)) error {
+	toUpdate := original.DeepCopy()
+
+	var lastUpdateErr error
+	for i := 0; i < maximumUpdateRetries; i++ {
+		updateFunc(&toUpdate.Status)
+		if reflect.DeepEqual(original.Status, toUpdate.Status) {
+			return nil
+		}
+		_, err := c.crdClient.SparkoperatorV1alpha1().SparkApplications(toUpdate.Namespace).Update(toUpdate)
+		if err == nil {
+			return nil
+		}
+
+		lastUpdateErr = err
+
+		// Failed update to the API server.
+		// Get the latest version from the API server first and re-apply the update.
+		name := toUpdate.Name
+		toUpdate, err = c.crdClient.SparkoperatorV1alpha1().SparkApplications(toUpdate.Namespace).Get(name,
+			metav1.GetOptions{})
+		if err != nil {
+			glog.Errorf("failed to get SparkApplication %s: %v", name, err)
+			return err
+		}
+	}
+
+	if lastUpdateErr != nil {
+		glog.Errorf("failed to update SparkApplication %s: %v", toUpdate.Name, lastUpdateErr)
+		return lastUpdateErr
+	}
+
+	return nil
+}
+
 func (c *Controller) onUpdate(oldObj, newObj interface{}) {
 	oldApp := oldObj.(*v1alpha1.SparkApplication)
 	newApp := newObj.(*v1alpha1.SparkApplication)
 
-	// The spec has changed. This is currently not supported as we can potentially miss this update
+	// The spec has changed. This is currently best effort as we can potentially miss updates
 	// and end up in an inconsistent state.
 	if !reflect.DeepEqual(oldApp.Spec, newApp.Spec) {
-		glog.Warningf("Spark Application update is not supported. Please delete and re-create the SparkApplication %s for the new specification to have effect", oldApp.GetName())
-		c.recorder.Eventf(
-			newApp,
-			apiv1.EventTypeWarning,
-			"SparkApplicationUpdateFailed",
-			"Spark Application update is not supported. Please delete and re-create the SparkApplication %s for the new Specification to have effect.",
-			newApp.Name)
-		return
+		// Force-set the application status to PendingRetry so that the updated app is submitted again on deletion of Driver/Resources.
+		if err := c.updateSparkApplicationStatusWithRetries(newApp, func(status *v1alpha1.SparkApplicationStatus) {
+			status.AppState.State = v1alpha1.PendingRetryState
+			status.ExecutionAttempts = 0
+		}); err != nil {
+			c.recorder.Eventf(
+				newApp,
+				apiv1.EventTypeWarning,
+				"SparkApplicationUpdateFailed",
+				"Failed to process update for SparkApplication %s, Error: %s.",
+				newApp.Name,
+				err)
+			return
+		} else {
+			c.recorder.Eventf(
+				newApp,
+				apiv1.EventTypeNormal,
+				"SparkApplicationUpdateWarning",
+				"SparkApplication %s was successfully updated and enqueued for submission. In some cases, SparkApplication updates can be missed."+
+					" A more reliable way of achieving this is to delete and re-create the SparkApplication.",
+				newApp.Name)
+		}
+
+		// Trigger deletion of the driver pod and UI service of the old application.
+		if err := c.deleteSparkResources(oldApp, true); err != nil {
+			glog.Errorf("failed to delete the old driver pod and UI service for SparkApplication %s: %v",
+				oldApp.Name, err)
+			return
+		}
 	}
 
 	glog.V(2).Infof("Spark Application %s enqueued for Processing.", newApp.GetName())
@@ -202,8 +261,6 @@ func (c *Controller) onUpdate(oldObj, newObj interface{}) {
 }
 
 func (c *Controller) onDelete(obj interface{}) {
-	c.dequeue(obj)
-
 	var app *v1alpha1.SparkApplication
 	switch obj.(type) {
 	case *v1alpha1.SparkApplication:
@@ -232,6 +289,7 @@ func (c *Controller) runWorker() {
 
 func (c *Controller) processNextItem() bool {
 	key, quit := c.queue.Get()
+
 	if quit {
 		return false
 	}
@@ -706,17 +764,6 @@ func (c *Controller) enqueue(obj interface{}) {
 	}
 
 	c.queue.AddRateLimited(key)
-}
-
-func (c *Controller) dequeue(obj interface{}) {
-	key, err := keyFunc(obj)
-	if err != nil {
-		glog.Errorf("failed to get key for %v: %v", obj, err)
-		return
-	}
-
-	c.queue.Forget(key)
-	c.queue.Done(key)
 }
 
 func (c *Controller) getNodeExternalIP(nodeName string) string {
