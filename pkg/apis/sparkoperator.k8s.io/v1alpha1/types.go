@@ -245,6 +245,7 @@ const (
 	FailedState           ApplicationStateType = "FAILED"
 	FailedSubmissionState ApplicationStateType = "SUBMISSION_FAILED"
 	PendingRetryState     ApplicationStateType = "PENDING_RETRY"
+	InvalidatingState     ApplicationStateType = "INVALIDATING"
 	SucceedingState       ApplicationStateType = "SUCCEEDING"
 	FailingState          ApplicationStateType = "FAILING"
 )
