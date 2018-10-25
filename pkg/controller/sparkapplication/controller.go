@@ -225,10 +225,9 @@ func (c *Controller) onUpdate(oldObj, newObj interface{}) {
 	// The spec has changed. This is currently best effort as we can potentially miss updates
 	// and end up in an inconsistent state.
 	if !reflect.DeepEqual(oldApp.Spec, newApp.Spec) {
-		// Force-set the application status to PendingRetry so that the updated app is submitted again on deletion of Driver/Resources.
+		// Force-set the application status to Invalidating which handles clean-up and application re-run.
 		if err := c.updateSparkApplicationStatusWithRetries(newApp, func(status *v1alpha1.SparkApplicationStatus) {
-			status.AppState.State = v1alpha1.PendingRetryState
-			status.ExecutionAttempts = 0
+			status.AppState.State = v1alpha1.InvalidatingState
 		}); err != nil {
 			c.recorder.Eventf(
 				newApp,
@@ -246,13 +245,6 @@ func (c *Controller) onUpdate(oldObj, newObj interface{}) {
 				"SparkApplication %s was successfully updated and enqueued for submission. In some cases, SparkApplication updates can be missed."+
 					" A more reliable way of achieving this is to delete and re-create the SparkApplication.",
 				newApp.Name)
-		}
-
-		// Trigger deletion of the driver pod and UI service of the old application.
-		if err := c.deleteSparkResources(oldApp, true); err != nil {
-			glog.Errorf("failed to delete the old driver pod and UI service for SparkApplication %s: %v",
-				oldApp.Name, err)
-			return
 		}
 	}
 
@@ -466,7 +458,7 @@ func shouldRetry(app *v1alpha1.SparkApplication) bool {
 //|           |         |          |                                                                  |                |
 //|      +----+----+    |    +-----v----+          +----------+           +-----------+          +----v-----+          |
 //|      |         |    |    |          |          |          |           |           |          |          |          |
-//|      |         |    |    |          |          |          |           |           |          |			|          |
+//|      |         |    |    |          |          |          |           |           |          |		  |          |
 //|      |   New   +---------> Submitted+----------> Running  +----------->  Failing  +---------->  Failed  |          |
 //|      |         |    |    |          |          |          |           |           |          |          |          |
 //|      |         |    |    |          |          |          |           |           |          |          |          |
@@ -474,19 +466,20 @@ func shouldRetry(app *v1alpha1.SparkApplication) bool {
 //|      +---------+    |    +----^-----+          +-----+----+           +-----+-----+          +----------+          |
 //|                     |         |                      |                      |                                      |
 //|                     |         |                      |                      |                                      |
-//|                     |         |             +-------------------------------+                                      |
-//|                     |   +-----+-----+       |        |                +-----------+          +----------+          |
-//|                     |   |  Pending  |       |        |                |           |          |          |          |
-//|                     +---+   Retry   <-------+        +---------------->Succeeding +---------->Completed |          |
-//|                         |           <-------+                         |           |          |          |          |
-//|                         |           |       |                         |           |          |          |          |
-//|                         |           |       |                         |           |          |          |          |
-//|                         +-----------+       |                         +-----+-----+          +----------+          |
-//|                                             |                               |                                      |
+//|    +------------+   |         |             +-------------------------------+                                      |
+//|    |            |   |   +-----+-----+       |        |                +-----------+          +----------+          |
+//|    |            |   |   |  Pending  |       |        |                |           |          |          |          |
+//|    |            |   +---+   Retry   <-------+        +---------------->Succeeding +---------->Completed |          |
+//|    |Invalidating|       |           <-------+                         |           |          |          |          |
+//|    |            +------->           |       |                         |           |          |          |          |
+//|    |            |       |           |       |                         |           |          |          |          |
+//|    |            |       +-----------+       |                         +-----+-----+          +----------+          |
+//|    +------------+                           |                               |                                      |
 //|                                             |                               |                                      |
 //|                                             +-------------------------------+                                      |
 //|                                                                                                                    |
 //+--------------------------------------------------------------------------------------------------------------------+
+
 func (c *Controller) syncSparkApplication(key string) error {
 	namespace, name, err := cache.SplitMetaNamespaceKey(key)
 	if err != nil {
@@ -544,6 +537,15 @@ func (c *Controller) syncSparkApplication(key string) error {
 				glog.Infof("Creating Submission for SparkApp: %s", key)
 				appToUpdate = c.submitSparkApplication(appToUpdate)
 			}
+		case v1alpha1.InvalidatingState:
+			// Invalidate the current run and enqueue the SparkApplication for re-execution.
+			if err := c.deleteSparkResources(appToUpdate, true); err != nil {
+				glog.Errorf("failed to delete the driver pod and UI service for deleted SparkApplication %s: %v",
+					appToUpdate.Name, err)
+				return err
+			}
+			appToUpdate.Status.AppState.State = v1alpha1.PendingRetryState
+			appToUpdate.Status.ExecutionAttempts = 0
 		case v1alpha1.PendingRetryState:
 			if c.validateSparkResourceDeletion(appToUpdate, true) {
 				// Reset SubmissionAttempts Count since this is a new overall run.

@@ -168,10 +168,10 @@ func TestOnUpdate(t *testing.T) {
 	event = <-recorder.Events
 	assert.True(t, strings.Contains(event, "SparkApplicationUpdateWarning"))
 
-	// Verify the App state was updated to PendingRetry.
+	// Verify the App state was updated to Invalidating state.
 	app, err := ctrl.crdClient.SparkoperatorV1alpha1().SparkApplications(appTemplate.Namespace).Get(appTemplate.Name, metav1.GetOptions{})
 	assert.Nil(t, err)
-	assert.Equal(t, v1alpha1.PendingRetryState, app.Status.AppState.State)
+	assert.Equal(t, v1alpha1.InvalidatingState, app.Status.AppState.State)
 }
 
 func TestOnDelete(t *testing.T) {
@@ -653,6 +653,24 @@ func TestSyncSparkApp_SubmissionSuccess(t *testing.T) {
 				},
 			},
 			expectedState: v1alpha1.FailingState,
+		},
+		{
+			app: &v1alpha1.SparkApplication{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "foo",
+					Namespace: "default",
+				},
+				Spec: v1alpha1.SparkApplicationSpec{
+					RestartPolicy: restartPolicyNever,
+				},
+				Status: v1alpha1.SparkApplicationStatus{
+					AppState: v1alpha1.ApplicationState{
+						State: v1alpha1.InvalidatingState,
+					},
+					CompletionTime: metav1.Time{Time: metav1.Now().Add(-2000 * time.Second)},
+				},
+			},
+			expectedState: v1alpha1.PendingRetryState,
 		},
 		{
 			app: &v1alpha1.SparkApplication{
