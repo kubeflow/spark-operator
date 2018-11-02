@@ -17,13 +17,13 @@ To install the operator, use the Helm [chart](https://github.com/helm/charts/tre
 
 ```bash
 $ helm repo add incubator http://storage.googleapis.com/kubernetes-charts-incubator
-$ helm install incubator/sparkoperator
+$ helm install incubator/sparkoperator --namespace spark-operator
 ```
 
-Installing the chart will create a namespace `spark-operator`, set up RBAC for the operator to run in the namespace. It will also set up RBAC for driver pods of your Spark applications to be able to manipulate executor pods. In addition, the chart will create a Deployment named `sparkoperator` in namespace `spark-operator`. The chart by default enables a [Mutating Admission Webhook](https://kubernetes.io/docs/reference/access-authn-authz/extensible-admission-controllers/) for Spark pod customization. A webhook service called `spark-webhook` and a secret storing the x509 certificate called `spark-webhook-certs` are created for that purpose. To install the operator **without** the mutating admission webhook on a Kubernetes cluster, install the chart with the flag `enableWebhook=false`:
+Installing the chart will create a namespace `spark-operator` if it doesn't exist, set up RBAC for the operator to run in the namespace. It will also set up RBAC for driver pods of your Spark applications to be able to manipulate executor pods. In addition, the chart will create a Deployment in the namespace `spark-operator`. The chart by default enables a [Mutating Admission Webhook](https://kubernetes.io/docs/reference/access-authn-authz/extensible-admission-controllers/) for Spark pod customization. A webhook service and a secret storing the x509 certificate called `spark-webhook-certs` are created for that purpose. To install the operator **without** the mutating admission webhook on a Kubernetes cluster, install the chart with the flag `enableWebhook=false`:
 
 ```bash
-$ helm install incubator/sparkoperator --set enableWebhook=false
+$ helm install incubator/sparkoperator --namespace spark-operator --set enableWebhook=false
 ```
 
 Due to a [known issue](https://cloud.google.com/kubernetes-engine/docs/how-to/role-based-access-control#defining_permissions_in_a_role) in GKE, you will need to first grant yourself cluster-admin privileges before you can create custom roles and role bindings on a GKE cluster versioned 1.6 and up. Run the following command before installing the chart on GKE:
@@ -32,10 +32,10 @@ Due to a [known issue](https://cloud.google.com/kubernetes-engine/docs/how-to/ro
 $ kubectl create clusterrolebinding <user>-cluster-admin-binding --clusterrole=cluster-admin --user=<user>@<domain>
 ```
 
-Now you should see the operator running in the cluster by checking the status of the Deployment.
+Now you should see the operator running in the cluster by checking the status of the Helm release.
 
 ```bash
-$ kubectl describe deployment sparkoperator -n spark-operator
+$ helm status <spark-operator-release-name>
 ```
 
 ### Metrics
@@ -43,7 +43,7 @@ $ kubectl describe deployment sparkoperator -n spark-operator
 The operator exposes a set of metrics via the metric endpoint to be scraped by `Prometheus`. The Helm chart by default installs the operator with the additional flag to enable metrics (`-enable-metrics=true`) as well as other annotations used by Prometheus to scrape the metric endpoint. To install the operator  **without** metrics enabled, pass the appropriate flag during `helm install`:
 
 ```bash
-$ helm install incubator/sparkoperator --set enableMetrics=false
+$ helm install incubator/sparkoperator --namespace spark-operator --set enableMetrics=false
 ```
 
 If enabled, the operator generates the following metrics:
@@ -110,7 +110,9 @@ To run the Spark Pi example, run the following command:
 $ kubectl apply -f examples/spark-pi.yaml
 ```
 
-This will create a `SparkApplication` object named `spark-pi`. Check the object by running the following command:
+Note that `spark-pi.yaml` configures the driver pod to use the `spark` service account to communicate with the Kubernetes API server. You might need to replace it with the approprate service account before submitting the job. If you installed the operator using the Helm chart, the Spark job namespace (i.e. `default` by default) already has a service account you can use. Its name ends with `-spark` and starts with the Helm release name. 
+
+Running the above command will create a `SparkApplication` object named `spark-pi`. Check the object by running the following command:
 
 ```bash
 $ kubectl get sparkapplications spark-pi -o=yaml
@@ -182,7 +184,7 @@ The operator submits the Spark Pi example to run once it receives an event indic
 The Kubernetes Operator for "Apache Spark comes with an optional mutating admission webhook for customizing Spark driver and executor pods based on the specification in `SparkApplication` objects, e.g., mounting user-specified ConfigMaps and volumes, and setting pod affinity/anti-affinity, and adding tolerations.
 
 The webhook requires a X509 certificate for TLS for pod admission requests and responses between the Kubernetes API server and the webhook server running inside the operator. For that, the certificate and key files must be accessible by the webhook server.
-The Spark Operator ships with a tool at `hack/gencerts.sh` for generating the CA and server certificate and putting the certificate and key files into a secret named `spark-webhook-certs` in namespace `sparkoperator`. This secret will be mounted into the Spark Operator pod.  
+The Spark Operator ships with a tool at `hack/gencerts.sh` for generating the CA and server certificate and putting the certificate and key files into a secret named `spark-webhook-certs` in the namespace `spark-operator`. This secret will be mounted into the Spark Operator pod.  
 
 Run the following command to create secret with certificate and key files using Batch Job, and install the Spark Operator Deployment with the mutating admission webhook:
 
@@ -190,6 +192,6 @@ Run the following command to create secret with certificate and key files using 
 $ kubectl apply -f manifest/spark-operator-with-webhook.yaml
 ```
 
-This will create a Deployment named `sparkoperator` and a Service named `spark-webhook` for the webhook in namespace `sparkoperator`.
+This will create a Deployment named `sparkoperator` and a Service named `spark-webhook` for the webhook in namespace `spark-operator`.
 
 If the operator is installed via the Helm chart using the default settings (i.e. with webhook enabled), the above steps are all automated for you.
