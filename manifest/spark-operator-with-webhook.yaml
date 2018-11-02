@@ -14,7 +14,7 @@
 # limitations under the License.
 #
 
-apiVersion: apps/v1beta1
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: sparkoperator
@@ -46,7 +46,7 @@ spec:
       containers:
       - name: sparkoperator
         image: gcr.io/spark-operator/spark-operator:v2.4.0-v1alpha1-latest
-        imagePullPolicy: Always
+        imagePullPolicy: IfNotPresent
         volumeMounts:
         - name: webhook-certs
           mountPath: /etc/webhook-certs
@@ -77,8 +77,13 @@ spec:
       restartPolicy: Never
       containers:
       - name: main
+<<<<<<< HEAD
         image: gcr.io/spark-operator/spark-operator:v2.4.0-v1alpha1-latest
         imagePullPolicy: Always
+=======
+        image: gcr.io/spark-operator/spark-operator:v2.3.1-v1alpha1-latest
+        imagePullPolicy: IfNotPresent
+>>>>>>> Added basic integration tests
         command: ["/usr/bin/gencerts.sh", "-p"]
 ---
 kind: Service

@@ -32,7 +32,43 @@
   version = "v10.15.5"
 
 [[projects]]
-  digest = "1:e637bf386ce86c9329502c9f3486706053ab9f0c7d44a02037b76cd9841303e3"
+  branch = "master"
+  digest = "1:9af21e1eb1f440522e65bb4c1aada2661402c59eb64f484e2c3dab750cd003c4"
+  name = "github.com/GoogleCloudPlatform/spark-on-k8s-operator"
+  packages = [
+    "pkg/apis/sparkoperator.k8s.io",
+    "pkg/apis/sparkoperator.k8s.io/v1alpha1",
+    "pkg/apis/sparkoperator.k8s.io/v1beta1",
+    "pkg/client/clientset/versioned",
+    "pkg/client/clientset/versioned/fake",
+    "pkg/client/clientset/versioned/scheme",
+    "pkg/client/clientset/versioned/typed/sparkoperator.k8s.io/v1alpha1",
+    "pkg/client/clientset/versioned/typed/sparkoperator.k8s.io/v1alpha1/fake",
+    "pkg/client/clientset/versioned/typed/sparkoperator.k8s.io/v1beta1",
+    "pkg/client/clientset/versioned/typed/sparkoperator.k8s.io/v1beta1/fake",
+    "pkg/client/informers/externalversions",
+    "pkg/client/informers/externalversions/internalinterfaces",
+    "pkg/client/informers/externalversions/sparkoperator.k8s.io",
+    "pkg/client/informers/externalversions/sparkoperator.k8s.io/v1alpha1",
+    "pkg/client/informers/externalversions/sparkoperator.k8s.io/v1beta1",
+    "pkg/client/listers/sparkoperator.k8s.io/v1alpha1",
+    "pkg/client/listers/sparkoperator.k8s.io/v1beta1",
+    "pkg/config",
+    "pkg/controller/scheduledsparkapplication",
+    "pkg/controller/sparkapplication",
+    "pkg/crd",
+    "pkg/crd/scheduledsparkapplication",
+    "pkg/crd/sparkapplication",
+    "pkg/util",
+    "pkg/webhook",
+    "sparkctl/cmd",
+    "test/e2e/framework",
+  ]
+  pruneopts = ""
+  revision = "0d2df329df883175135938b45a671207e40f2960"
+
+[[projects]]
+  digest = "1:335b92651d8324aa60815a814ce387e56a0f513049cbf19714f90df91a769860"
   name = "github.com/aws/aws-sdk-go"
   packages = [
     "aws",
@@ -52,6 +88,7 @@
     "aws/request",
     "aws/session",
     "aws/signer/v4",
+    "internal/ini",
     "internal/s3err",
     "internal/sdkio",
     "internal/sdkrand",
@@ -71,8 +108,8 @@
     "service/sts",
   ]
   pruneopts = ""
-  revision = "66832f7f150914a46ffbfc03210f3b9cb0e4c005"
-  version = "v1.15.57"
+  revision = "f76d9803fd695eebf74cb23c460287fa496efc21"
+  version = "v1.15.63"
 
 [[projects]]
   branch = "master"
@@ -100,14 +137,14 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:6c48291ff15f3c3b263ed6f7356acea45da69e7fca8d0d76d2c021a075fbd52a"
+  digest = "1:d6c13a378213e3de60445e49084b8a0a9ce582776dfc77927775dbeb3ff72a35"
   name = "github.com/docker/spdystream"
   packages = [
     ".",
     "spdy",
   ]
   pruneopts = ""
-  revision = "bc6354cbbc295e925e4c611ffe90c1f287ee54db"
+  revision = "6480d4af844c189cf5dd913db24ddd339d3a4f85"
 
 [[projects]]
   digest = "1:dcefbadf4534c5ecac8573698fba6e6e601157bfa8f96aafe29df31ae582ef2a"
@@ -124,14 +161,6 @@
   pruneopts = ""
   revision = "0ca9ea5df5451ffdf184b4428c902747c2c11cd7"
   version = "v1.0.0"
-
-[[projects]]
-  digest = "1:736253aac975cfc002b3c74034b8ff6becac84ed92e91b6147f6703834b890cc"
-  name = "github.com/go-ini/ini"
-  packages = ["."]
-  pruneopts = ""
-  revision = "9c8236e659b76e87bf02044d06fde8683008ff3e"
-  version = "v1.39.0"
 
 [[projects]]
   digest = "1:6e73003ecd35f4487a5e88270d3ca0a81bc80dc88053ac7e4dcfec5fba30d918"
@@ -154,11 +183,11 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:9854532d7b2fee9414d4fcd8d8bccd6b1c1e1663d8ec0337af63a19aaf4a778e"
+  digest = "1:aa2251148505e561bfa8cd6b69a319b37761da57b0b25529c4af08389559e3b9"
   name = "github.com/golang/groupcache"
   packages = ["lru"]
   pruneopts = ""
-  revision = "6f2cf27854a4a29e3811b0371547be335d411b8b"
+  revision = "c65c006176ff7ff98bb916961c7abbc6b0afc0aa"
 
 [[projects]]
   digest = "1:3dd078fda7500c341bc26cfbc6c6a34614f295a2457149fc1045cab767cbcf18"
@@ -228,7 +257,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:aa33fb979534df6191b6666fc27bd6fa1c798eeb8518fffaaa4e1d6727d2cf46"
+  digest = "1:5da48102a46156aa0a85db650cee78cb042c67b781adec2a7c4bbac91edee06f"
   name = "github.com/gophercloud/gophercloud"
   packages = [
     ".",
@@ -240,7 +269,7 @@
     "pagination",
   ]
   pruneopts = ""
-  revision = "6f0ea755af5c6931678bc34f9ef315a5b0aa6ff0"
+  revision = "cbd1d4bdbfa53deb18191f576456b4ae3e3662fb"
 
 [[projects]]
   branch = "master"
@@ -369,7 +398,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:f3e56d302f80d760e718743f89f4e7eaae532d4218ba330e979bd051f78de141"
+  digest = "1:cd59ad6c4df65781c8328e18a895aa06ead533f26eaaa0c5afcd463a077a6924"
   name = "github.com/prometheus/client_golang"
   packages = [
     "prometheus",
@@ -377,7 +406,7 @@
     "prometheus/promhttp",
   ]
   pruneopts = ""
-  revision = "1cafe34db7fdec6022e17e00e1c1ea501022f3e4"
+  revision = "f30f428035633da15d00d3dfefb0128c5e569ef4"
 
 [[projects]]
   branch = "master"
@@ -389,7 +418,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:d1b5970f2a453e7c4be08117fb683b5d096bad9d17f119a6e58d4c561ca205dd"
+  digest = "1:117e1e4f1ed83191a4a225d23488e14802ff8f91b3ed4ff0d229e8ea0faf0a88"
   name = "github.com/prometheus/common"
   packages = [
     "expfmt",
@@ -397,7 +426,7 @@
     "model",
   ]
   pruneopts = ""
-  revision = "bcb74de08d37a417cb6789eec1d6c810040f0470"
+  revision = "7e9e6cabbd393fc208072eedef99188d0ce788b6"
 
 [[projects]]
   branch = "master"
@@ -444,10 +473,11 @@
   version = "v1.2.2"
 
 [[projects]]
-  digest = "1:8c8ec859c77fccd10a347b7219b597c4c21c448949e8bdf3fc3e6f4c78f952b4"
+  digest = "1:ad67dfd3799a2c58f6c65871dd141d8b53f61f600aec48ce8d7fa16a4d5476f8"
   name = "go.opencensus.io"
   packages = [
     ".",
+    "exemplar",
     "internal",
     "internal/tagencoding",
     "plugin/ochttp",
@@ -462,20 +492,20 @@
     "trace/tracestate",
   ]
   pruneopts = ""
-  revision = "79993219becaa7e29e3b60cb67f5b8e82dee11d6"
-  version = "v0.17.0"
+  revision = "b7bf3cdb64150a8c8c53b769fdeb2ba581bd4d4b"
+  version = "v0.18.0"
 
 [[projects]]
   branch = "master"
-  digest = "1:78f41d38365ccef743e54ed854a2faf73313ba0750c621116a8eeb0395590bd0"
+  digest = "1:2c9adb62791dc0a28d0058cdee22abf578f33a88dccf8dd4ced84e23b11cd560"
   name = "golang.org/x/crypto"
   packages = ["ssh/terminal"]
   pruneopts = ""
-  revision = "0c41d7ab0a0ee717d4590a44bcb987dfd9e183eb"
+  revision = "85e1b3f9139abd58575d728a509643924e3b2ebf"
 
 [[projects]]
   branch = "master"
-  digest = "1:6543c75ddc1efc0041202dd49378ee2e5711b7cc82c2845c0437eef6276cc984"
+  digest = "1:b001b57f383ecbebb54c3916ca6b8be129a6486d3dbf2dfc722cbb0a0b2a8679"
   name = "golang.org/x/net"
   packages = [
     "context",
@@ -488,7 +518,7 @@
     "trace",
   ]
   pruneopts = ""
-  revision = "04a2e542c03f1d053ab3e4d6e5abcd4b66e2be8e"
+  revision = "9b4f9f5ad5197c79fd623a3638e70d8b26cef344"
 
 [[projects]]
   branch = "master"
@@ -514,14 +544,14 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:2ed0bf267e44950120acd95570227e28184573ffb099bd85b529ee148e004ddb"
+  digest = "1:22febfca49d8fbdeebfc021cceb3851314aa894a1fb2d8bfb316292cd1a1f951"
   name = "golang.org/x/sys"
   packages = [
     "unix",
     "windows",
   ]
   pruneopts = ""
-  revision = "fa43e7bc11baaae89f3f902b2b4d832b68234844"
+  revision = "d989b31c87461dc8ab2f1cac6792814e27fadea9"
 
 [[projects]]
   digest = "1:5acd3512b047305d49e8763eef7ba423901e85d5dd2fd1e71778a0ea8de10bd4"
@@ -556,7 +586,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:7990cc444be39ebe93c51c2530338185a989669f494cbfa35540f9b8c761f631"
+  digest = "1:d9f47d3af9482eea8b6f559fc709992cd8890ec615e855a61c2efdf5f1ca85ed"
   name = "golang.org/x/tools"
   packages = [
     "go/ast/astutil",
@@ -565,11 +595,11 @@
     "internal/gopathwalk",
   ]
   pruneopts = ""
-  revision = "06f26fdaaa28cdb20cf496a5eec17e1270830a63"
+  revision = "a2dc47679d30b6c496245bafc6a166b46c5fe318"
 
 [[projects]]
   branch = "master"
-  digest = "1:db8adde0e8b04865546c057782ce223a36e35deae3224f908cb9d2f53abc7a52"
+  digest = "1:c27a89d60659ad150321f92be36e91b711e24f088f16c33abe465d5e5c470860"
   name = "google.golang.org/api"
   packages = [
     "gensupport",
@@ -584,7 +614,7 @@
     "transport/http/internal/propagation",
   ]
   pruneopts = ""
-  revision = "3f6e8463aa1d824abe11b439d178c02220079da5"
+  revision = "39567f0042a03aeb2691599961ed4454e43d5063"
 
 [[projects]]
   digest = "1:8c432632a230496c35a15cfdf441436f04c90e724ad99c8463ef0c82bbe93edb"
@@ -618,7 +648,7 @@
   revision = "94acd270e44e65579b9ee3cdab25034d33fed608"
 
 [[projects]]
-  digest = "1:15656947b87a6a240e61dcfae9e71a55a8d5677f240d12ab48f02cdbabf1e309"
+  digest = "1:1293087271e314cfa2b3decededba2ecba0ff327e7b7809e00f73f616449191c"
   name = "google.golang.org/grpc"
   packages = [
     ".",
@@ -649,8 +679,8 @@
     "tap",
   ]
   pruneopts = ""
-  revision = "8dea3dc473e90c8179e519d91302d0597c0ca1d1"
-  version = "v1.15.0"
+  revision = "2e463a05d100327ca47ac218281906921038fd95"
+  version = "v1.16.0"
 
 [[projects]]
   digest = "1:75fb3fcfc73a8c723efde7777b40e8e8ff9babf30d8c56160d01beffea8a95a6"
@@ -909,7 +939,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:4a75352fad3a8e993928462643415e8263f94ae845aa5e7dce1de2f34f961e36"
+  digest = "1:4a3eefae81ea88b5a95e66e4942a783312b52a2712f1d5a9a74b6038be68a90a"
   name = "k8s.io/gengo"
   packages = [
     "args",
@@ -922,15 +952,15 @@
     "types",
   ]
   pruneopts = ""
-  revision = "4242d8e6c5dba56827bb7bcf14ad11cda38f3991"
+  revision = "7338e4bfd6915369a1375890db1bbda0158c9863"
 
 [[projects]]
   branch = "master"
-  digest = "1:bb17aab96138a89eb0550fbf135a9812f6be8bc9805080e36c9efe50f607261e"
+  digest = "1:53464bb03bfff03742ec6ebed9a8bdb6f08a0cebe9d2f6d5e47af6f4a95e56bc"
   name = "k8s.io/kube-openapi"
   packages = ["pkg/util/proto"]
   pruneopts = ""
-  revision = "5d05df014ac640f14b5e777958248251c2ef5e86"
+  revision = "3ad5caa95aef432cd737c23ee9ee76eb11e789a6"
 
 [[projects]]
   digest = "1:c8b66f8046163fd757f9fb87602e3bb181191512d31281c50c2c900046470877"
@@ -945,6 +975,33 @@
   analyzer-version = 1
   input-imports = [
     "cloud.google.com/go/storage",
+    "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io",
+    "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1alpha1",
+    "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta1",
+    "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/client/clientset/versioned",
+    "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/client/clientset/versioned/fake",
+    "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/client/clientset/versioned/scheme",
+    "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/client/clientset/versioned/typed/sparkoperator.k8s.io/v1alpha1",
+    "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/client/clientset/versioned/typed/sparkoperator.k8s.io/v1alpha1/fake",
+    "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/client/clientset/versioned/typed/sparkoperator.k8s.io/v1beta1",
+    "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/client/clientset/versioned/typed/sparkoperator.k8s.io/v1beta1/fake",
+    "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/client/informers/externalversions",
+    "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/client/informers/externalversions/internalinterfaces",
+    "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/client/informers/externalversions/sparkoperator.k8s.io",
+    "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/client/informers/externalversions/sparkoperator.k8s.io/v1alpha1",
+    "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/client/informers/externalversions/sparkoperator.k8s.io/v1beta1",
+    "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/client/listers/sparkoperator.k8s.io/v1alpha1",
+    "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/client/listers/sparkoperator.k8s.io/v1beta1",
+    "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/config",
+    "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/controller/scheduledsparkapplication",
+    "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/controller/sparkapplication",
+    "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/crd",
+    "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/crd/scheduledsparkapplication",
+    "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/crd/sparkapplication",
+    "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/util",
+    "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/webhook",
+    "github.com/GoogleCloudPlatform/spark-on-k8s-operator/sparkctl/cmd",
+    "github.com/GoogleCloudPlatform/spark-on-k8s-operator/test/e2e/framework",
     "github.com/aws/aws-sdk-go/aws",
     "github.com/aws/aws-sdk-go/aws/session",
     "github.com/aws/aws-sdk-go/service/s3",
@@ -966,7 +1023,7 @@
     "golang.org/x/sync/errgroup",
     "k8s.io/api/admission/v1beta1",
     "k8s.io/api/admissionregistration/v1beta1",
-    "k8s.io/api/apps/v1beta2",
+    "k8s.io/api/apps/v1",
     "k8s.io/api/core/v1",
     "k8s.io/api/rbac/v1",
     "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1",

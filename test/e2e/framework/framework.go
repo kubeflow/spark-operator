@@ -114,7 +114,7 @@ func (f *Framework) setupOperator(opImage string) error {
 		return errors.Wrap(err, "failed to wait for operator to become ready")
 	}
 
-	pl, err := f.KubeClient.Core().Pods(f.Namespace.Name).List(opts)
+	pl, err := f.KubeClient.CoreV1().Pods(f.Namespace.Name).List(opts)
 	if err != nil {
 		return err
 	}
@@ -132,7 +132,7 @@ func (f *Framework) Teardown() error {
 		return errors.Wrap(err, "failed to delete operator cluster role binding")
 	}
 
-	if err := f.KubeClient.Extensions().Deployments(f.Namespace.Name).Delete("sparkoperator", nil); err != nil {
+	if err := f.KubeClient.AppsV1().Deployments(f.Namespace.Name).Delete("sparkoperator", nil); err != nil {
 		return err
 	}
 
