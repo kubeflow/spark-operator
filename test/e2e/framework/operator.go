@@ -23,7 +23,7 @@ import (
 )
 
 // CustomResourceDefinitionTypeMeta sets the default kind/apiversion of CRD
-var CustomResourceDefinitionTypeMeta metav1.TypeMeta = metav1.TypeMeta{
+var CustomResourceDefinitionTypeMeta = metav1.TypeMeta{
 	Kind:       "CustomResourceDefinition",
 	APIVersion: "apiextensions.k8s.io/v1beta1",
 }
