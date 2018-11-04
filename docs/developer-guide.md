@@ -10,7 +10,7 @@ The easiest way to build without worrying about dependencies is to just build th
 $ docker build -t <image-tag> .
 ```
 
-The operator image is built upon a base Spark image that defaults to `gcr.io/spark-operator/spark:v2.3.1`. If you want to use your own Spark image (e.g., an image with a different version of Spark or some custom dependencies), specify the argument `SPARK_IMAGE` as the following example shows: 
+The operator image is built upon a base Spark image that defaults to `gcr.io/spark-operator/spark:v2.4.0`. If you want to use your own Spark image (e.g., an image with a different version of Spark or some custom dependencies), specify the argument `SPARK_IMAGE` as the following example shows: 
 
 ```bash
 $ docker build --build-arg SPARK_IMAGE=<your Spark image> -t <image-tag> .
