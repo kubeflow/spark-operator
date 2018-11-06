@@ -334,7 +334,7 @@ func TestShouldRetry(t *testing.T) {
 	}
 
 	restartPolicyAlways := v1alpha1.RestartPolicy{
-		Type: v1alpha1.Always,
+		Type:                             v1alpha1.Always,
 		OnSubmissionFailureRetryInterval: int64ptr(100),
 		OnFailureRetryInterval:           int64ptr(100),
 	}
@@ -520,7 +520,7 @@ func TestSyncSparkApp_SubmissionSuccess(t *testing.T) {
 	}
 
 	restartPolicyAlways := v1alpha1.RestartPolicy{
-		Type: v1alpha1.Always,
+		Type:                             v1alpha1.Always,
 		OnSubmissionFailureRetryInterval: int64ptr(100),
 		OnFailureRetryInterval:           int64ptr(100),
 	}
