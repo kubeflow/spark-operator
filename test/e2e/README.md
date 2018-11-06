@@ -7,7 +7,7 @@ End-to-end (e2e) testing is automated testing for real user scenarios.
 Prerequisites:
 - A running k8s cluster and kube config. We will need to pass kube config as arguments.
 - Have kubeconfig file ready.
-- Have Spark operator image ready.
+- Have a Kubernetes Operator for Spark image ready.
 
 e2e tests are written as Go test. All go test techniques apply (e.g. picking what to run, timeout length). Let's say I want to run all tests in "test/e2e/":
 
@@ -21,4 +21,4 @@ Note that all tests are run on a live Kubernetes cluster. After the tests are do
 
 * `basic_test.go`
 
-  This test submits `spark-pi.yaml` contained in the `\examples`. It then checks that the Spark job successfully completes with the right result of Pi.
+  This test submits `spark-pi.yaml` contained in `\examples`. It then checks that the Spark job successfully completes with the correct result of Pi.
