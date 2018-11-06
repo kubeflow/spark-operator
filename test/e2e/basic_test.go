@@ -17,14 +17,17 @@ limitations under the License.
 package e2e
 
 import (
-	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1alpha1"
-	"github.com/stretchr/testify/assert"
-	"k8s.io/api/core/v1"
-	appFramework "k8s.io/spark-on-k8s-operator/test/e2e/framework"
 	"log"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1alpha1"
+	"github.com/stretchr/testify/assert"
+
+	"k8s.io/api/core/v1"
+	appFramework "k8s.io/spark-on-k8s-operator/test/e2e/framework"
+
 )
 
 func getJobStatus(t *testing.T) v1alpha1.ApplicationStateType {
