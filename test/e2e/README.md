@@ -21,4 +21,4 @@ Note that all tests are run on a live Kubernetes cluster. After the tests are do
 
 * `basic_test.go`
 
-  This test submits `spark-pi.yaml` contained in the `\examples` using `kubectl`. It then checks that the Spark job successfully completes with the right result of Pi.  
+  This test submits `spark-pi.yaml` contained in the `\examples`. It then checks that the Spark job successfully completes with the right result of Pi.

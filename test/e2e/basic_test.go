@@ -17,38 +17,20 @@ limitations under the License.
 package e2e
 
 import (
-	"bytes"
-	"encoding/json"
+	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1alpha1"
 	"github.com/stretchr/testify/assert"
-	"io"
+	"k8s.io/api/core/v1"
+	appFramework "k8s.io/spark-on-k8s-operator/test/e2e/framework"
 	"log"
-	"os/exec"
 	"strings"
 	"testing"
 	"time"
 )
 
-func convertStdoutToString(stdout io.ReadCloser) string {
-	buf := new(bytes.Buffer)
-	buf.ReadFrom(stdout)
-	return buf.String()
-}
-
-func runCmdAndReturnStdout(t *testing.T, cmd string, cmdArgs ...string) string {
-	statusCmd := exec.Command(cmd, cmdArgs...)
-	stdout, err := statusCmd.StdoutPipe()
-	assert.Equal(t, err, nil)
-	err = statusCmd.Start()
-	assert.Equal(t, err, nil)
-	return convertStdoutToString(stdout)
-}
-
-func getJobStatus(t *testing.T, statusStr string, result map[string]interface{}) string {
-	json.Unmarshal([]byte(statusStr), &result)
-	statusField := result["status"].(map[string]interface{})["applicationState"]
-	errMsg := statusField.(map[string]interface{})["errorMessage"].(string)
-	assert.Equal(t, errMsg, "")
-	return statusField.(map[string]interface{})["state"].(string)
+func getJobStatus(t *testing.T) v1alpha1.ApplicationStateType {
+	app, err := appFramework.GetSparkApplication(framework.SparkApplicationClient, "default", "spark-pi")
+	assert.Equal(t, nil, err)
+	return app.Status.AppState.State
 }
 
 func TestSubmitSparkPiYaml(t *testing.T) {
@@ -57,13 +39,12 @@ func TestSubmitSparkPiYaml(t *testing.T) {
 	// Wait for test job to finish. Time out after 90 seconds.
 	timeout := 90
 
-	yamlPath := "../../examples/spark-pi.yaml"
-	submitResult := runCmdAndReturnStdout(t, "kubectl", "apply", "-f", yamlPath)
-	assert.Equal(t, "sparkapplication.sparkoperator.k8s.io/spark-pi created\n", submitResult)
+	sa, err := appFramework.MakeSparkApplicationFromYaml("../../examples/spark-pi.yaml")
+	assert.Equal(t, nil, err)
+	err = appFramework.CreateSparkApplication(framework.SparkApplicationClient, "default", sa)
+	assert.Equal(t, nil, err)
 
-	statusStr := runCmdAndReturnStdout(t, "kubectl", "get", "sparkapplication", "spark-pi", "-o", "json")
-	var result map[string]interface{}
-	status := getJobStatus(t, statusStr, result)
+	status := getJobStatus(t)
 
 	timePassed := 0
 	// Update job status every 5 seconds until job is done or timeout threshold is reached.
@@ -71,19 +52,18 @@ func TestSubmitSparkPiYaml(t *testing.T) {
 		log.Print("Waiting for the Spark job to finish...")
 		time.Sleep(5 * time.Second)
 		timePassed += 5
-		statusStr = runCmdAndReturnStdout(t, "kubectl", "get", "sparkapplication", "spark-pi", "-o", "json")
-		status = getJobStatus(t, statusStr, result)
+		status = getJobStatus(t)
 	}
 	if timePassed > timeout {
 		log.Fatalf("Time out waiting for Spark job to finish!")
 	}
 
-	json.Unmarshal([]byte(statusStr), &result)
-	driverInfo := result["status"].(map[string]interface{})["driverInfo"]
-	podName := driverInfo.(map[string]interface{})["podName"].(string)
-	logStr := runCmdAndReturnStdout(t, "kubectl", "logs", podName)
-	assert.NotEqual(t, -1, strings.Index(logStr, "Pi is roughly 3"))
+	app, _ := appFramework.GetSparkApplication(framework.SparkApplicationClient, "default", "spark-pi")
+	podName := app.Status.DriverInfo.PodName
+	rawLogs, err := framework.KubeClient.CoreV1().Pods("default").GetLogs(podName, &v1.PodLogOptions{}).Do().Raw()
+	assert.Equal(t, nil, err)
+	assert.NotEqual(t, -1, strings.Index(string(rawLogs), "Pi is roughly 3"))
 
-	logStr = runCmdAndReturnStdout(t, "kubectl", "delete", "sparkapplication", "spark-pi")
-	assert.Equal(t, "sparkapplication.sparkoperator.k8s.io \"spark-pi\" deleted\n", logStr)
+	err = appFramework.DeleteSparkApplication(framework.SparkApplicationClient, "default", "spark-pi")
+	assert.Equal(t, nil, err)
 }
