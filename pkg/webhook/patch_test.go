@@ -22,7 +22,7 @@ import (
 	"reflect"
 	"testing"
 
-	jsonpatch "github.com/evanphx/json-patch"
+	"github.com/evanphx/json-patch"
 	"github.com/stretchr/testify/assert"
 
 	corev1 "k8s.io/api/core/v1"

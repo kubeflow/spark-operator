@@ -38,8 +38,8 @@ The easiest way to install the Kubernetes Operator for Apache Spark is to use th
 
 ```bash
 $ helm repo add incubator http://storage.googleapis.com/kubernetes-charts-incubator
-$ helm install incubator/sparkoperator
-``` 
+$ helm install incubator/sparkoperator --namespace spark-operator
+```
 
 ## Get Started
 
