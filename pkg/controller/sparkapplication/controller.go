@@ -40,6 +40,7 @@ import (
 	v1 "k8s.io/client-go/listers/core/v1"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
+	"k8s.io/client-go/util/retry"
 	"k8s.io/client-go/util/workqueue"
 
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta1"
@@ -57,7 +58,6 @@ const (
 	podAlreadyExistsErrorCode = "code=409"
 	queueTokenRefillRate      = 50
 	queueTokenBucketSize      = 500
-	maximumUpdateRetries      = 3
 )
 
 var (
@@ -182,33 +182,51 @@ func (c *Controller) updateSparkApplicationStatusWithRetries(
 	updateFunc func(status *v1alpha1.SparkApplicationStatus)) error {
 	toUpdate := original.DeepCopy()
 
-	var lastUpdateErr error
-	for i := 0; i < maximumUpdateRetries; i++ {
+	err := retry.RetryOnConflict(retry.DefaultRetry, func() (err error) {
 		updateFunc(&toUpdate.Status)
 		if reflect.DeepEqual(original.Status, toUpdate.Status) {
 			return nil
 		}
-		_, err := c.crdClient.SparkoperatorV1alpha1().SparkApplications(toUpdate.Namespace).Update(toUpdate)
-		if err == nil {
-			return nil
+		_, error := c.crdClient.SparkoperatorV1alpha1().SparkApplications(toUpdate.Namespace).Update(toUpdate)
+		if error != nil {
+			toUpdate, err = c.crdClient.SparkoperatorV1alpha1().SparkApplications(toUpdate.Namespace).Get(toUpdate.Name,
+				metav1.GetOptions{})
+			if err != nil {
+				glog.Errorf("Failed to get SparkApplication: %s/%s. Error: %v", original.Namespace, original.Name, err)
+				return err
+			}
+
 		}
+		return error
+	})
+	//
+	//
+	//for i := 0; i < maximumUpdateRetries; i++ {
+	//	updateFunc(&toUpdate.Status)
+	//	if reflect.DeepEqual(original.Status, toUpdate.Status) {
+	//		return nil
+	//	}
+	//	_, err := c.crdClient.SparkoperatorV1alpha1().SparkApplications(toUpdate.Namespace).Update(toUpdate)
+	//	if err == nil {
+	//		return nil
+	//	}
+	//
+	//	lastUpdateErr = err
+	//
+	//	// Failed update to the API server.
+	//	// Get the latest version from the API server first and re-apply the update.
+	//	name := toUpdate.Name
+	//	toUpdate, err = c.crdClient.SparkoperatorV1alpha1().SparkApplications(toUpdate.Namespace).Get(name,
+	//		metav1.GetOptions{})
+	//	if err != nil {
+	//		glog.Errorf("failed to get SparkApplication %s: %v", name, err)
+	//		return err
+	//	}
+	//}
 
-		lastUpdateErr = err
-
-		// Failed update to the API server.
-		// Get the latest version from the API server first and re-apply the update.
-		name := toUpdate.Name
-		toUpdate, err = c.crdClient.SparkoperatorV1alpha1().SparkApplications(toUpdate.Namespace).Get(name,
-			metav1.GetOptions{})
-		if err != nil {
-			glog.Errorf("failed to get SparkApplication %s: %v", name, err)
-			return err
-		}
-	}
-
-	if lastUpdateErr != nil {
-		glog.Errorf("failed to update SparkApplication %s: %v", toUpdate.Name, lastUpdateErr)
-		return lastUpdateErr
+	if err != nil {
+		glog.Errorf("failed to update SparkApplication %s: %v", original.Name, err)
+		return err
 	}
 
 	return nil
@@ -727,7 +745,7 @@ func (c *Controller) updateApplicationStatusWithRetries(
 		// Create Spark UI Service.
 		service, err := createSparkUIService(app, c.kubeClient)
 		if err != nil {
-			glog.Errorf("Failed to create UI service for SparkApplication %s: %v", app.Name, err)
+			glog.Errorf("Failed to create UI service for SparkApplication %s/%s. Error: %v", app.Namespace, app.Name, err)
 		} else {
 			app.Status.DriverInfo.WebUIServiceName = service.serviceName
 			app.Status.DriverInfo.WebUIPort = service.nodePort
@@ -735,7 +753,7 @@ func (c *Controller) updateApplicationStatusWithRetries(
 			if c.ingressUrlFormat != "" {
 				ingress, err := createSparkUIIngress(app, *service, c.ingressUrlFormat, c.kubeClient)
 				if err != nil {
-					glog.Errorf("Failed to create UI Ingress for SparkApplication %s: %v", app.Name, err)
+					glog.Errorf("Failed to create UI Ingress for SparkApplication %s/%s. Error: %v", app.Namespace, app.Name, err)
 				} else {
 					app.Status.DriverInfo.WebUIIngressAddress = ingress.ingressUrl
 					app.Status.DriverInfo.WebUIIngressName = ingress.ingressName
