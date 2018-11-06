@@ -229,7 +229,6 @@ func addDriverConfOptions(app *v1alpha1.SparkApplication) ([]string, error) {
 	driverConfOptions = append(driverConfOptions,
 		fmt.Sprintf("%s%s=%s", config.SparkDriverLabelKeyPrefix, config.LaunchedBySparkOperatorLabel, "true"))
 
-
 	driverPodName := fmt.Sprintf("%s-driver", app.GetName())
 	if app.Spec.Driver.PodName != nil {
 		driverPodName = *app.Spec.Driver.PodName

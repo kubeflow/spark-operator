@@ -39,9 +39,9 @@ func TestOnPodAdded(t *testing.T) {
 			Name:      "foo-driver",
 			Namespace: namespace,
 			Labels: map[string]string{
-				config.SparkRoleLabel:          sparkDriverRole,
+				config.SparkRoleLabel:                sparkDriverRole,
 				config.SparkApplicationSelectorLabel: "foo-123",
-				config.SparkAppNameLabel:       appName,
+				config.SparkAppNameLabel:             appName,
 			},
 		},
 		Status: apiv1.PodStatus{
@@ -76,10 +76,10 @@ func TestOnPodAdded(t *testing.T) {
 			Name:      "foo-driver",
 			Namespace: "foo-namespace",
 			Labels: map[string]string{
-				config.SparkRoleLabel:          sparkExecutorRole,
+				config.SparkRoleLabel:                sparkExecutorRole,
 				config.SparkApplicationSelectorLabel: "foo-123",
-				config.SparkAppNameLabel:       appName,
-				sparkExecutorIDLabel:           "1",
+				config.SparkAppNameLabel:             appName,
+				sparkExecutorIDLabel:                 "1",
 			},
 		},
 		Status: apiv1.PodStatus{
@@ -120,9 +120,9 @@ func TestOnPodUpdated(t *testing.T) {
 			Name:      "foo-driver",
 			Namespace: namespace,
 			Labels: map[string]string{
-				config.SparkRoleLabel:          sparkDriverRole,
+				config.SparkRoleLabel:                sparkDriverRole,
 				config.SparkApplicationSelectorLabel: "foo-123",
-				config.SparkAppNameLabel:       appName,
+				config.SparkAppNameLabel:             appName,
 			},
 			ResourceVersion: "1",
 		},
@@ -162,10 +162,10 @@ func TestOnPodUpdated(t *testing.T) {
 			Name:      "foo-driver",
 			Namespace: namespace,
 			Labels: map[string]string{
-				config.SparkRoleLabel:          sparkExecutorRole,
+				config.SparkRoleLabel:                sparkExecutorRole,
 				config.SparkApplicationSelectorLabel: "foo-123",
-				config.SparkAppNameLabel:       appName,
-				sparkExecutorIDLabel:           "1",
+				config.SparkAppNameLabel:             appName,
+				sparkExecutorIDLabel:                 "1",
 			},
 			ResourceVersion: "1",
 		},
@@ -210,9 +210,9 @@ func TestOnPodDeleted(t *testing.T) {
 			Name:      "foo-driver",
 			Namespace: namespace,
 			Labels: map[string]string{
-				config.SparkRoleLabel:          sparkDriverRole,
+				config.SparkRoleLabel:                sparkDriverRole,
 				config.SparkApplicationSelectorLabel: "foo-123",
-				config.SparkAppNameLabel:       appName,
+				config.SparkAppNameLabel:             appName,
 			},
 		},
 		Status: apiv1.PodStatus{
@@ -247,10 +247,10 @@ func TestOnPodDeleted(t *testing.T) {
 			Name:      "foo-exec-1",
 			Namespace: namespace,
 			Labels: map[string]string{
-				config.SparkRoleLabel:          sparkExecutorRole,
+				config.SparkRoleLabel:                sparkExecutorRole,
 				config.SparkApplicationSelectorLabel: "foo-123",
-				config.SparkAppNameLabel:       appName,
-				sparkExecutorIDLabel:           "1",
+				config.SparkAppNameLabel:             appName,
+				sparkExecutorIDLabel:                 "1",
 			},
 		},
 		Status: apiv1.PodStatus{
