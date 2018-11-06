@@ -110,7 +110,13 @@ To run the Spark Pi example, run the following command:
 $ kubectl apply -f examples/spark-pi.yaml
 ```
 
-Note that `spark-pi.yaml` configures the driver pod to use the `spark` service account to communicate with the Kubernetes API server. You might need to replace it with the approprate service account before submitting the job. If you installed the operator using the Helm chart, the Spark job namespace (i.e. `default` by default) already has a service account you can use. Its name ends with `-spark` and starts with the Helm release name. 
+Note that `spark-pi.yaml` configures the driver pod to use the `spark` service account to communicate with the Kubernetes API server. You might need to replace it with the approprate service account before submitting the job. If you installed the operator using the Helm chart, the Spark job namespace (i.e. `default` by default) already has a service account you can use. Its name ends with `-spark` and starts with the Helm release name. The Helm chart has two configuration options,  `createSparkJobNamespace` which defaults to `true` and `sparkJobNamespace` which defaults to `default`. For example, If you would like to run your Spark job in a new namespace called `test-ns`, then please install the chart with the command:
+
+```bash
+$ helm install incubator/sparkoperator --namespace spark-operator --set createSparkJobNamespace=true --set sparkJobNamespace=test-ns
+```
+
+Then the chart will create the namespace `test-ns` and set up a service account for your Spark jobs to use in that namespace.
 
 Running the above command will create a `SparkApplication` object named `spark-pi`. Check the object by running the following command:
 
