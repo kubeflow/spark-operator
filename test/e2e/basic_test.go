@@ -53,10 +53,9 @@ func TestSubmitSparkPiYaml(t *testing.T) {
 	wait.Poll(interval, timeout, func() (done bool, err error) {
 		if status == "COMPLETED" {
 			return true, nil
-		} else {
-			status = getJobStatus(t)
-			return false, nil
 		}
+		status = getJobStatus(t)
+		return false, nil
 	})
 
 	app, _ := appFramework.GetSparkApplication(framework.SparkApplicationClient, "default", "spark-pi")
