@@ -229,10 +229,13 @@ func addDriverConfOptions(app *v1alpha1.SparkApplication) ([]string, error) {
 	driverConfOptions = append(driverConfOptions,
 		fmt.Sprintf("%s%s=%s", config.SparkDriverLabelKeyPrefix, config.LaunchedBySparkOperatorLabel, "true"))
 
+
+	driverPodName := fmt.Sprintf("%s-driver", app.GetName())
 	if app.Spec.Driver.PodName != nil {
-		driverConfOptions = append(driverConfOptions,
-			fmt.Sprintf("%s=%s", config.SparkDriverPodNameKey, *app.Spec.Driver.PodName))
+		driverPodName = *app.Spec.Driver.PodName
 	}
+	driverConfOptions = append(driverConfOptions,
+		fmt.Sprintf("%s=%s", config.SparkDriverPodNameKey, driverPodName))
 
 	if app.Spec.Driver.Image != nil {
 		driverConfOptions = append(driverConfOptions,

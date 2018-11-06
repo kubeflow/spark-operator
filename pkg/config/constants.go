@@ -64,8 +64,8 @@ const (
 	// LaunchedBySparkOperatorLabel is a label on Spark pods launched through the Spark Operator.
 	LaunchedBySparkOperatorLabel = LabelAnnotationPrefix + "launched-by-spark-operator"
 
-	// SparkApplicationIDLabel is the AppID set by the spark-distribution on the driver/executors Pods.
-	SparkApplicationIDLabel = "spark-app-selector"
+	// SparkApplicationSelectorLabel is the AppID set by the spark-distribution on the driver/executors Pods.
+	SparkApplicationSelectorLabel = "spark-app-selector"
 	// SparkRoleLabel is the driver/executor label set by the operator/spark-distribution on the driver/executors Pods.
 	SparkRoleLabel = "spark-role"
 

@@ -40,7 +40,7 @@ func TestOnPodAdded(t *testing.T) {
 			Namespace: namespace,
 			Labels: map[string]string{
 				config.SparkRoleLabel:          sparkDriverRole,
-				config.SparkApplicationIDLabel: "foo-123",
+				config.SparkApplicationSelectorLabel: "foo-123",
 				config.SparkAppNameLabel:       appName,
 			},
 		},
@@ -77,7 +77,7 @@ func TestOnPodAdded(t *testing.T) {
 			Namespace: "foo-namespace",
 			Labels: map[string]string{
 				config.SparkRoleLabel:          sparkExecutorRole,
-				config.SparkApplicationIDLabel: "foo-123",
+				config.SparkApplicationSelectorLabel: "foo-123",
 				config.SparkAppNameLabel:       appName,
 				sparkExecutorIDLabel:           "1",
 			},
@@ -121,7 +121,7 @@ func TestOnPodUpdated(t *testing.T) {
 			Namespace: namespace,
 			Labels: map[string]string{
 				config.SparkRoleLabel:          sparkDriverRole,
-				config.SparkApplicationIDLabel: "foo-123",
+				config.SparkApplicationSelectorLabel: "foo-123",
 				config.SparkAppNameLabel:       appName,
 			},
 			ResourceVersion: "1",
@@ -163,7 +163,7 @@ func TestOnPodUpdated(t *testing.T) {
 			Namespace: namespace,
 			Labels: map[string]string{
 				config.SparkRoleLabel:          sparkExecutorRole,
-				config.SparkApplicationIDLabel: "foo-123",
+				config.SparkApplicationSelectorLabel: "foo-123",
 				config.SparkAppNameLabel:       appName,
 				sparkExecutorIDLabel:           "1",
 			},
@@ -211,7 +211,7 @@ func TestOnPodDeleted(t *testing.T) {
 			Namespace: namespace,
 			Labels: map[string]string{
 				config.SparkRoleLabel:          sparkDriverRole,
-				config.SparkApplicationIDLabel: "foo-123",
+				config.SparkApplicationSelectorLabel: "foo-123",
 				config.SparkAppNameLabel:       appName,
 			},
 		},
@@ -248,7 +248,7 @@ func TestOnPodDeleted(t *testing.T) {
 			Namespace: namespace,
 			Labels: map[string]string{
 				config.SparkRoleLabel:          sparkExecutorRole,
-				config.SparkApplicationIDLabel: "foo-123",
+				config.SparkApplicationSelectorLabel: "foo-123",
 				config.SparkAppNameLabel:       appName,
 				sparkExecutorIDLabel:           "1",
 			},
