@@ -17,16 +17,17 @@ limitations under the License.
 package e2e
 
 import (
-	"log"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"strings"
 	"testing"
 	"time"
 
-	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1alpha1"
-	appFramework "github.com/GoogleCloudPlatform/spark-on-k8s-operator/test/e2e/framework"
 	"github.com/stretchr/testify/assert"
 
 	"k8s.io/api/core/v1"
+
+	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1alpha1"
+	appFramework "github.com/GoogleCloudPlatform/spark-on-k8s-operator/test/e2e/framework"
 )
 
 func getJobStatus(t *testing.T) v1alpha1.ApplicationStateType {
@@ -39,7 +40,8 @@ func TestSubmitSparkPiYaml(t *testing.T) {
 	t.Parallel()
 
 	// Wait for test job to finish. Time out after 90 seconds.
-	timeout := 90
+	timeout := 100 * time.Second
+	interval := 5 * time.Second
 
 	sa, err := appFramework.MakeSparkApplicationFromYaml("../../examples/spark-pi.yaml")
 	assert.Equal(t, nil, err)
@@ -48,17 +50,14 @@ func TestSubmitSparkPiYaml(t *testing.T) {
 
 	status := getJobStatus(t)
 
-	timePassed := 0
-	// Update job status every 5 seconds until job is done or timeout threshold is reached.
-	for status != "COMPLETED" && timePassed <= timeout {
-		log.Print("Waiting for the Spark job to finish...")
-		time.Sleep(5 * time.Second)
-		timePassed += 5
-		status = getJobStatus(t)
-	}
-	if timePassed > timeout {
-		log.Fatalf("Time out waiting for Spark job to finish!")
-	}
+	wait.Poll(interval, timeout, func() (done bool, err error) {
+		if status == "COMPLETED" {
+			return true, nil
+		} else {
+			status = getJobStatus(t)
+			return false, nil
+		}
+	})
 
 	app, _ := appFramework.GetSparkApplication(framework.SparkApplicationClient, "default", "spark-pi")
 	podName := app.Status.DriverInfo.PodName
