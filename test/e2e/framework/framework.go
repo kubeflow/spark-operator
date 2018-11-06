@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"time"
 
+	crdclientset "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/client/clientset/versioned"
 	"k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -33,11 +34,12 @@ import (
 
 // Framework contains all components required to run the test framework.
 type Framework struct {
-	KubeClient     kubernetes.Interface
-	MasterHost     string
-	Namespace      *v1.Namespace
-	OperatorPod    *v1.Pod
-	DefaultTimeout time.Duration
+	KubeClient             kubernetes.Interface
+	SparkApplicationClient crdclientset.Interface
+	MasterHost             string
+	Namespace              *v1.Namespace
+	OperatorPod            *v1.Pod
+	DefaultTimeout         time.Duration
 }
 
 // Sets up a test framework and returns it.
@@ -57,11 +59,17 @@ func New(ns, kubeconfig, opImage string) (*Framework, error) {
 		fmt.Println(nil, err, namespace)
 	}
 
+	saClient, err := crdclientset.NewForConfig(config)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to create SparkApplication client")
+	}
+
 	f := &Framework{
-		MasterHost:     config.Host,
-		KubeClient:     cli,
-		Namespace:      namespace,
-		DefaultTimeout: time.Minute,
+		MasterHost:             config.Host,
+		KubeClient:             cli,
+		SparkApplicationClient: saClient,
+		Namespace:              namespace,
+		DefaultTimeout:         time.Minute,
 	}
 
 	err = f.Setup(opImage)

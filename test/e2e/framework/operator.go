@@ -25,7 +25,7 @@ import (
 // CustomResourceDefinitionTypeMeta sets the default kind/apiversion of CRD
 var CustomResourceDefinitionTypeMeta = metav1.TypeMeta{
 	Kind:       "CustomResourceDefinition",
-	APIVersion: "apiextensions.k8s.io/v1beta1",
+	APIVersion: "apiextensions.k8s.io/v1alpha1",
 }
 
 // PodRunningAndReady returns whether a pod is running and each container has
