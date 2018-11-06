@@ -18,6 +18,7 @@ package config
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 	"testing"
 
@@ -57,13 +58,22 @@ func TestFindTolerations(t *testing.T) {
 		t.Fatal(err)
 	}
 	assert.Equal(t, 2, len(tolerations))
-	assert.Equal(t, "Key1", tolerations[0].Key)
-	assert.Equal(t, "Value", tolerations[0].Value)
-	assert.Equal(t, "Equal", string(tolerations[0].Operator))
-	assert.Equal(t, "NoEffect", string(tolerations[0].Effect))
-	assert.Equal(t, "Key2", tolerations[1].Key)
-	assert.Equal(t, "Exists", string(tolerations[1].Operator))
-	assert.Equal(t, "NoSchedule", string(tolerations[1].Effect))
+	if tolerations[0].Key == "Key1" {
+		assert.Equal(t, "Value", tolerations[0].Value)
+		assert.Equal(t, "Equal", string(tolerations[0].Operator))
+		assert.Equal(t, "NoEffect", string(tolerations[0].Effect))
+		assert.Equal(t, "Key2", tolerations[1].Key)
+		assert.Equal(t, "Exists", string(tolerations[1].Operator))
+		assert.Equal(t, "NoSchedule", string(tolerations[1].Effect))
+	} else {
+		assert.Equal(t, "Key1", tolerations[1].Key)
+		assert.Equal(t, "Value", tolerations[1].Value)
+		assert.Equal(t, "Equal", string(tolerations[1].Operator))
+		assert.Equal(t, "NoEffect", string(tolerations[1].Effect))
+		assert.Equal(t, "Key2", tolerations[0].Key)
+		assert.Equal(t, "Exists", string(tolerations[0].Operator))
+		assert.Equal(t, "NoSchedule", string(tolerations[0].Effect))
+	}
 }
 
 func TestGetTolerationAnnotations(t *testing.T) {
@@ -137,6 +147,7 @@ func TestGetDriverTolerationConfOptions(t *testing.T) {
 	}
 
 	assert.Equal(t, 2, len(options))
+	sort.Strings(options)
 	assert.True(t, strings.HasPrefix(options[0], fmt.Sprintf("%s%s%s=", SparkDriverAnnotationKeyPrefix,
 		TolerationsAnnotationPrefix, "toleration1")))
 	assert.True(t, strings.HasPrefix(options[1], fmt.Sprintf("%s%s%s=", SparkDriverAnnotationKeyPrefix,
@@ -172,6 +183,7 @@ func TestGetExecutorTolerationConfOptions(t *testing.T) {
 	}
 
 	assert.Equal(t, 2, len(options))
+	sort.Strings(options)
 	assert.True(t, strings.HasPrefix(options[0], fmt.Sprintf("%s%s%s=", SparkExecutorAnnotationKeyPrefix,
 		TolerationsAnnotationPrefix, "toleration1")))
 	assert.True(t, strings.HasPrefix(options[1], fmt.Sprintf("%s%s%s=", SparkExecutorAnnotationKeyPrefix,
