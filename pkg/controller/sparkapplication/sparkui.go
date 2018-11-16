@@ -61,7 +61,7 @@ func createSparkUIIngress(app *v1alpha1.SparkApplication, service SparkService, 
 	ingressUrl := getSparkUIIngressURL(ingressUrlFormat, app.GetName())
 	ingress := extensions.Ingress{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      fmt.Sprintf("%s-ui-ingress", app.GetName()),
+			Name:      getDefaultUIIngressName(app),
 			Namespace: app.Namespace,
 			Labels: map[string]string{
 				config.SparkAppNameLabel: app.Name,
@@ -110,7 +110,7 @@ func createSparkUIService(
 
 	service := &apiv1.Service{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      fmt.Sprintf("%s-ui-svc", app.GetName()),
+			Name:      getDefaultUIServiceName(app),
 			Namespace: app.Namespace,
 			Labels: map[string]string{
 				config.SparkAppNameLabel: app.Name,

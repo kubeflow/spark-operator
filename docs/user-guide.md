@@ -376,8 +376,8 @@ the operator determines if the application is subject to restart based on its te
 submitting a new run of it. For `OnFailure`, the Operator further supports setting limits on number of retries
 via the `onFailureRetries` and `onSubmissionFailureRetries` fields. Additionally, if the  submission retries has not been reached,
 the operator retries submitting the application using a linear backoff with the interval specified by
-`onFailureRetryInterval` and `onSubmissionFailureRetryInterval` which are valid for both `OnFailure` and `Always` `RestartPolicy`.
-The old driver pod is deleted if it still exists before submitting the new run, and a new  driver pod is created by the submission
+`onFailureRetryInterval` and `onSubmissionFailureRetryInterval` which are required for both `OnFailure` and `Always` `RestartPolicy`.
+The old resources like driver pod, ui service/ingress etc. are deleted if it still exists before submitting the new run, and a new  driver pod is created by the submission
 client so effectively the driver gets restarted.
 
 ## Running Spark Applications on a Schedule using a ScheduledSparkApplication 

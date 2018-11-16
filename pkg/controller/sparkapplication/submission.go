@@ -64,7 +64,7 @@ func buildSubmissionCommandArgs(app *v1alpha1.SparkApplication) ([]string, error
 	args = append(args, "--deploy-mode", string(app.Spec.Mode))
 	args = append(args, "--conf", fmt.Sprintf("spark.kubernetes.namespace=%s", app.Namespace))
 	args = append(args, "--conf", fmt.Sprintf("spark.app.name=%s", app.Name))
-	args = append(args, "--conf", fmt.Sprintf("spark.kubernetes.driver.pod.name=%s-driver", app.Name))
+	args = append(args, "--conf", fmt.Sprintf("spark.kubernetes.driver.pod.name=%s", getDefaultDriverPodName(app)))
 
 	// Add application dependencies.
 	args = append(args, addDependenciesConfOptions(app)...)

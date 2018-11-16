@@ -177,7 +177,7 @@ status:
     webUIIngressAddress: spark-pi.ingress.cluster.com
   executorState:
     spark-pi-83ba921c85ff3f1cb04bef324f9154c9-exec-1: COMPLETED
-  submissionTime: 2018-02-20T23:32:27Z
+  LastSubmissionAttemptTime: 2018-02-20T23:32:27Z
 ```
 
 To check events for the `SparkApplication` object, run the following command:

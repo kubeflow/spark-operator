@@ -133,7 +133,7 @@ A `SparkApplicationStatus` captures the status of a Spark application including 
 | Field | Note |
 | ------------- | ------------- |
 | `AppID` | A randomly generated ID used to group all Kubernetes resources of an application. |
-| `SubmissionTime` | Time the application is submitted to run. |
+| `LastSubmissionAttemptTime` | Time for the last application submission attempt. |
 | `CompletionTime` | Time the application completes (if it does). |
 | `DriverInfo` | A [`DriverInfo`](#driverinfo) field. |
 | `AppState` | Current state of the application. |

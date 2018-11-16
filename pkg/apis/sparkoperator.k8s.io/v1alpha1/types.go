@@ -49,12 +49,11 @@ type RestartPolicy struct {
 
 	// FailureRetries are the number of times to retry a failed application before giving up in a particular case.
 	// This is best effort and actual retry attempts can be >= the value specified due to caching.
-	// These are required if RestartPolicy is onFailure.
+	// These are required if RestartPolicy is OnFailure.
 	OnSubmissionFailureRetries *int32 `json:"onSubmissionFailureRetries,omitempty"`
 	OnFailureRetries           *int32 `json:"onFailureRetries,omitempty"`
 
 	// Interval to wait between successive retries of a failed application.
-	// Required if the RestartPolicy is onFailure or Always.
 	OnSubmissionFailureRetryInterval *int64 `json:"onSubmissionFailureRetryInterval,omitempty"`
 	OnFailureRetryInterval           *int64 `json:"onFailureRetryInterval,omitempty"`
 }
@@ -244,7 +243,7 @@ const (
 	CompletedState        ApplicationStateType = "COMPLETED"
 	FailedState           ApplicationStateType = "FAILED"
 	FailedSubmissionState ApplicationStateType = "SUBMISSION_FAILED"
-	PendingRetryState     ApplicationStateType = "PENDING_RETRY"
+	PendingRerunState     ApplicationStateType = "PENDING_RERUN"
 	InvalidatingState     ApplicationStateType = "INVALIDATING"
 	SucceedingState       ApplicationStateType = "SUCCEEDING"
 	FailingState          ApplicationStateType = "FAILING"
@@ -272,8 +271,8 @@ const (
 type SparkApplicationStatus struct {
 	// SparkApplicationID is set by the spark-distribution(via spark.app.id config) on the driver and executor pods
 	SparkApplicationID string `json:"sparkApplicationId,omitempty"`
-	// SubmissionTime is the time when the application is submitted.
-	SubmissionTime metav1.Time `json:"submissionTime,omitempty"`
+	// LastSubmissionAttemptTime is the time for the last application submission attempt.
+	LastSubmissionAttemptTime metav1.Time `json:"lastSubmissionAttemptTime,omitempty"`
 	// CompletionTime is the time when the application runs to completion if it does.
 	CompletionTime metav1.Time `json:"completionTime,omitempty"`
 	// DriverInfo has information about the driver.

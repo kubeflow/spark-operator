@@ -30,6 +30,19 @@ func SetSparkApplicationDefaults(app *SparkApplication) {
 		app.Spec.RestartPolicy.Type = Never
 	}
 
+	if app.Spec.RestartPolicy.Type != Never {
+		// Default to 5 sec if the RestartPolicy is OnFailure or Always and these values aren't specified.
+		if app.Spec.RestartPolicy.OnFailureRetryInterval == nil {
+			app.Spec.RestartPolicy.OnFailureRetryInterval = new(int64)
+			*app.Spec.RestartPolicy.OnFailureRetryInterval = 5
+		}
+
+		if app.Spec.RestartPolicy.OnSubmissionFailureRetryInterval == nil {
+			app.Spec.RestartPolicy.OnSubmissionFailureRetryInterval = new(int64)
+			*app.Spec.RestartPolicy.OnSubmissionFailureRetryInterval = 5
+		}
+	}
+
 	setDriverSpecDefaults(app.Spec.Driver)
 	setExecutorSpecDefaults(app.Spec.Executor)
 }

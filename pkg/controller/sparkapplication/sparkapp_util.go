@@ -50,6 +50,18 @@ func getSparkApplicationID(pod *apiv1.Pod) string {
 	return pod.Labels[config.SparkApplicationSelectorLabel]
 }
 
+func getDefaultDriverPodName(app *v1alpha1.SparkApplication) string {
+	return fmt.Sprintf("%s-driver", app.Name)
+}
+
+func getDefaultUIServiceName(app *v1alpha1.SparkApplication) string {
+	return fmt.Sprintf("%s-ui-svc", app.Name)
+}
+
+func getDefaultUIIngressName(app *v1alpha1.SparkApplication) string {
+	return fmt.Sprintf("%s-ui-ingress", app.Name)
+}
+
 func podPhaseToExecutorState(podPhase apiv1.PodPhase) v1alpha1.ExecutorState {
 	switch podPhase {
 	case apiv1.PodPending:
@@ -63,6 +75,25 @@ func podPhaseToExecutorState(podPhase apiv1.PodPhase) v1alpha1.ExecutorState {
 	default:
 		return v1alpha1.ExecutorUnknownState
 	}
+}
+
+func removeFinalizer(app *v1alpha1.SparkApplication, finalizerToRemove string) *v1alpha1.SparkApplication {
+	for k, elem := range app.Finalizers {
+		if elem == finalizerToRemove {
+			app.Finalizers = append(app.Finalizers[:k], app.Finalizers[k+1:]...)
+			break
+		}
+	}
+	return app
+}
+
+func addFinalizer(app *v1alpha1.SparkApplication, finalizerToAdd string) *v1alpha1.SparkApplication {
+	if app.ObjectMeta.Finalizers == nil {
+		app.ObjectMeta.Finalizers = []string{finalizerToAdd}
+	} else {
+		app.ObjectMeta.Finalizers = append(app.ObjectMeta.Finalizers, finalizerToAdd)
+	}
+	return app
 }
 
 func isExecutorTerminated(executorState v1alpha1.ExecutorState) bool {
