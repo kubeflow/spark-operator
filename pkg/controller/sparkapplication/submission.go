@@ -54,7 +54,7 @@ func newSubmission(args []string, app *v1alpha1.SparkApplication) *submission {
 	}
 }
 
-func sparkSubmit(submission *submission) error {
+func runSparkSubmit(submission *submission) error {
 	sparkHome, present := os.LookupEnv(sparkHomeEnvVar)
 	if !present {
 		glog.Error("SPARK_HOME is not specified")

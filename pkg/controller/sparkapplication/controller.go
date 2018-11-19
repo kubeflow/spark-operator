@@ -598,7 +598,7 @@ func (c *Controller) submitSparkApplication(app *v1alpha1.SparkApplication) *v1a
 	}
 
 	// Try submitting App.
-	error := sparkSubmit(newSubmission(submissionCmdArgs, appToSubmit))
+	error := runSparkSubmit(newSubmission(submissionCmdArgs, appToSubmit))
 	if error != nil {
 		app.Status = v1alpha1.SparkApplicationStatus{
 			AppState: v1alpha1.ApplicationState{
