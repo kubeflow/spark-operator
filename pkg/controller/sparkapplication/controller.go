@@ -18,15 +18,11 @@ package sparkapplication
 
 import (
 	"fmt"
-	"os"
 	"os/exec"
 	"reflect"
-	"strings"
 	"time"
 
 	"github.com/golang/glog"
-
-	"path/filepath"
 
 	"golang.org/x/time/rate"
 
@@ -581,7 +577,14 @@ func hasRetryIntervalPassed(retryInterval *int64, attemptsDone int32, lastEventT
 
 // submitSparkApplication creates a new submission for the given SparkApplication and submits it using spark-submit.
 func (c *Controller) submitSparkApplication(app *v1alpha1.SparkApplication) *v1alpha1.SparkApplication {
-	submissionCmdArgs, err := buildSubmissionCommandArgs(app)
+
+	// Clone app since configPrometheusMonitoring may update app.Spec which causes an onUpdate callback with Spec update.
+	appToSubmit := app.DeepCopy()
+	if appToSubmit.Spec.Monitoring != nil && appToSubmit.Spec.Monitoring.Prometheus != nil {
+		configPrometheusMonitoring(appToSubmit, c.kubeClient)
+	}
+
+	submissionCmdArgs, err := buildSubmissionCommandArgs(appToSubmit)
 	if err != nil {
 		app.Status = v1alpha1.SparkApplicationStatus{
 			AppState: v1alpha1.ApplicationState{
@@ -595,42 +598,22 @@ func (c *Controller) submitSparkApplication(app *v1alpha1.SparkApplication) *v1a
 	}
 
 	// Try submitting App.
-	submission := newSubmission(submissionCmdArgs, app)
-	sparkHome, present := os.LookupEnv(sparkHomeEnvVar)
-	if !present {
-		glog.Error("SPARK_HOME is not specified")
-	}
-	var command = filepath.Join(sparkHome, "/bin/spark-submit")
-
-	cmd := execCommand(command, submission.args...)
-	glog.Infof("spark-submit arguments: %v", cmd.Args)
-
-	if _, err := cmd.Output(); err != nil {
-		var errorMsg string
-		if exitErr, ok := err.(*exec.ExitError); ok {
-			errorMsg = string(exitErr.Stderr)
+	error := sparkSubmit(newSubmission(submissionCmdArgs, appToSubmit))
+	if error != nil {
+		app.Status = v1alpha1.SparkApplicationStatus{
+			AppState: v1alpha1.ApplicationState{
+				State:        v1alpha1.FailedSubmissionState,
+				ErrorMessage: error.Error(),
+			},
+			SubmissionAttempts:        app.Status.SubmissionAttempts + 1,
+			LastSubmissionAttemptTime: metav1.Now(),
 		}
-		// Already Exists. Do nothing.
-		if strings.Contains(errorMsg, podAlreadyExistsErrorCode) {
-			glog.Warningf("Trying to resubmit an already submitted SparkApplication %s in namespace %s. Error: %v", submission.name, submission.namespace, errorMsg)
-		} else {
-			glog.Errorf("failed to run spark-submit for SparkApplication %s in namespace: %s. Error: %v", submission.name,
-				submission.namespace, errorMsg)
-			app.Status = v1alpha1.SparkApplicationStatus{
-				AppState: v1alpha1.ApplicationState{
-					State:        v1alpha1.FailedSubmissionState,
-					ErrorMessage: errorMsg,
-				},
-				SubmissionAttempts:        app.Status.SubmissionAttempts + 1,
-				LastSubmissionAttemptTime: metav1.Now(),
-			}
-			c.recordSparkApplicationEvent(app)
-			return app
-		}
+		c.recordSparkApplicationEvent(app)
+		return app
 	}
 
 	// Submission Successful or Driver Pod Already exists.
-	glog.Infof("spark-submit completed for SparkApplication %s in namespace %s", submission.name, submission.namespace)
+	glog.Infof("spark-submit completed for SparkApplication %s in namespace %s", app.Name, app.Namespace)
 	// Update AppStatus to submitted.
 	app.Status = v1alpha1.SparkApplicationStatus{
 		AppState: v1alpha1.ApplicationState{
@@ -644,10 +627,6 @@ func (c *Controller) submitSparkApplication(app *v1alpha1.SparkApplication) *v1a
 
 	// Add driver as a finalizer to prevent SparkApplication deletion till driver is deleted.
 	app = addFinalizer(app, sparkDriverRole)
-	if app.Spec.Monitoring != nil && app.Spec.Monitoring.Prometheus != nil {
-		// configPrometheusMonitoring may update app.Spec.
-		configPrometheusMonitoring(app, c.kubeClient)
-	}
 
 	// Create Spark UI Service.
 	service, err := createSparkUIService(app, c.kubeClient)
