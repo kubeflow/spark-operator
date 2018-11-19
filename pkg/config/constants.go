@@ -59,13 +59,16 @@ const (
 	// AffinityAnnotation is the name of the annotation added to the driver and executor Pods that
 	// specifies the value of the Pod Affinity.
 	AffinityAnnotation = LabelAnnotationPrefix + "affinity"
-	// SparkAppIDLabel is the name of the label used to group API objects, e.g., Spark UI service, Pods,
-	// ConfigMaps, etc., belonging to the same Spark application.
-	SparkAppIDLabel = LabelAnnotationPrefix + "app-id"
 	// SparkAppNameLabel is the name of the label for the SparkApplication object name.
 	SparkAppNameLabel = LabelAnnotationPrefix + "app-name"
 	// LaunchedBySparkOperatorLabel is a label on Spark pods launched through the Spark Operator.
 	LaunchedBySparkOperatorLabel = LabelAnnotationPrefix + "launched-by-spark-operator"
+
+	// SparkApplicationSelectorLabel is the AppID set by the spark-distribution on the driver/executors Pods.
+	SparkApplicationSelectorLabel = "spark-app-selector"
+	// SparkRoleLabel is the driver/executor label set by the operator/spark-distribution on the driver/executors Pods.
+	SparkRoleLabel = "spark-role"
+
 	// TolerationsAnnotationPrefix is the prefix of annotations that specify a Toleration.
 	TolerationsAnnotationPrefix = LabelAnnotationPrefix + "tolerations."
 )

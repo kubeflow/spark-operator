@@ -134,19 +134,31 @@ func getCustomResourceValidation() *apiextensionsv1beta1.CustomResourceValidatio
 									},
 								},
 								"restartPolicy": {
-									Enum: []apiextensionsv1beta1.JSON{
-										{Raw: []byte(`"Never"`)},
-										{Raw: []byte(`"OnFailure"`)},
-										{Raw: []byte(`"Always"`)},
+									Properties: map[string]apiextensionsv1beta1.JSONSchemaProps{
+										"type": {
+											Enum: []apiextensionsv1beta1.JSON{
+												{Raw: []byte(`"Never"`)},
+												{Raw: []byte(`"OnFailure"`)},
+												{Raw: []byte(`"Always"`)},
+											},
+										},
+										"onSubmissionFailureRetries": {
+											Type:    "integer",
+											Minimum: float64Ptr(0),
+										},
+										"onFailureRetries": {
+											Type:    "integer",
+											Minimum: float64Ptr(0),
+										},
+										"onSubmissionFailureRetryInterval": {
+											Type:    "integer",
+											Minimum: float64Ptr(1),
+										},
+										"onFailureRetryInterval": {
+											Type:    "integer",
+											Minimum: float64Ptr(1),
+										},
 									},
-								},
-								"maxSubmissionRetries": {
-									Type:    "integer",
-									Minimum: float64Ptr(1),
-								},
-								"submissionRetryInterval": {
-									Type:    "integer",
-									Minimum: float64Ptr(1),
 								},
 								"pythonVersion": {
 									Enum: []apiextensionsv1beta1.JSON{

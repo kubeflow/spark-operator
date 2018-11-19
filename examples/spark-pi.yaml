@@ -50,4 +50,3 @@ spec:
     volumeMounts:
       - name: "test-volume"
         mountPath: "/tmp"
-  restartPolicy: Never

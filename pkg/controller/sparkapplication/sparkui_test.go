@@ -17,6 +17,7 @@ limitations under the License.
 package sparkapplication
 
 import (
+	"fmt"
 	"reflect"
 	"strconv"
 	"testing"
@@ -31,38 +32,36 @@ import (
 
 func TestCreateSparkUIService(t *testing.T) {
 	type testcase struct {
-		name                string
-		app                 *v1alpha1.SparkApplication
-		expectedServiceName string
-		expectedServicePort int32
-		expectedSelector    map[string]string
-		expectError         bool
+		name             string
+		app              *v1alpha1.SparkApplication
+		expectedService  SparkService
+		expectedSelector map[string]string
+		expectError      bool
 	}
 	testFn := func(test testcase, t *testing.T) {
 		fakeClient := fake.NewSimpleClientset()
-		uiServiceName, uiServicePort, err := createSparkUIService(test.app, test.app.Status.AppID, fakeClient)
+		sparkService, err := createSparkUIService(test.app, fakeClient)
 		if err != nil {
 			if test.expectError {
 				return
 			}
 			t.Fatal(err)
 		}
-		test.app.Status.DriverInfo.WebUIServiceName = uiServiceName
-		test.app.Status.DriverInfo.WebUIPort = uiServicePort
 
-		if test.app.Status.DriverInfo.WebUIServiceName != test.expectedServiceName {
-			t.Errorf("%s: for service name wanted %s got %s", test.name, test.expectedServiceName, test.app.Status.DriverInfo.WebUIServiceName)
+		if sparkService.serviceName != test.expectedService.serviceName {
+			t.Errorf("%s: for service name wanted %s got %s", test.name, test.expectedService.serviceName, sparkService.serviceName)
 		}
+
 		service, err := fakeClient.CoreV1().
 			Services(test.app.Namespace).
-			Get(test.app.Status.DriverInfo.WebUIServiceName, metav1.GetOptions{})
+			Get(sparkService.serviceName, metav1.GetOptions{})
 		if err != nil {
 			if test.expectError {
 				return
 			}
 			t.Fatal(err)
 		}
-		if len(service.Labels) != 2 || service.Labels[config.SparkAppIDLabel] != test.app.Status.AppID ||
+		if len(service.Labels) != 1 ||
 			service.Labels[config.SparkAppNameLabel] != test.app.Name {
 			t.Errorf("%s: service of app %s has the wrong labels", test.name, test.app.Name)
 		}
@@ -76,8 +75,8 @@ func TestCreateSparkUIService(t *testing.T) {
 			t.Errorf("%s: wanted a single port got %d ports", test.name, len(service.Spec.Ports))
 		}
 		port := service.Spec.Ports[0]
-		if port.Port != test.expectedServicePort {
-			t.Errorf("%s: unexpected port wanted %d got %d", test.name, test.expectedServicePort, port.Port)
+		if port.Port != test.expectedService.servicePort {
+			t.Errorf("%s: unexpected port wanted %d got %d", test.name, test.expectedService.servicePort, port.Port)
 		}
 	}
 
@@ -98,7 +97,8 @@ func TestCreateSparkUIService(t *testing.T) {
 			},
 		},
 		Status: v1alpha1.SparkApplicationStatus{
-			AppID: "foo-1",
+			SparkApplicationID: "foo-1",
+			ExecutionAttempts:  1,
 		},
 	}
 	app2 := &v1alpha1.SparkApplication{
@@ -108,7 +108,8 @@ func TestCreateSparkUIService(t *testing.T) {
 			UID:       "foo-123",
 		},
 		Status: v1alpha1.SparkApplicationStatus{
-			AppID: "foo-2",
+			SparkApplicationID: "foo-2",
+			ExecutionAttempts:  2,
 		},
 	}
 	app3 := &v1alpha1.SparkApplication{
@@ -123,31 +124,33 @@ func TestCreateSparkUIService(t *testing.T) {
 			},
 		},
 		Status: v1alpha1.SparkApplicationStatus{
-			AppID: "foo-3",
+			SparkApplicationID: "foo-3",
 		},
 	}
 	testcases := []testcase{
 		{
-			name:                "service with custom port",
-			app:                 app1,
-			expectedServiceName: app1.Status.AppID + "-ui-svc",
-			expectedServicePort: 4041,
+			name: "service with custom port",
+			app:  app1,
+			expectedService: SparkService{
+				serviceName: fmt.Sprintf("%s-ui-svc", app1.GetName()),
+				servicePort: 4041,
+			},
 			expectedSelector: map[string]string{
 				config.SparkAppNameLabel: "foo",
-				config.SparkAppIDLabel:   "foo-1",
-				sparkRoleLabel:           sparkDriverRole,
+				config.SparkRoleLabel:    sparkDriverRole,
 			},
 			expectError: false,
 		},
 		{
-			name:                "service with default port",
-			app:                 app2,
-			expectedServiceName: app2.Status.AppID + "-ui-svc",
-			expectedServicePort: int32(defaultPort),
+			name: "service with default port",
+			app:  app2,
+			expectedService: SparkService{
+				serviceName: fmt.Sprintf("%s-ui-svc", app2.GetName()),
+				servicePort: int32(defaultPort),
+			},
 			expectedSelector: map[string]string{
 				config.SparkAppNameLabel: "foo",
-				config.SparkAppIDLabel:   "foo-2",
-				sparkRoleLabel:           sparkDriverRole,
+				config.SparkRoleLabel:    sparkDriverRole,
 			},
 			expectError: false,
 		},
@@ -159,5 +162,75 @@ func TestCreateSparkUIService(t *testing.T) {
 	}
 	for _, test := range testcases {
 		testFn(test, t)
+	}
+}
+
+func TestCreateSparkUIIngress(t *testing.T) {
+
+	app := &v1alpha1.SparkApplication{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "foo",
+			Namespace: "default",
+			UID:       "foo-123",
+		},
+		Status: v1alpha1.SparkApplicationStatus{
+			SparkApplicationID: "foo-1",
+			DriverInfo: v1alpha1.DriverInfo{
+				WebUIServiceName: "blah-service",
+			},
+		},
+	}
+
+	service := SparkService{
+		serviceName: app.GetName() + "-ui-svc",
+		servicePort: 4041,
+	}
+	ingressFormat := "{{$appName}}.ingress.clusterName.com"
+
+	expectedIngress := SparkIngress{
+		ingressName: fmt.Sprintf("%s-ui-ingress", app.GetName()),
+		ingressUrl:  app.GetName() + ".ingress.clusterName.com",
+	}
+	fakeClient := fake.NewSimpleClientset()
+	sparkIngress, err := createSparkUIIngress(app, service, ingressFormat, fakeClient)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if sparkIngress.ingressName != expectedIngress.ingressName {
+		t.Errorf("Ingress name wanted %s got %s", expectedIngress.ingressName, sparkIngress.ingressName)
+	}
+	if sparkIngress.ingressUrl != expectedIngress.ingressUrl {
+		t.Errorf("Ingress name wanted %s got %s", expectedIngress.ingressUrl, sparkIngress.ingressUrl)
+	}
+
+	ingress, err := fakeClient.Extensions().Ingresses(app.Namespace).
+		Get(sparkIngress.ingressName, metav1.GetOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(ingress.Labels) != 1 ||
+		ingress.Labels[config.SparkAppNameLabel] != app.Name {
+		t.Errorf("Ingress of app %s has the wrong labels", app.Name)
+	}
+
+	if len(ingress.Spec.Rules) != 1 {
+		t.Errorf("No Ingress rules found.")
+	}
+	ingressRule := ingress.Spec.Rules[0]
+	if ingressRule.Host != expectedIngress.ingressUrl {
+		t.Errorf("Ingress of app %s has the wrong host %s", expectedIngress.ingressUrl, ingressRule.Host)
+	}
+
+	if len(ingressRule.IngressRuleValue.HTTP.Paths) != 1 {
+		t.Errorf("No Ingress paths found.")
+	}
+	ingressPath := ingressRule.IngressRuleValue.HTTP.Paths[0]
+	if ingressPath.Backend.ServiceName != service.serviceName {
+		t.Errorf("Service name wanted %s got %s", service.serviceName, ingressPath.Backend.ServiceName)
+	}
+	if ingressPath.Backend.ServicePort.IntVal != service.servicePort {
+		t.Errorf("Service port wanted %v got %v", service.servicePort, ingressPath.Backend.ServicePort)
 	}
 }
