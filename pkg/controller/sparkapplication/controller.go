@@ -18,10 +18,8 @@ package sparkapplication
 
 import (
 	"fmt"
-	"os"
 	"os/exec"
 	"reflect"
-	"strings"
 	"time"
 
 	"github.com/golang/glog"
@@ -726,10 +724,6 @@ func (c *Controller) updateApplicationStatusWithRetries(
 
 	// Add driver as a finalizer to prevent SparkApplication deletion till driver is deleted.
 	app = addFinalizer(app, sparkDriverRole)
-	if app.Spec.Monitoring != nil && app.Spec.Monitoring.Prometheus != nil {
-		// configPrometheusMonitoring may update app.Spec.
-		configPrometheusMonitoring(app, c.kubeClient)
-	}
 
 	// Create Spark UI Service.
 	service, err := createSparkUIService(app, c.kubeClient)

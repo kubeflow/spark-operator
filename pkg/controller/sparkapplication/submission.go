@@ -17,6 +17,7 @@ limitations under the License.
 package sparkapplication
 
 import (
+	goErrros "errors"
 	"fmt"
 	"os"
 	"os/exec"
