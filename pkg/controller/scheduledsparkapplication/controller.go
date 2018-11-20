@@ -159,11 +159,11 @@ func (c *Controller) syncScheduledSparkApplication(key string) error {
 		return nil
 	}
 
-	glog.V(2).Infof("Syncing ScheduledSparkApplication %s", app.Name)
+	glog.V(2).Infof("Syncing ScheduledSparkApplication %s/%s", app.Namespace, app.Name)
 	status := app.Status.DeepCopy()
 	schedule, err := cron.ParseStandard(app.Spec.Schedule)
 	if err != nil {
-		glog.Errorf("failed to parse schedule %s of %s: %v", app.Spec.Schedule, app.Name, err)
+		glog.Errorf("failed to parse schedule %s of ScheduledSparkApplication %s/%s: %v", app.Spec.Schedule, app.Namespace, app.Name, err)
 		status.ScheduleState = v1alpha1.FailedValidationState
 		status.Reason = err.Error()
 	} else {
@@ -288,11 +288,11 @@ func (c *Controller) startNextRun(
 	app *v1alpha1.ScheduledSparkApplication,
 	status *v1alpha1.ScheduledSparkApplicationStatus,
 	schedule cron.Schedule) error {
-	glog.Infof("Next run of %s is due, creating a new SparkApplication instance", app.Name)
+	glog.Infof("Next run of ScheduledSparkApplication %s/%s is due, creating a new SparkApplication instance", app.Namespace, app.Name)
 	now := c.clock.Now()
 	name, err := c.createSparkApplication(app, now)
 	if err != nil {
-		glog.Errorf("failed to create a SparkApplication instance for %s: %v", app.Name, err)
+		glog.Errorf("failed to create a SparkApplication instance for ScheduledSparkApplication %s/%s: %v", app.Namespace, app.Name, err)
 		return err
 	}
 
