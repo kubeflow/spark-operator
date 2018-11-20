@@ -24,11 +24,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/assert"
-
 	"github.com/prometheus/client_golang/prometheus"
 	prometheus_model "github.com/prometheus/client_model/go"
-
+	"github.com/stretchr/testify/assert"
 	apiv1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/informers"
@@ -129,7 +127,7 @@ func TestOnUpdate(t *testing.T) {
 
 	ctrl.onUpdate(appTemplate, copyWithSameSpec)
 
-	// Verify that the App was enqueued but no spec update events fired.
+	// Verify that the SparkApplication was enqueued but no spec update events fired.
 	item, _ := ctrl.queue.Get()
 	key, ok := item.(string)
 	assert.True(t, ok)
@@ -139,19 +137,19 @@ func TestOnUpdate(t *testing.T) {
 	ctrl.queue.Done(item)
 	assert.Equal(t, 0, len(recorder.Events))
 
-	// Case2: Spec Update Failed.
+	// Case2: Spec update failed.
 	copyWithSpecUpdate := appTemplate.DeepCopy()
 	copyWithSpecUpdate.Spec.Image = stringptr("foo-image:v2")
 	copyWithSpecUpdate.ResourceVersion = "2"
 
 	ctrl.onUpdate(appTemplate, copyWithSpecUpdate)
 
-	// Verify that Update failed due to non-existance of SparkApplication.
+	// Verify that ppdate failed due to non-existance of SparkApplication.
 	assert.Equal(t, 1, len(recorder.Events))
 	event := <-recorder.Events
-	assert.True(t, strings.Contains(event, "SparkApplicationUpdateFailed"))
+	assert.True(t, strings.Contains(event, "SparkApplicationSpecUpdateFailed"))
 
-	// Case3: Spec Update Successful.
+	// Case3: Spec update successful.
 	ctrl.crdClient.SparkoperatorV1alpha1().SparkApplications(appTemplate.Namespace).Create(appTemplate)
 	ctrl.onUpdate(appTemplate, copyWithSpecUpdate)
 
@@ -163,12 +161,12 @@ func TestOnUpdate(t *testing.T) {
 	assert.Equal(t, expectedKey, key)
 	ctrl.queue.Forget(item)
 	ctrl.queue.Done(item)
-	// Verify that Update succeeded but a warning event was fired.
+	// Verify that update was succeeded.
 	assert.Equal(t, 1, len(recorder.Events))
 	event = <-recorder.Events
-	assert.True(t, strings.Contains(event, "SparkApplicationUpdateWarning"))
+	assert.True(t, strings.Contains(event, "SparkApplicationSpecUpdateProcessed"))
 
-	// Verify the App state was updated to Invalidating state.
+	// Verify the SparkApplication state was updated to InvalidatingState.
 	app, err := ctrl.crdClient.SparkoperatorV1alpha1().SparkApplications(appTemplate.Namespace).Get(appTemplate.Name, metav1.GetOptions{})
 	assert.Nil(t, err)
 	assert.Equal(t, v1alpha1.InvalidatingState, app.Status.AppState.State)
@@ -826,7 +824,6 @@ func TestSyncSparkApp_SubmissionSuccess(t *testing.T) {
 }
 
 func TestSyncSparkApplication_ExecutingState(t *testing.T) {
-
 	type testcase struct {
 		appName                 string
 		oldAppStatus            v1alpha1.ApplicationStateType
@@ -994,7 +991,6 @@ func TestSyncSparkApplication_ExecutingState(t *testing.T) {
 	}
 
 	testFn := func(test testcase, t *testing.T) {
-
 		app.Status.AppState.State = test.oldAppStatus
 		app.Status.ExecutorState = test.oldExecutorStatus
 		app.Name = test.appName
@@ -1036,7 +1032,6 @@ func TestSyncSparkApplication_ExecutingState(t *testing.T) {
 }
 
 func TestHasRetryIntervalPassed(t *testing.T) {
-
 	// Failure Cases
 	assert.False(t, hasRetryIntervalPassed(nil, 3, metav1.Time{metav1.Now().Add(-100 * time.Second)}))
 	assert.False(t, hasRetryIntervalPassed(int64ptr(5), 0, metav1.Time{metav1.Now().Add(-100 * time.Second)}))
