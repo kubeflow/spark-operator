@@ -55,7 +55,7 @@ spec:
   mode: cluster
   image: gcr.io/spark/spark:v2.4.0
   mainClass: org.apache.spark.examples.SparkPi
-  mainApplicationFile: local:///opt/spark/examples/jars/spark-examples_2.11-2.3.0.jar
+  mainApplicationFile: local:///opt/spark/examples/jars/spark-examples_2.11-2.4.0.jar
 ```
 
 ### Specifying Application Dependencies
@@ -119,7 +119,7 @@ spec:
     coreLimit: 200m
     memory: 512m
     labels:
-      version: 2.3.0
+      version: 2.4.0
     serviceAccount: spark
 ```
 
@@ -139,7 +139,7 @@ spec:
     instances: 1
     memory: 512m
     labels:
-      version: 2.3.0
+      version: 2.4.0
 ```
 
 ### Mounting Secrets

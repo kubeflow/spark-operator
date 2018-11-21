@@ -26,9 +26,6 @@ spec:
   imagePullPolicy: Always
   mainClass: org.apache.spark.examples.SparkPi
   mainApplicationFile: "local:///opt/spark/examples/jars/spark-examples_2.11-2.4.0.jar"
-  deps:
-    jars:
-    - http://central.maven.org/maven2/io/prometheus/jmx/jmx_prometheus_javaagent/0.3.1/jmx_prometheus_javaagent-0.3.1.jar
   driver:
     cores: 0.1
     coreLimit: "200m"
@@ -46,6 +43,6 @@ spec:
     exposeDriverMetrics: true
     exposeExecutorMetrics: true
     prometheus:
-      jmxExporterJar: "/var/spark-data/spark-jars/jmx_prometheus_javaagent-0.3.1.jar"
+      jmxExporterJar: "/prometheus/jmx_prometheus_javaagent-0.3.1.jar"
       port: 8090    
   restartPolicy: Never

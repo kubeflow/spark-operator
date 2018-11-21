@@ -17,20 +17,19 @@ limitations under the License.
 package sparkapplication
 
 import (
-	goErrros "errors"
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"reflect"
 	"strings"
 
+	"github.com/golang/glog"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1alpha1"
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/config"
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/util"
-	"github.com/golang/glog"
-	"path/filepath"
 )
 
 const (
@@ -71,14 +70,12 @@ func runSparkSubmit(submission *submission) error {
 		}
 		// Already Exists. Do nothing.
 		if strings.Contains(errorMsg, podAlreadyExistsErrorCode) {
-			glog.Warningf("Trying to resubmit an already submitted SparkApplication %s in namespace %s. Error: %v", submission.name, submission.namespace, errorMsg)
+			glog.Warningf("trying to resubmit an already submitted SparkApplication %s/%s", submission.namespace, submission.name)
 			return nil
-		} else {
-			glog.Errorf("failed to run spark-submit for SparkApplication %s in namespace: %s. Error: %v", submission.name,
-				submission.namespace, errorMsg)
-			return goErrros.New(errorMsg)
 		}
+		return fmt.Errorf("failed to run spark-submit for SparkApplication %s/%s: %v", submission.namespace, submission.name, err)
 	}
+
 	return nil
 }
 
