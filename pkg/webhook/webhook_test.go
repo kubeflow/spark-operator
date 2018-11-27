@@ -29,7 +29,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 
-	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1alpha1"
+	spov1beta1 "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta1"
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/config"
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/util"
 )
@@ -89,8 +89,8 @@ func TestMutatePod(t *testing.T) {
 
 	// Test processing Spark pod with patches.
 	ownerReference := metav1.OwnerReference{
-		APIVersion: v1alpha1.SchemeGroupVersion.String(),
-		Kind:       reflect.TypeOf(v1alpha1.SparkApplication{}).Name(),
+		APIVersion: spov1beta1.SchemeGroupVersion.String(),
+		Kind:       reflect.TypeOf(spov1beta1.SparkApplication{}).Name(),
 		Name:       "spark-test",
 		UID:        "spark-test-1",
 	}

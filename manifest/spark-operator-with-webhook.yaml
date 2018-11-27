@@ -21,20 +21,20 @@ metadata:
   namespace: spark-operator
   labels:
     app.kubernetes.io/name: sparkoperator
-    app.kubernetes.io/version: v2.4.0-v1alpha1
+    app.kubernetes.io/version: v2.4.0-v1beta1
 spec:
   replicas: 1
   selector:
     matchLabels:
       app.kubernetes.io/name: sparkoperator
-      app.kubernetes.io/version: v2.4.0-v1alpha1
+      app.kubernetes.io/version: v2.4.0-v1beta1
   strategy:
     type: Recreate
   template:
     metadata:
       labels:
         app.kubernetes.io/name: sparkoperator
-        app.kubernetes.io/version: v2.4.0-v1alpha1
+        app.kubernetes.io/version: v2.4.0-v1beta1
       initializers:
         pending: []
     spec:
@@ -45,7 +45,7 @@ spec:
           secretName: spark-webhook-certs
       containers:
       - name: sparkoperator
-        image: gcr.io/spark-operator/spark-operator:v2.4.0-v1alpha1-latest
+        image: gcr.io/spark-operator/spark-operator:v2.4.0-v1beta1-latest
         imagePullPolicy: Always
         volumeMounts:
         - name: webhook-certs
@@ -63,20 +63,20 @@ metadata:
   namespace: spark-operator
   labels:
     app.kubernetes.io/name: sparkoperator
-    app.kubernetes.io/version: v2.4.0-v1alpha1
+    app.kubernetes.io/version: v2.4.0-v1beta1
 spec:
   backoffLimit: 3
   template:
     metadata:
       labels:
         app.kubernetes.io/name: sparkoperator
-        app.kubernetes.io/version: v2.4.0-v1alpha1
+        app.kubernetes.io/version: v2.4.0-v1beta1
     spec:
       serviceAccountName: sparkoperator
       restartPolicy: Never
       containers:
       - name: main
-        image: gcr.io/spark-operator/spark-operator:v2.4.0-v1alpha1-latest
+        image: gcr.io/spark-operator/spark-operator:v2.4.0-v1beta1-latest
         imagePullPolicy: IfNotPresent
         command: ["/usr/bin/gencerts.sh", "-p"]
 ---
@@ -92,4 +92,4 @@ spec:
       name: webhook
   selector:
     app.kubernetes.io/name: sparkoperator
-    app.kubernetes.io/version: v2.4.0-v1alpha1
+    app.kubernetes.io/version: v2.4.0-v1beta1

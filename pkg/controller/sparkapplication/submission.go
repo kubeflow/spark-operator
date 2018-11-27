@@ -27,7 +27,7 @@ import (
 	"github.com/golang/glog"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1alpha1"
+	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta1"
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/config"
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/util"
 )
@@ -45,7 +45,7 @@ type submission struct {
 	args      []string
 }
 
-func newSubmission(args []string, app *v1alpha1.SparkApplication) *submission {
+func newSubmission(args []string, app *v1beta1.SparkApplication) *submission {
 	return &submission{
 		namespace: app.Namespace,
 		name:      app.Name,
@@ -79,7 +79,7 @@ func runSparkSubmit(submission *submission) (bool, error) {
 	return true, nil
 }
 
-func buildSubmissionCommandArgs(app *v1alpha1.SparkApplication) ([]string, error) {
+func buildSubmissionCommandArgs(app *v1beta1.SparkApplication) ([]string, error) {
 	var args []string
 	if app.Spec.MainClass != nil {
 		args = append(args, "--class", *app.Spec.MainClass)
@@ -205,16 +205,16 @@ func getMasterURL() (string, error) {
 	return fmt.Sprintf("k8s://https://%s:%s", kubernetesServiceHost, kubernetesServicePort), nil
 }
 
-func getOwnerReference(app *v1alpha1.SparkApplication) *metav1.OwnerReference {
+func getOwnerReference(app *v1beta1.SparkApplication) *metav1.OwnerReference {
 	return &metav1.OwnerReference{
-		APIVersion: v1alpha1.SchemeGroupVersion.String(),
-		Kind:       reflect.TypeOf(v1alpha1.SparkApplication{}).Name(),
+		APIVersion: v1beta1.SchemeGroupVersion.String(),
+		Kind:       reflect.TypeOf(v1beta1.SparkApplication{}).Name(),
 		Name:       app.Name,
 		UID:        app.UID,
 	}
 }
 
-func addDependenciesConfOptions(app *v1alpha1.SparkApplication) []string {
+func addDependenciesConfOptions(app *v1beta1.SparkApplication) []string {
 	var depsConfOptions []string
 
 	if len(app.Spec.Deps.Jars) > 0 {
@@ -250,7 +250,7 @@ func addDependenciesConfOptions(app *v1alpha1.SparkApplication) []string {
 	return depsConfOptions
 }
 
-func addDriverConfOptions(app *v1alpha1.SparkApplication) ([]string, error) {
+func addDriverConfOptions(app *v1beta1.SparkApplication) ([]string, error) {
 	var driverConfOptions []string
 
 	driverConfOptions = append(driverConfOptions,
@@ -341,7 +341,7 @@ func addDriverConfOptions(app *v1alpha1.SparkApplication) ([]string, error) {
 	return driverConfOptions, nil
 }
 
-func addExecutorConfOptions(app *v1alpha1.SparkApplication) ([]string, error) {
+func addExecutorConfOptions(app *v1beta1.SparkApplication) ([]string, error) {
 	var executorConfOptions []string
 
 	executorConfOptions = append(executorConfOptions,

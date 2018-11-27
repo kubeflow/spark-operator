@@ -29,7 +29,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 	clientset "k8s.io/client-go/kubernetes"
 
-	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1alpha1"
+	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta1"
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/config"
 )
 
@@ -57,7 +57,7 @@ type SparkIngress struct {
 	ingressUrl  string
 }
 
-func createSparkUIIngress(app *v1alpha1.SparkApplication, service SparkService, ingressUrlFormat string, kubeClient clientset.Interface) (*SparkIngress, error) {
+func createSparkUIIngress(app *v1beta1.SparkApplication, service SparkService, ingressUrlFormat string, kubeClient clientset.Interface) (*SparkIngress, error) {
 	ingressUrl := getSparkUIIngressURL(ingressUrlFormat, app.GetName())
 	ingress := extensions.Ingress{
 		ObjectMeta: metav1.ObjectMeta{
@@ -100,7 +100,7 @@ func createSparkUIIngress(app *v1alpha1.SparkApplication, service SparkService, 
 }
 
 func createSparkUIService(
-	app *v1alpha1.SparkApplication,
+	app *v1beta1.SparkApplication,
 	kubeClient clientset.Interface) (*SparkService, error) {
 	portStr := getUITargetPort(app)
 	port, err := strconv.Atoi(portStr)
@@ -148,7 +148,7 @@ func createSparkUIService(
 // getWebUITargetPort attempts to get the Spark web UI port from configuration property spark.ui.port
 // in Spec.SparkConf if it is present, otherwise the default port is returned.
 // Note that we don't attempt to get the port from Spec.SparkConfigMap.
-func getUITargetPort(app *v1alpha1.SparkApplication) string {
+func getUITargetPort(app *v1beta1.SparkApplication) string {
 	port, ok := app.Spec.SparkConf[sparkUIPortConfigurationKey]
 	if ok {
 		return port

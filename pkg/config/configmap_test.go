@@ -23,7 +23,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1alpha1"
+	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta1"
 )
 
 func TestFindGeneralConfigMaps(t *testing.T) {
@@ -38,11 +38,11 @@ func TestFindGeneralConfigMaps(t *testing.T) {
 }
 
 func TestGetDriverConfigMapConfOptions(t *testing.T) {
-	app := &v1alpha1.SparkApplication{
-		Spec: v1alpha1.SparkApplicationSpec{
-			Driver: v1alpha1.DriverSpec{
-				SparkPodSpec: v1alpha1.SparkPodSpec{
-					ConfigMaps: []v1alpha1.NamePath{
+	app := &v1beta1.SparkApplication{
+		Spec: v1beta1.SparkApplicationSpec{
+			Driver: v1beta1.DriverSpec{
+				SparkPodSpec: v1beta1.SparkPodSpec{
+					ConfigMaps: []v1beta1.NamePath{
 						{
 							Name: "configmap1",
 							Path: "/etc/config",
@@ -70,11 +70,11 @@ func TestGetDriverConfigMapConfOptions(t *testing.T) {
 }
 
 func TestGetExecutorConfigMapConfOptions(t *testing.T) {
-	app := &v1alpha1.SparkApplication{
-		Spec: v1alpha1.SparkApplicationSpec{
-			Executor: v1alpha1.ExecutorSpec{
-				SparkPodSpec: v1alpha1.SparkPodSpec{
-					ConfigMaps: []v1alpha1.NamePath{
+	app := &v1beta1.SparkApplication{
+		Spec: v1beta1.SparkApplicationSpec{
+			Executor: v1beta1.ExecutorSpec{
+				SparkPodSpec: v1beta1.SparkPodSpec{
+					ConfigMaps: []v1beta1.NamePath{
 						{
 							Name: "configmap1",
 							Path: "/etc/config",
@@ -102,7 +102,7 @@ func TestGetExecutorConfigMapConfOptions(t *testing.T) {
 }
 
 func TestGetConfigMapAnnotations(t *testing.T) {
-	namePaths := []v1alpha1.NamePath{
+	namePaths := []v1beta1.NamePath{
 		{
 			Name: "configmap1",
 			Path: "/etc/config",

@@ -19,7 +19,7 @@ package sparkapplication
 import (
 	"fmt"
 
-	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1alpha1"
+	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta1"
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/config"
 	apiv1 "k8s.io/api/core/v1"
 )
@@ -49,48 +49,48 @@ func getSparkApplicationID(pod *apiv1.Pod) string {
 	return pod.Labels[config.SparkApplicationSelectorLabel]
 }
 
-func getDefaultDriverPodName(app *v1alpha1.SparkApplication) string {
+func getDefaultDriverPodName(app *v1beta1.SparkApplication) string {
 	return fmt.Sprintf("%s-driver", app.Name)
 }
 
-func getDefaultUIServiceName(app *v1alpha1.SparkApplication) string {
+func getDefaultUIServiceName(app *v1beta1.SparkApplication) string {
 	return fmt.Sprintf("%s-ui-svc", app.Name)
 }
 
-func getDefaultUIIngressName(app *v1alpha1.SparkApplication) string {
+func getDefaultUIIngressName(app *v1beta1.SparkApplication) string {
 	return fmt.Sprintf("%s-ui-ingress", app.Name)
 }
 
-func podPhaseToExecutorState(podPhase apiv1.PodPhase) v1alpha1.ExecutorState {
+func podPhaseToExecutorState(podPhase apiv1.PodPhase) v1beta1.ExecutorState {
 	switch podPhase {
 	case apiv1.PodPending:
-		return v1alpha1.ExecutorPendingState
+		return v1beta1.ExecutorPendingState
 	case apiv1.PodRunning:
-		return v1alpha1.ExecutorRunningState
+		return v1beta1.ExecutorRunningState
 	case apiv1.PodSucceeded:
-		return v1alpha1.ExecutorCompletedState
+		return v1beta1.ExecutorCompletedState
 	case apiv1.PodFailed:
-		return v1alpha1.ExecutorFailedState
+		return v1beta1.ExecutorFailedState
 	default:
-		return v1alpha1.ExecutorUnknownState
+		return v1beta1.ExecutorUnknownState
 	}
 }
 
-func isExecutorTerminated(executorState v1alpha1.ExecutorState) bool {
-	return executorState == v1alpha1.ExecutorCompletedState || executorState == v1alpha1.ExecutorFailedState
+func isExecutorTerminated(executorState v1beta1.ExecutorState) bool {
+	return executorState == v1beta1.ExecutorCompletedState || executorState == v1beta1.ExecutorFailedState
 }
 
-func driverPodPhaseToApplicationState(podPhase apiv1.PodPhase) v1alpha1.ApplicationStateType {
+func driverPodPhaseToApplicationState(podPhase apiv1.PodPhase) v1beta1.ApplicationStateType {
 	switch podPhase {
 	case apiv1.PodPending:
-		return v1alpha1.SubmittedState
+		return v1beta1.SubmittedState
 	case apiv1.PodRunning:
-		return v1alpha1.RunningState
+		return v1beta1.RunningState
 	case apiv1.PodSucceeded:
-		return v1alpha1.SucceedingState
+		return v1beta1.SucceedingState
 	case apiv1.PodFailed:
-		return v1alpha1.FailingState
+		return v1beta1.FailingState
 	default:
-		return v1alpha1.UnknownState
+		return v1beta1.UnknownState
 	}
 }

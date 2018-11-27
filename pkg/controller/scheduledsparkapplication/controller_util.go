@@ -17,10 +17,10 @@ limitations under the License.
 package scheduledsparkapplication
 
 import (
-	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1alpha1"
+	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta1"
 )
 
-type sparkApps []*v1alpha1.SparkApplication
+type sparkApps []*v1beta1.SparkApplication
 
 func (s sparkApps) Len() int {
 	return len(s)
