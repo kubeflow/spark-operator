@@ -548,7 +548,8 @@ func (c *Controller) syncSparkApplication(key string) error {
 	// Update CRD if not nil.
 	if appToUpdate != nil {
 		glog.V(2).Infof("Trying to update SparkApplication %s/%s, from: [%v] to [%v]", app.Namespace, app.Name, app.Status, appToUpdate.Status)
-		if c.updateAppAndExportMetrics(app, appToUpdate) != nil {
+		err = c.updateAppAndExportMetrics(app, appToUpdate)
+		if err != nil {
 			glog.Errorf("failed to update SparkApplication %s/%s: %v", app.Namespace, app.GetName(), err)
 			return err
 		}
