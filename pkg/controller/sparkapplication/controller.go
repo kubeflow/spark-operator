@@ -473,6 +473,7 @@ func (c *Controller) syncSparkApplication(key string) error {
 				return err
 			}
 			appToUpdate.Status.AppState.State = v1alpha1.PendingRerunState
+			appToUpdate.Status.AppState.ErrorMessage = ""
 		}
 	case v1alpha1.FailedSubmissionState:
 		if !shouldRetry(appToUpdate) {
