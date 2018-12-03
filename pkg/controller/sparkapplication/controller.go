@@ -321,6 +321,10 @@ func (c *Controller) getUpdatedAppStatus(app *v1alpha1.SparkApplication) v1alpha
 		}
 	} else {
 		glog.Warningf("driver not found for SparkApplication: %s/%s", app.Namespace, app.Name)
+		if app.Status.AppState.State == v1alpha1.RunningState {
+			app.Status.AppState.ErrorMessage = "Driver Pod not found"
+			app.Status.AppState.State = v1alpha1.FailingState
+		}
 	}
 
 	// ApplicationID label can be different on driver/executors. Prefer executor ApplicationID if set.
