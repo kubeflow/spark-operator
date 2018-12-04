@@ -628,8 +628,8 @@ func TestSyncSparkApplication_SubmissionSuccess(t *testing.T) {
 					AppState: v1alpha1.ApplicationState{
 						State: v1alpha1.FailingState,
 					},
-					ExecutionAttempts: 1,
-					CompletionTime:    metav1.Time{Time: metav1.Now().Add(-2000 * time.Second)},
+					ExecutionAttempts:         1,
+					LastSubmissionAttemptTime: metav1.Time{Time: metav1.Now().Add(-2000 * time.Second)},
 				},
 			},
 			expectedState: v1alpha1.PendingRerunState,
@@ -751,8 +751,8 @@ func TestSyncSparkApplication_SubmissionSuccess(t *testing.T) {
 					AppState: v1alpha1.ApplicationState{
 						State: v1alpha1.FailingState,
 					},
-					ExecutionAttempts: 1,
-					CompletionTime:    metav1.Time{Time: metav1.Now().Add(-2000 * time.Second)},
+					ExecutionAttempts:         1,
+					LastSubmissionAttemptTime: metav1.Time{Time: metav1.Now().Add(-2000 * time.Second)},
 				},
 				Spec: v1alpha1.SparkApplicationSpec{
 					RestartPolicy: restartPolicyOnFailure,
