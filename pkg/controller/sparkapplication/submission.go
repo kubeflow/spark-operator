@@ -53,7 +53,7 @@ func newSubmission(args []string, app *v1alpha1.SparkApplication) *submission {
 	}
 }
 
-func runSparkSubmit(submission *submission) error {
+func runSparkSubmit(submission *submission) (bool, error) {
 	sparkHome, present := os.LookupEnv(sparkHomeEnvVar)
 	if !present {
 		glog.Error("SPARK_HOME is not specified")
@@ -61,22 +61,22 @@ func runSparkSubmit(submission *submission) error {
 	var command = filepath.Join(sparkHome, "/bin/spark-submit")
 
 	cmd := execCommand(command, submission.args...)
-	glog.Infof("spark-submit arguments: %v", cmd.Args)
+	glog.V(2).Infof("spark-submit arguments: %v", cmd.Args)
 
 	if _, err := cmd.Output(); err != nil {
 		var errorMsg string
 		if exitErr, ok := err.(*exec.ExitError); ok {
 			errorMsg = string(exitErr.Stderr)
 		}
-		// Already Exists. Do nothing.
+		// The driver pod of the application already exists.
 		if strings.Contains(errorMsg, podAlreadyExistsErrorCode) {
 			glog.Warningf("trying to resubmit an already submitted SparkApplication %s/%s", submission.namespace, submission.name)
-			return nil
+			return false, nil
 		}
-		return fmt.Errorf("failed to run spark-submit for SparkApplication %s/%s: %v", submission.namespace, submission.name, err)
+		return false, fmt.Errorf("failed to run spark-submit for SparkApplication %s/%s: %v", submission.namespace, submission.name, err)
 	}
 
-	return nil
+	return true, nil
 }
 
 func buildSubmissionCommandArgs(app *v1alpha1.SparkApplication) ([]string, error) {

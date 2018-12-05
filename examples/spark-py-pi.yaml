@@ -19,7 +19,7 @@
 apiVersion: "sparkoperator.k8s.io/v1alpha1"
 kind: SparkApplication
 metadata:
-  name: pyfiles
+  name: pyspark-pi
   namespace: default
 spec:
   type: Python
@@ -27,18 +27,13 @@ spec:
   mode: cluster
   image: "gcr.io/spark-operator/spark-py:v2.4.0"
   imagePullPolicy: Always
-  mainApplicationFile: local:///opt/spark/examples/src/main/python/pyfiles.py
+  mainApplicationFile: local:///opt/spark/examples/src/main/python/pi.py
   restartPolicy:
     type: OnFailure
     onFailureRetries: 3
     onFailureRetryInterval: 10
     onSubmissionFailureRetries: 5
     onSubmissionFailureRetryInterval: 20
-  arguments:
-    - python2.7
-  deps:
-    pyFiles:
-       - local:///opt/spark/examples/src/main/python/py_container_checks.py
   driver:
     cores: 0.1
     coreLimit: "200m"

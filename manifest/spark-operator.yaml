@@ -42,7 +42,7 @@ spec:
       containers:
       - name: sparkoperator
         image: gcr.io/spark-operator/spark-operator:v2.4.0-v1alpha1-latest
-        imagePullPolicy: IfNotPresent
+        imagePullPolicy: Always
         command: ["/usr/bin/spark-operator"]
         args:
         - -logtostderr
