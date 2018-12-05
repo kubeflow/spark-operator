@@ -274,7 +274,7 @@ type SparkApplicationStatus struct {
 	SparkApplicationID string `json:"sparkApplicationId,omitempty"`
 	// LastSubmissionAttemptTime is the time for the last application submission attempt.
 	LastSubmissionAttemptTime metav1.Time `json:"lastSubmissionAttemptTime,omitempty"`
-	// TerminationTime is the time when the application runs to completion success of fail.
+	// TerminationTime is the time when the application runs to completion with success or failure
 	TerminationTime metav1.Time `json:"terminationTime,omitempty"`
 	// DriverInfo has information about the driver.
 	DriverInfo DriverInfo `json:"driverInfo"`
