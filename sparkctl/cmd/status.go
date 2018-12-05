@@ -67,7 +67,7 @@ func printStatus(app *v1alpha1.SparkApplication) {
 	table.Append([]string{
 		string(app.Status.AppState.State),
 		getSinceTime(app.Status.LastSubmissionAttemptTime),
-		getSinceTime(app.Status.CompletionTime),
+		getSinceTime(app.Status.TerminationTime),
 		formatNotAvailable(app.Status.DriverInfo.PodName),
 		formatNotAvailable(app.Status.DriverInfo.WebUIAddress),
 		fmt.Sprintf("%v", app.Status.SubmissionAttempts),

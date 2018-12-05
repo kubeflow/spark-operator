@@ -52,13 +52,13 @@ func doList(crdClientset crdclientset.Interface) error {
 	}
 
 	table := tablewriter.NewWriter(os.Stdout)
-	table.SetHeader([]string{"Name", "State", "Submission Age", "Completion Age"})
+	table.SetHeader([]string{"Name", "State", "Submission Age", "Termination Age"})
 	for _, app := range apps.Items {
 		table.Append([]string{
 			string(app.Name),
 			string(app.Status.AppState.State),
 			getSinceTime(app.Status.LastSubmissionAttemptTime),
-			getSinceTime(app.Status.CompletionTime),
+			getSinceTime(app.Status.TerminationTime),
 		})
 	}
 	table.Render()
