@@ -303,7 +303,9 @@ func (c *Controller) getUpdatedAppStatus(app *v1alpha1.SparkApplication) v1alpha
 	}
 
 	if currentDriverState != nil {
-		if newAppState := driverPodPhaseToApplicationState(currentDriverState.podPhase); newAppState != v1alpha1.UnknownState {
+		newAppState := driverPodPhaseToApplicationState(currentDriverState.podPhase)
+		app.Status.AppState.State = newAppState
+		if newAppState != v1alpha1.UnknownState {
 			app.Status.DriverInfo.PodName = currentDriverState.podName
 			app.Status.SparkApplicationID = currentDriverState.sparkApplicationID
 			if currentDriverState.nodeName != "" {
@@ -312,7 +314,6 @@ func (c *Controller) getUpdatedAppStatus(app *v1alpha1.SparkApplication) v1alpha
 						app.Status.DriverInfo.WebUIPort)
 				}
 			}
-			app.Status.AppState.State = newAppState
 			if app.Status.CompletionTime.IsZero() && !currentDriverState.completionTime.IsZero() {
 				app.Status.CompletionTime = currentDriverState.completionTime
 			}

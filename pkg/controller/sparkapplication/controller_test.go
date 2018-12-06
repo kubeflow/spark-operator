@@ -823,7 +823,7 @@ func TestSyncSparkApplication_SubmissionSuccess(t *testing.T) {
 	}
 }
 
-func TestSyncSparkApplication_ExecutorState(t *testing.T) {
+func TestSyncSparkApplication_ExecutingState(t *testing.T) {
 	type testcase struct {
 		appName                 string
 		oldAppStatus            v1alpha1.ApplicationStateType
@@ -987,6 +987,41 @@ func TestSyncSparkApplication_ExecutorState(t *testing.T) {
 			expectedAppMetrics: metrics{
 				successMetricCount: 1,
 			},
+			expectedExecutorMetrics: executorMetrics{},
+		},
+		{
+			appName:           "foo-3",
+			oldAppStatus:      v1alpha1.SubmittedState,
+			oldExecutorStatus: map[string]v1alpha1.ExecutorState{},
+			driverPod: &apiv1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "foo-driver",
+					Namespace: "test",
+					Labels: map[string]string{
+						config.SparkRoleLabel:    sparkDriverRole,
+						config.SparkAppNameLabel: "foo-3",
+					},
+				},
+				Status: apiv1.PodStatus{
+					Phase: apiv1.PodUnknown,
+				},
+			},
+			executorPod: &apiv1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "exec-1",
+					Namespace: "test",
+					Labels: map[string]string{
+						config.SparkRoleLabel:    sparkExecutorRole,
+						config.SparkAppNameLabel: "foo-3",
+					},
+				},
+				Status: apiv1.PodStatus{
+					Phase: apiv1.PodPending,
+				},
+			},
+			expectedAppState:        v1alpha1.UnknownState,
+			expectedExecutorState:   map[string]v1alpha1.ExecutorState{"exec-1": v1alpha1.ExecutorPendingState},
+			expectedAppMetrics:      metrics{},
 			expectedExecutorMetrics: executorMetrics{},
 		},
 	}
