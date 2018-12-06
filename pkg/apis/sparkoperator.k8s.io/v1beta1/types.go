@@ -45,7 +45,7 @@ const (
 // RestartPolicy is the policy of if and in which conditions the controller should restart a terminated application.
 // This completely defines actions to be taken on any kind of Failures during an application run.
 type RestartPolicy struct {
-	Type RestartPolicyType `json:"type,omitempty""`
+	Type RestartPolicyType `json:"type,omitempty"`
 
 	// FailureRetries are the number of times to retry a failed application before giving up in a particular case.
 	// This is best effort and actual retry attempts can be >= the value specified due to caching.

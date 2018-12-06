@@ -17,7 +17,6 @@ limitations under the License.
 package sparkapplication
 
 import (
-	"errors"
 	"fmt"
 
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1alpha1"
@@ -100,16 +99,17 @@ func isExecutorTerminated(executorState v1alpha1.ExecutorState) bool {
 	return executorState == v1alpha1.ExecutorCompletedState || executorState == v1alpha1.ExecutorFailedState
 }
 
-func driverPodPhaseToApplicationState(podPhase apiv1.PodPhase) (v1alpha1.ApplicationStateType, error) {
+func driverPodPhaseToApplicationState(podPhase apiv1.PodPhase) v1alpha1.ApplicationStateType {
 	switch podPhase {
 	case apiv1.PodPending:
-		return v1alpha1.SubmittedState, nil
+		return v1alpha1.SubmittedState
 	case apiv1.PodRunning:
-		return v1alpha1.RunningState, nil
+		return v1alpha1.RunningState
 	case apiv1.PodSucceeded:
-		return v1alpha1.SucceedingState, nil
+		return v1alpha1.SucceedingState
 	case apiv1.PodFailed:
-		return v1alpha1.FailingState, nil
+		return v1alpha1.FailingState
+	default:
+		return v1alpha1.UnknownState
 	}
-	return "", errors.New(fmt.Sprintf("Invalid driver Pod Phase found: %s", podPhase))
 }

@@ -270,7 +270,7 @@ type driverState struct {
 
 func (c *Controller) getUpdatedAppStatus(app *v1alpha1.SparkApplication) v1alpha1.SparkApplicationStatus {
 	// Fetch all the pods for the application.
-	selector, err := labels.NewRequirement(config.SparkAppNameLabel, selection.Equals, []string{app.Name})
+	selector, _ := labels.NewRequirement(config.SparkAppNameLabel, selection.Equals, []string{app.Name})
 	pods, err := c.podLister.Pods(app.Namespace).List(labels.NewSelector().Add(*selector))
 	if err != nil {
 		glog.Errorf("failed to get pods for SparkApplication %s/%s: %v", app.Namespace, app.Name, err)
@@ -303,7 +303,9 @@ func (c *Controller) getUpdatedAppStatus(app *v1alpha1.SparkApplication) v1alpha
 	}
 
 	if currentDriverState != nil {
-		if newAppState, err := driverPodPhaseToApplicationState(currentDriverState.podPhase); err == nil {
+		newAppState := driverPodPhaseToApplicationState(currentDriverState.podPhase)
+		app.Status.AppState.State = newAppState
+		if newAppState != v1alpha1.UnknownState {
 			app.Status.DriverInfo.PodName = currentDriverState.podName
 			app.Status.SparkApplicationID = currentDriverState.sparkApplicationID
 			if currentDriverState.nodeName != "" {
@@ -312,12 +314,9 @@ func (c *Controller) getUpdatedAppStatus(app *v1alpha1.SparkApplication) v1alpha
 						app.Status.DriverInfo.WebUIPort)
 				}
 			}
-			app.Status.AppState.State = newAppState
 			if app.Status.CompletionTime.IsZero() && !currentDriverState.completionTime.IsZero() {
 				app.Status.CompletionTime = currentDriverState.completionTime
 			}
-		} else {
-			glog.Warningf("invalid driver state for SparkApplication %s/%s: %v", app.Namespace, app.Name, err)
 		}
 	} else {
 		glog.Warningf("driver not found for SparkApplication: %s/%s", app.Namespace, app.Name)
@@ -504,7 +503,7 @@ func (c *Controller) syncSparkApplication(key string) error {
 				appToUpdate = removeFinalizer(appToUpdate, sparkDriverRole)
 				appToUpdate = c.submitSparkApplication(appToUpdate)
 			}
-		case v1alpha1.SubmittedState, v1alpha1.RunningState:
+		case v1alpha1.SubmittedState, v1alpha1.RunningState, v1alpha1.UnknownState:
 			//Application already submitted, get driver and executor pods and update its status.
 			appToUpdate.Status = c.getUpdatedAppStatus(appToUpdate)
 		}
