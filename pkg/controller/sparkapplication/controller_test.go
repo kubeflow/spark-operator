@@ -284,7 +284,7 @@ func TestSyncSparkApplication_SubmissionFailed(t *testing.T) {
 	event = <-recorder.Events
 	assert.True(t, strings.Contains(event, "SparkApplicationSubmissionFailed"))
 
-	// Attempt 2: Retry again
+	// Attempt 2: Retry again.
 	updatedApp.Status.LastSubmissionAttemptTime = metav1.Time{Time: metav1.Now().Add(-100 * time.Second)}
 	ctrl, recorder = newFakeController(updatedApp)
 	_, err = ctrl.crdClient.SparkoperatorV1alpha1().SparkApplications(app.Namespace).Create(updatedApp)
@@ -293,7 +293,7 @@ func TestSyncSparkApplication_SubmissionFailed(t *testing.T) {
 	}
 	err = ctrl.syncSparkApplication("default/foo")
 
-	// Verify App Failed again.
+	// Verify that the application failed again.
 	updatedApp, err = ctrl.crdClient.SparkoperatorV1alpha1().SparkApplications(app.Namespace).Get(app.Name, metav1.GetOptions{})
 	assert.Nil(t, err)
 	assert.Equal(t, v1alpha1.FailedSubmissionState, updatedApp.Status.AppState.State)
@@ -303,7 +303,7 @@ func TestSyncSparkApplication_SubmissionFailed(t *testing.T) {
 	event = <-recorder.Events
 	assert.True(t, strings.Contains(event, "SparkApplicationSubmissionFailed"))
 
-	// Attempt 3: No more retries
+	// Attempt 3: No more retries.
 	updatedApp.Status.LastSubmissionAttemptTime = metav1.Time{Time: metav1.Now().Add(-100 * time.Second)}
 	ctrl, recorder = newFakeController(updatedApp)
 	_, err = ctrl.crdClient.SparkoperatorV1alpha1().SparkApplications(app.Namespace).Create(updatedApp)
@@ -312,7 +312,7 @@ func TestSyncSparkApplication_SubmissionFailed(t *testing.T) {
 	}
 	err = ctrl.syncSparkApplication("default/foo")
 
-	// Verify App Failed again.
+	// Verify that the application failed again.
 	updatedApp, err = ctrl.crdClient.SparkoperatorV1alpha1().SparkApplications(app.Namespace).Get(app.Name, metav1.GetOptions{})
 	assert.Nil(t, err)
 	assert.Equal(t, v1alpha1.FailedState, updatedApp.Status.AppState.State)
@@ -484,7 +484,7 @@ func TestShouldRetry(t *testing.T) {
 	}
 }
 
-func TestSyncSparkApp_SubmissionSuccess(t *testing.T) {
+func TestSyncSparkApplication_SubmissionSuccess(t *testing.T) {
 	type testcase struct {
 		app           *v1alpha1.SparkApplication
 		expectedState v1alpha1.ApplicationStateType
@@ -823,7 +823,7 @@ func TestSyncSparkApp_SubmissionSuccess(t *testing.T) {
 	}
 }
 
-func TestSyncSparkApplication_ExecutingState(t *testing.T) {
+func TestSyncSparkApplication_ExecutorState(t *testing.T) {
 	type testcase struct {
 		appName                 string
 		oldAppStatus            v1alpha1.ApplicationStateType
@@ -1011,17 +1011,17 @@ func TestSyncSparkApplication_ExecutingState(t *testing.T) {
 		err = ctrl.syncSparkApplication(fmt.Sprintf("%s/%s", app.GetNamespace(), app.GetName()))
 		assert.Nil(t, err)
 		updatedApp, err := ctrl.crdClient.SparkoperatorV1alpha1().SparkApplications(app.Namespace).Get(app.Name, metav1.GetOptions{})
-		// Verify App/Executor Statuses
+		// Verify application and executor states.
 		assert.Equal(t, test.expectedAppState, updatedApp.Status.AppState.State)
 		assert.Equal(t, test.expectedExecutorState, updatedApp.Status.ExecutorState)
 
-		// Verify App Metrics
+		// Verify application metrics.
 		assert.Equal(t, test.expectedAppMetrics.runningMetricCount, ctrl.metrics.sparkAppRunningCount.Value(map[string]string{}))
 		assert.Equal(t, test.expectedAppMetrics.successMetricCount, fetchCounterValue(ctrl.metrics.sparkAppSuccessCount, map[string]string{}))
 		assert.Equal(t, test.expectedAppMetrics.submitMetricCount, fetchCounterValue(ctrl.metrics.sparkAppSubmitCount, map[string]string{}))
 		assert.Equal(t, test.expectedAppMetrics.failedMetricCount, fetchCounterValue(ctrl.metrics.sparkAppFailureCount, map[string]string{}))
 
-		// Verify Executor Metrics
+		// Verify executor metrics.
 		assert.Equal(t, test.expectedExecutorMetrics.runningMetricCount, ctrl.metrics.sparkAppExecutorRunningCount.Value(map[string]string{}))
 		assert.Equal(t, test.expectedExecutorMetrics.successMetricCount, fetchCounterValue(ctrl.metrics.sparkAppExecutorSuccessCount, map[string]string{}))
 		assert.Equal(t, test.expectedExecutorMetrics.failedMetricCount, fetchCounterValue(ctrl.metrics.sparkAppExecutorFailureCount, map[string]string{}))
@@ -1033,14 +1033,12 @@ func TestSyncSparkApplication_ExecutingState(t *testing.T) {
 }
 
 func TestHasRetryIntervalPassed(t *testing.T) {
-	// Failure Cases
+	// Failure cases.
 	assert.False(t, hasRetryIntervalPassed(nil, 3, metav1.Time{Time: metav1.Now().Add(-100 * time.Second)}))
 	assert.False(t, hasRetryIntervalPassed(int64ptr(5), 0, metav1.Time{Time: metav1.Now().Add(-100 * time.Second)}))
 	assert.False(t, hasRetryIntervalPassed(int64ptr(5), 3, metav1.Time{}))
-
 	// Not enough time passed.
 	assert.False(t, hasRetryIntervalPassed(int64ptr(50), 3, metav1.Time{Time: metav1.Now().Add(-100 * time.Second)}))
-
 	assert.True(t, hasRetryIntervalPassed(int64ptr(50), 3, metav1.Time{Time: metav1.Now().Add(-151 * time.Second)}))
 }
 
