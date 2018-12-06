@@ -857,6 +857,7 @@ func TestSyncSparkApplication_ExecutingState(t *testing.T) {
 			ExecutorState: map[string]v1alpha1.ExecutorState{"exec-1": v1alpha1.ExecutorRunningState},
 		},
 	}
+
 	testcases := []testcase{
 		{
 			appName:               "foo-1",
