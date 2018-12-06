@@ -43,12 +43,12 @@ func TestMain(m *testing.M) {
 		log.Fatalf("failed to set up framework: %v\n", err)
 	}
 
-	defer func() {
-		if err := framework.Teardown(); err != nil {
-			log.Fatalf("failed to tear down framework: %v\n", err)
-		}
-		os.Exit(0)
-	}()
+	code := m.Run()
 
-	os.Exit(m.Run())
+	if err := framework.Teardown(); err != nil {
+		log.Fatalf("failed to tear down framework: %v\n", err)
+	}
+	os.Exit(0)
+
+	os.Exit(code)
 }

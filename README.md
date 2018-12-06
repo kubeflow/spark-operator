@@ -29,7 +29,7 @@ and **optionally** the [Mutating Admission Webhook](https://kubernetes.io/docs/r
 
 **Due to this [bug](https://github.com/kubernetes/kubernetes/issues/56018) in Kubernetes 1.9 and earlier, CRD objects with
 escaped quotes (e.g., `spark.ui.port\"`) in map keys can cause serialization problems in the API server. So please pay
-extra attention to make sure no offending escaping is in your `SparkAppliction` CRD objects, particularly if you use 
+extra attention to make sure no offending escaping is in your `SparkApplication` CRD objects, particularly if you use 
 Kubernetes prior to 1.10.**
 
 ## Installation
@@ -38,8 +38,8 @@ The easiest way to install the Kubernetes Operator for Apache Spark is to use th
 
 ```bash
 $ helm repo add incubator http://storage.googleapis.com/kubernetes-charts-incubator
-$ helm install incubator/sparkoperator
-``` 
+$ helm install incubator/sparkoperator --namespace spark-operator
+```
 
 ## Get Started
 

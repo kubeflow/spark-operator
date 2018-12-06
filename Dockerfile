@@ -14,11 +14,11 @@
 # limitations under the License.
 #
 
-ARG SPARK_IMAGE=gcr.io/spark-operator/spark:v2.3.1
+ARG SPARK_IMAGE=gcr.io/spark-operator/spark:v2.4.0
 
 FROM golang:1.10.2-alpine as builder
 ARG DEP_VERSION="0.4.1"
-RUN apk update && apk add bash git
+RUN apk add --no-cache bash git
 ADD https://github.com/golang/dep/releases/download/v${DEP_VERSION}/dep-linux-amd64 /usr/bin/dep
 RUN chmod +x /usr/bin/dep
 
@@ -30,7 +30,6 @@ RUN go generate && CGO_ENABLED=0 GOOS=linux go build -o /usr/bin/spark-operator
 
 FROM ${SPARK_IMAGE}
 COPY --from=builder /usr/bin/spark-operator /usr/bin/
-RUN apk add --update openssl && rm -rf /var/cache/apk/*
-RUN apk add --update curl && rm -rf /var/cache/apk/*
+RUN apk add --no-cache openssl curl
 COPY hack/gencerts.sh /usr/bin/
 ENTRYPOINT ["/usr/bin/spark-operator"]

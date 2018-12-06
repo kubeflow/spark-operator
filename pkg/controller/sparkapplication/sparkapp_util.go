@@ -1,3 +1,19 @@
+/*
+Copyright 2018 Google LLC
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    https://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package sparkapplication
 
 import (
@@ -31,7 +47,19 @@ func isExecutorPod(pod *apiv1.Pod) bool {
 }
 
 func getSparkApplicationID(pod *apiv1.Pod) string {
-	return pod.Labels[config.SparkApplicationIDLabel]
+	return pod.Labels[config.SparkApplicationSelectorLabel]
+}
+
+func getDefaultDriverPodName(app *v1alpha1.SparkApplication) string {
+	return fmt.Sprintf("%s-driver", app.Name)
+}
+
+func getDefaultUIServiceName(app *v1alpha1.SparkApplication) string {
+	return fmt.Sprintf("%s-ui-svc", app.Name)
+}
+
+func getDefaultUIIngressName(app *v1alpha1.SparkApplication) string {
+	return fmt.Sprintf("%s-ui-ingress", app.Name)
 }
 
 func podPhaseToExecutorState(podPhase apiv1.PodPhase) v1alpha1.ExecutorState {
@@ -49,8 +77,23 @@ func podPhaseToExecutorState(podPhase apiv1.PodPhase) v1alpha1.ExecutorState {
 	}
 }
 
-func isAppTerminated(appState v1alpha1.ApplicationStateType) bool {
-	return appState == v1alpha1.CompletedState || appState == v1alpha1.FailedState
+func removeFinalizer(app *v1alpha1.SparkApplication, finalizerToRemove string) *v1alpha1.SparkApplication {
+	for k, elem := range app.Finalizers {
+		if elem == finalizerToRemove {
+			app.Finalizers = append(app.Finalizers[:k], app.Finalizers[k+1:]...)
+			break
+		}
+	}
+	return app
+}
+
+func addFinalizer(app *v1alpha1.SparkApplication, finalizerToAdd string) *v1alpha1.SparkApplication {
+	if app.ObjectMeta.Finalizers == nil {
+		app.ObjectMeta.Finalizers = []string{finalizerToAdd}
+	} else {
+		app.ObjectMeta.Finalizers = append(app.ObjectMeta.Finalizers, finalizerToAdd)
+	}
+	return app
 }
 
 func isExecutorTerminated(executorState v1alpha1.ExecutorState) bool {

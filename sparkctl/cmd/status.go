@@ -66,7 +66,7 @@ func printStatus(app *v1alpha1.SparkApplication) {
 	table.SetHeader([]string{"State", "Submission Age", "Completion Age", "Driver Pod", "Driver UI", "SubmissionAttempts", "ExecutionAttempts"})
 	table.Append([]string{
 		string(app.Status.AppState.State),
-		getSinceTime(app.Status.SubmissionTime),
+		getSinceTime(app.Status.LastSubmissionAttemptTime),
 		getSinceTime(app.Status.CompletionTime),
 		formatNotAvailable(app.Status.DriverInfo.PodName),
 		formatNotAvailable(app.Status.DriverInfo.WebUIAddress),
