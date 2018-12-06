@@ -142,6 +142,7 @@ func newSparkApplicationController(
 	controller.cacheSynced = func() bool {
 		return crdInformer.Informer().HasSynced() && podsInformer.Informer().HasSynced()
 	}
+
 	return controller
 }
 
@@ -170,7 +171,6 @@ func (c *Controller) Stop() {
 // Callback function called when a new SparkApplication object gets created.
 func (c *Controller) onAdd(obj interface{}) {
 	app := obj.(*v1alpha1.SparkApplication)
-
 	glog.Infof("SparkApplication %s/%s was added, enqueueing it for submission", app.Namespace, app.Name)
 	c.enqueue(app)
 }
@@ -203,6 +203,7 @@ func (c *Controller) onUpdate(oldObj, newObj interface{}) {
 				newApp.Name)
 		}
 	}
+
 	glog.V(2).Infof("SparkApplication %s/%s was updated, enqueueing it", newApp.Namespace, newApp.Name)
 	c.enqueue(newApp)
 }
@@ -271,13 +272,13 @@ func (c *Controller) getUpdatedAppStatus(app *v1alpha1.SparkApplication) v1alpha
 	// Fetch all the pods for the application.
 	selector, err := labels.NewRequirement(config.SparkAppNameLabel, selection.Equals, []string{app.Name})
 	pods, err := c.podLister.Pods(app.Namespace).List(labels.NewSelector().Add(*selector))
-
 	if err != nil {
 		glog.Errorf("failed to get pods for SparkApplication %s/%s: %v", app.Namespace, app.Name, err)
 		return app.Status
 	}
+
 	var currentDriverState *driverState
-	executorStateMap := map[string]v1alpha1.ExecutorState{}
+	executorStateMap := make(map[string]v1alpha1.ExecutorState)
 	var executorApplicationID string
 	for _, pod := range pods {
 		if isDriverPod(pod) {
@@ -678,7 +679,6 @@ func (c *Controller) getSparkApplication(namespace string, name string) (*v1alph
 
 // Delete the driver pod and optional UI resources (Service/Ingress) created for the application.
 func (c *Controller) deleteSparkResources(app *v1alpha1.SparkApplication, deleteUI bool) error {
-
 	driverPodName := app.Status.DriverInfo.PodName
 	if driverPodName == "" {
 		driverPodName = getDefaultDriverPodName(app)
@@ -811,9 +811,7 @@ func (c *Controller) recordSparkApplicationEvent(app *v1alpha1.SparkApplication)
 	}
 }
 
-func (c *Controller) recordDriverEvent(
-	app *v1alpha1.SparkApplication, phase apiv1.PodPhase, name string) {
-
+func (c *Controller) recordDriverEvent(app *v1alpha1.SparkApplication, phase apiv1.PodPhase, name string) {
 	switch phase {
 	case apiv1.PodSucceeded:
 		c.recorder.Eventf(app, apiv1.EventTypeNormal, "SparkDriverCompleted", "Driver %s completed", name)
@@ -828,9 +826,7 @@ func (c *Controller) recordDriverEvent(
 	}
 }
 
-func (c *Controller) recordExecutorEvent(
-	app *v1alpha1.SparkApplication, state v1alpha1.ExecutorState, name string) {
-
+func (c *Controller) recordExecutorEvent(app *v1alpha1.SparkApplication, state v1alpha1.ExecutorState, name string) {
 	switch state {
 	case v1alpha1.ExecutorCompletedState:
 		c.recorder.Eventf(app, apiv1.EventTypeNormal, "SparkExecutorCompleted", "Executor %s completed", name)
