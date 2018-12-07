@@ -219,6 +219,7 @@ func (c *Controller) onDelete(obj interface{}) {
 	}
 
 	if app != nil {
+		c.handleSparkApplicationDeletion(app)
 		c.recorder.Eventf(
 			app,
 			apiv1.EventTypeNormal,
@@ -346,20 +347,11 @@ func (c *Controller) getUpdatedAppStatus(app *v1alpha1.SparkApplication) v1alpha
 	return app.Status
 }
 
-func (c *Controller) handleSparkApplicationDeletion(app *v1alpha1.SparkApplication) *v1alpha1.SparkApplication {
-	// Validate if the driver pod no longer exists.
-	if c.validateSparkResourceDeletion(app, false) {
-		// Successfully deleted driver or driver doesn't exist. Remove it from the Finalizer list.
-		app = removeFinalizer(app, sparkDriverRole)
-	} else {
-		// SparkApplication deletion requested, lets delete driver pod.
-		err := c.deleteSparkResources(app, false)
-		if err != nil {
-			glog.Errorf("failed to delete the driver pod for deleted SparkApplication: %s/%s: %v", app.Namespace,
-				app.Name, err)
-		}
+func (c *Controller) handleSparkApplicationDeletion(app *v1alpha1.SparkApplication) {
+	// SparkApplication deletion requested, lets delete driver pod.
+	if err := c.deleteSparkResources(app); err != nil {
+		glog.Errorf("failed to delete resources associated wirh deleted SparkApplication: %s/%s: %v", app.Namespace, app.Name, err)
 	}
-	return app
 }
 
 // ShouldRetry determines if SparkApplication in a given state should be retried.
@@ -439,74 +431,71 @@ func (c *Controller) syncSparkApplication(key string) error {
 		// SparkApplication not found.
 		return nil
 	}
+	if !app.DeletionTimestamp.IsZero() {
+		c.handleSparkApplicationDeletion(app)
+		return nil
+	}
 
 	appToUpdate := app.DeepCopy()
 
-	// SparkApplication delete requested.
-	if !appToUpdate.GetDeletionTimestamp().IsZero() {
-		appToUpdate = c.handleSparkApplicationDeletion(appToUpdate)
-	} else {
-		// Take action based on application state.
-		switch appToUpdate.Status.AppState.State {
-		case v1alpha1.NewState:
+	// Take action based on application state.
+	switch appToUpdate.Status.AppState.State {
+	case v1alpha1.NewState:
+		c.recordSparkApplicationEvent(appToUpdate)
+		appToUpdate.Status.SubmissionAttempts = 0
+		appToUpdate = c.submitSparkApplication(appToUpdate)
+	case v1alpha1.SucceedingState:
+		if !shouldRetry(appToUpdate) {
+			// App will never be retried. Move to terminal CompletedState.
+			appToUpdate.Status.AppState.State = v1alpha1.CompletedState
 			c.recordSparkApplicationEvent(appToUpdate)
-			appToUpdate.Status.SubmissionAttempts = 0
-			appToUpdate = c.submitSparkApplication(appToUpdate)
-		case v1alpha1.SucceedingState:
-			if !shouldRetry(appToUpdate) {
-				// App will never be retried. Move to terminal CompletedState.
-				appToUpdate.Status.AppState.State = v1alpha1.CompletedState
-				c.recordSparkApplicationEvent(appToUpdate)
-			} else {
-				if err := c.deleteSparkResources(appToUpdate, true); err != nil {
-					glog.Errorf("failed to delete the driver pod and UI service for deleted SparkApplication %s/%s: %v",
-						appToUpdate.Namespace, appToUpdate.Name, err)
-					return err
-				}
-				appToUpdate.Status.AppState.State = v1alpha1.PendingRerunState
-			}
-		case v1alpha1.FailingState:
-			if !shouldRetry(appToUpdate) {
-				// App will never be retried. Move to terminal FailedState.
-				appToUpdate.Status.AppState.State = v1alpha1.FailedState
-				c.recordSparkApplicationEvent(appToUpdate)
-			} else if hasRetryIntervalPassed(appToUpdate.Spec.RestartPolicy.OnFailureRetryInterval, appToUpdate.Status.ExecutionAttempts, appToUpdate.Status.CompletionTime) {
-				if err := c.deleteSparkResources(appToUpdate, true); err != nil {
-					glog.Errorf("failed to delete the driver pod and UI service for deleted SparkApplication %s/%s: %v",
-						appToUpdate.Namespace, appToUpdate.Name, err)
-					return err
-				}
-				appToUpdate.Status.AppState.State = v1alpha1.PendingRerunState
-			}
-		case v1alpha1.FailedSubmissionState:
-			if !shouldRetry(appToUpdate) {
-				// App will never be retried. Move to terminal FailedState.
-				appToUpdate.Status.AppState.State = v1alpha1.FailedState
-				c.recordSparkApplicationEvent(appToUpdate)
-			} else if hasRetryIntervalPassed(appToUpdate.Spec.RestartPolicy.OnSubmissionFailureRetryInterval, appToUpdate.Status.SubmissionAttempts, appToUpdate.Status.LastSubmissionAttemptTime) {
-				appToUpdate = c.submitSparkApplication(appToUpdate)
-			}
-		case v1alpha1.InvalidatingState:
-			// Invalidate the current run and enqueue the SparkApplication for re-execution.
-			if err := c.deleteSparkResources(appToUpdate, true); err != nil {
+		} else {
+			if err := c.deleteSparkResources(appToUpdate); err != nil {
 				glog.Errorf("failed to delete the driver pod and UI service for deleted SparkApplication %s/%s: %v",
 					appToUpdate.Namespace, appToUpdate.Name, err)
 				return err
 			}
 			appToUpdate.Status.AppState.State = v1alpha1.PendingRerunState
-			appToUpdate.Status.ExecutionAttempts = 0
-		case v1alpha1.PendingRerunState:
-			if c.validateSparkResourceDeletion(appToUpdate, true) {
-				// Reset SubmissionAttempts count since this is a new overall run.
-				appToUpdate.Status.SubmissionAttempts = 0
-				// Successfully deleted driver or driver doesn't exist. Remove it from the Finalizer list.
-				appToUpdate = removeFinalizer(appToUpdate, sparkDriverRole)
-				appToUpdate = c.submitSparkApplication(appToUpdate)
-			}
-		case v1alpha1.SubmittedState, v1alpha1.RunningState, v1alpha1.UnknownState:
-			//Application already submitted, get driver and executor pods and update its status.
-			appToUpdate.Status = c.getUpdatedAppStatus(appToUpdate)
 		}
+	case v1alpha1.FailingState:
+		if !shouldRetry(appToUpdate) {
+			// App will never be retried. Move to terminal FailedState.
+			appToUpdate.Status.AppState.State = v1alpha1.FailedState
+			c.recordSparkApplicationEvent(appToUpdate)
+		} else if hasRetryIntervalPassed(appToUpdate.Spec.RestartPolicy.OnFailureRetryInterval, appToUpdate.Status.ExecutionAttempts, appToUpdate.Status.CompletionTime) {
+			if err := c.deleteSparkResources(appToUpdate); err != nil {
+				glog.Errorf("failed to delete the driver pod and UI service for deleted SparkApplication %s/%s: %v",
+					appToUpdate.Namespace, appToUpdate.Name, err)
+				return err
+			}
+			appToUpdate.Status.AppState.State = v1alpha1.PendingRerunState
+		}
+	case v1alpha1.FailedSubmissionState:
+		if !shouldRetry(appToUpdate) {
+			// App will never be retried. Move to terminal FailedState.
+			appToUpdate.Status.AppState.State = v1alpha1.FailedState
+			c.recordSparkApplicationEvent(appToUpdate)
+		} else if hasRetryIntervalPassed(appToUpdate.Spec.RestartPolicy.OnSubmissionFailureRetryInterval, appToUpdate.Status.SubmissionAttempts, appToUpdate.Status.LastSubmissionAttemptTime) {
+			appToUpdate = c.submitSparkApplication(appToUpdate)
+		}
+	case v1alpha1.InvalidatingState:
+		// Invalidate the current run and enqueue the SparkApplication for re-execution.
+		if err := c.deleteSparkResources(appToUpdate); err != nil {
+			glog.Errorf("failed to delete the driver pod and UI service for deleted SparkApplication %s/%s: %v",
+				appToUpdate.Namespace, appToUpdate.Name, err)
+			return err
+		}
+		appToUpdate.Status.AppState.State = v1alpha1.PendingRerunState
+		appToUpdate.Status.ExecutionAttempts = 0
+	case v1alpha1.PendingRerunState:
+		if c.validateSparkResourceDeletion(appToUpdate) {
+			// Reset SubmissionAttempts count since this is a new overall run.
+			appToUpdate.Status.SubmissionAttempts = 0
+			appToUpdate = c.submitSparkApplication(appToUpdate)
+		}
+	case v1alpha1.SubmittedState, v1alpha1.RunningState, v1alpha1.UnknownState:
+		//Application already submitted, get driver and executor pods and update its status.
+		appToUpdate.Status = c.getUpdatedAppStatus(appToUpdate)
 	}
 
 	if appToUpdate != nil {
@@ -588,9 +577,6 @@ func (c *Controller) submitSparkApplication(app *v1alpha1.SparkApplication) *v1a
 		LastSubmissionAttemptTime: metav1.Now(),
 	}
 	c.recordSparkApplicationEvent(app)
-
-	// Add a fianlizer to the driver pod to prevent SparkApplication deletion till driver is deleted.
-	app = addFinalizer(app, sparkDriverRole)
 
 	service, err := createSparkUIService(app, c.kubeClient)
 	if err != nil {
@@ -677,7 +663,7 @@ func (c *Controller) getSparkApplication(namespace string, name string) (*v1alph
 }
 
 // Delete the driver pod and optional UI resources (Service/Ingress) created for the application.
-func (c *Controller) deleteSparkResources(app *v1alpha1.SparkApplication, deleteUI bool) error {
+func (c *Controller) deleteSparkResources(app *v1alpha1.SparkApplication) error {
 	driverPodName := app.Status.DriverInfo.PodName
 	if driverPodName == "" {
 		driverPodName = getDefaultDriverPodName(app)
@@ -687,31 +673,29 @@ func (c *Controller) deleteSparkResources(app *v1alpha1.SparkApplication, delete
 		return err
 	}
 
-	// TODO: Right now, we need to delete UI Service/Ingress since we create a NodePort service-type. Remove this if we migrate to only have Ingress based UI.
-	if deleteUI {
-		sparkUIServiceName := app.Status.DriverInfo.WebUIServiceName
-		if sparkUIServiceName == "" {
-			sparkUIServiceName = getDefaultUIServiceName(app)
-		}
-		err := c.kubeClient.CoreV1().Services(app.Namespace).Delete(sparkUIServiceName, metav1.NewDeleteOptions(0))
-		if err != nil && !errors.IsNotFound(err) {
-			return err
-		}
-
-		sparkUIIngressName := app.Status.DriverInfo.WebUIIngressName
-		if sparkUIIngressName == "" {
-			sparkUIIngressName = getDefaultUIIngressName(app)
-		}
-		err = c.kubeClient.ExtensionsV1beta1().Ingresses(app.Namespace).Delete(sparkUIIngressName, metav1.NewDeleteOptions(0))
-		if err != nil && !errors.IsNotFound(err) {
-			return err
-		}
+	sparkUIServiceName := app.Status.DriverInfo.WebUIServiceName
+	if sparkUIServiceName == "" {
+		sparkUIServiceName = getDefaultUIServiceName(app)
 	}
+	err = c.kubeClient.CoreV1().Services(app.Namespace).Delete(sparkUIServiceName, metav1.NewDeleteOptions(0))
+	if err != nil && !errors.IsNotFound(err) {
+		return err
+	}
+
+	sparkUIIngressName := app.Status.DriverInfo.WebUIIngressName
+	if sparkUIIngressName == "" {
+		sparkUIIngressName = getDefaultUIIngressName(app)
+	}
+	err = c.kubeClient.ExtensionsV1beta1().Ingresses(app.Namespace).Delete(sparkUIIngressName, metav1.NewDeleteOptions(0))
+	if err != nil && !errors.IsNotFound(err) {
+		return err
+	}
+
 	return nil
 }
 
 // Validate that any Spark resources (driver/Service/Ingress) created for the application have been deleted.
-func (c *Controller) validateSparkResourceDeletion(app *v1alpha1.SparkApplication, validateUIDeletion bool) bool {
+func (c *Controller) validateSparkResourceDeletion(app *v1alpha1.SparkApplication) bool {
 	driverPodName := app.Status.DriverInfo.PodName
 	if driverPodName == "" {
 		driverPodName = getDefaultDriverPodName(app)
@@ -721,24 +705,23 @@ func (c *Controller) validateSparkResourceDeletion(app *v1alpha1.SparkApplicatio
 		return false
 	}
 
-	if validateUIDeletion {
-		sparkUIServiceName := app.Status.DriverInfo.WebUIServiceName
-		if sparkUIServiceName == "" {
-			sparkUIServiceName = getDefaultUIServiceName(app)
-		}
-		_, err := c.kubeClient.CoreV1().Services(app.Namespace).Get(sparkUIServiceName, metav1.GetOptions{})
-		if err == nil || !errors.IsNotFound(err) {
-			return false
-		}
-		sparkUIIngressName := app.Status.DriverInfo.WebUIIngressName
-		if sparkUIIngressName == "" {
-			sparkUIIngressName = getDefaultUIIngressName(app)
-		}
-		_, err = c.kubeClient.ExtensionsV1beta1().Ingresses(app.Namespace).Get(sparkUIIngressName, metav1.GetOptions{})
-		if err == nil || !errors.IsNotFound(err) {
-			return false
-		}
+	sparkUIServiceName := app.Status.DriverInfo.WebUIServiceName
+	if sparkUIServiceName == "" {
+		sparkUIServiceName = getDefaultUIServiceName(app)
 	}
+	_, err = c.kubeClient.CoreV1().Services(app.Namespace).Get(sparkUIServiceName, metav1.GetOptions{})
+	if err == nil || !errors.IsNotFound(err) {
+		return false
+	}
+	sparkUIIngressName := app.Status.DriverInfo.WebUIIngressName
+	if sparkUIIngressName == "" {
+		sparkUIIngressName = getDefaultUIIngressName(app)
+	}
+	_, err = c.kubeClient.ExtensionsV1beta1().Ingresses(app.Namespace).Get(sparkUIIngressName, metav1.GetOptions{})
+	if err == nil || !errors.IsNotFound(err) {
+		return false
+	}
+
 	return true
 }
 

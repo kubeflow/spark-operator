@@ -76,25 +76,6 @@ func podPhaseToExecutorState(podPhase apiv1.PodPhase) v1alpha1.ExecutorState {
 	}
 }
 
-func removeFinalizer(app *v1alpha1.SparkApplication, finalizerToRemove string) *v1alpha1.SparkApplication {
-	for k, elem := range app.Finalizers {
-		if elem == finalizerToRemove {
-			app.Finalizers = append(app.Finalizers[:k], app.Finalizers[k+1:]...)
-			break
-		}
-	}
-	return app
-}
-
-func addFinalizer(app *v1alpha1.SparkApplication, finalizerToAdd string) *v1alpha1.SparkApplication {
-	if app.ObjectMeta.Finalizers == nil {
-		app.ObjectMeta.Finalizers = []string{finalizerToAdd}
-	} else {
-		app.ObjectMeta.Finalizers = append(app.ObjectMeta.Finalizers, finalizerToAdd)
-	}
-	return app
-}
-
 func isExecutorTerminated(executorState v1alpha1.ExecutorState) bool {
 	return executorState == v1alpha1.ExecutorCompletedState || executorState == v1alpha1.ExecutorFailedState
 }
