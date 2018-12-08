@@ -183,7 +183,7 @@ func (c *Controller) onUpdate(oldObj, newObj interface{}) {
 	// and end up in an inconsistent state.
 	if !reflect.DeepEqual(oldApp.Spec, newApp.Spec) {
 		// Force-set the application status to Invalidating which handles clean-up and application re-run.
-		if _, err := c.updateSparkApplicationStatusWithRetries(newApp, func(status *v1alpha1.SparkApplicationStatus) {
+		if _, err := c.updateApplicationStatusWithRetries(newApp, func(status *v1alpha1.SparkApplicationStatus) {
 			status.AppState.State = v1alpha1.InvalidatingState
 		}); err != nil {
 			c.recorder.Eventf(
@@ -511,7 +511,7 @@ func (c *Controller) syncSparkApplication(key string) error {
 
 	if appToUpdate != nil {
 		glog.V(2).Infof("Trying to update SparkApplication %s/%s, from: [%v] to [%v]", app.Namespace, app.Name, app.Status, appToUpdate.Status)
-		err = c.updateAppAndExportMetrics(app, appToUpdate)
+		err = c.updateApplicationAndExportMetrics(app, appToUpdate)
 		if err != nil {
 			glog.Errorf("failed to update SparkApplication %s/%s: %v", app.Namespace, app.Name, err)
 			return err
@@ -612,7 +612,7 @@ func (c *Controller) submitSparkApplication(app *v1alpha1.SparkApplication) *v1a
 	return app
 }
 
-func (c *Controller) updateSparkApplicationStatusWithRetries(
+func (c *Controller) updateApplicationStatusWithRetries(
 	original *v1alpha1.SparkApplication,
 	updateFunc func(status *v1alpha1.SparkApplicationStatus)) (*v1alpha1.SparkApplication, error) {
 	toUpdate := original.DeepCopy()
@@ -649,19 +649,31 @@ func (c *Controller) updateSparkApplicationStatusWithRetries(
 	return toUpdate, nil
 }
 
-func (c *Controller) updateAppAndExportMetrics(oldApp, newApp *v1alpha1.SparkApplication) error {
+func (c *Controller) updateApplicationAndExportMetrics(oldApp, newApp *v1alpha1.SparkApplication) error {
 	// Skip update if nothing changed.
 	if reflect.DeepEqual(oldApp, newApp) {
 		return nil
 	}
 
-	app, err := c.updateSparkApplicationStatusWithRetries(oldApp, func(status *v1alpha1.SparkApplicationStatus) {
-		*status = newApp.Status
-	})
-	// Export metrics if the update was successful.
-	if err == nil && c.metrics != nil {
-		c.metrics.exportMetrics(oldApp, app)
+	updatedApp := newApp
+	var err error
+	for i := 0; i < maximumUpdateRetries; i++ {
+		updatedApp, err = c.crdClient.SparkoperatorV1alpha1().SparkApplications(newApp.Namespace).Update(updatedApp)
+		if err == nil {
+			break
+		}
+		updatedApp, err = c.crdClient.SparkoperatorV1alpha1().SparkApplications(newApp.Namespace).Get(newApp.Name, metav1.GetOptions{})
+		if err == nil {
+			updatedApp.Finalizers = newApp.Finalizers
+			updatedApp.Status = newApp.Status
+		}
 	}
+
+	// Export metrics if the update was successful.
+	if updatedApp != nil && c.metrics != nil {
+		c.metrics.exportMetrics(oldApp, updatedApp)
+	}
+
 	return err
 }
 
