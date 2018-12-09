@@ -85,7 +85,7 @@ SERVICE="spark-webhook"
 NAMESPACE="spark-operator"
 parse_arguments "$@"
 
-TMP_DIR="/opt/spark/spark-pod-webhook-certs"
+TMP_DIR="/tmp/spark-pod-webhook-certs"
 
 echo "Generating certs for the Spark pod admission webhook in ${TMP_DIR}."
 mkdir -p ${TMP_DIR}
