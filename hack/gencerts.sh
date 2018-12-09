@@ -23,8 +23,9 @@ function usage {
   cat<< EOF
   Usage: $SCRIPT
   Options:
-  -h | --help               	   Display help information.
+  -h | --help               	 Display help information.
   -n | --namespace <namespace>   The namespace where the Spark operator is installed.			
+  -s | --service <service>	 The name of the webhook service.
   -p | --in-pod                  Whether the script is running inside a pod or not.
 EOF
 }
@@ -39,6 +40,16 @@ function parse_arguments {
       else
         echo "-n or --namespace requires a value."
         exit 1
+      fi
+      shift 2
+      continue
+      ;;
+      -s|--service)
+      if [ -n "$2" ]; then
+	SERVICE="$2"
+      else
+	echo "-s or --service requires a value."
+	exit 1
       fi
       shift 2
       continue
@@ -67,13 +78,13 @@ function parse_arguments {
   done
 }
 
-# Set the namespace to "sparkoperator" by default if not provided
+# Set the namespace to "sparkoperator" by default if not provided.
+# Set the webhook service name to "spark-webhook" by default if not provided.
 IN_POD=false
+SERVICE="spark-webhook"
 NAMESPACE="spark-operator"
 parse_arguments "$@"
 
-
-CN_BASE="spark-webhook"
 TMP_DIR="/tmp/spark-pod-webhook-certs"
 
 echo "Generating certs for the Spark pod admission webhook in ${TMP_DIR}."
@@ -90,13 +101,15 @@ extendedKeyUsage = clientAuth, serverAuth
 EOF
 
 # Create a certificate authority.
+touch ${TMP_DIR}/.rnd
+export RANDFILE=${TMP_DIR}/.rnd
 openssl genrsa -out ${TMP_DIR}/ca-key.pem 2048
-openssl req -x509 -new -nodes -key ${TMP_DIR}/ca-key.pem -days 100000 -out ${TMP_DIR}/ca-cert.pem -subj "/CN=${CN_BASE}_ca"
+openssl req -x509 -new -nodes -key ${TMP_DIR}/ca-key.pem -days 100000 -out ${TMP_DIR}/ca-cert.pem -subj "/CN=${SERVICE}_ca"
 
 # Create a server certificate.
 openssl genrsa -out ${TMP_DIR}/server-key.pem 2048
 # Note the CN is the DNS name of the service of the webhook.
-openssl req -new -key ${TMP_DIR}/server-key.pem -out ${TMP_DIR}/server.csr -subj "/CN=spark-webhook.${NAMESPACE}.svc" -config ${TMP_DIR}/server.conf
+openssl req -new -key ${TMP_DIR}/server-key.pem -out ${TMP_DIR}/server.csr -subj "/CN=${SERVICE}.${NAMESPACE}.svc" -config ${TMP_DIR}/server.conf
 openssl x509 -req -in ${TMP_DIR}/server.csr -CA ${TMP_DIR}/ca-cert.pem -CAkey ${TMP_DIR}/ca-key.pem -CAcreateserial -out ${TMP_DIR}/server-cert.pem -days 100000 -extensions v3_req -extfile ${TMP_DIR}/server.conf
 
 if [ "$IN_POD" == "true" ];  then
