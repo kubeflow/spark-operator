@@ -39,7 +39,6 @@ import (
 )
 
 const (
-	webhookConfigName = "spark-webhook-config"
 	webhookName       = "webhook.sparkoperator.k8s.io"
 	sparkRoleLabel    = "spark-role"
 	sparkDriverRole   = "driver"
@@ -91,7 +90,7 @@ func New(
 }
 
 // Start starts the admission webhook server and registers itself to the API server.
-func (wh *WebHook) Start() error {
+func (wh *WebHook) Start(webhookConfigName string) error {
 	go func() {
 		glog.Info("Starting the Spark pod admission webhook server")
 		if err := wh.server.ListenAndServeTLS("", ""); err != nil && err != http.ErrServerClosed {
@@ -99,12 +98,12 @@ func (wh *WebHook) Start() error {
 		}
 	}()
 
-	return wh.selfRegistration()
+	return wh.selfRegistration(webhookConfigName)
 }
 
 // Stop deregisters itself with the API server and stops the admission webhook server.
-func (wh *WebHook) Stop() error {
-	if err := wh.selfDeregistration(); err != nil {
+func (wh *WebHook) Stop(webhookConfigName string) error {
+	if err := wh.selfDeregistration(webhookConfigName); err != nil {
 		return err
 	}
 
@@ -169,7 +168,7 @@ func (wh *WebHook) serve(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (wh *WebHook) selfRegistration() error {
+func (wh *WebHook) selfRegistration(webhookConfigName string) error {
 	client := wh.clientset.AdmissionregistrationV1beta1().MutatingWebhookConfigurations()
 	existing, getErr := client.Get(webhookConfigName, metav1.GetOptions{})
 	if getErr != nil && !errors.IsNotFound(getErr) {
@@ -227,7 +226,7 @@ func (wh *WebHook) selfRegistration() error {
 	return nil
 }
 
-func (wh *WebHook) selfDeregistration() error {
+func (wh *WebHook) selfDeregistration(webhookConfigName string) error {
 	client := wh.clientset.AdmissionregistrationV1beta1().MutatingWebhookConfigurations()
 	return client.Delete(webhookConfigName, metav1.NewDeleteOptions(0))
 }
