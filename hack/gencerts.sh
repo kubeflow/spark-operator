@@ -31,11 +31,11 @@ EOF
 }
 
 function parse_arguments {
-  while [ $# -gt 0 ]
+  while [[ $# -gt 0 ]]
   do
     case "$1" in
       -n|--namespace)
-      if [ -n "$2" ]; then
+      if [[ -n "$2" ]]; then
         NAMESPACE="$2"
       else
         echo "-n or --namespace requires a value."
@@ -46,7 +46,7 @@ function parse_arguments {
       ;;
       -s|--service)
       if [ -n "$2" ]; then
-	SERVICE="$2"
+        SERVICE="$2"
       else
 	echo "-s or --service requires a value."
 	exit 1
@@ -112,18 +112,18 @@ openssl genrsa -out ${TMP_DIR}/server-key.pem 2048
 openssl req -new -key ${TMP_DIR}/server-key.pem -out ${TMP_DIR}/server.csr -subj "/CN=${SERVICE}.${NAMESPACE}.svc" -config ${TMP_DIR}/server.conf
 openssl x509 -req -in ${TMP_DIR}/server.csr -CA ${TMP_DIR}/ca-cert.pem -CAkey ${TMP_DIR}/ca-key.pem -CAcreateserial -out ${TMP_DIR}/server-cert.pem -days 100000 -extensions v3_req -extfile ${TMP_DIR}/server.conf
 
-if [ "$IN_POD" == "true" ];  then
-	TOKEN=$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)
+if [[ "$IN_POD" == "true" ]];  then
+  TOKEN=$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)
 
-	# Base64 encode secrets and then remove the trailing newline to avoid issues in the curl command
-	ca_cert=$(cat ${TMP_DIR}/ca-cert.pem | base64 | tr -d '\n')
-	ca_key=$(cat ${TMP_DIR}/ca-key.pem | base64 | tr -d '\n')
-	server_cert=$(cat ${TMP_DIR}/server-cert.pem | base64 | tr -d '\n')
-	server_key=$(cat ${TMP_DIR}/server-key.pem | base64 | tr -d '\n')
+  # Base64 encode secrets and then remove the trailing newline to avoid issues in the curl command
+  ca_cert=$(cat ${TMP_DIR}/ca-cert.pem | base64 | tr -d '\n')
+  ca_key=$(cat ${TMP_DIR}/ca-key.pem | base64 | tr -d '\n')
+  server_cert=$(cat ${TMP_DIR}/server-cert.pem | base64 | tr -d '\n')
+  server_key=$(cat ${TMP_DIR}/server-key.pem | base64 | tr -d '\n')
 
-	# Create the secret resource
-	echo "Creating a secret for the certificate and keys"
-	STATUS=$(curl -ik \
+  # Create the secret resource
+  echo "Creating a secret for the certificate and keys"
+  STATUS=$(curl -ik \
 	  -o ${TMP_DIR}/output \
 	  -w "%{http_code}" \
 	  -X POST \
@@ -146,22 +146,22 @@ if [ "$IN_POD" == "true" ];  then
 	}' \
 	https://kubernetes.default.svc/api/v1/namespaces/${NAMESPACE}/secrets)
 
-	cat ${TMP_DIR}/output
+  cat ${TMP_DIR}/output
 
-	case "$STATUS" in
-	  201)
-	    printf "\nSuccess - secret created.\n"
-	  ;;
-	  409)
-	    printf "\nSuccess - secret already exists.\n"
-	  ;;
-	  *)
-	    printf "\nFailed creating secret.\n"
-	    exit 1
-	  ;;
-    esac
+  case "$STATUS" in
+    201)
+      printf "\nSuccess - secret created.\n"
+    ;;
+    409)
+      printf "\nSuccess - secret already exists.\n"
+     ;;
+     *)
+      printf "\nFailed creating secret.\n"
+      exit 1
+     ;;
+  esac
 else
-	kubectl create secret --namespace=${NAMESPACE} generic spark-webhook-certs --from-file=${TMP_DIR}/ca-key.pem --from-file=${TMP_DIR}/ca-cert.pem --from-file=${TMP_DIR}/server-key.pem --from-file=${TMP_DIR}/server-cert.pem
+  kubectl create secret --namespace=${NAMESPACE} generic spark-webhook-certs --from-file=${TMP_DIR}/ca-key.pem --from-file=${TMP_DIR}/ca-cert.pem --from-file=${TMP_DIR}/server-key.pem --from-file=${TMP_DIR}/server-cert.pem
 fi
 
 # Clean up after we're done.
