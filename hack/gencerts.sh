@@ -23,9 +23,9 @@ function usage {
   cat<< EOF
   Usage: $SCRIPT
   Options:
-  -h | --help               	 Display help information.
+  -h | --help                    Display help information.
   -n | --namespace <namespace>   The namespace where the Spark operator is installed.			
-  -s | --service <service>	 The name of the webhook service.
+  -s | --service <service>       The name of the webhook service.
   -p | --in-pod                  Whether the script is running inside a pod or not.
 EOF
 }
@@ -45,11 +45,11 @@ function parse_arguments {
       continue
       ;;
       -s|--service)
-      if [ -n "$2" ]; then
+      if [[ -n "$2" ]]; then
         SERVICE="$2"
       else
-	echo "-s or --service requires a value."
-	exit 1
+        echo "-s or --service requires a value."
+        exit 1
       fi
       shift 2
       continue
