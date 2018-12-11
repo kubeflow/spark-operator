@@ -24,6 +24,7 @@ import (
 	"net/http"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"time"
 
 	"github.com/golang/glog"
@@ -90,7 +91,7 @@ func New(
 }
 
 // Start starts the admission webhook server and registers itself to the API server.
-func (wh *WebHook) Start(webhookConfigName string) error {
+func (wh *WebHook) Start(webhookConfigName string, webhookNamespaceSelectorLabel string) error {
 	go func() {
 		glog.Info("Starting the Spark pod admission webhook server")
 		if err := wh.server.ListenAndServeTLS("", ""); err != nil && err != http.ErrServerClosed {
@@ -98,7 +99,7 @@ func (wh *WebHook) Start(webhookConfigName string) error {
 		}
 	}()
 
-	return wh.selfRegistration(webhookConfigName)
+	return wh.selfRegistration(webhookConfigName, webhookNamespaceSelectorLabel)
 }
 
 // Stop deregisters itself with the API server and stops the admission webhook server.
@@ -168,7 +169,14 @@ func (wh *WebHook) serve(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (wh *WebHook) selfRegistration(webhookConfigName string) error {
+func (wh *WebHook) selfRegistration(webhookConfigName string, webhookNamespaceSelectorLabel string) error {
+	namespaceSelector := metav1.LabelSelector{}
+
+	namespaceSelector.MatchLabels = map[string]string{}
+
+	values := strings.Split(webhookNamespaceSelectorLabel, "=")
+	namespaceSelector.MatchLabels[values[0]] = values[1]
+
 	client := wh.clientset.AdmissionregistrationV1beta1().MutatingWebhookConfigurations()
 	existing, getErr := client.Get(webhookConfigName, metav1.GetOptions{})
 	if getErr != nil && !errors.IsNotFound(getErr) {
@@ -196,7 +204,8 @@ func (wh *WebHook) selfRegistration(webhookConfigName string) error {
 			Service:  wh.serviceRef,
 			CABundle: caCert,
 		},
-		FailurePolicy: &ignorePolicy,
+		FailurePolicy:     &ignorePolicy,
+		NamespaceSelector: &namespaceSelector,
 	}
 	webhooks := []v1beta1.Webhook{webhook}
 
