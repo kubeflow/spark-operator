@@ -6,3 +6,4 @@
 | CERN|@mrow4a| Evaluation | Data Mining & Analytics |
 | Lightbend |@yuchaoran2011| Evaluation | Data Infrastructure & Operations |
 | Lyft |@kumare3| Evaluation | ML & Data Infrastructure |
+| MapR Technologies |@sarjeet2013| Evaluation | ML/AI & Analytics Data Platform |
