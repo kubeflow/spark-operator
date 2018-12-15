@@ -24,6 +24,7 @@ import (
 
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io"
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1alpha1"
+	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta1"
 )
 
 // CRD metadata.
@@ -32,7 +33,6 @@ const (
 	Singular  = "sparkapplication"
 	ShortName = "sparkapp"
 	Group     = sparkoperator.GroupName
-	Version   = v1alpha1.Version
 	FullName  = Plural + "." + Group
 )
 
@@ -42,9 +42,20 @@ func GetCRD() *apiextensionsv1beta1.CustomResourceDefinition {
 			Name: FullName,
 		},
 		Spec: apiextensionsv1beta1.CustomResourceDefinitionSpec{
-			Group:   Group,
-			Version: Version,
-			Scope:   apiextensionsv1beta1.NamespaceScoped,
+			Group: Group,
+			Versions: []apiextensionsv1beta1.CustomResourceDefinitionVersion{
+				{
+					Name:    v1alpha1.Version,
+					Served:  true,
+					Storage: true,
+				},
+				{
+					Name:    v1beta1.Version,
+					Served:  true,
+					Storage: false,
+				},
+			},
+			Scope: apiextensionsv1beta1.NamespaceScoped,
 			Names: apiextensionsv1beta1.CustomResourceDefinitionNames{
 				Plural:     Plural,
 				Singular:   Singular,

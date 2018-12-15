@@ -21,11 +21,9 @@ on how to enable the webhook.
 
 ## Prerequisites
 
-* Version >= 1.8 of Kubernetes.
-* Version >= 1.9 of Kubernetes if **using the mutating admission webhook for Spark pod customization**.
+* Version >= 1.11 of Kubernetes.
 
-The Kubernetes Operator for Apache Spark relies on [garbage collection](https://kubernetes.io/docs/concepts/workloads/controllers/garbage-collection/) support for custom resources that is available in Kubernetes 1.8+ 
-and **optionally** the [Mutating Admission Webhook](https://kubernetes.io/docs/reference/access-authn-authz/extensible-admission-controllers/) which is available in Kubernetes 1.9+.
+The Kubernetes Operator for Apache Spark relies on [multi-version support](https://kubernetes.io/docs/tasks/access-kubernetes-api/custom-resources/custom-resource-definition-versioning/) support for CustomResourceDefinitions that is available in Kubernetes 1.11+.
 
 **Due to this [bug](https://github.com/kubernetes/kubernetes/issues/56018) in Kubernetes 1.9 and earlier, CRD objects with
 escaped quotes (e.g., `spark.ui.port\"`) in map keys can cause serialization problems in the API server. So please pay

@@ -29,6 +29,13 @@ spec:
     - sparkapp
     singular: sparkapplication
   scope: Namespaced
+  versions:
+  - name: v1alpha1
+    served: true
+    storage: true
+  - name: v1beta1
+    served: true
+    storage: false  
   validation:
     openAPIV3Schema:
       properties:
@@ -100,7 +107,6 @@ spec:
               - Scala
               - Python
               - R
-  version: v1alpha1
 ---
 apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
@@ -116,6 +122,13 @@ spec:
     - scheduledsparkapp
     singular: scheduledsparkapplication
   scope: Namespaced
+  versions:
+  - name: v1alpha1
+    served: true
+    storage: true
+  - name: v1beta1
+    served: true
+    storage: false
   validation:
     openAPIV3Schema:
       properties:
@@ -202,4 +215,3 @@ spec:
                   - Scala
                   - Python
                   - R
-  version: v1alpha1
