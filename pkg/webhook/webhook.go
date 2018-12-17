@@ -171,11 +171,13 @@ func (wh *WebHook) serve(w http.ResponseWriter, r *http.Request) {
 
 func (wh *WebHook) selfRegistration(webhookConfigName string, webhookNamespaceSelectorLabel string) error {
 	namespaceSelector := metav1.LabelSelector{}
-
 	namespaceSelector.MatchLabels = map[string]string{}
-
-	values := strings.Split(webhookNamespaceSelectorLabel, "=")
-	namespaceSelector.MatchLabels[values[0]] = values[1]
+	if len(webhookNamespaceSelectorLabel) > 0 {
+		values := strings.Split(webhookNamespaceSelectorLabel, "=")
+		namespaceSelector.MatchLabels[values[0]] = values[1]
+	} else {
+		glog.Warning("Webhook namespace selector label not set!")
+	}
 
 	client := wh.clientset.AdmissionregistrationV1beta1().MutatingWebhookConfigurations()
 	existing, getErr := client.Get(webhookConfigName, metav1.GetOptions{})
