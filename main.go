@@ -25,7 +25,6 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"os"
 	"os/signal"
-	"strings"
 	"syscall"
 	"time"
 
@@ -174,8 +173,7 @@ func main() {
 
 		jobNamespace, err := kubeClient.CoreV1().Namespaces().Get(*namespace, metav1.GetOptions{})
 		namespaceSelector := map[string]string{}
-		currTime := time.Now().Format(time.RFC3339)
-		namespaceSelector["webhookNamespaceSelectorLabel"] = strings.Replace(currTime, ":", "", -1)
+		namespaceSelector["webhookNamespaceSelectorLabel"] = *namespace
 		jobNamespace.SetLabels(namespaceSelector)
 		serializedNs, _ := json.Marshal(jobNamespace)
 
