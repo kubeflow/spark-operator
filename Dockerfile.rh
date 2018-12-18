@@ -41,10 +41,9 @@ COPY install_packages.sh /
 RUN --mount=target=/opt/spark/credentials,type=secret,id=credentials,required /install_packages.sh
 RUN rm /install_packages.sh
 
-RUN chmod -R u+x /tmp && \
-    chmod -R u+x /tmp
+RUN chmod -R u+x /tmp
 
 COPY hack/gencerts.sh /usr/bin/
-COPY entrypoint.sh /usr/bin
+COPY entrypoint.sh /usr/bin/
 USER 185
 ENTRYPOINT ["/usr/bin/entrypoint.sh"]

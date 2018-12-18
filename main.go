@@ -19,10 +19,13 @@ limitations under the License.
 package main
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
+	"k8s.io/apimachinery/pkg/types"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -62,7 +65,6 @@ var (
 	webhookSvcNamespace           = flag.String("webhook-svc-namespace", "spark-operator", "The namespace of the Service for the webhook server.")
 	webhookSvcName                = flag.String("webhook-svc-name", "spark-webhook", "The name of the Service for the webhook server.")
 	webhookPort                   = flag.Int("webhook-port", 8080, "Service port of the webhook server.")
-	webhookNamespaceSelectorLabel = flag.String("webhook-namespaces-selector-label", "", "Labels to select the pods for patching.")
 	enableMetrics                 = flag.Bool("enable-metrics", false, "Whether to enable the metrics endpoint.")
 	metricsPort                   = flag.String("metrics-port", "10254", "Port for the metrics endpoint.")
 	metricsEndpoint               = flag.String("metrics-endpoint", "/metrics", "Metrics endpoint.")
@@ -169,7 +171,19 @@ func main() {
 		if err != nil {
 			glog.Fatal(err)
 		}
-		if err = hook.Start(*webhookConfigName, *webhookNamespaceSelectorLabel); err != nil {
+
+		jobNamespace, err := kubeClient.CoreV1().Namespaces().Get(*namespace, metav1.GetOptions{})
+		namespaceSelector := map[string]string{}
+		currTime := time.Now().Format(time.RFC3339)
+		namespaceSelector["webhookNamespaceSelectorLabel"] = strings.Replace(currTime, ":", "", -1)
+		jobNamespace.SetLabels(namespaceSelector)
+		serializedNs, _ := json.Marshal(jobNamespace)
+
+		if _, err = kubeClient.CoreV1().Namespaces().Patch(*namespace, types.StrategicMergePatchType, serializedNs); err != nil {
+			glog.Warning("Failed to add label " + err.Error())
+		}
+
+		if err = hook.Start(*webhookConfigName, namespaceSelector); err != nil {
 			glog.Fatal(err)
 		}
 	}

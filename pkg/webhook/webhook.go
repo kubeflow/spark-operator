@@ -24,7 +24,6 @@ import (
 	"net/http"
 	"path/filepath"
 	"reflect"
-	"strings"
 	"time"
 
 	"github.com/golang/glog"
@@ -91,7 +90,7 @@ func New(
 }
 
 // Start starts the admission webhook server and registers itself to the API server.
-func (wh *WebHook) Start(webhookConfigName string, webhookNamespaceSelectorLabel string) error {
+func (wh *WebHook) Start(webhookConfigName string, webhookNamespaceLabel map[string]string) error {
 	go func() {
 		glog.Info("Starting the Spark pod admission webhook server")
 		if err := wh.server.ListenAndServeTLS("", ""); err != nil && err != http.ErrServerClosed {
@@ -99,7 +98,7 @@ func (wh *WebHook) Start(webhookConfigName string, webhookNamespaceSelectorLabel
 		}
 	}()
 
-	return wh.selfRegistration(webhookConfigName, webhookNamespaceSelectorLabel)
+	return wh.selfRegistration(webhookConfigName, webhookNamespaceLabel)
 }
 
 // Stop deregisters itself with the API server and stops the admission webhook server.
@@ -169,15 +168,9 @@ func (wh *WebHook) serve(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (wh *WebHook) selfRegistration(webhookConfigName string, webhookNamespaceSelectorLabel string) error {
+func (wh *WebHook) selfRegistration(webhookConfigName string, webhookNamespaceLabel map[string]string) error {
 	namespaceSelector := metav1.LabelSelector{}
-	namespaceSelector.MatchLabels = map[string]string{}
-	if len(webhookNamespaceSelectorLabel) > 0 {
-		values := strings.Split(webhookNamespaceSelectorLabel, "=")
-		namespaceSelector.MatchLabels[values[0]] = values[1]
-	} else {
-		glog.Warning("Webhook namespace selector label not set!")
-	}
+	namespaceSelector.MatchLabels = webhookNamespaceLabel
 
 	client := wh.clientset.AdmissionregistrationV1beta1().MutatingWebhookConfigurations()
 	existing, getErr := client.Get(webhookConfigName, metav1.GetOptions{})
