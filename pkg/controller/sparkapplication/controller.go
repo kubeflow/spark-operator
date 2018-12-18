@@ -315,12 +315,17 @@ func (c *Controller) getUpdatedAppStatus(app *v1alpha1.SparkApplication) v1alpha
 						app.Status.DriverInfo.WebUIPort)
 				}
 			}
-			if app.Status.CompletionTime.IsZero() && !currentDriverState.completionTime.IsZero() {
-				app.Status.CompletionTime = currentDriverState.completionTime
+			if app.Status.TerminationTime.IsZero() && !currentDriverState.completionTime.IsZero() {
+				app.Status.TerminationTime = currentDriverState.completionTime
 			}
 		}
 	} else {
 		glog.Warningf("driver not found for SparkApplication: %s/%s", app.Namespace, app.Name)
+		if app.Status.AppState.State == v1alpha1.RunningState && app.Status.TerminationTime.IsZero() {
+			app.Status.AppState.ErrorMessage = "Driver Pod not found"
+			app.Status.AppState.State = v1alpha1.FailingState
+			app.Status.TerminationTime = metav1.Now()
+		}
 	}
 
 	// ApplicationID label can be different on driver/executors. Prefer executor ApplicationID if set.
@@ -462,13 +467,14 @@ func (c *Controller) syncSparkApplication(key string) error {
 			// App will never be retried. Move to terminal FailedState.
 			appToUpdate.Status.AppState.State = v1alpha1.FailedState
 			c.recordSparkApplicationEvent(appToUpdate)
-		} else if hasRetryIntervalPassed(appToUpdate.Spec.RestartPolicy.OnFailureRetryInterval, appToUpdate.Status.ExecutionAttempts, appToUpdate.Status.CompletionTime) {
+		} else if hasRetryIntervalPassed(appToUpdate.Spec.RestartPolicy.OnFailureRetryInterval, appToUpdate.Status.ExecutionAttempts, appToUpdate.Status.TerminationTime) {
 			if err := c.deleteSparkResources(appToUpdate); err != nil {
 				glog.Errorf("failed to delete the driver pod and UI service for deleted SparkApplication %s/%s: %v",
 					appToUpdate.Namespace, appToUpdate.Name, err)
 				return err
 			}
 			appToUpdate.Status.AppState.State = v1alpha1.PendingRerunState
+			appToUpdate.Status.AppState.ErrorMessage = ""
 		}
 	case v1alpha1.FailedSubmissionState:
 		if !shouldRetry(appToUpdate) {
@@ -491,6 +497,7 @@ func (c *Controller) syncSparkApplication(key string) error {
 		if c.validateSparkResourceDeletion(appToUpdate) {
 			// Reset SubmissionAttempts count since this is a new overall run.
 			appToUpdate.Status.SubmissionAttempts = 0
+			appToUpdate.Status.TerminationTime = metav1.Time{}
 			appToUpdate = c.submitSparkApplication(appToUpdate)
 		}
 	case v1alpha1.SubmittedState, v1alpha1.RunningState, v1alpha1.UnknownState:
