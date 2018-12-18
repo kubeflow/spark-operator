@@ -16,7 +16,7 @@
 
 ARG SPARK_IMAGE=gcr.io/spark-operator/spark:v2.4.0
 
-FROM golang:1.11.3-alpine as builder
+FROM golang:1.11.4-alpine as builder
 ARG DEP_VERSION="0.5.0"
 RUN apk add --no-cache bash git
 ADD https://github.com/golang/dep/releases/download/v${DEP_VERSION}/dep-linux-amd64 /usr/bin/dep
