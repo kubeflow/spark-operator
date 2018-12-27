@@ -140,9 +140,6 @@ spec:
                 onSubmissionFailureRetries:
                   minimum: 0
                   type: integer
-                onSubmissionFailureRetryInterval:
-                  minimum: 1
-                  type: integer
                 type:
                   enum:
                   - Never
@@ -248,9 +245,6 @@ spec:
                       type: integer
                     onSubmissionFailureRetries:
                       minimum: 0
-                      type: integer
-                    onSubmissionFailureRetryInterval:
-                      minimum: 1
                       type: integer
                     type:
                       enum:

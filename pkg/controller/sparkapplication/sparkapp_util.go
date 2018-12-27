@@ -101,3 +101,7 @@ func driverPodPhaseToApplicationState(podPhase apiv1.PodPhase) v1beta1.Applicati
 		return v1beta1.UnknownState
 	}
 }
+
+func getSubmissionJobName(app *v1beta1.SparkApplication) string {
+	return app.Name + "-spark-submit"
+}

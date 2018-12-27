@@ -150,10 +150,6 @@ func getCustomResourceValidation() *apiextensionsv1beta1.CustomResourceValidatio
 											Type:    "integer",
 											Minimum: float64Ptr(0),
 										},
-										"onSubmissionFailureRetryInterval": {
-											Type:    "integer",
-											Minimum: float64Ptr(1),
-										},
 										"onFailureRetryInterval": {
 											Type:    "integer",
 											Minimum: float64Ptr(1),
