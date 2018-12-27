@@ -172,3 +172,7 @@ func printStatus(status *v1beta2.SparkApplicationStatus) (string, error) {
 	}
 	return string(marshalled), nil
 }
+
+func getSubmissionJobName(app *v1beta2.SparkApplication) string {
+	return app.Name + "-spark-submit"
+}

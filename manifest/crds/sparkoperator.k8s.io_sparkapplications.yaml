@@ -3111,6 +3111,8 @@ spec:
             retryInterval:
               format: int64
               type: integer
+            serviceAccount:
+              type: string
             sparkConf:
               additionalProperties:
                 type: string

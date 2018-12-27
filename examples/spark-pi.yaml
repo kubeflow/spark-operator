@@ -28,6 +28,7 @@ spec:
   sparkVersion: "2.4.5"
   restartPolicy:
     type: Never
+  serviceAccount: spark  
   volumes:
     - name: "test-volume"
       hostPath:
@@ -39,7 +40,6 @@ spec:
     memory: "512m"
     labels:
       version: 2.4.5
-    serviceAccount: spark
     volumeMounts:
       - name: "test-volume"
         mountPath: "/tmp"
