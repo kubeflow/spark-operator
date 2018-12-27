@@ -19,9 +19,9 @@ limitations under the License.
 package main
 
 import (
+	"fmt"
 	"context"
 	"flag"
-	"fmt"
 	"os"
 	"os/signal"
 	"strings"
@@ -154,7 +154,7 @@ func main() {
 	}
 
 	crInformerFactory := buildCustomResourceInformerFactory(crClient)
-	podInformerFactory := buildPodInformerFactory(kubeClient)
+	informerFactory := buildInformerFactory(kubeClient)
 
 	var metricConfig *util.MetricConfig
 	if *enableMetrics {
@@ -170,13 +170,13 @@ func main() {
 	}
 
 	applicationController := sparkapplication.NewController(
-		crClient, kubeClient, crInformerFactory, podInformerFactory, metricConfig, *namespace, *ingressURLFormat, batchSchedulerMgr)
+		crClient, kubeClient, crInformerFactory, informerFactory, metricConfig, *namespace, *ingressURLFormat, batchSchedulerMgr)
 	scheduledApplicationController := scheduledsparkapplication.NewController(
 		crClient, kubeClient, apiExtensionsClient, crInformerFactory, clock.RealClock{})
 
 	// Start the informer factory that in turn starts the informer.
 	go crInformerFactory.Start(stopCh)
-	go podInformerFactory.Start(stopCh)
+	go informerFactory.Start(stopCh)
 
 	var hook *webhook.WebHook
 	if *enableWebhook {
@@ -251,16 +251,16 @@ func buildCustomResourceInformerFactory(crClient crclientset.Interface) crinform
 		factoryOpts...)
 }
 
-func buildPodInformerFactory(kubeClient clientset.Interface) informers.SharedInformerFactory {
-	var podFactoryOpts []informers.SharedInformerOption
+func buildInformerFactory(kubeClient clientset.Interface) informers.SharedInformerFactory {
+	var factoryOpts []informers.SharedInformerOption
 	if *namespace != apiv1.NamespaceAll {
-		podFactoryOpts = append(podFactoryOpts, informers.WithNamespace(*namespace))
+		factoryOpts = append(factoryOpts, informers.WithNamespace(*namespace))
 	}
 	tweakListOptionsFunc := func(options *metav1.ListOptions) {
-		options.LabelSelector = fmt.Sprintf("%s,%s", operatorConfig.SparkRoleLabel, operatorConfig.LaunchedBySparkOperatorLabel)
+		options.LabelSelector = operatorConfig.LaunchedBySparkOperatorLabel
 	}
-	podFactoryOpts = append(podFactoryOpts, informers.WithTweakListOptions(tweakListOptionsFunc))
-	return informers.NewSharedInformerFactoryWithOptions(kubeClient, time.Duration(*resyncInterval)*time.Second, podFactoryOpts...)
+	factoryOpts = append(factoryOpts, informers.WithTweakListOptions(tweakListOptionsFunc))
+	return informers.NewSharedInformerFactoryWithOptions(kubeClient, time.Duration(*resyncInterval)*time.Second, factoryOpts...)
 }
 
 func buildCoreV1InformerFactory(kubeClient clientset.Interface) informers.SharedInformerFactory {

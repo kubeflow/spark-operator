@@ -19,12 +19,9 @@ package sparkapplication
 import (
 	"fmt"
 	"os"
-	"os/exec"
-	"path/filepath"
 	"reflect"
 	"strings"
 
-	"github.com/golang/glog"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta2"
@@ -39,47 +36,15 @@ const (
 
 // submission includes information of a Spark application to be submitted.
 type submission struct {
-	namespace string
-	name      string
-	args      []string
+	app  *v1beta2.SparkApplication
+	args []string
 }
 
 func newSubmission(args []string, app *v1beta2.SparkApplication) *submission {
 	return &submission{
-		namespace: app.Namespace,
-		name:      app.Name,
-		args:      args,
+		app:  app,
+		args: args,
 	}
-}
-
-func runSparkSubmit(submission *submission) (bool, error) {
-	sparkHome, present := os.LookupEnv(sparkHomeEnvVar)
-	if !present {
-		glog.Error("SPARK_HOME is not specified")
-	}
-	var command = filepath.Join(sparkHome, "/bin/spark-submit")
-
-	cmd := execCommand(command, submission.args...)
-	glog.V(2).Infof("spark-submit arguments: %v", cmd.Args)
-	output, err := cmd.Output()
-	glog.V(3).Infof("spark-submit output: %s", string(output))
-	if err != nil {
-		var errorMsg string
-		if exitErr, ok := err.(*exec.ExitError); ok {
-			errorMsg = string(exitErr.Stderr)
-		}
-		// The driver pod of the application already exists.
-		if strings.Contains(errorMsg, podAlreadyExistsErrorCode) {
-			glog.Warningf("trying to resubmit an already submitted SparkApplication %s/%s", submission.namespace, submission.name)
-			return false, nil
-		}
-		if errorMsg != "" {
-			return false, fmt.Errorf("failed to run spark-submit for SparkApplication %s/%s: %s", submission.namespace, submission.name, errorMsg)
-		}
-		return false, fmt.Errorf("failed to run spark-submit for SparkApplication %s/%s: %v", submission.namespace, submission.name, err)
-	}
-
-	return true, nil
 }
 
 func buildSubmissionCommandArgs(app *v1beta2.SparkApplication, driverPodName string, submissionID string) ([]string, error) {
@@ -272,6 +237,9 @@ func addDriverConfOptions(app *v1beta2.SparkApplication, submissionID string) ([
 	if app.Spec.Driver.ServiceAccount != nil {
 		driverConfOptions = append(driverConfOptions,
 			fmt.Sprintf("%s=%s", config.SparkDriverServiceAccountName, *app.Spec.Driver.ServiceAccount))
+	} else if app.Spec.ServiceAccount != nil {
+		driverConfOptions = append(driverConfOptions,
+			fmt.Sprintf("%s=%s", config.SparkDriverServiceAccountName, *app.Spec.ServiceAccount))
 	}
 
 	for key, value := range app.Spec.Driver.Labels {

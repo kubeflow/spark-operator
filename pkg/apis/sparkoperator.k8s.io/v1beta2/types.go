@@ -255,15 +255,18 @@ type SparkApplicationSpec struct {
 	// BatchScheduler configures which batch scheduler will be used for scheduling
 	// Optional.
 	BatchScheduler *string `json:"batchScheduler,omitempty"`
+	// BatchSchedulerOptions provides fine-grained control on how to batch scheduling.
+	// Optional.
+	BatchSchedulerOptions *BatchSchedulerConfiguration `json:"batchSchedulerOptions,omitempty"`
+	// ServiceAccount is the name of the Kubernetes ServiceAccount used to run the
+	// submission Job Pod that runs spark-submit to submit an application.
+	ServiceAccount *string `json:"serviceAccount,omitempty"`
 	// TimeToLiveSeconds defines the Time-To-Live (TTL) duration in seconds for this SparkAplication
 	// after its termination.
 	// The SparkApplication object will be garbage collected if the current time is more than the
 	// TimeToLiveSeconds since its termination.
 	// Optional.
 	TimeToLiveSeconds *int64 `json:"timeToLiveSeconds,omitempty"`
-	// BatchSchedulerOptions provides fine-grained control on how to batch scheduling.
-	// Optional.
-	BatchSchedulerOptions *BatchSchedulerConfiguration `json:"batchSchedulerOptions,omitempty"`
 }
 
 // BatchSchedulerConfiguration used to configure how to batch scheduling Spark Application
@@ -281,17 +284,18 @@ type ApplicationStateType string
 
 // Different states an application may have.
 const (
-	NewState              ApplicationStateType = ""
-	SubmittedState        ApplicationStateType = "SUBMITTED"
-	RunningState          ApplicationStateType = "RUNNING"
-	CompletedState        ApplicationStateType = "COMPLETED"
-	FailedState           ApplicationStateType = "FAILED"
-	FailedSubmissionState ApplicationStateType = "SUBMISSION_FAILED"
-	PendingRerunState     ApplicationStateType = "PENDING_RERUN"
-	InvalidatingState     ApplicationStateType = "INVALIDATING"
-	SucceedingState       ApplicationStateType = "SUCCEEDING"
-	FailingState          ApplicationStateType = "FAILING"
-	UnknownState          ApplicationStateType = "UNKNOWN"
+	NewState               ApplicationStateType = ""
+	PendingSubmissionState ApplicationStateType = "PENDING_SUBMISSION" // Submission job created.
+	SubmittedState         ApplicationStateType = "SUBMITTED"          // Submission job succeeded.
+	FailedSubmissionState  ApplicationStateType = "SUBMISSION_FAILED"  // Submission command/job creation failed.
+	RunningState           ApplicationStateType = "RUNNING"            // Application is running.
+	CompletedState         ApplicationStateType = "COMPLETED"          // Application completed.
+	FailedState            ApplicationStateType = "FAILED"             // Application failed or submission job failed.
+	PendingRerunState      ApplicationStateType = "PENDING_RERUN"      // Application is pending being rerun.
+	InvalidatingState      ApplicationStateType = "INVALIDATING"       // Application spec has been updated and re-run is due.
+	SucceedingState        ApplicationStateType = "SUCCEEDING"         // Application succeeded but might be subject to restart.
+	FailingState           ApplicationStateType = "FAILING"            // Application failed but might be subject to restart.
+	UnknownState           ApplicationStateType = "UNKNOWN"
 )
 
 // ApplicationState tells the current state of the application and an error message in case of failures.
@@ -318,8 +322,8 @@ type SparkApplicationStatus struct {
 	SparkApplicationID string `json:"sparkApplicationId,omitempty"`
 	// SubmissionID is a unique ID of the current submission of the application.
 	SubmissionID string `json:"submissionID,omitempty"`
-	// LastSubmissionAttemptTime is the time for the last application submission attempt.
-	LastSubmissionAttemptTime metav1.Time `json:"lastSubmissionAttemptTime,omitempty"`
+	// SubmissionTime is the time the application is submitted.
+	SubmissionTime metav1.Time `json:"SubmissionTime,omitempty"`
 	// CompletionTime is the time when the application runs to completion if it does.
 	TerminationTime metav1.Time `json:"terminationTime,omitempty"`
 	// DriverInfo has information about the driver.
