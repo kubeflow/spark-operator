@@ -18,6 +18,7 @@ package sparkapplication
 
 import (
 	"fmt"
+
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/kubernetes/pkg/apis/policy"
 
@@ -132,4 +133,8 @@ func getVolumeFSType(v v1.Volume) (policy.FSType, error) {
 	}
 
 	return "", fmt.Errorf("unknown volume type for volume: %#v", v)
+}
+
+func getSubmissionJobName(app *v1beta2.SparkApplication) string {
+	return app.Name + "-spark-submit"
 }

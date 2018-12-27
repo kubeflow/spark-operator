@@ -545,6 +545,32 @@ string
 </tr>
 <tr>
 <td>
+<code>batchSchedulerOptions</code></br>
+<em>
+<a href="#sparkoperator.k8s.io/v1beta2.BatchSchedulerConfiguration">
+BatchSchedulerConfiguration
+</a>
+</em>
+</td>
+<td>
+<p>BatchSchedulerOptions provides fine-grained control on how to batch scheduling.
+Optional.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>serviceAccount</code></br>
+<em>
+string
+</em>
+</td>
+<td>
+<p>ServiceAccount is the name of the Kubernetes ServiceAccount used to run the
+submission Job Pod that runs spark-submit to submit an application.</p>
+</td>
+</tr>
+<tr>
+<td>
 <code>timeToLiveSeconds</code></br>
 <em>
 int64
@@ -556,20 +582,6 @@ int64
 after its termination.
 The SparkApplication object will be garbage collected if the current time is more than the
 TimeToLiveSeconds since its termination.</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>batchSchedulerOptions</code></br>
-<em>
-<a href="#sparkoperator.k8s.io/v1beta2.BatchSchedulerConfiguration">
-BatchSchedulerConfiguration
-</a>
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-<p>BatchSchedulerOptions provides fine-grained control on how to batch scheduling.</p>
 </td>
 </tr>
 </table>
@@ -1973,6 +1985,32 @@ string
 </tr>
 <tr>
 <td>
+<code>batchSchedulerOptions</code></br>
+<em>
+<a href="#sparkoperator.k8s.io/v1beta2.BatchSchedulerConfiguration">
+BatchSchedulerConfiguration
+</a>
+</em>
+</td>
+<td>
+<p>BatchSchedulerOptions provides fine-grained control on how to batch scheduling.
+Optional.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>serviceAccount</code></br>
+<em>
+string
+</em>
+</td>
+<td>
+<p>ServiceAccount is the name of the Kubernetes ServiceAccount used to run the
+submission Job Pod that runs spark-submit to submit an application.</p>
+</td>
+</tr>
+<tr>
+<td>
 <code>timeToLiveSeconds</code></br>
 <em>
 int64
@@ -1984,20 +2022,6 @@ int64
 after its termination.
 The SparkApplication object will be garbage collected if the current time is more than the
 TimeToLiveSeconds since its termination.</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>batchSchedulerOptions</code></br>
-<em>
-<a href="#sparkoperator.k8s.io/v1beta2.BatchSchedulerConfiguration">
-BatchSchedulerConfiguration
-</a>
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-<p>BatchSchedulerOptions provides fine-grained control on how to batch scheduling.</p>
 </td>
 </tr>
 </tbody>
@@ -2043,7 +2067,7 @@ string
 </tr>
 <tr>
 <td>
-<code>lastSubmissionAttemptTime</code></br>
+<code>SubmissionTime</code></br>
 <em>
 <a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#time-v1-meta">
 Kubernetes meta/v1.Time
@@ -2051,7 +2075,7 @@ Kubernetes meta/v1.Time
 </em>
 </td>
 <td>
-<p>LastSubmissionAttemptTime is the time for the last application submission attempt.</p>
+<p>SubmissionTime is the time the application is submitted.</p>
 </td>
 </tr>
 <tr>
@@ -2468,5 +2492,5 @@ Kubernetes core/v1.PodDNSConfig
 <hr/>
 <p><em>
 Generated with <code>gen-crd-api-reference-docs</code>
-on git commit <code>abe1af3</code>.
+on git commit <code>959c670</code>.
 </em></p>

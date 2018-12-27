@@ -157,8 +157,8 @@ func (sm *sparkAppMetrics) exportMetrics(oldApp, newApp *v1beta2.SparkApplicatio
 		case v1beta2.RunningState:
 			sm.sparkAppRunningCount.Inc(metricLabels)
 		case v1beta2.SucceedingState:
-			if !newApp.Status.LastSubmissionAttemptTime.Time.IsZero() && !newApp.Status.TerminationTime.Time.IsZero() {
-				d := newApp.Status.TerminationTime.Time.Sub(newApp.Status.LastSubmissionAttemptTime.Time)
+			if !newApp.Status.SubmissionTime.Time.IsZero() && !newApp.Status.TerminationTime.Time.IsZero() {
+				d := newApp.Status.TerminationTime.Time.Sub(newApp.Status.SubmissionTime.Time)
 
 				if m, err := sm.sparkAppSuccessExecutionTime.GetMetricWith(metricLabels); err != nil {
 					glog.Errorf("Error while exporting metrics: %v", err)
@@ -173,8 +173,8 @@ func (sm *sparkAppMetrics) exportMetrics(oldApp, newApp *v1beta2.SparkApplicatio
 				m.Inc()
 			}
 		case v1beta2.FailingState:
-			if !newApp.Status.LastSubmissionAttemptTime.Time.IsZero() && !newApp.Status.TerminationTime.Time.IsZero() {
-				d := newApp.Status.TerminationTime.Time.Sub(newApp.Status.LastSubmissionAttemptTime.Time)
+			if !newApp.Status.SubmissionTime.Time.IsZero() && !newApp.Status.TerminationTime.Time.IsZero() {
+				d := newApp.Status.TerminationTime.Time.Sub(newApp.Status.SubmissionTime.Time)
 				if m, err := sm.sparkAppFailureExecutionTime.GetMetricWith(metricLabels); err != nil {
 					glog.Errorf("Error while exporting metrics: %v", err)
 				} else {
