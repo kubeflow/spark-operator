@@ -35,13 +35,13 @@ spec:
     onFailureRetryInterval: 10
     onSubmissionFailureRetries: 5
     onSubmissionFailureRetryInterval: 20
+  serviceAccount: spark  
   driver:
     cores: 0.1
     coreLimit: "200m"
     memory: "512m"
     labels:
       version: 2.4.0
-    serviceAccount: spark
   executor:
     cores: 1
     instances: 1

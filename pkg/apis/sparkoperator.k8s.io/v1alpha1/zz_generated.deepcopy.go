@@ -587,6 +587,11 @@ func (in *SparkApplicationSpec) DeepCopyInto(out *SparkApplicationSpec) {
 		*out = new(MonitoringSpec)
 		(*in).DeepCopyInto(*out)
 	}
+	if in.ServiceAccount != nil {
+		in, out := &in.ServiceAccount, &out.ServiceAccount
+		*out = new(string)
+		**out = **in
+	}
 	return
 }
 

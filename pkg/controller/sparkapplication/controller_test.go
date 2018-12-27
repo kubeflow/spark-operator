@@ -276,7 +276,6 @@ func TestSyncSparkApplication_SubmissionFailed(t *testing.T) {
 	updatedApp, err := ctrl.crdClient.SparkoperatorV1beta1().SparkApplications(app.Namespace).Get(app.Name, metav1.GetOptions{})
 
 	assert.Equal(t, v1beta1.FailedSubmissionState, updatedApp.Status.AppState.State)
-	assert.Equal(t, int32(1), updatedApp.Status.SubmissionAttempts)
 	assert.Equal(t, float64(0), fetchCounterValue(ctrl.metrics.sparkAppSubmitCount, map[string]string{}))
 	assert.Equal(t, float64(1), fetchCounterValue(ctrl.metrics.sparkAppFailedSubmissionCount, map[string]string{}))
 
@@ -298,7 +297,6 @@ func TestSyncSparkApplication_SubmissionFailed(t *testing.T) {
 	updatedApp, err = ctrl.crdClient.SparkoperatorV1beta1().SparkApplications(app.Namespace).Get(app.Name, metav1.GetOptions{})
 	assert.Nil(t, err)
 	assert.Equal(t, v1beta1.FailedSubmissionState, updatedApp.Status.AppState.State)
-	assert.Equal(t, int32(2), updatedApp.Status.SubmissionAttempts)
 	assert.Equal(t, float64(0), fetchCounterValue(ctrl.metrics.sparkAppSubmitCount, map[string]string{}))
 
 	event = <-recorder.Events
@@ -317,8 +315,6 @@ func TestSyncSparkApplication_SubmissionFailed(t *testing.T) {
 	updatedApp, err = ctrl.crdClient.SparkoperatorV1beta1().SparkApplications(app.Namespace).Get(app.Name, metav1.GetOptions{})
 	assert.Nil(t, err)
 	assert.Equal(t, v1beta1.FailedState, updatedApp.Status.AppState.State)
-	// No more submission attempts made.
-	assert.Equal(t, int32(2), updatedApp.Status.SubmissionAttempts)
 }
 
 func TestShouldRetry(t *testing.T) {
@@ -611,7 +607,6 @@ func TestSyncSparkApplication_SubmissionSuccess(t *testing.T) {
 					AppState: v1beta1.ApplicationState{
 						State: v1beta1.FailedSubmissionState,
 					},
-					SubmissionAttempts:        1,
 					LastSubmissionAttemptTime: metav1.Time{Time: metav1.Now().Add(-2000 * time.Second)},
 				},
 			},
@@ -772,7 +767,6 @@ func TestSyncSparkApplication_SubmissionSuccess(t *testing.T) {
 					AppState: v1beta1.ApplicationState{
 						State: v1beta1.FailedSubmissionState,
 					},
-					SubmissionAttempts: 3,
 				},
 				Spec: v1beta1.SparkApplicationSpec{
 					RestartPolicy: restartPolicyOnFailure,
@@ -790,7 +784,6 @@ func TestSyncSparkApplication_SubmissionSuccess(t *testing.T) {
 					AppState: v1beta1.ApplicationState{
 						State: v1beta1.FailedSubmissionState,
 					},
-					SubmissionAttempts:        1,
 					LastSubmissionAttemptTime: metav1.Now(),
 				},
 				Spec: v1beta1.SparkApplicationSpec{
@@ -809,7 +802,6 @@ func TestSyncSparkApplication_SubmissionSuccess(t *testing.T) {
 					AppState: v1beta1.ApplicationState{
 						State: v1beta1.FailedSubmissionState,
 					},
-					SubmissionAttempts:        1,
 					LastSubmissionAttemptTime: metav1.Time{Time: metav1.Now().Add(-2000 * time.Second)},
 				},
 				Spec: v1beta1.SparkApplicationSpec{

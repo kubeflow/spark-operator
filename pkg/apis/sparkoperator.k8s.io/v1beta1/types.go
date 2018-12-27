@@ -239,6 +239,9 @@ type SparkApplicationSpec struct {
 	// Monitoring configures how monitoring is handled.
 	// Optional.
 	Monitoring *MonitoringSpec `json:"monitoring,omitempty"`
+	// ServiceAccount is the name of the Kubernetes ServiceAccount used to run the
+	// submission Job Pod that runs spark-submit to submit an application.
+	ServiceAccount *string `json:"serviceAccount,omitempty"`
 }
 
 // ApplicationStateType represents the type of the current state of an application.

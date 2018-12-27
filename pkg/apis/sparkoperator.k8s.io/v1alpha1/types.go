@@ -230,6 +230,9 @@ type SparkApplicationSpec struct {
 	// Monitoring configures how monitoring is handled.
 	// Optional.
 	Monitoring *MonitoringSpec `json:"monitoring,omitempty"`
+	// ServiceAccount is the name of the Kubernetes ServiceAccount used to run the
+	// submission Job Pod that runs spark-submit to submit an application.
+	ServiceAccount *string `json:"serviceAccount,omitempty"`
 }
 
 // ApplicationStateType represents the type of the current state of an application.
@@ -237,17 +240,18 @@ type ApplicationStateType string
 
 // Different states an application may have.
 const (
-	NewState              ApplicationStateType = ""
-	SubmittedState        ApplicationStateType = "SUBMITTED"
-	RunningState          ApplicationStateType = "RUNNING"
-	CompletedState        ApplicationStateType = "COMPLETED"
-	FailedState           ApplicationStateType = "FAILED"
-	FailedSubmissionState ApplicationStateType = "SUBMISSION_FAILED"
-	PendingRerunState     ApplicationStateType = "PENDING_RERUN"
-	InvalidatingState     ApplicationStateType = "INVALIDATING"
-	SucceedingState       ApplicationStateType = "SUCCEEDING"
-	FailingState          ApplicationStateType = "FAILING"
-	UnknownState          ApplicationStateType = "UNKNOWN"
+	NewState               ApplicationStateType = ""
+	PendingSubmissionState ApplicationStateType = "PENDING_SUBMISSION" // Submission job created.
+	SubmittedState         ApplicationStateType = "SUBMITTED"          // Submission job succeeded.
+	FailedSubmissionState  ApplicationStateType = "SUBMISSION_FAILED"  // Submission job failed.
+	RunningState           ApplicationStateType = "RUNNING"
+	CompletedState         ApplicationStateType = "COMPLETED"
+	FailedState            ApplicationStateType = "FAILED"
+	PendingRerunState      ApplicationStateType = "PENDING_RERUN"
+	InvalidatingState      ApplicationStateType = "INVALIDATING"
+	SucceedingState        ApplicationStateType = "SUCCEEDING"
+	FailingState           ApplicationStateType = "FAILING"
+	UnknownState           ApplicationStateType = "UNKNOWN"
 )
 
 // ApplicationState tells the current state of the application and an error message in case of failures.
@@ -284,8 +288,6 @@ type SparkApplicationStatus struct {
 	ExecutorState map[string]ExecutorState `json:"executorState,omitempty"`
 	// ExecutionAttempts is the total number of attempts made to run a submitted Spark App to successful completion.
 	ExecutionAttempts int32 `json:"executionAttempts,omitempty"`
-	// SubmissionAttempts is the total number of submission attempts made to submit a Spark App.
-	SubmissionAttempts int32 `json:"submissionAttempts,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -378,6 +380,7 @@ type DriverSpec struct {
 	PodName *string `json:"podName,omitempty"`
 	// ServiceAccount is the name of the Kubernetes service account used by the driver pod
 	// when requesting executor pods from the API server.
+	// If not specified, inherits the value of .spec.serviceAccount if it is specified.
 	ServiceAccount *string `json:"serviceAccount,omitempty"`
 	// JavaOptions is a string of extra JVM options to pass to the driver. For instance,
 	// GC settings or other logging.
