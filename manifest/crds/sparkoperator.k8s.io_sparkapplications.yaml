@@ -1935,6 +1935,8 @@ spec:
             retryInterval:
               format: int64
               type: integer
+            serviceAccount:
+              type: string
             sparkConf:
               additionalProperties:
                 type: string
@@ -2521,6 +2523,9 @@ spec:
           type: object
         status:
           properties:
+            SubmissionTime:
+              format: date-time
+              type: string
             applicationState:
               properties:
                 errorMessage:
@@ -2553,9 +2558,6 @@ spec:
               additionalProperties:
                 type: string
               type: object
-            lastSubmissionAttemptTime:
-              format: date-time
-              type: string
             sparkApplicationId:
               type: string
             submissionAttempts:

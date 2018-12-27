@@ -35,6 +35,7 @@ import (
 	clientset "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
 	typedcorev1 "k8s.io/client-go/kubernetes/typed/core/v1"
+	batchv1 "k8s.io/client-go/listers/batch/v1"
 	v1 "k8s.io/client-go/listers/core/v1"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
@@ -53,10 +54,9 @@ import (
 )
 
 const (
-	sparkExecutorIDLabel      = "spark-exec-id"
-	podAlreadyExistsErrorCode = "code=409"
-	queueTokenRefillRate      = 50
-	queueTokenBucketSize      = 500
+	sparkExecutorIDLabel = "spark-exec-id"
+	queueTokenRefillRate = 50
+	queueTokenBucketSize = 500
 )
 
 var (
@@ -74,8 +74,10 @@ type Controller struct {
 	metrics           *sparkAppMetrics
 	applicationLister crdlisters.SparkApplicationLister
 	podLister         v1.PodLister
+	jobLister         batchv1.JobLister
 	ingressURLFormat  string
 	batchSchedulerMgr *batchscheduler.SchedulerManager
+	subJobManager     *submissionJobManager
 }
 
 // NewController creates a new Controller.
@@ -83,7 +85,7 @@ func NewController(
 	crdClient crdclientset.Interface,
 	kubeClient clientset.Interface,
 	crdInformerFactory crdinformers.SharedInformerFactory,
-	podInformerFactory informers.SharedInformerFactory,
+	informerFactory informers.SharedInformerFactory,
 	metricsConfig *util.MetricConfig,
 	namespace string,
 	ingressURLFormat string,
@@ -97,14 +99,14 @@ func NewController(
 	})
 	recorder := eventBroadcaster.NewRecorder(scheme.Scheme, apiv1.EventSource{Component: "spark-operator"})
 
-	return newSparkApplicationController(crdClient, kubeClient, crdInformerFactory, podInformerFactory, recorder, metricsConfig, ingressURLFormat, batchSchedulerMgr)
+	return newSparkApplicationController(crdClient, kubeClient, crdInformerFactory, informerFactory, recorder, metricsConfig, ingressURLFormat, batchSchedulerMgr)
 }
 
 func newSparkApplicationController(
 	crdClient crdclientset.Interface,
 	kubeClient clientset.Interface,
 	crdInformerFactory crdinformers.SharedInformerFactory,
-	podInformerFactory informers.SharedInformerFactory,
+	informerFactory informers.SharedInformerFactory,
 	eventRecorder record.EventRecorder,
 	metricsConfig *util.MetricConfig,
 	ingressURLFormat string,
@@ -119,6 +121,7 @@ func newSparkApplicationController(
 		queue:             queue,
 		ingressURLFormat:  ingressURLFormat,
 		batchSchedulerMgr: batchSchedulerMgr,
+		subJobManager:     &submissionJobManager{kubeClient: kubeClient},
 	}
 
 	if metricsConfig != nil {
@@ -134,7 +137,7 @@ func newSparkApplicationController(
 	})
 	controller.applicationLister = crdInformer.Lister()
 
-	podsInformer := podInformerFactory.Core().V1().Pods()
+	podsInformer := informerFactory.Core().V1().Pods()
 	sparkPodEventHandler := newSparkPodEventHandler(controller.queue.AddRateLimited, controller.applicationLister)
 	podsInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc:    sparkPodEventHandler.onPodAdded,
@@ -142,6 +145,10 @@ func newSparkApplicationController(
 		DeleteFunc: sparkPodEventHandler.onPodDeleted,
 	})
 	controller.podLister = podsInformer.Lister()
+
+	jobLister := informerFactory.Batch().V1().Jobs().Lister()
+	controller.jobLister = jobLister
+	controller.subJobManager = &submissionJobManager{kubeClient: kubeClient, jobLister: jobLister}
 
 	controller.cacheSynced = func() bool {
 		return crdInformer.Informer().HasSynced() && podsInformer.Informer().HasSynced()
@@ -434,15 +441,6 @@ func shouldRetry(app *v1beta2.SparkApplication) bool {
 				return true
 			}
 		}
-	case v1beta2.FailedSubmissionState:
-		if app.Spec.RestartPolicy.Type == v1beta2.Always {
-			return true
-		} else if app.Spec.RestartPolicy.Type == v1beta2.OnFailure {
-			// We retry if we haven't hit the retry limit.
-			if app.Spec.RestartPolicy.OnSubmissionFailureRetries != nil && app.Status.SubmissionAttempts <= *app.Spec.RestartPolicy.OnSubmissionFailureRetries {
-				return true
-			}
-		}
 	}
 	return false
 }
@@ -514,7 +512,29 @@ func (c *Controller) syncSparkApplication(key string) error {
 		} else {
 			appToUpdate = c.submitSparkApplication(appToUpdate)
 		}
+	case v1beta2.PendingSubmissionState:
+		// Check the status of the submission Job and set the application status accordingly.
+		succeeded, completionTime, err := c.subJobManager.hasJobSucceeded(appToUpdate)
+		if err != nil {
+			return err
+		}
+		if succeeded != nil {
+			if *succeeded {
+				c.createSparkUIResources(appToUpdate)
+				appToUpdate.Status.AppState.State = v1beta2.SubmittedState
+				appToUpdate.Status.ExecutionAttempts++
+				if completionTime != nil {
+					appToUpdate.Status.SubmissionTime = *completionTime
+				}
+			} else {
+				// Since we delegate submission retries to the Kubernetes Job controller, the fact that the
+				// submission Job failed means all the submission attempts failed. So we set the application
+				// state to FailedSubmission, which is a terminal state.
+				appToUpdate.Status.AppState.State = v1beta2.FailedSubmissionState
+			}
+		}
 	case v1beta2.SucceedingState:
+		// The current run of the application has completed, check if it needs to be restarted.
 		if !shouldRetry(appToUpdate) {
 			// Application is not subject to retry. Move to terminal CompletedState.
 			appToUpdate.Status.AppState.State = v1beta2.CompletedState
@@ -541,15 +561,9 @@ func (c *Controller) syncSparkApplication(key string) error {
 			appToUpdate.Status.AppState.State = v1beta2.PendingRerunState
 		}
 	case v1beta2.FailedSubmissionState:
-		if !shouldRetry(appToUpdate) {
-			// App will never be retried. Move to terminal FailedState.
-			appToUpdate.Status.AppState.State = v1beta2.FailedState
-			c.recordSparkApplicationEvent(appToUpdate)
-		} else if hasRetryIntervalPassed(appToUpdate.Spec.RestartPolicy.OnSubmissionFailureRetryInterval, appToUpdate.Status.SubmissionAttempts, appToUpdate.Status.LastSubmissionAttemptTime) {
-			appToUpdate = c.submitSparkApplication(appToUpdate)
-		}
+		c.recordSparkApplicationEvent(appToUpdate)
 	case v1beta2.InvalidatingState:
-		// Invalidate the current run and enqueue the SparkApplication for re-execution.
+		// Invalidate the current run and enqueue the SparkApplication for re-submission.
 		if err := c.deleteSparkResources(appToUpdate); err != nil {
 			glog.Errorf("failed to delete resources associated with SparkApplication %s/%s: %v",
 				appToUpdate.Namespace, appToUpdate.Name, err)
@@ -637,67 +651,66 @@ func (c *Controller) submitSparkApplication(app *v1beta2.SparkApplication) *v1be
 				State:        v1beta2.FailedSubmissionState,
 				ErrorMessage: err.Error(),
 			},
-			SubmissionAttempts:        app.Status.SubmissionAttempts + 1,
-			LastSubmissionAttemptTime: metav1.Now(),
 		}
 		return app
 	}
-	// Try submitting the application by running spark-submit.
-	submitted, err := runSparkSubmit(newSubmission(submissionCmdArgs, app))
+
+	// Use batch scheduler to perform scheduling task before submitting.
+	if needScheduling, scheduler := c.shouldDoBatchScheduling(app); needScheduling {
+		newApp, err := scheduler.DoBatchSchedulingOnSubmission(app)
+		if err != nil {
+			glog.Errorf("failed to process batch scheduler BeforeSubmitSparkApplication with error %v", err)
+			return app
+		}
+		//Spark submit will use the updated app to submit tasks(Spec will not be updated into API server)
+		app = newApp
+	}
+
+	_, err = c.subJobManager.createSubmissionJob(newSubmission(submissionCmdArgs, app))
 	if err != nil {
-		app.Status = v1beta2.SparkApplicationStatus{
-			AppState: v1beta2.ApplicationState{
-				State:        v1beta2.FailedSubmissionState,
-				ErrorMessage: err.Error(),
-			},
-			SubmissionAttempts:        app.Status.SubmissionAttempts + 1,
-			LastSubmissionAttemptTime: metav1.Now(),
+		if !errors.IsAlreadyExists(err) {
+			app.Status = v1beta2.SparkApplicationStatus{
+				AppState: v1beta2.ApplicationState{
+					State:        v1beta2.FailedSubmissionState,
+					ErrorMessage: err.Error(),
+				},
+			}
 		}
-		c.recordSparkApplicationEvent(app)
-		glog.Errorf("failed to run spark-submit for SparkApplication %s/%s: %v", app.Namespace, app.Name, err)
-		return app
-	}
-	if !submitted {
-		// The application may not have been submitted even if err == nil, e.g., when some
-		// state update caused an attempt to re-submit the application, in which case no
-		// error gets returned from runSparkSubmit. If this is the case, we simply return.
 		return app
 	}
 
 	glog.Infof("SparkApplication %s/%s has been submitted", app.Namespace, app.Name)
 	app.Status = v1beta2.SparkApplicationStatus{
 		SubmissionID: submissionID,
-		AppState: v1beta2.ApplicationState{
-			State: v1beta2.SubmittedState,
-		},
-		DriverInfo: v1beta2.DriverInfo{
-			PodName: driverPodName,
-		},
-		SubmissionAttempts:        app.Status.SubmissionAttempts + 1,
-		ExecutionAttempts:         app.Status.ExecutionAttempts + 1,
-		LastSubmissionAttemptTime: metav1.Now(),
+		DriverInfo:   v1beta2.DriverInfo{PodName: driverPodName},
+		AppState:     v1beta2.ApplicationState{State: v1beta2.PendingSubmissionState},
 	}
+
 	c.recordSparkApplicationEvent(app)
 
+	return app
+}
+
+func (c *Controller) createSparkUIResources(app *v1beta2.SparkApplication) {
 	service, err := createSparkUIService(app, c.kubeClient)
 	if err != nil {
 		glog.Errorf("failed to create UI service for SparkApplication %s/%s: %v", app.Namespace, app.Name, err)
-	} else {
-		app.Status.DriverInfo.WebUIServiceName = service.serviceName
-		app.Status.DriverInfo.WebUIPort = service.servicePort
-		app.Status.DriverInfo.WebUIAddress = fmt.Sprintf("%s:%d", service.serviceIP, app.Status.DriverInfo.WebUIPort)
-		// Create UI Ingress if ingress-format is set.
-		if c.ingressURLFormat != "" {
-			ingress, err := createSparkUIIngress(app, *service, c.ingressURLFormat, c.kubeClient)
-			if err != nil {
-				glog.Errorf("failed to create UI Ingress for SparkApplication %s/%s: %v", app.Namespace, app.Name, err)
-			} else {
-				app.Status.DriverInfo.WebUIIngressAddress = ingress.ingressURL
-				app.Status.DriverInfo.WebUIIngressName = ingress.ingressName
-			}
+		return
+	}
+
+	app.Status.DriverInfo.WebUIServiceName = service.serviceName
+	app.Status.DriverInfo.WebUIAddress = fmt.Sprintf("%s:%d", service.serviceIP, app.Status.DriverInfo.WebUIPort)
+	app.Status.DriverInfo.WebUIPort = service.servicePort
+	// Create UI Ingress if ingress-format is set.
+	if c.ingressURLFormat != "" {
+		ingress, err := createSparkUIIngress(app, *service, c.ingressURLFormat, c.kubeClient)
+		if err != nil {
+			glog.Errorf("failed to create UI Ingress for SparkApplication %s/%s: %v", app.Namespace, app.Name, err)
+		} else {
+			app.Status.DriverInfo.WebUIIngressAddress = ingress.ingressURL
+			app.Status.DriverInfo.WebUIIngressName = ingress.ingressName
 		}
 	}
-	return app
 }
 
 func (c *Controller) shouldDoBatchScheduling(app *v1beta2.SparkApplication) (bool, schedulerinterface.BatchScheduler) {
@@ -782,6 +795,11 @@ func (c *Controller) getSparkApplication(namespace string, name string) (*v1beta
 
 // Delete the driver pod and optional UI resources (Service/Ingress) created for the application.
 func (c *Controller) deleteSparkResources(app *v1beta2.SparkApplication) error {
+	err := c.subJobManager.deleteSubmissionJob(app)
+	if err != nil && !errors.IsNotFound(err) {
+		return err
+	}
+
 	driverPodName := app.Status.DriverInfo.PodName
 	// Derive the driver pod name in case the driver pod name was not recorded in the status,
 	// which could happen if the status update right after submission failed.
@@ -790,7 +808,7 @@ func (c *Controller) deleteSparkResources(app *v1beta2.SparkApplication) error {
 	}
 
 	glog.V(2).Infof("Deleting pod %s in namespace %s", driverPodName, app.Namespace)
-	err := c.kubeClient.CoreV1().Pods(app.Namespace).Delete(driverPodName, metav1.NewDeleteOptions(0))
+	err = c.kubeClient.CoreV1().Pods(app.Namespace).Delete(driverPodName, metav1.NewDeleteOptions(0))
 	if err != nil && !errors.IsNotFound(err) {
 		return err
 	}
@@ -829,13 +847,18 @@ func (c *Controller) validateSparkApplication(app *v1beta2.SparkApplication) err
 
 // Validate that any Spark resources (driver/Service/Ingress) created for the application have been deleted.
 func (c *Controller) validateSparkResourceDeletion(app *v1beta2.SparkApplication) bool {
+	_, err := c.subJobManager.getSubmissionJob(app)
+	if err == nil || !errors.IsNotFound(err) {
+		return false
+	}
+
 	driverPodName := app.Status.DriverInfo.PodName
 	// Derive the driver pod name in case the driver pod name was not recorded in the status,
 	// which could happen if the status update right after submission failed.
 	if driverPodName == "" {
 		driverPodName = getDriverPodName(app)
 	}
-	_, err := c.kubeClient.CoreV1().Pods(app.Namespace).Get(driverPodName, metav1.GetOptions{})
+	_, err = c.kubeClient.CoreV1().Pods(app.Namespace).Get(driverPodName, metav1.GetOptions{})
 	if err == nil || !errors.IsNotFound(err) {
 		return false
 	}
@@ -877,6 +900,13 @@ func (c *Controller) recordSparkApplicationEvent(app *v1beta2.SparkApplication) 
 			apiv1.EventTypeNormal,
 			"SparkApplicationAdded",
 			"SparkApplication %s was added, enqueuing it for submission",
+			app.Name)
+	case v1beta2.PendingSubmissionState:
+		c.recorder.Eventf(
+			app,
+			apiv1.EventTypeNormal,
+			"SubmissionJobCreated",
+			"Submission Job for SparkApplication %s was created",
 			app.Name)
 	case v1beta2.SubmittedState:
 		c.recorder.Eventf(
@@ -951,16 +981,14 @@ func (c *Controller) recordExecutorEvent(app *v1beta2.SparkApplication, state v1
 func (c *Controller) clearStatus(status *v1beta2.SparkApplicationStatus) {
 	if status.AppState.State == v1beta2.InvalidatingState {
 		status.SparkApplicationID = ""
-		status.SubmissionAttempts = 0
 		status.ExecutionAttempts = 0
-		status.LastSubmissionAttemptTime = metav1.Time{}
+		status.SubmissionTime = metav1.Time{}
 		status.TerminationTime = metav1.Time{}
 		status.AppState.ErrorMessage = ""
 		status.ExecutorState = nil
 	} else if status.AppState.State == v1beta2.PendingRerunState {
 		status.SparkApplicationID = ""
 		status.SubmissionAttempts = 0
-		status.LastSubmissionAttemptTime = metav1.Time{}
 		status.DriverInfo = v1beta2.DriverInfo{}
 		status.AppState.ErrorMessage = ""
 		status.ExecutorState = nil
