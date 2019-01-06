@@ -52,10 +52,7 @@ type RestartPolicy struct {
 	// These are required if RestartPolicy is OnFailure.
 	OnSubmissionFailureRetries *int32 `json:"onSubmissionFailureRetries,omitempty"`
 	OnFailureRetries           *int32 `json:"onFailureRetries,omitempty"`
-
-	// Interval to wait between successive retries of a failed application.
-	OnSubmissionFailureRetryInterval *int64 `json:"onSubmissionFailureRetryInterval,omitempty"`
-	OnFailureRetryInterval           *int64 `json:"onFailureRetryInterval,omitempty"`
+	OnFailureRetryInterval     *int64 `json:"onFailureRetryInterval,omitempty"`
 }
 
 type RestartPolicyType string
@@ -286,8 +283,8 @@ type SparkApplicationStatus struct {
 	SparkApplicationID string `json:"sparkApplicationId,omitempty"`
 	// SubmissionID is a unique ID of the current submission of the application.
 	SubmissionID string `json:"submissionID,omitempty"`
-	// LastSubmissionAttemptTime is the time for the last application submission attempt.
-	LastSubmissionAttemptTime metav1.Time `json:"lastSubmissionAttemptTime,omitempty"`
+	// SubmissionTime is the time the application is submitted.
+	SubmissionTime metav1.Time `json:"SubmissionTime,omitempty"`
 	// CompletionTime is the time when the application runs to completion if it does.
 	TerminationTime metav1.Time `json:"terminationTime,omitempty"`
 	// DriverInfo has information about the driver.

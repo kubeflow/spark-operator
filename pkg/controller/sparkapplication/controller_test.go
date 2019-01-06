@@ -235,11 +235,10 @@ func TestSyncSparkApplication_SubmissionFailed(t *testing.T) {
 	os.Setenv(kubernetesServicePortEnvVar, "443")
 
 	restartPolicyOnFailure := v1beta1.RestartPolicy{
-		Type:                             v1beta1.OnFailure,
-		OnFailureRetries:                 int32ptr(1),
-		OnFailureRetryInterval:           int64ptr(100),
-		OnSubmissionFailureRetryInterval: int64ptr(100),
-		OnSubmissionFailureRetries:       int32ptr(1),
+		Type:                       v1beta1.OnFailure,
+		OnFailureRetries:           int32ptr(1),
+		OnFailureRetryInterval:     int64ptr(100),
+		OnSubmissionFailureRetries: int32ptr(1),
 	}
 	app := &v1beta1.SparkApplication{
 		ObjectMeta: metav1.ObjectMeta{
@@ -285,7 +284,7 @@ func TestSyncSparkApplication_SubmissionFailed(t *testing.T) {
 	assert.True(t, strings.Contains(event, "SparkApplicationSubmissionFailed"))
 
 	// Attempt 2: Retry again.
-	updatedApp.Status.LastSubmissionAttemptTime = metav1.Time{Time: metav1.Now().Add(-100 * time.Second)}
+	updatedApp.Status.SubmissionTime = metav1.Time{Time: metav1.Now().Add(-100 * time.Second)}
 	ctrl, recorder = newFakeController(updatedApp)
 	_, err = ctrl.crdClient.SparkoperatorV1beta1().SparkApplications(app.Namespace).Create(updatedApp)
 	if err != nil {
@@ -303,7 +302,7 @@ func TestSyncSparkApplication_SubmissionFailed(t *testing.T) {
 	assert.True(t, strings.Contains(event, "SparkApplicationSubmissionFailed"))
 
 	// Attempt 3: No more retries.
-	updatedApp.Status.LastSubmissionAttemptTime = metav1.Time{Time: metav1.Now().Add(-100 * time.Second)}
+	updatedApp.Status.SubmissionTime = metav1.Time{Time: metav1.Now().Add(-100 * time.Second)}
 	ctrl, recorder = newFakeController(updatedApp)
 	_, err = ctrl.crdClient.SparkoperatorV1beta1().SparkApplications(app.Namespace).Create(updatedApp)
 	if err != nil {
@@ -329,9 +328,8 @@ func TestShouldRetry(t *testing.T) {
 	}
 
 	restartPolicyAlways := v1beta1.RestartPolicy{
-		Type:                             v1beta1.Always,
-		OnSubmissionFailureRetryInterval: int64ptr(100),
-		OnFailureRetryInterval:           int64ptr(100),
+		Type:                   v1beta1.Always,
+		OnFailureRetryInterval: int64ptr(100),
 	}
 
 	restartPolicyNever := v1beta1.RestartPolicy{
@@ -339,11 +337,10 @@ func TestShouldRetry(t *testing.T) {
 	}
 
 	restartPolicyOnFailure := v1beta1.RestartPolicy{
-		Type:                             v1beta1.OnFailure,
-		OnFailureRetries:                 int32ptr(1),
-		OnFailureRetryInterval:           int64ptr(100),
-		OnSubmissionFailureRetryInterval: int64ptr(100),
-		OnSubmissionFailureRetries:       int32ptr(2),
+		Type:                       v1beta1.OnFailure,
+		OnFailureRetries:           int32ptr(1),
+		OnFailureRetryInterval:     int64ptr(100),
+		OnSubmissionFailureRetries: int32ptr(2),
 	}
 
 	testcases := []testcase{
@@ -516,9 +513,8 @@ func TestSyncSparkApplication_SubmissionSuccess(t *testing.T) {
 	}
 
 	restartPolicyAlways := v1beta1.RestartPolicy{
-		Type:                             v1beta1.Always,
-		OnSubmissionFailureRetryInterval: int64ptr(100),
-		OnFailureRetryInterval:           int64ptr(100),
+		Type:                   v1beta1.Always,
+		OnFailureRetryInterval: int64ptr(100),
 	}
 
 	restartPolicyNever := v1beta1.RestartPolicy{
@@ -526,11 +522,10 @@ func TestSyncSparkApplication_SubmissionSuccess(t *testing.T) {
 	}
 
 	restartPolicyOnFailure := v1beta1.RestartPolicy{
-		Type:                             v1beta1.OnFailure,
-		OnFailureRetries:                 int32ptr(1),
-		OnFailureRetryInterval:           int64ptr(100),
-		OnSubmissionFailureRetryInterval: int64ptr(100),
-		OnSubmissionFailureRetries:       int32ptr(2),
+		Type:                       v1beta1.OnFailure,
+		OnFailureRetries:           int32ptr(1),
+		OnFailureRetryInterval:     int64ptr(100),
+		OnSubmissionFailureRetries: int32ptr(2),
 	}
 
 	testcases := []testcase{
@@ -589,7 +584,7 @@ func TestSyncSparkApplication_SubmissionSuccess(t *testing.T) {
 					AppState: v1beta1.ApplicationState{
 						State: v1beta1.FailedSubmissionState,
 					},
-					LastSubmissionAttemptTime: metav1.Time{Time: metav1.Now().Add(-2000 * time.Second)},
+					SubmissionTime: metav1.Time{Time: metav1.Now().Add(-2000 * time.Second)},
 				},
 			},
 			expectedState: v1beta1.FailedSubmissionState,
@@ -607,7 +602,7 @@ func TestSyncSparkApplication_SubmissionSuccess(t *testing.T) {
 					AppState: v1beta1.ApplicationState{
 						State: v1beta1.FailedSubmissionState,
 					},
-					LastSubmissionAttemptTime: metav1.Time{Time: metav1.Now().Add(-2000 * time.Second)},
+					SubmissionTime: metav1.Time{Time: metav1.Now().Add(-2000 * time.Second)},
 				},
 			},
 			expectedState: v1beta1.SubmittedState,
@@ -784,7 +779,7 @@ func TestSyncSparkApplication_SubmissionSuccess(t *testing.T) {
 					AppState: v1beta1.ApplicationState{
 						State: v1beta1.FailedSubmissionState,
 					},
-					LastSubmissionAttemptTime: metav1.Now(),
+					SubmissionTime: metav1.Now(),
 				},
 				Spec: v1beta1.SparkApplicationSpec{
 					RestartPolicy: restartPolicyOnFailure,
@@ -802,7 +797,7 @@ func TestSyncSparkApplication_SubmissionSuccess(t *testing.T) {
 					AppState: v1beta1.ApplicationState{
 						State: v1beta1.FailedSubmissionState,
 					},
-					LastSubmissionAttemptTime: metav1.Time{Time: metav1.Now().Add(-2000 * time.Second)},
+					SubmissionTime: metav1.Time{Time: metav1.Now().Add(-2000 * time.Second)},
 				},
 				Spec: v1beta1.SparkApplicationSpec{
 					RestartPolicy: restartPolicyOnFailure,

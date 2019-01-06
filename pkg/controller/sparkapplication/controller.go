@@ -462,7 +462,10 @@ func (c *Controller) syncSparkApplication(key string) error {
 				appToUpdate.Status.AppState.State = v1beta1.SubmittedState
 				appToUpdate.Status.ExecutionAttempts += 1
 			} else {
-				appToUpdate.Status.AppState.State = v1beta1.FailedSubmissionState
+				// Since we delegate submission retries to the Kubernetes Job controller, the fact that the
+				// submission Job failed means all the retires of the Job failed. So we set the application
+				// state to Failed, which is a termination state.
+				appToUpdate.Status.AppState.State = v1beta1.FailedState
 			}
 		}
 	case v1beta1.SucceedingState:
@@ -576,19 +579,11 @@ func (c *Controller) submitSparkApplication(app *v1beta1.SparkApplication) *v1be
 		}
 		return app
 	}
-
-	if !submitted {
-		// The application may not have been submitted even if err == nil, e.g., when some
-		// state update caused an attempt to re-submit the application, in which case no
-		// error gets returned from runSparkSubmit. If this is the case, we simply return.
-		return app
-	}
-
-	glog.Infof("SparkApplication %s/%s has been submitted", app.Namespace, app.Name)
+	glog.Infof("Submission Job for SparkApplication %s/%s has been created", app.Namespace, app.Name)
 	app.Status = v1beta1.SparkApplicationStatus{
-		SubmissionID:              submissionID,
-		AppState:                  v1beta1.ApplicationState{State: v1beta1.PendingSubmissionState},
-		LastSubmissionAttemptTime: metav1.Now(),
+		SubmissionID:   submissionID,
+		AppState:       v1beta1.ApplicationState{State: v1beta1.PendingSubmissionState},
+		SubmissionTime: metav1.Now(),
 	}
 
 	c.recordSparkApplicationEvent(app)

@@ -52,10 +52,7 @@ type RestartPolicy struct {
 	// These are required if RestartPolicy is OnFailure.
 	OnSubmissionFailureRetries *int32 `json:"onSubmissionFailureRetries,omitempty"`
 	OnFailureRetries           *int32 `json:"onFailureRetries,omitempty"`
-
-	// Interval to wait between successive retries of a failed application.
-	OnSubmissionFailureRetryInterval *int64 `json:"onSubmissionFailureRetryInterval,omitempty"`
-	OnFailureRetryInterval           *int64 `json:"onFailureRetryInterval,omitempty"`
+	OnFailureRetryInterval     *int64 `json:"onFailureRetryInterval,omitempty"`
 }
 
 type RestartPolicyType string
@@ -243,14 +240,14 @@ const (
 	NewState               ApplicationStateType = ""
 	PendingSubmissionState ApplicationStateType = "PENDING_SUBMISSION" // Submission job created.
 	SubmittedState         ApplicationStateType = "SUBMITTED"          // Submission job succeeded.
-	FailedSubmissionState  ApplicationStateType = "SUBMISSION_FAILED"  // Submission job failed.
-	RunningState           ApplicationStateType = "RUNNING"
-	CompletedState         ApplicationStateType = "COMPLETED"
-	FailedState            ApplicationStateType = "FAILED"
-	PendingRerunState      ApplicationStateType = "PENDING_RERUN"
-	InvalidatingState      ApplicationStateType = "INVALIDATING"
-	SucceedingState        ApplicationStateType = "SUCCEEDING"
-	FailingState           ApplicationStateType = "FAILING"
+	FailedSubmissionState  ApplicationStateType = "SUBMISSION_FAILED"  // Submission command/job creation failed.
+	RunningState           ApplicationStateType = "RUNNING"            // Application is running.
+	CompletedState         ApplicationStateType = "COMPLETED"          // Application completed.
+	FailedState            ApplicationStateType = "FAILED"             // Application failed or submission job failed.
+	PendingRerunState      ApplicationStateType = "PENDING_RERUN"      // Application is pending being rerun.
+	InvalidatingState      ApplicationStateType = "INVALIDATING"       // Application spec has been updated and re-run is due.
+	SucceedingState        ApplicationStateType = "SUCCEEDING"         // Application succeeded but might be subject to restart.
+	FailingState           ApplicationStateType = "FAILING"            // Application failed but might be subject to restart.
 	UnknownState           ApplicationStateType = "UNKNOWN"
 )
 
@@ -276,8 +273,8 @@ const (
 type SparkApplicationStatus struct {
 	// SparkApplicationID is set by the spark-distribution(via spark.app.id config) on the driver and executor pods
 	SparkApplicationID string `json:"sparkApplicationId,omitempty"`
-	// LastSubmissionAttemptTime is the time for the last application submission attempt.
-	LastSubmissionAttemptTime metav1.Time `json:"lastSubmissionAttemptTime,omitempty"`
+	// SubmissionTime is the time the application is submitted.
+	SubmissionTime metav1.Time `json:"SubmissionTime,omitempty"`
 	// TerminationTime is the time when the application runs to completion with success or failure
 	TerminationTime metav1.Time `json:"terminationTime,omitempty"`
 	// DriverInfo has information about the driver.

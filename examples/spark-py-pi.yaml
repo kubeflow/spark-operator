@@ -34,7 +34,6 @@ spec:
     onFailureRetries: 3
     onFailureRetryInterval: 10
     onSubmissionFailureRetries: 5
-    onSubmissionFailureRetryInterval: 20
   serviceAccount: spark  
   driver:
     cores: 0.1
