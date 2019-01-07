@@ -19,10 +19,8 @@ limitations under the License.
 package main
 
 import (
-	"encoding/json"
 	"flag"
 	"fmt"
-	"k8s.io/apimachinery/pkg/types"
 	"os"
 	"os/signal"
 	"syscall"
@@ -166,22 +164,12 @@ func main() {
 	var hook *webhook.WebHook
 	if *enableWebhook {
 		var err error
-		hook, err = webhook.New(kubeClient, *webhookCertDir, *webhookSvcNamespace, *webhookSvcName, *webhookPort)
+		hook, err = webhook.New(kubeClient, *webhookCertDir, *webhookSvcNamespace, *webhookSvcName, *webhookPort, *namespace)
 		if err != nil {
 			glog.Fatal(err)
 		}
 
-		jobNamespace, err := kubeClient.CoreV1().Namespaces().Get(*namespace, metav1.GetOptions{})
-		namespaceSelector := map[string]string{}
-		namespaceSelector["webhookNamespaceSelectorLabel"] = *namespace
-		jobNamespace.SetLabels(namespaceSelector)
-		serializedNs, _ := json.Marshal(jobNamespace)
-
-		if _, err = kubeClient.CoreV1().Namespaces().Patch(*namespace, types.StrategicMergePatchType, serializedNs); err != nil {
-			glog.Warning("Failed to add label " + err.Error())
-		}
-
-		if err = hook.Start(*webhookConfigName, namespaceSelector); err != nil {
+		if err = hook.Start(*webhookConfigName); err != nil {
 			glog.Fatal(err)
 		}
 	}

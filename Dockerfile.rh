@@ -43,6 +43,7 @@ RUN rm /install_packages.sh
 
 RUN chmod -R u+x /tmp
 
+RUN apk add --no-cache openssl curl tini
 COPY hack/gencerts.sh /usr/bin/
 COPY entrypoint.sh /usr/bin/
 USER 185

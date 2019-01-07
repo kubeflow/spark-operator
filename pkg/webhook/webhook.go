@@ -30,6 +30,7 @@ import (
 
 	admissionv1beta1 "k8s.io/api/admission/v1beta1"
 	"k8s.io/api/admissionregistration/v1beta1"
+	apiv1 "k8s.io/api/core/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -55,18 +56,22 @@ type WebHook struct {
 	serviceRef *v1beta1.ServiceReference
 }
 
+var sparkJobNamespace string
+
 func New(
 	clientset kubernetes.Interface,
 	certDir string,
 	webhookServiceNamespace string,
 	webhookServiceName string,
-	webhookPort int) (*WebHook, error) {
+	webhookPort int,
+	jobNamespace string) (*WebHook, error) {
 	cert := &certBundle{
 		serverCertFile: filepath.Join(certDir, serverCertFile),
 		serverKeyFile:  filepath.Join(certDir, serverKeyFile),
 		caCertFile:     filepath.Join(certDir, caCertFile),
 	}
 	path := "/webhook"
+	sparkJobNamespace = jobNamespace
 	serviceRef := &v1beta1.ServiceReference{
 		Namespace: webhookServiceNamespace,
 		Name:      webhookServiceName,
@@ -90,7 +95,7 @@ func New(
 }
 
 // Start starts the admission webhook server and registers itself to the API server.
-func (wh *WebHook) Start(webhookConfigName string, webhookNamespaceLabel map[string]string) error {
+func (wh *WebHook) Start(webhookConfigName string) error {
 	go func() {
 		glog.Info("Starting the Spark pod admission webhook server")
 		if err := wh.server.ListenAndServeTLS("", ""); err != nil && err != http.ErrServerClosed {
@@ -98,7 +103,7 @@ func (wh *WebHook) Start(webhookConfigName string, webhookNamespaceLabel map[str
 		}
 	}()
 
-	return wh.selfRegistration(webhookConfigName, webhookNamespaceLabel)
+	return wh.selfRegistration(webhookConfigName)
 }
 
 // Stop deregisters itself with the API server and stops the admission webhook server.
@@ -114,6 +119,7 @@ func (wh *WebHook) Stop(webhookConfigName string) error {
 }
 
 func (wh *WebHook) serve(w http.ResponseWriter, r *http.Request) {
+	glog.Info("Serving admission request")
 	var body []byte
 	if r.Body != nil {
 		data, err := ioutil.ReadAll(r.Body)
@@ -168,10 +174,7 @@ func (wh *WebHook) serve(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (wh *WebHook) selfRegistration(webhookConfigName string, webhookNamespaceLabel map[string]string) error {
-	namespaceSelector := metav1.LabelSelector{}
-	namespaceSelector.MatchLabels = webhookNamespaceLabel
-
+func (wh *WebHook) selfRegistration(webhookConfigName string) error {
 	client := wh.clientset.AdmissionregistrationV1beta1().MutatingWebhookConfigurations()
 	existing, getErr := client.Get(webhookConfigName, metav1.GetOptions{})
 	if getErr != nil && !errors.IsNotFound(getErr) {
@@ -199,8 +202,7 @@ func (wh *WebHook) selfRegistration(webhookConfigName string, webhookNamespaceLa
 			Service:  wh.serviceRef,
 			CABundle: caCert,
 		},
-		FailurePolicy:     &ignorePolicy,
-		NamespaceSelector: &namespaceSelector,
+		FailurePolicy: &ignorePolicy,
 	}
 	webhooks := []v1beta1.Webhook{webhook}
 
@@ -255,7 +257,9 @@ func mutatePods(review *admissionv1beta1.AdmissionReview) *admissionv1beta1.Admi
 
 	response := &admissionv1beta1.AdmissionResponse{Allowed: true}
 
-	if !isSparkPod(pod) {
+	glog.Info("Spark job namespace: ", sparkJobNamespace)
+	if !isSparkPod(pod) || !inSparkJobNamespace(review.Request.Namespace) {
+		glog.Info(pod.Name, " in namespace ", review.Request.Namespace, " not mutated")
 		return response
 	}
 
@@ -286,6 +290,13 @@ func toAdmissionResponse(err error) *admissionv1beta1.AdmissionResponse {
 			Code:    http.StatusInternalServerError,
 		},
 	}
+}
+
+func inSparkJobNamespace(podNs string) bool {
+	if sparkJobNamespace == apiv1.NamespaceAll {
+		return true
+	}
+	return podNs == sparkJobNamespace
 }
 
 func isSparkPod(pod *corev1.Pod) bool {
