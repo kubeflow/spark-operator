@@ -536,9 +536,9 @@ func (c *Controller) submitSparkApplication(app *v1alpha1.SparkApplication) *v1a
 	// Make a copy since configPrometheusMonitoring may update app.Spec which causes an onUpdate callback.
 	appToSubmit := app.DeepCopy()
 	if appToSubmit.Spec.Monitoring != nil && appToSubmit.Spec.Monitoring.Prometheus != nil {
-        /* report configuation errors, don't fail silently */
-        err := configPrometheusMonitoring(appToSubmit, c.kubeClient)
-        glog.Error(err)
+		if err := configPrometheusMonitoring(appToSubmit, c.kubeClient); err != nil {
+			glog.Error(err)
+		}
 	}
 
 	submissionCmdArgs, err := buildSubmissionCommandArgs(appToSubmit)
