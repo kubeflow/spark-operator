@@ -1,5 +1,6 @@
+# syntax=docker/dockerfile:experimental
 #
-# Copyright 2017 Google LLC
+# Copyright 2018 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,11 +15,17 @@
 # limitations under the License.
 #
 
+# Build an OpenShift image.
+# Before running docker build, make sure
+# 1. Your Docker version is >= 18.09
+# 2. export DOCKER_BUILDKIT=1
+
 ARG SPARK_IMAGE=gcr.io/spark-operator/spark:v2.4.0
+ARG USER_ID=185
 
 FROM golang:1.11.4-alpine as builder
 ARG DEP_VERSION="0.5.0"
-RUN apk add --no-cache bash git
+RUN apk add --no-cache bash git 
 ADD https://github.com/golang/dep/releases/download/v${DEP_VERSION}/dep-linux-amd64 /usr/bin/dep
 RUN chmod +x /usr/bin/dep
 
@@ -30,8 +37,17 @@ RUN go generate && CGO_ENABLED=0 GOOS=linux go build -o /usr/bin/spark-operator
 
 FROM ${SPARK_IMAGE}
 COPY --from=builder /usr/bin/spark-operator /usr/bin/
+USER root
+
+# Comment out the following three lines if you do not have a RedHat subscription.
+COPY install_packages.sh /
+RUN --mount=target=/opt/spark/credentials,type=secret,id=credentials,required /install_packages.sh
+RUN rm /install_packages.sh
+
+RUN chmod -R u+x /tmp
+
 RUN apk add --no-cache openssl curl tini
 COPY hack/gencerts.sh /usr/bin/
-
 COPY entrypoint.sh /usr/bin/
+USER ${USER_ID}
 ENTRYPOINT ["/usr/bin/entrypoint.sh"]

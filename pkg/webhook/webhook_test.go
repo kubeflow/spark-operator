@@ -35,6 +35,8 @@ import (
 )
 
 func TestMutatePod(t *testing.T) {
+	sparkJobNamepace := "default"
+
 	// Testing processing non-Spark pod.
 	pod1 := &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
@@ -64,9 +66,10 @@ func TestMutatePod(t *testing.T) {
 			Object: runtime.RawExtension{
 				Raw: podBytes,
 			},
+			Namespace: "default",
 		},
 	}
-	response := mutatePods(review)
+	response := mutatePods(review, sparkJobNamepace)
 	assert.True(t, response.Allowed)
 
 	// Test processing Spark pod without any patch.
@@ -165,7 +168,7 @@ func TestMutatePod(t *testing.T) {
 		t.Error(err)
 	}
 	review.Request.Object.Raw = podBytes
-	response = mutatePods(review)
+	response = mutatePods(review, sparkJobNamepace)
 	assert.True(t, response.Allowed)
 	assert.Equal(t, v1beta1.PatchTypeJSONPatch, *response.PatchType)
 	assert.True(t, len(response.Patch) > 0)

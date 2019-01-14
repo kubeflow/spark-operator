@@ -143,10 +143,11 @@ func main() {
 	var hook *webhook.WebHook
 	if *enableWebhook {
 		var err error
-		hook, err = webhook.New(kubeClient, *webhookCertDir, *webhookSvcNamespace, *webhookSvcName, *webhookPort)
+		hook, err = webhook.New(kubeClient, *webhookCertDir, *webhookSvcNamespace, *webhookSvcName, *webhookPort, *namespace)
 		if err != nil {
 			glog.Fatal(err)
 		}
+
 		if err = hook.Start(*webhookConfigName); err != nil {
 			glog.Fatal(err)
 		}

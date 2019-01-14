@@ -21,10 +21,10 @@ $ helm repo add incubator http://storage.googleapis.com/kubernetes-charts-incuba
 $ helm install incubator/sparkoperator --namespace spark-operator
 ```
 
-Installing the chart will create a namespace `spark-operator` if it doesn't exist, set up RBAC for the operator to run in the namespace. It will also set up RBAC for driver pods of your Spark applications to be able to manipulate executor pods. In addition, the chart will create a Deployment in the namespace `spark-operator`. The chart by default enables a [Mutating Admission Webhook](https://kubernetes.io/docs/reference/access-authn-authz/extensible-admission-controllers/) for Spark pod customization. A webhook service and a secret storing the x509 certificate called `spark-webhook-certs` are created for that purpose. To install the operator **without** the mutating admission webhook on a Kubernetes cluster, install the chart with the flag `enableWebhook=false`:
+Installing the chart will create a namespace `spark-operator` if it doesn't exist, set up RBAC for the operator to run in the namespace. It will also set up RBAC for driver pods of your Spark applications to be able to manipulate executor pods. In addition, the chart will create a Deployment in the namespace `spark-operator`. The chart by default does not enable [Mutating Admission Webhook](https://kubernetes.io/docs/reference/access-authn-authz/extensible-admission-controllers/) for Spark pod customization. When enabled, a webhook service and a secret storing the x509 certificate called `spark-webhook-certs` are created for that purpose. To install the operator **with** the mutating admission webhook on a Kubernetes cluster, install the chart with the flag `enableWebhook=true`:
 
 ```bash
-$ helm install incubator/sparkoperator --namespace spark-operator --set enableWebhook=false
+$ helm install incubator/sparkoperator --namespace spark-operator --set enableWebhook=true
 ```
 
 Due to a [known issue](https://cloud.google.com/kubernetes-engine/docs/how-to/role-based-access-control#defining_permissions_in_a_role) in GKE, you will need to first grant yourself cluster-admin privileges before you can create custom roles and role bindings on a GKE cluster versioned 1.6 and up. Run the following command before installing the chart on GKE:

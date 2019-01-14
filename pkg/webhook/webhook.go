@@ -30,6 +30,7 @@ import (
 
 	admissionv1beta1 "k8s.io/api/admission/v1beta1"
 	"k8s.io/api/admissionregistration/v1beta1"
+	apiv1 "k8s.io/api/core/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -49,10 +50,11 @@ const (
 )
 
 type WebHook struct {
-	clientset  kubernetes.Interface
-	server     *http.Server
-	cert       *certBundle
-	serviceRef *v1beta1.ServiceReference
+	clientset         kubernetes.Interface
+	server            *http.Server
+	cert              *certBundle
+	serviceRef        *v1beta1.ServiceReference
+	sparkJobNamespace string
 }
 
 func New(
@@ -60,7 +62,8 @@ func New(
 	certDir string,
 	webhookServiceNamespace string,
 	webhookServiceName string,
-	webhookPort int) (*WebHook, error) {
+	webhookPort int,
+	jobNamespace string) (*WebHook, error) {
 	cert := &certBundle{
 		serverCertFile: filepath.Join(certDir, serverCertFile),
 		serverKeyFile:  filepath.Join(certDir, serverKeyFile),
@@ -72,7 +75,7 @@ func New(
 		Name:      webhookServiceName,
 		Path:      &path,
 	}
-	hook := &WebHook{clientset: clientset, cert: cert, serviceRef: serviceRef}
+	hook := &WebHook{clientset: clientset, cert: cert, serviceRef: serviceRef, sparkJobNamespace: jobNamespace}
 
 	mux := http.NewServeMux()
 	mux.HandleFunc(path, hook.serve)
@@ -114,6 +117,7 @@ func (wh *WebHook) Stop(webhookConfigName string) error {
 }
 
 func (wh *WebHook) serve(w http.ResponseWriter, r *http.Request) {
+	glog.V(2).Info("Serving admission request")
 	var body []byte
 	if r.Body != nil {
 		data, err := ioutil.ReadAll(r.Body)
@@ -145,7 +149,7 @@ func (wh *WebHook) serve(w http.ResponseWriter, r *http.Request) {
 		glog.Error(err)
 		reviewResponse = toAdmissionResponse(err)
 	} else {
-		reviewResponse = mutatePods(review)
+		reviewResponse = mutatePods(review, wh.sparkJobNamespace)
 	}
 
 	response := admissionv1beta1.AdmissionReview{}
@@ -231,7 +235,7 @@ func (wh *WebHook) selfDeregistration(webhookConfigName string) error {
 	return client.Delete(webhookConfigName, metav1.NewDeleteOptions(0))
 }
 
-func mutatePods(review *admissionv1beta1.AdmissionReview) *admissionv1beta1.AdmissionResponse {
+func mutatePods(review *admissionv1beta1.AdmissionReview, sparkJobNs string) *admissionv1beta1.AdmissionResponse {
 	podResource := metav1.GroupVersionResource{
 		Group:    corev1.SchemeGroupVersion.Group,
 		Version:  corev1.SchemeGroupVersion.Version,
@@ -251,7 +255,8 @@ func mutatePods(review *admissionv1beta1.AdmissionReview) *admissionv1beta1.Admi
 
 	response := &admissionv1beta1.AdmissionResponse{Allowed: true}
 
-	if !isSparkPod(pod) {
+	if !isSparkPod(pod) || !inSparkJobNamespace(review.Request.Namespace, sparkJobNs) {
+		glog.V(2).Info(pod.Name, " in namespace ", review.Request.Namespace, " not mutated")
 		return response
 	}
 
@@ -282,6 +287,13 @@ func toAdmissionResponse(err error) *admissionv1beta1.AdmissionResponse {
 			Code:    http.StatusInternalServerError,
 		},
 	}
+}
+
+func inSparkJobNamespace(podNs string, sparkJobNamespace string) bool {
+	if sparkJobNamespace == apiv1.NamespaceAll {
+		return true
+	}
+	return podNs == sparkJobNamespace
 }
 
 func isSparkPod(pod *corev1.Pod) bool {
