@@ -119,7 +119,7 @@ func (wh *WebHook) Stop(webhookConfigName string) error {
 }
 
 func (wh *WebHook) serve(w http.ResponseWriter, r *http.Request) {
-	glog.Info("Serving admission request")
+	glog.V(2).Info("Serving admission request")
 	var body []byte
 	if r.Body != nil {
 		data, err := ioutil.ReadAll(r.Body)
@@ -257,7 +257,6 @@ func mutatePods(review *admissionv1beta1.AdmissionReview) *admissionv1beta1.Admi
 
 	response := &admissionv1beta1.AdmissionResponse{Allowed: true}
 
-	glog.Info("Spark job namespace: ", sparkJobNamespace)
 	if !isSparkPod(pod) || !inSparkJobNamespace(review.Request.Namespace) {
 		glog.Info(pod.Name, " in namespace ", review.Request.Namespace, " not mutated")
 		return response
