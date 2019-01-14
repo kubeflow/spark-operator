@@ -50,13 +50,12 @@ const (
 )
 
 type WebHook struct {
-	clientset  kubernetes.Interface
-	server     *http.Server
-	cert       *certBundle
-	serviceRef *v1beta1.ServiceReference
+	clientset         kubernetes.Interface
+	server            *http.Server
+	cert              *certBundle
+	serviceRef        *v1beta1.ServiceReference
+	sparkJobNamespace string
 }
-
-var sparkJobNamespace string
 
 func New(
 	clientset kubernetes.Interface,
@@ -71,13 +70,12 @@ func New(
 		caCertFile:     filepath.Join(certDir, caCertFile),
 	}
 	path := "/webhook"
-	sparkJobNamespace = jobNamespace
 	serviceRef := &v1beta1.ServiceReference{
 		Namespace: webhookServiceNamespace,
 		Name:      webhookServiceName,
 		Path:      &path,
 	}
-	hook := &WebHook{clientset: clientset, cert: cert, serviceRef: serviceRef}
+	hook := &WebHook{clientset: clientset, cert: cert, serviceRef: serviceRef, sparkJobNamespace: jobNamespace}
 
 	mux := http.NewServeMux()
 	mux.HandleFunc(path, hook.serve)
@@ -151,7 +149,7 @@ func (wh *WebHook) serve(w http.ResponseWriter, r *http.Request) {
 		glog.Error(err)
 		reviewResponse = toAdmissionResponse(err)
 	} else {
-		reviewResponse = mutatePods(review)
+		reviewResponse = mutatePods(review, wh.sparkJobNamespace)
 	}
 
 	response := admissionv1beta1.AdmissionReview{}
@@ -237,7 +235,7 @@ func (wh *WebHook) selfDeregistration(webhookConfigName string) error {
 	return client.Delete(webhookConfigName, metav1.NewDeleteOptions(0))
 }
 
-func mutatePods(review *admissionv1beta1.AdmissionReview) *admissionv1beta1.AdmissionResponse {
+func mutatePods(review *admissionv1beta1.AdmissionReview, sparkJobNs string) *admissionv1beta1.AdmissionResponse {
 	podResource := metav1.GroupVersionResource{
 		Group:    corev1.SchemeGroupVersion.Group,
 		Version:  corev1.SchemeGroupVersion.Version,
@@ -257,7 +255,7 @@ func mutatePods(review *admissionv1beta1.AdmissionReview) *admissionv1beta1.Admi
 
 	response := &admissionv1beta1.AdmissionResponse{Allowed: true}
 
-	if !isSparkPod(pod) || !inSparkJobNamespace(review.Request.Namespace) {
+	if !isSparkPod(pod) || !inSparkJobNamespace(review.Request.Namespace, sparkJobNs) {
 		glog.V(2).Info(pod.Name, " in namespace ", review.Request.Namespace, " not mutated")
 		return response
 	}
@@ -291,7 +289,7 @@ func toAdmissionResponse(err error) *admissionv1beta1.AdmissionResponse {
 	}
 }
 
-func inSparkJobNamespace(podNs string) bool {
+func inSparkJobNamespace(podNs string, sparkJobNamespace string) bool {
 	if sparkJobNamespace == apiv1.NamespaceAll {
 		return true
 	}
