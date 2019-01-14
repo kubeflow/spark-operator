@@ -21,6 +21,7 @@
 # 2. export DOCKER_BUILDKIT=1
 
 ARG SPARK_IMAGE=gcr.io/spark-operator/spark:v2.4.0
+ARG USER_ID=185
 
 FROM golang:1.11.4-alpine as builder
 ARG DEP_VERSION="0.5.0"
@@ -37,6 +38,8 @@ RUN go generate && CGO_ENABLED=0 GOOS=linux go build -o /usr/bin/spark-operator
 FROM ${SPARK_IMAGE}
 COPY --from=builder /usr/bin/spark-operator /usr/bin/
 USER root
+
+# Comment out the following three lines if you do not have a RedHat subscription.
 COPY install_packages.sh /
 RUN --mount=target=/opt/spark/credentials,type=secret,id=credentials,required /install_packages.sh
 RUN rm /install_packages.sh
@@ -46,5 +49,5 @@ RUN chmod -R u+x /tmp
 RUN apk add --no-cache openssl curl tini
 COPY hack/gencerts.sh /usr/bin/
 COPY entrypoint.sh /usr/bin/
-USER 185
+USER ${USER_ID}
 ENTRYPOINT ["/usr/bin/entrypoint.sh"]
