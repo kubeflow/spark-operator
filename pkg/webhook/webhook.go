@@ -258,7 +258,7 @@ func mutatePods(review *admissionv1beta1.AdmissionReview) *admissionv1beta1.Admi
 	response := &admissionv1beta1.AdmissionResponse{Allowed: true}
 
 	if !isSparkPod(pod) || !inSparkJobNamespace(review.Request.Namespace) {
-		glog.Info(pod.Name, " in namespace ", review.Request.Namespace, " not mutated")
+		glog.V(2).Info(pod.Name, " in namespace ", review.Request.Namespace, " not mutated")
 		return response
 	}
 
