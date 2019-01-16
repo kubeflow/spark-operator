@@ -51,8 +51,7 @@ spec:
         - name: webhook-certs
           mountPath: /etc/webhook-certs
         ports:
-        - containerPort: 8080    
-        command: ["/usr/bin/spark-operator"]
+        - containerPort: 8080
         args:
         - -logtostderr
         - -enable-webhook=true
