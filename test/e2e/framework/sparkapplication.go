@@ -24,16 +24,16 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/yaml"
 
-	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1alpha1"
+	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta1"
 	crdclientset "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/client/clientset/versioned"
 )
 
-func MakeSparkApplicationFromYaml(pathToYaml string) (*v1alpha1.SparkApplication, error) {
+func MakeSparkApplicationFromYaml(pathToYaml string) (*v1beta1.SparkApplication, error) {
 	manifest, err := PathToOSFile(pathToYaml)
 	if err != nil {
 		return nil, err
 	}
-	tectonicPromOp := v1alpha1.SparkApplication{}
+	tectonicPromOp := v1beta1.SparkApplication{}
 	if err := yaml.NewYAMLOrJSONDecoder(manifest, 100).Decode(&tectonicPromOp); err != nil {
 		return nil, errors.Wrap(err, fmt.Sprintf("failed to decode file %s", pathToYaml))
 	}
@@ -41,16 +41,16 @@ func MakeSparkApplicationFromYaml(pathToYaml string) (*v1alpha1.SparkApplication
 	return &tectonicPromOp, nil
 }
 
-func CreateSparkApplication(crdclientset crdclientset.Interface, namespace string, sa *v1alpha1.SparkApplication) error {
-	_, err := crdclientset.SparkoperatorV1alpha1().SparkApplications(namespace).Create(sa)
+func CreateSparkApplication(crdclientset crdclientset.Interface, namespace string, sa *v1beta1.SparkApplication) error {
+	_, err := crdclientset.SparkoperatorV1beta1().SparkApplications(namespace).Create(sa)
 	if err != nil {
 		return errors.Wrap(err, fmt.Sprintf("failed to create SparkApplication %s", sa.Name))
 	}
 	return nil
 }
 
-func GetSparkApplication(crdclientset crdclientset.Interface, namespace, name string) (*v1alpha1.SparkApplication, error) {
-	sa, err := crdclientset.SparkoperatorV1alpha1().SparkApplications(namespace).Get(name, metav1.GetOptions{})
+func GetSparkApplication(crdclientset crdclientset.Interface, namespace, name string) (*v1beta1.SparkApplication, error) {
+	sa, err := crdclientset.SparkoperatorV1beta1().SparkApplications(namespace).Get(name, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -58,7 +58,7 @@ func GetSparkApplication(crdclientset crdclientset.Interface, namespace, name st
 }
 
 func DeleteSparkApplication(crdclientset crdclientset.Interface, namespace, name string) error {
-	err := crdclientset.SparkoperatorV1alpha1().SparkApplications(namespace).Delete(name, &metav1.DeleteOptions{})
+	err := crdclientset.SparkoperatorV1beta1().SparkApplications(namespace).Delete(name, &metav1.DeleteOptions{})
 	if err != nil {
 		return err
 	}

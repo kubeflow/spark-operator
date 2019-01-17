@@ -6,7 +6,7 @@ import (
 
 	apiv1 "k8s.io/api/core/v1"
 
-	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1alpha1"
+	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta1"
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/util"
 )
 
@@ -28,7 +28,7 @@ func getTolerationAnnotations(tolerations []apiv1.Toleration) (map[string]string
 
 // GetDriverTolerationConfOptions returns a list of spark-submit options for driver annotations for tolerations to be
 // applied to the driver.
-func GetDriverTolerationConfOptions(app *v1alpha1.SparkApplication) ([]string, error) {
+func GetDriverTolerationConfOptions(app *v1beta1.SparkApplication) ([]string, error) {
 	var options []string
 
 	annotations, err := getTolerationAnnotations(app.Spec.Driver.Tolerations)
@@ -44,7 +44,7 @@ func GetDriverTolerationConfOptions(app *v1alpha1.SparkApplication) ([]string, e
 
 // GetExecutorTolerationConfOptions returns a list of spark-submit options for executor annotations for tolerations to be
 // applied to the executor.
-func GetExecutorTolerationConfOptions(app *v1alpha1.SparkApplication) ([]string, error) {
+func GetExecutorTolerationConfOptions(app *v1beta1.SparkApplication) ([]string, error) {
 	var options []string
 
 	annotations, err := getTolerationAnnotations(app.Spec.Executor.Tolerations)

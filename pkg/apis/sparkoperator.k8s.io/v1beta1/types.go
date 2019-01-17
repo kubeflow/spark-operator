@@ -256,6 +256,7 @@ const (
 	InvalidatingState     ApplicationStateType = "INVALIDATING"
 	SucceedingState       ApplicationStateType = "SUCCEEDING"
 	FailingState          ApplicationStateType = "FAILING"
+	UnknownState          ApplicationStateType = "UNKNOWN"
 )
 
 // ApplicationState tells the current state of the application and an error message in case of failures.

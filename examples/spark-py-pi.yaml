@@ -16,7 +16,7 @@
 # Support for Python is experimental, and requires building SNAPSHOT image of Apache Spark,
 # with `imagePullPolicy` set to Always
 
-apiVersion: "sparkoperator.k8s.io/v1alpha1"
+apiVersion: "sparkoperator.k8s.io/v1beta1"
 kind: SparkApplication
 metadata:
   name: pyspark-pi

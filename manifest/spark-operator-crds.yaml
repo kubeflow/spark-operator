@@ -100,7 +100,7 @@ spec:
               - Scala
               - Python
               - R
-  version: v1alpha1
+  version: v1beta1
 ---
 apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
@@ -202,4 +202,4 @@ spec:
                   - Scala
                   - Python
                   - R
-  version: v1alpha1
+  version: v1beta1

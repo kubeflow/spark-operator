@@ -25,7 +25,7 @@ import (
 
 	apiv1 "k8s.io/api/core/v1"
 
-	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1alpha1"
+	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta1"
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/util"
 )
 
@@ -152,8 +152,8 @@ func TestGetVolumeAnnotationsForMount(t *testing.T) {
 }
 
 func TestGetDriverVolumeMountConfOptions(t *testing.T) {
-	app := &v1alpha1.SparkApplication{
-		Spec: v1alpha1.SparkApplicationSpec{
+	app := &v1beta1.SparkApplication{
+		Spec: v1beta1.SparkApplicationSpec{
 			Volumes: []apiv1.Volume{
 				{
 					Name: "volume1",
@@ -170,8 +170,8 @@ func TestGetDriverVolumeMountConfOptions(t *testing.T) {
 					},
 				},
 			},
-			Driver: v1alpha1.DriverSpec{
-				SparkPodSpec: v1alpha1.SparkPodSpec{
+			Driver: v1beta1.DriverSpec{
+				SparkPodSpec: v1beta1.SparkPodSpec{
 					VolumeMounts: []apiv1.VolumeMount{
 						{
 							Name:      "volume1",
@@ -196,8 +196,8 @@ func TestGetDriverVolumeMountConfOptions(t *testing.T) {
 }
 
 func TestGetExecutorVolumeMountConfOptions(t *testing.T) {
-	app := &v1alpha1.SparkApplication{
-		Spec: v1alpha1.SparkApplicationSpec{
+	app := &v1beta1.SparkApplication{
+		Spec: v1beta1.SparkApplicationSpec{
 			Volumes: []apiv1.Volume{
 				{
 					Name: "volume1",
@@ -214,8 +214,8 @@ func TestGetExecutorVolumeMountConfOptions(t *testing.T) {
 					},
 				},
 			},
-			Executor: v1alpha1.ExecutorSpec{
-				SparkPodSpec: v1alpha1.SparkPodSpec{
+			Executor: v1beta1.ExecutorSpec{
+				SparkPodSpec: v1beta1.SparkPodSpec{
 					VolumeMounts: []apiv1.VolumeMount{
 						{
 							Name:      "volume2",

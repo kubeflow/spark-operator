@@ -26,7 +26,7 @@ import (
 
 	apiv1 "k8s.io/api/core/v1"
 
-	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1alpha1"
+	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta1"
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/util"
 )
 
@@ -119,10 +119,10 @@ func TestGetTolerationAnnotations(t *testing.T) {
 }
 
 func TestGetDriverTolerationConfOptions(t *testing.T) {
-	app := &v1alpha1.SparkApplication{
-		Spec: v1alpha1.SparkApplicationSpec{
-			Driver: v1alpha1.DriverSpec{
-				SparkPodSpec: v1alpha1.SparkPodSpec{
+	app := &v1beta1.SparkApplication{
+		Spec: v1beta1.SparkApplicationSpec{
+			Driver: v1beta1.DriverSpec{
+				SparkPodSpec: v1beta1.SparkPodSpec{
 					Tolerations: []apiv1.Toleration{
 						{
 							Key:      "Key1",
@@ -155,10 +155,10 @@ func TestGetDriverTolerationConfOptions(t *testing.T) {
 }
 
 func TestGetExecutorTolerationConfOptions(t *testing.T) {
-	app := &v1alpha1.SparkApplication{
-		Spec: v1alpha1.SparkApplicationSpec{
-			Executor: v1alpha1.ExecutorSpec{
-				SparkPodSpec: v1alpha1.SparkPodSpec{
+	app := &v1beta1.SparkApplication{
+		Spec: v1beta1.SparkApplicationSpec{
+			Executor: v1beta1.ExecutorSpec{
+				SparkPodSpec: v1beta1.SparkPodSpec{
 					Tolerations: []apiv1.Toleration{
 						{
 							Key:      "Key1",

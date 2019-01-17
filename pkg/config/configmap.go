@@ -20,7 +20,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1alpha1"
+	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta1"
 )
 
 // FindGeneralConfigMaps finds the annotations for specifying general secrets and returns
@@ -39,7 +39,7 @@ func FindGeneralConfigMaps(annotations map[string]string) map[string]string {
 
 // GetDriverConfigMapConfOptions returns a list of spark-submit options for driver annotations for ConfigMaps to be
 // mounted into the driver.
-func GetDriverConfigMapConfOptions(app *v1alpha1.SparkApplication) []string {
+func GetDriverConfigMapConfOptions(app *v1beta1.SparkApplication) []string {
 	var options []string
 	for key, value := range getConfigMapAnnotations(app.Spec.Driver.ConfigMaps) {
 		options = append(options, GetDriverAnnotationOption(key, value))
@@ -49,7 +49,7 @@ func GetDriverConfigMapConfOptions(app *v1alpha1.SparkApplication) []string {
 
 // GetExecutorConfigMapConfOptions returns a list of spark-submit options for executor annotations for ConfigMaps to be
 // mounted into the executors.
-func GetExecutorConfigMapConfOptions(app *v1alpha1.SparkApplication) []string {
+func GetExecutorConfigMapConfOptions(app *v1beta1.SparkApplication) []string {
 	var options []string
 	for key, value := range getConfigMapAnnotations(app.Spec.Executor.ConfigMaps) {
 		options = append(options, GetExecutorAnnotationOption(key, value))
@@ -57,7 +57,7 @@ func GetExecutorConfigMapConfOptions(app *v1alpha1.SparkApplication) []string {
 	return options
 }
 
-func getConfigMapAnnotations(namePaths []v1alpha1.NamePath) map[string]string {
+func getConfigMapAnnotations(namePaths []v1beta1.NamePath) map[string]string {
 	annotations := make(map[string]string)
 	for _, np := range namePaths {
 		key := fmt.Sprintf("%s%s", GeneralConfigMapsAnnotationPrefix, np.Name)
