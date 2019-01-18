@@ -4,7 +4,7 @@
 
 In case you want to build the operator from the source code, e.g., to test a fix or a feature you write, you can do so following the instructions below.
 
-The easiest way to build without worrying about dependencies is to just build the Dockerfile.
+The easiest way to build the operator without worrying about its dependencies is to just build an image using the [Dockerfile](../Dockerfile).
 
 ```bash
 $ docker build -t <image-tag> .
@@ -14,6 +14,12 @@ The operator image is built upon a base Spark image that defaults to `gcr.io/spa
 
 ```bash
 $ docker build --build-arg SPARK_IMAGE=<your Spark image> -t <image-tag> .
+```
+
+If you want to use the operator on OpenShift clusters, build your operator image using the [OpenShift-specific Dockerfile](../Dockerfile.rh).
+
+```bash
+$ docker build -t <image-tag> -f Dockerfile.rh .
 ```
 
 If you'd like to build/test the spark-operator locally, follow the instructions below:
