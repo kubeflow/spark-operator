@@ -35,7 +35,7 @@ import (
 	clientset "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
 	typedcorev1 "k8s.io/client-go/kubernetes/typed/core/v1"
-	"k8s.io/client-go/listers/core/v1"
+	v1 "k8s.io/client-go/listers/core/v1"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/workqueue"
@@ -74,7 +74,7 @@ type Controller struct {
 	metrics           *sparkAppMetrics
 	applicationLister crdlisters.SparkApplicationLister
 	podLister         v1.PodLister
-	ingressUrlFormat  string
+	ingressURLFormat  string
 }
 
 // NewController creates a new Controller.
@@ -85,7 +85,7 @@ func NewController(
 	podInformerFactory informers.SharedInformerFactory,
 	metricsConfig *util.MetricConfig,
 	namespace string,
-	ingressUrlFormat string) *Controller {
+	ingressURLFormat string) *Controller {
 	crdscheme.AddToScheme(scheme.Scheme)
 
 	eventBroadcaster := record.NewBroadcaster()
@@ -95,7 +95,7 @@ func NewController(
 	})
 	recorder := eventBroadcaster.NewRecorder(scheme.Scheme, apiv1.EventSource{Component: "spark-operator"})
 
-	return newSparkApplicationController(crdClient, kubeClient, crdInformerFactory, podInformerFactory, recorder, metricsConfig, ingressUrlFormat)
+	return newSparkApplicationController(crdClient, kubeClient, crdInformerFactory, podInformerFactory, recorder, metricsConfig, ingressURLFormat)
 }
 
 func newSparkApplicationController(
@@ -105,7 +105,7 @@ func newSparkApplicationController(
 	podInformerFactory informers.SharedInformerFactory,
 	eventRecorder record.EventRecorder,
 	metricsConfig *util.MetricConfig,
-	ingressUrlFormat string) *Controller {
+	ingressURLFormat string) *Controller {
 	queue := workqueue.NewNamedRateLimitingQueue(&workqueue.BucketRateLimiter{Limiter: rate.NewLimiter(rate.Limit(queueTokenRefillRate), queueTokenBucketSize)},
 		"spark-application-controller")
 
@@ -114,7 +114,7 @@ func newSparkApplicationController(
 		kubeClient:       kubeClient,
 		recorder:         eventRecorder,
 		queue:            queue,
-		ingressUrlFormat: ingressUrlFormat,
+		ingressURLFormat: ingressURLFormat,
 	}
 
 	if metricsConfig != nil {
@@ -194,14 +194,14 @@ func (c *Controller) onUpdate(oldObj, newObj interface{}) {
 				newApp.Name,
 				err)
 			return
-		} else {
-			c.recorder.Eventf(
-				newApp,
-				apiv1.EventTypeNormal,
-				"SparkApplicationSpecUpdateProcessed",
-				"Successfully processed spec update for SparkApplication %s",
-				newApp.Name)
 		}
+
+		c.recorder.Eventf(
+			newApp,
+			apiv1.EventTypeNormal,
+			"SparkApplicationSpecUpdateProcessed",
+			"Successfully processed spec update for SparkApplication %s",
+			newApp.Name)
 	}
 
 	glog.V(2).Infof("SparkApplication %s/%s was updated, enqueueing it", newApp.Namespace, newApp.Name)
@@ -594,12 +594,12 @@ func (c *Controller) submitSparkApplication(app *v1beta1.SparkApplication) *v1be
 		app.Status.DriverInfo.WebUIServiceName = service.serviceName
 		app.Status.DriverInfo.WebUIPort = service.nodePort
 		// Create UI Ingress if ingress-format is set.
-		if c.ingressUrlFormat != "" {
-			ingress, err := createSparkUIIngress(app, *service, c.ingressUrlFormat, c.kubeClient)
+		if c.ingressURLFormat != "" {
+			ingress, err := createSparkUIIngress(app, *service, c.ingressURLFormat, c.kubeClient)
 			if err != nil {
 				glog.Errorf("failed to create UI Ingress for SparkApplication %s/%s: %v", app.Namespace, app.Name, err)
 			} else {
-				app.Status.DriverInfo.WebUIIngressAddress = ingress.ingressUrl
+				app.Status.DriverInfo.WebUIIngressAddress = ingress.ingressURL
 				app.Status.DriverInfo.WebUIIngressName = ingress.ingressName
 			}
 		}

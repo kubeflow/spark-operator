@@ -189,7 +189,7 @@ func TestCreateSparkUIIngress(t *testing.T) {
 
 	expectedIngress := SparkIngress{
 		ingressName: fmt.Sprintf("%s-ui-ingress", app.GetName()),
-		ingressUrl:  app.GetName() + ".ingress.clusterName.com",
+		ingressURL:  app.GetName() + ".ingress.clusterName.com",
 	}
 	fakeClient := fake.NewSimpleClientset()
 	sparkIngress, err := createSparkUIIngress(app, service, ingressFormat, fakeClient)
@@ -200,8 +200,8 @@ func TestCreateSparkUIIngress(t *testing.T) {
 	if sparkIngress.ingressName != expectedIngress.ingressName {
 		t.Errorf("Ingress name wanted %s got %s", expectedIngress.ingressName, sparkIngress.ingressName)
 	}
-	if sparkIngress.ingressUrl != expectedIngress.ingressUrl {
-		t.Errorf("Ingress name wanted %s got %s", expectedIngress.ingressUrl, sparkIngress.ingressUrl)
+	if sparkIngress.ingressURL != expectedIngress.ingressURL {
+		t.Errorf("Ingress name wanted %s got %s", expectedIngress.ingressURL, sparkIngress.ingressURL)
 	}
 
 	ingress, err := fakeClient.Extensions().Ingresses(app.Namespace).
@@ -219,8 +219,8 @@ func TestCreateSparkUIIngress(t *testing.T) {
 		t.Errorf("No Ingress rules found.")
 	}
 	ingressRule := ingress.Spec.Rules[0]
-	if ingressRule.Host != expectedIngress.ingressUrl {
-		t.Errorf("Ingress of app %s has the wrong host %s", expectedIngress.ingressUrl, ingressRule.Host)
+	if ingressRule.Host != expectedIngress.ingressURL {
+		t.Errorf("Ingress of app %s has the wrong host %s", expectedIngress.ingressURL, ingressRule.Host)
 	}
 
 	if len(ingressRule.IngressRuleValue.HTTP.Paths) != 1 {
