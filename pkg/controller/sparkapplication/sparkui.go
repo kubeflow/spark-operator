@@ -38,27 +38,27 @@ const (
 	defaultSparkWebUIPort       = "4040"
 )
 
-var ingressUrlRegex = regexp.MustCompile("{{\\s*[$]appName\\s*}}")
+var ingressURLRegex = regexp.MustCompile("{{\\s*[$]appName\\s*}}")
 
-func getSparkUIIngressURL(ingressUrlFormat string, appName string) string {
-	return ingressUrlRegex.ReplaceAllString(ingressUrlFormat, appName)
+func getSparkUIingressURL(ingressURLFormat string, appName string) string {
+	return ingressURLRegex.ReplaceAllString(ingressURLFormat, appName)
 }
 
-// Struct to encapsulate service
+// SparkService encapsulates information about the driver UI service.
 type SparkService struct {
 	serviceName string
 	servicePort int32
 	nodePort    int32
 }
 
-// Struct to encapsulate SparkIngress
+// SparkIngress encapsulates information about the driver UI ingress.
 type SparkIngress struct {
 	ingressName string
-	ingressUrl  string
+	ingressURL  string
 }
 
-func createSparkUIIngress(app *v1beta1.SparkApplication, service SparkService, ingressUrlFormat string, kubeClient clientset.Interface) (*SparkIngress, error) {
-	ingressUrl := getSparkUIIngressURL(ingressUrlFormat, app.GetName())
+func createSparkUIIngress(app *v1beta1.SparkApplication, service SparkService, ingressURLFormat string, kubeClient clientset.Interface) (*SparkIngress, error) {
+	ingressURL := getSparkUIingressURL(ingressURLFormat, app.GetName())
 	ingress := extensions.Ingress{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      getDefaultUIIngressName(app),
@@ -70,7 +70,7 @@ func createSparkUIIngress(app *v1beta1.SparkApplication, service SparkService, i
 		},
 		Spec: extensions.IngressSpec{
 			Rules: []extensions.IngressRule{{
-				Host: ingressUrl,
+				Host: ingressURL,
 				IngressRuleValue: extensions.IngressRuleValue{
 					HTTP: &extensions.HTTPIngressRuleValue{
 						Paths: []extensions.HTTPIngressPath{{
@@ -95,7 +95,7 @@ func createSparkUIIngress(app *v1beta1.SparkApplication, service SparkService, i
 	}
 	return &SparkIngress{
 		ingressName: ingress.Name,
-		ingressUrl:  ingressUrl,
+		ingressURL:  ingressURL,
 	}, nil
 }
 

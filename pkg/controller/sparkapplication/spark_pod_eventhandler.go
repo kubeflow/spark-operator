@@ -69,9 +69,9 @@ func (s *sparkPodEventHandler) onPodDeleted(obj interface{}) {
 	s.enqueueSparkAppForUpdate(deletedPod)
 }
 
-func (c *sparkPodEventHandler) enqueueSparkAppForUpdate(pod *apiv1.Pod) {
+func (s *sparkPodEventHandler) enqueueSparkAppForUpdate(pod *apiv1.Pod) {
 	if appKey, ok := createMetaNamespaceKey(pod); ok {
 		glog.V(2).Infof("Enqueuing SparkApplication %s for processing", appKey)
-		c.enqueueFunc(appKey)
+		s.enqueueFunc(appKey)
 	}
 }
