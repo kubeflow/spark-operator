@@ -40,7 +40,7 @@ COPY --from=builder /usr/bin/spark-operator /usr/bin/
 USER root
 
 # Comment out the following three lines if you do not have a RedHat subscription.
-COPY install_packages.sh /
+COPY hack/install_packages.sh /
 RUN --mount=target=/opt/spark/credentials,type=secret,id=credentials,required /install_packages.sh
 RUN rm /install_packages.sh
 
