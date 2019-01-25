@@ -48,13 +48,13 @@ To run the Spark Pi example, run the following command:
 $ kubectl apply -f examples/spark-pi.yaml
 ```
 
-Note that `spark-pi.yaml` configures the driver pod to use the `spark` service account to communicate with the Kubernetes API server. You might need to replace it with the approprate service account before submitting the job. If you installed the operator using the Helm chart, the Spark job namespace (i.e. `default` by default) already has a service account you can use. Its name ends with `-spark` and starts with the Helm release name. The Helm chart has two configuration options,  `createSparkJobNamespace` which defaults to `true` and `sparkJobNamespace` which defaults to `default`. For example, If you would like to run your Spark job in a new namespace called `test-ns`, then please install the chart with the command:
+Note that `spark-pi.yaml` configures the driver pod to use the `spark` service account to communicate with the Kubernetes API server. You might need to replace it with the approprate service account before submitting the job. If you installed the operator using the Helm chart, the Spark job namespace (i.e. `default` by default) already has a service account you can use. Its name ends with `-spark` and starts with the Helm release name. The Helm chart has a configuration option called `sparkJobNamespace` which defaults to `default`. For example, If you would like to run your Spark job in another namespace called `test-ns`, then first make sure it already exists and then install the chart with the command:
 
 ```bash
-$ helm install incubator/sparkoperator --namespace spark-operator --set createSparkJobNamespace=true --set sparkJobNamespace=test-ns
+$ helm install incubator/sparkoperator --namespace spark-operator --set sparkJobNamespace=test-ns
 ```
 
-Then the chart will create the namespace `test-ns` and set up a service account for your Spark jobs to use in that namespace.
+Then the chart will set up a service account for your Spark jobs to use in that namespace.
 
 Running the above command will create a `SparkApplication` object named `spark-pi`. Check the object by running the following command:
 
@@ -200,8 +200,7 @@ and deleting the pods outside the operator might lead to incorrect metric values
 ## Driver UI Access and Ingress
 
 The operator, by default, makes the Spark UI accessible by creating a service of type `NodePort` which exposes the UI via the node running the driver.
-The operator also supports creating an Ingress for the UI. This can be turned on by setting the `ingress-url-format` command-line flag. The `ingress-url-format`
-should be a template like `{{$appName}}.ingress.cluster.com` and the operator will replace the `{{$appName}}` with the appropriate appName.
+The operator also supports creating an Ingress for the UI. This can be turned on by setting the `ingress-url-format` command-line flag. The `ingress-url-format` should be a template like `{{$appName}}.ingress.cluster.com` and the operator will replace the `{{$appName}}` with the appropriate appName.
 
 The operator also sets both `WebUIAddress` which uses the Node's public IP as well as `WebUIIngressAddress` as part of the `DriverInfo` field of the `SparkApplication`.
 
@@ -212,7 +211,7 @@ The Kubernetes Operator for "Apache Spark comes with an optional mutating admiss
 The webhook requires a X509 certificate for TLS for pod admission requests and responses between the Kubernetes API server and the webhook server running inside the operator. For that, the certificate and key files must be accessible by the webhook server.
 The Kubernetes Operator for Spark ships with a tool at `hack/gencerts.sh` for generating the CA and server certificate and putting the certificate and key files into a secret named `spark-webhook-certs` in the namespace `spark-operator`. This secret will be mounted into the operator pod.  
 
-Run the following command to create the secret with a certificate and key files using a Batch Job, and install the operator Deployment with the mutating admission webhook:
+Run the following command to create the secret with a certificate and key files using a batch Job, and install the operator Deployment with the mutating admission webhook:
 
 ```bash
 $ kubectl apply -f manifest/spark-operator-with-webhook.yaml
