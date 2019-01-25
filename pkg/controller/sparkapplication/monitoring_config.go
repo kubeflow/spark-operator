@@ -20,8 +20,10 @@ import (
 	"fmt"
 
 	corev1 "k8s.io/api/core/v1"
+	apiErrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	clientset "k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/util/retry"
 
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta1"
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/config"
@@ -40,9 +42,26 @@ const (
 func configPrometheusMonitoring(app *v1beta1.SparkApplication, kubeClient clientset.Interface) error {
 	prometheusConfigMapName := fmt.Sprintf("%s-%s", app.Name, prometheusConfigMapNameSuffix)
 	configMap := buildPrometheusConfigMap(app, prometheusConfigMapName)
-	if _, err := kubeClient.CoreV1().ConfigMaps(app.Namespace).Create(configMap); err != nil {
-		return err
+	retryErr := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		cm, err := kubeClient.CoreV1().ConfigMaps(app.Namespace).Get(prometheusConfigMapName, metav1.GetOptions{})
+
+		if apiErrors.IsNotFound(err) {
+			_, createErr := kubeClient.CoreV1().ConfigMaps(app.Namespace).Create(configMap)
+			return createErr
+		}
+		if err != nil {
+			return err
+		}
+
+		cm.Data = configMap.Data
+		_, updateErr := kubeClient.CoreV1().ConfigMaps(app.Namespace).Update(cm)
+		return updateErr
+	})
+
+	if retryErr != nil {
+		return fmt.Errorf("failed to apply %s in namespace %s: %v", prometheusConfigMapName, app.Namespace, retryErr)
 	}
+
 	/* work around for push gateway issue: https://github.com/prometheus/pushgateway/issues/97 */
 	metricNamespace := fmt.Sprintf("%s-%s", app.Namespace, app.Name)
 	metricConf := fmt.Sprintf("%s/%s", prometheusConfigMapMountPath, metricsPropertiesKey)
