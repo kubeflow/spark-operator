@@ -62,7 +62,6 @@ func runSparkSubmit(submission *submission) (bool, error) {
 
 	cmd := execCommand(command, submission.args...)
 	glog.V(2).Infof("spark-submit arguments: %v", cmd.Args)
-
 	if _, err := cmd.Output(); err != nil {
 		var errorMsg string
 		if exitErr, ok := err.(*exec.ExitError); ok {
@@ -72,6 +71,9 @@ func runSparkSubmit(submission *submission) (bool, error) {
 		if strings.Contains(errorMsg, podAlreadyExistsErrorCode) {
 			glog.Warningf("trying to resubmit an already submitted SparkApplication %s/%s", submission.namespace, submission.name)
 			return false, nil
+		}
+		if errorMsg != "" {
+			return false, fmt.Errorf("failed to run spark-submit for SparkApplication %s/%s: %s", submission.namespace, submission.name, errorMsg)
 		}
 		return false, fmt.Errorf("failed to run spark-submit for SparkApplication %s/%s: %v", submission.namespace, submission.name, err)
 	}
