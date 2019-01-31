@@ -28,6 +28,7 @@ spec:
   image: "gcr.io/spark-operator/spark-py:v2.4.0"
   imagePullPolicy: Always
   mainApplicationFile: local:///opt/spark/examples/src/main/python/pi.py
+  sparkVersion: "2.4.0"
   restartPolicy:
     type: OnFailure
     onFailureRetries: 3
