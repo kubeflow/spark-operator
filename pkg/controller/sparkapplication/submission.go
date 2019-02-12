@@ -208,11 +208,13 @@ func getMasterURL() (string, error) {
 }
 
 func getOwnerReference(app *v1beta1.SparkApplication) *metav1.OwnerReference {
+	controller := true
 	return &metav1.OwnerReference{
 		APIVersion: v1beta1.SchemeGroupVersion.String(),
 		Kind:       reflect.TypeOf(v1beta1.SparkApplication{}).Name(),
 		Name:       app.Name,
 		UID:        app.UID,
+		Controller: &controller,
 	}
 }
 
