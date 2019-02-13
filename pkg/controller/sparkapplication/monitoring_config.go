@@ -18,7 +18,6 @@ package sparkapplication
 
 import (
 	"fmt"
-
 	corev1 "k8s.io/api/core/v1"
 	apiErrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -32,7 +31,7 @@ import (
 const (
 	metricsPropertiesKey          = "metrics.properties"
 	prometheusConfigKey           = "prometheus.yaml"
-	prometheusConfigMapNameSuffix = "prometheus-config"
+	prometheusConfigMapNameSuffix = "prom-conf"
 	prometheusConfigMapMountPath  = "/etc/metrics/conf"
 	prometheusScrapeAnnotation    = "prometheus.io/scrape"
 	prometheusPortAnnotation      = "prometheus.io/port"
