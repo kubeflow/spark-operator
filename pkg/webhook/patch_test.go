@@ -223,7 +223,7 @@ func TestPatchSparkPod_ConfigMaps(t *testing.T) {
 	}
 
 	assert.Equal(t, 1, len(modifiedPod.Spec.Volumes))
-	assert.Equal(t, "foo-volume", modifiedPod.Spec.Volumes[0].Name)
+	assert.Equal(t, "foo-vol", modifiedPod.Spec.Volumes[0].Name)
 	assert.True(t, modifiedPod.Spec.Volumes[0].ConfigMap != nil)
 	assert.Equal(t, 1, len(modifiedPod.Spec.Containers[0].VolumeMounts))
 	assert.Equal(t, "/path/to/foo", modifiedPod.Spec.Containers[0].VolumeMounts[0].MountPath)
