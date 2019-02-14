@@ -30,7 +30,11 @@ var framework *operatorFramework.Framework
 func TestMain(m *testing.M) {
 	kubeconfig := flag.String("kubeconfig", "", "kube config path, e.g. $HOME/.kube/config")
 	opImage := flag.String("operator-image", "", "operator image, e.g. image:tag")
+	opImagePullPolicy := flag.String("operator-image-pullPolicy", "IfNotPresent", "pull policy, e.g. Always")
 	ns := flag.String("namespace", "spark-operator", "e2e test namespace")
+	sparkTestNamespace := flag.String("spark-test-namespace", "default", "e2e test spark-test-namespace")
+	sparkTestImage := flag.String("spark-test-image", "", "spark test image, e.g. image:tag")
+	sparkTestServiceAccount := flag.String("spark-test-service-account", "default", "e2e test spark test service account")
 	flag.Parse()
 
 	if *kubeconfig == "" {
@@ -39,10 +43,13 @@ func TestMain(m *testing.M) {
 	}
 
 	var err error
-	if framework, err = operatorFramework.New(*ns, *kubeconfig, *opImage); err != nil {
+	if framework, err = operatorFramework.New(*ns, *kubeconfig, *opImage, *opImagePullPolicy); err != nil {
 		log.Fatalf("failed to set up framework: %v\n", err)
 	}
 
+	operatorFramework.SparkTestNamespace = *sparkTestNamespace
+	operatorFramework.SparkTestImage = *sparkTestImage
+	operatorFramework.SparkTestServiceAccount = *sparkTestServiceAccount
 	code := m.Run()
 
 	if err := framework.Teardown(); err != nil {
