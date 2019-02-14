@@ -205,7 +205,7 @@ func addGeneralConfigMaps(pod *corev1.Pod) []*patchOperation {
 	var patchOps []*patchOperation
 	namesToMountPaths := config.FindGeneralConfigMaps(pod.Annotations)
 	for name, mountPath := range namesToMountPaths {
-		volumeName := name + "-volume"
+		volumeName := name + "-vol"
 		patchOps = append(patchOps, addConfigMapVolume(pod, name, volumeName))
 		patchOps = append(patchOps, addConfigMapVolumeMount(pod, volumeName, mountPath))
 	}
