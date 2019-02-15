@@ -92,7 +92,7 @@ func configPrometheusMonitoring(app *v1beta1.SparkApplication, kubeClient client
 	}
 
 	/* work around for push gateway issue: https://github.com/prometheus/pushgateway/issues/97 */
-	metricNamespace := fmt.Sprintf("%s-%s", app.Namespace, app.Name)
+	metricNamespace := fmt.Sprintf("%s.%s", app.Namespace, app.Name)
 	metricConf := fmt.Sprintf("%s/%s", prometheusConfigMapMountPath, metricsPropertiesKey)
 	if app.Spec.SparkConf == nil {
 		app.Spec.SparkConf = make(map[string]string)
