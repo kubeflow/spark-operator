@@ -13,13 +13,15 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+SCRIPT=`basename ${BASH_SOURCE[0]}`
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd -P )"
 set -e
-arg1=$(head -2 /opt/spark/credentials | tail -1)
-arg2=$(head -3 /opt/spark/credentials | tail -1)
-arg3=$(head -1 /opt/spark/credentials | tail -1)
-
-subscription-manager register --username=$arg1 --password=$arg2  --name=docker
-subscription-manager attach --pool=$arg3 && yum install -y openssl
-subscription-manager remove --all
-subscription-manager unregister
-subscription-manager clean
+platforms=("linux:amd64" "darwin:amd64")
+for platform in "${platforms[@]}"
+do
+  GOOS="${platform%%:*}"
+  GOARCH="${platform#*:}"
+  echo $GOOS
+  echo $GOARCH
+  CGO_ENABLED=0 GOOS=$GOOS GOARCH=$GOARCH go build -o sparkctl-${GOOS}-${GOARCH}
+done

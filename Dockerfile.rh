@@ -36,7 +36,7 @@ RUN go generate && CGO_ENABLED=0 GOOS=linux go build -o /usr/bin/spark-operator
 
 FROM ${SPARK_IMAGE}
 COPY --from=builder /usr/bin/spark-operator /usr/bin/
-USER 185
+USER root
 
 # Comment out the following three lines if you do not have a RedHat subscription.
 COPY hack/install_packages.sh /
@@ -45,7 +45,7 @@ RUN rm /install_packages.sh
 
 RUN chmod -R u+x /tmp
 
-RUN apk add --no-cache openssl curl tini
 COPY hack/gencerts.sh /usr/bin/
 COPY entrypoint.sh /usr/bin/
+USER 185
 ENTRYPOINT ["/usr/bin/entrypoint.sh"]

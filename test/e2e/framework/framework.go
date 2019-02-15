@@ -42,8 +42,12 @@ type Framework struct {
 	DefaultTimeout         time.Duration
 }
 
+var SparkTestNamespace = ""
+var SparkTestServiceAccount = ""
+var SparkTestImage = ""
+
 // Sets up a test framework and returns it.
-func New(ns, kubeconfig, opImage string) (*Framework, error) {
+func New(ns, kubeconfig, opImage string, opImagePullPolicy string) (*Framework, error) {
 	config, err := clientcmd.BuildConfigFromFlags("", kubeconfig)
 	if err != nil {
 		return nil, errors.Wrap(err, "build config from flags failed")
@@ -72,7 +76,7 @@ func New(ns, kubeconfig, opImage string) (*Framework, error) {
 		DefaultTimeout:         time.Minute,
 	}
 
-	err = f.Setup(opImage)
+	err = f.Setup(opImage, opImagePullPolicy)
 	if err != nil {
 		return nil, errors.Wrap(err, "setup test environment failed")
 	}
@@ -80,15 +84,15 @@ func New(ns, kubeconfig, opImage string) (*Framework, error) {
 	return f, nil
 }
 
-func (f *Framework) Setup(opImage string) error {
-	if err := f.setupOperator(opImage); err != nil {
+func (f *Framework) Setup(opImage string, opImagePullPolicy string) error {
+	if err := f.setupOperator(opImage, opImagePullPolicy); err != nil {
 		return errors.Wrap(err, "setup operator failed")
 	}
 
 	return nil
 }
 
-func (f *Framework) setupOperator(opImage string) error {
+func (f *Framework) setupOperator(opImage string, opImagePullPolicy string) error {
 	if _, err := CreateServiceAccount(f.KubeClient, f.Namespace.Name, "../../manifest/spark-operator-rbac.yaml"); err != nil && !apierrors.IsAlreadyExists(err) {
 		return errors.Wrap(err, "failed to create operator service account")
 	}
@@ -109,6 +113,10 @@ func (f *Framework) setupOperator(opImage string) error {
 	if opImage != "" {
 		// Override operator image used, if specified when running tests.
 		deploy.Spec.Template.Spec.Containers[0].Image = opImage
+	}
+
+	for _, container := range deploy.Spec.Template.Spec.Containers {
+		container.ImagePullPolicy = v1.PullPolicy(opImagePullPolicy)
 	}
 
 	err = CreateDeployment(f.KubeClient, f.Namespace.Name, deploy)
