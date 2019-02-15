@@ -18,6 +18,7 @@ package sparkapplication
 
 import (
 	"fmt"
+	"github.com/golang/glog"
 	corev1 "k8s.io/api/core/v1"
 	apiErrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -39,26 +40,55 @@ const (
 )
 
 func configPrometheusMonitoring(app *v1beta1.SparkApplication, kubeClient clientset.Interface) error {
-	prometheusConfigMapName := fmt.Sprintf("%s-%s", app.Name, prometheusConfigMapNameSuffix)
-	configMap := buildPrometheusConfigMap(app, prometheusConfigMapName)
-	retryErr := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		cm, err := kubeClient.CoreV1().ConfigMaps(app.Namespace).Get(prometheusConfigMapName, metav1.GetOptions{})
+	port := config.DefaultPrometheusJavaAgentPort
+	if app.Spec.Monitoring.Prometheus.Port != nil {
+		port = *app.Spec.Monitoring.Prometheus.Port
+	}
 
-		if apiErrors.IsNotFound(err) {
-			_, createErr := kubeClient.CoreV1().ConfigMaps(app.Namespace).Create(configMap)
-			return createErr
+	configFile := app.Spec.Monitoring.Prometheus.ConfigFile
+	var javaOption string
+	if configFile != "" {
+		glog.V(2).Infof("Overriding the default Prometheus configuration with config file %s in the Spark job image.", configFile)
+		javaOption = fmt.Sprintf("-javaagent:%s=%d:%s", app.Spec.Monitoring.Prometheus.JmxExporterJar,
+			port, configFile)
+	} else {
+		glog.V(2).Infof("Using the default Prometheus configuration.")
+		prometheusConfigMapName := fmt.Sprintf("%s-%s", app.Name, prometheusConfigMapNameSuffix)
+		configMap := buildPrometheusConfigMap(app, prometheusConfigMapName)
+		retryErr := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+			cm, err := kubeClient.CoreV1().ConfigMaps(app.Namespace).Get(prometheusConfigMapName, metav1.GetOptions{})
+
+			if apiErrors.IsNotFound(err) {
+				_, createErr := kubeClient.CoreV1().ConfigMaps(app.Namespace).Create(configMap)
+				return createErr
+			}
+			if err != nil {
+				return err
+			}
+
+			cm.Data = configMap.Data
+			_, updateErr := kubeClient.CoreV1().ConfigMaps(app.Namespace).Update(cm)
+			return updateErr
+		})
+
+		if retryErr != nil {
+			return fmt.Errorf("failed to apply %s in namespace %s: %v", prometheusConfigMapName, app.Namespace, retryErr)
 		}
-		if err != nil {
-			return err
+		javaOption = fmt.Sprintf("-javaagent:%s=%d:%s/%s", app.Spec.Monitoring.Prometheus.JmxExporterJar,
+			port, prometheusConfigMapMountPath, prometheusConfigKey)
+
+		if app.Spec.Monitoring.ExposeDriverMetrics {
+			app.Spec.Driver.ConfigMaps = append(app.Spec.Driver.ConfigMaps, v1beta1.NamePath{
+				Name: prometheusConfigMapName,
+				Path: prometheusConfigMapMountPath,
+			})
 		}
-
-		cm.Data = configMap.Data
-		_, updateErr := kubeClient.CoreV1().ConfigMaps(app.Namespace).Update(cm)
-		return updateErr
-	})
-
-	if retryErr != nil {
-		return fmt.Errorf("failed to apply %s in namespace %s: %v", prometheusConfigMapName, app.Namespace, retryErr)
+		if app.Spec.Monitoring.ExposeExecutorMetrics {
+			app.Spec.Executor.ConfigMaps = append(app.Spec.Executor.ConfigMaps, v1beta1.NamePath{
+				Name: prometheusConfigMapName,
+				Path: prometheusConfigMapMountPath,
+			})
+		}
 	}
 
 	/* work around for push gateway issue: https://github.com/prometheus/pushgateway/issues/97 */
@@ -70,19 +100,7 @@ func configPrometheusMonitoring(app *v1beta1.SparkApplication, kubeClient client
 	app.Spec.SparkConf["spark.metrics.namespace"] = metricNamespace
 	app.Spec.SparkConf["spark.metrics.conf"] = metricConf
 
-	port := config.DefaultPrometheusJavaAgentPort
-	if app.Spec.Monitoring.Prometheus.Port != nil {
-		port = *app.Spec.Monitoring.Prometheus.Port
-	}
-	javaOption := fmt.Sprintf("-javaagent:%s=%d:%s/%s", app.Spec.Monitoring.Prometheus.JmxExporterJar,
-		port, prometheusConfigMapMountPath, prometheusConfigKey)
-
 	if app.Spec.Monitoring.ExposeDriverMetrics {
-		app.Spec.Driver.ConfigMaps = append(app.Spec.Driver.ConfigMaps, v1beta1.NamePath{
-			Name: prometheusConfigMapName,
-			Path: prometheusConfigMapMountPath,
-		})
-
 		if app.Spec.Driver.Annotations == nil {
 			app.Spec.Driver.Annotations = make(map[string]string)
 		}
@@ -97,11 +115,6 @@ func configPrometheusMonitoring(app *v1beta1.SparkApplication, kubeClient client
 		}
 	}
 	if app.Spec.Monitoring.ExposeExecutorMetrics {
-		app.Spec.Executor.ConfigMaps = append(app.Spec.Executor.ConfigMaps, v1beta1.NamePath{
-			Name: prometheusConfigMapName,
-			Path: prometheusConfigMapMountPath,
-		})
-
 		if app.Spec.Executor.Annotations == nil {
 			app.Spec.Executor.Annotations = make(map[string]string)
 		}

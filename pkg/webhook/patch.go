@@ -18,6 +18,7 @@ package webhook
 
 import (
 	"fmt"
+	"github.com/golang/glog"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -29,6 +30,7 @@ import (
 const (
 	sparkDriverContainerName   = "spark-kubernetes-driver"
 	sparkExecutorContainerName = "executor"
+	maxNameLength              = 63
 )
 
 // patchOperation represents a RFC6902 JSON patch operation.
@@ -206,6 +208,11 @@ func addGeneralConfigMaps(pod *corev1.Pod) []*patchOperation {
 	namesToMountPaths := config.FindGeneralConfigMaps(pod.Annotations)
 	for name, mountPath := range namesToMountPaths {
 		volumeName := name + "-vol"
+		if len(volumeName) > maxNameLength {
+			glog.V(2).Infof("ConfigMap volume name %s is too long. Truncating to length %d.", volumeName, maxNameLength)
+			volumeName = volumeName[0:maxNameLength]
+			glog.V(2).Infof("Truncated volume name: %s.", volumeName)
+		}
 		patchOps = append(patchOps, addConfigMapVolume(pod, name, volumeName))
 		patchOps = append(patchOps, addConfigMapVolumeMount(pod, volumeName, mountPath))
 	}
