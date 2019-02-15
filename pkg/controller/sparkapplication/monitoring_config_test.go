@@ -61,7 +61,7 @@ func TestConfigPrometheusMonitoring(t *testing.T) {
 			t.Errorf("prometheus.yaml expected %s got %s", test.prometheusConfig, configMap.Data[prometheusConfigKey])
 		}
 
-		expectedMetricsNamespace := fmt.Sprintf("%s-%s", test.app.Namespace, test.app.Name)
+		expectedMetricsNamespace := fmt.Sprintf("%s.%s", test.app.Namespace, test.app.Name)
 		if test.app.Spec.SparkConf["spark.metrics.namespace"] != expectedMetricsNamespace {
 			t.Errorf("metrics namespace expected %s got %s", expectedMetricsNamespace, test.app.Spec.SparkConf["spark.metrics.namespace"])
 		}
