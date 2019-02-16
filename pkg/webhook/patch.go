@@ -209,9 +209,8 @@ func addGeneralConfigMaps(pod *corev1.Pod) []*patchOperation {
 	for name, mountPath := range namesToMountPaths {
 		volumeName := name + "-vol"
 		if len(volumeName) > maxNameLength {
-			glog.V(2).Infof("ConfigMap volume name %s is too long. Truncating to length %d.", volumeName, maxNameLength)
 			volumeName = volumeName[0:maxNameLength]
-			glog.V(2).Infof("Truncated volume name: %s.", volumeName)
+			glog.V(2).Infof("ConfigMap volume name is too long. Truncating to length %d. Result: %s.", maxNameLength, volumeName)
 		}
 		patchOps = append(patchOps, addConfigMapVolume(pod, name, volumeName))
 		patchOps = append(patchOps, addConfigMapVolumeMount(pod, volumeName, mountPath))

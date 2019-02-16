@@ -74,6 +74,7 @@ func configPrometheusMonitoring(app *v1beta1.SparkApplication, kubeClient client
 		if retryErr != nil {
 			return fmt.Errorf("failed to apply %s in namespace %s: %v", prometheusConfigMapName, app.Namespace, retryErr)
 		}
+
 		javaOption = fmt.Sprintf("-javaagent:%s=%d:%s/%s", app.Spec.Monitoring.Prometheus.JmxExporterJar,
 			port, prometheusConfigMapMountPath, prometheusConfigKey)
 

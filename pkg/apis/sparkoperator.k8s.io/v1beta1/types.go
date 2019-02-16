@@ -480,10 +480,10 @@ type PrometheusSpec struct {
 	Port *int32 `json:"port"`
 	// ConfigFile is the path to the custom Prometheus configuration file provided in the Spark job image.
 	// ConfigFile takes precedence over Configuration, which is shown below.
-	ConfigFile string `json:"configFile"`
+	ConfigFile *string `json:"configFile,omitempty"`
 	// Configuration is the content of the Prometheus configuration needed by the Prometheus JMX exporter.
 	// Optional.
 	// If not specified, the content in spark-docker/conf/prometheus.yaml will be used.
 	// Configuration has no effect if ConfigFile is set.
-	Configuration *string `json:"configuration"`
+	Configuration *string `json:"configuration,omitempty"`
 }
