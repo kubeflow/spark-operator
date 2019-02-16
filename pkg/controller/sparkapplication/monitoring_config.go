@@ -45,10 +45,10 @@ func configPrometheusMonitoring(app *v1beta1.SparkApplication, kubeClient client
 		port = *app.Spec.Monitoring.Prometheus.Port
 	}
 
-	configFile := app.Spec.Monitoring.Prometheus.ConfigFile
+	configFile := *app.Spec.Monitoring.Prometheus.ConfigFile
 	var javaOption string
 	if configFile != "" {
-		glog.V(2).Infof("Overriding the default Prometheus configuration with config file %s in the Spark job image.", configFile)
+		glog.V(2).Infof("Overriding the default Prometheus configuration with config file %s in the Spark image.", configFile)
 		javaOption = fmt.Sprintf("-javaagent:%s=%d:%s", app.Spec.Monitoring.Prometheus.JmxExporterJar,
 			port, configFile)
 	} else {

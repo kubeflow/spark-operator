@@ -478,7 +478,7 @@ type PrometheusSpec struct {
 	// Optional.
 	// If not specified, 8090 will be used as the default.
 	Port *int32 `json:"port"`
-	// ConfigFile is the path to the custom Prometheus configuration file provided in the Spark job image.
+	// ConfigFile is the path to the custom Prometheus configuration file provided in the Spark image.
 	// ConfigFile takes precedence over Configuration, which is shown below.
 	ConfigFile *string `json:"configFile,omitempty"`
 	// Configuration is the content of the Prometheus configuration needed by the Prometheus JMX exporter.
