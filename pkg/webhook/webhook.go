@@ -109,7 +109,7 @@ func (wh *WebHook) Stop(webhookConfigName string) error {
 	if err := wh.selfDeregistration(webhookConfigName); err != nil {
 		return err
 	}
-
+	glog.Infof("Webhook %s deregistered", webhookConfigName)
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	glog.Info("Stopping the Spark pod admission webhook server")
@@ -256,7 +256,7 @@ func mutatePods(review *admissionv1beta1.AdmissionReview, sparkJobNs string) *ad
 	response := &admissionv1beta1.AdmissionResponse{Allowed: true}
 
 	if !isSparkPod(pod) || !inSparkJobNamespace(review.Request.Namespace, sparkJobNs) {
-		glog.V(2).Info(pod.GetObjectMeta().GetName(), " in namespace ", review.Request.Namespace, " not mutated.")
+		glog.V(2).Infof("Pod %s in namespace %s not mutated", pod.GetObjectMeta().GetName(), review.Request.Namespace)
 		return response
 	}
 
@@ -265,6 +265,8 @@ func mutatePods(review *admissionv1beta1.AdmissionReview, sparkJobNs string) *ad
 		glog.Error(err)
 		return toAdmissionResponse(err)
 	}
+
+	glog.V(2).Infof("Pod %s in namespace %s has been mutated", pod.GetObjectMeta().GetName(), review.Request.Namespace)
 
 	if len(patchOps) > 0 {
 		patchType := admissionv1beta1.PatchTypeJSONPatch
@@ -299,13 +301,17 @@ func inSparkJobNamespace(podNs string, sparkJobNamespace string) bool {
 func isSparkPod(pod *corev1.Pod) bool {
 	launchedBySparkOperator, ok := pod.Labels[config.LaunchedBySparkOperatorLabel]
 	if !ok {
+		glog.V(2).Info("LaunchedBySparkOperatorLabel is missing")
 		return false
 	}
 
 	sparkRole, ok := pod.Labels[sparkRoleLabel]
 	if !ok {
+		glog.V(2).Info("SparkRoleLabel is missing")
 		return false
 	}
+	glog.V(3).Info("SparkRole value:", sparkRole)
+	glog.V(3).Info("LaunchedBySparkOperator value:", launchedBySparkOperator)
 
 	return launchedBySparkOperator == "true" && (sparkRole == sparkDriverRole || sparkRole == sparkExecutorRole)
 }
