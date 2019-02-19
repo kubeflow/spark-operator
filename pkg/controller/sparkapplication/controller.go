@@ -676,30 +676,27 @@ func (c *Controller) getSparkApplication(namespace string, name string) (*v1beta
 // Delete the driver pod and optional UI resources (Service/Ingress) created for the application.
 func (c *Controller) deleteSparkResources(app *v1beta1.SparkApplication) error {
 	driverPodName := app.Status.DriverInfo.PodName
-	if driverPodName == "" {
-		driverPodName = getDefaultDriverPodName(app)
-	}
-	err := c.kubeClient.CoreV1().Pods(app.Namespace).Delete(driverPodName, metav1.NewDeleteOptions(0))
-	if err != nil && !errors.IsNotFound(err) {
-		return err
+	if driverPodName != "" {
+		err := c.kubeClient.CoreV1().Pods(app.Namespace).Delete(driverPodName, metav1.NewDeleteOptions(0))
+		if err != nil && !errors.IsNotFound(err) {
+			return err
+		}
 	}
 
 	sparkUIServiceName := app.Status.DriverInfo.WebUIServiceName
-	if sparkUIServiceName == "" {
-		sparkUIServiceName = getDefaultUIServiceName(app)
-	}
-	err = c.kubeClient.CoreV1().Services(app.Namespace).Delete(sparkUIServiceName, metav1.NewDeleteOptions(0))
-	if err != nil && !errors.IsNotFound(err) {
-		return err
+	if sparkUIServiceName != "" {
+		err := c.kubeClient.CoreV1().Services(app.Namespace).Delete(sparkUIServiceName, metav1.NewDeleteOptions(0))
+		if err != nil && !errors.IsNotFound(err) {
+			return err
+		}
 	}
 
 	sparkUIIngressName := app.Status.DriverInfo.WebUIIngressName
-	if sparkUIIngressName == "" {
-		sparkUIIngressName = getDefaultUIIngressName(app)
-	}
-	err = c.kubeClient.ExtensionsV1beta1().Ingresses(app.Namespace).Delete(sparkUIIngressName, metav1.NewDeleteOptions(0))
-	if err != nil && !errors.IsNotFound(err) {
-		return err
+	if sparkUIIngressName != "" {
+		err := c.kubeClient.ExtensionsV1beta1().Ingresses(app.Namespace).Delete(sparkUIIngressName, metav1.NewDeleteOptions(0))
+		if err != nil && !errors.IsNotFound(err) {
+			return err
+		}
 	}
 
 	return nil
@@ -708,29 +705,27 @@ func (c *Controller) deleteSparkResources(app *v1beta1.SparkApplication) error {
 // Validate that any Spark resources (driver/Service/Ingress) created for the application have been deleted.
 func (c *Controller) validateSparkResourceDeletion(app *v1beta1.SparkApplication) bool {
 	driverPodName := app.Status.DriverInfo.PodName
-	if driverPodName == "" {
-		driverPodName = getDefaultDriverPodName(app)
-	}
-	_, err := c.kubeClient.CoreV1().Pods(app.Namespace).Get(driverPodName, metav1.GetOptions{})
-	if err == nil || !errors.IsNotFound(err) {
-		return false
+	if driverPodName != "" {
+		_, err := c.kubeClient.CoreV1().Pods(app.Namespace).Get(driverPodName, metav1.GetOptions{})
+		if err == nil || !errors.IsNotFound(err) {
+			return false
+		}
 	}
 
 	sparkUIServiceName := app.Status.DriverInfo.WebUIServiceName
-	if sparkUIServiceName == "" {
-		sparkUIServiceName = getDefaultUIServiceName(app)
+	if sparkUIServiceName != "" {
+		_, err := c.kubeClient.CoreV1().Services(app.Namespace).Get(sparkUIServiceName, metav1.GetOptions{})
+		if err == nil || !errors.IsNotFound(err) {
+			return false
+		}
 	}
-	_, err = c.kubeClient.CoreV1().Services(app.Namespace).Get(sparkUIServiceName, metav1.GetOptions{})
-	if err == nil || !errors.IsNotFound(err) {
-		return false
-	}
+
 	sparkUIIngressName := app.Status.DriverInfo.WebUIIngressName
-	if sparkUIIngressName == "" {
-		sparkUIIngressName = getDefaultUIIngressName(app)
-	}
-	_, err = c.kubeClient.ExtensionsV1beta1().Ingresses(app.Namespace).Get(sparkUIIngressName, metav1.GetOptions{})
-	if err == nil || !errors.IsNotFound(err) {
-		return false
+	if sparkUIIngressName != "" {
+		_, err := c.kubeClient.ExtensionsV1beta1().Ingresses(app.Namespace).Get(sparkUIIngressName, metav1.GetOptions{})
+		if err == nil || !errors.IsNotFound(err) {
+			return false
+		}
 	}
 
 	return true
