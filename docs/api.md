@@ -1,11 +1,7 @@
 # SparkApplication API
 
-The Kubernetes Operator for Apache Spark uses  [CustomResourceDefinitions](https://kubernetes.io/docs/concepts/api-extension/custom-resources/) 
-named `SparkApplication` and `ScheduledSparkApplication` for specifying one-time Spark applications and Spark applications
-that are supposed to run on a standard [cron](https://en.wikipedia.org/wiki/Cron) schedule. Similarly to other kinds of 
-Kubernetes resources, they consist of a specification in a `Spec` field and a `Status` field. The definitions are organized 
-in the following structure. The v1beta1 version of the API definition is implemented 
-[here](../pkg/apis/sparkoperator.k8s.io/v1beta1/types.go).
+The Kubernetes Operator for Apache Spark uses  [CustomResourceDefinitions](https://kubernetes.io/docs/concepts/api-extension/custom-resources/) named `SparkApplication` and `ScheduledSparkApplication` for specifying one-time Spark applications and Spark applications
+that are supposed to run on a standard [cron](https://en.wikipedia.org/wiki/Cron) schedule. Similarly to other kinds of Kubernetes resources, they consist of a specification in a `Spec` field and a `Status` field. The definitions are organized in the following structure. The v1beta1 version of the API definition is implemented [here](../pkg/apis/sparkoperator.k8s.io/v1beta1/types.go).
 
 ```
 ScheduledSparkApplication
@@ -124,7 +120,8 @@ A `PrometheusSpec` configures how metrics are exposed to Prometheus.
 | ------------- | ------------- | ------------- |
 | `JmxExporterJar` | N/A | This specifies the path to the [Prometheus JMX exporter](https://github.com/prometheus/jmx_exporter) jar. |
 | `Port` | N/A | If specified, the value will be used in the Java agent configuration for the Prometheus JMX exporter. The Java agent gets bound to the specified port if specified or `8090` otherwise by default. |
-| `Configuration` | N/A | If specified, this contains the content of a custom Prometheus configuration used by the Prometheus JMX exporter. Otherwise, the content of `spark-docker/conf/prometheus.yaml` will be used. |
+| `ConfigFile` | N/A | This specifies the full path of the Prometheus configuration file in the Spark image. If specified, it will override the default configurations and take precedence over `Configuration` shown below. |
+| `Configuration` | N/A | If specified, this contains the contents of a custom Prometheus configuration used by the Prometheus JMX exporter. Otherwise, the contents of `spark-docker/conf/prometheus.yaml` will be used, unless `ConfigFile` is specified. |
 
 ### `SparkApplicationStatus`
 
