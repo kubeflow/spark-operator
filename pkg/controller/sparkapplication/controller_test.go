@@ -943,7 +943,7 @@ func TestSyncSparkApplication_ExecutingState(t *testing.T) {
 					Phase: apiv1.PodSucceeded,
 				},
 			},
-			expectedAppState:      v1beta1.FailingState,
+			expectedAppState:      v1beta1.FailedState,
 			expectedExecutorState: map[string]v1beta1.ExecutorState{"exec-1": v1beta1.ExecutorCompletedState},
 			expectedAppMetrics: metrics{
 				failedMetricCount: 1,
@@ -982,7 +982,7 @@ func TestSyncSparkApplication_ExecutingState(t *testing.T) {
 					Phase: apiv1.PodSucceeded,
 				},
 			},
-			expectedAppState:      v1beta1.SucceedingState,
+			expectedAppState:      v1beta1.CompletedState,
 			expectedExecutorState: map[string]v1beta1.ExecutorState{"exec-1": v1beta1.ExecutorCompletedState},
 			expectedAppMetrics: metrics{
 				successMetricCount: 1,
@@ -1037,13 +1037,13 @@ func TestSyncSparkApplication_ExecutingState(t *testing.T) {
 			t.Fatal(err)
 		}
 		if test.driverPod != nil {
-			ctrl.kubeClient.CoreV1().Pods(app.GetNamespace()).Create(test.driverPod)
+			ctrl.kubeClient.CoreV1().Pods(app.Namespace).Create(test.driverPod)
 		}
 		if test.executorPod != nil {
-			ctrl.kubeClient.CoreV1().Pods(app.GetNamespace()).Create(test.executorPod)
+			ctrl.kubeClient.CoreV1().Pods(app.Namespace).Create(test.executorPod)
 		}
 
-		err = ctrl.syncSparkApplication(fmt.Sprintf("%s/%s", app.GetNamespace(), app.GetName()))
+		err = ctrl.syncSparkApplication(fmt.Sprintf("%s/%s", app.Namespace, app.Name))
 		assert.Nil(t, err)
 		// Verify application and executor states.
 		updatedApp, err := ctrl.crdClient.SparkoperatorV1beta1().SparkApplications(app.Namespace).Get(app.Name, metav1.GetOptions{})

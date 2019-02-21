@@ -150,7 +150,7 @@ func (sm *sparkAppMetrics) exportMetrics(oldApp, newApp *v1beta1.SparkApplicatio
 		if oldState != newState {
 			sm.sparkAppRunningCount.Inc(metricLabels)
 		}
-	case v1beta1.SucceedingState:
+	case v1beta1.SucceedingState, v1beta1.CompletedState:
 		if oldState != newState {
 			if !newApp.Status.LastSubmissionAttemptTime.Time.IsZero() && !newApp.Status.TerminationTime.Time.IsZero() {
 				d := newApp.Status.TerminationTime.Time.Sub(newApp.Status.LastSubmissionAttemptTime.Time)
@@ -168,7 +168,7 @@ func (sm *sparkAppMetrics) exportMetrics(oldApp, newApp *v1beta1.SparkApplicatio
 				m.Inc()
 			}
 		}
-	case v1beta1.FailingState, v1beta1.FailedSubmissionState:
+	case v1beta1.FailingState, v1beta1.FailedState, v1beta1.FailedSubmissionState:
 		if oldState != newState {
 			if !newApp.Status.LastSubmissionAttemptTime.Time.IsZero() && !newApp.Status.TerminationTime.Time.IsZero() {
 				d := newApp.Status.TerminationTime.Time.Sub(newApp.Status.LastSubmissionAttemptTime.Time)

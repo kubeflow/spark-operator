@@ -269,13 +269,12 @@ type driverState struct {
 	completionTime     metav1.Time    // Time the driver completes.
 }
 
-func (c *Controller) getUpdatedAppStatus(app *v1beta1.SparkApplication) v1beta1.SparkApplicationStatus {
+func (c *Controller) updateAppStatus(app *v1beta1.SparkApplication) error {
 	// Fetch all the pods for the application.
 	selector, _ := labels.NewRequirement(config.SparkAppNameLabel, selection.Equals, []string{app.Name})
 	pods, err := c.podLister.Pods(app.Namespace).List(labels.NewSelector().Add(*selector))
 	if err != nil {
-		glog.Errorf("failed to get pods for SparkApplication %s/%s: %v", app.Namespace, app.Name, err)
-		return app.Status
+		return fmt.Errorf("failed to get pods for SparkApplication %s/%s: %v", app.Namespace, app.Name, err)
 	}
 
 	var currentDriverState *driverState
@@ -321,7 +320,9 @@ func (c *Controller) getUpdatedAppStatus(app *v1beta1.SparkApplication) v1beta1.
 		}
 	} else {
 		glog.Warningf("driver not found for SparkApplication: %s/%s", app.Namespace, app.Name)
-		if app.Status.AppState.State == v1beta1.RunningState && app.Status.TerminationTime.IsZero() {
+		// The application has not terminated and has a recorded driver Pod, but no driver Pod was found for it.
+		// This is likely because the driver Pod was deleted. In this case, set the application state to FailingState.
+		if app.Status.TerminationTime.IsZero() && app.Status.DriverInfo.PodName != "" {
 			app.Status.AppState.ErrorMessage = "Driver Pod not found"
 			app.Status.AppState.State = v1beta1.FailingState
 			app.Status.TerminationTime = metav1.Now()
@@ -349,7 +350,8 @@ func (c *Controller) getUpdatedAppStatus(app *v1beta1.SparkApplication) v1beta1.
 			app.Status.ExecutorState[name] = v1beta1.ExecutorFailedState
 		}
 	}
-	return app.Status
+
+	return nil
 }
 
 func (c *Controller) handleSparkApplicationDeletion(app *v1beta1.SparkApplication) {
@@ -442,6 +444,9 @@ func (c *Controller) syncSparkApplication(key string) error {
 	}
 
 	appToUpdate := app.DeepCopy()
+	if err := c.updateAppStatus(appToUpdate); err != nil {
+		return err
+	}
 
 	// Take action based on application state.
 	switch appToUpdate.Status.AppState.State {
@@ -500,9 +505,6 @@ func (c *Controller) syncSparkApplication(key string) error {
 			appToUpdate.Status.TerminationTime = metav1.Time{}
 			appToUpdate = c.submitSparkApplication(appToUpdate)
 		}
-	case v1beta1.SubmittedState, v1beta1.RunningState, v1beta1.UnknownState:
-		//Application already submitted, get driver and executor pods and update its status.
-		appToUpdate.Status = c.getUpdatedAppStatus(appToUpdate)
 	}
 
 	if appToUpdate != nil {
@@ -513,6 +515,7 @@ func (c *Controller) syncSparkApplication(key string) error {
 			return err
 		}
 	}
+
 	return nil
 }
 
