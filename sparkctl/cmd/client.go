@@ -17,6 +17,8 @@ limitations under the License.
 package cmd
 
 import (
+	"os"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	clientset "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -27,6 +29,17 @@ import (
 )
 
 func buildConfig(kubeConfig string) (*rest.Config, error) {
+	// Check if kubeConfig exist
+	if _, err := os.Stat(kubeConfig); os.IsNotExist(err) {
+		// Try InclusterConfig for sparkctl running in a pod
+		config, err := rest.InClusterConfig()
+		if err != nil {
+			return nil, err
+		}
+
+		return config, nil
+	}
+
 	return clientcmd.BuildConfigFromFlags("", kubeConfig)
 }
 
