@@ -21,14 +21,13 @@ import (
 	clientset "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
+	"os"
 
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta1"
 	crdclientset "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/client/clientset/versioned"
-	"os"
 )
 
 func buildConfig(kubeConfig string) (*rest.Config, error) {
-
 	// Check if kubeConfig exist
 	if _, err := os.Stat(kubeConfig); os.IsNotExist(err) {
 		// Try InclusterConfig for sparkctl running in a pod
