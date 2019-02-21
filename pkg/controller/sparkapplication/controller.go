@@ -171,6 +171,7 @@ func (c *Controller) Stop() {
 // Callback function called when a new SparkApplication object gets created.
 func (c *Controller) onAdd(obj interface{}) {
 	app := obj.(*v1beta1.SparkApplication)
+	v1beta1.SetSparkApplicationDefaults(app)
 	glog.Infof("SparkApplication %s/%s was added, enqueueing it for submission", app.Namespace, app.Name)
 	c.enqueue(app)
 }
