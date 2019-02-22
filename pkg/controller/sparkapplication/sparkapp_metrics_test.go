@@ -27,7 +27,7 @@ import (
 func TestSparkAppMetrics(t *testing.T) {
 	http.DefaultServeMux = new(http.ServeMux)
 	// Test with label containing "-". Expect them to be converted to "_".
-	metrics := newSparkAppMetrics("", []string{"app-name"})
+	metrics := newSparkAppMetrics("", []string{"app-id"})
 	app1 := map[string]string{"app_id": "test1"}
 
 	var wg sync.WaitGroup
