@@ -519,6 +519,7 @@ func (c *Controller) syncSparkApplication(key string) error {
 
 // Helper func to determine if we have waited enough to retry the SparkApplication.
 func hasRetryIntervalPassed(retryInterval *int64, attemptsDone int32, lastEventTime metav1.Time) bool {
+	glog.V(3).Infof("retryInterval: %d , lastEventTime: %v, attempsDone: %d", retryInterval, lastEventTime, attemptsDone)
 	if retryInterval == nil || lastEventTime.IsZero() || attemptsDone <= 0 {
 		return false
 	}
@@ -526,6 +527,7 @@ func hasRetryIntervalPassed(retryInterval *int64, attemptsDone int32, lastEventT
 	// Retry if we have waited at-least equal to attempts*RetryInterval since we do a linear back-off.
 	interval := time.Duration(*retryInterval) * time.Second * time.Duration(attemptsDone)
 	currentTime := time.Now()
+	glog.V(3).Infof("currentTime is %v, interval is %v", currentTime, interval)
 	if currentTime.After(lastEventTime.Add(interval)) {
 		return true
 	}
@@ -678,6 +680,7 @@ func (c *Controller) getSparkApplication(namespace string, name string) (*v1beta
 func (c *Controller) deleteSparkResources(app *v1beta1.SparkApplication) error {
 	driverPodName := app.Status.DriverInfo.PodName
 	if driverPodName != "" {
+		glog.V(2).Infof("Deleting pod with name %s in namespace %s", driverPodName, app.Namespace)
 		err := c.kubeClient.CoreV1().Pods(app.Namespace).Delete(driverPodName, metav1.NewDeleteOptions(0))
 		if err != nil && !errors.IsNotFound(err) {
 			return err
@@ -686,6 +689,7 @@ func (c *Controller) deleteSparkResources(app *v1beta1.SparkApplication) error {
 
 	sparkUIServiceName := app.Status.DriverInfo.WebUIServiceName
 	if sparkUIServiceName != "" {
+		glog.V(2).Infof("Deleting Spark UI Service %s in namespace %s", sparkUIServiceName, app.Namespace)
 		err := c.kubeClient.CoreV1().Services(app.Namespace).Delete(sparkUIServiceName, metav1.NewDeleteOptions(0))
 		if err != nil && !errors.IsNotFound(err) {
 			return err
@@ -694,6 +698,7 @@ func (c *Controller) deleteSparkResources(app *v1beta1.SparkApplication) error {
 
 	sparkUIIngressName := app.Status.DriverInfo.WebUIIngressName
 	if sparkUIIngressName != "" {
+		glog.V(2).Infof("Deleting Spark UI Ingress %s in namespace %s", sparkUIIngressName, app.Namespace)
 		err := c.kubeClient.ExtensionsV1beta1().Ingresses(app.Namespace).Delete(sparkUIIngressName, metav1.NewDeleteOptions(0))
 		if err != nil && !errors.IsNotFound(err) {
 			return err
