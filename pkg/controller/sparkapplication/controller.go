@@ -292,11 +292,15 @@ func (c *Controller) updateAppStatus(app *v1beta1.SparkApplication) error {
 			if pod.Status.Phase == apiv1.PodSucceeded || pod.Status.Phase == apiv1.PodFailed {
 				currentDriverState.completionTime = metav1.Now()
 			}
-			c.recordDriverEvent(app, pod.Status.Phase, pod.Name)
 		}
 		if isExecutorPod(pod) {
-			c.recordExecutorEvent(app, podPhaseToExecutorState(pod.Status.Phase), pod.Name)
-			executorStateMap[pod.Name] = podPhaseToExecutorState(pod.Status.Phase)
+			newState := podPhaseToExecutorState(pod.Status.Phase)
+			// Only record an executor event if the executor state has changed.
+			if newState != executorStateMap[pod.Name] {
+				c.recordExecutorEvent(app, newState, pod.Name)
+			}
+			executorStateMap[pod.Name] = newState
+
 			if executorApplicationID == "" {
 				executorApplicationID = getSparkApplicationID(pod)
 			}
@@ -304,21 +308,24 @@ func (c *Controller) updateAppStatus(app *v1beta1.SparkApplication) error {
 	}
 
 	if currentDriverState != nil {
-		newAppState := driverPodPhaseToApplicationState(currentDriverState.podPhase)
-		app.Status.AppState.State = newAppState
-		if newAppState != v1beta1.UnknownState {
+		newState := driverPodPhaseToApplicationState(currentDriverState.podPhase)
+		// Only record a driver event if the application state (derived from the driver pod phase) has changed.
+		if newState != app.Status.AppState.State {
+			c.recordDriverEvent(app, currentDriverState.podPhase, currentDriverState.podName)
+		}
+		if newState != v1beta1.UnknownState {
 			app.Status.DriverInfo.PodName = currentDriverState.podName
 			app.Status.SparkApplicationID = currentDriverState.sparkApplicationID
 			if currentDriverState.nodeName != "" {
 				if nodeIP := c.getNodeExternalIP(currentDriverState.nodeName); nodeIP != "" {
-					app.Status.DriverInfo.WebUIAddress = fmt.Sprintf("%s:%d", nodeIP,
-						app.Status.DriverInfo.WebUIPort)
+					app.Status.DriverInfo.WebUIAddress = fmt.Sprintf("%s:%d", nodeIP, app.Status.DriverInfo.WebUIPort)
 				}
 			}
 			if app.Status.TerminationTime.IsZero() && !currentDriverState.completionTime.IsZero() {
 				app.Status.TerminationTime = currentDriverState.completionTime
 			}
 		}
+		app.Status.AppState.State = newState
 	} else {
 		glog.Warningf("driver not found for SparkApplication: %s/%s", app.Namespace, app.Name)
 		// The application has not terminated and has a recorded driver Pod, but no driver Pod was found for it.
