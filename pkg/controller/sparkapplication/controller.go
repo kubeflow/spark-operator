@@ -35,6 +35,7 @@ import (
 	clientset "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
 	typedcorev1 "k8s.io/client-go/kubernetes/typed/core/v1"
+	batchv1 "k8s.io/client-go/listers/batch/v1"
 	v1 "k8s.io/client-go/listers/core/v1"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
@@ -71,6 +72,7 @@ type Controller struct {
 	metrics           *sparkAppMetrics
 	applicationLister crdlisters.SparkApplicationLister
 	podLister         v1.PodLister
+	jobLister         batchv1.JobLister
 	ingressURLFormat  string
 	subJobManager     *submissionJobManager
 }
@@ -80,7 +82,7 @@ func NewController(
 	crdClient crdclientset.Interface,
 	kubeClient clientset.Interface,
 	crdInformerFactory crdinformers.SharedInformerFactory,
-	podInformerFactory informers.SharedInformerFactory,
+	informerFactory informers.SharedInformerFactory,
 	metricsConfig *util.MetricConfig,
 	namespace string,
 	ingressURLFormat string) *Controller {
@@ -93,14 +95,14 @@ func NewController(
 	})
 	recorder := eventBroadcaster.NewRecorder(scheme.Scheme, apiv1.EventSource{Component: "spark-operator"})
 
-	return newSparkApplicationController(crdClient, kubeClient, crdInformerFactory, podInformerFactory, recorder, metricsConfig, ingressURLFormat)
+	return newSparkApplicationController(crdClient, kubeClient, crdInformerFactory, informerFactory, recorder, metricsConfig, ingressURLFormat)
 }
 
 func newSparkApplicationController(
 	crdClient crdclientset.Interface,
 	kubeClient clientset.Interface,
 	crdInformerFactory crdinformers.SharedInformerFactory,
-	podInformerFactory informers.SharedInformerFactory,
+	informerFactory informers.SharedInformerFactory,
 	eventRecorder record.EventRecorder,
 	metricsConfig *util.MetricConfig,
 	ingressURLFormat string) *Controller {
@@ -129,7 +131,7 @@ func newSparkApplicationController(
 	})
 	controller.applicationLister = crdInformer.Lister()
 
-	podsInformer := podInformerFactory.Core().V1().Pods()
+	podsInformer := informerFactory.Core().V1().Pods()
 	sparkPodEventHandler := newSparkPodEventHandler(controller.queue.AddRateLimited, controller.applicationLister)
 	podsInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc:    sparkPodEventHandler.onPodAdded,
@@ -137,6 +139,10 @@ func newSparkApplicationController(
 		DeleteFunc: sparkPodEventHandler.onPodDeleted,
 	})
 	controller.podLister = podsInformer.Lister()
+
+	jobLister := informerFactory.Batch().V1().Jobs().Lister()
+	controller.jobLister = jobLister
+	controller.subJobManager = &submissionJobManager{kubeClient: kubeClient, jobLister: jobLister}
 
 	controller.cacheSynced = func() bool {
 		return crdInformer.Informer().HasSynced() && podsInformer.Informer().HasSynced()
@@ -494,6 +500,14 @@ func (c *Controller) syncSparkApplication(key string) error {
 			}
 			appToUpdate.Status.AppState.ErrorMessage = ""
 			appToUpdate.Status.AppState.State = v1beta1.PendingRerunState
+		}
+	case v1beta1.FailedSubmissionState:
+		if !shouldRetry(appToUpdate) {
+			// App will never be retried. Move to terminal FailedState.
+			appToUpdate.Status.AppState.State = v1beta1.FailedState
+			c.recordSparkApplicationEvent(appToUpdate)
+		} else if hasRetryIntervalPassed(appToUpdate.Spec.RestartPolicy.OnSubmissionFailureRetryInterval, appToUpdate.Status.SubmissionAttempts, appToUpdate.Status.SubmissionTime) {
+			appToUpdate = c.submitSparkApplication(appToUpdate)
 		}
 	case v1beta1.InvalidatingState:
 		// Invalidate the current run and enqueue the SparkApplication for re-execution.
@@ -866,7 +880,6 @@ func (c *Controller) clearStatus(status *v1beta1.SparkApplicationStatus) {
 		status.SparkApplicationID = ""
 		status.SubmissionAttempts = 0
 		status.ExecutionAttempts = 0
-		status.LastSubmissionAttemptTime = metav1.Time{}
 		status.TerminationTime = metav1.Time{}
 		status.ExecutorState = nil
 	} else if status.AppState.State == v1beta1.PendingRerunState {

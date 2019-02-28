@@ -52,7 +52,10 @@ type RestartPolicy struct {
 	// These are required if RestartPolicy is OnFailure.
 	OnSubmissionFailureRetries *int32 `json:"onSubmissionFailureRetries,omitempty"`
 	OnFailureRetries           *int32 `json:"onFailureRetries,omitempty"`
-	OnFailureRetryInterval     *int64 `json:"onFailureRetryInterval,omitempty"`
+
+	// Interval to wait between successive retries of a failed application.
+	OnSubmissionFailureRetryInterval *int64 `json:"onSubmissionFailureRetryInterval,omitempty"`
+	OnFailureRetryInterval           *int64 `json:"onFailureRetryInterval,omitempty"`
 }
 
 type RestartPolicyType string
@@ -246,17 +249,18 @@ type ApplicationStateType string
 
 // Different states an application may have.
 const (
-	NewState              ApplicationStateType = ""
-	SubmittedState        ApplicationStateType = "SUBMITTED"
-	RunningState          ApplicationStateType = "RUNNING"
-	CompletedState        ApplicationStateType = "COMPLETED"
-	FailedState           ApplicationStateType = "FAILED"
-	FailedSubmissionState ApplicationStateType = "SUBMISSION_FAILED"
-	PendingRerunState     ApplicationStateType = "PENDING_RERUN"
-	InvalidatingState     ApplicationStateType = "INVALIDATING"
-	SucceedingState       ApplicationStateType = "SUCCEEDING"
-	FailingState          ApplicationStateType = "FAILING"
-	UnknownState          ApplicationStateType = "UNKNOWN"
+	NewState               ApplicationStateType = ""
+	PendingSubmissionState ApplicationStateType = "PENDING_SUBMISSION" // Submission job created.
+	SubmittedState         ApplicationStateType = "SUBMITTED"          // Submission job succeeded.
+	FailedSubmissionState  ApplicationStateType = "SUBMISSION_FAILED"  // Submission command/job creation failed.
+	RunningState           ApplicationStateType = "RUNNING"            // Application is running.
+	CompletedState         ApplicationStateType = "COMPLETED"          // Application completed.
+	FailedState            ApplicationStateType = "FAILED"             // Application failed or submission job failed.
+	PendingRerunState      ApplicationStateType = "PENDING_RERUN"      // Application is pending being rerun.
+	InvalidatingState      ApplicationStateType = "INVALIDATING"       // Application spec has been updated and re-run is due.
+	SucceedingState        ApplicationStateType = "SUCCEEDING"         // Application succeeded but might be subject to restart.
+	FailingState           ApplicationStateType = "FAILING"            // Application failed but might be subject to restart.
+	UnknownState           ApplicationStateType = "UNKNOWN"
 )
 
 // ApplicationState tells the current state of the application and an error message in case of failures.

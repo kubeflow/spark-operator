@@ -24,13 +24,15 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
+	batchv1listers "k8s.io/client-go/listers/batch/v1"
 
-	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1alpha1"
+	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta1"
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/config"
 )
 
 type submissionJobManager struct {
 	kubeClient kubernetes.Interface
+	jobLister  batchv1listers.JobLister
 }
 
 func (sjm *submissionJobManager) createSubmissionJob(s *submission) (*batchv1.Job, error) {
@@ -86,17 +88,17 @@ func (sjm *submissionJobManager) createSubmissionJob(s *submission) (*batchv1.Jo
 	return sjm.kubeClient.BatchV1().Jobs(s.app.Namespace).Create(job)
 }
 
-func (sjm *submissionJobManager) getSubmissionJob(app *v1alpha1.SparkApplication) (*batchv1.Job, error) {
-	return sjm.kubeClient.BatchV1().Jobs(app.Namespace).Get(getSubmissionJobName(app), metav1.GetOptions{})
+func (sjm *submissionJobManager) getSubmissionJob(app *v1beta1.SparkApplication) (*batchv1.Job, error) {
+	return sjm.jobLister.Jobs(app.Namespace).Get(app.Name)
 }
 
-func (sjm *submissionJobManager) deleteSubmissionJob(app *v1alpha1.SparkApplication) error {
+func (sjm *submissionJobManager) deleteSubmissionJob(app *v1beta1.SparkApplication) error {
 	return sjm.kubeClient.BatchV1().Jobs(app.Namespace).Delete(getSubmissionJobName(app), metav1.NewDeleteOptions(0))
 }
 
 // hasJobSucceeded returns a boolean that indicates if the job has succeeded or not if the job has terminated.
 // Otherwise, it returns a nil to indicate that the job has not terminated yet.
-func (sjm *submissionJobManager) hasJobSucceeded(app *v1alpha1.SparkApplication) (*bool, error) {
+func (sjm *submissionJobManager) hasJobSucceeded(app *v1beta1.SparkApplication) (*bool, error) {
 	job, err := sjm.getSubmissionJob(app)
 	if err != nil {
 		return nil, err
