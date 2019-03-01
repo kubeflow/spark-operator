@@ -43,6 +43,8 @@ $ helm repo add incubator http://storage.googleapis.com/kubernetes-charts-incuba
 $ helm install incubator/sparkoperator --namespace spark-operator
 ```
 
+For configuration options available in the Helm chart, please refer to [Configuration](https://github.com/helm/charts/tree/master/incubator/sparkoperator#configuration).
+
 ## Get Started
 
 Get started quickly with the Kubernetes Operator for Apache Spark using the [Quick Start Guide](docs/quick-start-guide.md). 
