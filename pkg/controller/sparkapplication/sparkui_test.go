@@ -137,7 +137,7 @@ func TestCreateSparkUIService(t *testing.T) {
 			},
 			expectedSelector: map[string]string{
 				config.SparkAppNameLabel: "foo",
-				config.SparkRoleLabel:    sparkDriverRole,
+				config.SparkRoleLabel:    config.SparkDriverRole,
 			},
 			expectError: false,
 		},
@@ -150,7 +150,7 @@ func TestCreateSparkUIService(t *testing.T) {
 			},
 			expectedSelector: map[string]string{
 				config.SparkAppNameLabel: "foo",
-				config.SparkRoleLabel:    sparkDriverRole,
+				config.SparkRoleLabel:    config.SparkDriverRole,
 			},
 			expectError: false,
 		},
