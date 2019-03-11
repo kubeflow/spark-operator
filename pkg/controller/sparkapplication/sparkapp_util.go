@@ -37,14 +37,6 @@ func getAppName(pod *apiv1.Pod) (string, bool) {
 	return appName, ok
 }
 
-func isDriverPod(pod *apiv1.Pod) bool {
-	return pod.Labels[config.SparkRoleLabel] == sparkDriverRole
-}
-
-func isExecutorPod(pod *apiv1.Pod) bool {
-	return pod.Labels[config.SparkRoleLabel] == sparkExecutorRole
-}
-
 func getSparkApplicationID(pod *apiv1.Pod) string {
 	return pod.Labels[config.SparkApplicationSelectorLabel]
 }

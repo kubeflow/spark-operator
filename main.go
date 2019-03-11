@@ -97,7 +97,7 @@ func main() {
 		util.InitializeMetrics(metricConfig)
 	}
 
-	glog.Info("Starting the Spark operator")
+	glog.Info("Starting the Spark Operator")
 
 	stopCh := make(chan struct{})
 
@@ -143,7 +143,7 @@ func main() {
 	var hook *webhook.WebHook
 	if *enableWebhook {
 		var err error
-		hook, err = webhook.New(kubeClient, *webhookCertDir, *webhookSvcNamespace, *webhookSvcName, *webhookPort, *namespace)
+		hook, err = webhook.New(kubeClient, crInformerFactory, *webhookCertDir, *webhookSvcNamespace, *webhookSvcName, *webhookPort, *namespace)
 		if err != nil {
 			glog.Fatal(err)
 		}
@@ -159,7 +159,7 @@ func main() {
 
 	close(stopCh)
 
-	glog.Info("Shutting down the Spark operator")
+	glog.Info("Shutting down the Spark Operator")
 	applicationController.Stop()
 	scheduledApplicationController.Stop()
 	if *enableWebhook {

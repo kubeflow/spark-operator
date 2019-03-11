@@ -230,6 +230,7 @@ type executorMetrics struct {
 }
 
 func TestSyncSparkApplication_SubmissionFailed(t *testing.T) {
+	os.Setenv(sparkHomeEnvVar, "/spark")
 	os.Setenv(kubernetesServiceHostEnvVar, "localhost")
 	os.Setenv(kubernetesServicePortEnvVar, "443")
 
@@ -489,6 +490,7 @@ func TestSyncSparkApplication_SubmissionSuccess(t *testing.T) {
 		app           *v1beta1.SparkApplication
 		expectedState v1beta1.ApplicationStateType
 	}
+	os.Setenv(sparkHomeEnvVar, "/spark")
 	os.Setenv(kubernetesServiceHostEnvVar, "localhost")
 	os.Setenv(kubernetesServicePortEnvVar, "443")
 
@@ -879,7 +881,7 @@ func TestSyncSparkApplication_ExecutingState(t *testing.T) {
 					Name:      "foo-driver",
 					Namespace: "test",
 					Labels: map[string]string{
-						config.SparkRoleLabel:    sparkDriverRole,
+						config.SparkRoleLabel:    config.SparkDriverRole,
 						config.SparkAppNameLabel: "foo-2",
 					},
 					ResourceVersion: "1",
@@ -893,7 +895,7 @@ func TestSyncSparkApplication_ExecutingState(t *testing.T) {
 					Name:      "exec-1",
 					Namespace: "test",
 					Labels: map[string]string{
-						config.SparkRoleLabel:    sparkExecutorRole,
+						config.SparkRoleLabel:    config.SparkExecutorRole,
 						config.SparkAppNameLabel: "foo-2",
 					},
 					ResourceVersion: "1",
@@ -920,7 +922,7 @@ func TestSyncSparkApplication_ExecutingState(t *testing.T) {
 					Name:      "foo-driver",
 					Namespace: "test",
 					Labels: map[string]string{
-						config.SparkRoleLabel:    sparkDriverRole,
+						config.SparkRoleLabel:    config.SparkDriverRole,
 						config.SparkAppNameLabel: "foo-3",
 					},
 					ResourceVersion: "1",
@@ -934,7 +936,7 @@ func TestSyncSparkApplication_ExecutingState(t *testing.T) {
 					Name:      "exec-1",
 					Namespace: "test",
 					Labels: map[string]string{
-						config.SparkRoleLabel:    sparkExecutorRole,
+						config.SparkRoleLabel:    config.SparkExecutorRole,
 						config.SparkAppNameLabel: "foo-3",
 					},
 					ResourceVersion: "1",
@@ -959,7 +961,7 @@ func TestSyncSparkApplication_ExecutingState(t *testing.T) {
 					Name:      "foo-driver",
 					Namespace: "test",
 					Labels: map[string]string{
-						config.SparkRoleLabel:    sparkDriverRole,
+						config.SparkRoleLabel:    config.SparkDriverRole,
 						config.SparkAppNameLabel: "foo-3",
 					},
 					ResourceVersion: "1",
@@ -973,7 +975,7 @@ func TestSyncSparkApplication_ExecutingState(t *testing.T) {
 					Name:      "exec-1",
 					Namespace: "test",
 					Labels: map[string]string{
-						config.SparkRoleLabel:    sparkExecutorRole,
+						config.SparkRoleLabel:    config.SparkExecutorRole,
 						config.SparkAppNameLabel: "foo-3",
 					},
 					ResourceVersion: "1",
@@ -998,7 +1000,7 @@ func TestSyncSparkApplication_ExecutingState(t *testing.T) {
 					Name:      "foo-driver",
 					Namespace: "test",
 					Labels: map[string]string{
-						config.SparkRoleLabel:    sparkDriverRole,
+						config.SparkRoleLabel:    config.SparkDriverRole,
 						config.SparkAppNameLabel: "foo-3",
 					},
 				},
@@ -1011,7 +1013,7 @@ func TestSyncSparkApplication_ExecutingState(t *testing.T) {
 					Name:      "exec-1",
 					Namespace: "test",
 					Labels: map[string]string{
-						config.SparkRoleLabel:    sparkExecutorRole,
+						config.SparkRoleLabel:    config.SparkExecutorRole,
 						config.SparkAppNameLabel: "foo-3",
 					},
 				},

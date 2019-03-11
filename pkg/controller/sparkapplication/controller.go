@@ -50,8 +50,6 @@ import (
 )
 
 const (
-	sparkDriverRole           = "driver"
-	sparkExecutorRole         = "executor"
 	sparkExecutorIDLabel      = "spark-exec-id"
 	podAlreadyExistsErrorCode = "code=409"
 	queueTokenRefillRate      = 50
@@ -282,7 +280,7 @@ func (c *Controller) updateAppStatus(app *v1beta1.SparkApplication) error {
 	executorStateMap := make(map[string]v1beta1.ExecutorState)
 	var executorApplicationID string
 	for _, pod := range pods {
-		if isDriverPod(pod) {
+		if util.IsDriverPod(pod) {
 			currentDriverState = &driverState{
 				podName:            pod.Name,
 				nodeName:           pod.Spec.NodeName,
@@ -293,7 +291,7 @@ func (c *Controller) updateAppStatus(app *v1beta1.SparkApplication) error {
 				currentDriverState.completionTime = metav1.Now()
 			}
 		}
-		if isExecutorPod(pod) {
+		if util.IsExecutorPod(pod) {
 			newState := podPhaseToExecutorState(pod.Status.Phase)
 			// Only record an executor event if the executor state has changed.
 			if newState != executorStateMap[pod.Name] {
