@@ -101,6 +101,7 @@ func TestMutatePod(t *testing.T) {
 	assert.True(t, len(response.Patch) > 0)
 
 	// 3. Test processing Spark pod with patches.
+	var user int64 = 1000
 	app2 := &spov1beta1.SparkApplication{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "spark-app2",
@@ -151,6 +152,9 @@ func TestMutatePod(t *testing.T) {
 							Effect:   "NoEffect",
 						},
 					},
+					SecurityContenxt: &corev1.PodSecurityContext{
+						RunAsUser: &user,
+					},
 				},
 			},
 		},
@@ -170,7 +174,7 @@ func TestMutatePod(t *testing.T) {
 	assert.True(t, len(response.Patch) > 0)
 	var patchOps []*patchOperation
 	json.Unmarshal(response.Patch, &patchOps)
-	assert.Equal(t, 5, len(patchOps))
+	assert.Equal(t, 6, len(patchOps))
 }
 
 func serializePod(pod *corev1.Pod) ([]byte, error) {
