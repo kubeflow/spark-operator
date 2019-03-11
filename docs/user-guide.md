@@ -19,6 +19,8 @@ The Kubernetes Operator for Apache Spark ships with a command-line tool called `
     * [Using Secrets As Environment Variables](#using-secrets-as-environment-variables)
     * [Using Image Pull Secrets](#using-image-pull-secrets)
     * [Using Pod Affinity](#using-pod-affinity)
+    * [Adding Tolerations](#adding-tolerations)
+    * [Using Pod Security Context](#using-pod-security-context)
     * [Python Support](#python-support)
     * [Monitoring](#monitoring) 
 * [Working with SparkApplications](#working-with-sparkapplications)
@@ -257,12 +259,12 @@ spec:
     affinity:
       podAffinity:
         requiredDuringSchedulingIgnoredDuringExecution:
-          ...    
+          ...   
   executor:
     affinity:
       podAntiAffinity:
         requiredDuringSchedulingIgnoredDuringExecution:
-          ...    
+          ... 
 ```
 
 Note that the mutating admission webhook is needed to use this feature. Please refer to the [Quick Start Guide](quick-start-guide.md) on how to enable the mutating admission webhook.
@@ -285,6 +287,23 @@ spec:
       operator: Equal
       value: Value
       effect: NoSchedule    
+```
+
+Note that the mutating admission webhook is needed to use this feature. Please refer to the 
+[Quick Start Guide](quick-start-guide.md) on how to enable the mutating admission webhook.
+
+### Using Pod Security Context
+
+A `SparkApplication` can specify a `PodSecurityContext` for the driver or executor pod, using the optional field `.spec.driver.securityContext` or `.spec.executor.securityContext`. Below is an example:
+
+```yaml
+spec:
+  driver:
+    securityContext:
+      runAsUser: 1000    
+  executor:
+    securityContext:
+      runAsUser: 1000
 ```
 
 Note that the mutating admission webhook is needed to use this feature. Please refer to the 
