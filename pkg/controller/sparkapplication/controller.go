@@ -269,6 +269,11 @@ type driverState struct {
 }
 
 func (c *Controller) updateAppStatus(app *v1beta1.SparkApplication) error {
+	// The current run has been invalidated and is pending resource cleanup and rerun, skip status update.
+	if app.Status.AppState.State == v1beta1.InvalidatingState {
+		return nil
+	}
+
 	// Fetch all the pods for the application.
 	selector, _ := labels.NewRequirement(config.SparkAppNameLabel, selection.Equals, []string{app.Name})
 	pods, err := c.podLister.Pods(app.Namespace).List(labels.NewSelector().Add(*selector))
