@@ -98,8 +98,8 @@ required = [
   revision = "df38d32658d8788cd446ba74db4bb5375c4b0cb3"
 
 [[constraint]]
-  branch = "master"
   name = "k8s.io/code-generator"
+  version = "kubernetes-1.11.8"
 
 [[constraint]]
   name = "github.com/evanphx/json-patch"
