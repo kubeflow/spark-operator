@@ -74,24 +74,20 @@ required = [
   name = "golang.org/x/net"
 
 [[constraint]]
-  branch = "release-1.11"
   name = "k8s.io/api"
+  version = "kubernetes-1.11.8"
 
 [[constraint]]
-  branch = "release-1.11"
   name = "k8s.io/apiextensions-apiserver"
+  version = "kubernetes-1.11.8"
 
 [[constraint]]
-  branch = "release-1.11"
   name = "k8s.io/apimachinery"
+  version = "kubernetes-1.11.8"
 
 [[constraint]]
-  branch = "release-8.0"
   name = "k8s.io/client-go"
-
-[[override]]
-  name = "github.com/Azure/go-autorest"
-  version = "v10.0.0"
+  version = "kubernetes-1.11.8"
 
 [[constraint]]
   branch = "master"

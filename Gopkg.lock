@@ -663,8 +663,7 @@
   version = "v2.2.1"
 
 [[projects]]
-  branch = "release-1.11"
-  digest = "1:77c0f2ebdb247964329c2495dea64be895fcc22de75f0fd719f092b6f869af53"
+  digest = "1:5a9f796cfc95131d36a8408e3a4062248976e2b94fda40ef4841652ea14effa5"
   name = "k8s.io/api"
   packages = [
     "admission/v1beta1",
@@ -699,11 +698,11 @@
     "storage/v1beta1",
   ]
   pruneopts = ""
-  revision = "4e7be11eab3ffcfc1876898b8272df53785a9504"
+  revision = "6c46ec937460b0e0e165981f961df0d27d05d75a"
+  version = "kubernetes-1.11.8"
 
 [[projects]]
-  branch = "release-1.11"
-  digest = "1:c439867fd628a027f71f3741fc88465b4a30c16032892df53fae2780573d2665"
+  digest = "1:37f4c389eaa27e879592ae4b8ea413d09a2303c731b487daded4e7917ba3846f"
   name = "k8s.io/apiextensions-apiserver"
   packages = [
     "pkg/apis/apiextensions",
@@ -715,11 +714,11 @@
     "pkg/client/clientset/clientset/typed/apiextensions/v1beta1/fake",
   ]
   pruneopts = ""
-  revision = "16750353bf974758fbed9f44c39b81dfe6decb71"
+  revision = "f117497580fb6b8ebcbf510725cdf7975ad80bb8"
+  version = "kubernetes-1.11.8"
 
 [[projects]]
-  branch = "release-1.11"
-  digest = "1:f3d7e7a7b045865dccf3ed7adccbbced9bb65298b5b01372434715ef57d71b4d"
+  digest = "1:660e58ecdc538b38207235aed7bc5280c87b17f06152ff598d8f26bb834ab01c"
   name = "k8s.io/apimachinery"
   packages = [
     "pkg/api/errors",
@@ -769,11 +768,11 @@
     "third_party/forked/golang/reflect",
   ]
   pruneopts = ""
-  revision = "8ee1a638bafa4ae9691077e690cb45dd54f45111"
+  revision = "c182ff3b98419e7305cc361fd1811988591656cf"
+  version = "kubernetes-1.11.8"
 
 [[projects]]
-  branch = "release-8.0"
-  digest = "1:d200c48b8be19ee4557029ad01d81c98f89599b89b89e11ad4932520c5ce9adb"
+  digest = "1:b5540cedfee0a18a9e310df7920f50c46bfcbb040333a4a3fc3892afeebbbd56"
   name = "k8s.io/client-go"
   packages = [
     "discovery",
@@ -943,7 +942,8 @@
     "util/workqueue",
   ]
   pruneopts = ""
-  revision = "56e7a63b5e38b614bb7cb8c49ed26dc991b324c4"
+  revision = "3cf55fe6680b86fef7027c421d0fe2054affb737"
+  version = "kubernetes-1.11.8"
 
 [[projects]]
   branch = "master"
