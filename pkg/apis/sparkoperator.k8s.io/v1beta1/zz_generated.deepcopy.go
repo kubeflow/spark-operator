@@ -240,6 +240,11 @@ func (in *PrometheusSpec) DeepCopyInto(out *PrometheusSpec) {
 		*out = new(int32)
 		**out = **in
 	}
+	if in.ConfigFile != nil {
+		in, out := &in.ConfigFile, &out.ConfigFile
+		*out = new(string)
+		**out = **in
+	}
 	if in.Configuration != nil {
 		in, out := &in.Configuration, &out.Configuration
 		*out = new(string)
@@ -721,6 +726,11 @@ func (in *SparkPodSpec) DeepCopyInto(out *SparkPodSpec) {
 		for i := range *in {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
+	}
+	if in.SecurityContenxt != nil {
+		in, out := &in.SecurityContenxt, &out.SecurityContenxt
+		*out = new(v1.PodSecurityContext)
+		(*in).DeepCopyInto(*out)
 	}
 	return
 }
