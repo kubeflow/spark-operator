@@ -279,9 +279,9 @@ func mutatePods(
 	if appName == "" {
 		return response
 	}
-	app, err := lister.SparkApplications(pod.Namespace).Get(appName)
+	app, err := lister.SparkApplications(review.Request.Namespace).Get(appName)
 	if err != nil {
-		glog.Errorf("failed to get SparkApplication %s/%s: %v", pod.Namespace, appName, err)
+		glog.Errorf("failed to get SparkApplication %s/%s: %v", review.Request.Namespace, appName, err)
 		return toAdmissionResponse(err)
 	}
 
