@@ -45,7 +45,9 @@ type patchOperation struct {
 func patchSparkPod(pod *corev1.Pod, app *v1beta1.SparkApplication) []patchOperation {
 	var patchOps []patchOperation
 
-	patchOps = append(patchOps, addOwnerReference(pod, app))
+	if util.IsDriverPod(pod) {
+		patchOps = append(patchOps, addOwnerReference(pod, app))
+	}
 	patchOps = append(patchOps, addVolumes(pod, app)...)
 	patchOps = append(patchOps, addGeneralConfigMaps(pod, app)...)
 	patchOps = append(patchOps, addSparkConfigMap(pod, app)...)
