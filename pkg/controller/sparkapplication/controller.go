@@ -330,7 +330,6 @@ func (c *Controller) updateAppStatus(app *v1beta1.SparkApplication) error {
 		}
 		app.Status.AppState.State = newState
 	} else {
-		glog.Warningf("driver not found for SparkApplication: %s/%s", app.Namespace, app.Name)
 		// The application has not terminated and has a recorded driver Pod, but no driver Pod was found for it.
 		// This is likely because the driver Pod was deleted. In this case, set the application state to FailingState.
 		if app.Status.TerminationTime.IsZero() && app.Status.DriverInfo.PodName != "" {
@@ -507,15 +506,12 @@ func (c *Controller) syncSparkApplication(key string) error {
 				appToUpdate.Namespace, appToUpdate.Name, err)
 			return err
 		}
+		// Clear the status but leave State set prior to the rerun.
+		appToUpdate.Status = v1beta1.SparkApplicationStatus{}
 		appToUpdate.Status.AppState.State = v1beta1.PendingRerunState
-		appToUpdate.Status.ExecutionAttempts = 0
 	case v1beta1.PendingRerunState:
-		if c.validateSparkResourceDeletion(appToUpdate) {
-			// Reset SubmissionAttempts count since this is a new overall run.
-			appToUpdate.Status.SubmissionAttempts = 0
-			appToUpdate.Status.TerminationTime = metav1.Time{}
-			appToUpdate = c.submitSparkApplication(appToUpdate)
-		}
+		c.recordSparkApplicationEvent(appToUpdate)
+		appToUpdate = c.submitSparkApplication(appToUpdate)
 	}
 
 	if appToUpdate != nil {
@@ -721,35 +717,6 @@ func (c *Controller) deleteSparkResources(app *v1beta1.SparkApplication) error {
 	return nil
 }
 
-// Validate that any Spark resources (driver/Service/Ingress) created for the application have been deleted.
-func (c *Controller) validateSparkResourceDeletion(app *v1beta1.SparkApplication) bool {
-	driverPodName := app.Status.DriverInfo.PodName
-	if driverPodName != "" {
-		_, err := c.kubeClient.CoreV1().Pods(app.Namespace).Get(driverPodName, metav1.GetOptions{})
-		if err == nil || !errors.IsNotFound(err) {
-			return false
-		}
-	}
-
-	sparkUIServiceName := app.Status.DriverInfo.WebUIServiceName
-	if sparkUIServiceName != "" {
-		_, err := c.kubeClient.CoreV1().Services(app.Namespace).Get(sparkUIServiceName, metav1.GetOptions{})
-		if err == nil || !errors.IsNotFound(err) {
-			return false
-		}
-	}
-
-	sparkUIIngressName := app.Status.DriverInfo.WebUIIngressName
-	if sparkUIIngressName != "" {
-		_, err := c.kubeClient.ExtensionsV1beta1().Ingresses(app.Namespace).Get(sparkUIIngressName, metav1.GetOptions{})
-		if err == nil || !errors.IsNotFound(err) {
-			return false
-		}
-	}
-
-	return true
-}
-
 func (c *Controller) enqueue(obj interface{}) {
 	key, err := keyFunc(obj)
 	if err != nil {
@@ -815,6 +782,13 @@ func (c *Controller) recordSparkApplicationEvent(app *v1beta1.SparkApplication) 
 			"SparkApplication %s terminated with state: %v",
 			app.Name,
 			app.Status.AppState.State)
+	case v1beta1.PendingRerunState:
+		c.recorder.Eventf(
+			app,
+			apiv1.EventTypeWarning,
+			"SparkApplicationPendingRerun",
+			"SparkApplication %s was updated and is pending rerun",
+			app.Name)
 	}
 }
 
