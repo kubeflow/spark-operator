@@ -121,7 +121,7 @@ func (c *FakeScheduledSparkApplications) DeleteCollection(options *v1.DeleteOpti
 // Patch applies the patch and returns the patched scheduledSparkApplication.
 func (c *FakeScheduledSparkApplications) Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *v1beta1.ScheduledSparkApplication, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewPatchSubresourceAction(scheduledsparkapplicationsResource, c.ns, name, data, subresources...), &v1beta1.ScheduledSparkApplication{})
+		Invokes(testing.NewPatchSubresourceAction(scheduledsparkapplicationsResource, c.ns, name, pt, data, subresources...), &v1beta1.ScheduledSparkApplication{})
 
 	if obj == nil {
 		return nil, err

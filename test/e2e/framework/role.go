@@ -1,5 +1,5 @@
 /*
-Copyright 2018 Google LLC
+Copyright 2019 Google LLC
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -19,61 +19,58 @@ package framework
 import (
 	"encoding/json"
 	"io"
-	"os"
-
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/util/yaml"
 	"k8s.io/client-go/kubernetes"
+	"os"
 )
 
-func CreateClusterRoleBinding(kubeClient kubernetes.Interface, relativePath string) (finalizerFn, error) {
-	finalizerFn := func() error {
-		return DeleteClusterRoleBinding(kubeClient, relativePath)
-	}
-	clusterRoleBinding, err := parseClusterRoleBindingYaml(relativePath)
-	if err != nil {
-		return finalizerFn, err
-	}
-
-	_, err = kubeClient.RbacV1().ClusterRoleBindings().Get(clusterRoleBinding.Name, metav1.GetOptions{})
-
-	if err == nil {
-		// ClusterRoleBinding already exists -> Update
-		_, err = kubeClient.RbacV1().ClusterRoleBindings().Update(clusterRoleBinding)
-		if err != nil {
-			return finalizerFn, err
-		}
-	} else {
-		// ClusterRoleBinding doesn't exists -> Create
-		_, err = kubeClient.RbacV1().ClusterRoleBindings().Create(clusterRoleBinding)
-		if err != nil {
-			return finalizerFn, err
-		}
-	}
-
-	return finalizerFn, err
-}
-
-func DeleteClusterRoleBinding(kubeClient kubernetes.Interface, relativePath string) error {
-	clusterRoleBinding, err := parseClusterRoleYaml(relativePath)
+func CreateRole(kubeClient kubernetes.Interface, ns string, relativePath string) error {
+	role, err := parseRoleYaml(relativePath)
 	if err != nil {
 		return err
 	}
 
-	if err := kubeClient.RbacV1().ClusterRoleBindings().Delete(clusterRoleBinding.Name, &metav1.DeleteOptions{}); err != nil {
+	_, err = kubeClient.RbacV1().Roles(ns).Get(role.Name, metav1.GetOptions{})
+
+	if err == nil {
+		// Role already exists -> Update
+		_, err = kubeClient.RbacV1().Roles(ns).Update(role)
+		if err != nil {
+			return err
+		}
+
+	} else {
+		// Role doesn't exists -> Create
+		_, err = kubeClient.RbacV1().Roles(ns).Create(role)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func DeleteRole(kubeClient kubernetes.Interface, ns string, relativePath string) error {
+	role, err := parseRoleYaml(relativePath)
+	if err != nil {
+		return err
+	}
+
+	if err := kubeClient.RbacV1().Roles(ns).Delete(role.Name, &metav1.DeleteOptions{}); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func parseClusterRoleBindingYaml(relativePath string) (*rbacv1.ClusterRoleBinding, error) {
+func parseRoleYaml(relativePath string) (*rbacv1.Role, error) {
 	var manifest *os.File
 	var err error
 
-	var clusterRoleBinding rbacv1.ClusterRoleBinding
+	var role rbacv1.Role
 	if manifest, err = PathToOSFile(relativePath); err != nil {
 		return nil, err
 	}
@@ -87,10 +84,10 @@ func parseClusterRoleBindingYaml(relativePath string) (*rbacv1.ClusterRoleBindin
 			break
 		}
 
-		if out.GetKind() == "ClusterRoleBinding" {
+		if out.GetKind() == "Role" {
 			var marshaled []byte
 			marshaled, err = out.MarshalJSON()
-			json.Unmarshal(marshaled, &clusterRoleBinding)
+			json.Unmarshal(marshaled, &role)
 			break
 		}
 	}
@@ -98,5 +95,5 @@ func parseClusterRoleBindingYaml(relativePath string) (*rbacv1.ClusterRoleBindin
 	if err != io.EOF && err != nil {
 		return nil, err
 	}
-	return &clusterRoleBinding, nil
+	return &role, nil
 }

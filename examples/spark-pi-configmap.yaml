@@ -29,10 +29,9 @@ spec:
   restartPolicy:
     type: Never
   volumes:
-    - name: "test-volume"
-      hostPath:
-        path: "/tmp"
-        type: Directory
+    - name: config-vol
+      configMap:
+        name: dummy-cm
   driver:
     cores: 0.1
     coreLimit: "200m"
@@ -41,8 +40,8 @@ spec:
       version: 2.4.0
     serviceAccount: spark
     volumeMounts:
-      - name: "test-volume"
-        mountPath: "/tmp"
+      - name: config-vol
+        mountPath: /opt/spark/mycm
   executor:
     cores: 1
     instances: 1
@@ -50,5 +49,5 @@ spec:
     labels:
       version: 2.4.0
     volumeMounts:
-      - name: "test-volume"
-        mountPath: "/tmp"
+      - name: config-vol
+        mountPath: /opt/spark/mycm
