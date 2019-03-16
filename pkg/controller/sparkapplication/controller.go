@@ -268,12 +268,9 @@ type driverState struct {
 	completionTime     metav1.Time    // Time the driver completes.
 }
 
-func (c *Controller) updateAppStatus(app *v1beta1.SparkApplication) error {
-	// The current run has been invalidated and is pending resource cleanup and rerun, skip status update.
-	if app.Status.AppState.State == v1beta1.InvalidatingState {
-		return nil
-	}
-
+// getAndUpdateAppState lists the driver and executor pods of the application
+// and updates the application state based on the current phase of the pods.
+func (c *Controller) getAndUpdateAppState(app *v1beta1.SparkApplication) error {
 	// Fetch all the pods for the application.
 	selector, _ := labels.NewRequirement(config.SparkAppNameLabel, selection.Equals, []string{app.Name})
 	pods, err := c.podLister.Pods(app.Namespace).List(labels.NewSelector().Add(*selector))
@@ -298,8 +295,9 @@ func (c *Controller) updateAppStatus(app *v1beta1.SparkApplication) error {
 		}
 		if util.IsExecutorPod(pod) {
 			newState := podPhaseToExecutorState(pod.Status.Phase)
-			// Only record an executor event if the executor state has changed.
-			if newState != executorStateMap[pod.Name] {
+			oldState, exists := app.Status.ExecutorState[pod.Name]
+			// Only record an executor event if the executor state is new or it has changed.
+			if !exists || newState != oldState {
 				c.recordExecutorEvent(app, newState, pod.Name)
 			}
 			executorStateMap[pod.Name] = newState
@@ -455,19 +453,15 @@ func (c *Controller) syncSparkApplication(key string) error {
 	}
 
 	appToUpdate := app.DeepCopy()
-	if err := c.updateAppStatus(appToUpdate); err != nil {
-		return err
-	}
 
 	// Take action based on application state.
 	switch appToUpdate.Status.AppState.State {
 	case v1beta1.NewState:
 		c.recordSparkApplicationEvent(appToUpdate)
-		appToUpdate.Status.SubmissionAttempts = 0
 		appToUpdate = c.submitSparkApplication(appToUpdate)
 	case v1beta1.SucceedingState:
 		if !shouldRetry(appToUpdate) {
-			// App will never be retried. Move to terminal CompletedState.
+			// Application is not subject to retry. Move to terminal CompletedState.
 			appToUpdate.Status.AppState.State = v1beta1.CompletedState
 			c.recordSparkApplicationEvent(appToUpdate)
 		} else {
@@ -480,7 +474,7 @@ func (c *Controller) syncSparkApplication(key string) error {
 		}
 	case v1beta1.FailingState:
 		if !shouldRetry(appToUpdate) {
-			// App will never be retried. Move to terminal FailedState.
+			// Application is not subject to retry. Move to terminal FailedState.
 			appToUpdate.Status.AppState.State = v1beta1.FailedState
 			c.recordSparkApplicationEvent(appToUpdate)
 		} else if hasRetryIntervalPassed(appToUpdate.Spec.RestartPolicy.OnFailureRetryInterval, appToUpdate.Status.ExecutionAttempts, appToUpdate.Status.TerminationTime) {
@@ -489,8 +483,8 @@ func (c *Controller) syncSparkApplication(key string) error {
 					appToUpdate.Namespace, appToUpdate.Name, err)
 				return err
 			}
-			appToUpdate.Status.AppState.State = v1beta1.PendingRerunState
 			appToUpdate.Status.AppState.ErrorMessage = ""
+			appToUpdate.Status.AppState.State = v1beta1.PendingRerunState
 		}
 	case v1beta1.FailedSubmissionState:
 		if !shouldRetry(appToUpdate) {
@@ -507,14 +501,17 @@ func (c *Controller) syncSparkApplication(key string) error {
 				appToUpdate.Namespace, appToUpdate.Name, err)
 			return err
 		}
+		c.clearStatus(&appToUpdate.Status)
 		appToUpdate.Status.AppState.State = v1beta1.PendingRerunState
-		appToUpdate.Status.ExecutionAttempts = 0
 	case v1beta1.PendingRerunState:
 		if c.validateSparkResourceDeletion(appToUpdate) {
-			// Reset SubmissionAttempts count since this is a new overall run.
-			appToUpdate.Status.SubmissionAttempts = 0
-			appToUpdate.Status.TerminationTime = metav1.Time{}
+			c.recordSparkApplicationEvent(appToUpdate)
+			c.clearStatus(&appToUpdate.Status)
 			appToUpdate = c.submitSparkApplication(appToUpdate)
+		}
+	case v1beta1.SubmittedState, v1beta1.RunningState, v1beta1.UnknownState:
+		if err := c.getAndUpdateAppState(appToUpdate); err != nil {
+			return err
 		}
 	}
 
@@ -660,6 +657,7 @@ func (c *Controller) updateApplicationStatusWithRetries(
 	return toUpdate, nil
 }
 
+// updateStatusAndExportMetrics updates the status of the SparkApplication and export the metrics.
 func (c *Controller) updateStatusAndExportMetrics(oldApp, newApp *v1beta1.SparkApplication) error {
 	// Skip update if nothing changed.
 	if reflect.DeepEqual(oldApp, newApp) {
@@ -782,7 +780,7 @@ func (c *Controller) recordSparkApplicationEvent(app *v1beta1.SparkApplication) 
 			app,
 			apiv1.EventTypeNormal,
 			"SparkApplicationAdded",
-			"SparkApplication %s was added, Enqueuing it for submission",
+			"SparkApplication %s was added, enqueuing it for submission",
 			app.Name)
 	case v1beta1.SubmittedState:
 		c.recorder.Eventf(
@@ -804,17 +802,23 @@ func (c *Controller) recordSparkApplicationEvent(app *v1beta1.SparkApplication) 
 			app,
 			apiv1.EventTypeNormal,
 			"SparkApplicationCompleted",
-			"SparkApplication %s terminated with state: %v",
-			app.Name,
-			app.Status.AppState.State)
+			"SparkApplication %s completed",
+			app.Name)
 	case v1beta1.FailedState:
 		c.recorder.Eventf(
 			app,
 			apiv1.EventTypeWarning,
 			"SparkApplicationFailed",
-			"SparkApplication %s terminated with state: %v",
+			"SparkApplication %s failed: %s",
 			app.Name,
-			app.Status.AppState.State)
+			app.Status.AppState.ErrorMessage)
+	case v1beta1.PendingRerunState:
+		c.recorder.Eventf(
+			app,
+			apiv1.EventTypeWarning,
+			"SparkApplicationPendingRerun",
+			"SparkApplication %s is pending rerun",
+			app.Name)
 	}
 }
 
@@ -845,5 +849,20 @@ func (c *Controller) recordExecutorEvent(app *v1beta1.SparkApplication, state v1
 		c.recorder.Eventf(app, apiv1.EventTypeWarning, "SparkExecutorFailed", "Executor %s failed", name)
 	case v1beta1.ExecutorUnknownState:
 		c.recorder.Eventf(app, apiv1.EventTypeWarning, "SparkExecutorUnknownState", "Executor %s in unknown state", name)
+	}
+}
+
+func (c *Controller) clearStatus(status *v1beta1.SparkApplicationStatus) {
+	if status.AppState.State == v1beta1.InvalidatingState {
+		status.SparkApplicationID = ""
+		status.SubmissionAttempts = 0
+		status.ExecutionAttempts = 0
+		status.LastSubmissionAttemptTime = metav1.Time{}
+		status.TerminationTime = metav1.Time{}
+		status.ExecutorState = nil
+	} else if status.AppState.State == v1beta1.PendingRerunState {
+		status.SparkApplicationID = ""
+		status.DriverInfo = v1beta1.DriverInfo{}
+		status.ExecutorState = nil
 	}
 }
