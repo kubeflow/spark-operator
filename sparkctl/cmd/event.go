@@ -153,7 +153,7 @@ func streamEvents(events watch.Interface, streamSince int64) error {
 		// Start rendering contents of the table without table header as it is already printed
 		table = prepareNewTable()
 		table.SetBorders(tablewriter.Border{Left: true, Top: false, Right: true, Bottom: false})
-		ctx := context.Background()
+		ctx := context.TODO()
 		ctx, _ = context.WithTimeout(ctx, watchExpire)
 		_, err := clientWatch.UntilWithoutRetry(ctx, events, func(ev watch.Event) (bool, error) {
 			if event, isEvent := ev.Object.(*v1.Event); isEvent {
