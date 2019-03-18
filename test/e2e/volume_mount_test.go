@@ -14,25 +14,38 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+// This integration test verifies that a volume can be successfully
+// mounted in the driver and executor pods.
+
 package e2e
 
 import (
-	"strings"
+	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/kubernetes/pkg/kubectl/describe/versioned"
+	"regexp"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 
-	"k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/kubernetes/pkg/kubectl/describe"
 
 	appFramework "github.com/GoogleCloudPlatform/spark-on-k8s-operator/test/e2e/framework"
 )
 
-func TestSubmitSparkPiYaml(t *testing.T) {
+type describeClient struct {
+	T         *testing.T
+	Namespace string
+	Err       error
+	kubernetes.Interface
+}
+
+func TestMountConfigMap(t *testing.T) {
 	t.Parallel()
 
 	appName := "spark-pi"
-	sa, err := appFramework.MakeSparkApplicationFromYaml("../../examples/spark-pi.yaml")
+
+	sa, err := appFramework.MakeSparkApplicationFromYaml("../../examples/spark-pi-configmap.yaml")
 	assert.Equal(t, nil, err)
 
 	if appFramework.SparkTestNamespace != "" {
@@ -47,13 +60,15 @@ func TestSubmitSparkPiYaml(t *testing.T) {
 		sa.Spec.Image = &appFramework.SparkTestImage
 	}
 
+	_, err = appFramework.CreateConfigMap(framework.KubeClient, "dummy-cm", appFramework.SparkTestNamespace)
+	assert.Equal(t, nil, err)
+
 	err = appFramework.CreateSparkApplication(framework.SparkApplicationClient, appFramework.SparkTestNamespace, sa)
 	assert.Equal(t, nil, err)
 
 	status := GetJobStatus(t, appName)
-
 	err = wait.Poll(INTERVAL, TIMEOUT, func() (done bool, err error) {
-		if status == "COMPLETED" {
+		if status == "RUNNING" {
 			return true, nil
 		}
 		status = GetJobStatus(t, appName)
@@ -61,11 +76,19 @@ func TestSubmitSparkPiYaml(t *testing.T) {
 	})
 	assert.Equal(t, nil, err)
 
-	app, _ := appFramework.GetSparkApplication(framework.SparkApplicationClient, appFramework.SparkTestNamespace, appName)
-	podName := app.Status.DriverInfo.PodName
-	rawLogs, err := framework.KubeClient.CoreV1().Pods(appFramework.SparkTestNamespace).GetLogs(podName, &v1.PodLogOptions{}).Do().Raw()
+	app, err := appFramework.GetSparkApplication(framework.SparkApplicationClient, appFramework.SparkTestNamespace, appName)
 	assert.Equal(t, nil, err)
-	assert.NotEqual(t, -1, strings.Index(string(rawLogs), "Pi is roughly 3"))
+	podName := app.Status.DriverInfo.PodName
+
+	describeClient := &describeClient{T: t, Namespace: appFramework.SparkTestNamespace, Interface: framework.KubeClient}
+	describer := versioned.PodDescriber{describeClient}
+
+	podDesc, err := describer.Describe(appFramework.SparkTestNamespace, podName, describe.DescriberSettings{ShowEvents: true})
+	assert.Equal(t, nil, err)
+
+	matched, err := regexp.MatchString(`dummy-cm`, podDesc)
+	assert.Equal(t, true, matched)
+	assert.Equal(t, nil, err)
 
 	err = appFramework.DeleteSparkApplication(framework.SparkApplicationClient, appFramework.SparkTestNamespace, appName)
 	assert.Equal(t, nil, err)

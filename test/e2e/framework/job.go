@@ -21,33 +21,35 @@ import (
 	"io"
 	"os"
 
-	rbacv1 "k8s.io/api/rbac/v1"
+	batchv1 "k8s.io/api/batch/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/util/yaml"
 	"k8s.io/client-go/kubernetes"
 )
 
-func CreateClusterRoleBinding(kubeClient kubernetes.Interface, relativePath string) (finalizerFn, error) {
+func CreateJob(kubeClient kubernetes.Interface, ns string, relativePath string) (finalizerFn, error) {
 	finalizerFn := func() error {
-		return DeleteClusterRoleBinding(kubeClient, relativePath)
+		return DeleteJob(kubeClient, relativePath)
 	}
-	clusterRoleBinding, err := parseClusterRoleBindingYaml(relativePath)
+	job, err := parseJobYaml(relativePath)
 	if err != nil {
 		return finalizerFn, err
 	}
 
-	_, err = kubeClient.RbacV1().ClusterRoleBindings().Get(clusterRoleBinding.Name, metav1.GetOptions{})
+	job.Namespace = ns
+
+	_, err = kubeClient.BatchV1().Jobs(ns).Get(job.Name, metav1.GetOptions{})
 
 	if err == nil {
-		// ClusterRoleBinding already exists -> Update
-		_, err = kubeClient.RbacV1().ClusterRoleBindings().Update(clusterRoleBinding)
+		// Job already exists -> Update
+		_, err = kubeClient.BatchV1().Jobs(ns).Update(job)
 		if err != nil {
 			return finalizerFn, err
 		}
 	} else {
-		// ClusterRoleBinding doesn't exists -> Create
-		_, err = kubeClient.RbacV1().ClusterRoleBindings().Create(clusterRoleBinding)
+		// Job doesn't exists -> Create
+		_, err = kubeClient.BatchV1().Jobs(ns).Create(job)
 		if err != nil {
 			return finalizerFn, err
 		}
@@ -56,24 +58,24 @@ func CreateClusterRoleBinding(kubeClient kubernetes.Interface, relativePath stri
 	return finalizerFn, err
 }
 
-func DeleteClusterRoleBinding(kubeClient kubernetes.Interface, relativePath string) error {
-	clusterRoleBinding, err := parseClusterRoleYaml(relativePath)
+func DeleteJob(kubeClient kubernetes.Interface, relativePath string) error {
+	job, err := parseClusterRoleYaml(relativePath)
 	if err != nil {
 		return err
 	}
 
-	if err := kubeClient.RbacV1().ClusterRoleBindings().Delete(clusterRoleBinding.Name, &metav1.DeleteOptions{}); err != nil {
+	if err := kubeClient.BatchV1().Jobs(job.Namespace).Delete(job.Name, &metav1.DeleteOptions{}); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func parseClusterRoleBindingYaml(relativePath string) (*rbacv1.ClusterRoleBinding, error) {
+func parseJobYaml(relativePath string) (*batchv1.Job, error) {
 	var manifest *os.File
 	var err error
 
-	var clusterRoleBinding rbacv1.ClusterRoleBinding
+	var job batchv1.Job
 	if manifest, err = PathToOSFile(relativePath); err != nil {
 		return nil, err
 	}
@@ -87,10 +89,10 @@ func parseClusterRoleBindingYaml(relativePath string) (*rbacv1.ClusterRoleBindin
 			break
 		}
 
-		if out.GetKind() == "ClusterRoleBinding" {
+		if out.GetKind() == "Job" {
 			var marshaled []byte
 			marshaled, err = out.MarshalJSON()
-			json.Unmarshal(marshaled, &clusterRoleBinding)
+			json.Unmarshal(marshaled, &job)
 			break
 		}
 	}
@@ -98,5 +100,5 @@ func parseClusterRoleBindingYaml(relativePath string) (*rbacv1.ClusterRoleBindin
 	if err != io.EOF && err != nil {
 		return nil, err
 	}
-	return &clusterRoleBinding, nil
+	return &job, nil
 }

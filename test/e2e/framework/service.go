@@ -17,7 +17,12 @@ limitations under the License.
 package framework
 
 import (
+	"encoding/json"
 	"fmt"
+	"io"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/util/yaml"
+	"os"
 	"time"
 
 	"github.com/pkg/errors"
@@ -26,6 +31,36 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
 )
+
+func CreateService(kubeClient kubernetes.Interface, ns string, relativePath string) (finalizerFn, error) {
+	finalizerFn := func() error {
+		return DeleteService(kubeClient, ns, relativePath)
+	}
+	service, err := parseServiceYaml(relativePath)
+	if err != nil {
+		return finalizerFn, err
+	}
+
+	service.Namespace = ns
+
+	_, err = kubeClient.CoreV1().Services(ns).Get(service.Name, metav1.GetOptions{})
+
+	if err == nil {
+		// Service already exists -> Update
+		_, err = kubeClient.CoreV1().Services(ns).Update(service)
+		if err != nil {
+			return finalizerFn, err
+		}
+	} else {
+		// Service doesn't exists -> Create
+		_, err = kubeClient.CoreV1().Services(ns).Create(service)
+		if err != nil {
+			return finalizerFn, err
+		}
+	}
+
+	return finalizerFn, err
+}
 
 func WaitForServiceReady(kubeClient kubernetes.Interface, namespace string, serviceName string) error {
 	err := wait.Poll(time.Second, time.Minute*5, func() (bool, error) {
@@ -47,4 +82,40 @@ func getEndpoints(kubeClient kubernetes.Interface, namespace, serviceName string
 		return nil, errors.Wrap(err, fmt.Sprintf("requesting endpoints for servce %v failed", serviceName))
 	}
 	return endpoints, nil
+}
+
+func parseServiceYaml(relativePath string) (*v1.Service, error) {
+	var manifest *os.File
+	var err error
+
+	var service v1.Service
+	if manifest, err = PathToOSFile(relativePath); err != nil {
+		return nil, err
+	}
+
+	decoder := yaml.NewYAMLOrJSONDecoder(manifest, 100)
+	for {
+		var out unstructured.Unstructured
+		err = decoder.Decode(&out)
+		if err != nil {
+			// this would indicate it's malformed YAML.
+			break
+		}
+
+		if out.GetKind() == "Service" {
+			var marshaled []byte
+			marshaled, err = out.MarshalJSON()
+			json.Unmarshal(marshaled, &service)
+			break
+		}
+	}
+
+	if err != io.EOF && err != nil {
+		return nil, err
+	}
+	return &service, nil
+}
+
+func DeleteService(kubeClient kubernetes.Interface, name string, namespace string) error {
+	return kubeClient.CoreV1().Services(namespace).Delete(name, &metav1.DeleteOptions{})
 }

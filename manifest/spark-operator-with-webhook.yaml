@@ -55,6 +55,7 @@ spec:
         args:
         - -logtostderr
         - -enable-webhook=true
+        - -v=2
 ---
 apiVersion: batch/v1
 kind: Job
@@ -78,7 +79,7 @@ spec:
       - name: main
         image: gcr.io/spark-operator/spark-operator:v2.4.0-v1beta1-latest
         imagePullPolicy: IfNotPresent
-        command: ["/usr/bin/gencerts.sh", "-p"]
+        command: ["/usr/bin/gencerts.sh", "-n", "spark-operator", "-s", "spark-webhook", "-p"]
 ---
 kind: Service
 apiVersion: v1

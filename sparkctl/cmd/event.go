@@ -17,6 +17,7 @@ limitations under the License.
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"strings"
@@ -29,6 +30,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes"
+	clientWatch "k8s.io/client-go/tools/watch"
 	"k8s.io/kubernetes/pkg/util/interrupt"
 
 	crdclientset "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/client/clientset/versioned"
@@ -151,7 +153,9 @@ func streamEvents(events watch.Interface, streamSince int64) error {
 		// Start rendering contents of the table without table header as it is already printed
 		table = prepareNewTable()
 		table.SetBorders(tablewriter.Border{Left: true, Top: false, Right: true, Bottom: false})
-		_, err := watch.Until(watchExpire, events, func(ev watch.Event) (bool, error) {
+		ctx := context.Background()
+		ctx, _ = context.WithTimeout(ctx, watchExpire)
+		_, err := clientWatch.UntilWithoutRetry(ctx, events, func(ev watch.Event) (bool, error) {
 			if event, isEvent := ev.Object.(*v1.Event); isEvent {
 				// Ensure to display events which are newer than last creation time of SparkApplication
 				// for this specific application name
@@ -171,7 +175,6 @@ func streamEvents(events watch.Interface, streamSince int64) error {
 
 			return false, nil
 		})
-
 		return err
 	})
 }
