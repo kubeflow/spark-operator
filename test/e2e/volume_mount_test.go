@@ -41,8 +41,6 @@ type describeClient struct {
 }
 
 func TestMountConfigMap(t *testing.T) {
-	t.Parallel()
-
 	appName := "spark-pi"
 
 	sa, err := appFramework.MakeSparkApplicationFromYaml("../../examples/spark-pi-configmap.yaml")
