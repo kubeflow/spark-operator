@@ -47,7 +47,7 @@ var SparkTestServiceAccount = ""
 var SparkTestImage = ""
 
 // Sets up a test framework and returns it.
-func New(ns, kubeconfig, opImage string, opImagePullPolicy string) (*Framework, error) {
+func New(ns, sparkNs, kubeconfig, opImage string, opImagePullPolicy string) (*Framework, error) {
 	config, err := clientcmd.BuildConfigFromFlags("", kubeconfig)
 	if err != nil {
 		return nil, errors.Wrap(err, "build config from flags failed")
@@ -76,7 +76,7 @@ func New(ns, kubeconfig, opImage string, opImagePullPolicy string) (*Framework, 
 		DefaultTimeout:         time.Minute,
 	}
 
-	err = f.Setup(opImage, opImagePullPolicy)
+	err = f.Setup(sparkNs, opImage, opImagePullPolicy)
 	if err != nil {
 		return nil, errors.Wrap(err, "setup test environment failed")
 	}
@@ -84,15 +84,15 @@ func New(ns, kubeconfig, opImage string, opImagePullPolicy string) (*Framework, 
 	return f, nil
 }
 
-func (f *Framework) Setup(opImage string, opImagePullPolicy string) error {
-	if err := f.setupOperator(opImage, opImagePullPolicy); err != nil {
+func (f *Framework) Setup(sparkNs, opImage string, opImagePullPolicy string) error {
+	if err := f.setupOperator(sparkNs, opImage, opImagePullPolicy); err != nil {
 		return errors.Wrap(err, "setup operator failed")
 	}
 
 	return nil
 }
 
-func (f *Framework) setupOperator(opImage string, opImagePullPolicy string) error {
+func (f *Framework) setupOperator(sparkNs, opImage string, opImagePullPolicy string) error {
 	if _, err := CreateServiceAccount(f.KubeClient, f.Namespace.Name, "../../manifest/spark-operator-rbac.yaml"); err != nil && !apierrors.IsAlreadyExists(err) {
 		return errors.Wrap(err, "failed to create operator service account")
 	}
@@ -101,11 +101,31 @@ func (f *Framework) setupOperator(opImage string, opImagePullPolicy string) erro
 		return errors.Wrap(err, "failed to create cluster role")
 	}
 
-	if _, err := CreateClusterRoleBinding(f.KubeClient, f.Namespace.Name, "../../manifest/spark-operator-rbac.yaml"); err != nil && !apierrors.IsAlreadyExists(err) {
+	if _, err := CreateClusterRoleBinding(f.KubeClient, "../../manifest/spark-operator-rbac.yaml"); err != nil && !apierrors.IsAlreadyExists(err) {
 		return errors.Wrap(err, "failed to create cluster role binding")
 	}
 
-	deploy, err := MakeDeployment("../../manifest/spark-operator.yaml")
+	if _, err := CreateServiceAccount(f.KubeClient, sparkNs, "../../manifest/spark-rbac.yaml"); err != nil && !apierrors.IsAlreadyExists(err) {
+		return errors.Wrap(err, "failed to create Spark service account")
+	}
+
+	if err := CreateRole(f.KubeClient, sparkNs, "../../manifest/spark-rbac.yaml"); err != nil && !apierrors.IsAlreadyExists(err) {
+		return errors.Wrap(err, "failed to create role")
+	}
+
+	if _, err := CreateRoleBinding(f.KubeClient, sparkNs, "../../manifest/spark-rbac.yaml"); err != nil && !apierrors.IsAlreadyExists(err) {
+		return errors.Wrap(err, "failed to create role binding")
+	}
+
+	if _, err := CreateJob(f.KubeClient, f.Namespace.Name, "../../manifest/spark-operator-with-webhook.yaml"); err != nil {
+		return errors.Wrap(err, "failed to run job to create webhook secret")
+	}
+
+	if _, err := CreateService(f.KubeClient, f.Namespace.Name, "../../manifest/spark-operator-with-webhook.yaml"); err != nil {
+		return errors.Wrap(err, "failed to create webhook service")
+	}
+
+	deploy, err := MakeDeployment("../../manifest/spark-operator-with-webhook.yaml")
 	if err != nil {
 		return err
 	}

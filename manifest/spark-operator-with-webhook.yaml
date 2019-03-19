@@ -55,6 +55,7 @@ spec:
         args:
         - -logtostderr
         - -enable-webhook=true
+        - -v=2
 ---
 apiVersion: batch/v1
 kind: Job
