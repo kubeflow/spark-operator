@@ -283,6 +283,6 @@ func TestOnPodDeleted(t *testing.T) {
 func newMonitor() (*sparkPodEventHandler, workqueue.RateLimitingInterface) {
 	queue := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(),
 		"spark-application-controller-test")
-	monitor := newSparkPodEventHandler(queue.AddRateLimited)
+	monitor := newSparkPodEventHandler(queue.AddRateLimited, nil)
 	return monitor, queue
 }

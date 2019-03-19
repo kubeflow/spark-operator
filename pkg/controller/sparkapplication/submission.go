@@ -82,7 +82,7 @@ func runSparkSubmit(submission *submission) (bool, error) {
 	return true, nil
 }
 
-func buildSubmissionCommandArgs(app *v1beta1.SparkApplication) ([]string, error) {
+func buildSubmissionCommandArgs(app *v1beta1.SparkApplication, submissionID string) ([]string, error) {
 	var args []string
 	if app.Spec.MainClass != nil {
 		args = append(args, "--class", *app.Spec.MainClass)
@@ -161,14 +161,14 @@ func buildSubmissionCommandArgs(app *v1beta1.SparkApplication) ([]string, error)
 	// Add the driver and executor configuration options.
 	// Note that when the controller submits the application, it expects that all dependencies are local
 	// so init-container is not needed and therefore no init-container image needs to be specified.
-	options, err := addDriverConfOptions(app)
+	options, err := addDriverConfOptions(app, submissionID)
 	if err != nil {
 		return nil, err
 	}
 	for _, option := range options {
 		args = append(args, "--conf", option)
 	}
-	options, err = addExecutorConfOptions(app)
+	options, err = addExecutorConfOptions(app, submissionID)
 	if err != nil {
 		return nil, err
 	}
@@ -248,13 +248,15 @@ func addDependenciesConfOptions(app *v1beta1.SparkApplication) []string {
 	return depsConfOptions
 }
 
-func addDriverConfOptions(app *v1beta1.SparkApplication) ([]string, error) {
+func addDriverConfOptions(app *v1beta1.SparkApplication, submissionID string) ([]string, error) {
 	var driverConfOptions []string
 
 	driverConfOptions = append(driverConfOptions,
 		fmt.Sprintf("%s%s=%s", config.SparkDriverLabelKeyPrefix, config.SparkAppNameLabel, app.Name))
 	driverConfOptions = append(driverConfOptions,
 		fmt.Sprintf("%s%s=%s", config.SparkDriverLabelKeyPrefix, config.LaunchedBySparkOperatorLabel, "true"))
+	driverConfOptions = append(driverConfOptions,
+		fmt.Sprintf("%s%s=%s", config.SparkDriverLabelKeyPrefix, config.SubmissionIDLabel, submissionID))
 
 	driverPodName := fmt.Sprintf("%s-driver", app.GetName())
 	if app.Spec.Driver.PodName != nil {
@@ -316,13 +318,15 @@ func addDriverConfOptions(app *v1beta1.SparkApplication) ([]string, error) {
 	return driverConfOptions, nil
 }
 
-func addExecutorConfOptions(app *v1beta1.SparkApplication) ([]string, error) {
+func addExecutorConfOptions(app *v1beta1.SparkApplication, submissionID string) ([]string, error) {
 	var executorConfOptions []string
 
 	executorConfOptions = append(executorConfOptions,
 		fmt.Sprintf("%s%s=%s", config.SparkExecutorLabelKeyPrefix, config.SparkAppNameLabel, app.Name))
 	executorConfOptions = append(executorConfOptions,
 		fmt.Sprintf("%s%s=%s", config.SparkExecutorLabelKeyPrefix, config.LaunchedBySparkOperatorLabel, "true"))
+	executorConfOptions = append(executorConfOptions,
+		fmt.Sprintf("%s%s=%s", config.SparkExecutorLabelKeyPrefix, config.SubmissionIDLabel, submissionID))
 
 	if app.Spec.Executor.Instances != nil {
 		conf := fmt.Sprintf("spark.executor.instances=%d", *app.Spec.Executor.Instances)

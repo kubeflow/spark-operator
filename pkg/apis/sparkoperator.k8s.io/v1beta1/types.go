@@ -262,7 +262,7 @@ const (
 // ApplicationState tells the current state of the application and an error message in case of failures.
 type ApplicationState struct {
 	State        ApplicationStateType `json:"state"`
-	ErrorMessage string               `json:"errorMessage"`
+	ErrorMessage string               `json:"errorMessage,omitempty"`
 }
 
 // ExecutorState tells the current state of an executor.
@@ -281,6 +281,8 @@ const (
 type SparkApplicationStatus struct {
 	// SparkApplicationID is set by the spark-distribution(via spark.app.id config) on the driver and executor pods
 	SparkApplicationID string `json:"sparkApplicationId,omitempty"`
+	// SubmissionID is a unique ID of the current submission of the application.
+	SubmissionID string `json:"submissionID,omitempty"`
 	// LastSubmissionAttemptTime is the time for the last application submission attempt.
 	LastSubmissionAttemptTime metav1.Time `json:"lastSubmissionAttemptTime,omitempty"`
 	// CompletionTime is the time when the application runs to completion if it does.

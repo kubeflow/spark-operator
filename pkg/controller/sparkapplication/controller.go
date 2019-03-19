@@ -28,7 +28,6 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/apimachinery/pkg/selection"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/informers"
@@ -129,7 +128,7 @@ func newSparkApplicationController(
 	controller.applicationLister = crdInformer.Lister()
 
 	podsInformer := podInformerFactory.Core().V1().Pods()
-	sparkPodEventHandler := newSparkPodEventHandler(controller.queue.AddRateLimited)
+	sparkPodEventHandler := newSparkPodEventHandler(controller.queue.AddRateLimited, controller.applicationLister)
 	podsInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc:    sparkPodEventHandler.onPodAdded,
 		UpdateFunc: sparkPodEventHandler.onPodUpdated,
@@ -271,9 +270,13 @@ type driverState struct {
 // getAndUpdateAppState lists the driver and executor pods of the application
 // and updates the application state based on the current phase of the pods.
 func (c *Controller) getAndUpdateAppState(app *v1beta1.SparkApplication) error {
-	// Fetch all the pods for the application.
-	selector, _ := labels.NewRequirement(config.SparkAppNameLabel, selection.Equals, []string{app.Name})
-	pods, err := c.podLister.Pods(app.Namespace).List(labels.NewSelector().Add(*selector))
+	// Fetch all the pods for the current run of the application.
+	labelMap := map[string]string{config.SparkAppNameLabel: app.Name}
+	if app.Status.SubmissionID != "" {
+		labelMap[config.SubmissionIDLabel] = app.Status.SubmissionID
+	}
+	selector := labels.SelectorFromSet(labels.Set(labelMap))
+	pods, err := c.podLister.Pods(app.Namespace).List(selector)
 	if err != nil {
 		return fmt.Errorf("failed to get pods for SparkApplication %s/%s: %v", app.Namespace, app.Name, err)
 	}
@@ -554,7 +557,8 @@ func (c *Controller) submitSparkApplication(app *v1beta1.SparkApplication) *v1be
 		}
 	}
 
-	submissionCmdArgs, err := buildSubmissionCommandArgs(appToSubmit)
+	submissionID := fmt.Sprintf("%s-%d", app.Name, time.Now().UnixNano())
+	submissionCmdArgs, err := buildSubmissionCommandArgs(appToSubmit, submissionID)
 	if err != nil {
 		app.Status = v1beta1.SparkApplicationStatus{
 			AppState: v1beta1.ApplicationState{
@@ -591,6 +595,7 @@ func (c *Controller) submitSparkApplication(app *v1beta1.SparkApplication) *v1be
 
 	glog.Infof("SparkApplication %s/%s has been submitted", app.Namespace, app.Name)
 	app.Status = v1beta1.SparkApplicationStatus{
+		SubmissionID: submissionID,
 		AppState: v1beta1.ApplicationState{
 			State: v1beta1.SubmittedState,
 		},
