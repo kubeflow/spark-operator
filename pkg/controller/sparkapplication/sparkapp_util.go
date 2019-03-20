@@ -25,11 +25,8 @@ import (
 )
 
 // Helper method to create a key with namespace and appName
-func createMetaNamespaceKey(pod *apiv1.Pod) (string, bool) {
-	if appName, ok := getAppName(pod); ok {
-		return fmt.Sprintf("%s/%s", pod.GetNamespace(), appName), true
-	}
-	return "", false
+func createMetaNamespaceKey(namespace, name string) string {
+	return fmt.Sprintf("%s/%s", namespace, name)
 }
 
 func getAppName(pod *apiv1.Pod) (string, bool) {

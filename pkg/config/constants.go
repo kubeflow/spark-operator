@@ -75,6 +75,8 @@ const (
 	SparkDriverRole = "driver"
 	// SparkExecutorRole is the value of the spark-role label for the executors.
 	SparkExecutorRole = "executor"
+	// SubmissionIDLabel is the label that records the submission ID of the current run of an application.
+	SubmissionIDLabel = LabelAnnotationPrefix + "submission-id"
 )
 
 const (
