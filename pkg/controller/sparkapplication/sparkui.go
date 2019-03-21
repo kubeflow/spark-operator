@@ -65,6 +65,7 @@ func createSparkUIIngress(app *v1beta1.SparkApplication, service SparkService, i
 			Namespace: app.Namespace,
 			Labels: map[string]string{
 				config.SparkAppNameLabel: app.Name,
+				config.SubmissionIDLabel: app.Status.SubmissionID,
 			},
 			OwnerReferences: []metav1.OwnerReference{*getOwnerReference(app)},
 		},
@@ -114,6 +115,7 @@ func createSparkUIService(
 			Namespace: app.Namespace,
 			Labels: map[string]string{
 				config.SparkAppNameLabel: app.Name,
+				config.SubmissionIDLabel: app.Status.SubmissionID,
 			},
 			OwnerReferences: []metav1.OwnerReference{*getOwnerReference(app)},
 		},

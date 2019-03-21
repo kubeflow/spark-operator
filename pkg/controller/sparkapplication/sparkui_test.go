@@ -61,8 +61,7 @@ func TestCreateSparkUIService(t *testing.T) {
 			}
 			t.Fatal(err)
 		}
-		if len(service.Labels) != 1 ||
-			service.Labels[config.SparkAppNameLabel] != test.app.Name {
+		if service.Labels[config.SparkAppNameLabel] != test.app.Name {
 			t.Errorf("%s: service of app %s has the wrong labels", test.name, test.app.Name)
 		}
 		if !reflect.DeepEqual(test.expectedSelector, service.Spec.Selector) {
@@ -210,8 +209,7 @@ func TestCreateSparkUIIngress(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if len(ingress.Labels) != 1 ||
-		ingress.Labels[config.SparkAppNameLabel] != app.Name {
+	if ingress.Labels[config.SparkAppNameLabel] != app.Name {
 		t.Errorf("Ingress of app %s has the wrong labels", app.Name)
 	}
 
