@@ -18,8 +18,12 @@ package framework
 
 import (
 	"encoding/json"
+	"fmt"
+	"github.com/pkg/errors"
 	"io"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"os"
+	"time"
 
 	batchv1 "k8s.io/api/batch/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -28,47 +32,27 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
-func CreateJob(kubeClient kubernetes.Interface, ns string, relativePath string) (finalizerFn, error) {
-	finalizerFn := func() error {
-		return DeleteJob(kubeClient, relativePath)
-	}
-	job, err := parseJobYaml(relativePath)
+func MakeJob(pathToYaml string) (*batchv1.Job, error) {
+	job, err := parseJobYaml(pathToYaml)
 	if err != nil {
-		return finalizerFn, err
+		return nil, err
 	}
 
-	job.Namespace = ns
-
-	_, err = kubeClient.BatchV1().Jobs(ns).Get(job.Name, metav1.GetOptions{})
-
-	if err == nil {
-		// Job already exists -> Update
-		_, err = kubeClient.BatchV1().Jobs(ns).Update(job)
-		if err != nil {
-			return finalizerFn, err
-		}
-	} else {
-		// Job doesn't exists -> Create
-		_, err = kubeClient.BatchV1().Jobs(ns).Create(job)
-		if err != nil {
-			return finalizerFn, err
-		}
-	}
-
-	return finalizerFn, err
+	return job, nil
 }
 
-func DeleteJob(kubeClient kubernetes.Interface, relativePath string) error {
-	job, err := parseClusterRoleYaml(relativePath)
+func CreateJob(kubeClient kubernetes.Interface, namespace string, job *batchv1.Job) error {
+	_, err := kubeClient.BatchV1().Jobs(namespace).Create(job)
 	if err != nil {
-		return err
+		return errors.Wrap(err, fmt.Sprintf("failed to create job %s", job.Name))
 	}
-
-	if err := kubeClient.BatchV1().Jobs(job.Namespace).Delete(job.Name, &metav1.DeleteOptions{}); err != nil {
-		return err
-	}
-
 	return nil
+}
+
+func DeleteJob(kubeClient kubernetes.Interface, namespace, name string) error {
+	deleteProp := metav1.DeletePropagationForeground
+	return kubeClient.BatchV1().Jobs(namespace).Delete(name,
+		&metav1.DeleteOptions{PropagationPolicy: &deleteProp})
 }
 
 func parseJobYaml(relativePath string) (*batchv1.Job, error) {
@@ -101,4 +85,18 @@ func parseJobYaml(relativePath string) (*batchv1.Job, error) {
 		return nil, err
 	}
 	return &job, nil
+}
+
+func WaitUntilJobCompleted(kubeClient kubernetes.Interface, namespace, name string, timeout time.Duration) error {
+	return wait.Poll(time.Second, timeout, func() (bool, error) {
+		job, _ := kubeClient.
+			BatchV1().Jobs(namespace).
+			Get(name, metav1.GetOptions{})
+
+		if job.Status.Succeeded == 1 {
+			return true, nil
+		} else {
+			return false, nil
+		}
+	})
 }
