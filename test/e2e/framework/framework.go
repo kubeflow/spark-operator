@@ -117,8 +117,32 @@ func (f *Framework) setupOperator(sparkNs, opImage string, opImagePullPolicy str
 		return errors.Wrap(err, "failed to create role binding")
 	}
 
-	if _, err := CreateJob(f.KubeClient, f.Namespace.Name, "../../manifest/spark-operator-with-webhook.yaml"); err != nil {
-		return errors.Wrap(err, "failed to run job to create webhook secret")
+	job, err := MakeJob("../../manifest/spark-operator-with-webhook.yaml")
+	if err != nil {
+		return err
+	}
+
+	if opImage != "" {
+		// Override operator image used, if specified when running tests.
+		job.Spec.Template.Spec.Containers[0].Image = opImage
+	}
+
+	for _, container := range job.Spec.Template.Spec.Containers {
+		container.ImagePullPolicy = v1.PullPolicy(opImagePullPolicy)
+	}
+
+	err = CreateJob(f.KubeClient, f.Namespace.Name, job)
+	if err != nil {
+		return errors.Wrap(err, "failed to create job that creates the webhook secret")
+	}
+
+	err = WaitUntilJobCompleted(f.KubeClient, f.Namespace.Name, job.Name, time.Minute)
+	if err != nil {
+		return errors.Wrap(err, "The gencert job failed or timed out")
+	}
+
+	if err := DeleteJob(f.KubeClient, f.Namespace.Name, job.Name); err != nil {
+		return errors.Wrap(err, "failed to delete the init job")
 	}
 
 	if _, err := CreateService(f.KubeClient, f.Namespace.Name, "../../manifest/spark-operator-with-webhook.yaml"); err != nil {
