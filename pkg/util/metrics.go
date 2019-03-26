@@ -30,6 +30,13 @@ import (
 	"k8s.io/client-go/util/workqueue"
 )
 
+type noopMetric struct{}
+
+func (noopMetric) Inc()            {}
+func (noopMetric) Dec()            {}
+func (noopMetric) Set(float64)     {}
+func (noopMetric) Observe(float64) {}
+
 func CreateValidMetricNameLabel(prefix, name string) string {
 	// "-" is not a valid character for prometheus metric names or labels.
 	return strings.Replace(prefix+name, "-", "_", -1)
@@ -166,8 +173,8 @@ func (p *WorkQueueMetrics) NewAddsMetric(name string) workqueue.CounterMetric {
 }
 
 // Latency Metric for the kubernetes workqueue.
-func (p *WorkQueueMetrics) NewLatencyMetric(name string) workqueue.SummaryMetric {
-	latencyMetric := prometheus.NewSummary(prometheus.SummaryOpts{
+func (p *WorkQueueMetrics) NewLatencyMetric(name string) workqueue.HistogramMetric {
+	latencyMetric := prometheus.NewHistogram(prometheus.HistogramOpts{
 		Name: CreateValidMetricNameLabel(p.prefix, name+"_latency"),
 		Help: fmt.Sprintf("Latency for workqueue: %s", name),
 	})
@@ -176,8 +183,8 @@ func (p *WorkQueueMetrics) NewLatencyMetric(name string) workqueue.SummaryMetric
 }
 
 // WorkDuration Metric for the kubernetes workqueue.
-func (p *WorkQueueMetrics) NewWorkDurationMetric(name string) workqueue.SummaryMetric {
-	workDurationMetric := prometheus.NewSummary(prometheus.SummaryOpts{
+func (p *WorkQueueMetrics) NewWorkDurationMetric(name string) workqueue.HistogramMetric {
+	workDurationMetric := prometheus.NewHistogram(prometheus.HistogramOpts{
 		Name: CreateValidMetricNameLabel(p.prefix, name+"_work_duration"),
 		Help: fmt.Sprintf("How long processing an item from workqueue %s takes.", name),
 	})
@@ -205,6 +212,16 @@ func (p *WorkQueueMetrics) NewUnfinishedWorkSecondsMetric(name string) workqueue
 	return unfinishedWorkSecondsMetric
 }
 
+func (p *WorkQueueMetrics) NewLongestRunningProcessorSecondsMetric(name string) workqueue.SettableGaugeMetric {
+	longestRunningProcessorSecondsMetric := prometheus.NewGauge(prometheus.GaugeOpts{
+		Name: CreateValidMetricNameLabel(p.prefix, name+"_longest_running_processor_seconds"),
+		Help: fmt.Sprintf("Longest running processor seconds: %s", name),
+	},
+	)
+	RegisterMetric(longestRunningProcessorSecondsMetric)
+	return longestRunningProcessorSecondsMetric
+}
+
 func (p *WorkQueueMetrics) NewLongestRunningProcessorMicrosecondsMetric(name string) workqueue.SettableGaugeMetric {
 	longestRunningProcessorMicrosecondsMetric := prometheus.NewGauge(prometheus.GaugeOpts{
 		Name: CreateValidMetricNameLabel(p.prefix, name+"_longest_running_processor_microseconds"),
@@ -213,4 +230,32 @@ func (p *WorkQueueMetrics) NewLongestRunningProcessorMicrosecondsMetric(name str
 	)
 	RegisterMetric(longestRunningProcessorMicrosecondsMetric)
 	return longestRunningProcessorMicrosecondsMetric
+}
+
+func (p *WorkQueueMetrics) NewDeprecatedAddsMetric(name string) workqueue.CounterMetric {
+	return noopMetric{}
+}
+
+func (p *WorkQueueMetrics) NewDeprecatedDepthMetric(name string) workqueue.GaugeMetric {
+	return noopMetric{}
+}
+
+func (p *WorkQueueMetrics) NewDeprecatedLatencyMetric(name string) workqueue.SummaryMetric {
+	return noopMetric{}
+}
+
+func (p *WorkQueueMetrics) NewDeprecatedWorkDurationMetric(name string) workqueue.SummaryMetric {
+	return noopMetric{}
+}
+
+func (p *WorkQueueMetrics) NewDeprecatedUnfinishedWorkSecondsMetric(name string) workqueue.SettableGaugeMetric {
+	return noopMetric{}
+}
+
+func (p *WorkQueueMetrics) NewDeprecatedLongestRunningProcessorMicrosecondsMetric(name string) workqueue.SettableGaugeMetric {
+	return noopMetric{}
+}
+
+func (p *WorkQueueMetrics) NewDeprecatedRetriesMetric(name string) workqueue.CounterMetric {
+	return noopMetric{}
 }

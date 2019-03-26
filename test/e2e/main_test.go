@@ -30,9 +30,9 @@ import (
 
 var framework *operatorFramework.Framework
 
-// Wait for test job to finish. Time out after 90 seconds.
-var TIMEOUT = 300 * time.Second
-var INTERVAL = 5 * time.Second
+// Wait for test job to finish. Poll for updates every  seconds. Time out after 240 seconds.
+var TIMEOUT = 240 * time.Second
+var INTERVAL = 1 * time.Second
 
 func GetJobStatus(t *testing.T, sparkAppName string) v1beta1.ApplicationStateType {
 	app, err := operatorFramework.GetSparkApplication(framework.SparkApplicationClient, operatorFramework.SparkTestNamespace, sparkAppName)

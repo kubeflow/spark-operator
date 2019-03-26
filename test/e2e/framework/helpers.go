@@ -125,7 +125,7 @@ func podRunsImage(p v1.Pod, image string) bool {
 }
 
 func GetLogs(kubeClient kubernetes.Interface, namespace string, podName, containerName string) (string, error) {
-	logs, err := kubeClient.Core().RESTClient().Get().
+	logs, err := kubeClient.CoreV1().RESTClient().Get().
 		Resource("pods").
 		Namespace(namespace).
 		Name(podName).SubResource("log").
