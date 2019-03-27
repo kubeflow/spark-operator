@@ -49,6 +49,14 @@ func CreateSparkApplication(crdclientset crdclientset.Interface, namespace strin
 	return nil
 }
 
+func UpdateSparkApplication(crdclientset crdclientset.Interface, namespace string, sa *v1beta1.SparkApplication) error {
+	_, err := crdclientset.SparkoperatorV1beta1().SparkApplications(namespace).Update(sa)
+	if err != nil {
+		return errors.Wrap(err, fmt.Sprintf("failed to update SparkApplication %s", sa.Name))
+	}
+	return nil
+}
+
 func GetSparkApplication(crdclientset crdclientset.Interface, namespace, name string) (*v1beta1.SparkApplication, error) {
 	sa, err := crdclientset.SparkoperatorV1beta1().SparkApplications(namespace).Get(name, metav1.GetOptions{})
 	if err != nil {
