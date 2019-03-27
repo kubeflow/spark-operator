@@ -34,6 +34,18 @@ var framework *operatorFramework.Framework
 var TIMEOUT = 240 * time.Second
 var INTERVAL = 1 * time.Second
 
+var STATES = [9]string{
+"",
+"SUBMITTED",
+"RUNNING",
+"COMPLETED",
+"INVALIDATING",
+"PENDING_RERUN",
+"SUBMITTED",
+"RUNNING",
+"COMPLETED",
+}
+
 func GetJobStatus(t *testing.T, sparkAppName string) v1beta1.ApplicationStateType {
 	app, err := operatorFramework.GetSparkApplication(framework.SparkApplicationClient, operatorFramework.SparkTestNamespace, sparkAppName)
 	assert.Equal(t, nil, err)

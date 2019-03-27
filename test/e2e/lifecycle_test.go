@@ -18,7 +18,6 @@ package e2e
 
 import (
 	"container/list"
-	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta1"
 	"strings"
 	"testing"
 
@@ -27,22 +26,11 @@ import (
 	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
 
+	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta1"
 	appFramework "github.com/GoogleCloudPlatform/spark-on-k8s-operator/test/e2e/framework"
 )
 
 func TestLifeCycleManagement(t *testing.T) {
-	STATES := [9]string{
-		"",
-		"SUBMITTED",
-		"RUNNING",
-		"COMPLETED",
-		"INVALIDATING",
-		"PENDING_RERUN",
-		"SUBMITTED",
-		"RUNNING",
-		"COMPLETED",
-	}
-
 	appName := "spark-pi"
 	app, err := appFramework.MakeSparkApplicationFromYaml("../../examples/spark-pi.yaml")
 	assert.Equal(t, nil, err)
