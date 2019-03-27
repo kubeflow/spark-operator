@@ -26,3 +26,7 @@ Note that all tests are run on a live Kubernetes cluster. After the tests are do
 * `volume_mount_test.go`
 
   This test submits `spark-pi-configmap.yaml` contained in `\examples`. It verifies that a dummy ConfigMap can be mounted in the Spark pods.
+
+* `lifecycle_test.go`
+
+  This test submits `spark-pi.yaml` contained in `\examples`. It verifies that the created SparkApplication CRD object goes through the correct series of states as dictated by the controller. Once the job is finished, an update operation is performed on the CRD object to trigger a re-run. The transition from a completed job to a new running job is verified for correctness.
