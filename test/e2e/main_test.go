@@ -30,7 +30,7 @@ import (
 
 var framework *operatorFramework.Framework
 
-// Wait for test job to finish. Poll for updates every  seconds. Time out after 240 seconds.
+// Wait for test job to finish. Poll for updates once a second. Time out after 240 seconds.
 var TIMEOUT = 240 * time.Second
 var INTERVAL = 1 * time.Second
 
