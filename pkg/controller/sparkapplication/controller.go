@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/golang/glog"
+	"github.com/google/uuid"
 	"golang.org/x/time/rate"
 	apiv1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -557,7 +558,7 @@ func (c *Controller) submitSparkApplication(app *v1beta1.SparkApplication) *v1be
 		}
 	}
 
-	submissionID := fmt.Sprintf("%s-%d", app.Name, time.Now().UnixNano())
+	submissionID := uuid.New().String()
 	submissionCmdArgs, err := buildSubmissionCommandArgs(appToSubmit, submissionID)
 	if err != nil {
 		app.Status = v1beta1.SparkApplicationStatus{

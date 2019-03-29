@@ -222,6 +222,14 @@
   revision = "24818f796faf91cd76ec7bddd72458fbced7a6c1"
 
 [[projects]]
+  digest = "1:ad92aa49f34cbc3546063c7eb2cabb55ee2278b72842eda80e2a20a8a06a8d73"
+  name = "github.com/google/uuid"
+  packages = ["."]
+  pruneopts = ""
+  revision = "0cd6bf5da1e1c83f8b45653022c74f71af0538a4"
+  version = "v1.1.1"
+
+[[projects]]
   digest = "1:b2f6f3029f88fb385269d36d2e7ec8c6082ec40b4572f99ced9032b0b166df6e"
   name = "github.com/googleapis/gax-go"
   packages = [
@@ -1181,6 +1189,7 @@
     "github.com/google/go-cloud/blob/gcsblob",
     "github.com/google/go-cloud/blob/s3blob",
     "github.com/google/go-cloud/gcp",
+    "github.com/google/uuid",
     "github.com/olekukonko/tablewriter",
     "github.com/pkg/errors",
     "github.com/prometheus/client_golang/prometheus",
