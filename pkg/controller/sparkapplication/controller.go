@@ -369,7 +369,7 @@ func (c *Controller) getAndUpdateAppState(app *v1beta1.SparkApplication) error {
 func (c *Controller) handleSparkApplicationDeletion(app *v1beta1.SparkApplication) {
 	// SparkApplication deletion requested, lets delete driver pod.
 	if err := c.deleteSparkResources(app); err != nil {
-		glog.Errorf("failed to delete resources associated wirh deleted SparkApplication: %s/%s: %v", app.Namespace, app.Name, err)
+		glog.Errorf("failed to delete resources associated with deleted SparkApplication %s/%s: %v", app.Namespace, app.Name, err)
 	}
 }
 
@@ -469,7 +469,7 @@ func (c *Controller) syncSparkApplication(key string) error {
 			c.recordSparkApplicationEvent(appToUpdate)
 		} else {
 			if err := c.deleteSparkResources(appToUpdate); err != nil {
-				glog.Errorf("failed to delete the driver pod and UI service for deleted SparkApplication %s/%s: %v",
+				glog.Errorf("failed to delete resources associated with SparkApplication %s/%s: %v",
 					appToUpdate.Namespace, appToUpdate.Name, err)
 				return err
 			}
@@ -482,7 +482,7 @@ func (c *Controller) syncSparkApplication(key string) error {
 			c.recordSparkApplicationEvent(appToUpdate)
 		} else if hasRetryIntervalPassed(appToUpdate.Spec.RestartPolicy.OnFailureRetryInterval, appToUpdate.Status.ExecutionAttempts, appToUpdate.Status.TerminationTime) {
 			if err := c.deleteSparkResources(appToUpdate); err != nil {
-				glog.Errorf("failed to delete the driver pod and UI service for deleted SparkApplication %s/%s: %v",
+				glog.Errorf("failed to delete resources associated with SparkApplication %s/%s: %v",
 					appToUpdate.Namespace, appToUpdate.Name, err)
 				return err
 			}
@@ -500,7 +500,7 @@ func (c *Controller) syncSparkApplication(key string) error {
 	case v1beta1.InvalidatingState:
 		// Invalidate the current run and enqueue the SparkApplication for re-execution.
 		if err := c.deleteSparkResources(appToUpdate); err != nil {
-			glog.Errorf("failed to delete the driver pod and UI service for deleted SparkApplication %s/%s: %v",
+			glog.Errorf("failed to delete resources associated with SparkApplication %s/%s: %v",
 				appToUpdate.Namespace, appToUpdate.Name, err)
 			return err
 		}
