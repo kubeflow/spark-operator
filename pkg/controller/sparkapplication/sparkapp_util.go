@@ -50,6 +50,14 @@ func getDefaultUIIngressName(app *v1beta1.SparkApplication) string {
 	return fmt.Sprintf("%s-ui-ingress", app.Name)
 }
 
+func getResourceLabels(app *v1beta1.SparkApplication) map[string]string {
+	labels := map[string]string{config.SparkAppNameLabel: app.Name}
+	if app.Status.SubmissionID != "" {
+		labels[config.SubmissionIDLabel] = app.Status.SubmissionID
+	}
+	return labels
+}
+
 func podPhaseToExecutorState(podPhase apiv1.PodPhase) v1beta1.ExecutorState {
 	switch podPhase {
 	case apiv1.PodPending:

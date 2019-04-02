@@ -45,7 +45,6 @@ import (
 	crdscheme "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/client/clientset/versioned/scheme"
 	crdinformers "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/client/informers/externalversions"
 	crdlisters "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/client/listers/sparkoperator.k8s.io/v1beta1"
-	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/config"
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/util"
 )
 
@@ -272,11 +271,7 @@ type driverState struct {
 // and updates the application state based on the current phase of the pods.
 func (c *Controller) getAndUpdateAppState(app *v1beta1.SparkApplication) error {
 	// Fetch all the pods for the current run of the application.
-	labelMap := map[string]string{config.SparkAppNameLabel: app.Name}
-	if app.Status.SubmissionID != "" {
-		labelMap[config.SubmissionIDLabel] = app.Status.SubmissionID
-	}
-	selector := labels.SelectorFromSet(labels.Set(labelMap))
+	selector := labels.SelectorFromSet(labels.Set(getResourceLabels(app)))
 	pods, err := c.podLister.Pods(app.Namespace).List(selector)
 	if err != nil {
 		return fmt.Errorf("failed to get pods for SparkApplication %s/%s: %v", app.Namespace, app.Name, err)

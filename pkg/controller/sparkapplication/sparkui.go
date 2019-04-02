@@ -61,12 +61,9 @@ func createSparkUIIngress(app *v1beta1.SparkApplication, service SparkService, i
 	ingressURL := getSparkUIingressURL(ingressURLFormat, app.GetName())
 	ingress := extensions.Ingress{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      getDefaultUIIngressName(app),
-			Namespace: app.Namespace,
-			Labels: map[string]string{
-				config.SparkAppNameLabel: app.Name,
-				config.SubmissionIDLabel: app.Status.SubmissionID,
-			},
+			Name:            getDefaultUIIngressName(app),
+			Namespace:       app.Namespace,
+			Labels:          getResourceLabels(app),
 			OwnerReferences: []metav1.OwnerReference{*getOwnerReference(app)},
 		},
 		Spec: extensions.IngressSpec{
@@ -111,12 +108,9 @@ func createSparkUIService(
 
 	service := &apiv1.Service{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      getDefaultUIServiceName(app),
-			Namespace: app.Namespace,
-			Labels: map[string]string{
-				config.SparkAppNameLabel: app.Name,
-				config.SubmissionIDLabel: app.Status.SubmissionID,
-			},
+			Name:            getDefaultUIServiceName(app),
+			Namespace:       app.Namespace,
+			Labels:          getResourceLabels(app),
 			OwnerReferences: []metav1.OwnerReference{*getOwnerReference(app)},
 		},
 		Spec: apiv1.ServiceSpec{
