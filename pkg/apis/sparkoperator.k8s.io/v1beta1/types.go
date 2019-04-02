@@ -379,6 +379,9 @@ type SparkPodSpec struct {
 	// SecurityContenxt specifies the PodSecurityContext to apply.
 	// Optional.
 	SecurityContenxt *apiv1.PodSecurityContext `json:"securityContext,omitempty"`
+	// SchedulerName specifies the scheduler that will be used for scheduling
+	// Optional.
+	SchedulerName *string `json:"schedulerName,omitempty"`
 }
 
 // DriverSpec is specification of the driver.
