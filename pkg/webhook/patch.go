@@ -53,6 +53,14 @@ func patchSparkPod(pod *corev1.Pod, app *v1beta1.SparkApplication) []patchOperat
 	patchOps = append(patchOps, addSparkConfigMap(pod, app)...)
 	patchOps = append(patchOps, addHadoopConfigMap(pod, app)...)
 	patchOps = append(patchOps, addTolerations(pod, app)...)
+
+	if pod.Spec.SchedulerName == "" {
+		op := addSchedulerName(pod, app)
+		if op != nil {
+			patchOps = append(patchOps, *op)
+		}
+	}
+
 	if pod.Spec.Affinity == nil {
 		op := addAffinity(pod, app)
 		if op != nil {
@@ -261,6 +269,20 @@ func addTolerations(pod *corev1.Pod, app *v1beta1.SparkApplication) []patchOpera
 		ops = append(ops, addToleration(pod, v))
 	}
 	return ops
+}
+
+func addSchedulerName(pod *corev1.Pod, app *v1beta1.SparkApplication) *patchOperation {
+	var schedulerName *string
+	if util.IsDriverPod(pod) {
+		schedulerName = app.Spec.Driver.SchedulerName
+	}
+	if util.IsExecutorPod(pod) {
+		schedulerName = app.Spec.Executor.SchedulerName
+	}
+	if schedulerName == nil {
+		return nil
+	}
+	return &patchOperation{Op: "add", Path: "/spec/schedulerName", Value: *schedulerName}
 }
 
 func addToleration(pod *corev1.Pod, toleration corev1.Toleration) patchOperation {
