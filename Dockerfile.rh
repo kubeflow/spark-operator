@@ -1,4 +1,4 @@
-# syntax=docker/dockerfile:experimental
+# syntax=docker/dockerfile:1.0-experimental
 #
 # Copyright 2018 Google LLC
 #
@@ -17,7 +17,7 @@
 
 # Build an OpenShift image.
 # Before running docker build, make sure
-# 1. Your Docker version is >= 18.09
+# 1. Your Docker version is >= 18.09.3
 # 2. export DOCKER_BUILDKIT=1
 
 ARG SPARK_IMAGE=gcr.io/spark-operator/spark:v2.4.0
