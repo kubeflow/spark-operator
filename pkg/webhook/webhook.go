@@ -204,7 +204,7 @@ func (wh *WebHook) selfRegistration(webhookConfigName string) error {
 		Name: webhookName,
 		Rules: []v1beta1.RuleWithOperations{
 			{
-				Operations: []v1beta1.OperationType{v1beta1.Create, v1beta1.Update},
+				Operations: []v1beta1.OperationType{v1beta1.Create},
 				Rule: v1beta1.Rule{
 					APIGroups:   []string{""},
 					APIVersions: []string{"v1"},
