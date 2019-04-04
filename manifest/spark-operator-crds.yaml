@@ -32,6 +32,12 @@ spec:
   validation:
     openAPIV3Schema:
       properties:
+        metadata:
+          properties:
+            name:
+              type: string
+              minLength: 1
+              maxLength: 63
         spec:
           properties:
             image:
