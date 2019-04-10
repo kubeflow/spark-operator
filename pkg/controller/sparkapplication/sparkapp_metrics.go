@@ -22,7 +22,7 @@ import (
 	"github.com/golang/glog"
 	"github.com/prometheus/client_golang/prometheus"
 
-	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1alpha1"
+	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta1"
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/util"
 )
 
@@ -30,10 +30,11 @@ type sparkAppMetrics struct {
 	labels []string
 	prefix string
 
-	sparkAppSubmitCount  *prometheus.CounterVec
-	sparkAppSuccessCount *prometheus.CounterVec
-	sparkAppFailureCount *prometheus.CounterVec
-	sparkAppRunningCount *util.PositiveGauge
+	sparkAppSubmitCount           *prometheus.CounterVec
+	sparkAppSuccessCount          *prometheus.CounterVec
+	sparkAppFailureCount          *prometheus.CounterVec
+	sparkAppFailedSubmissionCount *prometheus.CounterVec
+	sparkAppRunningCount          *util.PositiveGauge
 
 	sparkAppSuccessExecutionTime *prometheus.SummaryVec
 	sparkAppFailureExecutionTime *prometheus.SummaryVec
@@ -70,6 +71,13 @@ func newSparkAppMetrics(prefix string, labels []string) *sparkAppMetrics {
 		},
 		validLabels,
 	)
+	sparkAppFailedSubmissionCount := prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: util.CreateValidMetricNameLabel(prefix, "spark_app_failed_submission_count"),
+			Help: "Spark App Failed Submission Count via the Operator",
+		},
+		validLabels,
+	)
 	sparkAppSuccessExecutionTime := prometheus.NewSummaryVec(
 		prometheus.SummaryOpts{
 			Name: util.CreateValidMetricNameLabel(prefix, "spark_app_success_execution_time_microseconds"),
@@ -84,17 +92,17 @@ func newSparkAppMetrics(prefix string, labels []string) *sparkAppMetrics {
 		},
 		validLabels,
 	)
-	sparkAppExecutorFailureCount := prometheus.NewCounterVec(
-		prometheus.CounterOpts{
-			Name: util.CreateValidMetricNameLabel(prefix, "spark_app_executor_failure_count"),
-			Help: "Spark App Failed Executor Count via the Operator",
-		},
-		validLabels,
-	)
 	sparkAppExecutorSuccessCount := prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: util.CreateValidMetricNameLabel(prefix, "spark_app_executor_success_count"),
 			Help: "Spark App Successful Executor Count via the Operator",
+		},
+		validLabels,
+	)
+	sparkAppExecutorFailureCount := prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: util.CreateValidMetricNameLabel(prefix, "spark_app_executor_failure_count"),
+			Help: "Spark App Failed Executor Count via the Operator",
 		},
 		validLabels,
 	)
@@ -104,17 +112,18 @@ func newSparkAppMetrics(prefix string, labels []string) *sparkAppMetrics {
 		"spark_app_executor_running_count"), "Spark App Running Executor Count via the Operator", validLabels)
 
 	return &sparkAppMetrics{
-		labels:                       validLabels,
-		prefix:                       prefix,
-		sparkAppSubmitCount:          sparkAppSubmitCount,
-		sparkAppSuccessCount:         sparkAppSuccessCount,
-		sparkAppFailureCount:         sparkAppFailureCount,
-		sparkAppRunningCount:         sparkAppRunningCount,
-		sparkAppSuccessExecutionTime: sparkAppSuccessExecutionTime,
-		sparkAppFailureExecutionTime: sparkAppFailureExecutionTime,
-		sparkAppExecutorRunningCount: sparkAppExecutorRunningCount,
-		sparkAppExecutorFailureCount: sparkAppExecutorFailureCount,
-		sparkAppExecutorSuccessCount: sparkAppExecutorSuccessCount,
+		labels:                        validLabels,
+		prefix:                        prefix,
+		sparkAppSubmitCount:           sparkAppSubmitCount,
+		sparkAppRunningCount:          sparkAppRunningCount,
+		sparkAppSuccessCount:          sparkAppSuccessCount,
+		sparkAppFailureCount:          sparkAppFailureCount,
+		sparkAppFailedSubmissionCount: sparkAppFailedSubmissionCount,
+		sparkAppSuccessExecutionTime:  sparkAppSuccessExecutionTime,
+		sparkAppFailureExecutionTime:  sparkAppFailureExecutionTime,
+		sparkAppExecutorRunningCount:  sparkAppExecutorRunningCount,
+		sparkAppExecutorSuccessCount:  sparkAppExecutorSuccessCount,
+		sparkAppExecutorFailureCount:  sparkAppExecutorFailureCount,
 	}
 }
 
@@ -124,36 +133,32 @@ func (sm *sparkAppMetrics) registerMetrics() {
 	util.RegisterMetric(sm.sparkAppFailureCount)
 	util.RegisterMetric(sm.sparkAppSuccessExecutionTime)
 	util.RegisterMetric(sm.sparkAppFailureExecutionTime)
-	util.RegisterMetric(sm.sparkAppExecutorFailureCount)
 	util.RegisterMetric(sm.sparkAppExecutorSuccessCount)
+	util.RegisterMetric(sm.sparkAppExecutorFailureCount)
 	sm.sparkAppRunningCount.Register()
 	sm.sparkAppExecutorRunningCount.Register()
 }
 
-func (sm *sparkAppMetrics) exportMetrics(oldApp, newApp *v1alpha1.SparkApplication) {
+func (sm *sparkAppMetrics) exportMetrics(oldApp, newApp *v1beta1.SparkApplication) {
 	metricLabels := fetchMetricLabels(newApp.Labels, sm.labels)
 	glog.V(2).Infof("Exporting metrics for %s; old status: %v new status: %v", newApp.Name,
 		oldApp.Status, newApp.Status)
 
 	oldState := oldApp.Status.AppState.State
 	newState := newApp.Status.AppState.State
-	switch newState {
-	case v1alpha1.SubmittedState:
-		if oldState != newState {
+	if newState != oldState {
+		switch newState {
+		case v1beta1.SubmittedState:
 			if m, err := sm.sparkAppSubmitCount.GetMetricWith(metricLabels); err != nil {
 				glog.Errorf("Error while exporting metrics: %v", err)
 			} else {
 				m.Inc()
 			}
-		}
-	case v1alpha1.RunningState:
-		if oldState != newState {
+		case v1beta1.RunningState:
 			sm.sparkAppRunningCount.Inc(metricLabels)
-		}
-	case v1alpha1.SucceedingState:
-		if oldState != newState {
-			if !newApp.Status.LastSubmissionAttemptTime.Time.IsZero() && !newApp.Status.CompletionTime.Time.IsZero() {
-				d := newApp.Status.CompletionTime.Time.Sub(newApp.Status.LastSubmissionAttemptTime.Time)
+		case v1beta1.SucceedingState:
+			if !newApp.Status.LastSubmissionAttemptTime.Time.IsZero() && !newApp.Status.TerminationTime.Time.IsZero() {
+				d := newApp.Status.TerminationTime.Time.Sub(newApp.Status.LastSubmissionAttemptTime.Time)
 
 				if m, err := sm.sparkAppSuccessExecutionTime.GetMetricWith(metricLabels); err != nil {
 					glog.Errorf("Error while exporting metrics: %v", err)
@@ -167,11 +172,9 @@ func (sm *sparkAppMetrics) exportMetrics(oldApp, newApp *v1alpha1.SparkApplicati
 			} else {
 				m.Inc()
 			}
-		}
-	case v1alpha1.FailingState, v1alpha1.FailedSubmissionState:
-		if oldState != newState {
-			if !newApp.Status.LastSubmissionAttemptTime.Time.IsZero() && !newApp.Status.CompletionTime.Time.IsZero() {
-				d := newApp.Status.CompletionTime.Time.Sub(newApp.Status.LastSubmissionAttemptTime.Time)
+		case v1beta1.FailingState:
+			if !newApp.Status.LastSubmissionAttemptTime.Time.IsZero() && !newApp.Status.TerminationTime.Time.IsZero() {
+				d := newApp.Status.TerminationTime.Time.Sub(newApp.Status.LastSubmissionAttemptTime.Time)
 				if m, err := sm.sparkAppFailureExecutionTime.GetMetricWith(metricLabels); err != nil {
 					glog.Errorf("Error while exporting metrics: %v", err)
 				} else {
@@ -184,19 +187,25 @@ func (sm *sparkAppMetrics) exportMetrics(oldApp, newApp *v1alpha1.SparkApplicati
 			} else {
 				m.Inc()
 			}
+		case v1beta1.FailedSubmissionState:
+			if m, err := sm.sparkAppFailedSubmissionCount.GetMetricWith(metricLabels); err != nil {
+				glog.Errorf("Error while exporting metrics: %v", err)
+			} else {
+				m.Inc()
+			}
 		}
 	}
 
 	// Potential Executor status updates
 	for executor, newExecState := range newApp.Status.ExecutorState {
 		switch newExecState {
-		case v1alpha1.ExecutorRunningState:
+		case v1beta1.ExecutorRunningState:
 			if oldApp.Status.ExecutorState[executor] != newExecState {
 				glog.V(2).Infof("Exporting Metrics for Executor %s. OldState: %v NewState: %v", executor,
 					oldApp.Status.ExecutorState[executor], newExecState)
 				sm.sparkAppExecutorRunningCount.Inc(metricLabels)
 			}
-		case v1alpha1.ExecutorCompletedState:
+		case v1beta1.ExecutorCompletedState:
 			if oldApp.Status.ExecutorState[executor] != newExecState {
 				glog.V(2).Infof("Exporting Metrics for Executor %s. OldState: %v NewState: %v", executor,
 					oldApp.Status.ExecutorState[executor], newExecState)
@@ -207,7 +216,7 @@ func (sm *sparkAppMetrics) exportMetrics(oldApp, newApp *v1alpha1.SparkApplicati
 					m.Inc()
 				}
 			}
-		case v1alpha1.ExecutorFailedState:
+		case v1beta1.ExecutorFailedState:
 			if oldApp.Status.ExecutorState[executor] != newExecState {
 				glog.V(2).Infof("Exporting Metrics for Executor %s. OldState: %v NewState: %v", executor,
 					oldApp.Status.ExecutorState[executor], newExecState)

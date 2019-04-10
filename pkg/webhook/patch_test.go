@@ -18,39 +18,33 @@ package webhook
 
 import (
 	"encoding/json"
-	"fmt"
-	"reflect"
 	"testing"
 
-	"github.com/evanphx/json-patch"
+	jsonpatch "github.com/evanphx/json-patch"
 	"github.com/stretchr/testify/assert"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1alpha1"
+	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta1"
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/config"
-	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/util"
 )
 
 func TestPatchSparkPod_OwnerReference(t *testing.T) {
-	ownerReference := metav1.OwnerReference{
-		APIVersion: v1alpha1.SchemeGroupVersion.String(),
-		Kind:       reflect.TypeOf(v1alpha1.SparkApplication{}).Name(),
-		Name:       "spark-test",
-		UID:        "spark-test-1",
-	}
-	referenceStr, err := util.MarshalOwnerReference(&ownerReference)
-	if err != nil {
-		t.Error(err)
+	app := &v1beta1.SparkApplication{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "spark-test",
+			UID:  "spark-test-1",
+		},
 	}
 
-	// Test patching a pod without existing OwnerReference and Volume.
 	pod := &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:        "spark-driver",
-			Labels:      map[string]string{sparkRoleLabel: sparkDriverRole},
-			Annotations: map[string]string{config.OwnerReferenceAnnotation: referenceStr},
+			Name: "spark-driver",
+			Labels: map[string]string{
+				config.SparkRoleLabel:               config.SparkDriverRole,
+				config.LaunchedBySparkOperatorLabel: "true",
+			},
 		},
 		Spec: corev1.PodSpec{
 			Containers: []corev1.Container{
@@ -62,58 +56,59 @@ func TestPatchSparkPod_OwnerReference(t *testing.T) {
 		},
 	}
 
-	modifiedPod, err := getModifiedPod(pod)
+	// Test patching a pod without existing OwnerReference and Volume.
+	modifiedPod, err := getModifiedPod(pod, app)
 	if err != nil {
 		t.Fatal(err)
 	}
-
 	assert.Equal(t, 1, len(modifiedPod.OwnerReferences))
-	assert.Equal(t, ownerReference, modifiedPod.OwnerReferences[0])
 
 	// Test patching a pod with existing OwnerReference and Volume.
 	pod.OwnerReferences = append(pod.OwnerReferences, metav1.OwnerReference{Name: "owner-reference1"})
 
-	modifiedPod, err = getModifiedPod(pod)
+	modifiedPod, err = getModifiedPod(pod, app)
 	if err != nil {
 		t.Fatal(err)
 	}
-
 	assert.Equal(t, 2, len(modifiedPod.OwnerReferences))
-	assert.Equal(t, ownerReference, modifiedPod.OwnerReferences[1])
 }
 
 func TestPatchSparkPod_Volumes(t *testing.T) {
-	volume := &corev1.Volume{
-		Name: "spark",
-		VolumeSource: corev1.VolumeSource{
-			HostPath: &corev1.HostPathVolumeSource{
-				Path: "/spark",
+	app := &v1beta1.SparkApplication{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "spark-test",
+			UID:  "spark-test-1",
+		},
+		Spec: v1beta1.SparkApplicationSpec{
+			Volumes: []corev1.Volume{
+				corev1.Volume{
+					Name: "spark",
+					VolumeSource: corev1.VolumeSource{
+						HostPath: &corev1.HostPathVolumeSource{
+							Path: "/spark",
+						},
+					},
+				},
+			},
+			Driver: v1beta1.DriverSpec{
+				SparkPodSpec: v1beta1.SparkPodSpec{
+					VolumeMounts: []corev1.VolumeMount{
+						{
+							Name:      "spark",
+							MountPath: "/mnt/spark",
+						},
+					},
+				},
 			},
 		},
 	}
-	volumeStr, err := util.MarshalVolume(volume)
-	if err != nil {
-		t.Error(err)
-	}
-	volumeMount := &corev1.VolumeMount{
-		Name:      "spark",
-		MountPath: "/mnt/spark",
-	}
-	volumeMountStr, err := util.MarshalVolumeMount(volumeMount)
-	if err != nil {
-		t.Error(err)
-	}
 
-	volumeAnnotation := fmt.Sprintf("%s%s", config.VolumesAnnotationPrefix, volume.Name)
-	volumeMountAnnotation := fmt.Sprintf("%s%s", config.VolumeMountsAnnotationPrefix, volumeMount.Name)
-	// Test patching a pod without existing OwnerReference and Volume.
 	pod := &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:   "spark-driver",
-			Labels: map[string]string{sparkRoleLabel: sparkDriverRole},
-			Annotations: map[string]string{
-				volumeAnnotation:      volumeStr,
-				volumeMountAnnotation: volumeMountStr,
+			Name: "spark-driver",
+			Labels: map[string]string{
+				config.SparkRoleLabel:               config.SparkDriverRole,
+				config.LaunchedBySparkOperatorLabel: "true",
 			},
 		},
 		Spec: corev1.PodSpec{
@@ -126,15 +121,16 @@ func TestPatchSparkPod_Volumes(t *testing.T) {
 		},
 	}
 
-	modifiedPod, err := getModifiedPod(pod)
+	// Test patching a pod without existing OwnerReference and Volume.
+	modifiedPod, err := getModifiedPod(pod, app)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	assert.Equal(t, 1, len(modifiedPod.Spec.Volumes))
-	assert.Equal(t, *volume, modifiedPod.Spec.Volumes[0])
+	assert.Equal(t, app.Spec.Volumes[0], modifiedPod.Spec.Volumes[0])
 	assert.Equal(t, 1, len(modifiedPod.Spec.Containers[0].VolumeMounts))
-	assert.Equal(t, *volumeMount, modifiedPod.Spec.Containers[0].VolumeMounts[0])
+	assert.Equal(t, app.Spec.Driver.VolumeMounts[0], modifiedPod.Spec.Containers[0].VolumeMounts[0])
 
 	// Test patching a pod with existing OwnerReference and Volume.
 	pod.Spec.Volumes = append(pod.Spec.Volumes, corev1.Volume{Name: "volume1"})
@@ -142,41 +138,50 @@ func TestPatchSparkPod_Volumes(t *testing.T) {
 		Name: "volume1",
 	})
 
-	modifiedPod, err = getModifiedPod(pod)
+	modifiedPod, err = getModifiedPod(pod, app)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	assert.Equal(t, 2, len(modifiedPod.Spec.Volumes))
-	assert.Equal(t, *volume, modifiedPod.Spec.Volumes[1])
+	assert.Equal(t, app.Spec.Volumes[0], modifiedPod.Spec.Volumes[1])
 	assert.Equal(t, 2, len(modifiedPod.Spec.Containers[0].VolumeMounts))
-	assert.Equal(t, *volumeMount, modifiedPod.Spec.Containers[0].VolumeMounts[1])
+	assert.Equal(t, app.Spec.Driver.VolumeMounts[0], modifiedPod.Spec.Containers[0].VolumeMounts[1])
 }
 
 func TestPatchSparkPod_Affinity(t *testing.T) {
-	// Test patching a pod with a pod Affinity.
-	affinity := &corev1.Affinity{
-		PodAffinity: &corev1.PodAffinity{
-			RequiredDuringSchedulingIgnoredDuringExecution: []corev1.PodAffinityTerm{
-				{
-					LabelSelector: &metav1.LabelSelector{
-						MatchLabels: map[string]string{sparkRoleLabel: sparkDriverRole},
+	app := &v1beta1.SparkApplication{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "spark-test",
+			UID:  "spark-test-1",
+		},
+		Spec: v1beta1.SparkApplicationSpec{
+			Driver: v1beta1.DriverSpec{
+				SparkPodSpec: v1beta1.SparkPodSpec{
+					Affinity: &corev1.Affinity{
+						PodAffinity: &corev1.PodAffinity{
+							RequiredDuringSchedulingIgnoredDuringExecution: []corev1.PodAffinityTerm{
+								{
+									LabelSelector: &metav1.LabelSelector{
+										MatchLabels: map[string]string{config.SparkRoleLabel: config.SparkDriverRole},
+									},
+									TopologyKey: "kubernetes.io/hostname",
+								},
+							},
+						},
 					},
-					TopologyKey: "kubernetes.io/hostname",
 				},
 			},
 		},
 	}
-	affinityStr, err := util.MarshalAffinity(affinity)
-	if err != nil {
-		t.Error(err)
-	}
 
 	pod := &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:        "spark-driver",
-			Labels:      map[string]string{sparkRoleLabel: sparkDriverRole},
-			Annotations: map[string]string{config.AffinityAnnotation: affinityStr},
+			Name: "spark-driver",
+			Labels: map[string]string{
+				config.SparkRoleLabel:               config.SparkDriverRole,
+				config.LaunchedBySparkOperatorLabel: "true",
+			},
 		},
 		Spec: corev1.PodSpec{
 			Containers: []corev1.Container{
@@ -188,7 +193,8 @@ func TestPatchSparkPod_Affinity(t *testing.T) {
 		},
 	}
 
-	modifiedPod, err := getModifiedPod(pod)
+	// Test patching a pod with a pod Affinity.
+	modifiedPod, err := getModifiedPod(pod, app)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -201,11 +207,27 @@ func TestPatchSparkPod_Affinity(t *testing.T) {
 }
 
 func TestPatchSparkPod_ConfigMaps(t *testing.T) {
+	app := &v1beta1.SparkApplication{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "spark-test",
+			UID:  "spark-test-1",
+		},
+		Spec: v1beta1.SparkApplicationSpec{
+			Driver: v1beta1.DriverSpec{
+				SparkPodSpec: v1beta1.SparkPodSpec{
+					ConfigMaps: []v1beta1.NamePath{{Name: "foo", Path: "/path/to/foo"}},
+				},
+			},
+		},
+	}
+
 	pod := &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:        "spark-driver",
-			Labels:      map[string]string{sparkRoleLabel: sparkDriverRole},
-			Annotations: map[string]string{config.GeneralConfigMapsAnnotationPrefix + "foo": "/path/to/foo"},
+			Name: "spark-driver",
+			Labels: map[string]string{
+				config.SparkRoleLabel:               config.SparkDriverRole,
+				config.LaunchedBySparkOperatorLabel: "true",
+			},
 		},
 		Spec: corev1.PodSpec{
 			Containers: []corev1.Container{
@@ -217,24 +239,37 @@ func TestPatchSparkPod_ConfigMaps(t *testing.T) {
 		},
 	}
 
-	modifiedPod, err := getModifiedPod(pod)
+	modifiedPod, err := getModifiedPod(pod, app)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	assert.Equal(t, 1, len(modifiedPod.Spec.Volumes))
-	assert.Equal(t, "foo-volume", modifiedPod.Spec.Volumes[0].Name)
+	assert.Equal(t, "foo-vol", modifiedPod.Spec.Volumes[0].Name)
 	assert.True(t, modifiedPod.Spec.Volumes[0].ConfigMap != nil)
 	assert.Equal(t, 1, len(modifiedPod.Spec.Containers[0].VolumeMounts))
 	assert.Equal(t, "/path/to/foo", modifiedPod.Spec.Containers[0].VolumeMounts[0].MountPath)
 }
 
 func TestPatchSparkPod_SparkConfigMap(t *testing.T) {
+	sparkConfMapName := "spark-conf"
+	app := &v1beta1.SparkApplication{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "spark-test",
+			UID:  "spark-test-1",
+		},
+		Spec: v1beta1.SparkApplicationSpec{
+			SparkConfigMap: &sparkConfMapName,
+		},
+	}
+
 	pod := &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:        "spark-driver",
-			Labels:      map[string]string{sparkRoleLabel: sparkDriverRole},
-			Annotations: map[string]string{config.SparkConfigMapAnnotation: "spark-conf"},
+			Name: "spark-driver",
+			Labels: map[string]string{
+				config.SparkRoleLabel:               config.SparkDriverRole,
+				config.LaunchedBySparkOperatorLabel: "true",
+			},
 		},
 		Spec: corev1.PodSpec{
 			Containers: []corev1.Container{
@@ -246,7 +281,7 @@ func TestPatchSparkPod_SparkConfigMap(t *testing.T) {
 		},
 	}
 
-	modifiedPod, err := getModifiedPod(pod)
+	modifiedPod, err := getModifiedPod(pod, app)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -261,11 +296,24 @@ func TestPatchSparkPod_SparkConfigMap(t *testing.T) {
 }
 
 func TestPatchSparkPod_HadoopConfigMap(t *testing.T) {
+	hadoopConfMapName := "hadoop-conf"
+	app := &v1beta1.SparkApplication{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "spark-test",
+			UID:  "spark-test-1",
+		},
+		Spec: v1beta1.SparkApplicationSpec{
+			HadoopConfigMap: &hadoopConfMapName,
+		},
+	}
+
 	pod := &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:        "spark-driver",
-			Labels:      map[string]string{sparkRoleLabel: sparkDriverRole},
-			Annotations: map[string]string{config.HadoopConfigMapAnnotation: "hadoop-conf"},
+			Name: "spark-driver",
+			Labels: map[string]string{
+				config.SparkRoleLabel:               config.SparkDriverRole,
+				config.LaunchedBySparkOperatorLabel: "true",
+			},
 		},
 		Spec: corev1.PodSpec{
 			Containers: []corev1.Container{
@@ -277,7 +325,7 @@ func TestPatchSparkPod_HadoopConfigMap(t *testing.T) {
 		},
 	}
 
-	modifiedPod, err := getModifiedPod(pod)
+	modifiedPod, err := getModifiedPod(pod, app)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -291,11 +339,203 @@ func TestPatchSparkPod_HadoopConfigMap(t *testing.T) {
 	assert.Equal(t, config.DefaultHadoopConfDir, modifiedPod.Spec.Containers[0].Env[0].Value)
 }
 
-func getModifiedPod(pod *corev1.Pod) (*corev1.Pod, error) {
-	patchOps, err := patchSparkPod(pod)
-	if err != nil {
-		return nil, err
+func TestPatchSparkPod_Tolerations(t *testing.T) {
+	app := &v1beta1.SparkApplication{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "spark-test",
+			UID:  "spark-test-1",
+		},
+		Spec: v1beta1.SparkApplicationSpec{
+			Driver: v1beta1.DriverSpec{
+				SparkPodSpec: v1beta1.SparkPodSpec{
+					Tolerations: []corev1.Toleration{
+						{
+							Key:      "Key",
+							Operator: "Equal",
+							Value:    "Value",
+							Effect:   "NoEffect",
+						},
+					},
+				},
+			},
+		},
 	}
+
+	// Test patching a pod with a Toleration.
+	pod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "spark-driver",
+			Labels: map[string]string{
+				config.SparkRoleLabel:               config.SparkDriverRole,
+				config.LaunchedBySparkOperatorLabel: "true",
+			},
+		},
+		Spec: corev1.PodSpec{
+			Containers: []corev1.Container{
+				{
+					Name:  sparkDriverContainerName,
+					Image: "spark-driver:latest",
+				},
+			},
+		},
+	}
+
+	modifiedPod, err := getModifiedPod(pod, app)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	assert.Equal(t, 1, len(modifiedPod.Spec.Tolerations))
+	assert.Equal(t, app.Spec.Driver.Tolerations[0], modifiedPod.Spec.Tolerations[0])
+}
+
+func TestPatchSparkPod_SecurityContext(t *testing.T) {
+	var user int64 = 1000
+	app := &v1beta1.SparkApplication{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "spark-test",
+			UID:  "spark-test-1",
+		},
+		Spec: v1beta1.SparkApplicationSpec{
+			Driver: v1beta1.DriverSpec{
+				SparkPodSpec: v1beta1.SparkPodSpec{
+					SecurityContenxt: &corev1.PodSecurityContext{
+						RunAsUser: &user,
+					},
+				},
+			},
+			Executor: v1beta1.ExecutorSpec{
+				SparkPodSpec: v1beta1.SparkPodSpec{
+					SecurityContenxt: &corev1.PodSecurityContext{
+						RunAsUser: &user,
+					},
+				},
+			},
+		},
+	}
+
+	driverPod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "spark-executor",
+			Labels: map[string]string{
+				config.SparkRoleLabel:               config.SparkDriverRole,
+				config.LaunchedBySparkOperatorLabel: "true",
+			},
+		},
+		Spec: corev1.PodSpec{
+			Containers: []corev1.Container{
+				{
+					Name:  sparkDriverContainerName,
+					Image: "spark-driver:latest",
+				},
+			},
+		},
+	}
+
+	modifiedDriverPod, err := getModifiedPod(driverPod, app)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assert.Equal(t, app.Spec.Driver.SecurityContenxt, modifiedDriverPod.Spec.SecurityContext)
+
+	executorPod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "spark-executor",
+			Labels: map[string]string{
+				config.SparkRoleLabel:               config.SparkExecutorRole,
+				config.LaunchedBySparkOperatorLabel: "true",
+			},
+		},
+		Spec: corev1.PodSpec{
+			Containers: []corev1.Container{
+				{
+					Name:  sparkExecutorContainerName,
+					Image: "spark-executor:latest",
+				},
+			},
+		},
+	}
+
+	modifiedExecutorPod, err := getModifiedPod(executorPod, app)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assert.Equal(t, app.Spec.Executor.SecurityContenxt, modifiedExecutorPod.Spec.SecurityContext)
+}
+
+func TestPatchSparkPod_SchedulerName(t *testing.T) {
+	var schedulerName = "another_scheduler"
+
+	app := &v1beta1.SparkApplication{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "spark-test-patch-schedulername",
+			UID:  "spark-test-1",
+		},
+		Spec: v1beta1.SparkApplicationSpec{
+			Driver: v1beta1.DriverSpec{
+				SparkPodSpec: v1beta1.SparkPodSpec{
+					SchedulerName: &schedulerName,
+				},
+			},
+			Executor: v1beta1.ExecutorSpec{
+				SparkPodSpec: v1beta1.SparkPodSpec{
+					SchedulerName: &schedulerName,
+				},
+			},
+		},
+	}
+
+	driverPod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "spark-executor",
+			Labels: map[string]string{
+				config.SparkRoleLabel:               config.SparkDriverRole,
+				config.LaunchedBySparkOperatorLabel: "true",
+			},
+		},
+		Spec: corev1.PodSpec{
+			Containers: []corev1.Container{
+				{
+					Name:  sparkDriverContainerName,
+					Image: "spark-driver:latest",
+				},
+			},
+		},
+	}
+
+	modifiedDriverPod, err := getModifiedPod(driverPod, app)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assert.Equal(t, schedulerName, modifiedDriverPod.Spec.SchedulerName)
+
+	executorPod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "spark-executor",
+			Labels: map[string]string{
+				config.SparkRoleLabel:               config.SparkExecutorRole,
+				config.LaunchedBySparkOperatorLabel: "true",
+			},
+		},
+		Spec: corev1.PodSpec{
+			Containers: []corev1.Container{
+				{
+					Name:  sparkExecutorContainerName,
+					Image: "spark-executor:latest",
+				},
+			},
+		},
+	}
+
+	modifiedExecutorPod, err := getModifiedPod(executorPod, app)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assert.Equal(t, schedulerName, modifiedExecutorPod.Spec.SchedulerName)
+}
+
+func getModifiedPod(pod *corev1.Pod, app *v1beta1.SparkApplication) (*corev1.Pod, error) {
+	patchOps := patchSparkPod(pod, app)
 	patchBytes, err := json.Marshal(patchOps)
 	if err != nil {
 		return nil, err
@@ -319,45 +559,4 @@ func getModifiedPod(pod *corev1.Pod) (*corev1.Pod, error) {
 	}
 
 	return modifiedPod, nil
-}
-
-func TestPatchSparkPod_Tolerations(t *testing.T) {
-	toleration := &corev1.Toleration{
-		Key:      "Key",
-		Operator: "Equal",
-		Value:    "Value",
-		Effect:   "NoEffect",
-	}
-
-	tolerationStr, err := util.MarshalToleration(toleration)
-	if err != nil {
-		t.Error(err)
-	}
-
-	tolerationAnnotation := fmt.Sprintf("%s%s", config.TolerationsAnnotationPrefix, "toleration1")
-
-	// Test patching a pod with a Toleration.
-	pod := &corev1.Pod{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:        "spark-driver",
-			Labels:      map[string]string{sparkRoleLabel: sparkDriverRole},
-			Annotations: map[string]string{tolerationAnnotation: tolerationStr},
-		},
-		Spec: corev1.PodSpec{
-			Containers: []corev1.Container{
-				{
-					Name:  sparkDriverContainerName,
-					Image: "spark-driver:latest",
-				},
-			},
-		},
-	}
-
-	modifiedPod, err := getModifiedPod(pod)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	assert.Equal(t, 1, len(modifiedPod.Spec.Tolerations))
-	assert.Equal(t, *toleration, modifiedPod.Spec.Tolerations[0])
 }

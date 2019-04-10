@@ -19,51 +19,54 @@ package e2e
 import (
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 
 	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
 
-	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1alpha1"
 	appFramework "github.com/GoogleCloudPlatform/spark-on-k8s-operator/test/e2e/framework"
 )
-
-func getJobStatus(t *testing.T) v1alpha1.ApplicationStateType {
-	app, err := appFramework.GetSparkApplication(framework.SparkApplicationClient, "default", "spark-pi")
-	assert.Equal(t, nil, err)
-	return app.Status.AppState.State
-}
 
 func TestSubmitSparkPiYaml(t *testing.T) {
 	t.Parallel()
 
-	// Wait for test job to finish. Time out after 90 seconds.
-	timeout := 100 * time.Second
-	interval := 5 * time.Second
-
+	appName := "spark-pi"
 	sa, err := appFramework.MakeSparkApplicationFromYaml("../../examples/spark-pi.yaml")
 	assert.Equal(t, nil, err)
-	err = appFramework.CreateSparkApplication(framework.SparkApplicationClient, "default", sa)
+
+	if appFramework.SparkTestNamespace != "" {
+		sa.ObjectMeta.Namespace = appFramework.SparkTestNamespace
+	}
+
+	if appFramework.SparkTestServiceAccount != "" {
+		sa.Spec.Driver.ServiceAccount = &appFramework.SparkTestServiceAccount
+	}
+
+	if appFramework.SparkTestImage != "" {
+		sa.Spec.Image = &appFramework.SparkTestImage
+	}
+
+	err = appFramework.CreateSparkApplication(framework.SparkApplicationClient, appFramework.SparkTestNamespace, sa)
 	assert.Equal(t, nil, err)
 
-	status := getJobStatus(t)
+	status := GetJobStatus(t, appName)
 
-	wait.Poll(interval, timeout, func() (done bool, err error) {
+	err = wait.Poll(INTERVAL, TIMEOUT, func() (done bool, err error) {
 		if status == "COMPLETED" {
 			return true, nil
 		}
-		status = getJobStatus(t)
+		status = GetJobStatus(t, appName)
 		return false, nil
 	})
+	assert.Equal(t, nil, err)
 
-	app, _ := appFramework.GetSparkApplication(framework.SparkApplicationClient, "default", "spark-pi")
+	app, _ := appFramework.GetSparkApplication(framework.SparkApplicationClient, appFramework.SparkTestNamespace, appName)
 	podName := app.Status.DriverInfo.PodName
-	rawLogs, err := framework.KubeClient.CoreV1().Pods("default").GetLogs(podName, &v1.PodLogOptions{}).Do().Raw()
+	rawLogs, err := framework.KubeClient.CoreV1().Pods(appFramework.SparkTestNamespace).GetLogs(podName, &v1.PodLogOptions{}).Do().Raw()
 	assert.Equal(t, nil, err)
 	assert.NotEqual(t, -1, strings.Index(string(rawLogs), "Pi is roughly 3"))
 
-	err = appFramework.DeleteSparkApplication(framework.SparkApplicationClient, "default", "spark-pi")
+	err = appFramework.DeleteSparkApplication(framework.SparkApplicationClient, appFramework.SparkTestNamespace, appName)
 	assert.Equal(t, nil, err)
 }

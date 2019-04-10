@@ -45,7 +45,7 @@ const (
 // RestartPolicy is the policy of if and in which conditions the controller should restart a terminated application.
 // This completely defines actions to be taken on any kind of Failures during an application run.
 type RestartPolicy struct {
-	Type RestartPolicyType `json:"type,omitempty""`
+	Type RestartPolicyType `json:"type,omitempty"`
 
 	// FailureRetries are the number of times to retry a failed application before giving up in a particular case.
 	// This is best effort and actual retry attempts can be >= the value specified due to caching.
@@ -247,6 +247,7 @@ const (
 	InvalidatingState     ApplicationStateType = "INVALIDATING"
 	SucceedingState       ApplicationStateType = "SUCCEEDING"
 	FailingState          ApplicationStateType = "FAILING"
+	UnknownState          ApplicationStateType = "UNKNOWN"
 )
 
 // ApplicationState tells the current state of the application and an error message in case of failures.
@@ -273,8 +274,8 @@ type SparkApplicationStatus struct {
 	SparkApplicationID string `json:"sparkApplicationId,omitempty"`
 	// LastSubmissionAttemptTime is the time for the last application submission attempt.
 	LastSubmissionAttemptTime metav1.Time `json:"lastSubmissionAttemptTime,omitempty"`
-	// CompletionTime is the time when the application runs to completion if it does.
-	CompletionTime metav1.Time `json:"completionTime,omitempty"`
+	// TerminationTime is the time when the application runs to completion with success or failure
+	TerminationTime metav1.Time `json:"terminationTime,omitempty"`
 	// DriverInfo has information about the driver.
 	DriverInfo DriverInfo `json:"driverInfo"`
 	// AppState tells the overall application state.

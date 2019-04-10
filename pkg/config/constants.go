@@ -61,16 +61,22 @@ const (
 	AffinityAnnotation = LabelAnnotationPrefix + "affinity"
 	// SparkAppNameLabel is the name of the label for the SparkApplication object name.
 	SparkAppNameLabel = LabelAnnotationPrefix + "app-name"
+	// ScheduledSparkAppNameLabel is the name of the label for the ScheduledSparkApplication object name.
+	ScheduledSparkAppNameLabel = LabelAnnotationPrefix + "scheduled-app-name"
 	// LaunchedBySparkOperatorLabel is a label on Spark pods launched through the Spark Operator.
 	LaunchedBySparkOperatorLabel = LabelAnnotationPrefix + "launched-by-spark-operator"
-
+	// TolerationsAnnotationPrefix is the prefix of annotations that specify a Toleration.
+	TolerationsAnnotationPrefix = LabelAnnotationPrefix + "tolerations."
 	// SparkApplicationSelectorLabel is the AppID set by the spark-distribution on the driver/executors Pods.
 	SparkApplicationSelectorLabel = "spark-app-selector"
 	// SparkRoleLabel is the driver/executor label set by the operator/spark-distribution on the driver/executors Pods.
 	SparkRoleLabel = "spark-role"
-
-	// TolerationsAnnotationPrefix is the prefix of annotations that specify a Toleration.
-	TolerationsAnnotationPrefix = LabelAnnotationPrefix + "tolerations."
+	// SparkDriverRole is the value of the spark-role label for the driver.
+	SparkDriverRole = "driver"
+	// SparkExecutorRole is the value of the spark-role label for the executors.
+	SparkExecutorRole = "executor"
+	// SubmissionIDLabel is the label that records the submission ID of the current run of an application.
+	SubmissionIDLabel = LabelAnnotationPrefix + "submission-id"
 )
 
 const (
@@ -79,7 +85,7 @@ const (
 	// SparkImagePullSecretKey is the configuration property for specifying the comma-separated list of image-pull
 	// secrets.
 	SparkImagePullSecretKey = "spark.kubernetes.container.image.pullSecrets"
-	// SparkContainerImageKey is the configuration property for specifying the container image pull policy.
+	// SparkContainerImagePullPolicyKey is the configuration property for specifying the container image pull policy.
 	SparkContainerImagePullPolicyKey = "spark.kubernetes.container.image.pullPolicy"
 	// SparkNodeSelectorKeyPrefix is the configuration property prefix for specifying node selector for the pods.
 	SparkNodeSelectorKeyPrefix = "spark.kubernetes.node.selector."
@@ -89,20 +95,20 @@ const (
 	SparkExecutorContainerImageKey = "spark.kubernetes.executor.container.image"
 	// SparkDriverCoreLimitKey is the configuration property for specifying the hard CPU limit for the driver pod.
 	SparkDriverCoreLimitKey = "spark.kubernetes.driver.limit.cores"
-	// SparkDriverCoreLimitKey is the configuration property for specifying the hard CPU limit for the executor pods.
+	// SparkExecutorCoreLimitKey is the configuration property for specifying the hard CPU limit for the executor pods.
 	SparkExecutorCoreLimitKey = "spark.kubernetes.executor.limit.cores"
 	// SparkExecutorCoreRequestKey is the configuration property for specifying the physical CPU request for executors.
 	SparkExecutorCoreRequestKey = "spark.kubernetes.executor.request.cores"
 	// SparkDriverSecretKeyPrefix is the configuration property prefix for specifying secrets to be mounted into the
 	// driver.
 	SparkDriverSecretKeyPrefix = "spark.kubernetes.driver.secrets."
-	// SparkDriverSecretKeyPrefix is the configuration property prefix for specifying secrets to be mounted into the
+	// SparkExecutorSecretKeyPrefix is the configuration property prefix for specifying secrets to be mounted into the
 	// executors.
 	SparkExecutorSecretKeyPrefix = "spark.kubernetes.executor.secrets."
 	// SparkDriverSecretKeyRefKeyPrefix is the configuration property prefix for specifying environment variables
 	// from SecretKeyRefs for the driver.
 	SparkDriverSecretKeyRefKeyPrefix = "spark.kubernetes.driver.secretKeyRef."
-	// SparkDriverSecretKeyRefKeyPrefix is the configuration property prefix for specifying environment variables
+	// SparkExecutorSecretKeyRefKeyPrefix is the configuration property prefix for specifying environment variables
 	// from SecretKeyRefs for the executors.
 	SparkExecutorSecretKeyRefKeyPrefix = "spark.kubernetes.executor.secretKeyRef."
 	// SparkDriverEnvVarConfigKeyPrefix is the Spark configuration prefix for setting environment variables
@@ -142,7 +148,7 @@ const (
 	SparkWaitAppCompletion = "spark.kubernetes.submission.waitAppCompletion"
 	// SparkPythonVersion is the Spark configuration key for specifying python version used.
 	SparkPythonVersion = "spark.kubernetes.pyspark.pythonVersion"
-	// SparkPythonVersion is the Spark configuration key for specifying memory overhead factor used for Non-JVM memory.
+	// SparkMemoryOverheadFactor is the Spark configuration key for specifying memory overhead factor used for Non-JVM memory.
 	SparkMemoryOverheadFactor = "spark.kubernetes.memoryOverheadFactor"
 	// SparkDriverJavaOptions is the Spark configuration key for a string of extra JVM options to pass to driver.
 	SparkDriverJavaOptions = "spark.driver.extraJavaOptions"
@@ -177,89 +183,89 @@ const DefaultPrometheusConfiguration = `
 lowercaseOutputName: true
 attrNameSnakeCase: true
 rules:
-  - pattern: metrics<name=(\S+)/(\S+)\.driver\.(BlockManager|DAGScheduler|jvm)\.(\S+)><>Value
+  - pattern: metrics<name=(\S+)\.(\S+)\.driver\.(BlockManager|DAGScheduler|jvm)\.(\S+)><>Value
     name: spark_driver_$3_$4
     type: GAUGE
     labels:
       app_namespace: "$1"
-      app_name: "$2"
-  - pattern: metrics<name=(\S+)/(\S+)\.driver\.(\S+)\.StreamingMetrics\.streaming\.(\S+)><>Value
+      app_id: "$2"
+  - pattern: metrics<name=(\S+)\.(\S+)\.driver\.(\S+)\.StreamingMetrics\.streaming\.(\S+)><>Value
     name: spark_streaming_driver_$4
     type: GAUGE
     labels:
       app_namespace: "$1"
-      app_name: "$2"
-  - pattern: metrics<name=(\S+)/(\S+)\.driver\.spark\.streaming\.(\S+)\.(\S+)><>Value
+      app_id: "$2"
+  - pattern: metrics<name=(\S+)\.(\S+)\.driver\.spark\.streaming\.(\S+)\.(\S+)><>Value
     name: spark_structured_streaming_driver_$4
     type: GAUGE
     labels:
       app_namespace: "$1"
-      app_name: "$2"
+      app_id: "$2"
       query_name: "$3"
-  - pattern: metrics<name=(\S+)/(\S+)\.(\S+)\.executor\.(\S+)><>Value
+  - pattern: metrics<name=(\S+)\.(\S+)\.(\S+)\.executor\.(\S+)><>Value
     name: spark_executor_$4
     type: GAUGE
     labels:
       app_namespace: "$1"
-      app_name: "$2"
+      app_id: "$2"
       executor_id: "$3"
-  - pattern: metrics<name=(\S+)/(\S+)\.driver\.DAGScheduler\.(.*)><>Count
+  - pattern: metrics<name=(\S+)\.(\S+)\.driver\.DAGScheduler\.(.*)><>Count
     name: spark_driver_DAGScheduler_$3_count
     type: COUNTER
     labels:
       app_namespace: "$1"
-      app_name: "$2"
-  - pattern: metrics<name=(\S+)/(\S+)\.driver\.HiveExternalCatalog\.(.*)><>Count
+      app_id: "$2"
+  - pattern: metrics<name=(\S+)\.(\S+)\.driver\.HiveExternalCatalog\.(.*)><>Count
     name: spark_driver_HiveExternalCatalog_$3_count
     type: COUNTER
     labels:
       app_namespace: "$1"
-      app_name: "$2"
-  - pattern: metrics<name=(\S+)/(\S+)\.driver\.CodeGenerator\.(.*)><>Count
+      app_id: "$2"
+  - pattern: metrics<name=(\S+)\.(\S+)\.driver\.CodeGenerator\.(.*)><>Count
     name: spark_driver_CodeGenerator_$3_count
     type: COUNTER
     labels:
       app_namespace: "$1"
-      app_name: "$2"
-  - pattern: metrics<name=(\S+)/(\S+)\.driver\.LiveListenerBus\.(.*)><>Count
+      app_id: "$2"
+  - pattern: metrics<name=(\S+)\.(\S+)\.driver\.LiveListenerBus\.(.*)><>Count
     name: spark_driver_LiveListenerBus_$3_count
     type: COUNTER
     labels:
       app_namespace: "$1"
-      app_name: "$2"
-  - pattern: metrics<name=(\S+)/(\S+)\.driver\.LiveListenerBus\.(.*)><>Value
+      app_id: "$2"
+  - pattern: metrics<name=(\S+)\.(\S+)\.driver\.LiveListenerBus\.(.*)><>Value
     name: spark_driver_LiveListenerBus_$3
     type: GAUGE
     labels:
       app_namespace: "$1"
-      app_name: "$2"
-  - pattern: metrics<name=(\S+)/(\S+)\.(.*)\.executor\.(.*)><>Count
+      app_id: "$2"
+  - pattern: metrics<name=(\S+)\.(\S+)\.(.*)\.executor\.(.*)><>Count
     name: spark_executor_$4_count
     type: COUNTER
     labels:
       app_namespace: "$1"
-      app_name: "$2"
+      app_id: "$2"
       executor_id: "$3"
-  - pattern: metrics<name=(\S+)/(\S+)\.([0-9]+)\.(jvm|NettyBlockTransfer)\.(.*)><>Value
+  - pattern: metrics<name=(\S+)\.(\S+)\.([0-9]+)\.(jvm|NettyBlockTransfer)\.(.*)><>Value
     name: spark_executor_$4_$5
     type: GAUGE
     labels:
       app_namespace: "$1"
-      app_name: "$2"
+      app_id: "$2"
       executor_id: "$3"
-  - pattern: metrics<name=(\S+)/(\S+)\.([0-9]+)\.HiveExternalCatalog\.(.*)><>Count
+  - pattern: metrics<name=(\S+)\.(\S+)\.([0-9]+)\.HiveExternalCatalog\.(.*)><>Count
     name: spark_executor_HiveExternalCatalog_$4_count
     type: COUNTER
     labels:
       app_namespace: "$1"
-      app_name: "$2"
+      app_id: "$2"
       executor_id: "$3"
-  - pattern: metrics<name=(\S+)/(\S+)\.([0-9]+)\.CodeGenerator\.(.*)><>Count
+  - pattern: metrics<name=(\S+)\.(\S+)\.([0-9]+)\.CodeGenerator\.(.*)><>Count
     name: spark_executor_CodeGenerator_$4_count
     type: COUNTER
     labels:
       app_namespace: "$1"
-      app_name: "$2"
+      app_id: "$2"
       executor_id: "$3"
 `
 const DefaultPrometheusJavaAgentPort int32 = 8090

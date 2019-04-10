@@ -30,38 +30,50 @@ import (
 
 	admissionv1beta1 "k8s.io/api/admission/v1beta1"
 	"k8s.io/api/admissionregistration/v1beta1"
+	apiv1 "k8s.io/api/core/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 
+	crinformers "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/client/informers/externalversions"
+	crdlisters "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/client/listers/sparkoperator.k8s.io/v1beta1"
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/config"
+	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/util"
 )
 
 const (
-	webhookConfigName = "spark-webhook-config"
-	webhookName       = "webhook.sparkoperator.k8s.io"
-	sparkRoleLabel    = "spark-role"
-	sparkDriverRole   = "driver"
-	sparkExecutorRole = "executor"
-	serverCertFile    = "server-cert.pem"
-	serverKeyFile     = "server-key.pem"
-	caCertFile        = "ca-cert.pem"
+	webhookName    = "webhook.sparkoperator.k8s.io"
+	serverCertFile = "server-cert.pem"
+	serverKeyFile  = "server-key.pem"
+	caCertFile     = "ca-cert.pem"
 )
 
-type WebHook struct {
-	clientset  kubernetes.Interface
-	server     *http.Server
-	cert       *certBundle
-	serviceRef *v1beta1.ServiceReference
+var podResource = metav1.GroupVersionResource{
+	Group:    corev1.SchemeGroupVersion.Group,
+	Version:  corev1.SchemeGroupVersion.Version,
+	Resource: "pods",
 }
 
+// WebHook encapsulates things needed to run the webhook.
+type WebHook struct {
+	clientset         kubernetes.Interface
+	lister            crdlisters.SparkApplicationLister
+	server            *http.Server
+	cert              *certBundle
+	serviceRef        *v1beta1.ServiceReference
+	sparkJobNamespace string
+}
+
+// New creates a new WebHook instance.
 func New(
 	clientset kubernetes.Interface,
+	informerFactory crinformers.SharedInformerFactory,
 	certDir string,
 	webhookServiceNamespace string,
 	webhookServiceName string,
-	webhookPort int) (*WebHook, error) {
+	webhookPort int,
+	jobNamespace string) (*WebHook, error) {
 	cert := &certBundle{
 		serverCertFile: filepath.Join(certDir, serverCertFile),
 		serverKeyFile:  filepath.Join(certDir, serverKeyFile),
@@ -73,7 +85,13 @@ func New(
 		Name:      webhookServiceName,
 		Path:      &path,
 	}
-	hook := &WebHook{clientset: clientset, cert: cert, serviceRef: serviceRef}
+	hook := &WebHook{
+		clientset:         clientset,
+		lister:            informerFactory.Sparkoperator().V1beta1().SparkApplications().Lister(),
+		cert:              cert,
+		serviceRef:        serviceRef,
+		sparkJobNamespace: jobNamespace,
+	}
 
 	mux := http.NewServeMux()
 	mux.HandleFunc(path, hook.serve)
@@ -91,7 +109,7 @@ func New(
 }
 
 // Start starts the admission webhook server and registers itself to the API server.
-func (wh *WebHook) Start() error {
+func (wh *WebHook) Start(webhookConfigName string) error {
 	go func() {
 		glog.Info("Starting the Spark pod admission webhook server")
 		if err := wh.server.ListenAndServeTLS("", ""); err != nil && err != http.ErrServerClosed {
@@ -99,15 +117,15 @@ func (wh *WebHook) Start() error {
 		}
 	}()
 
-	return wh.selfRegistration()
+	return wh.selfRegistration(webhookConfigName)
 }
 
 // Stop deregisters itself with the API server and stops the admission webhook server.
-func (wh *WebHook) Stop() error {
-	if err := wh.selfDeregistration(); err != nil {
+func (wh *WebHook) Stop(webhookConfigName string) error {
+	if err := wh.selfDeregistration(webhookConfigName); err != nil {
 		return err
 	}
-
+	glog.Infof("Webhook %s deregistered", webhookConfigName)
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	glog.Info("Stopping the Spark pod admission webhook server")
@@ -115,6 +133,7 @@ func (wh *WebHook) Stop() error {
 }
 
 func (wh *WebHook) serve(w http.ResponseWriter, r *http.Request) {
+	glog.V(2).Info("Serving admission request")
 	var body []byte
 	if r.Body != nil {
 		data, err := ioutil.ReadAll(r.Body)
@@ -146,7 +165,7 @@ func (wh *WebHook) serve(w http.ResponseWriter, r *http.Request) {
 		glog.Error(err)
 		reviewResponse = toAdmissionResponse(err)
 	} else {
-		reviewResponse = mutatePods(review)
+		reviewResponse = mutatePods(review, wh.lister, wh.sparkJobNamespace)
 	}
 
 	response := admissionv1beta1.AdmissionReview{}
@@ -169,7 +188,7 @@ func (wh *WebHook) serve(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (wh *WebHook) selfRegistration() error {
+func (wh *WebHook) selfRegistration(webhookConfigName string) error {
 	client := wh.clientset.AdmissionregistrationV1beta1().MutatingWebhookConfigurations()
 	existing, getErr := client.Get(webhookConfigName, metav1.GetOptions{})
 	if getErr != nil && !errors.IsNotFound(getErr) {
@@ -185,7 +204,7 @@ func (wh *WebHook) selfRegistration() error {
 		Name: webhookName,
 		Rules: []v1beta1.RuleWithOperations{
 			{
-				Operations: []v1beta1.OperationType{v1beta1.Create, v1beta1.Update},
+				Operations: []v1beta1.OperationType{v1beta1.Create},
 				Rule: v1beta1.Rule{
 					APIGroups:   []string{""},
 					APIVersions: []string{"v1"},
@@ -227,17 +246,15 @@ func (wh *WebHook) selfRegistration() error {
 	return nil
 }
 
-func (wh *WebHook) selfDeregistration() error {
+func (wh *WebHook) selfDeregistration(webhookConfigName string) error {
 	client := wh.clientset.AdmissionregistrationV1beta1().MutatingWebhookConfigurations()
 	return client.Delete(webhookConfigName, metav1.NewDeleteOptions(0))
 }
 
-func mutatePods(review *admissionv1beta1.AdmissionReview) *admissionv1beta1.AdmissionResponse {
-	podResource := metav1.GroupVersionResource{
-		Group:    corev1.SchemeGroupVersion.Group,
-		Version:  corev1.SchemeGroupVersion.Version,
-		Resource: "pods",
-	}
+func mutatePods(
+	review *admissionv1beta1.AdmissionReview,
+	lister crdlisters.SparkApplicationLister,
+	sparkJobNs string) *admissionv1beta1.AdmissionResponse {
 	if review.Request.Resource != podResource {
 		glog.Errorf("expected resource to be %s, got %s", podResource, review.Request.Resource)
 		return nil
@@ -246,31 +263,39 @@ func mutatePods(review *admissionv1beta1.AdmissionReview) *admissionv1beta1.Admi
 	raw := review.Request.Object.Raw
 	pod := &corev1.Pod{}
 	if err := json.Unmarshal(raw, pod); err != nil {
-		glog.Error(err)
+		glog.Errorf("failed to unmarshal a Pod from the raw data in the admission request: %v", err)
 		return toAdmissionResponse(err)
 	}
 
 	response := &admissionv1beta1.AdmissionResponse{Allowed: true}
 
-	if !isSparkPod(pod) {
+	if !isSparkPod(pod) || !inSparkJobNamespace(review.Request.Namespace, sparkJobNs) {
+		glog.V(2).Infof("Pod %s in namespace %s is not subject to mutation", pod.GetObjectMeta().GetName(), review.Request.Namespace)
 		return response
 	}
 
-	patchOps, err := patchSparkPod(pod)
+	// Try getting the SparkApplication name from the annotation for that.
+	appName := pod.Labels[config.SparkAppNameLabel]
+	if appName == "" {
+		return response
+	}
+	app, err := lister.SparkApplications(review.Request.Namespace).Get(appName)
 	if err != nil {
-		glog.Error(err)
+		glog.Errorf("failed to get SparkApplication %s/%s: %v", review.Request.Namespace, appName, err)
 		return toAdmissionResponse(err)
 	}
 
+	patchOps := patchSparkPod(pod, app)
 	if len(patchOps) > 0 {
-		patchType := admissionv1beta1.PatchTypeJSONPatch
-		response.PatchType = &patchType
+		glog.V(2).Infof("Pod %s in namespace %s is subject to mutation", pod.GetObjectMeta().GetName(), review.Request.Namespace)
 		patchBytes, err := json.Marshal(patchOps)
 		if err != nil {
-			glog.Error(err)
+			glog.Errorf("failed to marshal patch operations %v: %v", patchOps, err)
 			return toAdmissionResponse(err)
 		}
 		response.Patch = patchBytes
+		patchType := admissionv1beta1.PatchTypeJSONPatch
+		response.PatchType = &patchType
 	}
 
 	return response
@@ -278,6 +303,7 @@ func mutatePods(review *admissionv1beta1.AdmissionReview) *admissionv1beta1.Admi
 
 func toAdmissionResponse(err error) *admissionv1beta1.AdmissionResponse {
 	return &admissionv1beta1.AdmissionResponse{
+		Allowed: true,
 		Result: &metav1.Status{
 			Message: err.Error(),
 			Code:    http.StatusInternalServerError,
@@ -285,16 +311,13 @@ func toAdmissionResponse(err error) *admissionv1beta1.AdmissionResponse {
 	}
 }
 
+func inSparkJobNamespace(podNs string, sparkJobNamespace string) bool {
+	if sparkJobNamespace == apiv1.NamespaceAll {
+		return true
+	}
+	return podNs == sparkJobNamespace
+}
+
 func isSparkPod(pod *corev1.Pod) bool {
-	launchedBySparkOperator, ok := pod.Labels[config.LaunchedBySparkOperatorLabel]
-	if !ok {
-		return false
-	}
-
-	sparkRole, ok := pod.Labels[sparkRoleLabel]
-	if !ok {
-		return false
-	}
-
-	return launchedBySparkOperator == "true" && (sparkRole == sparkDriverRole || sparkRole == sparkExecutorRole)
+	return util.IsLaunchedBySparkOperator(pod) && (util.IsDriverPod(pod) || util.IsExecutorPod(pod))
 }

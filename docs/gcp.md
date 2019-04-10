@@ -43,7 +43,7 @@ The ones set in `core-site.xml` apply to all applications using the image. Also 
 variable `GCS_PROJECT_ID` must be set when using the image at `gcr.io/ynli-k8s/spark:v2.3.0-gcs`.
 
 ```yaml
-apiVersion: "sparkoperator.k8s.io/v1alpha1"
+apiVersion: "sparkoperator.k8s.io/v1beta1"
 kind: SparkApplication
 metadata:
   name: foo-gcs-bg

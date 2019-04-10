@@ -29,7 +29,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 	clientset "k8s.io/client-go/kubernetes"
 
-	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1alpha1"
+	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta1"
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/config"
 )
 
@@ -38,39 +38,37 @@ const (
 	defaultSparkWebUIPort       = "4040"
 )
 
-var ingressUrlRegex = regexp.MustCompile("{{\\s*[$]appName\\s*}}")
+var ingressURLRegex = regexp.MustCompile("{{\\s*[$]appName\\s*}}")
 
-func getSparkUIIngressURL(ingressUrlFormat string, appName string) string {
-	return ingressUrlRegex.ReplaceAllString(ingressUrlFormat, appName)
+func getSparkUIingressURL(ingressURLFormat string, appName string) string {
+	return ingressURLRegex.ReplaceAllString(ingressURLFormat, appName)
 }
 
-// Struct to encapsulate service
+// SparkService encapsulates information about the driver UI service.
 type SparkService struct {
 	serviceName string
 	servicePort int32
 	nodePort    int32
 }
 
-// Struct to encapsulate SparkIngress
+// SparkIngress encapsulates information about the driver UI ingress.
 type SparkIngress struct {
 	ingressName string
-	ingressUrl  string
+	ingressURL  string
 }
 
-func createSparkUIIngress(app *v1alpha1.SparkApplication, service SparkService, ingressUrlFormat string, kubeClient clientset.Interface) (*SparkIngress, error) {
-	ingressUrl := getSparkUIIngressURL(ingressUrlFormat, app.GetName())
+func createSparkUIIngress(app *v1beta1.SparkApplication, service SparkService, ingressURLFormat string, kubeClient clientset.Interface) (*SparkIngress, error) {
+	ingressURL := getSparkUIingressURL(ingressURLFormat, app.GetName())
 	ingress := extensions.Ingress{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      getDefaultUIIngressName(app),
-			Namespace: app.Namespace,
-			Labels: map[string]string{
-				config.SparkAppNameLabel: app.Name,
-			},
+			Name:            getDefaultUIIngressName(app),
+			Namespace:       app.Namespace,
+			Labels:          getResourceLabels(app),
 			OwnerReferences: []metav1.OwnerReference{*getOwnerReference(app)},
 		},
 		Spec: extensions.IngressSpec{
 			Rules: []extensions.IngressRule{{
-				Host: ingressUrl,
+				Host: ingressURL,
 				IngressRuleValue: extensions.IngressRuleValue{
 					HTTP: &extensions.HTTPIngressRuleValue{
 						Paths: []extensions.HTTPIngressPath{{
@@ -95,12 +93,12 @@ func createSparkUIIngress(app *v1alpha1.SparkApplication, service SparkService, 
 	}
 	return &SparkIngress{
 		ingressName: ingress.Name,
-		ingressUrl:  ingressUrl,
+		ingressURL:  ingressURL,
 	}, nil
 }
 
 func createSparkUIService(
-	app *v1alpha1.SparkApplication,
+	app *v1beta1.SparkApplication,
 	kubeClient clientset.Interface) (*SparkService, error) {
 	portStr := getUITargetPort(app)
 	port, err := strconv.Atoi(portStr)
@@ -110,11 +108,9 @@ func createSparkUIService(
 
 	service := &apiv1.Service{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      getDefaultUIServiceName(app),
-			Namespace: app.Namespace,
-			Labels: map[string]string{
-				config.SparkAppNameLabel: app.Name,
-			},
+			Name:            getDefaultUIServiceName(app),
+			Namespace:       app.Namespace,
+			Labels:          getResourceLabels(app),
 			OwnerReferences: []metav1.OwnerReference{*getOwnerReference(app)},
 		},
 		Spec: apiv1.ServiceSpec{
@@ -126,7 +122,7 @@ func createSparkUIService(
 			},
 			Selector: map[string]string{
 				config.SparkAppNameLabel: app.Name,
-				config.SparkRoleLabel:    sparkDriverRole,
+				config.SparkRoleLabel:    config.SparkDriverRole,
 			},
 			Type: apiv1.ServiceTypeNodePort,
 		},
@@ -148,7 +144,7 @@ func createSparkUIService(
 // getWebUITargetPort attempts to get the Spark web UI port from configuration property spark.ui.port
 // in Spec.SparkConf if it is present, otherwise the default port is returned.
 // Note that we don't attempt to get the port from Spec.SparkConfigMap.
-func getUITargetPort(app *v1alpha1.SparkApplication) string {
+func getUITargetPort(app *v1beta1.SparkApplication) string {
 	port, ok := app.Spec.SparkConf[sparkUIPortConfigurationKey]
 	if ok {
 		return port

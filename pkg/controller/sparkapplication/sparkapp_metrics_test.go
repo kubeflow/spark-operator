@@ -27,8 +27,8 @@ import (
 func TestSparkAppMetrics(t *testing.T) {
 	http.DefaultServeMux = new(http.ServeMux)
 	// Test with label containing "-". Expect them to be converted to "_".
-	metrics := newSparkAppMetrics("", []string{"app-name"})
-	app1 := map[string]string{"app_name": "test1"}
+	metrics := newSparkAppMetrics("", []string{"app-id"})
+	app1 := map[string]string{"app_id": "test1"}
 
 	var wg sync.WaitGroup
 	wg.Add(1)
@@ -36,13 +36,14 @@ func TestSparkAppMetrics(t *testing.T) {
 		for i := 0; i < 10; i++ {
 			metrics.sparkAppSubmitCount.With(app1).Inc()
 			metrics.sparkAppRunningCount.Inc(app1)
-			metrics.sparkAppFailureCount.With(app1).Inc()
 			metrics.sparkAppSuccessCount.With(app1).Inc()
-			metrics.sparkAppExecutorFailureCount.With(app1).Inc()
+			metrics.sparkAppFailureCount.With(app1).Inc()
+			metrics.sparkAppFailedSubmissionCount.With(app1).Inc()
 			metrics.sparkAppSuccessExecutionTime.With(app1).Observe(float64(100 * i))
 			metrics.sparkAppFailureExecutionTime.With(app1).Observe(float64(500 * i))
 			metrics.sparkAppExecutorRunningCount.Inc(app1)
 			metrics.sparkAppExecutorSuccessCount.With(app1).Inc()
+			metrics.sparkAppExecutorFailureCount.With(app1).Inc()
 		}
 		for i := 0; i < 5; i++ {
 			metrics.sparkAppRunningCount.Dec(app1)
@@ -53,10 +54,11 @@ func TestSparkAppMetrics(t *testing.T) {
 
 	wg.Wait()
 	assert.Equal(t, float64(10), fetchCounterValue(metrics.sparkAppSubmitCount, app1))
-	assert.Equal(t, float64(10), fetchCounterValue(metrics.sparkAppFailureCount, app1))
+	assert.Equal(t, float64(5), metrics.sparkAppRunningCount.Value(app1))
 	assert.Equal(t, float64(10), fetchCounterValue(metrics.sparkAppSuccessCount, app1))
+	assert.Equal(t, float64(10), fetchCounterValue(metrics.sparkAppFailureCount, app1))
+	assert.Equal(t, float64(10), fetchCounterValue(metrics.sparkAppFailedSubmissionCount, app1))
+	assert.Equal(t, float64(5), metrics.sparkAppExecutorRunningCount.Value(app1))
 	assert.Equal(t, float64(10), fetchCounterValue(metrics.sparkAppExecutorFailureCount, app1))
 	assert.Equal(t, float64(10), fetchCounterValue(metrics.sparkAppExecutorSuccessCount, app1))
-	assert.Equal(t, float64(5), metrics.sparkAppExecutorRunningCount.Value(app1))
-	assert.Equal(t, float64(5), metrics.sparkAppRunningCount.Value(app1))
 }

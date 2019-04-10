@@ -19,6 +19,8 @@ The Kubernetes Operator for Apache Spark ships with a command-line tool called `
     * [Using Secrets As Environment Variables](#using-secrets-as-environment-variables)
     * [Using Image Pull Secrets](#using-image-pull-secrets)
     * [Using Pod Affinity](#using-pod-affinity)
+    * [Adding Tolerations](#adding-tolerations)
+    * [Using Pod Security Context](#using-pod-security-context)
     * [Python Support](#python-support)
     * [Monitoring](#monitoring) 
 * [Working with SparkApplications](#working-with-sparkapplications)
@@ -45,7 +47,7 @@ It also has fields for specifying the unified container image (to use for both t
 Below is an example showing part of a `SparkApplication` specification:
 
 ```yaml
-apiVersion: sparkoperator.k8s.io/v1alpha1
+apiVersion: sparkoperator.k8s.io/v1beta1
 kind: SparkApplication
 metadata:
   name: spark-pi
@@ -157,6 +159,7 @@ spec:
 
 The type of a Secret as specified by the `secretType` field is a hint to the operator on what extra configuration it needs to take care of for the specific type of Secrets. For example, if a Secret is of type **`GCPServiceAccount`**, the operator additionally sets the environment variable **`GOOGLE_APPLICATION_CREDENTIALS`** to point to the JSON key file stored in the secret. Please refer to 
 [Getting Started with Authentication](https://cloud.google.com/docs/authentication/getting-started) for more information on how to authenticate with GCP services using a service account JSON key file. Note that the operator assumes that the key of the service account JSON key file in the Secret data map is **`key.json`** so it is able to set the environment variable automatically. Similarly, if the type of a Secret is **`HadoopDelegationToken`**, the operator additionally sets the environment variable **`HADOOP_TOKEN_FILE_LOCATION`** to point to the file storing the Hadoop delegation token. In this case, the operator assumes that the key of the delegation token file in the Secret data map is **`hadoop.token`**.
+The `secretType` field should have the value `Generic` if no extra configuration is required.
 
 ### Mounting ConfigMaps
 
@@ -256,13 +259,15 @@ spec:
     affinity:
       podAffinity:
         requiredDuringSchedulingIgnoredDuringExecution:
-          ...    
+          ...   
   executor:
     affinity:
       podAntiAffinity:
         requiredDuringSchedulingIgnoredDuringExecution:
-          ...    
+          ... 
 ```
+
+Note that the mutating admission webhook is needed to use this feature. Please refer to the [Quick Start Guide](quick-start-guide.md) on how to enable the mutating admission webhook.
 
 ### Adding Tolerations
 
@@ -282,6 +287,23 @@ spec:
       operator: Equal
       value: Value
       effect: NoSchedule    
+```
+
+Note that the mutating admission webhook is needed to use this feature. Please refer to the 
+[Quick Start Guide](quick-start-guide.md) on how to enable the mutating admission webhook.
+
+### Using Pod Security Context
+
+A `SparkApplication` can specify a `PodSecurityContext` for the driver or executor pod, using the optional field `.spec.driver.securityContext` or `.spec.executor.securityContext`. Below is an example:
+
+```yaml
+spec:
+  driver:
+    securityContext:
+      runAsUser: 1000    
+  executor:
+    securityContext:
+      runAsUser: 1000
 ```
 
 Note that the mutating admission webhook is needed to use this feature. Please refer to the 
@@ -385,7 +407,7 @@ client so effectively the driver gets restarted.
 The operator supports running a Spark application on a standard [cron](https://en.wikipedia.org/wiki/Cron) schedule using objects of the `ScheduledSparkApplication` custom resource type. A `ScheduledSparkApplication` object specifies a cron schedule on which the application should run and a `SparkApplication` template from which a `SparkApplication` object for each run of the application is created. The following is an example `ScheduledSparkApplication`:
 
 ```yaml
-apiVersion: "sparkoperator.k8s.io/v1alpha1"
+apiVersion: "sparkoperator.k8s.io/v1beta1"
 kind: ScheduledSparkApplication
 metadata:
   name: spark-pi-scheduled

@@ -27,9 +27,8 @@ import (
 	"github.com/golang/glog"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1alpha1"
+	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta1"
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/config"
-	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/util"
 )
 
 const (
@@ -45,7 +44,7 @@ type submission struct {
 	args      []string
 }
 
-func newSubmission(args []string, app *v1alpha1.SparkApplication) *submission {
+func newSubmission(args []string, app *v1beta1.SparkApplication) *submission {
 	return &submission{
 		namespace: app.Namespace,
 		name:      app.Name,
@@ -53,7 +52,7 @@ func newSubmission(args []string, app *v1alpha1.SparkApplication) *submission {
 	}
 }
 
-func runSparkSubmit(submission *submission) error {
+func runSparkSubmit(submission *submission) (bool, error) {
 	sparkHome, present := os.LookupEnv(sparkHomeEnvVar)
 	if !present {
 		glog.Error("SPARK_HOME is not specified")
@@ -61,25 +60,29 @@ func runSparkSubmit(submission *submission) error {
 	var command = filepath.Join(sparkHome, "/bin/spark-submit")
 
 	cmd := execCommand(command, submission.args...)
-	glog.Infof("spark-submit arguments: %v", cmd.Args)
-
-	if _, err := cmd.Output(); err != nil {
+	glog.V(2).Infof("spark-submit arguments: %v", cmd.Args)
+	output, err := cmd.Output()
+	glog.V(3).Infof("spark-submit output: %s", string(output))
+	if err != nil {
 		var errorMsg string
 		if exitErr, ok := err.(*exec.ExitError); ok {
 			errorMsg = string(exitErr.Stderr)
 		}
-		// Already Exists. Do nothing.
+		// The driver pod of the application already exists.
 		if strings.Contains(errorMsg, podAlreadyExistsErrorCode) {
 			glog.Warningf("trying to resubmit an already submitted SparkApplication %s/%s", submission.namespace, submission.name)
-			return nil
+			return false, nil
 		}
-		return fmt.Errorf("failed to run spark-submit for SparkApplication %s/%s: %v", submission.namespace, submission.name, err)
+		if errorMsg != "" {
+			return false, fmt.Errorf("failed to run spark-submit for SparkApplication %s/%s: %s", submission.namespace, submission.name, errorMsg)
+		}
+		return false, fmt.Errorf("failed to run spark-submit for SparkApplication %s/%s: %v", submission.namespace, submission.name, err)
 	}
 
-	return nil
+	return true, nil
 }
 
-func buildSubmissionCommandArgs(app *v1alpha1.SparkApplication) ([]string, error) {
+func buildSubmissionCommandArgs(app *v1beta1.SparkApplication, submissionID string) ([]string, error) {
 	var args []string
 	if app.Spec.MainClass != nil {
 		args = append(args, "--class", *app.Spec.MainClass)
@@ -158,27 +161,20 @@ func buildSubmissionCommandArgs(app *v1alpha1.SparkApplication) ([]string, error
 	// Add the driver and executor configuration options.
 	// Note that when the controller submits the application, it expects that all dependencies are local
 	// so init-container is not needed and therefore no init-container image needs to be specified.
-	options, err := addDriverConfOptions(app)
+	options, err := addDriverConfOptions(app, submissionID)
 	if err != nil {
 		return nil, err
 	}
 	for _, option := range options {
 		args = append(args, "--conf", option)
 	}
-	options, err = addExecutorConfOptions(app)
+	options, err = addExecutorConfOptions(app, submissionID)
 	if err != nil {
 		return nil, err
 	}
 	for _, option := range options {
 		args = append(args, "--conf", option)
 	}
-
-	reference := getOwnerReference(app)
-	referenceStr, err := util.MarshalOwnerReference(reference)
-	if err != nil {
-		return nil, err
-	}
-	args = append(args, "--conf", config.GetDriverAnnotationOption(config.OwnerReferenceAnnotation, referenceStr))
 
 	if app.Spec.MainApplicationFile != nil {
 		// Add the main application file if it is present.
@@ -205,16 +201,18 @@ func getMasterURL() (string, error) {
 	return fmt.Sprintf("k8s://https://%s:%s", kubernetesServiceHost, kubernetesServicePort), nil
 }
 
-func getOwnerReference(app *v1alpha1.SparkApplication) *metav1.OwnerReference {
+func getOwnerReference(app *v1beta1.SparkApplication) *metav1.OwnerReference {
+	controller := true
 	return &metav1.OwnerReference{
-		APIVersion: v1alpha1.SchemeGroupVersion.String(),
-		Kind:       reflect.TypeOf(v1alpha1.SparkApplication{}).Name(),
+		APIVersion: v1beta1.SchemeGroupVersion.String(),
+		Kind:       reflect.TypeOf(v1beta1.SparkApplication{}).Name(),
 		Name:       app.Name,
 		UID:        app.UID,
+		Controller: &controller,
 	}
 }
 
-func addDependenciesConfOptions(app *v1alpha1.SparkApplication) []string {
+func addDependenciesConfOptions(app *v1beta1.SparkApplication) []string {
 	var depsConfOptions []string
 
 	if len(app.Spec.Deps.Jars) > 0 {
@@ -250,13 +248,15 @@ func addDependenciesConfOptions(app *v1alpha1.SparkApplication) []string {
 	return depsConfOptions
 }
 
-func addDriverConfOptions(app *v1alpha1.SparkApplication) ([]string, error) {
+func addDriverConfOptions(app *v1beta1.SparkApplication, submissionID string) ([]string, error) {
 	var driverConfOptions []string
 
 	driverConfOptions = append(driverConfOptions,
 		fmt.Sprintf("%s%s=%s", config.SparkDriverLabelKeyPrefix, config.SparkAppNameLabel, app.Name))
 	driverConfOptions = append(driverConfOptions,
 		fmt.Sprintf("%s%s=%s", config.SparkDriverLabelKeyPrefix, config.LaunchedBySparkOperatorLabel, "true"))
+	driverConfOptions = append(driverConfOptions,
+		fmt.Sprintf("%s%s=%s", config.SparkDriverLabelKeyPrefix, config.SubmissionIDLabel, submissionID))
 
 	driverPodName := fmt.Sprintf("%s-driver", app.GetName())
 	if app.Spec.Driver.PodName != nil {
@@ -307,47 +307,26 @@ func addDriverConfOptions(app *v1alpha1.SparkApplication) ([]string, error) {
 			fmt.Sprintf("%s%s=%s:%s", config.SparkDriverSecretKeyRefKeyPrefix, key, value.Name, value.Key))
 	}
 
-	if app.Spec.Driver.Affinity != nil {
-		affinityString, err := util.MarshalAffinity(app.Spec.Driver.Affinity)
-		if err != nil {
-			return nil, err
-		}
-		driverConfOptions = append(driverConfOptions,
-			fmt.Sprintf("%s%s=%s", config.SparkDriverAnnotationKeyPrefix, config.AffinityAnnotation,
-				affinityString))
-	}
-
 	if app.Spec.Driver.JavaOptions != nil {
 		driverConfOptions = append(driverConfOptions,
 			fmt.Sprintf("%s=%s", config.SparkDriverJavaOptions, *app.Spec.Driver.JavaOptions))
 	}
 
 	driverConfOptions = append(driverConfOptions, config.GetDriverSecretConfOptions(app)...)
-	driverConfOptions = append(driverConfOptions, config.GetDriverConfigMapConfOptions(app)...)
 	driverConfOptions = append(driverConfOptions, config.GetDriverEnvVarConfOptions(app)...)
-
-	options, err := config.GetDriverVolumeMountConfOptions(app)
-	if err != nil {
-		return nil, err
-	}
-	driverConfOptions = append(driverConfOptions, options...)
-
-	options, err = config.GetDriverTolerationConfOptions(app)
-	if err != nil {
-		return nil, err
-	}
-	driverConfOptions = append(driverConfOptions, options...)
 
 	return driverConfOptions, nil
 }
 
-func addExecutorConfOptions(app *v1alpha1.SparkApplication) ([]string, error) {
+func addExecutorConfOptions(app *v1beta1.SparkApplication, submissionID string) ([]string, error) {
 	var executorConfOptions []string
 
 	executorConfOptions = append(executorConfOptions,
 		fmt.Sprintf("%s%s=%s", config.SparkExecutorLabelKeyPrefix, config.SparkAppNameLabel, app.Name))
 	executorConfOptions = append(executorConfOptions,
 		fmt.Sprintf("%s%s=%s", config.SparkExecutorLabelKeyPrefix, config.LaunchedBySparkOperatorLabel, "true"))
+	executorConfOptions = append(executorConfOptions,
+		fmt.Sprintf("%s%s=%s", config.SparkExecutorLabelKeyPrefix, config.SubmissionIDLabel, submissionID))
 
 	if app.Spec.Executor.Instances != nil {
 		conf := fmt.Sprintf("spark.executor.instances=%d", *app.Spec.Executor.Instances)
@@ -396,36 +375,13 @@ func addExecutorConfOptions(app *v1alpha1.SparkApplication) ([]string, error) {
 			fmt.Sprintf("%s%s=%s:%s", config.SparkExecutorSecretKeyRefKeyPrefix, key, value.Name, value.Key))
 	}
 
-	if app.Spec.Executor.Affinity != nil {
-		affinityString, err := util.MarshalAffinity(app.Spec.Executor.Affinity)
-		if err != nil {
-			return nil, err
-		}
-		executorConfOptions = append(executorConfOptions,
-			fmt.Sprintf("%s%s=%s", config.SparkExecutorAnnotationKeyPrefix, config.AffinityAnnotation,
-				affinityString))
-	}
-
 	if app.Spec.Executor.JavaOptions != nil {
 		executorConfOptions = append(executorConfOptions,
 			fmt.Sprintf("%s=%s", config.SparkExecutorJavaOptions, *app.Spec.Executor.JavaOptions))
 	}
 
 	executorConfOptions = append(executorConfOptions, config.GetExecutorSecretConfOptions(app)...)
-	executorConfOptions = append(executorConfOptions, config.GetExecutorConfigMapConfOptions(app)...)
 	executorConfOptions = append(executorConfOptions, config.GetExecutorEnvVarConfOptions(app)...)
-
-	options, err := config.GetExecutorVolumeMountConfOptions(app)
-	if err != nil {
-		return nil, err
-	}
-	executorConfOptions = append(executorConfOptions, options...)
-
-	options, err = config.GetExecutorTolerationConfOptions(app)
-	if err != nil {
-		return nil, err
-	}
-	executorConfOptions = append(executorConfOptions, options...)
 
 	return executorConfOptions, nil
 }

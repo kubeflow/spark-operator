@@ -17,20 +17,16 @@ limitations under the License.
 package sparkapplication
 
 import (
-	"errors"
 	"fmt"
 
-	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1alpha1"
+	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta1"
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/config"
 	apiv1 "k8s.io/api/core/v1"
 )
 
 // Helper method to create a key with namespace and appName
-func createMetaNamespaceKey(pod *apiv1.Pod) (string, bool) {
-	if appName, ok := getAppName(pod); ok {
-		return fmt.Sprintf("%s/%s", pod.GetNamespace(), appName), true
-	}
-	return "", false
+func createMetaNamespaceKey(namespace, name string) string {
+	return fmt.Sprintf("%s/%s", namespace, name)
 }
 
 func getAppName(pod *apiv1.Pod) (string, bool) {
@@ -38,78 +34,60 @@ func getAppName(pod *apiv1.Pod) (string, bool) {
 	return appName, ok
 }
 
-func isDriverPod(pod *apiv1.Pod) bool {
-	return pod.Labels[config.SparkRoleLabel] == sparkDriverRole
-}
-
-func isExecutorPod(pod *apiv1.Pod) bool {
-	return pod.Labels[config.SparkRoleLabel] == sparkExecutorRole
-}
-
 func getSparkApplicationID(pod *apiv1.Pod) string {
 	return pod.Labels[config.SparkApplicationSelectorLabel]
 }
 
-func getDefaultDriverPodName(app *v1alpha1.SparkApplication) string {
+func getDefaultDriverPodName(app *v1beta1.SparkApplication) string {
 	return fmt.Sprintf("%s-driver", app.Name)
 }
 
-func getDefaultUIServiceName(app *v1alpha1.SparkApplication) string {
+func getDefaultUIServiceName(app *v1beta1.SparkApplication) string {
 	return fmt.Sprintf("%s-ui-svc", app.Name)
 }
 
-func getDefaultUIIngressName(app *v1alpha1.SparkApplication) string {
+func getDefaultUIIngressName(app *v1beta1.SparkApplication) string {
 	return fmt.Sprintf("%s-ui-ingress", app.Name)
 }
 
-func podPhaseToExecutorState(podPhase apiv1.PodPhase) v1alpha1.ExecutorState {
+func getResourceLabels(app *v1beta1.SparkApplication) map[string]string {
+	labels := map[string]string{config.SparkAppNameLabel: app.Name}
+	if app.Status.SubmissionID != "" {
+		labels[config.SubmissionIDLabel] = app.Status.SubmissionID
+	}
+	return labels
+}
+
+func podPhaseToExecutorState(podPhase apiv1.PodPhase) v1beta1.ExecutorState {
 	switch podPhase {
 	case apiv1.PodPending:
-		return v1alpha1.ExecutorPendingState
+		return v1beta1.ExecutorPendingState
 	case apiv1.PodRunning:
-		return v1alpha1.ExecutorRunningState
+		return v1beta1.ExecutorRunningState
 	case apiv1.PodSucceeded:
-		return v1alpha1.ExecutorCompletedState
+		return v1beta1.ExecutorCompletedState
 	case apiv1.PodFailed:
-		return v1alpha1.ExecutorFailedState
+		return v1beta1.ExecutorFailedState
 	default:
-		return v1alpha1.ExecutorUnknownState
+		return v1beta1.ExecutorUnknownState
 	}
 }
 
-func removeFinalizer(app *v1alpha1.SparkApplication, finalizerToRemove string) *v1alpha1.SparkApplication {
-	for k, elem := range app.Finalizers {
-		if elem == finalizerToRemove {
-			app.Finalizers = append(app.Finalizers[:k], app.Finalizers[k+1:]...)
-			break
-		}
-	}
-	return app
+func isExecutorTerminated(executorState v1beta1.ExecutorState) bool {
+	return executorState == v1beta1.ExecutorCompletedState || executorState == v1beta1.ExecutorFailedState
 }
 
-func addFinalizer(app *v1alpha1.SparkApplication, finalizerToAdd string) *v1alpha1.SparkApplication {
-	if app.ObjectMeta.Finalizers == nil {
-		app.ObjectMeta.Finalizers = []string{finalizerToAdd}
-	} else {
-		app.ObjectMeta.Finalizers = append(app.ObjectMeta.Finalizers, finalizerToAdd)
-	}
-	return app
-}
-
-func isExecutorTerminated(executorState v1alpha1.ExecutorState) bool {
-	return executorState == v1alpha1.ExecutorCompletedState || executorState == v1alpha1.ExecutorFailedState
-}
-
-func driverPodPhaseToApplicationState(podPhase apiv1.PodPhase) (v1alpha1.ApplicationStateType, error) {
+func driverPodPhaseToApplicationState(podPhase apiv1.PodPhase) v1beta1.ApplicationStateType {
 	switch podPhase {
 	case apiv1.PodPending:
-		return v1alpha1.SubmittedState, nil
+		return v1beta1.SubmittedState
 	case apiv1.PodRunning:
-		return v1alpha1.RunningState, nil
+		return v1beta1.RunningState
 	case apiv1.PodSucceeded:
-		return v1alpha1.SucceedingState, nil
+		return v1beta1.SucceedingState
 	case apiv1.PodFailed:
-		return v1alpha1.FailingState, nil
+		return v1beta1.FailingState
+	default:
+		return v1beta1.UnknownState
 	}
-	return "", errors.New(fmt.Sprintf("Invalid driver Pod Phase found: %s", podPhase))
 }

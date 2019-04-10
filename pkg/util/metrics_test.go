@@ -36,9 +36,9 @@ func TestPositiveGauge_EmptyLabels(t *testing.T) {
 }
 
 func TestPositiveGauge_WithLabels(t *testing.T) {
-	gauge := NewPositiveGauge("testGauge1", "test-description-1", []string{"app_name"})
-	app1 := map[string]string{"app_name": "test1"}
-	app2 := map[string]string{"app_name": "test2"}
+	gauge := NewPositiveGauge("testGauge1", "test-description-1", []string{"app_id"})
+	app1 := map[string]string{"app_id": "test1"}
+	app2 := map[string]string{"app_id": "test2"}
 
 	var wg sync.WaitGroup
 	wg.Add(2)

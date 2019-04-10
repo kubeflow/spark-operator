@@ -10,9 +10,11 @@
 
 ## Project Status
 
-**Project status:** *alpha* 
+**Project status:** *beta* 
 
-The Kubernetes Operator for Apache Spark is still under active development. Backward compatibility of the APIs is not guaranteed for alpha releases.
+The Kubernetes Operator for Apache Spark is under active development, but backward compatibility of the APIs is guaranteed for beta releases. 
+
+**If you are currently using the `v1alpha1` version of the APIs in your manifests, please update them to use the `v1beta1` version by changing `apiVersion: "sparkoperator.k8s.io/v1alpha1"` to `apiVersion: "sparkoperator.k8s.io/v1beta1"`. You will also need to delete the `v1alpha1` version of the CustomResourceDefinitions named `sparkapplications.sparkoperator.k8s.io` and `scheduledsparkapplications.sparkoperator.k8s.io`, and replace them with the `v1beta1` version either by installing the latest version of the operator or by running `kubectl create -f manifest/spark-operator-crds.yaml`.**
 
 Customization of Spark pods, e.g., mounting arbitrary volumes and setting pod affinity, is currently experimental and implemented using a Kubernetes
 [Mutating Admission Webhook](https://kubernetes.io/docs/reference/access-authn-authz/extensible-admission-controllers/), which became beta in Kubernetes 1.9. 
@@ -40,6 +42,8 @@ The easiest way to install the Kubernetes Operator for Apache Spark is to use th
 $ helm repo add incubator http://storage.googleapis.com/kubernetes-charts-incubator
 $ helm install incubator/sparkoperator --namespace spark-operator
 ```
+
+For configuration options available in the Helm chart, please refer to [Configuration](https://github.com/helm/charts/tree/master/incubator/sparkoperator#configuration).
 
 ## Get Started
 

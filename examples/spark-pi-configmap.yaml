@@ -1,5 +1,5 @@
 #
-# Copyright 2018 Google LLC
+# Copyright 2017 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,33 +12,26 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-#
-# Support for Python is experimental, and requires building SNAPSHOT image of Apache Spark,
-# with `imagePullPolicy` set to Always
 
-apiVersion: "sparkoperator.k8s.io/v1alpha1"
+apiVersion: "sparkoperator.k8s.io/v1beta1"
 kind: SparkApplication
 metadata:
-  name: pyfiles
+  name: spark-pi
   namespace: default
 spec:
-  type: Python
-  pythonVersion: "2"
+  type: Scala
   mode: cluster
-  image: "gcr.io/spark-operator/spark-py:v2.4.0"
+  image: "gcr.io/spark-operator/spark:v2.4.0"
   imagePullPolicy: Always
-  mainApplicationFile: local:///opt/spark/examples/src/main/python/pyfiles.py
+  mainClass: org.apache.spark.examples.SparkPi
+  mainApplicationFile: "local:///opt/spark/examples/jars/spark-examples_2.11-2.4.0.jar"
+  sparkVersion: "2.4.0"
   restartPolicy:
-    type: OnFailure
-    onFailureRetries: 3
-    onFailureRetryInterval: 10
-    onSubmissionFailureRetries: 5
-    onSubmissionFailureRetryInterval: 20
-  arguments:
-    - python2.7
-  deps:
-    pyFiles:
-       - local:///opt/spark/examples/src/main/python/py_container_checks.py
+    type: Never
+  volumes:
+    - name: config-vol
+      configMap:
+        name: dummy-cm
   driver:
     cores: 0.1
     coreLimit: "200m"
@@ -46,9 +39,15 @@ spec:
     labels:
       version: 2.4.0
     serviceAccount: spark
+    volumeMounts:
+      - name: config-vol
+        mountPath: /opt/spark/mycm
   executor:
     cores: 1
     instances: 1
     memory: "512m"
     labels:
       version: 2.4.0
+    volumeMounts:
+      - name: config-vol
+        mountPath: /opt/spark/mycm
