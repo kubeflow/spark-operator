@@ -23,7 +23,7 @@ import (
 	"github.com/olekukonko/tablewriter"
 	"github.com/spf13/cobra"
 
-	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1alpha1"
+	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta1"
 	crdclientset "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/client/clientset/versioned"
 )
 
@@ -60,14 +60,14 @@ func doStatus(name string, crdClientset crdclientset.Interface) error {
 	return nil
 }
 
-func printStatus(app *v1alpha1.SparkApplication) {
+func printStatus(app *v1beta1.SparkApplication) {
 	fmt.Println("application state:")
 	table := tablewriter.NewWriter(os.Stdout)
 	table.SetHeader([]string{"State", "Submission Age", "Completion Age", "Driver Pod", "Driver UI", "SubmissionAttempts", "ExecutionAttempts"})
 	table.Append([]string{
 		string(app.Status.AppState.State),
 		getSinceTime(app.Status.LastSubmissionAttemptTime),
-		getSinceTime(app.Status.CompletionTime),
+		getSinceTime(app.Status.TerminationTime),
 		formatNotAvailable(app.Status.DriverInfo.PodName),
 		formatNotAvailable(app.Status.DriverInfo.WebUIAddress),
 		fmt.Sprintf("%v", app.Status.SubmissionAttempts),

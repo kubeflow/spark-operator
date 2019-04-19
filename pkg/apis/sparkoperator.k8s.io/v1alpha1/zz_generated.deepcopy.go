@@ -604,7 +604,7 @@ func (in *SparkApplicationSpec) DeepCopy() *SparkApplicationSpec {
 func (in *SparkApplicationStatus) DeepCopyInto(out *SparkApplicationStatus) {
 	*out = *in
 	in.LastSubmissionAttemptTime.DeepCopyInto(&out.LastSubmissionAttemptTime)
-	in.CompletionTime.DeepCopyInto(&out.CompletionTime)
+	in.TerminationTime.DeepCopyInto(&out.TerminationTime)
 	out.DriverInfo = in.DriverInfo
 	out.AppState = in.AppState
 	if in.ExecutorState != nil {

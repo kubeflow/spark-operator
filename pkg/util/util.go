@@ -17,12 +17,15 @@ limitations under the License.
 package util
 
 import (
-	"encoding/base64"
 	"hash"
 	"hash/fnv"
+	"reflect"
 
 	apiv1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta1"
+	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/config"
 )
 
 // NewHash32 returns a 32-bit hash computed from the given byte slice.
@@ -30,120 +33,29 @@ func NewHash32() hash.Hash32 {
 	return fnv.New32()
 }
 
-func encodeToString(value []byte) string {
-	return base64.StdEncoding.EncodeToString(value)
+// GetOwnerReference returns an OwnerReference pointing to the given app.
+func GetOwnerReference(app *v1beta1.SparkApplication) metav1.OwnerReference {
+	controller := true
+	return metav1.OwnerReference{
+		APIVersion: v1beta1.SchemeGroupVersion.String(),
+		Kind:       reflect.TypeOf(v1beta1.SparkApplication{}).Name(),
+		Name:       app.Name,
+		UID:        app.UID,
+		Controller: &controller,
+	}
 }
 
-func decodeString(value string) ([]byte, error) {
-	return base64.StdEncoding.DecodeString(value)
+// IsLaunchedBySparkOperator returns whether the given pod is launched by the Spark Operator.
+func IsLaunchedBySparkOperator(pod *apiv1.Pod) bool {
+	return pod.Labels[config.LaunchedBySparkOperatorLabel] == "true"
 }
 
-// MarshalVolume encodes the given Volume into a string.
-func MarshalVolume(volume *apiv1.Volume) (string, error) {
-	volumeData, err := volume.Marshal()
-	if err != nil {
-		return "", err
-	}
-	return encodeToString(volumeData), nil
+// IsDriverPod returns whether the given pod is a Spark driver Pod.
+func IsDriverPod(pod *apiv1.Pod) bool {
+	return pod.Labels[config.SparkRoleLabel] == config.SparkDriverRole
 }
 
-// UnmarshalVolume decodes a Volume from the given string.
-func UnmarshalVolume(volumeStr string) (*apiv1.Volume, error) {
-	volume := &apiv1.Volume{}
-	decoded, err := decodeString(volumeStr)
-	if err != nil {
-		return nil, err
-	}
-	if err = volume.Unmarshal(decoded); err != nil {
-		return nil, err
-	}
-	return volume, nil
-}
-
-// MarshalVolumeMount encodes the given VolumeMount into a string.
-func MarshalVolumeMount(mount *apiv1.VolumeMount) (string, error) {
-	mountData, err := mount.Marshal()
-	if err != nil {
-		return "", err
-	}
-	return encodeToString(mountData), nil
-}
-
-// UnmarshalVolumeMount decodes a VolumeMount from the given string.
-func UnmarshalVolumeMount(mountStr string) (*apiv1.VolumeMount, error) {
-	mount := &apiv1.VolumeMount{}
-	decoded, err := decodeString(mountStr)
-	if err != nil {
-		return nil, err
-	}
-	if err = mount.Unmarshal(decoded); err != nil {
-		return nil, err
-	}
-	return mount, nil
-}
-
-// MarshalOwnerReference encodes the given OwnerReference into a string.
-func MarshalOwnerReference(reference *metav1.OwnerReference) (string, error) {
-	referenceData, err := reference.Marshal()
-	if err != nil {
-		return "", err
-	}
-	return encodeToString(referenceData), nil
-}
-
-// UnmarshalOwnerReference decodes a OwnerReference from the given string.
-func UnmarshalOwnerReference(ownerReferenceStr string) (*metav1.OwnerReference, error) {
-	ownerReference := &metav1.OwnerReference{}
-	decoded, err := decodeString(ownerReferenceStr)
-	if err != nil {
-		return nil, err
-	}
-	if err = ownerReference.Unmarshal(decoded); err != nil {
-		return nil, err
-	}
-	return ownerReference, nil
-}
-
-// MarshalAffinity encodes the given Affinity into a string.
-func MarshalAffinity(affinity *apiv1.Affinity) (string, error) {
-	affinityData, err := affinity.Marshal()
-	if err != nil {
-		return "", err
-	}
-	return encodeToString(affinityData), nil
-}
-
-// UnmarshalAffinity decodes a Affinity from the given string.
-func UnmarshalAffinity(affinityStr string) (*apiv1.Affinity, error) {
-	affinity := &apiv1.Affinity{}
-	decoded, err := decodeString(affinityStr)
-	if err != nil {
-		return nil, err
-	}
-	if err = affinity.Unmarshal(decoded); err != nil {
-		return nil, err
-	}
-	return affinity, nil
-}
-
-// MarshalToleration encodes the given Toleration into a string.
-func MarshalToleration(toleration *apiv1.Toleration) (string, error) {
-	tolerationData, err := toleration.Marshal()
-	if err != nil {
-		return "", err
-	}
-	return encodeToString(tolerationData), nil
-}
-
-// UnmarshalToleration decodes a Toleration from the given string.
-func UnmarshalToleration(tolerationStr string) (*apiv1.Toleration, error) {
-	toleration := &apiv1.Toleration{}
-	decoded, err := decodeString(tolerationStr)
-	if err != nil {
-		return nil, err
-	}
-	if err = toleration.Unmarshal(decoded); err != nil {
-		return nil, err
-	}
-	return toleration, nil
+// IsExecutorPod returns whether the given pod is a Spark executor Pod.
+func IsExecutorPod(pod *apiv1.Pod) bool {
+	return pod.Labels[config.SparkRoleLabel] == config.SparkExecutorRole
 }

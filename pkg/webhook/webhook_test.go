@@ -18,9 +18,8 @@ package webhook
 
 import (
 	"encoding/json"
-	"fmt"
-	"reflect"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 
@@ -29,16 +28,22 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 
-	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1alpha1"
+	spov1beta1 "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta1"
+	crdclientfake "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/client/clientset/versioned/fake"
+	crdinformers "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/client/informers/externalversions"
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/config"
-	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/util"
 )
 
 func TestMutatePod(t *testing.T) {
-	// Testing processing non-Spark pod.
+	crdClient := crdclientfake.NewSimpleClientset()
+	informerFactory := crdinformers.NewSharedInformerFactory(crdClient, 0*time.Second)
+	informer := informerFactory.Sparkoperator().V1beta1().SparkApplications()
+	lister := informer.Lister()
+
 	pod1 := &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: "spark-driver",
+			Name:      "spark-driver",
+			Namespace: "default",
 		},
 		Spec: corev1.PodSpec{
 			Containers: []corev1.Container{
@@ -50,6 +55,7 @@ func TestMutatePod(t *testing.T) {
 		},
 	}
 
+	// 1. Testing processing non-Spark pod.
 	podBytes, err := serializePod(pod1)
 	if err != nil {
 		t.Error(err)
@@ -64,114 +70,111 @@ func TestMutatePod(t *testing.T) {
 			Object: runtime.RawExtension{
 				Raw: podBytes,
 			},
+			Namespace: "default",
 		},
 	}
-	response := mutatePods(review)
+	response := mutatePods(review, lister, "default")
 	assert.True(t, response.Allowed)
 
-	// Test processing Spark pod without any patch.
-	pod1.Labels = map[string]string{
-		sparkRoleLabel:                      sparkDriverRole,
-		config.LaunchedBySparkOperatorLabel: "true",
+	// 2. Test processing Spark pod with only one patch: adding an OwnerReference.
+	app1 := &spov1beta1.SparkApplication{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "spark-app1",
+			Namespace: "default",
+		},
 	}
-
+	crdClient.SparkoperatorV1beta1().SparkApplications(app1.Namespace).Create(app1)
+	informer.Informer().GetIndexer().Add(app1)
+	pod1.Labels = map[string]string{
+		config.SparkRoleLabel:               config.SparkDriverRole,
+		config.LaunchedBySparkOperatorLabel: "true",
+		config.SparkAppNameLabel:            app1.Name,
+	}
 	podBytes, err = serializePod(pod1)
 	if err != nil {
 		t.Error(err)
 	}
 	review.Request.Object.Raw = podBytes
+	response = mutatePods(review, lister, "default")
 	assert.True(t, response.Allowed)
-	assert.True(t, response.PatchType == nil)
-	assert.True(t, response.Patch == nil)
+	assert.Equal(t, v1beta1.PatchTypeJSONPatch, *response.PatchType)
+	assert.True(t, len(response.Patch) > 0)
 
-	// Test processing Spark pod with patches.
-	ownerReference := metav1.OwnerReference{
-		APIVersion: v1alpha1.SchemeGroupVersion.String(),
-		Kind:       reflect.TypeOf(v1alpha1.SparkApplication{}).Name(),
-		Name:       "spark-test",
-		UID:        "spark-test-1",
-	}
-	referenceStr, err := util.MarshalOwnerReference(&ownerReference)
-	if err != nil {
-		t.Error(err)
-	}
-
-	volume := &corev1.Volume{
-		Name: "spark",
-		VolumeSource: corev1.VolumeSource{
-			HostPath: &corev1.HostPathVolumeSource{
-				Path: "/spark",
-			},
+	// 3. Test processing Spark pod with patches.
+	var user int64 = 1000
+	app2 := &spov1beta1.SparkApplication{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "spark-app2",
+			Namespace: "default",
 		},
-	}
-	volumeStr, err := util.MarshalVolume(volume)
-	if err != nil {
-		t.Error(err)
-	}
-	volumeMount := &corev1.VolumeMount{
-		Name:      "spark",
-		MountPath: "/mnt/spark",
-	}
-	volumeMountStr, err := util.MarshalVolumeMount(volumeMount)
-	if err != nil {
-		t.Error(err)
-	}
-
-	affinity := &corev1.Affinity{
-		PodAffinity: &corev1.PodAffinity{
-			RequiredDuringSchedulingIgnoredDuringExecution: []corev1.PodAffinityTerm{
+		Spec: spov1beta1.SparkApplicationSpec{
+			Volumes: []corev1.Volume{
 				{
-					LabelSelector: &metav1.LabelSelector{
-						MatchLabels: map[string]string{sparkRoleLabel: sparkDriverRole},
+					Name: "spark",
+					VolumeSource: corev1.VolumeSource{
+						HostPath: &corev1.HostPathVolumeSource{
+							Path: "/spark",
+						},
 					},
-					TopologyKey: "kubernetes.io/hostname",
+				},
+				{
+					Name: "unused", // Expect this to not be added to the driver.
+					VolumeSource: corev1.VolumeSource{
+						EmptyDir: &corev1.EmptyDirVolumeSource{},
+					},
+				},
+			},
+			Driver: spov1beta1.DriverSpec{
+				SparkPodSpec: spov1beta1.SparkPodSpec{
+					VolumeMounts: []corev1.VolumeMount{
+						{
+							Name:      "spark",
+							MountPath: "/mnt/spark",
+						},
+					},
+					Affinity: &corev1.Affinity{
+						PodAffinity: &corev1.PodAffinity{
+							RequiredDuringSchedulingIgnoredDuringExecution: []corev1.PodAffinityTerm{
+								{
+									LabelSelector: &metav1.LabelSelector{
+										MatchLabels: map[string]string{config.SparkRoleLabel: config.SparkDriverRole},
+									},
+									TopologyKey: "kubernetes.io/hostname",
+								},
+							},
+						},
+					},
+					Tolerations: []corev1.Toleration{
+						{
+							Key:      "Key",
+							Operator: "Equal",
+							Value:    "Value",
+							Effect:   "NoEffect",
+						},
+					},
+					SecurityContenxt: &corev1.PodSecurityContext{
+						RunAsUser: &user,
+					},
 				},
 			},
 		},
 	}
-	affinityStr, err := util.MarshalAffinity(affinity)
-	if err != nil {
-		t.Error(err)
-	}
+	crdClient.SparkoperatorV1beta1().SparkApplications(app2.Namespace).Update(app2)
+	informer.Informer().GetIndexer().Add(app2)
 
-	toleration := &corev1.Toleration{
-		Key:      "Key",
-		Operator: "Equal",
-		Value:    "Value",
-		Effect:   "NoEffect",
-	}
-	tolerationStr, err := util.MarshalToleration(toleration)
-	if err != nil {
-		t.Error(err)
-	}
-
-	volumeAnnotation := fmt.Sprintf("%s%s", config.VolumesAnnotationPrefix, volume.Name)
-	volumeMountAnnotation := fmt.Sprintf("%s%s", config.VolumeMountsAnnotationPrefix, volumeMount.Name)
-	tolerationAnnotation := fmt.Sprintf("%s%s", config.TolerationsAnnotationPrefix, "toleration1")
-
-	pod1.Annotations = map[string]string{
-		config.OwnerReferenceAnnotation:                  referenceStr,
-		volumeAnnotation:                                 volumeStr,
-		volumeMountAnnotation:                            volumeMountStr,
-		config.AffinityAnnotation:                        affinityStr,
-		config.GeneralConfigMapsAnnotationPrefix + "foo": "/path/to/foo",
-		config.SparkConfigMapAnnotation:                  "spark-conf",
-		config.HadoopConfigMapAnnotation:                 "hadoop-conf",
-		tolerationAnnotation:                             tolerationStr,
-	}
-
+	pod1.Labels[config.SparkAppNameLabel] = app2.Name
 	podBytes, err = serializePod(pod1)
 	if err != nil {
 		t.Error(err)
 	}
 	review.Request.Object.Raw = podBytes
-	response = mutatePods(review)
+	response = mutatePods(review, lister, "default")
 	assert.True(t, response.Allowed)
 	assert.Equal(t, v1beta1.PatchTypeJSONPatch, *response.PatchType)
 	assert.True(t, len(response.Patch) > 0)
 	var patchOps []*patchOperation
 	json.Unmarshal(response.Patch, &patchOps)
-	assert.Equal(t, 13, len(patchOps))
+	assert.Equal(t, 6, len(patchOps))
 }
 
 func serializePod(pod *corev1.Pod) ([]byte, error) {

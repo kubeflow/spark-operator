@@ -23,7 +23,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io"
-	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1alpha1"
+	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta1"
 )
 
 // CRD metadata.
@@ -32,7 +32,7 @@ const (
 	Singular  = "sparkapplication"
 	ShortName = "sparkapp"
 	Group     = sparkoperator.GroupName
-	Version   = v1alpha1.Version
+	Version   = v1beta1.Version
 	FullName  = Plural + "." + Group
 )
 
@@ -49,7 +49,7 @@ func GetCRD() *apiextensionsv1beta1.CustomResourceDefinition {
 				Plural:     Plural,
 				Singular:   Singular,
 				ShortNames: []string{ShortName},
-				Kind:       reflect.TypeOf(v1alpha1.SparkApplication{}).Name(),
+				Kind:       reflect.TypeOf(v1beta1.SparkApplication{}).Name(),
 			},
 			Validation: getCustomResourceValidation(),
 		},
@@ -60,6 +60,15 @@ func getCustomResourceValidation() *apiextensionsv1beta1.CustomResourceValidatio
 	return &apiextensionsv1beta1.CustomResourceValidation{
 		OpenAPIV3Schema: &apiextensionsv1beta1.JSONSchemaProps{
 			Properties: map[string]apiextensionsv1beta1.JSONSchemaProps{
+				"metadata": {
+					Properties: map[string]apiextensionsv1beta1.JSONSchemaProps{
+						"name": {
+							Type:      "string",
+							MinLength: int64Ptr(1),
+							MaxLength: int64Ptr(63),
+						},
+					},
+				},
 				"spec": {
 					Properties: map[string]apiextensionsv1beta1.JSONSchemaProps{
 						"type": {
@@ -164,6 +173,10 @@ func getCustomResourceValidation() *apiextensionsv1beta1.CustomResourceValidatio
 			},
 		},
 	}
+}
+
+func int64Ptr(i int64) *int64 {
+	return &i
 }
 
 func float64Ptr(f float64) *float64 {

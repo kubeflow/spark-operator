@@ -37,8 +37,8 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 
-	crdclientset "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/client/clientset/versioned"
-	crdinformers "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/client/informers/externalversions"
+	crclientset "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/client/clientset/versioned"
+	crinformers "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/client/informers/externalversions"
 	operatorConfig "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/config"
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/controller/scheduledsparkapplication"
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/controller/sparkapplication"
@@ -57,6 +57,7 @@ var (
 	resyncInterval      = flag.Int("resync-interval", 30, "Informer resync interval in seconds.")
 	namespace           = flag.String("namespace", apiv1.NamespaceAll, "The Kubernetes namespace to manage. Will manage custom resource objects of the managed CRD types for the whole cluster if unset.")
 	enableWebhook       = flag.Bool("enable-webhook", false, "Whether to enable the mutating admission webhook for admitting and patching Spark pods.")
+	webhookConfigName   = flag.String("webhook-config-name", "spark-webhook-config", "The name of the MutatingWebhookConfiguration object to create.")
 	webhookCertDir      = flag.String("webhook-cert-dir", "/etc/webhook-certs", "The directory where x509 certificate and key files are stored.")
 	webhookSvcNamespace = flag.String("webhook-svc-namespace", "spark-operator", "The namespace of the Service for the webhook server.")
 	webhookSvcName      = flag.String("webhook-svc-name", "spark-webhook", "The name of the Service for the webhook server.")
@@ -96,11 +97,11 @@ func main() {
 		util.InitializeMetrics(metricConfig)
 	}
 
-	glog.Info("Starting the Spark operator")
+	glog.Info("Starting the Spark Operator")
 
 	stopCh := make(chan struct{})
 
-	crdClient, err := crdclientset.NewForConfig(config)
+	crClient, err := crclientset.NewForConfig(config)
 	if err != nil {
 		glog.Fatal(err)
 	}
@@ -121,36 +122,15 @@ func main() {
 		}
 	}
 
-	var factoryOpts []crdinformers.SharedInformerOption
-	if *namespace != apiv1.NamespaceAll {
-		factoryOpts = append(factoryOpts, crdinformers.WithNamespace(*namespace))
-	}
-	factory := crdinformers.NewSharedInformerFactoryWithOptions(
-		crdClient,
-		// resyncPeriod. Every resyncPeriod, all resources in the cache will re-trigger events.
-		time.Duration(*resyncInterval)*time.Second,
-		factoryOpts...)
-
-	// Create Informer & Lister for pods.
-	var podFactoryOpts []informers.SharedInformerOption
-	if *namespace != apiv1.NamespaceAll {
-		podFactoryOpts = append(podFactoryOpts, informers.WithNamespace(*namespace))
-	}
-
-	tweakListOptionsFunc := func(options *metav1.ListOptions) {
-		options.LabelSelector = fmt.Sprintf("%s,%s", operatorConfig.SparkRoleLabel, operatorConfig.LaunchedBySparkOperatorLabel)
-	}
-	podFactoryOpts = append(podFactoryOpts, informers.WithTweakListOptions(tweakListOptionsFunc))
-	podInformerFactory := informers.NewSharedInformerFactoryWithOptions(kubeClient,
-		60*time.Second, podFactoryOpts...)
-
+	crInformerFactory := buildCustomResourceInformerFactory(crClient)
+	podInformerFactory := buildPodInformerFactory(kubeClient)
 	applicationController := sparkapplication.NewController(
-		crdClient, kubeClient, factory, podInformerFactory, metricConfig, *namespace, *ingressUrlFormat)
+		crClient, kubeClient, crInformerFactory, podInformerFactory, metricConfig, *namespace, *ingressUrlFormat)
 	scheduledApplicationController := scheduledsparkapplication.NewController(
-		crdClient, kubeClient, apiExtensionsClient, factory, clock.RealClock{})
+		crClient, kubeClient, apiExtensionsClient, crInformerFactory, clock.RealClock{})
 
 	// Start the informer factory that in turn starts the informer.
-	go factory.Start(stopCh)
+	go crInformerFactory.Start(stopCh)
 	go podInformerFactory.Start(stopCh)
 
 	if err = applicationController.Start(*controllerThreads, stopCh); err != nil {
@@ -163,11 +143,12 @@ func main() {
 	var hook *webhook.WebHook
 	if *enableWebhook {
 		var err error
-		hook, err = webhook.New(kubeClient, *webhookCertDir, *webhookSvcNamespace, *webhookSvcName, *webhookPort)
+		hook, err = webhook.New(kubeClient, crInformerFactory, *webhookCertDir, *webhookSvcNamespace, *webhookSvcName, *webhookPort, *namespace)
 		if err != nil {
 			glog.Fatal(err)
 		}
-		if err = hook.Start(); err != nil {
+
+		if err = hook.Start(*webhookConfigName); err != nil {
 			glog.Fatal(err)
 		}
 	}
@@ -178,11 +159,11 @@ func main() {
 
 	close(stopCh)
 
-	glog.Info("Shutting down the Spark operator")
+	glog.Info("Shutting down the Spark Operator")
 	applicationController.Stop()
 	scheduledApplicationController.Stop()
 	if *enableWebhook {
-		if err := hook.Stop(); err != nil {
+		if err := hook.Stop(*webhookConfigName); err != nil {
 			glog.Fatal(err)
 		}
 	}
@@ -193,4 +174,28 @@ func buildConfig(masterUrl string, kubeConfig string) (*rest.Config, error) {
 		return clientcmd.BuildConfigFromFlags(masterUrl, kubeConfig)
 	}
 	return rest.InClusterConfig()
+}
+
+func buildCustomResourceInformerFactory(crClient crclientset.Interface) crinformers.SharedInformerFactory {
+	var factoryOpts []crinformers.SharedInformerOption
+	if *namespace != apiv1.NamespaceAll {
+		factoryOpts = append(factoryOpts, crinformers.WithNamespace(*namespace))
+	}
+	return crinformers.NewSharedInformerFactoryWithOptions(
+		crClient,
+		// resyncPeriod. Every resyncPeriod, all resources in the cache will re-trigger events.
+		time.Duration(*resyncInterval)*time.Second,
+		factoryOpts...)
+}
+
+func buildPodInformerFactory(kubeClient clientset.Interface) informers.SharedInformerFactory {
+	var podFactoryOpts []informers.SharedInformerOption
+	if *namespace != apiv1.NamespaceAll {
+		podFactoryOpts = append(podFactoryOpts, informers.WithNamespace(*namespace))
+	}
+	tweakListOptionsFunc := func(options *metav1.ListOptions) {
+		options.LabelSelector = fmt.Sprintf("%s,%s", operatorConfig.SparkRoleLabel, operatorConfig.LaunchedBySparkOperatorLabel)
+	}
+	podFactoryOpts = append(podFactoryOpts, informers.WithTweakListOptions(tweakListOptionsFunc))
+	return informers.NewSharedInformerFactoryWithOptions(kubeClient, time.Duration(*resyncInterval)*time.Second, podFactoryOpts...)
 }

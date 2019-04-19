@@ -46,19 +46,19 @@ var listCmd = &cobra.Command{
 }
 
 func doList(crdClientset crdclientset.Interface) error {
-	apps, err := crdClientset.SparkoperatorV1alpha1().SparkApplications(Namespace).List(metav1.ListOptions{})
+	apps, err := crdClientset.SparkoperatorV1beta1().SparkApplications(Namespace).List(metav1.ListOptions{})
 	if err != nil {
 		return err
 	}
 
 	table := tablewriter.NewWriter(os.Stdout)
-	table.SetHeader([]string{"Name", "State", "Submission Age", "Completion Age"})
+	table.SetHeader([]string{"Name", "State", "Submission Age", "Termination Age"})
 	for _, app := range apps.Items {
 		table.Append([]string{
 			string(app.Name),
 			string(app.Status.AppState.State),
 			getSinceTime(app.Status.LastSubmissionAttemptTime),
-			getSinceTime(app.Status.CompletionTime),
+			getSinceTime(app.Status.TerminationTime),
 		})
 	}
 	table.Render()
