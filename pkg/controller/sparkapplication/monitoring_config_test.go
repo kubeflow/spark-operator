@@ -44,7 +44,7 @@ func TestConfigPrometheusMonitoring(t *testing.T) {
 			t.Errorf("failed to configure Prometheus monitoring: %v", err)
 		}
 
-		configMapName := fmt.Sprintf("%s-%s", test.app.Name, prometheusConfigMapNameSuffix)
+		configMapName := config.GetPrometheusConfigMapName(test.app)
 		configMap, err := fakeClient.CoreV1().ConfigMaps(test.app.Namespace).Get(configMapName, metav1.GetOptions{})
 		if err != nil {
 			t.Errorf("failed to get ConfigMap %s: %v", configMapName, err)
@@ -67,10 +67,6 @@ func TestConfigPrometheusMonitoring(t *testing.T) {
 		}
 
 		if test.app.Spec.Monitoring.ExposeDriverMetrics {
-			if len(test.app.Spec.Driver.ConfigMaps) != 1 {
-				t.Errorf("expected %d driver ConfigMaps got %d", 1, len(test.app.Spec.Driver.ConfigMaps))
-			}
-
 			if len(test.app.Spec.Driver.Annotations) != 3 {
 				t.Errorf("expected %d driver annotations got %d", 3, len(test.app.Spec.Driver.Annotations))
 			}
@@ -84,10 +80,6 @@ func TestConfigPrometheusMonitoring(t *testing.T) {
 		}
 
 		if test.app.Spec.Monitoring.ExposeExecutorMetrics {
-			if len(test.app.Spec.Executor.ConfigMaps) != 1 {
-				t.Errorf("expected %d driver ConfigMaps got %d", 1, len(test.app.Spec.Executor.ConfigMaps))
-			}
-
 			if len(test.app.Spec.Executor.Annotations) != 3 {
 				t.Errorf("expected %d driver annotations got %d", 3, len(test.app.Spec.Executor.Annotations))
 			}

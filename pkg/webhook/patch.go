@@ -52,6 +52,7 @@ func patchSparkPod(pod *corev1.Pod, app *v1beta1.SparkApplication) []patchOperat
 	patchOps = append(patchOps, addGeneralConfigMaps(pod, app)...)
 	patchOps = append(patchOps, addSparkConfigMap(pod, app)...)
 	patchOps = append(patchOps, addHadoopConfigMap(pod, app)...)
+	patchOps = append(patchOps, addPrometheusConfigMap(pod, app)...)
 	patchOps = append(patchOps, addTolerations(pod, app)...)
 
 	if pod.Spec.SchedulerName == "" {
@@ -67,6 +68,7 @@ func patchSparkPod(pod *corev1.Pod, app *v1beta1.SparkApplication) []patchOperat
 			patchOps = append(patchOps, *op)
 		}
 	}
+
 	if pod.Spec.SecurityContext == nil {
 		op := addSecurityContext(pod, app)
 		if op != nil {
@@ -216,6 +218,29 @@ func addGeneralConfigMaps(pod *corev1.Pod, app *v1beta1.SparkApplication) []patc
 		patchOps = append(patchOps, addConfigMapVolume(pod, namePath.Name, volumeName))
 		patchOps = append(patchOps, addConfigMapVolumeMount(pod, volumeName, namePath.Path))
 	}
+	return patchOps
+}
+
+func addPrometheusConfigMap(pod *corev1.Pod, app *v1beta1.SparkApplication) []patchOperation {
+	// Skip if Prometheus Monitoring is not enabled or an in-container ConfigFile is used,
+	// in which cases a Prometheus ConfigMap won't be created.
+	if !app.PrometheusMonitoringEnabled() || app.HasPrometheusConfigFile() {
+		return nil
+	}
+
+	if util.IsDriverPod(pod) && !app.ExposeDriverMetrics() {
+		return nil
+	}
+	if util.IsExecutorPod(pod) && !app.ExposeExecutorMetrics() {
+		return nil
+	}
+
+	var patchOps []patchOperation
+	name := config.GetPrometheusConfigMapName(app)
+	volumeName := name + "-vol"
+	mountPath := config.PrometheusConfigMapMountPath
+	patchOps = append(patchOps, addConfigMapVolume(pod, name, volumeName))
+	patchOps = append(patchOps, addConfigMapVolumeMount(pod, volumeName, mountPath))
 	return patchOps
 }
 

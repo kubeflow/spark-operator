@@ -18,6 +18,7 @@ package sparkapplication
 
 import (
 	"fmt"
+
 	"github.com/golang/glog"
 	corev1 "k8s.io/api/core/v1"
 	apiErrors "k8s.io/apimachinery/pkg/api/errors"
@@ -30,13 +31,11 @@ import (
 )
 
 const (
-	metricsPropertiesKey          = "metrics.properties"
-	prometheusConfigKey           = "prometheus.yaml"
-	prometheusConfigMapNameSuffix = "prom-conf"
-	prometheusConfigMapMountPath  = "/etc/metrics/conf"
-	prometheusScrapeAnnotation    = "prometheus.io/scrape"
-	prometheusPortAnnotation      = "prometheus.io/port"
-	prometheusPathAnnotation      = "prometheus.io/path"
+	metricsPropertiesKey       = "metrics.properties"
+	prometheusConfigKey        = "prometheus.yaml"
+	prometheusScrapeAnnotation = "prometheus.io/scrape"
+	prometheusPortAnnotation   = "prometheus.io/port"
+	prometheusPathAnnotation   = "prometheus.io/path"
 )
 
 func configPrometheusMonitoring(app *v1beta1.SparkApplication, kubeClient clientset.Interface) error {
@@ -45,22 +44,18 @@ func configPrometheusMonitoring(app *v1beta1.SparkApplication, kubeClient client
 		port = *app.Spec.Monitoring.Prometheus.Port
 	}
 
-	var configFile string
-	if app.Spec.Monitoring.Prometheus.ConfigFile != nil {
-		configFile = *app.Spec.Monitoring.Prometheus.ConfigFile
-	}
 	var javaOption string
-	if configFile != "" {
+	if app.HasPrometheusConfigFile() {
+		configFile := *app.Spec.Monitoring.Prometheus.ConfigFile
 		glog.V(2).Infof("Overriding the default Prometheus configuration with config file %s in the Spark image.", configFile)
 		javaOption = fmt.Sprintf("-javaagent:%s=%d:%s", app.Spec.Monitoring.Prometheus.JmxExporterJar,
 			port, configFile)
 	} else {
 		glog.V(2).Infof("Using the default Prometheus configuration.")
-		prometheusConfigMapName := fmt.Sprintf("%s-%s", app.Name, prometheusConfigMapNameSuffix)
-		configMap := buildPrometheusConfigMap(app, prometheusConfigMapName)
+		configMapName := config.GetPrometheusConfigMapName(app)
+		configMap := buildPrometheusConfigMap(app, configMapName)
 		retryErr := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-			cm, err := kubeClient.CoreV1().ConfigMaps(app.Namespace).Get(prometheusConfigMapName, metav1.GetOptions{})
-
+			cm, err := kubeClient.CoreV1().ConfigMaps(app.Namespace).Get(configMapName, metav1.GetOptions{})
 			if apiErrors.IsNotFound(err) {
 				_, createErr := kubeClient.CoreV1().ConfigMaps(app.Namespace).Create(configMap)
 				return createErr
@@ -75,29 +70,20 @@ func configPrometheusMonitoring(app *v1beta1.SparkApplication, kubeClient client
 		})
 
 		if retryErr != nil {
-			return fmt.Errorf("failed to apply %s in namespace %s: %v", prometheusConfigMapName, app.Namespace, retryErr)
+			return fmt.Errorf("failed to apply %s in namespace %s: %v", configMapName, app.Namespace, retryErr)
 		}
 
-		javaOption = fmt.Sprintf("-javaagent:%s=%d:%s/%s", app.Spec.Monitoring.Prometheus.JmxExporterJar,
-			port, prometheusConfigMapMountPath, prometheusConfigKey)
-
-		if app.Spec.Monitoring.ExposeDriverMetrics {
-			app.Spec.Driver.ConfigMaps = append(app.Spec.Driver.ConfigMaps, v1beta1.NamePath{
-				Name: prometheusConfigMapName,
-				Path: prometheusConfigMapMountPath,
-			})
-		}
-		if app.Spec.Monitoring.ExposeExecutorMetrics {
-			app.Spec.Executor.ConfigMaps = append(app.Spec.Executor.ConfigMaps, v1beta1.NamePath{
-				Name: prometheusConfigMapName,
-				Path: prometheusConfigMapMountPath,
-			})
-		}
+		javaOption = fmt.Sprintf(
+			"-javaagent:%s=%d:%s/%s",
+			app.Spec.Monitoring.Prometheus.JmxExporterJar,
+			port,
+			config.PrometheusConfigMapMountPath,
+			prometheusConfigKey)
 	}
 
 	/* work around for push gateway issue: https://github.com/prometheus/pushgateway/issues/97 */
 	metricNamespace := fmt.Sprintf("%s.%s", app.Namespace, app.Name)
-	metricConf := fmt.Sprintf("%s/%s", prometheusConfigMapMountPath, metricsPropertiesKey)
+	metricConf := fmt.Sprintf("%s/%s", config.PrometheusConfigMapMountPath, metricsPropertiesKey)
 	if app.Spec.SparkConf == nil {
 		app.Spec.SparkConf = make(map[string]string)
 	}

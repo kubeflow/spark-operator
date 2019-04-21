@@ -339,6 +339,54 @@ func TestPatchSparkPod_HadoopConfigMap(t *testing.T) {
 	assert.Equal(t, config.DefaultHadoopConfDir, modifiedPod.Spec.Containers[0].Env[0].Value)
 }
 
+func TestPatchSparkPod_PrometheusConfigMaps(t *testing.T) {
+	app := &v1beta1.SparkApplication{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "spark-test",
+			UID:  "spark-test-1",
+		},
+		Spec: v1beta1.SparkApplicationSpec{
+			Monitoring: &v1beta1.MonitoringSpec{
+				Prometheus:          &v1beta1.PrometheusSpec{},
+				ExposeDriverMetrics: true,
+			},
+		},
+	}
+
+	pod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "spark-driver",
+			Labels: map[string]string{
+				config.SparkRoleLabel:               config.SparkDriverRole,
+				config.LaunchedBySparkOperatorLabel: "true",
+			},
+		},
+		Spec: corev1.PodSpec{
+			Containers: []corev1.Container{
+				{
+					Name:  sparkDriverContainerName,
+					Image: "spark-driver:latest",
+				},
+			},
+		},
+	}
+
+	modifiedPod, err := getModifiedPod(pod, app)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	expectedConfigMapName := config.GetPrometheusConfigMapName(app)
+	expectedVolumeName := expectedConfigMapName + "-vol"
+	assert.Equal(t, 1, len(modifiedPod.Spec.Volumes))
+	assert.Equal(t, expectedVolumeName, modifiedPod.Spec.Volumes[0].Name)
+	assert.True(t, modifiedPod.Spec.Volumes[0].ConfigMap != nil)
+	assert.Equal(t, expectedConfigMapName, modifiedPod.Spec.Volumes[0].ConfigMap.Name)
+	assert.Equal(t, 1, len(modifiedPod.Spec.Containers[0].VolumeMounts))
+	assert.Equal(t, expectedVolumeName, modifiedPod.Spec.Containers[0].VolumeMounts[0].Name)
+	assert.Equal(t, config.PrometheusConfigMapMountPath, modifiedPod.Spec.Containers[0].VolumeMounts[0].MountPath)
+}
+
 func TestPatchSparkPod_Tolerations(t *testing.T) {
 	app := &v1beta1.SparkApplication{
 		ObjectMeta: metav1.ObjectMeta{

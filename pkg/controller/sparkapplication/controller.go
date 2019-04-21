@@ -545,16 +545,14 @@ func hasRetryIntervalPassed(retryInterval *int64, attemptsDone int32, lastEventT
 
 // submitSparkApplication creates a new submission for the given SparkApplication and submits it using spark-submit.
 func (c *Controller) submitSparkApplication(app *v1beta1.SparkApplication) *v1beta1.SparkApplication {
-	// Make a copy since configPrometheusMonitoring may update app.Spec which causes an onUpdate callback.
-	appToSubmit := app.DeepCopy()
-	if appToSubmit.Spec.Monitoring != nil && appToSubmit.Spec.Monitoring.Prometheus != nil {
-		if err := configPrometheusMonitoring(appToSubmit, c.kubeClient); err != nil {
+	if app.PrometheusMonitoringEnabled() {
+		if err := configPrometheusMonitoring(app, c.kubeClient); err != nil {
 			glog.Error(err)
 		}
 	}
 
 	submissionID := uuid.New().String()
-	submissionCmdArgs, err := buildSubmissionCommandArgs(appToSubmit, submissionID)
+	submissionCmdArgs, err := buildSubmissionCommandArgs(app, submissionID)
 	if err != nil {
 		app.Status = v1beta1.SparkApplicationStatus{
 			AppState: v1beta1.ApplicationState{
@@ -568,7 +566,7 @@ func (c *Controller) submitSparkApplication(app *v1beta1.SparkApplication) *v1be
 	}
 
 	// Try submitting the application by running spark-submit.
-	submitted, err := runSparkSubmit(newSubmission(submissionCmdArgs, appToSubmit))
+	submitted, err := runSparkSubmit(newSubmission(submissionCmdArgs, app))
 	if err != nil {
 		app.Status = v1beta1.SparkApplicationStatus{
 			AppState: v1beta1.ApplicationState{

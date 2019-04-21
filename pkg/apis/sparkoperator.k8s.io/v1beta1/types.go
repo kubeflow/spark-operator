@@ -495,3 +495,25 @@ type PrometheusSpec struct {
 	// Configuration has no effect if ConfigFile is set.
 	Configuration *string `json:"configuration,omitempty"`
 }
+
+// PrometheusMonitoringEnabled returns if Prometheus monitoring is enabled or not.
+func (s *SparkApplication) PrometheusMonitoringEnabled() bool {
+	return s.Spec.Monitoring != nil && s.Spec.Monitoring.Prometheus != nil
+}
+
+// HasPrometheusConfigFile returns if Prometheus monitoring uses a configruation file in the container.
+func (s *SparkApplication) HasPrometheusConfigFile() bool {
+	return s.PrometheusMonitoringEnabled() &&
+		s.Spec.Monitoring.Prometheus.ConfigFile != nil &&
+		*s.Spec.Monitoring.Prometheus.ConfigFile != ""
+}
+
+// ExposeDriverMetrics returns if driver metrics should be exposed.
+func (s *SparkApplication) ExposeDriverMetrics() bool {
+	return s.Spec.Monitoring != nil && s.Spec.Monitoring.ExposeDriverMetrics
+}
+
+// ExposeExecutorMetrics returns if executor metrics should be exposed.
+func (s *SparkApplication) ExposeExecutorMetrics() bool {
+	return s.Spec.Monitoring != nil && s.Spec.Monitoring.ExposeExecutorMetrics
+}
