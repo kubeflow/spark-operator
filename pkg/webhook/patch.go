@@ -54,6 +54,7 @@ func patchSparkPod(pod *corev1.Pod, app *v1beta1.SparkApplication) []patchOperat
 	patchOps = append(patchOps, addHadoopConfigMap(pod, app)...)
 	patchOps = append(patchOps, addPrometheusConfigMap(pod, app)...)
 	patchOps = append(patchOps, addTolerations(pod, app)...)
+	patchOps = append(patchOps, addSidecarContainers(pod, app)...)
 
 	if pod.Spec.SchedulerName == "" {
 		op := addSchedulerName(pod, app)
@@ -335,4 +336,31 @@ func addSecurityContext(pod *corev1.Pod, app *v1beta1.SparkApplication) *patchOp
 		return nil
 	}
 	return &patchOperation{Op: "add", Path: "/spec/securityContext", Value: *secContext}
+}
+
+func addSidecarContainers(pod *corev1.Pod, app *v1beta1.SparkApplication) []patchOperation {
+	var sidecars []corev1.Container
+	if util.IsDriverPod(pod) {
+		sidecars = app.Spec.Driver.Sidecars
+	} else if util.IsExecutorPod(pod) {
+		sidecars = app.Spec.Executor.Sidecars
+	}
+
+	var ops []patchOperation
+	for _, c := range sidecars {
+		sd := c
+		if !hasContainer(pod, &sd) {
+			ops = append(ops, patchOperation{Op: "add", Path: "/spec/containers/-", Value: &sd})
+		}
+	}
+	return ops
+}
+
+func hasContainer(pod *corev1.Pod, container *corev1.Container) bool {
+	for _, c := range pod.Spec.Containers {
+		if container.Name == c.Name && container.Image == c.Image {
+			return true
+		}
+	}
+	return false
 }

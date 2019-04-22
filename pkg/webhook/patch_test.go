@@ -464,7 +464,7 @@ func TestPatchSparkPod_SecurityContext(t *testing.T) {
 
 	driverPod := &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: "spark-executor",
+			Name: "spark-driver",
 			Labels: map[string]string{
 				config.SparkRoleLabel:               config.SparkDriverRole,
 				config.LaunchedBySparkOperatorLabel: "true",
@@ -535,7 +535,7 @@ func TestPatchSparkPod_SchedulerName(t *testing.T) {
 
 	driverPod := &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: "spark-executor",
+			Name: "spark-driver",
 			Labels: map[string]string{
 				config.SparkRoleLabel:               config.SparkDriverRole,
 				config.LaunchedBySparkOperatorLabel: "true",
@@ -580,6 +580,97 @@ func TestPatchSparkPod_SchedulerName(t *testing.T) {
 		t.Fatal(err)
 	}
 	assert.Equal(t, schedulerName, modifiedExecutorPod.Spec.SchedulerName)
+}
+
+func TestPatchSparkPod_Sidecars(t *testing.T) {
+	app := &v1beta1.SparkApplication{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "spark-test",
+			UID:  "spark-test-1",
+		},
+		Spec: v1beta1.SparkApplicationSpec{
+			Driver: v1beta1.DriverSpec{
+				SparkPodSpec: v1beta1.SparkPodSpec{
+					Sidecars: []corev1.Container{
+						{
+							Name:  "sidecar1",
+							Image: "sidecar1:latest",
+						},
+						{
+							Name:  "sidecar2",
+							Image: "sidecar2:latest",
+						},
+					},
+				},
+			},
+			Executor: v1beta1.ExecutorSpec{
+				SparkPodSpec: v1beta1.SparkPodSpec{
+					Sidecars: []corev1.Container{
+						{
+							Name:  "sidecar1",
+							Image: "sidecar1:latest",
+						},
+						{
+							Name:  "sidecar2",
+							Image: "sidecar2:latest",
+						},
+					},
+				},
+			},
+		},
+	}
+
+	driverPod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "spark-driver",
+			Labels: map[string]string{
+				config.SparkRoleLabel:               config.SparkDriverRole,
+				config.LaunchedBySparkOperatorLabel: "true",
+			},
+		},
+		Spec: corev1.PodSpec{
+			Containers: []corev1.Container{
+				{
+					Name:  sparkDriverContainerName,
+					Image: "spark-driver:latest",
+				},
+			},
+		},
+	}
+
+	modifiedDriverPod, err := getModifiedPod(driverPod, app)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assert.Equal(t, 3, len(modifiedDriverPod.Spec.Containers))
+	assert.Equal(t, "sidecar1", modifiedDriverPod.Spec.Containers[1].Name)
+	assert.Equal(t, "sidecar2", modifiedDriverPod.Spec.Containers[2].Name)
+
+	executorPod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "spark-executor",
+			Labels: map[string]string{
+				config.SparkRoleLabel:               config.SparkExecutorRole,
+				config.LaunchedBySparkOperatorLabel: "true",
+			},
+		},
+		Spec: corev1.PodSpec{
+			Containers: []corev1.Container{
+				{
+					Name:  sparkExecutorContainerName,
+					Image: "spark-executor:latest",
+				},
+			},
+		},
+	}
+
+	modifiedExecutorPod, err := getModifiedPod(executorPod, app)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assert.Equal(t, 3, len(modifiedExecutorPod.Spec.Containers))
+	assert.Equal(t, "sidecar1", modifiedExecutorPod.Spec.Containers[1].Name)
+	assert.Equal(t, "sidecar2", modifiedExecutorPod.Spec.Containers[2].Name)
 }
 
 func getModifiedPod(pod *corev1.Pod, app *v1beta1.SparkApplication) (*corev1.Pod, error) {
