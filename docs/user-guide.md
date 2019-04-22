@@ -309,6 +309,24 @@ spec:
 Note that the mutating admission webhook is needed to use this feature. Please refer to the 
 [Quick Start Guide](quick-start-guide.md) on how to enable the mutating admission webhook.
 
+### Using Sidecar Containers
+
+A `SparkApplication` can specify one or more optional sidecar containers for the driver or executor pod, using the optional field `.spec.driver.sidecars` or `.spec.executor.containers`. The specification of each sidecar container follows the [Container](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.14/#container-v1-core) API definition. Below is an example:
+
+```yaml
+spec:
+  driver:
+    sidecars:
+    - name: "sidecar1"
+      image: "sidecar1:latest"
+      ...  
+  executor:
+    sidecars:
+    - name: "sidecar1"
+      image: "sidecar1:latest"
+      ...
+```
+
 ### Python Support
 
 Python support can be enabled by setting `.spec.mainApplicationFile` with path to your python application. Optionaly, the `.spec.pythonVersion` field can be used to set the major Python version of the docker image used to run the driver and executor containers. Below is an example showing part of a `SparkApplication` specification:

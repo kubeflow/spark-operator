@@ -382,6 +382,9 @@ type SparkPodSpec struct {
 	// SchedulerName specifies the scheduler that will be used for scheduling
 	// Optional.
 	SchedulerName *string `json:"schedulerName,omitempty"`
+	// Sidecars is a list of sidecar containers that run along side the main Spark container.
+	// Optional.
+	Sidecars []apiv1.Container `json:"sidecars,omitempty"`
 }
 
 // DriverSpec is specification of the driver.
