@@ -19,8 +19,9 @@ The Kubernetes Operator for Apache Spark ships with a command-line tool called `
     * [Using Secrets As Environment Variables](#using-secrets-as-environment-variables)
     * [Using Image Pull Secrets](#using-image-pull-secrets)
     * [Using Pod Affinity](#using-pod-affinity)
-    * [Adding Tolerations](#adding-tolerations)
+    * [Using Tolerations](#using-tolerations)
     * [Using Pod Security Context](#using-pod-security-context)
+    * [Using Sidecar Containers](#using-sidecar-containers)
     * [Python Support](#python-support)
     * [Monitoring](#monitoring) 
 * [Working with SparkApplications](#working-with-sparkapplications)
@@ -269,7 +270,7 @@ spec:
 
 Note that the mutating admission webhook is needed to use this feature. Please refer to the [Quick Start Guide](quick-start-guide.md) on how to enable the mutating admission webhook.
 
-### Adding Tolerations
+### Using Tolerations
 
 A `SparkApplication` can specify an `Tolerations` for the driver or executor pod, using the optional field `.spec.driver.tolerations` or `.spec.executor.tolerations`. Below is an example:
 
@@ -326,6 +327,9 @@ spec:
       image: "sidecar1:latest"
       ...
 ```
+
+Note that the mutating admission webhook is needed to use this feature. Please refer to the 
+[Quick Start Guide](quick-start-guide.md) on how to enable the mutating admission webhook.
 
 ### Python Support
 
