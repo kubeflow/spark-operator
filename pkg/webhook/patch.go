@@ -56,11 +56,9 @@ func patchSparkPod(pod *corev1.Pod, app *v1beta1.SparkApplication) []patchOperat
 	patchOps = append(patchOps, addTolerations(pod, app)...)
 	patchOps = append(patchOps, addSidecarContainers(pod, app)...)
 
-	if pod.Spec.SchedulerName == "" {
-		op := addSchedulerName(pod, app)
-		if op != nil {
-			patchOps = append(patchOps, *op)
-		}
+	op := addSchedulerName(pod, app)
+	if op != nil {
+		patchOps = append(patchOps, *op)
 	}
 
 	if pod.Spec.Affinity == nil {
@@ -305,7 +303,7 @@ func addSchedulerName(pod *corev1.Pod, app *v1beta1.SparkApplication) *patchOper
 	if util.IsExecutorPod(pod) {
 		schedulerName = app.Spec.Executor.SchedulerName
 	}
-	if schedulerName == nil {
+	if schedulerName == nil || *schedulerName == "" {
 		return nil
 	}
 	return &patchOperation{Op: "add", Path: "/spec/schedulerName", Value: *schedulerName}

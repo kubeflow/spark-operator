@@ -513,6 +513,7 @@ func TestPatchSparkPod_SecurityContext(t *testing.T) {
 
 func TestPatchSparkPod_SchedulerName(t *testing.T) {
 	var schedulerName = "another_scheduler"
+	var defaultScheduler = "default-scheduler"
 
 	app := &v1beta1.SparkApplication{
 		ObjectMeta: metav1.ObjectMeta{
@@ -526,9 +527,7 @@ func TestPatchSparkPod_SchedulerName(t *testing.T) {
 				},
 			},
 			Executor: v1beta1.ExecutorSpec{
-				SparkPodSpec: v1beta1.SparkPodSpec{
-					SchedulerName: &schedulerName,
-				},
+				SparkPodSpec: v1beta1.SparkPodSpec{},
 			},
 		},
 	}
@@ -542,6 +541,7 @@ func TestPatchSparkPod_SchedulerName(t *testing.T) {
 			},
 		},
 		Spec: corev1.PodSpec{
+			SchedulerName: defaultScheduler,
 			Containers: []corev1.Container{
 				{
 					Name:  sparkDriverContainerName,
@@ -555,6 +555,7 @@ func TestPatchSparkPod_SchedulerName(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	//Driver scheduler name should be updated when specified.
 	assert.Equal(t, schedulerName, modifiedDriverPod.Spec.SchedulerName)
 
 	executorPod := &corev1.Pod{
@@ -566,6 +567,7 @@ func TestPatchSparkPod_SchedulerName(t *testing.T) {
 			},
 		},
 		Spec: corev1.PodSpec{
+			SchedulerName: defaultScheduler,
 			Containers: []corev1.Container{
 				{
 					Name:  sparkExecutorContainerName,
@@ -579,7 +581,8 @@ func TestPatchSparkPod_SchedulerName(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	assert.Equal(t, schedulerName, modifiedExecutorPod.Spec.SchedulerName)
+	//Executor scheduler name should remain the same as before when not specified in SparkApplicationSpec
+	assert.Equal(t, defaultScheduler, modifiedExecutorPod.Spec.SchedulerName)
 }
 
 func TestPatchSparkPod_Sidecars(t *testing.T) {
