@@ -317,7 +317,7 @@ func (c *Controller) getAndUpdateAppState(app *v1beta1.SparkApplication) error {
 			app.Status.DriverInfo.PodName = currentDriverState.podName
 			app.Status.SparkApplicationID = currentDriverState.sparkApplicationID
 			if currentDriverState.nodeName != "" {
-				if nodeIP := c.getNodeExternalIP(currentDriverState.nodeName); nodeIP != "" {
+				if nodeIP := c.getNodeIP(currentDriverState.nodeName); nodeIP != "" {
 					app.Status.DriverInfo.WebUIAddress = fmt.Sprintf("%s:%d", nodeIP, app.Status.DriverInfo.WebUIPort)
 				}
 			}
@@ -757,7 +757,8 @@ func (c *Controller) enqueue(obj interface{}) {
 	c.queue.AddRateLimited(key)
 }
 
-func (c *Controller) getNodeExternalIP(nodeName string) string {
+// Return IP of the node. If no External IP is found, Internal IP will be returned
+func (c *Controller) getNodeIP(nodeName string) string {
 	node, err := c.kubeClient.CoreV1().Nodes().Get(nodeName, metav1.GetOptions{})
 	if err != nil {
 		glog.Errorf("failed to get node %s", nodeName)
@@ -766,6 +767,11 @@ func (c *Controller) getNodeExternalIP(nodeName string) string {
 
 	for _, address := range node.Status.Addresses {
 		if address.Type == apiv1.NodeExternalIP {
+			return address.Address
+		}
+	}
+	for _, address := range node.Status.Addresses {
+		if address.Type == apiv1.NodeInternalIP {
 			return address.Address
 		}
 	}
