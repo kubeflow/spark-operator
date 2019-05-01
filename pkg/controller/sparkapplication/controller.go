@@ -280,7 +280,10 @@ func (c *Controller) getAppPods(app *v1beta1.SparkApplication) ([]*apiv1.Pod, er
 // getAndUpdateDriverState finds the driver pod of the application
 // and updates the driver state based on the current phase of the pod.
 func (c *Controller) getAndUpdateDriverState(app *v1beta1.SparkApplication) error {
-	pods, _ := c.getAppPods(app)
+	pods, err := c.getAppPods(app)
+	if err != nil {
+		return err
+	}
 	var currentDriverState *driverState
 	for _, pod := range pods {
 		if util.IsDriverPod(pod) {
@@ -331,7 +334,10 @@ func (c *Controller) getAndUpdateDriverState(app *v1beta1.SparkApplication) erro
 // getAndUpdateExecutorState lists the executor pods of the application
 // and updates the executor state based on the current phase of the pods.
 func (c *Controller) getAndUpdateExecutorState(app *v1beta1.SparkApplication) error {
-	pods, _ := c.getAppPods(app)
+	pods, err := c.getAppPods(app)
+	if err != nil {
+		return err
+	}
 	executorStateMap := make(map[string]v1beta1.ExecutorState)
 	var executorApplicationID string
 	for _, pod := range pods {
@@ -376,8 +382,12 @@ func (c *Controller) getAndUpdateExecutorState(app *v1beta1.SparkApplication) er
 }
 
 func (c *Controller) getAndUpdateAppState(app *v1beta1.SparkApplication) error {
-	_ = c.getAndUpdateDriverState(app)
-	_ = c.getAndUpdateExecutorState(app)
+	if err := c.getAndUpdateDriverState(app); err != nil {
+		return err
+	}
+	if err := c.getAndUpdateExecutorState(app); err != nil {
+		return err
+	}
 	return nil
 }
 
