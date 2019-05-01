@@ -296,8 +296,8 @@ func (c *Controller) getAndUpdateDriverState(app *v1beta1.SparkApplication) erro
 			if pod.Status.Phase == apiv1.PodSucceeded || pod.Status.Phase == apiv1.PodFailed {
 				currentDriverState.completionTime = metav1.Now()
 			}
+			break
 		}
-		break
 	}
 
 	if currentDriverState != nil {
