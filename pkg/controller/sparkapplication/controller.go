@@ -719,7 +719,10 @@ func (c *Controller) getSparkApplication(namespace string, name string) (*v1beta
 
 // Delete the driver pod and optional UI resources (Service/Ingress) created for the application.
 func (c *Controller) deleteSparkResources(app *v1beta1.SparkApplication) error {
-	_ = c.getAndUpdateDriverState(app)
+	err := c.getAndUpdateDriverState(app)
+	if err != nil {
+		return err
+	}
 
 	driverPodName := app.Status.DriverInfo.PodName
 	if driverPodName != "" {
