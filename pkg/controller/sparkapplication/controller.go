@@ -297,6 +297,7 @@ func (c *Controller) getAndUpdateDriverState(app *v1beta1.SparkApplication) erro
 				currentDriverState.completionTime = metav1.Now()
 			}
 		}
+		break
 	}
 
 	if currentDriverState != nil {
