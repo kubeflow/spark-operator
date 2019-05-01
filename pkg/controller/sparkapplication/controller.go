@@ -497,18 +497,18 @@ func (c *Controller) syncSparkApplication(key string) error {
 		if err := c.getAndUpdateAppState(appToUpdate); err != nil {
 			return err
 		}
-		glog.V(2).Infof("Invalidating app pod: %s", appToUpdate.Status.DriverInfo.PodName)
 		// Invalidate the current run and enqueue the SparkApplication for re-execution.
 		if err := c.deleteSparkResources(appToUpdate); err != nil {
 			glog.Errorf("failed to delete resources associated with SparkApplication %s/%s: %v",
 				appToUpdate.Namespace, appToUpdate.Name, err)
 			return err
 		}
+		c.clearStatus(&appToUpdate.Status)
 		appToUpdate.Status.AppState.State = v1beta1.PendingRerunState
 	case v1beta1.PendingRerunState:
-		glog.V(2).Infof("Sparkapp named %s pending rerun", appToUpdate.Name)
+		glog.V(2).Infof("SparkApplication %s/%s pending rerun", appToUpdate.Namespace, appToUpdate.Name)
 		if c.validateSparkResourceDeletion(appToUpdate) {
-			glog.V(2).Infof("Resources for sparkapp %s successfully deleted", appToUpdate.Name)
+			glog.V(2).Infof("Resources for SparkApplication %s/%s successfully deleted", appToUpdate.Namespace, appToUpdate.Name)
 			c.recordSparkApplicationEvent(appToUpdate)
 			c.clearStatus(&appToUpdate.Status)
 			appToUpdate = c.submitSparkApplication(appToUpdate)
