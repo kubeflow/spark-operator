@@ -364,7 +364,6 @@ func (c *Controller) getAndUpdateAppState(app *v1beta1.SparkApplication) error {
 
 func (c *Controller) handleSparkApplicationDeletion(app *v1beta1.SparkApplication) {
 	// SparkApplication deletion requested, lets delete driver pod.
-	glog.V(2).Infof("Hey handle deletion of spark app pod: %s", app.Status.DriverInfo.PodName)
 	if err := c.deleteSparkResources(app); err != nil {
 		glog.Errorf("failed to delete resources associated with deleted SparkApplication %s/%s: %v", app.Namespace, app.Name, err)
 	}
@@ -452,16 +451,7 @@ func (c *Controller) syncSparkApplication(key string) error {
 		return nil
 	}
 
-	if app.Status.AppState.State != "" {
-		glog.V(2).Infof("Hey app to update has pod name: %s", app.Status.DriverInfo.PodName)
-		glog.V(2).Infof("Hey app to update has state: %s", app.Status.AppState.State)
-	}
 	appToUpdate := app.DeepCopy()
-	if app.Status.AppState.State != "" {
-		//appToUpdate.Status.DriverInfo.PodName = app.Status.DriverInfo.PodName
-		glog.V(2).Infof("Hey app to update after deepcopy has pod name: %s", appToUpdate.Status.DriverInfo.PodName)
-		glog.V(2).Infof("Hey app to update after deepcopy has state: %s", appToUpdate.Status.AppState.State)
-	}
 
 	// Take action based on application state.
 	switch appToUpdate.Status.AppState.State {
@@ -504,28 +494,21 @@ func (c *Controller) syncSparkApplication(key string) error {
 			appToUpdate = c.submitSparkApplication(appToUpdate)
 		}
 	case v1beta1.InvalidatingState:
-		glog.V(2).Infof("Hey invalidating app pod: %s", appToUpdate.Status.DriverInfo.PodName)
+		if err := c.getAndUpdateAppState(appToUpdate); err != nil {
+			return err
+		}
+		glog.V(2).Infof("Invalidating app pod: %s", appToUpdate.Status.DriverInfo.PodName)
 		// Invalidate the current run and enqueue the SparkApplication for re-execution.
 		if err := c.deleteSparkResources(appToUpdate); err != nil {
 			glog.Errorf("failed to delete resources associated with SparkApplication %s/%s: %v",
 				appToUpdate.Namespace, appToUpdate.Name, err)
 			return err
 		}
-		c.clearStatus(&appToUpdate.Status)
 		appToUpdate.Status.AppState.State = v1beta1.PendingRerunState
 	case v1beta1.PendingRerunState:
-		glog.V(2).Infof("Hey app named %s pending rerun", appToUpdate.Name)
-		glog.V(2).Infof("Hey app driver pod name before state update", appToUpdate.Status.DriverInfo.PodName)
-		if err := c.getAndUpdateAppState(appToUpdate); err != nil {
-			return err
-		}
-		glog.V(2).Infof("Hey app driver pod name after state update", appToUpdate.Status.DriverInfo.PodName)
-		if err := c.deleteSparkResources(appToUpdate); err != nil {
-			glog.Errorf("failed to delete resources associated with SparkApplication %s/%s: %v",
-				appToUpdate.Namespace, appToUpdate.Name, err)
-			return err
-		}
+		glog.V(2).Infof("Sparkapp named %s pending rerun", appToUpdate.Name)
 		if c.validateSparkResourceDeletion(appToUpdate) {
+			glog.V(2).Infof("Resources for sparkapp %s successfully deleted", appToUpdate.Name)
 			c.recordSparkApplicationEvent(appToUpdate)
 			c.clearStatus(&appToUpdate.Status)
 			appToUpdate = c.submitSparkApplication(appToUpdate)
@@ -710,7 +693,7 @@ func (c *Controller) getSparkApplication(namespace string, name string) (*v1beta
 
 // Delete the driver pod and optional UI resources (Service/Ingress) created for the application.
 func (c *Controller) deleteSparkResources(app *v1beta1.SparkApplication) error {
-	glog.V(2).Infof("Hey driver pod name is %s", app.Status.DriverInfo.PodName)
+	glog.V(2).Infof("Deleting driver pod named %s", app.Status.DriverInfo.PodName)
 	driverPodName := app.Status.DriverInfo.PodName
 	if driverPodName != "" {
 		glog.V(2).Infof("Deleting pod with name %s in namespace %s", driverPodName, app.Namespace)
