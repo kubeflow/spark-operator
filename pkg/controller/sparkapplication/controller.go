@@ -267,19 +267,24 @@ type driverState struct {
 	completionTime     metav1.Time    // Time the driver completes.
 }
 
-// getAndUpdateAppState lists the driver and executor pods of the application
-// and updates the application state based on the current phase of the pods.
-func (c *Controller) getAndUpdateAppState(app *v1beta1.SparkApplication) error {
+func (c *Controller) getAppPods(app *v1beta1.SparkApplication) ([]*apiv1.Pod, error) {
 	// Fetch all the pods for the current run of the application.
 	selector := labels.SelectorFromSet(labels.Set(getResourceLabels(app)))
 	pods, err := c.podLister.Pods(app.Namespace).List(selector)
 	if err != nil {
-		return fmt.Errorf("failed to get pods for SparkApplication %s/%s: %v", app.Namespace, app.Name, err)
+		return nil, fmt.Errorf("failed to get pods for SparkApplication %s/%s: %v", app.Namespace, app.Name, err)
 	}
+	return pods, nil
+}
 
+// getAndUpdateDriverState finds the driver pod of the application
+// and updates the driver state based on the current phase of the pod.
+func (c *Controller) getAndUpdateDriverState(app *v1beta1.SparkApplication) error {
+	pods, err := c.getAppPods(app)
+	if err != nil {
+		return err
+	}
 	var currentDriverState *driverState
-	executorStateMap := make(map[string]v1beta1.ExecutorState)
-	var executorApplicationID string
 	for _, pod := range pods {
 		if util.IsDriverPod(pod) {
 			currentDriverState = &driverState{
@@ -291,19 +296,7 @@ func (c *Controller) getAndUpdateAppState(app *v1beta1.SparkApplication) error {
 			if pod.Status.Phase == apiv1.PodSucceeded || pod.Status.Phase == apiv1.PodFailed {
 				currentDriverState.completionTime = metav1.Now()
 			}
-		}
-		if util.IsExecutorPod(pod) {
-			newState := podPhaseToExecutorState(pod.Status.Phase)
-			oldState, exists := app.Status.ExecutorState[pod.Name]
-			// Only record an executor event if the executor state is new or it has changed.
-			if !exists || newState != oldState {
-				c.recordExecutorEvent(app, newState, pod.Name)
-			}
-			executorStateMap[pod.Name] = newState
-
-			if executorApplicationID == "" {
-				executorApplicationID = getSparkApplicationID(pod)
-			}
+			break
 		}
 	}
 
@@ -336,6 +329,33 @@ func (c *Controller) getAndUpdateAppState(app *v1beta1.SparkApplication) error {
 			app.Status.TerminationTime = metav1.Now()
 		}
 	}
+	return nil
+}
+
+// getAndUpdateExecutorState lists the executor pods of the application
+// and updates the executor state based on the current phase of the pods.
+func (c *Controller) getAndUpdateExecutorState(app *v1beta1.SparkApplication) error {
+	pods, err := c.getAppPods(app)
+	if err != nil {
+		return err
+	}
+	executorStateMap := make(map[string]v1beta1.ExecutorState)
+	var executorApplicationID string
+	for _, pod := range pods {
+		if util.IsExecutorPod(pod) {
+			newState := podPhaseToExecutorState(pod.Status.Phase)
+			oldState, exists := app.Status.ExecutorState[pod.Name]
+			// Only record an executor event if the executor state is new or it has changed.
+			if !exists || newState != oldState {
+				c.recordExecutorEvent(app, newState, pod.Name)
+			}
+			executorStateMap[pod.Name] = newState
+
+			if executorApplicationID == "" {
+				executorApplicationID = getSparkApplicationID(pod)
+			}
+		}
+	}
 
 	// ApplicationID label can be different on driver/executors. Prefer executor ApplicationID if set.
 	// Refer https://issues.apache.org/jira/projects/SPARK/issues/SPARK-25922 for details.
@@ -359,6 +379,16 @@ func (c *Controller) getAndUpdateAppState(app *v1beta1.SparkApplication) error {
 		}
 	}
 
+	return nil
+}
+
+func (c *Controller) getAndUpdateAppState(app *v1beta1.SparkApplication) error {
+	if err := c.getAndUpdateDriverState(app); err != nil {
+		return err
+	}
+	if err := c.getAndUpdateExecutorState(app); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -503,7 +533,9 @@ func (c *Controller) syncSparkApplication(key string) error {
 		c.clearStatus(&appToUpdate.Status)
 		appToUpdate.Status.AppState.State = v1beta1.PendingRerunState
 	case v1beta1.PendingRerunState:
+		glog.V(2).Infof("SparkApplication %s/%s pending rerun", appToUpdate.Namespace, appToUpdate.Name)
 		if c.validateSparkResourceDeletion(appToUpdate) {
+			glog.V(2).Infof("Resources for SparkApplication %s/%s successfully deleted", appToUpdate.Namespace, appToUpdate.Name)
 			c.recordSparkApplicationEvent(appToUpdate)
 			c.clearStatus(&appToUpdate.Status)
 			appToUpdate = c.submitSparkApplication(appToUpdate)
@@ -688,9 +720,14 @@ func (c *Controller) getSparkApplication(namespace string, name string) (*v1beta
 
 // Delete the driver pod and optional UI resources (Service/Ingress) created for the application.
 func (c *Controller) deleteSparkResources(app *v1beta1.SparkApplication) error {
+	err := c.getAndUpdateDriverState(app)
+	if err != nil {
+		return err
+	}
+
 	driverPodName := app.Status.DriverInfo.PodName
 	if driverPodName != "" {
-		glog.V(2).Infof("Deleting pod with name %s in namespace %s", driverPodName, app.Namespace)
+		glog.V(2).Infof("Deleting pod %s in namespace %s", driverPodName, app.Namespace)
 		err := c.kubeClient.CoreV1().Pods(app.Namespace).Delete(driverPodName, metav1.NewDeleteOptions(0))
 		if err != nil && !errors.IsNotFound(err) {
 			return err
