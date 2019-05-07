@@ -89,7 +89,7 @@ func (sjm *submissionJobManager) createSubmissionJob(s *submission) (*batchv1.Jo
 }
 
 func (sjm *submissionJobManager) getSubmissionJob(app *v1beta1.SparkApplication) (*batchv1.Job, error) {
-	return sjm.jobLister.Jobs(app.Namespace).Get(app.Name)
+	return sjm.jobLister.Jobs(app.Namespace).Get(getSubmissionJobName(app))
 }
 
 func (sjm *submissionJobManager) deleteSubmissionJob(app *v1beta1.SparkApplication) error {

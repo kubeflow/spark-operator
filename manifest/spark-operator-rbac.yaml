@@ -47,7 +47,7 @@ rules:
   verbs: ["create", "update", "patch"]
 - apiGroups: ["batch"]
   resources: ["jobs"]
-  verbs: ["create", "get", "update", "delete"]
+  verbs: ["create", "get", "update", "delete", "list", "watch"]
 - apiGroups: ["apiextensions.k8s.io"]
   resources: ["customresourcedefinitions"]
   verbs: ["create", "get", "update", "delete"]

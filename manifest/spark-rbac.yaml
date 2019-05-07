@@ -26,24 +26,10 @@ metadata:
   namespace: default
   name: spark-role
 rules:
-<<<<<<< HEAD
 - apiGroups: [""]
-  resources: ["pods"]
+  resources: ["pods", "configmaps", "services"]
   verbs: ["*"]
-- apiGroups: [""]
-  resources: ["services"]
-  verbs: ["*"]
-=======
-- apiGroups:
-  - "" # "" indicates the core API group
-  resources:
-  - "configmaps"
-  - "pods"
-  - "services"
-  verbs:
-  - "*"
->>>>>>> Use a Kubernetes Job to run spark-submit for multi-version support
----
+--- 
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
