@@ -25,24 +25,13 @@ import (
 )
 
 // Helper method to create a key with namespace and appName
-func createMetaNamespaceKey(pod *apiv1.Pod) (string, bool) {
-	if appName, ok := getAppName(pod); ok {
-		return fmt.Sprintf("%s/%s", pod.GetNamespace(), appName), true
-	}
-	return "", false
+func createMetaNamespaceKey(namespace, name string) string {
+	return fmt.Sprintf("%s/%s", namespace, name)
 }
 
 func getAppName(pod *apiv1.Pod) (string, bool) {
 	appName, ok := pod.Labels[config.SparkAppNameLabel]
 	return appName, ok
-}
-
-func isDriverPod(pod *apiv1.Pod) bool {
-	return pod.Labels[config.SparkRoleLabel] == sparkDriverRole
-}
-
-func isExecutorPod(pod *apiv1.Pod) bool {
-	return pod.Labels[config.SparkRoleLabel] == sparkExecutorRole
 }
 
 func getSparkApplicationID(pod *apiv1.Pod) string {
@@ -59,6 +48,14 @@ func getDefaultUIServiceName(app *v1beta1.SparkApplication) string {
 
 func getDefaultUIIngressName(app *v1beta1.SparkApplication) string {
 	return fmt.Sprintf("%s-ui-ingress", app.Name)
+}
+
+func getResourceLabels(app *v1beta1.SparkApplication) map[string]string {
+	labels := map[string]string{config.SparkAppNameLabel: app.Name}
+	if app.Status.SubmissionID != "" {
+		labels[config.SubmissionIDLabel] = app.Status.SubmissionID
+	}
+	return labels
 }
 
 func podPhaseToExecutorState(podPhase apiv1.PodPhase) v1beta1.ExecutorState {
@@ -93,4 +90,8 @@ func driverPodPhaseToApplicationState(podPhase apiv1.PodPhase) v1beta1.Applicati
 	default:
 		return v1beta1.UnknownState
 	}
+}
+
+func getSubmissionJobName(app *v1beta1.SparkApplication) string {
+	return app.Name + "-spark-submit"
 }

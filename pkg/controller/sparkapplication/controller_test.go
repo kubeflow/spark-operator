@@ -230,15 +230,15 @@ type executorMetrics struct {
 }
 
 func TestSyncSparkApplication_SubmissionFailed(t *testing.T) {
+	os.Setenv(sparkHomeEnvVar, "/spark")
 	os.Setenv(kubernetesServiceHostEnvVar, "localhost")
 	os.Setenv(kubernetesServicePortEnvVar, "443")
 
 	restartPolicyOnFailure := v1beta1.RestartPolicy{
-		Type:                             v1beta1.OnFailure,
-		OnFailureRetries:                 int32ptr(1),
-		OnFailureRetryInterval:           int64ptr(100),
-		OnSubmissionFailureRetryInterval: int64ptr(100),
-		OnSubmissionFailureRetries:       int32ptr(1),
+		Type:                       v1beta1.OnFailure,
+		OnFailureRetries:           int32ptr(1),
+		OnFailureRetryInterval:     int64ptr(100),
+		OnSubmissionFailureRetries: int32ptr(1),
 	}
 	app := &v1beta1.SparkApplication{
 		ObjectMeta: metav1.ObjectMeta{
@@ -275,9 +275,8 @@ func TestSyncSparkApplication_SubmissionFailed(t *testing.T) {
 	updatedApp, err := ctrl.crdClient.SparkoperatorV1beta1().SparkApplications(app.Namespace).Get(app.Name, metav1.GetOptions{})
 
 	assert.Equal(t, v1beta1.FailedSubmissionState, updatedApp.Status.AppState.State)
-	assert.Equal(t, int32(1), updatedApp.Status.SubmissionAttempts)
 	assert.Equal(t, float64(0), fetchCounterValue(ctrl.metrics.sparkAppSubmitCount, map[string]string{}))
-	assert.Equal(t, float64(1), fetchCounterValue(ctrl.metrics.sparkAppFailureCount, map[string]string{}))
+	assert.Equal(t, float64(1), fetchCounterValue(ctrl.metrics.sparkAppFailedSubmissionCount, map[string]string{}))
 
 	event := <-recorder.Events
 	assert.True(t, strings.Contains(event, "SparkApplicationAdded"))
@@ -285,7 +284,7 @@ func TestSyncSparkApplication_SubmissionFailed(t *testing.T) {
 	assert.True(t, strings.Contains(event, "SparkApplicationSubmissionFailed"))
 
 	// Attempt 2: Retry again.
-	updatedApp.Status.LastSubmissionAttemptTime = metav1.Time{Time: metav1.Now().Add(-100 * time.Second)}
+	updatedApp.Status.SubmissionTime = metav1.Time{Time: metav1.Now().Add(-100 * time.Second)}
 	ctrl, recorder = newFakeController(updatedApp)
 	_, err = ctrl.crdClient.SparkoperatorV1beta1().SparkApplications(app.Namespace).Create(updatedApp)
 	if err != nil {
@@ -297,14 +296,13 @@ func TestSyncSparkApplication_SubmissionFailed(t *testing.T) {
 	updatedApp, err = ctrl.crdClient.SparkoperatorV1beta1().SparkApplications(app.Namespace).Get(app.Name, metav1.GetOptions{})
 	assert.Nil(t, err)
 	assert.Equal(t, v1beta1.FailedSubmissionState, updatedApp.Status.AppState.State)
-	assert.Equal(t, int32(2), updatedApp.Status.SubmissionAttempts)
 	assert.Equal(t, float64(0), fetchCounterValue(ctrl.metrics.sparkAppSubmitCount, map[string]string{}))
 
 	event = <-recorder.Events
 	assert.True(t, strings.Contains(event, "SparkApplicationSubmissionFailed"))
 
 	// Attempt 3: No more retries.
-	updatedApp.Status.LastSubmissionAttemptTime = metav1.Time{Time: metav1.Now().Add(-100 * time.Second)}
+	updatedApp.Status.SubmissionTime = metav1.Time{Time: metav1.Now().Add(-100 * time.Second)}
 	ctrl, recorder = newFakeController(updatedApp)
 	_, err = ctrl.crdClient.SparkoperatorV1beta1().SparkApplications(app.Namespace).Create(updatedApp)
 	if err != nil {
@@ -316,8 +314,6 @@ func TestSyncSparkApplication_SubmissionFailed(t *testing.T) {
 	updatedApp, err = ctrl.crdClient.SparkoperatorV1beta1().SparkApplications(app.Namespace).Get(app.Name, metav1.GetOptions{})
 	assert.Nil(t, err)
 	assert.Equal(t, v1beta1.FailedState, updatedApp.Status.AppState.State)
-	// No more submission attempts made.
-	assert.Equal(t, int32(2), updatedApp.Status.SubmissionAttempts)
 }
 
 func TestShouldRetry(t *testing.T) {
@@ -332,9 +328,8 @@ func TestShouldRetry(t *testing.T) {
 	}
 
 	restartPolicyAlways := v1beta1.RestartPolicy{
-		Type:                             v1beta1.Always,
-		OnSubmissionFailureRetryInterval: int64ptr(100),
-		OnFailureRetryInterval:           int64ptr(100),
+		Type:                   v1beta1.Always,
+		OnFailureRetryInterval: int64ptr(100),
 	}
 
 	restartPolicyNever := v1beta1.RestartPolicy{
@@ -342,11 +337,10 @@ func TestShouldRetry(t *testing.T) {
 	}
 
 	restartPolicyOnFailure := v1beta1.RestartPolicy{
-		Type:                             v1beta1.OnFailure,
-		OnFailureRetries:                 int32ptr(1),
-		OnFailureRetryInterval:           int64ptr(100),
-		OnSubmissionFailureRetryInterval: int64ptr(100),
-		OnSubmissionFailureRetries:       int32ptr(2),
+		Type:                       v1beta1.OnFailure,
+		OnFailureRetries:           int32ptr(1),
+		OnFailureRetryInterval:     int64ptr(100),
+		OnSubmissionFailureRetries: int32ptr(2),
 	}
 
 	testcases := []testcase{
@@ -489,6 +483,7 @@ func TestSyncSparkApplication_SubmissionSuccess(t *testing.T) {
 		app           *v1beta1.SparkApplication
 		expectedState v1beta1.ApplicationStateType
 	}
+	os.Setenv(sparkHomeEnvVar, "/spark")
 	os.Setenv(kubernetesServiceHostEnvVar, "localhost")
 	os.Setenv(kubernetesServicePortEnvVar, "443")
 
@@ -518,9 +513,8 @@ func TestSyncSparkApplication_SubmissionSuccess(t *testing.T) {
 	}
 
 	restartPolicyAlways := v1beta1.RestartPolicy{
-		Type:                             v1beta1.Always,
-		OnSubmissionFailureRetryInterval: int64ptr(100),
-		OnFailureRetryInterval:           int64ptr(100),
+		Type:                   v1beta1.Always,
+		OnFailureRetryInterval: int64ptr(100),
 	}
 
 	restartPolicyNever := v1beta1.RestartPolicy{
@@ -528,11 +522,10 @@ func TestSyncSparkApplication_SubmissionSuccess(t *testing.T) {
 	}
 
 	restartPolicyOnFailure := v1beta1.RestartPolicy{
-		Type:                             v1beta1.OnFailure,
-		OnFailureRetries:                 int32ptr(1),
-		OnFailureRetryInterval:           int64ptr(100),
-		OnSubmissionFailureRetryInterval: int64ptr(100),
-		OnSubmissionFailureRetries:       int32ptr(2),
+		Type:                       v1beta1.OnFailure,
+		OnFailureRetries:           int32ptr(1),
+		OnFailureRetryInterval:     int64ptr(100),
+		OnSubmissionFailureRetries: int32ptr(2),
 	}
 
 	testcases := []testcase{
@@ -591,7 +584,7 @@ func TestSyncSparkApplication_SubmissionSuccess(t *testing.T) {
 					AppState: v1beta1.ApplicationState{
 						State: v1beta1.FailedSubmissionState,
 					},
-					LastSubmissionAttemptTime: metav1.Time{Time: metav1.Now().Add(-2000 * time.Second)},
+					SubmissionTime: metav1.Time{Time: metav1.Now().Add(-2000 * time.Second)},
 				},
 			},
 			expectedState: v1beta1.FailedSubmissionState,
@@ -609,8 +602,7 @@ func TestSyncSparkApplication_SubmissionSuccess(t *testing.T) {
 					AppState: v1beta1.ApplicationState{
 						State: v1beta1.FailedSubmissionState,
 					},
-					SubmissionAttempts:        1,
-					LastSubmissionAttemptTime: metav1.Time{Time: metav1.Now().Add(-2000 * time.Second)},
+					SubmissionTime: metav1.Time{Time: metav1.Now().Add(-2000 * time.Second)},
 				},
 			},
 			expectedState: v1beta1.SubmittedState,
@@ -770,7 +762,6 @@ func TestSyncSparkApplication_SubmissionSuccess(t *testing.T) {
 					AppState: v1beta1.ApplicationState{
 						State: v1beta1.FailedSubmissionState,
 					},
-					SubmissionAttempts: 3,
 				},
 				Spec: v1beta1.SparkApplicationSpec{
 					RestartPolicy: restartPolicyOnFailure,
@@ -788,8 +779,7 @@ func TestSyncSparkApplication_SubmissionSuccess(t *testing.T) {
 					AppState: v1beta1.ApplicationState{
 						State: v1beta1.FailedSubmissionState,
 					},
-					SubmissionAttempts:        1,
-					LastSubmissionAttemptTime: metav1.Now(),
+					SubmissionTime: metav1.Now(),
 				},
 				Spec: v1beta1.SparkApplicationSpec{
 					RestartPolicy: restartPolicyOnFailure,
@@ -807,8 +797,7 @@ func TestSyncSparkApplication_SubmissionSuccess(t *testing.T) {
 					AppState: v1beta1.ApplicationState{
 						State: v1beta1.FailedSubmissionState,
 					},
-					SubmissionAttempts:        1,
-					LastSubmissionAttemptTime: metav1.Time{Time: metav1.Now().Add(-2000 * time.Second)},
+					SubmissionTime: metav1.Time{Time: metav1.Now().Add(-2000 * time.Second)},
 				},
 				Spec: v1beta1.SparkApplicationSpec{
 					RestartPolicy: restartPolicyOnFailure,
@@ -879,7 +868,7 @@ func TestSyncSparkApplication_ExecutingState(t *testing.T) {
 					Name:      "foo-driver",
 					Namespace: "test",
 					Labels: map[string]string{
-						config.SparkRoleLabel:    sparkDriverRole,
+						config.SparkRoleLabel:    config.SparkDriverRole,
 						config.SparkAppNameLabel: "foo-2",
 					},
 					ResourceVersion: "1",
@@ -893,7 +882,7 @@ func TestSyncSparkApplication_ExecutingState(t *testing.T) {
 					Name:      "exec-1",
 					Namespace: "test",
 					Labels: map[string]string{
-						config.SparkRoleLabel:    sparkExecutorRole,
+						config.SparkRoleLabel:    config.SparkExecutorRole,
 						config.SparkAppNameLabel: "foo-2",
 					},
 					ResourceVersion: "1",
@@ -914,13 +903,13 @@ func TestSyncSparkApplication_ExecutingState(t *testing.T) {
 		{
 			appName:           "foo-3",
 			oldAppStatus:      v1beta1.RunningState,
-			oldExecutorStatus: map[string]v1beta1.ExecutorState{"exec-1": v1beta1.ExecutorCompletedState},
+			oldExecutorStatus: map[string]v1beta1.ExecutorState{"exec-1": v1beta1.ExecutorRunningState},
 			driverPod: &apiv1.Pod{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "foo-driver",
 					Namespace: "test",
 					Labels: map[string]string{
-						config.SparkRoleLabel:    sparkDriverRole,
+						config.SparkRoleLabel:    config.SparkDriverRole,
 						config.SparkAppNameLabel: "foo-3",
 					},
 					ResourceVersion: "1",
@@ -934,32 +923,43 @@ func TestSyncSparkApplication_ExecutingState(t *testing.T) {
 					Name:      "exec-1",
 					Namespace: "test",
 					Labels: map[string]string{
-						config.SparkRoleLabel:    sparkExecutorRole,
+						config.SparkRoleLabel:    config.SparkExecutorRole,
 						config.SparkAppNameLabel: "foo-3",
 					},
 					ResourceVersion: "1",
 				},
 				Status: apiv1.PodStatus{
-					Phase: apiv1.PodSucceeded,
+					Phase: apiv1.PodFailed,
 				},
 			},
-			expectedAppState:      v1beta1.FailedState,
-			expectedExecutorState: map[string]v1beta1.ExecutorState{"exec-1": v1beta1.ExecutorCompletedState},
+			expectedAppState:      v1beta1.FailingState,
+			expectedExecutorState: map[string]v1beta1.ExecutorState{"exec-1": v1beta1.ExecutorFailedState},
 			expectedAppMetrics: metrics{
 				failedMetricCount: 1,
 			},
+			expectedExecutorMetrics: executorMetrics{
+				failedMetricCount: 1,
+			},
+		},
+		{
+			appName:                 "foo-3",
+			oldAppStatus:            v1beta1.FailingState,
+			oldExecutorStatus:       map[string]v1beta1.ExecutorState{"exec-1": v1beta1.ExecutorFailedState},
+			expectedAppState:        v1beta1.FailedState,
+			expectedExecutorState:   map[string]v1beta1.ExecutorState{"exec-1": v1beta1.ExecutorFailedState},
+			expectedAppMetrics:      metrics{},
 			expectedExecutorMetrics: executorMetrics{},
 		},
 		{
 			appName:           "foo-3",
 			oldAppStatus:      v1beta1.RunningState,
-			oldExecutorStatus: map[string]v1beta1.ExecutorState{"exec-1": v1beta1.ExecutorCompletedState},
+			oldExecutorStatus: map[string]v1beta1.ExecutorState{"exec-1": v1beta1.ExecutorRunningState},
 			driverPod: &apiv1.Pod{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "foo-driver",
 					Namespace: "test",
 					Labels: map[string]string{
-						config.SparkRoleLabel:    sparkDriverRole,
+						config.SparkRoleLabel:    config.SparkDriverRole,
 						config.SparkAppNameLabel: "foo-3",
 					},
 					ResourceVersion: "1",
@@ -973,7 +973,7 @@ func TestSyncSparkApplication_ExecutingState(t *testing.T) {
 					Name:      "exec-1",
 					Namespace: "test",
 					Labels: map[string]string{
-						config.SparkRoleLabel:    sparkExecutorRole,
+						config.SparkRoleLabel:    config.SparkExecutorRole,
 						config.SparkAppNameLabel: "foo-3",
 					},
 					ResourceVersion: "1",
@@ -982,11 +982,22 @@ func TestSyncSparkApplication_ExecutingState(t *testing.T) {
 					Phase: apiv1.PodSucceeded,
 				},
 			},
-			expectedAppState:      v1beta1.CompletedState,
+			expectedAppState:      v1beta1.SucceedingState,
 			expectedExecutorState: map[string]v1beta1.ExecutorState{"exec-1": v1beta1.ExecutorCompletedState},
 			expectedAppMetrics: metrics{
 				successMetricCount: 1,
 			},
+			expectedExecutorMetrics: executorMetrics{
+				successMetricCount: 1,
+			},
+		},
+		{
+			appName:                 "foo-3",
+			oldAppStatus:            v1beta1.SucceedingState,
+			oldExecutorStatus:       map[string]v1beta1.ExecutorState{"exec-1": v1beta1.ExecutorCompletedState},
+			expectedAppState:        v1beta1.CompletedState,
+			expectedExecutorState:   map[string]v1beta1.ExecutorState{"exec-1": v1beta1.ExecutorCompletedState},
+			expectedAppMetrics:      metrics{},
 			expectedExecutorMetrics: executorMetrics{},
 		},
 		{
@@ -998,7 +1009,7 @@ func TestSyncSparkApplication_ExecutingState(t *testing.T) {
 					Name:      "foo-driver",
 					Namespace: "test",
 					Labels: map[string]string{
-						config.SparkRoleLabel:    sparkDriverRole,
+						config.SparkRoleLabel:    config.SparkDriverRole,
 						config.SparkAppNameLabel: "foo-3",
 					},
 				},
@@ -1011,7 +1022,7 @@ func TestSyncSparkApplication_ExecutingState(t *testing.T) {
 					Name:      "exec-1",
 					Namespace: "test",
 					Labels: map[string]string{
-						config.SparkRoleLabel:    sparkExecutorRole,
+						config.SparkRoleLabel:    config.SparkExecutorRole,
 						config.SparkAppNameLabel: "foo-3",
 					},
 				},

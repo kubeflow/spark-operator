@@ -93,7 +93,6 @@ spec:
       onFailureRetries: 3
       onFailureRetryInterval: 10
       onSubmissionFailureRetries: 5
-      onSubmissionFailureRetryInterval: 20
   type: Scala
 status:
   sparkApplicationId: spark-5f4ba921c85ff3f1cb04bef324f9154c9
@@ -109,7 +108,7 @@ status:
     webUIIngressAddress: spark-pi.ingress.cluster.com
   executorState:
     spark-pi-83ba921c85ff3f1cb04bef324f9154c9-exec-1: COMPLETED
-  LastSubmissionAttemptTime: 2018-02-20T23:32:27Z
+  submissionTime: 2018-02-20T23:32:27Z
 ```
 
 To check events for the `SparkApplication` object, run the following command:
@@ -206,7 +205,7 @@ The operator also sets both `WebUIAddress` which uses the Node's public IP as we
 
 ## About the Mutating Admission Webhook
 
-The Kubernetes Operator for "Apache Spark comes with an optional mutating admission webhook for customizing Spark driver and executor pods based on the specification in `SparkApplication` objects, e.g., mounting user-specified ConfigMaps and volumes, and setting pod affinity/anti-affinity, and adding tolerations.
+The Kubernetes Operator for Apache Spark comes with an optional mutating admission webhook for customizing Spark driver and executor pods based on the specification in `SparkApplication` objects, e.g., mounting user-specified ConfigMaps and volumes, and setting pod affinity/anti-affinity, and adding tolerations.
 
 The webhook requires a X509 certificate for TLS for pod admission requests and responses between the Kubernetes API server and the webhook server running inside the operator. For that, the certificate and key files must be accessible by the webhook server.
 The Kubernetes Operator for Spark ships with a tool at `hack/gencerts.sh` for generating the CA and server certificate and putting the certificate and key files into a secret named `spark-webhook-certs` in the namespace `spark-operator`. This secret will be mounted into the operator pod.  

@@ -32,6 +32,12 @@ spec:
   validation:
     openAPIV3Schema:
       properties:
+        metadata:
+          properties:
+            name:
+              type: string
+              minLength: 1
+              maxLength: 63
         spec:
           properties:
             image:
@@ -133,9 +139,6 @@ spec:
                   type: integer
                 onSubmissionFailureRetries:
                   minimum: 0
-                  type: integer
-                onSubmissionFailureRetryInterval:
-                  minimum: 1
                   type: integer
                 type:
                   enum:
@@ -242,9 +245,6 @@ spec:
                       type: integer
                     onSubmissionFailureRetries:
                       minimum: 0
-                      type: integer
-                    onSubmissionFailureRetryInterval:
-                      minimum: 1
                       type: integer
                     type:
                       enum:

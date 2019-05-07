@@ -26,19 +26,10 @@ metadata:
   namespace: default
   name: spark-role
 rules:
-- apiGroups:
-  - "" # "" indicates the core API group
-  resources:
-  - "pods"
-  verbs:
-  - "*"
-- apiGroups:
-  - "" # "" indicates the core API group
-  resources:
-  - "services"
-  verbs:
-  - "*"
----
+- apiGroups: [""]
+  resources: ["pods", "configmaps", "services"]
+  verbs: ["*"]
+--- 
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:

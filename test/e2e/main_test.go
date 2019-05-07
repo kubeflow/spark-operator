@@ -18,14 +18,39 @@ package e2e
 
 import (
 	"flag"
+	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta1"
+	"github.com/stretchr/testify/assert"
 	"log"
 	"os"
 	"testing"
+	"time"
 
 	operatorFramework "github.com/GoogleCloudPlatform/spark-on-k8s-operator/test/e2e/framework"
 )
 
 var framework *operatorFramework.Framework
+
+// Wait for test job to finish. Poll for updates once a second. Time out after 240 seconds.
+var TIMEOUT = 240 * time.Second
+var INTERVAL = 1 * time.Second
+
+var STATES = [9]string{
+	"",
+	"SUBMITTED",
+	"RUNNING",
+	"COMPLETED",
+	"INVALIDATING",
+	"PENDING_RERUN",
+	"SUBMITTED",
+	"RUNNING",
+	"COMPLETED",
+}
+
+func GetJobStatus(t *testing.T, sparkAppName string) v1beta1.ApplicationStateType {
+	app, err := operatorFramework.GetSparkApplication(framework.SparkApplicationClient, operatorFramework.SparkTestNamespace, sparkAppName)
+	assert.Equal(t, nil, err)
+	return app.Status.AppState.State
+}
 
 func TestMain(m *testing.M) {
 	kubeconfig := flag.String("kubeconfig", "", "kube config path, e.g. $HOME/.kube/config")
@@ -34,16 +59,15 @@ func TestMain(m *testing.M) {
 	ns := flag.String("namespace", "spark-operator", "e2e test namespace")
 	sparkTestNamespace := flag.String("spark-test-namespace", "default", "e2e test spark-test-namespace")
 	sparkTestImage := flag.String("spark-test-image", "", "spark test image, e.g. image:tag")
-	sparkTestServiceAccount := flag.String("spark-test-service-account", "default", "e2e test spark test service account")
+	sparkTestServiceAccount := flag.String("spark-test-service-account", "spark", "e2e test spark test service account")
 	flag.Parse()
 
 	if *kubeconfig == "" {
 		log.Printf("No kubeconfig found. Bypassing e2e tests")
 		os.Exit(0)
 	}
-
 	var err error
-	if framework, err = operatorFramework.New(*ns, *kubeconfig, *opImage, *opImagePullPolicy); err != nil {
+	if framework, err = operatorFramework.New(*ns, *sparkTestNamespace, *kubeconfig, *opImage, *opImagePullPolicy); err != nil {
 		log.Fatalf("failed to set up framework: %v\n", err)
 	}
 
@@ -55,7 +79,6 @@ func TestMain(m *testing.M) {
 	if err := framework.Teardown(); err != nil {
 		log.Fatalf("failed to tear down framework: %v\n", err)
 	}
-	os.Exit(0)
 
 	os.Exit(code)
 }

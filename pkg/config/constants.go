@@ -65,12 +65,18 @@ const (
 	ScheduledSparkAppNameLabel = LabelAnnotationPrefix + "scheduled-app-name"
 	// LaunchedBySparkOperatorLabel is a label on Spark pods launched through the Spark Operator.
 	LaunchedBySparkOperatorLabel = LabelAnnotationPrefix + "launched-by-spark-operator"
+	// TolerationsAnnotationPrefix is the prefix of annotations that specify a Toleration.
+	TolerationsAnnotationPrefix = LabelAnnotationPrefix + "tolerations."
 	// SparkApplicationSelectorLabel is the AppID set by the spark-distribution on the driver/executors Pods.
 	SparkApplicationSelectorLabel = "spark-app-selector"
 	// SparkRoleLabel is the driver/executor label set by the operator/spark-distribution on the driver/executors Pods.
 	SparkRoleLabel = "spark-role"
-	// TolerationsAnnotationPrefix is the prefix of annotations that specify a Toleration.
-	TolerationsAnnotationPrefix = LabelAnnotationPrefix + "tolerations."
+	// SparkDriverRole is the value of the spark-role label for the driver.
+	SparkDriverRole = "driver"
+	// SparkExecutorRole is the value of the spark-role label for the executors.
+	SparkExecutorRole = "executor"
+	// SubmissionIDLabel is the label that records the submission ID of the current run of an application.
+	SubmissionIDLabel = LabelAnnotationPrefix + "submission-id"
 )
 
 const (
@@ -79,7 +85,7 @@ const (
 	// SparkImagePullSecretKey is the configuration property for specifying the comma-separated list of image-pull
 	// secrets.
 	SparkImagePullSecretKey = "spark.kubernetes.container.image.pullSecrets"
-	// SparkContainerImageKey is the configuration property for specifying the container image pull policy.
+	// SparkContainerImagePullPolicyKey is the configuration property for specifying the container image pull policy.
 	SparkContainerImagePullPolicyKey = "spark.kubernetes.container.image.pullPolicy"
 	// SparkNodeSelectorKeyPrefix is the configuration property prefix for specifying node selector for the pods.
 	SparkNodeSelectorKeyPrefix = "spark.kubernetes.node.selector."
@@ -89,20 +95,20 @@ const (
 	SparkExecutorContainerImageKey = "spark.kubernetes.executor.container.image"
 	// SparkDriverCoreLimitKey is the configuration property for specifying the hard CPU limit for the driver pod.
 	SparkDriverCoreLimitKey = "spark.kubernetes.driver.limit.cores"
-	// SparkDriverCoreLimitKey is the configuration property for specifying the hard CPU limit for the executor pods.
+	// SparkExecutorCoreLimitKey is the configuration property for specifying the hard CPU limit for the executor pods.
 	SparkExecutorCoreLimitKey = "spark.kubernetes.executor.limit.cores"
 	// SparkExecutorCoreRequestKey is the configuration property for specifying the physical CPU request for executors.
 	SparkExecutorCoreRequestKey = "spark.kubernetes.executor.request.cores"
 	// SparkDriverSecretKeyPrefix is the configuration property prefix for specifying secrets to be mounted into the
 	// driver.
 	SparkDriverSecretKeyPrefix = "spark.kubernetes.driver.secrets."
-	// SparkDriverSecretKeyPrefix is the configuration property prefix for specifying secrets to be mounted into the
+	// SparkExecutorSecretKeyPrefix is the configuration property prefix for specifying secrets to be mounted into the
 	// executors.
 	SparkExecutorSecretKeyPrefix = "spark.kubernetes.executor.secrets."
 	// SparkDriverSecretKeyRefKeyPrefix is the configuration property prefix for specifying environment variables
 	// from SecretKeyRefs for the driver.
 	SparkDriverSecretKeyRefKeyPrefix = "spark.kubernetes.driver.secretKeyRef."
-	// SparkDriverSecretKeyRefKeyPrefix is the configuration property prefix for specifying environment variables
+	// SparkExecutorSecretKeyRefKeyPrefix is the configuration property prefix for specifying environment variables
 	// from SecretKeyRefs for the executors.
 	SparkExecutorSecretKeyRefKeyPrefix = "spark.kubernetes.executor.secretKeyRef."
 	// SparkDriverEnvVarConfigKeyPrefix is the Spark configuration prefix for setting environment variables
@@ -142,7 +148,7 @@ const (
 	SparkWaitAppCompletion = "spark.kubernetes.submission.waitAppCompletion"
 	// SparkPythonVersion is the Spark configuration key for specifying python version used.
 	SparkPythonVersion = "spark.kubernetes.pyspark.pythonVersion"
-	// SparkPythonVersion is the Spark configuration key for specifying memory overhead factor used for Non-JVM memory.
+	// SparkMemoryOverheadFactor is the Spark configuration key for specifying memory overhead factor used for Non-JVM memory.
 	SparkMemoryOverheadFactor = "spark.kubernetes.memoryOverheadFactor"
 	// SparkDriverJavaOptions is the Spark configuration key for a string of extra JVM options to pass to driver.
 	SparkDriverJavaOptions = "spark.driver.extraJavaOptions"
