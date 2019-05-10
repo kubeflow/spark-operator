@@ -265,6 +265,7 @@ type driverState struct {
 	nodeName           string         // Name of the node the driver pod runs on.
 	podPhase           apiv1.PodPhase // Driver pod phase.
 	completionTime     metav1.Time    // Time the driver completes.
+	err                error          // Error if any found.
 }
 
 // getAndUpdateAppState lists the driver and executor pods of the application
@@ -290,6 +291,13 @@ func (c *Controller) getAndUpdateAppState(app *v1beta1.SparkApplication) error {
 			}
 			if pod.Status.Phase == apiv1.PodSucceeded || pod.Status.Phase == apiv1.PodFailed {
 				currentDriverState.completionTime = metav1.Now()
+			}
+			// Fetch container ExitCode/Reason if Pod Failed.
+			if pod.Status.Phase == apiv1.PodFailed && len(pod.Status.ContainerStatuses) > 0 {
+				terminatedState := pod.Status.ContainerStatuses[0].State.Terminated
+				if terminatedState != nil {
+					currentDriverState.err = fmt.Errorf("driver pod failed with ExitCode: %d, Reason: %s", terminatedState.ExitCode, terminatedState.Reason)
+				}
 			}
 		}
 		if util.IsExecutorPod(pod) {
@@ -324,13 +332,19 @@ func (c *Controller) getAndUpdateAppState(app *v1beta1.SparkApplication) error {
 			if app.Status.TerminationTime.IsZero() && !currentDriverState.completionTime.IsZero() {
 				app.Status.TerminationTime = currentDriverState.completionTime
 			}
+			// Expose any errors to the users.
+			if currentDriverState.err != nil {
+				app.Status.AppState.ErrorMessage += currentDriverState.err.Error()
+			}
 		}
 		app.Status.AppState.State = newState
 	} else {
 		glog.Warningf("driver not found for SparkApplication: %s/%s", app.Namespace, app.Name)
 		// The application has not terminated and has a recorded driver Pod, but no driver Pod was found for it.
 		// This is likely because the driver Pod was deleted. In this case, set the application state to FailingState.
-		if app.Status.TerminationTime.IsZero() && app.Status.DriverInfo.PodName != "" {
+		// Also move to FailingState if we never recorded the driver for a submitted application and it has been a while => 300 seconds
+		if app.Status.TerminationTime.IsZero() && (app.Status.DriverInfo.PodName != "" ||
+			(!app.Status.LastSubmissionAttemptTime.IsZero() && metav1.Now().After(app.Status.LastSubmissionAttemptTime.Add(time.Duration(300)*time.Second)))) {
 			app.Status.AppState.ErrorMessage = "Driver Pod not found"
 			app.Status.AppState.State = v1beta1.FailingState
 			app.Status.TerminationTime = metav1.Now()
