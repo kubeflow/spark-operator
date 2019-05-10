@@ -333,7 +333,7 @@ func TestShouldRetry(t *testing.T) {
 	}
 
 	restartPolicyAlways := v1beta1.RestartPolicy{
-		Type:                             v1beta1.Always,
+		Type: v1beta1.Always,
 		OnSubmissionFailureRetryInterval: int64ptr(100),
 		OnFailureRetryInterval:           int64ptr(100),
 	}
@@ -520,7 +520,7 @@ func TestSyncSparkApplication_SubmissionSuccess(t *testing.T) {
 	}
 
 	restartPolicyAlways := v1beta1.RestartPolicy{
-		Type:                             v1beta1.Always,
+		Type: v1beta1.Always,
 		OnSubmissionFailureRetryInterval: int64ptr(100),
 		OnFailureRetryInterval:           int64ptr(100),
 	}
@@ -929,6 +929,16 @@ func TestSyncSparkApplication_ExecutingState(t *testing.T) {
 				},
 				Status: apiv1.PodStatus{
 					Phase: apiv1.PodFailed,
+					ContainerStatuses: []apiv1.ContainerStatus{
+						{
+							State: apiv1.ContainerState{
+								Terminated: &apiv1.ContainerStateTerminated{
+									ExitCode: 137,
+									Reason:   "OOMKilled",
+								},
+							},
+						},
+					},
 				},
 			},
 			executorPod: &apiv1.Pod{
@@ -1074,6 +1084,11 @@ func TestSyncSparkApplication_ExecutingState(t *testing.T) {
 		assert.Equal(t, test.expectedAppState, updatedApp.Status.AppState.State)
 		assert.Equal(t, test.expectedExecutorState, updatedApp.Status.ExecutorState)
 
+		if test.driverPod != nil && test.driverPod.Status.Phase == apiv1.PodFailed &&
+			len(test.driverPod.Status.ContainerStatuses) > 0 && test.driverPod.Status.ContainerStatuses[0].State.Terminated != nil {
+			assert.Equal(t, updatedApp.Status.AppState.ErrorMessage,
+				fmt.Sprintf("driver Terminated with ExitCode: %d, Reason: %s", test.driverPod.Status.ContainerStatuses[0].State.Terminated.ExitCode, test.driverPod.Status.ContainerStatuses[0].State.Terminated.Reason))
+		}
 		// Verify application metrics.
 		assert.Equal(t, test.expectedAppMetrics.runningMetricCount, ctrl.metrics.sparkAppRunningCount.Value(map[string]string{}))
 		assert.Equal(t, test.expectedAppMetrics.successMetricCount, fetchCounterValue(ctrl.metrics.sparkAppSuccessCount, map[string]string{}))
