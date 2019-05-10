@@ -1087,7 +1087,7 @@ func TestSyncSparkApplication_ExecutingState(t *testing.T) {
 		if test.driverPod != nil && test.driverPod.Status.Phase == apiv1.PodFailed &&
 			len(test.driverPod.Status.ContainerStatuses) > 0 && test.driverPod.Status.ContainerStatuses[0].State.Terminated != nil {
 			assert.Equal(t, updatedApp.Status.AppState.ErrorMessage,
-				fmt.Sprintf("driver Terminated with ExitCode: %d, Reason: %s", test.driverPod.Status.ContainerStatuses[0].State.Terminated.ExitCode, test.driverPod.Status.ContainerStatuses[0].State.Terminated.Reason))
+				fmt.Sprintf("driver pod failed with ExitCode: %d, Reason: %s", test.driverPod.Status.ContainerStatuses[0].State.Terminated.ExitCode, test.driverPod.Status.ContainerStatuses[0].State.Terminated.Reason))
 		}
 		// Verify application metrics.
 		assert.Equal(t, test.expectedAppMetrics.runningMetricCount, ctrl.metrics.sparkAppRunningCount.Value(map[string]string{}))
