@@ -293,10 +293,11 @@ func (c *Controller) getAndUpdateAppState(app *v1beta1.SparkApplication) error {
 				currentDriverState.completionTime = metav1.Now()
 			}
 			// Fetch container ExitCode/Reason if Pod Failed.
-			if pod.Status.Phase == apiv1.PodFailed && len(pod.Status.ContainerStatuses) > 0 {
-				terminatedState := pod.Status.ContainerStatuses[0].State.Terminated
-				if terminatedState != nil {
-					currentDriverState.err = fmt.Errorf("driver pod failed with ExitCode: %d, Reason: %s", terminatedState.ExitCode, terminatedState.Reason)
+			if pod.Status.Phase == apiv1.PodFailed {
+				if len(pod.Status.ContainerStatuses) > 0 && pod.Status.ContainerStatuses[0].State.Terminated != nil {
+					currentDriverState.err = fmt.Errorf("driver pod failed with ExitCode: %d, Reason: %s", pod.Status.ContainerStatuses[0].State.Terminated.ExitCode, pod.Status.ContainerStatuses[0].State.Terminated.Reason)
+				} else {
+					currentDriverState.err = fmt.Errorf("driver container status missing.")
 				}
 			}
 		}
@@ -340,11 +341,9 @@ func (c *Controller) getAndUpdateAppState(app *v1beta1.SparkApplication) error {
 		app.Status.AppState.State = newState
 	} else {
 		glog.Warningf("driver not found for SparkApplication: %s/%s", app.Namespace, app.Name)
-		// The application has not terminated and has a recorded driver Pod, but no driver Pod was found for it.
+		// The application has not terminated but no driver Pod was found for it.
 		// This is likely because the driver Pod was deleted. In this case, set the application state to FailingState.
-		// Also move to FailingState if we never recorded the driver for a submitted application and it has been a while => 300 seconds
-		if app.Status.TerminationTime.IsZero() && (app.Status.DriverInfo.PodName != "" ||
-			(!app.Status.LastSubmissionAttemptTime.IsZero() && metav1.Now().After(app.Status.LastSubmissionAttemptTime.Add(time.Duration(300)*time.Second)))) {
+		if app.Status.TerminationTime.IsZero() {
 			app.Status.AppState.ErrorMessage = "Driver Pod not found"
 			app.Status.AppState.State = v1beta1.FailingState
 			app.Status.TerminationTime = metav1.Now()
