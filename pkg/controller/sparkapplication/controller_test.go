@@ -1084,10 +1084,14 @@ func TestSyncSparkApplication_ExecutingState(t *testing.T) {
 		assert.Equal(t, test.expectedAppState, updatedApp.Status.AppState.State)
 		assert.Equal(t, test.expectedExecutorState, updatedApp.Status.ExecutorState)
 
-		if test.driverPod != nil && test.driverPod.Status.Phase == apiv1.PodFailed &&
-			len(test.driverPod.Status.ContainerStatuses) > 0 && test.driverPod.Status.ContainerStatuses[0].State.Terminated != nil {
-			assert.Equal(t, updatedApp.Status.AppState.ErrorMessage,
-				fmt.Sprintf("driver pod failed with ExitCode: %d, Reason: %s", test.driverPod.Status.ContainerStatuses[0].State.Terminated.ExitCode, test.driverPod.Status.ContainerStatuses[0].State.Terminated.Reason))
+		// Validate error message if the driver pod failed.
+		if test.driverPod != nil && test.driverPod.Status.Phase == apiv1.PodFailed {
+			if len(test.driverPod.Status.ContainerStatuses) > 0 && test.driverPod.Status.ContainerStatuses[0].State.Terminated != nil {
+				assert.Equal(t, updatedApp.Status.AppState.ErrorMessage,
+					fmt.Sprintf("driver pod failed with ExitCode: %d, Reason: %s", test.driverPod.Status.ContainerStatuses[0].State.Terminated.ExitCode, test.driverPod.Status.ContainerStatuses[0].State.Terminated.Reason))
+			} else {
+				assert.Equal(t, updatedApp.Status.AppState.ErrorMessage, "driver container status missing")
+			}
 		}
 
 		// Verify application metrics.
