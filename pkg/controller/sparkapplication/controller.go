@@ -265,6 +265,7 @@ type driverState struct {
 	nodeName           string         // Name of the node the driver pod runs on.
 	podPhase           apiv1.PodPhase // Driver pod phase.
 	completionTime     metav1.Time    // Time the driver completes.
+	err                error          // Error if any found.
 }
 
 // getAndUpdateAppState lists the driver and executor pods of the application
@@ -290,6 +291,14 @@ func (c *Controller) getAndUpdateAppState(app *v1beta1.SparkApplication) error {
 			}
 			if pod.Status.Phase == apiv1.PodSucceeded || pod.Status.Phase == apiv1.PodFailed {
 				currentDriverState.completionTime = metav1.Now()
+			}
+			// Fetch container ExitCode/Reason if Pod Failed.
+			if pod.Status.Phase == apiv1.PodFailed {
+				if len(pod.Status.ContainerStatuses) > 0 && pod.Status.ContainerStatuses[0].State.Terminated != nil {
+					currentDriverState.err = fmt.Errorf("driver pod failed with ExitCode: %d, Reason: %s", pod.Status.ContainerStatuses[0].State.Terminated.ExitCode, pod.Status.ContainerStatuses[0].State.Terminated.Reason)
+				} else {
+					currentDriverState.err = fmt.Errorf("driver container status missing.")
+				}
 			}
 		}
 		if util.IsExecutorPod(pod) {
@@ -323,6 +332,10 @@ func (c *Controller) getAndUpdateAppState(app *v1beta1.SparkApplication) error {
 			}
 			if app.Status.TerminationTime.IsZero() && !currentDriverState.completionTime.IsZero() {
 				app.Status.TerminationTime = currentDriverState.completionTime
+			}
+			// Expose any errors to the users.
+			if currentDriverState.err != nil {
+				app.Status.AppState.ErrorMessage += currentDriverState.err.Error()
 			}
 		}
 		app.Status.AppState.State = newState
