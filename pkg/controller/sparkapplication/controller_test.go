@@ -867,7 +867,8 @@ func TestSyncSparkApplication_ExecutingState(t *testing.T) {
 			oldExecutorStatus:     map[string]v1beta1.ExecutorState{"exec-1": v1beta1.ExecutorRunningState},
 			expectedAppState:      v1beta1.SubmittedState,
 			expectedExecutorState: map[string]v1beta1.ExecutorState{"exec-1": v1beta1.ExecutorFailedState},
-			expectedAppMetrics: metrics{
+			expectedAppMetrics:    metrics{},
+			expectedExecutorMetrics: executorMetrics{
 				failedMetricCount: 1,
 			},
 		},
