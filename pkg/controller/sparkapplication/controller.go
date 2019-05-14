@@ -45,6 +45,7 @@ import (
 	crdscheme "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/client/clientset/versioned/scheme"
 	crdinformers "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/client/informers/externalversions"
 	crdlisters "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/client/listers/sparkoperator.k8s.io/v1beta1"
+	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/config"
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/util"
 )
 
@@ -258,15 +259,6 @@ func (c *Controller) processNextItem() bool {
 	return true
 }
 
-// Helper data structure to encapsulate current state of the driver pod.
-type driverState struct {
-	podName            string         // Name of the driver pod.
-	sparkApplicationID string         // Spark application ID.
-	nodeName           string         // Name of the node the driver pod runs on.
-	podPhase           apiv1.PodPhase // Driver pod phase.
-	completionTime     metav1.Time    // Time the driver completes.
-}
-
 func (c *Controller) getAppPods(app *v1beta1.SparkApplication) ([]*apiv1.Pod, error) {
 	// Fetch all the pods for the current run of the application.
 	selector := labels.SelectorFromSet(labels.Set(getResourceLabels(app)))
@@ -274,7 +266,21 @@ func (c *Controller) getAppPods(app *v1beta1.SparkApplication) ([]*apiv1.Pod, er
 	if err != nil {
 		return nil, fmt.Errorf("failed to get pods for SparkApplication %s/%s: %v", app.Namespace, app.Name, err)
 	}
+
 	return pods, nil
+}
+
+// Fetch driver pod from APIServer.
+func (c *Controller) getDriverPodFromApiServer(app *v1beta1.SparkApplication) (*apiv1.Pod, error) {
+	selector := labels.SelectorFromSet(map[string]string{config.SparkAppNameLabel: app.Name, config.SparkRoleLabel: config.SparkDriverRole})
+	listOptions := metav1.ListOptions{LabelSelector: selector.String()}
+	podsList, err := c.kubeClient.CoreV1().Pods(app.Namespace).List(listOptions)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get driver pod for SparkApplication from APIServer %s/%s: %v", app.Namespace, app.Name, err)
+	} else if podsList.Size() == 1 {
+		return &podsList.Items[0], nil
+	}
+	return nil, nil
 }
 
 // getAndUpdateDriverState finds the driver pod of the application
@@ -284,38 +290,38 @@ func (c *Controller) getAndUpdateDriverState(app *v1beta1.SparkApplication) erro
 	if err != nil {
 		return err
 	}
-	var currentDriverState *driverState
+	var driverPod *apiv1.Pod
 	for _, pod := range pods {
 		if util.IsDriverPod(pod) {
-			currentDriverState = &driverState{
-				podName:            pod.Name,
-				nodeName:           pod.Spec.NodeName,
-				podPhase:           pod.Status.Phase,
-				sparkApplicationID: getSparkApplicationID(pod),
-			}
-			if pod.Status.Phase == apiv1.PodSucceeded || pod.Status.Phase == apiv1.PodFailed {
-				currentDriverState.completionTime = metav1.Now()
-			}
+			driverPod = pod
 			break
 		}
 	}
+	if driverPod == nil {
+		// Driver Pod was not found in Informer cache. Try to fetch it from APIServer.
+		glog.Infof("driver not found for SparkApplication: %s/%s. Trying to fetch driver from APIServer.", app.Namespace, app.Name)
+		driverPod, err = c.getDriverPodFromApiServer(app)
+		if err != nil {
+			return err
+		}
+	}
 
-	if currentDriverState != nil {
-		newState := driverPodPhaseToApplicationState(currentDriverState.podPhase)
+	if driverPod != nil {
+		newState := driverPodPhaseToApplicationState(driverPod.Status.Phase)
 		// Only record a driver event if the application state (derived from the driver pod phase) has changed.
 		if newState != app.Status.AppState.State {
-			c.recordDriverEvent(app, currentDriverState.podPhase, currentDriverState.podName)
+			c.recordDriverEvent(app, driverPod.Status.Phase, driverPod.Name)
 		}
 		if newState != v1beta1.UnknownState {
-			app.Status.DriverInfo.PodName = currentDriverState.podName
-			app.Status.SparkApplicationID = currentDriverState.sparkApplicationID
-			if currentDriverState.nodeName != "" {
-				if nodeIP := c.getNodeIP(currentDriverState.nodeName); nodeIP != "" {
+			app.Status.DriverInfo.PodName = driverPod.Name
+			app.Status.SparkApplicationID = getSparkApplicationID(driverPod)
+			if driverPod.Spec.NodeName != "" {
+				if nodeIP := c.getNodeIP(driverPod.Spec.NodeName); nodeIP != "" {
 					app.Status.DriverInfo.WebUIAddress = fmt.Sprintf("%s:%d", nodeIP, app.Status.DriverInfo.WebUIPort)
 				}
 			}
-			if app.Status.TerminationTime.IsZero() && !currentDriverState.completionTime.IsZero() {
-				app.Status.TerminationTime = currentDriverState.completionTime
+			if app.Status.TerminationTime.IsZero() && driverPod.Status.Phase == apiv1.PodSucceeded || driverPod.Status.Phase == apiv1.PodFailed {
+				app.Status.TerminationTime = metav1.Now()
 			}
 		}
 		app.Status.AppState.State = newState
@@ -480,7 +486,6 @@ func (c *Controller) syncSparkApplication(key string) error {
 	}
 
 	appToUpdate := app.DeepCopy()
-
 	// Take action based on application state.
 	switch appToUpdate.Status.AppState.State {
 	case v1beta1.NewState:
@@ -722,7 +727,6 @@ func (c *Controller) deleteSparkResources(app *v1beta1.SparkApplication) error {
 	if err != nil {
 		return err
 	}
-
 	driverPodName := app.Status.DriverInfo.PodName
 	if driverPodName != "" {
 		glog.V(2).Infof("Deleting pod %s in namespace %s", driverPodName, app.Namespace)
