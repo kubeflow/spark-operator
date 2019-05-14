@@ -33,11 +33,6 @@ import (
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/config"
 )
 
-const (
-	sparkUIPortConfigurationKey = "spark.ui.port"
-	defaultSparkWebUIPort       = "4040"
-)
-
 var ingressURLRegex = regexp.MustCompile("{{\\s*[$]appName\\s*}}")
 
 func getSparkUIingressURL(ingressURLFormat string, appName string) string {
@@ -145,6 +140,16 @@ func createSparkUIService(
 // in Spec.SparkConf if it is present, otherwise the default port is returned.
 // Note that we don't attempt to get the port from Spec.SparkConfigMap.
 func getUITargetPort(app *v1beta1.SparkApplication) string {
+        var (
+        sparkUIPortConfigurationKey = "spark.ui.port"
+        defaultSparkWebUIPort = "4040"
+        )
+
+        if app.Spec.SparkConf["spark.ssl.ui.enabled"] == "true" {
+        sparkUIPortConfigurationKey = "spark.ssl.ui.port"
+        defaultSparkWebUIPort       = "4440"
+        }
+
 	port, ok := app.Spec.SparkConf[sparkUIPortConfigurationKey]
 	if ok {
 		return port
