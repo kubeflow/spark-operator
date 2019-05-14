@@ -301,7 +301,8 @@ func (c *Controller) getAndUpdateDriverState(app *v1beta1.SparkApplication) erro
 			// Fetch container ExitCode/Reason if Pod Failed.
 			if pod.Status.Phase == apiv1.PodFailed {
 				if len(pod.Status.ContainerStatuses) > 0 && pod.Status.ContainerStatuses[0].State.Terminated != nil {
-					currentDriverState.err = fmt.Errorf("driver pod failed with ExitCode: %d, Reason: %s", pod.Status.ContainerStatuses[0].State.Terminated.ExitCode, pod.Status.ContainerStatuses[0].State.Terminated.Reason)
+					terminatedState := pod.Status.ContainerStatuses[0].State.Terminated
+					currentDriverState.err = fmt.Errorf("driver pod failed with ExitCode: %d, Reason: %s", terminatedState.ExitCode, terminatedState.Reason)
 				} else {
 					currentDriverState.err = fmt.Errorf("driver container status missing.")
 				}
@@ -330,7 +331,7 @@ func (c *Controller) getAndUpdateDriverState(app *v1beta1.SparkApplication) erro
 		}
 		// Expose any errors to the users.
 		if currentDriverState.err != nil {
-			app.Status.AppState.ErrorMessage += currentDriverState.err.Error()
+			app.Status.AppState.ErrorMessage = currentDriverState.err.Error()
 		}
 		app.Status.AppState.State = newState
 	} else {
