@@ -324,6 +324,15 @@ func (c *Controller) getAndUpdateDriverState(app *v1beta1.SparkApplication) erro
 				app.Status.TerminationTime = metav1.Now()
 			}
 		}
+		// Fetch container ExitCode/Reason if Pod Failed.
+		if driverPod.Status.Phase == apiv1.PodFailed {
+			if len(driverPod.Status.ContainerStatuses) > 0 && driverPod.Status.ContainerStatuses[0].State.Terminated != nil {
+				terminatedState := driverPod.Status.ContainerStatuses[0].State.Terminated
+				app.Status.AppState.ErrorMessage = fmt.Sprintf("driver pod failed with ExitCode: %d, Reason: %s", terminatedState.ExitCode, terminatedState.Reason)
+			} else {
+				app.Status.AppState.ErrorMessage = fmt.Sprintf("driver container status missing.")
+			}
+		}
 		app.Status.AppState.State = newState
 	} else {
 		glog.Warningf("driver not found for SparkApplication: %s/%s. Marking SparkApplication as Failing.", app.Namespace, app.Name)

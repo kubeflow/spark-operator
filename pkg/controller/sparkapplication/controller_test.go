@@ -931,6 +931,16 @@ func TestSyncSparkApplication_ExecutingState(t *testing.T) {
 				},
 				Status: apiv1.PodStatus{
 					Phase: apiv1.PodFailed,
+					ContainerStatuses: []apiv1.ContainerStatus{
+						{
+							State: apiv1.ContainerState{
+								Terminated: &apiv1.ContainerStateTerminated{
+									ExitCode: 137,
+									Reason:   "OOMKilled",
+								},
+							},
+						},
+					},
 				},
 			},
 			executorPod: &apiv1.Pod{
@@ -1075,6 +1085,16 @@ func TestSyncSparkApplication_ExecutingState(t *testing.T) {
 		updatedApp, err := ctrl.crdClient.SparkoperatorV1beta1().SparkApplications(app.Namespace).Get(app.Name, metav1.GetOptions{})
 		assert.Equal(t, test.expectedAppState, updatedApp.Status.AppState.State)
 		assert.Equal(t, test.expectedExecutorState, updatedApp.Status.ExecutorState)
+
+		// Validate error message if the driver pod failed.
+		if test.driverPod != nil && test.driverPod.Status.Phase == apiv1.PodFailed {
+			if len(test.driverPod.Status.ContainerStatuses) > 0 && test.driverPod.Status.ContainerStatuses[0].State.Terminated != nil {
+				assert.Equal(t, updatedApp.Status.AppState.ErrorMessage,
+					fmt.Sprintf("driver pod failed with ExitCode: %d, Reason: %s", test.driverPod.Status.ContainerStatuses[0].State.Terminated.ExitCode, test.driverPod.Status.ContainerStatuses[0].State.Terminated.Reason))
+			} else {
+				assert.Equal(t, updatedApp.Status.AppState.ErrorMessage, "driver container status missing")
+			}
+		}
 
 		// Verify application metrics.
 		assert.Equal(t, test.expectedAppMetrics.runningMetricCount, ctrl.metrics.sparkAppRunningCount.Value(map[string]string{}))
