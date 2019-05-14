@@ -333,7 +333,7 @@ func TestShouldRetry(t *testing.T) {
 	}
 
 	restartPolicyAlways := v1beta1.RestartPolicy{
-		Type:                             v1beta1.Always,
+		Type: v1beta1.Always,
 		OnSubmissionFailureRetryInterval: int64ptr(100),
 		OnFailureRetryInterval:           int64ptr(100),
 	}
@@ -520,7 +520,7 @@ func TestSyncSparkApplication_SubmissionSuccess(t *testing.T) {
 	}
 
 	restartPolicyAlways := v1beta1.RestartPolicy{
-		Type:                             v1beta1.Always,
+		Type: v1beta1.Always,
 		OnSubmissionFailureRetryInterval: int64ptr(100),
 		OnFailureRetryInterval:           int64ptr(100),
 	}
@@ -865,9 +865,11 @@ func TestSyncSparkApplication_ExecutingState(t *testing.T) {
 			appName:               "foo-1",
 			oldAppStatus:          v1beta1.SubmittedState,
 			oldExecutorStatus:     map[string]v1beta1.ExecutorState{"exec-1": v1beta1.ExecutorRunningState},
-			expectedAppState:      v1beta1.SubmittedState,
+			expectedAppState:      v1beta1.FailingState,
 			expectedExecutorState: map[string]v1beta1.ExecutorState{"exec-1": v1beta1.ExecutorFailedState},
-			expectedAppMetrics:    metrics{},
+			expectedAppMetrics: metrics{
+				failedMetricCount: 1,
+			},
 			expectedExecutorMetrics: executorMetrics{
 				failedMetricCount: 1,
 			},
