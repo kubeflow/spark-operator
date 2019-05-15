@@ -63,15 +63,16 @@ var (
 
 // Controller manages instances of SparkApplication.
 type Controller struct {
-	crdClient         crdclientset.Interface
-	kubeClient        clientset.Interface
-	queue             workqueue.RateLimitingInterface
-	cacheSynced       cache.InformerSynced
-	recorder          record.EventRecorder
-	metrics           *sparkAppMetrics
-	applicationLister crdlisters.SparkApplicationLister
-	podLister         v1.PodLister
-	ingressURLFormat  string
+	crdClient                 crdclientset.Interface
+	kubeClient                clientset.Interface
+	queue                     workqueue.RateLimitingInterface
+	cacheSynced               cache.InformerSynced
+	recorder                  record.EventRecorder
+	metrics                   *sparkAppMetrics
+	applicationLister         crdlisters.SparkApplicationLister
+	podLister                 v1.PodLister
+	ingressURLFormat          string
+	sparkUIServiceAnnotations map[string]string
 }
 
 // NewController creates a new Controller.
@@ -82,7 +83,8 @@ func NewController(
 	podInformerFactory informers.SharedInformerFactory,
 	metricsConfig *util.MetricConfig,
 	namespace string,
-	ingressURLFormat string) *Controller {
+	ingressURLFormat string,
+	sparkUIServiceAnnotations map[string]string) *Controller {
 	crdscheme.AddToScheme(scheme.Scheme)
 
 	eventBroadcaster := record.NewBroadcaster()
@@ -92,7 +94,7 @@ func NewController(
 	})
 	recorder := eventBroadcaster.NewRecorder(scheme.Scheme, apiv1.EventSource{Component: "spark-operator"})
 
-	return newSparkApplicationController(crdClient, kubeClient, crdInformerFactory, podInformerFactory, recorder, metricsConfig, ingressURLFormat)
+	return newSparkApplicationController(crdClient, kubeClient, crdInformerFactory, podInformerFactory, recorder, metricsConfig, ingressURLFormat, sparkUIServiceAnnotations)
 }
 
 func newSparkApplicationController(
@@ -102,16 +104,18 @@ func newSparkApplicationController(
 	podInformerFactory informers.SharedInformerFactory,
 	eventRecorder record.EventRecorder,
 	metricsConfig *util.MetricConfig,
-	ingressURLFormat string) *Controller {
+	ingressURLFormat string,
+	sparkUIServiceAnnotations map[string]string) *Controller {
 	queue := workqueue.NewNamedRateLimitingQueue(&workqueue.BucketRateLimiter{Limiter: rate.NewLimiter(rate.Limit(queueTokenRefillRate), queueTokenBucketSize)},
 		"spark-application-controller")
 
 	controller := &Controller{
-		crdClient:        crdClient,
-		kubeClient:       kubeClient,
-		recorder:         eventRecorder,
-		queue:            queue,
-		ingressURLFormat: ingressURLFormat,
+		crdClient:                 crdClient,
+		kubeClient:                kubeClient,
+		recorder:                  eventRecorder,
+		queue:                     queue,
+		ingressURLFormat:          ingressURLFormat,
+		sparkUIServiceAnnotations: sparkUIServiceAnnotations,
 	}
 
 	if metricsConfig != nil {
@@ -646,7 +650,7 @@ func (c *Controller) submitSparkApplication(app *v1beta1.SparkApplication) *v1be
 	}
 	c.recordSparkApplicationEvent(app)
 
-	service, err := createSparkUIService(app, c.kubeClient)
+	service, err := createSparkUIService(app, c.kubeClient, SparkService{annotations: c.sparkUIServiceAnnotations})
 	if err != nil {
 		glog.Errorf("failed to create UI service for SparkApplication %s/%s: %v", app.Namespace, app.Name, err)
 	} else {

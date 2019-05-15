@@ -34,13 +34,14 @@ func TestCreateSparkUIService(t *testing.T) {
 	type testcase struct {
 		name             string
 		app              *v1beta1.SparkApplication
+		annotations      map[string]string
 		expectedService  SparkService
 		expectedSelector map[string]string
 		expectError      bool
 	}
 	testFn := func(test testcase, t *testing.T) {
 		fakeClient := fake.NewSimpleClientset()
-		sparkService, err := createSparkUIService(test.app, fakeClient)
+		sparkService, err := createSparkUIService(test.app, fakeClient, SparkService{annotations: test.annotations})
 		if err != nil {
 			if test.expectError {
 				return
@@ -50,6 +51,18 @@ func TestCreateSparkUIService(t *testing.T) {
 
 		if sparkService.serviceName != test.expectedService.serviceName {
 			t.Errorf("%s: for service name wanted %s got %s", test.name, test.expectedService.serviceName, sparkService.serviceName)
+		}
+
+		if test.expectedService.annotations != nil {
+			for key := range test.expectedService.annotations {
+				if sparkService.annotations[key] != test.expectedService.annotations[key] {
+					t.Errorf("%s: for service annotations[%s] wanted %s got %s",
+						test.name,
+						key,
+						test.expectedService.annotations[key],
+						sparkService.annotations[key])
+				}
+			}
 		}
 
 		service, err := fakeClient.CoreV1().
@@ -146,6 +159,40 @@ func TestCreateSparkUIService(t *testing.T) {
 			expectedService: SparkService{
 				serviceName: fmt.Sprintf("%s-ui-svc", app2.GetName()),
 				servicePort: int32(defaultPort),
+			},
+			expectedSelector: map[string]string{
+				config.SparkAppNameLabel: "foo",
+				config.SparkRoleLabel:    config.SparkDriverRole,
+			},
+			expectError: false,
+		},
+		{
+			name: "service with annotations",
+			app:  app1,
+			annotations: map[string]string{
+				"getambassador.io/config": `|
+---
+apiVersion: ambassador/v1
+kind:  Mapping
+name:  sparkui-{{$namespace}}-{{$appName}}
+prefix: /{{$appName}}/
+service: {{$serviceName}}.{{$namespace}}`,
+			},
+			expectedService: SparkService{
+				serviceName: fmt.Sprintf("%s-ui-svc", app1.GetName()),
+				servicePort: 4041,
+				annotations: map[string]string{
+					"getambassador.io/config": fmt.Sprintf(`|
+---
+apiVersion: ambassador/v1
+kind:  Mapping
+name:  sparkui-%s-%s
+prefix: /%s/
+service: %s.%s`,
+						app1.Namespace, app1.GetName(),
+						app1.GetName(),
+						fmt.Sprintf("%s-ui-svc", app1.GetName()), app1.Namespace,
+					)},
 			},
 			expectedSelector: map[string]string{
 				config.SparkAppNameLabel: "foo",

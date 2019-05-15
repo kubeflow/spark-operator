@@ -39,9 +39,33 @@ const (
 )
 
 var ingressURLRegex = regexp.MustCompile("{{\\s*[$]appName\\s*}}")
+var sparkUIAnnotationsRegex = regexp.MustCompile("({{\\s*[$]namespace\\s*}}|{{\\s*[$]appName\\s*}}|{{\\s*[$]serviceName\\s*}})")
 
 func getSparkUIingressURL(ingressURLFormat string, appName string) string {
 	return ingressURLRegex.ReplaceAllString(ingressURLFormat, appName)
+}
+
+// getSparkUIServiceAnnotations replace any `{{$appName}}` inside the annotations with the app name.
+func getSparkUIServiceAnnotations(templateAnnotations map[string]string, appName string, serviceName string, namespace string) map[string]string {
+	var annotations = map[string]string{}
+
+	replacer := func(value string) string {
+		switch value {
+		case "{{$appName}}":
+			return appName
+		case "{{$serviceName}}":
+			return serviceName
+		case "{{$namespace}}":
+			return namespace
+		default:
+			return value
+		}
+	}
+
+	for key, value := range templateAnnotations {
+		annotations[key] = sparkUIAnnotationsRegex.ReplaceAllStringFunc(value, replacer)
+	}
+	return annotations
 }
 
 // SparkService encapsulates information about the driver UI service.
@@ -49,6 +73,7 @@ type SparkService struct {
 	serviceName string
 	servicePort int32
 	nodePort    int32
+	annotations map[string]string
 }
 
 // SparkIngress encapsulates information about the driver UI ingress.
@@ -99,19 +124,29 @@ func createSparkUIIngress(app *v1beta1.SparkApplication, service SparkService, i
 
 func createSparkUIService(
 	app *v1beta1.SparkApplication,
-	kubeClient clientset.Interface) (*SparkService, error) {
+	kubeClient clientset.Interface,
+	serviceMetadata SparkService) (*SparkService, error) {
 	portStr := getUITargetPort(app)
 	port, err := strconv.Atoi(portStr)
 	if err != nil {
 		return nil, fmt.Errorf("invalid Spark UI port: %s", portStr)
 	}
-
+	serviceName := getDefaultUIServiceName(app)
+	annotations := map[string]string{}
+	if serviceMetadata.annotations != nil {
+		annotations = getSparkUIServiceAnnotations(
+			serviceMetadata.annotations,
+			app.GetName(),
+			serviceName,
+			app.Namespace)
+	}
 	service := &apiv1.Service{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:            getDefaultUIServiceName(app),
+			Name:            serviceName,
 			Namespace:       app.Namespace,
 			Labels:          getResourceLabels(app),
 			OwnerReferences: []metav1.OwnerReference{*getOwnerReference(app)},
+			Annotations:     annotations,
 		},
 		Spec: apiv1.ServiceSpec{
 			Ports: []apiv1.ServicePort{
@@ -138,6 +173,7 @@ func createSparkUIService(
 		serviceName: service.Name,
 		servicePort: int32(port),
 		nodePort:    service.Spec.Ports[0].NodePort,
+		annotations: annotations,
 	}, nil
 }
 

@@ -17,6 +17,7 @@ limitations under the License.
 package util
 
 import (
+	"encoding/json"
 	"hash"
 	"hash/fnv"
 	"reflect"
@@ -58,4 +59,11 @@ func IsDriverPod(pod *apiv1.Pod) bool {
 // IsExecutorPod returns whether the given pod is a Spark executor Pod.
 func IsExecutorPod(pod *apiv1.Pod) bool {
 	return pod.Labels[config.SparkRoleLabel] == config.SparkExecutorRole
+}
+
+// GetAnnotationsFromJSONString returns a map of annotations from a JSON string.
+func GetAnnotationsFromJSONString(jsonString string) (map[string]string, error) {
+	var annotations map[string]string
+	err := json.Unmarshal([]byte(jsonString), &annotations)
+	return annotations, err
 }
