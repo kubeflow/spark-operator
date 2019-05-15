@@ -65,6 +65,13 @@ func (sjm *submissionJobManager) createSubmissionJob(s *submission) (*batchv1.Jo
 			Completions:  &one,
 			BackoffLimit: s.app.Spec.RestartPolicy.OnSubmissionFailureRetries,
 			Template: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{
+						config.SparkAppNameLabel:            s.app.Name,
+						config.LaunchedBySparkOperatorLabel: "true",
+					},
+					Annotations: s.app.Annotations,
+				},
 				Spec: corev1.PodSpec{
 					Containers: []corev1.Container{
 						{
