@@ -49,14 +49,15 @@ func (sjm *submissionJobManager) createSubmissionJob(s *submission) (*batchv1.Jo
 
 	command := []string{"sh", "-c", fmt.Sprintf("$SPARK_HOME/bin/spark-submit %s", strings.Join(s.args, " "))}
 	var one int32 = 1
+	labels := map[string]string{
+		config.SparkAppNameLabel:            s.app.Name,
+		config.LaunchedBySparkOperatorLabel: "true",
+	}
 	job := &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      getSubmissionJobName(s.app),
-			Namespace: s.app.Namespace,
-			Labels: map[string]string{
-				config.SparkAppNameLabel:            s.app.Name,
-				config.LaunchedBySparkOperatorLabel: "true",
-			},
+			Name:            getSubmissionJobName(s.app),
+			Namespace:       s.app.Namespace,
+			Labels:          labels,
 			Annotations:     s.app.Annotations,
 			OwnerReferences: []metav1.OwnerReference{*getOwnerReference(s.app)},
 		},
@@ -65,6 +66,10 @@ func (sjm *submissionJobManager) createSubmissionJob(s *submission) (*batchv1.Jo
 			Completions:  &one,
 			BackoffLimit: s.app.Spec.RestartPolicy.OnSubmissionFailureRetries,
 			Template: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels:      labels,
+					Annotations: s.app.Annotations,
+				},
 				Spec: corev1.PodSpec{
 					Containers: []corev1.Container{
 						{
