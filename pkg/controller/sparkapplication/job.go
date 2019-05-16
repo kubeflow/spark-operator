@@ -77,6 +77,12 @@ func (sjm *realSubmissionJobManager) createSubmissionJob(app *v1beta2.SparkAppli
 	command := []string{"sh", "-c", fmt.Sprintf("$SPARK_HOME/bin/spark-submit %s", strings.Join(submissionCmdArgs, " "))}
 	var one int32 = 1
 
+	labels := map[string]string{
+		config.SparkAppNameLabel:            app.Name,
+		config.LaunchedBySparkOperatorLabel: "true",
+	}
+
+
 	imagePullSecrets := make([]v1.LocalObjectReference, len(app.Spec.ImagePullSecrets))
 	for i, secret := range app.Spec.ImagePullSecrets {
 		imagePullSecrets[i] = v1.LocalObjectReference{Name: secret}
@@ -90,10 +96,7 @@ func (sjm *realSubmissionJobManager) createSubmissionJob(app *v1beta2.SparkAppli
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      getSubmissionJobName(app),
 			Namespace: app.Namespace,
-			Labels: map[string]string{
-				config.SparkAppNameLabel:            app.Name,
-				config.LaunchedBySparkOperatorLabel: "true",
-			},
+			Labels: labels,
 			Annotations:     app.Annotations,
 			OwnerReferences: []metav1.OwnerReference{*getOwnerReference(app)},
 		},
@@ -102,6 +105,10 @@ func (sjm *realSubmissionJobManager) createSubmissionJob(app *v1beta2.SparkAppli
 			Completions:  &one,
 			BackoffLimit: app.Spec.RestartPolicy.OnSubmissionFailureRetries,
 			Template: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels:      labels,
+					Annotations: app.Annotations,
+				},
 				Spec: corev1.PodSpec{
 					ImagePullSecrets: imagePullSecrets,
 					Containers: []corev1.Container{
