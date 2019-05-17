@@ -128,6 +128,7 @@ func main() {
 		glog.Warningf("failed to unmarshal json string to annotations: %v", err)
 		sparkUIServiceAnnotations = map[string]string{}
 	}
+	
 	crInformerFactory := buildCustomResourceInformerFactory(crClient)
 	podInformerFactory := buildPodInformerFactory(kubeClient)
 	applicationController := sparkapplication.NewController(
