@@ -47,7 +47,7 @@ func getSparkUIingressURL(ingressURLFormat string, appName string) string {
 
 // getSparkUIServiceAnnotations replace any `{{$appName}}` inside the annotations with the app name.
 func getSparkUIServiceAnnotations(templateAnnotations map[string]string, appName string, serviceName string, namespace string) map[string]string {
-	var annotations = map[string]string{}
+	annotations := map[string]string{}
 
 	replacer := func(value string) string {
 		switch value {
@@ -125,21 +125,18 @@ func createSparkUIIngress(app *v1beta1.SparkApplication, service SparkService, i
 func createSparkUIService(
 	app *v1beta1.SparkApplication,
 	kubeClient clientset.Interface,
-	serviceMetadata SparkService) (*SparkService, error) {
+	annotations map[string]string) (*SparkService, error) {
 	portStr := getUITargetPort(app)
 	port, err := strconv.Atoi(portStr)
 	if err != nil {
 		return nil, fmt.Errorf("invalid Spark UI port: %s", portStr)
 	}
 	serviceName := getDefaultUIServiceName(app)
-	annotations := map[string]string{}
-	if serviceMetadata.annotations != nil {
-		annotations = getSparkUIServiceAnnotations(
-			serviceMetadata.annotations,
-			app.GetName(),
-			serviceName,
-			app.Namespace)
-	}
+	annotations = getSparkUIServiceAnnotations(
+		annotations,
+		app.GetName(),
+		serviceName,
+		app.Namespace)
 	service := &apiv1.Service{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            serviceName,

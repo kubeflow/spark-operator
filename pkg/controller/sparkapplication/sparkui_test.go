@@ -30,6 +30,22 @@ import (
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/config"
 )
 
+const TestAnnotation = `|
+---
+apiVersion: ambassador/v1
+kind:  Mapping
+name:  sparkui-{{$namespace}}-{{$appName}}
+prefix: /{{$appName}}/
+service: {{$serviceName}}.{{$namespace}}`
+
+const ExpectedAnnotationF = `|
+---
+apiVersion: ambassador/v1
+kind:  Mapping
+name:  sparkui-%s-%s
+prefix: /%s/
+service: %s.%s`
+
 func TestCreateSparkUIService(t *testing.T) {
 	type testcase struct {
 		name             string
@@ -41,7 +57,7 @@ func TestCreateSparkUIService(t *testing.T) {
 	}
 	testFn := func(test testcase, t *testing.T) {
 		fakeClient := fake.NewSimpleClientset()
-		sparkService, err := createSparkUIService(test.app, fakeClient, SparkService{annotations: test.annotations})
+		sparkService, err := createSparkUIService(test.app, fakeClient, test.annotations)
 		if err != nil {
 			if test.expectError {
 				return
@@ -170,25 +186,14 @@ func TestCreateSparkUIService(t *testing.T) {
 			name: "service with annotations",
 			app:  app1,
 			annotations: map[string]string{
-				"getambassador.io/config": `|
----
-apiVersion: ambassador/v1
-kind:  Mapping
-name:  sparkui-{{$namespace}}-{{$appName}}
-prefix: /{{$appName}}/
-service: {{$serviceName}}.{{$namespace}}`,
+				"getambassador.io/config": TestAnnotation,
 			},
 			expectedService: SparkService{
 				serviceName: fmt.Sprintf("%s-ui-svc", app1.GetName()),
 				servicePort: 4041,
 				annotations: map[string]string{
-					"getambassador.io/config": fmt.Sprintf(`|
----
-apiVersion: ambassador/v1
-kind:  Mapping
-name:  sparkui-%s-%s
-prefix: /%s/
-service: %s.%s`,
+					"getambassador.io/config": fmt.Sprintf(
+						ExpectedAnnotationF,
 						app1.Namespace, app1.GetName(),
 						app1.GetName(),
 						fmt.Sprintf("%s-ui-svc", app1.GetName()), app1.Namespace,

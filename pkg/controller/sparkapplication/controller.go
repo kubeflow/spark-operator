@@ -650,7 +650,7 @@ func (c *Controller) submitSparkApplication(app *v1beta1.SparkApplication) *v1be
 	}
 	c.recordSparkApplicationEvent(app)
 
-	service, err := createSparkUIService(app, c.kubeClient, SparkService{annotations: c.sparkUIServiceAnnotations})
+	service, err := createSparkUIService(app, c.kubeClient, c.sparkUIServiceAnnotations)
 	if err != nil {
 		glog.Errorf("failed to create UI service for SparkApplication %s/%s: %v", app.Namespace, app.Name, err)
 	} else {
