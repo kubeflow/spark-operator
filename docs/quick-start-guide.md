@@ -206,10 +206,25 @@ If you are using API gateway that depends on service annotations to expose servi
 - `{{$serviceName}}`
 - `{{$namespace}}`
 
-The following example demonstrate how to config a route to the spark UI pod based on the `appName` with ambassador:
-```bash
-$ ./spark-on-k8s-operator -spark-ui-service-annotations \ 
-'{"getambassador.io\/config":"|\n---\napiVersion: ambassador/v1\nkind:  Mapping\nname:  sparkui-{{$namespace}}-{{$appName}}\nprefix: \/{{$appName}}\/\nservice: {{$serviceName}}.{{$namespace}}"}'
+The following yaml demonstrates how to config a route to the spark UI pod based on the `appName` with ambassador:
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sparkoperator
+spec:
+  template:
+    spec:
+      containers:
+      - name: sparkoperator
+        image: gcr.io/spark-operator/spark-operator:v2.4.0-v1beta1-latest
+        imagePullPolicy: Always
+        args:
+        - -spark-ui-service-annotations "$SPARKUI_ANNOTATIONS"
+        env:
+          - name: SPARKUI_ANNOTATIONS
+            value: '{"getambassador.io\/config":"|\n---\napiVersion: ambassador/v1\nkind:  Mapping\nname:  sparkui-{{$namespace}}-{{$appName}}\nprefix: \/{{$appName}}\/\nservice: {{$serviceName}}.{{$namespace}}"}'
+   
 ```
 
 Alternatively, the operator also supports creating an Ingress for the UI. This can be turned on by setting the `ingress-url-format` command-line flag. The `ingress-url-format` should be a template like `{{$appName}}.ingress.cluster.com` and the operator will replace the `{{$appName}}` with the appropriate appName.
