@@ -203,7 +203,7 @@ func TestCreateSparkUIIngress(t *testing.T) {
 		t.Errorf("Ingress name wanted %s got %s", expectedIngress.ingressURL, sparkIngress.ingressURL)
 	}
 
-	ingress, err := fakeClient.Extensions().Ingresses(app.Namespace).
+	ingress, err := fakeClient.ExtensionsV1beta1().Ingresses(app.Namespace).
 		Get(sparkIngress.ingressName, metav1.GetOptions{})
 	if err != nil {
 		t.Fatal(err)
