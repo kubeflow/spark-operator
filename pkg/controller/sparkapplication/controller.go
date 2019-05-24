@@ -27,6 +27,7 @@ import (
 	"golang.org/x/time/rate"
 	apiv1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	k8serrs "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
@@ -270,40 +271,33 @@ func (c *Controller) getAppPods(app *v1beta1.SparkApplication) ([]*apiv1.Pod, er
 	return pods, nil
 }
 
-// Fetch driver pod from APIServer.
-func (c *Controller) getDriverPodFromApiServer(app *v1beta1.SparkApplication) (*apiv1.Pod, error) {
+// Fetch driver pod for the SparkApplication.
+func (c *Controller) getDriverPod(app *v1beta1.SparkApplication) (*apiv1.Pod, error) {
+	// Try fetching from cache.
 	selector := labels.SelectorFromSet(map[string]string{config.SparkAppNameLabel: app.Name, config.SparkRoleLabel: config.SparkDriverRole})
-	listOptions := metav1.ListOptions{LabelSelector: selector.String()}
-	podsList, err := c.kubeClient.CoreV1().Pods(app.Namespace).List(listOptions)
+	podsList, err := c.podLister.Pods(app.Namespace).List(selector)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get driver pod for SparkApplication from APIServer %s/%s: %v", app.Namespace, app.Name, err)
-	} else if podsList.Size() == 1 {
-		return &podsList.Items[0], nil
+		glog.Warningf("failed to fetch driver pod for SparkApplication %s/%s from informer cache: %v", app.Namespace, app.Name, err)
+	} else if len(podsList) == 1 {
+		return podsList[0], nil
 	}
-	return nil, nil
+
+	// Fallback to Apiserver if not found in the cache.
+	driverPod, err := c.kubeClient.CoreV1().Pods(app.Namespace).Get(getDriverPodName(app), metav1.GetOptions{})
+	if err != nil {
+		glog.Errorf("failed to get driver pod for SparkApplication %s/%s from the API server: %v", app.Namespace, app.Name, err)
+		return nil, err
+	}
+	return driverPod, nil
 }
 
 // getAndUpdateDriverState finds the driver pod of the application
 // and updates the driver state based on the current phase of the pod.
 func (c *Controller) getAndUpdateDriverState(app *v1beta1.SparkApplication) error {
-	pods, err := c.getAppPods(app)
-	if err != nil {
+	driverPod, err := c.getDriverPod(app)
+	// Return and retry at the next run for any error except driver not found.
+	if err != nil && !k8serrs.IsNotFound(err) {
 		return err
-	}
-	var driverPod *apiv1.Pod
-	for _, pod := range pods {
-		if util.IsDriverPod(pod) {
-			driverPod = pod
-			break
-		}
-	}
-	if driverPod == nil {
-		// Driver Pod was not found in Informer cache. Try to fetch it from APIServer.
-		glog.Infof("driver not found for SparkApplication: %s/%s. Trying to fetch driver from APIServer.", app.Namespace, app.Name)
-		driverPod, err = c.getDriverPodFromApiServer(app)
-		if err != nil {
-			return err
-		}
 	}
 
 	if driverPod != nil {
@@ -312,29 +306,29 @@ func (c *Controller) getAndUpdateDriverState(app *v1beta1.SparkApplication) erro
 		if newState != app.Status.AppState.State {
 			c.recordDriverEvent(app, driverPod.Status.Phase, driverPod.Name)
 		}
-		if newState != v1beta1.UnknownState {
-			app.Status.DriverInfo.PodName = driverPod.Name
-			app.Status.SparkApplicationID = getSparkApplicationID(driverPod)
-			if driverPod.Spec.NodeName != "" {
-				if nodeIP := c.getNodeIP(driverPod.Spec.NodeName); nodeIP != "" {
-					app.Status.DriverInfo.WebUIAddress = fmt.Sprintf("%s:%d", nodeIP, app.Status.DriverInfo.WebUIPort)
-				}
+		app.Status.DriverInfo.PodName = driverPod.Name
+		app.Status.SparkApplicationID = getSparkApplicationID(driverPod)
+		if driverPod.Spec.NodeName != "" {
+			if nodeIP := c.getNodeIP(driverPod.Spec.NodeName); nodeIP != "" {
+				app.Status.DriverInfo.WebUIAddress = fmt.Sprintf("%s:%d", nodeIP, app.Status.DriverInfo.WebUIPort)
 			}
-			if app.Status.TerminationTime.IsZero() && driverPod.Status.Phase == apiv1.PodSucceeded || driverPod.Status.Phase == apiv1.PodFailed {
-				app.Status.TerminationTime = metav1.Now()
-			}
+		}
+		if app.Status.TerminationTime.IsZero() && (driverPod.Status.Phase == apiv1.PodSucceeded || driverPod.Status.Phase == apiv1.PodFailed) {
+			app.Status.TerminationTime = metav1.Now()
 		}
 		// Fetch container ExitCode/Reason if Pod Failed.
 		if driverPod.Status.Phase == apiv1.PodFailed {
-			if len(driverPod.Status.ContainerStatuses) > 0 && driverPod.Status.ContainerStatuses[0].State.Terminated != nil {
+			if len(driverPod.Status.ContainerStatuses) > 0 {
 				terminatedState := driverPod.Status.ContainerStatuses[0].State.Terminated
-				app.Status.AppState.ErrorMessage = fmt.Sprintf("driver pod failed with ExitCode: %d, Reason: %s", terminatedState.ExitCode, terminatedState.Reason)
+				if terminatedState != nil {
+					app.Status.AppState.ErrorMessage = fmt.Sprintf("driver pod failed with ExitCode: %d, Reason: %s", terminatedState.ExitCode, terminatedState.Reason)
+				}
 			} else {
-				app.Status.AppState.ErrorMessage = fmt.Sprintf("driver container status missing.")
+				app.Status.AppState.ErrorMessage = "driver container status missing."
 			}
 		}
 		app.Status.AppState.State = newState
-	} else {
+	} else if app.Status.AppState.State == v1beta1.SubmittedState || app.Status.AppState.State == v1beta1.RunningState {
 		glog.Warningf("driver not found for SparkApplication: %s/%s. Marking SparkApplication as Failing.", app.Namespace, app.Name)
 		// No driver Pod was found for it. This is likely because the driver Pod was deleted.
 		// In this case, set the application state to FailingState.
@@ -736,6 +730,7 @@ func (c *Controller) deleteSparkResources(app *v1beta1.SparkApplication) error {
 	if err != nil {
 		return err
 	}
+
 	driverPodName := app.Status.DriverInfo.PodName
 	if driverPodName != "" {
 		glog.V(2).Infof("Deleting pod %s in namespace %s", driverPodName, app.Namespace)

@@ -38,6 +38,21 @@ func getSparkApplicationID(pod *apiv1.Pod) string {
 	return pod.Labels[config.SparkApplicationSelectorLabel]
 }
 
+func getDriverPodName(app *v1beta1.SparkApplication) string {
+
+	// Driver pod name can be set in two different ways in the CRD.
+	if app.Spec.Driver.PodName != nil && *app.Spec.Driver.PodName != "" {
+		return *app.Spec.Driver.PodName
+	}
+
+	if app.Spec.SparkConf != nil && app.Spec.SparkConf[config.SparkDriverPodNameKey] != "" {
+		return app.Spec.SparkConf[config.SparkDriverPodNameKey]
+	}
+
+	// Default if not set.
+	return fmt.Sprintf("%s-driver", app.Name)
+}
+
 func getDefaultDriverPodName(app *v1beta1.SparkApplication) string {
 	return fmt.Sprintf("%s-driver", app.Name)
 }
