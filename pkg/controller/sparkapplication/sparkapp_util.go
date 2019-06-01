@@ -43,6 +43,12 @@ func getDriverPodName(app *v1beta1.SparkApplication) string {
 	if name != nil && len(*name) > 0 {
 		return *name
 	}
+
+	sparkConf := app.Spec.SparkConf
+	if sparkConf[config.SparkDriverPodNameKey] != "" {
+		return sparkConf[config.SparkDriverPodNameKey]
+	}
+
 	return fmt.Sprintf("%s-driver", app.Name)
 }
 

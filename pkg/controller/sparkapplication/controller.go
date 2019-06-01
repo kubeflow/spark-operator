@@ -280,15 +280,16 @@ func (c *Controller) getDriverPod(app *v1beta1.SparkApplication) (*apiv1.Pod, er
 		return nil, fmt.Errorf("failed to get driver pod %s: %v", app.Status.DriverInfo.PodName, err)
 	}
 
-	// The driver pod is not in the informer cache, try getting it directly from the API server.
+	// The driver pod was not found in the informer cache, try getting it directly from the API server.
 	pod, err = c.kubeClient.CoreV1().Pods(app.Namespace).Get(app.Status.DriverInfo.PodName, metav1.GetOptions{})
 	if err == nil {
 		return pod, nil
 	}
-	if errors.IsNotFound(err) {
-		return nil, nil
+	if !errors.IsNotFound(err) {
+		return nil, fmt.Errorf("failed to get driver pod %s: %v", app.Status.DriverInfo.PodName, err)
 	}
-	return nil, fmt.Errorf("failed to get driver pod %s: %v", app.Status.DriverInfo.PodName, err)
+	// Driver pod was not found on the API server either.
+	return nil, nil
 }
 
 // getAndUpdateDriverState finds the driver pod of the application
@@ -296,7 +297,7 @@ func (c *Controller) getDriverPod(app *v1beta1.SparkApplication) (*apiv1.Pod, er
 func (c *Controller) getAndUpdateDriverState(app *v1beta1.SparkApplication) error {
 	// Either the driver pod doesn't exist yet or its name has not been updated.
 	if app.Status.DriverInfo.PodName == "" {
-		return nil
+		return fmt.Errorf("empty driver pod name with application state %s", app.Status.AppState.State)
 	}
 
 	driverPod, err := c.getDriverPod(app)

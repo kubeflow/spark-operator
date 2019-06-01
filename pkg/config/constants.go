@@ -80,6 +80,10 @@ const (
 )
 
 const (
+	// SparkAppNameKey is the configuration property for application name.
+	SparkAppNameKey = "spark.app.name"
+	// SparkAppNamespaceKey is the configuration property for application namespace.
+	SparkAppNamespaceKey = "spark.kubernetes.namespace"
 	// SparkContainerImageKey is the configuration property for specifying the unified container image.
 	SparkContainerImageKey = "spark.kubernetes.container.image"
 	// SparkImagePullSecretKey is the configuration property for specifying the comma-separated list of image-pull
