@@ -82,7 +82,7 @@ func runSparkSubmit(submission *submission) (bool, error) {
 	return true, nil
 }
 
-func buildSubmissionCommandArgs(app *v1beta1.SparkApplication, submissionID string) ([]string, error) {
+func buildSubmissionCommandArgs(app *v1beta1.SparkApplication, driverPodName string, submissionID string) ([]string, error) {
 	var args []string
 	if app.Spec.MainClass != nil {
 		args = append(args, "--class", *app.Spec.MainClass)
@@ -94,9 +94,9 @@ func buildSubmissionCommandArgs(app *v1beta1.SparkApplication, submissionID stri
 
 	args = append(args, "--master", masterURL)
 	args = append(args, "--deploy-mode", string(app.Spec.Mode))
-	args = append(args, "--conf", fmt.Sprintf("spark.kubernetes.namespace=%s", app.Namespace))
-	args = append(args, "--conf", fmt.Sprintf("spark.app.name=%s", app.Name))
-	args = append(args, "--conf", fmt.Sprintf("spark.kubernetes.driver.pod.name=%s", getDefaultDriverPodName(app)))
+	args = append(args, "--conf", fmt.Sprintf("%s=%s", config.SparkAppNamespaceKey, app.Namespace))
+	args = append(args, "--conf", fmt.Sprintf("%s=%s", config.SparkAppNameKey, app.Name))
+	args = append(args, "--conf", fmt.Sprintf("%s=%s", config.SparkDriverPodNameKey, driverPodName))
 
 	// Add application dependencies.
 	args = append(args, addDependenciesConfOptions(app)...)
@@ -145,7 +145,10 @@ func buildSubmissionCommandArgs(app *v1beta1.SparkApplication, submissionID stri
 
 	// Add Spark configuration properties.
 	for key, value := range app.Spec.SparkConf {
-		args = append(args, "--conf", fmt.Sprintf("%s=%s", key, value))
+		// Configuration property for the driver pod name has already been set.
+		if key != config.SparkDriverPodNameKey {
+			args = append(args, "--conf", fmt.Sprintf("%s=%s", key, value))
+		}
 	}
 
 	// Add Hadoop configuration properties.
@@ -257,13 +260,6 @@ func addDriverConfOptions(app *v1beta1.SparkApplication, submissionID string) ([
 		fmt.Sprintf("%s%s=%s", config.SparkDriverLabelKeyPrefix, config.LaunchedBySparkOperatorLabel, "true"))
 	driverConfOptions = append(driverConfOptions,
 		fmt.Sprintf("%s%s=%s", config.SparkDriverLabelKeyPrefix, config.SubmissionIDLabel, submissionID))
-
-	driverPodName := fmt.Sprintf("%s-driver", app.GetName())
-	if app.Spec.Driver.PodName != nil {
-		driverPodName = *app.Spec.Driver.PodName
-	}
-	driverConfOptions = append(driverConfOptions,
-		fmt.Sprintf("%s=%s", config.SparkDriverPodNameKey, driverPodName))
 
 	if app.Spec.Driver.Image != nil {
 		driverConfOptions = append(driverConfOptions,

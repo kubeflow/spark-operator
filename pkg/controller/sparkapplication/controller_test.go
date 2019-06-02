@@ -841,9 +841,12 @@ func TestSyncSparkApplication_ExecutingState(t *testing.T) {
 	os.Setenv(kubernetesServiceHostEnvVar, "localhost")
 	os.Setenv(kubernetesServicePortEnvVar, "443")
 
+	appName := "foo"
+	driverPodName := appName + "-driver"
+
 	app := &v1beta1.SparkApplication{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "foo",
+			Name:      appName,
 			Namespace: "test",
 		},
 		Spec: v1beta1.SparkApplicationSpec{
@@ -856,33 +859,38 @@ func TestSyncSparkApplication_ExecutingState(t *testing.T) {
 				State:        v1beta1.SubmittedState,
 				ErrorMessage: "",
 			},
+			DriverInfo: v1beta1.DriverInfo{
+				PodName: driverPodName,
+			},
 			ExecutorState: map[string]v1beta1.ExecutorState{"exec-1": v1beta1.ExecutorRunningState},
 		},
 	}
 
 	testcases := []testcase{
 		{
-			appName:               "foo-1",
+			appName:               appName,
 			oldAppStatus:          v1beta1.SubmittedState,
 			oldExecutorStatus:     map[string]v1beta1.ExecutorState{"exec-1": v1beta1.ExecutorRunningState},
-			expectedAppState:      v1beta1.SubmittedState,
+			expectedAppState:      v1beta1.FailingState,
 			expectedExecutorState: map[string]v1beta1.ExecutorState{"exec-1": v1beta1.ExecutorFailedState},
-			expectedAppMetrics:    metrics{},
+			expectedAppMetrics: metrics{
+				failedMetricCount: 1,
+			},
 			expectedExecutorMetrics: executorMetrics{
 				failedMetricCount: 1,
 			},
 		},
 		{
-			appName:           "foo-2",
+			appName:           appName,
 			oldAppStatus:      v1beta1.SubmittedState,
 			oldExecutorStatus: map[string]v1beta1.ExecutorState{"exec-1": v1beta1.ExecutorRunningState},
 			driverPod: &apiv1.Pod{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "foo-driver",
+					Name:      driverPodName,
 					Namespace: "test",
 					Labels: map[string]string{
 						config.SparkRoleLabel:    config.SparkDriverRole,
-						config.SparkAppNameLabel: "foo-2",
+						config.SparkAppNameLabel: appName,
 					},
 					ResourceVersion: "1",
 				},
@@ -896,7 +904,7 @@ func TestSyncSparkApplication_ExecutingState(t *testing.T) {
 					Namespace: "test",
 					Labels: map[string]string{
 						config.SparkRoleLabel:    config.SparkExecutorRole,
-						config.SparkAppNameLabel: "foo-2",
+						config.SparkAppNameLabel: appName,
 					},
 					ResourceVersion: "1",
 				},
@@ -914,16 +922,16 @@ func TestSyncSparkApplication_ExecutingState(t *testing.T) {
 			},
 		},
 		{
-			appName:           "foo-3",
+			appName:           appName,
 			oldAppStatus:      v1beta1.RunningState,
 			oldExecutorStatus: map[string]v1beta1.ExecutorState{"exec-1": v1beta1.ExecutorRunningState},
 			driverPod: &apiv1.Pod{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "foo-driver",
+					Name:      driverPodName,
 					Namespace: "test",
 					Labels: map[string]string{
 						config.SparkRoleLabel:    config.SparkDriverRole,
-						config.SparkAppNameLabel: "foo-3",
+						config.SparkAppNameLabel: appName,
 					},
 					ResourceVersion: "1",
 				},
@@ -947,7 +955,7 @@ func TestSyncSparkApplication_ExecutingState(t *testing.T) {
 					Namespace: "test",
 					Labels: map[string]string{
 						config.SparkRoleLabel:    config.SparkExecutorRole,
-						config.SparkAppNameLabel: "foo-3",
+						config.SparkAppNameLabel: appName,
 					},
 					ResourceVersion: "1",
 				},
@@ -965,7 +973,7 @@ func TestSyncSparkApplication_ExecutingState(t *testing.T) {
 			},
 		},
 		{
-			appName:                 "foo-3",
+			appName:                 appName,
 			oldAppStatus:            v1beta1.FailingState,
 			oldExecutorStatus:       map[string]v1beta1.ExecutorState{"exec-1": v1beta1.ExecutorFailedState},
 			expectedAppState:        v1beta1.FailedState,
@@ -974,16 +982,16 @@ func TestSyncSparkApplication_ExecutingState(t *testing.T) {
 			expectedExecutorMetrics: executorMetrics{},
 		},
 		{
-			appName:           "foo-3",
+			appName:           appName,
 			oldAppStatus:      v1beta1.RunningState,
 			oldExecutorStatus: map[string]v1beta1.ExecutorState{"exec-1": v1beta1.ExecutorRunningState},
 			driverPod: &apiv1.Pod{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "foo-driver",
+					Name:      driverPodName,
 					Namespace: "test",
 					Labels: map[string]string{
 						config.SparkRoleLabel:    config.SparkDriverRole,
-						config.SparkAppNameLabel: "foo-3",
+						config.SparkAppNameLabel: appName,
 					},
 					ResourceVersion: "1",
 				},
@@ -997,7 +1005,7 @@ func TestSyncSparkApplication_ExecutingState(t *testing.T) {
 					Namespace: "test",
 					Labels: map[string]string{
 						config.SparkRoleLabel:    config.SparkExecutorRole,
-						config.SparkAppNameLabel: "foo-3",
+						config.SparkAppNameLabel: appName,
 					},
 					ResourceVersion: "1",
 				},
@@ -1015,7 +1023,7 @@ func TestSyncSparkApplication_ExecutingState(t *testing.T) {
 			},
 		},
 		{
-			appName:                 "foo-3",
+			appName:                 appName,
 			oldAppStatus:            v1beta1.SucceedingState,
 			oldExecutorStatus:       map[string]v1beta1.ExecutorState{"exec-1": v1beta1.ExecutorCompletedState},
 			expectedAppState:        v1beta1.CompletedState,
@@ -1024,16 +1032,16 @@ func TestSyncSparkApplication_ExecutingState(t *testing.T) {
 			expectedExecutorMetrics: executorMetrics{},
 		},
 		{
-			appName:           "foo-3",
+			appName:           appName,
 			oldAppStatus:      v1beta1.SubmittedState,
 			oldExecutorStatus: map[string]v1beta1.ExecutorState{},
 			driverPod: &apiv1.Pod{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "foo-driver",
+					Name:      driverPodName,
 					Namespace: "test",
 					Labels: map[string]string{
 						config.SparkRoleLabel:    config.SparkDriverRole,
-						config.SparkAppNameLabel: "foo-3",
+						config.SparkAppNameLabel: appName,
 					},
 				},
 				Status: apiv1.PodStatus{
@@ -1046,7 +1054,7 @@ func TestSyncSparkApplication_ExecutingState(t *testing.T) {
 					Namespace: "test",
 					Labels: map[string]string{
 						config.SparkRoleLabel:    config.SparkExecutorRole,
-						config.SparkAppNameLabel: "foo-3",
+						config.SparkAppNameLabel: appName,
 					},
 				},
 				Status: apiv1.PodStatus{
