@@ -795,7 +795,7 @@ func TestPatchSparkPod_GPU(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		assertFn(t, modifiedDriverPod, gpu, test)
+		assertFn(t, modifiedDriverPod, *app.Spec.Driver.GPU, test)
 		executorPod := &corev1.Pod{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "spark-executor",
@@ -820,7 +820,7 @@ func TestPatchSparkPod_GPU(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		assertFn(t, modifiedExecutorPod, gpu, test)
+		assertFn(t, modifiedExecutorPod, *app.Spec.Executor.GPU, test)
 	}
 }
 
