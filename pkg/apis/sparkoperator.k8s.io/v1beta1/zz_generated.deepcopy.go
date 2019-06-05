@@ -665,6 +665,11 @@ func (in *SparkPodSpec) DeepCopyInto(out *SparkPodSpec) {
 		*out = new(string)
 		**out = **in
 	}
+	if in.GPU != nil {
+		in, out := &in.GPU, &out.GPU
+		*out = new(int64)
+		**out = **in
+	}
 	if in.Image != nil {
 		in, out := &in.Image, &out.Image
 		*out = new(string)
@@ -731,6 +736,18 @@ func (in *SparkPodSpec) DeepCopyInto(out *SparkPodSpec) {
 		in, out := &in.SecurityContenxt, &out.SecurityContenxt
 		*out = new(v1.PodSecurityContext)
 		(*in).DeepCopyInto(*out)
+	}
+	if in.SchedulerName != nil {
+		in, out := &in.SchedulerName, &out.SchedulerName
+		*out = new(string)
+		**out = **in
+	}
+	if in.Sidecars != nil {
+		in, out := &in.Sidecars, &out.Sidecars
+		*out = make([]v1.Container, len(*in))
+		for i := range *in {
+			(*in)[i].DeepCopyInto(&(*out)[i])
+		}
 	}
 	return
 }

@@ -18,6 +18,7 @@ package webhook
 
 import (
 	"fmt"
+	"k8s.io/apimachinery/pkg/api/resource"
 
 	"github.com/golang/glog"
 
@@ -33,6 +34,8 @@ const (
 	sparkDriverContainerName   = "spark-kubernetes-driver"
 	sparkExecutorContainerName = "executor"
 	maxNameLength              = 63
+	ResourceGPU                = corev1.ResourceName("nvidia.com/gpu")
+	gpuPatchPath               = "/nvidia.com~1gpu"
 )
 
 // patchOperation represents a RFC6902 JSON patch operation.
@@ -74,7 +77,10 @@ func patchSparkPod(pod *corev1.Pod, app *v1beta1.SparkApplication) []patchOperat
 			patchOps = append(patchOps, *op)
 		}
 	}
-
+	op = addGPU(pod, app)
+	if op != nil {
+		patchOps = append(patchOps, *op)
+	}
 	return patchOps
 }
 
@@ -352,6 +358,38 @@ func addSidecarContainers(pod *corev1.Pod, app *v1beta1.SparkApplication) []patc
 		}
 	}
 	return ops
+}
+
+func addGPU(pod *corev1.Pod, app *v1beta1.SparkApplication) *patchOperation {
+	var gpu *int64
+	if util.IsDriverPod(pod) {
+		gpu = app.Spec.Driver.GPU
+	}
+	if util.IsExecutorPod(pod) {
+		gpu = app.Spec.Executor.GPU
+	}
+	if gpu == nil || *gpu <= 0 {
+		return nil
+	}
+	i := 0
+	// Find the driver or executor container in the pod.
+	for ; i < len(pod.Spec.Containers); i++ {
+		if pod.Spec.Containers[i].Name == sparkDriverContainerName ||
+			pod.Spec.Containers[i].Name == sparkExecutorContainerName {
+			break
+		}
+	}
+	path := fmt.Sprintf("/spec/containers/%d/resources/limits", i)
+	var value interface{}
+	if len(pod.Spec.Containers[i].Resources.Limits) == 0 {
+		value = corev1.ResourceList{
+			ResourceGPU: *resource.NewQuantity(*gpu, resource.DecimalSI),
+		}
+	} else {
+		path += gpuPatchPath
+		value = *resource.NewQuantity(*gpu, resource.DecimalSI)
+	}
+	return &patchOperation{Op: "add", Path: path, Value: value}
 }
 
 func hasContainer(pod *corev1.Pod, container *corev1.Container) bool {

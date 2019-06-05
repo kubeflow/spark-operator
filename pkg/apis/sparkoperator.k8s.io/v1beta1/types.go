@@ -346,6 +346,9 @@ type SparkPodSpec struct {
 	// MemoryOverhead is the amount of off-heap memory to allocate in cluster mode, in MiB unless otherwise specified.
 	// Optional.
 	MemoryOverhead *string `json:"memoryOverhead,omitempty"`
+	// GPU is the number of nvidia.com/gpu to request for the pod
+	// Optional.
+	GPU *int64 `json:"gpu,omitempty"`
 	// Image is the container image to use. Overrides Spec.Image if set.
 	// Optional.
 	Image *string `json:"image,omitempty"`
