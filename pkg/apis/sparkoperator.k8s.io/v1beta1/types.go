@@ -346,9 +346,9 @@ type SparkPodSpec struct {
 	// MemoryOverhead is the amount of off-heap memory to allocate in cluster mode, in MiB unless otherwise specified.
 	// Optional.
 	MemoryOverhead *string `json:"memoryOverhead,omitempty"`
-	// GPU is the number of nvidia.com/gpu to request for the pod
+	// GPU specifies GPU requirement for the pod.
 	// Optional.
-	GPU *int64 `json:"gpu,omitempty"`
+	GPU *GPUSpec `json:"gpu,omitempty"`
 	// Image is the container image to use. Overrides Spec.Image if set.
 	// Optional.
 	Image *string `json:"image,omitempty"`
@@ -500,6 +500,13 @@ type PrometheusSpec struct {
 	// If not specified, the content in spark-docker/conf/prometheus.yaml will be used.
 	// Configuration has no effect if ConfigFile is set.
 	Configuration *string `json:"configuration,omitempty"`
+}
+
+type GPUSpec struct {
+	// Name is GPU resource name, such as: nvidia.com/gpu or amd.com/gpu
+	Name string `json:"name"`
+	// Quantity is the number of GPU to request for driver or executor.
+	Quantity int64 `json:"quantity"`
 }
 
 // PrometheusMonitoringEnabled returns if Prometheus monitoring is enabled or not.

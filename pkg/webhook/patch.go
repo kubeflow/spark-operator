@@ -19,6 +19,7 @@ package webhook
 import (
 	"fmt"
 	"k8s.io/apimachinery/pkg/api/resource"
+	"strings"
 
 	"github.com/golang/glog"
 
@@ -34,8 +35,6 @@ const (
 	sparkDriverContainerName   = "spark-kubernetes-driver"
 	sparkExecutorContainerName = "executor"
 	maxNameLength              = 63
-	ResourceGPU                = corev1.ResourceName("nvidia.com/gpu")
-	gpuPatchPath               = "/nvidia.com~1gpu"
 )
 
 // patchOperation represents a RFC6902 JSON patch operation.
@@ -361,14 +360,22 @@ func addSidecarContainers(pod *corev1.Pod, app *v1beta1.SparkApplication) []patc
 }
 
 func addGPU(pod *corev1.Pod, app *v1beta1.SparkApplication) *patchOperation {
-	var gpu *int64
+	var gpu *v1beta1.GPUSpec
 	if util.IsDriverPod(pod) {
 		gpu = app.Spec.Driver.GPU
 	}
 	if util.IsExecutorPod(pod) {
 		gpu = app.Spec.Executor.GPU
 	}
-	if gpu == nil || *gpu <= 0 {
+	if gpu == nil {
+		return nil
+	}
+	if gpu.Name == "" {
+		glog.V(2).Infof("Please specify GPU resource name, such as: nvidia.com/gpu, amd.com/gpu etc. gpu spec: %+v", gpu)
+		return nil
+	}
+	if gpu.Quantity <= 0 {
+		glog.V(2).Infof("GPU Quantity must be positive. Current gpu spec: %+v", gpu)
 		return nil
 	}
 	i := 0
@@ -383,11 +390,12 @@ func addGPU(pod *corev1.Pod, app *v1beta1.SparkApplication) *patchOperation {
 	var value interface{}
 	if len(pod.Spec.Containers[i].Resources.Limits) == 0 {
 		value = corev1.ResourceList{
-			ResourceGPU: *resource.NewQuantity(*gpu, resource.DecimalSI),
+			corev1.ResourceName(gpu.Name): *resource.NewQuantity(gpu.Quantity, resource.DecimalSI),
 		}
 	} else {
-		path += gpuPatchPath
-		value = *resource.NewQuantity(*gpu, resource.DecimalSI)
+		encoder := strings.NewReplacer("~", "~0", "/", "~1")
+		path += "/" + encoder.Replace(gpu.Name)
+		value = *resource.NewQuantity(gpu.Quantity, resource.DecimalSI)
 	}
 	return &patchOperation{Op: "add", Path: path, Value: value}
 }

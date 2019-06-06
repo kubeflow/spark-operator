@@ -679,11 +679,12 @@ func TestPatchSparkPod_Sidecars(t *testing.T) {
 }
 
 func TestPatchSparkPod_GPU(t *testing.T) {
-	gpu := int64(1)
+
 	cpuLimit := int64(10)
 	cpuRequest := int64(5)
 
 	type testcase struct {
+		gpuSpec     *v1beta1.GPUSpec
 		cpuLimits   *int64
 		cpuRequests *int64
 	}
@@ -704,14 +705,16 @@ func TestPatchSparkPod_GPU(t *testing.T) {
 		return &ret
 	}
 
-	assertFn := func(t *testing.T, modifiedPod *corev1.Pod, expectGPUCount int64, test testcase) {
+	assertFn := func(t *testing.T, modifiedPod *corev1.Pod, test testcase) {
 		// check GPU Limits
-		quantity := modifiedPod.Spec.Containers[0].Resources.Limits[ResourceGPU]
-		count, succeed := (&quantity).AsInt64()
-		if succeed != true {
-			t.Fatal(fmt.Errorf("value cannot be represented in an int64 OR would result in a loss of precision."))
+		if test.gpuSpec != nil && test.gpuSpec.Name != "" && test.gpuSpec.Quantity > 0 {
+			quantity := modifiedPod.Spec.Containers[0].Resources.Limits[corev1.ResourceName(test.gpuSpec.Name)]
+			count, succeed := (&quantity).AsInt64()
+			if succeed != true {
+				t.Fatal(fmt.Errorf("value cannot be represented in an int64 OR would result in a loss of precision."))
+			}
+			assert.Equal(t, test.gpuSpec.Quantity, count)
 		}
-		assert.Equal(t, expectGPUCount, count)
 
 		// check CPU Requests
 		if test.cpuRequests != nil {
@@ -740,35 +743,79 @@ func TestPatchSparkPod_GPU(t *testing.T) {
 		},
 		Spec: v1beta1.SparkApplicationSpec{
 			Driver: v1beta1.DriverSpec{
-				SparkPodSpec: v1beta1.SparkPodSpec{
-					GPU: &gpu,
-				},
+				SparkPodSpec: v1beta1.SparkPodSpec{},
 			},
 			Executor: v1beta1.ExecutorSpec{
-				SparkPodSpec: v1beta1.SparkPodSpec{
-					GPU: &gpu,
-				},
+				SparkPodSpec: v1beta1.SparkPodSpec{},
 			},
 		},
 	}
 	tests := []testcase{
-		{nil,
+		{
+			nil,
+			nil,
 			nil,
 		},
 		{
+			nil,
 			&cpuLimit,
 			nil,
 		},
 		{
+			nil,
 			nil,
 			&cpuRequest,
 		},
 		{
+			nil,
 			&cpuLimit,
+			&cpuRequest,
+		},
+		{
+			&v1beta1.GPUSpec{},
+			nil,
+			nil,
+		},
+		{
+			&v1beta1.GPUSpec{},
 			&cpuLimit,
+			nil,
+		},
+		{
+			&v1beta1.GPUSpec{},
+			nil,
+			&cpuRequest,
+		},
+		{
+			&v1beta1.GPUSpec{},
+			&cpuLimit,
+			&cpuRequest,
+		},
+		{
+			&v1beta1.GPUSpec{"example.com/gpu", 1},
+			nil,
+			nil,
+		},
+		{
+			&v1beta1.GPUSpec{"example.com/gpu", 1},
+			&cpuLimit,
+			nil,
+		},
+		{
+			&v1beta1.GPUSpec{"example.com/gpu", 1},
+			nil,
+			&cpuRequest,
+		},
+		{
+			&v1beta1.GPUSpec{"example.com/gpu", 1},
+			&cpuLimit,
+			&cpuRequest,
 		},
 	}
+
 	for _, test := range tests {
+		app.Spec.Driver.GPU = test.gpuSpec
+		app.Spec.Executor.GPU = test.gpuSpec
 		driverPod := &corev1.Pod{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "spark-driver",
@@ -790,12 +837,12 @@ func TestPatchSparkPod_GPU(t *testing.T) {
 		if getResourceRequirements(test) != nil {
 			driverPod.Spec.Containers[0].Resources = *getResourceRequirements(test)
 		}
-
 		modifiedDriverPod, err := getModifiedPod(driverPod, app)
 		if err != nil {
 			t.Fatal(err)
 		}
-		assertFn(t, modifiedDriverPod, *app.Spec.Driver.GPU, test)
+
+		assertFn(t, modifiedDriverPod, test)
 		executorPod := &corev1.Pod{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "spark-executor",
@@ -820,7 +867,7 @@ func TestPatchSparkPod_GPU(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		assertFn(t, modifiedExecutorPod, *app.Spec.Executor.GPU, test)
+		assertFn(t, modifiedExecutorPod, test)
 	}
 }
 
