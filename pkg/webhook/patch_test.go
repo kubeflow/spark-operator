@@ -870,6 +870,93 @@ func TestPatchSparkPod_GPU(t *testing.T) {
 	}
 }
 
+func TestPatchSparkPod_HostNetwork(t *testing.T) {
+	var hostNetwork = true
+	var defaultNetwork = false
+
+	app := &v1beta1.SparkApplication{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "spark-test-hostNetwork",
+			UID:  "spark-test-1",
+		},
+		Spec: v1beta1.SparkApplicationSpec{
+			Driver: v1beta1.DriverSpec{
+				SparkPodSpec: v1beta1.SparkPodSpec{},
+			},
+			Executor: v1beta1.ExecutorSpec{
+				SparkPodSpec: v1beta1.SparkPodSpec{},
+			},
+		},
+	}
+
+	tests := []*bool{
+		nil,
+		&defaultNetwork,
+		&hostNetwork,
+	}
+
+	for _, test := range tests {
+		app.Spec.Driver.HostNetwork = test
+		app.Spec.Executor.HostNetwork = test
+		driverPod := &corev1.Pod{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "spark-driver",
+				Labels: map[string]string{
+					config.SparkRoleLabel:               config.SparkDriverRole,
+					config.LaunchedBySparkOperatorLabel: "true",
+				},
+			},
+			Spec: corev1.PodSpec{
+				Containers: []corev1.Container{
+					{
+						Name:  sparkDriverContainerName,
+						Image: "spark-driver:latest",
+					},
+				},
+			},
+		}
+
+		modifiedDriverPod, err := getModifiedPod(driverPod, app)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if test == nil || *test == false {
+			assert.Equal(t, false, modifiedDriverPod.Spec.HostNetwork)
+		} else {
+			assert.Equal(t, true, modifiedDriverPod.Spec.HostNetwork)
+			assert.Equal(t, corev1.DNSClusterFirstWithHostNet, modifiedDriverPod.Spec.DNSPolicy)
+		}
+		executorPod := &corev1.Pod{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "spark-executor",
+				Labels: map[string]string{
+					config.SparkRoleLabel:               config.SparkExecutorRole,
+					config.LaunchedBySparkOperatorLabel: "true",
+				},
+			},
+			Spec: corev1.PodSpec{
+				Containers: []corev1.Container{
+					{
+						Name:  sparkExecutorContainerName,
+						Image: "spark-executor:latest",
+					},
+				},
+			},
+		}
+
+		modifiedExecutorPod, err := getModifiedPod(executorPod, app)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if test == nil || *test == false {
+			assert.Equal(t, false, modifiedExecutorPod.Spec.HostNetwork)
+		} else {
+			assert.Equal(t, true, modifiedExecutorPod.Spec.HostNetwork)
+			assert.Equal(t, corev1.DNSClusterFirstWithHostNet, modifiedExecutorPod.Spec.DNSPolicy)
+		}
+	}
+}
+
 func getModifiedPod(pod *corev1.Pod, app *v1beta1.SparkApplication) (*corev1.Pod, error) {
 	patchOps := patchSparkPod(pod, app)
 	patchBytes, err := json.Marshal(patchOps)

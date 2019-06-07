@@ -57,6 +57,7 @@ func patchSparkPod(pod *corev1.Pod, app *v1beta1.SparkApplication) []patchOperat
 	patchOps = append(patchOps, addPrometheusConfigMap(pod, app)...)
 	patchOps = append(patchOps, addTolerations(pod, app)...)
 	patchOps = append(patchOps, addSidecarContainers(pod, app)...)
+	patchOps = append(patchOps, addHostNetwork(pod, app)...)
 
 	op := addSchedulerName(pod, app)
 	if op != nil {
@@ -398,6 +399,26 @@ func addGPU(pod *corev1.Pod, app *v1beta1.SparkApplication) *patchOperation {
 		value = *resource.NewQuantity(gpu.Quantity, resource.DecimalSI)
 	}
 	return &patchOperation{Op: "add", Path: path, Value: value}
+}
+
+func addHostNetwork(pod *corev1.Pod, app *v1beta1.SparkApplication) []patchOperation {
+	var hostNetwork *bool
+	if util.IsDriverPod(pod) {
+		hostNetwork = app.Spec.Driver.HostNetwork
+	}
+	if util.IsExecutorPod(pod) {
+		hostNetwork = app.Spec.Executor.HostNetwork
+	}
+
+	if hostNetwork == nil || *hostNetwork == false {
+		return nil
+	}
+	var ops []patchOperation
+	ops = append(ops, patchOperation{Op: "add", Path: "/spec/hostNetwork", Value: true})
+	// For Pods with hostNetwork, explicitly set its DNS policy  to “ClusterFirstWithHostNet”
+	// Detail: https://kubernetes.io/docs/concepts/services-networking/dns-pod-service/#pod-s-dns-policy
+	ops = append(ops, patchOperation{Op: "add", Path: "/spec/dnsPolicy", Value: corev1.DNSClusterFirstWithHostNet})
+	return ops
 }
 
 func hasContainer(pod *corev1.Pod, container *corev1.Container) bool {
