@@ -19,13 +19,13 @@ package webhook
 import (
 	"encoding/json"
 	"fmt"
-	"k8s.io/apimachinery/pkg/api/resource"
 	"testing"
 
 	jsonpatch "github.com/evanphx/json-patch"
 	"github.com/stretchr/testify/assert"
 
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta1"
@@ -679,7 +679,6 @@ func TestPatchSparkPod_Sidecars(t *testing.T) {
 }
 
 func TestPatchSparkPod_GPU(t *testing.T) {
-
 	cpuLimit := int64(10)
 	cpuRequest := int64(5)
 

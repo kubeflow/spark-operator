@@ -11,6 +11,7 @@ The Kubernetes Operator for Apache Spark ships with a command-line tool called `
     * [Specifying Hadoop Configuration](#specifying-hadoop-configuration)
     * [Writing Driver Specification](#writing-driver-specification)
     * [Writing Executor Specification](#writing-executor-specification)
+    * [Requesting GPU Resources](#requesting-gpu-resources)
     * [Mounting Secrets](#mounting-secrets)
     * [Mounting ConfigMaps](#mounting-configmaps)
         * [Mounting a ConfigMap storing Spark Configuration Files](#mounting-a-configmap-storing-spark-configuration-files)
@@ -144,6 +145,34 @@ spec:
     labels:
       version: 2.4.0
 ```
+
+### Requesting GPU Resources
+
+A `SparkApplication` can specify an `gpu` for the driver or executor pod, using the optional field `.spec.driver.gpu` or `.spec.executor.gpu`. Below is an example:
+
+```yaml
+spec:
+  driver:
+    cores: 0.1
+    coreLimit: "200m"
+    memory: "512m"
+    gpu:
+      name: "amd.com/gpu"   # GPU resource name
+      quantity: 1           # number of GPUs to request
+    labels:
+      version: 2.4.0
+    serviceAccount: spark
+  executor:
+    cores: 1
+    instances: 1
+    memory: "512m"
+    gpu:
+      name: "nvidia.com/gpu"
+      quantity: 1
+
+```
+Note that the mutating admission webhook is needed to use this feature. Please refer to the [Quick Start Guide](quick-start-guide.md) on how to enable the mutating admission webhook.
+
 
 ### Mounting Secrets
 

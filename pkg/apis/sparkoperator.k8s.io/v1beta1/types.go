@@ -505,7 +505,7 @@ type PrometheusSpec struct {
 type GPUSpec struct {
 	// Name is GPU resource name, such as: nvidia.com/gpu or amd.com/gpu
 	Name string `json:"name"`
-	// Quantity is the number of GPU to request for driver or executor.
+	// Quantity is the number of GPUs to request for driver or executor.
 	Quantity int64 `json:"quantity"`
 }
 
