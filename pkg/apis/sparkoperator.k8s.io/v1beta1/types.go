@@ -388,6 +388,9 @@ type SparkPodSpec struct {
 	// Sidecars is a list of sidecar containers that run along side the main Spark container.
 	// Optional.
 	Sidecars []apiv1.Container `json:"sidecars,omitempty"`
+	// HostNetwork indicates whether to request host networking for the pod or not.
+	// Optional.
+	HostNetwork *bool `json:"hostNetwork,omitempty"`
 }
 
 // DriverSpec is specification of the driver.

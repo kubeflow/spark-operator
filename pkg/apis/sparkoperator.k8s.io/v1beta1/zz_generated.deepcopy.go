@@ -765,6 +765,11 @@ func (in *SparkPodSpec) DeepCopyInto(out *SparkPodSpec) {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
 	}
+	if in.HostNetwork != nil {
+		in, out := &in.HostNetwork, &out.HostNetwork
+		*out = new(bool)
+		**out = **in
+	}
 	return
 }
 
