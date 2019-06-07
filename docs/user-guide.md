@@ -12,7 +12,7 @@ The Kubernetes Operator for Apache Spark ships with a command-line tool called `
     * [Writing Driver Specification](#writing-driver-specification)
     * [Writing Executor Specification](#writing-executor-specification)
     * [Requesting GPU Resources](#requesting-gpu-resources)
-    * [Setting hostNetwork](#setting-hostnetwork)    
+    * [Host Network](#host-network)    
     * [Mounting Secrets](#mounting-secrets)
     * [Mounting ConfigMaps](#mounting-configmaps)
         * [Mounting a ConfigMap storing Spark Configuration Files](#mounting-a-configmap-storing-spark-configuration-files)
@@ -170,11 +170,10 @@ spec:
     gpu:
       name: "nvidia.com/gpu"
       quantity: 1
-
 ```
 Note that the mutating admission webhook is needed to use this feature. Please refer to the [Quick Start Guide](quick-start-guide.md) on how to enable the mutating admission webhook.
 
-### Setting hostNetwork
+### Host Network
 
 A `SparkApplication` can specify `hostNetwork` for the driver or executor pod, using the optional field `.spec.driver.hostNetwork` or `.spec.executor.hostNetwork`. When `hostNetwork` is `true`, the operator sets pods' `spec.hostNetwork` to `true` and sets pods' `spec.dnsPolicy` to `ClusterFirstWithHostNet`. Below is an example:
 
@@ -192,7 +191,6 @@ spec:
     cores: 1
     instances: 1
     memory: "512m"
-
 ```
 Note that the mutating admission webhook is needed to use this feature. Please refer to the [Quick Start Guide](quick-start-guide.md) on how to enable the mutating admission webhook.
 
