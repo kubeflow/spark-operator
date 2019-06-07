@@ -18,10 +18,12 @@ package webhook
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/golang/glog"
 
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta1"
@@ -74,7 +76,10 @@ func patchSparkPod(pod *corev1.Pod, app *v1beta1.SparkApplication) []patchOperat
 			patchOps = append(patchOps, *op)
 		}
 	}
-
+	op = addGPU(pod, app)
+	if op != nil {
+		patchOps = append(patchOps, *op)
+	}
 	return patchOps
 }
 
@@ -352,6 +357,47 @@ func addSidecarContainers(pod *corev1.Pod, app *v1beta1.SparkApplication) []patc
 		}
 	}
 	return ops
+}
+
+func addGPU(pod *corev1.Pod, app *v1beta1.SparkApplication) *patchOperation {
+	var gpu *v1beta1.GPUSpec
+	if util.IsDriverPod(pod) {
+		gpu = app.Spec.Driver.GPU
+	}
+	if util.IsExecutorPod(pod) {
+		gpu = app.Spec.Executor.GPU
+	}
+	if gpu == nil {
+		return nil
+	}
+	if gpu.Name == "" {
+		glog.V(2).Infof("Please specify GPU resource name, such as: nvidia.com/gpu, amd.com/gpu etc. Current gpu spec: %+v", gpu)
+		return nil
+	}
+	if gpu.Quantity <= 0 {
+		glog.V(2).Infof("GPU Quantity must be positive. Current gpu spec: %+v", gpu)
+		return nil
+	}
+	i := 0
+	// Find the driver or executor container in the pod.
+	for ; i < len(pod.Spec.Containers); i++ {
+		if pod.Spec.Containers[i].Name == sparkDriverContainerName ||
+			pod.Spec.Containers[i].Name == sparkExecutorContainerName {
+			break
+		}
+	}
+	path := fmt.Sprintf("/spec/containers/%d/resources/limits", i)
+	var value interface{}
+	if len(pod.Spec.Containers[i].Resources.Limits) == 0 {
+		value = corev1.ResourceList{
+			corev1.ResourceName(gpu.Name): *resource.NewQuantity(gpu.Quantity, resource.DecimalSI),
+		}
+	} else {
+		encoder := strings.NewReplacer("~", "~0", "/", "~1")
+		path += "/" + encoder.Replace(gpu.Name)
+		value = *resource.NewQuantity(gpu.Quantity, resource.DecimalSI)
+	}
+	return &patchOperation{Op: "add", Path: path, Value: value}
 }
 
 func hasContainer(pod *corev1.Pod, container *corev1.Container) bool {
