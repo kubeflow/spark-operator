@@ -148,7 +148,7 @@ spec:
 
 ### Requesting GPU Resources
 
-A `SparkApplication` can specify an `gpu` for the driver or executor pod, using the optional field `.spec.driver.gpu` or `.spec.executor.gpu`. Below is an example:
+A `SparkApplication` can specify GPU resources for the driver or executor pod, using the optional field `.spec.driver.gpu` or `.spec.executor.gpu`. Below is an example:
 
 ```yaml
 spec:
