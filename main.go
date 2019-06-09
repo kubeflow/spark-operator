@@ -72,10 +72,12 @@ var (
 	metricsPrefix       = flag.String("metrics-prefix", "", "Prefix for the metrics.")
 	ingressUrlFormat    = flag.String("ingress-url-format", "", "Ingress URL format.")
 	lockNamespace       = flag.String("lock-namespace", apiv1.NamespaceDefault, "spark operator configMap lock namespace.")
-	leaseDuration       = 15 * time.Second
-	renewDuration       = 5 * time.Second
-	retryPeriod         = 3 * time.Second
-	waitDuration        = 5 * time.Second
+	configMapLockName   = flag.String("configmap-lock-name", "spark-operator-configmap-lock", "name of spark operator configMap lock.")
+
+	leaseDuration = 15 * time.Second
+	renewDuration = 5 * time.Second
+	retryPeriod   = 3 * time.Second
+	waitDuration  = 5 * time.Second
 )
 
 func main() {
@@ -161,7 +163,7 @@ func main() {
 	rl := resourcelock.ConfigMapLock{
 		ConfigMapMeta: metav1.ObjectMeta{
 			Namespace: *lockNamespace,
-			Name:      "spark-operator-configmap-lock", // TODO: make it configurable?
+			Name:      *configMapLockName,
 		},
 		Client: kubeClient.CoreV1(),
 		LockConfig: resourcelock.ResourceLockConfig{
