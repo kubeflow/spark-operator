@@ -321,6 +321,98 @@ func TestSyncSparkApplication_SubmissionFailed(t *testing.T) {
 	assert.Equal(t, int32(2), updatedApp.Status.SubmissionAttempts)
 }
 
+func TestValidateDetectsNodeSelectorSuccessNoSelector(t *testing.T) {
+	ctrl, _ := newFakeController(nil)
+
+	app := &v1beta1.SparkApplication{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "foo",
+			Namespace: "default",
+		},
+	}
+
+	err := ctrl.validateSparkApplication(app)
+	assert.Nil(t, err)
+}
+
+func TestValidateDetectsNodeSelectorSuccessNodeSelectorAtAppLevel(t *testing.T) {
+	ctrl, _ := newFakeController(nil)
+
+	app := &v1beta1.SparkApplication{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "foo",
+			Namespace: "default",
+		},
+		Spec: v1beta1.SparkApplicationSpec{
+			NodeSelector: map[string]string{"mynode": "mygift"},
+		},
+	}
+
+	err := ctrl.validateSparkApplication(app)
+	assert.Nil(t, err)
+}
+
+func TestValidateDetectsNodeSelectorSuccessNodeSelectorAtPodLevel(t *testing.T) {
+	ctrl, _ := newFakeController(nil)
+
+	app := &v1beta1.SparkApplication{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "foo",
+			Namespace: "default",
+		},
+		Spec: v1beta1.SparkApplicationSpec{
+			Driver: v1beta1.DriverSpec{
+				SparkPodSpec: v1beta1.SparkPodSpec{
+					NodeSelector: map[string]string{"mynode": "mygift"},
+				},
+			},
+		},
+	}
+
+	err := ctrl.validateSparkApplication(app)
+	assert.Nil(t, err)
+
+	app.Spec.Executor = v1beta1.ExecutorSpec{
+		SparkPodSpec: v1beta1.SparkPodSpec{
+			NodeSelector: map[string]string{"mynode": "mygift"},
+		},
+	}
+
+	err = ctrl.validateSparkApplication(app)
+	assert.Nil(t, err)
+}
+
+func TestValidateDetectsNodeSelectorFailsAppAndPodLevel(t *testing.T) {
+	ctrl, _ := newFakeController(nil)
+
+	app := &v1beta1.SparkApplication{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "foo",
+			Namespace: "default",
+		},
+		Spec: v1beta1.SparkApplicationSpec{
+			NodeSelector: map[string]string{"mynode": "mygift"},
+			Driver: v1beta1.DriverSpec{
+				SparkPodSpec: v1beta1.SparkPodSpec{
+					NodeSelector: map[string]string{"mynode": "mygift"},
+				},
+			},
+		},
+	}
+
+	err := ctrl.validateSparkApplication(app)
+	assert.NotNil(t, err)
+
+	app.Spec.Executor = v1beta1.ExecutorSpec{
+		SparkPodSpec: v1beta1.SparkPodSpec{
+			NodeSelector: map[string]string{"mynode": "mygift"},
+		},
+	}
+
+	err = ctrl.validateSparkApplication(app)
+	assert.NotNil(t, err)
+}
+
 func TestShouldRetry(t *testing.T) {
 	type testcase struct {
 		app         *v1beta1.SparkApplication
