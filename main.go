@@ -19,23 +19,27 @@ limitations under the License.
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"os"
-	"os/signal"
-	"syscall"
 	"time"
 
 	"github.com/golang/glog"
+
 	apiv1 "k8s.io/api/core/v1"
 	apiextensionsclient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/clock"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/informers"
 	clientset "k8s.io/client-go/kubernetes"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
+	"k8s.io/client-go/tools/leaderelection"
+	"k8s.io/client-go/tools/leaderelection/resourcelock"
+	"k8s.io/client-go/tools/record"
 
 	crclientset "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/client/clientset/versioned"
 	crinformers "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/client/informers/externalversions"
@@ -67,6 +71,11 @@ var (
 	metricsEndpoint     = flag.String("metrics-endpoint", "/metrics", "Metrics endpoint.")
 	metricsPrefix       = flag.String("metrics-prefix", "", "Prefix for the metrics.")
 	ingressUrlFormat    = flag.String("ingress-url-format", "", "Ingress URL format.")
+	lockNamespace       = flag.String("lock-namespace", apiv1.NamespaceDefault, "spark operator configMap lock namespace.")
+	leaseDuration       = 15 * time.Second
+	renewDuration       = 5 * time.Second
+	retryPeriod         = 3 * time.Second
+	waitDuration        = 5 * time.Second
 )
 
 func main() {
@@ -99,8 +108,6 @@ func main() {
 
 	glog.Info("Starting the Spark Operator")
 
-	stopCh := make(chan struct{})
-
 	crClient, err := crclientset.NewForConfig(config)
 	if err != nil {
 		glog.Fatal(err)
@@ -129,15 +136,38 @@ func main() {
 	scheduledApplicationController := scheduledsparkapplication.NewController(
 		crClient, kubeClient, apiExtensionsClient, crInformerFactory, clock.RealClock{})
 
+	controllerCtx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	// Start the informer factory that in turn starts the informer.
-	go crInformerFactory.Start(stopCh)
-	go podInformerFactory.Start(stopCh)
+	go crInformerFactory.Start(controllerCtx.Done())
+	go podInformerFactory.Start(controllerCtx.Done())
 
-	if err = applicationController.Start(*controllerThreads, stopCh); err != nil {
-		glog.Fatal(err)
+	onStarted := func(ctx context.Context) {
+		if err = applicationController.Start(*controllerThreads, ctx.Done()); err != nil {
+			glog.Fatal(err)
+		}
+		if err = scheduledApplicationController.Start(*controllerThreads, ctx.Done()); err != nil {
+			glog.Fatal(err)
+		}
 	}
-	if err = scheduledApplicationController.Start(*controllerThreads, stopCh); err != nil {
-		glog.Fatal(err)
+	onStopped := func() {
+		applicationController.Stop()
+		scheduledApplicationController.Stop()
+	}
+	hostName, err := os.Hostname()
+	if err != nil {
+		glog.Fatalf("failed to get hostname: %v", err)
+	}
+	rl := resourcelock.ConfigMapLock{
+		ConfigMapMeta: metav1.ObjectMeta{
+			Namespace: *lockNamespace,
+			Name:      "spark-operator-configmap-lock", // TODO: make it configurable?
+		},
+		Client: kubeClient.CoreV1(),
+		LockConfig: resourcelock.ResourceLockConfig{
+			Identity:      hostName,
+			EventRecorder: &record.FakeRecorder{},
+		},
 	}
 
 	var hook *webhook.WebHook
@@ -147,25 +177,33 @@ func main() {
 		if err != nil {
 			glog.Fatal(err)
 		}
-
-		if err = hook.Start(*webhookConfigName); err != nil {
-			glog.Fatal(err)
-		}
+		go runWebHook(hook, controllerCtx)
 	}
+	// leader election for multiple operators
+	wait.Forever(func() {
+		leaderelection.RunOrDie(controllerCtx, leaderelection.LeaderElectionConfig{
+			Lock:          &rl,
+			LeaseDuration: leaseDuration,
+			RenewDeadline: renewDuration,
+			RetryPeriod:   retryPeriod,
+			Callbacks: leaderelection.LeaderCallbacks{
+				OnStartedLeading: onStarted,
+				OnStoppedLeading: onStopped,
+			},
+		})
+	}, waitDuration)
+}
 
-	signalCh := make(chan os.Signal, 1)
-	signal.Notify(signalCh, syscall.SIGINT, syscall.SIGTERM)
-	<-signalCh
-
-	close(stopCh)
-
-	glog.Info("Shutting down the Spark Operator")
-	applicationController.Stop()
-	scheduledApplicationController.Stop()
-	if *enableWebhook {
-		if err := hook.Stop(*webhookConfigName); err != nil {
-			glog.Fatal(err)
-		}
+func runWebHook(hook *webhook.WebHook, ctx context.Context) {
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	if err := hook.Start(*webhookConfigName); err != nil {
+		glog.Fatal(err)
+	}
+	<-ctx.Done()
+	glog.Info("Shutting down webhook.")
+	if err := hook.Stop(*webhookConfigName); err != nil {
+		glog.Fatal(err)
 	}
 }
 
