@@ -4,6 +4,7 @@
 | ------------- | ------------- | ------------- | ------------- |
 | Microsoft (MileIQ) |@dharmeshkakadia| Production | AI & Analytics |
 | Lightbend |@yuchaoran2011| Production | Data Infrastructure & Operations |
+| StackTome | @emiliauskas-fuzzy | Production | Data pipelines |
 | CERN|@mrow4a| Evaluation | Data Mining & Analytics |
 | Lyft |@kumare3| Evaluation | ML & Data Infrastructure |
 | MapR Technologies |@sarjeet2013| Evaluation | ML/AI & Analytics Data Platform |
