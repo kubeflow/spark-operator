@@ -218,6 +218,8 @@ type SparkApplicationSpec struct {
 	// RestartPolicy defines the policy on if and in which conditions the controller should restart an application.
 	RestartPolicy RestartPolicy `json:"restartPolicy,omitempty"`
 	// NodeSelector is the Kubernetes node selector to be added to the driver and executor pods.
+	// This field is mutually exclusive with nodeSelector at podSpec level (driver or executor).
+	// This field will be deprecated in future versions (at SparkApplicationSpec level).
 	// Optional.
 	NodeSelector map[string]string `json:"nodeSelector,omitempty"`
 	// FailureRetries is the number of times to retry a failed application before giving up.
@@ -391,6 +393,10 @@ type SparkPodSpec struct {
 	// HostNetwork indicates whether to request host networking for the pod or not.
 	// Optional.
 	HostNetwork *bool `json:"hostNetwork,omitempty"`
+	// NodeSelector is the Kubernetes node selector to be added to the driver and executor pods.
+	// This field is mutually exclusive with nodeSelector at SparkApplication level (which will be deprecated).
+	// Optional.
+	NodeSelector map[string]string `json:"nodeSelector,omitempty"`
 }
 
 // DriverSpec is specification of the driver.

@@ -501,7 +501,12 @@ func (c *Controller) syncSparkApplication(key string) error {
 	switch appToUpdate.Status.AppState.State {
 	case v1beta1.NewState:
 		c.recordSparkApplicationEvent(appToUpdate)
-		appToUpdate = c.submitSparkApplication(appToUpdate)
+		if err := c.validateSparkApplication(appToUpdate); err != nil {
+			appToUpdate.Status.AppState.State = v1beta1.FailedState
+			appToUpdate.Status.AppState.ErrorMessage = err.Error()
+		} else {
+			appToUpdate = c.submitSparkApplication(appToUpdate)
+		}
 	case v1beta1.SucceedingState:
 		if !shouldRetry(appToUpdate) {
 			// Application is not subject to retry. Move to terminal CompletedState.
@@ -763,6 +768,17 @@ func (c *Controller) deleteSparkResources(app *v1beta1.SparkApplication) error {
 		if err != nil && !errors.IsNotFound(err) {
 			return err
 		}
+	}
+
+	return nil
+}
+
+func (c *Controller) validateSparkApplication(app *v1beta1.SparkApplication) error {
+	appSpec := app.Spec
+	driverSpec := appSpec.Driver
+	executorSpec := appSpec.Executor
+	if appSpec.NodeSelector != nil && (driverSpec.NodeSelector != nil || executorSpec.NodeSelector != nil) {
+		return fmt.Errorf("NodeSelector property can be defined at SparkApplication or at any of Driver,Executor")
 	}
 
 	return nil

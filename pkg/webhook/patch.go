@@ -58,6 +58,7 @@ func patchSparkPod(pod *corev1.Pod, app *v1beta1.SparkApplication) []patchOperat
 	patchOps = append(patchOps, addTolerations(pod, app)...)
 	patchOps = append(patchOps, addSidecarContainers(pod, app)...)
 	patchOps = append(patchOps, addHostNetwork(pod, app)...)
+	patchOps = append(patchOps, addNodeSelectors(pod, app)...)
 
 	op := addSchedulerName(pod, app)
 	if op != nil {
@@ -297,6 +298,21 @@ func addTolerations(pod *corev1.Pod, app *v1beta1.SparkApplication) []patchOpera
 	var ops []patchOperation
 	for _, v := range tolerations {
 		ops = append(ops, addToleration(pod, v))
+	}
+	return ops
+}
+
+func addNodeSelectors(pod *corev1.Pod, app *v1beta1.SparkApplication) []patchOperation {
+	var nodeSelector map[string]string
+	if util.IsDriverPod(pod) {
+		nodeSelector = app.Spec.Driver.NodeSelector
+	} else if util.IsExecutorPod(pod) {
+		nodeSelector = app.Spec.Executor.NodeSelector
+	}
+
+	var ops []patchOperation
+	if len(nodeSelector) > 0 {
+		ops = append(ops, patchOperation{Op: "add", Path: "/spec/nodeSelector", Value: nodeSelector})
 	}
 	return ops
 }

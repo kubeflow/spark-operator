@@ -678,6 +678,79 @@ func TestPatchSparkPod_Sidecars(t *testing.T) {
 	assert.Equal(t, "sidecar2", modifiedExecutorPod.Spec.Containers[2].Name)
 }
 
+func TestPatchSparkPod_NodeSector(t *testing.T) {
+	app := &v1beta1.SparkApplication{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "spark-test",
+			UID:  "spark-test-1",
+		},
+		Spec: v1beta1.SparkApplicationSpec{
+			Driver: v1beta1.DriverSpec{
+				SparkPodSpec: v1beta1.SparkPodSpec{
+					NodeSelector: map[string]string{"disk": "ssd", "secondkey": "secondvalue"},
+				},
+			},
+			Executor: v1beta1.ExecutorSpec{
+				SparkPodSpec: v1beta1.SparkPodSpec{
+					NodeSelector: map[string]string{"nodeType": "gpu", "secondkey": "secondvalue"},
+				},
+			},
+		},
+	}
+
+	driverPod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "spark-driver",
+			Labels: map[string]string{
+				config.SparkRoleLabel:               config.SparkDriverRole,
+				config.LaunchedBySparkOperatorLabel: "true",
+			},
+		},
+		Spec: corev1.PodSpec{
+			Containers: []corev1.Container{
+				{
+					Name:  sparkDriverContainerName,
+					Image: "spark-driver:latest",
+				},
+			},
+		},
+	}
+
+	modifiedDriverPod, err := getModifiedPod(driverPod, app)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assert.Equal(t, 2, len(modifiedDriverPod.Spec.NodeSelector))
+	assert.Equal(t, "ssd", modifiedDriverPod.Spec.NodeSelector["disk"])
+	assert.Equal(t, "secondvalue", modifiedDriverPod.Spec.NodeSelector["secondkey"])
+
+	executorPod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "spark-executor",
+			Labels: map[string]string{
+				config.SparkRoleLabel:               config.SparkExecutorRole,
+				config.LaunchedBySparkOperatorLabel: "true",
+			},
+		},
+		Spec: corev1.PodSpec{
+			Containers: []corev1.Container{
+				{
+					Name:  sparkExecutorContainerName,
+					Image: "spark-executor:latest",
+				},
+			},
+		},
+	}
+
+	modifiedExecutorPod, err := getModifiedPod(executorPod, app)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assert.Equal(t, 2, len(modifiedExecutorPod.Spec.NodeSelector))
+	assert.Equal(t, "gpu", modifiedExecutorPod.Spec.NodeSelector["nodeType"])
+	assert.Equal(t, "secondvalue", modifiedExecutorPod.Spec.NodeSelector["secondkey"])
+}
+
 func TestPatchSparkPod_GPU(t *testing.T) {
 	cpuLimit := int64(10)
 	cpuRequest := int64(5)
