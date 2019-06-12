@@ -22,7 +22,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"path/filepath"
 	"reflect"
 	"time"
 
@@ -60,7 +59,7 @@ type WebHook struct {
 	clientset         kubernetes.Interface
 	lister            crdlisters.SparkApplicationLister
 	server            *http.Server
-	cert              *certBundle
+	certProvider      *certProvider
 	serviceRef        *v1beta1.ServiceReference
 	sparkJobNamespace string
 }
@@ -69,15 +68,22 @@ type WebHook struct {
 func New(
 	clientset kubernetes.Interface,
 	informerFactory crinformers.SharedInformerFactory,
-	certDir string,
+	serverCert string,
+	serverCertKey string,
+	caCert string,
+	certReloadInterval time.Duration,
 	webhookServiceNamespace string,
 	webhookServiceName string,
 	webhookPort int,
 	jobNamespace string) (*WebHook, error) {
-	cert := &certBundle{
-		serverCertFile: filepath.Join(certDir, serverCertFile),
-		serverKeyFile:  filepath.Join(certDir, serverKeyFile),
-		caCertFile:     filepath.Join(certDir, caCertFile),
+	cert, err := NewCertProvider(
+		serverCert,
+		serverCertKey,
+		caCert,
+		certReloadInterval,
+	)
+	if err != nil {
+		return nil, err
 	}
 	path := "/webhook"
 	serviceRef := &v1beta1.ServiceReference{
@@ -88,21 +94,19 @@ func New(
 	hook := &WebHook{
 		clientset:         clientset,
 		lister:            informerFactory.Sparkoperator().V1beta1().SparkApplications().Lister(),
-		cert:              cert,
+		certProvider:      cert,
 		serviceRef:        serviceRef,
 		sparkJobNamespace: jobNamespace,
 	}
 
 	mux := http.NewServeMux()
 	mux.HandleFunc(path, hook.serve)
-	tlsConfig, err := configServerTLS(cert)
 	if err != nil {
 		return nil, err
 	}
 	hook.server = &http.Server{
-		Addr:      fmt.Sprintf(":%d", webhookPort),
-		Handler:   mux,
-		TLSConfig: tlsConfig,
+		Addr:    fmt.Sprintf(":%d", webhookPort),
+		Handler: mux,
 	}
 
 	return hook, nil
@@ -110,6 +114,9 @@ func New(
 
 // Start starts the admission webhook server and registers itself to the API server.
 func (wh *WebHook) Start(webhookConfigName string) error {
+	wh.certProvider.Start()
+	wh.server.TLSConfig = wh.certProvider.tlsConfig()
+
 	go func() {
 		glog.Info("Starting the Spark pod admission webhook server")
 		if err := wh.server.ListenAndServeTLS("", ""); err != nil && err != http.ErrServerClosed {
@@ -128,6 +135,7 @@ func (wh *WebHook) Stop(webhookConfigName string) error {
 	glog.Infof("Webhook %s deregistered", webhookConfigName)
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
+	wh.certProvider.Stop()
 	glog.Info("Stopping the Spark pod admission webhook server")
 	return wh.server.Shutdown(ctx)
 }
@@ -196,7 +204,7 @@ func (wh *WebHook) selfRegistration(webhookConfigName string) error {
 	}
 
 	ignorePolicy := v1beta1.Ignore
-	caCert, err := readCertFile(wh.cert.caCertFile)
+	caCert, err := readCertFile(wh.certProvider.caCertFile)
 	if err != nil {
 		return err
 	}

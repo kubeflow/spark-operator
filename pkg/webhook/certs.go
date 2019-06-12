@@ -18,25 +18,74 @@ package webhook
 
 import (
 	"crypto/tls"
+	"github.com/golang/glog"
 	"io/ioutil"
+	"time"
 )
 
-// certBundle is a container of a X509 certificate file and a corresponding key file for the
+// certProvider is a container of a X509 certificate file and a corresponding key file for the
 // webhook server, and a CA certificate file for the API server to verify the server certificate.
-type certBundle struct {
+type certProvider struct {
 	serverCertFile string
 	serverKeyFile  string
 	caCertFile     string
+	reloadInterval time.Duration
+	ticker         *time.Ticker
+	stopChannel    *chan interface{}
+	currentCert    *tls.Certificate
 }
 
-// configServerTLS configures TLS for the admission webhook server.
-func configServerTLS(certBundle *certBundle) (*tls.Config, error) {
-	cert, err := tls.LoadX509KeyPair(certBundle.serverCertFile, certBundle.serverKeyFile)
+func NewCertProvider(serverCertFile, serverKeyFile, caCertFile string, reloadInterval time.Duration) (*certProvider, error) {
+	cert, err := tls.LoadX509KeyPair(serverCertFile, serverKeyFile)
 	if err != nil {
 		return nil, err
 	}
+	return &certProvider{
+		serverCertFile: serverCertFile,
+		serverKeyFile:  serverKeyFile,
+		caCertFile:     caCertFile,
+		reloadInterval: reloadInterval,
+		currentCert:    &cert,
+	}, nil
+}
 
-	return &tls.Config{Certificates: []tls.Certificate{cert}}, nil
+func (c *certProvider) Start() {
+	stopChannel := make(chan interface{})
+	c.stopChannel = &stopChannel
+	ticker := time.NewTicker(c.reloadInterval)
+	c.ticker = ticker
+	go func() {
+		for {
+			select {
+			case <-stopChannel:
+				return
+			case <-c.ticker.C:
+				c.updateCert()
+			}
+		}
+	}()
+}
+
+func (c *certProvider) tlsConfig() *tls.Config {
+	return &tls.Config{
+		GetCertificate: func(ch *tls.ClientHelloInfo) (*tls.Certificate, error) {
+			return c.currentCert, nil
+		},
+	}
+}
+
+func (c *certProvider) Stop() {
+	close(*c.stopChannel)
+	c.ticker.Stop()
+}
+
+func (c *certProvider) updateCert() {
+	cert, err := tls.LoadX509KeyPair(c.serverCertFile, c.serverKeyFile)
+	if err != nil {
+		glog.Error("Could not reload certificate: ", err)
+		return
+	}
+	c.currentCert = &cert
 }
 
 func readCertFile(certFile string) ([]byte, error) {
