@@ -11,6 +11,7 @@ The Kubernetes Operator for Apache Spark ships with a command-line tool called `
     * [Specifying Hadoop Configuration](#specifying-hadoop-configuration)
     * [Writing Driver Specification](#writing-driver-specification)
     * [Writing Executor Specification](#writing-executor-specification)
+    * [Specifying Extra Java Options](#specifying-extra-java-options)
     * [Requesting GPU Resources](#requesting-gpu-resources)
     * [Host Network](#host-network)    
     * [Mounting Secrets](#mounting-secrets)
@@ -146,6 +147,18 @@ spec:
     labels:
       version: 2.4.0
 ```
+
+### Specifying Extra Java Options
+
+A `SparkApplication` can specify extra Java options for the driver or executors, using the optional field `.spec.driver.javaOptions` for the driver and `.spec.executor.javaOptions` for executors. Below is an example:
+
+```yaml
+spec:
+  executor:
+    javaOptions: "-XX:+UnlockExperimentalVMOptions -XX:+UseCGroupMemoryLimitForHeap"
+```
+
+Values specified using those two fields get converted to Spark configuration properties `spark.driver.extraJavaOptions` and `spark.executor.extraJavaOptions`, respectively. **Prefer using the above two fields over configuration properties `spark.driver.extraJavaOptions` and `spark.executor.extraJavaOptions`** as the fields work well with other fields that might modify what gets set for `spark.driver.extraJavaOptions` or `spark.executor.extraJavaOptions`.
 
 ### Requesting GPU Resources
 
