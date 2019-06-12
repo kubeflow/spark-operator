@@ -27,6 +27,7 @@ import (
 	"time"
 
 	"github.com/golang/glog"
+	arv1beta1 "k8s.io/api/admissionregistration/v1beta1"
 	apiv1 "k8s.io/api/core/v1"
 	apiextensionsclient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -50,23 +51,25 @@ import (
 )
 
 var (
-	master              = flag.String("master", "", "The address of the Kubernetes API server. Overrides any value in kubeconfig. Only required if out-of-cluster.")
-	kubeConfig          = flag.String("kubeConfig", "", "Path to a kube config. Only required if out-of-cluster.")
-	installCRDs         = flag.Bool("install-crds", true, "Whether to install CRDs")
-	controllerThreads   = flag.Int("controller-threads", 10, "Number of worker threads used by the SparkApplication controller.")
-	resyncInterval      = flag.Int("resync-interval", 30, "Informer resync interval in seconds.")
-	namespace           = flag.String("namespace", apiv1.NamespaceAll, "The Kubernetes namespace to manage. Will manage custom resource objects of the managed CRD types for the whole cluster if unset.")
-	enableWebhook       = flag.Bool("enable-webhook", false, "Whether to enable the mutating admission webhook for admitting and patching Spark pods.")
-	webhookConfigName   = flag.String("webhook-config-name", "spark-webhook-config", "The name of the MutatingWebhookConfiguration object to create.")
-	webhookCertDir      = flag.String("webhook-cert-dir", "/etc/webhook-certs", "The directory where x509 certificate and key files are stored.")
-	webhookSvcNamespace = flag.String("webhook-svc-namespace", "spark-operator", "The namespace of the Service for the webhook server.")
-	webhookSvcName      = flag.String("webhook-svc-name", "spark-webhook", "The name of the Service for the webhook server.")
-	webhookPort         = flag.Int("webhook-port", 8080, "Service port of the webhook server.")
-	enableMetrics       = flag.Bool("enable-metrics", false, "Whether to enable the metrics endpoint.")
-	metricsPort         = flag.String("metrics-port", "10254", "Port for the metrics endpoint.")
-	metricsEndpoint     = flag.String("metrics-endpoint", "/metrics", "Metrics endpoint.")
-	metricsPrefix       = flag.String("metrics-prefix", "", "Prefix for the metrics.")
-	ingressUrlFormat    = flag.String("ingress-url-format", "", "Ingress URL format.")
+	master                   = flag.String("master", "", "The address of the Kubernetes API server. Overrides any value in kubeconfig. Only required if out-of-cluster.")
+	kubeConfig               = flag.String("kubeConfig", "", "Path to a kube config. Only required if out-of-cluster.")
+	installCRDs              = flag.Bool("install-crds", true, "Whether to install CRDs")
+	controllerThreads        = flag.Int("controller-threads", 10, "Number of worker threads used by the SparkApplication controller.")
+	resyncInterval           = flag.Int("resync-interval", 30, "Informer resync interval in seconds.")
+	namespace                = flag.String("namespace", apiv1.NamespaceAll, "The Kubernetes namespace to manage. Will manage custom resource objects of the managed CRD types for the whole cluster if unset.")
+	enableWebhook            = flag.Bool("enable-webhook", false, "Whether to enable the mutating admission webhook for admitting and patching Spark pods.")
+	webhookFailOnError       = flag.Bool("webhook-fail-on-error", false, "Whether Kubernetes should reject requests when the webhook fails.")
+	webhookNamespaceSelector = flag.String("webhook-namespace-selector", "", "The webhook will only operate on namespaces with this label, specified in the form key=value. Required if webhook-fail-on-error is true.")
+	webhookConfigName        = flag.String("webhook-config-name", "spark-webhook-config", "The name of the MutatingWebhookConfiguration and ValidatingWebhookConfigurationobjects to create.")
+	webhookCertDir           = flag.String("webhook-cert-dir", "/etc/webhook-certs", "The directory where x509 certificate and key files are stored.")
+	webhookSvcNamespace      = flag.String("webhook-svc-namespace", "spark-operator", "The namespace of the Service for the webhook server.")
+	webhookSvcName           = flag.String("webhook-svc-name", "spark-webhook", "The name of the Service for the webhook server.")
+	webhookPort              = flag.Int("webhook-port", 8080, "Service port of the webhook server.")
+	enableMetrics            = flag.Bool("enable-metrics", false, "Whether to enable the metrics endpoint.")
+	metricsPort              = flag.String("metrics-port", "10254", "Port for the metrics endpoint.")
+	metricsEndpoint          = flag.String("metrics-endpoint", "/metrics", "Metrics endpoint.")
+	metricsPrefix            = flag.String("metrics-prefix", "", "Prefix for the metrics.")
+	ingressUrlFormat         = flag.String("ingress-url-format", "", "Ingress URL format.")
 )
 
 func main() {
@@ -142,8 +145,15 @@ func main() {
 
 	var hook *webhook.WebHook
 	if *enableWebhook {
+		if *webhookFailOnError && *webhookNamespaceSelector == "" {
+			glog.Fatal("webhook-namespace-selector must be set when webhook-fail-on-error is true.")
+		}
 		var err error
-		hook, err = webhook.New(kubeClient, crInformerFactory, *webhookCertDir, *webhookSvcNamespace, *webhookSvcName, *webhookPort, *namespace)
+		failurePolicy := arv1beta1.Ignore
+		if *webhookFailOnError {
+			failurePolicy = arv1beta1.Fail
+		}
+		hook, err = webhook.New(kubeClient, crInformerFactory, *webhookCertDir, *webhookSvcNamespace, *webhookSvcName, *webhookPort, failurePolicy, *webhookNamespaceSelector, *namespace)
 		if err != nil {
 			glog.Fatal(err)
 		}

@@ -24,6 +24,7 @@ import (
 	"net/http"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"time"
 
 	"github.com/golang/glog"
@@ -62,6 +63,8 @@ type WebHook struct {
 	server            *http.Server
 	cert              *certBundle
 	serviceRef        *v1beta1.ServiceReference
+	failurePolicy     v1beta1.FailurePolicyType
+	selector          *metav1.LabelSelector
 	sparkJobNamespace string
 }
 
@@ -73,12 +76,16 @@ func New(
 	webhookServiceNamespace string,
 	webhookServiceName string,
 	webhookPort int,
+	failurePolicy v1beta1.FailurePolicyType,
+	webhookNamespaceSelector string,
 	jobNamespace string) (*WebHook, error) {
+
 	cert := &certBundle{
 		serverCertFile: filepath.Join(certDir, serverCertFile),
 		serverKeyFile:  filepath.Join(certDir, serverKeyFile),
 		caCertFile:     filepath.Join(certDir, caCertFile),
 	}
+
 	path := "/webhook"
 	serviceRef := &v1beta1.ServiceReference{
 		Namespace: webhookServiceNamespace,
@@ -91,6 +98,19 @@ func New(
 		cert:              cert,
 		serviceRef:        serviceRef,
 		sparkJobNamespace: jobNamespace,
+		failurePolicy:     failurePolicy,
+	}
+
+	if webhookNamespaceSelector != "" {
+		kv := strings.SplitN(webhookNamespaceSelector, "=", 2)
+		if len(kv) != 2 {
+			return nil, fmt.Errorf("Webhook namespace selector must be in the form key=value")
+		}
+		hook.selector = &metav1.LabelSelector{
+			MatchLabels: map[string]string{
+				kv[0]: kv[1],
+			},
+		}
 	}
 
 	mux := http.NewServeMux()
@@ -195,7 +215,6 @@ func (wh *WebHook) selfRegistration(webhookConfigName string) error {
 		return getErr
 	}
 
-	ignorePolicy := v1beta1.Ignore
 	caCert, err := readCertFile(wh.cert.caCertFile)
 	if err != nil {
 		return err
@@ -216,7 +235,8 @@ func (wh *WebHook) selfRegistration(webhookConfigName string) error {
 			Service:  wh.serviceRef,
 			CABundle: caCert,
 		},
-		FailurePolicy: &ignorePolicy,
+		FailurePolicy:     &wh.failurePolicy,
+		NamespaceSelector: wh.selector,
 	}
 	webhooks := []v1beta1.Webhook{webhook}
 
