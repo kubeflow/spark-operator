@@ -63,6 +63,7 @@ type WebHook struct {
 	cert              *certBundle
 	serviceRef        *v1beta1.ServiceReference
 	sparkJobNamespace string
+	deregisterOnExit  bool
 }
 
 // New creates a new WebHook instance.
@@ -73,7 +74,8 @@ func New(
 	webhookServiceNamespace string,
 	webhookServiceName string,
 	webhookPort int,
-	jobNamespace string) (*WebHook, error) {
+	jobNamespace string,
+	deregisterOnExit bool) (*WebHook, error) {
 	cert := &certBundle{
 		serverCertFile: filepath.Join(certDir, serverCertFile),
 		serverKeyFile:  filepath.Join(certDir, serverKeyFile),
@@ -91,6 +93,7 @@ func New(
 		cert:              cert,
 		serviceRef:        serviceRef,
 		sparkJobNamespace: jobNamespace,
+		deregisterOnExit:  deregisterOnExit,
 	}
 
 	mux := http.NewServeMux()
@@ -122,10 +125,12 @@ func (wh *WebHook) Start(webhookConfigName string) error {
 
 // Stop deregisters itself with the API server and stops the admission webhook server.
 func (wh *WebHook) Stop(webhookConfigName string) error {
-	if err := wh.selfDeregistration(webhookConfigName); err != nil {
-		return err
+	if wh.deregisterOnExit {
+		if err := wh.selfDeregistration(webhookConfigName); err != nil {
+			return err
+		}
+		glog.Infof("Webhook %s deregistered", webhookConfigName)
 	}
-	glog.Infof("Webhook %s deregistered", webhookConfigName)
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	glog.Info("Stopping the Spark pod admission webhook server")
