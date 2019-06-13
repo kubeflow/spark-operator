@@ -31,6 +31,7 @@ import (
 
 	admissionv1beta1 "k8s.io/api/admission/v1beta1"
 	"k8s.io/api/admissionregistration/v1beta1"
+	arv1beta1 "k8s.io/api/admissionregistration/v1beta1"
 	apiv1 "k8s.io/api/core/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -142,10 +143,12 @@ func (wh *WebHook) Start(webhookConfigName string) error {
 
 // Stop deregisters itself with the API server and stops the admission webhook server.
 func (wh *WebHook) Stop(webhookConfigName string) error {
-	if err := wh.selfDeregistration(webhookConfigName); err != nil {
-		return err
+	if wh.failurePolicy != arv1beta1.Fail {
+		if err := wh.selfDeregistration(webhookConfigName); err != nil {
+			return err
+		}
+		glog.Infof("Webhook %s deregistered", webhookConfigName)
 	}
-	glog.Infof("Webhook %s deregistered", webhookConfigName)
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	glog.Info("Stopping the Spark pod admission webhook server")
