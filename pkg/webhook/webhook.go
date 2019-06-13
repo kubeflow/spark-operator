@@ -138,23 +138,20 @@ func (wh *WebHook) serve(w http.ResponseWriter, r *http.Request) {
 	if r.Body != nil {
 		data, err := ioutil.ReadAll(r.Body)
 		if err != nil {
-			glog.Errorf("failed to read the request body")
-			http.Error(w, "failed to read the request body", http.StatusInternalServerError)
+			internalError(w, fmt.Errorf("failed to read the request body"))
 			return
 		}
 		body = data
 	}
 
 	if len(body) == 0 {
-		glog.Errorf("empty request body")
-		http.Error(w, "empty request body", http.StatusBadRequest)
+		denyRequest(w, "empty request body", http.StatusBadRequest)
 		return
 	}
 
 	contentType := r.Header.Get("Content-Type")
 	if contentType != "application/json" {
-		glog.Errorf("Content-Type=%s, expected application/json", contentType)
-		http.Error(w, "invalid Content-Type, expected `application/json`", http.StatusUnsupportedMediaType)
+		denyRequest(w, "invalid Content-Type, expected `application/json`", http.StatusUnsupportedMediaType)
 		return
 	}
 
@@ -162,10 +159,19 @@ func (wh *WebHook) serve(w http.ResponseWriter, r *http.Request) {
 	review := &admissionv1beta1.AdmissionReview{}
 	deserializer := codecs.UniversalDeserializer()
 	if _, _, err := deserializer.Decode(body, nil, review); err != nil {
-		glog.Error(err)
-		reviewResponse = toAdmissionResponse(err)
+		internalError(w, err)
+		return
 	} else {
-		reviewResponse = mutatePods(review, wh.lister, wh.sparkJobNamespace)
+		if review.Request.Resource == podResource {
+			reviewResponse, err = mutatePods(review, wh.lister, wh.sparkJobNamespace)
+			if err != nil {
+				internalError(w, err)
+				return
+			}
+		} else {
+			denyRequest(w, fmt.Sprintf("Unexpected resource type: %v", review.Request.Resource.String()), http.StatusUnsupportedMediaType)
+			return
+		}
 	}
 
 	response := admissionv1beta1.AdmissionReview{}
@@ -178,13 +184,39 @@ func (wh *WebHook) serve(w http.ResponseWriter, r *http.Request) {
 
 	resp, err := json.Marshal(response)
 	if err != nil {
+		internalError(w, err)
+		return
+	}
+	if _, err := w.Write(resp); err != nil {
+		internalError(w, err)
+	}
+}
+
+func internalError(w http.ResponseWriter, err error) {
+	glog.Errorf("Internal error: %v", err)
+	denyRequest(w, err.Error(), 500)
+}
+
+func denyRequest(w http.ResponseWriter, reason string, code int) {
+	response := &admissionv1beta1.AdmissionReview{
+		Response: &admissionv1beta1.AdmissionResponse{
+			Allowed: false,
+			Result: &metav1.Status{
+				Code:    int32(code),
+				Message: reason,
+			},
+		},
+	}
+	resp, err := json.Marshal(response)
+	if err != nil {
 		glog.Error(err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	if _, err := w.Write(resp); err != nil {
-		glog.Error(err)
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+	w.WriteHeader(code)
+	_, err = w.Write(resp)
+	if err != nil {
+		glog.Errorf("Failed to write response body: %v", err)
 	}
 }
 
@@ -242,7 +274,6 @@ func (wh *WebHook) selfRegistration(webhookConfigName string) error {
 			return err
 		}
 	}
-
 	return nil
 }
 
@@ -254,35 +285,32 @@ func (wh *WebHook) selfDeregistration(webhookConfigName string) error {
 func mutatePods(
 	review *admissionv1beta1.AdmissionReview,
 	lister crdlisters.SparkApplicationLister,
-	sparkJobNs string) *admissionv1beta1.AdmissionResponse {
+	sparkJobNs string) (*admissionv1beta1.AdmissionResponse, error) {
 	if review.Request.Resource != podResource {
-		glog.Errorf("expected resource to be %s, got %s", podResource, review.Request.Resource)
-		return nil
+		return nil, fmt.Errorf("expected resource to be %s, got %s", podResource, review.Request.Resource)
 	}
 
 	raw := review.Request.Object.Raw
 	pod := &corev1.Pod{}
 	if err := json.Unmarshal(raw, pod); err != nil {
-		glog.Errorf("failed to unmarshal a Pod from the raw data in the admission request: %v", err)
-		return toAdmissionResponse(err)
+		return nil, fmt.Errorf("failed to unmarshal a Pod from the raw data in the admission request: %v", err)
 	}
 
 	response := &admissionv1beta1.AdmissionResponse{Allowed: true}
 
 	if !isSparkPod(pod) || !inSparkJobNamespace(review.Request.Namespace, sparkJobNs) {
 		glog.V(2).Infof("Pod %s in namespace %s is not subject to mutation", pod.GetObjectMeta().GetName(), review.Request.Namespace)
-		return response
+		return response, nil
 	}
 
 	// Try getting the SparkApplication name from the annotation for that.
 	appName := pod.Labels[config.SparkAppNameLabel]
 	if appName == "" {
-		return response
+		return response, nil
 	}
 	app, err := lister.SparkApplications(review.Request.Namespace).Get(appName)
 	if err != nil {
-		glog.Errorf("failed to get SparkApplication %s/%s: %v", review.Request.Namespace, appName, err)
-		return toAdmissionResponse(err)
+		return nil, fmt.Errorf("failed to get SparkApplication %s/%s: %v", review.Request.Namespace, appName, err)
 	}
 
 	patchOps := patchSparkPod(pod, app)
@@ -290,25 +318,14 @@ func mutatePods(
 		glog.V(2).Infof("Pod %s in namespace %s is subject to mutation", pod.GetObjectMeta().GetName(), review.Request.Namespace)
 		patchBytes, err := json.Marshal(patchOps)
 		if err != nil {
-			glog.Errorf("failed to marshal patch operations %v: %v", patchOps, err)
-			return toAdmissionResponse(err)
+			return nil, fmt.Errorf("failed to marshal patch operations %v: %v", patchOps, err)
 		}
 		response.Patch = patchBytes
 		patchType := admissionv1beta1.PatchTypeJSONPatch
 		response.PatchType = &patchType
 	}
 
-	return response
-}
-
-func toAdmissionResponse(err error) *admissionv1beta1.AdmissionResponse {
-	return &admissionv1beta1.AdmissionResponse{
-		Allowed: true,
-		Result: &metav1.Status{
-			Message: err.Error(),
-			Code:    http.StatusInternalServerError,
-		},
-	}
+	return response, nil
 }
 
 func inSparkJobNamespace(podNs string, sparkJobNamespace string) bool {
