@@ -67,6 +67,8 @@ func (f *sharedInformerFactory) ForResource(resource schema.GroupVersionResource
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Sparkoperator().V1beta1().ScheduledSparkApplications().Informer()}, nil
 	case v1beta1.SchemeGroupVersion.WithResource("sparkapplications"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Sparkoperator().V1beta1().SparkApplications().Informer()}, nil
+	case v1beta1.SchemeGroupVersion.WithResource("sparkapplicationclasses"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Sparkoperator().V1beta1().SparkApplicationClasses().Informer()}, nil
 
 		// Group=sparkoperator.k8s.io, Version=v1beta2
 	case v1beta2.SchemeGroupVersion.WithResource("scheduledsparkapplications"):
