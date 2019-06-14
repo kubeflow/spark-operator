@@ -655,6 +655,7 @@ func (c *Controller) submitSparkApplication(app *v1beta1.SparkApplication) *v1be
 	} else {
 		app.Status.DriverInfo.WebUIServiceName = service.serviceName
 		app.Status.DriverInfo.WebUIPort = service.servicePort
+		app.Status.DriverInfo.WebUIAddress = fmt.Sprintf("%s:%d", service.serviceIP, app.Status.DriverInfo.WebUIPort)
 		// Create UI Ingress if ingress-format is set.
 		if c.ingressURLFormat != "" {
 			ingress, err := createSparkUIIngress(app, *service, c.ingressURLFormat, c.kubeClient)
