@@ -48,7 +48,6 @@ func getSparkUIingressURL(ingressURLFormat string, appName string) string {
 type SparkService struct {
 	serviceName string
 	servicePort int32
-	nodePort    int32
 }
 
 // SparkIngress encapsulates information about the driver UI ingress.
@@ -124,7 +123,7 @@ func createSparkUIService(
 				config.SparkAppNameLabel: app.Name,
 				config.SparkRoleLabel:    config.SparkDriverRole,
 			},
-			Type: apiv1.ServiceTypeNodePort,
+			Type: apiv1.ServiceTypeClusterIP,
 		},
 	}
 
@@ -136,8 +135,7 @@ func createSparkUIService(
 
 	return &SparkService{
 		serviceName: service.Name,
-		servicePort: int32(port),
-		nodePort:    service.Spec.Ports[0].NodePort,
+		servicePort: service.Spec.Ports[0].Port,
 	}, nil
 }
 
