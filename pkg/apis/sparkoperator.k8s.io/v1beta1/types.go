@@ -397,6 +397,9 @@ type SparkPodSpec struct {
 	// This field is mutually exclusive with nodeSelector at SparkApplication level (which will be deprecated).
 	// Optional.
 	NodeSelector map[string]string `json:"nodeSelector,omitempty"`
+	// DnsConfig dns settings for the pod, following the Kubernetes specifications.
+	// Optional.
+	DNSConfig *apiv1.PodDNSConfig `json:"dnsConfig,omitempty"`
 }
 
 // DriverSpec is specification of the driver.

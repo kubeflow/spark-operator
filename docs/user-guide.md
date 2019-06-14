@@ -391,6 +391,24 @@ spec:
       ...
 ```
 
+### Using DNS Settings
+A `SparkApplication` can define DNS settings for the driver and/or executor pod, by adding the standart [DNS](https://kubernetes.io/docs/concepts/services-networking/dns-pod-service/#pod-s-dns-config) kubernetes settings. Fields to add such configuration are `.spec.driver.dnsConfig` and `.spec.executor.dnsConfig`. Example:
+
+```yaml
+spec:
+  driver:
+    dnsConfig:
+      nameservers:
+        - 1.2.3.4
+      searches:
+        - ns1.svc.cluster.local
+        - my.dns.search.suffix
+      options:
+        - name: ndots
+          value: "2"
+        - name: edns0
+```
+
 Note that the mutating admission webhook is needed to use this feature. Please refer to the 
 [Quick Start Guide](quick-start-guide.md) on how to enable the mutating admission webhook.
 
