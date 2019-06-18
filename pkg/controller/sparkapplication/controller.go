@@ -552,13 +552,6 @@ func (c *Controller) syncSparkApplication(key string) error {
 			appToUpdate.Status.AppState.State = v1beta1.PendingRerunState
 		}
 	case v1beta1.FailedSubmissionState:
-		if !shouldRetry(appToUpdate) {
-			// App will never be retried. Move to terminal FailedState.
-			appToUpdate.Status.AppState.State = v1beta1.FailedState
-			c.recordSparkApplicationEvent(appToUpdate)
-		} else if hasRetryIntervalPassed(appToUpdate.Spec.RestartPolicy.OnSubmissionFailureRetryInterval, appToUpdate.Status.SubmissionAttempts, appToUpdate.Status.SubmissionTime) {
-			appToUpdate = c.submitSparkApplication(appToUpdate)
-		}
 		c.recordSparkApplicationEvent(appToUpdate)
 	case v1beta1.InvalidatingState:
 		// Invalidate the current run and enqueue the SparkApplication for re-submission.
@@ -647,7 +640,8 @@ func (c *Controller) submitSparkApplication(app *v1beta1.SparkApplication) *v1be
 		}
 		return app
 	}
-	glog.Infof("Submission Job for SparkApplication %s/%s has been created", app.Namespace, app.Name)
+
+	glog.Infof("SparkApplication %s/%s has been submitted", app.Namespace, app.Name)
 	app.Status = v1beta1.SparkApplicationStatus{
 		SubmissionID: submissionID,
 		DriverInfo:   v1beta1.DriverInfo{PodName: driverPodName},
