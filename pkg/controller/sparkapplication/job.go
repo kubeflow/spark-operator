@@ -103,20 +103,20 @@ func (sjm *submissionJobManager) deleteSubmissionJob(app *v1beta1.SparkApplicati
 
 // hasJobSucceeded returns a boolean that indicates if the job has succeeded or not if the job has terminated.
 // Otherwise, it returns a nil to indicate that the job has not terminated yet.
-func (sjm *submissionJobManager) hasJobSucceeded(app *v1beta1.SparkApplication) (*bool, error) {
+func (sjm *submissionJobManager) hasJobSucceeded(app *v1beta1.SparkApplication) (*bool, *metav1.Time, error) {
 	job, err := sjm.getSubmissionJob(app)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	for _, cond := range job.Status.Conditions {
 		if cond.Type == batchv1.JobComplete {
-			return boolptr(true), nil
+			return boolptr(true), job.Status.CompletionTime, nil
 		}
 		if cond.Type == batchv1.JobFailed {
-			return boolptr(false), nil
+			return boolptr(false), nil, nil
 		}
 	}
-	return nil, nil
+	return nil, nil, nil
 }
 
 func boolptr(v bool) *bool {

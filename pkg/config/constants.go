@@ -80,6 +80,10 @@ const (
 )
 
 const (
+	// SparkAppNameKey is the configuration property for application name.
+	SparkAppNameKey = "spark.app.name"
+	// SparkAppNamespaceKey is the configuration property for application namespace.
+	SparkAppNamespaceKey = "spark.kubernetes.namespace"
 	// SparkContainerImageKey is the configuration property for specifying the unified container image.
 	SparkContainerImageKey = "spark.kubernetes.container.image"
 	// SparkImagePullSecretKey is the configuration property for specifying the comma-separated list of image-pull
@@ -174,11 +178,20 @@ const (
 	HadoopDelegationTokenFileName = "hadoop.token"
 )
 
+const (
+	// PrometheusConfigMapNameSuffix is the name prefix of the Prometheus ConfigMap.
+	PrometheusConfigMapNameSuffix = "prom-conf"
+	// PrometheusConfigMapMountPath is the mount path of the Prometheus ConfigMap.
+	PrometheusConfigMapMountPath = "/etc/metrics/conf"
+)
+
+// DefaultMetricsProperties is the default content of metrics.properties.
 const DefaultMetricsProperties = `
 *.sink.jmx.class=org.apache.spark.metrics.sink.JmxSink
 driver.source.jvm.class=org.apache.spark.metrics.source.JvmSource
 executor.source.jvm.class=org.apache.spark.metrics.source.JvmSource`
 
+// DefaultPrometheusConfiguration is the default content of prometheus.yaml.
 const DefaultPrometheusConfiguration = `
 lowercaseOutputName: true
 attrNameSnakeCase: true
@@ -268,4 +281,6 @@ rules:
       app_id: "$2"
       executor_id: "$3"
 `
+
+// DefaultPrometheusJavaAgentPort is the default port used by the Prometheus JMX exporter.
 const DefaultPrometheusJavaAgentPort int32 = 8090
