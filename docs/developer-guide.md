@@ -77,3 +77,7 @@ To run unit tests, run the following command:
 $ go test ./...
 ```
 
+## Leader election for HA
+
+Currently, master branch code doesn't support HA and there are some [issue](https://github.com/GoogleCloudPlatform/spark-on-k8s-operator/issues/458) and PRs( [PR1](https://github.com/GoogleCloudPlatform/spark-on-k8s-operator/pull/511), [PR2](https://github.com/GoogleCloudPlatform/spark-on-k8s-operator/pull/518)) on it. Both PRs are implemented by utilizing [leaderelection tool](https://github.com/kubernetes/client-go/tree/master/tools/leaderelection), which is an alpha API and may change significantly or even be removed in the future. As a result, it might be better for you to implement and test this feature based on PRs above. To achieve leader election, we should ensure that only one `applicationController` and one `scheduledApplicationController` running at any time. And there can be multiple webhook servers running simultaneously for the reason that webhook service can route mutating admission requests to any replicas.
+

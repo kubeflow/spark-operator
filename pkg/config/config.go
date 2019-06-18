@@ -51,3 +51,8 @@ func GetExecutorEnvVarConfOptions(app *v1beta1.SparkApplication) []string {
 	}
 	return envVarConfOptions
 }
+
+// GetPrometheusConfigMapName returns the name of the ConfigMap for Prometheus configuration.
+func GetPrometheusConfigMapName(app *v1beta1.SparkApplication) string {
+	return fmt.Sprintf("%s-%s", app.Name, PrometheusConfigMapNameSuffix)
+}

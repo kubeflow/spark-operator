@@ -11,6 +11,9 @@ The Kubernetes Operator for Apache Spark ships with a command-line tool called `
     * [Specifying Hadoop Configuration](#specifying-hadoop-configuration)
     * [Writing Driver Specification](#writing-driver-specification)
     * [Writing Executor Specification](#writing-executor-specification)
+    * [Specifying Extra Java Options](#specifying-extra-java-options)
+    * [Requesting GPU Resources](#requesting-gpu-resources)
+    * [Host Network](#host-network)    
     * [Mounting Secrets](#mounting-secrets)
     * [Mounting ConfigMaps](#mounting-configmaps)
         * [Mounting a ConfigMap storing Spark Configuration Files](#mounting-a-configmap-storing-spark-configuration-files)
@@ -19,8 +22,9 @@ The Kubernetes Operator for Apache Spark ships with a command-line tool called `
     * [Using Secrets As Environment Variables](#using-secrets-as-environment-variables)
     * [Using Image Pull Secrets](#using-image-pull-secrets)
     * [Using Pod Affinity](#using-pod-affinity)
-    * [Adding Tolerations](#adding-tolerations)
+    * [Using Tolerations](#using-tolerations)
     * [Using Pod Security Context](#using-pod-security-context)
+    * [Using Sidecar Containers](#using-sidecar-containers)
     * [Python Support](#python-support)
     * [Monitoring](#monitoring) 
 * [Working with SparkApplications](#working-with-sparkapplications)
@@ -143,6 +147,66 @@ spec:
     labels:
       version: 2.4.0
 ```
+
+### Specifying Extra Java Options
+
+A `SparkApplication` can specify extra Java options for the driver or executors, using the optional field `.spec.driver.javaOptions` for the driver and `.spec.executor.javaOptions` for executors. Below is an example:
+
+```yaml
+spec:
+  executor:
+    javaOptions: "-XX:+UnlockExperimentalVMOptions -XX:+UseCGroupMemoryLimitForHeap"
+```
+
+Values specified using those two fields get converted to Spark configuration properties `spark.driver.extraJavaOptions` and `spark.executor.extraJavaOptions`, respectively. **Prefer using the above two fields over configuration properties `spark.driver.extraJavaOptions` and `spark.executor.extraJavaOptions`** as the fields work well with other fields that might modify what gets set for `spark.driver.extraJavaOptions` or `spark.executor.extraJavaOptions`.
+
+### Requesting GPU Resources
+
+A `SparkApplication` can specify GPU resources for the driver or executor pod, using the optional field `.spec.driver.gpu` or `.spec.executor.gpu`. Below is an example:
+
+```yaml
+spec:
+  driver:
+    cores: 0.1
+    coreLimit: "200m"
+    memory: "512m"
+    gpu:
+      name: "amd.com/gpu"   # GPU resource name
+      quantity: 1           # number of GPUs to request
+    labels:
+      version: 2.4.0
+    serviceAccount: spark
+  executor:
+    cores: 1
+    instances: 1
+    memory: "512m"
+    gpu:
+      name: "nvidia.com/gpu"
+      quantity: 1
+```
+Note that the mutating admission webhook is needed to use this feature. Please refer to the [Quick Start Guide](quick-start-guide.md) on how to enable the mutating admission webhook.
+
+### Host Network
+
+A `SparkApplication` can specify `hostNetwork` for the driver or executor pod, using the optional field `.spec.driver.hostNetwork` or `.spec.executor.hostNetwork`. When `hostNetwork` is `true`, the operator sets pods' `spec.hostNetwork` to `true` and sets pods' `spec.dnsPolicy` to `ClusterFirstWithHostNet`. Below is an example:
+
+```yaml
+spec:
+  driver:
+    cores: 0.1
+    coreLimit: "200m"
+    memory: "512m"
+    hostNetwork: true
+    labels:
+      version: 2.4.0
+    serviceAccount: spark
+  executor:
+    cores: 1
+    instances: 1
+    memory: "512m"
+```
+Note that the mutating admission webhook is needed to use this feature. Please refer to the [Quick Start Guide](quick-start-guide.md) on how to enable the mutating admission webhook.
+
 
 ### Mounting Secrets
 
@@ -269,7 +333,7 @@ spec:
 
 Note that the mutating admission webhook is needed to use this feature. Please refer to the [Quick Start Guide](quick-start-guide.md) on how to enable the mutating admission webhook.
 
-### Adding Tolerations
+### Using Tolerations
 
 A `SparkApplication` can specify an `Tolerations` for the driver or executor pod, using the optional field `.spec.driver.tolerations` or `.spec.executor.tolerations`. Below is an example:
 
@@ -309,6 +373,45 @@ spec:
 Note that the mutating admission webhook is needed to use this feature. Please refer to the 
 [Quick Start Guide](quick-start-guide.md) on how to enable the mutating admission webhook.
 
+### Using Sidecar Containers
+
+A `SparkApplication` can specify one or more optional sidecar containers for the driver or executor pod, using the optional field `.spec.driver.sidecars` or `.spec.executor.containers`. The specification of each sidecar container follows the [Container](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.14/#container-v1-core) API definition. Below is an example:
+
+```yaml
+spec:
+  driver:
+    sidecars:
+    - name: "sidecar1"
+      image: "sidecar1:latest"
+      ...  
+  executor:
+    sidecars:
+    - name: "sidecar1"
+      image: "sidecar1:latest"
+      ...
+```
+
+### Using DNS Settings
+A `SparkApplication` can define DNS settings for the driver and/or executor pod, by adding the standart [DNS](https://kubernetes.io/docs/concepts/services-networking/dns-pod-service/#pod-s-dns-config) kubernetes settings. Fields to add such configuration are `.spec.driver.dnsConfig` and `.spec.executor.dnsConfig`. Example:
+
+```yaml
+spec:
+  driver:
+    dnsConfig:
+      nameservers:
+        - 1.2.3.4
+      searches:
+        - ns1.svc.cluster.local
+        - my.dns.search.suffix
+      options:
+        - name: ndots
+          value: "2"
+        - name: edns0
+```
+
+Note that the mutating admission webhook is needed to use this feature. Please refer to the 
+[Quick Start Guide](quick-start-guide.md) on how to enable the mutating admission webhook.
+
 ### Python Support
 
 Python support can be enabled by setting `.spec.mainApplicationFile` with path to your python application. Optionaly, the `.spec.pythonVersion` field can be used to set the major Python version of the docker image used to run the driver and executor containers. Below is an example showing part of a `SparkApplication` specification:
@@ -343,7 +446,7 @@ Note that Python binding for PySpark is available in Apache Spark 2.4.
 
 The operator supports using the Spark metric system to expose metrics to a variety of sinks. Particularly, it is able to automatically configure the metric system to expose metrics to [Prometheus](https://prometheus.io/). Specifically, the field `.spec.monitoring` specifies how application monitoring is handled and particularly how metrics are to be reported. The metric system is configured through the configuration file `metrics.properties`, which gets its content from the field `.spec.monitoring.metricsProperties`. The content of [metrics.properties](../spark-docker/conf/metrics.properties) will be used by default if `.spec.monitoring.metricsProperties` is not specified. You can choose to enable or disable reporting driver and executor metrics using the fields `.spec.monitoring.exposeDriverMetrics` and `.spec.monitoring.exposeExecutorMetrics`, respectively. 
 
-Further, the field `.spec.monitoring.prometheus` specifies how metrics are exposed to Prometheus using the [Prometheus JMX exporter](https://github.com/prometheus/jmx_exporter). When `.spec.monitoring.prometheus` is specified, the operator automatically configures the JMX exporter to run as a Java agent. The only required field of `.spec.monitoring.prometheus` is `jmxExporterJar`, which specified the path to the Prometheus JMX exporter Java agent jar in the container. If you use the image `gcr.io/spark-operator/spark:v2.4.0-gcs-prometheus`, the jar is located at `/prometheus/jmx_prometheus_javaagent-0.3.1.jar`. The field `.spec.monitoring.prometheus.port` specifies the port the JMX exporter Java agent binds to and defaults to `8090` if not specified. The field `.spec.monitoring.prometheus.configuration` specifies the content of the configuration to be used with the JMX exporter. The content of [prometheus.yaml](../spark-docker/conf/prometheus.yaml) will be used by default if `.spec.monitoring.prometheus.configuration` is not specified.    
+Further, the field `.spec.monitoring.prometheus` specifies how metrics are exposed to Prometheus using the [Prometheus JMX exporter](https://github.com/prometheus/jmx_exporter). When `.spec.monitoring.prometheus` is specified, the operator automatically configures the JMX exporter to run as a Java agent. The only required field of `.spec.monitoring.prometheus` is `jmxExporterJar`, which specified the path to the Prometheus JMX exporter Java agent jar in the container. If you use the image `gcr.io/spark-operator/spark:v2.4.0-gcs-prometheus`, the jar is located at `/prometheus/jmx_prometheus_javaagent-0.11.0.jar`. The field `.spec.monitoring.prometheus.port` specifies the port the JMX exporter Java agent binds to and defaults to `8090` if not specified. The field `.spec.monitoring.prometheus.configuration` specifies the content of the configuration to be used with the JMX exporter. The content of [prometheus.yaml](../spark-docker/conf/prometheus.yaml) will be used by default if `.spec.monitoring.prometheus.configuration` is not specified.    
 
 Below is an example that shows how to configure the metric system to expose metrics to Prometheus using the Prometheus JMX exporter. Note that the JMX exporter Java agent jar is listed as a dependency and will be downloaded to where `.spec.dep.jarsDownloadDir` points to in Spark 2.3.x, which is `/var/spark-data/spark-jars` by default. Things are different in Spark 2.4 as dependencies will be downloaded to the local working directory instead in Spark 2.4. A complete example can be found in [examples/spark-pi-prometheus.yaml](../examples/spark-pi-prometheus.yaml).
 
@@ -351,11 +454,11 @@ Below is an example that shows how to configure the metric system to expose metr
 spec:
   dep:
     jars:
-    - http://central.maven.org/maven2/io/prometheus/jmx/jmx_prometheus_javaagent/0.3.1/jmx_prometheus_javaagent-0.3.1.jar
+    - http://central.maven.org/maven2/io/prometheus/jmx/jmx_prometheus_javaagent/0.11.0/jmx_prometheus_javaagent-0.11.0.jar
   monitoring:
     exposeDriverMetrics: true
     prometheus:
-      jmxExporterJar: "/var/spark-data/spark-jars/jmx_prometheus_javaagent-0.3.1.jar"    
+      jmxExporterJar: "/var/spark-data/spark-jars/jmx_prometheus_javaagent-0.11.0.jar"    
 ```
 
 The operator automatically adds the annotations such as `prometheus.io/scrape=true` on the driver and/or executor pods (depending on the values of  `.spec.monitoring.exposeDriverMetrics` and `.spec.monitoring.exposeExecutorMetrics`) so the metrics exposed on the pods can be scraped by the Prometheus server in the same cluster.

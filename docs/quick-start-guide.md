@@ -137,7 +137,7 @@ The operator uses multiple workers in the `SparkApplication` controller. The num
 
 The operator enables cache resynchronization so periodically the informers used by the operator will re-list existing objects it manages and re-trigger resource events. The resynchronization interval in seconds can be configured using the flag `-resync-interval`, with a default value of 30 seconds.
 
-By default, the operator will install the [CustomResourceDefinitions](https://kubernetes.io/docs/tasks/access-kubernetes-api/extend-api-custom-resource-definitions/) for the custom resources it managers. This can be disabled by setting the flag `-install-crds=false`, in which case the CustomResourceDefinitions can be installed manually using `kubectl apply -f manifest/spark-operator-crds.yaml`. 
+By default, the operator will install the [CustomResourceDefinitions](https://kubernetes.io/docs/tasks/access-kubernetes-api/extend-api-custom-resource-definitions/) for the custom resources it manages. This can be disabled by setting the flag `-install-crds=false`, in which case the CustomResourceDefinitions can be installed manually using `kubectl apply -f manifest/spark-operator-crds.yaml`. 
 
 The mutating admission webhook is an **optional** component and can be enabled or disabled using the `-enable-webhook` flag, which defaults to `false`.
 
@@ -198,10 +198,10 @@ and deleting the pods outside the operator might lead to incorrect metric values
 
 ## Driver UI Access and Ingress
 
-The operator, by default, makes the Spark UI accessible by creating a service of type `NodePort` which exposes the UI via the node running the driver.
+The operator, by default, makes the Spark UI accessible by creating a service of type `ClusterIP` which exposes the UI. This is only accessible from within the cluster.
 The operator also supports creating an Ingress for the UI. This can be turned on by setting the `ingress-url-format` command-line flag. The `ingress-url-format` should be a template like `{{$appName}}.ingress.cluster.com` and the operator will replace the `{{$appName}}` with the appropriate appName.
 
-The operator also sets both `WebUIAddress` which uses the Node's public IP as well as `WebUIIngressAddress` as part of the `DriverInfo` field of the `SparkApplication`.
+The operator also sets both `WebUIAddress` which is accessible from within the cluster as well as `WebUIIngressAddress` as part of the `DriverInfo` field of the `SparkApplication`.
 
 ## About the Mutating Admission Webhook
 

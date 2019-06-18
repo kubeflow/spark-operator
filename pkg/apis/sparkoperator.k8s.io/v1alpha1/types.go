@@ -422,8 +422,7 @@ const (
 // DriverInfo captures information about the driver.
 type DriverInfo struct {
 	WebUIServiceName string `json:"webUIServiceName,omitempty"`
-	// UI Details for the UI created via NodePort service.
-	// TODO: Remove this in favor of UI access via Ingress.
+	// UI Details for the UI created via ClusterIP service accessible from within the cluster.
 	WebUIPort    int32  `json:"webUIPort,omitempty"`
 	WebUIAddress string `json:"webUIAddress,omitempty"`
 	// Ingress Details if an ingress for the UI was created.

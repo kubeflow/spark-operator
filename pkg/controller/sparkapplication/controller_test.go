@@ -316,6 +316,98 @@ func TestSyncSparkApplication_SubmissionFailed(t *testing.T) {
 	assert.Equal(t, v1beta1.FailedState, updatedApp.Status.AppState.State)
 }
 
+func TestValidateDetectsNodeSelectorSuccessNoSelector(t *testing.T) {
+	ctrl, _ := newFakeController(nil)
+
+	app := &v1beta1.SparkApplication{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "foo",
+			Namespace: "default",
+		},
+	}
+
+	err := ctrl.validateSparkApplication(app)
+	assert.Nil(t, err)
+}
+
+func TestValidateDetectsNodeSelectorSuccessNodeSelectorAtAppLevel(t *testing.T) {
+	ctrl, _ := newFakeController(nil)
+
+	app := &v1beta1.SparkApplication{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "foo",
+			Namespace: "default",
+		},
+		Spec: v1beta1.SparkApplicationSpec{
+			NodeSelector: map[string]string{"mynode": "mygift"},
+		},
+	}
+
+	err := ctrl.validateSparkApplication(app)
+	assert.Nil(t, err)
+}
+
+func TestValidateDetectsNodeSelectorSuccessNodeSelectorAtPodLevel(t *testing.T) {
+	ctrl, _ := newFakeController(nil)
+
+	app := &v1beta1.SparkApplication{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "foo",
+			Namespace: "default",
+		},
+		Spec: v1beta1.SparkApplicationSpec{
+			Driver: v1beta1.DriverSpec{
+				SparkPodSpec: v1beta1.SparkPodSpec{
+					NodeSelector: map[string]string{"mynode": "mygift"},
+				},
+			},
+		},
+	}
+
+	err := ctrl.validateSparkApplication(app)
+	assert.Nil(t, err)
+
+	app.Spec.Executor = v1beta1.ExecutorSpec{
+		SparkPodSpec: v1beta1.SparkPodSpec{
+			NodeSelector: map[string]string{"mynode": "mygift"},
+		},
+	}
+
+	err = ctrl.validateSparkApplication(app)
+	assert.Nil(t, err)
+}
+
+func TestValidateDetectsNodeSelectorFailsAppAndPodLevel(t *testing.T) {
+	ctrl, _ := newFakeController(nil)
+
+	app := &v1beta1.SparkApplication{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "foo",
+			Namespace: "default",
+		},
+		Spec: v1beta1.SparkApplicationSpec{
+			NodeSelector: map[string]string{"mynode": "mygift"},
+			Driver: v1beta1.DriverSpec{
+				SparkPodSpec: v1beta1.SparkPodSpec{
+					NodeSelector: map[string]string{"mynode": "mygift"},
+				},
+			},
+		},
+	}
+
+	err := ctrl.validateSparkApplication(app)
+	assert.NotNil(t, err)
+
+	app.Spec.Executor = v1beta1.ExecutorSpec{
+		SparkPodSpec: v1beta1.SparkPodSpec{
+			NodeSelector: map[string]string{"mynode": "mygift"},
+		},
+	}
+
+	err = ctrl.validateSparkApplication(app)
+	assert.NotNil(t, err)
+}
+
 func TestShouldRetry(t *testing.T) {
 	type testcase struct {
 		app         *v1beta1.SparkApplication
@@ -828,9 +920,12 @@ func TestSyncSparkApplication_ExecutingState(t *testing.T) {
 	os.Setenv(kubernetesServiceHostEnvVar, "localhost")
 	os.Setenv(kubernetesServicePortEnvVar, "443")
 
+	appName := "foo"
+	driverPodName := appName + "-driver"
+
 	app := &v1beta1.SparkApplication{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "foo",
+			Name:      appName,
 			Namespace: "test",
 		},
 		Spec: v1beta1.SparkApplicationSpec{
@@ -843,33 +938,38 @@ func TestSyncSparkApplication_ExecutingState(t *testing.T) {
 				State:        v1beta1.SubmittedState,
 				ErrorMessage: "",
 			},
+			DriverInfo: v1beta1.DriverInfo{
+				PodName: driverPodName,
+			},
 			ExecutorState: map[string]v1beta1.ExecutorState{"exec-1": v1beta1.ExecutorRunningState},
 		},
 	}
 
 	testcases := []testcase{
 		{
-			appName:               "foo-1",
+			appName:               appName,
 			oldAppStatus:          v1beta1.SubmittedState,
 			oldExecutorStatus:     map[string]v1beta1.ExecutorState{"exec-1": v1beta1.ExecutorRunningState},
-			expectedAppState:      v1beta1.SubmittedState,
+			expectedAppState:      v1beta1.FailingState,
 			expectedExecutorState: map[string]v1beta1.ExecutorState{"exec-1": v1beta1.ExecutorFailedState},
-			expectedAppMetrics:    metrics{},
+			expectedAppMetrics: metrics{
+				failedMetricCount: 1,
+			},
 			expectedExecutorMetrics: executorMetrics{
 				failedMetricCount: 1,
 			},
 		},
 		{
-			appName:           "foo-2",
+			appName:           appName,
 			oldAppStatus:      v1beta1.SubmittedState,
 			oldExecutorStatus: map[string]v1beta1.ExecutorState{"exec-1": v1beta1.ExecutorRunningState},
 			driverPod: &apiv1.Pod{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "foo-driver",
+					Name:      driverPodName,
 					Namespace: "test",
 					Labels: map[string]string{
 						config.SparkRoleLabel:    config.SparkDriverRole,
-						config.SparkAppNameLabel: "foo-2",
+						config.SparkAppNameLabel: appName,
 					},
 					ResourceVersion: "1",
 				},
@@ -883,7 +983,7 @@ func TestSyncSparkApplication_ExecutingState(t *testing.T) {
 					Namespace: "test",
 					Labels: map[string]string{
 						config.SparkRoleLabel:    config.SparkExecutorRole,
-						config.SparkAppNameLabel: "foo-2",
+						config.SparkAppNameLabel: appName,
 					},
 					ResourceVersion: "1",
 				},
@@ -901,21 +1001,31 @@ func TestSyncSparkApplication_ExecutingState(t *testing.T) {
 			},
 		},
 		{
-			appName:           "foo-3",
+			appName:           appName,
 			oldAppStatus:      v1beta1.RunningState,
 			oldExecutorStatus: map[string]v1beta1.ExecutorState{"exec-1": v1beta1.ExecutorRunningState},
 			driverPod: &apiv1.Pod{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "foo-driver",
+					Name:      driverPodName,
 					Namespace: "test",
 					Labels: map[string]string{
 						config.SparkRoleLabel:    config.SparkDriverRole,
-						config.SparkAppNameLabel: "foo-3",
+						config.SparkAppNameLabel: appName,
 					},
 					ResourceVersion: "1",
 				},
 				Status: apiv1.PodStatus{
 					Phase: apiv1.PodFailed,
+					ContainerStatuses: []apiv1.ContainerStatus{
+						{
+							State: apiv1.ContainerState{
+								Terminated: &apiv1.ContainerStateTerminated{
+									ExitCode: 137,
+									Reason:   "OOMKilled",
+								},
+							},
+						},
+					},
 				},
 			},
 			executorPod: &apiv1.Pod{
@@ -924,7 +1034,7 @@ func TestSyncSparkApplication_ExecutingState(t *testing.T) {
 					Namespace: "test",
 					Labels: map[string]string{
 						config.SparkRoleLabel:    config.SparkExecutorRole,
-						config.SparkAppNameLabel: "foo-3",
+						config.SparkAppNameLabel: appName,
 					},
 					ResourceVersion: "1",
 				},
@@ -942,7 +1052,7 @@ func TestSyncSparkApplication_ExecutingState(t *testing.T) {
 			},
 		},
 		{
-			appName:                 "foo-3",
+			appName:                 appName,
 			oldAppStatus:            v1beta1.FailingState,
 			oldExecutorStatus:       map[string]v1beta1.ExecutorState{"exec-1": v1beta1.ExecutorFailedState},
 			expectedAppState:        v1beta1.FailedState,
@@ -951,16 +1061,16 @@ func TestSyncSparkApplication_ExecutingState(t *testing.T) {
 			expectedExecutorMetrics: executorMetrics{},
 		},
 		{
-			appName:           "foo-3",
+			appName:           appName,
 			oldAppStatus:      v1beta1.RunningState,
 			oldExecutorStatus: map[string]v1beta1.ExecutorState{"exec-1": v1beta1.ExecutorRunningState},
 			driverPod: &apiv1.Pod{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "foo-driver",
+					Name:      driverPodName,
 					Namespace: "test",
 					Labels: map[string]string{
 						config.SparkRoleLabel:    config.SparkDriverRole,
-						config.SparkAppNameLabel: "foo-3",
+						config.SparkAppNameLabel: appName,
 					},
 					ResourceVersion: "1",
 				},
@@ -974,7 +1084,7 @@ func TestSyncSparkApplication_ExecutingState(t *testing.T) {
 					Namespace: "test",
 					Labels: map[string]string{
 						config.SparkRoleLabel:    config.SparkExecutorRole,
-						config.SparkAppNameLabel: "foo-3",
+						config.SparkAppNameLabel: appName,
 					},
 					ResourceVersion: "1",
 				},
@@ -992,7 +1102,7 @@ func TestSyncSparkApplication_ExecutingState(t *testing.T) {
 			},
 		},
 		{
-			appName:                 "foo-3",
+			appName:                 appName,
 			oldAppStatus:            v1beta1.SucceedingState,
 			oldExecutorStatus:       map[string]v1beta1.ExecutorState{"exec-1": v1beta1.ExecutorCompletedState},
 			expectedAppState:        v1beta1.CompletedState,
@@ -1001,16 +1111,16 @@ func TestSyncSparkApplication_ExecutingState(t *testing.T) {
 			expectedExecutorMetrics: executorMetrics{},
 		},
 		{
-			appName:           "foo-3",
+			appName:           appName,
 			oldAppStatus:      v1beta1.SubmittedState,
 			oldExecutorStatus: map[string]v1beta1.ExecutorState{},
 			driverPod: &apiv1.Pod{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "foo-driver",
+					Name:      driverPodName,
 					Namespace: "test",
 					Labels: map[string]string{
 						config.SparkRoleLabel:    config.SparkDriverRole,
-						config.SparkAppNameLabel: "foo-3",
+						config.SparkAppNameLabel: appName,
 					},
 				},
 				Status: apiv1.PodStatus{
@@ -1023,7 +1133,7 @@ func TestSyncSparkApplication_ExecutingState(t *testing.T) {
 					Namespace: "test",
 					Labels: map[string]string{
 						config.SparkRoleLabel:    config.SparkExecutorRole,
-						config.SparkAppNameLabel: "foo-3",
+						config.SparkAppNameLabel: appName,
 					},
 				},
 				Status: apiv1.PodStatus{
@@ -1060,6 +1170,16 @@ func TestSyncSparkApplication_ExecutingState(t *testing.T) {
 		updatedApp, err := ctrl.crdClient.SparkoperatorV1beta1().SparkApplications(app.Namespace).Get(app.Name, metav1.GetOptions{})
 		assert.Equal(t, test.expectedAppState, updatedApp.Status.AppState.State)
 		assert.Equal(t, test.expectedExecutorState, updatedApp.Status.ExecutorState)
+
+		// Validate error message if the driver pod failed.
+		if test.driverPod != nil && test.driverPod.Status.Phase == apiv1.PodFailed {
+			if len(test.driverPod.Status.ContainerStatuses) > 0 && test.driverPod.Status.ContainerStatuses[0].State.Terminated != nil {
+				assert.Equal(t, updatedApp.Status.AppState.ErrorMessage,
+					fmt.Sprintf("driver pod failed with ExitCode: %d, Reason: %s", test.driverPod.Status.ContainerStatuses[0].State.Terminated.ExitCode, test.driverPod.Status.ContainerStatuses[0].State.Terminated.Reason))
+			} else {
+				assert.Equal(t, updatedApp.Status.AppState.ErrorMessage, "driver container status missing")
+			}
+		}
 
 		// Verify application metrics.
 		assert.Equal(t, test.expectedAppMetrics.runningMetricCount, ctrl.metrics.sparkAppRunningCount.Value(map[string]string{}))

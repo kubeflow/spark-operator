@@ -67,8 +67,8 @@ func TestCreateSparkUIService(t *testing.T) {
 		if !reflect.DeepEqual(test.expectedSelector, service.Spec.Selector) {
 			t.Errorf("%s: for label selector wanted %s got %s", test.name, test.expectedSelector, service.Spec.Selector)
 		}
-		if service.Spec.Type != apiv1.ServiceTypeNodePort {
-			t.Errorf("%s: for service type wanted %s got %s", test.name, apiv1.ServiceTypeNodePort, service.Spec.Type)
+		if service.Spec.Type != apiv1.ServiceTypeClusterIP {
+			t.Errorf("%s: for service type wanted %s got %s", test.name, apiv1.ServiceTypeClusterIP, service.Spec.Type)
 		}
 		if len(service.Spec.Ports) != 1 {
 			t.Errorf("%s: wanted a single port got %d ports", test.name, len(service.Spec.Ports))
@@ -203,7 +203,7 @@ func TestCreateSparkUIIngress(t *testing.T) {
 		t.Errorf("Ingress name wanted %s got %s", expectedIngress.ingressURL, sparkIngress.ingressURL)
 	}
 
-	ingress, err := fakeClient.Extensions().Ingresses(app.Namespace).
+	ingress, err := fakeClient.ExtensionsV1beta1().Ingresses(app.Namespace).
 		Get(sparkIngress.ingressName, metav1.GetOptions{})
 	if err != nil {
 		t.Fatal(err)
