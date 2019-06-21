@@ -295,9 +295,11 @@ type SparkApplicationStatus struct {
 	AppState ApplicationState `json:"applicationState,omitempty"`
 	// ExecutorState records the state of executors by executor Pod names.
 	ExecutorState map[string]ExecutorState `json:"executorState,omitempty"`
-	// ExecutionAttempts is the total number of attempts made to run a submitted Spark App to successful completion.
+	// ExecutionAttempts is the total number of attempts to run a submitted application to completion.
+	// Incremented upon each attempted run of the application and reset upon invalidation.
 	ExecutionAttempts int32 `json:"executionAttempts,omitempty"`
-	// SubmissionAttempts is the total number of submission attempts made to submit a Spark App.
+	// SubmissionAttempts is the total number of attempts to submit an application to run.
+	// Incremented upon each attempted submission of the application and reset upon invalidation and rerun.
 	SubmissionAttempts int32 `json:"submissionAttempts,omitempty"`
 }
 
