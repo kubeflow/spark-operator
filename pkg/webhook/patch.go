@@ -73,12 +73,11 @@ func patchSparkPod(pod *corev1.Pod, app *v1beta1.SparkApplication) []patchOperat
 		}
 	}
 
-	if pod.Spec.SecurityContext == nil {
-		op := addSecurityContext(pod, app)
-		if op != nil {
-			patchOps = append(patchOps, *op)
-		}
+	op = addSecurityContext(pod, app)
+	if op != nil {
+		patchOps = append(patchOps, *op)
 	}
+
 	op = addGPU(pod, app)
 	if op != nil {
 		patchOps = append(patchOps, *op)
