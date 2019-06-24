@@ -404,7 +404,7 @@ type SparkPodSpec struct {
 	DNSConfig *apiv1.PodDNSConfig `json:"dnsConfig,omitempty"`
 	// JSONPatchOperations aribitraty set of json patch operations to be applied to the resulting pods before admission.
 	// Optional
-	JSONPatchOperations []PatchOperation
+	JSONPatchOperations []PatchOperation `json:"patchOps,omitempty"`
 }
 
 // DriverSpec is specification of the driver.
