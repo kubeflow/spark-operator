@@ -408,7 +408,7 @@ spec:
           value: "2"
         - name: edns0
 ```
-### Overriding args and commands
+### Overriding Args and Commands
 A `SparkApplication` can override the command and arguments provided to both the executor and the driver. `.spec.driver.args` and `.spec.executor.args` for arguments and `.spec.driver.command` and `.spec.driver.command`. Four fields are an array of strings, following the semantics and behaviour described at the [official specs](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.14/#container-v1-core)
 
 
