@@ -402,6 +402,12 @@ type SparkPodSpec struct {
 	// DnsConfig dns settings for the pod, following the Kubernetes specifications.
 	// Optional.
 	DNSConfig *apiv1.PodDNSConfig `json:"dnsConfig,omitempty"`
+	// Command  added to the container created, overrides the ones created by spark submit
+	// Optional
+	Command []string `json:"command,omitempty"`
+	// args for the command specified in `command` field to the container created, overrides the ones created by spark submit
+	// Optional
+	Arguments []string `json:"args,omitempty"`
 }
 
 // DriverSpec is specification of the driver.
