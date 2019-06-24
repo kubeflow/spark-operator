@@ -526,7 +526,6 @@ func (c *Controller) syncSparkApplication(key string) error {
 					appToUpdate.Namespace, appToUpdate.Name, err)
 				return err
 			}
-			appToUpdate.Status.AppState.ErrorMessage = ""
 			appToUpdate.Status.AppState.State = v1beta1.PendingRerunState
 		}
 	case v1beta1.FailedSubmissionState:
@@ -905,10 +904,14 @@ func (c *Controller) clearStatus(status *v1beta1.SparkApplicationStatus) {
 		status.ExecutionAttempts = 0
 		status.LastSubmissionAttemptTime = metav1.Time{}
 		status.TerminationTime = metav1.Time{}
+		status.AppState.ErrorMessage = ""
 		status.ExecutorState = nil
 	} else if status.AppState.State == v1beta1.PendingRerunState {
 		status.SparkApplicationID = ""
+		status.SubmissionAttempts = 0
+		status.LastSubmissionAttemptTime = metav1.Time{}
 		status.DriverInfo = v1beta1.DriverInfo{}
+		status.AppState.ErrorMessage = ""
 		status.ExecutorState = nil
 	}
 }
