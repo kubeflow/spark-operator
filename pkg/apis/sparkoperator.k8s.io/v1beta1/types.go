@@ -402,6 +402,9 @@ type SparkPodSpec struct {
 	// DnsConfig dns settings for the pod, following the Kubernetes specifications.
 	// Optional.
 	DNSConfig *apiv1.PodDNSConfig `json:"dnsConfig,omitempty"`
+	// JSONPatchOperations aribitraty set of json patch operations to be applied to the resulting pods before admission.
+	// Optional
+	JSONPatchOperations []PatchOperation
 }
 
 // DriverSpec is specification of the driver.
@@ -520,6 +523,13 @@ type GPUSpec struct {
 	Name string `json:"name"`
 	// Quantity is the number of GPUs to request for driver or executor.
 	Quantity int64 `json:"quantity"`
+}
+
+// PatchOperation represents a RFC6902 JSON patch operation.
+type PatchOperation struct {
+	Op    string      `json:"op"`
+	Path  string      `json:"path"`
+	Value interface{} `json:"value,omitempty"`
 }
 
 // PrometheusMonitoringEnabled returns if Prometheus monitoring is enabled or not.

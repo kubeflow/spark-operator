@@ -409,6 +409,10 @@ spec:
         - name: edns0
 ```
 
+### Arbitrary json modification
+Allows aplying arbitrary json patches to the pods definitions created by spark submit. Enables removal/modification of settings that may be required in some edge cases.
+
+
 Note that the mutating admission webhook is needed to use this feature. Please refer to the 
 [Quick Start Guide](quick-start-guide.md) on how to enable the mutating admission webhook.
 

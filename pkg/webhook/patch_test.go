@@ -1108,6 +1108,81 @@ func TestPatchSparkPod_HostNetwork(t *testing.T) {
 	}
 }
 
+func TestPatchSparkPod_Patch(t *testing.T) {
+	app := &v1beta1.SparkApplication{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "spark-test-patch",
+			UID:  "spark-test-1",
+		},
+		Spec: v1beta1.SparkApplicationSpec{
+			Driver: v1beta1.DriverSpec{
+				SparkPodSpec: v1beta1.SparkPodSpec{
+					JSONPatchOperations: []v1beta1.PatchOperation{v1beta1.PatchOperation{Op: "remove", Path: "/spec/containers/0/args"}},
+				},
+			},
+			Executor: v1beta1.ExecutorSpec{
+				SparkPodSpec: v1beta1.SparkPodSpec{
+					JSONPatchOperations: []v1beta1.PatchOperation{v1beta1.PatchOperation{Op: "remove", Path: "/spec/containers/0/args"}},
+				},
+			},
+		},
+	}
+
+	driverPod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "spark-driver",
+			Labels: map[string]string{
+				config.SparkRoleLabel:               config.SparkDriverRole,
+				config.LaunchedBySparkOperatorLabel: "true",
+			},
+		},
+		Spec: corev1.PodSpec{
+			Containers: []corev1.Container{
+				{
+					Name:  sparkDriverContainerName,
+					Image: "spark-driver:latest",
+					Args:  []string{"1", "2", "3"},
+				},
+			},
+		},
+	}
+
+	modifiedDriverPod, err := getModifiedPod(driverPod, app)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	assert.NotNil(t, modifiedDriverPod)
+	assert.Equal(t, 0, len(modifiedDriverPod.Spec.Containers[0].Args))
+
+	executorPod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "spark-executor",
+			Labels: map[string]string{
+				config.SparkRoleLabel:               config.SparkExecutorRole,
+				config.LaunchedBySparkOperatorLabel: "true",
+			},
+		},
+		Spec: corev1.PodSpec{
+			Containers: []corev1.Container{
+				{
+					Name:  sparkExecutorContainerName,
+					Image: "spark-executor:latest",
+					Args:  []string{"1", "2", "3"},
+				},
+			},
+		},
+	}
+
+	modifiedExecutorPod, err := getModifiedPod(executorPod, app)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	assert.NotNil(t, modifiedExecutorPod)
+	assert.Equal(t, 0, len(modifiedExecutorPod.Spec.Containers[0].Args))
+}
+
 func getModifiedPod(pod *corev1.Pod, app *v1beta1.SparkApplication) (*corev1.Pod, error) {
 	patchOps := patchSparkPod(pod, app)
 	patchBytes, err := json.Marshal(patchOps)

@@ -60,6 +60,7 @@ func patchSparkPod(pod *corev1.Pod, app *v1beta1.SparkApplication) []patchOperat
 	patchOps = append(patchOps, addHostNetwork(pod, app)...)
 	patchOps = append(patchOps, addNodeSelectors(pod, app)...)
 	patchOps = append(patchOps, addDNSConfig(pod, app)...)
+	patchOps = append(patchOps, addArbitraryPatch(pod, app)...)
 
 	op := addSchedulerName(pod, app)
 	if op != nil {
@@ -98,6 +99,23 @@ func addOwnerReference(pod *corev1.Pod, app *v1beta1.SparkApplication) patchOper
 	}
 
 	return patchOperation{Op: "add", Path: path, Value: value}
+}
+
+func addArbitraryPatch(pod *corev1.Pod, app *v1beta1.SparkApplication) []patchOperation {
+	var opsDTO []v1beta1.PatchOperation
+
+	if util.IsDriverPod(pod) {
+		opsDTO = app.Spec.Driver.JSONPatchOperations
+	} else if util.IsExecutorPod(pod) {
+		opsDTO = app.Spec.Executor.JSONPatchOperations
+	}
+
+	var opsCore []patchOperation
+	for _, opDTO := range opsDTO {
+		opsCore = append(opsCore, patchOperation{Op: opDTO.Op, Path: opDTO.Path, Value: opDTO.Value})
+	}
+
+	return opsCore
 }
 
 func addVolumes(pod *corev1.Pod, app *v1beta1.SparkApplication) []patchOperation {
