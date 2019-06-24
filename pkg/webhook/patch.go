@@ -60,7 +60,6 @@ func patchSparkPod(pod *corev1.Pod, app *v1beta1.SparkApplication) []patchOperat
 	patchOps = append(patchOps, addHostNetwork(pod, app)...)
 	patchOps = append(patchOps, addNodeSelectors(pod, app)...)
 	patchOps = append(patchOps, addDNSConfig(pod, app)...)
-	patchOps = append(patchOps, addCommandArgs(pod, app)...)
 
 	op := addSchedulerName(pod, app)
 	if op != nil {
@@ -181,43 +180,6 @@ func addEnvironmentVariable(pod *corev1.Pod, envName, envValue string) patchOper
 	}
 
 	return patchOperation{Op: "add", Path: path, Value: value}
-}
-
-func addCommandArgs(pod *corev1.Pod, app *v1beta1.SparkApplication) []patchOperation {
-	i := 0
-
-	// Find the driver or executor container in the pod.
-	for ; i < len(pod.Spec.Containers); i++ {
-		if pod.Spec.Containers[i].Name == sparkDriverContainerName ||
-			pod.Spec.Containers[i].Name == sparkExecutorContainerName {
-			break
-		}
-	}
-
-	path := fmt.Sprintf("/spec/containers/%d", i)
-
-	var podSpec *v1beta1.SparkPodSpec
-	if util.IsDriverPod(pod) {
-		podSpec = &app.Spec.Driver.SparkPodSpec
-	} else {
-		podSpec = &app.Spec.Executor.SparkPodSpec
-	}
-
-	return getCommandArgsForPodSpec(pod, podSpec, path)
-}
-
-func getCommandArgsForPodSpec(pod *corev1.Pod, podSpec *v1beta1.SparkPodSpec, jsonPath string) []patchOperation {
-	var patchOps []patchOperation
-
-	if len(podSpec.Arguments) > 0 {
-		patchOps = append(patchOps, patchOperation{Op: "replace", Path: jsonPath + "/args", Value: podSpec.Arguments})
-	}
-
-	if len(podSpec.Command) > 0 {
-		patchOps = append(patchOps, patchOperation{Op: "replace", Path: jsonPath + "/command", Value: podSpec.Command})
-	}
-
-	return patchOps
 }
 
 func addSparkConfigMap(pod *corev1.Pod, app *v1beta1.SparkApplication) []patchOperation {
