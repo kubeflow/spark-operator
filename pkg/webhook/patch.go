@@ -184,7 +184,6 @@ func addEnvironmentVariable(pod *corev1.Pod, envName, envValue string) patchOper
 }
 
 func addCommandArgs(pod *corev1.Pod, app *v1beta1.SparkApplication) []patchOperation {
-	var podSpec *v1beta1.SparkPodSpec
 	i := 0
 
 	// Find the driver or executor container in the pod.
@@ -196,6 +195,8 @@ func addCommandArgs(pod *corev1.Pod, app *v1beta1.SparkApplication) []patchOpera
 	}
 
 	path := fmt.Sprintf("/spec/containers/%d", i)
+	var podSpec *v1beta1.SparkPodSpec
+
 	if util.IsDriverPod(pod) {
 		podSpec = &app.Spec.Driver.SparkPodSpec
 	} else {
