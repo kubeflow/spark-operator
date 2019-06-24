@@ -829,6 +829,91 @@ func TestPatchSparkPod_NodeSector(t *testing.T) {
 	assert.Equal(t, "secondvalue", modifiedExecutorPod.Spec.NodeSelector["secondkey"])
 }
 
+func TestPatchSparkPod_CommandArgs(t *testing.T) {
+	newArgs := []string{"firstA", "secondA", "thirdA"}
+	newCommans := []string{"firstC", "secondC", "thirdC"}
+
+	app := &v1beta1.SparkApplication{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "spark-test",
+			UID:  "spark-test-1",
+		},
+		Spec: v1beta1.SparkApplicationSpec{
+			Driver: v1beta1.DriverSpec{
+				SparkPodSpec: v1beta1.SparkPodSpec{
+					Arguments: newArgs,
+					Command:   newCommans,
+				},
+			},
+			Executor: v1beta1.ExecutorSpec{
+				SparkPodSpec: v1beta1.SparkPodSpec{
+					Arguments: newArgs,
+					Command:   newCommans,
+				},
+			},
+		},
+	}
+
+	driverPod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "spark-driver",
+			Labels: map[string]string{
+				config.SparkRoleLabel:               config.SparkDriverRole,
+				config.LaunchedBySparkOperatorLabel: "true",
+			},
+		},
+		Spec: corev1.PodSpec{
+			Containers: []corev1.Container{
+				{
+					Name:  sparkDriverContainerName,
+					Image: "spark-driver:latest",
+					Args:  []string{"original1", "original2"},
+				},
+			},
+		},
+	}
+
+	modifiedDriverPod, err := getModifiedPod(driverPod, app)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assert.Equal(t, 1, len(modifiedDriverPod.Spec.Containers))
+	cotainer := modifiedDriverPod.Spec.Containers[0]
+
+	assert.Equal(t, newArgs, cotainer.Args)
+	assert.Equal(t, newCommans, cotainer.Command)
+
+	executorPod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "spark-executor",
+			Labels: map[string]string{
+				config.SparkRoleLabel:               config.SparkExecutorRole,
+				config.LaunchedBySparkOperatorLabel: "true",
+			},
+		},
+		Spec: corev1.PodSpec{
+			Containers: []corev1.Container{
+				{
+					Name:  sparkDriverContainerName,
+					Image: "spark-driver:latest",
+					Args:  []string{"original1", "original2"},
+				},
+			},
+		},
+	}
+
+	modifiedExecutorPod, err := getModifiedPod(executorPod, app)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assert.Equal(t, 1, len(modifiedExecutorPod.Spec.Containers))
+	cotainer = modifiedExecutorPod.Spec.Containers[0]
+
+	assert.Equal(t, newArgs, cotainer.Args)
+	assert.Equal(t, newCommans, cotainer.Command)
+
+}
+
 func TestPatchSparkPod_GPU(t *testing.T) {
 	cpuLimit := int64(10)
 	cpuRequest := int64(5)
