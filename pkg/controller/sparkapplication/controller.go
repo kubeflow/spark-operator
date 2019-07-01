@@ -312,11 +312,6 @@ func (c *Controller) getAndUpdateDriverState(app *v1beta1.SparkApplication) erro
 		return nil
 	}
 
-	if driverPod.Spec.NodeName != "" {
-		if nodeIP := c.getNodeIP(driverPod.Spec.NodeName); nodeIP != "" {
-			app.Status.DriverInfo.WebUIAddress = fmt.Sprintf("%s:%d", nodeIP, app.Status.DriverInfo.WebUIPort)
-		}
-	}
 	app.Status.SparkApplicationID = getSparkApplicationID(driverPod)
 
 	if driverPod.Status.Phase == apiv1.PodSucceeded || driverPod.Status.Phase == apiv1.PodFailed {
@@ -531,7 +526,6 @@ func (c *Controller) syncSparkApplication(key string) error {
 					appToUpdate.Namespace, appToUpdate.Name, err)
 				return err
 			}
-			appToUpdate.Status.AppState.ErrorMessage = ""
 			appToUpdate.Status.AppState.State = v1beta1.PendingRerunState
 		}
 	case v1beta1.FailedSubmissionState:
@@ -659,7 +653,8 @@ func (c *Controller) submitSparkApplication(app *v1beta1.SparkApplication) *v1be
 		glog.Errorf("failed to create UI service for SparkApplication %s/%s: %v", app.Namespace, app.Name, err)
 	} else {
 		app.Status.DriverInfo.WebUIServiceName = service.serviceName
-		app.Status.DriverInfo.WebUIPort = service.nodePort
+		app.Status.DriverInfo.WebUIPort = service.servicePort
+		app.Status.DriverInfo.WebUIAddress = fmt.Sprintf("%s:%d", service.serviceIP, app.Status.DriverInfo.WebUIPort)
 		// Create UI Ingress if ingress-format is set.
 		if c.ingressURLFormat != "" {
 			ingress, err := createSparkUIIngress(app, *service, c.ingressURLFormat, c.kubeClient)
@@ -823,27 +818,6 @@ func (c *Controller) enqueue(obj interface{}) {
 	c.queue.AddRateLimited(key)
 }
 
-// Return IP of the node. If no External IP is found, Internal IP will be returned
-func (c *Controller) getNodeIP(nodeName string) string {
-	node, err := c.kubeClient.CoreV1().Nodes().Get(nodeName, metav1.GetOptions{})
-	if err != nil {
-		glog.Errorf("failed to get node %s", nodeName)
-		return ""
-	}
-
-	for _, address := range node.Status.Addresses {
-		if address.Type == apiv1.NodeExternalIP {
-			return address.Address
-		}
-	}
-	for _, address := range node.Status.Addresses {
-		if address.Type == apiv1.NodeInternalIP {
-			return address.Address
-		}
-	}
-	return ""
-}
-
 func (c *Controller) recordSparkApplicationEvent(app *v1beta1.SparkApplication) {
 	switch app.Status.AppState.State {
 	case v1beta1.NewState:
@@ -930,10 +904,14 @@ func (c *Controller) clearStatus(status *v1beta1.SparkApplicationStatus) {
 		status.ExecutionAttempts = 0
 		status.LastSubmissionAttemptTime = metav1.Time{}
 		status.TerminationTime = metav1.Time{}
+		status.AppState.ErrorMessage = ""
 		status.ExecutorState = nil
 	} else if status.AppState.State == v1beta1.PendingRerunState {
 		status.SparkApplicationID = ""
+		status.SubmissionAttempts = 0
+		status.LastSubmissionAttemptTime = metav1.Time{}
 		status.DriverInfo = v1beta1.DriverInfo{}
+		status.AppState.ErrorMessage = ""
 		status.ExecutorState = nil
 	}
 }

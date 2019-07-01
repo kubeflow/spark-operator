@@ -678,6 +678,84 @@ func TestPatchSparkPod_Sidecars(t *testing.T) {
 	assert.Equal(t, "sidecar2", modifiedExecutorPod.Spec.Containers[2].Name)
 }
 
+func TestPatchSparkPod_DNSConfig(t *testing.T) {
+	aVal := "5"
+	sampleDNSConfig := &corev1.PodDNSConfig{
+		Nameservers: []string{"8.8.8.8", "4.4.4.4"},
+		Searches:    []string{"svc.cluster.local", "cluster.local"},
+		Options: []corev1.PodDNSConfigOption{
+			corev1.PodDNSConfigOption{Name: "ndots", Value: &aVal},
+		},
+	}
+
+	app := &v1beta1.SparkApplication{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "spark-test",
+			UID:  "spark-test-1",
+		},
+		Spec: v1beta1.SparkApplicationSpec{
+			Driver: v1beta1.DriverSpec{
+				SparkPodSpec: v1beta1.SparkPodSpec{DNSConfig: sampleDNSConfig},
+			},
+			Executor: v1beta1.ExecutorSpec{
+				SparkPodSpec: v1beta1.SparkPodSpec{DNSConfig: sampleDNSConfig},
+			},
+		},
+	}
+
+	driverPod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "spark-driver",
+			Labels: map[string]string{
+				config.SparkRoleLabel:               config.SparkDriverRole,
+				config.LaunchedBySparkOperatorLabel: "true",
+			},
+		},
+		Spec: corev1.PodSpec{
+			Containers: []corev1.Container{
+				{
+					Name:  sparkDriverContainerName,
+					Image: "spark-driver:latest",
+				},
+			},
+		},
+	}
+
+	modifiedDriverPod, err := getModifiedPod(driverPod, app)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assert.NotNil(t, modifiedDriverPod.Spec.DNSConfig)
+	assert.Equal(t, sampleDNSConfig, modifiedDriverPod.Spec.DNSConfig)
+
+	executorPod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "spark-executor",
+			Labels: map[string]string{
+				config.SparkRoleLabel:               config.SparkExecutorRole,
+				config.LaunchedBySparkOperatorLabel: "true",
+			},
+		},
+		Spec: corev1.PodSpec{
+			Containers: []corev1.Container{
+				{
+					Name:  sparkExecutorContainerName,
+					Image: "spark-executor:latest",
+				},
+			},
+		},
+	}
+
+	modifiedExecutorPod, err := getModifiedPod(executorPod, app)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	assert.NotNil(t, modifiedExecutorPod.Spec.DNSConfig)
+	assert.Equal(t, sampleDNSConfig, modifiedExecutorPod.Spec.DNSConfig)
+
+}
+
 func TestPatchSparkPod_NodeSector(t *testing.T) {
 	app := &v1beta1.SparkApplication{
 		ObjectMeta: metav1.ObjectMeta{
