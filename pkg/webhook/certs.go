@@ -18,9 +18,10 @@ package webhook
 
 import (
 	"crypto/tls"
-	"github.com/golang/glog"
 	"io/ioutil"
 	"time"
+
+	"github.com/golang/glog"
 )
 
 // certProvider is a container of a X509 certificate file and a corresponding key file for the
@@ -31,7 +32,7 @@ type certProvider struct {
 	caCertFile     string
 	reloadInterval time.Duration
 	ticker         *time.Ticker
-	stopChannel    *chan interface{}
+	stopChannel    chan interface{}
 	currentCert    *tls.Certificate
 }
 
@@ -51,7 +52,7 @@ func NewCertProvider(serverCertFile, serverKeyFile, caCertFile string, reloadInt
 
 func (c *certProvider) Start() {
 	stopChannel := make(chan interface{})
-	c.stopChannel = &stopChannel
+	c.stopChannel = stopChannel
 	ticker := time.NewTicker(c.reloadInterval)
 	c.ticker = ticker
 	go func() {
@@ -75,14 +76,14 @@ func (c *certProvider) tlsConfig() *tls.Config {
 }
 
 func (c *certProvider) Stop() {
-	close(*c.stopChannel)
+	close(c.stopChannel)
 	c.ticker.Stop()
 }
 
 func (c *certProvider) updateCert() {
 	cert, err := tls.LoadX509KeyPair(c.serverCertFile, c.serverKeyFile)
 	if err != nil {
-		glog.Error("Could not reload certificate: ", err)
+		glog.Errorf("could not reload certificate %s (key %s): %v", c.serverCertFile, c.serverKeyFile, err)
 		return
 	}
 	c.currentCert = &cert
