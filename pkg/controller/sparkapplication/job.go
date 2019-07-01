@@ -18,6 +18,7 @@ package sparkapplication
 
 import (
 	"fmt"
+	"k8s.io/apimachinery/pkg/api/resource"
 	"strings"
 
 	batchv1 "k8s.io/api/batch/v1"
@@ -28,6 +29,11 @@ import (
 
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta1"
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/config"
+)
+
+const (
+	sparkSubmitPodMemory = "1000Mi"
+	sparkSubmitPodCpu    = "1024m"
 )
 
 type submissionJobManager struct {
@@ -71,6 +77,16 @@ func (sjm *submissionJobManager) createSubmissionJob(s *submission) (*batchv1.Jo
 							Name:    "spark-submit-runner",
 							Image:   image,
 							Command: command,
+							Resources: corev1.ResourceRequirements{
+								Requests: corev1.ResourceList{
+									corev1.ResourceCPU:    resource.MustParse(sparkSubmitPodCpu),
+									corev1.ResourceMemory: resource.MustParse(sparkSubmitPodMemory),
+								},
+								Limits: corev1.ResourceList{
+									corev1.ResourceCPU:    resource.MustParse(sparkSubmitPodCpu),
+									corev1.ResourceMemory: resource.MustParse(sparkSubmitPodMemory),
+								},
+							},
 						},
 					},
 					RestartPolicy: corev1.RestartPolicyNever,
