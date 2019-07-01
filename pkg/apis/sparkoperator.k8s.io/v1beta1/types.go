@@ -295,9 +295,11 @@ type SparkApplicationStatus struct {
 	AppState ApplicationState `json:"applicationState,omitempty"`
 	// ExecutorState records the state of executors by executor Pod names.
 	ExecutorState map[string]ExecutorState `json:"executorState,omitempty"`
-	// ExecutionAttempts is the total number of attempts made to run a submitted Spark App to successful completion.
+	// ExecutionAttempts is the total number of attempts to run a submitted application to completion.
+	// Incremented upon each attempted run of the application and reset upon invalidation.
 	ExecutionAttempts int32 `json:"executionAttempts,omitempty"`
-	// SubmissionAttempts is the total number of submission attempts made to submit a Spark App.
+	// SubmissionAttempts is the total number of attempts to submit an application to run.
+	// Incremented upon each attempted submission of the application and reset upon invalidation and rerun.
 	SubmissionAttempts int32 `json:"submissionAttempts,omitempty"`
 }
 
@@ -397,6 +399,9 @@ type SparkPodSpec struct {
 	// This field is mutually exclusive with nodeSelector at SparkApplication level (which will be deprecated).
 	// Optional.
 	NodeSelector map[string]string `json:"nodeSelector,omitempty"`
+	// DnsConfig dns settings for the pod, following the Kubernetes specifications.
+	// Optional.
+	DNSConfig *apiv1.PodDNSConfig `json:"dnsConfig,omitempty"`
 }
 
 // DriverSpec is specification of the driver.
@@ -454,8 +459,7 @@ const (
 // DriverInfo captures information about the driver.
 type DriverInfo struct {
 	WebUIServiceName string `json:"webUIServiceName,omitempty"`
-	// UI Details for the UI created via NodePort service.
-	// TODO: Remove this in favor of UI access via Ingress.
+	// UI Details for the UI created via ClusterIP service accessible from within the cluster.
 	WebUIPort    int32  `json:"webUIPort,omitempty"`
 	WebUIAddress string `json:"webUIAddress,omitempty"`
 	// Ingress Details if an ingress for the UI was created.

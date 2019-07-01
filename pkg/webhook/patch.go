@@ -59,6 +59,7 @@ func patchSparkPod(pod *corev1.Pod, app *v1beta1.SparkApplication) []patchOperat
 	patchOps = append(patchOps, addSidecarContainers(pod, app)...)
 	patchOps = append(patchOps, addHostNetwork(pod, app)...)
 	patchOps = append(patchOps, addNodeSelectors(pod, app)...)
+	patchOps = append(patchOps, addDNSConfig(pod, app)...)
 
 	op := addSchedulerName(pod, app)
 	if op != nil {
@@ -72,12 +73,11 @@ func patchSparkPod(pod *corev1.Pod, app *v1beta1.SparkApplication) []patchOperat
 		}
 	}
 
-	if pod.Spec.SecurityContext == nil {
-		op := addSecurityContext(pod, app)
-		if op != nil {
-			patchOps = append(patchOps, *op)
-		}
+	op = addSecurityContext(pod, app)
+	if op != nil {
+		patchOps = append(patchOps, *op)
 	}
+
 	op = addGPU(pod, app)
 	if op != nil {
 		patchOps = append(patchOps, *op)
@@ -313,6 +313,22 @@ func addNodeSelectors(pod *corev1.Pod, app *v1beta1.SparkApplication) []patchOpe
 	var ops []patchOperation
 	if len(nodeSelector) > 0 {
 		ops = append(ops, patchOperation{Op: "add", Path: "/spec/nodeSelector", Value: nodeSelector})
+	}
+	return ops
+}
+
+func addDNSConfig(pod *corev1.Pod, app *v1beta1.SparkApplication) []patchOperation {
+	var dnsConfig *corev1.PodDNSConfig
+
+	if util.IsDriverPod(pod) {
+		dnsConfig = app.Spec.Driver.DNSConfig
+	} else if util.IsExecutorPod(pod) {
+		dnsConfig = app.Spec.Executor.DNSConfig
+	}
+
+	var ops []patchOperation
+	if dnsConfig != nil {
+		ops = append(ops, patchOperation{Op: "add", Path: "/spec/dnsConfig", Value: dnsConfig})
 	}
 	return ops
 }
