@@ -169,7 +169,7 @@ func (wh *WebHook) serve(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 		} else {
-			denyRequest(w, fmt.Sprintf("Unexpected resource type: %v", review.Request.Resource.String()), http.StatusUnsupportedMediaType)
+			denyRequest(w, fmt.Sprintf("unexpected resource type: %v", review.Request.Resource.String()), http.StatusUnsupportedMediaType)
 			return
 		}
 	}
@@ -193,7 +193,7 @@ func (wh *WebHook) serve(w http.ResponseWriter, r *http.Request) {
 }
 
 func internalError(w http.ResponseWriter, err error) {
-	glog.Errorf("Internal error: %v", err)
+	glog.Errorf("internal error: %v", err)
 	denyRequest(w, err.Error(), 500)
 }
 
