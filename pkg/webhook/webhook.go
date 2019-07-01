@@ -143,6 +143,8 @@ func (wh *WebHook) Start(webhookConfigName string) error {
 
 // Stop deregisters itself with the API server and stops the admission webhook server.
 func (wh *WebHook) Stop(webhookConfigName string) error {
+	// Do not deregister if strict error handling is enabled; pod deletions are common, and we
+	// don't want to create windows where pods can be created without being subject to the webhook.
 	if wh.failurePolicy != arv1beta1.Fail {
 		if err := wh.selfDeregistration(webhookConfigName); err != nil {
 			return err
