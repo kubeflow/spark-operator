@@ -19,6 +19,7 @@ package webhook
 import (
 	"context"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -42,10 +43,7 @@ import (
 )
 
 const (
-	webhookName    = "webhook.sparkoperator.k8s.io"
-	serverCertFile = "server-cert.pem"
-	serverKeyFile  = "server-key.pem"
-	caCertFile     = "ca-cert.pem"
+	webhookName = "webhook.sparkoperator.k8s.io"
 )
 
 var podResource = metav1.GroupVersionResource{
@@ -64,31 +62,50 @@ type WebHook struct {
 	sparkJobNamespace string
 }
 
+// Configuration parsed from command-line flags
+type webhookFlags struct {
+	serverCert              string
+	serverCertKey           string
+	caCert                  string
+	certReloadInterval      time.Duration
+	webhookServiceNamespace string
+	webhookServiceName      string
+	webhookPort             int
+	webhookConfigName       string
+}
+
+var userConfig webhookFlags
+
+func init() {
+	flag.StringVar(&userConfig.webhookConfigName, "webhook-config-name", "spark-webhook-config", "The name of the MutatingWebhookConfiguration object to create.")
+	flag.StringVar(&userConfig.serverCert, "webhook-server-cert", "/etc/webhook-certs/server-cert.pem", "Path to the X.509-formatted webhook certificate.")
+	flag.StringVar(&userConfig.serverCertKey, "webhook-server-cert-key", "/etc/webhook-certs/server-key.pem", "Path to the webhook certificate key.")
+	flag.StringVar(&userConfig.caCert, "webhook-ca-cert", "/etc/webhook-certs/ca-cert.pem", "Path to the X.509-formatted webhook CA certificate.")
+	flag.DurationVar(&userConfig.certReloadInterval, "webhook-cert-reload-interval", 15*time.Minute, "Time between webhook cert reloads.")
+	flag.StringVar(&userConfig.webhookServiceNamespace, "webhook-svc-namespace", "spark-operator", "The namespace of the Service for the webhook server.")
+	flag.StringVar(&userConfig.webhookServiceName, "webhook-svc-name", "spark-webhook", "The name of the Service for the webhook server.")
+	flag.IntVar(&userConfig.webhookPort, "webhook-port", 8080, "Service port of the webhook server.")
+}
+
 // New creates a new WebHook instance.
 func New(
 	clientset kubernetes.Interface,
 	informerFactory crinformers.SharedInformerFactory,
-	serverCert string,
-	serverCertKey string,
-	caCert string,
-	certReloadInterval time.Duration,
-	webhookServiceNamespace string,
-	webhookServiceName string,
-	webhookPort int,
-	jobNamespace string) (*WebHook, error) {
+	jobNamespace string,
+) (*WebHook, error) {
 	cert, err := NewCertProvider(
-		serverCert,
-		serverCertKey,
-		caCert,
-		certReloadInterval,
+		userConfig.serverCert,
+		userConfig.serverCertKey,
+		userConfig.caCert,
+		userConfig.certReloadInterval,
 	)
 	if err != nil {
 		return nil, err
 	}
 	path := "/webhook"
 	serviceRef := &v1beta1.ServiceReference{
-		Namespace: webhookServiceNamespace,
-		Name:      webhookServiceName,
+		Namespace: userConfig.webhookServiceNamespace,
+		Name:      userConfig.webhookServiceName,
 		Path:      &path,
 	}
 	hook := &WebHook{
@@ -101,11 +118,8 @@ func New(
 
 	mux := http.NewServeMux()
 	mux.HandleFunc(path, hook.serve)
-	if err != nil {
-		return nil, err
-	}
 	hook.server = &http.Server{
-		Addr:    fmt.Sprintf(":%d", webhookPort),
+		Addr:    fmt.Sprintf(":%d", userConfig.webhookPort),
 		Handler: mux,
 	}
 
@@ -113,7 +127,7 @@ func New(
 }
 
 // Start starts the admission webhook server and registers itself to the API server.
-func (wh *WebHook) Start(webhookConfigName string) error {
+func (wh *WebHook) Start() error {
 	wh.certProvider.Start()
 	wh.server.TLSConfig = wh.certProvider.tlsConfig()
 
@@ -124,15 +138,15 @@ func (wh *WebHook) Start(webhookConfigName string) error {
 		}
 	}()
 
-	return wh.selfRegistration(webhookConfigName)
+	return wh.selfRegistration(userConfig.webhookConfigName)
 }
 
 // Stop deregisters itself with the API server and stops the admission webhook server.
-func (wh *WebHook) Stop(webhookConfigName string) error {
-	if err := wh.selfDeregistration(webhookConfigName); err != nil {
+func (wh *WebHook) Stop() error {
+	if err := wh.selfDeregistration(userConfig.webhookConfigName); err != nil {
 		return err
 	}
-	glog.Infof("Webhook %s deregistered", webhookConfigName)
+	glog.Infof("Webhook %s deregistered", userConfig.webhookConfigName)
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	wh.certProvider.Stop()
