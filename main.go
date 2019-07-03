@@ -50,18 +50,19 @@ import (
 )
 
 var (
-	master            = flag.String("master", "", "The address of the Kubernetes API server. Overrides any value in kubeconfig. Only required if out-of-cluster.")
-	kubeConfig        = flag.String("kubeConfig", "", "Path to a kube config. Only required if out-of-cluster.")
-	installCRDs       = flag.Bool("install-crds", true, "Whether to install CRDs")
-	controllerThreads = flag.Int("controller-threads", 10, "Number of worker threads used by the SparkApplication controller.")
-	resyncInterval    = flag.Int("resync-interval", 30, "Informer resync interval in seconds.")
-	namespace         = flag.String("namespace", apiv1.NamespaceAll, "The Kubernetes namespace to manage. Will manage custom resource objects of the managed CRD types for the whole cluster if unset.")
-	enableWebhook     = flag.Bool("enable-webhook", false, "Whether to enable the mutating admission webhook for admitting and patching Spark pods.")
-	enableMetrics     = flag.Bool("enable-metrics", false, "Whether to enable the metrics endpoint.")
-	metricsPort       = flag.String("metrics-port", "10254", "Port for the metrics endpoint.")
-	metricsEndpoint   = flag.String("metrics-endpoint", "/metrics", "Metrics endpoint.")
-	metricsPrefix     = flag.String("metrics-prefix", "", "Prefix for the metrics.")
-	ingressUrlFormat  = flag.String("ingress-url-format", "", "Ingress URL format.")
+	master                         = flag.String("master", "", "The address of the Kubernetes API server. Overrides any value in kubeconfig. Only required if out-of-cluster.")
+	kubeConfig                     = flag.String("kubeConfig", "", "Path to a kube config. Only required if out-of-cluster.")
+	installCRDs                    = flag.Bool("install-crds", true, "Whether to install CRDs")
+	controllerThreads              = flag.Int("controller-threads", 10, "Number of worker threads used by the SparkApplication controller.")
+	resyncInterval                 = flag.Int("resync-interval", 30, "Informer resync interval in seconds.")
+	namespace                      = flag.String("namespace", apiv1.NamespaceAll, "The Kubernetes namespace to manage. Will manage custom resource objects of the managed CRD types for the whole cluster if unset.")
+	enableWebhook                  = flag.Bool("enable-webhook", false, "Whether to enable the mutating admission webhook for admitting and patching Spark pods.")
+	enableMetrics                  = flag.Bool("enable-metrics", false, "Whether to enable the metrics endpoint.")
+	metricsPort                    = flag.String("metrics-port", "10254", "Port for the metrics endpoint.")
+	metricsEndpoint                = flag.String("metrics-endpoint", "/metrics", "Metrics endpoint.")
+	metricsPrefix                  = flag.String("metrics-prefix", "", "Prefix for the metrics.")
+	ingressUrlFormat               = flag.String("ingress-url-format", "", "Ingress URL format.")
+	enableResourceQuotaEnforcement = flag.Bool("enable-resource-quota-enforcement", false, "Whether to enable ResourceQuota enforcement for SparkApplication resources. Requires the webhook to be enabled.")
 )
 
 func main() {
@@ -137,14 +138,24 @@ func main() {
 
 	var hook *webhook.WebHook
 	if *enableWebhook {
-		hook, err = webhook.New(kubeClient, crInformerFactory, *namespace)
+		var coreV1InformerFactory informers.SharedInformerFactory
+		if *enableResourceQuotaEnforcement {
+			coreV1InformerFactory = buildCoreV1InformerFactory(kubeClient)
+		}
+		hook, err = webhook.New(kubeClient, crInformerFactory, *namespace, *enableResourceQuotaEnforcement, coreV1InformerFactory)
 		if err != nil {
 			glog.Fatal(err)
 		}
 
-		if err = hook.Start(); err != nil {
+		if *enableResourceQuotaEnforcement {
+			go coreV1InformerFactory.Start(stopCh)
+		}
+
+		if err = hook.Start(stopCh); err != nil {
 			glog.Fatal(err)
 		}
+	} else if *enableResourceQuotaEnforcement {
+		glog.Fatal("Webhook must be enabled to use resource quota enforcement.")
 	}
 
 	signalCh := make(chan os.Signal, 1)
@@ -192,4 +203,12 @@ func buildPodInformerFactory(kubeClient clientset.Interface) informers.SharedInf
 	}
 	podFactoryOpts = append(podFactoryOpts, informers.WithTweakListOptions(tweakListOptionsFunc))
 	return informers.NewSharedInformerFactoryWithOptions(kubeClient, time.Duration(*resyncInterval)*time.Second, podFactoryOpts...)
+}
+
+func buildCoreV1InformerFactory(kubeClient clientset.Interface) informers.SharedInformerFactory {
+	var coreV1FactoryOpts []informers.SharedInformerOption
+	if *namespace != apiv1.NamespaceAll {
+		coreV1FactoryOpts = append(coreV1FactoryOpts, informers.WithNamespace(*namespace))
+	}
+	return informers.NewSharedInformerFactoryWithOptions(kubeClient, time.Duration(*resyncInterval)*time.Second, coreV1FactoryOpts...)
 }
