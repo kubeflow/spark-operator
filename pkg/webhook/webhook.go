@@ -24,12 +24,14 @@ import (
 	"io/ioutil"
 	"net/http"
 	"reflect"
+	"strings"
 	"time"
 
 	"github.com/golang/glog"
 
 	admissionv1beta1 "k8s.io/api/admission/v1beta1"
 	"k8s.io/api/admissionregistration/v1beta1"
+	arv1beta1 "k8s.io/api/admissionregistration/v1beta1"
 	apiv1 "k8s.io/api/core/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -59,19 +61,23 @@ type WebHook struct {
 	server            *http.Server
 	certProvider      *certProvider
 	serviceRef        *v1beta1.ServiceReference
+	failurePolicy     v1beta1.FailurePolicyType
+	selector          *metav1.LabelSelector
 	sparkJobNamespace string
 }
 
 // Configuration parsed from command-line flags
 type webhookFlags struct {
-	serverCert              string
-	serverCertKey           string
-	caCert                  string
-	certReloadInterval      time.Duration
-	webhookServiceNamespace string
-	webhookServiceName      string
-	webhookPort             int
-	webhookConfigName       string
+	serverCert               string
+	serverCertKey            string
+	caCert                   string
+	certReloadInterval       time.Duration
+	webhookServiceNamespace  string
+	webhookServiceName       string
+	webhookPort              int
+	webhookConfigName        string
+	webhookFailOnError       bool
+	webhookNamespaceSelector string
 }
 
 var userConfig webhookFlags
@@ -85,6 +91,8 @@ func init() {
 	flag.StringVar(&userConfig.webhookServiceNamespace, "webhook-svc-namespace", "spark-operator", "The namespace of the Service for the webhook server.")
 	flag.StringVar(&userConfig.webhookServiceName, "webhook-svc-name", "spark-webhook", "The name of the Service for the webhook server.")
 	flag.IntVar(&userConfig.webhookPort, "webhook-port", 8080, "Service port of the webhook server.")
+	flag.BoolVar(&userConfig.webhookFailOnError, "webhook-fail-on-error", false, "Whether Kubernetes should reject requests when the webhook fails.")
+	flag.StringVar(&userConfig.webhookNamespaceSelector, "webhook-namespace-selector", "", "The webhook will only operate on namespaces with this label, specified in the form key=value. Required if webhook-fail-on-error is true.")
 }
 
 // New creates a new WebHook instance.
@@ -102,6 +110,7 @@ func New(
 	if err != nil {
 		return nil, err
 	}
+
 	path := "/webhook"
 	serviceRef := &v1beta1.ServiceReference{
 		Namespace: userConfig.webhookServiceNamespace,
@@ -114,6 +123,23 @@ func New(
 		certProvider:      cert,
 		serviceRef:        serviceRef,
 		sparkJobNamespace: jobNamespace,
+		failurePolicy:     arv1beta1.Ignore,
+	}
+	if userConfig.webhookFailOnError {
+		if userConfig.webhookNamespaceSelector == "" {
+			glog.Fatal("webhook-namespace-selector must be set when webhook-fail-on-error is true.")
+		} else {
+			kv := strings.SplitN(userConfig.webhookNamespaceSelector, "=", 2)
+			if len(kv) != 2 {
+				return nil, fmt.Errorf("Webhook namespace selector must be in the form key=value")
+			}
+			hook.selector = &metav1.LabelSelector{
+				MatchLabels: map[string]string{
+					kv[0]: kv[1],
+				},
+			}
+		}
+		hook.failurePolicy = arv1beta1.Fail
 	}
 
 	mux := http.NewServeMux()
@@ -143,10 +169,14 @@ func (wh *WebHook) Start() error {
 
 // Stop deregisters itself with the API server and stops the admission webhook server.
 func (wh *WebHook) Stop() error {
-	if err := wh.selfDeregistration(userConfig.webhookConfigName); err != nil {
-		return err
+	// Do not deregister if strict error handling is enabled; pod deletions are common, and we
+	// don't want to create windows where pods can be created without being subject to the webhook.
+	if wh.failurePolicy != arv1beta1.Fail {
+		if err := wh.selfDeregistration(userConfig.webhookConfigName); err != nil {
+			return err
+		}
+		glog.Infof("Webhook %s deregistered", userConfig.webhookConfigName)
 	}
-	glog.Infof("Webhook %s deregistered", userConfig.webhookConfigName)
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	wh.certProvider.Stop()
@@ -249,7 +279,6 @@ func (wh *WebHook) selfRegistration(webhookConfigName string) error {
 		return getErr
 	}
 
-	ignorePolicy := v1beta1.Ignore
 	caCert, err := readCertFile(wh.certProvider.caCertFile)
 	if err != nil {
 		return err
@@ -270,7 +299,8 @@ func (wh *WebHook) selfRegistration(webhookConfigName string) error {
 			Service:  wh.serviceRef,
 			CABundle: caCert,
 		},
-		FailurePolicy: &ignorePolicy,
+		FailurePolicy:     &wh.failurePolicy,
+		NamespaceSelector: wh.selector,
 	}
 	webhooks := []v1beta1.Webhook{webhook}
 

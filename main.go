@@ -137,7 +137,6 @@ func main() {
 
 	var hook *webhook.WebHook
 	if *enableWebhook {
-		var err error
 		hook, err = webhook.New(kubeClient, crInformerFactory, *namespace)
 		if err != nil {
 			glog.Fatal(err)
