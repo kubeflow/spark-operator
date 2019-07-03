@@ -178,6 +178,12 @@ func (c *Controller) onUpdate(oldObj, newObj interface{}) {
 	oldApp := oldObj.(*v1beta1.SparkApplication)
 	newApp := newObj.(*v1beta1.SparkApplication)
 
+	// The informer will call this function on non-updated resources during resync, avoid
+	// processing unchanged applications, unless it is waiting to be retried.
+	if oldApp.ResourceVersion == newApp.ResourceVersion && !shouldRetry(newApp) {
+		return
+	}
+
 	// The spec has changed. This is currently best effort as we can potentially miss updates
 	// and end up in an inconsistent state.
 	if !reflect.DeepEqual(oldApp.Spec, newApp.Spec) {
