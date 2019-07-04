@@ -23,7 +23,6 @@ import (
 	"io/ioutil"
 	"net/http"
 	"path/filepath"
-	"reflect"
 	"time"
 
 	"github.com/golang/glog"
@@ -32,6 +31,7 @@ import (
 	"k8s.io/api/admissionregistration/v1beta1"
 	apiv1 "k8s.io/api/core/v1"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -223,7 +223,7 @@ func (wh *WebHook) selfRegistration(webhookConfigName string) error {
 	if getErr == nil && existing != nil {
 		// Update case.
 		glog.Info("Updating existing MutatingWebhookConfiguration for the Spark pod admission webhook")
-		if !reflect.DeepEqual(webhooks, existing.Webhooks) {
+		if !equality.Semantic.DeepEqual(webhooks, existing.Webhooks) {
 			existing.Webhooks = webhooks
 			if _, err := client.Update(existing); err != nil {
 				return err
