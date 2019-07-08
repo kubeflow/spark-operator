@@ -34,6 +34,7 @@ import (
 	arv1beta1 "k8s.io/api/admissionregistration/v1beta1"
 	apiv1 "k8s.io/api/core/v1"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/informers"
@@ -390,7 +391,7 @@ func (wh *WebHook) selfRegistration(webhookConfigName string) error {
 	if mutatingGetErr == nil && mutatingExisting != nil {
 		// Update case.
 		glog.Info("Updating existing MutatingWebhookConfiguration for the Spark pod admission webhook")
-		if !reflect.DeepEqual(mutatingWebhooks, mutatingExisting.Webhooks) {
+		if !equality.Semantic.DeepEqual(mutatingWebhooks, mutatingExisting.Webhooks) {
 			mutatingExisting.Webhooks = mutatingWebhooks
 			if _, err := mutatingConfigs.Update(mutatingExisting); err != nil {
 				return err
