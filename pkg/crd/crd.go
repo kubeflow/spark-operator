@@ -18,13 +18,13 @@ package crd
 
 import (
 	"fmt"
-	"reflect"
 	"time"
 
 	"github.com/golang/glog"
 
 	apiextensionsv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	apiextensionsclient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
+	"k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/errors"
@@ -43,7 +43,7 @@ func CreateOrUpdateCRD(
 
 	if err == nil && existing != nil {
 		// Update case.
-		if !reflect.DeepEqual(existing.Spec, definition.Spec) {
+		if !equality.Semantic.DeepEqual(existing.Spec, definition.Spec) {
 			existing.Spec = definition.Spec
 			glog.Infof("Updating CustomResourceDefinition %s", definition.Name)
 			if _, err := clientset.ApiextensionsV1beta1().CustomResourceDefinitions().Update(existing); err != nil {

@@ -19,13 +19,13 @@ package sparkapplication
 import (
 	"fmt"
 	"os/exec"
-	"reflect"
 	"time"
 
 	"github.com/golang/glog"
 	"github.com/google/uuid"
 	"golang.org/x/time/rate"
 	apiv1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -178,9 +178,15 @@ func (c *Controller) onUpdate(oldObj, newObj interface{}) {
 	oldApp := oldObj.(*v1beta1.SparkApplication)
 	newApp := newObj.(*v1beta1.SparkApplication)
 
+	// The informer will call this function on non-updated resources during resync, avoid
+	// processing unchanged applications, unless it is waiting to be retried.
+	if oldApp.ResourceVersion == newApp.ResourceVersion && !shouldRetry(newApp) {
+		return
+	}
+
 	// The spec has changed. This is currently best effort as we can potentially miss updates
 	// and end up in an inconsistent state.
-	if !reflect.DeepEqual(oldApp.Spec, newApp.Spec) {
+	if !equality.Semantic.DeepEqual(oldApp.Spec, newApp.Spec) {
 		// Force-set the application status to Invalidating which handles clean-up and application re-run.
 		if _, err := c.updateApplicationStatusWithRetries(newApp, func(status *v1beta1.SparkApplicationStatus) {
 			status.AppState.State = v1beta1.InvalidatingState
@@ -677,7 +683,7 @@ func (c *Controller) updateApplicationStatusWithRetries(
 	var lastUpdateErr error
 	for i := 0; i < maximumUpdateRetries; i++ {
 		updateFunc(&toUpdate.Status)
-		if reflect.DeepEqual(original.Status, toUpdate.Status) {
+		if equality.Semantic.DeepEqual(original.Status, toUpdate.Status) {
 			return toUpdate, nil
 		}
 		_, err := c.crdClient.SparkoperatorV1beta1().SparkApplications(toUpdate.Namespace).Update(toUpdate)
@@ -709,7 +715,7 @@ func (c *Controller) updateApplicationStatusWithRetries(
 // updateStatusAndExportMetrics updates the status of the SparkApplication and export the metrics.
 func (c *Controller) updateStatusAndExportMetrics(oldApp, newApp *v1beta1.SparkApplication) error {
 	// Skip update if nothing changed.
-	if reflect.DeepEqual(oldApp, newApp) {
+	if equality.Semantic.DeepEqual(oldApp, newApp) {
 		return nil
 	}
 
