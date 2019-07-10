@@ -117,9 +117,9 @@ func main() {
 
 		electionCfg := leaderelection.LeaderElectionConfig{
 			Lock:          resourceLock,
-			LeaseDuration: 15 * time.Second,
-			RenewDeadline: 14 * time.Second,
-			RetryPeriod:   4 * time.Second,
+			LeaseDuration: *leaderElectionLeaseDuration,
+			RenewDeadline: *leaderElectionRenewDeadline,
+			RetryPeriod:   *leaderElectionRetryPeriod,
 			Callbacks: leaderelection.LeaderCallbacks{
 				OnStartedLeading: func(c context.Context) {
 					close(startCh)
