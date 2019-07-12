@@ -17,9 +17,12 @@ limitations under the License.
 package sparkapplication
 
 import (
+	"errors"
 	"fmt"
+	batchv1 "k8s.io/api/batch/v1"
+	apiErrors "k8s.io/apimachinery/pkg/api/errors"
+	"net/http"
 	"os"
-	"os/exec"
 	"strings"
 	"testing"
 	"time"
@@ -42,7 +45,7 @@ import (
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/util"
 )
 
-func newFakeController(app *v1beta1.SparkApplication, pods ...*apiv1.Pod) (*Controller, *record.FakeRecorder) {
+func newFakeController(app *v1beta1.SparkApplication, jobManager submissionJobManagerIface, pods ...*apiv1.Pod) (*Controller, *record.FakeRecorder) {
 	crdclientfake.AddToScheme(scheme.Scheme)
 	crdClient := crdclientfake.NewSimpleClientset()
 	kubeClient := kubeclientfake.NewSimpleClientset()
@@ -66,7 +69,7 @@ func newFakeController(app *v1beta1.SparkApplication, pods ...*apiv1.Pod) (*Cont
 	podInformerFactory := informers.NewSharedInformerFactory(kubeClient, 0*time.Second)
 	controller := newSparkApplicationController(crdClient, kubeClient, informerFactory, podInformerFactory, recorder,
 		&util.MetricConfig{}, "")
-
+	controller.subJobManager = jobManager
 	informer := informerFactory.Sparkoperator().V1beta1().SparkApplications().Informer()
 	if app != nil {
 		informer.GetIndexer().Add(app)
@@ -82,7 +85,7 @@ func newFakeController(app *v1beta1.SparkApplication, pods ...*apiv1.Pod) (*Cont
 }
 
 func TestOnAdd(t *testing.T) {
-	ctrl, _ := newFakeController(nil)
+	ctrl, _ := newFakeController(nil, nil)
 
 	app := &v1beta1.SparkApplication{
 		ObjectMeta: metav1.ObjectMeta{
@@ -103,7 +106,7 @@ func TestOnAdd(t *testing.T) {
 }
 
 func TestOnUpdate(t *testing.T) {
-	ctrl, recorder := newFakeController(nil)
+	ctrl, recorder := newFakeController(nil, nil)
 
 	appTemplate := &v1beta1.SparkApplication{
 		ObjectMeta: metav1.ObjectMeta{
@@ -173,7 +176,12 @@ func TestOnUpdate(t *testing.T) {
 }
 
 func TestOnDelete(t *testing.T) {
-	ctrl, recorder := newFakeController(nil)
+	mockJobManager := MockSubmissionJobManager{
+		deleteSubmissionJobCb: func(app *v1beta1.SparkApplication) error {
+			return nil
+		},
+	}
+	ctrl, recorder := newFakeController(nil, &mockJobManager)
 
 	app := &v1beta1.SparkApplication{
 		ObjectMeta: metav1.ObjectMeta{
@@ -229,8 +237,30 @@ type executorMetrics struct {
 	failedMetricCount  float64
 }
 
-func TestSyncSparkApplication_SubmissionFailed(t *testing.T) {
-	os.Setenv(sparkHomeEnvVar, "/spark")
+type MockSubmissionJobManager struct {
+	createSubmissionJobCb func(app *v1beta1.SparkApplication) (*string, *string, error)
+	deleteSubmissionJobCb func(app *v1beta1.SparkApplication) error
+	getSubmissionJobCb    func(app *v1beta1.SparkApplication) (*batchv1.Job, error)
+	hasJobSucceededCb     func(app *v1beta1.SparkApplication) (*bool, *metav1.Time, error)
+}
+
+func (m *MockSubmissionJobManager) createSubmissionJob(app *v1beta1.SparkApplication) (*string, *string, error) {
+	return m.createSubmissionJobCb(app)
+}
+
+func (m *MockSubmissionJobManager) deleteSubmissionJob(app *v1beta1.SparkApplication) error {
+	return m.deleteSubmissionJobCb(app)
+}
+
+func (m *MockSubmissionJobManager) getSubmissionJob(app *v1beta1.SparkApplication) (*batchv1.Job, error) {
+	return m.getSubmissionJobCb(app)
+}
+
+func (m *MockSubmissionJobManager) hasJobSucceeded(app *v1beta1.SparkApplication) (*bool, *metav1.Time, error) {
+	return m.hasJobSucceededCb(app)
+}
+
+func TestSyncSparkApplication_Submission(t *testing.T) {
 	os.Setenv(kubernetesServiceHostEnvVar, "localhost")
 	os.Setenv(kubernetesServicePortEnvVar, "443")
 
@@ -256,68 +286,111 @@ func TestSyncSparkApplication_SubmissionFailed(t *testing.T) {
 		},
 	}
 
-	ctrl, recorder := newFakeController(app)
+	// Case 1: Submission Failed.
+	mockJobManager := MockSubmissionJobManager{
+		createSubmissionJobCb: func(app *v1beta1.SparkApplication) (*string, *string, error) {
+			return nil, nil, errors.New("Failed to submit app")
+		},
+	}
+	ctrl, recorder := newFakeController(app, &mockJobManager)
 	_, err := ctrl.crdClient.SparkoperatorV1beta1().SparkApplications(app.Namespace).Create(app)
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	execCommand = func(command string, args ...string) *exec.Cmd {
-		cs := []string{"-test.run=TestHelperProcessFailure", "--", command}
-		cs = append(cs, args...)
-		cmd := exec.Command(os.Args[0], cs...)
-		cmd.Env = []string{"GO_WANT_HELPER_PROCESS=1"}
-		return cmd
-	}
-
-	// Attempt 1
 	err = ctrl.syncSparkApplication("default/foo")
 	updatedApp, err := ctrl.crdClient.SparkoperatorV1beta1().SparkApplications(app.Namespace).Get(app.Name, metav1.GetOptions{})
-
 	assert.Equal(t, v1beta1.FailedSubmissionState, updatedApp.Status.AppState.State)
 	assert.Equal(t, float64(0), fetchCounterValue(ctrl.metrics.sparkAppSubmitCount, map[string]string{}))
 	assert.Equal(t, float64(1), fetchCounterValue(ctrl.metrics.sparkAppFailedSubmissionCount, map[string]string{}))
 
+	// Validate Events
 	event := <-recorder.Events
 	assert.True(t, strings.Contains(event, "SparkApplicationAdded"))
 	event = <-recorder.Events
 	assert.True(t, strings.Contains(event, "SparkApplicationSubmissionFailed"))
 
-	// Attempt 2: Retry again.
-	updatedApp.Status.SubmissionTime = metav1.Time{Time: metav1.Now().Add(-100 * time.Second)}
-	ctrl, recorder = newFakeController(updatedApp)
-	_, err = ctrl.crdClient.SparkoperatorV1beta1().SparkApplications(app.Namespace).Create(updatedApp)
+	// Case 2: Job Creation Succeeded.
+	mockJobManager = MockSubmissionJobManager{
+		createSubmissionJobCb: func(app *v1beta1.SparkApplication) (*string, *string, error) {
+			return stringptr("uuid"), stringptr("foo-driver"), nil
+		},
+		hasJobSucceededCb: func(app *v1beta1.SparkApplication) (*bool, *metav1.Time, error) {
+			return boolptr(true), nil, nil
+		},
+	}
+	ctrl, recorder = newFakeController(app, &mockJobManager)
+	_, err = ctrl.crdClient.SparkoperatorV1beta1().SparkApplications(app.Namespace).Create(app)
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = ctrl.syncSparkApplication("default/foo")
 
-	// Verify that the application failed again.
+	err = ctrl.syncSparkApplication("default/foo")
 	updatedApp, err = ctrl.crdClient.SparkoperatorV1beta1().SparkApplications(app.Namespace).Get(app.Name, metav1.GetOptions{})
 	assert.Nil(t, err)
-	assert.Equal(t, v1beta1.FailedSubmissionState, updatedApp.Status.AppState.State)
+	assert.Equal(t, v1beta1.PendingSubmissionState, updatedApp.Status.AppState.State)
 	assert.Equal(t, float64(0), fetchCounterValue(ctrl.metrics.sparkAppSubmitCount, map[string]string{}))
 
+	// Validate Events
 	event = <-recorder.Events
-	assert.True(t, strings.Contains(event, "SparkApplicationSubmissionFailed"))
+	assert.True(t, strings.Contains(event, "SparkApplicationAdded"))
+	event = <-recorder.Events
+	assert.True(t, strings.Contains(event, "SubmissionJobCreated"))
 
-	// Attempt 3: No more retries.
-	updatedApp.Status.SubmissionTime = metav1.Time{Time: metav1.Now().Add(-100 * time.Second)}
-	ctrl, recorder = newFakeController(updatedApp)
+	//Case 3: Submission Success
+	mockJobManager = MockSubmissionJobManager{
+		hasJobSucceededCb: func(app *v1beta1.SparkApplication) (*bool, *metav1.Time, error) {
+			return boolptr(true), nil, nil
+		},
+	}
+	ctrl, recorder = newFakeController(updatedApp, &mockJobManager)
 	_, err = ctrl.crdClient.SparkoperatorV1beta1().SparkApplications(app.Namespace).Create(updatedApp)
 	if err != nil {
 		t.Fatal(err)
 	}
 	err = ctrl.syncSparkApplication("default/foo")
 
-	// Verify that the application failed again.
 	updatedApp, err = ctrl.crdClient.SparkoperatorV1beta1().SparkApplications(app.Namespace).Get(app.Name, metav1.GetOptions{})
 	assert.Nil(t, err)
-	assert.Equal(t, v1beta1.FailedState, updatedApp.Status.AppState.State)
+	assert.Equal(t, v1beta1.SubmittedState, updatedApp.Status.AppState.State)
+	assert.Equal(t, float64(1), fetchCounterValue(ctrl.metrics.sparkAppSubmitCount, map[string]string{}))
+
+	event = <-recorder.Events
+	assert.True(t, strings.Contains(event, "SparkApplicationSubmitted"))
+
+	// Case 4: Pending Rerun -> Submission Job Created
+	mockJobManager = MockSubmissionJobManager{
+		createSubmissionJobCb: func(app *v1beta1.SparkApplication) (*string, *string, error) {
+			return stringptr("uuid"), stringptr("foo-driver"), nil
+		},
+		getSubmissionJobCb: func(app *v1beta1.SparkApplication) (job *batchv1.Job, e error) {
+			return nil, &apiErrors.StatusError{
+				ErrStatus: metav1.Status{
+					Code:   http.StatusNotFound,
+					Reason: metav1.StatusReasonNotFound,
+				}}
+		},
+	}
+	app.Status.AppState.State = v1beta1.PendingRerunState
+	ctrl, recorder = newFakeController(app, &mockJobManager)
+	_, err = ctrl.crdClient.SparkoperatorV1beta1().SparkApplications(app.Namespace).Create(app)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = ctrl.syncSparkApplication("default/foo")
+	updatedApp, err = ctrl.crdClient.SparkoperatorV1beta1().SparkApplications(app.Namespace).Get(app.Name, metav1.GetOptions{})
+	assert.Nil(t, err)
+	assert.Equal(t, v1beta1.PendingSubmissionState, updatedApp.Status.AppState.State)
+
+	// Validate Events
+	event = <-recorder.Events
+	assert.True(t, strings.Contains(event, "SparkApplicationPendingRerun"))
+	event = <-recorder.Events
+	assert.True(t, strings.Contains(event, "SubmissionJobCreated"))
 }
 
 func TestValidateDetectsNodeSelectorSuccessNoSelector(t *testing.T) {
-	ctrl, _ := newFakeController(nil)
+	ctrl, _ := newFakeController(nil, nil)
 
 	app := &v1beta1.SparkApplication{
 		ObjectMeta: metav1.ObjectMeta{
@@ -331,7 +404,7 @@ func TestValidateDetectsNodeSelectorSuccessNoSelector(t *testing.T) {
 }
 
 func TestValidateDetectsNodeSelectorSuccessNodeSelectorAtAppLevel(t *testing.T) {
-	ctrl, _ := newFakeController(nil)
+	ctrl, _ := newFakeController(nil, nil)
 
 	app := &v1beta1.SparkApplication{
 		ObjectMeta: metav1.ObjectMeta{
@@ -348,7 +421,7 @@ func TestValidateDetectsNodeSelectorSuccessNodeSelectorAtAppLevel(t *testing.T) 
 }
 
 func TestValidateDetectsNodeSelectorSuccessNodeSelectorAtPodLevel(t *testing.T) {
-	ctrl, _ := newFakeController(nil)
+	ctrl, _ := newFakeController(nil, nil)
 
 	app := &v1beta1.SparkApplication{
 		ObjectMeta: metav1.ObjectMeta{
@@ -378,7 +451,7 @@ func TestValidateDetectsNodeSelectorSuccessNodeSelectorAtPodLevel(t *testing.T) 
 }
 
 func TestValidateDetectsNodeSelectorFailsAppAndPodLevel(t *testing.T) {
-	ctrl, _ := newFakeController(nil)
+	ctrl, _ := newFakeController(nil, nil)
 
 	app := &v1beta1.SparkApplication{
 		ObjectMeta: metav1.ObjectMeta{
@@ -544,7 +617,7 @@ func TestShouldRetry(t *testing.T) {
 					},
 				},
 			},
-			shouldRetry: true,
+			shouldRetry: false,
 		},
 		{
 			app: &v1beta1.SparkApplication{
@@ -575,23 +648,29 @@ func TestSyncSparkApplication_SubmissionSuccess(t *testing.T) {
 		app           *v1beta1.SparkApplication
 		expectedState v1beta1.ApplicationStateType
 	}
-	os.Setenv(sparkHomeEnvVar, "/spark")
 	os.Setenv(kubernetesServiceHostEnvVar, "localhost")
 	os.Setenv(kubernetesServicePortEnvVar, "443")
 
+	mockJobManager := MockSubmissionJobManager{
+		createSubmissionJobCb: func(app *v1beta1.SparkApplication) (*string, *string, error) {
+			return stringptr("uuid"), stringptr("foo-driver"), nil
+		},
+		hasJobSucceededCb: func(app *v1beta1.SparkApplication) (*bool, *metav1.Time, error) {
+			return boolptr(true), nil, nil
+		},
+		deleteSubmissionJobCb: func(app *v1beta1.SparkApplication) error {
+			return nil
+		},
+		getSubmissionJobCb: func(app *v1beta1.SparkApplication) (job *batchv1.Job, e error) {
+			return &batchv1.Job{}, nil
+		},
+	}
+
 	testFn := func(test testcase, t *testing.T) {
-		ctrl, _ := newFakeController(test.app)
+		ctrl, _ := newFakeController(test.app, &mockJobManager)
 		_, err := ctrl.crdClient.SparkoperatorV1beta1().SparkApplications(test.app.Namespace).Create(test.app)
 		if err != nil {
 			t.Fatal(err)
-		}
-
-		execCommand = func(command string, args ...string) *exec.Cmd {
-			cs := []string{"-test.run=TestHelperProcessSuccess", "--", command}
-			cs = append(cs, args...)
-			cmd := exec.Command(os.Args[0], cs...)
-			cmd.Env = []string{"GO_WANT_HELPER_PROCESS=1"}
-			return cmd
 		}
 
 		err = ctrl.syncSparkApplication(fmt.Sprintf("%s/%s", test.app.Namespace, test.app.Name))
@@ -626,14 +705,6 @@ func TestSyncSparkApplication_SubmissionSuccess(t *testing.T) {
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "foo",
 					Namespace: "default",
-				}},
-			expectedState: v1beta1.SubmittedState,
-		},
-		{
-			app: &v1beta1.SparkApplication{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "foo",
-					Namespace: "default",
 				},
 				Spec: v1beta1.SparkApplicationSpec{
 					RestartPolicy: restartPolicyAlways,
@@ -657,47 +728,11 @@ func TestSyncSparkApplication_SubmissionSuccess(t *testing.T) {
 				},
 				Status: v1beta1.SparkApplicationStatus{
 					AppState: v1beta1.ApplicationState{
-						State: v1beta1.PendingRerunState,
-					},
-				},
-			},
-			expectedState: v1beta1.SubmittedState,
-		},
-		{
-			app: &v1beta1.SparkApplication{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "foo",
-					Namespace: "default",
-				},
-				Spec: v1beta1.SparkApplicationSpec{
-					RestartPolicy: restartPolicyAlways,
-				},
-				Status: v1beta1.SparkApplicationStatus{
-					AppState: v1beta1.ApplicationState{
 						State: v1beta1.FailedSubmissionState,
 					},
-					SubmissionTime: metav1.Time{Time: metav1.Now().Add(-2000 * time.Second)},
 				},
 			},
 			expectedState: v1beta1.FailedSubmissionState,
-		},
-		{
-			app: &v1beta1.SparkApplication{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "foo",
-					Namespace: "default",
-				},
-				Spec: v1beta1.SparkApplicationSpec{
-					RestartPolicy: restartPolicyAlways,
-				},
-				Status: v1beta1.SparkApplicationStatus{
-					AppState: v1beta1.ApplicationState{
-						State: v1beta1.FailedSubmissionState,
-					},
-					SubmissionTime: metav1.Time{Time: metav1.Now().Add(-2000 * time.Second)},
-				},
-			},
-			expectedState: v1beta1.SubmittedState,
 		},
 		{
 			app: &v1beta1.SparkApplication{
@@ -777,23 +812,6 @@ func TestSyncSparkApplication_SubmissionSuccess(t *testing.T) {
 					Name:      "foo",
 					Namespace: "default",
 				},
-				Spec: v1beta1.SparkApplicationSpec{
-					RestartPolicy: restartPolicyNever,
-				},
-				Status: v1beta1.SparkApplicationStatus{
-					AppState: v1beta1.ApplicationState{
-						State: v1beta1.NewState,
-					},
-				},
-			},
-			expectedState: v1beta1.SubmittedState,
-		},
-		{
-			app: &v1beta1.SparkApplication{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "foo",
-					Namespace: "default",
-				},
 				Status: v1beta1.SparkApplicationStatus{
 					AppState: v1beta1.ApplicationState{
 						State: v1beta1.FailingState,
@@ -854,23 +872,6 @@ func TestSyncSparkApplication_SubmissionSuccess(t *testing.T) {
 					AppState: v1beta1.ApplicationState{
 						State: v1beta1.FailedSubmissionState,
 					},
-				},
-				Spec: v1beta1.SparkApplicationSpec{
-					RestartPolicy: restartPolicyOnFailure,
-				},
-			},
-			expectedState: v1beta1.FailedState,
-		},
-		{
-			app: &v1beta1.SparkApplication{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "foo",
-					Namespace: "default",
-				},
-				Status: v1beta1.SparkApplicationStatus{
-					AppState: v1beta1.ApplicationState{
-						State: v1beta1.FailedSubmissionState,
-					},
 					SubmissionTime: metav1.Now(),
 				},
 				Spec: v1beta1.SparkApplicationSpec{
@@ -878,24 +879,6 @@ func TestSyncSparkApplication_SubmissionSuccess(t *testing.T) {
 				},
 			},
 			expectedState: v1beta1.FailedSubmissionState,
-		},
-		{
-			app: &v1beta1.SparkApplication{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "foo",
-					Namespace: "default",
-				},
-				Status: v1beta1.SparkApplicationStatus{
-					AppState: v1beta1.ApplicationState{
-						State: v1beta1.FailedSubmissionState,
-					},
-					SubmissionTime: metav1.Time{Time: metav1.Now().Add(-2000 * time.Second)},
-				},
-				Spec: v1beta1.SparkApplicationSpec{
-					RestartPolicy: restartPolicyOnFailure,
-				},
-			},
-			expectedState: v1beta1.SubmittedState,
 		},
 	}
 
@@ -1152,7 +1135,7 @@ func TestSyncSparkApplication_ExecutingState(t *testing.T) {
 		app.Status.ExecutorState = test.oldExecutorStatus
 		app.Name = test.appName
 		app.Status.ExecutionAttempts = 1
-		ctrl, _ := newFakeController(app, test.driverPod, test.executorPod)
+		ctrl, _ := newFakeController(app, nil, test.driverPod, test.executorPod)
 		_, err := ctrl.crdClient.SparkoperatorV1beta1().SparkApplications(app.Namespace).Create(app)
 		if err != nil {
 			t.Fatal(err)
@@ -1206,10 +1189,6 @@ func TestHasRetryIntervalPassed(t *testing.T) {
 	// Not enough time passed.
 	assert.False(t, hasRetryIntervalPassed(int64ptr(50), 3, metav1.Time{Time: metav1.Now().Add(-100 * time.Second)}))
 	assert.True(t, hasRetryIntervalPassed(int64ptr(50), 3, metav1.Time{Time: metav1.Now().Add(-151 * time.Second)}))
-}
-
-func stringptr(s string) *string {
-	return &s
 }
 
 func int32ptr(n int32) *int32 {

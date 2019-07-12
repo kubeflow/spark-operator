@@ -23,7 +23,6 @@ import (
 	"time"
 
 	"github.com/golang/glog"
-	"github.com/google/uuid"
 	"golang.org/x/time/rate"
 	apiv1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -35,7 +34,6 @@ import (
 	clientset "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
 	typedcorev1 "k8s.io/client-go/kubernetes/typed/core/v1"
-	batchv1 "k8s.io/client-go/listers/batch/v1"
 	v1 "k8s.io/client-go/listers/core/v1"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
@@ -72,9 +70,8 @@ type Controller struct {
 	metrics           *sparkAppMetrics
 	applicationLister crdlisters.SparkApplicationLister
 	podLister         v1.PodLister
-	jobLister         batchv1.JobLister
 	ingressURLFormat  string
-	subJobManager     *submissionJobManager
+	subJobManager     submissionJobManagerIface
 }
 
 // NewController creates a new Controller.
@@ -115,7 +112,6 @@ func newSparkApplicationController(
 		recorder:         eventRecorder,
 		queue:            queue,
 		ingressURLFormat: ingressURLFormat,
-		subJobManager:    &submissionJobManager{kubeClient: kubeClient},
 	}
 
 	if metricsConfig != nil {
@@ -141,7 +137,6 @@ func newSparkApplicationController(
 	controller.podLister = podsInformer.Lister()
 
 	jobLister := informerFactory.Batch().V1().Jobs().Lister()
-	controller.jobLister = jobLister
 	controller.subJobManager = &submissionJobManager{kubeClient: kubeClient, jobLister: jobLister}
 
 	controller.cacheSynced = func() bool {
@@ -504,9 +499,7 @@ func (c *Controller) syncSparkApplication(key string) error {
 	case v1beta1.PendingSubmissionState:
 		// Check the status of the submission Job and set the application status accordingly.
 		succeeded, completionTime, err := c.subJobManager.hasJobSucceeded(appToUpdate)
-		if err != nil {
-			return err
-		}
+
 		if succeeded != nil {
 			if *succeeded {
 				c.createSparkUIResources(appToUpdate)
@@ -515,12 +508,18 @@ func (c *Controller) syncSparkApplication(key string) error {
 				if completionTime != nil {
 					appToUpdate.Status.SubmissionTime = *completionTime
 				}
+				c.recordSparkApplicationEvent(appToUpdate)
 			} else {
 				// Since we delegate submission retries to the Kubernetes Job controller, the fact that the
 				// submission Job failed means all the submission attempts failed. So we set the application
 				// state to FailedSubmission, which is a terminal state.
 				appToUpdate.Status.AppState.State = v1beta1.FailedSubmissionState
+				appToUpdate.Status.AppState.ErrorMessage = err.Error()
+				c.recordSparkApplicationEvent(appToUpdate)
 			}
+		} else if err != nil {
+			// Received an error trying to query the status of the Job.
+			return err
 		}
 	case v1beta1.SucceedingState:
 		// The current run of the application has completed, check if it needs to be restarted.
@@ -615,20 +614,7 @@ func (c *Controller) submitSparkApplication(app *v1beta1.SparkApplication) *v1be
 		}
 	}
 
-	driverPodName := getDriverPodName(app)
-	submissionID := uuid.New().String()
-	submissionCmdArgs, err := buildSubmissionCommandArgs(app, driverPodName, submissionID)
-	if err != nil {
-		app.Status = v1beta1.SparkApplicationStatus{
-			AppState: v1beta1.ApplicationState{
-				State:        v1beta1.FailedSubmissionState,
-				ErrorMessage: err.Error(),
-			},
-		}
-		return app
-	}
-
-	_, err = c.subJobManager.createSubmissionJob(newSubmission(submissionCmdArgs, app))
+	submissionID, driverPodName, err := c.subJobManager.createSubmissionJob(app)
 	if err != nil {
 		if !errors.IsAlreadyExists(err) {
 			app.Status = v1beta1.SparkApplicationStatus{
@@ -638,13 +624,14 @@ func (c *Controller) submitSparkApplication(app *v1beta1.SparkApplication) *v1be
 				},
 			}
 		}
+		c.recordSparkApplicationEvent(app)
 		return app
 	}
 
 	glog.Infof("SparkApplication %s/%s has been submitted", app.Namespace, app.Name)
 	app.Status = v1beta1.SparkApplicationStatus{
-		SubmissionID: submissionID,
-		DriverInfo:   v1beta1.DriverInfo{PodName: driverPodName},
+		SubmissionID: *submissionID,
+		DriverInfo:   v1beta1.DriverInfo{PodName: *driverPodName},
 		AppState:     v1beta1.ApplicationState{State: v1beta1.PendingSubmissionState},
 	}
 
