@@ -45,7 +45,7 @@ import (
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/util"
 )
 
-func newFakeController(app *v1beta1.SparkApplication, jobManager submissionJobManagerIface, pods ...*apiv1.Pod) (*Controller, *record.FakeRecorder) {
+func newFakeController(app *v1beta1.SparkApplication, jobManager submissionJobManager, pods ...*apiv1.Pod) (*Controller, *record.FakeRecorder) {
 	crdclientfake.AddToScheme(scheme.Scheme)
 	crdClient := crdclientfake.NewSimpleClientset()
 	kubeClient := kubeclientfake.NewSimpleClientset()
@@ -176,7 +176,7 @@ func TestOnUpdate(t *testing.T) {
 }
 
 func TestOnDelete(t *testing.T) {
-	mockJobManager := MockSubmissionJobManager{
+	mockJobManager := fakeSubmissionJobManager{
 		deleteSubmissionJobCb: func(app *v1beta1.SparkApplication) error {
 			return nil
 		},
@@ -237,26 +237,26 @@ type executorMetrics struct {
 	failedMetricCount  float64
 }
 
-type MockSubmissionJobManager struct {
-	createSubmissionJobCb func(app *v1beta1.SparkApplication) (*string, *string, error)
+type fakeSubmissionJobManager struct {
+	createSubmissionJobCb func(app *v1beta1.SparkApplication) (string, string, error)
 	deleteSubmissionJobCb func(app *v1beta1.SparkApplication) error
 	getSubmissionJobCb    func(app *v1beta1.SparkApplication) (*batchv1.Job, error)
 	hasJobSucceededCb     func(app *v1beta1.SparkApplication) (*bool, *metav1.Time, error)
 }
 
-func (m *MockSubmissionJobManager) createSubmissionJob(app *v1beta1.SparkApplication) (*string, *string, error) {
+func (m *fakeSubmissionJobManager) createSubmissionJob(app *v1beta1.SparkApplication) (string, string, error) {
 	return m.createSubmissionJobCb(app)
 }
 
-func (m *MockSubmissionJobManager) deleteSubmissionJob(app *v1beta1.SparkApplication) error {
+func (m *fakeSubmissionJobManager) deleteSubmissionJob(app *v1beta1.SparkApplication) error {
 	return m.deleteSubmissionJobCb(app)
 }
 
-func (m *MockSubmissionJobManager) getSubmissionJob(app *v1beta1.SparkApplication) (*batchv1.Job, error) {
+func (m *fakeSubmissionJobManager) getSubmissionJob(app *v1beta1.SparkApplication) (*batchv1.Job, error) {
 	return m.getSubmissionJobCb(app)
 }
 
-func (m *MockSubmissionJobManager) hasJobSucceeded(app *v1beta1.SparkApplication) (*bool, *metav1.Time, error) {
+func (m *fakeSubmissionJobManager) hasJobSucceeded(app *v1beta1.SparkApplication) (*bool, *metav1.Time, error) {
 	return m.hasJobSucceededCb(app)
 }
 
@@ -287,9 +287,9 @@ func TestSyncSparkApplication_Submission(t *testing.T) {
 	}
 
 	// Case 1: Submission Failed.
-	mockJobManager := MockSubmissionJobManager{
-		createSubmissionJobCb: func(app *v1beta1.SparkApplication) (*string, *string, error) {
-			return nil, nil, errors.New("Failed to submit app")
+	mockJobManager := fakeSubmissionJobManager{
+		createSubmissionJobCb: func(app *v1beta1.SparkApplication) (string, string, error) {
+			return "", "", errors.New("Failed to submit app")
 		},
 	}
 	ctrl, recorder := newFakeController(app, &mockJobManager)
@@ -310,9 +310,9 @@ func TestSyncSparkApplication_Submission(t *testing.T) {
 	assert.True(t, strings.Contains(event, "SparkApplicationSubmissionFailed"))
 
 	// Case 2: Job Creation Succeeded.
-	mockJobManager = MockSubmissionJobManager{
-		createSubmissionJobCb: func(app *v1beta1.SparkApplication) (*string, *string, error) {
-			return stringptr("uuid"), stringptr("foo-driver"), nil
+	mockJobManager = fakeSubmissionJobManager{
+		createSubmissionJobCb: func(app *v1beta1.SparkApplication) (string, string, error) {
+			return "uuid", "foo-driver", nil
 		},
 		hasJobSucceededCb: func(app *v1beta1.SparkApplication) (*bool, *metav1.Time, error) {
 			return boolptr(true), nil, nil
@@ -337,7 +337,7 @@ func TestSyncSparkApplication_Submission(t *testing.T) {
 	assert.True(t, strings.Contains(event, "SubmissionJobCreated"))
 
 	//Case 3: Submission Success
-	mockJobManager = MockSubmissionJobManager{
+	mockJobManager = fakeSubmissionJobManager{
 		hasJobSucceededCb: func(app *v1beta1.SparkApplication) (*bool, *metav1.Time, error) {
 			return boolptr(true), nil, nil
 		},
@@ -358,9 +358,9 @@ func TestSyncSparkApplication_Submission(t *testing.T) {
 	assert.True(t, strings.Contains(event, "SparkApplicationSubmitted"))
 
 	// Case 4: Pending Rerun -> Submission Job Created
-	mockJobManager = MockSubmissionJobManager{
-		createSubmissionJobCb: func(app *v1beta1.SparkApplication) (*string, *string, error) {
-			return stringptr("uuid"), stringptr("foo-driver"), nil
+	mockJobManager = fakeSubmissionJobManager{
+		createSubmissionJobCb: func(app *v1beta1.SparkApplication) (string, string, error) {
+			return "uuid", "foo-driver", nil
 		},
 		getSubmissionJobCb: func(app *v1beta1.SparkApplication) (job *batchv1.Job, e error) {
 			return nil, &apiErrors.StatusError{
@@ -651,9 +651,9 @@ func TestSyncSparkApplication_SubmissionSuccess(t *testing.T) {
 	os.Setenv(kubernetesServiceHostEnvVar, "localhost")
 	os.Setenv(kubernetesServicePortEnvVar, "443")
 
-	mockJobManager := MockSubmissionJobManager{
-		createSubmissionJobCb: func(app *v1beta1.SparkApplication) (*string, *string, error) {
-			return stringptr("uuid"), stringptr("foo-driver"), nil
+	mockJobManager := fakeSubmissionJobManager{
+		createSubmissionJobCb: func(app *v1beta1.SparkApplication) (string, string, error) {
+			return "uuid", "foo-driver", nil
 		},
 		hasJobSucceededCb: func(app *v1beta1.SparkApplication) (*bool, *metav1.Time, error) {
 			return boolptr(true), nil, nil
@@ -1197,4 +1197,8 @@ func int32ptr(n int32) *int32 {
 
 func int64ptr(n int64) *int64 {
 	return &n
+}
+
+func stringptr(v string) *string {
+	return &v
 }

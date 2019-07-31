@@ -71,7 +71,7 @@ type Controller struct {
 	applicationLister crdlisters.SparkApplicationLister
 	podLister         v1.PodLister
 	ingressURLFormat  string
-	subJobManager     submissionJobManagerIface
+	subJobManager     submissionJobManager
 }
 
 // NewController creates a new Controller.
@@ -137,7 +137,7 @@ func newSparkApplicationController(
 	controller.podLister = podsInformer.Lister()
 
 	jobLister := informerFactory.Batch().V1().Jobs().Lister()
-	controller.subJobManager = &submissionJobManager{kubeClient: kubeClient, jobLister: jobLister}
+	controller.subJobManager = &realSubmissionJobManager{kubeClient: kubeClient, jobLister: jobLister}
 
 	controller.cacheSynced = func() bool {
 		return crdInformer.Informer().HasSynced() && podsInformer.Informer().HasSynced()
@@ -514,7 +514,9 @@ func (c *Controller) syncSparkApplication(key string) error {
 				// submission Job failed means all the submission attempts failed. So we set the application
 				// state to FailedSubmission, which is a terminal state.
 				appToUpdate.Status.AppState.State = v1beta1.FailedSubmissionState
-				appToUpdate.Status.AppState.ErrorMessage = err.Error()
+				if err != nil {
+					appToUpdate.Status.AppState.ErrorMessage = err.Error()
+				}
 				c.recordSparkApplicationEvent(appToUpdate)
 			}
 		} else if err != nil {
@@ -630,8 +632,8 @@ func (c *Controller) submitSparkApplication(app *v1beta1.SparkApplication) *v1be
 
 	glog.Infof("SparkApplication %s/%s has been submitted", app.Namespace, app.Name)
 	app.Status = v1beta1.SparkApplicationStatus{
-		SubmissionID: *submissionID,
-		DriverInfo:   v1beta1.DriverInfo{PodName: *driverPodName},
+		SubmissionID: submissionID,
+		DriverInfo:   v1beta1.DriverInfo{PodName: driverPodName},
 		AppState:     v1beta1.ApplicationState{State: v1beta1.PendingSubmissionState},
 	}
 

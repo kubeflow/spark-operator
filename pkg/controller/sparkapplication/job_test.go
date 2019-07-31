@@ -17,24 +17,22 @@ limitations under the License.
 package sparkapplication
 
 import (
-	"k8s.io/api/core/v1"
 	"os"
 	"testing"
 	"time"
 
-	"k8s.io/apimachinery/pkg/api/errors"
-
 	batchv1 "k8s.io/api/batch/v1"
-
-	"github.com/stretchr/testify/assert"
+	"k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/informers"
 	kubeclientfake "k8s.io/client-go/kubernetes/fake"
 
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta1"
+	"github.com/stretchr/testify/assert"
 )
 
-func newFakeJobManager(jobs ...*batchv1.Job) submissionJobManagerIface {
+func newFakeJobManager(jobs ...*batchv1.Job) submissionJobManager {
 	kubeClient := kubeclientfake.NewSimpleClientset()
 
 	informerFactory := informers.NewSharedInformerFactory(kubeClient, 0*time.Second)
@@ -46,14 +44,13 @@ func newFakeJobManager(jobs ...*batchv1.Job) submissionJobManagerIface {
 			kubeClient.BatchV1().Jobs(job.GetNamespace()).Create(job)
 		}
 	}
-	return &submissionJobManager{
+	return &realSubmissionJobManager{
 		jobLister:  lister,
 		kubeClient: kubeClient,
 	}
 }
 
 func TestGetSubmissionJob(t *testing.T) {
-
 	app := &v1beta1.SparkApplication{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "foo",
@@ -127,8 +124,8 @@ func TestCreateSubmissionJob(t *testing.T) {
 	jobManager := newFakeJobManager(nil)
 	submissionID, driverPodName, err := jobManager.createSubmissionJob(app)
 	assert.NotNil(t, err)
-	assert.Nil(t, submissionID)
-	assert.Nil(t, driverPodName)
+	assert.Empty(t, submissionID)
+	assert.Empty(t, driverPodName)
 
 	// Case 2:  Job creation successful.
 	app = &v1beta1.SparkApplication{

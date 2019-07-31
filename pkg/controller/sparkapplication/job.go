@@ -18,10 +18,11 @@ package sparkapplication
 
 import (
 	"fmt"
+	"strings"
+
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
 	"k8s.io/api/core/v1"
-	"strings"
 
 	"k8s.io/apimachinery/pkg/api/resource"
 
@@ -36,23 +37,23 @@ import (
 )
 
 const (
-	sparkSubmitPodMemory = "1000Mi"
-	sparkSubmitPodCpu    = "1024m"
+	sparkSubmitPodMemory = "256Mi"
+	sparkSubmitPodCpu    = "250m"
 )
 
-type submissionJobManagerIface interface {
-	createSubmissionJob(app *v1beta1.SparkApplication) (*string, *string, error)
+type submissionJobManager interface {
+	createSubmissionJob(app *v1beta1.SparkApplication) (string, string, error)
 	deleteSubmissionJob(app *v1beta1.SparkApplication) error
 	getSubmissionJob(app *v1beta1.SparkApplication) (*batchv1.Job, error)
 	hasJobSucceeded(app *v1beta1.SparkApplication) (*bool, *metav1.Time, error)
 }
 
-type submissionJobManager struct {
+type realSubmissionJobManager struct {
 	kubeClient kubernetes.Interface
 	jobLister  batchv1listers.JobLister
 }
 
-func (sjm *submissionJobManager) createSubmissionJob(app *v1beta1.SparkApplication) (*string, *string, error) {
+func (sjm *realSubmissionJobManager) createSubmissionJob(app *v1beta1.SparkApplication) (string, string, error) {
 	var image string
 	if app.Spec.Image != nil {
 		image = *app.Spec.Image
@@ -60,7 +61,7 @@ func (sjm *submissionJobManager) createSubmissionJob(app *v1beta1.SparkApplicati
 		image = *app.Spec.Driver.Image
 	}
 	if image == "" {
-		return nil, nil, fmt.Errorf("no image specified in .spec.image or .spec.driver.image in SparkApplication %s/%s",
+		return "", "", fmt.Errorf("no image specified in .spec.image or .spec.driver.image in SparkApplication %s/%s",
 			app.Namespace, app.Name)
 	}
 
@@ -68,7 +69,7 @@ func (sjm *submissionJobManager) createSubmissionJob(app *v1beta1.SparkApplicati
 	submissionID := uuid.New().String()
 	submissionCmdArgs, err := buildSubmissionCommandArgs(app, driverPodName, submissionID)
 	if err != nil {
-		return nil, nil, err
+		return "", "", err
 	}
 
 	command := []string{"sh", "-c", fmt.Sprintf("$SPARK_HOME/bin/spark-submit %s", strings.Join(submissionCmdArgs, " "))}
@@ -121,24 +122,23 @@ func (sjm *submissionJobManager) createSubmissionJob(app *v1beta1.SparkApplicati
 	}
 	_, err = sjm.kubeClient.BatchV1().Jobs(app.Namespace).Create(job)
 	if err != nil {
-		return nil, nil, err
+		return "", "", err
 	}
-	// Submission Job Created successfully.
-	return stringptr(submissionID), stringptr(driverPodName), nil
+	return submissionID, driverPodName, nil
 }
 
-func (sjm *submissionJobManager) getSubmissionJob(app *v1beta1.SparkApplication) (*batchv1.Job, error) {
+func (sjm *realSubmissionJobManager) getSubmissionJob(app *v1beta1.SparkApplication) (*batchv1.Job, error) {
 	return sjm.jobLister.Jobs(app.Namespace).Get(getSubmissionJobName(app))
 }
 
-func (sjm *submissionJobManager) deleteSubmissionJob(app *v1beta1.SparkApplication) error {
+func (sjm *realSubmissionJobManager) deleteSubmissionJob(app *v1beta1.SparkApplication) error {
 	return sjm.kubeClient.BatchV1().Jobs(app.Namespace).Delete(getSubmissionJobName(app), metav1.NewDeleteOptions(0))
 }
 
 // hasJobSucceeded returns a boolean that indicates if the job has succeeded or not if the job has terminated.
 // Otherwise, it returns a nil to indicate that the job has not terminated yet.
 //  An error is returned if the the job failed or if there was an issue querying the job.
-func (sjm *submissionJobManager) hasJobSucceeded(app *v1beta1.SparkApplication) (*bool, *metav1.Time, error) {
+func (sjm *realSubmissionJobManager) hasJobSucceeded(app *v1beta1.SparkApplication) (*bool, *metav1.Time, error) {
 	job, err := sjm.getSubmissionJob(app)
 	if err != nil {
 		return nil, nil, err
@@ -157,9 +157,5 @@ func (sjm *submissionJobManager) hasJobSucceeded(app *v1beta1.SparkApplication) 
 }
 
 func boolptr(v bool) *bool {
-	return &v
-}
-
-func stringptr(v string) *string {
 	return &v
 }
