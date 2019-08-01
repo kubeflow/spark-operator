@@ -84,3 +84,8 @@ func (c *Clientset) SparkoperatorV1alpha1() sparkoperatorv1alpha1.SparkoperatorV
 func (c *Clientset) SparkoperatorV1beta1() sparkoperatorv1beta1.SparkoperatorV1beta1Interface {
 	return &fakesparkoperatorv1beta1.FakeSparkoperatorV1beta1{Fake: &c.Fake}
 }
+
+// Sparkoperator retrieves the SparkoperatorV1beta1Client
+func (c *Clientset) Sparkoperator() sparkoperatorv1beta1.SparkoperatorV1beta1Interface {
+	return &fakesparkoperatorv1beta1.FakeSparkoperatorV1beta1{Fake: &c.Fake}
+}

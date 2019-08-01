@@ -11,6 +11,7 @@ The Kubernetes Operator for Apache Spark ships with a command-line tool called `
     * [Specifying Hadoop Configuration](#specifying-hadoop-configuration)
     * [Writing Driver Specification](#writing-driver-specification)
     * [Writing Executor Specification](#writing-executor-specification)
+    * [Specifying Extra Java Options](#specifying-extra-java-options)
     * [Requesting GPU Resources](#requesting-gpu-resources)
     * [Host Network](#host-network)    
     * [Mounting Secrets](#mounting-secrets)
@@ -88,9 +89,9 @@ There are two ways to add Spark configuration: setting individual Spark configur
 ```yaml
 spec:
   sparkConf:
-    "spark.ui.port": 4045
-    "spark.eventLog.enabled": true
-    "spark.eventLog.dir": hdfs://hdfs-namenode-1:8020/spark/spark-events
+    "spark.ui.port": "4045"
+    "spark.eventLog.enabled": "true"
+    "spark.eventLog.dir": "hdfs://hdfs-namenode-1:8020/spark/spark-events"
 ```
 
 ### Specifying Hadoop Configuration
@@ -146,6 +147,18 @@ spec:
     labels:
       version: 2.4.0
 ```
+
+### Specifying Extra Java Options
+
+A `SparkApplication` can specify extra Java options for the driver or executors, using the optional field `.spec.driver.javaOptions` for the driver and `.spec.executor.javaOptions` for executors. Below is an example:
+
+```yaml
+spec:
+  executor:
+    javaOptions: "-XX:+UnlockExperimentalVMOptions -XX:+UseCGroupMemoryLimitForHeap"
+```
+
+Values specified using those two fields get converted to Spark configuration properties `spark.driver.extraJavaOptions` and `spark.executor.extraJavaOptions`, respectively. **Prefer using the above two fields over configuration properties `spark.driver.extraJavaOptions` and `spark.executor.extraJavaOptions`** as the fields work well with other fields that might modify what gets set for `spark.driver.extraJavaOptions` or `spark.executor.extraJavaOptions`.
 
 ### Requesting GPU Resources
 
@@ -376,6 +389,24 @@ spec:
     - name: "sidecar1"
       image: "sidecar1:latest"
       ...
+```
+
+### Using DNS Settings
+A `SparkApplication` can define DNS settings for the driver and/or executor pod, by adding the standart [DNS](https://kubernetes.io/docs/concepts/services-networking/dns-pod-service/#pod-s-dns-config) kubernetes settings. Fields to add such configuration are `.spec.driver.dnsConfig` and `.spec.executor.dnsConfig`. Example:
+
+```yaml
+spec:
+  driver:
+    dnsConfig:
+      nameservers:
+        - 1.2.3.4
+      searches:
+        - ns1.svc.cluster.local
+        - my.dns.search.suffix
+      options:
+        - name: ndots
+          value: "2"
+        - name: edns0
 ```
 
 Note that the mutating admission webhook is needed to use this feature. Please refer to the 

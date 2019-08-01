@@ -129,20 +129,6 @@ func buildSubmissionCommandArgs(app *v1beta1.SparkApplication, driverPodName str
 	// Operator triggered spark-submit should never wait for App completion
 	args = append(args, "--conf", fmt.Sprintf("%s=false", config.SparkWaitAppCompletion))
 
-	if app.Spec.SparkConfigMap != nil {
-		args = append(args, "--conf", config.GetDriverAnnotationOption(config.SparkConfigMapAnnotation,
-			*app.Spec.SparkConfigMap))
-		args = append(args, "--conf", config.GetExecutorAnnotationOption(config.SparkConfigMapAnnotation,
-			*app.Spec.SparkConfigMap))
-	}
-
-	if app.Spec.HadoopConfigMap != nil {
-		args = append(args, "--conf", config.GetDriverAnnotationOption(config.HadoopConfigMapAnnotation,
-			*app.Spec.HadoopConfigMap))
-		args = append(args, "--conf", config.GetExecutorAnnotationOption(config.HadoopConfigMapAnnotation,
-			*app.Spec.HadoopConfigMap))
-	}
-
 	// Add Spark configuration properties.
 	for key, value := range app.Spec.SparkConf {
 		// Configuration property for the driver pod name has already been set.
