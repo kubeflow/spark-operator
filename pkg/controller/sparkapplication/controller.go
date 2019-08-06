@@ -501,6 +501,7 @@ func (c *Controller) syncSparkApplication(key string) error {
 		succeeded, completionTime, err := c.subJobManager.hasJobSucceeded(appToUpdate)
 
 		if succeeded != nil {
+			// Submission Job terminated in either success or failure.
 			if *succeeded {
 				c.createSparkUIResources(appToUpdate)
 				appToUpdate.Status.AppState.State = v1beta1.SubmittedState
@@ -515,6 +516,7 @@ func (c *Controller) syncSparkApplication(key string) error {
 				// state to FailedSubmission, which is a terminal state.
 				appToUpdate.Status.AppState.State = v1beta1.FailedSubmissionState
 				if err != nil {
+					// Propagate the error if the Submission job ended in failure after retries.
 					appToUpdate.Status.AppState.ErrorMessage = err.Error()
 				}
 				c.recordSparkApplicationEvent(appToUpdate)

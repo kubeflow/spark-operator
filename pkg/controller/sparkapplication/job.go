@@ -37,8 +37,11 @@ import (
 )
 
 const (
-	sparkSubmitPodMemory = "256Mi"
-	sparkSubmitPodCpu    = "250m"
+	sparkSubmitPodMemoryRequest = "100Mi"
+	sparkSubmitPodCpuRequest    = "100m"
+	sparkSubmitPodMemoryLimit = "256Mi"
+	sparkSubmitPodCpuLimit   = "250m"
+
 )
 
 type submissionJobManager interface {
@@ -98,12 +101,12 @@ func (sjm *realSubmissionJobManager) createSubmissionJob(app *v1beta1.SparkAppli
 							Command: command,
 							Resources: corev1.ResourceRequirements{
 								Requests: corev1.ResourceList{
-									corev1.ResourceCPU:    resource.MustParse(sparkSubmitPodCpu),
-									corev1.ResourceMemory: resource.MustParse(sparkSubmitPodMemory),
+									corev1.ResourceCPU:    resource.MustParse(sparkSubmitPodCpuRequest),
+									corev1.ResourceMemory: resource.MustParse(sparkSubmitPodMemoryRequest),
 								},
 								Limits: corev1.ResourceList{
-									corev1.ResourceCPU:    resource.MustParse(sparkSubmitPodCpu),
-									corev1.ResourceMemory: resource.MustParse(sparkSubmitPodMemory),
+									corev1.ResourceCPU:    resource.MustParse(sparkSubmitPodCpuLimit),
+									corev1.ResourceMemory: resource.MustParse(sparkSubmitPodMemoryLimit),
 								},
 							},
 						},
