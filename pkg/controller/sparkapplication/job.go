@@ -39,9 +39,8 @@ import (
 const (
 	sparkSubmitPodMemoryRequest = "100Mi"
 	sparkSubmitPodCpuRequest    = "100m"
-	sparkSubmitPodMemoryLimit = "256Mi"
-	sparkSubmitPodCpuLimit   = "250m"
-
+	sparkSubmitPodMemoryLimit   = "256Mi"
+	sparkSubmitPodCpuLimit      = "250m"
 )
 
 type submissionJobManager interface {

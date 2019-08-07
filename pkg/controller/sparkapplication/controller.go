@@ -424,6 +424,11 @@ func shouldRetry(app *v1beta1.SparkApplication) bool {
 				return true
 			}
 		}
+	case v1beta1.FailedSubmissionState:
+		// We retry only if the RestartPolicy is Always. The Submission Job already retries upto the OnSubmissionFailureRetries specified.
+		if app.Spec.RestartPolicy.Type == v1beta1.Always {
+			return true
+		}
 	}
 	return false
 }
@@ -555,7 +560,16 @@ func (c *Controller) syncSparkApplication(key string) error {
 			appToUpdate.Status.AppState.State = v1beta1.PendingRerunState
 		}
 	case v1beta1.FailedSubmissionState:
-		c.recordSparkApplicationEvent(appToUpdate)
+		// Submission Job terminated in failure, check if the application needs to be retried.
+		if !shouldRetry(appToUpdate) {
+			// Application is not subject to retry. Move to terminal FailedState.
+			appToUpdate.Status.AppState.State = v1beta1.FailedState
+			c.recordSparkApplicationEvent(appToUpdate)
+		} else {
+			// Application is subject to retry. Move to PendingRerunState.
+			appToUpdate.Status.AppState.ErrorMessage = ""
+			appToUpdate.Status.AppState.State = v1beta1.PendingRerunState
+		}
 	case v1beta1.InvalidatingState:
 		// Invalidate the current run and enqueue the SparkApplication for re-submission.
 		if err := c.deleteSparkResources(appToUpdate); err != nil {

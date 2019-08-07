@@ -732,7 +732,7 @@ func TestSyncSparkApplication_SubmissionSuccess(t *testing.T) {
 					},
 				},
 			},
-			expectedState: v1beta1.FailedSubmissionState,
+			expectedState: v1beta1.PendingRerunState,
 		},
 		{
 			app: &v1beta1.SparkApplication{
@@ -878,7 +878,7 @@ func TestSyncSparkApplication_SubmissionSuccess(t *testing.T) {
 					RestartPolicy: restartPolicyOnFailure,
 				},
 			},
-			expectedState: v1beta1.FailedSubmissionState,
+			expectedState: v1beta1.FailedState,
 		},
 	}
 
