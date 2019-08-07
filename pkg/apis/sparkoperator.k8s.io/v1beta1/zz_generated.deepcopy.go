@@ -292,11 +292,6 @@ func (in *RestartPolicy) DeepCopyInto(out *RestartPolicy) {
 		*out = new(int32)
 		**out = **in
 	}
-	if in.OnSubmissionFailureRetryInterval != nil {
-		in, out := &in.OnSubmissionFailureRetryInterval, &out.OnSubmissionFailureRetryInterval
-		*out = new(int64)
-		**out = **in
-	}
 	if in.OnFailureRetryInterval != nil {
 		in, out := &in.OnFailureRetryInterval, &out.OnFailureRetryInterval
 		*out = new(int64)
@@ -774,6 +769,18 @@ func (in *SparkPodSpec) DeepCopyInto(out *SparkPodSpec) {
 		in, out := &in.HostNetwork, &out.HostNetwork
 		*out = new(bool)
 		**out = **in
+	}
+	if in.NodeSelector != nil {
+		in, out := &in.NodeSelector, &out.NodeSelector
+		*out = make(map[string]string, len(*in))
+		for key, val := range *in {
+			(*out)[key] = val
+		}
+	}
+	if in.DNSConfig != nil {
+		in, out := &in.DNSConfig, &out.DNSConfig
+		*out = new(v1.PodDNSConfig)
+		(*in).DeepCopyInto(*out)
 	}
 	return
 }

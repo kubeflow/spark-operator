@@ -20,6 +20,12 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/google/uuid"
+	"github.com/pkg/errors"
+	"k8s.io/api/core/v1"
+
+	"k8s.io/apimachinery/pkg/api/resource"
+
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -30,40 +36,61 @@ import (
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/config"
 )
 
-type submissionJobManager struct {
+const (
+	sparkSubmitPodMemoryRequest = "100Mi"
+	sparkSubmitPodCpuRequest    = "100m"
+	sparkSubmitPodMemoryLimit   = "256Mi"
+	sparkSubmitPodCpuLimit      = "250m"
+)
+
+type submissionJobManager interface {
+	createSubmissionJob(app *v1beta1.SparkApplication) (string, string, error)
+	deleteSubmissionJob(app *v1beta1.SparkApplication) error
+	getSubmissionJob(app *v1beta1.SparkApplication) (*batchv1.Job, error)
+	hasJobSucceeded(app *v1beta1.SparkApplication) (*bool, *metav1.Time, error)
+}
+
+type realSubmissionJobManager struct {
 	kubeClient kubernetes.Interface
 	jobLister  batchv1listers.JobLister
 }
 
-func (sjm *submissionJobManager) createSubmissionJob(s *submission) (*batchv1.Job, error) {
+func (sjm *realSubmissionJobManager) createSubmissionJob(app *v1beta1.SparkApplication) (string, string, error) {
 	var image string
-	if s.app.Spec.Image != nil {
-		image = *s.app.Spec.Image
-	} else if s.app.Spec.Driver.Image != nil {
-		image = *s.app.Spec.Driver.Image
+	if app.Spec.Image != nil {
+		image = *app.Spec.Image
+	} else if app.Spec.Driver.Image != nil {
+		image = *app.Spec.Driver.Image
 	}
 	if image == "" {
-		return nil, fmt.Errorf("no image specified in .spec.image or .spec.driver.image in SparkApplication %s/%s",
-			s.app.Namespace, s.app.Name)
+		return "", "", fmt.Errorf("no image specified in .spec.image or .spec.driver.image in SparkApplication %s/%s",
+			app.Namespace, app.Name)
 	}
 
-	command := []string{"sh", "-c", fmt.Sprintf("$SPARK_HOME/bin/spark-submit %s", strings.Join(s.args, " "))}
+	driverPodName := getDriverPodName(app)
+	submissionID := uuid.New().String()
+	submissionCmdArgs, err := buildSubmissionCommandArgs(app, driverPodName, submissionID)
+	if err != nil {
+		return "", "", err
+	}
+
+	command := []string{"sh", "-c", fmt.Sprintf("$SPARK_HOME/bin/spark-submit %s", strings.Join(submissionCmdArgs, " "))}
 	var one int32 = 1
 	job := &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      getSubmissionJobName(s.app),
-			Namespace: s.app.Namespace,
+			Name:      getSubmissionJobName(app),
+			Namespace: app.Namespace,
 			Labels: map[string]string{
-				config.SparkAppNameLabel:            s.app.Name,
+				config.SparkAppNameLabel:            app.Name,
 				config.LaunchedBySparkOperatorLabel: "true",
 			},
-			Annotations:     s.app.Annotations,
-			OwnerReferences: []metav1.OwnerReference{*getOwnerReference(s.app)},
+			Annotations:     app.Annotations,
+			OwnerReferences: []metav1.OwnerReference{*getOwnerReference(app)},
 		},
 		Spec: batchv1.JobSpec{
 			Parallelism:  &one,
 			Completions:  &one,
-			BackoffLimit: s.app.Spec.RestartPolicy.OnSubmissionFailureRetries,
+			BackoffLimit: app.Spec.RestartPolicy.OnSubmissionFailureRetries,
 			Template: corev1.PodTemplateSpec{
 				Spec: corev1.PodSpec{
 					Containers: []corev1.Container{
@@ -71,6 +98,16 @@ func (sjm *submissionJobManager) createSubmissionJob(s *submission) (*batchv1.Jo
 							Name:    "spark-submit-runner",
 							Image:   image,
 							Command: command,
+							Resources: corev1.ResourceRequirements{
+								Requests: corev1.ResourceList{
+									corev1.ResourceCPU:    resource.MustParse(sparkSubmitPodCpuRequest),
+									corev1.ResourceMemory: resource.MustParse(sparkSubmitPodMemoryRequest),
+								},
+								Limits: corev1.ResourceList{
+									corev1.ResourceCPU:    resource.MustParse(sparkSubmitPodCpuLimit),
+									corev1.ResourceMemory: resource.MustParse(sparkSubmitPodMemoryLimit),
+								},
+							},
 						},
 					},
 					RestartPolicy: corev1.RestartPolicyNever,
@@ -78,37 +115,44 @@ func (sjm *submissionJobManager) createSubmissionJob(s *submission) (*batchv1.Jo
 			},
 		},
 	}
-	if s.app.Spec.ServiceAccount != nil {
-		job.Spec.Template.Spec.ServiceAccountName = *s.app.Spec.ServiceAccount
+	if app.Spec.ServiceAccount != nil {
+		job.Spec.Template.Spec.ServiceAccountName = *app.Spec.ServiceAccount
 	}
 	// Copy the labels on the SparkApplication to the Job.
-	for key, val := range s.app.Labels {
+	for key, val := range app.Labels {
 		job.Labels[key] = val
 	}
-	return sjm.kubeClient.BatchV1().Jobs(s.app.Namespace).Create(job)
+	_, err = sjm.kubeClient.BatchV1().Jobs(app.Namespace).Create(job)
+	if err != nil {
+		return "", "", err
+	}
+	return submissionID, driverPodName, nil
 }
 
-func (sjm *submissionJobManager) getSubmissionJob(app *v1beta1.SparkApplication) (*batchv1.Job, error) {
+func (sjm *realSubmissionJobManager) getSubmissionJob(app *v1beta1.SparkApplication) (*batchv1.Job, error) {
 	return sjm.jobLister.Jobs(app.Namespace).Get(getSubmissionJobName(app))
 }
 
-func (sjm *submissionJobManager) deleteSubmissionJob(app *v1beta1.SparkApplication) error {
+func (sjm *realSubmissionJobManager) deleteSubmissionJob(app *v1beta1.SparkApplication) error {
 	return sjm.kubeClient.BatchV1().Jobs(app.Namespace).Delete(getSubmissionJobName(app), metav1.NewDeleteOptions(0))
 }
 
 // hasJobSucceeded returns a boolean that indicates if the job has succeeded or not if the job has terminated.
 // Otherwise, it returns a nil to indicate that the job has not terminated yet.
-func (sjm *submissionJobManager) hasJobSucceeded(app *v1beta1.SparkApplication) (*bool, *metav1.Time, error) {
+//  An error is returned if the the job failed or if there was an issue querying the job.
+func (sjm *realSubmissionJobManager) hasJobSucceeded(app *v1beta1.SparkApplication) (*bool, *metav1.Time, error) {
 	job, err := sjm.getSubmissionJob(app)
 	if err != nil {
 		return nil, nil, err
 	}
 	for _, cond := range job.Status.Conditions {
-		if cond.Type == batchv1.JobComplete {
+		if cond.Type == batchv1.JobComplete && cond.Status == v1.ConditionTrue {
 			return boolptr(true), job.Status.CompletionTime, nil
 		}
-		if cond.Type == batchv1.JobFailed {
-			return boolptr(false), nil, nil
+		if cond.Type == batchv1.JobFailed && cond.Status == v1.ConditionTrue {
+			return boolptr(false), nil,
+				errors.New(fmt.Sprintf("Submission Job Failed. Error: %s. %s", cond.Reason, cond.Message))
+
 		}
 	}
 	return nil, nil, nil

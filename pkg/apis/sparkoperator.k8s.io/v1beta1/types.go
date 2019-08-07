@@ -54,8 +54,7 @@ type RestartPolicy struct {
 	OnFailureRetries           *int32 `json:"onFailureRetries,omitempty"`
 
 	// Interval to wait between successive retries of a failed application.
-	OnSubmissionFailureRetryInterval *int64 `json:"onSubmissionFailureRetryInterval,omitempty"`
-	OnFailureRetryInterval           *int64 `json:"onFailureRetryInterval,omitempty"`
+	OnFailureRetryInterval *int64 `json:"onFailureRetryInterval,omitempty"`
 }
 
 type RestartPolicyType string
