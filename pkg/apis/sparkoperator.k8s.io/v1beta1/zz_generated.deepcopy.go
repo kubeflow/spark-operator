@@ -292,11 +292,6 @@ func (in *RestartPolicy) DeepCopyInto(out *RestartPolicy) {
 		*out = new(int32)
 		**out = **in
 	}
-	if in.OnSubmissionFailureRetryInterval != nil {
-		in, out := &in.OnSubmissionFailureRetryInterval, &out.OnSubmissionFailureRetryInterval
-		*out = new(int64)
-		**out = **in
-	}
 	if in.OnFailureRetryInterval != nil {
 		in, out := &in.OnFailureRetryInterval, &out.OnFailureRetryInterval
 		*out = new(int64)

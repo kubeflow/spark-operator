@@ -29,23 +29,9 @@ import (
 )
 
 const (
-	sparkHomeEnvVar             = "SPARK_HOME"
 	kubernetesServiceHostEnvVar = "KUBERNETES_SERVICE_HOST"
 	kubernetesServicePortEnvVar = "KUBERNETES_SERVICE_PORT"
 )
-
-// submission includes information of a Spark application to be submitted.
-type submission struct {
-	app  *v1beta2.SparkApplication
-	args []string
-}
-
-func newSubmission(args []string, app *v1beta2.SparkApplication) *submission {
-	return &submission{
-		app:  app,
-		args: args,
-	}
-}
 
 func buildSubmissionCommandArgs(app *v1beta2.SparkApplication, driverPodName string, submissionID string) ([]string, error) {
 	var args []string
