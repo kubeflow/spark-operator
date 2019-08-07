@@ -22,7 +22,6 @@ import (
 	"time"
 
 	"github.com/golang/glog"
-	"github.com/google/uuid"
 	"golang.org/x/time/rate"
 	apiv1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
@@ -35,7 +34,6 @@ import (
 	clientset "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
 	typedcorev1 "k8s.io/client-go/kubernetes/typed/core/v1"
-	batchv1 "k8s.io/client-go/listers/batch/v1"
 	v1 "k8s.io/client-go/listers/core/v1"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
@@ -74,10 +72,9 @@ type Controller struct {
 	metrics           *sparkAppMetrics
 	applicationLister crdlisters.SparkApplicationLister
 	podLister         v1.PodLister
-	jobLister         batchv1.JobLister
 	ingressURLFormat  string
 	batchSchedulerMgr *batchscheduler.SchedulerManager
-	subJobManager     *submissionJobManager
+	subJobManager     submissionJobManager
 }
 
 // NewController creates a new Controller.
@@ -121,7 +118,7 @@ func newSparkApplicationController(
 		queue:             queue,
 		ingressURLFormat:  ingressURLFormat,
 		batchSchedulerMgr: batchSchedulerMgr,
-		subJobManager:     &submissionJobManager{kubeClient: kubeClient},
+		subJobManager:     &realSubmissionJobManager{kubeClient: kubeClient},
 	}
 
 	if metricsConfig != nil {
@@ -147,8 +144,7 @@ func newSparkApplicationController(
 	controller.podLister = podsInformer.Lister()
 
 	jobLister := informerFactory.Batch().V1().Jobs().Lister()
-	controller.jobLister = jobLister
-	controller.subJobManager = &submissionJobManager{kubeClient: kubeClient, jobLister: jobLister}
+	controller.subJobManager = &realSubmissionJobManager{kubeClient: kubeClient, jobLister: jobLister}
 
 	controller.cacheSynced = func() bool {
 		return crdInformer.Informer().HasSynced() && podsInformer.Informer().HasSynced()
@@ -448,6 +444,11 @@ func shouldRetry(app *v1beta2.SparkApplication) bool {
 				return true
 			}
 		}
+	case v1beta2.FailedSubmissionState:
+		// We retry only if the RestartPolicy is Always. The Submission Job already retries upto the OnSubmissionFailureRetries specified.
+		if app.Spec.RestartPolicy.Type == v1beta2.Always {
+			return true
+		}
 	}
 	return false
 }
@@ -522,10 +523,9 @@ func (c *Controller) syncSparkApplication(key string) error {
 	case v1beta2.PendingSubmissionState:
 		// Check the status of the submission Job and set the application status accordingly.
 		succeeded, completionTime, err := c.subJobManager.hasJobSucceeded(appToUpdate)
-		if err != nil {
-			return err
-		}
+
 		if succeeded != nil {
+			// Submission Job terminated in either success or failure.
 			if *succeeded {
 				c.createSparkUIResources(appToUpdate)
 				appToUpdate.Status.AppState.State = v1beta2.SubmittedState
@@ -533,12 +533,21 @@ func (c *Controller) syncSparkApplication(key string) error {
 				if completionTime != nil {
 					appToUpdate.Status.SubmissionTime = *completionTime
 				}
+				c.recordSparkApplicationEvent(appToUpdate)
 			} else {
 				// Since we delegate submission retries to the Kubernetes Job controller, the fact that the
 				// submission Job failed means all the submission attempts failed. So we set the application
 				// state to FailedSubmission, which is a terminal state.
 				appToUpdate.Status.AppState.State = v1beta2.FailedSubmissionState
+				if err != nil {
+					// Propagate the error if the submission Job ended in failure after retries.
+					appToUpdate.Status.AppState.ErrorMessage = err.Error()
+				}
+				c.recordSparkApplicationEvent(appToUpdate)
 			}
+		} else if err != nil {
+			// Received an error trying to query the status of the Job.
+			return err
 		}
 	case v1beta2.SucceedingState:
 		// The current run of the application has completed, check if it needs to be restarted.
@@ -568,7 +577,16 @@ func (c *Controller) syncSparkApplication(key string) error {
 			appToUpdate.Status.AppState.State = v1beta2.PendingRerunState
 		}
 	case v1beta2.FailedSubmissionState:
-		c.recordSparkApplicationEvent(appToUpdate)
+		// Submission Job terminated in failure, check if the application needs to be retried.
+		if !shouldRetry(appToUpdate) {
+			// Application is not subject to retry. Move to terminal FailedState.
+			appToUpdate.Status.AppState.State = v1beta2.FailedState
+			c.recordSparkApplicationEvent(appToUpdate)
+		} else {
+			// Application is subject to retry. Move to PendingRerunState.
+			appToUpdate.Status.AppState.ErrorMessage = ""
+			appToUpdate.Status.AppState.State = v1beta2.PendingRerunState
+		}
 	case v1beta2.InvalidatingState:
 		// Invalidate the current run and enqueue the SparkApplication for re-submission.
 		if err := c.deleteSparkResources(appToUpdate); err != nil {
@@ -640,28 +658,6 @@ func (c *Controller) submitSparkApplication(app *v1beta2.SparkApplication) *v1be
 		}
 	}
 
-	// Use batch scheduler to perform scheduling task before submitting (before build command arguments).
-	if needScheduling, scheduler := c.shouldDoBatchScheduling(app); needScheduling {
-		err := scheduler.DoBatchSchedulingOnSubmission(app)
-		if err != nil {
-			glog.Errorf("failed to process batch scheduler BeforeSubmitSparkApplication with error %v", err)
-			return app
-		}
-	}
-
-	driverPodName := getDriverPodName(app)
-	submissionID := uuid.New().String()
-	submissionCmdArgs, err := buildSubmissionCommandArgs(app, driverPodName, submissionID)
-	if err != nil {
-		app.Status = v1beta2.SparkApplicationStatus{
-			AppState: v1beta2.ApplicationState{
-				State:        v1beta2.FailedSubmissionState,
-				ErrorMessage: err.Error(),
-			},
-		}
-		return app
-	}
-
 	// Use batch scheduler to perform scheduling task before submitting.
 	if needScheduling, scheduler := c.shouldDoBatchScheduling(app); needScheduling {
 		err := scheduler.DoBatchSchedulingOnSubmission(app)
@@ -671,7 +667,7 @@ func (c *Controller) submitSparkApplication(app *v1beta2.SparkApplication) *v1be
 		}
 	}
 
-	_, err = c.subJobManager.createSubmissionJob(newSubmission(submissionCmdArgs, app))
+	submissionID, driverPodName, err := c.subJobManager.createSubmissionJob(app)
 	if err != nil {
 		if !errors.IsAlreadyExists(err) {
 			app.Status = v1beta2.SparkApplicationStatus{
@@ -681,6 +677,7 @@ func (c *Controller) submitSparkApplication(app *v1beta2.SparkApplication) *v1be
 				},
 			}
 		}
+		c.recordSparkApplicationEvent(app)
 		return app
 	}
 
