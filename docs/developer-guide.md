@@ -23,29 +23,7 @@ $ export DOCKER_BUILDKIT=1
 $ docker build -t <image-tag> -f Dockerfile.rh .
 ```
 
-If you'd like to build/test the spark-operator locally, follow the instructions below:
-
-```bash
-$ mkdir -p $GOPATH/src/github.com/GoogleCloudPlatform
-$ cd $GOPATH/src/github.com/GoogleCloudPlatform
-$ git clone git@github.com:GoogleCloudPlatform/spark-on-k8s-operator.git
-$ cd spark-on-k8s-operator
-```
-
-The operator uses [dep](https://golang.github.io/dep/) for dependency management. Please install `dep` following
-the instruction on the website if you don't have it available locally. To install the dependencies, run the following command:
-
-```bash
-$ dep ensure
-```
-
-To update the dependencies, run the following command. (You can skip this unless you know there's a dependency that needs updating):
-
-```bash
-$ dep ensure -update
-```
-
-Before building the operator the first time, run the following commands to get the required Kubernetes code generators:
+If you'd like to build/test the spark-operator locally, follow the instructions below. Before building the operator the first time, run the following commands to get the required Kubernetes code generators:
 
 ```bash
 $ go get -u k8s.io/code-generator/cmd/client-gen
@@ -79,5 +57,5 @@ $ go test ./...
 
 ## Leader election for HA
 
-Currently, master branch code doesn't support HA and there are some [issue](https://github.com/GoogleCloudPlatform/spark-on-k8s-operator/issues/458) and PRs( [PR1](https://github.com/GoogleCloudPlatform/spark-on-k8s-operator/pull/511), [PR2](https://github.com/GoogleCloudPlatform/spark-on-k8s-operator/pull/518)) on it. Both PRs are implemented by utilizing [leaderelection tool](https://github.com/kubernetes/client-go/tree/master/tools/leaderelection), which is an alpha API and may change significantly or even be removed in the future. As a result, it might be better for you to implement and test this feature based on PRs above. To achieve leader election, we should ensure that only one `applicationController` and one `scheduledApplicationController` running at any time. And there can be multiple webhook servers running simultaneously for the reason that webhook service can route mutating admission requests to any replicas.
+Currently, master branch code doesn't support HA and there are some [issue](https://github.com/GoogleCloudPlatform/spark-on-k8s-operator/issues/458) and PRs([PR1](https://github.com/GoogleCloudPlatform/spark-on-k8s-operator/pull/511), [PR2](https://github.com/GoogleCloudPlatform/spark-on-k8s-operator/pull/518)) on it. Both PRs are implemented by utilizing [leaderelection tool](https://github.com/kubernetes/client-go/tree/master/tools/leaderelection), which is an alpha API and may change significantly or even be removed in the future. As a result, it might be better for you to implement and test this feature based on PRs above. To achieve leader election, we should ensure that only one `applicationController` and one `scheduledApplicationController` running at any time. And there can be multiple webhook servers running simultaneously for the reason that webhook service can route mutating admission requests to any replicas.
 
