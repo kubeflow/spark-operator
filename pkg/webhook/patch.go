@@ -58,6 +58,7 @@ func patchSparkPod(pod *corev1.Pod, app *v1beta2.SparkApplication) []patchOperat
 	patchOps = append(patchOps, addHostNetwork(pod, app)...)
 	patchOps = append(patchOps, addNodeSelectors(pod, app)...)
 	patchOps = append(patchOps, addDNSConfig(pod, app)...)
+	patchOps = append(patchOps, addEnvVars(pod, app)...)
 
 	op := addSchedulerName(pod, app)
 	if op != nil {
@@ -156,6 +157,48 @@ func addVolumeMount(pod *corev1.Pod, mount corev1.VolumeMount) patchOperation {
 	}
 
 	return patchOperation{Op: "add", Path: path, Value: value}
+}
+
+func addEnvVars(pod *corev1.Pod, app *v1beta2.SparkApplication) []patchOperation {
+	var envVars []corev1.EnvVar
+	var containerName string
+	if util.IsDriverPod(pod) {
+		envVars = app.Spec.Driver.Env
+		containerName = config.SparkDriverContainerName
+	} else if util.IsExecutorPod(pod) {
+		envVars = app.Spec.Executor.Env
+		containerName = config.SparkExecutorContainerName
+	}
+
+	i := 0
+	// Find the driver or executor container in the pod.
+	for ; i < len(pod.Spec.Containers); i++ {
+		if pod.Spec.Containers[i].Name == containerName {
+			break
+		}
+	}
+	basePath := fmt.Sprintf("/spec/containers/%d/env", i)
+
+	var value interface{}
+	var patchOps []patchOperation
+
+	first := false
+	if len(pod.Spec.Containers[i].Env) == 0 {
+		first = true
+	}
+
+	for _, envVar := range envVars {
+		path := basePath
+		if first {
+			value = []corev1.EnvVar{envVar}
+			first = false
+		} else {
+			path += "/-"
+			value = envVar
+		}
+		patchOps = append(patchOps, patchOperation{Op: "add", Path: path, Value: value})
+	}
+	return patchOps
 }
 
 func addEnvironmentVariable(pod *corev1.Pod, envName, envValue string) patchOperation {
