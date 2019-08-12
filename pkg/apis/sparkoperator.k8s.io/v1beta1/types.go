@@ -526,6 +526,10 @@ type GPUSpec struct {
 func (s *SparkApplication) PrometheusMonitoringEnabled() bool {
 	return s.Spec.Monitoring != nil && s.Spec.Monitoring.Prometheus != nil
 }
+// VolcanoSchedulingRequired returns true if these executor pods are scheduled by volcano
+func (s *SparkApplication) VolcanoSchedulingRequired() bool {
+	return s.Spec.Executor.SchedulerName != nil && *(s.Spec.Executor.SchedulerName) == "volcano"
+}
 
 // HasPrometheusConfigFile returns if Prometheus monitoring uses a configruation file in the container.
 func (s *SparkApplication) HasPrometheusConfigFile() bool {

@@ -40,6 +40,7 @@ import (
 	"k8s.io/client-go/tools/leaderelection"
 	"k8s.io/client-go/tools/leaderelection/resourcelock"
 	"k8s.io/client-go/tools/record"
+	volcanoclient "volcano.sh/volcano/pkg/client/clientset/versioned"
 
 	crclientset "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/client/clientset/versioned"
 	crinformers "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/client/informers/externalversions"
@@ -70,6 +71,7 @@ var (
 	leaderElectionLeaseDuration = flag.Duration("leader-election-lease-duration", 15*time.Second, "Leader election lease duration.")
 	leaderElectionRenewDeadline = flag.Duration("leader-election-renew-deadline", 14*time.Second, "Leader election renew deadline.")
 	leaderElectionRetryPeriod   = flag.Duration("leader-election-retry-period", 4*time.Second, "Leader election retry period.")
+	enableVolcanoScheduling     = flag.Bool("enable-volcano-scheduling", false, "Whether enable scheduling executor pods via volcano.")
 )
 
 func main() {
@@ -141,6 +143,15 @@ func main() {
 		glog.Fatal(err)
 	}
 
+	var volcanoClient volcanoclient.Interface
+	if *enableVolcanoScheduling {
+		var err error
+		volcanoClient, err = volcanoclient.NewForConfig(config)
+		if err != nil {
+			glog.Fatal(err)
+		}
+	}
+
 	if *installCRDs {
 		err = crd.CreateOrUpdateCRDs(apiExtensionsClient)
 		if err != nil {
@@ -187,7 +198,7 @@ func main() {
 	}
 
 	applicationController := sparkapplication.NewController(
-		crClient, kubeClient, crInformerFactory, podInformerFactory, metricConfig, *namespace, *ingressURLFormat)
+		crClient, kubeClient, crInformerFactory, podInformerFactory, metricConfig, *namespace, *ingressURLFormat, volcanoClient)
 	scheduledApplicationController := scheduledsparkapplication.NewController(
 		crClient, kubeClient, apiExtensionsClient, crInformerFactory, clock.RealClock{})
 

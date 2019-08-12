@@ -25,6 +25,7 @@ import (
 	"github.com/google/uuid"
 	"golang.org/x/time/rate"
 	apiv1 "k8s.io/api/core/v1"
+	apiextensionsclient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	"k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -39,6 +40,8 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/workqueue"
+	"volcano.sh/volcano/pkg/apis/scheduling/v1alpha2"
+	volcanoclient "volcano.sh/volcano/pkg/client/clientset/versioned"
 
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta1"
 	crdclientset "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/client/clientset/versioned"
@@ -73,6 +76,8 @@ type Controller struct {
 	applicationLister crdlisters.SparkApplicationLister
 	podLister         v1.PodLister
 	ingressURLFormat  string
+	extensionsClient  apiextensionsclient.Interface
+	volcanoClient     volcanoclient.Interface
 }
 
 // NewController creates a new Controller.
@@ -83,7 +88,9 @@ func NewController(
 	podInformerFactory informers.SharedInformerFactory,
 	metricsConfig *util.MetricConfig,
 	namespace string,
-	ingressURLFormat string) *Controller {
+	ingressURLFormat string,
+	extensionsClient apiextensionsclient.Interface,
+	volcanoClient volcanoclient.Interface) *Controller {
 	crdscheme.AddToScheme(scheme.Scheme)
 
 	eventBroadcaster := record.NewBroadcaster()
@@ -93,7 +100,7 @@ func NewController(
 	})
 	recorder := eventBroadcaster.NewRecorder(scheme.Scheme, apiv1.EventSource{Component: "spark-operator"})
 
-	return newSparkApplicationController(crdClient, kubeClient, crdInformerFactory, podInformerFactory, recorder, metricsConfig, ingressURLFormat)
+	return newSparkApplicationController(crdClient, kubeClient, crdInformerFactory, podInformerFactory, recorder, metricsConfig, ingressURLFormat, extensionsClient, volcanoClient)
 }
 
 func newSparkApplicationController(
@@ -103,7 +110,9 @@ func newSparkApplicationController(
 	podInformerFactory informers.SharedInformerFactory,
 	eventRecorder record.EventRecorder,
 	metricsConfig *util.MetricConfig,
-	ingressURLFormat string) *Controller {
+	ingressURLFormat string,
+	extensionsClient apiextensionsclient.Interface,
+	volcanoClient volcanoclient.Interface) *Controller {
 	queue := workqueue.NewNamedRateLimitingQueue(&workqueue.BucketRateLimiter{Limiter: rate.NewLimiter(rate.Limit(queueTokenRefillRate), queueTokenBucketSize)},
 		"spark-application-controller")
 
@@ -113,6 +122,8 @@ func newSparkApplicationController(
 		recorder:         eventRecorder,
 		queue:            queue,
 		ingressURLFormat: ingressURLFormat,
+		extensionsClient: extensionsClient,
+		volcanoClient:    volcanoClient,
 	}
 
 	if metricsConfig != nil {
@@ -672,7 +683,52 @@ func (c *Controller) submitSparkApplication(app *v1beta1.SparkApplication) *v1be
 			}
 		}
 	}
+
+	//Use PodGroup to schedule spark application executor pods if required
+	if c.volcanoClient != nil && app.VolcanoSchedulingRequired() {
+		if app.Spec.Executor.Annotations == nil {
+			app.Spec.Executor.Annotations = make(map[string]string)
+		}
+		if _, ok := app.Spec.Executor.Annotations["scheduling.k8s.io/group-name"]; !ok {
+			if pgName := c.createPodGroupIfNeeded(app); pgName != "" {
+				app.Spec.Executor.Annotations["scheduling.k8s.io/group-name"] = pgName
+			}
+		}
+	}
 	return app
+}
+
+func (c *Controller) createPodGroupIfNeeded(app *v1beta1.SparkApplication) string {
+	if _, err := c.extensionsClient.ApiextensionsV1beta1().CustomResourceDefinitions().Get(
+		"podgroups.scheduling.incubator.k8s.io", metav1.GetOptions{}); err != nil {
+		glog.Warningf(
+			"Unable to find PodGroup with error: %s. Abandon schedule executor pods via volcano.", err)
+		return ""
+	}
+	//create podGroup
+	isController := true
+	podGroup := v1alpha2.PodGroup{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: app.Namespace,
+			Name:      fmt.Sprintf("%s-podgroup", app.Name),
+			OwnerReferences: []metav1.OwnerReference{{
+				APIVersion: v1beta1.SchemeGroupVersion.WithKind("SparkApplication"),
+				Controller: &isController,
+				UID:        app.UID,
+			}},
+		},
+		Spec: v1alpha2.PodGroupSpec{
+			MinMember: *app.Spec.Executor.Instances,
+		},
+	}
+
+	if pg, err := c.volcanoClient.SchedulingV1alpha2().PodGroups(app.Namespace).Create(&podGroup); err != nil {
+		glog.Warningf(
+			"Unable to create PodGroup with error: %s. Abandon schedule executor pods via volcano.", err)
+		return ""
+	} else {
+		return pg.Name
+	}
 }
 
 func (c *Controller) updateApplicationStatusWithRetries(
