@@ -92,7 +92,7 @@ func init() {
 	flag.StringVar(&userConfig.webhookServiceName, "webhook-svc-name", "spark-webhook", "The name of the Service for the webhook server.")
 	flag.IntVar(&userConfig.webhookPort, "webhook-port", 8080, "Service port of the webhook server.")
 	flag.BoolVar(&userConfig.webhookFailOnError, "webhook-fail-on-error", false, "Whether Kubernetes should reject requests when the webhook fails.")
-	flag.StringVar(&userConfig.webhookNamespaceSelector, "webhook-namespace-selector", "", "The webhook will only operate on namespaces with this label, specified in the form key=value. Required if webhook-fail-on-error is true.")
+	flag.StringVar(&userConfig.webhookNamespaceSelector, "webhook-namespace-selector", "", "The webhook will only operate on namespaces with this label, specified in the form key1=value1,key2=value2. Required if webhook-fail-on-error is true.")
 }
 
 // New creates a new WebHook instance.
@@ -127,17 +127,13 @@ func New(
 	}
 	if userConfig.webhookFailOnError {
 		if userConfig.webhookNamespaceSelector == "" {
-			glog.Fatal("webhook-namespace-selector must be set when webhook-fail-on-error is true.")
+			return nil, fmt.Errorf("webhook-namespace-selector must be set when webhook-fail-on-error is true.")
 		} else {
-			kv := strings.SplitN(userConfig.webhookNamespaceSelector, "=", 2)
-			if len(kv) != 2 {
-				return nil, fmt.Errorf("Webhook namespace selector must be in the form key=value")
+			selector, err := parseNamespaceSelector(userConfig.webhookNamespaceSelector)
+			if err != nil {
+				return nil, err
 			}
-			hook.selector = &metav1.LabelSelector{
-				MatchLabels: map[string]string{
-					kv[0]: kv[1],
-				},
-			}
+			hook.selector = selector
 		}
 		hook.failurePolicy = arv1beta1.Fail
 	}
@@ -150,6 +146,21 @@ func New(
 	}
 
 	return hook, nil
+}
+
+func parseNamespaceSelector(selectorArg string) (*metav1.LabelSelector, error) {
+	selector := &metav1.LabelSelector{
+		MatchLabels: make(map[string]string),
+	}
+	selectorStrs := strings.Split(selectorArg, ",")
+	for _, selectorStr := range selectorStrs {
+		kv := strings.SplitN(selectorStr, "=", 2)
+		if len(kv) != 2 || kv[0] == "" || kv[1] == "" {
+			return nil, fmt.Errorf("Webhook namespace selector must be in the form key1=value1,key2=value2")
+		}
+		selector.MatchLabels[kv[0]] = kv[1]
+	}
+	return selector, nil
 }
 
 // Start starts the admission webhook server and registers itself to the API server.

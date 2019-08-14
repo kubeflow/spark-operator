@@ -19,6 +19,7 @@ package webhook
 import (
 	"crypto/tls"
 	"io/ioutil"
+	"sync"
 	"time"
 
 	"github.com/golang/glog"
@@ -27,13 +28,14 @@ import (
 // certProvider is a container of a X509 certificate file and a corresponding key file for the
 // webhook server, and a CA certificate file for the API server to verify the server certificate.
 type certProvider struct {
-	serverCertFile string
-	serverKeyFile  string
-	caCertFile     string
-	reloadInterval time.Duration
-	ticker         *time.Ticker
-	stopChannel    chan interface{}
-	currentCert    *tls.Certificate
+	serverCertFile   string
+	serverKeyFile    string
+	caCertFile       string
+	reloadInterval   time.Duration
+	ticker           *time.Ticker
+	stopChannel      chan interface{}
+	currentCert      *tls.Certificate
+	certPointerMutex *sync.RWMutex
 }
 
 func NewCertProvider(serverCertFile, serverKeyFile, caCertFile string, reloadInterval time.Duration) (*certProvider, error) {
@@ -42,23 +44,22 @@ func NewCertProvider(serverCertFile, serverKeyFile, caCertFile string, reloadInt
 		return nil, err
 	}
 	return &certProvider{
-		serverCertFile: serverCertFile,
-		serverKeyFile:  serverKeyFile,
-		caCertFile:     caCertFile,
-		reloadInterval: reloadInterval,
-		currentCert:    &cert,
+		serverCertFile:   serverCertFile,
+		serverKeyFile:    serverKeyFile,
+		caCertFile:       caCertFile,
+		reloadInterval:   reloadInterval,
+		currentCert:      &cert,
+		stopChannel:      make(chan interface{}),
+		ticker:           time.NewTicker(reloadInterval),
+		certPointerMutex: &sync.RWMutex{},
 	}, nil
 }
 
 func (c *certProvider) Start() {
-	stopChannel := make(chan interface{})
-	c.stopChannel = stopChannel
-	ticker := time.NewTicker(c.reloadInterval)
-	c.ticker = ticker
 	go func() {
 		for {
 			select {
-			case <-stopChannel:
+			case <-c.stopChannel:
 				return
 			case <-c.ticker.C:
 				c.updateCert()
@@ -70,6 +71,8 @@ func (c *certProvider) Start() {
 func (c *certProvider) tlsConfig() *tls.Config {
 	return &tls.Config{
 		GetCertificate: func(ch *tls.ClientHelloInfo) (*tls.Certificate, error) {
+			c.certPointerMutex.RLock()
+			defer c.certPointerMutex.RUnlock()
 			return c.currentCert, nil
 		},
 	}
@@ -86,7 +89,9 @@ func (c *certProvider) updateCert() {
 		glog.Errorf("could not reload certificate %s (key %s): %v", c.serverCertFile, c.serverKeyFile, err)
 		return
 	}
+	c.certPointerMutex.Lock()
 	c.currentCert = &cert
+	c.certPointerMutex.Unlock()
 }
 
 func readCertFile(certFile string) ([]byte, error) {
