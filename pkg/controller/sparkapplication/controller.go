@@ -25,7 +25,6 @@ import (
 	"github.com/google/uuid"
 	"golang.org/x/time/rate"
 	apiv1 "k8s.io/api/core/v1"
-	apiextensionsclient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	"k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -40,8 +39,6 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/workqueue"
-	"volcano.sh/volcano/pkg/apis/scheduling/v1alpha2"
-	volcanoclient "volcano.sh/volcano/pkg/client/clientset/versioned"
 
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta1"
 	crdclientset "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/client/clientset/versioned"
@@ -49,6 +46,7 @@ import (
 	crdinformers "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/client/informers/externalversions"
 	crdlisters "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/client/listers/sparkoperator.k8s.io/v1beta1"
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/config"
+	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/controller/sparkapplication/batchscheduler/interface"
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/util"
 )
 
@@ -76,8 +74,7 @@ type Controller struct {
 	applicationLister crdlisters.SparkApplicationLister
 	podLister         v1.PodLister
 	ingressURLFormat  string
-	extensionsClient  apiextensionsclient.Interface
-	volcanoClient     volcanoclient.Interface
+	batchScheduler    schedulerinterface.BatchScheduler
 }
 
 // NewController creates a new Controller.
@@ -89,8 +86,7 @@ func NewController(
 	metricsConfig *util.MetricConfig,
 	namespace string,
 	ingressURLFormat string,
-	extensionsClient apiextensionsclient.Interface,
-	volcanoClient volcanoclient.Interface) *Controller {
+	batchscheduler schedulerinterface.BatchScheduler) *Controller {
 	crdscheme.AddToScheme(scheme.Scheme)
 
 	eventBroadcaster := record.NewBroadcaster()
@@ -100,7 +96,7 @@ func NewController(
 	})
 	recorder := eventBroadcaster.NewRecorder(scheme.Scheme, apiv1.EventSource{Component: "spark-operator"})
 
-	return newSparkApplicationController(crdClient, kubeClient, crdInformerFactory, podInformerFactory, recorder, metricsConfig, ingressURLFormat, extensionsClient, volcanoClient)
+	return newSparkApplicationController(crdClient, kubeClient, crdInformerFactory, podInformerFactory, recorder, metricsConfig, ingressURLFormat, batchscheduler)
 }
 
 func newSparkApplicationController(
@@ -111,8 +107,7 @@ func newSparkApplicationController(
 	eventRecorder record.EventRecorder,
 	metricsConfig *util.MetricConfig,
 	ingressURLFormat string,
-	extensionsClient apiextensionsclient.Interface,
-	volcanoClient volcanoclient.Interface) *Controller {
+	batchScheduler schedulerinterface.BatchScheduler) *Controller {
 	queue := workqueue.NewNamedRateLimitingQueue(&workqueue.BucketRateLimiter{Limiter: rate.NewLimiter(rate.Limit(queueTokenRefillRate), queueTokenBucketSize)},
 		"spark-application-controller")
 
@@ -122,8 +117,7 @@ func newSparkApplicationController(
 		recorder:         eventRecorder,
 		queue:            queue,
 		ingressURLFormat: ingressURLFormat,
-		extensionsClient: extensionsClient,
-		volcanoClient:    volcanoClient,
+		batchScheduler:   batchScheduler,
 	}
 
 	if metricsConfig != nil {
@@ -347,7 +341,15 @@ func (c *Controller) getAndUpdateDriverState(app *v1beta1.SparkApplication) erro
 		}
 	}
 
-	newState := driverStateToApplicationState(driverPod.Status)
+	if c.scheduleViaBatchScheduler(app) && driverPod.Status.Phase == apiv1.PodRunning {
+		var err error
+		app, err = c.batchScheduler.OnSparkDriverPodScheduled(app)
+		if err != nil {
+			glog.Errorf("Failed to handle batch scheduler's OnSparkDriverPodScheduled with error %v", err)
+		}
+	}
+
+	newState := driverPodPhaseToApplicationState(driverPod.Status.Phase)
 	// Only record a driver event if the application state (derived from the driver pod phase) has changed.
 	if newState != app.Status.AppState.State {
 		c.recordDriverEvent(app, driverPod.Status.Phase, driverPod.Name)
@@ -650,6 +652,15 @@ func (c *Controller) submitSparkApplication(app *v1beta1.SparkApplication) *v1be
 		return app
 	}
 
+	// Use batch scheduler to perform app submit tasks
+	if c.scheduleViaBatchScheduler(app) {
+		var err error
+		app, err = c.batchScheduler.OnSubmitSparkApplication(app)
+		if err != nil {
+			glog.Errorf("Failed to process batch scheduler OnSubmitSparkApplication with error %v", err)
+		}
+	}
+
 	glog.Infof("SparkApplication %s/%s has been submitted", app.Namespace, app.Name)
 	app.Status = v1beta1.SparkApplicationStatus{
 		SubmissionID: submissionID,
@@ -683,52 +694,11 @@ func (c *Controller) submitSparkApplication(app *v1beta1.SparkApplication) *v1be
 			}
 		}
 	}
-
-	//Use PodGroup to schedule spark application executor pods if required
-	if c.volcanoClient != nil && app.VolcanoSchedulingRequired() {
-		if app.Spec.Executor.Annotations == nil {
-			app.Spec.Executor.Annotations = make(map[string]string)
-		}
-		if _, ok := app.Spec.Executor.Annotations["scheduling.k8s.io/group-name"]; !ok {
-			if pgName := c.createPodGroupIfNeeded(app); pgName != "" {
-				app.Spec.Executor.Annotations["scheduling.k8s.io/group-name"] = pgName
-			}
-		}
-	}
 	return app
 }
 
-func (c *Controller) createPodGroupIfNeeded(app *v1beta1.SparkApplication) string {
-	if _, err := c.extensionsClient.ApiextensionsV1beta1().CustomResourceDefinitions().Get(
-		"podgroups.scheduling.incubator.k8s.io", metav1.GetOptions{}); err != nil {
-		glog.Warningf(
-			"Unable to find PodGroup with error: %s. Abandon schedule executor pods via volcano.", err)
-		return ""
-	}
-	//create podGroup
-	isController := true
-	podGroup := v1alpha2.PodGroup{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: app.Namespace,
-			Name:      fmt.Sprintf("%s-podgroup", app.Name),
-			OwnerReferences: []metav1.OwnerReference{{
-				APIVersion: v1beta1.SchemeGroupVersion.WithKind("SparkApplication"),
-				Controller: &isController,
-				UID:        app.UID,
-			}},
-		},
-		Spec: v1alpha2.PodGroupSpec{
-			MinMember: *app.Spec.Executor.Instances,
-		},
-	}
-
-	if pg, err := c.volcanoClient.SchedulingV1alpha2().PodGroups(app.Namespace).Create(&podGroup); err != nil {
-		glog.Warningf(
-			"Unable to create PodGroup with error: %s. Abandon schedule executor pods via volcano.", err)
-		return ""
-	} else {
-		return pg.Name
-	}
+func (c *Controller) scheduleViaBatchScheduler(app *v1beta1.SparkApplication) bool {
+	return c.batchScheduler != nil && c.batchScheduler.ShouldSchedule(app)
 }
 
 func (c *Controller) updateApplicationStatusWithRetries(

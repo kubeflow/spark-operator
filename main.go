@@ -40,13 +40,14 @@ import (
 	"k8s.io/client-go/tools/leaderelection"
 	"k8s.io/client-go/tools/leaderelection/resourcelock"
 	"k8s.io/client-go/tools/record"
-	volcanoclient "volcano.sh/volcano/pkg/client/clientset/versioned"
 
 	crclientset "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/client/clientset/versioned"
 	crinformers "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/client/informers/externalversions"
 	operatorConfig "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/config"
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/controller/scheduledsparkapplication"
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/controller/sparkapplication"
+	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/controller/sparkapplication/batchscheduler"
+	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/controller/sparkapplication/batchscheduler/interface"
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/crd"
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/util"
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/webhook"
@@ -71,7 +72,7 @@ var (
 	leaderElectionLeaseDuration = flag.Duration("leader-election-lease-duration", 15*time.Second, "Leader election lease duration.")
 	leaderElectionRenewDeadline = flag.Duration("leader-election-renew-deadline", 14*time.Second, "Leader election renew deadline.")
 	leaderElectionRetryPeriod   = flag.Duration("leader-election-retry-period", 4*time.Second, "Leader election retry period.")
-	enableVolcanoScheduling     = flag.Bool("enable-volcano-scheduling", false, "Whether enable scheduling executor pods via volcano.")
+	batchSchedulerName  = flag.String("batchSchedulerName", "", "Use specified scheduler for pods' batch scheduling.")
 )
 
 func main() {
@@ -143,12 +144,11 @@ func main() {
 		glog.Fatal(err)
 	}
 
-	var volcanoClient volcanoclient.Interface
-	if *enableVolcanoScheduling {
-		var err error
-		volcanoClient, err = volcanoclient.NewForConfig(config)
-		if err != nil {
-			glog.Fatal(err)
+	var batchScheduler schedulerinterface.BatchScheduler
+	if *batchSchedulerName != "" {
+		batchScheduler = batchscheduler.InitializeBatchScheduler(*batchSchedulerName, config)
+		if batchScheduler == nil {
+			glog.Fatal("Batch scheduler %s failed to initialize.", batchSchedulerName)
 		}
 	}
 
@@ -198,7 +198,7 @@ func main() {
 	}
 
 	applicationController := sparkapplication.NewController(
-		crClient, kubeClient, crInformerFactory, podInformerFactory, metricConfig, *namespace, *ingressURLFormat, volcanoClient)
+		crClient, kubeClient, crInformerFactory, podInformerFactory, metricConfig, *namespace, *ingressURLFormat, batchScheduler)
 	scheduledApplicationController := scheduledsparkapplication.NewController(
 		crClient, kubeClient, apiExtensionsClient, crInformerFactory, clock.RealClock{})
 
