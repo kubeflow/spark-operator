@@ -36,9 +36,9 @@ type FakeScheduledSparkApplications struct {
 	ns   string
 }
 
-var scheduledsparkapplicationsResource = schema.GroupVersionResource{Group: "sparkoperator", Version: "v1beta1", Resource: "scheduledsparkapplications"}
+var scheduledsparkapplicationsResource = schema.GroupVersionResource{Group: "sparkoperator.k8s.io", Version: "v1beta1", Resource: "scheduledsparkapplications"}
 
-var scheduledsparkapplicationsKind = schema.GroupVersionKind{Group: "sparkoperator", Version: "v1beta1", Kind: "ScheduledSparkApplication"}
+var scheduledsparkapplicationsKind = schema.GroupVersionKind{Group: "sparkoperator.k8s.io", Version: "v1beta1", Kind: "ScheduledSparkApplication"}
 
 // Get takes name of the scheduledSparkApplication, and returns the corresponding scheduledSparkApplication object, and an error if there is any.
 func (c *FakeScheduledSparkApplications) Get(name string, options v1.GetOptions) (result *v1beta1.ScheduledSparkApplication, err error) {

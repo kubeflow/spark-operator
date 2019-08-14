@@ -220,3 +220,16 @@ $ kubectl apply -f manifest/spark-operator-with-webhook.yaml
 This will create a Deployment named `sparkoperator` and a Service named `spark-webhook` for the webhook in namespace `spark-operator`.
 
 If the operator is installed via the Helm chart using the default settings (i.e. with webhook enabled), the above steps are all automated for you.
+
+### Mutating Admission Webhooks on a private GKE cluster
+
+If you are deploying the operator on a GKE cluster with the [Private cluster](https://cloud.google.com/kubernetes-engine/docs/how-to/private-clusters) setting enabled, and you wish to deploy the cluster with the [Mutating Admission Webhook](https://kubernetes.io/docs/reference/access-authn-authz/extensible-admission-controllers/), then make sure to change the `webhookPort` to `443`. Alternatively you can choose to allow connections to the default port (8080).
+
+> By default, firewall rules restrict your cluster master to only initiate TCP connections to your nodes on ports 443 (HTTPS) and 10250 (kubelet). For some Kubernetes features, you might need to add firewall rules to allow access on additional ports. For example, in Kubernetes 1.9 and older, kubectl top accesses heapster, which needs a firewall rule to allow TCP connections on port 8080. To grant such access, you can add firewall rules.
+[From the docs](https://cloud.google.com/kubernetes-engine/docs/how-to/private-clusters#add_firewall_rules)
+
+To install the operator with a custom port, pass the appropriate flag during `helm install`:
+
+```bash
+$ helm install incubator/sparkoperator  --set sparkJobNamespace=spark --set enableWebhook=true --set webhookPort=443
+```
