@@ -1,3 +1,19 @@
+/*
+Copyright 2019 Google LLC
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    https://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package volcano
 
 import (
@@ -13,7 +29,7 @@ import (
 	volcanoclient "volcano.sh/volcano/pkg/client/clientset/versioned"
 
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta1"
-	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/controller/sparkapplication/batchscheduler/interface"
+	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/batchscheduler/interface"
 )
 
 const (
@@ -50,7 +66,7 @@ func (v *VolcanoBatchScheduler) ShouldSchedule(app *v1beta1.SparkApplication) bo
 	return false
 }
 
-func (v *VolcanoBatchScheduler) OnSubmitSparkApplication(app *v1beta1.SparkApplication) (*v1beta1.SparkApplication, error) {
+func (v *VolcanoBatchScheduler) OnSparkApplicationSubmitted(app *v1beta1.SparkApplication) (*v1beta1.SparkApplication, error) {
 	newApp := app.DeepCopy()
 	if newApp.Spec.Executor.Annotations == nil {
 		newApp.Spec.Executor.Annotations = make(map[string]string)
@@ -61,14 +77,14 @@ func (v *VolcanoBatchScheduler) OnSubmitSparkApplication(app *v1beta1.SparkAppli
 	}
 
 	if newApp.Spec.Mode == v1beta1.ClientMode {
-		return v.syncPodGroupForClientAPP(newApp)
+		return v.syncPodGroupInClientMode(newApp)
 	} else if newApp.Spec.Mode == v1beta1.ClusterMode {
-		return v.syncPodGroupForClusterAPP(newApp)
+		return v.syncPodGroupInClusterMode(newApp)
 	}
 	return newApp, nil
 }
 
-func (v *VolcanoBatchScheduler) syncPodGroupForClientAPP(app *v1beta1.SparkApplication) (*v1beta1.SparkApplication, error) {
+func (v *VolcanoBatchScheduler) syncPodGroupInClientMode(app *v1beta1.SparkApplication) (*v1beta1.SparkApplication, error) {
 	//We only care about the executor pods in client mode
 	newApp := app.DeepCopy()
 	if _, ok := newApp.Spec.Executor.Annotations[v1alpha2.GroupNameAnnotationKey]; !ok {
@@ -81,10 +97,10 @@ func (v *VolcanoBatchScheduler) syncPodGroupForClientAPP(app *v1beta1.SparkAppli
 	return newApp, nil
 }
 
-func (v *VolcanoBatchScheduler) syncPodGroupForClusterAPP(app *v1beta1.SparkApplication) (*v1beta1.SparkApplication, error) {
+func (v *VolcanoBatchScheduler) syncPodGroupInClusterMode(app *v1beta1.SparkApplication) (*v1beta1.SparkApplication, error) {
 	//We need both mark Driver and Executor when submitting
-	//NOTE: Although we only have one pod for Spark Driver, we still manage it into PodGroup,since it can
-	//utilize other advanced features in volcano, for instance, namespace resource fairness.
+	//NOTE: In cluster mode, the initial size of PodGroup is set to 1 in order to **only** schedule driver pod,
+	//and once the driver pod get scheduled, we will update the PodGroup size to reflect the actual size.
 	if _, ok := app.Spec.Driver.Annotations[v1alpha2.GroupNameAnnotationKey]; !ok {
 		if err := v.syncPodGroup(app, 1); err == nil {
 			app.Spec.Executor.Annotations[v1alpha2.GroupNameAnnotationKey] = v.getAppPodGroupName(app)
@@ -105,7 +121,7 @@ func (v *VolcanoBatchScheduler) OnSparkDriverPodScheduled(app *v1beta1.SparkAppl
 }
 
 func (v *VolcanoBatchScheduler) getAppPodGroupName(app *v1beta1.SparkApplication) string {
-	return fmt.Sprintf("sparkapplication-%s-podgroup", app.Name)
+	return fmt.Sprintf("spark-%s-pg", app.Name)
 }
 
 func (v *VolcanoBatchScheduler) syncPodGroup(app *v1beta1.SparkApplication, size int32) error {
@@ -146,12 +162,12 @@ func New(config *rest.Config) schedulerinterface.BatchScheduler {
 
 	vkClient, err := volcanoclient.NewForConfig(config)
 	if err != nil {
-		glog.Errorf("Unable to initialize volcano client with error %v", err)
+		glog.Errorf("failed to initialize volcano client with error %v", err)
 		return nil
 	}
 	extClient, err := apiextensionsclient.NewForConfig(config)
 	if err != nil {
-		glog.Errorf("Unable to initialize k8s extension client with error %v", err)
+		glog.Errorf("failed to initialize k8s extension client with error %v", err)
 		return nil
 	}
 

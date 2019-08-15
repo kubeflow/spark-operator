@@ -41,12 +41,12 @@ import (
 	"k8s.io/client-go/util/workqueue"
 
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta1"
+	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/batchscheduler/interface"
 	crdclientset "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/client/clientset/versioned"
 	crdscheme "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/client/clientset/versioned/scheme"
 	crdinformers "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/client/informers/externalversions"
 	crdlisters "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/client/listers/sparkoperator.k8s.io/v1beta1"
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/config"
-	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/controller/sparkapplication/batchscheduler/interface"
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/util"
 )
 
@@ -655,9 +655,9 @@ func (c *Controller) submitSparkApplication(app *v1beta1.SparkApplication) *v1be
 
 	// Use batch scheduler to perform app submit tasks
 	if c.scheduleViaBatchScheduler(app) {
-		newApp, err := c.batchScheduler.OnSubmitSparkApplication(app)
+		newApp, err := c.batchScheduler.OnSparkApplicationSubmitted(app)
 		if err != nil {
-			glog.Errorf("Failed to process batch scheduler OnSubmitSparkApplication with error %v", err)
+			glog.Errorf("Failed to process batch scheduler OnSparkApplicationSubmitted with error %v", err)
 		} else {
 			app = newApp
 		}
