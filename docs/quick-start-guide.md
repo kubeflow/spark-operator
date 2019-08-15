@@ -15,7 +15,7 @@ For a more detailed guide on how to use, compose, and work with `SparkApplicatio
 
 ## Installation
 
-To install the operator, use the Helm [chart](https://github.com/helm/charts/tree/master/incubator/sparkoperator). 
+To install the operator, use the Helm [chart](https://github.com/helm/charts/tree/master/incubator/sparkoperator).
 
 ```bash
 $ helm repo add incubator http://storage.googleapis.com/kubernetes-charts-incubator
@@ -138,7 +138,7 @@ The operator uses multiple workers in the `SparkApplication` controller. The num
 
 The operator enables cache resynchronization so periodically the informers used by the operator will re-list existing objects it manages and re-trigger resource events. The resynchronization interval in seconds can be configured using the flag `-resync-interval`, with a default value of 30 seconds.
 
-By default, the operator will install the [CustomResourceDefinitions](https://kubernetes.io/docs/tasks/access-kubernetes-api/extend-api-custom-resource-definitions/) for the custom resources it manages. This can be disabled by setting the flag `-install-crds=false`, in which case the CustomResourceDefinitions can be installed manually using `kubectl apply -f manifest/spark-operator-crds.yaml`. 
+By default, the operator will install the [CustomResourceDefinitions](https://kubernetes.io/docs/tasks/access-kubernetes-api/extend-api-custom-resource-definitions/) for the custom resources it manages. This can be disabled by setting the flag `-install-crds=false`, in which case the CustomResourceDefinitions can be installed manually using `kubectl apply -f manifest/spark-operator-crds.yaml`.
 
 The mutating admission webhook is an **optional** component and can be enabled or disabled using the `-enable-webhook` flag, which defaults to `false`.
 
@@ -146,7 +146,7 @@ By default, the operator will manage custom resource objects of the managed CRD 
 
 ## Upgrade
 
-To upgrade the the operator, e.g., to use a newer version container image with a new tag, run the following command with updated parameters for the Helm release: 
+To upgrade the the operator, e.g., to use a newer version container image with a new tag, run the following command with updated parameters for the Helm release:
 
 ```bash
 $ helm upgrade <YOUR-HELM-RELEASE-NAME> --set operatorImageName=org/image --set operatorVersion=newTag
@@ -168,6 +168,7 @@ $ helm install incubator/sparkoperator --namespace spark-operator --set enableMe
 
 If enabled, the operator generates the following metrics:
 
+#### Spark Application Metrics
 | Metric | Description |
 | ------------- | ------------- |
 | `spark_app_submit_count`  | Total number of SparkApplication submitted by the Operator.|
@@ -180,13 +181,25 @@ If enabled, the operator generates the following metrics:
 | `spark_app_executor_failure_count` | Total number of Spark Executors which failed. |
 | `spark_app_executor_running_count` | Total number of Spark Executors which are currently running. |
 
-The following is a list of all the configurations the operators supports for metrics: 
+#### Work Queue Metrics
+| Metric | Description |
+| ------------- | ------------- |
+| `queue_depth` | Current depth of workqueue |
+| `queue_adds` | Total number of adds handled by workqueue |
+| `queue_latency` | Latency for workqueue |
+| `queue_work_duration` | How long processing an item from workqueue takes |
+| `queue_retries` | Total number of retries handled by workqueue |
+| `queue_unfinished_work_seconds` | Unfinished work in seconds |
+| `queue_longest_running_processor_microseconds` | Longest running processor in microseconds |
+
+
+The following is a list of all the configurations the operators supports for metrics:
 
 ```bash
 -enable-metrics=true
 -metrics-port=10254
 -metrics-endpoint=/metrics
--metrics-prefix=myServiceName 
+-metrics-prefix=myServiceName
 -metrics-label=label1Key
 -metrics-label=label2Key
 ```
