@@ -141,6 +141,7 @@ func TestOnUpdate(t *testing.T) {
 	copyWithSpecUpdate := appTemplate.DeepCopy()
 	copyWithSpecUpdate.Spec.Image = stringptr("foo-image:v2")
 	copyWithSpecUpdate.ResourceVersion = "2"
+	copyWithSpecUpdate.Status.AppState.State = v1beta1.RunningState
 
 	ctrl.onUpdate(appTemplate, copyWithSpecUpdate)
 

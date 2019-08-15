@@ -22,7 +22,5 @@ type BatchScheduler interface {
 	Name() string
 
 	ShouldSchedule(app *v1beta1.SparkApplication) bool
-
-	OnSparkApplicationSubmitted(app *v1beta1.SparkApplication) (*v1beta1.SparkApplication, error)
-	OnSparkDriverPodScheduled(app *v1beta1.SparkApplication) (*v1beta1.SparkApplication, error)
+	BeforeSubmitSparkApplication(app *v1beta1.SparkApplication) (*v1beta1.SparkApplication, error)
 }
