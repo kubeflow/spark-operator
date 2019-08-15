@@ -127,14 +127,14 @@ func New(
 	}
 	if userConfig.webhookFailOnError {
 		if userConfig.webhookNamespaceSelector == "" {
-			return nil, fmt.Errorf("webhook-namespace-selector must be set when webhook-fail-on-error is true.")
-		} else {
-			selector, err := parseNamespaceSelector(userConfig.webhookNamespaceSelector)
-			if err != nil {
-				return nil, err
-			}
-			hook.selector = selector
+			return nil, fmt.Errorf("webhook-namespace-selector must be set when webhook-fail-on-error is true")
 		}
+
+		selector, err := parseNamespaceSelector(userConfig.webhookNamespaceSelector)
+		if err != nil {
+			return nil, err
+		}
+		hook.selector = selector
 		hook.failurePolicy = arv1beta1.Fail
 	}
 
@@ -152,6 +152,7 @@ func parseNamespaceSelector(selectorArg string) (*metav1.LabelSelector, error) {
 	selector := &metav1.LabelSelector{
 		MatchLabels: make(map[string]string),
 	}
+
 	selectorStrs := strings.Split(selectorArg, ",")
 	for _, selectorStr := range selectorStrs {
 		kv := strings.SplitN(selectorStr, "=", 2)
@@ -160,6 +161,7 @@ func parseNamespaceSelector(selectorArg string) (*metav1.LabelSelector, error) {
 		}
 		selector.MatchLabels[kv[0]] = kv[1]
 	}
+
 	return selector, nil
 }
 
@@ -188,9 +190,10 @@ func (wh *WebHook) Stop() error {
 		}
 		glog.Infof("Webhook %s deregistered", userConfig.webhookConfigName)
 	}
+
+	wh.certProvider.Stop()
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	wh.certProvider.Stop()
 	glog.Info("Stopping the Spark pod admission webhook server")
 	return wh.server.Shutdown(ctx)
 }
@@ -218,23 +221,22 @@ func (wh *WebHook) serve(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var reviewResponse *admissionv1beta1.AdmissionResponse
 	review := &admissionv1beta1.AdmissionReview{}
 	deserializer := codecs.UniversalDeserializer()
 	if _, _, err := deserializer.Decode(body, nil, review); err != nil {
 		internalError(w, err)
 		return
-	} else {
-		if review.Request.Resource == podResource {
-			reviewResponse, err = mutatePods(review, wh.lister, wh.sparkJobNamespace)
-			if err != nil {
-				internalError(w, err)
-				return
-			}
-		} else {
-			denyRequest(w, fmt.Sprintf("unexpected resource type: %v", review.Request.Resource.String()), http.StatusUnsupportedMediaType)
-			return
-		}
+	}
+
+	if review.Request.Resource != podResource {
+		denyRequest(w, fmt.Sprintf("unexpected resource type: %v", review.Request.Resource.String()), http.StatusUnsupportedMediaType)
+		return
+	}
+
+	reviewResponse, err := mutatePods(review, wh.lister, wh.sparkJobNamespace)
+	if err != nil {
+		internalError(w, err)
+		return
 	}
 
 	response := admissionv1beta1.AdmissionReview{}
@@ -279,7 +281,7 @@ func denyRequest(w http.ResponseWriter, reason string, code int) {
 	w.WriteHeader(code)
 	_, err = w.Write(resp)
 	if err != nil {
-		glog.Errorf("Failed to write response body: %v", err)
+		glog.Errorf("failed to write response body: %v", err)
 	}
 }
 
@@ -349,10 +351,6 @@ func mutatePods(
 	review *admissionv1beta1.AdmissionReview,
 	lister crdlisters.SparkApplicationLister,
 	sparkJobNs string) (*admissionv1beta1.AdmissionResponse, error) {
-	if review.Request.Resource != podResource {
-		return nil, fmt.Errorf("expected resource to be %s, got %s", podResource, review.Request.Resource)
-	}
-
 	raw := review.Request.Object.Raw
 	pod := &corev1.Pod{}
 	if err := json.Unmarshal(raw, pod); err != nil {
