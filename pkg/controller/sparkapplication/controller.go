@@ -193,8 +193,8 @@ func (c *Controller) onUpdate(oldObj, newObj interface{}) {
 	// and end up in an inconsistent state.
 	if !equality.Semantic.DeepEqual(oldApp.Spec, newApp.Spec) {
 		// Force-set the application status to Invalidating which handles clean-up and application re-run.
-		if _, err := c.updateApplicationStatusWithRetries(newApp, func(status *v1beta1.SparkApplicationStatus) {
-			status.AppState.State = v1beta1.InvalidatingState
+		if _, err := c.updateApplicationStatusWithRetries(newApp, func(app *v1beta1.SparkApplication) {
+			app.Status.AppState.State = v1beta1.InvalidatingState
 		}); err != nil {
 			c.recorder.Eventf(
 				newApp,
@@ -342,10 +342,11 @@ func (c *Controller) getAndUpdateDriverState(app *v1beta1.SparkApplication) erro
 	}
 
 	if c.scheduleViaBatchScheduler(app) && driverPod.Status.Phase == apiv1.PodRunning {
-		var err error
-		app, err = c.batchScheduler.OnSparkDriverPodScheduled(app)
+		newApp, err := c.batchScheduler.OnSparkDriverPodScheduled(app)
 		if err != nil {
 			glog.Errorf("Failed to handle batch scheduler's OnSparkDriverPodScheduled with error %v", err)
+		} else {
+			app = newApp
 		}
 	}
 
@@ -654,10 +655,11 @@ func (c *Controller) submitSparkApplication(app *v1beta1.SparkApplication) *v1be
 
 	// Use batch scheduler to perform app submit tasks
 	if c.scheduleViaBatchScheduler(app) {
-		var err error
-		app, err = c.batchScheduler.OnSubmitSparkApplication(app)
+		newApp, err := c.batchScheduler.OnSubmitSparkApplication(app)
 		if err != nil {
 			glog.Errorf("Failed to process batch scheduler OnSubmitSparkApplication with error %v", err)
+		} else {
+			app = newApp
 		}
 	}
 
@@ -703,12 +705,12 @@ func (c *Controller) scheduleViaBatchScheduler(app *v1beta1.SparkApplication) bo
 
 func (c *Controller) updateApplicationStatusWithRetries(
 	original *v1beta1.SparkApplication,
-	updateFunc func(status *v1beta1.SparkApplicationStatus)) (*v1beta1.SparkApplication, error) {
+	updateFunc func(app *v1beta1.SparkApplication)) (*v1beta1.SparkApplication, error) {
 	toUpdate := original.DeepCopy()
 
 	var lastUpdateErr error
 	for i := 0; i < maximumUpdateRetries; i++ {
-		updateFunc(&toUpdate.Status)
+		updateFunc(toUpdate)
 		if equality.Semantic.DeepEqual(original.Status, toUpdate.Status) {
 			return toUpdate, nil
 		}
@@ -745,8 +747,12 @@ func (c *Controller) updateStatusAndExportMetrics(oldApp, newApp *v1beta1.SparkA
 		return nil
 	}
 
-	updatedApp, err := c.updateApplicationStatusWithRetries(oldApp, func(status *v1beta1.SparkApplicationStatus) {
-		*status = newApp.Status
+	updatedApp, err := c.updateApplicationStatusWithRetries(oldApp, func(app *v1beta1.SparkApplication) {
+		app.Status = newApp.Status
+		// It's possible that some batch scheduler will utilize the update of App.Spec to achieve scheduling
+		if !equality.Semantic.DeepEqual(oldApp.Spec, newApp.Spec) {
+			app.Spec = newApp.Spec
+		}
 	})
 
 	// Export metrics if the update was successful.

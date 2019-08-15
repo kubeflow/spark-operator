@@ -51,30 +51,34 @@ func (v *VolcanoBatchScheduler) ShouldSchedule(app *v1beta1.SparkApplication) bo
 }
 
 func (v *VolcanoBatchScheduler) OnSubmitSparkApplication(app *v1beta1.SparkApplication) (*v1beta1.SparkApplication, error) {
-	if app.Spec.Executor.Annotations == nil {
-		app.Spec.Executor.Annotations = make(map[string]string)
+	newApp := app.DeepCopy()
+	if newApp.Spec.Executor.Annotations == nil {
+		newApp.Spec.Executor.Annotations = make(map[string]string)
 	}
 
-	if app.Spec.Driver.Annotations == nil {
-		app.Spec.Driver.Annotations = make(map[string]string)
+	if newApp.Spec.Driver.Annotations == nil {
+		newApp.Spec.Driver.Annotations = make(map[string]string)
 	}
 
-	if app.Spec.Mode == v1beta1.ClientMode {
-		return v.syncPodGroupForClientAPP(app)
-	} else if app.Spec.Mode == v1beta1.ClusterMode {
-		return v.syncPodGroupForClusterAPP(app)
+	if newApp.Spec.Mode == v1beta1.ClientMode {
+		return v.syncPodGroupForClientAPP(newApp)
+	} else if newApp.Spec.Mode == v1beta1.ClusterMode {
+		return v.syncPodGroupForClusterAPP(newApp)
 	}
-	return app, nil
+	return newApp, nil
 }
 
 func (v *VolcanoBatchScheduler) syncPodGroupForClientAPP(app *v1beta1.SparkApplication) (*v1beta1.SparkApplication, error) {
 	//We only care about the executor pods in client mode
-	if _, ok := app.Spec.Executor.Annotations[v1alpha2.GroupNameAnnotationKey]; !ok {
-		if err := v.syncPodGroup(app, *app.Spec.Executor.Instances); err == nil {
-			app.Spec.Executor.Annotations[v1alpha2.GroupNameAnnotationKey] = v.getAppPodGroupName(app)
+	newApp := app.DeepCopy()
+	if _, ok := newApp.Spec.Executor.Annotations[v1alpha2.GroupNameAnnotationKey]; !ok {
+		if err := v.syncPodGroup(newApp, *newApp.Spec.Executor.Instances); err == nil {
+			newApp.Spec.Executor.Annotations[v1alpha2.GroupNameAnnotationKey] = v.getAppPodGroupName(newApp)
+		} else {
+			return nil, err
 		}
 	}
-	return app, nil
+	return newApp, nil
 }
 
 func (v *VolcanoBatchScheduler) syncPodGroupForClusterAPP(app *v1beta1.SparkApplication) (*v1beta1.SparkApplication, error) {
@@ -82,9 +86,11 @@ func (v *VolcanoBatchScheduler) syncPodGroupForClusterAPP(app *v1beta1.SparkAppl
 	//NOTE: Although we only have one pod for Spark Driver, we still manage it into PodGroup,since it can
 	//utilize other advanced features in volcano, for instance, namespace resource fairness.
 	if _, ok := app.Spec.Driver.Annotations[v1alpha2.GroupNameAnnotationKey]; !ok {
-		if err := v.syncPodGroup(app, 1); err != nil {
+		if err := v.syncPodGroup(app, 1); err == nil {
 			app.Spec.Executor.Annotations[v1alpha2.GroupNameAnnotationKey] = v.getAppPodGroupName(app)
 			app.Spec.Driver.Annotations[v1alpha2.GroupNameAnnotationKey] = v.getAppPodGroupName(app)
+		} else {
+			return nil, err
 		}
 	}
 	return app, nil
