@@ -184,13 +184,13 @@ If enabled, the operator generates the following metrics:
 #### Work Queue Metrics
 | Metric | Description |
 | ------------- | ------------- |
-| `queue_depth` | Current depth of workqueue |
-| `queue_adds` | Total number of adds handled by workqueue |
-| `queue_latency` | Latency for workqueue |
-| `queue_work_duration` | How long processing an item from workqueue takes |
-| `queue_retries` | Total number of retries handled by workqueue |
-| `queue_unfinished_work_seconds` | Unfinished work in seconds |
-| `queue_longest_running_processor_microseconds` | Longest running processor in microseconds |
+| `myServiceName_depth` | Current depth of workqueue |
+| `myServiceName_adds` | Total number of adds handled by workqueue |
+| `myServiceName_latency` | Latency for workqueue |
+| `myServiceName_work_duration` | How long processing an item from workqueue takes |
+| `myServiceName_retries` | Total number of retries handled by workqueue |
+| `myServiceName_unfinished_work_seconds` | Unfinished work in seconds |
+| `myServiceName_longest_running_processor_microseconds` | Longest running processor in microseconds |
 
 
 The following is a list of all the configurations the operators supports for metrics:
