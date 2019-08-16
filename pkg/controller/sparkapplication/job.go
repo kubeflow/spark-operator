@@ -76,6 +76,16 @@ func (sjm *realSubmissionJobManager) createSubmissionJob(app *v1beta2.SparkAppli
 
 	command := []string{"sh", "-c", fmt.Sprintf("$SPARK_HOME/bin/spark-submit %s", strings.Join(submissionCmdArgs, " "))}
 	var one int32 = 1
+
+	imagePullSecrets := make([]v1.LocalObjectReference, len(app.Spec.ImagePullSecrets))
+	for i, secret := range app.Spec.ImagePullSecrets {
+		imagePullSecrets[i] = v1.LocalObjectReference{secret}
+	}
+	imagePullPolicy := v1.PullIfNotPresent
+	if app.Spec.ImagePullPolicy != nil {
+		imagePullPolicy = v1.PullPolicy(*app.Spec.ImagePullPolicy)
+	}
+
 	job := &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      getSubmissionJobName(app),
@@ -93,11 +103,13 @@ func (sjm *realSubmissionJobManager) createSubmissionJob(app *v1beta2.SparkAppli
 			BackoffLimit: app.Spec.RestartPolicy.OnSubmissionFailureRetries,
 			Template: corev1.PodTemplateSpec{
 				Spec: corev1.PodSpec{
+					ImagePullSecrets: imagePullSecrets,
 					Containers: []corev1.Container{
 						{
-							Name:    "spark-submit-runner",
-							Image:   image,
-							Command: command,
+							Name:            "spark-submit-runner",
+							Image:           image,
+							Command:         command,
+							ImagePullPolicy: imagePullPolicy,
 							Resources: corev1.ResourceRequirements{
 								Requests: corev1.ResourceList{
 									corev1.ResourceCPU:    resource.MustParse(sparkSubmitPodCpuRequest),
