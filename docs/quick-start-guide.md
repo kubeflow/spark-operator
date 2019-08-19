@@ -12,6 +12,7 @@ For a more detailed guide on how to use, compose, and work with `SparkApplicatio
 * [Enable Metric Exporting to Prometheus](#enable-metric-exporting-to-prometheus)
 * [Driver UI Access and Ingress](#driver-ui-access-and-ingress)
 * [About the Mutating Admission Webhook](#about-the-mutating-admission-webhook)
+* [Mutating Admission Webhooks on a private GKE cluster](#mutating-admission-webhooks-on-a-private-gke-cluster)
 
 ## Installation
 
