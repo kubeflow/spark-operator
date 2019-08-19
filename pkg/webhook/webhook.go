@@ -64,6 +64,7 @@ type WebHook struct {
 	failurePolicy     v1beta1.FailurePolicyType
 	selector          *metav1.LabelSelector
 	sparkJobNamespace string
+	deregisterOnExit  bool
 }
 
 // Configuration parsed from command-line flags
@@ -100,7 +101,7 @@ func New(
 	clientset kubernetes.Interface,
 	informerFactory crinformers.SharedInformerFactory,
 	jobNamespace string,
-) (*WebHook, error) {
+	deregisterOnExit bool) (*WebHook, error) {
 	cert, err := NewCertProvider(
 		userConfig.serverCert,
 		userConfig.serverCertKey,
@@ -123,6 +124,7 @@ func New(
 		certProvider:      cert,
 		serviceRef:        serviceRef,
 		sparkJobNamespace: jobNamespace,
+		deregisterOnExit:  deregisterOnExit,
 		failurePolicy:     arv1beta1.Ignore,
 	}
 	if userConfig.webhookFailOnError {

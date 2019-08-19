@@ -19,6 +19,7 @@ limitations under the License.
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"os"
@@ -36,6 +37,9 @@ import (
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
+	"k8s.io/client-go/tools/leaderelection"
+	"k8s.io/client-go/tools/leaderelection/resourcelock"
+	"k8s.io/client-go/tools/record"
 
 	crclientset "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/client/clientset/versioned"
 	crinformers "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/client/informers/externalversions"
@@ -50,18 +54,25 @@ import (
 )
 
 var (
-	master            = flag.String("master", "", "The address of the Kubernetes API server. Overrides any value in kubeconfig. Only required if out-of-cluster.")
-	kubeConfig        = flag.String("kubeConfig", "", "Path to a kube config. Only required if out-of-cluster.")
-	installCRDs       = flag.Bool("install-crds", true, "Whether to install CRDs")
-	controllerThreads = flag.Int("controller-threads", 10, "Number of worker threads used by the SparkApplication controller.")
-	resyncInterval    = flag.Int("resync-interval", 30, "Informer resync interval in seconds.")
-	namespace         = flag.String("namespace", apiv1.NamespaceAll, "The Kubernetes namespace to manage. Will manage custom resource objects of the managed CRD types for the whole cluster if unset.")
-	enableWebhook     = flag.Bool("enable-webhook", false, "Whether to enable the mutating admission webhook for admitting and patching Spark pods.")
-	enableMetrics     = flag.Bool("enable-metrics", false, "Whether to enable the metrics endpoint.")
-	metricsPort       = flag.String("metrics-port", "10254", "Port for the metrics endpoint.")
-	metricsEndpoint   = flag.String("metrics-endpoint", "/metrics", "Metrics endpoint.")
-	metricsPrefix     = flag.String("metrics-prefix", "", "Prefix for the metrics.")
-	ingressUrlFormat  = flag.String("ingress-url-format", "", "Ingress URL format.")
+	master                      = flag.String("master", "", "The address of the Kubernetes API server. Overrides any value in kubeconfig. Only required if out-of-cluster.")
+	kubeConfig                  = flag.String("kubeConfig", "", "Path to a kube config. Only required if out-of-cluster.")
+	installCRDs                 = flag.Bool("install-crds", true, "Whether to install CRDs")
+	controllerThreads           = flag.Int("controller-threads", 10, "Number of worker threads used by the SparkApplication controller.")
+	resyncInterval              = flag.Int("resync-interval", 30, "Informer resync interval in seconds.")
+	namespace                   = flag.String("namespace", apiv1.NamespaceAll, "The Kubernetes namespace to manage. Will manage custom resource objects of the managed CRD types for the whole cluster if unset.")
+	enableWebhook               = flag.Bool("enable-webhook", false, "Whether to enable the mutating admission webhook for admitting and patching Spark pods.")
+	enableMetrics               = flag.Bool("enable-metrics", false, "Whether to enable the metrics endpoint.")
+	metricsPort                 = flag.String("metrics-port", "10254", "Port for the metrics endpoint.")
+	metricsEndpoint             = flag.String("metrics-endpoint", "/metrics", "Metrics endpoint.")
+	metricsPrefix               = flag.String("metrics-prefix", "", "Prefix for the metrics.")
+	ingressUrlFormat            = flag.String("ingress-url-format", "", "Ingress URL format.")
+	enableLeaderElection        = flag.Bool("leader-election", false, "Enable Spark operator leader election.")
+	leaderElectionLockNamespace = flag.String("leader-election-lock-namespace", "spark-operator", "Namespace in which to create the ConfigMap for leader election.")
+	leaderElectionLockName      = flag.String("leader-election-lock-name", "spark-operator-lock", "Name of the ConfigMap for leader election.")
+
+	leaderElectionLeaseDuration = flag.Duration("leader-election-lease-duration", 15*time.Second, "Leader election lease duration.")
+	leaderElectionRenewDeadline = flag.Duration("leader-election-renew-deadline", 14*time.Second, "Leader election renew deadline.")
+	leaderElectionRetryPeriod   = flag.Duration("leader-election-retry-period", 4*time.Second, "Leader election retry period.")
 )
 
 func main() {
@@ -79,22 +90,50 @@ func main() {
 		glog.Fatal(err)
 	}
 
-	var metricConfig *util.MetricConfig
-	if *enableMetrics {
-		metricConfig = &util.MetricConfig{
-			MetricsEndpoint: *metricsEndpoint,
-			MetricsPort:     *metricsPort,
-			MetricsPrefix:   *metricsPrefix,
-			MetricsLabels:   metricsLabels,
+	signalCh := make(chan os.Signal, 1)
+	signal.Notify(signalCh, syscall.SIGINT, syscall.SIGTERM)
+
+	stopCh := make(chan struct{}, 1)
+	startCh := make(chan struct{}, 1)
+
+	if *enableLeaderElection {
+		hostname, err := os.Hostname()
+		if err != nil {
+			glog.Fatal(err)
+		}
+		resourceLock, err := resourcelock.New(resourcelock.ConfigMapsResourceLock, *leaderElectionLockNamespace, *leaderElectionLockName, kubeClient.CoreV1(), resourcelock.ResourceLockConfig{
+			Identity: hostname,
+			// TODO: This is a workaround for a nil dereference in client-go. This line can be removed when that dependency is updated.
+			EventRecorder: &record.FakeRecorder{},
+		})
+		if err != nil {
+			glog.Fatal(err)
 		}
 
-		glog.Info("Enabling metrics collecting and exporting to Prometheus")
-		util.InitializeMetrics(metricConfig)
+		electionCfg := leaderelection.LeaderElectionConfig{
+			Lock:          resourceLock,
+			LeaseDuration: *leaderElectionLeaseDuration,
+			RenewDeadline: *leaderElectionRenewDeadline,
+			RetryPeriod:   *leaderElectionRetryPeriod,
+			Callbacks: leaderelection.LeaderCallbacks{
+				OnStartedLeading: func(c context.Context) {
+					close(startCh)
+				},
+				OnStoppedLeading: func() {
+					close(stopCh)
+				},
+			},
+		}
+
+		elector, err := leaderelection.NewLeaderElector(electionCfg)
+		if err != nil {
+			glog.Fatal(err)
+		}
+
+		go elector.Run(context.Background())
 	}
 
 	glog.Info("Starting the Spark Operator")
-
-	stopCh := make(chan struct{})
 
 	crClient, err := crclientset.NewForConfig(config)
 	if err != nil {
@@ -119,25 +158,16 @@ func main() {
 
 	crInformerFactory := buildCustomResourceInformerFactory(crClient)
 	podInformerFactory := buildPodInformerFactory(kubeClient)
-	applicationController := sparkapplication.NewController(
-		crClient, kubeClient, crInformerFactory, podInformerFactory, metricConfig, *namespace, *ingressUrlFormat)
-	scheduledApplicationController := scheduledsparkapplication.NewController(
-		crClient, kubeClient, apiExtensionsClient, crInformerFactory, clock.RealClock{})
 
 	// Start the informer factory that in turn starts the informer.
 	go crInformerFactory.Start(stopCh)
 	go podInformerFactory.Start(stopCh)
 
-	if err = applicationController.Start(*controllerThreads, stopCh); err != nil {
-		glog.Fatal(err)
-	}
-	if err = scheduledApplicationController.Start(*controllerThreads, stopCh); err != nil {
-		glog.Fatal(err)
-	}
-
 	var hook *webhook.WebHook
 	if *enableWebhook {
-		hook, err = webhook.New(kubeClient, crInformerFactory, *namespace)
+		var err error
+		// Don't deregister webhook on exit if leader election enabled (i.e. multiple webhooks running)
+		hook, err = webhook.New(kubeClient, crInformerFactory, *namespace, !*enableLeaderElection)
 		if err != nil {
 			glog.Fatal(err)
 		}
@@ -147,11 +177,43 @@ func main() {
 		}
 	}
 
-	signalCh := make(chan os.Signal, 1)
-	signal.Notify(signalCh, syscall.SIGINT, syscall.SIGTERM)
-	<-signalCh
+	if *enableLeaderElection {
+		glog.Info("Waiting to be elected leader before starting application controller and metrics threads.")
+		<-startCh
+	}
 
-	close(stopCh)
+	var metricConfig *util.MetricConfig
+	if *enableMetrics {
+		metricConfig = &util.MetricConfig{
+			MetricsEndpoint: *metricsEndpoint,
+			MetricsPort:     *metricsPort,
+			MetricsPrefix:   *metricsPrefix,
+			MetricsLabels:   metricsLabels,
+		}
+
+		glog.Info("Enabling metrics collecting and exporting to Prometheus")
+		util.InitializeMetrics(metricConfig)
+	}
+
+	applicationController := sparkapplication.NewController(
+		crClient, kubeClient, crInformerFactory, podInformerFactory, metricConfig, *namespace, *ingressUrlFormat)
+	scheduledApplicationController := scheduledsparkapplication.NewController(
+		crClient, kubeClient, apiExtensionsClient, crInformerFactory, clock.RealClock{})
+
+	glog.Info("Starting application controller threads.")
+
+	if err = applicationController.Start(*controllerThreads, stopCh); err != nil {
+		glog.Fatal(err)
+	}
+	if err = scheduledApplicationController.Start(*controllerThreads, stopCh); err != nil {
+		glog.Fatal(err)
+	}
+
+	select {
+	case <-signalCh:
+		close(stopCh)
+	case <-stopCh:
+	}
 
 	glog.Info("Shutting down the Spark Operator")
 	applicationController.Stop()
