@@ -47,8 +47,6 @@ import (
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/controller/scheduledsparkapplication"
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/controller/sparkapplication"
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/crd"
-	ssacrd "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/crd/scheduledsparkapplication"
-	sacrd "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/crd/sparkapplication"
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/util"
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/webhook"
 )
@@ -65,11 +63,10 @@ var (
 	metricsPort                 = flag.String("metrics-port", "10254", "Port for the metrics endpoint.")
 	metricsEndpoint             = flag.String("metrics-endpoint", "/metrics", "Metrics endpoint.")
 	metricsPrefix               = flag.String("metrics-prefix", "", "Prefix for the metrics.")
-	ingressUrlFormat            = flag.String("ingress-url-format", "", "Ingress URL format.")
+	ingressURLFormat            = flag.String("ingress-url-format", "", "Ingress URL format.")
 	enableLeaderElection        = flag.Bool("leader-election", false, "Enable Spark operator leader election.")
 	leaderElectionLockNamespace = flag.String("leader-election-lock-namespace", "spark-operator", "Namespace in which to create the ConfigMap for leader election.")
 	leaderElectionLockName      = flag.String("leader-election-lock-name", "spark-operator-lock", "Name of the ConfigMap for leader election.")
-
 	leaderElectionLeaseDuration = flag.Duration("leader-election-lease-duration", 15*time.Second, "Leader election lease duration.")
 	leaderElectionRenewDeadline = flag.Duration("leader-election-renew-deadline", 14*time.Second, "Leader election renew deadline.")
 	leaderElectionRetryPeriod   = flag.Duration("leader-election-retry-period", 4*time.Second, "Leader election retry period.")
@@ -145,14 +142,9 @@ func main() {
 	}
 
 	if *installCRDs {
-		err = crd.CreateOrUpdateCRD(apiExtensionsClient, sacrd.GetCRD())
+		err = crd.CreateOrUpdateCRDs(apiExtensionsClient)
 		if err != nil {
-			glog.Fatalf("failed to create or update CustomResourceDefinition %s: %v", sacrd.FullName, err)
-		}
-
-		err = crd.CreateOrUpdateCRD(apiExtensionsClient, ssacrd.GetCRD())
-		if err != nil {
-			glog.Fatalf("failed to create or update CustomResourceDefinition %s: %v", ssacrd.FullName, err)
+			glog.Fatal(err)
 		}
 	}
 
@@ -171,14 +163,13 @@ func main() {
 		if err != nil {
 			glog.Fatal(err)
 		}
-
 		if err = hook.Start(); err != nil {
 			glog.Fatal(err)
 		}
 	}
 
 	if *enableLeaderElection {
-		glog.Info("Waiting to be elected leader before starting application controller and metrics threads.")
+		glog.Info("Waiting to be elected leader before starting application controller and metrics threads")
 		<-startCh
 	}
 
@@ -196,11 +187,11 @@ func main() {
 	}
 
 	applicationController := sparkapplication.NewController(
-		crClient, kubeClient, crInformerFactory, podInformerFactory, metricConfig, *namespace, *ingressUrlFormat)
+		crClient, kubeClient, crInformerFactory, podInformerFactory, metricConfig, *namespace, *ingressURLFormat)
 	scheduledApplicationController := scheduledsparkapplication.NewController(
 		crClient, kubeClient, apiExtensionsClient, crInformerFactory, clock.RealClock{})
 
-	glog.Info("Starting application controller threads.")
+	glog.Info("Starting application controller threads")
 
 	if err = applicationController.Start(*controllerThreads, stopCh); err != nil {
 		glog.Fatal(err)
@@ -225,9 +216,9 @@ func main() {
 	}
 }
 
-func buildConfig(masterUrl string, kubeConfig string) (*rest.Config, error) {
+func buildConfig(masterURL string, kubeConfig string) (*rest.Config, error) {
 	if kubeConfig != "" {
-		return clientcmd.BuildConfigFromFlags(masterUrl, kubeConfig)
+		return clientcmd.BuildConfigFromFlags(masterURL, kubeConfig)
 	}
 	return rest.InClusterConfig()
 }
