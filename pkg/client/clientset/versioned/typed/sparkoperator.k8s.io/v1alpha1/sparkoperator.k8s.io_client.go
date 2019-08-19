@@ -33,7 +33,7 @@ type SparkoperatorV1alpha1Interface interface {
 	SparkApplicationsGetter
 }
 
-// SparkoperatorV1alpha1Client is used to interact with features provided by the sparkoperator group.
+// SparkoperatorV1alpha1Client is used to interact with features provided by the sparkoperator.k8s.io group.
 type SparkoperatorV1alpha1Client struct {
 	restClient rest.Interface
 }

@@ -36,9 +36,9 @@ type FakeSparkApplications struct {
 	ns   string
 }
 
-var sparkapplicationsResource = schema.GroupVersionResource{Group: "sparkoperator", Version: "v1alpha1", Resource: "sparkapplications"}
+var sparkapplicationsResource = schema.GroupVersionResource{Group: "sparkoperator.k8s.io", Version: "v1alpha1", Resource: "sparkapplications"}
 
-var sparkapplicationsKind = schema.GroupVersionKind{Group: "sparkoperator", Version: "v1alpha1", Kind: "SparkApplication"}
+var sparkapplicationsKind = schema.GroupVersionKind{Group: "sparkoperator.k8s.io", Version: "v1alpha1", Kind: "SparkApplication"}
 
 // Get takes name of the sparkApplication, and returns the corresponding sparkApplication object, and an error if there is any.
 func (c *FakeSparkApplications) Get(name string, options v1.GetOptions) (result *v1alpha1.SparkApplication, err error) {
