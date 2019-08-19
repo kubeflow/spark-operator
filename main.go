@@ -156,25 +156,8 @@ func main() {
 		}
 	}
 
-	var metricConfig *util.MetricConfig
-	if *enableMetrics {
-		metricConfig = &util.MetricConfig{
-			MetricsEndpoint: *metricsEndpoint,
-			MetricsPort:     *metricsPort,
-			MetricsPrefix:   *metricsPrefix,
-			MetricsLabels:   metricsLabels,
-		}
-
-		glog.Info("Enabling metrics collecting and exporting to Prometheus")
-		util.InitializeMetrics(metricConfig)
-	}
-
 	crInformerFactory := buildCustomResourceInformerFactory(crClient)
 	podInformerFactory := buildPodInformerFactory(kubeClient)
-	applicationController := sparkapplication.NewController(
-		crClient, kubeClient, crInformerFactory, podInformerFactory, metricConfig, *namespace, *ingressUrlFormat)
-	scheduledApplicationController := scheduledsparkapplication.NewController(
-		crClient, kubeClient, apiExtensionsClient, crInformerFactory, clock.RealClock{})
 
 	// Start the informer factory that in turn starts the informer.
 	go crInformerFactory.Start(stopCh)
@@ -195,9 +178,27 @@ func main() {
 	}
 
 	if *enableLeaderElection {
-		glog.Info("Waiting to be elected leader before starting application controller threads.")
+		glog.Info("Waiting to be elected leader before starting application controller and metrics threads.")
 		<-startCh
 	}
+
+	var metricConfig *util.MetricConfig
+	if *enableMetrics {
+		metricConfig = &util.MetricConfig{
+			MetricsEndpoint: *metricsEndpoint,
+			MetricsPort:     *metricsPort,
+			MetricsPrefix:   *metricsPrefix,
+			MetricsLabels:   metricsLabels,
+		}
+
+		glog.Info("Enabling metrics collecting and exporting to Prometheus")
+		util.InitializeMetrics(metricConfig)
+	}
+
+	applicationController := sparkapplication.NewController(
+		crClient, kubeClient, crInformerFactory, podInformerFactory, metricConfig, *namespace, *ingressUrlFormat)
+	scheduledApplicationController := scheduledsparkapplication.NewController(
+		crClient, kubeClient, apiExtensionsClient, crInformerFactory, clock.RealClock{})
 
 	glog.Info("Starting application controller threads.")
 
