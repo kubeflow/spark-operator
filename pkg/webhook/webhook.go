@@ -196,7 +196,7 @@ func parseNamespaceSelector(selectorArg string) (*metav1.LabelSelector, error) {
 }
 
 // Start starts the admission webhook server and registers itself to the API server.
-func (wh *WebHook) Start() error {
+func (wh *WebHook) Start(stopCh <-chan struct{}) error {
 	wh.certProvider.Start()
 	wh.server.TLSConfig = wh.certProvider.tlsConfig()
 
@@ -268,6 +268,7 @@ func (wh *WebHook) serve(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var whErr error
+	var reviewResponse *admissionv1beta1.AdmissionResponse
 	switch review.Request.Resource {
 	case podResource:
 		reviewResponse, whErr = mutatePods(review, wh.lister, wh.sparkJobNamespace)
@@ -434,7 +435,7 @@ func (wh *WebHook) selfRegistration(webhookConfigName string) error {
 		if validatingGetErr == nil && validatingExisting != nil {
 			// Update case.
 			glog.Info("Updating existing ValidatingWebhookConfiguration for the SparkApplication admission webhook")
-			if !reflect.DeepEqual(validatingWebhooks, validatingExisting.Webhooks) {
+			if !equality.Semantic.DeepEqual(validatingWebhooks, validatingExisting.Webhooks) {
 				validatingExisting.Webhooks = validatingWebhooks
 				if _, err := validatingConfigs.Update(validatingExisting); err != nil {
 					return err
