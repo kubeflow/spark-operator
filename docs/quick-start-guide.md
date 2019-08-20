@@ -12,10 +12,11 @@ For a more detailed guide on how to use, compose, and work with `SparkApplicatio
 * [Enable Metric Exporting to Prometheus](#enable-metric-exporting-to-prometheus)
 * [Driver UI Access and Ingress](#driver-ui-access-and-ingress)
 * [About the Mutating Admission Webhook](#about-the-mutating-admission-webhook)
+* [Mutating Admission Webhooks on a private GKE cluster](#mutating-admission-webhooks-on-a-private-gke-cluster)
 
 ## Installation
 
-To install the operator, use the Helm [chart](https://github.com/helm/charts/tree/master/incubator/sparkoperator). 
+To install the operator, use the Helm [chart](https://github.com/helm/charts/tree/master/incubator/sparkoperator).
 
 ```bash
 $ helm repo add incubator http://storage.googleapis.com/kubernetes-charts-incubator
@@ -138,7 +139,7 @@ The operator uses multiple workers in the `SparkApplication` controller. The num
 
 The operator enables cache resynchronization so periodically the informers used by the operator will re-list existing objects it manages and re-trigger resource events. The resynchronization interval in seconds can be configured using the flag `-resync-interval`, with a default value of 30 seconds.
 
-By default, the operator will install the [CustomResourceDefinitions](https://kubernetes.io/docs/tasks/access-kubernetes-api/extend-api-custom-resource-definitions/) for the custom resources it manages. This can be disabled by setting the flag `-install-crds=false`, in which case the CustomResourceDefinitions can be installed manually using `kubectl apply -f manifest/spark-operator-crds.yaml`. 
+By default, the operator will install the [CustomResourceDefinitions](https://kubernetes.io/docs/tasks/access-kubernetes-api/extend-api-custom-resource-definitions/) for the custom resources it manages. This can be disabled by setting the flag `-install-crds=false`, in which case the CustomResourceDefinitions can be installed manually using `kubectl apply -f manifest/spark-operator-crds.yaml`.
 
 The mutating admission webhook is an **optional** component and can be enabled or disabled using the `-enable-webhook` flag, which defaults to `false`.
 
@@ -146,7 +147,7 @@ By default, the operator will manage custom resource objects of the managed CRD 
 
 ## Upgrade
 
-To upgrade the the operator, e.g., to use a newer version container image with a new tag, run the following command with updated parameters for the Helm release: 
+To upgrade the the operator, e.g., to use a newer version container image with a new tag, run the following command with updated parameters for the Helm release:
 
 ```bash
 $ helm upgrade <YOUR-HELM-RELEASE-NAME> --set operatorImageName=org/image --set operatorVersion=newTag
@@ -168,6 +169,7 @@ $ helm install incubator/sparkoperator --namespace spark-operator --set enableMe
 
 If enabled, the operator generates the following metrics:
 
+#### Spark Application Metrics
 | Metric | Description |
 | ------------- | ------------- |
 | `spark_app_submit_count`  | Total number of SparkApplication submitted by the Operator.|
@@ -180,13 +182,25 @@ If enabled, the operator generates the following metrics:
 | `spark_app_executor_failure_count` | Total number of Spark Executors which failed. |
 | `spark_app_executor_running_count` | Total number of Spark Executors which are currently running. |
 
-The following is a list of all the configurations the operators supports for metrics: 
+#### Work Queue Metrics
+| Metric | Description |
+| ------------- | ------------- |
+| `queue_depth` | Current depth of workqueue |
+| `queue_adds` | Total number of adds handled by workqueue |
+| `queue_latency` | Latency for workqueue |
+| `queue_work_duration` | How long processing an item from workqueue takes |
+| `queue_retries` | Total number of retries handled by workqueue |
+| `queue_unfinished_work_seconds` | Unfinished work in seconds |
+| `queue_longest_running_processor_microseconds` | Longest running processor in microseconds |
+
+
+The following is a list of all the configurations the operators supports for metrics:
 
 ```bash
 -enable-metrics=true
 -metrics-port=10254
 -metrics-endpoint=/metrics
--metrics-prefix=myServiceName 
+-metrics-prefix=myServiceName
 -metrics-label=label1Key
 -metrics-label=label2Key
 ```
@@ -220,3 +234,16 @@ $ kubectl apply -f manifest/spark-operator-with-webhook.yaml
 This will create a Deployment named `sparkoperator` and a Service named `spark-webhook` for the webhook in namespace `spark-operator`.
 
 If the operator is installed via the Helm chart using the default settings (i.e. with webhook enabled), the above steps are all automated for you.
+
+### Mutating Admission Webhooks on a private GKE cluster
+
+If you are deploying the operator on a GKE cluster with the [Private cluster](https://cloud.google.com/kubernetes-engine/docs/how-to/private-clusters) setting enabled, and you wish to deploy the cluster with the [Mutating Admission Webhook](https://kubernetes.io/docs/reference/access-authn-authz/extensible-admission-controllers/), then make sure to change the `webhookPort` to `443`. Alternatively you can choose to allow connections to the default port (8080).
+
+> By default, firewall rules restrict your cluster master to only initiate TCP connections to your nodes on ports 443 (HTTPS) and 10250 (kubelet). For some Kubernetes features, you might need to add firewall rules to allow access on additional ports. For example, in Kubernetes 1.9 and older, kubectl top accesses heapster, which needs a firewall rule to allow TCP connections on port 8080. To grant such access, you can add firewall rules.
+[From the docs](https://cloud.google.com/kubernetes-engine/docs/how-to/private-clusters#add_firewall_rules)
+
+To install the operator with a custom port, pass the appropriate flag during `helm install`:
+
+```bash
+$ helm install incubator/sparkoperator  --set sparkJobNamespace=spark --set enableWebhook=true --set webhookPort=443
+```

@@ -1,9 +1,11 @@
 # User Guide
 
 For a quick introduction on how to build and install the Kubernetes Operator for Apache Spark, and how to run some example applications, please refer to the [Quick Start Guide](quick-start-guide.md). For a complete reference of the API definition of the `SparkApplication` and `ScheduledSparkApplication` custom resources, please refer to the [API Specification](api.md). 
+
 The Kubernetes Operator for Apache Spark ships with a command-line tool called `sparkctl` that offers additional features beyond what `kubectl` is able to do. Documentation on `sparkctl` can be found in [README](../sparkctl/README.md). If you are running the Spark Operator on Google Kubernetes Engine and want to use Google Cloud Storage (GCS) and/or BigQuery for reading/writing data, also refer to the [GCP guide](gcp.md). The Kubernetes Operator for Apache Spark will simply be referred to as the operator for the rest of this guide.  
 
 ## Table of Contents
+
 * [Using a SparkApplication](#using-a-sparkapplication)
 * [Writing a SparkApplication Spec](#writing-a-sparkapplication-spec)
     * [Specifying Application Dependencies](#specifying-application-dependencies)
@@ -35,6 +37,7 @@ The Kubernetes Operator for Apache Spark ships with a command-line tool called `
     * [Configuring Automatic Application Restart](#configuring-automatic-application-restart)
     * [Configuring Automatic Application Re-submission on Submission Failures](#configuring-automatic-application-re-submission-on-submission-failures)
 * [Running Spark Applications on a Schedule using a ScheduledSparkApplication](#running-spark-applications-on-a-schedule-using-a-scheduledsparkapplication)
+* [Enabling Leader Election for High Availability](#enabling-leader-election-for-high-availability)
 * [Customizing the Operator](#customizing-the-operator)
 
 ## Using a SparkApplication
@@ -89,9 +92,9 @@ There are two ways to add Spark configuration: setting individual Spark configur
 ```yaml
 spec:
   sparkConf:
-    "spark.ui.port": 4045
-    "spark.eventLog.enabled": true
-    "spark.eventLog.dir": hdfs://hdfs-namenode-1:8020/spark/spark-events
+    "spark.ui.port": "4045"
+    "spark.eventLog.enabled": "true"
+    "spark.eventLog.dir": "hdfs://hdfs-namenode-1:8020/spark/spark-events"
 ```
 
 ### Specifying Hadoop Configuration
@@ -547,6 +550,19 @@ A scheduled `ScheduledSparkApplication` can be temporarily suspended (no future 
 The `Status` section of a `ScheduledSparkApplication` object shows the time of the last run and the proposed time of the next run of the application, through `.status.lastRun` and `.status.nextRun`, respectively. The names of the `SparkApplication` object for the most recent run (which may  or may not be running) of the application are stored in `.status.lastRunName`. The names of `SparkApplication` objects of the past successful runs of the application are stored in `.status.pastSuccessfulRunNames`. Similarly, the names of `SparkApplication` objects of the past failed runs of the application are stored in `.status.pastFailedRunNames`.
 
 Note that certain restart policies (specified in `.spec.template.restartPolicy`) may not work well with the specified schedule and concurrency policy of a `ScheduledSparkApplication`. For example, a restart policy of `Always` should never be used with a `ScheduledSparkApplication`. In most cases, a restart policy of `OnFailure` may not be a good choice as the next run usually picks up where the previous run left anyway. For these reasons, it's often the right choice to use a restart policy of `Never` as the example above shows. 
+
+## Enabling Leader Election for High Availability
+
+The operator supports a high-availability (HA) mode, in which there can be more than one replicas of the operator, with only one of the replicas (the leader replica) actively operating. If the leader replica fails, the leader election process is engaged again to determine a new leader from the replicas available. The HA mode can be enabled through an optional leader election process. Leader election is disabled by default but can be enabled via a command-line flag. The following table summarizes the command-line flags relevant to leader election:
+
+| Flag | Default Value | Description |
+| ------------- | ------------- | ------------- |
+| `leader-election` | `false` | Whether to enable leader election (or the HA mode) or not. |
+| `leader-election-lock-namespace` | `spark-operator` | Kubernetes namespace of the lock resource used for leader election. |
+| `leader-election-lock-name` | `spark-operator-lock` | Name of the ock resource used for leader election. |
+| `leader-election-lease-duration` | 15 seconds | Leader election lease duration. |
+| `leader-election-renew-deadline` | 14 seconds | Leader election renew deadline. |
+| `leader-election-retry-period` | 4 seconds | Leader election retry period. |
 
 ## Customizing the Operator
 

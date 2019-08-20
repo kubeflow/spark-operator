@@ -23,7 +23,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"reflect"
 	"strings"
 	"time"
 
@@ -83,6 +82,7 @@ type WebHook struct {
 	failurePolicy                  v1beta1.FailurePolicyType
 	selector                       *metav1.LabelSelector
 	sparkJobNamespace              string
+	deregisterOnExit               bool
 	enableResourceQuotaEnforcement bool
 	resourceQuotaEnforcer          resourceusage.ResourceQuotaEnforcer
 	coreV1InformerFactory          informers.SharedInformerFactory
@@ -114,7 +114,7 @@ func init() {
 	flag.StringVar(&userConfig.webhookServiceName, "webhook-svc-name", "spark-webhook", "The name of the Service for the webhook server.")
 	flag.IntVar(&userConfig.webhookPort, "webhook-port", 8080, "Service port of the webhook server.")
 	flag.BoolVar(&userConfig.webhookFailOnError, "webhook-fail-on-error", false, "Whether Kubernetes should reject requests when the webhook fails.")
-	flag.StringVar(&userConfig.webhookNamespaceSelector, "webhook-namespace-selector", "", "The webhook will only operate on namespaces with this label, specified in the form key=value. Required if webhook-fail-on-error is true.")
+	flag.StringVar(&userConfig.webhookNamespaceSelector, "webhook-namespace-selector", "", "The webhook will only operate on namespaces with this label, specified in the form key1=value1,key2=value2. Required if webhook-fail-on-error is true.")
 }
 
 // New creates a new WebHook instance.
@@ -122,9 +122,9 @@ func New(
 	clientset kubernetes.Interface,
 	informerFactory crinformers.SharedInformerFactory,
 	jobNamespace string,
+	deregisterOnExit bool,
 	enableResourceQuotaEnforcement bool,
-	coreV1InformerFactory informers.SharedInformerFactory,
-) (*WebHook, error) {
+	coreV1InformerFactory informers.SharedInformerFactory) (*WebHook, error) {
 
 	cert, err := NewCertProvider(
 		userConfig.serverCert,
@@ -149,24 +149,22 @@ func New(
 		certProvider:                   cert,
 		serviceRef:                     serviceRef,
 		sparkJobNamespace:              jobNamespace,
+		deregisterOnExit:               deregisterOnExit,
 		failurePolicy:                  arv1beta1.Ignore,
 		coreV1InformerFactory:          coreV1InformerFactory,
 		enableResourceQuotaEnforcement: enableResourceQuotaEnforcement,
 	}
+
 	if userConfig.webhookFailOnError {
 		if userConfig.webhookNamespaceSelector == "" {
-			glog.Fatal("webhook-namespace-selector must be set when webhook-fail-on-error is true.")
-		} else {
-			kv := strings.SplitN(userConfig.webhookNamespaceSelector, "=", 2)
-			if len(kv) != 2 {
-				return nil, fmt.Errorf("Webhook namespace selector must be in the form key=value")
-			}
-			hook.selector = &metav1.LabelSelector{
-				MatchLabels: map[string]string{
-					kv[0]: kv[1],
-				},
-			}
+			return nil, fmt.Errorf("webhook-namespace-selector must be set when webhook-fail-on-error is true")
 		}
+
+		selector, err := parseNamespaceSelector(userConfig.webhookNamespaceSelector)
+		if err != nil {
+			return nil, err
+		}
+		hook.selector = selector
 		hook.failurePolicy = arv1beta1.Fail
 	}
 
@@ -180,8 +178,25 @@ func New(
 	return hook, nil
 }
 
+func parseNamespaceSelector(selectorArg string) (*metav1.LabelSelector, error) {
+	selector := &metav1.LabelSelector{
+		MatchLabels: make(map[string]string),
+	}
+
+	selectorStrs := strings.Split(selectorArg, ",")
+	for _, selectorStr := range selectorStrs {
+		kv := strings.SplitN(selectorStr, "=", 2)
+		if len(kv) != 2 || kv[0] == "" || kv[1] == "" {
+			return nil, fmt.Errorf("Webhook namespace selector must be in the form key1=value1,key2=value2")
+		}
+		selector.MatchLabels[kv[0]] = kv[1]
+	}
+
+	return selector, nil
+}
+
 // Start starts the admission webhook server and registers itself to the API server.
-func (wh *WebHook) Start(stopCh <-chan struct{}) error {
+func (wh *WebHook) Start() error {
 	wh.certProvider.Start()
 	wh.server.TLSConfig = wh.certProvider.tlsConfig()
 
@@ -214,6 +229,8 @@ func (wh *WebHook) Stop() error {
 		}
 		glog.Infof("Webhook %s deregistered", userConfig.webhookConfigName)
 	}
+
+	wh.certProvider.Stop()
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	wh.certProvider.Stop()
@@ -244,37 +261,35 @@ func (wh *WebHook) serve(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var reviewResponse *admissionv1beta1.AdmissionResponse
 	review := &admissionv1beta1.AdmissionReview{}
 	deserializer := codecs.UniversalDeserializer()
 	if _, _, err := deserializer.Decode(body, nil, review); err != nil {
 		internalError(w, err)
 		return
-	} else {
-		var whErr error
-		switch review.Request.Resource {
-		case podResource:
-			reviewResponse, whErr = mutatePods(review, wh.lister, wh.sparkJobNamespace)
-		case sparkApplicationResource:
-			if !wh.enableResourceQuotaEnforcement {
-				unexpectedResourceType(w, review.Request.Resource.String())
-			} else {
-				reviewResponse, whErr = admitSparkApplications(review, wh.resourceQuotaEnforcer)
-			}
-		case scheduledSparkApplicationResource:
-			if !wh.enableResourceQuotaEnforcement {
-				unexpectedResourceType(w, review.Request.Resource.String())
-			} else {
-				reviewResponse, whErr = admitScheduledSparkApplications(review, wh.resourceQuotaEnforcer)
-			}
-		default:
+	}
+	var whErr error
+	switch review.Request.Resource {
+	case podResource:
+		reviewResponse, whErr = mutatePods(review, wh.lister, wh.sparkJobNamespace)
+	case sparkApplicationResource:
+		if !wh.enableResourceQuotaEnforcement {
 			unexpectedResourceType(w, review.Request.Resource.String())
 			return
 		}
-		if whErr != nil {
-			internalError(w, whErr)
+		reviewResponse, whErr = admitSparkApplications(review, wh.resourceQuotaEnforcer)
+	case scheduledSparkApplicationResource:
+		if !wh.enableResourceQuotaEnforcement {
+			unexpectedResourceType(w, review.Request.Resource.String())
 			return
 		}
+		reviewResponse, whErr = admitScheduledSparkApplications(review, wh.resourceQuotaEnforcer)
+	default:
+		unexpectedResourceType(w, review.Request.Resource.String())
+		return
+	}
+	if whErr != nil {
+		internalError(w, whErr)
+		return
 	}
 
 	response := admissionv1beta1.AdmissionReview{}
@@ -323,7 +338,7 @@ func denyRequest(w http.ResponseWriter, reason string, code int) {
 	w.WriteHeader(code)
 	_, err = w.Write(resp)
 	if err != nil {
-		glog.Errorf("Failed to write response body: %v", err)
+		glog.Errorf("failed to write response body: %v", err)
 	}
 }
 
@@ -439,7 +454,6 @@ func (wh *WebHook) selfRegistration(webhookConfigName string) error {
 			}
 		}
 	}
-
 	return nil
 }
 
@@ -509,10 +523,6 @@ func mutatePods(
 	review *admissionv1beta1.AdmissionReview,
 	lister crdlisters.SparkApplicationLister,
 	sparkJobNs string) (*admissionv1beta1.AdmissionResponse, error) {
-	if review.Request.Resource != podResource {
-		return nil, fmt.Errorf("expected resource to be %s, got %s", podResource, review.Request.Resource)
-	}
-
 	raw := review.Request.Object.Raw
 	pod := &corev1.Pod{}
 	if err := json.Unmarshal(raw, pod); err != nil {

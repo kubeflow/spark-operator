@@ -29,9 +29,27 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/apimachinery/pkg/util/wait"
+
+	ssacrd "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/crd/scheduledsparkapplication"
+	sacrd "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/crd/sparkapplication"
 )
 
-func CreateOrUpdateCRD(
+// CreateOrUpdateCRDs creates or updates the relevant CRDs used by the operator.
+func CreateOrUpdateCRDs(clientset apiextensionsclient.Interface) error {
+	err := createOrUpdateCRD(clientset, sacrd.GetCRD())
+	if err != nil {
+		return fmt.Errorf("failed to create or update CustomResourceDefinition %s: %v", sacrd.FullName, err)
+	}
+
+	err = createOrUpdateCRD(clientset, ssacrd.GetCRD())
+	if err != nil {
+		return fmt.Errorf("failed to create or update CustomResourceDefinition %s: %v", ssacrd.FullName, err)
+	}
+
+	return nil
+}
+
+func createOrUpdateCRD(
 	clientset apiextensionsclient.Interface,
 	definition *apiextensionsv1beta1.CustomResourceDefinition) error {
 	existing, err := clientset.ApiextensionsV1beta1().CustomResourceDefinitions().Get(definition.Name,
