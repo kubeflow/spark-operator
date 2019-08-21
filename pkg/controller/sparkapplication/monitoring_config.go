@@ -26,7 +26,7 @@ import (
 	clientset "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/util/retry"
 
-	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta1"
+	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta2"
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/config"
 )
 
@@ -38,7 +38,7 @@ const (
 	prometheusPathAnnotation   = "prometheus.io/path"
 )
 
-func configPrometheusMonitoring(app *v1beta1.SparkApplication, kubeClient clientset.Interface) error {
+func configPrometheusMonitoring(app *v1beta2.SparkApplication, kubeClient clientset.Interface) error {
 	port := config.DefaultPrometheusJavaAgentPort
 	if app.Spec.Monitoring.Prometheus.Port != nil {
 		port = *app.Spec.Monitoring.Prometheus.Port
@@ -122,7 +122,7 @@ func configPrometheusMonitoring(app *v1beta1.SparkApplication, kubeClient client
 	return nil
 }
 
-func buildPrometheusConfigMap(app *v1beta1.SparkApplication, prometheusConfigMapName string) *corev1.ConfigMap {
+func buildPrometheusConfigMap(app *v1beta2.SparkApplication, prometheusConfigMapName string) *corev1.ConfigMap {
 	metricsProperties := config.DefaultMetricsProperties
 	if app.Spec.Monitoring.MetricsProperties != nil {
 		metricsProperties = *app.Spec.Monitoring.MetricsProperties

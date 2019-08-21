@@ -1,5 +1,5 @@
 /*
-Copyright 2018 Google LLC
+Copyright 2017 Google LLC
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -14,23 +14,10 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package scheduledsparkapplication
+// +k8s:deepcopy-gen=package,register
+// go:generate controller-gen crd:trivialVersions=true paths=. output:dir=.
 
-import (
-	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta2"
-)
-
-type sparkApps []*v1beta2.SparkApplication
-
-func (s sparkApps) Len() int {
-	return len(s)
-}
-
-func (s sparkApps) Swap(i, j int) {
-	s[i], s[j] = s[j], s[i]
-}
-
-func (s sparkApps) Less(i, j int) bool {
-	// Sort by decreasing order of application names and correspondingly creation time.
-	return s[i].Name > s[j].Name
-}
+// Package v1beta2 is the v1beta2 version of the API.
+// +groupName=sparkoperator.k8s.io
+// +versionName=v1beta2
+package v1beta2

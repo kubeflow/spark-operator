@@ -22,14 +22,14 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta1"
+	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta2"
 )
 
 func TestGetDriverEnvVarConfOptions(t *testing.T) {
-	app := &v1beta1.SparkApplication{
-		Spec: v1beta1.SparkApplicationSpec{
-			Driver: v1beta1.DriverSpec{
-				SparkPodSpec: v1beta1.SparkPodSpec{
+	app := &v1beta2.SparkApplication{
+		Spec: v1beta2.SparkApplicationSpec{
+			Driver: v1beta2.DriverSpec{
+				SparkPodSpec: v1beta2.SparkPodSpec{
 					EnvVars: map[string]string{
 						"ENV1": "VALUE1",
 						"ENV2": "VALUE2",
@@ -50,10 +50,10 @@ func TestGetDriverEnvVarConfOptions(t *testing.T) {
 }
 
 func TestGetExecutorEnvVarConfOptions(t *testing.T) {
-	app := &v1beta1.SparkApplication{
-		Spec: v1beta1.SparkApplicationSpec{
-			Executor: v1beta1.ExecutorSpec{
-				SparkPodSpec: v1beta1.SparkPodSpec{
+	app := &v1beta2.SparkApplication{
+		Spec: v1beta2.SparkApplicationSpec{
+			Executor: v1beta2.ExecutorSpec{
+				SparkPodSpec: v1beta2.SparkPodSpec{
 					EnvVars: map[string]string{
 						"ENV1": "VALUE1",
 						"ENV2": "VALUE2",

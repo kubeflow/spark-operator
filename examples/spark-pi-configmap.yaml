@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-apiVersion: "sparkoperator.k8s.io/v1beta1"
+apiVersion: "sparkoperator.k8s.io/v1beta2"
 kind: SparkApplication
 metadata:
   name: spark-pi
@@ -33,8 +33,8 @@ spec:
       configMap:
         name: dummy-cm
   driver:
-    cores: 0.1
-    coreLimit: "200m"
+    cores: 1
+    coreLimit: "1200m"
     memory: "512m"
     labels:
       version: 2.4.0

@@ -51,12 +51,19 @@ Before building the operator the first time, run the following commands to get t
 $ go get -u k8s.io/code-generator/cmd/client-gen
 $ go get -u k8s.io/code-generator/cmd/deepcopy-gen
 $ go get -u k8s.io/code-generator/cmd/defaulter-gen
+$ go get -u sigs.k8s.io/controller-tools/cmd/contoller-gen
 ```
 
 To update the auto-generated code, run the following command. (This step is only required if the CRD types have been changed):
 
 ```bash
 $ go generate
+```
+
+To update the auto-generated CRD definitions, run the following command:
+
+```bash
+$ controller-gen crd:trivialVersions=true,maxDescLen=0 paths="./pkg/apis/sparkoperator.k8s.io/v1beta2" output:crd:artifacts:config=./manifest/crds/
 ```
 
 You can verify the current auto-generated code is up to date with:

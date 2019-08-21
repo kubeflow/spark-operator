@@ -22,7 +22,7 @@ import (
 	"github.com/golang/glog"
 	"github.com/prometheus/client_golang/prometheus"
 
-	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta1"
+	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta2"
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/util"
 )
 
@@ -139,7 +139,7 @@ func (sm *sparkAppMetrics) registerMetrics() {
 	sm.sparkAppExecutorRunningCount.Register()
 }
 
-func (sm *sparkAppMetrics) exportMetrics(oldApp, newApp *v1beta1.SparkApplication) {
+func (sm *sparkAppMetrics) exportMetrics(oldApp, newApp *v1beta2.SparkApplication) {
 	metricLabels := fetchMetricLabels(newApp.Labels, sm.labels)
 	glog.V(2).Infof("Exporting metrics for %s; old status: %v new status: %v", newApp.Name,
 		oldApp.Status, newApp.Status)
@@ -148,15 +148,15 @@ func (sm *sparkAppMetrics) exportMetrics(oldApp, newApp *v1beta1.SparkApplicatio
 	newState := newApp.Status.AppState.State
 	if newState != oldState {
 		switch newState {
-		case v1beta1.SubmittedState:
+		case v1beta2.SubmittedState:
 			if m, err := sm.sparkAppSubmitCount.GetMetricWith(metricLabels); err != nil {
 				glog.Errorf("Error while exporting metrics: %v", err)
 			} else {
 				m.Inc()
 			}
-		case v1beta1.RunningState:
+		case v1beta2.RunningState:
 			sm.sparkAppRunningCount.Inc(metricLabels)
-		case v1beta1.SucceedingState:
+		case v1beta2.SucceedingState:
 			if !newApp.Status.LastSubmissionAttemptTime.Time.IsZero() && !newApp.Status.TerminationTime.Time.IsZero() {
 				d := newApp.Status.TerminationTime.Time.Sub(newApp.Status.LastSubmissionAttemptTime.Time)
 
@@ -172,7 +172,7 @@ func (sm *sparkAppMetrics) exportMetrics(oldApp, newApp *v1beta1.SparkApplicatio
 			} else {
 				m.Inc()
 			}
-		case v1beta1.FailingState:
+		case v1beta2.FailingState:
 			if !newApp.Status.LastSubmissionAttemptTime.Time.IsZero() && !newApp.Status.TerminationTime.Time.IsZero() {
 				d := newApp.Status.TerminationTime.Time.Sub(newApp.Status.LastSubmissionAttemptTime.Time)
 				if m, err := sm.sparkAppFailureExecutionTime.GetMetricWith(metricLabels); err != nil {
@@ -187,7 +187,7 @@ func (sm *sparkAppMetrics) exportMetrics(oldApp, newApp *v1beta1.SparkApplicatio
 			} else {
 				m.Inc()
 			}
-		case v1beta1.FailedSubmissionState:
+		case v1beta2.FailedSubmissionState:
 			if m, err := sm.sparkAppFailedSubmissionCount.GetMetricWith(metricLabels); err != nil {
 				glog.Errorf("Error while exporting metrics: %v", err)
 			} else {
@@ -199,13 +199,13 @@ func (sm *sparkAppMetrics) exportMetrics(oldApp, newApp *v1beta1.SparkApplicatio
 	// Potential Executor status updates
 	for executor, newExecState := range newApp.Status.ExecutorState {
 		switch newExecState {
-		case v1beta1.ExecutorRunningState:
+		case v1beta2.ExecutorRunningState:
 			if oldApp.Status.ExecutorState[executor] != newExecState {
 				glog.V(2).Infof("Exporting Metrics for Executor %s. OldState: %v NewState: %v", executor,
 					oldApp.Status.ExecutorState[executor], newExecState)
 				sm.sparkAppExecutorRunningCount.Inc(metricLabels)
 			}
-		case v1beta1.ExecutorCompletedState:
+		case v1beta2.ExecutorCompletedState:
 			if oldApp.Status.ExecutorState[executor] != newExecState {
 				glog.V(2).Infof("Exporting Metrics for Executor %s. OldState: %v NewState: %v", executor,
 					oldApp.Status.ExecutorState[executor], newExecState)
@@ -216,7 +216,7 @@ func (sm *sparkAppMetrics) exportMetrics(oldApp, newApp *v1beta1.SparkApplicatio
 					m.Inc()
 				}
 			}
-		case v1beta1.ExecutorFailedState:
+		case v1beta2.ExecutorFailedState:
 			if oldApp.Status.ExecutorState[executor] != newExecState {
 				glog.V(2).Infof("Exporting Metrics for Executor %s. OldState: %v NewState: %v", executor,
 					oldApp.Status.ExecutorState[executor], newExecState)

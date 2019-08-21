@@ -39,7 +39,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 
 	crinformers "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/client/informers/externalversions"
-	crdlisters "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/client/listers/sparkoperator.k8s.io/v1beta1"
+	crdlisters "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/client/listers/sparkoperator.k8s.io/v1beta2"
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/config"
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/util"
 )
@@ -120,7 +120,7 @@ func New(
 	}
 	hook := &WebHook{
 		clientset:         clientset,
-		lister:            informerFactory.Sparkoperator().V1beta1().SparkApplications().Lister(),
+		lister:            informerFactory.Sparkoperator().V1beta2().SparkApplications().Lister(),
 		certProvider:      cert,
 		serviceRef:        serviceRef,
 		sparkJobNamespace: jobNamespace,
