@@ -18,12 +18,12 @@ package volcano
 
 import (
 	"fmt"
+	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/util"
 	"github.com/golang/glog"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/resource"
-
 	apiextensionsclient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/rest"
 
@@ -53,76 +53,81 @@ func (v *VolcanoBatchScheduler) Name() string {
 
 func (v *VolcanoBatchScheduler) ShouldSchedule(app *v1beta1.SparkApplication) bool {
 
-	checkScheduler := func(scheduler *string, annotation map[string]string) bool {
+	checkScheduler := func(scheduler *string) bool {
 		if scheduler != nil && *scheduler == v.Name() {
-			//return false if it's been scheduled already.
-			if existed, ok := annotation[v1alpha2.GroupNameAnnotationKey]; ok {
-				if existed == v.getAppPodGroupName(app) {
-					return false
-				}
-			}
 			return true
 		}
 		return false
 	}
 
 	if app.Spec.Mode == v1beta1.ClientMode {
-		return checkScheduler(app.Spec.Executor.SchedulerName, app.Spec.Executor.Annotations)
+		return checkScheduler(app.Spec.Executor.SchedulerName)
 	}
 	if app.Spec.Mode == v1beta1.ClusterMode {
-		return checkScheduler(app.Spec.Executor.SchedulerName, app.Spec.Executor.Annotations) && checkScheduler(app.Spec.Driver.SchedulerName, app.Spec.Driver.Annotations)
+		return checkScheduler(app.Spec.Executor.SchedulerName) && checkScheduler(app.Spec.Driver.SchedulerName)
 	}
 
 	glog.Warningf("Unsupported Spark application mode %s, abandon schedule via volcano.", app.Spec.Mode)
 	return false
 }
 
-func (v *VolcanoBatchScheduler) BeforeSubmitSparkApplication(app *v1beta1.SparkApplication) (*v1beta1.SparkApplication, error) {
-	newApp := app.DeepCopy()
-	if newApp.Spec.Executor.Annotations == nil {
-		newApp.Spec.Executor.Annotations = make(map[string]string)
-	}
-
-	if newApp.Spec.Driver.Annotations == nil {
-		newApp.Spec.Driver.Annotations = make(map[string]string)
-	}
-
-	if newApp.Spec.Mode == v1beta1.ClientMode {
-		return v.syncPodGroupInClientMode(newApp)
-	} else if newApp.Spec.Mode == v1beta1.ClusterMode {
-		return v.syncPodGroupInClusterMode(newApp)
-	}
-	return newApp, nil
-}
-
-func (v *VolcanoBatchScheduler) syncPodGroupInClientMode(app *v1beta1.SparkApplication) (*v1beta1.SparkApplication, error) {
-	//We only care about the executor pods in client mode
-	newApp := app.DeepCopy()
-	if _, ok := newApp.Spec.Executor.Annotations[v1alpha2.GroupNameAnnotationKey]; !ok {
-		//Only executor resource will be considered.
-		if err := v.syncPodGroup(newApp, *newApp.Spec.Executor.Instances, getExecutorRequestResource(app)); err == nil {
-			newApp.Spec.Executor.Annotations[v1alpha2.GroupNameAnnotationKey] = v.getAppPodGroupName(newApp)
-		} else {
-			return nil, err
+func (v *VolcanoBatchScheduler) PatchApplicationPod(pod *corev1.Pod, app *v1beta1.SparkApplication) []util.PatchOperation {
+	var operations []util.PatchOperation
+	if v.ShouldSchedule(app) {
+		// Patch only executor pods
+		if app.Spec.Mode == v1beta1.ClientMode {
+			if util.IsExecutorPod(pod) {
+				patchOperation := v.addVolcanoAnnotation(pod, app)
+				if patchOperation != nil {
+					operations = append(operations, *patchOperation)
+				}
+			}
+			//Patch both driver and executor pods
+		} else if app.Spec.Mode == v1beta1.ClusterMode {
+			if util.IsDriverPod(pod) || util.IsExecutorPod(pod) {
+				patchOperation := v.addVolcanoAnnotation(pod, app)
+				if patchOperation != nil {
+					operations = append(operations, *patchOperation)
+				}
+			}
 		}
 	}
-	return newApp, nil
+	return operations
 }
 
-func (v *VolcanoBatchScheduler) syncPodGroupInClusterMode(app *v1beta1.SparkApplication) (*v1beta1.SparkApplication, error) {
-	//We need both mark Driver and Executor when submitting
+func (v *VolcanoBatchScheduler) addVolcanoAnnotation(pod *corev1.Pod, app *v1beta1.SparkApplication) *util.PatchOperation {
+	path := "/metadata/annotations"
+	var value interface{}
+	if len(pod.Annotations) != 0 {
+		if _, ok := pod.Annotations[v1alpha2.GroupNameAnnotationKey]; ok {
+			return nil
+		}
+		pod.Annotations[v1alpha2.GroupNameAnnotationKey] = v.getAppPodGroupName(app)
+		value = pod.Annotations
+	} else {
+		value = map[string]string{v1alpha2.GroupNameAnnotationKey: v.getAppPodGroupName(app)}
+	}
+	return &util.PatchOperation{Op: "replace", Path: path, Value: value}
+}
+
+func (v *VolcanoBatchScheduler) BeforeSubmitSparkApplication(app *v1beta1.SparkApplication) error {
+	if app.Spec.Mode == v1beta1.ClientMode {
+		return v.syncPodGroupInClientMode(app)
+	} else if app.Spec.Mode == v1beta1.ClusterMode {
+		return v.syncPodGroupInClusterMode(app)
+	}
+	return nil
+}
+
+func (v *VolcanoBatchScheduler) syncPodGroupInClientMode(app *v1beta1.SparkApplication) error {
+	//Only executor resource will be considered.
+	return v.syncPodGroup(app, 1, getExecutorRequestResource(app))
+}
+
+func (v *VolcanoBatchScheduler) syncPodGroupInClusterMode(app *v1beta1.SparkApplication) error {
+	totalResource := sumResourceList([]corev1.ResourceList{getExecutorRequestResource(app), getDriverRequestResource(app)})
 	//NOTE: In cluster mode, the initial size of PodGroup is set to 1 in order to schedule driver pod first.
-	if _, ok := app.Spec.Driver.Annotations[v1alpha2.GroupNameAnnotationKey]; !ok {
-		//Both driver and executor resource will be considered.
-		totalResource := sumResourceList([]corev1.ResourceList{getExecutorRequestResource(app), getDriverRequestResource(app)})
-		if err := v.syncPodGroup(app, 1, totalResource); err == nil {
-			app.Spec.Executor.Annotations[v1alpha2.GroupNameAnnotationKey] = v.getAppPodGroupName(app)
-			app.Spec.Driver.Annotations[v1alpha2.GroupNameAnnotationKey] = v.getAppPodGroupName(app)
-		} else {
-			return nil, err
-		}
-	}
-	return app, nil
+	return v.syncPodGroup(app, 1, totalResource)
 }
 
 func (v *VolcanoBatchScheduler) getAppPodGroupName(app *v1beta1.SparkApplication) string {
@@ -164,7 +169,12 @@ func (v *VolcanoBatchScheduler) syncPodGroup(app *v1beta1.SparkApplication, size
 	return err
 }
 
-func New(config *rest.Config) schedulerinterface.BatchScheduler {
+func New(config *rest.Config, webhookEnabled bool) schedulerinterface.BatchScheduler {
+
+	if !webhookEnabled {
+		glog.Error("failed to initialize volcano client, webhook enable is required")
+		return nil
+	}
 
 	vkClient, err := volcanoclient.NewForConfig(config)
 	if err != nil {

@@ -35,15 +35,8 @@ const (
 	maxNameLength = 63
 )
 
-// patchOperation represents a RFC6902 JSON patch operation.
-type patchOperation struct {
-	Op    string      `json:"op"`
-	Path  string      `json:"path"`
-	Value interface{} `json:"value,omitempty"`
-}
-
-func patchSparkPod(pod *corev1.Pod, app *v1beta1.SparkApplication) []patchOperation {
-	var patchOps []patchOperation
+func patchSparkPod(pod *corev1.Pod, app *v1beta1.SparkApplication) []util.PatchOperation {
+	var patchOps []util.PatchOperation
 
 	if util.IsDriverPod(pod) {
 		patchOps = append(patchOps, addOwnerReference(pod, app))
@@ -83,7 +76,7 @@ func patchSparkPod(pod *corev1.Pod, app *v1beta1.SparkApplication) []patchOperat
 	return patchOps
 }
 
-func addOwnerReference(pod *corev1.Pod, app *v1beta1.SparkApplication) patchOperation {
+func addOwnerReference(pod *corev1.Pod, app *v1beta1.SparkApplication) util.PatchOperation {
 	ownerReference := util.GetOwnerReference(app)
 
 	path := "/metadata/ownerReferences"
@@ -95,10 +88,10 @@ func addOwnerReference(pod *corev1.Pod, app *v1beta1.SparkApplication) patchOper
 		value = ownerReference
 	}
 
-	return patchOperation{Op: "add", Path: path, Value: value}
+	return util.PatchOperation{Op: "add", Path: path, Value: value}
 }
 
-func addVolumes(pod *corev1.Pod, app *v1beta1.SparkApplication) []patchOperation {
+func addVolumes(pod *corev1.Pod, app *v1beta1.SparkApplication) []util.PatchOperation {
 	volumes := app.Spec.Volumes
 	volumeMap := make(map[string]corev1.Volume)
 	for _, v := range volumes {
@@ -112,7 +105,7 @@ func addVolumes(pod *corev1.Pod, app *v1beta1.SparkApplication) []patchOperation
 		volumeMounts = app.Spec.Executor.VolumeMounts
 	}
 
-	var ops []patchOperation
+	var ops []util.PatchOperation
 	for _, m := range volumeMounts {
 		if v, ok := volumeMap[m.Name]; ok {
 			ops = append(ops, addVolume(pod, v))
@@ -123,7 +116,7 @@ func addVolumes(pod *corev1.Pod, app *v1beta1.SparkApplication) []patchOperation
 	return ops
 }
 
-func addVolume(pod *corev1.Pod, volume corev1.Volume) patchOperation {
+func addVolume(pod *corev1.Pod, volume corev1.Volume) util.PatchOperation {
 	path := "/spec/volumes"
 	var value interface{}
 	if len(pod.Spec.Volumes) == 0 {
@@ -133,10 +126,10 @@ func addVolume(pod *corev1.Pod, volume corev1.Volume) patchOperation {
 		value = volume
 	}
 
-	return patchOperation{Op: "add", Path: path, Value: value}
+	return util.PatchOperation{Op: "add", Path: path, Value: value}
 }
 
-func addVolumeMount(pod *corev1.Pod, mount corev1.VolumeMount) patchOperation {
+func addVolumeMount(pod *corev1.Pod, mount corev1.VolumeMount) util.PatchOperation {
 	i := 0
 	// Find the driver or executor container in the pod.
 	for ; i < len(pod.Spec.Containers); i++ {
@@ -155,10 +148,10 @@ func addVolumeMount(pod *corev1.Pod, mount corev1.VolumeMount) patchOperation {
 		value = mount
 	}
 
-	return patchOperation{Op: "add", Path: path, Value: value}
+	return util.PatchOperation{Op: "add", Path: path, Value: value}
 }
 
-func addEnvironmentVariable(pod *corev1.Pod, envName, envValue string) patchOperation {
+func addEnvironmentVariable(pod *corev1.Pod, envName, envValue string) util.PatchOperation {
 	i := 0
 	// Find the driver or executor container in the pod.
 	for ; i < len(pod.Spec.Containers); i++ {
@@ -177,11 +170,11 @@ func addEnvironmentVariable(pod *corev1.Pod, envName, envValue string) patchOper
 		value = corev1.EnvVar{Name: envName, Value: envValue}
 	}
 
-	return patchOperation{Op: "add", Path: path, Value: value}
+	return util.PatchOperation{Op: "add", Path: path, Value: value}
 }
 
-func addSparkConfigMap(pod *corev1.Pod, app *v1beta1.SparkApplication) []patchOperation {
-	var patchOps []patchOperation
+func addSparkConfigMap(pod *corev1.Pod, app *v1beta1.SparkApplication) []util.PatchOperation {
+	var patchOps []util.PatchOperation
 	sparkConfigMapName := app.Spec.SparkConfigMap
 	if sparkConfigMapName != nil {
 		patchOps = append(patchOps, addConfigMapVolume(pod, *sparkConfigMapName, config.SparkConfigMapVolumeName))
@@ -192,8 +185,8 @@ func addSparkConfigMap(pod *corev1.Pod, app *v1beta1.SparkApplication) []patchOp
 	return patchOps
 }
 
-func addHadoopConfigMap(pod *corev1.Pod, app *v1beta1.SparkApplication) []patchOperation {
-	var patchOps []patchOperation
+func addHadoopConfigMap(pod *corev1.Pod, app *v1beta1.SparkApplication) []util.PatchOperation {
+	var patchOps []util.PatchOperation
 	hadoopConfigMapName := app.Spec.HadoopConfigMap
 	if hadoopConfigMapName != nil {
 		patchOps = append(patchOps, addConfigMapVolume(pod, *hadoopConfigMapName, config.HadoopConfigMapVolumeName))
@@ -204,7 +197,7 @@ func addHadoopConfigMap(pod *corev1.Pod, app *v1beta1.SparkApplication) []patchO
 	return patchOps
 }
 
-func addGeneralConfigMaps(pod *corev1.Pod, app *v1beta1.SparkApplication) []patchOperation {
+func addGeneralConfigMaps(pod *corev1.Pod, app *v1beta1.SparkApplication) []util.PatchOperation {
 	var configMaps []v1beta1.NamePath
 	if util.IsDriverPod(pod) {
 		configMaps = app.Spec.Driver.ConfigMaps
@@ -212,7 +205,7 @@ func addGeneralConfigMaps(pod *corev1.Pod, app *v1beta1.SparkApplication) []patc
 		configMaps = app.Spec.Executor.ConfigMaps
 	}
 
-	var patchOps []patchOperation
+	var patchOps []util.PatchOperation
 	for _, namePath := range configMaps {
 		volumeName := namePath.Name + "-vol"
 		if len(volumeName) > maxNameLength {
@@ -225,7 +218,7 @@ func addGeneralConfigMaps(pod *corev1.Pod, app *v1beta1.SparkApplication) []patc
 	return patchOps
 }
 
-func addPrometheusConfigMap(pod *corev1.Pod, app *v1beta1.SparkApplication) []patchOperation {
+func addPrometheusConfigMap(pod *corev1.Pod, app *v1beta1.SparkApplication) []util.PatchOperation {
 	// Skip if Prometheus Monitoring is not enabled or an in-container ConfigFile is used,
 	// in which cases a Prometheus ConfigMap won't be created.
 	if !app.PrometheusMonitoringEnabled() || app.HasPrometheusConfigFile() {
@@ -239,7 +232,7 @@ func addPrometheusConfigMap(pod *corev1.Pod, app *v1beta1.SparkApplication) []pa
 		return nil
 	}
 
-	var patchOps []patchOperation
+	var patchOps []util.PatchOperation
 	name := config.GetPrometheusConfigMapName(app)
 	volumeName := name + "-vol"
 	mountPath := config.PrometheusConfigMapMountPath
@@ -248,7 +241,7 @@ func addPrometheusConfigMap(pod *corev1.Pod, app *v1beta1.SparkApplication) []pa
 	return patchOps
 }
 
-func addConfigMapVolume(pod *corev1.Pod, configMapName string, configMapVolumeName string) patchOperation {
+func addConfigMapVolume(pod *corev1.Pod, configMapName string, configMapVolumeName string) util.PatchOperation {
 	volume := corev1.Volume{
 		Name: configMapVolumeName,
 		VolumeSource: corev1.VolumeSource{
@@ -262,7 +255,7 @@ func addConfigMapVolume(pod *corev1.Pod, configMapName string, configMapVolumeNa
 	return addVolume(pod, volume)
 }
 
-func addConfigMapVolumeMount(pod *corev1.Pod, configMapVolumeName string, mountPath string) patchOperation {
+func addConfigMapVolumeMount(pod *corev1.Pod, configMapVolumeName string, mountPath string) util.PatchOperation {
 	mount := corev1.VolumeMount{
 		Name:      configMapVolumeName,
 		ReadOnly:  true,
@@ -271,7 +264,7 @@ func addConfigMapVolumeMount(pod *corev1.Pod, configMapVolumeName string, mountP
 	return addVolumeMount(pod, mount)
 }
 
-func addAffinity(pod *corev1.Pod, app *v1beta1.SparkApplication) *patchOperation {
+func addAffinity(pod *corev1.Pod, app *v1beta1.SparkApplication) *util.PatchOperation {
 	var affinity *corev1.Affinity
 	if util.IsDriverPod(pod) {
 		affinity = app.Spec.Driver.Affinity
@@ -282,10 +275,10 @@ func addAffinity(pod *corev1.Pod, app *v1beta1.SparkApplication) *patchOperation
 	if affinity == nil {
 		return nil
 	}
-	return &patchOperation{Op: "add", Path: "/spec/affinity", Value: *affinity}
+	return &util.PatchOperation{Op: "add", Path: "/spec/affinity", Value: *affinity}
 }
 
-func addTolerations(pod *corev1.Pod, app *v1beta1.SparkApplication) []patchOperation {
+func addTolerations(pod *corev1.Pod, app *v1beta1.SparkApplication) []util.PatchOperation {
 	var tolerations []corev1.Toleration
 	if util.IsDriverPod(pod) {
 		tolerations = app.Spec.Driver.Tolerations
@@ -293,14 +286,14 @@ func addTolerations(pod *corev1.Pod, app *v1beta1.SparkApplication) []patchOpera
 		tolerations = app.Spec.Executor.Tolerations
 	}
 
-	var ops []patchOperation
+	var ops []util.PatchOperation
 	for _, v := range tolerations {
 		ops = append(ops, addToleration(pod, v))
 	}
 	return ops
 }
 
-func addNodeSelectors(pod *corev1.Pod, app *v1beta1.SparkApplication) []patchOperation {
+func addNodeSelectors(pod *corev1.Pod, app *v1beta1.SparkApplication) []util.PatchOperation {
 	var nodeSelector map[string]string
 	if util.IsDriverPod(pod) {
 		nodeSelector = app.Spec.Driver.NodeSelector
@@ -308,14 +301,14 @@ func addNodeSelectors(pod *corev1.Pod, app *v1beta1.SparkApplication) []patchOpe
 		nodeSelector = app.Spec.Executor.NodeSelector
 	}
 
-	var ops []patchOperation
+	var ops []util.PatchOperation
 	if len(nodeSelector) > 0 {
-		ops = append(ops, patchOperation{Op: "add", Path: "/spec/nodeSelector", Value: nodeSelector})
+		ops = append(ops, util.PatchOperation{Op: "add", Path: "/spec/nodeSelector", Value: nodeSelector})
 	}
 	return ops
 }
 
-func addDNSConfig(pod *corev1.Pod, app *v1beta1.SparkApplication) []patchOperation {
+func addDNSConfig(pod *corev1.Pod, app *v1beta1.SparkApplication) []util.PatchOperation {
 	var dnsConfig *corev1.PodDNSConfig
 
 	if util.IsDriverPod(pod) {
@@ -324,14 +317,14 @@ func addDNSConfig(pod *corev1.Pod, app *v1beta1.SparkApplication) []patchOperati
 		dnsConfig = app.Spec.Executor.DNSConfig
 	}
 
-	var ops []patchOperation
+	var ops []util.PatchOperation
 	if dnsConfig != nil {
-		ops = append(ops, patchOperation{Op: "add", Path: "/spec/dnsConfig", Value: dnsConfig})
+		ops = append(ops, util.PatchOperation{Op: "add", Path: "/spec/dnsConfig", Value: dnsConfig})
 	}
 	return ops
 }
 
-func addSchedulerName(pod *corev1.Pod, app *v1beta1.SparkApplication) *patchOperation {
+func addSchedulerName(pod *corev1.Pod, app *v1beta1.SparkApplication) *util.PatchOperation {
 	var schedulerName *string
 	if util.IsDriverPod(pod) {
 		schedulerName = app.Spec.Driver.SchedulerName
@@ -342,10 +335,10 @@ func addSchedulerName(pod *corev1.Pod, app *v1beta1.SparkApplication) *patchOper
 	if schedulerName == nil || *schedulerName == "" {
 		return nil
 	}
-	return &patchOperation{Op: "add", Path: "/spec/schedulerName", Value: *schedulerName}
+	return &util.PatchOperation{Op: "add", Path: "/spec/schedulerName", Value: *schedulerName}
 }
 
-func addToleration(pod *corev1.Pod, toleration corev1.Toleration) patchOperation {
+func addToleration(pod *corev1.Pod, toleration corev1.Toleration) util.PatchOperation {
 	path := "/spec/tolerations"
 	var value interface{}
 	if len(pod.Spec.Tolerations) == 0 {
@@ -355,10 +348,10 @@ func addToleration(pod *corev1.Pod, toleration corev1.Toleration) patchOperation
 		value = toleration
 	}
 
-	return patchOperation{Op: "add", Path: path, Value: value}
+	return util.PatchOperation{Op: "add", Path: path, Value: value}
 }
 
-func addSecurityContext(pod *corev1.Pod, app *v1beta1.SparkApplication) *patchOperation {
+func addSecurityContext(pod *corev1.Pod, app *v1beta1.SparkApplication) *util.PatchOperation {
 	var secContext *corev1.PodSecurityContext
 	if util.IsDriverPod(pod) {
 		secContext = app.Spec.Driver.SecurityContenxt
@@ -369,10 +362,10 @@ func addSecurityContext(pod *corev1.Pod, app *v1beta1.SparkApplication) *patchOp
 	if secContext == nil {
 		return nil
 	}
-	return &patchOperation{Op: "add", Path: "/spec/securityContext", Value: *secContext}
+	return &util.PatchOperation{Op: "add", Path: "/spec/securityContext", Value: *secContext}
 }
 
-func addSidecarContainers(pod *corev1.Pod, app *v1beta1.SparkApplication) []patchOperation {
+func addSidecarContainers(pod *corev1.Pod, app *v1beta1.SparkApplication) []util.PatchOperation {
 	var sidecars []corev1.Container
 	if util.IsDriverPod(pod) {
 		sidecars = app.Spec.Driver.Sidecars
@@ -380,17 +373,17 @@ func addSidecarContainers(pod *corev1.Pod, app *v1beta1.SparkApplication) []patc
 		sidecars = app.Spec.Executor.Sidecars
 	}
 
-	var ops []patchOperation
+	var ops []util.PatchOperation
 	for _, c := range sidecars {
 		sd := c
 		if !hasContainer(pod, &sd) {
-			ops = append(ops, patchOperation{Op: "add", Path: "/spec/containers/-", Value: &sd})
+			ops = append(ops, util.PatchOperation{Op: "add", Path: "/spec/containers/-", Value: &sd})
 		}
 	}
 	return ops
 }
 
-func addGPU(pod *corev1.Pod, app *v1beta1.SparkApplication) *patchOperation {
+func addGPU(pod *corev1.Pod, app *v1beta1.SparkApplication) *util.PatchOperation {
 	var gpu *v1beta1.GPUSpec
 	if util.IsDriverPod(pod) {
 		gpu = app.Spec.Driver.GPU
@@ -428,10 +421,10 @@ func addGPU(pod *corev1.Pod, app *v1beta1.SparkApplication) *patchOperation {
 		path += "/" + encoder.Replace(gpu.Name)
 		value = *resource.NewQuantity(gpu.Quantity, resource.DecimalSI)
 	}
-	return &patchOperation{Op: "add", Path: path, Value: value}
+	return &util.PatchOperation{Op: "add", Path: path, Value: value}
 }
 
-func addHostNetwork(pod *corev1.Pod, app *v1beta1.SparkApplication) []patchOperation {
+func addHostNetwork(pod *corev1.Pod, app *v1beta1.SparkApplication) []util.PatchOperation {
 	var hostNetwork *bool
 	if util.IsDriverPod(pod) {
 		hostNetwork = app.Spec.Driver.HostNetwork
@@ -443,11 +436,11 @@ func addHostNetwork(pod *corev1.Pod, app *v1beta1.SparkApplication) []patchOpera
 	if hostNetwork == nil || *hostNetwork == false {
 		return nil
 	}
-	var ops []patchOperation
-	ops = append(ops, patchOperation{Op: "add", Path: "/spec/hostNetwork", Value: true})
+	var ops []util.PatchOperation
+	ops = append(ops, util.PatchOperation{Op: "add", Path: "/spec/hostNetwork", Value: true})
 	// For Pods with hostNetwork, explicitly set its DNS policy  to “ClusterFirstWithHostNet”
 	// Detail: https://kubernetes.io/docs/concepts/services-networking/dns-pod-service/#pod-s-dns-policy
-	ops = append(ops, patchOperation{Op: "add", Path: "/spec/dnsPolicy", Value: corev1.DNSClusterFirstWithHostNet})
+	ops = append(ops, util.PatchOperation{Op: "add", Path: "/spec/dnsPolicy", Value: corev1.DNSClusterFirstWithHostNet})
 	return ops
 }
 

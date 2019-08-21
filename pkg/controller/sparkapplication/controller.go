@@ -191,11 +191,10 @@ func (c *Controller) onUpdate(oldObj, newObj interface{}) {
 
 	// The spec has changed. This is currently best effort as we can potentially miss updates
 	// and end up in an inconsistent state.
-	// NewState is the initial state which can be ignored here.
-	if !equality.Semantic.DeepEqual(oldApp.Spec, newApp.Spec) && newApp.Status.AppState.State != v1beta1.NewState {
+	if !equality.Semantic.DeepEqual(oldApp.Spec, newApp.Spec) {
 		// Force-set the application status to Invalidating which handles clean-up and application re-run.
-		if _, err := c.updateApplicationStatusWithRetries(newApp, func(app *v1beta1.SparkApplication) {
-			app.Status.AppState.State = v1beta1.InvalidatingState
+		if _, err := c.updateApplicationStatusWithRetries(newApp, func(status *v1beta1.SparkApplicationStatus) {
+			status.AppState.State = v1beta1.InvalidatingState
 		}); err != nil {
 			c.recorder.Eventf(
 				newApp,
@@ -512,25 +511,6 @@ func (c *Controller) syncSparkApplication(key string) error {
 			appToUpdate.Status.AppState.State = v1beta1.FailedState
 			appToUpdate.Status.AppState.ErrorMessage = err.Error()
 		} else {
-			// Use batch scheduler to perform scheduling task before submitting.
-			if c.shouldDoBatchScheduling(app) {
-				newApp, err := c.batchScheduler.BeforeSubmitSparkApplication(app)
-				if err != nil {
-					glog.Errorf("Failed to process batch scheduler BeforeSubmitSparkApplication with error %v", err)
-					return err
-				}
-				//Update the app if it has changed in order to trigger another sync task.
-				if equality.Semantic.DeepEqual(app, newApp) {
-					glog.V(2).Infof(
-						"Trying to update SparkApplication %s/%s, from: [%v] to [%v] for batch scheduler", app.Namespace, app.Name, app.Spec, newApp.Spec)
-					err = c.updateStatusAndExportMetrics(app, newApp)
-					if err != nil {
-						glog.Errorf("failed to update SparkApplication %s/%s: %v", app.Namespace, app.Name, err)
-						return err
-					}
-					return nil
-				}
-			}
 			appToUpdate = c.submitSparkApplication(appToUpdate)
 		}
 	case v1beta1.SucceedingState:
@@ -642,6 +622,15 @@ func (c *Controller) submitSparkApplication(app *v1beta1.SparkApplication) *v1be
 		return app
 	}
 
+	// Use batch scheduler to perform scheduling task before submitting.
+	if c.shouldDoBatchScheduling(app) {
+		err := c.batchScheduler.BeforeSubmitSparkApplication(app)
+		if err != nil {
+			glog.Errorf("Failed to process batch scheduler BeforeSubmitSparkApplication with error %v", err)
+			return app
+		}
+	}
+
 	// Try submitting the application by running spark-submit.
 	submitted, err := runSparkSubmit(newSubmission(submissionCmdArgs, app))
 	if err != nil {
@@ -706,14 +695,13 @@ func (c *Controller) shouldDoBatchScheduling(app *v1beta1.SparkApplication) bool
 
 func (c *Controller) updateApplicationStatusWithRetries(
 	original *v1beta1.SparkApplication,
-	updateFunc func(app *v1beta1.SparkApplication)) (*v1beta1.SparkApplication, error) {
+	updateFunc func(status *v1beta1.SparkApplicationStatus)) (*v1beta1.SparkApplication, error) {
 	toUpdate := original.DeepCopy()
 
 	var lastUpdateErr error
 	for i := 0; i < maximumUpdateRetries; i++ {
-		updateFunc(toUpdate)
-		if equality.Semantic.DeepEqual(original.Status, toUpdate.Status) &&
-			equality.Semantic.DeepEqual(original.Spec, toUpdate.Spec) {
+		updateFunc(&toUpdate.Status)
+		if equality.Semantic.DeepEqual(original.Status, toUpdate.Status) {
 			return toUpdate, nil
 		}
 		_, err := c.crdClient.SparkoperatorV1beta1().SparkApplications(toUpdate.Namespace).Update(toUpdate)
@@ -749,12 +737,8 @@ func (c *Controller) updateStatusAndExportMetrics(oldApp, newApp *v1beta1.SparkA
 		return nil
 	}
 
-	updatedApp, err := c.updateApplicationStatusWithRetries(oldApp, func(app *v1beta1.SparkApplication) {
-		app.Status = newApp.Status
-		// It's possible that some batch scheduler will utilize the update of App.Spec to achieve scheduling
-		if !equality.Semantic.DeepEqual(oldApp.Spec, newApp.Spec) {
-			app.Spec = newApp.Spec
-		}
+	updatedApp, err := c.updateApplicationStatusWithRetries(oldApp, func(status *v1beta1.SparkApplicationStatus) {
+		*status = newApp.Status
 	})
 
 	// Export metrics if the update was successful.

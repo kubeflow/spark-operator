@@ -146,7 +146,7 @@ func main() {
 
 	var batchScheduler schedulerinterface.BatchScheduler
 	if *batchSchedulerName != "" {
-		batchScheduler = batchscheduler.GetBatchScheduler(*batchSchedulerName, config)
+		batchScheduler = batchscheduler.GetBatchScheduler(*batchSchedulerName, config, *enableWebhook)
 		if batchScheduler == nil {
 			glog.Fatalf("no batch scheduler named %s registered.", *batchSchedulerName)
 		}
@@ -170,7 +170,7 @@ func main() {
 	if *enableWebhook {
 		var err error
 		// Don't deregister webhook on exit if leader election enabled (i.e. multiple webhooks running)
-		hook, err = webhook.New(kubeClient, crInformerFactory, *namespace, !*enableLeaderElection)
+		hook, err = webhook.New(kubeClient, crInformerFactory, *namespace, !*enableLeaderElection, batchScheduler)
 		if err != nil {
 			glog.Fatal(err)
 		}

@@ -16,11 +16,17 @@ limitations under the License.
 
 package schedulerinterface
 
-import "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta1"
+import (
+	corev1 "k8s.io/api/core/v1"
+
+	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta1"
+	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/util"
+)
 
 type BatchScheduler interface {
 	Name() string
 
 	ShouldSchedule(app *v1beta1.SparkApplication) bool
-	BeforeSubmitSparkApplication(app *v1beta1.SparkApplication) (*v1beta1.SparkApplication, error)
+	PatchApplicationPod(pod *corev1.Pod, app *v1beta1.SparkApplication) []util.PatchOperation
+	BeforeSubmitSparkApplication(app *v1beta1.SparkApplication) error
 }

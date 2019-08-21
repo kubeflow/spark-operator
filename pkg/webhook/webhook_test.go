@@ -18,6 +18,7 @@ package webhook
 
 import (
 	"encoding/json"
+	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/util"
 	"testing"
 	"time"
 
@@ -74,7 +75,7 @@ func TestMutatePod(t *testing.T) {
 			Namespace: "default",
 		},
 	}
-	response, _ := mutatePods(review, lister, "default")
+	response, _ := mutatePods(review, lister, "default", nil)
 	assert.True(t, response.Allowed)
 
 	// 2. Test processing Spark pod with only one patch: adding an OwnerReference.
@@ -96,7 +97,7 @@ func TestMutatePod(t *testing.T) {
 		t.Error(err)
 	}
 	review.Request.Object.Raw = podBytes
-	response, _ = mutatePods(review, lister, "default")
+	response, _ = mutatePods(review, lister, "default", nil)
 	assert.True(t, response.Allowed)
 	assert.Equal(t, v1beta1.PatchTypeJSONPatch, *response.PatchType)
 	assert.True(t, len(response.Patch) > 0)
@@ -169,11 +170,11 @@ func TestMutatePod(t *testing.T) {
 		t.Error(err)
 	}
 	review.Request.Object.Raw = podBytes
-	response, _ = mutatePods(review, lister, "default")
+	response, _ = mutatePods(review, lister, "default", nil)
 	assert.True(t, response.Allowed)
 	assert.Equal(t, v1beta1.PatchTypeJSONPatch, *response.PatchType)
 	assert.True(t, len(response.Patch) > 0)
-	var patchOps []*patchOperation
+	var patchOps []*util.PatchOperation
 	json.Unmarshal(response.Patch, &patchOps)
 	assert.Equal(t, 6, len(patchOps))
 }
