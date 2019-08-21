@@ -264,7 +264,7 @@ const DefaultPrometheusJavaAgentPort int32 = 8090
 
 const (
 	// SparkDriverContainerName is name of driver container in spark driver pod
-	SparkDriverContainerName   = "spark-kubernetes-driver"
+	SparkDriverContainerName = "spark-kubernetes-driver"
 	// SparkExecutorContainerName is name of executor container in spark executor pod
 	SparkExecutorContainerName = "executor"
 )

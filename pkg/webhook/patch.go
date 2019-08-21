@@ -32,7 +32,7 @@ import (
 )
 
 const (
-	maxNameLength              = 63
+	maxNameLength = 63
 )
 
 // patchOperation represents a RFC6902 JSON patch operation.
