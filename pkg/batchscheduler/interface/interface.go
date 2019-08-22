@@ -28,5 +28,5 @@ type BatchScheduler interface {
 
 	ShouldSchedule(app *v1beta1.SparkApplication) bool
 	PatchApplicationPod(pod *corev1.Pod, app *v1beta1.SparkApplication) []util.PatchOperation
-	BeforeSubmitSparkApplication(app *v1beta1.SparkApplication) error
+	BeforeApplicationSubmission(app *v1beta1.SparkApplication) error
 }

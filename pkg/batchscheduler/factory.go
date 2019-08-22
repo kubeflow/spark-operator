@@ -17,6 +17,7 @@ limitations under the License.
 package batchscheduler
 
 import (
+	"fmt"
 	"sync"
 
 	"k8s.io/client-go/rest"
@@ -25,7 +26,7 @@ import (
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/batchscheduler/volcano"
 )
 
-type schedulerInitializeFunc func(config *rest.Config, webhookEnabled bool) schedulerinterface.BatchScheduler
+type schedulerInitializeFunc func(config *rest.Config, webhookEnabled bool) (schedulerinterface.BatchScheduler, error)
 
 var (
 	manageMutex         sync.Mutex
@@ -43,7 +44,7 @@ func registerBatchScheduler(name string, iniFunc schedulerInitializeFunc) {
 	schedulerContainers[name] = iniFunc
 }
 
-func GetBatchScheduler(name string, config *rest.Config, webhookEnabled bool) schedulerinterface.BatchScheduler {
+func GetBatchScheduler(name string, config *rest.Config, webhookEnabled bool) (schedulerinterface.BatchScheduler, error) {
 	manageMutex.Lock()
 	defer manageMutex.Unlock()
 	for n, fc := range schedulerContainers {
@@ -51,5 +52,5 @@ func GetBatchScheduler(name string, config *rest.Config, webhookEnabled bool) sc
 			return fc(config, webhookEnabled)
 		}
 	}
-	return nil
+	return nil, fmt.Errorf("failed to find batch scheduler named with %s", name)
 }

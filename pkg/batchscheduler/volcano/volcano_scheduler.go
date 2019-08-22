@@ -110,7 +110,7 @@ func (v *VolcanoBatchScheduler) addVolcanoAnnotation(pod *corev1.Pod, app *v1bet
 	return &util.PatchOperation{Op: "replace", Path: path, Value: value}
 }
 
-func (v *VolcanoBatchScheduler) BeforeSubmitSparkApplication(app *v1beta1.SparkApplication) error {
+func (v *VolcanoBatchScheduler) BeforeApplicationSubmission(app *v1beta1.SparkApplication) error {
 	if app.Spec.Mode == v1beta1.ClientMode {
 		return v.syncPodGroupInClientMode(app)
 	} else if app.Spec.Mode == v1beta1.ClusterMode {
@@ -162,41 +162,32 @@ func (v *VolcanoBatchScheduler) syncPodGroup(app *v1beta1.SparkApplication, size
 			_, err = v.volcanoClient.SchedulingV1alpha2().PodGroups(app.Namespace).Update(pg)
 		}
 	}
-	if err != nil {
-		glog.Errorf(
-			"Unable to sync PodGroup with error: %s. Abandon schedule pods via volcano.", err)
-	}
-	return err
+	return fmt.Errorf("failed to sync PodGroup with error: %s. Abandon schedule pods via volcano", err)
 }
 
-func New(config *rest.Config, webhookEnabled bool) schedulerinterface.BatchScheduler {
+func New(config *rest.Config, webhookEnabled bool) (schedulerinterface.BatchScheduler, error) {
 
 	if !webhookEnabled {
-		glog.Error("failed to initialize volcano client, webhook enable is required")
-		return nil
+		return nil, fmt.Errorf("failed to initialize the volcano scheduler as it requires the webhook to be enabled")
 	}
 
 	vkClient, err := volcanoclient.NewForConfig(config)
 	if err != nil {
-		glog.Errorf("failed to initialize volcano client with error %v", err)
-		return nil
+		return nil, fmt.Errorf("failed to initialize volcano client with error %v", err)
 	}
 	extClient, err := apiextensionsclient.NewForConfig(config)
 	if err != nil {
-		glog.Errorf("failed to initialize k8s extension client with error %v", err)
-		return nil
+		return nil, fmt.Errorf("failed to initialize k8s extension client with error %v", err)
 	}
 
 	if _, err := extClient.ApiextensionsV1beta1().CustomResourceDefinitions().Get(
 		PodGroupName, v1.GetOptions{}); err != nil {
-		glog.Errorf(
-			"PodGroup CRD is required to exists in current cluster error: %s.", err)
-		return nil
+		return nil, fmt.Errorf("podGroup CRD is required to exists in current cluster error: %s", err)
 	}
 	return &VolcanoBatchScheduler{
 		extensionClient: extClient,
 		volcanoClient:   vkClient,
-	}
+	}, nil
 }
 
 func getExecutorRequestResource(app *v1beta1.SparkApplication) corev1.ResourceList {
@@ -238,8 +229,6 @@ func getExecutorRequestResource(app *v1beta1.SparkApplication) corev1.ResourceLi
 			if existing, ok := minResource[corev1.ResourceMemory]; ok {
 				existing.Add(value)
 				minResource[corev1.ResourceMemory] = existing
-			} else {
-				minResource[corev1.ResourceMemory] = value
 			}
 		}
 	}
@@ -281,8 +270,6 @@ func getDriverRequestResource(app *v1beta1.SparkApplication) corev1.ResourceList
 			if existing, ok := minResource[corev1.ResourceMemory]; ok {
 				existing.Add(value)
 				minResource[corev1.ResourceMemory] = existing
-			} else {
-				minResource[corev1.ResourceMemory] = value
 			}
 		}
 	}
@@ -291,7 +278,6 @@ func getDriverRequestResource(app *v1beta1.SparkApplication) corev1.ResourceList
 }
 
 func sumResourceList(list []corev1.ResourceList) corev1.ResourceList {
-
 	totalResource := corev1.ResourceList{}
 	for _, l := range list {
 		for name, quantity := range l {

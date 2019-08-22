@@ -624,9 +624,9 @@ func (c *Controller) submitSparkApplication(app *v1beta1.SparkApplication) *v1be
 
 	// Use batch scheduler to perform scheduling task before submitting.
 	if c.shouldDoBatchScheduling(app) {
-		err := c.batchScheduler.BeforeSubmitSparkApplication(app)
+		err := c.batchScheduler.BeforeApplicationSubmission(app)
 		if err != nil {
-			glog.Errorf("Failed to process batch scheduler BeforeSubmitSparkApplication with error %v", err)
+			glog.Errorf("failed to process batch scheduler BeforeSubmitSparkApplication with error %v", err)
 			return app
 		}
 	}

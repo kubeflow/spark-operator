@@ -72,7 +72,7 @@ var (
 	leaderElectionLeaseDuration = flag.Duration("leader-election-lease-duration", 15*time.Second, "Leader election lease duration.")
 	leaderElectionRenewDeadline = flag.Duration("leader-election-renew-deadline", 14*time.Second, "Leader election renew deadline.")
 	leaderElectionRetryPeriod   = flag.Duration("leader-election-retry-period", 4*time.Second, "Leader election retry period.")
-	batchSchedulerName          = flag.String("batchSchedulerName", "", "Use specified scheduler for pods' batch scheduling.")
+	batchSchedulerName          = flag.String("batch-scheduler-name", "", "Use specified scheduler for pods' batch scheduling.")
 )
 
 func main() {
@@ -146,9 +146,9 @@ func main() {
 
 	var batchScheduler schedulerinterface.BatchScheduler
 	if *batchSchedulerName != "" {
-		batchScheduler = batchscheduler.GetBatchScheduler(*batchSchedulerName, config, *enableWebhook)
-		if batchScheduler == nil {
-			glog.Fatalf("no batch scheduler named %s registered.", *batchSchedulerName)
+		batchScheduler, err = batchscheduler.GetBatchScheduler(*batchSchedulerName, config, *enableWebhook)
+		if err != nil {
+			glog.Fatalf("failed to initialize batch scheduler %s.", err)
 		}
 	}
 

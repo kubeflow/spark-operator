@@ -32,6 +32,8 @@ type Interface interface {
 	Discovery() discovery.DiscoveryInterface
 	SparkoperatorV1alpha1() sparkoperatorv1alpha1.SparkoperatorV1alpha1Interface
 	SparkoperatorV1beta1() sparkoperatorv1beta1.SparkoperatorV1beta1Interface
+	// Deprecated: please explicitly pick a version if possible.
+	Sparkoperator() sparkoperatorv1beta1.SparkoperatorV1beta1Interface
 }
 
 // Clientset contains the clients for groups. Each group has exactly one
@@ -49,6 +51,12 @@ func (c *Clientset) SparkoperatorV1alpha1() sparkoperatorv1alpha1.SparkoperatorV
 
 // SparkoperatorV1beta1 retrieves the SparkoperatorV1beta1Client
 func (c *Clientset) SparkoperatorV1beta1() sparkoperatorv1beta1.SparkoperatorV1beta1Interface {
+	return c.sparkoperatorV1beta1
+}
+
+// Deprecated: Sparkoperator retrieves the default version of SparkoperatorClient.
+// Please explicitly pick a version.
+func (c *Clientset) Sparkoperator() sparkoperatorv1beta1.SparkoperatorV1beta1Interface {
 	return c.sparkoperatorV1beta1
 }
 
