@@ -10,7 +10,9 @@ spec:
   names:
     kind: ScheduledSparkApplication
     plural: scheduledsparkapplications
-  scope: ""
+    shortNames:
+    - scheduledsparkapp
+  scope: Namespaced
   subresources:
     status: {}
   validation:
@@ -352,6 +354,7 @@ spec:
                     coreLimit:
                       type: string
                     cores:
+                      exclusiveMinimum: true
                       format: int32
                       minimum: 0
                       type: integer
@@ -1240,6 +1243,7 @@ spec:
                     coreRequest:
                       type: string
                     cores:
+                      exclusiveMinimum: true
                       format: int32
                       minimum: 0
                       type: integer

@@ -10,7 +10,9 @@ spec:
   names:
     kind: SparkApplication
     plural: sparkapplications
-  scope: ""
+    shortNames:
+    - sparkapp
+  scope: Namespaced
   subresources:
     status: {}
   validation:
@@ -338,6 +340,7 @@ spec:
                 coreLimit:
                   type: string
                 cores:
+                  exclusiveMinimum: true
                   format: int32
                   minimum: 0
                   type: integer
@@ -1226,6 +1229,7 @@ spec:
                 coreRequest:
                   type: string
                 cores:
+                  exclusiveMinimum: true
                   format: int32
                   minimum: 0
                   type: integer

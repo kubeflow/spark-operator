@@ -76,6 +76,7 @@ const (
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // +k8s:defaulter-gen=true
 // +kubebuilder:subresource:status
+// +kubebuilder:resource:scope=Namespaced,shortName=scheduledsparkapp,singular=scheduledsparkapplication
 
 type ScheduledSparkApplication struct {
 	metav1.TypeMeta   `json:",inline"`
@@ -155,6 +156,7 @@ type ScheduledSparkApplicationList struct {
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // +k8s:defaulter-gen=true
 // +kubebuilder:subresource:status
+// +kubebuilder:resource:scope=Namespaced,shortName=sparkapp,singular=sparkapplication
 
 // SparkApplication represents a Spark application running on and using Kubernetes as a cluster manager.
 type SparkApplication struct {
@@ -354,6 +356,7 @@ type SparkPodSpec struct {
 	// Cores is the number of CPU cores to request for the pod.
 	// Optional.
 	// +kubebuilder:validation:Minimum=0
+	// +kubebuilder:validation:ExclusiveMinimum=true
 	Cores *int32 `json:"cores,omitempty"`
 	// CoreLimit specifies a hard limit on CPU cores for the pod.
 	// Optional
