@@ -170,7 +170,7 @@ func main() {
 	if *enableWebhook {
 		var err error
 		// Don't deregister webhook on exit if leader election enabled (i.e. multiple webhooks running)
-		hook, err = webhook.New(kubeClient, crInformerFactory, *namespace, !*enableLeaderElection, batchScheduler)
+		hook, err = webhook.New(kubeClient, crInformerFactory, *namespace, !*enableLeaderElection)
 		if err != nil {
 			glog.Fatal(err)
 		}

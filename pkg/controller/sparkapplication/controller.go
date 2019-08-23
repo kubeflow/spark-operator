@@ -341,7 +341,7 @@ func (c *Controller) getAndUpdateDriverState(app *v1beta1.SparkApplication) erro
 		}
 	}
 
-	newState := driverPodPhaseToApplicationState(driverPod.Status.Phase)
+	newState := driverStateToApplicationState(driverPod.Status)
 	// Only record a driver event if the application state (derived from the driver pod phase) has changed.
 	if newState != app.Status.AppState.State {
 		c.recordDriverEvent(app, driverPod.Status.Phase, driverPod.Name)
@@ -624,11 +624,13 @@ func (c *Controller) submitSparkApplication(app *v1beta1.SparkApplication) *v1be
 
 	// Use batch scheduler to perform scheduling task before submitting.
 	if c.shouldDoBatchScheduling(app) {
-		err := c.batchScheduler.BeforeApplicationSubmission(app)
+		newApp, err := c.batchScheduler.DoBatchSchedulingOnSubmission(app)
 		if err != nil {
 			glog.Errorf("failed to process batch scheduler BeforeSubmitSparkApplication with error %v", err)
 			return app
 		}
+		//Spark submit will use the updated app to submit tasks(Spec will not be updated into API server)
+		app = newApp
 	}
 
 	// Try submitting the application by running spark-submit.

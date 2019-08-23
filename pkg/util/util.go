@@ -28,13 +28,6 @@ import (
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/config"
 )
 
-// PatchOperation represents a RFC6902 JSON patch operation.
-type PatchOperation struct {
-	Op    string      `json:"op"`
-	Path  string      `json:"path"`
-	Value interface{} `json:"value,omitempty"`
-}
-
 // NewHash32 returns a 32-bit hash computed from the given byte slice.
 func NewHash32() hash.Hash32 {
 	return fnv.New32()
