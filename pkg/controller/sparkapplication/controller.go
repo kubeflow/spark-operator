@@ -41,6 +41,7 @@ import (
 	"k8s.io/client-go/util/workqueue"
 
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta1"
+	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/batchscheduler/interface"
 	crdclientset "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/client/clientset/versioned"
 	crdscheme "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/client/clientset/versioned/scheme"
 	crdinformers "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/client/informers/externalversions"
@@ -73,6 +74,7 @@ type Controller struct {
 	applicationLister crdlisters.SparkApplicationLister
 	podLister         v1.PodLister
 	ingressURLFormat  string
+	batchScheduler    schedulerinterface.BatchScheduler
 }
 
 // NewController creates a new Controller.
@@ -83,7 +85,8 @@ func NewController(
 	podInformerFactory informers.SharedInformerFactory,
 	metricsConfig *util.MetricConfig,
 	namespace string,
-	ingressURLFormat string) *Controller {
+	ingressURLFormat string,
+	batchscheduler schedulerinterface.BatchScheduler) *Controller {
 	crdscheme.AddToScheme(scheme.Scheme)
 
 	eventBroadcaster := record.NewBroadcaster()
@@ -93,7 +96,7 @@ func NewController(
 	})
 	recorder := eventBroadcaster.NewRecorder(scheme.Scheme, apiv1.EventSource{Component: "spark-operator"})
 
-	return newSparkApplicationController(crdClient, kubeClient, crdInformerFactory, podInformerFactory, recorder, metricsConfig, ingressURLFormat)
+	return newSparkApplicationController(crdClient, kubeClient, crdInformerFactory, podInformerFactory, recorder, metricsConfig, ingressURLFormat, batchscheduler)
 }
 
 func newSparkApplicationController(
@@ -103,7 +106,8 @@ func newSparkApplicationController(
 	podInformerFactory informers.SharedInformerFactory,
 	eventRecorder record.EventRecorder,
 	metricsConfig *util.MetricConfig,
-	ingressURLFormat string) *Controller {
+	ingressURLFormat string,
+	batchScheduler schedulerinterface.BatchScheduler) *Controller {
 	queue := workqueue.NewNamedRateLimitingQueue(&workqueue.BucketRateLimiter{Limiter: rate.NewLimiter(rate.Limit(queueTokenRefillRate), queueTokenBucketSize)},
 		"spark-application-controller")
 
@@ -113,6 +117,7 @@ func newSparkApplicationController(
 		recorder:         eventRecorder,
 		queue:            queue,
 		ingressURLFormat: ingressURLFormat,
+		batchScheduler:   batchScheduler,
 	}
 
 	if metricsConfig != nil {
@@ -617,6 +622,17 @@ func (c *Controller) submitSparkApplication(app *v1beta1.SparkApplication) *v1be
 		return app
 	}
 
+	// Use batch scheduler to perform scheduling task before submitting.
+	if c.shouldDoBatchScheduling(app) {
+		newApp, err := c.batchScheduler.DoBatchSchedulingOnSubmission(app)
+		if err != nil {
+			glog.Errorf("failed to process batch scheduler BeforeSubmitSparkApplication with error %v", err)
+			return app
+		}
+		//Spark submit will use the updated app to submit tasks(Spec will not be updated into API server)
+		app = newApp
+	}
+
 	// Try submitting the application by running spark-submit.
 	submitted, err := runSparkSubmit(newSubmission(submissionCmdArgs, app))
 	if err != nil {
@@ -673,6 +689,10 @@ func (c *Controller) submitSparkApplication(app *v1beta1.SparkApplication) *v1be
 		}
 	}
 	return app
+}
+
+func (c *Controller) shouldDoBatchScheduling(app *v1beta1.SparkApplication) bool {
+	return c.batchScheduler != nil && c.batchScheduler.ShouldSchedule(app)
 }
 
 func (c *Controller) updateApplicationStatusWithRetries(
