@@ -65,7 +65,7 @@ func newFakeController(app *v1beta1.SparkApplication, pods ...*apiv1.Pod) (*Cont
 
 	podInformerFactory := informers.NewSharedInformerFactory(kubeClient, 0*time.Second)
 	controller := newSparkApplicationController(crdClient, kubeClient, informerFactory, podInformerFactory, recorder,
-		&util.MetricConfig{}, "")
+		&util.MetricConfig{}, "", nil)
 
 	informer := informerFactory.Sparkoperator().V1beta1().SparkApplications().Informer()
 	if app != nil {

@@ -1043,6 +1043,8 @@
     "tools/clientcmd/api",
     "tools/clientcmd/api/latest",
     "tools/clientcmd/api/v1",
+    "tools/leaderelection",
+    "tools/leaderelection/resourcelock",
     "tools/metrics",
     "tools/pager",
     "tools/portforward",
@@ -1150,6 +1152,25 @@
   revision = "fd68e9863619f6ec2fdd8625fe1f02e7c877e480"
   version = "v1.1.0"
 
+[[projects]]
+  branch = "master"
+  digest = "1:4b7e69ee4a478b8a32569f84077dc675bd7ff34a007996d2b6e9f5d6cca33602"
+  name = "volcano.sh/volcano"
+  packages = [
+    "pkg/apis/batch/v1alpha1",
+    "pkg/apis/bus/v1alpha1",
+    "pkg/apis/scheduling/v1alpha1",
+    "pkg/apis/scheduling/v1alpha2",
+    "pkg/client/clientset/versioned",
+    "pkg/client/clientset/versioned/scheme",
+    "pkg/client/clientset/versioned/typed/batch/v1alpha1",
+    "pkg/client/clientset/versioned/typed/bus/v1alpha1",
+    "pkg/client/clientset/versioned/typed/scheduling/v1alpha1",
+    "pkg/client/clientset/versioned/typed/scheduling/v1alpha2",
+  ]
+  pruneopts = ""
+  revision = "e5e4a32196c9b3013d892c861c3aff09097a063a"
+
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
@@ -1186,6 +1207,7 @@
     "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1",
     "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset",
     "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset/fake",
+    "k8s.io/apimachinery/pkg/api/equality",
     "k8s.io/apimachinery/pkg/api/errors",
     "k8s.io/apimachinery/pkg/api/resource",
     "k8s.io/apimachinery/pkg/apis/meta/v1",
@@ -1219,6 +1241,8 @@
     "k8s.io/client-go/testing",
     "k8s.io/client-go/tools/cache",
     "k8s.io/client-go/tools/clientcmd",
+    "k8s.io/client-go/tools/leaderelection",
+    "k8s.io/client-go/tools/leaderelection/resourcelock",
     "k8s.io/client-go/tools/portforward",
     "k8s.io/client-go/tools/record",
     "k8s.io/client-go/tools/watch",
@@ -1232,6 +1256,8 @@
     "k8s.io/kubernetes/pkg/kubectl/describe",
     "k8s.io/kubernetes/pkg/kubectl/describe/versioned",
     "k8s.io/kubernetes/pkg/util/interrupt",
+    "volcano.sh/volcano/pkg/apis/scheduling/v1alpha2",
+    "volcano.sh/volcano/pkg/client/clientset/versioned",
   ]
   solver-name = "gps-cdcl"
   solver-version = 1

@@ -87,11 +87,24 @@ func isExecutorTerminated(executorState v1beta1.ExecutorState) bool {
 	return executorState == v1beta1.ExecutorCompletedState || executorState == v1beta1.ExecutorFailedState
 }
 
-func driverPodPhaseToApplicationState(podPhase apiv1.PodPhase) v1beta1.ApplicationStateType {
-	switch podPhase {
+func driverStateToApplicationState(podStatus apiv1.PodStatus) v1beta1.ApplicationStateType {
+	switch podStatus.Phase {
 	case apiv1.PodPending:
 		return v1beta1.SubmittedState
 	case apiv1.PodRunning:
+		// TODO: upcoming Kubernenetes feature will make this code redundant
+		// https://github.com/kubernetes/enhancements/issues/753
+		for _, c := range podStatus.ContainerStatuses {
+			if c.Name == config.SparkDriverContainerName {
+				if c.State.Terminated != nil {
+					if c.State.Terminated.ExitCode == 0 {
+						return v1beta1.SucceedingState
+					}
+					return v1beta1.FailingState
+				}
+				break
+			}
+		}
 		return v1beta1.RunningState
 	case apiv1.PodSucceeded:
 		return v1beta1.SucceedingState
