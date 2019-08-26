@@ -153,12 +153,7 @@ func (v *VolcanoBatchScheduler) syncPodGroup(app *v1beta1.SparkApplication, size
 	return fmt.Errorf("failed to sync PodGroup with error: %s. Abandon schedule pods via volcano", err)
 }
 
-func New(config *rest.Config, webhookEnabled bool) (schedulerinterface.BatchScheduler, error) {
-
-	if !webhookEnabled {
-		return nil, fmt.Errorf("failed to initialize the volcano scheduler as it requires the webhook to be enabled")
-	}
-
+func New(config *rest.Config) (schedulerinterface.BatchScheduler, error) {
 	vkClient, err := volcanoclient.NewForConfig(config)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize volcano client with error %v", err)

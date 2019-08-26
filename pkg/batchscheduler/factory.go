@@ -26,7 +26,7 @@ import (
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/batchscheduler/volcano"
 )
 
-type schedulerInitializeFunc func(config *rest.Config, webhookEnabled bool) (schedulerinterface.BatchScheduler, error)
+type schedulerInitializeFunc func(config *rest.Config) (schedulerinterface.BatchScheduler, error)
 
 var (
 	manageMutex         sync.Mutex
@@ -44,12 +44,12 @@ func registerBatchScheduler(name string, iniFunc schedulerInitializeFunc) {
 	schedulerContainers[name] = iniFunc
 }
 
-func GetBatchScheduler(name string, config *rest.Config, webhookEnabled bool) (schedulerinterface.BatchScheduler, error) {
+func GetBatchScheduler(name string, config *rest.Config) (schedulerinterface.BatchScheduler, error) {
 	manageMutex.Lock()
 	defer manageMutex.Unlock()
 	for n, fc := range schedulerContainers {
 		if n == name {
-			return fc(config, webhookEnabled)
+			return fc(config)
 		}
 	}
 	return nil, fmt.Errorf("failed to find batch scheduler named with %s", name)

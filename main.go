@@ -146,7 +146,11 @@ func main() {
 
 	var batchScheduler schedulerinterface.BatchScheduler
 	if *batchSchedulerName != "" {
-		batchScheduler, err = batchscheduler.GetBatchScheduler(*batchSchedulerName, config, *enableWebhook)
+		if !*enableWebhook {
+			glog.Fatalf(
+				"failed to initialize the batch scheduler %s as it requires the webhook to be enabled", *batchSchedulerName)
+		}
+		batchScheduler, err = batchscheduler.GetBatchScheduler(*batchSchedulerName, config)
 		if err != nil {
 			glog.Fatalf("failed to initialize batch scheduler %s.", err)
 		}
