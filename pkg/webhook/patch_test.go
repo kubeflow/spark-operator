@@ -51,7 +51,7 @@ func TestPatchSparkPod_OwnerReference(t *testing.T) {
 		Spec: corev1.PodSpec{
 			Containers: []corev1.Container{
 				{
-					Name:  sparkDriverContainerName,
+					Name:  config.SparkDriverContainerName,
 					Image: "spark-driver:latest",
 				},
 			},
@@ -116,7 +116,7 @@ func TestPatchSparkPod_Volumes(t *testing.T) {
 		Spec: corev1.PodSpec{
 			Containers: []corev1.Container{
 				{
-					Name:  sparkDriverContainerName,
+					Name:  config.SparkDriverContainerName,
 					Image: "spark-driver:latest",
 				},
 			},
@@ -188,7 +188,7 @@ func TestPatchSparkPod_Affinity(t *testing.T) {
 		Spec: corev1.PodSpec{
 			Containers: []corev1.Container{
 				{
-					Name:  sparkDriverContainerName,
+					Name:  config.SparkDriverContainerName,
 					Image: "spark-driver:latest",
 				},
 			},
@@ -234,7 +234,7 @@ func TestPatchSparkPod_ConfigMaps(t *testing.T) {
 		Spec: corev1.PodSpec{
 			Containers: []corev1.Container{
 				{
-					Name:  sparkDriverContainerName,
+					Name:  config.SparkDriverContainerName,
 					Image: "spark-driver:latest",
 				},
 			},
@@ -276,7 +276,7 @@ func TestPatchSparkPod_SparkConfigMap(t *testing.T) {
 		Spec: corev1.PodSpec{
 			Containers: []corev1.Container{
 				{
-					Name:  sparkDriverContainerName,
+					Name:  config.SparkDriverContainerName,
 					Image: "spark-driver:latest",
 				},
 			},
@@ -320,7 +320,7 @@ func TestPatchSparkPod_HadoopConfigMap(t *testing.T) {
 		Spec: corev1.PodSpec{
 			Containers: []corev1.Container{
 				{
-					Name:  sparkDriverContainerName,
+					Name:  config.SparkDriverContainerName,
 					Image: "spark-driver:latest",
 				},
 			},
@@ -366,7 +366,7 @@ func TestPatchSparkPod_PrometheusConfigMaps(t *testing.T) {
 		Spec: corev1.PodSpec{
 			Containers: []corev1.Container{
 				{
-					Name:  sparkDriverContainerName,
+					Name:  config.SparkDriverContainerName,
 					Image: "spark-driver:latest",
 				},
 			},
@@ -423,7 +423,7 @@ func TestPatchSparkPod_Tolerations(t *testing.T) {
 		Spec: corev1.PodSpec{
 			Containers: []corev1.Container{
 				{
-					Name:  sparkDriverContainerName,
+					Name:  config.SparkDriverContainerName,
 					Image: "spark-driver:latest",
 				},
 			},
@@ -475,7 +475,7 @@ func TestPatchSparkPod_SecurityContext(t *testing.T) {
 		Spec: corev1.PodSpec{
 			Containers: []corev1.Container{
 				{
-					Name:  sparkDriverContainerName,
+					Name:  config.SparkDriverContainerName,
 					Image: "spark-driver:latest",
 				},
 			},
@@ -499,7 +499,7 @@ func TestPatchSparkPod_SecurityContext(t *testing.T) {
 		Spec: corev1.PodSpec{
 			Containers: []corev1.Container{
 				{
-					Name:  sparkExecutorContainerName,
+					Name:  config.SparkExecutorContainerName,
 					Image: "spark-executor:latest",
 				},
 			},
@@ -546,7 +546,7 @@ func TestPatchSparkPod_SchedulerName(t *testing.T) {
 			SchedulerName: defaultScheduler,
 			Containers: []corev1.Container{
 				{
-					Name:  sparkDriverContainerName,
+					Name:  config.SparkDriverContainerName,
 					Image: "spark-driver:latest",
 				},
 			},
@@ -572,7 +572,7 @@ func TestPatchSparkPod_SchedulerName(t *testing.T) {
 			SchedulerName: defaultScheduler,
 			Containers: []corev1.Container{
 				{
-					Name:  sparkExecutorContainerName,
+					Name:  config.SparkExecutorContainerName,
 					Image: "spark-executor:latest",
 				},
 			},
@@ -636,7 +636,7 @@ func TestPatchSparkPod_Sidecars(t *testing.T) {
 		Spec: corev1.PodSpec{
 			Containers: []corev1.Container{
 				{
-					Name:  sparkDriverContainerName,
+					Name:  config.SparkDriverContainerName,
 					Image: "spark-driver:latest",
 				},
 			},
@@ -662,7 +662,7 @@ func TestPatchSparkPod_Sidecars(t *testing.T) {
 		Spec: corev1.PodSpec{
 			Containers: []corev1.Container{
 				{
-					Name:  sparkExecutorContainerName,
+					Name:  config.SparkExecutorContainerName,
 					Image: "spark-executor:latest",
 				},
 			},
@@ -714,7 +714,7 @@ func TestPatchSparkPod_DNSConfig(t *testing.T) {
 		Spec: corev1.PodSpec{
 			Containers: []corev1.Container{
 				{
-					Name:  sparkDriverContainerName,
+					Name:  config.SparkDriverContainerName,
 					Image: "spark-driver:latest",
 				},
 			},
@@ -739,7 +739,7 @@ func TestPatchSparkPod_DNSConfig(t *testing.T) {
 		Spec: corev1.PodSpec{
 			Containers: []corev1.Container{
 				{
-					Name:  sparkExecutorContainerName,
+					Name:  config.SparkExecutorContainerName,
 					Image: "spark-executor:latest",
 				},
 			},
@@ -787,7 +787,7 @@ func TestPatchSparkPod_NodeSector(t *testing.T) {
 		Spec: corev1.PodSpec{
 			Containers: []corev1.Container{
 				{
-					Name:  sparkDriverContainerName,
+					Name:  config.SparkDriverContainerName,
 					Image: "spark-driver:latest",
 				},
 			},
@@ -813,7 +813,7 @@ func TestPatchSparkPod_NodeSector(t *testing.T) {
 		Spec: corev1.PodSpec{
 			Containers: []corev1.Container{
 				{
-					Name:  sparkExecutorContainerName,
+					Name:  config.SparkExecutorContainerName,
 					Image: "spark-executor:latest",
 				},
 			},
@@ -977,7 +977,7 @@ func TestPatchSparkPod_GPU(t *testing.T) {
 			Spec: corev1.PodSpec{
 				Containers: []corev1.Container{
 					{
-						Name:  sparkDriverContainerName,
+						Name:  config.SparkDriverContainerName,
 						Image: "spark-driver:latest",
 					},
 				},
@@ -1004,7 +1004,7 @@ func TestPatchSparkPod_GPU(t *testing.T) {
 			Spec: corev1.PodSpec{
 				Containers: []corev1.Container{
 					{
-						Name:  sparkExecutorContainerName,
+						Name:  config.SparkExecutorContainerName,
 						Image: "spark-executor:latest",
 					},
 				},
@@ -1060,7 +1060,7 @@ func TestPatchSparkPod_HostNetwork(t *testing.T) {
 			Spec: corev1.PodSpec{
 				Containers: []corev1.Container{
 					{
-						Name:  sparkDriverContainerName,
+						Name:  config.SparkDriverContainerName,
 						Image: "spark-driver:latest",
 					},
 				},
@@ -1088,7 +1088,7 @@ func TestPatchSparkPod_HostNetwork(t *testing.T) {
 			Spec: corev1.PodSpec{
 				Containers: []corev1.Container{
 					{
-						Name:  sparkExecutorContainerName,
+						Name:  config.SparkExecutorContainerName,
 						Image: "spark-executor:latest",
 					},
 				},

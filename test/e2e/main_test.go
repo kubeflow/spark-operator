@@ -18,7 +18,7 @@ package e2e
 
 import (
 	"flag"
-	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta1"
+	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta2"
 	"github.com/stretchr/testify/assert"
 	"log"
 	"os"
@@ -46,7 +46,7 @@ var STATES = [9]string{
 	"COMPLETED",
 }
 
-func GetJobStatus(t *testing.T, sparkAppName string) v1beta1.ApplicationStateType {
+func GetJobStatus(t *testing.T, sparkAppName string) v1beta2.ApplicationStateType {
 	app, err := operatorFramework.GetSparkApplication(framework.SparkApplicationClient, operatorFramework.SparkTestNamespace, sparkAppName)
 	assert.Equal(t, nil, err)
 	return app.Status.AppState.State

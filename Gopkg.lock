@@ -1152,6 +1152,25 @@
   revision = "fd68e9863619f6ec2fdd8625fe1f02e7c877e480"
   version = "v1.1.0"
 
+[[projects]]
+  branch = "master"
+  digest = "1:4b7e69ee4a478b8a32569f84077dc675bd7ff34a007996d2b6e9f5d6cca33602"
+  name = "volcano.sh/volcano"
+  packages = [
+    "pkg/apis/batch/v1alpha1",
+    "pkg/apis/bus/v1alpha1",
+    "pkg/apis/scheduling/v1alpha1",
+    "pkg/apis/scheduling/v1alpha2",
+    "pkg/client/clientset/versioned",
+    "pkg/client/clientset/versioned/scheme",
+    "pkg/client/clientset/versioned/typed/batch/v1alpha1",
+    "pkg/client/clientset/versioned/typed/bus/v1alpha1",
+    "pkg/client/clientset/versioned/typed/scheduling/v1alpha1",
+    "pkg/client/clientset/versioned/typed/scheduling/v1alpha2",
+  ]
+  pruneopts = ""
+  revision = "e5e4a32196c9b3013d892c861c3aff09097a063a"
+
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
@@ -1236,6 +1255,8 @@
     "k8s.io/kubernetes/pkg/kubectl/describe",
     "k8s.io/kubernetes/pkg/kubectl/describe/versioned",
     "k8s.io/kubernetes/pkg/util/interrupt",
+    "volcano.sh/volcano/pkg/apis/scheduling/v1alpha2",
+    "volcano.sh/volcano/pkg/client/clientset/versioned",
   ]
   solver-name = "gps-cdcl"
   solver-version = 1

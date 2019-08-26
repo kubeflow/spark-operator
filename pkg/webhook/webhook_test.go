@@ -49,7 +49,7 @@ func TestMutatePod(t *testing.T) {
 		Spec: corev1.PodSpec{
 			Containers: []corev1.Container{
 				{
-					Name:  sparkDriverContainerName,
+					Name:  config.SparkDriverContainerName,
 					Image: "spark-driver:latest",
 				},
 			},
