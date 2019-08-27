@@ -333,10 +333,13 @@ func addDNSConfig(pod *corev1.Pod, app *v1beta1.SparkApplication) []patchOperati
 
 func addSchedulerName(pod *corev1.Pod, app *v1beta1.SparkApplication) *patchOperation {
 	var schedulerName *string
-	if util.IsDriverPod(pod) {
+
+	//NOTE: Preferred to use `BatchScheduler` if application spec has it configured.
+	if app.Spec.BatchScheduler != nil {
+		schedulerName = app.Spec.BatchScheduler
+	} else if util.IsDriverPod(pod) {
 		schedulerName = app.Spec.Driver.SchedulerName
-	}
-	if util.IsExecutorPod(pod) {
+	} else if util.IsExecutorPod(pod) {
 		schedulerName = app.Spec.Executor.SchedulerName
 	}
 	if schedulerName == nil || *schedulerName == "" {
