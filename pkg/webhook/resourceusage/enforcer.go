@@ -18,7 +18,7 @@ type ResourceQuotaEnforcer struct {
 }
 
 func NewResourceQuotaEnforcer(crdInformerFactory crdinformers.SharedInformerFactory, coreV1InformerFactory informers.SharedInformerFactory) ResourceQuotaEnforcer {
-	resourceUsageWatcher := NewResourceUsageWatcher(crdInformerFactory, coreV1InformerFactory)
+	resourceUsageWatcher := newResourceUsageWatcher(crdInformerFactory, coreV1InformerFactory)
 	informer := coreV1InformerFactory.Core().V1().ResourceQuotas()
 	informer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{})
 	return ResourceQuotaEnforcer{
@@ -27,12 +27,14 @@ func NewResourceQuotaEnforcer(crdInformerFactory crdinformers.SharedInformerFact
 	}
 }
 
+// TODO: There appears to be a deadlock in cache.WaitForCacheSync. Possibly related? https://github.com/kubernetes/kubernetes/issues/71450
+// For now, return immediately. There will be a short window after startup where quota calcuation is incorrect.
 func (r ResourceQuotaEnforcer) WaitForCacheSync(stopCh <-chan struct{}) error {
-	if !cache.WaitForCacheSync(stopCh, func() bool {
+	/*if !cache.WaitForCacheSync(stopCh, func() bool {
 		return r.resourceQuotaInformer.Informer().HasSynced()
 	}) {
-		return fmt.Errorf("timed out waiting for cache to sync")
-	}
+		return fmt.Errorf("cache sync canceled")
+	}*/
 	return nil
 }
 
@@ -49,13 +51,12 @@ func (r *ResourceQuotaEnforcer) admitResource(kind, namespace, name string, requ
 	currentNamespaceUsage, currentApplicationUsage := r.watcher.GetCurrentResourceUsageWithApplication(namespace, kind, name)
 
 	for _, quota := range resourceQuotas {
-
 		// Scope selectors not currently supported, ignore any ResourceQuota that does not match everything.
 		if quota.Spec.ScopeSelector != nil || len(quota.Spec.Scopes) > 0 {
-			return "", nil
+			continue
 		}
 
-		// Allow if the requested resources are <= previously allocated resources (or 0)
+		// If an existing application has increased its usage, check it against the quota again. If its usage hasn't increased, always allow it.
 		if requestedResources.cpu.Cmp(currentApplicationUsage.cpu) == 1 {
 			if cpuLimit, present := quota.Spec.Hard[corev1.ResourceCPU]; present {
 				availableCpu := cpuLimit

@@ -233,7 +233,6 @@ func (wh *WebHook) Stop() error {
 	wh.certProvider.Stop()
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	wh.certProvider.Stop()
 	glog.Info("Stopping the Spark pod admission webhook server")
 	return wh.server.Shutdown(ctx)
 }

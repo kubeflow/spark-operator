@@ -81,8 +81,8 @@ var javaStringSuffixes = map[string]int64{
 	"p":  1 << 50,
 }
 
-var javaStringPattern = regexp.MustCompile("([0-9]+)([a-z]+)?")
-var javaFractionStringPattern = regexp.MustCompile("([0-9]+\\.[0-9]+)([a-z]+)?")
+var javaStringPattern = regexp.MustCompile(`([0-9]+)([a-z]+)?`)
+var javaFractionStringPattern = regexp.MustCompile(`([0-9]+\.[0-9]+)([a-z]+)?`)
 
 // Logic copied from https://github.com/apache/spark/blob/5264164a67df498b73facae207eda12ee133be7d/common/network-common/src/main/java/org/apache/spark/network/util/JavaUtils.java#L276
 func parseJavaMemoryString(str string) (int64, error) {
@@ -151,36 +151,30 @@ func memoryRequiredForSparkPod(spec so.SparkPodSpec, memoryOverheadFactor *strin
 func resourceUsage(spec so.SparkApplicationSpec) (ResourceList, error) {
 	driverMemoryOverheadFactor := spec.MemoryOverheadFactor
 	executorMemoryOverheadFactor := spec.MemoryOverheadFactor
-	if spec.Driver.MemoryOverhead != nil {
-		driverMemoryOverheadFactor = spec.Driver.SparkPodSpec.MemoryOverhead
-	}
-	if spec.Executor.MemoryOverhead != nil {
-		executorMemoryOverheadFactor = spec.Executor.SparkPodSpec.MemoryOverhead
-	}
-
 	driverMemory, err := memoryRequiredForSparkPod(spec.Driver.SparkPodSpec, driverMemoryOverheadFactor, spec.Type, 1)
 	if err != nil {
 		return ResourceList{}, err
 	}
 
-	var instances int64
+	var instances int64 = 1
 	if spec.Executor.Instances != nil {
 		instances = int64(*spec.Executor.Instances)
-	} else {
-		instances = 1
 	}
 	executorMemory, err := memoryRequiredForSparkPod(spec.Executor.SparkPodSpec, executorMemoryOverheadFactor, spec.Type, instances)
 	if err != nil {
 		return ResourceList{}, err
 	}
+
 	driverCores, err := coresRequiredForSparkPod(spec.Driver.SparkPodSpec, 1)
 	if err != nil {
 		return ResourceList{}, err
 	}
+
 	executorCores, err := coresRequiredForSparkPod(spec.Executor.SparkPodSpec, instances)
 	if err != nil {
 		return ResourceList{}, err
 	}
+
 	return ResourceList{
 		cpu:    *resource.NewMilliQuantity(driverCores+executorCores, resource.DecimalSI),
 		memory: *resource.NewQuantity(driverMemory+executorMemory, resource.DecimalSI),

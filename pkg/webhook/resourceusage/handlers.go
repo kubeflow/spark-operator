@@ -2,6 +2,7 @@ package resourceusage
 
 import (
 	so "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta1"
+
 	"github.com/golang/glog"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/tools/cache"
@@ -43,12 +44,12 @@ func (r *ResourceUsageWatcher) onPodDeleted(obj interface{}) {
 
 func (r *ResourceUsageWatcher) onSparkApplicationAdded(obj interface{}) {
 	app := obj.(*so.SparkApplication)
-	resources, err := sparkApplicationResourceUsage(*app)
 	namespace := namespaceOrDefault(app.ObjectMeta)
+	resources, err := sparkApplicationResourceUsage(*app)
 	if err != nil {
 		glog.Errorf("couldn't process SparkApplication %s/%s: %v", namespace, app.ObjectMeta.Name, err)
 	} else {
-		r.setResources("SparkApplication", namespace, app.ObjectMeta.Name, resources, r.usageByNamespaceApplication)
+		r.setResources(KindSparkApplication, namespace, app.ObjectMeta.Name, resources, r.usageByNamespaceApplication)
 	}
 }
 
@@ -63,7 +64,7 @@ func (r *ResourceUsageWatcher) onSparkApplicationUpdated(oldObj, newObj interfac
 	if err != nil {
 		glog.Errorf("couldn't process SparkApplication %s/%s: %v", namespace, newApp.ObjectMeta.Name, err)
 	} else {
-		r.setResources("SparkApplication", namespace, newApp.ObjectMeta.Name, newResources, r.usageByNamespaceApplication)
+		r.setResources(KindSparkApplication, namespace, newApp.ObjectMeta.Name, newResources, r.usageByNamespaceApplication)
 	}
 }
 
@@ -78,17 +79,17 @@ func (r *ResourceUsageWatcher) onSparkApplicationDeleted(obj interface{}) {
 		return
 	}
 	namespace := namespaceOrDefault(app.ObjectMeta)
-	r.deleteResources("SparkApplication", namespace, app.ObjectMeta.Name, r.usageByNamespaceApplication)
+	r.deleteResources(KindSparkApplication, namespace, app.ObjectMeta.Name, r.usageByNamespaceApplication)
 }
 
 func (r *ResourceUsageWatcher) onScheduledSparkApplicationAdded(obj interface{}) {
 	app := obj.(*so.ScheduledSparkApplication)
-	resources, err := scheduledSparkApplicationResourceUsage(*app)
 	namespace := namespaceOrDefault(app.ObjectMeta)
+	resources, err := scheduledSparkApplicationResourceUsage(*app)
 	if err != nil {
 		glog.Errorf("couldn't process ScheduledSparkApplication %s/%s: %v", namespace, app.ObjectMeta.Name, err)
 	} else {
-		r.setResources("ScheduledSparkApplication", namespace, app.ObjectMeta.Name, resources, r.usageByNamespaceScheduledApplication)
+		r.setResources(KindScheduledSparkApplication, namespace, app.ObjectMeta.Name, resources, r.usageByNamespaceScheduledApplication)
 	}
 }
 
@@ -99,7 +100,7 @@ func (r *ResourceUsageWatcher) onScheduledSparkApplicationUpdated(oldObj, newObj
 	if err != nil {
 		glog.Errorf("couldn't process ScheduledSparkApplication %s/%s: %v", namespace, newApp.ObjectMeta.Name, err)
 	} else {
-		r.setResources("SparkApplication", namespace, newApp.ObjectMeta.Name, newResources, r.usageByNamespaceScheduledApplication)
+		r.setResources(KindSparkApplication, namespace, newApp.ObjectMeta.Name, newResources, r.usageByNamespaceScheduledApplication)
 	}
 }
 
@@ -114,5 +115,5 @@ func (r *ResourceUsageWatcher) onScheduledSparkApplicationDeleted(obj interface{
 		return
 	}
 	namespace := namespaceOrDefault(app.ObjectMeta)
-	r.deleteResources("ScheduledSparkApplication", namespace, app.ObjectMeta.Name, r.usageByNamespaceScheduledApplication)
+	r.deleteResources(KindScheduledSparkApplication, namespace, app.ObjectMeta.Name, r.usageByNamespaceScheduledApplication)
 }
