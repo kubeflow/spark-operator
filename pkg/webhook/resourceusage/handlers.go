@@ -47,7 +47,7 @@ func (r *ResourceUsageWatcher) onSparkApplicationAdded(obj interface{}) {
 	namespace := namespaceOrDefault(app.ObjectMeta)
 	resources, err := sparkApplicationResourceUsage(*app)
 	if err != nil {
-		glog.Errorf("couldn't process SparkApplication %s/%s: %v", namespace, app.ObjectMeta.Name, err)
+		glog.Errorf("failed to determine resource usage of SparkApplication %s/%s: %v", namespace, app.ObjectMeta.Name, err)
 	} else {
 		r.setResources(KindSparkApplication, namespace, app.ObjectMeta.Name, resources, r.usageByNamespaceApplication)
 	}
@@ -62,7 +62,7 @@ func (r *ResourceUsageWatcher) onSparkApplicationUpdated(oldObj, newObj interfac
 	namespace := namespaceOrDefault(newApp.ObjectMeta)
 	newResources, err := sparkApplicationResourceUsage(*newApp)
 	if err != nil {
-		glog.Errorf("couldn't process SparkApplication %s/%s: %v", namespace, newApp.ObjectMeta.Name, err)
+		glog.Errorf("failed to determine resource useage of SparkApplication %s/%s: %v", namespace, newApp.ObjectMeta.Name, err)
 	} else {
 		r.setResources(KindSparkApplication, namespace, newApp.ObjectMeta.Name, newResources, r.usageByNamespaceApplication)
 	}
@@ -87,7 +87,7 @@ func (r *ResourceUsageWatcher) onScheduledSparkApplicationAdded(obj interface{})
 	namespace := namespaceOrDefault(app.ObjectMeta)
 	resources, err := scheduledSparkApplicationResourceUsage(*app)
 	if err != nil {
-		glog.Errorf("couldn't process ScheduledSparkApplication %s/%s: %v", namespace, app.ObjectMeta.Name, err)
+		glog.Errorf("failed to determine resource usage of ScheduledSparkApplication %s/%s: %v", namespace, app.ObjectMeta.Name, err)
 	} else {
 		r.setResources(KindScheduledSparkApplication, namespace, app.ObjectMeta.Name, resources, r.usageByNamespaceScheduledApplication)
 	}
@@ -98,7 +98,7 @@ func (r *ResourceUsageWatcher) onScheduledSparkApplicationUpdated(oldObj, newObj
 	namespace := namespaceOrDefault(newApp.ObjectMeta)
 	newResources, err := scheduledSparkApplicationResourceUsage(*newApp)
 	if err != nil {
-		glog.Errorf("couldn't process ScheduledSparkApplication %s/%s: %v", namespace, newApp.ObjectMeta.Name, err)
+		glog.Errorf("failed to determine resource usage of ScheduledSparkApplication %s/%s: %v", namespace, newApp.ObjectMeta.Name, err)
 	} else {
 		r.setResources(KindSparkApplication, namespace, newApp.ObjectMeta.Name, newResources, r.usageByNamespaceScheduledApplication)
 	}

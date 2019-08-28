@@ -343,17 +343,12 @@ func denyRequest(w http.ResponseWriter, reason string, code int) {
 }
 
 func (wh *WebHook) selfRegistration(webhookConfigName string) error {
-	mutatingConfigs := wh.clientset.AdmissionregistrationV1beta1().MutatingWebhookConfigurations()
-	validatingConfigs := wh.clientset.AdmissionregistrationV1beta1().ValidatingWebhookConfigurations()
+	mwcClient := wh.clientset.AdmissionregistrationV1beta1().MutatingWebhookConfigurations()
+	vwcClient := wh.clientset.AdmissionregistrationV1beta1().ValidatingWebhookConfigurations()
 
 	caCert, err := readCertFile(wh.certProvider.caCertFile)
 	if err != nil {
 		return err
-	}
-
-	mutatingExisting, mutatingGetErr := mutatingConfigs.Get(webhookConfigName, metav1.GetOptions{})
-	if mutatingGetErr != nil && !errors.IsNotFound(mutatingGetErr) {
-		return mutatingGetErr
 	}
 
 	mutatingRules := []v1beta1.RuleWithOperations{
@@ -403,16 +398,11 @@ func (wh *WebHook) selfRegistration(webhookConfigName string) error {
 	mutatingWebhooks := []v1beta1.Webhook{mutatingWebhook}
 	validatingWebhooks := []v1beta1.Webhook{validatingWebhook}
 
-	if mutatingGetErr == nil && mutatingExisting != nil {
-		// Update case.
-		glog.Info("Updating existing MutatingWebhookConfiguration for the Spark pod admission webhook")
-		if !equality.Semantic.DeepEqual(mutatingWebhooks, mutatingExisting.Webhooks) {
-			mutatingExisting.Webhooks = mutatingWebhooks
-			if _, err := mutatingConfigs.Update(mutatingExisting); err != nil {
-				return err
-			}
+	mutatingExisting, mutatingGetErr := mwcClient.Get(webhookConfigName, metav1.GetOptions{})
+	if mutatingGetErr != nil {
+		if !errors.IsNotFound(mutatingGetErr) {
+			return mutatingGetErr
 		}
-	} else {
 		// Create case.
 		glog.Info("Creating a MutatingWebhookConfiguration for the Spark pod admission webhook")
 		webhookConfig := &v1beta1.MutatingWebhookConfiguration{
@@ -421,36 +411,46 @@ func (wh *WebHook) selfRegistration(webhookConfigName string) error {
 			},
 			Webhooks: mutatingWebhooks,
 		}
-		if _, err := mutatingConfigs.Create(webhookConfig); err != nil {
+		if _, err := mwcClient.Create(webhookConfig); err != nil {
 			return err
+		}
+	} else {
+		// Update case.
+		glog.Info("Updating existing MutatingWebhookConfiguration for the Spark pod admission webhook")
+		if !equality.Semantic.DeepEqual(mutatingWebhooks, mutatingExisting.Webhooks) {
+			mutatingExisting.Webhooks = mutatingWebhooks
+			if _, err := mwcClient.Update(mutatingExisting); err != nil {
+				return err
+			}
 		}
 	}
 
 	if wh.enableResourceQuotaEnforcement {
-		validatingExisting, validatingGetErr := validatingConfigs.Get(webhookConfigName, metav1.GetOptions{})
-		if validatingGetErr != nil && !errors.IsNotFound(validatingGetErr) {
-			return validatingGetErr
-		}
-		if validatingGetErr == nil && validatingExisting != nil {
-			// Update case.
-			glog.Info("Updating existing ValidatingWebhookConfiguration for the SparkApplication admission webhook")
-			if !equality.Semantic.DeepEqual(validatingWebhooks, validatingExisting.Webhooks) {
-				validatingExisting.Webhooks = validatingWebhooks
-				if _, err := validatingConfigs.Update(validatingExisting); err != nil {
-					return err
-				}
+		validatingExisting, validatingGetErr := vwcClient.Get(webhookConfigName, metav1.GetOptions{})
+		if validatingGetErr != nil {
+			if !errors.IsNotFound(validatingGetErr) {
+				return validatingGetErr
 			}
-		} else {
 			// Create case.
-			glog.Info("Creating a ValidatingWebhookConfiguration for the SparkApplication admission webhook")
+			glog.Info("Creating a ValidatingWebhookConfiguration for the SparkApplication resource quota enforcement webhook")
 			webhookConfig := &v1beta1.ValidatingWebhookConfiguration{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: webhookConfigName,
 				},
 				Webhooks: validatingWebhooks,
 			}
-			if _, err := validatingConfigs.Create(webhookConfig); err != nil {
+			if _, err := vwcClient.Create(webhookConfig); err != nil {
 				return err
+			}
+
+		} else {
+			// Update case.
+			glog.Info("Updating existing ValidatingWebhookConfiguration for the SparkApplication resource quota enforcement webhook")
+			if !equality.Semantic.DeepEqual(validatingWebhooks, validatingExisting.Webhooks) {
+				validatingExisting.Webhooks = validatingWebhooks
+				if _, err := vwcClient.Update(validatingExisting); err != nil {
+					return err
+				}
 			}
 		}
 	}

@@ -21,14 +21,16 @@ func max(x, y int64) int64 {
 	return y
 }
 
-// https://spark.apache.org/docs/latest/configuration.html
-const defaultCpuMillicores = 1000
-const defaultMemoryBytes = 1 << 30 // 1Gi
-const defaultMemoryOverhead = 0.1
+const (
+	// https://spark.apache.org/docs/latest/configuration.html
+	defaultCpuMillicores  = 1000
+	defaultMemoryBytes    = 1 << 30 // 1Gi
+	defaultMemoryOverhead = 0.1
 
-// https://github.com/apache/spark/blob/c4bbfd177b4e7cb46f47b39df9fd71d2d9a12c6d/resource-managers/kubernetes/core/src/main/scala/org/apache/spark/deploy/k8s/Constants.scala#L85
-const minMemoryOverhead = 384 * (1 << 20) // 384Mi
-const nonJvmDefaultMemoryOverhead = 0.4
+	// https://github.com/apache/spark/blob/c4bbfd177b4e7cb46f47b39df9fd71d2d9a12c6d/resource-managers/kubernetes/core/src/main/scala/org/apache/spark/deploy/k8s/Constants.scala#L85
+	minMemoryOverhead           = 384 * (1 << 20) // 384Mi
+	nonJvmDefaultMemoryOverhead = 0.4
+)
 
 func namespaceOrDefault(meta metav1.ObjectMeta) string {
 	namespace := meta.Namespace
