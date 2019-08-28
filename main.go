@@ -54,25 +54,26 @@ import (
 )
 
 var (
-	master                      = flag.String("master", "", "The address of the Kubernetes API server. Overrides any value in kubeconfig. Only required if out-of-cluster.")
-	kubeConfig                  = flag.String("kubeConfig", "", "Path to a kube config. Only required if out-of-cluster.")
-	installCRDs                 = flag.Bool("install-crds", true, "Whether to install CRDs")
-	controllerThreads           = flag.Int("controller-threads", 10, "Number of worker threads used by the SparkApplication controller.")
-	resyncInterval              = flag.Int("resync-interval", 30, "Informer resync interval in seconds.")
-	namespace                   = flag.String("namespace", apiv1.NamespaceAll, "The Kubernetes namespace to manage. Will manage custom resource objects of the managed CRD types for the whole cluster if unset.")
-	enableWebhook               = flag.Bool("enable-webhook", false, "Whether to enable the mutating admission webhook for admitting and patching Spark pods.")
-	enableMetrics               = flag.Bool("enable-metrics", false, "Whether to enable the metrics endpoint.")
-	metricsPort                 = flag.String("metrics-port", "10254", "Port for the metrics endpoint.")
-	metricsEndpoint             = flag.String("metrics-endpoint", "/metrics", "Metrics endpoint.")
-	metricsPrefix               = flag.String("metrics-prefix", "", "Prefix for the metrics.")
-	ingressURLFormat            = flag.String("ingress-url-format", "", "Ingress URL format.")
-	enableLeaderElection        = flag.Bool("leader-election", false, "Enable Spark operator leader election.")
-	leaderElectionLockNamespace = flag.String("leader-election-lock-namespace", "spark-operator", "Namespace in which to create the ConfigMap for leader election.")
-	leaderElectionLockName      = flag.String("leader-election-lock-name", "spark-operator-lock", "Name of the ConfigMap for leader election.")
-	leaderElectionLeaseDuration = flag.Duration("leader-election-lease-duration", 15*time.Second, "Leader election lease duration.")
-	leaderElectionRenewDeadline = flag.Duration("leader-election-renew-deadline", 14*time.Second, "Leader election renew deadline.")
-	leaderElectionRetryPeriod   = flag.Duration("leader-election-retry-period", 4*time.Second, "Leader election retry period.")
-	batchSchedulerName          = flag.String("batch-scheduler-name", "", "Use specified scheduler for pods' batch scheduling.")
+	master                         = flag.String("master", "", "The address of the Kubernetes API server. Overrides any value in kubeconfig. Only required if out-of-cluster.")
+	kubeConfig                     = flag.String("kubeConfig", "", "Path to a kube config. Only required if out-of-cluster.")
+	installCRDs                    = flag.Bool("install-crds", true, "Whether to install CRDs")
+	controllerThreads              = flag.Int("controller-threads", 10, "Number of worker threads used by the SparkApplication controller.")
+	resyncInterval                 = flag.Int("resync-interval", 30, "Informer resync interval in seconds.")
+	namespace                      = flag.String("namespace", apiv1.NamespaceAll, "The Kubernetes namespace to manage. Will manage custom resource objects of the managed CRD types for the whole cluster if unset.")
+	enableWebhook                  = flag.Bool("enable-webhook", false, "Whether to enable the mutating admission webhook for admitting and patching Spark pods.")
+	enableResourceQuotaEnforcement = flag.Bool("enable-resource-quota-enforcement", false, "Whether to enable ResourceQuota enforcement for SparkApplication resources. Requires the webhook to be enabled.")
+	enableMetrics                  = flag.Bool("enable-metrics", false, "Whether to enable the metrics endpoint.")
+	metricsPort                    = flag.String("metrics-port", "10254", "Port for the metrics endpoint.")
+	metricsEndpoint                = flag.String("metrics-endpoint", "/metrics", "Metrics endpoint.")
+	metricsPrefix                  = flag.String("metrics-prefix", "", "Prefix for the metrics.")
+	ingressURLFormat               = flag.String("ingress-url-format", "", "Ingress URL format.")
+	enableLeaderElection           = flag.Bool("leader-election", false, "Enable Spark operator leader election.")
+	leaderElectionLockNamespace    = flag.String("leader-election-lock-namespace", "spark-operator", "Namespace in which to create the ConfigMap for leader election.")
+	leaderElectionLockName         = flag.String("leader-election-lock-name", "spark-operator-lock", "Name of the ConfigMap for leader election.")
+	leaderElectionLeaseDuration    = flag.Duration("leader-election-lease-duration", 15*time.Second, "Leader election lease duration.")
+	leaderElectionRenewDeadline    = flag.Duration("leader-election-renew-deadline", 14*time.Second, "Leader election renew deadline.")
+	leaderElectionRetryPeriod      = flag.Duration("leader-election-retry-period", 4*time.Second, "Leader election retry period.")
+	batchSchedulerName             = flag.String("batch-scheduler-name", "", "Use specified scheduler for pods' batch scheduling.")
 )
 
 func main() {
@@ -172,15 +173,26 @@ func main() {
 
 	var hook *webhook.WebHook
 	if *enableWebhook {
+		var coreV1InformerFactory informers.SharedInformerFactory
+		if *enableResourceQuotaEnforcement {
+			coreV1InformerFactory = buildCoreV1InformerFactory(kubeClient)
+		}
 		var err error
 		// Don't deregister webhook on exit if leader election enabled (i.e. multiple webhooks running)
-		hook, err = webhook.New(kubeClient, crInformerFactory, *namespace, !*enableLeaderElection)
+		hook, err = webhook.New(kubeClient, crInformerFactory, *namespace, !*enableLeaderElection, *enableResourceQuotaEnforcement, coreV1InformerFactory)
 		if err != nil {
 			glog.Fatal(err)
 		}
-		if err = hook.Start(); err != nil {
+
+		if *enableResourceQuotaEnforcement {
+			go coreV1InformerFactory.Start(stopCh)
+		}
+
+		if err = hook.Start(stopCh); err != nil {
 			glog.Fatal(err)
 		}
+	} else if *enableResourceQuotaEnforcement {
+		glog.Fatal("Webhook must be enabled to use resource quota enforcement.")
 	}
 
 	if *enableLeaderElection {
@@ -260,4 +272,12 @@ func buildPodInformerFactory(kubeClient clientset.Interface) informers.SharedInf
 	}
 	podFactoryOpts = append(podFactoryOpts, informers.WithTweakListOptions(tweakListOptionsFunc))
 	return informers.NewSharedInformerFactoryWithOptions(kubeClient, time.Duration(*resyncInterval)*time.Second, podFactoryOpts...)
+}
+
+func buildCoreV1InformerFactory(kubeClient clientset.Interface) informers.SharedInformerFactory {
+	var coreV1FactoryOpts []informers.SharedInformerOption
+	if *namespace != apiv1.NamespaceAll {
+		coreV1FactoryOpts = append(coreV1FactoryOpts, informers.WithNamespace(*namespace))
+	}
+	return informers.NewSharedInformerFactoryWithOptions(kubeClient, time.Duration(*resyncInterval)*time.Second, coreV1FactoryOpts...)
 }
