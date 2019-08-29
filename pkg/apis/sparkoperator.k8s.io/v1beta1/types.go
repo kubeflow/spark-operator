@@ -206,6 +206,9 @@ type SparkApplicationSpec struct {
 	// The controller will add environment variable HADOOP_CONF_DIR to the path where the ConfigMap is mounted to.
 	// Optional.
 	HadoopConfigMap *string `json:"hadoopConfigMap,omitempty"`
+	// Secret name containing server certificate and private key used to enable TLS/SSL on Driver UI.
+	// Optional.
+	TlsSecret string `json:"tlsSecret,omitempty"`
 	// Volumes is the list of Kubernetes volumes that can be mounted by the driver and/or executors.
 	// Optional.
 	Volumes []apiv1.Volume `json:"volumes,omitempty"`
