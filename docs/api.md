@@ -9,7 +9,7 @@ ScheduledSparkApplication
     |__ SparkApplication
 |__ ScheduledSparkApplicationStatus
 
-|__ SparkApplication
+SparkApplication
 |__ SparkApplicationSpec
     |__ DriverSpec
         |__ SparkPodSpec
