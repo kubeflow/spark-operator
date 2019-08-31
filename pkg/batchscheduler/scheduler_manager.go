@@ -18,19 +18,16 @@ package batchscheduler
 
 import (
 	"fmt"
-	"github.com/golang/glog"
 	"sync"
 
 	"k8s.io/client-go/rest"
 
-	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta1"
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/batchscheduler/interface"
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/batchscheduler/volcano"
 )
 
 type SchedulerManager interface {
-	ShouldSchedule(app *v1beta1.SparkApplication) bool
-	DoBatchSchedulingOnSubmission(app *v1beta1.SparkApplication) (*v1beta1.SparkApplication, error)
+	GetScheduler(schedulerName string) (schedulerinterface.BatchScheduler, error)
 }
 
 type schedulerInitializeFunc func(config *rest.Config) (schedulerinterface.BatchScheduler, error)
@@ -61,48 +58,26 @@ func NewSchedulerManager(config *rest.Config) SchedulerManager {
 	return &manager
 }
 
-func (batch *SchedulerManagerImpl) ShouldSchedule(app *v1beta1.SparkApplication) bool {
-	if app.Spec.BatchScheduler == nil || *app.Spec.BatchScheduler == "" {
-		return false
-	}
-	plugin, err := batch.prepareScheduler(app)
-	if err == nil {
-		return plugin.ShouldSchedule(app)
-	} else {
-		glog.Errorf("failed to get batch scheduler %s for scheduling", err)
-		return false
-	}
-}
-
-func (batch *SchedulerManagerImpl) DoBatchSchedulingOnSubmission(app *v1beta1.SparkApplication) (*v1beta1.SparkApplication, error) {
-	plugin, err := batch.prepareScheduler(app)
-	if err == nil {
-		return plugin.DoBatchSchedulingOnSubmission(app)
-	} else {
-		return nil, err
-	}
-}
-
-func (batch *SchedulerManagerImpl) prepareScheduler(app *v1beta1.SparkApplication) (schedulerinterface.BatchScheduler, error) {
-	iniFunc, registered := schedulerContainers[*app.Spec.BatchScheduler]
+func (batch *SchedulerManagerImpl) GetScheduler(schedulerName string) (schedulerinterface.BatchScheduler, error) {
+	iniFunc, registered := schedulerContainers[schedulerName]
 	if !registered {
-		return nil, fmt.Errorf("unregistered scheduler plugin %s", *app.Spec.BatchScheduler)
+		return nil, fmt.Errorf("unregistered scheduler plugin %s", schedulerName)
 	}
 
 	batch.Lock()
 	defer batch.Unlock()
 
-	if plugin, existed := batch.plugins[*app.Spec.BatchScheduler]; existed && plugin != nil {
+	if plugin, existed := batch.plugins[schedulerName]; existed && plugin != nil {
 		return plugin, nil
 	} else if existed && plugin == nil {
 		return nil, fmt.Errorf(
-			"failed to get scheduler plugin %s, previous initialization has failed", *app.Spec.BatchScheduler)
+			"failed to get scheduler plugin %s, previous initialization has failed", schedulerName)
 	} else {
 		if plugin, err := iniFunc(batch.config); err != nil {
-			batch.plugins[*app.Spec.BatchScheduler] = nil
+			batch.plugins[schedulerName] = nil
 			return nil, err
 		} else {
-			batch.plugins[*app.Spec.BatchScheduler] = plugin
+			batch.plugins[schedulerName] = plugin
 			return plugin, nil
 		}
 	}

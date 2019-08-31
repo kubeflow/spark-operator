@@ -242,6 +242,7 @@ type SparkApplicationSpec struct {
 	// Optional.
 	Monitoring *MonitoringSpec `json:"monitoring,omitempty"`
 	// BatchScheduler configures which batch scheduler will be used for scheduling
+	// Optional.
 	BatchScheduler *string `json:"batchScheduler,omitempty"`
 }
 

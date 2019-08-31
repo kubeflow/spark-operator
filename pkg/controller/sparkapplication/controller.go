@@ -18,7 +18,6 @@ package sparkapplication
 
 import (
 	"fmt"
-	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/batchscheduler"
 	"os/exec"
 	"time"
 
@@ -42,6 +41,8 @@ import (
 	"k8s.io/client-go/util/workqueue"
 
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta1"
+	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/batchscheduler"
+	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/batchscheduler/interface"
 	crdclientset "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/client/clientset/versioned"
 	crdscheme "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/client/clientset/versioned/scheme"
 	crdinformers "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/client/informers/externalversions"
@@ -623,8 +624,8 @@ func (c *Controller) submitSparkApplication(app *v1beta1.SparkApplication) *v1be
 	}
 
 	// Use batch scheduler to perform scheduling task before submitting.
-	if c.shouldDoBatchScheduling(app) {
-		newApp, err := c.batchSchedulerMgr.DoBatchSchedulingOnSubmission(app)
+	if needScheduling, scheduler := c.shouldDoBatchScheduling(app); needScheduling {
+		newApp, err := scheduler.DoBatchSchedulingOnSubmission(app)
 		if err != nil {
 			glog.Errorf("failed to process batch scheduler BeforeSubmitSparkApplication with error %v", err)
 			return app
@@ -691,8 +692,16 @@ func (c *Controller) submitSparkApplication(app *v1beta1.SparkApplication) *v1be
 	return app
 }
 
-func (c *Controller) shouldDoBatchScheduling(app *v1beta1.SparkApplication) bool {
-	return c.batchSchedulerMgr != nil && c.batchSchedulerMgr.ShouldSchedule(app)
+func (c *Controller) shouldDoBatchScheduling(app *v1beta1.SparkApplication) (bool, schedulerinterface.BatchScheduler) {
+	if c.batchSchedulerMgr == nil || app.Spec.BatchScheduler == nil || *app.Spec.BatchScheduler == "" {
+		return false, nil
+	}
+	if scheduler, err := c.batchSchedulerMgr.GetScheduler(*app.Spec.BatchScheduler); err != nil {
+		glog.Errorf("failed to get batch scheduler from name %s", *app.Spec.BatchScheduler)
+		return false, nil
+	} else {
+		return scheduler.ShouldSchedule(app), scheduler
+	}
 }
 
 func (c *Controller) updateApplicationStatusWithRetries(
