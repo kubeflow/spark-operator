@@ -185,13 +185,13 @@ If enabled, the operator generates the following metrics:
 #### Work Queue Metrics
 | Metric | Description |
 | ------------- | ------------- |
-| `queue_depth` | Current depth of workqueue |
-| `queue_adds` | Total number of adds handled by workqueue |
-| `queue_latency` | Latency for workqueue |
-| `queue_work_duration` | How long processing an item from workqueue takes |
-| `queue_retries` | Total number of retries handled by workqueue |
-| `queue_unfinished_work_seconds` | Unfinished work in seconds |
-| `queue_longest_running_processor_microseconds` | Longest running processor in microseconds |
+| `spark_application_controller_depth` | Current depth of workqueue |
+| `spark_application_controller_adds` | Total number of adds handled by workqueue |
+| `spark_application_controller_latency` | Latency for workqueue |
+| `spark_application_controller_work_duration` | How long processing an item from workqueue takes |
+| `spark_application_controller_retries` | Total number of retries handled by workqueue |
+| `spark_application_controller_unfinished_work_seconds` | Unfinished work in seconds |
+| `spark_application_controller_longest_running_processor_microseconds` | Longest running processor in microseconds |
 
 
 The following is a list of all the configurations the operators supports for metrics:

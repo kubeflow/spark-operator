@@ -38,6 +38,7 @@ The Kubernetes Operator for Apache Spark ships with a command-line tool called `
     * [Configuring Automatic Application Re-submission on Submission Failures](#configuring-automatic-application-re-submission-on-submission-failures)
 * [Running Spark Applications on a Schedule using a ScheduledSparkApplication](#running-spark-applications-on-a-schedule-using-a-scheduledsparkapplication)
 * [Enabling Leader Election for High Availability](#enabling-leader-election-for-high-availability)
+* [Enabling Resource Quota Enforcement](#enabling-resource-quota-enforcement)
 * [Customizing the Operator](#customizing-the-operator)
 
 ## Using a SparkApplication
@@ -563,6 +564,12 @@ The operator supports a high-availability (HA) mode, in which there can be more 
 | `leader-election-lease-duration` | 15 seconds | Leader election lease duration. |
 | `leader-election-renew-deadline` | 14 seconds | Leader election renew deadline. |
 | `leader-election-retry-period` | 4 seconds | Leader election retry period. |
+
+## Enabling Resource Quota Enforcement
+
+The Spark Operator provides limited support for resource quota enforcement using a validating webhook. It will count the resources of non-terminal-phase SparkApplications and Pods, and determine whether a requested SparkApplication will fit given the remaining resources. ResourceQuota scope selectors are not supported, any ResourceQuota object that does not match the entire namespace will be ignored. Like the native Pod quota enforcement, current usage is updated asynchronously, so some overscheduling is possible.
+
+If you are running Spark applications in namespaces that are subject to resource quota constraints, consider enabling this feature to avoid driver resource starvation. Quota enforcement can be enabled with the command line arguments `-enable-resource-quota-enforcement=true`. It is recommended to also set `-webhook-fail-on-error=true`.
 
 ## Customizing the Operator
 

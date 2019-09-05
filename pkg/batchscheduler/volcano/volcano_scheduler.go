@@ -18,7 +18,6 @@ package volcano
 
 import (
 	"fmt"
-	"github.com/golang/glog"
 	corev1 "k8s.io/api/core/v1"
 	apiextensionsclient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -51,23 +50,8 @@ func (v *VolcanoBatchScheduler) Name() string {
 }
 
 func (v *VolcanoBatchScheduler) ShouldSchedule(app *v1beta2.SparkApplication) bool {
-
-	checkScheduler := func(scheduler *string) bool {
-		if scheduler != nil && *scheduler == v.Name() {
-			return true
-		}
-		return false
-	}
-
-	if app.Spec.Mode == v1beta2.ClientMode {
-		return checkScheduler(app.Spec.Executor.SchedulerName)
-	}
-	if app.Spec.Mode == v1beta2.ClusterMode {
-		return checkScheduler(app.Spec.Executor.SchedulerName) && checkScheduler(app.Spec.Driver.SchedulerName)
-	}
-
-	glog.Warningf("Unsupported Spark application mode %s, abandon schedule via volcano.", app.Spec.Mode)
-	return false
+	//NOTE: There is no additional requirement for volcano scheduler
+	return true
 }
 
 func (v *VolcanoBatchScheduler) DoBatchSchedulingOnSubmission(app *v1beta2.SparkApplication) (*v1beta2.SparkApplication, error) {

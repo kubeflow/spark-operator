@@ -44,6 +44,8 @@ spec:
                   items:
                     type: string
                   type: array
+                batchScheduler:
+                  type: string
                 deps:
                   properties:
                     downloadTimeout:

@@ -4,3 +4,4 @@ spark-operator
 .idea/
 **/*.iml
 sparkctl/sparkctl
+spark-on-k8s-oprator

@@ -241,6 +241,9 @@ type SparkApplicationSpec struct {
 	// Monitoring configures how monitoring is handled.
 	// Optional.
 	Monitoring *MonitoringSpec `json:"monitoring,omitempty"`
+	// BatchScheduler configures which batch scheduler will be used for scheduling
+	// Optional.
+	BatchScheduler *string `json:"batchScheduler,omitempty"`
 }
 
 // ApplicationStateType represents the type of the current state of an application.
