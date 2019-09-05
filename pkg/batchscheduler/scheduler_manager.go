@@ -26,10 +26,6 @@ import (
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/batchscheduler/volcano"
 )
 
-type SchedulerManager interface {
-	GetScheduler(schedulerName string) (schedulerinterface.BatchScheduler, error)
-}
-
 type schedulerInitializeFunc func(config *rest.Config) (schedulerinterface.BatchScheduler, error)
 
 var schedulerContainers = map[string]schedulerInitializeFunc{
@@ -44,21 +40,21 @@ func GetRegisteredNames() []string {
 	return pluginNames
 }
 
-type SchedulerManagerImpl struct {
+type SchedulerManager struct {
 	sync.Mutex
 	config  *rest.Config
 	plugins map[string]schedulerinterface.BatchScheduler
 }
 
-func NewSchedulerManager(config *rest.Config) SchedulerManager {
-	manager := SchedulerManagerImpl{
+func NewSchedulerManager(config *rest.Config) *SchedulerManager {
+	manager := SchedulerManager{
 		config:  config,
 		plugins: make(map[string]schedulerinterface.BatchScheduler),
 	}
 	return &manager
 }
 
-func (batch *SchedulerManagerImpl) GetScheduler(schedulerName string) (schedulerinterface.BatchScheduler, error) {
+func (batch *SchedulerManager) GetScheduler(schedulerName string) (schedulerinterface.BatchScheduler, error) {
 	iniFunc, registered := schedulerContainers[schedulerName]
 	if !registered {
 		return nil, fmt.Errorf("unregistered scheduler plugin %s", schedulerName)

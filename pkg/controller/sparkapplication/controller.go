@@ -75,7 +75,7 @@ type Controller struct {
 	applicationLister crdlisters.SparkApplicationLister
 	podLister         v1.PodLister
 	ingressURLFormat  string
-	batchSchedulerMgr batchscheduler.SchedulerManager
+	batchSchedulerMgr *batchscheduler.SchedulerManager
 }
 
 // NewController creates a new Controller.
@@ -87,7 +87,7 @@ func NewController(
 	metricsConfig *util.MetricConfig,
 	namespace string,
 	ingressURLFormat string,
-	batchSchedulerMgr batchscheduler.SchedulerManager) *Controller {
+	batchSchedulerMgr *batchscheduler.SchedulerManager) *Controller {
 	crdscheme.AddToScheme(scheme.Scheme)
 
 	eventBroadcaster := record.NewBroadcaster()
@@ -108,7 +108,7 @@ func newSparkApplicationController(
 	eventRecorder record.EventRecorder,
 	metricsConfig *util.MetricConfig,
 	ingressURLFormat string,
-	batchSchedulerMgr batchscheduler.SchedulerManager) *Controller {
+	batchSchedulerMgr *batchscheduler.SchedulerManager) *Controller {
 	queue := workqueue.NewNamedRateLimitingQueue(&workqueue.BucketRateLimiter{Limiter: rate.NewLimiter(rate.Limit(queueTokenRefillRate), queueTokenBucketSize)},
 		"spark-application-controller")
 

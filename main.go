@@ -146,7 +146,7 @@ func main() {
 		glog.Fatal(err)
 	}
 
-	var batchSchedulerMgr batchscheduler.SchedulerManager
+	var batchSchedulerMgr *batchscheduler.SchedulerManager
 	if *enableBatchScheduler {
 		if !*enableWebhook {
 			glog.Fatal(
