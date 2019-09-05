@@ -24,6 +24,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -42,7 +43,6 @@ import (
 	"k8s.io/client-go/tools/record"
 
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/batchscheduler"
-	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/batchscheduler/interface"
 	crclientset "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/client/clientset/versioned"
 	crinformers "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/client/informers/externalversions"
 	operatorConfig "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/config"
@@ -73,7 +73,8 @@ var (
 	leaderElectionLeaseDuration    = flag.Duration("leader-election-lease-duration", 15*time.Second, "Leader election lease duration.")
 	leaderElectionRenewDeadline    = flag.Duration("leader-election-renew-deadline", 14*time.Second, "Leader election renew deadline.")
 	leaderElectionRetryPeriod      = flag.Duration("leader-election-retry-period", 4*time.Second, "Leader election retry period.")
-	batchSchedulerName             = flag.String("batch-scheduler-name", "", "Use specified scheduler for pods' batch scheduling.")
+	enableBatchScheduler           = flag.Bool("enable-batch-scheduler", false,
+		fmt.Sprintf("Enable batch schedulers for pods' scheduling, the available batch schedulers are: (%s).", strings.Join(batchscheduler.GetRegisteredNames(), ",")))
 )
 
 func main() {
@@ -145,16 +146,13 @@ func main() {
 		glog.Fatal(err)
 	}
 
-	var batchScheduler schedulerinterface.BatchScheduler
-	if *batchSchedulerName != "" {
+	var batchSchedulerMgr *batchscheduler.SchedulerManager
+	if *enableBatchScheduler {
 		if !*enableWebhook {
-			glog.Fatalf(
-				"failed to initialize the batch scheduler %s as it requires the webhook to be enabled", *batchSchedulerName)
+			glog.Fatal(
+				"failed to initialize the batch scheduler manager as it requires the webhook to be enabled")
 		}
-		batchScheduler, err = batchscheduler.GetBatchScheduler(*batchSchedulerName, config)
-		if err != nil {
-			glog.Fatalf("failed to initialize batch scheduler %s.", err)
-		}
+		batchSchedulerMgr = batchscheduler.NewSchedulerManager(config)
 	}
 
 	if *installCRDs {
@@ -181,7 +179,7 @@ func main() {
 	}
 
 	applicationController := sparkapplication.NewController(
-		crClient, kubeClient, crInformerFactory, podInformerFactory, metricConfig, *namespace, *ingressURLFormat, batchScheduler)
+		crClient, kubeClient, crInformerFactory, podInformerFactory, metricConfig, *namespace, *ingressURLFormat, batchSchedulerMgr)
 	scheduledApplicationController := scheduledsparkapplication.NewController(
 		crClient, kubeClient, apiExtensionsClient, crInformerFactory, clock.RealClock{})
 

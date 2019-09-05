@@ -35,12 +35,13 @@ import (
 	clientset "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
 	typedcorev1 "k8s.io/client-go/kubernetes/typed/core/v1"
-	v1 "k8s.io/client-go/listers/core/v1"
+	"k8s.io/client-go/listers/core/v1"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/workqueue"
 
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta1"
+	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/batchscheduler"
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/batchscheduler/interface"
 	crdclientset "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/client/clientset/versioned"
 	crdscheme "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/client/clientset/versioned/scheme"
@@ -74,7 +75,7 @@ type Controller struct {
 	applicationLister crdlisters.SparkApplicationLister
 	podLister         v1.PodLister
 	ingressURLFormat  string
-	batchScheduler    schedulerinterface.BatchScheduler
+	batchSchedulerMgr *batchscheduler.SchedulerManager
 }
 
 // NewController creates a new Controller.
@@ -86,7 +87,7 @@ func NewController(
 	metricsConfig *util.MetricConfig,
 	namespace string,
 	ingressURLFormat string,
-	batchscheduler schedulerinterface.BatchScheduler) *Controller {
+	batchSchedulerMgr *batchscheduler.SchedulerManager) *Controller {
 	crdscheme.AddToScheme(scheme.Scheme)
 
 	eventBroadcaster := record.NewBroadcaster()
@@ -96,7 +97,7 @@ func NewController(
 	})
 	recorder := eventBroadcaster.NewRecorder(scheme.Scheme, apiv1.EventSource{Component: "spark-operator"})
 
-	return newSparkApplicationController(crdClient, kubeClient, crdInformerFactory, podInformerFactory, recorder, metricsConfig, ingressURLFormat, batchscheduler)
+	return newSparkApplicationController(crdClient, kubeClient, crdInformerFactory, podInformerFactory, recorder, metricsConfig, ingressURLFormat, batchSchedulerMgr)
 }
 
 func newSparkApplicationController(
@@ -107,17 +108,17 @@ func newSparkApplicationController(
 	eventRecorder record.EventRecorder,
 	metricsConfig *util.MetricConfig,
 	ingressURLFormat string,
-	batchScheduler schedulerinterface.BatchScheduler) *Controller {
+	batchSchedulerMgr *batchscheduler.SchedulerManager) *Controller {
 	queue := workqueue.NewNamedRateLimitingQueue(&workqueue.BucketRateLimiter{Limiter: rate.NewLimiter(rate.Limit(queueTokenRefillRate), queueTokenBucketSize)},
 		"spark-application-controller")
 
 	controller := &Controller{
-		crdClient:        crdClient,
-		kubeClient:       kubeClient,
-		recorder:         eventRecorder,
-		queue:            queue,
-		ingressURLFormat: ingressURLFormat,
-		batchScheduler:   batchScheduler,
+		crdClient:         crdClient,
+		kubeClient:        kubeClient,
+		recorder:          eventRecorder,
+		queue:             queue,
+		ingressURLFormat:  ingressURLFormat,
+		batchSchedulerMgr: batchSchedulerMgr,
 	}
 
 	if metricsConfig != nil {
@@ -623,8 +624,8 @@ func (c *Controller) submitSparkApplication(app *v1beta1.SparkApplication) *v1be
 	}
 
 	// Use batch scheduler to perform scheduling task before submitting.
-	if c.shouldDoBatchScheduling(app) {
-		newApp, err := c.batchScheduler.DoBatchSchedulingOnSubmission(app)
+	if needScheduling, scheduler := c.shouldDoBatchScheduling(app); needScheduling {
+		newApp, err := scheduler.DoBatchSchedulingOnSubmission(app)
 		if err != nil {
 			glog.Errorf("failed to process batch scheduler BeforeSubmitSparkApplication with error %v", err)
 			return app
@@ -691,8 +692,16 @@ func (c *Controller) submitSparkApplication(app *v1beta1.SparkApplication) *v1be
 	return app
 }
 
-func (c *Controller) shouldDoBatchScheduling(app *v1beta1.SparkApplication) bool {
-	return c.batchScheduler != nil && c.batchScheduler.ShouldSchedule(app)
+func (c *Controller) shouldDoBatchScheduling(app *v1beta1.SparkApplication) (bool, schedulerinterface.BatchScheduler) {
+	if c.batchSchedulerMgr == nil || app.Spec.BatchScheduler == nil || *app.Spec.BatchScheduler == "" {
+		return false, nil
+	}
+	if scheduler, err := c.batchSchedulerMgr.GetScheduler(*app.Spec.BatchScheduler); err != nil {
+		glog.Errorf("failed to get batch scheduler from name %s", *app.Spec.BatchScheduler)
+		return false, nil
+	} else {
+		return scheduler.ShouldSchedule(app), scheduler
+	}
 }
 
 func (c *Controller) updateApplicationStatusWithRetries(
