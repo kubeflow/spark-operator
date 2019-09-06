@@ -356,9 +356,8 @@ spec:
                     coreLimit:
                       type: string
                     cores:
-                      exclusiveMinimum: true
                       format: int32
-                      minimum: 0
+                      minimum: 1
                       type: integer
                     dnsConfig:
                       properties:
@@ -1245,9 +1244,8 @@ spec:
                     coreRequest:
                       type: string
                     cores:
-                      exclusiveMinimum: true
                       format: int32
-                      minimum: 0
+                      minimum: 1
                       type: integer
                     dnsConfig:
                       properties:

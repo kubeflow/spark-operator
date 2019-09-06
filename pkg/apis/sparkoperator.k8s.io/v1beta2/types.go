@@ -358,8 +358,7 @@ type Dependencies struct {
 type SparkPodSpec struct {
 	// Cores is the number of CPU cores to request for the pod.
 	// Optional.
-	// +kubebuilder:validation:Minimum=0
-	// +kubebuilder:validation:ExclusiveMinimum=true
+	// +kubebuilder:validation:Minimum=1
 	Cores *int32 `json:"cores,omitempty"`
 	// CoreLimit specifies a hard limit on CPU cores for the pod.
 	// Optional
