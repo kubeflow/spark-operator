@@ -1,26 +1,25 @@
-# Integrate with volcano scheduler for Spark Application
+# Integration with Volcano for Batch Scheduling
 
 [Volcano](https://github.com/volcano-sh/volcano) is a batch system built on Kubernetes. It provides a suite of mechanisms
 currently missing from Kubernetes that are commonly required by many classes
-of batch & elastic workload.
-Now the spark application pods can be scheduled via volcano for better scheduling efficiency.
-
+of batch & elastic workloads.
+With the integration with Volcano, Spark application pods can be scheduled for better scheduling efficiency.
 # Requirements
 
 ## Volcano components
 
-Before using spark-operator with volcano enabled, user need to ensure volcano has been successfully installed in the
-same environment, please refer [quick start guide](https://github.com/volcano-sh/volcano#quick-start-guide) for volcano installation.
+Before using Kubernetes Operator for Apache Spark, with Volcano enabled, user need to ensure Volcano has been successfully installed in the
+same environment, please refer [Quick Start Guide](https://github.com/volcano-sh/volcano#quick-start-guide) for Volcano installation.
 
-## Install spark operator with volcano enabled.
+## Install Kubernetes Operator for Apache Spark with Volcano enabled
 
-Within the help of helm chart, spark operator with volcano can be easily installed with the command below:
+Within the help of Helm chart, Kubernetes Operator for Apache Spark with Volcano can be easily installed with the command below:
 ```bash
 $ helm repo add incubator http://storage.googleapis.com/kubernetes-charts-incubator
 $ helm install incubator/sparkoperator --namespace spark-operator --set enableBatchScheduler=true
 ```
 
-# Run Spark Application with volcano scheduler
+# Run Spark Application with Volcano scheduler
 
 Now, we can run a updated version of spark application (with `batchScheduler` configured), for instance:
 ```yaml
@@ -65,7 +64,7 @@ spec:
       - name: "test-volume"
         mountPath: "/tmp"
 ```
-When running, the Pods Events can be used to verify that whether the pods have been scheduled via volcano.
+When running, the Pods Events can be used to verify that whether the pods have been scheduled via Volcano.
 ```
 Type    Reason     Age   From                          Message
 ----    ------     ----  ----                          -------
@@ -74,14 +73,14 @@ Normal  Scheduled  23s   volcano                       Successfully assigned def
 
 # Technological detail
 
-If SparkApplication is configured to run with volcano, there are some details underground that make the two systems integrated:
+If SparkApplication is configured to run with Volcano, there are some details underground that make the two systems integrated:
 
-1. Spark operator's webhook will patch pods' `schedulerName` according to the `batchScheduler` in SparkApplication Spec.
-2. Before submitting spark application, spark operator will create a volcano native resource 
+1. Kubernetes Operator for Apache Spark's webhook will patch pods' `schedulerName` according to the `batchScheduler` in SparkApplication Spec.
+2. Before submitting spark application, Kubernetes Operator for Apache Spark will create a Volcano native resource 
    `PodGroup`[here](https://github.com/volcano-sh/volcano/blob/a8fb05ce6c6902e366cb419d6630d66fc759121e/pkg/apis/scheduling/v1alpha2/types.go#L93) for the whole application.
-   and as a brief introduction，most of the volcano's advanced scheduling features, such as pod delay creation, resource fairness and gang scheduling are all depend on this resource. 
+   and as a brief introduction，most of the Volcano's advanced scheduling features, such as pod delay creation, resource fairness and gang scheduling are all depend on this resource. 
    Also a new pod annotation named `scheduling.k8s.io/group-name` will be added.
-3. volcano scheduler will take over all of the pods that both have schedulerName and annotation correctly configured for scheduling.
+3. Volcano scheduler will take over all of the pods that both have schedulerName and annotation correctly configured for scheduling.
 
 
 
