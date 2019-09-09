@@ -82,5 +82,13 @@ If SparkApplication is configured to run with Volcano, there are some details un
    Also a new pod annotation named `scheduling.k8s.io/group-name` will be added.
 3. Volcano scheduler will take over all of the pods that both have schedulerName and annotation correctly configured for scheduling.
 
+# Scheduling Options
 
+Kubernetes Operator for Apache Spark enables end user to have fine-grained controlled on batch scheduling via attribute `BatchSchedulerOptions`. `BatchSchedulerOptions` is a string dictionary
+that different batch scheduler can utilize it to expose different attributes.
+For now, volcano support these attributes below:
+
+| Name  | Description                                                                | example                                                        |
+|-------|----------------------------------------------------------------------------|----------------------------------------------------------------|
+| queue | Used to specify which volcano queue will this spark application belongs to |  batchSchedulerOptions:<br/>  &nbsp; &nbsp; queue: "queue1" |
 

@@ -244,6 +244,9 @@ type SparkApplicationSpec struct {
 	// BatchScheduler configures which batch scheduler will be used for scheduling
 	// Optional.
 	BatchScheduler *string `json:"batchScheduler,omitempty"`
+	// BatchSchedulerOptions provides fine-grained control on how to batch scheduling.
+	// Optional.
+	BatchSchedulerOptions map[string]string  `json:"batchSchedulerOptions,omitempty"`
 }
 
 // ApplicationStateType represents the type of the current state of an application.

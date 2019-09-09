@@ -127,6 +127,12 @@ func (v *VolcanoBatchScheduler) syncPodGroup(app *v1beta2.SparkApplication, size
 			},
 		}
 
+		//Update pod group queue if it's specified in Spark Application
+		if app.Spec.BatchSchedulerOptions != nil {
+			if value, existed := app.Spec.BatchSchedulerOptions["queue"]; existed && value != "" {
+				podGroup.Spec.Queue = value
+			}
+		}
 		_, err = v.volcanoClient.SchedulingV1alpha2().PodGroups(app.Namespace).Create(&podGroup)
 	} else {
 		if pg.Spec.MinMember != size {
