@@ -13,3 +13,4 @@
 | Uber| @chenqin| Evaluation| Spark / ML|
 | HashmapInc| @prem0132 | Evaluation | Analytics Data Platform |
 | Tencent | @runzhliu | Evaluation | ML Analytics Platform |
+| Fossil | @tuyenhuynh | Production | Data Platform |
