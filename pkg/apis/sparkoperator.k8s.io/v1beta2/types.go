@@ -263,6 +263,19 @@ type SparkApplicationSpec struct {
 	// TimeToLiveSeconds since its termination.
 	// Optional.
 	TimeToLiveSeconds *int64 `json:"timeToLiveSeconds,omitempty"`
+	// BatchSchedulerOptions provides fine-grained control on how to batch scheduling.
+	// Optional.
+	BatchSchedulerOptions *BatchSchedulerConfiguration `json:"batchSchedulerOptions,omitempty"`
+}
+
+// BatchSchedulerConfiguration used to configure how to batch scheduling Spark Application
+type BatchSchedulerConfiguration struct {
+	// Queue stands for the resource queue which the application belongs to, it's being used in Volcano batch scheduler.
+	// Optional.
+	Queue *string `json:"queue,omitempty"`
+	// PriorityClassName stands for the name of k8s PriorityClass resource, it's being used in Volcano batch scheduler.
+	// Optional.
+	PriorityClassName *string `json:"priorityClassName,omitempty"`
 }
 
 // ApplicationStateType represents the type of the current state of an application.
