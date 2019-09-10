@@ -76,6 +76,9 @@ The Kubernetes Operator for Apache Spark currently supports the following list o
 * Supports automatically staging local application dependencies to Google Cloud Storage (GCS) via `sparkctl`.
 * Supports collecting and exporting application-level metrics and driver/executor metrics to Prometheus. 
 
+Nokia CSF Contributions
+* Support for SSL enabled driver UI (https://github.com/GoogleCloudPlatform/spark-on-k8s-operator/issues/490)
+  
 ## Contributing
 
 Please check [CONTRIBUTING.md](CONTRIBUTING.md) and the [Developer Guide](docs/developer-guide.md) out. 
