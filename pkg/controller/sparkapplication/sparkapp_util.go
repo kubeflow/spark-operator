@@ -114,3 +114,13 @@ func driverStateToApplicationState(podStatus apiv1.PodStatus) v1beta1.Applicatio
 		return v1beta1.UnknownState
 	}
 }
+
+func getSvcAnnotations(app *v1beta1.SparkApplication) map[string]string {
+	annotations := map[string]string{}
+	if app.Spec.SparkConf["spark.ssl.ui.enabled"] == "true" {
+		annotations["nginx.ingress.kubernetes.io/backend-protocol"] = "HTTPS"
+	} else {
+		annotations["nginx.ingress.kubernetes.io/backend-protocol"] = "HTTP"
+	}
+	return annotations
+}

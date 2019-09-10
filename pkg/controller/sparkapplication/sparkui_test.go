@@ -30,6 +30,8 @@ import (
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/config"
 )
 
+var svcPort int32
+
 func TestCreateSparkUIService(t *testing.T) {
 	type testcase struct {
 		name             string
@@ -79,7 +81,20 @@ func TestCreateSparkUIService(t *testing.T) {
 		}
 	}
 
+	var (
+		sparkUIPortConfigurationKey    = "spark.ui.port"
+		sparkTLSUIPortConfigurationKey = "spark.ssl.ui.port"
+		defaultSparkWebUIPort          = "4040"
+		defaultSparkWebTLSUIPort       = "4440"
+		sparkSSLUIEnabled              = "spark.ssl.ui.enabled"
+	)
+
 	defaultPort, err := strconv.Atoi(defaultSparkWebUIPort)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	defaultPortTLS, err := strconv.Atoi(defaultSparkWebTLSUIPort)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -126,6 +141,58 @@ func TestCreateSparkUIService(t *testing.T) {
 			SparkApplicationID: "foo-3",
 		},
 	}
+	app4 := &v1beta1.SparkApplication{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "foo",
+			Namespace: "default",
+			UID:       "foo-123",
+		},
+		Spec: v1beta1.SparkApplicationSpec{
+			SparkConf: map[string]string{
+				sparkTLSUIPortConfigurationKey: "4441",
+				sparkSSLUIEnabled:              "true",
+			},
+			TlsSecret: "tls-secret",
+		},
+		Status: v1beta1.SparkApplicationStatus{
+			SparkApplicationID: "foo-4",
+			ExecutionAttempts:  4,
+		},
+	}
+	app5 := &v1beta1.SparkApplication{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "foo",
+			Namespace: "default",
+			UID:       "foo-123",
+		},
+		Spec: v1beta1.SparkApplicationSpec{
+			SparkConf: map[string]string{
+				sparkSSLUIEnabled: "true",
+			},
+			TlsSecret: "tls-secret",
+		},
+		Status: v1beta1.SparkApplicationStatus{
+			SparkApplicationID: "foo-5",
+			ExecutionAttempts:  5,
+		},
+	}
+	app6 := &v1beta1.SparkApplication{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "foo",
+			Namespace: "default",
+			UID:       "foo-123",
+		},
+		Spec: v1beta1.SparkApplicationSpec{
+			SparkConf: map[string]string{
+				sparkTLSUIPortConfigurationKey: "4441x",
+				sparkSSLUIEnabled:              "true",
+			},
+			TlsSecret: "tls-secret",
+		},
+		Status: v1beta1.SparkApplicationStatus{
+			SparkApplicationID: "foo-6",
+		},
+	}
 	testcases := []testcase{
 		{
 			name: "service with custom port",
@@ -158,6 +225,37 @@ func TestCreateSparkUIService(t *testing.T) {
 			app:         app3,
 			expectError: true,
 		},
+		{
+			name: "service with custom port for TLS",
+			app:  app4,
+			expectedService: SparkService{
+				serviceName: fmt.Sprintf("%s-ui-svc", app4.GetName()),
+				servicePort: 4441,
+			},
+			expectedSelector: map[string]string{
+				config.SparkAppNameLabel: "foo",
+				config.SparkRoleLabel:    config.SparkDriverRole,
+			},
+			expectError: false,
+		},
+		{
+			name: "service with default port for TLS",
+			app:  app5,
+			expectedService: SparkService{
+				serviceName: fmt.Sprintf("%s-ui-svc", app5.GetName()),
+				servicePort: int32(defaultPortTLS),
+			},
+			expectedSelector: map[string]string{
+				config.SparkAppNameLabel: "foo",
+				config.SparkRoleLabel:    config.SparkDriverRole,
+			},
+			expectError: false,
+		},
+		{
+			name:        "service with bad SSL port configurations",
+			app:         app6,
+			expectError: true,
+		},
 	}
 	for _, test := range testcases {
 		testFn(test, t)
@@ -165,24 +263,53 @@ func TestCreateSparkUIService(t *testing.T) {
 }
 
 func TestCreateSparkUIIngress(t *testing.T) {
+	svcPort = 4041
+	TestCreateSparkUIIngressBasedOnSvcPort(t)
+	svcPort = 4441
+	TestCreateSparkUIIngressBasedOnSvcPort(t)
+}
 
-	app := &v1beta1.SparkApplication{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "foo",
-			Namespace: "default",
-			UID:       "foo-123",
-		},
-		Status: v1beta1.SparkApplicationStatus{
-			SparkApplicationID: "foo-1",
-			DriverInfo: v1beta1.DriverInfo{
-				WebUIServiceName: "blah-service",
+func TestCreateSparkUIIngressBasedOnSvcPort(t *testing.T) {
+	var app *v1beta1.SparkApplication
+	if svcPort == 4041 {
+		app = &v1beta1.SparkApplication{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "foo",
+				Namespace: "default",
+				UID:       "foo-123",
 			},
-		},
+			Status: v1beta1.SparkApplicationStatus{
+				SparkApplicationID: "foo-1",
+				DriverInfo: v1beta1.DriverInfo{
+					WebUIServiceName: "blah-service",
+				},
+			},
+		}
+	} else {
+		app = &v1beta1.SparkApplication{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "foo",
+				Namespace: "default",
+				UID:       "foo-123",
+			},
+			Spec: v1beta1.SparkApplicationSpec{
+				SparkConf: map[string]string{
+					"spark.ssl.ui.enabled": "true",
+				},
+				TlsSecret: "tls-secret",
+			},
+			Status: v1beta1.SparkApplicationStatus{
+				SparkApplicationID: "foo-1",
+				DriverInfo: v1beta1.DriverInfo{
+					WebUIServiceName: "blah-service",
+				},
+			},
+		}
 	}
 
 	service := SparkService{
 		serviceName: app.GetName() + "-ui-svc",
-		servicePort: 4041,
+		servicePort: svcPort,
 	}
 	ingressFormat := "{{$appName}}.ingress.clusterName.com"
 
@@ -230,5 +357,17 @@ func TestCreateSparkUIIngress(t *testing.T) {
 	}
 	if ingressPath.Backend.ServicePort.IntVal != service.servicePort {
 		t.Errorf("Service port wanted %v got %v", service.servicePort, ingressPath.Backend.ServicePort)
+	}
+	if svcPort == 4441 {
+		if len(ingress.Spec.TLS) != 1 {
+			t.Errorf("No Ingress tls spec found.")
+		}
+		ingressTLS := ingress.Spec.TLS[0]
+		if ingressTLS.Hosts[0] != expectedIngress.ingressURL {
+			t.Errorf("Ingress of app %s has the wrong host %s", expectedIngress.ingressURL, ingressTLS.Hosts[0])
+		}
+		if len(ingressTLS.SecretName) == 0 {
+			t.Errorf("No Ingress tls secret found.")
+		}
 	}
 }

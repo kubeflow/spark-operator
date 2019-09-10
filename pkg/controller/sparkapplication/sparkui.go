@@ -33,11 +33,6 @@ import (
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/config"
 )
 
-const (
-	sparkUIPortConfigurationKey = "spark.ui.port"
-	defaultSparkWebUIPort       = "4040"
-)
-
 var ingressURLRegex = regexp.MustCompile("{{\\s*[$]appName\\s*}}")
 
 func getSparkUIingressURL(ingressURLFormat string, appName string) string {
@@ -59,32 +54,56 @@ type SparkIngress struct {
 
 func createSparkUIIngress(app *v1beta1.SparkApplication, service SparkService, ingressURLFormat string, kubeClient clientset.Interface) (*SparkIngress, error) {
 	ingressURL := getSparkUIingressURL(ingressURLFormat, app.GetName())
-	ingress := extensions.Ingress{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:            getDefaultUIIngressName(app),
-			Namespace:       app.Namespace,
-			Labels:          getResourceLabels(app),
-			OwnerReferences: []metav1.OwnerReference{*getOwnerReference(app)},
-		},
-		Spec: extensions.IngressSpec{
-			Rules: []extensions.IngressRule{{
-				Host: ingressURL,
-				IngressRuleValue: extensions.IngressRuleValue{
-					HTTP: &extensions.HTTPIngressRuleValue{
-						Paths: []extensions.HTTPIngressPath{{
-							Backend: extensions.IngressBackend{
-								ServiceName: service.serviceName,
-								ServicePort: intstr.IntOrString{
-									Type:   intstr.Int,
-									IntVal: service.servicePort,
-								},
-							},
-						}},
-					},
-				},
-			}},
-		},
+	var ingressURLlist []string
+
+	objectMetaValue := metav1.ObjectMeta{
+		Name:            getDefaultUIIngressName(app),
+		Namespace:       app.Namespace,
+		Labels:          getResourceLabels(app),
+		OwnerReferences: []metav1.OwnerReference{*getOwnerReference(app)},
+		Annotations:     getSvcAnnotations(app),
 	}
+
+	commonRules := []extensions.IngressRule{{
+		Host: ingressURL,
+		IngressRuleValue: extensions.IngressRuleValue{
+			HTTP: &extensions.HTTPIngressRuleValue{
+				Paths: []extensions.HTTPIngressPath{{
+					Backend: extensions.IngressBackend{
+						ServiceName: service.serviceName,
+						ServicePort: intstr.IntOrString{
+							Type:   intstr.Int,
+							IntVal: service.servicePort,
+						},
+					},
+				}},
+			},
+		},
+	}}
+
+	var ingress extensions.Ingress
+	if app.Spec.SparkConf["spark.ssl.ui.enabled"] == "true" {
+		ingressURLlist = append(ingressURLlist, ingressURL)
+		tlsvalue := []extensions.IngressTLS{{
+			Hosts:      ingressURLlist,
+			SecretName: app.Spec.TlsSecret,
+		}}
+		ingress = extensions.Ingress{
+			ObjectMeta: objectMetaValue,
+			Spec: extensions.IngressSpec{
+				TLS:   tlsvalue,
+				Rules: commonRules,
+			},
+		}
+	} else {
+		ingress = extensions.Ingress{
+			ObjectMeta: objectMetaValue,
+			Spec: extensions.IngressSpec{
+				Rules: commonRules,
+			},
+		}
+	}
+
 	glog.Infof("Creating an Ingress %s for the Spark UI for application %s", ingress.Name, app.Name)
 	_, err := kubeClient.ExtensionsV1beta1().Ingresses(ingress.Namespace).Create(&ingress)
 
@@ -145,6 +164,14 @@ func createSparkUIService(
 // in Spec.SparkConf if it is present, otherwise the default port is returned.
 // Note that we don't attempt to get the port from Spec.SparkConfigMap.
 func getUITargetPort(app *v1beta1.SparkApplication) string {
+	var (
+		sparkUIPortConfigurationKey = "spark.ui.port"
+		defaultSparkWebUIPort       = "4040"
+	)
+	if app.Spec.SparkConf["spark.ssl.ui.enabled"] == "true" {
+		sparkUIPortConfigurationKey = "spark.ssl.ui.port"
+		defaultSparkWebUIPort = "4440"
+	}
 	port, ok := app.Spec.SparkConf[sparkUIPortConfigurationKey]
 	if ok {
 		return port
