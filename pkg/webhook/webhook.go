@@ -168,6 +168,10 @@ func New(
 		hook.failurePolicy = arv1beta1.Fail
 	}
 
+	if enableResourceQuotaEnforcement {
+		hook.resourceQuotaEnforcer = resourceusage.NewResourceQuotaEnforcer(informerFactory, coreV1InformerFactory)
+	}
+
 	mux := http.NewServeMux()
 	mux.HandleFunc(path, hook.serve)
 	hook.server = &http.Server{
@@ -201,12 +205,10 @@ func (wh *WebHook) Start(stopCh <-chan struct{}) error {
 	wh.server.TLSConfig = wh.certProvider.tlsConfig()
 
 	if wh.enableResourceQuotaEnforcement {
-		resourceQuotaEnforcer := resourceusage.NewResourceQuotaEnforcer(wh.informerFactory, wh.coreV1InformerFactory)
-		err := resourceQuotaEnforcer.WaitForCacheSync(stopCh)
+		err := wh.resourceQuotaEnforcer.WaitForCacheSync(stopCh)
 		if err != nil {
 			return err
 		}
-		wh.resourceQuotaEnforcer = resourceQuotaEnforcer
 	}
 
 	go func() {
