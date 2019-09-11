@@ -19,7 +19,7 @@ limitations under the License.
 package main
 
 import (
-	"context"
+	// "context"
 	"flag"
 	"fmt"
 	"os"
@@ -38,9 +38,9 @@ import (
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
-	"k8s.io/client-go/tools/leaderelection"
-	"k8s.io/client-go/tools/leaderelection/resourcelock"
-	"k8s.io/client-go/tools/record"
+	// "k8s.io/client-go/tools/leaderelection"
+	// "k8s.io/client-go/tools/leaderelection/resourcelock"
+	// "k8s.io/client-go/tools/record"
 
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/batchscheduler"
 	crclientset "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/client/clientset/versioned"
@@ -51,10 +51,11 @@ import (
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/crd"
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/util"
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/webhook"
+	ctrl "sigs.k8s.io/controller-runtime"
 )
 
 var (
-	master                         = flag.String("master", "", "The address of the Kubernetes API server. Overrides any value in kubeconfig. Only required if out-of-cluster.")
+	k8sMaster                      = flag.String("k8s-master", "", "The address of the Kubernetes API server. Overrides any value in kubeconfig. Only required if out-of-cluster.")
 	kubeConfig                     = flag.String("kubeConfig", "", "Path to a kube config. Only required if out-of-cluster.")
 	installCRDs                    = flag.Bool("install-crds", true, "Whether to install CRDs")
 	controllerThreads              = flag.Int("controller-threads", 10, "Number of worker threads used by the SparkApplication controller.")
@@ -78,12 +79,13 @@ var (
 )
 
 func main() {
+	ctrl.Log.WithName("main")
 	var metricsLabels util.ArrayFlags
 	flag.Var(&metricsLabels, "metrics-labels", "Labels for the metrics")
 	flag.Parse()
 
 	// Create the client config. Use kubeConfig if given, otherwise assume in-cluster.
-	config, err := buildConfig(*master, *kubeConfig)
+	config, err := buildConfig(*k8sMaster, *kubeConfig)
 	if err != nil {
 		glog.Fatal(err)
 	}
@@ -99,40 +101,40 @@ func main() {
 	startCh := make(chan struct{}, 1)
 
 	if *enableLeaderElection {
-		hostname, err := os.Hostname()
+		// hostname, err := os.Hostname()
 		if err != nil {
 			glog.Fatal(err)
 		}
-		resourceLock, err := resourcelock.New(resourcelock.ConfigMapsResourceLock, *leaderElectionLockNamespace, *leaderElectionLockName, kubeClient.CoreV1(), resourcelock.ResourceLockConfig{
-			Identity: hostname,
-			// TODO: This is a workaround for a nil dereference in client-go. This line can be removed when that dependency is updated.
-			EventRecorder: &record.FakeRecorder{},
-		})
-		if err != nil {
-			glog.Fatal(err)
-		}
+		// resourceLock, err := resourcelock.New(resourcelock.ConfigMapsResourceLock, *leaderElectionLockNamespace, *leaderElectionLockName, kubeClient.CoreV1(), resourcelock.ResourceLockConfig{
+		// 	Identity: hostname,
+		// 	// TODO: This is a workaround for a nil dereference in client-go. This line can be removed when that dependency is updated.
+		// 	EventRecorder: &record.FakeRecorder{},
+		// })
+		// if err != nil {
+		// 	glog.Fatal(err)
+		// }
 
-		electionCfg := leaderelection.LeaderElectionConfig{
-			Lock:          resourceLock,
-			LeaseDuration: *leaderElectionLeaseDuration,
-			RenewDeadline: *leaderElectionRenewDeadline,
-			RetryPeriod:   *leaderElectionRetryPeriod,
-			Callbacks: leaderelection.LeaderCallbacks{
-				OnStartedLeading: func(c context.Context) {
-					close(startCh)
-				},
-				OnStoppedLeading: func() {
-					close(stopCh)
-				},
-			},
-		}
-
-		elector, err := leaderelection.NewLeaderElector(electionCfg)
-		if err != nil {
-			glog.Fatal(err)
-		}
-
-		go elector.Run(context.Background())
+		// 	electionCfg := leaderelection.LeaderElectionConfig{
+		// 		Lock:          resourceLock,
+		// 		LeaseDuration: *leaderElectionLeaseDuration,
+		// 		RenewDeadline: *leaderElectionRenewDeadline,
+		// 		RetryPeriod:   *leaderElectionRetryPeriod,
+		// 		Callbacks: leaderelection.LeaderCallbacks{
+		// 			OnStartedLeading: func(c context.Context) {
+		// 				close(startCh)
+		// 			},
+		// 			OnStoppedLeading: func() {
+		// 				close(stopCh)
+		// 			},
+		// 		},
+		// 	}
+		//
+		// 	elector, err := leaderelection.NewLeaderElector(electionCfg)
+		// 	if err != nil {
+		// 		glog.Fatal(err)
+		// 	}
+		//
+		// 	go elector.Run(context.Background())
 	}
 
 	glog.Info("Starting the Spark Operator")

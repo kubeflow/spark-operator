@@ -942,22 +942,22 @@ func TestPatchSparkPod_GPU(t *testing.T) {
 			&cpuRequest,
 		},
 		{
-			&v1beta1.GPUSpec{"example.com/gpu", 1},
+			&v1beta1.GPUSpec{Name: "example.com/gpu", Quantity: 1},
 			nil,
 			nil,
 		},
 		{
-			&v1beta1.GPUSpec{"example.com/gpu", 1},
+			&v1beta1.GPUSpec{Name: "example.com/gpu", Quantity: 1},
 			&cpuLimit,
 			nil,
 		},
 		{
-			&v1beta1.GPUSpec{"example.com/gpu", 1},
+			&v1beta1.GPUSpec{Name: "example.com/gpu", Quantity: 1},
 			nil,
 			&cpuRequest,
 		},
 		{
-			&v1beta1.GPUSpec{"example.com/gpu", 1},
+			&v1beta1.GPUSpec{Name: "example.com/gpu", Quantity: 1},
 			&cpuLimit,
 			&cpuRequest,
 		},

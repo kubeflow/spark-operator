@@ -20,16 +20,10 @@ go:
   - 1.12.x
 
 env:
-  - DEP_VERSION="0.5.3"
+  - GO111MODULE="on"
 
 before_install:
-  # Download the binary to bin folder in $GOPATH
-  - curl -L -s https://github.com/golang/dep/releases/download/v${DEP_VERSION}/dep-linux-amd64 -o $GOPATH/bin/dep
-  # Make the binary executable
-  - chmod +x $GOPATH/bin/dep
-
-install:
-  - dep ensure
+  - go mod download
 
 go_import_path: github.com/GoogleCloudPlatform/spark-on-k8s-operator
 

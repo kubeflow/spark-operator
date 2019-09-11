@@ -140,8 +140,8 @@ func InitializeMetrics(metricsConfig *MetricConfig) {
 	go http.ListenAndServe(fmt.Sprintf(":%s", metricsConfig.MetricsPort), nil)
 	glog.Infof("Started Metrics server at localhost:%s%s", metricsConfig.MetricsPort, metricsConfig.MetricsEndpoint)
 
-	workQueueMetrics := WorkQueueMetrics{prefix: metricsConfig.MetricsPrefix}
-	workqueue.SetProvider(&workQueueMetrics)
+	// workQueueMetrics := WorkQueueMetrics{prefix: metricsConfig.MetricsPrefix}
+	// workqueue.SetProvider(&workQueueMetrics)
 }
 
 // Depth Metric for the kubernetes workqueue.
