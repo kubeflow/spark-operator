@@ -1,0 +1,27 @@
+---
+apiVersion: admissionregistration.k8s.io/v1beta1
+kind: MutatingWebhookConfiguration
+metadata:
+  annotations:
+    certmanager.k8s.io/inject-ca-from: spark-on-k8s-operator-system/spark-on-k8s-operator-serving-cert
+  creationTimestamp: null
+  name: spark-on-k8s-operator-mutating-webhook-configuration
+webhooks:
+  - clientConfig:
+      caBundle: Cg==
+      service:
+        name: spark-on-k8s-operator-webhook-service
+        namespace: spark-on-k8s-operator-system
+        path: /mutate-v1-pod
+    failurePolicy: Fail
+    name: webhook.sparkoperator.k8s.io
+    rules:
+      - apiGroups:
+          - ""
+        apiVersions:
+          - v1
+        operations:
+          - CREATE
+          - UPDATE
+        resources:
+          - pods

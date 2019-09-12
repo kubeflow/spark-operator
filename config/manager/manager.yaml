@@ -1,0 +1,42 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  labels:
+    control-plane: controller-manager
+  name: system
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: controller-manager
+  namespace: system
+  labels:
+    control-plane: controller-manager
+spec:
+  selector:
+    matchLabels:
+      control-plane: controller-manager
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        control-plane: controller-manager
+    spec:
+      containers:
+        - command:
+            - /usr/bin/entrypoint.sh
+          args:
+            - --enable-leader-election
+            - --logtostderr
+            - --v=4
+            - --enable-webhook=true
+          image: controller:latest
+          name: manager
+          resources:
+            limits:
+              cpu: 1
+              memory: 1Gi
+            requests:
+              cpu: 1
+              memory: 1Gi
+      terminationGracePeriodSeconds: 10

@@ -18,7 +18,12 @@ package scheduledsparkapplication
 
 import (
 	"fmt"
+	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/util"
+	"k8s.io/apimachinery/pkg/runtime"
 	"reflect"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/manager"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sort"
 	"time"
 
@@ -44,6 +49,35 @@ import (
 	crdlisters "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/client/listers/sparkoperator.k8s.io/v1beta1"
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/config"
 )
+
+// Add creates a new ScheduledSparkApplication Controller and adds it to the Manager with default RBAC. The Manager will set fields on the Controller
+// and Start it when the Manager is Started.
+func Add(mgr manager.Manager, metricsConfig *util.MetricConfig) error {
+	return add(mgr, newReconciler(mgr, metricsConfig))
+}
+
+// add adds a new Controller to mgr with r as the reconcile.Reconciler
+func add(mgr manager.Manager, r reconcile.Reconciler) error {
+	return nil
+}
+
+func newReconciler(mgr manager.Manager, metricsConfig *util.MetricConfig) reconcile.Reconciler {
+	return &ReconcileScheduledSparkApplication{}
+}
+
+// ReconcileSparkApplication reconciles a SparkApplication object
+type ReconcileScheduledSparkApplication struct {
+	client.Client
+	scheme *runtime.Scheme
+}
+
+func (r *ReconcileScheduledSparkApplication) Reconcile(reconcile.Request) (reconcile.Result, error) {
+	panic("implement me")
+}
+
+var _ reconcile.Reconciler = &ReconcileScheduledSparkApplication{}
+
+////////////////////////////////////////////////////////////////
 
 var (
 	keyFunc = cache.DeletionHandlingMetaNamespaceKeyFunc

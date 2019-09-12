@@ -17,11 +17,9 @@ limitations under the License.
 package webhook
 
 import (
-	"encoding/json"
 	"fmt"
 	"testing"
 
-	jsonpatch "github.com/evanphx/json-patch"
 	"github.com/stretchr/testify/assert"
 
 	corev1 "k8s.io/api/core/v1"
@@ -1109,28 +1107,7 @@ func TestPatchSparkPod_HostNetwork(t *testing.T) {
 }
 
 func getModifiedPod(pod *corev1.Pod, app *v1beta1.SparkApplication) (*corev1.Pod, error) {
-	patchOps := patchSparkPod(pod, app)
-	patchBytes, err := json.Marshal(patchOps)
-	if err != nil {
-		return nil, err
-	}
-	patch, err := jsonpatch.DecodePatch(patchBytes)
-	if err != nil {
-		return nil, err
-	}
-
-	original, err := json.Marshal(pod)
-	if err != nil {
-		return nil, err
-	}
-	modified, err := patch.Apply(original)
-	if err != nil {
-		return nil, err
-	}
-	modifiedPod := &corev1.Pod{}
-	if err := json.Unmarshal(modified, modifiedPod); err != nil {
-		return nil, err
-	}
-
-	return modifiedPod, nil
+	podModifiedInPlace := pod.DeepCopy()
+	patchSparkPod(podModifiedInPlace, app)
+	return podModifiedInPlace, nil
 }
