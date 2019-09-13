@@ -2,7 +2,7 @@ package resourceusage
 
 import (
 	"fmt"
-	so "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta1"
+	so "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta2"
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/config"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -62,7 +62,7 @@ func resourcesRequiredToSchedule(resourceRequirements corev1.ResourceRequirement
 func coresRequiredForSparkPod(spec so.SparkPodSpec, instances int64) (int64, error) {
 	var cpu int64
 	if spec.Cores != nil {
-		cpu = int64(*spec.Cores * 1000)
+		cpu = int64(*spec.Cores) * 1000
 	} else {
 		cpu = defaultCpuMillicores
 	}
