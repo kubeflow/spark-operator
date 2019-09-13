@@ -55,7 +55,7 @@ It also has fields for specifying the unified container image (to use for both t
 Below is an example showing part of a `SparkApplication` specification:
 
 ```yaml
-apiVersion: sparkoperator.k8s.io/v1beta1
+apiVersion: sparkoperator.k8s.io/v1beta2
 kind: SparkApplication
 metadata:
   name: spark-pi
@@ -125,7 +125,7 @@ The following is an example driver specification:
 ```yaml
 spec:
   driver:
-    cores: 0.1
+    cores: 1
     coreLimit: 200m
     memory: 512m
     labels:
@@ -514,7 +514,7 @@ client so effectively the driver gets restarted.
 The operator supports running a Spark application on a standard [cron](https://en.wikipedia.org/wiki/Cron) schedule using objects of the `ScheduledSparkApplication` custom resource type. A `ScheduledSparkApplication` object specifies a cron schedule on which the application should run and a `SparkApplication` template from which a `SparkApplication` object for each run of the application is created. The following is an example `ScheduledSparkApplication`:
 
 ```yaml
-apiVersion: "sparkoperator.k8s.io/v1beta1"
+apiVersion: "sparkoperator.k8s.io/v1beta2"
 kind: ScheduledSparkApplication
 metadata:
   name: spark-pi-scheduled
@@ -531,7 +531,7 @@ spec:
     mainClass: org.apache.spark.examples.SparkPi
     mainApplicationFile: local:///opt/spark/examples/jars/spark-examples_2.11-2.3.0.jar
     driver:
-      cores: 0.5
+      cores: 1
       memory: 512m
     executor:
       cores: 1

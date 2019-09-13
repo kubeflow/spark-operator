@@ -69,15 +69,15 @@ $ kubectl get sparkapplications spark-pi -o=yaml
 This will show something similar to the following:
 
 ```yaml
-apiVersion: sparkoperator.k8s.io/v1beta1
+apiVersion: sparkoperator.k8s.io/v1beta2
 kind: SparkApplication
 metadata:
   ...
 spec:
   deps: {}
   driver:
-    coreLimit: 200m
-    cores: 0.1
+    coreLimit: 1200m
+    cores: 1
     labels:
       version: 2.3.0
     memory: 512m

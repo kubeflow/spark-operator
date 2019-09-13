@@ -23,7 +23,7 @@ $ helm install incubator/sparkoperator --namespace spark-operator --set enableBa
 
 Now, we can run a updated version of spark application (with `batchScheduler` configured), for instance:
 ```yaml
-apiVersion: "sparkoperator.k8s.io/v1beta1"
+apiVersion: "sparkoperator.k8s.io/v1beta2"
 kind: SparkApplication
 metadata:
   name: spark-pi
@@ -45,8 +45,8 @@ spec:
         path: "/tmp"
         type: Directory
   driver:
-    cores: 0.1
-    coreLimit: "200m"
+    cores: 1
+    coreLimit: "1200m"
     memory: "512m"        
     labels:
       version: 2.4.0
