@@ -19,7 +19,7 @@ package config
 import (
 	"fmt"
 
-	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta1"
+	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta2"
 )
 
 // GetDriverAnnotationOption returns a spark-submit option for a driver annotation of the given key and value.
@@ -33,7 +33,7 @@ func GetExecutorAnnotationOption(key string, value string) string {
 }
 
 // GetDriverEnvVarConfOptions returns a list of spark-submit options for setting driver environment variables.
-func GetDriverEnvVarConfOptions(app *v1beta1.SparkApplication) []string {
+func GetDriverEnvVarConfOptions(app *v1beta2.SparkApplication) []string {
 	var envVarConfOptions []string
 	for key, value := range app.Spec.Driver.EnvVars {
 		envVar := fmt.Sprintf("%s%s=%s", SparkDriverEnvVarConfigKeyPrefix, key, value)
@@ -43,7 +43,7 @@ func GetDriverEnvVarConfOptions(app *v1beta1.SparkApplication) []string {
 }
 
 // GetExecutorEnvVarConfOptions returns a list of spark-submit options for setting executor environment variables.
-func GetExecutorEnvVarConfOptions(app *v1beta1.SparkApplication) []string {
+func GetExecutorEnvVarConfOptions(app *v1beta2.SparkApplication) []string {
 	var envVarConfOptions []string
 	for key, value := range app.Spec.Executor.EnvVars {
 		envVar := fmt.Sprintf("%s%s=%s", SparkExecutorEnvVarConfigKeyPrefix, key, value)
@@ -53,6 +53,6 @@ func GetExecutorEnvVarConfOptions(app *v1beta1.SparkApplication) []string {
 }
 
 // GetPrometheusConfigMapName returns the name of the ConfigMap for Prometheus configuration.
-func GetPrometheusConfigMapName(app *v1beta1.SparkApplication) string {
+func GetPrometheusConfigMapName(app *v1beta2.SparkApplication) string {
 	return fmt.Sprintf("%s-%s", app.Name, PrometheusConfigMapNameSuffix)
 }

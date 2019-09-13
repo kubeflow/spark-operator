@@ -35,7 +35,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/yaml"
 	clientset "k8s.io/client-go/kubernetes"
 
-	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta1"
+	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta2"
 	crdclientset "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/client/clientset/versioned"
 )
 
@@ -117,19 +117,19 @@ func createFromYaml(yamlFile string, kubeClient clientset.Interface, crdClient c
 }
 
 func createFromScheduledSparkApplication(name string, kubeClient clientset.Interface, crdClient crdclientset.Interface) error {
-	sapp, err := crdClient.SparkoperatorV1beta1().ScheduledSparkApplications(Namespace).Get(From, metav1.GetOptions{})
+	sapp, err := crdClient.SparkoperatorV1beta2().ScheduledSparkApplications(Namespace).Get(From, metav1.GetOptions{})
 	if err != nil {
 		return fmt.Errorf("failed to get ScheduledSparkApplication %s: %v", From, err)
 	}
 
-	app := &v1beta1.SparkApplication{
+	app := &v1beta2.SparkApplication{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: Namespace,
 			Name:      name,
 			OwnerReferences: []metav1.OwnerReference{
 				{
-					APIVersion: v1beta1.SchemeGroupVersion.String(),
-					Kind:       reflect.TypeOf(v1beta1.ScheduledSparkApplication{}).Name(),
+					APIVersion: v1beta2.SchemeGroupVersion.String(),
+					Kind:       reflect.TypeOf(v1beta2.ScheduledSparkApplication{}).Name(),
 					Name:       sapp.Name,
 					UID:        sapp.UID,
 				},
@@ -145,8 +145,8 @@ func createFromScheduledSparkApplication(name string, kubeClient clientset.Inter
 	return nil
 }
 
-func createSparkApplication(app *v1beta1.SparkApplication, kubeClient clientset.Interface, crdClient crdclientset.Interface) error {
-	v1beta1.SetSparkApplicationDefaults(app)
+func createSparkApplication(app *v1beta2.SparkApplication, kubeClient clientset.Interface, crdClient crdclientset.Interface) error {
+	v1beta2.SetSparkApplicationDefaults(app)
 	if err := validateSpec(app.Spec); err != nil {
 		return err
 	}
@@ -162,7 +162,7 @@ func createSparkApplication(app *v1beta1.SparkApplication, kubeClient clientset.
 		}
 	}
 
-	if _, err := crdClient.SparkoperatorV1beta1().SparkApplications(Namespace).Create(app); err != nil {
+	if _, err := crdClient.SparkoperatorV1beta2().SparkApplications(Namespace).Create(app); err != nil {
 		return err
 	}
 
@@ -171,7 +171,7 @@ func createSparkApplication(app *v1beta1.SparkApplication, kubeClient clientset.
 	return nil
 }
 
-func loadFromYAML(yamlFile string) (*v1beta1.SparkApplication, error) {
+func loadFromYAML(yamlFile string) (*v1beta2.SparkApplication, error) {
 	file, err := os.Open(yamlFile)
 	if err != nil {
 		return nil, err
@@ -179,7 +179,7 @@ func loadFromYAML(yamlFile string) (*v1beta1.SparkApplication, error) {
 	defer file.Close()
 
 	decoder := yaml.NewYAMLOrJSONDecoder(file, bufferSize)
-	app := &v1beta1.SparkApplication{}
+	app := &v1beta2.SparkApplication{}
 	err = decoder.Decode(app)
 	if err != nil {
 		return nil, err
@@ -188,7 +188,7 @@ func loadFromYAML(yamlFile string) (*v1beta1.SparkApplication, error) {
 	return app, nil
 }
 
-func validateSpec(spec v1beta1.SparkApplicationSpec) error {
+func validateSpec(spec v1beta2.SparkApplicationSpec) error {
 	if spec.Image == nil && (spec.Driver.Image == nil || spec.Executor.Image == nil) {
 		return fmt.Errorf("'spec.driver.image' and 'spec.executor.image' cannot be empty when 'spec.image' " +
 			"is not set")
@@ -206,7 +206,7 @@ func validateSpec(spec v1beta1.SparkApplicationSpec) error {
 	return nil
 }
 
-func handleLocalDependencies(app *v1beta1.SparkApplication) error {
+func handleLocalDependencies(app *v1beta2.SparkApplication) error {
 	if app.Spec.MainApplicationFile != nil {
 		isMainAppFileLocal, err := isLocalFile(*app.Spec.MainApplicationFile)
 		if err != nil {
@@ -290,7 +290,7 @@ func isLocalFile(file string) (bool, error) {
 	return false, nil
 }
 
-func hasNonContainerLocalFiles(spec v1beta1.SparkApplicationSpec) (bool, error) {
+func hasNonContainerLocalFiles(spec v1beta2.SparkApplicationSpec) (bool, error) {
 	var files []string
 	if spec.MainApplicationFile != nil {
 		files = append(files, *spec.MainApplicationFile)
@@ -401,7 +401,7 @@ func (uh uploadHandler) uploadToBucket(uploadPath, localFilePath string) (string
 	return fmt.Sprintf("%s://%s/%s", uh.hdpScheme, uh.blobUploadBucket, uploadFilePath), nil
 }
 
-func uploadLocalDependencies(app *v1beta1.SparkApplication, files []string) ([]string, error) {
+func uploadLocalDependencies(app *v1beta2.SparkApplication, files []string) ([]string, error) {
 	if UploadToPath == "" {
 		return nil, fmt.Errorf(
 			"unable to upload local dependencies: no upload location specified via --upload-to")
@@ -444,7 +444,7 @@ func uploadLocalDependencies(app *v1beta1.SparkApplication, files []string) ([]s
 }
 
 func handleHadoopConfiguration(
-	app *v1beta1.SparkApplication,
+	app *v1beta2.SparkApplication,
 	hadoopConfDir string,
 	kubeClientset clientset.Interface) error {
 	configMap, err := buildHadoopConfigMap(app.Name, hadoopConfDir)

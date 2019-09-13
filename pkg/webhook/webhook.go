@@ -40,9 +40,9 @@ import (
 	"k8s.io/client-go/kubernetes"
 
 	crdapi "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io"
-	crdv1beta1 "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta1"
+	crdv1beta2 "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta2"
 	crinformers "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/client/informers/externalversions"
-	crdlisters "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/client/listers/sparkoperator.k8s.io/v1beta1"
+	crdlisters "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/client/listers/sparkoperator.k8s.io/v1beta2"
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/config"
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/util"
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/webhook/resourceusage"
@@ -61,13 +61,13 @@ var podResource = metav1.GroupVersionResource{
 
 var sparkApplicationResource = metav1.GroupVersionResource{
 	Group:    crdapi.GroupName,
-	Version:  crdv1beta1.Version,
+	Version:  crdv1beta2.Version,
 	Resource: "sparkapplications",
 }
 
 var scheduledSparkApplicationResource = metav1.GroupVersionResource{
 	Group:    crdapi.GroupName,
-	Version:  crdv1beta1.Version,
+	Version:  crdv1beta2.Version,
 	Resource: "scheduledsparkapplications",
 }
 
@@ -145,7 +145,7 @@ func New(
 	hook := &WebHook{
 		clientset:                      clientset,
 		informerFactory:                informerFactory,
-		lister:                         informerFactory.Sparkoperator().V1beta1().SparkApplications().Lister(),
+		lister:                         informerFactory.Sparkoperator().V1beta2().SparkApplications().Lister(),
 		certProvider:                   cert,
 		serviceRef:                     serviceRef,
 		sparkJobNamespace:              jobNamespace,
@@ -369,7 +369,7 @@ func (wh *WebHook) selfRegistration(webhookConfigName string) error {
 			Operations: []v1beta1.OperationType{v1beta1.Create, v1beta1.Update},
 			Rule: v1beta1.Rule{
 				APIGroups:   []string{crdapi.GroupName},
-				APIVersions: []string{crdv1beta1.Version},
+				APIVersions: []string{crdv1beta2.Version},
 				Resources:   []string{sparkApplicationResource.Resource, scheduledSparkApplicationResource.Resource},
 			},
 		},
@@ -477,7 +477,7 @@ func admitSparkApplications(review *admissionv1beta1.AdmissionReview, enforcer r
 	}
 
 	raw := review.Request.Object.Raw
-	app := &crdv1beta1.SparkApplication{}
+	app := &crdv1beta2.SparkApplication{}
 	if err := json.Unmarshal(raw, app); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal a SparkApplication from the raw data in the admission request: %v", err)
 	}
@@ -502,7 +502,7 @@ func admitScheduledSparkApplications(review *admissionv1beta1.AdmissionReview, e
 	}
 
 	raw := review.Request.Object.Raw
-	app := &crdv1beta1.ScheduledSparkApplication{}
+	app := &crdv1beta2.ScheduledSparkApplication{}
 	if err := json.Unmarshal(raw, app); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal a ScheduledSparkApplication from the raw data in the admission request: %v", err)
 	}

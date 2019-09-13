@@ -22,33 +22,33 @@ import (
 	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 
-	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta1"
+	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta2"
 )
 
 func TestGetDriverResource(t *testing.T) {
 
-	halfCore := float32(0.5)
-	halfCoreStr := "0.5"
-	oneGB := "1024m"
+	var oneCore int32 = 1
 	oneCoreStr := "1"
+	oneGB := "1024m"
+	twoCoresStr := "2"
 
 	result := v1.ResourceList{}
-	result[v1.ResourceCPU] = resource.MustParse("0.5")
+	result[v1.ResourceCPU] = resource.MustParse("1")
 	result[v1.ResourceMemory] = resource.MustParse("2048m")
 
 	testcases := []struct {
 		Name   string
-		app    v1beta1.SparkApplication
+		app    v1beta2.SparkApplication
 		result v1.ResourceList
 	}{
 		{
 			Name: "Validate Core and memory",
-			app: v1beta1.SparkApplication{
-				Spec: v1beta1.SparkApplicationSpec{
-					Driver: v1beta1.DriverSpec{
-						SparkPodSpec: v1beta1.SparkPodSpec{
-							Cores:          &halfCore,
-							CoreLimit:      &oneCoreStr,
+			app: v1beta2.SparkApplication{
+				Spec: v1beta2.SparkApplicationSpec{
+					Driver: v1beta2.DriverSpec{
+						SparkPodSpec: v1beta2.SparkPodSpec{
+							Cores:          &oneCore,
+							CoreLimit:      &twoCoresStr,
 							Memory:         &oneGB,
 							MemoryOverhead: &oneGB,
 						},
@@ -59,11 +59,11 @@ func TestGetDriverResource(t *testing.T) {
 		},
 		{
 			Name: "Validate CoreLimit and memory",
-			app: v1beta1.SparkApplication{
-				Spec: v1beta1.SparkApplicationSpec{
-					Driver: v1beta1.DriverSpec{
-						SparkPodSpec: v1beta1.SparkPodSpec{
-							CoreLimit:      &halfCoreStr,
+			app: v1beta2.SparkApplication{
+				Spec: v1beta2.SparkApplicationSpec{
+					Driver: v1beta2.DriverSpec{
+						SparkPodSpec: v1beta2.SparkPodSpec{
+							CoreLimit:      &oneCoreStr,
 							Memory:         &oneGB,
 							MemoryOverhead: &oneGB,
 						},
@@ -93,28 +93,28 @@ func TestGetDriverResource(t *testing.T) {
 
 func TestGetExecutorResource(t *testing.T) {
 
-	halfCore := float32(0.5)
-	halfCoreStr := "0.5"
+	oneCore := int32(1)
+	oneCoreStr := "1"
 	oneGB := "1024m"
-	oneCore := float32(1)
+	twoCores := int32(2)
 	instances := int32(2)
 
 	result := v1.ResourceList{}
-	result[v1.ResourceCPU] = resource.MustParse("1")
+	result[v1.ResourceCPU] = resource.MustParse("2")
 	result[v1.ResourceMemory] = resource.MustParse("4096m")
 
 	testcases := []struct {
 		Name   string
-		app    v1beta1.SparkApplication
+		app    v1beta2.SparkApplication
 		result v1.ResourceList
 	}{
 		{
 			Name: "Validate Core and memory",
-			app: v1beta1.SparkApplication{
-				Spec: v1beta1.SparkApplicationSpec{
-					Executor: v1beta1.ExecutorSpec{
-						SparkPodSpec: v1beta1.SparkPodSpec{
-							Cores:          &halfCore,
+			app: v1beta2.SparkApplication{
+				Spec: v1beta2.SparkApplicationSpec{
+					Executor: v1beta2.ExecutorSpec{
+						SparkPodSpec: v1beta2.SparkPodSpec{
+							Cores:          &oneCore,
 							Memory:         &oneGB,
 							MemoryOverhead: &oneGB,
 						},
@@ -126,15 +126,15 @@ func TestGetExecutorResource(t *testing.T) {
 		},
 		{
 			Name: "Validate CoreRequest and memory",
-			app: v1beta1.SparkApplication{
-				Spec: v1beta1.SparkApplicationSpec{
-					Executor: v1beta1.ExecutorSpec{
-						SparkPodSpec: v1beta1.SparkPodSpec{
-							Cores:          &oneCore,
+			app: v1beta2.SparkApplication{
+				Spec: v1beta2.SparkApplicationSpec{
+					Executor: v1beta2.ExecutorSpec{
+						SparkPodSpec: v1beta2.SparkPodSpec{
+							Cores:          &twoCores,
 							Memory:         &oneGB,
 							MemoryOverhead: &oneGB,
 						},
-						CoreRequest: &halfCoreStr,
+						CoreRequest: &oneCoreStr,
 						Instances:   &instances,
 					},
 				},
@@ -143,11 +143,11 @@ func TestGetExecutorResource(t *testing.T) {
 		},
 		{
 			Name: "Validate CoreLimit and memory",
-			app: v1beta1.SparkApplication{
-				Spec: v1beta1.SparkApplicationSpec{
-					Executor: v1beta1.ExecutorSpec{
-						SparkPodSpec: v1beta1.SparkPodSpec{
-							CoreLimit:      &halfCoreStr,
+			app: v1beta2.SparkApplication{
+				Spec: v1beta2.SparkApplicationSpec{
+					Executor: v1beta2.ExecutorSpec{
+						SparkPodSpec: v1beta2.SparkPodSpec{
+							CoreLimit:      &oneCoreStr,
 							Memory:         &oneGB,
 							MemoryOverhead: &oneGB,
 						},

@@ -16,7 +16,7 @@
 # Support for Python is experimental, and requires building SNAPSHOT image of Apache Spark,
 # with `imagePullPolicy` set to Always
 
-apiVersion: "sparkoperator.k8s.io/v1beta1"
+apiVersion: "sparkoperator.k8s.io/v1beta2"
 kind: SparkApplication
 metadata:
   name: pyspark-pi
@@ -36,8 +36,8 @@ spec:
     onSubmissionFailureRetries: 5
     onSubmissionFailureRetryInterval: 20
   driver:
-    cores: 0.1
-    coreLimit: "200m"
+    cores: 1
+    coreLimit: "1200m"
     memory: "512m"
     labels:
       version: 2.4.0

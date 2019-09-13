@@ -48,7 +48,6 @@ import (
 	operatorConfig "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/config"
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/controller/scheduledsparkapplication"
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/controller/sparkapplication"
-	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/crd"
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/util"
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/webhook"
 )
@@ -153,13 +152,6 @@ func main() {
 				"failed to initialize the batch scheduler manager as it requires the webhook to be enabled")
 		}
 		batchSchedulerMgr = batchscheduler.NewSchedulerManager(config)
-	}
-
-	if *installCRDs {
-		err = crd.CreateOrUpdateCRDs(apiExtensionsClient)
-		if err != nil {
-			glog.Fatal(err)
-		}
 	}
 
 	crInformerFactory := buildCustomResourceInformerFactory(crClient)

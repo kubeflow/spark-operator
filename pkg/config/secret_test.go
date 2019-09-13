@@ -23,15 +23,15 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta1"
+	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta2"
 )
 
 func TestGetDriverSecretConfOptions(t *testing.T) {
-	app := &v1beta1.SparkApplication{
-		Spec: v1beta1.SparkApplicationSpec{
-			Driver: v1beta1.DriverSpec{
-				SparkPodSpec: v1beta1.SparkPodSpec{
-					Secrets: []v1beta1.SecretInfo{
+	app := &v1beta2.SparkApplication{
+		Spec: v1beta2.SparkApplicationSpec{
+			Driver: v1beta2.DriverSpec{
+				SparkPodSpec: v1beta2.SparkPodSpec{
+					Secrets: []v1beta2.SecretInfo{
 						{
 							Name: "db-credentials",
 							Path: "/etc/secrets",
@@ -39,12 +39,12 @@ func TestGetDriverSecretConfOptions(t *testing.T) {
 						{
 							Name: "gcp-service-account",
 							Path: "/etc/secrets",
-							Type: v1beta1.GCPServiceAccountSecret,
+							Type: v1beta2.GCPServiceAccountSecret,
 						},
 						{
 							Name: "hadoop-token",
 							Path: "/etc/secrets",
-							Type: v1beta1.HadoopDelegationTokenSecret,
+							Type: v1beta2.HadoopDelegationTokenSecret,
 						},
 					},
 				},
@@ -67,11 +67,11 @@ func TestGetDriverSecretConfOptions(t *testing.T) {
 }
 
 func TestGetExecutorSecretConfOptions(t *testing.T) {
-	app := &v1beta1.SparkApplication{
-		Spec: v1beta1.SparkApplicationSpec{
-			Executor: v1beta1.ExecutorSpec{
-				SparkPodSpec: v1beta1.SparkPodSpec{
-					Secrets: []v1beta1.SecretInfo{
+	app := &v1beta2.SparkApplication{
+		Spec: v1beta2.SparkApplicationSpec{
+			Executor: v1beta2.ExecutorSpec{
+				SparkPodSpec: v1beta2.SparkPodSpec{
+					Secrets: []v1beta2.SecretInfo{
 						{
 							Name: "db-credentials",
 							Path: "/etc/secrets",
@@ -79,12 +79,12 @@ func TestGetExecutorSecretConfOptions(t *testing.T) {
 						{
 							Name: "gcp-service-account",
 							Path: "/etc/secrets",
-							Type: v1beta1.GCPServiceAccountSecret,
+							Type: v1beta2.GCPServiceAccountSecret,
 						},
 						{
 							Name: "hadoop-token",
 							Path: "/etc/secrets",
-							Type: v1beta1.HadoopDelegationTokenSecret,
+							Type: v1beta2.HadoopDelegationTokenSecret,
 						},
 					},
 				},

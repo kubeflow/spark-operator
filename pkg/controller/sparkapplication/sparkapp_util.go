@@ -19,7 +19,7 @@ package sparkapplication
 import (
 	"fmt"
 
-	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta1"
+	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta2"
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/config"
 	apiv1 "k8s.io/api/core/v1"
 )
@@ -38,7 +38,7 @@ func getSparkApplicationID(pod *apiv1.Pod) string {
 	return pod.Labels[config.SparkApplicationSelectorLabel]
 }
 
-func getDriverPodName(app *v1beta1.SparkApplication) string {
+func getDriverPodName(app *v1beta2.SparkApplication) string {
 	name := app.Spec.Driver.PodName
 	if name != nil && len(*name) > 0 {
 		return *name
@@ -52,15 +52,15 @@ func getDriverPodName(app *v1beta1.SparkApplication) string {
 	return fmt.Sprintf("%s-driver", app.Name)
 }
 
-func getDefaultUIServiceName(app *v1beta1.SparkApplication) string {
+func getDefaultUIServiceName(app *v1beta2.SparkApplication) string {
 	return fmt.Sprintf("%s-ui-svc", app.Name)
 }
 
-func getDefaultUIIngressName(app *v1beta1.SparkApplication) string {
+func getDefaultUIIngressName(app *v1beta2.SparkApplication) string {
 	return fmt.Sprintf("%s-ui-ingress", app.Name)
 }
 
-func getResourceLabels(app *v1beta1.SparkApplication) map[string]string {
+func getResourceLabels(app *v1beta2.SparkApplication) map[string]string {
 	labels := map[string]string{config.SparkAppNameLabel: app.Name}
 	if app.Status.SubmissionID != "" {
 		labels[config.SubmissionIDLabel] = app.Status.SubmissionID
@@ -68,29 +68,29 @@ func getResourceLabels(app *v1beta1.SparkApplication) map[string]string {
 	return labels
 }
 
-func podPhaseToExecutorState(podPhase apiv1.PodPhase) v1beta1.ExecutorState {
+func podPhaseToExecutorState(podPhase apiv1.PodPhase) v1beta2.ExecutorState {
 	switch podPhase {
 	case apiv1.PodPending:
-		return v1beta1.ExecutorPendingState
+		return v1beta2.ExecutorPendingState
 	case apiv1.PodRunning:
-		return v1beta1.ExecutorRunningState
+		return v1beta2.ExecutorRunningState
 	case apiv1.PodSucceeded:
-		return v1beta1.ExecutorCompletedState
+		return v1beta2.ExecutorCompletedState
 	case apiv1.PodFailed:
-		return v1beta1.ExecutorFailedState
+		return v1beta2.ExecutorFailedState
 	default:
-		return v1beta1.ExecutorUnknownState
+		return v1beta2.ExecutorUnknownState
 	}
 }
 
-func isExecutorTerminated(executorState v1beta1.ExecutorState) bool {
-	return executorState == v1beta1.ExecutorCompletedState || executorState == v1beta1.ExecutorFailedState
+func isExecutorTerminated(executorState v1beta2.ExecutorState) bool {
+	return executorState == v1beta2.ExecutorCompletedState || executorState == v1beta2.ExecutorFailedState
 }
 
-func driverStateToApplicationState(podStatus apiv1.PodStatus) v1beta1.ApplicationStateType {
+func driverStateToApplicationState(podStatus apiv1.PodStatus) v1beta2.ApplicationStateType {
 	switch podStatus.Phase {
 	case apiv1.PodPending:
-		return v1beta1.SubmittedState
+		return v1beta2.SubmittedState
 	case apiv1.PodRunning:
 		// TODO: upcoming Kubernenetes feature will make this code redundant
 		// https://github.com/kubernetes/enhancements/issues/753
@@ -98,19 +98,19 @@ func driverStateToApplicationState(podStatus apiv1.PodStatus) v1beta1.Applicatio
 			if c.Name == config.SparkDriverContainerName {
 				if c.State.Terminated != nil {
 					if c.State.Terminated.ExitCode == 0 {
-						return v1beta1.SucceedingState
+						return v1beta2.SucceedingState
 					}
-					return v1beta1.FailingState
+					return v1beta2.FailingState
 				}
 				break
 			}
 		}
-		return v1beta1.RunningState
+		return v1beta2.RunningState
 	case apiv1.PodSucceeded:
-		return v1beta1.SucceedingState
+		return v1beta2.SucceedingState
 	case apiv1.PodFailed:
-		return v1beta1.FailingState
+		return v1beta2.FailingState
 	default:
-		return v1beta1.UnknownState
+		return v1beta2.UnknownState
 	}
 }

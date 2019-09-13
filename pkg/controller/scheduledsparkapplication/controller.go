@@ -37,11 +37,11 @@ import (
 	"k8s.io/client-go/util/retry"
 	"k8s.io/client-go/util/workqueue"
 
-	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta1"
+	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta2"
 	crdclientset "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/client/clientset/versioned"
 	crdscheme "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/client/clientset/versioned/scheme"
 	crdinformers "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/client/informers/externalversions"
-	crdlisters "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/client/listers/sparkoperator.k8s.io/v1beta1"
+	crdlisters "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/client/listers/sparkoperator.k8s.io/v1beta2"
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/config"
 )
 
@@ -79,7 +79,7 @@ func NewController(
 		clock:            clock,
 	}
 
-	informer := informerFactory.Sparkoperator().V1beta1().ScheduledSparkApplications()
+	informer := informerFactory.Sparkoperator().V1beta2().ScheduledSparkApplications()
 	informer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc:    controller.onAdd,
 		UpdateFunc: controller.onUpdate,
@@ -87,7 +87,7 @@ func NewController(
 	})
 	controller.cacheSynced = informer.Informer().HasSynced
 	controller.ssaLister = informer.Lister()
-	controller.saLister = informerFactory.Sparkoperator().V1beta1().SparkApplications().Lister()
+	controller.saLister = informerFactory.Sparkoperator().V1beta2().SparkApplications().Lister()
 
 	return controller
 }
@@ -166,10 +166,10 @@ func (c *Controller) syncScheduledSparkApplication(key string) error {
 	schedule, err := cron.ParseStandard(app.Spec.Schedule)
 	if err != nil {
 		glog.Errorf("failed to parse schedule %s of ScheduledSparkApplication %s/%s: %v", app.Spec.Schedule, app.Namespace, app.Name, err)
-		status.ScheduleState = v1beta1.FailedValidationState
+		status.ScheduleState = v1beta2.FailedValidationState
 		status.Reason = err.Error()
 	} else {
-		status.ScheduleState = v1beta1.ScheduledState
+		status.ScheduleState = v1beta2.ScheduledState
 		now := c.clock.Now()
 		nextRunTime := status.NextRun.Time
 		if nextRunTime.IsZero() {
@@ -237,13 +237,13 @@ func (c *Controller) dequeue(obj interface{}) {
 }
 
 func (c *Controller) createSparkApplication(
-	scheduledApp *v1beta1.ScheduledSparkApplication, t time.Time) (string, error) {
-	app := &v1beta1.SparkApplication{}
+	scheduledApp *v1beta2.ScheduledSparkApplication, t time.Time) (string, error) {
+	app := &v1beta2.SparkApplication{}
 	app.Spec = scheduledApp.Spec.Template
 	app.Name = fmt.Sprintf("%s-%d", scheduledApp.Name, t.UnixNano())
 	app.OwnerReferences = append(app.OwnerReferences, metav1.OwnerReference{
-		APIVersion: v1beta1.SchemeGroupVersion.String(),
-		Kind:       reflect.TypeOf(v1beta1.ScheduledSparkApplication{}).Name(),
+		APIVersion: v1beta2.SchemeGroupVersion.String(),
+		Kind:       reflect.TypeOf(v1beta2.ScheduledSparkApplication{}).Name(),
 		Name:       scheduledApp.Name,
 		UID:        scheduledApp.UID,
 	})
@@ -252,14 +252,14 @@ func (c *Controller) createSparkApplication(
 		app.ObjectMeta.Labels[key] = value
 	}
 	app.ObjectMeta.Labels[config.ScheduledSparkAppNameLabel] = scheduledApp.Name
-	_, err := c.crdClient.SparkoperatorV1beta1().SparkApplications(scheduledApp.Namespace).Create(app)
+	_, err := c.crdClient.SparkoperatorV1beta2().SparkApplications(scheduledApp.Namespace).Create(app)
 	if err != nil {
 		return "", err
 	}
 	return app.Name, nil
 }
 
-func (c *Controller) shouldStartNextRun(app *v1beta1.ScheduledSparkApplication) (bool, error) {
+func (c *Controller) shouldStartNextRun(app *v1beta2.ScheduledSparkApplication) (bool, error) {
 	sortedApps, err := c.listSparkApplications(app)
 	if err != nil {
 		return false, err
@@ -271,11 +271,11 @@ func (c *Controller) shouldStartNextRun(app *v1beta1.ScheduledSparkApplication) 
 	// The last run (most recently started) is the first one in the sorted slice.
 	lastRun := sortedApps[0]
 	switch app.Spec.ConcurrencyPolicy {
-	case v1beta1.ConcurrencyAllow:
+	case v1beta2.ConcurrencyAllow:
 		return true, nil
-	case v1beta1.ConcurrencyForbid:
+	case v1beta2.ConcurrencyForbid:
 		return c.hasLastRunFinished(lastRun), nil
-	case v1beta1.ConcurrencyReplace:
+	case v1beta2.ConcurrencyReplace:
 		if err := c.killLastRunIfNotFinished(lastRun); err != nil {
 			return false, err
 		}
@@ -284,7 +284,7 @@ func (c *Controller) shouldStartNextRun(app *v1beta1.ScheduledSparkApplication) 
 	return true, nil
 }
 
-func (c *Controller) startNextRun(app *v1beta1.ScheduledSparkApplication, now time.Time) (string, error) {
+func (c *Controller) startNextRun(app *v1beta2.ScheduledSparkApplication, now time.Time) (string, error) {
 	name, err := c.createSparkApplication(app, now)
 	if err != nil {
 		glog.Errorf("failed to create a SparkApplication instance for ScheduledSparkApplication %s/%s: %v", app.Namespace, app.Name, err)
@@ -293,19 +293,19 @@ func (c *Controller) startNextRun(app *v1beta1.ScheduledSparkApplication, now ti
 	return name, nil
 }
 
-func (c *Controller) hasLastRunFinished(app *v1beta1.SparkApplication) bool {
-	return app.Status.AppState.State == v1beta1.CompletedState ||
-		app.Status.AppState.State == v1beta1.FailedState
+func (c *Controller) hasLastRunFinished(app *v1beta2.SparkApplication) bool {
+	return app.Status.AppState.State == v1beta2.CompletedState ||
+		app.Status.AppState.State == v1beta2.FailedState
 }
 
-func (c *Controller) killLastRunIfNotFinished(app *v1beta1.SparkApplication) error {
+func (c *Controller) killLastRunIfNotFinished(app *v1beta2.SparkApplication) error {
 	finished := c.hasLastRunFinished(app)
 	if finished {
 		return nil
 	}
 
 	// Delete the SparkApplication object of the last run.
-	if err := c.crdClient.SparkoperatorV1beta1().SparkApplications(app.Namespace).Delete(app.Name,
+	if err := c.crdClient.SparkoperatorV1beta2().SparkApplications(app.Namespace).Delete(app.Name,
 		metav1.NewDeleteOptions(0)); err != nil {
 		return err
 	}
@@ -314,8 +314,8 @@ func (c *Controller) killLastRunIfNotFinished(app *v1beta1.SparkApplication) err
 }
 
 func (c *Controller) checkAndUpdatePastRuns(
-	app *v1beta1.ScheduledSparkApplication,
-	status *v1beta1.ScheduledSparkApplicationStatus) error {
+	app *v1beta2.ScheduledSparkApplication,
+	status *v1beta2.ScheduledSparkApplicationStatus) error {
 	sortedApps, err := c.listSparkApplications(app)
 	if err != nil {
 		return err
@@ -324,9 +324,9 @@ func (c *Controller) checkAndUpdatePastRuns(
 	var completedRuns []string
 	var failedRuns []string
 	for _, a := range sortedApps {
-		if a.Status.AppState.State == v1beta1.CompletedState {
+		if a.Status.AppState.State == v1beta2.CompletedState {
 			completedRuns = append(completedRuns, a.Name)
-		} else if a.Status.AppState.State == v1beta1.FailedState {
+		} else if a.Status.AppState.State == v1beta2.FailedState {
 			failedRuns = append(failedRuns, a.Name)
 		}
 	}
@@ -334,19 +334,19 @@ func (c *Controller) checkAndUpdatePastRuns(
 	var toDelete []string
 	status.PastSuccessfulRunNames, toDelete = bookkeepPastRuns(completedRuns, app.Spec.SuccessfulRunHistoryLimit)
 	for _, name := range toDelete {
-		c.crdClient.SparkoperatorV1beta1().SparkApplications(app.Namespace).Delete(name, metav1.NewDeleteOptions(0))
+		c.crdClient.SparkoperatorV1beta2().SparkApplications(app.Namespace).Delete(name, metav1.NewDeleteOptions(0))
 	}
 	status.PastFailedRunNames, toDelete = bookkeepPastRuns(failedRuns, app.Spec.FailedRunHistoryLimit)
 	for _, name := range toDelete {
-		c.crdClient.SparkoperatorV1beta1().SparkApplications(app.Namespace).Delete(name, metav1.NewDeleteOptions(0))
+		c.crdClient.SparkoperatorV1beta2().SparkApplications(app.Namespace).Delete(name, metav1.NewDeleteOptions(0))
 	}
 
 	return nil
 }
 
 func (c *Controller) updateScheduledSparkApplicationStatus(
-	app *v1beta1.ScheduledSparkApplication,
-	newStatus *v1beta1.ScheduledSparkApplicationStatus) error {
+	app *v1beta2.ScheduledSparkApplication,
+	newStatus *v1beta2.ScheduledSparkApplicationStatus) error {
 	// If the status has not changed, do not perform an update.
 	if isStatusEqual(newStatus, &app.Status) {
 		return nil
@@ -355,13 +355,13 @@ func (c *Controller) updateScheduledSparkApplicationStatus(
 	toUpdate := app.DeepCopy()
 	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		toUpdate.Status = *newStatus
-		_, updateErr := c.crdClient.SparkoperatorV1beta1().ScheduledSparkApplications(toUpdate.Namespace).Update(
+		_, updateErr := c.crdClient.SparkoperatorV1beta2().ScheduledSparkApplications(toUpdate.Namespace).Update(
 			toUpdate)
 		if updateErr == nil {
 			return nil
 		}
 
-		result, err := c.crdClient.SparkoperatorV1beta1().ScheduledSparkApplications(toUpdate.Namespace).Get(
+		result, err := c.crdClient.SparkoperatorV1beta2().ScheduledSparkApplications(toUpdate.Namespace).Get(
 			toUpdate.Name, metav1.GetOptions{})
 		if err != nil {
 			return err
@@ -372,7 +372,7 @@ func (c *Controller) updateScheduledSparkApplicationStatus(
 	})
 }
 
-func (c *Controller) listSparkApplications(app *v1beta1.ScheduledSparkApplication) (sparkApps, error) {
+func (c *Controller) listSparkApplications(app *v1beta2.ScheduledSparkApplication) (sparkApps, error) {
 	set := labels.Set{config.ScheduledSparkAppNameLabel: app.Name}
 	apps, err := c.saLister.SparkApplications(app.Namespace).List(set.AsSelector())
 	if err != nil {
@@ -397,7 +397,7 @@ func bookkeepPastRuns(names []string, runLimit *int32) (toKeep []string, toDelet
 	return
 }
 
-func isStatusEqual(newStatus, currentStatus *v1beta1.ScheduledSparkApplicationStatus) bool {
+func isStatusEqual(newStatus, currentStatus *v1beta2.ScheduledSparkApplicationStatus) bool {
 	return newStatus.ScheduleState == currentStatus.ScheduleState &&
 		newStatus.LastRun == currentStatus.LastRun &&
 		newStatus.NextRun == currentStatus.NextRun &&

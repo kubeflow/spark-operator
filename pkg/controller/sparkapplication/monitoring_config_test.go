@@ -23,13 +23,13 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
 
-	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta1"
+	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta2"
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/config"
 )
 
 func TestConfigPrometheusMonitoring(t *testing.T) {
 	type testcase struct {
-		app                 *v1beta1.SparkApplication
+		app                 *v1beta2.SparkApplication
 		metricsProperties   string
 		prometheusConfig    string
 		port                string
@@ -95,16 +95,16 @@ func TestConfigPrometheusMonitoring(t *testing.T) {
 
 	testcases := []testcase{
 		{
-			app: &v1beta1.SparkApplication{
+			app: &v1beta2.SparkApplication{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "app1",
 					Namespace: "default",
 				},
-				Spec: v1beta1.SparkApplicationSpec{
-					Monitoring: &v1beta1.MonitoringSpec{
+				Spec: v1beta2.SparkApplicationSpec{
+					Monitoring: &v1beta2.MonitoringSpec{
 						ExposeDriverMetrics:   true,
 						ExposeExecutorMetrics: true,
-						Prometheus: &v1beta1.PrometheusSpec{
+						Prometheus: &v1beta2.PrometheusSpec{
 							JmxExporterJar: "/prometheus/exporter.jar",
 						},
 					},
@@ -117,23 +117,23 @@ func TestConfigPrometheusMonitoring(t *testing.T) {
 			executorJavaOptions: "-javaagent:/prometheus/exporter.jar=8090:/etc/metrics/conf/prometheus.yaml",
 		},
 		{
-			app: &v1beta1.SparkApplication{
+			app: &v1beta2.SparkApplication{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "app2",
 					Namespace: "default",
 				},
-				Spec: v1beta1.SparkApplicationSpec{
-					Driver: v1beta1.DriverSpec{
+				Spec: v1beta2.SparkApplicationSpec{
+					Driver: v1beta2.DriverSpec{
 						JavaOptions: stringptr("-XX:+PrintGCDetails -XX:+PrintGCTimeStamps"),
 					},
-					Executor: v1beta1.ExecutorSpec{
+					Executor: v1beta2.ExecutorSpec{
 						JavaOptions: stringptr("-XX:+PrintGCDetails -XX:+PrintGCTimeStamps"),
 					},
-					Monitoring: &v1beta1.MonitoringSpec{
+					Monitoring: &v1beta2.MonitoringSpec{
 						ExposeDriverMetrics:   true,
 						ExposeExecutorMetrics: true,
 						MetricsProperties:     stringptr("dummy"),
-						Prometheus: &v1beta1.PrometheusSpec{
+						Prometheus: &v1beta2.PrometheusSpec{
 							JmxExporterJar: "/prometheus/exporter.jar",
 							Port:           int32ptr(8091),
 							Configuration:  stringptr("dummy"),

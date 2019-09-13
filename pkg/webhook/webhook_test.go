@@ -29,7 +29,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 
-	spov1beta1 "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta1"
+	spov1beta2 "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta2"
 	crdclientfake "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/client/clientset/versioned/fake"
 	crdinformers "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/client/informers/externalversions"
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/config"
@@ -38,7 +38,7 @@ import (
 func TestMutatePod(t *testing.T) {
 	crdClient := crdclientfake.NewSimpleClientset()
 	informerFactory := crdinformers.NewSharedInformerFactory(crdClient, 0*time.Second)
-	informer := informerFactory.Sparkoperator().V1beta1().SparkApplications()
+	informer := informerFactory.Sparkoperator().V1beta2().SparkApplications()
 	lister := informer.Lister()
 
 	pod1 := &corev1.Pod{
@@ -78,13 +78,13 @@ func TestMutatePod(t *testing.T) {
 	assert.True(t, response.Allowed)
 
 	// 2. Test processing Spark pod with only one patch: adding an OwnerReference.
-	app1 := &spov1beta1.SparkApplication{
+	app1 := &spov1beta2.SparkApplication{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "spark-app1",
 			Namespace: "default",
 		},
 	}
-	crdClient.SparkoperatorV1beta1().SparkApplications(app1.Namespace).Create(app1)
+	crdClient.SparkoperatorV1beta2().SparkApplications(app1.Namespace).Create(app1)
 	informer.Informer().GetIndexer().Add(app1)
 	pod1.Labels = map[string]string{
 		config.SparkRoleLabel:               config.SparkDriverRole,
@@ -103,12 +103,12 @@ func TestMutatePod(t *testing.T) {
 
 	// 3. Test processing Spark pod with patches.
 	var user int64 = 1000
-	app2 := &spov1beta1.SparkApplication{
+	app2 := &spov1beta2.SparkApplication{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "spark-app2",
 			Namespace: "default",
 		},
-		Spec: spov1beta1.SparkApplicationSpec{
+		Spec: spov1beta2.SparkApplicationSpec{
 			Volumes: []corev1.Volume{
 				{
 					Name: "spark",
@@ -125,8 +125,8 @@ func TestMutatePod(t *testing.T) {
 					},
 				},
 			},
-			Driver: spov1beta1.DriverSpec{
-				SparkPodSpec: spov1beta1.SparkPodSpec{
+			Driver: spov1beta2.DriverSpec{
+				SparkPodSpec: spov1beta2.SparkPodSpec{
 					VolumeMounts: []corev1.VolumeMount{
 						{
 							Name:      "spark",
@@ -160,7 +160,7 @@ func TestMutatePod(t *testing.T) {
 			},
 		},
 	}
-	crdClient.SparkoperatorV1beta1().SparkApplications(app2.Namespace).Update(app2)
+	crdClient.SparkoperatorV1beta2().SparkApplications(app2.Namespace).Update(app2)
 	informer.Informer().GetIndexer().Add(app2)
 
 	pod1.Labels[config.SparkAppNameLabel] = app2.Name

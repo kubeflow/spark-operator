@@ -26,7 +26,7 @@ import (
 	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
 
-	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta1"
+	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta2"
 	appFramework "github.com/GoogleCloudPlatform/spark-on-k8s-operator/test/e2e/framework"
 )
 
@@ -71,7 +71,7 @@ func TestLifeCycleManagement(t *testing.T) {
 	assert.Equal(t, len(STATES), states.Len())
 	index := 0
 	for e := states.Front(); e != nil; e = e.Next() {
-		assert.Equal(t, STATES[index], string((e.Value).(v1beta1.ApplicationStateType)))
+		assert.Equal(t, STATES[index], string((e.Value).(v1beta2.ApplicationStateType)))
 		index += 1
 	}
 
@@ -79,7 +79,7 @@ func TestLifeCycleManagement(t *testing.T) {
 	assert.Equal(t, nil, err)
 }
 
-func runApp(t *testing.T, appName string, states *list.List) *v1beta1.SparkApplication {
+func runApp(t *testing.T, appName string, states *list.List) *v1beta2.SparkApplication {
 	err := wait.Poll(INTERVAL, TIMEOUT, func() (done bool, err error) {
 		status := GetJobStatus(t, appName)
 		if status != states.Back().Value {

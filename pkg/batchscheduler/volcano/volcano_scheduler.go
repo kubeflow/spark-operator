@@ -28,7 +28,7 @@ import (
 	"volcano.sh/volcano/pkg/apis/scheduling/v1alpha2"
 	volcanoclient "volcano.sh/volcano/pkg/client/clientset/versioned"
 
-	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta1"
+	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta2"
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/batchscheduler/interface"
 )
 
@@ -49,12 +49,12 @@ func (v *VolcanoBatchScheduler) Name() string {
 	return GetPluginName()
 }
 
-func (v *VolcanoBatchScheduler) ShouldSchedule(app *v1beta1.SparkApplication) bool {
+func (v *VolcanoBatchScheduler) ShouldSchedule(app *v1beta2.SparkApplication) bool {
 	//NOTE: There is no additional requirement for volcano scheduler
 	return true
 }
 
-func (v *VolcanoBatchScheduler) DoBatchSchedulingOnSubmission(app *v1beta1.SparkApplication) (*v1beta1.SparkApplication, error) {
+func (v *VolcanoBatchScheduler) DoBatchSchedulingOnSubmission(app *v1beta2.SparkApplication) (*v1beta2.SparkApplication, error) {
 	newApp := app.DeepCopy()
 	if newApp.Spec.Executor.Annotations == nil {
 		newApp.Spec.Executor.Annotations = make(map[string]string)
@@ -64,15 +64,15 @@ func (v *VolcanoBatchScheduler) DoBatchSchedulingOnSubmission(app *v1beta1.Spark
 		newApp.Spec.Driver.Annotations = make(map[string]string)
 	}
 
-	if newApp.Spec.Mode == v1beta1.ClientMode {
+	if newApp.Spec.Mode == v1beta2.ClientMode {
 		return v.syncPodGroupInClientMode(newApp)
-	} else if newApp.Spec.Mode == v1beta1.ClusterMode {
+	} else if newApp.Spec.Mode == v1beta2.ClusterMode {
 		return v.syncPodGroupInClusterMode(newApp)
 	}
 	return newApp, nil
 }
 
-func (v *VolcanoBatchScheduler) syncPodGroupInClientMode(app *v1beta1.SparkApplication) (*v1beta1.SparkApplication, error) {
+func (v *VolcanoBatchScheduler) syncPodGroupInClientMode(app *v1beta2.SparkApplication) (*v1beta2.SparkApplication, error) {
 	//We only care about the executor pods in client mode
 	newApp := app.DeepCopy()
 	if _, ok := newApp.Spec.Executor.Annotations[v1alpha2.GroupNameAnnotationKey]; !ok {
@@ -86,7 +86,7 @@ func (v *VolcanoBatchScheduler) syncPodGroupInClientMode(app *v1beta1.SparkAppli
 	return newApp, nil
 }
 
-func (v *VolcanoBatchScheduler) syncPodGroupInClusterMode(app *v1beta1.SparkApplication) (*v1beta1.SparkApplication, error) {
+func (v *VolcanoBatchScheduler) syncPodGroupInClusterMode(app *v1beta2.SparkApplication) (*v1beta2.SparkApplication, error) {
 	//We need both mark Driver and Executor when submitting
 	//NOTE: In cluster mode, the initial size of PodGroup is set to 1 in order to schedule driver pod first.
 	if _, ok := app.Spec.Driver.Annotations[v1alpha2.GroupNameAnnotationKey]; !ok {
@@ -102,11 +102,11 @@ func (v *VolcanoBatchScheduler) syncPodGroupInClusterMode(app *v1beta1.SparkAppl
 	return app, nil
 }
 
-func (v *VolcanoBatchScheduler) getAppPodGroupName(app *v1beta1.SparkApplication) string {
+func (v *VolcanoBatchScheduler) getAppPodGroupName(app *v1beta2.SparkApplication) string {
 	return fmt.Sprintf("spark-%s-pg", app.Name)
 }
 
-func (v *VolcanoBatchScheduler) syncPodGroup(app *v1beta1.SparkApplication, size int32, minResource corev1.ResourceList) error {
+func (v *VolcanoBatchScheduler) syncPodGroup(app *v1beta2.SparkApplication, size int32, minResource corev1.ResourceList) error {
 	var err error
 	podGroupName := v.getAppPodGroupName(app)
 	if pg, err := v.volcanoClient.SchedulingV1alpha2().PodGroups(app.Namespace).Get(podGroupName, v1.GetOptions{}); err != nil {
@@ -118,7 +118,7 @@ func (v *VolcanoBatchScheduler) syncPodGroup(app *v1beta1.SparkApplication, size
 				Namespace: app.Namespace,
 				Name:      podGroupName,
 				OwnerReferences: []v1.OwnerReference{
-					*v1.NewControllerRef(app, v1beta1.SchemeGroupVersion.WithKind("SparkApplication")),
+					*v1.NewControllerRef(app, v1beta2.SchemeGroupVersion.WithKind("SparkApplication")),
 				},
 			},
 			Spec: v1alpha2.PodGroupSpec{
@@ -157,7 +157,7 @@ func New(config *rest.Config) (schedulerinterface.BatchScheduler, error) {
 	}, nil
 }
 
-func getExecutorRequestResource(app *v1beta1.SparkApplication) corev1.ResourceList {
+func getExecutorRequestResource(app *v1beta2.SparkApplication) corev1.ResourceList {
 	minResource := corev1.ResourceList{}
 
 	//CoreRequest correspond to executor's core request
@@ -170,7 +170,7 @@ func getExecutorRequestResource(app *v1beta1.SparkApplication) corev1.ResourceLi
 	//Use Core attribute if CoreRequest is empty
 	if app.Spec.Executor.Cores != nil {
 		if _, ok := minResource[corev1.ResourceCPU]; !ok {
-			if value, err := resource.ParseQuantity(fmt.Sprintf("%f", *app.Spec.Executor.Cores)); err == nil {
+			if value, err := resource.ParseQuantity(fmt.Sprintf("%d", *app.Spec.Executor.Cores)); err == nil {
 				minResource[corev1.ResourceCPU] = value
 			}
 		}
@@ -207,12 +207,12 @@ func getExecutorRequestResource(app *v1beta1.SparkApplication) corev1.ResourceLi
 	return sumResourceList(resourceList)
 }
 
-func getDriverRequestResource(app *v1beta1.SparkApplication) corev1.ResourceList {
+func getDriverRequestResource(app *v1beta2.SparkApplication) corev1.ResourceList {
 	minResource := corev1.ResourceList{}
 
 	//Cores correspond to driver's core request
 	if app.Spec.Driver.Cores != nil {
-		if value, err := resource.ParseQuantity(fmt.Sprintf("%f", *app.Spec.Driver.Cores)); err == nil {
+		if value, err := resource.ParseQuantity(fmt.Sprintf("%d", *app.Spec.Driver.Cores)); err == nil {
 			minResource[corev1.ResourceCPU] = value
 		}
 	}

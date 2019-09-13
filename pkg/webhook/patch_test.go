@@ -28,12 +28,12 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta1"
+	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta2"
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/config"
 )
 
 func TestPatchSparkPod_OwnerReference(t *testing.T) {
-	app := &v1beta1.SparkApplication{
+	app := &v1beta2.SparkApplication{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "spark-test",
 			UID:  "spark-test-1",
@@ -76,12 +76,12 @@ func TestPatchSparkPod_OwnerReference(t *testing.T) {
 }
 
 func TestPatchSparkPod_Volumes(t *testing.T) {
-	app := &v1beta1.SparkApplication{
+	app := &v1beta2.SparkApplication{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "spark-test",
 			UID:  "spark-test-1",
 		},
-		Spec: v1beta1.SparkApplicationSpec{
+		Spec: v1beta2.SparkApplicationSpec{
 			Volumes: []corev1.Volume{
 				corev1.Volume{
 					Name: "spark",
@@ -92,8 +92,8 @@ func TestPatchSparkPod_Volumes(t *testing.T) {
 					},
 				},
 			},
-			Driver: v1beta1.DriverSpec{
-				SparkPodSpec: v1beta1.SparkPodSpec{
+			Driver: v1beta2.DriverSpec{
+				SparkPodSpec: v1beta2.SparkPodSpec{
 					VolumeMounts: []corev1.VolumeMount{
 						{
 							Name:      "spark",
@@ -152,14 +152,14 @@ func TestPatchSparkPod_Volumes(t *testing.T) {
 }
 
 func TestPatchSparkPod_Affinity(t *testing.T) {
-	app := &v1beta1.SparkApplication{
+	app := &v1beta2.SparkApplication{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "spark-test",
 			UID:  "spark-test-1",
 		},
-		Spec: v1beta1.SparkApplicationSpec{
-			Driver: v1beta1.DriverSpec{
-				SparkPodSpec: v1beta1.SparkPodSpec{
+		Spec: v1beta2.SparkApplicationSpec{
+			Driver: v1beta2.DriverSpec{
+				SparkPodSpec: v1beta2.SparkPodSpec{
 					Affinity: &corev1.Affinity{
 						PodAffinity: &corev1.PodAffinity{
 							RequiredDuringSchedulingIgnoredDuringExecution: []corev1.PodAffinityTerm{
@@ -209,15 +209,15 @@ func TestPatchSparkPod_Affinity(t *testing.T) {
 }
 
 func TestPatchSparkPod_ConfigMaps(t *testing.T) {
-	app := &v1beta1.SparkApplication{
+	app := &v1beta2.SparkApplication{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "spark-test",
 			UID:  "spark-test-1",
 		},
-		Spec: v1beta1.SparkApplicationSpec{
-			Driver: v1beta1.DriverSpec{
-				SparkPodSpec: v1beta1.SparkPodSpec{
-					ConfigMaps: []v1beta1.NamePath{{Name: "foo", Path: "/path/to/foo"}},
+		Spec: v1beta2.SparkApplicationSpec{
+			Driver: v1beta2.DriverSpec{
+				SparkPodSpec: v1beta2.SparkPodSpec{
+					ConfigMaps: []v1beta2.NamePath{{Name: "foo", Path: "/path/to/foo"}},
 				},
 			},
 		},
@@ -255,12 +255,12 @@ func TestPatchSparkPod_ConfigMaps(t *testing.T) {
 
 func TestPatchSparkPod_SparkConfigMap(t *testing.T) {
 	sparkConfMapName := "spark-conf"
-	app := &v1beta1.SparkApplication{
+	app := &v1beta2.SparkApplication{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "spark-test",
 			UID:  "spark-test-1",
 		},
-		Spec: v1beta1.SparkApplicationSpec{
+		Spec: v1beta2.SparkApplicationSpec{
 			SparkConfigMap: &sparkConfMapName,
 		},
 	}
@@ -299,12 +299,12 @@ func TestPatchSparkPod_SparkConfigMap(t *testing.T) {
 
 func TestPatchSparkPod_HadoopConfigMap(t *testing.T) {
 	hadoopConfMapName := "hadoop-conf"
-	app := &v1beta1.SparkApplication{
+	app := &v1beta2.SparkApplication{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "spark-test",
 			UID:  "spark-test-1",
 		},
-		Spec: v1beta1.SparkApplicationSpec{
+		Spec: v1beta2.SparkApplicationSpec{
 			HadoopConfigMap: &hadoopConfMapName,
 		},
 	}
@@ -342,14 +342,14 @@ func TestPatchSparkPod_HadoopConfigMap(t *testing.T) {
 }
 
 func TestPatchSparkPod_PrometheusConfigMaps(t *testing.T) {
-	app := &v1beta1.SparkApplication{
+	app := &v1beta2.SparkApplication{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "spark-test",
 			UID:  "spark-test-1",
 		},
-		Spec: v1beta1.SparkApplicationSpec{
-			Monitoring: &v1beta1.MonitoringSpec{
-				Prometheus:          &v1beta1.PrometheusSpec{},
+		Spec: v1beta2.SparkApplicationSpec{
+			Monitoring: &v1beta2.MonitoringSpec{
+				Prometheus:          &v1beta2.PrometheusSpec{},
 				ExposeDriverMetrics: true,
 			},
 		},
@@ -390,14 +390,14 @@ func TestPatchSparkPod_PrometheusConfigMaps(t *testing.T) {
 }
 
 func TestPatchSparkPod_Tolerations(t *testing.T) {
-	app := &v1beta1.SparkApplication{
+	app := &v1beta2.SparkApplication{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "spark-test",
 			UID:  "spark-test-1",
 		},
-		Spec: v1beta1.SparkApplicationSpec{
-			Driver: v1beta1.DriverSpec{
-				SparkPodSpec: v1beta1.SparkPodSpec{
+		Spec: v1beta2.SparkApplicationSpec{
+			Driver: v1beta2.DriverSpec{
+				SparkPodSpec: v1beta2.SparkPodSpec{
 					Tolerations: []corev1.Toleration{
 						{
 							Key:      "Key",
@@ -441,21 +441,21 @@ func TestPatchSparkPod_Tolerations(t *testing.T) {
 
 func TestPatchSparkPod_SecurityContext(t *testing.T) {
 	var user int64 = 1000
-	app := &v1beta1.SparkApplication{
+	app := &v1beta2.SparkApplication{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "spark-test",
 			UID:  "spark-test-1",
 		},
-		Spec: v1beta1.SparkApplicationSpec{
-			Driver: v1beta1.DriverSpec{
-				SparkPodSpec: v1beta1.SparkPodSpec{
+		Spec: v1beta2.SparkApplicationSpec{
+			Driver: v1beta2.DriverSpec{
+				SparkPodSpec: v1beta2.SparkPodSpec{
 					SecurityContenxt: &corev1.PodSecurityContext{
 						RunAsUser: &user,
 					},
 				},
 			},
-			Executor: v1beta1.ExecutorSpec{
-				SparkPodSpec: v1beta1.SparkPodSpec{
+			Executor: v1beta2.ExecutorSpec{
+				SparkPodSpec: v1beta2.SparkPodSpec{
 					SecurityContenxt: &corev1.PodSecurityContext{
 						RunAsUser: &user,
 					},
@@ -517,19 +517,19 @@ func TestPatchSparkPod_SchedulerName(t *testing.T) {
 	var schedulerName = "another_scheduler"
 	var defaultScheduler = "default-scheduler"
 
-	app := &v1beta1.SparkApplication{
+	app := &v1beta2.SparkApplication{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "spark-test-patch-schedulername",
 			UID:  "spark-test-1",
 		},
-		Spec: v1beta1.SparkApplicationSpec{
-			Driver: v1beta1.DriverSpec{
-				SparkPodSpec: v1beta1.SparkPodSpec{
+		Spec: v1beta2.SparkApplicationSpec{
+			Driver: v1beta2.DriverSpec{
+				SparkPodSpec: v1beta2.SparkPodSpec{
 					SchedulerName: &schedulerName,
 				},
 			},
-			Executor: v1beta1.ExecutorSpec{
-				SparkPodSpec: v1beta1.SparkPodSpec{},
+			Executor: v1beta2.ExecutorSpec{
+				SparkPodSpec: v1beta2.SparkPodSpec{},
 			},
 		},
 	}
@@ -588,14 +588,14 @@ func TestPatchSparkPod_SchedulerName(t *testing.T) {
 }
 
 func TestPatchSparkPod_Sidecars(t *testing.T) {
-	app := &v1beta1.SparkApplication{
+	app := &v1beta2.SparkApplication{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "spark-test",
 			UID:  "spark-test-1",
 		},
-		Spec: v1beta1.SparkApplicationSpec{
-			Driver: v1beta1.DriverSpec{
-				SparkPodSpec: v1beta1.SparkPodSpec{
+		Spec: v1beta2.SparkApplicationSpec{
+			Driver: v1beta2.DriverSpec{
+				SparkPodSpec: v1beta2.SparkPodSpec{
 					Sidecars: []corev1.Container{
 						{
 							Name:  "sidecar1",
@@ -608,8 +608,8 @@ func TestPatchSparkPod_Sidecars(t *testing.T) {
 					},
 				},
 			},
-			Executor: v1beta1.ExecutorSpec{
-				SparkPodSpec: v1beta1.SparkPodSpec{
+			Executor: v1beta2.ExecutorSpec{
+				SparkPodSpec: v1beta2.SparkPodSpec{
 					Sidecars: []corev1.Container{
 						{
 							Name:  "sidecar1",
@@ -688,17 +688,17 @@ func TestPatchSparkPod_DNSConfig(t *testing.T) {
 		},
 	}
 
-	app := &v1beta1.SparkApplication{
+	app := &v1beta2.SparkApplication{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "spark-test",
 			UID:  "spark-test-1",
 		},
-		Spec: v1beta1.SparkApplicationSpec{
-			Driver: v1beta1.DriverSpec{
-				SparkPodSpec: v1beta1.SparkPodSpec{DNSConfig: sampleDNSConfig},
+		Spec: v1beta2.SparkApplicationSpec{
+			Driver: v1beta2.DriverSpec{
+				SparkPodSpec: v1beta2.SparkPodSpec{DNSConfig: sampleDNSConfig},
 			},
-			Executor: v1beta1.ExecutorSpec{
-				SparkPodSpec: v1beta1.SparkPodSpec{DNSConfig: sampleDNSConfig},
+			Executor: v1beta2.ExecutorSpec{
+				SparkPodSpec: v1beta2.SparkPodSpec{DNSConfig: sampleDNSConfig},
 			},
 		},
 	}
@@ -757,19 +757,19 @@ func TestPatchSparkPod_DNSConfig(t *testing.T) {
 }
 
 func TestPatchSparkPod_NodeSector(t *testing.T) {
-	app := &v1beta1.SparkApplication{
+	app := &v1beta2.SparkApplication{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "spark-test",
 			UID:  "spark-test-1",
 		},
-		Spec: v1beta1.SparkApplicationSpec{
-			Driver: v1beta1.DriverSpec{
-				SparkPodSpec: v1beta1.SparkPodSpec{
+		Spec: v1beta2.SparkApplicationSpec{
+			Driver: v1beta2.DriverSpec{
+				SparkPodSpec: v1beta2.SparkPodSpec{
 					NodeSelector: map[string]string{"disk": "ssd", "secondkey": "secondvalue"},
 				},
 			},
-			Executor: v1beta1.ExecutorSpec{
-				SparkPodSpec: v1beta1.SparkPodSpec{
+			Executor: v1beta2.ExecutorSpec{
+				SparkPodSpec: v1beta2.SparkPodSpec{
 					NodeSelector: map[string]string{"nodeType": "gpu", "secondkey": "secondvalue"},
 				},
 			},
@@ -834,7 +834,7 @@ func TestPatchSparkPod_GPU(t *testing.T) {
 	cpuRequest := int64(5)
 
 	type testcase struct {
-		gpuSpec     *v1beta1.GPUSpec
+		gpuSpec     *v1beta2.GPUSpec
 		cpuLimits   *int64
 		cpuRequests *int64
 	}
@@ -886,17 +886,17 @@ func TestPatchSparkPod_GPU(t *testing.T) {
 			assert.Equal(t, *test.cpuLimits, count)
 		}
 	}
-	app := &v1beta1.SparkApplication{
+	app := &v1beta2.SparkApplication{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "spark-test",
 			UID:  "spark-test-1",
 		},
-		Spec: v1beta1.SparkApplicationSpec{
-			Driver: v1beta1.DriverSpec{
-				SparkPodSpec: v1beta1.SparkPodSpec{},
+		Spec: v1beta2.SparkApplicationSpec{
+			Driver: v1beta2.DriverSpec{
+				SparkPodSpec: v1beta2.SparkPodSpec{},
 			},
-			Executor: v1beta1.ExecutorSpec{
-				SparkPodSpec: v1beta1.SparkPodSpec{},
+			Executor: v1beta2.ExecutorSpec{
+				SparkPodSpec: v1beta2.SparkPodSpec{},
 			},
 		},
 	}
@@ -922,42 +922,42 @@ func TestPatchSparkPod_GPU(t *testing.T) {
 			&cpuRequest,
 		},
 		{
-			&v1beta1.GPUSpec{},
+			&v1beta2.GPUSpec{},
 			nil,
 			nil,
 		},
 		{
-			&v1beta1.GPUSpec{},
+			&v1beta2.GPUSpec{},
 			&cpuLimit,
 			nil,
 		},
 		{
-			&v1beta1.GPUSpec{},
+			&v1beta2.GPUSpec{},
 			nil,
 			&cpuRequest,
 		},
 		{
-			&v1beta1.GPUSpec{},
+			&v1beta2.GPUSpec{},
 			&cpuLimit,
 			&cpuRequest,
 		},
 		{
-			&v1beta1.GPUSpec{"example.com/gpu", 1},
+			&v1beta2.GPUSpec{"example.com/gpu", 1},
 			nil,
 			nil,
 		},
 		{
-			&v1beta1.GPUSpec{"example.com/gpu", 1},
+			&v1beta2.GPUSpec{"example.com/gpu", 1},
 			&cpuLimit,
 			nil,
 		},
 		{
-			&v1beta1.GPUSpec{"example.com/gpu", 1},
+			&v1beta2.GPUSpec{"example.com/gpu", 1},
 			nil,
 			&cpuRequest,
 		},
 		{
-			&v1beta1.GPUSpec{"example.com/gpu", 1},
+			&v1beta2.GPUSpec{"example.com/gpu", 1},
 			&cpuLimit,
 			&cpuRequest,
 		},
@@ -1025,17 +1025,17 @@ func TestPatchSparkPod_HostNetwork(t *testing.T) {
 	var hostNetwork = true
 	var defaultNetwork = false
 
-	app := &v1beta1.SparkApplication{
+	app := &v1beta2.SparkApplication{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "spark-test-hostNetwork",
 			UID:  "spark-test-1",
 		},
-		Spec: v1beta1.SparkApplicationSpec{
-			Driver: v1beta1.DriverSpec{
-				SparkPodSpec: v1beta1.SparkPodSpec{},
+		Spec: v1beta2.SparkApplicationSpec{
+			Driver: v1beta2.DriverSpec{
+				SparkPodSpec: v1beta2.SparkPodSpec{},
 			},
-			Executor: v1beta1.ExecutorSpec{
-				SparkPodSpec: v1beta1.SparkPodSpec{},
+			Executor: v1beta2.ExecutorSpec{
+				SparkPodSpec: v1beta2.SparkPodSpec{},
 			},
 		},
 	}
@@ -1108,7 +1108,7 @@ func TestPatchSparkPod_HostNetwork(t *testing.T) {
 	}
 }
 
-func getModifiedPod(pod *corev1.Pod, app *v1beta1.SparkApplication) (*corev1.Pod, error) {
+func getModifiedPod(pod *corev1.Pod, app *v1beta2.SparkApplication) (*corev1.Pod, error) {
 	patchOps := patchSparkPod(pod, app)
 	patchBytes, err := json.Marshal(patchOps)
 	if err != nil {

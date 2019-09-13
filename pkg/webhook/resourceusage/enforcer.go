@@ -2,7 +2,7 @@ package resourceusage
 
 import (
 	"fmt"
-	so "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta1"
+	so "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta2"
 	crdinformers "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/client/informers/externalversions"
 	"github.com/golang/glog"
 	corev1 "k8s.io/api/core/v1"
