@@ -36,6 +36,7 @@ The Kubernetes Operator for Apache Spark ships with a command-line tool called `
     * [Checking a SparkApplication](#checking-a-sparkapplication)
     * [Configuring Automatic Application Restart](#configuring-automatic-application-restart)
     * [Configuring Automatic Application Re-submission on Submission Failures](#configuring-automatic-application-re-submission-on-submission-failures)
+    * [Setting TTL for a SparkApplication](#setting-ttl-for-a-sparkapplication)
 * [Running Spark Applications on a Schedule using a ScheduledSparkApplication](#running-spark-applications-on-a-schedule-using-a-scheduledsparkapplication)
 * [Enabling Leader Election for High Availability](#enabling-leader-election-for-high-availability)
 * [Enabling Resource Quota Enforcement](#enabling-resource-quota-enforcement)
@@ -508,6 +509,17 @@ the operator retries submitting the application using a linear backoff with the 
 `onFailureRetryInterval` and `onSubmissionFailureRetryInterval` which are required for both `OnFailure` and `Always` `RestartPolicy`.
 The old resources like driver pod, ui service/ingress etc. are deleted if it still exists before submitting the new run, and a new  driver pod is created by the submission
 client so effectively the driver gets restarted.
+
+### Setting TTL for a SparkApplication
+
+The `v1beta2` version of the `SparkApplication` API starts having TTL support for `SparkApplication`s through a new optional field named `TimeToLiveSeconds`, which if set, defines the Time-To-Live (TTL) duration in seconds for a SparkAplication after its termination. The `SparkApplication` object will be garbage collected if the current time is more than the `TimeToLiveSeconds` since its termination. The example below illustrates how to use the field:
+
+```yaml
+spec:
+  timeToLiveSeconds: 3600
+```
+
+Note that this feature requires that informer cache resync to be enabled, which is true by default with a resync internal of 30 seconds. You can change the resync interval by setting the flag `-resync-interval=<internval>`.
 
 ## Running Spark Applications on a Schedule using a ScheduledSparkApplication 
 

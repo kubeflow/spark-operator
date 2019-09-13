@@ -35,14 +35,14 @@ import (
 	clientset "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
 	typedcorev1 "k8s.io/client-go/kubernetes/typed/core/v1"
-	"k8s.io/client-go/listers/core/v1"
+	v1 "k8s.io/client-go/listers/core/v1"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/workqueue"
 
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta2"
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/batchscheduler"
-	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/batchscheduler/interface"
+	schedulerinterface "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/batchscheduler/interface"
 	crdclientset "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/client/clientset/versioned"
 	crdscheme "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/client/clientset/versioned/scheme"
 	crdinformers "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/client/informers/externalversions"
@@ -569,6 +569,11 @@ func (c *Controller) syncSparkApplication(key string) error {
 		if err := c.getAndUpdateAppState(appToUpdate); err != nil {
 			return err
 		}
+	case v1beta2.CompletedState, v1beta2.FailedState:
+		if c.hasApplicationExpired(app) {
+			glog.Infof("Garbage collecting expired SparkApplication %s/%s", app.Namespace, app.Name)
+			return c.crdClient.SparkoperatorV1beta2().SparkApplications(app.Namespace).Delete(app.Name, metav1.NewDeleteOptions(0))
+		}
 	}
 
 	if appToUpdate != nil {
@@ -949,4 +954,19 @@ func (c *Controller) clearStatus(status *v1beta2.SparkApplicationStatus) {
 		status.AppState.ErrorMessage = ""
 		status.ExecutorState = nil
 	}
+}
+
+func (c *Controller) hasApplicationExpired(app *v1beta2.SparkApplication) bool {
+	// The application has no TTL defined and will never expire.
+	if app.Spec.TimeToLiveSeconds == nil {
+		return false
+	}
+
+	ttl := time.Duration(*app.Spec.TimeToLiveSeconds) * time.Second
+	now := time.Now()
+	if !app.Status.TerminationTime.IsZero() && now.Sub(app.Status.TerminationTime.Time) > ttl {
+		return true
+	}
+
+	return false
 }

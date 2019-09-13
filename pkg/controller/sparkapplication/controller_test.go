@@ -28,6 +28,7 @@ import (
 	prometheus_model "github.com/prometheus/client_model/go"
 	"github.com/stretchr/testify/assert"
 	apiv1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/informers"
 	kubeclientfake "k8s.io/client-go/kubernetes/fake"
@@ -1209,6 +1210,53 @@ func TestSyncSparkApplication_ExecutingState(t *testing.T) {
 	for _, test := range testcases {
 		testFn(test, t)
 	}
+}
+
+func TestSyncSparkApplication_ApplicationExpired(t *testing.T) {
+	os.Setenv(kubernetesServiceHostEnvVar, "localhost")
+	os.Setenv(kubernetesServicePortEnvVar, "443")
+
+	appName := "foo"
+	driverPodName := appName + "-driver"
+
+	now := time.Now()
+	terminatiomTime := now.Add(-2 * time.Second)
+	app := &v1beta2.SparkApplication{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      appName,
+			Namespace: "test",
+		},
+		Spec: v1beta2.SparkApplicationSpec{
+			RestartPolicy: v1beta2.RestartPolicy{
+				Type: v1beta2.Never,
+			},
+			TimeToLiveSeconds: int64ptr(1),
+		},
+		Status: v1beta2.SparkApplicationStatus{
+			AppState: v1beta2.ApplicationState{
+				State:        v1beta2.CompletedState,
+				ErrorMessage: "",
+			},
+			DriverInfo: v1beta2.DriverInfo{
+				PodName: driverPodName,
+			},
+			TerminationTime: metav1.Time{
+				Time: terminatiomTime,
+			},
+			ExecutorState: map[string]v1beta2.ExecutorState{"exec-1": v1beta2.ExecutorCompletedState},
+		},
+	}
+
+	ctrl, _ := newFakeController(app)
+	_, err := ctrl.crdClient.SparkoperatorV1beta2().SparkApplications(app.Namespace).Create(app)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = ctrl.syncSparkApplication(fmt.Sprintf("%s/%s", app.Namespace, app.Name))
+	assert.Nil(t, err)
+
+	_, err = ctrl.crdClient.SparkoperatorV1beta2().SparkApplications(app.Namespace).Get(app.Name, metav1.GetOptions{})
+	assert.True(t, errors.IsNotFound(err))
 }
 
 func TestHasRetryIntervalPassed(t *testing.T) {
