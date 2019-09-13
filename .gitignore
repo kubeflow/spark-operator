@@ -5,3 +5,5 @@ spark-operator
 **/*.iml
 sparkctl/sparkctl
 spark-on-k8s-oprator
+sparkctl/sparkctl-linux-amd64
+sparkctl/sparkctl-darwin-amd64

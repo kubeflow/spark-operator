@@ -27,14 +27,12 @@ func NewResourceQuotaEnforcer(crdInformerFactory crdinformers.SharedInformerFact
 	}
 }
 
-// TODO: There appears to be a deadlock in cache.WaitForCacheSync. Possibly related? https://github.com/kubernetes/kubernetes/issues/71450
-// For now, return immediately. There will be a short window after startup where quota calcuation is incorrect.
 func (r ResourceQuotaEnforcer) WaitForCacheSync(stopCh <-chan struct{}) error {
-	/*if !cache.WaitForCacheSync(stopCh, func() bool {
+	if !cache.WaitForCacheSync(stopCh, func() bool {
 		return r.resourceQuotaInformer.Informer().HasSynced()
 	}) {
 		return fmt.Errorf("cache sync canceled")
-	}*/
+	}
 	return nil
 }
 
