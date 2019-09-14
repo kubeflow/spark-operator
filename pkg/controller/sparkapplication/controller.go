@@ -185,8 +185,8 @@ func (c *Controller) onUpdate(oldObj, newObj interface{}) {
 	newApp := newObj.(*v1beta2.SparkApplication)
 
 	// The informer will call this function on non-updated resources during resync, avoid
-	// processing unchanged applications, unless it is waiting to be retried.
-	if oldApp.ResourceVersion == newApp.ResourceVersion && !shouldRetry(newApp) {
+	// enqueuing unchanged applications, unless it has expired or is subject to retry.
+	if oldApp.ResourceVersion == newApp.ResourceVersion && !c.hasApplicationExpired(newApp) && !shouldRetry(newApp) {
 		return
 	}
 
@@ -572,7 +572,11 @@ func (c *Controller) syncSparkApplication(key string) error {
 	case v1beta2.CompletedState, v1beta2.FailedState:
 		if c.hasApplicationExpired(app) {
 			glog.Infof("Garbage collecting expired SparkApplication %s/%s", app.Namespace, app.Name)
-			return c.crdClient.SparkoperatorV1beta2().SparkApplications(app.Namespace).Delete(app.Name, metav1.NewDeleteOptions(0))
+			err := c.crdClient.SparkoperatorV1beta2().SparkApplications(app.Namespace).Delete(app.Name, metav1.NewDeleteOptions(0))
+			if err != nil && !errors.IsNotFound(err) {
+				return err
+			}
+			return nil
 		}
 	}
 
