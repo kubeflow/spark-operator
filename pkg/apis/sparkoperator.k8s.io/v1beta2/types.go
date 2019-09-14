@@ -17,6 +17,9 @@ limitations under the License.
 package v1beta2
 
 import (
+	"encoding/json"
+	"math"
+
 	apiv1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -41,6 +44,20 @@ const (
 	ClientMode          DeployMode = "client"
 	InClusterClientMode DeployMode = "in-cluster-client"
 )
+
+// For backwards compatibility with v1beta1, must be able to unmarshal from float64 and marshal to int32
+// This is achieved by rounding up previous float64-type fields
+type cores int32
+
+func (c *cores) UnmarshalJSON(data []byte) error {
+	var v float64
+	err := json.Unmarshal(data, &v)
+	if err != nil {
+		return err
+	}
+	*c = cores(math.Ceil(v))
+	return nil
+}
 
 // RestartPolicy is the policy of if and in which conditions the controller should restart a terminated application.
 // This completely defines actions to be taken on any kind of Failures during an application run.
@@ -364,8 +381,9 @@ type Dependencies struct {
 type SparkPodSpec struct {
 	// Cores is the number of CPU cores to request for the pod.
 	// Optional.
-	// +kubebuilder:validation:Minimum=1
-	Cores *int32 `json:"cores,omitempty"`
+	// +kubebuilder:validation:Minimum=0
+	// +kubebuilder:validation:ExclusiveMinimum=true
+	Cores *cores `json:"cores,omitempty"`
 	// CoreLimit specifies a hard limit on CPU cores for the pod.
 	// Optional
 	CoreLimit *string `json:"coreLimit,omitempty"`

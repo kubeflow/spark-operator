@@ -49,7 +49,7 @@ func SetSparkApplicationDefaults(app *SparkApplication) {
 
 func setDriverSpecDefaults(spec DriverSpec) {
 	if spec.Cores == nil {
-		spec.Cores = new(int32)
+		spec.Cores = new(cores)
 		*spec.Cores = 1
 	}
 	if spec.Memory == nil {
@@ -60,7 +60,7 @@ func setDriverSpecDefaults(spec DriverSpec) {
 
 func setExecutorSpecDefaults(spec ExecutorSpec) {
 	if spec.Cores == nil {
-		spec.Cores = new(int32)
+		spec.Cores = new(cores)
 		*spec.Cores = 1
 	}
 	if spec.Memory == nil {
