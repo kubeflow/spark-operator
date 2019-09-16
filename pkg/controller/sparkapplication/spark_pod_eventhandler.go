@@ -17,8 +17,6 @@ limitations under the License.
 package sparkapplication
 
 import (
-	"github.com/golang/glog"
-
 	apiv1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/tools/cache"
 
@@ -44,7 +42,7 @@ func newSparkPodEventHandler(enqueueFunc func(appKey interface{}), lister crdlis
 
 func (s *sparkPodEventHandler) onPodAdded(obj interface{}) {
 	pod := obj.(*apiv1.Pod)
-	glog.V(2).Infof("Pod %s added in namespace %s.", pod.GetName(), pod.GetNamespace())
+	logger.V(2).Info("Pod added in namespace", "namespace", pod.GetNamespace(), "podName", pod.GetName())
 	s.enqueueSparkAppForUpdate(pod)
 }
 
@@ -55,7 +53,7 @@ func (s *sparkPodEventHandler) onPodUpdated(old, updated interface{}) {
 	if updatedPod.ResourceVersion == oldPod.ResourceVersion {
 		return
 	}
-	glog.V(2).Infof("Pod %s updated in namespace %s.", updatedPod.GetName(), updatedPod.GetNamespace())
+	logger.V(2).Info("Pod updated in namespace", "namespace", updatedPod.GetNamespace(), "podName", updatedPod.GetName())
 	s.enqueueSparkAppForUpdate(updatedPod)
 
 }
@@ -74,7 +72,7 @@ func (s *sparkPodEventHandler) onPodDeleted(obj interface{}) {
 	if deletedPod == nil {
 		return
 	}
-	glog.V(2).Infof("Pod %s deleted in namespace %s.", deletedPod.GetName(), deletedPod.GetNamespace())
+	logger.V(2).Info("Pod deleted in namespace", "namespace", deletedPod.GetNamespace(), "podName", deletedPod.GetName())
 	s.enqueueSparkAppForUpdate(deletedPod)
 }
 
@@ -92,6 +90,6 @@ func (s *sparkPodEventHandler) enqueueSparkAppForUpdate(pod *apiv1.Pod) {
 	}
 
 	appKey := createMetaNamespaceKey(pod.GetNamespace(), appName)
-	glog.V(2).Infof("Enqueuing SparkApplication %s for app update processing.", appKey)
+	logger.V(2).Info("Enqueuing SparkApplication for app update processing", "appKey", appKey)
 	s.enqueueFunc(appKey)
 }

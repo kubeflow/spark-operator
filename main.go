@@ -25,7 +25,6 @@ import (
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/crd"
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/util"
 	wb "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/webhook"
-	"github.com/golang/glog"
 	apiv1 "k8s.io/api/core/v1"
 	apiextensionsclient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
@@ -42,18 +41,16 @@ import (
 )
 
 var (
-	installCRDs          = flag.Bool("install-crds", true, "Whether to install CRDs")
-	controllerThreads    = flag.Int("controller-threads", 10, "Number of worker threads used by the SparkApplication controller.")
-	resyncInterval       = flag.Int("resync-interval", 30, "Informer resync interval in seconds.")
-	namespace            = flag.String("namespace", apiv1.NamespaceAll, "The Kubernetes namespace(s) to manage. Will manage custom resource objects of the managed CRD types for the whole cluster if unset. Multiple namespace can be seperated with comma.")
-	enableWebhook        = flag.Bool("enable-webhook", false, "Whether to enable the mutating admission webhook for admitting and patching Spark pods.")
-	enableMetrics        = flag.Bool("enable-metrics", false, "Whether to enable the metrics endpoint.")
-	metricsPort          = flag.String("metrics-port", "10254", "Port for the metrics endpoint.")
-	metricsEndpoint      = flag.String("metrics-endpoint", "/metrics", "Metrics endpoint.")
-	metricsPrefix        = flag.String("metrics-prefix", "", "Prefix for the metrics.")
-	ingressUrlFormat     = flag.String("ingress-url-format", "", "Ingress URL format.")
-	setupLog             = ctrl.Log.WithName("setup")
-	enableLeaderElection = flag.Bool("enable-leader-election", false, "Enable Spark operator leader election.")
+	installCRDs      = flag.Bool("install-crds", true, "Whether to install CRDs")
+	resyncInterval   = flag.Int("resync-interval", 30, "Informer resync interval in seconds.")
+	namespace        = flag.String("namespace", apiv1.NamespaceAll, "The Kubernetes namespace(s) to manage. Will manage custom resource objects of the managed CRD types for the whole cluster if unset. Multiple namespace can be seperated with comma.")
+	enableWebhook    = flag.Bool("enable-webhook", false, "Whether to enable the mutating admission webhook for admitting and patching Spark pods.")
+	enableMetrics    = flag.Bool("enable-metrics", false, "Whether to enable the metrics endpoint.")
+	metricsPort      = flag.String("metrics-port", "10254", "Port for the metrics endpoint.")
+	metricsEndpoint  = flag.String("metrics-endpoint", "/metrics", "Metrics endpoint.")
+	metricsPrefix    = flag.String("metrics-prefix", "", "Prefix for the metrics.")
+	ingressUrlFormat = flag.String("ingress-url-format", "", "Ingress URL format.")
+	logger           = ctrl.Log.WithName("main")
 )
 
 func main() {
@@ -62,11 +59,11 @@ func main() {
 	flag.Var(&metricsLabels, "metrics-labels", "Labels for the metrics")
 	flag.StringVar(&metricsAddr, "metrics-addr", ":8080", "The address the metric endpoint binds to.")
 	flag.Parse()
-
+	ctrl.SetLogger(zap.Logger(true))
 	// Create the client config. Use kubeConfig if given, otherwise assume in-cluster.
 	config, err := ctrl.GetConfig()
 	if err != nil {
-		glog.Fatal(err)
+		logger.Error(err, "Error getting kubeconfig")
 	}
 
 	var metricConfig *util.MetricConfig
@@ -78,27 +75,26 @@ func main() {
 			MetricsLabels:   metricsLabels,
 		}
 
-		glog.Info("Enabling metrics collecting and exporting to Prometheus")
+		logger.Info("Enabling metrics collecting and exporting to Prometheus")
 		util.InitializeMetrics(metricConfig)
 	}
 
-	ctrl.SetLogger(zap.Logger(true))
-	setupLog.Info("Starting the Spark Operator")
+	logger.Info("Starting the Spark Operator")
 
 	apiExtensionsClient, err := apiextensionsclient.NewForConfig(config)
 	if err != nil {
-		setupLog.Error(err, "Unable to get a client")
+		logger.Error(err, "Unable to get a client")
 	}
 
 	if *installCRDs {
 		err = crd.CreateOrUpdateCRDs(apiExtensionsClient)
 		if err != nil {
-			glog.Fatal(err)
+			logger.Error(err, "Failed to create the Spark Operator crds")
 		}
 	}
 
 	// Create a new Cmd to provide shared dependencies and start components
-	glog.Info("Setting up the controller runtime manager")
+	logger.Info("Setting up the controller runtime manager")
 	syncPeriodDuration := time.Duration(*resyncInterval) * time.Second
 
 	var mgr manager.Manager
@@ -116,43 +112,41 @@ func main() {
 	}
 
 	if err != nil {
-		glog.Error(err, "unable to set up overall controller manager")
+		logger.Error(err, "unable to set up overall controller manager")
 		os.Exit(1)
 	}
 
-	setupLog.Info("Registering Components.")
+	logger.Info("Registering Components.")
 
 	// Setup Scheme for all resources
 	if err := apis.AddToScheme(mgr.GetScheme()); err != nil {
-		glog.Error(err, "Unable to register the reuqired schemes")
+		logger.Error(err, "Unable to register the reuqired schemes")
 		os.Exit(1)
 	}
 
 	// Setup all Controllers
-	setupLog.Info("Adding Controllers.")
+	logger.Info("Adding Controllers.")
 	if err := controller.AddToManager(mgr, metricConfig); err != nil {
-		glog.Error(err, "Unable to add the controllers")
+		logger.Error(err, "Unable to add the controllers")
 		os.Exit(1)
 	}
 
 	if *enableWebhook {
-		glog.Info("Setting up webhooks")
+		logger.Info("Setting up webhooks")
 		if err := wb.AddToManager(mgr); err != nil {
-			glog.Error(err, "unable to register webhooks to the manager")
+			logger.Error(err, "unable to register webhooks to the manager")
 			os.Exit(1)
 		}
 
-		// +kubebuilder:scaffold:builder
-
-		glog.Info("Getting the webhook server")
+		logger.Info("Getting the webhook server")
 		hookServer := mgr.GetWebhookServer()
 		hookServer.Register("/mutate-v1-pod", &webhook.Admission{Handler: &wb.SparkPodMutator{JobNameSpace: *namespace}})
 	}
-
+	// +kubebuilder:scaffold:builder
 	//Start the Cmd
-	setupLog.Info("Starting the Cmd.")
+	logger.Info("Starting the Cmd.")
 	if err := mgr.Start(signals.SetupSignalHandler()); err != nil {
-		glog.Error(err, "unable to run the manager")
+		logger.Error(err, "unable to run the manager")
 		os.Exit(1)
 	}
 }

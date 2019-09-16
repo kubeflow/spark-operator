@@ -10,7 +10,7 @@ webhooks:
     caBundle: Cg==
     service:
       name: webhook-service
-      namespace: sparkoperator
+      namespace: system
       path: /mutate-v1-pod
   failurePolicy: Fail
   name: webhook.sparkoperator.k8s.io

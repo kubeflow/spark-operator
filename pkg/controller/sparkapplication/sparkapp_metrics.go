@@ -141,8 +141,8 @@ func (sm *sparkAppMetrics) registerMetrics() {
 
 func (sm *sparkAppMetrics) exportMetrics(oldApp, newApp *v1beta1.SparkApplication) {
 	metricLabels := fetchMetricLabels(newApp.Labels, sm.labels)
-	glog.V(2).Infof("Exporting metrics for %s; old status: %v new status: %v", newApp.Name,
-		oldApp.Status, newApp.Status)
+	logger.V(2).Info("Exporting metrics", "appName", newApp.Name,
+		"oldStatus", oldApp.Status, "newStatus", newApp.Status)
 
 	oldState := oldApp.Status.AppState.State
 	newState := newApp.Status.AppState.State
@@ -150,7 +150,7 @@ func (sm *sparkAppMetrics) exportMetrics(oldApp, newApp *v1beta1.SparkApplicatio
 		switch newState {
 		case v1beta1.SubmittedState:
 			if m, err := sm.sparkAppSubmitCount.GetMetricWith(metricLabels); err != nil {
-				glog.Errorf("Error while exporting metrics: %v", err)
+				logger.Error(err, "Error while exporting metrics")
 			} else {
 				m.Inc()
 			}
@@ -161,14 +161,14 @@ func (sm *sparkAppMetrics) exportMetrics(oldApp, newApp *v1beta1.SparkApplicatio
 				d := newApp.Status.TerminationTime.Time.Sub(newApp.Status.LastSubmissionAttemptTime.Time)
 
 				if m, err := sm.sparkAppSuccessExecutionTime.GetMetricWith(metricLabels); err != nil {
-					glog.Errorf("Error while exporting metrics: %v", err)
+					logger.Error(err, "Error while exporting metrics")
 				} else {
 					m.Observe(float64(d / time.Microsecond))
 				}
 			}
 			sm.sparkAppRunningCount.Dec(metricLabels)
 			if m, err := sm.sparkAppSuccessCount.GetMetricWith(metricLabels); err != nil {
-				glog.Errorf("Error while exporting metrics: %v", err)
+				logger.Error(err, "Error while exporting metrics")
 			} else {
 				m.Inc()
 			}
@@ -176,20 +176,20 @@ func (sm *sparkAppMetrics) exportMetrics(oldApp, newApp *v1beta1.SparkApplicatio
 			if !newApp.Status.LastSubmissionAttemptTime.Time.IsZero() && !newApp.Status.TerminationTime.Time.IsZero() {
 				d := newApp.Status.TerminationTime.Time.Sub(newApp.Status.LastSubmissionAttemptTime.Time)
 				if m, err := sm.sparkAppFailureExecutionTime.GetMetricWith(metricLabels); err != nil {
-					glog.Errorf("Error while exporting metrics: %v", err)
+					logger.Error(err, "Error while exporting metrics")
 				} else {
 					m.Observe(float64(d / time.Microsecond))
 				}
 			}
 			sm.sparkAppRunningCount.Dec(metricLabels)
 			if m, err := sm.sparkAppFailureCount.GetMetricWith(metricLabels); err != nil {
-				glog.Errorf("Error while exporting metrics: %v", err)
+				logger.Error(err, "Error while exporting metrics")
 			} else {
 				m.Inc()
 			}
 		case v1beta1.FailedSubmissionState:
 			if m, err := sm.sparkAppFailedSubmissionCount.GetMetricWith(metricLabels); err != nil {
-				glog.Errorf("Error while exporting metrics: %v", err)
+				logger.Error(err, "Error while exporting metrics")
 			} else {
 				m.Inc()
 			}
@@ -201,17 +201,21 @@ func (sm *sparkAppMetrics) exportMetrics(oldApp, newApp *v1beta1.SparkApplicatio
 		switch newExecState {
 		case v1beta1.ExecutorRunningState:
 			if oldApp.Status.ExecutorState[executor] != newExecState {
-				glog.V(2).Infof("Exporting Metrics for Executor %s. OldState: %v NewState: %v", executor,
-					oldApp.Status.ExecutorState[executor], newExecState)
+				logger.V(2).Info("Exporting Metrics for Executor",
+					"executor", executor,
+					"oldState", oldApp.Status.ExecutorState[executor],
+					"newState", newExecState)
 				sm.sparkAppExecutorRunningCount.Inc(metricLabels)
 			}
 		case v1beta1.ExecutorCompletedState:
 			if oldApp.Status.ExecutorState[executor] != newExecState {
-				glog.V(2).Infof("Exporting Metrics for Executor %s. OldState: %v NewState: %v", executor,
-					oldApp.Status.ExecutorState[executor], newExecState)
+				logger.V(2).Info("Exporting Metrics for Executor",
+					"executor", executor,
+					"oldState", oldApp.Status.ExecutorState[executor],
+					"newState", newExecState)
 				sm.sparkAppExecutorRunningCount.Dec(metricLabels)
 				if m, err := sm.sparkAppExecutorSuccessCount.GetMetricWith(metricLabels); err != nil {
-					glog.Errorf("Error while exporting metrics: %v", err)
+					logger.Error(err, "Error while exporting metrics")
 				} else {
 					m.Inc()
 				}
@@ -222,7 +226,7 @@ func (sm *sparkAppMetrics) exportMetrics(oldApp, newApp *v1beta1.SparkApplicatio
 					oldApp.Status.ExecutorState[executor], newExecState)
 				sm.sparkAppExecutorRunningCount.Dec(metricLabels)
 				if m, err := sm.sparkAppExecutorFailureCount.GetMetricWith(metricLabels); err != nil {
-					glog.Errorf("Error while exporting metrics: %v", err)
+					logger.Error(err, "Error while exporting metrics")
 				} else {
 					m.Inc()
 				}

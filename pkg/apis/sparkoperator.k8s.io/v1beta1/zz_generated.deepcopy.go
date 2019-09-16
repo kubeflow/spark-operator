@@ -618,7 +618,6 @@ func (in *SparkApplicationSpec) DeepCopyInto(out *SparkApplicationSpec) {
 		*out = new(MonitoringSpec)
 		(*in).DeepCopyInto(*out)
 	}
-
 	if in.BatchScheduler != nil {
 		in, out := &in.BatchScheduler, &out.BatchScheduler
 		*out = new(string)

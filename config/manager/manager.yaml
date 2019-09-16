@@ -26,11 +26,10 @@ spec:
         - command:
             - /usr/bin/entrypoint.sh
           args:
-            - --enable-leader-election
             - --logtostderr
             - --v=4
             - --enable-webhook=true
-          image: controller:latest
+          image: lightbend/spark-operator:latest
           name: manager
           resources:
             limits:

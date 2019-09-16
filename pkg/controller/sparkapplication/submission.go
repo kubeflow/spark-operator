@@ -24,7 +24,6 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/golang/glog"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta1"
@@ -55,14 +54,14 @@ func newSubmission(args []string, app *v1beta1.SparkApplication) *submission {
 func runSparkSubmit(submission *submission) (bool, error) {
 	sparkHome, present := os.LookupEnv(sparkHomeEnvVar)
 	if !present {
-		glog.Error("SPARK_HOME is not specified")
+		logger.Error(nil, "SPARK_HOME is not specified")
 	}
 	var command = filepath.Join(sparkHome, "/bin/spark-submit")
 
-	cmd := execCommand(command, submission.args...)
-	glog.V(2).Infof("spark-submit arguments: %v", cmd.Args)
+	cmd := exec.Command(command, submission.args...)
+	logger.Info("spark-submit info", "arguments", cmd.Args)
 	output, err := cmd.Output()
-	glog.V(3).Infof("spark-submit output: %s", string(output))
+	logger.Info("spark-submit info", "output", string(output))
 	if err != nil {
 		var errorMsg string
 		if exitErr, ok := err.(*exec.ExitError); ok {
@@ -70,7 +69,8 @@ func runSparkSubmit(submission *submission) (bool, error) {
 		}
 		// The driver pod of the application already exists.
 		if strings.Contains(errorMsg, podAlreadyExistsErrorCode) {
-			glog.Warningf("trying to resubmit an already submitted SparkApplication %s/%s", submission.namespace, submission.name)
+			logger.Error(nil, "trying to resubmit an already submitted SparkApplication",
+				"namespace", submission.namespace, "name", submission.name)
 			return false, nil
 		}
 		if errorMsg != "" {

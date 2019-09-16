@@ -20,17 +20,20 @@ import (
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta1"
 )
 
-type sparkApps []*v1beta1.SparkApplication
+type sparkApps v1beta1.SparkApplicationList
 
 func (s sparkApps) Len() int {
-	return len(s)
+	return len(s.Items)
 }
 
 func (s sparkApps) Swap(i, j int) {
-	s[i], s[j] = s[j], s[i]
+	list := s.Items
+	list[i], list[j] = list[j], list[i]
+	s.Items = list
 }
 
 func (s sparkApps) Less(i, j int) bool {
 	// Sort by decreasing order of application names and correspondingly creation time.
-	return s[i].Name > s[j].Name
+	list := s.Items
+	return list[i].Name > list[j].Name
 }

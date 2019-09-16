@@ -67,7 +67,6 @@ const (
 )
 
 // +genclient
-// +genclient:noStatus
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // +k8s:defaulter-gen=true
 
@@ -145,10 +144,8 @@ type ScheduledSparkApplicationList struct {
 }
 
 // +genclient
-// +genclient:noStatus
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // +k8s:defaulter-gen=true
-
 // SparkApplication represents a Spark application running on and using Kubernetes as a cluster manager.
 type SparkApplication struct {
 	metav1.TypeMeta   `json:",inline"`
@@ -304,6 +301,8 @@ type SparkApplicationStatus struct {
 	// SubmissionAttempts is the total number of attempts to submit an application to run.
 	// Incremented upon each attempted submission of the application and reset upon invalidation and rerun.
 	SubmissionAttempts int32 `json:"submissionAttempts,omitempty"`
+	// Information about the spec, we should know if we are targeting the correct state
+	AppHash string `json:"apphash,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object

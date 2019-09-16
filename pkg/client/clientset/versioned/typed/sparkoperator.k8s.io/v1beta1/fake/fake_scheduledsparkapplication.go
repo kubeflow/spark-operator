@@ -102,6 +102,18 @@ func (c *FakeScheduledSparkApplications) Update(scheduledSparkApplication *v1bet
 	return obj.(*v1beta1.ScheduledSparkApplication), err
 }
 
+// UpdateStatus was generated because the type contains a Status member.
+// Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
+func (c *FakeScheduledSparkApplications) UpdateStatus(scheduledSparkApplication *v1beta1.ScheduledSparkApplication) (*v1beta1.ScheduledSparkApplication, error) {
+	obj, err := c.Fake.
+		Invokes(testing.NewUpdateSubresourceAction(scheduledsparkapplicationsResource, "status", c.ns, scheduledSparkApplication), &v1beta1.ScheduledSparkApplication{})
+
+	if obj == nil {
+		return nil, err
+	}
+	return obj.(*v1beta1.ScheduledSparkApplication), err
+}
+
 // Delete takes name of the scheduledSparkApplication and deletes it. Returns an error if one occurs.
 func (c *FakeScheduledSparkApplications) Delete(name string, options *v1.DeleteOptions) error {
 	_, err := c.Fake.

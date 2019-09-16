@@ -161,6 +161,8 @@ if [[ "$IN_POD" == "true" ]];  then
      ;;
   esac
 else
+#TODO: replace with kubectl create secret --namespace=${NAMESPACE} tls spark-webhook-certs --key=${TMP_DIR}/ca-key.pem --cert=${TMP_DIR}/ca-cert.pem
+
   kubectl create secret --namespace=${NAMESPACE} generic spark-webhook-certs --from-file=${TMP_DIR}/ca-key.pem --from-file=${TMP_DIR}/ca-cert.pem --from-file=${TMP_DIR}/server-key.pem --from-file=${TMP_DIR}/server-cert.pem
 fi
 

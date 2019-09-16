@@ -34,7 +34,7 @@ func getAppName(pod *apiv1.Pod) (string, bool) {
 	return appName, ok
 }
 
-func getSparkApplicationID(pod *apiv1.Pod) string {
+func getSparkApplicationID(pod apiv1.Pod) string {
 	return pod.Labels[config.SparkApplicationSelectorLabel]
 }
 

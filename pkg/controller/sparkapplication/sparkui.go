@@ -17,20 +17,19 @@ limitations under the License.
 package sparkapplication
 
 import (
+	"context"
 	"fmt"
 	"regexp"
 	"strconv"
 
-	"github.com/golang/glog"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta1"
+	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/config"
 	apiv1 "k8s.io/api/core/v1"
 	extensions "k8s.io/api/extensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
-	clientset "k8s.io/client-go/kubernetes"
-
-	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta1"
-	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/config"
 )
 
 const (
@@ -57,7 +56,7 @@ type SparkIngress struct {
 	ingressURL  string
 }
 
-func createSparkUIIngress(app *v1beta1.SparkApplication, service SparkService, ingressURLFormat string, kubeClient clientset.Interface) (*SparkIngress, error) {
+func createSparkUIIngress(ctx context.Context, app *v1beta1.SparkApplication, service SparkService, ingressURLFormat string, client client.Client) (*SparkIngress, error) {
 	ingressURL := getSparkUIingressURL(ingressURLFormat, app.GetName())
 	ingress := extensions.Ingress{
 		ObjectMeta: metav1.ObjectMeta{
@@ -85,8 +84,8 @@ func createSparkUIIngress(app *v1beta1.SparkApplication, service SparkService, i
 			}},
 		},
 	}
-	glog.Infof("Creating an Ingress %s for the Spark UI for application %s", ingress.Name, app.Name)
-	_, err := kubeClient.ExtensionsV1beta1().Ingresses(ingress.Namespace).Create(&ingress)
+	logger.Info("Creating an Ingress for the Spark UI for application", "ingressName", ingress.Name, "appName", app.Name)
+	err := client.Create(ctx, &ingress)
 
 	if err != nil {
 		return nil, err
@@ -97,9 +96,7 @@ func createSparkUIIngress(app *v1beta1.SparkApplication, service SparkService, i
 	}, nil
 }
 
-func createSparkUIService(
-	app *v1beta1.SparkApplication,
-	kubeClient clientset.Interface) (*SparkService, error) {
+func createSparkUIService(ctx context.Context, client client.Client, app *v1beta1.SparkApplication) (*SparkService, error) {
 	portStr := getUITargetPort(app)
 	port, err := strconv.Atoi(portStr)
 	if err != nil {
@@ -128,8 +125,8 @@ func createSparkUIService(
 		},
 	}
 
-	glog.Infof("Creating a service %s for the Spark UI for application %s", service.Name, app.Name)
-	service, err = kubeClient.CoreV1().Services(app.Namespace).Create(service)
+	logger.Info("Creating a service for the Spark UI for application", "serviceName", service.Name, "appName", app.Name)
+	err = client.Create(ctx, service)
 	if err != nil {
 		return nil, err
 	}
