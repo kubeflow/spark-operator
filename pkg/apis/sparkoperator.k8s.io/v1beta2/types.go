@@ -47,15 +47,15 @@ const (
 
 // For backwards compatibility with v1beta1, must be able to unmarshal from float64 and marshal to int32
 // This is achieved by rounding up previous float64-type fields
-type cores int32
+type Cores int32
 
-func (c *cores) UnmarshalJSON(data []byte) error {
+func (c *Cores) UnmarshalJSON(data []byte) error {
 	var v float64
 	err := json.Unmarshal(data, &v)
 	if err != nil {
 		return err
 	}
-	*c = cores(math.Ceil(v))
+	*c = Cores(math.Ceil(v))
 	return nil
 }
 
@@ -383,7 +383,7 @@ type SparkPodSpec struct {
 	// Optional.
 	// +kubebuilder:validation:Minimum=0
 	// +kubebuilder:validation:ExclusiveMinimum=true
-	Cores *cores `json:"cores,omitempty"`
+	Cores *Cores `json:"cores,omitempty"`
 	// CoreLimit specifies a hard limit on CPU cores for the pod.
 	// Optional
 	CoreLimit *string `json:"coreLimit,omitempty"`

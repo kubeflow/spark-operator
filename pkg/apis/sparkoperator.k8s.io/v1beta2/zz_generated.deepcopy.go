@@ -673,7 +673,7 @@ func (in *SparkPodSpec) DeepCopyInto(out *SparkPodSpec) {
 	*out = *in
 	if in.Cores != nil {
 		in, out := &in.Cores, &out.Cores
-		*out = new(cores)
+		*out = new(Cores)
 		**out = **in
 	}
 	if in.CoreLimit != nil {

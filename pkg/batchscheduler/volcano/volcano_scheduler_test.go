@@ -27,7 +27,7 @@ import (
 
 func TestGetDriverResource(t *testing.T) {
 
-	var oneCore int32 = 1
+	oneCore := v1beta2.Cores(1)
 	oneCoreStr := "1"
 	oneGB := "1024m"
 	twoCoresStr := "2"
@@ -93,10 +93,10 @@ func TestGetDriverResource(t *testing.T) {
 
 func TestGetExecutorResource(t *testing.T) {
 
-	oneCore := int32(1)
+	oneCore := v1beta2.Cores(1)
 	oneCoreStr := "1"
 	oneGB := "1024m"
-	twoCores := int32(2)
+	twoCores := v1beta2.Cores(2)
 	instances := int32(2)
 
 	result := v1.ResourceList{}
