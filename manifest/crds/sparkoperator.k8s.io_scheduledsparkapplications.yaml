@@ -9,9 +9,11 @@ spec:
   group: sparkoperator.k8s.io
   names:
     kind: ScheduledSparkApplication
+    listKind: ScheduledSparkApplicationList
     plural: scheduledsparkapplications
     shortNames:
     - scheduledsparkapp
+    singular: scheduledsparkapplication
   scope: Namespaced
   subresources:
     status: {}
@@ -1898,7 +1900,6 @@ spec:
                           type: integer
                       required:
                       - jmxExporterJar
-                      - port
                       type: object
                   required:
                   - exposeDriverMetrics
@@ -1949,6 +1950,9 @@ spec:
                   type: string
                 sparkVersion:
                   type: string
+                timeToLiveSeconds:
+                  format: int64
+                  type: integer
                 type:
                   enum:
                   - Java

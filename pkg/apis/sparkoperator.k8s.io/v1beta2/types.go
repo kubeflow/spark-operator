@@ -533,7 +533,7 @@ type PrometheusSpec struct {
 	// If not specified, 8090 will be used as the default.
 	// +kubebuilder:validation:Minimum=1024
 	// +kubebuilder:validation:Minimum=49151
-	Port *int32 `json:"port"`
+	Port *int32 `json:"port,omitempty"`
 	// ConfigFile is the path to the custom Prometheus configuration file provided in the Spark image.
 	// ConfigFile takes precedence over Configuration, which is shown below.
 	ConfigFile *string `json:"configFile,omitempty"`
