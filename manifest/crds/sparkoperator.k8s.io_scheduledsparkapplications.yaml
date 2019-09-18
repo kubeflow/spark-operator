@@ -48,6 +48,13 @@ spec:
                   type: array
                 batchScheduler:
                   type: string
+                batchSchedulerOptions:
+                  properties:
+                    priorityClassName:
+                      type: string
+                    queue:
+                      type: string
+                  type: object
                 deps:
                   properties:
                     downloadTimeout:
