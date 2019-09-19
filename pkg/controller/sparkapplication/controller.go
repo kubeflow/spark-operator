@@ -783,12 +783,16 @@ func (c *Controller) getSparkApplication(namespace string, name string) (*v1beta
 // Delete the driver pod and optional UI resources (Service/Ingress) created for the application.
 func (c *Controller) deleteSparkResources(app *v1beta2.SparkApplication) error {
 	driverPodName := app.Status.DriverInfo.PodName
-	if driverPodName != "" {
-		glog.V(2).Infof("Deleting pod %s in namespace %s", driverPodName, app.Namespace)
-		err := c.kubeClient.CoreV1().Pods(app.Namespace).Delete(driverPodName, metav1.NewDeleteOptions(0))
-		if err != nil && !errors.IsNotFound(err) {
-			return err
-		}
+	// Derive the driver pod name in case the driver pod name was not recorded in the status,
+	// which could happen if the status update right after submission failed.
+	if driverPodName == "" {
+		driverPodName = getDriverPodName(app)
+	}
+
+	glog.V(2).Infof("Deleting pod %s in namespace %s", driverPodName, app.Namespace)
+	err := c.kubeClient.CoreV1().Pods(app.Namespace).Delete(driverPodName, metav1.NewDeleteOptions(0))
+	if err != nil && !errors.IsNotFound(err) {
+		return err
 	}
 
 	sparkUIServiceName := app.Status.DriverInfo.WebUIServiceName
@@ -826,11 +830,14 @@ func (c *Controller) validateSparkApplication(app *v1beta2.SparkApplication) err
 // Validate that any Spark resources (driver/Service/Ingress) created for the application have been deleted.
 func (c *Controller) validateSparkResourceDeletion(app *v1beta2.SparkApplication) bool {
 	driverPodName := app.Status.DriverInfo.PodName
-	if driverPodName != "" {
-		_, err := c.kubeClient.CoreV1().Pods(app.Namespace).Get(driverPodName, metav1.GetOptions{})
-		if err == nil || !errors.IsNotFound(err) {
-			return false
-		}
+	// Derive the driver pod name in case the driver pod name was not recorded in the status,
+	// which could happen if the status update right after submission failed.
+	if driverPodName == "" {
+		driverPodName = getDriverPodName(app)
+	}
+	_, err := c.kubeClient.CoreV1().Pods(app.Namespace).Get(driverPodName, metav1.GetOptions{})
+	if err == nil || !errors.IsNotFound(err) {
+		return false
 	}
 
 	sparkUIServiceName := app.Status.DriverInfo.WebUIServiceName
