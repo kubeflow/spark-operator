@@ -31,7 +31,7 @@ metadata:
 spec:
   type: Scala
   mode: cluster
-  image: "gcr.io/spark-operator/spark:v2.4.0"
+  image: "gcr.io/spark-operator/spark:v2.4.4"
   imagePullPolicy: Always
   mainClass: org.apache.spark.examples.SparkPi
   mainApplicationFile: "local:///opt/spark/examples/jars/spark-examples_2.11-2.4.0.jar"

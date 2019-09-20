@@ -14,7 +14,7 @@
 # limitations under the License.
 #
 
-ARG SPARK_IMAGE=gcr.io/spark-operator/spark:v2.4.0
+ARG SPARK_IMAGE=gcr.io/spark-operator/spark:v2.4.4
 FROM ${SPARK_IMAGE}
 
 # Setup dependencies for Google Cloud Storage access.
