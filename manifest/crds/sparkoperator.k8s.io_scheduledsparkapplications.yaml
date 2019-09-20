@@ -1918,8 +1918,8 @@ spec:
                   type: object
                 pythonVersion:
                   enum:
-                  - 2
-                  - 3
+                  - "2"
+                  - "3"
                   type: string
                 restartPolicy:
                   properties:
