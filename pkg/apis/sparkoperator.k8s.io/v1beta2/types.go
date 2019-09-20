@@ -244,7 +244,7 @@ type SparkApplicationSpec struct {
 	// This sets the major Python version of the docker
 	// image used to run the driver and executor containers. Can either be 2 or 3, default 2.
 	// Optional.
-	// +kubebuilder:validation:Enum={2,3}
+	// +kubebuilder:validation:Enum={"2","3"}
 	PythonVersion *string `json:"pythonVersion,omitempty"`
 	// This sets the Memory Overhead Factor that will allocate memory to non-JVM memory.
 	// For JVM-based jobs this value will default to 0.10, for non-JVM jobs 0.40. Value of this field will
