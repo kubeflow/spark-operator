@@ -19,9 +19,9 @@ limitations under the License.
 package main
 
 import (
-	"fmt"
 	"context"
 	"flag"
+	"fmt"
 	"os"
 	"os/signal"
 	"strings"
