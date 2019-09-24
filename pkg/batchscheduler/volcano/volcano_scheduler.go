@@ -125,6 +125,9 @@ func (v *VolcanoBatchScheduler) syncPodGroup(app *v1beta2.SparkApplication, size
 				MinMember:    size,
 				MinResources: &minResource,
 			},
+			Status: v1alpha2.PodGroupStatus{
+				Phase: v1alpha2.PodGroupPending,
+			},
 		}
 
 		if app.Spec.BatchSchedulerOptions != nil {
@@ -144,7 +147,10 @@ func (v *VolcanoBatchScheduler) syncPodGroup(app *v1beta2.SparkApplication, size
 			_, err = v.volcanoClient.SchedulingV1alpha2().PodGroups(app.Namespace).Update(pg)
 		}
 	}
-	return fmt.Errorf("failed to sync PodGroup with error: %s. Abandon schedule pods via volcano", err)
+	if err != nil {
+		return fmt.Errorf("failed to sync PodGroup with error: %s. Abandon schedule pods via volcano", err)
+	}
+	return nil
 }
 
 func New(config *rest.Config) (schedulerinterface.BatchScheduler, error) {

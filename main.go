@@ -55,7 +55,6 @@ import (
 var (
 	master                         = flag.String("master", "", "The address of the Kubernetes API server. Overrides any value in kubeconfig. Only required if out-of-cluster.")
 	kubeConfig                     = flag.String("kubeConfig", "", "Path to a kube config. Only required if out-of-cluster.")
-	installCRDs                    = flag.Bool("install-crds", true, "Whether to install CRDs")
 	controllerThreads              = flag.Int("controller-threads", 10, "Number of worker threads used by the SparkApplication controller.")
 	resyncInterval                 = flag.Int("resync-interval", 30, "Informer resync interval in seconds.")
 	namespace                      = flag.String("namespace", apiv1.NamespaceAll, "The Kubernetes namespace to manage. Will manage custom resource objects of the managed CRD types for the whole cluster if unset.")

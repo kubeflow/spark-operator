@@ -617,6 +617,17 @@ func (c *Controller) submitSparkApplication(app *v1beta2.SparkApplication) *v1be
 		}
 	}
 
+	// Use batch scheduler to perform scheduling task before submitting (before build command arguments).
+	if needScheduling, scheduler := c.shouldDoBatchScheduling(app); needScheduling {
+		newApp, err := scheduler.DoBatchSchedulingOnSubmission(app)
+		if err != nil {
+			glog.Errorf("failed to process batch scheduler BeforeSubmitSparkApplication with error %v", err)
+			return app
+		}
+		//Spark submit will use the updated app to submit tasks(Spec will not be updated into API server)
+		app = newApp
+	}
+
 	driverPodName := getDriverPodName(app)
 	submissionID := uuid.New().String()
 	submissionCmdArgs, err := buildSubmissionCommandArgs(app, driverPodName, submissionID)
@@ -631,18 +642,6 @@ func (c *Controller) submitSparkApplication(app *v1beta2.SparkApplication) *v1be
 		}
 		return app
 	}
-
-	// Use batch scheduler to perform scheduling task before submitting.
-	if needScheduling, scheduler := c.shouldDoBatchScheduling(app); needScheduling {
-		newApp, err := scheduler.DoBatchSchedulingOnSubmission(app)
-		if err != nil {
-			glog.Errorf("failed to process batch scheduler BeforeSubmitSparkApplication with error %v", err)
-			return app
-		}
-		//Spark submit will use the updated app to submit tasks(Spec will not be updated into API server)
-		app = newApp
-	}
-
 	// Try submitting the application by running spark-submit.
 	submitted, err := runSparkSubmit(newSubmission(submissionCmdArgs, app))
 	if err != nil {
