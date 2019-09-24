@@ -17,12 +17,12 @@ limitations under the License.
 package schedulerinterface
 
 import (
-	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta1"
+	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta2"
 )
 
 type BatchScheduler interface {
 	Name() string
 
-	ShouldSchedule(app *v1beta1.SparkApplication) bool
-	DoBatchSchedulingOnSubmission(app *v1beta1.SparkApplication) (*v1beta1.SparkApplication, error)
+	ShouldSchedule(app *v1beta2.SparkApplication) bool
+	DoBatchSchedulingOnSubmission(app *v1beta2.SparkApplication) (*v1beta2.SparkApplication, error)
 }

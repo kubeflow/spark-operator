@@ -25,7 +25,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta1"
+	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta2"
 )
 
 func fetchCounterValue(m *prometheus.CounterVec, labels map[string]string) float64 {
@@ -50,7 +50,7 @@ type executorMetrics struct {
 
 func TestShouldRetry(t *testing.T) {
 	type testcase struct {
-		app         *v1beta1.SparkApplication
+		app         *v1beta2.SparkApplication
 		shouldRetry bool
 	}
 
@@ -59,18 +59,18 @@ func TestShouldRetry(t *testing.T) {
 		assert.Equal(t, test.shouldRetry, shouldRetry)
 	}
 
-	restartPolicyAlways := v1beta1.RestartPolicy{
-		Type:                             v1beta1.Always,
+	restartPolicyAlways := v1beta2.RestartPolicy{
+		Type:                             v1beta2.Always,
 		OnSubmissionFailureRetryInterval: int64ptr(100),
 		OnFailureRetryInterval:           int64ptr(100),
 	}
 
-	restartPolicyNever := v1beta1.RestartPolicy{
-		Type: v1beta1.Never,
+	restartPolicyNever := v1beta2.RestartPolicy{
+		Type: v1beta2.Never,
 	}
 
-	restartPolicyOnFailure := v1beta1.RestartPolicy{
-		Type:                             v1beta1.OnFailure,
+	restartPolicyOnFailure := v1beta2.RestartPolicy{
+		Type:                             v1beta2.OnFailure,
 		OnFailureRetries:                 int32ptr(1),
 		OnFailureRetryInterval:           int64ptr(100),
 		OnSubmissionFailureRetryInterval: int64ptr(100),
@@ -79,7 +79,7 @@ func TestShouldRetry(t *testing.T) {
 
 	testcases := []testcase{
 		{
-			app: &v1beta1.SparkApplication{
+			app: &v1beta2.SparkApplication{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "foo",
 					Namespace: "default",
@@ -87,119 +87,119 @@ func TestShouldRetry(t *testing.T) {
 			shouldRetry: false,
 		},
 		{
-			app: &v1beta1.SparkApplication{
+			app: &v1beta2.SparkApplication{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "foo",
 					Namespace: "default",
 				},
-				Spec: v1beta1.SparkApplicationSpec{
+				Spec: v1beta2.SparkApplicationSpec{
 					RestartPolicy: restartPolicyAlways,
 				},
-				Status: v1beta1.SparkApplicationStatus{
-					AppState: v1beta1.ApplicationState{
-						State: v1beta1.SucceedingState,
+				Status: v1beta2.SparkApplicationStatus{
+					AppState: v1beta2.ApplicationState{
+						State: v1beta2.SucceedingState,
 					},
 				},
 			},
 			shouldRetry: true,
 		},
 		{
-			app: &v1beta1.SparkApplication{
+			app: &v1beta2.SparkApplication{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "foo",
 					Namespace: "default",
 				},
-				Spec: v1beta1.SparkApplicationSpec{
+				Spec: v1beta2.SparkApplicationSpec{
 					RestartPolicy: restartPolicyOnFailure,
 				},
-				Status: v1beta1.SparkApplicationStatus{
-					AppState: v1beta1.ApplicationState{
-						State: v1beta1.SucceedingState,
+				Status: v1beta2.SparkApplicationStatus{
+					AppState: v1beta2.ApplicationState{
+						State: v1beta2.SucceedingState,
 					},
 				},
 			},
 			shouldRetry: false,
 		},
 		{
-			app: &v1beta1.SparkApplication{
+			app: &v1beta2.SparkApplication{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "foo",
 					Namespace: "default",
 				},
-				Spec: v1beta1.SparkApplicationSpec{
+				Spec: v1beta2.SparkApplicationSpec{
 					RestartPolicy: restartPolicyOnFailure,
 				},
-				Status: v1beta1.SparkApplicationStatus{
-					AppState: v1beta1.ApplicationState{
-						State: v1beta1.FailingState,
+				Status: v1beta2.SparkApplicationStatus{
+					AppState: v1beta2.ApplicationState{
+						State: v1beta2.FailingState,
 					},
 				},
 			},
 			shouldRetry: true,
 		},
 		{
-			app: &v1beta1.SparkApplication{
+			app: &v1beta2.SparkApplication{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "foo",
 					Namespace: "default",
 				},
-				Spec: v1beta1.SparkApplicationSpec{
+				Spec: v1beta2.SparkApplicationSpec{
 					RestartPolicy: restartPolicyNever,
 				},
-				Status: v1beta1.SparkApplicationStatus{
-					AppState: v1beta1.ApplicationState{
-						State: v1beta1.FailingState,
+				Status: v1beta2.SparkApplicationStatus{
+					AppState: v1beta2.ApplicationState{
+						State: v1beta2.FailingState,
 					},
 				},
 			},
 			shouldRetry: false,
 		},
 		{
-			app: &v1beta1.SparkApplication{
+			app: &v1beta2.SparkApplication{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "foo",
 					Namespace: "default",
 				},
-				Spec: v1beta1.SparkApplicationSpec{
+				Spec: v1beta2.SparkApplicationSpec{
 					RestartPolicy: restartPolicyNever,
 				},
-				Status: v1beta1.SparkApplicationStatus{
-					AppState: v1beta1.ApplicationState{
-						State: v1beta1.FailedSubmissionState,
+				Status: v1beta2.SparkApplicationStatus{
+					AppState: v1beta2.ApplicationState{
+						State: v1beta2.FailedSubmissionState,
 					},
 				},
 			},
 			shouldRetry: false,
 		},
 		{
-			app: &v1beta1.SparkApplication{
+			app: &v1beta2.SparkApplication{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "foo",
 					Namespace: "default",
 				},
-				Spec: v1beta1.SparkApplicationSpec{
+				Spec: v1beta2.SparkApplicationSpec{
 					RestartPolicy: restartPolicyOnFailure,
 				},
-				Status: v1beta1.SparkApplicationStatus{
-					AppState: v1beta1.ApplicationState{
-						State: v1beta1.FailedSubmissionState,
+				Status: v1beta2.SparkApplicationStatus{
+					AppState: v1beta2.ApplicationState{
+						State: v1beta2.FailedSubmissionState,
 					},
 				},
 			},
 			shouldRetry: true,
 		},
 		{
-			app: &v1beta1.SparkApplication{
+			app: &v1beta2.SparkApplication{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "foo",
 					Namespace: "default",
 				},
-				Spec: v1beta1.SparkApplicationSpec{
+				Spec: v1beta2.SparkApplicationSpec{
 					RestartPolicy: restartPolicyAlways,
 				},
-				Status: v1beta1.SparkApplicationStatus{
-					AppState: v1beta1.ApplicationState{
-						State: v1beta1.PendingRerunState,
+				Status: v1beta2.SparkApplicationStatus{
+					AppState: v1beta2.ApplicationState{
+						State: v1beta2.PendingRerunState,
 					},
 				},
 			},

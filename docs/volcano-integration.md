@@ -23,7 +23,7 @@ $ helm install incubator/sparkoperator --namespace spark-operator --set enableBa
 
 Now, we can run a updated version of spark application (with `batchScheduler` configured), for instance:
 ```yaml
-apiVersion: "sparkoperator.k8s.io/v1beta1"
+apiVersion: "sparkoperator.k8s.io/v1beta2"
 kind: SparkApplication
 metadata:
   name: spark-pi
@@ -31,7 +31,7 @@ metadata:
 spec:
   type: Scala
   mode: cluster
-  image: "gcr.io/spark-operator/spark:v2.4.0"
+  image: "gcr.io/spark-operator/spark:v2.4.4"
   imagePullPolicy: Always
   mainClass: org.apache.spark.examples.SparkPi
   mainApplicationFile: "local:///opt/spark/examples/jars/spark-examples_2.11-2.4.0.jar"
@@ -45,8 +45,8 @@ spec:
         path: "/tmp"
         type: Directory
   driver:
-    cores: 0.1
-    coreLimit: "200m"
+    cores: 1
+    coreLimit: "1200m"
     memory: "512m"        
     labels:
       version: 2.4.0
@@ -83,4 +83,12 @@ If SparkApplication is configured to run with Volcano, there are some details un
 3. Volcano scheduler will take over all of the pods that both have schedulerName and annotation correctly configured for scheduling.
 
 
+Kubernetes Operator for Apache Spark enables end user to have fine-grained controlled on batch scheduling via attribute `BatchSchedulerOptions`. `BatchSchedulerOptions` is a string dictionary
+that different batch scheduler can utilize it to expose different attributes.
+For now, volcano support these attributes below:
+
+| Name  | Description                                                                | example                                                        |
+|-------|----------------------------------------------------------------------------|----------------------------------------------------------------|
+| queue | Used to specify which volcano queue will this spark application belongs to |  batchSchedulerOptions:<br/>  &nbsp; &nbsp; queue: "queue1" |
+| priorityClassName | Used to specify which priorityClass this spark application will use        |  batchSchedulerOptions:<br/>  &nbsp; &nbsp; priorityClassName: "pri1" |
 

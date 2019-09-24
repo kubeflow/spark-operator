@@ -22,11 +22,9 @@ import (
 	"flag"
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis"
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/controller"
-	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/crd"
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/util"
 	wb "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/webhook"
 	apiv1 "k8s.io/api/core/v1"
-	apiextensionsclient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	"os"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -81,17 +79,17 @@ func main() {
 
 	logger.Info("Starting the Spark Operator")
 
-	apiExtensionsClient, err := apiextensionsclient.NewForConfig(config)
+	//apiExtensionsClient, err := apiextensionsclient.NewForConfig(config)
 	if err != nil {
 		logger.Error(err, "Unable to get a client")
 	}
 
-	if *installCRDs {
-		err = crd.CreateOrUpdateCRDs(apiExtensionsClient)
-		if err != nil {
-			logger.Error(err, "Failed to create the Spark Operator crds")
-		}
-	}
+	//if *installCRDs {
+	//	err = crd.CreateOrUpdateCRDs(apiExtensionsClient)
+	//	if err != nil {
+	//		logger.Error(err, "Failed to create the Spark Operator crds")
+	//	}
+	//}
 
 	// Create a new Cmd to provide shared dependencies and start components
 	logger.Info("Setting up the controller runtime manager")

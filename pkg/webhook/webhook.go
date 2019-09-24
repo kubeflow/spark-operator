@@ -19,7 +19,7 @@ package webhook
 import (
 	"context"
 	"encoding/json"
-	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta1"
+	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta2"
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/config"
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/util"
 	"github.com/golang/glog"
@@ -104,7 +104,7 @@ func (a *SparkPodMutator) mutatePods(pod *corev1.Pod, req admission.Request) adm
 	}
 
 	ctx := context.Background()
-	var sparkList v1beta1.SparkApplicationList
+	var sparkList v1beta2.SparkApplicationList
 
 	if err := a.client.List(ctx, &sparkList, client.InNamespace(req.AdmissionRequest.Namespace), client.MatchingField(".metadata.name", appName)); err != nil {
 		glog.Errorf("failed to get SparkApplication %s/%s: %v", req.AdmissionRequest.Namespace, appName, err)

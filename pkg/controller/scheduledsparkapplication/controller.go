@@ -19,7 +19,7 @@ package scheduledsparkapplication
 import (
 	"context"
 	"fmt"
-	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta1"
+	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta2"
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/config"
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/util"
 	"github.com/golang/glog"
@@ -70,7 +70,7 @@ func (r *ReconcileScheduledSparkApplication) Reconcile(request reconcile.Request
 	ctx := context.Background()
 	ctx = contextutils.WithNamespace(ctx, request.Namespace)
 	ctx = contextutils.WithAppName(ctx, request.Name)
-	ssparkapp := &v1beta1.ScheduledSparkApplication{}
+	ssparkapp := &v1beta2.ScheduledSparkApplication{}
 	err := r.client.Get(ctx, request.NamespacedName, ssparkapp)
 	if err != nil {
 		if errors.IsNotFound(err) {
@@ -94,10 +94,10 @@ func (r *ReconcileScheduledSparkApplication) Reconcile(request reconcile.Request
 	if err != nil {
 		logger.Error(err, "failed to parse schedule of ScheduledSparkApplication",
 			"schedule", ssparkapp.Spec.Schedule, "namespace", ssparkapp.Namespace, "name", ssparkapp.Name)
-		status.ScheduleState = v1beta1.FailedValidationState
+		status.ScheduleState = v1beta2.FailedValidationState
 		status.Reason = err.Error()
 	} else {
-		status.ScheduleState = v1beta1.ScheduledState
+		status.ScheduleState = v1beta2.ScheduledState
 		now := r.clock.Now()
 		nextRunTime := status.NextRun.Time
 		if nextRunTime.IsZero() {
@@ -135,13 +135,13 @@ func (r *ReconcileScheduledSparkApplication) Reconcile(request reconcile.Request
 var _ reconcile.Reconciler = &ReconcileScheduledSparkApplication{}
 
 func (r *ReconcileScheduledSparkApplication) createSparkApplication(
-	ctx context.Context, scheduledApp *v1beta1.ScheduledSparkApplication, t time.Time) (string, error) {
-	app := &v1beta1.SparkApplication{}
+	ctx context.Context, scheduledApp *v1beta2.ScheduledSparkApplication, t time.Time) (string, error) {
+	app := &v1beta2.SparkApplication{}
 	app.Spec = scheduledApp.Spec.Template
 	app.Name = fmt.Sprintf("%s-%d", scheduledApp.Name, t.UnixNano())
 	app.OwnerReferences = append(app.OwnerReferences, metav1.OwnerReference{
-		APIVersion: v1beta1.SchemeGroupVersion.String(),
-		Kind:       reflect.TypeOf(v1beta1.ScheduledSparkApplication{}).Name(),
+		APIVersion: v1beta2.SchemeGroupVersion.String(),
+		Kind:       reflect.TypeOf(v1beta2.ScheduledSparkApplication{}).Name(),
 		Name:       scheduledApp.Name,
 		UID:        scheduledApp.UID,
 	})
@@ -158,7 +158,7 @@ func (r *ReconcileScheduledSparkApplication) createSparkApplication(
 	return app.Name, nil
 }
 
-func (r *ReconcileScheduledSparkApplication) shouldStartNextRun(ctx context.Context, app *v1beta1.ScheduledSparkApplication) (bool, error) {
+func (r *ReconcileScheduledSparkApplication) shouldStartNextRun(ctx context.Context, app *v1beta2.ScheduledSparkApplication) (bool, error) {
 	sortedApps, err := r.listSparkApplications(ctx, app)
 	if err != nil {
 		return false, err
@@ -170,11 +170,11 @@ func (r *ReconcileScheduledSparkApplication) shouldStartNextRun(ctx context.Cont
 	// The last run (most recently started) is the first one in the sorted slice.
 	lastRun := &sortedApps.Items[0]
 	switch app.Spec.ConcurrencyPolicy {
-	case v1beta1.ConcurrencyAllow:
+	case v1beta2.ConcurrencyAllow:
 		return true, nil
-	case v1beta1.ConcurrencyForbid:
+	case v1beta2.ConcurrencyForbid:
 		return r.hasLastRunFinished(lastRun), nil
-	case v1beta1.ConcurrencyReplace:
+	case v1beta2.ConcurrencyReplace:
 		if err := r.killLastRunIfNotFinished(ctx, lastRun); err != nil {
 			return false, err
 		}
@@ -183,7 +183,7 @@ func (r *ReconcileScheduledSparkApplication) shouldStartNextRun(ctx context.Cont
 	return true, nil
 }
 
-func (r *ReconcileScheduledSparkApplication) startNextRun(ctx context.Context, app *v1beta1.ScheduledSparkApplication, now time.Time) (string, error) {
+func (r *ReconcileScheduledSparkApplication) startNextRun(ctx context.Context, app *v1beta2.ScheduledSparkApplication, now time.Time) (string, error) {
 	name, err := r.createSparkApplication(ctx, app, now)
 	if err != nil {
 		glog.Errorf("failed to create a SparkApplication instance for ScheduledSparkApplication %s/%s: %v", app.Namespace, app.Name, err)
@@ -192,12 +192,12 @@ func (r *ReconcileScheduledSparkApplication) startNextRun(ctx context.Context, a
 	return name, nil
 }
 
-func (r *ReconcileScheduledSparkApplication) hasLastRunFinished(app *v1beta1.SparkApplication) bool {
-	return app.Status.AppState.State == v1beta1.CompletedState ||
-		app.Status.AppState.State == v1beta1.FailedState
+func (r *ReconcileScheduledSparkApplication) hasLastRunFinished(app *v1beta2.SparkApplication) bool {
+	return app.Status.AppState.State == v1beta2.CompletedState ||
+		app.Status.AppState.State == v1beta2.FailedState
 }
 
-func (r *ReconcileScheduledSparkApplication) killLastRunIfNotFinished(ctx context.Context, app *v1beta1.SparkApplication) error {
+func (r *ReconcileScheduledSparkApplication) killLastRunIfNotFinished(ctx context.Context, app *v1beta2.SparkApplication) error {
 	finished := r.hasLastRunFinished(app)
 	if finished {
 		return nil
@@ -207,7 +207,7 @@ func (r *ReconcileScheduledSparkApplication) killLastRunIfNotFinished(ctx contex
 		Namespace: app.Namespace,
 		Name:      app.Name,
 	}
-	prevApp := &v1beta1.ScheduledSparkApplication{}
+	prevApp := &v1beta2.ScheduledSparkApplication{}
 	err := r.client.Get(ctx, namespacedName, prevApp)
 	if err != nil && !errors.IsNotFound(err) {
 		return err
@@ -227,7 +227,7 @@ func (r *ReconcileScheduledSparkApplication) deleteScheduledSparkApplication(
 		Namespace: namespace,
 		Name:      name,
 	}
-	ssa := &v1beta1.ScheduledSparkApplication{}
+	ssa := &v1beta2.ScheduledSparkApplication{}
 	err := r.client.Get(ctx, namespacedName, ssa)
 	if err != nil && !errors.IsNotFound(err) {
 		return err
@@ -242,8 +242,8 @@ func (r *ReconcileScheduledSparkApplication) deleteScheduledSparkApplication(
 
 func (r *ReconcileScheduledSparkApplication) checkAndUpdatePastRuns(
 	ctx context.Context,
-	app *v1beta1.ScheduledSparkApplication,
-	status *v1beta1.ScheduledSparkApplicationStatus) error {
+	app *v1beta2.ScheduledSparkApplication,
+	status *v1beta2.ScheduledSparkApplicationStatus) error {
 	sortedApps, err := r.listSparkApplications(ctx, app)
 	if err != nil {
 		return err
@@ -252,9 +252,9 @@ func (r *ReconcileScheduledSparkApplication) checkAndUpdatePastRuns(
 	var completedRuns []string
 	var failedRuns []string
 	for _, a := range sortedApps.Items {
-		if a.Status.AppState.State == v1beta1.CompletedState {
+		if a.Status.AppState.State == v1beta2.CompletedState {
 			completedRuns = append(completedRuns, a.Name)
-		} else if a.Status.AppState.State == v1beta1.FailedState {
+		} else if a.Status.AppState.State == v1beta2.FailedState {
 			failedRuns = append(failedRuns, a.Name)
 		}
 	}
@@ -280,8 +280,8 @@ func (r *ReconcileScheduledSparkApplication) checkAndUpdatePastRuns(
 
 func (r *ReconcileScheduledSparkApplication) updateScheduledSparkApplicationStatus(
 	ctx context.Context,
-	app *v1beta1.ScheduledSparkApplication,
-	newStatus *v1beta1.ScheduledSparkApplicationStatus) (reconcile.Result, error) {
+	app *v1beta2.ScheduledSparkApplication,
+	newStatus *v1beta2.ScheduledSparkApplicationStatus) (reconcile.Result, error) {
 	// If the status has not changed, do not perform an update.
 	if isStatusEqual(newStatus, &app.Status) {
 		return reconcile.Result{}, nil
@@ -299,7 +299,7 @@ func (r *ReconcileScheduledSparkApplication) updateScheduledSparkApplicationStat
 			Namespace: toUpdate.Namespace,
 			Name:      toUpdate.Name,
 		}
-		result := &v1beta1.ScheduledSparkApplication{}
+		result := &v1beta2.ScheduledSparkApplication{}
 		err := r.client.Get(ctx, namespacedName, result)
 		if err != nil {
 			return err
@@ -310,10 +310,10 @@ func (r *ReconcileScheduledSparkApplication) updateScheduledSparkApplicationStat
 	})
 }
 
-func (r *ReconcileScheduledSparkApplication) listSparkApplications(ctx context.Context, app *v1beta1.ScheduledSparkApplication) (sparkApps, error) {
+func (r *ReconcileScheduledSparkApplication) listSparkApplications(ctx context.Context, app *v1beta2.ScheduledSparkApplication) (sparkApps, error) {
 	appLabels := make(map[string]string)
 	appLabels[config.ScheduledSparkAppNameLabel] = app.Name
-	ssaList := &v1beta1.SparkApplicationList{}
+	ssaList := &v1beta2.SparkApplicationList{}
 	err := r.client.List(ctx, ssaList, client.InNamespace(app.Namespace), client.MatchingLabels(appLabels))
 	if err != nil {
 		result := &sparkApps{}
@@ -338,7 +338,7 @@ func bookkeepPastRuns(names []string, runLimit *int32) (toKeep []string, toDelet
 	return
 }
 
-func isStatusEqual(newStatus, currentStatus *v1beta1.ScheduledSparkApplicationStatus) bool {
+func isStatusEqual(newStatus, currentStatus *v1beta2.ScheduledSparkApplicationStatus) bool {
 	return newStatus.ScheduleState == currentStatus.ScheduleState &&
 		newStatus.LastRun == currentStatus.LastRun &&
 		newStatus.NextRun == currentStatus.NextRun &&

@@ -20,23 +20,23 @@ import (
 	"fmt"
 	"path/filepath"
 
-	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta1"
+	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta2"
 )
 
 // GetDriverSecretConfOptions returns a list of spark-submit options for mounting driver secrets.
-func GetDriverSecretConfOptions(app *v1beta1.SparkApplication) []string {
+func GetDriverSecretConfOptions(app *v1beta2.SparkApplication) []string {
 	var secretConfOptions []string
 	for _, s := range app.Spec.Driver.Secrets {
 		conf := fmt.Sprintf("%s%s=%s", SparkDriverSecretKeyPrefix, s.Name, s.Path)
 		secretConfOptions = append(secretConfOptions, conf)
-		if s.Type == v1beta1.GCPServiceAccountSecret {
+		if s.Type == v1beta2.GCPServiceAccountSecret {
 			conf = fmt.Sprintf(
 				"%s%s=%s",
 				SparkDriverEnvVarConfigKeyPrefix,
 				GoogleApplicationCredentialsEnvVar,
 				filepath.Join(s.Path, ServiceAccountJSONKeyFileName))
 			secretConfOptions = append(secretConfOptions, conf)
-		} else if s.Type == v1beta1.HadoopDelegationTokenSecret {
+		} else if s.Type == v1beta2.HadoopDelegationTokenSecret {
 			conf = fmt.Sprintf(
 				"%s%s=%s",
 				SparkDriverEnvVarConfigKeyPrefix,
@@ -49,19 +49,19 @@ func GetDriverSecretConfOptions(app *v1beta1.SparkApplication) []string {
 }
 
 // GetExecutorSecretConfOptions returns a list of spark-submit options for mounting executor secrets.
-func GetExecutorSecretConfOptions(app *v1beta1.SparkApplication) []string {
+func GetExecutorSecretConfOptions(app *v1beta2.SparkApplication) []string {
 	var secretConfOptions []string
 	for _, s := range app.Spec.Executor.Secrets {
 		conf := fmt.Sprintf("%s%s=%s", SparkExecutorSecretKeyPrefix, s.Name, s.Path)
 		secretConfOptions = append(secretConfOptions, conf)
-		if s.Type == v1beta1.GCPServiceAccountSecret {
+		if s.Type == v1beta2.GCPServiceAccountSecret {
 			conf = fmt.Sprintf(
 				"%s%s=%s",
 				SparkExecutorEnvVarConfigKeyPrefix,
 				GoogleApplicationCredentialsEnvVar,
 				filepath.Join(s.Path, ServiceAccountJSONKeyFileName))
 			secretConfOptions = append(secretConfOptions, conf)
-		} else if s.Type == v1beta1.HadoopDelegationTokenSecret {
+		} else if s.Type == v1beta2.HadoopDelegationTokenSecret {
 			conf = fmt.Sprintf(
 				"%s%s=%s",
 				SparkExecutorEnvVarConfigKeyPrefix,

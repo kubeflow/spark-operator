@@ -43,7 +43,7 @@ The ones set in `core-site.xml` apply to all applications using the image. Also 
 variable `GCS_PROJECT_ID` must be set when using the image at `gcr.io/ynli-k8s/spark:v2.3.0-gcs`.
 
 ```yaml
-apiVersion: "sparkoperator.k8s.io/v1beta1"
+apiVersion: "sparkoperator.k8s.io/v1beta2"
 kind: SparkApplication
 metadata:
   name: foo-gcs-bg
@@ -58,7 +58,7 @@ spec:
     "google.cloud.auth.service.account.enable": "true"
     "google.cloud.auth.service.account.json.keyfile": "/mnt/secrets/key.json"
   driver:
-    cores: 0.1
+    cores: 1
     secrets:
     - name: "gcs-bq"
       path: "/mnt/secrets"

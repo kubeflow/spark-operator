@@ -6,8 +6,10 @@ require (
 	cloud.google.com/go v0.38.0
 	github.com/Azure/go-autorest/autorest v0.9.1 // indirect
 	github.com/Azure/go-autorest/autorest/adal v0.6.0 // indirect
+	github.com/Jeffail/gabs v1.4.0 // indirect
 	github.com/aws/aws-sdk-go v1.13.20
 	github.com/docker/spdystream v0.0.0-20181023171402-6480d4af844c // indirect
+	github.com/elazarl/goproxy v0.0.0-20190911111923-ecfe977594f1 // indirect
 	github.com/emicklei/go-restful v2.10.0+incompatible // indirect
 	github.com/fatih/camelcase v1.0.0 // indirect
 	github.com/ghodss/yaml v1.0.0 // indirect
@@ -28,6 +30,7 @@ require (
 	github.com/olekukonko/tablewriter v0.0.1
 	github.com/peterbourgon/diskv v2.0.1+incompatible // indirect
 	github.com/pkg/errors v0.8.1
+	github.com/pquerna/ffjson v0.0.0-20190918152532-477b94a9a7ec // indirect
 	github.com/prometheus/client_golang v1.1.0
 	github.com/prometheus/client_model v0.0.0-20190812154241-14fe0d1b01d4
 	github.com/robfig/cron v1.2.0

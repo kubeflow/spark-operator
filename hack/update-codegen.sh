@@ -27,7 +27,7 @@ chmod +x $CODEGEN_PKG/generate-groups.sh
 #                  instead of the $GOPATH directly. For normal projects this can be dropped.
 ${CODEGEN_PKG}/generate-groups.sh  deepcopy,defaulter,client,lister \
   github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/client github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis \
-  sparkoperator.k8s.io:v1alpha1,v1beta1 \
+  sparkoperator.k8s.io:v1alpha1,v1beta1,v1beta2 \
   --go-header-file "$(dirname ${BASH_SOURCE})/custom-boilerplate.go.txt" \
   --output-base "$(dirname ${BASH_SOURCE})/../../../.."
 

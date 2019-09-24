@@ -20,7 +20,7 @@ import (
 	"github.com/golang/glog"
 	"k8s.io/apimachinery/pkg/api/resource"
 
-	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta1"
+	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta2"
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/config"
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/util"
 	corev1 "k8s.io/api/core/v1"
@@ -39,7 +39,7 @@ type patchOperation struct {
 	Value interface{} `json:"value,omitempty"`
 }
 
-func patchSparkPod(pod *corev1.Pod, app *v1beta1.SparkApplication) {
+func patchSparkPod(pod *corev1.Pod, app *v1beta2.SparkApplication) {
 	if util.IsDriverPod(pod) {
 		addOwnerReference(pod, app)
 	}
@@ -62,12 +62,12 @@ func patchSparkPod(pod *corev1.Pod, app *v1beta1.SparkApplication) {
 	addGPU(pod, app)
 }
 
-func addOwnerReference(pod *corev1.Pod, app *v1beta1.SparkApplication) {
+func addOwnerReference(pod *corev1.Pod, app *v1beta2.SparkApplication) {
 	ownerReference := util.GetOwnerReference(app)
 	pod.OwnerReferences = append(pod.OwnerReferences, ownerReference)
 }
 
-func addVolumes(pod *corev1.Pod, app *v1beta1.SparkApplication) {
+func addVolumes(pod *corev1.Pod, app *v1beta2.SparkApplication) {
 	volumes := app.Spec.Volumes
 	volumeMap := make(map[string]corev1.Volume)
 	for _, v := range volumes {
@@ -118,7 +118,7 @@ func addEnvironmentVariable(pod *corev1.Pod, envName, envValue string) {
 	pod.Spec.Containers[i].Env = append(pod.Spec.Containers[i].Env, value)
 }
 
-func addSparkConfigMap(pod *corev1.Pod, app *v1beta1.SparkApplication) {
+func addSparkConfigMap(pod *corev1.Pod, app *v1beta2.SparkApplication) {
 	sparkConfigMapName := app.Spec.SparkConfigMap
 	if sparkConfigMapName != nil {
 		addConfigMapVolume(pod, *sparkConfigMapName, config.SparkConfigMapVolumeName)
@@ -127,7 +127,7 @@ func addSparkConfigMap(pod *corev1.Pod, app *v1beta1.SparkApplication) {
 	}
 }
 
-func addHadoopConfigMap(pod *corev1.Pod, app *v1beta1.SparkApplication) {
+func addHadoopConfigMap(pod *corev1.Pod, app *v1beta2.SparkApplication) {
 	hadoopConfigMapName := app.Spec.HadoopConfigMap
 	if hadoopConfigMapName != nil {
 		addConfigMapVolume(pod, *hadoopConfigMapName, config.HadoopConfigMapVolumeName)
@@ -136,8 +136,8 @@ func addHadoopConfigMap(pod *corev1.Pod, app *v1beta1.SparkApplication) {
 	}
 }
 
-func addGeneralConfigMaps(pod *corev1.Pod, app *v1beta1.SparkApplication) {
-	var configMaps []v1beta1.NamePath
+func addGeneralConfigMaps(pod *corev1.Pod, app *v1beta2.SparkApplication) {
+	var configMaps []v1beta2.NamePath
 	if util.IsDriverPod(pod) {
 		configMaps = app.Spec.Driver.ConfigMaps
 	} else if util.IsExecutorPod(pod) {
@@ -155,7 +155,7 @@ func addGeneralConfigMaps(pod *corev1.Pod, app *v1beta1.SparkApplication) {
 	}
 }
 
-func addPrometheusConfigMap(pod *corev1.Pod, app *v1beta1.SparkApplication) {
+func addPrometheusConfigMap(pod *corev1.Pod, app *v1beta2.SparkApplication) {
 	// Skip if Prometheus Monitoring is not enabled or an in-container ConfigFile is used,
 	// in which cases a Prometheus ConfigMap won't be created.
 	if !app.PrometheusMonitoringEnabled() || app.HasPrometheusConfigFile() {
@@ -199,7 +199,7 @@ func addConfigMapVolumeMount(pod *corev1.Pod, configMapVolumeName string, mountP
 	addVolumeMount(pod, mount)
 }
 
-func addAffinity(pod *corev1.Pod, app *v1beta1.SparkApplication) {
+func addAffinity(pod *corev1.Pod, app *v1beta2.SparkApplication) {
 	var affinity *corev1.Affinity
 	if util.IsDriverPod(pod) {
 		affinity = app.Spec.Driver.Affinity
@@ -213,7 +213,7 @@ func addAffinity(pod *corev1.Pod, app *v1beta1.SparkApplication) {
 	pod.Spec.Affinity = affinity
 }
 
-func addTolerations(pod *corev1.Pod, app *v1beta1.SparkApplication) {
+func addTolerations(pod *corev1.Pod, app *v1beta2.SparkApplication) {
 	var tolerations []corev1.Toleration
 	if util.IsDriverPod(pod) {
 		tolerations = app.Spec.Driver.Tolerations
@@ -226,7 +226,7 @@ func addTolerations(pod *corev1.Pod, app *v1beta1.SparkApplication) {
 	}
 }
 
-func addNodeSelectors(pod *corev1.Pod, app *v1beta1.SparkApplication) {
+func addNodeSelectors(pod *corev1.Pod, app *v1beta2.SparkApplication) {
 	var nodeSelector map[string]string
 	if util.IsDriverPod(pod) {
 		nodeSelector = app.Spec.Driver.NodeSelector
@@ -239,7 +239,7 @@ func addNodeSelectors(pod *corev1.Pod, app *v1beta1.SparkApplication) {
 	}
 }
 
-func addDNSConfig(pod *corev1.Pod, app *v1beta1.SparkApplication) {
+func addDNSConfig(pod *corev1.Pod, app *v1beta2.SparkApplication) {
 	var dnsConfig *corev1.PodDNSConfig
 
 	if util.IsDriverPod(pod) {
@@ -253,7 +253,7 @@ func addDNSConfig(pod *corev1.Pod, app *v1beta1.SparkApplication) {
 	}
 }
 
-func addSchedulerName(pod *corev1.Pod, app *v1beta1.SparkApplication) {
+func addSchedulerName(pod *corev1.Pod, app *v1beta2.SparkApplication) {
 	var schedulerName *string
 	if util.IsDriverPod(pod) {
 		schedulerName = app.Spec.Driver.SchedulerName
@@ -271,7 +271,7 @@ func addToleration(pod *corev1.Pod, toleration corev1.Toleration) {
 	pod.Spec.Tolerations = append(pod.Spec.Tolerations, toleration)
 }
 
-func addSecurityContext(pod *corev1.Pod, app *v1beta1.SparkApplication) {
+func addSecurityContext(pod *corev1.Pod, app *v1beta2.SparkApplication) {
 	var secContext *corev1.PodSecurityContext
 	if util.IsDriverPod(pod) {
 		secContext = app.Spec.Driver.SecurityContenxt
@@ -285,7 +285,7 @@ func addSecurityContext(pod *corev1.Pod, app *v1beta1.SparkApplication) {
 	pod.Spec.SecurityContext = secContext
 }
 
-func addSidecarContainers(pod *corev1.Pod, app *v1beta1.SparkApplication) {
+func addSidecarContainers(pod *corev1.Pod, app *v1beta2.SparkApplication) {
 	var sidecars []corev1.Container
 	if util.IsDriverPod(pod) {
 		sidecars = app.Spec.Driver.Sidecars
@@ -300,8 +300,8 @@ func addSidecarContainers(pod *corev1.Pod, app *v1beta1.SparkApplication) {
 	}
 }
 
-func addGPU(pod *corev1.Pod, app *v1beta1.SparkApplication) {
-	var gpu *v1beta1.GPUSpec
+func addGPU(pod *corev1.Pod, app *v1beta2.SparkApplication) {
+	var gpu *v1beta2.GPUSpec
 	if util.IsDriverPod(pod) {
 		gpu = app.Spec.Driver.GPU
 	}
@@ -340,7 +340,7 @@ func addGPU(pod *corev1.Pod, app *v1beta1.SparkApplication) {
 	}
 }
 
-func addHostNetwork(pod *corev1.Pod, app *v1beta1.SparkApplication) {
+func addHostNetwork(pod *corev1.Pod, app *v1beta2.SparkApplication) {
 	var hostNetwork *bool
 	if util.IsDriverPod(pod) {
 		hostNetwork = app.Spec.Driver.HostNetwork

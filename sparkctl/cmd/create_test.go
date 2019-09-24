@@ -22,7 +22,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta1"
+	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta2"
 )
 
 func TestIsLocalFile(t *testing.T) {
@@ -104,7 +104,7 @@ func TestIsContainerLocalFile(t *testing.T) {
 func TestHasNonContainerLocalFiles(t *testing.T) {
 	type testcase struct {
 		name                      string
-		spec                      v1beta1.SparkApplicationSpec
+		spec                      v1beta2.SparkApplicationSpec
 		hasNonContainerLocalFiles bool
 	}
 
@@ -122,22 +122,22 @@ func TestHasNonContainerLocalFiles(t *testing.T) {
 	testcases := []testcase{
 		{
 			name: "application with submission local main file",
-			spec: v1beta1.SparkApplicationSpec{
+			spec: v1beta2.SparkApplicationSpec{
 				MainApplicationFile: &mainAppFile,
 			},
 			hasNonContainerLocalFiles: true,
 		},
 		{
 			name: "application with container local main file",
-			spec: v1beta1.SparkApplicationSpec{
+			spec: v1beta2.SparkApplicationSpec{
 				MainApplicationFile: &containerLocalMainAppFile,
 			},
 			hasNonContainerLocalFiles: false,
 		},
 		{
 			name: "application with remote jars",
-			spec: v1beta1.SparkApplicationSpec{
-				Deps: v1beta1.Dependencies{
+			spec: v1beta2.SparkApplicationSpec{
+				Deps: v1beta2.Dependencies{
 					Jars: []string{"https://localhost/path/to/foo.jar"},
 				},
 			},
@@ -145,8 +145,8 @@ func TestHasNonContainerLocalFiles(t *testing.T) {
 		},
 		{
 			name: "application with container-local jars",
-			spec: v1beta1.SparkApplicationSpec{
-				Deps: v1beta1.Dependencies{
+			spec: v1beta2.SparkApplicationSpec{
+				Deps: v1beta2.Dependencies{
 					Jars: []string{"local:///path/to/foo.jar"},
 				},
 			},
@@ -162,7 +162,7 @@ func TestHasNonContainerLocalFiles(t *testing.T) {
 func TestValidateSpec(t *testing.T) {
 	type testcase struct {
 		name                   string
-		spec                   v1beta1.SparkApplicationSpec
+		spec                   v1beta2.SparkApplicationSpec
 		expectsValidationError bool
 	}
 
@@ -181,16 +181,16 @@ func TestValidateSpec(t *testing.T) {
 	testcases := []testcase{
 		{
 			name: "application with spec.image set",
-			spec: v1beta1.SparkApplicationSpec{
+			spec: v1beta2.SparkApplicationSpec{
 				Image: &image,
 			},
 			expectsValidationError: false,
 		},
 		{
 			name: "application with no spec.image and spec.driver.image",
-			spec: v1beta1.SparkApplicationSpec{
-				Executor: v1beta1.ExecutorSpec{
-					SparkPodSpec: v1beta1.SparkPodSpec{
+			spec: v1beta2.SparkApplicationSpec{
+				Executor: v1beta2.ExecutorSpec{
+					SparkPodSpec: v1beta2.SparkPodSpec{
 						Image: &image,
 					},
 				},
@@ -199,9 +199,9 @@ func TestValidateSpec(t *testing.T) {
 		},
 		{
 			name: "application with no spec.image and spec.executor.image",
-			spec: v1beta1.SparkApplicationSpec{
-				Driver: v1beta1.DriverSpec{
-					SparkPodSpec: v1beta1.SparkPodSpec{
+			spec: v1beta2.SparkApplicationSpec{
+				Driver: v1beta2.DriverSpec{
+					SparkPodSpec: v1beta2.SparkPodSpec{
 						Image: &image,
 					},
 				},
@@ -210,14 +210,14 @@ func TestValidateSpec(t *testing.T) {
 		},
 		{
 			name: "application with remote main file and no init-container",
-			spec: v1beta1.SparkApplicationSpec{
+			spec: v1beta2.SparkApplicationSpec{
 				MainApplicationFile: &remoteMainAppFile,
 			},
 			expectsValidationError: true,
 		},
 		{
 			name: "application with remote main file and spec.image",
-			spec: v1beta1.SparkApplicationSpec{
+			spec: v1beta2.SparkApplicationSpec{
 				Image:               &image,
 				MainApplicationFile: &remoteMainAppFile,
 			},
@@ -225,16 +225,16 @@ func TestValidateSpec(t *testing.T) {
 		},
 		{
 			name: "application with remote main file and spec.initContainerImage",
-			spec: v1beta1.SparkApplicationSpec{
+			spec: v1beta2.SparkApplicationSpec{
 				InitContainerImage:  &image,
 				MainApplicationFile: &remoteMainAppFile,
-				Driver: v1beta1.DriverSpec{
-					SparkPodSpec: v1beta1.SparkPodSpec{
+				Driver: v1beta2.DriverSpec{
+					SparkPodSpec: v1beta2.SparkPodSpec{
 						Image: &image,
 					},
 				},
-				Executor: v1beta1.ExecutorSpec{
-					SparkPodSpec: v1beta1.SparkPodSpec{
+				Executor: v1beta2.ExecutorSpec{
+					SparkPodSpec: v1beta2.SparkPodSpec{
 						Image: &image,
 					},
 				},
@@ -243,15 +243,15 @@ func TestValidateSpec(t *testing.T) {
 		},
 		{
 			name: "application with container local main file and no init-container",
-			spec: v1beta1.SparkApplicationSpec{
+			spec: v1beta2.SparkApplicationSpec{
 				MainApplicationFile: &containerLocalMainAppFile,
-				Driver: v1beta1.DriverSpec{
-					SparkPodSpec: v1beta1.SparkPodSpec{
+				Driver: v1beta2.DriverSpec{
+					SparkPodSpec: v1beta2.SparkPodSpec{
 						Image: &image,
 					},
 				},
-				Executor: v1beta1.ExecutorSpec{
-					SparkPodSpec: v1beta1.SparkPodSpec{
+				Executor: v1beta2.ExecutorSpec{
+					SparkPodSpec: v1beta2.SparkPodSpec{
 						Image: &image,
 					},
 				},

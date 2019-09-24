@@ -26,6 +26,8 @@ import (
 	fakesparkoperatorv1alpha1 "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/client/clientset/versioned/typed/sparkoperator.k8s.io/v1alpha1/fake"
 	sparkoperatorv1beta1 "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/client/clientset/versioned/typed/sparkoperator.k8s.io/v1beta1"
 	fakesparkoperatorv1beta1 "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/client/clientset/versioned/typed/sparkoperator.k8s.io/v1beta1/fake"
+	sparkoperatorv1beta2 "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/client/clientset/versioned/typed/sparkoperator.k8s.io/v1beta2"
+	fakesparkoperatorv1beta2 "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/client/clientset/versioned/typed/sparkoperator.k8s.io/v1beta2/fake"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/discovery"
@@ -85,7 +87,12 @@ func (c *Clientset) SparkoperatorV1beta1() sparkoperatorv1beta1.SparkoperatorV1b
 	return &fakesparkoperatorv1beta1.FakeSparkoperatorV1beta1{Fake: &c.Fake}
 }
 
-// Sparkoperator retrieves the SparkoperatorV1beta1Client
-func (c *Clientset) Sparkoperator() sparkoperatorv1beta1.SparkoperatorV1beta1Interface {
-	return &fakesparkoperatorv1beta1.FakeSparkoperatorV1beta1{Fake: &c.Fake}
+// SparkoperatorV1beta2 retrieves the SparkoperatorV1beta2Client
+func (c *Clientset) SparkoperatorV1beta2() sparkoperatorv1beta2.SparkoperatorV1beta2Interface {
+	return &fakesparkoperatorv1beta2.FakeSparkoperatorV1beta2{Fake: &c.Fake}
+}
+
+// Sparkoperator retrieves the SparkoperatorV1beta2Client
+func (c *Clientset) Sparkoperator() sparkoperatorv1beta2.SparkoperatorV1beta2Interface {
+	return &fakesparkoperatorv1beta2.FakeSparkoperatorV1beta2{Fake: &c.Fake}
 }

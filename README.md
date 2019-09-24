@@ -14,7 +14,7 @@
 
 The Kubernetes Operator for Apache Spark is under active development, but backward compatibility of the APIs is guaranteed for beta releases. 
 
-**If you are currently using the `v1alpha1` version of the APIs in your manifests, please update them to use the `v1beta1` version by changing `apiVersion: "sparkoperator.k8s.io/v1alpha1"` to `apiVersion: "sparkoperator.k8s.io/v1beta1"`. You will also need to delete the `v1alpha1` version of the CustomResourceDefinitions named `sparkapplications.sparkoperator.k8s.io` and `scheduledsparkapplications.sparkoperator.k8s.io`, and replace them with the `v1beta1` version either by installing the latest version of the operator or by running `kubectl create -f manifest/spark-operator-crds.yaml`.**
+**If you are currently using the `v1alpha1` or `v1beta1` version of the APIs in your manifests, please update them to use the `v1beta2` version by changing `apiVersion: "sparkoperator.k8s.io/<version>"` to `apiVersion: "sparkoperator.k8s.io/v1beta2"`. You will also need to delete the `previous` version of the CustomResourceDefinitions named `sparkapplications.sparkoperator.k8s.io` and `scheduledsparkapplications.sparkoperator.k8s.io`, and replace them with the `v1beta2` version either by installing the latest version of the operator or by running `kubectl create -f manifest/crds`.**
 
 Customization of Spark pods, e.g., mounting arbitrary volumes and setting pod affinity, is currently experimental and implemented using a Kubernetes
 [Mutating Admission Webhook](https://kubernetes.io/docs/reference/access-authn-authz/extensible-admission-controllers/), which became beta in Kubernetes 1.9. 
