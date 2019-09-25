@@ -38,6 +38,7 @@ import (
 	v1 "k8s.io/client-go/listers/core/v1"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
+	"k8s.io/client-go/util/retry"
 	"k8s.io/client-go/util/workqueue"
 
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta2"
@@ -56,7 +57,6 @@ const (
 	podAlreadyExistsErrorCode = "code=409"
 	queueTokenRefillRate      = 50
 	queueTokenBucketSize      = 500
-	maximumUpdateRetries      = 3
 )
 
 var (
@@ -704,46 +704,47 @@ func (c *Controller) shouldDoBatchScheduling(app *v1beta2.SparkApplication) (boo
 	if c.batchSchedulerMgr == nil || app.Spec.BatchScheduler == nil || *app.Spec.BatchScheduler == "" {
 		return false, nil
 	}
-	if scheduler, err := c.batchSchedulerMgr.GetScheduler(*app.Spec.BatchScheduler); err != nil {
-		glog.Errorf("failed to get batch scheduler from name %s", *app.Spec.BatchScheduler)
+
+	scheduler, err := c.batchSchedulerMgr.GetScheduler(*app.Spec.BatchScheduler)
+	if err != nil {
+		glog.Errorf("failed to get batch scheduler for name %s", *app.Spec.BatchScheduler)
 		return false, nil
-	} else {
-		return scheduler.ShouldSchedule(app), scheduler
 	}
+	return scheduler.ShouldSchedule(app), scheduler
 }
 
 func (c *Controller) updateApplicationStatusWithRetries(
 	original *v1beta2.SparkApplication,
 	updateFunc func(status *v1beta2.SparkApplicationStatus)) (*v1beta2.SparkApplication, error) {
 	toUpdate := original.DeepCopy()
-
-	var lastUpdateErr error
-	for i := 0; i < maximumUpdateRetries; i++ {
+	updateErr := wait.ExponentialBackoff(retry.DefaultBackoff, func() (ok bool, err error) {
 		updateFunc(&toUpdate.Status)
 		if equality.Semantic.DeepEqual(original.Status, toUpdate.Status) {
-			return toUpdate, nil
+			return true, nil
 		}
-		_, err := c.crdClient.SparkoperatorV1beta2().SparkApplications(toUpdate.Namespace).Update(toUpdate)
+
+		toUpdate, err = c.crdClient.SparkoperatorV1beta2().SparkApplications(original.Namespace).Update(toUpdate)
 		if err == nil {
-			return toUpdate, nil
+			return true, nil
+		}
+		if !errors.IsConflict(err) {
+			return false, err
 		}
 
-		lastUpdateErr = err
-
-		// Failed to update to the API server.
-		// Get the latest version from the API server first and re-apply the update.
-		name := toUpdate.Name
-		toUpdate, err = c.crdClient.SparkoperatorV1beta2().SparkApplications(toUpdate.Namespace).Get(name,
-			metav1.GetOptions{})
+		// There was a conflict updating the SparkApplication, fetch the latest version from the API server.
+		toUpdate, err = c.crdClient.SparkoperatorV1beta2().SparkApplications(original.Namespace).Get(original.Name, metav1.GetOptions{})
 		if err != nil {
-			glog.Errorf("failed to get SparkApplication %s/%s: %v", original.Namespace, name, err)
-			return nil, err
+			glog.Errorf("failed to get SparkApplication %s/%s: %v", original.Namespace, original.Name, err)
+			return false, err
 		}
-	}
 
-	if lastUpdateErr != nil {
-		glog.Errorf("failed to update SparkApplication %s/%s: %v", original.Namespace, original.Name, lastUpdateErr)
-		return nil, lastUpdateErr
+		// Retry with the latest version.
+		return false, nil
+	})
+
+	if updateErr != nil {
+		glog.Errorf("failed to update SparkApplication %s/%s: %v", original.Namespace, original.Name, updateErr)
+		return nil, updateErr
 	}
 
 	return toUpdate, nil
