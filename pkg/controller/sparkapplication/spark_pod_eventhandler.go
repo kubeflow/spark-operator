@@ -42,7 +42,7 @@ func newSparkPodEventHandler(enqueueFunc func(appKey interface{}), lister crdlis
 
 func (s *sparkPodEventHandler) onPodAdded(obj interface{}) {
 	pod := obj.(*apiv1.Pod)
-	logger.V(2).Info("Pod added in namespace", "namespace", pod.GetNamespace(), "podName", pod.GetName())
+	logger.V(1).Info("Pod added in namespace", "namespace", pod.GetNamespace(), "podName", pod.GetName())
 	s.enqueueSparkAppForUpdate(pod)
 }
 
@@ -53,7 +53,7 @@ func (s *sparkPodEventHandler) onPodUpdated(old, updated interface{}) {
 	if updatedPod.ResourceVersion == oldPod.ResourceVersion {
 		return
 	}
-	logger.V(2).Info("Pod updated in namespace", "namespace", updatedPod.GetNamespace(), "podName", updatedPod.GetName())
+	logger.V(1).Info("Pod updated in namespace", "namespace", updatedPod.GetNamespace(), "podName", updatedPod.GetName())
 	s.enqueueSparkAppForUpdate(updatedPod)
 
 }
@@ -72,7 +72,7 @@ func (s *sparkPodEventHandler) onPodDeleted(obj interface{}) {
 	if deletedPod == nil {
 		return
 	}
-	logger.V(2).Info("Pod deleted in namespace", "namespace", deletedPod.GetNamespace(), "podName", deletedPod.GetName())
+	logger.V(1).Info("Pod deleted in namespace", "namespace", deletedPod.GetNamespace(), "podName", deletedPod.GetName())
 	s.enqueueSparkAppForUpdate(deletedPod)
 }
 
@@ -90,6 +90,6 @@ func (s *sparkPodEventHandler) enqueueSparkAppForUpdate(pod *apiv1.Pod) {
 	}
 
 	appKey := createMetaNamespaceKey(pod.GetNamespace(), appName)
-	logger.V(2).Info("Enqueuing SparkApplication for app update processing", "appKey", appKey)
+	logger.V(1).Info("Enqueuing SparkApplication for app update processing", "appKey", appKey)
 	s.enqueueFunc(appKey)
 }

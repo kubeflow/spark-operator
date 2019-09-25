@@ -66,9 +66,12 @@ func runSparkSubmit(submission *submission) (bool, error) {
 		var errorMsg string
 		if exitErr, ok := err.(*exec.ExitError); ok {
 			errorMsg = string(exitErr.Stderr)
+
 		}
 		// The driver pod of the application already exists.
 		if strings.Contains(errorMsg, podAlreadyExistsErrorCode) {
+			logger.Info("ERRRRRR")
+			logger.Info(errorMsg)
 			logger.Error(nil, "trying to resubmit an already submitted SparkApplication",
 				"namespace", submission.namespace, "name", submission.name)
 			return false, nil

@@ -22,7 +22,6 @@ import (
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta2"
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/config"
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/util"
-	"github.com/golang/glog"
 	"github.com/lyft/flytestdlib/contextutils"
 	"github.com/robfig/cron"
 	apiextensionsclient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
@@ -45,12 +44,12 @@ var logger = ctrl.Log.WithName("scheduledsparkapp-controller")
 
 // Add creates a new ScheduledSparkApplication Controller and adds it to the Manager with default RBAC. The Manager will set fields on the Controller
 // and Start it when the Manager is Started.
-func Add(mgr manager.Manager, metricsConfig *util.MetricConfig) error {
-	return add(mgr, newReconciler(mgr, metricsConfig))
+func Add(mgr manager.Manager, metricsConfig *util.MetricConfig, controllerThreads int) error {
+	return add(mgr, newReconciler(mgr, metricsConfig), controllerThreads)
 }
 
 // add adds a new Controller to mgr with r as the reconcile.Reconciler
-func add(mgr manager.Manager, r reconcile.Reconciler) error {
+func add(mgr manager.Manager, r reconcile.Reconciler, controllerThreads int) error {
 	return nil
 }
 
@@ -186,7 +185,7 @@ func (r *ReconcileScheduledSparkApplication) shouldStartNextRun(ctx context.Cont
 func (r *ReconcileScheduledSparkApplication) startNextRun(ctx context.Context, app *v1beta2.ScheduledSparkApplication, now time.Time) (string, error) {
 	name, err := r.createSparkApplication(ctx, app, now)
 	if err != nil {
-		glog.Errorf("failed to create a SparkApplication instance for ScheduledSparkApplication %s/%s: %v", app.Namespace, app.Name, err)
+		logger.Error(err, "failed to create a SparkApplication instance for ScheduledSparkApplication", "namespace", app.Namespace, "appName", app.Name)
 		return "", err
 	}
 	return name, nil

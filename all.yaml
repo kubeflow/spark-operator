@@ -265,8 +265,6 @@ spec:
           name: https
       - args:
         - --metrics-addr=127.0.0.1:8080
-        - --logtostderr
-        - --v=4
         - --enable-webhook=true
         command:
         - /usr/bin/entrypoint.sh

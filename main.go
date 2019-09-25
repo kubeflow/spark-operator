@@ -39,16 +39,15 @@ import (
 )
 
 var (
-	installCRDs      = flag.Bool("install-crds", true, "Whether to install CRDs")
-	resyncInterval   = flag.Int("resync-interval", 30, "Informer resync interval in seconds.")
-	namespace        = flag.String("namespace", apiv1.NamespaceAll, "The Kubernetes namespace(s) to manage. Will manage custom resource objects of the managed CRD types for the whole cluster if unset. Multiple namespace can be seperated with comma.")
-	enableWebhook    = flag.Bool("enable-webhook", false, "Whether to enable the mutating admission webhook for admitting and patching Spark pods.")
-	enableMetrics    = flag.Bool("enable-metrics", false, "Whether to enable the metrics endpoint.")
-	metricsPort      = flag.String("metrics-port", "10254", "Port for the metrics endpoint.")
-	metricsEndpoint  = flag.String("metrics-endpoint", "/metrics", "Metrics endpoint.")
-	metricsPrefix    = flag.String("metrics-prefix", "", "Prefix for the metrics.")
-	ingressUrlFormat = flag.String("ingress-url-format", "", "Ingress URL format.")
-	logger           = ctrl.Log.WithName("main")
+	controllerThreads = flag.Int("controller-threads", 10, "Number of parallel reconciling actions run by the SparkApplication controller.")
+	resyncInterval    = flag.Int("resync-interval", 30, "Informer resync interval in seconds.")
+	namespace         = flag.String("namespace", apiv1.NamespaceAll, "The Kubernetes namespace(s) to manage. Will manage custom resource objects of the managed CRD types for the whole cluster if unset. Multiple namespace can be seperated with comma.")
+	enableWebhook     = flag.Bool("enable-webhook", false, "Whether to enable the mutating admission webhook for admitting and patching Spark pods.")
+	enableMetrics     = flag.Bool("enable-metrics", false, "Whether to enable the metrics endpoint.")
+	metricsPort       = flag.String("metrics-port", "10254", "Port for the metrics endpoint.")
+	metricsEndpoint   = flag.String("metrics-endpoint", "/metrics", "Metrics endpoint.")
+	metricsPrefix     = flag.String("metrics-prefix", "", "Prefix for the metrics.")
+	logger            = ctrl.Log.WithName("main")
 )
 
 func main() {
@@ -58,6 +57,7 @@ func main() {
 	flag.StringVar(&metricsAddr, "metrics-addr", ":8080", "The address the metric endpoint binds to.")
 	flag.Parse()
 	ctrl.SetLogger(zap.Logger(true))
+
 	// Create the client config. Use kubeConfig if given, otherwise assume in-cluster.
 	config, err := ctrl.GetConfig()
 	if err != nil {
@@ -79,17 +79,9 @@ func main() {
 
 	logger.Info("Starting the Spark Operator")
 
-	//apiExtensionsClient, err := apiextensionsclient.NewForConfig(config)
 	if err != nil {
 		logger.Error(err, "Unable to get a client")
 	}
-
-	//if *installCRDs {
-	//	err = crd.CreateOrUpdateCRDs(apiExtensionsClient)
-	//	if err != nil {
-	//		logger.Error(err, "Failed to create the Spark Operator crds")
-	//	}
-	//}
 
 	// Create a new Cmd to provide shared dependencies and start components
 	logger.Info("Setting up the controller runtime manager")
@@ -117,14 +109,15 @@ func main() {
 	logger.Info("Registering Components.")
 
 	// Setup Scheme for all resources
+	logger.Info("scheme name", "name", mgr.GetScheme().Name())
 	if err := apis.AddToScheme(mgr.GetScheme()); err != nil {
-		logger.Error(err, "Unable to register the reuqired schemes")
+		logger.Error(err, "Unable to register the required schemes")
 		os.Exit(1)
 	}
 
 	// Setup all Controllers
 	logger.Info("Adding Controllers.")
-	if err := controller.AddToManager(mgr, metricConfig); err != nil {
+	if err := controller.AddToManager(mgr, metricConfig, *controllerThreads); err != nil {
 		logger.Error(err, "Unable to add the controllers")
 		os.Exit(1)
 	}

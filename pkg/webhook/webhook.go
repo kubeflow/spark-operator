@@ -22,9 +22,9 @@ import (
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta2"
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/config"
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/util"
-	"github.com/golang/glog"
 	apiv1 "k8s.io/api/core/v1"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"net/http"
 	"reflect"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -93,7 +93,7 @@ func (a *SparkPodMutator) InjectDecoder(d *admission.Decoder) error {
 func (a *SparkPodMutator) mutatePods(pod *corev1.Pod, req admission.Request) admission.Response {
 	if !isSparkPod(pod) || !inSparkJobNamespace(req.AdmissionRequest.Namespace, a.JobNameSpace) {
 		hooklog.Info("Pod is not subject to mutation...")
-		glog.V(2).Infof("Pod %s in namespace %s is not subject to mutation", pod.GetObjectMeta().GetName(), req.AdmissionRequest.Namespace)
+		hooklog.V(1).Info("Pod in namespace is not subject to mutation", "pod", pod.GetObjectMeta().GetName(), "namespace", req.AdmissionRequest.Namespace)
 		return admission.Allowed("Pod not subject to mutation")
 	}
 
@@ -104,22 +104,26 @@ func (a *SparkPodMutator) mutatePods(pod *corev1.Pod, req admission.Request) adm
 	}
 
 	ctx := context.Background()
-	var sparkList v1beta2.SparkApplicationList
+	namespacedName := types.NamespacedName{
+		Namespace: req.AdmissionRequest.Namespace,
+		Name:      appName,
+	}
+	sparkapp := &v1beta2.SparkApplication{}
 
-	if err := a.client.List(ctx, &sparkList, client.InNamespace(req.AdmissionRequest.Namespace), client.MatchingField(".metadata.name", appName)); err != nil {
-		glog.Errorf("failed to get SparkApplication %s/%s: %v", req.AdmissionRequest.Namespace, appName, err)
+	if err := a.client.Get(ctx, namespacedName, sparkapp); err != nil {
+		hooklog.Error(err, "failed to get SparkApplication ", "namespace", req.AdmissionRequest.Namespace, "appName", appName)
 		return admission.Errored(1, err)
 	}
 
-	var app = sparkList.Items[0]
+	var app = sparkapp
 	originalPod := pod.DeepCopy()
-	patchSparkPod(pod, &app)
+	patchSparkPod(pod, app)
 
 	if !reflect.DeepEqual(pod, originalPod) {
-		glog.V(2).Infof("Pod %s in namespace %s is subject to mutation", pod.GetObjectMeta().GetName(), req.AdmissionRequest.Namespace)
+		hooklog.V(1).Info("Pod in namespace is subject to mutation", "pod", pod.GetObjectMeta().GetName(), "namespace", req.AdmissionRequest.Namespace)
 		patchBytes, err := json.Marshal(pod)
 		if err != nil {
-			glog.Errorf("failed to marshal patched pod %v: %v", pod, err)
+			hooklog.Error(err, "failed to marshal patched pod", "pod", pod)
 			return admission.Errored(2, err)
 		}
 		return admission.PatchResponseFromRaw(req.Object.Raw, patchBytes)

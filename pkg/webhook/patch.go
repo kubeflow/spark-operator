@@ -17,7 +17,6 @@ limitations under the License.
 package webhook
 
 import (
-	"github.com/golang/glog"
 	"k8s.io/apimachinery/pkg/api/resource"
 
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta2"
@@ -148,7 +147,7 @@ func addGeneralConfigMaps(pod *corev1.Pod, app *v1beta2.SparkApplication) {
 		volumeName := namePath.Name + "-vol"
 		if len(volumeName) > maxNameLength {
 			volumeName = volumeName[0:maxNameLength]
-			glog.V(2).Infof("ConfigMap volume name is too long. Truncating to length %d. Result: %s.", maxNameLength, volumeName)
+			hooklog.V(1).Info("ConfigMap volume name is too long. Truncating.", "TruncatedLength", maxNameLength, "VolumeName", volumeName)
 		}
 		addConfigMapVolume(pod, namePath.Name, volumeName)
 		addConfigMapVolumeMount(pod, volumeName, namePath.Path)
@@ -312,11 +311,11 @@ func addGPU(pod *corev1.Pod, app *v1beta2.SparkApplication) {
 		return
 	}
 	if gpu.Name == "" {
-		glog.V(2).Infof("Please specify GPU resource name, such as: nvidia.com/gpu, amd.com/gpu etc. Current gpu spec: %+v", gpu)
+		hooklog.V(1).Info("Please specify GPU resource name, such as: nvidia.com/gpu, amd.com/gpu etc", "Current gpu spec", gpu)
 		return
 	}
 	if gpu.Quantity <= 0 {
-		glog.V(2).Infof("GPU Quantity must be positive. Current gpu spec: %+v", gpu)
+		hooklog.V(1).Info("GPU Quantity must be positive.", "Current gpu spec", gpu)
 		return
 	}
 	i := 0

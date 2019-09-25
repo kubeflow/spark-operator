@@ -21,12 +21,12 @@ import (
 )
 
 // AddToManagerFuncs is a list of functions to add all Controllers to the Manager
-var AddToManagerFuncs []func(manager.Manager, *util.MetricConfig) error
+var AddToManagerFuncs []func(manager.Manager, *util.MetricConfig, int) error
 
 // AddToManager adds all Controllers to the Manager
-func AddToManager(m manager.Manager, mc *util.MetricConfig) error {
+func AddToManager(m manager.Manager, mc *util.MetricConfig, controllerThreads int) error {
 	for _, f := range AddToManagerFuncs {
-		if err := f(m, mc); err != nil {
+		if err := f(m, mc, controllerThreads); err != nil {
 			return err
 		}
 	}

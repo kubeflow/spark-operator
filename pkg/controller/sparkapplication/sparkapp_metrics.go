@@ -19,11 +19,9 @@ package sparkapplication
 import (
 	"time"
 
-	"github.com/golang/glog"
-	"github.com/prometheus/client_golang/prometheus"
-
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta2"
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/util"
+	"github.com/prometheus/client_golang/prometheus"
 )
 
 type sparkAppMetrics struct {
@@ -222,8 +220,8 @@ func (sm *sparkAppMetrics) exportMetrics(oldApp, newApp *v1beta2.SparkApplicatio
 			}
 		case v1beta2.ExecutorFailedState:
 			if oldApp.Status.ExecutorState[executor] != newExecState {
-				glog.V(2).Infof("Exporting Metrics for Executor %s. OldState: %v NewState: %v", executor,
-					oldApp.Status.ExecutorState[executor], newExecState)
+				logger.V(1).Info("Exporting Metrics", "executor", executor,
+					"OldExecState", oldApp.Status.ExecutorState[executor], "NewExecState", newExecState)
 				sm.sparkAppExecutorRunningCount.Dec(metricLabels)
 				if m, err := sm.sparkAppExecutorFailureCount.GetMetricWith(metricLabels); err != nil {
 					logger.Error(err, "Error while exporting metrics")

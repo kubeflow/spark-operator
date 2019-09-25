@@ -21,12 +21,12 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"flag"
 	"fmt"
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta2"
 	crdclientset "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/client/clientset/versioned"
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/config"
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/util"
-	"github.com/golang/glog"
 	"github.com/google/uuid"
 	"github.com/lyft/flytestdlib/contextutils"
 	v1 "k8s.io/api/apps/v1"
@@ -40,17 +40,19 @@ import (
 	"k8s.io/apimachinery/pkg/util/json"
 	"k8s.io/client-go/tools/record"
 	"os/exec"
+	"time"
+
 	//"reflect"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	//"sigs.k8s.io/controller-runtime/pkg/event"
+	k8sv1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	//"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
-	"time"
 )
 
 const (
@@ -72,12 +74,12 @@ var (
 
 // Add creates a new SparkApplication Controller and adds it to the Manager with default RBAC. The Manager will set fields on the Controller
 // and Start it when the Manager is Started.
-func Add(mgr manager.Manager, metricsConfig *util.MetricConfig) error {
-	return add(mgr, newReconciler(mgr, metricsConfig))
+func Add(mgr manager.Manager, metricsConfig *util.MetricConfig, controllerThreads int) error {
+	return add(mgr, newReconciler(mgr, metricsConfig), controllerThreads)
 }
 
 // add adds a new Controller to mgr with r as the reconcile.Reconciler
-func add(mgr manager.Manager, r reconcile.Reconciler) error {
+func add(mgr manager.Manager, r reconcile.Reconciler, controllerThreads int) error {
 	//p := predicate.Funcs{
 	//	UpdateFunc: func(e event.UpdateEvent) bool {
 	//
@@ -92,7 +94,7 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 	//	},
 	//}
 	// Create a new controller
-	c, err := controller.New("sparkapplication-controller", mgr, controller.Options{Reconciler: r})
+	c, err := controller.New("sparkapplication-controller", mgr, controller.Options{MaxConcurrentReconciles: controllerThreads, Reconciler: r})
 	if err != nil {
 		return err
 	}
@@ -280,17 +282,22 @@ func (r *ReconcileSparkApplication) submitSparkApplication(ctx context.Context, 
 		ExecutionAttempts:         app.Status.ExecutionAttempts + 1,
 		LastSubmissionAttemptTime: metav1.Now(),
 	}
-	driverPod, err := r.getDriverPod(ctx, app)
-	if err != nil {
-		logger.Error(err, "Unable to get driver pod in order to set owner reference")
-	} else {
-		if err = ctrl.SetControllerReference(app, driverPod, r.scheme); err != nil {
-			logger.Error(err, "Setting owner reference of driver pod failed")
+
+	webhook := flag.Lookup("enableWebhook")
+
+	if webhook != nil && !webhook.Value.(flag.Getter).Get().(bool) {
+		driverPod, err := r.getDriverPod(ctx, app)
+		if err != nil {
+			logger.Error(err, "Unable to get driver pod in order to set owner reference")
 		} else {
-			if err = r.client.Update(ctx, driverPod); err != nil {
-				logger.Error(err, "Failed to update driver pod with owner reference at the K8s API server")
+			if err = ctrl.SetControllerReference(app, driverPod, r.scheme); err != nil {
+				logger.Error(err, "Setting owner reference of driver pod failed")
 			} else {
-				logger.Info("driverPod updated with owner reference at the K8s API server", "appNamespace", app.Namespace, "appName", app.Name)
+				if err = r.client.Update(ctx, driverPod); err != nil {
+					logger.Error(err, "Failed to update driver pod with owner reference at the K8s API server")
+				} else {
+					logger.Info("driverPod updated with owner reference at the K8s API server", "appNamespace", app.Namespace, "appName", app.Name)
+				}
 			}
 		}
 	}
@@ -329,15 +336,20 @@ func (r *ReconcileSparkApplication) updateApplicationStatusWithRetries(
 	for i := 0; i < maximumUpdateRetries; i++ {
 		updateFunc(&toUpdate.Status)
 		if equality.Semantic.DeepEqual(original.Status, toUpdate.Status) {
+			logger.V(4).Info("Status is the same. No update will take place.")
 			return toUpdate, nil
 		}
-
-		err := r.client.Update(ctx, toUpdate)
+		toUpdate.Status.TerminationTime = k8sv1.NewTime(time.Time{})
+		logger.Info("updating with status:", "oldStatus", original.Status, "newStatus", toUpdate.Status)
+		//err := r.client.Update(ctx, toUpdate)
+		err := r.client.Status().Update(ctx, toUpdate)
 		if err == nil {
+			logger.V(4).Info("Status update was successful.")
 			return toUpdate, nil
 		}
 
 		lastUpdateErr = err
+		logger.Error(err, "Failed app update")
 
 		// Failed to update to the API server.
 		// Get the latest version from the API server first and re-apply the update.
@@ -360,6 +372,7 @@ func (r *ReconcileSparkApplication) updateApplicationStatusWithRetries(
 func (r *ReconcileSparkApplication) updateStatusAndExportMetrics(ctx context.Context, oldApp, newApp *v1beta2.SparkApplication) error {
 	// Skip update if nothing changed.
 	if equality.Semantic.DeepEqual(oldApp, newApp) {
+		logger.Info("Nothing has changed")
 		return nil
 	}
 
@@ -395,7 +408,7 @@ func (r *ReconcileSparkApplication) getSparkApplication(ctx context.Context, nam
 func (r *ReconcileSparkApplication) deleteSparkResources(ctx context.Context, app *v1beta2.SparkApplication) error {
 	driverPodName := app.Status.DriverInfo.PodName
 	if driverPodName != "" {
-		logger.V(2).Info("Deleting pod in namespace", "podName", driverPodName, "namespace", app.Namespace)
+		logger.V(1).Info("Deleting pod in namespace", "podName", driverPodName, "namespace", app.Namespace)
 		pod, err := r.getDriverPod(ctx, app)
 		if err != nil && !errors.IsNotFound(err) {
 			return err
@@ -408,7 +421,7 @@ func (r *ReconcileSparkApplication) deleteSparkResources(ctx context.Context, ap
 
 	sparkUIServiceName := app.Status.DriverInfo.WebUIServiceName
 	if sparkUIServiceName != "" {
-		logger.V(2).Info("Deleting Spark UI Service in namespace", "serviceName", sparkUIServiceName, "namespace", app.Namespace)
+		logger.V(1).Info("Deleting Spark UI Service in namespace", "serviceName", sparkUIServiceName, "namespace", app.Namespace)
 		namespacedName := types.NamespacedName{
 			Namespace: app.Namespace,
 			Name:      sparkUIServiceName,
@@ -427,7 +440,7 @@ func (r *ReconcileSparkApplication) deleteSparkResources(ctx context.Context, ap
 
 	sparkUIIngressName := app.Status.DriverInfo.WebUIIngressName
 	if sparkUIIngressName != "" {
-		logger.V(2).Info("Deleting Spark UI Ingress in namespace", "ingressName", sparkUIIngressName, "namespace", app.Namespace)
+		logger.V(1).Info("Deleting Spark UI Ingress in namespace", "ingressName", sparkUIIngressName, "namespace", app.Namespace)
 		namespacedName := types.NamespacedName{
 			Namespace: app.Namespace,
 			Name:      sparkUIIngressName,
@@ -657,9 +670,9 @@ func (r *ReconcileSparkApplication) Reconcile(request reconcile.Request) (reconc
 			r.clearStatus(&appToUpdate.Status)
 			appToUpdate.Status.AppState.State = v1beta2.PendingRerunState
 		case v1beta2.PendingRerunState:
-			logger.V(2).Info("SparkApplication pending rerun", "namespace", appToUpdate.Namespace, "name", appToUpdate.Name)
+			logger.V(1).Info("SparkApplication pending rerun", "namespace", appToUpdate.Namespace, "name", appToUpdate.Name)
 			if r.validateSparkResourceDeletion(ctx, appToUpdate) {
-				logger.V(2).Info("Resources for SparkApplication successfully deleted", "namespace", appToUpdate.Namespace, "name", appToUpdate.Name)
+				logger.V(1).Info("Resources for SparkApplication successfully deleted", "namespace", appToUpdate.Namespace, "name", appToUpdate.Name)
 				r.recordSparkApplicationEvent(appToUpdate)
 				r.clearStatus(&appToUpdate.Status)
 				appToUpdate = r.submitSparkApplication(ctx, appToUpdate)
@@ -685,7 +698,7 @@ func (r *ReconcileSparkApplication) Reconcile(request reconcile.Request) (reconc
 			"fromStatus", sparkapp.Status, "toStatus", appToUpdate.Status)
 		err = r.updateStatusAndExportMetrics(ctx, sparkapp, appToUpdate)
 		if err != nil {
-			glog.Errorf("failed to update SparkApplication %s/%s: %v", appToUpdate.Namespace, appToUpdate.Name, err)
+			logger.Error(err, "failed to update SparkApplication.", "namespace", appToUpdate.Namespace, "appName", appToUpdate.Name)
 			return reconcile.Result{}, err
 		}
 	}
@@ -874,7 +887,7 @@ func shouldRetry(app *v1beta2.SparkApplication) bool {
 
 // Helper func to determine if we have waited enough to retry the SparkApplication.
 func hasRetryIntervalPassed(retryInterval *int64, attemptsDone int32, lastEventTime metav1.Time) bool {
-	logger.V(3).Info("Retry info",
+	logger.V(1).Info("Retry info",
 		"retryInterval", retryInterval, "lastEventTime", lastEventTime, "attemptsDone", attemptsDone)
 	if retryInterval == nil || lastEventTime.IsZero() || attemptsDone <= 0 {
 		return false
@@ -883,7 +896,7 @@ func hasRetryIntervalPassed(retryInterval *int64, attemptsDone int32, lastEventT
 	// Retry if we have waited at-least equal to attempts*RetryInterval since we do a linear back-off.
 	interval := time.Duration(*retryInterval) * time.Second * time.Duration(attemptsDone)
 	currentTime := time.Now()
-	logger.V(3).Info("Retry info", "currentTime", currentTime, "interval", interval)
+	logger.V(1).Info("Retry info", "currentTime", currentTime, "interval", interval)
 	if currentTime.After(lastEventTime.Add(interval)) {
 		return true
 	}

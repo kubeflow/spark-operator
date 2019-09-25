@@ -47,11 +47,11 @@ func configPrometheusMonitoring(ctx context.Context, app *v1beta2.SparkApplicati
 	var javaOption string
 	if app.HasPrometheusConfigFile() {
 		configFile := *app.Spec.Monitoring.Prometheus.ConfigFile
-		logger.V(2).Info("Overriding the default Prometheus configuration with config file in the Spark image.", "configFile", configFile)
+		logger.V(1).Info("Overriding the default Prometheus configuration with config file in the Spark image.", "configFile", configFile)
 		javaOption = fmt.Sprintf("-javaagent:%s=%d:%s", app.Spec.Monitoring.Prometheus.JmxExporterJar,
 			port, configFile)
 	} else {
-		logger.V(2).Info("Using the default Prometheus configuration.")
+		logger.V(1).Info("Using the default Prometheus configuration.")
 		configMapName := config.GetPrometheusConfigMapName(app)
 		configMap := buildPrometheusConfigMap(app, configMapName)
 		retryErr := retry.RetryOnConflict(retry.DefaultRetry, func() error {
