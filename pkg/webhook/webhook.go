@@ -156,16 +156,19 @@ func New(
 	}
 
 	if userConfig.webhookFailOnError {
-		if userConfig.webhookNamespaceSelector == "" {
+		hook.failurePolicy = arv1beta1.Fail
+	}
+
+	if userConfig.webhookNamespaceSelector == "" {
+		if userConfig.webhookFailOnError {
 			return nil, fmt.Errorf("webhook-namespace-selector must be set when webhook-fail-on-error is true")
 		}
-
+	} else {
 		selector, err := parseNamespaceSelector(userConfig.webhookNamespaceSelector)
 		if err != nil {
 			return nil, err
 		}
 		hook.selector = selector
-		hook.failurePolicy = arv1beta1.Fail
 	}
 
 	if enableResourceQuotaEnforcement {
