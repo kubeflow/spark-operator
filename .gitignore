@@ -4,6 +4,6 @@ spark-operator
 .idea/
 **/*.iml
 sparkctl/sparkctl
-spark-on-k8s-oprator
+spark-on-k8s-operator
 sparkctl/sparkctl-linux-amd64
 sparkctl/sparkctl-darwin-amd64
