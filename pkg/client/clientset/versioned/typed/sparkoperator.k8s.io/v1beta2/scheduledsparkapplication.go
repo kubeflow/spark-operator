@@ -41,6 +41,7 @@ type ScheduledSparkApplicationsGetter interface {
 type ScheduledSparkApplicationInterface interface {
 	Create(*v1beta2.ScheduledSparkApplication) (*v1beta2.ScheduledSparkApplication, error)
 	Update(*v1beta2.ScheduledSparkApplication) (*v1beta2.ScheduledSparkApplication, error)
+	UpdateStatus(*v1beta2.ScheduledSparkApplication) (*v1beta2.ScheduledSparkApplication, error)
 	Delete(name string, options *v1.DeleteOptions) error
 	DeleteCollection(options *v1.DeleteOptions, listOptions v1.ListOptions) error
 	Get(name string, options v1.GetOptions) (*v1beta2.ScheduledSparkApplication, error)
@@ -128,6 +129,22 @@ func (c *scheduledSparkApplications) Update(scheduledSparkApplication *v1beta2.S
 		Namespace(c.ns).
 		Resource("scheduledsparkapplications").
 		Name(scheduledSparkApplication.Name).
+		Body(scheduledSparkApplication).
+		Do().
+		Into(result)
+	return
+}
+
+// UpdateStatus was generated because the type contains a Status member.
+// Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
+
+func (c *scheduledSparkApplications) UpdateStatus(scheduledSparkApplication *v1beta2.ScheduledSparkApplication) (result *v1beta2.ScheduledSparkApplication, err error) {
+	result = &v1beta2.ScheduledSparkApplication{}
+	err = c.client.Put().
+		Namespace(c.ns).
+		Resource("scheduledsparkapplications").
+		Name(scheduledSparkApplication.Name).
+		SubResource("status").
 		Body(scheduledSparkApplication).
 		Do().
 		Into(result)

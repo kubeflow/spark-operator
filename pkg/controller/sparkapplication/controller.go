@@ -723,7 +723,7 @@ func (c *Controller) updateApplicationStatusWithRetries(
 			return true, nil
 		}
 
-		toUpdate, err = c.crdClient.SparkoperatorV1beta2().SparkApplications(original.Namespace).Update(toUpdate)
+		toUpdate, err = c.crdClient.SparkoperatorV1beta2().SparkApplications(original.Namespace).UpdateStatus(toUpdate)
 		if err == nil {
 			return true, nil
 		}
