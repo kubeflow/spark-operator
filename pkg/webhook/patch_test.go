@@ -75,6 +75,75 @@ func TestPatchSparkPod_OwnerReference(t *testing.T) {
 	assert.Equal(t, 2, len(modifiedPod.OwnerReferences))
 }
 
+func TestPatchSparkPod_Local_Volumes(t *testing.T) {
+	app := &v1beta2.SparkApplication{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "spark-test",
+			UID:  "spark-test-1",
+		},
+		Spec: v1beta2.SparkApplicationSpec{
+			Volumes: []corev1.Volume{
+				{
+					Name: "spark-local-dir-1",
+					VolumeSource: corev1.VolumeSource{
+						HostPath: &corev1.HostPathVolumeSource{
+							Path: "/tmp/mnt-1",
+						},
+					},
+				},
+				{
+					Name: "spark-local-dir-2",
+					VolumeSource: corev1.VolumeSource{
+						HostPath: &corev1.HostPathVolumeSource{
+							Path: "/tmp/mnt-2",
+						},
+					},
+				},
+			},
+			Driver: v1beta2.DriverSpec{
+				SparkPodSpec: v1beta2.SparkPodSpec{
+					VolumeMounts: []corev1.VolumeMount{
+						{
+							Name:      "spark-local-dir-1",
+							MountPath: "/tmp/mnt-1",
+						},
+						{
+							Name:      "spark-local-dir-2",
+							MountPath: "/tmp/mnt-2",
+						},
+					},
+				},
+			},
+		},
+	}
+
+	pod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "spark-driver",
+			Labels: map[string]string{
+				config.SparkRoleLabel:               config.SparkDriverRole,
+				config.LaunchedBySparkOperatorLabel: "true",
+			},
+		},
+		Spec: corev1.PodSpec{
+			Containers: []corev1.Container{
+				{
+					Name:  config.SparkDriverContainerName,
+					Image: "spark-driver:latest",
+				},
+			},
+		},
+	}
+
+	modifiedPod, err := getModifiedPod(pod, app)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// local volume will not be added by webhook
+	assert.Equal(t, 0, len(modifiedPod.Spec.Volumes))
+}
+
 func TestPatchSparkPod_Volumes(t *testing.T) {
 	app := &v1beta2.SparkApplication{
 		ObjectMeta: metav1.ObjectMeta{
