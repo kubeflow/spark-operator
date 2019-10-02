@@ -355,7 +355,7 @@ func (c *Controller) updateScheduledSparkApplicationStatus(
 	toUpdate := app.DeepCopy()
 	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		toUpdate.Status = *newStatus
-		_, updateErr := c.crdClient.SparkoperatorV1beta2().ScheduledSparkApplications(toUpdate.Namespace).Update(
+		_, updateErr := c.crdClient.SparkoperatorV1beta2().ScheduledSparkApplications(toUpdate.Namespace).UpdateStatus(
 			toUpdate)
 		if updateErr == nil {
 			return nil
