@@ -2537,29 +2537,6 @@ spec:
           - schedule
           - template
           type: object
-        status:
-          properties:
-            lastRun:
-              format: date-time
-              type: string
-            lastRunName:
-              type: string
-            nextRun:
-              format: date-time
-              type: string
-            pastFailedRunNames:
-              items:
-                type: string
-              type: array
-            pastSuccessfulRunNames:
-              items:
-                type: string
-              type: array
-            reason:
-              type: string
-            scheduleState:
-              type: string
-          type: object
       required:
       - metadata
       - spec
