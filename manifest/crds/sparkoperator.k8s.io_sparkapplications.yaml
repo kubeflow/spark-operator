@@ -2563,9 +2563,6 @@ spec:
               type: integer
             submissionID:
               type: string
-            terminationTime:
-              format: date-time
-              type: string
           required:
           - driverInfo
           type: object
