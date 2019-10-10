@@ -19,142 +19,54 @@ limitations under the License.
 package main
 
 import (
-	"context"
 	"flag"
 	"fmt"
-	"os"
-	"os/signal"
-	"strings"
-	"syscall"
-	"time"
-
-	"github.com/golang/glog"
-	apiv1 "k8s.io/api/core/v1"
-	apiextensionsclient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/clock"
-	"k8s.io/client-go/informers"
-	clientset "k8s.io/client-go/kubernetes"
-	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
-	"k8s.io/client-go/rest"
-	"k8s.io/client-go/tools/clientcmd"
-	"k8s.io/client-go/tools/leaderelection"
-	"k8s.io/client-go/tools/leaderelection/resourcelock"
-	"k8s.io/client-go/tools/record"
-
+	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis"
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/batchscheduler"
-	crclientset "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/client/clientset/versioned"
-	crinformers "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/client/informers/externalversions"
-	operatorConfig "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/config"
-	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/controller/scheduledsparkapplication"
-	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/controller/sparkapplication"
+	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/controller"
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/util"
-	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/webhook"
+	wb "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/webhook"
+	apiv1 "k8s.io/api/core/v1"
+	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
+	"os"
+	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/cache"
+	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+	"sigs.k8s.io/controller-runtime/pkg/manager"
+	"sigs.k8s.io/controller-runtime/pkg/runtime/signals"
+	"sigs.k8s.io/controller-runtime/pkg/webhook"
+	"strings"
+	"time"
+	// +kubebuilder:scaffold:imports
 )
 
 var (
-	master                         = flag.String("master", "", "The address of the Kubernetes API server. Overrides any value in kubeconfig. Only required if out-of-cluster.")
-	kubeConfig                     = flag.String("kubeConfig", "", "Path to a kube config. Only required if out-of-cluster.")
-	controllerThreads              = flag.Int("controller-threads", 10, "Number of worker threads used by the SparkApplication controller.")
-	resyncInterval                 = flag.Int("resync-interval", 30, "Informer resync interval in seconds.")
-	namespace                      = flag.String("namespace", apiv1.NamespaceAll, "The Kubernetes namespace to manage. Will manage custom resource objects of the managed CRD types for the whole cluster if unset.")
-	enableWebhook                  = flag.Bool("enable-webhook", false, "Whether to enable the mutating admission webhook for admitting and patching Spark pods.")
-	enableResourceQuotaEnforcement = flag.Bool("enable-resource-quota-enforcement", false, "Whether to enable ResourceQuota enforcement for SparkApplication resources. Requires the webhook to be enabled.")
-	enableMetrics                  = flag.Bool("enable-metrics", false, "Whether to enable the metrics endpoint.")
-	metricsPort                    = flag.String("metrics-port", "10254", "Port for the metrics endpoint.")
-	metricsEndpoint                = flag.String("metrics-endpoint", "/metrics", "Metrics endpoint.")
-	metricsPrefix                  = flag.String("metrics-prefix", "", "Prefix for the metrics.")
-	ingressURLFormat               = flag.String("ingress-url-format", "", "Ingress URL format.")
-	enableLeaderElection           = flag.Bool("leader-election", false, "Enable Spark operator leader election.")
-	leaderElectionLockNamespace    = flag.String("leader-election-lock-namespace", "spark-operator", "Namespace in which to create the ConfigMap for leader election.")
-	leaderElectionLockName         = flag.String("leader-election-lock-name", "spark-operator-lock", "Name of the ConfigMap for leader election.")
-	leaderElectionLeaseDuration    = flag.Duration("leader-election-lease-duration", 15*time.Second, "Leader election lease duration.")
-	leaderElectionRenewDeadline    = flag.Duration("leader-election-renew-deadline", 14*time.Second, "Leader election renew deadline.")
-	leaderElectionRetryPeriod      = flag.Duration("leader-election-retry-period", 4*time.Second, "Leader election retry period.")
-	enableBatchScheduler           = flag.Bool("enable-batch-scheduler", false,
-		fmt.Sprintf("Enable batch schedulers for pods' scheduling, the available batch schedulers are: (%s).", strings.Join(batchscheduler.GetRegisteredNames(), ",")))
+	controllerThreads    = flag.Int("controller-threads", 10, "Number of parallel reconciling actions run by the SparkApplication controller.")
+	resyncInterval       = flag.Int("resync-interval", 30, "Informer resync interval in seconds.")
+	namespace            = flag.String("namespace", apiv1.NamespaceAll, "The Kubernetes namespace(s) to manage. Will manage custom resource objects of the managed CRD types for the whole cluster if unset. Multiple namespace can be seperated with comma.")
+	enableWebhook        = flag.Bool("enable-webhook", false, "Whether to enable the mutating admission webhook for admitting and patching Spark pods.")
+	enableMetrics        = flag.Bool("enable-metrics", false, "Whether to enable the metrics endpoint.")
+	metricsPort          = flag.String("metrics-port", "10254", "Port for the metrics endpoint.")
+	metricsEndpoint      = flag.String("metrics-endpoint", "/metrics", "Metrics endpoint.")
+	metricsPrefix        = flag.String("metrics-prefix", "", "Prefix for the metrics.")
+	ingressURLFormat     = flag.String("ingress-url-format", "", "Ingress URL format.")
+	enableBatchScheduler = flag.Bool("enable-batch-scheduler", false, fmt.Sprintf("Enable batch schedulers for pods' scheduling, the available batch schedulers are: (%s).", strings.Join(batchscheduler.GetRegisteredNames(), ",")))
+	logger               = ctrl.Log.WithName("main")
 )
 
 func main() {
 	var metricsLabels util.ArrayFlags
+	var metricsAddr string
 	flag.Var(&metricsLabels, "metrics-labels", "Labels for the metrics")
+	flag.StringVar(&metricsAddr, "metrics-addr", ":8080", "The address the metric endpoint binds to.")
 	flag.Parse()
+	ctrl.SetLogger(zap.Logger(true))
 
 	// Create the client config. Use kubeConfig if given, otherwise assume in-cluster.
-	config, err := buildConfig(*master, *kubeConfig)
+	config, err := ctrl.GetConfig()
 	if err != nil {
-		glog.Fatal(err)
+		logger.Error(err, "Error getting kubeconfig")
 	}
-	kubeClient, err := clientset.NewForConfig(config)
-	if err != nil {
-		glog.Fatal(err)
-	}
-
-	signalCh := make(chan os.Signal, 1)
-	signal.Notify(signalCh, syscall.SIGINT, syscall.SIGTERM)
-
-	stopCh := make(chan struct{}, 1)
-	startCh := make(chan struct{}, 1)
-
-	if *enableLeaderElection {
-		hostname, err := os.Hostname()
-		if err != nil {
-			glog.Fatal(err)
-		}
-		resourceLock, err := resourcelock.New(resourcelock.ConfigMapsResourceLock, *leaderElectionLockNamespace, *leaderElectionLockName, kubeClient.CoreV1(), resourcelock.ResourceLockConfig{
-			Identity: hostname,
-			// TODO: This is a workaround for a nil dereference in client-go. This line can be removed when that dependency is updated.
-			EventRecorder: &record.FakeRecorder{},
-		})
-		if err != nil {
-			glog.Fatal(err)
-		}
-
-		electionCfg := leaderelection.LeaderElectionConfig{
-			Lock:          resourceLock,
-			LeaseDuration: *leaderElectionLeaseDuration,
-			RenewDeadline: *leaderElectionRenewDeadline,
-			RetryPeriod:   *leaderElectionRetryPeriod,
-			Callbacks: leaderelection.LeaderCallbacks{
-				OnStartedLeading: func(c context.Context) {
-					close(startCh)
-				},
-				OnStoppedLeading: func() {
-					close(stopCh)
-				},
-			},
-		}
-
-		elector, err := leaderelection.NewLeaderElector(electionCfg)
-		if err != nil {
-			glog.Fatal(err)
-		}
-
-		go elector.Run(context.Background())
-	}
-
-	glog.Info("Starting the Spark Operator")
-
-	crClient, err := crclientset.NewForConfig(config)
-	if err != nil {
-		glog.Fatal(err)
-	}
-	apiExtensionsClient, err := apiextensionsclient.NewForConfig(config)
-	if err != nil {
-		glog.Fatal(err)
-	}
-
-	var batchSchedulerMgr *batchscheduler.SchedulerManager
-	if *enableBatchScheduler {
-		if !*enableWebhook {
-			glog.Fatal(
-				"failed to initialize the batch scheduler manager as it requires the webhook to be enabled")
-		}
-		batchSchedulerMgr = batchscheduler.NewSchedulerManager(config)
-	}
-
-	crInformerFactory := buildCustomResourceInformerFactory(crClient)
-	informerFactory := buildInformerFactory(kubeClient)
 
 	var metricConfig *util.MetricConfig
 	if *enableMetrics {
@@ -165,108 +77,71 @@ func main() {
 			MetricsLabels:   metricsLabels,
 		}
 
-		glog.Info("Enabling metrics collecting and exporting to Prometheus")
+		logger.Info("Enabling metrics collecting and exporting to Prometheus")
 		util.InitializeMetrics(metricConfig)
 	}
 
-	applicationController := sparkapplication.NewController(
-		crClient, kubeClient, crInformerFactory, informerFactory, metricConfig, *namespace, *ingressURLFormat, batchSchedulerMgr)
-	scheduledApplicationController := scheduledsparkapplication.NewController(
-		crClient, kubeClient, apiExtensionsClient, crInformerFactory, clock.RealClock{})
+	logger.Info("Starting the Spark Operator")
 
-	// Start the informer factory that in turn starts the informer.
-	go crInformerFactory.Start(stopCh)
-	go informerFactory.Start(stopCh)
+	if err != nil {
+		logger.Error(err, "Unable to get a client")
+	}
 
-	var hook *webhook.WebHook
+	// Create a new Cmd to provide shared dependencies and start components
+	logger.Info("Setting up the controller runtime manager")
+	syncPeriodDuration := time.Duration(*resyncInterval) * time.Second
+
+	var mgr manager.Manager
+
+	if *namespace == "" {
+		mgr, err = manager.New(config, manager.Options{
+			SyncPeriod: &syncPeriodDuration,
+		})
+	} else {
+		namespaceList := strings.Split(*namespace, ",")
+		mgr, err = manager.New(config, manager.Options{
+			NewCache:   cache.MultiNamespacedCacheBuilder(namespaceList),
+			SyncPeriod: &syncPeriodDuration,
+		})
+	}
+
+	if err != nil {
+		logger.Error(err, "unable to set up overall controller manager")
+		os.Exit(1)
+	}
+
+	logger.Info("Registering Components.")
+
+	// Setup Scheme for all resources
+	logger.Info("scheme name", "name", mgr.GetScheme().Name())
+	if err := apis.AddToScheme(mgr.GetScheme()); err != nil {
+		logger.Error(err, "Unable to register the required schemes")
+		os.Exit(1)
+	}
+
+	// Setup all Controllers
+	logger.Info("Adding Controllers.")
+	if err := controller.AddToManager(mgr, metricConfig, *controllerThreads); err != nil {
+		logger.Error(err, "Unable to add the controllers")
+		os.Exit(1)
+	}
+
 	if *enableWebhook {
-		var coreV1InformerFactory informers.SharedInformerFactory
-		if *enableResourceQuotaEnforcement {
-			coreV1InformerFactory = buildCoreV1InformerFactory(kubeClient)
-		}
-		var err error
-		// Don't deregister webhook on exit if leader election enabled (i.e. multiple webhooks running)
-		hook, err = webhook.New(kubeClient, crInformerFactory, *namespace, !*enableLeaderElection, *enableResourceQuotaEnforcement, coreV1InformerFactory)
-		if err != nil {
-			glog.Fatal(err)
+		logger.Info("Setting up webhooks")
+		if err := wb.AddToManager(mgr); err != nil {
+			logger.Error(err, "unable to register webhooks to the manager")
+			os.Exit(1)
 		}
 
-		if *enableResourceQuotaEnforcement {
-			go coreV1InformerFactory.Start(stopCh)
-		}
-
-		if err = hook.Start(stopCh); err != nil {
-			glog.Fatal(err)
-		}
-	} else if *enableResourceQuotaEnforcement {
-		glog.Fatal("Webhook must be enabled to use resource quota enforcement.")
+		logger.Info("Getting the webhook server")
+		hookServer := mgr.GetWebhookServer()
+		hookServer.Register("/mutate-v1-pod", &webhook.Admission{Handler: &wb.SparkPodMutator{JobNameSpace: *namespace}})
 	}
-
-	if *enableLeaderElection {
-		glog.Info("Waiting to be elected leader before starting application controller goroutines")
-		<-startCh
+	// +kubebuilder:scaffold:builder
+	//Start the Cmd
+	logger.Info("Starting the Cmd.")
+	if err := mgr.Start(signals.SetupSignalHandler()); err != nil {
+		logger.Error(err, "unable to run the manager")
+		os.Exit(1)
 	}
-
-	glog.Info("Starting application controller goroutines")
-
-	if err = applicationController.Start(*controllerThreads, stopCh); err != nil {
-		glog.Fatal(err)
-	}
-	if err = scheduledApplicationController.Start(*controllerThreads, stopCh); err != nil {
-		glog.Fatal(err)
-	}
-
-	select {
-	case <-signalCh:
-		close(stopCh)
-	case <-stopCh:
-	}
-
-	glog.Info("Shutting down the Spark Operator")
-	applicationController.Stop()
-	scheduledApplicationController.Stop()
-	if *enableWebhook {
-		if err := hook.Stop(); err != nil {
-			glog.Fatal(err)
-		}
-	}
-}
-
-func buildConfig(masterURL string, kubeConfig string) (*rest.Config, error) {
-	if kubeConfig != "" {
-		return clientcmd.BuildConfigFromFlags(masterURL, kubeConfig)
-	}
-	return rest.InClusterConfig()
-}
-
-func buildCustomResourceInformerFactory(crClient crclientset.Interface) crinformers.SharedInformerFactory {
-	var factoryOpts []crinformers.SharedInformerOption
-	if *namespace != apiv1.NamespaceAll {
-		factoryOpts = append(factoryOpts, crinformers.WithNamespace(*namespace))
-	}
-	return crinformers.NewSharedInformerFactoryWithOptions(
-		crClient,
-		// resyncPeriod. Every resyncPeriod, all resources in the cache will re-trigger events.
-		time.Duration(*resyncInterval)*time.Second,
-		factoryOpts...)
-}
-
-func buildInformerFactory(kubeClient clientset.Interface) informers.SharedInformerFactory {
-	var factoryOpts []informers.SharedInformerOption
-	if *namespace != apiv1.NamespaceAll {
-		factoryOpts = append(factoryOpts, informers.WithNamespace(*namespace))
-	}
-	tweakListOptionsFunc := func(options *metav1.ListOptions) {
-		options.LabelSelector = operatorConfig.LaunchedBySparkOperatorLabel
-	}
-	factoryOpts = append(factoryOpts, informers.WithTweakListOptions(tweakListOptionsFunc))
-	return informers.NewSharedInformerFactoryWithOptions(kubeClient, time.Duration(*resyncInterval)*time.Second, factoryOpts...)
-}
-
-func buildCoreV1InformerFactory(kubeClient clientset.Interface) informers.SharedInformerFactory {
-	var coreV1FactoryOpts []informers.SharedInformerOption
-	if *namespace != apiv1.NamespaceAll {
-		coreV1FactoryOpts = append(coreV1FactoryOpts, informers.WithNamespace(*namespace))
-	}
-	return informers.NewSharedInformerFactoryWithOptions(kubeClient, time.Duration(*resyncInterval)*time.Second, coreV1FactoryOpts...)
 }

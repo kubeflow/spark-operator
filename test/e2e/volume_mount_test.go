@@ -79,7 +79,7 @@ func TestMountConfigMap(t *testing.T) {
 	podName := app.Status.DriverInfo.PodName
 
 	describeClient := &describeClient{T: t, Namespace: appFramework.SparkTestNamespace, Interface: framework.KubeClient}
-	describer := versioned.PodDescriber{describeClient}
+	describer := versioned.PodDescriber{Interface: describeClient}
 
 	podDesc, err := describer.Describe(appFramework.SparkTestNamespace, podName, describe.DescriberSettings{ShowEvents: true})
 	assert.Equal(t, nil, err)

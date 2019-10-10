@@ -16,22 +16,21 @@
 
 ARG SPARK_IMAGE=gcr.io/spark-operator/spark:v2.4.4
 
-FROM golang:1.12.5-alpine as builder
-ARG DEP_VERSION="0.5.3"
+FROM golang:1.12.9-alpine as builder
 RUN apk add --no-cache bash git
-ADD https://github.com/golang/dep/releases/download/v${DEP_VERSION}/dep-linux-amd64 /usr/bin/dep
-RUN chmod +x /usr/bin/dep
 
 WORKDIR ${GOPATH}/src/github.com/GoogleCloudPlatform/spark-on-k8s-operator
-COPY Gopkg.toml Gopkg.lock ./
-RUN dep ensure -vendor-only
 COPY . ./
+ENV GO111MODULE=on
+RUN go mod download
 RUN go generate && CGO_ENABLED=0 GOOS=linux go build -o /usr/bin/spark-operator
 
-FROM ${SPARK_IMAGE}
+FROM ${SPARK_IMAGE} as spark_builder
 COPY --from=builder /usr/bin/spark-operator /usr/bin/
-RUN apk add --no-cache openssl curl tini
-COPY hack/gencerts.sh /usr/bin/
-
 COPY entrypoint.sh /usr/bin/
+
+FROM golang:1.12.9-alpine
+COPY --from=spark_builder /usr/bin/ /usr/bin/
+RUN apk add --no-cache bash openssl curl tini
+
 ENTRYPOINT ["/usr/bin/entrypoint.sh"]

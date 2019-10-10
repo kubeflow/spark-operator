@@ -17,12 +17,9 @@ limitations under the License.
 package webhook
 
 import (
-	"encoding/json"
 	"fmt"
-	"testing"
-
-	jsonpatch "github.com/evanphx/json-patch"
 	"github.com/stretchr/testify/assert"
+	"testing"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -59,20 +56,14 @@ func TestPatchSparkPod_OwnerReference(t *testing.T) {
 	}
 
 	// Test patching a pod without existing OwnerReference and Volume.
-	modifiedPod, err := getModifiedPod(pod, app)
-	if err != nil {
-		t.Fatal(err)
-	}
-	assert.Equal(t, 1, len(modifiedPod.OwnerReferences))
+	patchSparkPod(pod, app)
+	assert.Equal(t, 1, len(pod.OwnerReferences))
 
 	// Test patching a pod with existing OwnerReference and Volume.
 	pod.OwnerReferences = append(pod.OwnerReferences, metav1.OwnerReference{Name: "owner-reference1"})
 
-	modifiedPod, err = getModifiedPod(pod, app)
-	if err != nil {
-		t.Fatal(err)
-	}
-	assert.Equal(t, 2, len(modifiedPod.OwnerReferences))
+	patchSparkPod(pod, app)
+	assert.Equal(t, 2, len(pod.OwnerReferences))
 }
 
 func TestPatchSparkPod_Volumes(t *testing.T) {
@@ -124,15 +115,11 @@ func TestPatchSparkPod_Volumes(t *testing.T) {
 	}
 
 	// Test patching a pod without existing OwnerReference and Volume.
-	modifiedPod, err := getModifiedPod(pod, app)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	assert.Equal(t, 1, len(modifiedPod.Spec.Volumes))
-	assert.Equal(t, app.Spec.Volumes[0], modifiedPod.Spec.Volumes[0])
-	assert.Equal(t, 1, len(modifiedPod.Spec.Containers[0].VolumeMounts))
-	assert.Equal(t, app.Spec.Driver.VolumeMounts[0], modifiedPod.Spec.Containers[0].VolumeMounts[0])
+	patchSparkPod(pod, app)
+	assert.Equal(t, 1, len(pod.Spec.Volumes))
+	assert.Equal(t, app.Spec.Volumes[0], pod.Spec.Volumes[0])
+	assert.Equal(t, 1, len(pod.Spec.Containers[0].VolumeMounts))
+	assert.Equal(t, app.Spec.Driver.VolumeMounts[0], pod.Spec.Containers[0].VolumeMounts[0])
 
 	// Test patching a pod with existing OwnerReference and Volume.
 	pod.Spec.Volumes = append(pod.Spec.Volumes, corev1.Volume{Name: "volume1"})
@@ -140,15 +127,12 @@ func TestPatchSparkPod_Volumes(t *testing.T) {
 		Name: "volume1",
 	})
 
-	modifiedPod, err = getModifiedPod(pod, app)
-	if err != nil {
-		t.Fatal(err)
-	}
+	patchSparkPod(pod, app)
 
-	assert.Equal(t, 2, len(modifiedPod.Spec.Volumes))
-	assert.Equal(t, app.Spec.Volumes[0], modifiedPod.Spec.Volumes[1])
-	assert.Equal(t, 2, len(modifiedPod.Spec.Containers[0].VolumeMounts))
-	assert.Equal(t, app.Spec.Driver.VolumeMounts[0], modifiedPod.Spec.Containers[0].VolumeMounts[1])
+	assert.Equal(t, 2, len(pod.Spec.Volumes))
+	assert.Equal(t, app.Spec.Volumes[0], pod.Spec.Volumes[0])
+	assert.Equal(t, 2, len(pod.Spec.Containers[0].VolumeMounts))
+	assert.Equal(t, app.Spec.Driver.VolumeMounts[0], pod.Spec.Containers[0].VolumeMounts[0])
 }
 
 func TestPatchSparkPod_Affinity(t *testing.T) {
@@ -196,16 +180,12 @@ func TestPatchSparkPod_Affinity(t *testing.T) {
 	}
 
 	// Test patching a pod with a pod Affinity.
-	modifiedPod, err := getModifiedPod(pod, app)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	assert.True(t, modifiedPod.Spec.Affinity != nil)
+	patchSparkPod(pod, app)
+	assert.True(t, pod.Spec.Affinity != nil)
 	assert.Equal(t, 1,
-		len(modifiedPod.Spec.Affinity.PodAffinity.RequiredDuringSchedulingIgnoredDuringExecution))
+		len(pod.Spec.Affinity.PodAffinity.RequiredDuringSchedulingIgnoredDuringExecution))
 	assert.Equal(t, "kubernetes.io/hostname",
-		modifiedPod.Spec.Affinity.PodAffinity.RequiredDuringSchedulingIgnoredDuringExecution[0].TopologyKey)
+		pod.Spec.Affinity.PodAffinity.RequiredDuringSchedulingIgnoredDuringExecution[0].TopologyKey)
 }
 
 func TestPatchSparkPod_ConfigMaps(t *testing.T) {
@@ -241,16 +221,12 @@ func TestPatchSparkPod_ConfigMaps(t *testing.T) {
 		},
 	}
 
-	modifiedPod, err := getModifiedPod(pod, app)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	assert.Equal(t, 1, len(modifiedPod.Spec.Volumes))
-	assert.Equal(t, "foo-vol", modifiedPod.Spec.Volumes[0].Name)
-	assert.True(t, modifiedPod.Spec.Volumes[0].ConfigMap != nil)
-	assert.Equal(t, 1, len(modifiedPod.Spec.Containers[0].VolumeMounts))
-	assert.Equal(t, "/path/to/foo", modifiedPod.Spec.Containers[0].VolumeMounts[0].MountPath)
+	patchSparkPod(pod, app)
+	assert.Equal(t, 1, len(pod.Spec.Volumes))
+	assert.Equal(t, "foo-vol", pod.Spec.Volumes[0].Name)
+	assert.True(t, pod.Spec.Volumes[0].ConfigMap != nil)
+	assert.Equal(t, 1, len(pod.Spec.Containers[0].VolumeMounts))
+	assert.Equal(t, "/path/to/foo", pod.Spec.Containers[0].VolumeMounts[0].MountPath)
 }
 
 func TestPatchSparkPod_SparkConfigMap(t *testing.T) {
@@ -283,18 +259,15 @@ func TestPatchSparkPod_SparkConfigMap(t *testing.T) {
 		},
 	}
 
-	modifiedPod, err := getModifiedPod(pod, app)
-	if err != nil {
-		t.Fatal(err)
-	}
+	patchSparkPod(pod, app)
 
-	assert.Equal(t, 1, len(modifiedPod.Spec.Volumes))
-	assert.Equal(t, config.SparkConfigMapVolumeName, modifiedPod.Spec.Volumes[0].Name)
-	assert.True(t, modifiedPod.Spec.Volumes[0].ConfigMap != nil)
-	assert.Equal(t, 1, len(modifiedPod.Spec.Containers[0].VolumeMounts))
-	assert.Equal(t, config.DefaultSparkConfDir, modifiedPod.Spec.Containers[0].VolumeMounts[0].MountPath)
-	assert.Equal(t, 1, len(modifiedPod.Spec.Containers[0].Env))
-	assert.Equal(t, config.DefaultSparkConfDir, modifiedPod.Spec.Containers[0].Env[0].Value)
+	assert.Equal(t, 1, len(pod.Spec.Volumes))
+	assert.Equal(t, config.SparkConfigMapVolumeName, pod.Spec.Volumes[0].Name)
+	assert.True(t, pod.Spec.Volumes[0].ConfigMap != nil)
+	assert.Equal(t, 1, len(pod.Spec.Containers[0].VolumeMounts))
+	assert.Equal(t, config.DefaultSparkConfDir, pod.Spec.Containers[0].VolumeMounts[0].MountPath)
+	assert.Equal(t, 1, len(pod.Spec.Containers[0].Env))
+	assert.Equal(t, config.DefaultSparkConfDir, pod.Spec.Containers[0].Env[0].Value)
 }
 
 func TestPatchSparkPod_HadoopConfigMap(t *testing.T) {
@@ -327,18 +300,15 @@ func TestPatchSparkPod_HadoopConfigMap(t *testing.T) {
 		},
 	}
 
-	modifiedPod, err := getModifiedPod(pod, app)
-	if err != nil {
-		t.Fatal(err)
-	}
+	patchSparkPod(pod, app)
 
-	assert.Equal(t, 1, len(modifiedPod.Spec.Volumes))
-	assert.Equal(t, config.HadoopConfigMapVolumeName, modifiedPod.Spec.Volumes[0].Name)
-	assert.True(t, modifiedPod.Spec.Volumes[0].ConfigMap != nil)
-	assert.Equal(t, 1, len(modifiedPod.Spec.Containers[0].VolumeMounts))
-	assert.Equal(t, config.DefaultHadoopConfDir, modifiedPod.Spec.Containers[0].VolumeMounts[0].MountPath)
-	assert.Equal(t, 1, len(modifiedPod.Spec.Containers[0].Env))
-	assert.Equal(t, config.DefaultHadoopConfDir, modifiedPod.Spec.Containers[0].Env[0].Value)
+	assert.Equal(t, 1, len(pod.Spec.Volumes))
+	assert.Equal(t, config.HadoopConfigMapVolumeName, pod.Spec.Volumes[0].Name)
+	assert.True(t, pod.Spec.Volumes[0].ConfigMap != nil)
+	assert.Equal(t, 1, len(pod.Spec.Containers[0].VolumeMounts))
+	assert.Equal(t, config.DefaultHadoopConfDir, pod.Spec.Containers[0].VolumeMounts[0].MountPath)
+	assert.Equal(t, 1, len(pod.Spec.Containers[0].Env))
+	assert.Equal(t, config.DefaultHadoopConfDir, pod.Spec.Containers[0].Env[0].Value)
 }
 
 func TestPatchSparkPod_PrometheusConfigMaps(t *testing.T) {
@@ -373,20 +343,17 @@ func TestPatchSparkPod_PrometheusConfigMaps(t *testing.T) {
 		},
 	}
 
-	modifiedPod, err := getModifiedPod(pod, app)
-	if err != nil {
-		t.Fatal(err)
-	}
+	patchSparkPod(pod, app)
 
 	expectedConfigMapName := config.GetPrometheusConfigMapName(app)
 	expectedVolumeName := expectedConfigMapName + "-vol"
-	assert.Equal(t, 1, len(modifiedPod.Spec.Volumes))
-	assert.Equal(t, expectedVolumeName, modifiedPod.Spec.Volumes[0].Name)
-	assert.True(t, modifiedPod.Spec.Volumes[0].ConfigMap != nil)
-	assert.Equal(t, expectedConfigMapName, modifiedPod.Spec.Volumes[0].ConfigMap.Name)
-	assert.Equal(t, 1, len(modifiedPod.Spec.Containers[0].VolumeMounts))
-	assert.Equal(t, expectedVolumeName, modifiedPod.Spec.Containers[0].VolumeMounts[0].Name)
-	assert.Equal(t, config.PrometheusConfigMapMountPath, modifiedPod.Spec.Containers[0].VolumeMounts[0].MountPath)
+	assert.Equal(t, 1, len(pod.Spec.Volumes))
+	assert.Equal(t, expectedVolumeName, pod.Spec.Volumes[0].Name)
+	assert.True(t, pod.Spec.Volumes[0].ConfigMap != nil)
+	assert.Equal(t, expectedConfigMapName, pod.Spec.Volumes[0].ConfigMap.Name)
+	assert.Equal(t, 1, len(pod.Spec.Containers[0].VolumeMounts))
+	assert.Equal(t, expectedVolumeName, pod.Spec.Containers[0].VolumeMounts[0].Name)
+	assert.Equal(t, config.PrometheusConfigMapMountPath, pod.Spec.Containers[0].VolumeMounts[0].MountPath)
 }
 
 func TestPatchSparkPod_Tolerations(t *testing.T) {
@@ -430,13 +397,10 @@ func TestPatchSparkPod_Tolerations(t *testing.T) {
 		},
 	}
 
-	modifiedPod, err := getModifiedPod(pod, app)
-	if err != nil {
-		t.Fatal(err)
-	}
+	patchSparkPod(pod, app)
 
-	assert.Equal(t, 1, len(modifiedPod.Spec.Tolerations))
-	assert.Equal(t, app.Spec.Driver.Tolerations[0], modifiedPod.Spec.Tolerations[0])
+	assert.Equal(t, 1, len(pod.Spec.Tolerations))
+	assert.Equal(t, app.Spec.Driver.Tolerations[0], pod.Spec.Tolerations[0])
 }
 
 func TestPatchSparkPod_SecurityContext(t *testing.T) {
@@ -482,11 +446,9 @@ func TestPatchSparkPod_SecurityContext(t *testing.T) {
 		},
 	}
 
-	modifiedDriverPod, err := getModifiedPod(driverPod, app)
-	if err != nil {
-		t.Fatal(err)
-	}
-	assert.Equal(t, app.Spec.Driver.SecurityContenxt, modifiedDriverPod.Spec.SecurityContext)
+	patchSparkPod(driverPod, app)
+
+	assert.Equal(t, app.Spec.Driver.SecurityContenxt, driverPod.Spec.SecurityContext)
 
 	executorPod := &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
@@ -506,11 +468,9 @@ func TestPatchSparkPod_SecurityContext(t *testing.T) {
 		},
 	}
 
-	modifiedExecutorPod, err := getModifiedPod(executorPod, app)
-	if err != nil {
-		t.Fatal(err)
-	}
-	assert.Equal(t, app.Spec.Executor.SecurityContenxt, modifiedExecutorPod.Spec.SecurityContext)
+	patchSparkPod(executorPod, app)
+
+	assert.Equal(t, app.Spec.Executor.SecurityContenxt, executorPod.Spec.SecurityContext)
 }
 
 func TestPatchSparkPod_SchedulerName(t *testing.T) {
@@ -553,12 +513,10 @@ func TestPatchSparkPod_SchedulerName(t *testing.T) {
 		},
 	}
 
-	modifiedDriverPod, err := getModifiedPod(driverPod, app)
-	if err != nil {
-		t.Fatal(err)
-	}
+	patchSparkPod(driverPod, app)
+
 	//Driver scheduler name should be updated when specified.
-	assert.Equal(t, schedulerName, modifiedDriverPod.Spec.SchedulerName)
+	assert.Equal(t, schedulerName, driverPod.Spec.SchedulerName)
 
 	executorPod := &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
@@ -579,12 +537,9 @@ func TestPatchSparkPod_SchedulerName(t *testing.T) {
 		},
 	}
 
-	modifiedExecutorPod, err := getModifiedPod(executorPod, app)
-	if err != nil {
-		t.Fatal(err)
-	}
+	patchSparkPod(executorPod, app)
 	//Executor scheduler name should remain the same as before when not specified in SparkApplicationSpec
-	assert.Equal(t, defaultScheduler, modifiedExecutorPod.Spec.SchedulerName)
+	assert.Equal(t, defaultScheduler, executorPod.Spec.SchedulerName)
 }
 
 func TestPatchSparkPod_Sidecars(t *testing.T) {
@@ -643,13 +598,11 @@ func TestPatchSparkPod_Sidecars(t *testing.T) {
 		},
 	}
 
-	modifiedDriverPod, err := getModifiedPod(driverPod, app)
-	if err != nil {
-		t.Fatal(err)
-	}
-	assert.Equal(t, 3, len(modifiedDriverPod.Spec.Containers))
-	assert.Equal(t, "sidecar1", modifiedDriverPod.Spec.Containers[1].Name)
-	assert.Equal(t, "sidecar2", modifiedDriverPod.Spec.Containers[2].Name)
+	patchSparkPod(driverPod, app)
+
+	assert.Equal(t, 3, len(driverPod.Spec.Containers))
+	assert.Equal(t, "sidecar1", driverPod.Spec.Containers[1].Name)
+	assert.Equal(t, "sidecar2", driverPod.Spec.Containers[2].Name)
 
 	executorPod := &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
@@ -669,13 +622,10 @@ func TestPatchSparkPod_Sidecars(t *testing.T) {
 		},
 	}
 
-	modifiedExecutorPod, err := getModifiedPod(executorPod, app)
-	if err != nil {
-		t.Fatal(err)
-	}
-	assert.Equal(t, 3, len(modifiedExecutorPod.Spec.Containers))
-	assert.Equal(t, "sidecar1", modifiedExecutorPod.Spec.Containers[1].Name)
-	assert.Equal(t, "sidecar2", modifiedExecutorPod.Spec.Containers[2].Name)
+	patchSparkPod(executorPod, app)
+	assert.Equal(t, 3, len(executorPod.Spec.Containers))
+	assert.Equal(t, "sidecar1", executorPod.Spec.Containers[1].Name)
+	assert.Equal(t, "sidecar2", executorPod.Spec.Containers[2].Name)
 }
 
 func TestPatchSparkPod_DNSConfig(t *testing.T) {
@@ -721,12 +671,9 @@ func TestPatchSparkPod_DNSConfig(t *testing.T) {
 		},
 	}
 
-	modifiedDriverPod, err := getModifiedPod(driverPod, app)
-	if err != nil {
-		t.Fatal(err)
-	}
-	assert.NotNil(t, modifiedDriverPod.Spec.DNSConfig)
-	assert.Equal(t, sampleDNSConfig, modifiedDriverPod.Spec.DNSConfig)
+	patchSparkPod(driverPod, app)
+	assert.NotNil(t, driverPod.Spec.DNSConfig)
+	assert.Equal(t, sampleDNSConfig, driverPod.Spec.DNSConfig)
 
 	executorPod := &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
@@ -746,13 +693,9 @@ func TestPatchSparkPod_DNSConfig(t *testing.T) {
 		},
 	}
 
-	modifiedExecutorPod, err := getModifiedPod(executorPod, app)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	assert.NotNil(t, modifiedExecutorPod.Spec.DNSConfig)
-	assert.Equal(t, sampleDNSConfig, modifiedExecutorPod.Spec.DNSConfig)
+	patchSparkPod(executorPod, app)
+	assert.NotNil(t, executorPod.Spec.DNSConfig)
+	assert.Equal(t, sampleDNSConfig, executorPod.Spec.DNSConfig)
 
 }
 
@@ -794,13 +737,11 @@ func TestPatchSparkPod_NodeSector(t *testing.T) {
 		},
 	}
 
-	modifiedDriverPod, err := getModifiedPod(driverPod, app)
-	if err != nil {
-		t.Fatal(err)
-	}
-	assert.Equal(t, 2, len(modifiedDriverPod.Spec.NodeSelector))
-	assert.Equal(t, "ssd", modifiedDriverPod.Spec.NodeSelector["disk"])
-	assert.Equal(t, "secondvalue", modifiedDriverPod.Spec.NodeSelector["secondkey"])
+	patchSparkPod(driverPod, app)
+
+	assert.Equal(t, 2, len(driverPod.Spec.NodeSelector))
+	assert.Equal(t, "ssd", driverPod.Spec.NodeSelector["disk"])
+	assert.Equal(t, "secondvalue", driverPod.Spec.NodeSelector["secondkey"])
 
 	executorPod := &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
@@ -820,13 +761,11 @@ func TestPatchSparkPod_NodeSector(t *testing.T) {
 		},
 	}
 
-	modifiedExecutorPod, err := getModifiedPod(executorPod, app)
-	if err != nil {
-		t.Fatal(err)
-	}
-	assert.Equal(t, 2, len(modifiedExecutorPod.Spec.NodeSelector))
-	assert.Equal(t, "gpu", modifiedExecutorPod.Spec.NodeSelector["nodeType"])
-	assert.Equal(t, "secondvalue", modifiedExecutorPod.Spec.NodeSelector["secondkey"])
+	patchSparkPod(executorPod, app)
+
+	assert.Equal(t, 2, len(executorPod.Spec.NodeSelector))
+	assert.Equal(t, "gpu", executorPod.Spec.NodeSelector["nodeType"])
+	assert.Equal(t, "secondvalue", executorPod.Spec.NodeSelector["secondkey"])
 }
 
 func TestPatchSparkPod_GPU(t *testing.T) {
@@ -942,22 +881,22 @@ func TestPatchSparkPod_GPU(t *testing.T) {
 			&cpuRequest,
 		},
 		{
-			&v1beta2.GPUSpec{"example.com/gpu", 1},
+			&v1beta2.GPUSpec{Name: "example.com/gpu", Quantity: 1},
 			nil,
 			nil,
 		},
 		{
-			&v1beta2.GPUSpec{"example.com/gpu", 1},
+			&v1beta2.GPUSpec{Name: "example.com/gpu", Quantity: 1},
 			&cpuLimit,
 			nil,
 		},
 		{
-			&v1beta2.GPUSpec{"example.com/gpu", 1},
+			&v1beta2.GPUSpec{Name: "example.com/gpu", Quantity: 1},
 			nil,
 			&cpuRequest,
 		},
 		{
-			&v1beta2.GPUSpec{"example.com/gpu", 1},
+			&v1beta2.GPUSpec{Name: "example.com/gpu", Quantity: 1},
 			&cpuLimit,
 			&cpuRequest,
 		},
@@ -987,12 +926,9 @@ func TestPatchSparkPod_GPU(t *testing.T) {
 		if getResourceRequirements(test) != nil {
 			driverPod.Spec.Containers[0].Resources = *getResourceRequirements(test)
 		}
-		modifiedDriverPod, err := getModifiedPod(driverPod, app)
-		if err != nil {
-			t.Fatal(err)
-		}
+		patchSparkPod(driverPod, app)
 
-		assertFn(t, modifiedDriverPod, test)
+		assertFn(t, driverPod, test)
 		executorPod := &corev1.Pod{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "spark-executor",
@@ -1013,11 +949,9 @@ func TestPatchSparkPod_GPU(t *testing.T) {
 		if getResourceRequirements(test) != nil {
 			executorPod.Spec.Containers[0].Resources = *getResourceRequirements(test)
 		}
-		modifiedExecutorPod, err := getModifiedPod(executorPod, app)
-		if err != nil {
-			t.Fatal(err)
-		}
-		assertFn(t, modifiedExecutorPod, test)
+		patchSparkPod(executorPod, app)
+
+		assertFn(t, executorPod, test)
 	}
 }
 
@@ -1067,15 +1001,13 @@ func TestPatchSparkPod_HostNetwork(t *testing.T) {
 			},
 		}
 
-		modifiedDriverPod, err := getModifiedPod(driverPod, app)
-		if err != nil {
-			t.Fatal(err)
-		}
+		patchSparkPod(driverPod, app)
+
 		if test == nil || *test == false {
-			assert.Equal(t, false, modifiedDriverPod.Spec.HostNetwork)
+			assert.Equal(t, false, driverPod.Spec.HostNetwork)
 		} else {
-			assert.Equal(t, true, modifiedDriverPod.Spec.HostNetwork)
-			assert.Equal(t, corev1.DNSClusterFirstWithHostNet, modifiedDriverPod.Spec.DNSPolicy)
+			assert.Equal(t, true, driverPod.Spec.HostNetwork)
+			assert.Equal(t, corev1.DNSClusterFirstWithHostNet, driverPod.Spec.DNSPolicy)
 		}
 		executorPod := &corev1.Pod{
 			ObjectMeta: metav1.ObjectMeta{
@@ -1095,42 +1027,13 @@ func TestPatchSparkPod_HostNetwork(t *testing.T) {
 			},
 		}
 
-		modifiedExecutorPod, err := getModifiedPod(executorPod, app)
-		if err != nil {
-			t.Fatal(err)
-		}
+		patchSparkPod(executorPod, app)
+
 		if test == nil || *test == false {
-			assert.Equal(t, false, modifiedExecutorPod.Spec.HostNetwork)
+			assert.Equal(t, false, executorPod.Spec.HostNetwork)
 		} else {
-			assert.Equal(t, true, modifiedExecutorPod.Spec.HostNetwork)
-			assert.Equal(t, corev1.DNSClusterFirstWithHostNet, modifiedExecutorPod.Spec.DNSPolicy)
+			assert.Equal(t, true, executorPod.Spec.HostNetwork)
+			assert.Equal(t, corev1.DNSClusterFirstWithHostNet, executorPod.Spec.DNSPolicy)
 		}
 	}
-}
-
-func getModifiedPod(pod *corev1.Pod, app *v1beta2.SparkApplication) (*corev1.Pod, error) {
-	patchOps := patchSparkPod(pod, app)
-	patchBytes, err := json.Marshal(patchOps)
-	if err != nil {
-		return nil, err
-	}
-	patch, err := jsonpatch.DecodePatch(patchBytes)
-	if err != nil {
-		return nil, err
-	}
-
-	original, err := json.Marshal(pod)
-	if err != nil {
-		return nil, err
-	}
-	modified, err := patch.Apply(original)
-	if err != nil {
-		return nil, err
-	}
-	modifiedPod := &corev1.Pod{}
-	if err := json.Unmarshal(modified, modifiedPod); err != nil {
-		return nil, err
-	}
-
-	return modifiedPod, nil
 }

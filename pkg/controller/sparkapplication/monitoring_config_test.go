@@ -17,14 +17,17 @@ limitations under the License.
 package sparkapplication
 
 import (
+	"context"
 	"fmt"
+	"k8s.io/apimachinery/pkg/types"
 	"testing"
-
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes/fake"
 
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta2"
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/config"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes/scheme"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
 
 func TestConfigPrometheusMonitoring(t *testing.T) {
@@ -37,15 +40,26 @@ func TestConfigPrometheusMonitoring(t *testing.T) {
 		executorJavaOptions string
 	}
 
-	fakeClient := fake.NewSimpleClientset()
 	testFn := func(test testcase, t *testing.T) {
-		err := configPrometheusMonitoring(test.app, fakeClient)
+		s := scheme.Scheme
+		s.AddKnownTypes(v1beta2.SchemeGroupVersion, test.app)
+		fakeClient := fake.NewFakeClientWithScheme(s)
+		ctx := context.Background()
+
+		err := configPrometheusMonitoring(ctx, test.app, fakeClient)
 		if err != nil {
 			t.Errorf("failed to configure Prometheus monitoring: %v", err)
 		}
 
 		configMapName := config.GetPrometheusConfigMapName(test.app)
-		configMap, err := fakeClient.CoreV1().ConfigMaps(test.app.Namespace).Get(configMapName, metav1.GetOptions{})
+
+		namespacedName := types.NamespacedName{
+			Namespace: test.app.Namespace,
+			Name:      configMapName,
+		}
+		configMap := &corev1.ConfigMap{}
+		err = fakeClient.Get(ctx, namespacedName, configMap)
+
 		if err != nil {
 			t.Errorf("failed to get ConfigMap %s: %v", configMapName, err)
 		}

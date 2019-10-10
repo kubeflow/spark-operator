@@ -17,29 +17,26 @@ limitations under the License.
 package webhook
 
 import (
+	"context"
 	"encoding/json"
+
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 
+	spov1beta2 "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta2"
+	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/config"
 	"k8s.io/api/admission/v1beta1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-
-	spov1beta2 "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta2"
-	crdclientfake "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/client/clientset/versioned/fake"
-	crdinformers "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/client/informers/externalversions"
-	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/config"
+	kscheme "k8s.io/client-go/kubernetes/scheme"
+	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
 
 func TestMutatePod(t *testing.T) {
-	crdClient := crdclientfake.NewSimpleClientset()
-	informerFactory := crdinformers.NewSharedInformerFactory(crdClient, 0*time.Second)
-	informer := informerFactory.Sparkoperator().V1beta2().SparkApplications()
-	lister := informer.Lister()
 
 	pod1 := &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
@@ -55,26 +52,41 @@ func TestMutatePod(t *testing.T) {
 			},
 		},
 	}
-
 	// 1. Testing processing non-Spark pod.
 	podBytes, err := serializePod(pod1)
 	if err != nil {
 		t.Error(err)
 	}
-	review := &v1beta1.AdmissionReview{
-		Request: &v1beta1.AdmissionRequest{
-			Resource: metav1.GroupVersionResource{
-				Group:    corev1.SchemeGroupVersion.Group,
-				Version:  corev1.SchemeGroupVersion.Version,
-				Resource: "pods",
-			},
-			Object: runtime.RawExtension{
-				Raw: podBytes,
-			},
-			Namespace: "default",
-		},
+
+	s := kscheme.Scheme
+	app := spov1beta2.SparkApplication{}
+	s.AddKnownTypes(spov1beta2.SchemeGroupVersion, &app)
+	fakeClient := fake.NewFakeClientWithScheme(s)
+	ctx := context.Background()
+
+	spm := SparkPodMutator{
+		client:       fakeClient,
+		decoder:      nil,
+		JobNameSpace: "",
 	}
-	response, _ := mutatePods(review, lister, "default")
+
+	// 1. Testing processing non-Spark pod.
+
+	breq := v1beta1.AdmissionRequest{
+		Resource: metav1.GroupVersionResource{
+			Group:    corev1.SchemeGroupVersion.Group,
+			Version:  corev1.SchemeGroupVersion.Version,
+			Resource: "pods",
+		},
+		Object: runtime.RawExtension{
+			Raw: podBytes,
+		},
+		Namespace: "default",
+	}
+
+	request := admission.Request{AdmissionRequest: breq}
+
+	response := spm.mutatePods(pod1, request)
 	assert.True(t, response.Allowed)
 
 	// 2. Test processing Spark pod with only one patch: adding an OwnerReference.
@@ -84,8 +96,12 @@ func TestMutatePod(t *testing.T) {
 			Namespace: "default",
 		},
 	}
-	crdClient.SparkoperatorV1beta2().SparkApplications(app1.Namespace).Create(app1)
-	informer.Informer().GetIndexer().Add(app1)
+
+	err = fakeClient.Create(ctx, app1)
+	if err != nil {
+		t.Error(err)
+	}
+
 	pod1.Labels = map[string]string{
 		config.SparkRoleLabel:               config.SparkDriverRole,
 		config.LaunchedBySparkOperatorLabel: "true",
@@ -95,11 +111,12 @@ func TestMutatePod(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	review.Request.Object.Raw = podBytes
-	response, _ = mutatePods(review, lister, "default")
+
+	request.Object.Raw = podBytes
+	response = spm.mutatePods(pod1, request)
 	assert.True(t, response.Allowed)
 	assert.Equal(t, v1beta1.PatchTypeJSONPatch, *response.PatchType)
-	assert.True(t, len(response.Patch) > 0)
+	assert.True(t, len(response.Patches) > 0)
 
 	// 3. Test processing Spark pod with patches.
 	var user int64 = 1000
@@ -160,22 +177,23 @@ func TestMutatePod(t *testing.T) {
 			},
 		},
 	}
-	crdClient.SparkoperatorV1beta2().SparkApplications(app2.Namespace).Update(app2)
-	informer.Informer().GetIndexer().Add(app2)
+
+	err = fakeClient.Create(ctx, app2)
+	if err != nil {
+		t.Error(err)
+	}
 
 	pod1.Labels[config.SparkAppNameLabel] = app2.Name
 	podBytes, err = serializePod(pod1)
 	if err != nil {
 		t.Error(err)
 	}
-	review.Request.Object.Raw = podBytes
-	response, _ = mutatePods(review, lister, "default")
+	request.Object.Raw = podBytes
+	response = spm.mutatePods(pod1, request)
 	assert.True(t, response.Allowed)
 	assert.Equal(t, v1beta1.PatchTypeJSONPatch, *response.PatchType)
-	assert.True(t, len(response.Patch) > 0)
-	var patchOps []*patchOperation
-	json.Unmarshal(response.Patch, &patchOps)
-	assert.Equal(t, 6, len(patchOps))
+	assert.True(t, len(response.Patches) > 0)
+	assert.Equal(t, 6, len(response.Patches))
 }
 
 func serializePod(pod *corev1.Pod) ([]byte, error) {

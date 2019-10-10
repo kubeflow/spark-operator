@@ -17,6 +17,7 @@ limitations under the License.
 package sparkapplication
 
 import (
+	"context"
 	"os"
 	"testing"
 	"time"
@@ -25,29 +26,31 @@ import (
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/informers"
-	kubeclientfake "k8s.io/client-go/kubernetes/fake"
+	"k8s.io/client-go/kubernetes/scheme"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta2"
 	"github.com/stretchr/testify/assert"
 )
 
-func newFakeJobManager(jobs ...*batchv1.Job) submissionJobManager {
-	kubeClient := kubeclientfake.NewSimpleClientset()
+func newFakeJobManager(ctx context.Context, jobs ...*batchv1.Job) (submissionJobManager, error) {
 
-	informerFactory := informers.NewSharedInformerFactory(kubeClient, 0*time.Second)
-	lister := informerFactory.Batch().V1().Jobs().Lister()
-	informer := informerFactory.Batch().V1().Jobs().Informer()
+	s := scheme.Scheme
+	app := v1beta2.SparkApplication{}
+	s.AddKnownTypes(v1beta2.SchemeGroupVersion, &app)
+	fakeClient := fake.NewFakeClientWithScheme(s)
+
 	for _, job := range jobs {
 		if job != nil {
-			informer.GetIndexer().Add(job)
-			kubeClient.BatchV1().Jobs(job.GetNamespace()).Create(job)
+			err := fakeClient.Create(ctx, job)
+			if err != nil {
+				return nil, err
+			}
 		}
 	}
 	return &realSubmissionJobManager{
-		jobLister:  lister,
-		kubeClient: kubeClient,
-	}
+		client: fakeClient,
+	}, nil
 }
 
 func TestGetSubmissionJob(t *testing.T) {
@@ -58,10 +61,16 @@ func TestGetSubmissionJob(t *testing.T) {
 		},
 		Status: v1beta2.SparkApplicationStatus{},
 	}
-
+	ctx := context.Background()
 	// Case 1: Job doesn't exist.
-	jobManager := newFakeJobManager(nil)
-	jobResult, err := jobManager.getSubmissionJob(app)
+	jobManager, err := newFakeJobManager(ctx, nil)
+
+	if err != nil {
+		t.Errorf("Could not create fake job manager")
+	}
+
+	jobResult, err := jobManager.getSubmissionJob(ctx, app)
+
 	assert.NotNil(t, err)
 	assert.True(t, errors.IsNotFound(err))
 	assert.Nil(t, jobResult)
@@ -73,9 +82,9 @@ func TestGetSubmissionJob(t *testing.T) {
 			Namespace: "default",
 		},
 	}
-	jobManager = newFakeJobManager(job)
+	jobManager, err = newFakeJobManager(ctx, job)
 
-	jobResult, err = jobManager.getSubmissionJob(app)
+	jobResult, err = jobManager.getSubmissionJob(ctx, app)
 	assert.Nil(t, err)
 	assert.NotNil(t, jobResult)
 	assert.Equal(t, job, jobResult)
@@ -89,10 +98,14 @@ func TestDeleteSubmissionJob(t *testing.T) {
 		},
 		Status: v1beta2.SparkApplicationStatus{},
 	}
-
+	ctx := context.Background()
 	// Case 1: Job doesn't exist.
-	jobManager := newFakeJobManager(nil)
-	err := jobManager.deleteSubmissionJob(app)
+	jobManager, err := newFakeJobManager(ctx, nil)
+	if err != nil {
+		t.Errorf("Could not create fake job manager")
+	}
+
+	err = jobManager.deleteSubmissionJob(ctx, app)
 	assert.NotNil(t, err)
 	assert.True(t, errors.IsNotFound(err))
 
@@ -103,15 +116,19 @@ func TestDeleteSubmissionJob(t *testing.T) {
 			Namespace: "default",
 		},
 	}
-	jobManager = newFakeJobManager(job)
-	err = jobManager.deleteSubmissionJob(app)
+	jobManager, err = newFakeJobManager(ctx, job)
+	if err != nil {
+		t.Errorf("Could not create fake job manager")
+	}
+
+	err = jobManager.deleteSubmissionJob(ctx, app)
 	assert.Nil(t, err)
 }
 
 func TestCreateSubmissionJob(t *testing.T) {
 	os.Setenv(kubernetesServiceHostEnvVar, "localhost")
 	os.Setenv(kubernetesServicePortEnvVar, "443")
-
+	ctx := context.Background()
 	// Case 1: Image doesn't exist.
 	app := &v1beta2.SparkApplication{
 		ObjectMeta: metav1.ObjectMeta{
@@ -121,8 +138,12 @@ func TestCreateSubmissionJob(t *testing.T) {
 		Status: v1beta2.SparkApplicationStatus{},
 	}
 
-	jobManager := newFakeJobManager(nil)
-	submissionID, driverPodName, err := jobManager.createSubmissionJob(app)
+	jobManager, err := newFakeJobManager(ctx, nil)
+	if err != nil {
+		t.Errorf("Could not create fake job manager")
+	}
+
+	submissionID, driverPodName, err := jobManager.createSubmissionJob(ctx, app)
 	assert.NotNil(t, err)
 	assert.Empty(t, submissionID)
 	assert.Empty(t, driverPodName)
@@ -138,8 +159,8 @@ func TestCreateSubmissionJob(t *testing.T) {
 		},
 		Status: v1beta2.SparkApplicationStatus{},
 	}
-	jobManager = newFakeJobManager(nil)
-	submissionID, driverPodName, err = jobManager.createSubmissionJob(app)
+	jobManager, err = newFakeJobManager(ctx, nil)
+	submissionID, driverPodName, err = jobManager.createSubmissionJob(ctx, app)
 	assert.Nil(t, err)
 	assert.NotNil(t, submissionID)
 	assert.NotNil(t, driverPodName)
@@ -154,10 +175,13 @@ func TestHasJobSucceeded(t *testing.T) {
 		},
 		Status: v1beta2.SparkApplicationStatus{},
 	}
-
+	ctx := context.Background()
 	// Case 1: Job doesn't exist.
-	jobManager := newFakeJobManager(nil)
-	result, successTime, err := jobManager.hasJobSucceeded(app)
+	jobManager, err := newFakeJobManager(ctx, nil)
+	if err != nil {
+		t.Errorf("Could not create fake job manager")
+	}
+	result, successTime, err := jobManager.hasJobSucceeded(ctx, app)
 	assert.NotNil(t, err)
 	assert.True(t, errors.IsNotFound(err))
 	assert.Nil(t, result)
@@ -170,8 +194,11 @@ func TestHasJobSucceeded(t *testing.T) {
 			Namespace: "default",
 		},
 	}
-	jobManager = newFakeJobManager(job)
-	result, successTime, err = jobManager.hasJobSucceeded(app)
+	jobManager, err = newFakeJobManager(ctx, job)
+	if err != nil {
+		t.Errorf("Could not create fake job manager")
+	}
+	result, successTime, err = jobManager.hasJobSucceeded(ctx, app)
 	assert.Nil(t, err)
 	assert.Nil(t, result)
 	assert.Nil(t, successTime)
@@ -191,8 +218,11 @@ func TestHasJobSucceeded(t *testing.T) {
 			}},
 		},
 	}
-	jobManager = newFakeJobManager(job)
-	result, successTime, err = jobManager.hasJobSucceeded(app)
+	jobManager, err = newFakeJobManager(ctx, job)
+	if err != nil {
+		t.Errorf("Could not create fake job manager")
+	}
+	result, successTime, err = jobManager.hasJobSucceeded(ctx, app)
 	assert.Equal(t, err.Error(), "Submission Job Failed. Error: pod failed. Pod foo-spark-submit-1 failed")
 	assert.False(t, *result)
 	assert.Nil(t, successTime)
@@ -211,8 +241,11 @@ func TestHasJobSucceeded(t *testing.T) {
 			CompletionTime: &metav1.Time{Time: time.Now()},
 		},
 	}
-	jobManager = newFakeJobManager(job)
-	result, successTime, err = jobManager.hasJobSucceeded(app)
+	jobManager, err = newFakeJobManager(ctx, job)
+	if err != nil {
+		t.Errorf("Could not create fake job manager")
+	}
+	result, successTime, err = jobManager.hasJobSucceeded(ctx, app)
 	assert.Nil(t, err)
 	assert.True(t, *result)
 	assert.NotNil(t, successTime)

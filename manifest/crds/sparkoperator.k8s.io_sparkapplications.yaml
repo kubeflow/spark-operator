@@ -2526,6 +2526,7 @@ spec:
             SubmissionTime:
               format: date-time
               type: string
+              nullable: true
             applicationState:
               properties:
                 errorMessage:
@@ -2567,6 +2568,9 @@ spec:
               type: string
             terminationTime:
               format: date-time
+              type: string
+              nullable: true
+            appHash:
               type: string
           required:
           - driverInfo

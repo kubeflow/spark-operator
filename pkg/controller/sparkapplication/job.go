@@ -17,23 +17,22 @@ limitations under the License.
 package sparkapplication
 
 import (
+	"context"
 	"fmt"
+	"k8s.io/apimachinery/pkg/types"
 	"strings"
 
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 
-	"k8s.io/apimachinery/pkg/api/resource"
-
-	batchv1 "k8s.io/api/batch/v1"
-	v1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes"
-	batchv1listers "k8s.io/client-go/listers/batch/v1"
-
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta2"
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/config"
+	batchv1 "k8s.io/api/batch/v1"
+	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 const (
@@ -44,18 +43,17 @@ const (
 )
 
 type submissionJobManager interface {
-	createSubmissionJob(app *v1beta2.SparkApplication) (string, string, error)
-	deleteSubmissionJob(app *v1beta2.SparkApplication) error
-	getSubmissionJob(app *v1beta2.SparkApplication) (*batchv1.Job, error)
-	hasJobSucceeded(app *v1beta2.SparkApplication) (*bool, *metav1.Time, error)
+	createSubmissionJob(ctx context.Context, app *v1beta2.SparkApplication) (string, string, error)
+	deleteSubmissionJob(ctx context.Context, app *v1beta2.SparkApplication) error
+	getSubmissionJob(ctx context.Context, app *v1beta2.SparkApplication) (*batchv1.Job, error)
+	hasJobSucceeded(ctx context.Context, app *v1beta2.SparkApplication) (*bool, *metav1.Time, error)
 }
 
 type realSubmissionJobManager struct {
-	kubeClient kubernetes.Interface
-	jobLister  batchv1listers.JobLister
+	client client.Client
 }
 
-func (sjm *realSubmissionJobManager) createSubmissionJob(app *v1beta2.SparkApplication) (string, string, error) {
+func (sjm *realSubmissionJobManager) createSubmissionJob(ctx context.Context, app *v1beta2.SparkApplication) (string, string, error) {
 	var image string
 	if app.Spec.Image != nil {
 		image = *app.Spec.Image
@@ -79,7 +77,7 @@ func (sjm *realSubmissionJobManager) createSubmissionJob(app *v1beta2.SparkAppli
 
 	imagePullSecrets := make([]v1.LocalObjectReference, len(app.Spec.ImagePullSecrets))
 	for i, secret := range app.Spec.ImagePullSecrets {
-		imagePullSecrets[i] = v1.LocalObjectReference{secret}
+		imagePullSecrets[i] = v1.LocalObjectReference{Name: secret}
 	}
 	imagePullPolicy := v1.PullIfNotPresent
 	if app.Spec.ImagePullPolicy != nil {
@@ -134,26 +132,41 @@ func (sjm *realSubmissionJobManager) createSubmissionJob(app *v1beta2.SparkAppli
 	for key, val := range app.Labels {
 		job.Labels[key] = val
 	}
-	_, err = sjm.kubeClient.BatchV1().Jobs(app.Namespace).Create(job)
+
+	err = sjm.client.Create(ctx, job)
+
 	if err != nil {
 		return "", "", err
 	}
 	return submissionID, driverPodName, nil
 }
 
-func (sjm *realSubmissionJobManager) getSubmissionJob(app *v1beta2.SparkApplication) (*batchv1.Job, error) {
-	return sjm.jobLister.Jobs(app.Namespace).Get(getSubmissionJobName(app))
+func (sjm *realSubmissionJobManager) getSubmissionJob(ctx context.Context, app *v1beta2.SparkApplication) (*batchv1.Job, error) {
+	namespacedName := types.NamespacedName{
+		Namespace: app.Namespace,
+		Name:      getSubmissionJobName(app),
+	}
+	job := batchv1.Job{}
+	err := sjm.client.Get(ctx, namespacedName, &job)
+	if err != nil {
+		return nil, err
+	} else {
+		return &job, err
+	}
 }
 
-func (sjm *realSubmissionJobManager) deleteSubmissionJob(app *v1beta2.SparkApplication) error {
-	return sjm.kubeClient.BatchV1().Jobs(app.Namespace).Delete(getSubmissionJobName(app), metav1.NewDeleteOptions(0))
+func (sjm *realSubmissionJobManager) deleteSubmissionJob(ctx context.Context, app *v1beta2.SparkApplication) error {
+	job := batchv1.Job{}
+	job.Namespace = app.Namespace
+	job.Name = getSubmissionJobName(app)
+	return sjm.client.Delete(ctx, &job, client.GracePeriodSeconds(0))
 }
 
 // hasJobSucceeded returns a boolean that indicates if the job has succeeded or not if the job has terminated.
 // Otherwise, it returns a nil to indicate that the job has not terminated yet.
 //  An error is returned if the the job failed or if there was an issue querying the job.
-func (sjm *realSubmissionJobManager) hasJobSucceeded(app *v1beta2.SparkApplication) (*bool, *metav1.Time, error) {
-	job, err := sjm.getSubmissionJob(app)
+func (sjm *realSubmissionJobManager) hasJobSucceeded(ctx context.Context, app *v1beta2.SparkApplication) (*bool, *metav1.Time, error) {
+	job, err := sjm.getSubmissionJob(ctx, app)
 	if err != nil {
 		return nil, nil, err
 	}

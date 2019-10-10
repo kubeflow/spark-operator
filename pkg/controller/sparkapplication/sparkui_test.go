@@ -17,17 +17,20 @@ limitations under the License.
 package sparkapplication
 
 import (
+	"context"
 	"fmt"
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/kubernetes/scheme"
 	"reflect"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"strconv"
 	"testing"
 
-	apiv1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes/fake"
-
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta2"
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/config"
+	apiv1 "k8s.io/api/core/v1"
+	extensions "k8s.io/api/extensions/v1beta1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func TestCreateSparkUIService(t *testing.T) {
@@ -39,8 +42,12 @@ func TestCreateSparkUIService(t *testing.T) {
 		expectError      bool
 	}
 	testFn := func(test testcase, t *testing.T) {
-		fakeClient := fake.NewSimpleClientset()
-		sparkService, err := createSparkUIService(test.app, fakeClient)
+		s := scheme.Scheme
+		s.AddKnownTypes(v1beta2.SchemeGroupVersion, test.app)
+		fakeClient := fake.NewFakeClientWithScheme(s)
+		ctx := context.Background()
+
+		sparkService, err := createSparkUIService(ctx, fakeClient, test.app)
 		if err != nil {
 			if test.expectError {
 				return
@@ -52,9 +59,14 @@ func TestCreateSparkUIService(t *testing.T) {
 			t.Errorf("%s: for service name wanted %s got %s", test.name, test.expectedService.serviceName, sparkService.serviceName)
 		}
 
-		service, err := fakeClient.CoreV1().
-			Services(test.app.Namespace).
-			Get(sparkService.serviceName, metav1.GetOptions{})
+		service := &apiv1.Service{}
+
+		namespacedName := types.NamespacedName{
+			Namespace: test.app.Namespace,
+			Name:      sparkService.serviceName,
+		}
+
+		err = fakeClient.Get(ctx, namespacedName, service)
 		if err != nil {
 			if test.expectError {
 				return
@@ -190,8 +202,12 @@ func TestCreateSparkUIIngress(t *testing.T) {
 		ingressName: fmt.Sprintf("%s-ui-ingress", app.GetName()),
 		ingressURL:  app.GetName() + ".ingress.clusterName.com",
 	}
-	fakeClient := fake.NewSimpleClientset()
-	sparkIngress, err := createSparkUIIngress(app, service, ingressFormat, fakeClient)
+	s := scheme.Scheme
+	s.AddKnownTypes(v1beta2.SchemeGroupVersion, app)
+	fakeClient := fake.NewFakeClientWithScheme(s)
+	ctx := context.Background()
+
+	sparkIngress, err := createSparkUIIngress(ctx, app, service, ingressFormat, fakeClient)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -203,8 +219,14 @@ func TestCreateSparkUIIngress(t *testing.T) {
 		t.Errorf("Ingress name wanted %s got %s", expectedIngress.ingressURL, sparkIngress.ingressURL)
 	}
 
-	ingress, err := fakeClient.ExtensionsV1beta1().Ingresses(app.Namespace).
-		Get(sparkIngress.ingressName, metav1.GetOptions{})
+	ingress := &extensions.Ingress{}
+	namespacedName := types.NamespacedName{
+		Namespace: app.Namespace,
+		Name:      sparkIngress.ingressName,
+	}
+
+	err = fakeClient.Get(ctx, namespacedName, ingress)
+
 	if err != nil {
 		t.Fatal(err)
 	}

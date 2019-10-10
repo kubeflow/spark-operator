@@ -22,13 +22,17 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/golang/glog"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	prometheusmodel "github.com/prometheus/client_model/go"
+	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
 
 	"k8s.io/client-go/util/workqueue"
 )
+
+// TODO: refactor this ti use ctr runtime metrics
+
+var metricsLog = logf.Log.WithName("metrics-log")
 
 func CreateValidMetricNameLabel(prefix, name string) string {
 	// "-" is not a valid character for prometheus metric names or labels.
@@ -42,7 +46,7 @@ func RegisterMetric(metric prometheus.Collector) {
 		if _, ok := err.(prometheus.AlreadyRegisteredError); ok {
 			return
 		}
-		glog.Errorf("failed to register metric: %v", err)
+		metricsLog.Error(err, "failed to register metric", "metric", metric)
 	}
 }
 
@@ -106,9 +110,9 @@ func (p *PositiveGauge) Inc(labelMap map[string]string) {
 	defer p.mux.Unlock()
 
 	if m, err := p.gaugeMetric.GetMetricWith(labelMap); err != nil {
-		glog.Errorf("Error while exporting metrics: %v", err)
+		metricsLog.Error(err, "Error while exporting metrics")
 	} else {
-		glog.V(2).Infof("Incrementing %s with labels %s", p.name, labelMap)
+		metricsLog.V(1).Info("Incrementing gauge", "gauge", p.name, "labelmap", labelMap)
 		m.Inc()
 	}
 }
@@ -121,9 +125,9 @@ func (p *PositiveGauge) Dec(labelMap map[string]string) {
 	// Decrement only if positive
 	val := fetchGaugeValue(p.gaugeMetric, labelMap)
 	if val > 0 {
-		glog.V(2).Infof("Decrementing %s with labels %s metricVal to %v", p.name, labelMap, val-1)
+		metricsLog.V(1).Info("Decrementing gauge", "gauge", p.name, "labelmap", labelMap, "value", val-1)
 		if m, err := p.gaugeMetric.GetMetricWith(labelMap); err != nil {
-			glog.Errorf("Error while exporting metrics: %v", err)
+			metricsLog.Error(err, "Error while exporting metrics")
 		} else {
 			m.Dec()
 		}
@@ -138,10 +142,10 @@ func InitializeMetrics(metricsConfig *MetricConfig) {
 	// Start the metrics endpoint for Prometheus to scrape
 	http.Handle(metricsConfig.MetricsEndpoint, promhttp.Handler())
 	go http.ListenAndServe(fmt.Sprintf(":%s", metricsConfig.MetricsPort), nil)
-	glog.Infof("Started Metrics server at localhost:%s%s", metricsConfig.MetricsPort, metricsConfig.MetricsEndpoint)
+	metricsLog.Info("Started Metrics server at localhost.", "metricsPort", metricsConfig.MetricsPort, "metricsEndpopint", metricsConfig.MetricsEndpoint)
 
-	workQueueMetrics := WorkQueueMetrics{prefix: metricsConfig.MetricsPrefix}
-	workqueue.SetProvider(&workQueueMetrics)
+	// workQueueMetrics := WorkQueueMetrics{prefix: metricsConfig.MetricsPrefix}
+	// workqueue.SetProvider(&workQueueMetrics)
 }
 
 // Depth Metric for the kubernetes workqueue.

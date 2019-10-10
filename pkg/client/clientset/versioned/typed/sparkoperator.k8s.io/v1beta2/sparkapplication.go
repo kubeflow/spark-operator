@@ -41,6 +41,7 @@ type SparkApplicationsGetter interface {
 type SparkApplicationInterface interface {
 	Create(*v1beta2.SparkApplication) (*v1beta2.SparkApplication, error)
 	Update(*v1beta2.SparkApplication) (*v1beta2.SparkApplication, error)
+	UpdateStatus(*v1beta2.SparkApplication) (*v1beta2.SparkApplication, error)
 	Delete(name string, options *v1.DeleteOptions) error
 	DeleteCollection(options *v1.DeleteOptions, listOptions v1.ListOptions) error
 	Get(name string, options v1.GetOptions) (*v1beta2.SparkApplication, error)
@@ -128,6 +129,22 @@ func (c *sparkApplications) Update(sparkApplication *v1beta2.SparkApplication) (
 		Namespace(c.ns).
 		Resource("sparkapplications").
 		Name(sparkApplication.Name).
+		Body(sparkApplication).
+		Do().
+		Into(result)
+	return
+}
+
+// UpdateStatus was generated because the type contains a Status member.
+// Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
+
+func (c *sparkApplications) UpdateStatus(sparkApplication *v1beta2.SparkApplication) (result *v1beta2.SparkApplication, err error) {
+	result = &v1beta2.SparkApplication{}
+	err = c.client.Put().
+		Namespace(c.ns).
+		Resource("sparkapplications").
+		Name(sparkApplication.Name).
+		SubResource("status").
 		Body(sparkApplication).
 		Do().
 		Into(result)
