@@ -14,3 +14,4 @@
 | HashmapInc| @prem0132 | Evaluation | Analytics Data Platform |
 | Tencent | @runzhliu | Evaluation | ML Analytics Platform |
 | Exacaster | @minutis | Evaluation | Data pipelines
+| Riskified | @henbh | Evaluation | Analytics Data Platform
