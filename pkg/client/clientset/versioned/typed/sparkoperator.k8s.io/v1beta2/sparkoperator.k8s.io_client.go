@@ -31,6 +31,7 @@ type SparkoperatorV1beta2Interface interface {
 	RESTClient() rest.Interface
 	ScheduledSparkApplicationsGetter
 	SparkApplicationsGetter
+	SparkApplicationClassesGetter
 }
 
 // SparkoperatorV1beta2Client is used to interact with features provided by the sparkoperator.k8s.io group.
@@ -44,6 +45,10 @@ func (c *SparkoperatorV1beta2Client) ScheduledSparkApplications(namespace string
 
 func (c *SparkoperatorV1beta2Client) SparkApplications(namespace string) SparkApplicationInterface {
 	return newSparkApplications(c, namespace)
+}
+
+func (c *SparkoperatorV1beta2Client) SparkApplicationClasses() SparkApplicationClassInterface {
+	return newSparkApplicationClasses(c)
 }
 
 // NewForConfig creates a new SparkoperatorV1beta2Client for the given config.

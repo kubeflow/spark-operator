@@ -21,7 +21,7 @@ limitations under the License.
 package fake
 
 import (
-	v1beta1 "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta1"
+	v1beta2 "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta2"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"
@@ -32,27 +32,27 @@ import (
 
 // FakeSparkApplicationClasses implements SparkApplicationClassInterface
 type FakeSparkApplicationClasses struct {
-	Fake *FakeSparkoperatorV1beta1
+	Fake *FakeSparkoperatorV1beta2
 }
 
-var sparkapplicationclassesResource = schema.GroupVersionResource{Group: "sparkoperator", Version: "v1beta1", Resource: "sparkapplicationclasses"}
+var sparkapplicationclassesResource = schema.GroupVersionResource{Group: "sparkoperator.k8s.io", Version: "v1beta2", Resource: "sparkapplicationclasses"}
 
-var sparkapplicationclassesKind = schema.GroupVersionKind{Group: "sparkoperator", Version: "v1beta1", Kind: "SparkApplicationClass"}
+var sparkapplicationclassesKind = schema.GroupVersionKind{Group: "sparkoperator.k8s.io", Version: "v1beta2", Kind: "SparkApplicationClass"}
 
 // Get takes name of the sparkApplicationClass, and returns the corresponding sparkApplicationClass object, and an error if there is any.
-func (c *FakeSparkApplicationClasses) Get(name string, options v1.GetOptions) (result *v1beta1.SparkApplicationClass, err error) {
+func (c *FakeSparkApplicationClasses) Get(name string, options v1.GetOptions) (result *v1beta2.SparkApplicationClass, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewRootGetAction(sparkapplicationclassesResource, name), &v1beta1.SparkApplicationClass{})
+		Invokes(testing.NewRootGetAction(sparkapplicationclassesResource, name), &v1beta2.SparkApplicationClass{})
 	if obj == nil {
 		return nil, err
 	}
-	return obj.(*v1beta1.SparkApplicationClass), err
+	return obj.(*v1beta2.SparkApplicationClass), err
 }
 
 // List takes label and field selectors, and returns the list of SparkApplicationClasses that match those selectors.
-func (c *FakeSparkApplicationClasses) List(opts v1.ListOptions) (result *v1beta1.SparkApplicationClassList, err error) {
+func (c *FakeSparkApplicationClasses) List(opts v1.ListOptions) (result *v1beta2.SparkApplicationClassList, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewRootListAction(sparkapplicationclassesResource, sparkapplicationclassesKind, opts), &v1beta1.SparkApplicationClassList{})
+		Invokes(testing.NewRootListAction(sparkapplicationclassesResource, sparkapplicationclassesKind, opts), &v1beta2.SparkApplicationClassList{})
 	if obj == nil {
 		return nil, err
 	}
@@ -61,8 +61,8 @@ func (c *FakeSparkApplicationClasses) List(opts v1.ListOptions) (result *v1beta1
 	if label == nil {
 		label = labels.Everything()
 	}
-	list := &v1beta1.SparkApplicationClassList{ListMeta: obj.(*v1beta1.SparkApplicationClassList).ListMeta}
-	for _, item := range obj.(*v1beta1.SparkApplicationClassList).Items {
+	list := &v1beta2.SparkApplicationClassList{ListMeta: obj.(*v1beta2.SparkApplicationClassList).ListMeta}
+	for _, item := range obj.(*v1beta2.SparkApplicationClassList).Items {
 		if label.Matches(labels.Set(item.Labels)) {
 			list.Items = append(list.Items, item)
 		}
@@ -77,29 +77,29 @@ func (c *FakeSparkApplicationClasses) Watch(opts v1.ListOptions) (watch.Interfac
 }
 
 // Create takes the representation of a sparkApplicationClass and creates it.  Returns the server's representation of the sparkApplicationClass, and an error, if there is any.
-func (c *FakeSparkApplicationClasses) Create(sparkApplicationClass *v1beta1.SparkApplicationClass) (result *v1beta1.SparkApplicationClass, err error) {
+func (c *FakeSparkApplicationClasses) Create(sparkApplicationClass *v1beta2.SparkApplicationClass) (result *v1beta2.SparkApplicationClass, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewRootCreateAction(sparkapplicationclassesResource, sparkApplicationClass), &v1beta1.SparkApplicationClass{})
+		Invokes(testing.NewRootCreateAction(sparkapplicationclassesResource, sparkApplicationClass), &v1beta2.SparkApplicationClass{})
 	if obj == nil {
 		return nil, err
 	}
-	return obj.(*v1beta1.SparkApplicationClass), err
+	return obj.(*v1beta2.SparkApplicationClass), err
 }
 
 // Update takes the representation of a sparkApplicationClass and updates it. Returns the server's representation of the sparkApplicationClass, and an error, if there is any.
-func (c *FakeSparkApplicationClasses) Update(sparkApplicationClass *v1beta1.SparkApplicationClass) (result *v1beta1.SparkApplicationClass, err error) {
+func (c *FakeSparkApplicationClasses) Update(sparkApplicationClass *v1beta2.SparkApplicationClass) (result *v1beta2.SparkApplicationClass, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewRootUpdateAction(sparkapplicationclassesResource, sparkApplicationClass), &v1beta1.SparkApplicationClass{})
+		Invokes(testing.NewRootUpdateAction(sparkapplicationclassesResource, sparkApplicationClass), &v1beta2.SparkApplicationClass{})
 	if obj == nil {
 		return nil, err
 	}
-	return obj.(*v1beta1.SparkApplicationClass), err
+	return obj.(*v1beta2.SparkApplicationClass), err
 }
 
 // Delete takes name of the sparkApplicationClass and deletes it. Returns an error if one occurs.
 func (c *FakeSparkApplicationClasses) Delete(name string, options *v1.DeleteOptions) error {
 	_, err := c.Fake.
-		Invokes(testing.NewRootDeleteAction(sparkapplicationclassesResource, name), &v1beta1.SparkApplicationClass{})
+		Invokes(testing.NewRootDeleteAction(sparkapplicationclassesResource, name), &v1beta2.SparkApplicationClass{})
 	return err
 }
 
@@ -107,16 +107,16 @@ func (c *FakeSparkApplicationClasses) Delete(name string, options *v1.DeleteOpti
 func (c *FakeSparkApplicationClasses) DeleteCollection(options *v1.DeleteOptions, listOptions v1.ListOptions) error {
 	action := testing.NewRootDeleteCollectionAction(sparkapplicationclassesResource, listOptions)
 
-	_, err := c.Fake.Invokes(action, &v1beta1.SparkApplicationClassList{})
+	_, err := c.Fake.Invokes(action, &v1beta2.SparkApplicationClassList{})
 	return err
 }
 
 // Patch applies the patch and returns the patched sparkApplicationClass.
-func (c *FakeSparkApplicationClasses) Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *v1beta1.SparkApplicationClass, err error) {
+func (c *FakeSparkApplicationClasses) Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *v1beta2.SparkApplicationClass, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewRootPatchSubresourceAction(sparkapplicationclassesResource, name, pt, data, subresources...), &v1beta1.SparkApplicationClass{})
+		Invokes(testing.NewRootPatchSubresourceAction(sparkapplicationclassesResource, name, pt, data, subresources...), &v1beta2.SparkApplicationClass{})
 	if obj == nil {
 		return nil, err
 	}
-	return obj.(*v1beta1.SparkApplicationClass), err
+	return obj.(*v1beta2.SparkApplicationClass), err
 }

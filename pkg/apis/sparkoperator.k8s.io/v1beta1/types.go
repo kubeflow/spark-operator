@@ -160,8 +160,6 @@ type SparkApplication struct {
 // SparkApplicationSpec describes the specification of a Spark application using Kubernetes as a cluster manager.
 // It carries every pieces of information a spark-submit command takes and recognizes.
 type SparkApplicationSpec struct {
-	// SparkApplicationClass set the parent SparkApplicationClass to inherit.
-	SparkApplicationClass string `json:"sparkApplicationClass,omitempty"`
 	// Type tells the type of the Spark application.
 	Type SparkApplicationType `json:"type"`
 	// SparkVersion is the version of Spark the application uses.
@@ -246,9 +244,6 @@ type SparkApplicationSpec struct {
 	// BatchScheduler configures which batch scheduler will be used for scheduling
 	// Optional.
 	BatchScheduler *string `json:"batchScheduler,omitempty"`
-	// SparkUI configures the annotations for the SparkUI service and ingress resource.
-	// Optional.
-	SparkUI *SparkUISpec `json:"sparkUI,omitempty"`
 }
 
 // ApplicationStateType represents the type of the current state of an application.
@@ -550,44 +545,4 @@ func (s *SparkApplication) ExposeDriverMetrics() bool {
 // ExposeExecutorMetrics returns if executor metrics should be exposed.
 func (s *SparkApplication) ExposeExecutorMetrics() bool {
 	return s.Spec.Monitoring != nil && s.Spec.Monitoring.ExposeExecutorMetrics
-}
-
-// SparkUISpec defines the SparkUI specifications where the annotations for
-// the SparkUI service and ingress resources are specified.
-type SparkUISpec struct {
-	// Host is a mustache template string used to describe the ingress endpoint.
-	// (e.g. `{{$appName}}.ingress.cluster.com`)
-	// Will be made available as `{{$host}}` for `service` and `ingress`
-	// annotations.
-	Host string `json:"host"`
-	// Service is a map of annotation key -> mustache template strings used to describe
-	// the annotations to be applied to the SparkUI service resource.
-	// Optional.
-	Service map[string]string `json:"service,omitempty"`
-	// Ingress is a map of annotation key -> mustache template strings used to describe
-	// the annotations to be applied to the SparkUI ingress resource.
-	// Optional.
-	Ingress map[string]string `json:"ingress,omitempty"`
-}
-
-// +genclient
-// +genclient:noStatus
-// +genclient:nonNamespaced
-// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
-
-// SparkApplicationClass represents a SparkApplication template that can be
-// inherited by SparkApplication or ScheduledSparkApplication.
-// (CRD proposal at https://docs.google.com/document/d/1G9Kvi3ptf4mobrK2I5rPB_uAvFOymOLJsobuuPvCkS8/edit?usp=sharing)
-type SparkApplicationClass struct {
-	metav1.TypeMeta   `json:",inline"`
-	metav1.ObjectMeta `json:"metadata"`
-	Spec              SparkApplicationClassSpec `json:"spec"`
-}
-
-// SparkApplicationClassSpec describes the inheritable template for
-// SparkApplication and ScheduledSparkApplication
-type SparkApplicationClassSpec struct {
-	// Template is a template from which SparkApplication and
-	// ScheduledSparkApplication can inherit.
-	Template SparkApplicationSpec `json:"template"`
 }

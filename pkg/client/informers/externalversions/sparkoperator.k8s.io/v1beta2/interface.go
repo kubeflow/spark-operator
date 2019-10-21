@@ -30,6 +30,8 @@ type Interface interface {
 	ScheduledSparkApplications() ScheduledSparkApplicationInformer
 	// SparkApplications returns a SparkApplicationInformer.
 	SparkApplications() SparkApplicationInformer
+	// SparkApplicationClasses returns a SparkApplicationClassInformer.
+	SparkApplicationClasses() SparkApplicationClassInformer
 }
 
 type version struct {
@@ -51,4 +53,9 @@ func (v *version) ScheduledSparkApplications() ScheduledSparkApplicationInformer
 // SparkApplications returns a SparkApplicationInformer.
 func (v *version) SparkApplications() SparkApplicationInformer {
 	return &sparkApplicationInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
+}
+
+// SparkApplicationClasses returns a SparkApplicationClassInformer.
+func (v *version) SparkApplicationClasses() SparkApplicationClassInformer {
+	return &sparkApplicationClassInformer{factory: v.factory, tweakListOptions: v.tweakListOptions}
 }

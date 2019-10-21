@@ -38,6 +38,10 @@ func (c *FakeSparkoperatorV1beta2) SparkApplications(namespace string) v1beta2.S
 	return &FakeSparkApplications{c, namespace}
 }
 
+func (c *FakeSparkoperatorV1beta2) SparkApplicationClasses() v1beta2.SparkApplicationClassInterface {
+	return &FakeSparkApplicationClasses{c}
+}
+
 // RESTClient returns a RESTClient that is used to communicate
 // with API server by this client implementation.
 func (c *FakeSparkoperatorV1beta2) RESTClient() rest.Interface {

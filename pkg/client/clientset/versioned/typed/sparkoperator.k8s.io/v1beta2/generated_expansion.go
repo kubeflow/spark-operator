@@ -23,3 +23,5 @@ package v1beta2
 type ScheduledSparkApplicationExpansion interface{}
 
 type SparkApplicationExpansion interface{}
+
+type SparkApplicationClassExpansion interface{}

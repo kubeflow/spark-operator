@@ -35,7 +35,3 @@ type SparkApplicationListerExpansion interface{}
 // SparkApplicationNamespaceListerExpansion allows custom methods to be added to
 // SparkApplicationNamespaceLister.
 type SparkApplicationNamespaceListerExpansion interface{}
-
-// SparkApplicationClassListerExpansion allows custom methods to be added to
-// SparkApplicationClassLister.
-type SparkApplicationClassListerExpansion interface{}

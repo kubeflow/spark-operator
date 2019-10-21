@@ -348,6 +348,14 @@
   version = "v1.1.6"
 
 [[projects]]
+  branch = "master"
+  digest = "1:9eee5b851923fc95e2046527341b85d3a52810a65c21b03693e340a585281411"
+  name = "github.com/kubernetes/apimachinery"
+  packages = ["pkg/util/strategicpatch"]
+  pruneopts = ""
+  revision = "6c8691705fc5427b8f3866dafc1ee47c1cd8f081"
+
+[[projects]]
   digest = "1:84c28d9899cc4e00c38042d345cea8819275a5a62403a58530cac67022894776"
   name = "github.com/mattn/go-runewidth"
   packages = ["."]
@@ -1153,12 +1161,12 @@
   version = "v1.1.0"
 
 [[projects]]
-  branch = "master"
-  digest = "1:4b7e69ee4a478b8a32569f84077dc675bd7ff34a007996d2b6e9f5d6cca33602"
+  digest = "1:3b8757a4d7cf57b0937424ae13ed78f14f0873f8c89357892cac9d4458e66581"
   name = "volcano.sh/volcano"
   packages = [
     "pkg/apis/batch/v1alpha1",
     "pkg/apis/bus/v1alpha1",
+    "pkg/apis/scheduling",
     "pkg/apis/scheduling/v1alpha1",
     "pkg/apis/scheduling/v1alpha2",
     "pkg/client/clientset/versioned",
@@ -1169,7 +1177,8 @@
     "pkg/client/clientset/versioned/typed/scheduling/v1alpha2",
   ]
   pruneopts = ""
-  revision = "e5e4a32196c9b3013d892c861c3aff09097a063a"
+  revision = "92484dae90860f7077c8a0cd03a52a541910901f"
+  version = "v0.2"
 
 [solve-meta]
   analyzer-name = "dep"
@@ -1186,6 +1195,7 @@
     "github.com/google/go-cloud/blob/s3blob",
     "github.com/google/go-cloud/gcp",
     "github.com/google/uuid",
+    "github.com/kubernetes/apimachinery/pkg/util/strategicpatch",
     "github.com/olekukonko/tablewriter",
     "github.com/pkg/errors",
     "github.com/prometheus/client_golang/prometheus",
@@ -1204,6 +1214,7 @@
     "k8s.io/api/core/v1",
     "k8s.io/api/extensions/v1beta1",
     "k8s.io/api/rbac/v1",
+    "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1",
     "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset",
     "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset/fake",
     "k8s.io/apimachinery/pkg/api/equality",
