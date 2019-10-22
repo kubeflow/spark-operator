@@ -51,7 +51,7 @@ Before building the operator the first time, run the following commands to get t
 $ go get -u k8s.io/code-generator/cmd/client-gen
 $ go get -u k8s.io/code-generator/cmd/deepcopy-gen
 $ go get -u k8s.io/code-generator/cmd/defaulter-gen
-$ go get -u sigs.k8s.io/controller-tools/cmd/contoller-gen
+$ go get -u sigs.k8s.io/controller-tools/cmd/controller-gen
 ```
 
 To update the auto-generated code, run the following command. (This step is only required if the CRD types have been changed):
