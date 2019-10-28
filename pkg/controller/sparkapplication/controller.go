@@ -395,8 +395,15 @@ func (c *Controller) getAndUpdateExecutorState(app *v1beta2.SparkApplication) er
 	for name, oldStatus := range app.Status.ExecutorState {
 		_, exists := executorStateMap[name]
 		if !isExecutorTerminated(oldStatus) && !exists {
-			glog.Infof("Executor pod %s not found, assuming it was deleted.", name)
-			app.Status.ExecutorState[name] = v1beta2.ExecutorFailedState
+			// If ApplicationState is SUCCEEDING, in other words, the driver pod has been completed
+			// successfully. The executor pods terminate and are cleaned up, so we could not found
+			// the executor pod, under this circumstances, we assume the executor pod are completed.
+			if app.Status.AppState.State == v1beta2.SucceedingState {
+				app.Status.ExecutorState[name] = v1beta2.ExecutorCompletedState
+			} else {
+				glog.Infof("Executor pod %s not found, assuming it was deleted.", name)
+				app.Status.ExecutorState[name] = v1beta2.ExecutorFailedState
+			}
 		}
 	}
 
