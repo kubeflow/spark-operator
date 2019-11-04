@@ -69,7 +69,7 @@ func init() {
 }
 
 func doLog(name string, kubeClientset clientset.Interface, crdClientset crdclientset.Interface) error {
-	app, err := crdClientset.SparkoperatorV1beta1().SparkApplications(Namespace).Get(name, metav1.GetOptions{})
+	app, err := crdClientset.SparkoperatorV1beta2().SparkApplications(Namespace).Get(name, metav1.GetOptions{})
 	if err != nil {
 		return fmt.Errorf("failed to get SparkApplication %s: %v", name, err)
 	}
