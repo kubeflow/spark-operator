@@ -50,7 +50,7 @@ var deleteCmd = &cobra.Command{
 }
 
 func doDelete(name string, crdClientset crdclientset.Interface) error {
-	err := crdClientset.SparkoperatorV1beta1().SparkApplications(Namespace).Delete(name, &metav1.DeleteOptions{})
+	err := crdClientset.SparkoperatorV1beta2().SparkApplications(Namespace).Delete(name, &metav1.DeleteOptions{})
 	if err != nil {
 		return err
 	}

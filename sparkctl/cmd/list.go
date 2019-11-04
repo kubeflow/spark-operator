@@ -46,7 +46,7 @@ var listCmd = &cobra.Command{
 }
 
 func doList(crdClientset crdclientset.Interface) error {
-	apps, err := crdClientset.SparkoperatorV1beta1().SparkApplications(Namespace).List(metav1.ListOptions{})
+	apps, err := crdClientset.SparkoperatorV1beta2().SparkApplications(Namespace).List(metav1.ListOptions{})
 	if err != nil {
 		return err
 	}
