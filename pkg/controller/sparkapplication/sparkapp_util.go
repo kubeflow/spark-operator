@@ -18,10 +18,13 @@ package sparkapplication
 
 import (
 	"fmt"
+	"time"
+
+	apiv1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta2"
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/config"
-	apiv1 "k8s.io/api/core/v1"
 )
 
 // Helper method to create a key with namespace and appName
@@ -113,4 +116,16 @@ func driverStateToApplicationState(podStatus apiv1.PodStatus) v1beta2.Applicatio
 	default:
 		return v1beta2.UnknownState
 	}
+}
+
+// pastActiveDeadline checks if sparkApplication has ActiveDeadlineSeconds field set and if it is exceeded.
+func pastActiveDeadline(app *v1beta2.SparkApplication) bool {
+	if app.Spec.ActiveDeadlineSeconds == nil || app.Status.StartTime.IsZero() {
+		return false
+	}
+	now := metav1.Now()
+	start := app.Status.StartTime.Time
+	duration := now.Time.Sub(start)
+	allowedDuration := time.Duration(*app.Spec.ActiveDeadlineSeconds) * time.Second
+	return duration >= allowedDuration
 }

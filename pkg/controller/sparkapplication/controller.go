@@ -463,26 +463,26 @@ func shouldRetry(app *v1beta2.SparkApplication) bool {
 //|                |Submission                                                                                         |
 //|           +----> Failed  +-----+------------------------------------------------------------------+                |
 //|           |    |         |     |                                                                  |                |
-//|           |    |         |     |                                                                  |                |
-//|           |    +----^----+     |                                                                  |                |
-//|           |         |          |                                                                  |                |
-//|           |         |          |                                                                  |                |
-//|      +----+----+    |    +-----v----+          +----------+           +-----------+          +----v-----+          |
+//|           |    |         |     |                    +------------------------------------------------+             |
+//|           |    +----^----+     |                    |                                             |  |             |
+//|           |         |          |  +------------------------------------------------------------+  |  |             |
+//|           |         |          |  |                 |                                          |  |  |             |
+//|      +----+----+    |    +-----v--+-+          +----+-----+           +-----------+          +-v--v--v--+          |
 //|      |         |    |    |          |          |          |           |           |          |          |          |
-//|      |         |    |    |          |          |          |           |           |          |		    |          |
+//|      |         |    |    |          |          |          |           |           |          |          |          |
 //|      |   New   +---------> Submitted+----------> Running  +----------->  Failing  +---------->  Failed  |          |
 //|      |         |    |    |          |          |          |           |           |          |          |          |
 //|      |         |    |    |          |          |          |           |           |          |          |          |
 //|      |         |    |    |          |          |          |           |           |          |          |          |
-//|      +---------+    |    +----^-----+          +-----+----+           +-----+-----+          +----------+          |
-//|                     |         |                      |                      |                                      |
-//|                     |         |                      |                      |                                      |
-//|    +------------+   |         |             +-------------------------------+                                      |
-//|    |            |   |   +-----+-----+       |        |                +-----------+          +----------+          |
-//|    |            |   |   |  Pending  |       |        |                |           |          |          |          |
-//|    |            |   +---+   Rerun   <-------+        +---------------->Succeeding +---------->Completed |          |
+//|      +---------+    |    +----^-----+          +-----+----+           +-----+-----+          +------^---+          |
+//|                     |         |                      |                      |                       |              |
+//|                     |         |                      |                      |           +-----------+              |
+//|    +------------+   |         |             +-------------------------------+           |                          |
+//|    |            |   |   +-----+-----+       |        |                +-----------+     |    +----------+          |
+//|    |            |   |   |  Pending  |       |        |                |           |     |    |          |          |
+//|    |            |   +---+   Rerun   <-------+        +---------------->Succeeding +-----+    |Completed |          |
 //|    |Invalidating|       |           <-------+                         |           |          |          |          |
-//|    |            +------->           |       |                         |           |          |          |          |
+//|    |            +------->           |       |                         |           +---------->          |          |
 //|    |            |       |           |       |                         |           |          |          |          |
 //|    |            |       +-----------+       |                         +-----+-----+          +----------+          |
 //|    +------------+                           |                               |                                      |
@@ -511,6 +511,17 @@ func (c *Controller) syncSparkApplication(key string) error {
 
 	appToUpdate := app.DeepCopy()
 
+	// sparkApplication first start
+	if appToUpdate.Status.StartTime.IsZero() {
+		appToUpdate.Status.StartTime = metav1.Now()
+		// enqueue a sync to check if sparkApplication past ActiveDeadlineSeconds
+		if appToUpdate.Spec.ActiveDeadlineSeconds != nil {
+			glog.V(4).Infof("SparkApplication %s have ActiveDeadlineSeconds will sync after %d seconds",
+				key, *appToUpdate.Spec.ActiveDeadlineSeconds)
+			c.queue.AddAfter(key, time.Duration(*appToUpdate.Spec.ActiveDeadlineSeconds)*time.Second)
+		}
+	}
+
 	// Take action based on application state.
 	switch appToUpdate.Status.AppState.State {
 	case v1beta2.NewState:
@@ -532,12 +543,22 @@ func (c *Controller) syncSparkApplication(key string) error {
 					appToUpdate.Namespace, appToUpdate.Name, err)
 				return err
 			}
-			appToUpdate.Status.AppState.State = v1beta2.PendingRerunState
+			if pastActiveDeadline(appToUpdate) {
+				appToUpdate.Status.AppState.State = v1beta2.FailedState
+				appToUpdate.Status.AppState.ErrorMessage = "SparkApplication was active longer than specified deadline"
+				c.recordSparkApplicationEvent(appToUpdate)
+			} else {
+				appToUpdate.Status.AppState.State = v1beta2.PendingRerunState
+			}
 		}
 	case v1beta2.FailingState:
 		if !shouldRetry(appToUpdate) {
 			// Application is not subject to retry. Move to terminal FailedState.
 			appToUpdate.Status.AppState.State = v1beta2.FailedState
+			c.recordSparkApplicationEvent(appToUpdate)
+		} else if pastActiveDeadline(appToUpdate) {
+			appToUpdate.Status.AppState.State = v1beta2.FailedState
+			appToUpdate.Status.AppState.ErrorMessage = "SparkApplication was active longer than specified deadline"
 			c.recordSparkApplicationEvent(appToUpdate)
 		} else if hasRetryIntervalPassed(appToUpdate.Spec.RestartPolicy.OnFailureRetryInterval, appToUpdate.Status.ExecutionAttempts, appToUpdate.Status.TerminationTime) {
 			if err := c.deleteSparkResources(appToUpdate); err != nil {
@@ -550,7 +571,13 @@ func (c *Controller) syncSparkApplication(key string) error {
 	case v1beta2.FailedSubmissionState:
 		if !shouldRetry(appToUpdate) {
 			// App will never be retried. Move to terminal FailedState.
+			app.Status.TerminationTime = metav1.Now()
 			appToUpdate.Status.AppState.State = v1beta2.FailedState
+			c.recordSparkApplicationEvent(appToUpdate)
+		} else if pastActiveDeadline(appToUpdate) {
+			app.Status.TerminationTime = metav1.Now()
+			appToUpdate.Status.AppState.State = v1beta2.FailedState
+			appToUpdate.Status.AppState.ErrorMessage = "SparkApplication was active longer than specified deadline"
 			c.recordSparkApplicationEvent(appToUpdate)
 		} else if hasRetryIntervalPassed(appToUpdate.Spec.RestartPolicy.OnSubmissionFailureRetryInterval, appToUpdate.Status.SubmissionAttempts, appToUpdate.Status.LastSubmissionAttemptTime) {
 			appToUpdate = c.submitSparkApplication(appToUpdate)
@@ -573,8 +600,15 @@ func (c *Controller) syncSparkApplication(key string) error {
 			appToUpdate = c.submitSparkApplication(appToUpdate)
 		}
 	case v1beta2.SubmittedState, v1beta2.RunningState, v1beta2.UnknownState:
-		if err := c.getAndUpdateAppState(appToUpdate); err != nil {
-			return err
+		if pastActiveDeadline(appToUpdate) {
+			app.Status.TerminationTime = metav1.Now()
+			appToUpdate.Status.AppState.State = v1beta2.FailedState
+			appToUpdate.Status.AppState.ErrorMessage = "SparkApplication was active longer than specified deadline"
+			c.recordSparkApplicationEvent(appToUpdate)
+		} else {
+			if err := c.getAndUpdateAppState(appToUpdate); err != nil {
+				return err
+			}
 		}
 	case v1beta2.CompletedState, v1beta2.FailedState:
 		if c.hasApplicationExpired(app) {
@@ -964,6 +998,7 @@ func (c *Controller) clearStatus(status *v1beta2.SparkApplicationStatus) {
 		status.TerminationTime = metav1.Time{}
 		status.AppState.ErrorMessage = ""
 		status.ExecutorState = nil
+		status.StartTime = metav1.Time{}
 	} else if status.AppState.State == v1beta2.PendingRerunState {
 		status.SparkApplicationID = ""
 		status.SubmissionAttempts = 0

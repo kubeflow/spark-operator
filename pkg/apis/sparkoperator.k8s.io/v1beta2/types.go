@@ -261,6 +261,10 @@ type SparkApplicationSpec struct {
 	// TimeToLiveSeconds since its termination.
 	// Optional.
 	TimeToLiveSeconds *int64 `json:"timeToLiveSeconds,omitempty"`
+	// Specifies the duration in seconds relative to the startTime that the application may be
+	// active before the system tries to terminate it; value must be positive integer
+	// +optional
+	ActiveDeadlineSeconds *int64 `json:"activeDeadlineSeconds,omitempty"`
 	// BatchSchedulerOptions provides fine-grained control on how to batch scheduling.
 	// Optional.
 	BatchSchedulerOptions *BatchSchedulerConfiguration `json:"batchSchedulerOptions,omitempty"`
@@ -320,6 +324,10 @@ type SparkApplicationStatus struct {
 	SubmissionID string `json:"submissionID,omitempty"`
 	// LastSubmissionAttemptTime is the time for the last application submission attempt.
 	LastSubmissionAttemptTime metav1.Time `json:"lastSubmissionAttemptTime,omitempty"`
+	// Represents time when the application was acknowledged by the application controller.
+	// It is not guaranteed to be set in happens-before order across separate operations.
+	// It is represented in RFC3339 form and is in UTC.
+	StartTime metav1.Time `json:"startTime,omitempty"`
 	// CompletionTime is the time when the application runs to completion if it does.
 	TerminationTime metav1.Time `json:"terminationTime,omitempty"`
 	// DriverInfo has information about the driver.
