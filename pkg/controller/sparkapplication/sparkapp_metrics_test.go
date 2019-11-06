@@ -41,6 +41,7 @@ func TestSparkAppMetrics(t *testing.T) {
 			metrics.sparkAppFailedSubmissionCount.With(app1).Inc()
 			metrics.sparkAppSuccessExecutionTime.With(app1).Observe(float64(100 * i))
 			metrics.sparkAppFailureExecutionTime.With(app1).Observe(float64(500 * i))
+			metrics.sparkAppStartLatency.With(app1).Observe(float64(10 * i))
 			metrics.sparkAppExecutorRunningCount.Inc(app1)
 			metrics.sparkAppExecutorSuccessCount.With(app1).Inc()
 			metrics.sparkAppExecutorFailureCount.With(app1).Inc()

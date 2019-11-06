@@ -38,6 +38,7 @@ type sparkAppMetrics struct {
 
 	sparkAppSuccessExecutionTime *prometheus.SummaryVec
 	sparkAppFailureExecutionTime *prometheus.SummaryVec
+	sparkAppStartLatency         *prometheus.SummaryVec
 
 	sparkAppExecutorRunningCount *util.PositiveGauge
 	sparkAppExecutorFailureCount *prometheus.CounterVec
@@ -92,6 +93,13 @@ func newSparkAppMetrics(prefix string, labels []string) *sparkAppMetrics {
 		},
 		validLabels,
 	)
+	sparkAppStartLatency := prometheus.NewSummaryVec(
+		prometheus.SummaryOpts{
+			Name: util.CreateValidMetricNameLabel(prefix, "spark_app_start_latency_microseconds"),
+			Help: "Spark App Start Latency via the Operator",
+		},
+		validLabels,
+	)
 	sparkAppExecutorSuccessCount := prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: util.CreateValidMetricNameLabel(prefix, "spark_app_executor_success_count"),
@@ -121,6 +129,7 @@ func newSparkAppMetrics(prefix string, labels []string) *sparkAppMetrics {
 		sparkAppFailedSubmissionCount: sparkAppFailedSubmissionCount,
 		sparkAppSuccessExecutionTime:  sparkAppSuccessExecutionTime,
 		sparkAppFailureExecutionTime:  sparkAppFailureExecutionTime,
+		sparkAppStartLatency:          sparkAppStartLatency,
 		sparkAppExecutorRunningCount:  sparkAppExecutorRunningCount,
 		sparkAppExecutorSuccessCount:  sparkAppExecutorSuccessCount,
 		sparkAppExecutorFailureCount:  sparkAppExecutorFailureCount,
@@ -133,6 +142,7 @@ func (sm *sparkAppMetrics) registerMetrics() {
 	util.RegisterMetric(sm.sparkAppFailureCount)
 	util.RegisterMetric(sm.sparkAppSuccessExecutionTime)
 	util.RegisterMetric(sm.sparkAppFailureExecutionTime)
+	util.RegisterMetric(sm.sparkAppStartLatency)
 	util.RegisterMetric(sm.sparkAppExecutorSuccessCount)
 	util.RegisterMetric(sm.sparkAppExecutorFailureCount)
 	sm.sparkAppRunningCount.Register()
@@ -156,6 +166,12 @@ func (sm *sparkAppMetrics) exportMetrics(oldApp, newApp *v1beta2.SparkApplicatio
 			}
 		case v1beta2.RunningState:
 			sm.sparkAppRunningCount.Inc(metricLabels)
+			if m, err := sm.sparkAppStartLatency.GetMetricWith(metricLabels); err != nil {
+				glog.Errorf("Error while exporting metrics: %v", err)
+			} else {
+				latency := time.Now().Sub(newApp.CreationTimestamp.Time)
+				m.Observe(float64(latency / time.Microsecond))
+			}
 		case v1beta2.SucceedingState:
 			if !newApp.Status.LastSubmissionAttemptTime.Time.IsZero() && !newApp.Status.TerminationTime.Time.IsZero() {
 				d := newApp.Status.TerminationTime.Time.Sub(newApp.Status.LastSubmissionAttemptTime.Time)
@@ -192,6 +208,23 @@ func (sm *sparkAppMetrics) exportMetrics(oldApp, newApp *v1beta2.SparkApplicatio
 				glog.Errorf("Error while exporting metrics: %v", err)
 			} else {
 				m.Inc()
+			}
+		}
+	}
+
+	// In the event that state transitions happened too quickly and the spark app reached a terminal (or near terminal) state
+	// without going through the expected transitions, their job start time will not have been captured in the case statement above.
+	if newState != oldState {
+		if newState == v1beta2.FailingState || newState == v1beta2.SucceedingState || newState == v1beta2.CompletedState || newState == v1beta2.FailedState {
+			if oldState != v1beta2.RunningState && oldState != v1beta2.FailingState && oldState != v1beta2.SucceedingState {
+				if m, err := sm.sparkAppStartLatency.GetMetricWith(metricLabels); err != nil {
+					glog.Errorf("Error while exporting metrics: %v", err)
+				} else {
+					// TODO: remove this log once we've gathered some data in prod fleets.
+					glog.Infof("Calculating job start latency for edge case transition from %v to %v in app %v in namespace %v.", oldState, newState, newApp.Name, newApp.Namespace)
+					latency := time.Now().Sub(newApp.CreationTimestamp.Time)
+					m.Observe(float64(latency / time.Microsecond))
+				}
 			}
 		}
 	}
