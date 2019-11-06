@@ -654,6 +654,11 @@ func (in *SparkApplicationSpec) DeepCopyInto(out *SparkApplicationSpec) {
 		*out = new(int64)
 		**out = **in
 	}
+	if in.ActiveDeadlineSeconds != nil {
+		in, out := &in.ActiveDeadlineSeconds, &out.ActiveDeadlineSeconds
+		*out = new(int64)
+		**out = **in
+	}
 	if in.BatchSchedulerOptions != nil {
 		in, out := &in.BatchSchedulerOptions, &out.BatchSchedulerOptions
 		*out = new(BatchSchedulerConfiguration)
@@ -676,6 +681,7 @@ func (in *SparkApplicationSpec) DeepCopy() *SparkApplicationSpec {
 func (in *SparkApplicationStatus) DeepCopyInto(out *SparkApplicationStatus) {
 	*out = *in
 	in.LastSubmissionAttemptTime.DeepCopyInto(&out.LastSubmissionAttemptTime)
+	in.StartTime.DeepCopyInto(&out.StartTime)
 	in.TerminationTime.DeepCopyInto(&out.TerminationTime)
 	out.DriverInfo = in.DriverInfo
 	out.AppState = in.AppState
