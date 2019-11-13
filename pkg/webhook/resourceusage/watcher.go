@@ -52,13 +52,13 @@ func newResourceUsageWatcher(crdInformerFactory crdinformers.SharedInformerFacto
 	}
 	// Note: Events for each handler are processed serially, so no coordination is needed between
 	// the different callbacks. Coordination is still needed around updating the shared state.
-	sparkApplicationInformer := r.crdInformerFactory.Sparkoperator().V1beta1().SparkApplications()
+	sparkApplicationInformer := r.crdInformerFactory.Sparkoperator().V1beta2().SparkApplications()
 	sparkApplicationInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc:    r.onSparkApplicationAdded,
 		UpdateFunc: r.onSparkApplicationUpdated,
 		DeleteFunc: r.onSparkApplicationDeleted,
 	})
-	scheduledSparkApplicationInformer := r.crdInformerFactory.Sparkoperator().V1beta1().ScheduledSparkApplications()
+	scheduledSparkApplicationInformer := r.crdInformerFactory.Sparkoperator().V1beta2().ScheduledSparkApplications()
 	scheduledSparkApplicationInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc:    r.onScheduledSparkApplicationAdded,
 		UpdateFunc: r.onScheduledSparkApplicationUpdated,
