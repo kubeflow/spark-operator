@@ -163,7 +163,7 @@ $ sparkctl log <SparkApplication name> [-e <executor ID, e.g., 1>] [-f]
 
 ### Delete
 
-`status` is a sub command of `sparkctl` for delete `SparkApplication` with the given name in the namespace specified by `--namespace`.
+`delete` is a sub command of `sparkctl` for deleting a `SparkApplication` with the given name in the namespace specified by `--namespace`.
 
 Usage:
 ```bash
