@@ -15,3 +15,4 @@
 | Tencent | @runzhliu | Evaluation | ML Analytics Platform |
 | Exacaster | @minutis | Evaluation | Data pipelines
 | Riskified | @henbh | Evaluation | Analytics Data Platform
+| CloudZone | @iftachsc | Evaluation | Big Data Analytics Consultancy
