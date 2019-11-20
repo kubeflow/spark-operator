@@ -91,6 +91,12 @@ func TestPatchSparkPod_Volumes(t *testing.T) {
 						},
 					},
 				},
+				corev1.Volume{
+					Name: "foo",
+					VolumeSource: corev1.VolumeSource{
+						EmptyDir: &corev1.EmptyDirVolumeSource{},
+					},
+				},
 			},
 			Driver: v1beta2.DriverSpec{
 				SparkPodSpec: v1beta2.SparkPodSpec{
@@ -98,6 +104,10 @@ func TestPatchSparkPod_Volumes(t *testing.T) {
 						{
 							Name:      "spark",
 							MountPath: "/mnt/spark",
+						},
+						{
+							Name:      "foo",
+							MountPath: "/mnt/foo",
 						},
 					},
 				},
@@ -129,10 +139,12 @@ func TestPatchSparkPod_Volumes(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	assert.Equal(t, 1, len(modifiedPod.Spec.Volumes))
+	assert.Equal(t, 2, len(modifiedPod.Spec.Volumes))
 	assert.Equal(t, app.Spec.Volumes[0], modifiedPod.Spec.Volumes[0])
-	assert.Equal(t, 1, len(modifiedPod.Spec.Containers[0].VolumeMounts))
+	assert.Equal(t, app.Spec.Volumes[1], modifiedPod.Spec.Volumes[1])
+	assert.Equal(t, 2, len(modifiedPod.Spec.Containers[0].VolumeMounts))
 	assert.Equal(t, app.Spec.Driver.VolumeMounts[0], modifiedPod.Spec.Containers[0].VolumeMounts[0])
+	assert.Equal(t, app.Spec.Driver.VolumeMounts[1], modifiedPod.Spec.Containers[0].VolumeMounts[1])
 
 	// Test patching a pod with existing OwnerReference and Volume.
 	pod.Spec.Volumes = append(pod.Spec.Volumes, corev1.Volume{Name: "volume1"})
@@ -145,10 +157,12 @@ func TestPatchSparkPod_Volumes(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	assert.Equal(t, 2, len(modifiedPod.Spec.Volumes))
+	assert.Equal(t, 3, len(modifiedPod.Spec.Volumes))
 	assert.Equal(t, app.Spec.Volumes[0], modifiedPod.Spec.Volumes[1])
-	assert.Equal(t, 2, len(modifiedPod.Spec.Containers[0].VolumeMounts))
+	assert.Equal(t, app.Spec.Volumes[1], modifiedPod.Spec.Volumes[2])
+	assert.Equal(t, 3, len(modifiedPod.Spec.Containers[0].VolumeMounts))
 	assert.Equal(t, app.Spec.Driver.VolumeMounts[0], modifiedPod.Spec.Containers[0].VolumeMounts[1])
+	assert.Equal(t, app.Spec.Driver.VolumeMounts[1], modifiedPod.Spec.Containers[0].VolumeMounts[2])
 }
 
 func TestPatchSparkPod_Affinity(t *testing.T) {
@@ -217,7 +231,10 @@ func TestPatchSparkPod_ConfigMaps(t *testing.T) {
 		Spec: v1beta2.SparkApplicationSpec{
 			Driver: v1beta2.DriverSpec{
 				SparkPodSpec: v1beta2.SparkPodSpec{
-					ConfigMaps: []v1beta2.NamePath{{Name: "foo", Path: "/path/to/foo"}},
+					ConfigMaps: []v1beta2.NamePath{
+						{Name: "foo", Path: "/path/to/foo"},
+						{Name: "bar", Path: "/path/to/bar"},
+					},
 				},
 			},
 		},
@@ -246,11 +263,14 @@ func TestPatchSparkPod_ConfigMaps(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	assert.Equal(t, 1, len(modifiedPod.Spec.Volumes))
+	assert.Equal(t, 2, len(modifiedPod.Spec.Volumes))
 	assert.Equal(t, "foo-vol", modifiedPod.Spec.Volumes[0].Name)
 	assert.True(t, modifiedPod.Spec.Volumes[0].ConfigMap != nil)
-	assert.Equal(t, 1, len(modifiedPod.Spec.Containers[0].VolumeMounts))
+	assert.Equal(t, "bar-vol", modifiedPod.Spec.Volumes[1].Name)
+	assert.True(t, modifiedPod.Spec.Volumes[1].ConfigMap != nil)
+	assert.Equal(t, 2, len(modifiedPod.Spec.Containers[0].VolumeMounts))
 	assert.Equal(t, "/path/to/foo", modifiedPod.Spec.Containers[0].VolumeMounts[0].MountPath)
+	assert.Equal(t, "/path/to/bar", modifiedPod.Spec.Containers[0].VolumeMounts[1].MountPath)
 }
 
 func TestPatchSparkPod_SparkConfigMap(t *testing.T) {
@@ -400,9 +420,15 @@ func TestPatchSparkPod_Tolerations(t *testing.T) {
 				SparkPodSpec: v1beta2.SparkPodSpec{
 					Tolerations: []corev1.Toleration{
 						{
-							Key:      "Key",
+							Key:      "Key1",
 							Operator: "Equal",
-							Value:    "Value",
+							Value:    "Value1",
+							Effect:   "NoEffect",
+						},
+						{
+							Key:      "Key2",
+							Operator: "Equal",
+							Value:    "Value2",
 							Effect:   "NoEffect",
 						},
 					},
@@ -435,8 +461,9 @@ func TestPatchSparkPod_Tolerations(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	assert.Equal(t, 1, len(modifiedPod.Spec.Tolerations))
+	assert.Equal(t, 2, len(modifiedPod.Spec.Tolerations))
 	assert.Equal(t, app.Spec.Driver.Tolerations[0], modifiedPod.Spec.Tolerations[0])
+	assert.Equal(t, app.Spec.Driver.Tolerations[1], modifiedPod.Spec.Tolerations[1])
 }
 
 func TestPatchSparkPod_SecurityContext(t *testing.T) {
@@ -1109,7 +1136,7 @@ func TestPatchSparkPod_HostNetwork(t *testing.T) {
 }
 
 func getModifiedPod(pod *corev1.Pod, app *v1beta2.SparkApplication) (*corev1.Pod, error) {
-	patchOps := patchSparkPod(pod, app)
+	patchOps := patchSparkPod(pod.DeepCopy(), app)
 	patchBytes, err := json.Marshal(patchOps)
 	if err != nil {
 		return nil, err

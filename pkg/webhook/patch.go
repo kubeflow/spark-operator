@@ -132,6 +132,7 @@ func addVolume(pod *corev1.Pod, volume corev1.Volume) patchOperation {
 		path += "/-"
 		value = volume
 	}
+	pod.Spec.Volumes = append(pod.Spec.Volumes, volume)
 
 	return patchOperation{Op: "add", Path: path, Value: value}
 }
@@ -154,6 +155,7 @@ func addVolumeMount(pod *corev1.Pod, mount corev1.VolumeMount) patchOperation {
 		path += "/-"
 		value = mount
 	}
+	pod.Spec.Containers[i].VolumeMounts = append(pod.Spec.Containers[i].VolumeMounts, mount)
 
 	return patchOperation{Op: "add", Path: path, Value: value}
 }
@@ -293,9 +295,17 @@ func addTolerations(pod *corev1.Pod, app *v1beta2.SparkApplication) []patchOpera
 		tolerations = app.Spec.Executor.Tolerations
 	}
 
+	first := false
+	if len(pod.Spec.Tolerations) == 0 {
+		first = true
+	}
+
 	var ops []patchOperation
 	for _, v := range tolerations {
-		ops = append(ops, addToleration(pod, v))
+		ops = append(ops, addToleration(pod, v, first))
+		if first {
+			first = false
+		}
 	}
 	return ops
 }
@@ -348,10 +358,10 @@ func addSchedulerName(pod *corev1.Pod, app *v1beta2.SparkApplication) *patchOper
 	return &patchOperation{Op: "add", Path: "/spec/schedulerName", Value: *schedulerName}
 }
 
-func addToleration(pod *corev1.Pod, toleration corev1.Toleration) patchOperation {
+func addToleration(pod *corev1.Pod, toleration corev1.Toleration, first bool) patchOperation {
 	path := "/spec/tolerations"
 	var value interface{}
-	if len(pod.Spec.Tolerations) == 0 {
+	if first {
 		value = []corev1.Toleration{toleration}
 	} else {
 		path += "/-"
