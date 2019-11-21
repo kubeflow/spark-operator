@@ -39,7 +39,7 @@ import (
 const (
 	sparkSubmitPodMemoryRequest = "100Mi"
 	sparkSubmitPodCpuRequest    = "100m"
-	sparkSubmitPodMemoryLimit   = "256Mi"
+	sparkSubmitPodMemoryLimit   = "512Mi"
 	sparkSubmitPodCpuLimit      = "250m"
 )
 
@@ -103,9 +103,11 @@ func (sjm *realSubmissionJobManager) createSubmissionJob(app *v1beta2.SparkAppli
 			BackoffLimit: app.Spec.RestartPolicy.OnSubmissionFailureRetries,
 			Template: corev1.PodTemplateSpec{
 				Spec: corev1.PodSpec{
+					Volumes:          app.Spec.Volumes,
 					ImagePullSecrets: imagePullSecrets,
 					Containers: []corev1.Container{
 						{
+							VolumeMounts:    app.Spec.Driver.VolumeMounts,
 							Name:            "spark-submit-runner",
 							Image:           image,
 							Command:         command,
