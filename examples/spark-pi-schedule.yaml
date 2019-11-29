@@ -29,6 +29,7 @@ spec:
     imagePullPolicy: Always
     mainClass: org.apache.spark.examples.SparkPi
     mainApplicationFile: "local:///opt/spark/examples/jars/spark-examples_2.11-2.4.4.jar"
+    sparkVersion: "2.4.4"
     restartPolicy:
       type: Never
     driver:
