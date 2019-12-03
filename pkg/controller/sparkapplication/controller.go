@@ -668,6 +668,7 @@ func (c *Controller) submitSparkApplication(app *v1beta2.SparkApplication) *v1be
 					State:        v1beta2.FailedSubmissionState,
 					ErrorMessage: err.Error(),
 				},
+				SubmissionAttempts: app.Status.SubmissionAttempts + 1,
 			}
 		}
 		c.recordSparkApplicationEvent(app)
@@ -676,9 +677,11 @@ func (c *Controller) submitSparkApplication(app *v1beta2.SparkApplication) *v1be
 
 	glog.Infof("SparkApplication %s/%s has been submitted", app.Namespace, app.Name)
 	app.Status = v1beta2.SparkApplicationStatus{
-		SubmissionID: submissionID,
-		DriverInfo:   v1beta2.DriverInfo{PodName: driverPodName},
-		AppState:     v1beta2.ApplicationState{State: v1beta2.PendingSubmissionState},
+		SubmissionID:       submissionID,
+		DriverInfo:         v1beta2.DriverInfo{PodName: driverPodName},
+		AppState:           v1beta2.ApplicationState{State: v1beta2.PendingSubmissionState},
+		SubmissionAttempts: app.Status.SubmissionAttempts + 1,
+		ExecutionAttempts:  app.Status.ExecutionAttempts + 1,
 	}
 
 	c.recordSparkApplicationEvent(app)
@@ -976,6 +979,7 @@ func (c *Controller) recordExecutorEvent(app *v1beta2.SparkApplication, state v1
 func (c *Controller) clearStatus(status *v1beta2.SparkApplicationStatus) {
 	if status.AppState.State == v1beta2.InvalidatingState {
 		status.SparkApplicationID = ""
+		status.SubmissionAttempts = 0
 		status.ExecutionAttempts = 0
 		status.SubmissionTime = metav1.Time{}
 		status.TerminationTime = metav1.Time{}
