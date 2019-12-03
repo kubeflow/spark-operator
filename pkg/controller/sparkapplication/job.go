@@ -146,7 +146,10 @@ func (sjm *realSubmissionJobManager) getSubmissionJob(app *v1beta2.SparkApplicat
 }
 
 func (sjm *realSubmissionJobManager) deleteSubmissionJob(app *v1beta2.SparkApplication) error {
-	return sjm.kubeClient.BatchV1().Jobs(app.Namespace).Delete(getSubmissionJobName(app), metav1.NewDeleteOptions(0))
+	deleteOptions := metav1.NewDeleteOptions(0)
+	background := metav1.DeletePropagationBackground
+	deleteOptions.PropagationPolicy = &background
+	return sjm.kubeClient.BatchV1().Jobs(app.Namespace).Delete(getSubmissionJobName(app), deleteOptions)
 }
 
 // hasJobSucceeded returns a boolean that indicates if the job has succeeded or not if the job has terminated.
@@ -164,7 +167,6 @@ func (sjm *realSubmissionJobManager) hasJobSucceeded(app *v1beta2.SparkApplicati
 		if cond.Type == batchv1.JobFailed && cond.Status == v1.ConditionTrue {
 			return boolptr(false), nil,
 				errors.New(fmt.Sprintf("Submission Job Failed. Error: %s. %s", cond.Reason, cond.Message))
-
 		}
 	}
 	return nil, nil, nil
