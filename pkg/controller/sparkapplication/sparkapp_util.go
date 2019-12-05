@@ -87,6 +87,10 @@ func isExecutorTerminated(executorState v1beta2.ExecutorState) bool {
 	return executorState == v1beta2.ExecutorCompletedState || executorState == v1beta2.ExecutorFailedState
 }
 
+func isDriverRunning(app *v1beta2.SparkApplication) bool {
+	return app.Status.AppState.State == v1beta2.RunningState
+}
+
 func driverStateToApplicationState(podStatus apiv1.PodStatus) v1beta2.ApplicationStateType {
 	switch podStatus.Phase {
 	case apiv1.PodPending:
