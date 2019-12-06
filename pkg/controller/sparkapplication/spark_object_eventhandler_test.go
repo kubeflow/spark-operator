@@ -48,7 +48,7 @@ func TestOnPodAdded(t *testing.T) {
 			Phase: apiv1.PodPending,
 		},
 	}
-	go monitor.onPodAdded(driverPod)
+	go monitor.onObjectAdded(driverPod)
 
 	key, _ := queue.Get()
 	actualNamespace, actualAppName, err := cache.SplitMetaNamespaceKey(key.(string))
@@ -86,7 +86,7 @@ func TestOnPodAdded(t *testing.T) {
 			Phase: apiv1.PodRunning,
 		},
 	}
-	go monitor.onPodAdded(executorPod)
+	go monitor.onObjectAdded(executorPod)
 
 	key, _ = queue.Get()
 
@@ -133,7 +133,7 @@ func TestOnPodUpdated(t *testing.T) {
 	newDriverPod := oldDriverPod.DeepCopy()
 	newDriverPod.ResourceVersion = "2"
 	newDriverPod.Status.Phase = apiv1.PodSucceeded
-	go monitor.onPodUpdated(oldDriverPod, newDriverPod)
+	go monitor.onObjectUpdated(oldDriverPod, newDriverPod)
 
 	key, _ := queue.Get()
 
@@ -176,7 +176,7 @@ func TestOnPodUpdated(t *testing.T) {
 	newExecutorPod := oldExecutorPod.DeepCopy()
 	newExecutorPod.ResourceVersion = "2"
 	newExecutorPod.Status.Phase = apiv1.PodFailed
-	go monitor.onPodUpdated(oldExecutorPod, newExecutorPod)
+	go monitor.onObjectUpdated(oldExecutorPod, newExecutorPod)
 
 	key, _ = queue.Get()
 
@@ -219,7 +219,7 @@ func TestOnPodDeleted(t *testing.T) {
 			Phase: apiv1.PodRunning,
 		},
 	}
-	go monitor.onPodDeleted(driverPod)
+	go monitor.onObjectDeleted(driverPod)
 
 	key, _ := queue.Get()
 	actualNamespace, actualAppName, err := cache.SplitMetaNamespaceKey(key.(string))
@@ -257,7 +257,7 @@ func TestOnPodDeleted(t *testing.T) {
 			Phase: apiv1.PodSucceeded,
 		},
 	}
-	go monitor.onPodDeleted(executorPod)
+	go monitor.onObjectDeleted(executorPod)
 
 	key, _ = queue.Get()
 	actualNamespace, actualAppName, err = cache.SplitMetaNamespaceKey(key.(string))
@@ -280,9 +280,9 @@ func TestOnPodDeleted(t *testing.T) {
 		actualNamespace)
 }
 
-func newMonitor() (*sparkPodEventHandler, workqueue.RateLimitingInterface) {
+func newMonitor() (*sparkObjectEventHandler, workqueue.RateLimitingInterface) {
 	queue := workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(),
 		"spark-application-controller-test")
-	monitor := newSparkPodEventHandler(queue.AddRateLimited, nil)
+	monitor := newSparkObjectEventHandler(queue.AddRateLimited, nil)
 	return monitor, queue
 }

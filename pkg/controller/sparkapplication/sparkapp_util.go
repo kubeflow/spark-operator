@@ -19,9 +19,11 @@ package sparkapplication
 import (
 	"fmt"
 
+	apiv1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta2"
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/config"
-	apiv1 "k8s.io/api/core/v1"
 )
 
 // Helper method to create a key with namespace and appName
@@ -29,8 +31,8 @@ func createMetaNamespaceKey(namespace, name string) string {
 	return fmt.Sprintf("%s/%s", namespace, name)
 }
 
-func getAppName(pod *apiv1.Pod) (string, bool) {
-	appName, ok := pod.Labels[config.SparkAppNameLabel]
+func getAppName(object metav1.Object) (string, bool) {
+	appName, ok := object.GetLabels()[config.SparkAppNameLabel]
 	return appName, ok
 }
 
