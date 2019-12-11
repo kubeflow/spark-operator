@@ -34,10 +34,6 @@ RUN apt-get update \
     && apt-get install -y openssl curl tini \
     && rm -rf /var/lib/apt/lists/*
 COPY hack/gencerts.sh /usr/bin/
-ENV TINI_VERSION v0.18.0
-ADD https://github.com/krallin/tini/releases/download/${TINI_VERSION}/tini /tini
-RUN chmod +x /tini \
-    && mv /tini /sbin/tini
 
 COPY entrypoint.sh /usr/bin/
 ENTRYPOINT ["/usr/bin/entrypoint.sh"]
