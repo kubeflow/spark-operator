@@ -43,7 +43,7 @@ spec:
           secretName: spark-webhook-certs
       containers:
       - name: sparkoperator
-        image: gcr.io/spark-operator/spark-operator:v2.4.4-v1beta2-latest
+        image: gcr.io/spark-operator/spark-operator:2.4.5-SNAPSHOT
         imagePullPolicy: Always
         volumeMounts:
         - name: webhook-certs
@@ -75,7 +75,7 @@ spec:
       restartPolicy: Never
       containers:
       - name: main
-        image: gcr.io/spark-operator/spark-operator:v2.4.4-v1beta2-latest
+        image: gcr.io/spark-operator/spark-operator:2.4.5-SNAPSHOT
         imagePullPolicy: IfNotPresent
         command: ["/usr/bin/gencerts.sh", "-p"]
 ---

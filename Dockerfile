@@ -14,7 +14,7 @@
 # limitations under the License.
 #
 
-ARG SPARK_IMAGE=gcr.io/spark-operator/spark:v2.4.4
+ARG SPARK_IMAGE=gcr.io/spark-operator/spark:2.4.5-SNAPSHOT
 
 FROM golang:1.12.5-alpine as builder
 ARG DEP_VERSION="0.5.3"
@@ -30,8 +30,14 @@ RUN go generate && CGO_ENABLED=0 GOOS=linux go build -o /usr/bin/spark-operator
 
 FROM ${SPARK_IMAGE}
 COPY --from=builder /usr/bin/spark-operator /usr/bin/
-RUN apk add --no-cache openssl curl tini
+RUN apt-get update \
+    && apt-get install -y openssl curl tini \
+    && rm -rf /var/lib/apt/lists/*
 COPY hack/gencerts.sh /usr/bin/
+ENV TINI_VERSION v0.18.0
+ADD https://github.com/krallin/tini/releases/download/${TINI_VERSION}/tini /tini
+RUN chmod +x /tini \
+    && mv /tini /sbin/tini
 
 COPY entrypoint.sh /usr/bin/
 ENTRYPOINT ["/usr/bin/entrypoint.sh"]

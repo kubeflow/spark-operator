@@ -64,9 +64,9 @@ metadata:
 spec:
   type: Scala
   mode: cluster
-  image: gcr.io/spark/spark:v2.4.4
+  image: gcr.io/spark/spark:v.4.5-SNAPSHOT
   mainClass: org.apache.spark.examples.SparkPi
-  mainApplicationFile: local:///opt/spark/examples/jars/spark-examples_2.11-2.4.4.jar
+  mainApplicationFile: local:///opt/spark/examples/jars/spark-examples_2.11-2.4.5-SNAPSHOT.jar
 ```
 
 ### Specifying Application Dependencies
@@ -130,7 +130,7 @@ spec:
     coreLimit: 200m
     memory: 512m
     labels:
-      version: 2.4.4
+      version: 2.4.5-SNAPSHOT
     serviceAccount: spark
 ```
 
@@ -150,7 +150,7 @@ spec:
     instances: 1
     memory: 512m
     labels:
-      version: 2.4.4
+      version: 2.4.5-SNAPSHOT
 ```
 
 ### Specifying Extra Java Options
@@ -179,7 +179,7 @@ spec:
       name: "amd.com/gpu"   # GPU resource name
       quantity: 1           # number of GPUs to request
     labels:
-      version: 2.4.4
+      version: 2.4.5-SNAPSHOT
     serviceAccount: spark
   executor:
     cores: 1
@@ -203,7 +203,7 @@ spec:
     memory: "512m"
     hostNetwork: true
     labels:
-      version: 2.4.4
+      version: 2.4.5-SNAPSHOT
     serviceAccount: spark
   executor:
     cores: 1
@@ -539,7 +539,7 @@ spec:
   template:
     type: Scala
     mode: cluster
-    image: gcr.io/spark/spark:v2.4.4
+    image: gcr.io/spark/spark:v2.4.5-SNAPSHOT
     mainClass: org.apache.spark.examples.SparkPi
     mainApplicationFile: local:///opt/spark/examples/jars/spark-examples_2.11-2.3.0.jar
     driver:

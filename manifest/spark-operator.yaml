@@ -39,7 +39,7 @@ spec:
       serviceAccountName: sparkoperator
       containers:
       - name: sparkoperator
-        image: gcr.io/spark-operator/spark-operator:v2.4.4-v1beta2-latest
+        image: gcr.io/spark-operator/spark-operator:2.4.5-SNAPSHOT
         imagePullPolicy: Always
         args:
         - -logtostderr
