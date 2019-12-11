@@ -135,16 +135,21 @@ func newSparkApplicationController(
 	controller.applicationLister = crdInformer.Lister()
 
 	podsInformer := informerFactory.Core().V1().Pods()
-	sparkPodEventHandler := newSparkPodEventHandler(controller.queue.AddRateLimited, controller.applicationLister)
+	sparkObjectEventHandler := newSparkObjectEventHandler(controller.queue.AddRateLimited, controller.applicationLister)
 	podsInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc:    sparkPodEventHandler.onPodAdded,
-		UpdateFunc: sparkPodEventHandler.onPodUpdated,
-		DeleteFunc: sparkPodEventHandler.onPodDeleted,
+		AddFunc:    sparkObjectEventHandler.onObjectAdded,
+		UpdateFunc: sparkObjectEventHandler.onObjectUpdated,
+		DeleteFunc: sparkObjectEventHandler.onObjectDeleted,
 	})
 	controller.podLister = podsInformer.Lister()
 
-	jobLister := informerFactory.Batch().V1().Jobs().Lister()
-	controller.subJobManager = &realSubmissionJobManager{kubeClient: kubeClient, jobLister: jobLister}
+	jobInformer := informerFactory.Batch().V1().Jobs()
+	jobInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		AddFunc:    sparkObjectEventHandler.onObjectAdded,
+		UpdateFunc: sparkObjectEventHandler.onObjectUpdated,
+		DeleteFunc: sparkObjectEventHandler.onObjectDeleted,
+	})
+	controller.subJobManager = &realSubmissionJobManager{kubeClient: kubeClient, jobLister: jobInformer.Lister()}
 
 	controller.cacheSynced = func() bool {
 		return crdInformer.Informer().HasSynced() && podsInformer.Informer().HasSynced()
