@@ -476,6 +476,9 @@ type ExecutorSpec struct {
 	// JavaOptions is a string of extra JVM options to pass to the executors. For instance,
 	// GC settings or other logging.
 	JavaOptions *string `json:"javaOptions,omitempty"`
+	// DeleteOnTermination specify whether executor pods should be deleted in case of failure or normal termination
+	// Optional
+	DeleteOnTermination *bool `json:"deleteOnTermination,omitempty"`
 }
 
 // NamePath is a pair of a name and a path to which the named objects should be mounted to.

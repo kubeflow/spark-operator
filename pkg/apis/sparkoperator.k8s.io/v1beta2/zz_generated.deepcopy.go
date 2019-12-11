@@ -187,6 +187,11 @@ func (in *ExecutorSpec) DeepCopyInto(out *ExecutorSpec) {
 		*out = new(string)
 		**out = **in
 	}
+	if in.DeleteOnTermination != nil {
+		in, out := &in.DeleteOnTermination, &out.DeleteOnTermination
+		*out = new(bool)
+		**out = **in
+	}
 	return
 }
 

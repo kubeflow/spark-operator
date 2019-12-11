@@ -135,6 +135,8 @@ const (
 	SparkDriverJavaOptions = "spark.driver.extraJavaOptions"
 	// SparkExecutorJavaOptions is the Spark configuration key for a string of extra JVM options to pass to executors.
 	SparkExecutorJavaOptions = "spark.executor.extraJavaOptions"
+	// SparkExecutorDeleteOnTermination is the Spark configuration for specifying whether executor pods should be deleted in case of failure or normal termination
+	SparkExecutorDeleteOnTermination = "spark.kubernetes.executor.deleteOnTermination"
 )
 
 const (
