@@ -43,11 +43,11 @@ func SetSparkApplicationDefaults(app *SparkApplication) {
 		}
 	}
 
-	setDriverSpecDefaults(app.Spec.Driver)
-	setExecutorSpecDefaults(app.Spec.Executor)
+	setDriverSpecDefaults(&app.Spec.Driver)
+	setExecutorSpecDefaults(&app.Spec.Executor)
 }
 
-func setDriverSpecDefaults(spec DriverSpec) {
+func setDriverSpecDefaults(spec *DriverSpec) {
 	if spec.Cores == nil {
 		spec.Cores = new(int32)
 		*spec.Cores = 1
@@ -58,7 +58,7 @@ func setDriverSpecDefaults(spec DriverSpec) {
 	}
 }
 
-func setExecutorSpecDefaults(spec ExecutorSpec) {
+func setExecutorSpecDefaults(spec *ExecutorSpec) {
 	if spec.Cores == nil {
 		spec.Cores = new(int32)
 		*spec.Cores = 1
