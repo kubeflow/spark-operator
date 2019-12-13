@@ -1,0 +1,22 @@
+stages:
+- build
+
+variables:
+    DEP_VERSION: "0.5.3"
+
+build:
+  stage: build
+  image: docker:stable
+  services:
+    - docker:dind
+  before_script:
+    - apk --no-cache add git
+  variables:
+    DOCKER_HOST: tcp://docker:2375
+  script:
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY ;
+    - tagStamp=$(git describe --dirty) ; echo tagStamp is ${tagStamp} ;
+    - echo CI_REGISTRY_IMAGE_TAG is ${CI_REGISTRY_IMAGE}/spark-operator:${tagStamp}
+    - time docker build -t ${CI_REGISTRY_IMAGE}/spark-operator:${tagStamp} .
+    - time docker push ${CI_REGISTRY_IMAGE}/spark-operator:${tagStamp}
+    - docker images
