@@ -48,6 +48,7 @@ func patchSparkPod(pod *corev1.Pod, app *v1beta2.SparkApplication) []patchOperat
 	if util.IsDriverPod(pod) {
 		patchOps = append(patchOps, addOwnerReference(pod, app))
 	}
+
 	patchOps = append(patchOps, addVolumes(pod, app)...)
 	patchOps = append(patchOps, addGeneralConfigMaps(pod, app)...)
 	patchOps = append(patchOps, addSparkConfigMap(pod, app)...)
@@ -101,6 +102,7 @@ func addOwnerReference(pod *corev1.Pod, app *v1beta2.SparkApplication) patchOper
 
 func addVolumes(pod *corev1.Pod, app *v1beta2.SparkApplication) []patchOperation {
 	volumes := app.Spec.Volumes
+
 	volumeMap := make(map[string]corev1.Volume)
 	for _, v := range volumes {
 		volumeMap[v.Name] = v
@@ -115,6 +117,11 @@ func addVolumes(pod *corev1.Pod, app *v1beta2.SparkApplication) []patchOperation
 
 	var ops []patchOperation
 	for _, m := range volumeMounts {
+		// Skip adding localDirVolumes
+		if strings.HasPrefix(m.Name, config.SparkLocalDirVolumePrefix) {
+			continue
+		}
+
 		if v, ok := volumeMap[m.Name]; ok {
 			ops = append(ops, addVolume(pod, v))
 			ops = append(ops, addVolumeMount(pod, m))

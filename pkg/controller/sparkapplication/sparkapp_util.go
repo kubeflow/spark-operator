@@ -18,6 +18,8 @@ package sparkapplication
 
 import (
 	"fmt"
+	v1 "k8s.io/api/core/v1"
+	"k8s.io/kubernetes/pkg/apis/policy"
 
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta2"
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/config"
@@ -117,4 +119,17 @@ func driverStateToApplicationState(podStatus apiv1.PodStatus) v1beta2.Applicatio
 	default:
 		return v1beta2.UnknownState
 	}
+}
+
+func getVolumeFSType(v v1.Volume) (policy.FSType, error) {
+	switch {
+	case v.HostPath != nil:
+		return policy.HostPath, nil
+	case v.EmptyDir != nil:
+		return policy.EmptyDir, nil
+	case v.PersistentVolumeClaim != nil:
+		return policy.PersistentVolumeClaim, nil
+	}
+
+	return "", fmt.Errorf("unknown volume type for volume: %#v", v)
 }

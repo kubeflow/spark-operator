@@ -27,6 +27,7 @@ The Kubernetes Operator for Apache Spark ships with a command-line tool called `
     * [Using Tolerations](#using-tolerations)
     * [Using Pod Security Context](#using-pod-security-context)
     * [Using Sidecar Containers](#using-sidecar-containers)
+    * [Using Volume For Scratch Space](#using-volume-for-scratch-space)
     * [Python Support](#python-support)
     * [Monitoring](#monitoring) 
 * [Working with SparkApplications](#working-with-sparkapplications)
@@ -416,6 +417,73 @@ spec:
 
 Note that the mutating admission webhook is needed to use this feature. Please refer to the 
 [Quick Start Guide](quick-start-guide.md) on how to enable the mutating admission webhook.
+
+
+### Using Volume For Scratch Space
+By default, Spark uses temporary scratch space to spill data to disk during shuffles and other operations.
+In order to use volume, volume's name should starts with `spark-local-dir-`.
+
+
+```
+spec:
+  volumes:
+    - name: "spark-local-dir-1"
+      hostPath:
+        path: "/tmp/spark-local-dir"
+    executor:
+      volumeMounts:
+        - name: "spark-local-dir-1"
+          mountPath: "/tmp/spark-local-dir"
+      ...
+```
+
+Then you will get `SPARK_LOCAL_DIRS` set to `/tmp/spark-local-dir` in the pod like below.
+
+```yaml
+Environment:
+  SPARK_USER:                 root
+  SPARK_DRIVER_BIND_ADDRESS:   (v1:status.podIP)
+  SPARK_LOCAL_DIRS:           /tmp/spark-local-dir
+  SPARK_CONF_DIR:             /opt/spark/conf
+```
+
+
+> Note: Multiple volumes can be used together
+
+```
+spec:
+  volumes:
+    - name: "spark-local-dir-1"
+      hostPath:
+        path: "/mnt/dir1"
+    - name: "spark-local-dir-2"
+      hostPath:
+        path: "/mnt/dir2"
+    executor:
+      volumeMounts:
+        - name: "spark-local-dir-1"
+          mountPath: "/tmp/dir1"
+        - name: "spark-local-dir-1"
+          mountPath: "/tmp/dir2"
+      ...
+```
+
+> Note: Besides `HostPath`, `PersistentVolumeClaim` can be used as well.
+
+```yaml
+spec:
+  volumes:
+    - name: "spark-local-dir-1"
+      persistentVolumeClaim:
+        claimName: network-file-storage
+  executor:
+    volumeMounts:
+      - name: "spark-local-dir-1"
+        mountPath: "/tmp/dir1"
+```
+
+
+#### Use Persistent Volume
 
 ### Python Support
 

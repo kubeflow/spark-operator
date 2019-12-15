@@ -25,7 +25,9 @@ import (
 	"strings"
 
 	"github.com/golang/glog"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/kubernetes/pkg/apis/policy"
 
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta2"
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/config"
@@ -163,6 +165,17 @@ func buildSubmissionCommandArgs(app *v1beta2.SparkApplication, driverPodName str
 	}
 	for _, option := range options {
 		args = append(args, "--conf", option)
+	}
+
+	if app.Spec.Volumes != nil {
+		options, err = addLocalDirConfOptions(app)
+		if err != nil {
+			return nil, err
+		}
+
+		for _, option := range options {
+			args = append(args, "--conf", option)
+		}
 	}
 
 	if app.Spec.MainApplicationFile != nil {
@@ -371,4 +384,76 @@ func addExecutorConfOptions(app *v1beta2.SparkApplication, submissionID string) 
 	executorConfOptions = append(executorConfOptions, config.GetExecutorEnvVarConfOptions(app)...)
 
 	return executorConfOptions, nil
+}
+
+// addLocalDirConfOptions excludes local dir volumes, update SparkApplication and returns local dir config options
+func addLocalDirConfOptions(app *v1beta2.SparkApplication) ([]string, error) {
+	var localDirConfOptions []string
+
+	sparkLocalVolumes := map[string]v1.Volume{}
+	var mutateVolumes []v1.Volume
+
+	// Filter local dir volumes
+	for _, volume := range app.Spec.Volumes {
+		if strings.HasPrefix(volume.Name, config.SparkLocalDirVolumePrefix) {
+			sparkLocalVolumes[volume.Name] = volume
+		} else {
+			mutateVolumes = append(mutateVolumes, volume)
+		}
+	}
+	app.Spec.Volumes = mutateVolumes
+
+	// Filter local dir volumeMounts and set mutate volume mounts to driver and executor
+	if app.Spec.Driver.VolumeMounts != nil {
+		driverMutateVolumeMounts, driverLocalDirConfConfOptions := filterMutateMountVolumes(app.Spec.Driver.VolumeMounts, config.SparkDriverVolumesPrefix, sparkLocalVolumes)
+		app.Spec.Driver.VolumeMounts = driverMutateVolumeMounts
+		localDirConfOptions = append(localDirConfOptions, driverLocalDirConfConfOptions...)
+	}
+
+	if app.Spec.Executor.VolumeMounts != nil {
+		executorMutateVolumeMounts, executorLocalDirConfConfOptions := filterMutateMountVolumes(app.Spec.Executor.VolumeMounts, config.SparkExecutorVolumesPrefix, sparkLocalVolumes)
+		app.Spec.Executor.VolumeMounts = executorMutateVolumeMounts
+		localDirConfOptions = append(localDirConfOptions, executorLocalDirConfConfOptions...)
+	}
+
+	return localDirConfOptions, nil
+}
+
+func filterMutateMountVolumes(volumeMounts []v1.VolumeMount, prefix string, sparkLocalVolumes map[string]v1.Volume) ([]v1.VolumeMount, []string) {
+	var mutateMountVolumes []v1.VolumeMount
+	var localDirConfOptions []string
+	for _, volumeMount := range volumeMounts {
+		if volume, ok := sparkLocalVolumes[volumeMount.Name]; ok {
+			options := buildLocalVolumeOptions(prefix, volume, volumeMount)
+			for _, option := range options {
+				localDirConfOptions = append(localDirConfOptions, option)
+			}
+		} else {
+			mutateMountVolumes = append(mutateMountVolumes, volumeMount)
+		}
+	}
+
+	return mutateMountVolumes, localDirConfOptions
+}
+
+func buildLocalVolumeOptions(prefix string, volume v1.Volume, volumeMount v1.VolumeMount) []string {
+	VolumeMountPathTemplate := prefix + "%s.%s.mount.path=%s"
+	VolumeMountOptionTemplate := prefix + "%s.%s.options.%s=%s"
+
+	var options []string
+	switch {
+	case volume.HostPath != nil:
+		options = append(options, fmt.Sprintf(VolumeMountPathTemplate, string(policy.HostPath), volume.Name, volumeMount.MountPath))
+		options = append(options, fmt.Sprintf(VolumeMountOptionTemplate, string(policy.HostPath), volume.Name, "path", volume.HostPath.Path))
+		if volume.HostPath.Type != nil {
+			options = append(options, fmt.Sprintf(VolumeMountOptionTemplate, string(policy.HostPath), volume.Name, "type", *volume.HostPath.Type))
+		}
+	case volume.EmptyDir != nil:
+		options = append(options, fmt.Sprintf(VolumeMountPathTemplate, string(policy.EmptyDir), volume.Name, volumeMount.MountPath))
+	case volume.PersistentVolumeClaim != nil:
+		options = append(options, fmt.Sprintf(VolumeMountPathTemplate, string(policy.PersistentVolumeClaim), volume.Name, volumeMount.MountPath))
+		options = append(options, fmt.Sprintf(VolumeMountOptionTemplate, string(policy.PersistentVolumeClaim), volume.Name, "claimName", volume.PersistentVolumeClaim.ClaimName))
+	}
+
+	return options
 }

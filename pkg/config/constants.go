@@ -106,6 +106,10 @@ const (
 	SparkDriverLabelKeyPrefix = "spark.kubernetes.driver.label."
 	// SparkExecutorLabelKeyPrefix is the Spark configuration key prefix for labels on the executor Pods.
 	SparkExecutorLabelKeyPrefix = "spark.kubernetes.executor.label."
+	// SparkDriverVolumesPrefix is the Spark volumes configuration for mounting a volume into the driver pod.
+	SparkDriverVolumesPrefix = "spark.kubernetes.driver.volumes."
+	// SparkExecutorVolumesPrefix is the Spark volumes configuration for mounting a volume into the driver pod.
+	SparkExecutorVolumesPrefix = "spark.kubernetes.executor.volumes."
 	// SparkDriverPodNameKey is the Spark configuration key for driver pod name.
 	SparkDriverPodNameKey = "spark.kubernetes.driver.pod.name"
 	// SparkDriverServiceAccountName is the Spark configuration key for specifying name of the Kubernetes service
@@ -269,4 +273,7 @@ const (
 	SparkDriverContainerName = "spark-kubernetes-driver"
 	// SparkExecutorContainerName is name of executor container in spark executor pod
 	SparkExecutorContainerName = "executor"
+
+	// SparkLocalDirVolumePrefix is the volume name prefix for "scratch" space directory
+	SparkLocalDirVolumePrefix = "spark-local-dir-"
 )
