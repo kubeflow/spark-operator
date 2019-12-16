@@ -27,6 +27,7 @@ The Kubernetes Operator for Apache Spark ships with a command-line tool called `
     * [Using Tolerations](#using-tolerations)
     * [Using Pod Security Context](#using-pod-security-context)
     * [Using Sidecar Containers](#using-sidecar-containers)
+    * [Using Init-Containers](#using-init-Containers)
     * [Using Volume For Scratch Space](#using-volume-for-scratch-space)
     * [Python Support](#python-support)
     * [Monitoring](#monitoring) 
@@ -397,6 +398,27 @@ spec:
       ...
 ```
 
+### Using Init-Containers
+
+A `SparkApplication` can soptionally pecify one or more [init-containers](https://kubernetes.io/docs/concepts/workloads/pods/init-containers/) for the driver or executor pod, using the optional field `.spec.driver.initContainers` or `.spec.executor.initContainers`, respectively. The specification of each init-container follows the [Container](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.14/#container-v1-core) API definition. Below is an example:
+
+```yaml
+spec:
+  driver:
+    initContainers:
+    - name: "init-container1"
+      image: "init-container1:latest"
+      ...  
+  executor:
+    initContainers:
+    - name: "init-container1"
+      image: "init-container1:latest"
+      ...
+```
+
+Note that the mutating admission webhook is needed to use this feature. Please refer to the 
+[Quick Start Guide](quick-start-guide.md) on how to enable the mutating admission webhook.
+
 ### Using DNS Settings
 A `SparkApplication` can define DNS settings for the driver and/or executor pod, by adding the standart [DNS](https://kubernetes.io/docs/concepts/services-networking/dns-pod-service/#pod-s-dns-config) kubernetes settings. Fields to add such configuration are `.spec.driver.dnsConfig` and `.spec.executor.dnsConfig`. Example:
 
@@ -417,7 +439,6 @@ spec:
 
 Note that the mutating admission webhook is needed to use this feature. Please refer to the 
 [Quick Start Guide](quick-start-guide.md) on how to enable the mutating admission webhook.
-
 
 ### Using Volume For Scratch Space
 By default, Spark uses temporary scratch space to spill data to disk during shuffles and other operations.

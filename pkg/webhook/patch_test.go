@@ -774,6 +774,97 @@ func TestPatchSparkPod_Sidecars(t *testing.T) {
 	assert.Equal(t, "sidecar2", modifiedExecutorPod.Spec.Containers[2].Name)
 }
 
+func TestPatchSparkPod_InitContainers(t *testing.T) {
+	app := &v1beta2.SparkApplication{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "spark-test",
+			UID:  "spark-test-1",
+		},
+		Spec: v1beta2.SparkApplicationSpec{
+			Driver: v1beta2.DriverSpec{
+				SparkPodSpec: v1beta2.SparkPodSpec{
+					InitContainers: []corev1.Container{
+						{
+							Name:  "init-container1",
+							Image: "init-container1:latest",
+						},
+						{
+							Name:  "init-container2",
+							Image: "init-container2:latest",
+						},
+					},
+				},
+			},
+			Executor: v1beta2.ExecutorSpec{
+				SparkPodSpec: v1beta2.SparkPodSpec{
+					InitContainers: []corev1.Container{
+						{
+							Name:  "init-container1",
+							Image: "init-container1:latest",
+						},
+						{
+							Name:  "init-container2",
+							Image: "init-container2:latest",
+						},
+					},
+				},
+			},
+		},
+	}
+
+	driverPod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "spark-driver",
+			Labels: map[string]string{
+				config.SparkRoleLabel:               config.SparkDriverRole,
+				config.LaunchedBySparkOperatorLabel: "true",
+			},
+		},
+		Spec: corev1.PodSpec{
+			Containers: []corev1.Container{
+				{
+					Name:  config.SparkDriverContainerName,
+					Image: "spark-driver:latest",
+				},
+			},
+		},
+	}
+
+	modifiedDriverPod, err := getModifiedPod(driverPod, app)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assert.Equal(t, 2, len(modifiedDriverPod.Spec.InitContainers))
+	assert.Equal(t, "init-container1", modifiedDriverPod.Spec.InitContainers[0].Name)
+	assert.Equal(t, "init-container2", modifiedDriverPod.Spec.InitContainers[1].Name)
+
+	executorPod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "spark-executor",
+			Labels: map[string]string{
+				config.SparkRoleLabel:               config.SparkExecutorRole,
+				config.LaunchedBySparkOperatorLabel: "true",
+			},
+		},
+		Spec: corev1.PodSpec{
+			Containers: []corev1.Container{
+				{
+					Name:  config.SparkExecutorContainerName,
+					Image: "spark-executor:latest",
+				},
+			},
+		},
+	}
+
+	modifiedExecutorPod, err := getModifiedPod(executorPod, app)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assert.Equal(t, 2, len(modifiedExecutorPod.Spec.InitContainers))
+	assert.Equal(t, "init-container1", modifiedExecutorPod.Spec.InitContainers[0].Name)
+	assert.Equal(t, "init-container2", modifiedExecutorPod.Spec.InitContainers[1].Name)
+}
+
 func TestPatchSparkPod_DNSConfig(t *testing.T) {
 	aVal := "5"
 	sampleDNSConfig := &corev1.PodDNSConfig{
@@ -957,7 +1048,7 @@ func TestPatchSparkPod_GPU(t *testing.T) {
 			quantity := modifiedPod.Spec.Containers[0].Resources.Limits[corev1.ResourceName(test.gpuSpec.Name)]
 			count, succeed := (&quantity).AsInt64()
 			if succeed != true {
-				t.Fatal(fmt.Errorf("value cannot be represented in an int64 OR would result in a loss of precision."))
+				t.Fatal(fmt.Errorf("value cannot be represented in an int64 OR would result in a loss of precision"))
 			}
 			assert.Equal(t, test.gpuSpec.Quantity, count)
 		}
@@ -967,7 +1058,7 @@ func TestPatchSparkPod_GPU(t *testing.T) {
 			quantity := modifiedPod.Spec.Containers[0].Resources.Requests[corev1.ResourceCPU]
 			count, succeed := (&quantity).AsInt64()
 			if succeed != true {
-				t.Fatal(fmt.Errorf("value cannot be represented in an int64 OR would result in a loss of precision."))
+				t.Fatal(fmt.Errorf("value cannot be represented in an int64 OR would result in a loss of precision"))
 			}
 			assert.Equal(t, *test.cpuRequests, count)
 		}
@@ -977,7 +1068,7 @@ func TestPatchSparkPod_GPU(t *testing.T) {
 			quantity := modifiedPod.Spec.Containers[0].Resources.Limits[corev1.ResourceCPU]
 			count, succeed := (&quantity).AsInt64()
 			if succeed != true {
-				t.Fatal(fmt.Errorf("value cannot be represented in an int64 OR would result in a loss of precision."))
+				t.Fatal(fmt.Errorf("value cannot be represented in an int64 OR would result in a loss of precision"))
 			}
 			assert.Equal(t, *test.cpuLimits, count)
 		}
@@ -1038,22 +1129,22 @@ func TestPatchSparkPod_GPU(t *testing.T) {
 			&cpuRequest,
 		},
 		{
-			&v1beta2.GPUSpec{"example.com/gpu", 1},
+			&v1beta2.GPUSpec{Name: "example.com/gpu", Quantity: 1},
 			nil,
 			nil,
 		},
 		{
-			&v1beta2.GPUSpec{"example.com/gpu", 1},
+			&v1beta2.GPUSpec{Name: "example.com/gpu", Quantity: 1},
 			&cpuLimit,
 			nil,
 		},
 		{
-			&v1beta2.GPUSpec{"example.com/gpu", 1},
+			&v1beta2.GPUSpec{Name: "example.com/gpu", Quantity: 1},
 			nil,
 			&cpuRequest,
 		},
 		{
-			&v1beta2.GPUSpec{"example.com/gpu", 1},
+			&v1beta2.GPUSpec{Name: "example.com/gpu", Quantity: 1},
 			&cpuLimit,
 			&cpuRequest,
 		},
