@@ -56,6 +56,7 @@ func patchSparkPod(pod *corev1.Pod, app *v1beta2.SparkApplication) []patchOperat
 	patchOps = append(patchOps, addPrometheusConfigMap(pod, app)...)
 	patchOps = append(patchOps, addTolerations(pod, app)...)
 	patchOps = append(patchOps, addSidecarContainers(pod, app)...)
+	patchOps = append(patchOps, addInitContainers(pod, app)...)
 	patchOps = append(patchOps, addHostNetwork(pod, app)...)
 	patchOps = append(patchOps, addNodeSelectors(pod, app)...)
 	patchOps = append(patchOps, addDNSConfig(pod, app)...)
@@ -453,6 +454,34 @@ func addSidecarContainers(pod *corev1.Pod, app *v1beta2.SparkApplication) []patc
 	return ops
 }
 
+func addInitContainers(pod *corev1.Pod, app *v1beta2.SparkApplication) []patchOperation {
+	var initContainers []corev1.Container
+	if util.IsDriverPod(pod) {
+		initContainers = app.Spec.Driver.InitContainers
+	} else if util.IsExecutorPod(pod) {
+		initContainers = app.Spec.Executor.InitContainers
+	}
+
+	first := false
+	if len(pod.Spec.InitContainers) == 0 {
+		first = true
+	}
+
+	var ops []patchOperation
+	for _, c := range initContainers {
+		sd := c
+		if first {
+			first = false
+			value := []corev1.Container{sd}
+			ops = append(ops, patchOperation{Op: "add", Path: "/spec/initContainers", Value: value})
+		} else if !hasInitContainer(pod, &sd) {
+			ops = append(ops, patchOperation{Op: "add", Path: "/spec/initContainers/-", Value: &sd})
+		}
+
+	}
+	return ops
+}
+
 func addGPU(pod *corev1.Pod, app *v1beta2.SparkApplication) *patchOperation {
 	var gpu *v1beta2.GPUSpec
 	if util.IsDriverPod(pod) {
@@ -516,6 +545,15 @@ func addHostNetwork(pod *corev1.Pod, app *v1beta2.SparkApplication) []patchOpera
 
 func hasContainer(pod *corev1.Pod, container *corev1.Container) bool {
 	for _, c := range pod.Spec.Containers {
+		if container.Name == c.Name && container.Image == c.Image {
+			return true
+		}
+	}
+	return false
+}
+
+func hasInitContainer(pod *corev1.Pod, container *corev1.Container) bool {
+	for _, c := range pod.Spec.InitContainers {
 		if container.Name == c.Name && container.Image == c.Image {
 			return true
 		}
