@@ -36,3 +36,10 @@ install-sparkctl: | sparkctl/sparkctl-darwin-amd64 sparkctl/sparkctl-linux-amd64
 	else \
 		echo "$(UNAME) not supported"; \
 	fi
+
+build-api-docs:
+	hack/api-ref-docs \
+	-config hack/api-docs-config.json \
+	-api-dir github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta2 \
+	-template-dir hack/api-docs-template \
+	-out-file docs/api-docs.md
