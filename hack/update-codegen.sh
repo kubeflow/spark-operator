@@ -27,7 +27,7 @@ CODEGEN_PKG=${CODEGEN_PKG:-$(cd ${SCRIPT_ROOT}; ls -d -1 ./vendor/k8s.io/code-ge
 #                  instead of the $GOPATH directly. For normal projects this can be dropped.
 ${CODEGEN_PKG}/generate-groups.sh "all" \
   github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/client github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis \
-  sparkoperator.k8s.io:v1alpha1,v1beta1,v1beta2 \
+  sparkoperator.k8s.io:v1beta1,v1beta2 \
   --go-header-file "$(dirname ${BASH_SOURCE})/custom-boilerplate.go.txt" \
   --output-base "$(dirname ${BASH_SOURCE})/../../../.."
 

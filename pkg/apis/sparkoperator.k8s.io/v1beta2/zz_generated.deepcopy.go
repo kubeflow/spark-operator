@@ -818,6 +818,13 @@ func (in *SparkPodSpec) DeepCopyInto(out *SparkPodSpec) {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
 	}
+	if in.InitContainers != nil {
+		in, out := &in.InitContainers, &out.InitContainers
+		*out = make([]v1.Container, len(*in))
+		for i := range *in {
+			(*in)[i].DeepCopyInto(&(*out)[i])
+		}
+	}
 	if in.HostNetwork != nil {
 		in, out := &in.HostNetwork, &out.HostNetwork
 		*out = new(bool)

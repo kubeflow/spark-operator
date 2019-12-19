@@ -23,7 +23,6 @@ package externalversions
 import (
 	"fmt"
 
-	v1alpha1 "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1alpha1"
 	v1beta1 "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta1"
 	v1beta2 "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta2"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"
@@ -56,13 +55,7 @@ func (f *genericInformer) Lister() cache.GenericLister {
 // TODO extend this to unknown resources with a client pool
 func (f *sharedInformerFactory) ForResource(resource schema.GroupVersionResource) (GenericInformer, error) {
 	switch resource {
-	// Group=sparkoperator.k8s.io, Version=v1alpha1
-	case v1alpha1.SchemeGroupVersion.WithResource("scheduledsparkapplications"):
-		return &genericInformer{resource: resource.GroupResource(), informer: f.Sparkoperator().V1alpha1().ScheduledSparkApplications().Informer()}, nil
-	case v1alpha1.SchemeGroupVersion.WithResource("sparkapplications"):
-		return &genericInformer{resource: resource.GroupResource(), informer: f.Sparkoperator().V1alpha1().SparkApplications().Informer()}, nil
-
-		// Group=sparkoperator.k8s.io, Version=v1beta1
+	// Group=sparkoperator.k8s.io, Version=v1beta1
 	case v1beta1.SchemeGroupVersion.WithResource("scheduledsparkapplications"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Sparkoperator().V1beta1().ScheduledSparkApplications().Informer()}, nil
 	case v1beta1.SchemeGroupVersion.WithResource("sparkapplications"):
