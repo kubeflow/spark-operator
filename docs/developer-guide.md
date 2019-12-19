@@ -83,3 +83,13 @@ To run unit tests, run the following command:
 ```bash
 $ go test ./...
 ```
+
+## Build the API Specification Doc
+
+When you update the API, or specifically the `SparkApplication` and `ScheduledSparkApplication` specifications, the API specification doc needs to be updated. To update the API specification doc, run the following command:
+
+```bash
+make build-api-docs
+```
+
+Running the aboe command will update the file `docs/api-docs.md`.
