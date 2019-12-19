@@ -24,4 +24,4 @@ if [[ -z "$uidentry" ]] ; then
     fi
 fi
 
-exec /sbin/tini -s -- /usr/bin/spark-operator "$@"
+exec /usr/bin/tini -s -- /usr/bin/spark-operator "$@"
