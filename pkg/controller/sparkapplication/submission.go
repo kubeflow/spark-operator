@@ -269,6 +269,10 @@ func addDriverConfOptions(app *v1beta2.SparkApplication, submissionID string) ([
 		driverConfOptions = append(driverConfOptions,
 			fmt.Sprintf("spark.driver.cores=%d", *app.Spec.Driver.Cores))
 	}
+	if app.Spec.Driver.CoreRequest != nil {
+		driverConfOptions = append(driverConfOptions,
+			fmt.Sprintf("%s=%s", config.SparkDriverCoreRequestKey, *app.Spec.Driver.CoreRequest))
+	}
 	if app.Spec.Driver.CoreLimit != nil {
 		driverConfOptions = append(driverConfOptions,
 			fmt.Sprintf("%s=%s", config.SparkDriverCoreLimitKey, *app.Spec.Driver.CoreLimit))
@@ -333,14 +337,14 @@ func addExecutorConfOptions(app *v1beta2.SparkApplication, submissionID string) 
 			fmt.Sprintf("%s=%s", config.SparkExecutorContainerImageKey, *app.Spec.Executor.Image))
 	}
 
-	if app.Spec.Executor.CoreRequest != nil {
-		executorConfOptions = append(executorConfOptions,
-			fmt.Sprintf("%s=%s", config.SparkExecutorCoreRequestKey, *app.Spec.Executor.CoreRequest))
-	}
 	if app.Spec.Executor.Cores != nil {
 		// Property "spark.executor.cores" does not allow float values.
 		executorConfOptions = append(executorConfOptions,
 			fmt.Sprintf("spark.executor.cores=%d", int32(*app.Spec.Executor.Cores)))
+	}
+	if app.Spec.Executor.CoreRequest != nil {
+		executorConfOptions = append(executorConfOptions,
+			fmt.Sprintf("%s=%s", config.SparkExecutorCoreRequestKey, *app.Spec.Executor.CoreRequest))
 	}
 	if app.Spec.Executor.CoreLimit != nil {
 		executorConfOptions = append(executorConfOptions,

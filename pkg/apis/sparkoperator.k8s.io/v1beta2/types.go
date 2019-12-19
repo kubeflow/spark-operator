@@ -382,7 +382,7 @@ type Dependencies struct {
 // SparkPodSpec defines common things that can be customized for a Spark driver or executor pod.
 // TODO: investigate if we should use v1.PodSpec and limit what can be set instead.
 type SparkPodSpec struct {
-	// Cores is the number of CPU cores to request for the pod.
+	// Cores maps to `spark.driver.cores` or `spark.executor.cores` for the driver and executors, respectively.
 	// +optional
 	// +kubebuilder:validation:Minimum=1
 	Cores *int32 `json:"cores,omitempty"`
@@ -467,6 +467,10 @@ type DriverSpec struct {
 	// +optional
 	// +kubebuilder:validation:Pattern=[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*
 	PodName *string `json:"podName,omitempty"`
+	// CoreRequest is the physical CPU core request for the driver.
+	// Maps to `spark.kubernetes.driver.request.cores` that is available since Spark 3.0.
+	// +optional
+	CoreRequest *string `json:"coreRequest,omitempty"`
 	// ServiceAccount is the name of the Kubernetes service account used by the driver pod
 	// when requesting executor pods from the API server.
 	ServiceAccount *string `json:"serviceAccount,omitempty"`
@@ -483,13 +487,16 @@ type ExecutorSpec struct {
 	// +kubebuilder:validation:Minimum=1
 	Instances *int32 `json:"instances,omitempty"`
 	// CoreRequest is the physical CPU core request for the executors.
+	// Maps to `spark.kubernetes.executor.request.cores` that is available since Spark 2.4.
 	// +optional
 	CoreRequest *string `json:"coreRequest,omitempty"`
 	// JavaOptions is a string of extra JVM options to pass to the executors. For instance,
 	// GC settings or other logging.
+	// +optional
 	JavaOptions *string `json:"javaOptions,omitempty"`
-	// DeleteOnTermination specify whether executor pods should be deleted in case of failure or normal termination
-	// Optional
+	// DeleteOnTermination specify whether executor pods should be deleted in case of failure or normal termination.
+	// Maps to `spark.kubernetes.executor.deleteOnTermination` that is available since Spark 3.0.
+	// +optional
 	DeleteOnTermination *bool `json:"deleteOnTermination,omitempty"`
 }
 
