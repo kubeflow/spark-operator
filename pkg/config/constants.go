@@ -74,12 +74,14 @@ const (
 	SparkDriverContainerImageKey = "spark.kubernetes.driver.container.image"
 	// SparkExecutorContainerImageKey is the configuration property for specifying a custom executor container image.
 	SparkExecutorContainerImageKey = "spark.kubernetes.executor.container.image"
+	// SparkDriverCoreRequestKey is the configuration property for specifying the physical CPU request for the driver.
+	SparkDriverCoreRequestKey = "spark.kubernetes.driver.request.cores"
+	// SparkExecutorCoreRequestKey is the configuration property for specifying the physical CPU request for executors.
+	SparkExecutorCoreRequestKey = "spark.kubernetes.executor.request.cores"
 	// SparkDriverCoreLimitKey is the configuration property for specifying the hard CPU limit for the driver pod.
 	SparkDriverCoreLimitKey = "spark.kubernetes.driver.limit.cores"
 	// SparkExecutorCoreLimitKey is the configuration property for specifying the hard CPU limit for the executor pods.
 	SparkExecutorCoreLimitKey = "spark.kubernetes.executor.limit.cores"
-	// SparkExecutorCoreRequestKey is the configuration property for specifying the physical CPU request for executors.
-	SparkExecutorCoreRequestKey = "spark.kubernetes.executor.request.cores"
 	// SparkDriverSecretKeyPrefix is the configuration property prefix for specifying secrets to be mounted into the
 	// driver.
 	SparkDriverSecretKeyPrefix = "spark.kubernetes.driver.secrets."

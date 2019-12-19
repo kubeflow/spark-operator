@@ -946,6 +946,19 @@ in-cluster-client.</p>
 </tr>
 <tr>
 <td>
+<code>coreRequest</code></br>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>CoreRequest is the physical CPU core request for the driver.
+Maps to <code>spark.kubernetes.driver.request.cores</code> that is available since Spark 3.0.</p>
+</td>
+</tr>
+<tr>
+<td>
 <code>serviceAccount</code></br>
 <em>
 string
@@ -1023,7 +1036,8 @@ string
 </td>
 <td>
 <em>(Optional)</em>
-<p>CoreRequest is the physical CPU core request for the executors.</p>
+<p>CoreRequest is the physical CPU core request for the executors.
+Maps to <code>spark.kubernetes.executor.request.cores</code> that is available since Spark 2.4.</p>
 </td>
 </tr>
 <tr>
@@ -1034,6 +1048,7 @@ string
 </em>
 </td>
 <td>
+<em>(Optional)</em>
 <p>JavaOptions is a string of extra JVM options to pass to the executors. For instance,
 GC settings or other logging.</p>
 </td>
@@ -1046,8 +1061,9 @@ bool
 </em>
 </td>
 <td>
-<p>DeleteOnTermination specify whether executor pods should be deleted in case of failure or normal termination
-Optional</p>
+<em>(Optional)</em>
+<p>DeleteOnTermination specify whether executor pods should be deleted in case of failure or normal termination.
+Maps to <code>spark.kubernetes.executor.deleteOnTermination</code> that is available since Spark 3.0.</p>
 </td>
 </tr>
 </tbody>
@@ -2216,7 +2232,7 @@ int32
 </td>
 <td>
 <em>(Optional)</em>
-<p>Cores is the number of CPU cores to request for the pod.</p>
+<p>Cores maps to <code>spark.driver.cores</code> or <code>spark.executor.cores</code> for the driver and executors, respectively.</p>
 </td>
 </tr>
 <tr>
@@ -2515,5 +2531,5 @@ Kubernetes core/v1.PodDNSConfig
 <hr/>
 <p><em>
 Generated with <code>gen-crd-api-reference-docs</code>
-on git commit <code>988409b</code>.
+on git commit <code>1b96b7b</code>.
 </em></p>
