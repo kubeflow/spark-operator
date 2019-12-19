@@ -21,7 +21,6 @@ limitations under the License.
 package scheme
 
 import (
-	sparkoperatorv1alpha1 "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1alpha1"
 	sparkoperatorv1beta1 "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta1"
 	sparkoperatorv1beta2 "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta2"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -35,7 +34,6 @@ var Scheme = runtime.NewScheme()
 var Codecs = serializer.NewCodecFactory(Scheme)
 var ParameterCodec = runtime.NewParameterCodec(Scheme)
 var localSchemeBuilder = runtime.SchemeBuilder{
-	sparkoperatorv1alpha1.AddToScheme,
 	sparkoperatorv1beta1.AddToScheme,
 	sparkoperatorv1beta2.AddToScheme,
 }

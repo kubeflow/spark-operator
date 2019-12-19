@@ -21,7 +21,6 @@ limitations under the License.
 package versioned
 
 import (
-	sparkoperatorv1alpha1 "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/client/clientset/versioned/typed/sparkoperator.k8s.io/v1alpha1"
 	sparkoperatorv1beta1 "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/client/clientset/versioned/typed/sparkoperator.k8s.io/v1beta1"
 	sparkoperatorv1beta2 "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/client/clientset/versioned/typed/sparkoperator.k8s.io/v1beta2"
 	discovery "k8s.io/client-go/discovery"
@@ -31,7 +30,6 @@ import (
 
 type Interface interface {
 	Discovery() discovery.DiscoveryInterface
-	SparkoperatorV1alpha1() sparkoperatorv1alpha1.SparkoperatorV1alpha1Interface
 	SparkoperatorV1beta1() sparkoperatorv1beta1.SparkoperatorV1beta1Interface
 	SparkoperatorV1beta2() sparkoperatorv1beta2.SparkoperatorV1beta2Interface
 	// Deprecated: please explicitly pick a version if possible.
@@ -42,14 +40,8 @@ type Interface interface {
 // version included in a Clientset.
 type Clientset struct {
 	*discovery.DiscoveryClient
-	sparkoperatorV1alpha1 *sparkoperatorv1alpha1.SparkoperatorV1alpha1Client
-	sparkoperatorV1beta1  *sparkoperatorv1beta1.SparkoperatorV1beta1Client
-	sparkoperatorV1beta2  *sparkoperatorv1beta2.SparkoperatorV1beta2Client
-}
-
-// SparkoperatorV1alpha1 retrieves the SparkoperatorV1alpha1Client
-func (c *Clientset) SparkoperatorV1alpha1() sparkoperatorv1alpha1.SparkoperatorV1alpha1Interface {
-	return c.sparkoperatorV1alpha1
+	sparkoperatorV1beta1 *sparkoperatorv1beta1.SparkoperatorV1beta1Client
+	sparkoperatorV1beta2 *sparkoperatorv1beta2.SparkoperatorV1beta2Client
 }
 
 // SparkoperatorV1beta1 retrieves the SparkoperatorV1beta1Client
@@ -84,10 +76,6 @@ func NewForConfig(c *rest.Config) (*Clientset, error) {
 	}
 	var cs Clientset
 	var err error
-	cs.sparkoperatorV1alpha1, err = sparkoperatorv1alpha1.NewForConfig(&configShallowCopy)
-	if err != nil {
-		return nil, err
-	}
 	cs.sparkoperatorV1beta1, err = sparkoperatorv1beta1.NewForConfig(&configShallowCopy)
 	if err != nil {
 		return nil, err
@@ -108,7 +96,6 @@ func NewForConfig(c *rest.Config) (*Clientset, error) {
 // panics if there is an error in the config.
 func NewForConfigOrDie(c *rest.Config) *Clientset {
 	var cs Clientset
-	cs.sparkoperatorV1alpha1 = sparkoperatorv1alpha1.NewForConfigOrDie(c)
 	cs.sparkoperatorV1beta1 = sparkoperatorv1beta1.NewForConfigOrDie(c)
 	cs.sparkoperatorV1beta2 = sparkoperatorv1beta2.NewForConfigOrDie(c)
 
@@ -119,7 +106,6 @@ func NewForConfigOrDie(c *rest.Config) *Clientset {
 // New creates a new Clientset for the given RESTClient.
 func New(c rest.Interface) *Clientset {
 	var cs Clientset
-	cs.sparkoperatorV1alpha1 = sparkoperatorv1alpha1.New(c)
 	cs.sparkoperatorV1beta1 = sparkoperatorv1beta1.New(c)
 	cs.sparkoperatorV1beta2 = sparkoperatorv1beta2.New(c)
 

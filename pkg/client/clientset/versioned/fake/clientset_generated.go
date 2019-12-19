@@ -22,8 +22,6 @@ package fake
 
 import (
 	clientset "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/client/clientset/versioned"
-	sparkoperatorv1alpha1 "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/client/clientset/versioned/typed/sparkoperator.k8s.io/v1alpha1"
-	fakesparkoperatorv1alpha1 "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/client/clientset/versioned/typed/sparkoperator.k8s.io/v1alpha1/fake"
 	sparkoperatorv1beta1 "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/client/clientset/versioned/typed/sparkoperator.k8s.io/v1beta1"
 	fakesparkoperatorv1beta1 "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/client/clientset/versioned/typed/sparkoperator.k8s.io/v1beta1/fake"
 	sparkoperatorv1beta2 "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/client/clientset/versioned/typed/sparkoperator.k8s.io/v1beta2"
@@ -76,11 +74,6 @@ func (c *Clientset) Discovery() discovery.DiscoveryInterface {
 }
 
 var _ clientset.Interface = &Clientset{}
-
-// SparkoperatorV1alpha1 retrieves the SparkoperatorV1alpha1Client
-func (c *Clientset) SparkoperatorV1alpha1() sparkoperatorv1alpha1.SparkoperatorV1alpha1Interface {
-	return &fakesparkoperatorv1alpha1.FakeSparkoperatorV1alpha1{Fake: &c.Fake}
-}
 
 // SparkoperatorV1beta1 retrieves the SparkoperatorV1beta1Client
 func (c *Clientset) SparkoperatorV1beta1() sparkoperatorv1beta1.SparkoperatorV1beta1Interface {
