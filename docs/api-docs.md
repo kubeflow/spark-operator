@@ -279,7 +279,8 @@ string
 </td>
 <td>
 <em>(Optional)</em>
-<p>InitContainerImage is the image of the init-container to use. Overrides Spec.Image if set.</p>
+<p>InitContainerImage is the image of the init-container to use. Overrides Spec.Image if set.
+Deprecated.</p>
 </td>
 </tr>
 <tr>
@@ -764,7 +765,8 @@ string
 </td>
 <td>
 <em>(Optional)</em>
-<p>JarsDownloadDir is the location to download jars to in the driver and executors.</p>
+<p>JarsDownloadDir is the location to download jars to in the driver and executors.
+Deprecated.</p>
 </td>
 </tr>
 <tr>
@@ -776,7 +778,8 @@ string
 </td>
 <td>
 <em>(Optional)</em>
-<p>FilesDownloadDir is the location to download files to in the driver and executors.</p>
+<p>FilesDownloadDir is the location to download files to in the driver and executors.
+Deprecated.</p>
 </td>
 </tr>
 <tr>
@@ -789,7 +792,8 @@ int32
 <td>
 <em>(Optional)</em>
 <p>DownloadTimeout specifies the timeout in seconds before aborting the attempt to download
-and unpack dependencies from remote locations into the driver and executor pods.</p>
+and unpack dependencies from remote locations into the driver and executor pods.
+Deprecated.</p>
 </td>
 </tr>
 <tr>
@@ -802,7 +806,8 @@ int32
 <td>
 <em>(Optional)</em>
 <p>MaxSimultaneousDownloads specifies the maximum number of remote dependencies to download
-simultaneously in a driver or executor pod.</p>
+simultaneously in a driver or executor pod.
+Deprecated.</p>
 </td>
 </tr>
 </tbody>
@@ -965,6 +970,7 @@ string
 </em>
 </td>
 <td>
+<em>(Optional)</em>
 <p>ServiceAccount is the name of the Kubernetes service account used by the driver pod
 when requesting executor pods from the API server.</p>
 </td>
@@ -977,6 +983,7 @@ string
 </em>
 </td>
 <td>
+<em>(Optional)</em>
 <p>JavaOptions is a string of extra JVM options to pass to the driver. For instance,
 GC settings or other logging.</p>
 </td>
@@ -1313,6 +1320,7 @@ string
 </em>
 </td>
 <td>
+<em>(Optional)</em>
 <p>ConfigFile is the path to the custom Prometheus configuration file provided in the Spark image.
 ConfigFile takes precedence over Configuration, which is shown below.</p>
 </td>
@@ -1361,6 +1369,7 @@ RestartPolicyType
 </em>
 </td>
 <td>
+<p>Type specifies the RestartPolicyType.</p>
 </td>
 </tr>
 <tr>
@@ -1371,7 +1380,8 @@ int32
 </em>
 </td>
 <td>
-<p>FailureRetries are the number of times to retry a failed application before giving up in a particular case.
+<em>(Optional)</em>
+<p>OnSubmissionFailureRetries is the number of times to retry submitting an application before giving up.
 This is best effort and actual retry attempts can be &gt;= the value specified due to caching.
 These are required if RestartPolicy is OnFailure.</p>
 </td>
@@ -1384,6 +1394,8 @@ int32
 </em>
 </td>
 <td>
+<em>(Optional)</em>
+<p>OnFailureRetries the number of times to retry running an application before giving up.</p>
 </td>
 </tr>
 <tr>
@@ -1394,7 +1406,9 @@ int64
 </em>
 </td>
 <td>
-<p>Interval to wait between successive retries of a failed application.</p>
+<em>(Optional)</em>
+<p>OnSubmissionFailureRetryInterval is the interval between retries on failed submissions.
+Interval to wait between successive retries of a failed application.</p>
 </td>
 </tr>
 <tr>
@@ -1405,6 +1419,8 @@ int64
 </em>
 </td>
 <td>
+<em>(Optional)</em>
+<p>OnFailureRetryInterval is the interval between retries on failed runs.</p>
 </td>
 </tr>
 </tbody>
@@ -1758,7 +1774,8 @@ string
 </td>
 <td>
 <em>(Optional)</em>
-<p>InitContainerImage is the image of the init-container to use. Overrides Spec.Image if set.</p>
+<p>InitContainerImage is the image of the init-container to use. Overrides Spec.Image if set.
+Deprecated.</p>
 </td>
 </tr>
 <tr>
@@ -2349,7 +2366,7 @@ map[string]string
 <td>
 <em>(Optional)</em>
 <p>EnvVars carries the environment variables to add to the pod.
-DEPRECATED.</p>
+Deprecated.</p>
 </td>
 </tr>
 <tr>
@@ -2364,7 +2381,7 @@ map[string]github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkop
 <td>
 <em>(Optional)</em>
 <p>EnvSecretKeyRefs holds a mapping from environment variable names to SecretKeyRefs.
-DEPRECATED.</p>
+Deprecated.</p>
 </td>
 </tr>
 <tr>
@@ -2531,5 +2548,5 @@ Kubernetes core/v1.PodDNSConfig
 <hr/>
 <p><em>
 Generated with <code>gen-crd-api-reference-docs</code>
-on git commit <code>1b96b7b</code>.
+on git commit <code>76e05fe</code>.
 </em></p>

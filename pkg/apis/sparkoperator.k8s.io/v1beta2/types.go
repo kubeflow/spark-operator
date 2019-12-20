@@ -45,21 +45,31 @@ const (
 // RestartPolicy is the policy of if and in which conditions the controller should restart a terminated application.
 // This completely defines actions to be taken on any kind of Failures during an application run.
 type RestartPolicy struct {
+	// Type specifies the RestartPolicyType.
 	// +kubebuilder:validation:Enum={Never,Always,OnFailure}
 	Type RestartPolicyType `json:"type,omitempty"`
 
-	// FailureRetries are the number of times to retry a failed application before giving up in a particular case.
+	// OnSubmissionFailureRetries is the number of times to retry submitting an application before giving up.
 	// This is best effort and actual retry attempts can be >= the value specified due to caching.
 	// These are required if RestartPolicy is OnFailure.
 	// +kubebuilder:validation:Minimum=0
+	// +optional
 	OnSubmissionFailureRetries *int32 `json:"onSubmissionFailureRetries,omitempty"`
+
+	// OnFailureRetries the number of times to retry running an application before giving up.
 	// +kubebuilder:validation:Minimum=0
+	// +optional
 	OnFailureRetries *int32 `json:"onFailureRetries,omitempty"`
 
+	// OnSubmissionFailureRetryInterval is the interval between retries on failed submissions.
 	// Interval to wait between successive retries of a failed application.
 	// +kubebuilder:validation:Minimum=1
+	// +optional
 	OnSubmissionFailureRetryInterval *int64 `json:"onSubmissionFailureRetryInterval,omitempty"`
+
+	// OnFailureRetryInterval is the interval between retries on failed runs.
 	// +kubebuilder:validation:Minimum=1
+	// +optional
 	OnFailureRetryInterval *int64 `json:"onFailureRetryInterval,omitempty"`
 }
 
@@ -180,8 +190,8 @@ type SparkApplicationSpec struct {
 	// +optional
 	Image *string `json:"image,omitempty"`
 	// InitContainerImage is the image of the init-container to use. Overrides Spec.Image if set.
+	// Deprecated.
 	// +optional
-	// +deprecated
 	InitContainerImage *string `json:"initContainerImage,omitempty"`
 	// ImagePullPolicy is the image pull policy for the driver, executor, and init-container.
 	// +optional
@@ -358,23 +368,23 @@ type Dependencies struct {
 	// +optional
 	PyFiles []string `json:"pyFiles,omitempty"`
 	// JarsDownloadDir is the location to download jars to in the driver and executors.
+	// Deprecated.
 	// +optional
-	// +deprecated
 	JarsDownloadDir *string `json:"jarsDownloadDir,omitempty"`
 	// FilesDownloadDir is the location to download files to in the driver and executors.
+	// Deprecated.
 	// +optional
-	// +deprecated
 	FilesDownloadDir *string `json:"filesDownloadDir,omitempty"`
 	// DownloadTimeout specifies the timeout in seconds before aborting the attempt to download
 	// and unpack dependencies from remote locations into the driver and executor pods.
+	// Deprecated.
 	// +optional
-	// +deprecated
 	// +kubebuilder:validation:Minimum=1
 	DownloadTimeout *int32 `json:"downloadTimeout,omitempty"`
 	// MaxSimultaneousDownloads specifies the maximum number of remote dependencies to download
 	// simultaneously in a driver or executor pod.
+	// Deprecated.
 	// +optional
-	// +deprecated
 	// +kubebuilder:validation:Minimum=1
 	MaxSimultaneousDownloads *int32 `json:"maxSimultaneousDownloads,omitempty"`
 }
@@ -411,12 +421,12 @@ type SparkPodSpec struct {
 	// +optional
 	Env []apiv1.EnvVar `json:"env,omitempty"`
 	// EnvVars carries the environment variables to add to the pod.
+	// Deprecated.
 	// +optional
-	// DEPRECATED.
 	EnvVars map[string]string `json:"envVars,omitempty"`
 	// EnvSecretKeyRefs holds a mapping from environment variable names to SecretKeyRefs.
+	// Deprecated.
 	// +optional
-	// DEPRECATED.
 	EnvSecretKeyRefs map[string]NameKey `json:"envSecretKeyRefs,omitempty"`
 	// Labels are the Kubernetes labels to be added to the pod.
 	// +optional
@@ -473,9 +483,11 @@ type DriverSpec struct {
 	CoreRequest *string `json:"coreRequest,omitempty"`
 	// ServiceAccount is the name of the Kubernetes service account used by the driver pod
 	// when requesting executor pods from the API server.
+	// +optional
 	ServiceAccount *string `json:"serviceAccount,omitempty"`
 	// JavaOptions is a string of extra JVM options to pass to the driver. For instance,
 	// GC settings or other logging.
+	// +optional
 	JavaOptions *string `json:"javaOptions,omitempty"`
 }
 
@@ -567,18 +579,19 @@ type PrometheusSpec struct {
 	// JmxExporterJar is the path to the Prometheus JMX exporter jar in the container.
 	JmxExporterJar string `json:"jmxExporterJar"`
 	// Port is the port of the HTTP server run by the Prometheus JMX exporter.
-	// +optional
 	// If not specified, 8090 will be used as the default.
 	// +kubebuilder:validation:Minimum=1024
 	// +kubebuilder:validation:Maximum=49151
+	// +optional
 	Port *int32 `json:"port,omitempty"`
 	// ConfigFile is the path to the custom Prometheus configuration file provided in the Spark image.
 	// ConfigFile takes precedence over Configuration, which is shown below.
+	// +optional
 	ConfigFile *string `json:"configFile,omitempty"`
 	// Configuration is the content of the Prometheus configuration needed by the Prometheus JMX exporter.
-	// +optional
 	// If not specified, the content in spark-docker/conf/prometheus.yaml will be used.
 	// Configuration has no effect if ConfigFile is set.
+	// +optional
 	Configuration *string `json:"configuration,omitempty"`
 }
 
