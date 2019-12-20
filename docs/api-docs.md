@@ -1255,7 +1255,8 @@ string
 <td>
 <em>(Optional)</em>
 <p>ConfigFile is the path to the custom Prometheus configuration file provided in the Spark image.
-ConfigFile takes precedence over Configuration, which is shown below.</p>
+ConfigFile takes precedence over Configuration, which is shown below.
+Deprecated. Please use Configuration instead.</p>
 </td>
 </tr>
 <tr>
@@ -2468,5 +2469,5 @@ Kubernetes core/v1.PodDNSConfig
 <hr/>
 <p><em>
 Generated with <code>gen-crd-api-reference-docs</code>
-on git commit <code>abe1af3</code>.
+on git commit <code>58aa116</code>.
 </em></p>

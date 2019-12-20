@@ -14,6 +14,12 @@
 # limitations under the License.
 #
 
+# This example SparkApplication enables exporting Spark metrics to Prometheus 
+# using the Prometheus JMX exporter built into the Spark image used.
+# The default Spark metrics configuration as defined in
+# spark-docker/conf/metrics.properties and the default Prometheus configuration
+# as defined in spark-docker/conf/prometheus.yaml are used.
+
 apiVersion: "sparkoperator.k8s.io/v1beta2"
 kind: SparkApplication
 metadata:
@@ -48,5 +54,5 @@ spec:
     exposeDriverMetrics: true
     exposeExecutorMetrics: true
     prometheus:
-      jmxExporterJar: "/prometheus/jmx_prometheus_javaagent-0.11.0.jar"
+      jmxExporterJar: "/prometheus/jmx_prometheus_javaagent-0.11.0.jar" # built-in in gcr.io/spark-operator/spark:v2.4.4-gcs-prometheus
       port: 8090

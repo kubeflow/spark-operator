@@ -569,6 +569,7 @@ type PrometheusSpec struct {
 	Port *int32 `json:"port,omitempty"`
 	// ConfigFile is the path to the custom Prometheus configuration file provided in the Spark image.
 	// ConfigFile takes precedence over Configuration, which is shown below.
+	// Deprecated. Please use Configuration instead.
 	// +optional
 	ConfigFile *string `json:"configFile,omitempty"`
 	// Configuration is the content of the Prometheus configuration needed by the Prometheus JMX exporter.

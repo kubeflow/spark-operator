@@ -14,7 +14,11 @@
 # limitations under the License.
 #
 
-ARG SPARK_IMAGE=gcr.io/spark-operator/spark:v2.4.5
+# This Dockerfile contains the necessary configuration to use remote dependencies in GCS in your 
+# Spark applications, which include files and jars specified under .spec.deps of SparkApplication 
+# resources.
+
+ARG SPARK_IMAGE=gcr.io/spark-operator/spark:v2.4.5-gcs-prometheus
 
 FROM golang:1.12.5-alpine as builder
 ARG DEP_VERSION="0.5.3"
