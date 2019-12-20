@@ -87,26 +87,6 @@ func (in *Dependencies) DeepCopyInto(out *Dependencies) {
 		*out = make([]string, len(*in))
 		copy(*out, *in)
 	}
-	if in.JarsDownloadDir != nil {
-		in, out := &in.JarsDownloadDir, &out.JarsDownloadDir
-		*out = new(string)
-		**out = **in
-	}
-	if in.FilesDownloadDir != nil {
-		in, out := &in.FilesDownloadDir, &out.FilesDownloadDir
-		*out = new(string)
-		**out = **in
-	}
-	if in.DownloadTimeout != nil {
-		in, out := &in.DownloadTimeout, &out.DownloadTimeout
-		*out = new(int32)
-		**out = **in
-	}
-	if in.MaxSimultaneousDownloads != nil {
-		in, out := &in.MaxSimultaneousDownloads, &out.MaxSimultaneousDownloads
-		*out = new(int32)
-		**out = **in
-	}
 	return
 }
 
@@ -142,6 +122,11 @@ func (in *DriverSpec) DeepCopyInto(out *DriverSpec) {
 	in.SparkPodSpec.DeepCopyInto(&out.SparkPodSpec)
 	if in.PodName != nil {
 		in, out := &in.PodName, &out.PodName
+		*out = new(string)
+		**out = **in
+	}
+	if in.CoreRequest != nil {
+		in, out := &in.CoreRequest, &out.CoreRequest
 		*out = new(string)
 		**out = **in
 	}
@@ -549,11 +534,6 @@ func (in *SparkApplicationSpec) DeepCopyInto(out *SparkApplicationSpec) {
 	*out = *in
 	if in.Image != nil {
 		in, out := &in.Image, &out.Image
-		*out = new(string)
-		**out = **in
-	}
-	if in.InitContainerImage != nil {
-		in, out := &in.InitContainerImage, &out.InitContainerImage
 		*out = new(string)
 		**out = **in
 	}

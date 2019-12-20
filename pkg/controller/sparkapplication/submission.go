@@ -107,10 +107,6 @@ func buildSubmissionCommandArgs(app *v1beta2.SparkApplication, driverPodName str
 		args = append(args, "--conf",
 			fmt.Sprintf("%s=%s", config.SparkContainerImageKey, *app.Spec.Image))
 	}
-	if app.Spec.InitContainerImage != nil {
-		args = append(args, "--conf",
-			fmt.Sprintf("%s=%s", config.SparkInitContainerImage, *app.Spec.InitContainerImage))
-	}
 	if app.Spec.ImagePullPolicy != nil {
 		args = append(args, "--conf",
 			fmt.Sprintf("%s=%s", config.SparkContainerImagePullPolicyKey, *app.Spec.ImagePullPolicy))
@@ -225,26 +221,6 @@ func addDependenciesConfOptions(app *v1beta2.SparkApplication) []string {
 	}
 	if len(app.Spec.Deps.PyFiles) > 0 {
 		depsConfOptions = append(depsConfOptions, "--py-files", strings.Join(app.Spec.Deps.PyFiles, ","))
-	}
-
-	if app.Spec.Deps.JarsDownloadDir != nil {
-		depsConfOptions = append(depsConfOptions, "--conf",
-			fmt.Sprintf("%s=%s", config.SparkJarsDownloadDir, *app.Spec.Deps.JarsDownloadDir))
-	}
-
-	if app.Spec.Deps.FilesDownloadDir != nil {
-		depsConfOptions = append(depsConfOptions, "--conf",
-			fmt.Sprintf("%s=%s", config.SparkFilesDownloadDir, *app.Spec.Deps.FilesDownloadDir))
-	}
-
-	if app.Spec.Deps.DownloadTimeout != nil {
-		depsConfOptions = append(depsConfOptions, "--conf",
-			fmt.Sprintf("%s=%d", config.SparkDownloadTimeout, *app.Spec.Deps.DownloadTimeout))
-	}
-
-	if app.Spec.Deps.MaxSimultaneousDownloads != nil {
-		depsConfOptions = append(depsConfOptions, "--conf",
-			fmt.Sprintf("%s=%d", config.SparkMaxSimultaneousDownloads, *app.Spec.Deps.MaxSimultaneousDownloads))
 	}
 
 	return depsConfOptions

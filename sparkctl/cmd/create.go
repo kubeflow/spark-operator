@@ -194,15 +194,6 @@ func validateSpec(spec v1beta2.SparkApplicationSpec) error {
 			"is not set")
 	}
 
-	yes, err := hasNonContainerLocalFiles(spec)
-	if err != nil {
-		return err
-	}
-	if spec.Image == nil && spec.InitContainerImage == nil && yes {
-		return fmt.Errorf("'spec.image' and 'spec.initContainerImage' cannot be both empty when " +
-			"non-container-local dependencies are used")
-	}
-
 	return nil
 }
 
@@ -284,41 +275,6 @@ func isLocalFile(file string) (bool, error) {
 	}
 
 	if fileUrl.Scheme == "file" || fileUrl.Scheme == "" {
-		return true, nil
-	}
-
-	return false, nil
-}
-
-func hasNonContainerLocalFiles(spec v1beta2.SparkApplicationSpec) (bool, error) {
-	var files []string
-	if spec.MainApplicationFile != nil {
-		files = append(files, *spec.MainApplicationFile)
-	}
-
-	files = append(files, spec.Deps.Jars...)
-	files = append(files, spec.Deps.Files...)
-
-	for _, file := range files {
-		containerLocal, err := isContainerLocalFile(file)
-		if err != nil {
-			return containerLocal, err
-		}
-		if !containerLocal {
-			return true, nil
-		}
-	}
-
-	return false, nil
-}
-
-func isContainerLocalFile(file string) (bool, error) {
-	fileUrl, err := url.Parse(file)
-	if err != nil {
-		return false, err
-	}
-
-	if fileUrl.Scheme == "local" {
 		return true, nil
 	}
 
