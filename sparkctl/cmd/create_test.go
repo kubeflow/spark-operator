@@ -74,91 +74,6 @@ func TestFilterLocalFiles(t *testing.T) {
 	assert.Equal(t, expected, actual)
 }
 
-func TestIsContainerLocalFile(t *testing.T) {
-	type testcase struct {
-		file             string
-		isContainerLocal bool
-	}
-
-	testFn := func(test testcase, t *testing.T) {
-		isLocal, err := isContainerLocalFile(test.file)
-		if err != nil {
-			t.Fatal(err)
-		}
-		assert.Equal(t, test.isContainerLocal, isLocal,
-			"%s: expected %v got %v", test.file, test.isContainerLocal, isLocal)
-	}
-
-	testcases := []testcase{
-		{file: "/path/to/file", isContainerLocal: false},
-		{file: "file:///path/to/file", isContainerLocal: false},
-		{file: "local:///path/to/file", isContainerLocal: true},
-		{file: "https://localhost/path/to/file", isContainerLocal: false},
-	}
-
-	for _, test := range testcases {
-		testFn(test, t)
-	}
-}
-
-func TestHasNonContainerLocalFiles(t *testing.T) {
-	type testcase struct {
-		name                      string
-		spec                      v1beta2.SparkApplicationSpec
-		hasNonContainerLocalFiles bool
-	}
-
-	testFn := func(test testcase, t *testing.T) {
-		yes, err := hasNonContainerLocalFiles(test.spec)
-		if err != nil {
-			t.Fatal(err)
-		}
-		assert.Equal(t, test.hasNonContainerLocalFiles, yes, "%s: expected %v got %v",
-			test.name, test.hasNonContainerLocalFiles, yes)
-	}
-
-	mainAppFile := "/path/to/main/app/file"
-	containerLocalMainAppFile := "local:///path/to/main/app/file"
-	testcases := []testcase{
-		{
-			name: "application with submission local main file",
-			spec: v1beta2.SparkApplicationSpec{
-				MainApplicationFile: &mainAppFile,
-			},
-			hasNonContainerLocalFiles: true,
-		},
-		{
-			name: "application with container local main file",
-			spec: v1beta2.SparkApplicationSpec{
-				MainApplicationFile: &containerLocalMainAppFile,
-			},
-			hasNonContainerLocalFiles: false,
-		},
-		{
-			name: "application with remote jars",
-			spec: v1beta2.SparkApplicationSpec{
-				Deps: v1beta2.Dependencies{
-					Jars: []string{"https://localhost/path/to/foo.jar"},
-				},
-			},
-			hasNonContainerLocalFiles: true,
-		},
-		{
-			name: "application with container-local jars",
-			spec: v1beta2.SparkApplicationSpec{
-				Deps: v1beta2.Dependencies{
-					Jars: []string{"local:///path/to/foo.jar"},
-				},
-			},
-			hasNonContainerLocalFiles: false,
-		},
-	}
-
-	for _, test := range testcases {
-		testFn(test, t)
-	}
-}
-
 func TestValidateSpec(t *testing.T) {
 	type testcase struct {
 		name                   string
@@ -209,40 +124,7 @@ func TestValidateSpec(t *testing.T) {
 			expectsValidationError: true,
 		},
 		{
-			name: "application with remote main file and no init-container",
-			spec: v1beta2.SparkApplicationSpec{
-				MainApplicationFile: &remoteMainAppFile,
-			},
-			expectsValidationError: true,
-		},
-		{
-			name: "application with remote main file and spec.image",
-			spec: v1beta2.SparkApplicationSpec{
-				Image:               &image,
-				MainApplicationFile: &remoteMainAppFile,
-			},
-			expectsValidationError: false,
-		},
-		{
-			name: "application with remote main file and spec.initContainerImage",
-			spec: v1beta2.SparkApplicationSpec{
-				InitContainerImage:  &image,
-				MainApplicationFile: &remoteMainAppFile,
-				Driver: v1beta2.DriverSpec{
-					SparkPodSpec: v1beta2.SparkPodSpec{
-						Image: &image,
-					},
-				},
-				Executor: v1beta2.ExecutorSpec{
-					SparkPodSpec: v1beta2.SparkPodSpec{
-						Image: &image,
-					},
-				},
-			},
-			expectsValidationError: false,
-		},
-		{
-			name: "application with container local main file and no init-container",
+			name: "application with no spec.image but spec.driver.image and spec.executor.image",
 			spec: v1beta2.SparkApplicationSpec{
 				MainApplicationFile: &containerLocalMainAppFile,
 				Driver: v1beta2.DriverSpec{
@@ -255,6 +137,14 @@ func TestValidateSpec(t *testing.T) {
 						Image: &image,
 					},
 				},
+			},
+			expectsValidationError: false,
+		},
+		{
+			name: "application with remote main file and spec.image",
+			spec: v1beta2.SparkApplicationSpec{
+				Image:               &image,
+				MainApplicationFile: &remoteMainAppFile,
 			},
 			expectsValidationError: false,
 		},

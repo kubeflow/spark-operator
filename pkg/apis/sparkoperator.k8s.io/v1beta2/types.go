@@ -189,10 +189,6 @@ type SparkApplicationSpec struct {
 	// driver, executor, or init-container takes precedence over this.
 	// +optional
 	Image *string `json:"image,omitempty"`
-	// InitContainerImage is the image of the init-container to use. Overrides Spec.Image if set.
-	// Deprecated.
-	// +optional
-	InitContainerImage *string `json:"initContainerImage,omitempty"`
 	// ImagePullPolicy is the image pull policy for the driver, executor, and init-container.
 	// +optional
 	ImagePullPolicy *string `json:"imagePullPolicy,omitempty"`
@@ -367,26 +363,6 @@ type Dependencies struct {
 	// PyFiles is a list of Python files the Spark application depends on.
 	// +optional
 	PyFiles []string `json:"pyFiles,omitempty"`
-	// JarsDownloadDir is the location to download jars to in the driver and executors.
-	// Deprecated.
-	// +optional
-	JarsDownloadDir *string `json:"jarsDownloadDir,omitempty"`
-	// FilesDownloadDir is the location to download files to in the driver and executors.
-	// Deprecated.
-	// +optional
-	FilesDownloadDir *string `json:"filesDownloadDir,omitempty"`
-	// DownloadTimeout specifies the timeout in seconds before aborting the attempt to download
-	// and unpack dependencies from remote locations into the driver and executor pods.
-	// Deprecated.
-	// +optional
-	// +kubebuilder:validation:Minimum=1
-	DownloadTimeout *int32 `json:"downloadTimeout,omitempty"`
-	// MaxSimultaneousDownloads specifies the maximum number of remote dependencies to download
-	// simultaneously in a driver or executor pod.
-	// Deprecated.
-	// +optional
-	// +kubebuilder:validation:Minimum=1
-	MaxSimultaneousDownloads *int32 `json:"maxSimultaneousDownloads,omitempty"`
 }
 
 // SparkPodSpec defines common things that can be customized for a Spark driver or executor pod.

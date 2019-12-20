@@ -272,19 +272,6 @@ driver, executor, or init-container takes precedence over this.</p>
 </tr>
 <tr>
 <td>
-<code>initContainerImage</code></br>
-<em>
-string
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-<p>InitContainerImage is the image of the init-container to use. Overrides Spec.Image if set.
-Deprecated.</p>
-</td>
-</tr>
-<tr>
-<td>
 <code>imagePullPolicy</code></br>
 <em>
 string
@@ -754,60 +741,6 @@ string
 <td>
 <em>(Optional)</em>
 <p>PyFiles is a list of Python files the Spark application depends on.</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>jarsDownloadDir</code></br>
-<em>
-string
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-<p>JarsDownloadDir is the location to download jars to in the driver and executors.
-Deprecated.</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>filesDownloadDir</code></br>
-<em>
-string
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-<p>FilesDownloadDir is the location to download files to in the driver and executors.
-Deprecated.</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>downloadTimeout</code></br>
-<em>
-int32
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-<p>DownloadTimeout specifies the timeout in seconds before aborting the attempt to download
-and unpack dependencies from remote locations into the driver and executor pods.
-Deprecated.</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>maxSimultaneousDownloads</code></br>
-<em>
-int32
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-<p>MaxSimultaneousDownloads specifies the maximum number of remote dependencies to download
-simultaneously in a driver or executor pod.
-Deprecated.</p>
 </td>
 </tr>
 </tbody>
@@ -1767,19 +1700,6 @@ driver, executor, or init-container takes precedence over this.</p>
 </tr>
 <tr>
 <td>
-<code>initContainerImage</code></br>
-<em>
-string
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-<p>InitContainerImage is the image of the init-container to use. Overrides Spec.Image if set.
-Deprecated.</p>
-</td>
-</tr>
-<tr>
-<td>
 <code>imagePullPolicy</code></br>
 <em>
 string
@@ -2548,5 +2468,5 @@ Kubernetes core/v1.PodDNSConfig
 <hr/>
 <p><em>
 Generated with <code>gen-crd-api-reference-docs</code>
-on git commit <code>76e05fe</code>.
+on git commit <code>abe1af3</code>.
 </em></p>
