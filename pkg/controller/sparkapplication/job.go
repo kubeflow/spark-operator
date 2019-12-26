@@ -39,7 +39,7 @@ import (
 const (
 	sparkSubmitPodMemoryRequest = "100Mi"
 	sparkSubmitPodCpuRequest    = "100m"
-	sparkSubmitPodMemoryLimit   = "256Mi"
+	sparkSubmitPodMemoryLimit   = "512Mi"
 	sparkSubmitPodCpuLimit      = "250m"
 )
 
