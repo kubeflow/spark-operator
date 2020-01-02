@@ -17,3 +17,4 @@
 | Riskified | @henbh | Evaluation | Analytics Data Platform
 | CloudZone | @iftachsc | Evaluation | Big Data Analytics Consultancy
 | Cyren | @avnerl | Evaluation | Data pipelines
+| Shell (Agile Hub) | @TomLous | Production | Data pipelines
