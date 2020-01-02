@@ -1,6 +1,6 @@
 # User Guide
 
-For a quick introduction on how to build and install the Kubernetes Operator for Apache Spark, and how to run some example applications, please refer to the [Quick Start Guide](quick-start-guide.md). For a complete reference of the API definition of the `SparkApplication` and `ScheduledSparkApplication` custom resources, please refer to the [API Specification](api.md). 
+For a quick introduction on how to build and install the Kubernetes Operator for Apache Spark, and how to run some example applications, please refer to the [Quick Start Guide](quick-start-guide.md). For a complete reference of the API definition of the `SparkApplication` and `ScheduledSparkApplication` custom resources, please refer to the [API Specification](api-docs.md). 
 
 The Kubernetes Operator for Apache Spark ships with a command-line tool called `sparkctl` that offers additional features beyond what `kubectl` is able to do. Documentation on `sparkctl` can be found in [README](../sparkctl/README.md). If you are running the Spark Operator on Google Kubernetes Engine and want to use Google Cloud Storage (GCS) and/or BigQuery for reading/writing data, also refer to the [GCP guide](gcp.md). The Kubernetes Operator for Apache Spark will simply be referred to as the operator for the rest of this guide.  
 
