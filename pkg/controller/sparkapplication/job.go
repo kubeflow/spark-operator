@@ -59,6 +59,8 @@ func (sjm *submissionJobManager) createSubmissionJob(s *submission) (*batchv1.Jo
 		config.SparkAppNameLabel:            s.app.Name,
 		config.LaunchedBySparkOperatorLabel: "true",
 	}
+	// submit-pods don't get garbage collected correctly via owner-reference. Adding TTL to delete submit-pods after completion.
+	var ttlSeconds int32 = 2700
 	job := &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            getSubmissionJobName(s.app),
@@ -70,6 +72,7 @@ func (sjm *submissionJobManager) createSubmissionJob(s *submission) (*batchv1.Jo
 		Spec: batchv1.JobSpec{
 			Parallelism:  &one,
 			Completions:  &one,
+			TTLSecondsAfterFinished: &ttlSeconds,
 			BackoffLimit: s.app.Spec.RestartPolicy.OnSubmissionFailureRetries,
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
