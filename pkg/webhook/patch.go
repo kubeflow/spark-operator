@@ -117,6 +117,7 @@ func addVolumes(pod *corev1.Pod, app *v1beta2.SparkApplication) []patchOperation
 	}
 
 	var ops []patchOperation
+	addedVolumeMap := make(map[string]corev1.Volume)
 	for _, m := range volumeMounts {
 		// Skip adding localDirVolumes
 		if strings.HasPrefix(m.Name, config.SparkLocalDirVolumePrefix) {
@@ -124,7 +125,10 @@ func addVolumes(pod *corev1.Pod, app *v1beta2.SparkApplication) []patchOperation
 		}
 
 		if v, ok := volumeMap[m.Name]; ok {
-			ops = append(ops, addVolume(pod, v))
+			if _, ok := addedVolumeMap[m.Name]; !ok {
+				ops = append(ops, addVolume(pod, v))
+				addedVolumeMap[m.Name] = v
+			}
 			ops = append(ops, addVolumeMount(pod, m))
 		}
 	}
