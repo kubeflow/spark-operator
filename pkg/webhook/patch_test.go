@@ -144,6 +144,73 @@ func TestPatchSparkPod_Local_Volumes(t *testing.T) {
 	assert.Equal(t, 0, len(modifiedPod.Spec.Volumes))
 }
 
+func TestPatchSparkPod_Volumes_Subpath(t *testing.T) {
+	app := &v1beta2.SparkApplication{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "spark-test",
+			UID:  "spark-test-1",
+		},
+		Spec: v1beta2.SparkApplicationSpec{
+			Volumes: []corev1.Volume{
+				corev1.Volume{
+					Name: "spark-pvc",
+					VolumeSource: corev1.VolumeSource{
+						PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
+							ClaimName: "claim-test",
+						},
+					},
+				},
+			},
+			Driver: v1beta2.DriverSpec{
+				SparkPodSpec: v1beta2.SparkPodSpec{
+					VolumeMounts: []corev1.VolumeMount{
+						{
+							Name:      "spark-pvc",
+							MountPath: "/mnt/spark",
+							SubPath:   "/foo/test",
+						},
+						{
+							Name:      "spark-pvc",
+							MountPath: "/mnt/foo",
+							SubPath:   "/bar/test",
+						},
+					},
+				},
+			},
+		},
+	}
+
+	pod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "spark-driver",
+			Labels: map[string]string{
+				config.SparkRoleLabel:               config.SparkDriverRole,
+				config.LaunchedBySparkOperatorLabel: "true",
+			},
+		},
+		Spec: corev1.PodSpec{
+			Containers: []corev1.Container{
+				{
+					Name:  config.SparkDriverContainerName,
+					Image: "spark-driver:latest",
+				},
+			},
+		},
+	}
+
+	// Test patching a pod without existing OwnerReference and Volume.
+	modifiedPod, err := getModifiedPod(pod, app)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	assert.Equal(t, 1, len(modifiedPod.Spec.Volumes))
+	assert.Equal(t, app.Spec.Volumes[0], modifiedPod.Spec.Volumes[0])
+	assert.Equal(t, 2, len(modifiedPod.Spec.Containers[0].VolumeMounts))
+	assert.Equal(t, app.Spec.Driver.VolumeMounts[0], modifiedPod.Spec.Containers[0].VolumeMounts[0])
+	assert.Equal(t, app.Spec.Driver.VolumeMounts[1], modifiedPod.Spec.Containers[0].VolumeMounts[1])
+}
+
 func TestPatchSparkPod_Volumes(t *testing.T) {
 	app := &v1beta2.SparkApplication{
 		ObjectMeta: metav1.ObjectMeta{
