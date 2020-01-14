@@ -57,26 +57,14 @@ spec:
                   type: object
                 deps:
                   properties:
-                    downloadTimeout:
-                      format: int32
-                      minimum: 1
-                      type: integer
                     files:
                       items:
                         type: string
                       type: array
-                    filesDownloadDir:
-                      type: string
                     jars:
                       items:
                         type: string
                       type: array
-                    jarsDownloadDir:
-                      type: string
-                    maxSimultaneousDownloads:
-                      format: int32
-                      minimum: 1
-                      type: integer
                     pyFiles:
                       items:
                         type: string
@@ -2908,8 +2896,6 @@ spec:
                   items:
                     type: string
                   type: array
-                initContainerImage:
-                  type: string
                 mainApplicationFile:
                   type: string
                 mainClass:
@@ -3577,11 +3563,13 @@ spec:
           properties:
             lastRun:
               format: date-time
+              nullable: true
               type: string
             lastRunName:
               type: string
             nextRun:
               format: date-time
+              nullable: true
               type: string
             pastFailedRunNames:
               items:
