@@ -503,9 +503,6 @@ spec:
         mountPath: "/tmp/dir1"
 ```
 
-
-#### Use Persistent Volume
-
 ### Python Support
 
 Python support can be enabled by setting `.spec.mainApplicationFile` with path to your python application. Optionaly, the `.spec.pythonVersion` field can be used to set the major Python version of the docker image used to run the driver and executor containers. Below is an example showing part of a `SparkApplication` specification:
