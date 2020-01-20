@@ -2,6 +2,7 @@
 
 | Organization | Contact (Github User Name) | Environment | Description of Use |
 | ------------- | ------------- | ------------- | ------------- |
+| [Caicloud](https://intl.caicloud.io/) | @gaocegege | Production | Cloud-Native AI Platform |
 | Microsoft (MileIQ) |@dharmeshkakadia| Production | AI & Analytics |
 | Lightbend |@yuchaoran2011| Production | Data Infrastructure & Operations |
 | StackTome | @emiliauskas-fuzzy | Production | Data pipelines |
