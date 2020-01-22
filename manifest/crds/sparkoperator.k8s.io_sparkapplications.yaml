@@ -3698,6 +3698,10 @@ spec:
           type: object
         status:
           properties:
+            SubmissionTime:
+              format: date-time
+              nullable: true
+              type: string
             applicationState:
               properties:
                 errorMessage:
@@ -3730,10 +3734,6 @@ spec:
               additionalProperties:
                 type: string
               type: object
-            lastSubmissionAttemptTime:
-              format: date-time
-              nullable: true
-              type: string
             sparkApplicationId:
               type: string
             submissionAttempts:
