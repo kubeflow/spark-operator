@@ -265,10 +265,11 @@ type SparkApplicationSpec struct {
 	// +optional
 	BatchScheduler *string `json:"batchScheduler,omitempty"`
 	// BatchSchedulerOptions provides fine-grained control on how to batch scheduling.
-	// Optional.
+	// +optional
 	BatchSchedulerOptions *BatchSchedulerConfiguration `json:"batchSchedulerOptions,omitempty"`
 	// ServiceAccount is the name of the Kubernetes ServiceAccount used to run the
 	// submission Job Pod that runs spark-submit to submit an application.
+	// +optional
 	ServiceAccount *string `json:"serviceAccount,omitempty"`
 	// TimeToLiveSeconds defines the Time-To-Live (TTL) duration in seconds for this SparkAplication
 	// after its termination.
@@ -332,6 +333,7 @@ type SparkApplicationStatus struct {
 	// SubmissionID is a unique ID of the current submission of the application.
 	SubmissionID string `json:"submissionID,omitempty"`
 	// SubmissionTime is the time the application is submitted.
+	// +nullable
 	SubmissionTime metav1.Time `json:"SubmissionTime,omitempty"`
 	// CompletionTime is the time when the application runs to completion if it does.
 	// +nullable
