@@ -14,6 +14,7 @@ The Kubernetes Operator for Apache Spark ships with a command-line tool called `
     * [Writing Driver Specification](#writing-driver-specification)
     * [Writing Executor Specification](#writing-executor-specification)
     * [Specifying Extra Java Options](#specifying-extra-java-options)
+    * [Specifying Environment Variables](#specifying-environment-variables)
     * [Requesting GPU Resources](#requesting-gpu-resources)
     * [Host Network](#host-network)    
     * [Mounting Secrets](#mounting-secrets)
@@ -167,6 +168,58 @@ spec:
 
 Values specified using those two fields get converted to Spark configuration properties `spark.driver.extraJavaOptions` and `spark.executor.extraJavaOptions`, respectively. **Prefer using the above two fields over configuration properties `spark.driver.extraJavaOptions` and `spark.executor.extraJavaOptions`** as the fields work well with other fields that might modify what gets set for `spark.driver.extraJavaOptions` or `spark.executor.extraJavaOptions`.
 
+### Specifying Environment Variables
+
+There are two fields for specifying environment variables for the driver and/or executor containers, namely `.spec.driver.env` (or `.spec.executor.env` for the executor container) and `.spec.driver.envFrom` (or `.spec.executor.envFrom` for the executor container). Specifically, `.spec.driver.env` (and `.spec.executor.env`) takes a list of [EnvVar](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.17/#envvar-v1-core), each of which specifies an environment variable or the source of an environment variable, e.g., a name-value pair, a ConfigMap key, a Secret key, etc. Alternatively, `.spec.driver.envFrom` (and `.spec.executor.envFrom`) takes a list of [EnvFromSource](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.17/#envfromsource-v1-core) and allows [using all key-value pairs in a ConfigMap or Secret as environment variables](https://v1-15.docs.kubernetes.io/docs/tasks/configure-pod-container/configure-pod-configmap/#configure-all-key-value-pairs-in-a-configmap-as-container-environment-variables). The `SparkApplication` snippet below shows the use of both fields:
+
+```yaml
+spec:
+  driver:
+    env:
+      - name: ENV1
+        value: VAL1
+      - name: ENV2
+        value: VAL2
+      - name: ENV3
+        valueFrom:
+          configMapKeyRef:
+            name: some-config-map
+            key: env3-key
+      - name: AUTH_KEY
+        valueFrom:
+          secretKeyRef:
+            name: some-secret
+            key: auth-key
+    envFrom:
+      - configMapRef:
+          name: env-config-map
+      - secretRef:
+          name: env-secret
+  executor:
+    env:
+      - name: ENV1
+        value: VAL1
+      - name: ENV2
+        value: VAL2
+      - name: ENV3
+        valueFrom:
+          configMapKeyRef:
+            name: some-config-map
+            key: env3-key
+      - name: AUTH_KEY
+        valueFrom:
+          secretKeyRef:
+            name: some-secret
+            key: auth-key  
+    envFrom:
+      - configMapRef:
+          name: my-env-config-map
+      - secretRef:
+          name: my-env-secret
+```
+
+**Note: legacy field `envVars` that can also be used for specifying environment variables is deprecated and will be removed in a future API version.**
+
 ### Requesting GPU Resources
 
 A `SparkApplication` can specify GPU resources for the driver or executor pod, using the optional field `.spec.driver.gpu` or `.spec.executor.gpu`. Below is an example:
@@ -290,7 +343,7 @@ Note that the mutating admission webhook is needed to use this feature. Please r
 
 ### Using Secrets As Environment Variables
 
-**Note that this feature requires an image based on the latest Spark master branch.** 
+**Note: `envSecretKeyRefs` is deprecated and will be removed in a future API version.** 
 
 A `SparkApplication` can use [secrets as environment variables](https://kubernetes.io/docs/concepts/configuration/secret/#using-secrets-as-environment-variables), through the optional field `.spec.driver.envSecretKeyRefs` for the driver pod and the optional field 
 `.spec.executor.envSecretKeyRefs` for the executor pods. A `envSecretKeyRefs` is a map from environment variable names to pairs consisting of a secret name and a secret key. Below is an example:
