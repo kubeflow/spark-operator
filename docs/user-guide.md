@@ -167,6 +167,36 @@ spec:
 
 Values specified using those two fields get converted to Spark configuration properties `spark.driver.extraJavaOptions` and `spark.executor.extraJavaOptions`, respectively. **Prefer using the above two fields over configuration properties `spark.driver.extraJavaOptions` and `spark.executor.extraJavaOptions`** as the fields work well with other fields that might modify what gets set for `spark.driver.extraJavaOptions` or `spark.executor.extraJavaOptions`.
 
+### Specifying Environment Variables
+
+There are two fields for specifying environment variables for the driver and/or executor containers. One is `.spec.driver.envVars` (or `.spec.executor.envVars` for the executor container), and the other is `.spec.driver.envFrom` (or `.spec.executor.envFrom` for the executor container). Specifically, `.spec.driver.envVars` (and `.spec.executor.envVars`) takes a list of [EnvVarSource](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.17/#envvarsource-v1-core), each of which specifies a source of an environment variable, which can be a ConfigMap key, a Secret key, a name-value pair, etc. Alternatively, `.spec.driver.envFrom` (and `.spec.executor.envFrom`) takes a list of [EnvFromSource](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.17/#envfromsource-v1-core) and allows using all key-value pairs in a ConfigMap or Secret as environment variables. The `SparkApplication` snippet below shows the use of both fields:
+
+```yaml
+spec:
+  driver:
+    envVars:
+      - Name: ENV1
+        Value: VAL1
+      - Name: ENV2
+        Value: VAL2
+    envFrom:
+      - configMapRef:
+          name: my-env-config-map
+      - secretRef:
+          name: my-env-secret
+  executor:
+    envVars:
+      - Name: ENV1
+        Value: VAL1
+      - Name: ENV2
+        Value: VAL2
+    envFrom:
+      - configMapRef:
+          name: my-env-config-map
+      - secretRef:
+          name: my-env-secret          
+```
+
 ### Requesting GPU Resources
 
 A `SparkApplication` can specify GPU resources for the driver or executor pod, using the optional field `.spec.driver.gpu` or `.spec.executor.gpu`. Below is an example:

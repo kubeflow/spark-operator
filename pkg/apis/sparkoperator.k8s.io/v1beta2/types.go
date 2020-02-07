@@ -404,6 +404,9 @@ type SparkPodSpec struct {
 	// Deprecated.
 	// +optional
 	EnvVars map[string]string `json:"envVars,omitempty"`
+	// EnvFrom is a list of sources to populate environment variables in the container.
+	// +optional
+	EnvFrom []apiv1.EnvFromSource `json:"envFrom,omitempty"`
 	// EnvSecretKeyRefs holds a mapping from environment variable names to SecretKeyRefs.
 	// Deprecated.
 	// +optional
