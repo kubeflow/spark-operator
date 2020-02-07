@@ -152,7 +152,7 @@ func TestPatchSparkPod_Volumes_Subpath(t *testing.T) {
 		},
 		Spec: v1beta2.SparkApplicationSpec{
 			Volumes: []corev1.Volume{
-				corev1.Volume{
+				{
 					Name: "spark-pvc",
 					VolumeSource: corev1.VolumeSource{
 						PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
@@ -219,7 +219,7 @@ func TestPatchSparkPod_Volumes(t *testing.T) {
 		},
 		Spec: v1beta2.SparkApplicationSpec{
 			Volumes: []corev1.Volume{
-				corev1.Volume{
+				{
 					Name: "spark",
 					VolumeSource: corev1.VolumeSource{
 						HostPath: &corev1.HostPathVolumeSource{
@@ -227,7 +227,7 @@ func TestPatchSparkPod_Volumes(t *testing.T) {
 						},
 					},
 				},
-				corev1.Volume{
+				{
 					Name: "foo",
 					VolumeSource: corev1.VolumeSource{
 						EmptyDir: &corev1.EmptyDirVolumeSource{},
@@ -938,7 +938,7 @@ func TestPatchSparkPod_DNSConfig(t *testing.T) {
 		Nameservers: []string{"8.8.8.8", "4.4.4.4"},
 		Searches:    []string{"svc.cluster.local", "cluster.local"},
 		Options: []corev1.PodDNSConfigOption{
-			corev1.PodDNSConfigOption{Name: "ndots", Value: &aVal},
+			{Name: "ndots", Value: &aVal},
 		},
 	}
 
@@ -1561,7 +1561,6 @@ func TestPatchSparkPod_EnvFrom(t *testing.T) {
 }
 
 func TestPatchSparkPod_GracePeriodSeconds(t *testing.T) {
-
 	app := &v1beta2.SparkApplication{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "spark-test-hostNetwork",

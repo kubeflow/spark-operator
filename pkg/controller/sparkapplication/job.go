@@ -79,7 +79,7 @@ func (sjm *realSubmissionJobManager) createSubmissionJob(app *v1beta2.SparkAppli
 
 	imagePullSecrets := make([]v1.LocalObjectReference, len(app.Spec.ImagePullSecrets))
 	for i, secret := range app.Spec.ImagePullSecrets {
-		imagePullSecrets[i] = v1.LocalObjectReference{secret}
+		imagePullSecrets[i] = v1.LocalObjectReference{Name: secret}
 	}
 	imagePullPolicy := v1.PullIfNotPresent
 	if app.Spec.ImagePullPolicy != nil {
