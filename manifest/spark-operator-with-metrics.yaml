@@ -21,13 +21,13 @@ metadata:
   namespace: spark-operator
   labels:
     app.kubernetes.io/name: sparkoperator
-    app.kubernetes.io/version: v2.4.4-v1beta2
+    app.kubernetes.io/version: v2.4.5-v1beta2
 spec:
   replicas: 1
   selector:
     matchLabels:
       app.kubernetes.io/name: sparkoperator
-      app.kubernetes.io/version: v2.4.4-v1beta2
+      app.kubernetes.io/version: v2.4.5-v1beta2
   strategy:
     type: Recreate
   template:
@@ -38,12 +38,12 @@ spec:
         prometheus.io/path: "/metrics"
       labels:
         app.kubernetes.io/name: sparkoperator
-        app.kubernetes.io/version: v2.4.4-v1beta2
+        app.kubernetes.io/version: v2.4.5-v1beta2
     spec:
       serviceAccountName: sparkoperator
       containers:
       - name: sparkoperator
-        image: gcr.io/spark-operator/spark-operator:v2.4.4-v1beta2-latest
+        image: gcr.io/spark-operator/spark-operator:v2.4.5-v1beta2-latest
         imagePullPolicy: Always
         ports:
           - containerPort: 10254

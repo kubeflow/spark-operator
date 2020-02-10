@@ -12,7 +12,7 @@ Prerequisites:
 e2e tests are written as Go test. All go test techniques apply (e.g. picking what to run, timeout length). Let's say I want to run all tests in "test/e2e/":
 
 ```bash
-$ go test -v ./test/e2e/ --kubeconfig "$HOME/.kube/config" --operator-image=gcr.io/spark-operator/spark-operator:v2.4.4-v1beta2-latest
+$ go test -v ./test/e2e/ --kubeconfig "$HOME/.kube/config" --operator-image=gcr.io/spark-operator/spark-operator:v2.4.5-v1beta2-latest
 ```
 
 ### Available Tests
