@@ -25,10 +25,10 @@ spec:
   type: Python
   pythonVersion: "2"
   mode: cluster
-  image: "gcr.io/spark-operator/spark-py:v2.4.4"
+  image: "gcr.io/spark-operator/spark-py:v2.4.5"
   imagePullPolicy: Always
   mainApplicationFile: local:///opt/spark/examples/src/main/python/pi.py
-  sparkVersion: "2.4.4"
+  sparkVersion: "2.4.5"
   restartPolicy:
     type: OnFailure
     onFailureRetries: 3
@@ -40,11 +40,11 @@ spec:
     coreLimit: "1200m"
     memory: "512m"
     labels:
-      version: 2.4.4
+      version: 2.4.5
     serviceAccount: spark
   executor:
     cores: 1
     instances: 1
     memory: "512m"
     labels:
-      version: 2.4.4
+      version: 2.4.5
