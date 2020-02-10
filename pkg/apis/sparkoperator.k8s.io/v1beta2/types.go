@@ -401,14 +401,14 @@ type SparkPodSpec struct {
 	// +optional
 	Env []apiv1.EnvVar `json:"env,omitempty"`
 	// EnvVars carries the environment variables to add to the pod.
-	// Deprecated.
+	// Deprecated. Consider using `env` instead.
 	// +optional
 	EnvVars map[string]string `json:"envVars,omitempty"`
 	// EnvFrom is a list of sources to populate environment variables in the container.
 	// +optional
 	EnvFrom []apiv1.EnvFromSource `json:"envFrom,omitempty"`
 	// EnvSecretKeyRefs holds a mapping from environment variable names to SecretKeyRefs.
-	// Deprecated.
+	// Deprecated. Consider using `env` instead.
 	// +optional
 	EnvSecretKeyRefs map[string]NameKey `json:"envSecretKeyRefs,omitempty"`
 	// Labels are the Kubernetes labels to be added to the pod.
