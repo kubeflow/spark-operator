@@ -2286,7 +2286,21 @@ map[string]string
 <td>
 <em>(Optional)</em>
 <p>EnvVars carries the environment variables to add to the pod.
-Deprecated.</p>
+Deprecated. Consider using <code>env</code> instead.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>envFrom</code></br>
+<em>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#envfromsource-v1-core">
+[]Kubernetes core/v1.EnvFromSource
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>EnvFrom is a list of sources to populate environment variables in the container.</p>
 </td>
 </tr>
 <tr>
@@ -2301,7 +2315,7 @@ map[string]github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkop
 <td>
 <em>(Optional)</em>
 <p>EnvSecretKeyRefs holds a mapping from environment variable names to SecretKeyRefs.
-Deprecated.</p>
+Deprecated. Consider using <code>env</code> instead.</p>
 </td>
 </tr>
 <tr>
@@ -2468,5 +2482,5 @@ Kubernetes core/v1.PodDNSConfig
 <hr/>
 <p><em>
 Generated with <code>gen-crd-api-reference-docs</code>
-on git commit <code>abe1af3</code>.
+on git commit <code>c8ae9e3</code>.
 </em></p>
