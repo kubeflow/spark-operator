@@ -24,5 +24,5 @@ type BatchScheduler interface {
 	Name() string
 
 	ShouldSchedule(app *v1beta2.SparkApplication) bool
-	DoBatchSchedulingOnSubmission(app *v1beta2.SparkApplication) error
+	DoBatchSchedulingOnSubmission(app *v1beta2.SparkApplication) (*v1beta2.SparkApplication, error)
 }

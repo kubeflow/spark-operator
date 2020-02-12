@@ -618,30 +618,26 @@ func hasRetryIntervalPassed(retryInterval *int64, attemptsDone int32, lastEventT
 
 // submitSparkApplication creates a new submission for the given SparkApplication and submits it using spark-submit.
 func (c *Controller) submitSparkApplication(app *v1beta2.SparkApplication) *v1beta2.SparkApplication {
-	// Make a copy to avoid sending potential updates made to the SparkApplication spec
-	// to the API server if Prometheus monitoring and/or batch scheduling is enabled.
-	// Changes made to the SparkApplication spec are only needed to construct the right
-	// submission command at runtime.
-	appCopy := app.DeepCopy()
 	if app.PrometheusMonitoringEnabled() {
-		if err := configPrometheusMonitoring(appCopy, c.kubeClient); err != nil {
+		if err := configPrometheusMonitoring(app, c.kubeClient); err != nil {
 			glog.Error(err)
 		}
 	}
 
 	// Use batch scheduler to perform scheduling task before submitting (before build command arguments).
-	if needScheduling, scheduler := c.shouldDoBatchScheduling(appCopy); needScheduling {
-		err := scheduler.DoBatchSchedulingOnSubmission(appCopy)
+	if needScheduling, scheduler := c.shouldDoBatchScheduling(app); needScheduling {
+		newApp, err := scheduler.DoBatchSchedulingOnSubmission(app)
 		if err != nil {
 			glog.Errorf("failed to process batch scheduler BeforeSubmitSparkApplication with error %v", err)
 			return app
 		}
+		//Spark submit will use the updated app to submit tasks(Spec will not be updated into API server)
+		app = newApp
 	}
 
 	driverPodName := getDriverPodName(app)
 	submissionID := uuid.New().String()
-	// Use the copy that may contain runtime changes to construct the submission command.
-	submissionCmdArgs, err := buildSubmissionCommandArgs(appCopy, driverPodName, submissionID)
+	submissionCmdArgs, err := buildSubmissionCommandArgs(app, driverPodName, submissionID)
 	if err != nil {
 		app.Status = v1beta2.SparkApplicationStatus{
 			AppState: v1beta2.ApplicationState{
