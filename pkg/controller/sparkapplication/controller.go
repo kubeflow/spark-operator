@@ -122,7 +122,7 @@ func newSparkApplicationController(
 	}
 
 	if metricsConfig != nil {
-		controller.metrics = newSparkAppMetrics(metricsConfig.MetricsPrefix, metricsConfig.MetricsLabels)
+		controller.metrics = newSparkAppMetrics(metricsConfig.MetricsPrefix, metricsConfig.MetricsLabels, metricsConfig.MetricsJobStartLatencyBuckets)
 		controller.metrics.registerMetrics()
 	}
 
@@ -455,18 +455,18 @@ func shouldRetry(app *v1beta2.SparkApplication) bool {
 
 // State Machine for SparkApplication:
 //+--------------------------------------------------------------------------------------------------------------------+
-//|                                                                                                                    |
-//|                +---------+                                                                                         |
-//|                |         |                                                                                         |
-//|                |         +                                                                                         |
-//|                |Submission                                                                                         |
-//|           +----> Failed  +-----+------------------------------------------------------------------+                |
-//|           |    |         |     |                                                                  |                |
-//|           |    |         |     |                                                                  |                |
-//|           |    +----^----+     |                                                                  |                |
-//|           |         |          |                                                                  |                |
-//|           |         |          |                                                                  |                |
-//|      +----+----+    |    +-----v----+          +----------+           +-----------+          +----v-----+          |
+//|        +---------------------------------------------------------------------------------------------+             |
+//|        |       +----------+                                                                          |             |
+//|        |       |          |                                                                          |             |
+//|        |       |          |                                                                          |             |
+//|        |       |Submission|                                                                          |             |
+//|        |  +---->  Failed  +----+------------------------------------------------------------------+  |             |
+//|        |  |    |          |    |                                                                  |  |             |
+//|        |  |    |          |    |                                                                  |  |             |
+//|        |  |    +----^-----+    |  +-----------------------------------------+                     |  |             |
+//|        |  |         |          |  |                                         |                     |  |             |
+//|        |  |         |          |  |                                         |                     |  |             |
+//|      +-+--+----+    |    +-----v--+-+          +----------+           +-----v-----+          +----v--v--+          |
 //|      |         |    |    |          |          |          |           |           |          |          |          |
 //|      |         |    |    |          |          |          |           |           |          |		    |          |
 //|      |   New   +---------> Submitted+----------> Running  +----------->  Failing  +---------->  Failed  |          |

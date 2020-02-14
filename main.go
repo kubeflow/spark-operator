@@ -78,6 +78,10 @@ var (
 func main() {
 	var metricsLabels util.ArrayFlags
 	flag.Var(&metricsLabels, "metrics-labels", "Labels for the metrics")
+	var metricsJobStartLatencyBuckets util.HistogramBuckets = util.DefaultJobStartLatencyBuckets
+	flag.Var(&metricsJobStartLatencyBuckets, "metrics-job-start-latency-buckets",
+		"Comma-separated boundary values (in seconds) for the job start latency histogram bucket; "+
+			"it accepts any numerical values that can be parsed into a 64-bit floating point")
 	flag.Parse()
 
 	// Create the client config. Use kubeConfig if given, otherwise assume in-cluster.
@@ -159,10 +163,11 @@ func main() {
 	var metricConfig *util.MetricConfig
 	if *enableMetrics {
 		metricConfig = &util.MetricConfig{
-			MetricsEndpoint: *metricsEndpoint,
-			MetricsPort:     *metricsPort,
-			MetricsPrefix:   *metricsPrefix,
-			MetricsLabels:   metricsLabels,
+			MetricsEndpoint:               *metricsEndpoint,
+			MetricsPort:                   *metricsPort,
+			MetricsPrefix:                 *metricsPrefix,
+			MetricsLabels:                 metricsLabels,
+			MetricsJobStartLatencyBuckets: metricsJobStartLatencyBuckets,
 		}
 
 		glog.Info("Enabling metrics collecting and exporting to Prometheus")

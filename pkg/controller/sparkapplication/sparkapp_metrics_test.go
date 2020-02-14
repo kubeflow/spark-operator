@@ -27,8 +27,8 @@ import (
 func TestSparkAppMetrics(t *testing.T) {
 	http.DefaultServeMux = new(http.ServeMux)
 	// Test with label containing "-". Expect them to be converted to "_".
-	metrics := newSparkAppMetrics("", []string{"app-id"})
-	app1 := map[string]string{"app_id": "test1"}
+	metrics := newSparkAppMetrics("", []string{"app-id", "namespace"}, []float64{30, 60, 90, 120})
+	app1 := map[string]string{"app_id": "test1", "namespace": "default"}
 
 	var wg sync.WaitGroup
 	wg.Add(1)
@@ -42,6 +42,7 @@ func TestSparkAppMetrics(t *testing.T) {
 			metrics.sparkAppSuccessExecutionTime.With(app1).Observe(float64(100 * i))
 			metrics.sparkAppFailureExecutionTime.With(app1).Observe(float64(500 * i))
 			metrics.sparkAppStartLatency.With(app1).Observe(float64(10 * i))
+			metrics.sparkAppStartLatencyHistogram.With(app1).Observe(float64(10 * i))
 			metrics.sparkAppExecutorRunningCount.Inc(app1)
 			metrics.sparkAppExecutorSuccessCount.With(app1).Inc()
 			metrics.sparkAppExecutorFailureCount.With(app1).Inc()
