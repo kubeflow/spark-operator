@@ -84,6 +84,12 @@ func patchSparkPod(pod *corev1.Pod, app *v1beta2.SparkApplication) []patchOperat
 	if op != nil {
 		patchOps = append(patchOps, *op)
 	}
+
+	op = addTerminationGracePeriodSeconds(pod, app)
+	if op != nil {
+		patchOps = append(patchOps, *op)
+	}
+
 	return patchOps
 }
 
@@ -606,4 +612,20 @@ func hasInitContainer(pod *corev1.Pod, container *corev1.Container) bool {
 		}
 	}
 	return false
+}
+
+func addTerminationGracePeriodSeconds(pod *corev1.Pod, app *v1beta2.SparkApplication) *patchOperation {
+	path := "/spec/terminationGracePeriodSeconds"
+	var gracePeriodSeconds *int64
+
+	if util.IsDriverPod(pod) {
+		gracePeriodSeconds = app.Spec.Driver.TerminationGracePeriodSeconds
+	} else if util.IsExecutorPod(pod) {
+		gracePeriodSeconds = app.Spec.Executor.TerminationGracePeriodSeconds
+	}
+	glog.V(2).Infof("termination grace period value: %d", gracePeriodSeconds)
+	if gracePeriodSeconds == nil {
+		return nil
+	}
+	return &patchOperation{Op: "add", Path: path, Value: gracePeriodSeconds}
 }
