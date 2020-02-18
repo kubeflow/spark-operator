@@ -1454,6 +1454,112 @@ func TestPatchSparkPod_Env(t *testing.T) {
 	assert.True(t, modifiedDriverPod.Spec.Containers[0].Env[0].ValueFrom == nil)
 }
 
+func TestPatchSparkPod_EnvFrom(t *testing.T) {
+	configMapName := "test-config-map"
+	secretName := "test-secret"
+
+	app := &v1beta2.SparkApplication{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "spark-test",
+			UID:  "spark-test-1",
+		},
+		Spec: v1beta2.SparkApplicationSpec{
+			Executor: v1beta2.ExecutorSpec{
+				SparkPodSpec: v1beta2.SparkPodSpec{
+					EnvFrom: []corev1.EnvFromSource{
+						{
+							ConfigMapRef: &corev1.ConfigMapEnvSource{
+								LocalObjectReference: corev1.LocalObjectReference{
+									Name: configMapName,
+								},
+							},
+						},
+						{
+							SecretRef: &corev1.SecretEnvSource{
+								LocalObjectReference: corev1.LocalObjectReference{
+									Name: secretName,
+								},
+							},
+						},
+					},
+				},
+			},
+			Driver: v1beta2.DriverSpec{
+				SparkPodSpec: v1beta2.SparkPodSpec{
+					EnvFrom: []corev1.EnvFromSource{
+						{
+							ConfigMapRef: &corev1.ConfigMapEnvSource{
+								LocalObjectReference: corev1.LocalObjectReference{
+									Name: configMapName,
+								},
+							},
+						},
+						{
+							SecretRef: &corev1.SecretEnvSource{
+								LocalObjectReference: corev1.LocalObjectReference{
+									Name: secretName,
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	driverPod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "spark-driver",
+			Labels: map[string]string{
+				config.SparkRoleLabel:               config.SparkDriverRole,
+				config.LaunchedBySparkOperatorLabel: "true",
+			},
+		},
+		Spec: corev1.PodSpec{
+			Containers: []corev1.Container{
+				{
+					Name:  config.SparkDriverContainerName,
+					Image: "spark-driver:latest",
+				},
+			},
+		},
+	}
+
+	executorPod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "spark-executor",
+			Labels: map[string]string{
+				config.SparkRoleLabel:               config.SparkExecutorRole,
+				config.LaunchedBySparkOperatorLabel: "true",
+			},
+		},
+		Spec: corev1.PodSpec{
+			Containers: []corev1.Container{
+				{
+					Name:  config.SparkExecutorContainerName,
+					Image: "spark-driver:latest",
+				},
+			},
+		},
+	}
+
+	modifiedDriverPod, err := getModifiedPod(driverPod, app)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assert.Equal(t, 2, len(modifiedDriverPod.Spec.Containers[0].EnvFrom))
+	assert.Equal(t, configMapName, modifiedDriverPod.Spec.Containers[0].EnvFrom[0].ConfigMapRef.Name)
+	assert.Equal(t, secretName, modifiedDriverPod.Spec.Containers[0].EnvFrom[1].SecretRef.Name)
+
+	modifiedExecutorPod, err := getModifiedPod(executorPod, app)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assert.Equal(t, 2, len(modifiedExecutorPod.Spec.Containers[0].EnvFrom))
+	assert.Equal(t, configMapName, modifiedExecutorPod.Spec.Containers[0].EnvFrom[0].ConfigMapRef.Name)
+	assert.Equal(t, secretName, modifiedExecutorPod.Spec.Containers[0].EnvFrom[1].SecretRef.Name)
+}
+
 func getModifiedPod(pod *corev1.Pod, app *v1beta2.SparkApplication) (*corev1.Pod, error) {
 	patchOps := patchSparkPod(pod.DeepCopy(), app)
 	patchBytes, err := json.Marshal(patchOps)

@@ -14,6 +14,7 @@ The Kubernetes Operator for Apache Spark ships with a command-line tool called `
     * [Writing Driver Specification](#writing-driver-specification)
     * [Writing Executor Specification](#writing-executor-specification)
     * [Specifying Extra Java Options](#specifying-extra-java-options)
+    * [Specifying Environment Variables](#specifying-environment-variables)
     * [Requesting GPU Resources](#requesting-gpu-resources)
     * [Host Network](#host-network)    
     * [Mounting Secrets](#mounting-secrets)
@@ -51,7 +52,7 @@ The operator runs Spark applications specified in Kubernetes objects of the `Spa
 
 As with all other Kubernetes API objects, a `SparkApplication` needs the `apiVersion`, `kind`, and `metadata` fields. For general information about working with manifests, see [object management using kubectl](https://kubernetes.io/docs/concepts/overview/object-management-kubectl/overview/).
 
-A `SparkApplication` also needs a [`.spec` section](https://git.k8s.io/community/contributors/devel/api-conventions.md#spec-and-status). This section contains fields for specifying various aspects of an application including its type (`Scala`, `Java`, `Python`, or `R`), deployment mode (`cluster` or `client`), main application resource URI (e.g., the URI of the application jar), main class, arguments, etc. Node selectors are also supported via the optional field `.spec.nodeSelector`.
+A `SparkApplication` also needs a [`.spec` section](https://github.com/kubernetes/community/blob/master/contributors/devel/sig-architecture/api-conventions.md#spec-and-status). This section contains fields for specifying various aspects of an application including its type (`Scala`, `Java`, `Python`, or `R`), deployment mode (`cluster` or `client`), main application resource URI (e.g., the URI of the application jar), main class, arguments, etc. Node selectors are also supported via the optional field `.spec.nodeSelector`.
 
 It also has fields for specifying the unified container image (to use for both the driver and executors) and the image pull policy, namely, `.spec.image` and `.spec.imagePullPolicy` respectively. If a custom init-container (in both the driver and executor pods) image needs to be used, the optional field `.spec.initContainerImage` can be used to specify it. If set, `.spec.initContainerImage` overrides `.spec.image` for the init-container image. Otherwise, the image specified by `.spec.image` will be used for the init-container. It is invalid if both `.spec.image` and `.spec.initContainerImage` are not set.
 
@@ -66,9 +67,9 @@ metadata:
 spec:
   type: Scala
   mode: cluster
-  image: gcr.io/spark/spark:v2.4.4
+  image: gcr.io/spark/spark:v2.4.5
   mainClass: org.apache.spark.examples.SparkPi
-  mainApplicationFile: local:///opt/spark/examples/jars/spark-examples_2.11-2.4.4.jar
+  mainApplicationFile: local:///opt/spark/examples/jars/spark-examples_2.11-2.4.5.jar
 ```
 
 ### Specifying Application Dependencies
@@ -132,7 +133,7 @@ spec:
     coreLimit: 200m
     memory: 512m
     labels:
-      version: 2.4.4
+      version: 2.4.5
     serviceAccount: spark
 ```
 
@@ -152,7 +153,7 @@ spec:
     instances: 1
     memory: 512m
     labels:
-      version: 2.4.4
+      version: 2.4.5
 ```
 
 ### Specifying Extra Java Options
@@ -166,6 +167,58 @@ spec:
 ```
 
 Values specified using those two fields get converted to Spark configuration properties `spark.driver.extraJavaOptions` and `spark.executor.extraJavaOptions`, respectively. **Prefer using the above two fields over configuration properties `spark.driver.extraJavaOptions` and `spark.executor.extraJavaOptions`** as the fields work well with other fields that might modify what gets set for `spark.driver.extraJavaOptions` or `spark.executor.extraJavaOptions`.
+
+### Specifying Environment Variables
+
+There are two fields for specifying environment variables for the driver and/or executor containers, namely `.spec.driver.env` (or `.spec.executor.env` for the executor container) and `.spec.driver.envFrom` (or `.spec.executor.envFrom` for the executor container). Specifically, `.spec.driver.env` (and `.spec.executor.env`) takes a list of [EnvVar](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.17/#envvar-v1-core), each of which specifies an environment variable or the source of an environment variable, e.g., a name-value pair, a ConfigMap key, a Secret key, etc. Alternatively, `.spec.driver.envFrom` (and `.spec.executor.envFrom`) takes a list of [EnvFromSource](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.17/#envfromsource-v1-core) and allows [using all key-value pairs in a ConfigMap or Secret as environment variables](https://v1-15.docs.kubernetes.io/docs/tasks/configure-pod-container/configure-pod-configmap/#configure-all-key-value-pairs-in-a-configmap-as-container-environment-variables). The `SparkApplication` snippet below shows the use of both fields:
+
+```yaml
+spec:
+  driver:
+    env:
+      - name: ENV1
+        value: VAL1
+      - name: ENV2
+        value: VAL2
+      - name: ENV3
+        valueFrom:
+          configMapKeyRef:
+            name: some-config-map
+            key: env3-key
+      - name: AUTH_KEY
+        valueFrom:
+          secretKeyRef:
+            name: some-secret
+            key: auth-key
+    envFrom:
+      - configMapRef:
+          name: env-config-map
+      - secretRef:
+          name: env-secret
+  executor:
+    env:
+      - name: ENV1
+        value: VAL1
+      - name: ENV2
+        value: VAL2
+      - name: ENV3
+        valueFrom:
+          configMapKeyRef:
+            name: some-config-map
+            key: env3-key
+      - name: AUTH_KEY
+        valueFrom:
+          secretKeyRef:
+            name: some-secret
+            key: auth-key  
+    envFrom:
+      - configMapRef:
+          name: my-env-config-map
+      - secretRef:
+          name: my-env-secret
+```
+
+**Note: legacy field `envVars` that can also be used for specifying environment variables is deprecated and will be removed in a future API version.**
 
 ### Requesting GPU Resources
 
@@ -181,7 +234,7 @@ spec:
       name: "amd.com/gpu"   # GPU resource name
       quantity: 1           # number of GPUs to request
     labels:
-      version: 2.4.4
+      version: 2.4.5
     serviceAccount: spark
   executor:
     cores: 1
@@ -205,7 +258,7 @@ spec:
     memory: "512m"
     hostNetwork: true
     labels:
-      version: 2.4.4
+      version: 2.4.5
     serviceAccount: spark
   executor:
     cores: 1
@@ -290,7 +343,7 @@ Note that the mutating admission webhook is needed to use this feature. Please r
 
 ### Using Secrets As Environment Variables
 
-**Note that this feature requires an image based on the latest Spark master branch.** 
+**Note: `envSecretKeyRefs` is deprecated and will be removed in a future API version.** 
 
 A `SparkApplication` can use [secrets as environment variables](https://kubernetes.io/docs/concepts/configuration/secret/#using-secrets-as-environment-variables), through the optional field `.spec.driver.envSecretKeyRefs` for the driver pod and the optional field 
 `.spec.executor.envSecretKeyRefs` for the executor pods. A `envSecretKeyRefs` is a map from environment variable names to pairs consisting of a secret name and a secret key. Below is an example:
@@ -537,7 +590,7 @@ Note that Python binding for PySpark is available in Apache Spark 2.4.
 
 The operator supports using the Spark metric system to expose metrics to a variety of sinks. Particularly, it is able to automatically configure the metric system to expose metrics to [Prometheus](https://prometheus.io/). Specifically, the field `.spec.monitoring` specifies how application monitoring is handled and particularly how metrics are to be reported. The metric system is configured through the configuration file `metrics.properties`, which gets its content from the field `.spec.monitoring.metricsProperties`. The content of [metrics.properties](../spark-docker/conf/metrics.properties) will be used by default if `.spec.monitoring.metricsProperties` is not specified. You can choose to enable or disable reporting driver and executor metrics using the fields `.spec.monitoring.exposeDriverMetrics` and `.spec.monitoring.exposeExecutorMetrics`, respectively. 
 
-Further, the field `.spec.monitoring.prometheus` specifies how metrics are exposed to Prometheus using the [Prometheus JMX exporter](https://github.com/prometheus/jmx_exporter). When `.spec.monitoring.prometheus` is specified, the operator automatically configures the JMX exporter to run as a Java agent. The only required field of `.spec.monitoring.prometheus` is `jmxExporterJar`, which specified the path to the Prometheus JMX exporter Java agent jar in the container. If you use the image `gcr.io/spark-operator/spark:v2.4.4-gcs-prometheus`, the jar is located at `/prometheus/jmx_prometheus_javaagent-0.11.0.jar`. The field `.spec.monitoring.prometheus.port` specifies the port the JMX exporter Java agent binds to and defaults to `8090` if not specified. The field `.spec.monitoring.prometheus.configuration` specifies the content of the configuration to be used with the JMX exporter. The content of [prometheus.yaml](../spark-docker/conf/prometheus.yaml) will be used by default if `.spec.monitoring.prometheus.configuration` is not specified.    
+Further, the field `.spec.monitoring.prometheus` specifies how metrics are exposed to Prometheus using the [Prometheus JMX exporter](https://github.com/prometheus/jmx_exporter). When `.spec.monitoring.prometheus` is specified, the operator automatically configures the JMX exporter to run as a Java agent. The only required field of `.spec.monitoring.prometheus` is `jmxExporterJar`, which specified the path to the Prometheus JMX exporter Java agent jar in the container. If you use the image `gcr.io/spark-operator/spark:v2.4.5-gcs-prometheus`, the jar is located at `/prometheus/jmx_prometheus_javaagent-0.11.0.jar`. The field `.spec.monitoring.prometheus.port` specifies the port the JMX exporter Java agent binds to and defaults to `8090` if not specified. The field `.spec.monitoring.prometheus.configuration` specifies the content of the configuration to be used with the JMX exporter. The content of [prometheus.yaml](../spark-docker/conf/prometheus.yaml) will be used by default if `.spec.monitoring.prometheus.configuration` is not specified.    
 
 Below is an example that shows how to configure the metric system to expose metrics to Prometheus using the Prometheus JMX exporter. Note that the JMX exporter Java agent jar is listed as a dependency and will be downloaded to where `.spec.dep.jarsDownloadDir` points to in Spark 2.3.x, which is `/var/spark-data/spark-jars` by default. Things are different in Spark 2.4 as dependencies will be downloaded to the local working directory instead in Spark 2.4. A complete example can be found in [examples/spark-pi-prometheus.yaml](../examples/spark-pi-prometheus.yaml).
 
@@ -625,7 +678,7 @@ spec:
   template:
     type: Scala
     mode: cluster
-    image: gcr.io/spark/spark:v2.4.4
+    image: gcr.io/spark/spark:v2.4.5
     mainClass: org.apache.spark.examples.SparkPi
     mainApplicationFile: local:///opt/spark/examples/jars/spark-examples_2.11-2.3.0.jar
     driver:
