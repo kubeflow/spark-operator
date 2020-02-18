@@ -31,7 +31,7 @@ RUN go generate && CGO_ENABLED=0 GOOS=linux go build -o /usr/bin/spark-operator
 FROM ${SPARK_IMAGE}
 COPY --from=builder /usr/bin/spark-operator /usr/bin/
 RUN apt-get update \
-#    && apt-get install -y openssl curl tini && \
+    && apt-get install -y openssl curl tini && \
     && rm -rf /var/lib/apt/lists/*
 
 COPY hack/gencerts.sh /usr/bin/
