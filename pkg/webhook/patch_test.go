@@ -1560,6 +1560,133 @@ func TestPatchSparkPod_EnvFrom(t *testing.T) {
 	assert.Equal(t, secretName, modifiedExecutorPod.Spec.Containers[0].EnvFrom[1].SecretRef.Name)
 }
 
+func TestPatchSparkPod_GracePeriodSeconds(t *testing.T) {
+
+	app := &v1beta2.SparkApplication{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "spark-test-hostNetwork",
+			UID:  "spark-test-1",
+		},
+		Spec: v1beta2.SparkApplicationSpec{
+			Driver: v1beta2.DriverSpec{
+				SparkPodSpec: v1beta2.SparkPodSpec{},
+			},
+			Executor: v1beta2.ExecutorSpec{
+				SparkPodSpec: v1beta2.SparkPodSpec{},
+			},
+		},
+	}
+
+	test1 := int64(60)
+	tests := []*int64{
+		&test1,
+		nil,
+	}
+
+	for _, test := range tests {
+		app.Spec.Driver.TerminationGracePeriodSeconds = test
+		app.Spec.Executor.TerminationGracePeriodSeconds = test
+		driverPod := &corev1.Pod{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "spark-driver",
+				Labels: map[string]string{
+					config.SparkRoleLabel:               config.SparkDriverRole,
+					config.LaunchedBySparkOperatorLabel: "true",
+				},
+			},
+			Spec: corev1.PodSpec{
+				Containers: []corev1.Container{
+					{
+						Name:  config.SparkDriverContainerName,
+						Image: "spark-driver:latest",
+					},
+				},
+			},
+		}
+
+		modifiedDriverPod, err := getModifiedPod(driverPod, app)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if test == nil {
+			assert.True(t, modifiedDriverPod.Spec.TerminationGracePeriodSeconds == nil)
+		} else {
+			assert.Equal(t, int64(60), *modifiedDriverPod.Spec.TerminationGracePeriodSeconds)
+		}
+
+		executorPod := &corev1.Pod{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "spark-executor",
+				Labels: map[string]string{
+					config.SparkRoleLabel:               config.SparkExecutorRole,
+					config.LaunchedBySparkOperatorLabel: "true",
+				},
+			},
+			Spec: corev1.PodSpec{
+				Containers: []corev1.Container{
+					{
+						Name:  config.SparkExecutorContainerName,
+						Image: "spark-executor:latest",
+					},
+				},
+			},
+		}
+
+		modifiedExecPod, err := getModifiedPod(executorPod, app)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if test == nil {
+			assert.True(t, modifiedDriverPod.Spec.TerminationGracePeriodSeconds == nil)
+		} else {
+			assert.Equal(t, int64(60), *modifiedExecPod.Spec.TerminationGracePeriodSeconds)
+		}
+	}
+}
+
+func TestPatchSparkPod_Lifecycle(t *testing.T) {
+	preStopTest := &corev1.ExecAction{
+		Command: []string{"/bin/sh", "-c", "echo Hello from the pre stop handler > /usr/share/message"},
+	}
+	app := &v1beta2.SparkApplication{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "spark-test",
+			UID:  "spark-test-1",
+		},
+		Spec: v1beta2.SparkApplicationSpec{
+			Driver: v1beta2.DriverSpec{
+				Lifecycle: &corev1.Lifecycle{
+					PreStop: &corev1.Handler{Exec: preStopTest},
+				},
+			},
+		},
+	}
+
+	driverPod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "spark-driver",
+			Labels: map[string]string{
+				config.SparkRoleLabel:               config.SparkDriverRole,
+				config.LaunchedBySparkOperatorLabel: "true",
+			},
+		},
+		Spec: corev1.PodSpec{
+			Containers: []corev1.Container{
+				{
+					Name:  config.SparkDriverContainerName,
+					Image: "spark-driver:latest",
+				},
+			},
+		},
+	}
+
+	modifiedDriverPod, err := getModifiedPod(driverPod, app)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assert.Equal(t, preStopTest, modifiedDriverPod.Spec.Containers[0].Lifecycle.PreStop.Exec)
+}
+
 func getModifiedPod(pod *corev1.Pod, app *v1beta2.SparkApplication) (*corev1.Pod, error) {
 	patchOps := patchSparkPod(pod.DeepCopy(), app)
 	patchBytes, err := json.Marshal(patchOps)

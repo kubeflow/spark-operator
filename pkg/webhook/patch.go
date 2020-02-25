@@ -631,7 +631,7 @@ func addTerminationGracePeriodSeconds(pod *corev1.Pod, app *v1beta2.SparkApplica
 	if gracePeriodSeconds == nil {
 		return nil
 	}
-	return &patchOperation{Op: "add", Path: path, Value: gracePeriodSeconds}
+	return &patchOperation{Op: "add", Path: path, Value: *gracePeriodSeconds}
 }
 
 func addPodLifeCycleConfig(pod *corev1.Pod, app *v1beta2.SparkApplication) *patchOperation {
