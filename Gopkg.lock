@@ -41,10 +41,11 @@
   version = "v11.7.0"
 
 [[projects]]
-  digest = "1:e1fc4e86ce21dca811fb1a59438f55e442cfcbdfc3346637ad87a448dca6a657"
+  digest = "1:05a699cf42890ed9cb688bf6be567537b3b6ce63435b801b688968dd4dc4e042"
   name = "github.com/aws/aws-sdk-go"
   packages = [
     "aws",
+    "aws/arn",
     "aws/awserr",
     "aws/awsutil",
     "aws/client",
@@ -62,28 +63,35 @@
     "aws/request",
     "aws/session",
     "aws/signer/v4",
+    "internal/context",
     "internal/ini",
     "internal/s3err",
     "internal/sdkio",
+    "internal/sdkmath",
     "internal/sdkrand",
     "internal/sdkuri",
     "internal/shareddefaults",
+    "internal/strings",
+    "internal/sync/singleflight",
     "private/protocol",
     "private/protocol/eventstream",
     "private/protocol/eventstream/eventstreamapi",
+    "private/protocol/json/jsonutil",
     "private/protocol/query",
     "private/protocol/query/queryutil",
     "private/protocol/rest",
     "private/protocol/restxml",
     "private/protocol/xml/xmlutil",
     "service/s3",
+    "service/s3/internal/arn",
     "service/s3/s3iface",
     "service/s3/s3manager",
     "service/sts",
+    "service/sts/stsiface",
   ]
   pruneopts = ""
-  revision = "56c1def75689cceec1fa6f14c2eedb4b798827f9"
-  version = "v1.19.11"
+  revision = "2ff90b519baf8ee626cf6c3d451d54664ac72345"
+  version = "v1.29.11"
 
 [[projects]]
   branch = "master"
@@ -468,12 +476,12 @@
   version = "v1.1"
 
 [[projects]]
-  digest = "1:a1403cc8a94b8d7956ee5e9694badef0e7b051af289caad1cf668331e3ffa4f6"
+  digest = "1:c8ce7b6ab0b766a2c226e9022bad6471e2ce9cac6929eb85c2753a7be86d39ec"
   name = "github.com/spf13/cobra"
   packages = ["."]
   pruneopts = ""
-  revision = "ef82de70bb3f60c65fb8eebacbb2d122ef517385"
-  version = "v0.0.3"
+  revision = "0da06874266c88228b8f14615396a1f6bfc90ed7"
+  version = "v0.0.6"
 
 [[projects]]
   digest = "1:cbaf13cdbfef0e4734ed8a7504f57fe893d471d62a35b982bf6fb3f036449a66"
@@ -1126,6 +1134,8 @@
   digest = "1:196c0fe087e94a5dac71510ac816b73fe65dc90dc32d390e008299d7c42a679f"
   name = "k8s.io/kubernetes"
   packages = [
+    "pkg/apis/core",
+    "pkg/apis/policy",
     "pkg/kubectl/describe",
     "pkg/kubectl/describe/versioned",
     "pkg/kubectl/scheme",
@@ -1251,6 +1261,7 @@
     "k8s.io/code-generator/cmd/client-gen",
     "k8s.io/code-generator/cmd/deepcopy-gen",
     "k8s.io/code-generator/cmd/defaulter-gen",
+    "k8s.io/kubernetes/pkg/apis/policy",
     "k8s.io/kubernetes/pkg/kubectl/describe",
     "k8s.io/kubernetes/pkg/kubectl/describe/versioned",
     "k8s.io/kubernetes/pkg/util/interrupt",
