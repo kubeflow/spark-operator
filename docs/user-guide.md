@@ -537,7 +537,7 @@ spec:
       volumeMounts:
         - name: "spark-local-dir-1"
           mountPath: "/tmp/dir1"
-        - name: "spark-local-dir-1"
+        - name: "spark-local-dir-2"
           mountPath: "/tmp/dir2"
       ...
 ```
