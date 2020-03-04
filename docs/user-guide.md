@@ -495,7 +495,9 @@ Note that the mutating admission webhook is needed to use this feature. Please r
 
 ### Using Volume For Scratch Space
 By default, Spark uses temporary scratch space to spill data to disk during shuffles and other operations.
-In order to use volume, volume's name should starts with `spark-local-dir-`.
+The scratch directory defaults to `/tmp` of the container.
+If that storage isn't enough or you want to use a specific path, you can use one or more volumes.
+The volume names should start with `spark-local-dir-`.
 
 
 ```
