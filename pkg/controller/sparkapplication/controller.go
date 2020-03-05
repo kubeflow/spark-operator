@@ -797,7 +797,7 @@ func (c *Controller) deleteSparkResources(app *v1beta2.SparkApplication) error {
 	}
 
 	glog.V(2).Infof("Deleting pod %s in namespace %s", driverPodName, app.Namespace)
-	err := c.kubeClient.CoreV1().Pods(app.Namespace).Delete(driverPodName, metav1.NewDeleteOptions(0))
+	err := c.kubeClient.CoreV1().Pods(app.Namespace).Delete(driverPodName, &metav1.DeleteOptions{})
 	if err != nil && !errors.IsNotFound(err) {
 		return err
 	}
