@@ -175,7 +175,6 @@ func (c *Controller) Stop() {
 // Callback function called when a new SparkApplication object gets created.
 func (c *Controller) onAdd(obj interface{}) {
 	app := obj.(*v1beta2.SparkApplication)
-	v1beta2.SetSparkApplicationDefaults(app)
 	glog.Infof("SparkApplication %s/%s was added, enqueueing it for submission", app.Namespace, app.Name)
 	c.enqueue(app)
 }
@@ -618,6 +617,9 @@ func hasRetryIntervalPassed(retryInterval *int64, attemptsDone int32, lastEventT
 
 // submitSparkApplication creates a new submission for the given SparkApplication and submits it using spark-submit.
 func (c *Controller) submitSparkApplication(app *v1beta2.SparkApplication) *v1beta2.SparkApplication {
+	// Apply default values before submitting the application to run.
+	v1beta2.SetSparkApplicationDefaults(app)
+
 	if app.PrometheusMonitoringEnabled() {
 		if err := configPrometheusMonitoring(app, c.kubeClient); err != nil {
 			glog.Error(err)
@@ -626,13 +628,11 @@ func (c *Controller) submitSparkApplication(app *v1beta2.SparkApplication) *v1be
 
 	// Use batch scheduler to perform scheduling task before submitting (before build command arguments).
 	if needScheduling, scheduler := c.shouldDoBatchScheduling(app); needScheduling {
-		newApp, err := scheduler.DoBatchSchedulingOnSubmission(app)
+		err := scheduler.DoBatchSchedulingOnSubmission(app)
 		if err != nil {
 			glog.Errorf("failed to process batch scheduler BeforeSubmitSparkApplication with error %v", err)
 			return app
 		}
-		//Spark submit will use the updated app to submit tasks(Spec will not be updated into API server)
-		app = newApp
 	}
 
 	driverPodName := getDriverPodName(app)
