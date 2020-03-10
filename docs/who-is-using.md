@@ -19,3 +19,4 @@
 | CloudZone | @iftachsc | Evaluation | Big Data Analytics Consultancy
 | Cyren | @avnerl | Evaluation | Data pipelines
 | Shell (Agile Hub) | @TomLous | Production | Data pipelines
+| Nielsen Identity Engine | @roitvt | Evaluation | Data pipelines
