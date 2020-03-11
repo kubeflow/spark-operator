@@ -627,7 +627,7 @@ Below is an example that shows how to configure the metric system to expose metr
 
 ```yaml
 spec:
-  dep:
+  deps:
     jars:
     - http://central.maven.org/maven2/io/prometheus/jmx/jmx_prometheus_javaagent/0.11.0/jmx_prometheus_javaagent-0.11.0.jar
   monitoring:
@@ -689,7 +689,7 @@ spec:
   timeToLiveSeconds: 3600
 ```
 
-Note that this feature requires that informer cache resync to be enabled, which is true by default with a resync internal of 30 seconds. You can change the resync interval by setting the flag `-resync-interval=<internval>`.
+Note that this feature requires that informer cache resync to be enabled, which is true by default with a resync internal of 30 seconds. You can change the resync interval by setting the flag `-resync-interval=<interval>`.
 
 ## Running Spark Applications on a Schedule using a ScheduledSparkApplication
 
