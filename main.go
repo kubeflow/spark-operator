@@ -65,6 +65,7 @@ var (
 	metricsEndpoint                = flag.String("metrics-endpoint", "/metrics", "Metrics endpoint.")
 	metricsPrefix                  = flag.String("metrics-prefix", "", "Prefix for the metrics.")
 	ingressURLFormat               = flag.String("ingress-url-format", "", "Ingress URL format.")
+	ingressAnnotations             = flag.String("ingress-annotations", "", "Ingress Annotations in format annotation1name:annotation1value,annotation2name:anotation2value,...")
 	enableLeaderElection           = flag.Bool("leader-election", false, "Enable Spark operator leader election.")
 	leaderElectionLockNamespace    = flag.String("leader-election-lock-namespace", "spark-operator", "Namespace in which to create the ConfigMap for leader election.")
 	leaderElectionLockName         = flag.String("leader-election-lock-name", "spark-operator-lock", "Name of the ConfigMap for leader election.")
@@ -170,7 +171,7 @@ func main() {
 	}
 
 	applicationController := sparkapplication.NewController(
-		crClient, kubeClient, crInformerFactory, podInformerFactory, metricConfig, *namespace, *ingressURLFormat, batchSchedulerMgr)
+		crClient, kubeClient, crInformerFactory, podInformerFactory, metricConfig, *namespace, *ingressURLFormat, *ingressAnnotations, batchSchedulerMgr)
 	scheduledApplicationController := scheduledsparkapplication.NewController(
 		crClient, kubeClient, apiExtensionsClient, crInformerFactory, clock.RealClock{})
 

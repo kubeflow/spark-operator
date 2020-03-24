@@ -66,16 +66,17 @@ var (
 
 // Controller manages instances of SparkApplication.
 type Controller struct {
-	crdClient         crdclientset.Interface
-	kubeClient        clientset.Interface
-	queue             workqueue.RateLimitingInterface
-	cacheSynced       cache.InformerSynced
-	recorder          record.EventRecorder
-	metrics           *sparkAppMetrics
-	applicationLister crdlisters.SparkApplicationLister
-	podLister         v1.PodLister
-	ingressURLFormat  string
-	batchSchedulerMgr *batchscheduler.SchedulerManager
+	crdClient          crdclientset.Interface
+	kubeClient         clientset.Interface
+	queue              workqueue.RateLimitingInterface
+	cacheSynced        cache.InformerSynced
+	recorder           record.EventRecorder
+	metrics            *sparkAppMetrics
+	applicationLister  crdlisters.SparkApplicationLister
+	podLister          v1.PodLister
+	ingressURLFormat   string
+	ingressAnnotations string
+	batchSchedulerMgr  *batchscheduler.SchedulerManager
 }
 
 // NewController creates a new Controller.
@@ -87,6 +88,7 @@ func NewController(
 	metricsConfig *util.MetricConfig,
 	namespace string,
 	ingressURLFormat string,
+	ingressAnnotations string,
 	batchSchedulerMgr *batchscheduler.SchedulerManager) *Controller {
 	crdscheme.AddToScheme(scheme.Scheme)
 
@@ -97,7 +99,7 @@ func NewController(
 	})
 	recorder := eventBroadcaster.NewRecorder(scheme.Scheme, apiv1.EventSource{Component: "spark-operator"})
 
-	return newSparkApplicationController(crdClient, kubeClient, crdInformerFactory, podInformerFactory, recorder, metricsConfig, ingressURLFormat, batchSchedulerMgr)
+	return newSparkApplicationController(crdClient, kubeClient, crdInformerFactory, podInformerFactory, recorder, metricsConfig, ingressURLFormat, ingressAnnotations, batchSchedulerMgr)
 }
 
 func newSparkApplicationController(
@@ -108,17 +110,19 @@ func newSparkApplicationController(
 	eventRecorder record.EventRecorder,
 	metricsConfig *util.MetricConfig,
 	ingressURLFormat string,
+	ingressAnnotations string,
 	batchSchedulerMgr *batchscheduler.SchedulerManager) *Controller {
 	queue := workqueue.NewNamedRateLimitingQueue(&workqueue.BucketRateLimiter{Limiter: rate.NewLimiter(rate.Limit(queueTokenRefillRate), queueTokenBucketSize)},
 		"spark-application-controller")
 
 	controller := &Controller{
-		crdClient:         crdClient,
-		kubeClient:        kubeClient,
-		recorder:          eventRecorder,
-		queue:             queue,
-		ingressURLFormat:  ingressURLFormat,
-		batchSchedulerMgr: batchSchedulerMgr,
+		crdClient:          crdClient,
+		kubeClient:         kubeClient,
+		recorder:           eventRecorder,
+		queue:              queue,
+		ingressURLFormat:   ingressURLFormat,
+		ingressAnnotations: ingressAnnotations,
+		batchSchedulerMgr:  batchSchedulerMgr,
 	}
 
 	if metricsConfig != nil {
@@ -695,7 +699,7 @@ func (c *Controller) submitSparkApplication(app *v1beta2.SparkApplication) *v1be
 		app.Status.DriverInfo.WebUIAddress = fmt.Sprintf("%s:%d", service.serviceIP, app.Status.DriverInfo.WebUIPort)
 		// Create UI Ingress if ingress-format is set.
 		if c.ingressURLFormat != "" {
-			ingress, err := createSparkUIIngress(app, *service, c.ingressURLFormat, c.kubeClient)
+			ingress, err := createSparkUIIngress(app, *service, c.ingressURLFormat, c.ingressAnnotations, c.kubeClient)
 			if err != nil {
 				glog.Errorf("failed to create UI Ingress for SparkApplication %s/%s: %v", app.Namespace, app.Name, err)
 			} else {

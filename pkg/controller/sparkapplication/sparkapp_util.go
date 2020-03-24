@@ -18,6 +18,8 @@ package sparkapplication
 
 import (
 	"fmt"
+	"strings"
+
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/kubernetes/pkg/apis/policy"
 
@@ -68,6 +70,16 @@ func getResourceLabels(app *v1beta2.SparkApplication) map[string]string {
 		labels[config.SubmissionIDLabel] = app.Status.SubmissionID
 	}
 	return labels
+}
+
+func getResourceAnnotations(ingressAnnotations string) map[string]string {
+	annotations := map[string]string{}
+	for _, annotation := range strings.Split(ingressAnnotations, ",") {
+		if strings.Count(annotation, ":") == 1 {
+			annotations[strings.Split(annotation, ":")[0]] = strings.Split(annotation, ":")[1]
+		}
+	}
+	return annotations
 }
 
 func podPhaseToExecutorState(podPhase apiv1.PodPhase) v1beta2.ExecutorState {
