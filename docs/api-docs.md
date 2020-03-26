@@ -1111,6 +1111,19 @@ If not specified, the content in spark-docker/conf/metrics.properties will be us
 </tr>
 <tr>
 <td>
+<code>metricsPropertiesFile</code></br>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>MetricsPropertiesFile is the address of file metrics.properties for configuring the Spark metric system.
+If not specified, value /etc/metrics/conf/metrics.properties will be used.</p>
+</td>
+</tr>
+<tr>
+<td>
 <code>prometheus</code></br>
 <em>
 <a href="#sparkoperator.k8s.io/v1beta2.PrometheusSpec">
@@ -2482,5 +2495,5 @@ Kubernetes core/v1.PodDNSConfig
 <hr/>
 <p><em>
 Generated with <code>gen-crd-api-reference-docs</code>
-on git commit <code>c8ae9e3</code>.
+on git commit <code>6449a6d24</code>.
 </em></p>

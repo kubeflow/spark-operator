@@ -214,6 +214,11 @@ func (in *MonitoringSpec) DeepCopyInto(out *MonitoringSpec) {
 		*out = new(string)
 		**out = **in
 	}
+	if in.MetricsPropertiesFile != nil {
+		in, out := &in.MetricsPropertiesFile, &out.MetricsPropertiesFile
+		*out = new(string)
+		**out = **in
+	}
 	if in.Prometheus != nil {
 		in, out := &in.Prometheus, &out.Prometheus
 		*out = new(PrometheusSpec)

@@ -2915,6 +2915,8 @@ spec:
                       type: boolean
                     metricsProperties:
                       type: string
+                    metricsPropertiesFile:
+                      type: string
                     prometheus:
                       properties:
                         configFile:

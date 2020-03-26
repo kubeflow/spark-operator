@@ -44,27 +44,30 @@ func configPrometheusMonitoring(app *v1beta2.SparkApplication, kubeClient client
 		port = *app.Spec.Monitoring.Prometheus.Port
 	}
 
-	glog.V(2).Infof("Loading Prometheus configuration.")
-	configMapName := config.GetPrometheusConfigMapName(app)
-	configMap := buildPrometheusConfigMap(app, configMapName)
-	retryErr := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		cm, err := kubeClient.CoreV1().ConfigMaps(app.Namespace).Get(configMapName, metav1.GetOptions{})
-		if apiErrors.IsNotFound(err) {
-			_, createErr := kubeClient.CoreV1().ConfigMaps(app.Namespace).Create(configMap)
-			return createErr
-		}
-		if err != nil {
-			return err
-		}
+	if !app.HasMetricsPropertiesFile() || !app.HasPrometheusConfigFile() {
+		glog.V(2).Infof("Loading Prometheus configuration.")
+		configMapName := config.GetPrometheusConfigMapName(app)
+		configMap := buildPrometheusConfigMap(app, configMapName)
+		retryErr := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+			cm, err := kubeClient.CoreV1().ConfigMaps(app.Namespace).Get(configMapName, metav1.GetOptions{})
+			if apiErrors.IsNotFound(err) {
+				_, createErr := kubeClient.CoreV1().ConfigMaps(app.Namespace).Create(configMap)
+				return createErr
+			}
+			if err != nil {
+				return err
+			}
 
-		cm.Data = configMap.Data
-		_, updateErr := kubeClient.CoreV1().ConfigMaps(app.Namespace).Update(cm)
-		return updateErr
-	})
+			cm.Data = configMap.Data
+			_, updateErr := kubeClient.CoreV1().ConfigMaps(app.Namespace).Update(cm)
+			return updateErr
+		})
 
-	if retryErr != nil {
-		return fmt.Errorf("failed to apply %s in namespace %s: %v", configMapName, app.Namespace, retryErr)
+		if retryErr != nil {
+			return fmt.Errorf("failed to apply %s in namespace %s: %v", configMapName, app.Namespace, retryErr)
+		}
 	}
+
 	var javaOption string
 
 	glog.V(2).Infof("Setting the default Prometheus configuration.")
@@ -90,6 +93,10 @@ func configPrometheusMonitoring(app *v1beta2.SparkApplication, kubeClient client
 	}
 	app.Spec.SparkConf["spark.metrics.namespace"] = metricNamespace
 	app.Spec.SparkConf["spark.metrics.conf"] = metricConf
+
+	if app.HasMetricsPropertiesFile() {
+		app.Spec.SparkConf["spark.metrics.conf"] = *app.Spec.Monitoring.MetricsPropertiesFile
+	}
 
 	if app.Spec.Monitoring.ExposeDriverMetrics {
 		if app.Spec.Driver.Annotations == nil {
@@ -124,38 +131,30 @@ func configPrometheusMonitoring(app *v1beta2.SparkApplication, kubeClient client
 }
 
 func buildPrometheusConfigMap(app *v1beta2.SparkApplication, prometheusConfigMapName string) *corev1.ConfigMap {
-	metricsProperties := config.DefaultMetricsProperties
-	if app.Spec.Monitoring.MetricsProperties != nil {
-		metricsProperties = *app.Spec.Monitoring.MetricsProperties
+	configMapData := make(map[string]string)
+
+	if !app.HasMetricsPropertiesFile() {
+		metricsProperties := config.DefaultMetricsProperties
+		if app.Spec.Monitoring.MetricsProperties != nil {
+			metricsProperties = *app.Spec.Monitoring.MetricsProperties
+		}
+		configMapData[metricsPropertiesKey] = metricsProperties
 	}
 
-	if app.HasPrometheusConfigFile() {
-		return &corev1.ConfigMap{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:            prometheusConfigMapName,
-				Namespace:       app.Namespace,
-				OwnerReferences: []metav1.OwnerReference{*getOwnerReference(app)},
-			},
-			Data: map[string]string{
-				metricsPropertiesKey: metricsProperties,
-			},
-		}
-	} else {
+	if !app.HasPrometheusConfigFile() {
 		prometheusConfig := config.DefaultPrometheusConfiguration
 		if app.Spec.Monitoring.Prometheus.Configuration != nil {
 			prometheusConfig = *app.Spec.Monitoring.Prometheus.Configuration
 		}
+		configMapData[prometheusConfigKey] = prometheusConfig
+	}
 
-		return &corev1.ConfigMap{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:            prometheusConfigMapName,
-				Namespace:       app.Namespace,
-				OwnerReferences: []metav1.OwnerReference{*getOwnerReference(app)},
-			},
-			Data: map[string]string{
-				metricsPropertiesKey: metricsProperties,
-				prometheusConfigKey:  prometheusConfig,
-			},
-		}
+	return &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:            prometheusConfigMapName,
+			Namespace:       app.Namespace,
+			OwnerReferences: []metav1.OwnerReference{*getOwnerReference(app)},
+		},
+		Data: configMapData,
 	}
 }

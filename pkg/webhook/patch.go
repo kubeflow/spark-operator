@@ -339,7 +339,7 @@ func addGeneralConfigMaps(pod *corev1.Pod, app *v1beta2.SparkApplication) []patc
 func addPrometheusConfigMap(pod *corev1.Pod, app *v1beta2.SparkApplication) []patchOperation {
 	// Skip if Prometheus Monitoring is not enabled or an in-container ConfigFile is used,
 	// in which cases a Prometheus ConfigMap won't be created.
-	if !app.PrometheusMonitoringEnabled() || app.HasPrometheusConfigFile() {
+	if !app.PrometheusMonitoringEnabled() || (app.HasMetricsPropertiesFile() && app.HasPrometheusConfigFile()) {
 		return nil
 	}
 

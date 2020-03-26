@@ -557,6 +557,10 @@ type MonitoringSpec struct {
 	// +optional
 	// If not specified, the content in spark-docker/conf/metrics.properties will be used.
 	MetricsProperties *string `json:"metricsProperties,omitempty"`
+	// MetricsPropertiesFile is the address of file metrics.properties for configuring the Spark metric system.
+	// +optional
+	// If not specified, value /etc/metrics/conf/metrics.properties will be used.
+	MetricsPropertiesFile *string `json:"metricsPropertiesFile,omitempty"`
 	// Prometheus is for configuring the Prometheus JMX exporter.
 	// +optional
 	Prometheus *PrometheusSpec `json:"prometheus,omitempty"`
@@ -603,11 +607,18 @@ func (s *SparkApplication) HasPrometheusConfigFile() bool {
 		*s.Spec.Monitoring.Prometheus.ConfigFile != ""
 }
 
-// HasPrometheusConfigFile returns if Prometheus monitoring uses a configruation file in the container.
+// HasPrometheusConfig returns if Prometheus monitoring defines metricsProperties in the spec.
 func (s *SparkApplication) HasMetricsProperties() bool {
 	return s.PrometheusMonitoringEnabled() &&
 		s.Spec.Monitoring.MetricsProperties != nil &&
 		*s.Spec.Monitoring.MetricsProperties != ""
+}
+
+// HasPrometheusConfigFile returns if Monitoring defines metricsPropertiesFile in the spec.
+func (s *SparkApplication) HasMetricsPropertiesFile() bool {
+	return s.PrometheusMonitoringEnabled() &&
+		s.Spec.Monitoring.MetricsPropertiesFile != nil &&
+		*s.Spec.Monitoring.MetricsPropertiesFile != ""
 }
 
 // ExposeDriverMetrics returns if driver metrics should be exposed.
