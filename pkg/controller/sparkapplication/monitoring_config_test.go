@@ -29,12 +29,13 @@ import (
 
 func TestConfigPrometheusMonitoring(t *testing.T) {
 	type testcase struct {
-		app                 *v1beta2.SparkApplication
-		metricsProperties   string
-		prometheusConfig    string
-		port                string
-		driverJavaOptions   string
-		executorJavaOptions string
+		app                  *v1beta2.SparkApplication
+		metricsProperties    string
+		prometheusConfig     string
+		prometheusConfigfile string
+		port                 string
+		driverJavaOptions    string
+		executorJavaOptions  string
 	}
 
 	fakeClient := fake.NewSimpleClientset()
@@ -50,8 +51,12 @@ func TestConfigPrometheusMonitoring(t *testing.T) {
 			t.Errorf("failed to get ConfigMap %s: %v", configMapName, err)
 		}
 
-		if len(configMap.Data) != 2 {
+		if test.app.Spec.Monitoring.Prometheus.ConfigFile == nil && len(configMap.Data) != 2 {
 			t.Errorf("expected %d data items got %d", 2, len(configMap.Data))
+		}
+
+		if test.app.Spec.Monitoring.Prometheus.ConfigFile != nil && len(configMap.Data) > 1 {
+			t.Errorf("expected %d data items got %d", 1, len(configMap.Data))
 		}
 
 		if configMap.Data[metricsPropertiesKey] != test.metricsProperties {
@@ -61,9 +66,8 @@ func TestConfigPrometheusMonitoring(t *testing.T) {
 			t.Errorf("prometheus.yaml expected %s got %s", test.prometheusConfig, configMap.Data[prometheusConfigKey])
 		}
 
-		expectedMetricsNamespace := fmt.Sprintf("%s.%s", test.app.Namespace, test.app.Name)
-		if test.app.Spec.SparkConf["spark.metrics.namespace"] != expectedMetricsNamespace {
-			t.Errorf("metrics namespace expected %s got %s", expectedMetricsNamespace, test.app.Spec.SparkConf["spark.metrics.namespace"])
+		if configMap.Data[prometheusConfigKey] != test.prometheusConfig {
+			t.Errorf("prometheus.yaml expected %s got %s", test.prometheusConfig, configMap.Data[prometheusConfigKey])
 		}
 
 		if test.app.Spec.Monitoring.ExposeDriverMetrics {
@@ -146,6 +150,37 @@ func TestConfigPrometheusMonitoring(t *testing.T) {
 			port:                "8091",
 			driverJavaOptions:   "-XX:+PrintGCDetails -XX:+PrintGCTimeStamps -javaagent:/prometheus/exporter.jar=8091:/etc/metrics/conf/prometheus.yaml",
 			executorJavaOptions: "-XX:+PrintGCDetails -XX:+PrintGCTimeStamps -javaagent:/prometheus/exporter.jar=8091:/etc/metrics/conf/prometheus.yaml",
+		},
+		{
+			app: &v1beta2.SparkApplication{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "app2",
+					Namespace: "default",
+				},
+				Spec: v1beta2.SparkApplicationSpec{
+					Driver: v1beta2.DriverSpec{
+						JavaOptions: stringptr("-XX:+PrintGCDetails -XX:+PrintGCTimeStamps"),
+					},
+					Executor: v1beta2.ExecutorSpec{
+						JavaOptions: stringptr("-XX:+PrintGCDetails -XX:+PrintGCTimeStamps"),
+					},
+					Monitoring: &v1beta2.MonitoringSpec{
+						ExposeDriverMetrics:   true,
+						ExposeExecutorMetrics: true,
+						MetricsProperties:     stringptr("dummy"),
+						Prometheus: &v1beta2.PrometheusSpec{
+							JmxExporterJar: "/prometheus/exporter.jar",
+							Port:           int32ptr(8091),
+							ConfigFile:     stringptr("dummy.yaml"),
+						},
+					},
+				},
+			},
+			metricsProperties:    "dummy",
+			prometheusConfigfile: "dummy",
+			port:                 "8091",
+			driverJavaOptions:    "-XX:+PrintGCDetails -XX:+PrintGCTimeStamps -javaagent:/prometheus/exporter.jar=8091:dummy.yaml",
+			executorJavaOptions:  "-XX:+PrintGCDetails -XX:+PrintGCTimeStamps -javaagent:/prometheus/exporter.jar=8091:dummy.yaml",
 		},
 	}
 

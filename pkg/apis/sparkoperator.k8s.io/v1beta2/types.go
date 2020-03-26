@@ -603,6 +603,13 @@ func (s *SparkApplication) HasPrometheusConfigFile() bool {
 		*s.Spec.Monitoring.Prometheus.ConfigFile != ""
 }
 
+// HasPrometheusConfigFile returns if Prometheus monitoring uses a configruation file in the container.
+func (s *SparkApplication) HasMetricsProperties() bool {
+	return s.PrometheusMonitoringEnabled() &&
+		s.Spec.Monitoring.MetricsProperties != nil &&
+		*s.Spec.Monitoring.MetricsProperties != ""
+}
+
 // ExposeDriverMetrics returns if driver metrics should be exposed.
 func (s *SparkApplication) ExposeDriverMetrics() bool {
 	return s.Spec.Monitoring != nil && s.Spec.Monitoring.ExposeDriverMetrics
