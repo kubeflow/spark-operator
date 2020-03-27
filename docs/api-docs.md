@@ -921,6 +921,20 @@ string
 GC settings or other logging.</p>
 </td>
 </tr>
+<tr>
+<td>
+<code>lifecycle</code></br>
+<em>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#lifecycle-v1-core">
+Kubernetes core/v1.Lifecycle
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Lifecycle for running preStop or postStart commands</p>
+</td>
+</tr>
 </tbody>
 </table>
 <h3 id="sparkoperator.k8s.io/v1beta2.ExecutorSpec">ExecutorSpec
@@ -2490,10 +2504,22 @@ Kubernetes core/v1.PodDNSConfig
 <p>DnsConfig dns settings for the pod, following the Kubernetes specifications.</p>
 </td>
 </tr>
+<tr>
+<td>
+<code>terminationGracePeriodSeconds</code></br>
+<em>
+int64
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Termination grace periond seconds for the pod</p>
+</td>
+</tr>
 </tbody>
 </table>
 <hr/>
 <p><em>
 Generated with <code>gen-crd-api-reference-docs</code>
-on git commit <code>6449a6d24</code>.
+on git commit <code>823fe6388</code>.
 </em></p>

@@ -140,6 +140,11 @@ func (in *DriverSpec) DeepCopyInto(out *DriverSpec) {
 		*out = new(string)
 		**out = **in
 	}
+	if in.Lifecycle != nil {
+		in, out := &in.Lifecycle, &out.Lifecycle
+		*out = new(v1.Lifecycle)
+		(*in).DeepCopyInto(*out)
+	}
 	return
 }
 
@@ -746,6 +751,13 @@ func (in *SparkPodSpec) DeepCopyInto(out *SparkPodSpec) {
 			(*out)[key] = val
 		}
 	}
+	if in.EnvFrom != nil {
+		in, out := &in.EnvFrom, &out.EnvFrom
+		*out = make([]v1.EnvFromSource, len(*in))
+		for i := range *in {
+			(*in)[i].DeepCopyInto(&(*out)[i])
+		}
+	}
 	if in.EnvSecretKeyRefs != nil {
 		in, out := &in.EnvSecretKeyRefs, &out.EnvSecretKeyRefs
 		*out = make(map[string]NameKey, len(*in))
@@ -826,6 +838,11 @@ func (in *SparkPodSpec) DeepCopyInto(out *SparkPodSpec) {
 		in, out := &in.DNSConfig, &out.DNSConfig
 		*out = new(v1.PodDNSConfig)
 		(*in).DeepCopyInto(*out)
+	}
+	if in.TerminationGracePeriodSeconds != nil {
+		in, out := &in.TerminationGracePeriodSeconds, &out.TerminationGracePeriodSeconds
+		*out = new(int64)
+		**out = **in
 	}
 	return
 }
