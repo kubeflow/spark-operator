@@ -557,7 +557,7 @@ type MonitoringSpec struct {
 	// +optional
 	// If not specified, the content in spark-docker/conf/metrics.properties will be used.
 	MetricsProperties *string `json:"metricsProperties,omitempty"`
-	// MetricsPropertiesFile is the address of file metrics.properties for configuring the Spark metric system.
+	// MetricsPropertiesFile is the container local path of file metrics.properties for configuring the Spark metric system.
 	// +optional
 	// If not specified, value /etc/metrics/conf/metrics.properties will be used.
 	MetricsPropertiesFile *string `json:"metricsPropertiesFile,omitempty"`

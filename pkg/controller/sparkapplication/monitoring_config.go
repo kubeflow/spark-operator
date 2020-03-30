@@ -44,8 +44,10 @@ func configPrometheusMonitoring(app *v1beta2.SparkApplication, kubeClient client
 		port = *app.Spec.Monitoring.Prometheus.Port
 	}
 
-	if !app.HasMetricsPropertiesFile() || !app.HasPrometheusConfigFile() {
-		glog.V(2).Infof("Loading Prometheus configuration.")
+	if app.HasMetricsPropertiesFile() && app.HasPrometheusConfigFile() {
+		glog.V(2).Infof("Loading local Spark metrics and Prometheus configuration files, not creating configMap with default properties.")
+	} else {
+		glog.V(2).Infof("Creating a ConfigMap for metrics and/or Prometheus configurations")
 		configMapName := config.GetPrometheusConfigMapName(app)
 		configMap := buildPrometheusConfigMap(app, configMapName)
 		retryErr := retry.RetryOnConflict(retry.DefaultRetry, func() error {

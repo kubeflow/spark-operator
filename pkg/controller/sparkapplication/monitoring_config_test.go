@@ -59,13 +59,13 @@ func TestConfigPrometheusMonitoring(t *testing.T) {
 
 		if test.app.Spec.Monitoring.Prometheus.ConfigFile != nil &&
 			test.app.Spec.Monitoring.MetricsPropertiesFile == nil &&
-			len(configMap.Data) > 1 {
+			len(configMap.Data) != 1 {
 			t.Errorf("expected %d data items got %d", 1, len(configMap.Data))
 		}
 
 		if test.app.Spec.Monitoring.Prometheus.ConfigFile == nil &&
 			test.app.Spec.Monitoring.MetricsPropertiesFile != nil &&
-			len(configMap.Data) > 1 {
+			len(configMap.Data) != 1 {
 			t.Errorf("expected %d data items got %d", 1, len(configMap.Data))
 		}
 
