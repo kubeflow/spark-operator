@@ -1132,7 +1132,7 @@ string
 </td>
 <td>
 <em>(Optional)</em>
-<p>MetricsPropertiesFile is the address of file metrics.properties for configuring the Spark metric system.
+<p>MetricsPropertiesFile is the container local path of file metrics.properties for configuring the Spark metric system.
 If not specified, value /etc/metrics/conf/metrics.properties will be used.</p>
 </td>
 </tr>
@@ -2521,5 +2521,5 @@ int64
 <hr/>
 <p><em>
 Generated with <code>gen-crd-api-reference-docs</code>
-on git commit <code>823fe6388</code>.
+on git commit <code>8fdcbf2f5</code>.
 </em></p>

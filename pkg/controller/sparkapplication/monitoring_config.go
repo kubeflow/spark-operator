@@ -44,18 +44,10 @@ func configPrometheusMonitoring(app *v1beta2.SparkApplication, kubeClient client
 		port = *app.Spec.Monitoring.Prometheus.Port
 	}
 
-	var javaOption string
-	metricConf := fmt.Sprintf("%s/%s", config.PrometheusConfigMapMountPath, metricsPropertiesKey)
-
-	if app.HasMetricsPropertiesFile() && app.HasPrometheusConfigFile() {
-		configFile := *app.Spec.Monitoring.Prometheus.ConfigFile
-		glog.V(2).Infof("Overriding the default Prometheus configuration with config file %s in the Spark image.", configFile)
-		javaOption = fmt.Sprintf("-javaagent:%s=%d:%s", app.Spec.Monitoring.Prometheus.JmxExporterJar,
-			port, configFile)
-		glog.V(2).Infof("Overriding the default Spark metrics configuration with config file %s in the Spark image.", *app.Spec.Monitoring.MetricsPropertiesFile)
-		metricConf = *app.Spec.Monitoring.MetricsPropertiesFile
-	} else {
-		glog.V(2).Infof("Creating a ConfigMap for metrics and/or Prometheus configurations")
+	// If one of the metricsPropertiesFile & prometheusConfigFile is not set
+	// mounting configMap to using default configuration
+	if !app.HasMetricsPropertiesFile() || !app.HasPrometheusConfigFile() {
+		glog.V(2).Infof("Loading Prometheus configuration.")
 		configMapName := config.GetPrometheusConfigMapName(app)
 		configMap := buildPrometheusConfigMap(app, configMapName)
 		retryErr := retry.RetryOnConflict(retry.DefaultRetry, func() error {
@@ -76,24 +68,37 @@ func configPrometheusMonitoring(app *v1beta2.SparkApplication, kubeClient client
 		if retryErr != nil {
 			return fmt.Errorf("failed to apply %s in namespace %s: %v", configMapName, app.Namespace, retryErr)
 		}
+	}
 
-		glog.V(2).Infof("Setting the default Prometheus configuration.")
-		javaOption = fmt.Sprintf(
-			"-javaagent:%s=%d:%s/%s",
-			app.Spec.Monitoring.Prometheus.JmxExporterJar,
-			port,
-			config.PrometheusConfigMapMountPath,
-			prometheusConfigKey)
+	var javaOption string
+
+	glog.V(2).Infof("Setting the default Prometheus configuration.")
+	javaOption = fmt.Sprintf(
+		"-javaagent:%s=%d:%s/%s",
+		app.Spec.Monitoring.Prometheus.JmxExporterJar,
+		port,
+		config.PrometheusConfigMapMountPath,
+		prometheusConfigKey)
+
+	if app.HasPrometheusConfigFile() {
+		configFile := *app.Spec.Monitoring.Prometheus.ConfigFile
+		glog.V(2).Infof("Overriding the default Prometheus configuration with config file %s in the Spark image.", configFile)
+		javaOption = fmt.Sprintf("-javaagent:%s=%d:%s", app.Spec.Monitoring.Prometheus.JmxExporterJar,
+			port, configFile)
 	}
 
 	/* work around for push gateway issue: https://github.com/prometheus/pushgateway/issues/97 */
 	metricNamespace := fmt.Sprintf("%s.%s", app.Namespace, app.Name)
-
+	metricConf := fmt.Sprintf("%s/%s", config.PrometheusConfigMapMountPath, metricsPropertiesKey)
 	if app.Spec.SparkConf == nil {
 		app.Spec.SparkConf = make(map[string]string)
 	}
 	app.Spec.SparkConf["spark.metrics.namespace"] = metricNamespace
 	app.Spec.SparkConf["spark.metrics.conf"] = metricConf
+
+	if app.HasMetricsPropertiesFile() {
+		app.Spec.SparkConf["spark.metrics.conf"] = *app.Spec.Monitoring.MetricsPropertiesFile
+	}
 
 	if app.Spec.Monitoring.ExposeDriverMetrics {
 		if app.Spec.Driver.Annotations == nil {
