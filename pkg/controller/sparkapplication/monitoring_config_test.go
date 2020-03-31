@@ -29,12 +29,13 @@ import (
 
 func TestConfigPrometheusMonitoring(t *testing.T) {
 	type testcase struct {
-		app                 *v1beta2.SparkApplication
-		metricsProperties   string
-		prometheusConfig    string
-		port                string
-		driverJavaOptions   string
-		executorJavaOptions string
+		app                   *v1beta2.SparkApplication
+		metricsProperties     string
+		metricsPropertiesFile string
+		prometheusConfig      string
+		port                  string
+		driverJavaOptions     string
+		executorJavaOptions   string
 	}
 
 	fakeClient := fake.NewSimpleClientset()
@@ -50,20 +51,34 @@ func TestConfigPrometheusMonitoring(t *testing.T) {
 			t.Errorf("failed to get ConfigMap %s: %v", configMapName, err)
 		}
 
-		if len(configMap.Data) != 2 {
+		if test.app.Spec.Monitoring.Prometheus.ConfigFile == nil &&
+			test.app.Spec.Monitoring.MetricsPropertiesFile == nil &&
+			len(configMap.Data) != 2 {
 			t.Errorf("expected %d data items got %d", 2, len(configMap.Data))
 		}
 
-		if configMap.Data[metricsPropertiesKey] != test.metricsProperties {
+		if test.app.Spec.Monitoring.Prometheus.ConfigFile != nil &&
+			test.app.Spec.Monitoring.MetricsPropertiesFile == nil &&
+			len(configMap.Data) != 1 {
+			t.Errorf("expected %d data items got %d", 1, len(configMap.Data))
+		}
+
+		if test.app.Spec.Monitoring.Prometheus.ConfigFile == nil &&
+			test.app.Spec.Monitoring.MetricsPropertiesFile != nil &&
+			len(configMap.Data) != 1 {
+			t.Errorf("expected %d data items got %d", 1, len(configMap.Data))
+		}
+
+		if test.app.Spec.Monitoring.MetricsPropertiesFile == nil && configMap.Data[metricsPropertiesKey] != test.metricsProperties {
 			t.Errorf("metrics.properties expected %s got %s", test.metricsProperties, configMap.Data[metricsPropertiesKey])
 		}
-		if configMap.Data[prometheusConfigKey] != test.prometheusConfig {
+
+		if test.app.Spec.Monitoring.Prometheus.ConfigFile == nil && configMap.Data[prometheusConfigKey] != test.prometheusConfig {
 			t.Errorf("prometheus.yaml expected %s got %s", test.prometheusConfig, configMap.Data[prometheusConfigKey])
 		}
 
-		expectedMetricsNamespace := fmt.Sprintf("%s.%s", test.app.Namespace, test.app.Name)
-		if test.app.Spec.SparkConf["spark.metrics.namespace"] != expectedMetricsNamespace {
-			t.Errorf("metrics namespace expected %s got %s", expectedMetricsNamespace, test.app.Spec.SparkConf["spark.metrics.namespace"])
+		if test.app.Spec.Monitoring.Prometheus.ConfigFile == nil && configMap.Data[prometheusConfigKey] != test.prometheusConfig {
+			t.Errorf("prometheus.yaml expected %s got %s", test.prometheusConfig, configMap.Data[prometheusConfigKey])
 		}
 
 		if test.app.Spec.Monitoring.ExposeDriverMetrics {
@@ -89,6 +104,12 @@ func TestConfigPrometheusMonitoring(t *testing.T) {
 
 			if *test.app.Spec.Executor.JavaOptions != test.executorJavaOptions {
 				t.Errorf("driver Java options expected %s got %s", test.executorJavaOptions, *test.app.Spec.Executor.JavaOptions)
+			}
+		}
+
+		if test.app.Spec.Monitoring.MetricsPropertiesFile != nil {
+			if test.app.Spec.SparkConf["spark.metrics.conf"] != test.metricsPropertiesFile {
+				t.Errorf("expected sparkConf %s got %s", test.metricsPropertiesFile, test.app.Spec.SparkConf["spark.metrics.conf"])
 			}
 		}
 	}
@@ -132,20 +153,110 @@ func TestConfigPrometheusMonitoring(t *testing.T) {
 					Monitoring: &v1beta2.MonitoringSpec{
 						ExposeDriverMetrics:   true,
 						ExposeExecutorMetrics: true,
-						MetricsProperties:     stringptr("dummy"),
+						MetricsProperties:     stringptr("testcase2dummy"),
 						Prometheus: &v1beta2.PrometheusSpec{
 							JmxExporterJar: "/prometheus/exporter.jar",
 							Port:           int32ptr(8091),
-							Configuration:  stringptr("dummy"),
+							Configuration:  stringptr("testcase2dummy"),
 						},
 					},
 				},
 			},
-			metricsProperties:   "dummy",
-			prometheusConfig:    "dummy",
+			metricsProperties:   "testcase2dummy",
+			prometheusConfig:    "testcase2dummy",
 			port:                "8091",
 			driverJavaOptions:   "-XX:+PrintGCDetails -XX:+PrintGCTimeStamps -javaagent:/prometheus/exporter.jar=8091:/etc/metrics/conf/prometheus.yaml",
 			executorJavaOptions: "-XX:+PrintGCDetails -XX:+PrintGCTimeStamps -javaagent:/prometheus/exporter.jar=8091:/etc/metrics/conf/prometheus.yaml",
+		},
+		{
+			app: &v1beta2.SparkApplication{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "app2",
+					Namespace: "default",
+				},
+				Spec: v1beta2.SparkApplicationSpec{
+					Driver: v1beta2.DriverSpec{
+						JavaOptions: stringptr("-XX:+PrintGCDetails -XX:+PrintGCTimeStamps"),
+					},
+					Executor: v1beta2.ExecutorSpec{
+						JavaOptions: stringptr("-XX:+PrintGCDetails -XX:+PrintGCTimeStamps"),
+					},
+					Monitoring: &v1beta2.MonitoringSpec{
+						ExposeDriverMetrics:   true,
+						ExposeExecutorMetrics: true,
+						MetricsProperties:     stringptr("testcase3dummy"),
+						Prometheus: &v1beta2.PrometheusSpec{
+							JmxExporterJar: "/prometheus/exporter.jar",
+							Port:           int32ptr(8091),
+							ConfigFile:     stringptr("testcase3dummy.yaml"),
+						},
+					},
+				},
+			},
+			metricsProperties:   "testcase3dummy",
+			port:                "8091",
+			driverJavaOptions:   "-XX:+PrintGCDetails -XX:+PrintGCTimeStamps -javaagent:/prometheus/exporter.jar=8091:testcase3dummy.yaml",
+			executorJavaOptions: "-XX:+PrintGCDetails -XX:+PrintGCTimeStamps -javaagent:/prometheus/exporter.jar=8091:testcase3dummy.yaml",
+		},
+		{
+			app: &v1beta2.SparkApplication{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "app2",
+					Namespace: "default",
+				},
+				Spec: v1beta2.SparkApplicationSpec{
+					Driver: v1beta2.DriverSpec{
+						JavaOptions: stringptr("-XX:+PrintGCDetails -XX:+PrintGCTimeStamps"),
+					},
+					Executor: v1beta2.ExecutorSpec{
+						JavaOptions: stringptr("-XX:+PrintGCDetails -XX:+PrintGCTimeStamps"),
+					},
+					Monitoring: &v1beta2.MonitoringSpec{
+						ExposeDriverMetrics:   true,
+						ExposeExecutorMetrics: true,
+						MetricsPropertiesFile: stringptr("/testcase4dummy/metrics.properties"),
+						Prometheus: &v1beta2.PrometheusSpec{
+							JmxExporterJar: "/prometheus/exporter.jar",
+							Port:           int32ptr(8091),
+							ConfigFile:     stringptr("testcase4dummy.yaml"),
+						},
+					},
+				},
+			},
+			metricsPropertiesFile: "/testcase4dummy/metrics.properties",
+			port:                  "8091",
+			driverJavaOptions:     "-XX:+PrintGCDetails -XX:+PrintGCTimeStamps -javaagent:/prometheus/exporter.jar=8091:testcase4dummy.yaml",
+			executorJavaOptions:   "-XX:+PrintGCDetails -XX:+PrintGCTimeStamps -javaagent:/prometheus/exporter.jar=8091:testcase4dummy.yaml",
+		},
+		{
+			app: &v1beta2.SparkApplication{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "app2",
+					Namespace: "default",
+				},
+				Spec: v1beta2.SparkApplicationSpec{
+					Driver: v1beta2.DriverSpec{
+						JavaOptions: stringptr("-XX:+PrintGCDetails -XX:+PrintGCTimeStamps"),
+					},
+					Executor: v1beta2.ExecutorSpec{
+						JavaOptions: stringptr("-XX:+PrintGCDetails -XX:+PrintGCTimeStamps"),
+					},
+					Monitoring: &v1beta2.MonitoringSpec{
+						ExposeDriverMetrics:   true,
+						ExposeExecutorMetrics: true,
+						MetricsPropertiesFile: stringptr("/testcase5dummy/metrics.properties"),
+						Prometheus: &v1beta2.PrometheusSpec{
+							JmxExporterJar: "/prometheus/exporter.jar",
+							Port:           int32ptr(8091),
+						},
+					},
+				},
+			},
+			metricsPropertiesFile: "/testcase5dummy/metrics.properties",
+			prometheusConfig:      config.DefaultPrometheusConfiguration,
+			port:                  "8091",
+			driverJavaOptions:     "-XX:+PrintGCDetails -XX:+PrintGCTimeStamps -javaagent:/prometheus/exporter.jar=8091:/etc/metrics/conf/prometheus.yaml",
+			executorJavaOptions:   "-XX:+PrintGCDetails -XX:+PrintGCTimeStamps -javaagent:/prometheus/exporter.jar=8091:/etc/metrics/conf/prometheus.yaml",
 		},
 	}
 
