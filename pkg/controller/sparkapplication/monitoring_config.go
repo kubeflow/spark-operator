@@ -44,10 +44,9 @@ func configPrometheusMonitoring(app *v1beta2.SparkApplication, kubeClient client
 		port = *app.Spec.Monitoring.Prometheus.Port
 	}
 
-	// If one of the metricsPropertiesFile & prometheusConfigFile is not set
-	// mounting configMap to using default configuration
+	// If one or both of the metricsPropertiesFile and Prometheus.ConfigFile are not set
 	if !app.HasMetricsPropertiesFile() || !app.HasPrometheusConfigFile() {
-		glog.V(2).Infof("Loading Prometheus configuration.")
+		glog.V(2).Infof("Creating a ConfigMap for metrics and Prometheus configurations.")
 		configMapName := config.GetPrometheusConfigMapName(app)
 		configMap := buildPrometheusConfigMap(app, configMapName)
 		retryErr := retry.RetryOnConflict(retry.DefaultRetry, func() error {
@@ -72,7 +71,6 @@ func configPrometheusMonitoring(app *v1beta2.SparkApplication, kubeClient client
 
 	var javaOption string
 
-	glog.V(2).Infof("Setting the default Prometheus configuration.")
 	javaOption = fmt.Sprintf(
 		"-javaagent:%s=%d:%s/%s",
 		app.Spec.Monitoring.Prometheus.JmxExporterJar,
