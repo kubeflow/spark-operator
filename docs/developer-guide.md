@@ -92,4 +92,4 @@ When you update the API, or specifically the `SparkApplication` and `ScheduledSp
 make build-api-docs
 ```
 
-Running the aboe command will update the file `docs/api-docs.md`.
+Running the above command will update the file `docs/api-docs.md`.

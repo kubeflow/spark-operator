@@ -4,8 +4,7 @@
 * [Introduction](#introduction)
 * [Architecture](#architecture)
 * [The CRD Controller](#the-crd-controller)
-* [Handling Application Restart](#handling-application-restart)
-* [Handling Retries of Failed Submissions](#handling-retries-of-failed-submissions)
+* [Handling Application Restart and Failures](#handling-application-restart-and-failures)
 * [Mutating Admission Webhook](#mutating-admission-webhook)
 * [Command-line Tool: Sparkctl](#command-line-tool-sparkctl)
 
@@ -45,7 +44,7 @@ As part of preparing a submission for a newly created `SparkApplication` object,
 
 ## Handling Application Restart And Failures
 
-The operator provides a configurable option through the `RestartPolicy` field of `SparkApplicationSpec` (see the [Configuring Automatic Application Restart and Failure Handling](user-guide.md) for more details) for specifying the application restart policy. The operator determines if an application should be restarted based on its termination state and the restart policy. As discussed above, the termination state of an application is based on the termination state of the driver pod. So effectively the decision is based on the termination state of the driver pod and the restart policy. Specifically, one of the following conditions applies:
+The operator provides a configurable option through the `RestartPolicy` field of `SparkApplicationSpec` (see the [Configuring Automatic Application Restart and Failure Handling](user-guide.md#configuring-automatic-application-restart-and-failure-handling) for more details) for specifying the application restart policy. The operator determines if an application should be restarted based on its termination state and the restart policy. As discussed above, the termination state of an application is based on the termination state of the driver pod. So effectively the decision is based on the termination state of the driver pod and the restart policy. Specifically, one of the following conditions applies:
 
 * If the restart policy type is `Never`, the application is not restarted upon terminating.
 * If the restart policy type is `Always`, the application gets restarted regardless of the termination state of the application. Please note that such an Application will never end up in a terminal state of `COMPLETED` or `FAILED`.

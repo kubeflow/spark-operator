@@ -42,7 +42,7 @@ The `create` command also supports staging local application dependencies, thoug
 ##### Uploading to GCS
 
 For uploading to GCS, the value should be in the form of `gs://<bucket>`. The bucket must exist and uploading fails if otherwise. The local dependencies will be uploaded to the path 
-`spark-app-dependencies/<SaprkApplication namespace>/<SparkApplication name>` in the given bucket. It replaces the file path of each local dependency with the URI of the remote copy in the parsed `SaprkApplication` object if uploading is successful. 
+`spark-app-dependencies/<SparkApplication namespace>/<SparkApplication name>` in the given bucket. It replaces the file path of each local dependency with the URI of the remote copy in the parsed `SparkApplication` object if uploading is successful. 
 
 Note that uploading to GCS requires a GCP service account with the necessary IAM permission to use the GCP project specified by service account JSON key file (`serviceusage.services.use`) and the permission to create GCS objects (`storage.object.create`). 
 The service account JSON key file must be locally available and be pointed to by the environment variable 
