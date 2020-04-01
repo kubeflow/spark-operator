@@ -28,7 +28,7 @@ The Kubernetes Operator for Apache Spark ships with a command-line tool called `
     * [Using Tolerations](#using-tolerations)
     * [Using Pod Security Context](#using-pod-security-context)
     * [Using Sidecar Containers](#using-sidecar-containers)
-    * [Using Init-Containers](#using-init-Containers)
+    * [Using Init-Containers](#using-init-containers)
     * [Using Volume For Scratch Space](#using-volume-for-scratch-space)
     * [Using Termination Grace Period](#using-termination-grace-period)
     * [Using Container LifeCycle Hooks](#using-container-lifecycle-hooks)
@@ -39,8 +39,7 @@ The Kubernetes Operator for Apache Spark ships with a command-line tool called `
     * [Deleting a SparkApplication](#deleting-a-sparkapplication)
     * [Updating a SparkApplication](#updating-a-sparkapplication)
     * [Checking a SparkApplication](#checking-a-sparkapplication)
-    * [Configuring Automatic Application Restart](#configuring-automatic-application-restart)
-    * [Configuring Automatic Application Re-submission on Submission Failures](#configuring-automatic-application-re-submission-on-submission-failures)
+    * [Configuring Automatic Application Restart and Failure Handling](#configuring-automatic-application-restart-and-failure-handling)
     * [Setting TTL for a SparkApplication](#setting-ttl-for-a-sparkapplication)
 * [Running Spark Applications on a Schedule using a ScheduledSparkApplication](#running-spark-applications-on-a-schedule-using-a-scheduledsparkapplication)
 * [Enabling Leader Election for High Availability](#enabling-leader-election-for-high-availability)
@@ -437,7 +436,7 @@ Note that the mutating admission webhook is needed to use this feature. Please r
 
 ### Using Sidecar Containers
 
-A `SparkApplication` can specify one or more optional sidecar containers for the driver or executor pod, using the optional field `.spec.driver.sidecars` or `.spec.executor.containers`. The specification of each sidecar container follows the [Container](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.14/#container-v1-core) API definition. Below is an example:
+A `SparkApplication` can specify one or more optional sidecar containers for the driver or executor pod, using the optional field `.spec.driver.sidecars` or `.spec.executor.sidecars`. The specification of each sidecar container follows the [Container](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.14/#container-v1-core) API definition. Below is an example:
 
 ```yaml
 spec:
@@ -502,17 +501,17 @@ If that storage isn't enough or you want to use a specific path, you can use one
 The volume names should start with `spark-local-dir-`.
 
 
-```
+```yaml
 spec:
   volumes:
     - name: "spark-local-dir-1"
       hostPath:
         path: "/tmp/spark-local-dir"
-    executor:
-      volumeMounts:
-        - name: "spark-local-dir-1"
-          mountPath: "/tmp/spark-local-dir"
-      ...
+  executor:
+    volumeMounts:
+      - name: "spark-local-dir-1"
+        mountPath: "/tmp/spark-local-dir"
+    ...
 ```
 
 Then you will get `SPARK_LOCAL_DIRS` set to `/tmp/spark-local-dir` in the pod like below.
@@ -520,7 +519,7 @@ Then you will get `SPARK_LOCAL_DIRS` set to `/tmp/spark-local-dir` in the pod li
 ```yaml
 Environment:
   SPARK_USER:                 root
-  SPARK_DRIVER_BIND_ADDRESS:   (v1:status.podIP)
+  SPARK_DRIVER_BIND_ADDRESS:  (v1:status.podIP)
   SPARK_LOCAL_DIRS:           /tmp/spark-local-dir
   SPARK_CONF_DIR:             /opt/spark/conf
 ```
@@ -528,7 +527,7 @@ Environment:
 
 > Note: Multiple volumes can be used together
 
-```
+```yaml
 spec:
   volumes:
     - name: "spark-local-dir-1"
@@ -537,13 +536,13 @@ spec:
     - name: "spark-local-dir-2"
       hostPath:
         path: "/mnt/dir2"
-    executor:
-      volumeMounts:
-        - name: "spark-local-dir-1"
-          mountPath: "/tmp/dir1"
-        - name: "spark-local-dir-2"
-          mountPath: "/tmp/dir2"
-      ...
+  executor:
+    volumeMounts:
+      - name: "spark-local-dir-1"
+        mountPath: "/tmp/dir1"
+      - name: "spark-local-dir-2"
+        mountPath: "/tmp/dir2"
+    ...
 ```
 
 > Note: Besides `HostPath`, `PersistentVolumeClaim` can be used as well.
@@ -598,7 +597,7 @@ spec:
   mainApplicationFile: local:///opt/spark/examples/src/main/python/pyfiles.py
 ```
 
-Some PySpark applications need additional Python packages to run. Such dependencies are specified using the optional field `.spec.deps.pyFiles` , which translates to the `--py-files` option of the spark-submit command.
+Some PySpark applications need additional Python packages to run. Such dependencies are specified using the optional field `.spec.deps.pyFiles`, which translates to the `--py-files` option of the spark-submit command.
 
 ```yaml
 spec:
@@ -742,7 +741,7 @@ The operator supports a high-availability (HA) mode, in which there can be more 
 | ------------- | ------------- | ------------- |
 | `leader-election` | `false` | Whether to enable leader election (or the HA mode) or not. |
 | `leader-election-lock-namespace` | `spark-operator` | Kubernetes namespace of the lock resource used for leader election. |
-| `leader-election-lock-name` | `spark-operator-lock` | Name of the ock resource used for leader election. |
+| `leader-election-lock-name` | `spark-operator-lock` | Name of the lock resource used for leader election. |
 | `leader-election-lease-duration` | 15 seconds | Leader election lease duration. |
 | `leader-election-renew-deadline` | 14 seconds | Leader election renew deadline. |
 | `leader-election-retry-period` | 4 seconds | Leader election retry period. |
