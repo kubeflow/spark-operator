@@ -17,6 +17,7 @@ limitations under the License.
 package sparkapplication
 
 import (
+	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/util"
 	"net/http"
 	"sync"
 	"testing"
@@ -27,7 +28,12 @@ import (
 func TestSparkAppMetrics(t *testing.T) {
 	http.DefaultServeMux = new(http.ServeMux)
 	// Test with label containing "-". Expect them to be converted to "_".
-	metrics := newSparkAppMetrics("", []string{"app-id", "namespace"}, []float64{30, 60, 90, 120})
+	metricsConfig := &util.MetricConfig{
+		MetricsPrefix:                 "",
+		MetricsLabels:                 []string{"app-id", "namespace"},
+		MetricsJobStartLatencyBuckets: []float64{30, 60, 90, 120},
+	}
+	metrics := newSparkAppMetrics(metricsConfig)
 	app1 := map[string]string{"app_id": "test1", "namespace": "default"}
 
 	var wg sync.WaitGroup

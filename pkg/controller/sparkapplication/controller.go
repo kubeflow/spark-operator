@@ -122,7 +122,7 @@ func newSparkApplicationController(
 	}
 
 	if metricsConfig != nil {
-		controller.metrics = newSparkAppMetrics(metricsConfig.MetricsPrefix, metricsConfig.MetricsLabels, metricsConfig.MetricsJobStartLatencyBuckets)
+		controller.metrics = newSparkAppMetrics(metricsConfig)
 		controller.metrics.registerMetrics()
 	}
 
@@ -468,7 +468,7 @@ func shouldRetry(app *v1beta2.SparkApplication) bool {
 //|        |  |         |          |  |                                         |                     |  |             |
 //|      +-+--+----+    |    +-----v--+-+          +----------+           +-----v-----+          +----v--v--+          |
 //|      |         |    |    |          |          |          |           |           |          |          |          |
-//|      |         |    |    |          |          |          |           |           |          |		    |          |
+//|      |         |    |    |          |          |          |           |           |          |          |          |
 //|      |   New   +---------> Submitted+----------> Running  +----------->  Failing  +---------->  Failed  |          |
 //|      |         |    |    |          |          |          |           |           |          |          |          |
 //|      |         |    |    |          |          |          |           |           |          |          |          |

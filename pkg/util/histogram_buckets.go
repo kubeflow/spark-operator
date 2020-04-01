@@ -33,7 +33,7 @@ func (hb *HistogramBuckets) String() string {
 func (hb *HistogramBuckets) Set(value string) error {
 	*hb = nil
 	for _, boundaryStr := range strings.Split(value, ",") {
-		boundary, err := strconv.ParseFloat(boundaryStr, 64)
+		boundary, err := strconv.ParseFloat(strings.TrimSpace(boundaryStr), 64)
 		if err != nil {
 			return err
 		}

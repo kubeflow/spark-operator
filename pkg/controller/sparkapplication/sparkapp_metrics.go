@@ -46,7 +46,9 @@ type sparkAppMetrics struct {
 	sparkAppExecutorSuccessCount *prometheus.CounterVec
 }
 
-func newSparkAppMetrics(prefix string, labels []string, buckets []float64) *sparkAppMetrics {
+func newSparkAppMetrics(metricsConfig *util.MetricConfig) *sparkAppMetrics {
+	prefix := metricsConfig.MetricsPrefix
+	labels := metricsConfig.MetricsLabels
 	validLabels := make([]string, len(labels))
 	for i, label := range labels {
 		validLabels[i] = util.CreateValidMetricNameLabel("", label)
@@ -105,7 +107,7 @@ func newSparkAppMetrics(prefix string, labels []string, buckets []float64) *spar
 		prometheus.HistogramOpts{
 			Name:    util.CreateValidMetricNameLabel(prefix, "spark_app_start_latency_seconds"),
 			Help:    "Spark App Start Latency counts in buckets via the Operator",
-			Buckets: buckets,
+			Buckets: metricsConfig.MetricsJobStartLatencyBuckets,
 		},
 		validLabels,
 	)
@@ -223,9 +225,9 @@ func (sm *sparkAppMetrics) exportMetrics(oldApp, newApp *v1beta2.SparkApplicatio
 	// Note: There is an edge case that a Submitted state can go directly to a Failing state if the driver pod is
 	//       deleted. This is very unlikely if not being done intentionally, so we choose not to handle it.
 	if newState != oldState {
-		if (newState == v1beta2.FailingState || newState == v1beta2.SucceedingState) && oldState != v1beta2.RunningState {
+		if (newState == v1beta2.FailingState || newState == v1beta2.SucceedingState) && oldState == v1beta2.SubmittedState {
 			// TODO: remove this log once we've gathered some data in prod fleets.
-			glog.Infof("Calculating job start latency metrics for edge case transition from %v to %v in app %v in namespace %v.", oldState, newState, newApp.Name, newApp.Namespace)
+			glog.V(2).Infof("Calculating job start latency metrics for edge case transition from %v to %v in app %v in namespace %v.", oldState, newState, newApp.Name, newApp.Namespace)
 			sm.exportJobStartLatencyMetrics(newApp, metricLabels)
 		}
 	}

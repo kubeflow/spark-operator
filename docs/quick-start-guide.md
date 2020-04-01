@@ -188,7 +188,9 @@ If enabled, the operator generates the following metrics:
 | `spark_app_failure_count` | Total number of SparkApplication which failed to complete. |
 | `spark_app_running_count` | Total number of SparkApplication which are currently running.|
 | `spark_app_success_execution_time_microseconds` | Execution time for applications which succeeded.|
-| `spark_app_failure_execution_time_microseconds` |Execution time for applications which failed. |
+| `spark_app_failure_execution_time_microseconds` | Execution time for applications which failed. |
+| `spark_app_start_latency_microseconds` | Start latency of SparkApplication as type of [Prometheus Summary](https://prometheus.io/docs/concepts/metric_types/#summary). |
+| `spark_app_start_latency_seconds` | Start latency of SparkApplication as type of [Prometheus Histogram](https://prometheus.io/docs/concepts/metric_types/#histogram). |
 | `spark_app_executor_success_count` | Total number of Spark Executors which completed successfully. |
 | `spark_app_executor_failure_count` | Total number of Spark Executors which failed. |
 | `spark_app_executor_running_count` | Total number of Spark Executors which are currently running. |
