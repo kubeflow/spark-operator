@@ -49,10 +49,11 @@ func RegisterMetric(metric prometheus.Collector) {
 // MetricConfig is a container of configuration properties for the collection and exporting of
 // application metrics to Prometheus.
 type MetricConfig struct {
-	MetricsEndpoint string
-	MetricsPort     string
-	MetricsPrefix   string
-	MetricsLabels   []string
+	MetricsEndpoint               string
+	MetricsPort                   string
+	MetricsPrefix                 string
+	MetricsLabels                 []string
+	MetricsJobStartLatencyBuckets []float64
 }
 
 // A variant of Prometheus Gauge that only holds non-negative values.
