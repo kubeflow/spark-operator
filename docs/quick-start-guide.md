@@ -183,7 +183,8 @@ If enabled, the operator generates the following metrics:
 #### Spark Application Metrics
 | Metric | Description |
 | ------------- | ------------- |
-| `spark_app_submit_count`  | Total number of SparkApplication submitted by the Operator.|
+| `spark_app_count`  | Total number of SparkApplication handled by the Operator.|
+| `spark_app_submit_count`  | Total number of SparkApplication spark-submitted by the Operator.|
 | `spark_app_success_count` | Total number of SparkApplication which completed successfully.|
 | `spark_app_failure_count` | Total number of SparkApplication which failed to complete. |
 | `spark_app_running_count` | Total number of SparkApplication which are currently running.|

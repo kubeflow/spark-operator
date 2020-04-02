@@ -40,6 +40,7 @@ func TestSparkAppMetrics(t *testing.T) {
 	wg.Add(1)
 	go func() {
 		for i := 0; i < 10; i++ {
+			metrics.sparkAppCount.With(app1).Inc()
 			metrics.sparkAppSubmitCount.With(app1).Inc()
 			metrics.sparkAppRunningCount.Inc(app1)
 			metrics.sparkAppSuccessCount.With(app1).Inc()
@@ -61,6 +62,7 @@ func TestSparkAppMetrics(t *testing.T) {
 	}()
 
 	wg.Wait()
+	assert.Equal(t, float64(10), fetchCounterValue(metrics.sparkAppCount, app1))
 	assert.Equal(t, float64(10), fetchCounterValue(metrics.sparkAppSubmitCount, app1))
 	assert.Equal(t, float64(5), metrics.sparkAppRunningCount.Value(app1))
 	assert.Equal(t, float64(10), fetchCounterValue(metrics.sparkAppSuccessCount, app1))

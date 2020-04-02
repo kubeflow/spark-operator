@@ -514,6 +514,9 @@ func (c *Controller) syncSparkApplication(key string) error {
 	switch appToUpdate.Status.AppState.State {
 	case v1beta2.NewState:
 		c.recordSparkApplicationEvent(appToUpdate)
+		if c.metrics != nil {
+			c.metrics.exportSparkAppCountMetric(app)
+		}
 		if err := c.validateSparkApplication(appToUpdate); err != nil {
 			appToUpdate.Status.AppState.State = v1beta2.FailedState
 			appToUpdate.Status.AppState.ErrorMessage = err.Error()
