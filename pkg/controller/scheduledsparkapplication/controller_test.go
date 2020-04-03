@@ -43,7 +43,7 @@ func TestSyncScheduledSparkApplication_Allow(t *testing.T) {
 			Name:      "test-app-allow",
 		},
 		Spec: v1beta2.ScheduledSparkApplicationSpec{
-			Schedule:          "@every 1m",
+			Schedule:          "@every 10m",
 			ConcurrencyPolicy: v1beta2.ConcurrencyAllow,
 		},
 	}
@@ -61,8 +61,8 @@ func TestSyncScheduledSparkApplication_Allow(t *testing.T) {
 	// The first run should not have been triggered.
 	assert.True(t, app.Status.LastRunName == "")
 
-	// Advance the clock by 1 minute.
-	clk.Step(1 * time.Minute)
+	// Advance the clock by 10 minutes.
+	clk.Step(10 * time.Minute)
 	if err := c.syncScheduledSparkApplication(key); err != nil {
 		t.Fatal(err)
 	}
@@ -145,6 +145,34 @@ func TestSyncScheduledSparkApplication_Allow(t *testing.T) {
 	assert.Equal(t, 1, len(app.Status.PastSuccessfulRunNames))
 	run, _ = c.crdClient.SparkoperatorV1beta2().SparkApplications(app.Namespace).Get(secondRunName, options)
 	assert.NotNil(t, run)
+
+	// Test the case where we update the schedule to be more frequent
+	app.Spec.Schedule = "@every 2m"
+	recentRunName := app.Status.LastRunName
+	recentRunTime := app.Status.LastRun.Time
+	app, _ = c.crdClient.SparkoperatorV1beta2().ScheduledSparkApplications(app.Namespace).Update(app)
+	// sync our update
+	if err := c.syncScheduledSparkApplication(key); err != nil {
+		t.Fatal(err)
+	}
+	// Advance the clock by 3 minutes.
+	clk.Step(3 * time.Minute)
+	if err := c.syncScheduledSparkApplication(key); err != nil {
+		t.Fatal(err)
+	}
+	app, _ = c.crdClient.SparkoperatorV1beta2().ScheduledSparkApplications(app.Namespace).Get(app.Name, options)
+	// A run should have been triggered
+	assert.NotEqual(t, recentRunName, app.Status.LastRunName)
+	assert.True(t, recentRunTime.Before(app.Status.LastRun.Time))
+	run, _ = c.crdClient.SparkoperatorV1beta2().SparkApplications(app.Namespace).Get(app.Status.LastRunName, options)
+	assert.NotNil(t, run)
+	// Simulate completion of the last run
+	run.Status.AppState.State = v1beta2.CompletedState
+	c.crdClient.SparkoperatorV1beta2().SparkApplications(app.Namespace).Update(run)
+	// This sync should not start any new run, but update Status.PastSuccessfulRunNames.
+	if err := c.syncScheduledSparkApplication(key); err != nil {
+		t.Fatal(err)
+	}
 }
 
 func TestSyncScheduledSparkApplication_Forbid(t *testing.T) {
