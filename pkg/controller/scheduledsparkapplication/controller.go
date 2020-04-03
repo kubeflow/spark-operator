@@ -173,10 +173,10 @@ func (c *Controller) syncScheduledSparkApplication(key string) error {
 		now := c.clock.Now()
 		nextRunTime := status.NextRun.Time
 		// if we updated the schedule for an earlier execution - those changes need to be reflected
-		updatedScheduleRuntime := schedule.Next(now)
-		if nextRunTime.IsZero() || updatedScheduleRuntime.Before(nextRunTime) {
+		updatedNextRunTime := schedule.Next(now)
+		if nextRunTime.IsZero() || updatedNextRunTime.Before(nextRunTime) {
 			// The first run of the application.
-			nextRunTime = updatedScheduleRuntime
+			nextRunTime = updatedNextRunTime
 			status.NextRun = metav1.NewTime(nextRunTime)
 		}
 		if nextRunTime.Before(now) {
