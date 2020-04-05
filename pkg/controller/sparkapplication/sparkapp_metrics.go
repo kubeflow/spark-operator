@@ -180,6 +180,14 @@ func (sm *sparkAppMetrics) exportMetrics(oldApp, newApp *v1beta2.SparkApplicatio
 	oldState := oldApp.Status.AppState.State
 	newState := newApp.Status.AppState.State
 	if newState != oldState {
+		if oldState == v1beta2.NewState {
+			if m, err := sm.sparkAppCount.GetMetricWith(metricLabels); err != nil {
+				glog.Errorf("Error while exporting metrics: %v", err)
+			} else {
+				m.Inc()
+			}
+		}
+
 		switch newState {
 		case v1beta2.SubmittedState:
 			if m, err := sm.sparkAppSubmitCount.GetMetricWith(metricLabels); err != nil {
@@ -193,7 +201,6 @@ func (sm *sparkAppMetrics) exportMetrics(oldApp, newApp *v1beta2.SparkApplicatio
 		case v1beta2.SucceedingState:
 			if !newApp.Status.LastSubmissionAttemptTime.Time.IsZero() && !newApp.Status.TerminationTime.Time.IsZero() {
 				d := newApp.Status.TerminationTime.Time.Sub(newApp.Status.LastSubmissionAttemptTime.Time)
-
 				if m, err := sm.sparkAppSuccessExecutionTime.GetMetricWith(metricLabels); err != nil {
 					glog.Errorf("Error while exporting metrics: %v", err)
 				} else {
@@ -291,16 +298,6 @@ func (sm *sparkAppMetrics) exportJobStartLatencyMetrics(app *v1beta2.SparkApplic
 		} else {
 			m.Observe(float64(latency / time.Second))
 		}
-	}
-}
-
-func (sm *sparkAppMetrics) exportSparkAppCountMetric(app *v1beta2.SparkApplication) {
-	metricLabels := fetchMetricLabels(app, sm.labels)
-	glog.V(2).Infof("Exporting spark app count metric for %s", app.Name)
-	if m, err := sm.sparkAppCount.GetMetricWith(metricLabels); err != nil {
-		glog.Errorf("Error while exporting metrics: %v", err)
-	} else {
-		m.Inc()
 	}
 }
 
