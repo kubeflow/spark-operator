@@ -513,7 +513,6 @@ func (c *Controller) syncSparkApplication(key string) error {
 	// Take action based on application state.
 	switch appToUpdate.Status.AppState.State {
 	case v1beta2.NewState:
-		c.recordSparkApplicationEvent(appToUpdate)
 		if err := c.validateSparkApplication(appToUpdate); err != nil {
 			appToUpdate.Status.AppState.State = v1beta2.FailedState
 			appToUpdate.Status.AppState.ErrorMessage = err.Error()
@@ -524,7 +523,6 @@ func (c *Controller) syncSparkApplication(key string) error {
 		if !shouldRetry(appToUpdate) {
 			// Application is not subject to retry. Move to terminal CompletedState.
 			appToUpdate.Status.AppState.State = v1beta2.CompletedState
-			c.recordSparkApplicationEvent(appToUpdate)
 		} else {
 			if err := c.deleteSparkResources(appToUpdate); err != nil {
 				glog.Errorf("failed to delete resources associated with SparkApplication %s/%s: %v",
@@ -537,7 +535,6 @@ func (c *Controller) syncSparkApplication(key string) error {
 		if !shouldRetry(appToUpdate) {
 			// Application is not subject to retry. Move to terminal FailedState.
 			appToUpdate.Status.AppState.State = v1beta2.FailedState
-			c.recordSparkApplicationEvent(appToUpdate)
 		} else if hasRetryIntervalPassed(appToUpdate.Spec.RestartPolicy.OnFailureRetryInterval, appToUpdate.Status.ExecutionAttempts, appToUpdate.Status.TerminationTime) {
 			if err := c.deleteSparkResources(appToUpdate); err != nil {
 				glog.Errorf("failed to delete resources associated with SparkApplication %s/%s: %v",
@@ -550,7 +547,6 @@ func (c *Controller) syncSparkApplication(key string) error {
 		if !shouldRetry(appToUpdate) {
 			// App will never be retried. Move to terminal FailedState.
 			appToUpdate.Status.AppState.State = v1beta2.FailedState
-			c.recordSparkApplicationEvent(appToUpdate)
 		} else if hasRetryIntervalPassed(appToUpdate.Spec.RestartPolicy.OnSubmissionFailureRetryInterval, appToUpdate.Status.SubmissionAttempts, appToUpdate.Status.LastSubmissionAttemptTime) {
 			appToUpdate = c.submitSparkApplication(appToUpdate)
 		}
@@ -567,7 +563,6 @@ func (c *Controller) syncSparkApplication(key string) error {
 		glog.V(2).Infof("SparkApplication %s/%s pending rerun", appToUpdate.Namespace, appToUpdate.Name)
 		if c.validateSparkResourceDeletion(appToUpdate) {
 			glog.V(2).Infof("Resources for SparkApplication %s/%s successfully deleted", appToUpdate.Namespace, appToUpdate.Name)
-			c.recordSparkApplicationEvent(appToUpdate)
 			c.clearStatus(&appToUpdate.Status)
 			appToUpdate = c.submitSparkApplication(appToUpdate)
 		}
@@ -587,6 +582,10 @@ func (c *Controller) syncSparkApplication(key string) error {
 	}
 
 	if appToUpdate != nil {
+		// Record SparkApplication events if the application state has changed.
+		if appToUpdate.Status.AppState.State != app.Status.AppState.State {
+			c.recordSparkApplicationEvent(appToUpdate)
+		}
 		err = c.updateStatusAndExportMetrics(app, appToUpdate)
 		if err != nil {
 			glog.Errorf("failed to update SparkApplication %s/%s: %v", app.Namespace, app.Name, err)
@@ -659,7 +658,6 @@ func (c *Controller) submitSparkApplication(app *v1beta2.SparkApplication) *v1be
 			SubmissionAttempts:        app.Status.SubmissionAttempts + 1,
 			LastSubmissionAttemptTime: metav1.Now(),
 		}
-		c.recordSparkApplicationEvent(app)
 		glog.Errorf("failed to run spark-submit for SparkApplication %s/%s: %v", app.Namespace, app.Name, err)
 		return app
 	}
@@ -683,7 +681,6 @@ func (c *Controller) submitSparkApplication(app *v1beta2.SparkApplication) *v1be
 		ExecutionAttempts:         app.Status.ExecutionAttempts + 1,
 		LastSubmissionAttemptTime: metav1.Now(),
 	}
-	c.recordSparkApplicationEvent(app)
 
 	service, err := createSparkUIService(app, c.kubeClient)
 	if err != nil {
