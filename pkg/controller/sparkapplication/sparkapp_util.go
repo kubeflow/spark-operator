@@ -17,7 +17,9 @@ limitations under the License.
 package sparkapplication
 
 import (
+	"encoding/json"
 	"fmt"
+
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/kubernetes/pkg/apis/policy"
 
@@ -132,4 +134,12 @@ func getVolumeFSType(v v1.Volume) (policy.FSType, error) {
 	}
 
 	return "", fmt.Errorf("unknown volume type for volume: %#v", v)
+}
+
+func printStatus(status *v1beta2.SparkApplicationStatus) (string, error) {
+	marshalled, err := json.MarshalIndent(status, "", "  ")
+	if err != nil {
+		return "", err
+	}
+	return string(marshalled), nil
 }

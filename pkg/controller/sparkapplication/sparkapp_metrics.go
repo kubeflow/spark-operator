@@ -164,8 +164,6 @@ func (sm *sparkAppMetrics) registerMetrics() {
 
 func (sm *sparkAppMetrics) exportMetrics(oldApp, newApp *v1beta2.SparkApplication) {
 	metricLabels := fetchMetricLabels(newApp, sm.labels)
-	glog.V(2).Infof("Exporting metrics for %s; old status: %v new status: %v", newApp.Name,
-		oldApp.Status, newApp.Status)
 
 	oldState := oldApp.Status.AppState.State
 	newState := newApp.Status.AppState.State
@@ -183,7 +181,6 @@ func (sm *sparkAppMetrics) exportMetrics(oldApp, newApp *v1beta2.SparkApplicatio
 		case v1beta2.SucceedingState:
 			if !newApp.Status.LastSubmissionAttemptTime.Time.IsZero() && !newApp.Status.TerminationTime.Time.IsZero() {
 				d := newApp.Status.TerminationTime.Time.Sub(newApp.Status.LastSubmissionAttemptTime.Time)
-
 				if m, err := sm.sparkAppSuccessExecutionTime.GetMetricWith(metricLabels); err != nil {
 					glog.Errorf("Error while exporting metrics: %v", err)
 				} else {
@@ -232,19 +229,20 @@ func (sm *sparkAppMetrics) exportMetrics(oldApp, newApp *v1beta2.SparkApplicatio
 		}
 	}
 
+	oldExecutorStates := oldApp.Status.ExecutorState
 	// Potential Executor status updates
 	for executor, newExecState := range newApp.Status.ExecutorState {
 		switch newExecState {
 		case v1beta2.ExecutorRunningState:
-			if oldApp.Status.ExecutorState[executor] != newExecState {
+			if oldExecutorStates[executor] != newExecState {
 				glog.V(2).Infof("Exporting Metrics for Executor %s. OldState: %v NewState: %v", executor,
-					oldApp.Status.ExecutorState[executor], newExecState)
+					oldExecutorStates[executor], newExecState)
 				sm.sparkAppExecutorRunningCount.Inc(metricLabels)
 			}
 		case v1beta2.ExecutorCompletedState:
-			if oldApp.Status.ExecutorState[executor] != newExecState {
+			if oldExecutorStates[executor] != newExecState {
 				glog.V(2).Infof("Exporting Metrics for Executor %s. OldState: %v NewState: %v", executor,
-					oldApp.Status.ExecutorState[executor], newExecState)
+					oldExecutorStates[executor], newExecState)
 				sm.sparkAppExecutorRunningCount.Dec(metricLabels)
 				if m, err := sm.sparkAppExecutorSuccessCount.GetMetricWith(metricLabels); err != nil {
 					glog.Errorf("Error while exporting metrics: %v", err)
@@ -253,9 +251,9 @@ func (sm *sparkAppMetrics) exportMetrics(oldApp, newApp *v1beta2.SparkApplicatio
 				}
 			}
 		case v1beta2.ExecutorFailedState:
-			if oldApp.Status.ExecutorState[executor] != newExecState {
+			if oldExecutorStates[executor] != newExecState {
 				glog.V(2).Infof("Exporting Metrics for Executor %s. OldState: %v NewState: %v", executor,
-					oldApp.Status.ExecutorState[executor], newExecState)
+					oldExecutorStates[executor], newExecState)
 				sm.sparkAppExecutorRunningCount.Dec(metricLabels)
 				if m, err := sm.sparkAppExecutorFailureCount.GetMetricWith(metricLabels); err != nil {
 					glog.Errorf("Error while exporting metrics: %v", err)
@@ -286,20 +284,18 @@ func (sm *sparkAppMetrics) exportJobStartLatencyMetrics(app *v1beta2.SparkApplic
 }
 
 func fetchMetricLabels(app *v1beta2.SparkApplication, labels []string) map[string]string {
-	specLabels := app.Labels
-
-	// Transform spec labels since our labels names might be not same as specLabels if we removed invalid characters.
-	validSpecLabels := make(map[string]string)
-	for labelKey, v := range specLabels {
+	// Convert app labels into ones that can be used as metric labels.
+	validLabels := make(map[string]string)
+	for labelKey, v := range app.Labels {
 		newKey := util.CreateValidMetricNameLabel("", labelKey)
-		validSpecLabels[newKey] = v
+		validLabels[newKey] = v
 	}
 
 	metricLabels := make(map[string]string)
 	for _, label := range labels {
-		if value, ok := validSpecLabels[label]; ok {
+		if value, ok := validLabels[label]; ok {
 			metricLabels[label] = value
-		} else if label == "namespace" { // if the "namespace" label is in the metrics config, use it
+		} else if label == "namespace" { // If the "namespace" label is in the metrics config, use it.
 			metricLabels[label] = app.Namespace
 		} else {
 			metricLabels[label] = "Unknown"

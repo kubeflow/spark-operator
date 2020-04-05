@@ -587,7 +587,6 @@ func (c *Controller) syncSparkApplication(key string) error {
 	}
 
 	if appToUpdate != nil {
-		glog.V(2).Infof("Trying to update SparkApplication %s/%s, from: [%v] to [%v]", app.Namespace, app.Name, app.Status, appToUpdate.Status)
 		err = c.updateStatusAndExportMetrics(app, appToUpdate)
 		if err != nil {
 			glog.Errorf("failed to update SparkApplication %s/%s: %v", app.Namespace, app.Name, err)
@@ -760,20 +759,33 @@ func (c *Controller) updateApplicationStatusWithRetries(
 // updateStatusAndExportMetrics updates the status of the SparkApplication and export the metrics.
 func (c *Controller) updateStatusAndExportMetrics(oldApp, newApp *v1beta2.SparkApplication) error {
 	// Skip update if nothing changed.
-	if equality.Semantic.DeepEqual(oldApp, newApp) {
+	if equality.Semantic.DeepEqual(oldApp.Status, newApp.Status) {
 		return nil
 	}
 
+	oldStatusJSON, err := printStatus(&oldApp.Status)
+	if err != nil {
+		return err
+	}
+	newStatusJSON, err := printStatus(&newApp.Status)
+	if err != nil {
+		return err
+	}
+
+	glog.V(2).Infof("Update the status of SparkApplication %s/%s from:\n%s\nto:\n%s", newApp.Namespace, newApp.Name, oldStatusJSON, newStatusJSON)
 	updatedApp, err := c.updateApplicationStatusWithRetries(oldApp, func(status *v1beta2.SparkApplicationStatus) {
 		*status = newApp.Status
 	})
+	if err != nil {
+		return err
+	}
 
 	// Export metrics if the update was successful.
-	if err == nil && c.metrics != nil {
+	if c.metrics != nil {
 		c.metrics.exportMetrics(oldApp, updatedApp)
 	}
 
-	return err
+	return nil
 }
 
 func (c *Controller) getSparkApplication(namespace string, name string) (*v1beta2.SparkApplication, error) {
