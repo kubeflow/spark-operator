@@ -278,6 +278,7 @@ func TestSyncSparkApplication_SubmissionFailed(t *testing.T) {
 
 	assert.Equal(t, v1beta2.FailedSubmissionState, updatedApp.Status.AppState.State)
 	assert.Equal(t, int32(1), updatedApp.Status.SubmissionAttempts)
+	assert.Equal(t, float64(1), fetchCounterValue(ctrl.metrics.sparkAppCount, map[string]string{}))
 	assert.Equal(t, float64(0), fetchCounterValue(ctrl.metrics.sparkAppSubmitCount, map[string]string{}))
 	assert.Equal(t, float64(1), fetchCounterValue(ctrl.metrics.sparkAppFailedSubmissionCount, map[string]string{}))
 
@@ -607,6 +608,9 @@ func TestSyncSparkApplication_SubmissionSuccess(t *testing.T) {
 		updatedApp, err := ctrl.crdClient.SparkoperatorV1beta2().SparkApplications(test.app.Namespace).Get(test.app.Name, metav1.GetOptions{})
 		assert.Nil(t, err)
 		assert.Equal(t, test.expectedState, updatedApp.Status.AppState.State)
+		if test.app.Status.AppState.State == v1beta2.NewState {
+			assert.Equal(t, float64(1), fetchCounterValue(ctrl.metrics.sparkAppCount, map[string]string{}))
+		}
 		if test.expectedState == v1beta2.SubmittedState {
 			assert.Equal(t, float64(1), fetchCounterValue(ctrl.metrics.sparkAppSubmitCount, map[string]string{}))
 		}

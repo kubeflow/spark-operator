@@ -30,6 +30,7 @@ type sparkAppMetrics struct {
 	labels []string
 	prefix string
 
+	sparkAppCount                 *prometheus.CounterVec
 	sparkAppSubmitCount           *prometheus.CounterVec
 	sparkAppSuccessCount          *prometheus.CounterVec
 	sparkAppFailureCount          *prometheus.CounterVec
@@ -54,6 +55,13 @@ func newSparkAppMetrics(metricsConfig *util.MetricConfig) *sparkAppMetrics {
 		validLabels[i] = util.CreateValidMetricNameLabel("", label)
 	}
 
+	sparkAppCount := prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: util.CreateValidMetricNameLabel(prefix, "spark_app_count"),
+			Help: "Total Number of Spark Apps Handled by the Operator",
+		},
+		validLabels,
+	)
 	sparkAppSubmitCount := prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: util.CreateValidMetricNameLabel(prefix, "spark_app_submit_count"),
@@ -133,6 +141,7 @@ func newSparkAppMetrics(metricsConfig *util.MetricConfig) *sparkAppMetrics {
 	return &sparkAppMetrics{
 		labels:                        validLabels,
 		prefix:                        prefix,
+		sparkAppCount:                 sparkAppCount,
 		sparkAppSubmitCount:           sparkAppSubmitCount,
 		sparkAppRunningCount:          sparkAppRunningCount,
 		sparkAppSuccessCount:          sparkAppSuccessCount,
@@ -149,6 +158,7 @@ func newSparkAppMetrics(metricsConfig *util.MetricConfig) *sparkAppMetrics {
 }
 
 func (sm *sparkAppMetrics) registerMetrics() {
+	util.RegisterMetric(sm.sparkAppCount)
 	util.RegisterMetric(sm.sparkAppSubmitCount)
 	util.RegisterMetric(sm.sparkAppSuccessCount)
 	util.RegisterMetric(sm.sparkAppFailureCount)
@@ -168,6 +178,14 @@ func (sm *sparkAppMetrics) exportMetrics(oldApp, newApp *v1beta2.SparkApplicatio
 	oldState := oldApp.Status.AppState.State
 	newState := newApp.Status.AppState.State
 	if newState != oldState {
+		if oldState == v1beta2.NewState {
+			if m, err := sm.sparkAppCount.GetMetricWith(metricLabels); err != nil {
+				glog.Errorf("Error while exporting metrics: %v", err)
+			} else {
+				m.Inc()
+			}
+		}
+
 		switch newState {
 		case v1beta2.SubmittedState:
 			if m, err := sm.sparkAppSubmitCount.GetMetricWith(metricLabels); err != nil {
@@ -279,7 +297,6 @@ func (sm *sparkAppMetrics) exportJobStartLatencyMetrics(app *v1beta2.SparkApplic
 		} else {
 			m.Observe(float64(latency / time.Second))
 		}
-
 	}
 }
 
