@@ -176,9 +176,6 @@ func TestSyncScheduledSparkApplication_Allow(t *testing.T) {
 }
 
 func TestSyncScheduledSparkApplication_Forbid(t *testing.T) {
-	// TODO: figure out why the test fails and remove this.
-	t.Skip()
-
 	app := &v1beta2.ScheduledSparkApplication{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: "default",
