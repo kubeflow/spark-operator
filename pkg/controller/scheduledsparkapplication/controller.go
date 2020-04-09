@@ -249,6 +249,7 @@ func (c *Controller) createSparkApplication(
 		Name:       scheduledApp.Name,
 		UID:        scheduledApp.UID,
 	})
+	app.ObjectMeta.Namespace = scheduledApp.Namespace
 	app.ObjectMeta.Labels = make(map[string]string)
 	for key, value := range scheduledApp.Labels {
 		app.ObjectMeta.Labels[key] = value
