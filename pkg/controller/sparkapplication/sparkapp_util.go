@@ -133,7 +133,7 @@ func podStatusToDriverState(podStatus apiv1.PodStatus) v1beta2.DriverState {
 	}
 }
 
-func isDriverTerminated(driverState v1beta2.DriverState) bool {
+func hasDriverTerminated(driverState v1beta2.DriverState) bool {
 	return driverState == v1beta2.DriverCompletedState || driverState == v1beta2.DriverFailedState
 }
 

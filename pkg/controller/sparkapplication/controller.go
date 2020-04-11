@@ -326,7 +326,7 @@ func (c *Controller) getAndUpdateDriverState(app *v1beta2.SparkApplication) erro
 	app.Status.SparkApplicationID = getSparkApplicationID(driverPod)
 	driverState := podStatusToDriverState(driverPod.Status)
 
-	if isDriverTerminated(driverState) {
+	if hasDriverTerminated(driverState) {
 		if app.Status.TerminationTime.IsZero() {
 			app.Status.TerminationTime = metav1.Now()
 		}
