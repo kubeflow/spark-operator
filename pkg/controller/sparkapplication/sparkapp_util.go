@@ -95,29 +95,58 @@ func isDriverRunning(app *v1beta2.SparkApplication) bool {
 	return app.Status.AppState.State == v1beta2.RunningState
 }
 
-func driverStateToApplicationState(podStatus apiv1.PodStatus) v1beta2.ApplicationStateType {
+func getDriverContainerTerminatedState(podStatus apiv1.PodStatus) *apiv1.ContainerStateTerminated {
+	for _, c := range podStatus.ContainerStatuses {
+		if c.Name == config.SparkDriverContainerName {
+			if c.State.Terminated != nil {
+				return c.State.Terminated
+			}
+			return nil
+		}
+	}
+	return nil
+}
+
+func podStatusToDriverState(podStatus apiv1.PodStatus) v1beta2.DriverState {
 	switch podStatus.Phase {
 	case apiv1.PodPending:
-		return v1beta2.SubmittedState
+		return v1beta2.DriverPendingState
 	case apiv1.PodRunning:
-		// TODO: upcoming Kubernenetes feature will make this code redundant
-		// https://github.com/kubernetes/enhancements/issues/753
-		for _, c := range podStatus.ContainerStatuses {
-			if c.Name == config.SparkDriverContainerName {
-				if c.State.Terminated != nil {
-					if c.State.Terminated.ExitCode == 0 {
-						return v1beta2.SucceedingState
-					}
-					return v1beta2.FailingState
-				}
-				break
+		state := getDriverContainerTerminatedState(podStatus)
+		if state != nil {
+			if state.ExitCode == 0 {
+				return v1beta2.DriverCompletedState
 			}
+			return v1beta2.DriverFailedState
 		}
-		return v1beta2.RunningState
+		return v1beta2.DriverRunningState
 	case apiv1.PodSucceeded:
-		return v1beta2.SucceedingState
+		return v1beta2.DriverCompletedState
 	case apiv1.PodFailed:
+		state := getDriverContainerTerminatedState(podStatus)
+		if state != nil && state.ExitCode == 0 {
+			return v1beta2.DriverCompletedState
+		}
+		return v1beta2.DriverFailedState
+	default:
+		return v1beta2.DriverUnknownState
+	}
+}
+
+func hasDriverTerminated(driverState v1beta2.DriverState) bool {
+	return driverState == v1beta2.DriverCompletedState || driverState == v1beta2.DriverFailedState
+}
+
+func driverStateToApplicationState(driverState v1beta2.DriverState) v1beta2.ApplicationStateType {
+	switch driverState {
+	case v1beta2.DriverPendingState:
+		return v1beta2.SubmittedState
+	case v1beta2.DriverCompletedState:
+		return v1beta2.SucceedingState
+	case v1beta2.DriverFailedState:
 		return v1beta2.FailingState
+	case v1beta2.DriverRunningState:
+		return v1beta2.RunningState
 	default:
 		return v1beta2.UnknownState
 	}
