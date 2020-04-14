@@ -1788,6 +1788,18 @@ string
 </tr>
 <tr>
 <td>
+<code>uiConfig</code></br>
+<em>
+map[string]string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>UI related config options. For example,setting ingressClass: "nginx" will add a specific Ingress annotation</p>
+</td>
+</tr>
+<tr>
+<td>
 <code>sparkConf</code></br>
 <em>
 map[string]string
