@@ -64,6 +64,7 @@ func createSparkUIIngress(app *v1beta2.SparkApplication, service SparkService, i
 			Name:            getDefaultUIIngressName(app),
 			Namespace:       app.Namespace,
 			Labels:          getResourceLabels(app),
+			Annotations:     getResourceAnnotations(app),
 			OwnerReferences: []metav1.OwnerReference{*getOwnerReference(app)},
 		},
 		Spec: extensions.IngressSpec{
