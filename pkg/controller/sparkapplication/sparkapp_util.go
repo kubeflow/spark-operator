@@ -72,6 +72,24 @@ func getResourceLabels(app *v1beta2.SparkApplication) map[string]string {
 	return labels
 }
 
+func getResourceAnnotations(app *v1beta2.SparkApplication) map[string]string {
+	annotations := map[string]string{}
+
+	if app.Spec.UIConfig != nil {
+		if app.Spec.UIConfig.IngressClass != nil {
+			if *app.Spec.UIConfig.IngressClass == "nginx" {
+				annotations["kubernetes.io/ingressclass"] = "nginx"
+				if &app.Spec.UIConfig.EnableSSL != nil && &app.Spec.UIConfig.EnableSSL != nil {
+					if app.Spec.UIConfig.EnableSSL && app.Spec.UIConfig.ForceSSL {
+						annotations["nginx.ingress.kubernetes.io/force-ssl-redirect"] = "true"
+					}
+				}
+			}
+		}
+	}
+	return annotations
+}
+
 func podPhaseToExecutorState(podPhase apiv1.PodPhase) v1beta2.ExecutorState {
 	switch podPhase {
 	case apiv1.PodPending:
