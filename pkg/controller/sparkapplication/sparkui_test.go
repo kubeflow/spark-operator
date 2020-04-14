@@ -22,12 +22,12 @@ import (
 	"strconv"
 	"testing"
 
-	apiv1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes/fake"
-
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta2"
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/config"
+	apiv1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	clientset "k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/kubernetes/fake"
 )
 
 func TestCreateSparkUIService(t *testing.T) {
@@ -230,5 +230,34 @@ func TestCreateSparkUIIngress(t *testing.T) {
 	}
 	if ingressPath.Backend.ServicePort.IntVal != service.servicePort {
 		t.Errorf("Service port wanted %v got %v", service.servicePort, ingressPath.Backend.ServicePort)
+	}
+}
+
+func Test_createSparkUIIngress(t *testing.T) {
+	type args struct {
+		app              *v1beta2.SparkApplication
+		service          SparkService
+		ingressURLFormat string
+		kubeClient       clientset.Interface
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    *SparkIngress
+		wantErr bool
+	}{
+		// TODO: Add test cases.
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := createSparkUIIngress(tt.args.app, tt.args.service, tt.args.ingressURLFormat, tt.args.kubeClient)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("createSparkUIIngress() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("createSparkUIIngress() = %v, want %v", got, tt.want)
+			}
+		})
 	}
 }

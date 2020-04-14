@@ -79,7 +79,7 @@ func getResourceAnnotations(app *v1beta2.SparkApplication) map[string]string {
 		if app.Spec.UIConfig.IngressClass != nil {
 			if *app.Spec.UIConfig.IngressClass == "nginx" {
 				annotations["kubernetes.io/ingressclass"] = "nginx"
-				if &app.Spec.UIConfig.EnableSSL != nil && &app.Spec.UIConfig.EnableSSL != nil {
+				if &app.Spec.UIConfig.EnableSSL != nil && &app.Spec.UIConfig.ForceSSL != nil {
 					if app.Spec.UIConfig.EnableSSL && app.Spec.UIConfig.ForceSSL {
 						annotations["nginx.ingress.kubernetes.io/force-ssl-redirect"] = "true"
 					}
