@@ -17,6 +17,7 @@ limitations under the License.
 package sparkapplication
 
 import (
+	"reflect"
 	"testing"
 
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta2"
@@ -55,5 +56,25 @@ func TestPrintStatus(t *testing.T) {
 
 	if statusString != expectedStatusString {
 		t.Errorf("status string\n %s is different from expected status string\n %s", statusString, expectedStatusString)
+	}
+}
+
+func Test_getResourceAnnotations(t *testing.T) {
+	type args struct {
+		app *v1beta2.SparkApplication
+	}
+	tests := []struct {
+		name string
+		args args
+		want map[string]string
+	}{
+		// TODO: Add test cases.
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := getResourceAnnotations(tt.args.app); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("getResourceAnnotations() = %v, want %v", got, tt.want)
+			}
+		})
 	}
 }
