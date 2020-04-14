@@ -309,6 +309,18 @@ type ApplicationState struct {
 	ErrorMessage string               `json:"errorMessage,omitempty"`
 }
 
+// DriverState tells the current state of a spark driver.
+type DriverState string
+
+// Different states a spark driver may have.
+const (
+	DriverPendingState   DriverState = "PENDING"
+	DriverRunningState   DriverState = "RUNNING"
+	DriverCompletedState DriverState = "COMPLETED"
+	DriverFailedState    DriverState = "FAILED"
+	DriverUnknownState   DriverState = "UNKNOWN"
+)
+
 // ExecutorState tells the current state of an executor.
 type ExecutorState string
 

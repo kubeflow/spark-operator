@@ -324,16 +324,17 @@ func (c *Controller) getAndUpdateDriverState(app *v1beta2.SparkApplication) erro
 	}
 
 	app.Status.SparkApplicationID = getSparkApplicationID(driverPod)
+	driverState := podStatusToDriverState(driverPod.Status)
 
-	if driverPod.Status.Phase == apiv1.PodSucceeded || driverPod.Status.Phase == apiv1.PodFailed {
+	if hasDriverTerminated(driverState) {
 		if app.Status.TerminationTime.IsZero() {
 			app.Status.TerminationTime = metav1.Now()
 		}
-		if driverPod.Status.Phase == apiv1.PodFailed {
-			if len(driverPod.Status.ContainerStatuses) > 0 {
-				terminatedState := driverPod.Status.ContainerStatuses[0].State.Terminated
-				if terminatedState != nil {
-					app.Status.AppState.ErrorMessage = fmt.Sprintf("driver pod failed with ExitCode: %d, Reason: %s", terminatedState.ExitCode, terminatedState.Reason)
+		if driverState == v1beta2.DriverFailedState {
+			state := getDriverContainerTerminatedState(driverPod.Status)
+			if state != nil {
+				if state.ExitCode != 0 {
+					app.Status.AppState.ErrorMessage = fmt.Sprintf("driver container failed with ExitCode: %d, Reason: %s", state.ExitCode, state.Reason)
 				}
 			} else {
 				app.Status.AppState.ErrorMessage = "driver container status missing"
@@ -341,12 +342,12 @@ func (c *Controller) getAndUpdateDriverState(app *v1beta2.SparkApplication) erro
 		}
 	}
 
-	newState := driverStateToApplicationState(driverPod.Status)
+	newState := driverStateToApplicationState(driverState)
 	// Only record a driver event if the application state (derived from the driver pod phase) has changed.
 	if newState != app.Status.AppState.State {
-		c.recordDriverEvent(app, driverPod.Status.Phase, driverPod.Name)
+		c.recordDriverEvent(app, driverState, driverPod.Name)
+		app.Status.AppState.State = newState
 	}
-	app.Status.AppState.State = newState
 
 	return nil
 }
@@ -937,17 +938,17 @@ func (c *Controller) recordSparkApplicationEvent(app *v1beta2.SparkApplication) 
 	}
 }
 
-func (c *Controller) recordDriverEvent(app *v1beta2.SparkApplication, phase apiv1.PodPhase, name string) {
+func (c *Controller) recordDriverEvent(app *v1beta2.SparkApplication, phase v1beta2.DriverState, name string) {
 	switch phase {
-	case apiv1.PodSucceeded:
+	case v1beta2.DriverCompletedState:
 		c.recorder.Eventf(app, apiv1.EventTypeNormal, "SparkDriverCompleted", "Driver %s completed", name)
-	case apiv1.PodPending:
+	case v1beta2.DriverPendingState:
 		c.recorder.Eventf(app, apiv1.EventTypeNormal, "SparkDriverPending", "Driver %s is pending", name)
-	case apiv1.PodRunning:
+	case v1beta2.DriverRunningState:
 		c.recorder.Eventf(app, apiv1.EventTypeNormal, "SparkDriverRunning", "Driver %s is running", name)
-	case apiv1.PodFailed:
+	case v1beta2.DriverFailedState:
 		c.recorder.Eventf(app, apiv1.EventTypeWarning, "SparkDriverFailed", "Driver %s failed", name)
-	case apiv1.PodUnknown:
+	case v1beta2.DriverUnknownState:
 		c.recorder.Eventf(app, apiv1.EventTypeWarning, "SparkDriverUnknownState", "Driver %s in unknown state", name)
 	}
 }
