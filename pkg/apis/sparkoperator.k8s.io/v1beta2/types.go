@@ -162,6 +162,13 @@ type ScheduledSparkApplicationList struct {
 	Items           []ScheduledSparkApplication `json:"items,omitempty"`
 }
 
+// Specific SparkUI config parameters
+type UIConfig struct {
+	IngressClass *string `json:"ingressClass,omitempty"`
+	EnableSSL    bool    `json:"enableSSL,omitempty"`
+	ForceSSL     bool    `json:"forceSSL,omitempty"`
+}
+
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // +k8s:defaulter-gen=true
@@ -273,6 +280,8 @@ type SparkApplicationSpec struct {
 	// BatchSchedulerOptions provides fine-grained control on how to batch scheduling.
 	// +optional
 	BatchSchedulerOptions *BatchSchedulerConfiguration `json:"batchSchedulerOptions,omitempty"`
+	// Define specific sparkUI config parameters like classs used for ingress creation
+	UIConfig *UIConfig `json:"uiConfig,omitempty"`
 }
 
 // BatchSchedulerConfiguration used to configure how to batch scheduling Spark Application
