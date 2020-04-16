@@ -164,9 +164,12 @@ type ScheduledSparkApplicationList struct {
 
 // Specific SparkUI config parameters
 type UIConfig struct {
+	// Ingress class used for k8s annotation: kubernetes.io/ingressclass
 	IngressClass *string `json:"ingressClass,omitempty"`
-	EnableSSL    bool    `json:"enableSSL,omitempty"`
-	ForceSSL     bool    `json:"forceSSL,omitempty"`
+	// Necessary to specify that Ingress Will use SSL
+	EnableSSL bool `json:"enableSSL,omitempty"`
+	// EnableSSL combined with ForceSSL with set Ingress k8s annotation: nginx.ingress.kubernetes.io/force-ssl-redirect to true
+	ForceSSL bool `json:"forceSSL,omitempty"`
 }
 
 // +genclient
