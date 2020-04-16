@@ -281,6 +281,7 @@ type SparkApplicationSpec struct {
 	// +optional
 	BatchSchedulerOptions *BatchSchedulerConfiguration `json:"batchSchedulerOptions,omitempty"`
 	// Define specific sparkUI config parameters like classs used for ingress creation
+	// +optional
 	UIConfig *UIConfig `json:"uiConfig,omitempty"`
 }
 
