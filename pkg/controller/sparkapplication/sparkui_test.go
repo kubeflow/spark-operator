@@ -26,7 +26,6 @@ import (
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/config"
 	apiv1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	clientset "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/fake"
 )
 
@@ -166,7 +165,8 @@ func TestCreateSparkUIService(t *testing.T) {
 
 func TestCreateSparkUIIngress(t *testing.T) {
 
-	app := &v1beta2.SparkApplication{
+	// list of app cases
+	app1 := &v1beta2.SparkApplication{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "foo",
 			Namespace: "default",
@@ -180,84 +180,90 @@ func TestCreateSparkUIIngress(t *testing.T) {
 		},
 	}
 
-	service := SparkService{
-		serviceName: app.GetName() + "-ui-svc",
-		servicePort: 4041,
-	}
-	ingressFormat := "{{$appName}}.ingress.clusterName.com"
+	ingressclass_nginx := "nginx"
 
-	expectedIngress := SparkIngress{
-		ingressName: fmt.Sprintf("%s-ui-ingress", app.GetName()),
-		ingressURL:  app.GetName() + ".ingress.clusterName.com",
-	}
-	fakeClient := fake.NewSimpleClientset()
-	sparkIngress, err := createSparkUIIngress(app, service, ingressFormat, fakeClient)
-	if err != nil {
-		t.Fatal(err)
+	app2 := &v1beta2.SparkApplication{
+		Spec: v1beta2.SparkApplicationSpec{
+			UIConfig: &v1beta2.UIConfig{IngressClass: &ingressclass_nginx},
+		},
 	}
 
-	if sparkIngress.ingressName != expectedIngress.ingressName {
-		t.Errorf("Ingress name wanted %s got %s", expectedIngress.ingressName, sparkIngress.ingressName)
-	}
-	if sparkIngress.ingressURL != expectedIngress.ingressURL {
-		t.Errorf("Ingress name wanted %s got %s", expectedIngress.ingressURL, sparkIngress.ingressURL)
-	}
-
-	ingress, err := fakeClient.ExtensionsV1beta1().Ingresses(app.Namespace).
-		Get(sparkIngress.ingressName, metav1.GetOptions{})
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if ingress.Labels[config.SparkAppNameLabel] != app.Name {
-		t.Errorf("Ingress of app %s has the wrong labels", app.Name)
-	}
-
-	if len(ingress.Spec.Rules) != 1 {
-		t.Errorf("No Ingress rules found.")
-	}
-	ingressRule := ingress.Spec.Rules[0]
-	if ingressRule.Host != expectedIngress.ingressURL {
-		t.Errorf("Ingress of app %s has the wrong host %s", expectedIngress.ingressURL, ingressRule.Host)
-	}
-
-	if len(ingressRule.IngressRuleValue.HTTP.Paths) != 1 {
-		t.Errorf("No Ingress paths found.")
-	}
-	ingressPath := ingressRule.IngressRuleValue.HTTP.Paths[0]
-	if ingressPath.Backend.ServiceName != service.serviceName {
-		t.Errorf("Service name wanted %s got %s", service.serviceName, ingressPath.Backend.ServiceName)
-	}
-	if ingressPath.Backend.ServicePort.IntVal != service.servicePort {
-		t.Errorf("Service port wanted %v got %v", service.servicePort, ingressPath.Backend.ServicePort)
-	}
-}
-
-func Test_createSparkUIIngress(t *testing.T) {
+	// list of tests related to app list
 	type args struct {
-		app              *v1beta2.SparkApplication
-		service          SparkService
-		ingressURLFormat string
-		kubeClient       clientset.Interface
+		app *v1beta2.SparkApplication
 	}
 	tests := []struct {
-		name    string
-		args    args
-		want    *SparkIngress
-		wantErr bool
+		name string
+		args args
 	}{
-		// TODO: Add test cases.
+		{
+			args: args{app1},
+		},
+		{
+			args: args{app2},
+		},
 	}
+
+	//common test loop
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := createSparkUIIngress(tt.args.app, tt.args.service, tt.args.ingressURLFormat, tt.args.kubeClient)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("createSparkUIIngress() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("createSparkUIIngress() = %v, want %v", got, tt.want)
-			}
-		})
+
+		app := tt.args.app
+
+		service := SparkService{
+			serviceName: app.GetName() + "-ui-svc",
+			servicePort: 4041,
+		}
+		ingressFormat := "{{$appName}}.ingress.clusterName.com"
+
+		expectedIngress := SparkIngress{
+			ingressName: fmt.Sprintf("%s-ui-ingress", app.GetName()),
+			ingressURL:  app.GetName() + ".ingress.clusterName.com",
+		}
+		fakeClient := fake.NewSimpleClientset()
+		sparkIngress, err := createSparkUIIngress(app, service, ingressFormat, fakeClient)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if sparkIngress.ingressName != expectedIngress.ingressName {
+			t.Errorf("Ingress name wanted %s got %s", expectedIngress.ingressName, sparkIngress.ingressName)
+		}
+		if sparkIngress.ingressURL != expectedIngress.ingressURL {
+			t.Errorf("Ingress name wanted %s got %s", expectedIngress.ingressURL, sparkIngress.ingressURL)
+		}
+
+		ingress, err := fakeClient.ExtensionsV1beta1().Ingresses(app.Namespace).
+			Get(sparkIngress.ingressName, metav1.GetOptions{})
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if ingress.Labels[config.SparkAppNameLabel] != app.Name {
+			t.Errorf("Ingress of app %s has the wrong labels", app.Name)
+		}
+
+		if len(ingress.Spec.Rules) != 1 {
+			t.Errorf("No Ingress rules found.")
+		}
+
+		if app.Spec.UIConfig == nil && ingress.Annotations["kubernetes.io/ingressclass"] != "" {
+			t.Errorf("Ingress of app %s has a wrong Annotation %s", expectedIngress.ingressURL, ingress.Annotations["kubernetes.io/ingressclass"])
+		}
+
+		ingressRule := ingress.Spec.Rules[0]
+		if ingressRule.Host != expectedIngress.ingressURL {
+			t.Errorf("Ingress of app %s has the wrong host %s", expectedIngress.ingressURL, ingressRule.Host)
+		}
+
+		if len(ingressRule.IngressRuleValue.HTTP.Paths) != 1 {
+			t.Errorf("No Ingress paths found.")
+		}
+		ingressPath := ingressRule.IngressRuleValue.HTTP.Paths[0]
+		if ingressPath.Backend.ServiceName != service.serviceName {
+			t.Errorf("Service name wanted %s got %s", service.serviceName, ingressPath.Backend.ServiceName)
+		}
+		if ingressPath.Backend.ServicePort.IntVal != service.servicePort {
+			t.Errorf("Service port wanted %v got %v", service.servicePort, ingressPath.Backend.ServicePort)
+		}
 	}
 }
