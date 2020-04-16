@@ -60,6 +60,27 @@ func TestPrintStatus(t *testing.T) {
 }
 
 func Test_getResourceAnnotations(t *testing.T) {
+
+	ingressclass_nginx := "nginx"
+
+	app1 := &v1beta2.SparkApplication{
+		Spec: v1beta2.SparkApplicationSpec{
+			UIConfig: nil,
+		},
+	}
+
+	app2 := &v1beta2.SparkApplication{
+		Spec: v1beta2.SparkApplicationSpec{
+			UIConfig: &v1beta2.UIConfig{IngressClass: &ingressclass_nginx},
+		},
+	}
+
+	app3 := &v1beta2.SparkApplication{
+		Spec: v1beta2.SparkApplicationSpec{
+			UIConfig: &v1beta2.UIConfig{IngressClass: &ingressclass_nginx, EnableSSL: true, ForceSSL: true},
+		},
+	}
+
 	type args struct {
 		app *v1beta2.SparkApplication
 	}
@@ -68,7 +89,24 @@ func Test_getResourceAnnotations(t *testing.T) {
 		args args
 		want map[string]string
 	}{
-		// TODO: Add test cases.
+		{
+			args: args{
+				app1,
+			},
+			want: map[string]string{},
+		},
+		{
+			args: args{
+				app2,
+			},
+			want: map[string]string{"kubernetes.io/ingressclass": "nginx"},
+		},
+		{
+			args: args{
+				app3,
+			},
+			want: map[string]string{"kubernetes.io/ingressclass": "nginx", "nginx.ingress.kubernetes.io/force-ssl-redirect": "true"},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
