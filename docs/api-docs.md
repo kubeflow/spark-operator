@@ -553,8 +553,8 @@ BatchSchedulerConfiguration
 </em>
 </td>
 <td>
-<p>BatchSchedulerOptions provides fine-grained control on how to batch scheduling.
-Optional.</p>
+<em>(Optional)</em>
+<p>BatchSchedulerOptions provides fine-grained control on how to batch scheduling.</p>
 </td>
 </tr>
 <tr>
@@ -565,6 +565,7 @@ string
 </em>
 </td>
 <td>
+<em>(Optional)</em>
 <p>ServiceAccount is the name of the Kubernetes ServiceAccount used to run the
 submission Job Pod that runs spark-submit to submit an application.</p>
 </td>
@@ -949,6 +950,11 @@ Kubernetes core/v1.Lifecycle
 </tr>
 </tbody>
 </table>
+<h3 id="sparkoperator.k8s.io/v1beta2.DriverState">DriverState
+(<code>string</code> alias)</p></h3>
+<p>
+<p>DriverState tells the current state of a spark driver.</p>
+</p>
 <h3 id="sparkoperator.k8s.io/v1beta2.ExecutorSpec">ExecutorSpec
 </h3>
 <p>
@@ -2020,8 +2026,8 @@ BatchSchedulerConfiguration
 </em>
 </td>
 <td>
-<p>BatchSchedulerOptions provides fine-grained control on how to batch scheduling.
-Optional.</p>
+<em>(Optional)</em>
+<p>BatchSchedulerOptions provides fine-grained control on how to batch scheduling.</p>
 </td>
 </tr>
 <tr>
@@ -2032,6 +2038,7 @@ string
 </em>
 </td>
 <td>
+<em>(Optional)</em>
 <p>ServiceAccount is the name of the Kubernetes ServiceAccount used to run the
 submission Job Pod that runs spark-submit to submit an application.</p>
 </td>
@@ -2094,7 +2101,7 @@ string
 </tr>
 <tr>
 <td>
-<code>SubmissionTime</code></br>
+<code>submissionTime</code></br>
 <em>
 <a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#time-v1-meta">
 Kubernetes meta/v1.Time
@@ -2545,5 +2552,5 @@ int64
 <hr/>
 <p><em>
 Generated with <code>gen-crd-api-reference-docs</code>
-on git commit <code>8fdcbf2f5</code>.
+on git commit <code>4cf368a</code>.
 </em></p>

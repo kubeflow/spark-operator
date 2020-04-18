@@ -25,7 +25,7 @@ import (
 var expectedStatusString = `{
   "sparkApplicationId": "test-app",
   "submissionID": "test-app-submission",
-  "lastSubmissionAttemptTime": null,
+  "submissionTime": null,
   "terminationTime": null,
   "driverInfo": {},
   "applicationState": {

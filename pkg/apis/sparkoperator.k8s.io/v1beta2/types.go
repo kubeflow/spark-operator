@@ -346,7 +346,7 @@ type SparkApplicationStatus struct {
 	SubmissionID string `json:"submissionID,omitempty"`
 	// SubmissionTime is the time the application is submitted.
 	// +nullable
-	SubmissionTime metav1.Time `json:"SubmissionTime,omitempty"`
+	SubmissionTime metav1.Time `json:"submissionTime,omitempty"`
 	// CompletionTime is the time when the application runs to completion if it does.
 	// +nullable
 	TerminationTime metav1.Time `json:"terminationTime,omitempty"`
