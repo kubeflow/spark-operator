@@ -152,7 +152,6 @@ func newSparkApplicationController(
 
 // Start starts the Controller by registering a watcher for SparkApplication objects.
 func (c *Controller) Start(workers int, stopCh <-chan struct{}) error {
-
 	// Wait for all involved caches to be synced, before processing items from the queue is started.
 	if !cache.WaitForCacheSync(stopCh, c.cacheSynced) {
 		return fmt.Errorf("timed out waiting for cache to sync")
