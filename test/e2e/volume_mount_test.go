@@ -20,15 +20,14 @@ limitations under the License.
 package e2e
 
 import (
-	"k8s.io/apimachinery/pkg/util/wait"
-	"k8s.io/kubernetes/pkg/kubectl/describe/versioned"
 	"regexp"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 
+	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/kubernetes/pkg/kubectl/describe"
+	"k8s.io/kubectl/pkg/describe"
 
 	appFramework "github.com/GoogleCloudPlatform/spark-on-k8s-operator/test/e2e/framework"
 )
@@ -78,8 +77,8 @@ func TestMountConfigMap(t *testing.T) {
 	assert.Equal(t, nil, err)
 	podName := app.Status.DriverInfo.PodName
 
-	describeClient := &describeClient{T: t, Namespace: appFramework.SparkTestNamespace, Interface: framework.KubeClient}
-	describer := versioned.PodDescriber{describeClient}
+	  describeClient := &describeClient{T: t, Namespace: appFramework.SparkTestNamespace, Interface: framework.KubeClient}
+	describer := describe.PodDescriber{describeClient}
 
 	podDesc, err := describer.Describe(appFramework.SparkTestNamespace, podName, describe.DescriberSettings{ShowEvents: true})
 	assert.Equal(t, nil, err)
@@ -91,3 +90,4 @@ func TestMountConfigMap(t *testing.T) {
 	err = appFramework.DeleteSparkApplication(framework.SparkApplicationClient, appFramework.SparkTestNamespace, appName)
 	assert.Equal(t, nil, err)
 }
+
