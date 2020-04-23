@@ -32,19 +32,6 @@ $ git clone git@github.com:GoogleCloudPlatform/spark-on-k8s-operator.git
 $ cd spark-on-k8s-operator
 ```
 
-The operator uses [dep](https://golang.github.io/dep/) for dependency management. Please install `dep` following
-the instruction on the website if you don't have it available locally. To install the dependencies, run the following command:
-
-```bash
-$ dep ensure
-```
-
-To update the dependencies, run the following command. (You can skip this unless you know there's a dependency that needs updating):
-
-```bash
-$ dep ensure -update
-```
-
 Before building the operator the first time, run the following commands to get the required Kubernetes code generators:
 
 ```bash

@@ -11,14 +11,11 @@ all: clean-sparkctl build-sparkctl install-sparkctl
 
 build-sparkctl:
 	[ ! -f "sparkctl/sparkctl-darwin-amd64" ] || [ ! -f "sparkctl/sparkctl-linux-amd64" ] && \
-	echo building using $(BUILDER) and dep $(DEP_VERSION) && \
+	echo building using $(BUILDER) && \
 	docker run -it -w $(SPARK_OPERATOR_GOPATH) \
 	-v $$(pwd):$(SPARK_OPERATOR_GOPATH) $(BUILDER) sh -c \
 	"apk add --no-cache bash git && \
-	wget https://github.com/golang/dep/releases/download/v"$(DEP_VERSION)"/dep-linux-amd64 -O /usr/bin/dep && \
-	chmod +x /usr/bin/dep && \
 	cd sparkctl && \
-	dep ensure -v -vendor-only && \
 	./build.sh" || true
 
 clean-sparkctl:
