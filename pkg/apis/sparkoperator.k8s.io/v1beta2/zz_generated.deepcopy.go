@@ -373,7 +373,7 @@ func (in *ScheduledSparkApplication) DeepCopyObject() runtime.Object {
 func (in *ScheduledSparkApplicationList) DeepCopyInto(out *ScheduledSparkApplicationList) {
 	*out = *in
 	out.TypeMeta = in.TypeMeta
-	out.ListMeta = in.ListMeta
+	in.ListMeta.DeepCopyInto(&out.ListMeta)
 	if in.Items != nil {
 		in, out := &in.Items, &out.Items
 		*out = make([]ScheduledSparkApplication, len(*in))
@@ -510,7 +510,7 @@ func (in *SparkApplication) DeepCopyObject() runtime.Object {
 func (in *SparkApplicationList) DeepCopyInto(out *SparkApplicationList) {
 	*out = *in
 	out.TypeMeta = in.TypeMeta
-	out.ListMeta = in.ListMeta
+	in.ListMeta.DeepCopyInto(&out.ListMeta)
 	if in.Items != nil {
 		in, out := &in.Items, &out.Items
 		*out = make([]SparkApplication, len(*in))

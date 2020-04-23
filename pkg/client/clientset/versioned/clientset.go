@@ -21,6 +21,8 @@ limitations under the License.
 package versioned
 
 import (
+	"fmt"
+
 	sparkoperatorv1beta1 "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/client/clientset/versioned/typed/sparkoperator.k8s.io/v1beta1"
 	sparkoperatorv1beta2 "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/client/clientset/versioned/typed/sparkoperator.k8s.io/v1beta2"
 	discovery "k8s.io/client-go/discovery"
@@ -32,8 +34,6 @@ type Interface interface {
 	Discovery() discovery.DiscoveryInterface
 	SparkoperatorV1beta1() sparkoperatorv1beta1.SparkoperatorV1beta1Interface
 	SparkoperatorV1beta2() sparkoperatorv1beta2.SparkoperatorV1beta2Interface
-	// Deprecated: please explicitly pick a version if possible.
-	Sparkoperator() sparkoperatorv1beta2.SparkoperatorV1beta2Interface
 }
 
 // Clientset contains the clients for groups. Each group has exactly one
@@ -54,12 +54,6 @@ func (c *Clientset) SparkoperatorV1beta2() sparkoperatorv1beta2.SparkoperatorV1b
 	return c.sparkoperatorV1beta2
 }
 
-// Deprecated: Sparkoperator retrieves the default version of SparkoperatorClient.
-// Please explicitly pick a version.
-func (c *Clientset) Sparkoperator() sparkoperatorv1beta2.SparkoperatorV1beta2Interface {
-	return c.sparkoperatorV1beta2
-}
-
 // Discovery retrieves the DiscoveryClient
 func (c *Clientset) Discovery() discovery.DiscoveryInterface {
 	if c == nil {
@@ -69,9 +63,14 @@ func (c *Clientset) Discovery() discovery.DiscoveryInterface {
 }
 
 // NewForConfig creates a new Clientset for the given config.
+// If config's RateLimiter is not set and QPS and Burst are acceptable,
+// NewForConfig will generate a rate-limiter in configShallowCopy.
 func NewForConfig(c *rest.Config) (*Clientset, error) {
 	configShallowCopy := *c
 	if configShallowCopy.RateLimiter == nil && configShallowCopy.QPS > 0 {
+		if configShallowCopy.Burst <= 0 {
+			return nil, fmt.Errorf("Burst is required to be greater than 0 when RateLimiter is not set and QPS is set to greater than 0")
+		}
 		configShallowCopy.RateLimiter = flowcontrol.NewTokenBucketRateLimiter(configShallowCopy.QPS, configShallowCopy.Burst)
 	}
 	var cs Clientset
