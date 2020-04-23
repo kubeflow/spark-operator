@@ -32,24 +32,16 @@ $ git clone git@github.com:GoogleCloudPlatform/spark-on-k8s-operator.git
 $ cd spark-on-k8s-operator
 ```
 
-Before building the operator the first time, run the following commands to get the required Kubernetes code generators:
-
-```bash
-$ go get -u k8s.io/code-generator/cmd/client-gen
-$ go get -u k8s.io/code-generator/cmd/deepcopy-gen
-$ go get -u k8s.io/code-generator/cmd/defaulter-gen
-$ go get -u sigs.k8s.io/controller-tools/cmd/controller-gen
-```
-
 To update the auto-generated code, run the following command. (This step is only required if the CRD types have been changed):
 
 ```bash
-$ go generate
+$ hack/update-gencode.sh
 ```
 
 To update the auto-generated CRD definitions, run the following command:
 
 ```bash
+$ GO111MODULE=off go get -u sigs.k8s.io/controller-tools/cmd/controller-gen
 $ controller-gen crd:trivialVersions=true,maxDescLen=0 paths="./pkg/apis/sparkoperator.k8s.io/v1beta2" output:crd:artifacts:config=./manifest/crds/
 ```
 
