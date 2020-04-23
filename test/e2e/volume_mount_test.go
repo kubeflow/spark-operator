@@ -28,6 +28,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/kubectl/pkg/describe"
+	"k8s.io/kubectl/pkg/describe/versioned"
 
 	appFramework "github.com/GoogleCloudPlatform/spark-on-k8s-operator/test/e2e/framework"
 )
@@ -77,8 +78,8 @@ func TestMountConfigMap(t *testing.T) {
 	assert.Equal(t, nil, err)
 	podName := app.Status.DriverInfo.PodName
 
-	  describeClient := &describeClient{T: t, Namespace: appFramework.SparkTestNamespace, Interface: framework.KubeClient}
-	describer := describe.PodDescriber{describeClient}
+	describeClient := &describeClient{T: t, Namespace: appFramework.SparkTestNamespace, Interface: framework.KubeClient}
+	describer := versioned.PodDescriber{describeClient}
 
 	podDesc, err := describer.Describe(appFramework.SparkTestNamespace, podName, describe.DescriberSettings{ShowEvents: true})
 	assert.Equal(t, nil, err)
@@ -90,4 +91,3 @@ func TestMountConfigMap(t *testing.T) {
 	err = appFramework.DeleteSparkApplication(framework.SparkApplicationClient, appFramework.SparkTestNamespace, appName)
 	assert.Equal(t, nil, err)
 }
-
