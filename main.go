@@ -14,8 +14,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-//go:generate hack/update-codegen.sh
-
 package main
 
 import (
@@ -104,11 +102,16 @@ func main() {
 		if err != nil {
 			glog.Fatal(err)
 		}
-		resourceLock, err := resourcelock.New(resourcelock.ConfigMapsResourceLock, *leaderElectionLockNamespace, *leaderElectionLockName, kubeClient.CoreV1(), resourcelock.ResourceLockConfig{
-			Identity: hostname,
-			// TODO: This is a workaround for a nil dereference in client-go. This line can be removed when that dependency is updated.
-			EventRecorder: &record.FakeRecorder{},
-		})
+		resourceLock, err := resourcelock.New(resourcelock.ConfigMapsResourceLock,
+			*leaderElectionLockNamespace,
+			*leaderElectionLockName,
+			kubeClient.CoreV1(),
+			kubeClient.CoordinationV1(),
+			resourcelock.ResourceLockConfig{
+				Identity: hostname,
+				// TODO: This is a workaround for a nil dereference in client-go. This line can be removed when that dependency is updated.
+				EventRecorder: &record.FakeRecorder{},
+			})
 		if err != nil {
 			glog.Fatal(err)
 		}

@@ -26,7 +26,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/rest"
 
-	"volcano.sh/volcano/pkg/apis/scheduling/v1alpha2"
+	"volcano.sh/volcano/pkg/apis/scheduling/v1beta1"
 	volcanoclient "volcano.sh/volcano/pkg/client/clientset/versioned"
 
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta2"
@@ -74,9 +74,9 @@ func (v *VolcanoBatchScheduler) DoBatchSchedulingOnSubmission(app *v1beta2.Spark
 
 func (v *VolcanoBatchScheduler) syncPodGroupInClientMode(app *v1beta2.SparkApplication) error {
 	// We only care about the executor pods in client mode
-	if _, ok := app.Spec.Executor.Annotations[v1alpha2.GroupNameAnnotationKey]; !ok {
+	if _, ok := app.Spec.Executor.Annotations[v1beta1.KubeGroupNameAnnotationKey]; !ok {
 		if err := v.syncPodGroup(app, 1, getExecutorRequestResource(app)); err == nil {
-			app.Spec.Executor.Annotations[v1alpha2.GroupNameAnnotationKey] = v.getAppPodGroupName(app)
+			app.Spec.Executor.Annotations[v1beta1.KubeGroupNameAnnotationKey] = v.getAppPodGroupName(app)
 		} else {
 			return err
 		}
@@ -87,12 +87,12 @@ func (v *VolcanoBatchScheduler) syncPodGroupInClientMode(app *v1beta2.SparkAppli
 func (v *VolcanoBatchScheduler) syncPodGroupInClusterMode(app *v1beta2.SparkApplication) error {
 	//We need both mark Driver and Executor when submitting
 	//NOTE: In cluster mode, the initial size of PodGroup is set to 1 in order to schedule driver pod first.
-	if _, ok := app.Spec.Driver.Annotations[v1alpha2.GroupNameAnnotationKey]; !ok {
+	if _, ok := app.Spec.Driver.Annotations[v1beta1.KubeGroupNameAnnotationKey]; !ok {
 		//Both driver and executor resource will be considered.
 		totalResource := sumResourceList([]corev1.ResourceList{getExecutorRequestResource(app), getDriverRequestResource(app)})
 		if err := v.syncPodGroup(app, 1, totalResource); err == nil {
-			app.Spec.Executor.Annotations[v1alpha2.GroupNameAnnotationKey] = v.getAppPodGroupName(app)
-			app.Spec.Driver.Annotations[v1alpha2.GroupNameAnnotationKey] = v.getAppPodGroupName(app)
+			app.Spec.Executor.Annotations[v1beta1.KubeGroupNameAnnotationKey] = v.getAppPodGroupName(app)
+			app.Spec.Driver.Annotations[v1beta1.KubeGroupNameAnnotationKey] = v.getAppPodGroupName(app)
 		} else {
 			return err
 		}
@@ -107,11 +107,11 @@ func (v *VolcanoBatchScheduler) getAppPodGroupName(app *v1beta2.SparkApplication
 func (v *VolcanoBatchScheduler) syncPodGroup(app *v1beta2.SparkApplication, size int32, minResource corev1.ResourceList) error {
 	var err error
 	podGroupName := v.getAppPodGroupName(app)
-	if pg, err := v.volcanoClient.SchedulingV1alpha2().PodGroups(app.Namespace).Get(podGroupName, metav1.GetOptions{}); err != nil {
+	if pg, err := v.volcanoClient.SchedulingV1beta1().PodGroups(app.Namespace).Get(podGroupName, metav1.GetOptions{}); err != nil {
 		if !errors.IsNotFound(err) {
 			return err
 		}
-		podGroup := v1alpha2.PodGroup{
+		podGroup := v1beta1.PodGroup{
 			ObjectMeta: metav1.ObjectMeta{
 				Namespace: app.Namespace,
 				Name:      podGroupName,
@@ -119,12 +119,12 @@ func (v *VolcanoBatchScheduler) syncPodGroup(app *v1beta2.SparkApplication, size
 					*metav1.NewControllerRef(app, v1beta2.SchemeGroupVersion.WithKind("SparkApplication")),
 				},
 			},
-			Spec: v1alpha2.PodGroupSpec{
+			Spec: v1beta1.PodGroupSpec{
 				MinMember:    size,
 				MinResources: &minResource,
 			},
-			Status: v1alpha2.PodGroupStatus{
-				Phase: v1alpha2.PodGroupPending,
+			Status: v1beta1.PodGroupStatus{
+				Phase: v1beta1.PodGroupPending,
 			},
 		}
 
@@ -138,11 +138,11 @@ func (v *VolcanoBatchScheduler) syncPodGroup(app *v1beta2.SparkApplication, size
 				podGroup.Spec.PriorityClassName = *app.Spec.BatchSchedulerOptions.PriorityClassName
 			}
 		}
-		_, err = v.volcanoClient.SchedulingV1alpha2().PodGroups(app.Namespace).Create(&podGroup)
+		_, err = v.volcanoClient.SchedulingV1beta1().PodGroups(app.Namespace).Create(&podGroup)
 	} else {
 		if pg.Spec.MinMember != size {
 			pg.Spec.MinMember = size
-			_, err = v.volcanoClient.SchedulingV1alpha2().PodGroups(app.Namespace).Update(pg)
+			_, err = v.volcanoClient.SchedulingV1beta1().PodGroups(app.Namespace).Update(pg)
 		}
 	}
 	if err != nil {
@@ -264,7 +264,7 @@ func sumResourceList(list []corev1.ResourceList) corev1.ResourceList {
 		for name, quantity := range l {
 
 			if value, ok := totalResource[name]; !ok {
-				totalResource[name] = *quantity.Copy()
+				totalResource[name] = quantity.DeepCopy()
 			} else {
 				value.Add(quantity)
 				totalResource[name] = value

@@ -20,15 +20,15 @@ limitations under the License.
 package e2e
 
 import (
-	"k8s.io/apimachinery/pkg/util/wait"
-	"k8s.io/kubernetes/pkg/kubectl/describe/versioned"
 	"regexp"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 
+	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/kubernetes/pkg/kubectl/describe"
+	"k8s.io/kubectl/pkg/describe"
+	"k8s.io/kubectl/pkg/describe/versioned"
 
 	appFramework "github.com/GoogleCloudPlatform/spark-on-k8s-operator/test/e2e/framework"
 )
