@@ -715,7 +715,7 @@ func (c *Controller) shouldDoBatchScheduling(app *v1beta2.SparkApplication) (boo
 
 	scheduler, err := c.batchSchedulerMgr.GetScheduler(*app.Spec.BatchScheduler)
 	if err != nil {
-		glog.Errorf("failed to get batch scheduler for name %s", *app.Spec.BatchScheduler)
+		glog.Errorf("failed to get batch scheduler for name %s, %v", *app.Spec.BatchScheduler, err)
 		return false, nil
 	}
 	return scheduler.ShouldSchedule(app), scheduler
