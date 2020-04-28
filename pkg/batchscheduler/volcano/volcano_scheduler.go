@@ -34,7 +34,7 @@ import (
 )
 
 const (
-	PodGroupName = "podgroups.scheduling.sigs.dev"
+	PodGroupName = "podgroups.scheduling.volcano.sh"
 )
 
 type VolcanoBatchScheduler struct {
