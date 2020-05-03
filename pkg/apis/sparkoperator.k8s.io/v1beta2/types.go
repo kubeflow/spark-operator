@@ -61,13 +61,12 @@ type RestartPolicy struct {
 	// +optional
 	OnFailureRetries *int32 `json:"onFailureRetries,omitempty"`
 
-	// OnSubmissionFailureRetryInterval is the interval between retries on failed submissions.
-	// Interval to wait between successive retries of a failed application.
+	// OnSubmissionFailureRetryInterval is the interval in seconds between retries on failed submissions.
 	// +kubebuilder:validation:Minimum=1
 	// +optional
 	OnSubmissionFailureRetryInterval *int64 `json:"onSubmissionFailureRetryInterval,omitempty"`
 
-	// OnFailureRetryInterval is the interval between retries on failed runs.
+	// OnFailureRetryInterval is the interval in seconds between retries on failed runs.
 	// +kubebuilder:validation:Minimum=1
 	// +optional
 	OnFailureRetryInterval *int64 `json:"onFailureRetryInterval,omitempty"`
