@@ -318,7 +318,7 @@ func (c *Controller) getAndUpdateDriverState(app *v1beta2.SparkApplication) erro
 	}
 
 	if driverPod == nil {
-		app.Status.AppState.ErrorMessage = "Driver Pod not found"
+		app.Status.AppState.ErrorMessage = "driver pod not found"
 		app.Status.AppState.State = v1beta2.FailingState
 		app.Status.TerminationTime = metav1.Now()
 		return nil
@@ -491,7 +491,6 @@ func shouldRetry(app *v1beta2.SparkApplication) bool {
 //|                                             +-------------------------------+                                      |
 //|                                                                                                                    |
 //+--------------------------------------------------------------------------------------------------------------------+
-
 func (c *Controller) syncSparkApplication(key string) error {
 	namespace, name, err := cache.SplitMetaNamespaceKey(key)
 	if err != nil {
@@ -510,71 +509,72 @@ func (c *Controller) syncSparkApplication(key string) error {
 		return nil
 	}
 
-	appToUpdate := app.DeepCopy()
+	appCopy := app.DeepCopy()
+	// Apply the default values to the copy. Note that the default values applied
+	// won't be sent to the API server as we only update the /status subresource.
+	v1beta2.SetSparkApplicationDefaults(appCopy)
 
 	// Take action based on application state.
-	switch appToUpdate.Status.AppState.State {
+	switch appCopy.Status.AppState.State {
 	case v1beta2.NewState:
-		c.recordSparkApplicationEvent(appToUpdate)
-		if err := c.validateSparkApplication(appToUpdate); err != nil {
-			appToUpdate.Status.AppState.State = v1beta2.FailedState
-			appToUpdate.Status.AppState.ErrorMessage = err.Error()
+		c.recordSparkApplicationEvent(appCopy)
+		if err := c.validateSparkApplication(appCopy); err != nil {
+			appCopy.Status.AppState.State = v1beta2.FailedState
+			appCopy.Status.AppState.ErrorMessage = err.Error()
 		} else {
-			appToUpdate = c.submitSparkApplication(appToUpdate)
+			appCopy = c.submitSparkApplication(appCopy)
 		}
 	case v1beta2.SucceedingState:
-		if !shouldRetry(appToUpdate) {
-			// Application is not subject to retry. Move to terminal CompletedState.
-			appToUpdate.Status.AppState.State = v1beta2.CompletedState
-			c.recordSparkApplicationEvent(appToUpdate)
+		if !shouldRetry(appCopy) {
+			appCopy.Status.AppState.State = v1beta2.CompletedState
+			c.recordSparkApplicationEvent(appCopy)
 		} else {
-			if err := c.deleteSparkResources(appToUpdate); err != nil {
+			if err := c.deleteSparkResources(appCopy); err != nil {
 				glog.Errorf("failed to delete resources associated with SparkApplication %s/%s: %v",
-					appToUpdate.Namespace, appToUpdate.Name, err)
+					appCopy.Namespace, appCopy.Name, err)
 				return err
 			}
-			appToUpdate.Status.AppState.State = v1beta2.PendingRerunState
+			appCopy.Status.AppState.State = v1beta2.PendingRerunState
 		}
 	case v1beta2.FailingState:
-		if !shouldRetry(appToUpdate) {
-			// Application is not subject to retry. Move to terminal FailedState.
-			appToUpdate.Status.AppState.State = v1beta2.FailedState
-			c.recordSparkApplicationEvent(appToUpdate)
-		} else if hasRetryIntervalPassed(appToUpdate.Spec.RestartPolicy.OnFailureRetryInterval, appToUpdate.Status.ExecutionAttempts, appToUpdate.Status.TerminationTime) {
-			if err := c.deleteSparkResources(appToUpdate); err != nil {
+		if !shouldRetry(appCopy) {
+			appCopy.Status.AppState.State = v1beta2.FailedState
+			c.recordSparkApplicationEvent(appCopy)
+		} else if isNextRetryDue(appCopy.Spec.RestartPolicy.OnFailureRetryInterval, appCopy.Status.ExecutionAttempts, appCopy.Status.TerminationTime) {
+			if err := c.deleteSparkResources(appCopy); err != nil {
 				glog.Errorf("failed to delete resources associated with SparkApplication %s/%s: %v",
-					appToUpdate.Namespace, appToUpdate.Name, err)
+					appCopy.Namespace, appCopy.Name, err)
 				return err
 			}
-			appToUpdate.Status.AppState.State = v1beta2.PendingRerunState
+			appCopy.Status.AppState.State = v1beta2.PendingRerunState
 		}
 	case v1beta2.FailedSubmissionState:
-		if !shouldRetry(appToUpdate) {
+		if !shouldRetry(appCopy) {
 			// App will never be retried. Move to terminal FailedState.
-			appToUpdate.Status.AppState.State = v1beta2.FailedState
-			c.recordSparkApplicationEvent(appToUpdate)
-		} else if hasRetryIntervalPassed(appToUpdate.Spec.RestartPolicy.OnSubmissionFailureRetryInterval, appToUpdate.Status.SubmissionAttempts, appToUpdate.Status.LastSubmissionAttemptTime) {
-			appToUpdate = c.submitSparkApplication(appToUpdate)
+			appCopy.Status.AppState.State = v1beta2.FailedState
+			c.recordSparkApplicationEvent(appCopy)
+		} else if isNextRetryDue(appCopy.Spec.RestartPolicy.OnSubmissionFailureRetryInterval, appCopy.Status.SubmissionAttempts, appCopy.Status.LastSubmissionAttemptTime) {
+			appCopy = c.submitSparkApplication(appCopy)
 		}
 	case v1beta2.InvalidatingState:
 		// Invalidate the current run and enqueue the SparkApplication for re-execution.
-		if err := c.deleteSparkResources(appToUpdate); err != nil {
+		if err := c.deleteSparkResources(appCopy); err != nil {
 			glog.Errorf("failed to delete resources associated with SparkApplication %s/%s: %v",
-				appToUpdate.Namespace, appToUpdate.Name, err)
+				appCopy.Namespace, appCopy.Name, err)
 			return err
 		}
-		c.clearStatus(&appToUpdate.Status)
-		appToUpdate.Status.AppState.State = v1beta2.PendingRerunState
+		c.clearStatus(&appCopy.Status)
+		appCopy.Status.AppState.State = v1beta2.PendingRerunState
 	case v1beta2.PendingRerunState:
-		glog.V(2).Infof("SparkApplication %s/%s pending rerun", appToUpdate.Namespace, appToUpdate.Name)
-		if c.validateSparkResourceDeletion(appToUpdate) {
-			glog.V(2).Infof("Resources for SparkApplication %s/%s successfully deleted", appToUpdate.Namespace, appToUpdate.Name)
-			c.recordSparkApplicationEvent(appToUpdate)
-			c.clearStatus(&appToUpdate.Status)
-			appToUpdate = c.submitSparkApplication(appToUpdate)
+		glog.V(2).Infof("SparkApplication %s/%s is pending rerun", appCopy.Namespace, appCopy.Name)
+		if c.validateSparkResourceDeletion(appCopy) {
+			glog.V(2).Infof("Resources for SparkApplication %s/%s successfully deleted", appCopy.Namespace, appCopy.Name)
+			c.recordSparkApplicationEvent(appCopy)
+			c.clearStatus(&appCopy.Status)
+			appCopy = c.submitSparkApplication(appCopy)
 		}
 	case v1beta2.SubmittedState, v1beta2.RunningState, v1beta2.UnknownState:
-		if err := c.getAndUpdateAppState(appToUpdate); err != nil {
+		if err := c.getAndUpdateAppState(appCopy); err != nil {
 			return err
 		}
 	case v1beta2.CompletedState, v1beta2.FailedState:
@@ -588,8 +588,8 @@ func (c *Controller) syncSparkApplication(key string) error {
 		}
 	}
 
-	if appToUpdate != nil {
-		err = c.updateStatusAndExportMetrics(app, appToUpdate)
+	if appCopy != nil {
+		err = c.updateStatusAndExportMetrics(app, appCopy)
 		if err != nil {
 			glog.Errorf("failed to update SparkApplication %s/%s: %v", app.Namespace, app.Name, err)
 			return err
@@ -599,9 +599,8 @@ func (c *Controller) syncSparkApplication(key string) error {
 	return nil
 }
 
-// Helper func to determine if we have waited enough to retry the SparkApplication.
-func hasRetryIntervalPassed(retryInterval *int64, attemptsDone int32, lastEventTime metav1.Time) bool {
-	glog.V(3).Infof("retryInterval: %d , lastEventTime: %v, attempsDone: %d", retryInterval, lastEventTime, attemptsDone)
+// Helper func to determine if the next retry the SparkApplication is due now.
+func isNextRetryDue(retryInterval *int64, attemptsDone int32, lastEventTime metav1.Time) bool {
 	if retryInterval == nil || lastEventTime.IsZero() || attemptsDone <= 0 {
 		return false
 	}
@@ -618,9 +617,6 @@ func hasRetryIntervalPassed(retryInterval *int64, attemptsDone int32, lastEventT
 
 // submitSparkApplication creates a new submission for the given SparkApplication and submits it using spark-submit.
 func (c *Controller) submitSparkApplication(app *v1beta2.SparkApplication) *v1beta2.SparkApplication {
-	// Apply default values before submitting the application to run.
-	v1beta2.SetSparkApplicationDefaults(app)
-
 	if app.PrometheusMonitoringEnabled() {
 		if err := configPrometheusMonitoring(app, c.kubeClient); err != nil {
 			glog.Error(err)

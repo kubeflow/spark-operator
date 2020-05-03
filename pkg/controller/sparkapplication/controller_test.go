@@ -1496,14 +1496,14 @@ func TestSyncSparkApplication_ApplicationExpired(t *testing.T) {
 	assert.True(t, errors.IsNotFound(err))
 }
 
-func TestHasRetryIntervalPassed(t *testing.T) {
+func TestIsNextRetryDue(t *testing.T) {
 	// Failure cases.
-	assert.False(t, hasRetryIntervalPassed(nil, 3, metav1.Time{Time: metav1.Now().Add(-100 * time.Second)}))
-	assert.False(t, hasRetryIntervalPassed(int64ptr(5), 0, metav1.Time{Time: metav1.Now().Add(-100 * time.Second)}))
-	assert.False(t, hasRetryIntervalPassed(int64ptr(5), 3, metav1.Time{}))
+	assert.False(t, isNextRetryDue(nil, 3, metav1.Time{Time: metav1.Now().Add(-100 * time.Second)}))
+	assert.False(t, isNextRetryDue(int64ptr(5), 0, metav1.Time{Time: metav1.Now().Add(-100 * time.Second)}))
+	assert.False(t, isNextRetryDue(int64ptr(5), 3, metav1.Time{}))
 	// Not enough time passed.
-	assert.False(t, hasRetryIntervalPassed(int64ptr(50), 3, metav1.Time{Time: metav1.Now().Add(-100 * time.Second)}))
-	assert.True(t, hasRetryIntervalPassed(int64ptr(50), 3, metav1.Time{Time: metav1.Now().Add(-151 * time.Second)}))
+	assert.False(t, isNextRetryDue(int64ptr(50), 3, metav1.Time{Time: metav1.Now().Add(-100 * time.Second)}))
+	assert.True(t, isNextRetryDue(int64ptr(50), 3, metav1.Time{Time: metav1.Now().Add(-151 * time.Second)}))
 }
 
 func stringptr(s string) *string {
