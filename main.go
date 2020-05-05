@@ -68,6 +68,13 @@ var (
 	ingressUrlFormat    = flag.String("ingress-url-format", "", "Ingress URL format.")
 )
 
+//
+const (
+	kubeClientQPS = 20
+	kubeClientBurst = 20
+	kubeClientTimeout = 30
+)
+
 func main() {
 	var metricsLabels util.ArrayFlags
 	flag.Var(&metricsLabels, "metrics-labels", "Labels for the metrics")
@@ -78,6 +85,12 @@ func main() {
 	if err != nil {
 		glog.Fatal(err)
 	}
+
+	config.QPS = kubeClientQPS
+	config.Burst = kubeClientBurst
+	config.Timeout = kubeClientTimeout
+
+
 	kubeClient, err := clientset.NewForConfig(config)
 	if err != nil {
 		glog.Fatal(err)
