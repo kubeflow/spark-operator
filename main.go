@@ -72,7 +72,7 @@ var (
 const (
 	kubeClientQPS = 20
 	kubeClientBurst = 20
-	kubeClientTimeout = 30
+	kubeClientTimeoutSeconds = 30
 )
 
 func main() {
@@ -88,7 +88,7 @@ func main() {
 
 	config.QPS = kubeClientQPS
 	config.Burst = kubeClientBurst
-	config.Timeout = kubeClientTimeout
+	config.Timeout = time.Duration(kubeClientTimeoutSeconds*time.Second)
 
 
 	kubeClient, err := clientset.NewForConfig(config)
