@@ -176,7 +176,7 @@ func (sm *sparkAppMetrics) registerMetrics() {
 func (sm *sparkAppMetrics) exportMetrics(oldApp, newApp *v1beta2.SparkApplication) {
 	metricLabels := fetchMetricLabels(newApp, sm.labels)
 
-	# Init counter to 0 even when never passing into conditional blocks
+	// Init counter to 0 even when never passing into conditional blocks
 	sm.sparkAppCount.GetMetricWith(metricLabels);
 	sm.sparkAppSubmitCount.GetMetricWith(metricLabels);
 	sm.sparkAppSuccessCount.GetMetricWith(metricLabels);
