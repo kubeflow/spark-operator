@@ -177,12 +177,12 @@ func (sm *sparkAppMetrics) exportMetrics(oldApp, newApp *v1beta2.SparkApplicatio
 	metricLabels := fetchMetricLabels(newApp, sm.labels)
 
 	// Init counter to 0 even when never passing into conditional blocks
-	sm.sparkAppCount.GetMetricWith(metricLabels);
-	sm.sparkAppSubmitCount.GetMetricWith(metricLabels);
-	sm.sparkAppSuccessCount.GetMetricWith(metricLabels);
-	sm.sparkAppFailureCount.GetMetricWith(metricLabels);
-	sm.sparkAppExecutorSuccessCount.GetMetricWith(metricLabels);
-	sm.sparkAppExecutorFailureCount.GetMetricWith(metricLabels);
+	sm.sparkAppCount.GetMetricWith(metricLabels)
+	sm.sparkAppSubmitCount.GetMetricWith(metricLabels)
+	sm.sparkAppSuccessCount.GetMetricWith(metricLabels)
+	sm.sparkAppFailureCount.GetMetricWith(metricLabels)
+	sm.sparkAppExecutorSuccessCount.GetMetricWith(metricLabels)
+	sm.sparkAppExecutorFailureCount.GetMetricWith(metricLabels)
 	
 	oldState := oldApp.Status.AppState.State
 	newState := newApp.Status.AppState.State
