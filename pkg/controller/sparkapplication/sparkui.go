@@ -48,6 +48,7 @@ func getSparkUIingressURL(ingressURLFormat string, appName string) string {
 type SparkService struct {
 	serviceName string
 	servicePort int32
+	targetPort intstr.IntOrString
 	serviceIP   string
 }
 
@@ -100,10 +101,16 @@ func createSparkUIIngress(app *v1beta2.SparkApplication, service SparkService, i
 func createSparkUIService(
 	app *v1beta2.SparkApplication,
 	kubeClient clientset.Interface) (*SparkService, error) {
-	portStr := getUITargetPort(app)
+	portStr := getUIServicePort(app)
 	port, err := strconv.Atoi(portStr)
 	if err != nil {
-		return nil, fmt.Errorf("invalid Spark UI port: %s", portStr)
+		return nil, fmt.Errorf("invalid Spark UI servicePort: %s", portStr)
+	}
+
+	tPortStr := getUITargetPort(app)
+	tPort, err := strconv.Atoi(tPortStr)
+	if err != nil {
+		return nil, fmt.Errorf("invalid Spark UI targetPort: %s", tPortStr)
 	}
 
 	service := &apiv1.Service{
@@ -118,6 +125,10 @@ func createSparkUIService(
 				{
 					Name: "spark-driver-ui-port",
 					Port: int32(port),
+					TargetPort: intstr.IntOrString{
+						Type:   intstr.Int,
+						IntVal: int32(tPort),
+					},
 				},
 			},
 			Selector: map[string]string{
@@ -137,6 +148,7 @@ func createSparkUIService(
 	return &SparkService{
 		serviceName: service.Name,
 		servicePort: service.Spec.Ports[0].Port,
+		targetPort: service.Spec.Ports[0].TargetPort,
 		serviceIP:   service.Spec.ClusterIP,
 	}, nil
 }
@@ -148,6 +160,18 @@ func getUITargetPort(app *v1beta2.SparkApplication) string {
 	port, ok := app.Spec.SparkConf[sparkUIPortConfigurationKey]
 	if ok {
 		return port
+	}
+	return defaultSparkWebUIPort
+}
+
+func getUIServicePort(app *v1beta2.SparkApplication) string {
+
+	if app.Spec.ExpositionOptions == nil {
+		return getUITargetPort(app)
+	}
+	port := app.Spec.ExpositionOptions.ServicePort
+	if port != nil {
+		return strconv.Itoa(int(*port))
 	}
 	return defaultSparkWebUIPort
 }

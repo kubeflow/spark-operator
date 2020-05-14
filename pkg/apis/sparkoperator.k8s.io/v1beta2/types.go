@@ -272,6 +272,9 @@ type SparkApplicationSpec struct {
 	// BatchSchedulerOptions provides fine-grained control on how to batch scheduling.
 	// +optional
 	BatchSchedulerOptions *BatchSchedulerConfiguration `json:"batchSchedulerOptions,omitempty"`
+	// Allows configuring the Service and the Ingress to expose the sparkUI
+	// +optional
+	ExpositionOptions *ExpositionConfiguration `json:"expositionOptions,omitempty"`
 }
 
 // BatchSchedulerConfiguration used to configure how to batch scheduling Spark Application
@@ -282,6 +285,19 @@ type BatchSchedulerConfiguration struct {
 	// PriorityClassName stands for the name of k8s PriorityClass resource, it's being used in Volcano batch scheduler.
 	// +optional
 	PriorityClassName *string `json:"priorityClassName,omitempty"`
+}
+
+// Specific SparkUI config parameters
+type ExpositionConfiguration struct {
+	// ServicePort allows configuring the port at service level that might be different from the targetPort. This field is mandatory if UIconfig is invoked.
+	// TargetPort should be the same as the one defined in spark.ui.port
+	ServicePort *int32 `json:"servicePort"`
+	// IngressAnnotations is a map of key,value pairs of annotations that might be added to the ingress object. i.e. specify nginx ingress.class
+	// +optional
+	IngressAnnotations map[string]string `json:"ingressAnnotations,omitempty"`
+	// TlsHosts is useful If we need to declare SSL certificates to the ingress object
+	// +optional
+	TlsHosts []string `json:"tlsHosts,omitempty"`
 }
 
 // ApplicationStateType represents the type of the current state of an application.

@@ -18,6 +18,7 @@ package sparkapplication
 
 import (
 	"fmt"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"reflect"
 	"strconv"
 	"testing"
@@ -126,13 +127,39 @@ func TestCreateSparkUIService(t *testing.T) {
 			SparkApplicationID: "foo-3",
 		},
 	}
+	var app4Port int32 = 80
+	app4 := &v1beta2.SparkApplication{
+
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "foo",
+			Namespace: "default",
+			UID:       "foo-123",
+		},
+		Spec: v1beta2.SparkApplicationSpec{
+			ExpositionOptions: &v1beta2.ExpositionConfiguration{
+				ServicePort:        &app4Port,
+				IngressAnnotations: nil,
+				TlsHosts:           nil,
+			},
+			SparkConf: map[string]string{
+				sparkUIPortConfigurationKey: "4041",
+			},
+		},
+		Status: v1beta2.SparkApplicationStatus{
+			SparkApplicationID: "foo-3",
+		},
+	}
 	testcases := []testcase{
 		{
-			name: "service with custom port",
+			name: "service with custom serviceport and serviceport and target port are same",
 			app:  app1,
 			expectedService: SparkService{
 				serviceName: fmt.Sprintf("%s-ui-svc", app1.GetName()),
 				servicePort: 4041,
+				targetPort: intstr.IntOrString{
+					Type:   intstr.Int,
+					IntVal: int32(4041),
+				} ,
 			},
 			expectedSelector: map[string]string{
 				config.SparkAppNameLabel: "foo",
@@ -146,6 +173,23 @@ func TestCreateSparkUIService(t *testing.T) {
 			expectedService: SparkService{
 				serviceName: fmt.Sprintf("%s-ui-svc", app2.GetName()),
 				servicePort: int32(defaultPort),
+			},
+			expectedSelector: map[string]string{
+				config.SparkAppNameLabel: "foo",
+				config.SparkRoleLabel:    config.SparkDriverRole,
+			},
+			expectError: false,
+		},
+		{
+			name: "service with custom serviceport and serviceport and target port are different",
+			app:  app4,
+			expectedService: SparkService{
+				serviceName: fmt.Sprintf("%s-ui-svc", app4.GetName()),
+				servicePort: 80,
+				targetPort: intstr.IntOrString{
+					Type:   intstr.Int,
+					IntVal: int32(4041),
+				} ,
 			},
 			expectedSelector: map[string]string{
 				config.SparkAppNameLabel: "foo",
