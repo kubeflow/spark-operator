@@ -48,7 +48,7 @@ func getSparkUIingressURL(ingressURLFormat string, appName string) string {
 type SparkService struct {
 	serviceName string
 	servicePort int32
-	targetPort intstr.IntOrString
+	targetPort  intstr.IntOrString
 	serviceIP   string
 }
 
@@ -56,6 +56,8 @@ type SparkService struct {
 type SparkIngress struct {
 	ingressName string
 	ingressURL  string
+	annotations map[string]string
+	ingressTLS  []extensions.IngressTLS
 }
 
 func createSparkUIIngress(app *v1beta2.SparkApplication, service SparkService, ingressURLFormat string, kubeClient clientset.Interface) (*SparkIngress, error) {
@@ -86,6 +88,12 @@ func createSparkUIIngress(app *v1beta2.SparkApplication, service SparkService, i
 			}},
 		},
 	}
+	if len(getIngressResourceAnnotations(app)) != 0 {
+		ingress.ObjectMeta.Annotations = getIngressResourceAnnotations(app)
+	}
+	if len(getIngressTlsHosts(app)) != 0 {
+		ingress.Spec.TLS = getIngressTlsHosts(app)
+	}
 	glog.Infof("Creating an Ingress %s for the Spark UI for application %s", ingress.Name, app.Name)
 	_, err := kubeClient.ExtensionsV1beta1().Ingresses(ingress.Namespace).Create(&ingress)
 
@@ -95,6 +103,8 @@ func createSparkUIIngress(app *v1beta2.SparkApplication, service SparkService, i
 	return &SparkIngress{
 		ingressName: ingress.Name,
 		ingressURL:  ingressURL,
+		annotations: ingress.Annotations,
+		ingressTLS:  ingress.Spec.TLS,
 	}, nil
 }
 
@@ -148,7 +158,7 @@ func createSparkUIService(
 	return &SparkService{
 		serviceName: service.Name,
 		servicePort: service.Spec.Ports[0].Port,
-		targetPort: service.Spec.Ports[0].TargetPort,
+		targetPort:  service.Spec.Ports[0].TargetPort,
 		serviceIP:   service.Spec.ClusterIP,
 	}, nil
 }

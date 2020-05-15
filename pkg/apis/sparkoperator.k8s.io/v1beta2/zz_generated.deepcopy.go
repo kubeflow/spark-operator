@@ -24,6 +24,7 @@ package v1beta2
 
 import (
 	v1 "k8s.io/api/core/v1"
+	v1beta1 "k8s.io/api/extensions/v1beta1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 )
 
@@ -210,10 +211,12 @@ func (in *ExpositionConfiguration) DeepCopyInto(out *ExpositionConfiguration) {
 			(*out)[key] = val
 		}
 	}
-	if in.TlsHosts != nil {
-		in, out := &in.TlsHosts, &out.TlsHosts
-		*out = make([]string, len(*in))
-		copy(*out, *in)
+	if in.IngressTLS != nil {
+		in, out := &in.IngressTLS, &out.IngressTLS
+		*out = make([]v1beta1.IngressTLS, len(*in))
+		for i := range *in {
+			(*in)[i].DeepCopyInto(&(*out)[i])
+		}
 	}
 	return
 }
