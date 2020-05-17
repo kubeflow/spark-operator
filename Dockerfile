@@ -17,9 +17,9 @@
 ARG SPARK_IMAGE=gcr.io/spark-operator/spark:v2.4.5
 
 FROM golang:1.14.1-alpine as builder
-ARG DEP_VERSION="0.5.4"
-RUN apk add --no-cache bash git
-ADD https://github.com/golang/dep/releases/download/v${DEP_VERSION}/dep-linux-amd64 /usr/bin/dep
+ARG DEP_TAG="v0.5.4"
+RUN apk add --no-cache bash git curl
+RUN curl https://raw.githubusercontent.com/golang/dep/master/master/install.sh | sh -s
 RUN chmod +x /usr/bin/dep
 
 WORKDIR ${GOPATH}/src/github.com/GoogleCloudPlatform/spark-on-k8s-operator
