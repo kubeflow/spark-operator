@@ -17,10 +17,9 @@
 ARG SPARK_IMAGE=gcr.io/spark-operator/spark:v2.4.5
 
 FROM golang:1.14.1-alpine as builder
-ARG DEP_TAG="v0.5.4"
+ARG DEP_RELEASE_TAG="v0.5.4"
 RUN apk add --no-cache bash git curl
-RUN curl https://raw.githubusercontent.com/golang/dep/master/master/install.sh | sh -s
-RUN chmod +x /usr/bin/dep
+RUN curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh -s
 
 WORKDIR ${GOPATH}/src/github.com/GoogleCloudPlatform/spark-on-k8s-operator
 COPY Gopkg.toml Gopkg.lock ./
