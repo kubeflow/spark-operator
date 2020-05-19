@@ -17,16 +17,22 @@
 ARG SPARK_IMAGE=gcr.io/spark-operator/spark:v2.4.5
 
 FROM golang:1.14.1-alpine as builder
-ARG DEP_VERSION="0.5.4"
-RUN apk add --no-cache bash git
-ADD https://github.com/golang/dep/releases/download/v${DEP_VERSION}/dep-linux-amd64 /usr/bin/dep
-RUN chmod +x /usr/bin/dep
 
-WORKDIR ${GOPATH}/src/github.com/GoogleCloudPlatform/spark-on-k8s-operator
-COPY Gopkg.toml Gopkg.lock ./
-RUN dep ensure -vendor-only
-COPY . ./
-RUN go generate && CGO_ENABLED=0 GOOS=linux go build -o /usr/bin/spark-operator
+WORKDIR /workspace
+
+# Copy the Go Modules manifests
+COPY go.mod go.mod
+COPY go.sum go.sum
+# Cache deps before building and copying source so that we don't need to re-download as much
+# and so that source changes don't invalidate our downloaded layer
+RUN go mod download
+
+# Copy the go source code
+COPY main.go main.go
+COPY pkg/ pkg/
+
+# Build
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 GO111MODULE=on go build -a -o /usr/bin/spark-operator main.go
 
 FROM ${SPARK_IMAGE}
 COPY --from=builder /usr/bin/spark-operator /usr/bin/
