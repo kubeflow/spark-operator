@@ -75,8 +75,8 @@ func getResourceLabels(app *v1beta2.SparkApplication) map[string]string {
 
 func getIngressResourceAnnotations(app *v1beta2.SparkApplication) map[string]string {
 	ingressAnnotations := map[string]string{}
-	if app.Spec.ExpositionOptions != nil && app.Spec.ExpositionOptions.IngressAnnotations != nil {
-		for key, value := range app.Spec.ExpositionOptions.IngressAnnotations {
+	if app.Spec.SparkUIOptions != nil && app.Spec.SparkUIOptions.IngressAnnotations != nil {
+		for key, value := range app.Spec.SparkUIOptions.IngressAnnotations {
 			ingressAnnotations[key] = value
 		}
 	}
@@ -85,8 +85,8 @@ func getIngressResourceAnnotations(app *v1beta2.SparkApplication) map[string]str
 
 func getIngressTlsHosts(app *v1beta2.SparkApplication) []v1beta1.IngressTLS {
 	var ingressTls []v1beta1.IngressTLS
-	if app.Spec.ExpositionOptions != nil && app.Spec.ExpositionOptions.IngressTLS != nil {
-		for _, ingTls := range app.Spec.ExpositionOptions.IngressTLS {
+	if app.Spec.SparkUIOptions != nil && app.Spec.SparkUIOptions.IngressTLS != nil {
+		for _, ingTls := range app.Spec.SparkUIOptions.IngressTLS {
 			ingressTls = append(ingressTls, ingTls)
 		}
 	}

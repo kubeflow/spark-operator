@@ -273,9 +273,9 @@ type SparkApplicationSpec struct {
 	// BatchSchedulerOptions provides fine-grained control on how to batch scheduling.
 	// +optional
 	BatchSchedulerOptions *BatchSchedulerConfiguration `json:"batchSchedulerOptions,omitempty"`
-	// Allows configuring the Service and the Ingress to expose the sparkUI
+	// SparkUIOptions allows configuring the Service and the Ingress to expose the sparkUI
 	// +optional
-	ExpositionOptions *ExpositionConfiguration `json:"expositionOptions,omitempty"`
+	SparkUIOptions *SparkUIConfiguration `json:"sparkUIOptions,omitempty"`
 }
 
 // BatchSchedulerConfiguration used to configure how to batch scheduling Spark Application
@@ -289,8 +289,8 @@ type BatchSchedulerConfiguration struct {
 }
 
 // Specific SparkUI config parameters
-type ExpositionConfiguration struct {
-	// ServicePort allows configuring the port at service level that might be different from the targetPort. This field is mandatory if ExpositionOptions is called.
+type SparkUIConfiguration struct {
+	// ServicePort allows configuring the port at service level that might be different from the targetPort. This field is mandatory if SparkUIOptions is called.
 	// TargetPort should be the same as the one defined in spark.ui.port
 	ServicePort *int32 `json:"servicePort"`
 	// IngressAnnotations is a map of key,value pairs of annotations that might be added to the ingress object. i.e. specify nginx as ingress.class

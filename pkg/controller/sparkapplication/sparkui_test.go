@@ -137,7 +137,7 @@ func TestCreateSparkUIService(t *testing.T) {
 			UID:       "foo-123",
 		},
 		Spec: v1beta2.SparkApplicationSpec{
-			ExpositionOptions: &v1beta2.ExpositionConfiguration{
+			SparkUIOptions: &v1beta2.SparkUIConfiguration{
 				ServicePort:        &appPort,
 				IngressAnnotations: nil,
 				IngressTLS:         nil,
@@ -307,7 +307,7 @@ func TestCreateSparkUIIngress(t *testing.T) {
 			UID:       "foo-123",
 		},
 		Spec: v1beta2.SparkApplicationSpec{
-			ExpositionOptions: &v1beta2.ExpositionConfiguration{
+			SparkUIOptions: &v1beta2.SparkUIConfiguration{
 				ServicePort: &appPort,
 				IngressAnnotations: map[string]string{
 					"kubernetes.io/ingress.class":                    "nginx",
@@ -329,7 +329,7 @@ func TestCreateSparkUIIngress(t *testing.T) {
 			UID:       "foo-123",
 		},
 		Spec: v1beta2.SparkApplicationSpec{
-			ExpositionOptions: &v1beta2.ExpositionConfiguration{
+			SparkUIOptions: &v1beta2.SparkUIConfiguration{
 				ServicePort: &appPort,
 				IngressAnnotations: map[string]string{
 					"kubernetes.io/ingress.class":                    "nginx",
@@ -354,7 +354,7 @@ func TestCreateSparkUIIngress(t *testing.T) {
 			UID:       "foo-123",
 		},
 		Spec: v1beta2.SparkApplicationSpec{
-			ExpositionOptions: &v1beta2.ExpositionConfiguration{
+			SparkUIOptions: &v1beta2.SparkUIConfiguration{
 				ServicePort: &appPort,
 				IngressAnnotations: map[string]string{
 					"kubernetes.io/ingress.class": "nginx",

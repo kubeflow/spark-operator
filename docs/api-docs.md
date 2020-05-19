@@ -574,16 +574,16 @@ BatchSchedulerConfiguration
 </tr>
 <tr>
 <td>
-<code>expositionOptions</code></br>
+<code>sparkUIOptions</code></br>
 <em>
-<a href="#sparkoperator.k8s.io/v1beta2.ExpositionConfiguration">
-ExpositionConfiguration
+<a href="#sparkoperator.k8s.io/v1beta2.SparkUIConfiguration">
+SparkUIConfiguration
 </a>
 </em>
 </td>
 <td>
 <em>(Optional)</em>
-<p>Allows configuring the Service and the Ingress to expose the sparkUI</p>
+<p>SparkUIOptions allows configuring the Service and the Ingress to expose the sparkUI</p>
 </td>
 </tr>
 </table>
@@ -1050,63 +1050,6 @@ Maps to <code>spark.kubernetes.executor.deleteOnTermination</code> that is avail
 <p>
 <p>ExecutorState tells the current state of an executor.</p>
 </p>
-<h3 id="sparkoperator.k8s.io/v1beta2.ExpositionConfiguration">ExpositionConfiguration
-</h3>
-<p>
-(<em>Appears on:</em>
-<a href="#sparkoperator.k8s.io/v1beta2.SparkApplicationSpec">SparkApplicationSpec</a>)
-</p>
-<p>
-<p>Specific SparkUI config parameters</p>
-</p>
-<table>
-<thead>
-<tr>
-<th>Field</th>
-<th>Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>
-<code>servicePort</code></br>
-<em>
-int32
-</em>
-</td>
-<td>
-<p>ServicePort allows configuring the port at service level that might be different from the targetPort. This field is mandatory if ExpositionOptions is called.
-TargetPort should be the same as the one defined in spark.ui.port</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>ingressAnnotations</code></br>
-<em>
-map[string]string
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-<p>IngressAnnotations is a map of key,value pairs of annotations that might be added to the ingress object. i.e. specify nginx as ingress.class</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>ingressTLS</code></br>
-<em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#ingresstls-v1beta1-extensions">
-[]Kubernetes extensions/v1beta1.IngressTLS
-</a>
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-<p>TlsHosts is useful If we need to declare SSL certificates to the ingress object</p>
-</td>
-</tr>
-</tbody>
-</table>
 <h3 id="sparkoperator.k8s.io/v1beta2.GPUSpec">GPUSpec
 </h3>
 <p>
@@ -2104,16 +2047,16 @@ BatchSchedulerConfiguration
 </tr>
 <tr>
 <td>
-<code>expositionOptions</code></br>
+<code>sparkUIOptions</code></br>
 <em>
-<a href="#sparkoperator.k8s.io/v1beta2.ExpositionConfiguration">
-ExpositionConfiguration
+<a href="#sparkoperator.k8s.io/v1beta2.SparkUIConfiguration">
+SparkUIConfiguration
 </a>
 </em>
 </td>
 <td>
 <em>(Optional)</em>
-<p>Allows configuring the Service and the Ingress to expose the sparkUI</p>
+<p>SparkUIOptions allows configuring the Service and the Ingress to expose the sparkUI</p>
 </td>
 </tr>
 </tbody>
@@ -2607,8 +2550,65 @@ int64
 </tr>
 </tbody>
 </table>
+<h3 id="sparkoperator.k8s.io/v1beta2.SparkUIConfiguration">SparkUIConfiguration
+</h3>
+<p>
+(<em>Appears on:</em>
+<a href="#sparkoperator.k8s.io/v1beta2.SparkApplicationSpec">SparkApplicationSpec</a>)
+</p>
+<p>
+<p>Specific SparkUI config parameters</p>
+</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>servicePort</code></br>
+<em>
+int32
+</em>
+</td>
+<td>
+<p>ServicePort allows configuring the port at service level that might be different from the targetPort. This field is mandatory if SparkUIOptions is called.
+TargetPort should be the same as the one defined in spark.ui.port</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>ingressAnnotations</code></br>
+<em>
+map[string]string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>IngressAnnotations is a map of key,value pairs of annotations that might be added to the ingress object. i.e. specify nginx as ingress.class</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>ingressTLS</code></br>
+<em>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#ingresstls-v1beta1-extensions">
+[]Kubernetes extensions/v1beta1.IngressTLS
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>TlsHosts is useful If we need to declare SSL certificates to the ingress object</p>
+</td>
+</tr>
+</tbody>
+</table>
 <hr/>
 <p><em>
 Generated with <code>gen-crd-api-reference-docs</code>
-on git commit <code>d83f314</code>.
+on git commit <code>b1c6f85</code>.
 </em></p>

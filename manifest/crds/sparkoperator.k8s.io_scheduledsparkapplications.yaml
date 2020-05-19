@@ -3414,29 +3414,6 @@ spec:
                         type: object
                       type: array
                   type: object
-                expositionOptions:
-                  properties:
-                    ingressAnnotations:
-                      additionalProperties:
-                        type: string
-                      type: object
-                    ingressTLS:
-                      items:
-                        properties:
-                          hosts:
-                            items:
-                              type: string
-                            type: array
-                          secretName:
-                            type: string
-                        type: object
-                      type: array
-                    servicePort:
-                      format: int32
-                      type: integer
-                  required:
-                  - servicePort
-                  type: object
                 failureRetries:
                   format: int32
                   type: integer
@@ -3538,6 +3515,29 @@ spec:
                   type: object
                 sparkConfigMap:
                   type: string
+                sparkUIOptions:
+                  properties:
+                    ingressAnnotations:
+                      additionalProperties:
+                        type: string
+                      type: object
+                    ingressTLS:
+                      items:
+                        properties:
+                          hosts:
+                            items:
+                              type: string
+                            type: array
+                          secretName:
+                            type: string
+                        type: object
+                      type: array
+                    servicePort:
+                      format: int32
+                      type: integer
+                  required:
+                  - servicePort
+                  type: object
                 sparkVersion:
                   type: string
                 timeToLiveSeconds:
