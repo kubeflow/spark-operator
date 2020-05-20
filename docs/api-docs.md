@@ -2575,7 +2575,8 @@ int32
 </em>
 </td>
 <td>
-<p>ServicePort allows configuring the port at service level that might be different from the targetPort. This field is mandatory if SparkUIOptions is called.
+<em>(Optional)</em>
+<p>ServicePort allows configuring the port at service level that might be different from the targetPort.
 TargetPort should be the same as the one defined in spark.ui.port</p>
 </td>
 </tr>
@@ -2610,5 +2611,5 @@ map[string]string
 <hr/>
 <p><em>
 Generated with <code>gen-crd-api-reference-docs</code>
-on git commit <code>b1c6f85</code>.
+on git commit <code>0e7e97d</code>.
 </em></p>

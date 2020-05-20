@@ -34,8 +34,8 @@ import (
 )
 
 const (
-	sparkUIPortConfigurationKey = "spark.ui.port"
-	defaultSparkWebUIPort       = "4040"
+	sparkUIPortConfigurationKey       = "spark.ui.port"
+	defaultSparkWebUIPort       int32 = 4040
 )
 
 var ingressURLRegex = regexp.MustCompile("{{\\s*[$]appName\\s*}}")
@@ -118,12 +118,10 @@ func createSparkUIService(
 	if err != nil {
 		return nil, fmt.Errorf("invalid Spark UI servicePort: %d", port)
 	}
-
 	tPort, err := getUITargetPort(app)
 	if err != nil {
 		return nil, fmt.Errorf("invalid Spark UI targetPort: %d", tPort)
 	}
-
 	service := &apiv1.Service{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            getDefaultUIServiceName(app),
@@ -135,10 +133,10 @@ func createSparkUIService(
 			Ports: []apiv1.ServicePort{
 				{
 					Name: "spark-driver-ui-port",
-					Port: int32(port),
+					Port: port,
 					TargetPort: intstr.IntOrString{
 						Type:   intstr.Int,
-						IntVal: int32(tPort),
+						IntVal: tPort,
 					},
 				},
 			},
@@ -167,22 +165,23 @@ func createSparkUIService(
 // getWebUITargetPort attempts to get the Spark web UI port from configuration property spark.ui.port
 // in Spec.SparkConf if it is present, otherwise the default port is returned.
 // Note that we don't attempt to get the port from Spec.SparkConfigMap.
-func getUITargetPort(app *v1beta2.SparkApplication) (int, error) {
-	port, ok := app.Spec.SparkConf[sparkUIPortConfigurationKey]
+func getUITargetPort(app *v1beta2.SparkApplication) (int32, error) {
+	portStr, ok := app.Spec.SparkConf[sparkUIPortConfigurationKey]
 	if ok {
-		return strconv.Atoi(port)
+		port, err := strconv.Atoi(portStr)
+		return int32(port), err
 	}
-	return strconv.Atoi(defaultSparkWebUIPort)
+	return defaultSparkWebUIPort, nil
 }
 
-func getUIServicePort(app *v1beta2.SparkApplication) (int, error) {
+func getUIServicePort(app *v1beta2.SparkApplication) (int32, error) {
 
 	if app.Spec.SparkUIOptions == nil {
 		return getUITargetPort(app)
 	}
 	port := app.Spec.SparkUIOptions.ServicePort
 	if port != nil {
-		return int(*port), nil
+		return *port, nil
 	}
-	return strconv.Atoi(defaultSparkWebUIPort)
+	return defaultSparkWebUIPort, nil
 }

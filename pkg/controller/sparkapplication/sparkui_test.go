@@ -18,14 +18,13 @@ package sparkapplication
 
 import (
 	"fmt"
-	extensions "k8s.io/api/extensions/v1beta1"
-	"k8s.io/apimachinery/pkg/util/intstr"
 	"reflect"
-	"strconv"
 	"testing"
 
 	apiv1 "k8s.io/api/core/v1"
+	extensions "k8s.io/api/extensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/kubernetes/fake"
 
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta2"
@@ -49,11 +48,9 @@ func TestCreateSparkUIService(t *testing.T) {
 			}
 			t.Fatal(err)
 		}
-
 		if sparkService.serviceName != test.expectedService.serviceName {
 			t.Errorf("%s: for service name wanted %s got %s", test.name, test.expectedService.serviceName, sparkService.serviceName)
 		}
-
 		service, err := fakeClient.CoreV1().
 			Services(test.app.Namespace).
 			Get(sparkService.serviceName, metav1.GetOptions{})
@@ -80,12 +77,7 @@ func TestCreateSparkUIService(t *testing.T) {
 			t.Errorf("%s: unexpected port wanted %d got %d", test.name, test.expectedService.servicePort, port.Port)
 		}
 	}
-
-	defaultPort, err := strconv.Atoi(defaultSparkWebUIPort)
-	if err != nil {
-		t.Fatal(err)
-	}
-
+	defaultPort := defaultSparkWebUIPort
 	app1 := &v1beta2.SparkApplication{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "foo",
@@ -130,7 +122,6 @@ func TestCreateSparkUIService(t *testing.T) {
 	}
 	var appPort int32 = 80
 	app4 := &v1beta2.SparkApplication{
-
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "foo",
 			Namespace: "default",
@@ -216,12 +207,11 @@ func TestCreateSparkUIIngress(t *testing.T) {
 		expectedIngress SparkIngress
 		expectError     bool
 	}
-	testFn := func(test testcase, t *testing.T) {
 
+	testFn := func(test testcase, t *testing.T) {
 		fakeClient := fake.NewSimpleClientset()
 		ingressFormat := "{{$appName}}.ingress.clusterName.com"
 		sparkService, err := createSparkUIService(test.app, fakeClient)
-
 		sparkIngress, err := createSparkUIIngress(test.app, *sparkService, ingressFormat, fakeClient)
 		if err != nil {
 			if test.expectError {
@@ -229,20 +219,17 @@ func TestCreateSparkUIIngress(t *testing.T) {
 			}
 			t.Fatal(err)
 		}
-
 		if sparkIngress.ingressName != test.expectedIngress.ingressName {
 			t.Errorf("Ingress name wanted %s got %s", test.expectedIngress.ingressName, sparkIngress.ingressName)
 		}
 		if sparkIngress.ingressURL != test.expectedIngress.ingressURL {
 			t.Errorf("Ingress name wanted %s got %s", test.expectedIngress.ingressURL, sparkIngress.ingressURL)
 		}
-
 		ingress, err := fakeClient.ExtensionsV1beta1().Ingresses(test.app.Namespace).
 			Get(sparkIngress.ingressName, metav1.GetOptions{})
 		if err != nil {
 			t.Fatal(err)
 		}
-
 		if len(ingress.Annotations) != 0 {
 			for key, value := range ingress.Annotations {
 				if test.expectedIngress.annotations[key] != ingress.Annotations[key] {
@@ -250,7 +237,6 @@ func TestCreateSparkUIIngress(t *testing.T) {
 				}
 			}
 		}
-
 		if len(ingress.Spec.TLS) != 0 {
 			for _, ingressTls := range ingress.Spec.TLS {
 				if ingressTls.Hosts[0] != test.expectedIngress.ingressTLS[0].Hosts[0] {
@@ -261,7 +247,6 @@ func TestCreateSparkUIIngress(t *testing.T) {
 				}
 			}
 		}
-
 		if ingress.Labels[config.SparkAppNameLabel] != test.app.Name {
 			t.Errorf("Ingress of app %s has the wrong labels", test.app.Name)
 		}

@@ -18,7 +18,7 @@ package v1beta2
 
 import (
 	apiv1 "k8s.io/api/core/v1"
-	"k8s.io/api/extensions/v1beta1"
+	extensions "k8s.io/api/extensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -290,15 +290,16 @@ type BatchSchedulerConfiguration struct {
 
 // Specific SparkUI config parameters
 type SparkUIConfiguration struct {
-	// ServicePort allows configuring the port at service level that might be different from the targetPort. This field is mandatory if SparkUIOptions is called.
+	// ServicePort allows configuring the port at service level that might be different from the targetPort.
 	// TargetPort should be the same as the one defined in spark.ui.port
+	// +optional
 	ServicePort *int32 `json:"servicePort"`
 	// IngressAnnotations is a map of key,value pairs of annotations that might be added to the ingress object. i.e. specify nginx as ingress.class
 	// +optional
 	IngressAnnotations map[string]string `json:"ingressAnnotations,omitempty"`
 	// TlsHosts is useful If we need to declare SSL certificates to the ingress object
 	// +optional
-	IngressTLS []v1beta1.IngressTLS `json:"ingressTLS,omitempty"`
+	IngressTLS []extensions.IngressTLS `json:"ingressTLS,omitempty"`
 }
 
 // ApplicationStateType represents the type of the current state of an application.
