@@ -34,8 +34,8 @@ import (
 )
 
 const (
-	sparkUIPortConfigurationKey = "spark.ui.port"
-	defaultSparkWebUIPort       = "4040"
+	sparkUIPortConfigurationKey       = "spark.ui.port"
+	defaultSparkWebUIPort       int32 = 4040
 )
 
 var ingressURLRegex = regexp.MustCompile("{{\\s*[$]appName\\s*}}")
@@ -48,6 +48,7 @@ func getSparkUIingressURL(ingressURLFormat string, appName string) string {
 type SparkService struct {
 	serviceName string
 	servicePort int32
+	targetPort  intstr.IntOrString
 	serviceIP   string
 }
 
@@ -55,10 +56,14 @@ type SparkService struct {
 type SparkIngress struct {
 	ingressName string
 	ingressURL  string
+	annotations map[string]string
+	ingressTLS  []extensions.IngressTLS
 }
 
 func createSparkUIIngress(app *v1beta2.SparkApplication, service SparkService, ingressURLFormat string, kubeClient clientset.Interface) (*SparkIngress, error) {
 	ingressURL := getSparkUIingressURL(ingressURLFormat, app.GetName())
+	ingressResourceAnnotations := getIngressResourceAnnotations(app)
+	ingressTlsHosts := getIngressTlsHosts(app)
 	ingress := extensions.Ingress{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            getDefaultUIIngressName(app),
@@ -85,6 +90,13 @@ func createSparkUIIngress(app *v1beta2.SparkApplication, service SparkService, i
 			}},
 		},
 	}
+
+	if len(ingressResourceAnnotations) != 0 {
+		ingress.ObjectMeta.Annotations = ingressResourceAnnotations
+	}
+	if len(ingressTlsHosts) != 0 {
+		ingress.Spec.TLS = ingressTlsHosts
+	}
 	glog.Infof("Creating an Ingress %s for the Spark UI for application %s", ingress.Name, app.Name)
 	_, err := kubeClient.ExtensionsV1beta1().Ingresses(ingress.Namespace).Create(&ingress)
 
@@ -94,18 +106,22 @@ func createSparkUIIngress(app *v1beta2.SparkApplication, service SparkService, i
 	return &SparkIngress{
 		ingressName: ingress.Name,
 		ingressURL:  ingressURL,
+		annotations: ingress.Annotations,
+		ingressTLS:  ingress.Spec.TLS,
 	}, nil
 }
 
 func createSparkUIService(
 	app *v1beta2.SparkApplication,
 	kubeClient clientset.Interface) (*SparkService, error) {
-	portStr := getUITargetPort(app)
-	port, err := strconv.Atoi(portStr)
+	port, err := getUIServicePort(app)
 	if err != nil {
-		return nil, fmt.Errorf("invalid Spark UI port: %s", portStr)
+		return nil, fmt.Errorf("invalid Spark UI servicePort: %d", port)
 	}
-
+	tPort, err := getUITargetPort(app)
+	if err != nil {
+		return nil, fmt.Errorf("invalid Spark UI targetPort: %d", tPort)
+	}
 	service := &apiv1.Service{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            getDefaultUIServiceName(app),
@@ -117,7 +133,11 @@ func createSparkUIService(
 			Ports: []apiv1.ServicePort{
 				{
 					Name: "spark-driver-ui-port",
-					Port: int32(port),
+					Port: port,
+					TargetPort: intstr.IntOrString{
+						Type:   intstr.Int,
+						IntVal: tPort,
+					},
 				},
 			},
 			Selector: map[string]string{
@@ -137,6 +157,7 @@ func createSparkUIService(
 	return &SparkService{
 		serviceName: service.Name,
 		servicePort: service.Spec.Ports[0].Port,
+		targetPort:  service.Spec.Ports[0].TargetPort,
 		serviceIP:   service.Spec.ClusterIP,
 	}, nil
 }
@@ -144,10 +165,23 @@ func createSparkUIService(
 // getWebUITargetPort attempts to get the Spark web UI port from configuration property spark.ui.port
 // in Spec.SparkConf if it is present, otherwise the default port is returned.
 // Note that we don't attempt to get the port from Spec.SparkConfigMap.
-func getUITargetPort(app *v1beta2.SparkApplication) string {
-	port, ok := app.Spec.SparkConf[sparkUIPortConfigurationKey]
+func getUITargetPort(app *v1beta2.SparkApplication) (int32, error) {
+	portStr, ok := app.Spec.SparkConf[sparkUIPortConfigurationKey]
 	if ok {
-		return port
+		port, err := strconv.Atoi(portStr)
+		return int32(port), err
 	}
-	return defaultSparkWebUIPort
+	return defaultSparkWebUIPort, nil
+}
+
+func getUIServicePort(app *v1beta2.SparkApplication) (int32, error) {
+
+	if app.Spec.SparkUIOptions == nil {
+		return getUITargetPort(app)
+	}
+	port := app.Spec.SparkUIOptions.ServicePort
+	if port != nil {
+		return *port, nil
+	}
+	return defaultSparkWebUIPort, nil
 }

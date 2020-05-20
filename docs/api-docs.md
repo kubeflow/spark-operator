@@ -572,6 +572,20 @@ BatchSchedulerConfiguration
 <p>BatchSchedulerOptions provides fine-grained control on how to batch scheduling.</p>
 </td>
 </tr>
+<tr>
+<td>
+<code>sparkUIOptions</code></br>
+<em>
+<a href="#sparkoperator.k8s.io/v1beta2.SparkUIConfiguration">
+SparkUIConfiguration
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>SparkUIOptions allows configuring the Service and the Ingress to expose the sparkUI</p>
+</td>
+</tr>
 </table>
 </td>
 </tr>
@@ -937,6 +951,11 @@ Kubernetes core/v1.Lifecycle
 </tr>
 </tbody>
 </table>
+<h3 id="sparkoperator.k8s.io/v1beta2.DriverState">DriverState
+(<code>string</code> alias)</p></h3>
+<p>
+<p>DriverState tells the current state of a spark driver.</p>
+</p>
 <h3 id="sparkoperator.k8s.io/v1beta2.ExecutorSpec">ExecutorSpec
 </h3>
 <p>
@@ -1367,8 +1386,7 @@ int64
 </td>
 <td>
 <em>(Optional)</em>
-<p>OnSubmissionFailureRetryInterval is the interval between retries on failed submissions.
-Interval to wait between successive retries of a failed application.</p>
+<p>OnSubmissionFailureRetryInterval is the interval in seconds between retries on failed submissions.</p>
 </td>
 </tr>
 <tr>
@@ -1380,7 +1398,7 @@ int64
 </td>
 <td>
 <em>(Optional)</em>
-<p>OnFailureRetryInterval is the interval between retries on failed runs.</p>
+<p>OnFailureRetryInterval is the interval in seconds between retries on failed runs.</p>
 </td>
 </tr>
 </tbody>
@@ -2027,6 +2045,20 @@ BatchSchedulerConfiguration
 <p>BatchSchedulerOptions provides fine-grained control on how to batch scheduling.</p>
 </td>
 </tr>
+<tr>
+<td>
+<code>sparkUIOptions</code></br>
+<em>
+<a href="#sparkoperator.k8s.io/v1beta2.SparkUIConfiguration">
+SparkUIConfiguration
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>SparkUIOptions allows configuring the Service and the Ingress to expose the sparkUI</p>
+</td>
+</tr>
 </tbody>
 </table>
 <h3 id="sparkoperator.k8s.io/v1beta2.SparkApplicationStatus">SparkApplicationStatus
@@ -2518,8 +2550,66 @@ int64
 </tr>
 </tbody>
 </table>
+<h3 id="sparkoperator.k8s.io/v1beta2.SparkUIConfiguration">SparkUIConfiguration
+</h3>
+<p>
+(<em>Appears on:</em>
+<a href="#sparkoperator.k8s.io/v1beta2.SparkApplicationSpec">SparkApplicationSpec</a>)
+</p>
+<p>
+<p>Specific SparkUI config parameters</p>
+</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>servicePort</code></br>
+<em>
+int32
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>ServicePort allows configuring the port at service level that might be different from the targetPort.
+TargetPort should be the same as the one defined in spark.ui.port</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>ingressAnnotations</code></br>
+<em>
+map[string]string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>IngressAnnotations is a map of key,value pairs of annotations that might be added to the ingress object. i.e. specify nginx as ingress.class</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>ingressTLS</code></br>
+<em>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#ingresstls-v1beta1-extensions">
+[]Kubernetes extensions/v1beta1.IngressTLS
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>TlsHosts is useful If we need to declare SSL certificates to the ingress object</p>
+</td>
+</tr>
+</tbody>
+</table>
 <hr/>
 <p><em>
 Generated with <code>gen-crd-api-reference-docs</code>
-on git commit <code>8fdcbf2f5</code>.
+on git commit <code>0e7e97d</code>.
 </em></p>

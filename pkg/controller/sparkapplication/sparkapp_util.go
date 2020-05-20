@@ -26,6 +26,7 @@ import (
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta2"
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/config"
 	apiv1 "k8s.io/api/core/v1"
+	"k8s.io/api/extensions/v1beta1"
 )
 
 // Helper method to create a key with namespace and appName
@@ -70,6 +71,26 @@ func getResourceLabels(app *v1beta2.SparkApplication) map[string]string {
 		labels[config.SubmissionIDLabel] = app.Status.SubmissionID
 	}
 	return labels
+}
+
+func getIngressResourceAnnotations(app *v1beta2.SparkApplication) map[string]string {
+	ingressAnnotations := map[string]string{}
+	if app.Spec.SparkUIOptions != nil && app.Spec.SparkUIOptions.IngressAnnotations != nil {
+		for key, value := range app.Spec.SparkUIOptions.IngressAnnotations {
+			ingressAnnotations[key] = value
+		}
+	}
+	return ingressAnnotations
+}
+
+func getIngressTlsHosts(app *v1beta2.SparkApplication) []v1beta1.IngressTLS {
+	var ingressTls []v1beta1.IngressTLS
+	if app.Spec.SparkUIOptions != nil && app.Spec.SparkUIOptions.IngressTLS != nil {
+		for _, ingTls := range app.Spec.SparkUIOptions.IngressTLS {
+			ingressTls = append(ingressTls, ingTls)
+		}
+	}
+	return ingressTls
 }
 
 func podPhaseToExecutorState(podPhase apiv1.PodPhase) v1beta2.ExecutorState {
