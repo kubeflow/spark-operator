@@ -117,7 +117,6 @@ func (sjm *submissionJobManager) getSubmissionJob(app *v1beta1.SparkApplication)
 }
 
 func (sjm *submissionJobManager) deleteSubmissionJob(app *v1beta1.SparkApplication) error {
-	return sjm.kubeClient.BatchV1().Jobs(app.Namespace).Delete(getSubmissionJobName(app), metav1.NewDeleteOptions(0))
 	deleteOptions := metav1.NewDeleteOptions(0)
 	background := metav1.DeletePropagationBackground
 	deleteOptions.PropagationPolicy = &background
