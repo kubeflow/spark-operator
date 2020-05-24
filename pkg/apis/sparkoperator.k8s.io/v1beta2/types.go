@@ -480,6 +480,9 @@ type SparkPodSpec struct {
 	// Termination grace periond seconds for the pod
 	// +optional
 	TerminationGracePeriodSeconds *int64 `json:"terminationGracePeriodSeconds,omitempty"`
+	// ServiceAccount is the name of the custom Kubernetes service account used by the pod.
+	// +optional
+	ServiceAccount *string `json:"serviceAccount,omitempty"`
 }
 
 // DriverSpec is specification of the driver.
@@ -496,10 +499,6 @@ type DriverSpec struct {
 	// Maps to `spark.kubernetes.driver.request.cores` that is available since Spark 3.0.
 	// +optional
 	CoreRequest *string `json:"coreRequest,omitempty"`
-	// ServiceAccount is the name of the Kubernetes service account used by the driver pod
-	// when requesting executor pods from the API server.
-	// +optional
-	ServiceAccount *string `json:"serviceAccount,omitempty"`
 	// JavaOptions is a string of extra JVM options to pass to the driver. For instance,
 	// GC settings or other logging.
 	// +optional
