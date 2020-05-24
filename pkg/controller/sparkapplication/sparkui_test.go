@@ -321,7 +321,7 @@ func TestCreateSparkUIIngress(t *testing.T) {
 					"nginx.ingress.kubernetes.io/force-ssl-redirect": "true",
 				},
 				IngressTLS: []extensions.IngressTLS{
-					{[]string{"host1", "host2"}, "secret"},
+					{Hosts: []string{"host1", "host2"}, SecretName: "secret"},
 				},
 			},
 		},
@@ -345,7 +345,7 @@ func TestCreateSparkUIIngress(t *testing.T) {
 					"kubernetes.io/ingress.class": "nginx",
 				},
 				IngressTLS: []extensions.IngressTLS{
-					{[]string{"host1", "host2"}, ""},
+					{Hosts: []string{"host1", "host2"}, SecretName: ""},
 				},
 			},
 		},
@@ -390,7 +390,7 @@ func TestCreateSparkUIIngress(t *testing.T) {
 					"nginx.ingress.kubernetes.io/force-ssl-redirect": "true",
 				},
 				ingressTLS: []extensions.IngressTLS{
-					{[]string{"host1", "host2"}, "secret"},
+					{Hosts: []string{"host1", "host2"}, SecretName: "secret"},
 				},
 			},
 			expectError: false,
@@ -406,7 +406,7 @@ func TestCreateSparkUIIngress(t *testing.T) {
 					"nginx.ingress.kubernetes.io/force-ssl-redirect": "true",
 				},
 				ingressTLS: []extensions.IngressTLS{
-					{[]string{"host1", "host2"}, ""},
+					{Hosts: []string{"host1", "host2"}, SecretName: ""},
 				},
 			},
 			expectError: true,

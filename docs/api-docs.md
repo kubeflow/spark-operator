@@ -911,19 +911,6 @@ Maps to <code>spark.kubernetes.driver.request.cores</code> that is available sin
 </tr>
 <tr>
 <td>
-<code>serviceAccount</code></br>
-<em>
-string
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-<p>ServiceAccount is the name of the Kubernetes service account used by the driver pod
-when requesting executor pods from the API server.</p>
-</td>
-</tr>
-<tr>
-<td>
 <code>javaOptions</code></br>
 <em>
 string
@@ -2548,6 +2535,18 @@ int64
 <p>Termination grace periond seconds for the pod</p>
 </td>
 </tr>
+<tr>
+<td>
+<code>serviceAccount</code></br>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>ServiceAccount is the name of the custom Kubernetes service account used by the pod.</p>
+</td>
+</tr>
 </tbody>
 </table>
 <h3 id="sparkoperator.k8s.io/v1beta2.SparkUIConfiguration">SparkUIConfiguration
@@ -2611,5 +2610,5 @@ map[string]string
 <hr/>
 <p><em>
 Generated with <code>gen-crd-api-reference-docs</code>
-on git commit <code>0e7e97d</code>.
+on git commit <code>43fb5e7</code>.
 </em></p>
