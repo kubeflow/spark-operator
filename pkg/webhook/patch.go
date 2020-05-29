@@ -53,7 +53,7 @@ func patchSparkPod(pod *corev1.Pod, app *v1beta2.SparkApplication) []patchOperat
 	patchOps = append(patchOps, addGeneralConfigMaps(pod, app)...)
 	patchOps = append(patchOps, addSparkConfigMap(pod, app)...)
 	patchOps = append(patchOps, addHadoopConfigMap(pod, app)...)
-	patchOps = append(patchOps, addPrometheusConfigMap(pod, app)...)
+	patchOps = append(patchOps, getPrometheusConfigPatches(pod, app)...)
 	patchOps = append(patchOps, addTolerations(pod, app)...)
 	patchOps = append(patchOps, addSidecarContainers(pod, app)...)
 	patchOps = append(patchOps, addInitContainers(pod, app)...)
@@ -182,25 +182,6 @@ func addVolumeMount(pod *corev1.Pod, mount corev1.VolumeMount) *patchOperation {
 		value = mount
 	}
 	pod.Spec.Containers[i].VolumeMounts = append(pod.Spec.Containers[i].VolumeMounts, mount)
-
-	return &patchOperation{Op: "add", Path: path, Value: value}
-}
-
-func addPort(pod *corev1.Pod, containerPort corev1.ContainerPort) *patchOperation {
-	i := findContainer(pod)
-	if i < 0 {
-		glog.Warningf("not able to add containerPort %d as Spark container was not found in pod %s", containerPort.ContainerPort, pod.Name)
-		return nil
-	}
-	path := fmt.Sprintf("/spec/containers/%d/ports", i)
-	var value interface{}
-	if len(pod.Spec.Containers[i].Ports) == 0 {
-		value = []corev1.ContainerPort{containerPort}
-	} else {
-		path += "/-"
-		value = containerPort
-	}
-	pod.Spec.Containers[i].Ports = append(pod.Spec.Containers[i].Ports, containerPort)
 
 	return &patchOperation{Op: "add", Path: path, Value: value}
 }
@@ -361,7 +342,7 @@ func addGeneralConfigMaps(pod *corev1.Pod, app *v1beta2.SparkApplication) []patc
 	return patchOps
 }
 
-func addPrometheusConfigMap(pod *corev1.Pod, app *v1beta2.SparkApplication) []patchOperation {
+func getPrometheusConfigPatches(pod *corev1.Pod, app *v1beta2.SparkApplication) []patchOperation {
 	// Skip if Prometheus Monitoring is not enabled or an in-container ConfigFile is used,
 	// in which cases a Prometheus ConfigMap won't be created.
 	if !app.PrometheusMonitoringEnabled() || (app.HasMetricsPropertiesFile() && app.HasPrometheusConfigFile()) {
@@ -384,24 +365,44 @@ func addPrometheusConfigMap(pod *corev1.Pod, app *v1beta2.SparkApplication) []pa
 		port = *app.Spec.Monitoring.Prometheus.Port
 	}
 	protocol := config.DefaultPrometheusPortProtocol
-
 	patchOps = append(patchOps, addConfigMapVolume(pod, name, volumeName))
 	vmPatchOp := addConfigMapVolumeMount(pod, volumeName, mountPath)
-	portPatchOp := addContainerPort(pod, port, protocol)
-	if vmPatchOp == nil || portPatchOp == nil {
+	if vmPatchOp == nil {
+		glog.Warningf("could not mount volume %s in path %s", volumeName, mountPath)
 		return nil
 	}
 	patchOps = append(patchOps, *vmPatchOp)
+	portPatchOp := addContainerPort(pod, port, protocol)
+	if portPatchOp == nil {
+		glog.Warningf("could not expose port %d to scrape metrics outside the pod", port)
+		return nil
+	}
 	patchOps = append(patchOps, *portPatchOp)
+
 	return patchOps
 }
 
 func addContainerPort(pod *corev1.Pod, port int32, protocol string) *patchOperation {
+	i := findContainer(pod)
+	if i < 0 {
+		glog.Warningf("not able to add containerPort %d as Spark container was not found in pod %s", port, pod.Name)
+		return nil
+	}
+
+	path := fmt.Sprintf("/spec/containers/%d/ports", i)
 	containerPort := corev1.ContainerPort{
 		ContainerPort: port,
 		Protocol:      corev1.Protocol(protocol),
 	}
-	return addPort(pod, containerPort)
+	var value interface{}
+	if len(pod.Spec.Containers[i].Ports) == 0 {
+		value = []corev1.ContainerPort{containerPort}
+	} else {
+		path += "/-"
+		value = containerPort
+	}
+	pod.Spec.Containers[i].Ports = append(pod.Spec.Containers[i].Ports, containerPort)
+	return &patchOperation{Op: "add", Path: path, Value: value}
 }
 
 func addConfigMapVolume(pod *corev1.Pod, configMapName string, configMapVolumeName string) patchOperation {
