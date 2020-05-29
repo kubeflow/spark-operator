@@ -186,6 +186,25 @@ func addVolumeMount(pod *corev1.Pod, mount corev1.VolumeMount) *patchOperation {
 	return &patchOperation{Op: "add", Path: path, Value: value}
 }
 
+func addPort(pod *corev1.Pod, containerPort corev1.ContainerPort) *patchOperation {
+	i := findContainer(pod)
+	if i < 0 {
+		glog.Warningf("not able to add containerPort %d as Spark container was not found in pod %s", containerPort.ContainerPort, pod.Name)
+		return nil
+	}
+	path := fmt.Sprintf("/spec/containers/%d/ports", i)
+	var value interface{}
+	if len(pod.Spec.Containers[i].Ports) == 0 {
+		value = []corev1.ContainerPort{containerPort}
+	} else {
+		path += "/-"
+		value = containerPort
+	}
+	pod.Spec.Containers[i].Ports = append(pod.Spec.Containers[i].Ports, containerPort)
+
+	return &patchOperation{Op: "add", Path: path, Value: value}
+}
+
 func addEnvVars(pod *corev1.Pod, app *v1beta2.SparkApplication) []patchOperation {
 	var envVars []corev1.EnvVar
 	if util.IsDriverPod(pod) {
@@ -360,13 +379,29 @@ func addPrometheusConfigMap(pod *corev1.Pod, app *v1beta2.SparkApplication) []pa
 	name := config.GetPrometheusConfigMapName(app)
 	volumeName := name + "-vol"
 	mountPath := config.PrometheusConfigMapMountPath
+	port := config.DefaultPrometheusJavaAgentPort
+	if app.Spec.Monitoring.Prometheus.Port != nil {
+		port = *app.Spec.Monitoring.Prometheus.Port
+	}
+	protocol := config.DefaultPrometheusPortProtocol
+
 	patchOps = append(patchOps, addConfigMapVolume(pod, name, volumeName))
 	vmPatchOp := addConfigMapVolumeMount(pod, volumeName, mountPath)
-	if vmPatchOp == nil {
+	portPatchOp := addContainerPort(pod, port, protocol)
+	if vmPatchOp == nil || portPatchOp == nil {
 		return nil
 	}
 	patchOps = append(patchOps, *vmPatchOp)
+	patchOps = append(patchOps, *portPatchOp)
 	return patchOps
+}
+
+func addContainerPort(pod *corev1.Pod, port int32, protocol string) *patchOperation {
+	containerPort := corev1.ContainerPort{
+		ContainerPort: port,
+		Protocol:      corev1.Protocol(protocol),
+	}
+	return addPort(pod, containerPort)
 }
 
 func addConfigMapVolume(pod *corev1.Pod, configMapName string, configMapVolumeName string) patchOperation {
