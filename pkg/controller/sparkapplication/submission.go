@@ -267,7 +267,16 @@ func addDriverConfOptions(app *v1beta2.SparkApplication, submissionID string) ([
 			fmt.Sprintf("%s=%s", config.SparkDriverServiceAccountName, *app.Spec.Driver.ServiceAccount))
 	}
 
+	//Populate SparkApplication Labels to Driver
+	driverLabels := make(map[string]string)
+	for key, value := range app.Labels {
+		driverLabels[key] = value
+	}
 	for key, value := range app.Spec.Driver.Labels {
+		driverLabels[key] = value
+	}
+
+	for key, value := range driverLabels {
 		driverConfOptions = append(driverConfOptions,
 			fmt.Sprintf("%s%s=%s", config.SparkDriverLabelKeyPrefix, key, value))
 	}
@@ -340,7 +349,15 @@ func addExecutorConfOptions(app *v1beta2.SparkApplication, submissionID string) 
 			fmt.Sprintf("%s=%t", config.SparkExecutorDeleteOnTermination, *app.Spec.Executor.DeleteOnTermination))
 	}
 
+	//Populate SparkApplication Labels to Executors
+	executorLabels := make(map[string]string)
+	for key, value := range app.Labels {
+		executorLabels[key] = value
+	}
 	for key, value := range app.Spec.Executor.Labels {
+		executorLabels[key] = value
+	}
+	for key, value := range executorLabels {
 		executorConfOptions = append(executorConfOptions,
 			fmt.Sprintf("%s%s=%s", config.SparkExecutorLabelKeyPrefix, key, value))
 	}
