@@ -65,7 +65,7 @@ func newFakeController(app *v1beta2.SparkApplication, pods ...*apiv1.Pod) (*Cont
 	})
 
 	podInformerFactory := informers.NewSharedInformerFactory(kubeClient, 0*time.Second)
-	controller := newSparkApplicationController(crdClient, kubeClient, informerFactory, podInformerFactory, recorder,
+	controller := newSparkApplicationController(crdClient, kubeClient, informerFactory, podInformerFactory, recorder, nil,
 		&util.MetricConfig{}, "", nil)
 
 	informer := informerFactory.Sparkoperator().V1beta2().SparkApplications().Informer()
@@ -1516,4 +1516,90 @@ func int32ptr(n int32) *int32 {
 
 func int64ptr(n int64) *int64 {
 	return &n
+}
+
+func TestFilterSparkEventsByNamespace(t *testing.T) {
+	type testcase struct {
+		name                  string
+		app                   *v1beta2.SparkApplication
+		namespaceFilterConfig *util.NamespaceFilterConfig
+		expectedFilterReturn  bool
+	}
+
+	app1 := &v1beta2.SparkApplication{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "foo",
+			Namespace: "spark-dev",
+			UID:       "foo-123",
+		},
+		Status: v1beta2.SparkApplicationStatus{
+			SparkApplicationID: "foo-2",
+			ExecutionAttempts:  2,
+		},
+	}
+	app2 := &v1beta2.SparkApplication{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "foo",
+			Namespace: "staging-12345",
+			UID:       "foo-123",
+		},
+		Status: v1beta2.SparkApplicationStatus{
+			SparkApplicationID: "foo-2",
+			ExecutionAttempts:  2,
+		},
+	}
+
+	testcases := []testcase{
+		{
+			name: "Filter with a wildcard does match",
+			app:  app1,
+			namespaceFilterConfig: &util.NamespaceFilterConfig{
+				Namespace:       apiv1.NamespaceAll,
+				NamespaceFilter: ".*-dev",
+			},
+			expectedFilterReturn: true,
+		},
+		{
+			name: "Filter does not match: Extra character",
+			app:  app1,
+			namespaceFilterConfig: &util.NamespaceFilterConfig{
+				Namespace:       apiv1.NamespaceAll,
+				NamespaceFilter: ".*-deva",
+			},
+			expectedFilterReturn: false,
+		},
+		{
+			name: "Filter with digits does match",
+			app:  app2,
+			namespaceFilterConfig: &util.NamespaceFilterConfig{
+				Namespace:       apiv1.NamespaceAll,
+				NamespaceFilter: "staging-[1-9].+",
+			},
+			expectedFilterReturn: true,
+		},
+		{
+			name: "Filter does not match: Only 3 digits are allowed",
+			app:  app2,
+			namespaceFilterConfig: &util.NamespaceFilterConfig{
+				Namespace:       apiv1.NamespaceAll,
+				NamespaceFilter: "staging-[1-9]{3}",
+			},
+			expectedFilterReturn: false,
+		},
+	}
+
+	testFn := func(test testcase, t *testing.T) {
+		ctrl, _ := newFakeController(nil)
+		_, err := ctrl.crdClient.SparkoperatorV1beta2().SparkApplications(test.app.Namespace).Create(test.app)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		assert.Equal(t, test.expectedFilterReturn,
+			filterSparkAndPodEventsByNamespace(*util.GetNamespaceFilter(test.namespaceFilterConfig))(test.app))
+	}
+
+	for _, test := range testcases {
+		testFn(test, t)
+	}
 }

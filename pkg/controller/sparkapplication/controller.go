@@ -19,6 +19,7 @@ package sparkapplication
 import (
 	"fmt"
 	"os/exec"
+	"regexp"
 	"time"
 
 	"github.com/golang/glog"
@@ -86,6 +87,7 @@ func NewController(
 	podInformerFactory informers.SharedInformerFactory,
 	metricsConfig *util.MetricConfig,
 	namespace string,
+	namespaceFilterConfig *util.NamespaceFilterConfig,
 	ingressURLFormat string,
 	batchSchedulerMgr *batchscheduler.SchedulerManager) *Controller {
 	crdscheme.AddToScheme(scheme.Scheme)
@@ -97,7 +99,7 @@ func NewController(
 	})
 	recorder := eventBroadcaster.NewRecorder(scheme.Scheme, apiv1.EventSource{Component: "spark-operator"})
 
-	return newSparkApplicationController(crdClient, kubeClient, crdInformerFactory, podInformerFactory, recorder, metricsConfig, ingressURLFormat, batchSchedulerMgr)
+	return newSparkApplicationController(crdClient, kubeClient, crdInformerFactory, podInformerFactory, recorder, namespaceFilterConfig, metricsConfig, ingressURLFormat, batchSchedulerMgr)
 }
 
 func newSparkApplicationController(
@@ -106,6 +108,7 @@ func newSparkApplicationController(
 	crdInformerFactory crdinformers.SharedInformerFactory,
 	podInformerFactory informers.SharedInformerFactory,
 	eventRecorder record.EventRecorder,
+	namespaceFilterConfig *util.NamespaceFilterConfig,
 	metricsConfig *util.MetricConfig,
 	ingressURLFormat string,
 	batchSchedulerMgr *batchscheduler.SchedulerManager) *Controller {
@@ -125,22 +128,27 @@ func newSparkApplicationController(
 		controller.metrics = newSparkAppMetrics(metricsConfig)
 		controller.metrics.registerMetrics()
 	}
+	namespaceFilter := util.GetNamespaceFilter(namespaceFilterConfig)
 
 	crdInformer := crdInformerFactory.Sparkoperator().V1beta2().SparkApplications()
-	crdInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+	crdEventHandlerFuncs := cache.ResourceEventHandlerFuncs{
 		AddFunc:    controller.onAdd,
 		UpdateFunc: controller.onUpdate,
 		DeleteFunc: controller.onDelete,
-	})
+	}
+	crdEventResourceHandlerFuncs := getEventResourceHandlerFuncs(crdEventHandlerFuncs, namespaceFilter)
+	crdInformer.Informer().AddEventHandler(crdEventResourceHandlerFuncs)
 	controller.applicationLister = crdInformer.Lister()
 
 	podsInformer := podInformerFactory.Core().V1().Pods()
 	sparkPodEventHandler := newSparkPodEventHandler(controller.queue.AddRateLimited, controller.applicationLister)
-	podsInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+	sparkPodEventHandlerFuncs := cache.ResourceEventHandlerFuncs{
 		AddFunc:    sparkPodEventHandler.onPodAdded,
 		UpdateFunc: sparkPodEventHandler.onPodUpdated,
 		DeleteFunc: sparkPodEventHandler.onPodDeleted,
-	})
+	}
+	sparkPodEventResourceHandlerFuncs := getEventResourceHandlerFuncs(sparkPodEventHandlerFuncs, namespaceFilter)
+	podsInformer.Informer().AddEventHandler(sparkPodEventResourceHandlerFuncs)
 	controller.podLister = podsInformer.Lister()
 
 	controller.cacheSynced = func() bool {
@@ -148,6 +156,34 @@ func newSparkApplicationController(
 	}
 
 	return controller
+}
+
+func getEventResourceHandlerFuncs(handlerFuncs cache.ResourceEventHandlerFuncs, namespaceFilter *regexp.Regexp) cache.ResourceEventHandler {
+	var resourceEventHandlerFuncs cache.ResourceEventHandler
+
+	if namespaceFilter == nil {
+		resourceEventHandlerFuncs = handlerFuncs
+	} else {
+		resourceEventHandlerFuncs = cache.FilteringResourceEventHandler{
+			FilterFunc: filterSparkAndPodEventsByNamespace(*namespaceFilter),
+			Handler:    handlerFuncs,
+		}
+	}
+	return resourceEventHandlerFuncs
+}
+
+func filterSparkAndPodEventsByNamespace(regex regexp.Regexp) func(obj interface{}) bool {
+	return func(obj interface{}) bool {
+		switch obj.(type) {
+		case *v1beta2.SparkApplication, *apiv1.Pod:
+			//If multiple instances of the operator are running within the same kubernetes cluster,
+			//then each instance will continuously and repeatedly listen to the spark events submitted within all namespaces.
+			//Events that does not match the namespace-filter will be ignored and won't be enqueued for later processing.
+			return util.IsNamespaceMatchesFilter(regex, obj.(metav1.Object).GetNamespace())
+		default:
+			return false
+		}
+	}
 }
 
 // Start starts the Controller by registering a watcher for SparkApplication objects.

@@ -56,6 +56,7 @@ var (
 	controllerThreads              = flag.Int("controller-threads", 10, "Number of worker threads used by the SparkApplication controller.")
 	resyncInterval                 = flag.Int("resync-interval", 30, "Informer resync interval in seconds.")
 	namespace                      = flag.String("namespace", apiv1.NamespaceAll, "The Kubernetes namespace to manage. Will manage custom resource objects of the managed CRD types for the whole cluster if unset.")
+	namespaceFilter                = flag.String("namespace-filter", "", "A comma-separated list of regexps to manage specific Kubernetes namespaces. Ignored if namespace if specified")
 	enableWebhook                  = flag.Bool("enable-webhook", false, "Whether to enable the mutating admission webhook for admitting and patching Spark pods.")
 	enableResourceQuotaEnforcement = flag.Bool("enable-resource-quota-enforcement", false, "Whether to enable ResourceQuota enforcement for SparkApplication resources. Requires the webhook to be enabled.")
 	ingressURLFormat               = flag.String("ingress-url-format", "", "Ingress URL format.")
@@ -162,6 +163,11 @@ func main() {
 	crInformerFactory := buildCustomResourceInformerFactory(crClient)
 	podInformerFactory := buildPodInformerFactory(kubeClient)
 
+	var namespaceFilterConfig = util.NamespaceFilterConfig{
+		Namespace:       *namespace,
+		NamespaceFilter: *namespaceFilter,
+	}
+
 	var metricConfig *util.MetricConfig
 	if *enableMetrics {
 		metricConfig = &util.MetricConfig{
@@ -177,7 +183,7 @@ func main() {
 	}
 
 	applicationController := sparkapplication.NewController(
-		crClient, kubeClient, crInformerFactory, podInformerFactory, metricConfig, *namespace, *ingressURLFormat, batchSchedulerMgr)
+		crClient, kubeClient, crInformerFactory, podInformerFactory, metricConfig, *namespace, &namespaceFilterConfig, *ingressURLFormat, batchSchedulerMgr)
 	scheduledApplicationController := scheduledsparkapplication.NewController(
 		crClient, kubeClient, apiExtensionsClient, crInformerFactory, clock.RealClock{})
 
