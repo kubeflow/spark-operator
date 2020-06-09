@@ -19,6 +19,7 @@ package sparkapplication
 import (
 	"fmt"
 	"github.com/google/uuid"
+	"reflect"
 	"sort"
 	"strconv"
 	"testing"
@@ -398,22 +399,38 @@ func TestPopulateLabels_Driver_Executor(t *testing.T) {
 		t.Fatal(err)
 	}
 	assert.Equal(t, 5, len(driverOptions))
-	assert.Equal(t, fmt.Sprintf(SparkDriverLabelAnnotationTemplate, "app-name", "spark-test"), driverOptions[0])
-	assert.Equal(t, fmt.Sprintf(SparkDriverLabelAnnotationTemplate, "launched-by-spark-operator", strconv.FormatBool(true)), driverOptions[1])
-	assert.Equal(t, fmt.Sprintf(SparkDriverLabelAnnotationTemplate, "submission-id", submissionID), driverOptions[2])
-	assert.Equal(t, fmt.Sprintf(SparkDriverLabelTemplate, AppLabelKey, AppLabelValue), driverOptions[3])
-	assert.Equal(t, fmt.Sprintf(SparkDriverLabelTemplate, DriverLabelKey, DriverLabelValue), driverOptions[4])
+	sort.Strings(driverOptions)
+	expectedDriverLabels := []string{
+		fmt.Sprintf(SparkDriverLabelAnnotationTemplate, "launched-by-spark-operator", strconv.FormatBool(true)),
+		fmt.Sprintf(SparkDriverLabelAnnotationTemplate, "app-name", "spark-test"),
+		fmt.Sprintf(SparkDriverLabelAnnotationTemplate, "submission-id", submissionID),
+		fmt.Sprintf(SparkDriverLabelTemplate, AppLabelKey, AppLabelValue),
+		fmt.Sprintf(SparkDriverLabelTemplate, DriverLabelKey, DriverLabelValue),
+	}
+	sort.Strings(expectedDriverLabels)
+
+	if !reflect.DeepEqual(expectedDriverLabels, driverOptions) {
+		t.Errorf("Executor labels: wanted %+q got %+q", expectedDriverLabels, driverOptions)
+	}
 
 	executorOptions, err := addExecutorConfOptions(app, submissionID)
+	sort.Strings(executorOptions)
 	if err != nil {
 		t.Fatal(err)
 	}
 	assert.Equal(t, 5, len(executorOptions))
-	assert.Equal(t, fmt.Sprintf(SparkExecutorLabelAnnotationTemplate, "app-name", "spark-test"), executorOptions[0])
-	assert.Equal(t, fmt.Sprintf(SparkExecutorLabelAnnotationTemplate, "launched-by-spark-operator", strconv.FormatBool(true)), executorOptions[1])
-	assert.Equal(t, fmt.Sprintf(SparkExecutorLabelAnnotationTemplate, "submission-id", submissionID), executorOptions[2])
-	assert.Equal(t, fmt.Sprintf(SparkExecutorLabelTemplate, AppLabelKey, AppLabelValue), executorOptions[3])
-	assert.Equal(t, fmt.Sprintf(SparkExecutorLabelTemplate, ExecutorLabelKey, ExecutorLabelValue), executorOptions[4])
+	expectedExecutorLabels := []string{
+		fmt.Sprintf(SparkExecutorLabelAnnotationTemplate, "app-name", "spark-test"),
+		fmt.Sprintf(SparkExecutorLabelAnnotationTemplate, "launched-by-spark-operator", strconv.FormatBool(true)),
+		fmt.Sprintf(SparkExecutorLabelAnnotationTemplate, "submission-id", submissionID),
+		fmt.Sprintf(SparkExecutorLabelTemplate, AppLabelKey, AppLabelValue),
+		fmt.Sprintf(SparkExecutorLabelTemplate, ExecutorLabelKey, ExecutorLabelValue),
+	}
+	sort.Strings(expectedExecutorLabels)
+
+	if !reflect.DeepEqual(expectedExecutorLabels, executorOptions) {
+		t.Errorf("Executor labels: wanted %+q got %+q", expectedExecutorLabels, executorOptions)
+	}
 }
 
 func TestPopulateLabelsOverride_Driver_Executor(t *testing.T) {
@@ -455,11 +472,18 @@ func TestPopulateLabelsOverride_Driver_Executor(t *testing.T) {
 	}
 	sort.Strings(driverOptions)
 	assert.Equal(t, 5, len(driverOptions))
-	assert.Equal(t, fmt.Sprintf(SparkDriverLabelTemplate, AppLabelKey, DriverAppLabelOverride), driverOptions[0])
-	assert.Equal(t, fmt.Sprintf(SparkDriverLabelTemplate, DriverLabelKey, DriverLabelValue), driverOptions[1])
-	assert.Equal(t, fmt.Sprintf(SparkDriverLabelAnnotationTemplate, "app-name", "spark-test"), driverOptions[2])
-	assert.Equal(t, fmt.Sprintf(SparkDriverLabelAnnotationTemplate, "launched-by-spark-operator", strconv.FormatBool(true)), driverOptions[3])
-	assert.Equal(t, fmt.Sprintf(SparkDriverLabelAnnotationTemplate, "submission-id", submissionID), driverOptions[4])
+	expectedDriverLabels := []string{
+		fmt.Sprintf(SparkDriverLabelTemplate, AppLabelKey, DriverAppLabelOverride),
+		fmt.Sprintf(SparkDriverLabelTemplate, DriverLabelKey, DriverLabelValue),
+		fmt.Sprintf(SparkDriverLabelAnnotationTemplate, "app-name", "spark-test"),
+		fmt.Sprintf(SparkDriverLabelAnnotationTemplate, "launched-by-spark-operator", strconv.FormatBool(true)),
+		fmt.Sprintf(SparkDriverLabelAnnotationTemplate, "submission-id", submissionID),
+	}
+	sort.Strings(expectedDriverLabels)
+
+	if !reflect.DeepEqual(expectedDriverLabels, driverOptions) {
+		t.Errorf("Executor labels: wanted %+q got %+q", expectedDriverLabels, driverOptions)
+	}
 
 	executorOptions, err := addExecutorConfOptions(app, submissionID)
 	if err != nil {
@@ -467,9 +491,16 @@ func TestPopulateLabelsOverride_Driver_Executor(t *testing.T) {
 	}
 	sort.Strings(executorOptions)
 	assert.Equal(t, 5, len(executorOptions))
-	assert.Equal(t, fmt.Sprintf(SparkExecutorLabelTemplate, AppLabelKey, ExecutorAppLabelOverride), executorOptions[0])
-	assert.Equal(t, fmt.Sprintf(SparkExecutorLabelTemplate, ExecutorLabelKey, ExecutorLabelValue), executorOptions[1])
-	assert.Equal(t, fmt.Sprintf(SparkExecutorLabelAnnotationTemplate, "app-name", "spark-test"), executorOptions[2])
-	assert.Equal(t, fmt.Sprintf(SparkExecutorLabelAnnotationTemplate, "launched-by-spark-operator", strconv.FormatBool(true)), executorOptions[3])
-	assert.Equal(t, fmt.Sprintf(SparkExecutorLabelAnnotationTemplate, "submission-id", submissionID), executorOptions[4])
+	expectedExecutorLabels := []string{
+		fmt.Sprintf(SparkExecutorLabelTemplate, AppLabelKey, ExecutorAppLabelOverride),
+		fmt.Sprintf(SparkExecutorLabelTemplate, ExecutorLabelKey, ExecutorLabelValue),
+		fmt.Sprintf(SparkExecutorLabelAnnotationTemplate, "launched-by-spark-operator", strconv.FormatBool(true)),
+		fmt.Sprintf(SparkExecutorLabelAnnotationTemplate, "app-name", "spark-test"),
+		fmt.Sprintf(SparkExecutorLabelAnnotationTemplate, "submission-id", submissionID),
+	}
+	sort.Strings(expectedExecutorLabels)
+
+	if !reflect.DeepEqual(expectedExecutorLabels, executorOptions) {
+		t.Errorf("Executor labels: wanted %+q got %+q", expectedExecutorLabels, executorOptions)
+	}
 }
