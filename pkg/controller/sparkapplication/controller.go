@@ -86,8 +86,7 @@ func NewController(
 	crdInformerFactory crdinformers.SharedInformerFactory,
 	podInformerFactory informers.SharedInformerFactory,
 	metricsConfig *util.MetricConfig,
-	namespace string,
-	namespaceFilterConfig *util.NamespaceFilterConfig,
+	namespaceConfig *util.NamespaceConfig,
 	ingressURLFormat string,
 	batchSchedulerMgr *batchscheduler.SchedulerManager) *Controller {
 	crdscheme.AddToScheme(scheme.Scheme)
@@ -95,11 +94,11 @@ func NewController(
 	eventBroadcaster := record.NewBroadcaster()
 	eventBroadcaster.StartLogging(glog.V(2).Infof)
 	eventBroadcaster.StartRecordingToSink(&typedcorev1.EventSinkImpl{
-		Interface: kubeClient.CoreV1().Events(namespace),
+		Interface: kubeClient.CoreV1().Events(namespaceConfig.Namespace),
 	})
 	recorder := eventBroadcaster.NewRecorder(scheme.Scheme, apiv1.EventSource{Component: "spark-operator"})
 
-	return newSparkApplicationController(crdClient, kubeClient, crdInformerFactory, podInformerFactory, recorder, namespaceFilterConfig, metricsConfig, ingressURLFormat, batchSchedulerMgr)
+	return newSparkApplicationController(crdClient, kubeClient, crdInformerFactory, podInformerFactory, recorder, namespaceConfig, metricsConfig, ingressURLFormat, batchSchedulerMgr)
 }
 
 func newSparkApplicationController(
@@ -108,7 +107,7 @@ func newSparkApplicationController(
 	crdInformerFactory crdinformers.SharedInformerFactory,
 	podInformerFactory informers.SharedInformerFactory,
 	eventRecorder record.EventRecorder,
-	namespaceFilterConfig *util.NamespaceFilterConfig,
+	namespaceFilterConfig *util.NamespaceConfig,
 	metricsConfig *util.MetricConfig,
 	ingressURLFormat string,
 	batchSchedulerMgr *batchscheduler.SchedulerManager) *Controller {
@@ -136,8 +135,8 @@ func newSparkApplicationController(
 		UpdateFunc: controller.onUpdate,
 		DeleteFunc: controller.onDelete,
 	}
-	crdEventResourceHandlerFuncs := getEventResourceHandlerFuncs(crdEventHandlerFuncs, namespaceFilter)
-	crdInformer.Informer().AddEventHandler(crdEventResourceHandlerFuncs)
+	crdResourceEventHandlerFuncs := getResourceEventHandlerFuncs(crdEventHandlerFuncs, namespaceFilter)
+	crdInformer.Informer().AddEventHandler(crdResourceEventHandlerFuncs)
 	controller.applicationLister = crdInformer.Lister()
 
 	podsInformer := podInformerFactory.Core().V1().Pods()
@@ -147,8 +146,8 @@ func newSparkApplicationController(
 		UpdateFunc: sparkPodEventHandler.onPodUpdated,
 		DeleteFunc: sparkPodEventHandler.onPodDeleted,
 	}
-	sparkPodEventResourceHandlerFuncs := getEventResourceHandlerFuncs(sparkPodEventHandlerFuncs, namespaceFilter)
-	podsInformer.Informer().AddEventHandler(sparkPodEventResourceHandlerFuncs)
+	sparkPodResourceEventHandlerFuncs := getResourceEventHandlerFuncs(sparkPodEventHandlerFuncs, namespaceFilter)
+	podsInformer.Informer().AddEventHandler(sparkPodResourceEventHandlerFuncs)
 	controller.podLister = podsInformer.Lister()
 
 	controller.cacheSynced = func() bool {
@@ -158,18 +157,14 @@ func newSparkApplicationController(
 	return controller
 }
 
-func getEventResourceHandlerFuncs(handlerFuncs cache.ResourceEventHandlerFuncs, namespaceFilter *regexp.Regexp) cache.ResourceEventHandler {
-	var resourceEventHandlerFuncs cache.ResourceEventHandler
-
+func getResourceEventHandlerFuncs(handlerFuncs cache.ResourceEventHandlerFuncs, namespaceFilter *regexp.Regexp) cache.ResourceEventHandler {
 	if namespaceFilter == nil {
-		resourceEventHandlerFuncs = handlerFuncs
-	} else {
-		resourceEventHandlerFuncs = cache.FilteringResourceEventHandler{
-			FilterFunc: filterSparkAndPodEventsByNamespace(*namespaceFilter),
-			Handler:    handlerFuncs,
-		}
+		return handlerFuncs
 	}
-	return resourceEventHandlerFuncs
+	return cache.FilteringResourceEventHandler{
+		FilterFunc: filterSparkAndPodEventsByNamespace(*namespaceFilter),
+		Handler:    handlerFuncs,
+	}
 }
 
 func filterSparkAndPodEventsByNamespace(regex regexp.Regexp) func(obj interface{}) bool {

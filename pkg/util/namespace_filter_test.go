@@ -28,12 +28,12 @@ func TestGetNamespaceFilter(t *testing.T) {
 
 	tests := []struct {
 		name                  string
-		namespaceFilterConfig NamespaceFilterConfig
+		namespaceFilterConfig NamespaceConfig
 		want                  *regexp.Regexp
 	}{
 		{
 			name: "Should replace comma by pipe",
-			namespaceFilterConfig: NamespaceFilterConfig{
+			namespaceFilterConfig: NamespaceConfig{
 				Namespace:       apiv1.NamespaceAll,
 				NamespaceFilter: ".*-dev,.*-testing",
 			},
@@ -41,7 +41,7 @@ func TestGetNamespaceFilter(t *testing.T) {
 		},
 		{
 			name: "Should add zero-length word boundry sequence",
-			namespaceFilterConfig: NamespaceFilterConfig{
+			namespaceFilterConfig: NamespaceConfig{
 				Namespace:       apiv1.NamespaceAll,
 				NamespaceFilter: "dev-*",
 			},
@@ -49,7 +49,7 @@ func TestGetNamespaceFilter(t *testing.T) {
 		},
 		{
 			name: "Filter with multiple commas",
-			namespaceFilterConfig: NamespaceFilterConfig{
+			namespaceFilterConfig: NamespaceConfig{
 				Namespace:       apiv1.NamespaceAll,
 				NamespaceFilter: "^*-dev,,,^*-testing,",
 			},
@@ -57,7 +57,7 @@ func TestGetNamespaceFilter(t *testing.T) {
 		},
 		{
 			name: "Should use a wildcard as a regex",
-			namespaceFilterConfig: NamespaceFilterConfig{
+			namespaceFilterConfig: NamespaceConfig{
 				Namespace:       apiv1.NamespaceAll,
 				NamespaceFilter: "",
 			},
@@ -113,12 +113,12 @@ func TestIsNamespaceFilterEnabled(t *testing.T) {
 
 	tests := []struct {
 		name                string
-		namespaceFilterSpec NamespaceFilterConfig
+		namespaceFilterSpec NamespaceConfig
 		want                bool
 	}{
 		{
 			name: "namespace is sepcified should not apply filter",
-			namespaceFilterSpec: NamespaceFilterConfig{
+			namespaceFilterSpec: NamespaceConfig{
 				Namespace:       "test-prod",
 				NamespaceFilter: "\\*.-dev",
 			},
@@ -126,7 +126,7 @@ func TestIsNamespaceFilterEnabled(t *testing.T) {
 		},
 		{
 			name: "namespace is not sepcified and namespaceFilter is not empty: should apply the filter",
-			namespaceFilterSpec: NamespaceFilterConfig{
+			namespaceFilterSpec: NamespaceConfig{
 				Namespace:       apiv1.NamespaceAll,
 				NamespaceFilter: "\\*.-dev",
 			},
@@ -134,7 +134,7 @@ func TestIsNamespaceFilterEnabled(t *testing.T) {
 		},
 		{
 			name: "namespaceFilter is empty should not apply filter",
-			namespaceFilterSpec: NamespaceFilterConfig{
+			namespaceFilterSpec: NamespaceConfig{
 				Namespace:       apiv1.NamespaceAll,
 				NamespaceFilter: "",
 			},

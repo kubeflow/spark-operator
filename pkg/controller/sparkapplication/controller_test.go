@@ -1522,7 +1522,7 @@ func TestFilterSparkEventsByNamespace(t *testing.T) {
 	type testcase struct {
 		name                  string
 		app                   *v1beta2.SparkApplication
-		namespaceFilterConfig *util.NamespaceFilterConfig
+		namespaceFilterConfig *util.NamespaceConfig
 		expectedFilterReturn  bool
 	}
 
@@ -1553,7 +1553,7 @@ func TestFilterSparkEventsByNamespace(t *testing.T) {
 		{
 			name: "Filter with a wildcard does match",
 			app:  app1,
-			namespaceFilterConfig: &util.NamespaceFilterConfig{
+			namespaceFilterConfig: &util.NamespaceConfig{
 				Namespace:       apiv1.NamespaceAll,
 				NamespaceFilter: ".*-dev",
 			},
@@ -1562,7 +1562,7 @@ func TestFilterSparkEventsByNamespace(t *testing.T) {
 		{
 			name: "Filter does not match: Extra character",
 			app:  app1,
-			namespaceFilterConfig: &util.NamespaceFilterConfig{
+			namespaceFilterConfig: &util.NamespaceConfig{
 				Namespace:       apiv1.NamespaceAll,
 				NamespaceFilter: ".*-deva",
 			},
@@ -1571,7 +1571,7 @@ func TestFilterSparkEventsByNamespace(t *testing.T) {
 		{
 			name: "Filter with digits does match",
 			app:  app2,
-			namespaceFilterConfig: &util.NamespaceFilterConfig{
+			namespaceFilterConfig: &util.NamespaceConfig{
 				Namespace:       apiv1.NamespaceAll,
 				NamespaceFilter: "staging-[1-9].+",
 			},
@@ -1580,7 +1580,7 @@ func TestFilterSparkEventsByNamespace(t *testing.T) {
 		{
 			name: "Filter does not match: Only 3 digits are allowed",
 			app:  app2,
-			namespaceFilterConfig: &util.NamespaceFilterConfig{
+			namespaceFilterConfig: &util.NamespaceConfig{
 				Namespace:       apiv1.NamespaceAll,
 				NamespaceFilter: "staging-[1-9]{3}",
 			},

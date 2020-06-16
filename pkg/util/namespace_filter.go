@@ -23,12 +23,12 @@ import (
 	"strings"
 )
 
-type NamespaceFilterConfig struct {
+type NamespaceConfig struct {
 	Namespace       string
 	NamespaceFilter string
 }
 
-func isNamespaceFilterEnabled(namespaceFilterConfig *NamespaceFilterConfig) bool {
+func isNamespaceFilterEnabled(namespaceFilterConfig *NamespaceConfig) bool {
 	if namespaceFilterConfig == nil {
 		glog.Info("No filter on namespaces is applied")
 		return false
@@ -48,7 +48,7 @@ func isNamespaceFilterEnabled(namespaceFilterConfig *NamespaceFilterConfig) bool
 	return false
 }
 
-func GetNamespaceFilter(namespaceFilterConfig *NamespaceFilterConfig) *regexp.Regexp {
+func GetNamespaceFilter(namespaceFilterConfig *NamespaceConfig) *regexp.Regexp {
 	if isNamespaceFilterEnabled(namespaceFilterConfig) == false {
 		return nil
 	}
