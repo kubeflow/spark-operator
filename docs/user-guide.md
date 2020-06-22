@@ -44,6 +44,7 @@ The Kubernetes Operator for Apache Spark ships with a command-line tool called `
 * [Running Spark Applications on a Schedule using a ScheduledSparkApplication](#running-spark-applications-on-a-schedule-using-a-scheduledsparkapplication)
 * [Enabling Leader Election for High Availability](#enabling-leader-election-for-high-availability)
 * [Enabling Resource Quota Enforcement](#enabling-resource-quota-enforcement)
+* [Running Multiple Instances Of The Operator Within The Same K8s Cluster](#running-multiple-instances-of-the-operator-within-the-same-k8s-cluster)
 * [Customizing the Operator](#customizing-the-operator)
 
 ## Using a SparkApplication
@@ -751,6 +752,31 @@ The operator supports a high-availability (HA) mode, in which there can be more 
 The Spark Operator provides limited support for resource quota enforcement using a validating webhook. It will count the resources of non-terminal-phase SparkApplications and Pods, and determine whether a requested SparkApplication will fit given the remaining resources. ResourceQuota scope selectors are not supported, any ResourceQuota object that does not match the entire namespace will be ignored. Like the native Pod quota enforcement, current usage is updated asynchronously, so some overscheduling is possible.
 
 If you are running Spark applications in namespaces that are subject to resource quota constraints, consider enabling this feature to avoid driver resource starvation. Quota enforcement can be enabled with the command line arguments `-enable-resource-quota-enforcement=true`. It is recommended to also set `-webhook-fail-on-error=true`.
+
+## Running Multiple Instances Of The Operator Within The Same K8s Cluster
+
+If you need to run multiple instances of the operator within the same k8s cluster. Therefore, you need to make sure that the running instances should not compete for the same custom resources or pods. You can achieve this:
+
+Either:
+* By specifying a different `namespace` flag for each instance of the operator.
+
+Or if you want your operator to watch specific resources that may exist in different namespaces:
+
+* You need to add custom labels on resources by defining for each instance of the operator a different set of labels in `-label-selector-filter (e.g. env=dev,app-type=spark)`.
+* Run different `webhook` instances by specifying different `-webhook-config-name` flag for each deployment of the operator.
+* Specify different `webhook-svc-name` and/or `webhook-svc-namespace` for each instance of the operator. 
+* Edit the job that generates the certificates `webhook-init` by specifying the namespace and the service name of each instance of the operator, `e.g. command: ["/usr/bin/gencerts.sh", "-n", "ns-op1", "-s", "spark-op1-webhook", "-p"]`. Where `spark-op1-webhook` should match what you have specified in `webhook-svc-name`. For instance, if you use the following [helm chart](https://github.com/helm/charts/tree/master/incubator/sparkoperator) to deploy the operator you may specify for each instance of the operator a different `--namespace` and `--name-template` arguments to make sure you generate a different certificate for each instance, e.g:
+```
+helm install spark-op1 incubator/sparkoperator --namespace ns-op1
+helm install spark-op2 incubator/sparkoperator --namespace ns-op2
+```
+Will run 2 `webhook-init` jobs. Each job executes respectively the command:
+```
+command: ["/usr/bin/gencerts.sh", "-n", "ns-op1", "-s", "spark-op1-webhook", "-p"`]
+command: ["/usr/bin/gencerts.sh", "-n", "ns-op2", "-s", "spark-op2-webhook", "-p"`]
+```
+
+* Although resources are already filtered with respect to the specified labels on resources. You may also specify different labels in `-webhook-namespace-selector` and attach these labels to the namepsaces on which you want the webhook to listen to.
 
 ## Customizing the Operator
 
