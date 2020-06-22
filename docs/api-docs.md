@@ -936,6 +936,32 @@ Kubernetes core/v1.Lifecycle
 <p>Lifecycle for running preStop or postStart commands</p>
 </td>
 </tr>
+<tr>
+<td>
+<code>kubernetesMaster</code></br>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>KubernetesMaster is the URL of the Kubernetes master used by the driver to manage executor pods and
+other Kubernetes resources. Default to <a href="https://kubernetes.default.svc">https://kubernetes.default.svc</a>.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>serviceAnnotations</code></br>
+<em>
+map[string]string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>ServiceAnnotations defines the annoations to be added to the Kubernetes headless service used by
+executors to connect to the driver.</p>
+</td>
+</tr>
 </tbody>
 </table>
 <h3 id="sparkoperator.k8s.io/v1beta2.DriverState">DriverState
@@ -1138,8 +1164,8 @@ string
 </td>
 <td>
 <em>(Optional)</em>
-<p>MetricsPropertiesFile is the container local path of file metrics.properties for configuring the Spark metric system.
-If not specified, value /etc/metrics/conf/metrics.properties will be used.</p>
+<p>MetricsPropertiesFile is the container local path of file metrics.properties for configuring
+the Spark metric system. If not specified, value /etc/metrics/conf/metrics.properties will be used.</p>
 </td>
 </tr>
 <tr>
@@ -2610,5 +2636,5 @@ map[string]string
 <hr/>
 <p><em>
 Generated with <code>gen-crd-api-reference-docs</code>
-on git commit <code>43fb5e7</code>.
+on git commit <code>f313873</code>.
 </em></p>

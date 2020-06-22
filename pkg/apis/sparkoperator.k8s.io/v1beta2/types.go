@@ -506,6 +506,14 @@ type DriverSpec struct {
 	// Lifecycle for running preStop or postStart commands
 	// +optional
 	Lifecycle *apiv1.Lifecycle `json:"lifecycle,omitempty"`
+	// KubernetesMaster is the URL of the Kubernetes master used by the driver to manage executor pods and
+	// other Kubernetes resources. Default to https://kubernetes.default.svc.
+	// +optional
+	KubernetesMaster *string `json:"kubernetesMaster,omitempty"`
+	// ServiceAnnotations defines the annoations to be added to the Kubernetes headless service used by
+	// executors to connect to the driver.
+	// +optional
+	ServiceAnnotations map[string]string `json:"serviceAnnotations,omitempty"`
 }
 
 // ExecutorSpec is specification of the executor.
@@ -585,9 +593,9 @@ type MonitoringSpec struct {
 	// +optional
 	// If not specified, the content in spark-docker/conf/metrics.properties will be used.
 	MetricsProperties *string `json:"metricsProperties,omitempty"`
-	// MetricsPropertiesFile is the container local path of file metrics.properties for configuring the Spark metric system.
+	// MetricsPropertiesFile is the container local path of file metrics.properties for configuring
+	//the Spark metric system. If not specified, value /etc/metrics/conf/metrics.properties will be used.
 	// +optional
-	// If not specified, value /etc/metrics/conf/metrics.properties will be used.
 	MetricsPropertiesFile *string `json:"metricsPropertiesFile,omitempty"`
 	// Prometheus is for configuring the Prometheus JMX exporter.
 	// +optional

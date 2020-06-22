@@ -267,6 +267,16 @@ func addDriverConfOptions(app *v1beta2.SparkApplication, submissionID string) ([
 			fmt.Sprintf("%s=%s", config.SparkDriverServiceAccountName, *app.Spec.Driver.ServiceAccount))
 	}
 
+	if app.Spec.Driver.JavaOptions != nil {
+		driverConfOptions = append(driverConfOptions,
+			fmt.Sprintf("%s=%s", config.SparkDriverJavaOptions, *app.Spec.Driver.JavaOptions))
+	}
+
+	if app.Spec.Driver.KubernetesMaster != nil {
+		driverConfOptions = append(driverConfOptions,
+			fmt.Sprintf("%s=%s", config.SparkDriverKubernetesMaster, *app.Spec.Driver.KubernetesMaster))
+	}
+
 	//Populate SparkApplication Labels to Driver
 	driverLabels := make(map[string]string)
 	for key, value := range app.Labels {
@@ -291,9 +301,9 @@ func addDriverConfOptions(app *v1beta2.SparkApplication, submissionID string) ([
 			fmt.Sprintf("%s%s=%s:%s", config.SparkDriverSecretKeyRefKeyPrefix, key, value.Name, value.Key))
 	}
 
-	if app.Spec.Driver.JavaOptions != nil {
+	for key, value := range app.Spec.Driver.ServiceAnnotations {
 		driverConfOptions = append(driverConfOptions,
-			fmt.Sprintf("%s=%s", config.SparkDriverJavaOptions, *app.Spec.Driver.JavaOptions))
+			fmt.Sprintf("%s%s=%s", config.SparkDriverServiceAnnotationKeyPrefix, key, value))
 	}
 
 	driverConfOptions = append(driverConfOptions, config.GetDriverSecretConfOptions(app)...)

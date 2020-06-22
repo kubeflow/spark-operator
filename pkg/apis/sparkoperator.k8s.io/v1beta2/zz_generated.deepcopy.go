@@ -131,11 +131,6 @@ func (in *DriverSpec) DeepCopyInto(out *DriverSpec) {
 		*out = new(string)
 		**out = **in
 	}
-	if in.ServiceAccount != nil {
-		in, out := &in.ServiceAccount, &out.ServiceAccount
-		*out = new(string)
-		**out = **in
-	}
 	if in.JavaOptions != nil {
 		in, out := &in.JavaOptions, &out.JavaOptions
 		*out = new(string)
@@ -145,6 +140,18 @@ func (in *DriverSpec) DeepCopyInto(out *DriverSpec) {
 		in, out := &in.Lifecycle, &out.Lifecycle
 		*out = new(v1.Lifecycle)
 		(*in).DeepCopyInto(*out)
+	}
+	if in.KubernetesMaster != nil {
+		in, out := &in.KubernetesMaster, &out.KubernetesMaster
+		*out = new(string)
+		**out = **in
+	}
+	if in.ServiceAnnotations != nil {
+		in, out := &in.ServiceAnnotations, &out.ServiceAnnotations
+		*out = make(map[string]string, len(*in))
+		for key, val := range *in {
+			(*out)[key] = val
+		}
 	}
 	return
 }
@@ -848,6 +855,11 @@ func (in *SparkPodSpec) DeepCopyInto(out *SparkPodSpec) {
 	if in.TerminationGracePeriodSeconds != nil {
 		in, out := &in.TerminationGracePeriodSeconds, &out.TerminationGracePeriodSeconds
 		*out = new(int64)
+		**out = **in
+	}
+	if in.ServiceAccount != nil {
+		in, out := &in.ServiceAccount, &out.ServiceAccount
+		*out = new(string)
 		**out = **in
 	}
 	return

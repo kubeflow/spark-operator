@@ -143,6 +143,11 @@ const (
 	SparkExecutorJavaOptions = "spark.executor.extraJavaOptions"
 	// SparkExecutorDeleteOnTermination is the Spark configuration for specifying whether executor pods should be deleted in case of failure or normal termination
 	SparkExecutorDeleteOnTermination = "spark.kubernetes.executor.deleteOnTermination"
+	// SparkDriverKubernetesMaster is the Spark configuration key for specifying the Kubernetes master the driver use
+	// to manage executor pods and other Kubernetes resources.
+	SparkDriverKubernetesMaster = "spark.kubernetes.driver.master"
+	// SparkDriverServiceAnnotationKeyPrefix is the key prefix of annotations to be added to the driver service.
+	SparkDriverServiceAnnotationKeyPrefix = "spark.kubernetes.driver.service.annotation."
 )
 
 const (

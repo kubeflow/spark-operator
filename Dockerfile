@@ -14,7 +14,7 @@
 # limitations under the License.
 #
 
-ARG SPARK_IMAGE=gcr.io/spark-operator/spark:v2.4.5
+ARG SPARK_IMAGE=gcr.io/spark-operator/spark:v3.0.0
 
 FROM golang:1.14.1-alpine as builder
 
@@ -35,6 +35,7 @@ COPY pkg/ pkg/
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 GO111MODULE=on go build -a -o /usr/bin/spark-operator main.go
 
 FROM ${SPARK_IMAGE}
+USER root
 COPY --from=builder /usr/bin/spark-operator /usr/bin/
 RUN apt-get update \
     && apt-get install -y openssl curl tini \
