@@ -11,7 +11,15 @@ With the integration with Volcano, Spark application pods can be scheduled for b
 Before using Kubernetes Operator for Apache Spark, with Volcano enabled, user need to ensure Volcano has been successfully installed in the
 same environment, please refer [Quick Start Guide](https://github.com/volcano-sh/volcano#quick-start-guide) for Volcano installation.
 
-## Install Kubernetes Operator for Apache Spark with Volcano enabled
+## Install Kubernetes Operator for Apache Spark with Volcano enabled using yaml file
+
+We will be able to install Kubernetes Operator for Apache Spark with Volcano enabled using `spark-operator-with-volcano.yaml`. Also make sure to run `spark-operator-rbac-with-volcano.yaml` before deploying the spark operator. The command for installing Kubernetes Operator for Apache Spark is given below:
+```bash
+$ kubectl create -f ./manifest/spark-operator-rbac-with-volcano.yaml -n spark-operator
+$ kubectl create -f ./manifest/spark-operator-with-volcano.yaml -n spark-operator
+```
+
+## Install Kubernetes Operator for Apache Spark with Volcano enabled using Helm Charts
 
 Within the help of Helm chart, Kubernetes Operator for Apache Spark with Volcano can be easily installed with the command below:
 ```bash
