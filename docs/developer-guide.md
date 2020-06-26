@@ -35,7 +35,7 @@ $ cd spark-on-k8s-operator
 To update the auto-generated code, run the following command. (This step is only required if the CRD types have been changed):
 
 ```bash
-$ hack/update-gencode.sh
+$ hack/update-codegen.sh
 ```
 
 To update the auto-generated CRD definitions, run the following command:

@@ -1016,6 +1016,8 @@ spec:
                   type: array
                 javaOptions:
                   type: string
+                kubernetesMaster:
+                  type: string
                 labels:
                   additionalProperties:
                     type: string
@@ -1204,6 +1206,10 @@ spec:
                   type: object
                 serviceAccount:
                   type: string
+                serviceAnnotations:
+                  additionalProperties:
+                    type: string
+                  type: object
                 sidecars:
                   items:
                     properties:
