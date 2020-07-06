@@ -75,7 +75,12 @@ func (v *VolcanoBatchScheduler) DoBatchSchedulingOnSubmission(app *v1beta2.Spark
 func (v *VolcanoBatchScheduler) syncPodGroupInClientMode(app *v1beta2.SparkApplication) error {
 	// We only care about the executor pods in client mode
 	if _, ok := app.Spec.Executor.Annotations[v1beta1.KubeGroupNameAnnotationKey]; !ok {
-		if err := v.syncPodGroup(app, 1, getExecutorRequestResource(app)); err == nil {
+		totalResource := getExecutorRequestResource(app)
+		customRequestResource := app.Spec.BatchSchedulerOptions.CustomRequestResource
+		if len(customRequestResource) > 0 {
+			totalResource = customRequestResource
+		}
+		if err := v.syncPodGroup(app, 1, totalResource); err == nil {
 			app.Spec.Executor.Annotations[v1beta1.KubeGroupNameAnnotationKey] = v.getAppPodGroupName(app)
 		} else {
 			return err
@@ -90,6 +95,10 @@ func (v *VolcanoBatchScheduler) syncPodGroupInClusterMode(app *v1beta2.SparkAppl
 	if _, ok := app.Spec.Driver.Annotations[v1beta1.KubeGroupNameAnnotationKey]; !ok {
 		//Both driver and executor resource will be considered.
 		totalResource := sumResourceList([]corev1.ResourceList{getExecutorRequestResource(app), getDriverRequestResource(app)})
+		customRequestResource := app.Spec.BatchSchedulerOptions.CustomRequestResource
+		if len(customRequestResource) > 0 {
+			totalResource = customRequestResource
+		}
 		if err := v.syncPodGroup(app, 1, totalResource); err == nil {
 			app.Spec.Executor.Annotations[v1beta1.KubeGroupNameAnnotationKey] = v.getAppPodGroupName(app)
 			app.Spec.Driver.Annotations[v1beta1.KubeGroupNameAnnotationKey] = v.getAppPodGroupName(app)
