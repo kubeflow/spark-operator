@@ -75,10 +75,12 @@ func (v *VolcanoBatchScheduler) DoBatchSchedulingOnSubmission(app *v1beta2.Spark
 func (v *VolcanoBatchScheduler) syncPodGroupInClientMode(app *v1beta2.SparkApplication) error {
 	// We only care about the executor pods in client mode
 	if _, ok := app.Spec.Executor.Annotations[v1beta1.KubeGroupNameAnnotationKey]; !ok {
-		totalResource := getExecutorRequestResource(app)
+		var totalResource corev1.ResourceList
 		customRequestResource := app.Spec.BatchSchedulerOptions.CustomRequestResource
 		if len(customRequestResource) > 0 {
 			totalResource = customRequestResource
+		} else {
+			totalResource = getExecutorRequestResource(app)
 		}
 		if err := v.syncPodGroup(app, 1, totalResource); err == nil {
 			app.Spec.Executor.Annotations[v1beta1.KubeGroupNameAnnotationKey] = v.getAppPodGroupName(app)
