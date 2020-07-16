@@ -140,11 +140,6 @@ func buildSubmissionCommandArgs(app *v1beta2.SparkApplication, driverPodName str
 		args = append(args, "--conf", fmt.Sprintf("spark.hadoop.%s=%s", key, value))
 	}
 
-	for key, value := range app.Spec.NodeSelector {
-		conf := fmt.Sprintf("%s%s=%s", config.SparkNodeSelectorKeyPrefix, key, value)
-		args = append(args, "--conf", conf)
-	}
-
 	// Add the driver and executor configuration options.
 	// Note that when the controller submits the application, it expects that all dependencies are local
 	// so init-container is not needed and therefore no init-container image needs to be specified.
@@ -161,6 +156,16 @@ func buildSubmissionCommandArgs(app *v1beta2.SparkApplication, driverPodName str
 	}
 	for _, option := range options {
 		args = append(args, "--conf", option)
+	}
+
+	options = addDynamicAllocationConfOptions(app)
+	for _, option := range options {
+		args = append(args, "--conf", option)
+	}
+
+	for key, value := range app.Spec.NodeSelector {
+		conf := fmt.Sprintf("%s%s=%s", config.SparkNodeSelectorKeyPrefix, key, value)
+		args = append(args, "--conf", conf)
 	}
 
 	if app.Spec.Volumes != nil {
@@ -391,6 +396,36 @@ func addExecutorConfOptions(app *v1beta2.SparkApplication, submissionID string) 
 	executorConfOptions = append(executorConfOptions, config.GetExecutorEnvVarConfOptions(app)...)
 
 	return executorConfOptions, nil
+}
+
+func addDynamicAllocationConfOptions(app *v1beta2.SparkApplication) []string {
+	if app.Spec.DynamicAllocation == nil {
+		return nil
+	}
+
+	dynamicAllocation := app.Spec.DynamicAllocation
+	if !dynamicAllocation.Enabled {
+		return nil
+	}
+
+	var options []string
+	options = append(options, fmt.Sprintf("%s=true", config.SparkDynamicAllocationEnabled))
+	// Turn on shuffle tracking if dynamic allocation is enabled.
+	options = append(options, fmt.Sprintf("%s=true", config.SparkDynamicAllocationShuffleTrackingEnabled))
+	if dynamicAllocation.InitialExecutors != nil {
+		options = append(options, fmt.Sprintf("%s=%d", config.SparkDynamicAllocationInitialExecutors, *dynamicAllocation.InitialExecutors))
+	}
+	if dynamicAllocation.MinExecutors != nil {
+		options = append(options, fmt.Sprintf("%s=%d", config.SparkDynamicAllocationMinExecutors, *dynamicAllocation.MinExecutors))
+	}
+	if dynamicAllocation.MaxExecutors != nil {
+		options = append(options, fmt.Sprintf("%s=%d", config.SparkDynamicAllocationMaxExecutors, *dynamicAllocation.MaxExecutors))
+	}
+	if dynamicAllocation.ShuffleTrackingTimeout != nil {
+		options = append(options, fmt.Sprintf("%s=%d", config.SparkDynamicAllocationShuffleTrackingTimeout, *dynamicAllocation.ShuffleTrackingTimeout))
+	}
+
+	return options
 }
 
 // addLocalDirConfOptions excludes local dir volumes, update SparkApplication and returns local dir config options
