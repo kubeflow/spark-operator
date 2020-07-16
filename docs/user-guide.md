@@ -34,6 +34,7 @@ The Kubernetes Operator for Apache Spark ships with a command-line tool called `
     * [Using Container LifeCycle Hooks](#using-container-lifecycle-hooks)
     * [Python Support](#python-support)
     * [Monitoring](#monitoring)
+    * [Dynamic Allocation](#dynamic-allocation)
 * [Working with SparkApplications](#working-with-sparkapplications)
     * [Creating a New SparkApplication](#creating-a-new-sparkapplication)
     * [Deleting a SparkApplication](#deleting-a-sparkapplication)
@@ -637,6 +638,21 @@ spec:
 ```
 
 The operator automatically adds the annotations such as `prometheus.io/scrape=true` on the driver and/or executor pods (depending on the values of  `.spec.monitoring.exposeDriverMetrics` and `.spec.monitoring.exposeExecutorMetrics`) so the metrics exposed on the pods can be scraped by the Prometheus server in the same cluster.
+
+### Dynamic Allocation
+
+The operator supports a limited form of [Spark Dynamic Resource Allocation](http://spark.apache.org/docs/latest/job-scheduling.html#dynamic-resource-allocation) through the shuffle tracking enhancement introduced in Spark 3.0.0 *without needing an external shuffle service* (not available in the Kubernetes mode). See this [issue](https://issues.apache.org/jira/browse/SPARK-27963) for detais on the enhancement. To enable this limited form of dynamic allocation, follow the example below:
+
+```yaml
+spec:
+  dynamicAllocation:
+    enabled: true
+    initialExecutors: 2
+    minExecutors: 2
+    maxExecutors: 10
+```
+
+Note that if dynamic allocation is enabled, the number of executors to request initially is set to the bigger of `.spec.dynamicAllocation.initialExecutors` and `.spec.executor.instances` if both are set.
 
 ## Working with SparkApplications
 

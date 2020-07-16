@@ -586,6 +586,21 @@ SparkUIConfiguration
 <p>SparkUIOptions allows configuring the Service and the Ingress to expose the sparkUI</p>
 </td>
 </tr>
+<tr>
+<td>
+<code>dynamicAllocation</code></br>
+<em>
+<a href="#sparkoperator.k8s.io/v1beta2.DynamicAllocation">
+DynamicAllocation
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>DynamicAllocation configures dynamic allocation that becomes available for the Kubernetes
+scheduleer backend since Spark 3.0.</p>
+</td>
+</tr>
 </table>
 </td>
 </tr>
@@ -969,6 +984,86 @@ executors to connect to the driver.</p>
 <p>
 <p>DriverState tells the current state of a spark driver.</p>
 </p>
+<h3 id="sparkoperator.k8s.io/v1beta2.DynamicAllocation">DynamicAllocation
+</h3>
+<p>
+(<em>Appears on:</em>
+<a href="#sparkoperator.k8s.io/v1beta2.SparkApplicationSpec">SparkApplicationSpec</a>)
+</p>
+<p>
+<p>DynamicAllocation contains configuration options for dynamic allocation.</p>
+</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>enabled</code></br>
+<em>
+bool
+</em>
+</td>
+<td>
+<p>Enabled controls whether dynamic allocation is enabled or not.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>initialExecutors</code></br>
+<em>
+int32
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>InitialExecutors is the initial number of executors to request. If .spec.executor.instances
+is also set, the initial number of executors is set to the bigger of that and this option.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>minExecutors</code></br>
+<em>
+int32
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>MinExecutors is the lower bound for the number of executors if dynamic allocation is enabled.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>maxExecutors</code></br>
+<em>
+int32
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>MaxExecutors is the upper bound for the number of executors if dynamic allocation is enabled.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>shuffleTrackingTimeout</code></br>
+<em>
+int64
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>ShuffleTrackingTimeout controls the timeout in milliseconds for executors that are holding
+shuffle data if shuffle tracking is enabled (true by default if dynamic allocation is enabled).</p>
+</td>
+</tr>
+</tbody>
+</table>
 <h3 id="sparkoperator.k8s.io/v1beta2.ExecutorSpec">ExecutorSpec
 </h3>
 <p>
@@ -2072,6 +2167,21 @@ SparkUIConfiguration
 <p>SparkUIOptions allows configuring the Service and the Ingress to expose the sparkUI</p>
 </td>
 </tr>
+<tr>
+<td>
+<code>dynamicAllocation</code></br>
+<em>
+<a href="#sparkoperator.k8s.io/v1beta2.DynamicAllocation">
+DynamicAllocation
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>DynamicAllocation configures dynamic allocation that becomes available for the Kubernetes
+scheduleer backend since Spark 3.0.</p>
+</td>
+</tr>
 </tbody>
 </table>
 <h3 id="sparkoperator.k8s.io/v1beta2.SparkApplicationStatus">SparkApplicationStatus
@@ -2582,7 +2692,7 @@ string
 <a href="#sparkoperator.k8s.io/v1beta2.SparkApplicationSpec">SparkApplicationSpec</a>)
 </p>
 <p>
-<p>Specific SparkUI config parameters</p>
+<p>SparkUIConfiguration is for driver UI specific configuration parameters.</p>
 </p>
 <table>
 <thead>
@@ -2636,5 +2746,5 @@ map[string]string
 <hr/>
 <p><em>
 Generated with <code>gen-crd-api-reference-docs</code>
-on git commit <code>f313873</code>.
+on git commit <code>555c27a</code>.
 </em></p>

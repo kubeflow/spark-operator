@@ -18,11 +18,12 @@ package sparkapplication
 
 import (
 	"fmt"
-	"github.com/google/uuid"
 	"reflect"
 	"sort"
 	"strconv"
 	"testing"
+
+	"github.com/google/uuid"
 
 	"github.com/stretchr/testify/assert"
 
@@ -30,6 +31,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta2"
+	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/config"
 )
 
 const (
@@ -503,4 +505,41 @@ func TestPopulateLabelsOverride_Driver_Executor(t *testing.T) {
 	if !reflect.DeepEqual(expectedExecutorLabels, executorOptions) {
 		t.Errorf("Executor labels: wanted %+q got %+q", expectedExecutorLabels, executorOptions)
 	}
+}
+
+func TestDynamicAllocationOptions(t *testing.T) {
+	app := &v1beta2.SparkApplication{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "spark-test",
+			UID:  "spark-test-1",
+		},
+		Spec: v1beta2.SparkApplicationSpec{},
+	}
+	options := addDynamicAllocationConfOptions(app)
+	assert.Equal(t, 0, len(options))
+
+	app = &v1beta2.SparkApplication{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "spark-test",
+			UID:  "spark-test-1",
+		},
+		Spec: v1beta2.SparkApplicationSpec{
+			DynamicAllocation: &v1beta2.DynamicAllocation{
+				Enabled:                true,
+				InitialExecutors:       int32ptr(2),
+				MinExecutors:           int32ptr(0),
+				MaxExecutors:           int32ptr(10),
+				ShuffleTrackingTimeout: int64ptr(6000000),
+			},
+		},
+	}
+
+	options = addDynamicAllocationConfOptions(app)
+	assert.Equal(t, 6, len(options))
+	assert.Equal(t, fmt.Sprintf("%s=true", config.SparkDynamicAllocationEnabled), options[0])
+	assert.Equal(t, fmt.Sprintf("%s=true", config.SparkDynamicAllocationShuffleTrackingEnabled), options[1])
+	assert.Equal(t, fmt.Sprintf("%s=2", config.SparkDynamicAllocationInitialExecutors), options[2])
+	assert.Equal(t, fmt.Sprintf("%s=0", config.SparkDynamicAllocationMinExecutors), options[3])
+	assert.Equal(t, fmt.Sprintf("%s=10", config.SparkDynamicAllocationMaxExecutors), options[4])
+	assert.Equal(t, fmt.Sprintf("%s=6000000", config.SparkDynamicAllocationShuffleTrackingTimeout), options[5])
 }

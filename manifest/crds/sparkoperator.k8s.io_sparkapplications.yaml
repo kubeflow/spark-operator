@@ -1786,6 +1786,23 @@ spec:
                     type: object
                   type: array
               type: object
+            dynamicAllocation:
+              properties:
+                enabled:
+                  type: boolean
+                initialExecutors:
+                  format: int32
+                  type: integer
+                maxExecutors:
+                  format: int32
+                  type: integer
+                minExecutors:
+                  format: int32
+                  type: integer
+                shuffleTrackingTimeout:
+                  format: int64
+                  type: integer
+              type: object
             executor:
               properties:
                 affinity:

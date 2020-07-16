@@ -276,6 +276,10 @@ type SparkApplicationSpec struct {
 	// SparkUIOptions allows configuring the Service and the Ingress to expose the sparkUI
 	// +optional
 	SparkUIOptions *SparkUIConfiguration `json:"sparkUIOptions,omitempty"`
+	// DynamicAllocation configures dynamic allocation that becomes available for the Kubernetes
+	// scheduleer backend since Spark 3.0.
+	// +optional
+	DynamicAllocation *DynamicAllocation `json:"dynamicAllocation,omitempty"`
 }
 
 // BatchSchedulerConfiguration used to configure how to batch scheduling Spark Application
@@ -288,7 +292,7 @@ type BatchSchedulerConfiguration struct {
 	PriorityClassName *string `json:"priorityClassName,omitempty"`
 }
 
-// Specific SparkUI config parameters
+// SparkUIConfiguration is for driver UI specific configuration parameters.
 type SparkUIConfiguration struct {
 	// ServicePort allows configuring the port at service level that might be different from the targetPort.
 	// TargetPort should be the same as the one defined in spark.ui.port
@@ -629,6 +633,26 @@ type GPUSpec struct {
 	Name string `json:"name"`
 	// Quantity is the number of GPUs to request for driver or executor.
 	Quantity int64 `json:"quantity"`
+}
+
+// DynamicAllocation contains configuration options for dynamic allocation.
+type DynamicAllocation struct {
+	// Enabled controls whether dynamic allocation is enabled or not.
+	Enabled bool `json:"enabled,omitempty"`
+	// InitialExecutors is the initial number of executors to request. If .spec.executor.instances
+	// is also set, the initial number of executors is set to the bigger of that and this option.
+	// +optional
+	InitialExecutors *int32 `json:"initialExecutors,omitempty"`
+	// MinExecutors is the lower bound for the number of executors if dynamic allocation is enabled.
+	// +optional
+	MinExecutors *int32 `json:"minExecutors,omitempty"`
+	// MaxExecutors is the upper bound for the number of executors if dynamic allocation is enabled.
+	// +optional
+	MaxExecutors *int32 `json:"maxExecutors,omitempty"`
+	// ShuffleTrackingTimeout controls the timeout in milliseconds for executors that are holding
+	// shuffle data if shuffle tracking is enabled (true by default if dynamic allocation is enabled).
+	// +optional
+	ShuffleTrackingTimeout *int64 `json:"shuffleTrackingTimeout,omitempty"`
 }
 
 // PrometheusMonitoringEnabled returns if Prometheus monitoring is enabled or not.

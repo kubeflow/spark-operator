@@ -148,6 +148,24 @@ const (
 	SparkDriverKubernetesMaster = "spark.kubernetes.driver.master"
 	// SparkDriverServiceAnnotationKeyPrefix is the key prefix of annotations to be added to the driver service.
 	SparkDriverServiceAnnotationKeyPrefix = "spark.kubernetes.driver.service.annotation."
+	// SparkDynamicAllocationEnabled is the Spark configuration key for specifying if dynamic
+	// allocation is enabled or not.
+	SparkDynamicAllocationEnabled = "spark.dynamicAllocation.enabled"
+	// SparkDynamicAllocationShuffleTrackingEnabled is the Spark configuration key for
+	// specifying if shuffle data tracking is enabled.
+	SparkDynamicAllocationShuffleTrackingEnabled = "spark.dynamicAllocation.shuffleTracking.enabled"
+	// SparkDynamicAllocationShuffleTrackingTimeout is the Spark configuration key for specifying
+	// the shuffle tracking timeout in milliseconds if shuffle tracking is enabled.
+	SparkDynamicAllocationShuffleTrackingTimeout = "spark.dynamicAllocation.shuffleTracking.timeout"
+	// SparkDynamicAllocationInitialExecutors is the Spark configuration key for specifying
+	// the initial number of executors to request if dynamic allocation is enabled.
+	SparkDynamicAllocationInitialExecutors = "spark.dynamicAllocation.initialExecutors"
+	// SparkDynamicAllocationMinExecutors is the Spark configuration key for specifying the
+	// lower bound of the number of executors to request if dynamic allocation is enabled.
+	SparkDynamicAllocationMinExecutors = "spark.dynamicAllocation.minExecutors"
+	// SparkDynamicAllocationMaxExecutors is the Spark configuration key for specifying the
+	// upper bound of the number of executors to request if dynamic allocation is enabled.
+	SparkDynamicAllocationMaxExecutors = "spark.dynamicAllocation.maxExecutors"
 )
 
 const (
