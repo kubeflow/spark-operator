@@ -31,11 +31,11 @@ metadata:
 spec:
   type: Scala
   mode: cluster
-  image: "gcr.io/spark-operator/spark:v2.4.5"
+  image: "gcr.io/spark-operator/spark:v3.0.0"
   imagePullPolicy: Always
   mainClass: org.apache.spark.examples.SparkPi
-  mainApplicationFile: "local:///opt/spark/examples/jars/spark-examples_2.11-2.4.5.jar"
-  sparkVersion: "2.4.5"
+  mainApplicationFile: "local:///opt/spark/examples/jars/spark-examples_2.12-3.0.0.jar"
+  sparkVersion: "3.0.0"
   batchScheduler: "volcano"   #Note: the batch scheduler name must be specified with `volcano`
   restartPolicy:
     type: Never
@@ -49,7 +49,7 @@ spec:
     coreLimit: "1200m"
     memory: "512m"        
     labels:
-      version: 2.4.5
+      version: 3.0.0
     serviceAccount: spark
     volumeMounts:
       - name: "test-volume"
@@ -59,7 +59,7 @@ spec:
     instances: 1
     memory: "512m"    
     labels:
-      version: 2.4.5
+      version: 3.0.0
     volumeMounts:
       - name: "test-volume"
         mountPath: "/tmp"
