@@ -76,9 +76,9 @@ func (v *VolcanoBatchScheduler) syncPodGroupInClientMode(app *v1beta2.SparkAppli
 	// We only care about the executor pods in client mode
 	if _, ok := app.Spec.Executor.Annotations[v1beta1.KubeGroupNameAnnotationKey]; !ok {
 		var totalResource corev1.ResourceList
-		customRequestResource := app.Spec.BatchSchedulerOptions.CustomRequestResource
-		if len(customRequestResource) > 0 {
-			totalResource = customRequestResource
+		minResource := app.Spec.BatchSchedulerOptions.MinResource
+		if len(minResource) > 0 {
+			totalResource = minResource
 		} else {
 			totalResource = getExecutorRequestResource(app)
 		}
@@ -97,9 +97,9 @@ func (v *VolcanoBatchScheduler) syncPodGroupInClusterMode(app *v1beta2.SparkAppl
 	if _, ok := app.Spec.Driver.Annotations[v1beta1.KubeGroupNameAnnotationKey]; !ok {
 		//Both driver and executor resource will be considered.
 		totalResource := sumResourceList([]corev1.ResourceList{getExecutorRequestResource(app), getDriverRequestResource(app)})
-		customRequestResource := app.Spec.BatchSchedulerOptions.CustomRequestResource
-		if len(customRequestResource) > 0 {
-			totalResource = customRequestResource
+		minResource := app.Spec.BatchSchedulerOptions.MinResource
+		if len(minResource) > 0 {
+			totalResource = minResource
 		}
 		if err := v.syncPodGroup(app, 1, totalResource); err == nil {
 			app.Spec.Executor.Annotations[v1beta1.KubeGroupNameAnnotationKey] = v.getAppPodGroupName(app)

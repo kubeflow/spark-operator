@@ -286,9 +286,9 @@ type BatchSchedulerConfiguration struct {
 	// PriorityClassName stands for the name of k8s PriorityClass resource, it's being used in Volcano batch scheduler.
 	// +optional
 	PriorityClassName *string `json:"priorityClassName,omitempty"`
-	// CustomRequestResource stands for the resource list custom request for, it's being used in Volcano batch scheduler.
+	// MinResource stands for the resource list custom request for, it's being used in Volcano batch scheduler.
 	// +optional
-	CustomRequestResource apiv1.ResourceList `json:"customRequestResource,omitempty"`
+	MinResource apiv1.ResourceList `json:"minResource,omitempty"`
 }
 
 // Specific SparkUI config parameters
