@@ -21,3 +21,4 @@
 | Shell (Agile Hub) | @TomLous | Production | Data pipelines
 | Nielsen Identity Engine | @roitvt | Evaluation | Data pipelines
 | [Data Mechanics](https://www.datamechanics.co)  | @jrj-d | Production | Managed Spark Platform |
+| Pathao Limited | @shemul | Evaluation | Data pipelines
