@@ -78,7 +78,7 @@ If SparkApplication is configured to run with Volcano, there are some details un
 1. Kubernetes Operator for Apache Spark's webhook will patch pods' `schedulerName` according to the `batchScheduler` in SparkApplication Spec.
 2. Before submitting spark application, Kubernetes Operator for Apache Spark will create a Volcano native resource 
    `PodGroup`[here](https://github.com/volcano-sh/volcano/blob/a8fb05ce6c6902e366cb419d6630d66fc759121e/pkg/apis/scheduling/v1alpha2/types.go#L93) for the whole application.
-   and as a brief introduction，most of the Volcano's advanced scheduling features, such as pod delay creation, resource fairness and gang scheduling are all depend on this resource. 
+   and as a brief introduction, most of the Volcano's advanced scheduling features, such as pod delay creation, resource fairness and gang scheduling are all depend on this resource. 
    Also a new pod annotation named `scheduling.k8s.io/group-name` will be added.
 3. Volcano scheduler will take over all of the pods that both have schedulerName and annotation correctly configured for scheduling.
 
