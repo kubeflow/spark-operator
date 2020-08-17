@@ -22,7 +22,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
 
 	appFramework "github.com/GoogleCloudPlatform/spark-on-k8s-operator/test/e2e/framework"
@@ -33,6 +33,49 @@ func TestSubmitSparkPiYaml(t *testing.T) {
 
 	appName := "spark-pi"
 	sa, err := appFramework.MakeSparkApplicationFromYaml("../../examples/spark-pi.yaml")
+	assert.Equal(t, nil, err)
+
+	if appFramework.SparkTestNamespace != "" {
+		sa.ObjectMeta.Namespace = appFramework.SparkTestNamespace
+	}
+
+	if appFramework.SparkTestServiceAccount != "" {
+		sa.Spec.Driver.ServiceAccount = &appFramework.SparkTestServiceAccount
+	}
+
+	if appFramework.SparkTestImage != "" {
+		sa.Spec.Image = &appFramework.SparkTestImage
+	}
+
+	err = appFramework.CreateSparkApplication(framework.SparkApplicationClient, appFramework.SparkTestNamespace, sa)
+	assert.Equal(t, nil, err)
+
+	status := GetJobStatus(t, appName)
+
+	err = wait.Poll(INTERVAL, TIMEOUT, func() (done bool, err error) {
+		if status == "COMPLETED" {
+			return true, nil
+		}
+		status = GetJobStatus(t, appName)
+		return false, nil
+	})
+	assert.Equal(t, nil, err)
+
+	app, _ := appFramework.GetSparkApplication(framework.SparkApplicationClient, appFramework.SparkTestNamespace, appName)
+	podName := app.Status.DriverInfo.PodName
+	rawLogs, err := framework.KubeClient.CoreV1().Pods(appFramework.SparkTestNamespace).GetLogs(podName, &v1.PodLogOptions{}).Do().Raw()
+	assert.Equal(t, nil, err)
+	assert.NotEqual(t, -1, strings.Index(string(rawLogs), "Pi is roughly 3"))
+
+	err = appFramework.DeleteSparkApplication(framework.SparkApplicationClient, appFramework.SparkTestNamespace, appName)
+	assert.Equal(t, nil, err)
+}
+
+func TestSubmitSparkPiCustomResourceYaml(t *testing.T) {
+	t.Parallel()
+
+	appName := "spark-pi-custom-resource"
+	sa, err := appFramework.MakeSparkApplicationFromYaml("../../examples/spark-pi-custom-resource.yaml")
 	assert.Equal(t, nil, err)
 
 	if appFramework.SparkTestNamespace != "" {
