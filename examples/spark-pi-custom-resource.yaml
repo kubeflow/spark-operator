@@ -53,6 +53,6 @@ spec:
       - name: "test-volume"
         mountPath: "/tmp"
   batchSchedulerOptions:
-    minResource:
+    resources:
         cpu: "2"
         memory: "4096m"
