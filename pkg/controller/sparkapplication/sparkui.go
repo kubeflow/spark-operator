@@ -63,9 +63,10 @@ type SparkIngress struct {
 }
 
 func createSparkUIIngress(app *v1beta2.SparkApplication, service SparkService, ingressURLFormat string, kubeClient clientset.Interface) (*SparkIngress, error) {
-	ingressURL :=  getSparkUIingressURL(ingressURLFormat, app.GetName(), app.GetNamespace())
+	ingressURL := getSparkUIingressURL(ingressURLFormat, app.GetName(), app.GetNamespace())
 	ingressResourceAnnotations := getIngressResourceAnnotations(app)
 	ingressTlsHosts := getIngressTlsHosts(app)
+	//adding http:// so url.Paese can function correctly
 	parsedURL, err := url.Parse("http://" + ingressURL)
 	if err != nil {
 		return nil, err
