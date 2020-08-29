@@ -17,18 +17,19 @@ limitations under the License.
 package webhook
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
 	"github.com/golang/glog"
 
-	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/resource"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta2"
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/config"
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/util"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
 )
 
 const (
@@ -42,7 +43,7 @@ type patchOperation struct {
 	Value interface{} `json:"value,omitempty"`
 }
 
-func patchSparkPod(pod *corev1.Pod, app *v1beta2.SparkApplication) []patchOperation {
+func patchSparkPod(pod *corev1.Pod, app *v1beta2.SparkApplication, client kubernetes.Interface) []patchOperation {
 	var patchOps []patchOperation
 
 	if util.IsDriverPod(pod) {
@@ -51,7 +52,7 @@ func patchSparkPod(pod *corev1.Pod, app *v1beta2.SparkApplication) []patchOperat
 
 	patchOps = append(patchOps, addVolumes(pod, app)...)
 	patchOps = append(patchOps, addGeneralConfigMaps(pod, app)...)
-	patchOps = append(patchOps, addSparkConfigMap(pod, app)...)
+	patchOps = append(patchOps, addSparkConfigMap(pod, app, client)...)
 	patchOps = append(patchOps, addHadoopConfigMap(pod, app)...)
 	patchOps = append(patchOps, getPrometheusConfigPatches(pod, app)...)
 	patchOps = append(patchOps, addTolerations(pod, app)...)
@@ -292,16 +293,78 @@ func addEnvironmentVariable(pod *corev1.Pod, envName, envValue string) *patchOpe
 	return &patchOperation{Op: "add", Path: path, Value: value}
 }
 
-func addSparkConfigMap(pod *corev1.Pod, app *v1beta2.SparkApplication) []patchOperation {
+/*
+	Related issue: https://github.com/GoogleCloudPlatform/spark-on-k8s-operator/issues/216
+	---
+	Previous behavior:
+	  1. Change SPARK_CONF_DIR to /etc/spark/conf (otherwise the default spark.properties will be overwritten)
+	  2. Add VolumeMount for ConfigMap
+	Previous result:
+	  * Effectively mounting files from sparkConfMap to /etc/spark/conf
+	Issue with outcome:
+	  * Spark 2.4.x-3.2.1 does not pick up the spark configuration from /etc/spark/conf or sparkConfigMap
+	---
+	Proposed behavior:
+	  1. Do not change SPARK_CONF_DIR from /opt/spark/conf
+	  2. Change VolumeMount mountPath for `spark.properties` to subPath
+	  3. subPath all other keys from the sparkConfMap spec provided ConfigMap
+	---
+	Edge cases:
+	  * Handling of duplicate `spark.properties` files which carry the configuration for the driver and executor(s)
+*/
+func addSparkConfigMap(pod *corev1.Pod, app *v1beta2.SparkApplication, client kubernetes.Interface) []patchOperation {
 	var patchOps []patchOperation
 	sparkConfigMapName := app.Spec.SparkConfigMap
 	if sparkConfigMapName != nil {
+		// Add Volume populated by the ConfigMap
 		patchOps = append(patchOps, addConfigMapVolume(pod, *sparkConfigMapName, config.SparkConfigMapVolumeName))
-		vmPatchOp := addConfigMapVolumeMount(pod, config.SparkConfigMapVolumeName, config.DefaultSparkConfDir)
-		if vmPatchOp == nil {
-			return nil
+		containerIndex := findContainer(pod)
+		// Note: no error handling is done for `containerIndex == -1` because we anticipate the Pod to handle the Container lifecycle
+		glog.V(3).Infof("SubPath patching existing VolumeMounts: %v", pod.Spec.Containers[containerIndex].VolumeMounts)
+		volumeMountIndex := findVolumeMountIndex(&pod.Spec.Containers[containerIndex])
+		if volumeMountIndex >= 0 {
+			// Change existing VolumeMount to exclusively subPath `spark.properties`
+			glog.V(2).Infof("Replacing VolumeMount %s at %v", pod.Spec.Containers[containerIndex].VolumeMounts[volumeMountIndex].Name, volumeMountIndex)
+			mnt := pod.Spec.Containers[containerIndex].VolumeMounts[volumeMountIndex]
+			mnt.MountPath = fmt.Sprintf("%s/%s", mnt.MountPath, config.DefaultSparkPropertiesFile)
+			mnt.SubPath = config.DefaultSparkPropertiesFile
+			replaceMountPath := fmt.Sprintf("/spec/containers/%d/volumeMounts/%d", containerIndex, volumeMountIndex)
+			glog.V(2).Infof("New VolumeMount %v", replaceMountPath)
+			patchOps = append(patchOps, patchOperation{Op: "replace", Path: replaceMountPath, Value: mnt})
+		} else {
+			glog.V(2).Infof("No pre-existing VolumeMount found. Not changing VolumeMount to SubPath.")
+			// Add VolumeMount to `config.DefaultSparkConfDir` (= /opt/spark/conf) compliant with Spark 2.4.x - 3.2.1
+			// Note: no assumption being made that spark generates a ConfigMap here, hence the VolumeMount mountPath fallback.
+			//       https://github.com/GoogleCloudPlatform/spark-on-k8s-operator/issues/216#issuecomment-698455388 will never
+			//       work because `spark.properties` has higher precedence than `spark-defaults.conf` anyways. We hence do not
+			//       need to subPath mount in the default case.
+			vmPatchOp := addConfigMapVolumeMount(pod, config.SparkConfigMapVolumeName, config.DefaultSparkConfDir)
+			if vmPatchOp == nil {
+				return nil
+			}
+			patchOps = append(patchOps, *vmPatchOp)
 		}
-		patchOps = append(patchOps, *vmPatchOp)
+		// Patch custom sparkConfigMap from spec to have them subPath mounted
+		configMap, err := client.CoreV1().ConfigMaps(app.Namespace).Get(context.TODO(), *sparkConfigMapName, metav1.GetOptions{})
+		if err != nil {
+			glog.V(2).Infof("Found ConfigMap with data: %v", configMap.Data)
+			for key := range configMap.Data {
+				if key == config.DefaultSparkPropertiesFile {
+					glog.V(2).Infof("Ignoring spark.properties")
+					continue
+				}
+				mountPath := fmt.Sprintf("%s/%s", config.DefaultSparkConfDir, key)
+				glog.V(2).Infof("Adding mountPath %v", mountPath)
+				vspmPatchOp := addConfigMapVolumeMountSubPath(pod, config.SparkConfigMapVolumeName, mountPath, key)
+				if vspmPatchOp == nil {
+					return nil
+				}
+				patchOps = append(patchOps, *vspmPatchOp)
+			}
+		} else {
+			glog.Errorf("Could not get custom spark config map: %v", err)
+		}
+		// envPatchOp has no effect here, but we keep it to not diverge from the GoogleCloudPlatform upstream
 		envPatchOp := addEnvironmentVariable(pod, config.SparkConfDirEnvVar, config.DefaultSparkConfDir)
 		if envPatchOp == nil {
 			return nil
@@ -793,7 +856,7 @@ func findContainer(pod *corev1.Pod) int {
 	if util.IsDriverPod(pod) {
 		candidateContainerNames = append(candidateContainerNames, config.SparkDriverContainerName)
 	} else if util.IsExecutorPod(pod) {
-		// Spark 3.x changed the default executor container name so we need to include both.
+		// Spark 3.x changed the default executor container name, so we need to include both.
 		candidateContainerNames = append(candidateContainerNames, config.SparkExecutorContainerName, config.Spark3DefaultExecutorContainerName)
 	}
 
@@ -848,4 +911,24 @@ func addShareProcessNamespace(pod *corev1.Pod, app *v1beta2.SparkApplication) *p
 		return nil
 	}
 	return &patchOperation{Op: "add", Path: "/spec/shareProcessNamespace", Value: *shareProcessNamespace}
+}
+
+func addConfigMapVolumeMountSubPath(pod *corev1.Pod, configMapVolumeName string, mountPath string, subPath string) *patchOperation {
+	mount := corev1.VolumeMount{
+		Name:      configMapVolumeName,
+		ReadOnly:  true,
+		MountPath: mountPath,
+		SubPath:   subPath,
+	}
+	return addVolumeMount(pod, mount)
+}
+
+func findVolumeMountIndex(container *corev1.Container) int {
+	for i := 0; i < len(container.VolumeMounts); i++ {
+		glog.V(2).Infof("Processing mount %v(name %v)", container.VolumeMounts[i], container.VolumeMounts[i].Name)
+		if container.VolumeMounts[i].Name == config.SparkConfigMapVolumeDriverName || container.VolumeMounts[i].Name == config.SparkConfigMapVolumeExecName {
+			return i
+		}
+	}
+	return -1
 }

@@ -17,11 +17,17 @@ limitations under the License.
 package config
 
 const (
+	// DefaultSparkPropertiesFile is the
+	DefaultSparkPropertiesFile = "spark.properties"
 	// DefaultSparkConfDir is the default directory for Spark configuration files if not specified.
 	// This directory is where the Spark ConfigMap is mounted in the driver and executor containers.
-	DefaultSparkConfDir = "/etc/spark/conf"
+	DefaultSparkConfDir = "/opt/spark/conf"
 	// SparkConfigMapVolumeName is the name of the ConfigMap volume of Spark configuration files.
 	SparkConfigMapVolumeName = "spark-configmap-volume"
+	// SparkConfigMapVolumeDriverName is the designated name for the driver ConfigMap VolumeMounted to the driver container
+	SparkConfigMapVolumeDriverName = "spark-conf-volume-driver"
+	// SparkConfigMapVolumeExecName is the designated name for the executor ConfigMap VolumeMounted to the executor container
+	SparkConfigMapVolumeExecName = "spark-conf-volume-exec"
 	// DefaultHadoopConfDir is the default directory for Spark configuration files if not specified.
 	// This directory is where the Hadoop ConfigMap is mounted in the driver and executor containers.
 	DefaultHadoopConfDir = "/etc/hadoop/conf"
