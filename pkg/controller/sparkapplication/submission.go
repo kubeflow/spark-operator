@@ -234,7 +234,7 @@ func addDriverConfOptions(app *v1beta1.SparkApplication, submissionID string) ([
 
 	if app.Spec.Driver.Cores != nil {
 		driverConfOptions = append(driverConfOptions,
-			fmt.Sprintf("spark.driver.cores=%f", *app.Spec.Driver.Cores))
+			fmt.Sprintf("spark.driver.cores=%d", int(*app.Spec.Driver.Cores)))
 	}
 	if app.Spec.Driver.CoreLimit != nil {
 		driverConfOptions = append(driverConfOptions,
