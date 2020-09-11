@@ -18,6 +18,7 @@ package sparkapplication
 
 import (
 	"fmt"
+	"net/url"
 	"regexp"
 	"strconv"
 
@@ -31,7 +32,6 @@ import (
 
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta2"
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/config"
-	"net/url"
 )
 
 const (
@@ -66,10 +66,17 @@ func createSparkUIIngress(app *v1beta2.SparkApplication, service SparkService, i
 	ingressURL := getSparkUIingressURL(ingressURLFormat, app.GetName(), app.GetNamespace())
 	ingressResourceAnnotations := getIngressResourceAnnotations(app)
 	ingressTlsHosts := getIngressTlsHosts(app)
-	//adding http:// so url.Paese can function correctly
-	parsedURL, err := url.Parse("http://" + ingressURL)
+
+	parsedURL, err := url.Parse(ingressURL)
 	if err != nil {
 		return nil, err
+	}
+	if parsedURL.Scheme == "" {
+		//url does not contain any scheme, adding http:// so url.Parse can function correctly
+		parsedURL, err = url.Parse("http://" + ingressURL)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	ingress := extensions.Ingress{
