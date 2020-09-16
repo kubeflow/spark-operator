@@ -18,6 +18,7 @@ package sparkapplication
 
 import (
 	"fmt"
+	"net/url"
 	"regexp"
 	"strconv"
 
@@ -38,10 +39,11 @@ const (
 	defaultSparkWebUIPort       int32 = 4040
 )
 
-var ingressURLRegex = regexp.MustCompile("{{\\s*[$]appName\\s*}}")
+var ingressAppNameURLRegex = regexp.MustCompile("{{\\s*[$]appName\\s*}}")
+var ingressAppNamespaceURLRegex = regexp.MustCompile("{{\\s*[$]appNamespace\\s*}}")
 
-func getSparkUIingressURL(ingressURLFormat string, appName string) string {
-	return ingressURLRegex.ReplaceAllString(ingressURLFormat, appName)
+func getSparkUIingressURL(ingressURLFormat string, appName string, appNamespace string) string {
+	return ingressAppNamespaceURLRegex.ReplaceAllString(ingressAppNameURLRegex.ReplaceAllString(ingressURLFormat, appName), appNamespace)
 }
 
 // SparkService encapsulates information about the driver UI service.
@@ -61,9 +63,22 @@ type SparkIngress struct {
 }
 
 func createSparkUIIngress(app *v1beta2.SparkApplication, service SparkService, ingressURLFormat string, kubeClient clientset.Interface) (*SparkIngress, error) {
-	ingressURL := getSparkUIingressURL(ingressURLFormat, app.GetName())
+	ingressURL := getSparkUIingressURL(ingressURLFormat, app.GetName(), app.GetNamespace())
 	ingressResourceAnnotations := getIngressResourceAnnotations(app)
 	ingressTlsHosts := getIngressTlsHosts(app)
+
+	parsedURL, err := url.Parse(ingressURL)
+	if err != nil {
+		return nil, err
+	}
+	if parsedURL.Scheme == "" {
+		//url does not contain any scheme, adding http:// so url.Parse can function correctly
+		parsedURL, err = url.Parse("http://" + ingressURL)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	ingress := extensions.Ingress{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            getDefaultUIIngressName(app),
@@ -73,7 +88,7 @@ func createSparkUIIngress(app *v1beta2.SparkApplication, service SparkService, i
 		},
 		Spec: extensions.IngressSpec{
 			Rules: []extensions.IngressRule{{
-				Host: ingressURL,
+				Host: parsedURL.Host,
 				IngressRuleValue: extensions.IngressRuleValue{
 					HTTP: &extensions.HTTPIngressRuleValue{
 						Paths: []extensions.HTTPIngressPath{{
@@ -84,6 +99,7 @@ func createSparkUIIngress(app *v1beta2.SparkApplication, service SparkService, i
 									IntVal: service.servicePort,
 								},
 							},
+							Path: parsedURL.Path,
 						}},
 					},
 				},
@@ -98,7 +114,7 @@ func createSparkUIIngress(app *v1beta2.SparkApplication, service SparkService, i
 		ingress.Spec.TLS = ingressTlsHosts
 	}
 	glog.Infof("Creating an Ingress %s for the Spark UI for application %s", ingress.Name, app.Name)
-	_, err := kubeClient.ExtensionsV1beta1().Ingresses(ingress.Namespace).Create(&ingress)
+	_, err = kubeClient.ExtensionsV1beta1().Ingresses(ingress.Namespace).Create(&ingress)
 
 	if err != nil {
 		return nil, err

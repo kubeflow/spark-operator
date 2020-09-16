@@ -208,11 +208,10 @@ func TestCreateSparkUIIngress(t *testing.T) {
 		expectError     bool
 	}
 
-	testFn := func(test testcase, t *testing.T) {
+	testFn := func(test testcase, t *testing.T, ingressURLFormat string) {
 		fakeClient := fake.NewSimpleClientset()
-		ingressFormat := "{{$appName}}.ingress.clusterName.com"
 		sparkService, err := createSparkUIService(test.app, fakeClient)
-		sparkIngress, err := createSparkUIIngress(test.app, *sparkService, ingressFormat, fakeClient)
+		sparkIngress, err := createSparkUIIngress(test.app, *sparkService, ingressURLFormat, fakeClient)
 		if err != nil {
 			if test.expectError {
 				return
@@ -223,7 +222,7 @@ func TestCreateSparkUIIngress(t *testing.T) {
 			t.Errorf("Ingress name wanted %s got %s", test.expectedIngress.ingressName, sparkIngress.ingressName)
 		}
 		if sparkIngress.ingressURL != test.expectedIngress.ingressURL {
-			t.Errorf("Ingress name wanted %s got %s", test.expectedIngress.ingressURL, sparkIngress.ingressURL)
+			t.Errorf("Ingress URL wanted %s got %s", test.expectedIngress.ingressURL, sparkIngress.ingressURL)
 		}
 		ingress, err := fakeClient.ExtensionsV1beta1().Ingresses(test.app.Namespace).
 			Get(sparkIngress.ingressName, metav1.GetOptions{})
@@ -255,7 +254,8 @@ func TestCreateSparkUIIngress(t *testing.T) {
 			t.Errorf("No Ingress rules found.")
 		}
 		ingressRule := ingress.Spec.Rules[0]
-		if ingressRule.Host != test.expectedIngress.ingressURL {
+		//ingress URL is same as Host and Path combined from k8s ingress
+		if ingressRule.Host+ingressRule.IngressRuleValue.HTTP.Paths[0].Path != test.expectedIngress.ingressURL {
 			t.Errorf("Ingress of app %s has the wrong host %s", test.expectedIngress.ingressURL, ingressRule.Host)
 		}
 
@@ -412,7 +412,24 @@ func TestCreateSparkUIIngress(t *testing.T) {
 			expectError: true,
 		},
 	}
+
 	for _, test := range testcases {
-		testFn(test, t)
+		testFn(test, t, "{{$appName}}.ingress.clusterName.com")
+	}
+
+	testcases = []testcase{
+		{
+			name: "simple ingress object with ingress URL Format with path",
+			app:  app1,
+			expectedIngress: SparkIngress{
+				ingressName: fmt.Sprintf("%s-ui-ingress", app1.GetName()),
+				ingressURL:  "ingress.clusterName.com/" + app1.GetNamespace() + "/" + app1.GetName(),
+			},
+			expectError: false,
+		},
+	}
+
+	for _, test := range testcases {
+		testFn(test, t, "ingress.clusterName.com/{{$appNamespace}}/{{$appName}}")
 	}
 }
