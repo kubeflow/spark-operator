@@ -18,6 +18,7 @@ package sparkapplication
 
 import (
 	"fmt"
+	"os"
 	"reflect"
 	"sort"
 	"strconv"
@@ -542,4 +543,43 @@ func TestDynamicAllocationOptions(t *testing.T) {
 	assert.Equal(t, fmt.Sprintf("%s=0", config.SparkDynamicAllocationMinExecutors), options[3])
 	assert.Equal(t, fmt.Sprintf("%s=10", config.SparkDynamicAllocationMaxExecutors), options[4])
 	assert.Equal(t, fmt.Sprintf("%s=6000000", config.SparkDynamicAllocationShuffleTrackingTimeout), options[5])
+}
+
+func TestProxyUserArg(t *testing.T) {
+	const (
+		host = "localhost"
+		port = "6443"
+	)
+
+	if err := os.Setenv(kubernetesServiceHostEnvVar, host); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Setenv(kubernetesServicePortEnvVar, port); err != nil {
+		t.Fatal(err)
+	}
+
+	app := &v1beta2.SparkApplication{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "spark-test",
+			UID:  "spark-test-1",
+		},
+		Spec: v1beta2.SparkApplicationSpec{
+			Mode:      v1beta2.ClusterMode,
+			ProxyUser: stringptr("foo"),
+		},
+	}
+
+	submissionID := uuid.New().String()
+	driverPodName := getDriverPodName(app)
+	args, err := buildSubmissionCommandArgs(app, driverPodName, submissionID)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	assert.Equal(t, "--master", args[0])
+	assert.Equal(t, fmt.Sprintf("k8s://https://%s:%s", host, port), args[1])
+	assert.Equal(t, "--deploy-mode", args[2])
+	assert.Equal(t, string(v1beta2.ClusterMode), args[3])
+	assert.Equal(t, "--proxy-user", args[4])
+	assert.Equal(t, "foo", args[5])
 }
