@@ -556,7 +556,21 @@ func addSecurityContext(pod *corev1.Pod, app *v1beta2.SparkApplication) *patchOp
 	if secContext == nil {
 		return nil
 	}
-	return &patchOperation{Op: "add", Path: "/spec/containers/securityContext", Value: *secContext}
+
+	i := 0
+	// Find the driver/executor container in the pod.
+	for ; i < len(pod.Spec.Containers); i++ {
+		if pod.Spec.Containers[i].Name == config.SparkDriverContainerName || pod.Spec.Containers[i].Name == config.SparkExecutorContainerName {
+			break
+		}
+	}
+	if i == len(pod.Spec.Containers) {
+		glog.Warningf("Spark driver/executor container not found in pod %s", pod.Name)
+		return nil
+	}
+
+	path := fmt.Sprintf("/spec/containers/%d/securityContext", i)
+	return &patchOperation{Op: "add", Path: path, Value: *secContext}
 }
 
 func addSidecarContainers(pod *corev1.Pod, app *v1beta2.SparkApplication) []patchOperation {

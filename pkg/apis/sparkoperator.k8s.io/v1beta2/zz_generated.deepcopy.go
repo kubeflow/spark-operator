@@ -859,9 +859,14 @@ func (in *SparkPodSpec) DeepCopyInto(out *SparkPodSpec) {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
 	}
+	if in.PodSecurityContenxt != nil {
+		in, out := &in.PodSecurityContenxt, &out.PodSecurityContenxt
+		*out = new(v1.PodSecurityContext)
+		(*in).DeepCopyInto(*out)
+	}
 	if in.SecurityContenxt != nil {
 		in, out := &in.SecurityContenxt, &out.SecurityContenxt
-		*out = new(v1.PodSecurityContext)
+		*out = new(v1.SecurityContext)
 		(*in).DeepCopyInto(*out)
 	}
 	if in.SchedulerName != nil {

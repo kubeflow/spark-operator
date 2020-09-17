@@ -780,6 +780,7 @@ spec:
                                   name:
                                     type: string
                                   protocol:
+                                    default: TCP
                                     type: string
                                 required:
                                 - containerPort
@@ -1158,24 +1159,7 @@ spec:
                       podName:
                         pattern: '[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*'
                         type: string
-                      schedulerName:
-                        type: string
-                      secrets:
-                        items:
-                          properties:
-                            name:
-                              type: string
-                            path:
-                              type: string
-                            secretType:
-                              type: string
-                          required:
-                          - name
-                          - path
-                          - secretType
-                          type: object
-                        type: array
-                      securityContext:
+                      podSecurityContext:
                         properties:
                           fsGroup:
                             format: int64
@@ -1216,6 +1200,73 @@ spec:
                               - value
                               type: object
                             type: array
+                          windowsOptions:
+                            properties:
+                              gmsaCredentialSpec:
+                                type: string
+                              gmsaCredentialSpecName:
+                                type: string
+                              runAsUserName:
+                                type: string
+                            type: object
+                        type: object
+                      schedulerName:
+                        type: string
+                      secrets:
+                        items:
+                          properties:
+                            name:
+                              type: string
+                            path:
+                              type: string
+                            secretType:
+                              type: string
+                          required:
+                          - name
+                          - path
+                          - secretType
+                          type: object
+                        type: array
+                      securityContext:
+                        properties:
+                          allowPrivilegeEscalation:
+                            type: boolean
+                          capabilities:
+                            properties:
+                              add:
+                                items:
+                                  type: string
+                                type: array
+                              drop:
+                                items:
+                                  type: string
+                                type: array
+                            type: object
+                          privileged:
+                            type: boolean
+                          procMount:
+                            type: string
+                          readOnlyRootFilesystem:
+                            type: boolean
+                          runAsGroup:
+                            format: int64
+                            type: integer
+                          runAsNonRoot:
+                            type: boolean
+                          runAsUser:
+                            format: int64
+                            type: integer
+                          seLinuxOptions:
+                            properties:
+                              level:
+                                type: string
+                              role:
+                                type: string
+                              type:
+                                type: string
+                              user:
+                                type: string
+                            type: object
                           windowsOptions:
                             properties:
                               gmsaCredentialSpec:
@@ -1512,6 +1563,7 @@ spec:
                                   name:
                                     type: string
                                   protocol:
+                                    default: TCP
                                     type: string
                                 required:
                                 - containerPort
@@ -2527,6 +2579,7 @@ spec:
                                   name:
                                     type: string
                                   protocol:
+                                    default: TCP
                                     type: string
                                 required:
                                 - containerPort
@@ -2801,24 +2854,7 @@ spec:
                         additionalProperties:
                           type: string
                         type: object
-                      schedulerName:
-                        type: string
-                      secrets:
-                        items:
-                          properties:
-                            name:
-                              type: string
-                            path:
-                              type: string
-                            secretType:
-                              type: string
-                          required:
-                          - name
-                          - path
-                          - secretType
-                          type: object
-                        type: array
-                      securityContext:
+                      podSecurityContext:
                         properties:
                           fsGroup:
                             format: int64
@@ -2859,6 +2895,73 @@ spec:
                               - value
                               type: object
                             type: array
+                          windowsOptions:
+                            properties:
+                              gmsaCredentialSpec:
+                                type: string
+                              gmsaCredentialSpecName:
+                                type: string
+                              runAsUserName:
+                                type: string
+                            type: object
+                        type: object
+                      schedulerName:
+                        type: string
+                      secrets:
+                        items:
+                          properties:
+                            name:
+                              type: string
+                            path:
+                              type: string
+                            secretType:
+                              type: string
+                          required:
+                          - name
+                          - path
+                          - secretType
+                          type: object
+                        type: array
+                      securityContext:
+                        properties:
+                          allowPrivilegeEscalation:
+                            type: boolean
+                          capabilities:
+                            properties:
+                              add:
+                                items:
+                                  type: string
+                                type: array
+                              drop:
+                                items:
+                                  type: string
+                                type: array
+                            type: object
+                          privileged:
+                            type: boolean
+                          procMount:
+                            type: string
+                          readOnlyRootFilesystem:
+                            type: boolean
+                          runAsGroup:
+                            format: int64
+                            type: integer
+                          runAsNonRoot:
+                            type: boolean
+                          runAsUser:
+                            format: int64
+                            type: integer
+                          seLinuxOptions:
+                            properties:
+                              level:
+                                type: string
+                              role:
+                                type: string
+                              type:
+                                type: string
+                              user:
+                                type: string
+                            type: object
                           windowsOptions:
                             properties:
                               gmsaCredentialSpec:
@@ -3151,6 +3254,7 @@ spec:
                                   name:
                                     type: string
                                   protocol:
+                                    default: TCP
                                     type: string
                                 required:
                                 - containerPort
