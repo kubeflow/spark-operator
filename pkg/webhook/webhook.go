@@ -558,6 +558,7 @@ func mutatePods(
 		if err != nil {
 			return nil, fmt.Errorf("failed to marshal patch operations %v: %v", patchOps, err)
 		}
+		glog.V(3).Infof("Pod %s mutation/patch result %s", pod.GetObjectMeta().GetName(), patchBytes)
 		response.Patch = patchBytes
 		patchType := admissionv1beta1.PatchTypeJSONPatch
 		response.PatchType = &patchType
