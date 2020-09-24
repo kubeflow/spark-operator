@@ -2609,7 +2609,7 @@ Kubernetes core/v1.Affinity
 </tr>
 <tr>
 <td>
-<code>securityContext</code></br>
+<code>podSecurityContext</code></br>
 <em>
 <a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#podsecuritycontext-v1-core">
 Kubernetes core/v1.PodSecurityContext
@@ -2618,7 +2618,21 @@ Kubernetes core/v1.PodSecurityContext
 </td>
 <td>
 <em>(Optional)</em>
-<p>SecurityContenxt specifies the PodSecurityContext to apply.</p>
+<p>PodSecurityContext specifies the PodSecurityContext to apply.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>securityContext</code></br>
+<em>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#securitycontext-v1-core">
+Kubernetes core/v1.SecurityContext
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>SecurityContext specifies the container&rsquo;s SecurityContext to apply.</p>
 </td>
 </tr>
 <tr>
@@ -2787,5 +2801,5 @@ map[string]string
 <hr/>
 <p><em>
 Generated with <code>gen-crd-api-reference-docs</code>
-on git commit <code>bc7bbd0</code>.
+on git commit <code>6e9e689</code>.
 </em></p>

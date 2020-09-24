@@ -864,13 +864,13 @@ func (in *SparkPodSpec) DeepCopyInto(out *SparkPodSpec) {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
 	}
-	if in.PodSecurityContenxt != nil {
-		in, out := &in.PodSecurityContenxt, &out.PodSecurityContenxt
+	if in.PodSecurityContext != nil {
+		in, out := &in.PodSecurityContext, &out.PodSecurityContext
 		*out = new(v1.PodSecurityContext)
 		(*in).DeepCopyInto(*out)
 	}
-	if in.SecurityContenxt != nil {
-		in, out := &in.SecurityContenxt, &out.SecurityContenxt
+	if in.SecurityContext != nil {
+		in, out := &in.SecurityContext, &out.SecurityContext
 		*out = new(v1.SecurityContext)
 		(*in).DeepCopyInto(*out)
 	}

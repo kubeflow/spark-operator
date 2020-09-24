@@ -534,9 +534,9 @@ func addToleration(pod *corev1.Pod, toleration corev1.Toleration, first bool) pa
 func addPodSecurityContext(pod *corev1.Pod, app *v1beta2.SparkApplication) *patchOperation {
 	var secContext *corev1.PodSecurityContext
 	if util.IsDriverPod(pod) {
-		secContext = app.Spec.Driver.PodSecurityContenxt
+		secContext = app.Spec.Driver.PodSecurityContext
 	} else if util.IsExecutorPod(pod) {
-		secContext = app.Spec.Executor.PodSecurityContenxt
+		secContext = app.Spec.Executor.PodSecurityContext
 	}
 
 	if secContext == nil {
@@ -548,9 +548,9 @@ func addPodSecurityContext(pod *corev1.Pod, app *v1beta2.SparkApplication) *patc
 func addSecurityContext(pod *corev1.Pod, app *v1beta2.SparkApplication) *patchOperation {
 	var secContext *corev1.SecurityContext
 	if util.IsDriverPod(pod) {
-		secContext = app.Spec.Driver.SecurityContenxt
+		secContext = app.Spec.Driver.SecurityContext
 	} else if util.IsExecutorPod(pod) {
-		secContext = app.Spec.Executor.SecurityContenxt
+		secContext = app.Spec.Executor.SecurityContext
 	}
 
 	if secContext == nil {
