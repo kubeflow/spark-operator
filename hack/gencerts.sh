@@ -98,6 +98,7 @@ distinguished_name = req_distinguished_name
 basicConstraints = CA:FALSE
 keyUsage = nonRepudiation, digitalSignature, keyEncipherment
 extendedKeyUsage = clientAuth, serverAuth
+subjectAltName = DNS:${SERVICE}.${NAMESPACE}.svc
 EOF
 
 # Create a certificate authority.
