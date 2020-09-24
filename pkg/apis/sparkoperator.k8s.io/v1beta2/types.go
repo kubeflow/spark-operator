@@ -468,10 +468,10 @@ type SparkPodSpec struct {
 	// +optional
 	Tolerations []apiv1.Toleration `json:"tolerations,omitempty"`
 	// PodSecurityContenxt specifies the PodSecurityContext to apply.
-	// Optional.
+	// +optional
 	PodSecurityContenxt *apiv1.PodSecurityContext `json:"podSecurityContext,omitempty"`
 	// SecurityContenxt specifies the container's SecurityContext to apply.
-	// Optional.
+	// +optional
 	SecurityContenxt *apiv1.SecurityContext `json:"securityContext,omitempty"`
 	// SchedulerName specifies the scheduler that will be used for scheduling
 	// +optional
