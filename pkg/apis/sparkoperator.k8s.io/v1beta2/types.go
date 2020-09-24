@@ -463,7 +463,7 @@ type SparkPodSpec struct {
 	// Tolerations specifies the tolerations listed in ".spec.tolerations" to be applied to the pod.
 	// +optional
 	Tolerations []apiv1.Toleration `json:"tolerations,omitempty"`
-	// SecurityContenxt specifies the PodSecurityContext to apply.
+	// PodSecurityContenxt specifies the PodSecurityContext to apply.
 	// Optional.
 	PodSecurityContenxt *apiv1.PodSecurityContext `json:"podSecurityContext,omitempty"`
 	// SecurityContenxt specifies the container's SecurityContext to apply.
