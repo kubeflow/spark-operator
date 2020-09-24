@@ -3599,6 +3599,8 @@ spec:
                 additionalProperties:
                   type: string
                 type: object
+              proxyUser:
+                type: string
               pythonVersion:
                 enum:
                 - "2"

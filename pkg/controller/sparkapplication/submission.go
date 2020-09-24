@@ -96,6 +96,12 @@ func buildSubmissionCommandArgs(app *v1beta2.SparkApplication, driverPodName str
 
 	args = append(args, "--master", masterURL)
 	args = append(args, "--deploy-mode", string(app.Spec.Mode))
+
+	// Add proxy user
+	if app.Spec.ProxyUser != nil {
+		args = append(args, "--proxy-user", *app.Spec.ProxyUser)
+	}
+
 	args = append(args, "--conf", fmt.Sprintf("%s=%s", config.SparkAppNamespaceKey, app.Namespace))
 	args = append(args, "--conf", fmt.Sprintf("%s=%s", config.SparkAppNameKey, app.Name))
 	args = append(args, "--conf", fmt.Sprintf("%s=%s", config.SparkDriverPodNameKey, driverPodName))
