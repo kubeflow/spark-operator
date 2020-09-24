@@ -75,6 +75,11 @@ func patchSparkPod(pod *corev1.Pod, app *v1beta2.SparkApplication) []patchOperat
 		}
 	}
 
+	op = addPodSecurityContext(pod, app)
+	if op != nil {
+		patchOps = append(patchOps, *op)
+	}
+
 	op = addSecurityContext(pod, app)
 	if op != nil {
 		patchOps = append(patchOps, *op)
@@ -526,8 +531,22 @@ func addToleration(pod *corev1.Pod, toleration corev1.Toleration, first bool) pa
 	return patchOperation{Op: "add", Path: path, Value: value}
 }
 
-func addSecurityContext(pod *corev1.Pod, app *v1beta2.SparkApplication) *patchOperation {
+func addPodSecurityContext(pod *corev1.Pod, app *v1beta2.SparkApplication) *patchOperation {
 	var secContext *corev1.PodSecurityContext
+	if util.IsDriverPod(pod) {
+		secContext = app.Spec.Driver.PodSecurityContenxt
+	} else if util.IsExecutorPod(pod) {
+		secContext = app.Spec.Executor.PodSecurityContenxt
+	}
+
+	if secContext == nil {
+		return nil
+	}
+	return &patchOperation{Op: "add", Path: "/spec/securityContext", Value: *secContext}
+}
+
+func addSecurityContext(pod *corev1.Pod, app *v1beta2.SparkApplication) *patchOperation {
+	var secContext *corev1.SecurityContext
 	if util.IsDriverPod(pod) {
 		secContext = app.Spec.Driver.SecurityContenxt
 	} else if util.IsExecutorPod(pod) {
@@ -537,7 +556,21 @@ func addSecurityContext(pod *corev1.Pod, app *v1beta2.SparkApplication) *patchOp
 	if secContext == nil {
 		return nil
 	}
-	return &patchOperation{Op: "add", Path: "/spec/securityContext", Value: *secContext}
+
+	i := 0
+	// Find the driver/executor container in the pod.
+	for ; i < len(pod.Spec.Containers); i++ {
+		if pod.Spec.Containers[i].Name == config.SparkDriverContainerName || pod.Spec.Containers[i].Name == config.SparkExecutorContainerName {
+			break
+		}
+	}
+	if i == len(pod.Spec.Containers) {
+		glog.Warningf("Spark driver/executor container not found in pod %s", pod.Name)
+		return nil
+	}
+
+	path := fmt.Sprintf("/spec/containers/%d/securityContext", i)
+	return &patchOperation{Op: "add", Path: path, Value: *secContext}
 }
 
 func addSidecarContainers(pod *corev1.Pod, app *v1beta2.SparkApplication) []patchOperation {

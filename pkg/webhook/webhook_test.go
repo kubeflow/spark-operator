@@ -153,7 +153,7 @@ func TestMutatePod(t *testing.T) {
 							Effect:   "NoEffect",
 						},
 					},
-					SecurityContenxt: &corev1.PodSecurityContext{
+					SecurityContenxt: &corev1.SecurityContext{
 						RunAsUser: &user,
 					},
 				},

@@ -419,18 +419,25 @@ spec:
 Note that the mutating admission webhook is needed to use this feature. Please refer to the
 [Quick Start Guide](quick-start-guide.md) on how to enable the mutating admission webhook.
 
-### Using Pod Security Context
+### Using Security Context
 
-A `SparkApplication` can specify a `PodSecurityContext` for the driver or executor pod, using the optional field `.spec.driver.securityContext` or `.spec.executor.securityContext`. Below is an example:
+A `SparkApplication` can specify a `SecurityContext` for the driver or executor containers, using the optional field `.spec.driver.securityContext` or `.spec.executor.securityContext`.
+`SparkApplication` can also specify a `PodSecurityContext` for the driver or executor pod, using the optional field `.spec.driver.PodsecurityContext` or `.spec.executor.PodsecurityContext`. Below is an example:
 
 ```yaml
 spec:
   driver:
-    securityContext:
-      runAsUser: 1000    
-  executor:
-    securityContext:
+    podSecurityContext:
       runAsUser: 1000
+    securityContext:
+      allowPrivilegeEscalation: false
+      runAsUser: 2000    
+  executor:
+    podSecurityContext:
+      runAsUser: 1000
+    securityContext:
+      allowPrivilegeEscalation: false
+      runAsUser: 2000
 ```
 
 Note that the mutating admission webhook is needed to use this feature. Please refer to the

@@ -613,6 +613,9 @@ func TestPatchSparkPod_Tolerations(t *testing.T) {
 
 func TestPatchSparkPod_SecurityContext(t *testing.T) {
 	var user int64 = 1000
+	var user2 int64 = 2000
+	var AllowPrivilegeEscalation = false
+
 	app := &v1beta2.SparkApplication{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "spark-test",
@@ -621,15 +624,23 @@ func TestPatchSparkPod_SecurityContext(t *testing.T) {
 		Spec: v1beta2.SparkApplicationSpec{
 			Driver: v1beta2.DriverSpec{
 				SparkPodSpec: v1beta2.SparkPodSpec{
-					SecurityContenxt: &corev1.PodSecurityContext{
+					PodSecurityContenxt: &corev1.PodSecurityContext{
 						RunAsUser: &user,
+					},
+					SecurityContenxt: &corev1.SecurityContext{
+						AllowPrivilegeEscalation: &AllowPrivilegeEscalation,
+						RunAsUser:                &user2,
 					},
 				},
 			},
 			Executor: v1beta2.ExecutorSpec{
 				SparkPodSpec: v1beta2.SparkPodSpec{
-					SecurityContenxt: &corev1.PodSecurityContext{
+					PodSecurityContenxt: &corev1.PodSecurityContext{
 						RunAsUser: &user,
+					},
+					SecurityContenxt: &corev1.SecurityContext{
+						AllowPrivilegeEscalation: &AllowPrivilegeEscalation,
+						RunAsUser:                &user2,
 					},
 				},
 			},
@@ -658,7 +669,8 @@ func TestPatchSparkPod_SecurityContext(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	assert.Equal(t, app.Spec.Driver.SecurityContenxt, modifiedDriverPod.Spec.SecurityContext)
+	assert.Equal(t, app.Spec.Driver.PodSecurityContenxt, modifiedDriverPod.Spec.SecurityContext)
+	assert.Equal(t, app.Spec.Driver.SecurityContenxt, modifiedDriverPod.Spec.Containers[0].SecurityContext)
 
 	executorPod := &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
@@ -682,7 +694,8 @@ func TestPatchSparkPod_SecurityContext(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	assert.Equal(t, app.Spec.Executor.SecurityContenxt, modifiedExecutorPod.Spec.SecurityContext)
+	assert.Equal(t, app.Spec.Executor.PodSecurityContenxt, modifiedExecutorPod.Spec.SecurityContext)
+	assert.Equal(t, app.Spec.Executor.SecurityContenxt, modifiedExecutorPod.Spec.Containers[0].SecurityContext)
 }
 
 func TestPatchSparkPod_SchedulerName(t *testing.T) {
