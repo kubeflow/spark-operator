@@ -22,3 +22,4 @@
 | Nielsen Identity Engine | @roitvt | Evaluation | Data pipelines
 | [Data Mechanics](https://www.datamechanics.co)  | @jrj-d | Production | Managed Spark Platform |
 | [PUBG](https://careers.pubg.com/#/en/) | @jacobhjkim | Production | ML & Data Infrastructure |
+| [Beeline](https://beeline.ru) | @spestua | Evaluation | ML & Data Infrastructure |
