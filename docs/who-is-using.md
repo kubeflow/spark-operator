@@ -11,15 +11,17 @@
 | CERN|@mrow4a| Evaluation | Data Mining & Analytics |
 | Lyft |@kumare3| Evaluation | ML & Data Infrastructure |
 | MapR Technologies |@sarjeet2013| Evaluation | ML/AI & Analytics Data Platform |
-| Uber| @chenqin| Evaluation| Spark / ML|
+| Uber| @chenqin| Evaluation| Spark / ML |
 | HashmapInc| @prem0132 | Evaluation | Analytics Data Platform |
 | Tencent | @runzhliu | Evaluation | ML Analytics Platform |
-| Exacaster | @minutis | Evaluation | Data pipelines
-| Riskified | @henbh | Evaluation | Analytics Data Platform
-| CloudZone | @iftachsc | Evaluation | Big Data Analytics Consultancy
-| Cyren | @avnerl | Evaluation | Data pipelines
-| Shell (Agile Hub) | @TomLous | Production | Data pipelines
-| Nielsen Identity Engine | @roitvt | Evaluation | Data pipelines
+| Exacaster | @minutis | Evaluation | Data pipelines |
+| Riskified | @henbh | Evaluation | Analytics Data Platform |
+| CloudZone | @iftachsc | Evaluation | Big Data Analytics Consultancy |
+| Cyren | @avnerl | Evaluation | Data pipelines |
+| Shell (Agile Hub) | @TomLous | Production | Data pipelines |
+| Nielsen Identity Engine | @roitvt | Evaluation | Data pipelines |
 | [Data Mechanics](https://www.datamechanics.co)  | @jrj-d | Production | Managed Spark Platform |
 | [PUBG](https://careers.pubg.com/#/en/) | @jacobhjkim | Production | ML & Data Infrastructure |
 | [Beeline](https://beeline.ru) | @spestua | Evaluation | ML & Data Infrastructure |
+| [Stitch Fix](https://multithreaded.stitchfix.com/) | @nssalian | Evaluation | Data pipelines |
+
