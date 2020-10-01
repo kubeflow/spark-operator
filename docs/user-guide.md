@@ -8,6 +8,7 @@ The Kubernetes Operator for Apache Spark ships with a command-line tool called `
 
 * [Using a SparkApplication](#using-a-sparkapplication)
 * [Writing a SparkApplication Spec](#writing-a-sparkapplication-spec)
+    * [Specifying Deployment Mode](#specifying-deployment-mode)
     * [Specifying Application Dependencies](#specifying-application-dependencies)
     * [Specifying Spark Configuration](#specifying-spark-configuration)
     * [Specifying Hadoop Configuration](#specifying-hadoop-configuration)
@@ -74,6 +75,11 @@ spec:
   mainClass: org.apache.spark.examples.SparkPi
   mainApplicationFile: local:///opt/spark/examples/jars/spark-examples_2.12-3.0.0.jar
 ```
+
+### Specifying Deployment Mode
+
+A `SparkApplication` should set `.spec.deployMode` to `cluster`, as `client` is not currently implemented. The driver pod will then run `spark-submit` in `client` mode internally to run the driver program. Additional details of how `SparkApplication`s are run can be found in the [design documentation](design.md#architecture).
+
 
 ### Specifying Application Dependencies
 
