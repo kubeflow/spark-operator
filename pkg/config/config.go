@@ -20,6 +20,10 @@ import (
 	"fmt"
 
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta2"
+	"github.com/golang/glog"
+   	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+    res "k8s.io/client-go/kubernetes/typed/core/v1"
+    "k8s.io/client-go/rest"
 )
 
 // GetDriverAnnotationOption returns a spark-submit option for a driver annotation of the given key and value.
@@ -56,3 +60,38 @@ func GetExecutorEnvVarConfOptions(app *v1beta2.SparkApplication) []string {
 func GetPrometheusConfigMapName(app *v1beta2.SparkApplication) string {
 	return fmt.Sprintf("%s-%s", app.Name, PrometheusConfigMapNameSuffix)
 }
+
+
+// GetK8sConfigMap gets the cmName configmap in app.Namespace and returns the configMapPath
+func GetK8sConfigMap(app *v1beta2.SparkApplication, cmName string) (string, error) {
+	config, err := rest.InClusterConfig()
+	if err != nil {
+		glog.Errorf("%v", err)
+		return "", err
+	}
+
+	clientset, err := res.NewForConfig(config)
+	if err != nil {
+		glog.Errorf("%v", err)
+		return "", err
+	}
+
+	configMapsInNamespace := clientset.ConfigMaps(app.Namespace)
+	userProvidedConfigMap, err := configMapsInNamespace.Get(cmName, metav1.GetOptions{})
+
+	if err != nil {
+		glog.Errorf("%v", err)
+		return "", err
+	}
+
+	configFound := getCm{configMap: userProvidedConfigMap}
+
+	configMapPath, err := copyToFile(configFound, app.Namespace, app.Name, cmName)
+	if err != nil {
+		glog.Errorf("%v", err)
+		return "", err
+	}
+
+	return configMapPath, nil
+}
+

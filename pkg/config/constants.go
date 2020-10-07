@@ -166,6 +166,12 @@ const (
 	// SparkDynamicAllocationMaxExecutors is the Spark configuration key for specifying the
 	// upper bound of the number of executors to request if dynamic allocation is enabled.
 	SparkDynamicAllocationMaxExecutors = "spark.dynamicAllocation.maxExecutors"
+	//Kerberos principal parameter
+    KerberosPrincipal = "spark.kerberos.principal"
+    //Kerberos Keytab parameter
+    KerberosKeytab = "spark.kerberos.keytab"
+    //KDC krb5.conf parameter
+    KerberosKrb5Conf = "spark.kubernetes.kerberos.krb5.path"
 )
 
 const (

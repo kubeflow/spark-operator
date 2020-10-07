@@ -782,6 +782,50 @@ The Spark Operator provides limited support for resource quota enforcement using
 
 If you are running Spark applications in namespaces that are subject to resource quota constraints, consider enabling this feature to avoid driver resource starvation. Quota enforcement can be enabled with the command line arguments `-enable-resource-quota-enforcement=true`. It is recommended to also set `-webhook-fail-on-error=true`.
 
+
+## Kerberos authentication for sparkapplications
+
+Sparkapplications can have secure interaction with hadoop clusters by enabling kerberos authentication `.spec.kerberos.enabled: true`. Operator supoorts two ways of submitting a Kerberos job (See Sample 1 and 2 below).
+
+In both the cases, it is mandatory to define one of the following - the environment variable: HADOOP_CONF_DIR (being taken care by `.spec.hadoopConfigMap`) or spark.kubernetes.hadoop.configMapName (to be specified under `.spec.sparkConf`). Also KDC needs to be visible from inside the containers.
+To achieve the same, "kerberos principal", "keytab" in a form of Kuberentes generic secret and "krb.conf" in a form of Kubernetes configmap is passed through the sparkapplication yaml configuration. `.spec.hadoopConfigMap` or "spark.kubernetes.hadoop.configMapName" is used for Hadoop site xmls.
+
+If user specifies sparkapplication configuration as per Example 1, then on submission of spark job, the krb5.conf file present in k8s configmap `.spec.krb5ConfigMap` and Hadoop site xml files present in k8s configmap `.spec.hadoopConfigMap` are copied to the operator pod and spark-submit is triggered by exporting HADOOP_CONF_DIR (inside operator pod) and appending kerberos related spark config properties.  The keytab file present in k8s secret `.spec.kerberos.keytabSecret` is copied to the operator pod in both the examples below.
+
+Following are the two sample ways for submitting Kerberos job :-
+
+1.
+ ```yaml
+  hadoopConfigMap: "<HADOOP_CONFIG_MAP_NAME>"
+  kerberos:
+    enabled: true
+	kerberosPrincipal: "<PRINCIPAL>"
+	keytabSecret: "<KEYTAB_SECRET>"
+	keytabName: "<KEYTAB_FILE_NAME>"
+	krb5ConfigMap: "<KRB5_CONFIG_MAP_NAME>"
+```
+
+2. Below example is as per Sample 3b present at https://github.com/apache/spark/blob/master/docs/security.md under `Secure Interaction with Kubernetes` section
+ ```yaml
+  sparkConf:
+    "spark.kubernetes.kerberos.krb5.configMapName" : "<KRB5_CONFIG_MAP_NAME>"
+    "spark.kubernetes.hadoop.configMapName" : "<HADOOP_CONFIG_MAP_NAME>"
+  kerberos:
+    enabled: true
+	kerberosPrincipal: "<PRINCIPAL>"
+	keytabSecret: "<KEYTAB_SECRET>"
+	keytabName: "<KEYTAB_FILE_NAME>"
+```
+
+Following fields are mandatory when `.spec.kerberos.enabled` is true :-
+* `.spec.kerberos.kerberosPrincipal`
+* `.spec.kerberos.keytabSecret`
+* `.spec.kerberos.keytabName`
+* `.spec.kerberos.krb5ConfigMap` Or `.spec.sparkConf["spark.kubernetes.kerberos.krb5.configMapName"]`
+* `.spec.hadoopConfigMap` Or `.spec.sparkConf["spark.kubernetes.hadoop.configMapName"]`
+
+Different sparkapplications can use same or different CDLK and KDC. Also, Upon Completion, Failure, Deletion of sparkapplication, the keytab, krb5.conf and hadoop site xmls are deleted from the operator pod. 
+
 ## Running Multiple Instances Of The Operator Within The Same K8s Cluster
 
 If you need to run multiple instances of the operator within the same k8s cluster. Therefore, you need to make sure that the running instances should not compete for the same custom resources or pods. You can achieve this:
