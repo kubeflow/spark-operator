@@ -411,10 +411,10 @@ type Dependencies struct {
 	// Packages is a list of maven coordinates of jars to include on the driver and executor
 	// classpaths. This will search the local maven repo, then maven central and any additional
 	// remote repositories given by the "repositories" option.
-	// Each papckage should be of the form "groupId:artifactId:version"
+	// Each papckage should be of the form "groupId:artifactId:version".
 	// +optional
 	Packages []string `json:"packages,omitempty"`
-	// ExcludePackages is a list of groupId:artifactId, to exclude while resolving the
+	// ExcludePackages is a list of "groupId:artifactId", to exclude while resolving the
 	// dependencies provided in Packages to avoid dependency conflicts.
 	// +optional
 	ExcludePackages []string `json:"excludePackages,omitempty"`
