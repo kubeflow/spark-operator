@@ -419,7 +419,7 @@ type Dependencies struct {
 	// +optional
 	ExcludePackages []string `json:"excludePackages,omitempty"`
 	// Repositories is a list of additional remote repositories to search for the maven coordinate
-	// given with the "packages" option
+	// given with the "packages" option.
 	// +optional
 	Repositories []string `json:"repositories,omitempty"`
 }
