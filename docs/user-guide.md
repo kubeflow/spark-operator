@@ -99,6 +99,25 @@ spec:
       - gs://spark-data/data-file-2.txt
 ```
 
+It's also possible to specify additional jars to obtain from a remote repository by adding maven coordinates to `.spec.deps.packages`. Conflicting transitive dependencies can be addressed by adding to the exclusion list with `.spec.deps.excludePackages`. Additional repositories can be added to the `.spec.deps.repositories` list. These directly translate to the `spark-submit` parameters `--packages`, `--exclude-packages`, and `--repositories`.
+
+NOTE:
+- Each package in the `packages` list must be of the form "groupId:artifactId:version"
+- Each package in the `excludePackages` list must be of the form "groupId:artifactId"
+
+The following example shows how to use these parameters.
+
+```yaml
+spec:
+  deps:
+    repositories:
+      - https://repository.example.com/prod
+    packages:
+      - com.example:some-package:1.0.0
+    excludePackages:
+      - com.example:other-package
+```
+
 ### Specifying Spark Configuration
 
 There are two ways to add Spark configuration: setting individual Spark configuration properties using the optional field `.spec.sparkConf` or mounting a special Kubernetes ConfigMap storing Spark configuration files (e.g. `spark-defaults.conf`, `spark-env.sh`, `log4j.properties`) using the optional field `.spec.sparkConfigMap`. If `.spec.sparkConfigMap` is used, additionally to mounting the ConfigMap into the driver and executors, the operator additionally sets the environment variable `SPARK_CONF_DIR` to point to the mount path of the ConfigMap.

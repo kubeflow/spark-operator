@@ -233,6 +233,15 @@ func addDependenciesConfOptions(app *v1beta2.SparkApplication) []string {
 	if len(app.Spec.Deps.PyFiles) > 0 {
 		depsConfOptions = append(depsConfOptions, "--py-files", strings.Join(app.Spec.Deps.PyFiles, ","))
 	}
+	if len(app.Spec.Deps.Packages) > 0 {
+		depsConfOptions = append(depsConfOptions, "--packages", strings.Join(app.Spec.Deps.Packages, ","))
+	}
+	if len(app.Spec.Deps.ExcludePackages) > 0 {
+		depsConfOptions = append(depsConfOptions, "--exclude-packages", strings.Join(app.Spec.Deps.ExcludePackages, ","))
+	}
+	if len(app.Spec.Deps.Repositories) > 0 {
+		depsConfOptions = append(depsConfOptions, "--repositories", strings.Join(app.Spec.Deps.Repositories, ","))
+	}
 
 	return depsConfOptions
 }

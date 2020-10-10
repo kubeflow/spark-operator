@@ -408,6 +408,20 @@ type Dependencies struct {
 	// PyFiles is a list of Python files the Spark application depends on.
 	// +optional
 	PyFiles []string `json:"pyFiles,omitempty"`
+	// Packages is a list of maven coordinates of jars to include on the driver and executor
+	// classpaths. This will search the local maven repo, then maven central and any additional
+	// remote repositories given by the "repositories" option.
+	// Each papckage should be of the form "groupId:artifactId:version".
+	// +optional
+	Packages []string `json:"packages,omitempty"`
+	// ExcludePackages is a list of "groupId:artifactId", to exclude while resolving the
+	// dependencies provided in Packages to avoid dependency conflicts.
+	// +optional
+	ExcludePackages []string `json:"excludePackages,omitempty"`
+	// Repositories is a list of additional remote repositories to search for the maven coordinate
+	// given with the "packages" option.
+	// +optional
+	Repositories []string `json:"repositories,omitempty"`
 }
 
 // SparkPodSpec defines common things that can be customized for a Spark driver or executor pod.
