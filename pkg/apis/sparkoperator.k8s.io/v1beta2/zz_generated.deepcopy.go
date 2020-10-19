@@ -95,6 +95,21 @@ func (in *Dependencies) DeepCopyInto(out *Dependencies) {
 		*out = make([]string, len(*in))
 		copy(*out, *in)
 	}
+	if in.Packages != nil {
+		in, out := &in.Packages, &out.Packages
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
+	if in.ExcludePackages != nil {
+		in, out := &in.ExcludePackages, &out.ExcludePackages
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
+	if in.Repositories != nil {
+		in, out := &in.Repositories, &out.Repositories
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
 	return
 }
 
