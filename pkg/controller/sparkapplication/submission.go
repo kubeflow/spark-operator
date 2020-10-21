@@ -70,9 +70,9 @@ func runSparkSubmit(exportEnvVars []string, submission *submission) (bool, error
 		argsToString := strings.Join(submission.args, " ")
 		result := exportEnvVarsToString + command + " " + argsToString
 		cmd = execCommand("/bin/sh", "-c", result)
-        } else {
+	} else {
 		cmd = execCommand(command, submission.args...)
-    	}
+	}
 
 	glog.V(2).Infof("spark-submit arguments: %v", cmd.Args)
 	output, err := cmd.CombinedOutput()
@@ -94,7 +94,7 @@ func runSparkSubmit(exportEnvVars []string, submission *submission) (bool, error
 	}
 
 	return true, nil
-}		
+}
 
 func buildSubmissionCommandArgs(app *v1beta2.SparkApplication, driverPodName string, submissionID string) ([]string, []string, error) {
 	var args []string

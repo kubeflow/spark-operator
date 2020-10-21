@@ -238,8 +238,8 @@ type SparkApplicationSpec struct {
 	// +optional
 	HadoopConfigMap *string `json:"hadoopConfigMap,omitempty"`
 	// Kerberos contains the keytab secret and krb5 configmap name.
-    	// Required when spark job is kerberos enabled
-    	// Optional.
+	// Required when spark job is kerberos enabled
+	// Optional.
 	Kerberos Kerberos `json:"kerberos,omitempty"`
 	// Volumes is the list of Kubernetes volumes that can be mounted by the driver and/or executors.
 	// +optional

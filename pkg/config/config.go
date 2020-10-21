@@ -21,7 +21,7 @@ import (
 
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta2"
 	"github.com/golang/glog"
-   	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	res "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/rest"
 )
@@ -93,4 +93,3 @@ func GetK8sConfigMap(app *v1beta2.SparkApplication, cmName string) (string, erro
 
 	return configMapPath, nil
 }
-

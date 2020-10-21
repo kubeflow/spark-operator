@@ -904,7 +904,7 @@ func (c *Controller) recordSparkApplicationEvent(app *v1beta2.SparkApplication) 
 			"SparkApplication %s was submitted successfully",
 			app.Name)
 	case v1beta2.FailedSubmissionState:
-	        config.RemoveDirectory(app.Namespace, app.Name)
+		config.RemoveDirectory(app.Namespace, app.Name)
 		c.recorder.Eventf(
 			app,
 			apiv1.EventTypeWarning,
@@ -913,7 +913,7 @@ func (c *Controller) recordSparkApplicationEvent(app *v1beta2.SparkApplication) 
 			app.Name,
 			app.Status.AppState.ErrorMessage)
 	case v1beta2.CompletedState:
-	        config.RemoveDirectory(app.Namespace, app.Name)
+		config.RemoveDirectory(app.Namespace, app.Name)
 		c.recorder.Eventf(
 			app,
 			apiv1.EventTypeNormal,
@@ -921,7 +921,7 @@ func (c *Controller) recordSparkApplicationEvent(app *v1beta2.SparkApplication) 
 			"SparkApplication %s completed",
 			app.Name)
 	case v1beta2.FailedState:
-	        config.RemoveDirectory(app.Namespace, app.Name)
+		config.RemoveDirectory(app.Namespace, app.Name)
 		c.recorder.Eventf(
 			app,
 			apiv1.EventTypeWarning,
@@ -930,7 +930,7 @@ func (c *Controller) recordSparkApplicationEvent(app *v1beta2.SparkApplication) 
 			app.Name,
 			app.Status.AppState.ErrorMessage)
 	case v1beta2.PendingRerunState:
-	        config.RemoveDirectory(app.Namespace, app.Name)
+		config.RemoveDirectory(app.Namespace, app.Name)
 		c.recorder.Eventf(
 			app,
 			apiv1.EventTypeWarning,
