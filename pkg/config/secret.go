@@ -19,7 +19,7 @@ package config
 import (
 	"fmt"
 	"path/filepath"
-        "github.com/golang/glog"
+	"github.com/golang/glog"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	res "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/rest"

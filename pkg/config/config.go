@@ -22,8 +22,8 @@ import (
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta2"
 	"github.com/golang/glog"
    	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-        res "k8s.io/client-go/kubernetes/typed/core/v1"
-        "k8s.io/client-go/rest"
+	res "k8s.io/client-go/kubernetes/typed/core/v1"
+	"k8s.io/client-go/rest"
 )
 
 // GetDriverAnnotationOption returns a spark-submit option for a driver annotation of the given key and value.
