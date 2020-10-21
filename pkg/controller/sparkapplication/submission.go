@@ -17,7 +17,7 @@ limitations under the License.
 package sparkapplication
 
 import (
-    "errors"
+        "errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -61,18 +61,18 @@ func runSparkSubmit(exportEnvVars []string, submission *submission) (bool, error
 		glog.Error("SPARK_HOME is not specified")
 	}
 	var command = filepath.Join(sparkHome, "/bin/spark-submit")
-    var cmd *exec.Cmd
+        var cmd *exec.Cmd
 
 	// exportEnvVars is not nil when .ap.Spec.HadoopConfigMap is specified for spark-jobs
     	// exporting HADOOP_CONF_DIR during spark-submit
-    if exportEnvVars != nil {
-    	exportEnvVarsToString := strings.Join(exportEnvVars, " ")
-    	argsToString := strings.Join(submission.args, " ")
-    	result := exportEnvVarsToString + command + " " + argsToString
-    	cmd = execCommand("/bin/sh", "-c", result)
-    } else {
-    	cmd = execCommand(command, submission.args...)
-    }
+        if exportEnvVars != nil {
+    		exportEnvVarsToString := strings.Join(exportEnvVars, " ")
+    		argsToString := strings.Join(submission.args, " ")
+    		result := exportEnvVarsToString + command + " " + argsToString
+    		cmd = execCommand("/bin/sh", "-c", result)
+        } else {
+    		cmd = execCommand(command, submission.args...)
+    	}
 
 	glog.V(2).Infof("spark-submit arguments: %v", cmd.Args)
 	output, err := cmd.CombinedOutput()
@@ -94,7 +94,7 @@ func runSparkSubmit(exportEnvVars []string, submission *submission) (bool, error
 	}
 
 	return true, nil
-}
+}		
 
 func buildSubmissionCommandArgs(app *v1beta2.SparkApplication, driverPodName string, submissionID string) ([]string, []string, error) {
 	var args []string
@@ -159,17 +159,8 @@ func buildSubmissionCommandArgs(app *v1beta2.SparkApplication, driverPodName str
 	}
 
 	if app.Spec.Kerberos.KerberosEnabled != nil && *app.Spec.Kerberos.KerberosEnabled {
-		if app.Spec.Kerberos.KerberosPrincipal == nil ||
-			app.Spec.Kerberos.KeytabSecret == nil || app.Spec.Kerberos.KeytabName == nil ||
-			((app.Spec.Kerberos.Krb5ConfigMap == nil) && (app.Spec.SparkConf["spark.kubernetes.kerberos.krb5.configMapName"] == "")) ||
-			((app.Spec.HadoopConfigMap == nil) && (app.Spec.SparkConf["spark.kubernetes.hadoop.configMapName"] == "")) {
-			glog.Errorf(`ERROR!! Following fields must be specified when .spec.kerberos.enabled is true :
- .spec.kerberos.kerberosPrincipal
- .spec.kerberos.keytabSecret
- .spec.kerberos.keytabName
- .spec.kerberos.krb5ConfigMap Or .spec.sparkConf["spark.kubernetes.kerberos.krb5.configMapName"]
- .spec.hadoopConfigMap Or .spec.sparkConf["spark.kubernetes.hadoop.configMapName"]`)
-
+		if app.Spec.Kerberos.KerberosPrincipal == nil || app.Spec.Kerberos.KeytabSecret == nil || app.Spec.Kerberos.KeytabName == nil || ((app.Spec.Kerberos.Krb5ConfigMap == nil) && (app.Spec.SparkConf["spark.kubernetes.kerberos.krb5.configMapName"] == "")) || ((app.Spec.HadoopConfigMap == nil) && (app.Spec.SparkConf["spark.kubernetes.hadoop.configMapName"] == "")) {
+			glog.Errorf("ERROR!! Following fields must be specified when .spec.kerberos.enabled is true :\n .spec.kerberos.kerberosPrincipal\n .spec.kerberos.keytabSecret\n .spec.kerberos.keytabName\n .spec.kerberos.krb5ConfigMap Or .spec.sparkConf[\"spark.kubernetes.kerberos.krb5.configMapName\"] \n .spec.hadoopConfigMap Or .spec.sparkConf[\"spark.kubernetes.hadoop.configMapName\"]")
 			glog.Errorf("Please make sure all the mandatory kerberos fields are specified with proper values")
 			err := errors.New("One or more parameters missing when .spec.kerberos.enabled is set to true")
 			return nil, nil, err
