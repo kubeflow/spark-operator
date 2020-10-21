@@ -17,6 +17,7 @@ limitations under the License.
 package sparkapplication
 
 import (
+    "errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -54,16 +55,27 @@ func newSubmission(args []string, app *v1beta2.SparkApplication) *submission {
 	}
 }
 
-func runSparkSubmit(submission *submission) (bool, error) {
+func runSparkSubmit(exportEnvVars []string, submission *submission) (bool, error) {
 	sparkHome, present := os.LookupEnv(sparkHomeEnvVar)
 	if !present {
 		glog.Error("SPARK_HOME is not specified")
 	}
 	var command = filepath.Join(sparkHome, "/bin/spark-submit")
+    var cmd *exec.Cmd
 
-	cmd := execCommand(command, submission.args...)
+	// exportEnvVars is not nil when .ap.Spec.HadoopConfigMap is specified for spark-jobs
+    	// exporting HADOOP_CONF_DIR during spark-submit
+    if exportEnvVars != nil {
+    	exportEnvVarsToString := strings.Join(exportEnvVars, " ")
+    	argsToString := strings.Join(submission.args, " ")
+    	result := exportEnvVarsToString + command + " " + argsToString
+    	cmd = execCommand("/bin/sh", "-c", result)
+    } else {
+    	cmd = execCommand(command, submission.args...)
+    }
+
 	glog.V(2).Infof("spark-submit arguments: %v", cmd.Args)
-	output, err := cmd.Output()
+	output, err := cmd.CombinedOutput()
 	glog.V(3).Infof("spark-submit output: %s", string(output))
 	if err != nil {
 		var errorMsg string
@@ -84,14 +96,16 @@ func runSparkSubmit(submission *submission) (bool, error) {
 	return true, nil
 }
 
-func buildSubmissionCommandArgs(app *v1beta2.SparkApplication, driverPodName string, submissionID string) ([]string, error) {
+func buildSubmissionCommandArgs(app *v1beta2.SparkApplication, driverPodName string, submissionID string) ([]string, []string, error) {
 	var args []string
+	var exportenv []string
+
 	if app.Spec.MainClass != nil {
 		args = append(args, "--class", *app.Spec.MainClass)
 	}
 	masterURL, err := getMasterURL()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	args = append(args, "--master", masterURL)
@@ -133,6 +147,70 @@ func buildSubmissionCommandArgs(app *v1beta2.SparkApplication, driverPodName str
 	// Operator triggered spark-submit should never wait for App completion
 	args = append(args, "--conf", fmt.Sprintf("%s=false", config.SparkWaitAppCompletion))
 
+	if app.Spec.HadoopConfigMap != nil {
+		// Copy hadoop config files to operator pod
+		hadoopConfLoc, err := config.GetK8sConfigMap(app, *app.Spec.HadoopConfigMap)
+		if err != nil {
+			glog.Errorf("%v", err)
+			return nil, nil, err
+		}
+		// Setting HADOOP_CONF_DIR
+		exportenv = append(exportenv, fmt.Sprintf("export HADOOP_CONF_DIR=%s;", hadoopConfLoc))
+	}
+
+	if app.Spec.Kerberos.KerberosEnabled != nil && *app.Spec.Kerberos.KerberosEnabled {
+		if app.Spec.Kerberos.KerberosPrincipal == nil ||
+			app.Spec.Kerberos.KeytabSecret == nil || app.Spec.Kerberos.KeytabName == nil ||
+			((app.Spec.Kerberos.Krb5ConfigMap == nil) && (app.Spec.SparkConf["spark.kubernetes.kerberos.krb5.configMapName"] == "")) ||
+			((app.Spec.HadoopConfigMap == nil) && (app.Spec.SparkConf["spark.kubernetes.hadoop.configMapName"] == "")) {
+			glog.Errorf(`ERROR!! Following fields must be specified when .spec.kerberos.enabled is true :
+ .spec.kerberos.kerberosPrincipal
+ .spec.kerberos.keytabSecret
+ .spec.kerberos.keytabName
+ .spec.kerberos.krb5ConfigMap Or .spec.sparkConf["spark.kubernetes.kerberos.krb5.configMapName"]
+ .spec.hadoopConfigMap Or .spec.sparkConf["spark.kubernetes.hadoop.configMapName"]`)
+
+			glog.Errorf("Please make sure all the mandatory kerberos fields are specified with proper values")
+			err := errors.New("One or more parameters missing when .spec.kerberos.enabled is set to true")
+			return nil, nil, err
+		} else {
+			// Appending kerberos principal parameter and value to spark-submit argument
+			args = append(args, "--conf", fmt.Sprintf("%s=%s", config.KerberosPrincipal, *app.Spec.Kerberos.KerberosPrincipal))
+
+			// Appending kerberos keytab parameter and value to spark-submit argument
+			keytabPath, err := config.GetK8sSecret(app, *app.Spec.Kerberos.KeytabSecret)
+			if err == nil {
+				keytabkeyLoc := keytabPath + "/" + *app.Spec.Kerberos.KeytabName
+				args = append(args, "--conf", fmt.Sprintf("%s=%s", config.KerberosKeytab, keytabkeyLoc))
+			} else {
+				return nil, nil, err
+			}
+			if app.Spec.Kerberos.Krb5ConfigMap != nil {
+				// Appending kerberos krb5 conf's loaction parameter and value to spark-submit argument
+				var krb5keyLoc string
+				krb5Path, err := config.GetK8sConfigMap(app, *app.Spec.Kerberos.Krb5ConfigMap)
+				if err == nil {
+					krb5keyLoc = krb5Path + "/krb5.conf"
+					args = append(args, "--conf", fmt.Sprintf("%s=%s", config.KerberosKrb5Conf, krb5keyLoc))
+					// Setting SPARK_SUBMIT_OPTS
+					exportenv = append(exportenv, fmt.Sprintf("export SPARK_SUBMIT_OPTS=\"-Djava.security.krb5.conf=%s\";", krb5keyLoc))
+				} else {
+					return nil, nil, err
+				}
+			} else if app.Spec.SparkConf["spark.kubernetes.kerberos.krb5.configMapName"] != "" {
+				var krb5keyLoc string
+				krb5Path, err := config.GetK8sConfigMap(app, app.Spec.SparkConf["spark.kubernetes.kerberos.krb5.configMapName"])
+				if err == nil {
+					krb5keyLoc = krb5Path + "/krb5.conf"
+					// Setting SPARK_SUBMIT_OPTS
+					exportenv = append(exportenv, fmt.Sprintf("export SPARK_SUBMIT_OPTS=\"-Djava.security.krb5.conf=%s\";", krb5keyLoc))
+				} else {
+					return nil, nil, err
+				}
+			}
+		}
+	}
+
 	// Add Spark configuration properties.
 	for key, value := range app.Spec.SparkConf {
 		// Configuration property for the driver pod name has already been set.
@@ -151,14 +229,14 @@ func buildSubmissionCommandArgs(app *v1beta2.SparkApplication, driverPodName str
 	// so init-container is not needed and therefore no init-container image needs to be specified.
 	options, err := addDriverConfOptions(app, submissionID)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	for _, option := range options {
 		args = append(args, "--conf", option)
 	}
 	options, err = addExecutorConfOptions(app, submissionID)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	for _, option := range options {
 		args = append(args, "--conf", option)
@@ -177,7 +255,7 @@ func buildSubmissionCommandArgs(app *v1beta2.SparkApplication, driverPodName str
 	if app.Spec.Volumes != nil {
 		options, err = addLocalDirConfOptions(app)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 
 		for _, option := range options {
@@ -195,7 +273,7 @@ func buildSubmissionCommandArgs(app *v1beta2.SparkApplication, driverPodName str
 		args = append(args, argument)
 	}
 
-	return args, nil
+	return exportenv, args, nil
 }
 
 func getMasterURL() (string, error) {

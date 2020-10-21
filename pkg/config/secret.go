@@ -72,3 +72,36 @@ func GetExecutorSecretConfOptions(app *v1beta2.SparkApplication) []string {
 	}
 	return secretConfOptions
 }
+
+// GetK8sSecret gets the secretName secret in app.Namespace and returns the secretPath
+func GetK8sSecret(app *v1beta2.SparkApplication, secretName string) (string, error) {
+	config, err := rest.InClusterConfig()
+	if err != nil {
+		glog.Errorf("%v", err)
+		return "", err
+	}
+
+	clientset, err := res.NewForConfig(config)
+	if err != nil {
+		glog.Errorf("%v", err)
+		return "", err
+	}
+
+	secretsInNamespace := clientset.Secrets(app.Namespace)
+	userProvidedSecret, err := secretsInNamespace.Get(secretName, metav1.GetOptions{})
+
+	if err != nil {
+		glog.Errorf("%v", err)
+		return "", err
+	}
+
+	secretFound := getSecret{secret: userProvidedSecret}
+
+	secretPath, err := copyToFile(secretFound, app.Namespace, app.Name, secretName)
+	if err != nil {
+		glog.Errorf("%v", err)
+		return "", err
+	}
+
+	return secretPath, nil
+}
