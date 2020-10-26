@@ -54,8 +54,7 @@ type RestartPolicy struct {
 	OnFailureRetries           *int32 `json:"onFailureRetries,omitempty"`
 
 	// Interval to wait between successive retries of a failed application.
-	OnSubmissionFailureRetryInterval *int64 `json:"onSubmissionFailureRetryInterval,omitempty"`
-	OnFailureRetryInterval           *int64 `json:"onFailureRetryInterval,omitempty"`
+	OnFailureRetryInterval *int64 `json:"onFailureRetryInterval,omitempty"`
 }
 
 type RestartPolicyType string
@@ -241,6 +240,9 @@ type SparkApplicationSpec struct {
 	// Monitoring configures how monitoring is handled.
 	// Optional.
 	Monitoring *MonitoringSpec `json:"monitoring,omitempty"`
+	// BatchScheduler configures which batch scheduler will be used for scheduling
+	// Optional.
+	BatchScheduler *string `json:"batchScheduler,omitempty"`
 	// ServiceAccount is the name of the Kubernetes ServiceAccount used to run the
 	// submission Job Pod that runs spark-submit to submit an application.
 	ServiceAccount *string `json:"serviceAccount,omitempty"`
@@ -299,7 +301,8 @@ type SparkApplicationStatus struct {
 	AppState ApplicationState `json:"applicationState,omitempty"`
 	// ExecutorState records the state of executors by executor Pod names.
 	ExecutorState map[string]ExecutorState `json:"executorState,omitempty"`
-	// ExecutionAttempts is the total number of attempts made to run a submitted Spark App to successful completion.
+	// ExecutionAttempts is the total number of attempts to run a submitted application to completion.
+	// Incremented upon each attempted run of the application and reset upon invalidation.
 	ExecutionAttempts int32 `json:"executionAttempts,omitempty"`
 }
 

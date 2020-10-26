@@ -38,35 +38,12 @@ const (
 const (
 	// LabelAnnotationPrefix is the prefix of every labels and annotations added by the controller.
 	LabelAnnotationPrefix = "sparkoperator.k8s.io/"
-	// SparkConfigMapAnnotation is the name of the annotation added to the driver and executor Pods
-	// that indicates the presence of a Spark ConfigMap that should be mounted to the driver and
-	// executor Pods with the environment variable SPARK_CONF_DIR set to point to the mount path.
-	SparkConfigMapAnnotation = LabelAnnotationPrefix + "spark-configmap"
-	// HadoopConfigMapAnnotation is the name of the annotation added to the driver and executor Pods
-	// that indicates the presence of a Hadoop ConfigMap that should be mounted to the driver and
-	// executor Pods with the environment variable HADOOP_CONF_DIR set to point to the mount path.
-	HadoopConfigMapAnnotation = LabelAnnotationPrefix + "hadoop-configmap"
-	// GeneralConfigMapsAnnotationPrefix is the prefix of general annotations that specifies the name
-	// and mount paths of additional ConfigMaps to be mounted.
-	GeneralConfigMapsAnnotationPrefix = LabelAnnotationPrefix + "configmap."
-	// VolumesAnnotationPrefix is the prefix of annotations that specify a Volume.
-	VolumesAnnotationPrefix = LabelAnnotationPrefix + "volumes."
-	// VolumeMountsAnnotationPrefix is the prefix of annotations that specify a VolumeMount.
-	VolumeMountsAnnotationPrefix = LabelAnnotationPrefix + "volumemounts."
-	// OwnerReferenceAnnotation is the name of the annotation added to the driver and executor Pods
-	// that specifies the OwnerReference of the owning SparkApplication.
-	OwnerReferenceAnnotation = LabelAnnotationPrefix + "ownerreference"
-	// AffinityAnnotation is the name of the annotation added to the driver and executor Pods that
-	// specifies the value of the Pod Affinity.
-	AffinityAnnotation = LabelAnnotationPrefix + "affinity"
 	// SparkAppNameLabel is the name of the label for the SparkApplication object name.
 	SparkAppNameLabel = LabelAnnotationPrefix + "app-name"
 	// ScheduledSparkAppNameLabel is the name of the label for the ScheduledSparkApplication object name.
 	ScheduledSparkAppNameLabel = LabelAnnotationPrefix + "scheduled-app-name"
 	// LaunchedBySparkOperatorLabel is a label on Spark pods launched through the Spark Operator.
 	LaunchedBySparkOperatorLabel = LabelAnnotationPrefix + "launched-by-spark-operator"
-	// TolerationsAnnotationPrefix is the prefix of annotations that specify a Toleration.
-	TolerationsAnnotationPrefix = LabelAnnotationPrefix + "tolerations."
 	// SparkApplicationSelectorLabel is the AppID set by the spark-distribution on the driver/executors Pods.
 	SparkApplicationSelectorLabel = "spark-app-selector"
 	// SparkRoleLabel is the driver/executor label set by the operator/spark-distribution on the driver/executors Pods.
@@ -97,12 +74,14 @@ const (
 	SparkDriverContainerImageKey = "spark.kubernetes.driver.container.image"
 	// SparkExecutorContainerImageKey is the configuration property for specifying a custom executor container image.
 	SparkExecutorContainerImageKey = "spark.kubernetes.executor.container.image"
+	// SparkDriverCoreRequestKey is the configuration property for specifying the physical CPU request for the driver.
+	SparkDriverCoreRequestKey = "spark.kubernetes.driver.request.cores"
+	// SparkExecutorCoreRequestKey is the configuration property for specifying the physical CPU request for executors.
+	SparkExecutorCoreRequestKey = "spark.kubernetes.executor.request.cores"
 	// SparkDriverCoreLimitKey is the configuration property for specifying the hard CPU limit for the driver pod.
 	SparkDriverCoreLimitKey = "spark.kubernetes.driver.limit.cores"
 	// SparkExecutorCoreLimitKey is the configuration property for specifying the hard CPU limit for the executor pods.
 	SparkExecutorCoreLimitKey = "spark.kubernetes.executor.limit.cores"
-	// SparkExecutorCoreRequestKey is the configuration property for specifying the physical CPU request for executors.
-	SparkExecutorCoreRequestKey = "spark.kubernetes.executor.request.cores"
 	// SparkDriverSecretKeyPrefix is the configuration property prefix for specifying secrets to be mounted into the
 	// driver.
 	SparkDriverSecretKeyPrefix = "spark.kubernetes.driver.secrets."
@@ -129,6 +108,10 @@ const (
 	SparkDriverLabelKeyPrefix = "spark.kubernetes.driver.label."
 	// SparkExecutorLabelKeyPrefix is the Spark configuration key prefix for labels on the executor Pods.
 	SparkExecutorLabelKeyPrefix = "spark.kubernetes.executor.label."
+	// SparkDriverVolumesPrefix is the Spark volumes configuration for mounting a volume into the driver pod.
+	SparkDriverVolumesPrefix = "spark.kubernetes.driver.volumes."
+	// SparkExecutorVolumesPrefix is the Spark volumes configuration for mounting a volume into the driver pod.
+	SparkExecutorVolumesPrefix = "spark.kubernetes.executor.volumes."
 	// SparkDriverPodNameKey is the Spark configuration key for driver pod name.
 	SparkDriverPodNameKey = "spark.kubernetes.driver.pod.name"
 	// SparkDriverServiceAccountName is the Spark configuration key for specifying name of the Kubernetes service
@@ -158,6 +141,8 @@ const (
 	SparkDriverJavaOptions = "spark.driver.extraJavaOptions"
 	// SparkExecutorJavaOptions is the Spark configuration key for a string of extra JVM options to pass to executors.
 	SparkExecutorJavaOptions = "spark.executor.extraJavaOptions"
+	// SparkExecutorDeleteOnTermination is the Spark configuration for specifying whether executor pods should be deleted in case of failure or normal termination
+	SparkExecutorDeleteOnTermination = "spark.kubernetes.executor.deleteOnTermination"
 )
 
 const (
@@ -284,3 +269,13 @@ rules:
 
 // DefaultPrometheusJavaAgentPort is the default port used by the Prometheus JMX exporter.
 const DefaultPrometheusJavaAgentPort int32 = 8090
+
+const (
+	// SparkDriverContainerName is name of driver container in spark driver pod
+	SparkDriverContainerName = "spark-kubernetes-driver"
+	// SparkExecutorContainerName is name of executor container in spark executor pod
+	SparkExecutorContainerName = "executor"
+
+	// SparkLocalDirVolumePrefix is the volume name prefix for "scratch" space directory
+	SparkLocalDirVolumePrefix = "spark-local-dir-"
+)

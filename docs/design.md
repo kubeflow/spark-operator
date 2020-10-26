@@ -4,16 +4,15 @@
 * [Introduction](#introduction)
 * [Architecture](#architecture)
 * [The CRD Controller](#the-crd-controller)
-* [Handling Application Restart](#handling-application-restart)
-* [Handling Retries of Failed Submissions](#handling-retries-of-failed-submissions)
+* [Handling Application Restart and Failures](#handling-application-restart-and-failures)
 * [Mutating Admission Webhook](#mutating-admission-webhook)
-* [Command-line Tool: Sparkctl](#command-line-tool:-sparkctl)
+* [Command-line Tool: Sparkctl](#command-line-tool-sparkctl)
 
 ## Introduction
 
 In Spark 2.3, Kubernetes becomes an official scheduler backend for Spark, additionally to the standalone scheduler, Mesos, and Yarn. Compared with the alternative approach of deploying a standalone Spark cluster on top of Kubernetes and submit applications to run on the standalone cluster, having Kubernetes as a native scheduler backend offers some important benefits as discussed in [SPARK-18278](https://issues.apache.org/jira/browse/SPARK-18278) and is a huge leap forward. However, the way life cycle of Spark applications are managed, e.g., how applications get submitted to run on Kubernetes and how application status is tracked, are vastly different from that of other types of workloads on Kubernetes, e.g., Deployments, DaemonSets, and StatefulSets. The Kubernetes Operator for Apache Spark reduces the gap and allow Spark applications to be specified, run, and monitored idiomatically on Kubernetes.
 
-Specifically, the Kubernetes Operator for Apache Spark follows the recent trend of leveraging the [operator](https://coreos.com/blog/introducing-operators.html) pattern for managing the life cycle of Spark applications on a Kubernetes cluster. The operator allows Spark applications to be specified in a declarative manner (e.g., in a YAML file) and run without the need to deal with the spark submission process. It also enables status of Spark applications to be tracked and presented idiomatically like other types of workloads on Kubernetes. This document discusses the design and architecture of the operator. For documentation of the [CustomResourceDefinition](https://kubernetes.io/docs/concepts/api-extension/custom-resources/) for specification of Spark applications, please refer to [API Definition](api.md)      
+Specifically, the Kubernetes Operator for Apache Spark follows the recent trend of leveraging the [operator](https://coreos.com/blog/introducing-operators.html) pattern for managing the life cycle of Spark applications on a Kubernetes cluster. The operator allows Spark applications to be specified in a declarative manner (e.g., in a YAML file) and run without the need to deal with the spark submission process. It also enables status of Spark applications to be tracked and presented idiomatically like other types of workloads on Kubernetes. This document discusses the design and architecture of the operator. For documentation of the [CustomResourceDefinition](https://kubernetes.io/docs/concepts/api-extension/custom-resources/) for specification of Spark applications, please refer to [API Definition](api-docs.md)      
 
 ## Architecture
 
@@ -45,7 +44,7 @@ As part of preparing a submission for a newly created `SparkApplication` object,
 
 ## Handling Application Restart And Failures
 
-The operator provides a configurable option through the `RestartPolicy` field of `SparkApplicationSpec` (see the [Configuring Automatic Application Restart and Failure Handling](user-guide.md) for more details) for specifying the application restart policy. The operator determines if an application should be restarted based on its termination state and the restart policy. As discussed above, the termination state of an application is based on the termination state of the driver pod. So effectively the decision is based on the termination state of the driver pod and the restart policy. Specifically, one of the following conditions applies:
+The operator provides a configurable option through the `RestartPolicy` field of `SparkApplicationSpec` (see the [Configuring Automatic Application Restart and Failure Handling](user-guide.md#configuring-automatic-application-restart-and-failure-handling) for more details) for specifying the application restart policy. The operator determines if an application should be restarted based on its termination state and the restart policy. As discussed above, the termination state of an application is based on the termination state of the driver pod. So effectively the decision is based on the termination state of the driver pod and the restart policy. Specifically, one of the following conditions applies:
 
 * If the restart policy type is `Never`, the application is not restarted upon terminating.
 * If the restart policy type is `Always`, the application gets restarted regardless of the termination state of the application. Please note that such an Application will never end up in a terminal state of `COMPLETED` or `FAILED`.

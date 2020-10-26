@@ -26,7 +26,7 @@ import (
 	clientset "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/util/retry"
 
-	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta1"
+	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta2"
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/config"
 )
 
@@ -38,20 +38,15 @@ const (
 	prometheusPathAnnotation   = "prometheus.io/path"
 )
 
-func configPrometheusMonitoring(app *v1beta1.SparkApplication, kubeClient clientset.Interface) error {
+func configPrometheusMonitoring(app *v1beta2.SparkApplication, kubeClient clientset.Interface) error {
 	port := config.DefaultPrometheusJavaAgentPort
 	if app.Spec.Monitoring.Prometheus.Port != nil {
 		port = *app.Spec.Monitoring.Prometheus.Port
 	}
 
-	var javaOption string
-	if app.HasPrometheusConfigFile() {
-		configFile := *app.Spec.Monitoring.Prometheus.ConfigFile
-		glog.V(2).Infof("Overriding the default Prometheus configuration with config file %s in the Spark image.", configFile)
-		javaOption = fmt.Sprintf("-javaagent:%s=%d:%s", app.Spec.Monitoring.Prometheus.JmxExporterJar,
-			port, configFile)
-	} else {
-		glog.V(2).Infof("Using the default Prometheus configuration.")
+	// If one or both of the metricsPropertiesFile and Prometheus.ConfigFile are not set
+	if !app.HasMetricsPropertiesFile() || !app.HasPrometheusConfigFile() {
+		glog.V(2).Infof("Creating a ConfigMap for metrics and Prometheus configurations.")
 		configMapName := config.GetPrometheusConfigMapName(app)
 		configMap := buildPrometheusConfigMap(app, configMapName)
 		retryErr := retry.RetryOnConflict(retry.DefaultRetry, func() error {
@@ -72,13 +67,22 @@ func configPrometheusMonitoring(app *v1beta1.SparkApplication, kubeClient client
 		if retryErr != nil {
 			return fmt.Errorf("failed to apply %s in namespace %s: %v", configMapName, app.Namespace, retryErr)
 		}
+	}
 
-		javaOption = fmt.Sprintf(
-			"-javaagent:%s=%d:%s/%s",
-			app.Spec.Monitoring.Prometheus.JmxExporterJar,
-			port,
-			config.PrometheusConfigMapMountPath,
-			prometheusConfigKey)
+	var javaOption string
+
+	javaOption = fmt.Sprintf(
+		"-javaagent:%s=%d:%s/%s",
+		app.Spec.Monitoring.Prometheus.JmxExporterJar,
+		port,
+		config.PrometheusConfigMapMountPath,
+		prometheusConfigKey)
+
+	if app.HasPrometheusConfigFile() {
+		configFile := *app.Spec.Monitoring.Prometheus.ConfigFile
+		glog.V(2).Infof("Overriding the default Prometheus configuration with config file %s in the Spark image.", configFile)
+		javaOption = fmt.Sprintf("-javaagent:%s=%d:%s", app.Spec.Monitoring.Prometheus.JmxExporterJar,
+			port, configFile)
 	}
 
 	/* work around for push gateway issue: https://github.com/prometheus/pushgateway/issues/97 */
@@ -89,6 +93,10 @@ func configPrometheusMonitoring(app *v1beta1.SparkApplication, kubeClient client
 	}
 	app.Spec.SparkConf["spark.metrics.namespace"] = metricNamespace
 	app.Spec.SparkConf["spark.metrics.conf"] = metricConf
+
+	if app.HasMetricsPropertiesFile() {
+		app.Spec.SparkConf["spark.metrics.conf"] = *app.Spec.Monitoring.MetricsPropertiesFile
+	}
 
 	if app.Spec.Monitoring.ExposeDriverMetrics {
 		if app.Spec.Driver.Annotations == nil {
@@ -122,24 +130,31 @@ func configPrometheusMonitoring(app *v1beta1.SparkApplication, kubeClient client
 	return nil
 }
 
-func buildPrometheusConfigMap(app *v1beta1.SparkApplication, prometheusConfigMapName string) *corev1.ConfigMap {
-	metricsProperties := config.DefaultMetricsProperties
-	if app.Spec.Monitoring.MetricsProperties != nil {
-		metricsProperties = *app.Spec.Monitoring.MetricsProperties
+func buildPrometheusConfigMap(app *v1beta2.SparkApplication, prometheusConfigMapName string) *corev1.ConfigMap {
+	configMapData := make(map[string]string)
+
+	if !app.HasMetricsPropertiesFile() {
+		metricsProperties := config.DefaultMetricsProperties
+		if app.Spec.Monitoring.MetricsProperties != nil {
+			metricsProperties = *app.Spec.Monitoring.MetricsProperties
+		}
+		configMapData[metricsPropertiesKey] = metricsProperties
 	}
-	prometheusConfig := config.DefaultPrometheusConfiguration
-	if app.Spec.Monitoring.Prometheus.Configuration != nil {
-		prometheusConfig = *app.Spec.Monitoring.Prometheus.Configuration
+
+	if !app.HasPrometheusConfigFile() {
+		prometheusConfig := config.DefaultPrometheusConfiguration
+		if app.Spec.Monitoring.Prometheus.Configuration != nil {
+			prometheusConfig = *app.Spec.Monitoring.Prometheus.Configuration
+		}
+		configMapData[prometheusConfigKey] = prometheusConfig
 	}
+
 	return &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            prometheusConfigMapName,
 			Namespace:       app.Namespace,
 			OwnerReferences: []metav1.OwnerReference{*getOwnerReference(app)},
 		},
-		Data: map[string]string{
-			metricsPropertiesKey: metricsProperties,
-			prometheusConfigKey:  prometheusConfig,
-		},
+		Data: configMapData,
 	}
 }

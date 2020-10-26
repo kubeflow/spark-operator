@@ -26,14 +26,14 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
 
-	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta1"
+	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta2"
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/config"
 )
 
 func TestCreateSparkUIService(t *testing.T) {
 	type testcase struct {
 		name             string
-		app              *v1beta1.SparkApplication
+		app              *v1beta2.SparkApplication
 		expectedService  SparkService
 		expectedSelector map[string]string
 		expectError      bool
@@ -84,45 +84,45 @@ func TestCreateSparkUIService(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	app1 := &v1beta1.SparkApplication{
+	app1 := &v1beta2.SparkApplication{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "foo",
 			Namespace: "default",
 			UID:       "foo-123",
 		},
-		Spec: v1beta1.SparkApplicationSpec{
+		Spec: v1beta2.SparkApplicationSpec{
 			SparkConf: map[string]string{
 				sparkUIPortConfigurationKey: "4041",
 			},
 		},
-		Status: v1beta1.SparkApplicationStatus{
+		Status: v1beta2.SparkApplicationStatus{
 			SparkApplicationID: "foo-1",
 			ExecutionAttempts:  1,
 		},
 	}
-	app2 := &v1beta1.SparkApplication{
+	app2 := &v1beta2.SparkApplication{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "foo",
 			Namespace: "default",
 			UID:       "foo-123",
 		},
-		Status: v1beta1.SparkApplicationStatus{
+		Status: v1beta2.SparkApplicationStatus{
 			SparkApplicationID: "foo-2",
 			ExecutionAttempts:  2,
 		},
 	}
-	app3 := &v1beta1.SparkApplication{
+	app3 := &v1beta2.SparkApplication{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "foo",
 			Namespace: "default",
 			UID:       "foo-123",
 		},
-		Spec: v1beta1.SparkApplicationSpec{
+		Spec: v1beta2.SparkApplicationSpec{
 			SparkConf: map[string]string{
 				sparkUIPortConfigurationKey: "4041x",
 			},
 		},
-		Status: v1beta1.SparkApplicationStatus{
+		Status: v1beta2.SparkApplicationStatus{
 			SparkApplicationID: "foo-3",
 		},
 	}
@@ -166,15 +166,15 @@ func TestCreateSparkUIService(t *testing.T) {
 
 func TestCreateSparkUIIngress(t *testing.T) {
 
-	app := &v1beta1.SparkApplication{
+	app := &v1beta2.SparkApplication{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "foo",
 			Namespace: "default",
 			UID:       "foo-123",
 		},
-		Status: v1beta1.SparkApplicationStatus{
+		Status: v1beta2.SparkApplicationStatus{
 			SparkApplicationID: "foo-1",
-			DriverInfo: v1beta1.DriverInfo{
+			DriverInfo: v1beta2.DriverInfo{
 				WebUIServiceName: "blah-service",
 			},
 		},
