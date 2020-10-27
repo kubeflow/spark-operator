@@ -26,6 +26,7 @@ import (
 	"strings"
 	"syscall"
 	"time"
+	"fmt"
 
 	"github.com/golang/glog"
 	apiv1 "k8s.io/api/core/v1"

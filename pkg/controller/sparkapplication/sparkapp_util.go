@@ -176,7 +176,3 @@ func printStatus(status *v1beta2.SparkApplicationStatus) (string, error) {
 func getSubmissionJobName(app *v1beta2.SparkApplication) string {
 	return app.Name + "-spark-submit"
 }
-
-func getSubmissionJobName(app *v1beta1.SparkApplication) string {
-	return app.Name + "-spark-submit"
-}
