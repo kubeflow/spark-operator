@@ -21,12 +21,12 @@ package main
 import (
 	"context"
 	"flag"
+	"fmt"
 	"os"
 	"os/signal"
 	"strings"
 	"syscall"
 	"time"
-	"fmt"
 
 	"github.com/golang/glog"
 	apiv1 "k8s.io/api/core/v1"
@@ -78,8 +78,8 @@ var (
 
 // Increase QPS for kubeClient to prevent throttling.
 const (
-	kubeClientQPS = 20
-	kubeClientBurst = 20
+	kubeClientQPS            = 20
+	kubeClientBurst          = 20
 	kubeClientTimeoutSeconds = 30
 )
 
@@ -98,7 +98,7 @@ func main() {
 
 	config.QPS = kubeClientQPS
 	config.Burst = kubeClientBurst
-	config.Timeout = time.Duration(kubeClientTimeoutSeconds*time.Second)
+	config.Timeout = time.Duration(kubeClientTimeoutSeconds * time.Second)
 
 	kubeClient, err := clientset.NewForConfig(config)
 	if err != nil {
