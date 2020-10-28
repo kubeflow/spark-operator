@@ -37,10 +37,10 @@ import (
 )
 
 const (
-	sparkSubmitPodMemoryRequest = "100Mi"
-	sparkSubmitPodCpuRequest    = "100m"
-	sparkSubmitPodMemoryLimit   = "512Mi"
-	sparkSubmitPodCpuLimit      = "250m"
+	sparkSubmitPodMemoryRequest = "500Mi"
+	sparkSubmitPodCpuRequest    = "512m"
+	sparkSubmitPodMemoryLimit   = "1000Mi"
+	sparkSubmitPodCpuLimit      = "1024m"
 )
 
 type submissionJobManager interface {
@@ -129,6 +129,9 @@ func (sjm *realSubmissionJobManager) createSubmissionJob(app *v1beta2.SparkAppli
 	}
 	if app.Spec.ServiceAccount != nil {
 		job.Spec.Template.Spec.ServiceAccountName = *app.Spec.ServiceAccount
+	} else if app.Spec.Driver.ServiceAccount != nil {
+		// User driver service-account if not set at Spec level.
+		job.Spec.Template.Spec.ServiceAccountName = *app.Spec.Driver.ServiceAccount
 	}
 	// Copy the labels on the SparkApplication to the Job.
 	for key, val := range app.Labels {

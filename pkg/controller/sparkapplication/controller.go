@@ -34,7 +34,6 @@ import (
 	clientset "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
 	typedcorev1 "k8s.io/client-go/kubernetes/typed/core/v1"
-	batchv1 "k8s.io/client-go/listers/batch/v1"
 	v1 "k8s.io/client-go/listers/core/v1"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
@@ -73,7 +72,6 @@ type Controller struct {
 	metrics           *sparkAppMetrics
 	applicationLister crdlisters.SparkApplicationLister
 	podLister         v1.PodLister
-	jobLister         batchv1.JobLister
 	ingressURLFormat  string
 	batchSchedulerMgr *batchscheduler.SchedulerManager
 	subJobManager     submissionJobManager
@@ -1006,6 +1004,7 @@ func (c *Controller) recordExecutorEvent(app *v1beta2.SparkApplication, state v1
 func (c *Controller) clearStatus(status *v1beta2.SparkApplicationStatus) {
 	if status.AppState.State == v1beta2.InvalidatingState {
 		status.SparkApplicationID = ""
+		status.SubmissionAttempts = 0
 		status.ExecutionAttempts = 0
 		status.SubmissionTime = metav1.Time{}
 		status.TerminationTime = metav1.Time{}
