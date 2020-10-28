@@ -76,7 +76,7 @@ var (
 	metricsJobStartLatencyBuckets  util.HistogramBuckets = util.DefaultJobStartLatencyBuckets
 )
 
-//
+// Increase QPS for kubeClient to prevent throttling.
 const (
 	kubeClientQPS = 20
 	kubeClientBurst = 20
@@ -99,7 +99,6 @@ func main() {
 	config.QPS = kubeClientQPS
 	config.Burst = kubeClientBurst
 	config.Timeout = time.Duration(kubeClientTimeoutSeconds*time.Second)
-
 
 	kubeClient, err := clientset.NewForConfig(config)
 	if err != nil {
