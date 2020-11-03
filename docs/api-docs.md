@@ -719,7 +719,8 @@ string
 </td>
 <td>
 <em>(Optional)</em>
-<p>PriorityClassName stands for the name of k8s PriorityClass resource, it&rsquo;s being used in Volcano batch scheduler.</p>
+<p>PriorityClassName stands for the name of k8s PriorityClass resource, it&rsquo;s being used for job scheduling and 
+preemption, whether with the Volcano batch scheduler or the Kubernetes default scheduler.</p>
 </td>
 </tr>
 <tr>

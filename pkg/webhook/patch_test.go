@@ -772,6 +772,78 @@ func TestPatchSparkPod_SchedulerName(t *testing.T) {
 	assert.Equal(t, defaultScheduler, modifiedExecutorPod.Spec.SchedulerName)
 }
 
+func TestPatchSparkPod_PriorityClassName(t *testing.T) {
+	var priorityClassName = "critical"
+
+	app := &v1beta2.SparkApplication{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "spark-test-patch-priorityclassname",
+			UID:  "spark-test-1",
+		},
+		Spec: v1beta2.SparkApplicationSpec{
+			BatchSchedulerOptions: &v1beta2.BatchSchedulerConfiguration{
+				PriorityClassName: &priorityClassName,
+			},
+			Driver: v1beta2.DriverSpec{
+				SparkPodSpec: v1beta2.SparkPodSpec{},
+			},
+			Executor: v1beta2.ExecutorSpec{
+				SparkPodSpec: v1beta2.SparkPodSpec{},
+			},
+		},
+	}
+
+	driverPod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "spark-driver",
+			Labels: map[string]string{
+				config.SparkRoleLabel:               config.SparkDriverRole,
+				config.LaunchedBySparkOperatorLabel: "true",
+			},
+		},
+		Spec: corev1.PodSpec{
+			Containers: []corev1.Container{
+				{
+					Name:  config.SparkDriverContainerName,
+					Image: "spark-driver:latest",
+				},
+			},
+		},
+	}
+
+	modifiedDriverPod, err := getModifiedPod(driverPod, app)
+	if err != nil {
+		t.Fatal(err)
+	}
+	//Driver priorityClassName should be populated when specified
+	assert.Equal(t, priorityClassName, modifiedDriverPod.Spec.PriorityClassName)
+
+	executorPod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "spark-executor",
+			Labels: map[string]string{
+				config.SparkRoleLabel:               config.SparkExecutorRole,
+				config.LaunchedBySparkOperatorLabel: "true",
+			},
+		},
+		Spec: corev1.PodSpec{
+			Containers: []corev1.Container{
+				{
+					Name:  config.SparkExecutorContainerName,
+					Image: "spark-executor:latest",
+				},
+			},
+		},
+	}
+
+	modifiedExecutorPod, err := getModifiedPod(executorPod, app)
+	if err != nil {
+		t.Fatal(err)
+	}
+	//Executor priorityClassName should also be populated when specified in SparkApplicationSpec
+	assert.Equal(t, priorityClassName, modifiedExecutorPod.Spec.PriorityClassName)
+}
+
 func TestPatchSparkPod_Sidecars(t *testing.T) {
 	app := &v1beta2.SparkApplication{
 		ObjectMeta: metav1.ObjectMeta{
