@@ -48,26 +48,27 @@ func SetSparkApplicationDefaults(app *SparkApplication) {
 }
 
 func setDriverSpecDefaults(spec *DriverSpec, sparkConf map[string]string) {
-	if _, exists := sparkConf["spark.driver.cores"]; !exists && spec.Cores == nil  {
+
+	if _, exists := sparkConf["spark.driver.cores"]; !exists && spec.Cores == nil {
 		spec.Cores = new(int32)
 		*spec.Cores = 1
 	}
-	if _, exists := sparkConf["spark.driver.memory"]; !exists && spec.Memory == nil  {
+	if _, exists := sparkConf["spark.driver.memory"]; !exists && spec.Memory == nil {
 		spec.Memory = new(string)
 		*spec.Memory = "1g"
 	}
 }
 
 func setExecutorSpecDefaults(spec *ExecutorSpec, sparkConf map[string]string) {
-	if _, exists := sparkConf["spark.executor.cores"]; !exists && spec.Cores == nil  {
+	if _, exists := sparkConf["spark.executor.cores"]; !exists && spec.Cores == nil {
 		spec.Cores = new(int32)
 		*spec.Cores = 1
 	}
-	if _, exists := sparkConf["spark.executor.memory"]; !exists && spec.Memory == nil  {
+	if _, exists := sparkConf["spark.executor.memory"]; !exists && spec.Memory == nil {
 		spec.Memory = new(string)
 		*spec.Memory = "1g"
 	}
-	if _, exists := sparkConf["spark.executor.instances"]; !exists && spec.Instances == nil  {
+	if _, exists := sparkConf["spark.executor.instances"]; !exists && spec.Instances == nil {
 		spec.Instances = new(int32)
 		*spec.Instances = 1
 	}
