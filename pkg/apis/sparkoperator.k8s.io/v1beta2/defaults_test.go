@@ -121,6 +121,8 @@ func TestSetSparkApplicationDefaultsOnFailureRestartPolicyShouldSetDefaultValueF
 }
 
 func TestSetSparkApplicationDefaultslDriverSpecDefaults(t *testing.T) {
+
+	//Case1: Driver config not set.
 	app := &SparkApplication{
 		Spec: SparkApplicationSpec{},
 	}
@@ -138,9 +140,24 @@ func TestSetSparkApplicationDefaultslDriverSpecDefaults(t *testing.T) {
 	} else {
 		assert.Equal(t, "1g", *app.Spec.Driver.Memory)
 	}
+
+	//Case2: Driver config set via SparkConf.
+	app = &SparkApplication{
+		Spec: SparkApplicationSpec{
+			SparkConf: map[string]string{
+				"spark.driver.memory": "200M",
+				"spark.driver.cores":  "1",
+			},
+		},
+	}
+	SetSparkApplicationDefaults(app)
+
+	assert.Nil(t, app.Spec.Driver.Cores)
+	assert.Nil(t, app.Spec.Driver.Memory)
 }
 
 func TestSetSparkApplicationDefaultslExecutorSpecDefaults(t *testing.T) {
+	//Case1: Executor config not set.
 	app := &SparkApplication{
 		Spec: SparkApplicationSpec{},
 	}
@@ -164,4 +181,22 @@ func TestSetSparkApplicationDefaultslExecutorSpecDefaults(t *testing.T) {
 	} else {
 		assert.Equal(t, int32(1), *app.Spec.Executor.Instances)
 	}
+
+	//Case2: Executor config set via SparkConf.
+	app = &SparkApplication{
+		Spec: SparkApplicationSpec{
+			SparkConf: map[string]string{
+				"spark.executor.cores":     "2",
+				"spark.executor.memory":    "500M",
+				"spark.executor.instances": "3",
+			},
+		},
+	}
+
+	SetSparkApplicationDefaults(app)
+
+	assert.Nil(t, app.Spec.Executor.Cores)
+	assert.Nil(t, app.Spec.Executor.Memory)
+	assert.Nil(t, app.Spec.Executor.Instances)
+
 }
