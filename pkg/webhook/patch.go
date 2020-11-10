@@ -68,6 +68,11 @@ func patchSparkPod(pod *corev1.Pod, app *v1beta2.SparkApplication) []patchOperat
 		patchOps = append(patchOps, *op)
 	}
 
+	op = addPriorityClassName(pod, app)
+	if op != nil {
+		patchOps = append(patchOps, *op)
+	}
+
 	if pod.Spec.Affinity == nil {
 		op := addAffinity(pod, app)
 		if op != nil {
@@ -516,6 +521,19 @@ func addSchedulerName(pod *corev1.Pod, app *v1beta2.SparkApplication) *patchOper
 		return nil
 	}
 	return &patchOperation{Op: "add", Path: "/spec/schedulerName", Value: *schedulerName}
+}
+
+func addPriorityClassName(pod *corev1.Pod, app *v1beta2.SparkApplication) *patchOperation {
+	var priorityClassName *string
+
+	if app.Spec.BatchSchedulerOptions != nil {
+		priorityClassName = app.Spec.BatchSchedulerOptions.PriorityClassName
+	}
+
+	if priorityClassName == nil || *priorityClassName == "" {
+		return nil
+	}
+	return &patchOperation{Op: "add", Path: "/spec/priorityClassName", Value: *priorityClassName}
 }
 
 func addToleration(pod *corev1.Pod, toleration corev1.Toleration, first bool) patchOperation {
