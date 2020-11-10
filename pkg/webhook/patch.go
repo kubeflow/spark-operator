@@ -526,7 +526,7 @@ func addSchedulerName(pod *corev1.Pod, app *v1beta2.SparkApplication) *patchOper
 func addPriorityClassName(pod *corev1.Pod, app *v1beta2.SparkApplication) *patchOperation {
 	var priorityClassName *string
 
-	if app.Spec.BatchSchedulerOptions.PriorityClassName != nil {
+	if app.Spec.BatchSchedulerOptions != nil {
 		priorityClassName = app.Spec.BatchSchedulerOptions.PriorityClassName
 	}
 
