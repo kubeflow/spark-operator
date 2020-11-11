@@ -16,7 +16,7 @@ same environment, please refer [Quick Start Guide](https://github.com/volcano-sh
 Within the help of Helm chart, Kubernetes Operator for Apache Spark with Volcano can be easily installed with the command below:
 ```bash
 $ helm repo add incubator http://storage.googleapis.com/kubernetes-charts-incubator
-$ helm install incubator/sparkoperator --namespace spark-operator --set enableBatchScheduler=true
+$ helm install incubator/sparkoperator --namespace spark-operator --set enableBatchScheduler=true --set enableWebhook=true
 ```
 
 # Run Spark Application with Volcano scheduler
