@@ -105,7 +105,7 @@ EOF
 touch ${TMP_DIR}/.rnd
 export RANDFILE=${TMP_DIR}/.rnd
 openssl genrsa -out ${TMP_DIR}/ca-key.pem 2048
-openssl req -x509 -new -nodes -key ${TMP_DIR}/ca-key.pem -days 100000 -out ${TMP_DIR}/ca-cert.pem -subj "/CN=${SERVICE}_ca"
+openssl req -x509 -new -nodes -key ${TMP_DIR}/ca-key.pem -days 100000 -out ${TMP_DIR}/ca-cert.pem -subj "/CN=${SERVICE}.${NAMESPACE}.svc"
 
 # Create a server certificate.
 openssl genrsa -out ${TMP_DIR}/server-key.pem 2048
