@@ -40,3 +40,6 @@ build-api-docs:
 	-api-dir github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta2 \
 	-template-dir hack/api-docs-template \
 	-out-file docs/api-docs.md
+
+helm-docs:
+	helm-docs -c ./charts

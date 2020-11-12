@@ -2,12 +2,14 @@
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
 
+# replicaCount -- Desired number of pods, leaderElection will be enabled
+# if this is greater than 1
 replicaCount: 1
 
 image:
   repository: gcr.io/spark-operator/spark-operator
   pullPolicy: IfNotPresent
-  # Overrides the image tag whose default is the chart appVersion.
+  # -- Overrides the image tag whose default is the chart appVersion.
   tag: ""
 
 imagePullSecrets: []
@@ -15,16 +17,22 @@ nameOverride: ""
 fullnameOverride: ""
 
 rbac:
+  # -- Create and use `rbac` resources
   create: true
 
 serviceAccounts:
   spark:
+    # -- Create a service account for spark apps
     create: true
+    # -- Optional name for the spark service account
     name: ""
   sparkoperator:
+    # -- Create a service account for the operator
     create: true
+    # -- Optional name for the operator service account
     name: ""
 
+# -- Set this if running spark jobs in a different namespace than the operator
 sparkJobNamespace: ""
 controllerThreads: 10
 resyncInterval: 30
@@ -36,63 +44,59 @@ podSecurityContext: {}
 securityContext: {}
 
 webhook:
+  # -- Enable webhook server
   enable: false
+  # -- Webhook service port
   port: 8080
-  ## The webhook will only operate on namespaces with this label, specified in the form key1=value1,key2=value2
-  ## empty string will operate on all namespaces
+  # -- The webhook server will only operate on namespaces with this label, specified in the form key1=value1,key2=value2.
+  # Empty string (default) will operate on all namespaces
   namespaceSelector: ""
 
 metrics:
+  # -- Enable prometheus mertic scraping
   enable: true
   port: 10254
   endpoint: /metrics
   prefix: ""
 
-## Node labels for pod assignment
-## Ref: https://kubernetes.io/docs/user-guide/node-selection/
-##
+# nodeSelector -- Node labels for pod assignment
 nodeSelector: {}
 
-## Tolerations for the sparkoperator deployment
-##
-## Example:
-##   - key: "toleration=key"
-##     operator: "Equal"
-##     value: "value"
-##     effect: "NoSchedule"
-##
-## Ref: https://kubernetes.io/docs/concepts/configuration/taint-and-toleration/
-##
+# tolerations -- List of node taints to tolerate
 tolerations: []
 
+# affinity -- Affinity for pod assignment
 affinity: {}
 
+# podAnnotations -- Additional annotations to add to the pod
 podAnnotations: {}
 
-## Resources for the sparkoperator deployment
-## Ref: https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/
-##
+# resources -- Pod resource requests and limits
 resources: {}
+  # limits:
+  #   cpu: 100m
+  #   memory: 300Mi
+  # requests:
+  #   cpu: 100m
+  #   memory: 300Mi
 
-## Whether to enable batch scheduler for pod scheduling,
-## if enabled, end user can specify batch scheduler name in spark application.
 batchScheduler:
+  # -- Enable batch scheduler for spark jobs scheduling. If enabled, end user can specify batch scheduler name in spark application
   enable: false
 
-## Whether to enable the ResourceQuota enforcement for SparkApplication resources.
-## Requires the webhook to be enabled by setting webhook.enable to true.
-## Ref: https://github.com/GoogleCloudPlatform/spark-on-k8s-operator/blob/master/docs/user-guide.md#enabling-resource-quota-enforcement.
 resourceQuotaEnforcement:
+  # -- Whether to enable the ResourceQuota enforcement for SparkApplication resources.
+  # Requires the webhook to be enabled by setting webhook.enable to true.
+  # Ref: https://github.com/GoogleCloudPlatform/spark-on-k8s-operator/blob/master/docs/user-guide.md#enabling-resource-quota-enforcement.
   enable: false
 
-## Whether to enable leader election when the operator Deployment has more than one replica.
-## Only applicable when `replicaCount` is set to a value greater than 1.
-## Ref: https://github.com/GoogleCloudPlatform/spark-on-k8s-operator/blob/master/docs/user-guide.md#enabling-leader-election-for-high-availability.
 leaderElection:
+  # -- Leader election lock name.
+  # Ref: https://github.com/GoogleCloudPlatform/spark-on-k8s-operator/blob/master/docs/user-guide.md#enabling-leader-election-for-high-availability.
   lockName: "spark-operator-lock"
-  ## Optionally store the lock in another namespace. Defaults to operator's namespace
-  # lockNamespace: ""
+  # -- Optionally store the lock in another namespace. Defaults to operator's namespace
+  lockNamespace: ""
 
-## When using istio Jobs need to run without a sidecar to properly terminate
 istio:
+  # -- When using istio, spark jobs need to run without a sidecar to properly terminate
   enabled: false
