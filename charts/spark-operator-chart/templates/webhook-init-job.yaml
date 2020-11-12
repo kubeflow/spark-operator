@@ -1,9 +1,8 @@
-{{ if .Values.enableWebhook }}
+{{ if .Values.webhook.enable }}
 apiVersion: batch/v1
 kind: Job
 metadata:
   name: {{ include "spark-operator.fullname" . }}-webhook-init
-  namespace: {{ .Release.Namespace }}
   labels:
     {{- include "spark-operator.labels" . | nindent 4 }}
 spec:
