@@ -27,32 +27,32 @@ TBD
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
 | affinity | object | `{}` | Affinity for pod assignment |
-| batchScheduler.enable | bool | `false` | Enable batch scheduler for spark jobs scheduling. If enabled, end user can specify batch scheduler name in spark application |
-| controllerThreads | int | `10` |  |
-| fullnameOverride | string | `""` |  |
-| image.pullPolicy | string | `"IfNotPresent"` |  |
-| image.repository | string | `"gcr.io/spark-operator/spark-operator"` |  |
+| batchScheduler.enable | bool | `false` | Enable batch scheduler for spark jobs scheduling. If enabled, users can specify batch scheduler name in spark application |
+| controllerThreads | int | `10` | Operator concurrency, higher values might increase memory usage |
+| fullnameOverride | string | `""` | String to override release name |
+| image.pullPolicy | string | `"IfNotPresent"` | Image pull policy |
+| image.repository | string | `"gcr.io/spark-operator/spark-operator"` | Image repository |
 | image.tag | string | `""` | Overrides the image tag whose default is the chart appVersion. |
-| imagePullSecrets | list | `[]` |  |
-| ingressUrlFormat | string | `""` |  |
-| istio.enabled | bool | `false` | When using istio, spark jobs need to run without a sidecar to properly terminate |
+| imagePullSecrets | list | `[]` | Image pull secrets |
+| ingressUrlFormat | string | `""` | Ingress URL format |
+| istio.enabled | bool | `false` | When using `istio`, spark jobs need to run without a sidecar to properly terminate |
 | leaderElection.lockName | string | `"spark-operator-lock"` | Leader election lock name. Ref: https://github.com/GoogleCloudPlatform/spark-on-k8s-operator/blob/master/docs/user-guide.md#enabling-leader-election-for-high-availability. |
 | leaderElection.lockNamespace | string | `""` | Optionally store the lock in another namespace. Defaults to operator's namespace |
-| logLevel | int | `2` |  |
+| logLevel | int | `2` | Set higher levels for more verbose logging |
 | metrics.enable | bool | `true` | Enable prometheus mertic scraping |
-| metrics.endpoint | string | `"/metrics"` |  |
-| metrics.port | int | `10254` |  |
-| metrics.prefix | string | `""` |  |
-| nameOverride | string | `""` |  |
+| metrics.endpoint | string | `"/metrics"` | Metrics serving endpoint |
+| metrics.port | int | `10254` | Metrics port |
+| metrics.prefix | string | `""` | Metric prefix, will be added to all exported metrics |
+| nameOverride | string | `""` | String to partially override `spark-operator.fullname` template (will maintain the release name) |
 | nodeSelector | object | `{}` | Node labels for pod assignment |
 | podAnnotations | object | `{}` | Additional annotations to add to the pod |
-| podSecurityContext | object | `{}` |  |
+| podSecurityContext | object | `{}` | Pod security context |
 | rbac.create | bool | `true` | Create and use `rbac` resources |
 | replicaCount | int | `1` | Desired number of pods, leaderElection will be enabled if this is greater than 1 |
-| resourceQuotaEnforcement.enable | bool | `false` | Whether to enable the ResourceQuota enforcement for SparkApplication resources. Requires the webhook to be enabled by setting webhook.enable to true. Ref: https://github.com/GoogleCloudPlatform/spark-on-k8s-operator/blob/master/docs/user-guide.md#enabling-resource-quota-enforcement. |
+| resourceQuotaEnforcement.enable | bool | `false` | Whether to enable the ResourceQuota enforcement for SparkApplication resources. Requires the webhook to be enabled by setting `webhook.enable` to true. Ref: https://github.com/GoogleCloudPlatform/spark-on-k8s-operator/blob/master/docs/user-guide.md#enabling-resource-quota-enforcement. |
 | resources | object | `{}` | Pod resource requests and limits |
-| resyncInterval | int | `30` |  |
-| securityContext | object | `{}` |  |
+| resyncInterval | int | `30` | Operator resync interval. Note that the operator will respond to events (e.g. create, update) unrealted to this setting |
+| securityContext | object | `{}` | Operator container security context |
 | serviceAccounts.spark.create | bool | `true` | Create a service account for spark apps |
 | serviceAccounts.spark.name | string | `""` | Optional name for the spark service account |
 | serviceAccounts.sparkoperator.create | bool | `true` | Create a service account for the operator |

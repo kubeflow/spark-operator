@@ -7,13 +7,20 @@
 replicaCount: 1
 
 image:
+  # -- Image repository
   repository: gcr.io/spark-operator/spark-operator
+  # -- Image pull policy
   pullPolicy: IfNotPresent
   # -- Overrides the image tag whose default is the chart appVersion.
   tag: ""
 
+# -- Image pull secrets
 imagePullSecrets: []
+
+# -- String to partially override `spark-operator.fullname` template (will maintain the release name)
 nameOverride: ""
+
+# -- String to override release name
 fullnameOverride: ""
 
 rbac:
@@ -34,13 +41,24 @@ serviceAccounts:
 
 # -- Set this if running spark jobs in a different namespace than the operator
 sparkJobNamespace: ""
+
+# -- Operator concurrency, higher values might increase memory usage
 controllerThreads: 10
+
+# -- Operator resync interval. Note that the operator will respond to events (e.g. create, update)
+# unrealted to this setting
 resyncInterval: 30
+
+# -- Ingress URL format
 ingressUrlFormat: ""
+
+# -- Set higher levels for more verbose logging
 logLevel: 2
 
+# podSecurityContext -- Pod security context
 podSecurityContext: {}
 
+# securityContext -- Operator container security context
 securityContext: {}
 
 webhook:
@@ -55,8 +73,11 @@ webhook:
 metrics:
   # -- Enable prometheus mertic scraping
   enable: true
+  # -- Metrics port
   port: 10254
+  # -- Metrics serving endpoint
   endpoint: /metrics
+  # -- Metric prefix, will be added to all exported metrics
   prefix: ""
 
 # nodeSelector -- Node labels for pod assignment
@@ -81,12 +102,12 @@ resources: {}
   #   memory: 300Mi
 
 batchScheduler:
-  # -- Enable batch scheduler for spark jobs scheduling. If enabled, end user can specify batch scheduler name in spark application
+  # -- Enable batch scheduler for spark jobs scheduling. If enabled, users can specify batch scheduler name in spark application
   enable: false
 
 resourceQuotaEnforcement:
   # -- Whether to enable the ResourceQuota enforcement for SparkApplication resources.
-  # Requires the webhook to be enabled by setting webhook.enable to true.
+  # Requires the webhook to be enabled by setting `webhook.enable` to true.
   # Ref: https://github.com/GoogleCloudPlatform/spark-on-k8s-operator/blob/master/docs/user-guide.md#enabling-resource-quota-enforcement.
   enable: false
 
@@ -98,5 +119,5 @@ leaderElection:
   lockNamespace: ""
 
 istio:
-  # -- When using istio, spark jobs need to run without a sidecar to properly terminate
+  # -- When using `istio`, spark jobs need to run without a sidecar to properly terminate
   enabled: false
