@@ -1,0 +1,98 @@
+# Default values for spark-operator.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+replicaCount: 1
+
+image:
+  repository: gcr.io/spark-operator/spark-operator
+  pullPolicy: IfNotPresent
+  # Overrides the image tag whose default is the chart appVersion.
+  tag: ""
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+rbac:
+  create: true
+
+serviceAccounts:
+  spark:
+    create: true
+    name: ""
+  sparkoperator:
+    create: true
+    name: ""
+
+sparkJobNamespace: ""
+controllerThreads: 10
+resyncInterval: 30
+ingressUrlFormat: ""
+logLevel: 2
+
+podSecurityContext: {}
+
+securityContext: {}
+
+webhook:
+  enable: false
+  port: 8080
+  ## The webhook will only operate on namespaces with this label, specified in the form key1=value1,key2=value2
+  ## empty string will operate on all namespaces
+  namespaceSelector: ""
+
+metrics:
+  enable: true
+  port: 10254
+  endpoint: /metrics
+  prefix: ""
+
+## Node labels for pod assignment
+## Ref: https://kubernetes.io/docs/user-guide/node-selection/
+##
+nodeSelector: {}
+
+## Tolerations for the sparkoperator deployment
+##
+## Example:
+##   - key: "toleration=key"
+##     operator: "Equal"
+##     value: "value"
+##     effect: "NoSchedule"
+##
+## Ref: https://kubernetes.io/docs/concepts/configuration/taint-and-toleration/
+##
+tolerations: []
+
+affinity: {}
+
+podAnnotations: {}
+
+## Resources for the sparkoperator deployment
+## Ref: https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/
+##
+resources: {}
+
+## Whether to enable batch scheduler for pod scheduling,
+## if enabled, end user can specify batch scheduler name in spark application.
+batchScheduler:
+  enable: false
+
+## Whether to enable the ResourceQuota enforcement for SparkApplication resources.
+## Requires the webhook to be enabled by setting webhook.enable to true.
+## Ref: https://github.com/GoogleCloudPlatform/spark-on-k8s-operator/blob/master/docs/user-guide.md#enabling-resource-quota-enforcement.
+resourceQuotaEnforcement:
+  enable: false
+
+## Whether to enable leader election when the operator Deployment has more than one replica.
+## Only applicable when `replicaCount` is set to a value greater than 1.
+## Ref: https://github.com/GoogleCloudPlatform/spark-on-k8s-operator/blob/master/docs/user-guide.md#enabling-leader-election-for-high-availability.
+leaderElection:
+  lockName: "spark-operator-lock"
+  ## Optionally store the lock in another namespace. Defaults to operator's namespace
+  # lockNamespace: ""
+
+## When using istio Jobs need to run without a sidecar to properly terminate
+istio:
+  enabled: false
