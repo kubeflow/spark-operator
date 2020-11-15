@@ -9,7 +9,7 @@ This chart bootstraps a [Kubernetes Operator for Apache Spark](https://github.co
 ## Prerequisites
 
 - Helm >= 3
-- Kubernetes >= 1.13.x
+- Kubernetes >= 1.13
 
 ## Previous Helm Chart
 
