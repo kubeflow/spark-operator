@@ -1,0 +1,123 @@
+# Default values for spark-operator.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+# replicaCount -- Desired number of pods, leaderElection will be enabled
+# if this is greater than 1
+replicaCount: 1
+
+image:
+  # -- Image repository
+  repository: gcr.io/spark-operator/spark-operator
+  # -- Image pull policy
+  pullPolicy: IfNotPresent
+  # -- Overrides the image tag whose default is the chart appVersion.
+  tag: ""
+
+# -- Image pull secrets
+imagePullSecrets: []
+
+# -- String to partially override `spark-operator.fullname` template (will maintain the release name)
+nameOverride: ""
+
+# -- String to override release name
+fullnameOverride: ""
+
+rbac:
+  # -- Create and use `rbac` resources
+  create: true
+
+serviceAccounts:
+  spark:
+    # -- Create a service account for spark apps
+    create: true
+    # -- Optional name for the spark service account
+    name: ""
+  sparkoperator:
+    # -- Create a service account for the operator
+    create: true
+    # -- Optional name for the operator service account
+    name: ""
+
+# -- Set this if running spark jobs in a different namespace than the operator
+sparkJobNamespace: ""
+
+# -- Operator concurrency, higher values might increase memory usage
+controllerThreads: 10
+
+# -- Operator resync interval. Note that the operator will respond to events (e.g. create, update)
+# unrealted to this setting
+resyncInterval: 30
+
+# -- Ingress URL format
+ingressUrlFormat: ""
+
+# -- Set higher levels for more verbose logging
+logLevel: 2
+
+# podSecurityContext -- Pod security context
+podSecurityContext: {}
+
+# securityContext -- Operator container security context
+securityContext: {}
+
+webhook:
+  # -- Enable webhook server
+  enable: false
+  # -- Webhook service port
+  port: 8080
+  # -- The webhook server will only operate on namespaces with this label, specified in the form key1=value1,key2=value2.
+  # Empty string (default) will operate on all namespaces
+  namespaceSelector: ""
+
+metrics:
+  # -- Enable prometheus mertic scraping
+  enable: true
+  # -- Metrics port
+  port: 10254
+  # -- Metrics serving endpoint
+  endpoint: /metrics
+  # -- Metric prefix, will be added to all exported metrics
+  prefix: ""
+
+# nodeSelector -- Node labels for pod assignment
+nodeSelector: {}
+
+# tolerations -- List of node taints to tolerate
+tolerations: []
+
+# affinity -- Affinity for pod assignment
+affinity: {}
+
+# podAnnotations -- Additional annotations to add to the pod
+podAnnotations: {}
+
+# resources -- Pod resource requests and limits
+resources: {}
+  # limits:
+  #   cpu: 100m
+  #   memory: 300Mi
+  # requests:
+  #   cpu: 100m
+  #   memory: 300Mi
+
+batchScheduler:
+  # -- Enable batch scheduler for spark jobs scheduling. If enabled, users can specify batch scheduler name in spark application
+  enable: false
+
+resourceQuotaEnforcement:
+  # -- Whether to enable the ResourceQuota enforcement for SparkApplication resources.
+  # Requires the webhook to be enabled by setting `webhook.enable` to true.
+  # Ref: https://github.com/GoogleCloudPlatform/spark-on-k8s-operator/blob/master/docs/user-guide.md#enabling-resource-quota-enforcement.
+  enable: false
+
+leaderElection:
+  # -- Leader election lock name.
+  # Ref: https://github.com/GoogleCloudPlatform/spark-on-k8s-operator/blob/master/docs/user-guide.md#enabling-leader-election-for-high-availability.
+  lockName: "spark-operator-lock"
+  # -- Optionally store the lock in another namespace. Defaults to operator's namespace
+  lockNamespace: ""
+
+istio:
+  # -- When using `istio`, spark jobs need to run without a sidecar to properly terminate
+  enabled: false
