@@ -20,7 +20,9 @@ import (
 	"fmt"
 	"os"
 	"reflect"
+	"strconv"
 	"strings"
+	"time"
 
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -50,6 +52,7 @@ func buildSubmissionCommandArgs(app *v1beta2.SparkApplication, driverPodName str
 	args = append(args, "--conf", fmt.Sprintf("%s=%s", config.SparkAppNamespaceKey, app.Namespace))
 	args = append(args, "--conf", fmt.Sprintf("%s=%s", config.SparkAppNameKey, app.Name))
 	args = append(args, "--conf", fmt.Sprintf("%s=%s", config.SparkDriverPodNameKey, driverPodName))
+	args = append(args, "--conf", fmt.Sprintf("%s=%v", "spark.kubernetes.driverEnv.OPERATOR_START_TIME", strconv.FormatInt(time.Now().UnixNano()/1000000, 10)))
 
 	// Add application dependencies.
 	args = append(args, addDependenciesConfOptions(app)...)

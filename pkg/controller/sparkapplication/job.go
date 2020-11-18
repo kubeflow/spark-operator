@@ -82,7 +82,6 @@ func (sjm *realSubmissionJobManager) createSubmissionJob(app *v1beta2.SparkAppli
 		config.LaunchedBySparkOperatorLabel: "true",
 	}
 
-
 	imagePullSecrets := make([]v1.LocalObjectReference, len(app.Spec.ImagePullSecrets))
 	for i, secret := range app.Spec.ImagePullSecrets {
 		imagePullSecrets[i] = v1.LocalObjectReference{Name: secret}
@@ -94,9 +93,9 @@ func (sjm *realSubmissionJobManager) createSubmissionJob(app *v1beta2.SparkAppli
 
 	job := &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      getSubmissionJobName(app),
-			Namespace: app.Namespace,
-			Labels: labels,
+			Name:            getSubmissionJobName(app),
+			Namespace:       app.Namespace,
+			Labels:          labels,
 			Annotations:     app.Annotations,
 			OwnerReferences: []metav1.OwnerReference{*getOwnerReference(app)},
 		},
