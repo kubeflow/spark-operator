@@ -77,11 +77,8 @@ func (v *VolcanoBatchScheduler) syncPodGroupInClientMode(app *v1beta2.SparkAppli
 	if _, ok := app.Spec.Executor.Annotations[v1beta1.KubeGroupNameAnnotationKey]; !ok {
 		totalResource := getExecutorRequestResource(app)
 
-		if app.Spec.BatchSchedulerOptions != nil {
-			requestResources := app.Spec.BatchSchedulerOptions.Resources
-			if len(requestResources) > 0 {
-				totalResource = requestResources
-			}
+		if app.Spec.BatchSchedulerOptions != nil && len(app.Spec.BatchSchedulerOptions.Resources) > 0 {
+			totalResource = app.Spec.BatchSchedulerOptions.Resources
 		}
 		if err := v.syncPodGroup(app, 1, totalResource); err == nil {
 			app.Spec.Executor.Annotations[v1beta1.KubeGroupNameAnnotationKey] = v.getAppPodGroupName(app)
@@ -99,11 +96,8 @@ func (v *VolcanoBatchScheduler) syncPodGroupInClusterMode(app *v1beta2.SparkAppl
 		//Both driver and executor resource will be considered.
 		totalResource := sumResourceList([]corev1.ResourceList{getExecutorRequestResource(app), getDriverRequestResource(app)})
 
-		if app.Spec.BatchSchedulerOptions != nil {
-			requestResources := app.Spec.BatchSchedulerOptions.Resources
-			if len(requestResources) > 0 {
-				totalResource = requestResources
-			}
+		if app.Spec.BatchSchedulerOptions != nil && len(app.Spec.BatchSchedulerOptions.Resources) > 0 {
+			totalResource = app.Spec.BatchSchedulerOptions.Resources
 		}
 		if err := v.syncPodGroup(app, 1, totalResource); err == nil {
 			app.Spec.Executor.Annotations[v1beta1.KubeGroupNameAnnotationKey] = v.getAppPodGroupName(app)
