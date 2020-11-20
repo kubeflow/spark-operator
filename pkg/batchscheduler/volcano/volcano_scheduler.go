@@ -160,6 +160,15 @@ func (v *VolcanoBatchScheduler) syncPodGroup(app *v1beta2.SparkApplication, size
 	return nil
 }
 
+func (v *VolcanoBatchScheduler) ClearBatchSchedulingOnCompleted(app *v1beta2.SparkApplication) error {
+	// remove pod group
+	podGroupName := v.getAppPodGroupName(app)
+	if err := v.volcanoClient.SchedulingV1beta1().PodGroups(app.Namespace).Delete(podGroupName, &metav1.DeleteOptions{}); err != nil {
+		return err
+	}
+	return nil
+}
+
 func New(config *rest.Config) (schedulerinterface.BatchScheduler, error) {
 	vkClient, err := volcanoclient.NewForConfig(config)
 	if err != nil {

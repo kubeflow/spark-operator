@@ -597,6 +597,11 @@ func (c *Controller) syncSparkApplication(key string) error {
 			glog.Errorf("failed to update SparkApplication %s/%s: %v", app.Namespace, app.Name, err)
 			return err
 		}
+
+		if err := c.clearBatchScheduling(app, appCopy); err != nil {
+			glog.Errorf("failed to clean up batch scheduling %s/%s: %v", app.Namespace, app.Name, err)
+			return err
+		}
 	}
 
 	return nil
@@ -1000,4 +1005,20 @@ func (c *Controller) hasApplicationExpired(app *v1beta2.SparkApplication) bool {
 	}
 
 	return false
+}
+
+// Clean up batch scheduler if use
+func (c *Controller) clearBatchScheduling(oldApp, newApp *v1beta2.SparkApplication) error {
+	if needScheduling, scheduler := c.shouldDoBatchScheduling(newApp); needScheduling {
+		state := newApp.Status.AppState.State
+		// If new app state is completed or failed, no more app is running,
+		// and only once needs to clean up on completed or failed
+		if (state == v1beta2.CompletedState || state == v1beta2.FailedState) &&
+			state != oldApp.Status.AppState.State {
+			if err := scheduler.ClearBatchSchedulingOnCompleted(newApp); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
