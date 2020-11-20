@@ -20,7 +20,7 @@ For a more detailed guide on how to use, compose, and work with `SparkApplicatio
 To install the operator, use the Helm [chart](https://github.com/helm/charts/tree/master/incubator/sparkoperator).
 
 ```bash
-$ helm repo add incubator http://storage.googleapis.com/kubernetes-charts-incubator
+$ helm repo add incubator https://charts.helm.sh/incubator --force-update
 $ helm install incubator/sparkoperator --namespace spark-operator --set sparkJobNamespace=default
 ```
 
