@@ -26,3 +26,4 @@
 | [Stitch Fix](https://multithreaded.stitchfix.com/) | @nssalian | Evaluation | Data pipelines |
 | [Typeform](https://typeform.com/) | @afranzi | Production | Data & ML pipelines |
 | incrmntal(https://incrmntal.com/) | @scravy | Production | ML & Data Infrastructure | 
+| [CloudPhysics](https://www.cloudphysics.com) | @jkleckner | Production | ML/AI & Analytics |
