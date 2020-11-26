@@ -27,7 +27,7 @@ Customization of Spark pods, e.g., mounting arbitrary volumes and setting pod af
 The easiest way to install the Kubernetes Operator for Apache Spark is to use the Helm [chart](https://github.com/helm/charts/tree/master/incubator/sparkoperator).
 
 ```bash
-$ helm repo add incubator http://storage.googleapis.com/kubernetes-charts-incubator
+$ helm repo add incubator https://charts.helm.sh/incubator --force-update
 $ helm install incubator/sparkoperator --namespace spark-operator
 ```
 
