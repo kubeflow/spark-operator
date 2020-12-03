@@ -3686,6 +3686,8 @@ spec:
                     servicePort:
                       format: int32
                       type: integer
+                    serviceType:
+                      type: string
                   type: object
                 sparkVersion:
                   type: string

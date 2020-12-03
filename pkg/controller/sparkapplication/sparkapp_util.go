@@ -57,6 +57,13 @@ func getDriverPodName(app *v1beta2.SparkApplication) string {
 	return fmt.Sprintf("%s-driver", app.Name)
 }
 
+func getUIServiceType(app *v1beta2.SparkApplication) apiv1.ServiceType {
+	if app.Spec.SparkUIOptions != nil && app.Spec.SparkUIOptions.ServiceType != nil {
+		return *app.Spec.SparkUIOptions.ServiceType
+	}
+	return apiv1.ServiceTypeClusterIP
+}
+
 func getDefaultUIServiceName(app *v1beta2.SparkApplication) string {
 	return fmt.Sprintf("%s-ui-svc", app.Name)
 }
