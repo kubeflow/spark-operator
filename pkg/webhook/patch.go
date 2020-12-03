@@ -401,6 +401,7 @@ func addContainerPort(pod *corev1.Pod, port int32, protocol string) *patchOperat
 
 	path := fmt.Sprintf("/spec/containers/%d/ports", i)
 	containerPort := corev1.ContainerPort{
+		Name:          "metrics",
 		ContainerPort: port,
 		Protocol:      corev1.Protocol(protocol),
 	}
