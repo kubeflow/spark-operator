@@ -42,7 +42,7 @@ To update the auto-generated CRD definitions, run the following command:
 
 ```bash
 $ GO111MODULE=off go get -u sigs.k8s.io/controller-tools/cmd/controller-gen
-$ controller-gen crd:trivialVersions=true,maxDescLen=0 paths="./pkg/apis/sparkoperator.k8s.io/v1beta2" output:crd:artifacts:config=./manifest/crds/
+$ controller-gen crd:trivialVersions=true,maxDescLen=0,crdVersions=v1beta1 paths="./pkg/apis/sparkoperator.k8s.io/v1beta2" output:crd:artifacts:config=./manifest/crds/
 ```
 
 You can verify the current auto-generated code is up to date with:

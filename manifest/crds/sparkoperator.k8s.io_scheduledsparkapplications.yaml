@@ -795,7 +795,6 @@ spec:
                                   type: string
                               required:
                               - containerPort
-                              - protocol
                               type: object
                             type: array
                             x-kubernetes-list-map-keys:
@@ -1578,7 +1577,6 @@ spec:
                                   type: string
                               required:
                               - containerPort
-                              - protocol
                               type: object
                             type: array
                             x-kubernetes-list-map-keys:
@@ -2594,7 +2592,6 @@ spec:
                                   type: string
                               required:
                               - containerPort
-                              - protocol
                               type: object
                             type: array
                             x-kubernetes-list-map-keys:
@@ -3269,7 +3266,6 @@ spec:
                                   type: string
                               required:
                               - containerPort
-                              - protocol
                               type: object
                             type: array
                             x-kubernetes-list-map-keys:
@@ -4342,5 +4338,5 @@ status:
   acceptedNames:
     kind: ""
     plural: ""
-  conditions: null
-  storedVersions: null
+  conditions: []
+  storedVersions: []
