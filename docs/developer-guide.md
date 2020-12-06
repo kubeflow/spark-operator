@@ -38,7 +38,7 @@ To update the auto-generated code, run the following command. (This step is only
 $ hack/update-codegen.sh
 ```
 
-To update the auto-generated CRD definitions, run the following command:
+To update the auto-generated CRD definitions, run the following command. After doing so, you must update the list of required fields under each `ports` field to add the `protocol` field to the list. Skipping this step will make the CRDs incompatible with Kubernetes v1.18+.
 
 ```bash
 $ GO111MODULE=off go get -u sigs.k8s.io/controller-tools/cmd/controller-gen
