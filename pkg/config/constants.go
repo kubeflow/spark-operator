@@ -296,6 +296,9 @@ const DefaultPrometheusJavaAgentPort int32 = 8090
 // DefaultPrometheusPortProtocol is the default protocol used by the Prometheus JMX exporter.
 const DefaultPrometheusPortProtocol string = "TCP"
 
+// DefaultPrometheusPortName is the default port name used by the Prometheus JMX exporter.
+const DefaultPrometheusPortName string = "jmx-exporter"
+
 const (
 	// SparkDriverContainerName is name of driver container in spark driver pod
 	SparkDriverContainerName = "spark-kubernetes-driver"

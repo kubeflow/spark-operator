@@ -3600,6 +3600,8 @@ spec:
                       maximum: 49151
                       minimum: 1024
                       type: integer
+                    portName:
+                      type: string
                   required:
                   - jmxExporterJar
                   type: object

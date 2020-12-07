@@ -499,6 +499,7 @@ func TestPatchSparkPod_HadoopConfigMap(t *testing.T) {
 
 func TestPatchSparkPod_PrometheusConfigMaps(t *testing.T) {
 	var appPort int32 = 9999
+	appPortName := "jmx-exporter"
 	app := &v1beta2.SparkApplication{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "spark-test",
@@ -509,6 +510,7 @@ func TestPatchSparkPod_PrometheusConfigMaps(t *testing.T) {
 				Prometheus: &v1beta2.PrometheusSpec{
 					JmxExporterJar: "",
 					Port:           &appPort,
+					PortName:       &appPortName,
 					ConfigFile:     nil,
 					Configuration:  nil,
 				},
@@ -543,6 +545,7 @@ func TestPatchSparkPod_PrometheusConfigMaps(t *testing.T) {
 	expectedConfigMapName := config.GetPrometheusConfigMapName(app)
 	expectedVolumeName := expectedConfigMapName + "-vol"
 	expectedContainerPort := *app.Spec.Monitoring.Prometheus.Port
+	expectedContainerPortName := *app.Spec.Monitoring.Prometheus.PortName
 	assert.Equal(t, 1, len(modifiedPod.Spec.Volumes))
 	assert.Equal(t, expectedVolumeName, modifiedPod.Spec.Volumes[0].Name)
 	assert.True(t, modifiedPod.Spec.Volumes[0].ConfigMap != nil)
@@ -551,6 +554,7 @@ func TestPatchSparkPod_PrometheusConfigMaps(t *testing.T) {
 	assert.Equal(t, expectedVolumeName, modifiedPod.Spec.Containers[0].VolumeMounts[0].Name)
 	assert.Equal(t, config.PrometheusConfigMapMountPath, modifiedPod.Spec.Containers[0].VolumeMounts[0].MountPath)
 	assert.Equal(t, expectedContainerPort, modifiedPod.Spec.Containers[0].Ports[0].ContainerPort)
+	assert.Equal(t, expectedContainerPortName, modifiedPod.Spec.Containers[0].Ports[0].Name)
 	assert.Equal(t, corev1.Protocol(config.DefaultPrometheusPortProtocol), modifiedPod.Spec.Containers[0].Ports[0].Protocol)
 }
 

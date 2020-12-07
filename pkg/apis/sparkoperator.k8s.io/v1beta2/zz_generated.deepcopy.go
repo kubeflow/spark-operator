@@ -348,6 +348,11 @@ func (in *PrometheusSpec) DeepCopyInto(out *PrometheusSpec) {
 		*out = new(int32)
 		**out = **in
 	}
+	if in.PortName != nil {
+		in, out := &in.PortName, &out.PortName
+		*out = new(string)
+		**out = **in
+	}
 	if in.ConfigFile != nil {
 		in, out := &in.ConfigFile, &out.ConfigFile
 		*out = new(string)
