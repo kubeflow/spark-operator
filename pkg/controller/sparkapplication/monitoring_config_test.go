@@ -225,9 +225,9 @@ func TestConfigPrometheusMonitoring(t *testing.T) {
 				},
 			},
 			metricsPropertiesFile: "/testcase4dummy/metrics.properties",
-			port:                "8091",
-			driverJavaOptions:   "-XX:+PrintGCDetails -XX:+PrintGCTimeStamps -javaagent:/prometheus/exporter.jar=8091:testcase4dummy.yaml",
-			executorJavaOptions: "-XX:+PrintGCDetails -XX:+PrintGCTimeStamps -javaagent:/prometheus/exporter.jar=8091:testcase4dummy.yaml",
+			port:                  "8091",
+			driverJavaOptions:     "-XX:+PrintGCDetails -XX:+PrintGCTimeStamps -javaagent:/prometheus/exporter.jar=8091:testcase4dummy.yaml",
+			executorJavaOptions:   "-XX:+PrintGCDetails -XX:+PrintGCTimeStamps -javaagent:/prometheus/exporter.jar=8091:testcase4dummy.yaml",
 		},
 		{
 			app: &v1beta2.SparkApplication{
