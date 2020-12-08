@@ -17,6 +17,7 @@ limitations under the License.
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"os"
@@ -69,7 +70,7 @@ func init() {
 }
 
 func doLog(name string, kubeClientset clientset.Interface, crdClientset crdclientset.Interface) error {
-	app, err := crdClientset.SparkoperatorV1beta2().SparkApplications(Namespace).Get(name, metav1.GetOptions{})
+	app, err := crdClientset.SparkoperatorV1beta2().SparkApplications(Namespace).Get(context.TODO(), name, metav1.GetOptions{})
 	if err != nil {
 		return fmt.Errorf("failed to get SparkApplication %s: %v", name, err)
 	}
@@ -102,7 +103,7 @@ func doLog(name string, kubeClientset clientset.Interface, crdClientset crdclien
 
 // printLogs is a one time operation that prints the fetched logs of the given pod.
 func printLogs(out io.Writer, kubeClientset clientset.Interface, podName string) error {
-	rawLogs, err := kubeClientset.CoreV1().Pods(Namespace).GetLogs(podName, &apiv1.PodLogOptions{}).Do().Raw()
+	rawLogs, err := kubeClientset.CoreV1().Pods(Namespace).GetLogs(podName, &apiv1.PodLogOptions{}).Do(context.TODO()).Raw()
 	if err != nil {
 		return err
 	}
@@ -113,7 +114,7 @@ func printLogs(out io.Writer, kubeClientset clientset.Interface, podName string)
 // streamLogs streams the logs of the given pod until there are no more logs available.
 func streamLogs(out io.Writer, kubeClientset clientset.Interface, podName string) error {
 	request := kubeClientset.CoreV1().Pods(Namespace).GetLogs(podName, &apiv1.PodLogOptions{Follow: true})
-	reader, err := request.Stream()
+	reader, err := request.Stream(context.TODO())
 	if err != nil {
 		return err
 	}

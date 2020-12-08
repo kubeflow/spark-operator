@@ -17,10 +17,11 @@ limitations under the License.
 package sparkapplication
 
 import (
-	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/util"
 	"net/http"
 	"sync"
 	"testing"
+
+	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/util"
 
 	"github.com/stretchr/testify/assert"
 )

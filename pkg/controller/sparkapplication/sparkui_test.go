@@ -17,6 +17,7 @@ limitations under the License.
 package sparkapplication
 
 import (
+	"context"
 	"fmt"
 	"reflect"
 	"testing"
@@ -53,7 +54,7 @@ func TestCreateSparkUIService(t *testing.T) {
 		}
 		service, err := fakeClient.CoreV1().
 			Services(test.app.Namespace).
-			Get(sparkService.serviceName, metav1.GetOptions{})
+			Get(context.TODO(), sparkService.serviceName, metav1.GetOptions{})
 		if err != nil {
 			if test.expectError {
 				return
@@ -259,7 +260,7 @@ func TestCreateSparkUIIngress(t *testing.T) {
 			t.Errorf("Ingress URL wanted %s got %s", test.expectedIngress.ingressURL, sparkIngress.ingressURL)
 		}
 		ingress, err := fakeClient.ExtensionsV1beta1().Ingresses(test.app.Namespace).
-			Get(sparkIngress.ingressName, metav1.GetOptions{})
+			Get(context.TODO(), sparkIngress.ingressName, metav1.GetOptions{})
 		if err != nil {
 			t.Fatal(err)
 		}
