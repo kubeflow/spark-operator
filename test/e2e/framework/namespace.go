@@ -17,6 +17,7 @@ limitations under the License.
 package framework
 
 import (
+	"context"
 	"fmt"
 	"testing"
 
@@ -27,11 +28,11 @@ import (
 )
 
 func CreateNamespace(kubeClient kubernetes.Interface, name string) (*v1.Namespace, error) {
-	namespace, err := kubeClient.CoreV1().Namespaces().Create(&v1.Namespace{
+	namespace, err := kubeClient.CoreV1().Namespaces().Create(context.TODO(), &v1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: name,
 		},
-	})
+	}, metav1.CreateOptions{})
 	if err != nil {
 		return nil, errors.Wrap(err, fmt.Sprintf("failed to create namespace with name %v", name))
 	}
@@ -57,5 +58,5 @@ func (ctx *TestCtx) CreateNamespace(t *testing.T, kubeClient kubernetes.Interfac
 }
 
 func DeleteNamespace(kubeClient kubernetes.Interface, name string) error {
-	return kubeClient.CoreV1().Namespaces().Delete(name, nil)
+	return kubeClient.CoreV1().Namespaces().Delete(context.TODO(), name, metav1.DeleteOptions{})
 }

@@ -17,6 +17,7 @@ limitations under the License.
 package framework
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -174,7 +175,7 @@ func (f *Framework) setupOperator(sparkNs, opImage string, opImagePullPolicy str
 		return errors.Wrap(err, "failed to wait for operator to become ready")
 	}
 
-	pl, err := f.KubeClient.CoreV1().Pods(f.Namespace.Name).List(opts)
+	pl, err := f.KubeClient.CoreV1().Pods(f.Namespace.Name).List(context.TODO(), opts)
 	if err != nil {
 		return err
 	}
@@ -192,7 +193,7 @@ func (f *Framework) Teardown() error {
 		return errors.Wrap(err, "failed to delete operator cluster role binding")
 	}
 
-	if err := f.KubeClient.AppsV1().Deployments(f.Namespace.Name).Delete("sparkoperator", nil); err != nil {
+	if err := f.KubeClient.AppsV1().Deployments(f.Namespace.Name).Delete(context.TODO(), "sparkoperator", metav1.DeleteOptions{}); err != nil {
 		return err
 	}
 

@@ -28,7 +28,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/kubectl/pkg/describe"
-	"k8s.io/kubectl/pkg/describe/versioned"
 
 	appFramework "github.com/GoogleCloudPlatform/spark-on-k8s-operator/test/e2e/framework"
 )
@@ -79,7 +78,7 @@ func TestMountConfigMap(t *testing.T) {
 	podName := app.Status.DriverInfo.PodName
 
 	describeClient := &describeClient{T: t, Namespace: appFramework.SparkTestNamespace, Interface: framework.KubeClient}
-	describer := versioned.PodDescriber{describeClient}
+	describer := describe.PodDescriber{describeClient}
 
 	podDesc, err := describer.Describe(appFramework.SparkTestNamespace, podName, describe.DescriberSettings{ShowEvents: true})
 	assert.Equal(t, nil, err)

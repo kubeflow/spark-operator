@@ -17,14 +17,16 @@ limitations under the License.
 package framework
 
 import (
+	"context"
 	"encoding/json"
 	"io"
+	"os"
+
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/util/yaml"
 	"k8s.io/client-go/kubernetes"
-	"os"
 )
 
 func CreateRoleBinding(kubeClient kubernetes.Interface, ns string, relativePath string) (finalizerFn, error) {
@@ -38,17 +40,17 @@ func CreateRoleBinding(kubeClient kubernetes.Interface, ns string, relativePath 
 
 	roleBinding.Namespace = ns
 
-	_, err = kubeClient.RbacV1().RoleBindings(ns).Get(roleBinding.Name, metav1.GetOptions{})
+	_, err = kubeClient.RbacV1().RoleBindings(ns).Get(context.TODO(), roleBinding.Name, metav1.GetOptions{})
 
 	if err == nil {
 		// RoleBinding already exists -> Update
-		_, err = kubeClient.RbacV1().RoleBindings(ns).Update(roleBinding)
+		_, err = kubeClient.RbacV1().RoleBindings(ns).Update(context.TODO(), roleBinding, metav1.UpdateOptions{})
 		if err != nil {
 			return finalizerFn, err
 		}
 	} else {
 		// RoleBinding doesn't exists -> Create
-		_, err = kubeClient.RbacV1().RoleBindings(ns).Create(roleBinding)
+		_, err = kubeClient.RbacV1().RoleBindings(ns).Create(context.TODO(), roleBinding, metav1.CreateOptions{})
 		if err != nil {
 			return finalizerFn, err
 		}
@@ -63,7 +65,7 @@ func DeleteRoleBinding(kubeClient kubernetes.Interface, ns string, relativePath 
 		return err
 	}
 
-	if err := kubeClient.RbacV1().RoleBindings(ns).Delete(roleBinding.Name, &metav1.DeleteOptions{}); err != nil {
+	if err := kubeClient.RbacV1().RoleBindings(ns).Delete(context.TODO(), roleBinding.Name, metav1.DeleteOptions{}); err != nil {
 		return err
 	}
 

@@ -17,6 +17,7 @@ limitations under the License.
 package framework
 
 import (
+	"context"
 	"encoding/json"
 	"io"
 	"os"
@@ -37,17 +38,17 @@ func CreateClusterRoleBinding(kubeClient kubernetes.Interface, relativePath stri
 		return finalizerFn, err
 	}
 
-	_, err = kubeClient.RbacV1().ClusterRoleBindings().Get(clusterRoleBinding.Name, metav1.GetOptions{})
+	_, err = kubeClient.RbacV1().ClusterRoleBindings().Get(context.TODO(), clusterRoleBinding.Name, metav1.GetOptions{})
 
 	if err == nil {
 		// ClusterRoleBinding already exists -> Update
-		_, err = kubeClient.RbacV1().ClusterRoleBindings().Update(clusterRoleBinding)
+		_, err = kubeClient.RbacV1().ClusterRoleBindings().Update(context.TODO(), clusterRoleBinding, metav1.UpdateOptions{})
 		if err != nil {
 			return finalizerFn, err
 		}
 	} else {
 		// ClusterRoleBinding doesn't exists -> Create
-		_, err = kubeClient.RbacV1().ClusterRoleBindings().Create(clusterRoleBinding)
+		_, err = kubeClient.RbacV1().ClusterRoleBindings().Create(context.TODO(), clusterRoleBinding, metav1.CreateOptions{})
 		if err != nil {
 			return finalizerFn, err
 		}
@@ -62,7 +63,7 @@ func DeleteClusterRoleBinding(kubeClient kubernetes.Interface, relativePath stri
 		return err
 	}
 
-	if err := kubeClient.RbacV1().ClusterRoleBindings().Delete(clusterRoleBinding.Name, &metav1.DeleteOptions{}); err != nil {
+	if err := kubeClient.RbacV1().ClusterRoleBindings().Delete(context.TODO(), clusterRoleBinding.Name, metav1.DeleteOptions{}); err != nil {
 		return err
 	}
 
