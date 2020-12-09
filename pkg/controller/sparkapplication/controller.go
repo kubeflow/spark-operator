@@ -597,6 +597,14 @@ func (c *Controller) syncSparkApplication(key string) error {
 			glog.Errorf("failed to update SparkApplication %s/%s: %v", app.Namespace, app.Name, err)
 			return err
 		}
+
+		if state := appCopy.Status.AppState.State; state == v1beta2.CompletedState ||
+			state == v1beta2.FailedState {
+			if err := c.cleanUpOnTermination(app, appCopy); err != nil {
+				glog.Errorf("failed to clean up resources for SparkApplication %s/%s: %v", app.Namespace, app.Name, err)
+				return err
+			}
+		}
 	}
 
 	return nil
@@ -1000,4 +1008,14 @@ func (c *Controller) hasApplicationExpired(app *v1beta2.SparkApplication) bool {
 	}
 
 	return false
+}
+
+// Clean up when the spark application is terminated.
+func (c *Controller) cleanUpOnTermination(oldApp, newApp *v1beta2.SparkApplication) error {
+	if needScheduling, scheduler := c.shouldDoBatchScheduling(newApp); needScheduling {
+		if err := scheduler.CleanupOnCompletion(newApp); err != nil {
+			return err
+		}
+	}
+	return nil
 }
