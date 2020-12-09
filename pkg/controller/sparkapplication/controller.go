@@ -598,9 +598,12 @@ func (c *Controller) syncSparkApplication(key string) error {
 			return err
 		}
 
-		if err := c.cleanUpBatchScheduling(app, appCopy); err != nil {
-			glog.Errorf("failed to clean up batch scheduling for SparkApplication %s/%s: %v", app.Namespace, app.Name, err)
-			return err
+		if state := appCopy.Status.AppState.State; state == v1beta2.CompletedState ||
+			state == v1beta2.FailedState {
+			if err := c.cleanUpOnTermination(app, appCopy); err != nil {
+				glog.Errorf("failed to clean up resources for SparkApplication %s/%s: %v", app.Namespace, app.Name, err)
+				return err
+			}
 		}
 	}
 
@@ -1007,15 +1010,13 @@ func (c *Controller) hasApplicationExpired(app *v1beta2.SparkApplication) bool {
 	return false
 }
 
-// Clean up batch scheduling config if applicable.
-func (c *Controller) cleanUpBatchScheduling(oldApp, newApp *v1beta2.SparkApplication) error {
+// Clean up resources such as batch scheduler config if applicable.
+func (c *Controller) cleanUpOnTermination(oldApp, newApp *v1beta2.SparkApplication) error {
 	if needScheduling, scheduler := c.shouldDoBatchScheduling(newApp); needScheduling {
-		state := newApp.Status.AppState.State
 		// If new app state is completed or failed, no more app is running,
 		// and only once needs to clean up on completed or failed
-		if (state == v1beta2.CompletedState || state == v1beta2.FailedState) &&
-			state != oldApp.Status.AppState.State {
-			if err := scheduler.CleanupOnCompleted(newApp); err != nil {
+		if newApp.Status.AppState.State != oldApp.Status.AppState.State {
+			if err := scheduler.CleanupOnCompletion(newApp); err != nil {
 				return err
 			}
 		}
