@@ -1013,11 +1013,8 @@ func (c *Controller) hasApplicationExpired(app *v1beta2.SparkApplication) bool {
 // Clean up when the spark application is terminated.
 func (c *Controller) cleanUpOnTermination(oldApp, newApp *v1beta2.SparkApplication) error {
 	if needScheduling, scheduler := c.shouldDoBatchScheduling(newApp); needScheduling {
-		// batch schduler is cleaned up only when state is changed to completion state
-		if newApp.Status.AppState.State != oldApp.Status.AppState.State {
-			if err := scheduler.CleanupOnCompletion(newApp); err != nil {
-				return err
-			}
+		if err := scheduler.CleanupOnCompletion(newApp); err != nil {
+			return err
 		}
 	}
 	return nil
