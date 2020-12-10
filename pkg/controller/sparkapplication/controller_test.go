@@ -1419,6 +1419,29 @@ func TestSyncSparkApplication_ExecutingState(t *testing.T) {
 				successMetricCount: 1,
 			},
 		},
+		{
+			appName:           appName,
+			oldAppStatus:      v1beta2.RunningState,
+			oldExecutorStatus: map[string]v1beta2.ExecutorState{"exec-1": v1beta2.ExecutorRunningState},
+			driverPod: &apiv1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      driverPodName,
+					Namespace: "test",
+					Labels: map[string]string{
+						config.SparkRoleLabel:    config.SparkDriverRole,
+						config.SparkAppNameLabel: appName,
+					},
+					ResourceVersion: "1",
+				},
+				Status: apiv1.PodStatus{
+					Phase: apiv1.PodRunning,
+				},
+			},
+			expectedAppState:        v1beta2.RunningState,
+			expectedExecutorState:   map[string]v1beta2.ExecutorState{"exec-1": v1beta2.ExecutorUnknownState},
+			expectedAppMetrics:      metrics{},
+			expectedExecutorMetrics: executorMetrics{},
+		},
 	}
 
 	testFn := func(test testcase, t *testing.T) {
