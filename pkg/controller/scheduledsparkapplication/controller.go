@@ -171,13 +171,16 @@ func (c *Controller) syncScheduledSparkApplication(key string) error {
 	} else {
 		status.ScheduleState = v1beta2.ScheduledState
 		now := c.clock.Now()
-		nextRunTime := status.NextRun.Time
+		nextRunTime := time.Time{}
+		if status.NextRun != nil {
+			nextRunTime = status.NextRun.Time
+		}
 		// if we updated the schedule for an earlier execution - those changes need to be reflected
 		updatedNextRunTime := schedule.Next(now)
 		if nextRunTime.IsZero() || updatedNextRunTime.Before(nextRunTime) {
 			// The first run of the application.
 			nextRunTime = updatedNextRunTime
-			status.NextRun = metav1.NewTime(nextRunTime)
+			status.NextRun = &metav1.Time{Time: nextRunTime}
 		}
 		if nextRunTime.Before(now) {
 			// Check if the condition for starting the next run is satisfied.
@@ -191,8 +194,8 @@ func (c *Controller) syncScheduledSparkApplication(key string) error {
 				if err != nil {
 					return err
 				}
-				status.LastRun = metav1.NewTime(now)
-				status.NextRun = metav1.NewTime(schedule.Next(status.LastRun.Time))
+				status.LastRun = &metav1.Time{Time: now}
+				status.NextRun = &metav1.Time{Time: schedule.Next(status.LastRun.Time)}
 				status.LastRunName = name
 			}
 		}

@@ -137,10 +137,10 @@ const (
 type ScheduledSparkApplicationStatus struct {
 	// LastRun is the time when the last run of the application started.
 	// +nullable
-	LastRun metav1.Time `json:"lastRun,omitempty"`
+	LastRun *metav1.Time `json:"lastRun,omitempty"`
 	// NextRun is the time when the next run of the application will start.
 	// +nullable
-	NextRun metav1.Time `json:"nextRun,omitempty"`
+	NextRun *metav1.Time `json:"nextRun,omitempty"`
 	// LastRunName is the name of the SparkApplication for the most recent run of the application.
 	LastRunName string `json:"lastRunName,omitempty"`
 	// PastSuccessfulRunNames keeps the names of SparkApplications for past successful runs.
@@ -373,10 +373,10 @@ type SparkApplicationStatus struct {
 	SubmissionID string `json:"submissionID,omitempty"`
 	// LastSubmissionAttemptTime is the time for the last application submission attempt.
 	// +nullable
-	LastSubmissionAttemptTime metav1.Time `json:"lastSubmissionAttemptTime,omitempty"`
+	LastSubmissionAttemptTime *metav1.Time `json:"lastSubmissionAttemptTime,omitempty"`
 	// CompletionTime is the time when the application runs to completion if it does.
 	// +nullable
-	TerminationTime metav1.Time `json:"terminationTime,omitempty"`
+	TerminationTime *metav1.Time `json:"terminationTime,omitempty"`
 	// DriverInfo has information about the driver.
 	DriverInfo DriverInfo `json:"driverInfo"`
 	// AppState tells the overall application state.

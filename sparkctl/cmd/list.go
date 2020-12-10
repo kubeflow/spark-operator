@@ -57,8 +57,8 @@ func doList(crdClientset crdclientset.Interface) error {
 		table.Append([]string{
 			string(app.Name),
 			string(app.Status.AppState.State),
-			getSinceTime(app.Status.LastSubmissionAttemptTime),
-			getSinceTime(app.Status.TerminationTime),
+			getSinceTime(*app.Status.LastSubmissionAttemptTime),
+			getSinceTime(*app.Status.TerminationTime),
 		})
 	}
 	table.Render()
