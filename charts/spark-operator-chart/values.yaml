@@ -75,10 +75,25 @@ metrics:
   enable: true
   # -- Metrics port
   port: 10254
+  # -- Metrics port name
+  portName: metrics
   # -- Metrics serving endpoint
   endpoint: /metrics
   # -- Metric prefix, will be added to all exported metrics
   prefix: ""
+
+# -- Prometheus pod monitor for operator's pod.
+podMonitor:
+  # -- If enabled, a pod monitor for operator's pod will be submitted. Note that prometheus metrics should be enabled as well.
+  enable: false
+  # -- Pod monitor labels
+  labels: {}
+  # -- The label to use to retrieve the job name from
+  jobLabel: spark-operator-podmonitor
+  # -- Prometheus metrics endpoint properties. `metrics.portName` will be used as a port
+  podMetricsEndpoint:
+    scheme: http
+    interval: 5s
 
 # nodeSelector -- Node labels for pod assignment
 nodeSelector: {}

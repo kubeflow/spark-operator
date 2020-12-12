@@ -66,10 +66,16 @@ The command removes all the Kubernetes components associated with the chart and 
 | metrics.enable | bool | `true` | Enable prometheus mertic scraping |
 | metrics.endpoint | string | `"/metrics"` | Metrics serving endpoint |
 | metrics.port | int | `10254` | Metrics port |
+| metrics.portName | string | `metrics` | Metrics port name |
 | metrics.prefix | string | `""` | Metric prefix, will be added to all exported metrics |
 | nameOverride | string | `""` | String to partially override `spark-operator.fullname` template (will maintain the release name) |
 | nodeSelector | object | `{}` | Node labels for pod assignment |
 | podAnnotations | object | `{}` | Additional annotations to add to the pod |
+| podMonitor.enable | bool| `false` | Submit a prometheus pod monitor for operator's pod. Note that prometheus metrics should be enabled as well.|
+| podMonitor.labels | object | `{}` | Pod monitor labels |
+| podMonitor.jobLabel | string | `spark-operator-podmonitor` | The label to use to retrieve the job name from |
+| podMonitor.podMetricsEndpoint.scheme | string | `http` | Prometheus metrics endpoint scheme |
+| podMonitor.podMetricsEndpoint.interval | string | `5s` | Interval at which metrics should be scraped |
 | podSecurityContext | object | `{}` | Pod security context |
 | rbac.create | bool | `true` | Create and use `rbac` resources |
 | replicaCount | int | `1` | Desired number of pods, leaderElection will be enabled if this is greater than 1 |

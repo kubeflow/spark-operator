@@ -173,7 +173,7 @@ A Spark driver pod need a Kubernetes service account in the pod's namespace that
 
 ## Enable Metric Exporting to Prometheus
 
-The operator exposes a set of metrics via the metric endpoint to be scraped by `Prometheus`. The Helm chart by default installs the operator with the additional flag to enable metrics (`-enable-metrics=true`) as well as other annotations used by Prometheus to scrape the metric endpoint. To install the operator  **without** metrics enabled, pass the appropriate flag during `helm install`:
+The operator exposes a set of metrics via the metric endpoint to be scraped by `Prometheus`. The Helm chart by default installs the operator with the additional flag to enable metrics (`-enable-metrics=true`) as well as other annotations used by Prometheus to scrape the metric endpoint. If `podMonitor.enable` is enabled, the helm chart will submit a pod monitor for the operator's pod. To install the operator  **without** metrics enabled, pass the appropriate flag during `helm install`:
 
 ```bash
 $ helm install my-release spark-operator/spark-operator --namespace spark-operator --set metrics.enable=false
