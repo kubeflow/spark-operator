@@ -375,6 +375,11 @@ func getPrometheusConfigPatches(pod *corev1.Pod, app *v1beta2.SparkApplication) 
 		port = *app.Spec.Monitoring.Prometheus.Port
 	}
 	protocol := config.DefaultPrometheusPortProtocol
+	portName := config.DefaultPrometheusPortName
+	if app.Spec.Monitoring.Prometheus.PortName != nil {
+		portName = *app.Spec.Monitoring.Prometheus.PortName
+	}
+
 	patchOps = append(patchOps, addConfigMapVolume(pod, name, volumeName))
 	vmPatchOp := addConfigMapVolumeMount(pod, volumeName, mountPath)
 	if vmPatchOp == nil {
@@ -382,7 +387,7 @@ func getPrometheusConfigPatches(pod *corev1.Pod, app *v1beta2.SparkApplication) 
 		return nil
 	}
 	patchOps = append(patchOps, *vmPatchOp)
-	portPatchOp := addContainerPort(pod, port, protocol)
+	portPatchOp := addContainerPort(pod, port, protocol, portName)
 	if portPatchOp == nil {
 		glog.Warningf("could not expose port %d to scrape metrics outside the pod", port)
 		return nil
@@ -392,7 +397,7 @@ func getPrometheusConfigPatches(pod *corev1.Pod, app *v1beta2.SparkApplication) 
 	return patchOps
 }
 
-func addContainerPort(pod *corev1.Pod, port int32, protocol string) *patchOperation {
+func addContainerPort(pod *corev1.Pod, port int32, protocol string, portName string) *patchOperation {
 	i := findContainer(pod)
 	if i < 0 {
 		glog.Warningf("not able to add containerPort %d as Spark container was not found in pod %s", port, pod.Name)
@@ -401,6 +406,7 @@ func addContainerPort(pod *corev1.Pod, port int32, protocol string) *patchOperat
 
 	path := fmt.Sprintf("/spec/containers/%d/ports", i)
 	containerPort := corev1.ContainerPort{
+		Name:          portName,
 		ContainerPort: port,
 		Protocol:      corev1.Protocol(protocol),
 	}

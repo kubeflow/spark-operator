@@ -645,6 +645,10 @@ type PrometheusSpec struct {
 	// +kubebuilder:validation:Maximum=49151
 	// +optional
 	Port *int32 `json:"port,omitempty"`
+	// PortName is the port name of prometheus JMX exporter port.
+	// If not specified, jmx-exporter will be used as the default.
+	// +optional
+	PortName *string `json:"portName,omitempty"`
 	// ConfigFile is the path to the custom Prometheus configuration file provided in the Spark image.
 	// ConfigFile takes precedence over Configuration, which is shown below.
 	// +optional
