@@ -12,27 +12,15 @@
 
 **Project status:** *beta* 
 
-The Kubernetes Operator for Apache Spark is under active development, but backward compatibility of the APIs is guaranteed for beta releases. 
+**Current API version:** *`v1beta2`*
 
-**If you are currently using the `v1alpha1` version of the APIs in your manifests, please update them to use the `v1beta1` version by changing `apiVersion: "sparkoperator.k8s.io/v1alpha1"` to `apiVersion: "sparkoperator.k8s.io/v1beta1"`. You will also need to delete the `v1alpha1` version of the CustomResourceDefinitions named `sparkapplications.sparkoperator.k8s.io` and `scheduledsparkapplications.sparkoperator.k8s.io`, and replace them with the `v1beta1` version either by installing the latest version of the operator or by running `kubectl create -f manifest/spark-operator-crds.yaml`.**
+**If you are currently using the `v1beta1` version of the APIs in your manifests, please update them to use the `v1beta2` version by changing `apiVersion: "sparkoperator.k8s.io/<version>"` to `apiVersion: "sparkoperator.k8s.io/v1beta2"`. You will also need to delete the `previous` version of the CustomResourceDefinitions named `sparkapplications.sparkoperator.k8s.io` and `scheduledsparkapplications.sparkoperator.k8s.io`, and replace them with the `v1beta2` version either by installing the latest version of the operator or by running `kubectl create -f manifest/crds`.**
 
-Customization of Spark pods, e.g., mounting arbitrary volumes and setting pod affinity, is currently experimental and implemented using a Kubernetes
-[Mutating Admission Webhook](https://kubernetes.io/docs/reference/access-authn-authz/extensible-admission-controllers/), which became beta in Kubernetes 1.9. 
-The mutating admission webhook is disabled by default but can be enabled if there are needs for pod customization. Check out the [Quick Start Guide](docs/quick-start-guide.md#using-the-mutating-admission-webhook) 
-on how to enable the webhook.
+Customization of Spark pods, e.g., mounting arbitrary volumes and setting pod affinity, is implemented using a Kubernetes [Mutating Admission Webhook](https://kubernetes.io/docs/reference/access-authn-authz/extensible-admission-controllers/), which became beta in Kubernetes 1.9. The mutating admission webhook is enabled by default if you install the operator using the Helm [chart](https://github.com/helm/charts/tree/master/incubator/sparkoperator). Check out the [Quick Start Guide](docs/quick-start-guide.md#using-the-mutating-admission-webhook)  on how to enable the webhook.
 
 ## Prerequisites
 
-* Version >= 1.8 of Kubernetes.
-* Version >= 1.9 of Kubernetes if **using the mutating admission webhook for Spark pod customization**.
-
-The Kubernetes Operator for Apache Spark relies on [garbage collection](https://kubernetes.io/docs/concepts/workloads/controllers/garbage-collection/) support for custom resources that is available in Kubernetes 1.8+ 
-and **optionally** the [Mutating Admission Webhook](https://kubernetes.io/docs/reference/access-authn-authz/extensible-admission-controllers/) which is available in Kubernetes 1.9+.
-
-**Due to this [bug](https://github.com/kubernetes/kubernetes/issues/56018) in Kubernetes 1.9 and earlier, CRD objects with
-escaped quotes (e.g., `spark.ui.port\"`) in map keys can cause serialization problems in the API server. So please pay
-extra attention to make sure no offending escaping is in your `SparkApplication` CRD objects, particularly if you use 
-Kubernetes prior to 1.10.**
+* Version >= 1.13 of Kubernetes to use the [`subresource` support for CustomResourceDefinitions](https://kubernetes.io/docs/tasks/access-kubernetes-api/custom-resources/custom-resource-definitions/#subresources), which became beta in 1.13 and is enabled by default in 1.13 and higher.
 
 ## Installation
 
@@ -43,7 +31,31 @@ $ helm repo add incubator http://storage.googleapis.com/kubernetes-charts-incuba
 $ helm install incubator/sparkoperator --namespace spark-operator
 ```
 
+This will install the Kubernetes Operator for Apache Spark into the namespace `spark-operator`. The operator by default watches and handles `SparkApplication`s in every namespaces. If you would like to limit the operator to watch and handle `SparkApplication`s in a single namespace, e.g., `default` instead, add the following option to the `helm install` command:
+
+```
+--set sparkJobNamespace=default
+```
+
 For configuration options available in the Helm chart, please refer to [Configuration](https://github.com/helm/charts/tree/master/incubator/sparkoperator#configuration).
+
+## Version Matrix
+
+The following table lists the most recent few versions of the operator.
+
+| Operator Version | API Version | Kubernetes Version | Base Spark Version | Operator Image Tag |
+| ------------- | ------------- | ------------- | ------------- | ------------- |
+| `latest` (master HEAD) | `v1beta2` | 1.13+ | `2.4.5` | `latest` |
+| `v1beta2-1.1.0-2.4.5` | `v1beta2` | 1.13+ | `2.4.5` | `v1beta2-1.1.0-2.4.5` |
+| `v1beta2-1.0.1-2.4.4` | `v1beta2` | 1.13+ | `2.4.4` | `v1beta2-1.0.1-2.4.4` | 
+| `v1beta2-1.0.0-2.4.4` | `v1beta2` | 1.13+ | `2.4.4` | `v1beta2-1.0.0-2.4.4` |
+| `v1beta1-0.9.0` | `v1beta1` | 1.13+ | `2.4.0` | `v2.4.0-v1beta1-0.9.0` |
+
+When installing using the Helm chart, you can choose to use a specific image tag instead of the default one, using the following option:
+
+```
+--set operatorVersion=<operator image tag>
+```
 
 ## Get Started
 
@@ -51,16 +63,13 @@ Get started quickly with the Kubernetes Operator for Apache Spark using the [Qui
 
 If you are running the Kubernetes Operator for Apache Spark on Google Kubernetes Engine and want to use Google Cloud Storage (GCS) and/or BigQuery for reading/writing data, also refer to the [GCP guide](docs/gcp.md).
 
-For more information, check the [Design](docs/design.md), [API Specification](docs/api.md) and detailed [User Guide](docs/user-guide.md).
+For more information, check the [Design](docs/design.md), [API Specification](docs/api-docs.md) and detailed [User Guide](docs/user-guide.md).
 
 ## Overview
 
-The Kubernetes Operator for Apache Spark aims to make specifying and running [Spark](https://github.com/apache/spark) 
-applications as easy and idiomatic as running other workloads on Kubernetes. It uses 
+The Kubernetes Operator for Apache Spark aims to make specifying and running [Spark](https://github.com/apache/spark) applications as easy and idiomatic as running other workloads on Kubernetes. It uses 
 [Kubernetes custom resources](https://kubernetes.io/docs/concepts/extend-kubernetes/api-extension/custom-resources/) 
-for specifying, running, and surfacing status of Spark applications. For a complete reference of the custom resource definitions, 
-please refer to the [API Definition](docs/api.md). For details on its design, please refer to the [design doc](docs/design.md). 
-It requires Spark 2.3 and above that supports Kubernetes as a native scheduler backend.
+for specifying, running, and surfacing status of Spark applications. For a complete reference of the custom resource definitions, please refer to the [API Definition](docs/api-docs.md). For details on its design, please refer to the [design doc](docs/design.md). It requires Spark 2.3 and above that supports Kubernetes as a native scheduler backend.
 
 The Kubernetes Operator for Apache Spark currently supports the following list of features:
 

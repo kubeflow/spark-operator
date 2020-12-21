@@ -41,46 +41,12 @@
   version = "v11.7.0"
 
 [[projects]]
-  branch = "master"
-  digest = "1:091c6104bc7b34caf24a8602bc9f705e288ea52db47a89f53ea6c3b9e0e089eb"
-  name = "github.com/GoogleCloudPlatform/spark-on-k8s-operator"
-  packages = [
-    "pkg/apis/sparkoperator.k8s.io",
-    "pkg/apis/sparkoperator.k8s.io/v1alpha1",
-    "pkg/apis/sparkoperator.k8s.io/v1beta1",
-    "pkg/client/clientset/versioned",
-    "pkg/client/clientset/versioned/fake",
-    "pkg/client/clientset/versioned/scheme",
-    "pkg/client/clientset/versioned/typed/sparkoperator.k8s.io/v1alpha1",
-    "pkg/client/clientset/versioned/typed/sparkoperator.k8s.io/v1alpha1/fake",
-    "pkg/client/clientset/versioned/typed/sparkoperator.k8s.io/v1beta1",
-    "pkg/client/clientset/versioned/typed/sparkoperator.k8s.io/v1beta1/fake",
-    "pkg/client/informers/externalversions",
-    "pkg/client/informers/externalversions/internalinterfaces",
-    "pkg/client/informers/externalversions/sparkoperator.k8s.io",
-    "pkg/client/informers/externalversions/sparkoperator.k8s.io/v1alpha1",
-    "pkg/client/informers/externalversions/sparkoperator.k8s.io/v1beta1",
-    "pkg/client/listers/sparkoperator.k8s.io/v1alpha1",
-    "pkg/client/listers/sparkoperator.k8s.io/v1beta1",
-    "pkg/config",
-    "pkg/controller/scheduledsparkapplication",
-    "pkg/controller/sparkapplication",
-    "pkg/crd",
-    "pkg/crd/scheduledsparkapplication",
-    "pkg/crd/sparkapplication",
-    "pkg/util",
-    "pkg/webhook",
-    "sparkctl/cmd",
-    "test/e2e/framework",
-  ]
-  pruneopts = ""
-  revision = "0d21aed3ab5f10fc71d12d93f3449746a78933d4"
+  digest = "1:05a699cf42890ed9cb688bf6be567537b3b6ce63435b801b688968dd4dc4e042"
 
-[[projects]]
-  digest = "1:e1fc4e86ce21dca811fb1a59438f55e442cfcbdfc3346637ad87a448dca6a657"
-  name = "github.com/aws/aws-sdk-go"
+name = "github.com/aws/aws-sdk-go"
   packages = [
     "aws",
+    "aws/arn",
     "aws/awserr",
     "aws/awsutil",
     "aws/client",
@@ -98,28 +64,35 @@
     "aws/request",
     "aws/session",
     "aws/signer/v4",
+    "internal/context",
     "internal/ini",
     "internal/s3err",
     "internal/sdkio",
+    "internal/sdkmath",
     "internal/sdkrand",
     "internal/sdkuri",
     "internal/shareddefaults",
+    "internal/strings",
+    "internal/sync/singleflight",
     "private/protocol",
     "private/protocol/eventstream",
     "private/protocol/eventstream/eventstreamapi",
+    "private/protocol/json/jsonutil",
     "private/protocol/query",
     "private/protocol/query/queryutil",
     "private/protocol/rest",
     "private/protocol/restxml",
     "private/protocol/xml/xmlutil",
     "service/s3",
+    "service/s3/internal/arn",
     "service/s3/s3iface",
     "service/s3/s3manager",
     "service/sts",
+    "service/sts/stsiface",
   ]
   pruneopts = ""
-  revision = "56c1def75689cceec1fa6f14c2eedb4b798827f9"
-  version = "v1.19.11"
+  revision = "2ff90b519baf8ee626cf6c3d451d54664ac72345"
+  version = "v1.29.11"
 
 [[projects]]
   branch = "master"
@@ -504,12 +477,12 @@
   version = "v1.1"
 
 [[projects]]
-  digest = "1:a1403cc8a94b8d7956ee5e9694badef0e7b051af289caad1cf668331e3ffa4f6"
+  digest = "1:c8ce7b6ab0b766a2c226e9022bad6471e2ce9cac6929eb85c2753a7be86d39ec"
   name = "github.com/spf13/cobra"
   packages = ["."]
   pruneopts = ""
-  revision = "ef82de70bb3f60c65fb8eebacbb2d122ef517385"
-  version = "v0.0.3"
+  revision = "0da06874266c88228b8f14615396a1f6bfc90ed7"
+  version = "v0.0.6"
 
 [[projects]]
   digest = "1:cbaf13cdbfef0e4734ed8a7504f57fe893d471d62a35b982bf6fb3f036449a66"
@@ -1079,6 +1052,8 @@
     "tools/clientcmd/api",
     "tools/clientcmd/api/latest",
     "tools/clientcmd/api/v1",
+    "tools/leaderelection",
+    "tools/leaderelection/resourcelock",
     "tools/metrics",
     "tools/pager",
     "tools/portforward",
@@ -1102,8 +1077,7 @@
   version = "kubernetes-1.13.5"
 
 [[projects]]
-  branch = "master"
-  digest = "1:bcdda675481aa9cad7586932de7077c107a76d2157872e4ae37d7a41ebd9bfe2"
+  digest = "1:d809e6c8dfa3448ae10f5624eff4ed1ebdc906755e7cea294c44e8b7ac0b077a"
   name = "k8s.io/code-generator"
   packages = [
     "cmd/client-gen",
@@ -1118,11 +1092,11 @@
     "cmd/deepcopy-gen/args",
     "cmd/defaulter-gen",
     "cmd/defaulter-gen/args",
-    "pkg/namer",
     "pkg/util",
   ]
   pruneopts = ""
-  revision = "826a68e0d1203c132e5c01e06e271db403b08701"
+  revision = "c2090bec4d9b1fb25de3812f868accc2bc9ecbae"
+  version = "kubernetes-1.13.5"
 
 [[projects]]
   branch = "master"
@@ -1161,6 +1135,8 @@
   digest = "1:196c0fe087e94a5dac71510ac816b73fe65dc90dc32d390e008299d7c42a679f"
   name = "k8s.io/kubernetes"
   packages = [
+    "pkg/apis/core",
+    "pkg/apis/policy",
     "pkg/kubectl/describe",
     "pkg/kubectl/describe/versioned",
     "pkg/kubectl/scheme",
@@ -1186,6 +1162,25 @@
   pruneopts = ""
   revision = "fd68e9863619f6ec2fdd8625fe1f02e7c877e480"
   version = "v1.1.0"
+
+[[projects]]
+  branch = "master"
+  digest = "1:4b7e69ee4a478b8a32569f84077dc675bd7ff34a007996d2b6e9f5d6cca33602"
+  name = "volcano.sh/volcano"
+  packages = [
+    "pkg/apis/batch/v1alpha1",
+    "pkg/apis/bus/v1alpha1",
+    "pkg/apis/scheduling/v1alpha1",
+    "pkg/apis/scheduling/v1alpha2",
+    "pkg/client/clientset/versioned",
+    "pkg/client/clientset/versioned/scheme",
+    "pkg/client/clientset/versioned/typed/batch/v1alpha1",
+    "pkg/client/clientset/versioned/typed/bus/v1alpha1",
+    "pkg/client/clientset/versioned/typed/scheduling/v1alpha1",
+    "pkg/client/clientset/versioned/typed/scheduling/v1alpha2",
+  ]
+  pruneopts = ""
+  revision = "e5e4a32196c9b3013d892c861c3aff09097a063a"
 
 [solve-meta]
   analyzer-name = "dep"
@@ -1247,10 +1242,11 @@
     "k8s.io/api/core/v1",
     "k8s.io/api/extensions/v1beta1",
     "k8s.io/api/rbac/v1",
-    "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1",
     "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset",
     "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset/fake",
+    "k8s.io/apimachinery/pkg/api/equality",
     "k8s.io/apimachinery/pkg/api/errors",
+    "k8s.io/apimachinery/pkg/api/resource",
     "k8s.io/apimachinery/pkg/apis/meta/v1",
     "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured",
     "k8s.io/apimachinery/pkg/fields",
@@ -1261,7 +1257,6 @@
     "k8s.io/apimachinery/pkg/types",
     "k8s.io/apimachinery/pkg/util/clock",
     "k8s.io/apimachinery/pkg/util/duration",
-    "k8s.io/apimachinery/pkg/util/errors",
     "k8s.io/apimachinery/pkg/util/intstr",
     "k8s.io/apimachinery/pkg/util/runtime",
     "k8s.io/apimachinery/pkg/util/wait",
@@ -1270,10 +1265,12 @@
     "k8s.io/client-go/discovery",
     "k8s.io/client-go/discovery/fake",
     "k8s.io/client-go/informers",
+    "k8s.io/client-go/informers/core/v1",
     "k8s.io/client-go/kubernetes",
     "k8s.io/client-go/kubernetes/fake",
     "k8s.io/client-go/kubernetes/scheme",
     "k8s.io/client-go/kubernetes/typed/core/v1",
+    "k8s.io/client-go/listers/batch/v1",
     "k8s.io/client-go/listers/core/v1",
     "k8s.io/client-go/plugin/pkg/client/auth",
     "k8s.io/client-go/plugin/pkg/client/auth/gcp",
@@ -1281,6 +1278,8 @@
     "k8s.io/client-go/testing",
     "k8s.io/client-go/tools/cache",
     "k8s.io/client-go/tools/clientcmd",
+    "k8s.io/client-go/tools/leaderelection",
+    "k8s.io/client-go/tools/leaderelection/resourcelock",
     "k8s.io/client-go/tools/portforward",
     "k8s.io/client-go/tools/record",
     "k8s.io/client-go/tools/watch",
@@ -1291,9 +1290,12 @@
     "k8s.io/code-generator/cmd/client-gen",
     "k8s.io/code-generator/cmd/deepcopy-gen",
     "k8s.io/code-generator/cmd/defaulter-gen",
+    "k8s.io/kubernetes/pkg/apis/policy",
     "k8s.io/kubernetes/pkg/kubectl/describe",
     "k8s.io/kubernetes/pkg/kubectl/describe/versioned",
     "k8s.io/kubernetes/pkg/util/interrupt",
+    "volcano.sh/volcano/pkg/apis/scheduling/v1alpha2",
+    "volcano.sh/volcano/pkg/client/clientset/versioned",
   ]
   solver-name = "gps-cdcl"
   solver-version = 1

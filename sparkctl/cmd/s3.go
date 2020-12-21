@@ -49,7 +49,7 @@ func newS3Blob(
 	bucket string,
 	endpoint string,
 	region string) (*uploadHandler, error) {
-	// AWS SDK does require specifying regions, thus set it to default GCS region
+	// AWS SDK does require specifying regions, thus set it to default S3 region
 	if region == "" {
 		region = "us-east1"
 	}

@@ -54,8 +54,7 @@ type RestartPolicy struct {
 	OnFailureRetries           *int32 `json:"onFailureRetries,omitempty"`
 
 	// Interval to wait between successive retries of a failed application.
-	OnSubmissionFailureRetryInterval *int64 `json:"onSubmissionFailureRetryInterval,omitempty"`
-	OnFailureRetryInterval           *int64 `json:"onFailureRetryInterval,omitempty"`
+	OnFailureRetryInterval *int64 `json:"onFailureRetryInterval,omitempty"`
 }
 
 type RestartPolicyType string
@@ -218,6 +217,8 @@ type SparkApplicationSpec struct {
 	// RestartPolicy defines the policy on if and in which conditions the controller should restart an application.
 	RestartPolicy RestartPolicy `json:"restartPolicy,omitempty"`
 	// NodeSelector is the Kubernetes node selector to be added to the driver and executor pods.
+	// This field is mutually exclusive with nodeSelector at podSpec level (driver or executor).
+	// This field will be deprecated in future versions (at SparkApplicationSpec level).
 	// Optional.
 	NodeSelector map[string]string `json:"nodeSelector,omitempty"`
 	// FailureRetries is the number of times to retry a failed application before giving up.
@@ -239,6 +240,12 @@ type SparkApplicationSpec struct {
 	// Monitoring configures how monitoring is handled.
 	// Optional.
 	Monitoring *MonitoringSpec `json:"monitoring,omitempty"`
+	// BatchScheduler configures which batch scheduler will be used for scheduling
+	// Optional.
+	BatchScheduler *string `json:"batchScheduler,omitempty"`
+	// ServiceAccount is the name of the Kubernetes ServiceAccount used to run the
+	// submission Job Pod that runs spark-submit to submit an application.
+	ServiceAccount *string `json:"serviceAccount,omitempty"`
 }
 
 // ApplicationStateType represents the type of the current state of an application.
@@ -246,17 +253,18 @@ type ApplicationStateType string
 
 // Different states an application may have.
 const (
-	NewState              ApplicationStateType = ""
-	SubmittedState        ApplicationStateType = "SUBMITTED"
-	RunningState          ApplicationStateType = "RUNNING"
-	CompletedState        ApplicationStateType = "COMPLETED"
-	FailedState           ApplicationStateType = "FAILED"
-	FailedSubmissionState ApplicationStateType = "SUBMISSION_FAILED"
-	PendingRerunState     ApplicationStateType = "PENDING_RERUN"
-	InvalidatingState     ApplicationStateType = "INVALIDATING"
-	SucceedingState       ApplicationStateType = "SUCCEEDING"
-	FailingState          ApplicationStateType = "FAILING"
-	UnknownState          ApplicationStateType = "UNKNOWN"
+	NewState               ApplicationStateType = ""
+	PendingSubmissionState ApplicationStateType = "PENDING_SUBMISSION" // Submission job created.
+	SubmittedState         ApplicationStateType = "SUBMITTED"          // Submission job succeeded.
+	FailedSubmissionState  ApplicationStateType = "SUBMISSION_FAILED"  // Submission command/job creation failed.
+	RunningState           ApplicationStateType = "RUNNING"            // Application is running.
+	CompletedState         ApplicationStateType = "COMPLETED"          // Application completed.
+	FailedState            ApplicationStateType = "FAILED"             // Application failed or submission job failed.
+	PendingRerunState      ApplicationStateType = "PENDING_RERUN"      // Application is pending being rerun.
+	InvalidatingState      ApplicationStateType = "INVALIDATING"       // Application spec has been updated and re-run is due.
+	SucceedingState        ApplicationStateType = "SUCCEEDING"         // Application succeeded but might be subject to restart.
+	FailingState           ApplicationStateType = "FAILING"            // Application failed but might be subject to restart.
+	UnknownState           ApplicationStateType = "UNKNOWN"
 )
 
 // ApplicationState tells the current state of the application and an error message in case of failures.
@@ -283,8 +291,8 @@ type SparkApplicationStatus struct {
 	SparkApplicationID string `json:"sparkApplicationId,omitempty"`
 	// SubmissionID is a unique ID of the current submission of the application.
 	SubmissionID string `json:"submissionID,omitempty"`
-	// LastSubmissionAttemptTime is the time for the last application submission attempt.
-	LastSubmissionAttemptTime metav1.Time `json:"lastSubmissionAttemptTime,omitempty"`
+	// SubmissionTime is the time the application is submitted.
+	SubmissionTime metav1.Time `json:"SubmissionTime,omitempty"`
 	// CompletionTime is the time when the application runs to completion if it does.
 	TerminationTime metav1.Time `json:"terminationTime,omitempty"`
 	// DriverInfo has information about the driver.
@@ -293,10 +301,9 @@ type SparkApplicationStatus struct {
 	AppState ApplicationState `json:"applicationState,omitempty"`
 	// ExecutorState records the state of executors by executor Pod names.
 	ExecutorState map[string]ExecutorState `json:"executorState,omitempty"`
-	// ExecutionAttempts is the total number of attempts made to run a submitted Spark App to successful completion.
+	// ExecutionAttempts is the total number of attempts to run a submitted application to completion.
+	// Incremented upon each attempted run of the application and reset upon invalidation.
 	ExecutionAttempts int32 `json:"executionAttempts,omitempty"`
-	// SubmissionAttempts is the total number of submission attempts made to submit a Spark App.
-	SubmissionAttempts int32 `json:"submissionAttempts,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -346,6 +353,9 @@ type SparkPodSpec struct {
 	// MemoryOverhead is the amount of off-heap memory to allocate in cluster mode, in MiB unless otherwise specified.
 	// Optional.
 	MemoryOverhead *string `json:"memoryOverhead,omitempty"`
+	// GPU specifies GPU requirement for the pod.
+	// Optional.
+	GPU *GPUSpec `json:"gpu,omitempty"`
 	// Image is the container image to use. Overrides Spec.Image if set.
 	// Optional.
 	Image *string `json:"image,omitempty"`
@@ -382,6 +392,19 @@ type SparkPodSpec struct {
 	// SchedulerName specifies the scheduler that will be used for scheduling
 	// Optional.
 	SchedulerName *string `json:"schedulerName,omitempty"`
+	// Sidecars is a list of sidecar containers that run along side the main Spark container.
+	// Optional.
+	Sidecars []apiv1.Container `json:"sidecars,omitempty"`
+	// HostNetwork indicates whether to request host networking for the pod or not.
+	// Optional.
+	HostNetwork *bool `json:"hostNetwork,omitempty"`
+	// NodeSelector is the Kubernetes node selector to be added to the driver and executor pods.
+	// This field is mutually exclusive with nodeSelector at SparkApplication level (which will be deprecated).
+	// Optional.
+	NodeSelector map[string]string `json:"nodeSelector,omitempty"`
+	// DnsConfig dns settings for the pod, following the Kubernetes specifications.
+	// Optional.
+	DNSConfig *apiv1.PodDNSConfig `json:"dnsConfig,omitempty"`
 }
 
 // DriverSpec is specification of the driver.
@@ -439,8 +462,7 @@ const (
 // DriverInfo captures information about the driver.
 type DriverInfo struct {
 	WebUIServiceName string `json:"webUIServiceName,omitempty"`
-	// UI Details for the UI created via NodePort service.
-	// TODO: Remove this in favor of UI access via Ingress.
+	// UI Details for the UI created via ClusterIP service accessible from within the cluster.
 	WebUIPort    int32  `json:"webUIPort,omitempty"`
 	WebUIAddress string `json:"webUIAddress,omitempty"`
 	// Ingress Details if an ingress for the UI was created.
@@ -494,4 +516,33 @@ type PrometheusSpec struct {
 	// If not specified, the content in spark-docker/conf/prometheus.yaml will be used.
 	// Configuration has no effect if ConfigFile is set.
 	Configuration *string `json:"configuration,omitempty"`
+}
+
+type GPUSpec struct {
+	// Name is GPU resource name, such as: nvidia.com/gpu or amd.com/gpu
+	Name string `json:"name"`
+	// Quantity is the number of GPUs to request for driver or executor.
+	Quantity int64 `json:"quantity"`
+}
+
+// PrometheusMonitoringEnabled returns if Prometheus monitoring is enabled or not.
+func (s *SparkApplication) PrometheusMonitoringEnabled() bool {
+	return s.Spec.Monitoring != nil && s.Spec.Monitoring.Prometheus != nil
+}
+
+// HasPrometheusConfigFile returns if Prometheus monitoring uses a configruation file in the container.
+func (s *SparkApplication) HasPrometheusConfigFile() bool {
+	return s.PrometheusMonitoringEnabled() &&
+		s.Spec.Monitoring.Prometheus.ConfigFile != nil &&
+		*s.Spec.Monitoring.Prometheus.ConfigFile != ""
+}
+
+// ExposeDriverMetrics returns if driver metrics should be exposed.
+func (s *SparkApplication) ExposeDriverMetrics() bool {
+	return s.Spec.Monitoring != nil && s.Spec.Monitoring.ExposeDriverMetrics
+}
+
+// ExposeExecutorMetrics returns if executor metrics should be exposed.
+func (s *SparkApplication) ExposeExecutorMetrics() bool {
+	return s.Spec.Monitoring != nil && s.Spec.Monitoring.ExposeExecutorMetrics
 }

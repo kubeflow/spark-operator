@@ -14,7 +14,7 @@
 # limitations under the License.
 #
 
-apiVersion: "sparkoperator.k8s.io/v1beta1"
+apiVersion: "sparkoperator.k8s.io/v1beta2"
 kind: SparkApplication
 metadata:
   name: spark-pi
@@ -22,31 +22,31 @@ metadata:
 spec:
   type: Scala
   mode: cluster
-  image: "gcr.io/spark-operator/spark:v2.4.0-gcs-prometheus"
+  image: "gcr.io/spark-operator/spark:v2.4.5-gcs-prometheus"
   imagePullPolicy: Always
   mainClass: org.apache.spark.examples.SparkPi
-  mainApplicationFile: "local:///opt/spark/examples/jars/spark-examples_2.11-2.4.0.jar"
+  mainApplicationFile: "local:///opt/spark/examples/jars/spark-examples_2.11-2.4.5.jar"
   arguments:
     - "100000"
-  sparkVersion: "2.4.0"
+  sparkVersion: "2.4.5"
   restartPolicy:
     type: Never
+  serviceAccount: spark  
   driver:
-    cores: 0.1
-    coreLimit: "200m"
+    cores: 1
+    coreLimit: "1200m"
     memory: "512m"
     labels:
-      version: 2.4.0
-    serviceAccount: spark
+      version: 2.4.5
   executor:
     cores: 1
     instances: 1
     memory: "512m"
     labels:
-      version: 2.4.0
+      version: 2.4.5
   monitoring:
     exposeDriverMetrics: true
     exposeExecutorMetrics: true
     prometheus:
-      jmxExporterJar: "/prometheus/jmx_prometheus_javaagent-0.3.1.jar"
+      jmxExporterJar: "/prometheus/jmx_prometheus_javaagent-0.11.0.jar"
       port: 8090
