@@ -17,6 +17,7 @@ limitations under the License.
 package framework
 
 import (
+	"context"
 	"encoding/json"
 	"io"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -33,18 +34,18 @@ func CreateRole(kubeClient kubernetes.Interface, ns string, relativePath string)
 		return err
 	}
 
-	_, err = kubeClient.RbacV1().Roles(ns).Get(role.Name, metav1.GetOptions{})
+	_, err = kubeClient.RbacV1().Roles(ns).Get(context.TODO(), role.Name, metav1.GetOptions{})
 
 	if err == nil {
 		// Role already exists -> Update
-		_, err = kubeClient.RbacV1().Roles(ns).Update(role)
+		_, err = kubeClient.RbacV1().Roles(ns).Update(context.TODO(), role, metav1.UpdateOptions{})
 		if err != nil {
 			return err
 		}
 
 	} else {
 		// Role doesn't exists -> Create
-		_, err = kubeClient.RbacV1().Roles(ns).Create(role)
+		_, err = kubeClient.RbacV1().Roles(ns).Create(context.TODO(), role, metav1.CreateOptions{})
 		if err != nil {
 			return err
 		}
@@ -59,7 +60,7 @@ func DeleteRole(kubeClient kubernetes.Interface, ns string, relativePath string)
 		return err
 	}
 
-	if err := kubeClient.RbacV1().Roles(ns).Delete(role.Name, &metav1.DeleteOptions{}); err != nil {
+	if err := kubeClient.RbacV1().Roles(ns).Delete(context.TODO(), role.Name, metav1.DeleteOptions{}); err != nil {
 		return err
 	}
 

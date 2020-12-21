@@ -21,6 +21,7 @@ limitations under the License.
 package v1beta2
 
 import (
+	"context"
 	time "time"
 
 	sparkoperatork8siov1beta2 "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta2"
@@ -63,13 +64,13 @@ func NewFilteredScheduledSparkApplicationInformer(client versioned.Interface, na
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.SparkoperatorV1beta2().ScheduledSparkApplications(namespace).List(options)
+				return client.SparkoperatorV1beta2().ScheduledSparkApplications(namespace).List(context.TODO(), options)
 			},
 			WatchFunc: func(options v1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.SparkoperatorV1beta2().ScheduledSparkApplications(namespace).Watch(options)
+				return client.SparkoperatorV1beta2().ScheduledSparkApplications(namespace).Watch(context.TODO(), options)
 			},
 		},
 		&sparkoperatork8siov1beta2.ScheduledSparkApplication{},

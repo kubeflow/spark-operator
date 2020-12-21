@@ -83,7 +83,7 @@ func doShowEvents(name string, crdClientset crdclientset.Interface, kubeClientse
 		// watch for all events for this specific SparkApplication name
 		selector := eventsInterface.GetFieldSelector(&app.Name, &app.Namespace, &app.Kind, nil)
 		options := metav1.ListOptions{FieldSelector: selector.String(), Watch: true}
-		events, err := eventsInterface.Watch(options)
+		events, err := eventsInterface.Watch(context.TODO(), options)
 		if err != nil {
 			return err
 		}
@@ -95,7 +95,7 @@ func doShowEvents(name string, crdClientset crdclientset.Interface, kubeClientse
 		stringUID := string(app.UID)
 		selector := eventsInterface.GetFieldSelector(&app.Name, &app.Namespace, &app.Kind, &stringUID)
 		options := metav1.ListOptions{FieldSelector: selector.String()}
-		events, err := eventsInterface.List(options)
+		events, err := eventsInterface.List(context.TODO(), options)
 		if err != nil {
 			return err
 		}

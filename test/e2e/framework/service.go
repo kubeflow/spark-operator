@@ -17,6 +17,7 @@ limitations under the License.
 package framework
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -43,17 +44,17 @@ func CreateService(kubeClient kubernetes.Interface, ns string, relativePath stri
 
 	service.Namespace = ns
 
-	_, err = kubeClient.CoreV1().Services(ns).Get(service.Name, metav1.GetOptions{})
+	_, err = kubeClient.CoreV1().Services(ns).Get(context.TODO(), service.Name, metav1.GetOptions{})
 
 	if err == nil {
 		// Service already exists -> Update
-		_, err = kubeClient.CoreV1().Services(ns).Update(service)
+		_, err = kubeClient.CoreV1().Services(ns).Update(context.TODO(), service, metav1.UpdateOptions{})
 		if err != nil {
 			return finalizerFn, err
 		}
 	} else {
 		// Service doesn't exists -> Create
-		_, err = kubeClient.CoreV1().Services(ns).Create(service)
+		_, err = kubeClient.CoreV1().Services(ns).Create(context.TODO(), service, metav1.CreateOptions{})
 		if err != nil {
 			return finalizerFn, err
 		}
@@ -77,7 +78,7 @@ func WaitForServiceReady(kubeClient kubernetes.Interface, namespace string, serv
 }
 
 func getEndpoints(kubeClient kubernetes.Interface, namespace, serviceName string) (*v1.Endpoints, error) {
-	endpoints, err := kubeClient.CoreV1().Endpoints(namespace).Get(serviceName, metav1.GetOptions{})
+	endpoints, err := kubeClient.CoreV1().Endpoints(namespace).Get(context.TODO(), serviceName, metav1.GetOptions{})
 	if err != nil {
 		return nil, errors.Wrap(err, fmt.Sprintf("requesting endpoints for servce %v failed", serviceName))
 	}
@@ -117,5 +118,5 @@ func parseServiceYaml(relativePath string) (*v1.Service, error) {
 }
 
 func DeleteService(kubeClient kubernetes.Interface, name string, namespace string) error {
-	return kubeClient.CoreV1().Services(namespace).Delete(name, &metav1.DeleteOptions{})
+	return kubeClient.CoreV1().Services(namespace).Delete(context.TODO(), name, metav1.DeleteOptions{})
 }

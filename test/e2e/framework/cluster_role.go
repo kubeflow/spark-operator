@@ -17,6 +17,7 @@ limitations under the License.
 package framework
 
 import (
+	"context"
 	"encoding/json"
 	"io"
 	"os"
@@ -34,18 +35,18 @@ func CreateClusterRole(kubeClient kubernetes.Interface, relativePath string) err
 		return err
 	}
 
-	_, err = kubeClient.RbacV1().ClusterRoles().Get(clusterRole.Name, metav1.GetOptions{})
+	_, err = kubeClient.RbacV1().ClusterRoles().Get(context.TODO(), clusterRole.Name, metav1.GetOptions{})
 
 	if err == nil {
 		// ClusterRole already exists -> Update
-		_, err = kubeClient.RbacV1().ClusterRoles().Update(clusterRole)
+		_, err = kubeClient.RbacV1().ClusterRoles().Update(context.TODO(), clusterRole, metav1.UpdateOptions{})
 		if err != nil {
 			return err
 		}
 
 	} else {
 		// ClusterRole doesn't exists -> Create
-		_, err = kubeClient.RbacV1().ClusterRoles().Create(clusterRole)
+		_, err = kubeClient.RbacV1().ClusterRoles().Create(context.TODO(), clusterRole, metav1.CreateOptions{})
 		if err != nil {
 			return err
 		}
@@ -60,7 +61,7 @@ func DeleteClusterRole(kubeClient kubernetes.Interface, relativePath string) err
 		return err
 	}
 
-	if err := kubeClient.RbacV1().ClusterRoles().Delete(clusterRole.Name, &metav1.DeleteOptions{}); err != nil {
+	if err := kubeClient.RbacV1().ClusterRoles().Delete(context.TODO(), clusterRole.Name, metav1.DeleteOptions{}); err != nil {
 		return err
 	}
 

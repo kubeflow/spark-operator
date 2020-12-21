@@ -17,6 +17,7 @@ limitations under the License.
 package framework
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"github.com/pkg/errors"
@@ -42,7 +43,7 @@ func MakeJob(pathToYaml string) (*batchv1.Job, error) {
 }
 
 func CreateJob(kubeClient kubernetes.Interface, namespace string, job *batchv1.Job) error {
-	_, err := kubeClient.BatchV1().Jobs(namespace).Create(job)
+	_, err := kubeClient.BatchV1().Jobs(namespace).Create(context.TODO(), job, metav1.CreateOptions{})
 	if err != nil {
 		return errors.Wrap(err, fmt.Sprintf("failed to create job %s", job.Name))
 	}
@@ -51,8 +52,11 @@ func CreateJob(kubeClient kubernetes.Interface, namespace string, job *batchv1.J
 
 func DeleteJob(kubeClient kubernetes.Interface, namespace, name string) error {
 	deleteProp := metav1.DeletePropagationForeground
-	return kubeClient.BatchV1().Jobs(namespace).Delete(name,
-		&metav1.DeleteOptions{PropagationPolicy: &deleteProp})
+	return kubeClient.BatchV1().Jobs(namespace).Delete(
+		context.TODO(),
+		name,
+		metav1.DeleteOptions{PropagationPolicy: &deleteProp},
+	)
 }
 
 func parseJobYaml(relativePath string) (*batchv1.Job, error) {
@@ -91,7 +95,7 @@ func WaitUntilJobCompleted(kubeClient kubernetes.Interface, namespace, name stri
 	return wait.Poll(time.Second, timeout, func() (bool, error) {
 		job, _ := kubeClient.
 			BatchV1().Jobs(namespace).
-			Get(name, metav1.GetOptions{})
+			Get(context.TODO(), name, metav1.GetOptions{})
 
 		if job.Status.Succeeded == 1 {
 			return true, nil

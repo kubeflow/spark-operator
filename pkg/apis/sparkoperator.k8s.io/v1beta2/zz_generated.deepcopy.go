@@ -961,6 +961,11 @@ func (in *SparkUIConfiguration) DeepCopyInto(out *SparkUIConfiguration) {
 		*out = new(int32)
 		**out = **in
 	}
+	if in.ServiceType != nil {
+		in, out := &in.ServiceType, &out.ServiceType
+		*out = new(v1.ServiceType)
+		**out = **in
+	}
 	if in.IngressAnnotations != nil {
 		in, out := &in.IngressAnnotations, &out.IngressAnnotations
 		*out = make(map[string]string, len(*in))

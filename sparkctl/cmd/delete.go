@@ -17,6 +17,7 @@ limitations under the License.
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"os"
 
@@ -50,7 +51,7 @@ var deleteCmd = &cobra.Command{
 }
 
 func doDelete(name string, crdClientset crdclientset.Interface) error {
-	err := crdClientset.SparkoperatorV1beta2().SparkApplications(Namespace).Delete(name, &metav1.DeleteOptions{})
+	err := crdClientset.SparkoperatorV1beta2().SparkApplications(Namespace).Delete(context.TODO(), name, metav1.DeleteOptions{})
 	if err != nil {
 		return err
 	}

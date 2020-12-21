@@ -17,6 +17,7 @@ limitations under the License.
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -152,7 +153,7 @@ func runPortForward(
 	go func() {
 		defer close(stopCh)
 		for {
-			pod, err := kubeClientset.CoreV1().Pods(Namespace).Get(driverPodName, metav1.GetOptions{})
+			pod, err := kubeClientset.CoreV1().Pods(Namespace).Get(context.TODO(), driverPodName, metav1.GetOptions{})
 			if err != nil {
 				break
 			}

@@ -18,6 +18,7 @@ package e2e
 
 import (
 	"container/list"
+	"context"
 	"strings"
 	"testing"
 
@@ -94,7 +95,7 @@ func runApp(t *testing.T, appName string, states *list.List) *v1beta2.SparkAppli
 
 	app, _ := appFramework.GetSparkApplication(framework.SparkApplicationClient, appFramework.SparkTestNamespace, appName)
 	podName := app.Status.DriverInfo.PodName
-	rawLogs, err := framework.KubeClient.CoreV1().Pods(appFramework.SparkTestNamespace).GetLogs(podName, &v1.PodLogOptions{}).Do().Raw()
+	rawLogs, err := framework.KubeClient.CoreV1().Pods(appFramework.SparkTestNamespace).GetLogs(podName, &v1.PodLogOptions{}).Do(context.TODO()).Raw()
 	assert.Equal(t, nil, err)
 	assert.NotEqual(t, -1, strings.Index(string(rawLogs), "Pi is roughly 3"))
 
