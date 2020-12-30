@@ -17,6 +17,7 @@ limitations under the License.
 package sparkapplication
 
 import (
+	"context"
 	"fmt"
 	"testing"
 
@@ -46,7 +47,7 @@ func TestConfigPrometheusMonitoring(t *testing.T) {
 		}
 
 		configMapName := config.GetPrometheusConfigMapName(test.app)
-		configMap, err := fakeClient.CoreV1().ConfigMaps(test.app.Namespace).Get(configMapName, metav1.GetOptions{})
+		configMap, err := fakeClient.CoreV1().ConfigMaps(test.app.Namespace).Get(context.TODO(), configMapName, metav1.GetOptions{})
 		if err != nil {
 			t.Errorf("failed to get ConfigMap %s: %v", configMapName, err)
 		}

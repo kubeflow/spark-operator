@@ -17,6 +17,7 @@ limitations under the License.
 package scheduledsparkapplication
 
 import (
+	"context"
 	"fmt"
 	"reflect"
 	"sort"
@@ -255,7 +256,7 @@ func (c *Controller) createSparkApplication(
 		app.ObjectMeta.Labels[key] = value
 	}
 	app.ObjectMeta.Labels[config.ScheduledSparkAppNameLabel] = scheduledApp.Name
-	_, err := c.crdClient.SparkoperatorV1beta2().SparkApplications(scheduledApp.Namespace).Create(app)
+	_, err := c.crdClient.SparkoperatorV1beta2().SparkApplications(scheduledApp.Namespace).Create(context.TODO(), app, metav1.CreateOptions{})
 	if err != nil {
 		return "", err
 	}
@@ -308,8 +309,11 @@ func (c *Controller) killLastRunIfNotFinished(app *v1beta2.SparkApplication) err
 	}
 
 	// Delete the SparkApplication object of the last run.
-	if err := c.crdClient.SparkoperatorV1beta2().SparkApplications(app.Namespace).Delete(app.Name,
-		metav1.NewDeleteOptions(0)); err != nil {
+	if err := c.crdClient.SparkoperatorV1beta2().SparkApplications(app.Namespace).Delete(
+		context.TODO(),
+		app.Name,
+		metav1.DeleteOptions{GracePeriodSeconds: int64ptr(0)},
+	); err != nil {
 		return err
 	}
 
@@ -337,11 +341,11 @@ func (c *Controller) checkAndUpdatePastRuns(
 	var toDelete []string
 	status.PastSuccessfulRunNames, toDelete = bookkeepPastRuns(completedRuns, app.Spec.SuccessfulRunHistoryLimit)
 	for _, name := range toDelete {
-		c.crdClient.SparkoperatorV1beta2().SparkApplications(app.Namespace).Delete(name, metav1.NewDeleteOptions(0))
+		c.crdClient.SparkoperatorV1beta2().SparkApplications(app.Namespace).Delete(context.TODO(), name, metav1.DeleteOptions{GracePeriodSeconds: int64ptr(0)})
 	}
 	status.PastFailedRunNames, toDelete = bookkeepPastRuns(failedRuns, app.Spec.FailedRunHistoryLimit)
 	for _, name := range toDelete {
-		c.crdClient.SparkoperatorV1beta2().SparkApplications(app.Namespace).Delete(name, metav1.NewDeleteOptions(0))
+		c.crdClient.SparkoperatorV1beta2().SparkApplications(app.Namespace).Delete(context.TODO(), name, metav1.DeleteOptions{GracePeriodSeconds: int64ptr(0)})
 	}
 
 	return nil
@@ -359,13 +363,19 @@ func (c *Controller) updateScheduledSparkApplicationStatus(
 	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		toUpdate.Status = *newStatus
 		_, updateErr := c.crdClient.SparkoperatorV1beta2().ScheduledSparkApplications(toUpdate.Namespace).UpdateStatus(
-			toUpdate)
+			context.TODO(),
+			toUpdate,
+			metav1.UpdateOptions{},
+		)
 		if updateErr == nil {
 			return nil
 		}
 
 		result, err := c.crdClient.SparkoperatorV1beta2().ScheduledSparkApplications(toUpdate.Namespace).Get(
-			toUpdate.Name, metav1.GetOptions{})
+			context.TODO(),
+			toUpdate.Name,
+			metav1.GetOptions{},
+		)
 		if err != nil {
 			return err
 		}
@@ -408,4 +418,8 @@ func isStatusEqual(newStatus, currentStatus *v1beta2.ScheduledSparkApplicationSt
 		reflect.DeepEqual(newStatus.PastSuccessfulRunNames, currentStatus.PastSuccessfulRunNames) &&
 		reflect.DeepEqual(newStatus.PastFailedRunNames, currentStatus.PastFailedRunNames) &&
 		newStatus.Reason == currentStatus.Reason
+}
+
+func int64ptr(n int64) *int64 {
+	return &n
 }

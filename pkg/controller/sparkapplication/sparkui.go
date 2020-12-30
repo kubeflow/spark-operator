@@ -17,6 +17,7 @@ limitations under the License.
 package sparkapplication
 
 import (
+	"context"
 	"fmt"
 	"net/url"
 	"regexp"
@@ -115,7 +116,7 @@ func createSparkUIIngress(app *v1beta2.SparkApplication, service SparkService, i
 		ingress.Spec.TLS = ingressTlsHosts
 	}
 	glog.Infof("Creating an Ingress %s for the Spark UI for application %s", ingress.Name, app.Name)
-	_, err = kubeClient.ExtensionsV1beta1().Ingresses(ingress.Namespace).Create(&ingress)
+	_, err = kubeClient.ExtensionsV1beta1().Ingresses(ingress.Namespace).Create(context.TODO(), &ingress, metav1.CreateOptions{})
 
 	if err != nil {
 		return nil, err
@@ -166,7 +167,7 @@ func createSparkUIService(
 	}
 
 	glog.Infof("Creating a service %s for the Spark UI for application %s", service.Name, app.Name)
-	service, err = kubeClient.CoreV1().Services(app.Namespace).Create(service)
+	service, err = kubeClient.CoreV1().Services(app.Namespace).Create(context.TODO(), service, metav1.CreateOptions{})
 	if err != nil {
 		return nil, err
 	}

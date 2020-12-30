@@ -17,6 +17,7 @@ limitations under the License.
 package sparkapplication
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"os/exec"
@@ -50,7 +51,7 @@ func newFakeController(app *v1beta2.SparkApplication, pods ...*apiv1.Pod) (*Cont
 	informerFactory := crdinformers.NewSharedInformerFactory(crdClient, 0*time.Second)
 	recorder := record.NewFakeRecorder(3)
 
-	kubeClient.CoreV1().Nodes().Create(&apiv1.Node{
+	kubeClient.CoreV1().Nodes().Create(context.TODO(), &apiv1.Node{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "node1",
 		},
@@ -62,7 +63,7 @@ func newFakeController(app *v1beta2.SparkApplication, pods ...*apiv1.Pod) (*Cont
 				},
 			},
 		},
-	})
+	}, metav1.CreateOptions{})
 
 	podInformerFactory := informers.NewSharedInformerFactory(kubeClient, 0*time.Second)
 	controller := newSparkApplicationController(crdClient, kubeClient, informerFactory, podInformerFactory, recorder,
@@ -151,7 +152,7 @@ func TestOnUpdate(t *testing.T) {
 	assert.True(t, strings.Contains(event, "SparkApplicationSpecUpdateFailed"))
 
 	// Case3: Spec update successful.
-	ctrl.crdClient.SparkoperatorV1beta2().SparkApplications(appTemplate.Namespace).Create(appTemplate)
+	ctrl.crdClient.SparkoperatorV1beta2().SparkApplications(appTemplate.Namespace).Create(context.TODO(), appTemplate, metav1.CreateOptions{})
 	ctrl.onUpdate(appTemplate, copyWithSpecUpdate)
 
 	// Verify App was enqueued.
@@ -168,7 +169,7 @@ func TestOnUpdate(t *testing.T) {
 	assert.True(t, strings.Contains(event, "SparkApplicationSpecUpdateProcessed"))
 
 	// Verify the SparkApplication state was updated to InvalidatingState.
-	app, err := ctrl.crdClient.SparkoperatorV1beta2().SparkApplications(appTemplate.Namespace).Get(appTemplate.Name, metav1.GetOptions{})
+	app, err := ctrl.crdClient.SparkoperatorV1beta2().SparkApplications(appTemplate.Namespace).Get(context.TODO(), appTemplate.Name, metav1.GetOptions{})
 	assert.Nil(t, err)
 	assert.Equal(t, v1beta2.InvalidatingState, app.Status.AppState.State)
 }
@@ -259,7 +260,7 @@ func TestSyncSparkApplication_SubmissionFailed(t *testing.T) {
 	}
 
 	ctrl, recorder := newFakeController(app)
-	_, err := ctrl.crdClient.SparkoperatorV1beta2().SparkApplications(app.Namespace).Create(app)
+	_, err := ctrl.crdClient.SparkoperatorV1beta2().SparkApplications(app.Namespace).Create(context.TODO(), app, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -274,7 +275,7 @@ func TestSyncSparkApplication_SubmissionFailed(t *testing.T) {
 
 	// Attempt 1
 	err = ctrl.syncSparkApplication("default/foo")
-	updatedApp, err := ctrl.crdClient.SparkoperatorV1beta2().SparkApplications(app.Namespace).Get(app.Name, metav1.GetOptions{})
+	updatedApp, err := ctrl.crdClient.SparkoperatorV1beta2().SparkApplications(app.Namespace).Get(context.TODO(), app.Name, metav1.GetOptions{})
 
 	assert.Equal(t, v1beta2.FailedSubmissionState, updatedApp.Status.AppState.State)
 	assert.Equal(t, int32(1), updatedApp.Status.SubmissionAttempts)
@@ -290,14 +291,14 @@ func TestSyncSparkApplication_SubmissionFailed(t *testing.T) {
 	// Attempt 2: Retry again.
 	updatedApp.Status.LastSubmissionAttemptTime = metav1.Time{Time: metav1.Now().Add(-100 * time.Second)}
 	ctrl, recorder = newFakeController(updatedApp)
-	_, err = ctrl.crdClient.SparkoperatorV1beta2().SparkApplications(app.Namespace).Create(updatedApp)
+	_, err = ctrl.crdClient.SparkoperatorV1beta2().SparkApplications(app.Namespace).Create(context.TODO(), updatedApp, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatal(err)
 	}
 	err = ctrl.syncSparkApplication("default/foo")
 
 	// Verify that the application failed again.
-	updatedApp, err = ctrl.crdClient.SparkoperatorV1beta2().SparkApplications(app.Namespace).Get(app.Name, metav1.GetOptions{})
+	updatedApp, err = ctrl.crdClient.SparkoperatorV1beta2().SparkApplications(app.Namespace).Get(context.TODO(), app.Name, metav1.GetOptions{})
 	assert.Nil(t, err)
 	assert.Equal(t, v1beta2.FailedSubmissionState, updatedApp.Status.AppState.State)
 	assert.Equal(t, int32(2), updatedApp.Status.SubmissionAttempts)
@@ -309,14 +310,14 @@ func TestSyncSparkApplication_SubmissionFailed(t *testing.T) {
 	// Attempt 3: No more retries.
 	updatedApp.Status.LastSubmissionAttemptTime = metav1.Time{Time: metav1.Now().Add(-100 * time.Second)}
 	ctrl, recorder = newFakeController(updatedApp)
-	_, err = ctrl.crdClient.SparkoperatorV1beta2().SparkApplications(app.Namespace).Create(updatedApp)
+	_, err = ctrl.crdClient.SparkoperatorV1beta2().SparkApplications(app.Namespace).Create(context.TODO(), updatedApp, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatal(err)
 	}
 	err = ctrl.syncSparkApplication("default/foo")
 
 	// Verify that the application failed again.
-	updatedApp, err = ctrl.crdClient.SparkoperatorV1beta2().SparkApplications(app.Namespace).Get(app.Name, metav1.GetOptions{})
+	updatedApp, err = ctrl.crdClient.SparkoperatorV1beta2().SparkApplications(app.Namespace).Get(context.TODO(), app.Name, metav1.GetOptions{})
 	assert.Nil(t, err)
 	assert.Equal(t, v1beta2.FailedState, updatedApp.Status.AppState.State)
 	// No more submission attempts made.
@@ -590,7 +591,7 @@ func TestSyncSparkApplication_SubmissionSuccess(t *testing.T) {
 
 	testFn := func(test testcase, t *testing.T) {
 		ctrl, _ := newFakeController(test.app)
-		_, err := ctrl.crdClient.SparkoperatorV1beta2().SparkApplications(test.app.Namespace).Create(test.app)
+		_, err := ctrl.crdClient.SparkoperatorV1beta2().SparkApplications(test.app.Namespace).Create(context.TODO(), test.app, metav1.CreateOptions{})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -605,7 +606,7 @@ func TestSyncSparkApplication_SubmissionSuccess(t *testing.T) {
 
 		err = ctrl.syncSparkApplication(fmt.Sprintf("%s/%s", test.app.Namespace, test.app.Name))
 		assert.Nil(t, err)
-		updatedApp, err := ctrl.crdClient.SparkoperatorV1beta2().SparkApplications(test.app.Namespace).Get(test.app.Name, metav1.GetOptions{})
+		updatedApp, err := ctrl.crdClient.SparkoperatorV1beta2().SparkApplications(test.app.Namespace).Get(context.TODO(), test.app.Name, metav1.GetOptions{})
 		assert.Nil(t, err)
 		assert.Equal(t, test.expectedState, updatedApp.Status.AppState.State)
 		if test.app.Status.AppState.State == v1beta2.NewState {
@@ -1450,21 +1451,21 @@ func TestSyncSparkApplication_ExecutingState(t *testing.T) {
 		app.Name = test.appName
 		app.Status.ExecutionAttempts = 1
 		ctrl, _ := newFakeController(app, test.driverPod, test.executorPod)
-		_, err := ctrl.crdClient.SparkoperatorV1beta2().SparkApplications(app.Namespace).Create(app)
+		_, err := ctrl.crdClient.SparkoperatorV1beta2().SparkApplications(app.Namespace).Create(context.TODO(), app, metav1.CreateOptions{})
 		if err != nil {
 			t.Fatal(err)
 		}
 		if test.driverPod != nil {
-			ctrl.kubeClient.CoreV1().Pods(app.Namespace).Create(test.driverPod)
+			ctrl.kubeClient.CoreV1().Pods(app.Namespace).Create(context.TODO(), test.driverPod, metav1.CreateOptions{})
 		}
 		if test.executorPod != nil {
-			ctrl.kubeClient.CoreV1().Pods(app.Namespace).Create(test.executorPod)
+			ctrl.kubeClient.CoreV1().Pods(app.Namespace).Create(context.TODO(), test.executorPod, metav1.CreateOptions{})
 		}
 
 		err = ctrl.syncSparkApplication(fmt.Sprintf("%s/%s", app.Namespace, app.Name))
 		assert.Nil(t, err)
 		// Verify application and executor states.
-		updatedApp, err := ctrl.crdClient.SparkoperatorV1beta2().SparkApplications(app.Namespace).Get(app.Name, metav1.GetOptions{})
+		updatedApp, err := ctrl.crdClient.SparkoperatorV1beta2().SparkApplications(app.Namespace).Get(context.TODO(), app.Name, metav1.GetOptions{})
 		assert.Equal(t, test.expectedAppState, updatedApp.Status.AppState.State)
 		assert.Equal(t, test.expectedExecutorState, updatedApp.Status.ExecutorState)
 
@@ -1533,14 +1534,14 @@ func TestSyncSparkApplication_ApplicationExpired(t *testing.T) {
 	}
 
 	ctrl, _ := newFakeController(app)
-	_, err := ctrl.crdClient.SparkoperatorV1beta2().SparkApplications(app.Namespace).Create(app)
+	_, err := ctrl.crdClient.SparkoperatorV1beta2().SparkApplications(app.Namespace).Create(context.TODO(), app, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatal(err)
 	}
 	err = ctrl.syncSparkApplication(fmt.Sprintf("%s/%s", app.Namespace, app.Name))
 	assert.Nil(t, err)
 
-	_, err = ctrl.crdClient.SparkoperatorV1beta2().SparkApplications(app.Namespace).Get(app.Name, metav1.GetOptions{})
+	_, err = ctrl.crdClient.SparkoperatorV1beta2().SparkApplications(app.Namespace).Get(context.TODO(), app.Name, metav1.GetOptions{})
 	assert.True(t, errors.IsNotFound(err))
 }
 
@@ -1559,9 +1560,5 @@ func stringptr(s string) *string {
 }
 
 func int32ptr(n int32) *int32 {
-	return &n
-}
-
-func int64ptr(n int64) *int64 {
 	return &n
 }

@@ -21,6 +21,8 @@ limitations under the License.
 package fake
 
 import (
+	"context"
+
 	v1beta2 "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta2"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
@@ -41,7 +43,7 @@ var scheduledsparkapplicationsResource = schema.GroupVersionResource{Group: "spa
 var scheduledsparkapplicationsKind = schema.GroupVersionKind{Group: "sparkoperator.k8s.io", Version: "v1beta2", Kind: "ScheduledSparkApplication"}
 
 // Get takes name of the scheduledSparkApplication, and returns the corresponding scheduledSparkApplication object, and an error if there is any.
-func (c *FakeScheduledSparkApplications) Get(name string, options v1.GetOptions) (result *v1beta2.ScheduledSparkApplication, err error) {
+func (c *FakeScheduledSparkApplications) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1beta2.ScheduledSparkApplication, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewGetAction(scheduledsparkapplicationsResource, c.ns, name), &v1beta2.ScheduledSparkApplication{})
 
@@ -52,7 +54,7 @@ func (c *FakeScheduledSparkApplications) Get(name string, options v1.GetOptions)
 }
 
 // List takes label and field selectors, and returns the list of ScheduledSparkApplications that match those selectors.
-func (c *FakeScheduledSparkApplications) List(opts v1.ListOptions) (result *v1beta2.ScheduledSparkApplicationList, err error) {
+func (c *FakeScheduledSparkApplications) List(ctx context.Context, opts v1.ListOptions) (result *v1beta2.ScheduledSparkApplicationList, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewListAction(scheduledsparkapplicationsResource, scheduledsparkapplicationsKind, c.ns, opts), &v1beta2.ScheduledSparkApplicationList{})
 
@@ -74,14 +76,14 @@ func (c *FakeScheduledSparkApplications) List(opts v1.ListOptions) (result *v1be
 }
 
 // Watch returns a watch.Interface that watches the requested scheduledSparkApplications.
-func (c *FakeScheduledSparkApplications) Watch(opts v1.ListOptions) (watch.Interface, error) {
+func (c *FakeScheduledSparkApplications) Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
 	return c.Fake.
 		InvokesWatch(testing.NewWatchAction(scheduledsparkapplicationsResource, c.ns, opts))
 
 }
 
 // Create takes the representation of a scheduledSparkApplication and creates it.  Returns the server's representation of the scheduledSparkApplication, and an error, if there is any.
-func (c *FakeScheduledSparkApplications) Create(scheduledSparkApplication *v1beta2.ScheduledSparkApplication) (result *v1beta2.ScheduledSparkApplication, err error) {
+func (c *FakeScheduledSparkApplications) Create(ctx context.Context, scheduledSparkApplication *v1beta2.ScheduledSparkApplication, opts v1.CreateOptions) (result *v1beta2.ScheduledSparkApplication, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewCreateAction(scheduledsparkapplicationsResource, c.ns, scheduledSparkApplication), &v1beta2.ScheduledSparkApplication{})
 
@@ -92,7 +94,7 @@ func (c *FakeScheduledSparkApplications) Create(scheduledSparkApplication *v1bet
 }
 
 // Update takes the representation of a scheduledSparkApplication and updates it. Returns the server's representation of the scheduledSparkApplication, and an error, if there is any.
-func (c *FakeScheduledSparkApplications) Update(scheduledSparkApplication *v1beta2.ScheduledSparkApplication) (result *v1beta2.ScheduledSparkApplication, err error) {
+func (c *FakeScheduledSparkApplications) Update(ctx context.Context, scheduledSparkApplication *v1beta2.ScheduledSparkApplication, opts v1.UpdateOptions) (result *v1beta2.ScheduledSparkApplication, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewUpdateAction(scheduledsparkapplicationsResource, c.ns, scheduledSparkApplication), &v1beta2.ScheduledSparkApplication{})
 
@@ -104,7 +106,7 @@ func (c *FakeScheduledSparkApplications) Update(scheduledSparkApplication *v1bet
 
 // UpdateStatus was generated because the type contains a Status member.
 // Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
-func (c *FakeScheduledSparkApplications) UpdateStatus(scheduledSparkApplication *v1beta2.ScheduledSparkApplication) (*v1beta2.ScheduledSparkApplication, error) {
+func (c *FakeScheduledSparkApplications) UpdateStatus(ctx context.Context, scheduledSparkApplication *v1beta2.ScheduledSparkApplication, opts v1.UpdateOptions) (*v1beta2.ScheduledSparkApplication, error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewUpdateSubresourceAction(scheduledsparkapplicationsResource, "status", c.ns, scheduledSparkApplication), &v1beta2.ScheduledSparkApplication{})
 
@@ -115,7 +117,7 @@ func (c *FakeScheduledSparkApplications) UpdateStatus(scheduledSparkApplication 
 }
 
 // Delete takes name of the scheduledSparkApplication and deletes it. Returns an error if one occurs.
-func (c *FakeScheduledSparkApplications) Delete(name string, options *v1.DeleteOptions) error {
+func (c *FakeScheduledSparkApplications) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
 	_, err := c.Fake.
 		Invokes(testing.NewDeleteAction(scheduledsparkapplicationsResource, c.ns, name), &v1beta2.ScheduledSparkApplication{})
 
@@ -123,15 +125,15 @@ func (c *FakeScheduledSparkApplications) Delete(name string, options *v1.DeleteO
 }
 
 // DeleteCollection deletes a collection of objects.
-func (c *FakeScheduledSparkApplications) DeleteCollection(options *v1.DeleteOptions, listOptions v1.ListOptions) error {
-	action := testing.NewDeleteCollectionAction(scheduledsparkapplicationsResource, c.ns, listOptions)
+func (c *FakeScheduledSparkApplications) DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error {
+	action := testing.NewDeleteCollectionAction(scheduledsparkapplicationsResource, c.ns, listOpts)
 
 	_, err := c.Fake.Invokes(action, &v1beta2.ScheduledSparkApplicationList{})
 	return err
 }
 
 // Patch applies the patch and returns the patched scheduledSparkApplication.
-func (c *FakeScheduledSparkApplications) Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *v1beta2.ScheduledSparkApplication, err error) {
+func (c *FakeScheduledSparkApplications) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1beta2.ScheduledSparkApplication, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewPatchSubresourceAction(scheduledsparkapplicationsResource, c.ns, name, pt, data, subresources...), &v1beta2.ScheduledSparkApplication{})
 

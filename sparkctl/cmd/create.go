@@ -117,7 +117,7 @@ func createFromYaml(yamlFile string, kubeClient clientset.Interface, crdClient c
 }
 
 func createFromScheduledSparkApplication(name string, kubeClient clientset.Interface, crdClient crdclientset.Interface) error {
-	sapp, err := crdClient.SparkoperatorV1beta2().ScheduledSparkApplications(Namespace).Get(From, metav1.GetOptions{})
+	sapp, err := crdClient.SparkoperatorV1beta2().ScheduledSparkApplications(Namespace).Get(context.TODO(), From, metav1.GetOptions{})
 	if err != nil {
 		return fmt.Errorf("failed to get ScheduledSparkApplication %s: %v", From, err)
 	}
@@ -162,7 +162,11 @@ func createSparkApplication(app *v1beta2.SparkApplication, kubeClient clientset.
 		}
 	}
 
-	if _, err := crdClient.SparkoperatorV1beta2().SparkApplications(Namespace).Create(app); err != nil {
+	if _, err := crdClient.SparkoperatorV1beta2().SparkApplications(Namespace).Create(
+		context.TODO(),
+		app,
+		metav1.CreateOptions{},
+	); err != nil {
 		return err
 	}
 
@@ -409,12 +413,12 @@ func handleHadoopConfiguration(
 			hadoopConfDir, err)
 	}
 
-	err = kubeClientset.CoreV1().ConfigMaps(Namespace).Delete(configMap.Name, &metav1.DeleteOptions{})
+	err = kubeClientset.CoreV1().ConfigMaps(Namespace).Delete(context.TODO(), configMap.Name, metav1.DeleteOptions{})
 	if err != nil && !errors.IsNotFound(err) {
 		return fmt.Errorf("failed to delete existing ConfigMap %s: %v", configMap.Name, err)
 	}
 
-	if configMap, err = kubeClientset.CoreV1().ConfigMaps(Namespace).Create(configMap); err != nil {
+	if configMap, err = kubeClientset.CoreV1().ConfigMaps(Namespace).Create(context.TODO(), configMap, metav1.CreateOptions{}); err != nil {
 		return fmt.Errorf("failed to create ConfigMap %s: %v", configMap.Name, err)
 	}
 
