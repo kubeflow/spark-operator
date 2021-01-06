@@ -27,3 +27,4 @@
 | [Typeform](https://typeform.com/) | @afranzi | Production | Data & ML pipelines |
 | incrmntal(https://incrmntal.com/) | @scravy | Production | ML & Data Infrastructure | 
 | [CloudPhysics](https://www.cloudphysics.com) | @jkleckner | Production | ML/AI & Analytics |
+| [MongoDB](https://www.mongodb.com) | @chickenpopcorn | Production | Data Infrastructure |
