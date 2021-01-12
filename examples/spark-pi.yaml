@@ -28,13 +28,13 @@ spec:
   sparkVersion: "2.4.5"
   restartPolicy:
     type: Never
-  serviceAccount: spark  
   volumes:
     - name: "test-volume"
       hostPath:
         path: "/tmp"
         type: Directory
   driver:
+    serviceAccount: spark
     cores: 1
     coreLimit: "1200m"
     memory: "512m"
