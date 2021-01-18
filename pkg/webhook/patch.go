@@ -62,6 +62,7 @@ func patchSparkPod(pod *corev1.Pod, app *v1beta2.SparkApplication) []patchOperat
 	patchOps = append(patchOps, addDNSConfig(pod, app)...)
 	patchOps = append(patchOps, addEnvVars(pod, app)...)
 	patchOps = append(patchOps, addEnvFrom(pod, app)...)
+	patchOps = append(patchOps, addHostAliases(pod, app)...)
 
 	op := addSchedulerName(pod, app)
 	if op != nil {
@@ -782,4 +783,29 @@ func findContainer(pod *corev1.Pod) int {
 		}
 	}
 	return -1
+}
+
+func addHostAliases(pod *corev1.Pod, app *v1beta2.SparkApplication) []patchOperation {
+	var hostAliases []corev1.HostAlias
+	if util.IsDriverPod(pod) {
+		hostAliases = app.Spec.Driver.HostAliases
+	} else if util.IsExecutorPod(pod) {
+		hostAliases = app.Spec.Executor.HostAliases
+	}
+
+	first := false
+	if len(pod.Spec.HostAliases) == 0 {
+		first = true
+	}
+
+	var ops []patchOperation
+	for _, v := range hostAliases {
+		if first {
+			ops = append(ops, patchOperation{Op: "add", Path: "/spec/hostAliases", Value: []corev1.HostAlias{v}})
+			first = false
+		} else {
+			ops = append(ops, patchOperation{Op: "add", Path: "/spec/hostAliases/-", Value: &v})
+		}
+	}
+	return ops
 }

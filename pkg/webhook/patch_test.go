@@ -1811,3 +1811,94 @@ func getModifiedPod(pod *corev1.Pod, app *v1beta2.SparkApplication) (*corev1.Pod
 
 	return modifiedPod, nil
 }
+
+func TestPatchSparkPod_HostAliases(t *testing.T) {
+	app := &v1beta2.SparkApplication{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "spark-test",
+			UID:  "spark-test-1",
+		},
+		Spec: v1beta2.SparkApplicationSpec{
+			Driver: v1beta2.DriverSpec{
+				SparkPodSpec: v1beta2.SparkPodSpec{
+					HostAliases: []corev1.HostAlias{
+						{
+							IP:        "127.0.0.1",
+							Hostnames: []string{"localhost"},
+						},
+						{
+							IP:        "192.168.0.1",
+							Hostnames: []string{"test.com", "test2.com"},
+						},
+					},
+				},
+			},
+			Executor: v1beta2.ExecutorSpec{
+				SparkPodSpec: v1beta2.SparkPodSpec{
+					HostAliases: []corev1.HostAlias{
+						{
+							IP:        "127.0.0.1",
+							Hostnames: []string{"localhost"},
+						},
+						{
+							IP:        "192.168.0.1",
+							Hostnames: []string{"test.com", "test2.com"},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	driverPod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "spark-driver",
+			Labels: map[string]string{
+				config.SparkRoleLabel:               config.SparkDriverRole,
+				config.LaunchedBySparkOperatorLabel: "true",
+			},
+		},
+		Spec: corev1.PodSpec{
+			Containers: []corev1.Container{
+				{
+					Name:  config.SparkDriverContainerName,
+					Image: "spark-driver:latest",
+				},
+			},
+		},
+	}
+
+	modifiedDriverPod, err := getModifiedPod(driverPod, app)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assert.Equal(t, 2, len(modifiedDriverPod.Spec.HostAliases))
+	assert.Equal(t, "127.0.0.1", modifiedDriverPod.Spec.HostAliases[0].IP)
+	assert.Equal(t, "192.168.0.1", modifiedDriverPod.Spec.HostAliases[1].IP)
+
+	executorPod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "spark-executor",
+			Labels: map[string]string{
+				config.SparkRoleLabel:               config.SparkExecutorRole,
+				config.LaunchedBySparkOperatorLabel: "true",
+			},
+		},
+		Spec: corev1.PodSpec{
+			Containers: []corev1.Container{
+				{
+					Name:  config.SparkExecutorContainerName,
+					Image: "spark-executor:latest",
+				},
+			},
+		},
+	}
+
+	modifiedExecutorPod, err := getModifiedPod(executorPod, app)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assert.Equal(t, 2, len(modifiedExecutorPod.Spec.HostAliases))
+	assert.Equal(t, "127.0.0.1", modifiedExecutorPod.Spec.HostAliases[0].IP)
+	assert.Equal(t, "192.168.0.1", modifiedExecutorPod.Spec.HostAliases[1].IP)
+}
