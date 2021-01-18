@@ -2780,6 +2780,20 @@ string
 <p>ServiceAccount is the name of the custom Kubernetes service account used by the pod.</p>
 </td>
 </tr>
+<tr>
+<td>
+<code>hostAliases</code></br>
+<em>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#hostalias-v1-core">
+[]Kubernetes core/v1.HostAlias
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>HostAliases settings for the pod, following the Kubernetes specifications.</p>
+</td>
+</tr>
 </tbody>
 </table>
 <h3 id="sparkoperator.k8s.io/v1beta2.SparkUIConfiguration">SparkUIConfiguration
