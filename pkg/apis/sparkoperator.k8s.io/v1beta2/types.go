@@ -515,6 +515,9 @@ type SparkPodSpec struct {
 	// ServiceAccount is the name of the custom Kubernetes service account used by the pod.
 	// +optional
 	ServiceAccount *string `json:"serviceAccount,omitempty"`
+	// HostAliases settings for the pod, following the Kubernetes specifications.
+	// +optional
+	HostAliases []apiv1.HostAlias `json:"hostAliases,omitempty"`
 }
 
 // DriverSpec is specification of the driver.

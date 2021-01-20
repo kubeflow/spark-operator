@@ -494,6 +494,17 @@ spec:
                   - name
                   - quantity
                   type: object
+                hostAliases:
+                  items:
+                    properties:
+                      hostnames:
+                        items:
+                          type: string
+                        type: array
+                      ip:
+                        type: string
+                    type: object
+                  type: array
                 hostNetwork:
                   type: boolean
                 image:
@@ -2293,6 +2304,17 @@ spec:
                   - name
                   - quantity
                   type: object
+                hostAliases:
+                  items:
+                    properties:
+                      hostnames:
+                        items:
+                          type: string
+                        type: array
+                      ip:
+                        type: string
+                    type: object
+                  type: array
                 hostNetwork:
                   type: boolean
                 image:
