@@ -183,7 +183,7 @@ func (c *Controller) Stop() {
 // Callback function called when a new SparkApplication object gets created.
 func (c *Controller) onAdd(obj interface{}) {
 	app := obj.(*v1beta2.SparkApplication)
-	glog.Infof("SparkApplication %s/%s was added, enqueueing it for submission", app.Namespace, app.Name)
+	glog.Infof("SparkApplication %s/%s was added, ENQUEINGGGGGG it for submission", app.Namespace, app.Name)
 	c.enqueue(app)
 }
 
@@ -687,7 +687,9 @@ func (c *Controller) submitSparkApplication(app *v1beta2.SparkApplication) *v1be
 		return app
 	}
 
+	glog.Infof("hiiiii")
 	glog.Infof("SparkApplication %s/%s has been submitted", app.Namespace, app.Name)
+
 	app.Status = v1beta2.SparkApplicationStatus{
 		SubmissionID:       submissionID,
 		DriverInfo:         v1beta2.DriverInfo{PodName: driverPodName},
@@ -922,7 +924,7 @@ func (c *Controller) recordSparkApplicationEvent(app *v1beta2.SparkApplication) 
 			app,
 			apiv1.EventTypeNormal,
 			"SparkApplicationAdded",
-			"SparkApplication %s was added, enqueuing it for submission",
+			"SparkApplication %s was added, enqueuing IT FOR submission",
 			app.Name)
 	case v1beta2.PendingSubmissionState:
 		c.recorder.Eventf(
