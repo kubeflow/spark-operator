@@ -25,7 +25,8 @@
 | [Beeline](https://beeline.ru) | @spestua | Evaluation | ML & Data Infrastructure |
 | [Stitch Fix](https://multithreaded.stitchfix.com/) | @nssalian | Evaluation | Data pipelines |
 | [Typeform](https://typeform.com/) | @afranzi | Production | Data & ML pipelines |
-| incrmntal(https://incrmntal.com/) | @scravy | Production | ML & Data Infrastructure | 
+| incrmntal(https://incrmntal.com/) | @scravy | Production | ML & Data Infrastructure |
 | [CloudPhysics](https://www.cloudphysics.com) | @jkleckner | Production | ML/AI & Analytics |
 | [MongoDB](https://www.mongodb.com) | @chickenpopcorn | Production | Data Infrastructure |
 | [MavenCode](https://www.mavencode.com) | @charlesa101 | Production | MLOps & Data Infrastructure |
+| [Gojek](https://www.gojek.io/) | @pradithya | Production | Machine Learning Platform |
