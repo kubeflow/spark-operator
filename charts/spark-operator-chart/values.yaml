@@ -69,9 +69,13 @@ webhook:
   # -- The webhook server will only operate on namespaces with this label, specified in the form key1=value1,key2=value2.
   # Empty string (default) will operate on all namespaces
   namespaceSelector: ""
+  # -- The annotations applied to the cleanup job, required for helm lifecycle hooks
+  cleanupAnnotations:
+    "helm.sh/hook": pre-delete, pre-update
+    "helm.sh/hook-delete-policy": hook-succeeded
 
 metrics:
-  # -- Enable prometheus mertic scraping
+  # -- Enable prometheus metric scraping
   enable: true
   # -- Metrics port
   port: 10254
