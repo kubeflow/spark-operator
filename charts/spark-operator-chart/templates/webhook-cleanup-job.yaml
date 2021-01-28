@@ -4,8 +4,7 @@ kind: Job
 metadata:
   name: {{ include "spark-operator.fullname" . }}-webhook-cleanup
   annotations:
-    "helm.sh/hook": pre-delete, pre-upgrade
-    "helm.sh/hook-delete-policy": hook-succeeded
+    {{- toYaml .Values.webhook.cleanupAnnotations | nindent 4 }}
   labels:
     {{- include "spark-operator.labels" . | nindent 4 }}
 spec:
