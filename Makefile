@@ -43,3 +43,18 @@ build-api-docs:
 
 helm-docs:
 	helm-docs -c ./charts
+
+fmt-check: clean
+	@echo "running fmt check"
+	./.travis.gofmt.sh
+
+clean:
+	@echo "cleaning up caches and output"
+	go clean -cache -testcache -r -x ./... 2>&1 >/dev/null
+	-rm -rf _output
+
+test: clean
+	@echo "running unit tests"
+	go test -v ./...
+	go vet go ./...
+	# go test -v ./test/e2e/ --kubeconfig "$HOME/.kube/config" --operator-image=gcr.io/spark-operator/spark-operator:v1beta2-1.2.3-3.1.1
