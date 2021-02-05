@@ -140,3 +140,6 @@ leaderElection:
 istio:
   # -- When using `istio`, spark jobs need to run without a sidecar to properly terminate
   enabled: false
+
+# labelSelectorFilter -- A comma-separated list of key=value, or key labels to filter resources during watch and list based on the specified labels.
+labelSelectorFilter: ""
