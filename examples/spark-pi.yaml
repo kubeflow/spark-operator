@@ -20,7 +20,7 @@ metadata:
   namespace: default
 spec:
   type: Scala
-  mode: cluster
+  mode: client
   image: "gcr.io/spark-operator/spark:v2.4.5"
   imagePullPolicy: Always
   mainClass: org.apache.spark.examples.SparkPi
