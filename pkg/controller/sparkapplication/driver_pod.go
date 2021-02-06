@@ -105,18 +105,19 @@ func (spm *realClientSubmissionPodManager) createClientDriverPod(app *v1beta2.Sp
 		},
 	}
 
-	//if app.Spec.ServiceAccount != nil {
-	//	clientDriver.Spec.Templace.Spec.ServiceAccountName = *app.Spec.ServiceAccount
-	//} else if app.Spec.Driver.ServiceAccount != nil {
-	//	clientDriver.Spec.Template.Spec.ServiceAccountName = *app.Spec.Driver.ServiceAccount
-	//}
+	if app.Spec.ServiceAccount != nil {
+		clientDriver.Spec.ServiceAccountName = *app.Spec.ServiceAccount
+	} else if app.Spec.Driver.ServiceAccount != nil {
+		clientDriver.Spec.ServiceAccountName = *app.Spec.Driver.ServiceAccount
+	}
+	//.spec.template.spec.containers
 
 	// Copy the labels on the SparkApplication to the Job.
 	for key, val := range app.Labels {
 		clientDriver.Labels[key] = val
 	}
 
-	glog.Infof("Creating a spark driver %s for running spark in client mode", clientDriver.Name, app.Name)
+	glog.Infof("Creating %s for running spark in client mode", clientDriver.Name)
 	_, err = spm.kubeClient.CoreV1().Pods(app.Namespace).Create(clientDriver)
 	if err != nil {
 		return "", "", err

@@ -39,7 +39,7 @@ spec:
       serviceAccountName: sparkoperator
       containers:
       - name: sparkoperator
-        image: sparkoperator:fridayy
+        image: sparkoperator:saturday2
         imagePullPolicy: IfNotPresent
         args:
         - -logtostderr

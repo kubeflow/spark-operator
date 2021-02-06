@@ -114,6 +114,7 @@ func addOwnerReference(pod *corev1.Pod, app *v1beta2.SparkApplication) patchOper
 }
 
 func addVolumes(pod *corev1.Pod, app *v1beta2.SparkApplication) []patchOperation {
+	glog.Info("adding volumes")
 	volumes := app.Spec.Volumes
 
 	volumeMap := make(map[string]corev1.Volume)
@@ -123,6 +124,7 @@ func addVolumes(pod *corev1.Pod, app *v1beta2.SparkApplication) []patchOperation
 
 	var volumeMounts []corev1.VolumeMount
 	if util.IsDriverPod(pod) {
+		glog.Info("adding volumes for driver pod")
 		volumeMounts = app.Spec.Driver.VolumeMounts
 	} else if util.IsExecutorPod(pod) {
 		volumeMounts = app.Spec.Executor.VolumeMounts
