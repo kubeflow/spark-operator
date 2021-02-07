@@ -31,3 +31,4 @@
 | [MavenCode](https://www.mavencode.com) | @charlesa101 | Production | MLOps & Data Infrastructure |
 | [Gojek](https://www.gojek.io/) | @pradithya | Production | Machine Learning Platform |
 | Fossil | @duyet | Evaluation | Data Platform |
+| Carrefour | @AliGouta | Production | Data Platform |
