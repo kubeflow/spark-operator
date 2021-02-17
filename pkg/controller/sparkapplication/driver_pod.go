@@ -120,6 +120,7 @@ func (spm *realClientSubmissionPodManager) createClientDriverPod(app *v1beta2.Sp
 					},
 				},
 			},
+			RestartPolicy: corev1.RestartPolicyNever,
 		},
 	}
 

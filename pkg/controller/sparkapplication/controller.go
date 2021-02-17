@@ -368,6 +368,9 @@ func (c *Controller) getAndUpdateDriverState(app *v1beta2.SparkApplication) erro
 	}
 
 	newState := driverStateToApplicationState(driverState)
+	glog.Infof("the new state is %s", newState)
+	glog.Infof("the app.status.appstate.state is %s", app.Status.AppState.State)
+
 	// Only record a driver event if the application state (derived from the driver pod phase) has changed.
 	if newState != app.Status.AppState.State {
 		c.recordDriverEvent(app, driverState, driverPod.Name)
@@ -576,10 +579,12 @@ func (c *Controller) syncSparkApplication(key string) error {
 	case v1beta2.SucceedingState:
 		// The current run of the application has completed, check if it needs to be restarted.
 		if !shouldRetry(appToUpdate) {
+			glog.Info("in the should not retry section")
 			// Application is not subject to retry. Move to terminal CompletedState.
 			appToUpdate.Status.AppState.State = v1beta2.CompletedState
 			c.recordSparkApplicationEvent(appToUpdate)
 		} else {
+			glog.Info("should retry")
 			if err := c.deleteSparkResources(appToUpdate); err != nil {
 				glog.Errorf("failed to delete resources associated with SparkApplication %s/%s: %v",
 					appToUpdate.Namespace, appToUpdate.Name, err)
