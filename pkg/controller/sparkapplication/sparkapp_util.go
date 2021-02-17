@@ -24,6 +24,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/kubernetes/pkg/apis/policy"
 
+	"github.com/golang/glog"
+
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta2"
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/config"
 )
@@ -138,6 +140,7 @@ func hasDriverTerminated(driverState v1beta2.DriverState) bool {
 }
 
 func driverStateToApplicationState(driverState v1beta2.DriverState) v1beta2.ApplicationStateType {
+	glog.Info("In the driver state method")
 	switch driverState {
 	case v1beta2.DriverPendingState:
 		return v1beta2.SubmittedState

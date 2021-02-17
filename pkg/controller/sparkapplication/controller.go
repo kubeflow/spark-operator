@@ -535,6 +535,7 @@ func (c *Controller) syncSparkApplication(key string) error {
 	// Take action based on application state.
 	switch appToUpdate.Status.AppState.State {
 	case v1beta2.NewState:
+		glog.Info("new state!")
 		c.recordSparkApplicationEvent(appToUpdate)
 		if err := c.validateSparkApplication(appToUpdate); err != nil {
 			appToUpdate.Status.AppState.State = v1beta2.FailedState
@@ -625,6 +626,7 @@ func (c *Controller) syncSparkApplication(key string) error {
 			glog.V(2).Infof("Resources for SparkApplication %s/%s successfully deleted", appToUpdate.Namespace, appToUpdate.Name)
 			c.recordSparkApplicationEvent(appToUpdate)
 			c.clearStatus(&appToUpdate.Status)
+			glog.Info("Pending rerun state about to submit spark application again ")
 			appToUpdate = c.submitSparkApplication(appToUpdate)
 		}
 	case v1beta2.SubmittedState, v1beta2.RunningState, v1beta2.UnknownState:
@@ -672,6 +674,8 @@ func hasRetryIntervalPassed(retryInterval *int64, attemptsDone int32, lastEventT
 
 // submitSparkApplication creates a new submission for the given SparkApplication and submits it using spark-submit.
 func (c *Controller) submitSparkApplication(app *v1beta2.SparkApplication) *v1beta2.SparkApplication {
+	glog.Info("in submitSparkApplication method")
+
 	// Apply default values before submitting the application to run.
 	v1beta2.SetSparkApplicationDefaults(app)
 
@@ -713,17 +717,20 @@ func (c *Controller) submitSparkApplication(app *v1beta2.SparkApplication) *v1be
 	app.Status = v1beta2.SparkApplicationStatus{
 		SubmissionID:       submissionID,
 		DriverInfo:         v1beta2.DriverInfo{PodName: driverPodName},
-		AppState:           v1beta2.ApplicationState{State: v1beta2.PendingSubmissionState},
+		AppState:           v1beta2.ApplicationState{State: v1beta2.SubmittedState},
 		SubmissionAttempts: app.Status.SubmissionAttempts + 1,
 		ExecutionAttempts:  app.Status.ExecutionAttempts + 1,
 	}
 
 	c.recordSparkApplicationEvent(app)
+	c.createSparkUIResources(app)
 
 	return app
 }
 
 func (c *Controller) createSparkUIResources(app *v1beta2.SparkApplication) {
+	glog.Info("creating the spark ui")
+
 	service, err := createSparkUIService(app, c.kubeClient)
 	if err != nil {
 		glog.Errorf("failed to create UI service for SparkApplication %s/%s: %v", app.Namespace, app.Name, err)

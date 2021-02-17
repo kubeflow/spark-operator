@@ -90,6 +90,24 @@ func (spm *realClientSubmissionPodManager) createClientDriverPod(app *v1beta2.Sp
 					Image:           image,
 					Command:         command,
 					ImagePullPolicy: imagePullPolicy,
+					Env: []corev1.EnvVar{
+						{
+							Name: "SPARK_K8S_DRIVER_POD_IP",
+							ValueFrom: &corev1.EnvVarSource{
+								FieldRef: &corev1.ObjectFieldSelector{
+									FieldPath: "status.podIP",
+								},
+							},
+						},
+						{
+							Name: "ENV_DRIVER_BIND_ADDRESS",
+							Value: "0.0.0.0",
+						},
+						{
+							Name: "SPARK_K8S_DRIVER_POD_PORT",
+							Value: "7078",
+						},
+					},
 					Resources: corev1.ResourceRequirements{
 						Requests: corev1.ResourceList{
 							corev1.ResourceCPU:    resource.MustParse(driverPodCpuRequest),
@@ -117,7 +135,7 @@ func (spm *realClientSubmissionPodManager) createClientDriverPod(app *v1beta2.Sp
 		clientDriver.Labels[key] = val
 	}
 
-	glog.Infof("Creating %s for running spark in client mode", clientDriver.Name)
+	glog.Infof("Creating the %s for running spark in client mode", clientDriver.Name)
 	_, err = spm.kubeClient.CoreV1().Pods(app.Namespace).Create(clientDriver)
 	if err != nil {
 		return "", "", err

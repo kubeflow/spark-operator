@@ -228,8 +228,7 @@ func addDriverConfOptions(app *v1beta2.SparkApplication, submissionID string) ([
 			fmt.Sprintf("%s=%s", config.SparkDriverServiceAccountName, *app.Spec.Driver.ServiceAccount))
 	} else if app.Spec.ServiceAccount != nil {
 		glog.Info("the service account is null")
-		glog.Infof("the spark.kubernetes.authenticate.driver.serviceAccountName is %s",
-			config.SparkDriverServiceAccountName, *app.Spec.ServiceAccount)
+		glog.Infof("the spark.kubernetes.authenticate.driver.serviceAccountName is %s", *app.Spec.ServiceAccount)
 
 		driverConfOptions = append(driverConfOptions,
 			fmt.Sprintf("%s=%s", config.SparkDriverServiceAccountName, *app.Spec.ServiceAccount))
@@ -270,6 +269,10 @@ func addExecutorConfOptions(app *v1beta2.SparkApplication, submissionID string) 
 		fmt.Sprintf("%s%s=%s", config.SparkExecutorLabelKeyPrefix, config.LaunchedBySparkOperatorLabel, "true"))
 	executorConfOptions = append(executorConfOptions,
 		fmt.Sprintf("%s%s=%s", config.SparkExecutorLabelKeyPrefix, config.SubmissionIDLabel, submissionID))
+	//keep executor from deleting once terminating
+	executorConfOptions = append(executorConfOptions,
+			fmt.Sprintf("%s=false", config.SparkExecutorDeleteOnTermination))
+
 
 	if app.Spec.Executor.Instances != nil {
 		conf := fmt.Sprintf("spark.executor.instances=%d", *app.Spec.Executor.Instances)
@@ -303,10 +306,10 @@ func addExecutorConfOptions(app *v1beta2.SparkApplication, submissionID string) 
 			fmt.Sprintf("spark.executor.memoryOverhead=%s", *app.Spec.Executor.MemoryOverhead))
 	}
 
-	if app.Spec.Executor.DeleteOnTermination != nil {
-		executorConfOptions = append(executorConfOptions,
-			fmt.Sprintf("%s=%t", config.SparkExecutorDeleteOnTermination, *app.Spec.Executor.DeleteOnTermination))
-	}
+	//if app.Spec.Executor.DeleteOnTermination != nil {
+	//	executorConfOptions = append(executorConfOptions,
+	//		fmt.Sprintf("%s=%t", config.SparkExecutorDeleteOnTermination, *app.Spec.Executor.DeleteOnTermination))
+	//}
 
 	for key, value := range app.Spec.Executor.Labels {
 		executorConfOptions = append(executorConfOptions,
