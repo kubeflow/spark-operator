@@ -354,9 +354,8 @@ func addGeneralConfigMaps(pod *corev1.Pod, app *v1beta2.SparkApplication) []patc
 }
 
 func getPrometheusConfigPatches(pod *corev1.Pod, app *v1beta2.SparkApplication) []patchOperation {
-	// Skip if Prometheus Monitoring is not enabled or an in-container ConfigFile is used,
-	// in which cases a Prometheus ConfigMap won't be created.
-	if !app.PrometheusMonitoringEnabled() || (app.HasMetricsPropertiesFile() && app.HasPrometheusConfigFile()) {
+	// Skip if Prometheus Monitoring is not enabled
+	if !app.PrometheusMonitoringEnabled() {
 		return nil
 	}
 
@@ -368,9 +367,6 @@ func getPrometheusConfigPatches(pod *corev1.Pod, app *v1beta2.SparkApplication) 
 	}
 
 	var patchOps []patchOperation
-	name := config.GetPrometheusConfigMapName(app)
-	volumeName := name + "-vol"
-	mountPath := config.PrometheusConfigMapMountPath
 	port := config.DefaultPrometheusJavaAgentPort
 	if app.Spec.Monitoring.Prometheus.Port != nil {
 		port = *app.Spec.Monitoring.Prometheus.Port
@@ -380,6 +376,21 @@ func getPrometheusConfigPatches(pod *corev1.Pod, app *v1beta2.SparkApplication) 
 	if app.Spec.Monitoring.Prometheus.PortName != nil {
 		portName = *app.Spec.Monitoring.Prometheus.PortName
 	}
+	portPatchOp := addContainerPort(pod, port, protocol, portName)
+	if portPatchOp == nil {
+		glog.Warningf("could not expose port %d to scrape metrics outside the pod", port)
+		return nil
+	}
+	patchOps = append(patchOps, *portPatchOp)
+
+	// Skip if an in-container ConfigFile is used, in which cases a Prometheus ConfigMap won't be created.
+	if app.HasMetricsPropertiesFile() && app.HasPrometheusConfigFile() {
+		return patchOps
+	}
+
+	name := config.GetPrometheusConfigMapName(app)
+	volumeName := name + "-vol"
+	mountPath := config.PrometheusConfigMapMountPath
 
 	patchOps = append(patchOps, addConfigMapVolume(pod, name, volumeName))
 	vmPatchOp := addConfigMapVolumeMount(pod, volumeName, mountPath)
@@ -388,12 +399,6 @@ func getPrometheusConfigPatches(pod *corev1.Pod, app *v1beta2.SparkApplication) 
 		return nil
 	}
 	patchOps = append(patchOps, *vmPatchOp)
-	portPatchOp := addContainerPort(pod, port, protocol, portName)
-	if portPatchOp == nil {
-		glog.Warningf("could not expose port %d to scrape metrics outside the pod", port)
-		return nil
-	}
-	patchOps = append(patchOps, *portPatchOp)
 
 	return patchOps
 }
