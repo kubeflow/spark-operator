@@ -143,6 +143,8 @@ const (
 	SparkExecutorJavaOptions = "spark.executor.extraJavaOptions"
 	// SparkExecutorDeleteOnTermination is the Spark configuration for specifying whether executor pods should be deleted in case of failure or normal termination
 	SparkExecutorDeleteOnTermination = "spark.kubernetes.executor.deleteOnTermination"
+	//SparkDriverHost is the Spark configuration used for communicating with the executors and standalone Master.
+	SparkDriverHost = "spark.driver.host"
 )
 
 const (

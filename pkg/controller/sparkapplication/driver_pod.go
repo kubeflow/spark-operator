@@ -27,9 +27,6 @@ const (
 
 type clientSubmissionPodManager interface {
 	createClientDriverPod(app *v1beta2.SparkApplication) (string, string, error)
-	//deleteClientDriverPod(app *v1beta2.SparkApplication) error
-	//getClientDriverPod(app *v1beta2.SparkApplication) (*corev1.Pod, error)
-	//isClientDriverPodCreated(app *v1beta2.SparkApplication) (*bool, *metav1.Time, error)
 }
 
 type realClientSubmissionPodManager struct {
@@ -72,8 +69,6 @@ func (spm *realClientSubmissionPodManager) createClientDriverPod(app *v1beta2.Sp
 		imagePullPolicy = corev1.PullPolicy(*app.Spec.ImagePullPolicy)
 	}
 
-	//nodename is questionable
-	//NodeName: app.Status.OwnerId,
 	clientDriver := &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            driverPodName,
@@ -99,14 +94,6 @@ func (spm *realClientSubmissionPodManager) createClientDriverPod(app *v1beta2.Sp
 								},
 							},
 						},
-						{
-							Name: "ENV_DRIVER_BIND_ADDRESS",
-							Value: "0.0.0.0",
-						},
-						{
-							Name: "SPARK_K8S_DRIVER_POD_PORT",
-							Value: "7078",
-						},
 					},
 					Resources: corev1.ResourceRequirements{
 						Requests: corev1.ResourceList{
@@ -129,7 +116,6 @@ func (spm *realClientSubmissionPodManager) createClientDriverPod(app *v1beta2.Sp
 	} else if app.Spec.Driver.ServiceAccount != nil {
 		clientDriver.Spec.ServiceAccountName = *app.Spec.Driver.ServiceAccount
 	}
-	//.spec.template.spec.containers
 
 	// Copy the labels on the SparkApplication to the Job.
 	for key, val := range app.Labels {
@@ -145,13 +131,3 @@ func (spm *realClientSubmissionPodManager) createClientDriverPod(app *v1beta2.Sp
 	return submissionID, driverPodName, nil
 }
 
-//func (spm *realClientSubmissionPodManager) getClientDriverPod(app *v1beta2.SparkApplication) (*batchv1.Job, error) {
-//	//theres a getDriverpod in controller -- how to use this here?
-//	return spm.podLister.Pods(app.Namespace).Get(getDriverPodName(app))
-//
-//}
-
-//delete method in the controller
-//func (spm *realSubmissionPodManager) deleteDriverPod(app *v1beta2.SparkApplication) error {
-//
-//}
