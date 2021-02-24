@@ -32,3 +32,4 @@
 | [Gojek](https://www.gojek.io/) | @pradithya | Production | Machine Learning Platform |
 | Fossil | @duyet | Evaluation | Data Platform |
 | Carrefour | @AliGouta | Production | Data Platform |
+| Scaling Smart | @tarek-izemrane | Evaluation | Data Platform |
