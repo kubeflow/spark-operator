@@ -71,7 +71,7 @@ webhook:
   namespaceSelector: ""
   # -- The annotations applied to the cleanup job, required for helm lifecycle hooks
   cleanupAnnotations:
-    "helm.sh/hook": pre-delete, pre-update
+    "helm.sh/hook": pre-delete, pre-upgrade
     "helm.sh/hook-delete-policy": hook-succeeded
 
 metrics:
