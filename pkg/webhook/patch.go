@@ -63,13 +63,9 @@ func patchSparkPod(pod *corev1.Pod, app *v1beta2.SparkApplication) []patchOperat
 	patchOps = append(patchOps, addEnvVars(pod, app)...)
 	patchOps = append(patchOps, addEnvFrom(pod, app)...)
 	patchOps = append(patchOps, addHostAliases(pod, app)...)
+	patchOps = append(patchOps, addPriorityClassName(pod, app)...)
 
 	op := addSchedulerName(pod, app)
-	if op != nil {
-		patchOps = append(patchOps, *op)
-	}
-
-	op = addPriorityClassName(pod, app)
 	if op != nil {
 		patchOps = append(patchOps, *op)
 	}
@@ -530,17 +526,23 @@ func addSchedulerName(pod *corev1.Pod, app *v1beta2.SparkApplication) *patchOper
 	return &patchOperation{Op: "add", Path: "/spec/schedulerName", Value: *schedulerName}
 }
 
-func addPriorityClassName(pod *corev1.Pod, app *v1beta2.SparkApplication) *patchOperation {
+func addPriorityClassName(pod *corev1.Pod, app *v1beta2.SparkApplication) []patchOperation {
 	var priorityClassName *string
 
 	if app.Spec.BatchSchedulerOptions != nil {
 		priorityClassName = app.Spec.BatchSchedulerOptions.PriorityClassName
 	}
 
-	if priorityClassName == nil || *priorityClassName == "" {
-		return nil
+	var ops []patchOperation
+	if priorityClassName != nil && *priorityClassName != "" {
+		ops = append(ops, patchOperation{Op: "add", Path: "/spec/priorityClassName", Value: *priorityClassName})
+
+		if pod.Spec.Priority != nil {
+			ops = append(ops, patchOperation{Op: "remove", Path: "/spec/priority"})
+		}
 	}
-	return &patchOperation{Op: "add", Path: "/spec/priorityClassName", Value: *priorityClassName}
+
+	return ops
 }
 
 func addToleration(pod *corev1.Pod, toleration corev1.Toleration, first bool) patchOperation {
