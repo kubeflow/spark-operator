@@ -1902,3 +1902,51 @@ func TestPatchSparkPod_HostAliases(t *testing.T) {
 	assert.Equal(t, "127.0.0.1", modifiedExecutorPod.Spec.HostAliases[0].IP)
 	assert.Equal(t, "192.168.0.1", modifiedExecutorPod.Spec.HostAliases[1].IP)
 }
+
+func TestPatchSparkPod_Ports(t *testing.T) {
+	app := &v1beta2.SparkApplication{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "spark-test",
+			UID:  "spark-test-1",
+		},
+		Spec: v1beta2.SparkApplicationSpec{
+			Driver: v1beta2.DriverSpec{
+				SparkPodSpec: v1beta2.SparkPodSpec{
+					Ports: []v1beta2.Port{
+						{Name: "port1", ContainerPort: 8080, Protocol: "TCP"},
+						{Name: "port2", ContainerPort: 8081, Protocol: "TCP"},
+					},
+				},
+			},
+		},
+	}
+
+	pod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "spark-driver",
+			Labels: map[string]string{
+				config.SparkRoleLabel:               config.SparkDriverRole,
+				config.LaunchedBySparkOperatorLabel: "true",
+			},
+		},
+		Spec: corev1.PodSpec{
+			Containers: []corev1.Container{
+				{
+					Name:  config.SparkDriverContainerName,
+					Image: "spark-driver:latest",
+				},
+			},
+		},
+	}
+
+	modifiedPod, err := getModifiedPod(pod, app)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	assert.Equal(t, 2, len(modifiedPod.Spec.Containers[0].Ports))
+	assert.Equal(t, "port1", modifiedPod.Spec.Containers[0].Ports[0].Name)
+	assert.Equal(t, "port2", modifiedPod.Spec.Containers[0].Ports[1].Name)
+	assert.Equal(t, int32(8080), modifiedPod.Spec.Containers[0].Ports[0].ContainerPort)
+	assert.Equal(t, int32(8081), modifiedPod.Spec.Containers[0].Ports[1].ContainerPort)
+}

@@ -518,6 +518,9 @@ type SparkPodSpec struct {
 	// HostAliases settings for the pod, following the Kubernetes specifications.
 	// +optional
 	HostAliases []apiv1.HostAlias `json:"hostAliases,omitempty"`
+	// Ports settings for the pods, following the Kubernetes specifications.
+	// +optional
+	Ports []Port `json:"ports,omitempty"`
 }
 
 // DriverSpec is specification of the driver.
@@ -616,6 +619,13 @@ type SecretInfo struct {
 type NameKey struct {
 	Name string `json:"name"`
 	Key  string `json:"key"`
+}
+
+// Port represents the port definition in the pods objects.
+type Port struct {
+	Name          string `json:"name"`
+	Protocol      string `json:"protocol"`
+	ContainerPort int32  `json:"containerPort"`
 }
 
 // MonitoringSpec defines the monitoring specification.
