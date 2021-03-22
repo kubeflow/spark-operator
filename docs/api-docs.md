@@ -2946,5 +2946,5 @@ map[string]string
 <hr/>
 <p><em>
 Generated with <code>gen-crd-api-reference-docs</code>
-on git commit <code>1947244</code>.
+on git commit <code>2b4a398</code>.
 </em></p>
