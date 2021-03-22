@@ -63,7 +63,7 @@ func patchSparkPod(pod *corev1.Pod, app *v1beta2.SparkApplication) []patchOperat
 	patchOps = append(patchOps, addEnvVars(pod, app)...)
 	patchOps = append(patchOps, addEnvFrom(pod, app)...)
 	patchOps = append(patchOps, addHostAliases(pod, app)...)
-	patchOps = append(patchOps, addPorts(pod, app)...)
+	patchOps = append(patchOps, addContainerPorts(pod, app)...)
 
 	op := addSchedulerName(pod, app)
 	if op != nil {
@@ -389,7 +389,7 @@ func getPrometheusConfigPatches(pod *corev1.Pod, app *v1beta2.SparkApplication) 
 		return nil
 	}
 	patchOps = append(patchOps, *vmPatchOp)
-	promPortPatchOp := addPort(pod, promPort, promProtocol, promPortName)
+	promPortPatchOp := addContainerPort(pod, promPort, promProtocol, promPortName)
 	if promPortPatchOp == nil {
 		glog.Warningf("could not expose port %d to scrape metrics outside the pod", promPort)
 		return nil
@@ -398,7 +398,7 @@ func getPrometheusConfigPatches(pod *corev1.Pod, app *v1beta2.SparkApplication) 
 	return patchOps
 }
 
-func addPorts(pod *corev1.Pod, app *v1beta2.SparkApplication) []patchOperation {
+func addContainerPorts(pod *corev1.Pod, app *v1beta2.SparkApplication) []patchOperation {
 	var PortMaps []v1beta2.Port
 
 	if util.IsDriverPod(pod) {
@@ -409,7 +409,7 @@ func addPorts(pod *corev1.Pod, app *v1beta2.SparkApplication) []patchOperation {
 
 	var patchOps []patchOperation
 	for _, p := range PortMaps {
-		portPatchOp := addPort(pod, p.ContainerPort, p.Protocol, p.Name)
+		portPatchOp := addContainerPort(pod, p.ContainerPort, p.Protocol, p.Name)
 		if portPatchOp == nil {
 			return nil
 		}
@@ -418,7 +418,7 @@ func addPorts(pod *corev1.Pod, app *v1beta2.SparkApplication) []patchOperation {
 	return patchOps
 }
 
-func addPort(pod *corev1.Pod, port int32, protocol string, portName string) *patchOperation {
+func addContainerPort(pod *corev1.Pod, port int32, protocol string, portName string) *patchOperation {
 	i := findContainer(pod)
 	if i < 0 {
 		glog.Warningf("not able to add containerPort %d as Spark container was not found in pod %s", port, pod.Name)
