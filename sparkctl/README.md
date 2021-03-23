@@ -110,6 +110,12 @@ If you want to use custom S3 endpoint or region, add `--upload-to-endpoint` and 
 $ sparkctl create <path to YAML file> --upload-to-endpoint https://<endpoint-url> --upload-to-region <endpoint-region> --upload-to s3://<bucket>
 ```
 
+If you want to force path style URLs for S3 objects add `--s3-force-path-style`: 
+
+```bash
+$ sparkctl create <path to YAML file> --s3-force-path-style
+```
+
 If you want to make uploaded dependencies publicly available, add `--public` to the `create` command, as the following example shows:
 
 ```bash
