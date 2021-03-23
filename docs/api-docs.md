@@ -1046,6 +1046,20 @@ map[string]string
 executors to connect to the driver.</p>
 </td>
 </tr>
+<tr>
+<td>
+<code>ports</code></br>
+<em>
+<a href="#sparkoperator.k8s.io/v1beta2.Port">
+[]Port
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Ports settings for the pods, following the Kubernetes specifications.</p>
+</td>
+</tr>
 </tbody>
 </table>
 <h3 id="sparkoperator.k8s.io/v1beta2.DriverState">DriverState
@@ -1214,6 +1228,20 @@ bool
 <em>(Optional)</em>
 <p>DeleteOnTermination specify whether executor pods should be deleted in case of failure or normal termination.
 Maps to <code>spark.kubernetes.executor.deleteOnTermination</code> that is available since Spark 3.0.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>ports</code></br>
+<em>
+<a href="#sparkoperator.k8s.io/v1beta2.Port">
+[]Port
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Ports settings for the pods, following the Kubernetes specifications.</p>
 </td>
 </tr>
 </tbody>
@@ -1430,7 +1458,8 @@ string
 </h3>
 <p>
 (<em>Appears on:</em>
-<a href="#sparkoperator.k8s.io/v1beta2.SparkPodSpec">SparkPodSpec</a>)
+<a href="#sparkoperator.k8s.io/v1beta2.DriverSpec">DriverSpec</a>, 
+<a href="#sparkoperator.k8s.io/v1beta2.ExecutorSpec">ExecutorSpec</a>)
 </p>
 <p>
 <p>Port represents the port definition in the pods objects.</p>
@@ -2855,20 +2884,6 @@ string
 <p>HostAliases settings for the pod, following the Kubernetes specifications.</p>
 </td>
 </tr>
-<tr>
-<td>
-<code>ports</code></br>
-<em>
-<a href="#sparkoperator.k8s.io/v1beta2.Port">
-[]Port
-</a>
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-<p>Ports settings for the pods, following the Kubernetes specifications.</p>
-</td>
-</tr>
 </tbody>
 </table>
 <h3 id="sparkoperator.k8s.io/v1beta2.SparkUIConfiguration">SparkUIConfiguration
@@ -2946,5 +2961,5 @@ map[string]string
 <hr/>
 <p><em>
 Generated with <code>gen-crd-api-reference-docs</code>
-on git commit <code>2b4a398</code>.
+on git commit <code>2f6a3f9</code>.
 </em></p>

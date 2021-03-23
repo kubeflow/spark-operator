@@ -518,9 +518,6 @@ type SparkPodSpec struct {
 	// HostAliases settings for the pod, following the Kubernetes specifications.
 	// +optional
 	HostAliases []apiv1.HostAlias `json:"hostAliases,omitempty"`
-	// Ports settings for the pods, following the Kubernetes specifications.
-	// +optional
-	Ports []Port `json:"ports,omitempty"`
 }
 
 // DriverSpec is specification of the driver.
@@ -552,6 +549,9 @@ type DriverSpec struct {
 	// executors to connect to the driver.
 	// +optional
 	ServiceAnnotations map[string]string `json:"serviceAnnotations,omitempty"`
+	// Ports settings for the pods, following the Kubernetes specifications.
+	// +optional
+	Ports []Port `json:"ports,omitempty"`
 }
 
 // ExecutorSpec is specification of the executor.
@@ -573,6 +573,9 @@ type ExecutorSpec struct {
 	// Maps to `spark.kubernetes.executor.deleteOnTermination` that is available since Spark 3.0.
 	// +optional
 	DeleteOnTermination *bool `json:"deleteOnTermination,omitempty"`
+	// Ports settings for the pods, following the Kubernetes specifications.
+	// +optional
+	Ports []Port `json:"ports,omitempty"`
 }
 
 // NamePath is a pair of a name and a path to which the named objects should be mounted to.

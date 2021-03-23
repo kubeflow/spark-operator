@@ -1911,17 +1911,21 @@ func TestPatchSparkPod_Ports(t *testing.T) {
 		},
 		Spec: v1beta2.SparkApplicationSpec{
 			Driver: v1beta2.DriverSpec{
-				SparkPodSpec: v1beta2.SparkPodSpec{
-					Ports: []v1beta2.Port{
-						{Name: "port1", ContainerPort: 8080, Protocol: "TCP"},
-						{Name: "port2", ContainerPort: 8081, Protocol: "TCP"},
-					},
+				Ports: []v1beta2.Port{
+					{Name: "driverPort1", ContainerPort: 8080, Protocol: "TCP"},
+					{Name: "driverPort2", ContainerPort: 8081, Protocol: "TCP"},
+				},
+			},
+			Executor: v1beta2.ExecutorSpec{
+				Ports: []v1beta2.Port{
+					{Name: "executorPort1", ContainerPort: 8082, Protocol: "TCP"},
+					{Name: "executorPort2", ContainerPort: 8083, Protocol: "TCP"},
 				},
 			},
 		},
 	}
 
-	pod := &corev1.Pod{
+	driverPod := &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "spark-driver",
 			Labels: map[string]string{
@@ -1939,14 +1943,42 @@ func TestPatchSparkPod_Ports(t *testing.T) {
 		},
 	}
 
-	modifiedPod, err := getModifiedPod(pod, app)
+	modifiedDriverPod, err := getModifiedPod(driverPod, app)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	assert.Equal(t, 2, len(modifiedPod.Spec.Containers[0].Ports))
-	assert.Equal(t, "port1", modifiedPod.Spec.Containers[0].Ports[0].Name)
-	assert.Equal(t, "port2", modifiedPod.Spec.Containers[0].Ports[1].Name)
-	assert.Equal(t, int32(8080), modifiedPod.Spec.Containers[0].Ports[0].ContainerPort)
-	assert.Equal(t, int32(8081), modifiedPod.Spec.Containers[0].Ports[1].ContainerPort)
+	assert.Equal(t, 2, len(modifiedDriverPod.Spec.Containers[0].Ports))
+	assert.Equal(t, "driverPort1", modifiedDriverPod.Spec.Containers[0].Ports[0].Name)
+	assert.Equal(t, "driverPort2", modifiedDriverPod.Spec.Containers[0].Ports[1].Name)
+	assert.Equal(t, int32(8080), modifiedDriverPod.Spec.Containers[0].Ports[0].ContainerPort)
+	assert.Equal(t, int32(8081), modifiedDriverPod.Spec.Containers[0].Ports[1].ContainerPort)
+
+	executorPod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "spark-executor",
+			Labels: map[string]string{
+				config.SparkRoleLabel:               config.SparkExecutorRole,
+				config.LaunchedBySparkOperatorLabel: "true",
+			},
+		},
+		Spec: corev1.PodSpec{
+			Containers: []corev1.Container{
+				{
+					Name:  config.SparkExecutorContainerName,
+					Image: "spark-executor:latest",
+				},
+			},
+		},
+	}
+
+	modifiedExecutorPod, err := getModifiedPod(executorPod, app)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assert.Equal(t, 2, len(modifiedExecutorPod.Spec.Containers[0].Ports))
+	assert.Equal(t, "executorPort1", modifiedExecutorPod.Spec.Containers[0].Ports[0].Name)
+	assert.Equal(t, "executorPort2", modifiedExecutorPod.Spec.Containers[0].Ports[1].Name)
+	assert.Equal(t, int32(8082), modifiedExecutorPod.Spec.Containers[0].Ports[0].ContainerPort)
+	assert.Equal(t, int32(8083), modifiedExecutorPod.Spec.Containers[0].Ports[1].ContainerPort)
 }
