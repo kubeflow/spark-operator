@@ -796,5 +796,8 @@ func addHostAliases(pod *corev1.Pod, app *v1beta2.SparkApplication) []patchOpera
 	}
 
 	var ops []patchOperation
-	return append(ops, patchOperation{Op: "add", Path: "/spec/hostAliases", Value: hostAliases})
+	if len(hostAliases) > 0 {
+		ops = append(ops, patchOperation{Op: "add", Path: "/spec/hostAliases", Value: hostAliases})
+	}
+	return ops
 }
