@@ -795,19 +795,6 @@ func addHostAliases(pod *corev1.Pod, app *v1beta2.SparkApplication) []patchOpera
 		hostAliases = app.Spec.Executor.HostAliases
 	}
 
-	first := false
-	if len(pod.Spec.HostAliases) == 0 {
-		first = true
-	}
-
 	var ops []patchOperation
-	for _, v := range hostAliases {
-		if first {
-			ops = append(ops, patchOperation{Op: "add", Path: "/spec/hostAliases", Value: []corev1.HostAlias{v}})
-			first = false
-		} else {
-			ops = append(ops, patchOperation{Op: "add", Path: "/spec/hostAliases/-", Value: &v})
-		}
-	}
-	return ops
+	return append(ops, patchOperation{Op: "add", Path: "/spec/hostAliases", Value: hostAliases})
 }
