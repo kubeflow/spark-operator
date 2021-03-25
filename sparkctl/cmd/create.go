@@ -100,7 +100,7 @@ func init() {
 		"https://storage.googleapis.com", "the GCS or S3 storage api endpoint url")
 	createCmd.Flags().BoolVarP(&Public, "public", "c", false,
 		"whether to make uploaded files publicly available")
-	createCmd.Flags().BoolVarP(&S3ForcePathStyle, "s3-force-path-style", "p", false,
+	createCmd.Flags().BoolVar(&S3ForcePathStyle, "s3-force-path-style", false,
 		"whether to force path style URLs for S3 objects")
 	createCmd.Flags().BoolVarP(&Override, "override", "o", false,
 		"whether to override remote files with the same names")
