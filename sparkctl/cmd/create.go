@@ -40,8 +40,8 @@ import (
 )
 
 const bufferSize = 1024
-const rootPath = "spark-app-dependencies"
 
+var RootPath string
 var UploadToPath string
 var UploadToEndpoint string
 var UploadToRegion string
@@ -90,7 +90,9 @@ var createCmd = &cobra.Command{
 
 func init() {
 	createCmd.Flags().StringVarP(&UploadToPath, "upload-to", "u", "",
-		"a URL of the remote location where local application dependencies are to be uploaded to")
+		"the name of the bucket where local application dependencies are to be uploaded")
+	createCmd.Flags().StringVarP(&RootPath, "upload-prefix", "p", "",
+		"the prefix to use for the dependency uploads")
 	createCmd.Flags().StringVarP(&UploadToRegion, "upload-to-region", "r", "",
 		"the GCS or S3 storage region for the bucket")
 	createCmd.Flags().StringVarP(&UploadToEndpoint, "upload-to-endpoint", "e",
@@ -390,7 +392,7 @@ func uploadLocalDependencies(app *v1beta2.SparkApplication, files []string) ([]s
 	}
 
 	var uploadedFilePaths []string
-	uploadPath := filepath.Join(rootPath, app.Namespace, app.Name)
+	uploadPath := filepath.Join(RootPath, app.Namespace, app.Name)
 	for _, localFilePath := range files {
 		uploadFilePath, err := uh.uploadToBucket(uploadPath, localFilePath)
 		if err != nil {
