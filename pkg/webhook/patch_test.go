@@ -1833,6 +1833,14 @@ func TestPatchSparkPod_HostAliases(t *testing.T) {
 							IP:        "192.168.0.1",
 							Hostnames: []string{"test.com", "test2.com"},
 						},
+						{
+							IP:        "192.168.0.2",
+							Hostnames: []string{"test3.com"},
+						},
+						{
+							IP:        "192.168.0.3",
+							Hostnames: []string{"test4.com"},
+						},
 					},
 				},
 			},
@@ -1875,9 +1883,11 @@ func TestPatchSparkPod_HostAliases(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	assert.Equal(t, 2, len(modifiedDriverPod.Spec.HostAliases))
+	assert.Equal(t, 4, len(modifiedDriverPod.Spec.HostAliases))
 	assert.Equal(t, "127.0.0.1", modifiedDriverPod.Spec.HostAliases[0].IP)
 	assert.Equal(t, "192.168.0.1", modifiedDriverPod.Spec.HostAliases[1].IP)
+	assert.Equal(t, "192.168.0.2", modifiedDriverPod.Spec.HostAliases[2].IP)
+	assert.Equal(t, "192.168.0.3", modifiedDriverPod.Spec.HostAliases[3].IP)
 
 	executorPod := &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
