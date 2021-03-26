@@ -48,14 +48,16 @@ func newS3Blob(
 	ctx context.Context,
 	bucket string,
 	endpoint string,
-	region string) (*uploadHandler, error) {
+	region string,
+	forcePathStyle bool) (*uploadHandler, error) {
 	// AWS SDK does require specifying regions, thus set it to default S3 region
 	if region == "" {
 		region = "us-east1"
 	}
 	c := &aws.Config{
-		Region:   aws.String(region),
-		Endpoint: aws.String(endpoint),
+		Region:           aws.String(region),
+		Endpoint:         aws.String(endpoint),
+		S3ForcePathStyle: aws.Bool(forcePathStyle),
 	}
 	sess := session.Must(session.NewSession(c))
 	b, err := s3blob.OpenBucket(ctx, sess, bucket)
