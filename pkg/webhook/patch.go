@@ -395,19 +395,19 @@ func getPrometheusConfigPatches(pod *corev1.Pod, app *v1beta2.SparkApplication) 
 }
 
 func addContainerPorts(pod *corev1.Pod, app *v1beta2.SparkApplication) []patchOperation {
-	var PortMaps []v1beta2.Port
+	var portMaps []v1beta2.Port
 
 	if util.IsDriverPod(pod) {
-		PortMaps = app.Spec.Driver.Ports
+		portMaps = app.Spec.Driver.Ports
 	} else if util.IsExecutorPod(pod) {
-		PortMaps = app.Spec.Executor.Ports
+		portMaps = app.Spec.Executor.Ports
 	}
 
 	var patchOps []patchOperation
-	for _, p := range PortMaps {
+	for _, p := range portMaps {
 		portPatchOp := addContainerPort(pod, p.ContainerPort, p.Protocol, p.Name)
 		if portPatchOp == nil {
-			return nil
+			glog.Warningf("could not expose port named %s", p.Name)
 		}
 		patchOps = append(patchOps, *portPatchOp)
 	}
