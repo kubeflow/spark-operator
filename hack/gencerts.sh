@@ -18,6 +18,7 @@
 
 set -e
 SCRIPT=`basename ${BASH_SOURCE[0]}`
+RESOURCE_NAME="spark-webhook-certs"
 
 function usage {
   cat<< EOF
@@ -27,6 +28,7 @@ function usage {
   -n | --namespace <namespace>   The namespace where the Spark operator is installed.			
   -s | --service <service>       The name of the webhook service.
   -p | --in-pod                  Whether the script is running inside a pod or not.
+  -r | --resource-name           The spark resource name that will hold the secret [default: $RESOURCE_NAME]
 EOF
 }
 
@@ -57,6 +59,16 @@ function parse_arguments {
       -p|--in-pod)
       export IN_POD=true
       shift 1
+      continue
+      ;;
+      -r|--resource-name)
+      if [[ -n "$2" ]]; then
+        RESOURCE_NAME="$2"
+      else
+        echo "-r or --resource-name requires a value."
+        exit 1
+      fi
+      shift 2
       continue
       ;;
       -h|--help)
@@ -135,7 +147,7 @@ if [[ "$IN_POD" == "true" ]];  then
 	  "kind": "Secret",
 	  "apiVersion": "v1",
 	  "metadata": {
-	    "name": "spark-webhook-certs",
+	    "name": "'"$RESOURCE_NAME"'",
 	    "namespace": "'"$NAMESPACE"'"
 	  },
 	  "data": {
@@ -162,7 +174,7 @@ if [[ "$IN_POD" == "true" ]];  then
      ;;
   esac
 else
-  kubectl create secret --namespace=${NAMESPACE} generic spark-webhook-certs --from-file=${TMP_DIR}/ca-key.pem --from-file=${TMP_DIR}/ca-cert.pem --from-file=${TMP_DIR}/server-key.pem --from-file=${TMP_DIR}/server-cert.pem
+  kubectl create secret --namespace=${NAMESPACE} generic ${RESOURCE_NAME} --from-file=${TMP_DIR}/ca-key.pem --from-file=${TMP_DIR}/ca-cert.pem --from-file=${TMP_DIR}/server-key.pem --from-file=${TMP_DIR}/server-cert.pem
 fi
 
 # Clean up after we're done.
