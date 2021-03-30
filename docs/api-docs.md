@@ -719,8 +719,7 @@ string
 </td>
 <td>
 <em>(Optional)</em>
-<p>PriorityClassName stands for the name of k8s PriorityClass resource, it&rsquo;s being used for job scheduling and 
-preemption, whether with the Volcano batch scheduler or the Kubernetes default scheduler.</p>
+<p>PriorityClassName stands for the name of k8s PriorityClass resource, it&rsquo;s being used in Volcano batch scheduler.</p>
 </td>
 </tr>
 <tr>
@@ -1047,6 +1046,20 @@ map[string]string
 executors to connect to the driver.</p>
 </td>
 </tr>
+<tr>
+<td>
+<code>ports</code></br>
+<em>
+<a href="#sparkoperator.k8s.io/v1beta2.Port">
+[]Port
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Ports settings for the pods, following the Kubernetes specifications.</p>
+</td>
+</tr>
 </tbody>
 </table>
 <h3 id="sparkoperator.k8s.io/v1beta2.DriverState">DriverState
@@ -1215,6 +1228,20 @@ bool
 <em>(Optional)</em>
 <p>DeleteOnTermination specify whether executor pods should be deleted in case of failure or normal termination.
 Maps to <code>spark.kubernetes.executor.deleteOnTermination</code> that is available since Spark 3.0.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>ports</code></br>
+<em>
+<a href="#sparkoperator.k8s.io/v1beta2.Port">
+[]Port
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Ports settings for the pods, following the Kubernetes specifications.</p>
 </td>
 </tr>
 </tbody>
@@ -1427,6 +1454,56 @@ string
 </tr>
 </tbody>
 </table>
+<h3 id="sparkoperator.k8s.io/v1beta2.Port">Port
+</h3>
+<p>
+(<em>Appears on:</em>
+<a href="#sparkoperator.k8s.io/v1beta2.DriverSpec">DriverSpec</a>, 
+<a href="#sparkoperator.k8s.io/v1beta2.ExecutorSpec">ExecutorSpec</a>)
+</p>
+<p>
+<p>Port represents the port definition in the pods objects.</p>
+</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>name</code></br>
+<em>
+string
+</em>
+</td>
+<td>
+</td>
+</tr>
+<tr>
+<td>
+<code>protocol</code></br>
+<em>
+string
+</em>
+</td>
+<td>
+</td>
+</tr>
+<tr>
+<td>
+<code>containerPort</code></br>
+<em>
+int32
+</em>
+</td>
+<td>
+</td>
+</tr>
+</tbody>
+</table>
 <h3 id="sparkoperator.k8s.io/v1beta2.PrometheusSpec">PrometheusSpec
 </h3>
 <p>
@@ -1467,6 +1544,19 @@ int32
 <em>(Optional)</em>
 <p>Port is the port of the HTTP server run by the Prometheus JMX exporter.
 If not specified, 8090 will be used as the default.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>portName</code></br>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>PortName is the port name of prometheus JMX exporter port.
+If not specified, jmx-exporter will be used as the default.</p>
 </td>
 </tr>
 <tr>
@@ -2828,6 +2918,20 @@ TargetPort should be the same as the one defined in spark.ui.port</p>
 </tr>
 <tr>
 <td>
+<code>serviceType</code></br>
+<em>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#servicetype-v1-core">
+Kubernetes core/v1.ServiceType
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>ServiceType allows configuring the type of the service. Defaults to ClusterIP.</p>
+</td>
+</tr>
+<tr>
+<td>
 <code>ingressAnnotations</code></br>
 <em>
 map[string]string
@@ -2857,5 +2961,5 @@ map[string]string
 <hr/>
 <p><em>
 Generated with <code>gen-crd-api-reference-docs</code>
-on git commit <code>cf34460</code>.
+on git commit <code>2f6a3f9</code>.
 </em></p>
