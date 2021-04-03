@@ -19,7 +19,7 @@ on:
   - name: fmt check
     run: make fmt-check
 
-  - name: unit test
+  - name: unit tests
     run: make test
 
   - name: integration tests
