@@ -6,6 +6,7 @@ SPARK_OPERATOR_GOPATH=/go/src/github.com/GoogleCloudPlatform/spark-on-k8s-operat
 DEP_VERSION:=`grep DEP_VERSION= Dockerfile | awk -F\" '{print $$2}'`
 BUILDER=`grep "FROM golang:" Dockerfile | awk '{print $$2}'`
 UNAME:=`uname | tr '[:upper:]' '[:lower:]'`
+REPO=github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg
 
 all: clean-sparkctl build-sparkctl install-sparkctl
 
@@ -55,6 +56,14 @@ clean:
 
 test: clean
 	@echo "running unit tests"
-	go test -v ./...
-	go vet go ./...
-	# go test -v ./test/e2e/ --kubeconfig "$HOME/.kube/config" --operator-image=gcr.io/spark-operator/spark-operator:v1beta2-1.2.3-3.1.1
+	go test -v ./... -covermode=atomic
+
+
+it-test: clean
+	@echo "running unit tests"
+	go test -v ./test/e2e/ --kubeconfig "$HOME/.kube/config" --operator-image=gcr.io/spark-operator/spark-operator:v1beta2-1.2.3-3.1.1
+
+vet:
+	@echo "running go vet"
+	go vet ./...
+	# go vet $(REPO)...
