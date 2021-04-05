@@ -5,6 +5,10 @@ on:
     branches:
       - master
 
+  push:
+    branches:
+      - master
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -27,3 +31,49 @@ jobs:
 
       - name: integration tests
         run: make test
+
+  it:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.15
+
+      - name: Checkout source code
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 2
+
+      - name: Install Helm
+        uses: azure/setup-helm@v1
+        with:
+          version: v3.4.0
+
+      - uses: actions/setup-python@v2
+        with:
+          python-version: 3.7
+
+      - name: Set up chart-testing
+        uses: helm/chart-testing-action@v2.0.1
+
+      - name: Run chart-testing (list-changed)
+        id: list-changed
+        run: |
+          changed=$(ct list-changed)
+          if [[ -n "$changed" ]]; then
+            echo "::set-output name=changed::true"
+          fi
+
+      - name: Run chart-testing (lint)
+        run: ct lint
+
+      - name: Create kind cluster
+        uses: helm/kind-action@v1.0.0
+        if: steps.list-changed.outputs.changed == 'true'
+
+      - name: Run integration tests
+        run: make it-test
+
+      - name: Run chart-testing (install)
+        run: ct install
