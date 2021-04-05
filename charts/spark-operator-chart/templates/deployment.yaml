@@ -59,6 +59,7 @@ spec:
         - -controller-threads={{ .Values.controllerThreads }}
         - -resync-interval={{ .Values.resyncInterval }}
         - -enable-batch-scheduler={{ .Values.batchScheduler.enable }}
+        - -label-selector-filter={{ .Values.labelSelectorFilter }}
         {{- if .Values.metrics.enable }}
         - -enable-metrics=true
         - -metrics-labels=app_type

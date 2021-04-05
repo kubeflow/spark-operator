@@ -71,7 +71,7 @@ webhook:
   namespaceSelector: ""
   # -- The annotations applied to the cleanup job, required for helm lifecycle hooks
   cleanupAnnotations:
-    "helm.sh/hook": pre-delete, pre-update
+    "helm.sh/hook": pre-delete, pre-upgrade
     "helm.sh/hook-delete-policy": hook-succeeded
 
 metrics:
@@ -140,3 +140,6 @@ leaderElection:
 istio:
   # -- When using `istio`, spark jobs need to run without a sidecar to properly terminate
   enabled: false
+
+# labelSelectorFilter -- A comma-separated list of key=value, or key labels to filter resources during watch and list based on the specified labels.
+labelSelectorFilter: ""
