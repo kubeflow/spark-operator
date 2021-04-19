@@ -447,7 +447,7 @@ Note that the mutating admission webhook is needed to use this feature. Please r
 ### Using Security Context
 
 A `SparkApplication` can specify a `SecurityContext` for the driver or executor containers, using the optional field `.spec.driver.securityContext` or `.spec.executor.securityContext`.
-`SparkApplication` can also specify a `PodSecurityContext` for the driver or executor pod, using the optional field `.spec.driver.PodsecurityContext` or `.spec.executor.PodsecurityContext`. Below is an example:
+`SparkApplication` can also specify a `PodSecurityContext` for the driver or executor pod, using the optional field `.spec.driver.podSecurityContext` or `.spec.executor.podSecurityContext`. Below is an example:
 
 ```yaml
 spec:
