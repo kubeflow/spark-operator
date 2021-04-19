@@ -530,7 +530,7 @@ func (s *SparkApplication) PrometheusMonitoringEnabled() bool {
 	return s.Spec.Monitoring != nil && s.Spec.Monitoring.Prometheus != nil
 }
 
-// HasPrometheusConfigFile returns if Prometheus monitoring uses a configruation file in the container.
+// HasPrometheusConfigFile returns if Prometheus monitoring uses a configuration file in the container.
 func (s *SparkApplication) HasPrometheusConfigFile() bool {
 	return s.PrometheusMonitoringEnabled() &&
 		s.Spec.Monitoring.Prometheus.ConfigFile != nil &&
