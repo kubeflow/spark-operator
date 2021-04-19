@@ -17,7 +17,7 @@
 ARG SPARK_IMAGE=gcr.io/spark-operator/spark:v3.0.0
 FROM ${SPARK_IMAGE}
 
-# Switch to user root so we can add addtional jars and configuration files.
+# Switch to user root so we can add additional jars and configuration files.
 USER root
 
 # Setup dependencies for Google Cloud Storage access.
