@@ -63,7 +63,7 @@ The command removes all the Kubernetes components associated with the chart and 
 | leaderElection.lockName | string | `"spark-operator-lock"` | Leader election lock name. Ref: https://github.com/GoogleCloudPlatform/spark-on-k8s-operator/blob/master/docs/user-guide.md#enabling-leader-election-for-high-availability. |
 | leaderElection.lockNamespace | string | `""` | Optionally store the lock in another namespace. Defaults to operator's namespace |
 | logLevel | int | `2` | Set higher levels for more verbose logging |
-| metrics.enable | bool | `true` | Enable prometheus mertic scraping |
+| metrics.enable | bool | `true` | Enable prometheus metric scraping |
 | metrics.endpoint | string | `"/metrics"` | Metrics serving endpoint |
 | metrics.port | int | `10254` | Metrics port |
 | metrics.portName | string | `metrics` | Metrics port name |
