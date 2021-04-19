@@ -81,7 +81,7 @@ The command removes all the Kubernetes components associated with the chart and 
 | replicaCount | int | `1` | Desired number of pods, leaderElection will be enabled if this is greater than 1 |
 | resourceQuotaEnforcement.enable | bool | `false` | Whether to enable the ResourceQuota enforcement for SparkApplication resources. Requires the webhook to be enabled by setting `webhook.enable` to true. Ref: https://github.com/GoogleCloudPlatform/spark-on-k8s-operator/blob/master/docs/user-guide.md#enabling-resource-quota-enforcement. |
 | resources | object | `{}` | Pod resource requests and limits |
-| resyncInterval | int | `30` | Operator resync interval. Note that the operator will respond to events (e.g. create, update) unrealted to this setting |
+| resyncInterval | int | `30` | Operator resync interval. Note that the operator will respond to events (e.g. create, update) unrelated to this setting |
 | securityContext | object | `{}` | Operator container security context |
 | serviceAccounts.spark.create | bool | `true` | Create a service account for spark apps |
 | serviceAccounts.spark.name | string | `""` | Optional name for the spark service account |
