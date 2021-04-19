@@ -281,7 +281,7 @@ type SparkApplicationSpec struct {
 	// +optional
 	SparkUIOptions *SparkUIConfiguration `json:"sparkUIOptions,omitempty"`
 	// DynamicAllocation configures dynamic allocation that becomes available for the Kubernetes
-	// scheduleer backend since Spark 3.0.
+	// scheduler backend since Spark 3.0.
 	// +optional
 	DynamicAllocation *DynamicAllocation `json:"dynamicAllocation,omitempty"`
 }

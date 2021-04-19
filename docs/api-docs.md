@@ -611,7 +611,7 @@ DynamicAllocation
 <td>
 <em>(Optional)</em>
 <p>DynamicAllocation configures dynamic allocation that becomes available for the Kubernetes
-scheduleer backend since Spark 3.0.</p>
+scheduler backend since Spark 3.0.</p>
 </td>
 </tr>
 </table>
@@ -2352,7 +2352,7 @@ DynamicAllocation
 <td>
 <em>(Optional)</em>
 <p>DynamicAllocation configures dynamic allocation that becomes available for the Kubernetes
-scheduleer backend since Spark 3.0.</p>
+scheduler backend since Spark 3.0.</p>
 </td>
 </tr>
 </tbody>
