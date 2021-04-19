@@ -1,6 +1,6 @@
 ## Who Is Using the Kubernetes Operator for Apache Spark?
 
-| Organization | Contact (Github User Name) | Environment | Description of Use |
+| Organization | Contact (GitHub User Name) | Environment | Description of Use |
 | ------------- | ------------- | ------------- | ------------- |
 | [Caicloud](https://intl.caicloud.io/) | @gaocegege | Production | Cloud-Native AI Platform |
 | Microsoft (MileIQ) |@dharmeshkakadia| Production | AI & Analytics |
