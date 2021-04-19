@@ -146,7 +146,7 @@ func TestOnUpdate(t *testing.T) {
 
 	ctrl.onUpdate(appTemplate, copyWithSpecUpdate)
 
-	// Verify that ppdate failed due to non-existance of SparkApplication.
+	// Verify that ppdate failed due to non-existence of SparkApplication.
 	assert.Equal(t, 1, len(recorder.Events))
 	event := <-recorder.Events
 	assert.True(t, strings.Contains(event, "SparkApplicationSpecUpdateFailed"))
