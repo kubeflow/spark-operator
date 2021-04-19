@@ -545,7 +545,7 @@ type DriverSpec struct {
 	// other Kubernetes resources. Default to https://kubernetes.default.svc.
 	// +optional
 	KubernetesMaster *string `json:"kubernetesMaster,omitempty"`
-	// ServiceAnnotations defines the annoations to be added to the Kubernetes headless service used by
+	// ServiceAnnotations defines the annotations to be added to the Kubernetes headless service used by
 	// executors to connect to the driver.
 	// +optional
 	ServiceAnnotations map[string]string `json:"serviceAnnotations,omitempty"`

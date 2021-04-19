@@ -1042,7 +1042,7 @@ map[string]string
 </td>
 <td>
 <em>(Optional)</em>
-<p>ServiceAnnotations defines the annoations to be added to the Kubernetes headless service used by
+<p>ServiceAnnotations defines the annotations to be added to the Kubernetes headless service used by
 executors to connect to the driver.</p>
 </td>
 </tr>
