@@ -508,7 +508,7 @@ Note that the mutating admission webhook is needed to use this feature. Please r
 [Quick Start Guide](quick-start-guide.md) on how to enable the mutating admission webhook.
 
 ### Using DNS Settings
-A `SparkApplication` can define DNS settings for the driver and/or executor pod, by adding the standart [DNS](https://kubernetes.io/docs/concepts/services-networking/dns-pod-service/#pod-s-dns-config) kubernetes settings. Fields to add such configuration are `.spec.driver.dnsConfig` and `.spec.executor.dnsConfig`. Example:
+A `SparkApplication` can define DNS settings for the driver and/or executor pod, by adding the standard [DNS](https://kubernetes.io/docs/concepts/services-networking/dns-pod-service/#pod-s-dns-config) kubernetes settings. Fields to add such configuration are `.spec.driver.dnsConfig` and `.spec.executor.dnsConfig`. Example:
 
 ```yaml
 spec:
