@@ -812,7 +812,7 @@ If specified, volcano scheduler will consider it as the resources requested.</p>
 <p>Packages is a list of maven coordinates of jars to include on the driver and executor
 classpaths. This will search the local maven repo, then maven central and any additional
 remote repositories given by the &ldquo;repositories&rdquo; option.
-Each papckage should be of the form &ldquo;groupId:artifactId:version&rdquo;.</p>
+Each package should be of the form &ldquo;groupId:artifactId:version&rdquo;.</p>
 </td>
 </tr>
 <tr>
