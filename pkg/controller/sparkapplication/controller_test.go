@@ -1506,7 +1506,7 @@ func TestSyncSparkApplication_ApplicationExpired(t *testing.T) {
 	driverPodName := appName + "-driver"
 
 	now := time.Now()
-	terminatiomTime := now.Add(-2 * time.Second)
+	terminationTime := now.Add(-2 * time.Second)
 	app := &v1beta2.SparkApplication{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      appName,
@@ -1527,7 +1527,7 @@ func TestSyncSparkApplication_ApplicationExpired(t *testing.T) {
 				PodName: driverPodName,
 			},
 			TerminationTime: metav1.Time{
-				Time: terminatiomTime,
+				Time: terminationTime,
 			},
 			ExecutorState: map[string]v1beta2.ExecutorState{"exec-1": v1beta2.ExecutorCompletedState},
 		},
