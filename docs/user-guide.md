@@ -622,7 +622,7 @@ In cases like Spark Streaming or Spark Structured Streaming applications, you ca
 
 ### Python Support
 
-Python support can be enabled by setting `.spec.mainApplicationFile` with path to your python application. Optionaly, the `.spec.pythonVersion` field can be used to set the major Python version of the docker image used to run the driver and executor containers. Below is an example showing part of a `SparkApplication` specification:
+Python support can be enabled by setting `.spec.mainApplicationFile` with path to your python application. Optionally, the `.spec.pythonVersion` field can be used to set the major Python version of the docker image used to run the driver and executor containers. Below is an example showing part of a `SparkApplication` specification:
 
 ```yaml
 spec:
