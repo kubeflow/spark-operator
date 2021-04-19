@@ -26,7 +26,7 @@ rules:
       app_namespace: "$1"
       app_id: "$2"
   # These come from the application driver if it's a structured streaming application
-  # Example: default/sstreaming.driver.spark.streaming.QueryName.inputRate-total
+  # Example: default/streaming.driver.spark.streaming.QueryName.inputRate-total
   - pattern: metrics<name=(\S+)\.(\S+)\.driver\.spark\.streaming\.(\S+)\.(\S+)><>Value
     name: spark_structured_streaming_driver_$4
     labels:
