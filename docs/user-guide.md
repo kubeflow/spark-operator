@@ -730,7 +730,7 @@ client so effectively the driver gets restarted.
 
 ### Setting TTL for a SparkApplication
 
-The `v1beta2` version of the `SparkApplication` API starts having TTL support for `SparkApplication`s through a new optional field named `.spec.timeToLiveSeconds`, which if set, defines the Time-To-Live (TTL) duration in seconds for a SparkAplication after its termination. The `SparkApplication` object will be garbage collected if the current time is more than the `.spec.timeToLiveSeconds` since its termination. The example below illustrates how to use the field:
+The `v1beta2` version of the `SparkApplication` API starts having TTL support for `SparkApplication`s through a new optional field named `.spec.timeToLiveSeconds`, which if set, defines the Time-To-Live (TTL) duration in seconds for a SparkApplication after its termination. The `SparkApplication` object will be garbage collected if the current time is more than the `.spec.timeToLiveSeconds` since its termination. The example below illustrates how to use the field:
 
 ```yaml
 spec:

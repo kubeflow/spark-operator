@@ -565,7 +565,7 @@ int64
 </td>
 <td>
 <em>(Optional)</em>
-<p>TimeToLiveSeconds defines the Time-To-Live (TTL) duration in seconds for this SparkAplication
+<p>TimeToLiveSeconds defines the Time-To-Live (TTL) duration in seconds for this SparkApplication
 after its termination.
 The SparkApplication object will be garbage collected if the current time is more than the
 TimeToLiveSeconds since its termination.</p>
@@ -2306,7 +2306,7 @@ int64
 </td>
 <td>
 <em>(Optional)</em>
-<p>TimeToLiveSeconds defines the Time-To-Live (TTL) duration in seconds for this SparkAplication
+<p>TimeToLiveSeconds defines the Time-To-Live (TTL) duration in seconds for this SparkApplication
 after its termination.
 The SparkApplication object will be garbage collected if the current time is more than the
 TimeToLiveSeconds since its termination.</p>

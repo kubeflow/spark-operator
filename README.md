@@ -80,7 +80,7 @@ The Kubernetes Operator for Apache Spark currently supports the following list o
 * Automatically runs `spark-submit` on behalf of users for each `SparkApplication` eligible for submission.
 * Provides native [cron](https://en.wikipedia.org/wiki/Cron) support for running scheduled applications.
 * Supports customization of Spark pods beyond what Spark natively is able to do through the mutating admission webhook, e.g., mounting ConfigMaps and volumes, and setting pod affinity/anti-affinity.
-* Supports automatic application re-submission for updated `SparkAppliation` objects with updated specification.
+* Supports automatic application re-submission for updated `SparkApplication` objects with updated specification.
 * Supports automatic application restart with a configurable restart policy.
 * Supports automatic retries of failed submissions with optional linear back-off.
 * Supports mounting local Hadoop configuration as a Kubernetes ConfigMap automatically via `sparkctl`.

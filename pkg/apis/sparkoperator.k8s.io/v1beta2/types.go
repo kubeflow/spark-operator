@@ -268,7 +268,7 @@ type SparkApplicationSpec struct {
 	// BatchScheduler configures which batch scheduler will be used for scheduling
 	// +optional
 	BatchScheduler *string `json:"batchScheduler,omitempty"`
-	// TimeToLiveSeconds defines the Time-To-Live (TTL) duration in seconds for this SparkAplication
+	// TimeToLiveSeconds defines the Time-To-Live (TTL) duration in seconds for this SparkApplication
 	// after its termination.
 	// The SparkApplication object will be garbage collected if the current time is more than the
 	// TimeToLiveSeconds since its termination.
