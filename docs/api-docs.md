@@ -2855,7 +2855,7 @@ int64
 </td>
 <td>
 <em>(Optional)</em>
-<p>Termination grace periond seconds for the pod</p>
+<p>Termination grace period seconds for the pod</p>
 </td>
 </tr>
 <tr>

@@ -509,7 +509,7 @@ type SparkPodSpec struct {
 	// DnsConfig dns settings for the pod, following the Kubernetes specifications.
 	// +optional
 	DNSConfig *apiv1.PodDNSConfig `json:"dnsConfig,omitempty"`
-	// Termination grace periond seconds for the pod
+	// Termination grace period seconds for the pod
 	// +optional
 	TerminationGracePeriodSeconds *int64 `json:"terminationGracePeriodSeconds,omitempty"`
 	// ServiceAccount is the name of the custom Kubernetes service account used by the pod.
