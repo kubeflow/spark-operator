@@ -34,10 +34,10 @@ import (
 )
 
 // PathToOSFile gets the absolute path from relative path.
-func PathToOSFile(relativPath string) (*os.File, error) {
-	path, err := filepath.Abs(relativPath)
+func PathToOSFile(relativePath string) (*os.File, error) {
+	path, err := filepath.Abs(relativePath)
 	if err != nil {
-		return nil, errors.Wrap(err, fmt.Sprintf("failed generate absolute file path of %s", relativPath))
+		return nil, errors.Wrap(err, fmt.Sprintf("failed generate absolute file path of %s", relativePath))
 	}
 
 	manifest, err := os.Open(path)
@@ -109,7 +109,7 @@ func WaitForHTTPSuccessStatusCode(timeout time.Duration, url string) error {
 	})
 
 	return errors.Wrap(err, fmt.Sprintf(
-		"waiting for %v to return a successfull status code timed out. Last response from server was: %v",
+		"waiting for %v to return a successful status code timed out. Last response from server was: %v",
 		url,
 		resp,
 	))

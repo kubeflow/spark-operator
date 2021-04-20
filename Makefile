@@ -27,7 +27,7 @@ install-sparkctl: | sparkctl/sparkctl-darwin-amd64 sparkctl/sparkctl-linux-amd64
 		sudo cp sparkctl/sparkctl-linux-amd64 /usr/local/bin/sparkctl; \
 		sudo chmod +x /usr/local/bin/sparkctl; \
 	elif [ "$(UNAME)" = "darwin" ]; then \
-		echo "installing macos binary to /usr/local/bin/sparkctl"; \
+		echo "installing macOS binary to /usr/local/bin/sparkctl"; \
 		cp sparkctl/sparkctl-darwin-amd64 /usr/local/bin/sparkctl; \
 		chmod +x /usr/local/bin/sparkctl; \
 	else \

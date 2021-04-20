@@ -14,7 +14,7 @@ The connectors require certain Hadoop properties to be set properly to function.
 both through a custom Hadoop configuration file, namely, `core-site.xml` in a custom image, or via the `spec.hadoopConf` 
 section in a `SparkApplication`. The example Dockerfile mentioned above shows the use of a custom `core-site.xml` and a 
 custom `spark-env.sh` that points the environment variable `HADOOP_CONF_DIR` to the directory in the container where 
-`core-site.xml` is located. The example `core-sitem.xml` and `spark-env.sh` can be found 
+`core-site.xml` is located. The example `core-site.xml` and `spark-env.sh` can be found 
 [here](https://github.com/GoogleCloudPlatform/spark-on-k8s-gcp-examples/tree/master/conf).
 
 The GCS and BigQuery connectors need to authenticate with the GCS and BigQuery services before they can use the services.

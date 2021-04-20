@@ -565,7 +565,7 @@ int64
 </td>
 <td>
 <em>(Optional)</em>
-<p>TimeToLiveSeconds defines the Time-To-Live (TTL) duration in seconds for this SparkAplication
+<p>TimeToLiveSeconds defines the Time-To-Live (TTL) duration in seconds for this SparkApplication
 after its termination.
 The SparkApplication object will be garbage collected if the current time is more than the
 TimeToLiveSeconds since its termination.</p>
@@ -611,7 +611,7 @@ DynamicAllocation
 <td>
 <em>(Optional)</em>
 <p>DynamicAllocation configures dynamic allocation that becomes available for the Kubernetes
-scheduleer backend since Spark 3.0.</p>
+scheduler backend since Spark 3.0.</p>
 </td>
 </tr>
 </table>
@@ -812,7 +812,7 @@ If specified, volcano scheduler will consider it as the resources requested.</p>
 <p>Packages is a list of maven coordinates of jars to include on the driver and executor
 classpaths. This will search the local maven repo, then maven central and any additional
 remote repositories given by the &ldquo;repositories&rdquo; option.
-Each papckage should be of the form &ldquo;groupId:artifactId:version&rdquo;.</p>
+Each package should be of the form &ldquo;groupId:artifactId:version&rdquo;.</p>
 </td>
 </tr>
 <tr>
@@ -1042,7 +1042,7 @@ map[string]string
 </td>
 <td>
 <em>(Optional)</em>
-<p>ServiceAnnotations defines the annoations to be added to the Kubernetes headless service used by
+<p>ServiceAnnotations defines the annotations to be added to the Kubernetes headless service used by
 executors to connect to the driver.</p>
 </td>
 </tr>
@@ -2306,7 +2306,7 @@ int64
 </td>
 <td>
 <em>(Optional)</em>
-<p>TimeToLiveSeconds defines the Time-To-Live (TTL) duration in seconds for this SparkAplication
+<p>TimeToLiveSeconds defines the Time-To-Live (TTL) duration in seconds for this SparkApplication
 after its termination.
 The SparkApplication object will be garbage collected if the current time is more than the
 TimeToLiveSeconds since its termination.</p>
@@ -2352,7 +2352,7 @@ DynamicAllocation
 <td>
 <em>(Optional)</em>
 <p>DynamicAllocation configures dynamic allocation that becomes available for the Kubernetes
-scheduleer backend since Spark 3.0.</p>
+scheduler backend since Spark 3.0.</p>
 </td>
 </tr>
 </tbody>
@@ -2855,7 +2855,7 @@ int64
 </td>
 <td>
 <em>(Optional)</em>
-<p>Termination grace periond seconds for the pod</p>
+<p>Termination grace period seconds for the pod</p>
 </td>
 </tr>
 <tr>

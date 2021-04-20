@@ -29,12 +29,12 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
-func CreateServiceAccount(kubeClient kubernetes.Interface, namespace string, relativPath string) (finalizerFn, error) {
+func CreateServiceAccount(kubeClient kubernetes.Interface, namespace string, relativePath string) (finalizerFn, error) {
 	finalizerFn := func() error {
-		return DeleteServiceAccount(kubeClient, namespace, relativPath)
+		return DeleteServiceAccount(kubeClient, namespace, relativePath)
 	}
 
-	serviceAccount, err := parseServiceAccountYaml(relativPath)
+	serviceAccount, err := parseServiceAccountYaml(relativePath)
 	if err != nil {
 		return finalizerFn, err
 	}
@@ -79,8 +79,8 @@ func parseServiceAccountYaml(relativePath string) (*v1.ServiceAccount, error) {
 	return &serviceAccount, nil
 }
 
-func DeleteServiceAccount(kubeClient kubernetes.Interface, namespace string, relativPath string) error {
-	serviceAccount, err := parseServiceAccountYaml(relativPath)
+func DeleteServiceAccount(kubeClient kubernetes.Interface, namespace string, relativePath string) error {
+	serviceAccount, err := parseServiceAccountYaml(relativePath)
 	if err != nil {
 		return err
 	}

@@ -83,7 +83,7 @@ A `SparkApplication` should set `.spec.deployMode` to `cluster`, as `client` is 
 
 ### Specifying Application Dependencies
 
-Often Spark applications need additional files additionally to the main application resource to run. Such application dependencies can include for example jars and data files the application needs at runtime. When using the `spark-submit` script to submit a Spark application, such dependencies are specified using the `--jars` and `--files` options. To support specification of application dependenies, a `SparkApplication` uses an optional field `.spec.deps` that in turn supports specifying jars and files, respectively. More specifically, the optional fields `.spec.deps.jars` and`.spec.deps.files` correspond to the `--jars` and `--files` options of the `spark-submit` script, respectively.
+Often Spark applications need additional files additionally to the main application resource to run. Such application dependencies can include for example jars and data files the application needs at runtime. When using the `spark-submit` script to submit a Spark application, such dependencies are specified using the `--jars` and `--files` options. To support specification of application dependencies, a `SparkApplication` uses an optional field `.spec.deps` that in turn supports specifying jars and files, respectively. More specifically, the optional fields `.spec.deps.jars` and`.spec.deps.files` correspond to the `--jars` and `--files` options of the `spark-submit` script, respectively.
 
 Additionally, `.spec.deps` also has fields for specifying the locations in the driver and executor containers where jars and files should be downloaded to, namely, `.spec.deps.jarsDownloadDir` and `.spec.deps.filesDownloadDir`. The optional fields `.spec.deps.downloadTimeout` and `.spec.deps.maxSimultaneousDownloads` are used to control the timeout and maximum parallelism of downloading dependencies that are hosted remotely, e.g., on an HTTP server, or in external storage such as HDFS, Google Cloud Storage, or AWS S3.
 
@@ -447,7 +447,7 @@ Note that the mutating admission webhook is needed to use this feature. Please r
 ### Using Security Context
 
 A `SparkApplication` can specify a `SecurityContext` for the driver or executor containers, using the optional field `.spec.driver.securityContext` or `.spec.executor.securityContext`.
-`SparkApplication` can also specify a `PodSecurityContext` for the driver or executor pod, using the optional field `.spec.driver.PodsecurityContext` or `.spec.executor.PodsecurityContext`. Below is an example:
+`SparkApplication` can also specify a `PodSecurityContext` for the driver or executor pod, using the optional field `.spec.driver.podSecurityContext` or `.spec.executor.podSecurityContext`. Below is an example:
 
 ```yaml
 spec:
@@ -508,7 +508,7 @@ Note that the mutating admission webhook is needed to use this feature. Please r
 [Quick Start Guide](quick-start-guide.md) on how to enable the mutating admission webhook.
 
 ### Using DNS Settings
-A `SparkApplication` can define DNS settings for the driver and/or executor pod, by adding the standart [DNS](https://kubernetes.io/docs/concepts/services-networking/dns-pod-service/#pod-s-dns-config) kubernetes settings. Fields to add such configuration are `.spec.driver.dnsConfig` and `.spec.executor.dnsConfig`. Example:
+A `SparkApplication` can define DNS settings for the driver and/or executor pod, by adding the standard [DNS](https://kubernetes.io/docs/concepts/services-networking/dns-pod-service/#pod-s-dns-config) kubernetes settings. Fields to add such configuration are `.spec.driver.dnsConfig` and `.spec.executor.dnsConfig`. Example:
 
 ```yaml
 spec:
@@ -622,7 +622,7 @@ In cases like Spark Streaming or Spark Structured Streaming applications, you ca
 
 ### Python Support
 
-Python support can be enabled by setting `.spec.mainApplicationFile` with path to your python application. Optionaly, the `.spec.pythonVersion` field can be used to set the major Python version of the docker image used to run the driver and executor containers. Below is an example showing part of a `SparkApplication` specification:
+Python support can be enabled by setting `.spec.mainApplicationFile` with path to your python application. Optionally, the `.spec.pythonVersion` field can be used to set the major Python version of the docker image used to run the driver and executor containers. Below is an example showing part of a `SparkApplication` specification:
 
 ```yaml
 spec:
@@ -673,7 +673,7 @@ The operator automatically adds the annotations such as `prometheus.io/scrape=tr
 
 ### Dynamic Allocation
 
-The operator supports a limited form of [Spark Dynamic Resource Allocation](http://spark.apache.org/docs/latest/job-scheduling.html#dynamic-resource-allocation) through the shuffle tracking enhancement introduced in Spark 3.0.0 *without needing an external shuffle service* (not available in the Kubernetes mode). See this [issue](https://issues.apache.org/jira/browse/SPARK-27963) for detais on the enhancement. To enable this limited form of dynamic allocation, follow the example below:
+The operator supports a limited form of [Spark Dynamic Resource Allocation](http://spark.apache.org/docs/latest/job-scheduling.html#dynamic-resource-allocation) through the shuffle tracking enhancement introduced in Spark 3.0.0 *without needing an external shuffle service* (not available in the Kubernetes mode). See this [issue](https://issues.apache.org/jira/browse/SPARK-27963) for details on the enhancement. To enable this limited form of dynamic allocation, follow the example below:
 
 ```yaml
 spec:
@@ -730,7 +730,7 @@ client so effectively the driver gets restarted.
 
 ### Setting TTL for a SparkApplication
 
-The `v1beta2` version of the `SparkApplication` API starts having TTL support for `SparkApplication`s through a new optional field named `.spec.timeToLiveSeconds`, which if set, defines the Time-To-Live (TTL) duration in seconds for a SparkAplication after its termination. The `SparkApplication` object will be garbage collected if the current time is more than the `.spec.timeToLiveSeconds` since its termination. The example below illustrates how to use the field:
+The `v1beta2` version of the `SparkApplication` API starts having TTL support for `SparkApplication`s through a new optional field named `.spec.timeToLiveSeconds`, which if set, defines the Time-To-Live (TTL) duration in seconds for a SparkApplication after its termination. The `SparkApplication` object will be garbage collected if the current time is more than the `.spec.timeToLiveSeconds` since its termination. The example below illustrates how to use the field:
 
 ```yaml
 spec:
@@ -824,7 +824,7 @@ command: ["/usr/bin/gencerts.sh", "-n", "ns-op1", "-s", "spark-op1-webhook", "-p
 command: ["/usr/bin/gencerts.sh", "-n", "ns-op2", "-s", "spark-op2-webhook", "-p"`]
 ```
 
-* Although resources are already filtered with respect to the specified labels on resources. You may also specify different labels in `-webhook-namespace-selector` and attach these labels to the namepsaces on which you want the webhook to listen to.
+* Although resources are already filtered with respect to the specified labels on resources. You may also specify different labels in `-webhook-namespace-selector` and attach these labels to the namespaces on which you want the webhook to listen to.
 
 ## Customizing the Operator
 
@@ -834,4 +834,4 @@ To customize the operator, you can follow the steps below:
 2. Create docker images to be used for Spark with [docker-image tool](https://spark.apache.org/docs/latest/running-on-kubernetes.html#docker-images).
 3. Create a new operator image based on the above image. You need to modify the `FROM` tag in the [Dockerfile](https://github.com/GoogleCloudPlatform/spark-on-k8s-operator/blob/master/Dockerfile) with your Spark image.
 4. Build and push your operator image built above.
-5. Deploy the new image by modifying the [/manifest/spark-operator.yaml](https://github.com/GoogleCloudPlatform/spark-on-k8s-operator/blob/master/manifest/spark-operator.yaml) file and specfiying your operator image.
+5. Deploy the new image by modifying the [/manifest/spark-operator.yaml](https://github.com/GoogleCloudPlatform/spark-on-k8s-operator/blob/master/manifest/spark-operator.yaml) file and specifying your operator image.

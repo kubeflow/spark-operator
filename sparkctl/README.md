@@ -101,7 +101,7 @@ spark.hadoop.fs.s3a.impl org.apache.hadoop.fs.s3a.S3AFileSystem
 ```
 
 NOTE: In Spark 2.3 init-containers are used for downloading remote application dependencies. In future versions, init-containers are removed. 
-It is recommended to use Apache Spark 2.4 for staging local dependencies with `s3`,  which currently requires building a custom Docker image from the Spark master branch. Additionaly, since Spark 2.4.0 
+It is recommended to use Apache Spark 2.4 for staging local dependencies with `s3`,  which currently requires building a custom Docker image from the Spark master branch. Additionally, since Spark 2.4.0 
 there are two available build profiles, Hadoop2.7 and Hadoop3.1. For use of Spark with `S3A Connector`, Hadoop3.1 profile is recommended as this allows to use newer version of `aws-java-sdk-bundle`.
 
 If you want to use custom S3 endpoint or region, add `--upload-to-endpoint` and `--upload-to-region`: 
