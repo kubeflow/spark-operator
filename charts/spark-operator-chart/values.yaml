@@ -25,7 +25,8 @@ fullnameOverride: ""
 
 rbac:
   # -- Create and use `rbac` resources
-  create: true
+  createRole: true
+  createClusterRole: true
 
 serviceAccounts:
   spark:
