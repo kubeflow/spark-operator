@@ -3672,6 +3672,8 @@ spec:
                 servicePort:
                   format: int32
                   type: integer
+                servicePortName:
+                  type: string
                 serviceType:
                   type: string
               type: object

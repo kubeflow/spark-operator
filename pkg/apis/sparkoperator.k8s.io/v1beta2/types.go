@@ -306,6 +306,11 @@ type SparkUIConfiguration struct {
 	// TargetPort should be the same as the one defined in spark.ui.port
 	// +optional
 	ServicePort *int32 `json:"servicePort"`
+	// ServicePortName allows configuring the name of the service port.
+	// This may be useful for sidecar proxies like Envoy injected by Istio which require specific ports names to treat traffic as proper HTTP.
+	// Defaults to spark-driver-ui-port.
+	// +optional
+	ServicePortName *string `json:"servicePortName"`
 	// ServiceType allows configuring the type of the service. Defaults to ClusterIP.
 	// +optional
 	ServiceType *apiv1.ServiceType `json:"serviceType"`

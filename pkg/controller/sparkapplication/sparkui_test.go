@@ -77,11 +77,15 @@ func TestCreateSparkUIService(t *testing.T) {
 		if port.Port != test.expectedService.servicePort {
 			t.Errorf("%s: unexpected port wanted %d got %d", test.name, test.expectedService.servicePort, port.Port)
 		}
+		if port.Name != test.expectedService.servicePortName {
+			t.Errorf("%s: unexpected port name wanted %s got %s", test.name, test.expectedService.servicePortName, port.Name)
+		}
 	}
 	defaultPort := defaultSparkWebUIPort
+	defaultPortName := defaultSparkWebUIPortName
 	app1 := &v1beta2.SparkApplication{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "foo",
+			Name:      "foo1",
 			Namespace: "default",
 			UID:       "foo-123",
 		},
@@ -97,7 +101,7 @@ func TestCreateSparkUIService(t *testing.T) {
 	}
 	app2 := &v1beta2.SparkApplication{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "foo",
+			Name:      "foo2",
 			Namespace: "default",
 			UID:       "foo-123",
 		},
@@ -108,7 +112,7 @@ func TestCreateSparkUIService(t *testing.T) {
 	}
 	app3 := &v1beta2.SparkApplication{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "foo",
+			Name:      "foo3",
 			Namespace: "default",
 			UID:       "foo-123",
 		},
@@ -124,7 +128,7 @@ func TestCreateSparkUIService(t *testing.T) {
 	var appPort int32 = 80
 	app4 := &v1beta2.SparkApplication{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "foo",
+			Name:      "foo4",
 			Namespace: "default",
 			UID:       "foo-123",
 		},
@@ -145,7 +149,7 @@ func TestCreateSparkUIService(t *testing.T) {
 	var serviceTypeNodePort apiv1.ServiceType = apiv1.ServiceTypeNodePort
 	app5 := &v1beta2.SparkApplication{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "foo",
+			Name:      "foo5",
 			Namespace: "default",
 			UID:       "foo-123",
 		},
@@ -159,21 +163,39 @@ func TestCreateSparkUIService(t *testing.T) {
 			ExecutionAttempts:  2,
 		},
 	}
+	appPortName := "http-spark-test"
+	app6 := &v1beta2.SparkApplication{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "foo6",
+			Namespace: "default",
+			UID:       "foo-123",
+		},
+		Spec: v1beta2.SparkApplicationSpec{
+			SparkUIOptions: &v1beta2.SparkUIConfiguration{
+				ServicePort:     &appPort,
+				ServicePortName: &appPortName,
+			},
+		},
+		Status: v1beta2.SparkApplicationStatus{
+			SparkApplicationID: "foo-6",
+		},
+	}
 	testcases := []testcase{
 		{
 			name: "service with custom serviceport and serviceport and target port are same",
 			app:  app1,
 			expectedService: SparkService{
-				serviceName: fmt.Sprintf("%s-ui-svc", app1.GetName()),
-				serviceType: apiv1.ServiceTypeClusterIP,
-				servicePort: 4041,
+				serviceName:     fmt.Sprintf("%s-ui-svc", app1.GetName()),
+				serviceType:     apiv1.ServiceTypeClusterIP,
+				servicePortName: defaultPortName,
+				servicePort:     4041,
 				targetPort: intstr.IntOrString{
 					Type:   intstr.Int,
 					IntVal: int32(4041),
 				},
 			},
 			expectedSelector: map[string]string{
-				config.SparkAppNameLabel: "foo",
+				config.SparkAppNameLabel: "foo1",
 				config.SparkRoleLabel:    config.SparkDriverRole,
 			},
 			expectError: false,
@@ -182,12 +204,13 @@ func TestCreateSparkUIService(t *testing.T) {
 			name: "service with default port",
 			app:  app2,
 			expectedService: SparkService{
-				serviceName: fmt.Sprintf("%s-ui-svc", app2.GetName()),
-				serviceType: apiv1.ServiceTypeClusterIP,
-				servicePort: int32(defaultPort),
+				serviceName:     fmt.Sprintf("%s-ui-svc", app2.GetName()),
+				serviceType:     apiv1.ServiceTypeClusterIP,
+				servicePortName: defaultPortName,
+				servicePort:     int32(defaultPort),
 			},
 			expectedSelector: map[string]string{
-				config.SparkAppNameLabel: "foo",
+				config.SparkAppNameLabel: "foo2",
 				config.SparkRoleLabel:    config.SparkDriverRole,
 			},
 			expectError: false,
@@ -196,16 +219,17 @@ func TestCreateSparkUIService(t *testing.T) {
 			name: "service with custom serviceport and serviceport and target port are different",
 			app:  app4,
 			expectedService: SparkService{
-				serviceName: fmt.Sprintf("%s-ui-svc", app4.GetName()),
-				serviceType: apiv1.ServiceTypeClusterIP,
-				servicePort: 80,
+				serviceName:     fmt.Sprintf("%s-ui-svc", app4.GetName()),
+				serviceType:     apiv1.ServiceTypeClusterIP,
+				servicePortName: defaultPortName,
+				servicePort:     80,
 				targetPort: intstr.IntOrString{
 					Type:   intstr.Int,
 					IntVal: int32(4041),
 				},
 			},
 			expectedSelector: map[string]string{
-				config.SparkAppNameLabel: "foo",
+				config.SparkAppNameLabel: "foo4",
 				config.SparkRoleLabel:    config.SparkDriverRole,
 			},
 			expectError: false,
@@ -214,12 +238,28 @@ func TestCreateSparkUIService(t *testing.T) {
 			name: "service with custom servicetype",
 			app:  app5,
 			expectedService: SparkService{
-				serviceName: fmt.Sprintf("%s-ui-svc", app4.GetName()),
-				serviceType: apiv1.ServiceTypeNodePort,
-				servicePort: int32(defaultPort),
+				serviceName:     fmt.Sprintf("%s-ui-svc", app5.GetName()),
+				serviceType:     apiv1.ServiceTypeNodePort,
+				servicePortName: defaultPortName,
+				servicePort:     int32(defaultPort),
 			},
 			expectedSelector: map[string]string{
-				config.SparkAppNameLabel: "foo",
+				config.SparkAppNameLabel: "foo5",
+				config.SparkRoleLabel:    config.SparkDriverRole,
+			},
+			expectError: false,
+		},
+		{
+			name: "service with custom serviceportname",
+			app:  app6,
+			expectedService: SparkService{
+				serviceName:     fmt.Sprintf("%s-ui-svc", app6.GetName()),
+				serviceType:     apiv1.ServiceTypeClusterIP,
+				servicePortName: "http-spark-test",
+				servicePort:     int32(80),
+			},
+			expectedSelector: map[string]string{
+				config.SparkAppNameLabel: "foo6",
 				config.SparkRoleLabel:    config.SparkDriverRole,
 			},
 			expectError: false,

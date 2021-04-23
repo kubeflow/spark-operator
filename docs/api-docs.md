@@ -2918,6 +2918,20 @@ TargetPort should be the same as the one defined in spark.ui.port</p>
 </tr>
 <tr>
 <td>
+<code>ServicePortName</code></br>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>ServicePortName allows configuring the name of the service port.
+This may be useful for sidecar proxies like Envoy injected by Istio which require specific ports names to treat traffic as proper HTTP.
+Defaults to spark-driver-ui-port.</p>
+</td>
+</tr>
+<tr>
+<td>
 <code>serviceType</code></br>
 <em>
 <a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#servicetype-v1-core">
@@ -2961,5 +2975,5 @@ map[string]string
 <hr/>
 <p><em>
 Generated with <code>gen-crd-api-reference-docs</code>
-on git commit <code>2f6a3f9</code>.
+on git commit <code>eb07ee0</code>.
 </em></p>
