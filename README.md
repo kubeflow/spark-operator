@@ -5,7 +5,7 @@
 
 ## Community
 
-* Join our [Slack](https://kubernetes.slack.com/messages/CALBDHMTL) channel.
+* Join our [Slack](https://kubernetes.slack.com/messages/CALBDHMTL) channel on [Kubernetes on Slack](https://slack.k8s.io/).
 * Check out [who is using the Kubernetes Operator for Apache Spark](docs/who-is-using.md).
 
 ## Project Status
