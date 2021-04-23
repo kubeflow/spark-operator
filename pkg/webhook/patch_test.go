@@ -823,6 +823,7 @@ func TestPatchSparkPod_PriorityClassName(t *testing.T) {
 	assert.Equal(t, priorityClassName, modifiedDriverPod.Spec.PriorityClassName)
 
 	var defaultPriority int32 = 0
+	var defaultPolicy corev1.PreemptionPolicy = corev1.PreemptLowerPriority
 	executorPod := &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "spark-executor",
@@ -838,7 +839,8 @@ func TestPatchSparkPod_PriorityClassName(t *testing.T) {
 					Image: "spark-executor:latest",
 				},
 			},
-			Priority: &defaultPriority,
+			Priority:         &defaultPriority,
+			PreemptionPolicy: &defaultPolicy,
 		},
 	}
 
@@ -849,6 +851,7 @@ func TestPatchSparkPod_PriorityClassName(t *testing.T) {
 	//Executor priorityClassName should also be populated when specified in SparkApplicationSpec
 	assert.Equal(t, priorityClassName, modifiedExecutorPod.Spec.PriorityClassName)
 	assert.Nil(t, modifiedExecutorPod.Spec.Priority)
+	assert.Nil(t, modifiedExecutorPod.Spec.PreemptionPolicy)
 }
 
 func TestPatchSparkPod_Sidecars(t *testing.T) {

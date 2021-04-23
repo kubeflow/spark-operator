@@ -560,6 +560,7 @@ func addPriorityClassName(pod *corev1.Pod, app *v1beta2.SparkApplication) []patc
 
 		if pod.Spec.Priority != nil {
 			ops = append(ops, patchOperation{Op: "remove", Path: "/spec/priority"})
+			ops = append(ops, patchOperation{Op: "remove", Path: "/spec/preemptionPolicy"})
 		}
 	}
 
