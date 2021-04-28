@@ -90,7 +90,7 @@ spec:
       volumes:
         - name: webhook-certs
           secret:
-            secretName: spark-webhook-certs
+            secretName: {{ include "spark-operator.fullname" . }}-webhook-certs
       {{- end }}
       {{- with .Values.nodeSelector }}
       nodeSelector:

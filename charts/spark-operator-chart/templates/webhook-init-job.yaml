@@ -26,5 +26,11 @@ spec:
         imagePullPolicy: {{ .Values.image.pullPolicy }}
         securityContext:
           {{- toYaml .Values.securityContext | nindent 10 }}
-        command: ["/usr/bin/gencerts.sh", "-n", "{{ .Release.Namespace }}", "-s", "{{ include "spark-operator.fullname" . }}-webhook", "-p"]
+        command: [
+            "/usr/bin/gencerts.sh",
+            "-n", "{{ .Release.Namespace }}",
+            "-s", "{{ include "spark-operator.fullname" . }}-webhook",
+            "-r", "{{ include "spark-operator.fullname" . }}-webhook-certs",
+            "-p"
+          ]
 {{ end }}

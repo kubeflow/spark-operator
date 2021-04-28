@@ -24,8 +24,12 @@ nameOverride: ""
 fullnameOverride: ""
 
 rbac:
-  # -- Create and use `rbac` resources
-  create: true
+  # -- **DEPRECATED** use `createRole` and `createClusterRole`
+  create: false
+  # -- Create and use RBAC `Role` resources
+  createRole: true
+  # -- Create and use RBAC `ClusterRole` resources
+  createClusterRole: true
 
 serviceAccounts:
   spark:
