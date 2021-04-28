@@ -4,16 +4,20 @@ For a more detailed guide on how to use, compose, and work with `SparkApplicatio
 [User Guide](user-guide.md). If you are running the Kubernetes Operator for Apache Spark on Google Kubernetes Engine and want to use Google Cloud Storage (GCS) and/or BigQuery for reading/writing data, also refer to the [GCP guide](gcp.md). The Kubernetes Operator for Apache Spark will simply be referred to as the operator for the rest of this guide.
 
 ## Table of Contents
-* [Installation](#installation)
-* [Running the Examples](#running-the-examples)
-* [Configuration](#configuration)
-* [Upgrade](#upgrade)
-* [About the Spark Job Namespace](#about-the-spark-job-namespace)
-* [About the Service Account for Driver Pods](#about-the-service-account-for-driver-pods)
-* [Enable Metric Exporting to Prometheus](#enable-metric-exporting-to-prometheus)
-* [Driver UI Access and Ingress](#driver-ui-access-and-ingress)
-* [About the Mutating Admission Webhook](#about-the-mutating-admission-webhook)
-* [Mutating Admission Webhooks on a private GKE cluster](#mutating-admission-webhooks-on-a-private-gke-cluster)
+- [Quick Start Guide](#quick-start-guide)
+  - [Table of Contents](#table-of-contents)
+  - [Installation](#installation)
+  - [Running the Examples](#running-the-examples)
+  - [Configuration](#configuration)
+  - [Upgrade](#upgrade)
+  - [About the Spark Job Namespace](#about-the-spark-job-namespace)
+  - [About the Service Account for Driver Pods](#about-the-service-account-for-driver-pods)
+  - [Enable Metric Exporting to Prometheus](#enable-metric-exporting-to-prometheus)
+      - [Spark Application Metrics](#spark-application-metrics)
+      - [Work Queue Metrics](#work-queue-metrics)
+  - [Driver UI Access and Ingress](#driver-ui-access-and-ingress)
+  - [About the Mutating Admission Webhook](#about-the-mutating-admission-webhook)
+    - [Mutating Admission Webhooks on a private GKE cluster](#mutating-admission-webhooks-on-a-private-gke-cluster)
 
 ## Installation
 
@@ -89,8 +93,8 @@ spec:
     labels:
       version: 2.3.0
     memory: 512m
-  image: gcr.io/ynli-k8s/spark:v3.0.0
-  mainApplicationFile: local:///opt/spark/examples/jars/spark-examples_2.12-2.3.0.jar
+  image: gcr.io/ynli-k8s/spark:v3.1.1
+  mainApplicationFile: local:///opt/spark/examples/jars/spark-examples_2.12-3.1.1.jar
   mainClass: org.apache.spark.examples.SparkPi
   mode: cluster
   restartPolicy:

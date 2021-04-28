@@ -15,7 +15,10 @@
 # limitations under the License.
 
 cd "$(dirname $0)"
-if [ -n "$(go fmt ./...)" ]; then
+if [ -n "$(go fmt ./...)" ];
+then
   echo "Go code is not formatted, please run 'go fmt ./...'." >&2
   exit 1
+else
+  echo "Go code is formatted"
 fi

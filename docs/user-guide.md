@@ -2,52 +2,55 @@
 
 For a quick introduction on how to build and install the Kubernetes Operator for Apache Spark, and how to run some example applications, please refer to the [Quick Start Guide](quick-start-guide.md). For a complete reference of the API definition of the `SparkApplication` and `ScheduledSparkApplication` custom resources, please refer to the [API Specification](api-docs.md).
 
-The Kubernetes Operator for Apache Spark ships with a command-line tool called `sparkctl` that offers additional features beyond what `kubectl` is able to do. Documentation on `sparkctl` can be found in [README](../sparkctl/README.md). If you are running the Spark Operator on Google Kubernetes Engine and want to use Google Cloud Storage (GCS) and/or BigQuery for reading/writing data, also refer to the [GCP guide](gcp.md). The Kubernetes Operator for Apache Spark will simply be referred to as the operator for the rest of this guide.  
+The Kubernetes Operator for Apache Spark ships with a command-line tool called `sparkctl` that offers additional features beyond what `kubectl` is able to do. Documentation on `sparkctl` can be found in [README](../sparkctl/README.md). If you are running the Spark Operator on Google Kubernetes Engine and want to use Google Cloud Storage (GCS) and/or BigQuery for reading/writing data, also refer to the [GCP guide](gcp.md). The Kubernetes Operator for Apache Spark will simply be referred to as the operator for the rest of this guide.
 
 ## Table of Contents
 
-* [Using a SparkApplication](#using-a-sparkapplication)
-* [Writing a SparkApplication Spec](#writing-a-sparkapplication-spec)
-    * [Specifying Deployment Mode](#specifying-deployment-mode)
-    * [Specifying Application Dependencies](#specifying-application-dependencies)
-    * [Specifying Spark Configuration](#specifying-spark-configuration)
-    * [Specifying Hadoop Configuration](#specifying-hadoop-configuration)
-    * [Writing Driver Specification](#writing-driver-specification)
-    * [Writing Executor Specification](#writing-executor-specification)
-    * [Specifying Extra Java Options](#specifying-extra-java-options)
-    * [Specifying Environment Variables](#specifying-environment-variables)
-    * [Requesting GPU Resources](#requesting-gpu-resources)
-    * [Host Network](#host-network)    
-    * [Mounting Secrets](#mounting-secrets)
-    * [Mounting ConfigMaps](#mounting-configmaps)
-        * [Mounting a ConfigMap storing Spark Configuration Files](#mounting-a-configmap-storing-spark-configuration-files)
-        * [Mounting a ConfigMap storing Hadoop Configuration Files](#mounting-a-configmap-storing-hadoop-configuration-files)
-    * [Mounting Volumes](#mounting-volumes)
-    * [Using Secrets As Environment Variables](#using-secrets-as-environment-variables)
-    * [Using Image Pull Secrets](#using-image-pull-secrets)
-    * [Using Pod Affinity](#using-pod-affinity)
-    * [Using Tolerations](#using-tolerations)
-    * [Using Pod Security Context](#using-pod-security-context)
-    * [Using Sidecar Containers](#using-sidecar-containers)
-    * [Using Init-Containers](#using-init-containers)
-    * [Using Volume For Scratch Space](#using-volume-for-scratch-space)
-    * [Using Termination Grace Period](#using-termination-grace-period)
-    * [Using Container LifeCycle Hooks](#using-container-lifecycle-hooks)
-    * [Python Support](#python-support)
-    * [Monitoring](#monitoring)
-    * [Dynamic Allocation](#dynamic-allocation)
-* [Working with SparkApplications](#working-with-sparkapplications)
-    * [Creating a New SparkApplication](#creating-a-new-sparkapplication)
-    * [Deleting a SparkApplication](#deleting-a-sparkapplication)
-    * [Updating a SparkApplication](#updating-a-sparkapplication)
-    * [Checking a SparkApplication](#checking-a-sparkapplication)
-    * [Configuring Automatic Application Restart and Failure Handling](#configuring-automatic-application-restart-and-failure-handling)
-    * [Setting TTL for a SparkApplication](#setting-ttl-for-a-sparkapplication)
-* [Running Spark Applications on a Schedule using a ScheduledSparkApplication](#running-spark-applications-on-a-schedule-using-a-scheduledsparkapplication)
-* [Enabling Leader Election for High Availability](#enabling-leader-election-for-high-availability)
-* [Enabling Resource Quota Enforcement](#enabling-resource-quota-enforcement)
-* [Running Multiple Instances Of The Operator Within The Same K8s Cluster](#running-multiple-instances-of-the-operator-within-the-same-k8s-cluster)
-* [Customizing the Operator](#customizing-the-operator)
+- [User Guide](#user-guide)
+  - [Table of Contents](#table-of-contents)
+  - [Using a SparkApplication](#using-a-sparkapplication)
+  - [Writing a SparkApplication Spec](#writing-a-sparkapplication-spec)
+    - [Specifying Deployment Mode](#specifying-deployment-mode)
+    - [Specifying Application Dependencies](#specifying-application-dependencies)
+    - [Specifying Spark Configuration](#specifying-spark-configuration)
+    - [Specifying Hadoop Configuration](#specifying-hadoop-configuration)
+    - [Writing Driver Specification](#writing-driver-specification)
+    - [Writing Executor Specification](#writing-executor-specification)
+    - [Specifying Extra Java Options](#specifying-extra-java-options)
+    - [Specifying Environment Variables](#specifying-environment-variables)
+    - [Requesting GPU Resources](#requesting-gpu-resources)
+    - [Host Network](#host-network)
+    - [Mounting Secrets](#mounting-secrets)
+    - [Mounting ConfigMaps](#mounting-configmaps)
+      - [Mounting a ConfigMap storing Spark Configuration Files](#mounting-a-configmap-storing-spark-configuration-files)
+      - [Mounting a ConfigMap storing Hadoop Configuration Files](#mounting-a-configmap-storing-hadoop-configuration-files)
+    - [Mounting Volumes](#mounting-volumes)
+    - [Using Secrets As Environment Variables](#using-secrets-as-environment-variables)
+    - [Using Image Pull Secrets](#using-image-pull-secrets)
+    - [Using Pod Affinity](#using-pod-affinity)
+    - [Using Tolerations](#using-tolerations)
+    - [Using Security Context](#using-security-context)
+    - [Using Sidecar Containers](#using-sidecar-containers)
+    - [Using Init-Containers](#using-init-containers)
+    - [Using DNS Settings](#using-dns-settings)
+    - [Using Volume For Scratch Space](#using-volume-for-scratch-space)
+    - [Using Termination Grace Period](#using-termination-grace-period)
+    - [Using Container LifeCycle Hooks](#using-container-lifecycle-hooks)
+    - [Python Support](#python-support)
+    - [Monitoring](#monitoring)
+    - [Dynamic Allocation](#dynamic-allocation)
+  - [Working with SparkApplications](#working-with-sparkapplications)
+    - [Creating a New SparkApplication](#creating-a-new-sparkapplication)
+    - [Deleting a SparkApplication](#deleting-a-sparkapplication)
+    - [Updating a SparkApplication](#updating-a-sparkapplication)
+    - [Checking a SparkApplication](#checking-a-sparkapplication)
+    - [Configuring Automatic Application Restart and Failure Handling](#configuring-automatic-application-restart-and-failure-handling)
+    - [Setting TTL for a SparkApplication](#setting-ttl-for-a-sparkapplication)
+  - [Running Spark Applications on a Schedule using a ScheduledSparkApplication](#running-spark-applications-on-a-schedule-using-a-scheduledsparkapplication)
+  - [Enabling Leader Election for High Availability](#enabling-leader-election-for-high-availability)
+  - [Enabling Resource Quota Enforcement](#enabling-resource-quota-enforcement)
+  - [Running Multiple Instances Of The Operator Within The Same K8s Cluster](#running-multiple-instances-of-the-operator-within-the-same-k8s-cluster)
+  - [Customizing the Operator](#customizing-the-operator)
 
 ## Using a SparkApplication
 The operator runs Spark applications specified in Kubernetes objects of the `SparkApplication` custom resource type. The most common way of using a `SparkApplication` is store the `SparkApplication` specification in a YAML file and use the `kubectl` command or alternatively the `sparkctl` command to work with the `SparkApplication`. The operator automatically submits the application as configured in a `SparkApplication` to run on the Kubernetes cluster and uses the `SparkApplication` to collect and surface the status of the driver and executors to the user.
@@ -71,9 +74,9 @@ metadata:
 spec:
   type: Scala
   mode: cluster
-  image: gcr.io/spark/spark:v3.0.0
+  image: gcr.io/spark/spark:v3.1.1
   mainClass: org.apache.spark.examples.SparkPi
-  mainApplicationFile: local:///opt/spark/examples/jars/spark-examples_2.12-3.0.0.jar
+  mainApplicationFile: local:///opt/spark/examples/jars/spark-examples_2.12-3.1.1.jar
 ```
 
 ### Specifying Deployment Mode
@@ -161,7 +164,7 @@ spec:
     coreLimit: 200m
     memory: 512m
     labels:
-      version: 3.0.0
+      version: 3.1.1
     serviceAccount: spark
 ```
 
@@ -181,7 +184,7 @@ spec:
     instances: 1
     memory: 512m
     labels:
-      version: 3.0.0
+      version: 3.1.1
 ```
 
 ### Specifying Extra Java Options
@@ -238,7 +241,7 @@ spec:
         valueFrom:
           secretKeyRef:
             name: some-secret
-            key: auth-key  
+            key: auth-key
     envFrom:
       - configMapRef:
           name: my-env-config-map
@@ -262,7 +265,7 @@ spec:
       name: "amd.com/gpu"   # GPU resource name
       quantity: 1           # number of GPUs to request
     labels:
-      version: 3.0.0
+      version: 3.1.1
     serviceAccount: spark
   executor:
     cores: 1
@@ -286,7 +289,7 @@ spec:
     memory: "512m"
     hostNetwork: true
     labels:
-      version: 3.0.0
+      version: 3.1.1
     serviceAccount: spark
   executor:
     cores: 1
@@ -411,7 +414,7 @@ spec:
     affinity:
       podAffinity:
         requiredDuringSchedulingIgnoredDuringExecution:
-          ...   
+          ...
   executor:
     affinity:
       podAntiAffinity:
@@ -438,7 +441,7 @@ spec:
     - key: Key
       operator: Equal
       value: Value
-      effect: NoSchedule    
+      effect: NoSchedule
 ```
 
 Note that the mutating admission webhook is needed to use this feature. Please refer to the
@@ -456,7 +459,7 @@ spec:
       runAsUser: 1000
     securityContext:
       allowPrivilegeEscalation: false
-      runAsUser: 2000    
+      runAsUser: 2000
   executor:
     podSecurityContext:
       runAsUser: 1000
@@ -478,7 +481,7 @@ spec:
     sidecars:
     - name: "sidecar1"
       image: "sidecar1:latest"
-      ...  
+      ...
   executor:
     sidecars:
     - name: "sidecar1"
@@ -496,7 +499,7 @@ spec:
     initContainers:
     - name: "init-container1"
       image: "init-container1:latest"
-      ...  
+      ...
   executor:
     initContainers:
     - name: "init-container1"
@@ -654,7 +657,7 @@ Note that Python binding for PySpark is available in Apache Spark 2.4.
 
 The operator supports using the Spark metric system to expose metrics to a variety of sinks. Particularly, it is able to automatically configure the metric system to expose metrics to [Prometheus](https://prometheus.io/). Specifically, the field `.spec.monitoring` specifies how application monitoring is handled and particularly how metrics are to be reported. The metric system is configured through the configuration file `metrics.properties`, which gets its content from the field `.spec.monitoring.metricsProperties`. The content of [metrics.properties](../spark-docker/conf/metrics.properties) will be used by default if `.spec.monitoring.metricsProperties` is not specified. `.spec.monitoring.metricsPropertiesFile` overwrite the value `spark.metrics.conf` in spark.properties, and will not use content from `.spec.monitoring.metricsProperties`. You can choose to enable or disable reporting driver and executor metrics using the fields `.spec.monitoring.exposeDriverMetrics` and `.spec.monitoring.exposeExecutorMetrics`, respectively.
 
-Further, the field `.spec.monitoring.prometheus` specifies how metrics are exposed to Prometheus using the [Prometheus JMX exporter](https://github.com/prometheus/jmx_exporter). When `.spec.monitoring.prometheus` is specified, the operator automatically configures the JMX exporter to run as a Java agent. The only required field of `.spec.monitoring.prometheus` is `jmxExporterJar`, which specified the path to the Prometheus JMX exporter Java agent jar in the container. If you use the image `gcr.io/spark-operator/spark:v3.0.0-gcs-prometheus`, the jar is located at `/prometheus/jmx_prometheus_javaagent-0.11.0.jar`. The field `.spec.monitoring.prometheus.port` specifies the port the JMX exporter Java agent binds to and defaults to `8090` if not specified. The field `.spec.monitoring.prometheus.configuration` specifies the content of the configuration to be used with the JMX exporter. The content of [prometheus.yaml](../spark-docker/conf/prometheus.yaml) will be used by default if `.spec.monitoring.prometheus.configuration` is not specified.    
+Further, the field `.spec.monitoring.prometheus` specifies how metrics are exposed to Prometheus using the [Prometheus JMX exporter](https://github.com/prometheus/jmx_exporter). When `.spec.monitoring.prometheus` is specified, the operator automatically configures the JMX exporter to run as a Java agent. The only required field of `.spec.monitoring.prometheus` is `jmxExporterJar`, which specified the path to the Prometheus JMX exporter Java agent jar in the container. If you use the image `gcr.io/spark-operator/spark:v3.1.1-gcs-prometheus`, the jar is located at `/prometheus/jmx_prometheus_javaagent-0.11.0.jar`. The field `.spec.monitoring.prometheus.port` specifies the port the JMX exporter Java agent binds to and defaults to `8090` if not specified. The field `.spec.monitoring.prometheus.configuration` specifies the content of the configuration to be used with the JMX exporter. The content of [prometheus.yaml](../spark-docker/conf/prometheus.yaml) will be used by default if `.spec.monitoring.prometheus.configuration` is not specified.
 
 Below is an example that shows how to configure the metric system to expose metrics to Prometheus using the Prometheus JMX exporter. Note that the JMX exporter Java agent jar is listed as a dependency and will be downloaded to where `.spec.dep.jarsDownloadDir` points to in Spark 2.3.x, which is `/var/spark-data/spark-jars` by default. Things are different in Spark 2.4 as dependencies will be downloaded to the local working directory instead in Spark 2.4. A complete example can be found in [examples/spark-pi-prometheus.yaml](../examples/spark-pi-prometheus.yaml).
 
@@ -666,7 +669,7 @@ spec:
   monitoring:
     exposeDriverMetrics: true
     prometheus:
-      jmxExporterJar: "/var/spark-data/spark-jars/jmx_prometheus_javaagent-0.11.0.jar"    
+      jmxExporterJar: "/var/spark-data/spark-jars/jmx_prometheus_javaagent-0.11.0.jar"
 ```
 
 The operator automatically adds the annotations such as `prometheus.io/scrape=true` on the driver and/or executor pods (depending on the values of  `.spec.monitoring.exposeDriverMetrics` and `.spec.monitoring.exposeExecutorMetrics`) so the metrics exposed on the pods can be scraped by the Prometheus server in the same cluster.
@@ -757,9 +760,9 @@ spec:
   template:
     type: Scala
     mode: cluster
-    image: gcr.io/spark/spark:v3.0.0
+    image: gcr.io/spark/spark:v3.1.1
     mainClass: org.apache.spark.examples.SparkPi
-    mainApplicationFile: local:///opt/spark/examples/jars/spark-examples_2.12-2.3.0.jar
+    mainApplicationFile: local:///opt/spark/examples/jars/spark-examples_2.12-3.1.1.jar
     driver:
       cores: 1
       memory: 512m
@@ -812,7 +815,7 @@ Or if you want your operator to watch specific resources that may exist in diffe
 
 * You need to add custom labels on resources by defining for each instance of the operator a different set of labels in `-label-selector-filter (e.g. env=dev,app-type=spark)`.
 * Run different `webhook` instances by specifying different `-webhook-config-name` flag for each deployment of the operator.
-* Specify different `webhook-svc-name` and/or `webhook-svc-namespace` for each instance of the operator. 
+* Specify different `webhook-svc-name` and/or `webhook-svc-namespace` for each instance of the operator.
 * Edit the job that generates the certificates `webhook-init` by specifying the namespace and the service name of each instance of the operator, `e.g. command: ["/usr/bin/gencerts.sh", "-n", "ns-op1", "-s", "spark-op1-webhook", "-p"]`. Where `spark-op1-webhook` should match what you have specified in `webhook-svc-name`. For instance, if you use the following [helm chart](https://github.com/helm/charts/tree/master/incubator/sparkoperator) to deploy the operator you may specify for each instance of the operator a different `--namespace` and `--name-template` arguments to make sure you generate a different certificate for each instance, e.g:
 ```
 helm install spark-op1 incubator/sparkoperator --namespace ns-op1

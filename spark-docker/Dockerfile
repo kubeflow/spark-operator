@@ -14,7 +14,7 @@
 # limitations under the License.
 #
 
-ARG SPARK_IMAGE=gcr.io/spark-operator/spark:v3.0.0
+ARG SPARK_IMAGE=gcr.io/spark-operator/spark:v3.1.1
 FROM ${SPARK_IMAGE}
 
 # Switch to user root so we can add additional jars and configuration files.
