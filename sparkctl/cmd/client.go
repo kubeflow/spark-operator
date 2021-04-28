@@ -32,7 +32,7 @@ import (
 func buildConfig(kubeConfig string) (*rest.Config, error) {
 	// Check if kubeConfig exist
 	if _, err := os.Stat(kubeConfig); os.IsNotExist(err) {
-		// Try InclusterConfig for sparkctl running in a pod
+		// Try InClusterConfig for sparkctl running in a pod
 		config, err := rest.InClusterConfig()
 		if err != nil {
 			return nil, err

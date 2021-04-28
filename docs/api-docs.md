@@ -565,7 +565,7 @@ int64
 </td>
 <td>
 <em>(Optional)</em>
-<p>TimeToLiveSeconds defines the Time-To-Live (TTL) duration in seconds for this SparkAplication
+<p>TimeToLiveSeconds defines the Time-To-Live (TTL) duration in seconds for this SparkApplication
 after its termination.
 The SparkApplication object will be garbage collected if the current time is more than the
 TimeToLiveSeconds since its termination.</p>
@@ -611,7 +611,7 @@ DynamicAllocation
 <td>
 <em>(Optional)</em>
 <p>DynamicAllocation configures dynamic allocation that becomes available for the Kubernetes
-scheduleer backend since Spark 3.0.</p>
+scheduler backend since Spark 3.0.</p>
 </td>
 </tr>
 </table>
@@ -719,8 +719,7 @@ string
 </td>
 <td>
 <em>(Optional)</em>
-<p>PriorityClassName stands for the name of k8s PriorityClass resource, it&rsquo;s being used for job scheduling and 
-preemption, whether with the Volcano batch scheduler or the Kubernetes default scheduler.</p>
+<p>PriorityClassName stands for the name of k8s PriorityClass resource, it&rsquo;s being used in Volcano batch scheduler.</p>
 </td>
 </tr>
 <tr>
@@ -813,7 +812,7 @@ If specified, volcano scheduler will consider it as the resources requested.</p>
 <p>Packages is a list of maven coordinates of jars to include on the driver and executor
 classpaths. This will search the local maven repo, then maven central and any additional
 remote repositories given by the &ldquo;repositories&rdquo; option.
-Each papckage should be of the form &ldquo;groupId:artifactId:version&rdquo;.</p>
+Each package should be of the form &ldquo;groupId:artifactId:version&rdquo;.</p>
 </td>
 </tr>
 <tr>
@@ -1043,8 +1042,22 @@ map[string]string
 </td>
 <td>
 <em>(Optional)</em>
-<p>ServiceAnnotations defines the annoations to be added to the Kubernetes headless service used by
+<p>ServiceAnnotations defines the annotations to be added to the Kubernetes headless service used by
 executors to connect to the driver.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>ports</code></br>
+<em>
+<a href="#sparkoperator.k8s.io/v1beta2.Port">
+[]Port
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Ports settings for the pods, following the Kubernetes specifications.</p>
 </td>
 </tr>
 </tbody>
@@ -1215,6 +1228,20 @@ bool
 <em>(Optional)</em>
 <p>DeleteOnTermination specify whether executor pods should be deleted in case of failure or normal termination.
 Maps to <code>spark.kubernetes.executor.deleteOnTermination</code> that is available since Spark 3.0.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>ports</code></br>
+<em>
+<a href="#sparkoperator.k8s.io/v1beta2.Port">
+[]Port
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Ports settings for the pods, following the Kubernetes specifications.</p>
 </td>
 </tr>
 </tbody>
@@ -1427,6 +1454,56 @@ string
 </tr>
 </tbody>
 </table>
+<h3 id="sparkoperator.k8s.io/v1beta2.Port">Port
+</h3>
+<p>
+(<em>Appears on:</em>
+<a href="#sparkoperator.k8s.io/v1beta2.DriverSpec">DriverSpec</a>, 
+<a href="#sparkoperator.k8s.io/v1beta2.ExecutorSpec">ExecutorSpec</a>)
+</p>
+<p>
+<p>Port represents the port definition in the pods objects.</p>
+</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>name</code></br>
+<em>
+string
+</em>
+</td>
+<td>
+</td>
+</tr>
+<tr>
+<td>
+<code>protocol</code></br>
+<em>
+string
+</em>
+</td>
+<td>
+</td>
+</tr>
+<tr>
+<td>
+<code>containerPort</code></br>
+<em>
+int32
+</em>
+</td>
+<td>
+</td>
+</tr>
+</tbody>
+</table>
 <h3 id="sparkoperator.k8s.io/v1beta2.PrometheusSpec">PrometheusSpec
 </h3>
 <p>
@@ -1467,6 +1544,19 @@ int32
 <em>(Optional)</em>
 <p>Port is the port of the HTTP server run by the Prometheus JMX exporter.
 If not specified, 8090 will be used as the default.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>portName</code></br>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>PortName is the port name of prometheus JMX exporter port.
+If not specified, jmx-exporter will be used as the default.</p>
 </td>
 </tr>
 <tr>
@@ -2216,7 +2306,7 @@ int64
 </td>
 <td>
 <em>(Optional)</em>
-<p>TimeToLiveSeconds defines the Time-To-Live (TTL) duration in seconds for this SparkAplication
+<p>TimeToLiveSeconds defines the Time-To-Live (TTL) duration in seconds for this SparkApplication
 after its termination.
 The SparkApplication object will be garbage collected if the current time is more than the
 TimeToLiveSeconds since its termination.</p>
@@ -2262,7 +2352,7 @@ DynamicAllocation
 <td>
 <em>(Optional)</em>
 <p>DynamicAllocation configures dynamic allocation that becomes available for the Kubernetes
-scheduleer backend since Spark 3.0.</p>
+scheduler backend since Spark 3.0.</p>
 </td>
 </tr>
 </tbody>
@@ -2765,7 +2855,7 @@ int64
 </td>
 <td>
 <em>(Optional)</em>
-<p>Termination grace periond seconds for the pod</p>
+<p>Termination grace period seconds for the pod</p>
 </td>
 </tr>
 <tr>
@@ -2828,6 +2918,20 @@ TargetPort should be the same as the one defined in spark.ui.port</p>
 </tr>
 <tr>
 <td>
+<code>serviceType</code></br>
+<em>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#servicetype-v1-core">
+Kubernetes core/v1.ServiceType
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>ServiceType allows configuring the type of the service. Defaults to ClusterIP.</p>
+</td>
+</tr>
+<tr>
+<td>
 <code>ingressAnnotations</code></br>
 <em>
 map[string]string
@@ -2857,5 +2961,5 @@ map[string]string
 <hr/>
 <p><em>
 Generated with <code>gen-crd-api-reference-docs</code>
-on git commit <code>cf34460</code>.
+on git commit <code>2f6a3f9</code>.
 </em></p>

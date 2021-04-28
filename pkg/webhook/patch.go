@@ -63,13 +63,10 @@ func patchSparkPod(pod *corev1.Pod, app *v1beta2.SparkApplication) []patchOperat
 	patchOps = append(patchOps, addEnvVars(pod, app)...)
 	patchOps = append(patchOps, addEnvFrom(pod, app)...)
 	patchOps = append(patchOps, addHostAliases(pod, app)...)
+	patchOps = append(patchOps, addContainerPorts(pod, app)...)
+	patchOps = append(patchOps, addPriorityClassName(pod, app)...)
 
 	op := addSchedulerName(pod, app)
-	if op != nil {
-		patchOps = append(patchOps, *op)
-	}
-
-	op = addPriorityClassName(pod, app)
 	if op != nil {
 		patchOps = append(patchOps, *op)
 	}
@@ -371,14 +368,14 @@ func getPrometheusConfigPatches(pod *corev1.Pod, app *v1beta2.SparkApplication) 
 	name := config.GetPrometheusConfigMapName(app)
 	volumeName := name + "-vol"
 	mountPath := config.PrometheusConfigMapMountPath
-	port := config.DefaultPrometheusJavaAgentPort
+	promPort := config.DefaultPrometheusJavaAgentPort
 	if app.Spec.Monitoring.Prometheus.Port != nil {
-		port = *app.Spec.Monitoring.Prometheus.Port
+		promPort = *app.Spec.Monitoring.Prometheus.Port
 	}
-	protocol := config.DefaultPrometheusPortProtocol
-	portName := config.DefaultPrometheusPortName
+	promProtocol := config.DefaultPrometheusPortProtocol
+	promPortName := config.DefaultPrometheusPortName
 	if app.Spec.Monitoring.Prometheus.PortName != nil {
-		portName = *app.Spec.Monitoring.Prometheus.PortName
+		promPortName = *app.Spec.Monitoring.Prometheus.PortName
 	}
 
 	patchOps = append(patchOps, addConfigMapVolume(pod, name, volumeName))
@@ -388,13 +385,33 @@ func getPrometheusConfigPatches(pod *corev1.Pod, app *v1beta2.SparkApplication) 
 		return nil
 	}
 	patchOps = append(patchOps, *vmPatchOp)
-	portPatchOp := addContainerPort(pod, port, protocol, portName)
-	if portPatchOp == nil {
-		glog.Warningf("could not expose port %d to scrape metrics outside the pod", port)
+	promPortPatchOp := addContainerPort(pod, promPort, promProtocol, promPortName)
+	if promPortPatchOp == nil {
+		glog.Warningf("could not expose port %d to scrape metrics outside the pod", promPort)
 		return nil
 	}
-	patchOps = append(patchOps, *portPatchOp)
+	patchOps = append(patchOps, *promPortPatchOp)
+	return patchOps
+}
 
+func addContainerPorts(pod *corev1.Pod, app *v1beta2.SparkApplication) []patchOperation {
+	var ports []v1beta2.Port
+
+	if util.IsDriverPod(pod) {
+		ports = app.Spec.Driver.Ports
+	} else if util.IsExecutorPod(pod) {
+		ports = app.Spec.Executor.Ports
+	}
+
+	var patchOps []patchOperation
+	for _, p := range ports {
+		portPatchOp := addContainerPort(pod, p.ContainerPort, p.Protocol, p.Name)
+		if portPatchOp == nil {
+			glog.Warningf("could not expose port named %s", p.Name)
+			continue
+		}
+		patchOps = append(patchOps, *portPatchOp)
+	}
 	return patchOps
 }
 
@@ -530,17 +547,24 @@ func addSchedulerName(pod *corev1.Pod, app *v1beta2.SparkApplication) *patchOper
 	return &patchOperation{Op: "add", Path: "/spec/schedulerName", Value: *schedulerName}
 }
 
-func addPriorityClassName(pod *corev1.Pod, app *v1beta2.SparkApplication) *patchOperation {
+func addPriorityClassName(pod *corev1.Pod, app *v1beta2.SparkApplication) []patchOperation {
 	var priorityClassName *string
 
 	if app.Spec.BatchSchedulerOptions != nil {
 		priorityClassName = app.Spec.BatchSchedulerOptions.PriorityClassName
 	}
 
-	if priorityClassName == nil || *priorityClassName == "" {
-		return nil
+	var ops []patchOperation
+	if priorityClassName != nil && *priorityClassName != "" {
+		ops = append(ops, patchOperation{Op: "add", Path: "/spec/priorityClassName", Value: *priorityClassName})
+
+		if pod.Spec.Priority != nil {
+			ops = append(ops, patchOperation{Op: "remove", Path: "/spec/priority"})
+			ops = append(ops, patchOperation{Op: "remove", Path: "/spec/preemptionPolicy"})
+		}
 	}
-	return &patchOperation{Op: "add", Path: "/spec/priorityClassName", Value: *priorityClassName}
+
+	return ops
 }
 
 func addToleration(pod *corev1.Pod, toleration corev1.Toleration, first bool) patchOperation {
@@ -799,12 +823,11 @@ func addHostAliases(pod *corev1.Pod, app *v1beta2.SparkApplication) []patchOpera
 	}
 
 	var ops []patchOperation
-	for _, v := range hostAliases {
+	if len(hostAliases) > 0 {
 		if first {
-			ops = append(ops, patchOperation{Op: "add", Path: "/spec/hostAliases", Value: []corev1.HostAlias{v}})
-			first = false
+			ops = append(ops, patchOperation{Op: "add", Path: "/spec/hostAliases", Value: hostAliases})
 		} else {
-			ops = append(ops, patchOperation{Op: "add", Path: "/spec/hostAliases/-", Value: &v})
+			ops = append(ops, patchOperation{Op: "add", Path: "/spec/hostAliases/-", Value: hostAliases})
 		}
 	}
 	return ops

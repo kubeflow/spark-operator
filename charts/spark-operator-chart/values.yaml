@@ -46,7 +46,7 @@ sparkJobNamespace: ""
 controllerThreads: 10
 
 # -- Operator resync interval. Note that the operator will respond to events (e.g. create, update)
-# unrealted to this setting
+# unrelated to this setting
 resyncInterval: 30
 
 # -- Ingress URL format

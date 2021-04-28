@@ -268,7 +268,7 @@ type SparkApplicationSpec struct {
 	// BatchScheduler configures which batch scheduler will be used for scheduling
 	// +optional
 	BatchScheduler *string `json:"batchScheduler,omitempty"`
-	// TimeToLiveSeconds defines the Time-To-Live (TTL) duration in seconds for this SparkAplication
+	// TimeToLiveSeconds defines the Time-To-Live (TTL) duration in seconds for this SparkApplication
 	// after its termination.
 	// The SparkApplication object will be garbage collected if the current time is more than the
 	// TimeToLiveSeconds since its termination.
@@ -281,7 +281,7 @@ type SparkApplicationSpec struct {
 	// +optional
 	SparkUIOptions *SparkUIConfiguration `json:"sparkUIOptions,omitempty"`
 	// DynamicAllocation configures dynamic allocation that becomes available for the Kubernetes
-	// scheduleer backend since Spark 3.0.
+	// scheduler backend since Spark 3.0.
 	// +optional
 	DynamicAllocation *DynamicAllocation `json:"dynamicAllocation,omitempty"`
 }
@@ -414,7 +414,7 @@ type Dependencies struct {
 	// Packages is a list of maven coordinates of jars to include on the driver and executor
 	// classpaths. This will search the local maven repo, then maven central and any additional
 	// remote repositories given by the "repositories" option.
-	// Each papckage should be of the form "groupId:artifactId:version".
+	// Each package should be of the form "groupId:artifactId:version".
 	// +optional
 	Packages []string `json:"packages,omitempty"`
 	// ExcludePackages is a list of "groupId:artifactId", to exclude while resolving the
@@ -509,7 +509,7 @@ type SparkPodSpec struct {
 	// DnsConfig dns settings for the pod, following the Kubernetes specifications.
 	// +optional
 	DNSConfig *apiv1.PodDNSConfig `json:"dnsConfig,omitempty"`
-	// Termination grace periond seconds for the pod
+	// Termination grace period seconds for the pod
 	// +optional
 	TerminationGracePeriodSeconds *int64 `json:"terminationGracePeriodSeconds,omitempty"`
 	// ServiceAccount is the name of the custom Kubernetes service account used by the pod.
@@ -545,10 +545,13 @@ type DriverSpec struct {
 	// other Kubernetes resources. Default to https://kubernetes.default.svc.
 	// +optional
 	KubernetesMaster *string `json:"kubernetesMaster,omitempty"`
-	// ServiceAnnotations defines the annoations to be added to the Kubernetes headless service used by
+	// ServiceAnnotations defines the annotations to be added to the Kubernetes headless service used by
 	// executors to connect to the driver.
 	// +optional
 	ServiceAnnotations map[string]string `json:"serviceAnnotations,omitempty"`
+	// Ports settings for the pods, following the Kubernetes specifications.
+	// +optional
+	Ports []Port `json:"ports,omitempty"`
 }
 
 // ExecutorSpec is specification of the executor.
@@ -570,6 +573,9 @@ type ExecutorSpec struct {
 	// Maps to `spark.kubernetes.executor.deleteOnTermination` that is available since Spark 3.0.
 	// +optional
 	DeleteOnTermination *bool `json:"deleteOnTermination,omitempty"`
+	// Ports settings for the pods, following the Kubernetes specifications.
+	// +optional
+	Ports []Port `json:"ports,omitempty"`
 }
 
 // NamePath is a pair of a name and a path to which the named objects should be mounted to.
@@ -616,6 +622,13 @@ type SecretInfo struct {
 type NameKey struct {
 	Name string `json:"name"`
 	Key  string `json:"key"`
+}
+
+// Port represents the port definition in the pods objects.
+type Port struct {
+	Name          string `json:"name"`
+	Protocol      string `json:"protocol"`
+	ContainerPort int32  `json:"containerPort"`
 }
 
 // MonitoringSpec defines the monitoring specification.
@@ -695,7 +708,7 @@ func (s *SparkApplication) PrometheusMonitoringEnabled() bool {
 	return s.Spec.Monitoring != nil && s.Spec.Monitoring.Prometheus != nil
 }
 
-// HasPrometheusConfigFile returns if Prometheus monitoring uses a configruation file in the container.
+// HasPrometheusConfigFile returns if Prometheus monitoring uses a configuration file in the container.
 func (s *SparkApplication) HasPrometheusConfigFile() bool {
 	return s.PrometheusMonitoringEnabled() &&
 		s.Spec.Monitoring.Prometheus.ConfigFile != nil &&
