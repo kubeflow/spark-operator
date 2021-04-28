@@ -35,6 +35,11 @@ jobs:
   it:
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+
       - name: Set up Go
         uses: actions/setup-go@v2
         with:
@@ -57,14 +62,14 @@ jobs:
       - name: Set up chart-testing
         uses: helm/chart-testing-action@v2.0.1
 
+      - name: Print ct version information and List files
+        run: ct version && ls -lh
+
       - name: Run chart-testing (lint)
         run: ct lint
 
       - name: Create kind cluster
         uses: helm/kind-action@v1.0.0
-
-      - name: Run integration tests
-        run: make it-test
 
       - name: Run chart-testing (install)
         run: ct install
