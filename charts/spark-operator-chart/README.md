@@ -78,9 +78,9 @@ The command removes all the Kubernetes components associated with the chart and 
 | podMonitor.labels | object | `{}` | Pod monitor labels |
 | podMonitor.podMetricsEndpoint | object | `{"interval":"5s","scheme":"http"}` | Prometheus metrics endpoint properties. `metrics.portName` will be used as a port |
 | podSecurityContext | object | `{}` | Pod security context |
-| rbac.create | bool | `false` | DEPRECATED - use createRole and createClusterRole |
-| rbac.createClusterRole | bool | `true` | Create and use RBAC ClusterRole resources |
-| rbac.createRole | bool | `true` | Create and use RBAC Role resources |
+| rbac.create | bool | `false` | **DEPRECATED** use `createRole` and `createClusterRole` |
+| rbac.createClusterRole | bool | `true` | Create and use RBAC `ClusterRole` resources |
+| rbac.createRole | bool | `true` | Create and use RBAC `Role` resources |
 | replicaCount | int | `1` | Desired number of pods, leaderElection will be enabled if this is greater than 1 |
 | resourceQuotaEnforcement.enable | bool | `false` | Whether to enable the ResourceQuota enforcement for SparkApplication resources. Requires the webhook to be enabled by setting `webhook.enable` to true. Ref: https://github.com/GoogleCloudPlatform/spark-on-k8s-operator/blob/master/docs/user-guide.md#enabling-resource-quota-enforcement. |
 | resources | object | `{}` | Pod resource requests and limits |
