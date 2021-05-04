@@ -34,3 +34,4 @@
 | Carrefour | @AliGouta | Production | Data Platform |
 | Scaling Smart | @tarek-izemrane | Evaluation | Data Platform |
 | [Tongdun](https://www.tongdun.net/) | @lomoJG | Production | AI/ML & Analytics |
+| [Totvs Labs](https://www.totvslabs.com) | @luizm | Production | Data Platform |
