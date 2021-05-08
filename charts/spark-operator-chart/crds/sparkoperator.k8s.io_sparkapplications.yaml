@@ -1291,6 +1291,8 @@ spec:
                   additionalProperties:
                     type: string
                   type: object
+                shareProcessNamespace:
+                  type: boolean
                 sidecars:
                   items:
                     properties:
@@ -2993,6 +2995,8 @@ spec:
                   type: object
                 serviceAccount:
                   type: string
+                shareProcessNamespace:
+                  type: boolean
                 sidecars:
                   items:
                     properties:

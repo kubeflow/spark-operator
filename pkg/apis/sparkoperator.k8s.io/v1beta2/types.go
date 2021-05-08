@@ -523,6 +523,9 @@ type SparkPodSpec struct {
 	// HostAliases settings for the pod, following the Kubernetes specifications.
 	// +optional
 	HostAliases []apiv1.HostAlias `json:"hostAliases,omitempty"`
+	// ShareProcessNamespace settings for the pod, following the Kubernetes specifications.
+	// +optional
+	ShareProcessNamespace *bool `json:"shareProcessNamespace,omitempty"`
 }
 
 // DriverSpec is specification of the driver.

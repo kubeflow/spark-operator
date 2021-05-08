@@ -2884,6 +2884,18 @@ string
 <p>HostAliases settings for the pod, following the Kubernetes specifications.</p>
 </td>
 </tr>
+<tr>
+<td>
+<code>shareProcessNamespace</code></br>
+<em>
+bool
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>ShareProcessNamespace settings for the pod, following the Kubernetes specifications.</p>
+</td>
+</tr>
 </tbody>
 </table>
 <h3 id="sparkoperator.k8s.io/v1beta2.SparkUIConfiguration">SparkUIConfiguration
@@ -2918,7 +2930,7 @@ TargetPort should be the same as the one defined in spark.ui.port</p>
 </tr>
 <tr>
 <td>
-<code>ServicePortName</code></br>
+<code>servicePortName</code></br>
 <em>
 string
 </em>
@@ -2975,5 +2987,5 @@ map[string]string
 <hr/>
 <p><em>
 Generated with <code>gen-crd-api-reference-docs</code>
-on git commit <code>eb07ee0</code>.
+on git commit <code>e616816</code>.
 </em></p>
