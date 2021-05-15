@@ -60,6 +60,7 @@ spec:
         - -resync-interval={{ .Values.resyncInterval }}
         - -enable-batch-scheduler={{ .Values.batchScheduler.enable }}
         - -label-selector-filter={{ .Values.labelSelectorFilter }}
+        - -enable-ui-service={{ .Values.uiService.enable}}
         {{- if .Values.metrics.enable }}
         - -enable-metrics=true
         - -metrics-labels=app_type

@@ -53,7 +53,12 @@ controllerThreads: 10
 # unrelated to this setting
 resyncInterval: 30
 
-# -- Ingress URL format
+uiService:
+  # -- Enable UI service creation for Spark application
+  enable: true
+
+# -- Ingress URL format.
+# Requires the UI service to be enabled by setting `uiService.enable` to true.
 ingressUrlFormat: ""
 
 # -- Set higher levels for more verbose logging
