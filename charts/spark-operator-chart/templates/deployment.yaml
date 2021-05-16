@@ -55,6 +55,7 @@ spec:
         - -v={{ .Values.logLevel }}
         - -logtostderr
         - -namespace={{ .Values.sparkJobNamespace }}
+        - -enable-ui-service={{ .Values.uiService.enable}}
         - -ingress-url-format={{ .Values.ingressUrlFormat }}
         - -controller-threads={{ .Values.controllerThreads }}
         - -resync-interval={{ .Values.resyncInterval }}
