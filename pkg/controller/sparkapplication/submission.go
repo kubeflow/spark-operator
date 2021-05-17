@@ -135,7 +135,7 @@ func buildSubmissionCommandArgs(app *v1beta2.SparkApplication, driverPodName str
 
 	// Add Spark configuration properties.
 	for key, value := range app.Spec.SparkConf {
-		// SparkConf value can use {{appName}} and {{appNamespace}} variables
+		// SparkConf value can use {{$appName}} and {{$appNamespace}} variables
 		value = getSparkUIingressURL(value, app.GetName(), app.GetNamespace())
 
 		// Configuration property for the driver pod name has already been set.
