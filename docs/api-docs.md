@@ -2958,6 +2958,18 @@ Kubernetes core/v1.ServiceType
 </tr>
 <tr>
 <td>
+<code>serviceAnnotations</code></br>
+<em>
+map[string]string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>ServiceAnnotations is a map of key,value pairs of annotations that might be added to the service object.</p>
+</td>
+</tr>
+<tr>
+<td>
 <code>ingressAnnotations</code></br>
 <em>
 map[string]string
@@ -2987,5 +2999,5 @@ map[string]string
 <hr/>
 <p><em>
 Generated with <code>gen-crd-api-reference-docs</code>
-on git commit <code>e616816</code>.
+on git commit <code>24a8842</code>.
 </em></p>

@@ -314,6 +314,9 @@ type SparkUIConfiguration struct {
 	// ServiceType allows configuring the type of the service. Defaults to ClusterIP.
 	// +optional
 	ServiceType *apiv1.ServiceType `json:"serviceType"`
+	// ServiceAnnotations is a map of key,value pairs of annotations that might be added to the service object.
+	// +optional
+	ServiceAnnotations map[string]string `json:"serviceAnnotations,omitempty"`
 	// IngressAnnotations is a map of key,value pairs of annotations that might be added to the ingress object. i.e. specify nginx as ingress.class
 	// +optional
 	IngressAnnotations map[string]string `json:"ingressAnnotations,omitempty"`

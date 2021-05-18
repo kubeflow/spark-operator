@@ -50,12 +50,13 @@ func getSparkUIingressURL(ingressURLFormat string, appName string, appNamespace 
 
 // SparkService encapsulates information about the driver UI service.
 type SparkService struct {
-	serviceName     string
-	serviceType     apiv1.ServiceType
-	servicePort     int32
-	servicePortName string
-	targetPort      intstr.IntOrString
-	serviceIP       string
+	serviceName        string
+	serviceType        apiv1.ServiceType
+	servicePort        int32
+	servicePortName    string
+	targetPort         intstr.IntOrString
+	serviceIP          string
+	serviceAnnotations map[string]string
 }
 
 // SparkIngress encapsulates information about the driver UI ingress.
@@ -169,6 +170,11 @@ func createSparkUIService(
 		},
 	}
 
+	serviceAnnotations := getServiceAnnotations(app)
+	if len(serviceAnnotations) != 0 {
+		service.ObjectMeta.Annotations = serviceAnnotations
+	}
+
 	glog.Infof("Creating a service %s for the Spark UI for application %s", service.Name, app.Name)
 	service, err = kubeClient.CoreV1().Services(app.Namespace).Create(context.TODO(), service, metav1.CreateOptions{})
 	if err != nil {
@@ -176,12 +182,13 @@ func createSparkUIService(
 	}
 
 	return &SparkService{
-		serviceName:     service.Name,
-		serviceType:     service.Spec.Type,
-		servicePort:     service.Spec.Ports[0].Port,
-		servicePortName: service.Spec.Ports[0].Name,
-		targetPort:      service.Spec.Ports[0].TargetPort,
-		serviceIP:       service.Spec.ClusterIP,
+		serviceName:        service.Name,
+		serviceType:        service.Spec.Type,
+		servicePort:        service.Spec.Ports[0].Port,
+		servicePortName:    service.Spec.Ports[0].Name,
+		targetPort:         service.Spec.Ports[0].TargetPort,
+		serviceIP:          service.Spec.ClusterIP,
+		serviceAnnotations: serviceAnnotations,
 	}, nil
 }
 
