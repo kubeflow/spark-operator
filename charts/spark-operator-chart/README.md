@@ -87,7 +87,8 @@ All charts linted successfully
 | image.repository | string | `"gcr.io/spark-operator/spark-operator"` | Image repository |
 | image.tag | string | `""` | Overrides the image tag whose default is the chart appVersion. |
 | imagePullSecrets | list | `[]` | Image pull secrets |
-| ingressUrlFormat | string | `""` | Ingress URL format |
+| uiService.enable | bool | `""` | Enable UI service creation for Spark application |
+| ingressUrlFormat | string | `""` | Ingress URL format. Requires the UI service to be enabled by setting `uiService.enable` to true. |
 | istio.enabled | bool | `false` | When using `istio`, spark jobs need to run without a sidecar to properly terminate |
 | labelSelectorFilter | string | `""` | A comma-separated list of key=value, or key labels to filter resources during watch and list based on the specified labels. |
 | leaderElection.lockName | string | `"spark-operator-lock"` | Leader election lock name. Ref: https://github.com/GoogleCloudPlatform/spark-on-k8s-operator/blob/master/docs/user-guide.md#enabling-leader-election-for-high-availability. |
