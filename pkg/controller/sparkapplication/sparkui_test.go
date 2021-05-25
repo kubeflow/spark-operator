@@ -80,6 +80,10 @@ func TestCreateSparkUIService(t *testing.T) {
 		if port.Name != test.expectedService.servicePortName {
 			t.Errorf("%s: unexpected port name wanted %s got %s", test.name, test.expectedService.servicePortName, port.Name)
 		}
+		serviceAnnotations := service.ObjectMeta.Annotations
+		if !reflect.DeepEqual(serviceAnnotations, test.expectedService.serviceAnnotations) {
+			t.Errorf("%s: unexpected annotations wanted %s got %s", test.name, test.expectedService.serviceAnnotations, serviceAnnotations)
+		}
 	}
 	defaultPort := defaultSparkWebUIPort
 	defaultPortName := defaultSparkWebUIPortName
@@ -180,6 +184,24 @@ func TestCreateSparkUIService(t *testing.T) {
 			SparkApplicationID: "foo-6",
 		},
 	}
+	app7 := &v1beta2.SparkApplication{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "foo7",
+			Namespace: "default",
+			UID:       "foo-123",
+		},
+		Spec: v1beta2.SparkApplicationSpec{
+			SparkUIOptions: &v1beta2.SparkUIConfiguration{
+				ServiceAnnotations: map[string]string{
+					"key": "value",
+				},
+			},
+		},
+		Status: v1beta2.SparkApplicationStatus{
+			SparkApplicationID: "foo-7",
+			ExecutionAttempts:  1,
+		},
+	}
 	testcases := []testcase{
 		{
 			name: "service with custom serviceport and serviceport and target port are same",
@@ -260,6 +282,28 @@ func TestCreateSparkUIService(t *testing.T) {
 			},
 			expectedSelector: map[string]string{
 				config.SparkAppNameLabel: "foo6",
+				config.SparkRoleLabel:    config.SparkDriverRole,
+			},
+			expectError: false,
+		},
+		{
+			name: "service with annotation",
+			app:  app7,
+			expectedService: SparkService{
+				serviceName:     fmt.Sprintf("%s-ui-svc", app7.GetName()),
+				serviceType:     apiv1.ServiceTypeClusterIP,
+				servicePortName: defaultPortName,
+				servicePort:     defaultPort,
+				serviceAnnotations: map[string]string{
+					"key": "value",
+				},
+				targetPort: intstr.IntOrString{
+					Type:   intstr.Int,
+					IntVal: int32(4041),
+				},
+			},
+			expectedSelector: map[string]string{
+				config.SparkAppNameLabel: "foo7",
 				config.SparkRoleLabel:    config.SparkDriverRole,
 			},
 			expectError: false,
