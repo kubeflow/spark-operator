@@ -103,6 +103,11 @@ func patchSparkPod(pod *corev1.Pod, app *v1beta2.SparkApplication) []patchOperat
 		patchOps = append(patchOps, *op)
 	}
 
+	op = addShareProcessNamespace(pod, app)
+	if op != nil {
+		patchOps = append(patchOps, *op)
+	}
+
 	return patchOps
 }
 
@@ -833,4 +838,19 @@ func addHostAliases(pod *corev1.Pod, app *v1beta2.SparkApplication) []patchOpera
 		}
 	}
 	return ops
+}
+
+func addShareProcessNamespace(pod *corev1.Pod, app *v1beta2.SparkApplication) *patchOperation {
+	var shareProcessNamespace *bool
+	if util.IsDriverPod(pod) {
+		shareProcessNamespace = app.Spec.Driver.ShareProcessNamespace
+	}
+	if util.IsExecutorPod(pod) {
+		shareProcessNamespace = app.Spec.Executor.ShareProcessNamespace
+	}
+
+	if shareProcessNamespace == nil || *shareProcessNamespace == false {
+		return nil
+	}
+	return &patchOperation{Op: "add", Path: "/spec/shareProcessNamespace", Value: *shareProcessNamespace}
 }

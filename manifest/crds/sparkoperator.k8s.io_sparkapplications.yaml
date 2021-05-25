@@ -5,7 +5,6 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: (unknown)
-  creationTimestamp: null
   name: sparkapplications.sparkoperator.k8s.io
 spec:
   group: sparkoperator.k8s.io
@@ -494,6 +493,17 @@ spec:
                   - name
                   - quantity
                   type: object
+                hostAliases:
+                  items:
+                    properties:
+                      hostnames:
+                        items:
+                          type: string
+                        type: array
+                      ip:
+                        type: string
+                    type: object
+                  type: array
                 hostNetwork:
                   type: boolean
                 image:
@@ -1281,6 +1291,8 @@ spec:
                   additionalProperties:
                     type: string
                   type: object
+                shareProcessNamespace:
+                  type: boolean
                 sidecars:
                   items:
                     properties:
@@ -2293,6 +2305,17 @@ spec:
                   - name
                   - quantity
                   type: object
+                hostAliases:
+                  items:
+                    properties:
+                      hostnames:
+                        items:
+                          type: string
+                        type: array
+                      ip:
+                        type: string
+                    type: object
+                  type: array
                 hostNetwork:
                   type: boolean
                 image:
@@ -2972,6 +2995,8 @@ spec:
                   type: object
                 serviceAccount:
                   type: string
+                shareProcessNamespace:
+                  type: boolean
                 sidecars:
                   items:
                     properties:
@@ -3600,6 +3625,8 @@ spec:
                       maximum: 49151
                       minimum: 1024
                       type: integer
+                    portName:
+                      type: string
                   required:
                   - jmxExporterJar
                   type: object
