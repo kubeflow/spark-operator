@@ -3681,6 +3681,10 @@ spec:
               type: string
             sparkUIOptions:
               properties:
+                serviceAnnotations:
+                  additionalProperties:
+                    type: string
+                  type: object
                 ingressAnnotations:
                   additionalProperties:
                     type: string
