@@ -1291,6 +1291,8 @@ spec:
                   additionalProperties:
                     type: string
                   type: object
+                shareProcessNamespace:
+                  type: boolean
                 sidecars:
                   items:
                     properties:
@@ -2993,6 +2995,8 @@ spec:
                   type: object
                 serviceAccount:
                   type: string
+                shareProcessNamespace:
+                  type: boolean
                 sidecars:
                   items:
                     properties:
@@ -3695,6 +3699,10 @@ spec:
                 servicePort:
                   format: int32
                   type: integer
+                servicePortName:
+                  type: string
+                serviceType:
+                  type: string
               type: object
             sparkVersion:
               type: string
