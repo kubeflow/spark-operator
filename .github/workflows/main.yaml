@@ -29,17 +29,9 @@ jobs:
       - name: unit tests
         run: make test
 
-      - name: integration tests
-        run: make test
-
   it:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v2
-        with:
-          fetch-depth: 0
-
       - name: Set up Go
         uses: actions/setup-go@v2
         with:
@@ -67,6 +59,9 @@ jobs:
 
       - name: Run chart-testing (lint)
         run: ct lint
+
+      - name: Detect CRDs drift between chart and manifest
+        run: make detect-crds-drift
 
       - name: Create kind cluster
         uses: helm/kind-action@v1.0.0
