@@ -49,6 +49,9 @@ fmt-check: clean
 	@echo "running fmt check"
 	./.travis.gofmt.sh
 
+detect-crds-drift:
+	diff -q charts/spark-operator-chart/crds manifest/crds
+
 clean:
 	@echo "cleaning up caches and output"
 	go clean -cache -testcache -r -x ./... 2>&1 >/dev/null
