@@ -134,8 +134,16 @@ func isDriverRunning(app *v1beta2.SparkApplication) bool {
 }
 
 func getDriverContainerTerminatedState(podStatus apiv1.PodStatus) *apiv1.ContainerStateTerminated {
+	return getContainerTerminatedState(config.SparkDriverContainerName, podStatus)
+}
+
+func getExecutorContainerTerminatedState(podStatus apiv1.PodStatus) *apiv1.ContainerStateTerminated {
+	return getContainerTerminatedState(config.SparkExecutorContainerName, podStatus)
+}
+
+func getContainerTerminatedState(name string, podStatus apiv1.PodStatus) *apiv1.ContainerStateTerminated {
 	for _, c := range podStatus.ContainerStatuses {
-		if c.Name == config.SparkDriverContainerName {
+		if c.Name == name {
 			if c.State.Terminated != nil {
 				return c.State.Terminated
 			}

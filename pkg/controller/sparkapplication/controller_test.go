@@ -1230,6 +1230,17 @@ func TestSyncSparkApplication_ExecutingState(t *testing.T) {
 				},
 				Status: apiv1.PodStatus{
 					Phase: apiv1.PodFailed,
+					ContainerStatuses: []apiv1.ContainerStatus{
+						{
+							Name: config.SparkExecutorContainerName,
+							State: apiv1.ContainerState{
+								Terminated: &apiv1.ContainerStateTerminated{
+									ExitCode: 137,
+									Reason:   "OOMKilled",
+								},
+							},
+						},
+					},
 				},
 			},
 			expectedAppState:      v1beta2.FailingState,
