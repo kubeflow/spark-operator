@@ -120,6 +120,9 @@ affinity: {}
 # podAnnotations -- Additional annotations to add to the pod
 podAnnotations: {}
 
+# podLabels -- Additional labels to add to the pod
+podLabels: {}
+
 # resources -- Pod resource requests and limits
 # Note, that each job submission will spawn a JVM within the Spark Operator Pod using "/usr/local/openjdk-11/bin/java -Xmx128m".
 # Kubernetes may kill these Java processes at will to enforce resource limits. When that happens, you will see the following error:

@@ -32,6 +32,9 @@ spec:
     {{- end }}
       labels:
         {{- include "spark-operator.selectorLabels" . | nindent 8 }}
+        {{- with .Values.podLabels }}
+          {{- toYaml . | trim | nindent 8 }}
+        {{- end }}
     spec:
       serviceAccountName: {{ include "spark-operator.serviceAccountName" . }}
       {{- with .Values.imagePullSecrets }}
