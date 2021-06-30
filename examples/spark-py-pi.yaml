@@ -23,7 +23,7 @@ metadata:
   namespace: default
 spec:
   type: Python
-  pythonVersion: "2"
+  pythonVersion: "3"
   mode: cluster
   image: "gcr.io/spark-operator/spark-py:v3.1.1"
   imagePullPolicy: Always
