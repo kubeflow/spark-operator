@@ -102,6 +102,7 @@ All charts linted successfully
 | nameOverride | string | `""` | String to partially override `spark-operator.fullname` template (will maintain the release name) |
 | nodeSelector | object | `{}` | Node labels for pod assignment |
 | podAnnotations | object | `{}` | Additional annotations to add to the pod |
+| podLabels | object | `{}` | Additional labels to add to the pod |
 | podMonitor | object | `{"enable":false,"jobLabel":"spark-operator-podmonitor","labels":{},"podMetricsEndpoint":{"interval":"5s","scheme":"http"}}` | Prometheus pod monitor for operator's pod. |
 | podMonitor.enable | bool | `false` | If enabled, a pod monitor for operator's pod will be submitted. Note that prometheus metrics should be enabled as well. |
 | podMonitor.jobLabel | string | `"spark-operator-podmonitor"` | The label to use to retrieve the job name from |
