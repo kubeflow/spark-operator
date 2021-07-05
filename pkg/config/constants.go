@@ -166,6 +166,12 @@ const (
 	// SparkDynamicAllocationMaxExecutors is the Spark configuration key for specifying the
 	// upper bound of the number of executors to request if dynamic allocation is enabled.
 	SparkDynamicAllocationMaxExecutors = "spark.dynamicAllocation.maxExecutors"
+	// SparkDriverPodTemplateFile is the Spark configuration key for specifying the pod template
+	// file to be used for the driver pod.
+	SparkDriverPodTemplateFile = "spark.kubernetes.driver.podTemplateFile"
+	// SparkExecutorPodTemplateFile is the Spark configuration key for specifying the pod template
+	// file to be used for the executor pod.
+	SparkExecutorPodTemplateFile = "spark.kubernetes.executor.podTemplateFile"
 )
 
 const (

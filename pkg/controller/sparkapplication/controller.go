@@ -635,6 +635,17 @@ func isNextRetryDue(retryInterval *int64, attemptsDone int32, lastEventTime meta
 	return false
 }
 
+func newFailedSubmissionAttemptForError(app *v1beta2.SparkApplication, err error) v1beta2.SparkApplicationStatus {
+	return v1beta2.SparkApplicationStatus{
+		AppState: v1beta2.ApplicationState{
+			State:        v1beta2.FailedSubmissionState,
+			ErrorMessage: err.Error(),
+		},
+		SubmissionAttempts:        app.Status.SubmissionAttempts + 1,
+		LastSubmissionAttemptTime: metav1.Now(),
+	}
+}
+
 // submitSparkApplication creates a new submission for the given SparkApplication and submits it using spark-submit.
 func (c *Controller) submitSparkApplication(app *v1beta2.SparkApplication) *v1beta2.SparkApplication {
 	if app.PrometheusMonitoringEnabled() {
@@ -654,29 +665,31 @@ func (c *Controller) submitSparkApplication(app *v1beta2.SparkApplication) *v1be
 
 	driverPodName := getDriverPodName(app)
 	submissionID := uuid.New().String()
-	submissionCmdArgs, err := buildSubmissionCommandArgs(app, driverPodName, submissionID)
+
+        driverPodTemplateFile, err := createPodTemplateFile(&app.Spec.Driver.Template, "driver", submissionID)
 	if err != nil {
-		app.Status = v1beta2.SparkApplicationStatus{
-			AppState: v1beta2.ApplicationState{
-				State:        v1beta2.FailedSubmissionState,
-				ErrorMessage: err.Error(),
-			},
-			SubmissionAttempts:        app.Status.SubmissionAttempts + 1,
-			LastSubmissionAttemptTime: metav1.Now(),
-		}
+		app.Status = newFailedSubmissionAttemptForError(app, err)
+		return app
+	}
+	defer deletePodTemplateFile(driverPodTemplateFile)
+
+        executorPodTemplateFile, err := createPodTemplateFile(&app.Spec.Executor.Template, "executor", submissionID)
+	if err != nil {
+		app.Status = newFailedSubmissionAttemptForError(app, err)
+		return app
+	}
+	defer deletePodTemplateFile(executorPodTemplateFile)
+
+
+	submissionCmdArgs, err := buildSubmissionCommandArgs(app, driverPodName, submissionID, driverPodTemplateFile, executorPodTemplateFile)
+	if err != nil {
+		app.Status = newFailedSubmissionAttemptForError(app, err)
 		return app
 	}
 	// Try submitting the application by running spark-submit.
 	submitted, err := runSparkSubmit(newSubmission(submissionCmdArgs, app))
 	if err != nil {
-		app.Status = v1beta2.SparkApplicationStatus{
-			AppState: v1beta2.ApplicationState{
-				State:        v1beta2.FailedSubmissionState,
-				ErrorMessage: err.Error(),
-			},
-			SubmissionAttempts:        app.Status.SubmissionAttempts + 1,
-			LastSubmissionAttemptTime: metav1.Now(),
-		}
+		app.Status = newFailedSubmissionAttemptForError(app, err)
 		c.recordSparkApplicationEvent(app)
 		glog.Errorf("failed to run spark-submit for SparkApplication %s/%s: %v", app.Namespace, app.Name, err)
 		return app

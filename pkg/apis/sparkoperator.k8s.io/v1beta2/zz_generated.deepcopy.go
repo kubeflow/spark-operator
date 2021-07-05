@@ -978,6 +978,7 @@ func (in *SparkPodSpec) DeepCopyInto(out *SparkPodSpec) {
 		*out = new(bool)
 		**out = **in
 	}
+	in.Template.DeepCopyInto(&out.Template)
 	return
 }
 
@@ -1008,6 +1009,13 @@ func (in *SparkUIConfiguration) DeepCopyInto(out *SparkUIConfiguration) {
 		in, out := &in.ServiceType, &out.ServiceType
 		*out = new(v1.ServiceType)
 		**out = **in
+	}
+	if in.ServiceAnnotations != nil {
+		in, out := &in.ServiceAnnotations, &out.ServiceAnnotations
+		*out = make(map[string]string, len(*in))
+		for key, val := range *in {
+			(*out)[key] = val
+		}
 	}
 	if in.IngressAnnotations != nil {
 		in, out := &in.IngressAnnotations, &out.IngressAnnotations
