@@ -22,6 +22,22 @@ spec:
       storage: true
       subresources:
         status: {}
+      additionalPrinterColumns:
+        - jsonPath: .spec.schedule
+          name: Schedule
+          type: string
+        - jsonPath: .spec.suspend
+          name: Suspend
+          type: boolean
+        - jsonPath: .status.lastRun
+          name: Last Run
+          type: date
+        - jsonPath: .status.lastRunName
+          name: Last Run Name
+          type: string
+        - jsonPath: .metadata.creationTimestamp
+          name: Age
+          type: date
       schema:
         openAPIV3Schema:
           properties:

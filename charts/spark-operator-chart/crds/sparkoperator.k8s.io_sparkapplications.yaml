@@ -22,6 +22,22 @@ spec:
       storage: true
       subresources:
         status: { }
+      additionalPrinterColumns:
+        - jsonPath: .status.applicationState.state
+          name: Status
+          type: string
+        - jsonPath: .status.executionAttempts
+          name: Attempts
+          type: string
+        - jsonPath: .status.lastSubmissionAttemptTime
+          name: Start
+          type: string
+        - jsonPath: .status.terminationTime
+          name: Finish
+          type: string
+        - jsonPath: .metadata.creationTimestamp
+          name: Age
+          type: date
       schema:
         openAPIV3Schema:
           properties:
