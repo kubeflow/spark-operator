@@ -571,7 +571,9 @@ func TestProxyUserArg(t *testing.T) {
 
 	submissionID := uuid.New().String()
 	driverPodName := getDriverPodName(app)
-	args, err := buildSubmissionCommandArgs(app, driverPodName, submissionID, "driver.json", "executor.json")
+	driverPodTemplate := "driver.json"
+	executorPodTemplate := "executor.json"
+	args, err := buildSubmissionCommandArgs(app, driverPodName, submissionID, &driverPodTemplate, &executorPodTemplate)
 	if err != nil {
 		t.Fatal(err)
 	}

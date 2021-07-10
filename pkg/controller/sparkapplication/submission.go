@@ -198,6 +198,16 @@ func buildSubmissionCommandArgs(app *v1beta2.SparkApplication, driverPodName str
 	}
 
 
+	if app.Spec.Driver.TemplateContainerName != nil {
+		conf := fmt.Sprintf("%s=%s", config.SparkDriverPodTemplateContainerName, *app.Spec.Driver.TemplateContainerName)
+		args = append(args, "--conf", conf)
+	}
+
+	if app.Spec.Executor.TemplateContainerName != nil {
+		conf := fmt.Sprintf("%s=%s", config.SparkExecutorPodTemplateContainerName, *app.Spec.Executor.TemplateContainerName)
+		args = append(args, "--conf", conf)
+	}
+
 	if app.Spec.MainApplicationFile != nil {
 		// Add the main application file if it is present.
 		args = append(args, *app.Spec.MainApplicationFile)

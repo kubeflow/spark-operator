@@ -34,6 +34,7 @@ spec:
   #       path: "/tmp"
   #       type: Directory
   driver:
+    templateContainerName: spark-driver
     template:
       metadata:
         labels:
@@ -72,6 +73,7 @@ spec:
     # volumeMounts:
     #   - name: "test-volume"
     #     mountPath: "/tmp"
+    templateContainerName: spark-executor
     template:
       metadata:
         labels:

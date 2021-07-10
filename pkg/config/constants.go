@@ -172,6 +172,14 @@ const (
 	// SparkExecutorPodTemplateFile is the Spark configuration key for specifying the pod template
 	// file to be used for the executor pod.
 	SparkExecutorPodTemplateFile = "spark.kubernetes.executor.podTemplateFile"
+	// SparkDriverPodTemplateContainerName is the Spark configuration for specifying which container should be used as a basis for
+	// the driver. If not specified, or if the container name is not valid, Spark will assume that the first container
+	// in the list will be the driver container.
+	SparkDriverPodTemplateContainerName = "spark.kubernetes.driver.podTemplateContainerName"
+	// SparkExecutorPodTemplateContainerName is the Spark configuration for specifying which container should be used as a basis for
+	// the executor. If not specified, or if the container name is not valid, Spark will assume that the first container
+	// in the list will be the executor container.
+	SparkExecutorPodTemplateContainerName = "spark.kubernetes.executor.podTemplateContainerName"
 )
 
 const (
