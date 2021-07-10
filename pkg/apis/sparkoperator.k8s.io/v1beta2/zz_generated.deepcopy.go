@@ -978,7 +978,11 @@ func (in *SparkPodSpec) DeepCopyInto(out *SparkPodSpec) {
 		*out = new(bool)
 		**out = **in
 	}
-	in.Template.DeepCopyInto(&out.Template)
+	if in.Template != nil {
+		in, out := &in.Template, &out.Template
+		*out = new(v1.PodTemplateSpec)
+		(*in).DeepCopyInto(*out)
+	}
 	return
 }
 

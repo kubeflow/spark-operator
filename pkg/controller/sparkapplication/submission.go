@@ -89,7 +89,7 @@ func runSparkSubmit(submission *submission) (bool, error) {
 
 
 
-func buildSubmissionCommandArgs(app *v1beta2.SparkApplication, driverPodName string, submissionID string, driverPodTemplate string, executorPodTemplate string) ([]string, error) {
+func buildSubmissionCommandArgs(app *v1beta2.SparkApplication, driverPodName string, submissionID string, driverPodTemplate *string, executorPodTemplate *string) ([]string, error) {
 	var args []string
 	if app.Spec.MainClass != nil {
 		args = append(args, "--class", *app.Spec.MainClass)
@@ -190,8 +190,13 @@ func buildSubmissionCommandArgs(app *v1beta2.SparkApplication, driverPodName str
 		}
 	}
 
-	args = append(args, "--conf", fmt.Sprintf("%s=%s", config.SparkDriverPodTemplateFile, driverPodTemplate))
-	args = append(args, "--conf", fmt.Sprintf("%s=%s", config.SparkExecutorPodTemplateFile, executorPodTemplate))
+	if driverPodTemplate != nil {
+		args = append(args, "--conf", fmt.Sprintf("%s=%s", config.SparkDriverPodTemplateFile, *driverPodTemplate))
+	}
+	if executorPodTemplate != nil {
+		args = append(args, "--conf", fmt.Sprintf("%s=%s", config.SparkExecutorPodTemplateFile, *executorPodTemplate))
+	}
+
 
 	if app.Spec.MainApplicationFile != nil {
 		// Add the main application file if it is present.
@@ -207,28 +212,28 @@ func buildSubmissionCommandArgs(app *v1beta2.SparkApplication, driverPodName str
 }
 
 
-func createPodTemplateFile(template *v1.PodTemplateSpec, role string, submissionID string) (string, error) {
+func createPodTemplateFile(template *v1.PodTemplateSpec, role string, submissionID string) (*string, error) {
 	bytes, err := json.Marshal(template)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	tmpFile, err := ioutil.TempFile(os.TempDir(), fmt.Sprintf("%s-podtemplate-%s-*.json", submissionID, role))
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	_, err = tmpFile.Write(bytes)
 	if err != nil {
 		deletePodTemplateFile(tmpFile.Name())
-		return "", err
+		return nil, err
 	}
 	err = tmpFile.Close()
 
 	if err != nil {
 		deletePodTemplateFile(tmpFile.Name())
-		return "", err
+		return nil, err
 	}
-
-	return tmpFile.Name(), nil
+	name := tmpFile.Name()
+	return &name, nil
 }
 
 func deletePodTemplateFile(fileName string) (error) {

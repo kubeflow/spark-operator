@@ -529,9 +529,9 @@ type SparkPodSpec struct {
 	// ShareProcessNamespace settings for the pod, following the Kubernetes specifications.
 	// +optional
 	ShareProcessNamespace *bool `json:"shareProcessNamespace,omitempty"`
-
 	// Pod template used
-	Template apiv1.PodTemplateSpec `json:"template,omitempty"`
+	// +optional
+	Template *apiv1.PodTemplateSpec `json:"template,omitempty"`
 }
 
 // DriverSpec is specification of the driver.

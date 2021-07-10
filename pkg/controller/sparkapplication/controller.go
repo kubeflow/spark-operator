@@ -666,20 +666,27 @@ func (c *Controller) submitSparkApplication(app *v1beta2.SparkApplication) *v1be
 	driverPodName := getDriverPodName(app)
 	submissionID := uuid.New().String()
 
-        driverPodTemplateFile, err := createPodTemplateFile(&app.Spec.Driver.Template, "driver", submissionID)
-	if err != nil {
-		app.Status = newFailedSubmissionAttemptForError(app, err)
-		return app
+	var driverPodTemplateFile *string
+	if app.Spec.Driver.Template != nil {
+		var err error
+		driverPodTemplateFile, err = createPodTemplateFile(app.Spec.Driver.Template, "driver", submissionID)
+		if err != nil {
+			app.Status = newFailedSubmissionAttemptForError(app, err)
+			return app
+		}
+		defer deletePodTemplateFile(*driverPodTemplateFile)
 	}
-	defer deletePodTemplateFile(driverPodTemplateFile)
 
-        executorPodTemplateFile, err := createPodTemplateFile(&app.Spec.Executor.Template, "executor", submissionID)
-	if err != nil {
-		app.Status = newFailedSubmissionAttemptForError(app, err)
-		return app
+	var executorPodTemplateFile *string
+	if app.Spec.Executor.Template != nil {
+		var err error
+		executorPodTemplateFile, err = createPodTemplateFile(app.Spec.Executor.Template, "executor", submissionID)
+		if err != nil {
+			app.Status = newFailedSubmissionAttemptForError(app, err)
+			return app
+		}
+		defer deletePodTemplateFile(*executorPodTemplateFile)
 	}
-	defer deletePodTemplateFile(executorPodTemplateFile)
-
 
 	submissionCmdArgs, err := buildSubmissionCommandArgs(app, driverPodName, submissionID, driverPodTemplateFile, executorPodTemplateFile)
 	if err != nil {
