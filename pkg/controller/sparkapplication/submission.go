@@ -87,8 +87,6 @@ func runSparkSubmit(submission *submission) (bool, error) {
 	return true, nil
 }
 
-
-
 func buildSubmissionCommandArgs(app *v1beta2.SparkApplication, driverPodName string, submissionID string, driverPodTemplate *string, executorPodTemplate *string) ([]string, error) {
 	var args []string
 	if app.Spec.MainClass != nil {
@@ -197,7 +195,6 @@ func buildSubmissionCommandArgs(app *v1beta2.SparkApplication, driverPodName str
 		args = append(args, "--conf", fmt.Sprintf("%s=%s", config.SparkExecutorPodTemplateFile, *executorPodTemplate))
 	}
 
-
 	if app.Spec.Driver.TemplateContainerName != nil {
 		conf := fmt.Sprintf("%s=%s", config.SparkDriverPodTemplateContainerName, *app.Spec.Driver.TemplateContainerName)
 		args = append(args, "--conf", conf)
@@ -220,7 +217,6 @@ func buildSubmissionCommandArgs(app *v1beta2.SparkApplication, driverPodName str
 
 	return args, nil
 }
-
 
 func createPodTemplateFile(template *v1.PodTemplateSpec, role string, submissionID string) (*string, error) {
 	bytes, err := json.Marshal(template)
@@ -246,7 +242,7 @@ func createPodTemplateFile(template *v1.PodTemplateSpec, role string, submission
 	return &name, nil
 }
 
-func deletePodTemplateFile(fileName string) (error) {
+func deletePodTemplateFile(fileName string) error {
 	err := os.Remove(fileName)
 	if os.IsNotExist(err) {
 		return nil
