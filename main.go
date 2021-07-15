@@ -20,6 +20,8 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"net/http"
+	_ "net/http/pprof"
 	"os"
 	"os/signal"
 	"strings"
@@ -142,6 +144,12 @@ func main() {
 	}
 
 	glog.Info("Starting the Spark Operator")
+
+	go func() {
+		pprofHandler := "0.0.0.0:18080"
+		glog.Infof("Starting pprof, listening on %s", pprofHandler)
+		http.ListenAndServe(pprofHandler, nil)
+	}()
 
 	crClient, err := crclientset.NewForConfig(config)
 	if err != nil {
