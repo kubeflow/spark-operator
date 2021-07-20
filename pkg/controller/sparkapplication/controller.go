@@ -64,17 +64,18 @@ var (
 
 // Controller manages instances of SparkApplication.
 type Controller struct {
-	crdClient         crdclientset.Interface
-	kubeClient        clientset.Interface
-	queue             workqueue.RateLimitingInterface
-	cacheSynced       cache.InformerSynced
-	recorder          record.EventRecorder
-	metrics           *sparkAppMetrics
-	applicationLister crdlisters.SparkApplicationLister
-	podLister         v1.PodLister
-	ingressURLFormat  string
-	batchSchedulerMgr *batchscheduler.SchedulerManager
-	subJobManager     submissionJobManager
+	crdClient               crdclientset.Interface
+	kubeClient              clientset.Interface
+	queue                   workqueue.RateLimitingInterface
+	cacheSynced             cache.InformerSynced
+	recorder                record.EventRecorder
+	metrics                 *sparkAppMetrics
+	applicationLister       crdlisters.SparkApplicationLister
+	podLister               v1.PodLister
+	ingressURLFormat        string
+	batchSchedulerMgr       *batchscheduler.SchedulerManager
+	subJobManager           submissionJobManager
+	clientModeSubPodManager clientModeSubmissionPodManager
 }
 
 // NewController creates a new Controller.
@@ -112,13 +113,14 @@ func newSparkApplicationController(
 		"spark-application-controller")
 
 	controller := &Controller{
-		crdClient:         crdClient,
-		kubeClient:        kubeClient,
-		recorder:          eventRecorder,
-		queue:             queue,
-		ingressURLFormat:  ingressURLFormat,
-		batchSchedulerMgr: batchSchedulerMgr,
-		subJobManager:     &realSubmissionJobManager{kubeClient: kubeClient},
+		crdClient:               crdClient,
+		kubeClient:              kubeClient,
+		recorder:                eventRecorder,
+		queue:                   queue,
+		ingressURLFormat:        ingressURLFormat,
+		batchSchedulerMgr:       batchSchedulerMgr,
+		subJobManager:           &realSubmissionJobManager{kubeClient: kubeClient},
+		clientModeSubPodManager: &realClientModeSubmissionPodManager{kubeClient: kubeClient},
 	}
 
 	if metricsConfig != nil {
@@ -150,6 +152,7 @@ func newSparkApplicationController(
 		DeleteFunc: sparkObjectEventHandler.onObjectDeleted,
 	})
 	controller.subJobManager = &realSubmissionJobManager{kubeClient: kubeClient, jobLister: jobInformer.Lister()}
+	controller.clientModeSubPodManager = &realClientModeSubmissionPodManager{kubeClient: kubeClient, podLister: podsInformer.Lister()}
 
 	controller.cacheSynced = func() bool {
 		return crdInformer.Informer().HasSynced() && podsInformer.Informer().HasSynced()
@@ -453,6 +456,12 @@ func shouldRetry(app *v1beta2.SparkApplication) bool {
 		// We retry only if the RestartPolicy is Always. The Submission Job already retries upto the OnSubmissionFailureRetries specified.
 		if app.Spec.RestartPolicy.Type == v1beta2.Always {
 			return true
+		} else if app.Spec.RestartPolicy.Type == v1beta2.OnFailure && app.Spec.Mode != v1beta2.ClusterMode {
+			if app.Spec.RestartPolicy.OnSubmissionFailureRetries != nil && app.Status.SubmissionAttempts <
+				*app.Spec.RestartPolicy.OnSubmissionFailureRetries {
+				return true
+			}
+
 		}
 	}
 	return false
@@ -672,9 +681,18 @@ func (c *Controller) submitSparkApplication(app *v1beta2.SparkApplication) *v1be
 		}
 	}
 
-	submissionID, driverPodName, err := c.subJobManager.createSubmissionJob(app)
+	var submissionID string
+	var driverPodName string
+	var err error
+
+	if app.Spec.Mode == v1beta2.ClientMode {
+		submissionID, driverPodName, err = c.clientModeSubPodManager.createClientDriverPod(app)
+	} else {
+		submissionID, driverPodName, err = c.subJobManager.createSubmissionJob(app)
+	}
+
 	if err != nil {
-		if !errors.IsAlreadyExists(err) {
+		if !errors.IsAlreadyExists(err) || app.Spec.Mode == v1beta2.ClientMode {
 			app.Status = v1beta2.SparkApplicationStatus{
 				AppState: v1beta2.ApplicationState{
 					State:        v1beta2.FailedSubmissionState,
@@ -688,15 +706,24 @@ func (c *Controller) submitSparkApplication(app *v1beta2.SparkApplication) *v1be
 	}
 
 	glog.Infof("SparkApplication %s/%s has been submitted", app.Namespace, app.Name)
+	var appState v1beta2.ApplicationStateType
+	if app.Spec.Mode == v1beta2.ClientMode {
+		appState = v1beta2.SubmittedState
+	} else {
+		appState = v1beta2.PendingSubmissionState
+	}
 	app.Status = v1beta2.SparkApplicationStatus{
 		SubmissionID:       submissionID,
 		DriverInfo:         v1beta2.DriverInfo{PodName: driverPodName},
-		AppState:           v1beta2.ApplicationState{State: v1beta2.PendingSubmissionState},
+		AppState:           v1beta2.ApplicationState{State: appState},
 		SubmissionAttempts: app.Status.SubmissionAttempts + 1,
 		ExecutionAttempts:  app.Status.ExecutionAttempts + 1,
 	}
 
 	c.recordSparkApplicationEvent(app)
+	if app.Spec.Mode == v1beta2.ClientMode {
+		c.createSparkUIResources(app)
+	}
 
 	return app
 }
@@ -814,6 +841,20 @@ func (c *Controller) getSparkApplication(namespace string, name string) (*v1beta
 		return nil, err
 	}
 	return app, nil
+}
+
+//Delete the optional UI resources (Service) to get rid of env vars set by kubernetes
+func (c *Controller) deleteSparkUI(app *v1beta2.SparkApplication) error {
+	sparkUIServiceName := app.Status.DriverInfo.WebUIServiceName
+	if sparkUIServiceName != "" {
+		glog.V(2).Infof("Deleting Spark UI Service %s in namespace %s", sparkUIServiceName, app.Namespace)
+		err := c.kubeClient.CoreV1().Services(app.Namespace).Delete(sparkUIServiceName, metav1.NewDeleteOptions(0))
+		if err != nil && !errors.IsNotFound(err) {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // Delete the driver pod and optional UI resources (Service/Ingress) created for the application.

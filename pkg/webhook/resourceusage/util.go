@@ -112,7 +112,7 @@ func parseJavaMemoryString(str string) (int64, error) {
 }
 
 // Logic copied from https://github.com/apache/spark/blob/c4bbfd177b4e7cb46f47b39df9fd71d2d9a12c6d/resource-managers/kubernetes/core/src/main/scala/org/apache/spark/deploy/k8s/features/BasicDriverFeatureStep.scala
-func memoryRequiredForSparkPod(spec so.SparkPodSpec, memoryOverheadFactor *string, appType so.SparkApplicationType, replicas int64) (int64, error) {
+func MemoryRequiredForSparkPod(spec so.SparkPodSpec, memoryOverheadFactor *string, appType so.SparkApplicationType, replicas int64) (int64, error) {
 	var memoryBytes int64
 	if spec.Memory != nil {
 		memory, err := parseJavaMemoryString(*spec.Memory)
@@ -153,7 +153,7 @@ func memoryRequiredForSparkPod(spec so.SparkPodSpec, memoryOverheadFactor *strin
 func resourceUsage(spec so.SparkApplicationSpec) (ResourceList, error) {
 	driverMemoryOverheadFactor := spec.MemoryOverheadFactor
 	executorMemoryOverheadFactor := spec.MemoryOverheadFactor
-	driverMemory, err := memoryRequiredForSparkPod(spec.Driver.SparkPodSpec, driverMemoryOverheadFactor, spec.Type, 1)
+	driverMemory, err := MemoryRequiredForSparkPod(spec.Driver.SparkPodSpec, driverMemoryOverheadFactor, spec.Type, 1)
 	if err != nil {
 		return ResourceList{}, err
 	}
@@ -162,7 +162,7 @@ func resourceUsage(spec so.SparkApplicationSpec) (ResourceList, error) {
 	if spec.Executor.Instances != nil {
 		instances = int64(*spec.Executor.Instances)
 	}
-	executorMemory, err := memoryRequiredForSparkPod(spec.Executor.SparkPodSpec, executorMemoryOverheadFactor, spec.Type, instances)
+	executorMemory, err := MemoryRequiredForSparkPod(spec.Executor.SparkPodSpec, executorMemoryOverheadFactor, spec.Type, instances)
 	if err != nil {
 		return ResourceList{}, err
 	}

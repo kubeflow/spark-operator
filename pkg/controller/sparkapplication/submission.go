@@ -74,6 +74,10 @@ func buildSubmissionCommandArgs(app *v1beta2.SparkApplication, driverPodName str
 		args = append(args, "--conf",
 			fmt.Sprintf("%s=%s", config.SparkMemoryOverheadFactor, *app.Spec.MemoryOverheadFactor))
 	}
+	if app.Spec.Mode == v1beta2.ClientMode {
+		args = append(args, "--conf",
+			fmt.Sprintf("%s=%s", config.SparkDriverHost, "$SPARK_K8S_DRIVER_POD_IP"))
+	}
 
 	// Operator triggered spark-submit should never wait for App completion
 	args = append(args, "--conf", fmt.Sprintf("%s=false", config.SparkWaitAppCompletion))
