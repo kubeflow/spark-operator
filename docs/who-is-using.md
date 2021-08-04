@@ -36,3 +36,4 @@
 | [Tongdun](https://www.tongdun.net/) | @lomoJG | Production | AI/ML & Analytics |
 | [Totvs Labs](https://www.totvslabs.com) | @luizm | Production | Data Platform |
 | [DiDi](https://www.didiglobal.com) | @Run-Lin | Evaluation | Data Infrastructure |
+| [Neoway](https://www.neoway.com.br/en/) |@NeowayLabs/ml-platform | Production | Machine Learning Platform |
