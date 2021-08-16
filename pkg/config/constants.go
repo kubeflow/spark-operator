@@ -117,6 +117,8 @@ const (
 	// SparkDriverServiceAccountName is the Spark configuration key for specifying name of the Kubernetes service
 	// account used by the driver pod.
 	SparkDriverServiceAccountName = "spark.kubernetes.authenticate.driver.serviceAccountName"
+	// account used by the executor pod.
+	SparkExecutorAccountName = "spark.kubernetes.authenticate.executor.serviceAccountName"
 	// SparkInitContainerImage is the Spark configuration key for specifying a custom init-container image.
 	SparkInitContainerImage = "spark.kubernetes.initContainer.image"
 	// SparkJarsDownloadDir is the Spark configuration key for specifying the download path in the driver and
