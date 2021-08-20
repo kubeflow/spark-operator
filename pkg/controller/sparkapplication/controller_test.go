@@ -1566,6 +1566,55 @@ func TestIsNextRetryDue(t *testing.T) {
 	assert.True(t, isNextRetryDue(int64ptr(50), 3, metav1.Time{Time: metav1.Now().Add(-151 * time.Second)}))
 }
 
+func TestIngressWithSubpathAffectsSparkConfiguration(t *testing.T) {
+	os.Setenv(kubernetesServiceHostEnvVar, "localhost")
+	os.Setenv(kubernetesServicePortEnvVar, "443")
+
+	appName := "ingressaffectssparkconfig"
+
+	app := &v1beta2.SparkApplication{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      appName,
+			Namespace: "test",
+		},
+		Spec: v1beta2.SparkApplicationSpec{
+			RestartPolicy: v1beta2.RestartPolicy{
+				Type: v1beta2.Never,
+			},
+			TimeToLiveSeconds: int64ptr(1),
+		},
+		Status: v1beta2.SparkApplicationStatus{},
+	}
+
+	ctrl, _ := newFakeController(app)
+	ctrl.ingressURLFormat = "example.com/{{$appNamespace}}/{{$appName}}"
+	ctrl.enableUIService = true
+	_, err := ctrl.crdClient.SparkoperatorV1beta2().SparkApplications(app.Namespace).Create(context.TODO(), app, metav1.CreateOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = ctrl.syncSparkApplication(fmt.Sprintf("%s/%s", app.Namespace, app.Name))
+	assert.Nil(t, err)
+	deployedApp, err := ctrl.crdClient.SparkoperatorV1beta2().SparkApplications(app.Namespace).Get(context.TODO(), app.Name, metav1.GetOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	ingresses, err := ctrl.kubeClient.ExtensionsV1beta1().Ingresses(app.Namespace).List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ingresses.Items[0].Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Path != "/"+app.Namespace+"/"+app.Name+"(/|$)(.*)" {
+		t.Fatal("The ingress subpath was not created successfully.")
+	}
+	// The controller doesn't sync changes to the sparkConf performed by submitSparkApplication back to the kubernetes API server.
+	if deployedApp.Spec.SparkConf["spark.ui.proxyBase"] != "/"+app.Namespace+"/"+app.Name {
+		t.Log("The spark configuration does not reflect the subpath expected by the ingress")
+	}
+	if deployedApp.Spec.SparkConf["spark.ui.proxyRedirectUri"] != "/" {
+		t.Log("The spark configuration does not reflect the proxyRedirectUri expected by the ingress")
+	}
+}
+
 func stringptr(s string) *string {
 	return &s
 }

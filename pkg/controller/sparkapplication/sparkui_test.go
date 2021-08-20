@@ -381,9 +381,13 @@ func TestCreateSparkUIIngress(t *testing.T) {
 			t.Errorf("No Ingress rules found.")
 		}
 		ingressRule := ingress.Spec.Rules[0]
-		//ingress URL is same as Host and Path combined from k8s ingress
+		// If we have a path, then the ingress adds capture groups
+		if ingressRule.IngressRuleValue.HTTP.Paths[0].Path != "" && ingressRule.IngressRuleValue.HTTP.Paths[0].Path != "/" {
+			test.expectedIngress.ingressURL.Path = test.expectedIngress.ingressURL.Path + "(/|$)(.*)"
+		}
 		if ingressRule.Host+ingressRule.IngressRuleValue.HTTP.Paths[0].Path != test.expectedIngress.ingressURL.Host+test.expectedIngress.ingressURL.Path {
-			t.Errorf("Ingress of app %s has the wrong host %s", test.expectedIngress.ingressURL, ingressRule.Host)
+
+			t.Errorf("Ingress of app %s has the wrong host %s", ingressRule.Host+ingressRule.IngressRuleValue.HTTP.Paths[0].Path, test.expectedIngress.ingressURL.Host+test.expectedIngress.ingressURL.Path)
 		}
 
 		if len(ingressRule.IngressRuleValue.HTTP.Paths) != 1 {
@@ -551,6 +555,9 @@ func TestCreateSparkUIIngress(t *testing.T) {
 			expectedIngress: SparkIngress{
 				ingressName: fmt.Sprintf("%s-ui-ingress", app1.GetName()),
 				ingressURL:  parseURLAndAssertError("ingress.clusterName.com/"+app1.GetNamespace()+"/"+app1.GetName(), t),
+				annotations: map[string]string{
+					"nginx.ingress.kubernetes.io/rewrite-target": "/$2",
+				},
 			},
 			expectError: false,
 		},

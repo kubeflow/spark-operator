@@ -83,9 +83,9 @@ func createSparkUIIngress(app *v1beta2.SparkApplication, service SparkService, i
 	ingressResourceAnnotations := getIngressResourceAnnotations(app)
 	ingressTlsHosts := getIngressTlsHosts(app)
 
-	var ingressURLPath = ingressURL.Path
+	ingressURLPath := ingressURL.Path
 	// If we're serving on a subpath, we need to ensure we create capture groups
-	if ingressURL.Path != "/" {
+	if ingressURLPath != "" && ingressURLPath != "/" {
 		ingressURLPath = ingressURLPath + "(/|$)(.*)"
 	}
 
@@ -122,7 +122,7 @@ func createSparkUIIngress(app *v1beta2.SparkApplication, service SparkService, i
 	}
 
 	// If we're serving on a subpath, we need to ensure we use the capture groups
-	if ingressURL.Path != "/" {
+	if ingressURL.Path != "" && ingressURL.Path != "/" {
 		if ingress.ObjectMeta.Annotations == nil {
 			ingress.ObjectMeta.Annotations = make(map[string]string)
 		}
