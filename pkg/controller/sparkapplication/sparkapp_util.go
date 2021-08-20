@@ -138,7 +138,11 @@ func getDriverContainerTerminatedState(podStatus apiv1.PodStatus) *apiv1.Contain
 }
 
 func getExecutorContainerTerminatedState(podStatus apiv1.PodStatus) *apiv1.ContainerStateTerminated {
-	return getContainerTerminatedState(config.SparkExecutorContainerName, podStatus)
+	state := getContainerTerminatedState(config.Spark3DefaultExecutorContainerName, podStatus)
+	if state == nil {
+		state = getContainerTerminatedState(config.SparkExecutorContainerName, podStatus)
+	}
+	return state
 }
 
 func getContainerTerminatedState(name string, podStatus apiv1.PodStatus) *apiv1.ContainerStateTerminated {
