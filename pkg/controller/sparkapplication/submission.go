@@ -374,6 +374,11 @@ func addExecutorConfOptions(app *v1beta2.SparkApplication, submissionID string) 
 			fmt.Sprintf("spark.executor.memoryOverhead=%s", *app.Spec.Executor.MemoryOverhead))
 	}
 
+	if app.Spec.Executor.ServiceAccount != nil {
+		executorConfOptions = append(executorConfOptions,
+			fmt.Sprintf("%s=%s", config.SparkExecutorAccountName, *app.Spec.Executor.ServiceAccount))
+	}
+
 	if app.Spec.Executor.DeleteOnTermination != nil {
 		executorConfOptions = append(executorConfOptions,
 			fmt.Sprintf("%s=%t", config.SparkExecutorDeleteOnTermination, *app.Spec.Executor.DeleteOnTermination))

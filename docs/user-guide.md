@@ -185,6 +185,7 @@ spec:
     memory: 512m
     labels:
       version: 3.1.1
+    serviceAccount: spark
 ```
 
 ### Specifying Extra Java Options
@@ -271,6 +272,7 @@ spec:
     cores: 1
     instances: 1
     memory: "512m"
+    serviceAccount: spark
     gpu:
       name: "nvidia.com/gpu"
       quantity: 1

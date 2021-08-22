@@ -12,6 +12,7 @@ For a more detailed guide on how to use, compose, and work with `SparkApplicatio
   - [Upgrade](#upgrade)
   - [About the Spark Job Namespace](#about-the-spark-job-namespace)
   - [About the Service Account for Driver Pods](#about-the-service-account-for-driver-pods)
+  - [About the Service Account for Executor Pods](#about-the-service-account-for-executor-pods)
   - [Enable Metric Exporting to Prometheus](#enable-metric-exporting-to-prometheus)
       - [Spark Application Metrics](#spark-application-metrics)
       - [Work Queue Metrics](#work-queue-metrics)
@@ -174,6 +175,10 @@ The Spark Operator uses the Spark Job Namespace to identify and filter relevant 
 ## About the Service Account for Driver Pods
 
 A Spark driver pod need a Kubernetes service account in the pod's namespace that has permissions to create, get, list, and delete executor pods, and create a Kubernetes headless service for the driver. The driver will fail and exit without the service account, unless the default service account in the pod's namespace has the needed permissions. To submit and run a `SparkApplication` in a namespace, please make sure there is a service account with the permissions in the namespace and set `.spec.driver.serviceAccount` to the name of the service account. Please refer to [spark-rbac.yaml](../manifest/spark-rbac.yaml) for an example RBAC setup that creates a driver service account named `spark` in the `default` namespace, with a RBAC role binding giving the service account the needed permissions.
+
+## About the Service Account for Executor Pods
+
+A Spark executor pod may be configured with a Kubernetes service account in the pod namespace. To submit and run a `SparkApplication` in a namespace, please make sure there is a service account with the permissions required in the namespace and set `.spec.executor.serviceAccount` to the name of the service account.
 
 ## Enable Metric Exporting to Prometheus
 
