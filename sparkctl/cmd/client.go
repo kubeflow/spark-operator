@@ -17,6 +17,7 @@ limitations under the License.
 package cmd
 
 import (
+	"context"
 	"os"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -31,7 +32,7 @@ import (
 func buildConfig(kubeConfig string) (*rest.Config, error) {
 	// Check if kubeConfig exist
 	if _, err := os.Stat(kubeConfig); os.IsNotExist(err) {
-		// Try InclusterConfig for sparkctl running in a pod
+		// Try InClusterConfig for sparkctl running in a pod
 		config, err := rest.InClusterConfig()
 		if err != nil {
 			return nil, err
@@ -68,7 +69,7 @@ func getSparkApplicationClientForConfig(config *rest.Config) (crdclientset.Inter
 }
 
 func getSparkApplication(name string, crdClientset crdclientset.Interface) (*v1beta2.SparkApplication, error) {
-	app, err := crdClientset.SparkoperatorV1beta2().SparkApplications(Namespace).Get(name, metav1.GetOptions{})
+	app, err := crdClientset.SparkoperatorV1beta2().SparkApplications(Namespace).Get(context.TODO(), name, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}

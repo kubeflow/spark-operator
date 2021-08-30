@@ -28,8 +28,10 @@ import (
 )
 
 // SparkApplicationLister helps list SparkApplications.
+// All objects returned here must be treated as read-only.
 type SparkApplicationLister interface {
 	// List lists all SparkApplications in the indexer.
+	// Objects returned here must be treated as read-only.
 	List(selector labels.Selector) (ret []*v1beta1.SparkApplication, err error)
 	// SparkApplications returns an object that can list and get SparkApplications.
 	SparkApplications(namespace string) SparkApplicationNamespaceLister
@@ -60,10 +62,13 @@ func (s *sparkApplicationLister) SparkApplications(namespace string) SparkApplic
 }
 
 // SparkApplicationNamespaceLister helps list and get SparkApplications.
+// All objects returned here must be treated as read-only.
 type SparkApplicationNamespaceLister interface {
 	// List lists all SparkApplications in the indexer for a given namespace.
+	// Objects returned here must be treated as read-only.
 	List(selector labels.Selector) (ret []*v1beta1.SparkApplication, err error)
 	// Get retrieves the SparkApplication from the indexer for a given namespace and name.
+	// Objects returned here must be treated as read-only.
 	Get(name string) (*v1beta1.SparkApplication, error)
 	SparkApplicationNamespaceListerExpansion
 }

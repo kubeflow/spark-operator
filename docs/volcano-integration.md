@@ -15,8 +15,8 @@ same environment, please refer [Quick Start Guide](https://github.com/volcano-sh
 
 Within the help of Helm chart, Kubernetes Operator for Apache Spark with Volcano can be easily installed with the command below:
 ```bash
-$ helm repo add incubator http://storage.googleapis.com/kubernetes-charts-incubator
-$ helm install incubator/sparkoperator --namespace spark-operator --set enableBatchScheduler=true --set enableWebhook=true
+$ helm repo add spark-operator https://googlecloudplatform.github.io/spark-on-k8s-operator
+$ helm install my-release spark-operator/spark-operator --namespace spark-operator --set enableBatchScheduler=true --set enableWebhook=true
 ```
 
 # Run Spark Application with Volcano scheduler
@@ -31,11 +31,11 @@ metadata:
 spec:
   type: Scala
   mode: cluster
-  image: "gcr.io/spark-operator/spark:v3.0.0"
+  image: "gcr.io/spark-operator/spark:v3.1.1"
   imagePullPolicy: Always
   mainClass: org.apache.spark.examples.SparkPi
-  mainApplicationFile: "local:///opt/spark/examples/jars/spark-examples_2.12-3.0.0.jar"
-  sparkVersion: "3.0.0"
+  mainApplicationFile: "local:///opt/spark/examples/jars/spark-examples_2.12-v3.1.1.jar"
+  sparkVersion: "3.1.1"
   batchScheduler: "volcano"   #Note: the batch scheduler name must be specified with `volcano`
   restartPolicy:
     type: Never
@@ -49,7 +49,7 @@ spec:
     coreLimit: "1200m"
     memory: "512m"        
     labels:
-      version: 3.0.0
+      version: 3.1.1
     serviceAccount: spark
     volumeMounts:
       - name: "test-volume"
@@ -59,7 +59,7 @@ spec:
     instances: 1
     memory: "512m"    
     labels:
-      version: 3.0.0
+      version: 3.1.1
     volumeMounts:
       - name: "test-volume"
         mountPath: "/tmp"

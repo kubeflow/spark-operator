@@ -21,6 +21,8 @@ limitations under the License.
 package fake
 
 import (
+	"context"
+
 	v1beta2 "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta2"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
@@ -41,7 +43,7 @@ var sparkapplicationsResource = schema.GroupVersionResource{Group: "sparkoperato
 var sparkapplicationsKind = schema.GroupVersionKind{Group: "sparkoperator.k8s.io", Version: "v1beta2", Kind: "SparkApplication"}
 
 // Get takes name of the sparkApplication, and returns the corresponding sparkApplication object, and an error if there is any.
-func (c *FakeSparkApplications) Get(name string, options v1.GetOptions) (result *v1beta2.SparkApplication, err error) {
+func (c *FakeSparkApplications) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1beta2.SparkApplication, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewGetAction(sparkapplicationsResource, c.ns, name), &v1beta2.SparkApplication{})
 
@@ -52,7 +54,7 @@ func (c *FakeSparkApplications) Get(name string, options v1.GetOptions) (result 
 }
 
 // List takes label and field selectors, and returns the list of SparkApplications that match those selectors.
-func (c *FakeSparkApplications) List(opts v1.ListOptions) (result *v1beta2.SparkApplicationList, err error) {
+func (c *FakeSparkApplications) List(ctx context.Context, opts v1.ListOptions) (result *v1beta2.SparkApplicationList, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewListAction(sparkapplicationsResource, sparkapplicationsKind, c.ns, opts), &v1beta2.SparkApplicationList{})
 
@@ -74,14 +76,14 @@ func (c *FakeSparkApplications) List(opts v1.ListOptions) (result *v1beta2.Spark
 }
 
 // Watch returns a watch.Interface that watches the requested sparkApplications.
-func (c *FakeSparkApplications) Watch(opts v1.ListOptions) (watch.Interface, error) {
+func (c *FakeSparkApplications) Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
 	return c.Fake.
 		InvokesWatch(testing.NewWatchAction(sparkapplicationsResource, c.ns, opts))
 
 }
 
 // Create takes the representation of a sparkApplication and creates it.  Returns the server's representation of the sparkApplication, and an error, if there is any.
-func (c *FakeSparkApplications) Create(sparkApplication *v1beta2.SparkApplication) (result *v1beta2.SparkApplication, err error) {
+func (c *FakeSparkApplications) Create(ctx context.Context, sparkApplication *v1beta2.SparkApplication, opts v1.CreateOptions) (result *v1beta2.SparkApplication, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewCreateAction(sparkapplicationsResource, c.ns, sparkApplication), &v1beta2.SparkApplication{})
 
@@ -92,7 +94,7 @@ func (c *FakeSparkApplications) Create(sparkApplication *v1beta2.SparkApplicatio
 }
 
 // Update takes the representation of a sparkApplication and updates it. Returns the server's representation of the sparkApplication, and an error, if there is any.
-func (c *FakeSparkApplications) Update(sparkApplication *v1beta2.SparkApplication) (result *v1beta2.SparkApplication, err error) {
+func (c *FakeSparkApplications) Update(ctx context.Context, sparkApplication *v1beta2.SparkApplication, opts v1.UpdateOptions) (result *v1beta2.SparkApplication, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewUpdateAction(sparkapplicationsResource, c.ns, sparkApplication), &v1beta2.SparkApplication{})
 
@@ -104,7 +106,7 @@ func (c *FakeSparkApplications) Update(sparkApplication *v1beta2.SparkApplicatio
 
 // UpdateStatus was generated because the type contains a Status member.
 // Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
-func (c *FakeSparkApplications) UpdateStatus(sparkApplication *v1beta2.SparkApplication) (*v1beta2.SparkApplication, error) {
+func (c *FakeSparkApplications) UpdateStatus(ctx context.Context, sparkApplication *v1beta2.SparkApplication, opts v1.UpdateOptions) (*v1beta2.SparkApplication, error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewUpdateSubresourceAction(sparkapplicationsResource, "status", c.ns, sparkApplication), &v1beta2.SparkApplication{})
 
@@ -115,7 +117,7 @@ func (c *FakeSparkApplications) UpdateStatus(sparkApplication *v1beta2.SparkAppl
 }
 
 // Delete takes name of the sparkApplication and deletes it. Returns an error if one occurs.
-func (c *FakeSparkApplications) Delete(name string, options *v1.DeleteOptions) error {
+func (c *FakeSparkApplications) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
 	_, err := c.Fake.
 		Invokes(testing.NewDeleteAction(sparkapplicationsResource, c.ns, name), &v1beta2.SparkApplication{})
 
@@ -123,15 +125,15 @@ func (c *FakeSparkApplications) Delete(name string, options *v1.DeleteOptions) e
 }
 
 // DeleteCollection deletes a collection of objects.
-func (c *FakeSparkApplications) DeleteCollection(options *v1.DeleteOptions, listOptions v1.ListOptions) error {
-	action := testing.NewDeleteCollectionAction(sparkapplicationsResource, c.ns, listOptions)
+func (c *FakeSparkApplications) DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error {
+	action := testing.NewDeleteCollectionAction(sparkapplicationsResource, c.ns, listOpts)
 
 	_, err := c.Fake.Invokes(action, &v1beta2.SparkApplicationList{})
 	return err
 }
 
 // Patch applies the patch and returns the patched sparkApplication.
-func (c *FakeSparkApplications) Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *v1beta2.SparkApplication, err error) {
+func (c *FakeSparkApplications) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1beta2.SparkApplication, err error) {
 	obj, err := c.Fake.
 		Invokes(testing.NewPatchSubresourceAction(sparkapplicationsResource, c.ns, name, pt, data, subresources...), &v1beta2.SparkApplication{})
 

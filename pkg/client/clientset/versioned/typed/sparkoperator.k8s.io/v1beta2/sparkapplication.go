@@ -21,6 +21,7 @@ limitations under the License.
 package v1beta2
 
 import (
+	"context"
 	"time"
 
 	v1beta2 "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta2"
@@ -39,15 +40,15 @@ type SparkApplicationsGetter interface {
 
 // SparkApplicationInterface has methods to work with SparkApplication resources.
 type SparkApplicationInterface interface {
-	Create(*v1beta2.SparkApplication) (*v1beta2.SparkApplication, error)
-	Update(*v1beta2.SparkApplication) (*v1beta2.SparkApplication, error)
-	UpdateStatus(*v1beta2.SparkApplication) (*v1beta2.SparkApplication, error)
-	Delete(name string, options *v1.DeleteOptions) error
-	DeleteCollection(options *v1.DeleteOptions, listOptions v1.ListOptions) error
-	Get(name string, options v1.GetOptions) (*v1beta2.SparkApplication, error)
-	List(opts v1.ListOptions) (*v1beta2.SparkApplicationList, error)
-	Watch(opts v1.ListOptions) (watch.Interface, error)
-	Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *v1beta2.SparkApplication, err error)
+	Create(ctx context.Context, sparkApplication *v1beta2.SparkApplication, opts v1.CreateOptions) (*v1beta2.SparkApplication, error)
+	Update(ctx context.Context, sparkApplication *v1beta2.SparkApplication, opts v1.UpdateOptions) (*v1beta2.SparkApplication, error)
+	UpdateStatus(ctx context.Context, sparkApplication *v1beta2.SparkApplication, opts v1.UpdateOptions) (*v1beta2.SparkApplication, error)
+	Delete(ctx context.Context, name string, opts v1.DeleteOptions) error
+	DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error
+	Get(ctx context.Context, name string, opts v1.GetOptions) (*v1beta2.SparkApplication, error)
+	List(ctx context.Context, opts v1.ListOptions) (*v1beta2.SparkApplicationList, error)
+	Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error)
+	Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1beta2.SparkApplication, err error)
 	SparkApplicationExpansion
 }
 
@@ -66,20 +67,20 @@ func newSparkApplications(c *SparkoperatorV1beta2Client, namespace string) *spar
 }
 
 // Get takes name of the sparkApplication, and returns the corresponding sparkApplication object, and an error if there is any.
-func (c *sparkApplications) Get(name string, options v1.GetOptions) (result *v1beta2.SparkApplication, err error) {
+func (c *sparkApplications) Get(ctx context.Context, name string, options v1.GetOptions) (result *v1beta2.SparkApplication, err error) {
 	result = &v1beta2.SparkApplication{}
 	err = c.client.Get().
 		Namespace(c.ns).
 		Resource("sparkapplications").
 		Name(name).
 		VersionedParams(&options, scheme.ParameterCodec).
-		Do().
+		Do(ctx).
 		Into(result)
 	return
 }
 
 // List takes label and field selectors, and returns the list of SparkApplications that match those selectors.
-func (c *sparkApplications) List(opts v1.ListOptions) (result *v1beta2.SparkApplicationList, err error) {
+func (c *sparkApplications) List(ctx context.Context, opts v1.ListOptions) (result *v1beta2.SparkApplicationList, err error) {
 	var timeout time.Duration
 	if opts.TimeoutSeconds != nil {
 		timeout = time.Duration(*opts.TimeoutSeconds) * time.Second
@@ -90,13 +91,13 @@ func (c *sparkApplications) List(opts v1.ListOptions) (result *v1beta2.SparkAppl
 		Resource("sparkapplications").
 		VersionedParams(&opts, scheme.ParameterCodec).
 		Timeout(timeout).
-		Do().
+		Do(ctx).
 		Into(result)
 	return
 }
 
 // Watch returns a watch.Interface that watches the requested sparkApplications.
-func (c *sparkApplications) Watch(opts v1.ListOptions) (watch.Interface, error) {
+func (c *sparkApplications) Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
 	var timeout time.Duration
 	if opts.TimeoutSeconds != nil {
 		timeout = time.Duration(*opts.TimeoutSeconds) * time.Second
@@ -107,87 +108,90 @@ func (c *sparkApplications) Watch(opts v1.ListOptions) (watch.Interface, error) 
 		Resource("sparkapplications").
 		VersionedParams(&opts, scheme.ParameterCodec).
 		Timeout(timeout).
-		Watch()
+		Watch(ctx)
 }
 
 // Create takes the representation of a sparkApplication and creates it.  Returns the server's representation of the sparkApplication, and an error, if there is any.
-func (c *sparkApplications) Create(sparkApplication *v1beta2.SparkApplication) (result *v1beta2.SparkApplication, err error) {
+func (c *sparkApplications) Create(ctx context.Context, sparkApplication *v1beta2.SparkApplication, opts v1.CreateOptions) (result *v1beta2.SparkApplication, err error) {
 	result = &v1beta2.SparkApplication{}
 	err = c.client.Post().
 		Namespace(c.ns).
 		Resource("sparkapplications").
+		VersionedParams(&opts, scheme.ParameterCodec).
 		Body(sparkApplication).
-		Do().
+		Do(ctx).
 		Into(result)
 	return
 }
 
 // Update takes the representation of a sparkApplication and updates it. Returns the server's representation of the sparkApplication, and an error, if there is any.
-func (c *sparkApplications) Update(sparkApplication *v1beta2.SparkApplication) (result *v1beta2.SparkApplication, err error) {
+func (c *sparkApplications) Update(ctx context.Context, sparkApplication *v1beta2.SparkApplication, opts v1.UpdateOptions) (result *v1beta2.SparkApplication, err error) {
 	result = &v1beta2.SparkApplication{}
 	err = c.client.Put().
 		Namespace(c.ns).
 		Resource("sparkapplications").
 		Name(sparkApplication.Name).
+		VersionedParams(&opts, scheme.ParameterCodec).
 		Body(sparkApplication).
-		Do().
+		Do(ctx).
 		Into(result)
 	return
 }
 
 // UpdateStatus was generated because the type contains a Status member.
 // Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
-
-func (c *sparkApplications) UpdateStatus(sparkApplication *v1beta2.SparkApplication) (result *v1beta2.SparkApplication, err error) {
+func (c *sparkApplications) UpdateStatus(ctx context.Context, sparkApplication *v1beta2.SparkApplication, opts v1.UpdateOptions) (result *v1beta2.SparkApplication, err error) {
 	result = &v1beta2.SparkApplication{}
 	err = c.client.Put().
 		Namespace(c.ns).
 		Resource("sparkapplications").
 		Name(sparkApplication.Name).
 		SubResource("status").
+		VersionedParams(&opts, scheme.ParameterCodec).
 		Body(sparkApplication).
-		Do().
+		Do(ctx).
 		Into(result)
 	return
 }
 
 // Delete takes name of the sparkApplication and deletes it. Returns an error if one occurs.
-func (c *sparkApplications) Delete(name string, options *v1.DeleteOptions) error {
+func (c *sparkApplications) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
 	return c.client.Delete().
 		Namespace(c.ns).
 		Resource("sparkapplications").
 		Name(name).
-		Body(options).
-		Do().
+		Body(&opts).
+		Do(ctx).
 		Error()
 }
 
 // DeleteCollection deletes a collection of objects.
-func (c *sparkApplications) DeleteCollection(options *v1.DeleteOptions, listOptions v1.ListOptions) error {
+func (c *sparkApplications) DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error {
 	var timeout time.Duration
-	if listOptions.TimeoutSeconds != nil {
-		timeout = time.Duration(*listOptions.TimeoutSeconds) * time.Second
+	if listOpts.TimeoutSeconds != nil {
+		timeout = time.Duration(*listOpts.TimeoutSeconds) * time.Second
 	}
 	return c.client.Delete().
 		Namespace(c.ns).
 		Resource("sparkapplications").
-		VersionedParams(&listOptions, scheme.ParameterCodec).
+		VersionedParams(&listOpts, scheme.ParameterCodec).
 		Timeout(timeout).
-		Body(options).
-		Do().
+		Body(&opts).
+		Do(ctx).
 		Error()
 }
 
 // Patch applies the patch and returns the patched sparkApplication.
-func (c *sparkApplications) Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *v1beta2.SparkApplication, err error) {
+func (c *sparkApplications) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *v1beta2.SparkApplication, err error) {
 	result = &v1beta2.SparkApplication{}
 	err = c.client.Patch(pt).
 		Namespace(c.ns).
 		Resource("sparkapplications").
-		SubResource(subresources...).
 		Name(name).
+		SubResource(subresources...).
+		VersionedParams(&opts, scheme.ParameterCodec).
 		Body(data).
-		Do().
+		Do(ctx).
 		Into(result)
 	return
 }

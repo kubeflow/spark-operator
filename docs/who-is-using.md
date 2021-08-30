@@ -1,10 +1,10 @@
 ## Who Is Using the Kubernetes Operator for Apache Spark?
 
-| Organization | Contact (Github User Name) | Environment | Description of Use |
+| Organization | Contact (GitHub User Name) | Environment | Description of Use |
 | ------------- | ------------- | ------------- | ------------- |
 | [Caicloud](https://intl.caicloud.io/) | @gaocegege | Production | Cloud-Native AI Platform |
-| Microsoft (MileIQ) |@dharmeshkakadia| Production | AI & Analytics |
-| Lightbend |@yuchaoran2011| Production | Data Infrastructure & Operations |
+| Microsoft (MileIQ) | @dharmeshkakadia | Production | AI & Analytics |
+| Lightbend | @yuchaoran2011 | Production | Data Infrastructure & Operations |
 | StackTome | @emiliauskas-fuzzy | Production | Data pipelines |
 | Salesforce | @khogeland | Production | Data transformation |
 | Bringg | @EladDolev | Production | ML & Analytics Data Platform |
@@ -26,4 +26,14 @@
 | [Beeline](https://beeline.ru) | @spestua | Evaluation | ML & Data Infrastructure |
 | [Stitch Fix](https://multithreaded.stitchfix.com/) | @nssalian | Evaluation | Data pipelines |
 | [Typeform](https://typeform.com/) | @afranzi | Production | Data & ML pipelines |
-| incrmntal(https://incrmntal.com/) | @scravy | Production | ML & Data Infrastructure | 
+| incrmntal(https://incrmntal.com/) | @scravy | Production | ML & Data Infrastructure |
+| [CloudPhysics](https://www.cloudphysics.com) | @jkleckner | Production | ML/AI & Analytics |
+| [MongoDB](https://www.mongodb.com) | @chickenpopcorn | Production | Data Infrastructure |
+| [MavenCode](https://www.mavencode.com) | @charlesa101 | Production | MLOps & Data Infrastructure |
+| [Gojek](https://www.gojek.io/) | @pradithya | Production | Machine Learning Platform |
+| Fossil | @duyet | Production | Data Platform |
+| Carrefour | @AliGouta | Production | Data Platform |
+| Scaling Smart | @tarek-izemrane | Evaluation | Data Platform |
+| [Tongdun](https://www.tongdun.net/) | @lomoJG | Production | AI/ML & Analytics |
+| [Totvs Labs](https://www.totvslabs.com) | @luizm | Production | Data Platform |
+| [DiDi](https://www.didiglobal.com) | @Run-Lin | Evaluation | Data Infrastructure |

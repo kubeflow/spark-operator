@@ -120,7 +120,7 @@ func TestSetSparkApplicationDefaultsOnFailureRestartPolicyShouldSetDefaultValueF
 	assert.Equal(t, int64(5), *app.Spec.RestartPolicy.OnSubmissionFailureRetryInterval)
 }
 
-func TestSetSparkApplicationDefaultslDriverSpecDefaults(t *testing.T) {
+func TestSetSparkApplicationDefaultsDriverSpecDefaults(t *testing.T) {
 
 	//Case1: Driver config not set.
 	app := &SparkApplication{
@@ -156,7 +156,7 @@ func TestSetSparkApplicationDefaultslDriverSpecDefaults(t *testing.T) {
 	assert.Nil(t, app.Spec.Driver.Memory)
 }
 
-func TestSetSparkApplicationDefaultslExecutorSpecDefaults(t *testing.T) {
+func TestSetSparkApplicationDefaultsExecutorSpecDefaults(t *testing.T) {
 	//Case1: Executor config not set.
 	app := &SparkApplication{
 		Spec: SparkApplicationSpec{},

@@ -10,7 +10,7 @@ The easiest way to build the operator without worrying about its dependencies is
 $ docker build -t <image-tag> .
 ```
 
-The operator image is built upon a base Spark image that defaults to `gcr.io/spark-operator/spark:v3.0.0`. If you want to use your own Spark image (e.g., an image with a different version of Spark or some custom dependencies), specify the argument `SPARK_IMAGE` as the following example shows: 
+The operator image is built upon a base Spark image that defaults to `gcr.io/spark-operator/spark:v3.1.1`. If you want to use your own Spark image (e.g., an image with a different version of Spark or some custom dependencies), specify the argument `SPARK_IMAGE` as the following example shows: 
 
 ```bash
 $ docker build --build-arg SPARK_IMAGE=<your Spark image> -t <image-tag> .
@@ -38,11 +38,11 @@ To update the auto-generated code, run the following command. (This step is only
 $ hack/update-codegen.sh
 ```
 
-To update the auto-generated CRD definitions, run the following command:
+To update the auto-generated CRD definitions, run the following command. After doing so, you must update the list of required fields under each `ports` field to add the `protocol` field to the list. Skipping this step will make the CRDs incompatible with Kubernetes v1.18+.
 
 ```bash
 $ GO111MODULE=off go get -u sigs.k8s.io/controller-tools/cmd/controller-gen
-$ controller-gen crd:trivialVersions=true,maxDescLen=0 paths="./pkg/apis/sparkoperator.k8s.io/v1beta2" output:crd:artifacts:config=./manifest/crds/
+$ controller-gen crd:trivialVersions=true,maxDescLen=0,crdVersions=v1beta1 paths="./pkg/apis/sparkoperator.k8s.io/v1beta2" output:crd:artifacts:config=./manifest/crds/
 ```
 
 You can verify the current auto-generated code is up to date with:

@@ -32,6 +32,9 @@ spec:
     {{- end }}
       labels:
         {{- include "spark-operator.selectorLabels" . | nindent 8 }}
+        {{- with .Values.podLabels }}
+          {{- toYaml . | trim | nindent 8 }}
+        {{- end }}
     spec:
       serviceAccountName: {{ include "spark-operator.serviceAccountName" . }}
       {{- with .Values.imagePullSecrets }}
@@ -48,17 +51,19 @@ spec:
           {{- toYaml .Values.securityContext | nindent 10 }}
         {{- if .Values.metrics.enable }}
         ports:
-          - name: metrics
+          - name: {{ .Values.metrics.portName | quote }}
             containerPort: {{ .Values.metrics.port }}
         {{ end }}
         args:
         - -v={{ .Values.logLevel }}
         - -logtostderr
         - -namespace={{ .Values.sparkJobNamespace }}
+        - -enable-ui-service={{ .Values.uiService.enable}}
         - -ingress-url-format={{ .Values.ingressUrlFormat }}
         - -controller-threads={{ .Values.controllerThreads }}
         - -resync-interval={{ .Values.resyncInterval }}
         - -enable-batch-scheduler={{ .Values.batchScheduler.enable }}
+        - -label-selector-filter={{ .Values.labelSelectorFilter }}
         {{- if .Values.metrics.enable }}
         - -enable-metrics=true
         - -metrics-labels=app_type
@@ -89,7 +94,7 @@ spec:
       volumes:
         - name: webhook-certs
           secret:
-            secretName: spark-webhook-certs
+            secretName: {{ include "spark-operator.fullname" . }}-webhook-certs
       {{- end }}
       {{- with .Values.nodeSelector }}
       nodeSelector:

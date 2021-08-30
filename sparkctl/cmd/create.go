@@ -40,12 +40,13 @@ import (
 )
 
 const bufferSize = 1024
-const rootPath = "spark-app-dependencies"
 
+var RootPath string
 var UploadToPath string
 var UploadToEndpoint string
 var UploadToRegion string
 var Public bool
+var S3ForcePathStyle bool
 var Override bool
 var From string
 
@@ -90,13 +91,17 @@ var createCmd = &cobra.Command{
 
 func init() {
 	createCmd.Flags().StringVarP(&UploadToPath, "upload-to", "u", "",
-		"a URL of the remote location where local application dependencies are to be uploaded to")
+		"the name of the bucket where local application dependencies are to be uploaded")
+	createCmd.Flags().StringVarP(&RootPath, "upload-prefix", "p", "",
+		"the prefix to use for the dependency uploads")
 	createCmd.Flags().StringVarP(&UploadToRegion, "upload-to-region", "r", "",
 		"the GCS or S3 storage region for the bucket")
 	createCmd.Flags().StringVarP(&UploadToEndpoint, "upload-to-endpoint", "e",
 		"https://storage.googleapis.com", "the GCS or S3 storage api endpoint url")
 	createCmd.Flags().BoolVarP(&Public, "public", "c", false,
 		"whether to make uploaded files publicly available")
+	createCmd.Flags().BoolVar(&S3ForcePathStyle, "s3-force-path-style", false,
+		"whether to force path style URLs for S3 objects")
 	createCmd.Flags().BoolVarP(&Override, "override", "o", false,
 		"whether to override remote files with the same names")
 	createCmd.Flags().StringVarP(&From, "from", "f", "",
@@ -117,7 +122,7 @@ func createFromYaml(yamlFile string, kubeClient clientset.Interface, crdClient c
 }
 
 func createFromScheduledSparkApplication(name string, kubeClient clientset.Interface, crdClient crdclientset.Interface) error {
-	sapp, err := crdClient.SparkoperatorV1beta2().ScheduledSparkApplications(Namespace).Get(From, metav1.GetOptions{})
+	sapp, err := crdClient.SparkoperatorV1beta2().ScheduledSparkApplications(Namespace).Get(context.TODO(), From, metav1.GetOptions{})
 	if err != nil {
 		return fmt.Errorf("failed to get ScheduledSparkApplication %s: %v", From, err)
 	}
@@ -162,7 +167,11 @@ func createSparkApplication(app *v1beta2.SparkApplication, kubeClient clientset.
 		}
 	}
 
-	if _, err := crdClient.SparkoperatorV1beta2().SparkApplications(Namespace).Create(app); err != nil {
+	if _, err := crdClient.SparkoperatorV1beta2().SparkApplications(Namespace).Create(
+		context.TODO(),
+		app,
+		metav1.CreateOptions{},
+	); err != nil {
 		return err
 	}
 
@@ -375,7 +384,7 @@ func uploadLocalDependencies(app *v1beta2.SparkApplication, files []string) ([]s
 	case "gs":
 		uh, err = newGCSBlob(ctx, uploadBucket, UploadToEndpoint, UploadToRegion)
 	case "s3":
-		uh, err = newS3Blob(ctx, uploadBucket, UploadToEndpoint, UploadToRegion)
+		uh, err = newS3Blob(ctx, uploadBucket, UploadToEndpoint, UploadToRegion, S3ForcePathStyle)
 	default:
 		return nil, fmt.Errorf("unsupported upload location URL scheme: %s", uploadLocationUrl.Scheme)
 	}
@@ -386,7 +395,7 @@ func uploadLocalDependencies(app *v1beta2.SparkApplication, files []string) ([]s
 	}
 
 	var uploadedFilePaths []string
-	uploadPath := filepath.Join(rootPath, app.Namespace, app.Name)
+	uploadPath := filepath.Join(RootPath, app.Namespace, app.Name)
 	for _, localFilePath := range files {
 		uploadFilePath, err := uh.uploadToBucket(uploadPath, localFilePath)
 		if err != nil {
@@ -409,12 +418,12 @@ func handleHadoopConfiguration(
 			hadoopConfDir, err)
 	}
 
-	err = kubeClientset.CoreV1().ConfigMaps(Namespace).Delete(configMap.Name, &metav1.DeleteOptions{})
+	err = kubeClientset.CoreV1().ConfigMaps(Namespace).Delete(context.TODO(), configMap.Name, metav1.DeleteOptions{})
 	if err != nil && !errors.IsNotFound(err) {
 		return fmt.Errorf("failed to delete existing ConfigMap %s: %v", configMap.Name, err)
 	}
 
-	if configMap, err = kubeClientset.CoreV1().ConfigMaps(Namespace).Create(configMap); err != nil {
+	if configMap, err = kubeClientset.CoreV1().ConfigMaps(Namespace).Create(context.TODO(), configMap, metav1.CreateOptions{}); err != nil {
 		return fmt.Errorf("failed to create ConfigMap %s: %v", configMap.Name, err)
 	}
 

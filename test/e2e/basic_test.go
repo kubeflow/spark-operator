@@ -17,6 +17,7 @@ limitations under the License.
 package e2e
 
 import (
+	"context"
 	"strings"
 	"testing"
 
@@ -63,7 +64,7 @@ func TestSubmitSparkPiYaml(t *testing.T) {
 
 	app, _ := appFramework.GetSparkApplication(framework.SparkApplicationClient, appFramework.SparkTestNamespace, appName)
 	podName := app.Status.DriverInfo.PodName
-	rawLogs, err := framework.KubeClient.CoreV1().Pods(appFramework.SparkTestNamespace).GetLogs(podName, &v1.PodLogOptions{}).Do().Raw()
+	rawLogs, err := framework.KubeClient.CoreV1().Pods(appFramework.SparkTestNamespace).GetLogs(podName, &v1.PodLogOptions{}).Do(context.TODO()).Raw()
 	assert.Equal(t, nil, err)
 	assert.NotEqual(t, -1, strings.Index(string(rawLogs), "Pi is roughly 3"))
 
@@ -106,7 +107,7 @@ func TestSubmitSparkPiCustomResourceYaml(t *testing.T) {
 
 	app, _ := appFramework.GetSparkApplication(framework.SparkApplicationClient, appFramework.SparkTestNamespace, appName)
 	podName := app.Status.DriverInfo.PodName
-	rawLogs, err := framework.KubeClient.CoreV1().Pods(appFramework.SparkTestNamespace).GetLogs(podName, &v1.PodLogOptions{}).Do().Raw()
+	rawLogs, err := framework.KubeClient.CoreV1().Pods(appFramework.SparkTestNamespace).GetLogs(podName, &v1.PodLogOptions{}).Do(context.TODO()).Raw()
 	assert.Equal(t, nil, err)
 	assert.NotEqual(t, -1, strings.Index(string(rawLogs), "Pi is roughly 3"))
 

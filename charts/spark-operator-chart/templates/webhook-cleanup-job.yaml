@@ -4,8 +4,7 @@ kind: Job
 metadata:
   name: {{ include "spark-operator.fullname" . }}-webhook-cleanup
   annotations:
-    "helm.sh/hook": pre-delete, pre-upgrade
-    "helm.sh/hook-delete-policy": hook-succeeded
+    {{- toYaml .Values.webhook.cleanupAnnotations | nindent 4 }}
   labels:
     {{- include "spark-operator.labels" . | nindent 4 }}
 spec:
@@ -37,7 +36,7 @@ spec:
           -H \"Authorization: Bearer $(cat /var/run/secrets/kubernetes.io/serviceaccount/token)\" \
           -H \"Accept: application/json\" \
           -H \"Content-Type: application/json\" \
-          https://kubernetes.default.svc/api/v1/namespaces/{{ .Release.Namespace }}/secrets/spark-webhook-certs \
+          https://kubernetes.default.svc/api/v1/namespaces/{{ .Release.Namespace }}/secrets/{{ include "spark-operator.fullname" . }}-webhook-certs \
           && \
           curl -ik \
           -X DELETE \

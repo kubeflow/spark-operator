@@ -17,6 +17,7 @@ limitations under the License.
 package framework
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"os"
@@ -33,10 +34,10 @@ import (
 )
 
 // PathToOSFile gets the absolute path from relative path.
-func PathToOSFile(relativPath string) (*os.File, error) {
-	path, err := filepath.Abs(relativPath)
+func PathToOSFile(relativePath string) (*os.File, error) {
+	path, err := filepath.Abs(relativePath)
 	if err != nil {
-		return nil, errors.Wrap(err, fmt.Sprintf("failed generate absolute file path of %s", relativPath))
+		return nil, errors.Wrap(err, fmt.Sprintf("failed generate absolute file path of %s", relativePath))
 	}
 
 	manifest, err := os.Open(path)
@@ -51,7 +52,7 @@ func PathToOSFile(relativPath string) (*os.File, error) {
 // container to pass its readiness check.
 func WaitForPodsReady(kubeClient kubernetes.Interface, namespace string, timeout time.Duration, expectedReplicas int, opts metav1.ListOptions) error {
 	return wait.Poll(time.Second, timeout, func() (bool, error) {
-		pl, err := kubeClient.CoreV1().Pods(namespace).List(opts)
+		pl, err := kubeClient.CoreV1().Pods(namespace).List(context.TODO(), opts)
 		if err != nil {
 			return false, err
 		}
@@ -77,7 +78,7 @@ func WaitForPodsReady(kubeClient kubernetes.Interface, namespace string, timeout
 
 func WaitForPodsRunImage(kubeClient kubernetes.Interface, namespace string, expectedReplicas int, image string, opts metav1.ListOptions) error {
 	return wait.Poll(time.Second, time.Minute*5, func() (bool, error) {
-		pl, err := kubeClient.CoreV1().Pods(namespace).List(opts)
+		pl, err := kubeClient.CoreV1().Pods(namespace).List(context.TODO(), opts)
 		if err != nil {
 			return false, err
 		}
@@ -108,7 +109,7 @@ func WaitForHTTPSuccessStatusCode(timeout time.Duration, url string) error {
 	})
 
 	return errors.Wrap(err, fmt.Sprintf(
-		"waiting for %v to return a successfull status code timed out. Last response from server was: %v",
+		"waiting for %v to return a successful status code timed out. Last response from server was: %v",
 		url,
 		resp,
 	))
@@ -130,7 +131,7 @@ func GetLogs(kubeClient kubernetes.Interface, namespace string, podName, contain
 		Namespace(namespace).
 		Name(podName).SubResource("log").
 		Param("container", containerName).
-		Do().
+		Do(context.TODO()).
 		Raw()
 	if err != nil {
 		return "", err

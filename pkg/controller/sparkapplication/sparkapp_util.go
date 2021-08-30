@@ -57,6 +57,13 @@ func getDriverPodName(app *v1beta2.SparkApplication) string {
 	return fmt.Sprintf("%s-driver", app.Name)
 }
 
+func getUIServiceType(app *v1beta2.SparkApplication) apiv1.ServiceType {
+	if app.Spec.SparkUIOptions != nil && app.Spec.SparkUIOptions.ServiceType != nil {
+		return *app.Spec.SparkUIOptions.ServiceType
+	}
+	return apiv1.ServiceTypeClusterIP
+}
+
 func getDefaultUIServiceName(app *v1beta2.SparkApplication) string {
 	return fmt.Sprintf("%s-ui-svc", app.Name)
 }
@@ -71,6 +78,16 @@ func getResourceLabels(app *v1beta2.SparkApplication) map[string]string {
 		labels[config.SubmissionIDLabel] = app.Status.SubmissionID
 	}
 	return labels
+}
+
+func getServiceAnnotations(app *v1beta2.SparkApplication) map[string]string {
+	serviceAnnotations := map[string]string{}
+	if app.Spec.SparkUIOptions != nil && app.Spec.SparkUIOptions.ServiceAnnotations != nil {
+		for key, value := range app.Spec.SparkUIOptions.ServiceAnnotations {
+			serviceAnnotations[key] = value
+		}
+	}
+	return serviceAnnotations
 }
 
 func getIngressResourceAnnotations(app *v1beta2.SparkApplication) map[string]string {
@@ -117,8 +134,20 @@ func isDriverRunning(app *v1beta2.SparkApplication) bool {
 }
 
 func getDriverContainerTerminatedState(podStatus apiv1.PodStatus) *apiv1.ContainerStateTerminated {
+	return getContainerTerminatedState(config.SparkDriverContainerName, podStatus)
+}
+
+func getExecutorContainerTerminatedState(podStatus apiv1.PodStatus) *apiv1.ContainerStateTerminated {
+	state := getContainerTerminatedState(config.Spark3DefaultExecutorContainerName, podStatus)
+	if state == nil {
+		state = getContainerTerminatedState(config.SparkExecutorContainerName, podStatus)
+	}
+	return state
+}
+
+func getContainerTerminatedState(name string, podStatus apiv1.PodStatus) *apiv1.ContainerStateTerminated {
 	for _, c := range podStatus.ContainerStatuses {
-		if c.Name == config.SparkDriverContainerName {
+		if c.Name == name {
 			if c.State.Terminated != nil {
 				return c.State.Terminated
 			}

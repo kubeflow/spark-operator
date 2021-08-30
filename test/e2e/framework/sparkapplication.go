@@ -17,6 +17,7 @@ limitations under the License.
 package framework
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/pkg/errors"
@@ -42,7 +43,7 @@ func MakeSparkApplicationFromYaml(pathToYaml string) (*v1beta2.SparkApplication,
 }
 
 func CreateSparkApplication(crdclientset crdclientset.Interface, namespace string, sa *v1beta2.SparkApplication) error {
-	_, err := crdclientset.SparkoperatorV1beta2().SparkApplications(namespace).Create(sa)
+	_, err := crdclientset.SparkoperatorV1beta2().SparkApplications(namespace).Create(context.TODO(), sa, metav1.CreateOptions{})
 	if err != nil {
 		return errors.Wrap(err, fmt.Sprintf("failed to create SparkApplication %s", sa.Name))
 	}
@@ -50,7 +51,7 @@ func CreateSparkApplication(crdclientset crdclientset.Interface, namespace strin
 }
 
 func UpdateSparkApplication(crdclientset crdclientset.Interface, namespace string, sa *v1beta2.SparkApplication) error {
-	_, err := crdclientset.SparkoperatorV1beta2().SparkApplications(namespace).Update(sa)
+	_, err := crdclientset.SparkoperatorV1beta2().SparkApplications(namespace).Update(context.TODO(), sa, metav1.UpdateOptions{})
 	if err != nil {
 		return errors.Wrap(err, fmt.Sprintf("failed to update SparkApplication %s", sa.Name))
 	}
@@ -58,7 +59,7 @@ func UpdateSparkApplication(crdclientset crdclientset.Interface, namespace strin
 }
 
 func GetSparkApplication(crdclientset crdclientset.Interface, namespace, name string) (*v1beta2.SparkApplication, error) {
-	sa, err := crdclientset.SparkoperatorV1beta2().SparkApplications(namespace).Get(name, metav1.GetOptions{})
+	sa, err := crdclientset.SparkoperatorV1beta2().SparkApplications(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -66,7 +67,7 @@ func GetSparkApplication(crdclientset crdclientset.Interface, namespace, name st
 }
 
 func DeleteSparkApplication(crdclientset crdclientset.Interface, namespace, name string) error {
-	err := crdclientset.SparkoperatorV1beta2().SparkApplications(namespace).Delete(name, &metav1.DeleteOptions{})
+	err := crdclientset.SparkoperatorV1beta2().SparkApplications(namespace).Delete(context.TODO(), name, metav1.DeleteOptions{})
 	if err != nil {
 		return err
 	}

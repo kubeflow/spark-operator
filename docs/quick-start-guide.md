@@ -4,30 +4,36 @@ For a more detailed guide on how to use, compose, and work with `SparkApplicatio
 [User Guide](user-guide.md). If you are running the Kubernetes Operator for Apache Spark on Google Kubernetes Engine and want to use Google Cloud Storage (GCS) and/or BigQuery for reading/writing data, also refer to the [GCP guide](gcp.md). The Kubernetes Operator for Apache Spark will simply be referred to as the operator for the rest of this guide.
 
 ## Table of Contents
-* [Installation](#installation)
-* [Running the Examples](#running-the-examples)
-* [Configuration](#configuration)
-* [Upgrade](#upgrade)
-* [About the Spark Job Namespace](#about-the-spark-job-namespace)
-* [About the Service Account for Driver Pods](#about-the-service-account-for-driver-pods)
-* [Enable Metric Exporting to Prometheus](#enable-metric-exporting-to-prometheus)
-* [Driver UI Access and Ingress](#driver-ui-access-and-ingress)
-* [About the Mutating Admission Webhook](#about-the-mutating-admission-webhook)
-* [Mutating Admission Webhooks on a private GKE cluster](#mutating-admission-webhooks-on-a-private-gke-cluster)
+- [Quick Start Guide](#quick-start-guide)
+  - [Table of Contents](#table-of-contents)
+  - [Installation](#installation)
+  - [Running the Examples](#running-the-examples)
+  - [Configuration](#configuration)
+  - [Upgrade](#upgrade)
+  - [About the Spark Job Namespace](#about-the-spark-job-namespace)
+  - [About the Service Account for Driver Pods](#about-the-service-account-for-driver-pods)
+  - [About the Service Account for Executor Pods](#about-the-service-account-for-executor-pods)
+  - [Enable Metric Exporting to Prometheus](#enable-metric-exporting-to-prometheus)
+      - [Spark Application Metrics](#spark-application-metrics)
+      - [Work Queue Metrics](#work-queue-metrics)
+  - [Driver UI Access and Ingress](#driver-ui-access-and-ingress)
+  - [About the Mutating Admission Webhook](#about-the-mutating-admission-webhook)
+    - [Mutating Admission Webhooks on a private GKE cluster](#mutating-admission-webhooks-on-a-private-gke-cluster)
 
 ## Installation
 
-To install the operator, use the Helm [chart](https://github.com/helm/charts/tree/master/incubator/sparkoperator).
+To install the operator, use the Helm [chart](../charts/spark-operator-chart).
 
 ```bash
-$ helm repo add incubator http://storage.googleapis.com/kubernetes-charts-incubator
-$ helm install incubator/sparkoperator --namespace spark-operator --set sparkJobNamespace=default
+$ helm repo add spark-operator https://googlecloudplatform.github.io/spark-on-k8s-operator
+
+$ helm install my-release spark-operator/spark-operator --namespace spark-operator --create-namespace
 ```
 
-Installing the chart will create a namespace `spark-operator` if it doesn't exist, and helm will set up RBAC for the operator to run in the namespace. It will also set up RBAC in the `default` namespace for driver pods of your Spark applications to be able to manipulate executor pods. In addition, the chart will create a Deployment in the namespace `spark-operator`. The chart's [Spark Job Namespace](#about-the-spark-job-namespace) is set to `""` by default, in which case it will not set up RBAC. The chart by default does not enable [Mutating Admission Webhook](https://kubernetes.io/docs/reference/access-authn-authz/extensible-admission-controllers/) for Spark pod customization. When enabled, a webhook service and a secret storing the x509 certificate called `spark-webhook-certs` are created for that purpose. To install the operator **with** the mutating admission webhook on a Kubernetes cluster, install the chart with the flag `enableWebhook=true`:
+Installing the chart will create a namespace `spark-operator` if it doesn't exist, and helm will set up RBAC for the operator to run in the namespace. It will also set up RBAC in the `default` namespace for driver pods of your Spark applications to be able to manipulate executor pods. In addition, the chart will create a Deployment in the namespace `spark-operator`. The chart's [Spark Job Namespace](#about-the-spark-job-namespace) is set to `release namespace` by default. The chart by default does not enable [Mutating Admission Webhook](https://kubernetes.io/docs/reference/access-authn-authz/extensible-admission-controllers/) for Spark pod customization. When enabled, a webhook service and a secret storing the x509 certificate called `spark-webhook-certs` are created for that purpose. To install the operator **with** the mutating admission webhook on a Kubernetes cluster, install the chart with the flag `webhook.enable=true`:
 
 ```bash
-$ helm install incubator/sparkoperator --namespace spark-operator --set enableWebhook=true
+$ helm install my-release spark-operator/spark-operator --namespace spark-operator --set webhook.enable=true
 ```
 
 Due to a [known issue](https://cloud.google.com/kubernetes-engine/docs/how-to/role-based-access-control#defining_permissions_in_a_role) in GKE, you will need to first grant yourself cluster-admin privileges before you can create custom roles and role bindings on a GKE cluster versioned 1.6 and up. Run the following command before installing the chart on GKE:
@@ -39,7 +45,7 @@ $ kubectl create clusterrolebinding <user>-cluster-admin-binding --clusterrole=c
 Now you should see the operator running in the cluster by checking the status of the Helm release.
 
 ```bash
-$ helm status <spark-operator-release-name>
+$ helm status --namespace spark-operator my-release
 ```
 
 ## Running the Examples
@@ -53,7 +59,7 @@ $ kubectl apply -f examples/spark-pi.yaml
 Note that `spark-pi.yaml` configures the driver pod to use the `spark` service account to communicate with the Kubernetes API server. You might need to replace it with the appropriate service account before submitting the job. If you installed the operator using the Helm chart and overrode `sparkJobNamespace`, the service account name ends with `-spark` and starts with the Helm release name. For example, if you would like to run your Spark jobs to run in a namespace called `test-ns`, first make sure it already exists, and then install the chart with the command:
 
 ```bash
-$ helm install incubator/sparkoperator --namespace spark-operator --set sparkJobNamespace=test-ns
+$ helm install my-release spark-operator/spark-operator --namespace spark-operator --set sparkJobNamespace=test-ns
 ```
 
 Then the chart will set up a service account for your Spark jobs to use in that namespace.
@@ -88,8 +94,8 @@ spec:
     labels:
       version: 2.3.0
     memory: 512m
-  image: gcr.io/ynli-k8s/spark:v3.0.0
-  mainApplicationFile: local:///opt/spark/examples/jars/spark-examples_2.12-2.3.0.jar
+  image: gcr.io/ynli-k8s/spark:v3.1.1
+  mainApplicationFile: local:///opt/spark/examples/jars/spark-examples_2.12-3.1.1.jar
   mainClass: org.apache.spark.examples.SparkPi
   mode: cluster
   restartPolicy:
@@ -153,16 +159,16 @@ By default, the operator will manage custom resource objects of the managed CRD 
 To upgrade the the operator, e.g., to use a newer version container image with a new tag, run the following command with updated parameters for the Helm release:
 
 ```bash
-$ helm upgrade <YOUR-HELM-RELEASE-NAME> --set operatorImageName=org/image --set operatorVersion=newTag
+$ helm upgrade <YOUR-HELM-RELEASE-NAME> --set image.repository=org/image --set image.tag=newTag
 ```
 
 Refer to the Helm [documentation](https://docs.helm.sh/helm/#helm-upgrade) for more details on `helm upgrade`.
 
 ## About the Spark Job Namespace
 
-The Spark Job Namespace value defines the namespace(s) where `SparkApplications` can be deployed. The Helm chart value for the Spark Job Namespace is `sparkJobNamespace`, and its default value is `""`, as defined in the Helm chart's [README](https://github.com/helm/charts/blob/master/incubator/sparkoperator/README.md). Note that in the [Kubernetes apimachinery](https://github.com/kubernetes/kubernetes/tree/master/staging/src/k8s.io/apimachinery) project, the constants `NamespaceAll` and `NamespaceNone` are both defined as the empty string. In this case, the empty string represents `NamespaceAll`. When set to `""`, the Spark Operator supports deploying `SparkApplications` to all namespaces. The Helm chart will create a service account in the namespace where the spark-operator is deployed, but Helm skips setting up the RBAC for driver pods of your `SparkApplications` to be able to manipulate executor pods. In order to successfully deploy `SparkApplications`, you will need to ensure the driver pod's service account meets the criteria described in the [service accounts for driver pods](#about-the-service-account-for-driver-pods) section.
+The Spark Job Namespace value defines the namespace(s) where `SparkApplications` can be deployed. The Helm chart value for the Spark Job Namespace is `sparkJobNamespace`, and its default value is `""`, as defined in the Helm chart's [README](../charts/spark-operator-chart/README.md). Note that in the [Kubernetes apimachinery](https://github.com/kubernetes/kubernetes/tree/master/staging/src/k8s.io/apimachinery) project, the constants `NamespaceAll` and `NamespaceNone` are both defined as the empty string. In this case, the empty string represents `NamespaceAll`. When set to `""`, the Spark Operator supports deploying `SparkApplications` to all namespaces. The Helm chart will create a service account in the namespace where the spark-operator is deployed. In order to successfully deploy `SparkApplications`, you will need to ensure the driver pod's service account meets the criteria described in the [service accounts for driver pods](#about-the-service-account-for-driver-pods) section.
 
-On the other hand, if you installed the operator using the Helm chart and overrode the `sparkJobNamespace` to some other, pre-existing namespace, the Helm chart will create the necessary service account and RBAC in the specified namespace.
+if you installed the operator using the Helm chart and overrode the `sparkJobNamespace` to some other, pre-existing namespace, the Helm chart will create the necessary service account and RBAC in the specified namespace.
 
 The Spark Operator uses the Spark Job Namespace to identify and filter relevant events for the `SparkApplication` CRD. If you specify a namespace for Spark Jobs, and then submit a SparkApplication resource to another namespace, the Spark Operator will filter out the event, and the resource will not get deployed. If you don't specify a namespace, the Spark Operator will see `SparkApplication` events for all namespaces, and will deploy them to the namespace requested in the create call.
 
@@ -170,12 +176,16 @@ The Spark Operator uses the Spark Job Namespace to identify and filter relevant 
 
 A Spark driver pod need a Kubernetes service account in the pod's namespace that has permissions to create, get, list, and delete executor pods, and create a Kubernetes headless service for the driver. The driver will fail and exit without the service account, unless the default service account in the pod's namespace has the needed permissions. To submit and run a `SparkApplication` in a namespace, please make sure there is a service account with the permissions in the namespace and set `.spec.driver.serviceAccount` to the name of the service account. Please refer to [spark-rbac.yaml](../manifest/spark-rbac.yaml) for an example RBAC setup that creates a driver service account named `spark` in the `default` namespace, with a RBAC role binding giving the service account the needed permissions.
 
+## About the Service Account for Executor Pods
+
+A Spark executor pod may be configured with a Kubernetes service account in the pod namespace. To submit and run a `SparkApplication` in a namespace, please make sure there is a service account with the permissions required in the namespace and set `.spec.executor.serviceAccount` to the name of the service account.
+
 ## Enable Metric Exporting to Prometheus
 
-The operator exposes a set of metrics via the metric endpoint to be scraped by `Prometheus`. The Helm chart by default installs the operator with the additional flag to enable metrics (`-enable-metrics=true`) as well as other annotations used by Prometheus to scrape the metric endpoint. To install the operator  **without** metrics enabled, pass the appropriate flag during `helm install`:
+The operator exposes a set of metrics via the metric endpoint to be scraped by `Prometheus`. The Helm chart by default installs the operator with the additional flag to enable metrics (`-enable-metrics=true`) as well as other annotations used by Prometheus to scrape the metric endpoint. If `podMonitor.enable` is enabled, the helm chart will submit a pod monitor for the operator's pod. To install the operator  **without** metrics enabled, pass the appropriate flag during `helm install`:
 
 ```bash
-$ helm install incubator/sparkoperator --namespace spark-operator --set enableMetrics=false
+$ helm install my-release spark-operator/spark-operator --namespace spark-operator --set metrics.enable=false
 ```
 
 If enabled, the operator generates the following metrics:
@@ -247,8 +257,6 @@ $ kubectl apply -f manifest/spark-operator-with-webhook.yaml
 
 This will create a Deployment named `sparkoperator` and a Service named `spark-webhook` for the webhook in namespace `spark-operator`.
 
-If the operator is installed via the Helm chart using the default settings (i.e. with webhook enabled), the above steps are all automated for you.
-
 ### Mutating Admission Webhooks on a private GKE cluster
 
 If you are deploying the operator on a GKE cluster with the [Private cluster](https://cloud.google.com/kubernetes-engine/docs/how-to/private-clusters) setting enabled, and you wish to deploy the cluster with the [Mutating Admission Webhook](https://kubernetes.io/docs/reference/access-authn-authz/extensible-admission-controllers/), then make sure to change the `webhookPort` to `443`. Alternatively you can choose to allow connections to the default port (8080).
@@ -259,5 +267,5 @@ If you are deploying the operator on a GKE cluster with the [Private cluster](ht
 To install the operator with a custom port, pass the appropriate flag during `helm install`:
 
 ```bash
-$ helm install incubator/sparkoperator  --set sparkJobNamespace=spark --set enableWebhook=true --set webhookPort=443
+$ helm install my-release spark-operator/spark-operator --namespace spark-operator  --set sparkJobNamespace=spark --set webhook.enable=true --set webhook.port=443
 ```

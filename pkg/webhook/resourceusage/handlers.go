@@ -62,7 +62,7 @@ func (r *ResourceUsageWatcher) onSparkApplicationUpdated(oldObj, newObj interfac
 	namespace := namespaceOrDefault(newApp.ObjectMeta)
 	newResources, err := sparkApplicationResourceUsage(*newApp)
 	if err != nil {
-		glog.Errorf("failed to determine resource useage of SparkApplication %s/%s: %v", namespace, newApp.ObjectMeta.Name, err)
+		glog.Errorf("failed to determine resource usage of SparkApplication %s/%s: %v", namespace, newApp.ObjectMeta.Name, err)
 	} else {
 		r.setResources(KindSparkApplication, namespace, newApp.ObjectMeta.Name, newResources, r.usageByNamespaceApplication)
 	}

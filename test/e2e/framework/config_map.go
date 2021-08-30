@@ -17,6 +17,7 @@ limitations under the License.
 package framework
 
 import (
+	"context"
 	"fmt"
 	"github.com/pkg/errors"
 	"k8s.io/api/core/v1"
@@ -34,17 +35,17 @@ func CreateConfigMap(kubeClient kubernetes.Interface, name string, namespace str
 		},
 	}
 
-	_, err := kubeClient.CoreV1().ConfigMaps(namespace).Get(name, metav1.GetOptions{})
+	_, err := kubeClient.CoreV1().ConfigMaps(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 
 	if err == nil {
 		// ConfigMap already exists -> Update
-		configMap, err = kubeClient.CoreV1().ConfigMaps(namespace).Update(configMap)
+		configMap, err = kubeClient.CoreV1().ConfigMaps(namespace).Update(context.TODO(), configMap, metav1.UpdateOptions{})
 		if err != nil {
 			return nil, err
 		}
 	} else {
 		// ConfigMap doesn't exists -> Create
-		configMap, err = kubeClient.CoreV1().ConfigMaps(namespace).Create(configMap)
+		configMap, err = kubeClient.CoreV1().ConfigMaps(namespace).Create(context.TODO(), configMap, metav1.CreateOptions{})
 		if err != nil {
 			return nil, err
 		}
@@ -57,5 +58,5 @@ func CreateConfigMap(kubeClient kubernetes.Interface, name string, namespace str
 }
 
 func DeleteConfigMap(kubeClient kubernetes.Interface, name string, namespace string) error {
-	return kubeClient.CoreV1().ConfigMaps(namespace).Delete(name, &metav1.DeleteOptions{})
+	return kubeClient.CoreV1().ConfigMaps(namespace).Delete(context.TODO(), name, metav1.DeleteOptions{})
 }

@@ -753,8 +753,8 @@ func (in *SparkPodSpec) DeepCopyInto(out *SparkPodSpec) {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
 	}
-	if in.SecurityContenxt != nil {
-		in, out := &in.SecurityContenxt, &out.SecurityContenxt
+	if in.SecurityContext != nil {
+		in, out := &in.SecurityContext, &out.SecurityContext
 		*out = new(v1.PodSecurityContext)
 		(*in).DeepCopyInto(*out)
 	}

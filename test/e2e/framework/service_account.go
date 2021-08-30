@@ -17,27 +17,29 @@ limitations under the License.
 package framework
 
 import (
+	"context"
 	"encoding/json"
 	"io"
 	"os"
 
 	"k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/util/yaml"
 	"k8s.io/client-go/kubernetes"
 )
 
-func CreateServiceAccount(kubeClient kubernetes.Interface, namespace string, relativPath string) (finalizerFn, error) {
+func CreateServiceAccount(kubeClient kubernetes.Interface, namespace string, relativePath string) (finalizerFn, error) {
 	finalizerFn := func() error {
-		return DeleteServiceAccount(kubeClient, namespace, relativPath)
+		return DeleteServiceAccount(kubeClient, namespace, relativePath)
 	}
 
-	serviceAccount, err := parseServiceAccountYaml(relativPath)
+	serviceAccount, err := parseServiceAccountYaml(relativePath)
 	if err != nil {
 		return finalizerFn, err
 	}
 	serviceAccount.Namespace = namespace
-	_, err = kubeClient.CoreV1().ServiceAccounts(namespace).Create(serviceAccount)
+	_, err = kubeClient.CoreV1().ServiceAccounts(namespace).Create(context.TODO(), serviceAccount, metav1.CreateOptions{})
 	if err != nil {
 		return finalizerFn, err
 	}
@@ -77,11 +79,11 @@ func parseServiceAccountYaml(relativePath string) (*v1.ServiceAccount, error) {
 	return &serviceAccount, nil
 }
 
-func DeleteServiceAccount(kubeClient kubernetes.Interface, namespace string, relativPath string) error {
-	serviceAccount, err := parseServiceAccountYaml(relativPath)
+func DeleteServiceAccount(kubeClient kubernetes.Interface, namespace string, relativePath string) error {
+	serviceAccount, err := parseServiceAccountYaml(relativePath)
 	if err != nil {
 		return err
 	}
 
-	return kubeClient.CoreV1().ServiceAccounts(namespace).Delete(serviceAccount.Name, nil)
+	return kubeClient.CoreV1().ServiceAccounts(namespace).Delete(context.TODO(), serviceAccount.Name, metav1.DeleteOptions{})
 }

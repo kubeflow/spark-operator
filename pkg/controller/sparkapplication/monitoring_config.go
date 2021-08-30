@@ -17,6 +17,7 @@ limitations under the License.
 package sparkapplication
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/golang/glog"
@@ -50,9 +51,9 @@ func configPrometheusMonitoring(app *v1beta2.SparkApplication, kubeClient client
 		configMapName := config.GetPrometheusConfigMapName(app)
 		configMap := buildPrometheusConfigMap(app, configMapName)
 		retryErr := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-			cm, err := kubeClient.CoreV1().ConfigMaps(app.Namespace).Get(configMapName, metav1.GetOptions{})
+			cm, err := kubeClient.CoreV1().ConfigMaps(app.Namespace).Get(context.TODO(), configMapName, metav1.GetOptions{})
 			if apiErrors.IsNotFound(err) {
-				_, createErr := kubeClient.CoreV1().ConfigMaps(app.Namespace).Create(configMap)
+				_, createErr := kubeClient.CoreV1().ConfigMaps(app.Namespace).Create(context.TODO(), configMap, metav1.CreateOptions{})
 				return createErr
 			}
 			if err != nil {
@@ -60,7 +61,7 @@ func configPrometheusMonitoring(app *v1beta2.SparkApplication, kubeClient client
 			}
 
 			cm.Data = configMap.Data
-			_, updateErr := kubeClient.CoreV1().ConfigMaps(app.Namespace).Update(cm)
+			_, updateErr := kubeClient.CoreV1().ConfigMaps(app.Namespace).Update(context.TODO(), cm, metav1.UpdateOptions{})
 			return updateErr
 		})
 

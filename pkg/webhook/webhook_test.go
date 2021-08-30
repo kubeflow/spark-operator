@@ -17,6 +17,7 @@ limitations under the License.
 package webhook
 
 import (
+	"context"
 	"encoding/json"
 	"testing"
 	"time"
@@ -84,7 +85,7 @@ func TestMutatePod(t *testing.T) {
 			Namespace: "default",
 		},
 	}
-	crdClient.SparkoperatorV1beta2().SparkApplications(app1.Namespace).Create(app1)
+	crdClient.SparkoperatorV1beta2().SparkApplications(app1.Namespace).Create(context.TODO(), app1, metav1.CreateOptions{})
 	informer.Informer().GetIndexer().Add(app1)
 	pod1.Labels = map[string]string{
 		config.SparkRoleLabel:               config.SparkDriverRole,
@@ -160,7 +161,7 @@ func TestMutatePod(t *testing.T) {
 			},
 		},
 	}
-	crdClient.SparkoperatorV1beta2().SparkApplications(app2.Namespace).Update(app2)
+	crdClient.SparkoperatorV1beta2().SparkApplications(app2.Namespace).Update(context.TODO(), app2, metav1.UpdateOptions{})
 	informer.Informer().GetIndexer().Add(app2)
 
 	pod1.Labels[config.SparkAppNameLabel] = app2.Name

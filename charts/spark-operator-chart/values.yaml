@@ -12,7 +12,7 @@ image:
   # -- Image pull policy
   pullPolicy: IfNotPresent
   # -- Overrides the image tag whose default is the chart appVersion.
-  tag: ""
+  tag: "latest"
 
 # -- Image pull secrets
 imagePullSecrets: []
@@ -24,8 +24,12 @@ nameOverride: ""
 fullnameOverride: ""
 
 rbac:
-  # -- Create and use `rbac` resources
-  create: true
+  # -- **DEPRECATED** use `createRole` and `createClusterRole`
+  create: false
+  # -- Create and use RBAC `Role` resources
+  createRole: true
+  # -- Create and use RBAC `ClusterRole` resources
+  createClusterRole: true
 
 serviceAccounts:
   spark:
@@ -46,10 +50,15 @@ sparkJobNamespace: ""
 controllerThreads: 10
 
 # -- Operator resync interval. Note that the operator will respond to events (e.g. create, update)
-# unrealted to this setting
+# unrelated to this setting
 resyncInterval: 30
 
-# -- Ingress URL format
+uiService:
+  # -- Enable UI service creation for Spark application
+  enable: true
+
+# -- Ingress URL format.
+# Requires the UI service to be enabled by setting `uiService.enable` to true.
 ingressUrlFormat: ""
 
 # -- Set higher levels for more verbose logging
@@ -69,16 +78,35 @@ webhook:
   # -- The webhook server will only operate on namespaces with this label, specified in the form key1=value1,key2=value2.
   # Empty string (default) will operate on all namespaces
   namespaceSelector: ""
+  # -- The annotations applied to the cleanup job, required for helm lifecycle hooks
+  cleanupAnnotations:
+    "helm.sh/hook": pre-delete, pre-upgrade
+    "helm.sh/hook-delete-policy": hook-succeeded
 
 metrics:
-  # -- Enable prometheus mertic scraping
+  # -- Enable prometheus metric scraping
   enable: true
   # -- Metrics port
   port: 10254
+  # -- Metrics port name
+  portName: metrics
   # -- Metrics serving endpoint
   endpoint: /metrics
   # -- Metric prefix, will be added to all exported metrics
   prefix: ""
+
+# -- Prometheus pod monitor for operator's pod.
+podMonitor:
+  # -- If enabled, a pod monitor for operator's pod will be submitted. Note that prometheus metrics should be enabled as well.
+  enable: false
+  # -- Pod monitor labels
+  labels: {}
+  # -- The label to use to retrieve the job name from
+  jobLabel: spark-operator-podmonitor
+  # -- Prometheus metrics endpoint properties. `metrics.portName` will be used as a port
+  podMetricsEndpoint:
+    scheme: http
+    interval: 5s
 
 # nodeSelector -- Node labels for pod assignment
 nodeSelector: {}
@@ -92,7 +120,13 @@ affinity: {}
 # podAnnotations -- Additional annotations to add to the pod
 podAnnotations: {}
 
+# podLabels -- Additional labels to add to the pod
+podLabels: {}
+
 # resources -- Pod resource requests and limits
+# Note, that each job submission will spawn a JVM within the Spark Operator Pod using "/usr/local/openjdk-11/bin/java -Xmx128m".
+# Kubernetes may kill these Java processes at will to enforce resource limits. When that happens, you will see the following error:
+# 'failed to run spark-submit for SparkApplication [...]: signal: killed' - when this happens, you may want to increase memory limits.
 resources: {}
   # limits:
   #   cpu: 100m
@@ -121,3 +155,6 @@ leaderElection:
 istio:
   # -- When using `istio`, spark jobs need to run without a sidecar to properly terminate
   enabled: false
+
+# labelSelectorFilter -- A comma-separated list of key=value, or key labels to filter resources during watch and list based on the specified labels.
+labelSelectorFilter: ""
