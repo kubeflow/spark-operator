@@ -8,11 +8,12 @@
 | StackTome | @emiliauskas-fuzzy | Production | Data pipelines |
 | Salesforce | @khogeland | Production | Data transformation |
 | Bringg | @EladDolev | Production | ML & Analytics Data Platform |
-| CERN | @mrow4a | Evaluation | Data Mining & Analytics |
-| Lyft | @kumare3 | Evaluation | ML & Data Infrastructure |
-| MapR Technologies | @sarjeet2013 | Evaluation | ML/AI & Analytics Data Platform |
-| Uber | @chenqin | Evaluation | Spark / ML |
-| HashmapInc | @prem0132 | Evaluation | Analytics Data Platform |
+| Siigo | @Juandavi1 | Production | Data Migrations & Analytics Data Platform |
+| CERN|@mrow4a| Evaluation | Data Mining & Analytics |
+| Lyft |@kumare3| Evaluation | ML & Data Infrastructure |
+| MapR Technologies |@sarjeet2013| Evaluation | ML/AI & Analytics Data Platform |
+| Uber| @chenqin| Evaluation| Spark / ML |
+| HashmapInc| @prem0132 | Evaluation | Analytics Data Platform |
 | Tencent | @runzhliu | Evaluation | ML Analytics Platform |
 | Exacaster | @minutis | Evaluation | Data pipelines |
 | Riskified | @henbh | Evaluation | Analytics Data Platform |
