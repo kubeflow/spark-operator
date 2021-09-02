@@ -8,7 +8,7 @@
 | StackTome | @emiliauskas-fuzzy | Production | Data pipelines |
 | Salesforce | @khogeland | Production | Data transformation |
 | Bringg | @EladDolev | Production | ML & Analytics Data Platform |
-| Siigo | @Juandavi1 | Production | Data Migrations & Analytics Data Platform |
+| [Siigo](https://www.siigo.com) | @Juandavi1 | Production | Data Migrations & Analytics Data Platform |
 | CERN|@mrow4a| Evaluation | Data Mining & Analytics |
 | Lyft |@kumare3| Evaluation | ML & Data Infrastructure |
 | MapR Technologies |@sarjeet2013| Evaluation | ML/AI & Analytics Data Platform |
