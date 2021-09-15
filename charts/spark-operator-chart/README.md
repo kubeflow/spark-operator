@@ -46,35 +46,6 @@ $ helm uninstall my-release
 
 The command removes all the Kubernetes components associated with the chart and deletes the release, except for the `crds`, those will have to be removed manually.
 
-## Test the chart
-
-Install [chart-testing cli](https://github.com/helm/chart-testing#installation)
-
-In Mac OS, you can just:
-
-```bash
-pip install yamale
-pip install yamllint
-brew install chart-testing
-```
-
-Run ct lint and Verify `All charts linted successfully`
-
-```bash
-Chart version ok.
-Validating /Users/chethanuk/Work/Github/Personal/spark-on-k8s-operator-1/charts/spark-operator-chart/Chart.yaml...
-Validation success! 👍
-Validating maintainers...
-==> Linting charts/spark-operator-chart
-[INFO] Chart.yaml: icon is recommended
-
-1 chart(s) linted, 0 chart(s) failed
-------------------------------------------------------------------------------------------------------------------------
- ✔︎ spark-operator => (version: "1.1.0", path: "charts/spark-operator-chart")
-------------------------------------------------------------------------------------------------------------------------
-All charts linted successfully
-```
-
 ## Values
 
 | Key | Type | Default | Description |
@@ -117,8 +88,10 @@ All charts linted successfully
 | resources | object | `{}` | Pod resource requests and limits |
 | resyncInterval | int | `30` | Operator resync interval. Note that the operator will respond to events (e.g. create, update) unrelated to this setting |
 | securityContext | object | `{}` | Operator container security context |
+| serviceAccounts.spark.annotations | object | `{}` | Optional annotations for the spark service account |
 | serviceAccounts.spark.create | bool | `true` | Create a service account for spark apps |
 | serviceAccounts.spark.name | string | `""` | Optional name for the spark service account |
+| serviceAccounts.sparkoperator.annotations | object | `{}` | Optional annotations for the operator service account |
 | serviceAccounts.sparkoperator.create | bool | `true` | Create a service account for the operator |
 | serviceAccounts.sparkoperator.name | string | `""` | Optional name for the operator service account |
 | sparkJobNamespace | string | `""` | Set this if running spark jobs in a different namespace than the operator |

@@ -37,11 +37,15 @@ serviceAccounts:
     create: true
     # -- Optional name for the spark service account
     name: ""
+    # -- Optional annotations for the spark service account
+    annotations: {}
   sparkoperator:
     # -- Create a service account for the operator
     create: true
     # -- Optional name for the operator service account
     name: ""
+    # -- Optional annotations for the operator service account
+    annotations: {}
 
 # -- Set this if running spark jobs in a different namespace than the operator
 sparkJobNamespace: ""
