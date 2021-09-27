@@ -172,6 +172,20 @@ func (sm *sparkAppMetrics) registerMetrics() {
 	sm.sparkAppExecutorRunningCount.Register()
 }
 
+func (sm *sparkAppMetrics) exportMetricsOnDelete(oldApp *v1beta2.SparkApplication) {
+	metricLabels := fetchMetricLabels(oldApp, sm.labels)
+	oldState := oldApp.Status.AppState.State
+	if oldState == v1beta2.RunningState {
+		sm.sparkAppRunningCount.Dec(metricLabels)
+	}
+	for executor, oldExecState := range oldApp.Status.ExecutorState {
+		if oldExecState == v1beta2.ExecutorRunningState {
+			glog.V(2).Infof("Application is deleted. Decreasing Running Count for Executor %s.", executor)
+			sm.sparkAppExecutorRunningCount.Dec(metricLabels)
+		}
+	}
+}
+
 func (sm *sparkAppMetrics) exportMetrics(oldApp, newApp *v1beta2.SparkApplication) {
 	metricLabels := fetchMetricLabels(newApp, sm.labels)
 
