@@ -484,9 +484,9 @@ func addAffinity(pod *corev1.Pod, app *v1beta2.SparkApplication) *patchOperation
 func addTolerations(pod *corev1.Pod, app *v1beta2.SparkApplication) []patchOperation {
 	var tolerations []corev1.Toleration
 	if util.IsDriverPod(pod) {
-		tolerations = app.Spec.Driver.Tolerations
+		tolerations = app.Spec.Driver.SparkPodSpec.Tolerations
 	} else if util.IsExecutorPod(pod) {
-		tolerations = app.Spec.Executor.Tolerations
+		tolerations = app.Spec.Executor.SparkPodSpec.Tolerations
 	}
 
 	first := false
