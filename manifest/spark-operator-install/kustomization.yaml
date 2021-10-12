@@ -14,35 +14,12 @@
 # limitations under the License.
 #
 
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: spark
-  namespace: default
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: Role
-metadata:
-  namespace: default
-  name: spark-role
-rules:
-- apiGroups: [""]
-  resources: ["pods"]
-  verbs: ["*"]
-- apiGroups: [""]
-  resources: ["services"]
-  verbs: ["*"]
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: RoleBinding
-metadata:
-  name: spark-role-binding
-  namespace: default
-subjects:
-- kind: ServiceAccount
-  name: spark
-  namespace: default
-roleRef:
-  kind: Role
-  name: spark-role
-  apiGroup: rbac.authorization.k8s.io
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: spark-operator
+
+resources:
+  - spark-operator-rbac.yaml
+  - ../crds
+  - spark-operator.yaml
