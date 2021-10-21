@@ -664,6 +664,41 @@ func (c *Controller) submitSparkApplication(app *v1beta2.SparkApplication) *v1be
 		}
 	}
 
+	if c.enableUIService {
+		service, err := createSparkUIService(app, c.kubeClient)
+		if err != nil {
+			glog.Errorf("failed to create UI service for SparkApplication %s/%s: %v", app.Namespace, app.Name, err)
+		} else {
+			app.Status.DriverInfo.WebUIServiceName = service.serviceName
+			app.Status.DriverInfo.WebUIPort = service.servicePort
+			app.Status.DriverInfo.WebUIAddress = fmt.Sprintf("%s:%d", service.serviceIP, app.Status.DriverInfo.WebUIPort)
+			// Create UI Ingress if ingress-format is set.
+			if c.ingressURLFormat != "" {
+				// We are going to want to use an ingress url.
+				ingressURL, err := getSparkUIingressURL(c.ingressURLFormat, app.GetName(), app.GetNamespace())
+				if err != nil {
+					glog.Errorf("failed to get the spark ingress url %s/%s: %v", app.Namespace, app.Name, err)
+				} else {
+					// need to ensure the spark.ui variables are configured correctly if a subPath is used.
+					if ingressURL.Path != "" {
+						if app.Spec.SparkConf == nil {
+							app.Spec.SparkConf = make(map[string]string)
+						}
+						app.Spec.SparkConf["spark.ui.proxyBase"] = ingressURL.Path
+						app.Spec.SparkConf["spark.ui.proxyRedirectUri"] = "/"
+					}
+					ingress, err := createSparkUIIngress(app, *service, ingressURL, c.kubeClient)
+					if err != nil {
+						glog.Errorf("failed to create UI Ingress for SparkApplication %s/%s: %v", app.Namespace, app.Name, err)
+					} else {
+						app.Status.DriverInfo.WebUIIngressAddress = ingress.ingressURL.String()
+						app.Status.DriverInfo.WebUIIngressName = ingress.ingressName
+					}
+				}
+			}
+		}
+	}
+
 	driverPodName := getDriverPodName(app)
 	submissionID := uuid.New().String()
 	submissionCmdArgs, err := buildSubmissionCommandArgs(app, driverPodName, submissionID)
@@ -715,26 +750,6 @@ func (c *Controller) submitSparkApplication(app *v1beta2.SparkApplication) *v1be
 	}
 	c.recordSparkApplicationEvent(app)
 
-	if c.enableUIService {
-		service, err := createSparkUIService(app, c.kubeClient)
-		if err != nil {
-			glog.Errorf("failed to create UI service for SparkApplication %s/%s: %v", app.Namespace, app.Name, err)
-		} else {
-			app.Status.DriverInfo.WebUIServiceName = service.serviceName
-			app.Status.DriverInfo.WebUIPort = service.servicePort
-			app.Status.DriverInfo.WebUIAddress = fmt.Sprintf("%s:%d", service.serviceIP, app.Status.DriverInfo.WebUIPort)
-			// Create UI Ingress if ingress-format is set.
-			if c.ingressURLFormat != "" {
-				ingress, err := createSparkUIIngress(app, *service, c.ingressURLFormat, c.kubeClient)
-				if err != nil {
-					glog.Errorf("failed to create UI Ingress for SparkApplication %s/%s: %v", app.Namespace, app.Name, err)
-				} else {
-					app.Status.DriverInfo.WebUIIngressAddress = ingress.ingressURL
-					app.Status.DriverInfo.WebUIIngressName = ingress.ingressName
-				}
-			}
-		}
-	}
 	return app
 }
 

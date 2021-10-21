@@ -37,7 +37,8 @@ RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 GO111MODULE=on go build -a -o /usr/bin
 FROM ${SPARK_IMAGE}
 USER root
 COPY --from=builder /usr/bin/spark-operator /usr/bin/
-RUN apt-get update \
+RUN apt-get update --allow-releaseinfo-change \
+    && apt-get update \
     && apt-get install -y openssl curl tini \
     && rm -rf /var/lib/apt/lists/*
 COPY hack/gencerts.sh /usr/bin/
