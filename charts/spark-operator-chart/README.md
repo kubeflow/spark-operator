@@ -117,8 +117,10 @@ All charts linted successfully
 | resources | object | `{}` | Pod resource requests and limits |
 | resyncInterval | int | `30` | Operator resync interval. Note that the operator will respond to events (e.g. create, update) unrelated to this setting |
 | securityContext | object | `{}` | Operator container security context |
+| serviceAccounts.spark.annotations | object | `{}` | Optional annotations for the spark service account |
 | serviceAccounts.spark.create | bool | `true` | Create a service account for spark apps |
 | serviceAccounts.spark.name | string | `""` | Optional name for the spark service account |
+| serviceAccounts.sparkoperator.annotations | object | `{}` | Optional annotations for the operator service account |
 | serviceAccounts.sparkoperator.create | bool | `true` | Create a service account for the operator |
 | serviceAccounts.sparkoperator.name | string | `""` | Optional name for the operator service account |
 | sparkJobNamespace | string | `""` | Set this if running spark jobs in a different namespace than the operator |
