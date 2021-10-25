@@ -50,7 +50,7 @@ fmt-check: clean
 	./.travis.gofmt.sh
 
 detect-crds-drift:
-	diff -q charts/spark-operator-chart/crds manifest/crds
+	diff -q charts/spark-operator-chart/crds manifest/crds --exclude=kustomization.yaml
 
 clean:
 	@echo "cleaning up caches and output"
