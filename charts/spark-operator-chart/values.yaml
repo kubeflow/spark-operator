@@ -82,6 +82,10 @@ webhook:
   # -- The webhook server will only operate on namespaces with this label, specified in the form key1=value1,key2=value2.
   # Empty string (default) will operate on all namespaces
   namespaceSelector: ""
+  # -- The annotations applied to init job, required to restore certs deleted by the cleanup job during upgrade
+  initAnnotations:
+    "helm.sh/hook": pre-install, pre-upgrade
+    "helm.sh/hook-weight": "50"
   # -- The annotations applied to the cleanup job, required for helm lifecycle hooks
   cleanupAnnotations:
     "helm.sh/hook": pre-delete, pre-upgrade
