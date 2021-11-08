@@ -615,7 +615,7 @@ func addSecurityContext(pod *corev1.Pod, app *v1beta2.SparkApplication) *patchOp
 
 	i := findContainer(pod)
 
-	if i == -1 {
+	if i < 0 {
 		glog.Warningf("Spark driver/executor container not found in pod %s", pod.Name)
 		return nil
 	}
