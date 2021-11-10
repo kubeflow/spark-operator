@@ -5,7 +5,7 @@ metadata:
   name: {{ include "spark-operator.fullname" . }}
   annotations:
     "helm.sh/hook": pre-install
-    "helm.sh/hook-delete-policy": hook-failed
+    "helm.sh/hook-delete-policy": hook-failed, before-hook-creation
   labels:
     {{- include "spark-operator.labels" . | nindent 4 }}
 rules:
@@ -113,7 +113,7 @@ metadata:
   name: {{ include "spark-operator.fullname" . }}
   annotations:
     "helm.sh/hook": pre-install
-    "helm.sh/hook-delete-policy": hook-failed
+    "helm.sh/hook-delete-policy": hook-failed, before-hook-creation
   labels:
     {{- include "spark-operator.labels" . | nindent 4 }}
 subjects:
