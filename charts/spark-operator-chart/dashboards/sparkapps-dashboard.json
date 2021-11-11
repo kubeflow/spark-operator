@@ -15,8 +15,7 @@
   "editable": true,
   "gnetId": null,
   "graphTooltip": 0,
-  "id": 175,
-  "iteration": 1636553521460,
+  "iteration": 1636618648107,
   "links": [],
   "panels": [
     {
@@ -279,7 +278,7 @@
           "refId": "A"
         }
       ],
-      "title": "Failing Spark Apps",
+      "title": "Failing Spark Applications",
       "type": "stat"
     },
     {
@@ -345,7 +344,7 @@
           "refId": "A"
         }
       ],
-      "title": "Failing Spark Apps",
+      "title": "Failing Spark Applications",
       "transformations": [
         {
           "id": "filterFieldsByName",
@@ -537,7 +536,7 @@
       ],
       "timeFrom": null,
       "timeShift": null,
-      "title": "$scheduled_sparkapp SparkApps by status",
+      "title": "Spark Applications by status",
       "type": "piechart"
     },
     {
@@ -900,8 +899,8 @@
       "scopedVars": {
         "scheduled_sparkapp": {
           "selected": true,
-          "text": "fake",
-          "value": "fake"
+          "text": "iav-daily-ingest",
+          "value": "iav-daily-ingest"
         }
       },
       "targets": [
@@ -1101,7 +1100,7 @@
   "schemaVersion": 27,
   "style": "dark",
   "tags": [
-    "SparkApps"
+    "SparkApplications"
   ],
   "templating": {
     "list": [
@@ -1232,5 +1231,5 @@
   "timezone": "",
   "title": "Spark Applications",
   "uid": "a5yuKIcnz",
-  "version": 1
+  "version": 45
 }
