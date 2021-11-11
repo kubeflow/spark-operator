@@ -105,6 +105,9 @@ metrics:
   # -- Metric prefix, will be added to all exported metrics
   prefix: ""
 
+  dashboard:
+    enable: true
+
 # -- Prometheus pod monitor for operator's pod.
 podMonitor:
   # -- If enabled, a pod monitor for operator's pod will be submitted. Note that prometheus metrics should be enabled as well.
