@@ -86,7 +86,7 @@ type WebHook struct {
 	enableResourceQuotaEnforcement bool
 	resourceQuotaEnforcer          resourceusage.ResourceQuotaEnforcer
 	coreV1InformerFactory          informers.SharedInformerFactory
-	TimeoutSeconds                 *int32
+	timeoutSeconds                 *int32
 }
 
 // Configuration parsed from command-line flags
@@ -155,7 +155,7 @@ func New(
 		failurePolicy:                  arv1beta1.Ignore,
 		coreV1InformerFactory:          coreV1InformerFactory,
 		enableResourceQuotaEnforcement: enableResourceQuotaEnforcement,
-		TimeoutSeconds:                 func(b int32) *int32 { return &b }(int32(*webhookTimeout)),
+		timeoutSeconds:                 func(b int32) *int32 { return &b }(int32(*webhookTimeout)),
 	}
 
 	if userConfig.webhookFailOnError {
@@ -390,7 +390,7 @@ func (wh *WebHook) selfRegistration(webhookConfigName string) error {
 		},
 		FailurePolicy:     &wh.failurePolicy,
 		NamespaceSelector: wh.selector,
-		TimeoutSeconds:    wh.TimeoutSeconds,
+		TimeoutSeconds:    wh.timeoutSeconds,
 	}
 
 	validatingWebhook := v1beta1.ValidatingWebhook{
@@ -402,7 +402,7 @@ func (wh *WebHook) selfRegistration(webhookConfigName string) error {
 		},
 		FailurePolicy:     &wh.failurePolicy,
 		NamespaceSelector: wh.selector,
-		TimeoutSeconds:    wh.TimeoutSeconds,
+		TimeoutSeconds:    wh.timeoutSeconds,
 	}
 
 	mutatingWebhooks := []v1beta1.MutatingWebhook{mutatingWebhook}
