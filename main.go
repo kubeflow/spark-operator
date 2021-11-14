@@ -58,6 +58,7 @@ var (
 	namespace                      = flag.String("namespace", apiv1.NamespaceAll, "The Kubernetes namespace to manage. Will manage custom resource objects of the managed CRD types for the whole cluster if unset.")
 	labelSelectorFilter            = flag.String("label-selector-filter", "", "A comma-separated list of key=value, or key labels to filter resources during watch and list based on the specified labels.")
 	enableWebhook                  = flag.Bool("enable-webhook", false, "Whether to enable the mutating admission webhook for admitting and patching Spark pods.")
+	webhookTimeout                 = flag.Int("webhook-timeout", 30, "Webhook Timeout in seconds before the webhook returns a timeout")
 	enableResourceQuotaEnforcement = flag.Bool("enable-resource-quota-enforcement", false, "Whether to enable ResourceQuota enforcement for SparkApplication resources. Requires the webhook to be enabled.")
 	ingressURLFormat               = flag.String("ingress-url-format", "", "Ingress URL format.")
 	enableUIService                = flag.Bool("enable-ui-service", true, "Enable Spark service UI.")
@@ -195,7 +196,7 @@ func main() {
 		}
 		var err error
 		// Don't deregister webhook on exit if leader election enabled (i.e. multiple webhooks running)
-		hook, err = webhook.New(kubeClient, crInformerFactory, *namespace, !*enableLeaderElection, *enableResourceQuotaEnforcement, coreV1InformerFactory)
+		hook, err = webhook.New(kubeClient, crInformerFactory, *namespace, !*enableLeaderElection, *enableResourceQuotaEnforcement, coreV1InformerFactory, webhookTimeout)
 		if err != nil {
 			glog.Fatal(err)
 		}
