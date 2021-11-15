@@ -1,20 +1,16 @@
 {{- if and .Values.metrics.enable .Values.metrics.dashboard.enable }}
-  {{- $files := .Files.Glob "dashboards/*.json" }}
-  {{- if $files }}
+{{- $files := .Files.Glob "dashboards/*.json" }}
+{{- range $path, $fileContents := $files }}
+{{- $dashboardName := regexReplaceAll "(^.*/)(.*)\\.json$" $path "${2}" }}
+---
 apiVersion: v1
-kind: ConfigMapList
-items:
-  {{- range $path, $fileContents := $files }}
-  {{- $dashboardName := regexReplaceAll "(^.*/)(.*)\\.json$" $path "${2}" }}
-  - apiVersion: v1
-    kind: ConfigMap
-    metadata:
-      name: {{ printf "%s-%s" (include "spark-operator.fullname" $) $dashboardName | trunc 63 | trimSuffix "-" }}
-      labels:
-        grafana_dashboard: "true"
-        {{- include "spark-operator.labels" $ | nindent 8 }}
-    data:
-      {{ $dashboardName }}.json: {{ $.Files.Get $path | toJson }}
-  {{- end }}
-  {{- end }}
+kind: ConfigMap
+metadata:
+  name: {{ printf "%s-%s" (include "spark-operator.fullname" $) $dashboardName | trunc 63 | trimSuffix "-" }}
+  labels:
+    grafana_dashboard: "true"
+    {{- include "spark-operator.labels" $ | nindent 4 }}
+data:
+  {{ $dashboardName }}.json: {{ $.Files.Get $path | toJson }}
+{{- end }}
 {{- end }}
