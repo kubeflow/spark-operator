@@ -15,7 +15,7 @@
   "editable": true,
   "gnetId": null,
   "graphTooltip": 0,
-  "iteration": 1636618648107,
+  "iteration": 1636992532075,
   "links": [],
   "panels": [
     {
@@ -161,7 +161,7 @@
       "targets": [
         {
           "exemplar": true,
-          "expr": "(\n  kube_pod_owner{owner_kind=\"SparkApplication\", cluster_name=~\"$cluster_name\", namespace=~\"$namespace\"}\n  * on(pod)\n  kube_pod_start_time  * 1000\n)\n* on (pod) group_left(reason)\nkube_pod_container_status_terminated_reason",
+          "expr": "(\n  kube_pod_owner{owner_kind=\"SparkApplication\", cluster_name=~\"$cluster_name\", namespace=~\"$namespace\"}\n  * on(pod)\n  kube_pod_start_time  * 1000\n)\n* on (pod) group_left(reason)\nkube_pod_container_status_terminated_reason{container!=\"pause\"}",
           "format": "table",
           "instant": true,
           "interval": "",
@@ -235,6 +235,189 @@
               {
                 "color": "green",
                 "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 4,
+        "x": 0,
+        "y": 6
+      },
+      "id": 202,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "text": {},
+        "textMode": "auto"
+      },
+      "pluginVersion": "7.5.5",
+      "targets": [
+        {
+          "exemplar": true,
+          "expr": "sum(\n  kube_pod_owner{owner_kind=\"SparkApplication\", cluster_name=~\"$cluster_name\", namespace=~\"$namespace\"} \n  * on(pod) group_left(phase)\n  kube_pod_status_phase{phase=\"Running\"} == 1)\n\n",
+          "instant": false,
+          "interval": "",
+          "legendFormat": "{{reason}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Running Spark Applications",
+      "type": "stat"
+    },
+    {
+      "datasource": null,
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": null,
+            "filterable": false
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Latest Run"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "dateTimeAsIso"
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 20,
+        "x": 4,
+        "y": 6
+      },
+      "id": 203,
+      "options": {
+        "showHeader": true
+      },
+      "pluginVersion": "7.5.5",
+      "targets": [
+        {
+          "exemplar": true,
+          "expr": "(\n  kube_pod_owner{owner_kind=\"SparkApplication\", cluster_name=~\"$cluster_name\", namespace=~\"$namespace\"}\n    * on(pod)\n  kube_pod_start_time * 1000\n)\n+ on(pod) group_left(phase)\n(kube_pod_status_phase{phase=\"Running\"} == 1)",
+          "format": "table",
+          "instant": true,
+          "interval": "",
+          "legendFormat": "",
+          "refId": "A"
+        }
+      ],
+      "title": "Running Spark Applications",
+      "transformations": [
+        {
+          "id": "filterFieldsByName",
+          "options": {
+            "include": {
+              "names": [
+                "pod",
+                "Value",
+                "phase"
+              ]
+            }
+          }
+        },
+        {
+          "id": "renameByRegex",
+          "options": {
+            "regex": "phase",
+            "renamePattern": "status"
+          }
+        },
+        {
+          "id": "renameByRegex",
+          "options": {
+            "regex": "Value",
+            "renamePattern": "Latest Run"
+          }
+        },
+        {
+          "id": "sortBy",
+          "options": {
+            "fields": {},
+            "sort": [
+              {
+                "desc": false,
+                "field": "Latest Run"
+              }
+            ]
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {},
+            "indexByName": {
+              "Latest Run": 2,
+              "pod": 0,
+              "status": 1
+            },
+            "renameByName": {}
+          }
+        }
+      ],
+      "type": "table"
+    },
+    {
+      "datasource": null,
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [
+            {
+              "from": "",
+              "id": 1,
+              "text": "0",
+              "to": "",
+              "type": 1,
+              "value": "null"
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
               },
               {
                 "color": "red",
@@ -249,7 +432,7 @@
         "h": 5,
         "w": 4,
         "x": 0,
-        "y": 6
+        "y": 11
       },
       "id": 13,
       "options": {
@@ -271,7 +454,7 @@
       "targets": [
         {
           "exemplar": true,
-          "expr": "sum(kube_pod_owner{owner_kind=\"SparkApplication\", cluster_name=~\"$cluster_name\", namespace=~\"$namespace\"} * on (pod) group_left(reason)\nkube_pod_container_status_terminated_reason{reason!=\"Completed\"})\n\n",
+          "expr": "sum(kube_pod_owner{owner_kind=\"SparkApplication\", cluster_name=~\"$cluster_name\", namespace=~\"$namespace\"} * on (pod) group_left(reason)\nkube_pod_container_status_terminated_reason{reason!=\"Completed\", container!=\"pause\"})\n\n",
           "instant": false,
           "interval": "",
           "legendFormat": "{{reason}}",
@@ -326,7 +509,7 @@
         "h": 5,
         "w": 20,
         "x": 4,
-        "y": 6
+        "y": 11
       },
       "id": 53,
       "options": {
@@ -336,7 +519,7 @@
       "targets": [
         {
           "exemplar": true,
-          "expr": "(\n  kube_pod_owner{owner_kind=\"SparkApplication\", cluster_name=~\"$cluster_name\", namespace=~\"$namespace\"}\n    * on(pod)\n  kube_pod_start_time  * 1000\n)\n  * on (pod) group_left(reason)\nkube_pod_container_status_terminated_reason{reason!=\"Completed\"}",
+          "expr": "(\n  kube_pod_owner{owner_kind=\"SparkApplication\", cluster_name=~\"$cluster_name\", namespace=~\"$namespace\"}\n    * on(pod)\n  kube_pod_start_time  * 1000\n)\n  * on (pod) group_left(reason)\nkube_pod_container_status_terminated_reason{reason!=\"Completed\", container!=\"pause\"}",
           "format": "table",
           "instant": true,
           "interval": "",
@@ -394,7 +577,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 11
+        "y": 16
       },
       "id": 6,
       "panels": [],
@@ -492,7 +675,7 @@
         "h": 5,
         "w": 4,
         "x": 0,
-        "y": 12
+        "y": 17
       },
       "id": 4,
       "options": {
@@ -564,7 +747,7 @@
         "h": 5,
         "w": 8,
         "x": 4,
-        "y": 12
+        "y": 17
       },
       "id": 93,
       "options": {
@@ -635,7 +818,7 @@
         "h": 5,
         "w": 4,
         "x": 12,
-        "y": 12
+        "y": 17
       },
       "id": 96,
       "options": {
@@ -706,7 +889,7 @@
         "h": 5,
         "w": 4,
         "x": 16,
-        "y": 12
+        "y": 17
       },
       "id": 94,
       "options": {
@@ -777,7 +960,7 @@
         "h": 5,
         "w": 4,
         "x": 20,
-        "y": 12
+        "y": 17
       },
       "id": 95,
       "options": {
@@ -888,7 +1071,7 @@
         "h": 5,
         "w": 12,
         "x": 0,
-        "y": 17
+        "y": 22
       },
       "id": 97,
       "options": {
@@ -899,8 +1082,8 @@
       "scopedVars": {
         "scheduled_sparkapp": {
           "selected": true,
-          "text": "iav-daily-ingest",
-          "value": "iav-daily-ingest"
+          "text": "fake",
+          "value": "fake"
         }
       },
       "targets": [
@@ -1027,7 +1210,7 @@
         "h": 5,
         "w": 12,
         "x": 12,
-        "y": 17
+        "y": 22
       },
       "id": 8,
       "options": {
@@ -1045,7 +1228,7 @@
       "targets": [
         {
           "exemplar": true,
-          "expr": "(\n  kube_pod_owner{owner_kind=\"SparkApplication\", cluster_name=~\"$cluster_name\", namespace=~\"$namespace\", owner_name=~\"$scheduled_sparkapp.*\"}\n    * on(pod)\n  kube_pod_start_time  * 1000\n)\n* on (pod) group_left(reason)\nkube_pod_container_status_terminated_reason{reason!=\"Completed\"}\n\n",
+          "expr": "(\n  kube_pod_owner{owner_kind=\"SparkApplication\", cluster_name=~\"$cluster_name\", namespace=~\"$namespace\", owner_name=~\"$scheduled_sparkapp.*\"}\n    * on(pod)\n  kube_pod_start_time  * 1000\n)\n* on (pod) group_left(reason)\nkube_pod_container_status_terminated_reason{reason!=\"Completed\", container!=\"pause\"}\n\n",
           "format": "table",
           "hide": false,
           "instant": true,
@@ -1158,7 +1341,7 @@
       {
         "allValue": null,
         "current": {
-          "selected": false,
+          "selected": true,
           "text": "default",
           "value": "default"
         },
@@ -1190,6 +1373,7 @@
         "allValue": null,
         "current": {
           "selected": true,
+          "tags": [],
           "text": [
             "fake"
           ],
@@ -1231,5 +1415,5 @@
   "timezone": "",
   "title": "Spark Applications",
   "uid": "a5yuKIcnz",
-  "version": 45
+  "version": 1
 }
