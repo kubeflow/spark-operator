@@ -32,7 +32,7 @@ $ helm repo add spark-operator https://googlecloudplatform.github.io/spark-on-k8
 $ helm install my-release spark-operator/spark-operator --namespace spark-operator --create-namespace
 ```
 
-This will install the Kubernetes Operator for Apache Spark into the namespace `spark-operator`. The operator by default watches and handles `SparkApplication`s in every namespaces. If you would like to limit the operator to watch and handle `SparkApplication`s in a single namespace, e.g., `default` instead, add the following option to the `helm install` command:
+This will install the Kubernetes Operator for Apache Spark into the namespace `spark-operator`. The operator by default watches and handles `SparkApplication`s in every namespace. If you would like to limit the operator to watch and handle `SparkApplication`s in a single namespace, e.g., `default` instead, add the following option to the `helm install` command:
 
 ```
 --set sparkJobNamespace=default
@@ -42,7 +42,7 @@ For configuration options available in the Helm chart, please refer to the chart
 
 ## Version Matrix
 
-The following table lists the most recent few versions of the operator.
+The following table lists the most recent few versions of the operator:
 
 | Operator Version | API Version | Kubernetes Version | Base Spark Version | Operator Image Tag |
 | ------------- | ------------- | ------------- | ------------- | ------------- |
