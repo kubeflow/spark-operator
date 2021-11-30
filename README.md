@@ -22,7 +22,7 @@ Customization of Spark pods, e.g., mounting arbitrary volumes and setting pod af
 
 * Version >= 1.13 of Kubernetes to use the [`subresource` support for CustomResourceDefinitions](https://kubernetes.io/docs/tasks/access-kubernetes-api/custom-resources/custom-resource-definitions/#subresources), which became beta in 1.13 and is enabled by default in 1.13 and higher.
 
-* Version >= 1.16 of Kubernetes to use the MutatingWebhook and ValidatingWebhook of admissionregistration.k8s.io/v1
+* Version >= 1.16 of Kubernetes to use the `MutatingWebhook` and `ValidatingWebhook` of `apiVersion: admissionregistration.k8s.io/v1`.
 
 ## Installation
 
