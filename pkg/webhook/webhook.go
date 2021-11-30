@@ -379,6 +379,8 @@ func (wh *WebHook) selfRegistration(webhookConfigName string) error {
 		},
 	}
 
+	sideEffect := arv1.SideEffectClassNoneOnDryRun
+
 	mutatingWebhook := arv1.MutatingWebhook{
 		Name:  webhookName,
 		Rules: mutatingRules,
@@ -386,9 +388,11 @@ func (wh *WebHook) selfRegistration(webhookConfigName string) error {
 			Service:  wh.serviceRef,
 			CABundle: caCert,
 		},
-		FailurePolicy:     &wh.failurePolicy,
-		NamespaceSelector: wh.selector,
-		TimeoutSeconds:    wh.timeoutSeconds,
+		FailurePolicy:           &wh.failurePolicy,
+		NamespaceSelector:       wh.selector,
+		TimeoutSeconds:          wh.timeoutSeconds,
+		SideEffects:             &sideEffect,
+		AdmissionReviewVersions: []string{"v1"},
 	}
 
 	validatingWebhook := arv1.ValidatingWebhook{
@@ -398,9 +402,11 @@ func (wh *WebHook) selfRegistration(webhookConfigName string) error {
 			Service:  wh.serviceRef,
 			CABundle: caCert,
 		},
-		FailurePolicy:     &wh.failurePolicy,
-		NamespaceSelector: wh.selector,
-		TimeoutSeconds:    wh.timeoutSeconds,
+		FailurePolicy:           &wh.failurePolicy,
+		NamespaceSelector:       wh.selector,
+		TimeoutSeconds:          wh.timeoutSeconds,
+		SideEffects:             &sideEffect,
+		AdmissionReviewVersions: []string{"v1"},
 	}
 
 	mutatingWebhooks := []arv1.MutatingWebhook{mutatingWebhook}
