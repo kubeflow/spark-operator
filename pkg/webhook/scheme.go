@@ -17,7 +17,7 @@ limitations under the License.
 package webhook
 
 import (
-	admissionv1beta1 "k8s.io/api/admission/v1beta1"
+	admissionv1 "k8s.io/api/admission/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
@@ -34,5 +34,5 @@ func init() {
 
 func addToScheme(scheme *runtime.Scheme) {
 	corev1.AddToScheme(scheme)
-	admissionv1beta1.AddToScheme(scheme)
+	admissionv1.AddToScheme(scheme)
 }

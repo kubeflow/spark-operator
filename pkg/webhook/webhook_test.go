@@ -24,7 +24,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"k8s.io/api/admission/v1beta1"
+	admissionv1 "k8s.io/api/admission/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -62,8 +62,8 @@ func TestMutatePod(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	review := &v1beta1.AdmissionReview{
-		Request: &v1beta1.AdmissionRequest{
+	review := &admissionv1.AdmissionReview{
+		Request: &admissionv1.AdmissionRequest{
 			Resource: metav1.GroupVersionResource{
 				Group:    corev1.SchemeGroupVersion.Group,
 				Version:  corev1.SchemeGroupVersion.Version,
@@ -99,7 +99,7 @@ func TestMutatePod(t *testing.T) {
 	review.Request.Object.Raw = podBytes
 	response, _ = mutatePods(review, lister, "default")
 	assert.True(t, response.Allowed)
-	assert.Equal(t, v1beta1.PatchTypeJSONPatch, *response.PatchType)
+	assert.Equal(t, admissionv1.PatchTypeJSONPatch, *response.PatchType)
 	assert.True(t, len(response.Patch) > 0)
 
 	// 3. Test processing Spark pod with patches.
@@ -172,7 +172,7 @@ func TestMutatePod(t *testing.T) {
 	review.Request.Object.Raw = podBytes
 	response, _ = mutatePods(review, lister, "default")
 	assert.True(t, response.Allowed)
-	assert.Equal(t, v1beta1.PatchTypeJSONPatch, *response.PatchType)
+	assert.Equal(t, admissionv1.PatchTypeJSONPatch, *response.PatchType)
 	assert.True(t, len(response.Patch) > 0)
 	var patchOps []*patchOperation
 	json.Unmarshal(response.Patch, &patchOps)

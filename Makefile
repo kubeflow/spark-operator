@@ -64,7 +64,7 @@ test: clean
 
 it-test: clean all
 	@echo "running unit tests"
-	go test -v ./test/e2e/ --kubeconfig "$HOME/.kube/config" --operator-image=gcr.io/spark-operator/spark-operator:v1beta2-1.2.3-3.1.1
+	go test -v ./test/e2e/ --kubeconfig "$HOME/.kube/config" --operator-image=gcr.io/spark-operator/spark-operator:v1beta2-1.3.0-3.1.1
 
 vet:
 	@echo "running go vet"
