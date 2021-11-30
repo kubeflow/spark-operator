@@ -24,6 +24,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"time"
 	"unicode/utf8"
 
 	"github.com/google/go-cloud/blob"
@@ -49,6 +50,7 @@ var Public bool
 var S3ForcePathStyle bool
 var Override bool
 var From string
+var WaitTillCompletion bool
 
 var createCmd = &cobra.Command{
 	Use:   "create <yaml file>",
@@ -106,6 +108,8 @@ func init() {
 		"whether to override remote files with the same names")
 	createCmd.Flags().StringVarP(&From, "from", "f", "",
 		"the name of ScheduledSparkApplication from which a forced SparkApplication run is created")
+	createCmd.Flags().BoolVarP(&WaitTillCompletion, "wait", "w", false,
+		"whether to wait the completion of the SparkApplication created")
 }
 
 func createFromYaml(yamlFile string, kubeClient clientset.Interface, crdClient crdclientset.Interface) error {
@@ -176,6 +180,29 @@ func createSparkApplication(app *v1beta2.SparkApplication, kubeClient clientset.
 	}
 
 	fmt.Printf("SparkApplication \"%s\" created\n", app.Name)
+
+	if WaitTillCompletion {
+		for {
+			appStatus, err := getSparkApplication(app.Name, crdClient)
+			if err != nil {
+				return fmt.Errorf("failed to get SparkApplication %s: %v", app.Name, err)
+			}
+
+			fmt.Printf("SparkApplication \"%s\" status: \"%s\"\n", app.Name,appStatus.Status.AppState.State)
+
+			if appStatus.Status.AppState.State == v1beta2.FailedState ||
+				appStatus.Status.AppState.State == v1beta2.UnknownState {
+				return fmt.Errorf("SparkApplication  \"%s\" failed with status \"%s\"\n", app.Name, appStatus.Status.AppState.State)
+			}
+
+			if appStatus.Status.AppState.State == v1beta2.CompletedState {
+				fmt.Printf("SparkApplication  \"%s\" exit succesfully with status \"%s\"\n", app.Name, appStatus.Status.AppState.State)
+				break
+			}
+
+			time.Sleep(5 * time.Second)
+		}
+	}
 
 	return nil
 }
