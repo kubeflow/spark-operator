@@ -47,6 +47,12 @@ jobs:
         with:
           fetch-depth: 2
 
+      - name: Build Spark-Operator Docker Image
+        run: |
+          tag=$(git describe --tags --dirty)_v3.1.1
+          docker build -t gcr.io/spark-operator/spark-operator:${tag} .
+          docker build -t gcr.io/spark-operator/spark-operator:local .
+
       - name: Install Helm
         uses: azure/setup-helm@v1
         with:
@@ -68,8 +74,25 @@ jobs:
       - name: Detect CRDs drift between chart and manifest
         run: make detect-crds-drift
 
-      - name: Create kind cluster
-        uses: helm/kind-action@v1.2.0
+      - name: setup minikube
+        uses: manusa/actions-setup-minikube@v2.4.2
+        with:
+          minikube version: "v1.24.0"
+          kubernetes version: "v1.20.8"
+          start args: --memory 6g --cpus=2 --addons ingress
+          github token: ${{ inputs.github-token }}
 
       - name: Run chart-testing (install)
-        run: ct install
+        run: |
+          tag=$(git describe --tags --dirty)_v3.1.1
+          minikube image load gcr.io/spark-operator/spark-operator:local
+          ct install
+
+      # The integration tests are currently broken see: https://github.com/GoogleCloudPlatform/spark-on-k8s-operator/issues/1416
+      # - name: Run chart-testing (integration test)
+      #   run: make it-test
+      
+      - name: Setup tmate session
+        if: failure()
+        uses: mxschmitt/action-tmate@v3
+        timeout-minutes: 15
