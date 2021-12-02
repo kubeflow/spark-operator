@@ -28,6 +28,24 @@ jobs:
         with:
           python-version: 3.7
 
+      # TODO: Maintainer of repository to follow:
+      # https://github.com/docker/login-action#google-container-registry-gcr to add credentials so
+      # we can push from github actions
+      # - name: log in to container registry
+      #   uses: docker/login-action@v1
+      #   with:
+      #     registry: gcr.io
+      #     username: ${{ secrets.DOCKER_USERNAME }}
+      #     password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Build Spark-Operator Docker Image
+        run: |
+          tag=$(git describe --tags --dirty)_v3.1.1
+          docker build -t gcr.io/spark-operator/spark-operator:${tag} .
+          docker build -t gcr.io/spark-operator/spark-operator:local .
+          echo "Ideally, we'd release the docker container at this point, but the maintainer of this repo needs to approve..."
+          echo "docker push gcr.io/spark-operator/spark-operator:${tag}"
+
       - name: Set up chart-testing
         uses: helm/chart-testing-action@v2.0.1
 
@@ -42,15 +60,27 @@ jobs:
       - name: Run chart-testing (lint)
         run: ct lint
 
-      - name: Create kind cluster
-        uses: helm/kind-action@v1.2.0
-        if: steps.list-changed.outputs.changed == 'true'
+      - name: setup minikube
+        uses: manusa/actions-setup-minikube@v2.4.2
+        with:
+          minikube version: "v1.24.0"
+          kubernetes version: "v1.20.8"
+          start args: --memory 6g --cpus=2 --addons ingress
+          github token: ${{ inputs.github-token }}
 
       - name: Run chart-testing (install)
-        run: ct install
+        run: |
+          tag=$(git describe --tags --dirty)_v3.1.1
+          minikube image load gcr.io/spark-operator/spark-operator:local
+          ct install
 
       - name: Run chart-releaser
         uses: helm/chart-releaser-action@v1.1.0
         env:
           CR_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
           CR_RELEASE_NAME_TEMPLATE: "spark-operator-chart-{{ .Version }}"
+
+      - name: Setup tmate session
+        if: failure()
+        uses: mxschmitt/action-tmate@v3
+        timeout-minutes: 15

@@ -46,8 +46,14 @@ helm-docs:
 	helm-docs -c ./charts
 
 fmt-check: clean
-	@echo "running fmt check"
-	./.travis.gofmt.sh
+	@echo "running fmt check"; cd "$(dirname $0)"; \
+	if [ -n "$(go fmt ./...)" ]; \
+	then \
+		echo "Go code is not formatted, please run 'go fmt ./...'." >&2; \
+		exit 1; \
+	else \
+		echo "Go code is formatted"; \
+	fi
 
 detect-crds-drift:
 	diff -q charts/spark-operator-chart/crds manifest/crds --exclude=kustomization.yaml
@@ -62,9 +68,9 @@ test: clean
 	go test -v ./... -covermode=atomic
 
 
-it-test: clean all
+it-test: clean
 	@echo "running unit tests"
-	go test -v ./test/e2e/ --kubeconfig "$HOME/.kube/config" --operator-image=gcr.io/spark-operator/spark-operator:v1beta2-1.3.0-3.1.1
+	go test -v ./test/e2e/ --kubeconfig "$(HOME)/.kube/config" --operator-image=gcr.io/spark-operator/spark-operator:local
 
 vet:
 	@echo "running go vet"

@@ -11,8 +11,8 @@ image:
   repository: gcr.io/spark-operator/spark-operator
   # -- Image pull policy
   pullPolicy: IfNotPresent
-  # -- Overrides the image tag whose default is the chart appVersion.
-  tag: "latest"
+  # -- if set, override the image tag whose default is the chart appVersion.
+  tag: ""
 
 # -- Image pull secrets
 imagePullSecrets: []
