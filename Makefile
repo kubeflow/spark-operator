@@ -2,7 +2,7 @@
 .SILENT:
 .PHONY: clean-sparkctl
 
-SPARK_OPERATOR_GOPATH=/go/src/github.com/GoogleCloudPlatform/spark-on-k8s-operator
+SPARK_OPERATOR_GOPATH=/go/src/github.com/bagnaram/spark-on-k8s-operator
 DEP_VERSION:=`grep DEP_VERSION= Dockerfile | awk -F\" '{print $$2}'`
 BUILDER=`grep "FROM golang:" Dockerfile | awk '{print $$2}'`
 UNAME:=`uname | tr '[:upper:]' '[:lower:]'`
