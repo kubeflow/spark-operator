@@ -5,9 +5,9 @@
 </li>
 </ul>
 <h2 id="sparkoperator.k8s.io/v1beta2">sparkoperator.k8s.io/v1beta2</h2>
-<p>
+<div>
 <p>Package v1beta2 is the v1beta2 version of the API.</p>
-</p>
+</div>
 Resource Types:
 <ul><li>
 <a href="#sparkoperator.k8s.io/v1beta2.ScheduledSparkApplication">ScheduledSparkApplication</a>
@@ -16,8 +16,8 @@ Resource Types:
 </li></ul>
 <h3 id="sparkoperator.k8s.io/v1beta2.ScheduledSparkApplication">ScheduledSparkApplication
 </h3>
-<p>
-</p>
+<div>
+</div>
 <table>
 <thead>
 <tr>
@@ -28,7 +28,7 @@ Resource Types:
 <tbody>
 <tr>
 <td>
-<code>apiVersion</code></br>
+<code>apiVersion</code><br/>
 string</td>
 <td>
 <code>
@@ -38,16 +38,16 @@ sparkoperator.k8s.io/v1beta2
 </tr>
 <tr>
 <td>
-<code>kind</code></br>
+<code>kind</code><br/>
 string
 </td>
 <td><code>ScheduledSparkApplication</code></td>
 </tr>
 <tr>
 <td>
-<code>metadata</code></br>
+<code>metadata</code><br/>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#objectmeta-v1-meta">
+<a href="https://v1-18.docs.kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#objectmeta-v1-meta">
 Kubernetes meta/v1.ObjectMeta
 </a>
 </em>
@@ -59,7 +59,7 @@ Refer to the Kubernetes API documentation for the fields of the
 </tr>
 <tr>
 <td>
-<code>spec</code></br>
+<code>spec</code><br/>
 <em>
 <a href="#sparkoperator.k8s.io/v1beta2.ScheduledSparkApplicationSpec">
 ScheduledSparkApplicationSpec
@@ -72,7 +72,7 @@ ScheduledSparkApplicationSpec
 <table>
 <tr>
 <td>
-<code>schedule</code></br>
+<code>schedule</code><br/>
 <em>
 string
 </em>
@@ -83,7 +83,7 @@ string
 </tr>
 <tr>
 <td>
-<code>template</code></br>
+<code>template</code><br/>
 <em>
 <a href="#sparkoperator.k8s.io/v1beta2.SparkApplicationSpec">
 SparkApplicationSpec
@@ -96,7 +96,7 @@ SparkApplicationSpec
 </tr>
 <tr>
 <td>
-<code>suspend</code></br>
+<code>suspend</code><br/>
 <em>
 bool
 </em>
@@ -109,7 +109,7 @@ Defaults to false.</p>
 </tr>
 <tr>
 <td>
-<code>concurrencyPolicy</code></br>
+<code>concurrencyPolicy</code><br/>
 <em>
 <a href="#sparkoperator.k8s.io/v1beta2.ConcurrencyPolicy">
 ConcurrencyPolicy
@@ -122,7 +122,7 @@ ConcurrencyPolicy
 </tr>
 <tr>
 <td>
-<code>successfulRunHistoryLimit</code></br>
+<code>successfulRunHistoryLimit</code><br/>
 <em>
 int32
 </em>
@@ -135,7 +135,7 @@ Defaults to 1.</p>
 </tr>
 <tr>
 <td>
-<code>failedRunHistoryLimit</code></br>
+<code>failedRunHistoryLimit</code><br/>
 <em>
 int32
 </em>
@@ -151,7 +151,7 @@ Defaults to 1.</p>
 </tr>
 <tr>
 <td>
-<code>status</code></br>
+<code>status</code><br/>
 <em>
 <a href="#sparkoperator.k8s.io/v1beta2.ScheduledSparkApplicationStatus">
 ScheduledSparkApplicationStatus
@@ -165,9 +165,9 @@ ScheduledSparkApplicationStatus
 </table>
 <h3 id="sparkoperator.k8s.io/v1beta2.SparkApplication">SparkApplication
 </h3>
-<p>
+<div>
 <p>SparkApplication represents a Spark application running on and using Kubernetes as a cluster manager.</p>
-</p>
+</div>
 <table>
 <thead>
 <tr>
@@ -178,7 +178,7 @@ ScheduledSparkApplicationStatus
 <tbody>
 <tr>
 <td>
-<code>apiVersion</code></br>
+<code>apiVersion</code><br/>
 string</td>
 <td>
 <code>
@@ -188,16 +188,16 @@ sparkoperator.k8s.io/v1beta2
 </tr>
 <tr>
 <td>
-<code>kind</code></br>
+<code>kind</code><br/>
 string
 </td>
 <td><code>SparkApplication</code></td>
 </tr>
 <tr>
 <td>
-<code>metadata</code></br>
+<code>metadata</code><br/>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#objectmeta-v1-meta">
+<a href="https://v1-18.docs.kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#objectmeta-v1-meta">
 Kubernetes meta/v1.ObjectMeta
 </a>
 </em>
@@ -209,7 +209,7 @@ Refer to the Kubernetes API documentation for the fields of the
 </tr>
 <tr>
 <td>
-<code>spec</code></br>
+<code>spec</code><br/>
 <em>
 <a href="#sparkoperator.k8s.io/v1beta2.SparkApplicationSpec">
 SparkApplicationSpec
@@ -222,7 +222,7 @@ SparkApplicationSpec
 <table>
 <tr>
 <td>
-<code>type</code></br>
+<code>type</code><br/>
 <em>
 <a href="#sparkoperator.k8s.io/v1beta2.SparkApplicationType">
 SparkApplicationType
@@ -235,7 +235,7 @@ SparkApplicationType
 </tr>
 <tr>
 <td>
-<code>sparkVersion</code></br>
+<code>sparkVersion</code><br/>
 <em>
 string
 </em>
@@ -246,7 +246,7 @@ string
 </tr>
 <tr>
 <td>
-<code>mode</code></br>
+<code>mode</code><br/>
 <em>
 <a href="#sparkoperator.k8s.io/v1beta2.DeployMode">
 DeployMode
@@ -259,7 +259,7 @@ DeployMode
 </tr>
 <tr>
 <td>
-<code>proxyUser</code></br>
+<code>proxyUser</code><br/>
 <em>
 string
 </em>
@@ -272,7 +272,7 @@ It maps to the command-line flag &ldquo;&ndash;proxy-user&rdquo; in spark-submit
 </tr>
 <tr>
 <td>
-<code>image</code></br>
+<code>image</code><br/>
 <em>
 string
 </em>
@@ -285,7 +285,7 @@ driver, executor, or init-container takes precedence over this.</p>
 </tr>
 <tr>
 <td>
-<code>imagePullPolicy</code></br>
+<code>imagePullPolicy</code><br/>
 <em>
 string
 </em>
@@ -297,7 +297,7 @@ string
 </tr>
 <tr>
 <td>
-<code>imagePullSecrets</code></br>
+<code>imagePullSecrets</code><br/>
 <em>
 []string
 </em>
@@ -309,7 +309,7 @@ string
 </tr>
 <tr>
 <td>
-<code>mainClass</code></br>
+<code>mainClass</code><br/>
 <em>
 string
 </em>
@@ -322,7 +322,7 @@ This only applies to Java/Scala Spark applications.</p>
 </tr>
 <tr>
 <td>
-<code>mainApplicationFile</code></br>
+<code>mainApplicationFile</code><br/>
 <em>
 string
 </em>
@@ -334,7 +334,7 @@ string
 </tr>
 <tr>
 <td>
-<code>arguments</code></br>
+<code>arguments</code><br/>
 <em>
 []string
 </em>
@@ -346,7 +346,7 @@ string
 </tr>
 <tr>
 <td>
-<code>sparkConf</code></br>
+<code>sparkConf</code><br/>
 <em>
 map[string]string
 </em>
@@ -359,7 +359,7 @@ spark-submit.</p>
 </tr>
 <tr>
 <td>
-<code>hadoopConf</code></br>
+<code>hadoopConf</code><br/>
 <em>
 map[string]string
 </em>
@@ -373,7 +373,7 @@ configuration properties.</p>
 </tr>
 <tr>
 <td>
-<code>sparkConfigMap</code></br>
+<code>sparkConfigMap</code><br/>
 <em>
 string
 </em>
@@ -386,7 +386,7 @@ The controller will add environment variable SPARK_CONF_DIR to the path where th
 </tr>
 <tr>
 <td>
-<code>hadoopConfigMap</code></br>
+<code>hadoopConfigMap</code><br/>
 <em>
 string
 </em>
@@ -399,9 +399,9 @@ The controller will add environment variable HADOOP_CONF_DIR to the path where t
 </tr>
 <tr>
 <td>
-<code>volumes</code></br>
+<code>volumes</code><br/>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#volume-v1-core">
+<a href="https://v1-18.docs.kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#volume-v1-core">
 []Kubernetes core/v1.Volume
 </a>
 </em>
@@ -413,7 +413,7 @@ The controller will add environment variable HADOOP_CONF_DIR to the path where t
 </tr>
 <tr>
 <td>
-<code>driver</code></br>
+<code>driver</code><br/>
 <em>
 <a href="#sparkoperator.k8s.io/v1beta2.DriverSpec">
 DriverSpec
@@ -426,7 +426,7 @@ DriverSpec
 </tr>
 <tr>
 <td>
-<code>executor</code></br>
+<code>executor</code><br/>
 <em>
 <a href="#sparkoperator.k8s.io/v1beta2.ExecutorSpec">
 ExecutorSpec
@@ -439,7 +439,7 @@ ExecutorSpec
 </tr>
 <tr>
 <td>
-<code>deps</code></br>
+<code>deps</code><br/>
 <em>
 <a href="#sparkoperator.k8s.io/v1beta2.Dependencies">
 Dependencies
@@ -453,7 +453,7 @@ Dependencies
 </tr>
 <tr>
 <td>
-<code>restartPolicy</code></br>
+<code>restartPolicy</code><br/>
 <em>
 <a href="#sparkoperator.k8s.io/v1beta2.RestartPolicy">
 RestartPolicy
@@ -466,7 +466,7 @@ RestartPolicy
 </tr>
 <tr>
 <td>
-<code>nodeSelector</code></br>
+<code>nodeSelector</code><br/>
 <em>
 map[string]string
 </em>
@@ -480,7 +480,7 @@ This field will be deprecated in future versions (at SparkApplicationSpec level)
 </tr>
 <tr>
 <td>
-<code>failureRetries</code></br>
+<code>failureRetries</code><br/>
 <em>
 int32
 </em>
@@ -493,7 +493,7 @@ This is best effort and actual retry attempts can be &gt;= the value specified.<
 </tr>
 <tr>
 <td>
-<code>retryInterval</code></br>
+<code>retryInterval</code><br/>
 <em>
 int64
 </em>
@@ -505,7 +505,7 @@ int64
 </tr>
 <tr>
 <td>
-<code>pythonVersion</code></br>
+<code>pythonVersion</code><br/>
 <em>
 string
 </em>
@@ -518,7 +518,7 @@ image used to run the driver and executor containers. Can either be 2 or 3, defa
 </tr>
 <tr>
 <td>
-<code>memoryOverheadFactor</code></br>
+<code>memoryOverheadFactor</code><br/>
 <em>
 string
 </em>
@@ -532,7 +532,7 @@ be overridden by <code>Spec.Driver.MemoryOverhead</code> and <code>Spec.Executor
 </tr>
 <tr>
 <td>
-<code>monitoring</code></br>
+<code>monitoring</code><br/>
 <em>
 <a href="#sparkoperator.k8s.io/v1beta2.MonitoringSpec">
 MonitoringSpec
@@ -546,7 +546,7 @@ MonitoringSpec
 </tr>
 <tr>
 <td>
-<code>batchScheduler</code></br>
+<code>batchScheduler</code><br/>
 <em>
 string
 </em>
@@ -558,7 +558,7 @@ string
 </tr>
 <tr>
 <td>
-<code>timeToLiveSeconds</code></br>
+<code>timeToLiveSeconds</code><br/>
 <em>
 int64
 </em>
@@ -573,7 +573,7 @@ TimeToLiveSeconds since its termination.</p>
 </tr>
 <tr>
 <td>
-<code>batchSchedulerOptions</code></br>
+<code>batchSchedulerOptions</code><br/>
 <em>
 <a href="#sparkoperator.k8s.io/v1beta2.BatchSchedulerConfiguration">
 BatchSchedulerConfiguration
@@ -587,7 +587,7 @@ BatchSchedulerConfiguration
 </tr>
 <tr>
 <td>
-<code>sparkUIOptions</code></br>
+<code>sparkUIOptions</code><br/>
 <em>
 <a href="#sparkoperator.k8s.io/v1beta2.SparkUIConfiguration">
 SparkUIConfiguration
@@ -601,7 +601,7 @@ SparkUIConfiguration
 </tr>
 <tr>
 <td>
-<code>dynamicAllocation</code></br>
+<code>dynamicAllocation</code><br/>
 <em>
 <a href="#sparkoperator.k8s.io/v1beta2.DynamicAllocation">
 DynamicAllocation
@@ -619,7 +619,7 @@ scheduler backend since Spark 3.0.</p>
 </tr>
 <tr>
 <td>
-<code>status</code></br>
+<code>status</code><br/>
 <em>
 <a href="#sparkoperator.k8s.io/v1beta2.SparkApplicationStatus">
 SparkApplicationStatus
@@ -634,12 +634,11 @@ SparkApplicationStatus
 <h3 id="sparkoperator.k8s.io/v1beta2.ApplicationState">ApplicationState
 </h3>
 <p>
-(<em>Appears on:</em>
-<a href="#sparkoperator.k8s.io/v1beta2.SparkApplicationStatus">SparkApplicationStatus</a>)
+(<em>Appears on:</em><a href="#sparkoperator.k8s.io/v1beta2.SparkApplicationStatus">SparkApplicationStatus</a>)
 </p>
-<p>
+<div>
 <p>ApplicationState tells the current state of the application and an error message in case of failures.</p>
-</p>
+</div>
 <table>
 <thead>
 <tr>
@@ -650,7 +649,7 @@ SparkApplicationStatus
 <tbody>
 <tr>
 <td>
-<code>state</code></br>
+<code>state</code><br/>
 <em>
 <a href="#sparkoperator.k8s.io/v1beta2.ApplicationStateType">
 ApplicationStateType
@@ -662,7 +661,7 @@ ApplicationStateType
 </tr>
 <tr>
 <td>
-<code>errorMessage</code></br>
+<code>errorMessage</code><br/>
 <em>
 string
 </em>
@@ -673,23 +672,52 @@ string
 </tbody>
 </table>
 <h3 id="sparkoperator.k8s.io/v1beta2.ApplicationStateType">ApplicationStateType
-(<code>string</code> alias)</p></h3>
+(<code>string</code> alias)</h3>
 <p>
-(<em>Appears on:</em>
-<a href="#sparkoperator.k8s.io/v1beta2.ApplicationState">ApplicationState</a>)
+(<em>Appears on:</em><a href="#sparkoperator.k8s.io/v1beta2.ApplicationState">ApplicationState</a>)
 </p>
-<p>
+<div>
 <p>ApplicationStateType represents the type of the current state of an application.</p>
-</p>
+</div>
+<table>
+<thead>
+<tr>
+<th>Value</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr><td><p>&#34;COMPLETED&#34;</p></td>
+<td></td>
+</tr><tr><td><p>&#34;FAILED&#34;</p></td>
+<td></td>
+</tr><tr><td><p>&#34;SUBMISSION_FAILED&#34;</p></td>
+<td></td>
+</tr><tr><td><p>&#34;FAILING&#34;</p></td>
+<td></td>
+</tr><tr><td><p>&#34;INVALIDATING&#34;</p></td>
+<td></td>
+</tr><tr><td><p>&#34;&#34;</p></td>
+<td></td>
+</tr><tr><td><p>&#34;PENDING_RERUN&#34;</p></td>
+<td></td>
+</tr><tr><td><p>&#34;RUNNING&#34;</p></td>
+<td></td>
+</tr><tr><td><p>&#34;SUBMITTED&#34;</p></td>
+<td></td>
+</tr><tr><td><p>&#34;SUCCEEDING&#34;</p></td>
+<td></td>
+</tr><tr><td><p>&#34;UNKNOWN&#34;</p></td>
+<td></td>
+</tr></tbody>
+</table>
 <h3 id="sparkoperator.k8s.io/v1beta2.BatchSchedulerConfiguration">BatchSchedulerConfiguration
 </h3>
 <p>
-(<em>Appears on:</em>
-<a href="#sparkoperator.k8s.io/v1beta2.SparkApplicationSpec">SparkApplicationSpec</a>)
+(<em>Appears on:</em><a href="#sparkoperator.k8s.io/v1beta2.SparkApplicationSpec">SparkApplicationSpec</a>)
 </p>
-<p>
+<div>
 <p>BatchSchedulerConfiguration used to configure how to batch scheduling Spark Application</p>
-</p>
+</div>
 <table>
 <thead>
 <tr>
@@ -700,7 +728,7 @@ string
 <tbody>
 <tr>
 <td>
-<code>queue</code></br>
+<code>queue</code><br/>
 <em>
 string
 </em>
@@ -712,7 +740,7 @@ string
 </tr>
 <tr>
 <td>
-<code>priorityClassName</code></br>
+<code>priorityClassName</code><br/>
 <em>
 string
 </em>
@@ -724,9 +752,9 @@ string
 </tr>
 <tr>
 <td>
-<code>resources</code></br>
+<code>resources</code><br/>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#resourcelist-v1-core">
+<a href="https://v1-18.docs.kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#resourcelist-v1-core">
 Kubernetes core/v1.ResourceList
 </a>
 </em>
@@ -740,22 +768,39 @@ If specified, volcano scheduler will consider it as the resources requested.</p>
 </tbody>
 </table>
 <h3 id="sparkoperator.k8s.io/v1beta2.ConcurrencyPolicy">ConcurrencyPolicy
-(<code>string</code> alias)</p></h3>
+(<code>string</code> alias)</h3>
 <p>
-(<em>Appears on:</em>
-<a href="#sparkoperator.k8s.io/v1beta2.ScheduledSparkApplicationSpec">ScheduledSparkApplicationSpec</a>)
+(<em>Appears on:</em><a href="#sparkoperator.k8s.io/v1beta2.ScheduledSparkApplicationSpec">ScheduledSparkApplicationSpec</a>)
 </p>
-<p>
-</p>
+<div>
+</div>
+<table>
+<thead>
+<tr>
+<th>Value</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr><td><p>&#34;Allow&#34;</p></td>
+<td><p>ConcurrencyAllow allows SparkApplications to run concurrently.</p>
+</td>
+</tr><tr><td><p>&#34;Forbid&#34;</p></td>
+<td><p>ConcurrencyForbid forbids concurrent runs of SparkApplications, skipping the next run if the previous
+one hasn&rsquo;t finished yet.</p>
+</td>
+</tr><tr><td><p>&#34;Replace&#34;</p></td>
+<td><p>ConcurrencyReplace kills the currently running SparkApplication instance and replaces it with a new one.</p>
+</td>
+</tr></tbody>
+</table>
 <h3 id="sparkoperator.k8s.io/v1beta2.Dependencies">Dependencies
 </h3>
 <p>
-(<em>Appears on:</em>
-<a href="#sparkoperator.k8s.io/v1beta2.SparkApplicationSpec">SparkApplicationSpec</a>)
+(<em>Appears on:</em><a href="#sparkoperator.k8s.io/v1beta2.SparkApplicationSpec">SparkApplicationSpec</a>)
 </p>
-<p>
+<div>
 <p>Dependencies specifies all possible types of dependencies of a Spark application.</p>
-</p>
+</div>
 <table>
 <thead>
 <tr>
@@ -766,7 +811,7 @@ If specified, volcano scheduler will consider it as the resources requested.</p>
 <tbody>
 <tr>
 <td>
-<code>jars</code></br>
+<code>jars</code><br/>
 <em>
 []string
 </em>
@@ -778,7 +823,7 @@ If specified, volcano scheduler will consider it as the resources requested.</p>
 </tr>
 <tr>
 <td>
-<code>files</code></br>
+<code>files</code><br/>
 <em>
 []string
 </em>
@@ -790,7 +835,7 @@ If specified, volcano scheduler will consider it as the resources requested.</p>
 </tr>
 <tr>
 <td>
-<code>pyFiles</code></br>
+<code>pyFiles</code><br/>
 <em>
 []string
 </em>
@@ -802,7 +847,7 @@ If specified, volcano scheduler will consider it as the resources requested.</p>
 </tr>
 <tr>
 <td>
-<code>packages</code></br>
+<code>packages</code><br/>
 <em>
 []string
 </em>
@@ -817,7 +862,7 @@ Each package should be of the form &ldquo;groupId:artifactId:version&rdquo;.</p>
 </tr>
 <tr>
 <td>
-<code>excludePackages</code></br>
+<code>excludePackages</code><br/>
 <em>
 []string
 </em>
@@ -830,7 +875,7 @@ dependencies provided in Packages to avoid dependency conflicts.</p>
 </tr>
 <tr>
 <td>
-<code>repositories</code></br>
+<code>repositories</code><br/>
 <em>
 []string
 </em>
@@ -844,23 +889,36 @@ given with the &ldquo;packages&rdquo; option.</p>
 </tbody>
 </table>
 <h3 id="sparkoperator.k8s.io/v1beta2.DeployMode">DeployMode
-(<code>string</code> alias)</p></h3>
+(<code>string</code> alias)</h3>
 <p>
-(<em>Appears on:</em>
-<a href="#sparkoperator.k8s.io/v1beta2.SparkApplicationSpec">SparkApplicationSpec</a>)
+(<em>Appears on:</em><a href="#sparkoperator.k8s.io/v1beta2.SparkApplicationSpec">SparkApplicationSpec</a>)
 </p>
-<p>
+<div>
 <p>DeployMode describes the type of deployment of a Spark application.</p>
-</p>
+</div>
+<table>
+<thead>
+<tr>
+<th>Value</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr><td><p>&#34;client&#34;</p></td>
+<td></td>
+</tr><tr><td><p>&#34;cluster&#34;</p></td>
+<td></td>
+</tr><tr><td><p>&#34;in-cluster-client&#34;</p></td>
+<td></td>
+</tr></tbody>
+</table>
 <h3 id="sparkoperator.k8s.io/v1beta2.DriverInfo">DriverInfo
 </h3>
 <p>
-(<em>Appears on:</em>
-<a href="#sparkoperator.k8s.io/v1beta2.SparkApplicationStatus">SparkApplicationStatus</a>)
+(<em>Appears on:</em><a href="#sparkoperator.k8s.io/v1beta2.SparkApplicationStatus">SparkApplicationStatus</a>)
 </p>
-<p>
+<div>
 <p>DriverInfo captures information about the driver.</p>
-</p>
+</div>
 <table>
 <thead>
 <tr>
@@ -871,7 +929,7 @@ given with the &ldquo;packages&rdquo; option.</p>
 <tbody>
 <tr>
 <td>
-<code>webUIServiceName</code></br>
+<code>webUIServiceName</code><br/>
 <em>
 string
 </em>
@@ -881,7 +939,7 @@ string
 </tr>
 <tr>
 <td>
-<code>webUIPort</code></br>
+<code>webUIPort</code><br/>
 <em>
 int32
 </em>
@@ -892,7 +950,7 @@ int32
 </tr>
 <tr>
 <td>
-<code>webUIAddress</code></br>
+<code>webUIAddress</code><br/>
 <em>
 string
 </em>
@@ -902,7 +960,7 @@ string
 </tr>
 <tr>
 <td>
-<code>webUIIngressName</code></br>
+<code>webUIIngressName</code><br/>
 <em>
 string
 </em>
@@ -913,7 +971,7 @@ string
 </tr>
 <tr>
 <td>
-<code>webUIIngressAddress</code></br>
+<code>webUIIngressAddress</code><br/>
 <em>
 string
 </em>
@@ -923,7 +981,7 @@ string
 </tr>
 <tr>
 <td>
-<code>podName</code></br>
+<code>podName</code><br/>
 <em>
 string
 </em>
@@ -936,12 +994,11 @@ string
 <h3 id="sparkoperator.k8s.io/v1beta2.DriverSpec">DriverSpec
 </h3>
 <p>
-(<em>Appears on:</em>
-<a href="#sparkoperator.k8s.io/v1beta2.SparkApplicationSpec">SparkApplicationSpec</a>)
+(<em>Appears on:</em><a href="#sparkoperator.k8s.io/v1beta2.SparkApplicationSpec">SparkApplicationSpec</a>)
 </p>
-<p>
+<div>
 <p>DriverSpec is specification of the driver.</p>
-</p>
+</div>
 <table>
 <thead>
 <tr>
@@ -952,7 +1009,7 @@ string
 <tbody>
 <tr>
 <td>
-<code>SparkPodSpec</code></br>
+<code>SparkPodSpec</code><br/>
 <em>
 <a href="#sparkoperator.k8s.io/v1beta2.SparkPodSpec">
 SparkPodSpec
@@ -967,7 +1024,7 @@ SparkPodSpec
 </tr>
 <tr>
 <td>
-<code>podName</code></br>
+<code>podName</code><br/>
 <em>
 string
 </em>
@@ -982,7 +1039,7 @@ in-cluster-client.</p>
 </tr>
 <tr>
 <td>
-<code>coreRequest</code></br>
+<code>coreRequest</code><br/>
 <em>
 string
 </em>
@@ -995,7 +1052,7 @@ Maps to <code>spark.kubernetes.driver.request.cores</code> that is available sin
 </tr>
 <tr>
 <td>
-<code>javaOptions</code></br>
+<code>javaOptions</code><br/>
 <em>
 string
 </em>
@@ -1008,9 +1065,9 @@ GC settings or other logging.</p>
 </tr>
 <tr>
 <td>
-<code>lifecycle</code></br>
+<code>lifecycle</code><br/>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#lifecycle-v1-core">
+<a href="https://v1-18.docs.kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#lifecycle-v1-core">
 Kubernetes core/v1.Lifecycle
 </a>
 </em>
@@ -1022,7 +1079,7 @@ Kubernetes core/v1.Lifecycle
 </tr>
 <tr>
 <td>
-<code>kubernetesMaster</code></br>
+<code>kubernetesMaster</code><br/>
 <em>
 string
 </em>
@@ -1035,7 +1092,7 @@ other Kubernetes resources. Default to <a href="https://kubernetes.default.svc">
 </tr>
 <tr>
 <td>
-<code>serviceAnnotations</code></br>
+<code>serviceAnnotations</code><br/>
 <em>
 map[string]string
 </em>
@@ -1048,7 +1105,7 @@ executors to connect to the driver.</p>
 </tr>
 <tr>
 <td>
-<code>ports</code></br>
+<code>ports</code><br/>
 <em>
 <a href="#sparkoperator.k8s.io/v1beta2.Port">
 []Port
@@ -1063,19 +1120,37 @@ executors to connect to the driver.</p>
 </tbody>
 </table>
 <h3 id="sparkoperator.k8s.io/v1beta2.DriverState">DriverState
-(<code>string</code> alias)</p></h3>
-<p>
+(<code>string</code> alias)</h3>
+<div>
 <p>DriverState tells the current state of a spark driver.</p>
-</p>
+</div>
+<table>
+<thead>
+<tr>
+<th>Value</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr><td><p>&#34;COMPLETED&#34;</p></td>
+<td></td>
+</tr><tr><td><p>&#34;FAILED&#34;</p></td>
+<td></td>
+</tr><tr><td><p>&#34;PENDING&#34;</p></td>
+<td></td>
+</tr><tr><td><p>&#34;RUNNING&#34;</p></td>
+<td></td>
+</tr><tr><td><p>&#34;UNKNOWN&#34;</p></td>
+<td></td>
+</tr></tbody>
+</table>
 <h3 id="sparkoperator.k8s.io/v1beta2.DynamicAllocation">DynamicAllocation
 </h3>
 <p>
-(<em>Appears on:</em>
-<a href="#sparkoperator.k8s.io/v1beta2.SparkApplicationSpec">SparkApplicationSpec</a>)
+(<em>Appears on:</em><a href="#sparkoperator.k8s.io/v1beta2.SparkApplicationSpec">SparkApplicationSpec</a>)
 </p>
-<p>
+<div>
 <p>DynamicAllocation contains configuration options for dynamic allocation.</p>
-</p>
+</div>
 <table>
 <thead>
 <tr>
@@ -1086,7 +1161,7 @@ executors to connect to the driver.</p>
 <tbody>
 <tr>
 <td>
-<code>enabled</code></br>
+<code>enabled</code><br/>
 <em>
 bool
 </em>
@@ -1097,7 +1172,7 @@ bool
 </tr>
 <tr>
 <td>
-<code>initialExecutors</code></br>
+<code>initialExecutors</code><br/>
 <em>
 int32
 </em>
@@ -1110,7 +1185,7 @@ is also set, the initial number of executors is set to the bigger of that and th
 </tr>
 <tr>
 <td>
-<code>minExecutors</code></br>
+<code>minExecutors</code><br/>
 <em>
 int32
 </em>
@@ -1122,7 +1197,7 @@ int32
 </tr>
 <tr>
 <td>
-<code>maxExecutors</code></br>
+<code>maxExecutors</code><br/>
 <em>
 int32
 </em>
@@ -1134,7 +1209,7 @@ int32
 </tr>
 <tr>
 <td>
-<code>shuffleTrackingTimeout</code></br>
+<code>shuffleTrackingTimeout</code><br/>
 <em>
 int64
 </em>
@@ -1150,12 +1225,11 @@ shuffle data if shuffle tracking is enabled (true by default if dynamic allocati
 <h3 id="sparkoperator.k8s.io/v1beta2.ExecutorSpec">ExecutorSpec
 </h3>
 <p>
-(<em>Appears on:</em>
-<a href="#sparkoperator.k8s.io/v1beta2.SparkApplicationSpec">SparkApplicationSpec</a>)
+(<em>Appears on:</em><a href="#sparkoperator.k8s.io/v1beta2.SparkApplicationSpec">SparkApplicationSpec</a>)
 </p>
-<p>
+<div>
 <p>ExecutorSpec is specification of the executor.</p>
-</p>
+</div>
 <table>
 <thead>
 <tr>
@@ -1166,7 +1240,7 @@ shuffle data if shuffle tracking is enabled (true by default if dynamic allocati
 <tbody>
 <tr>
 <td>
-<code>SparkPodSpec</code></br>
+<code>SparkPodSpec</code><br/>
 <em>
 <a href="#sparkoperator.k8s.io/v1beta2.SparkPodSpec">
 SparkPodSpec
@@ -1181,7 +1255,7 @@ SparkPodSpec
 </tr>
 <tr>
 <td>
-<code>instances</code></br>
+<code>instances</code><br/>
 <em>
 int32
 </em>
@@ -1193,7 +1267,7 @@ int32
 </tr>
 <tr>
 <td>
-<code>coreRequest</code></br>
+<code>coreRequest</code><br/>
 <em>
 string
 </em>
@@ -1206,7 +1280,7 @@ Maps to <code>spark.kubernetes.executor.request.cores</code> that is available s
 </tr>
 <tr>
 <td>
-<code>javaOptions</code></br>
+<code>javaOptions</code><br/>
 <em>
 string
 </em>
@@ -1219,7 +1293,7 @@ GC settings or other logging.</p>
 </tr>
 <tr>
 <td>
-<code>deleteOnTermination</code></br>
+<code>deleteOnTermination</code><br/>
 <em>
 bool
 </em>
@@ -1232,7 +1306,7 @@ Maps to <code>spark.kubernetes.executor.deleteOnTermination</code> that is avail
 </tr>
 <tr>
 <td>
-<code>ports</code></br>
+<code>ports</code><br/>
 <em>
 <a href="#sparkoperator.k8s.io/v1beta2.Port">
 []Port
@@ -1247,22 +1321,39 @@ Maps to <code>spark.kubernetes.executor.deleteOnTermination</code> that is avail
 </tbody>
 </table>
 <h3 id="sparkoperator.k8s.io/v1beta2.ExecutorState">ExecutorState
-(<code>string</code> alias)</p></h3>
+(<code>string</code> alias)</h3>
 <p>
-(<em>Appears on:</em>
-<a href="#sparkoperator.k8s.io/v1beta2.SparkApplicationStatus">SparkApplicationStatus</a>)
+(<em>Appears on:</em><a href="#sparkoperator.k8s.io/v1beta2.SparkApplicationStatus">SparkApplicationStatus</a>)
 </p>
-<p>
+<div>
 <p>ExecutorState tells the current state of an executor.</p>
-</p>
+</div>
+<table>
+<thead>
+<tr>
+<th>Value</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr><td><p>&#34;COMPLETED&#34;</p></td>
+<td></td>
+</tr><tr><td><p>&#34;FAILED&#34;</p></td>
+<td></td>
+</tr><tr><td><p>&#34;PENDING&#34;</p></td>
+<td></td>
+</tr><tr><td><p>&#34;RUNNING&#34;</p></td>
+<td></td>
+</tr><tr><td><p>&#34;UNKNOWN&#34;</p></td>
+<td></td>
+</tr></tbody>
+</table>
 <h3 id="sparkoperator.k8s.io/v1beta2.GPUSpec">GPUSpec
 </h3>
 <p>
-(<em>Appears on:</em>
-<a href="#sparkoperator.k8s.io/v1beta2.SparkPodSpec">SparkPodSpec</a>)
+(<em>Appears on:</em><a href="#sparkoperator.k8s.io/v1beta2.SparkPodSpec">SparkPodSpec</a>)
 </p>
-<p>
-</p>
+<div>
+</div>
 <table>
 <thead>
 <tr>
@@ -1273,7 +1364,7 @@ Maps to <code>spark.kubernetes.executor.deleteOnTermination</code> that is avail
 <tbody>
 <tr>
 <td>
-<code>name</code></br>
+<code>name</code><br/>
 <em>
 string
 </em>
@@ -1284,7 +1375,7 @@ string
 </tr>
 <tr>
 <td>
-<code>quantity</code></br>
+<code>quantity</code><br/>
 <em>
 int64
 </em>
@@ -1298,12 +1389,11 @@ int64
 <h3 id="sparkoperator.k8s.io/v1beta2.MonitoringSpec">MonitoringSpec
 </h3>
 <p>
-(<em>Appears on:</em>
-<a href="#sparkoperator.k8s.io/v1beta2.SparkApplicationSpec">SparkApplicationSpec</a>)
+(<em>Appears on:</em><a href="#sparkoperator.k8s.io/v1beta2.SparkApplicationSpec">SparkApplicationSpec</a>)
 </p>
-<p>
+<div>
 <p>MonitoringSpec defines the monitoring specification.</p>
-</p>
+</div>
 <table>
 <thead>
 <tr>
@@ -1314,7 +1404,7 @@ int64
 <tbody>
 <tr>
 <td>
-<code>exposeDriverMetrics</code></br>
+<code>exposeDriverMetrics</code><br/>
 <em>
 bool
 </em>
@@ -1325,7 +1415,7 @@ bool
 </tr>
 <tr>
 <td>
-<code>exposeExecutorMetrics</code></br>
+<code>exposeExecutorMetrics</code><br/>
 <em>
 bool
 </em>
@@ -1336,7 +1426,7 @@ bool
 </tr>
 <tr>
 <td>
-<code>metricsProperties</code></br>
+<code>metricsProperties</code><br/>
 <em>
 string
 </em>
@@ -1349,7 +1439,7 @@ If not specified, the content in spark-docker/conf/metrics.properties will be us
 </tr>
 <tr>
 <td>
-<code>metricsPropertiesFile</code></br>
+<code>metricsPropertiesFile</code><br/>
 <em>
 string
 </em>
@@ -1362,7 +1452,7 @@ the Spark metric system. If not specified, value /etc/metrics/conf/metrics.prope
 </tr>
 <tr>
 <td>
-<code>prometheus</code></br>
+<code>prometheus</code><br/>
 <em>
 <a href="#sparkoperator.k8s.io/v1beta2.PrometheusSpec">
 PrometheusSpec
@@ -1379,12 +1469,11 @@ PrometheusSpec
 <h3 id="sparkoperator.k8s.io/v1beta2.NameKey">NameKey
 </h3>
 <p>
-(<em>Appears on:</em>
-<a href="#sparkoperator.k8s.io/v1beta2.SparkPodSpec">SparkPodSpec</a>)
+(<em>Appears on:</em><a href="#sparkoperator.k8s.io/v1beta2.SparkPodSpec">SparkPodSpec</a>)
 </p>
-<p>
+<div>
 <p>NameKey represents the name and key of a SecretKeyRef.</p>
-</p>
+</div>
 <table>
 <thead>
 <tr>
@@ -1395,7 +1484,7 @@ PrometheusSpec
 <tbody>
 <tr>
 <td>
-<code>name</code></br>
+<code>name</code><br/>
 <em>
 string
 </em>
@@ -1405,7 +1494,7 @@ string
 </tr>
 <tr>
 <td>
-<code>key</code></br>
+<code>key</code><br/>
 <em>
 string
 </em>
@@ -1418,12 +1507,11 @@ string
 <h3 id="sparkoperator.k8s.io/v1beta2.NamePath">NamePath
 </h3>
 <p>
-(<em>Appears on:</em>
-<a href="#sparkoperator.k8s.io/v1beta2.SparkPodSpec">SparkPodSpec</a>)
+(<em>Appears on:</em><a href="#sparkoperator.k8s.io/v1beta2.SparkPodSpec">SparkPodSpec</a>)
 </p>
-<p>
+<div>
 <p>NamePath is a pair of a name and a path to which the named objects should be mounted to.</p>
-</p>
+</div>
 <table>
 <thead>
 <tr>
@@ -1434,7 +1522,7 @@ string
 <tbody>
 <tr>
 <td>
-<code>name</code></br>
+<code>name</code><br/>
 <em>
 string
 </em>
@@ -1444,7 +1532,7 @@ string
 </tr>
 <tr>
 <td>
-<code>path</code></br>
+<code>path</code><br/>
 <em>
 string
 </em>
@@ -1457,13 +1545,11 @@ string
 <h3 id="sparkoperator.k8s.io/v1beta2.Port">Port
 </h3>
 <p>
-(<em>Appears on:</em>
-<a href="#sparkoperator.k8s.io/v1beta2.DriverSpec">DriverSpec</a>, 
-<a href="#sparkoperator.k8s.io/v1beta2.ExecutorSpec">ExecutorSpec</a>)
+(<em>Appears on:</em><a href="#sparkoperator.k8s.io/v1beta2.DriverSpec">DriverSpec</a>, <a href="#sparkoperator.k8s.io/v1beta2.ExecutorSpec">ExecutorSpec</a>)
 </p>
-<p>
+<div>
 <p>Port represents the port definition in the pods objects.</p>
-</p>
+</div>
 <table>
 <thead>
 <tr>
@@ -1474,7 +1560,7 @@ string
 <tbody>
 <tr>
 <td>
-<code>name</code></br>
+<code>name</code><br/>
 <em>
 string
 </em>
@@ -1484,7 +1570,7 @@ string
 </tr>
 <tr>
 <td>
-<code>protocol</code></br>
+<code>protocol</code><br/>
 <em>
 string
 </em>
@@ -1494,7 +1580,7 @@ string
 </tr>
 <tr>
 <td>
-<code>containerPort</code></br>
+<code>containerPort</code><br/>
 <em>
 int32
 </em>
@@ -1507,13 +1593,12 @@ int32
 <h3 id="sparkoperator.k8s.io/v1beta2.PrometheusSpec">PrometheusSpec
 </h3>
 <p>
-(<em>Appears on:</em>
-<a href="#sparkoperator.k8s.io/v1beta2.MonitoringSpec">MonitoringSpec</a>)
+(<em>Appears on:</em><a href="#sparkoperator.k8s.io/v1beta2.MonitoringSpec">MonitoringSpec</a>)
 </p>
-<p>
+<div>
 <p>PrometheusSpec defines the Prometheus specification when Prometheus is to be used for
 collecting and exposing metrics.</p>
-</p>
+</div>
 <table>
 <thead>
 <tr>
@@ -1524,7 +1609,7 @@ collecting and exposing metrics.</p>
 <tbody>
 <tr>
 <td>
-<code>jmxExporterJar</code></br>
+<code>jmxExporterJar</code><br/>
 <em>
 string
 </em>
@@ -1535,7 +1620,7 @@ string
 </tr>
 <tr>
 <td>
-<code>port</code></br>
+<code>port</code><br/>
 <em>
 int32
 </em>
@@ -1548,7 +1633,7 @@ If not specified, 8090 will be used as the default.</p>
 </tr>
 <tr>
 <td>
-<code>portName</code></br>
+<code>portName</code><br/>
 <em>
 string
 </em>
@@ -1561,7 +1646,7 @@ If not specified, jmx-exporter will be used as the default.</p>
 </tr>
 <tr>
 <td>
-<code>configFile</code></br>
+<code>configFile</code><br/>
 <em>
 string
 </em>
@@ -1574,7 +1659,7 @@ ConfigFile takes precedence over Configuration, which is shown below.</p>
 </tr>
 <tr>
 <td>
-<code>configuration</code></br>
+<code>configuration</code><br/>
 <em>
 string
 </em>
@@ -1591,13 +1676,12 @@ Configuration has no effect if ConfigFile is set.</p>
 <h3 id="sparkoperator.k8s.io/v1beta2.RestartPolicy">RestartPolicy
 </h3>
 <p>
-(<em>Appears on:</em>
-<a href="#sparkoperator.k8s.io/v1beta2.SparkApplicationSpec">SparkApplicationSpec</a>)
+(<em>Appears on:</em><a href="#sparkoperator.k8s.io/v1beta2.SparkApplicationSpec">SparkApplicationSpec</a>)
 </p>
-<p>
+<div>
 <p>RestartPolicy is the policy of if and in which conditions the controller should restart a terminated application.
 This completely defines actions to be taken on any kind of Failures during an application run.</p>
-</p>
+</div>
 <table>
 <thead>
 <tr>
@@ -1608,7 +1692,7 @@ This completely defines actions to be taken on any kind of Failures during an ap
 <tbody>
 <tr>
 <td>
-<code>type</code></br>
+<code>type</code><br/>
 <em>
 <a href="#sparkoperator.k8s.io/v1beta2.RestartPolicyType">
 RestartPolicyType
@@ -1621,7 +1705,7 @@ RestartPolicyType
 </tr>
 <tr>
 <td>
-<code>onSubmissionFailureRetries</code></br>
+<code>onSubmissionFailureRetries</code><br/>
 <em>
 int32
 </em>
@@ -1635,7 +1719,7 @@ These are required if RestartPolicy is OnFailure.</p>
 </tr>
 <tr>
 <td>
-<code>onFailureRetries</code></br>
+<code>onFailureRetries</code><br/>
 <em>
 int32
 </em>
@@ -1647,7 +1731,7 @@ int32
 </tr>
 <tr>
 <td>
-<code>onSubmissionFailureRetryInterval</code></br>
+<code>onSubmissionFailureRetryInterval</code><br/>
 <em>
 int64
 </em>
@@ -1659,7 +1743,7 @@ int64
 </tr>
 <tr>
 <td>
-<code>onFailureRetryInterval</code></br>
+<code>onFailureRetryInterval</code><br/>
 <em>
 int64
 </em>
@@ -1672,29 +1756,54 @@ int64
 </tbody>
 </table>
 <h3 id="sparkoperator.k8s.io/v1beta2.RestartPolicyType">RestartPolicyType
-(<code>string</code> alias)</p></h3>
+(<code>string</code> alias)</h3>
 <p>
-(<em>Appears on:</em>
-<a href="#sparkoperator.k8s.io/v1beta2.RestartPolicy">RestartPolicy</a>)
+(<em>Appears on:</em><a href="#sparkoperator.k8s.io/v1beta2.RestartPolicy">RestartPolicy</a>)
 </p>
-<p>
-</p>
+<div>
+</div>
+<table>
+<thead>
+<tr>
+<th>Value</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr><td><p>&#34;Always&#34;</p></td>
+<td></td>
+</tr><tr><td><p>&#34;Never&#34;</p></td>
+<td></td>
+</tr><tr><td><p>&#34;OnFailure&#34;</p></td>
+<td></td>
+</tr></tbody>
+</table>
 <h3 id="sparkoperator.k8s.io/v1beta2.ScheduleState">ScheduleState
-(<code>string</code> alias)</p></h3>
+(<code>string</code> alias)</h3>
 <p>
-(<em>Appears on:</em>
-<a href="#sparkoperator.k8s.io/v1beta2.ScheduledSparkApplicationStatus">ScheduledSparkApplicationStatus</a>)
+(<em>Appears on:</em><a href="#sparkoperator.k8s.io/v1beta2.ScheduledSparkApplicationStatus">ScheduledSparkApplicationStatus</a>)
 </p>
-<p>
-</p>
+<div>
+</div>
+<table>
+<thead>
+<tr>
+<th>Value</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr><td><p>&#34;FailedValidation&#34;</p></td>
+<td></td>
+</tr><tr><td><p>&#34;Scheduled&#34;</p></td>
+<td></td>
+</tr></tbody>
+</table>
 <h3 id="sparkoperator.k8s.io/v1beta2.ScheduledSparkApplicationSpec">ScheduledSparkApplicationSpec
 </h3>
 <p>
-(<em>Appears on:</em>
-<a href="#sparkoperator.k8s.io/v1beta2.ScheduledSparkApplication">ScheduledSparkApplication</a>)
+(<em>Appears on:</em><a href="#sparkoperator.k8s.io/v1beta2.ScheduledSparkApplication">ScheduledSparkApplication</a>)
 </p>
-<p>
-</p>
+<div>
+</div>
 <table>
 <thead>
 <tr>
@@ -1705,7 +1814,7 @@ int64
 <tbody>
 <tr>
 <td>
-<code>schedule</code></br>
+<code>schedule</code><br/>
 <em>
 string
 </em>
@@ -1716,7 +1825,7 @@ string
 </tr>
 <tr>
 <td>
-<code>template</code></br>
+<code>template</code><br/>
 <em>
 <a href="#sparkoperator.k8s.io/v1beta2.SparkApplicationSpec">
 SparkApplicationSpec
@@ -1729,7 +1838,7 @@ SparkApplicationSpec
 </tr>
 <tr>
 <td>
-<code>suspend</code></br>
+<code>suspend</code><br/>
 <em>
 bool
 </em>
@@ -1742,7 +1851,7 @@ Defaults to false.</p>
 </tr>
 <tr>
 <td>
-<code>concurrencyPolicy</code></br>
+<code>concurrencyPolicy</code><br/>
 <em>
 <a href="#sparkoperator.k8s.io/v1beta2.ConcurrencyPolicy">
 ConcurrencyPolicy
@@ -1755,7 +1864,7 @@ ConcurrencyPolicy
 </tr>
 <tr>
 <td>
-<code>successfulRunHistoryLimit</code></br>
+<code>successfulRunHistoryLimit</code><br/>
 <em>
 int32
 </em>
@@ -1768,7 +1877,7 @@ Defaults to 1.</p>
 </tr>
 <tr>
 <td>
-<code>failedRunHistoryLimit</code></br>
+<code>failedRunHistoryLimit</code><br/>
 <em>
 int32
 </em>
@@ -1784,11 +1893,10 @@ Defaults to 1.</p>
 <h3 id="sparkoperator.k8s.io/v1beta2.ScheduledSparkApplicationStatus">ScheduledSparkApplicationStatus
 </h3>
 <p>
-(<em>Appears on:</em>
-<a href="#sparkoperator.k8s.io/v1beta2.ScheduledSparkApplication">ScheduledSparkApplication</a>)
+(<em>Appears on:</em><a href="#sparkoperator.k8s.io/v1beta2.ScheduledSparkApplication">ScheduledSparkApplication</a>)
 </p>
-<p>
-</p>
+<div>
+</div>
 <table>
 <thead>
 <tr>
@@ -1799,9 +1907,9 @@ Defaults to 1.</p>
 <tbody>
 <tr>
 <td>
-<code>lastRun</code></br>
+<code>lastRun</code><br/>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#time-v1-meta">
+<a href="https://v1-18.docs.kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#time-v1-meta">
 Kubernetes meta/v1.Time
 </a>
 </em>
@@ -1812,9 +1920,9 @@ Kubernetes meta/v1.Time
 </tr>
 <tr>
 <td>
-<code>nextRun</code></br>
+<code>nextRun</code><br/>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#time-v1-meta">
+<a href="https://v1-18.docs.kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#time-v1-meta">
 Kubernetes meta/v1.Time
 </a>
 </em>
@@ -1825,7 +1933,7 @@ Kubernetes meta/v1.Time
 </tr>
 <tr>
 <td>
-<code>lastRunName</code></br>
+<code>lastRunName</code><br/>
 <em>
 string
 </em>
@@ -1836,7 +1944,7 @@ string
 </tr>
 <tr>
 <td>
-<code>pastSuccessfulRunNames</code></br>
+<code>pastSuccessfulRunNames</code><br/>
 <em>
 []string
 </em>
@@ -1847,7 +1955,7 @@ string
 </tr>
 <tr>
 <td>
-<code>pastFailedRunNames</code></br>
+<code>pastFailedRunNames</code><br/>
 <em>
 []string
 </em>
@@ -1858,7 +1966,7 @@ string
 </tr>
 <tr>
 <td>
-<code>scheduleState</code></br>
+<code>scheduleState</code><br/>
 <em>
 <a href="#sparkoperator.k8s.io/v1beta2.ScheduleState">
 ScheduleState
@@ -1871,7 +1979,7 @@ ScheduleState
 </tr>
 <tr>
 <td>
-<code>reason</code></br>
+<code>reason</code><br/>
 <em>
 string
 </em>
@@ -1885,12 +1993,11 @@ string
 <h3 id="sparkoperator.k8s.io/v1beta2.SecretInfo">SecretInfo
 </h3>
 <p>
-(<em>Appears on:</em>
-<a href="#sparkoperator.k8s.io/v1beta2.SparkPodSpec">SparkPodSpec</a>)
+(<em>Appears on:</em><a href="#sparkoperator.k8s.io/v1beta2.SparkPodSpec">SparkPodSpec</a>)
 </p>
-<p>
+<div>
 <p>SecretInfo captures information of a secret.</p>
-</p>
+</div>
 <table>
 <thead>
 <tr>
@@ -1901,7 +2008,7 @@ string
 <tbody>
 <tr>
 <td>
-<code>name</code></br>
+<code>name</code><br/>
 <em>
 string
 </em>
@@ -1911,7 +2018,7 @@ string
 </tr>
 <tr>
 <td>
-<code>path</code></br>
+<code>path</code><br/>
 <em>
 string
 </em>
@@ -1921,7 +2028,7 @@ string
 </tr>
 <tr>
 <td>
-<code>secretType</code></br>
+<code>secretType</code><br/>
 <em>
 <a href="#sparkoperator.k8s.io/v1beta2.SecretType">
 SecretType
@@ -1934,25 +2041,42 @@ SecretType
 </tbody>
 </table>
 <h3 id="sparkoperator.k8s.io/v1beta2.SecretType">SecretType
-(<code>string</code> alias)</p></h3>
+(<code>string</code> alias)</h3>
 <p>
-(<em>Appears on:</em>
-<a href="#sparkoperator.k8s.io/v1beta2.SecretInfo">SecretInfo</a>)
+(<em>Appears on:</em><a href="#sparkoperator.k8s.io/v1beta2.SecretInfo">SecretInfo</a>)
 </p>
-<p>
+<div>
 <p>SecretType tells the type of a secret.</p>
-</p>
+</div>
+<table>
+<thead>
+<tr>
+<th>Value</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr><td><p>&#34;GCPServiceAccount&#34;</p></td>
+<td><p>GCPServiceAccountSecret is for secrets from a GCP service account Json key file that needs
+the environment variable GOOGLE_APPLICATION_CREDENTIALS.</p>
+</td>
+</tr><tr><td><p>&#34;Generic&#34;</p></td>
+<td><p>GenericType is for secrets that needs no special handling.</p>
+</td>
+</tr><tr><td><p>&#34;HadoopDelegationToken&#34;</p></td>
+<td><p>HadoopDelegationTokenSecret is for secrets from an Hadoop delegation token that needs the
+environment variable HADOOP_TOKEN_FILE_LOCATION.</p>
+</td>
+</tr></tbody>
+</table>
 <h3 id="sparkoperator.k8s.io/v1beta2.SparkApplicationSpec">SparkApplicationSpec
 </h3>
 <p>
-(<em>Appears on:</em>
-<a href="#sparkoperator.k8s.io/v1beta2.SparkApplication">SparkApplication</a>, 
-<a href="#sparkoperator.k8s.io/v1beta2.ScheduledSparkApplicationSpec">ScheduledSparkApplicationSpec</a>)
+(<em>Appears on:</em><a href="#sparkoperator.k8s.io/v1beta2.SparkApplication">SparkApplication</a>, <a href="#sparkoperator.k8s.io/v1beta2.ScheduledSparkApplicationSpec">ScheduledSparkApplicationSpec</a>)
 </p>
-<p>
+<div>
 <p>SparkApplicationSpec describes the specification of a Spark application using Kubernetes as a cluster manager.
 It carries every pieces of information a spark-submit command takes and recognizes.</p>
-</p>
+</div>
 <table>
 <thead>
 <tr>
@@ -1963,7 +2087,7 @@ It carries every pieces of information a spark-submit command takes and recogniz
 <tbody>
 <tr>
 <td>
-<code>type</code></br>
+<code>type</code><br/>
 <em>
 <a href="#sparkoperator.k8s.io/v1beta2.SparkApplicationType">
 SparkApplicationType
@@ -1976,7 +2100,7 @@ SparkApplicationType
 </tr>
 <tr>
 <td>
-<code>sparkVersion</code></br>
+<code>sparkVersion</code><br/>
 <em>
 string
 </em>
@@ -1987,7 +2111,7 @@ string
 </tr>
 <tr>
 <td>
-<code>mode</code></br>
+<code>mode</code><br/>
 <em>
 <a href="#sparkoperator.k8s.io/v1beta2.DeployMode">
 DeployMode
@@ -2000,7 +2124,7 @@ DeployMode
 </tr>
 <tr>
 <td>
-<code>proxyUser</code></br>
+<code>proxyUser</code><br/>
 <em>
 string
 </em>
@@ -2013,7 +2137,7 @@ It maps to the command-line flag &ldquo;&ndash;proxy-user&rdquo; in spark-submit
 </tr>
 <tr>
 <td>
-<code>image</code></br>
+<code>image</code><br/>
 <em>
 string
 </em>
@@ -2026,7 +2150,7 @@ driver, executor, or init-container takes precedence over this.</p>
 </tr>
 <tr>
 <td>
-<code>imagePullPolicy</code></br>
+<code>imagePullPolicy</code><br/>
 <em>
 string
 </em>
@@ -2038,7 +2162,7 @@ string
 </tr>
 <tr>
 <td>
-<code>imagePullSecrets</code></br>
+<code>imagePullSecrets</code><br/>
 <em>
 []string
 </em>
@@ -2050,7 +2174,7 @@ string
 </tr>
 <tr>
 <td>
-<code>mainClass</code></br>
+<code>mainClass</code><br/>
 <em>
 string
 </em>
@@ -2063,7 +2187,7 @@ This only applies to Java/Scala Spark applications.</p>
 </tr>
 <tr>
 <td>
-<code>mainApplicationFile</code></br>
+<code>mainApplicationFile</code><br/>
 <em>
 string
 </em>
@@ -2075,7 +2199,7 @@ string
 </tr>
 <tr>
 <td>
-<code>arguments</code></br>
+<code>arguments</code><br/>
 <em>
 []string
 </em>
@@ -2087,7 +2211,7 @@ string
 </tr>
 <tr>
 <td>
-<code>sparkConf</code></br>
+<code>sparkConf</code><br/>
 <em>
 map[string]string
 </em>
@@ -2100,7 +2224,7 @@ spark-submit.</p>
 </tr>
 <tr>
 <td>
-<code>hadoopConf</code></br>
+<code>hadoopConf</code><br/>
 <em>
 map[string]string
 </em>
@@ -2114,7 +2238,7 @@ configuration properties.</p>
 </tr>
 <tr>
 <td>
-<code>sparkConfigMap</code></br>
+<code>sparkConfigMap</code><br/>
 <em>
 string
 </em>
@@ -2127,7 +2251,7 @@ The controller will add environment variable SPARK_CONF_DIR to the path where th
 </tr>
 <tr>
 <td>
-<code>hadoopConfigMap</code></br>
+<code>hadoopConfigMap</code><br/>
 <em>
 string
 </em>
@@ -2140,9 +2264,9 @@ The controller will add environment variable HADOOP_CONF_DIR to the path where t
 </tr>
 <tr>
 <td>
-<code>volumes</code></br>
+<code>volumes</code><br/>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#volume-v1-core">
+<a href="https://v1-18.docs.kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#volume-v1-core">
 []Kubernetes core/v1.Volume
 </a>
 </em>
@@ -2154,7 +2278,7 @@ The controller will add environment variable HADOOP_CONF_DIR to the path where t
 </tr>
 <tr>
 <td>
-<code>driver</code></br>
+<code>driver</code><br/>
 <em>
 <a href="#sparkoperator.k8s.io/v1beta2.DriverSpec">
 DriverSpec
@@ -2167,7 +2291,7 @@ DriverSpec
 </tr>
 <tr>
 <td>
-<code>executor</code></br>
+<code>executor</code><br/>
 <em>
 <a href="#sparkoperator.k8s.io/v1beta2.ExecutorSpec">
 ExecutorSpec
@@ -2180,7 +2304,7 @@ ExecutorSpec
 </tr>
 <tr>
 <td>
-<code>deps</code></br>
+<code>deps</code><br/>
 <em>
 <a href="#sparkoperator.k8s.io/v1beta2.Dependencies">
 Dependencies
@@ -2194,7 +2318,7 @@ Dependencies
 </tr>
 <tr>
 <td>
-<code>restartPolicy</code></br>
+<code>restartPolicy</code><br/>
 <em>
 <a href="#sparkoperator.k8s.io/v1beta2.RestartPolicy">
 RestartPolicy
@@ -2207,7 +2331,7 @@ RestartPolicy
 </tr>
 <tr>
 <td>
-<code>nodeSelector</code></br>
+<code>nodeSelector</code><br/>
 <em>
 map[string]string
 </em>
@@ -2221,7 +2345,7 @@ This field will be deprecated in future versions (at SparkApplicationSpec level)
 </tr>
 <tr>
 <td>
-<code>failureRetries</code></br>
+<code>failureRetries</code><br/>
 <em>
 int32
 </em>
@@ -2234,7 +2358,7 @@ This is best effort and actual retry attempts can be &gt;= the value specified.<
 </tr>
 <tr>
 <td>
-<code>retryInterval</code></br>
+<code>retryInterval</code><br/>
 <em>
 int64
 </em>
@@ -2246,7 +2370,7 @@ int64
 </tr>
 <tr>
 <td>
-<code>pythonVersion</code></br>
+<code>pythonVersion</code><br/>
 <em>
 string
 </em>
@@ -2259,7 +2383,7 @@ image used to run the driver and executor containers. Can either be 2 or 3, defa
 </tr>
 <tr>
 <td>
-<code>memoryOverheadFactor</code></br>
+<code>memoryOverheadFactor</code><br/>
 <em>
 string
 </em>
@@ -2273,7 +2397,7 @@ be overridden by <code>Spec.Driver.MemoryOverhead</code> and <code>Spec.Executor
 </tr>
 <tr>
 <td>
-<code>monitoring</code></br>
+<code>monitoring</code><br/>
 <em>
 <a href="#sparkoperator.k8s.io/v1beta2.MonitoringSpec">
 MonitoringSpec
@@ -2287,7 +2411,7 @@ MonitoringSpec
 </tr>
 <tr>
 <td>
-<code>batchScheduler</code></br>
+<code>batchScheduler</code><br/>
 <em>
 string
 </em>
@@ -2299,7 +2423,7 @@ string
 </tr>
 <tr>
 <td>
-<code>timeToLiveSeconds</code></br>
+<code>timeToLiveSeconds</code><br/>
 <em>
 int64
 </em>
@@ -2314,7 +2438,7 @@ TimeToLiveSeconds since its termination.</p>
 </tr>
 <tr>
 <td>
-<code>batchSchedulerOptions</code></br>
+<code>batchSchedulerOptions</code><br/>
 <em>
 <a href="#sparkoperator.k8s.io/v1beta2.BatchSchedulerConfiguration">
 BatchSchedulerConfiguration
@@ -2328,7 +2452,7 @@ BatchSchedulerConfiguration
 </tr>
 <tr>
 <td>
-<code>sparkUIOptions</code></br>
+<code>sparkUIOptions</code><br/>
 <em>
 <a href="#sparkoperator.k8s.io/v1beta2.SparkUIConfiguration">
 SparkUIConfiguration
@@ -2342,7 +2466,7 @@ SparkUIConfiguration
 </tr>
 <tr>
 <td>
-<code>dynamicAllocation</code></br>
+<code>dynamicAllocation</code><br/>
 <em>
 <a href="#sparkoperator.k8s.io/v1beta2.DynamicAllocation">
 DynamicAllocation
@@ -2360,12 +2484,11 @@ scheduler backend since Spark 3.0.</p>
 <h3 id="sparkoperator.k8s.io/v1beta2.SparkApplicationStatus">SparkApplicationStatus
 </h3>
 <p>
-(<em>Appears on:</em>
-<a href="#sparkoperator.k8s.io/v1beta2.SparkApplication">SparkApplication</a>)
+(<em>Appears on:</em><a href="#sparkoperator.k8s.io/v1beta2.SparkApplication">SparkApplication</a>)
 </p>
-<p>
+<div>
 <p>SparkApplicationStatus describes the current status of a Spark application.</p>
-</p>
+</div>
 <table>
 <thead>
 <tr>
@@ -2376,7 +2499,7 @@ scheduler backend since Spark 3.0.</p>
 <tbody>
 <tr>
 <td>
-<code>sparkApplicationId</code></br>
+<code>sparkApplicationId</code><br/>
 <em>
 string
 </em>
@@ -2387,7 +2510,7 @@ string
 </tr>
 <tr>
 <td>
-<code>submissionID</code></br>
+<code>submissionID</code><br/>
 <em>
 string
 </em>
@@ -2398,9 +2521,9 @@ string
 </tr>
 <tr>
 <td>
-<code>lastSubmissionAttemptTime</code></br>
+<code>lastSubmissionAttemptTime</code><br/>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#time-v1-meta">
+<a href="https://v1-18.docs.kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#time-v1-meta">
 Kubernetes meta/v1.Time
 </a>
 </em>
@@ -2411,9 +2534,9 @@ Kubernetes meta/v1.Time
 </tr>
 <tr>
 <td>
-<code>terminationTime</code></br>
+<code>terminationTime</code><br/>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#time-v1-meta">
+<a href="https://v1-18.docs.kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#time-v1-meta">
 Kubernetes meta/v1.Time
 </a>
 </em>
@@ -2424,7 +2547,7 @@ Kubernetes meta/v1.Time
 </tr>
 <tr>
 <td>
-<code>driverInfo</code></br>
+<code>driverInfo</code><br/>
 <em>
 <a href="#sparkoperator.k8s.io/v1beta2.DriverInfo">
 DriverInfo
@@ -2437,7 +2560,7 @@ DriverInfo
 </tr>
 <tr>
 <td>
-<code>applicationState</code></br>
+<code>applicationState</code><br/>
 <em>
 <a href="#sparkoperator.k8s.io/v1beta2.ApplicationState">
 ApplicationState
@@ -2450,7 +2573,7 @@ ApplicationState
 </tr>
 <tr>
 <td>
-<code>executorState</code></br>
+<code>executorState</code><br/>
 <em>
 <a href="#sparkoperator.k8s.io/v1beta2.ExecutorState">
 map[string]github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta2.ExecutorState
@@ -2463,7 +2586,7 @@ map[string]github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkop
 </tr>
 <tr>
 <td>
-<code>executionAttempts</code></br>
+<code>executionAttempts</code><br/>
 <em>
 int32
 </em>
@@ -2475,7 +2598,7 @@ Incremented upon each attempted run of the application and reset upon invalidati
 </tr>
 <tr>
 <td>
-<code>submissionAttempts</code></br>
+<code>submissionAttempts</code><br/>
 <em>
 int32
 </em>
@@ -2488,25 +2611,39 @@ Incremented upon each attempted submission of the application and reset upon inv
 </tbody>
 </table>
 <h3 id="sparkoperator.k8s.io/v1beta2.SparkApplicationType">SparkApplicationType
-(<code>string</code> alias)</p></h3>
+(<code>string</code> alias)</h3>
 <p>
-(<em>Appears on:</em>
-<a href="#sparkoperator.k8s.io/v1beta2.SparkApplicationSpec">SparkApplicationSpec</a>)
+(<em>Appears on:</em><a href="#sparkoperator.k8s.io/v1beta2.SparkApplicationSpec">SparkApplicationSpec</a>)
 </p>
-<p>
+<div>
 <p>SparkApplicationType describes the type of a Spark application.</p>
-</p>
+</div>
+<table>
+<thead>
+<tr>
+<th>Value</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr><td><p>&#34;Java&#34;</p></td>
+<td></td>
+</tr><tr><td><p>&#34;Python&#34;</p></td>
+<td></td>
+</tr><tr><td><p>&#34;R&#34;</p></td>
+<td></td>
+</tr><tr><td><p>&#34;Scala&#34;</p></td>
+<td></td>
+</tr></tbody>
+</table>
 <h3 id="sparkoperator.k8s.io/v1beta2.SparkPodSpec">SparkPodSpec
 </h3>
 <p>
-(<em>Appears on:</em>
-<a href="#sparkoperator.k8s.io/v1beta2.DriverSpec">DriverSpec</a>, 
-<a href="#sparkoperator.k8s.io/v1beta2.ExecutorSpec">ExecutorSpec</a>)
+(<em>Appears on:</em><a href="#sparkoperator.k8s.io/v1beta2.DriverSpec">DriverSpec</a>, <a href="#sparkoperator.k8s.io/v1beta2.ExecutorSpec">ExecutorSpec</a>)
 </p>
-<p>
+<div>
 <p>SparkPodSpec defines common things that can be customized for a Spark driver or executor pod.
 TODO: investigate if we should use v1.PodSpec and limit what can be set instead.</p>
-</p>
+</div>
 <table>
 <thead>
 <tr>
@@ -2517,7 +2654,7 @@ TODO: investigate if we should use v1.PodSpec and limit what can be set instead.
 <tbody>
 <tr>
 <td>
-<code>cores</code></br>
+<code>cores</code><br/>
 <em>
 int32
 </em>
@@ -2529,7 +2666,7 @@ int32
 </tr>
 <tr>
 <td>
-<code>coreLimit</code></br>
+<code>coreLimit</code><br/>
 <em>
 string
 </em>
@@ -2541,7 +2678,7 @@ Optional</p>
 </tr>
 <tr>
 <td>
-<code>memory</code></br>
+<code>memory</code><br/>
 <em>
 string
 </em>
@@ -2553,7 +2690,7 @@ string
 </tr>
 <tr>
 <td>
-<code>memoryOverhead</code></br>
+<code>memoryOverhead</code><br/>
 <em>
 string
 </em>
@@ -2565,7 +2702,7 @@ string
 </tr>
 <tr>
 <td>
-<code>gpu</code></br>
+<code>gpu</code><br/>
 <em>
 <a href="#sparkoperator.k8s.io/v1beta2.GPUSpec">
 GPUSpec
@@ -2579,7 +2716,7 @@ GPUSpec
 </tr>
 <tr>
 <td>
-<code>image</code></br>
+<code>image</code><br/>
 <em>
 string
 </em>
@@ -2591,7 +2728,7 @@ string
 </tr>
 <tr>
 <td>
-<code>configMaps</code></br>
+<code>configMaps</code><br/>
 <em>
 <a href="#sparkoperator.k8s.io/v1beta2.NamePath">
 []NamePath
@@ -2605,7 +2742,7 @@ string
 </tr>
 <tr>
 <td>
-<code>secrets</code></br>
+<code>secrets</code><br/>
 <em>
 <a href="#sparkoperator.k8s.io/v1beta2.SecretInfo">
 []SecretInfo
@@ -2619,9 +2756,9 @@ string
 </tr>
 <tr>
 <td>
-<code>env</code></br>
+<code>env</code><br/>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#envvar-v1-core">
+<a href="https://v1-18.docs.kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#envvar-v1-core">
 []Kubernetes core/v1.EnvVar
 </a>
 </em>
@@ -2633,7 +2770,7 @@ string
 </tr>
 <tr>
 <td>
-<code>envVars</code></br>
+<code>envVars</code><br/>
 <em>
 map[string]string
 </em>
@@ -2646,9 +2783,9 @@ Deprecated. Consider using <code>env</code> instead.</p>
 </tr>
 <tr>
 <td>
-<code>envFrom</code></br>
+<code>envFrom</code><br/>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#envfromsource-v1-core">
+<a href="https://v1-18.docs.kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#envfromsource-v1-core">
 []Kubernetes core/v1.EnvFromSource
 </a>
 </em>
@@ -2660,7 +2797,7 @@ Deprecated. Consider using <code>env</code> instead.</p>
 </tr>
 <tr>
 <td>
-<code>envSecretKeyRefs</code></br>
+<code>envSecretKeyRefs</code><br/>
 <em>
 <a href="#sparkoperator.k8s.io/v1beta2.NameKey">
 map[string]github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta2.NameKey
@@ -2675,7 +2812,7 @@ Deprecated. Consider using <code>env</code> instead.</p>
 </tr>
 <tr>
 <td>
-<code>labels</code></br>
+<code>labels</code><br/>
 <em>
 map[string]string
 </em>
@@ -2687,7 +2824,7 @@ map[string]string
 </tr>
 <tr>
 <td>
-<code>annotations</code></br>
+<code>annotations</code><br/>
 <em>
 map[string]string
 </em>
@@ -2699,9 +2836,9 @@ map[string]string
 </tr>
 <tr>
 <td>
-<code>volumeMounts</code></br>
+<code>volumeMounts</code><br/>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#volumemount-v1-core">
+<a href="https://v1-18.docs.kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#volumemount-v1-core">
 []Kubernetes core/v1.VolumeMount
 </a>
 </em>
@@ -2713,9 +2850,9 @@ map[string]string
 </tr>
 <tr>
 <td>
-<code>affinity</code></br>
+<code>affinity</code><br/>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#affinity-v1-core">
+<a href="https://v1-18.docs.kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#affinity-v1-core">
 Kubernetes core/v1.Affinity
 </a>
 </em>
@@ -2727,9 +2864,9 @@ Kubernetes core/v1.Affinity
 </tr>
 <tr>
 <td>
-<code>tolerations</code></br>
+<code>tolerations</code><br/>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#toleration-v1-core">
+<a href="https://v1-18.docs.kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#toleration-v1-core">
 []Kubernetes core/v1.Toleration
 </a>
 </em>
@@ -2741,9 +2878,9 @@ Kubernetes core/v1.Affinity
 </tr>
 <tr>
 <td>
-<code>podSecurityContext</code></br>
+<code>podSecurityContext</code><br/>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#podsecuritycontext-v1-core">
+<a href="https://v1-18.docs.kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#podsecuritycontext-v1-core">
 Kubernetes core/v1.PodSecurityContext
 </a>
 </em>
@@ -2755,9 +2892,9 @@ Kubernetes core/v1.PodSecurityContext
 </tr>
 <tr>
 <td>
-<code>securityContext</code></br>
+<code>securityContext</code><br/>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#securitycontext-v1-core">
+<a href="https://v1-18.docs.kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#securitycontext-v1-core">
 Kubernetes core/v1.SecurityContext
 </a>
 </em>
@@ -2769,7 +2906,7 @@ Kubernetes core/v1.SecurityContext
 </tr>
 <tr>
 <td>
-<code>schedulerName</code></br>
+<code>schedulerName</code><br/>
 <em>
 string
 </em>
@@ -2781,9 +2918,9 @@ string
 </tr>
 <tr>
 <td>
-<code>sidecars</code></br>
+<code>sidecars</code><br/>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#container-v1-core">
+<a href="https://v1-18.docs.kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#container-v1-core">
 []Kubernetes core/v1.Container
 </a>
 </em>
@@ -2795,9 +2932,9 @@ string
 </tr>
 <tr>
 <td>
-<code>initContainers</code></br>
+<code>initContainers</code><br/>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#container-v1-core">
+<a href="https://v1-18.docs.kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#container-v1-core">
 []Kubernetes core/v1.Container
 </a>
 </em>
@@ -2809,7 +2946,7 @@ string
 </tr>
 <tr>
 <td>
-<code>hostNetwork</code></br>
+<code>hostNetwork</code><br/>
 <em>
 bool
 </em>
@@ -2821,7 +2958,7 @@ bool
 </tr>
 <tr>
 <td>
-<code>nodeSelector</code></br>
+<code>nodeSelector</code><br/>
 <em>
 map[string]string
 </em>
@@ -2834,9 +2971,9 @@ This field is mutually exclusive with nodeSelector at SparkApplication level (wh
 </tr>
 <tr>
 <td>
-<code>dnsConfig</code></br>
+<code>dnsConfig</code><br/>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#poddnsconfig-v1-core">
+<a href="https://v1-18.docs.kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#poddnsconfig-v1-core">
 Kubernetes core/v1.PodDNSConfig
 </a>
 </em>
@@ -2848,7 +2985,7 @@ Kubernetes core/v1.PodDNSConfig
 </tr>
 <tr>
 <td>
-<code>terminationGracePeriodSeconds</code></br>
+<code>terminationGracePeriodSeconds</code><br/>
 <em>
 int64
 </em>
@@ -2860,7 +2997,7 @@ int64
 </tr>
 <tr>
 <td>
-<code>serviceAccount</code></br>
+<code>serviceAccount</code><br/>
 <em>
 string
 </em>
@@ -2872,9 +3009,9 @@ string
 </tr>
 <tr>
 <td>
-<code>hostAliases</code></br>
+<code>hostAliases</code><br/>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#hostalias-v1-core">
+<a href="https://v1-18.docs.kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#hostalias-v1-core">
 []Kubernetes core/v1.HostAlias
 </a>
 </em>
@@ -2886,7 +3023,7 @@ string
 </tr>
 <tr>
 <td>
-<code>shareProcessNamespace</code></br>
+<code>shareProcessNamespace</code><br/>
 <em>
 bool
 </em>
@@ -2901,12 +3038,11 @@ bool
 <h3 id="sparkoperator.k8s.io/v1beta2.SparkUIConfiguration">SparkUIConfiguration
 </h3>
 <p>
-(<em>Appears on:</em>
-<a href="#sparkoperator.k8s.io/v1beta2.SparkApplicationSpec">SparkApplicationSpec</a>)
+(<em>Appears on:</em><a href="#sparkoperator.k8s.io/v1beta2.SparkApplicationSpec">SparkApplicationSpec</a>)
 </p>
-<p>
+<div>
 <p>SparkUIConfiguration is for driver UI specific configuration parameters.</p>
-</p>
+</div>
 <table>
 <thead>
 <tr>
@@ -2917,7 +3053,7 @@ bool
 <tbody>
 <tr>
 <td>
-<code>servicePort</code></br>
+<code>servicePort</code><br/>
 <em>
 int32
 </em>
@@ -2930,7 +3066,7 @@ TargetPort should be the same as the one defined in spark.ui.port</p>
 </tr>
 <tr>
 <td>
-<code>servicePortName</code></br>
+<code>servicePortName</code><br/>
 <em>
 string
 </em>
@@ -2944,9 +3080,9 @@ Defaults to spark-driver-ui-port.</p>
 </tr>
 <tr>
 <td>
-<code>serviceType</code></br>
+<code>serviceType</code><br/>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#servicetype-v1-core">
+<a href="https://v1-18.docs.kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#servicetype-v1-core">
 Kubernetes core/v1.ServiceType
 </a>
 </em>
@@ -2958,7 +3094,7 @@ Kubernetes core/v1.ServiceType
 </tr>
 <tr>
 <td>
-<code>serviceAnnotations</code></br>
+<code>serviceAnnotations</code><br/>
 <em>
 map[string]string
 </em>
@@ -2970,7 +3106,7 @@ map[string]string
 </tr>
 <tr>
 <td>
-<code>ingressAnnotations</code></br>
+<code>ingressAnnotations</code><br/>
 <em>
 map[string]string
 </em>
@@ -2982,9 +3118,9 @@ map[string]string
 </tr>
 <tr>
 <td>
-<code>ingressTLS</code></br>
+<code>ingressTLS</code><br/>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#ingresstls-v1beta1-extensions">
+<a href="https://v1-18.docs.kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#ingresstls-v1beta1-extensions">
 []Kubernetes extensions/v1beta1.IngressTLS
 </a>
 </em>
@@ -2998,6 +3134,5 @@ map[string]string
 </table>
 <hr/>
 <p><em>
-Generated with <code>gen-crd-api-reference-docs</code>
-on git commit <code>24a8842</code>.
+Generated with <code>https://github.com/ahmetb/gen-crd-api-reference-docs.git</code> on git commit <code>ccf856504caaeac38151b57a950d3f8a7942b9db</code>.
 </em></p>
