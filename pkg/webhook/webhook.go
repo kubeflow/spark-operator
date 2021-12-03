@@ -298,9 +298,12 @@ func (wh *WebHook) serve(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response := admissionv1.AdmissionReview{}
+	response := admissionv1.AdmissionReview{
+		TypeMeta: metav1.TypeMeta{APIVersion: "admission.k8s.io/v1", Kind: "AdmissionReview"},
+		Response: reviewResponse,
+	}
+
 	if reviewResponse != nil {
-		response.Response = reviewResponse
 		if review.Request != nil {
 			response.Response.UID = review.Request.UID
 		}
