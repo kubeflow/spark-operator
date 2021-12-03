@@ -12,7 +12,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v2
         with:
-          fetch-depth: 0
+          fetch-depth: "0"
 
       - name: Configure Git
         run: |
@@ -22,11 +22,11 @@ jobs:
       - name: Install Helm
         uses: azure/setup-helm@v1
         with:
-          version: v3.4.0
+          version: v3.7.1
 
       - uses: actions/setup-python@v2
         with:
-          python-version: 3.7
+          python-version: 3.10
 
       # TODO: Maintainer of repository to follow:
       # https://github.com/docker/login-action#google-container-registry-gcr to add credentials so
@@ -38,41 +38,16 @@ jobs:
       #     username: ${{ secrets.DOCKER_USERNAME }}
       #     password: ${{ secrets.DOCKER_PASSWORD }}
 
-      - name: Build Spark-Operator Docker Image
+      - name: Release Spark-Operator Docker Image
         run: |
-          tag=$(git describe --tags --dirty)_v3.1.1
-          docker build -t gcr.io/spark-operator/spark-operator:${tag} .
-          docker build -t gcr.io/spark-operator/spark-operator:local .
+          DOCKER_TAG=$(cat charts/spark-operator-chart/Chart.yaml | grep "appVersion: .*" | cut -c13-)
+          docker build -t gcr.io/spark-operator/spark-operator:${DOCKER_TAG} .
           echo "Ideally, we'd release the docker container at this point, but the maintainer of this repo needs to approve..."
-          echo "docker push gcr.io/spark-operator/spark-operator:${tag}"
-
-      - name: Set up chart-testing
-        uses: helm/chart-testing-action@v2.0.1
-
-      - name: Run chart-testing (list-changed)
-        id: list-changed
-        run: |
-          changed=$(ct list-changed)
-          if [[ -n "$changed" ]]; then
-            echo "::set-output name=changed::true"
+          if ! docker pull docker pull gcr.io/spark-operator/spark-operator:${DOCKER_TAG}; then
+            echo "docker push gcr.io/spark-operator/spark-operator:${DOCKER_TAG}"
+            git tag $DOCKER_TAG
+            git push origin $DOCKER_TAG
           fi
-
-      - name: Run chart-testing (lint)
-        run: ct lint
-
-      - name: setup minikube
-        uses: manusa/actions-setup-minikube@v2.4.2
-        with:
-          minikube version: "v1.24.0"
-          kubernetes version: "v1.20.8"
-          start args: --memory 6g --cpus=2 --addons ingress
-          github token: ${{ inputs.github-token }}
-
-      - name: Run chart-testing (install)
-        run: |
-          tag=$(git describe --tags --dirty)_v3.1.1
-          minikube image load gcr.io/spark-operator/spark-operator:local
-          ct install
 
       - name: Run chart-releaser
         uses: helm/chart-releaser-action@v1.1.0

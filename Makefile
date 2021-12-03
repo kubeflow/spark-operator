@@ -13,7 +13,7 @@ all: clean-sparkctl build-sparkctl install-sparkctl
 build-sparkctl:
 	[ ! -f "sparkctl/sparkctl-darwin-amd64" ] || [ ! -f "sparkctl/sparkctl-linux-amd64" ] && \
 	echo building using $(BUILDER) && \
-	docker run -it -w $(SPARK_OPERATOR_GOPATH) \
+	docker run -w $(SPARK_OPERATOR_GOPATH) \
 	-v $$(pwd):$(SPARK_OPERATOR_GOPATH) $(BUILDER) sh -c \
 	"apk add --no-cache bash git && \
 	cd sparkctl && \
@@ -36,14 +36,16 @@ install-sparkctl: | sparkctl/sparkctl-darwin-amd64 sparkctl/sparkctl-linux-amd64
 	fi
 
 build-api-docs:
-	hack/api-ref-docs \
-	-config hack/api-docs-config.json \
-	-api-dir github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta2 \
-	-template-dir hack/api-docs-template \
-	-out-file docs/api-docs.md
+	docker build -t temp-api-ref-docs hack/api-docs
+	docker run -v $$(pwd):/repo/ temp-api-ref-docs \
+		sh -c "cd /repo/ && /go/gen-crd-api-reference-docs/gen-crd-api-reference-docs \
+			-config /repo/hack/api-docs/api-docs-config.json \
+			-api-dir github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta2 \
+			-template-dir /repo/hack/api-docs/api-docs-template \
+			-out-file /repo/docs/api-docs.md"
 
 helm-docs:
-	helm-docs -c ./charts
+	docker run --rm --volume "$(pwd):/helm-docs" -u "$(id -u)" jnorwood/helm-docs:latest
 
 fmt-check: clean
 	@echo "running fmt check"; cd "$(dirname $0)"; \
@@ -63,16 +65,15 @@ clean:
 	go clean -cache -testcache -r -x ./... 2>&1 >/dev/null
 	-rm -rf _output
 
-test: clean
+unit-test: clean
 	@echo "running unit tests"
 	go test -v ./... -covermode=atomic
 
-
-it-test: clean
+integration-test: clean
 	@echo "running unit tests"
 	go test -v ./test/e2e/ --kubeconfig "$(HOME)/.kube/config" --operator-image=gcr.io/spark-operator/spark-operator:local
 
-vet:
+static-analysis:
 	@echo "running go vet"
 	# echo "Building using $(BUILDER)"
 	# go vet ./...
