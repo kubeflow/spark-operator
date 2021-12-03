@@ -23,6 +23,9 @@ import (
 	"path/filepath"
 	"reflect"
 	"strings"
+	"net/http"
+	"net/url"
+	"io"
 
 	"github.com/golang/glog"
 	v1 "k8s.io/api/core/v1"
@@ -52,6 +55,26 @@ func newSubmission(args []string, app *v1beta2.SparkApplication) *submission {
 		name:      app.Name,
 		args:      args,
 	}
+}
+
+func downloadExternal(filePath string, url string) error{
+	// Get the data
+	resp, err := http.Get(url)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	// Create the file
+	out, err := os.Create(filePath)
+	if err != nil {
+		return err
+	}
+	defer out.Close()
+
+	// Write the body to file
+	_, err = io.Copy(out, resp.Body)
+	return err
 }
 
 func runSparkSubmit(submission *submission) (bool, error) {
@@ -186,6 +209,16 @@ func buildSubmissionCommandArgs(app *v1beta2.SparkApplication, driverPodName str
 	}
 
 	if app.Spec.MainApplicationFile != nil {
+		if isValidUrl(*app.Spec.MainApplicationFile) {
+			err = downloadExternal("/tmp/application.jar",*app.Spec.MainApplicationFile)
+			if err != nil {
+				return nil, err
+			}
+
+			//set the application to point to local
+			*app.Spec.MainApplicationFile = "local:///tmp/application.jar"
+		}
+
 		// Add the main application file if it is present.
 		args = append(args, *app.Spec.MainApplicationFile)
 	}
@@ -196,6 +229,20 @@ func buildSubmissionCommandArgs(app *v1beta2.SparkApplication, driverPodName str
 	}
 
 	return args, nil
+}
+
+func isValidUrl(toTest string) bool {
+	_, err := url.ParseRequestURI(toTest)
+	if err != nil {
+		return false
+	}
+
+	u, err := url.Parse(toTest)
+	if err != nil || u.Scheme == "" || u.Host == "" {
+		return false
+	}
+
+	return true
 }
 
 func getMasterURL() (string, error) {
