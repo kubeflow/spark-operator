@@ -179,7 +179,7 @@ func createSparkApplication(app *v1beta2.SparkApplication, kubeClient clientset.
 		return err
 	}
 
-	fmt.Printf("SparkApplication \"%s\" created\n", app.Name)
+	fmt.Printf("SparkApplication %q created\n", app.Name)
 
 	if WaitTillCompletion {
 		for {
@@ -188,15 +188,14 @@ func createSparkApplication(app *v1beta2.SparkApplication, kubeClient clientset.
 				return fmt.Errorf("failed to get SparkApplication %s: %v", app.Name, err)
 			}
 
-			fmt.Printf("SparkApplication \"%s\" status: \"%s\"\n", app.Name,appStatus.Status.AppState.State)
+			fmt.Printf("SparkApplication %q status: %q\n", app.Name, appStatus.Status.AppState.State)
 
-			if appStatus.Status.AppState.State == v1beta2.FailedState ||
-				appStatus.Status.AppState.State == v1beta2.UnknownState {
-				return fmt.Errorf("SparkApplication  \"%s\" failed with status \"%s\"\n", app.Name, appStatus.Status.AppState.State)
+			if appStatus.Status.AppState.State == v1beta2.FailedState {
+				return fmt.Errorf("SparkApplication  %q failed with status %q\n", app.Name, appStatus.Status.AppState.State)
 			}
 
 			if appStatus.Status.AppState.State == v1beta2.CompletedState {
-				fmt.Printf("SparkApplication  \"%s\" exit succesfully with status \"%s\"\n", app.Name, appStatus.Status.AppState.State)
+				fmt.Printf("SparkApplication  %q exit succesfully with status %q\n", app.Name, appStatus.Status.AppState.State)
 				break
 			}
 
