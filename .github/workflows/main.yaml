@@ -50,7 +50,7 @@ jobs:
       - name: log in to container registry
         uses: docker/login-action@v1
         with:
-          registry: gcr.io
+          registry: quay.io
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
@@ -60,8 +60,7 @@ jobs:
           tag=`git rev-parse HEAD`
           docker build -t quay.io/crawl_soever/spark-operator:${tag} .
           docker build -t quay.io/crawl_soever/spark-operator:local .
-          echo "Ideally, we'd release the docker container at this point, but the maintainer of this repo needs to approve..."
-          echo "docker push quay.io/crawl_soever/spark-operator:${tag}"
+          docker push quay.io/crawl_soever/spark-operator:${tag}
 
 #      - name: Build Spark-Operator Docker Image
 #        run: |
