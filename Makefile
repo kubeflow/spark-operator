@@ -3,8 +3,8 @@
 .PHONY: clean-sparkctl
 
 SPARK_OPERATOR_GOPATH=/go/src/github.com/bagnaram/spark-on-k8s-operator
-DEP_VERSION:=`grep DEP_VERSION= Dockerfile | awk -F\" '{print $$2}'`
-BUILDER=`grep "FROM golang:" Dockerfile | awk '{print $$2}'`
+DEP_VERSION:=`awk -F\" '/DEP_VERSION=/{print $$2}' Dockerfile`
+BUILDER=`awk '/^FROM golang:/{print $$2}' Dockerfile`
 UNAME:=`uname | tr '[:upper:]' '[:lower:]'`
 REPO=github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg
 

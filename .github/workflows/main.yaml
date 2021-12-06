@@ -50,8 +50,8 @@ jobs:
       - name: Build Spark-Operator Docker Image
         run: |
           tag=$(git describe --tags --dirty)_v3.1.1
-          docker build -t gcr.io/spark-operator/spark-operator:${tag} .
-          docker build -t gcr.io/spark-operator/spark-operator:local .
+          docker build -t quay.io/crawl_soever/spark-operator:${tag} .
+          docker build -t quay.io/crawl_soever/spark-operator:local .
 
       - name: Install Helm
         uses: azure/setup-helm@v1
@@ -85,7 +85,7 @@ jobs:
       - name: Run chart-testing (install)
         run: |
           tag=$(git describe --tags --dirty)_v3.1.1
-          minikube image load gcr.io/spark-operator/spark-operator:local
+          minikube image load quay.io/crawl_soever/spark-operator:local
           ct install
 
       # The integration tests are currently broken see: https://github.com/GoogleCloudPlatform/spark-on-k8s-operator/issues/1416
