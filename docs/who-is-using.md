@@ -19,6 +19,7 @@
 | Riskified | @henbh | Evaluation | Analytics Data Platform |
 | CloudZone | @iftachsc | Evaluation | Big Data Analytics Consultancy |
 | Cyren | @avnerl | Evaluation | Data pipelines |
+| [Procore](https://www.procore.com/) | @bagnaram | Evaluation | Data Platform / Data Infrastructure |
 | Shell (Agile Hub) | @TomLous | Production | Data pipelines |
 | Nielsen Identity Engine | @roitvt | Evaluation | Data pipelines |
 | [Data Mechanics](https://www.datamechanics.co)  | @jrj-d | Production | Managed Spark Platform |
