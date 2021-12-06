@@ -214,9 +214,6 @@ func buildSubmissionCommandArgs(app *v1beta2.SparkApplication, driverPodName str
 			if err != nil {
 				return nil, err
 			}
-
-			//set the application to point to local
-			*app.Spec.MainApplicationFile = "local:///tmp/application.jar"
 		}
 
 		// Add the main application file if it is present.
