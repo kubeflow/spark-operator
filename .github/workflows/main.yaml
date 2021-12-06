@@ -3,11 +3,11 @@ name: Pre-commit checks
 on:
   pull_request:
     branches:
-      - master
+      - bagnaram/remote-spark-jar
 
   push:
     branches:
-      - master
+      - bagnaram/remote-spark-jar
 
 jobs:
   build:

@@ -3,7 +3,7 @@ name: Release Charts
 on:
   push:
     branches:
-      - master
+      - bagnaram/remote-spark-jar
 
 jobs:
   release:
