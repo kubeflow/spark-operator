@@ -49,7 +49,8 @@ jobs:
 
       - name: Build Spark-Operator Docker Image
         run: |
-          tag=$(git describe --tags --dirty)_v3.1.1
+          #tag=$(git describe --tags --dirty)_v3.1.1
+          tag=`git rev-parse HEAD`
           docker build -t quay.io/crawl_soever/spark-operator:${tag} .
           docker build -t quay.io/crawl_soever/spark-operator:local .
 
