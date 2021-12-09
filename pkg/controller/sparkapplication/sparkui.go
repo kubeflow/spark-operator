@@ -26,7 +26,7 @@ import (
 	"github.com/golang/glog"
 
 	apiv1 "k8s.io/api/core/v1"
-	extensions "k8s.io/api/extensions/v1beta1"
+	networkingv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	clientset "k8s.io/client-go/kubernetes"
@@ -76,7 +76,7 @@ type SparkIngress struct {
 	ingressName string
 	ingressURL  *url.URL
 	annotations map[string]string
-	ingressTLS  []extensions.IngressTLS
+	ingressTLS  []networkingv1.IngressTLS
 }
 
 func createSparkUIIngress(app *v1beta2.SparkApplication, service SparkService, ingressURL *url.URL, kubeClient clientset.Interface) (*SparkIngress, error) {
@@ -89,27 +89,31 @@ func createSparkUIIngress(app *v1beta2.SparkApplication, service SparkService, i
 		ingressURLPath = ingressURLPath + "(/|$)(.*)"
 	}
 
-	ingress := extensions.Ingress{
+  implementationSpecific := networkingv1.PathTypeImplementationSpecific
+
+	ingress := networkingv1.Ingress{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            getDefaultUIIngressName(app),
 			Namespace:       app.Namespace,
 			Labels:          getResourceLabels(app),
 			OwnerReferences: []metav1.OwnerReference{*getOwnerReference(app)},
 		},
-		Spec: extensions.IngressSpec{
-			Rules: []extensions.IngressRule{{
+		Spec: networkingv1.IngressSpec{
+			Rules: []networkingv1.IngressRule{{
 				Host: ingressURL.Host,
-				IngressRuleValue: extensions.IngressRuleValue{
-					HTTP: &extensions.HTTPIngressRuleValue{
-						Paths: []extensions.HTTPIngressPath{{
-							Backend: extensions.IngressBackend{
-								ServiceName: service.serviceName,
-								ServicePort: intstr.IntOrString{
-									Type:   intstr.Int,
-									IntVal: service.servicePort,
+				IngressRuleValue: networkingv1.IngressRuleValue{
+					HTTP: &networkingv1.HTTPIngressRuleValue{
+						Paths: []networkingv1.HTTPIngressPath{{
+							Backend: networkingv1.IngressBackend{
+                Service: &networkingv1.IngressServiceBackend{
+                    Name: service.serviceName,
+                    Port: networkingv1.ServiceBackendPort{
+                      Number: service.servicePort,
+                    },
 								},
 							},
 							Path: ingressURLPath,
+              PathType: &implementationSpecific,
 						}},
 					},
 				},
@@ -132,7 +136,7 @@ func createSparkUIIngress(app *v1beta2.SparkApplication, service SparkService, i
 		ingress.Spec.TLS = ingressTlsHosts
 	}
 	glog.Infof("Creating an Ingress %s for the Spark UI for application %s", ingress.Name, app.Name)
-	_, err := kubeClient.ExtensionsV1beta1().Ingresses(ingress.Namespace).Create(context.TODO(), &ingress, metav1.CreateOptions{})
+	_, err := kubeClient.NetworkingV1().Ingresses(ingress.Namespace).Create(context.TODO(), &ingress, metav1.CreateOptions{})
 
 	if err != nil {
 		return nil, err

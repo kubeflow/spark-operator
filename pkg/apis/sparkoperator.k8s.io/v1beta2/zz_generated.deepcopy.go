@@ -24,7 +24,7 @@ package v1beta2
 
 import (
 	v1 "k8s.io/api/core/v1"
-	v1beta1 "k8s.io/api/extensions/v1beta1"
+	networkingv1 "k8s.io/api/networking/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 )
 
@@ -1009,6 +1009,13 @@ func (in *SparkUIConfiguration) DeepCopyInto(out *SparkUIConfiguration) {
 		*out = new(v1.ServiceType)
 		**out = **in
 	}
+	if in.ServiceAnnotations != nil {
+		in, out := &in.ServiceAnnotations, &out.ServiceAnnotations
+		*out = make(map[string]string, len(*in))
+		for key, val := range *in {
+			(*out)[key] = val
+		}
+	}
 	if in.IngressAnnotations != nil {
 		in, out := &in.IngressAnnotations, &out.IngressAnnotations
 		*out = make(map[string]string, len(*in))
@@ -1018,7 +1025,7 @@ func (in *SparkUIConfiguration) DeepCopyInto(out *SparkUIConfiguration) {
 	}
 	if in.IngressTLS != nil {
 		in, out := &in.IngressTLS, &out.IngressTLS
-		*out = make([]v1beta1.IngressTLS, len(*in))
+		*out = make([]networkingv1.IngressTLS, len(*in))
 		for i := range *in {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}

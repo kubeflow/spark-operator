@@ -24,7 +24,7 @@ import (
 	"testing"
 
 	apiv1 "k8s.io/api/core/v1"
-	extensions "k8s.io/api/extensions/v1beta1"
+	networkingv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/kubernetes/fake"
@@ -351,7 +351,7 @@ func TestCreateSparkUIIngress(t *testing.T) {
 		if sparkIngress.ingressURL.String() != test.expectedIngress.ingressURL.String() {
 			t.Errorf("Ingress URL wanted %s got %s", test.expectedIngress.ingressURL, sparkIngress.ingressURL)
 		}
-		ingress, err := fakeClient.ExtensionsV1beta1().Ingresses(test.app.Namespace).
+		ingress, err := fakeClient.NetworkingV1().Ingresses(test.app.Namespace).
 			Get(context.TODO(), sparkIngress.ingressName, metav1.GetOptions{})
 		if err != nil {
 			t.Fatal(err)
@@ -394,11 +394,14 @@ func TestCreateSparkUIIngress(t *testing.T) {
 			t.Errorf("No Ingress paths found.")
 		}
 		ingressPath := ingressRule.IngressRuleValue.HTTP.Paths[0]
-		if ingressPath.Backend.ServiceName != sparkService.serviceName {
-			t.Errorf("Service name wanted %s got %s", sparkService.serviceName, ingressPath.Backend.ServiceName)
+		if ingressPath.Backend.Service.Name != sparkService.serviceName {
+			t.Errorf("Service name wanted %s got %s", sparkService.serviceName, ingressPath.Backend.Service.Name)
 		}
-		if ingressPath.Backend.ServicePort.IntVal != sparkService.servicePort {
-			t.Errorf("Service port wanted %v got %v", sparkService.servicePort, ingressPath.Backend.ServicePort)
+		if *ingressPath.PathType != networkingv1.PathTypeImplementationSpecific {
+			t.Errorf("PathType wanted %s got %s", networkingv1.PathTypeImplementationSpecific, *ingressPath.PathType)
+		}
+		if ingressPath.Backend.Service.Port.Number != sparkService.servicePort {
+			t.Errorf("Service port wanted %v got %v", sparkService.servicePort, ingressPath.Backend.Service.Port.Number)
 		}
 	}
 
@@ -451,7 +454,7 @@ func TestCreateSparkUIIngress(t *testing.T) {
 					"kubernetes.io/ingress.class":                    "nginx",
 					"nginx.ingress.kubernetes.io/force-ssl-redirect": "true",
 				},
-				IngressTLS: []extensions.IngressTLS{
+				IngressTLS: []networkingv1.IngressTLS{
 					{Hosts: []string{"host1", "host2"}, SecretName: "secret"},
 				},
 			},
@@ -475,7 +478,7 @@ func TestCreateSparkUIIngress(t *testing.T) {
 				IngressAnnotations: map[string]string{
 					"kubernetes.io/ingress.class": "nginx",
 				},
-				IngressTLS: []extensions.IngressTLS{
+				IngressTLS: []networkingv1.IngressTLS{
 					{Hosts: []string{"host1", "host2"}, SecretName: ""},
 				},
 			},
@@ -520,7 +523,7 @@ func TestCreateSparkUIIngress(t *testing.T) {
 					"kubernetes.io/ingress.class":                    "nginx",
 					"nginx.ingress.kubernetes.io/force-ssl-redirect": "true",
 				},
-				ingressTLS: []extensions.IngressTLS{
+				ingressTLS: []networkingv1.IngressTLS{
 					{Hosts: []string{"host1", "host2"}, SecretName: "secret"},
 				},
 			},
@@ -536,7 +539,7 @@ func TestCreateSparkUIIngress(t *testing.T) {
 					"kubernetes.io/ingress.class":                    "nginx",
 					"nginx.ingress.kubernetes.io/force-ssl-redirect": "true",
 				},
-				ingressTLS: []extensions.IngressTLS{
+				ingressTLS: []networkingv1.IngressTLS{
 					{Hosts: []string{"host1", "host2"}, SecretName: ""},
 				},
 			},

@@ -1599,7 +1599,7 @@ func TestIngressWithSubpathAffectsSparkConfiguration(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ingresses, err := ctrl.kubeClient.ExtensionsV1beta1().Ingresses(app.Namespace).List(context.TODO(), metav1.ListOptions{})
+	ingresses, err := ctrl.kubeClient.NetworkingV1().Ingresses(app.Namespace).List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		t.Fatal(err)
 	}
