@@ -31,6 +31,7 @@ import (
 
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta2"
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/config"
+	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/util"
 )
 
 func TestCreateSparkUIService(t *testing.T) {
@@ -43,6 +44,7 @@ func TestCreateSparkUIService(t *testing.T) {
 	}
 	testFn := func(test testcase, t *testing.T) {
 		fakeClient := fake.NewSimpleClientset()
+		util.IngressCapabilities = map[string]bool{"networking.k8s.io/v1": true}
 		sparkService, err := createSparkUIService(test.app, fakeClient)
 		if err != nil {
 			if test.expectError {
