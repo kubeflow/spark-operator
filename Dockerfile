@@ -43,5 +43,12 @@ RUN apt-get update --allow-releaseinfo-change \
     && rm -rf /var/lib/apt/lists/*
 COPY hack/gencerts.sh /usr/bin/
 
+RUN apt-get --allow-releaseinfo-change update && \
+    apt-get upgrade -y && \
+    apt-get install -y zip
+
+# Removing JMSAppender class for CVE-2021-44228 vulnerability
+RUN zip -d /opt/spark/jars/log4j-1.2.17.jar org/apache/log4j/net/JMSAppender.class
+
 COPY entrypoint.sh /usr/bin/
 ENTRYPOINT ["/usr/bin/entrypoint.sh"]
