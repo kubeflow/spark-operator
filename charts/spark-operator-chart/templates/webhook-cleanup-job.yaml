@@ -13,7 +13,7 @@ spec:
       name: {{ include "spark-operator.fullname" . }}-webhook-cleanup
       {{- if .Values.istio.enabled }}
       annotations:
-        "sidecar.istio.io/inject": "true"
+        "sidecar.istio.io/inject": {{ .Values.istio.enabled | quote }}
       {{- else }}
       annotations:
         "sidecar.istio.io/inject": "false"
