@@ -11,13 +11,8 @@ spec:
   template:
     metadata:
       name: {{ include "spark-operator.fullname" . }}-webhook-cleanup
-      {{- if .Values.istio.enabled }}
       annotations:
-        "sidecar.istio.io/inject": {{ .Values.istio.enabled | quote }}
-      {{- else }}
-      annotations:
-        "sidecar.istio.io/inject": "false"
-      {{- end }}
+        "sidecar.istio.io/inject": {{ .Values.istio.enabled | default false | quote }}
     spec:
       serviceAccountName: {{ include "spark-operator.serviceAccountName" . }}
       restartPolicy: OnFailure
