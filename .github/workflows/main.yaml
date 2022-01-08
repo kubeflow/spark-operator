@@ -80,8 +80,7 @@ jobs:
 
       - name: Build Spark-Operator Docker Image
         run: |
-          DOCKER_TAG=$(cat charts/spark-operator-chart/Chart.yaml | grep "appVersion: .*" | cut -c13-)
-          docker build -t gcr.io/spark-operator/spark-operator:${DOCKER_TAG} .
+          docker build -t gcr.io/spark-operator/spark-operator:latest .
 
       - name: Check changes in resources used in docker file
         run: |
@@ -97,7 +96,7 @@ jobs:
               fi
             fi
           done
-          
+
   build-helm-chart:
     runs-on: ubuntu-latest
     steps:
