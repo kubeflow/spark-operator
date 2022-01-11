@@ -31,6 +31,9 @@ import (
 
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta2"
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/config"
+	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/controller/sparkapplication/autopilot"
+
+	clientset "k8s.io/client-go/kubernetes"
 )
 
 const (
@@ -84,7 +87,7 @@ func runSparkSubmit(submission *submission) (bool, error) {
 	return true, nil
 }
 
-func buildSubmissionCommandArgs(app *v1beta2.SparkApplication, driverPodName string, submissionID string) ([]string, error) {
+func buildSubmissionCommandArgs(app *v1beta2.SparkApplication, driverPodName string, submissionID string, kubeClient clientset.Interface) ([]string, error) {
 	var args []string
 	if app.Spec.MainClass != nil {
 		args = append(args, "--class", *app.Spec.MainClass)
@@ -149,7 +152,7 @@ func buildSubmissionCommandArgs(app *v1beta2.SparkApplication, driverPodName str
 	// Add the driver and executor configuration options.
 	// Note that when the controller submits the application, it expects that all dependencies are local
 	// so init-container is not needed and therefore no init-container image needs to be specified.
-	options, err := addDriverConfOptions(app, submissionID)
+	options, err := addDriverConfOptions(app, submissionID, kubeClient)
 	if err != nil {
 		return nil, err
 	}
@@ -246,7 +249,7 @@ func addDependenciesConfOptions(app *v1beta2.SparkApplication) []string {
 	return depsConfOptions
 }
 
-func addDriverConfOptions(app *v1beta2.SparkApplication, submissionID string) ([]string, error) {
+func addDriverConfOptions(app *v1beta2.SparkApplication, submissionID string, kubeClient clientset.Interface) ([]string, error) {
 	var driverConfOptions []string
 
 	driverConfOptions = append(driverConfOptions,
@@ -285,6 +288,17 @@ func addDriverConfOptions(app *v1beta2.SparkApplication, submissionID string) ([
 	if app.Spec.Driver.ServiceAccount != nil {
 		driverConfOptions = append(driverConfOptions,
 			fmt.Sprintf("%s=%s", config.SparkDriverServiceAccountName, *app.Spec.Driver.ServiceAccount))
+	} else if kubeClient != nil {
+		err := autopilot.CreateOrUpdateDriverRBAC(app, kubeClient)
+		if err != nil {
+			glog.V(2).Infof("Autopilot error: %w", err)
+		} else {
+			driverConfOptions = append(driverConfOptions,
+				fmt.Sprintf(
+					"%s=%s",
+					config.SparkDriverServiceAccountName,
+					autopilot.GetDefaultDriverServiceAccount(app)))
+		}
 	}
 
 	if app.Spec.Driver.JavaOptions != nil {

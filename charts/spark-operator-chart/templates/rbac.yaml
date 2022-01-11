@@ -85,6 +85,24 @@ rules:
   - scheduledsparkapplications/status
   verbs:
   - "*"
+- apiGroups:
+  - rbac.authorization.k8s.io
+  resources:
+  - roles
+  - rolebindings
+  verbs:
+  - "*"
+- apiGroups:
+  - ""
+  resources:
+  - serviceaccounts
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - delete
   {{- if .Values.batchScheduler.enable }}
   # required for the `volcano` batch scheduler
 - apiGroups:

@@ -397,7 +397,7 @@ func TestPopulateLabels_Driver_Executor(t *testing.T) {
 	}
 
 	submissionID := uuid.New().String()
-	driverOptions, err := addDriverConfOptions(app, submissionID)
+	driverOptions, err := addDriverConfOptions(app, submissionID, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -469,7 +469,7 @@ func TestPopulateLabelsOverride_Driver_Executor(t *testing.T) {
 	}
 
 	submissionID := uuid.New().String()
-	driverOptions, err := addDriverConfOptions(app, submissionID)
+	driverOptions, err := addDriverConfOptions(app, submissionID, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -571,7 +571,7 @@ func TestProxyUserArg(t *testing.T) {
 
 	submissionID := uuid.New().String()
 	driverPodName := getDriverPodName(app)
-	args, err := buildSubmissionCommandArgs(app, driverPodName, submissionID)
+	args, err := buildSubmissionCommandArgs(app, driverPodName, submissionID, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

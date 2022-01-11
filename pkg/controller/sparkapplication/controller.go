@@ -701,7 +701,7 @@ func (c *Controller) submitSparkApplication(app *v1beta2.SparkApplication) *v1be
 
 	driverPodName := getDriverPodName(app)
 	submissionID := uuid.New().String()
-	submissionCmdArgs, err := buildSubmissionCommandArgs(app, driverPodName, submissionID)
+	submissionCmdArgs, err := buildSubmissionCommandArgs(app, driverPodName, submissionID, c.kubeClient)
 	if err != nil {
 		app.Status = v1beta2.SparkApplicationStatus{
 			AppState: v1beta2.ApplicationState{
