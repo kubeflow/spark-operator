@@ -89,7 +89,7 @@ jobs:
             # If the resource is different
             if ! git diff  --quiet origin/master -- $resource; then
               ## And the appVersion hasn't been updated
-              if ! git diff --quiet charts/spark-operator-chart/Chart.yaml | grep +appVersion; then
+              if ! git diff origin/master -- charts/spark-operator-chart/Chart.yaml | grep +appVersion; then
                 echo "resource used in gcr.io/spark-operator/spark-operator has changed in $resource, need to update the appVersion in charts/spark-operator-chart/Chart.yaml"
                 git diff origin/master -- $resource;
                 echo "failing the build... " && false
