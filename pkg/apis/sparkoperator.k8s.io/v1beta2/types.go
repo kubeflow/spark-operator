@@ -18,7 +18,7 @@ package v1beta2
 
 import (
 	apiv1 "k8s.io/api/core/v1"
-	extensions "k8s.io/api/extensions/v1beta1"
+	networkingv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -322,7 +322,7 @@ type SparkUIConfiguration struct {
 	IngressAnnotations map[string]string `json:"ingressAnnotations,omitempty"`
 	// TlsHosts is useful If we need to declare SSL certificates to the ingress object
 	// +optional
-	IngressTLS []extensions.IngressTLS `json:"ingressTLS,omitempty"`
+	IngressTLS []networkingv1.IngressTLS `json:"ingressTLS,omitempty"`
 }
 
 // ApplicationStateType represents the type of the current state of an application.

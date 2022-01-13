@@ -48,6 +48,7 @@ func newFakeController(app *v1beta2.SparkApplication, pods ...*apiv1.Pod) (*Cont
 	crdclientfake.AddToScheme(scheme.Scheme)
 	crdClient := crdclientfake.NewSimpleClientset()
 	kubeClient := kubeclientfake.NewSimpleClientset()
+	util.IngressCapabilities = map[string]bool{"networking.k8s.io/v1": true}
 	informerFactory := crdinformers.NewSharedInformerFactory(crdClient, 0*time.Second)
 	recorder := record.NewFakeRecorder(3)
 
@@ -1599,9 +1600,12 @@ func TestIngressWithSubpathAffectsSparkConfiguration(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ingresses, err := ctrl.kubeClient.ExtensionsV1beta1().Ingresses(app.Namespace).List(context.TODO(), metav1.ListOptions{})
+	ingresses, err := ctrl.kubeClient.NetworkingV1().Ingresses(app.Namespace).List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		t.Fatal(err)
+	}
+	if ingresses == nil || ingresses.Items == nil || len(ingresses.Items) != 1 {
+		t.Fatal("The ingress does not exist, has no items, or wrong amount of items")
 	}
 	if ingresses.Items[0].Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Path != "/"+app.Namespace+"/"+app.Name+"(/|$)(.*)" {
 		t.Fatal("The ingress subpath was not created successfully.")

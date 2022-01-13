@@ -872,10 +872,19 @@ func (c *Controller) deleteSparkResources(app *v1beta2.SparkApplication) error {
 
 	sparkUIIngressName := app.Status.DriverInfo.WebUIIngressName
 	if sparkUIIngressName != "" {
-		glog.V(2).Infof("Deleting Spark UI Ingress %s in namespace %s", sparkUIIngressName, app.Namespace)
-		err := c.kubeClient.ExtensionsV1beta1().Ingresses(app.Namespace).Delete(context.TODO(), sparkUIIngressName, metav1.DeleteOptions{GracePeriodSeconds: int64ptr(0)})
-		if err != nil && !errors.IsNotFound(err) {
-			return err
+		if util.IngressCapabilities.Has("networking.k8s.io/v1") {
+			glog.V(2).Infof("Deleting Spark UI Ingress %s in namespace %s", sparkUIIngressName, app.Namespace)
+			err := c.kubeClient.NetworkingV1().Ingresses(app.Namespace).Delete(context.TODO(), sparkUIIngressName, metav1.DeleteOptions{GracePeriodSeconds: int64ptr(0)})
+			if err != nil && !errors.IsNotFound(err) {
+				return err
+			}
+		}
+		if util.IngressCapabilities.Has("extensions/v1beta1") {
+			glog.V(2).Infof("Deleting extensions/v1beta1 Spark UI Ingress %s in namespace %s", sparkUIIngressName, app.Namespace)
+			err := c.kubeClient.ExtensionsV1beta1().Ingresses(app.Namespace).Delete(context.TODO(), sparkUIIngressName, metav1.DeleteOptions{GracePeriodSeconds: int64ptr(0)})
+			if err != nil && !errors.IsNotFound(err) {
+				return err
+			}
 		}
 	}
 
@@ -916,7 +925,7 @@ func (c *Controller) validateSparkResourceDeletion(app *v1beta2.SparkApplication
 
 	sparkUIIngressName := app.Status.DriverInfo.WebUIIngressName
 	if sparkUIIngressName != "" {
-		_, err := c.kubeClient.ExtensionsV1beta1().Ingresses(app.Namespace).Get(context.TODO(), sparkUIIngressName, metav1.GetOptions{})
+		_, err := c.kubeClient.NetworkingV1().Ingresses(app.Namespace).Get(context.TODO(), sparkUIIngressName, metav1.GetOptions{})
 		if err == nil || !errors.IsNotFound(err) {
 			return false
 		}

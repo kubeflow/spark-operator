@@ -26,7 +26,7 @@ import (
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta2"
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/config"
 	apiv1 "k8s.io/api/core/v1"
-	"k8s.io/api/extensions/v1beta1"
+	networkingv1 "k8s.io/api/networking/v1"
 )
 
 // Helper method to create a key with namespace and appName
@@ -100,8 +100,8 @@ func getIngressResourceAnnotations(app *v1beta2.SparkApplication) map[string]str
 	return ingressAnnotations
 }
 
-func getIngressTlsHosts(app *v1beta2.SparkApplication) []v1beta1.IngressTLS {
-	var ingressTls []v1beta1.IngressTLS
+func getIngressTlsHosts(app *v1beta2.SparkApplication) []networkingv1.IngressTLS {
+	var ingressTls []networkingv1.IngressTLS
 	if app.Spec.SparkUIOptions != nil && app.Spec.SparkUIOptions.IngressTLS != nil {
 		for _, ingTls := range app.Spec.SparkUIOptions.IngressTLS {
 			ingressTls = append(ingressTls, ingTls)

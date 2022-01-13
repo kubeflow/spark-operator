@@ -153,6 +153,10 @@ func main() {
 		glog.Fatal(err)
 	}
 
+	if err = util.InitializeIngressCapabilities(kubeClient); err != nil {
+		glog.Fatalf("Error retrieving Kubernetes cluster capabilities: %s", err.Error())
+	}
+
 	var batchSchedulerMgr *batchscheduler.SchedulerManager
 	if *enableBatchScheduler {
 		if !*enableWebhook {
