@@ -291,7 +291,7 @@ func addDriverConfOptions(app *v1beta2.SparkApplication, submissionID string, ku
 	} else if kubeClient != nil {
 		err := autopilot.CreateOrUpdateDriverRBAC(app, kubeClient)
 		if err != nil {
-			glog.V(2).Infof("Autopilot error: %w", err)
+			glog.V(2).Infof("Autopilot error: %s", err.Error())
 		} else {
 			driverConfOptions = append(driverConfOptions,
 				fmt.Sprintf(
