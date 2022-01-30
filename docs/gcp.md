@@ -39,7 +39,7 @@ connectors and the custom Hadoop configuration files above built-in. Note that s
 properties are set using `spec.hadoopConf`. Those Hadoop configuration properties are additional to the ones set in the 
 built-in `core-site.xml`. They are set here instead of in `core-site.xml` because of their application-specific nature. 
 The ones set in `core-site.xml` apply to all applications using the image. Also note how the Kubernetes secret named 
-`gcs-bg` that stores the service account JSON key file gets mounted into both the driver and executors. The environment 
+`gcs-bq` that stores the service account JSON key file gets mounted into both the driver and executors. The environment 
 variable `GCS_PROJECT_ID` must be set when using the image at `gcr.io/ynli-k8s/spark:v2.3.0-gcs`.
 
 ```yaml
