@@ -88,15 +88,27 @@ spec:
         {{- end }}
         resources:
           {{- toYaml .Values.resources | nindent 10 }}
-      {{- if .Values.webhook.enable }}
+        {{- if or .Values.webhook.enable (ne (len .Values.volumeMounts) 0 ) }}
         volumeMounts:
+        {{- end }}
+          {{- if .Values.webhook.enable }}
           - name: webhook-certs
             mountPath: /etc/webhook-certs
+          {{- end }}
+        {{- with .Values.volumeMounts }}
+        {{- toYaml . | nindent 10 }}
+        {{- end }}
+      {{- if or .Values.webhook.enable (ne (len .Values.volumes) 0 ) }}
       volumes:
+      {{- end }}
+        {{- if .Values.webhook.enable }}
         - name: webhook-certs
           secret:
             secretName: {{ include "spark-operator.fullname" . }}-webhook-certs
-      {{- end }}
+        {{- end }}
+        {{- with .Values.volumes }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
