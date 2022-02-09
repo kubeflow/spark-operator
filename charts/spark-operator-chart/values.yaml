@@ -75,10 +75,10 @@ podSecurityContext: {}
 securityContext: {}
 
 # volumes - Operator volumes
-volumes: {}
+volumes: []
 
 # volumeMounts - Operator volumeMounts
-volumeMounts: {}
+volumeMounts: []
   
 webhook:
   # -- Enable webhook server
