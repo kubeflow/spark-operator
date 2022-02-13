@@ -3120,8 +3120,8 @@ map[string]string
 <td>
 <code>ingressTLS</code><br/>
 <em>
-<a href="https://v1-18.docs.kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#ingresstls-v1beta1-extensions">
-[]Kubernetes extensions/v1beta1.IngressTLS
+<a href="https://v1-18.docs.kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#ingresstls-v1-networking">
+[]Kubernetes networking/v1.IngressTLS
 </a>
 </em>
 </td>
