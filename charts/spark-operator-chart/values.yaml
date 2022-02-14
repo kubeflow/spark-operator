@@ -79,7 +79,7 @@ volumes: []
 
 # volumeMounts - Operator volumeMounts
 volumeMounts: []
-  
+
 webhook:
   # -- Enable webhook server
   enable: false
