@@ -10,6 +10,9 @@ metadata:
   name: {{ include "spark-operator.fullname" . }}
   labels:
     {{- include "spark-operator.labels" . | nindent 4 }}
+    {{- with .Values.serviceInventoryLabels }}
+      {{- toYaml . | trim | nindent 4 }}
+    {{- end }}
 spec:
   replicas: {{ .Values.replicaCount }}
   selector:
@@ -33,6 +36,9 @@ spec:
       labels:
         {{- include "spark-operator.selectorLabels" . | nindent 8 }}
         {{- with .Values.podLabels }}
+          {{- toYaml . | trim | nindent 8 }}
+        {{- end }}
+        {{- with .Values.serviceInventoryLabels }}
           {{- toYaml . | trim | nindent 8 }}
         {{- end }}
     spec:
