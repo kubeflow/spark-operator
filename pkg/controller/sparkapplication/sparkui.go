@@ -75,21 +75,22 @@ type SparkService struct {
 
 // SparkIngress encapsulates information about the driver UI ingress.
 type SparkIngress struct {
-	ingressName string
-	ingressURL  *url.URL
-	annotations map[string]string
-	ingressTLS  []networkingv1.IngressTLS
+	ingressName      string
+	ingressURL       *url.URL
+	ingressClassName string
+	annotations      map[string]string
+	ingressTLS       []networkingv1.IngressTLS
 }
 
-func createSparkUIIngress(app *v1beta2.SparkApplication, service SparkService, ingressURL *url.URL, kubeClient clientset.Interface) (*SparkIngress, error) {
+func createSparkUIIngress(app *v1beta2.SparkApplication, service SparkService, ingressURL *url.URL, ingressClassName string, kubeClient clientset.Interface) (*SparkIngress, error) {
 	if util.IngressCapabilities.Has("networking.k8s.io/v1") {
-		return createSparkUIIngress_v1(app, service, ingressURL, kubeClient)
+		return createSparkUIIngress_v1(app, service, ingressURL, ingressClassName, kubeClient)
 	} else {
 		return createSparkUIIngress_legacy(app, service, ingressURL, kubeClient)
 	}
 }
 
-func createSparkUIIngress_v1(app *v1beta2.SparkApplication, service SparkService, ingressURL *url.URL, kubeClient clientset.Interface) (*SparkIngress, error) {
+func createSparkUIIngress_v1(app *v1beta2.SparkApplication, service SparkService, ingressURL *url.URL, ingressClassName string, kubeClient clientset.Interface) (*SparkIngress, error) {
 	ingressResourceAnnotations := getIngressResourceAnnotations(app)
 	ingressTlsHosts := getIngressTlsHosts(app)
 
@@ -145,16 +146,21 @@ func createSparkUIIngress_v1(app *v1beta2.SparkApplication, service SparkService
 	if len(ingressTlsHosts) != 0 {
 		ingress.Spec.TLS = ingressTlsHosts
 	}
+	if len(ingressClassName) != 0 {
+		ingress.Spec.IngressClassName = &ingressClassName
+	}
+
 	glog.Infof("Creating an Ingress %s for the Spark UI for application %s", ingress.Name, app.Name)
 	_, err := kubeClient.NetworkingV1().Ingresses(ingress.Namespace).Create(context.TODO(), &ingress, metav1.CreateOptions{})
 	if err != nil {
 		return nil, err
 	}
 	return &SparkIngress{
-		ingressName: ingress.Name,
-		ingressURL:  ingressURL,
-		annotations: ingress.Annotations,
-		ingressTLS:  ingressTlsHosts,
+		ingressName:      ingress.Name,
+		ingressURL:       ingressURL,
+		ingressClassName: ingressClassName,
+		annotations:      ingress.Annotations,
+		ingressTLS:       ingressTlsHosts,
 	}, nil
 }
 
