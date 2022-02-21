@@ -178,9 +178,13 @@ jobs:
           docker build -t gcr.io/spark-operator/spark-operator:local .
           minikube image load gcr.io/spark-operator/spark-operator:local
 
-      # The integration tests are currently broken see: https://github.com/GoogleCloudPlatform/spark-on-k8s-operator/issues/1416
-      # - name: Run chart-testing (integration test)
-      #   run: make integation-test
+      - name: Apply CRDs
+        run: |
+          minikube kubectl apply -f manifest/crds/sparkoperator.k8s.io_sparkapplications.yaml
+          minikube kubectl apply -f manifest/crds/sparkoperator.k8s.io_scheduledsparkapplications.yaml
+
+      - name: Run chart-testing (integration test)
+        run: make integation-test
       
       - name: Setup tmate session
         if: failure()
