@@ -48,6 +48,7 @@ The following table lists the most recent few versions of the operator.
 | Operator Version | API Version | Kubernetes Version | Base Spark Version | Operator Image Tag |
 | ------------- | ------------- | ------------- | ------------- | ------------- |
 | `latest` (master HEAD) | `v1beta2` | 1.13+ | `3.0.0` | `latest` |
+| `v1beta2-1.3.4-3.1.1` | `v1beta2` | 1.16+ | `3.1.1` | `v1beta2-1.3.4-3.1.1` |
 | `v1beta2-1.3.3-3.1.1` | `v1beta2` | 1.16+ | `3.1.1` | `v1beta2-1.3.3-3.1.1` |
 | `v1beta2-1.3.2-3.1.1` | `v1beta2` | 1.16+ | `3.1.1` | `v1beta2-1.3.2-3.1.1` |
 | `v1beta2-1.3.0-3.1.1` | `v1beta2` | 1.16+ | `3.1.1` | `v1beta2-1.3.0-3.1.1` |
