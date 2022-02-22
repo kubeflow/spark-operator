@@ -180,11 +180,11 @@ jobs:
 
       - name: Apply CRDs
         run: |
-          minikube kubectl apply -f manifest/crds/sparkoperator.k8s.io_sparkapplications.yaml
-          minikube kubectl apply -f manifest/crds/sparkoperator.k8s.io_scheduledsparkapplications.yaml
+          minikube kubectl -- apply -f manifest/crds/sparkoperator.k8s.io_sparkapplications.yaml
+          minikube kubectl -- apply -f manifest/crds/sparkoperator.k8s.io_scheduledsparkapplications.yaml
 
       - name: Run chart-testing (integration test)
-        run: make integation-test
+        run: make integration-test
       
       - name: Setup tmate session
         if: failure()
