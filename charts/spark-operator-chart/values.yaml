@@ -8,7 +8,7 @@ replicaCount: 1
 
 image:
   # -- Image repository
-  repository: gcr.io/spark-operator/spark-operator
+  repository: ghcr.io/googlecloudplatform/spark-operator
   # -- Image pull policy
   pullPolicy: IfNotPresent
   # -- if set, override the image tag whose default is the chart appVersion.
@@ -73,6 +73,12 @@ podSecurityContext: {}
 
 # securityContext -- Operator container security context
 securityContext: {}
+
+# volumes - Operator volumes
+volumes: []
+
+# volumeMounts - Operator volumeMounts
+volumeMounts: []
 
 webhook:
   # -- Enable webhook server
