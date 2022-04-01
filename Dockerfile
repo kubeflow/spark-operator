@@ -16,7 +16,7 @@
 
 ARG SPARK_IMAGE=gcr.io/spark-operator/spark:v3.1.1
 
-FROM golang:1.15.2-alpine as builder
+FROM golang:1.18-alpine as builder
 
 WORKDIR /workspace
 
@@ -36,6 +36,10 @@ RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 GO111MODULE=on go build -a -o /usr/bin
 
 FROM ${SPARK_IMAGE}
 USER root
+RUN apt-get --allow-releaseinfo-change update \
+    && apt-get upgrade -y \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 COPY --from=builder /usr/bin/spark-operator /usr/bin/
 RUN apt-get update --allow-releaseinfo-change \
     && apt-get update \
