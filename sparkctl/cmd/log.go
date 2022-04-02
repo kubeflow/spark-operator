@@ -21,7 +21,7 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"strings"
+	"time"
 
 	"github.com/spf13/cobra"
 
@@ -57,7 +57,7 @@ var logCommand = &cobra.Command{
 			return
 		}
 
-		if err := doLog(args[0], kubeClientset, crdClientset); err != nil {
+		if err := doLog(args[0], FollowLogs, kubeClientset, crdClientset); err != nil {
 			fmt.Fprintf(os.Stderr, "failed to get driver logs of SparkApplication %s: %v\n", args[0], err)
 		}
 	},
@@ -69,36 +69,76 @@ func init() {
 	logCommand.Flags().BoolVarP(&FollowLogs, "follow", "f", false, "whether to stream the logs")
 }
 
-func doLog(name string, kubeClientset clientset.Interface, crdClientset crdclientset.Interface) error {
-	app, err := crdClientset.SparkoperatorV1beta2().SparkApplications(Namespace).Get(context.TODO(), name, metav1.GetOptions{})
-	if err != nil {
-		return fmt.Errorf("failed to get SparkApplication %s: %v", name, err)
-	}
+func doLog(
+	name string,
+	followLogs bool,
+	kubeClient clientset.Interface,
+	crdClient crdclientset.Interface) error {
 
+	timeout := 30 * time.Second
+
+	podNameChannel := getPodNameChannel(name, crdClient)
 	var podName string
-	if ExecutorId < 0 {
-		podName = app.Status.DriverInfo.PodName
+
+	select {
+	case podName = <-podNameChannel:
+	case <-time.After(timeout):
+		return fmt.Errorf("not found pod name")
+	}
+
+	waitLogsChannel := waitForLogsFromPodChannel(podName, kubeClient, crdClient)
+
+	select {
+	case <-waitLogsChannel:
+	case <-time.After(timeout):
+		return fmt.Errorf("timeout to fetch logs from pod \"%s\"", podName)
+	}
+
+	if followLogs {
+		return streamLogs(os.Stdout, kubeClient, podName)
 	} else {
-		podName = strings.NewReplacer("driver", fmt.Sprintf("exec-%d", ExecutorId)).
-			Replace(app.Status.DriverInfo.PodName)
+		return printLogs(os.Stdout, kubeClient, podName)
 	}
+}
 
-	if podName == "" {
-		return fmt.Errorf("unable to fetch logs as the name of the target pod is empty")
-	}
+func getPodNameChannel(
+	sparkApplicationName string,
+	crdClient crdclientset.Interface) chan string {
 
-	out := os.Stdout
-	if FollowLogs {
-		if err := streamLogs(out, kubeClientset, podName); err != nil {
-			return err
+	channel := make(chan string, 1)
+	go func() {
+		for true {
+			app, _ := crdClient.SparkoperatorV1beta2().SparkApplications(Namespace).Get(
+				context.TODO(),
+				sparkApplicationName,
+				metav1.GetOptions{})
+
+			if app.Status.DriverInfo.PodName != "" {
+				channel <- app.Status.DriverInfo.PodName
+				break
+			}
 		}
-	} else {
-		if err := printLogs(out, kubeClientset, podName); err != nil {
-			return err
-		}
-	}
+	}()
+	return channel
+}
 
-	return nil
+func waitForLogsFromPodChannel(
+	podName string,
+	kubeClient clientset.Interface,
+	crdClient crdclientset.Interface) chan bool {
+
+	channel := make(chan bool, 1)
+	go func() {
+		for true {
+			_, err := kubeClient.CoreV1().Pods(Namespace).GetLogs(podName, &apiv1.PodLogOptions{}).Do(context.TODO()).Raw()
+
+			if err == nil {
+				channel <- true
+				break
+			}
+		}
+	}()
+	return channel
 }
 
 // printLogs is a one time operation that prints the fetched logs of the given pod.
