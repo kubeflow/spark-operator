@@ -36,9 +36,6 @@ spec:
             "-p"
           ]
 {{ end }}
-      {{/*
-         nodeSelector was added by Relativity, we should push this upstream
-      */}}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}

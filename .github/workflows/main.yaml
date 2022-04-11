@@ -80,7 +80,7 @@ jobs:
 
       - name: Build Spark-Operator Docker Image
         run: |
-          docker build -t ${{ secrets.CONTAINER_REGISTRY_DEV }}/${{ secrets.CONTAINER_REGISTRY_NAMESPACE }}/spark-operator:latest .
+          docker build -t gcr.io/spark-operator/spark-operator:latest .
 
       - name: Check changes in resources used in docker file
         run: |
@@ -148,8 +148,8 @@ jobs:
 
       - name: Run chart-testing (install)
         run: |
-          docker build -t localhost/spark-operator:local .
-          minikube image load localhost/spark-operator:local
+          docker build -t gcr.io/spark-operator/spark-operator:local .
+          minikube image load gcr.io/spark-operator/spark-operator:local
           ct install
 
   integration-test:
@@ -175,8 +175,8 @@ jobs:
 
       - name: Build local spark-operator docker image for minikube testing
         run: |
-          docker build -t localhost/spark-operator:local .
-          minikube image load localhost/spark-operator:local
+          docker build -t gcr.io/spark-operator/spark-operator:local .
+          minikube image load gcr.io/spark-operator/spark-operator:local
 
       # The integration tests are currently broken see: https://github.com/GoogleCloudPlatform/spark-on-k8s-operator/issues/1416
       # - name: Run chart-testing (integration test)
