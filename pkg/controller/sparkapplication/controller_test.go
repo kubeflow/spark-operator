@@ -68,7 +68,7 @@ func newFakeController(app *v1beta2.SparkApplication, pods ...*apiv1.Pod) (*Cont
 
 	podInformerFactory := informers.NewSharedInformerFactory(kubeClient, 0*time.Second)
 	controller := newSparkApplicationController(crdClient, kubeClient, informerFactory, podInformerFactory, recorder,
-		&util.MetricConfig{}, "", nil, true)
+		&util.MetricConfig{}, "", "", nil, true)
 
 	informer := informerFactory.Sparkoperator().V1beta2().SparkApplications().Informer()
 	if app != nil {
@@ -1616,6 +1616,52 @@ func TestIngressWithSubpathAffectsSparkConfiguration(t *testing.T) {
 	}
 	if deployedApp.Spec.SparkConf["spark.ui.proxyRedirectUri"] != "/" {
 		t.Log("The spark configuration does not reflect the proxyRedirectUri expected by the ingress")
+	}
+}
+
+func TestIngressWithClassName(t *testing.T) {
+	os.Setenv(kubernetesServiceHostEnvVar, "localhost")
+	os.Setenv(kubernetesServicePortEnvVar, "443")
+
+	appName := "ingressaffectssparkconfig"
+
+	app := &v1beta2.SparkApplication{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      appName,
+			Namespace: "test",
+		},
+		Spec: v1beta2.SparkApplicationSpec{
+			RestartPolicy: v1beta2.RestartPolicy{
+				Type: v1beta2.Never,
+			},
+			TimeToLiveSeconds: int64ptr(1),
+		},
+		Status: v1beta2.SparkApplicationStatus{},
+	}
+
+	ctrl, _ := newFakeController(app)
+	ctrl.ingressURLFormat = "{{$appNamespace}}.{{$appName}}.example.com"
+	ctrl.ingressClassName = "nginx"
+	ctrl.enableUIService = true
+	_, err := ctrl.crdClient.SparkoperatorV1beta2().SparkApplications(app.Namespace).Create(context.TODO(), app, metav1.CreateOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = ctrl.syncSparkApplication(fmt.Sprintf("%s/%s", app.Namespace, app.Name))
+	assert.Nil(t, err)
+	_, err = ctrl.crdClient.SparkoperatorV1beta2().SparkApplications(app.Namespace).Get(context.TODO(), app.Name, metav1.GetOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	ingresses, err := ctrl.kubeClient.NetworkingV1().Ingresses(app.Namespace).List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ingresses == nil || ingresses.Items == nil || len(ingresses.Items) != 1 {
+		t.Fatal("The ingress does not exist, has no items, or wrong amount of items")
+	}
+	if ingresses.Items[0].Spec.IngressClassName == nil || *ingresses.Items[0].Spec.IngressClassName != "nginx" {
+		t.Fatal("The ingressClassName does not exists, or wrong value is set")
 	}
 }
 
