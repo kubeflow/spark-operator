@@ -39,8 +39,8 @@ jobs:
         run: |
           DOCKER_TAG=$(cat charts/spark-operator-chart/Chart.yaml | grep "appVersion: .*" | cut -c13-)
           FULL_IMAGE_NAME=${{ secrets.CONTAINER_REGISTRY_DEV }}/${{ secrets.CONTAINER_REGISTRY_NAMESPACE }}/spark-operator:${DOCKER_TAG}
-          docker build -t ${FULL_IMAGE_NAME} .
-          docker push ${FULL_IMAGE_NAME}
+          docker build -t $FULL_IMAGE_NAME .
+          docker push $FULL_IMAGE_NAME
 
       - name: Release Spark-Operator Helm Chart
         uses: helm/chart-releaser-action@v1.1.0
