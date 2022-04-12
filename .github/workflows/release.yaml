@@ -1,9 +1,13 @@
 name: Release Charts
 
 on:
+  schedule:
+    - cron:  '0 0 * * *'
+    # scheduled at midnight every day to rebuild for vulnerabilities
+
   push:
     branches:
-      - master
+      - relativity-main
 
 jobs:
   release:
@@ -36,11 +40,7 @@ jobs:
           DOCKER_TAG=$(cat charts/spark-operator-chart/Chart.yaml | grep "appVersion: .*" | cut -c13-)
           FULL_IMAGE_NAME=${{ secrets.CONTAINER_REGISTRY_DEV }}/${{ secrets.CONTAINER_REGISTRY_NAMESPACE }}/spark-operator:${DOCKER_TAG}
           docker build -t ${FULL_IMAGE_NAME} .
-          if ! docker pull ${FULL_IMAGE_NAME}; then
-            docker push ${FULL_IMAGE_NAME}
-          else
-            echo "Spark-Operator Docker Image alredy exists"
-          fi
+          docker push ${FULL_IMAGE_NAME}
 
       - name: Release Spark-Operator Helm Chart
         uses: helm/chart-releaser-action@v1.1.0
