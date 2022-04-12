@@ -58,3 +58,8 @@ jobs:
             git push origin $DOCKER_TAG
             echo "Spark-Operator Docker Image new tag: $DOCKER_TAG released"
           fi
+
+      - name: Setup tmate session
+        if: failure()
+        uses: mxschmitt/action-tmate@v3
+        timeout-minutes: 15
