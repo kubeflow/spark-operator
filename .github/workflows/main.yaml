@@ -148,8 +148,8 @@ jobs:
 
       - name: Run chart-testing (install)
         run: |
-          docker build -t gcr.io/spark-operator/spark-operator:local .
-          minikube image load gcr.io/spark-operator/spark-operator:local
+          docker build -t ghcr.io/googlecloudplatform/spark-operator:local .
+          minikube image load ghcr.io/googlecloudplatform/spark-operator:local
           ct install
 
   integration-test:
