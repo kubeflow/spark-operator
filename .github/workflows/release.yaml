@@ -18,6 +18,7 @@ jobs:
         run: |
           git config user.name "$GITHUB_ACTOR"
           git config user.email "$GITHUB_ACTOR@users.noreply.github.com"
+          
       - name: Install Helm
         uses: azure/setup-helm@v1
         with:
@@ -51,6 +52,7 @@ jobs:
           else
             echo "Spark-Operator Docker Image alredy exists"
           fi
+
       - name: Release Spark-Operator Helm Chart
         uses: helm/chart-releaser-action@v1.1.0
         env:
@@ -67,6 +69,7 @@ jobs:
             git push origin $DOCKER_TAG
             echo "Spark-Operator Docker Image new tag: $DOCKER_TAG released"
           fi
+
       - name: Setup tmate session
         if: failure()
         uses: mxschmitt/action-tmate@v3
