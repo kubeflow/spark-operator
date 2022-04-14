@@ -1,13 +1,9 @@
 name: Release Charts
 
 on:
-  schedule:
-    - cron:  '0 0 * * *'
-    # scheduled at midnight every day to rebuild for vulnerabilities
-
   push:
     branches:
-      - relativity-main
+      - master
 
 jobs:
   release:
@@ -22,26 +18,39 @@ jobs:
         run: |
           git config user.name "$GITHUB_ACTOR"
           git config user.email "$GITHUB_ACTOR@users.noreply.github.com"
-
       - name: Install Helm
         uses: azure/setup-helm@v1
         with:
           version: v3.7.1
 
-      - name: Login to Container registry
+      # TODO: Maintainer of repository to follow:
+      # https://github.com/docker/login-action#google-container-registry-gcr to add credentials so
+      # we can push from github actions
+      # - name: log in to google container registry
+      #   uses: docker/login-action@v1
+      #   with:
+      #     registry: gcr.io
+      #     username: ${{ secrets.DOCKER_USERNAME }}
+      #     password: ${{ secrets.DOCKER_PASSWORD }}
+      
+      - name: Login to Packages Container registry
         uses: docker/login-action@v1 
         with:
-          registry: ${{ secrets.CONTAINER_REGISTRY_DEV }}
-          username: ${{ secrets.CONTAINER_REGISTRY_USERNAME }}
-          password: ${{ secrets.CONTAINER_REGISTRY_PASSWORD }}
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and Push Spark-Operator Docker Image to container registry
+      - name: Build and Push Spark-Operator Docker Image to github container registry
         run: |
           DOCKER_TAG=$(cat charts/spark-operator-chart/Chart.yaml | grep "appVersion: .*" | cut -c13-)
-          FULL_IMAGE_NAME=${{ secrets.CONTAINER_REGISTRY_DEV }}/${{ secrets.CONTAINER_REGISTRY_NAMESPACE }}/spark-operator:${DOCKER_TAG}
-          docker build -t $FULL_IMAGE_NAME .
-          docker push $FULL_IMAGE_NAME
-
+          docker build -t gcr.io/spark-operator/spark-operator:${DOCKER_TAG} .
+          echo "Ideally, we'd release the docker container at this point, but the maintainer of this repo needs to approve..."
+          docker tag gcr.io/spark-operator/spark-operator:${DOCKER_TAG} ghcr.io/googlecloudplatform/spark-operator:${DOCKER_TAG}
+          if ! docker pull ghcr.io/googlecloudplatform/spark-operator:${DOCKER_TAG}; then
+            docker push ghcr.io/googlecloudplatform/spark-operator:${DOCKER_TAG}
+          else
+            echo "Spark-Operator Docker Image alredy exists"
+          fi
       - name: Release Spark-Operator Helm Chart
         uses: helm/chart-releaser-action@v1.1.0
         env:
@@ -58,7 +67,6 @@ jobs:
             git push origin $DOCKER_TAG
             echo "Spark-Operator Docker Image new tag: $DOCKER_TAG released"
           fi
-
       - name: Setup tmate session
         if: failure()
         uses: mxschmitt/action-tmate@v3
