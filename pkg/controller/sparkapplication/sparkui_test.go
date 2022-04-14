@@ -330,7 +330,7 @@ func TestCreateSparkUIIngress(t *testing.T) {
 		expectError     bool
 	}
 
-	testFn := func(test testcase, t *testing.T, ingressURLFormat string) {
+	testFn := func(test testcase, t *testing.T, ingressURLFormat string, ingressClassName string) {
 		fakeClient := fake.NewSimpleClientset()
 		sparkService, err := createSparkUIService(test.app, fakeClient)
 		if err != nil {
@@ -340,7 +340,7 @@ func TestCreateSparkUIIngress(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		sparkIngress, err := createSparkUIIngress(test.app, *sparkService, ingressURL, fakeClient)
+		sparkIngress, err := createSparkUIIngress(test.app, *sparkService, ingressURL, ingressClassName, fakeClient)
 		if err != nil {
 			if test.expectError {
 				return
@@ -492,6 +492,7 @@ func TestCreateSparkUIIngress(t *testing.T) {
 			},
 		},
 	}
+
 	testcases := []testcase{
 		{
 			name: "simple ingress object",
@@ -550,7 +551,7 @@ func TestCreateSparkUIIngress(t *testing.T) {
 	}
 
 	for _, test := range testcases {
-		testFn(test, t, "{{$appName}}.ingress.clusterName.com")
+		testFn(test, t, "{{$appName}}.ingress.clusterName.com", "")
 	}
 
 	testcases = []testcase{
@@ -569,7 +570,23 @@ func TestCreateSparkUIIngress(t *testing.T) {
 	}
 
 	for _, test := range testcases {
-		testFn(test, t, "ingress.clusterName.com/{{$appNamespace}}/{{$appName}}")
+		testFn(test, t, "ingress.clusterName.com/{{$appNamespace}}/{{$appName}}", "")
+	}
+
+	testcases = []testcase{
+		{
+			name: "simple ingress object with ingressClassName set",
+			app:  app1,
+			expectedIngress: SparkIngress{
+				ingressName:      fmt.Sprintf("%s-ui-ingress", app1.GetName()),
+				ingressURL:       parseURLAndAssertError(app1.GetName()+".ingress.clusterName.com", t),
+				ingressClassName: "nginx",
+			},
+			expectError: false,
+		},
+	}
+	for _, test := range testcases {
+		testFn(test, t, "{{$appName}}.ingress.clusterName.com", "nginx")
 	}
 }
 
