@@ -1,0 +1,65 @@
+name: Release Charts
+
+on:
+  schedule:
+    - cron:  '0 0 * * *'
+    # scheduled at midnight every day to rebuild for vulnerabilities
+
+  push:
+    branches:
+      - relativity-main
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: "0"
+
+      - name: Configure Git
+        run: |
+          git config user.name "$GITHUB_ACTOR"
+          git config user.email "$GITHUB_ACTOR@users.noreply.github.com"
+
+      - name: Install Helm
+        uses: azure/setup-helm@v1
+        with:
+          version: v3.7.1
+
+      - name: Login to Container registry
+        uses: docker/login-action@v1 
+        with:
+          registry: ${{ secrets.CONTAINER_REGISTRY_DEV }}
+          username: ${{ secrets.CONTAINER_REGISTRY_USERNAME }}
+          password: ${{ secrets.CONTAINER_REGISTRY_PASSWORD }}
+
+      - name: Build and Push Spark-Operator Docker Image to container registry
+        run: |
+          DOCKER_TAG=$(cat charts/spark-operator-chart/Chart.yaml | grep "appVersion: .*" | cut -c13-)
+          FULL_IMAGE_NAME=${{ secrets.CONTAINER_REGISTRY_DEV }}/${{ secrets.CONTAINER_REGISTRY_NAMESPACE }}/spark-operator:${DOCKER_TAG}
+          docker build -t $FULL_IMAGE_NAME .
+          docker push $FULL_IMAGE_NAME
+
+      - name: Release Spark-Operator Helm Chart
+        uses: helm/chart-releaser-action@v1.1.0
+        env:
+          CR_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
+          CR_RELEASE_NAME_TEMPLATE: "spark-operator-chart-{{ .Version }}"
+
+      - name: Release Spark-Operator Docker Image
+        run: |
+          DOCKER_TAG=$(cat charts/spark-operator-chart/Chart.yaml | grep "appVersion: .*" | cut -c13-)
+          if git rev-parse -q --verify "refs/tags/$DOCKER_TAG"; then
+            echo "Spark-Operator Docker Image Tag $DOCKER_TAG already exists!"
+          else
+            git tag $DOCKER_TAG
+            git push origin $DOCKER_TAG
+            echo "Spark-Operator Docker Image new tag: $DOCKER_TAG released"
+          fi
+
+      - name: Setup tmate session
+        if: failure()
+        uses: mxschmitt/action-tmate@v3
+        timeout-minutes: 15
