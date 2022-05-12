@@ -51,12 +51,15 @@ var deleteCmd = &cobra.Command{
 }
 
 func doDelete(name string, crdClientset crdclientset.Interface) error {
-	err := crdClientset.SparkoperatorV1beta2().SparkApplications(Namespace).Delete(context.TODO(), name, metav1.DeleteOptions{})
-	if err != nil {
+	if err := deleteSparkApplication(name, crdClientset); err != nil {
 		return err
 	}
 
 	fmt.Printf("SparkApplication \"%s\" deleted\n", name)
 
 	return nil
+}
+
+func deleteSparkApplication(name string, crdClientset crdclientset.Interface) error {
+	return crdClientset.SparkoperatorV1beta2().SparkApplications(Namespace).Delete(context.TODO(), name, metav1.DeleteOptions{})
 }

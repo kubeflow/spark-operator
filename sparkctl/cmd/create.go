@@ -41,6 +41,8 @@ import (
 
 const bufferSize = 1024
 
+var DeleteIfExists bool
+var LogsEnabled bool
 var RootPath string
 var UploadToPath string
 var UploadToEndpoint string
@@ -90,6 +92,10 @@ var createCmd = &cobra.Command{
 }
 
 func init() {
+	createCmd.Flags().BoolVarP(&DeleteIfExists, "delete", "d", false,
+		"delete the SparkApplication if already exists")
+	createCmd.Flags().BoolVarP(&LogsEnabled, "logs", "l", false,
+		"watch the SparkApplication logs")
 	createCmd.Flags().StringVarP(&UploadToPath, "upload-to", "u", "",
 		"the name of the bucket where local application dependencies are to be uploaded")
 	createCmd.Flags().StringVarP(&RootPath, "upload-prefix", "p", "",
@@ -151,6 +157,10 @@ func createFromScheduledSparkApplication(name string, kubeClient clientset.Inter
 }
 
 func createSparkApplication(app *v1beta2.SparkApplication, kubeClient clientset.Interface, crdClient crdclientset.Interface) error {
+	if DeleteIfExists {
+		deleteSparkApplication(app.Name, crdClient)
+	}
+
 	v1beta2.SetSparkApplicationDefaults(app)
 	if err := validateSpec(app.Spec); err != nil {
 		return err
@@ -176,6 +186,10 @@ func createSparkApplication(app *v1beta2.SparkApplication, kubeClient clientset.
 	}
 
 	fmt.Printf("SparkApplication \"%s\" created\n", app.Name)
+
+	if LogsEnabled {
+		doLog(app.Name, true, kubeClient, crdClient)
+	}
 
 	return nil
 }
