@@ -65,6 +65,15 @@ uiService:
 # Requires the UI service to be enabled by setting `uiService.enable` to true.
 ingressUrlFormat: ""
 
+# -- TLS
+# Requires the UI service to be enabled by setting `uiService.enable` to true.
+# Allows cluster administrator to set cluster-wide TLS for ingress and remove
+# configuration load from user
+ingressTLS:
+  enable: false
+  annotations: []
+
+
 # -- Set higher levels for more verbose logging
 logLevel: 2
 

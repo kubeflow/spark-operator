@@ -86,6 +86,15 @@ spec:
         - -leader-election-lock-namespace={{ default .Release.Namespace .Values.leaderElection.lockNamespace }}
         - -leader-election-lock-name={{ .Values.leaderElection.lockName }}
         {{- end }}
+        {{- if .Values.ingressTLS.enable }}
+        - -enable-ingress-tls=true
+        - -ingress-annotations=
+        {{- $first := true }}
+        {{- range $key, $value := .Values.ingressTLS.annotations }}
+        {{- if $first }}{{ $first = false }}{{ else }},{{ end }}
+        {{- $key }}:{{ $value }}
+        {{- end }}
+        {{- end }}
         resources:
           {{- toYaml .Values.resources | nindent 10 }}
         {{- if or .Values.webhook.enable (ne (len .Values.volumeMounts) 0 ) }}
