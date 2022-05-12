@@ -19,6 +19,7 @@ package sparkapplication
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/kubernetes/pkg/apis/policy"
@@ -96,6 +97,16 @@ func getIngressResourceAnnotations(app *v1beta2.SparkApplication) map[string]str
 		for key, value := range app.Spec.SparkUIOptions.IngressAnnotations {
 			ingressAnnotations[key] = value
 		}
+	}
+	return ingressAnnotations
+}
+
+func convertIngressStringToMap(ingressTLSAnnotations string) map[string]string {
+	annotations := strings.Split(ingressTLSAnnotations, ",")
+	ingressAnnotations := map[string]string{}
+	for _, a := range annotations {
+		parts := strings.Split(a, ":")
+		ingressAnnotations[parts[0]] = parts[1]
 	}
 	return ingressAnnotations
 }

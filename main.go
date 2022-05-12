@@ -61,6 +61,8 @@ var (
 	webhookTimeout                 = flag.Int("webhook-timeout", 30, "Webhook Timeout in seconds before the webhook returns a timeout")
 	enableResourceQuotaEnforcement = flag.Bool("enable-resource-quota-enforcement", false, "Whether to enable ResourceQuota enforcement for SparkApplication resources. Requires the webhook to be enabled.")
 	ingressURLFormat               = flag.String("ingress-url-format", "", "Ingress URL format.")
+	enableIngressTLS               = flag.Bool("enable-ingress-tls", true, "Enable ingress TLS configured by Operator")
+	ingressTLSAnnotations          = flag.String("ingress-annotations", "", "Annotations for ingress TLS")
 	enableUIService                = flag.Bool("enable-ui-service", true, "Enable Spark service UI.")
 	enableLeaderElection           = flag.Bool("leader-election", false, "Enable Spark operator leader election.")
 	leaderElectionLockNamespace    = flag.String("leader-election-lock-namespace", "spark-operator", "Namespace in which to create the ConfigMap for leader election.")
@@ -185,7 +187,7 @@ func main() {
 	}
 
 	applicationController := sparkapplication.NewController(
-		crClient, kubeClient, crInformerFactory, podInformerFactory, metricConfig, *namespace, *ingressURLFormat, *ingressClassName, batchSchedulerMgr, *enableUIService)
+		crClient, kubeClient, crInformerFactory, podInformerFactory, metricConfig, *namespace, *ingressURLFormat, *ingressClassName, batchSchedulerMgr, *enableUIService, *enableIngressTLS, *ingressTLSAnnotations)
 	scheduledApplicationController := scheduledsparkapplication.NewController(
 		crClient, kubeClient, apiExtensionsClient, crInformerFactory, clock.RealClock{})
 
