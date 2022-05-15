@@ -1239,6 +1239,30 @@ spec:
                               type: string
                           type: object
                       type: object
+                    ports:
+                      items:
+                        properties:
+                          containerPort:
+                            format: int32
+                            type: integer
+                          hostIP:
+                            type: string
+                          hostPort:
+                            format: int32
+                            type: integer
+                          name:
+                            type: string
+                          protocol:
+                            type: string
+                        required:
+                        - containerPort
+                        - protocol
+                        type: object
+                      type: array
+                      x-kubernetes-list-map-keys:
+                      - containerPort
+                      - protocol
+                      x-kubernetes-list-type: map
                     schedulerName:
                       type: string
                     secrets:
@@ -2947,6 +2971,30 @@ spec:
                               type: string
                           type: object
                       type: object
+                    ports:
+                      items:
+                        properties:
+                          containerPort:
+                            format: int32
+                            type: integer
+                          hostIP:
+                            type: string
+                          hostPort:
+                            format: int32
+                            type: integer
+                          name:
+                            type: string
+                          protocol:
+                            type: string
+                        required:
+                        - containerPort
+                        - protocol
+                        type: object
+                      type: array
+                      x-kubernetes-list-map-keys:
+                      - containerPort
+                      - protocol
+                      x-kubernetes-list-type: map
                     schedulerName:
                       type: string
                     secrets:
