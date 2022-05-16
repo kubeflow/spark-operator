@@ -446,7 +446,9 @@ func (c *Controller) getAndUpdateAppState(app *v1beta2.SparkApplication) error {
 }
 
 func (c *Controller) handleSparkApplicationDeletion(app *v1beta2.SparkApplication) {
-	c.metrics.exportMetricsOnDelete(app)
+	if c.metrics != nil {
+		c.metrics.exportMetricsOnDelete(app)
+	}
 	// SparkApplication deletion requested, lets delete driver pod.
 	if err := c.deleteSparkResources(app); err != nil {
 		glog.Errorf("failed to delete resources associated with deleted SparkApplication %s/%s: %v", app.Namespace, app.Name, err)
