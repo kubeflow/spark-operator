@@ -76,6 +76,7 @@ type Controller struct {
 	applicationLister crdlisters.SparkApplicationLister
 	podLister         v1.PodLister
 	ingressURLFormat  string
+	ingressClassName  string
 	batchSchedulerMgr *batchscheduler.SchedulerManager
 	enableUIService   bool
 }
@@ -89,6 +90,7 @@ func NewController(
 	metricsConfig *util.MetricConfig,
 	namespace string,
 	ingressURLFormat string,
+	ingressClassName string,
 	batchSchedulerMgr *batchscheduler.SchedulerManager,
 	enableUIService bool) *Controller {
 	crdscheme.AddToScheme(scheme.Scheme)
@@ -100,7 +102,7 @@ func NewController(
 	})
 	recorder := eventBroadcaster.NewRecorder(scheme.Scheme, apiv1.EventSource{Component: "spark-operator"})
 
-	return newSparkApplicationController(crdClient, kubeClient, crdInformerFactory, podInformerFactory, recorder, metricsConfig, ingressURLFormat, batchSchedulerMgr, enableUIService)
+	return newSparkApplicationController(crdClient, kubeClient, crdInformerFactory, podInformerFactory, recorder, metricsConfig, ingressURLFormat, ingressClassName, batchSchedulerMgr, enableUIService)
 }
 
 func newSparkApplicationController(
@@ -111,6 +113,7 @@ func newSparkApplicationController(
 	eventRecorder record.EventRecorder,
 	metricsConfig *util.MetricConfig,
 	ingressURLFormat string,
+	ingressClassName string,
 	batchSchedulerMgr *batchscheduler.SchedulerManager,
 	enableUIService bool) *Controller {
 	queue := workqueue.NewNamedRateLimitingQueue(&workqueue.BucketRateLimiter{Limiter: rate.NewLimiter(rate.Limit(queueTokenRefillRate), queueTokenBucketSize)},
@@ -122,6 +125,7 @@ func newSparkApplicationController(
 		recorder:          eventRecorder,
 		queue:             queue,
 		ingressURLFormat:  ingressURLFormat,
+		ingressClassName:  ingressClassName,
 		batchSchedulerMgr: batchSchedulerMgr,
 		enableUIService:   enableUIService,
 	}
@@ -577,7 +581,15 @@ func (c *Controller) syncSparkApplication(key string) error {
 			appCopy.Status.AppState.State = v1beta2.FailedState
 			c.recordSparkApplicationEvent(appCopy)
 		} else if isNextRetryDue(appCopy.Spec.RestartPolicy.OnSubmissionFailureRetryInterval, appCopy.Status.SubmissionAttempts, appCopy.Status.LastSubmissionAttemptTime) {
-			appCopy = c.submitSparkApplication(appCopy)
+			if c.validateSparkResourceDeletion(appCopy) {
+				c.submitSparkApplication(appCopy)
+			} else {
+				if err := c.deleteSparkResources(appCopy); err != nil {
+					glog.Errorf("failed to delete resources associated with SparkApplication %s/%s: %v",
+						appCopy.Namespace, appCopy.Name, err)
+					return err
+				}
+			}
 		}
 	case v1beta2.InvalidatingState:
 		// Invalidate the current run and enqueue the SparkApplication for re-execution.
@@ -666,14 +678,16 @@ func (c *Controller) submitSparkApplication(app *v1beta2.SparkApplication) *v1be
 		}
 	}
 
+	driverInfo := v1beta2.DriverInfo{}
+
 	if c.enableUIService {
 		service, err := createSparkUIService(app, c.kubeClient)
 		if err != nil {
 			glog.Errorf("failed to create UI service for SparkApplication %s/%s: %v", app.Namespace, app.Name, err)
 		} else {
-			app.Status.DriverInfo.WebUIServiceName = service.serviceName
-			app.Status.DriverInfo.WebUIPort = service.servicePort
-			app.Status.DriverInfo.WebUIAddress = fmt.Sprintf("%s:%d", service.serviceIP, app.Status.DriverInfo.WebUIPort)
+			driverInfo.WebUIServiceName = service.serviceName
+			driverInfo.WebUIPort = service.servicePort
+			driverInfo.WebUIAddress = fmt.Sprintf("%s:%d", service.serviceIP, app.Status.DriverInfo.WebUIPort)
 			// Create UI Ingress if ingress-format is set.
 			if c.ingressURLFormat != "" {
 				// We are going to want to use an ingress url.
@@ -689,12 +703,12 @@ func (c *Controller) submitSparkApplication(app *v1beta2.SparkApplication) *v1be
 						app.Spec.SparkConf["spark.ui.proxyBase"] = ingressURL.Path
 						app.Spec.SparkConf["spark.ui.proxyRedirectUri"] = "/"
 					}
-					ingress, err := createSparkUIIngress(app, *service, ingressURL, c.kubeClient)
+					ingress, err := createSparkUIIngress(app, *service, ingressURL, c.ingressClassName, c.kubeClient)
 					if err != nil {
 						glog.Errorf("failed to create UI Ingress for SparkApplication %s/%s: %v", app.Namespace, app.Name, err)
 					} else {
-						app.Status.DriverInfo.WebUIIngressAddress = ingress.ingressURL.String()
-						app.Status.DriverInfo.WebUIIngressName = ingress.ingressName
+						driverInfo.WebUIIngressAddress = ingress.ingressURL.String()
+						driverInfo.WebUIIngressName = ingress.ingressName
 					}
 				}
 			}
@@ -702,6 +716,7 @@ func (c *Controller) submitSparkApplication(app *v1beta2.SparkApplication) *v1be
 	}
 
 	driverPodName := getDriverPodName(app)
+	driverInfo.PodName = driverPodName
 	submissionID := uuid.New().String()
 	submissionCmdArgs, err := buildSubmissionCommandArgs(app, driverPodName, submissionID)
 	if err != nil {
@@ -743,9 +758,7 @@ func (c *Controller) submitSparkApplication(app *v1beta2.SparkApplication) *v1be
 		AppState: v1beta2.ApplicationState{
 			State: v1beta2.SubmittedState,
 		},
-		DriverInfo: v1beta2.DriverInfo{
-			PodName: driverPodName,
-		},
+		DriverInfo:                driverInfo,
 		SubmissionAttempts:        app.Status.SubmissionAttempts + 1,
 		ExecutionAttempts:         app.Status.ExecutionAttempts + 1,
 		LastSubmissionAttemptTime: metav1.Now(),

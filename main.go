@@ -73,6 +73,7 @@ var (
 	metricsPort                    = flag.String("metrics-port", "10254", "Port for the metrics endpoint.")
 	metricsEndpoint                = flag.String("metrics-endpoint", "/metrics", "Metrics endpoint.")
 	metricsPrefix                  = flag.String("metrics-prefix", "", "Prefix for the metrics.")
+	ingressClassName               = flag.String("ingress-class-name", "", "Set ingressClassName for ingress resources created.")
 	metricsLabels                  util.ArrayFlags
 	metricsJobStartLatencyBuckets  util.HistogramBuckets = util.DefaultJobStartLatencyBuckets
 )
@@ -184,7 +185,7 @@ func main() {
 	}
 
 	applicationController := sparkapplication.NewController(
-		crClient, kubeClient, crInformerFactory, podInformerFactory, metricConfig, *namespace, *ingressURLFormat, batchSchedulerMgr, *enableUIService)
+		crClient, kubeClient, crInformerFactory, podInformerFactory, metricConfig, *namespace, *ingressURLFormat, *ingressClassName, batchSchedulerMgr, *enableUIService)
 	scheduledApplicationController := scheduledsparkapplication.NewController(
 		crClient, kubeClient, apiExtensionsClient, crInformerFactory, clock.RealClock{})
 
