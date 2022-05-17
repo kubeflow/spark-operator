@@ -36,6 +36,8 @@ func TestLifeCycleManagement(t *testing.T) {
 	app, err := appFramework.MakeSparkApplicationFromYaml("../../examples/spark-pi.yaml")
 	assert.Equal(t, nil, err)
 
+	app.ObjectMeta.Name = appName
+
 	if appFramework.SparkTestNamespace != "" {
 		app.ObjectMeta.Namespace = appFramework.SparkTestNamespace
 	}

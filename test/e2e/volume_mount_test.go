@@ -40,10 +40,12 @@ type describeClient struct {
 }
 
 func TestMountConfigMap(t *testing.T) {
-	appName := "spark-pi"
+	appName := "spark-pi-configmap"
 
 	sa, err := appFramework.MakeSparkApplicationFromYaml("../../examples/spark-pi-configmap.yaml")
 	assert.Equal(t, nil, err)
+
+	sa.ObjectMeta.Name = appName
 
 	if appFramework.SparkTestNamespace != "" {
 		sa.ObjectMeta.Namespace = appFramework.SparkTestNamespace

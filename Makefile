@@ -69,6 +69,23 @@ unit-test: clean
 	@echo "running unit tests"
 	go test -v ./... -covermode=atomic
 
+clean-minikube: clean
+	@echo "cleaning up minikube"
+	minikube delete
+
+local-integration-test: clean-minikube
+	@echo "spinning up minikube instance"
+	minikube start --vm-driver=docker --kubernetes-version v1.20.8 --memory 6g --cpus=2 --addons ingress
+	@echo "building local image"
+	docker build -t ghcr.io/googlecloudplatform/spark-operator:local .	
+	@echo "loading local image into minikube"
+	minikube image load gcr.io/spark-operator/spark-operator:local
+	@echo "applying CRDs"
+	minikube kubectl -- apply -f manifest/crds/sparkoperator.k8s.io_sparkapplications.yaml
+	minikube kubectl -- apply -f manifest/crds/sparkoperator.k8s.io_scheduledsparkapplications.yaml
+	@echo "running unit tests"
+	go test -v ./test/e2e/ --kubeconfig "$(HOME)/.kube/config" --operator-image=gcr.io/spark-operator/spark-operator:local
+
 integration-test: clean
 	@echo "running unit tests"
 	go test -v ./test/e2e/ --kubeconfig "$(HOME)/.kube/config" --operator-image=gcr.io/spark-operator/spark-operator:local

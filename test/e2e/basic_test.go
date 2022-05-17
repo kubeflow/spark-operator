@@ -32,9 +32,11 @@ import (
 func TestSubmitSparkPiYaml(t *testing.T) {
 	t.Parallel()
 
-	appName := "spark-pi"
+	appName := "spark-pi-basic"
 	sa, err := appFramework.MakeSparkApplicationFromYaml("../../examples/spark-pi.yaml")
 	assert.Equal(t, nil, err)
+
+	sa.ObjectMeta.Name = appName
 
 	if appFramework.SparkTestNamespace != "" {
 		sa.ObjectMeta.Namespace = appFramework.SparkTestNamespace
