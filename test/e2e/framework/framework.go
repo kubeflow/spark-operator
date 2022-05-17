@@ -135,8 +135,8 @@ func (f *Framework) setupOperator(sparkNs, opImage string, opImagePullPolicy str
 		job.Spec.Template.Spec.Containers[0].Image = opImage
 	}
 
-	for _, container := range job.Spec.Template.Spec.Containers {
-		container.ImagePullPolicy = v1.PullPolicy(opImagePullPolicy)
+	for i := range job.Spec.Template.Spec.Containers {
+		job.Spec.Template.Spec.Containers[i].ImagePullPolicy = v1.PullPolicy(opImagePullPolicy)
 	}
 
 	err = CreateJob(f.KubeClient, f.Namespace.Name, job)
@@ -167,8 +167,8 @@ func (f *Framework) setupOperator(sparkNs, opImage string, opImagePullPolicy str
 		deploy.Spec.Template.Spec.Containers[0].Image = opImage
 	}
 
-	for _, container := range deploy.Spec.Template.Spec.Containers {
-		container.ImagePullPolicy = v1.PullPolicy(opImagePullPolicy)
+	for i := range deploy.Spec.Template.Spec.Containers {
+		deploy.Spec.Template.Spec.Containers[i].ImagePullPolicy = v1.PullPolicy(opImagePullPolicy)
 	}
 
 	err = CreateDeployment(f.KubeClient, f.Namespace.Name, deploy)
