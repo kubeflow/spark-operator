@@ -34,12 +34,11 @@ var framework *operatorFramework.Framework
 var TIMEOUT = 240 * time.Second
 var INTERVAL = 1 * time.Second
 
-var STATES = [9]string{
+var STATES = [8]string{
 	"",
 	"SUBMITTED",
 	"RUNNING",
 	"COMPLETED",
-	"INVALIDATING",
 	"PENDING_RERUN",
 	"SUBMITTED",
 	"RUNNING",
