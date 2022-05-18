@@ -77,10 +77,10 @@ type Controller struct {
 	podLister         v1.PodLister
 	ingressURLFormat  string
 	ingressClassName  string
-	batchSchedulerMgr *batchscheduler.SchedulerManager
-	enableUIService   bool
 	enableIngressTLS bool
 	ingressTLSAnnotations string
+	batchSchedulerMgr *batchscheduler.SchedulerManager
+	enableUIService   bool
 }
 
 // NewController creates a new Controller.
@@ -93,10 +93,10 @@ func NewController(
 	namespace string,
 	ingressURLFormat string,
 	ingressClassName string,
-	batchSchedulerMgr *batchscheduler.SchedulerManager,
-	enableUIService bool,
 	enableIngressTLS bool,
-	ingressTLSAnnotations string) *Controller {
+	ingressTLSAnnotations string,
+	batchSchedulerMgr *batchscheduler.SchedulerManager,
+	enableUIService bool) *Controller {
 	crdscheme.AddToScheme(scheme.Scheme)
 
 	eventBroadcaster := record.NewBroadcaster()
@@ -106,7 +106,7 @@ func NewController(
 	})
 	recorder := eventBroadcaster.NewRecorder(scheme.Scheme, apiv1.EventSource{Component: "spark-operator"})
 
-	return newSparkApplicationController(crdClient, kubeClient, crdInformerFactory, podInformerFactory, recorder, metricsConfig, ingressURLFormat, ingressClassName, batchSchedulerMgr, enableUIService, enableIngressTLS, ingressTLSAnnotations)
+	return newSparkApplicationController(crdClient, kubeClient, crdInformerFactory, podInformerFactory, recorder, metricsConfig, ingressURLFormat, ingressClassName, enableIngressTLS, ingressTLSAnnotations, batchSchedulerMgr, enableUIService)
 }
 
 func newSparkApplicationController(
@@ -118,10 +118,10 @@ func newSparkApplicationController(
 	metricsConfig *util.MetricConfig,
 	ingressURLFormat string,
 	ingressClassName string,
-	batchSchedulerMgr *batchscheduler.SchedulerManager,
-	enableUIService bool,
 	enableIngressTLS bool,
-	ingressTLSAnnotations string) *Controller {
+	ingressTLSAnnotations string,
+	batchSchedulerMgr *batchscheduler.SchedulerManager,
+	enableUIService bool) *Controller {
 	queue := workqueue.NewNamedRateLimitingQueue(&workqueue.BucketRateLimiter{Limiter: rate.NewLimiter(rate.Limit(queueTokenRefillRate), queueTokenBucketSize)},
 		"spark-application-controller")
 
@@ -132,10 +132,10 @@ func newSparkApplicationController(
 		queue:             queue,
 		ingressURLFormat:  ingressURLFormat,
 		ingressClassName:  ingressClassName,
-		batchSchedulerMgr: batchSchedulerMgr,
-		enableUIService:   enableUIService,
 		enableIngressTLS: enableIngressTLS,
 		ingressTLSAnnotations: ingressTLSAnnotations,
+		batchSchedulerMgr: batchSchedulerMgr,
+		enableUIService:   enableUIService,
 	}
 
 	if metricsConfig != nil {
