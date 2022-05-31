@@ -86,6 +86,12 @@ jobs:
           pcc_pass: ${{ secrets.PCC_PASS }}
           image_name: spark-operator:local
 
+      - name: Upload SARIF file
+        if: ${{ always() }}
+        uses: github/codeql-action/upload-sarif@v1
+        with:
+          sarif_file: ${{ steps.scan.outputs.sarif_file }}
+
 #  build-helm-chart:
 #    runs-on: ubuntu-latest
 #    steps:

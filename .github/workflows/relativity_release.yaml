@@ -1,65 +1,44 @@
 name: Release Charts
 
 on:
-  schedule:
-    - cron:  '0 0 * * *'
-    # scheduled at midnight every day to rebuild for vulnerabilities
-
   push:
-    branches:
-      - relativity-main
+    tags:
+      - 'v*'
 
 jobs:
   release:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v2
+      - uses: actions/checkout@v3
+
+      - name: Get secrets
+        uses: Azure/get-keyvault-secrets@v1
         with:
-          fetch-depth: "0"
+          keyvault: ${{ secrets.KEY_VAULT }}
+          secrets: "acrUsername, acrPassword"
+        id: kv
 
-      - name: Configure Git
-        run: |
-          git config user.name "$GITHUB_ACTOR"
-          git config user.email "$GITHUB_ACTOR@users.noreply.github.com"
-
-      - name: Install Helm
-        uses: azure/setup-helm@v1
-        with:
-          version: v3.7.1
-
-      - name: Login to Container registry
+      - name: Login to docker
         uses: docker/login-action@v1 
         with:
-          registry: ${{ secrets.CONTAINER_REGISTRY_DEV }}
-          username: ${{ secrets.CONTAINER_REGISTRY_USERNAME }}
-          password: ${{ secrets.CONTAINER_REGISTRY_PASSWORD }}
+          registry: ${{ secrets.REGISTRY }}
+          username: ${{ steps.kv.outputs.acrUsername }}
+          password: ${{ steps.kv.outputs.acrPassword }}
 
-      - name: Build and Push Spark-Operator Docker Image to container registry
-        run: |
-          DOCKER_TAG=$(cat charts/spark-operator-chart/Chart.yaml | grep "appVersion: .*" | cut -c13-)
-          FULL_IMAGE_NAME=${{ secrets.CONTAINER_REGISTRY_DEV }}/${{ secrets.CONTAINER_REGISTRY_NAMESPACE }}/spark-operator:${DOCKER_TAG}
-          docker build -t $FULL_IMAGE_NAME .
-          docker push $FULL_IMAGE_NAME
+      - name: Docker meta
+        id: meta
+        uses: docker/metadata-action@v3
+        with:
+          images: ${{ secrets.IMAGE }}
+          flavor: |
+            latest=false
+            prefix=v1beta2-1.3.3-3.2.1-
 
-      - name: Release Spark-Operator Helm Chart
-        uses: helm/chart-releaser-action@v1.1.0
-        env:
-          CR_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
-          CR_RELEASE_NAME_TEMPLATE: "spark-operator-chart-{{ .Version }}"
-
-      - name: Release Spark-Operator Docker Image
-        run: |
-          DOCKER_TAG=$(cat charts/spark-operator-chart/Chart.yaml | grep "appVersion: .*" | cut -c13-)
-          if git rev-parse -q --verify "refs/tags/$DOCKER_TAG"; then
-            echo "Spark-Operator Docker Image Tag $DOCKER_TAG already exists!"
-          else
-            git tag $DOCKER_TAG
-            git push origin $DOCKER_TAG
-            echo "Spark-Operator Docker Image new tag: $DOCKER_TAG released"
-          fi
-
-      - name: Setup tmate session
-        if: failure()
-        uses: mxschmitt/action-tmate@v3
-        timeout-minutes: 15
+      - name: Build image
+        uses: docker/build-push-action@v2
+        with:
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            SPARK_IMAGE=${{ secrets.BASE_IMAGE }}
