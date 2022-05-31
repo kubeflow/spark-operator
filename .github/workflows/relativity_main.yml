@@ -56,6 +56,12 @@ jobs:
           build-args: |
             SPARK_IMAGE=${{ secrets.BASE_IMAGE }}
 
+      - name: Cache image
+        uses: actions/upload-artifact@v2
+        with:
+          name: base-image
+          path: /tmp/base-image.tar
+
   scan-operator-image:
     name: Scan operator image
     runs-on: ubuntu-latest
