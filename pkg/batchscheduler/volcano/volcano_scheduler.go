@@ -180,12 +180,19 @@ func New(config *rest.Config) (schedulerinterface.BatchScheduler, error) {
 		return nil, fmt.Errorf("failed to initialize k8s extension client with error %v", err)
 	}
 
-	if _, err := extClient.ApiextensionsV1beta1().CustomResourceDefinitions().Get(
+	if _, err := extClient.ApiextensionsV1().CustomResourceDefinitions().Get(
 		context.TODO(),
 		PodGroupName,
 		metav1.GetOptions{},
 	); err != nil {
-		return nil, fmt.Errorf("podGroup CRD is required to exists in current cluster error: %s", err)
+		//For backward compatibility check v1beta1 API version of CustomResourceDefinitions
+		if _, err := extClient.ApiextensionsV1beta1().CustomResourceDefinitions().Get(
+			context.TODO(),
+			PodGroupName,
+			metav1.GetOptions{},
+		); err != nil {
+			return nil, fmt.Errorf("podGroup CRD is required to exists in current cluster error: %s", err)
+		}
 	}
 	return &VolcanoBatchScheduler{
 		extensionClient: extClient,
