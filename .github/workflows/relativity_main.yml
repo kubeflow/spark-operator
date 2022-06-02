@@ -1,0 +1,105 @@
+name: CI
+
+on:
+  push:
+    branches: [ relativity-main ]
+  pull_request:
+    branches: [ relativity-main ]
+
+jobs:
+  build-spark-operator:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.18
+
+      - name: Run gofmt check
+        run: make fmt-check
+
+      - name: Run static analysis
+        run: make static-analysis
+
+      - name: Run unit tests
+        run: make unit-test
+
+      - name: Azure login
+        uses: Azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Get secrets
+        uses: Azure/get-keyvault-secrets@v1
+        with:
+          keyvault: ${{ secrets.KEY_VAULT }}
+          secrets: "acrUsername, acrPassword"
+        id: kv
+
+      - name: Login to docker
+        uses: docker/login-action@v1 
+        with:
+          registry: ${{ secrets.REGISTRY }}
+          username: ${{ steps.kv.outputs.acrUsername }}
+          password: ${{ steps.kv.outputs.acrPassword }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Build image
+        uses: docker/build-push-action@v2
+        with:
+          tags: spark-operator:local
+          outputs: 'type=docker,dest=/tmp/base-image.tar'
+          build-args: |
+            SPARK_IMAGE=${{ secrets.BASE_IMAGE }}
+
+      - name: Cache image
+        uses: actions/upload-artifact@v2
+        with:
+          name: base-image
+          path: /tmp/base-image.tar
+
+  scan-operator-image:
+    name: Scan operator image
+    runs-on: ubuntu-latest
+    needs: [build-spark-operator]
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Download base image
+        uses: actions/download-artifact@v2
+        with:
+          name: base-image
+          path: /tmp
+
+      - name: Load base image
+        run: |
+          docker load --input /tmp/base-image.tar
+
+      - name: Prisma Cloud image scan
+        id: scan
+        uses: PaloAltoNetworks/prisma-cloud-scan@v1
+        with:
+          pcc_console_url: ${{ secrets.PCC_CONSOLE_URL }}
+          pcc_user: ${{ secrets.PCC_USER }}
+          pcc_pass: ${{ secrets.PCC_PASS }}
+          image_name: spark-operator:local
+
+#  build-helm-chart:
+#    runs-on: ubuntu-latest
+#    steps:
+#      - uses: actions/checkout@v3
+#
+#      - name: Install Helm
+#        uses: azure/setup-helm@v1
+#        with:
+#          version: v3.7.1
+#
+#      - name: Print chart-testing version information
+#        run: ct version
+#
+#      - name: Run chart-testing (lint)
+#        run: ct lint
