@@ -491,6 +491,9 @@ spec:
       ...
 ```
 
+Note that the mutating admission webhook is needed to use this feature. Please refer to the
+[Quick Start Guide](quick-start-guide.md) on how to enable the mutating admission webhook.
+
 ### Using Init-Containers
 
 A `SparkApplication` can optionally specify one or more [init-containers](https://kubernetes.io/docs/concepts/workloads/pods/init-containers/) for the driver or executor pod, using the optional field `.spec.driver.initContainers` or `.spec.executor.initContainers`, respectively. The specification of each init-container follows the [Container](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.14/#container-v1-core) API definition. Below is an example:
