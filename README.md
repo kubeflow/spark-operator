@@ -7,6 +7,10 @@ Forked On Aug-4-2021
 
 # Steps to create image
 
+UPDATE: Follow this documentation in ClickUp for generating image in EC2
+https://app.clickup.com/18029943/docs/h67bq-7600/h67bq-7904
+
+The below process takes too long for the docker image to be generated.
 ```
 export AWS_PROFILE=prod_onehouse_debug
 
