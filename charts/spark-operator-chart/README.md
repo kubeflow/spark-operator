@@ -98,6 +98,7 @@ All charts linted successfully
 | metrics.port | int | `10254` | Metrics port |
 | metrics.portName | string | `"metrics"` | Metrics port name |
 | metrics.prefix | string | `""` | Metric prefix, will be added to all exported metrics |
+| metrics.metricsLabels |  list | `[]` | List of spark application labels to be added to operator's metrics |
 | nameOverride | string | `""` | String to partially override `spark-operator.fullname` template (will maintain the release name) |
 | nodeSelector | object | `{}` | Node labels for pod assignment |
 | podAnnotations | object | `{}` | Additional annotations to add to the pod |

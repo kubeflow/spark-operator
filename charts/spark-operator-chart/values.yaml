@@ -110,6 +110,8 @@ metrics:
   endpoint: /metrics
   # -- Metric prefix, will be added to all exported metrics
   prefix: ""
+  # -- Labels from spark applications to be added to the operator metrics, e.g. : ["environment", "region"]
+  metricsLabels: []
 
 # -- Prometheus pod monitor for operator's pod.
 podMonitor:
