@@ -111,6 +111,21 @@ metrics:
   # -- Metric prefix, will be added to all exported metrics
   prefix: ""
 
+# PrometheusRules for Spark Operator
+prometheusRule:
+  enabled: false
+#  additionalLabels:
+#    env: production
+#  rules:
+#  - alert: SparkApplicationFailed
+#    expr: (rate(spark_app_failure_count[10m])) > 0
+#    for: 24h
+#    labels:
+#      prometheus: myprometheus
+#    annotations:
+#      description: Spark application failed to complete
+#      summary: Spark application hasn't run for 24 hours
+
 # -- Prometheus pod monitor for operator's pod.
 podMonitor:
   # -- If enabled, a pod monitor for operator's pod will be submitted. Note that prometheus metrics should be enabled as well.

@@ -98,6 +98,9 @@ All charts linted successfully
 | metrics.port | int | `10254` | Metrics port |
 | metrics.portName | string | `"metrics"` | Metrics port name |
 | metrics.prefix | string | `""` | Metric prefix, will be added to all exported metrics |
+| prometheusRule.enabled | string | `false` | Enable prometheus rules |
+| prometheusRule.additionalLabels | object | `{}` | Prometheus rule additional labels |
+| prometheusRule.rules | list | `[]` | Prometheus rule alerts list |
 | nameOverride | string | `""` | String to partially override `spark-operator.fullname` template (will maintain the release name) |
 | nodeSelector | object | `{}` | Node labels for pod assignment |
 | podAnnotations | object | `{}` | Additional annotations to add to the pod |

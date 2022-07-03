@@ -1,0 +1,19 @@
+{{- if .Values.prometheusRule.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: {{ include "spark-operator.fullname" . }}
+  labels:
+  {{- include "spark-operator.labels" . | nindent 4 }}
+  {{- with .Values.prometheusRule.additionalLabels }}
+  {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  {{- $values := . -}}
+  {{- with .Values.prometheusRule.rules }}
+  groups:
+  - name: {{ include "spark-operator.fullname" $values }} 
+    rules:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+{{- end }}
