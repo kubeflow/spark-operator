@@ -57,7 +57,7 @@ func TestMain(m *testing.M) {
 	opImage := flag.String("operator-image", "", "operator image, e.g. image:tag")
 	opImagePullPolicy := flag.String("operator-image-pullPolicy", "IfNotPresent", "pull policy, e.g. Always")
 	ns := flag.String("namespace", "spark-operator", "e2e test namespace")
-	sparkTestNamespace := flag.String("spark-test-namespace", "default", "e2e test spark-test-namespace")
+	sparkTestNamespace := flag.String("spark", "spark", "e2e test spark-test-namespace")
 	sparkTestImage := flag.String("spark-test-image", "", "spark test image, e.g. image:tag")
 	sparkTestServiceAccount := flag.String("spark-test-service-account", "spark", "e2e test spark test service account")
 	flag.Parse()
