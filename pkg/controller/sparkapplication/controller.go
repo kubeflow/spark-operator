@@ -446,7 +446,9 @@ func (c *Controller) getAndUpdateAppState(app *v1beta2.SparkApplication) error {
 }
 
 func (c *Controller) handleSparkApplicationDeletion(app *v1beta2.SparkApplication) {
-	c.metrics.exportMetricsOnDelete(app)
+	if c.metrics != nil {
+		c.metrics.exportMetricsOnDelete(app)
+	}
 	// SparkApplication deletion requested, lets delete driver pod.
 	if err := c.deleteSparkResources(app); err != nil {
 		glog.Errorf("failed to delete resources associated with deleted SparkApplication %s/%s: %v", app.Namespace, app.Name, err)
@@ -579,7 +581,15 @@ func (c *Controller) syncSparkApplication(key string) error {
 			appCopy.Status.AppState.State = v1beta2.FailedState
 			c.recordSparkApplicationEvent(appCopy)
 		} else if isNextRetryDue(appCopy.Spec.RestartPolicy.OnSubmissionFailureRetryInterval, appCopy.Status.SubmissionAttempts, appCopy.Status.LastSubmissionAttemptTime) {
-			appCopy = c.submitSparkApplication(appCopy)
+			if c.validateSparkResourceDeletion(appCopy) {
+				c.submitSparkApplication(appCopy)
+			} else {
+				if err := c.deleteSparkResources(appCopy); err != nil {
+					glog.Errorf("failed to delete resources associated with SparkApplication %s/%s: %v",
+						appCopy.Namespace, appCopy.Name, err)
+					return err
+				}
+			}
 		}
 	case v1beta2.InvalidatingState:
 		// Invalidate the current run and enqueue the SparkApplication for re-execution.
@@ -668,14 +678,16 @@ func (c *Controller) submitSparkApplication(app *v1beta2.SparkApplication) *v1be
 		}
 	}
 
+	driverInfo := v1beta2.DriverInfo{}
+
 	if c.enableUIService {
 		service, err := createSparkUIService(app, c.kubeClient)
 		if err != nil {
 			glog.Errorf("failed to create UI service for SparkApplication %s/%s: %v", app.Namespace, app.Name, err)
 		} else {
-			app.Status.DriverInfo.WebUIServiceName = service.serviceName
-			app.Status.DriverInfo.WebUIPort = service.servicePort
-			app.Status.DriverInfo.WebUIAddress = fmt.Sprintf("%s:%d", service.serviceIP, app.Status.DriverInfo.WebUIPort)
+			driverInfo.WebUIServiceName = service.serviceName
+			driverInfo.WebUIPort = service.servicePort
+			driverInfo.WebUIAddress = fmt.Sprintf("%s:%d", service.serviceIP, app.Status.DriverInfo.WebUIPort)
 			// Create UI Ingress if ingress-format is set.
 			if c.ingressURLFormat != "" {
 				// We are going to want to use an ingress url.
@@ -695,8 +707,8 @@ func (c *Controller) submitSparkApplication(app *v1beta2.SparkApplication) *v1be
 					if err != nil {
 						glog.Errorf("failed to create UI Ingress for SparkApplication %s/%s: %v", app.Namespace, app.Name, err)
 					} else {
-						app.Status.DriverInfo.WebUIIngressAddress = ingress.ingressURL.String()
-						app.Status.DriverInfo.WebUIIngressName = ingress.ingressName
+						driverInfo.WebUIIngressAddress = ingress.ingressURL.String()
+						driverInfo.WebUIIngressName = ingress.ingressName
 					}
 				}
 			}
@@ -704,6 +716,7 @@ func (c *Controller) submitSparkApplication(app *v1beta2.SparkApplication) *v1be
 	}
 
 	driverPodName := getDriverPodName(app)
+	driverInfo.PodName = driverPodName
 	submissionID := uuid.New().String()
 	submissionCmdArgs, err := buildSubmissionCommandArgs(app, driverPodName, submissionID)
 	if err != nil {
@@ -745,9 +758,7 @@ func (c *Controller) submitSparkApplication(app *v1beta2.SparkApplication) *v1be
 		AppState: v1beta2.ApplicationState{
 			State: v1beta2.SubmittedState,
 		},
-		DriverInfo: v1beta2.DriverInfo{
-			PodName: driverPodName,
-		},
+		DriverInfo:                driverInfo,
 		SubmissionAttempts:        app.Status.SubmissionAttempts + 1,
 		ExecutionAttempts:         app.Status.ExecutionAttempts + 1,
 		LastSubmissionAttemptTime: metav1.Now(),

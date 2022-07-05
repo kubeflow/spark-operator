@@ -39,6 +39,7 @@ type Framework struct {
 	SparkApplicationClient crdclientset.Interface
 	MasterHost             string
 	Namespace              *v1.Namespace
+	SparkTestNamespace     *v1.Namespace
 	OperatorPod            *v1.Pod
 	DefaultTimeout         time.Duration
 }
@@ -64,6 +65,11 @@ func New(ns, sparkNs, kubeconfig, opImage string, opImagePullPolicy string) (*Fr
 		fmt.Println(nil, err, namespace)
 	}
 
+	sparkTestNamespace, err := CreateNamespace(cli, sparkNs)
+	if err != nil {
+		fmt.Println(nil, err, sparkNs)
+	}
+
 	saClient, err := crdclientset.NewForConfig(config)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create SparkApplication client")
@@ -74,6 +80,7 @@ func New(ns, sparkNs, kubeconfig, opImage string, opImagePullPolicy string) (*Fr
 		KubeClient:             cli,
 		SparkApplicationClient: saClient,
 		Namespace:              namespace,
+		SparkTestNamespace:     sparkTestNamespace,
 		DefaultTimeout:         time.Minute,
 	}
 
@@ -94,31 +101,31 @@ func (f *Framework) Setup(sparkNs, opImage string, opImagePullPolicy string) err
 }
 
 func (f *Framework) setupOperator(sparkNs, opImage string, opImagePullPolicy string) error {
-	if _, err := CreateServiceAccount(f.KubeClient, f.Namespace.Name, "../../manifest/spark-operator-rbac.yaml"); err != nil && !apierrors.IsAlreadyExists(err) {
+	if _, err := CreateServiceAccount(f.KubeClient, f.Namespace.Name, "../../manifest/spark-operator-install/spark-operator-rbac.yaml"); err != nil && !apierrors.IsAlreadyExists(err) {
 		return errors.Wrap(err, "failed to create operator service account")
 	}
 
-	if err := CreateClusterRole(f.KubeClient, "../../manifest/spark-operator-rbac.yaml"); err != nil && !apierrors.IsAlreadyExists(err) {
+	if err := CreateClusterRole(f.KubeClient, "../../manifest/spark-operator-install/spark-operator-rbac.yaml"); err != nil && !apierrors.IsAlreadyExists(err) {
 		return errors.Wrap(err, "failed to create cluster role")
 	}
 
-	if _, err := CreateClusterRoleBinding(f.KubeClient, "../../manifest/spark-operator-rbac.yaml"); err != nil && !apierrors.IsAlreadyExists(err) {
+	if _, err := CreateClusterRoleBinding(f.KubeClient, "../../manifest/spark-operator-install/spark-operator-rbac.yaml"); err != nil && !apierrors.IsAlreadyExists(err) {
 		return errors.Wrap(err, "failed to create cluster role binding")
 	}
 
-	if _, err := CreateServiceAccount(f.KubeClient, sparkNs, "../../manifest/spark-rbac.yaml"); err != nil && !apierrors.IsAlreadyExists(err) {
+	if _, err := CreateServiceAccount(f.KubeClient, f.SparkTestNamespace.Name, "../../manifest/spark-application-rbac/spark-application-rbac.yaml"); err != nil && !apierrors.IsAlreadyExists(err) {
 		return errors.Wrap(err, "failed to create Spark service account")
 	}
 
-	if err := CreateRole(f.KubeClient, sparkNs, "../../manifest/spark-rbac.yaml"); err != nil && !apierrors.IsAlreadyExists(err) {
+	if err := CreateRole(f.KubeClient, f.SparkTestNamespace.Name, "../../manifest/spark-application-rbac/spark-application-rbac.yaml"); err != nil && !apierrors.IsAlreadyExists(err) {
 		return errors.Wrap(err, "failed to create role")
 	}
 
-	if _, err := CreateRoleBinding(f.KubeClient, sparkNs, "../../manifest/spark-rbac.yaml"); err != nil && !apierrors.IsAlreadyExists(err) {
+	if _, err := CreateRoleBinding(f.KubeClient, f.SparkTestNamespace.Name, "../../manifest/spark-application-rbac/spark-application-rbac.yaml"); err != nil && !apierrors.IsAlreadyExists(err) {
 		return errors.Wrap(err, "failed to create role binding")
 	}
 
-	job, err := MakeJob("../../manifest/spark-operator-with-webhook.yaml")
+	job, err := MakeJob("../../manifest/spark-operator-with-webhook-install/spark-operator-webhook.yaml")
 	if err != nil {
 		return err
 	}
@@ -146,11 +153,11 @@ func (f *Framework) setupOperator(sparkNs, opImage string, opImagePullPolicy str
 		return errors.Wrap(err, "failed to delete the init job")
 	}
 
-	if _, err := CreateService(f.KubeClient, f.Namespace.Name, "../../manifest/spark-operator-with-webhook.yaml"); err != nil {
+	if _, err := CreateService(f.KubeClient, f.Namespace.Name, "../../manifest/spark-operator-with-webhook-install/spark-operator-webhook.yaml"); err != nil {
 		return errors.Wrap(err, "failed to create webhook service")
 	}
 
-	deploy, err := MakeDeployment("../../manifest/spark-operator-with-webhook.yaml")
+	deploy, err := MakeDeployment("../../manifest/spark-operator-with-webhook-install/spark-operator-with-webhook.yaml")
 	if err != nil {
 		return err
 	}
@@ -185,11 +192,11 @@ func (f *Framework) setupOperator(sparkNs, opImage string, opImagePullPolicy str
 
 // Teardown tears down a previously initialized test environment.
 func (f *Framework) Teardown() error {
-	if err := DeleteClusterRole(f.KubeClient, "../../manifest/spark-operator-rbac.yaml"); err != nil && !apierrors.IsAlreadyExists(err) {
+	if err := DeleteClusterRole(f.KubeClient, "../../manifest/spark-operator-install/spark-operator-rbac.yaml"); err != nil && !apierrors.IsAlreadyExists(err) {
 		return errors.Wrap(err, "failed to delete operator cluster role")
 	}
 
-	if err := DeleteClusterRoleBinding(f.KubeClient, "../../manifest/spark-operator-rbac.yaml"); err != nil && !apierrors.IsAlreadyExists(err) {
+	if err := DeleteClusterRoleBinding(f.KubeClient, "../../manifest/spark-operator-install/spark-operator-rbac.yaml"); err != nil && !apierrors.IsAlreadyExists(err) {
 		return errors.Wrap(err, "failed to delete operator cluster role binding")
 	}
 
@@ -198,6 +205,10 @@ func (f *Framework) Teardown() error {
 	}
 
 	if err := DeleteNamespace(f.KubeClient, f.Namespace.Name); err != nil {
+		return err
+	}
+
+	if err := DeleteNamespace(f.KubeClient, f.SparkTestNamespace.Name); err != nil {
 		return err
 	}
 
