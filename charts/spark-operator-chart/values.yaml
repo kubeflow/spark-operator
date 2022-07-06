@@ -98,6 +98,14 @@ webhook:
     "helm.sh/hook-delete-policy": hook-succeeded
     # -- Webhook Timeout in seconds
   timeout: 30
+  # certManager, uses cert-manager to handle self-signed certificates
+  # `issuerRef` is required
+  certManager:
+    enable: false
+    expiration: 720h0m0s
+    issuerRef: {}
+      # name: selfsigned
+      # kind: ClusterIssuer
 
 metrics:
   # -- Enable prometheus metric scraping

@@ -1,0 +1,29 @@
+{{- $webhookSvc := printf "%s-webhook.%s" (include "spark-operator.fullname" .) .Release.Namespace -}}
+{{- if and .Values.webhook.enable .Values.webhook.certManager.enable }}
+# {{ required "A valid .Values.webhook.certManager.issuerRef is required!" .Values.webhook.certManager.issuerRef }}
+apiVersion: cert-manager.io/v1alpha3
+kind: Certificate
+metadata:
+  name: {{ include "spark-operator.fullname" . }}-webhook-cert
+  labels:
+    {{- include "spark-operator.labels" . | nindent 4 }}
+spec:
+  dnsNames:
+    - {{ $webhookSvc }}.svc
+    - {{ $webhookSvc }}.svc.cluster.local
+  duration: 87600h0m0s
+  {{- if .Values.webhook.certManager.issuerRef }}
+  issuerRef: {{ toYaml .Values.webhook.certManager.issuerRef | nindent 4 }}
+  {{- else }}
+    {{ fail "webhook.certManager.issuerRef is required when certManager is enabled"}}
+  {{- end }}
+  renewBefore: {{ .Values.webhook.certManager.expiration }}
+  secretName: {{ include "spark-operator.fullname" . }}-webhook-certs
+  subject:
+    organizationalUnits:
+      - {{ include "spark-operator.fullname" . }}
+  usages:
+    # All Server TLS certs need to be created with "server auth" usage!
+    - server auth
+    - client auth
+{{- end }}
