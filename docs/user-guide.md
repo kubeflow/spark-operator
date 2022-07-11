@@ -318,6 +318,8 @@ The type of a Secret as specified by the `secretType` field is a hint to the ope
 [Getting Started with Authentication](https://cloud.google.com/docs/authentication/getting-started) for more information on how to authenticate with GCP services using a service account JSON key file. Note that the operator assumes that the key of the service account JSON key file in the Secret data map is **`key.json`** so it is able to set the environment variable automatically. Similarly, if the type of a Secret is **`HadoopDelegationToken`**, the operator additionally sets the environment variable **`HADOOP_TOKEN_FILE_LOCATION`** to point to the file storing the Hadoop delegation token. In this case, the operator assumes that the key of the delegation token file in the Secret data map is **`hadoop.token`**.
 The `secretType` field should have the value `Generic` if no extra configuration is required.
 
+Note that the mutating admission webhook is needed to use this feature. Please refer to the [Quick Start Guide](quick-start-guide.md) on how to enable the mutating admission webhook.
+
 ### Mounting ConfigMaps
 
 Both the driver specification and executor specifications have an optional field for configuring
@@ -490,6 +492,9 @@ spec:
       image: "sidecar1:latest"
       ...
 ```
+
+Note that the mutating admission webhook is needed to use this feature. Please refer to the
+[Quick Start Guide](quick-start-guide.md) on how to enable the mutating admission webhook.
 
 ### Using Init-Containers
 

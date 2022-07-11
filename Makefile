@@ -70,7 +70,7 @@ unit-test: clean
 	go test -v ./... -covermode=atomic
 
 integration-test: clean
-	@echo "running unit tests"
+	@echo "running integration tests"
 	go test -v ./test/e2e/ --kubeconfig "$(HOME)/.kube/config" --operator-image=gcr.io/spark-operator/spark-operator:local
 
 static-analysis:
