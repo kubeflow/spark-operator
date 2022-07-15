@@ -187,6 +187,7 @@ func TestCreateSparkUIService(t *testing.T) {
 			SparkApplicationID: "foo-6",
 		},
 	}
+	serviceClusterIP := "None"
 	app7 := &v1beta2.SparkApplication{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "foo7",
@@ -195,6 +196,7 @@ func TestCreateSparkUIService(t *testing.T) {
 		},
 		Spec: v1beta2.SparkApplicationSpec{
 			SparkUIOptions: &v1beta2.SparkUIConfiguration{
+				ServiceClusterIP: &serviceClusterIP,
 				ServiceAnnotations: map[string]string{
 					"key": "value",
 				},
@@ -315,6 +317,25 @@ func TestCreateSparkUIService(t *testing.T) {
 			name:        "service with bad port configurations",
 			app:         app3,
 			expectError: true,
+		},
+		{
+			name: "service with custom ClusterIP",
+			app:  app7,
+			expectedService: SparkService{
+				serviceIP:       "None",
+				serviceName:     fmt.Sprintf("%s-ui-svc", app7.GetName()),
+				serviceType:     apiv1.ServiceTypeClusterIP,
+				servicePortName: defaultPortName,
+				servicePort:     defaultPort,
+				serviceAnnotations: map[string]string{
+					"key": "value",
+				},
+			},
+			expectedSelector: map[string]string{
+				config.SparkAppNameLabel: "foo7",
+				config.SparkRoleLabel:    config.SparkDriverRole,
+			},
+			expectError: false,
 		},
 	}
 	for _, test := range testcases {
