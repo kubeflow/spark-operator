@@ -311,6 +311,9 @@ type SparkUIConfiguration struct {
 	// Defaults to spark-driver-ui-port.
 	// +optional
 	ServicePortName *string `json:"servicePortName"`
+	// ServiceClusterIP allows configuring the value of the ClusterIP. May be set to "None" for a headless service.
+	// +optional
+	ServiceClusterIP *string `json:"serviceClusterIP,omitempty"`
 	// ServiceType allows configuring the type of the service. Defaults to ClusterIP.
 	// +optional
 	ServiceType *apiv1.ServiceType `json:"serviceType"`

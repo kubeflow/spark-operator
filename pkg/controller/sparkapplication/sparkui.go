@@ -285,6 +285,11 @@ func createSparkUIService(
 		service.ObjectMeta.Annotations = serviceAnnotations
 	}
 
+	serviceClusterIP := getUIServiceClusterIP(app)
+	if serviceClusterIP != "" {
+		service.Spec.ClusterIP = serviceClusterIP
+	}
+
 	glog.Infof("Creating a service %s for the Spark UI for application %s", service.Name, app.Name)
 	service, err = kubeClient.CoreV1().Services(app.Namespace).Create(context.TODO(), service, metav1.CreateOptions{})
 	if err != nil {

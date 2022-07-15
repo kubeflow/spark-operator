@@ -64,6 +64,13 @@ func getUIServiceType(app *v1beta2.SparkApplication) apiv1.ServiceType {
 	return apiv1.ServiceTypeClusterIP
 }
 
+func getUIServiceClusterIP(app *v1beta2.SparkApplication) string {
+	if app.Spec.SparkUIOptions != nil && app.Spec.SparkUIOptions.ServiceClusterIP != nil {
+		return *app.Spec.SparkUIOptions.ServiceClusterIP
+	}
+	return ""
+}
+
 func getDefaultUIServiceName(app *v1beta2.SparkApplication) string {
 	return fmt.Sprintf("%s-ui-svc", app.Name)
 }
