@@ -3080,6 +3080,18 @@ Defaults to spark-driver-ui-port.</p>
 </tr>
 <tr>
 <td>
+<code>serviceClusterIP</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>ServiceClusterIP allows configuring the value of the ClusterIP. May be set to &ldquo;None&rdquo; for a headless service.</p>
+</td>
+</tr>
+<tr>
+<td>
 <code>serviceType</code><br/>
 <em>
 <a href="https://v1-18.docs.kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#servicetype-v1-core">
