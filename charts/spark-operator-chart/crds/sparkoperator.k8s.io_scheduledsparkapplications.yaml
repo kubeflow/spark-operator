@@ -3738,6 +3738,8 @@ spec:
                         servicePort:
                           format: int32
                           type: integer
+                        serviceClusterIP:
+                          type: string
                         serviceType:
                           type: string
                       type: object

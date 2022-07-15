@@ -3726,6 +3726,8 @@ spec:
                       type: integer
                     servicePortName:
                       type: string
+                    serviceClusterIP:
+                      type: string
                     serviceType:
                       type: string
                   type: object
