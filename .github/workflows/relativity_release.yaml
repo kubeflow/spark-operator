@@ -37,7 +37,7 @@ jobs:
           images: ${{ secrets.IMAGE }}
           flavor: |
             latest=false
-            prefix=v1beta2-1.3.3-3.2.1-
+            prefix=v1beta2-1.3.3-3.3.0-
 
       - name: Build image
         uses: docker/build-push-action@v2
@@ -46,4 +46,4 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
-            SPARK_IMAGE=${{ secrets.BASE_IMAGE }}
+            SPARK_IMAGE=${{ secrets.BASE_IMAGE }}:v1.4.0
