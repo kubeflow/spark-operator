@@ -74,7 +74,7 @@ metadata:
 spec:
   type: Scala
   mode: cluster
-  image: gcr.io/spark/spark:v3.1.1
+  image: gcr.io/spark-operator/spark:v3.1.1
   mainClass: org.apache.spark.examples.SparkPi
   mainApplicationFile: local:///opt/spark/examples/jars/spark-examples_2.12-3.1.1.jar
 ```
@@ -767,7 +767,7 @@ spec:
   template:
     type: Scala
     mode: cluster
-    image: gcr.io/spark/spark:v3.1.1
+    image: gcr.io/spark-operator/spark:v3.1.1
     mainClass: org.apache.spark.examples.SparkPi
     mainApplicationFile: local:///opt/spark/examples/jars/spark-examples_2.12-3.1.1.jar
     driver:
