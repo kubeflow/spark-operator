@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"os/exec"
+	"strings"
 	"time"
 
 	"github.com/golang/glog"
@@ -484,39 +485,39 @@ func shouldRetry(app *v1beta2.SparkApplication) bool {
 
 // State Machine for SparkApplication:
 //+--------------------------------------------------------------------------------------------------------------------+
-//|        +---------------------------------------------------------------------------------------------+             |
-//|        |       +----------+                                                                          |             |
-//|        |       |          |                                                                          |             |
-//|        |       |          |                                                                          |             |
-//|        |       |Submission|                                                                          |             |
-//|        |  +---->  Failed  +----+------------------------------------------------------------------+  |             |
-//|        |  |    |          |    |                                                                  |  |             |
-//|        |  |    |          |    |                                                                  |  |             |
-//|        |  |    +----^-----+    |  +-----------------------------------------+                     |  |             |
-//|        |  |         |          |  |                                         |                     |  |             |
-//|        |  |         |          |  |                                         |                     |  |             |
-//|      +-+--+----+    |    +-----v--+-+          +----------+           +-----v-----+          +----v--v--+          |
-//|      |         |    |    |          |          |          |           |           |          |          |          |
-//|      |         |    |    |          |          |          |           |           |          |          |          |
-//|      |   New   +---------> Submitted+----------> Running  +----------->  Failing  +---------->  Failed  |          |
-//|      |         |    |    |          |          |          |           |           |          |          |          |
-//|      |         |    |    |          |          |          |           |           |          |          |          |
-//|      |         |    |    |          |          |          |           |           |          |          |          |
-//|      +---------+    |    +----^-----+          +-----+----+           +-----+-----+          +----------+          |
-//|                     |         |                      |                      |                                      |
-//|                     |         |                      |                      |                                      |
-//|    +------------+   |         |             +-------------------------------+                                      |
-//|    |            |   |   +-----+-----+       |        |                +-----------+          +----------+          |
-//|    |            |   |   |  Pending  |       |        |                |           |          |          |          |
-//|    |            |   +---+   Rerun   <-------+        +---------------->Succeeding +---------->Completed |          |
-//|    |Invalidating|       |           <-------+                         |           |          |          |          |
-//|    |            +------->           |       |                         |           |          |          |          |
-//|    |            |       |           |       |                         |           |          |          |          |
-//|    |            |       +-----------+       |                         +-----+-----+          +----------+          |
-//|    +------------+                           |                               |                                      |
-//|                                             |                               |                                      |
-//|                                             +-------------------------------+                                      |
-//|                                                                                                                    |
+//|                 +------------------------------------------------------------------------------------------+       |
+//|                 |       +----------+                                                                       |       |
+//|                 |       |          |                                                                       |       |
+//|                 |       |          |                                                                       |       |
+//|                 |       |Submission|                                                                       |       |
+//|                 |  +---->  Failed  +------+-------------------------------------------------------------+  |       |
+//|                 |  |    |          |      |                                                             |  |       |
+//|                 |  |    |          |      |                                                             |  |       |
+//|                 |  |    +------^---+      |  +---------------------------------------+                  |  |       |
+//|                 |  |       |   |          |  |                                       |                  |  |       |
+//|                 |  |       |   |          |  |                                       |                  |  |       |
+//|               +-+--+----+  |   |    +-----v--+-+          +----------+         +-----v-----+       +----v--v--+    |
+//|               |         |  |   |    |          |          |          |         |           |       |          |    |
+//|               |         |  |   |    |          |          |          |         |           |       |          |    |
+//|               |   New   +-----------> Submitted+----------> Running  +--------->  Failing  +------->  Failed  |    |
+//|               |         |  |   |    |          |          |          |         |           |       |          |    |
+//| +---------+   |         |  |   |    |          |          |          |         |           |       |          |    |
+//| |         |   |         |  |   |    |          |          |          |         |           |       |          |    |
+//| |         |   +---------+  |   |    +----^-----+          +-----+----+         +-----+-----+       +----------+    |
+//| |Suspended|      |         |   |      |  |                   |  |                 |  |                             |
+//| |         <------v--^------v----------v-----^----------------v--------------------v-----+                          |
+//| |         |         |          |         |  |                   |                    |  |                          |
+//| |         | +------------+     |   +-----+-----+      +------------------------------+  |                          |
+//| +-------- + |            |     |   |  Pending  |      |         |              +-----------+       +----------+    |
+//|      |      |            |     +---+   Rerun   <------+         |              |           |       |          |    |
+//|      |      |Invalidating|         |           <------+         +-------------->Succeeding +------->Completed |    |
+//|      +------>            +--------->           |      |                        |           |       |          |    |
+//|             |            |         |           |      |                        |           |       |          |    |
+//|             |            |         +-----------+      |                        |           |       |          |    |
+//|             +------------+                            |                        +-----+-----+       +----------+    |
+//|                                                       |                              |                             |
+//|                                                       |                              |                             |
+//|                                                       +------------------------------+                             |
 //+--------------------------------------------------------------------------------------------------------------------+
 func (c *Controller) syncSparkApplication(key string) error {
 	namespace, name, err := cache.SplitMetaNamespaceKey(key)
@@ -544,36 +545,42 @@ func (c *Controller) syncSparkApplication(key string) error {
 	// Take action based on application state.
 	switch appCopy.Status.AppState.State {
 	case v1beta2.NewState:
-		c.recordSparkApplicationEvent(appCopy)
-		if err := c.validateSparkApplication(appCopy); err != nil {
-			appCopy.Status.AppState.State = v1beta2.FailedState
-			appCopy.Status.AppState.ErrorMessage = err.Error()
-		} else {
-			appCopy = c.submitSparkApplication(appCopy)
+		if !c.mayBeSuspend(appCopy) {
+			c.recordSparkApplicationEvent(appCopy)
+			if err := c.validateSparkApplication(appCopy); err != nil {
+				appCopy.Status.AppState.State = v1beta2.FailedState
+				appCopy.Status.AppState.ErrorMessage = err.Error()
+			} else {
+				appCopy = c.submitSparkApplication(appCopy)
+			}
 		}
 	case v1beta2.SucceedingState:
-		if !shouldRetry(appCopy) {
-			appCopy.Status.AppState.State = v1beta2.CompletedState
-			c.recordSparkApplicationEvent(appCopy)
-		} else {
-			if err := c.deleteSparkResources(appCopy); err != nil {
-				glog.Errorf("failed to delete resources associated with SparkApplication %s/%s: %v",
-					appCopy.Namespace, appCopy.Name, err)
-				return err
+		if !c.mayBeSuspend(appCopy) {
+			if !shouldRetry(appCopy) {
+				appCopy.Status.AppState.State = v1beta2.CompletedState
+				c.recordSparkApplicationEvent(appCopy)
+			} else {
+				if err := c.deleteSparkResources(appCopy); err != nil {
+					glog.Errorf("failed to delete resources associated with SparkApplication %s/%s: %v",
+						appCopy.Namespace, appCopy.Name, err)
+					return err
+				}
+				appCopy.Status.AppState.State = v1beta2.PendingRerunState
 			}
-			appCopy.Status.AppState.State = v1beta2.PendingRerunState
 		}
 	case v1beta2.FailingState:
-		if !shouldRetry(appCopy) {
-			appCopy.Status.AppState.State = v1beta2.FailedState
-			c.recordSparkApplicationEvent(appCopy)
-		} else if isNextRetryDue(appCopy.Spec.RestartPolicy.OnFailureRetryInterval, appCopy.Status.ExecutionAttempts, appCopy.Status.TerminationTime) {
-			if err := c.deleteSparkResources(appCopy); err != nil {
-				glog.Errorf("failed to delete resources associated with SparkApplication %s/%s: %v",
-					appCopy.Namespace, appCopy.Name, err)
-				return err
+		if !c.mayBeSuspend(appCopy) {
+			if !shouldRetry(appCopy) {
+				appCopy.Status.AppState.State = v1beta2.FailedState
+				c.recordSparkApplicationEvent(appCopy)
+			} else if isNextRetryDue(appCopy.Spec.RestartPolicy.OnFailureRetryInterval, appCopy.Status.ExecutionAttempts, appCopy.Status.TerminationTime) {
+				if err := c.deleteSparkResources(appCopy); err != nil {
+					glog.Errorf("failed to delete resources associated with SparkApplication %s/%s: %v",
+						appCopy.Namespace, appCopy.Name, err)
+					return err
+				}
+				appCopy.Status.AppState.State = v1beta2.PendingRerunState
 			}
-			appCopy.Status.AppState.State = v1beta2.PendingRerunState
 		}
 	case v1beta2.FailedSubmissionState:
 		if !shouldRetry(appCopy) {
@@ -591,26 +598,47 @@ func (c *Controller) syncSparkApplication(key string) error {
 				}
 			}
 		}
-	case v1beta2.InvalidatingState:
-		// Invalidate the current run and enqueue the SparkApplication for re-execution.
-		if err := c.deleteSparkResources(appCopy); err != nil {
-			glog.Errorf("failed to delete resources associated with SparkApplication %s/%s: %v",
-				appCopy.Namespace, appCopy.Name, err)
-			return err
-		}
-		c.clearStatus(&appCopy.Status)
-		appCopy.Status.AppState.State = v1beta2.PendingRerunState
-	case v1beta2.PendingRerunState:
-		glog.V(2).Infof("SparkApplication %s/%s is pending rerun", appCopy.Namespace, appCopy.Name)
-		if c.validateSparkResourceDeletion(appCopy) {
-			glog.V(2).Infof("Resources for SparkApplication %s/%s successfully deleted", appCopy.Namespace, appCopy.Name)
+	case v1beta2.SuspendedState:
+		if c.mayBeSuspend(appCopy) {
+			// Suspend the current run
 			c.recordSparkApplicationEvent(appCopy)
+			if err := c.deleteSparkResources(appCopy); err != nil {
+				glog.Errorf("failed to delete resources associated with SparkApplication %s/%s: %v",
+					appCopy.Namespace, appCopy.Name, err)
+				return err
+			}
+			// Clear status
 			c.clearStatus(&appCopy.Status)
-			appCopy = c.submitSparkApplication(appCopy)
+		} else {
+			// Get out of suspended state, go to pendingState.
+			appCopy.Status.AppState.State = v1beta2.InvalidatingState
+		}
+	case v1beta2.InvalidatingState:
+		if !c.mayBeSuspend(appCopy) {
+			// Invalidate the current run and enqueue the SparkApplication for re-execution.
+			if err := c.deleteSparkResources(appCopy); err != nil {
+				glog.Errorf("failed to delete resources associated with SparkApplication %s/%s: %v",
+					appCopy.Namespace, appCopy.Name, err)
+				return err
+			}
+			c.clearStatus(&appCopy.Status)
+			appCopy.Status.AppState.State = v1beta2.PendingRerunState
+		}
+	case v1beta2.PendingRerunState:
+		if !c.mayBeSuspend(appCopy) {
+			glog.V(2).Infof("SparkApplication %s/%s is pending rerun", appCopy.Namespace, appCopy.Name)
+			if c.validateSparkResourceDeletion(appCopy) {
+				glog.V(2).Infof("Resources for SparkApplication %s/%s successfully deleted", appCopy.Namespace, appCopy.Name)
+				c.recordSparkApplicationEvent(appCopy)
+				c.clearStatus(&appCopy.Status)
+				appCopy = c.submitSparkApplication(appCopy)
+			}
 		}
 	case v1beta2.SubmittedState, v1beta2.RunningState, v1beta2.UnknownState:
-		if err := c.getAndUpdateAppState(appCopy); err != nil {
-			return err
+		if !c.mayBeSuspend(appCopy) {
+			if err := c.getAndUpdateAppState(appCopy); err != nil {
+				return err
+			}
 		}
 	case v1beta2.CompletedState, v1beta2.FailedState:
 		if c.hasApplicationExpired(app) {
@@ -643,6 +671,15 @@ func (c *Controller) syncSparkApplication(key string) error {
 	}
 
 	return nil
+}
+
+func (c *Controller) mayBeSuspend(app *v1beta2.SparkApplication) bool {
+	if paused, pausedAnnotation := app.Annotations["spark.application.state/suspended"]; pausedAnnotation && paused == "true" {
+		app.Status.AppState.State = v1beta2.SuspendedState
+		return true
+	} else {
+		return false
+	}
 }
 
 // Helper func to determine if the next retry the SparkApplication is due now.
@@ -682,7 +719,7 @@ func (c *Controller) submitSparkApplication(app *v1beta2.SparkApplication) *v1be
 
 	if c.enableUIService {
 		service, err := createSparkUIService(app, c.kubeClient)
-		if err != nil {
+		if err != nil && !strings.Contains(err.Error(), "already exists") {
 			glog.Errorf("failed to create UI service for SparkApplication %s/%s: %v", app.Namespace, app.Name, err)
 		} else {
 			driverInfo.WebUIServiceName = service.serviceName
@@ -692,7 +729,7 @@ func (c *Controller) submitSparkApplication(app *v1beta2.SparkApplication) *v1be
 			if c.ingressURLFormat != "" {
 				// We are going to want to use an ingress url.
 				ingressURL, err := getSparkUIingressURL(c.ingressURLFormat, app.GetName(), app.GetNamespace())
-				if err != nil {
+				if err != nil && !strings.Contains(err.Error(), "already exists") {
 					glog.Errorf("failed to get the spark ingress url %s/%s: %v", app.Namespace, app.Name, err)
 				} else {
 					// need to ensure the spark.ui variables are configured correctly if a subPath is used.
@@ -1005,6 +1042,13 @@ func (c *Controller) recordSparkApplicationEvent(app *v1beta2.SparkApplication) 
 			"SparkApplicationPendingRerun",
 			"SparkApplication %s is pending rerun",
 			app.Name)
+	case v1beta2.SuspendedState:
+		c.recorder.Eventf(
+			app,
+			apiv1.EventTypeNormal,
+			"SparkApplicationSuspended",
+			"SparkApplication %s is suspended",
+			app.Name)
 	}
 }
 
@@ -1054,6 +1098,16 @@ func (c *Controller) clearStatus(status *v1beta2.SparkApplicationStatus) {
 		status.DriverInfo = v1beta2.DriverInfo{}
 		status.AppState.ErrorMessage = ""
 		status.ExecutorState = nil
+	} else if status.AppState.State == v1beta2.SuspendedState {
+		status.SparkApplicationID = ""
+		status.SubmissionAttempts = 0
+		status.ExecutionAttempts = 0
+		status.SubmissionID = ""
+		status.LastSubmissionAttemptTime = metav1.Time{}
+		status.TerminationTime = metav1.Time{}
+		status.AppState.ErrorMessage = ""
+		status.ExecutorState = nil
+		status.DriverInfo = v1beta2.DriverInfo{}
 	}
 }
 

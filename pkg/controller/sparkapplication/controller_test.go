@@ -917,11 +917,234 @@ func TestSyncSparkApplication_SubmissionSuccess(t *testing.T) {
 			},
 			expectedState: v1beta2.SubmittedState,
 		},
+		{
+			app: &v1beta2.SparkApplication{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "foo",
+					Namespace: "default",
+				},
+				Status: v1beta2.SparkApplicationStatus{
+					AppState: v1beta2.ApplicationState{
+						State: v1beta2.SuspendedState,
+					},
+					SubmissionAttempts:        1,
+					LastSubmissionAttemptTime: metav1.Time{Time: metav1.Now().Add(-2000 * time.Second)},
+				},
+				Spec: v1beta2.SparkApplicationSpec{
+					RestartPolicy: restartPolicyOnFailure,
+				},
+			},
+			expectedState: v1beta2.InvalidatingState,
+		},
 	}
 
 	for _, test := range testcases {
 		testFn(test, t)
 	}
+}
+
+func TestSyncSparkApplication_SuspendState(t *testing.T) {
+	type testcase struct {
+		appName                 string
+		oldAppStatus            v1beta2.ApplicationStateType
+		expectedAppState        v1beta2.ApplicationStateType
+		expectedAppMetrics      metrics
+		expectedExecutorMetrics executorMetrics
+	}
+
+	os.Setenv(kubernetesServiceHostEnvVar, "localhost")
+	os.Setenv(kubernetesServicePortEnvVar, "443")
+
+	appName := "foo"
+
+	app := &v1beta2.SparkApplication{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      appName,
+			Namespace: "test",
+			Annotations: map[string]string{
+				"spark.application.state/suspended": "true",
+			},
+		},
+		Spec: v1beta2.SparkApplicationSpec{
+			RestartPolicy: v1beta2.RestartPolicy{
+				Type: v1beta2.Never,
+			},
+		},
+		Status: v1beta2.SparkApplicationStatus{
+			AppState: v1beta2.ApplicationState{
+				State:        v1beta2.SubmittedState,
+				ErrorMessage: "",
+			},
+		},
+	}
+
+	testcases := []testcase{
+		{
+			appName:          appName,
+			oldAppStatus:     v1beta2.NewState,
+			expectedAppState: v1beta2.SuspendedState,
+			expectedAppMetrics: metrics{
+				failedMetricCount: 0,
+			},
+			expectedExecutorMetrics: executorMetrics{
+				failedMetricCount: 0,
+			},
+		},
+		{
+			appName:          appName,
+			oldAppStatus:     v1beta2.SucceedingState,
+			expectedAppState: v1beta2.SuspendedState,
+			expectedAppMetrics: metrics{
+				failedMetricCount: 0,
+			},
+			expectedExecutorMetrics: executorMetrics{
+				failedMetricCount: 0,
+			},
+		},
+		{
+			appName:          appName,
+			oldAppStatus:     v1beta2.FailingState,
+			expectedAppState: v1beta2.SuspendedState,
+			expectedAppMetrics: metrics{
+				failedMetricCount: 0,
+			},
+			expectedExecutorMetrics: executorMetrics{
+				failedMetricCount: 0,
+			},
+		},
+		{
+			appName:          appName,
+			oldAppStatus:     v1beta2.SuspendedState,
+			expectedAppState: v1beta2.SuspendedState,
+			expectedAppMetrics: metrics{
+				failedMetricCount: 0,
+			},
+			expectedExecutorMetrics: executorMetrics{
+				failedMetricCount: 0,
+			},
+		},
+		{
+			appName:          appName,
+			oldAppStatus:     v1beta2.InvalidatingState,
+			expectedAppState: v1beta2.SuspendedState,
+			expectedAppMetrics: metrics{
+				failedMetricCount: 0,
+			},
+			expectedExecutorMetrics: executorMetrics{
+				failedMetricCount: 0,
+			},
+		},
+		{
+			appName:          appName,
+			oldAppStatus:     v1beta2.PendingRerunState,
+			expectedAppState: v1beta2.SuspendedState,
+			expectedAppMetrics: metrics{
+				failedMetricCount: 0,
+			},
+			expectedExecutorMetrics: executorMetrics{
+				failedMetricCount: 0,
+			},
+		},
+		{
+			appName:          appName,
+			oldAppStatus:     v1beta2.SubmittedState,
+			expectedAppState: v1beta2.SuspendedState,
+			expectedAppMetrics: metrics{
+				failedMetricCount: 0,
+			},
+			expectedExecutorMetrics: executorMetrics{
+				failedMetricCount: 0,
+			},
+		},
+		{
+			appName:          appName,
+			oldAppStatus:     v1beta2.RunningState,
+			expectedAppState: v1beta2.SuspendedState,
+			expectedAppMetrics: metrics{
+				failedMetricCount: 0,
+			},
+			expectedExecutorMetrics: executorMetrics{
+				failedMetricCount: 0,
+			},
+		},
+		{
+			appName:          appName,
+			oldAppStatus:     v1beta2.UnknownState,
+			expectedAppState: v1beta2.SuspendedState,
+			expectedAppMetrics: metrics{
+				failedMetricCount: 0,
+			},
+			expectedExecutorMetrics: executorMetrics{
+				failedMetricCount: 0,
+			},
+		},
+		{
+			appName:          appName,
+			oldAppStatus:     v1beta2.FailedSubmissionState,
+			expectedAppState: v1beta2.FailedState,
+			expectedAppMetrics: metrics{
+				failedMetricCount: 0,
+			},
+			expectedExecutorMetrics: executorMetrics{
+				failedMetricCount: 0,
+			},
+		},
+		{
+			appName:          appName,
+			oldAppStatus:     v1beta2.CompletedState,
+			expectedAppState: v1beta2.CompletedState,
+			expectedAppMetrics: metrics{
+				failedMetricCount: 0,
+			},
+			expectedExecutorMetrics: executorMetrics{
+				failedMetricCount: 0,
+			},
+		},
+		{
+			appName:          appName,
+			oldAppStatus:     v1beta2.FailedState,
+			expectedAppState: v1beta2.FailedState,
+			expectedAppMetrics: metrics{
+				failedMetricCount: 0,
+			},
+			expectedExecutorMetrics: executorMetrics{
+				failedMetricCount: 0,
+			},
+		},
+	}
+
+	testFn := func(test testcase, t *testing.T) {
+		app.Status.AppState.State = test.oldAppStatus
+		app.Name = test.appName
+		app.Status.ExecutionAttempts = 1
+		ctrl, _ := newFakeController(app)
+		_, err := ctrl.crdClient.SparkoperatorV1beta2().SparkApplications(app.Namespace).Create(context.TODO(), app, metav1.CreateOptions{})
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		err = ctrl.syncSparkApplication(fmt.Sprintf("%s/%s", app.Namespace, app.Name))
+		assert.Nil(t, err)
+		// Verify application and executor states.
+		updatedApp, err := ctrl.crdClient.SparkoperatorV1beta2().SparkApplications(app.Namespace).Get(context.TODO(), app.Name, metav1.GetOptions{})
+		assert.Equal(t, test.expectedAppState, updatedApp.Status.AppState.State)
+
+		// Verify application metrics.
+		assert.Equal(t, test.expectedAppMetrics.runningMetricCount, ctrl.metrics.sparkAppRunningCount.Value(map[string]string{}))
+		assert.Equal(t, test.expectedAppMetrics.successMetricCount, fetchCounterValue(ctrl.metrics.sparkAppSuccessCount, map[string]string{}))
+		assert.Equal(t, test.expectedAppMetrics.submitMetricCount, fetchCounterValue(ctrl.metrics.sparkAppSubmitCount, map[string]string{}))
+		assert.Equal(t, test.expectedAppMetrics.failedMetricCount, fetchCounterValue(ctrl.metrics.sparkAppFailureCount, map[string]string{}))
+
+		// Verify executor metrics.
+		assert.Equal(t, test.expectedExecutorMetrics.runningMetricCount, ctrl.metrics.sparkAppExecutorRunningCount.Value(map[string]string{}))
+		assert.Equal(t, test.expectedExecutorMetrics.successMetricCount, fetchCounterValue(ctrl.metrics.sparkAppExecutorSuccessCount, map[string]string{}))
+		assert.Equal(t, test.expectedExecutorMetrics.failedMetricCount, fetchCounterValue(ctrl.metrics.sparkAppExecutorFailureCount, map[string]string{}))
+	}
+
+	for _, test := range testcases {
+		testFn(test, t)
+	}
+
 }
 
 func TestSyncSparkApplication_ExecutingState(t *testing.T) {
