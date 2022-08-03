@@ -130,7 +130,7 @@ spec:
   sparkConf:
     spark.ui.port: "4045"
     spark.eventLog.enabled: "true"
-    spark.eventLog.dir": "hdfs://hdfs-namenode-1:8020/spark/spark-events"
+    spark.eventLog.dir: "hdfs://hdfs-namenode-1:8020/spark/spark-events"
 ```
 
 ### Specifying Hadoop Configuration
