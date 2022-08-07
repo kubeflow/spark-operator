@@ -278,7 +278,7 @@ func buildPodInformerFactory(kubeClient clientset.Interface) informers.SharedInf
 		podFactoryOpts = append(podFactoryOpts, informers.WithNamespace(*namespace))
 	}
 	tweakListOptionsFunc := func(options *metav1.ListOptions) {
-		options.LabelSelector = fmt.Sprintf("%s,%s", operatorConfig.SparkRoleLabel, operatorConfig.LaunchedBySparkOperatorLabel)
+		options.LabelSelector = operatorConfig.SparkRoleLabel
 		if len(*labelSelectorFilter) > 0 {
 			options.LabelSelector = options.LabelSelector + "," + *labelSelectorFilter
 		}

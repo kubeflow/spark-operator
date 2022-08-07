@@ -144,7 +144,7 @@ func newSparkApplicationController(
 	controller.applicationLister = crdInformer.Lister()
 
 	podsInformer := podInformerFactory.Core().V1().Pods()
-	sparkPodEventHandler := newSparkPodEventHandler(controller.queue.AddRateLimited, controller.applicationLister)
+	sparkPodEventHandler := newSparkPodEventHandler(controller.queue.AddRateLimited, controller.crdClient, controller.applicationLister)
 	podsInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc:    sparkPodEventHandler.onPodAdded,
 		UpdateFunc: sparkPodEventHandler.onPodUpdated,
@@ -718,38 +718,52 @@ func (c *Controller) submitSparkApplication(app *v1beta2.SparkApplication) *v1be
 	driverPodName := getDriverPodName(app)
 	driverInfo.PodName = driverPodName
 	submissionID := uuid.New().String()
-	submissionCmdArgs, err := buildSubmissionCommandArgs(app, driverPodName, submissionID)
+
+	driverPod, err := c.kubeClient.CoreV1().Pods(app.Namespace).Get(context.TODO(), driverPodName, metav1.GetOptions{})
 	if err != nil {
-		app.Status = v1beta2.SparkApplicationStatus{
-			AppState: v1beta2.ApplicationState{
-				State:        v1beta2.FailedSubmissionState,
-				ErrorMessage: err.Error(),
-			},
-			SubmissionAttempts:        app.Status.SubmissionAttempts + 1,
-			LastSubmissionAttemptTime: metav1.Now(),
+		glog.Errorf("%v\n", err)
+	} else {
+		if driverPod.ObjectMeta.Labels["sparkoperator.k8s.io/launched-by-spark-operator"] == "true" {
+			submissionCmdArgs, err := buildSubmissionCommandArgs(app, driverPodName, submissionID)
+			if err != nil {
+				app.Status = v1beta2.SparkApplicationStatus{
+					AppState: v1beta2.ApplicationState{
+						State:        v1beta2.FailedSubmissionState,
+						ErrorMessage: err.Error(),
+					},
+					SubmissionAttempts:        app.Status.SubmissionAttempts + 1,
+					LastSubmissionAttemptTime: metav1.Now(),
+				}
+				return app
+			}
+			// Try submitting the application by running spark-submit.
+			submitted, err := runSparkSubmit(newSubmission(submissionCmdArgs, app))
+			if err != nil {
+				app.Status = v1beta2.SparkApplicationStatus{
+					AppState: v1beta2.ApplicationState{
+						State:        v1beta2.FailedSubmissionState,
+						ErrorMessage: err.Error(),
+					},
+					SubmissionAttempts:        app.Status.SubmissionAttempts + 1,
+					LastSubmissionAttemptTime: metav1.Now(),
+				}
+				c.recordSparkApplicationEvent(app)
+				glog.Errorf("failed to run spark-submit for SparkApplication %s/%s: %v", app.Namespace, app.Name, err)
+				return app
+			}
+			if !submitted {
+				// The application may not have been submitted even if err == nil, e.g., when some
+				// state update caused an attempt to re-submit the application, in which case no
+				// error gets returned from runSparkSubmit. If this is the case, we simply return.
+				return app
+			}
+		} else {
+			driverPod.ObjectMeta.Labels[config.SubmissionIDLabel] = submissionID
+			_, err = c.kubeClient.CoreV1().Pods(app.Namespace).Update(context.TODO(), driverPod, metav1.UpdateOptions{})
+			if err != nil {
+				glog.Errorf("failed to update driver pod %v", err)
+			}
 		}
-		return app
-	}
-	// Try submitting the application by running spark-submit.
-	submitted, err := runSparkSubmit(newSubmission(submissionCmdArgs, app))
-	if err != nil {
-		app.Status = v1beta2.SparkApplicationStatus{
-			AppState: v1beta2.ApplicationState{
-				State:        v1beta2.FailedSubmissionState,
-				ErrorMessage: err.Error(),
-			},
-			SubmissionAttempts:        app.Status.SubmissionAttempts + 1,
-			LastSubmissionAttemptTime: metav1.Now(),
-		}
-		c.recordSparkApplicationEvent(app)
-		glog.Errorf("failed to run spark-submit for SparkApplication %s/%s: %v", app.Namespace, app.Name, err)
-		return app
-	}
-	if !submitted {
-		// The application may not have been submitted even if err == nil, e.g., when some
-		// state update caused an attempt to re-submit the application, in which case no
-		// error gets returned from runSparkSubmit. If this is the case, we simply return.
-		return app
 	}
 
 	glog.Infof("SparkApplication %s/%s has been submitted", app.Namespace, app.Name)
