@@ -29,7 +29,6 @@ require (
 	k8s.io/apimachinery v0.19.6
 	k8s.io/client-go v0.19.6
 	k8s.io/kubectl v0.19.6
-	k8s.io/kubernetes v1.19.6
 	volcano.sh/volcano v1.1.0
 )
 
@@ -52,7 +51,6 @@ replace (
 	k8s.io/kube-scheduler => k8s.io/kube-scheduler v0.19.6
 	k8s.io/kubectl => k8s.io/kubectl v0.19.6
 	k8s.io/kubelet => k8s.io/kubelet v0.19.6
-	k8s.io/kubernetes => k8s.io/kubernetes v1.19.6
 	k8s.io/legacy-cloud-providers => k8s.io/legacy-cloud-providers v0.19.6
 	k8s.io/metrics => k8s.io/metrics v0.19.6
 	k8s.io/node-api => k8s.io/node-api v0.19.6

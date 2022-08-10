@@ -26,8 +26,8 @@ import (
 
 	"github.com/golang/glog"
 	v1 "k8s.io/api/core/v1"
+	v1beta1 "k8s.io/api/policy/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/kubernetes/pkg/apis/policy"
 
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta2"
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/config"
@@ -505,16 +505,16 @@ func buildLocalVolumeOptions(prefix string, volume v1.Volume, volumeMount v1.Vol
 	var options []string
 	switch {
 	case volume.HostPath != nil:
-		options = append(options, fmt.Sprintf(VolumeMountPathTemplate, string(policy.HostPath), volume.Name, volumeMount.MountPath))
-		options = append(options, fmt.Sprintf(VolumeMountOptionTemplate, string(policy.HostPath), volume.Name, "path", volume.HostPath.Path))
+		options = append(options, fmt.Sprintf(VolumeMountPathTemplate, string(v1beta1.HostPath), volume.Name, volumeMount.MountPath))
+		options = append(options, fmt.Sprintf(VolumeMountOptionTemplate, string(v1beta1.HostPath), volume.Name, "path", volume.HostPath.Path))
 		if volume.HostPath.Type != nil {
-			options = append(options, fmt.Sprintf(VolumeMountOptionTemplate, string(policy.HostPath), volume.Name, "type", *volume.HostPath.Type))
+			options = append(options, fmt.Sprintf(VolumeMountOptionTemplate, string(v1beta1.HostPath), volume.Name, "type", *volume.HostPath.Type))
 		}
 	case volume.EmptyDir != nil:
-		options = append(options, fmt.Sprintf(VolumeMountPathTemplate, string(policy.EmptyDir), volume.Name, volumeMount.MountPath))
+		options = append(options, fmt.Sprintf(VolumeMountPathTemplate, string(v1beta1.EmptyDir), volume.Name, volumeMount.MountPath))
 	case volume.PersistentVolumeClaim != nil:
-		options = append(options, fmt.Sprintf(VolumeMountPathTemplate, string(policy.PersistentVolumeClaim), volume.Name, volumeMount.MountPath))
-		options = append(options, fmt.Sprintf(VolumeMountOptionTemplate, string(policy.PersistentVolumeClaim), volume.Name, "claimName", volume.PersistentVolumeClaim.ClaimName))
+		options = append(options, fmt.Sprintf(VolumeMountPathTemplate, string(v1beta1.PersistentVolumeClaim), volume.Name, volumeMount.MountPath))
+		options = append(options, fmt.Sprintf(VolumeMountOptionTemplate, string(v1beta1.PersistentVolumeClaim), volume.Name, "claimName", volume.PersistentVolumeClaim.ClaimName))
 	}
 
 	return options
