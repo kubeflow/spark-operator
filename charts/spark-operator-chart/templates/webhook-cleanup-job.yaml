@@ -1,4 +1,6 @@
-{{- if and .Values.webhook.enable .Values.webhook.enableJobs }}
+# harness.io/skip-file-for-deploy
+
+{{ if .Values.webhook.enable }}
 apiVersion: batch/v1
 kind: Job
 metadata:

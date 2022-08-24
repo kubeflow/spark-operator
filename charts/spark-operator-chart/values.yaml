@@ -98,8 +98,6 @@ webhook:
     "helm.sh/hook-delete-policy": hook-succeeded
     # -- Webhook Timeout in seconds
   timeout: 30
-  # -- Enable cleanup and init jobs for webhook cert secrets
-  enableJobs: false
 
 metrics:
   # -- Enable prometheus metric scraping
