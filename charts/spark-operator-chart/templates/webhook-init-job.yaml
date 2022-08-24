@@ -1,4 +1,4 @@
-{{ if .Values.webhook.enable }}
+{{ if and .Values.webhook.enable .Values.webook.enableJobs }}
 apiVersion: batch/v1
 kind: Job
 metadata:
