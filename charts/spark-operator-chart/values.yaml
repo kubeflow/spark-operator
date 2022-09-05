@@ -65,6 +65,9 @@ uiService:
 # Requires the UI service to be enabled by setting `uiService.enable` to true.
 ingressUrlFormat: ""
 
+# -- Ingress spec.ingressClassName value
+ingressClassName: ""
+
 # -- Set higher levels for more verbose logging
 logLevel: 2
 

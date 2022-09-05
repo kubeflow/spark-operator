@@ -60,6 +60,7 @@ spec:
         - -namespace={{ .Values.sparkJobNamespace }}
         - -enable-ui-service={{ .Values.uiService.enable}}
         - -ingress-url-format={{ .Values.ingressUrlFormat }}
+        - -ingress-class-name={{ .Values.ingressClassName }}
         - -controller-threads={{ .Values.controllerThreads }}
         - -resync-interval={{ .Values.resyncInterval }}
         - -enable-batch-scheduler={{ .Values.batchScheduler.enable }}
