@@ -28,6 +28,12 @@ rules:
 - apiGroups:
   - ""
   resources:
+  - secrets
+  verbs:
+  - "*"
+- apiGroups:
+  - ""
+  resources:
   - persistentvolumeclaims
   verbs:
   - "*"
