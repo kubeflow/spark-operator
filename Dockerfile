@@ -47,6 +47,10 @@ RUN chmod 644 $SPARK_HOME/jars/aws-java-sdk-bundle-1.11.814.jar
 ADD https://repo1.maven.org/maven2/org/apache/spark/spark-avro_2.12/3.1.1/spark-avro_2.12-3.1.1.jar $SPARK_HOME/jars
 RUN chmod 644 $SPARK_HOME/jars/spark-avro_2.12-3.1.1.jar
 
+# Add gcs connector
+ADD https://storage.googleapis.com/hadoop-lib/gcs/gcs-connector-hadoop3-latest.jar  $SPARK_HOME/jars
+RUN chmod 644 $SPARK_HOME/jars/gcs-connector-hadoop3-latest.jar
+
 # Build Operator and run
 COPY --from=builder /usr/bin/spark-operator /usr/bin/
 RUN apt-get update --allow-releaseinfo-change \
