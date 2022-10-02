@@ -88,6 +88,8 @@ webhook:
   # -- The webhook server will only operate on namespaces with this label, specified in the form key1=value1,key2=value2.
   # Empty string (default) will operate on all namespaces
   namespaceSelector: ""
+  # -- Policy of failure handling. If it's set to true the namespaceSelector must be defined
+  failOnError: false
   # -- The annotations applied to init job, required to restore certs deleted by the cleanup job during upgrade
   initAnnotations:
     "helm.sh/hook": pre-install, pre-upgrade
