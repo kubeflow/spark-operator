@@ -687,25 +687,25 @@ string
 </tr>
 </thead>
 <tbody><tr><td><p>&#34;COMPLETED&#34;</p></td>
-<td></td>
+<td>When application state is SUCCEEDING</td>
 </tr><tr><td><p>&#34;FAILED&#34;</p></td>
-<td></td>
+<td>When driver state is FAILED</td>
 </tr><tr><td><p>&#34;SUBMISSION_FAILED&#34;</p></td>
-<td></td>
+<td>App will never be retried. Move to terminal FailedState.</td>
 </tr><tr><td><p>&#34;FAILING&#34;</p></td>
-<td></td>
+<td>Driver pod not found. In the Failing state:  We retry if we haven't hit the retry limit.</td>
 </tr><tr><td><p>&#34;INVALIDATING&#34;</p></td>
-<td></td>
+<td>Failed due to non-existence of SparkApplication. Invalidating which handles clean-up and application re-run. After status will be PENDING_RERUN.</td>
 </tr><tr><td><p>&#34;&#34;</p></td>
 <td></td>
 </tr><tr><td><p>&#34;PENDING_RERUN&#34;</p></td>
-<td></td>
+<td>If application in SUCCEEDING, INVALIDATING, or FAILING state, It will be retried.</td>
 </tr><tr><td><p>&#34;RUNNING&#34;</p></td>
-<td></td>
+<td>When driver state is RUNNING</td>
 </tr><tr><td><p>&#34;SUBMITTED&#34;</p></td>
-<td></td>
+<td>When driver state is PENDING</td>
 </tr><tr><td><p>&#34;SUCCEEDING&#34;</p></td>
-<td></td>
+<td>When driver state is COMPLETED.</td>
 </tr><tr><td><p>&#34;UNKNOWN&#34;</p></td>
 <td></td>
 </tr></tbody>
