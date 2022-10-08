@@ -10,6 +10,12 @@ The easiest way to build the operator without worrying about its dependencies is
 $ docker build -t <image-tag> .
 ```
 
+Or if you want to build multi-platform images, you can build with `docker buildx` like this:
+
+```bash
+$ docker buildx build --platform linux/amd64,linux/arm64 --push -t <image-tag> .
+```
+
 The operator image is built upon a base Spark image that defaults to `gcr.io/spark-operator/spark:v3.1.1`. If you want to use your own Spark image (e.g., an image with a different version of Spark or some custom dependencies), specify the argument `SPARK_IMAGE` as the following example shows: 
 
 ```bash
