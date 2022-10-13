@@ -1,11 +1,19 @@
 {{- if or .Values.rbac.create .Values.rbac.createClusterRole }}
+{{- range $isDeleteHook := until 2 }}
+{{- with $ }}
+---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
   name: {{ include "spark-operator.fullname" . }}
   annotations:
+    {{- if eq $isDeleteHook 0 }}
     "helm.sh/hook": pre-install, pre-upgrade
-    "helm.sh/hook-delete-policy": hook-failed, before-hook-creation
+    "helm.sh/hook-delete-policy": hook-failed
+    {{- else }}
+    "helm.sh/hook": post-delete
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+    {{- end }}
     "helm.sh/hook-weight": "-10"
   labels:
     {{- include "spark-operator.labels" . | nindent 4 }}
@@ -107,14 +115,18 @@ rules:
   {{- end }}
 
 ---
-
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
   name: {{ include "spark-operator.fullname" . }}
   annotations:
+    {{- if eq $isDeleteHook 0 }}
     "helm.sh/hook": pre-install, pre-upgrade
-    "helm.sh/hook-delete-policy": hook-failed, before-hook-creation
+    "helm.sh/hook-delete-policy": hook-failed
+    {{- else }}
+    "helm.sh/hook": post-delete
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+    {{- end }}
     "helm.sh/hook-weight": "-10"
   labels:
     {{- include "spark-operator.labels" . | nindent 4 }}
@@ -126,4 +138,6 @@ roleRef:
   kind: ClusterRole
   name: {{ include "spark-operator.fullname" . }}
   apiGroup: rbac.authorization.k8s.io
+{{- end }}
+{{- end }}
 {{- end }}
