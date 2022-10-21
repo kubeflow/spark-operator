@@ -53,7 +53,7 @@ spec:
         ports:
           - name: {{ .Values.metrics.portName | quote }}
             containerPort: {{ .Values.metrics.port }}
-        {{ end }}
+        {{- end }}
         args:
         - -v={{ .Values.logLevel }}
         - -logtostderr
@@ -97,6 +97,14 @@ spec:
           {{- end }}
         {{- with .Values.volumeMounts }}
         {{- toYaml . | nindent 10 }}
+        {{- end }}
+        {{- with .Values.livenessProbe }}
+        livenessProbe:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+        {{- with .Values.readinessProbe }}
+        readinessProbe:
+          {{- toYaml . | nindent 10 }}
         {{- end }}
       {{- if or .Values.webhook.enable (ne (len .Values.volumes) 0 ) }}
       volumes:
