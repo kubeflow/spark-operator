@@ -1760,7 +1760,7 @@ func TestPatchSparkPod_Lifecycle(t *testing.T) {
 		Spec: v1beta2.SparkApplicationSpec{
 			Driver: v1beta2.DriverSpec{
 				Lifecycle: &corev1.Lifecycle{
-					PreStop: &corev1.Handler{Exec: preStopTest},
+					PreStop: &corev1.LifecycleHandler{Exec: preStopTest},
 				},
 			},
 		},
