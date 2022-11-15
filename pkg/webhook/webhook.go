@@ -409,7 +409,7 @@ func (wh *WebHook) selfRegistration(webhookConfigName string) error {
 		NamespaceSelector:       wh.selector,
 		TimeoutSeconds:          wh.timeoutSeconds,
 		SideEffects:             &sideEffect,
-		AdmissionReviewVersions: []string{"v1"},
+		AdmissionReviewVersions: []string{"v1", "v1beta1"},
 	}
 
 	mutatingWebhooks := []arv1.MutatingWebhook{mutatingWebhook}
