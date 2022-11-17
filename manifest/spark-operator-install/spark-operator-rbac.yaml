@@ -31,11 +31,11 @@ metadata:
   name: sparkoperator
 rules:
 - apiGroups: [""]
-  resources: ["pods"]
+  resources: ["configmaps", "pods"]
   verbs: ["*"]
-- apiGroups: [""]
-  resources: ["configmaps"]
-  verbs: ["*"]
+- apiGroups: [ "coordination.k8s.io" ]
+  resources: [ "leases" ]
+  verbs: [ "*" ]
 - apiGroups: [""]
   resources: ["services", "secrets"]
   verbs: ["create", "get", "delete"]

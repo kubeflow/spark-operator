@@ -13,14 +13,20 @@ rules:
 - apiGroups:
   - ""
   resources:
+  - configmaps
   - pods
+  verbs:
+  - "*"
+- apiGroups:
+  - coordination.k8s.io
+  resources:
+  - leases
   verbs:
   - "*"
 - apiGroups:
   - ""
   resources:
   - services
-  - configmaps
   - secrets
   verbs:
   - create
