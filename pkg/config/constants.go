@@ -168,6 +168,10 @@ const (
 	// SparkDynamicAllocationMaxExecutors is the Spark configuration key for specifying the
 	// upper bound of the number of executors to request if dynamic allocation is enabled.
 	SparkDynamicAllocationMaxExecutors = "spark.dynamicAllocation.maxExecutors"
+	// SparkDriverMemoryOverhead is the Spark configuration key for a string of memoryOverhead to pass to driver.
+	SparkDriverMemoryOverhead = "spark.driver.memoryOverhead"
+	// SparkExecutorMemoryOverhead is the Spark configuration key for a string of memoryOverhead to pass to executor.
+	SparkExecutorMemoryOverhead = "spark.executor.memoryOverhead"
 )
 
 const (

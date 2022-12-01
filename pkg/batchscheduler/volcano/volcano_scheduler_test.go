@@ -17,13 +17,55 @@ limitations under the License.
 package volcano
 
 import (
+	"strings"
 	"testing"
 
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta2"
+	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/config"
 )
+
+func TestTransformMemorySpark2Kubernetes(t *testing.T) {
+	unitM := "10m"
+	unitMi := "10Mi"
+	unitEmpty := "10"
+
+	result := "10Mi"
+
+	testcases := []struct {
+		Name   string
+		input  string
+		result string
+	}{
+		{
+			Name:   "Validate Unit 'm'",
+			input:  unitM,
+			result: result,
+		},
+		{
+			Name:   "Validate Unit 'mi'",
+			input:  unitMi,
+			result: result,
+		},
+		{
+			Name:   "Validate Unit 'unitEmpty'",
+			input:  unitEmpty,
+			result: result,
+		},
+	}
+
+	for _, testcase := range testcases {
+		t.Run(testcase.Name, func(t *testing.T) {
+			r := transformMemorySpark2Kubernetes(testcase.input)
+			if strings.Compare(testcase.result, r) != 0 {
+				t.Errorf("expecting value not equal, %s != %s", testcase.result, r)
+			}
+		})
+	}
+
+}
 
 func TestGetDriverResource(t *testing.T) {
 
@@ -34,7 +76,7 @@ func TestGetDriverResource(t *testing.T) {
 
 	result := v1.ResourceList{}
 	result[v1.ResourceCPU] = resource.MustParse("1")
-	result[v1.ResourceMemory] = resource.MustParse("2048m")
+	result[v1.ResourceMemory] = resource.MustParse("2048Mi")
 
 	testcases := []struct {
 		Name   string
@@ -53,6 +95,9 @@ func TestGetDriverResource(t *testing.T) {
 							MemoryOverhead: &oneGB,
 						},
 					},
+					SparkConf: map[string]string{
+						config.SparkDriverMemoryOverhead: oneGB,
+					},
 				},
 			},
 			result: result,
@@ -63,10 +108,13 @@ func TestGetDriverResource(t *testing.T) {
 				Spec: v1beta2.SparkApplicationSpec{
 					Driver: v1beta2.DriverSpec{
 						SparkPodSpec: v1beta2.SparkPodSpec{
-							CoreLimit:      &oneCoreStr,
-							Memory:         &oneGB,
-							MemoryOverhead: &oneGB,
+							CoreLimit: &oneCoreStr,
+							Memory:    &oneGB,
+							// MemoryOverhead: &oneGB,
 						},
+					},
+					SparkConf: map[string]string{
+						config.SparkDriverMemoryOverhead: oneGB,
 					},
 				},
 			},
@@ -101,7 +149,7 @@ func TestGetExecutorResource(t *testing.T) {
 
 	result := v1.ResourceList{}
 	result[v1.ResourceCPU] = resource.MustParse("2")
-	result[v1.ResourceMemory] = resource.MustParse("4096m")
+	result[v1.ResourceMemory] = resource.MustParse("4096Mi")
 
 	testcases := []struct {
 		Name   string
@@ -114,11 +162,14 @@ func TestGetExecutorResource(t *testing.T) {
 				Spec: v1beta2.SparkApplicationSpec{
 					Executor: v1beta2.ExecutorSpec{
 						SparkPodSpec: v1beta2.SparkPodSpec{
-							Cores:          &oneCore,
-							Memory:         &oneGB,
-							MemoryOverhead: &oneGB,
+							Cores:  &oneCore,
+							Memory: &oneGB,
+							// MemoryOverhead: &oneGB,
 						},
 						Instances: &instances,
+					},
+					SparkConf: map[string]string{
+						config.SparkExecutorMemoryOverhead: oneGB,
 					},
 				},
 			},
@@ -137,6 +188,9 @@ func TestGetExecutorResource(t *testing.T) {
 						CoreRequest: &oneCoreStr,
 						Instances:   &instances,
 					},
+					SparkConf: map[string]string{
+						config.SparkExecutorMemoryOverhead: oneGB,
+					},
 				},
 			},
 			result: result,
@@ -152,6 +206,9 @@ func TestGetExecutorResource(t *testing.T) {
 							MemoryOverhead: &oneGB,
 						},
 						Instances: &instances,
+					},
+					SparkConf: map[string]string{
+						config.SparkExecutorMemoryOverhead: oneGB,
 					},
 				},
 			},

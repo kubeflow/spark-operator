@@ -19,6 +19,8 @@ package volcano
 import (
 	"context"
 	"fmt"
+	"regexp"
+	"strings"
 
 	corev1 "k8s.io/api/core/v1"
 	apiextensionsclient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
@@ -32,6 +34,7 @@ import (
 
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta2"
 	schedulerinterface "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/batchscheduler/interface"
+	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/config"
 )
 
 const (
@@ -230,12 +233,22 @@ func getExecutorRequestResource(app *v1beta2.SparkApplication) corev1.ResourceLi
 
 	//Memory + MemoryOverhead correspond to executor's memory request
 	if app.Spec.Executor.Memory != nil {
-		if value, err := resource.ParseQuantity(*app.Spec.Executor.Memory); err == nil {
+		memory := transformMemorySpark2Kubernetes(*app.Spec.Executor.Memory)
+		if value, err := resource.ParseQuantity(memory); err == nil {
 			minResource[corev1.ResourceMemory] = value
 		}
 	}
+
+	// Compatible with spark conf
+	if value, ok := app.Spec.SparkConf[config.SparkExecutorMemoryOverhead]; ok {
+		if app.Spec.Executor.MemoryOverhead == nil {
+			app.Spec.Executor.MemoryOverhead = &value
+		}
+	}
+
 	if app.Spec.Executor.MemoryOverhead != nil {
-		if value, err := resource.ParseQuantity(*app.Spec.Executor.MemoryOverhead); err == nil {
+		memoryOverhead := transformMemorySpark2Kubernetes(*app.Spec.Executor.MemoryOverhead)
+		if value, err := resource.ParseQuantity(memoryOverhead); err == nil {
 			if existing, ok := minResource[corev1.ResourceMemory]; ok {
 				existing.Add(value)
 				minResource[corev1.ResourceMemory] = existing
@@ -271,12 +284,22 @@ func getDriverRequestResource(app *v1beta2.SparkApplication) corev1.ResourceList
 
 	//Memory + MemoryOverhead correspond to driver's memory request
 	if app.Spec.Driver.Memory != nil {
-		if value, err := resource.ParseQuantity(*app.Spec.Driver.Memory); err == nil {
+		memory := transformMemorySpark2Kubernetes(*app.Spec.Driver.Memory)
+		if value, err := resource.ParseQuantity(memory); err == nil {
 			minResource[corev1.ResourceMemory] = value
 		}
 	}
+
+	// Compatible with spark conf
+	if value, ok := app.Spec.SparkConf[config.SparkDriverMemoryOverhead]; ok {
+		if app.Spec.Driver.MemoryOverhead == nil {
+			app.Spec.Driver.MemoryOverhead = &value
+		}
+	}
+
 	if app.Spec.Driver.MemoryOverhead != nil {
-		if value, err := resource.ParseQuantity(*app.Spec.Driver.MemoryOverhead); err == nil {
+		memoryOverhead := transformMemorySpark2Kubernetes(*app.Spec.Driver.MemoryOverhead)
+		if value, err := resource.ParseQuantity(memoryOverhead); err == nil {
 			if existing, ok := minResource[corev1.ResourceMemory]; ok {
 				existing.Add(value)
 				minResource[corev1.ResourceMemory] = existing
@@ -285,6 +308,21 @@ func getDriverRequestResource(app *v1beta2.SparkApplication) corev1.ResourceList
 	}
 
 	return minResource
+}
+
+func transformMemorySpark2Kubernetes(value string) string {
+	reg := regexp.MustCompile("([0-9]+)([a-z|A-Z]+)?")
+	sub := reg.FindStringSubmatch(value)
+	unit := sub[2]
+
+	switch len(unit) {
+	case 1:
+		return strings.ToUpper(value) + "i"
+	case 0:
+		return value + "Mi"
+	default:
+		return value
+	}
 }
 
 func sumResourceList(list []corev1.ResourceList) corev1.ResourceList {
