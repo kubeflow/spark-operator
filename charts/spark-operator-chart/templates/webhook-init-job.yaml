@@ -28,6 +28,10 @@ spec:
       - name: main
         image: {{ .Values.image.repository }}:{{ default .Chart.AppVersion .Values.image.tag }}
         imagePullPolicy: {{ .Values.image.pullPolicy }}
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "500m"
         securityContext:
           {{- toYaml .Values.securityContext | nindent 10 }}
         command: [
