@@ -37,6 +37,7 @@ import (
 
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta2"
 	crdclientset "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/client/clientset/versioned"
+	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/config"
 )
 
 const bufferSize = 1024
@@ -148,6 +149,12 @@ func createFromScheduledSparkApplication(name string, kubeClient clientset.Inter
 		},
 		Spec: *sapp.Spec.Template.DeepCopy(),
 	}
+
+	app.ObjectMeta.Labels = make(map[string]string)
+	for key, value := range sapp.Labels {
+		app.ObjectMeta.Labels[key] = value
+	}
+	app.ObjectMeta.Labels[config.ScheduledSparkAppNameLabel] = sapp.Name
 
 	if err := createSparkApplication(app, kubeClient, crdClient); err != nil {
 		return fmt.Errorf("failed to create SparkApplication %s: %v", app.Name, err)
