@@ -389,7 +389,7 @@ func TestCheckAndUpdatePastRuns(t *testing.T) {
 			},
 		},
 	}
-	c.crdClient.SparkoperatorV1beta2().SparkApplications(app.Namespace).Create(context.TODO(), run1, metav1.CreateOptions{})
+	run1,_= c.crdClient.SparkoperatorV1beta2().SparkApplications(app.Namespace).Create(context.TODO(), run1, metav1.CreateOptions{})
 
 	// The first completed run should have been recorded.
 	status := app.Status.DeepCopy()
@@ -402,13 +402,13 @@ func TestCheckAndUpdatePastRuns(t *testing.T) {
 	run2.CreationTimestamp.Time = run1.CreationTimestamp.Add(10 * time.Second)
 	run2.Name = "run2"
 	run2.Status.AppState.State = v1beta2.RunningState
-	c.crdClient.SparkoperatorV1beta2().SparkApplications(app.Namespace).Create(context.TODO(), run2, metav1.CreateOptions{})
+	run2,_= c.crdClient.SparkoperatorV1beta2().SparkApplications(app.Namespace).Create(context.TODO(), run2, metav1.CreateOptions{})
 	c.checkAndUpdatePastRuns(app, status)
 	assert.Equal(t, 1, len(status.PastSuccessfulRunNames))
 	assert.Equal(t, run1.Name, status.PastSuccessfulRunNames[0])
 	// The second completed run should have been recorded.
 	run2.Status.AppState.State = v1beta2.CompletedState
-	c.crdClient.SparkoperatorV1beta2().SparkApplications(app.Namespace).Update(context.TODO(), run2, metav1.UpdateOptions{})
+	run2,_=c.crdClient.SparkoperatorV1beta2().SparkApplications(app.Namespace).Update(context.TODO(), run2, metav1.UpdateOptions{})
 	c.checkAndUpdatePastRuns(app, status)
 	assert.Equal(t, 2, len(status.PastSuccessfulRunNames))
 	assert.Equal(t, run2.Name, status.PastSuccessfulRunNames[0])
@@ -539,6 +539,7 @@ func newFakeController() (*Controller, *clocktesting.FakeClock) {
 	crdClient.PrependReactor("create", "sparkapplications",
 		func(action kubetesting.Action) (bool, runtime.Object, error) {
 			obj := action.(kubetesting.CreateAction).GetObject()
+			obj.(*v1beta2.SparkApplication).CreationTimestamp = metav1.Now()
 			saInformer.GetStore().Add(obj)
 			return false, obj, nil
 		})

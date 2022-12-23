@@ -32,10 +32,5 @@ func (s sparkApps) Swap(i, j int) {
 
 func (s sparkApps) Less(i, j int) bool {
 	// Sort explicitly by decreasing order of application CreationTimestamp.
-	if s[j].CreationTimestamp.Equal(&s[i].CreationTimestamp) {
-		// Inorder to pass the tests, we need to sort by Name because there is no CreationTimeStamp on test clients.
-		return s[i].Name > s[j].Name
-	} else {
-		return s[j].CreationTimestamp.Before(&s[i].CreationTimestamp)
-	}
+	return s[j].CreationTimestamp.Before(&s[i].CreationTimestamp)
 }
