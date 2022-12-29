@@ -23,5 +23,5 @@ do
   GOARCH="${platform#*:}"
   echo $GOOS
   echo $GOARCH
-  CGO_ENABLED=0 GOOS=$GOOS GOARCH=$GOARCH go build -o sparkctl-${GOOS}-${GOARCH}
+  CGO_ENABLED=0 GOOS=$GOOS GOARCH=$GOARCH go build -buildvcs=false -o sparkctl-${GOOS}-${GOARCH}
 done
