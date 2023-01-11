@@ -11,10 +11,11 @@ spec:
   template:
     metadata:
       name: {{ include "spark-operator.fullname" . }}-webhook-init
-      {{- if .Values.istio.enabled }}
       annotations:
+      {{- if .Values.istio.enabled }}
         "sidecar.istio.io/inject": "false"
       {{- end }}
+      {{- toYaml .Values.webhook.initPodAnnotations | nindent 8 }}
     spec:
       serviceAccountName: {{ include "spark-operator.serviceAccountName" . }}
       restartPolicy: OnFailure

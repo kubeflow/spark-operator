@@ -92,11 +92,13 @@ webhook:
   initAnnotations:
     "helm.sh/hook": pre-install, pre-upgrade
     "helm.sh/hook-weight": "50"
+  initPodAnnotations: {}
   # -- The annotations applied to the cleanup job, required for helm lifecycle hooks
   cleanupAnnotations:
     "helm.sh/hook": pre-delete, pre-upgrade
     "helm.sh/hook-delete-policy": hook-succeeded
     # -- Webhook Timeout in seconds
+  cleanupPodAnnotations: {}
   timeout: 30
 
 metrics:
