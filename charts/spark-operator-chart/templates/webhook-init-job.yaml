@@ -15,6 +15,7 @@ spec:
       annotations:
         "sidecar.istio.io/inject": "false"
       {{- end }}
+        {{- toYaml .Values.webhook.initPodLabels | nindent 8 }}
     spec:
       serviceAccountName: {{ include "spark-operator.serviceAccountName" . }}
       restartPolicy: OnFailure
