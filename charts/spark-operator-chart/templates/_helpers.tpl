@@ -38,7 +38,7 @@ Common labels
 helm.sh/chart: {{ include "spark-operator.chart" . }}
 {{ include "spark-operator.selectorLabels" . }}
 {{- if .Values.commonLabels }}
-{{- toYaml .Values.commonLabels }}
+{{ toYaml .Values.commonLabels }}
 {{- end }}
 {{- if .Chart.AppVersion }}
 app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
