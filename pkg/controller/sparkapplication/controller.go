@@ -551,6 +551,21 @@ func (c *Controller) syncSparkApplication(key string) error {
 		} else {
 			appCopy = c.submitSparkApplication(appCopy)
 		}
+		// Remove just submitted application, if CRD doesn't exist anymore
+		appVerificationCopy, err := c.getSparkApplication(namespace, name)
+		if err != nil {
+			// It's not a fatal error, logging and ignoring
+			glog.Warningf("failed to verify SparkApplication is still exist %s/%s: %v",
+				appCopy.Namespace, appCopy.Name, err)
+		} else if appVerificationCopy == nil {
+			glog.Infof("application was removed before completion of submission, cleaning up resources. %s/%s",
+				appCopy.Namespace, appCopy.Name)
+			if err := c.deleteSparkResources(appCopy); err != nil {
+				glog.Errorf("failed to delete resources associated with SparkApplication %s/%s: %v",
+					appCopy.Namespace, appCopy.Name, err)
+				return err
+			}
+		}
 	case v1beta2.SucceedingState:
 		if !shouldRetry(appCopy) {
 			appCopy.Status.AppState.State = v1beta2.CompletedState
