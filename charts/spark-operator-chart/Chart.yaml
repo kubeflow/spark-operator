@@ -7,5 +7,5 @@ keywords:
   - spark
 home: https://github.com/GoogleCloudPlatform/spark-on-k8s-operator
 maintainers:
-  - name: yuchaoran2011
-    email: yuchaoran2011@gmail.com
+  - name: derektbrown
+    email: derek.brown@lacework.net
