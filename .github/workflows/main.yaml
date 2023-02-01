@@ -151,38 +151,3 @@ jobs:
           docker build -t ghcr.io/googlecloudplatform/spark-operator:local .
           minikube image load ghcr.io/googlecloudplatform/spark-operator:local
           ct install
-
-  integration-test:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout source code
-        uses: actions/checkout@v2
-        with:
-          fetch-depth: "0"
-
-      - name: Set up Go
-        uses: actions/setup-go@v3
-        with:
-          go-version-file: "go.mod"
-
-      - name: setup minikube
-        uses: manusa/actions-setup-minikube@v2.4.2
-        with:
-          minikube version: "v1.24.0"
-          kubernetes version: "v1.20.8"
-          start args: --memory 6g --cpus=2 --addons ingress
-          github token: ${{ inputs.github-token }}
-
-      - name: Build local spark-operator docker image for minikube testing
-        run: |
-          docker build -t gcr.io/spark-operator/spark-operator:local .
-          minikube image load gcr.io/spark-operator/spark-operator:local
-
-      # The integration tests are currently broken see: https://github.com/GoogleCloudPlatform/spark-on-k8s-operator/issues/1416
-      # - name: Run chart-testing (integration test)
-      #   run: make integation-test
-
-      - name: Setup tmate session
-        if: failure()
-        uses: mxschmitt/action-tmate@v3
-        timeout-minutes: 15
