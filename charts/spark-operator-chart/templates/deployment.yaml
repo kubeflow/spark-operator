@@ -79,6 +79,7 @@ spec:
         - -webhook-svc-name={{ include "spark-operator.fullname" . }}-webhook
         - -webhook-config-name={{ include "spark-operator.fullname" . }}-webhook-config
         - -webhook-namespace-selector={{ .Values.webhook.namespaceSelector }}
+        - -webhook-cert-reload-interval={{ .Values.webhook.certReloadInterval }}
         {{- end }}
         - -enable-resource-quota-enforcement={{ .Values.resourceQuotaEnforcement.enable }}
         {{- if gt (int .Values.replicaCount) 1 }}
