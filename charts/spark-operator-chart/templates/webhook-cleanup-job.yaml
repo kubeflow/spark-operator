@@ -1,4 +1,10 @@
-{{ if .Values.webhook.enable }}
+# Get service account if exists
+{{- $serviceAccountNamespace := default .Release.Namespace .Values.sparkJobNamespace}}
+{{- $serviceAccountName := include "spark-operator.serviceAccountName" . }}
+{{- $serviceAccount := (lookup "v1" "ServiceAccount" $serviceAccountNamespace $serviceAccountName )}}
+
+# Only run this job if service account exists. Otherwise this job will fail and prevent any other hook from running.
+{{ if and .Values.webhook.enable $serviceAccount }}
 apiVersion: batch/v1
 kind: Job
 metadata:
