@@ -99,7 +99,7 @@ webhook:
     # -- Webhook Timeout in seconds
   timeout: 30
   # -- interval to refresh the webhook cert
-  certReloadInterval: 10
+  certReloadInterval: 15s
 
 metrics:
   # -- Enable prometheus metric scraping
