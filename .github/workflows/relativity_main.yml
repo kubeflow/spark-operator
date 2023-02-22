@@ -15,7 +15,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v2
         with:
-          go-version: 1.18
+          go-version: 1.19.1
 
       - name: Run gofmt check
         run: make fmt-check
@@ -54,7 +54,7 @@ jobs:
           tags: spark-operator:local
           outputs: 'type=docker,dest=/tmp/base-image.tar'
           build-args: |
-            SPARK_IMAGE=${{ secrets.BASE_IMAGE }}:v1.6.8
+            SPARK_IMAGE=${{ secrets.BASE_IMAGE }}:v1.6.9
 
       - name: Cache image
         uses: actions/upload-artifact@v2
