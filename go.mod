@@ -1,6 +1,6 @@
 module github.com/GoogleCloudPlatform/spark-on-k8s-operator
 
-go 1.19
+go 1.19.6
 
 require (
 	cloud.google.com/go/storage v1.0.0
