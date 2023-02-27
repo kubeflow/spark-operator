@@ -96,8 +96,10 @@ webhook:
   cleanupAnnotations:
     "helm.sh/hook": pre-delete, pre-upgrade
     "helm.sh/hook-delete-policy": hook-succeeded
-    # -- Webhook Timeout in seconds
+  # -- Webhook Timeout in seconds
   timeout: 30
+  # -- Interval to refresh webhook cert
+  certReloadInterval: 10s
 
 metrics:
   # -- Enable prometheus metric scraping
