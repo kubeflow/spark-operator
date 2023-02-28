@@ -76,6 +76,7 @@ spec:
         - -webhook-svc-namespace={{ .Release.Namespace }}
         - -webhook-port={{ .Values.webhook.port }}
         - -webhook-timeout={{ .Values.webhook.timeout }}
+        - -webhook-fail-on-error={{ .Values.webhook.failOnError }}
         - -webhook-svc-name={{ include "spark-operator.fullname" . }}-webhook
         - -webhook-config-name={{ include "spark-operator.fullname" . }}-webhook-config
         - -webhook-namespace-selector={{ .Values.webhook.namespaceSelector }}

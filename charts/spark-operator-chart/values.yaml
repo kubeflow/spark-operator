@@ -97,6 +97,7 @@ webhook:
     "helm.sh/hook": pre-delete, pre-upgrade
     "helm.sh/hook-delete-policy": hook-succeeded
     # -- Webhook Timeout in seconds
+  failOnError: false
   timeout: 30
 
 metrics:
