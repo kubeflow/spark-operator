@@ -45,7 +45,7 @@ build-api-docs:
 			-out-file /repo/docs/api-docs.md"
 
 helm-docs:
-	docker run --rm --volume "$(pwd):/helm-docs" -u "$(id -u)" jnorwood/helm-docs:latest
+	docker run --rm --volume "$$(pwd):/helm-docs" -u "$(id -u)" jnorwood/helm-docs:latest
 
 fmt-check: clean
 	@echo "running fmt check"; cd "$(dirname $0)"; \

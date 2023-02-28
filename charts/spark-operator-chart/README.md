@@ -84,7 +84,7 @@ All charts linted successfully
 | controllerThreads | int | `10` | Operator concurrency, higher values might increase memory usage |
 | fullnameOverride | string | `""` | String to override release name |
 | image.pullPolicy | string | `"IfNotPresent"` | Image pull policy |
-| image.repository | string | `"gcr.io/spark-operator/spark-operator"` | Image repository |
+| image.repository | string | `"ghcr.io/googlecloudplatform/spark-operator"` | Image repository |
 | image.tag | string | `""` | if set, override the image tag whose default is the chart appVersion. |
 | imagePullSecrets | list | `[]` | Image pull secrets |
 | ingressUrlFormat | string | `""` | Ingress URL format. Requires the UI service to be enabled by setting `uiService.enable` to true. |
@@ -125,6 +125,8 @@ All charts linted successfully
 | sparkJobNamespace | string | `""` | Set this if running spark jobs in a different namespace than the operator |
 | tolerations | list | `[]` | List of node taints to tolerate |
 | uiService.enable | bool | `true` | Enable UI service creation for Spark application |
+| volumeMounts | list | `[]` |  |
+| volumes | list | `[]` |  |
 | webhook.cleanupAnnotations | object | `{"helm.sh/hook":"pre-delete, pre-upgrade","helm.sh/hook-delete-policy":"hook-succeeded"}` | The annotations applied to the cleanup job, required for helm lifecycle hooks |
 | webhook.enable | bool | `false` | Enable webhook server |
 | webhook.initAnnotations | object | `{"helm.sh/hook":"pre-install, pre-upgrade","helm.sh/hook-weight":"50"}` | The annotations applied to init job, required to restore certs deleted by the cleanup job during upgrade |
@@ -136,4 +138,4 @@ All charts linted successfully
 
 | Name | Email | Url |
 | ---- | ------ | --- |
-| yuchaoran2011 | yuchaoran2011@gmail.com |  |
+| yuchaoran2011 | <yuchaoran2011@gmail.com> |  |
