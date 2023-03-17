@@ -35,7 +35,6 @@ spec:
             "-r", "{{ include "spark-operator.fullname" . }}-webhook-certs",
             "-p"
           ]
-{{ end }}
       {{- with .Values.tolerations }}
       tolerations:
         {{- toYaml . | nindent 8 }}
@@ -44,3 +43,4 @@ spec:
       nodeSelector:
         {{- toYaml . | nindent 8 }}
       {{- end }}
+{{ end }}
