@@ -119,7 +119,7 @@ jobs:
           fi
 
       - name: Set up chart-testing
-        uses: helm/chart-testing-action@v2.0.1
+        uses: helm/chart-testing-action@v2.3.1
 
       - name: Print chart-testing version information
         run: ct version
