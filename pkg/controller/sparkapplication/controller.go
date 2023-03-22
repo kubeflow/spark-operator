@@ -362,6 +362,19 @@ func (c *Controller) getAndUpdateDriverState(app *v1beta2.SparkApplication) erro
 	return nil
 }
 
+func processExecutorFailing(app *v1beta2.SparkApplication, pod *apiv1.Pod) {
+	execContainerState := getExecutorContainerTerminatedState(pod.Status)
+	if execContainerState != nil {
+		exitCode := execContainerState.ExitCode
+		if exitCode == 137 {
+			glog.V(3).Infof("Executor pod %s, exitCode %d, reason %s. ", pod.Name, exitCode, execContainerState.Reason)
+			app.Status.AppState.ErrorMessage = execContainerState.Reason
+			app.Status.AppState.State = v1beta2.FailingState
+			app.Status.TerminationTime = metav1.Now()
+		}
+	}
+}
+
 // getAndUpdateExecutorState lists the executor pods of the application
 // and updates the executor state based on the current phase of the pods.
 func (c *Controller) getAndUpdateExecutorState(app *v1beta2.SparkApplication) error {
@@ -387,6 +400,8 @@ func (c *Controller) getAndUpdateExecutorState(app *v1beta2.SparkApplication) er
 						// we need to set the exitCode and the Reason to unambiguous values.
 						c.recordExecutorEvent(app, newState, pod.Name, -1, "Unknown (Container not Found)")
 					}
+
+					processExecutorFailing(app, pod)
 				} else {
 					c.recordExecutorEvent(app, newState, pod.Name)
 				}
