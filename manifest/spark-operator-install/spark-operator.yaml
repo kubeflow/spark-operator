@@ -15,7 +15,7 @@
 #
 
 apiVersion: apps/v1
-kind: Deployment
+kind: StatefulSet
 metadata:
   name: sparkoperator
   namespace: spark-operator
@@ -43,3 +43,17 @@ spec:
         imagePullPolicy: Always
         args:
         - -logtostderr
+        volumeMounts:
+        - name: ephemeralPath
+          mountPath: /dev/xvda
+    volumes:
+    - name: ephemeralPath
+      ephemeral:
+        volumeClaimTemplate:
+          spec:
+            accessModes: [ "ReadWriteOnce" ]
+            storageClassName: "dynamicStorageOnePodAccess"
+            resources:
+              requests:
+                storage: 200Gi
+                
