@@ -5,6 +5,9 @@
 # -- Common labels to add to the resources
 commonLabels: {}
 
+# -- Priority for pods created by this helm chart
+priorityClassName: ""
+
 # replicaCount -- Desired number of pods, leaderElection will be enabled
 # if this is greater than 1
 replicaCount: 1

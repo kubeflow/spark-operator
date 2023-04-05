@@ -20,6 +20,9 @@ spec:
         {{- toYaml .Values.webhook.initPodLabels | nindent 8 }}
       {{- end }}
     spec:
+      {{- with .Values.priorityClassName }}
+      priorityClassName: {{ . }}
+      {{- end }}
       serviceAccountName: {{ include "spark-operator.serviceAccountName" . }}
       restartPolicy: OnFailure
       {{- with .Values.imagePullSecrets }}
