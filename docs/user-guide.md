@@ -614,7 +614,7 @@ spec:
 ```
 
 ### Using Container LifeCycle Hooks
-A Spark Application can optionally specify a [Container Lifecycle Hooks](https://kubernetes.io/docs/concepts/containers/container-lifecycle-hooks/#container-hooks) for a driver. It is useful in cases where you need a PreStop or PostStart hooks to driver.
+A Spark Application can optionally specify a [Container Lifecycle Hooks](https://kubernetes.io/docs/concepts/containers/container-lifecycle-hooks/#container-hooks) for a driver. It is useful in cases where you need a PreStop or PostStart hooks to driver and executor.
 
 ```yaml
 spec:

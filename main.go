@@ -219,7 +219,11 @@ func main() {
 
 	if *enableLeaderElection {
 		glog.Info("Waiting to be elected leader before starting application controller goroutines")
-		<-startCh
+		select {
+		case <-signalCh:
+			os.Exit(0)
+		case <-startCh:
+		}
 	}
 
 	glog.Info("Starting application controller goroutines")
