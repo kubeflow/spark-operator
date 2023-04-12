@@ -82,8 +82,10 @@ rules:
   resources:
   - sparkapplications
   - sparkapplications/status
+  - sparkapplications/finalizers
   - scheduledsparkapplications
   - scheduledsparkapplications/status
+  - scheduledsparkapplications/finalizers
   verbs:
   - "*"
   {{- if .Values.batchScheduler.enable }}
