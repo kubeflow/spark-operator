@@ -2,6 +2,9 @@
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
 
+# -- Common labels to add to the resources
+commonLabels: {}
+
 # replicaCount -- Desired number of pods, leaderElection will be enabled
 # if this is greater than 1
 replicaCount: 1
@@ -92,11 +95,15 @@ webhook:
   initAnnotations:
     "helm.sh/hook": pre-install, pre-upgrade
     "helm.sh/hook-weight": "50"
+  # -- The podLabels applied to the pod of the init job
+  initPodLabels: {}
   # -- The annotations applied to the cleanup job, required for helm lifecycle hooks
   cleanupAnnotations:
     "helm.sh/hook": pre-delete, pre-upgrade
     "helm.sh/hook-delete-policy": hook-succeeded
     # -- Webhook Timeout in seconds
+  # -- The podLabels applied to the pod of the cleanup job
+  cleanupPodLabels: {}
   timeout: 30
 
 metrics:

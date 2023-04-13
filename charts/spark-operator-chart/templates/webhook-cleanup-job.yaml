@@ -15,6 +15,10 @@ spec:
       annotations:
         "sidecar.istio.io/inject": "false"
       {{- end }}
+      {{- if .Values.webhook.cleanupPodLabels }}
+      labels:
+        {{- toYaml .Values.webhook.cleanupPodLabels | nindent 8 }}
+      {{- end }}
     spec:
       serviceAccountName: {{ include "spark-operator.serviceAccountName" . }}
       restartPolicy: OnFailure
@@ -45,7 +49,6 @@ spec:
           -H \"Content-Type: application/json\" \
           --data \"{\\\"kind\\\":\\\"DeleteOptions\\\",\\\"apiVersion\\\":\\\"batch/v1\\\",\\\"propagationPolicy\\\":\\\"Foreground\\\"}\" \
           https://kubernetes.default.svc/apis/batch/v1/namespaces/{{ .Release.Namespace }}/jobs/{{ include "spark-operator.fullname" . }}-webhook-init"
-{{ end }}
       {{- with .Values.tolerations }}
       tolerations:
         {{- toYaml . | nindent 8 }}
@@ -54,3 +57,4 @@ spec:
       nodeSelector:
         {{- toYaml . | nindent 8 }}
       {{- end }}
+{{ end }}

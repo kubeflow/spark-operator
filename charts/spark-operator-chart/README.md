@@ -81,6 +81,7 @@ All charts linted successfully
 |-----|------|---------|-------------|
 | affinity | object | `{}` | Affinity for pod assignment |
 | batchScheduler.enable | bool | `false` | Enable batch scheduler for spark jobs scheduling. If enabled, users can specify batch scheduler name in spark application |
+| commonLabels | object | `{}` | Common labels to add to the resources |
 | controllerThreads | int | `10` | Operator concurrency, higher values might increase memory usage |
 | fullnameOverride | string | `""` | String to override release name |
 | image.pullPolicy | string | `"IfNotPresent"` | Image pull policy |
@@ -126,8 +127,10 @@ All charts linted successfully
 | tolerations | list | `[]` | List of node taints to tolerate |
 | uiService.enable | bool | `true` | Enable UI service creation for Spark application |
 | webhook.cleanupAnnotations | object | `{"helm.sh/hook":"pre-delete, pre-upgrade","helm.sh/hook-delete-policy":"hook-succeeded"}` | The annotations applied to the cleanup job, required for helm lifecycle hooks |
+| webhook.cleanupPodLabels | object | `{}` | The podLabels applied to the pod of the cleanup job |
 | webhook.enable | bool | `false` | Enable webhook server |
 | webhook.initAnnotations | object | `{"helm.sh/hook":"pre-install, pre-upgrade","helm.sh/hook-weight":"50"}` | The annotations applied to init job, required to restore certs deleted by the cleanup job during upgrade |
+| webhook.initPodLabels | object | `{}` | The podLabels applied to the pod of the init job |
 | webhook.namespaceSelector | string | `""` | The webhook server will only operate on namespaces with this label, specified in the form key1=value1,key2=value2. Empty string (default) will operate on all namespaces |
 | webhook.port | int | `8080` | Webhook service port |
 | webhook.timeout | int | `30` |  |
