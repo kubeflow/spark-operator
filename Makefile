@@ -62,7 +62,7 @@ detect-crds-drift:
 
 clean:
 	@echo "cleaning up caches and output"
-	go clean -cache -testcache -r -x ./... 2>&1 >/dev/null
+	go clean -cache -testcache -r -x 2>&1 >/dev/null
 	-rm -rf _output
 
 unit-test: clean
