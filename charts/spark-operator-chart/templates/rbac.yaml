@@ -105,7 +105,25 @@ rules:
   verbs:
   - delete
   {{- end }}
-
+  {{- if gt (int .Values.replicaCount) 1 }}
+- apiGroups:
+  - coordination.k8s.io
+  resources:
+  - leases
+  resourceNames:
+  - {{ .Values.leaderElection.lockName }}
+  verbs:
+  - get
+  - update
+  - patch
+  - delete
+- apiGroups:
+  - coordination.k8s.io
+  resources:
+  - leases
+  verbs:
+  - create
+  {{- end }}
 ---
 
 apiVersion: rbac.authorization.k8s.io/v1
