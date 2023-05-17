@@ -98,6 +98,10 @@ spec:
         {{- with .Values.volumeMounts }}
         {{- toYaml . | nindent 10 }}
         {{- end }}
+      {{- with .Values.sidecars }}
+      sidecars:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       {{- if or .Values.webhook.enable (ne (len .Values.volumes) 0 ) }}
       volumes:
       {{- end }}
