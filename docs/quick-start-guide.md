@@ -58,7 +58,7 @@ Kustomize default manifest directory is part of the repo [here](https://github.c
 
 The manifest directory contains primarily the `crds` and `spark-operator-with-webhook.yaml` which holds configurations of spark operator init job, a webhook service and finally a deployemnt.
 
-Spark operator with above manifest installs `spark-operator` in default namespace `spark-operator` with default webhook service `spark-webhook`. If you wish to install `spark-operator` in a namespace called as something other than `spark-opertor` and webhook service as something other than `spark-webhook`, `Job` manifest in `spark-operator-with-webhook.yaml` should look like below. You need to pass the desired namespace name and service name as arguements in `command` field in `containers`.
+Spark operator with above manifest installs `spark-operator` in default namespace `spark-operator` with default webhook service `spark-webhook`. If you wish to install `spark-operator` in a namespace other than `spark-opertor` and webhook service name other than `spark-webhook`, `Job` manifest in `spark-operator-with-webhook.yaml` should look like below. You need to pass the desired namespace name and service name as arguements in `command` field in `containers`.
 
 ```
 apiVersion: batch/v1
@@ -118,9 +118,6 @@ To unintall operator, run
 ```
 kustomize build '{manifest_directory}' | kubectl delete -f -
 ```
-
-Note: Deleting resources this way does not delete the `spark-webhook-certs` secret. This may cause in Mutating Admission Webhook to not work. Especially if the custom webhook service name is used. Make sure `spark-webhook-certs` secret is deleted everytime as well when spark operator resources are deleted 
-
 ## Running the Examples
 
 To run the Spark Pi example, run the following command:
