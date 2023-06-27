@@ -162,7 +162,7 @@ To upgrade the the operator, e.g., to use a newer version container image with a
 $ helm upgrade <YOUR-HELM-RELEASE-NAME> --set image.repository=org/image --set image.tag=newTag
 ```
 
-Refer to the Helm [documentation](https://docs.helm.sh/helm/#helm-upgrade) for more details on `helm upgrade`.
+Refer to the Helm [documentation](https://helm.sh/docs/helm/helm_upgrade/) for more details on `helm upgrade`.
 
 ## About the Spark Job Namespace
 
