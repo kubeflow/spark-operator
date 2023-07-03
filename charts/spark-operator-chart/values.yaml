@@ -71,6 +71,9 @@ ingressUrlFormat: ""
 # -- Set higher levels for more verbose logging
 logLevel: 2
 
+# -- Pod environment variable sources
+envFrom: []
+
 # podSecurityContext -- Pod security context
 podSecurityContext: {}
 
