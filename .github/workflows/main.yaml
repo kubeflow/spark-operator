@@ -10,7 +10,6 @@ on:
       - master
 
 jobs:
-
   build-api-docs:
     runs-on: ubuntu-latest
     steps:
@@ -78,9 +77,19 @@ jobs:
       - name: Run unit tests
         run: make unit-test
 
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
       - name: Build Spark-Operator Docker Image
-        run: |
-          docker build -t gcr.io/spark-operator/spark-operator:latest .
+        uses: docker/build-push-action@v4
+        with:
+          push: false
+          provenance: false
+          platforms: linux/amd64,linux/arm64
+          tags: gcr.io/spark-operator/spark-operator:latest
 
       - name: Check changes in resources used in docker file
         run: |

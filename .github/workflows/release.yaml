@@ -33,18 +33,37 @@ jobs:
       #     registry: gcr.io
       #     username: ${{ secrets.DOCKER_USERNAME }}
       #     password: ${{ secrets.DOCKER_PASSWORD }}
-      
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Determine Docker image tag
+        id: tag
+        run: |
+          DOCKER_TAG=$(cat charts/spark-operator-chart/Chart.yaml | grep "appVersion: .*" | cut -c13-)
+          echo "tag=$DOCKER_TAG" >> $GITHUB_OUTPUT
+
+      - name: Build Spark-Operator Docker Image
+        uses: docker/build-push-action@v4
+        with:
+          push: false
+          provenance: false
+          platforms: linux/amd64,linux/arm64
+          tags: gcr.io/spark-operator/spark-operator:${{ steps.tag.outputs.tag }}
+
       - name: Login to Packages Container registry
-        uses: docker/login-action@v1 
+        uses: docker/login-action@v1
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and Push Spark-Operator Docker Image to github container registry
+      - name: Push Spark-Operator Docker Image to github container registry
         run: |
-          DOCKER_TAG=$(cat charts/spark-operator-chart/Chart.yaml | grep "appVersion: .*" | cut -c13-)
-          docker build -t gcr.io/spark-operator/spark-operator:${DOCKER_TAG} .
+          DOCKER_TAG=${{ steps.tag.outputs.tag }}
           echo "Ideally, we'd release the docker container at this point, but the maintainer of this repo needs to approve..."
           docker tag gcr.io/spark-operator/spark-operator:${DOCKER_TAG} ghcr.io/googlecloudplatform/spark-operator:${DOCKER_TAG}
           if ! docker pull ghcr.io/googlecloudplatform/spark-operator:${DOCKER_TAG}; then
@@ -61,7 +80,7 @@ jobs:
 
       - name: Release Spark-Operator Docker Image
         run: |
-          DOCKER_TAG=$(cat charts/spark-operator-chart/Chart.yaml | grep "appVersion: .*" | cut -c13-)
+          DOCKER_TAG=${{ steps.tag.outputs.tag }}
           if git rev-parse -q --verify "refs/tags/$DOCKER_TAG"; then
             echo "Spark-Operator Docker Image Tag $DOCKER_TAG already exists!"
           else
