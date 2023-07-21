@@ -68,8 +68,10 @@ func setExecutorSpecDefaults(spec *ExecutorSpec, sparkConf map[string]string) {
 		spec.Memory = new(string)
 		*spec.Memory = "1g"
 	}
-	if _, exists := sparkConf["spark.executor.instances"]; !exists && spec.Instances == nil {
-		spec.Instances = new(int32)
-		*spec.Instances = 1
-	}
+	if _, dynamic := sparkConf["spark.dynamicAllocation.enabled"]; !dynamic {
+        if _, exists := sparkConf["spark.executor.instances"]; !exists && spec.Instances == nil {
+            spec.Instances = new(int32)
+            *spec.Instances = 1
+        }
+    }
 }
