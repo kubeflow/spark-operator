@@ -70,6 +70,6 @@ func setExecutorSpecDefaults(spec *ExecutorSpec, sparkConf map[string]string) {
 	}
 	if _, exists := sparkConf["spark.executor.instances"]; !exists && spec.Instances == nil {
 		spec.Instances = new(int32)
-		*spec.Instances = 1
+		*spec.Instances = 0
 	}
 }
