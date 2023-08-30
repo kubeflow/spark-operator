@@ -382,9 +382,9 @@ func getPrometheusConfigPatches(pod *corev1.Pod, app *v1beta2.SparkApplication) 
 	promPortPatchOp := addContainerPort(pod, promPort, promProtocol, promPortName)
 	if promPortPatchOp == nil {
 		glog.Warningf("could not expose port %d to scrape metrics outside the pod", promPort)
-		return nil
+	} else {
+		patchOps = append(patchOps, *promPortPatchOp)
 	}
-	patchOps = append(patchOps, *promPortPatchOp)
 
 	// If both of the metricsPropertiesFile and Prometheus.ConfigFile are not set
 	// the PrometheusConfigMapMountPath needs to be created
@@ -397,9 +397,9 @@ func getPrometheusConfigPatches(pod *corev1.Pod, app *v1beta2.SparkApplication) 
 		vmPatchOp := addConfigMapVolumeMount(pod, volumeName, mountPath)
 		if vmPatchOp == nil {
 			glog.Warningf("could not mount volume %s in path %s", volumeName, mountPath)
-			return nil
+		} else {
+			patchOps = append(patchOps, *vmPatchOp)
 		}
-		patchOps = append(patchOps, *vmPatchOp)
 	}
 
 	return patchOps
