@@ -1,1 +1,0 @@
-module rsc.io/pdf
