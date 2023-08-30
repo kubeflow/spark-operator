@@ -499,6 +499,8 @@ func TestPatchSparkPod_HadoopConfigMap(t *testing.T) {
 
 func TestPatchSparkPod_PrometheusConfigMaps(t *testing.T) {
 
+	var appPort int32 = 9999
+	appPortName := "jmx-exporter"
 	testPrometheusConfigFile := "/some/custom/filepath/prometheus.yaml"
 	testMetricsPropertiesFile := "/some/custom/filepath/metrics.properties"
 
@@ -533,9 +535,6 @@ func TestPatchSparkPod_PrometheusConfigMaps(t *testing.T) {
 			shouldGeneratePrometheusConfigMapVolumeMount: false,
 		},
 	}
-
-	var appPort int32 = 9999
-	appPortName := "jmx-exporter"
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
