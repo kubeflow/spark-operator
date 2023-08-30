@@ -498,64 +498,113 @@ func TestPatchSparkPod_HadoopConfigMap(t *testing.T) {
 }
 
 func TestPatchSparkPod_PrometheusConfigMaps(t *testing.T) {
+
+	testPrometheusConfigFile := "/some/custom/filepath/prometheus.yaml"
+	testMetricsPropertiesFile := "/some/custom/filepath/metrics.properties"
+
+	tests := []struct {
+		name                                         string
+		prometheusConfigFile                         *string
+		metricsPropertiesFile                        *string
+		shouldGeneratePrometheusConfigMapVolumeMount bool
+	}{
+		{
+			name:                  "no custom files",
+			prometheusConfigFile:  nil,
+			metricsPropertiesFile: nil,
+			shouldGeneratePrometheusConfigMapVolumeMount: true,
+		},
+		{
+			name:                  "only custom Prometheus config file provided",
+			prometheusConfigFile:  &testPrometheusConfigFile,
+			metricsPropertiesFile: nil,
+			shouldGeneratePrometheusConfigMapVolumeMount: true,
+		},
+		{
+			name:                  "only custom metrics files provided",
+			prometheusConfigFile:  nil,
+			metricsPropertiesFile: &testMetricsPropertiesFile,
+			shouldGeneratePrometheusConfigMapVolumeMount: true,
+		},
+		{
+			name:                  "both custom Prometheus config file and custom metrics files are provided",
+			prometheusConfigFile:  &testPrometheusConfigFile,
+			metricsPropertiesFile: &testMetricsPropertiesFile,
+			shouldGeneratePrometheusConfigMapVolumeMount: false,
+		},
+	}
+
 	var appPort int32 = 9999
 	appPortName := "jmx-exporter"
-	app := &v1beta2.SparkApplication{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "spark-test",
-			UID:  "spark-test-1",
-		},
-		Spec: v1beta2.SparkApplicationSpec{
-			Monitoring: &v1beta2.MonitoringSpec{
-				Prometheus: &v1beta2.PrometheusSpec{
-					JmxExporterJar: "",
-					Port:           &appPort,
-					PortName:       &appPortName,
-					ConfigFile:     nil,
-					Configuration:  nil,
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+
+			app := &v1beta2.SparkApplication{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "spark-test",
+					UID:  "spark-test-1",
 				},
-				ExposeDriverMetrics: true,
-			},
-		},
-	}
-
-	pod := &corev1.Pod{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "spark-driver",
-			Labels: map[string]string{
-				config.SparkRoleLabel:               config.SparkDriverRole,
-				config.LaunchedBySparkOperatorLabel: "true",
-			},
-		},
-		Spec: corev1.PodSpec{
-			Containers: []corev1.Container{
-				{
-					Name:  config.SparkDriverContainerName,
-					Image: "spark-driver:latest",
+				Spec: v1beta2.SparkApplicationSpec{
+					Monitoring: &v1beta2.MonitoringSpec{
+						Prometheus: &v1beta2.PrometheusSpec{
+							JmxExporterJar: "",
+							Port:           &appPort,
+							PortName:       &appPortName,
+							ConfigFile:     test.prometheusConfigFile,
+							Configuration:  nil,
+						},
+						MetricsPropertiesFile: test.metricsPropertiesFile,
+						ExposeDriverMetrics:   true,
+					},
 				},
-			},
-		},
-	}
+			}
 
-	modifiedPod, err := getModifiedPod(pod, app)
-	if err != nil {
-		t.Fatal(err)
-	}
+			pod := &corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "spark-driver",
+					Labels: map[string]string{
+						config.SparkRoleLabel:               config.SparkDriverRole,
+						config.LaunchedBySparkOperatorLabel: "true",
+					},
+				},
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{
+						{
+							Name:  config.SparkDriverContainerName,
+							Image: "spark-driver:latest",
+						},
+					},
+				},
+			}
 
-	expectedConfigMapName := config.GetPrometheusConfigMapName(app)
-	expectedVolumeName := expectedConfigMapName + "-vol"
-	expectedContainerPort := *app.Spec.Monitoring.Prometheus.Port
-	expectedContainerPortName := *app.Spec.Monitoring.Prometheus.PortName
-	assert.Equal(t, 1, len(modifiedPod.Spec.Volumes))
-	assert.Equal(t, expectedVolumeName, modifiedPod.Spec.Volumes[0].Name)
-	assert.True(t, modifiedPod.Spec.Volumes[0].ConfigMap != nil)
-	assert.Equal(t, expectedConfigMapName, modifiedPod.Spec.Volumes[0].ConfigMap.Name)
-	assert.Equal(t, 1, len(modifiedPod.Spec.Containers[0].VolumeMounts))
-	assert.Equal(t, expectedVolumeName, modifiedPod.Spec.Containers[0].VolumeMounts[0].Name)
-	assert.Equal(t, config.PrometheusConfigMapMountPath, modifiedPod.Spec.Containers[0].VolumeMounts[0].MountPath)
-	assert.Equal(t, expectedContainerPort, modifiedPod.Spec.Containers[0].Ports[0].ContainerPort)
-	assert.Equal(t, expectedContainerPortName, modifiedPod.Spec.Containers[0].Ports[0].Name)
-	assert.Equal(t, corev1.Protocol(config.DefaultPrometheusPortProtocol), modifiedPod.Spec.Containers[0].Ports[0].Protocol)
+			modifiedPod, err := getModifiedPod(pod, app)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			expectedContainerPort := *app.Spec.Monitoring.Prometheus.Port
+			expectedContainerPortName := *app.Spec.Monitoring.Prometheus.PortName
+			assert.Equal(t, expectedContainerPort, modifiedPod.Spec.Containers[0].Ports[0].ContainerPort)
+			assert.Equal(t, expectedContainerPortName, modifiedPod.Spec.Containers[0].Ports[0].Name)
+			assert.Equal(t, corev1.Protocol(config.DefaultPrometheusPortProtocol), modifiedPod.Spec.Containers[0].Ports[0].Protocol)
+
+			if test.shouldGeneratePrometheusConfigMapVolumeMount {
+				expectedConfigMapName := config.GetPrometheusConfigMapName(app)
+				expectedVolumeName := expectedConfigMapName + "-vol"
+				assert.Equal(t, 1, len(modifiedPod.Spec.Volumes))
+				assert.Equal(t, expectedVolumeName, modifiedPod.Spec.Volumes[0].Name)
+				assert.True(t, modifiedPod.Spec.Volumes[0].ConfigMap != nil)
+				assert.Equal(t, expectedConfigMapName, modifiedPod.Spec.Volumes[0].ConfigMap.Name)
+				assert.Equal(t, 1, len(modifiedPod.Spec.Containers[0].VolumeMounts))
+				assert.Equal(t, expectedVolumeName, modifiedPod.Spec.Containers[0].VolumeMounts[0].Name)
+				assert.Equal(t, config.PrometheusConfigMapMountPath, modifiedPod.Spec.Containers[0].VolumeMounts[0].MountPath)
+			} else {
+				assert.Equal(t, 0, len(modifiedPod.Spec.Volumes))
+				assert.Equal(t, 0, len(modifiedPod.Spec.Containers[0].VolumeMounts))
+			}
+		})
+	}
 }
 
 func TestPatchSparkPod_Tolerations(t *testing.T) {
