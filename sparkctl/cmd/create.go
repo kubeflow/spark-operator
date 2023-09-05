@@ -19,7 +19,7 @@ package cmd
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -331,7 +331,7 @@ func (uh uploadHandler) uploadToBucket(uploadPath, localFilePath string) (string
 		fmt.Printf("uploading local file: %s\n", fileName)
 
 		// Prepare the file for upload.
-		data, err := ioutil.ReadFile(localFilePath)
+		data, err := os.ReadFile(localFilePath)
 		if err != nil {
 			return "", fmt.Errorf("failed to read file: %s", err)
 		}
@@ -456,7 +456,7 @@ func buildHadoopConfigMap(appName string, hadoopConfDir string) (*apiv1.ConfigMa
 		return nil, fmt.Errorf("%s is not a directory", hadoopConfDir)
 	}
 
-	files, err := ioutil.ReadDir(hadoopConfDir)
+	files, err := os.ReadDir(hadoopConfDir)
 	if err != nil {
 		return nil, err
 	}
@@ -471,7 +471,7 @@ func buildHadoopConfigMap(appName string, hadoopConfDir string) (*apiv1.ConfigMa
 		if file.IsDir() {
 			continue
 		}
-		content, err := ioutil.ReadFile(filepath.Join(hadoopConfDir, file.Name()))
+		content, err := os.ReadFile(filepath.Join(hadoopConfDir, file.Name()))
 		if err != nil {
 			return nil, err
 		}

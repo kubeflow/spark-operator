@@ -18,7 +18,7 @@ package webhook
 
 import (
 	"crypto/tls"
-	"io/ioutil"
+	"os"
 	"sync"
 	"time"
 
@@ -95,5 +95,5 @@ func (c *certProvider) updateCert() {
 }
 
 func readCertFile(certFile string) ([]byte, error) {
-	return ioutil.ReadFile(certFile)
+	return os.ReadFile(certFile)
 }
