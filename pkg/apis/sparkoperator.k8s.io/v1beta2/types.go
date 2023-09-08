@@ -580,6 +580,9 @@ type ExecutorSpec struct {
 	// GC settings or other logging.
 	// +optional
 	JavaOptions *string `json:"javaOptions,omitempty"`
+	// Lifecycle for running preStop or postStart commands
+	// +optional
+	Lifecycle *apiv1.Lifecycle `json:"lifecycle,omitempty"`
 	// DeleteOnTermination specify whether executor pods should be deleted in case of failure or normal termination.
 	// Maps to `spark.kubernetes.executor.deleteOnTermination` that is available since Spark 3.0.
 	// +optional

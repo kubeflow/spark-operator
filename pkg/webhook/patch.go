@@ -765,8 +765,13 @@ func addTerminationGracePeriodSeconds(pod *corev1.Pod, app *v1beta2.SparkApplica
 
 func addPodLifeCycleConfig(pod *corev1.Pod, app *v1beta2.SparkApplication) *patchOperation {
 	var lifeCycle *corev1.Lifecycle
+	var containerName string
 	if util.IsDriverPod(pod) {
 		lifeCycle = app.Spec.Driver.Lifecycle
+		containerName = config.SparkDriverContainerName
+	} else if util.IsExecutorPod(pod) {
+		lifeCycle = app.Spec.Executor.Lifecycle
+		containerName = config.SparkExecutorContainerName
 	}
 	if lifeCycle == nil {
 		return nil
@@ -775,12 +780,12 @@ func addPodLifeCycleConfig(pod *corev1.Pod, app *v1beta2.SparkApplication) *patc
 	i := 0
 	// Find the driver container in the pod.
 	for ; i < len(pod.Spec.Containers); i++ {
-		if pod.Spec.Containers[i].Name == config.SparkDriverContainerName {
+		if pod.Spec.Containers[i].Name == containerName {
 			break
 		}
 	}
 	if i == len(pod.Spec.Containers) {
-		glog.Warningf("Spark driver container not found in pod %s", pod.Name)
+		glog.Warningf("Spark container %s not found in pod %s", containerName, pod.Name)
 		return nil
 	}
 
