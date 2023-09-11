@@ -30,7 +30,6 @@ import (
 	apiv1 "k8s.io/api/core/v1"
 	apiextensionsclient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/clock"
 	"k8s.io/client-go/informers"
 	clientset "k8s.io/client-go/kubernetes"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
@@ -39,6 +38,7 @@ import (
 	"k8s.io/client-go/tools/leaderelection"
 	"k8s.io/client-go/tools/leaderelection/resourcelock"
 	"k8s.io/client-go/tools/record"
+	"k8s.io/utils/clock"
 
 	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/batchscheduler"
 	crclientset "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/client/clientset/versioned"
@@ -106,7 +106,7 @@ func main() {
 		if err != nil {
 			glog.Fatal(err)
 		}
-		resourceLock, err := resourcelock.New(resourcelock.ConfigMapsResourceLock,
+		resourceLock, err := resourcelock.New(resourcelock.ConfigMapsLeasesResourceLock,
 			*leaderElectionLockNamespace,
 			*leaderElectionLockName,
 			kubeClient.CoreV1(),
@@ -219,7 +219,11 @@ func main() {
 
 	if *enableLeaderElection {
 		glog.Info("Waiting to be elected leader before starting application controller goroutines")
-		<-startCh
+		select {
+		case <-signalCh:
+			os.Exit(0)
+		case <-startCh:
+		}
 	}
 
 	glog.Info("Starting application controller goroutines")
