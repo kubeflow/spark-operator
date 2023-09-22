@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"os/exec"
+	"strings"
 	"time"
 
 	"github.com/golang/glog"
@@ -834,7 +835,7 @@ func (c *Controller) updateStatusAndExportMetrics(oldApp, newApp *v1beta2.SparkA
 		return err
 	}
 
-	glog.V(2).Infof("Update the status of SparkApplication %s/%s from:\n%s\nto:\n%s", newApp.Namespace, newApp.Name, oldStatusJSON, newStatusJSON)
+	glog.V(2).Infof("Update the status of SparkApplication %s/%s from: %s to:%s", newApp.Namespace, newApp.Name, strings.Replace(oldStatusJSON, "\n", "", -1), strings.Replace(newStatusJSON, "\n", "", -1))
 	updatedApp, err := c.updateApplicationStatusWithRetries(oldApp, func(status *v1beta2.SparkApplicationStatus) {
 		*status = newApp.Status
 	})

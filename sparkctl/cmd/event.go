@@ -170,7 +170,7 @@ func streamEvents(events watch.Interface, streamSince int64) error {
 					table.Render()
 				}
 			} else {
-				fmt.Printf("info: %v", ev.Object)
+				fmt.Printf("info: %v", strings.Replace(fmt.Sprintf("%v", ev.Object), "\n", "", -1))
 			}
 
 			return false, nil
