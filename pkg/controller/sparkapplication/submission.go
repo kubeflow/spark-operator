@@ -76,9 +76,9 @@ func runSparkSubmit(submission *submission) (bool, error) {
 			return false, nil
 		}
 		if errorMsg != "" {
-			return false, fmt.Errorf("failed to run spark-submit for SparkApplication %s/%s: %s", submission.namespace, submission.name, errorMsg)
+			return false, fmt.Errorf("failed to run spark-submit for SparkApplication %s/%s: %s", submission.namespace, submission.name, strings.Replace(errorMsg, "\n", "", -1))
 		}
-		return false, fmt.Errorf("failed to run spark-submit for SparkApplication %s/%s: %v", submission.namespace, submission.name, err)
+		return false, fmt.Errorf("failed to run spark-submit for SparkApplication %s/%s: %v", submission.namespace, submission.name, strings.Replace(err.Error(), "\n", "", -1))
 	}
 
 	return true, nil
