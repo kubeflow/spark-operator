@@ -583,3 +583,54 @@ func TestProxyUserArg(t *testing.T) {
 	assert.Equal(t, "--proxy-user", args[4])
 	assert.Equal(t, "foo", args[5])
 }
+
+func Test_getMasterURL(t *testing.T) {
+	setEnv := func(host string, port string) {
+		if err := os.Setenv(kubernetesServiceHostEnvVar, host); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Setenv(kubernetesServicePortEnvVar, port); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	tests := []struct {
+		name    string
+		host    string
+		port    string
+		want    string
+		wantErr assert.ErrorAssertionFunc
+	}{
+		{
+			name:    "should return a valid master url when IPv4 address is used",
+			host:    "localhost",
+			port:    "6443",
+			want:    "k8s://https://localhost:6443",
+			wantErr: assert.NoError,
+		},
+		{
+			name:    "should return a valid master url when IPv6 address is used",
+			host:    "::1",
+			port:    "6443",
+			want:    "k8s://https://[::1]:6443",
+			wantErr: assert.NoError,
+		},
+		{
+			name:    "should throw an error when the host is empty",
+			host:    "",
+			port:    "6443",
+			want:    "",
+			wantErr: assert.Error,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			setEnv(tt.host, tt.port)
+			got, err := getMasterURL()
+			if !tt.wantErr(t, err, fmt.Sprintf("getMasterURL()")) {
+				return
+			}
+			assert.Equalf(t, tt.want, got, "getMasterURL()")
+		})
+	}
+}
