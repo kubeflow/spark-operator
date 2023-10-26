@@ -33,6 +33,8 @@ rbac:
   createRole: true
   # -- Create and use RBAC `ClusterRole` resources
   createClusterRole: true
+  # -- Optional annotations for rbac
+  annotations: {}
 
 serviceAccounts:
   spark:
