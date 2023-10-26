@@ -41,3 +41,4 @@
 | [C2FO](https://www.c2fo.com/) | @vanhoale | Production | Data Platform / Data Infrastructure |
 | [Kognita](https://kognita.com.br/) | @andreclaudino | Production | MLOps, Data Platform / Data Infrastructure, ML/AI |
 | [Molex](https://www.molex.com/) | @AshishPushpSingh | Evaluation/Production | Data Platform |
+| [Roblox](https://www.roblox.com/) | @matschaffer-roblox | Evaluation | Data Infrastructure |
