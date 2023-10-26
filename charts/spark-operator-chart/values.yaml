@@ -77,6 +77,9 @@ podSecurityContext: {}
 # securityContext -- Operator container security context
 securityContext: {}
 
+# sidecars -- Sidecar containers
+sidecars: []
+
 # volumes - Operator volumes
 volumes: []
 
