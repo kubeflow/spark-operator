@@ -18,7 +18,7 @@ For a more detailed guide on how to use, compose, and work with `SparkApplicatio
       - [Work Queue Metrics](#work-queue-metrics)
   - [Driver UI Access and Ingress](#driver-ui-access-and-ingress)
   - [About the Mutating Admission Webhook](#about-the-mutating-admission-webhook)
-    - [Mutating Admission Webhooks on a private GKE cluster](#mutating-admission-webhooks-on-a-private-gke-cluster)
+    - [Mutating Admission Webhooks on a private GKE or EKS cluster](#mutating-admission-webhooks-on-a-private-gke-or-eks-cluster)
 
 ## Installation
 
@@ -267,9 +267,9 @@ $ kubectl apply -f manifest/spark-operator-with-webhook.yaml
 
 This will create a Deployment named `sparkoperator` and a Service named `spark-webhook` for the webhook in namespace `spark-operator`.
 
-### Mutating Admission Webhooks on a private GKE cluster
+### Mutating Admission Webhooks on a private GKE or EKS cluster
 
-If you are deploying the operator on a GKE cluster with the [Private cluster](https://cloud.google.com/kubernetes-engine/docs/how-to/private-clusters) setting enabled, and you wish to deploy the cluster with the [Mutating Admission Webhook](https://kubernetes.io/docs/reference/access-authn-authz/extensible-admission-controllers/), then make sure to change the `webhookPort` to `443`. Alternatively you can choose to allow connections to the default port (8080).
+If you are deploying the operator on a GKE cluster with the [Private cluster](https://cloud.google.com/kubernetes-engine/docs/how-to/private-clusters) setting enabled, or on an enterprise AWS EKS cluster and you wish to deploy the cluster with the [Mutating Admission Webhook](https://kubernetes.io/docs/reference/access-authn-authz/extensible-admission-controllers/), then make sure to change the `webhookPort` to `443`. Alternatively you can choose to allow connections to the default port (8080).
 
 > By default, firewall rules restrict your cluster master to only initiate TCP connections to your nodes on ports 443 (HTTPS) and 10250 (kubelet). For some Kubernetes features, you might need to add firewall rules to allow access on additional ports. For example, in Kubernetes 1.9 and older, kubectl top accesses heapster, which needs a firewall rule to allow TCP connections on port 8080. To grant such access, you can add firewall rules.
 [From the docs](https://cloud.google.com/kubernetes-engine/docs/how-to/private-clusters#add_firewall_rules)
