@@ -112,6 +112,7 @@ All charts linted successfully
 | rbac.create | bool | `false` | **DEPRECATED** use `createRole` and `createClusterRole` |
 | rbac.createClusterRole | bool | `true` | Create and use RBAC `ClusterRole` resources |
 | rbac.createRole | bool | `true` | Create and use RBAC `Role` resources |
+| rbac.annotations | object | `{}` | Optional annotations for the spark rbac |
 | replicaCount | int | `1` | Desired number of pods, leaderElection will be enabled if this is greater than 1 |
 | resourceQuotaEnforcement.enable | bool | `false` | Whether to enable the ResourceQuota enforcement for SparkApplication resources. Requires the webhook to be enabled by setting `webhook.enable` to true. Ref: https://github.com/GoogleCloudPlatform/spark-on-k8s-operator/blob/master/docs/user-guide.md#enabling-resource-quota-enforcement. |
 | resources | object | `{}` | Pod resource requests and limits Note, that each job submission will spawn a JVM within the Spark Operator Pod using "/usr/local/openjdk-11/bin/java -Xmx128m". Kubernetes may kill these Java processes at will to enforce resource limits. When that happens, you will see the following error: 'failed to run spark-submit for SparkApplication [...]: signal: killed' - when this happens, you may want to increase memory limits. |

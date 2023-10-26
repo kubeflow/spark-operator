@@ -42,3 +42,4 @@
 | [Kognita](https://kognita.com.br/) | @andreclaudino | Production | MLOps, Data Platform / Data Infrastructure, ML/AI |
 | [Molex](https://www.molex.com/) | @AshishPushpSingh | Evaluation/Production | Data Platform |
 | [Qualytics](https://www.qualytics.co/) | @josecsotomorales | Production | Data Quality Platform |
+| [Roblox](https://www.roblox.com/) | @matschaffer-roblox | Evaluation | Data Infrastructure |

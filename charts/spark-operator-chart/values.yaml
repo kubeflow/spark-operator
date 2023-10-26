@@ -33,6 +33,8 @@ rbac:
   createRole: true
   # -- Create and use RBAC `ClusterRole` resources
   createClusterRole: true
+  # -- Optional annotations for rbac
+  annotations: {}
 
 serviceAccounts:
   spark:
@@ -71,11 +73,17 @@ ingressUrlFormat: ""
 # -- Set higher levels for more verbose logging
 logLevel: 2
 
+# -- Pod environment variable sources
+envFrom: []
+
 # podSecurityContext -- Pod security context
 podSecurityContext: {}
 
 # securityContext -- Operator container security context
 securityContext: {}
+
+# sidecars -- Sidecar containers
+sidecars: []
 
 # volumes - Operator volumes
 volumes: []

@@ -905,6 +905,11 @@ spec:
                             type: object
                           securityContext:
                             properties:
+                              seccompProfile:
+                                type: object
+                                properties:
+                                  type:
+                                    type: string
                               allowPrivilegeEscalation:
                                 type: boolean
                               capabilities:
@@ -1258,6 +1263,11 @@ spec:
                       type: array
                     securityContext:
                       properties:
+                        seccompProfile:
+                          type: object
+                          properties:
+                            type:
+                              type: string
                         allowPrivilegeEscalation:
                           type: boolean
                         capabilities:
@@ -1690,6 +1700,11 @@ spec:
                             type: object
                           securityContext:
                             properties:
+                              seccompProfile:
+                                type: object
+                                properties:
+                                  type:
+                                    type: string
                               allowPrivilegeEscalation:
                                 type: boolean
                               capabilities:
@@ -2717,6 +2732,11 @@ spec:
                             type: object
                           securityContext:
                             properties:
+                              seccompProfile:
+                                type: object
+                                properties:
+                                  type:
+                                    type: string
                               allowPrivilegeEscalation:
                                 type: boolean
                               capabilities:
@@ -2966,6 +2986,11 @@ spec:
                       type: array
                     securityContext:
                       properties:
+                        seccompProfile:
+                          type: object
+                          properties:
+                            type:
+                              type: string
                         allowPrivilegeEscalation:
                           type: boolean
                         capabilities:
@@ -3394,6 +3419,11 @@ spec:
                             type: object
                           securityContext:
                             properties:
+                              seccompProfile:
+                                type: object
+                                properties:
+                                  type:
+                                    type: string
                               allowPrivilegeEscalation:
                                 type: boolean
                               capabilities:
