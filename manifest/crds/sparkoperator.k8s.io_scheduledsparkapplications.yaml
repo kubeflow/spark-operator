@@ -919,6 +919,11 @@ spec:
                                 type: object
                               securityContext:
                                 properties:
+                                  seccompProfile:
+                                    type: object
+                                    properties:
+                                      type:
+                                        type: string
                                   allowPrivilegeEscalation:
                                     type: boolean
                                   capabilities:
@@ -1272,6 +1277,11 @@ spec:
                           type: array
                         securityContext:
                           properties:
+                            seccompProfile:
+                              type: object
+                              properties:
+                                type:
+                                  type: string
                             allowPrivilegeEscalation:
                               type: boolean
                             capabilities:
@@ -1704,6 +1714,11 @@ spec:
                                 type: object
                               securityContext:
                                 properties:
+                                  seccompProfile:
+                                    type: object
+                                    properties:
+                                      type:
+                                        type: string
                                   allowPrivilegeEscalation:
                                     type: boolean
                                   capabilities:
@@ -2731,6 +2746,11 @@ spec:
                                 type: object
                               securityContext:
                                 properties:
+                                  seccompProfile:
+                                    type: object
+                                    properties:
+                                      type:
+                                        type: string
                                   allowPrivilegeEscalation:
                                     type: boolean
                                   capabilities:
@@ -2980,6 +3000,11 @@ spec:
                           type: array
                         securityContext:
                           properties:
+                            seccompProfile:
+                              type: object
+                              properties:
+                                type:
+                                  type: string
                             allowPrivilegeEscalation:
                               type: boolean
                             capabilities:
@@ -3408,6 +3433,11 @@ spec:
                                 type: object
                               securityContext:
                                 properties:
+                                  seccompProfile:
+                                    type: object
+                                    properties:
+                                      type:
+                                        type: string
                                   allowPrivilegeEscalation:
                                     type: boolean
                                   capabilities:
@@ -3935,6 +3965,29 @@ spec:
                                 - type: string
                                 pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                                 x-kubernetes-int-or-string: true
+                            type: object
+                          ephemeral:
+                            properties:
+                              volumeClaimTemplate:
+                                properties:
+                                  spec:
+                                    properties:
+                                      accessModes:
+                                        items:
+                                          type: string
+                                        type: array
+                                      resources:
+                                        properties:
+                                          requests:
+                                            properties:
+                                              storage:
+                                                type: string
+                                            type: object
+                                        type: object
+                                      storageClassName:
+                                        type: string
+                                    type: object
+                                type: object
                             type: object
                           fc:
                             properties:

@@ -207,6 +207,10 @@ func getMasterURL() (string, error) {
 	if kubernetesServicePort == "" {
 		return "", fmt.Errorf("environment variable %s is not found", kubernetesServicePortEnvVar)
 	}
+	// check if the host is IPv6 address
+	if strings.Contains(kubernetesServiceHost, ":") && !strings.HasPrefix(kubernetesServiceHost, "[") {
+		return fmt.Sprintf("k8s://https://[%s]:%s", kubernetesServiceHost, kubernetesServicePort), nil
+	}
 	return fmt.Sprintf("k8s://https://%s:%s", kubernetesServiceHost, kubernetesServicePort), nil
 }
 
