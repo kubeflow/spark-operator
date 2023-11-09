@@ -43,3 +43,4 @@
 | [Molex](https://www.molex.com/) | @AshishPushpSingh | Evaluation/Production | Data Platform |
 | [Qualytics](https://www.qualytics.co/) | @josecsotomorales | Production | Data Quality Platform |
 | [Roblox](https://www.roblox.com/) | @matschaffer-roblox | Evaluation | Data Infrastructure |
+| [Rokt](https://www.rokt.com) | @jacobsalway | Production | Data Infrastructure |
