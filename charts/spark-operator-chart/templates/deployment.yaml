@@ -59,7 +59,7 @@ spec:
         args:
         - -v={{ .Values.logLevel }}
         - -logtostderr
-        - -namespace={{ .Values.sparkJobNamespace }}
+        - -namespaces={{ eq (len .Values.sparkJobNamespaces) 1 | ternary (index .Values "sparkJobNamespaces" 0) "" }}
         - -enable-ui-service={{ .Values.uiService.enable}}
         - -ingress-url-format={{ .Values.ingressUrlFormat }}
         - -controller-threads={{ .Values.controllerThreads }}

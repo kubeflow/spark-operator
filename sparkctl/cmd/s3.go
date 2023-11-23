@@ -71,7 +71,7 @@ func newS3Blob(
 	})
 	b, err := s3blob.OpenBucketV2(ctx, client, bucket)
 	return &uploadHandler{
-		blob:             blobS3{s: sess},
+		blob:             blobS3{client: client},
 		ctx:              ctx,
 		b:                b,
 		blobUploadBucket: bucket,
