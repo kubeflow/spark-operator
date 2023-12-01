@@ -58,7 +58,7 @@ rules:
   resources: ["mutatingwebhookconfigurations", "validatingwebhookconfigurations"]
   verbs: ["create", "get", "update", "delete"]
 - apiGroups: ["sparkoperator.k8s.io"]
-  resources: ["sparkapplications", "scheduledsparkapplications", "sparkapplications/status", "scheduledsparkapplications/status"]
+  resources: ["sparkapplications", "scheduledsparkapplications", "sparkapplications/status", "scheduledsparkapplications/status", "sparkapplications/finalizers", "scheduledsparkapplications/finalizers"]
   verbs: ["*"]
 - apiGroups: ["scheduling.volcano.sh"]
   resources: ["podgroups", "queues", "queues/status"]

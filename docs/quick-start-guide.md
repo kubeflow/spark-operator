@@ -18,7 +18,7 @@ For a more detailed guide on how to use, compose, and work with `SparkApplicatio
       - [Work Queue Metrics](#work-queue-metrics)
   - [Driver UI Access and Ingress](#driver-ui-access-and-ingress)
   - [About the Mutating Admission Webhook](#about-the-mutating-admission-webhook)
-    - [Mutating Admission Webhooks on a private GKE cluster](#mutating-admission-webhooks-on-a-private-gke-cluster)
+    - [Mutating Admission Webhooks on a private GKE or EKS cluster](#mutating-admission-webhooks-on-a-private-gke-or-eks-cluster)
 
 ## Installation
 
@@ -162,7 +162,7 @@ To upgrade the the operator, e.g., to use a newer version container image with a
 $ helm upgrade <YOUR-HELM-RELEASE-NAME> --set image.repository=org/image --set image.tag=newTag
 ```
 
-Refer to the Helm [documentation](https://docs.helm.sh/helm/#helm-upgrade) for more details on `helm upgrade`.
+Refer to the Helm [documentation](https://helm.sh/docs/helm/helm_upgrade/) for more details on `helm upgrade`.
 
 ## About the Spark Job Namespace
 
@@ -238,9 +238,19 @@ and deleting the pods outside the operator might lead to incorrect metric values
 ## Driver UI Access and Ingress
 
 The operator, by default, makes the Spark UI accessible by creating a service of type `ClusterIP` which exposes the UI. This is only accessible from within the cluster.
+
 The operator also supports creating an optional Ingress for the UI. This can be turned on by setting the `ingress-url-format` command-line flag. The `ingress-url-format` should be a template like `{{$appName}}.{ingress_suffix}/{{$appNamespace}}/{{$appName}}`. The `{ingress_suffix}` should be replaced by the user to indicate the cluster's ingress url and the operator will replace the `{{$appName}}` & `{{$appNamespace}}` with the appropriate value. Please note that Ingress support requires that cluster's ingress url routing is correctly set-up. For e.g. if the `ingress-url-format` is `{{$appName}}.ingress.cluster.com`, it requires that anything `*ingress.cluster.com` should be routed to the ingress-controller on the K8s cluster.
 
 The operator also sets both `WebUIAddress` which is accessible from within the cluster as well as `WebUIIngressAddress` as part of the `DriverInfo` field of the `SparkApplication`.
+
+The operator generates ingress resources intended for use with the [Ingress NGINX Controller](https://kubernetes.github.io/ingress-nginx/). Include this in your application spec for the controller to ensure it recognizes the ingress and provides appropriate routes to your Spark UI.
+
+```yaml
+spec:
+  sparkUIOptions:
+    ingressAnnotations:
+        kubernetes.io/ingress.class: nginx
+```
 
 ## About the Mutating Admission Webhook
 
@@ -257,9 +267,9 @@ $ kubectl apply -f manifest/spark-operator-with-webhook.yaml
 
 This will create a Deployment named `sparkoperator` and a Service named `spark-webhook` for the webhook in namespace `spark-operator`.
 
-### Mutating Admission Webhooks on a private GKE cluster
+### Mutating Admission Webhooks on a private GKE or EKS cluster
 
-If you are deploying the operator on a GKE cluster with the [Private cluster](https://cloud.google.com/kubernetes-engine/docs/how-to/private-clusters) setting enabled, and you wish to deploy the cluster with the [Mutating Admission Webhook](https://kubernetes.io/docs/reference/access-authn-authz/extensible-admission-controllers/), then make sure to change the `webhookPort` to `443`. Alternatively you can choose to allow connections to the default port (8080).
+If you are deploying the operator on a GKE cluster with the [Private cluster](https://cloud.google.com/kubernetes-engine/docs/how-to/private-clusters) setting enabled, or on an enterprise AWS EKS cluster and you wish to deploy the cluster with the [Mutating Admission Webhook](https://kubernetes.io/docs/reference/access-authn-authz/extensible-admission-controllers/), then make sure to change the `webhookPort` to `443`. Alternatively you can choose to allow connections to the default port (8080).
 
 > By default, firewall rules restrict your cluster master to only initiate TCP connections to your nodes on ports 443 (HTTPS) and 10250 (kubelet). For some Kubernetes features, you might need to add firewall rules to allow access on additional ports. For example, in Kubernetes 1.9 and older, kubectl top accesses heapster, which needs a firewall rule to allow TCP connections on port 8080. To grant such access, you can add firewall rules.
 [From the docs](https://cloud.google.com/kubernetes-engine/docs/how-to/private-clusters#add_firewall_rules)
