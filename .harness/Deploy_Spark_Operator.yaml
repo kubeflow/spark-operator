@@ -80,4 +80,15 @@ pipeline:
                       status: Ready for Work
                     fields: []
                   timeout: 10m
+              - step:
+                  type: JiraUpdate
+                  name: CR In Progress
+                  identifier: CR_In_Progress
+                  spec:
+                    connectorRef: account.Jira_Connector
+                    issueKey: <+pipeline.stages.Jira_Stage.spec.execution.steps.CreateCR.issue.key>
+                    transitionTo:
+                      status: In Progress
+                    fields: []
+                  timeout: 10m
         tags: {}
