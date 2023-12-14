@@ -1,0 +1,72 @@
+pipeline:
+  name: Deploy Spark Operator
+  identifier: Deploy_Spark_Operator
+  projectIdentifier: Spark
+  orgIdentifier: RelativityOne_Compute
+  tags: {}
+  stages:
+    - stage:
+        name: Create CR
+        identifier: Create_CR
+        description: ""
+        type: Custom
+        spec:
+          execution:
+            steps:
+              - step:
+                  type: JiraCreate
+                  name: Create CR
+                  identifier: Create_CR
+                  spec:
+                    connectorRef: account.Jira_Connector
+                    projectKey: SDSD
+                    issueType: Change Request
+                    fields:
+                      - name: Backout Time
+                        value: < 30 min
+                      - name: Business Impact of Failure
+                        value: Low
+                      - name: Change Complexity
+                        value: Easy
+                      - name: Change Reason
+                        value: CI/CD Deployment
+                      - name: Change Type
+                        value: Standard
+                      - name: Changelog / Release Notes
+                        value: https://github.com/relativityone/spark-operator/commits/main
+                      - name: Deployment Method
+                        value: Other
+                      - name: Impact
+                        value: Low
+                      - name: Implementation Steps
+                        value: Create CR, Deploy, Verify, Close CR
+                      - name: Monitoring / Alerts
+                        value: New Relic,Splunk
+                      - name: Planned Duration
+                        value: "5"
+                      - name: Planned Start Date/Time
+                        value: current()
+                      - name: Requested Date/Time
+                        value: current()
+                      - name: Requires Downtime
+                        value: "No"
+                      - name: Security Impact Assessment
+                        value: Not Required
+                      - name: Testing Evidence
+                        value: Previous rings were successful
+                      - name: Testing Performed
+                        value: Routine Operational Activity
+                      - name: Uses Automation
+                        value: "Yes"
+                      - name: Verification Steps
+                        value: Automatic within workflow
+                      - name: Category
+                        value: Cloud Infrastructure
+                      - name: Customer Benefit
+                        value: Improved customer experience with iterative, transparent changes.
+                      - name: Subcategory
+                        value: Install/Upgrade
+                      - name: Summary
+                        value: "Update K8s Applications: Spark Operator Components"
+                  timeout: 10m
+        tags: {}
