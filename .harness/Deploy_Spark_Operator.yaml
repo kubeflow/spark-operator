@@ -193,7 +193,7 @@ pipeline:
                     environment:
                       environmentRef: <+pipeline.stages.Deploy_Relativity_Components.spec.env.environmentRef>
                       infrastructureDefinitions:
-                        - identifier: <+pipeline.stages.Deploy_Spark_Operator.spec.infrastructure>
+                        - identifier: <+pipeline.stages.Deploy_Relativity_Components.spec.infrastructure>
             variables:
               - name: branch
                 type: String
