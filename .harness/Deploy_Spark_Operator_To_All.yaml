@@ -45,5 +45,5 @@ pipeline:
                     environment:
                       environmentRef: prod
                       infrastructureDefinitions:
-                        - identifier: sand
+                        - identifier: ctusk8ssand1
           outputs: []
