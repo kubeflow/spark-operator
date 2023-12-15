@@ -199,3 +199,9 @@ pipeline:
                 type: String
                 value: <+pipeline.variables.branch>
           outputs: []
+  variables:
+    - name: branch
+      type: String
+      description: ""
+      required: true
+      value: main
