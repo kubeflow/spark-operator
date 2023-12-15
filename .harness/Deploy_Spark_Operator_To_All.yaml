@@ -1,0 +1,28 @@
+pipeline:
+  name: Deploy Spark Operator To All
+  identifier: Deploy_Spark_Operator_To_All
+  projectIdentifier: Spark
+  orgIdentifier: RelativityOne_Compute
+  tags: {}
+  stages:
+    - stage:
+        name: CTUS Stage
+        identifier: CTUS_Stage
+        description: ""
+        type: Pipeline
+        spec:
+          org: RelativityOne_Compute
+          pipeline: Deploy_Spark_Operator
+          project: Spark
+          inputs:
+            identifier: Deploy_Spark_Operator
+            stages:
+              - stage:
+                  identifier: Deploy_Relativity_Components
+                  type: Deployment
+                  spec:
+                    environment:
+                      environmentRef: prod
+                      infrastructureDefinitions:
+                        - identifier: stage
+          outputs: []
