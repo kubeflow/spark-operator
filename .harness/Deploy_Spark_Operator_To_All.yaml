@@ -1,5 +1,5 @@
 pipeline:
-  name: Deploy Spark Operator To All
+  name: Deploy Spark Operator
   identifier: Deploy_Spark_Operator_To_All
   projectIdentifier: Spark
   orgIdentifier: RelativityOne_Compute
