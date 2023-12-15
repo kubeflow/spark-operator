@@ -145,11 +145,10 @@ pipeline:
           service:
             serviceRef: Spark_Operator
           environment:
-            environmentRef: <+input>
+            environmentRef: <+pipeline.stages.Deploy_Relativity_Components.spec.env.name>
             deployToAll: false
-            environmentInputs: <+input>
-            serviceOverrideInputs: <+input>
-            infrastructureDefinitions: <+input>
+            infrastructureDefinitions:
+              - identifier: <+pipeline.stages.Deploy_Relativity_Components.spec.infrastructure>
           execution:
             steps:
               - step:
