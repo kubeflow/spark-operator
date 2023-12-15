@@ -199,6 +199,24 @@ pipeline:
                 type: String
                 value: <+pipeline.variables.branch>
           outputs: []
+    - stage:
+        name: Close CR
+        identifier: Close_CR
+        description: ""
+        type: Custom
+        spec:
+          execution:
+            steps:
+              - step:
+                  type: JiraUpdate
+                  name: Close CR
+                  identifier: Close_CR
+                  spec:
+                    connectorRef: account.Jira_Connector
+                    issueKey: <+pipeline.stages.Jira_Stage.spec.execution.steps.CreateCR.issue.key>
+                    fields: []
+                  timeout: 10m
+        tags: {}
   variables:
     - name: branch
       type: String
