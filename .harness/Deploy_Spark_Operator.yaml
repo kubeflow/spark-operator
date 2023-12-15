@@ -189,6 +189,9 @@ pipeline:
                   spec:
                     connectorRef: account.Jira_Connector
                     issueKey: <+pipeline.stages.Jira_Stage.spec.execution.steps.CreateCR.issue.key>
+                    transitionTo:
+                      transitionName: ""
+                      status: PIR
                     fields: []
                   timeout: 10m
         tags: {}
