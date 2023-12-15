@@ -178,7 +178,7 @@ pipeline:
                 environmentRef: prod
                 deployToAll: false
                 infrastructureDefinitions:
-                  - identifier: wseuk8sprod1b
+                  - identifier: chnok8sprod1a
               execution:
                 steps:
                   - step:
@@ -217,7 +217,7 @@ pipeline:
                 environmentRef: prod
                 deployToAll: false
                 infrastructureDefinitions:
-                  - identifier: wseuk8sprod1b
+                  - identifier: dectk8sprod1a
               execution:
                 steps:
                   - step:
@@ -256,7 +256,7 @@ pipeline:
                 environmentRef: prod
                 deployToAll: false
                 infrastructureDefinitions:
-                  - identifier: wseuk8sprod1b
+                  - identifier: noeuk8sprod1b
               execution:
                 steps:
                   - step:
@@ -295,7 +295,7 @@ pipeline:
                 environmentRef: prod
                 deployToAll: false
                 infrastructureDefinitions:
-                  - identifier: wseuk8sprod1b
+                  - identifier: frctk8sprod1a
               execution:
                 steps:
                   - step:
@@ -334,7 +334,7 @@ pipeline:
                 environmentRef: prod
                 deployToAll: false
                 infrastructureDefinitions:
-                  - identifier: wseuk8sprod1b
+                  - identifier: zano01k8sprod
               execution:
                 steps:
                   - step:
@@ -374,7 +374,7 @@ pipeline:
                 environmentRef: prod
                 deployToAll: false
                 infrastructureDefinitions:
-                  - identifier: uksok8sprod1a
+                  - identifier: esask8sprod1b
               execution:
                 steps:
                   - step:
@@ -413,7 +413,7 @@ pipeline:
                 environmentRef: prod
                 deployToAll: false
                 infrastructureDefinitions:
-                  - identifier: wseuk8sprod1b
+                  - identifier: krctk8sprod1a
               execution:
                 steps:
                   - step:
@@ -452,7 +452,7 @@ pipeline:
                 environmentRef: prod
                 deployToAll: false
                 infrastructureDefinitions:
-                  - identifier: wseuk8sprod1b
+                  - identifier: seask8sprod1b
               execution:
                 steps:
                   - step:
@@ -491,7 +491,7 @@ pipeline:
                 environmentRef: prod
                 deployToAll: false
                 infrastructureDefinitions:
-                  - identifier: wseuk8sprod1b
+                  - identifier: aenok8sprod1b
               execution:
                 steps:
                   - step:
@@ -530,7 +530,7 @@ pipeline:
                 environmentRef: prod
                 deployToAll: false
                 infrastructureDefinitions:
-                  - identifier: wseuk8sprod1b
+                  - identifier: inctk8sprod1b
               execution:
                 steps:
                   - step:
@@ -569,7 +569,7 @@ pipeline:
                 environmentRef: prod
                 deployToAll: false
                 infrastructureDefinitions:
-                  - identifier: wseuk8sprod1b
+                  - identifier: jpesk8sprod1b
               execution:
                 steps:
                   - step:
@@ -609,7 +609,7 @@ pipeline:
                 environmentRef: prod
                 deployToAll: false
                 infrastructureDefinitions:
-                  - identifier: uksok8sprod1a
+                  - identifier: brsok8sprod1b
               execution:
                 steps:
                   - step:
@@ -648,7 +648,7 @@ pipeline:
                 environmentRef: prod
                 deployToAll: false
                 infrastructureDefinitions:
-                  - identifier: wseuk8sprod1b
+                  - identifier: cactk8sprod1a
               execution:
                 steps:
                   - step:
@@ -688,7 +688,7 @@ pipeline:
                 environmentRef: prod
                 deployToAll: false
                 infrastructureDefinitions:
-                  - identifier: uksok8sprod1a
+                  - identifier: ctusk8sprod1b
               execution:
                 steps:
                   - step:
@@ -727,7 +727,7 @@ pipeline:
                 environmentRef: prod
                 deployToAll: false
                 infrastructureDefinitions:
-                  - identifier: wseuk8sprod1b
+                  - identifier: esus01k8sprod
               execution:
                 steps:
                   - step:
@@ -766,7 +766,7 @@ pipeline:
                 environmentRef: prod
                 deployToAll: false
                 infrastructureDefinitions:
-                  - identifier: wseuk8sprod1b
+                  - identifier: esus02k8sprod
               execution:
                 steps:
                   - step:
@@ -805,7 +805,7 @@ pipeline:
                 environmentRef: prod
                 deployToAll: false
                 infrastructureDefinitions:
-                  - identifier: wseuk8sprod1b
+                  - identifier: esus03k8sprod
               execution:
                 steps:
                   - step:
@@ -844,7 +844,7 @@ pipeline:
                 environmentRef: prod
                 deployToAll: false
                 infrastructureDefinitions:
-                  - identifier: wseuk8sprod1b
+                  - identifier: esus04k8sprod
               execution:
                 steps:
                   - step:
@@ -883,7 +883,7 @@ pipeline:
                 environmentRef: prod
                 deployToAll: false
                 infrastructureDefinitions:
-                  - identifier: wseuk8sprod1b
+                  - identifier: esus05k8sprod
               execution:
                 steps:
                   - step:
