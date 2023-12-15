@@ -173,3 +173,29 @@ pipeline:
                 - AllErrors
               action:
                 type: StageRollback
+    - stage:
+        name: Spark Pi Canary
+        identifier: Spark_Pi_Canary
+        description: ""
+        type: Pipeline
+        spec:
+          org: RelativityOne_Compute
+          pipeline: Spark_Pi_Smoke_Test
+          project: Spark
+          inputs:
+            identifier: Spark_Pi_Smoke_Test
+            stages:
+              - stage:
+                  identifier: Deploy
+                  type: Deployment
+                  spec:
+                    environment:
+                      environmentRef: <+input>
+                      environmentInputs: <+input>
+                      serviceOverrideInputs: <+input>
+                      infrastructureDefinitions: <+input>
+            variables:
+              - name: branch
+                type: String
+                value: <+pipeline.variables.branch>
+          outputs: []
