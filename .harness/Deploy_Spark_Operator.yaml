@@ -192,6 +192,18 @@ pipeline:
                     fields: []
                   timeout: 10m
         tags: {}
+    - stage:
+        name: Deploy Spark Pi
+        identifier: Deploy_Spark_Pi
+        template:
+          templateRef: Deploy_Spark_Pi
+          versionLabel: "1"
+          templateInputs:
+            type: Deployment
+            spec:
+              environment:
+                useFromStage:
+                  stage: Deploy_Relativity_Components
   variables:
     - name: branch
       type: String
