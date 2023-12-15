@@ -413,7 +413,7 @@ pipeline:
                 environmentRef: prod
                 deployToAll: false
                 infrastructureDefinitions:
-                  - identifier: krctk8sprod1a
+                  - identifier: krctk8sprod1b
               execution:
                 steps:
                   - step:
@@ -569,7 +569,7 @@ pipeline:
                 environmentRef: prod
                 deployToAll: false
                 infrastructureDefinitions:
-                  - identifier: jpesk8sprod1b
+                  - identifier: jpesk8sprod1
               execution:
                 steps:
                   - step:
@@ -727,7 +727,7 @@ pipeline:
                 environmentRef: prod
                 deployToAll: false
                 infrastructureDefinitions:
-                  - identifier: esus01k8sprod
+                  - identifier: esusk8sprod1a
               execution:
                 steps:
                   - step:
@@ -883,7 +883,7 @@ pipeline:
                 environmentRef: prod
                 deployToAll: false
                 infrastructureDefinitions:
-                  - identifier: esus05k8sprod
+                  - identifier: esus05k8sprod1a
               execution:
                 steps:
                   - step:
