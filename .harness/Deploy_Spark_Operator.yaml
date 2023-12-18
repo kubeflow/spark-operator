@@ -193,6 +193,9 @@ pipeline:
                     fields: []
                   timeout: 10m
         tags: {}
+        when:
+          pipelineStatus: Success
+          condition: <+env.name> == "prod"
     - stage:
         name: Deploy Spark Pi
         identifier: Deploy_Spark_Pi
