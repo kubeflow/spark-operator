@@ -218,4 +218,4 @@ pipeline:
       type: String
       description: ""
       required: true
-      value: relativity_main
+      value: relativity-main
