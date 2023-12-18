@@ -219,3 +219,8 @@ pipeline:
       description: ""
       required: true
       value: relativity-main
+    - name: namespace
+      type: String
+      description: ""
+      required: true
+      value: r1-spark-operator
