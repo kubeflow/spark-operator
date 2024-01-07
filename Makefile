@@ -7,6 +7,7 @@ DEP_VERSION:=`grep DEP_VERSION= Dockerfile | awk -F\" '{print $$2}'`
 BUILDER=`grep "FROM golang:" Dockerfile | awk '{print $$2}'`
 UNAME:=`uname | tr '[:upper:]' '[:lower:]'`
 REPO=github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg
+export GIT_SHA=$(shell git rev-parse --short=7 HEAD)
 
 all: clean-sparkctl build-sparkctl install-sparkctl
 
@@ -78,3 +79,8 @@ static-analysis:
 	# echo "Building using $(BUILDER)"
 	# go vet ./...
 	go vet $(REPO)...
+
+# build-operator-image: build operator image, tagged with the GIT SHA
+.PHONY: build-operator-image
+build-operator-image:
+	docker build --tag glean-spark-operator:${GIT_SHA} --file Dockerfile .
