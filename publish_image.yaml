@@ -1,0 +1,44 @@
+name: Publish new image
+
+on:
+  workflow_dispatch:
+    inputs:
+      image:
+        description: Image to be published
+        required: true
+        type: choice
+        options:
+          - glean-spark-operator
+      region:
+        description: AWS ECR region
+        required: true
+        type: choice
+        options:
+          - us-east-1
+      tag:
+        description: Image tag to be published
+        required: true
+
+permissions:
+  id-token: write
+  contents: write
+
+env:
+  AWS_REGION: us-east-1
+
+jobs:
+  publish_image:
+    name: Publish image
+    runs-on: ubuntu-latest
+    steps:
+      - name: Git checkout
+        uses: actions/checkout@v4
+
+      - name: Publish image
+        uses: ./.github/actions/publish
+        with:
+          aws-ecr-region: ${{ github.event.inputs.region }}
+          aws-role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          image-name: ${{ github.event.inputs.image }}
+          file-name: Dockerfile
+          version-tag: ${{ github.event.inputs.tag }}
