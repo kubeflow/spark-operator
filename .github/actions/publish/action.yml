@@ -1,0 +1,60 @@
+name: Publish
+
+inputs:
+  aws-ecr-region:
+    required: true
+  aws-role-to-assume:
+    required: true
+  image-name:
+    required: true
+  file-name:
+    required: true
+  version-tag:
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+
+    - name: Set up docker buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: AWS checkout
+      id: aws-login
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        role-to-assume: ${{ inputs.aws-role-to-assume }}
+        role-session-name: spark-operator-ecr-publish
+        aws-region: ${{ inputs.aws-ecr-region }}
+
+    - name: Login to AWS ECR
+      id: ecr-login
+      uses: aws-actions/amazon-ecr-login@v1
+
+    - name: Set image tags
+      id: metadata
+      uses: docker/metadata-action@v3
+      with:
+        images: ${{ steps.ecr-login.outputs.registry }}/${{ inputs.image-name }}
+        tags: |
+          type=raw,value=${{ inputs.version-tag }}
+
+    - name: Build image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        file: ${{ inputs.file-name }}
+        cache-from: type=gha,scope=${{ env.GITHUB_REF_NAME }}-${{ inputs.image-name }}
+        cache-to: type=gha,scope=${{ env.GITHUB_REF_NAME }}-${{ inputs.image-name }},mode=max
+        outputs: type=docker,dest=/tmp/myimage.tar
+        tags: ${{ steps.metadata.outputs.tags }}
+
+    - name: Push to AWS ECR
+      shell: bash
+      run: |
+        docker load --input /tmp/myimage.tar
+        docker push ${{ steps.ecr-login.outputs.registry }}/${{ inputs.image-name }} --all-tags
+
+    - name: Log out from AWS ECR
+      shell: bash
+      run: docker logout ${{ steps.ecr-login.outputs.registry }}
