@@ -139,7 +139,7 @@ pipeline:
                         environment:
                           environmentRef: prod
                           infrastructureDefinitions:
-                            - identifier: uksok8sprod1b
+                            - identifier: uksok8sprod1a
         - stage:
             name: WSEU
             identifier: WSEU
@@ -179,7 +179,7 @@ pipeline:
                         environment:
                           environmentRef: prod
                           infrastructureDefinitions:
-                            - identifier: chnok8sprod1b
+                            - identifier: chnok8sprod1a
         - stage:
             name: DECT
             identifier: DECT
@@ -199,7 +199,7 @@ pipeline:
                         environment:
                           environmentRef: prod
                           infrastructureDefinitions:
-                            - identifier: dectk8sprod1b
+                            - identifier: dectk8sprod1a
         - stage:
             name: NOEU
             identifier: NOEU
@@ -239,7 +239,7 @@ pipeline:
                         environment:
                           environmentRef: prod
                           infrastructureDefinitions:
-                            - identifier: frctk8sprod1b
+                            - identifier: frctk8sprod1a
         - stage:
             name: ZANO
             identifier: ZANO
@@ -259,7 +259,7 @@ pipeline:
                         environment:
                           environmentRef: prod
                           infrastructureDefinitions:
-                            - identifier: zanok8sprod1b
+                            - identifier: zano01k8sprod
     - parallel:
         - stage:
             name: ESAS
