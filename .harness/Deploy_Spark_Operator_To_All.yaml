@@ -543,3 +543,18 @@ pipeline:
                           environmentRef: prod
                           infrastructureDefinitions:
                             - identifier: esus05k8sprod1a
+    - stage:
+        name: Send Deploy Event
+        identifier: Send_Deploy_Event
+        description: ""
+        type: Custom
+        spec:
+          execution:
+            steps:
+              - step:
+                  name: Send Deploy Event
+                  identifier: Send_Deploy_Event
+                  template:
+                    templateRef: Send_Deploy_Event
+                    versionLabel: "1"
+        tags: {}
