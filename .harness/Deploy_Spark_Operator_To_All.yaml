@@ -92,7 +92,7 @@ pipeline:
                     environment:
                       environmentRef: prod
                       infrastructureDefinitions:
-                        - identifier: ctusk8sauea1
+                        - identifier: aueak8sprod1
     - stage:
         name: Ring 5 Approval
         identifier: Ring_5_Approval
@@ -124,629 +124,325 @@ pipeline:
             name: UKSO
             identifier: UKSO
             description: ""
-            type: Deployment
+            type: Pipeline
             spec:
-              deploymentType: Kubernetes
-              service:
-                serviceRef: Spark_Operator
-              environment:
-                environmentRef: prod
-                deployToAll: false
-                infrastructureDefinitions:
-                  - identifier: uksok8sprod1a
-              execution:
-                steps:
-                  - step:
-                      name: Rollout Deployment
-                      identifier: rolloutDeployment
-                      type: K8sRollingDeploy
-                      timeout: 10m
+              org: RelativityOne_Compute
+              pipeline: Deploy_Spark_Operator
+              project: Spark
+              inputs:
+                identifier: Deploy_Spark_Operator
+                stages:
+                  - stage:
+                      identifier: Deploy_Relativity_Components
+                      type: Deployment
                       spec:
-                        skipDryRun: false
-                        pruningEnabled: false
-                rollbackSteps:
-                  - step:
-                      name: Rollback Rollout Deployment
-                      identifier: rollbackRolloutDeployment
-                      type: K8sRollingRollback
-                      timeout: 10m
-                      spec:
-                        pruningEnabled: false
-            tags: {}
-            failureStrategies:
-              - onFailure:
-                  errors:
-                    - AllErrors
-                  action:
-                    type: StageRollback
+                        environment:
+                          environmentRef: prod
+                          infrastructureDefinitions:
+                            - identifier: uksok8sprod1
         - stage:
             name: WSEU
             identifier: WSEU
             description: ""
-            type: Deployment
+            type: Pipeline
             spec:
-              deploymentType: Kubernetes
-              service:
-                serviceRef: Spark_Operator
-              environment:
-                environmentRef: prod
-                deployToAll: false
-                infrastructureDefinitions:
-                  - identifier: wseuk8sprod1b
-              execution:
-                steps:
-                  - step:
-                      name: Rollout Deployment
-                      identifier: rolloutDeployment
-                      type: K8sRollingDeploy
-                      timeout: 10m
+              org: RelativityOne_Compute
+              pipeline: Deploy_Spark_Operator
+              project: Spark
+              inputs:
+                identifier: Deploy_Spark_Operator
+                stages:
+                  - stage:
+                      identifier: Deploy_Relativity_Components
+                      type: Deployment
                       spec:
-                        skipDryRun: false
-                        pruningEnabled: false
-                rollbackSteps:
-                  - step:
-                      name: Rollback Rollout Deployment
-                      identifier: rollbackRolloutDeployment
-                      type: K8sRollingRollback
-                      timeout: 10m
-                      spec:
-                        pruningEnabled: false
-            tags: {}
-            failureStrategies:
-              - onFailure:
-                  errors:
-                    - AllErrors
-                  action:
-                    type: StageRollback
+                        environment:
+                          environmentRef: prod
+                          infrastructureDefinitions:
+                            - identifier: wseuk8sprod1
         - stage:
             name: CHNO
             identifier: CHNO
             description: ""
-            type: Deployment
+            type: Pipeline
             spec:
-              deploymentType: Kubernetes
-              service:
-                serviceRef: Spark_Operator
-              environment:
-                environmentRef: prod
-                deployToAll: false
-                infrastructureDefinitions:
-                  - identifier: chnok8sprod1a
-              execution:
-                steps:
-                  - step:
-                      name: Rollout Deployment
-                      identifier: rolloutDeployment
-                      type: K8sRollingDeploy
-                      timeout: 10m
+              org: RelativityOne_Compute
+              pipeline: Deploy_Spark_Operator
+              project: Spark
+              inputs:
+                identifier: Deploy_Spark_Operator
+                stages:
+                  - stage:
+                      identifier: Deploy_Relativity_Components
+                      type: Deployment
                       spec:
-                        skipDryRun: false
-                        pruningEnabled: false
-                rollbackSteps:
-                  - step:
-                      name: Rollback Rollout Deployment
-                      identifier: rollbackRolloutDeployment
-                      type: K8sRollingRollback
-                      timeout: 10m
-                      spec:
-                        pruningEnabled: false
-            tags: {}
-            failureStrategies:
-              - onFailure:
-                  errors:
-                    - AllErrors
-                  action:
-                    type: StageRollback
+                        environment:
+                          environmentRef: prod
+                          infrastructureDefinitions:
+                            - identifier: chnok8sprod1
         - stage:
             name: DECT
             identifier: DECT
             description: ""
-            type: Deployment
+            type: Pipeline
             spec:
-              deploymentType: Kubernetes
-              service:
-                serviceRef: Spark_Operator
-              environment:
-                environmentRef: prod
-                deployToAll: false
-                infrastructureDefinitions:
-                  - identifier: dectk8sprod1a
-              execution:
-                steps:
-                  - step:
-                      name: Rollout Deployment
-                      identifier: rolloutDeployment
-                      type: K8sRollingDeploy
-                      timeout: 10m
+              org: RelativityOne_Compute
+              pipeline: Deploy_Spark_Operator
+              project: Spark
+              inputs:
+                identifier: Deploy_Spark_Operator
+                stages:
+                  - stage:
+                      identifier: Deploy_Relativity_Components
+                      type: Deployment
                       spec:
-                        skipDryRun: false
-                        pruningEnabled: false
-                rollbackSteps:
-                  - step:
-                      name: Rollback Rollout Deployment
-                      identifier: rollbackRolloutDeployment
-                      type: K8sRollingRollback
-                      timeout: 10m
-                      spec:
-                        pruningEnabled: false
-            tags: {}
-            failureStrategies:
-              - onFailure:
-                  errors:
-                    - AllErrors
-                  action:
-                    type: StageRollback
+                        environment:
+                          environmentRef: prod
+                          infrastructureDefinitions:
+                            - identifier: dectk8sprod1
         - stage:
             name: NOEU
             identifier: NOEU
             description: ""
-            type: Deployment
+            type: Pipeline
             spec:
-              deploymentType: Kubernetes
-              service:
-                serviceRef: Spark_Operator
-              environment:
-                environmentRef: prod
-                deployToAll: false
-                infrastructureDefinitions:
-                  - identifier: noeuk8sprod1b
-              execution:
-                steps:
-                  - step:
-                      name: Rollout Deployment
-                      identifier: rolloutDeployment
-                      type: K8sRollingDeploy
-                      timeout: 10m
+              org: RelativityOne_Compute
+              pipeline: Deploy_Spark_Operator
+              project: Spark
+              inputs:
+                identifier: Deploy_Spark_Operator
+                stages:
+                  - stage:
+                      identifier: Deploy_Relativity_Components
+                      type: Deployment
                       spec:
-                        skipDryRun: false
-                        pruningEnabled: false
-                rollbackSteps:
-                  - step:
-                      name: Rollback Rollout Deployment
-                      identifier: rollbackRolloutDeployment
-                      type: K8sRollingRollback
-                      timeout: 10m
-                      spec:
-                        pruningEnabled: false
-            tags: {}
-            failureStrategies:
-              - onFailure:
-                  errors:
-                    - AllErrors
-                  action:
-                    type: StageRollback
+                        environment:
+                          environmentRef: prod
+                          infrastructureDefinitions:
+                            - identifier: noeuk8sprod1
         - stage:
             name: FRCT
             identifier: FRCT
             description: ""
-            type: Deployment
+            type: Pipeline
             spec:
-              deploymentType: Kubernetes
-              service:
-                serviceRef: Spark_Operator
-              environment:
-                environmentRef: prod
-                deployToAll: false
-                infrastructureDefinitions:
-                  - identifier: frctk8sprod1a
-              execution:
-                steps:
-                  - step:
-                      name: Rollout Deployment
-                      identifier: rolloutDeployment
-                      type: K8sRollingDeploy
-                      timeout: 10m
+              org: RelativityOne_Compute
+              pipeline: Deploy_Spark_Operator
+              project: Spark
+              inputs:
+                identifier: Deploy_Spark_Operator
+                stages:
+                  - stage:
+                      identifier: Deploy_Relativity_Components
+                      type: Deployment
                       spec:
-                        skipDryRun: false
-                        pruningEnabled: false
-                rollbackSteps:
-                  - step:
-                      name: Rollback Rollout Deployment
-                      identifier: rollbackRolloutDeployment
-                      type: K8sRollingRollback
-                      timeout: 10m
-                      spec:
-                        pruningEnabled: false
-            tags: {}
-            failureStrategies:
-              - onFailure:
-                  errors:
-                    - AllErrors
-                  action:
-                    type: StageRollback
+                        environment:
+                          environmentRef: prod
+                          infrastructureDefinitions:
+                            - identifier: frctk8sprod1
         - stage:
             name: ZANO
             identifier: ZANO
             description: ""
-            type: Deployment
+            type: Pipeline
             spec:
-              deploymentType: Kubernetes
-              service:
-                serviceRef: Spark_Operator
-              environment:
-                environmentRef: prod
-                deployToAll: false
-                infrastructureDefinitions:
-                  - identifier: zano01k8sprod
-              execution:
-                steps:
-                  - step:
-                      name: Rollout Deployment
-                      identifier: rolloutDeployment
-                      type: K8sRollingDeploy
-                      timeout: 10m
+              org: RelativityOne_Compute
+              pipeline: Deploy_Spark_Operator
+              project: Spark
+              inputs:
+                identifier: Deploy_Spark_Operator
+                stages:
+                  - stage:
+                      identifier: Deploy_Relativity_Components
+                      type: Deployment
                       spec:
-                        skipDryRun: false
-                        pruningEnabled: false
-                rollbackSteps:
-                  - step:
-                      name: Rollback Rollout Deployment
-                      identifier: rollbackRolloutDeployment
-                      type: K8sRollingRollback
-                      timeout: 10m
-                      spec:
-                        pruningEnabled: false
-            tags: {}
-            failureStrategies:
-              - onFailure:
-                  errors:
-                    - AllErrors
-                  action:
-                    type: StageRollback
+                        environment:
+                          environmentRef: prod
+                          infrastructureDefinitions:
+                            - identifier: zanok8sprod1
     - parallel:
         - stage:
             name: ESAS
             identifier: ESAS
             description: ""
-            type: Deployment
+            type: Pipeline
             spec:
-              deploymentType: Kubernetes
-              service:
-                serviceRef: Spark_Operator
-              environment:
-                environmentRef: prod
-                deployToAll: false
-                infrastructureDefinitions:
-                  - identifier: esask8sprod1b
-              execution:
-                steps:
-                  - step:
-                      name: Rollout Deployment
-                      identifier: rolloutDeployment
-                      type: K8sRollingDeploy
-                      timeout: 10m
+              org: RelativityOne_Compute
+              pipeline: Deploy_Spark_Operator
+              project: Spark
+              inputs:
+                identifier: Deploy_Spark_Operator
+                stages:
+                  - stage:
+                      identifier: Deploy_Relativity_Components
+                      type: Deployment
                       spec:
-                        skipDryRun: false
-                        pruningEnabled: false
-                rollbackSteps:
-                  - step:
-                      name: Rollback Rollout Deployment
-                      identifier: rollbackRolloutDeployment
-                      type: K8sRollingRollback
-                      timeout: 10m
-                      spec:
-                        pruningEnabled: false
-            tags: {}
-            failureStrategies:
-              - onFailure:
-                  errors:
-                    - AllErrors
-                  action:
-                    type: StageRollback
+                        environment:
+                          environmentRef: prod
+                          infrastructureDefinitions:
+                            - identifier: esask8sprod1
         - stage:
             name: KRCT
             identifier: KRCT
             description: ""
-            type: Deployment
+            type: Pipeline
             spec:
-              deploymentType: Kubernetes
-              service:
-                serviceRef: Spark_Operator
-              environment:
-                environmentRef: prod
-                deployToAll: false
-                infrastructureDefinitions:
-                  - identifier: krctk8sprod1b
-              execution:
-                steps:
-                  - step:
-                      name: Rollout Deployment
-                      identifier: rolloutDeployment
-                      type: K8sRollingDeploy
-                      timeout: 10m
+              org: RelativityOne_Compute
+              pipeline: Deploy_Spark_Operator
+              project: Spark
+              inputs:
+                identifier: Deploy_Spark_Operator
+                stages:
+                  - stage:
+                      identifier: Deploy_Relativity_Components
+                      type: Deployment
                       spec:
-                        skipDryRun: false
-                        pruningEnabled: false
-                rollbackSteps:
-                  - step:
-                      name: Rollback Rollout Deployment
-                      identifier: rollbackRolloutDeployment
-                      type: K8sRollingRollback
-                      timeout: 10m
-                      spec:
-                        pruningEnabled: false
-            tags: {}
-            failureStrategies:
-              - onFailure:
-                  errors:
-                    - AllErrors
-                  action:
-                    type: StageRollback
+                        environment:
+                          environmentRef: prod
+                          infrastructureDefinitions:
+                            - identifier: krctk8sprod1
         - stage:
             name: SEAS
             identifier: SEAS
             description: ""
-            type: Deployment
+            type: Pipeline
             spec:
-              deploymentType: Kubernetes
-              service:
-                serviceRef: Spark_Operator
-              environment:
-                environmentRef: prod
-                deployToAll: false
-                infrastructureDefinitions:
-                  - identifier: seask8sprod1b
-              execution:
-                steps:
-                  - step:
-                      name: Rollout Deployment
-                      identifier: rolloutDeployment
-                      type: K8sRollingDeploy
-                      timeout: 10m
+              org: RelativityOne_Compute
+              pipeline: Deploy_Spark_Operator
+              project: Spark
+              inputs:
+                identifier: Deploy_Spark_Operator
+                stages:
+                  - stage:
+                      identifier: Deploy_Relativity_Components
+                      type: Deployment
                       spec:
-                        skipDryRun: false
-                        pruningEnabled: false
-                rollbackSteps:
-                  - step:
-                      name: Rollback Rollout Deployment
-                      identifier: rollbackRolloutDeployment
-                      type: K8sRollingRollback
-                      timeout: 10m
-                      spec:
-                        pruningEnabled: false
-            tags: {}
-            failureStrategies:
-              - onFailure:
-                  errors:
-                    - AllErrors
-                  action:
-                    type: StageRollback
+                        environment:
+                          environmentRef: prod
+                          infrastructureDefinitions:
+                            - identifier: seask8sprod1
         - stage:
             name: AENO
             identifier: AENO
             description: ""
-            type: Deployment
+            type: Pipeline
             spec:
-              deploymentType: Kubernetes
-              service:
-                serviceRef: Spark_Operator
-              environment:
-                environmentRef: prod
-                deployToAll: false
-                infrastructureDefinitions:
-                  - identifier: aenok8sprod1b
-              execution:
-                steps:
-                  - step:
-                      name: Rollout Deployment
-                      identifier: rolloutDeployment
-                      type: K8sRollingDeploy
-                      timeout: 10m
+              org: RelativityOne_Compute
+              pipeline: Deploy_Spark_Operator
+              project: Spark
+              inputs:
+                identifier: Deploy_Spark_Operator
+                stages:
+                  - stage:
+                      identifier: Deploy_Relativity_Components
+                      type: Deployment
                       spec:
-                        skipDryRun: false
-                        pruningEnabled: false
-                rollbackSteps:
-                  - step:
-                      name: Rollback Rollout Deployment
-                      identifier: rollbackRolloutDeployment
-                      type: K8sRollingRollback
-                      timeout: 10m
-                      spec:
-                        pruningEnabled: false
-            tags: {}
-            failureStrategies:
-              - onFailure:
-                  errors:
-                    - AllErrors
-                  action:
-                    type: StageRollback
+                        environment:
+                          environmentRef: prod
+                          infrastructureDefinitions:
+                            - identifier: aenok8sprod1
         - stage:
             name: INCT
             identifier: INCT
             description: ""
-            type: Deployment
+            type: Pipeline
             spec:
-              deploymentType: Kubernetes
-              service:
-                serviceRef: Spark_Operator
-              environment:
-                environmentRef: prod
-                deployToAll: false
-                infrastructureDefinitions:
-                  - identifier: inctk8sprod1b
-              execution:
-                steps:
-                  - step:
-                      name: Rollout Deployment
-                      identifier: rolloutDeployment
-                      type: K8sRollingDeploy
-                      timeout: 10m
+              org: RelativityOne_Compute
+              pipeline: Deploy_Spark_Operator
+              project: Spark
+              inputs:
+                identifier: Deploy_Spark_Operator
+                stages:
+                  - stage:
+                      identifier: Deploy_Relativity_Components
+                      type: Deployment
                       spec:
-                        skipDryRun: false
-                        pruningEnabled: false
-                rollbackSteps:
-                  - step:
-                      name: Rollback Rollout Deployment
-                      identifier: rollbackRolloutDeployment
-                      type: K8sRollingRollback
-                      timeout: 10m
-                      spec:
-                        pruningEnabled: false
-            tags: {}
-            failureStrategies:
-              - onFailure:
-                  errors:
-                    - AllErrors
-                  action:
-                    type: StageRollback
+                        environment:
+                          environmentRef: prod
+                          infrastructureDefinitions:
+                            - identifier: inctk8sprod1
         - stage:
             name: JPES
             identifier: JPES
             description: ""
-            type: Deployment
+            type: Pipeline
             spec:
-              deploymentType: Kubernetes
-              service:
-                serviceRef: Spark_Operator
-              environment:
-                environmentRef: prod
-                deployToAll: false
-                infrastructureDefinitions:
-                  - identifier: jpesk8sprod1
-              execution:
-                steps:
-                  - step:
-                      name: Rollout Deployment
-                      identifier: rolloutDeployment
-                      type: K8sRollingDeploy
-                      timeout: 10m
+              org: RelativityOne_Compute
+              pipeline: Deploy_Spark_Operator
+              project: Spark
+              inputs:
+                identifier: Deploy_Spark_Operator
+                stages:
+                  - stage:
+                      identifier: Deploy_Relativity_Components
+                      type: Deployment
                       spec:
-                        skipDryRun: false
-                        pruningEnabled: false
-                rollbackSteps:
-                  - step:
-                      name: Rollback Rollout Deployment
-                      identifier: rollbackRolloutDeployment
-                      type: K8sRollingRollback
-                      timeout: 10m
-                      spec:
-                        pruningEnabled: false
-            tags: {}
-            failureStrategies:
-              - onFailure:
-                  errors:
-                    - AllErrors
-                  action:
-                    type: StageRollback
+                        environment:
+                          environmentRef: prod
+                          infrastructureDefinitions:
+                            - identifier: jpesk8sprod1
     - parallel:
         - stage:
             name: BRSO
             identifier: BRSO
             description: ""
-            type: Deployment
+            type: Pipeline
             spec:
-              deploymentType: Kubernetes
-              service:
-                serviceRef: Spark_Operator
-              environment:
-                environmentRef: prod
-                deployToAll: false
-                infrastructureDefinitions:
-                  - identifier: brsok8sprod1b
-              execution:
-                steps:
-                  - step:
-                      name: Rollout Deployment
-                      identifier: rolloutDeployment
-                      type: K8sRollingDeploy
-                      timeout: 10m
+              org: RelativityOne_Compute
+              pipeline: Deploy_Spark_Operator
+              project: Spark
+              inputs:
+                identifier: Deploy_Spark_Operator
+                stages:
+                  - stage:
+                      identifier: Deploy_Relativity_Components
+                      type: Deployment
                       spec:
-                        skipDryRun: false
-                        pruningEnabled: false
-                rollbackSteps:
-                  - step:
-                      name: Rollback Rollout Deployment
-                      identifier: rollbackRolloutDeployment
-                      type: K8sRollingRollback
-                      timeout: 10m
-                      spec:
-                        pruningEnabled: false
-            tags: {}
-            failureStrategies:
-              - onFailure:
-                  errors:
-                    - AllErrors
-                  action:
-                    type: StageRollback
+                        environment:
+                          environmentRef: prod
+                          infrastructureDefinitions:
+                            - identifier: brsok8sprod1
         - stage:
             name: CACT
             identifier: CACT
             description: ""
-            type: Deployment
+            type: Pipeline
             spec:
-              deploymentType: Kubernetes
-              service:
-                serviceRef: Spark_Operator
-              environment:
-                environmentRef: prod
-                deployToAll: false
-                infrastructureDefinitions:
-                  - identifier: cactk8sprod1a
-              execution:
-                steps:
-                  - step:
-                      name: Rollout Deployment
-                      identifier: rolloutDeployment
-                      type: K8sRollingDeploy
-                      timeout: 10m
+              org: RelativityOne_Compute
+              pipeline: Deploy_Spark_Operator
+              project: Spark
+              inputs:
+                identifier: Deploy_Spark_Operator
+                stages:
+                  - stage:
+                      identifier: Deploy_Relativity_Components
+                      type: Deployment
                       spec:
-                        skipDryRun: false
-                        pruningEnabled: false
-                rollbackSteps:
-                  - step:
-                      name: Rollback Rollout Deployment
-                      identifier: rollbackRolloutDeployment
-                      type: K8sRollingRollback
-                      timeout: 10m
-                      spec:
-                        pruningEnabled: false
-            tags: {}
-            failureStrategies:
-              - onFailure:
-                  errors:
-                    - AllErrors
-                  action:
-                    type: StageRollback
+                        environment:
+                          environmentRef: prod
+                          infrastructureDefinitions:
+                            - identifier: cactk8sprod1
     - parallel:
         - stage:
             name: CTUS
             identifier: CTUS
             description: ""
-            type: Deployment
+            type: Pipeline
             spec:
-              deploymentType: Kubernetes
-              service:
-                serviceRef: Spark_Operator
-              environment:
-                environmentRef: prod
-                deployToAll: false
-                infrastructureDefinitions:
-                  - identifier: ctusk8sprod1b
-              execution:
-                steps:
-                  - step:
-                      name: Rollout Deployment
-                      identifier: rolloutDeployment
-                      type: K8sRollingDeploy
-                      timeout: 10m
+              org: RelativityOne_Compute
+              pipeline: Deploy_Spark_Operator
+              project: Spark
+              inputs:
+                identifier: Deploy_Spark_Operator
+                stages:
+                  - stage:
+                      identifier: Deploy_Relativity_Components
+                      type: Deployment
                       spec:
-                        skipDryRun: false
-                        pruningEnabled: false
-                rollbackSteps:
-                  - step:
-                      name: Rollback Rollout Deployment
-                      identifier: rollbackRolloutDeployment
-                      type: K8sRollingRollback
-                      timeout: 10m
-                      spec:
-                        pruningEnabled: false
-            tags: {}
-            failureStrategies:
-              - onFailure:
-                  errors:
-                    - AllErrors
-                  action:
-                    type: StageRollback
+                        environment:
+                          environmentRef: prod
+                          infrastructureDefinitions:
+                            - identifier: ctusk8sprod1b
         - stage:
             name: ESUS 01
             identifier: ESUS01
