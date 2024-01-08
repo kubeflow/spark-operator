@@ -380,7 +380,7 @@ pipeline:
                         environment:
                           environmentRef: prod
                           infrastructureDefinitions:
-                            - identifier: jpesk8sprod1b
+                            - identifier: jpesk8sprod1
     - parallel:
         - stage:
             name: BRSO
@@ -421,7 +421,7 @@ pipeline:
                         environment:
                           environmentRef: prod
                           infrastructureDefinitions:
-                            - identifier: cactk8sprod1b
+                            - identifier: cactk8sprod1a
     - parallel:
         - stage:
             name: CTUS
@@ -462,7 +462,7 @@ pipeline:
                         environment:
                           environmentRef: prod
                           infrastructureDefinitions:
-                            - identifier: esusk8sprod1b
+                            - identifier: esusk8sprod1a
         - stage:
             name: ESUS 02
             identifier: ESUS02
