@@ -260,6 +260,32 @@ pipeline:
                           environmentRef: prod
                           infrastructureDefinitions:
                             - identifier: zano01k8sprod
+    - stage:
+        name: Ring 6 Approval
+        identifier: Ring_6_Approval
+        description: ""
+        type: Approval
+        spec:
+          execution:
+            steps:
+              - step:
+                  name: Approval
+                  identifier: Approval
+                  type: HarnessApproval
+                  timeout: 1d
+                  spec:
+                    approvalMessage: |-
+                      Please review the following information
+                      and approve the pipeline progression
+                    includePipelineExecutionHistory: true
+                    approvers:
+                      minimumCount: 1
+                      disallowPipelineExecutor: false
+                      userGroups:
+                        - _project_all_users
+                    isAutoRejectEnabled: false
+                    approverInputs: []
+        tags: {}
     - parallel:
         - stage:
             name: ESAS
@@ -381,6 +407,32 @@ pipeline:
                           environmentRef: prod
                           infrastructureDefinitions:
                             - identifier: jpesk8sprod1
+    - stage:
+        name: Ring 7 Approval
+        identifier: Ring_7_Approval
+        description: ""
+        type: Approval
+        spec:
+          execution:
+            steps:
+              - step:
+                  name: Approval
+                  identifier: Approval
+                  type: HarnessApproval
+                  timeout: 1d
+                  spec:
+                    approvalMessage: |-
+                      Please review the following information
+                      and approve the pipeline progression
+                    includePipelineExecutionHistory: true
+                    approvers:
+                      minimumCount: 1
+                      disallowPipelineExecutor: false
+                      userGroups:
+                        - _project_all_users
+                    isAutoRejectEnabled: false
+                    approverInputs: []
+        tags: {}
     - parallel:
         - stage:
             name: BRSO
@@ -422,6 +474,32 @@ pipeline:
                           environmentRef: prod
                           infrastructureDefinitions:
                             - identifier: cactk8sprod1a
+    - stage:
+        name: Ring 8 Approval
+        identifier: Ring_8_Approval
+        description: ""
+        type: Approval
+        spec:
+          execution:
+            steps:
+              - step:
+                  name: Approval
+                  identifier: Approval
+                  type: HarnessApproval
+                  timeout: 1d
+                  spec:
+                    approvalMessage: |-
+                      Please review the following information
+                      and approve the pipeline progression
+                    includePipelineExecutionHistory: true
+                    approvers:
+                      minimumCount: 1
+                      disallowPipelineExecutor: false
+                      userGroups:
+                        - _project_all_users
+                    isAutoRejectEnabled: false
+                    approverInputs: []
+        tags: {}
     - parallel:
         - stage:
             name: CTUS
