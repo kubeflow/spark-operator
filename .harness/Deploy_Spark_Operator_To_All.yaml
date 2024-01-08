@@ -77,41 +77,22 @@ pipeline:
         name: AUEA
         identifier: AUEA
         description: ""
-        type: Deployment
+        type: Pipeline
         spec:
-          deploymentType: Kubernetes
-          service:
-            serviceRef: Spark_Operator
-          environment:
-            environmentRef: prod
-            deployToAll: false
-            infrastructureDefinitions:
-              - identifier: aueak8sprod1b
-          execution:
-            steps:
-              - step:
-                  name: Rollout Deployment
-                  identifier: rolloutDeployment
-                  type: K8sRollingDeploy
-                  timeout: 10m
+          org: RelativityOne_Compute
+          pipeline: Deploy_Spark_Operator
+          project: Spark
+          inputs:
+            identifier: Deploy_Spark_Operator
+            stages:
+              - stage:
+                  identifier: Deploy_Relativity_Components
+                  type: Deployment
                   spec:
-                    skipDryRun: false
-                    pruningEnabled: false
-            rollbackSteps:
-              - step:
-                  name: Rollback Rollout Deployment
-                  identifier: rollbackRolloutDeployment
-                  type: K8sRollingRollback
-                  timeout: 10m
-                  spec:
-                    pruningEnabled: false
-        tags: {}
-        failureStrategies:
-          - onFailure:
-              errors:
-                - AllErrors
-              action:
-                type: StageRollback
+                    environment:
+                      environmentRef: prod
+                      infrastructureDefinitions:
+                        - identifier: ctusk8sauea1
     - stage:
         name: Ring 5 Approval
         identifier: Ring_5_Approval
