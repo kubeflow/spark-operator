@@ -94,7 +94,6 @@ pipeline:
         tags: {}
         when:
           pipelineStatus: Success
-          condition: <+env.name> == "prod"
     - stage:
         name: Deploy Relativity Components
         identifier: Deploy_Relativity_Components
@@ -195,7 +194,6 @@ pipeline:
         tags: {}
         when:
           pipelineStatus: Success
-          condition: <+env.name> == "prod"
     - stage:
         name: Deploy Spark Pi
         identifier: Deploy_Spark_Pi
