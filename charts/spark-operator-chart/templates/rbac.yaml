@@ -30,6 +30,7 @@ rules:
   - get
   - delete
   - update
+  - patch
 - apiGroups:
   - extensions
   - networking.k8s.io
