@@ -636,3 +636,19 @@ pipeline:
                     templateRef: Send_Deploy_Event
                     versionLabel: "1"
         tags: {}
+  variables:
+    - name: branch
+      type: String
+      description: ""
+      required: true
+      value: main
+    - name: fork_branch
+      type: String
+      description: ""
+      required: true
+      value: relativity-main
+    - name: namespace
+      type: String
+      description: ""
+      required: true
+      value: r1-spark-operator
