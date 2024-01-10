@@ -1,0 +1,23 @@
+inputSet:
+  name: Dev
+  identifier: Dev
+  orgIdentifier: RelativityOne_Compute
+  projectIdentifier: Spark
+  pipeline:
+    identifier: Deploy_Spark_Operator
+    stages:
+      - stage:
+          identifier: Deploy_Relativity_Components
+          type: Deployment
+          spec:
+            environment:
+              environmentRef: dev
+              infrastructureDefinitions:
+                - identifier: ctusk8sdev1
+    variables:
+      - name: branch
+        type: String
+        value: main
+      - name: fork_branch
+        type: String
+        value: relativity-main
