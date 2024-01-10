@@ -1,5 +1,6 @@
 inputSet:
   name: PlayDev
+  tags: {}
   identifier: PlayDev
   orgIdentifier: RelativityOne_Compute
   projectIdentifier: Spark
@@ -14,3 +15,10 @@ inputSet:
               environmentRef: dev
               infrastructureDefinitions:
                 - identifier: ctusk8splay2
+    variables:
+      - name: branch
+        type: String
+        value: <+eventPayload.branch>
+      - name: fork_branch
+        type: String
+        value: relativity-main
