@@ -213,12 +213,12 @@ pipeline:
       type: String
       description: ""
       required: true
-      value: main
+      value: <+input>.default(main)
     - name: fork_branch
       type: String
       description: ""
       required: true
-      value: relativity-main
+      value: <+input>.default(relativity-main)
     - name: namespace
       type: String
       description: ""
