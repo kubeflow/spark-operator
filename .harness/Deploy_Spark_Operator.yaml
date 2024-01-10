@@ -189,9 +189,9 @@ pipeline:
                     transitionTo:
                       transitionName: ""
                       status: PIR
-                      fields:
-                        - name: Close Code
-                          value: Successful
+                    fields:
+                      - name: Close Code
+                        value: Successful
                   timeout: 10m
         tags: {}
         when:
