@@ -224,3 +224,8 @@ pipeline:
       description: ""
       required: true
       value: r1-spark-operator
+    - name: appName
+      type: String
+      description: ""
+      required: true
+      value: spark-pi
