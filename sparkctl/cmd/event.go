@@ -154,7 +154,8 @@ func streamEvents(events watch.Interface, streamSince int64) error {
 		table = prepareNewTable()
 		table.SetBorders(tablewriter.Border{Left: true, Top: false, Right: true, Bottom: false})
 		ctx := context.TODO()
-		ctx, _ = context.WithTimeout(ctx, watchExpire)
+		ctx, cancel := context.WithTimeout(ctx, watchExpire)
+		defer cancel()
 		_, err := clientWatch.UntilWithoutRetry(ctx, events, func(ev watch.Event) (bool, error) {
 			if event, isEvent := ev.Object.(*v1.Event); isEvent {
 				// Ensure to display events which are newer than last creation time of SparkApplication
