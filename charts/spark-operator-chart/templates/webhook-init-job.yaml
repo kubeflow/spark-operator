@@ -45,7 +45,6 @@ spec:
             "-r", "{{ include "spark-operator.fullname" . }}-webhook-certs",
             "-p"
           ]
-{{ end }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
