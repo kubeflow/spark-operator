@@ -74,9 +74,9 @@ metadata:
 spec:
   type: Scala
   mode: cluster
-  image: gcr.io/spark/spark:v3.1.1
+  image: apache/spark:v3.1.1
   mainClass: org.apache.spark.examples.SparkPi
-  mainApplicationFile: local:///opt/spark/examples/jars/spark-examples_2.12-3.1.1.jar
+  mainApplicationFile: local:///opt/spark/examples/jars/spark-examples_2.12-3.1.3.jar
 ```
 
 ### Specifying Deployment Mode
@@ -767,9 +767,9 @@ spec:
   template:
     type: Scala
     mode: cluster
-    image: gcr.io/spark/spark:v3.1.1
+    image: apache/spark:v3.1.3
     mainClass: org.apache.spark.examples.SparkPi
-    mainApplicationFile: local:///opt/spark/examples/jars/spark-examples_2.12-3.1.1.jar
+    mainApplicationFile: local:///opt/spark/examples/jars/spark-examples_2.12-3.1.3.jar
     driver:
       cores: 1
       memory: 512m
