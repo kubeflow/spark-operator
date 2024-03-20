@@ -4,7 +4,7 @@ A Helm chart for Spark on Kubernetes operator
 
 ## Introduction
 
-This chart bootstraps a [Kubernetes Operator for Apache Spark](https://github.com/GoogleCloudPlatform/spark-on-k8s-operator) deployment using the [Helm](https://helm.sh) package manager.
+This chart bootstraps a [Kubernetes Operator for Apache Spark](https://github.com/kubeflow/spark-operator) deployment using the [Helm](https://helm.sh) package manager.
 
 ## Prerequisites
 
@@ -23,7 +23,7 @@ The previous `spark-operator` Helm chart hosted at [helm/charts](https://github.
 
 ```shell
 
-$ helm repo add spark-operator https://googlecloudplatform.github.io/spark-on-k8s-operator
+$ helm repo add spark-operator https://kubeflow.github.io/spark-operator
 
 $ helm install my-release spark-operator/spark-operator
 ```
@@ -92,7 +92,7 @@ All charts linted successfully
 | ingressUrlFormat | string | `""` | Ingress URL format. Requires the UI service to be enabled by setting `uiService.enable` to true. |
 | istio.enabled | bool | `false` | When using `istio`, spark jobs need to run without a sidecar to properly terminate |
 | labelSelectorFilter | string | `""` | A comma-separated list of key=value, or key labels to filter resources during watch and list based on the specified labels. |
-| leaderElection.lockName | string | `"spark-operator-lock"` | Leader election lock name. Ref: https://github.com/GoogleCloudPlatform/spark-on-k8s-operator/blob/master/docs/user-guide.md#enabling-leader-election-for-high-availability. |
+| leaderElection.lockName | string | `"spark-operator-lock"` | Leader election lock name. Ref: https://github.com/kubeflow/spark-operator/blob/master/docs/user-guide.md#enabling-leader-election-for-high-availability. |
 | leaderElection.lockNamespace | string | `""` | Optionally store the lock in another namespace. Defaults to operator's namespace |
 | logLevel | int | `2` | Set higher levels for more verbose logging |
 | metrics.enable | bool | `true` | Enable prometheus metric scraping |
@@ -115,7 +115,7 @@ All charts linted successfully
 | rbac.createClusterRole | bool | `true` | Create and use RBAC `ClusterRole` resources |
 | rbac.createRole | bool | `true` | Create and use RBAC `Role` resources |
 | replicaCount | int | `1` | Desired number of pods, leaderElection will be enabled if this is greater than 1 |
-| resourceQuotaEnforcement.enable | bool | `false` | Whether to enable the ResourceQuota enforcement for SparkApplication resources. Requires the webhook to be enabled by setting `webhook.enable` to true. Ref: https://github.com/GoogleCloudPlatform/spark-on-k8s-operator/blob/master/docs/user-guide.md#enabling-resource-quota-enforcement. |
+| resourceQuotaEnforcement.enable | bool | `false` | Whether to enable the ResourceQuota enforcement for SparkApplication resources. Requires the webhook to be enabled by setting `webhook.enable` to true. Ref: https://github.com/kubeflow/spark-operator/blob/master/docs/user-guide.md#enabling-resource-quota-enforcement. |
 | resources | object | `{}` | Pod resource requests and limits Note, that each job submission will spawn a JVM within the Spark Operator Pod using "/usr/local/openjdk-11/bin/java -Xmx128m". Kubernetes may kill these Java processes at will to enforce resource limits. When that happens, you will see the following error: 'failed to run spark-submit for SparkApplication [...]: signal: killed' - when this happens, you may want to increase memory limits. |
 | resyncInterval | int | `30` | Operator resync interval. Note that the operator will respond to events (e.g. create, update) unrelated to this setting |
 | securityContext | object | `{}` | Operator container security context |

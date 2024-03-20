@@ -19,7 +19,7 @@ package config
 import (
 	"fmt"
 
-	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta2"
+	"github.com/kubeflow/spark-operator/pkg/apis/sparkoperator.k8s.io/v1beta2"
 )
 
 // GetDriverAnnotationOption returns a spark-submit option for a driver annotation of the given key and value.

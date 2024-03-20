@@ -21,7 +21,7 @@ limitations under the License.
 package v1beta2
 
 import (
-	internalinterfaces "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/client/informers/externalversions/internalinterfaces"
+	internalinterfaces "github.com/kubeflow/spark-operator/pkg/client/informers/externalversions/internalinterfaces"
 )
 
 // Interface provides access to all the informers in this group version.

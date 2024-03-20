@@ -26,10 +26,10 @@ $ docker build -t <image-tag> -f Dockerfile.rh .
 If you'd like to build/test the spark-operator locally, follow the instructions below:
 
 ```bash
-$ mkdir -p $GOPATH/src/github.com/GoogleCloudPlatform
-$ cd $GOPATH/src/github.com/GoogleCloudPlatform
-$ git clone git@github.com:GoogleCloudPlatform/spark-on-k8s-operator.git
-$ cd spark-on-k8s-operator
+$ mkdir -p $GOPATH/src/github.com/kubeflow
+$ cd $GOPATH/src/github.com/kubeflow
+$ git clone git@github.com:kubeflow/spark-operator.git
+$ cd spark-operator
 ```
 
 To update the auto-generated code, run the following command. (This step is only required if the CRD types have been changed):

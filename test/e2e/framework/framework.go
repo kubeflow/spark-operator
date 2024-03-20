@@ -21,7 +21,7 @@ import (
 	"fmt"
 	"time"
 
-	crdclientset "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/client/clientset/versioned"
+	crdclientset "github.com/kubeflow/spark-operator/pkg/client/clientset/versioned"
 	"k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
