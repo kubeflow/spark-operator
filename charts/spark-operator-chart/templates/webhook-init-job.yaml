@@ -39,6 +39,8 @@ spec:
             "-r", "{{ include "spark-operator.fullname" . }}-webhook-certs",
             "-p"
           ]
+        resources:
+          {{- toYaml .Values.webhook.initResources | nindent 10 }}
       {{- with .Values.tolerations }}
       tolerations:
         {{- toYaml . | nindent 8 }}

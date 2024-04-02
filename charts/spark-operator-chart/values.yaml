@@ -105,6 +105,14 @@ webhook:
     "helm.sh/hook-weight": "50"
   # -- The podLabels applied to the pod of the init job
   initPodLabels: {}
+  # -- Resources applied to init job
+  initResources: {}
+  # limits:
+  #   cpu: 100m
+  #   memory: 300Mi
+  # requests:
+  #   cpu: 100m
+  #   memory: 300Mi
   # -- The annotations applied to the cleanup job, required for helm lifecycle hooks
   cleanupAnnotations:
     "helm.sh/hook": pre-delete, pre-upgrade
@@ -112,6 +120,15 @@ webhook:
     # -- Webhook Timeout in seconds
   # -- The podLabels applied to the pod of the cleanup job
   cleanupPodLabels: {}
+  # -- Resources applied to cleanup job
+  cleanupResources: {}
+  # limits:
+  #   cpu: 100m
+  #   memory: 300Mi
+  # requests:
+  #   cpu: 100m
+  #   memory: 300Mi
+
   timeout: 30
 
 metrics:
