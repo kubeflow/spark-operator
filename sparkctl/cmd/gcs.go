@@ -20,8 +20,8 @@ import (
 	"fmt"
 
 	"cloud.google.com/go/storage"
-	"github.com/google/go-cloud/blob/gcsblob"
-	"github.com/google/go-cloud/gcp"
+	"gocloud.dev/blob/gcsblob"
+	"gocloud.dev/gcp"
 	"golang.org/x/net/context"
 )
 
