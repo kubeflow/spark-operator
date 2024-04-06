@@ -18,6 +18,7 @@ package e2e
 
 import (
 	"context"
+	"log"
 	"strings"
 	"testing"
 
@@ -63,6 +64,7 @@ func TestSubmitSparkPiYaml(t *testing.T) {
 	assert.Equal(t, nil, err)
 
 	app, _ := appFramework.GetSparkApplication(framework.SparkApplicationClient, appFramework.SparkTestNamespace, appName)
+  log.Printf("LABELS: %v", app.ObjectMeta.GetLabels())
 	podName := app.Status.DriverInfo.PodName
 	rawLogs, err := framework.KubeClient.CoreV1().Pods(appFramework.SparkTestNamespace).GetLogs(podName, &v1.PodLogOptions{}).Do(context.TODO()).Raw()
 	assert.Equal(t, nil, err)

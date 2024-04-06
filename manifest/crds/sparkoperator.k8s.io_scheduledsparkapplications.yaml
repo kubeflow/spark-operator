@@ -3750,6 +3750,10 @@ spec:
                           additionalProperties:
                             type: string
                           type: object
+                        serviceLabels:
+                          additionalProperties:
+                            type: string
+                          type: object
                         ingressAnnotations:
                           additionalProperties:
                             type: string
