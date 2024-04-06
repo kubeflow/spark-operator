@@ -20,6 +20,7 @@ import (
 	"context"
 	"strings"
 	"testing"
+	"log"
 
 	"github.com/stretchr/testify/assert"
 
@@ -64,6 +65,7 @@ func TestSubmitSparkPiYaml(t *testing.T) {
 
 	app, _ := appFramework.GetSparkApplication(framework.SparkApplicationClient, appFramework.SparkTestNamespace, appName)
 	podName := app.Status.DriverInfo.PodName
+  log.Printf("LABELS: %v", app.ObjectMeta.GetLabels())
 	rawLogs, err := framework.KubeClient.CoreV1().Pods(appFramework.SparkTestNamespace).GetLogs(podName, &v1.PodLogOptions{}).Do(context.TODO()).Raw()
 	assert.Equal(t, nil, err)
 	assert.NotEqual(t, -1, strings.Index(string(rawLogs), "Pi is roughly 3"))
