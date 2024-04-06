@@ -47,7 +47,77 @@ Now you should see the operator running in the cluster by checking the status of
 ```bash
 $ helm status --namespace spark-operator my-release
 ```
+### Installation using kustomize
 
+You can also install `spark-operator` using [kustomize](https://github.com/kubernetes-sigs/kustomize). Run
+
+```
+kubectl apply -k {manifest_directory}
+```
+Kustomize default manifest directory is part of the repo [here](https://github.com/GoogleCloudPlatform/spark-on-k8s-operator/tree/master/manifest/spark-operator-with-webhook-install)
+
+The manifest directory contains primarily the `crds` and `spark-operator-with-webhook.yaml` which holds configurations of spark operator init job, a webhook service and finally a deployemnt.
+
+Spark operator with above manifest installs `spark-operator` in default namespace `spark-operator` with default webhook service `spark-webhook`. If you wish to install `spark-operator` in a namespace other than `spark-opertor` and webhook service name other than `spark-webhook`, `Job` manifest in `spark-operator-with-webhook.yaml` should look like below. You need to pass the desired namespace name and service name as arguements in `command` field in `containers`.
+
+```
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: sparkoperator-init
+  namespace: myorg-spark-operator
+  labels:
+    app.kubernetes.io/name: sparkoperator
+    app.kubernetes.io/version: v2.4.0-v1beta1
+spec:
+  backoffLimit: 3
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: sparkoperator
+        app.kubernetes.io/version: v2.4.0-v1beta1
+    spec:
+      serviceAccountName: sparkoperator
+      restartPolicy: Never
+      containers:
+        - name: main
+          image: gcr.io/spark-operator/spark-operator:v2.4.0-v1beta1-latest
+          imagePullPolicy: IfNotPresent
+          command: ["/usr/bin/gencerts.sh", "-p", "--namespace", "myorg-spark-operator", "--service", "myorg-spark-webhook"]
+```
+And Service will be
+
+```
+kind: Service
+apiVersion: v1
+metadata:
+  name: myorg-spark-webhook
+...
+```
+
+And `args` in `Deployement` will look like:
+
+```
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sparkoperator
+...
+
+          args:
+            - -logtostderr
+            - -enable-webhook=true
+            - -v=2
+            - webhook-svc-namespace=myorg-spark-operator
+            - webhook-svc-name=myorg-spark-webhook
+```
+
+This will install `spark-operator` in `myorg-spark-operator` namespace and the webhook service will be called `myorg-spark-webhook`.
+
+To unintall operator, run 
+```
+kustomize build '{manifest_directory}' | kubectl delete -f -
+```
 ## Running the Examples
 
 To run the Spark Pi example, run the following command:
