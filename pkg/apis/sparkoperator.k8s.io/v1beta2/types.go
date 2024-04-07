@@ -317,6 +317,9 @@ type SparkUIConfiguration struct {
 	// ServiceAnnotations is a map of key,value pairs of annotations that might be added to the service object.
 	// +optional
 	ServiceAnnotations map[string]string `json:"serviceAnnotations,omitempty"`
+	// ServiceLables is a map of key,value pairs of labels that might be added to the service object.
+	// +optional
+	ServiceLabels map[string]string `json:"serviceLabels,omitempty"`
 	// IngressAnnotations is a map of key,value pairs of annotations that might be added to the ingress object. i.e. specify nginx as ingress.class
 	// +optional
 	IngressAnnotations map[string]string `json:"ingressAnnotations,omitempty"`
