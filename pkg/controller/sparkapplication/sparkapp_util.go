@@ -93,11 +93,11 @@ func getServiceAnnotations(app *v1beta2.SparkApplication) map[string]string {
 func getServiceLabels(app *v1beta2.SparkApplication) map[string]string {
 	serviceLabels := map[string]string{}
 	if app.Spec.SparkUIOptions != nil && app.Spec.SparkUIOptions.ServiceLabels != nil {
-		for key, value := range app.Spec.SparkUIOptions.ServiceLabels  {
+		for key, value := range app.Spec.SparkUIOptions.ServiceLabels {
 			serviceLabels[key] = value
 		}
 	}
-	return serviceLabels 
+	return serviceLabels
 }
 
 func getIngressResourceAnnotations(app *v1beta2.SparkApplication) map[string]string {

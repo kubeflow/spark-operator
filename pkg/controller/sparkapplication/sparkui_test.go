@@ -87,9 +87,9 @@ func TestCreateSparkUIService(t *testing.T) {
 		if !reflect.DeepEqual(serviceAnnotations, test.expectedService.serviceAnnotations) {
 			t.Errorf("%s: unexpected annotations wanted %s got %s", test.name, test.expectedService.serviceAnnotations, serviceAnnotations)
 		}
-    serviceLabels := service.ObjectMeta.Labels
-		if !reflect.DeepEqual(serviceLabels, test.expectedService.serviceLabels ) {
-			t.Errorf("%s: unexpected labels wanted %s got %s", test.name, test.expectedService.serviceLabels , serviceLabels)
+		serviceLabels := service.ObjectMeta.Labels
+		if !reflect.DeepEqual(serviceLabels, test.expectedService.serviceLabels) {
+			t.Errorf("%s: unexpected labels wanted %s got %s", test.name, test.expectedService.serviceLabels, serviceLabels)
 		}
 	}
 	defaultPort := defaultSparkWebUIPort
@@ -209,7 +209,7 @@ func TestCreateSparkUIService(t *testing.T) {
 			ExecutionAttempts:  1,
 		},
 	}
-  app8 := &v1beta2.SparkApplication{
+	app8 := &v1beta2.SparkApplication{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "foo8",
 			Namespace: "default",
@@ -218,8 +218,8 @@ func TestCreateSparkUIService(t *testing.T) {
 		Spec: v1beta2.SparkApplicationSpec{
 			SparkUIOptions: &v1beta2.SparkUIConfiguration{
 				ServiceLabels: map[string]string{
-          "sparkoperator.k8s.io/app-name": "foo8",
-					"key": "value",
+					"sparkoperator.k8s.io/app-name": "foo8",
+					"key":                           "value",
 				},
 			},
 		},
@@ -237,9 +237,9 @@ func TestCreateSparkUIService(t *testing.T) {
 				serviceType:     apiv1.ServiceTypeClusterIP,
 				servicePortName: defaultPortName,
 				servicePort:     4041,
-        serviceLabels: map[string]string{
-          "sparkoperator.k8s.io/app-name": "foo1",
-        },
+				serviceLabels: map[string]string{
+					"sparkoperator.k8s.io/app-name": "foo1",
+				},
 				targetPort: intstr.IntOrString{
 					Type:   intstr.Int,
 					IntVal: int32(4041),
@@ -259,9 +259,9 @@ func TestCreateSparkUIService(t *testing.T) {
 				serviceType:     apiv1.ServiceTypeClusterIP,
 				servicePortName: defaultPortName,
 				servicePort:     int32(defaultPort),
-        serviceLabels: map[string]string{
-          "sparkoperator.k8s.io/app-name": "foo2",
-        },
+				serviceLabels: map[string]string{
+					"sparkoperator.k8s.io/app-name": "foo2",
+				},
 			},
 			expectedSelector: map[string]string{
 				config.SparkAppNameLabel: "foo2",
@@ -277,9 +277,9 @@ func TestCreateSparkUIService(t *testing.T) {
 				serviceType:     apiv1.ServiceTypeClusterIP,
 				servicePortName: defaultPortName,
 				servicePort:     80,
-        serviceLabels: map[string]string{
-          "sparkoperator.k8s.io/app-name": "foo4",
-        },
+				serviceLabels: map[string]string{
+					"sparkoperator.k8s.io/app-name": "foo4",
+				},
 				targetPort: intstr.IntOrString{
 					Type:   intstr.Int,
 					IntVal: int32(4041),
@@ -299,9 +299,9 @@ func TestCreateSparkUIService(t *testing.T) {
 				serviceType:     apiv1.ServiceTypeNodePort,
 				servicePortName: defaultPortName,
 				servicePort:     int32(defaultPort),
-        serviceLabels: map[string]string{
-          "sparkoperator.k8s.io/app-name": "foo5",
-        },
+				serviceLabels: map[string]string{
+					"sparkoperator.k8s.io/app-name": "foo5",
+				},
 			},
 			expectedSelector: map[string]string{
 				config.SparkAppNameLabel: "foo5",
@@ -317,9 +317,9 @@ func TestCreateSparkUIService(t *testing.T) {
 				serviceType:     apiv1.ServiceTypeClusterIP,
 				servicePortName: "http-spark-test",
 				servicePort:     int32(80),
-        serviceLabels: map[string]string{
-          "sparkoperator.k8s.io/app-name": "foo6",
-        },
+				serviceLabels: map[string]string{
+					"sparkoperator.k8s.io/app-name": "foo6",
+				},
 			},
 			expectedSelector: map[string]string{
 				config.SparkAppNameLabel: "foo6",
@@ -338,9 +338,9 @@ func TestCreateSparkUIService(t *testing.T) {
 				serviceAnnotations: map[string]string{
 					"key": "value",
 				},
-        serviceLabels: map[string]string{
-          "sparkoperator.k8s.io/app-name": "foo7",
-        },
+				serviceLabels: map[string]string{
+					"sparkoperator.k8s.io/app-name": "foo7",
+				},
 				targetPort: intstr.IntOrString{
 					Type:   intstr.Int,
 					IntVal: int32(4041),
@@ -352,7 +352,7 @@ func TestCreateSparkUIService(t *testing.T) {
 			},
 			expectError: false,
 		},
-    {
+		{
 			name: "service with custom labels",
 			app:  app8,
 			expectedService: SparkService{
@@ -360,10 +360,10 @@ func TestCreateSparkUIService(t *testing.T) {
 				serviceType:     apiv1.ServiceTypeClusterIP,
 				servicePortName: defaultPortName,
 				servicePort:     defaultPort,
-        serviceLabels: map[string]string{
-          "sparkoperator.k8s.io/app-name": "foo8",
-          "key": "value",
-        },
+				serviceLabels: map[string]string{
+					"sparkoperator.k8s.io/app-name": "foo8",
+					"key":                           "value",
+				},
 				targetPort: intstr.IntOrString{
 					Type:   intstr.Int,
 					IntVal: int32(4041),
