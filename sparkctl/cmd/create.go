@@ -28,6 +28,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"gocloud.dev/blob"
+	"gocloud.dev/gcerrors"
 
 	apiv1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -323,11 +324,11 @@ func (uh uploadHandler) uploadToBucket(uploadPath, localFilePath string) (string
 	uploadFilePath := filepath.Join(uploadPath, fileName)
 
 	// Check if exists by trying to fetch metadata
-	reader, err := uh.b.NewRangeReader(uh.ctx, uploadFilePath, 0, 0)
+	reader, err := uh.b.NewRangeReader(uh.ctx, uploadFilePath, 0, 0, nil)
 	if err == nil {
 		reader.Close()
 	}
-	if (blob.IsNotExist(err)) || (err == nil && Override) {
+	if (gcerrors.Code(err) == gcerrors.NotFound) || (err == nil && Override) {
 		fmt.Printf("uploading local file: %s\n", fileName)
 
 		// Prepare the file for upload.

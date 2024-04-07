@@ -83,9 +83,10 @@ All charts linted successfully
 | batchScheduler.enable | bool | `false` | Enable batch scheduler for spark jobs scheduling. If enabled, users can specify batch scheduler name in spark application |
 | commonLabels | object | `{}` | Common labels to add to the resources |
 | controllerThreads | int | `10` | Operator concurrency, higher values might increase memory usage |
+| envFrom | list | `[]` | Pod environment variable sources |
 | fullnameOverride | string | `""` | String to override release name |
 | image.pullPolicy | string | `"IfNotPresent"` | Image pull policy |
-| image.repository | string | `"gcr.io/spark-operator/spark-operator"` | Image repository |
+| image.repository | string | `"ghcr.io/kubeflow/spark-operator"` | Image repository |
 | image.tag | string | `""` | if set, override the image tag whose default is the chart appVersion. |
 | imagePullSecrets | list | `[]` | Image pull secrets |
 | ingressUrlFormat | string | `""` | Ingress URL format. Requires the UI service to be enabled by setting `uiService.enable` to true. |
@@ -109,10 +110,10 @@ All charts linted successfully
 | podMonitor.labels | object | `{}` | Pod monitor labels |
 | podMonitor.podMetricsEndpoint | object | `{"interval":"5s","scheme":"http"}` | Prometheus metrics endpoint properties. `metrics.portName` will be used as a port |
 | podSecurityContext | object | `{}` | Pod security context |
+| rbac.annotations | object | `{}` | Optional annotations for rbac |
 | rbac.create | bool | `false` | **DEPRECATED** use `createRole` and `createClusterRole` |
 | rbac.createClusterRole | bool | `true` | Create and use RBAC `ClusterRole` resources |
 | rbac.createRole | bool | `true` | Create and use RBAC `Role` resources |
-| rbac.annotations | object | `{}` | Optional annotations for the spark rbac |
 | replicaCount | int | `1` | Desired number of pods, leaderElection will be enabled if this is greater than 1 |
 | resourceQuotaEnforcement.enable | bool | `false` | Whether to enable the ResourceQuota enforcement for SparkApplication resources. Requires the webhook to be enabled by setting `webhook.enable` to true. Ref: https://github.com/GoogleCloudPlatform/spark-on-k8s-operator/blob/master/docs/user-guide.md#enabling-resource-quota-enforcement. |
 | resources | object | `{}` | Pod resource requests and limits Note, that each job submission will spawn a JVM within the Spark Operator Pod using "/usr/local/openjdk-11/bin/java -Xmx128m". Kubernetes may kill these Java processes at will to enforce resource limits. When that happens, you will see the following error: 'failed to run spark-submit for SparkApplication [...]: signal: killed' - when this happens, you may want to increase memory limits. |
@@ -124,16 +125,19 @@ All charts linted successfully
 | serviceAccounts.sparkoperator.annotations | object | `{}` | Optional annotations for the operator service account |
 | serviceAccounts.sparkoperator.create | bool | `true` | Create a service account for the operator |
 | serviceAccounts.sparkoperator.name | string | `""` | Optional name for the operator service account |
+| sidecars | list | `[]` | Sidecar containers |
 | sparkJobNamespace | string | `""` | Set this if running spark jobs in a different namespace than the operator |
 | tolerations | list | `[]` | List of node taints to tolerate |
 | uiService.enable | bool | `true` | Enable UI service creation for Spark application |
+| volumeMounts | list | `[]` |  |
+| volumes | list | `[]` |  |
 | webhook.cleanupAnnotations | object | `{"helm.sh/hook":"pre-delete, pre-upgrade","helm.sh/hook-delete-policy":"hook-succeeded"}` | The annotations applied to the cleanup job, required for helm lifecycle hooks |
 | webhook.cleanupPodLabels | object | `{}` | The podLabels applied to the pod of the cleanup job |
-| webhook.cleanupResources | object | `{}` | Cleanup job Pod resource requests and limits |
+| webhook.cleanupResources | object | `{}` | Resources applied to cleanup job |
 | webhook.enable | bool | `false` | Enable webhook server |
 | webhook.initAnnotations | object | `{"helm.sh/hook":"pre-install, pre-upgrade","helm.sh/hook-weight":"50"}` | The annotations applied to init job, required to restore certs deleted by the cleanup job during upgrade |
 | webhook.initPodLabels | object | `{}` | The podLabels applied to the pod of the init job |
-| webhook.initResources | object | `{}` | Init job Pod resource requests and limits |
+| webhook.initResources | object | `{}` | Resources applied to init job |
 | webhook.namespaceSelector | string | `""` | The webhook server will only operate on namespaces with this label, specified in the form key1=value1,key2=value2. Empty string (default) will operate on all namespaces |
 | webhook.port | int | `8080` | Webhook service port |
 | webhook.timeout | int | `30` |  |
@@ -142,4 +146,4 @@ All charts linted successfully
 
 | Name | Email | Url |
 | ---- | ------ | --- |
-| yuchaoran2011 | yuchaoran2011@gmail.com |  |
+| yuchaoran2011 | <yuchaoran2011@gmail.com> |  |

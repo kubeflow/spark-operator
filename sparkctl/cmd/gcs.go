@@ -68,7 +68,7 @@ func newGCSBlob(
 		return nil, err
 	}
 
-	b, err := gcsblob.OpenBucket(ctx, bucket, c)
+	b, err := gcsblob.OpenBucket(ctx, c, bucket, nil)
 	return &uploadHandler{
 		blob:             blobGCS{endpoint: endpoint, region: region, projectId: string(projectId)},
 		ctx:              ctx,
