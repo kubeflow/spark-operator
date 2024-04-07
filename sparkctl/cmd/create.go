@@ -26,8 +26,8 @@ import (
 	"reflect"
 	"unicode/utf8"
 
-	"github.com/google/go-cloud/blob"
 	"github.com/spf13/cobra"
+	"gocloud.dev/blob"
 
 	apiv1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
