@@ -71,6 +71,7 @@ type SparkService struct {
 	targetPort         intstr.IntOrString
 	serviceIP          string
 	serviceAnnotations map[string]string
+	serviceLabels      map[string]string
 }
 
 // SparkIngress encapsulates information about the driver UI ingress.
@@ -285,6 +286,12 @@ func createSparkUIService(
 		service.ObjectMeta.Annotations = serviceAnnotations
 	}
 
+	serviceLabels := getServiceLabels(app)
+	if len(serviceLabels) != 0 {
+		glog.Infof("Creating a service labels %s for the Spark UI: %v", service.Name, &serviceLabels)
+		service.ObjectMeta.Labels = serviceLabels
+	}
+
 	glog.Infof("Creating a service %s for the Spark UI for application %s", service.Name, app.Name)
 	service, err = kubeClient.CoreV1().Services(app.Namespace).Create(context.TODO(), service, metav1.CreateOptions{})
 	if err != nil {
@@ -299,6 +306,7 @@ func createSparkUIService(
 		targetPort:         service.Spec.Ports[0].TargetPort,
 		serviceIP:          service.Spec.ClusterIP,
 		serviceAnnotations: serviceAnnotations,
+		serviceLabels:      serviceLabels,
 	}, nil
 }
 
