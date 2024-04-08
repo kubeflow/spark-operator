@@ -6,7 +6,7 @@ SPARK_OPERATOR_GOPATH=/go/src/github.com/GoogleCloudPlatform/spark-on-k8s-operat
 DEP_VERSION:=`grep DEP_VERSION= Dockerfile | awk -F\" '{print $$2}'`
 BUILDER=`grep "FROM golang:" Dockerfile | awk '{print $$2}'`
 UNAME:=`uname | tr '[:upper:]' '[:lower:]'`
-REPO=github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg
+REPO=github.com/GoogleCloudPlatform/spark-on-k8s-operator
 
 all: clean-sparkctl build-sparkctl install-sparkctl
 
@@ -45,7 +45,7 @@ build-api-docs:
 			-out-file /repo/docs/api-docs.md"
 
 helm-docs:
-	docker run --rm --volume "$(pwd):/helm-docs" -u "$(id -u)" jnorwood/helm-docs:latest
+	docker run --rm --volume "$$(pwd):/helm-docs" -u "$(id -u)" jnorwood/helm-docs:latest
 
 fmt-check: clean
 	@echo "running fmt check"; cd "$(dirname $0)"; \
@@ -62,7 +62,7 @@ detect-crds-drift:
 
 clean:
 	@echo "cleaning up caches and output"
-	go clean -cache -testcache -r -x ./... 2>&1 >/dev/null
+	go clean -cache -testcache -r -x 2>&1 >/dev/null
 	-rm -rf _output
 
 unit-test: clean
