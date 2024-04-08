@@ -25,7 +25,7 @@ SCRIPT_ROOT=$(dirname ${BASH_SOURCE})/..
 #                  k8s.io/kubernetes. The output-base is needed for the generators to output into the vendor dir
 #                  instead of the $GOPATH directly. For normal projects this can be dropped.
 ${SCRIPT_ROOT}/hack/generate-groups.sh "all" \
-  github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/client github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis \
+  github.com/kubeflow/spark-operator/pkg/client github.com/kubeflow/spark-operator/pkg/apis \
   sparkoperator.k8s.io:v1beta1,v1beta2 \
   --go-header-file "$(dirname ${BASH_SOURCE})/custom-boilerplate.go.txt" \
   --output-base "$(dirname ${BASH_SOURCE})/../../../.."

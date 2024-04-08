@@ -27,7 +27,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
 
-	appFramework "github.com/GoogleCloudPlatform/spark-on-k8s-operator/test/e2e/framework"
+	appFramework "github.com/kubeflow/spark-operator/test/e2e/framework"
 )
 
 func TestSubmitSparkPiYaml(t *testing.T) {

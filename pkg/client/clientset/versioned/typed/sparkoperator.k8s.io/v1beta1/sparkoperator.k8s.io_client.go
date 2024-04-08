@@ -21,8 +21,8 @@ limitations under the License.
 package v1beta1
 
 import (
-	v1beta1 "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta1"
-	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/client/clientset/versioned/scheme"
+	v1beta1 "github.com/kubeflow/spark-operator/pkg/apis/sparkoperator.k8s.io/v1beta1"
+	"github.com/kubeflow/spark-operator/pkg/client/clientset/versioned/scheme"
 	rest "k8s.io/client-go/rest"
 )
 

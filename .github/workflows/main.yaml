@@ -10,7 +10,6 @@ on:
       - master
 
 jobs:
-
   build-api-docs:
     runs-on: ubuntu-latest
     steps:
@@ -167,7 +166,7 @@ jobs:
           docker build -t gcr.io/kubeflow/spark-operator:local .
           minikube image load gcr.io/kubeflow/spark-operator:local
 
-      # The integration tests are currently broken see: https://github.com/GoogleCloudPlatform/spark-on-k8s-operator/issues/1416
+      # The integration tests are currently broken see: https://github.com/kubeflow/spark-operator/issues/1416
       # - name: Run chart-testing (integration test)
       #   run: make integation-test
 

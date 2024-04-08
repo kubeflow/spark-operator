@@ -33,7 +33,7 @@ import (
 	clientWatch "k8s.io/client-go/tools/watch"
 	"k8s.io/kubernetes/pkg/util/interrupt"
 
-	crdclientset "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/client/clientset/versioned"
+	crdclientset "github.com/kubeflow/spark-operator/pkg/client/clientset/versioned"
 )
 
 var FollowEvents bool

@@ -18,14 +18,14 @@ package e2e
 
 import (
 	"flag"
-	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta2"
+	"github.com/kubeflow/spark-operator/pkg/apis/sparkoperator.k8s.io/v1beta2"
 	"github.com/stretchr/testify/assert"
 	"log"
 	"os"
 	"testing"
 	"time"
 
-	operatorFramework "github.com/GoogleCloudPlatform/spark-on-k8s-operator/test/e2e/framework"
+	operatorFramework "github.com/kubeflow/spark-operator/test/e2e/framework"
 )
 
 var framework *operatorFramework.Framework

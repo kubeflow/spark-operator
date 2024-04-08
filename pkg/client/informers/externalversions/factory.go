@@ -25,9 +25,9 @@ import (
 	sync "sync"
 	time "time"
 
-	versioned "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/client/clientset/versioned"
-	internalinterfaces "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/client/informers/externalversions/internalinterfaces"
-	sparkoperatork8sio "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/client/informers/externalversions/sparkoperator.k8s.io"
+	versioned "github.com/kubeflow/spark-operator/pkg/client/clientset/versioned"
+	internalinterfaces "github.com/kubeflow/spark-operator/pkg/client/informers/externalversions/internalinterfaces"
+	sparkoperatork8sio "github.com/kubeflow/spark-operator/pkg/client/informers/externalversions/sparkoperator.k8s.io"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"

@@ -2590,7 +2590,7 @@ ApplicationState
 <code>executorState</code><br/>
 <em>
 <a href="#sparkoperator.k8s.io/v1beta2.ExecutorState">
-map[string]github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta2.ExecutorState
+map[string]github.com/kubeflow/spark-operator/pkg/apis/sparkoperator.k8s.io/v1beta2.ExecutorState
 </a>
 </em>
 </td>
@@ -2814,7 +2814,7 @@ Deprecated. Consider using <code>env</code> instead.</p>
 <code>envSecretKeyRefs</code><br/>
 <em>
 <a href="#sparkoperator.k8s.io/v1beta2.NameKey">
-map[string]github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta2.NameKey
+map[string]github.com/kubeflow/spark-operator/pkg/apis/sparkoperator.k8s.io/v1beta2.NameKey
 </a>
 </em>
 </td>
