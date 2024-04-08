@@ -5,7 +5,7 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: (unknown)
-    api-approved.kubernetes.io: https://github.com/GoogleCloudPlatform/spark-on-k8s-operator/pull/1298
+    api-approved.kubernetes.io: https://github.com/kubeflow/spark-operator/pull/1298
   name: sparkapplications.sparkoperator.k8s.io
 spec:
   group: sparkoperator.k8s.io

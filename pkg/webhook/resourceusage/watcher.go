@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"sync"
 
-	crdinformers "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/client/informers/externalversions"
+	crdinformers "github.com/kubeflow/spark-operator/pkg/client/informers/externalversions"
 
 	"github.com/golang/glog"
 	"k8s.io/apimachinery/pkg/api/resource"

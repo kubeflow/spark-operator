@@ -190,12 +190,12 @@ batchScheduler:
 resourceQuotaEnforcement:
   # -- Whether to enable the ResourceQuota enforcement for SparkApplication resources.
   # Requires the webhook to be enabled by setting `webhook.enable` to true.
-  # Ref: https://github.com/GoogleCloudPlatform/spark-on-k8s-operator/blob/master/docs/user-guide.md#enabling-resource-quota-enforcement.
+  # Ref: https://github.com/kubeflow/spark-operator/blob/master/docs/user-guide.md#enabling-resource-quota-enforcement.
   enable: false
 
 leaderElection:
   # -- Leader election lock name.
-  # Ref: https://github.com/GoogleCloudPlatform/spark-on-k8s-operator/blob/master/docs/user-guide.md#enabling-leader-election-for-high-availability.
+  # Ref: https://github.com/kubeflow/spark-operator/blob/master/docs/user-guide.md#enabling-leader-election-for-high-availability.
   lockName: "spark-operator-lock"
   # -- Optionally store the lock in another namespace. Defaults to operator's namespace
   lockNamespace: ""

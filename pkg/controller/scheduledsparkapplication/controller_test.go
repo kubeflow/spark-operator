@@ -31,10 +31,10 @@ import (
 	"k8s.io/client-go/tools/cache"
 	clocktesting "k8s.io/utils/clock/testing"
 
-	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta2"
-	crdclientfake "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/client/clientset/versioned/fake"
-	crdinformers "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/client/informers/externalversions"
-	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/config"
+	"github.com/kubeflow/spark-operator/pkg/apis/sparkoperator.k8s.io/v1beta2"
+	crdclientfake "github.com/kubeflow/spark-operator/pkg/client/clientset/versioned/fake"
+	crdinformers "github.com/kubeflow/spark-operator/pkg/client/informers/externalversions"
+	"github.com/kubeflow/spark-operator/pkg/config"
 )
 
 func TestSyncScheduledSparkApplication_Allow(t *testing.T) {
