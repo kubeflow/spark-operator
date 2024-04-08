@@ -100,6 +100,10 @@ spec:
         {{- with .Values.volumeMounts }}
         {{- toYaml . | nindent 10 }}
         {{- end }}
+        livenessProbe:
+        {{- with .Values.livenessProbe }}
+        {{- toYaml . | nindent 10 }}
+        {{- end }}
       {{- with .Values.sidecars }}
         {{- toYaml . | nindent 6 }}
       {{- end }}
