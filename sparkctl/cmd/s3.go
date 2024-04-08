@@ -23,6 +23,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"gocloud.dev/blob/s3blob"
 )
 
@@ -34,8 +35,8 @@ func (blob blobS3) setPublicACL(
 	ctx context.Context,
 	bucket string,
 	filePath string) error {
-	acl := "public-read"
-	if _, err := blob.client.PutObjectAcl(&s3.PutObjectAclInput{Bucket: &bucket, Key: &filePath, ACL: &acl}); err != nil {
+	acl := types.ObjectCannedACLPublicRead
+	if _, err := blob.client.PutObjectAcl(ctx, &s3.PutObjectAclInput{Bucket: &bucket, Key: &filePath, ACL: acl}); err != nil {
 		return fmt.Errorf("failed to set ACL on S3 object %s: %v", filePath, err)
 	}
 
@@ -62,16 +63,19 @@ func newS3Blob(
 		}
 		return aws.Endpoint{}, &aws.EndpointNotFoundError{}
 	})
-	c := config.LoadDefaultConfig(
+	conf, err := config.LoadDefaultConfig(
 		ctx, config.WithRegion(region),
 		config.WithEndpointResolverWithOptions(endpointResolver),
 	)
+	if err != nil {
+		return nil, err
+	}
 	client := s3.NewFromConfig(conf, func(o *s3.Options) {
 		o.UsePathStyle = usePathStyle
 	})
-	b, err := s3blob.OpenBucketV2(ctx, client, bucket)
+	b, err := s3blob.OpenBucketV2(ctx, client, bucket, nil)
 	return &uploadHandler{
-		blob:             blobS3{s: sess},
+		blob:             blobS3{client: client},
 		ctx:              ctx,
 		b:                b,
 		blobUploadBucket: bucket,

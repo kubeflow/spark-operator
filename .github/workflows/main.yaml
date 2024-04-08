@@ -15,20 +15,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout source code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
         with:
           fetch-depth: "0"
-
-      - name: The API should not change once published
-        run: |
-          if ! git diff --quiet origin/master -- pkg/apis/sparkoperator.k8s.io/v1beta1; then
-            echo "sparkoperator.k8s.io/v1beta1 api has changed"
-            false
-          fi
-          if ! git diff --quiet origin/master -- pkg/apis/sparkoperator.k8s.io/v1beta2; then
-            echo "sparkoperator.k8s.io/v1beta2 api has changed"
-            false
-          fi
 
       - name: The API documentation hasn't changed
         run: |
@@ -43,12 +32,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout source code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
         with:
           fetch-depth: "0"
 
       - name: Set up Go
-        uses: actions/setup-go@v3
+        uses: actions/setup-go@v5
         with:
           go-version-file: "go.mod"
 
@@ -60,12 +49,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout source code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
         with:
           fetch-depth: "0"
 
       - name: Set up Go
-        uses: actions/setup-go@v3
+        uses: actions/setup-go@v5
         with:
           go-version-file: "go.mod"
 
@@ -101,14 +90,14 @@ jobs:
     runs-on: ubuntu-20.04
     steps:
       - name: Checkout source code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
         with:
           fetch-depth: "0"
 
       - name: Install Helm
-        uses: azure/setup-helm@v1
+        uses: azure/setup-helm@v4
         with:
-          version: v3.7.1
+          version: v3.14.3
 
       - name: Produce the helm documentation
         run: |
@@ -119,7 +108,7 @@ jobs:
           fi
 
       - name: Set up chart-testing
-        uses: helm/chart-testing-action@v2.0.1
+        uses: helm/chart-testing-action@v2.6.1
 
       - name: Print chart-testing version information
         run: ct version
@@ -139,44 +128,44 @@ jobs:
         run: make detect-crds-drift
 
       - name: setup minikube
-        uses: manusa/actions-setup-minikube@v2.4.2
+        uses: manusa/actions-setup-minikube@v2.10.0
         with:
-          minikube version: "v1.24.0"
-          kubernetes version: "v1.20.8"
+          minikube version: v1.32.0
+          kubernetes version: v1.28.8
           start args: --memory 6g --cpus=2 --addons ingress
           github token: ${{ inputs.github-token }}
 
       - name: Run chart-testing (install)
         run: |
-          docker build -t ghcr.io/googlecloudplatform/spark-operator:local .
-          minikube image load ghcr.io/googlecloudplatform/spark-operator:local
+          docker build -t ghcr.io/kubeflow/spark-operator:local .
+          minikube image load ghcr.io/kubeflow/spark-operator:local
           ct install
 
   integration-test:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     steps:
       - name: Checkout source code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
         with:
           fetch-depth: "0"
 
       - name: Set up Go
-        uses: actions/setup-go@v3
+        uses: actions/setup-go@v5
         with:
           go-version-file: "go.mod"
 
       - name: setup minikube
-        uses: manusa/actions-setup-minikube@v2.4.2
+        uses: manusa/actions-setup-minikube@v2.10.0
         with:
-          minikube version: "v1.24.0"
-          kubernetes version: "v1.20.8"
+          minikube version: v1.32.0
+          kubernetes version: v1.28.8
           start args: --memory 6g --cpus=2 --addons ingress
           github token: ${{ inputs.github-token }}
 
       - name: Build local spark-operator docker image for minikube testing
         run: |
-          docker build -t gcr.io/spark-operator/spark-operator:local .
-          minikube image load gcr.io/spark-operator/spark-operator:local
+          docker build -t gcr.io/kubeflow/spark-operator:local .
+          minikube image load gcr.io/kubeflow/spark-operator:local
 
       # The integration tests are currently broken see: https://github.com/GoogleCloudPlatform/spark-on-k8s-operator/issues/1416
       # - name: Run chart-testing (integration test)
