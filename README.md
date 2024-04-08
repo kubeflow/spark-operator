@@ -1,4 +1,4 @@
-[![Go Report Card](https://goreportcard.com/badge/github.com/GoogleCloudPlatform/spark-on-k8s-operator)](https://goreportcard.com/report/github.com/GoogleCloudPlatform/spark-on-k8s-operator)
+[![Go Report Card](https://goreportcard.com/badge/github.com/kubeflow/spark-operator)](https://goreportcard.com/report/github.com/kubeflow/spark-operator)
 
 **This is not an officially supported Google product.**
 
@@ -28,7 +28,7 @@ Customization of Spark pods, e.g., mounting arbitrary volumes and setting pod af
 The easiest way to install the Kubernetes Operator for Apache Spark is to use the Helm [chart](charts/spark-operator-chart/).
 
 ```bash
-$ helm repo add spark-operator https://googlecloudplatform.github.io/spark-on-k8s-operator
+$ helm repo add spark-operator https://kubeflow.github.io/spark-operator
 
 $ helm install my-release spark-operator/spark-operator --namespace spark-operator --create-namespace
 ```

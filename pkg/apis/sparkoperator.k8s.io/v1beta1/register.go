@@ -21,7 +21,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
-	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io"
+	"github.com/kubeflow/spark-operator/pkg/apis/sparkoperator.k8s.io"
 )
 
 const Version = "v1beta1"

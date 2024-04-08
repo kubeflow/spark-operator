@@ -22,8 +22,8 @@ import (
 	"github.com/golang/glog"
 	"github.com/prometheus/client_golang/prometheus"
 
-	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta2"
-	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/util"
+	"github.com/kubeflow/spark-operator/pkg/apis/sparkoperator.k8s.io/v1beta2"
+	"github.com/kubeflow/spark-operator/pkg/util"
 )
 
 type sparkAppMetrics struct {

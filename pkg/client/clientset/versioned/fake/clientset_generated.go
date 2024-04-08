@@ -21,11 +21,11 @@ limitations under the License.
 package fake
 
 import (
-	clientset "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/client/clientset/versioned"
-	sparkoperatorv1beta1 "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/client/clientset/versioned/typed/sparkoperator.k8s.io/v1beta1"
-	fakesparkoperatorv1beta1 "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/client/clientset/versioned/typed/sparkoperator.k8s.io/v1beta1/fake"
-	sparkoperatorv1beta2 "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/client/clientset/versioned/typed/sparkoperator.k8s.io/v1beta2"
-	fakesparkoperatorv1beta2 "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/client/clientset/versioned/typed/sparkoperator.k8s.io/v1beta2/fake"
+	clientset "github.com/kubeflow/spark-operator/pkg/client/clientset/versioned"
+	sparkoperatorv1beta1 "github.com/kubeflow/spark-operator/pkg/client/clientset/versioned/typed/sparkoperator.k8s.io/v1beta1"
+	fakesparkoperatorv1beta1 "github.com/kubeflow/spark-operator/pkg/client/clientset/versioned/typed/sparkoperator.k8s.io/v1beta1/fake"
+	sparkoperatorv1beta2 "github.com/kubeflow/spark-operator/pkg/client/clientset/versioned/typed/sparkoperator.k8s.io/v1beta2"
+	fakesparkoperatorv1beta2 "github.com/kubeflow/spark-operator/pkg/client/clientset/versioned/typed/sparkoperator.k8s.io/v1beta2/fake"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/discovery"

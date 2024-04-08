@@ -21,7 +21,7 @@ limitations under the License.
 package fake
 
 import (
-	v1beta2 "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/client/clientset/versioned/typed/sparkoperator.k8s.io/v1beta2"
+	v1beta2 "github.com/kubeflow/spark-operator/pkg/client/clientset/versioned/typed/sparkoperator.k8s.io/v1beta2"
 	rest "k8s.io/client-go/rest"
 	testing "k8s.io/client-go/testing"
 )

@@ -26,7 +26,7 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
 
-	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/config"
+	"github.com/kubeflow/spark-operator/pkg/config"
 )
 
 func TestOnPodAdded(t *testing.T) {

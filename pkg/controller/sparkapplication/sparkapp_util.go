@@ -23,8 +23,8 @@ import (
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/kubernetes/pkg/apis/policy"
 
-	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta2"
-	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/config"
+	"github.com/kubeflow/spark-operator/pkg/apis/sparkoperator.k8s.io/v1beta2"
+	"github.com/kubeflow/spark-operator/pkg/config"
 	apiv1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 )
@@ -88,6 +88,16 @@ func getServiceAnnotations(app *v1beta2.SparkApplication) map[string]string {
 		}
 	}
 	return serviceAnnotations
+}
+
+func getServiceLabels(app *v1beta2.SparkApplication) map[string]string {
+	serviceLabels := map[string]string{}
+	if app.Spec.SparkUIOptions != nil && app.Spec.SparkUIOptions.ServiceLabels != nil {
+		for key, value := range app.Spec.SparkUIOptions.ServiceLabels {
+			serviceLabels[key] = value
+		}
+	}
+	return serviceLabels
 }
 
 func getIngressResourceAnnotations(app *v1beta2.SparkApplication) map[string]string {

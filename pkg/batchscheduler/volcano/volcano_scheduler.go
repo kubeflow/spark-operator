@@ -30,8 +30,8 @@ import (
 	"volcano.sh/volcano/pkg/apis/scheduling/v1beta1"
 	volcanoclient "volcano.sh/volcano/pkg/client/clientset/versioned"
 
-	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta2"
-	schedulerinterface "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/batchscheduler/interface"
+	"github.com/kubeflow/spark-operator/pkg/apis/sparkoperator.k8s.io/v1beta2"
+	schedulerinterface "github.com/kubeflow/spark-operator/pkg/batchscheduler/interface"
 )
 
 const (

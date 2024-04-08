@@ -5,7 +5,7 @@ on:
     branches:
       - master
 env:
-  REGISTRY_IMAGE: ghcr.io/googlecloudplatform/spark-operator
+  REGISTRY_IMAGE: ghcr.io/kubeflow/spark-operator
 
 jobs:
   build-skip-check:
@@ -55,9 +55,9 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
       - name: Install Helm
-        uses: azure/setup-helm@v3
+        uses: azure/setup-helm@v4
         with:
-          version: v3.13.2
+          version: v3.14.3
       - name: Login to Packages Container registry
         uses: docker/login-action@v3
         with:
@@ -79,7 +79,7 @@ jobs:
           digest="${{ steps.build.outputs.digest }}"
           touch "/tmp/digests/${digest#sha256:}"
       - name: Upload digest
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: digests
           path: /tmp/digests/*
@@ -93,7 +93,7 @@ jobs:
     if: needs.build-skip-check.outputs.skip == 'false'
     steps:
       - name: Download digests
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: digests
           path: /tmp/digests
