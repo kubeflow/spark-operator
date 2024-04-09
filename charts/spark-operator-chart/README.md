@@ -140,6 +140,7 @@ All charts linted successfully
 | webhook.initResources | object | `{}` | Resources applied to init job |
 | webhook.namespaceSelector | string | `""` | The webhook server will only operate on namespaces with this label, specified in the form key1=value1,key2=value2. Empty string (default) will operate on all namespaces |
 | webhook.port | int | `8080` | Webhook service port |
+| webhook.portName | string | `"webhook"` | Webhook container port name and service target port name |
 | webhook.timeout | int | `30` |  |
 
 ## Maintainers
