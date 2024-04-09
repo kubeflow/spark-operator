@@ -51,7 +51,7 @@ spec:
           {{- toYaml .Values.envFrom | nindent 10 }}
         securityContext:
           {{- toYaml .Values.securityContext | nindent 10 }}
-        {{- if or .Values.metrics.enable .Values.metrics.enable }}
+        {{- if or .Values.metrics.enable .Values.webhook.enable }}
         ports:
           {{ if .Values.metrics.enable }}
           - name: {{ .Values.metrics.portName | quote }}
