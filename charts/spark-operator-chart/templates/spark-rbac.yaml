@@ -1,11 +1,14 @@
 {{- if or .Values.rbac.create .Values.rbac.createRole }}
+{{- $jobNamespaces := .Values.sparkJobNamespaces | default (list .Release.Namespace) }}
+{{- range $jobNamespace := $jobNamespaces }}
+---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
   name: spark-role
-  namespace: {{ default .Release.Namespace .Values.sparkJobNamespace }}
+  namespace: {{ $jobNamespace }}
   labels:
-    {{- include "spark-operator.labels" . | nindent 4 }}
+    {{- include "spark-operator.labels" $ | nindent 4 }}
 rules:
 - apiGroups:
   - ""
@@ -32,20 +35,21 @@ rules:
   verbs:
   - "*"
 ---
-
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
   name: spark
-  namespace: {{ default .Release.Namespace .Values.sparkJobNamespace }}
+  namespace: {{ $jobNamespace }}
   labels:
-    {{- include "spark-operator.labels" . | nindent 4 }}
+    {{- include "spark-operator.labels" $ | nindent 4 }}
 subjects:
 - kind: ServiceAccount
-  name: {{ include "spark.serviceAccountName" . }}
-  namespace: {{ default .Release.Namespace .Values.sparkJobNamespace }}
+  name: {{ include "spark.serviceAccountName" $ }}
+  namespace: {{ $jobNamespace }}
 roleRef:
   kind: Role
   name: spark-role
+  namespace: {{ $jobNamespace }}
   apiGroup: rbac.authorization.k8s.io
+{{- end }}
 {{- end }}
