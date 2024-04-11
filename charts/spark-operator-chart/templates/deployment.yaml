@@ -52,10 +52,16 @@ spec:
           {{- toYaml .Values.envFrom | nindent 10 }}
         securityContext:
           {{- toYaml .Values.securityContext | nindent 10 }}
-        {{- if .Values.metrics.enable }}
+        {{- if or .Values.metrics.enable .Values.webhook.enable }}
         ports:
+          {{ if .Values.metrics.enable }}
           - name: {{ .Values.metrics.portName | quote }}
             containerPort: {{ .Values.metrics.port }}
+          {{ end }}
+          {{ if .Values.webhook.enable }}
+          - name: {{ .Values.webhook.portName | quote }}
+            containerPort: {{ .Values.webhook.port }}
+          {{ end }}
         {{ end }}
         args:
         - -v={{ .Values.logLevel }}
