@@ -126,7 +126,7 @@ All charts linted successfully
 | serviceAccounts.sparkoperator.create | bool | `true` | Create a service account for the operator |
 | serviceAccounts.sparkoperator.name | string | `""` | Optional name for the operator service account |
 | sidecars | list | `[]` | Sidecar containers |
-| sparkJobNamespace | string | `""` | Set this if running spark jobs in a different namespace than the operator |
+| sparkJobNamespaces | list | `[]` | List of namespaces where to run spark jobs, operator namespace is included only when list of namespaces is empty |
 | tolerations | list | `[]` | List of node taints to tolerate |
 | uiService.enable | bool | `true` | Enable UI service creation for Spark application |
 | volumeMounts | list | `[]` |  |
