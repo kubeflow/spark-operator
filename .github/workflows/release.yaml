@@ -72,6 +72,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Build and Push Spark-Operator Docker Image to github container registry
+        id: build
         uses: docker/build-push-action@v5
         with:
           context: .
@@ -127,6 +128,10 @@ jobs:
       - name: Inspect image
         run: |
           docker buildx imagetools inspect ${{ env.REGISTRY_IMAGE }}:${{ steps.meta.outputs.version }}
+      - name: Configure Git
+        run: |
+          git config user.name "$GITHUB_ACTOR"
+          git config user.email "$GITHUB_ACTOR@users.noreply.github.com"
       - name: Release Spark-Operator Helm Chart
         uses: helm/chart-releaser-action@v1.6.0
         env:
