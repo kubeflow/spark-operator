@@ -72,6 +72,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Build and Push Spark-Operator Docker Image to github container registry
+        id: build
         uses: docker/build-push-action@v5
         with:
           context: .
