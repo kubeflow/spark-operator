@@ -1,0 +1,90 @@
+suite: Test spark operator rbac
+
+templates:
+  - rbac.yaml
+
+release:
+  name: spark-operator
+
+tests:
+  - it: Should not render spark operator rbac resources if rbac.create is false and rbac.createClusterRole is false
+    set:
+      rbac:
+        create: false
+        createClusterRole: false
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: Should render spark operator cluster role if rbac.create is true
+    set:
+      rbac:
+        create: true
+    documentIndex: 0
+    asserts:
+      - containsDocument:
+          apiVersion: rbac.authorization.k8s.io/v1
+          kind: ClusterRole
+          name: spark-operator
+
+  - it: Should render spark operator cluster role if rbac.createClusterRole is true
+    set:
+      rbac:
+        createClusterRole: true
+    documentIndex: 0
+    asserts:
+      - containsDocument:
+          apiVersion: rbac.authorization.k8s.io/v1
+          kind: ClusterRole
+          name: spark-operator
+
+  - it: Should render spark operator cluster role binding if rbac.create is true
+    set:
+      rbac:
+        create: true
+    documentIndex: 1
+    asserts:
+      - containsDocument:
+          apiVersion: rbac.authorization.k8s.io/v1
+          kind: ClusterRoleBinding
+          name: spark-operator
+
+  - it: Should render spark operator cluster role binding correctly if rbac.createClusterRole is true
+    set:
+      rbac:
+        createClusterRole: true
+    release:
+    documentIndex: 1
+    asserts:
+      - containsDocument:
+          apiVersion: rbac.authorization.k8s.io/v1
+          kind: ClusterRoleBinding
+          name: spark-operator
+      - contains:
+          path: subjects
+          content:
+            kind: ServiceAccount
+            name: spark-operator
+            namespace: NAMESPACE
+          count: 1
+      - equal:
+          path: roleRef
+          value:
+            kind: ClusterRole
+            name: spark-operator
+            apiGroup: rbac.authorization.k8s.io
+
+  - it: Should add extra annotations to spark operator cluster role if rbac.annotations is set
+    set:
+      rbac:
+        annotations:
+          key1: value1
+          key2: value2
+    documentIndex: 0
+    asserts:
+      - equal:
+          path: metadata.annotations.key1
+          value: value1
+      - equal:
+          path: metadata.annotations.key2
+          value: value2

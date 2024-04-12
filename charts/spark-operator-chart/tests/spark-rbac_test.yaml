@@ -1,0 +1,113 @@
+suite: Test spark rbac
+
+templates:
+  - spark-rbac.yaml
+
+release:
+  name: spark-operator
+
+tests:
+  - it: Should not render spark rbac resources if rbac.create is false and rbac.createRole is false
+    set:
+      rbac:
+        create: false
+        createRole: false
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: Should render spark role if rbac.create is true
+    set:
+      rbac:
+        create: true
+    documentIndex: 0
+    asserts:
+      - containsDocument:
+          apiVersion: rbac.authorization.k8s.io/v1
+          kind: Role
+          name: spark-role
+
+  - it: Should render spark role if rbac.createRole is true
+    set:
+      rbac:
+        createRole: true
+    documentIndex: 0
+    asserts:
+      - containsDocument:
+          apiVersion: rbac.authorization.k8s.io/v1
+          kind: Role
+          name: spark-role
+
+  - it: Should render spark role binding if rbac.create is true
+    set:
+      rbac:
+        create: true
+    documentIndex: 1
+    asserts:
+      - containsDocument:
+          apiVersion: rbac.authorization.k8s.io/v1
+          kind: RoleBinding
+          name: spark
+
+  - it: Should render spark role binding if rbac.createRole is true
+    set:
+      rbac:
+        createRole: true
+    documentIndex: 1
+    asserts:
+      - containsDocument:
+          apiVersion: rbac.authorization.k8s.io/v1
+          kind: RoleBinding
+          name: spark
+
+  - it: Should render multiple spark roles if sparkJobNamespaces is set
+    set:
+      sparkJobNamespaces:
+        - ns1
+        - ns2
+    documentIndex: 0
+    asserts:
+      - containsDocument:
+          apiVersion: rbac.authorization.k8s.io/v1
+          kind: Role
+          name: spark-role
+          namespace: ns1
+
+  - it: Should render multiple spark role bindings if sparkJobNamespaces is set
+    set:
+      sparkJobNamespaces:
+        - ns1
+        - ns2
+    documentIndex: 1
+    asserts:
+      - containsDocument:
+          apiVersion: rbac.authorization.k8s.io/v1
+          kind: RoleBinding
+          name: spark
+          namespace: ns1
+
+  - it: Should render multiple spark roles if sparkJobNamespaces is set
+    set:
+      sparkJobNamespaces:
+        - ns1
+        - ns2
+    documentIndex: 2
+    asserts:
+      - containsDocument:
+          apiVersion: rbac.authorization.k8s.io/v1
+          kind: Role
+          name: spark-role
+          namespace: ns2
+
+  - it: Should render multiple spark role bindings if sparkJobNamespaces is set
+    set:
+      sparkJobNamespaces:
+        - ns1
+        - ns2
+    documentIndex: 3
+    asserts:
+      - containsDocument:
+          apiVersion: rbac.authorization.k8s.io/v1
+          kind: RoleBinding
+          name: spark
+          namespace: ns2
