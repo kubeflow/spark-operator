@@ -97,8 +97,10 @@ spec:
         - -leader-election-lock-namespace={{ default .Release.Namespace .Values.leaderElection.lockNamespace }}
         - -leader-election-lock-name={{ .Values.leaderElection.lockName }}
         {{- end }}
+        {{- with .Values.resources }}
         resources:
-          {{- toYaml .Values.resources | nindent 10 }}
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
         {{- if or .Values.webhook.enable (ne (len .Values.volumeMounts) 0 ) }}
         volumeMounts:
         {{- end }}
