@@ -26,8 +26,9 @@ import (
 
 	"github.com/golang/glog"
 	v1 "k8s.io/api/core/v1"
+	policy "k8s.io/api/policy/v1beta1"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/kubernetes/pkg/apis/policy"
 
 	"github.com/kubeflow/spark-operator/pkg/apis/sparkoperator.k8s.io/v1beta2"
 	"github.com/kubeflow/spark-operator/pkg/config"

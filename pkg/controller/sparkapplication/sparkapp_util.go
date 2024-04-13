@@ -21,7 +21,7 @@ import (
 	"fmt"
 
 	v1 "k8s.io/api/core/v1"
-	"k8s.io/kubernetes/pkg/apis/policy"
+	policy "k8s.io/api/policy/v1beta1"
 
 	"github.com/kubeflow/spark-operator/pkg/apis/sparkoperator.k8s.io/v1beta2"
 	"github.com/kubeflow/spark-operator/pkg/config"
