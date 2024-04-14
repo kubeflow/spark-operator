@@ -44,6 +44,12 @@ build-api-docs:
 			-template-dir /repo/hack/api-docs/api-docs-template \
 			-out-file /repo/docs/api-docs.md"
 
+helm-unittest:
+	helm unittest charts/spark-operator-chart --strict
+
+helm-lint:
+	docker run --rm --workdir /workspace --volume $(PWD):/workspace quay.io/helmpack/chart-testing:latest ct lint
+
 helm-docs:
 	docker run --rm --volume "$$(pwd):/helm-docs" -u "$(id -u)" jnorwood/helm-docs:latest
 
