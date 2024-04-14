@@ -1,11 +1,24 @@
+# Kubeflow Spark Operator
 [![Go Report Card](https://goreportcard.com/badge/github.com/kubeflow/spark-operator)](https://goreportcard.com/report/github.com/kubeflow/spark-operator)
 
-**This is not an officially supported Google product.**
+## Overview
+The Kubernetes Operator for Apache Spark aims to make specifying and running [Spark](https://github.com/apache/spark) applications as easy and idiomatic as running other workloads on Kubernetes. It uses
+[Kubernetes custom resources](https://kubernetes.io/docs/concepts/extend-kubernetes/api-extension/custom-resources/)
+for specifying, running, and surfacing status of Spark applications. For a complete reference of the custom resource definitions, please refer to the [API Definition](docs/api-docs.md). For details on its design, please refer to the [design doc](docs/design.md). It requires Spark 2.3 and above that supports Kubernetes as a native scheduler backend.
 
-## Community
+The Kubernetes Operator for Apache Spark currently supports the following list of features:
 
-* Join our [Slack](https://kubernetes.slack.com/messages/CALBDHMTL) channel on [Kubernetes on Slack](https://slack.k8s.io/).
-* Check out [who is using the Kubernetes Operator for Apache Spark](docs/who-is-using.md).
+* Supports Spark 2.3 and up.
+* Enables declarative application specification and management of applications through custom resources.
+* Automatically runs `spark-submit` on behalf of users for each `SparkApplication` eligible for submission.
+* Provides native [cron](https://en.wikipedia.org/wiki/Cron) support for running scheduled applications.
+* Supports customization of Spark pods beyond what Spark natively is able to do through the mutating admission webhook, e.g., mounting ConfigMaps and volumes, and setting pod affinity/anti-affinity.
+* Supports automatic application re-submission for updated `SparkApplication` objects with updated specification.
+* Supports automatic application restart with a configurable restart policy.
+* Supports automatic retries of failed submissions with optional linear back-off.
+* Supports mounting local Hadoop configuration as a Kubernetes ConfigMap automatically via `sparkctl`.
+* Supports automatically staging local application dependencies to Google Cloud Storage (GCS) via `sparkctl`.
+* Supports collecting and exporting application-level metrics and driver/executor metrics to Prometheus.
 
 ## Project Status
 
@@ -72,26 +85,11 @@ If you are running the Kubernetes Operator for Apache Spark on Google Kubernetes
 
 For more information, check the [Design](docs/design.md), [API Specification](docs/api-docs.md) and detailed [User Guide](docs/user-guide.md).
 
-## Overview
-
-The Kubernetes Operator for Apache Spark aims to make specifying and running [Spark](https://github.com/apache/spark) applications as easy and idiomatic as running other workloads on Kubernetes. It uses
-[Kubernetes custom resources](https://kubernetes.io/docs/concepts/extend-kubernetes/api-extension/custom-resources/)
-for specifying, running, and surfacing status of Spark applications. For a complete reference of the custom resource definitions, please refer to the [API Definition](docs/api-docs.md). For details on its design, please refer to the [design doc](docs/design.md). It requires Spark 2.3 and above that supports Kubernetes as a native scheduler backend.
-
-The Kubernetes Operator for Apache Spark currently supports the following list of features:
-
-* Supports Spark 2.3 and up.
-* Enables declarative application specification and management of applications through custom resources.
-* Automatically runs `spark-submit` on behalf of users for each `SparkApplication` eligible for submission.
-* Provides native [cron](https://en.wikipedia.org/wiki/Cron) support for running scheduled applications.
-* Supports customization of Spark pods beyond what Spark natively is able to do through the mutating admission webhook, e.g., mounting ConfigMaps and volumes, and setting pod affinity/anti-affinity.
-* Supports automatic application re-submission for updated `SparkApplication` objects with updated specification.
-* Supports automatic application restart with a configurable restart policy.
-* Supports automatic retries of failed submissions with optional linear back-off.
-* Supports mounting local Hadoop configuration as a Kubernetes ConfigMap automatically via `sparkctl`.
-* Supports automatically staging local application dependencies to Google Cloud Storage (GCS) via `sparkctl`.
-* Supports collecting and exporting application-level metrics and driver/executor metrics to Prometheus.
-
 ## Contributing
 
 Please check [CONTRIBUTING.md](CONTRIBUTING.md) and the [Developer Guide](docs/developer-guide.md) out.
+
+## Community
+
+* Join our [Kubeflow Slack Channel](https://kubeflow.slack.com/archives/C06627U3XU3)
+* Check out [who is using the Kubernetes Operator for Apache Spark](docs/who-is-using.md).
