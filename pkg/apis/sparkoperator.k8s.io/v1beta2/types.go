@@ -280,6 +280,9 @@ type SparkApplicationSpec struct {
 	// SparkUIOptions allows configuring the Service and the Ingress to expose the sparkUI
 	// +optional
 	SparkUIOptions *SparkUIConfiguration `json:"sparkUIOptions,omitempty"`
+	// DriverIngressOptions allows configuring the Service and the Ingress to expose ports inside Spark Driver
+	// +optional
+	DriverIngressOptions []DriverIngressConfiguration `json:"driverIngressOptions,omitempty"`
 	// DynamicAllocation configures dynamic allocation that becomes available for the Kubernetes
 	// scheduler backend since Spark 3.0.
 	// +optional
@@ -320,6 +323,32 @@ type SparkUIConfiguration struct {
 	// ServiceLables is a map of key,value pairs of labels that might be added to the service object.
 	// +optional
 	ServiceLabels map[string]string `json:"serviceLabels,omitempty"`
+	// IngressAnnotations is a map of key,value pairs of annotations that might be added to the ingress object. i.e. specify nginx as ingress.class
+	// +optional
+	IngressAnnotations map[string]string `json:"ingressAnnotations,omitempty"`
+	// TlsHosts is useful If we need to declare SSL certificates to the ingress object
+	// +optional
+	IngressTLS []networkingv1.IngressTLS `json:"ingressTLS,omitempty"`
+}
+
+// DriverIngressConfiguration is for driver ingress specific configuration parameters.
+type DriverIngressConfiguration struct {
+	// ServicePort allows configuring the port at service level that might be different from the targetPort.
+	ServicePort *int32 `json:"servicePort"`
+	// ServicePortName allows configuring the name of the service port.
+	// This may be useful for sidecar proxies like Envoy injected by Istio which require specific ports names to treat traffic as proper HTTP.
+	ServicePortName *string `json:"servicePortName"`
+	// ServiceType allows configuring the type of the service. Defaults to ClusterIP.
+	// +optional
+	ServiceType *apiv1.ServiceType `json:"serviceType"`
+	// ServiceAnnotations is a map of key,value pairs of annotations that might be added to the service object.
+	// +optional
+	ServiceAnnotations map[string]string `json:"serviceAnnotations,omitempty"`
+	// ServiceLables is a map of key,value pairs of labels that might be added to the service object.
+	// +optional
+	ServiceLabels map[string]string `json:"serviceLabels,omitempty"`
+	// IngressURLFormat is the URL for the ingress.
+	IngressURLFormat string `json:"ingressURLFormat,omitempty"`
 	// IngressAnnotations is a map of key,value pairs of annotations that might be added to the ingress object. i.e. specify nginx as ingress.class
 	// +optional
 	IngressAnnotations map[string]string `json:"ingressAnnotations,omitempty"`
