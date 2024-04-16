@@ -11,7 +11,7 @@ replicaCount: 1
 
 image:
   # -- Image repository
-  repository: ghcr.io/kubeflow/spark-operator
+  repository: docker.io/kubeflow/spark-operator
   # -- Image pull policy
   pullPolicy: IfNotPresent
   # -- if set, override the image tag whose default is the chart appVersion.
