@@ -48,6 +48,8 @@ spec:
       - name: {{ .Chart.Name }}
         image: {{ .Values.image.repository }}:{{ default .Chart.AppVersion .Values.image.tag }}
         imagePullPolicy: {{ .Values.image.pullPolicy }}
+        env:
+          {{- toYaml .Values.extraEnv | nindent 10 }}
         envFrom:
           {{- toYaml .Values.envFrom | nindent 10 }}
         securityContext:
