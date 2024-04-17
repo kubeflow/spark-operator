@@ -54,15 +54,15 @@ spec:
           {{- toYaml .Values.securityContext | nindent 10 }}
         {{- if or .Values.metrics.enable .Values.webhook.enable }}
         ports:
-          {{ if .Values.metrics.enable }}
+          {{ if .Values.metrics.enable -}}
           - name: {{ .Values.metrics.portName | quote }}
             containerPort: {{ .Values.metrics.port }}
-          {{ end }}
-          {{ if .Values.webhook.enable }}
+          {{- end }}
+          {{ if .Values.webhook.enable -}}
           - name: {{ .Values.webhook.portName | quote }}
             containerPort: {{ .Values.webhook.port }}
-          {{ end }}
-        {{ end }}
+          {{- end }}
+        {{ end -}}
         args:
         - -v={{ .Values.logLevel }}
         - -logtostderr

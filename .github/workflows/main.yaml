@@ -16,7 +16,7 @@ jobs:
       - name: Checkout source code
         uses: actions/checkout@v4
         with:
-          fetch-depth: '0'
+          fetch-depth: "0"
 
       - name: The API should not change once published
         run: |
@@ -79,7 +79,7 @@ jobs:
 
       - name: Build Spark-Operator Docker Image
         run: |
-          docker build -t ghcr.io/kubeflow/spark-operator:latest .
+          docker build -t docker.io/kubeflow/spark-operator:latest .
 
       - name: Check changes in resources used in docker file
         run: |
@@ -89,7 +89,7 @@ jobs:
             if ! git diff  --quiet origin/master -- $resource; then
               ## And the appVersion hasn't been updated
               if ! git diff origin/master -- charts/spark-operator-chart/Chart.yaml | grep +appVersion; then
-                echo "resource used in ghcr.io/kubeflow/spark-operator has changed in $resource, need to update the appVersion in charts/spark-operator-chart/Chart.yaml"
+                echo "resource used in docker.io/kubeflow/spark-operator has changed in $resource, need to update the appVersion in charts/spark-operator-chart/Chart.yaml"
                 git diff origin/master -- $resource;
                 echo "failing the build... " && false
               fi
@@ -147,8 +147,8 @@ jobs:
 
       - name: Run chart-testing (install)
         run: |
-          docker build -t ghcr.io/kubeflow/spark-operator:local .
-          minikube image load ghcr.io/kubeflow/spark-operator:local
+          docker build -t docker.io/kubeflow/spark-operator:local .
+          minikube image load docker.io/kubeflow/spark-operator:local
           ct install
 
   integration-test:
@@ -174,8 +174,8 @@ jobs:
 
       - name: Build local spark-operator docker image for minikube testing
         run: |
-          docker build -t ghcr.io/kubeflow/spark-operator:local .
-          minikube image load ghcr.io/kubeflow/spark-operator:local
+          docker build -t docker.io/kubeflow/spark-operator:local .
+          minikube image load docker.io/kubeflow/spark-operator:local
 
       # The integration tests are currently broken see: https://github.com/kubeflow/spark-operator/issues/1416
       # - name: Run chart-testing (integration test)

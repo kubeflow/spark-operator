@@ -32,6 +32,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/informers"
 	clientset "k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
@@ -102,20 +103,25 @@ func main() {
 	startCh := make(chan struct{}, 1)
 
 	if *enableLeaderElection {
+		podName := os.Getenv("POD_NAME")
 		hostname, err := os.Hostname()
 		if err != nil {
 			glog.Fatal(err)
 		}
-		resourceLock, err := resourcelock.New(resourcelock.ConfigMapsLeasesResourceLock,
-			*leaderElectionLockNamespace,
-			*leaderElectionLockName,
-			kubeClient.CoreV1(),
-			kubeClient.CoordinationV1(),
-			resourcelock.ResourceLockConfig{
-				Identity: hostname,
-				// TODO: This is a workaround for a nil dereference in client-go. This line can be removed when that dependency is updated.
-				EventRecorder: &record.FakeRecorder{},
-			})
+		broadcaster := record.NewBroadcaster()
+		source := apiv1.EventSource{Component: "spark-operator-leader-elector", Host: hostname}
+		recorder := broadcaster.NewRecorder(scheme.Scheme, source)
+		resourceLock := &resourcelock.LeaseLock{
+			LeaseMeta: metav1.ObjectMeta{
+				Namespace: *leaderElectionLockNamespace,
+				Name:      *leaderElectionLockName,
+			},
+			Client: kubeClient.CoordinationV1(),
+			LockConfig: resourcelock.ResourceLockConfig{
+				Identity:      podName,
+				EventRecorder: recorder,
+			},
+		}
 		if err != nil {
 			glog.Fatal(err)
 		}
