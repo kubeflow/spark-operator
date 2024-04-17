@@ -83,8 +83,8 @@ See [helm uninstall](https://helm.sh/docs/helm/helm_uninstall) for command docum
 | batchScheduler.enable | bool | `false` | Enable batch scheduler for spark jobs scheduling. If enabled, users can specify batch scheduler name in spark application |
 | commonLabels | object | `{}` | Common labels to add to the resources |
 | controllerThreads | int | `10` | Operator concurrency, higher values might increase memory usage |
-| extraEnv | list | `[]` | Pod environment variables |
 | envFrom | list | `[]` | Pod environment variable sources |
+| extraEnv | list | `[]` | Extra environment variables to add to the operator pod |
 | fullnameOverride | string | `""` | String to override release name |
 | image.pullPolicy | string | `"IfNotPresent"` | Image pull policy |
 | image.repository | string | `"docker.io/kubeflow/spark-operator"` | Image repository |
