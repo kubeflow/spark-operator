@@ -86,7 +86,7 @@ See [helm uninstall](https://helm.sh/docs/helm/helm_uninstall) for command docum
 | envFrom | list | `[]` | Pod environment variable sources |
 | fullnameOverride | string | `""` | String to override release name |
 | image.pullPolicy | string | `"IfNotPresent"` | Image pull policy |
-| image.repository | string | `"ghcr.io/kubeflow/spark-operator"` | Image repository |
+| image.repository | string | `"docker.io/kubeflow/spark-operator"` | Image repository |
 | image.tag | string | `""` | if set, override the image tag whose default is the chart appVersion. |
 | imagePullSecrets | list | `[]` | Image pull secrets |
 | ingressUrlFormat | string | `""` | Ingress URL format. Requires the UI service to be enabled by setting `uiService.enable` to true. |
