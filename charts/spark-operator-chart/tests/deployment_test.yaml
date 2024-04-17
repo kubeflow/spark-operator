@@ -7,6 +7,15 @@ release:
   name: spark-operator
 
 tests:
+  - it: Should contain namespace arg when sparkJobNamespaces is equal to 1
+    set:
+      sparkJobNamespaces:
+        - ns1
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: -namespace=ns1
+
   - it: Should add pod annotations if podAnnotations is set
     set:
       podAnnotations:
