@@ -49,7 +49,6 @@ subjects:
 roleRef:
   kind: Role
   name: spark-role
-  namespace: {{ $jobNamespace }}
   apiGroup: rbac.authorization.k8s.io
 {{- end }}
 {{- end }}
