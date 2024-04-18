@@ -77,6 +77,18 @@ This removes all the Kubernetes resources associated with the chart and deletes 
 
 See [helm uninstall](https://helm.sh/docs/helm/helm_uninstall) for command documentation.
 
+## Configurations
+
+### Set Spark Job Namespaces
+
+
+### Enable Webhook Server
+
+If you want to enable webhook server, then `webhook.enable` must be set to true. Also, the webhook server requires a valid certificate. We use [cert-manager](https://cert-manager.io/) to generate the certificate. Install all cert-manager components as follows:
+
+```shell
+kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.14.4/cert-manager.yaml
+```
 {{ template "chart.valuesSection" . }}
 
 {{ template "chart.maintainersSection" . }}

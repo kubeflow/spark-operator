@@ -1,25 +1,22 @@
 suite: Test spark operator rbac
 
 templates:
-  - rbac.yaml
+  - sparkoperator/rbac.yaml
 
 release:
   name: spark-operator
 
 tests:
-  - it: Should not render spark operator rbac resources if rbac.create is false and rbac.createClusterRole is false
+  - it: Should not render spark operator rbac resources if rbac.sparkoperator.create is false
     set:
       rbac:
-        create: false
-        createClusterRole: false
+        sparkoperator:
+          create: false
     asserts:
       - hasDocuments:
           count: 0
 
-  - it: Should render spark operator cluster role if rbac.create is true
-    set:
-      rbac:
-        create: true
+  - it: Should render spark operator cluster role if rbac.sparkoperator.create is true
     documentIndex: 0
     asserts:
       - containsDocument:
@@ -27,21 +24,7 @@ tests:
           kind: ClusterRole
           name: spark-operator
 
-  - it: Should render spark operator cluster role if rbac.createClusterRole is true
-    set:
-      rbac:
-        createClusterRole: true
-    documentIndex: 0
-    asserts:
-      - containsDocument:
-          apiVersion: rbac.authorization.k8s.io/v1
-          kind: ClusterRole
-          name: spark-operator
-
-  - it: Should render spark operator cluster role binding if rbac.create is true
-    set:
-      rbac:
-        create: true
+  - it: Should render spark operator cluster role binding if rbac.sparkoperator.create is true
     documentIndex: 1
     asserts:
       - containsDocument:
@@ -49,11 +32,7 @@ tests:
           kind: ClusterRoleBinding
           name: spark-operator
 
-  - it: Should render spark operator cluster role binding correctly if rbac.createClusterRole is true
-    set:
-      rbac:
-        createClusterRole: true
-    release:
+  - it: Should render spark operator cluster role binding correctly if rbac.sparkoperator.create is true
     documentIndex: 1
     asserts:
       - containsDocument:
@@ -77,9 +56,10 @@ tests:
   - it: Should add extra annotations to spark operator cluster role if rbac.annotations is set
     set:
       rbac:
-        annotations:
-          key1: value1
-          key2: value2
+        sparkoperator:
+          annotations:
+            key1: value1
+            key2: value2
     documentIndex: 0
     asserts:
       - equal:

@@ -1,6 +1,6 @@
 # spark-operator
 
-![Version: 1.2.11](https://img.shields.io/badge/Version-1.2.11-informational?style=flat-square) ![AppVersion: v1beta2-1.4.3-3.5.0](https://img.shields.io/badge/AppVersion-v1beta2--1.4.3--3.5.0-informational?style=flat-square)
+![Version: 1.3.0](https://img.shields.io/badge/Version-1.3.0-informational?style=flat-square) ![AppVersion: v1beta2-1.5.0-3.5.0](https://img.shields.io/badge/AppVersion-v1beta2--1.5.0--3.5.0-informational?style=flat-square)
 
 A Helm chart for Spark on Kubernetes operator
 
@@ -75,6 +75,17 @@ This removes all the Kubernetes resources associated with the chart and deletes 
 
 See [helm uninstall](https://helm.sh/docs/helm/helm_uninstall) for command documentation.
 
+## Configurations
+
+### Set Spark Job Namespaces
+
+### Enable Webhook Server
+
+If you want to enable webhook server, then `webhook.enable` must be set to true. Also, the webhook server requires a valid certificate. We use [cert-manager](https://cert-manager.io/) to generate the certificate. Install all cert-manager components as follows:
+
+```shell
+kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.14.4/cert-manager.yaml
+```
 ## Values
 
 | Key | Type | Default | Description |
@@ -86,9 +97,9 @@ See [helm uninstall](https://helm.sh/docs/helm/helm_uninstall) for command docum
 | envFrom | list | `[]` | Pod environment variable sources |
 | fullnameOverride | string | `""` | String to override release name |
 | image.pullPolicy | string | `"IfNotPresent"` | Image pull policy |
+| image.pullSecrets | list | `[]` | Image pull secrets |
 | image.repository | string | `"docker.io/kubeflow/spark-operator"` | Image repository |
 | image.tag | string | `""` | if set, override the image tag whose default is the chart appVersion. |
-| imagePullSecrets | list | `[]` | Image pull secrets |
 | ingressUrlFormat | string | `""` | Ingress URL format. Requires the UI service to be enabled by setting `uiService.enable` to true. |
 | istio.enabled | bool | `false` | When using `istio`, spark jobs need to run without a sidecar to properly terminate |
 | labelSelectorFilter | string | `""` | A comma-separated list of key=value, or key labels to filter resources during watch and list based on the specified labels. |
@@ -110,38 +121,37 @@ See [helm uninstall](https://helm.sh/docs/helm/helm_uninstall) for command docum
 | podMonitor.labels | object | `{}` | Pod monitor labels |
 | podMonitor.podMetricsEndpoint | object | `{"interval":"5s","scheme":"http"}` | Prometheus metrics endpoint properties. `metrics.portName` will be used as a port |
 | podSecurityContext | object | `{}` | Pod security context |
-| rbac.annotations | object | `{}` | Optional annotations for rbac |
-| rbac.create | bool | `false` | **DEPRECATED** use `createRole` and `createClusterRole` |
-| rbac.createClusterRole | bool | `true` | Create and use RBAC `ClusterRole` resources |
-| rbac.createRole | bool | `true` | Create and use RBAC `Role` resources |
+| rbac.spark.annotations | object | `{}` | Optional annotations for spark RBAC resources |
+| rbac.spark.create | bool | `true` | Specifies whether to create RBAC resources for spark applications |
+| rbac.sparkoperator.annotations | object | `{}` | Optional annotations for spark operator RBAC resources |
+| rbac.sparkoperator.create | bool | `true` | Specifies whether to create RBAC resources for spark operator |
+| rbac.webhook.annotations | object | `{}` | Optional annotations for webhook RBAC resources |
+| rbac.webhook.create | bool | `true` | Specifies whether to create RBAC resources for webhook when `webhook.enable` is set to `true` |
 | replicaCount | int | `1` | Desired number of pods, leaderElection will be enabled if this is greater than 1 |
 | resourceQuotaEnforcement.enable | bool | `false` | Whether to enable the ResourceQuota enforcement for SparkApplication resources. Requires the webhook to be enabled by setting `webhook.enable` to true. Ref: https://github.com/kubeflow/spark-operator/blob/master/docs/user-guide.md#enabling-resource-quota-enforcement. |
 | resources | object | `{}` | Pod resource requests and limits Note, that each job submission will spawn a JVM within the Spark Operator Pod using "/usr/local/openjdk-11/bin/java -Xmx128m". Kubernetes may kill these Java processes at will to enforce resource limits. When that happens, you will see the following error: 'failed to run spark-submit for SparkApplication [...]: signal: killed' - when this happens, you may want to increase memory limits. |
 | resyncInterval | int | `30` | Operator resync interval. Note that the operator will respond to events (e.g. create, update) unrelated to this setting |
 | securityContext | object | `{}` | Operator container security context |
 | serviceAccounts.spark.annotations | object | `{}` | Optional annotations for the spark service account |
-| serviceAccounts.spark.create | bool | `true` | Create a service account for spark apps |
+| serviceAccounts.spark.create | bool | `true` | Specifies whether to create a service account for spark applications |
 | serviceAccounts.spark.name | string | `""` | Optional name for the spark service account |
 | serviceAccounts.sparkoperator.annotations | object | `{}` | Optional annotations for the operator service account |
-| serviceAccounts.sparkoperator.create | bool | `true` | Create a service account for the operator |
+| serviceAccounts.sparkoperator.create | bool | `true` | Specifies whether to create a service account for spark operator |
 | serviceAccounts.sparkoperator.name | string | `""` | Optional name for the operator service account |
+| serviceAccounts.webhook.annotations | object | `{}` | Optional annotations for the webhook service account |
+| serviceAccounts.webhook.create | bool | `true` | Specifies whether to create a service account for the webhook when `webhook.enable``` is set to `true` |
+| serviceAccounts.webhook.name | string | `""` | Optional name for the webhook service account |
 | sidecars | list | `[]` | Sidecar containers |
 | sparkJobNamespaces | list | `[]` | List of namespaces where to run spark jobs, operator namespace is included only when list of namespaces is empty |
 | tolerations | list | `[]` | List of node taints to tolerate |
 | uiService.enable | bool | `true` | Enable UI service creation for Spark application |
-| volumeMounts | list | `[]` |  |
-| volumes | list | `[]` |  |
-| webhook.cleanupAnnotations | object | `{"helm.sh/hook":"pre-delete, pre-upgrade","helm.sh/hook-delete-policy":"hook-succeeded"}` | The annotations applied to the cleanup job, required for helm lifecycle hooks |
-| webhook.cleanupPodLabels | object | `{}` | The podLabels applied to the pod of the cleanup job |
-| webhook.cleanupResources | object | `{}` | Resources applied to cleanup job |
-| webhook.enable | bool | `false` | Enable webhook server |
-| webhook.initAnnotations | object | `{"helm.sh/hook":"pre-install, pre-upgrade","helm.sh/hook-weight":"50"}` | The annotations applied to init job, required to restore certs deleted by the cleanup job during upgrade |
-| webhook.initPodLabels | object | `{}` | The podLabels applied to the pod of the init job |
-| webhook.initResources | object | `{}` | Resources applied to init job |
-| webhook.namespaceSelector | string | `""` | The webhook server will only operate on namespaces with this label, specified in the form key1=value1,key2=value2. Empty string (default) will operate on all namespaces |
-| webhook.port | int | `8080` | Webhook service port |
-| webhook.portName | string | `"webhook"` | Webhook container port name and service target port name |
-| webhook.timeout | int | `30` |  |
+| volumeMounts | list | `[]` | Operator volumeMounts |
+| volumes | list | `[]` | Operator volumes |
+| webhook.enable | bool | `false` | Specifies whether to enable webhook server |
+| webhook.failurePolicy | string | `"Ignore"` | Specifies how unrecognized errors are handled, allowed values are `Ignore` or `Fail`. |
+| webhook.port | int | `8080` | Specifies webhook port |
+| webhook.portName | string | `"webhook"` | Specifies webhook service port name |
+| webhook.timeoutSeconds | int | `30` | Specifies the timeout seconds of the webhook, the value must be between 1 and 30. |
 
 ## Maintainers
 

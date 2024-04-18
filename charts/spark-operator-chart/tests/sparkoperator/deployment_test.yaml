@@ -1,7 +1,7 @@
 suite: Test spark operator deployment
 
 templates:
-  - deployment.yaml
+  - sparkoperator/deployment.yaml
 
 release:
   name: spark-operator
@@ -48,9 +48,10 @@ tests:
 
   - it: Should add secrets if imagePullSecrets is set
     set:
-      imagePullSecrets:
-        - name: test-secret1
-        - name: test-secret2
+      image:
+        pullSecrets:
+          - name: test-secret1
+          - name: test-secret2
     asserts:
       - equal:
           path: spec.template.spec.imagePullSecrets[0].name
@@ -159,31 +160,6 @@ tests:
             limits:
               memory: "128Mi"
               cpu: "500m"
-
-  - it: Should add webhook certs volume if webhook.enable is true
-    set:
-      webhook:
-        enable: true
-    asserts:
-      - contains:
-          path: spec.template.spec.volumes
-          content:
-            name: webhook-certs
-            secret:
-              secretName: spark-operator-webhook-certs
-          count: 1
-
-  - it: Should add webhook certs volume mounts if webhook.enable is true
-    set:
-      webhook:
-        enable: true
-    asserts:
-      - contains:
-          path: spec.template.spec.containers[0].volumeMounts
-          content:
-            name: webhook-certs
-            mountPath: /etc/webhook-certs
-          count: 1
 
   - it: Should add sidecars if sidecars is set
     set:

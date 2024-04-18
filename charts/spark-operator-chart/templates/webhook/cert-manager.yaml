@@ -1,0 +1,32 @@
+{{- if .Values.webhook.enable -}}
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: {{ include "cert-manager.issuerName" . }}
+  labels:
+    {{- include "spark-operator.labels" . | nindent 4 }}
+spec:
+  selfSigned: {}
+
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: {{ include "cert-manager.certificateName" . }}
+  labels:
+    {{- include "spark-operator.labels" . | nindent 4 }}
+spec:
+  commonName: {{ include "spark-operator.webhookServiceName" . }} 
+  duration: 2400000h
+  dnsNames:
+  - {{ include "spark-operator.webhookServiceName" . }}.{{ .Release.Namespace }}.svc
+  - {{ include "spark-operator.webhookServiceName" . }}.{{ .Release.Namespace }}.svc.cluster.local
+  isCA: true
+  privateKey:
+    algorithm: RSA
+    size: 2048
+  secretName: {{ include "spark-operator.webhookSecretName" . }}
+  issuerRef:
+    kind: Issuer
+    name: {{ include "cert-manager.issuerName" . }}
+{{- end }}

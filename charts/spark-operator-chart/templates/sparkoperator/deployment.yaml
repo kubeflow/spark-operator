@@ -37,32 +37,29 @@ spec:
           {{- toYaml . | trim | nindent 8 }}
         {{- end }}
     spec:
-      serviceAccountName: {{ include "spark-operator.serviceAccountName" . }}
-      {{- with .Values.imagePullSecrets }}
-      imagePullSecrets:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
-      securityContext:
-        {{- toYaml .Values.podSecurityContext | nindent 8 }}
       containers:
       - name: {{ .Chart.Name }}
-        image: {{ .Values.image.repository }}:{{ default .Chart.AppVersion .Values.image.tag }}
+        image: {{ include "spark-operator.image" . }}
         imagePullPolicy: {{ .Values.image.pullPolicy }}
+        {{- with .Values.envFrom }}
         envFrom:
-          {{- toYaml .Values.envFrom | nindent 10 }}
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+        {{- with .Values.securityContext }}
         securityContext:
-          {{- toYaml .Values.securityContext | nindent 10 }}
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
         {{- if or .Values.metrics.enable .Values.webhook.enable }}
         ports:
-          {{ if .Values.metrics.enable -}}
-          - name: {{ .Values.metrics.portName | quote }}
-            containerPort: {{ .Values.metrics.port }}
-          {{- end }}
-          {{ if .Values.webhook.enable -}}
-          - name: {{ .Values.webhook.portName | quote }}
-            containerPort: {{ .Values.webhook.port }}
-          {{- end }}
-        {{ end -}}
+        {{- if .Values.metrics.enable }}
+        - name: {{ .Values.metrics.portName | quote }}
+          containerPort: {{ .Values.metrics.port }}
+        {{- end }}
+        {{- if .Values.webhook.enable }}
+        - name: {{ .Values.webhook.portName }}
+          containerPort: {{ .Values.webhook.port }}
+        {{- end }}
+        {{- end }}
         args:
         - -v={{ .Values.logLevel }}
         - -logtostderr
@@ -84,12 +81,10 @@ spec:
         {{- end }}
         {{- if .Values.webhook.enable }}
         - -enable-webhook=true
-        - -webhook-svc-namespace={{ .Release.Namespace }}
+        - -webhook-ca-cert=/etc/webhook-certs/ca.crt
+        - -webhook-server-cert=/etc/webhook-certs/tls.crt
+        - -webhook-server-cert-key=/etc/webhook-certs/tls.key
         - -webhook-port={{ .Values.webhook.port }}
-        - -webhook-timeout={{ .Values.webhook.timeout }}
-        - -webhook-svc-name={{ include "spark-operator.fullname" . }}-webhook
-        - -webhook-config-name={{ include "spark-operator.fullname" . }}-webhook-config
-        - -webhook-namespace-selector={{ .Values.webhook.namespaceSelector }}
         {{- end }}
         - -enable-resource-quota-enforcement={{ .Values.resourceQuotaEnforcement.enable }}
         {{- if gt (int .Values.replicaCount) 1 }}
@@ -104,27 +99,31 @@ spec:
         {{- if or .Values.webhook.enable (ne (len .Values.volumeMounts) 0 ) }}
         volumeMounts:
         {{- end }}
-          {{- if .Values.webhook.enable }}
-          - name: webhook-certs
-            mountPath: /etc/webhook-certs
-          {{- end }}
+        {{- if .Values.webhook.enable }}
+        - name: webhook-certs
+          mountPath: /etc/webhook-certs
+        {{- end }}
         {{- with .Values.volumeMounts }}
-        {{- toYaml . | nindent 10 }}
+        {{- toYaml . | nindent 8 }}
         {{- end }}
       {{- with .Values.sidecars }}
         {{- toYaml . | nindent 6 }}
       {{- end }}
+      {{- with .Values.image.pullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       {{- if or .Values.webhook.enable (ne (len .Values.volumes) 0 ) }}
       volumes:
       {{- end }}
-        {{- if .Values.webhook.enable }}
-        - name: webhook-certs
-          secret:
-            secretName: {{ include "spark-operator.fullname" . }}-webhook-certs
-        {{- end }}
-        {{- with .Values.volumes }}
-        {{- toYaml . | nindent 8 }}
-        {{- end }}
+      {{- if .Values.webhook.enable }}
+      - name: webhook-certs
+        secret:
+          secretName: {{ include "spark-operator.webhookSecretName" . }}
+      {{- end }}
+      {{- with .Values.volumes }}
+      {{- toYaml . | nindent 6 }}
+      {{- end }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
@@ -135,5 +134,10 @@ spec:
       {{- end }}
       {{- with .Values.tolerations }}
       tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "spark-operator.serviceAccountName" . }}
+      {{- with .Values.podSecurityContext }}
+      securityContext:
         {{- toYaml . | nindent 8 }}
       {{- end }}

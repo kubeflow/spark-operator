@@ -1,0 +1,113 @@
+{{- if .Values.rbac.sparkoperator.create -}}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "spark-operator.fullname" . }}
+  labels:
+    {{- include "spark-operator.labels" . | nindent 4 }}
+  {{- with .Values.rbac.sparkoperator.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+rules:
+- apiGroups: [""]
+  resources: ["nodes"]
+  verbs: ["get"]
+{{- if gt (int .Values.replicaCount) 1 }}
+- apiGroups: ["coordination.k8s.io"]
+  resources: ["leases"]
+  resourceNames: [{{ .Values.leaderElection.lockName | quote }}]
+  verbs: ["create", "get", "uddate", "patch", "delete"]
+{{- end }}
+- apiGroups: [""]
+  resources: ["pods"]
+  verbs: ["*"]
+- apiGroups: ["sparkoperator.k8s.io"]
+  resources: ["sparkapplications", "sparkapplications/status", "sparkapplications/finalizers", "scheduledsparkapplications", "scheduledsparkapplications/status", "scheduledsparkapplications/finalizers"]
+  verbs: ["*"]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "spark-operator.fullname" . }}
+  labels:
+    {{- include "spark-operator.labels" . | nindent 4 }}
+  {{- with .Values.rbac.sparkoperator.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ include "spark-operator.fullname" . }}
+subjects:
+- kind: ServiceAccount
+  name: {{ include "spark-operator.serviceAccountName" . }}
+  namespace: {{ .Release.Namespace }}
+
+{{- $jobNamespaces := default (list "default") .Values.sparkJobNamespaces -}}
+{{- range $jobNamespace := $jobNamespaces }}
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ include "spark-operator.fullname" $ }}
+  namespace: {{ $jobNamespace }}
+  labels:
+    {{- include "spark-operator.labels" $ | nindent 4}}
+  {{- with $.Values.rbac.spark.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+rules:
+- apiGroups: [""]
+  resources: ["configmaps"]
+  verbs: ["create", "get", "update", "patch", "delete"]
+- apiGroups: [""]
+  resources: ["persistentvolumeclaims"]
+  verbs: ["create", "get", "list", "watch", "update", "patch"]
+- apiGroups: [""]
+  resources: ["services"]
+  verbs: ["create", "get", "patch", "delete"]
+- apiGroups: ["extensions", "networking.k8s.io"]
+  resources: ["ingresses"]
+  verbs: ["create", "get", "delete"]
+- apiGroups: [""]
+  resources: ["events"]
+  verbs: ["create", "update", "patch"]
+{{- if $.Values.resourceQuotaEnforcement.enable }}
+- apiGroups: [""]
+  resources: ["resourcequotas"]
+  verbs: ["get", "list", "watch"]
+{{- end }}
+{{- if $.Values.batchScheduler.enable }}
+{{- /* required for the `volcano` batch scheduler */}} 
+- apiGroups: ["scheduling.incubator.k8s.io", "scheduling.sigs.dev", "scheduling.volcano.sh"]
+  resources: ["podgroups"]
+  verbs: ["*"]
+{{- end }}
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ include "spark-operator.fullname" $ }}
+  namespace: {{ $jobNamespace }}
+  labels:
+    {{- include "spark-operator.labels" $ | nindent 4 }}
+  {{- with $.Values.rbac.sparkoperator.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ include "spark-operator.fullname" $ }}
+subjects:
+- kind: ServiceAccount
+  name: {{ include "spark-operator.serviceAccountName" $ }}
+  namespace: {{ $.Release.Namespace }}
+{{- end }}
+{{- end }}

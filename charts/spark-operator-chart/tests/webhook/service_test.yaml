@@ -1,16 +1,14 @@
 suite: Test spark operator webhook service
 
 templates:
-  - webhook-service.yaml
+  - webhook/service.yaml
 
 release:
   name: spark-operator
+  namespace: spark-operator
 
 tests:
   - it: Should not render the webhook service if webhook.enable is false
-    set:
-      webhook:
-        enable: false
     asserts:
       - hasDocuments:
           count: 0
@@ -19,15 +17,16 @@ tests:
     set:
       webhook:
         enable: true
+        port: 8080
         portName: webhook
     asserts:
       - containsDocument:
           apiVersion: v1
           kind: Service
-          name: spark-operator-webhook
+          name: spark-operator-webhook-svc
       - equal:
           path: spec.ports[0]
           value:
-            port: 443
+            port: 8080
             targetPort: webhook
             name: webhook

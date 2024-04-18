@@ -66,7 +66,7 @@ Create the name of the service account to be used by the operator
 {{- end -}}
 
 {{/*
-Create the name of the service account to be used by spark apps
+Create the name of the service account to be used by spark applications
 */}}
 {{- define "spark.serviceAccountName" -}}
 {{- if .Values.serviceAccounts.spark.create -}}
@@ -77,3 +77,9 @@ Create the name of the service account to be used by spark apps
 {{- end -}}
 {{- end -}}
 
+{{/*
+Spark operator image
+*/}}
+{{- define "spark-operator.image" -}}
+{{ .Values.image.repository }}:{{ default .Chart.AppVersion .Values.image.tag }}
+{{- end -}}

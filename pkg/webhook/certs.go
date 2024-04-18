@@ -18,7 +18,6 @@ package webhook
 
 import (
 	"crypto/tls"
-	"io/ioutil"
 	"sync"
 	"time"
 
@@ -92,8 +91,4 @@ func (c *certProvider) updateCert() {
 	c.certPointerMutex.Lock()
 	c.currentCert = &cert
 	c.certPointerMutex.Unlock()
-}
-
-func readCertFile(certFile string) ([]byte, error) {
-	return ioutil.ReadFile(certFile)
 }

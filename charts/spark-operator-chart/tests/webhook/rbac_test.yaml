@@ -1,0 +1,58 @@
+suite: Test spark operator webhook rbac
+
+templates:
+  - webhook/rbac.yaml
+
+release:
+  name: spark-operator
+  namespace: spark-operator
+
+tests:
+  - it: Should not render webhook rbac if webhook.enable is false
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: Should render webhook cluster role if webhook.enable is true
+    set:
+      webhook:
+        enable: true
+    documentIndex: 0
+    asserts:
+      - containsDocument:
+          apiVersion: rbac.authorization.k8s.io/v1
+          kind: ClusterRole
+          name: spark-operator-webhook
+
+  - it: Should not render webhook cluster role binding if webhook.enable is true
+    set:
+      webhook:
+        enable: true
+    documentIndex: 1
+    asserts:
+      - containsDocument:
+          apiVersion: rbac.authorization.k8s.io/v1
+          kind: ClusterRoleBinding
+          name: spark-operator-webhook
+
+  - it: Should render webhook role if webhook.enable is true
+    set:
+      webhook:
+        enable: true
+    documentIndex: 2
+    asserts:
+      - containsDocument:
+          apiVersion: rbac.authorization.k8s.io/v1
+          kind: Role
+          name: spark-operator-webhook
+
+  - it: Should not render webhook role binding if webhook.enable is true
+    set:
+      webhook:
+        enable: true
+    documentIndex: 3
+    asserts:
+      - containsDocument:
+          apiVersion: rbac.authorization.k8s.io/v1
+          kind: RoleBinding
+          name: spark-operator-webhook

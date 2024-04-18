@@ -26,7 +26,6 @@ import (
 
 	admissionv1 "k8s.io/api/admission/v1"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/equality"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 
@@ -181,42 +180,4 @@ func TestMutatePod(t *testing.T) {
 
 func serializePod(pod *corev1.Pod) ([]byte, error) {
 	return json.Marshal(pod)
-}
-
-func testSelector(input string, expected *metav1.LabelSelector, t *testing.T) {
-	selector, err := parseNamespaceSelector(input)
-	if expected == nil {
-		if err == nil {
-			t.Errorf("Expected error parsing '%s', but got %v", input, selector)
-		}
-	} else {
-		if err != nil {
-			t.Errorf("Parsing '%s' failed: %v", input, err)
-			return
-		}
-		if !equality.Semantic.DeepEqual(*selector, *expected) {
-			t.Errorf("Parsing '%s' failed: expected %v, got %v", input, expected, selector)
-		}
-	}
-}
-
-func TestNamespaceSelectorParsing(t *testing.T) {
-	testSelector("invalid", nil, t)
-	testSelector("=invalid", nil, t)
-	testSelector("invalid=", nil, t)
-	testSelector("in,val,id", nil, t)
-	testSelector(",inval=id,inval2=id2", nil, t)
-	testSelector("inval=id,inval2=id2,", nil, t)
-	testSelector("val=id,invalid", nil, t)
-	testSelector("val=id", &metav1.LabelSelector{
-		MatchLabels: map[string]string{
-			"val": "id",
-		},
-	}, t)
-	testSelector("val=id,val2=id2", &metav1.LabelSelector{
-		MatchLabels: map[string]string{
-			"val":  "id",
-			"val2": "id2",
-		},
-	}, t)
 }
