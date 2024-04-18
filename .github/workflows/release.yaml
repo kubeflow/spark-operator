@@ -37,11 +37,11 @@ jobs:
             echo "Spark-Operator Docker Image new tag: $app_version_tag released" 
           fi
 
-          if ! git rev-parse -q --verify "refs/tags/$chart_version_tag"; then
+          if ! git rev-parse -q --verify "refs/tags/spark-operator-chart-$chart_version_tag"; then
             chart_changed=true
-            git tag $chart_version_tag
-            git push origin $chart_version_tag
-            echo "Spark-Operator Helm Chart new tag: $chart_version_tag released" 
+            git tag spark-operator-chart-$chart_version_tag
+            git push origin spark-operator-chart-$chart_version_tag
+            echo "Spark-Operator Helm Chart new tag: spark-operator-chart-$chart_version_tag released" 
           fi
 
           echo "image_changed=${image_changed}" >> "$GITHUB_OUTPUT"
