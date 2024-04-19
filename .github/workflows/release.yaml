@@ -147,7 +147,6 @@ jobs:
     runs-on: ubuntu-latest
     if: needs.build-skip-check.outputs.chart_changed == 'true'
     needs:
-      - publish-image
       - build-skip-check
     steps:
       - name: Checkout
