@@ -516,6 +516,9 @@ func buildLocalVolumeOptions(prefix string, volume v1.Volume, volumeMount v1.Vol
 		}
 	case volume.EmptyDir != nil:
 		options = append(options, fmt.Sprintf(VolumeMountPathTemplate, "emptyDir", volume.Name, volumeMount.MountPath))
+		if volume.EmptyDir.SizeLimit != nil {
+			options = append(options, fmt.Sprintf(VolumeMountOptionTemplate, "emptyDir", volume.Name, "sizeLimit", volume.EmptyDir.SizeLimit.String()))
+		}
 	case volume.PersistentVolumeClaim != nil:
 		options = append(options, fmt.Sprintf(VolumeMountPathTemplate, "persistentVolumeClaim", volume.Name, volumeMount.MountPath))
 		options = append(options, fmt.Sprintf(VolumeMountOptionTemplate, "persistentVolumeClaim", volume.Name, "claimName", volume.PersistentVolumeClaim.ClaimName))
