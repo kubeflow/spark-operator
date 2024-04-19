@@ -9,7 +9,7 @@ metadata:
   annotations:
     cert-manager.io/inject-ca-from-secret: {{ .Release.Namespace }}/{{ include "spark-operator.webhookSecretName" . }}
 webhooks:
-- name: webhook.sparkoperator.k8s.io
+- name: {{ include "spark-operator.mutatingWebhookConfigurationName" . }}
   admissionReviewVersions: ["v1"]
   clientConfig:
     service:
@@ -43,9 +43,9 @@ webhooks:
   {{- with .Values.webhook.timeoutSeconds }}
   timeoutSeconds: {{ . }}
   {{- end }}
+{{- if .Values.resourceQuotaEnforcement.enable }}
 
 ---
-{{- if .Values.resourceQuotaEnforcement.enable -}}
 apiVersion: admissionregistration.k8s.io/v1
 kind: ValidatingWebhookConfiguration
 metadata:
@@ -55,7 +55,7 @@ metadata:
   annotations:
     cert-manager.io/inject-ca-from-secret: {{ .Release.Namespace }}/{{ include "spark-operator.webhookSecretName" . }}
 webhooks:
-- name: quotaenforcer.sparkoperator.k8s.io
+- name: {{ include "spark-operator.validatingWebhookConfigurationName" . }}
   admissionReviewVersions: ["v1"]
   clientConfig:
     service:

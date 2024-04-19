@@ -1,0 +1,159 @@
+suite: Test spark operator webhook configurations
+
+templates:
+  - templates/webhook/webhook.yaml
+
+release:
+  name: spark-operator
+  namespace: spark-operator
+
+tests:
+  - it: Should not render webhook configurations if webhook.enable is false
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: Should only render mutating webhook configuration if webhook.enable is true
+    set:
+      webhook:
+        enable: true
+    asserts:
+      - hasDocuments:
+          count: 1
+      - containsDocument:
+          apiVersion: admissionregistration.k8s.io/v1
+          kind: MutatingWebhookConfiguration
+          name: spark-operator-webhook
+
+  - it: Should render validating webhook configuration if webhook.enable is true and resourceQuotaEnforcement.enable is true
+    set:
+      webhook:
+        enable: true
+      resourceQuotaEnforcement:
+        enable: true
+    documentSelector:
+      path: kind
+      value: ValidatingWebhookConfiguration
+    asserts:
+      - hasDocuments:
+          count: 2
+      - containsDocument:
+          apiVersion: admissionregistration.k8s.io/v1
+          kind: ValidatingWebhookConfiguration
+          name: spark-operator-webhook
+
+  - it: Should render mutating webhook configuration correctly
+    set:
+      webhook:
+        enable: true
+        failurePolicy: Ignore
+        timeoutSeconds: 30
+    documentSelector:
+      path: kind
+      value: MutatingWebhookConfiguration
+    asserts:
+      - equal:
+          path: metadata.annotations["cert-manager.io/inject-ca-from-secret"]
+          value: spark-operator/spark-operator-webhook-tls
+      - equal:
+          path: webhooks[0].failurePolicy
+          value: Ignore
+      - equal:
+          path: webhooks[0].clientConfig.service
+          value:
+            name: spark-operator-webhook-svc
+            namespace: spark-operator
+            port: 8080
+            path: /webhook
+      - equal:
+          path: webhooks[0].namespaceSelector.matchExpressions[?(@.key == "kubernetes.io/metadata.name")]
+          value:
+            key: kubernetes.io/metadata.name
+            operator: In
+            values: ["default"]
+      - equal:
+          path: webhooks[0].timeoutSeconds
+          value: 30
+
+  - it: Should render admission webhook configuration correctly
+    set:
+      webhook:
+        enable: true
+        failurePolicy: Ignore
+        timeoutSeconds: 30
+      resourceQuotaEnforcement:
+        enable: true
+    documentSelector:
+      path: kind
+      value: ValidatingWebhookConfiguration
+    asserts:
+      - equal:
+          path: metadata.annotations["cert-manager.io/inject-ca-from-secret"]
+          value: spark-operator/spark-operator-webhook-tls
+      - equal:
+          path: webhooks[0].failurePolicy
+          value: Ignore
+      - equal:
+          path: webhooks[0].clientConfig.service
+          value:
+            name: spark-operator-webhook-svc
+            namespace: spark-operator
+            port: 8080
+            path: /webhook
+      - equal:
+          path: webhooks[0].namespaceSelector.matchExpressions[?(@.key == "kubernetes.io/metadata.name")]
+          value:
+            key: kubernetes.io/metadata.name
+            operator: In
+            values: ["default"]
+      - equal:
+          path: webhooks[0].timeoutSeconds
+          value: 30
+
+  - it: Should render namespace selector of mutating webhook configuration correctly when multiple spark job namespaces are specified
+    set:
+      webhook:
+        enable: true
+      sparkJobNamespaces:
+        - ns1
+        - ns2
+        - ns3
+    documentSelector:
+      path: kind
+      value: MutatingWebhookConfiguration
+    asserts:
+      - equal:
+          path: webhooks[?(@.name == "webhook.sparkoperator.k8s.io")].namespaceSelector
+          value:
+            matchExpressions:
+              - key: kubernetes.io/metadata.name
+                operator: In
+                values:
+                  - ns1
+                  - ns2
+                  - ns3
+
+  - it: Should render namespace selector of validating webhook configuration correctly when multiple spark job namespaces are specified
+    set:
+      webhook:
+        enable: true
+      resourceQuotaEnforcement:
+        enable: true
+      sparkJobNamespaces:
+        - ns1
+        - ns2
+        - ns3
+    documentSelector:
+      path: kind
+      value: ValidatingWebhookConfiguration
+    asserts:
+      - equal:
+          path: webhooks[?(@.name == "quotaenforcer.sparkoperator.k8s.io")].namespaceSelector
+          value:
+            matchExpressions:
+              - key: kubernetes.io/metadata.name
+                operator: In
+                values:
+                  - ns1
+                  - ns2
+                  - ns3

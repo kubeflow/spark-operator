@@ -36,11 +36,6 @@ rbac:
     create: true
     # -- Optional annotations for spark RBAC resources
     annotations: {}
-  webhook:
-    # -- Specifies whether to create RBAC resources for webhook when `webhook.enable` is set to `true`
-    create: true
-    # -- Optional annotations for webhook RBAC resources
-    annotations: {}
 
 serviceAccounts:
   sparkoperator:
@@ -57,17 +52,10 @@ serviceAccounts:
     name: ""
     # -- Optional annotations for the spark service account
     annotations: {}
-  webhook:
-    # -- Specifies whether to create a service account for the webhook when `webhook.enable``` is set to `true`
-    create: true
-    # -- Optional name for the webhook service account
-    name: ""
-    # -- Optional annotations for the webhook service account
-    annotations: {}
 
 # -- List of namespaces where to run spark jobs, operator namespace is included only when list of namespaces is empty
-sparkJobNamespaces: []
-# - ns1
+sparkJobNamespaces:
+- default
 
 # -- Operator concurrency, higher values might increase memory usage
 controllerThreads: 10

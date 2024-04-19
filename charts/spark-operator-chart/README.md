@@ -21,7 +21,7 @@ The previous `spark-operator` Helm chart hosted at [helm/charts](https://github.
 
 - This repository **only** supports Helm chart installations using Helm 3+ since the `apiVersion` on the chart has been marked as `v2`.
 - Previous versions of the Helm chart have not been migrated, and the version has been set to `1.0.0` at the onset. If you are looking for old versions of the chart, it's best to run `helm pull incubator/sparkoperator --version <your-version>` until you are ready to move to this repository's version.
-- Several configuration properties have been changed, carefully review the [values](#values) section below to make sure you're aligned with the new values.
+- Several configuration properties have been changed, carefully review the [values](#Values) section below to make sure you're aligned with the new values.
 
 ## Usage
 
@@ -75,17 +75,6 @@ This removes all the Kubernetes resources associated with the chart and deletes 
 
 See [helm uninstall](https://helm.sh/docs/helm/helm_uninstall) for command documentation.
 
-## Configurations
-
-### Set Spark Job Namespaces
-
-### Enable Webhook Server
-
-If you want to enable webhook server, then `webhook.enable` must be set to true. Also, the webhook server requires a valid certificate. We use [cert-manager](https://cert-manager.io/) to generate the certificate. Install all cert-manager components as follows:
-
-```shell
-kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.14.4/cert-manager.yaml
-```
 ## Values
 
 | Key | Type | Default | Description |
@@ -125,8 +114,6 @@ kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/
 | rbac.spark.create | bool | `true` | Specifies whether to create RBAC resources for spark applications |
 | rbac.sparkoperator.annotations | object | `{}` | Optional annotations for spark operator RBAC resources |
 | rbac.sparkoperator.create | bool | `true` | Specifies whether to create RBAC resources for spark operator |
-| rbac.webhook.annotations | object | `{}` | Optional annotations for webhook RBAC resources |
-| rbac.webhook.create | bool | `true` | Specifies whether to create RBAC resources for webhook when `webhook.enable` is set to `true` |
 | replicaCount | int | `1` | Desired number of pods, leaderElection will be enabled if this is greater than 1 |
 | resourceQuotaEnforcement.enable | bool | `false` | Whether to enable the ResourceQuota enforcement for SparkApplication resources. Requires the webhook to be enabled by setting `webhook.enable` to true. Ref: https://github.com/kubeflow/spark-operator/blob/master/docs/user-guide.md#enabling-resource-quota-enforcement. |
 | resources | object | `{}` | Pod resource requests and limits Note, that each job submission will spawn a JVM within the Spark Operator Pod using "/usr/local/openjdk-11/bin/java -Xmx128m". Kubernetes may kill these Java processes at will to enforce resource limits. When that happens, you will see the following error: 'failed to run spark-submit for SparkApplication [...]: signal: killed' - when this happens, you may want to increase memory limits. |
@@ -138,11 +125,8 @@ kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/
 | serviceAccounts.sparkoperator.annotations | object | `{}` | Optional annotations for the operator service account |
 | serviceAccounts.sparkoperator.create | bool | `true` | Specifies whether to create a service account for spark operator |
 | serviceAccounts.sparkoperator.name | string | `""` | Optional name for the operator service account |
-| serviceAccounts.webhook.annotations | object | `{}` | Optional annotations for the webhook service account |
-| serviceAccounts.webhook.create | bool | `true` | Specifies whether to create a service account for the webhook when `webhook.enable``` is set to `true` |
-| serviceAccounts.webhook.name | string | `""` | Optional name for the webhook service account |
 | sidecars | list | `[]` | Sidecar containers |
-| sparkJobNamespaces | list | `[]` | List of namespaces where to run spark jobs, operator namespace is included only when list of namespaces is empty |
+| sparkJobNamespaces | list | `["default"]` | List of namespaces where to run spark jobs, operator namespace is included only when list of namespaces is empty |
 | tolerations | list | `[]` | List of node taints to tolerate |
 | uiService.enable | bool | `true` | Enable UI service creation for Spark application |
 | volumeMounts | list | `[]` | Operator volumeMounts |

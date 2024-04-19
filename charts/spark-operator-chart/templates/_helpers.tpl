@@ -37,13 +37,13 @@ Common labels
 {{- define "spark-operator.labels" -}}
 helm.sh/chart: {{ include "spark-operator.chart" . }}
 {{ include "spark-operator.selectorLabels" . }}
-{{- if .Values.commonLabels }}
-{{ toYaml .Values.commonLabels }}
-{{- end }}
 {{- if .Chart.AppVersion }}
 app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
 {{- end }}
 app.kubernetes.io/managed-by: {{ .Release.Service }}
+{{- with .Values.commonLabels }}
+{{ toYaml . }}
+{{- end }}
 {{- end }}
 
 {{/*

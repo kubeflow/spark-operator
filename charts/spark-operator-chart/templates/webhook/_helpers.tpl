@@ -1,8 +1,15 @@
 {{/*
-Create the name of service account to be used by webhook
+Create the name of the cert-manager issuer
 */}}
-{{- define "spark-operator.webhookServiceAccountName" -}}
-{{ default (printf "%s-webhook" (include "spark-operator.fullname" .)) .Values.serviceAccounts.webhook.name }}
+{{- define "cert-manager.issuerName" -}}
+{{ include "spark-operator.fullname" . }}-issuer
+{{- end -}}
+
+{{/*
+Create the name of the cert-manager certificate
+*/}}
+{{- define "cert-manager.certificateName" -}}
+{{ include "spark-operator.fullname" . }}-cert
 {{- end -}}
 
 {{/*
@@ -20,22 +27,22 @@ Create the name of the service to be used by webhook
 {{- end -}}
 
 {{/*
-Create the name of webhook
+Create the name of webhook configuration
 */}}
 {{- define "spark-operator.webhookName" -}}
+{{- include "spark-operator.fullname" . }}-webhook
+{{- end -}}
+
+{{/*
+Create the name of mutating webhook configuration
+*/}}
+{{- define "spark-operator.mutatingWebhookConfigurationName" -}}
 webhook.sparkoperator.k8s.io
 {{- end -}}
 
 {{/*
-Create the name of the cert-manager issuer
+Create the name of mutating webhook configuration
 */}}
-{{- define "cert-manager.issuerName" -}}
-{{ include "spark-operator.fullname" . }}-issuer
-{{- end -}}
-
-{{/*
-Create the name of the cert-manager certificate
-*/}}
-{{- define "cert-manager.certificateName" -}}
-{{ include "spark-operator.fullname" . }}-cert
+{{- define "spark-operator.validatingWebhookConfigurationName" -}}
+quotaenforcer.sparkoperator.k8s.io
 {{- end -}}

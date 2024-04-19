@@ -23,7 +23,7 @@ The previous `spark-operator` Helm chart hosted at [helm/charts](https://github.
 
 - This repository **only** supports Helm chart installations using Helm 3+ since the `apiVersion` on the chart has been marked as `v2`.
 - Previous versions of the Helm chart have not been migrated, and the version has been set to `1.0.0` at the onset. If you are looking for old versions of the chart, it's best to run `helm pull incubator/sparkoperator --version <your-version>` until you are ready to move to this repository's version.
-- Several configuration properties have been changed, carefully review the [values](#values) section below to make sure you're aligned with the new values.
+- Several configuration properties have been changed, carefully review the [values](#Values) section below to make sure you're aligned with the new values.
 
 ## Usage
 
@@ -77,18 +77,6 @@ This removes all the Kubernetes resources associated with the chart and deletes 
 
 See [helm uninstall](https://helm.sh/docs/helm/helm_uninstall) for command documentation.
 
-## Configurations
-
-### Set Spark Job Namespaces
-
-
-### Enable Webhook Server
-
-If you want to enable webhook server, then `webhook.enable` must be set to true. Also, the webhook server requires a valid certificate. We use [cert-manager](https://cert-manager.io/) to generate the certificate. Install all cert-manager components as follows:
-
-```shell
-kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.14.4/cert-manager.yaml
-```
 {{ template "chart.valuesSection" . }}
 
 {{ template "chart.maintainersSection" . }}

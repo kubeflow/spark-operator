@@ -1,0 +1,68 @@
+suite: Test cert manager
+
+templates:
+  - templates/webhook/cert-manager.yaml
+
+release:
+  name: spark-operator
+  namespace: spark-operator
+
+tests:
+  - it: Should not render issuer and certificate if webhook.enable is false
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: Should render issuer and certificate if webhook.enable is true
+    set:
+      webhook:
+        enable: true
+    asserts:
+      - hasDocuments:
+          count: 2
+
+  - it: Should render issuer correctly
+    set:
+      webhook:
+        enable: true
+    documentSelector:
+      path: kind
+      value: Issuer
+    asserts:
+      - containsDocument:
+          apiVersion: cert-manager.io/v1
+          kind: Issuer
+          name: spark-operator-issuer
+      - equal:
+          path: spec.selfSigned
+          value: {}
+
+  - it: Should render certificate correctly
+    set:
+      webhook:
+        enable: true
+    documentSelector:
+      path: kind
+      value: Certificate
+    asserts:
+      - containsDocument:
+          apiVersion: cert-manager.io/v1
+          kind: Certificate
+          name: spark-operator-cert
+      - equal:
+          path: spec.commonName
+          value: spark-operator-webhook-svc
+      - contains:
+          path: spec.dnsNames
+          content: spark-operator-webhook-svc.spark-operator.svc
+          count: 1
+      - contains:
+          path: spec.dnsNames
+          content: spark-operator-webhook-svc.spark-operator.svc.cluster.local
+          count: 1
+      - equal:
+          path: spec.secretName
+          value: spark-operator-webhook-tls
+      - equal:
+          path: spec.issuerRef.name
+          value: spark-operator-issuer
