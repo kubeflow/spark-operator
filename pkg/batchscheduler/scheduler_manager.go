@@ -22,14 +22,16 @@ import (
 
 	"k8s.io/client-go/rest"
 
-	"github.com/kubeflow/spark-operator/pkg/batchscheduler/interface"
+	schedulerinterface "github.com/kubeflow/spark-operator/pkg/batchscheduler/interface"
 	"github.com/kubeflow/spark-operator/pkg/batchscheduler/volcano"
+	"github.com/kubeflow/spark-operator/pkg/batchscheduler/yunikorn"
 )
 
 type schedulerInitializeFunc func(config *rest.Config) (schedulerinterface.BatchScheduler, error)
 
 var schedulerContainers = map[string]schedulerInitializeFunc{
-	volcano.GetPluginName(): volcano.New,
+	volcano.GetPluginName():  volcano.New,
+	yunikorn.GetPluginName(): yunikorn.New,
 }
 
 func GetRegisteredNames() []string {
