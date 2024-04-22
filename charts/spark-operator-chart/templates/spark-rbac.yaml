@@ -1,5 +1,5 @@
 {{- if or .Values.rbac.create .Values.rbac.createRole }}
-{{- $jobNamespaces := .Values.sparkJobNamespaces | default (list .Release.Namespace) }}
+{{- $jobNamespaces := .Values.sparkJobNamespaces | default list }}
 {{- range $jobNamespace := $jobNamespaces }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1

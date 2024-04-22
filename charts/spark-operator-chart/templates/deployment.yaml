@@ -3,7 +3,7 @@
 
 # In the post-install hook, the token corresponding to the operator service account
 # is used to authenticate with the Kubernetes API server to install the secret bundle.
-{{- $jobNamespaces := .Values.sparkJobNamespaces | default (list .Release.Namespace) }}
+{{- $jobNamespaces := .Values.sparkJobNamespaces | default list }}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -66,7 +66,7 @@ spec:
         args:
         - -v={{ .Values.logLevel }}
         - -logtostderr
-        {{- if le (len $jobNamespaces) 1 }}
+        {{- if eq (len $jobNamespaces) 1 }}
         - -namespace={{ index $jobNamespaces 0 }}
         {{- end }}
         - -enable-ui-service={{ .Values.uiService.enable}}
