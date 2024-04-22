@@ -49,7 +49,7 @@ $ helm install my-release spark-operator/spark-operator --namespace spark-operat
 This will install the Kubernetes Operator for Apache Spark into the namespace `spark-operator`. The operator by default watches and handles `SparkApplication`s in every namespaces. If you would like to limit the operator to watch and handle `SparkApplication`s in a single namespace, e.g., `default` instead, add the following option to the `helm install` command:
 
 ```
---set sparkJobNamespace=default
+--set "sparkJobNamespaces={default}"
 ```
 
 For configuration options available in the Helm chart, please refer to the chart's [README](charts/spark-operator-chart/README.md).
