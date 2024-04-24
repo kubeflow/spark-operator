@@ -25,11 +25,11 @@ jobs:
         run: |
           app_version_tag=$(cat charts/spark-operator-chart/Chart.yaml | grep "appVersion: .*" | cut -c13-)
           chart_version_tag=$(cat charts/spark-operator-chart/Chart.yaml | grep "version: .*" | cut -c10-)
-          
+
           # Initialize flags 
           image_changed=false
           chart_changed=false
-          
+
           if ! git rev-parse -q --verify "refs/tags/$app_version_tag"; then
             image_changed=true
             git tag $app_version_tag
@@ -84,8 +84,8 @@ jobs:
         uses: docker/login-action@v3
         with:
           registry: docker.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
       - name: Build and Push Spark-Operator Docker Image to Docker Hub
         id: build
         uses: docker/build-push-action@v5
