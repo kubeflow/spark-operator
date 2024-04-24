@@ -52,7 +52,7 @@ serviceAccounts:
     # -- Optional annotations for the operator service account
     annotations: {}
 
-# -- List of namespaces where to run spark jobs, operator namespace is included only when list of namespaces is empty
+# -- List of namespaces where to run spark jobs
 sparkJobNamespaces: []
 # - ns1
 

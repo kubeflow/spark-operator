@@ -360,7 +360,8 @@ spec:
       persistentVolumeClaim:
         claimName: my-pvc
     - name: spark-work
-      emptyDir: {}
+      emptyDir:
+        sizeLimit: 5Gi
   driver:
     volumeMounts:
       - name: spark-work
