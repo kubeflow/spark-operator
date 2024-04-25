@@ -39,6 +39,7 @@
 | [DiDi](https://www.didiglobal.com) | @Run-Lin | Evaluation | Data Infrastructure |
 | [DeepCure](https://www.deepcure.ai) | @mschroering | Production | Spark / ML |
 | [C2FO](https://www.c2fo.com/) | @vanhoale | Production | Data Platform / Data Infrastructure |
+| [Timo](https://timo.vn) | @vanducng | Production | Data Platform |
 | [Kognita](https://kognita.com.br/) | @andreclaudino | Production | MLOps, Data Platform / Data Infrastructure, ML/AI |
 | [Molex](https://www.molex.com/) | @AshishPushpSingh | Evaluation/Production | Data Platform |
 | [Qualytics](https://www.qualytics.co/) | @josecsotomorales | Production | Data Quality Platform |

@@ -29,6 +29,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/kubeflow/spark-operator/pkg/apis/sparkoperator.k8s.io/v1beta2"
@@ -364,6 +365,61 @@ func TestAddLocalDir_Driver_Executor(t *testing.T) {
 	assert.Equal(t, fmt.Sprintf(VolumeMountOptionPathTemplate, "driver", "hostPath", volumes[0].Name, "path", volumes[0].HostPath.Path), localDirOptions[1])
 	assert.Equal(t, fmt.Sprintf(VolumeMountPathTemplate, "executor", "hostPath", volumes[0].Name, volumeMounts[0].MountPath), localDirOptions[2])
 	assert.Equal(t, fmt.Sprintf(VolumeMountOptionPathTemplate, "executor", "hostPath", volumes[0].Name, "path", volumes[0].HostPath.Path), localDirOptions[3])
+}
+
+func TestAddEmptyDir_Driver_Executor_WithSizeLimit(t *testing.T) {
+	sizeLimit := resource.MustParse("5Gi")
+	volumes := []corev1.Volume{
+		{
+			Name: "spark-local-dir-1",
+			VolumeSource: corev1.VolumeSource{
+				EmptyDir: &corev1.EmptyDirVolumeSource{
+					SizeLimit: &sizeLimit,
+				},
+			},
+		},
+	}
+
+	volumeMounts := []corev1.VolumeMount{
+		{
+			Name:      "spark-local-dir-1",
+			MountPath: "/tmp/mnt-1",
+		},
+	}
+
+	app := &v1beta2.SparkApplication{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "spark-test",
+			UID:  "spark-test-1",
+		},
+		Spec: v1beta2.SparkApplicationSpec{
+			Volumes: volumes,
+			Driver: v1beta2.DriverSpec{
+				SparkPodSpec: v1beta2.SparkPodSpec{
+					VolumeMounts: volumeMounts,
+				},
+			},
+			Executor: v1beta2.ExecutorSpec{
+				SparkPodSpec: v1beta2.SparkPodSpec{
+					VolumeMounts: volumeMounts,
+				},
+			},
+		},
+	}
+
+	localDirOptions, err := addLocalDirConfOptions(app)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	assert.Equal(t, 0, len(app.Spec.Volumes))
+	assert.Equal(t, 0, len(app.Spec.Driver.VolumeMounts))
+	assert.Equal(t, 0, len(app.Spec.Executor.VolumeMounts))
+	assert.Equal(t, 4, len(localDirOptions))
+	assert.Equal(t, fmt.Sprintf(VolumeMountPathTemplate, "driver", "emptyDir", volumes[0].Name, volumeMounts[0].MountPath), localDirOptions[0])
+	assert.Equal(t, fmt.Sprintf(VolumeMountOptionPathTemplate, "driver", "emptyDir", volumes[0].Name, "sizeLimit", volumes[0].EmptyDir.SizeLimit.String()), localDirOptions[1])
+	assert.Equal(t, fmt.Sprintf(VolumeMountPathTemplate, "executor", "emptyDir", volumes[0].Name, volumeMounts[0].MountPath), localDirOptions[2])
+	assert.Equal(t, fmt.Sprintf(VolumeMountOptionPathTemplate, "executor", "emptyDir", volumes[0].Name, "sizeLimit", volumes[0].EmptyDir.SizeLimit.String()), localDirOptions[3])
 }
 
 func TestPopulateLabels_Driver_Executor(t *testing.T) {

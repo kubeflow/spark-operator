@@ -68,10 +68,7 @@ rules:
   resources:
   - customresourcedefinitions
   verbs:
-  - create
   - get
-  - update
-  - delete
 - apiGroups:
   - admissionregistration.k8s.io
   resources:
