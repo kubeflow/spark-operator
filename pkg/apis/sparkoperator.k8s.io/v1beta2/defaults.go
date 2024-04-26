@@ -16,6 +16,8 @@ limitations under the License.
 
 package v1beta2
 
+import "strconv"
+
 // SetSparkApplicationDefaults sets default values for certain fields of a SparkApplication.
 func SetSparkApplicationDefaults(app *SparkApplication) {
 	if app == nil {
@@ -44,7 +46,7 @@ func SetSparkApplicationDefaults(app *SparkApplication) {
 	}
 
 	setDriverSpecDefaults(&app.Spec.Driver, app.Spec.SparkConf)
-	setExecutorSpecDefaults(&app.Spec.Executor, app.Spec.SparkConf)
+	setExecutorSpecDefaults(&app.Spec.Executor, app.Spec.SparkConf, app.Spec.DynamicAllocation)
 }
 
 func setDriverSpecDefaults(spec *DriverSpec, sparkConf map[string]string) {
@@ -59,7 +61,7 @@ func setDriverSpecDefaults(spec *DriverSpec, sparkConf map[string]string) {
 	}
 }
 
-func setExecutorSpecDefaults(spec *ExecutorSpec, sparkConf map[string]string) {
+func setExecutorSpecDefaults(spec *ExecutorSpec, sparkConf map[string]string, allocSpec *DynamicAllocation) {
 	if _, exists := sparkConf["spark.executor.cores"]; !exists && spec.Cores == nil {
 		spec.Cores = new(int32)
 		*spec.Cores = 1
@@ -68,8 +70,11 @@ func setExecutorSpecDefaults(spec *ExecutorSpec, sparkConf map[string]string) {
 		spec.Memory = new(string)
 		*spec.Memory = "1g"
 	}
-	if _, exists := sparkConf["spark.executor.instances"]; !exists && spec.Instances == nil {
-		spec.Instances = new(int32)
-		*spec.Instances = 1
+	var dynalloc, _ = sparkConf["spark.dynamicallocation.enabled"]
+	if dynamic, _ := strconv.ParseBool(dynalloc); !dynamic && (allocSpec == nil || !allocSpec.Enabled) {
+		if _, exists := sparkConf["spark.executor.instances"]; !exists && spec.Instances == nil {
+			spec.Instances = new(int32)
+			*spec.Instances = 1
+		}
 	}
 }
