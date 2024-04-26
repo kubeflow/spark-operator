@@ -1105,6 +1105,19 @@ executors to connect to the driver.</p>
 </tr>
 <tr>
 <td>
+<code>serviceLabels</code><br/>
+<em>
+map[string]string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>ServiceLabels defines the labels to be added to the Kubernetes headless service used by
+executors to connect to the driver.</p>
+</td>
+</tr>
+<tr>
+<td>
 <code>ports</code><br/>
 <em>
 <a href="#sparkoperator.k8s.io/v1beta2.Port">

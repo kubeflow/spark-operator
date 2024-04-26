@@ -150,6 +150,8 @@ const (
 	SparkDriverKubernetesMaster = "spark.kubernetes.driver.master"
 	// SparkDriverServiceAnnotationKeyPrefix is the key prefix of annotations to be added to the driver service.
 	SparkDriverServiceAnnotationKeyPrefix = "spark.kubernetes.driver.service.annotation."
+	// SparkDriverServiceLabelKeyPrefix is the key prefix of annotations to be added to the driver service.
+	SparkDriverServiceLabelKeyPrefix = "spark.kubernetes.driver.service.label."
 	// SparkDynamicAllocationEnabled is the Spark configuration key for specifying if dynamic
 	// allocation is enabled or not.
 	SparkDynamicAllocationEnabled = "spark.dynamicAllocation.enabled"

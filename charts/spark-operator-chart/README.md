@@ -1,6 +1,6 @@
 # spark-operator
 
-![Version: 1.2.13](https://img.shields.io/badge/Version-1.2.13-informational?style=flat-square) ![AppVersion: v1beta2-1.4.4-3.5.0](https://img.shields.io/badge/AppVersion-v1beta2--1.4.4--3.5.0-informational?style=flat-square)
+![Version: 1.2.14](https://img.shields.io/badge/Version-1.2.14-informational?style=flat-square) ![AppVersion: v1beta2-1.4.5-3.5.0](https://img.shields.io/badge/AppVersion-v1beta2--1.4.5--3.5.0-informational?style=flat-square)
 
 A Helm chart for Spark on Kubernetes operator
 
