@@ -25,9 +25,7 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
-
 	"github.com/stretchr/testify/assert"
-
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -41,6 +39,7 @@ const (
 	VolumeMountOptionPathTemplate        = "spark.kubernetes.%s.volumes.%s.%s.options.%s=%s"
 	SparkDriverLabelAnnotationTemplate   = "spark.kubernetes.driver.label.sparkoperator.k8s.io/%s=%s"
 	SparkDriverLabelTemplate             = "spark.kubernetes.driver.label.%s=%s"
+	SparkDriverServiceLabelTemplate      = "spark.kubernetes.driver.service.label.%s=%s"
 	SparkExecutorLabelAnnotationTemplate = "spark.kubernetes.executor.label.sparkoperator.k8s.io/%s=%s"
 	SparkExecutorLabelTemplate           = "spark.kubernetes.executor.label.%s=%s"
 )
@@ -424,12 +423,14 @@ func TestAddEmptyDir_Driver_Executor_WithSizeLimit(t *testing.T) {
 
 func TestPopulateLabels_Driver_Executor(t *testing.T) {
 	const (
-		AppLabelKey        = "app-label-key"
-		AppLabelValue      = "app-label-value"
-		DriverLabelKey     = "driver-label-key"
-		DriverLabelValue   = "driver-label-key"
-		ExecutorLabelKey   = "executor-label-key"
-		ExecutorLabelValue = "executor-label-key"
+		AppLabelKey             = "app-label-key"
+		AppLabelValue           = "app-label-value"
+		DriverLabelKey          = "driver-label-key"
+		DriverLabelValue        = "driver-label-key"
+		DriverServiceLabelKey   = "driver-svc-label-key"
+		DriverServiceLabelValue = "driver-svc-label-value"
+		ExecutorLabelKey        = "executor-label-key"
+		ExecutorLabelValue      = "executor-label-key"
 	)
 
 	app := &v1beta2.SparkApplication{
@@ -440,6 +441,7 @@ func TestPopulateLabels_Driver_Executor(t *testing.T) {
 		},
 		Spec: v1beta2.SparkApplicationSpec{
 			Driver: v1beta2.DriverSpec{
+				ServiceLabels: map[string]string{DriverServiceLabelKey: DriverServiceLabelValue},
 				SparkPodSpec: v1beta2.SparkPodSpec{
 					Labels: map[string]string{DriverLabelKey: DriverLabelValue},
 				},
@@ -457,7 +459,7 @@ func TestPopulateLabels_Driver_Executor(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	assert.Equal(t, 5, len(driverOptions))
+	assert.Equal(t, 6, len(driverOptions))
 	sort.Strings(driverOptions)
 	expectedDriverLabels := []string{
 		fmt.Sprintf(SparkDriverLabelAnnotationTemplate, "launched-by-spark-operator", strconv.FormatBool(true)),
@@ -465,6 +467,7 @@ func TestPopulateLabels_Driver_Executor(t *testing.T) {
 		fmt.Sprintf(SparkDriverLabelAnnotationTemplate, "submission-id", submissionID),
 		fmt.Sprintf(SparkDriverLabelTemplate, AppLabelKey, AppLabelValue),
 		fmt.Sprintf(SparkDriverLabelTemplate, DriverLabelKey, DriverLabelValue),
+		fmt.Sprintf(SparkDriverServiceLabelTemplate, DriverServiceLabelKey, DriverServiceLabelValue),
 	}
 	sort.Strings(expectedDriverLabels)
 

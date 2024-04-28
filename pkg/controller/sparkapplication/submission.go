@@ -26,7 +26,6 @@ import (
 
 	"github.com/golang/glog"
 	v1 "k8s.io/api/core/v1"
-
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/kubeflow/spark-operator/pkg/apis/sparkoperator.k8s.io/v1beta2"
@@ -59,7 +58,7 @@ func runSparkSubmit(submission *submission) (bool, error) {
 	if !present {
 		glog.Error("SPARK_HOME is not specified")
 	}
-	var command = filepath.Join(sparkHome, "/bin/spark-submit")
+	command := filepath.Join(sparkHome, "/bin/spark-submit")
 
 	cmd := execCommand(command, submission.args...)
 	glog.V(2).Infof("spark-submit arguments: %v", cmd.Args)
@@ -301,7 +300,7 @@ func addDriverConfOptions(app *v1beta2.SparkApplication, submissionID string) ([
 			fmt.Sprintf("%s=%s", config.SparkDriverKubernetesMaster, *app.Spec.Driver.KubernetesMaster))
 	}
 
-	//Populate SparkApplication Labels to Driver
+	// Populate SparkApplication Labels to Driver
 	driverLabels := make(map[string]string)
 	for key, value := range app.Labels {
 		driverLabels[key] = value
@@ -328,6 +327,11 @@ func addDriverConfOptions(app *v1beta2.SparkApplication, submissionID string) ([
 	for key, value := range app.Spec.Driver.ServiceAnnotations {
 		driverConfOptions = append(driverConfOptions,
 			fmt.Sprintf("%s%s=%s", config.SparkDriverServiceAnnotationKeyPrefix, key, value))
+	}
+
+	for key, value := range app.Spec.Driver.ServiceLabels {
+		driverConfOptions = append(driverConfOptions,
+			fmt.Sprintf("%s%s=%s", config.SparkDriverServiceLabelKeyPrefix, key, value))
 	}
 
 	driverConfOptions = append(driverConfOptions, config.GetDriverSecretConfOptions(app)...)
@@ -388,7 +392,7 @@ func addExecutorConfOptions(app *v1beta2.SparkApplication, submissionID string) 
 			fmt.Sprintf("%s=%t", config.SparkExecutorDeleteOnTermination, *app.Spec.Executor.DeleteOnTermination))
 	}
 
-	//Populate SparkApplication Labels to Executors
+	// Populate SparkApplication Labels to Executors
 	executorLabels := make(map[string]string)
 	for key, value := range app.Labels {
 		executorLabels[key] = value
