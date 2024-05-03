@@ -60,7 +60,27 @@ tests:
           kind: RoleBinding
           name: spark
 
-  - it: Should render multiple spark roles if sparkJobNamespaces is set
+  - it: Should create a single spark role with namespace "" by default
+    documentIndex: 0
+    asserts:
+      - containsDocument:
+          apiVersion: rbac.authorization.k8s.io/v1
+          kind: Role
+          name: spark-role
+          namespace: ""
+
+  - it: Should create a single spark role binding with namespace "" by default
+    values:
+      - ../values.yaml
+    documentIndex: 1
+    asserts:
+      - containsDocument:
+          apiVersion: rbac.authorization.k8s.io/v1
+          kind: RoleBinding
+          name: spark
+          namespace: ""
+
+  - it: Should render multiple spark roles if sparkJobNamespaces is set with multiple values
     set:
       sparkJobNamespaces:
         - ns1
@@ -73,7 +93,7 @@ tests:
           name: spark-role
           namespace: ns1
 
-  - it: Should render multiple spark role bindings if sparkJobNamespaces is set
+  - it: Should render multiple spark role bindings if sparkJobNamespaces is set with multiple values
     set:
       sparkJobNamespaces:
         - ns1
@@ -86,7 +106,7 @@ tests:
           name: spark
           namespace: ns1
 
-  - it: Should render multiple spark roles if sparkJobNamespaces is set
+  - it: Should render multiple spark roles if sparkJobNamespaces is set with multiple values
     set:
       sparkJobNamespaces:
         - ns1
@@ -99,7 +119,7 @@ tests:
           name: spark-role
           namespace: ns2
 
-  - it: Should render multiple spark role bindings if sparkJobNamespaces is set
+  - it: Should render multiple spark role bindings if sparkJobNamespaces is set with multiple values
     set:
       sparkJobNamespaces:
         - ns1
