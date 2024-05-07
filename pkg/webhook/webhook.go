@@ -21,7 +21,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"strings"
 	"time"
@@ -247,7 +247,7 @@ func (wh *WebHook) serve(w http.ResponseWriter, r *http.Request) {
 	glog.V(2).Info("Serving admission request")
 	var body []byte
 	if r.Body != nil {
-		data, err := ioutil.ReadAll(r.Body)
+		data, err := io.ReadAll(r.Body)
 		if err != nil {
 			internalError(w, fmt.Errorf("failed to read the request body"))
 			return
