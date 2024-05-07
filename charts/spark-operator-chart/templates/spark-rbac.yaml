@@ -14,23 +14,8 @@ rules:
   - ""
   resources:
   - pods
-  verbs:
-  - "*"
-- apiGroups:
-  - ""
-  resources:
   - services
-  verbs:
-  - "*"
-- apiGroups:
-  - ""
-  resources:
   - configmaps
-  verbs:
-  - "*"
-- apiGroups:
-  - ""
-  resources:
   - persistentvolumeclaims
   verbs:
   - "*"
