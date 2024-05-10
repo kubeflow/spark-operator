@@ -56,6 +56,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        spark_version:
+          - 3.5.1
+          - 3.4.3
+          - 3.3.4
         platform:
           - linux/amd64
           - linux/arm64
@@ -91,6 +95,8 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: .
+          build-args: |
+            SPARK_IMAGE=spark:${{ matrix.spark_version }}
           platforms: ${{ matrix.platform }}
           cache-to: type=gha,mode=max,scope=${{ env.SCOPE }}
           cache-from: type=gha,scope=${{ env.SCOPE }}
@@ -104,11 +110,18 @@ jobs:
       - name: Upload digest
         uses: actions/upload-artifact@v4
         with:
-          name: digests-${{ env.PLATFORM_PAIR }}
+          name: digests-${{ matrix.spark_version }}-${{ env.PLATFORM_PAIR }}
           path: /tmp/digests/*
           if-no-files-found: error
           retention-days: 1
   publish-image:
+    strategy:
+      fail-fast: false
+      matrix:
+        spark_version:
+          - 3.5.1
+          - 3.4.3
+          - 3.3.4
     runs-on: ubuntu-latest
     needs:
       - release
@@ -118,7 +131,7 @@ jobs:
       - name: Download digests
         uses: actions/download-artifact@v4
         with:
-          pattern: digests-*
+          pattern: digests-${{ matrix.spark_version }}-*
           path: /tmp/digests
           merge-multiple: true
       - name: Setup Docker Buildx
@@ -128,7 +141,7 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: ${{ env.REGISTRY_IMAGE }}
-          tags: ${{ needs.build-skip-check.outputs.app_version_tag }}
+          tags: "${{ needs.build-skip-check.outputs.app_version_tag }}-${{ matrix.spark_version }}"
       - name: Login to Docker Hub
         uses: docker/login-action@v3
         with:
