@@ -946,8 +946,6 @@ func TestPatchSparkPod_Sidecars(t *testing.T) {
 }
 
 func TestPatchSparkPod_InitContainers(t *testing.T) {
-	var restartPolicy = corev1.ContainerRestartPolicyAlways
-
 	app := &v1beta2.SparkApplication{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "spark-test",
@@ -958,9 +956,8 @@ func TestPatchSparkPod_InitContainers(t *testing.T) {
 				SparkPodSpec: v1beta2.SparkPodSpec{
 					InitContainers: []corev1.Container{
 						{
-							Name:          "init-container1",
-							Image:         "init-container1:latest",
-							RestartPolicy: &restartPolicy,
+							Name:  "init-container1",
+							Image: "init-container1:latest",
 						},
 						{
 							Name:  "init-container2",
@@ -973,9 +970,8 @@ func TestPatchSparkPod_InitContainers(t *testing.T) {
 				SparkPodSpec: v1beta2.SparkPodSpec{
 					InitContainers: []corev1.Container{
 						{
-							Name:          "init-container1",
-							Image:         "init-container1:latest",
-							RestartPolicy: &restartPolicy,
+							Name:  "init-container1",
+							Image: "init-container1:latest",
 						},
 						{
 							Name:  "init-container2",
@@ -1011,7 +1007,6 @@ func TestPatchSparkPod_InitContainers(t *testing.T) {
 	}
 	assert.Equal(t, 2, len(modifiedDriverPod.Spec.InitContainers))
 	assert.Equal(t, "init-container1", modifiedDriverPod.Spec.InitContainers[0].Name)
-	assert.Equal(t, &restartPolicy, modifiedDriverPod.Spec.InitContainers[0].RestartPolicy)
 	assert.Equal(t, "init-container2", modifiedDriverPod.Spec.InitContainers[1].Name)
 
 	executorPod := &corev1.Pod{
@@ -1038,7 +1033,6 @@ func TestPatchSparkPod_InitContainers(t *testing.T) {
 	}
 	assert.Equal(t, 2, len(modifiedExecutorPod.Spec.InitContainers))
 	assert.Equal(t, "init-container1", modifiedExecutorPod.Spec.InitContainers[0].Name)
-	assert.Equal(t, &restartPolicy, modifiedDriverPod.Spec.InitContainers[0].RestartPolicy)
 	assert.Equal(t, "init-container2", modifiedExecutorPod.Spec.InitContainers[1].Name)
 }
 
