@@ -210,3 +210,28 @@ istio:
 
 # labelSelectorFilter -- A comma-separated list of key=value, or key labels to filter resources during watch and list based on the specified labels.
 labelSelectorFilter: ""
+
+sparkHistory:
+  # -- Whether to enable the optional Spark History sidecar container, which will run alongside the Operator container.
+  # Ref: TODO
+  enable: true
+  # Spark image to use for the History Server container.
+  image: "spark:3.5.1"
+  # Optional dependencies to retrieve for the spark history pod.  Useful for adding libraries for connection to cloud storage.
+  dependencies:
+    # List of Maven coordinates for packages to retrieve.
+    # TODO: hardening to handle empty list
+    packages:
+      - org.technologybrewery.habushu:habushu-maven-plugin:2.14.0
+    # TODO
+    jars: []
+  # External port to expose for access to the Spark History UI.
+  service:
+    port: 18080
+  # TODO
+  sparkConf: |-
+  deployment:
+    # TODO
+    volumes: |-
+    # TODO
+    volumeMounts: |-

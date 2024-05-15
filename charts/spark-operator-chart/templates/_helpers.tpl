@@ -77,3 +77,16 @@ Create the name of the service account to be used by spark apps
 {{- end -}}
 {{- end -}}
 
+{{/*
+Create the list of ivy dependencies to be installed on the spark history server
+*/}}
+{{- define "sparkHistory.deps.packages.ivy" -}}
+{{- if .Values.sparkHistory.enable -}}
+    {{- range .Values.sparkHistory.dependencies.packages }}
+        {{- $dep := printf "-dependency, %s," . | replace ":" ", " -}}
+        {{ default $dep -}}
+    {{- end }}
+{{- else -}}
+    {{ default "" }}
+{{- end -}}
+{{- end -}}

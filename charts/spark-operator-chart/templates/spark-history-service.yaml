@@ -1,0 +1,14 @@
+{{- if .Values.sparkHistory.enable }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: spark-history-service
+spec:
+  selector:
+    app.kubernetes.io/name: proxy
+  ports:
+    - name: spark-history-service-port
+      protocol: TCP
+      port: {{ .Values.sparkHistory.service.port }}
+      targetPort: shs-http
+{{- end }}

@@ -20,7 +20,7 @@ spec:
     type: Recreate
   template:
     metadata:
-    {{- if or .Values.podAnnotations .Values.metrics.enable }}
+    {{- if or .Values.podAnnotations .Values.metrics.enable .Values.sparkHistory.enable}}
       annotations:
       {{- if .Values.metrics.enable }}
         prometheus.io/scrape: "true"
@@ -44,6 +44,34 @@ spec:
       {{- end }}
       securityContext:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      {{- if .Values.sparkHistory.enable }}
+      initContainers:
+        - name: "populate-jar-volume"
+          image: {{ .Values.sparkHistory.image }}
+          imagePullPolicy: IfNotPresent
+          command: ["sh", "-c", "cp /opt/spark/jars/* /tmp/jars/"]
+          volumeMounts:
+            - mountPath: /tmp/jars
+              name: history-jars
+        - name: "install-spark-history-packages"
+          image: {{ .Values.sparkHistory.image }}
+          imagePullPolicy: IfNotPresent
+          command: ["java", "-Divy.cache.dir=/tmp/", "-Divy.home=/tmp/", "-jar", "/opt/spark/jars/ivy-2.5.1.jar", "-confs", "default", "-retrieve", "/tmp/jars/[artifact].[ext]", {{ include "sparkHistory.deps.packages.ivy" . }}]
+          volumeMounts:
+            - mountPath: /tmp/jars
+              name: history-jars
+        - name: "spark-history"
+          image: {{ .Values.sparkHistory.image }}
+          imagePullPolicy: IfNotPresent
+          restartPolicy: Always
+          ports:
+            - containerPort: 80
+              name: shs-http
+          command: ["/opt/spark/sbin/start-history-server.sh"]
+          volumeMounts:
+            - mountPath: /opt/spark/jars
+              name: history-jars
+      {{- end }}
       containers:
       - name: {{ .Chart.Name }}
         image: {{ .Values.image.repository }}:{{ default .Chart.AppVersion .Values.image.tag }}
@@ -114,13 +142,17 @@ spec:
       {{- with .Values.sidecars }}
         {{- toYaml . | nindent 6 }}
       {{- end }}
-      {{- if or .Values.webhook.enable (ne (len .Values.volumes) 0 ) }}
+      {{- if or .Values.sparkHistory.enable .Values.webhook.enable (ne (len .Values.volumes) 0 ) }}
       volumes:
       {{- end }}
         {{- if .Values.webhook.enable }}
         - name: webhook-certs
           secret:
             secretName: {{ include "spark-operator.fullname" . }}-webhook-certs
+        {{- end }}
+        {{- if .Values.sparkHistory.enable }}
+        - name: history-jars
+          emptyDir: {}
         {{- end }}
         {{- with .Values.volumes }}
         {{- toYaml . | nindent 8 }}
