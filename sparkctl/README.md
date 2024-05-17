@@ -2,7 +2,7 @@
 
 `sparkctl` is a command-line tool of the Spark Operator for creating, listing, checking status of, getting logs of, and deleting `SparkApplication`s. It can also do port forwarding from a local port to the Spark web UI port for accessing the Spark web UI on the driver. Each function is implemented as a sub-command of `sparkctl`.
 
-To build `sparkctl`, make sure you followed build steps [here](https://github.com/GoogleCloudPlatform/spark-on-k8s-operator/blob/master/docs/developer-guide.md#build-the-operator) and have all the dependencies, then run the following command from within `sparkctl/`:
+To build `sparkctl`, make sure you followed build steps [here](https://github.com/kubeflow/spark-operator/blob/master/docs/developer-guide.md#build-the-operator) and have all the dependencies, then run the following command from within `sparkctl/`:
 
 ```bash
 $ go build -o sparkctl

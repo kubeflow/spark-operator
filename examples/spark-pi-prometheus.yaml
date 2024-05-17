@@ -37,7 +37,7 @@ spec:
     memory: "512m"
     labels:
       version: 3.1.1
-    serviceAccount: spark
+    serviceAccount: spark-operator-spark
   executor:
     cores: 1
     instances: 1

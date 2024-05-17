@@ -1105,6 +1105,19 @@ executors to connect to the driver.</p>
 </tr>
 <tr>
 <td>
+<code>serviceLabels</code><br/>
+<em>
+map[string]string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>ServiceLabels defines the labels to be added to the Kubernetes headless service used by
+executors to connect to the driver.</p>
+</td>
+</tr>
+<tr>
+<td>
 <code>ports</code><br/>
 <em>
 <a href="#sparkoperator.k8s.io/v1beta2.Port">
@@ -1289,6 +1302,20 @@ string
 <em>(Optional)</em>
 <p>JavaOptions is a string of extra JVM options to pass to the executors. For instance,
 GC settings or other logging.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>lifecycle</code><br/>
+<em>
+<a href="https://v1-18.docs.kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#lifecycle-v1-core">
+Kubernetes core/v1.Lifecycle
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Lifecycle for running preStop or postStart commands</p>
 </td>
 </tr>
 <tr>
@@ -2576,7 +2603,7 @@ ApplicationState
 <code>executorState</code><br/>
 <em>
 <a href="#sparkoperator.k8s.io/v1beta2.ExecutorState">
-map[string]github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta2.ExecutorState
+map[string]github.com/kubeflow/spark-operator/pkg/apis/sparkoperator.k8s.io/v1beta2.ExecutorState
 </a>
 </em>
 </td>
@@ -2800,7 +2827,7 @@ Deprecated. Consider using <code>env</code> instead.</p>
 <code>envSecretKeyRefs</code><br/>
 <em>
 <a href="#sparkoperator.k8s.io/v1beta2.NameKey">
-map[string]github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta2.NameKey
+map[string]github.com/kubeflow/spark-operator/pkg/apis/sparkoperator.k8s.io/v1beta2.NameKey
 </a>
 </em>
 </td>
@@ -3102,6 +3129,18 @@ map[string]string
 <td>
 <em>(Optional)</em>
 <p>ServiceAnnotations is a map of key,value pairs of annotations that might be added to the service object.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>serviceLabels</code><br/>
+<em>
+map[string]string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>ServiceLables is a map of key,value pairs of labels that might be added to the service object.</p>
 </td>
 </tr>
 <tr>

@@ -32,6 +32,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/informers"
 	clientset "k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
@@ -40,14 +41,14 @@ import (
 	"k8s.io/client-go/tools/record"
 	"k8s.io/utils/clock"
 
-	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/batchscheduler"
-	crclientset "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/client/clientset/versioned"
-	crinformers "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/client/informers/externalversions"
-	operatorConfig "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/config"
-	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/controller/scheduledsparkapplication"
-	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/controller/sparkapplication"
-	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/util"
-	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/webhook"
+	"github.com/kubeflow/spark-operator/pkg/batchscheduler"
+	crclientset "github.com/kubeflow/spark-operator/pkg/client/clientset/versioned"
+	crinformers "github.com/kubeflow/spark-operator/pkg/client/informers/externalversions"
+	operatorConfig "github.com/kubeflow/spark-operator/pkg/config"
+	"github.com/kubeflow/spark-operator/pkg/controller/scheduledsparkapplication"
+	"github.com/kubeflow/spark-operator/pkg/controller/sparkapplication"
+	"github.com/kubeflow/spark-operator/pkg/util"
+	"github.com/kubeflow/spark-operator/pkg/webhook"
 )
 
 var (
@@ -102,20 +103,25 @@ func main() {
 	startCh := make(chan struct{}, 1)
 
 	if *enableLeaderElection {
+		podName := os.Getenv("POD_NAME")
 		hostname, err := os.Hostname()
 		if err != nil {
 			glog.Fatal(err)
 		}
-		resourceLock, err := resourcelock.New(resourcelock.ConfigMapsLeasesResourceLock,
-			*leaderElectionLockNamespace,
-			*leaderElectionLockName,
-			kubeClient.CoreV1(),
-			kubeClient.CoordinationV1(),
-			resourcelock.ResourceLockConfig{
-				Identity: hostname,
-				// TODO: This is a workaround for a nil dereference in client-go. This line can be removed when that dependency is updated.
-				EventRecorder: &record.FakeRecorder{},
-			})
+		broadcaster := record.NewBroadcaster()
+		source := apiv1.EventSource{Component: "spark-operator-leader-elector", Host: hostname}
+		recorder := broadcaster.NewRecorder(scheme.Scheme, source)
+		resourceLock := &resourcelock.LeaseLock{
+			LeaseMeta: metav1.ObjectMeta{
+				Namespace: *leaderElectionLockNamespace,
+				Name:      *leaderElectionLockName,
+			},
+			Client: kubeClient.CoordinationV1(),
+			LockConfig: resourcelock.ResourceLockConfig{
+				Identity:      podName,
+				EventRecorder: recorder,
+			},
+		}
 		if err != nil {
 			glog.Fatal(err)
 		}

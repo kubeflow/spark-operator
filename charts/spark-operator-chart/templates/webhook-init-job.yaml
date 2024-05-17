@@ -32,10 +32,6 @@ spec:
       - name: main
         image: {{ .Values.image.repository }}:{{ default .Chart.AppVersion .Values.image.tag }}
         imagePullPolicy: {{ .Values.image.pullPolicy }}
-        resources:
-          requests:
-            memory: "128Mi"
-            cpu: "500m"
         securityContext:
           {{- toYaml .Values.securityContext | nindent 10 }}
         command: [
@@ -45,10 +41,8 @@ spec:
             "-r", "{{ include "spark-operator.fullname" . }}-webhook-certs",
             "-p"
           ]
-      {{- with .Values.nodeSelector }}
-      nodeSelector:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
+        resources:
+          {{- toYaml .Values.webhook.initResources | nindent 10 }}
       {{- with .Values.tolerations }}
       tolerations:
         {{- toYaml . | nindent 8 }}

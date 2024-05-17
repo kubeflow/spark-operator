@@ -1,0 +1,326 @@
+suite: Test spark operator deployment
+
+templates:
+  - deployment.yaml
+
+release:
+  name: spark-operator
+
+tests:
+  - it: Should contain namespace arg when sparkJobNamespaces is equal to 1
+    set:
+      sparkJobNamespaces:
+        - ns1
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: -namespace=ns1
+
+  - it: Should add pod annotations if podAnnotations is set
+    set:
+      podAnnotations:
+        key1: value1
+        key2: value2
+    asserts:
+      - equal:
+          path: spec.template.metadata.annotations.key1
+          value: value1
+      - equal:
+          path: spec.template.metadata.annotations.key2
+          value: value2
+
+  - it: Should add prometheus annotations if metrics.enable is true
+    set:
+      metrics:
+        enable: true
+        port: 10254
+        endpoint: /metrics
+    asserts:
+      - equal:
+          path: spec.template.metadata.annotations["prometheus.io/scrape"]
+          value: "true"
+      - equal:
+          path: spec.template.metadata.annotations["prometheus.io/port"]
+          value: "10254"
+      - equal:
+          path: spec.template.metadata.annotations["prometheus.io/path"]
+          value: /metrics
+
+  - it: Should add secrets if imagePullSecrets is set
+    set:
+      imagePullSecrets:
+        - name: test-secret1
+        - name: test-secret2
+    asserts:
+      - equal:
+          path: spec.template.spec.imagePullSecrets[0].name
+          value: test-secret1
+      - equal:
+          path: spec.template.spec.imagePullSecrets[1].name
+          value: test-secret2
+
+  - it: Should add pod securityContext if podSecurityContext is set
+    set:
+      podSecurityContext:
+        runAsUser: 1000
+        runAsGroup: 2000
+        fsGroup: 3000
+    asserts:
+      - equal:
+          path: spec.template.spec.securityContext.runAsUser
+          value: 1000
+      - equal:
+          path: spec.template.spec.securityContext.runAsGroup
+          value: 2000
+      - equal:
+          path: spec.template.spec.securityContext.fsGroup
+          value: 3000
+
+  - it: Should use the specified image repository if image.repository and image.tag is set
+    set:
+      image:
+        repository: test-repository
+        tag: test-tag
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: test-repository:test-tag
+
+  - it: Should use the specified image pull policy if image.pullPolicy is set
+    set:
+      image:
+        pullPolicy: Always
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].imagePullPolicy
+          value: Always
+
+  - it: Should add container securityContext if securityContext is set
+    set:
+      securityContext:
+        runAsUser: 1000
+        runAsGroup: 2000
+        fsGroup: 3000
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].securityContext.runAsUser
+          value: 1000
+      - equal:
+          path: spec.template.spec.containers[0].securityContext.runAsGroup
+          value: 2000
+      - equal:
+          path: spec.template.spec.containers[0].securityContext.fsGroup
+          value: 3000
+
+  - it: Should add metric ports if metrics.enable is true
+    set:
+      metrics:
+        enable: true
+        port: 10254
+        portName: metrics
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].ports
+          content:
+            name: metrics
+            containerPort: 10254
+          count: 1
+
+  - it: Should add webhook ports if webhook.enable is true
+    set:
+      webhook:
+        enable: true
+        port: 8080
+        portName: webhook
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].ports
+          content:
+            name: webhook
+            containerPort: 8080
+          count: 1
+
+  - it: Should add resources if resources is set
+    set:
+      resources:
+        requests:
+          memory: "64Mi"
+          cpu: "250m"
+        limits:
+          memory: "128Mi"
+          cpu: "500m"
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].resources
+          value:
+            requests:
+              memory: "64Mi"
+              cpu: "250m"
+            limits:
+              memory: "128Mi"
+              cpu: "500m"
+
+  - it: Should add webhook certs volume if webhook.enable is true
+    set:
+      webhook:
+        enable: true
+    asserts:
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: webhook-certs
+            secret:
+              secretName: spark-operator-webhook-certs
+          count: 1
+
+  - it: Should add webhook certs volume mounts if webhook.enable is true
+    set:
+      webhook:
+        enable: true
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content:
+            name: webhook-certs
+            mountPath: /etc/webhook-certs
+          count: 1
+
+  - it: Should add sidecars if sidecars is set
+    set:
+      sidecars:
+        - name: sidecar1
+          image: sidecar-image1
+        - name: sidecar2
+          image: sidecar-image2
+    asserts:
+      - contains:
+          path: spec.template.spec.containers
+          content:
+            name: sidecar1
+            image: sidecar-image1
+          count: 1
+      - contains:
+          path: spec.template.spec.containers
+          content:
+            name: sidecar2
+            image: sidecar-image2
+          count: 1
+
+  - it: Should add volumes if volumes is set
+    set:
+      volumes:
+        - name: volume1
+          emptyDir: {}
+        - name: volume2
+          emptyDir: {}
+    asserts:
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: volume1
+            emptyDir: {}
+          count: 1
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: volume2
+            emptyDir: {}
+          count: 1
+
+  - it: Should add volume mounts if volumeMounts is set
+    set:
+      volumeMounts:
+        - name: volume1
+          mountPath: /volume1
+        - name: volume2
+          mountPath: /volume2
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content:
+            name: volume1
+            mountPath: /volume1
+          count: 1
+      - contains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content:
+            name: volume2
+            mountPath: /volume2
+          count: 1
+
+  - it: Should add nodeSelector if nodeSelector is set
+    set:
+      nodeSelector:
+        key1: value1
+        key2: value2
+    asserts:
+      - equal:
+          path: spec.template.spec.nodeSelector.key1
+          value: value1
+      - equal:
+          path: spec.template.spec.nodeSelector.key2
+          value: value2
+
+  - it: Should add affinity if affinity is set
+    set:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: topology.kubernetes.io/zone
+                    operator: In
+                    values:
+                      - antarctica-east1
+                      - antarctica-west1
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 1
+              preference:
+                matchExpressions:
+                  - key: another-node-label-key
+                    operator: In
+                    values:
+                      - another-node-label-value
+    asserts:
+      - equal:
+          path: spec.template.spec.affinity
+          value:
+            nodeAffinity:
+              requiredDuringSchedulingIgnoredDuringExecution:
+                nodeSelectorTerms:
+                  - matchExpressions:
+                      - key: topology.kubernetes.io/zone
+                        operator: In
+                        values:
+                          - antarctica-east1
+                          - antarctica-west1
+              preferredDuringSchedulingIgnoredDuringExecution:
+                - weight: 1
+                  preference:
+                    matchExpressions:
+                      - key: another-node-label-key
+                        operator: In
+                        values:
+                          - another-node-label-value
+
+  - it: Should add tolerations if tolerations is set
+    set:
+      tolerations:
+        - key: key1
+          operator: Equal
+          value: value1
+          effect: NoSchedule
+        - key: key2
+          operator: Exists
+          effect: NoSchedule
+    asserts:
+      - equal:
+          path: spec.template.spec.tolerations
+          value:
+            - key: key1
+              operator: Equal
+              value: value1
+              effect: NoSchedule
+            - key: key2
+              operator: Exists
+              effect: NoSchedule

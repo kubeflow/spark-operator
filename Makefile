@@ -2,11 +2,11 @@
 .SILENT:
 .PHONY: clean-sparkctl
 
-SPARK_OPERATOR_GOPATH=/go/src/github.com/GoogleCloudPlatform/spark-on-k8s-operator
+SPARK_OPERATOR_GOPATH=/go/src/github.com/kubeflow/spark-operator
 DEP_VERSION:=`grep DEP_VERSION= Dockerfile | awk -F\" '{print $$2}'`
 BUILDER=`grep "FROM golang:" Dockerfile | awk '{print $$2}'`
 UNAME:=`uname | tr '[:upper:]' '[:lower:]'`
-REPO=github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg
+REPO=github.com/kubeflow/spark-operator
 
 all: clean-sparkctl build-sparkctl install-sparkctl
 
@@ -38,14 +38,20 @@ install-sparkctl: | sparkctl/sparkctl-darwin-amd64 sparkctl/sparkctl-linux-amd64
 build-api-docs:
 	docker build -t temp-api-ref-docs hack/api-docs
 	docker run -v $$(pwd):/repo/ temp-api-ref-docs \
-		sh -c "cd /repo/ && /go/gen-crd-api-reference-docs/gen-crd-api-reference-docs \
+		sh -c "cd /repo/ && /go/bin/gen-crd-api-reference-docs \
 			-config /repo/hack/api-docs/api-docs-config.json \
-			-api-dir github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta2 \
+			-api-dir github.com/kubeflow/spark-operator/pkg/apis/sparkoperator.k8s.io/v1beta2 \
 			-template-dir /repo/hack/api-docs/api-docs-template \
 			-out-file /repo/docs/api-docs.md"
 
+helm-unittest:
+	helm unittest charts/spark-operator-chart --strict
+
+helm-lint:
+	docker run --rm --workdir /workspace --volume "$$(pwd):/workspace" quay.io/helmpack/chart-testing:latest ct lint
+
 helm-docs:
-	docker run --rm --volume "$(pwd):/helm-docs" -u "$(id -u)" jnorwood/helm-docs:latest
+	docker run --rm --volume "$$(pwd):/helm-docs" -u "$(id -u)" jnorwood/helm-docs:latest
 
 fmt-check: clean
 	@echo "running fmt check"; cd "$(dirname $0)"; \

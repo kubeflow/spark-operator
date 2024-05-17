@@ -317,6 +317,9 @@ type SparkUIConfiguration struct {
 	// ServiceAnnotations is a map of key,value pairs of annotations that might be added to the service object.
 	// +optional
 	ServiceAnnotations map[string]string `json:"serviceAnnotations,omitempty"`
+	// ServiceLables is a map of key,value pairs of labels that might be added to the service object.
+	// +optional
+	ServiceLabels map[string]string `json:"serviceLabels,omitempty"`
 	// IngressAnnotations is a map of key,value pairs of annotations that might be added to the ingress object. i.e. specify nginx as ingress.class
 	// +optional
 	IngressAnnotations map[string]string `json:"ingressAnnotations,omitempty"`
@@ -560,6 +563,10 @@ type DriverSpec struct {
 	// executors to connect to the driver.
 	// +optional
 	ServiceAnnotations map[string]string `json:"serviceAnnotations,omitempty"`
+	// ServiceLabels defines the labels to be added to the Kubernetes headless service used by
+	// executors to connect to the driver.
+	// +optional
+	ServiceLabels map[string]string `json:"serviceLabels,omitempty"`
 	// Ports settings for the pods, following the Kubernetes specifications.
 	// +optional
 	Ports []Port `json:"ports,omitempty"`
@@ -656,7 +663,7 @@ type MonitoringSpec struct {
 	// If not specified, the content in spark-docker/conf/metrics.properties will be used.
 	MetricsProperties *string `json:"metricsProperties,omitempty"`
 	// MetricsPropertiesFile is the container local path of file metrics.properties for configuring
-	//the Spark metric system. If not specified, value /etc/metrics/conf/metrics.properties will be used.
+	// the Spark metric system. If not specified, value /etc/metrics/conf/metrics.properties will be used.
 	// +optional
 	MetricsPropertiesFile *string `json:"metricsPropertiesFile,omitempty"`
 	// Prometheus is for configuring the Prometheus JMX exporter.

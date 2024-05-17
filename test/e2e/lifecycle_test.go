@@ -27,8 +27,8 @@ import (
 	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
 
-	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta2"
-	appFramework "github.com/GoogleCloudPlatform/spark-on-k8s-operator/test/e2e/framework"
+	"github.com/kubeflow/spark-operator/pkg/apis/sparkoperator.k8s.io/v1beta2"
+	appFramework "github.com/kubeflow/spark-operator/test/e2e/framework"
 )
 
 func TestLifeCycleManagement(t *testing.T) {

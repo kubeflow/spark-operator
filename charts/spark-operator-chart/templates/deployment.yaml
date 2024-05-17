@@ -3,7 +3,8 @@
 
 # In the post-install hook, the token corresponding to the operator service account
 # is used to authenticate with the Kubernetes API server to install the secret bundle.
-
+{{- $jobNamespaces := .Values.sparkJobNamespaces | default list }}
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -47,17 +48,27 @@ spec:
       - name: {{ .Chart.Name }}
         image: {{ .Values.image.repository }}:{{ default .Chart.AppVersion .Values.image.tag }}
         imagePullPolicy: {{ .Values.image.pullPolicy }}
+        envFrom:
+          {{- toYaml .Values.envFrom | nindent 10 }}
         securityContext:
           {{- toYaml .Values.securityContext | nindent 10 }}
-        {{- if .Values.metrics.enable }}
+        {{- if or .Values.metrics.enable .Values.webhook.enable }}
         ports:
+          {{ if .Values.metrics.enable -}}
           - name: {{ .Values.metrics.portName | quote }}
             containerPort: {{ .Values.metrics.port }}
-        {{ end }}
+          {{- end }}
+          {{ if .Values.webhook.enable -}}
+          - name: {{ .Values.webhook.portName | quote }}
+            containerPort: {{ .Values.webhook.port }}
+          {{- end }}
+        {{ end -}}
         args:
         - -v={{ .Values.logLevel }}
         - -logtostderr
-        - -namespace={{ .Values.sparkJobNamespace }}
+        {{- if eq (len $jobNamespaces) 1 }}
+        - -namespace={{ index $jobNamespaces 0 }}
+        {{- end }}
         - -enable-ui-service={{ .Values.uiService.enable}}
         - -ingress-url-format={{ .Values.ingressUrlFormat }}
         - -controller-threads={{ .Values.controllerThreads }}
@@ -86,8 +97,10 @@ spec:
         - -leader-election-lock-namespace={{ default .Release.Namespace .Values.leaderElection.lockNamespace }}
         - -leader-election-lock-name={{ .Values.leaderElection.lockName }}
         {{- end }}
+        {{- with .Values.resources }}
         resources:
-          {{- toYaml .Values.resources | nindent 10 }}
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
         {{- if or .Values.webhook.enable (ne (len .Values.volumeMounts) 0 ) }}
         volumeMounts:
         {{- end }}
@@ -98,6 +111,9 @@ spec:
         {{- with .Values.volumeMounts }}
         {{- toYaml . | nindent 10 }}
         {{- end }}
+      {{- with .Values.sidecars }}
+        {{- toYaml . | nindent 6 }}
+      {{- end }}
       {{- if or .Values.webhook.enable (ne (len .Values.volumes) 0 ) }}
       volumes:
       {{- end }}
