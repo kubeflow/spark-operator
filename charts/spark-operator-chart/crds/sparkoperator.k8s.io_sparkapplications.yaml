@@ -3767,6 +3767,43 @@ spec:
                     serviceType:
                       type: string
                   type: object
+                driverIngressOptions:
+                  items:
+                    properties:
+                      serviceAnnotations:
+                        additionalProperties:
+                          type: string
+                        type: object
+                      serviceLabels:
+                        additionalProperties:
+                          type: string
+                        type: object
+                      ingressURLFormat:
+                        type: string
+                      ingressAnnotations:
+                        additionalProperties:
+                          type: string
+                        type: object
+                      ingressTLS:
+                        items:
+                          properties:
+                            hosts:
+                              items:
+                                type: string
+                              type: array
+                            secretName:
+                              type: string
+                          type: object
+                        type: array
+                      servicePort:
+                        format: int32
+                        type: integer
+                      servicePortName:
+                        type: string
+                      serviceType:
+                        type: string
+                    type: object
+                  type: array
                 sparkVersion:
                   type: string
                 timeToLiveSeconds:
