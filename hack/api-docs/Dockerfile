@@ -14,10 +14,5 @@
 # limitations under the License.
 #
 
-FROM golang:1.15.2-alpine
-
-RUN apk add git
-RUN git clone https://github.com/ahmetb/gen-crd-api-reference-docs.git && \
-    cd gen-crd-api-reference-docs && \
-    git checkout ccf856504caaeac38151b57a950d3f8a7942b9db && \
-    go build
+FROM golang:1.22.2-alpine
+RUN go install github.com/ahmetb/gen-crd-api-reference-docs@latest

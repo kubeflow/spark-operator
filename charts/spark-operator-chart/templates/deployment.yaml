@@ -3,7 +3,7 @@
 
 # In the post-install hook, the token corresponding to the operator service account
 # is used to authenticate with the Kubernetes API server to install the secret bundle.
-{{- $jobNamespaces := .Values.sparkJobNamespaces | default (list .Release.Namespace) }}
+{{- $jobNamespaces := .Values.sparkJobNamespaces | default list }}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -54,19 +54,19 @@ spec:
           {{- toYaml .Values.securityContext | nindent 10 }}
         {{- if or .Values.metrics.enable .Values.webhook.enable }}
         ports:
-          {{ if .Values.metrics.enable }}
+          {{ if .Values.metrics.enable -}}
           - name: {{ .Values.metrics.portName | quote }}
             containerPort: {{ .Values.metrics.port }}
-          {{ end }}
-          {{ if .Values.webhook.enable }}
+          {{- end }}
+          {{ if .Values.webhook.enable -}}
           - name: {{ .Values.webhook.portName | quote }}
             containerPort: {{ .Values.webhook.port }}
-          {{ end }}
-        {{ end }}
+          {{- end }}
+        {{ end -}}
         args:
         - -v={{ .Values.logLevel }}
         - -logtostderr
-        {{- if le (len $jobNamespaces) 1 }}
+        {{- if eq (len $jobNamespaces) 1 }}
         - -namespace={{ index $jobNamespaces 0 }}
         {{- end }}
         - -enable-ui-service={{ .Values.uiService.enable}}
@@ -97,8 +97,10 @@ spec:
         - -leader-election-lock-namespace={{ default .Release.Namespace .Values.leaderElection.lockNamespace }}
         - -leader-election-lock-name={{ .Values.leaderElection.lockName }}
         {{- end }}
+        {{- with .Values.resources }}
         resources:
-          {{- toYaml .Values.resources | nindent 10 }}
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
         {{- if or .Values.webhook.enable (ne (len .Values.volumeMounts) 0 ) }}
         volumeMounts:
         {{- end }}

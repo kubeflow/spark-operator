@@ -126,10 +126,10 @@ To run the Spark Pi example, run the following command:
 $ kubectl apply -f examples/spark-pi.yaml
 ```
 
-Note that `spark-pi.yaml` configures the driver pod to use the `spark` service account to communicate with the Kubernetes API server. You might need to replace it with the appropriate service account before submitting the job. If you installed the operator using the Helm chart and overrode `sparkJobNamespace`, the service account name ends with `-spark` and starts with the Helm release name. For example, if you would like to run your Spark jobs to run in a namespace called `test-ns`, first make sure it already exists, and then install the chart with the command:
+Note that `spark-pi.yaml` configures the driver pod to use the `spark` service account to communicate with the Kubernetes API server. You might need to replace it with the appropriate service account before submitting the job. If you installed the operator using the Helm chart and overrode `sparkJobNamespaces`, the service account name ends with `-spark` and starts with the Helm release name. For example, if you would like to run your Spark jobs to run in a namespace called `test-ns`, first make sure it already exists, and then install the chart with the command:
 
 ```bash
-$ helm install my-release spark-operator/spark-operator --namespace spark-operator --set sparkJobNamespace=test-ns
+$ helm install my-release spark-operator/spark-operator --namespace spark-operator --set "sparkJobNamespaces={test-ns}"
 ```
 
 Then the chart will set up a service account for your Spark jobs to use in that namespace.
@@ -234,13 +234,13 @@ $ helm upgrade <YOUR-HELM-RELEASE-NAME> --set image.repository=org/image --set i
 
 Refer to the Helm [documentation](https://helm.sh/docs/helm/helm_upgrade/) for more details on `helm upgrade`.
 
-## About the Spark Job Namespace
+## About Spark Job Namespaces
 
-The Spark Job Namespace value defines the namespace(s) where `SparkApplications` can be deployed. The Helm chart value for the Spark Job Namespace is `sparkJobNamespace`, and its default value is `""`, as defined in the Helm chart's [README](../charts/spark-operator-chart/README.md). Note that in the [Kubernetes apimachinery](https://github.com/kubernetes/kubernetes/tree/master/staging/src/k8s.io/apimachinery) project, the constants `NamespaceAll` and `NamespaceNone` are both defined as the empty string. In this case, the empty string represents `NamespaceAll`. When set to `""`, the Spark Operator supports deploying `SparkApplications` to all namespaces. The Helm chart will create a service account in the namespace where the spark-operator is deployed. In order to successfully deploy `SparkApplications`, you will need to ensure the driver pod's service account meets the criteria described in the [service accounts for driver pods](#about-the-service-account-for-driver-pods) section.
+The Spark Job Namespaces value defines the namespaces where `SparkApplications` can be deployed. The Helm chart value for the Spark Job Namespaces is `sparkJobNamespaces`, and its default value is `[]`. As defined in the Helm chart's [README](../charts/spark-operator-chart/README.md), when the list of namespaces is empty the Helm chart will create a service account in the namespace where the spark-operator is deployed.
 
-if you installed the operator using the Helm chart and overrode the `sparkJobNamespace` to some other, pre-existing namespace, the Helm chart will create the necessary service account and RBAC in the specified namespace.
+If you installed the operator using the Helm chart and overrode the `sparkJobNamespaces` to some other, pre-existing namespace, the Helm chart will create the necessary service account and RBAC in the specified namespace.
 
-The Spark Operator uses the Spark Job Namespace to identify and filter relevant events for the `SparkApplication` CRD. If you specify a namespace for Spark Jobs, and then submit a SparkApplication resource to another namespace, the Spark Operator will filter out the event, and the resource will not get deployed. If you don't specify a namespace, the Spark Operator will see `SparkApplication` events for all namespaces, and will deploy them to the namespace requested in the create call.
+The Spark Operator uses the Spark Job Namespace to identify and filter relevant events for the `SparkApplication` CRD. If you specify a namespace for Spark Jobs, and then submit a SparkApplication resource to another namespace, the Spark Operator will filter out the event, and the resource will not get deployed. If you don't specify a namespace, the Spark Operator will see only `SparkApplication` events for the Spark Operator namespace.
 
 ## About the Service Account for Driver Pods
 
@@ -347,5 +347,5 @@ If you are deploying the operator on a GKE cluster with the [Private cluster](ht
 To install the operator with a custom port, pass the appropriate flag during `helm install`:
 
 ```bash
-$ helm install my-release spark-operator/spark-operator --namespace spark-operator  --set sparkJobNamespace=spark --set webhook.enable=true --set webhook.port=443
+$ helm install my-release spark-operator/spark-operator --namespace spark-operator  --set "sparkJobNamespaces={spark}" --set webhook.enable=true --set webhook.port=443
 ```

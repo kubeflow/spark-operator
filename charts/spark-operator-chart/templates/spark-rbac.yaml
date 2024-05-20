@@ -1,5 +1,5 @@
 {{- if or .Values.rbac.create .Values.rbac.createRole }}
-{{- $jobNamespaces := .Values.sparkJobNamespaces | default (list .Release.Namespace) }}
+{{- $jobNamespaces := .Values.sparkJobNamespaces | default list }}
 {{- range $jobNamespace := $jobNamespaces }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
@@ -14,23 +14,8 @@ rules:
   - ""
   resources:
   - pods
-  verbs:
-  - "*"
-- apiGroups:
-  - ""
-  resources:
   - services
-  verbs:
-  - "*"
-- apiGroups:
-  - ""
-  resources:
   - configmaps
-  verbs:
-  - "*"
-- apiGroups:
-  - ""
-  resources:
   - persistentvolumeclaims
   verbs:
   - "*"
@@ -49,7 +34,6 @@ subjects:
 roleRef:
   kind: Role
   name: spark-role
-  namespace: {{ $jobNamespace }}
   apiGroup: rbac.authorization.k8s.io
 {{- end }}
 {{- end }}

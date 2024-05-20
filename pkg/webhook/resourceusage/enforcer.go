@@ -2,9 +2,9 @@ package resourceusage
 
 import (
 	"fmt"
+	"github.com/golang/glog"
 	so "github.com/kubeflow/spark-operator/pkg/apis/sparkoperator.k8s.io/v1beta2"
 	crdinformers "github.com/kubeflow/spark-operator/pkg/client/informers/externalversions"
-	"github.com/golang/glog"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/informers"

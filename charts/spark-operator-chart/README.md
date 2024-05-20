@@ -1,6 +1,6 @@
 # spark-operator
 
-![Version: 1.2.5](https://img.shields.io/badge/Version-1.2.5-informational?style=flat-square) ![AppVersion: v1beta2-1.4.2-3.5.0](https://img.shields.io/badge/AppVersion-v1beta2--1.4.2--3.5.0-informational?style=flat-square)
+![Version: 1.2.15](https://img.shields.io/badge/Version-1.2.15-informational?style=flat-square) ![AppVersion: v1beta2-1.4.6-3.5.0](https://img.shields.io/badge/AppVersion-v1beta2--1.4.6--3.5.0-informational?style=flat-square)
 
 A Helm chart for Spark on Kubernetes operator
 
@@ -86,7 +86,7 @@ See [helm uninstall](https://helm.sh/docs/helm/helm_uninstall) for command docum
 | envFrom | list | `[]` | Pod environment variable sources |
 | fullnameOverride | string | `""` | String to override release name |
 | image.pullPolicy | string | `"IfNotPresent"` | Image pull policy |
-| image.repository | string | `"ghcr.io/kubeflow/spark-operator"` | Image repository |
+| image.repository | string | `"docker.io/kubeflow/spark-operator"` | Image repository |
 | image.tag | string | `""` | if set, override the image tag whose default is the chart appVersion. |
 | imagePullSecrets | list | `[]` | Image pull secrets |
 | ingressUrlFormat | string | `""` | Ingress URL format. Requires the UI service to be enabled by setting `uiService.enable` to true. |
@@ -126,7 +126,7 @@ See [helm uninstall](https://helm.sh/docs/helm/helm_uninstall) for command docum
 | serviceAccounts.sparkoperator.create | bool | `true` | Create a service account for the operator |
 | serviceAccounts.sparkoperator.name | string | `""` | Optional name for the operator service account |
 | sidecars | list | `[]` | Sidecar containers |
-| sparkJobNamespaces | list | `[]` | List of namespaces where to run spark jobs, operator namespace is included only when list of namespaces is empty |
+| sparkJobNamespaces | list | `[""]` | List of namespaces where to run spark jobs |
 | tolerations | list | `[]` | List of node taints to tolerate |
 | uiService.enable | bool | `true` | Enable UI service creation for Spark application |
 | volumeMounts | list | `[]` |  |

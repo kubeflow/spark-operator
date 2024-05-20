@@ -1,0 +1,33 @@
+suite: Test spark operator webhook service
+
+templates:
+  - webhook-service.yaml
+
+release:
+  name: spark-operator
+
+tests:
+  - it: Should not render the webhook service if webhook.enable is false
+    set:
+      webhook:
+        enable: false
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: Should render the webhook service correctly if webhook.enable is true
+    set:
+      webhook:
+        enable: true
+        portName: webhook
+    asserts:
+      - containsDocument:
+          apiVersion: v1
+          kind: Service
+          name: spark-operator-webhook
+      - equal:
+          path: spec.ports[0]
+          value:
+            port: 443
+            targetPort: webhook
+            name: webhook

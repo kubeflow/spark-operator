@@ -11,7 +11,7 @@ replicaCount: 1
 
 image:
   # -- Image repository
-  repository: ghcr.io/kubeflow/spark-operator
+  repository: docker.io/kubeflow/spark-operator
   # -- Image pull policy
   pullPolicy: IfNotPresent
   # -- if set, override the image tag whose default is the chart appVersion.
@@ -52,8 +52,10 @@ serviceAccounts:
     # -- Optional annotations for the operator service account
     annotations: {}
 
-# -- List of namespaces where to run spark jobs, operator namespace is included only when list of namespaces is empty
-sparkJobNamespaces: []
+# -- List of namespaces where to run spark jobs
+sparkJobNamespaces:
+  - ""
+# - ns1
 
 # -- Operator concurrency, higher values might increase memory usage
 controllerThreads: 10

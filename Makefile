@@ -38,11 +38,17 @@ install-sparkctl: | sparkctl/sparkctl-darwin-amd64 sparkctl/sparkctl-linux-amd64
 build-api-docs:
 	docker build -t temp-api-ref-docs hack/api-docs
 	docker run -v $$(pwd):/repo/ temp-api-ref-docs \
-		sh -c "cd /repo/ && /go/gen-crd-api-reference-docs/gen-crd-api-reference-docs \
+		sh -c "cd /repo/ && /go/bin/gen-crd-api-reference-docs \
 			-config /repo/hack/api-docs/api-docs-config.json \
 			-api-dir github.com/kubeflow/spark-operator/pkg/apis/sparkoperator.k8s.io/v1beta2 \
 			-template-dir /repo/hack/api-docs/api-docs-template \
 			-out-file /repo/docs/api-docs.md"
+
+helm-unittest:
+	helm unittest charts/spark-operator-chart --strict
+
+helm-lint:
+	docker run --rm --workdir /workspace --volume "$$(pwd):/workspace" quay.io/helmpack/chart-testing:latest ct lint
 
 helm-docs:
 	docker run --rm --volume "$$(pwd):/helm-docs" -u "$(id -u)" jnorwood/helm-docs:latest
