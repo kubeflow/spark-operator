@@ -1,6 +1,7 @@
 module github.com/kubeflow/spark-operator
 
 go 1.22
+toolchain go1.22.2
 
 require (
 	cloud.google.com/go/storage v1.40.0
@@ -26,7 +27,7 @@ require (
 	k8s.io/apimachinery v0.29.3
 	k8s.io/client-go v1.5.2
 	k8s.io/kubectl v0.29.3
-	k8s.io/kubernetes v1.29.3
+	k8s.io/kubernetes v1.30.1
 	k8s.io/utils v0.0.0-20240310230437-4693a0247e57
 	volcano.sh/apis v1.8.2
 )
