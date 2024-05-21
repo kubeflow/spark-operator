@@ -1,4 +1,4 @@
-{{- if or .Values.rbac.create .Values.rbac.createClusterRole }}
+{{- if or .Values.rbac.create .Values.rbac.createClusterRole -}}
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
@@ -7,6 +7,9 @@ metadata:
     "helm.sh/hook": pre-install, pre-upgrade
     "helm.sh/hook-delete-policy": hook-failed, before-hook-creation
     "helm.sh/hook-weight": "-10"
+    {{- with .Values.rbac.annotations }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
   labels:
     {{- include "spark-operator.labels" . | nindent 4 }}
 rules:
@@ -14,6 +17,7 @@ rules:
   - ""
   resources:
   - pods
+  - persistentvolumeclaims
   verbs:
   - "*"
 - apiGroups:
@@ -27,6 +31,7 @@ rules:
   - get
   - delete
   - update
+  - patch
 - apiGroups:
   - extensions
   - networking.k8s.io
@@ -63,10 +68,7 @@ rules:
   resources:
   - customresourcedefinitions
   verbs:
-  - create
   - get
-  - update
-  - delete
 - apiGroups:
   - admissionregistration.k8s.io
   resources:
@@ -82,8 +84,10 @@ rules:
   resources:
   - sparkapplications
   - sparkapplications/status
+  - sparkapplications/finalizers
   - scheduledsparkapplications
   - scheduledsparkapplications/status
+  - scheduledsparkapplications/finalizers
   verbs:
   - "*"
   {{- if .Values.batchScheduler.enable }}

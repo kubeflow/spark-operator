@@ -20,11 +20,10 @@ import (
 	"encoding/json"
 	"fmt"
 
-	v1 "k8s.io/api/core/v1"
-	policy "k8s.io/api/policy/v1beta1"
-
-	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta2"
-	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/config"
+	// v1 "k8s.io/api/core/v1"
+	// policy "k8s.io/api/policy/v1beta1"
+	"github.com/kubeflow/spark-operator/pkg/apis/sparkoperator.k8s.io/v1beta2"
+	"github.com/kubeflow/spark-operator/pkg/config"
 	apiv1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 )
@@ -88,6 +87,16 @@ func getServiceAnnotations(app *v1beta2.SparkApplication) map[string]string {
 		}
 	}
 	return serviceAnnotations
+}
+
+func getServiceLabels(app *v1beta2.SparkApplication) map[string]string {
+	serviceLabels := map[string]string{}
+	if app.Spec.SparkUIOptions != nil && app.Spec.SparkUIOptions.ServiceLabels != nil {
+		for key, value := range app.Spec.SparkUIOptions.ServiceLabels {
+			serviceLabels[key] = value
+		}
+	}
+	return serviceLabels
 }
 
 func getIngressResourceAnnotations(app *v1beta2.SparkApplication) map[string]string {
@@ -200,19 +209,6 @@ func driverStateToApplicationState(driverState v1beta2.DriverState) v1beta2.Appl
 	default:
 		return v1beta2.UnknownState
 	}
-}
-
-func getVolumeFSType(v v1.Volume) (policy.FSType, error) {
-	switch {
-	case v.HostPath != nil:
-		return policy.HostPath, nil
-	case v.EmptyDir != nil:
-		return policy.EmptyDir, nil
-	case v.PersistentVolumeClaim != nil:
-		return policy.PersistentVolumeClaim, nil
-	}
-
-	return "", fmt.Errorf("unknown volume type for volume: %#v", v)
 }
 
 func printStatus(status *v1beta2.SparkApplicationStatus) (string, error) {

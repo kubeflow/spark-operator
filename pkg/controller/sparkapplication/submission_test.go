@@ -25,14 +25,13 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
-
 	"github.com/stretchr/testify/assert"
-
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta2"
-	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/config"
+	"github.com/kubeflow/spark-operator/pkg/apis/sparkoperator.k8s.io/v1beta2"
+	"github.com/kubeflow/spark-operator/pkg/config"
 )
 
 const (
@@ -40,6 +39,7 @@ const (
 	VolumeMountOptionPathTemplate        = "spark.kubernetes.%s.volumes.%s.%s.options.%s=%s"
 	SparkDriverLabelAnnotationTemplate   = "spark.kubernetes.driver.label.sparkoperator.k8s.io/%s=%s"
 	SparkDriverLabelTemplate             = "spark.kubernetes.driver.label.%s=%s"
+	SparkDriverServiceLabelTemplate      = "spark.kubernetes.driver.service.label.%s=%s"
 	SparkExecutorLabelAnnotationTemplate = "spark.kubernetes.executor.label.sparkoperator.k8s.io/%s=%s"
 	SparkExecutorLabelTemplate           = "spark.kubernetes.executor.label.%s=%s"
 )
@@ -366,14 +366,71 @@ func TestAddLocalDir_Driver_Executor(t *testing.T) {
 	assert.Equal(t, fmt.Sprintf(VolumeMountOptionPathTemplate, "executor", "hostPath", volumes[0].Name, "path", volumes[0].HostPath.Path), localDirOptions[3])
 }
 
+func TestAddEmptyDir_Driver_Executor_WithSizeLimit(t *testing.T) {
+	sizeLimit := resource.MustParse("5Gi")
+	volumes := []corev1.Volume{
+		{
+			Name: "spark-local-dir-1",
+			VolumeSource: corev1.VolumeSource{
+				EmptyDir: &corev1.EmptyDirVolumeSource{
+					SizeLimit: &sizeLimit,
+				},
+			},
+		},
+	}
+
+	volumeMounts := []corev1.VolumeMount{
+		{
+			Name:      "spark-local-dir-1",
+			MountPath: "/tmp/mnt-1",
+		},
+	}
+
+	app := &v1beta2.SparkApplication{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "spark-test",
+			UID:  "spark-test-1",
+		},
+		Spec: v1beta2.SparkApplicationSpec{
+			Volumes: volumes,
+			Driver: v1beta2.DriverSpec{
+				SparkPodSpec: v1beta2.SparkPodSpec{
+					VolumeMounts: volumeMounts,
+				},
+			},
+			Executor: v1beta2.ExecutorSpec{
+				SparkPodSpec: v1beta2.SparkPodSpec{
+					VolumeMounts: volumeMounts,
+				},
+			},
+		},
+	}
+
+	localDirOptions, err := addLocalDirConfOptions(app)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	assert.Equal(t, 0, len(app.Spec.Volumes))
+	assert.Equal(t, 0, len(app.Spec.Driver.VolumeMounts))
+	assert.Equal(t, 0, len(app.Spec.Executor.VolumeMounts))
+	assert.Equal(t, 4, len(localDirOptions))
+	assert.Equal(t, fmt.Sprintf(VolumeMountPathTemplate, "driver", "emptyDir", volumes[0].Name, volumeMounts[0].MountPath), localDirOptions[0])
+	assert.Equal(t, fmt.Sprintf(VolumeMountOptionPathTemplate, "driver", "emptyDir", volumes[0].Name, "sizeLimit", volumes[0].EmptyDir.SizeLimit.String()), localDirOptions[1])
+	assert.Equal(t, fmt.Sprintf(VolumeMountPathTemplate, "executor", "emptyDir", volumes[0].Name, volumeMounts[0].MountPath), localDirOptions[2])
+	assert.Equal(t, fmt.Sprintf(VolumeMountOptionPathTemplate, "executor", "emptyDir", volumes[0].Name, "sizeLimit", volumes[0].EmptyDir.SizeLimit.String()), localDirOptions[3])
+}
+
 func TestPopulateLabels_Driver_Executor(t *testing.T) {
 	const (
-		AppLabelKey        = "app-label-key"
-		AppLabelValue      = "app-label-value"
-		DriverLabelKey     = "driver-label-key"
-		DriverLabelValue   = "driver-label-key"
-		ExecutorLabelKey   = "executor-label-key"
-		ExecutorLabelValue = "executor-label-key"
+		AppLabelKey             = "app-label-key"
+		AppLabelValue           = "app-label-value"
+		DriverLabelKey          = "driver-label-key"
+		DriverLabelValue        = "driver-label-key"
+		DriverServiceLabelKey   = "driver-svc-label-key"
+		DriverServiceLabelValue = "driver-svc-label-value"
+		ExecutorLabelKey        = "executor-label-key"
+		ExecutorLabelValue      = "executor-label-key"
 	)
 
 	app := &v1beta2.SparkApplication{
@@ -384,6 +441,7 @@ func TestPopulateLabels_Driver_Executor(t *testing.T) {
 		},
 		Spec: v1beta2.SparkApplicationSpec{
 			Driver: v1beta2.DriverSpec{
+				ServiceLabels: map[string]string{DriverServiceLabelKey: DriverServiceLabelValue},
 				SparkPodSpec: v1beta2.SparkPodSpec{
 					Labels: map[string]string{DriverLabelKey: DriverLabelValue},
 				},
@@ -401,7 +459,7 @@ func TestPopulateLabels_Driver_Executor(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	assert.Equal(t, 5, len(driverOptions))
+	assert.Equal(t, 6, len(driverOptions))
 	sort.Strings(driverOptions)
 	expectedDriverLabels := []string{
 		fmt.Sprintf(SparkDriverLabelAnnotationTemplate, "launched-by-spark-operator", strconv.FormatBool(true)),
@@ -409,6 +467,7 @@ func TestPopulateLabels_Driver_Executor(t *testing.T) {
 		fmt.Sprintf(SparkDriverLabelAnnotationTemplate, "submission-id", submissionID),
 		fmt.Sprintf(SparkDriverLabelTemplate, AppLabelKey, AppLabelValue),
 		fmt.Sprintf(SparkDriverLabelTemplate, DriverLabelKey, DriverLabelValue),
+		fmt.Sprintf(SparkDriverServiceLabelTemplate, DriverServiceLabelKey, DriverServiceLabelValue),
 	}
 	sort.Strings(expectedDriverLabels)
 
@@ -582,4 +641,55 @@ func TestProxyUserArg(t *testing.T) {
 	assert.Equal(t, string(v1beta2.ClusterMode), args[3])
 	assert.Equal(t, "--proxy-user", args[4])
 	assert.Equal(t, "foo", args[5])
+}
+
+func Test_getMasterURL(t *testing.T) {
+	setEnv := func(host string, port string) {
+		if err := os.Setenv(kubernetesServiceHostEnvVar, host); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Setenv(kubernetesServicePortEnvVar, port); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	tests := []struct {
+		name    string
+		host    string
+		port    string
+		want    string
+		wantErr assert.ErrorAssertionFunc
+	}{
+		{
+			name:    "should return a valid master url when IPv4 address is used",
+			host:    "localhost",
+			port:    "6443",
+			want:    "k8s://https://localhost:6443",
+			wantErr: assert.NoError,
+		},
+		{
+			name:    "should return a valid master url when IPv6 address is used",
+			host:    "::1",
+			port:    "6443",
+			want:    "k8s://https://[::1]:6443",
+			wantErr: assert.NoError,
+		},
+		{
+			name:    "should throw an error when the host is empty",
+			host:    "",
+			port:    "6443",
+			want:    "",
+			wantErr: assert.Error,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			setEnv(tt.host, tt.port)
+			got, err := getMasterURL()
+			if !tt.wantErr(t, err, fmt.Sprintf("getMasterURL()")) {
+				return
+			}
+			assert.Equalf(t, tt.want, got, "getMasterURL()")
+		})
+	}
 }

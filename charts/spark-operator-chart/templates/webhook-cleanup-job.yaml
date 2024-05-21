@@ -32,10 +32,6 @@ spec:
       - name: clean-secret
         image: {{ .Values.image.repository }}:{{ default .Chart.AppVersion .Values.image.tag }}
         imagePullPolicy: {{ .Values.image.pullPolicy }}
-        resources:
-          requests:
-            memory: "128Mi"
-            cpu: "500m"
         securityContext:
           {{- toYaml .Values.securityContext | nindent 10 }}
         command:
@@ -55,10 +51,8 @@ spec:
           -H \"Content-Type: application/json\" \
           --data \"{\\\"kind\\\":\\\"DeleteOptions\\\",\\\"apiVersion\\\":\\\"batch/v1\\\",\\\"propagationPolicy\\\":\\\"Foreground\\\"}\" \
           https://kubernetes.default.svc/apis/batch/v1/namespaces/{{ .Release.Namespace }}/jobs/{{ include "spark-operator.fullname" . }}-webhook-init"
-      {{- with .Values.nodeSelector }}
-      nodeSelector:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
+        resources:
+          {{- toYaml .Values.webhook.cleanupResources | nindent 10 }}
       {{- with .Values.tolerations }}
       tolerations:
         {{- toYaml . | nindent 8 }}

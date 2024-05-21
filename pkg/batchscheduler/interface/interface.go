@@ -17,7 +17,7 @@ limitations under the License.
 package schedulerinterface
 
 import (
-	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta2"
+	"github.com/kubeflow/spark-operator/pkg/apis/sparkoperator.k8s.io/v1beta2"
 )
 
 type BatchScheduler interface {

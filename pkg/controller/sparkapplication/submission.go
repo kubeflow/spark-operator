@@ -26,11 +26,10 @@ import (
 
 	"github.com/golang/glog"
 	v1 "k8s.io/api/core/v1"
-	policy "k8s.io/api/policy/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta2"
-	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/config"
+	"github.com/kubeflow/spark-operator/pkg/apis/sparkoperator.k8s.io/v1beta2"
+	"github.com/kubeflow/spark-operator/pkg/config"
 )
 
 const (
@@ -59,7 +58,7 @@ func runSparkSubmit(submission *submission) (bool, error) {
 	if !present {
 		glog.Error("SPARK_HOME is not specified")
 	}
-	var command = filepath.Join(sparkHome, "/bin/spark-submit")
+	command := filepath.Join(sparkHome, "/bin/spark-submit")
 
 	cmd := execCommand(command, submission.args...)
 	glog.V(2).Infof("spark-submit arguments: %v", cmd.Args)
@@ -207,6 +206,10 @@ func getMasterURL() (string, error) {
 	if kubernetesServicePort == "" {
 		return "", fmt.Errorf("environment variable %s is not found", kubernetesServicePortEnvVar)
 	}
+	// check if the host is IPv6 address
+	if strings.Contains(kubernetesServiceHost, ":") && !strings.HasPrefix(kubernetesServiceHost, "[") {
+		return fmt.Sprintf("k8s://https://[%s]:%s", kubernetesServiceHost, kubernetesServicePort), nil
+	}
 	return fmt.Sprintf("k8s://https://%s:%s", kubernetesServiceHost, kubernetesServicePort), nil
 }
 
@@ -297,7 +300,7 @@ func addDriverConfOptions(app *v1beta2.SparkApplication, submissionID string) ([
 			fmt.Sprintf("%s=%s", config.SparkDriverKubernetesMaster, *app.Spec.Driver.KubernetesMaster))
 	}
 
-	//Populate SparkApplication Labels to Driver
+	// Populate SparkApplication Labels to Driver
 	driverLabels := make(map[string]string)
 	for key, value := range app.Labels {
 		driverLabels[key] = value
@@ -324,6 +327,11 @@ func addDriverConfOptions(app *v1beta2.SparkApplication, submissionID string) ([
 	for key, value := range app.Spec.Driver.ServiceAnnotations {
 		driverConfOptions = append(driverConfOptions,
 			fmt.Sprintf("%s%s=%s", config.SparkDriverServiceAnnotationKeyPrefix, key, value))
+	}
+
+	for key, value := range app.Spec.Driver.ServiceLabels {
+		driverConfOptions = append(driverConfOptions,
+			fmt.Sprintf("%s%s=%s", config.SparkDriverServiceLabelKeyPrefix, key, value))
 	}
 
 	driverConfOptions = append(driverConfOptions, config.GetDriverSecretConfOptions(app)...)
@@ -384,7 +392,7 @@ func addExecutorConfOptions(app *v1beta2.SparkApplication, submissionID string) 
 			fmt.Sprintf("%s=%t", config.SparkExecutorDeleteOnTermination, *app.Spec.Executor.DeleteOnTermination))
 	}
 
-	//Populate SparkApplication Labels to Executors
+	// Populate SparkApplication Labels to Executors
 	executorLabels := make(map[string]string)
 	for key, value := range app.Labels {
 		executorLabels[key] = value
@@ -505,16 +513,19 @@ func buildLocalVolumeOptions(prefix string, volume v1.Volume, volumeMount v1.Vol
 	var options []string
 	switch {
 	case volume.HostPath != nil:
-		options = append(options, fmt.Sprintf(VolumeMountPathTemplate, string(policy.HostPath), volume.Name, volumeMount.MountPath))
-		options = append(options, fmt.Sprintf(VolumeMountOptionTemplate, string(policy.HostPath), volume.Name, "path", volume.HostPath.Path))
+		options = append(options, fmt.Sprintf(VolumeMountPathTemplate, "hostPath", volume.Name, volumeMount.MountPath))
+		options = append(options, fmt.Sprintf(VolumeMountOptionTemplate, "hostPath", volume.Name, "path", volume.HostPath.Path))
 		if volume.HostPath.Type != nil {
-			options = append(options, fmt.Sprintf(VolumeMountOptionTemplate, string(policy.HostPath), volume.Name, "type", *volume.HostPath.Type))
+			options = append(options, fmt.Sprintf(VolumeMountOptionTemplate, "hostPath", volume.Name, "type", *volume.HostPath.Type))
 		}
 	case volume.EmptyDir != nil:
-		options = append(options, fmt.Sprintf(VolumeMountPathTemplate, string(policy.EmptyDir), volume.Name, volumeMount.MountPath))
+		options = append(options, fmt.Sprintf(VolumeMountPathTemplate, "emptyDir", volume.Name, volumeMount.MountPath))
+		if volume.EmptyDir.SizeLimit != nil {
+			options = append(options, fmt.Sprintf(VolumeMountOptionTemplate, "emptyDir", volume.Name, "sizeLimit", volume.EmptyDir.SizeLimit.String()))
+		}
 	case volume.PersistentVolumeClaim != nil:
-		options = append(options, fmt.Sprintf(VolumeMountPathTemplate, string(policy.PersistentVolumeClaim), volume.Name, volumeMount.MountPath))
-		options = append(options, fmt.Sprintf(VolumeMountOptionTemplate, string(policy.PersistentVolumeClaim), volume.Name, "claimName", volume.PersistentVolumeClaim.ClaimName))
+		options = append(options, fmt.Sprintf(VolumeMountPathTemplate, "persistentVolumeClaim", volume.Name, volumeMount.MountPath))
+		options = append(options, fmt.Sprintf(VolumeMountOptionTemplate, "persistentVolumeClaim", volume.Name, "claimName", volume.PersistentVolumeClaim.ClaimName))
 	}
 
 	return options

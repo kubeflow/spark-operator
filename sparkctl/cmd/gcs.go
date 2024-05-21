@@ -20,8 +20,8 @@ import (
 	"fmt"
 
 	"cloud.google.com/go/storage"
-	"github.com/google/go-cloud/blob/gcsblob"
-	"github.com/google/go-cloud/gcp"
+	"gocloud.dev/blob/gcsblob"
+	"gocloud.dev/gcp"
 	"golang.org/x/net/context"
 )
 
@@ -68,7 +68,7 @@ func newGCSBlob(
 		return nil, err
 	}
 
-	b, err := gcsblob.OpenBucket(ctx, bucket, c)
+	b, err := gcsblob.OpenBucket(ctx, c, bucket, nil)
 	return &uploadHandler{
 		blob:             blobGCS{endpoint: endpoint, region: region, projectId: string(projectId)},
 		ctx:              ctx,

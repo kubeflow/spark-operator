@@ -8,7 +8,7 @@ metadata:
 spec:
   ports:
   - port: 443
-    targetPort: {{ .Values.webhook.port }}
+    targetPort: {{ .Values.webhook.portName | quote }}
     name: webhook
   selector:
     {{- include "spark-operator.selectorLabels" . | nindent 4 }}

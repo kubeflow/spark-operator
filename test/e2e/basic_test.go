@@ -18,6 +18,7 @@ package e2e
 
 import (
 	"context"
+	"log"
 	"strings"
 	"testing"
 
@@ -26,7 +27,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
 
-	appFramework "github.com/GoogleCloudPlatform/spark-on-k8s-operator/test/e2e/framework"
+	appFramework "github.com/kubeflow/spark-operator/test/e2e/framework"
 )
 
 func TestSubmitSparkPiYaml(t *testing.T) {
@@ -64,6 +65,7 @@ func TestSubmitSparkPiYaml(t *testing.T) {
 
 	app, _ := appFramework.GetSparkApplication(framework.SparkApplicationClient, appFramework.SparkTestNamespace, appName)
 	podName := app.Status.DriverInfo.PodName
+	log.Printf("LABELS: %v", app.ObjectMeta.GetLabels())
 	rawLogs, err := framework.KubeClient.CoreV1().Pods(appFramework.SparkTestNamespace).GetLogs(podName, &v1.PodLogOptions{}).Do(context.TODO()).Raw()
 	assert.Equal(t, nil, err)
 	assert.NotEqual(t, -1, strings.Index(string(rawLogs), "Pi is roughly 3"))

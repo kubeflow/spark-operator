@@ -27,11 +27,11 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/rest"
 
-	"volcano.sh/volcano/pkg/apis/scheduling/v1beta1"
-	volcanoclient "volcano.sh/volcano/pkg/client/clientset/versioned"
+	"volcano.sh/apis/pkg/apis/scheduling/v1beta1"
+	volcanoclient "volcano.sh/apis/pkg/client/clientset/versioned"
 
-	"github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/apis/sparkoperator.k8s.io/v1beta2"
-	schedulerinterface "github.com/GoogleCloudPlatform/spark-on-k8s-operator/pkg/batchscheduler/interface"
+	"github.com/kubeflow/spark-operator/pkg/apis/sparkoperator.k8s.io/v1beta2"
+	schedulerinterface "github.com/kubeflow/spark-operator/pkg/batchscheduler/interface"
 )
 
 const (
@@ -115,9 +115,12 @@ func (v *VolcanoBatchScheduler) getAppPodGroupName(app *v1beta2.SparkApplication
 }
 
 func (v *VolcanoBatchScheduler) syncPodGroup(app *v1beta2.SparkApplication, size int32, minResource corev1.ResourceList) error {
-	var err error
+	var (
+		err error
+		pg  *v1beta1.PodGroup
+	)
 	podGroupName := v.getAppPodGroupName(app)
-	if pg, err := v.volcanoClient.SchedulingV1beta1().PodGroups(app.Namespace).Get(context.TODO(), podGroupName, metav1.GetOptions{}); err != nil {
+	if pg, err = v.volcanoClient.SchedulingV1beta1().PodGroups(app.Namespace).Get(context.TODO(), podGroupName, metav1.GetOptions{}); err != nil {
 		if !errors.IsNotFound(err) {
 			return err
 		}

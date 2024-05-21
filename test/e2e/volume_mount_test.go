@@ -29,7 +29,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/kubectl/pkg/describe"
 
-	appFramework "github.com/GoogleCloudPlatform/spark-on-k8s-operator/test/e2e/framework"
+	appFramework "github.com/kubeflow/spark-operator/test/e2e/framework"
 )
 
 type describeClient struct {

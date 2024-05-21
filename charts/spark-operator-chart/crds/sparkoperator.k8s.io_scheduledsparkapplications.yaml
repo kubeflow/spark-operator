@@ -5,7 +5,7 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: (unknown)
-    api-approved.kubernetes.io: https://github.com/GoogleCloudPlatform/spark-on-k8s-operator/pull/1298
+    api-approved.kubernetes.io: https://github.com/kubeflow/spark-operator/pull/1298
   name: scheduledsparkapplications.sparkoperator.k8s.io
 spec:
   group: sparkoperator.k8s.io
@@ -919,6 +919,11 @@ spec:
                                 type: object
                               securityContext:
                                 properties:
+                                  seccompProfile:
+                                    type: object
+                                    properties:
+                                      type:
+                                        type: string
                                   allowPrivilegeEscalation:
                                     type: boolean
                                   capabilities:
@@ -1272,6 +1277,11 @@ spec:
                           type: array
                         securityContext:
                           properties:
+                            seccompProfile:
+                              type: object
+                              properties:
+                                type:
+                                  type: string
                             allowPrivilegeEscalation:
                               type: boolean
                             capabilities:
@@ -1323,6 +1333,10 @@ spec:
                         serviceAccount:
                           type: string
                         serviceAnnotations:
+                          additionalProperties:
+                            type: string
+                          type: object
+                        serviceLabels:
                           additionalProperties:
                             type: string
                           type: object
@@ -1704,6 +1718,11 @@ spec:
                                 type: object
                               securityContext:
                                 properties:
+                                  seccompProfile:
+                                    type: object
+                                    properties:
+                                      type:
+                                        type: string
                                   allowPrivilegeEscalation:
                                     type: boolean
                                   capabilities:
@@ -2731,6 +2750,11 @@ spec:
                                 type: object
                               securityContext:
                                 properties:
+                                  seccompProfile:
+                                    type: object
+                                    properties:
+                                      type:
+                                        type: string
                                   allowPrivilegeEscalation:
                                     type: boolean
                                   capabilities:
@@ -2980,6 +3004,11 @@ spec:
                           type: array
                         securityContext:
                           properties:
+                            seccompProfile:
+                              type: object
+                              properties:
+                                type:
+                                  type: string
                             allowPrivilegeEscalation:
                               type: boolean
                             capabilities:
@@ -3408,6 +3437,11 @@ spec:
                                 type: object
                               securityContext:
                                 properties:
+                                  seccompProfile:
+                                    type: object
+                                    properties:
+                                      type:
+                                        type: string
                                   allowPrivilegeEscalation:
                                     type: boolean
                                   capabilities:
@@ -3717,6 +3751,10 @@ spec:
                     sparkUIOptions:
                       properties:
                         serviceAnnotations:
+                          additionalProperties:
+                            type: string
+                          type: object
+                        serviceLabels:
                           additionalProperties:
                             type: string
                           type: object
