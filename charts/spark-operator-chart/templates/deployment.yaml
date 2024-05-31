@@ -48,6 +48,14 @@ spec:
       - name: {{ .Chart.Name }}
         image: {{ .Values.image.repository }}:{{ default .Chart.AppVersion .Values.image.tag }}
         imagePullPolicy: {{ .Values.image.pullPolicy }}
+        {{- if gt (int .Values.replicaCount) 1 }}
+        env:
+          - name: POD_NAME
+            valueFrom:
+              fieldRef:
+                apiVersion: v1
+                fieldPath: metadata.name
+        {{- end }}
         envFrom:
           {{- toYaml .Values.envFrom | nindent 10 }}
         securityContext:
