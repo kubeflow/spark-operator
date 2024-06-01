@@ -134,6 +134,9 @@ spec:
         {{- toYaml . | nindent 8 }}
         {{- end }}
       {{- with .Values.nodeSelector }}
+      {{- if .Values.priorityClassName }}
+      priorityClassName: {{ .Values.priorityClassName }}
+      {{- end }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
       {{- end }}
