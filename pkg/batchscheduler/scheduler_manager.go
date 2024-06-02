@@ -24,12 +24,14 @@ import (
 
 	"github.com/kubeflow/spark-operator/pkg/batchscheduler/interface"
 	"github.com/kubeflow/spark-operator/pkg/batchscheduler/volcano"
+	"github.com/kubeflow/spark-operator/pkg/batchscheduler/yunikorn"
 )
 
 type schedulerInitializeFunc func(config *rest.Config) (schedulerinterface.BatchScheduler, error)
 
 var schedulerContainers = map[string]schedulerInitializeFunc{
-	"volcano": volcano.New,
+	"volcano":  volcano.New,
+	"yunikorn": yunikorn.New,
 }
 
 func GetRegisteredNames() []string {
