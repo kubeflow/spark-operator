@@ -53,7 +53,8 @@ serviceAccounts:
     annotations: {}
 
 # -- List of namespaces where to run spark jobs
-sparkJobNamespaces: []
+sparkJobNamespaces:
+  - ""
 # - ns1
 
 # -- Operator concurrency, higher values might increase memory usage

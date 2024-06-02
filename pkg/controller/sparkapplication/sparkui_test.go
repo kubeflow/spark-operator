@@ -400,7 +400,7 @@ func TestCreateSparkUIIngress(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		ingressURL, err := getSparkUIingressURL(ingressURLFormat, test.app.Name, test.app.Namespace)
+		ingressURL, err := getDriverIngressURL(ingressURLFormat, test.app.Name, test.app.Namespace)
 		if err != nil {
 			t.Fatal(err)
 		}
