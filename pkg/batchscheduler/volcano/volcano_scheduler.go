@@ -43,14 +43,6 @@ type VolcanoBatchScheduler struct {
 	volcanoClient   volcanoclient.Interface
 }
 
-func GetPluginName() string {
-	return "volcano"
-}
-
-func (v *VolcanoBatchScheduler) Name() string {
-	return GetPluginName()
-}
-
 func (v *VolcanoBatchScheduler) ShouldSchedule(app *v1beta2.SparkApplication) bool {
 	//NOTE: There is no additional requirement for volcano scheduler
 	return true

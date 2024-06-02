@@ -29,7 +29,7 @@ import (
 type schedulerInitializeFunc func(config *rest.Config) (schedulerinterface.BatchScheduler, error)
 
 var schedulerContainers = map[string]schedulerInitializeFunc{
-	volcano.GetPluginName(): volcano.New,
+	"volcano": volcano.New,
 }
 
 func GetRegisteredNames() []string {
