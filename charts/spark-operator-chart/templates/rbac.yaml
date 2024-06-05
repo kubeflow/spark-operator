@@ -3,15 +3,12 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
   name: {{ include "spark-operator.fullname" . }}
-  annotations:
-    "helm.sh/hook": pre-install, pre-upgrade
-    "helm.sh/hook-delete-policy": hook-failed, before-hook-creation
-    "helm.sh/hook-weight": "-10"
-    {{- with .Values.rbac.annotations }}
-    {{- toYaml . | nindent 4 }}
-    {{- end }}
   labels:
     {{- include "spark-operator.labels" . | nindent 4 }}
+  {{- with .Values.rbac.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
 rules:
 - apiGroups:
   - ""
@@ -134,12 +131,12 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
   name: {{ include "spark-operator.fullname" . }}
-  annotations:
-    "helm.sh/hook": pre-install, pre-upgrade
-    "helm.sh/hook-delete-policy": hook-failed, before-hook-creation
-    "helm.sh/hook-weight": "-10"
   labels:
     {{- include "spark-operator.labels" . | nindent 4 }}
+  {{- with .Values.rbac.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
 subjects:
   - kind: ServiceAccount
     name: {{ include "spark-operator.serviceAccountName" . }}

@@ -1,6 +1,6 @@
 # spark-operator
 
-![Version: 1.3.2](https://img.shields.io/badge/Version-1.3.2-informational?style=flat-square) ![AppVersion: v1beta2-1.5.0-3.5.0](https://img.shields.io/badge/AppVersion-v1beta2--1.5.0--3.5.0-informational?style=flat-square)
+![Version: 1.4.0](https://img.shields.io/badge/Version-1.4.0-informational?style=flat-square) ![AppVersion: v1beta2-1.6.0-3.5.0](https://img.shields.io/badge/AppVersion-v1beta2--1.6.0--3.5.0-informational?style=flat-square)
 
 A Helm chart for Spark on Kubernetes operator
 
@@ -131,17 +131,11 @@ See [helm uninstall](https://helm.sh/docs/helm/helm_uninstall) for command docum
 | uiService.enable | bool | `true` | Enable UI service creation for Spark application |
 | volumeMounts | list | `[]` |  |
 | volumes | list | `[]` |  |
-| webhook.cleanupAnnotations | object | `{"helm.sh/hook":"pre-delete, pre-upgrade","helm.sh/hook-delete-policy":"hook-succeeded"}` | The annotations applied to the cleanup job, required for helm lifecycle hooks |
-| webhook.cleanupPodLabels | object | `{}` | The podLabels applied to the pod of the cleanup job |
-| webhook.cleanupResources | object | `{}` | Resources applied to cleanup job |
 | webhook.enable | bool | `false` | Enable webhook server |
-| webhook.initAnnotations | object | `{"helm.sh/hook":"pre-install, pre-upgrade","helm.sh/hook-weight":"50"}` | The annotations applied to init job, required to restore certs deleted by the cleanup job during upgrade |
-| webhook.initPodLabels | object | `{}` | The podLabels applied to the pod of the init job |
-| webhook.initResources | object | `{}` | Resources applied to init job |
 | webhook.namespaceSelector | string | `""` | The webhook server will only operate on namespaces with this label, specified in the form key1=value1,key2=value2. Empty string (default) will operate on all namespaces |
 | webhook.port | int | `8080` | Webhook service port |
 | webhook.portName | string | `"webhook"` | Webhook container port name and service target port name |
-| webhook.timeout | int | `30` |  |
+| webhook.timeout | int | `30` | The annotations applied to init job, required to restore certs deleted by the cleanup job during upgrade |
 
 ## Maintainers
 

@@ -21,13 +21,12 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"strings"
 	"time"
 
 	"github.com/golang/glog"
-
 	admissionv1 "k8s.io/api/admission/v1"
 	arv1 "k8s.io/api/admissionregistration/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -89,14 +88,12 @@ type WebHook struct {
 
 // Configuration parsed from command-line flags
 type webhookFlags struct {
-	serverCert               string
-	serverCertKey            string
-	caCert                   string
-	certReloadInterval       time.Duration
-	webhookServiceNamespace  string
+	webhookSecretName        string
+	webhookSecretNamespace   string
 	webhookServiceName       string
-	webhookPort              int
+	webhookServiceNamespace  string
 	webhookConfigName        string
+	webhookPort              int
 	webhookFailOnError       bool
 	webhookNamespaceSelector string
 }
@@ -104,13 +101,11 @@ type webhookFlags struct {
 var userConfig webhookFlags
 
 func init() {
-	flag.StringVar(&userConfig.webhookConfigName, "webhook-config-name", "spark-webhook-config", "The name of the MutatingWebhookConfiguration object to create.")
-	flag.StringVar(&userConfig.serverCert, "webhook-server-cert", "/etc/webhook-certs/server-cert.pem", "Path to the X.509-formatted webhook certificate.")
-	flag.StringVar(&userConfig.serverCertKey, "webhook-server-cert-key", "/etc/webhook-certs/server-key.pem", "Path to the webhook certificate key.")
-	flag.StringVar(&userConfig.caCert, "webhook-ca-cert", "/etc/webhook-certs/ca-cert.pem", "Path to the X.509-formatted webhook CA certificate.")
-	flag.DurationVar(&userConfig.certReloadInterval, "webhook-cert-reload-interval", 15*time.Minute, "Time between webhook cert reloads.")
-	flag.StringVar(&userConfig.webhookServiceNamespace, "webhook-svc-namespace", "spark-operator", "The namespace of the Service for the webhook server.")
+	flag.StringVar(&userConfig.webhookSecretName, "webhook-secret-name", "spark-operator-tls", "The name of the secret that contains the webhook server's TLS certificate and key.")
+	flag.StringVar(&userConfig.webhookSecretNamespace, "webhook-secret-namespace", "spark-operator", "The namespace of the secret that contains the webhook server's TLS certificate and key.")
 	flag.StringVar(&userConfig.webhookServiceName, "webhook-svc-name", "spark-webhook", "The name of the Service for the webhook server.")
+	flag.StringVar(&userConfig.webhookServiceNamespace, "webhook-svc-namespace", "spark-operator", "The namespace of the Service for the webhook server.")
+	flag.StringVar(&userConfig.webhookConfigName, "webhook-config-name", "spark-webhook-config", "The name of the MutatingWebhookConfiguration object to create.")
 	flag.IntVar(&userConfig.webhookPort, "webhook-port", 8080, "Service port of the webhook server.")
 	flag.BoolVar(&userConfig.webhookFailOnError, "webhook-fail-on-error", false, "Whether Kubernetes should reject requests when the webhook fails.")
 	flag.StringVar(&userConfig.webhookNamespaceSelector, "webhook-namespace-selector", "", "The webhook will only operate on namespaces with this label, specified in the form key1=value1,key2=value2. Required if webhook-fail-on-error is true.")
@@ -126,14 +121,12 @@ func New(
 	coreV1InformerFactory informers.SharedInformerFactory,
 	webhookTimeout *int) (*WebHook, error) {
 
-	cert, err := NewCertProvider(
-		userConfig.serverCert,
-		userConfig.serverCertKey,
-		userConfig.caCert,
-		userConfig.certReloadInterval,
+	certProvider, err := NewCertProvider(
+		userConfig.webhookServiceName,
+		userConfig.webhookServiceNamespace,
 	)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create certificate provider: %v", err)
 	}
 
 	path := "/webhook"
@@ -142,11 +135,12 @@ func New(
 		Name:      userConfig.webhookServiceName,
 		Path:      &path,
 	}
+
 	hook := &WebHook{
 		clientset:                      clientset,
 		informerFactory:                informerFactory,
 		lister:                         informerFactory.Sparkoperator().V1beta2().SparkApplications().Lister(),
-		certProvider:                   cert,
+		certProvider:                   certProvider,
 		serviceRef:                     serviceRef,
 		sparkJobNamespace:              jobNamespace,
 		deregisterOnExit:               deregisterOnExit,
@@ -205,8 +199,13 @@ func parseNamespaceSelector(selectorArg string) (*metav1.LabelSelector, error) {
 
 // Start starts the admission webhook server and registers itself to the API server.
 func (wh *WebHook) Start(stopCh <-chan struct{}) error {
-	wh.certProvider.Start()
-	wh.server.TLSConfig = wh.certProvider.tlsConfig()
+	wh.updateSecret(userConfig.webhookSecretName, userConfig.webhookSecretNamespace)
+
+	tlsCfg, err := wh.certProvider.TLSConfig()
+	if err != nil {
+		return fmt.Errorf("failed to get TLS config: %v", err)
+	}
+	wh.server.TLSConfig = tlsCfg
 
 	if wh.enableResourceQuotaEnforcement {
 		err := wh.resourceQuotaEnforcer.WaitForCacheSync(stopCh)
@@ -235,8 +234,6 @@ func (wh *WebHook) Stop() error {
 		}
 		glog.Infof("Webhook %s deregistered", userConfig.webhookConfigName)
 	}
-
-	wh.certProvider.Stop()
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	glog.Info("Stopping the Spark pod admission webhook server")
@@ -247,7 +244,7 @@ func (wh *WebHook) serve(w http.ResponseWriter, r *http.Request) {
 	glog.V(2).Info("Serving admission request")
 	var body []byte
 	if r.Body != nil {
-		data, err := ioutil.ReadAll(r.Body)
+		data, err := io.ReadAll(r.Body)
 		if err != nil {
 			internalError(w, fmt.Errorf("failed to read the request body"))
 			return
@@ -319,6 +316,57 @@ func (wh *WebHook) serve(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func (wh *WebHook) updateSecret(name, namespace string) error {
+	secret, err := wh.clientset.CoreV1().Secrets(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+	if err != nil {
+		return fmt.Errorf("failed to get webhook secret: %v", err)
+	}
+
+	caKey, err := wh.certProvider.CAKey()
+	if err != nil {
+		return fmt.Errorf("failed to get CA key: %v", err)
+	}
+
+	caCert, err := wh.certProvider.CACert()
+	if err != nil {
+		return fmt.Errorf("failed to get CA cert: %v", err)
+	}
+
+	serverKey, err := wh.certProvider.ServerKey()
+	if err != nil {
+		return fmt.Errorf("failed to get server key: %v", err)
+	}
+
+	serverCert, err := wh.certProvider.ServerCert()
+	if err != nil {
+		return fmt.Errorf("failed to get server cert: %v", err)
+	}
+
+	newSecret := corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+		},
+		Data: map[string][]byte{
+			"ca-key.pem":      caKey,
+			"ca-cert.pem":     caCert,
+			"server-key.pem":  serverKey,
+			"server-cert.pem": serverCert,
+		},
+	}
+
+	if !equality.Semantic.DeepEqual(newSecret, secret) {
+		secret.Data = newSecret.Data
+		_, err := wh.clientset.CoreV1().Secrets(namespace).Update(context.TODO(), secret, metav1.UpdateOptions{})
+		if err != nil {
+			return fmt.Errorf("failed to update webhook secret: %v", err)
+		}
+	}
+
+	glog.Infof("Updated webhook secret %s/%s", namespace, name)
+	return nil
+}
+
 func unexpectedResourceType(w http.ResponseWriter, kind string) {
 	denyRequest(w, fmt.Sprintf("unexpected resource type: %v", kind), http.StatusUnsupportedMediaType)
 }
@@ -352,13 +400,13 @@ func denyRequest(w http.ResponseWriter, reason string, code int) {
 }
 
 func (wh *WebHook) selfRegistration(webhookConfigName string) error {
+	caBundle, err := wh.certProvider.CACert()
+	if err != nil {
+		return fmt.Errorf("failed to get CA certificate: %v", err)
+	}
+
 	mwcClient := wh.clientset.AdmissionregistrationV1().MutatingWebhookConfigurations()
 	vwcClient := wh.clientset.AdmissionregistrationV1().ValidatingWebhookConfigurations()
-
-	caCert, err := readCertFile(wh.certProvider.caCertFile)
-	if err != nil {
-		return err
-	}
 
 	mutatingRules := []arv1.RuleWithOperations{
 		{
@@ -389,7 +437,7 @@ func (wh *WebHook) selfRegistration(webhookConfigName string) error {
 		Rules: mutatingRules,
 		ClientConfig: arv1.WebhookClientConfig{
 			Service:  wh.serviceRef,
-			CABundle: caCert,
+			CABundle: caBundle,
 		},
 		FailurePolicy:           &wh.failurePolicy,
 		NamespaceSelector:       wh.selector,
@@ -403,7 +451,7 @@ func (wh *WebHook) selfRegistration(webhookConfigName string) error {
 		Rules: validatingRules,
 		ClientConfig: arv1.WebhookClientConfig{
 			Service:  wh.serviceRef,
-			CABundle: caCert,
+			CABundle: caBundle,
 		},
 		FailurePolicy:           &wh.failurePolicy,
 		NamespaceSelector:       wh.selector,

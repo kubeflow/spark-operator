@@ -1,7 +1,7 @@
 suite: Test spark operator webhook service
 
 templates:
-  - webhook-service.yaml
+  - webhook/service.yaml
 
 release:
   name: spark-operator
@@ -24,7 +24,7 @@ tests:
       - containsDocument:
           apiVersion: v1
           kind: Service
-          name: spark-operator-webhook
+          name: spark-operator-webhook-svc
       - equal:
           path: spec.ports[0]
           value:

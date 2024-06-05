@@ -45,7 +45,7 @@ build-api-docs:
 			-out-file /repo/docs/api-docs.md"
 
 helm-unittest:
-	helm unittest charts/spark-operator-chart --strict
+	helm unittest charts/spark-operator-chart --strict --file "tests/**/*_test.yaml"
 
 helm-lint:
 	docker run --rm --workdir /workspace --volume "$$(pwd):/workspace" quay.io/helmpack/chart-testing:latest ct lint
