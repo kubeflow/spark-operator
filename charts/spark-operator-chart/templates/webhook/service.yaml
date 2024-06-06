@@ -9,7 +9,7 @@ spec:
   selector:
     {{- include "spark-operator.selectorLabels" . | nindent 4 }}
   ports:
-  - port: 443
+  - port: {{ .Values.webhook.port }}
     targetPort: {{ .Values.webhook.portName | quote }}
     name: {{ .Values.webhook.portName }}
 {{- end }}

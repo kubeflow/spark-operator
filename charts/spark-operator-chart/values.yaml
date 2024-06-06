@@ -94,20 +94,40 @@ volumes: []
 volumeMounts: []
 
 webhook:
-  # -- Enable webhook server
+  # -- Specifies whether to enable webhook server
   enable: false
-  # -- Webhook service port
+  # -- Specifies webhook port
   port: 8080
-  # -- Webhook container port name and service target port name
+  # -- Specifies webhook service port name
   portName: webhook
-  # -- The webhook server will only operate on namespaces with this label, specified in the form key1=value1,key2=value2.
-  # Empty string (default) will operate on all namespaces
-  namespaceSelector: ""
-  # -- The webhook will only operate on resources with this label/s, specified in the form key1=value1,key2=value2, OR key in (value1,value2).
-  # Empty string (default) will operate on all objects
-  objectSelector: ""
+  # -- Specifies the namespace selector to run the webhook on an object based on whether the namespace for that object matches the selector.
+  # Empty selector means all namespaces.
+  namespaceSelector: {}
+    # matchExpressions:
+    # - key: kubernetes.io/metadata.name
+    #   operator: In
+    #   values: 
+    #   - default
+    # matchLabels:
+    # - key: kubernetes.io/metadata.name
+    #   value: default
+  # -- Specifies the object selector to run the webhook on an object based on whether the labels for that object matches the selector
+  # Empty selector means all objects.
+  objectSelector: {}
+    # matchExpressions:
+    # - key: key1
+    #   operator: In
+    #   values: 
+    #   - value1
+    # matchLabels:
+    # - key: key2
+    #   value: value2
   # -- The annotations applied to init job, required to restore certs deleted by the cleanup job during upgrade
   timeout: 30
+  # -- Specifies how unrecognized errors are handled, allowed values are `Ignore` or `Fail`.
+  failurePolicy: Ignore
+  # -- Specifies the timeout seconds of the webhook, the value must be between 1 and 30.
+  timeoutSeconds: 30
 
 metrics:
   # -- Enable prometheus metric scraping

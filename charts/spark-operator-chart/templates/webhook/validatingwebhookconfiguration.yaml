@@ -1,0 +1,39 @@
+{{- if .Values.webhook.enable -}}
+{{- if .Values.resourceQuotaEnforcement.enable -}}
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  name: {{ include "spark-operator.webhookName" . }}
+  labels:
+    {{- include "spark-operator.labels" . | nindent 4 }}
+webhooks:
+- name: {{ include "spark-operator.validatingWebhookConfigurationName" . }}
+  admissionReviewVersions: ["v1"]
+  clientConfig:
+    service:
+      name: {{ include "spark-operator.webhookServiceName" . }}
+      namespace: {{ .Release.Namespace }}
+      port: {{ .Values.webhook.port }}
+      path: /webhook
+  sideEffects: NoneOnDryRun
+  {{- with .Values.webhook.failurePolicy }}
+  failurePolicy: {{ . }}
+  {{- end }}
+  {{- with .Values.webhook.namespaceSelector }}
+  namespaceSelector:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- with .Values.webhook.objectSelector }}
+  objectSelector:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  rules:
+  - apiGroups: ["sparkoperator.k8s.io"]
+    apiVersions: ["v1beta2"]
+    resources: ["sparkapplications", "scheduledsparkapplications"]
+    operations: ["CREATE", "UPDATE"]
+  {{- with .Values.webhook.timeoutSeconds }}
+  timeoutSeconds: {{ . }}
+  {{- end }}
+{{- end }}
+{{- end }}
