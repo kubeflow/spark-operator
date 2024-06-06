@@ -40,9 +40,9 @@ USER root
 COPY --from=builder /usr/bin/spark-operator /usr/bin/
 RUN apt-get update --allow-releaseinfo-change \
     && apt-get update \
-    && apt-get install -y openssl curl tini \
+    && apt-get install -y tini \
     && rm -rf /var/lib/apt/lists/*
-COPY hack/gencerts.sh /usr/bin/
 
 COPY entrypoint.sh /usr/bin/
+
 ENTRYPOINT ["/usr/bin/entrypoint.sh"]
