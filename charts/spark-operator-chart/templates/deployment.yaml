@@ -56,7 +56,9 @@ spec:
                 apiVersion: v1
                 fieldPath: metadata.name
         {{- end }}
-          {{- toYaml .Values.extraEnv | nindent 10 }}
+        {{- with .Values.extraEnv }}
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
         envFrom:
           {{- toYaml .Values.envFrom | nindent 10 }}
         securityContext:
