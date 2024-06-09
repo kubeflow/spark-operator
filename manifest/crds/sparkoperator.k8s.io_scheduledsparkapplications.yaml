@@ -917,6 +917,8 @@ spec:
                                       x-kubernetes-int-or-string: true
                                     type: object
                                 type: object
+                              restartPolicy:
+                                type: string
                               securityContext:
                                 properties:
                                   seccompProfile:
@@ -2748,6 +2750,8 @@ spec:
                                       x-kubernetes-int-or-string: true
                                     type: object
                                 type: object
+                              restartPolicy:
+                                type: string
                               securityContext:
                                 properties:
                                   seccompProfile:
