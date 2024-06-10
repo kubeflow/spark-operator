@@ -23,7 +23,6 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
-
 	admissionv1 "k8s.io/api/admission/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
@@ -184,7 +183,7 @@ func serializePod(pod *corev1.Pod) ([]byte, error) {
 }
 
 func testSelector(input string, expected *metav1.LabelSelector, t *testing.T) {
-	selector, err := parseNamespaceSelector(input)
+	selector, err := parseSelector(input)
 	if expected == nil {
 		if err == nil {
 			t.Errorf("Expected error parsing '%s', but got %v", input, selector)
