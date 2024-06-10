@@ -36,11 +36,16 @@ func (y *YunikornBatchScheduler) CleanupOnCompletion(app *v1beta2.SparkApplicati
 }
 
 func (y *YunikornBatchScheduler) DoBatchSchedulingOnSubmission(app *v1beta2.SparkApplication) error {
+	driverMinResources, err := driverResourceUsage(app)
+	if err != nil {
+		return fmt.Errorf("failed to calculate driver resource usage: %w", err)
+	}
+
 	taskGroups := []cache.TaskGroup{
 		{
 			Name:         DriverTaskGroupName,
 			MinMember:    1,
-			MinResource:  nil, // TODO
+			MinResource:  driverMinResources,
 			NodeSelector: mergeMaps(app.Spec.NodeSelector, app.Spec.Driver.NodeSelector),
 			Tolerations:  app.Spec.Driver.Tolerations,
 			Affinity:     app.Spec.Driver.Affinity,
@@ -53,10 +58,15 @@ func (y *YunikornBatchScheduler) DoBatchSchedulingOnSubmission(app *v1beta2.Spar
 	// if the initial number of executors is zero
 	initialExecutors := getInitialExecutors(app)
 	if initialExecutors > 0 {
+		executorMinResources, err := executorResourceUsage(app)
+		if err != nil {
+			return fmt.Errorf("failed to calculate executor resource usage: %w", err)
+		}
+
 		taskGroups = append(taskGroups, cache.TaskGroup{
 			Name:         ExecutorTaskGroupName,
 			MinMember:    initialExecutors,
-			MinResource:  nil, // TODO
+			MinResource:  executorMinResources,
 			NodeSelector: mergeMaps(app.Spec.NodeSelector, app.Spec.Executor.NodeSelector),
 			Tolerations:  app.Spec.Executor.Tolerations,
 			Affinity:     app.Spec.Executor.Affinity,
@@ -65,7 +75,7 @@ func (y *YunikornBatchScheduler) DoBatchSchedulingOnSubmission(app *v1beta2.Spar
 	}
 
 	if err := addTaskGroupAnnotations(app, taskGroups); err != nil {
-		return fmt.Errorf("failed to add task group annotations: %v", err)
+		return fmt.Errorf("failed to add task group annotations: %w", err)
 	}
 
 	addQueueLabels(app)
@@ -96,7 +106,7 @@ func getInitialExecutors(app *v1beta2.SparkApplication) int32 {
 func addTaskGroupAnnotations(app *v1beta2.SparkApplication, taskGroups []cache.TaskGroup) error {
 	marshalledTaskGroups, err := json.Marshal(taskGroups)
 	if err != nil {
-		return fmt.Errorf("failed to marshal taskGroups: %v", err)
+		return fmt.Errorf("failed to marshal taskGroups: %w", err)
 	}
 
 	if app.Spec.Driver.Annotations == nil {
@@ -110,6 +120,7 @@ func addTaskGroupAnnotations(app *v1beta2.SparkApplication, taskGroups []cache.T
 	app.Spec.Driver.Annotations[TaskGroupNameAnnotation] = DriverTaskGroupName
 	app.Spec.Executor.Annotations[TaskGroupNameAnnotation] = ExecutorTaskGroupName
 
+	// The task group annotation only needs to be present on the originating pod
 	app.Spec.Driver.Annotations[TaskGroupsAnnotation] = string(marshalledTaskGroups)
 
 	return nil
