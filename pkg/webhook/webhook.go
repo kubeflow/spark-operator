@@ -162,7 +162,7 @@ func New(
 			return nil, fmt.Errorf("webhook-namespace-selector must be set when webhook-fail-on-error is true")
 		}
 	} else {
-		selector, err := parseSelector(userConfig.webhookNamespaceSelector)
+		selector, err := metav1.ParseToLabelSelector(userConfig.webhookSecretNamespace)
 		if err != nil {
 			return nil, err
 		}
@@ -170,7 +170,7 @@ func New(
 	}
 
 	if userConfig.webhookObjectSelector != "" {
-		selector, err := parseObjectSelector(userConfig.webhookObjectSelector)
+		selector, err := metav1.ParseToLabelSelector(userConfig.webhookObjectSelector)
 		if err != nil {
 			return nil, err
 		}
@@ -206,34 +206,6 @@ func parseSelector(selectorArg string) (*metav1.LabelSelector, error) {
 	}
 
 	return selector, nil
-}
-
-func parseObjectSelector(selectorArg string) (*metav1.LabelSelector, error) {
-	expressions := map[string][]string{}
-
-	selectorStrs := strings.Split(selectorArg, ",")
-	for _, selectorStr := range selectorStrs {
-		kv := strings.SplitN(selectorStr, "=", 2)
-		if len(kv) != 2 || kv[0] == "" || kv[1] == "" {
-			return nil, fmt.Errorf("webhook object selector must be in the form key1=value1,key2=value2")
-		}
-		key := kv[0]
-		value := kv[1]
-		expressions[key] = append(expressions[key], value)
-	}
-
-	matchExpressions := []metav1.LabelSelectorRequirement{}
-	for key, values := range expressions {
-		matchExpressions = append(matchExpressions, metav1.LabelSelectorRequirement{
-			Key:      key,
-			Operator: metav1.LabelSelectorOpIn,
-			Values:   values,
-		})
-	}
-
-	return &metav1.LabelSelector{
-		MatchExpressions: matchExpressions,
-	}, nil
 }
 
 // Start starts the admission webhook server and registers itself to the API server.

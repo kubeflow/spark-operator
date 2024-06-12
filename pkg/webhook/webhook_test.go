@@ -192,7 +192,7 @@ func TestSelfRegistrationWithObjectSelector(t *testing.T) {
 	coreV1InformerFactory := informers.NewSharedInformerFactory(nil, 0)
 
 	// Setup userConfig with object selector
-	userConfig.webhookObjectSelector = "spark-role=driver,spark-role=executor"
+	userConfig.webhookObjectSelector = "spark-role in (driver,executor)"
 	webhookTimeout := 30
 
 	// Create webhook instance
