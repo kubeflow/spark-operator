@@ -162,7 +162,7 @@ func New(
 			return nil, fmt.Errorf("webhook-namespace-selector must be set when webhook-fail-on-error is true")
 		}
 	} else {
-		selector, err := metav1.ParseToLabelSelector(userConfig.webhookSecretNamespace)
+		selector, err := parseSelector(userConfig.webhookNamespaceSelector)
 		if err != nil {
 			return nil, err
 		}
