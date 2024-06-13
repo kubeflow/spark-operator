@@ -111,7 +111,7 @@ func init() {
 	flag.IntVar(&userConfig.webhookPort, "webhook-port", 8080, "Service port of the webhook server.")
 	flag.BoolVar(&userConfig.webhookFailOnError, "webhook-fail-on-error", false, "Whether Kubernetes should reject requests when the webhook fails.")
 	flag.StringVar(&userConfig.webhookNamespaceSelector, "webhook-namespace-selector", "", "The webhook will only operate on namespaces with this label, specified in the form key1=value1,key2=value2. Required if webhook-fail-on-error is true.")
-	flag.StringVar(&userConfig.webhookObjectSelector, "webhook-object-selector", "", "The webhook will only operate on pods with this label/s, specified in the form key1=value1,key2=value2. Required if webhook-fail-on-error is true.")
+	flag.StringVar(&userConfig.webhookObjectSelector, "webhook-object-selector", "", "The webhook will only operate on pods with this label/s, specified in the form key1=value1,key2=value2, OR key in (value1,value2).")
 }
 
 // New creates a new WebHook instance.

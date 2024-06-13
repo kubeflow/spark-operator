@@ -272,6 +272,7 @@ func equalStringSlices(a, b []string) bool {
 
 func testSelector(input string, expected *metav1.LabelSelector, t *testing.T) {
 	selector, err := parseSelector(input)
+
 	if expected == nil {
 		if err == nil {
 			t.Errorf("Expected error parsing '%s', but got %v", input, selector)
