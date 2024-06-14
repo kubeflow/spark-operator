@@ -91,5 +91,5 @@ Please check [CONTRIBUTING.md](CONTRIBUTING.md) and the [Developer Guide](docs/d
 
 ## Community
 
-* Join our [Kubeflow Slack Channel](https://app.slack.com/client/T08PSQ7BQ/C074588U7EG)
+* Join our [Kubeflow Slack Channel](https://cloud-native.slack.com/archives/C074588U7EG)
 * Check out [who is using the Kubernetes Operator for Apache Spark](docs/who-is-using.md).
