@@ -1,6 +1,6 @@
 # spark-operator
 
-![Version: 1.4.0](https://img.shields.io/badge/Version-1.4.0-informational?style=flat-square) ![AppVersion: v1beta2-1.6.0-3.5.0](https://img.shields.io/badge/AppVersion-v1beta2--1.6.0--3.5.0-informational?style=flat-square)
+![Version: 1.4.1](https://img.shields.io/badge/Version-1.4.1-informational?style=flat-square) ![AppVersion: v1beta2-1.6.0-3.5.0](https://img.shields.io/badge/AppVersion-v1beta2--1.6.0--3.5.0-informational?style=flat-square)
 
 A Helm chart for Spark on Kubernetes operator
 
@@ -110,7 +110,7 @@ See [helm uninstall](https://helm.sh/docs/helm/helm_uninstall) for command docum
 | podMonitor.labels | object | `{}` | Pod monitor labels |
 | podMonitor.podMetricsEndpoint | object | `{"interval":"5s","scheme":"http"}` | Prometheus metrics endpoint properties. `metrics.portName` will be used as a port |
 | podSecurityContext | object | `{}` | Pod security context |
-| priorityClassName | string | `""` | Priority class to be used for running spark-operator pod. This helps in managing the pods during preemption. |
+| priorityClassName | string | `""` | A priority class to be used for running spark-operator pod. |
 | rbac.annotations | object | `{}` | Optional annotations for rbac |
 | rbac.create | bool | `false` | **DEPRECATED** use `createRole` and `createClusterRole` |
 | rbac.createClusterRole | bool | `true` | Create and use RBAC `ClusterRole` resources |
