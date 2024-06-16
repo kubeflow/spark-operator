@@ -181,3 +181,6 @@ istio:
 
 # labelSelectorFilter -- A comma-separated list of key=value, or key labels to filter resources during watch and list based on the specified labels.
 labelSelectorFilter: ""
+
+# priorityClassName -- A priority class to be used for running spark-operator pod.
+priorityClassName: ""
