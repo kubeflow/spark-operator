@@ -91,6 +91,6 @@ Please check [CONTRIBUTING.md](CONTRIBUTING.md) and the [Developer Guide](docs/d
 
 ## Community
 
-* Join the [CNCF Slack Channel](https://www.kubeflow.org/docs/about/community/#kubeflow-slack-channels) and then join ```#kubeflow-spark-operator``` Channel.
-* Check out our blog post [Announcing the Kubeflow Spark Operator: Building a Stronger Spark on Kubernetes Community](https://blog.kubeflow.org/operators/2024/04/15/kubeflow-spark-operator.html)
+* Join the [CNCF Slack Workspace](https://www.kubeflow.org/docs/about/community/#kubeflow-slack-channels) on Slack and then join ```#kubeflow-spark-operator``` Channel for collaboration on the Spark Operator.
+* Check out our blog post [Announcing the Kubeflow Spark Operator: Building a Stronger Spark on Kubernetes Community](https://blog.kubeflow.org/operators/2024/04/15/kubeflow-spark-operator.html).
 * Check out [who is using the Kubernetes Operator for Apache Spark](docs/who-is-using.md).
