@@ -45,3 +45,4 @@
 | [Qualytics](https://www.qualytics.co/) | @josecsotomorales | Production | Data Quality Platform |
 | [Roblox](https://www.roblox.com/) | @matschaffer-roblox | Evaluation | Data Infrastructure |
 | [Rokt](https://www.rokt.com) | @jacobsalway | Production | Data Infrastructure |
+| [Inter&Co](https://inter.co/) | @ignitz | Production | Data pipelines |

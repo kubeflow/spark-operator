@@ -104,29 +104,6 @@ webhook:
   # Empty string (default) will operate on all namespaces
   namespaceSelector: ""
   # -- The annotations applied to init job, required to restore certs deleted by the cleanup job during upgrade
-  initAnnotations:
-    "helm.sh/hook": pre-install, pre-upgrade
-    "helm.sh/hook-weight": "50"
-  # -- The podLabels applied to the pod of the init job
-  initPodLabels: {}
-  # -- Resources applied to init job
-  initResources:
-    requests:
-      cpu: 500m
-      memory: 128Mi
-  # -- The annotations applied to the cleanup job, required for helm lifecycle hooks
-  cleanupAnnotations:
-    "helm.sh/hook": pre-delete, pre-upgrade
-    "helm.sh/hook-delete-policy": hook-succeeded
-    # -- Webhook Timeout in seconds
-  # -- The podLabels applied to the pod of the cleanup job
-  cleanupPodLabels: {}
-  # -- Resources applied to cleanup job
-  cleanupResources:
-    requests:
-      cpu: 500m
-      memory: 128Mi
-
   timeout: 30
 
 metrics:
@@ -204,3 +181,6 @@ istio:
 
 # labelSelectorFilter -- A comma-separated list of key=value, or key labels to filter resources during watch and list based on the specified labels.
 labelSelectorFilter: ""
+
+# priorityClassName -- A priority class to be used for running spark-operator pod.
+priorityClassName: ""

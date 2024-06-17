@@ -199,4 +199,29 @@ func TestSetSparkApplicationDefaultsExecutorSpecDefaults(t *testing.T) {
 	assert.Nil(t, app.Spec.Executor.Memory)
 	assert.Nil(t, app.Spec.Executor.Instances)
 
+	//Case3: Dynamic allocation is enabled with minExecutors = 0
+	var minExecs = int32(0)
+	app = &SparkApplication{
+		Spec: SparkApplicationSpec{
+			DynamicAllocation: &DynamicAllocation{
+				Enabled:      true,
+				MinExecutors: &minExecs,
+			},
+		},
+	}
+
+	SetSparkApplicationDefaults(app)
+	assert.Nil(t, app.Spec.Executor.Instances)
+
+	//Case4: Dynamic allocation is enabled via SparkConf
+	app = &SparkApplication{
+		Spec: SparkApplicationSpec{
+			SparkConf: map[string]string{
+				"spark.dynamicallocation.enabled": "true",
+			},
+		},
+	}
+
+	SetSparkApplicationDefaults(app)
+	assert.Nil(t, app.Spec.Executor.Instances)
 }
