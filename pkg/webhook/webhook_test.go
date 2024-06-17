@@ -23,12 +23,15 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
-
 	admissionv1 "k8s.io/api/admission/v1"
+	arv1 "k8s.io/api/admissionregistration/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/informers"
+	"k8s.io/client-go/kubernetes/fake"
+	gotest "k8s.io/client-go/testing"
 
 	spov1beta2 "github.com/kubeflow/spark-operator/pkg/apis/sparkoperator.k8s.io/v1beta2"
 	crdclientfake "github.com/kubeflow/spark-operator/pkg/client/clientset/versioned/fake"
@@ -183,8 +186,93 @@ func serializePod(pod *corev1.Pod) ([]byte, error) {
 	return json.Marshal(pod)
 }
 
+func TestSelfRegistrationWithObjectSelector(t *testing.T) {
+	clientset := fake.NewSimpleClientset()
+	informerFactory := crdinformers.NewSharedInformerFactory(nil, 0)
+	coreV1InformerFactory := informers.NewSharedInformerFactory(nil, 0)
+
+	// Setup userConfig with object selector
+	userConfig.webhookObjectSelector = "spark-role in (driver,executor)"
+	webhookTimeout := 30
+
+	// Create webhook instance
+	webhook, err := New(clientset, informerFactory, "default", false, false, coreV1InformerFactory, &webhookTimeout)
+	assert.NoError(t, err)
+
+	// Mock the clientset's Create function to capture the MutatingWebhookConfiguration object
+	var createdWebhookConfig *arv1.MutatingWebhookConfiguration
+	clientset.PrependReactor("create", "mutatingwebhookconfigurations", func(action gotest.Action) (handled bool, ret runtime.Object, err error) {
+		createAction := action.(gotest.CreateAction)
+		createdWebhookConfig = createAction.GetObject().(*arv1.MutatingWebhookConfiguration)
+		return true, createdWebhookConfig, nil
+	})
+
+	// Call the selfRegistration method
+	err = webhook.selfRegistration("test-webhook-config")
+	assert.NoError(t, err)
+
+	// Verify the MutatingWebhookConfiguration was created with the expected object selector
+	assert.NotNil(t, createdWebhookConfig, "MutatingWebhookConfiguration should have been created")
+
+	expectedSelector := &metav1.LabelSelector{
+		MatchExpressions: []metav1.LabelSelectorRequirement{
+			{
+				Key:      "spark-role",
+				Operator: metav1.LabelSelectorOpIn,
+				Values:   []string{"driver", "executor"},
+			},
+		},
+	}
+	actualSelector := createdWebhookConfig.Webhooks[0].ObjectSelector
+
+	assert.True(t, labelSelectorsEqual(expectedSelector, actualSelector), "ObjectSelectors should be equal")
+}
+
+func labelSelectorsEqual(expected, actual *metav1.LabelSelector) bool {
+	if expected == nil || actual == nil {
+		return expected == nil && actual == nil
+	}
+
+	if len(expected.MatchLabels) != len(actual.MatchLabels) {
+		return false
+	}
+
+	for k, v := range expected.MatchLabels {
+		if actual.MatchLabels[k] != v {
+			return false
+		}
+	}
+
+	if len(expected.MatchExpressions) != len(actual.MatchExpressions) {
+		return false
+	}
+
+	for i, expr := range expected.MatchExpressions {
+		if expr.Key != actual.MatchExpressions[i].Key ||
+			expr.Operator != actual.MatchExpressions[i].Operator ||
+			!equalStringSlices(expr.Values, actual.MatchExpressions[i].Values) {
+			return false
+		}
+	}
+
+	return true
+}
+
+func equalStringSlices(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
+}
+
 func testSelector(input string, expected *metav1.LabelSelector, t *testing.T) {
-	selector, err := parseNamespaceSelector(input)
+	selector, err := parseSelector(input)
+
 	if expected == nil {
 		if err == nil {
 			t.Errorf("Expected error parsing '%s', but got %v", input, selector)
