@@ -1,6 +1,6 @@
 # spark-operator
 
-![Version: 1.4.0](https://img.shields.io/badge/Version-1.4.0-informational?style=flat-square) ![AppVersion: v1beta2-1.6.0-3.5.0](https://img.shields.io/badge/AppVersion-v1beta2--1.6.0--3.5.0-informational?style=flat-square)
+![Version: 1.4.2](https://img.shields.io/badge/Version-1.4.2-informational?style=flat-square) ![AppVersion: v1beta2-1.6.1-3.5.0](https://img.shields.io/badge/AppVersion-v1beta2--1.6.1--3.5.0-informational?style=flat-square)
 
 A Helm chart for Spark on Kubernetes operator
 
@@ -110,7 +110,7 @@ See [helm uninstall](https://helm.sh/docs/helm/helm_uninstall) for command docum
 | podMonitor.labels | object | `{}` | Pod monitor labels |
 | podMonitor.podMetricsEndpoint | object | `{"interval":"5s","scheme":"http"}` | Prometheus metrics endpoint properties. `metrics.portName` will be used as a port |
 | podSecurityContext | object | `{}` | Pod security context |
-| priorityClassName | string | `""` | Priority class to be used for running spark-operator pod. This helps in managing the pods during preemption. |
+| priorityClassName | string | `""` | A priority class to be used for running spark-operator pod. |
 | rbac.annotations | object | `{}` | Optional annotations for rbac |
 | rbac.create | bool | `false` | **DEPRECATED** use `createRole` and `createClusterRole` |
 | rbac.createClusterRole | bool | `true` | Create and use RBAC `ClusterRole` resources |
@@ -134,6 +134,7 @@ See [helm uninstall](https://helm.sh/docs/helm/helm_uninstall) for command docum
 | volumes | list | `[]` |  |
 | webhook.enable | bool | `false` | Enable webhook server |
 | webhook.namespaceSelector | string | `""` | The webhook server will only operate on namespaces with this label, specified in the form key1=value1,key2=value2. Empty string (default) will operate on all namespaces |
+| webhook.objectSelector | string | `""` | The webhook will only operate on resources with this label/s, specified in the form key1=value1,key2=value2, OR key in (value1,value2). Empty string (default) will operate on all objects |
 | webhook.port | int | `8080` | Webhook service port |
 | webhook.portName | string | `"webhook"` | Webhook container port name and service target port name |
 | webhook.timeout | int | `30` | The annotations applied to init job, required to restore certs deleted by the cleanup job during upgrade |
