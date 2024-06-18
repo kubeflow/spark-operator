@@ -103,6 +103,9 @@ webhook:
   # -- The webhook server will only operate on namespaces with this label, specified in the form key1=value1,key2=value2.
   # Empty string (default) will operate on all namespaces
   namespaceSelector: ""
+  # -- The webhook will only operate on resources with this label/s, specified in the form key1=value1,key2=value2, OR key in (value1,value2).
+  # Empty string (default) will operate on all objects
+  objectSelector: ""
   # -- The annotations applied to init job, required to restore certs deleted by the cleanup job during upgrade
   timeout: 30
 
