@@ -2873,6 +2873,31 @@ string
 </tr>
 <tr>
 <td>
+<code>memoryLimit</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>MemoryLimit is the pod limit, used in cases we want to enable the memory limit for the pod.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>memoryRequestOverride</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>MemoryRequestOverride is an optional paramter, enables to define pod memory request that is less than the java memory + overhead
+Which is used in spark by default.</p>
+</td>
+</tr>
+<tr>
+<td>
 <code>gpu</code><br/>
 <em>
 <a href="#sparkoperator.k8s.io/v1beta2.GPUSpec">

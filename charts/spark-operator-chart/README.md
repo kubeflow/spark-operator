@@ -91,6 +91,8 @@ See [helm uninstall](https://helm.sh/docs/helm/helm_uninstall) for command docum
 | imagePullSecrets | list | `[]` | Image pull secrets |
 | ingressUrlFormat | string | `""` | Ingress URL format. Requires the UI service to be enabled by setting `uiService.enable` to true. |
 | istio.enabled | bool | `false` | When using `istio`, spark jobs need to run without a sidecar to properly terminate |
+| k8sBurstQps | int | `200` | K8s Api burst config |
+| k8sQps | int | `100` | K8s Api qps config |
 | labelSelectorFilter | string | `""` | A comma-separated list of key=value, or key labels to filter resources during watch and list based on the specified labels. |
 | leaderElection.lockName | string | `"spark-operator-lock"` | Leader election lock name. Ref: https://github.com/kubeflow/spark-operator/blob/master/docs/user-guide.md#enabling-leader-election-for-high-availability. |
 | leaderElection.lockNamespace | string | `""` | Optionally store the lock in another namespace. Defaults to operator's namespace |

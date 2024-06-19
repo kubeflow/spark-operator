@@ -18,9 +18,12 @@ package sparkapplication
 
 import (
 	"context"
+	"crypto/sha256"
 	"fmt"
+	"math/big"
 	"os/exec"
-	"strings"
+
+	"sync"
 	"time"
 
 	"github.com/golang/glog"
@@ -72,11 +75,18 @@ type AppQueueInfo struct {
 	LastUpdateTs time.Time
 }
 
+// A struck that will have map of queues and mutex for the map
+// We need many of those as one mutex will get us stuck in locks in high scale
+type AppQueuesMap struct {
+	appQueueMutex *sync.RWMutex
+	appQueueMap   map[string]AppQueueInfo
+}
+
 // Controller manages instances of SparkApplication.
 type Controller struct {
 	crdClient         crdclientset.Interface
 	kubeClient        clientset.Interface
-	appQueues         map[string]AppQueueInfo
+	appQueuesMaps     []AppQueuesMap
 	cacheSynced       cache.InformerSynced
 	recorder          record.EventRecorder
 	metrics           *sparkAppMetrics
@@ -88,21 +98,50 @@ type Controller struct {
 	enableUIService   bool
 }
 
-// This function checks if there is a queue for @appName, if not it creates a new AppQueueInfo struct for this @appName.
+func (c *Controller) GetRelevantMap(appName string) AppQueuesMap {
+	// Hash the string using SHA256
+	hash := sha256.Sum256([]byte(appName))
+
+	// Convert the hash to a big integer
+	hashInt := new(big.Int).SetBytes(hash[:])
+
+	// Calculate the modulo to get a value between 0 and queues len
+	modValue := new(big.Int).SetInt64(int64(len(c.appQueuesMaps)))
+	result64 := new(big.Int).Mod(hashInt, modValue)
+
+	result := int(result64.Int64())
+
+	// Print the resulting integer
+	glog.V(2).Infof("Map num for app %s: %d, mutex adress is %p", appName, result, c.appQueuesMaps[result].appQueueMutex)
+	return c.appQueuesMaps[result]
+}
+
 func (c *Controller) GetOrCreateRelevantQueue(appName string) AppQueueInfo {
-	queueInfo, exists := c.appQueues[appName]
+	m := c.GetRelevantMap(appName)
+	glog.V(2).Infof("for app %s, mutex adress is %p", appName, m.appQueueMutex)
+	m.appQueueMutex.RLock()
+	queueInfo, exists := m.appQueueMap[appName]
+	m.appQueueMutex.RUnlock()
 	if !exists {
+		m.appQueueMutex.Lock()
+		defer m.appQueueMutex.Unlock()
+		// check if the queue was created while locking the mutex
+		queueInfo, exists = m.appQueueMap[appName]
+		if exists {
+			return queueInfo
+		}
+
 		// Create a new queue for the app
-		controllerName := fmt.Sprintf("spark-application-controller-%v", appName)
+		queueName := fmt.Sprintf("spark-application-queue-%v", appName)
 		queue := workqueue.NewNamedRateLimitingQueue(&workqueue.BucketRateLimiter{Limiter: rate.NewLimiter(rate.Limit(queueTokenRefillRate), queueTokenBucketSize)},
-			controllerName)
+			queueName)
 
 		queueInfo := AppQueueInfo{
 			Queue:        queue,
 			LastUpdateTs: time.Now(),
 		}
 
-		c.appQueues[appName] = queueInfo
+		m.appQueueMap[appName] = queueInfo
 
 		// create a worker for the app queue
 		go func(appName string) { c.runWorker(appName) }(appName)
@@ -112,7 +151,6 @@ func (c *Controller) GetOrCreateRelevantQueue(appName string) AppQueueInfo {
 	return queueInfo
 }
 
-// This function enqueues an event to the @appName queueInfo.
 func (c *Controller) AddToRelevantQueue(appName interface{}) {
 	// Use the interface as string
 	if appString, ok := appName.(string); ok {
@@ -135,6 +173,7 @@ func NewController(
 	ingressClassName string,
 	batchSchedulerMgr *batchscheduler.SchedulerManager,
 	enableUIService bool,
+	mapsNum int,
 ) *Controller {
 	crdscheme.AddToScheme(scheme.Scheme)
 
@@ -145,7 +184,7 @@ func NewController(
 	})
 	recorder := eventBroadcaster.NewRecorder(scheme.Scheme, apiv1.EventSource{Component: "spark-operator"})
 
-	return newSparkApplicationController(crdClient, kubeClient, crdInformerFactory, podInformerFactory, recorder, metricsConfig, ingressURLFormat, ingressClassName, batchSchedulerMgr, enableUIService)
+	return newSparkApplicationController(crdClient, kubeClient, crdInformerFactory, podInformerFactory, recorder, metricsConfig, ingressURLFormat, ingressClassName, batchSchedulerMgr, enableUIService, mapsNum)
 }
 
 func newSparkApplicationController(
@@ -159,18 +198,24 @@ func newSparkApplicationController(
 	ingressClassName string,
 	batchSchedulerMgr *batchscheduler.SchedulerManager,
 	enableUIService bool,
+	mapsNum int,
 
 ) *Controller {
 
 	controller := &Controller{
 		crdClient:         crdClient,
 		kubeClient:        kubeClient,
-		appQueues:         make(map[string]AppQueueInfo),
+		appQueuesMaps:     make([]AppQueuesMap, mapsNum),
 		recorder:          eventRecorder,
 		ingressURLFormat:  ingressURLFormat,
 		ingressClassName:  ingressClassName,
 		batchSchedulerMgr: batchSchedulerMgr,
 		enableUIService:   enableUIService,
+	}
+	// Initiate the elements within appQueuesMaps
+	for i := range controller.appQueuesMaps {
+		controller.appQueuesMaps[i].appQueueMutex = &sync.RWMutex{}
+		controller.appQueuesMaps[i].appQueueMap = make(map[string]AppQueueInfo)
 	}
 
 	if metricsConfig != nil {
@@ -203,7 +248,7 @@ func newSparkApplicationController(
 	return controller
 }
 
-// StartQueueCleanupRoutine starts a go routine to clean up queues for SparkApplications that have not been updated for a certain period of time.
+// StartQueueCleanupRoutine starts a go routine to clean up queues for SparkApplications that have not been updated for a certain period.
 func (c *Controller) StartQueueCleanupRoutine(checkInterval time.Duration, maxAge time.Duration, stopCh <-chan struct{}) {
 	ticker := time.NewTicker(checkInterval)
 	defer ticker.Stop()
@@ -221,23 +266,37 @@ func (c *Controller) StartQueueCleanupRoutine(checkInterval time.Duration, maxAg
 
 // cleanupQueues deletes the queues for SparkApplications that have not been updated for a certain period.
 func (c *Controller) cleanupQueues(maxAge time.Duration) {
-	c.LogQueuesKeys()
-	if len(c.appQueues) == 0 {
-		glog.V(0).Info("No queues to clean up, skipping cleanup")
-		return
-	}
-	queuesBefore := len(c.appQueues)
-	now := time.Now()
-	glog.V(0).Infof("Cleaning up queues for SparkApplications at time: %v", now)
-	for appName, queueInfo := range c.appQueues {
-		glog.V(0).Infof("Checking queue for app %v", appName)
-		if now.Sub(queueInfo.LastUpdateTs) > maxAge {
-			glog.V(0).Infof("Sending %v to deletion due to inactivity", appName)
+	queuesBefore := 0
+	queuesAfter := 0
+	for i := range c.appQueuesMaps {
+		currM := c.appQueuesMaps[i].appQueueMap
+		currL := c.appQueuesMaps[i].appQueueMutex
+		if len(currM) == 0 {
+			glog.V(0).Info("No need to clean up Map %d as it is empty, skipping cleanup", i)
+			continue
+		}
+		queuesBefore += len(currM)
+		now := time.Now()
+		glog.V(0).Infof("Cleaning up queues for SparkApplications at time: %v", now)
+		// we prevent deadlock we mark the quesues for deletion and delete them outside the lock
+		var queuesToDelete []string
+		currL.RLock()
+		for appName, queueInfo := range currM {
+			glog.V(0).Infof("Checking queue for app %v", appName)
+			if now.Sub(queueInfo.LastUpdateTs) > maxAge {
+				glog.V(0).Infof("Sending %v to deletion due to inactivity", appName)
+				queuesToDelete = append(queuesToDelete, appName)
+			}
+		}
+		currL.RUnlock()
+		for _, appName := range queuesToDelete {
 			c.deleteImmediateQueue(appName)
 		}
+
+		queuesAfter += len(currM)
 	}
-	queuesAfter := len(c.appQueues)
 	glog.V(0).Infof("Cleaned up %d queues, %d remaining", queuesBefore-queuesAfter, queuesAfter)
+
 }
 
 // StopQueueCleanupRoutine stops the go routine that cleans up queues.
@@ -261,9 +320,12 @@ func (c *Controller) Start(maxAge time.Duration, checkInterval time.Duration, st
 func (c *Controller) Stop(stopCh chan struct{}) {
 	glog.Info("Stopping the SparkApplication controller")
 	c.StopQueueCleanupRoutine(stopCh)
-	for _, queueInfo := range c.appQueues {
-		queueInfo.Queue.ShutDown()
+	for i := range c.appQueuesMaps {
+		for _, queueInfo := range c.appQueuesMaps[i].appQueueMap {
+			queueInfo.Queue.ShutDown()
+		}
 	}
+
 }
 
 // Callback function called when a new SparkApplication object gets created.
@@ -314,11 +376,11 @@ func (c *Controller) onUpdate(oldObj, newObj interface{}) {
 
 func (c *Controller) onDelete(obj interface{}) {
 	var app *v1beta2.SparkApplication
-	switch obj.(type) {
+	switch obj := obj.(type) {
 	case *v1beta2.SparkApplication:
-		app = obj.(*v1beta2.SparkApplication)
+		app = obj
 	case cache.DeletedFinalStateUnknown:
-		deletedObj := obj.(cache.DeletedFinalStateUnknown).Obj
+		deletedObj := obj.Obj
 		app = deletedObj.(*v1beta2.SparkApplication)
 	}
 
@@ -337,23 +399,15 @@ func (c *Controller) onDelete(obj interface{}) {
 	}
 }
 
-// LogQueuesKeys LogMapKeys logs the keys of the myMap field at debug level 2
-func (c *Controller) LogQueuesKeys() {
-	var keys []string
-	for key := range c.appQueues {
-		keys = append(keys, key)
-	}
-
-	keysStr := strings.Join(keys, ", ")
-	glog.V(0).Info("The queues are: ", keysStr)
-}
-
 // deleteImmediateQueue deletes the queue for the given app immediately
 func (c *Controller) deleteImmediateQueue(appName string) {
 	c.GetOrCreateRelevantQueue(appName).Queue.ShutDown()
-	delete(c.appQueues, appName)
-	glog.V(0).Infof("Succesfully deleted queue for app %v", appName)
-	glog.V(0).Infof("Amount of queues is %d", len(c.appQueues))
+	m := c.GetRelevantMap(appName)
+	m.appQueueMutex.Lock()
+	defer m.appQueueMutex.Unlock()
+	delete(m.appQueueMap, appName)
+	glog.V(0).Infof("Successfully deleted queue for app %v", appName)
+	glog.V(0).Infof("Amount of queues in current map is %d", len(m.appQueueMap))
 }
 
 // runWorker runs a single controller worker.
@@ -777,10 +831,7 @@ func isNextRetryDue(retryInterval *int64, attemptsDone int32, lastEventTime meta
 	interval := time.Duration(*retryInterval) * time.Second * time.Duration(attemptsDone)
 	currentTime := time.Now()
 	glog.V(3).Infof("currentTime is %v, interval is %v", currentTime, interval)
-	if currentTime.After(lastEventTime.Add(interval)) {
-		return true
-	}
-	return false
+	return currentTime.After(lastEventTime.Add(interval))
 }
 
 // submitSparkApplication creates a new submission for the given SparkApplication and submits it using spark-submit.

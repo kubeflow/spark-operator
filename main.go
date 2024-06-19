@@ -20,6 +20,8 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"log"
+	"net/http"
 	"os"
 	"os/signal"
 	"strings"
@@ -49,39 +51,48 @@ import (
 	"github.com/kubeflow/spark-operator/pkg/controller/sparkapplication"
 	"github.com/kubeflow/spark-operator/pkg/util"
 	"github.com/kubeflow/spark-operator/pkg/webhook"
+
+	_ "net/http/pprof"
+    	"runtime"
 )
 
 var (
-	master                         = flag.String("master", "", "The address of the Kubernetes API server. Overrides any value in kubeconfig. Only required if out-of-cluster.")
-	kubeConfig                     = flag.String("kubeConfig", "", "Path to a kube config. Only required if out-of-cluster.")
-	controllerThreads              = flag.Int("controller-threads", 10, "Number of worker threads used by the SparkApplication controller.")
-	resyncInterval                 = flag.Int("resync-interval", 30, "Informer resync interval in seconds.")
-	namespace                      = flag.String("namespace", apiv1.NamespaceAll, "The Kubernetes namespace to manage. Will manage custom resource objects of the managed CRD types for the whole cluster if unset.")
-	labelSelectorFilter            = flag.String("label-selector-filter", "", "A comma-separated list of key=value, or key labels to filter resources during watch and list based on the specified labels.")
-	enableWebhook                  = flag.Bool("enable-webhook", false, "Whether to enable the mutating admission webhook for admitting and patching Spark pods.")
-	webhookTimeout                 = flag.Int("webhook-timeout", 30, "Webhook Timeout in seconds before the webhook returns a timeout")
-	enableResourceQuotaEnforcement = flag.Bool("enable-resource-quota-enforcement", false, "Whether to enable ResourceQuota enforcement for SparkApplication resources. Requires the webhook to be enabled.")
-	ingressURLFormat               = flag.String("ingress-url-format", "", "Ingress URL format.")
-	enableUIService                = flag.Bool("enable-ui-service", true, "Enable Spark service UI.")
-	enableLeaderElection           = flag.Bool("leader-election", false, "Enable Spark operator leader election.")
-	leaderElectionLockNamespace    = flag.String("leader-election-lock-namespace", "spark-operator", "Namespace in which to create the ConfigMap for leader election.")
-	leaderElectionLockName         = flag.String("leader-election-lock-name", "spark-operator-lock", "Name of the ConfigMap for leader election.")
-	leaderElectionLeaseDuration    = flag.Duration("leader-election-lease-duration", 15*time.Second, "Leader election lease duration.")
-	leaderElectionRenewDeadline    = flag.Duration("leader-election-renew-deadline", 14*time.Second, "Leader election renew deadline.")
-	leaderElectionRetryPeriod      = flag.Duration("leader-election-retry-period", 4*time.Second, "Leader election retry period.")
-	enableBatchScheduler           = flag.Bool("enable-batch-scheduler", false, fmt.Sprintf("Enable batch schedulers for pods' scheduling, the available batch schedulers are: (%s).", strings.Join(batchscheduler.GetRegisteredNames(), ",")))
-	enableMetrics                  = flag.Bool("enable-metrics", false, "Whether to enable the metrics endpoint.")
-	metricsPort                    = flag.String("metrics-port", "10254", "Port for the metrics endpoint.")
-	metricsEndpoint                = flag.String("metrics-endpoint", "/metrics", "Metrics endpoint.")
-	metricsPrefix                  = flag.String("metrics-prefix", "", "Prefix for the metrics.")
-	ingressClassName               = flag.String("ingress-class-name", "", "Set ingressClassName for ingress resources created.")
-	maxQueueTimeWithoutUpdateInMinutes = flag.Duration("max-queue-time-without-update-in-minutes", 30*time.Minute, "Sets the maximum time that queue can be without update before it is considered as deleted.")
-    queueCleanerIntervalInMinutes      = flag.Duration("queue-cleaner-interval-in-minutes", 30*time.Minute, "Sets the interval time for the queue cleaner.")
-	metricsLabels                  util.ArrayFlags
-	metricsJobStartLatencyBuckets  util.HistogramBuckets = util.DefaultJobStartLatencyBuckets
+	master                             = flag.String("master", "", "The address of the Kubernetes API server. Overrides any value in kubeconfig. Only required if out-of-cluster.")
+	kubeConfig                         = flag.String("kubeConfig", "", "Path to a kube config. Only required if out-of-cluster.")
+	controllerThreads                  = flag.Int("controller-threads", 10, "Number of app queues map that will be created and used by the SparkApplication controller.")
+	enableProfiling                    = flag.Bool("enable-profiling", false, "Whether to enable pprof server profiling")
+	resyncInterval                     = flag.Int("resync-interval", 30, "Informer resync interval in seconds.")
+	namespace                          = flag.String("namespace", apiv1.NamespaceAll, "The Kubernetes namespace to manage. Will manage custom resource objects of the managed CRD types for the whole cluster if unset.")
+	labelSelectorFilter                = flag.String("label-selector-filter", "", "A comma-separated list of key=value, or key labels to filter resources during watch and list based on the specified labels.")
+	enableWebhook                      = flag.Bool("enable-webhook", false, "Whether to enable the mutating admission webhook for admitting and patching Spark pods.")
+	webhookTimeout                     = flag.Int("webhook-timeout", 30, "Webhook Timeout in seconds before the webhook returns a timeout")
+	enableResourceQuotaEnforcement     = flag.Bool("enable-resource-quota-enforcement", false, "Whether to enable ResourceQuota enforcement for SparkApplication resources. Requires the webhook to be enabled.")
+	ingressURLFormat                   = flag.String("ingress-url-format", "", "Ingress URL format.")
+	enableUIService                    = flag.Bool("enable-ui-service", true, "Enable Spark service UI.")
+	enableLeaderElection               = flag.Bool("leader-election", false, "Enable Spark operator leader election.")
+	leaderElectionLockNamespace        = flag.String("leader-election-lock-namespace", "spark-operator", "Namespace in which to create the ConfigMap for leader election.")
+	leaderElectionLockName             = flag.String("leader-election-lock-name", "spark-operator-lock", "Name of the ConfigMap for leader election.")
+	leaderElectionLeaseDuration        = flag.Duration("leader-election-lease-duration", 15*time.Second, "Leader election lease duration.")
+	leaderElectionRenewDeadline        = flag.Duration("leader-election-renew-deadline", 14*time.Second, "Leader election renew deadline.")
+	leaderElectionRetryPeriod          = flag.Duration("leader-election-retry-period", 4*time.Second, "Leader election retry period.")
+	enableBatchScheduler               = flag.Bool("enable-batch-scheduler", false, fmt.Sprintf("Enable batch schedulers for pods' scheduling, the available batch schedulers are: (%s).", strings.Join(batchscheduler.GetRegisteredNames(), ",")))
+	enableMetrics                      = flag.Bool("enable-metrics", false, "Whether to enable the metrics endpoint.")
+	metricsPort                        = flag.String("metrics-port", "10254", "Port for the metrics endpoint.")
+	metricsEndpoint                    = flag.String("metrics-endpoint", "/metrics", "Metrics endpoint.")
+	metricsPrefix                      = flag.String("metrics-prefix", "", "Prefix for the metrics.")
+	ingressClassName                   = flag.String("ingress-class-name", "", "Set ingressClassName for ingress resources created.")
+	maxQueueTimeWithoutUpdateInMinutes = flag.Int("max-queue-time-without-update-in-minutes", 30, "Sets the maximum time that queue can be without update before it is considered as deleted.")
+	queueCleanerIntervalInMinutes      = flag.Int("queue-cleaner-interval-in-minutes", 10, "Sets the interval time for the queue cleaner.")
+	apiQps      					   = flag.Float64("api-qps", 100.00, "k8s api qps configuration")
+	apiBurst      					   = flag.Int("api-burst", 200, "k8s api burst configuration")
+
+	metricsLabels                 util.ArrayFlags
+	metricsJobStartLatencyBuckets util.HistogramBuckets = util.DefaultJobStartLatencyBuckets
 )
 
 func main() {
+
+
 	flag.Var(&metricsLabels, "metrics-labels", "Labels for the metrics")
 	flag.Var(&metricsJobStartLatencyBuckets, "metrics-job-start-latency-buckets",
 		"Comma-separated boundary values (in seconds) for the job start latency histogram bucket; "+
@@ -93,6 +104,8 @@ func main() {
 	if err != nil {
 		glog.Fatal(err)
 	}
+	config.QPS = float32(*apiQps)
+	config.Burst = *apiBurst
 	kubeClient, err := clientset.NewForConfig(config)
 	if err != nil {
 		glog.Fatal(err)
@@ -103,6 +116,13 @@ func main() {
 
 	stopCh := make(chan struct{}, 1)
 	startCh := make(chan struct{}, 1)
+
+	go func() {
+		if *enableProfiling {
+			runtime.SetMutexProfileFraction(1) // Enable mutex profiling
+			log.Println(http.ListenAndServe("localhost:6060", nil))
+		}
+	}()
 
 	if *enableLeaderElection {
 		podName := os.Getenv("POD_NAME")
@@ -193,7 +213,7 @@ func main() {
 	}
 
 	applicationController := sparkapplication.NewController(
-		crClient, kubeClient, crInformerFactory, podInformerFactory, metricConfig, *namespace, *ingressURLFormat, *ingressClassName, batchSchedulerMgr, *enableUIService)
+		crClient, kubeClient, crInformerFactory, podInformerFactory, metricConfig, *namespace, *ingressURLFormat, *ingressClassName, batchSchedulerMgr, *enableUIService, *controllerThreads)
 	scheduledApplicationController := scheduledsparkapplication.NewController(
 		crClient, kubeClient, apiExtensionsClient, crInformerFactory, clock.RealClock{})
 

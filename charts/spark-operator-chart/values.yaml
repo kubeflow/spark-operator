@@ -60,6 +60,12 @@ sparkJobNamespaces:
 # -- Operator concurrency, higher values might increase memory usage
 controllerThreads: 10
 
+# -- K8s Api qps config
+k8sQps: 100
+
+# -- K8s Api burst config
+k8sBurstQps: 200
+
 # -- Operator resync interval. Note that the operator will respond to events (e.g. create, update)
 # unrelated to this setting
 resyncInterval: 30
