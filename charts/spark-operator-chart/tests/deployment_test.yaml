@@ -160,31 +160,6 @@ tests:
               memory: "128Mi"
               cpu: "500m"
 
-  - it: Should add webhook certs volume if webhook.enable is true
-    set:
-      webhook:
-        enable: true
-    asserts:
-      - contains:
-          path: spec.template.spec.volumes
-          content:
-            name: webhook-certs
-            secret:
-              secretName: spark-operator-webhook-certs
-          count: 1
-
-  - it: Should add webhook certs volume mounts if webhook.enable is true
-    set:
-      webhook:
-        enable: true
-    asserts:
-      - contains:
-          path: spec.template.spec.containers[0].volumeMounts
-          content:
-            name: webhook-certs
-            mountPath: /etc/webhook-certs
-          count: 1
-
   - it: Should add sidecars if sidecars is set
     set:
       sidecars:
