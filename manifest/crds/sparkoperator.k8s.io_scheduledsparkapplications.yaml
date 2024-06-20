@@ -51,6 +51,10 @@ spec:
             spec:
               properties:
                 concurrencyPolicy:
+                  enum:
+                  - Allow
+                  - Forbid
+                  - Replace
                   type: string
                 failedRunHistoryLimit:
                   format: int32
