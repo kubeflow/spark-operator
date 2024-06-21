@@ -46,4 +46,4 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
-            SPARK_IMAGE=${{ secrets.BASE_IMAGE }}:v1.9.0
+            SPARK_IMAGE=${{ secrets.BASE_IMAGE }}:v1.9.1
