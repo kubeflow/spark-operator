@@ -6,7 +6,6 @@
    - You need write permissions on the repository to create a release tag/branch.
 2. Prepare your Github Token
 
-
 ### Release Process
 
 1. Make sure the last commit you want to release past `spark-operator -postsubmit` testing.
