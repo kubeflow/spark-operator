@@ -1,10 +1,15 @@
 # Kubeflow Spark Operator
+
 [![Go Report Card](https://goreportcard.com/badge/github.com/kubeflow/spark-operator)](https://goreportcard.com/report/github.com/kubeflow/spark-operator)
 
-## Overview
+## What is Kubeflow Spark Operator?
+
 The Kubernetes Operator for Apache Spark aims to make specifying and running [Spark](https://github.com/apache/spark) applications as easy and idiomatic as running other workloads on Kubernetes. It uses
-[Kubernetes custom resources](https://kubernetes.io/docs/concepts/extend-kubernetes/api-extension/custom-resources/)
-for specifying, running, and surfacing status of Spark applications. For a complete reference of the custom resource definitions, please refer to the [API Definition](docs/api-docs.md). For details on its design, please refer to the [design doc](docs/design.md). It requires Spark 2.3 and above that supports Kubernetes as a native scheduler backend.
+[Kubernetes custom resources](https://kubernetes.io/docs/concepts/extend-kubernetes/api-extension/custom-resources/) for specifying, running, and surfacing status of Spark applications.
+
+## Overview
+
+ For a complete reference of the custom resource definitions, please refer to the [API Definition](docs/api-docs.md). For details on its design, please refer to the [design doc](docs/design.md). It requires Spark 2.3 and above that supports Kubernetes as a native scheduler backend.
 
 The Kubernetes Operator for Apache Spark currently supports the following list of features:
 
@@ -36,61 +41,41 @@ Customization of Spark pods, e.g., mounting arbitrary volumes and setting pod af
 
 * Version >= 1.16 of Kubernetes to use the `MutatingWebhook` and `ValidatingWebhook` of `apiVersion: admissionregistration.k8s.io/v1`.
 
-## Installation
+## Getting Started
 
-The easiest way to install the Kubernetes Operator for Apache Spark is to use the Helm [chart](charts/spark-operator-chart/).
+For getting started with Spark operator, please refer to [Getting Started](https://www.kubeflow.org/docs/components/spark-operator/getting-started/).
 
-```bash
-$ helm repo add spark-operator https://kubeflow.github.io/spark-operator
+## User Guide
 
-$ helm install my-release spark-operator/spark-operator --namespace spark-operator --create-namespace
-```
+For detailed user guide, please refer to [User Guide](https://www.kubeflow.org/docs/components/spark-operator/user-guide/).
 
-This will install the Kubernetes Operator for Apache Spark into the namespace `spark-operator`. The operator by default watches and handles `SparkApplication`s in every namespaces. If you would like to limit the operator to watch and handle `SparkApplication`s in a single namespace, e.g., `default` instead, add the following option to the `helm install` command:
+For API documentation, please refer to [API Specification](docs/api-docs.md).
 
-```
---set "sparkJobNamespaces={default}"
-```
-
-For configuration options available in the Helm chart, please refer to the chart's [README](charts/spark-operator-chart/README.md).
+If you are running Spark operator on Google Kubernetes Engine (GKE) and want to use Google Cloud Storage (GCS) and/or BigQuery for reading/writing data, also refer to the [GCP guide](https://www.kubeflow.org/docs/components/spark-operator/user-guide/gcp/).
 
 ## Version Matrix
 
 The following table lists the most recent few versions of the operator.
 
-| Operator Version | API Version | Kubernetes Version | Base Spark Version | Operator Image Tag |
-| ------------- | ------------- | ------------- | ------------- | ------------- |
-| `latest` (master HEAD) | `v1beta2` | 1.13+ | `3.0.0` | `latest` |
-| `v1beta2-1.3.3-3.1.1` | `v1beta2` | 1.16+ | `3.1.1` | `v1beta2-1.3.3-3.1.1` |
-| `v1beta2-1.3.2-3.1.1` | `v1beta2` | 1.16+ | `3.1.1` | `v1beta2-1.3.2-3.1.1` |
-| `v1beta2-1.3.0-3.1.1` | `v1beta2` | 1.16+ | `3.1.1` | `v1beta2-1.3.0-3.1.1` |
-| `v1beta2-1.2.3-3.1.1` | `v1beta2` | 1.13+ | `3.1.1` | `v1beta2-1.2.3-3.1.1` |
-| `v1beta2-1.2.0-3.0.0` | `v1beta2` | 1.13+ | `3.0.0` | `v1beta2-1.2.0-3.0.0` |
-| `v1beta2-1.1.2-2.4.5` | `v1beta2` | 1.13+ | `2.4.5` | `v1beta2-1.1.2-2.4.5` |
-| `v1beta2-1.0.1-2.4.4` | `v1beta2` | 1.13+ | `2.4.4` | `v1beta2-1.0.1-2.4.4` |
-| `v1beta2-1.0.0-2.4.4` | `v1beta2` | 1.13+ | `2.4.4` | `v1beta2-1.0.0-2.4.4` |
-| `v1beta1-0.9.0` | `v1beta1` | 1.13+ | `2.4.0` | `v2.4.0-v1beta1-0.9.0` |
-
-When installing using the Helm chart, you can choose to use a specific image tag instead of the default one, using the following option:
-
-```
---set image.tag=<operator image tag>
-```
-
-## Get Started
-
-Get started quickly with the Kubernetes Operator for Apache Spark using the [Quick Start Guide](docs/quick-start-guide.md).
-
-If you are running the Kubernetes Operator for Apache Spark on Google Kubernetes Engine and want to use Google Cloud Storage (GCS) and/or BigQuery for reading/writing data, also refer to the [GCP guide](docs/gcp.md).
-
-For more information, check the [Design](docs/design.md), [API Specification](docs/api-docs.md) and detailed [User Guide](docs/user-guide.md).
+| Operator Version | API Version | Kubernetes Version | Base Spark Version |
+| ------------- | ------------- | ------------- | ------------- |
+| `v1beta2-1.6.x-3.5.0` | `v1beta2` | 1.16+ | `3.5.0` |
+| `v1beta2-1.5.x-3.5.0` | `v1beta2` | 1.16+ | `3.5.0` |
+| `v1beta2-1.4.x-3.5.0` | `v1beta2` | 1.16+ | `3.5.0` |
+| `v1beta2-1.3.x-3.1.1` | `v1beta2` | 1.16+ | `3.1.1` |
+| `v1beta2-1.2.3-3.1.1` | `v1beta2` | 1.13+ | `3.1.1` |
+| `v1beta2-1.2.2-3.0.0` | `v1beta2` | 1.13+ | `3.0.0` |
+| `v1beta2-1.2.1-3.0.0` | `v1beta2` | 1.13+ | `3.0.0` |
+| `v1beta2-1.2.0-3.0.0` | `v1beta2` | 1.13+ | `3.0.0` |
+| `v1beta2-1.1.x-2.4.5` | `v1beta2` | 1.13+ | `2.4.5` |
+| `v1beta2-1.0.x-2.4.4` | `v1beta2` | 1.13+ | `2.4.4` |
 
 ## Contributing
 
-Please check [CONTRIBUTING.md](CONTRIBUTING.md) and the [Developer Guide](docs/developer-guide.md) out.
+For contributing, please refer to [CONTRIBUTING.md](CONTRIBUTING.md) and [Developer Guide](https://www.kubeflow.org/docs/components/spark-operator/developer-guide/).
 
 ## Community
 
-* Join the [CNCF Slack Channel](https://www.kubeflow.org/docs/about/community/#kubeflow-slack-channels) and then join ```#kubeflow-spark-operator``` Channel.
+* Join the [CNCF Slack Channel](https://www.kubeflow.org/docs/about/community/#kubeflow-slack-channels) and then join `#kubeflow-spark-operator` Channel.
 * Check out our blog post [Announcing the Kubeflow Spark Operator: Building a Stronger Spark on Kubernetes Community](https://blog.kubeflow.org/operators/2024/04/15/kubeflow-spark-operator.html)
-* Check out [who is using the Kubernetes Operator for Apache Spark](docs/who-is-using.md).
+* Check out [who is using the Spark Operator](docs/adopters.md).

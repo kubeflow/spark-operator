@@ -27,7 +27,7 @@ pre-commit install-hooks
 
 In case you want to build the operator from the source code, e.g., to test a fix or a feature you write, you can do so following the instructions below.
 
-The easiest way to build the operator without worrying about its dependencies is to just build an image using the [Dockerfile](../Dockerfile).
+The easiest way to build the operator without worrying about its dependencies is to just build an image using the [Dockerfile](https://github.com/kubeflow/spark-operator/Dockerfile).
 
 ```bash
 docker build -t <image-tag> .
@@ -38,8 +38,6 @@ The operator image is built upon a base Spark image that defaults to `spark:3.5.
 ```bash
 docker build --build-arg SPARK_IMAGE=<your Spark image> -t <image-tag> .
 ```
-
-If you want to use the operator on OpenShift clusters, first make sure you have Docker version 18.09.3 or above, then build your operator image using the [OpenShift-specific Dockerfile](../Dockerfile.rh).
 
 ```bash
 export DOCKER_BUILDKIT=1
