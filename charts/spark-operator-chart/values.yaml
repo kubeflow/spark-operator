@@ -106,7 +106,7 @@ webhook:
     # matchExpressions:
     # - key: kubernetes.io/metadata.name
     #   operator: In
-    #   values: 
+    #   values:
     #   - default
     # matchLabels:
     # - key: kubernetes.io/metadata.name
@@ -117,7 +117,7 @@ webhook:
     # matchExpressions:
     # - key: key1
     #   operator: In
-    #   values: 
+    #   values:
     #   - value1
     # matchLabels:
     # - key: key2
