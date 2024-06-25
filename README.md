@@ -2,14 +2,14 @@
 
 [![Go Report Card](https://goreportcard.com/badge/github.com/kubeflow/spark-operator)](https://goreportcard.com/report/github.com/kubeflow/spark-operator)
 
-## What is Kubeflow Spark Operator?
+## What is Spark Operator?
 
 The Kubernetes Operator for Apache Spark aims to make specifying and running [Spark](https://github.com/apache/spark) applications as easy and idiomatic as running other workloads on Kubernetes. It uses
 [Kubernetes custom resources](https://kubernetes.io/docs/concepts/extend-kubernetes/api-extension/custom-resources/) for specifying, running, and surfacing status of Spark applications.
 
 ## Overview
 
- For a complete reference of the custom resource definitions, please refer to the [API Definition](docs/api-docs.md). For details on its design, please refer to the [design doc](docs/design.md). It requires Spark 2.3 and above that supports Kubernetes as a native scheduler backend.
+For a complete reference of the custom resource definitions, please refer to the [API Definition](docs/api-docs.md). For details on its design, please refer to the [Architecture](https://www.kubeflow.org/docs/components/spark-operator/overview/#architecture). It requires Spark 2.3 and above that supports Kubernetes as a native scheduler backend.
 
 The Kubernetes Operator for Apache Spark currently supports the following list of features:
 
@@ -33,8 +33,6 @@ The Kubernetes Operator for Apache Spark currently supports the following list o
 
 **If you are currently using the `v1beta1` version of the APIs in your manifests, please update them to use the `v1beta2` version by changing `apiVersion: "sparkoperator.k8s.io/<version>"` to `apiVersion: "sparkoperator.k8s.io/v1beta2"`. You will also need to delete the `previous` version of the CustomResourceDefinitions named `sparkapplications.sparkoperator.k8s.io` and `scheduledsparkapplications.sparkoperator.k8s.io`, and replace them with the `v1beta2` version either by installing the latest version of the operator or by running `kubectl create -f manifest/crds`.**
 
-Customization of Spark pods, e.g., mounting arbitrary volumes and setting pod affinity, is implemented using a Kubernetes [Mutating Admission Webhook](https://kubernetes.io/docs/reference/access-authn-authz/extensible-admission-controllers/), which became beta in Kubernetes 1.9. The mutating admission webhook is disabled by default if you install the operator using the Helm [chart](charts/spark-operator-chart). Check out the [Quick Start Guide](docs/quick-start-guide.md#using-the-mutating-admission-webhook) on how to enable the webhook.
-
 ## Prerequisites
 
 * Version >= 1.13 of Kubernetes to use the [`subresource` support for CustomResourceDefinitions](https://kubernetes.io/docs/tasks/access-kubernetes-api/custom-resources/custom-resource-definitions/#subresources), which became beta in 1.13 and is enabled by default in 1.13 and higher.
@@ -47,9 +45,7 @@ For getting started with Spark operator, please refer to [Getting Started](https
 
 ## User Guide
 
-For detailed user guide, please refer to [User Guide](https://www.kubeflow.org/docs/components/spark-operator/user-guide/).
-
-For API documentation, please refer to [API Specification](docs/api-docs.md).
+For detailed user guide and API documentation, please refer to [User Guide](https://www.kubeflow.org/docs/components/spark-operator/user-guide/) and [API Specification](docs/api-docs.md).
 
 If you are running Spark operator on Google Kubernetes Engine (GKE) and want to use Google Cloud Storage (GCS) and/or BigQuery for reading/writing data, also refer to the [GCP guide](https://www.kubeflow.org/docs/components/spark-operator/user-guide/gcp/).
 
@@ -70,12 +66,19 @@ The following table lists the most recent few versions of the operator.
 | `v1beta2-1.1.x-2.4.5` | `v1beta2` | 1.13+ | `2.4.5` |
 | `v1beta2-1.0.x-2.4.4` | `v1beta2` | 1.13+ | `2.4.4` |
 
-## Contributing
+## Developer Guide
 
-For contributing, please refer to [CONTRIBUTING.md](CONTRIBUTING.md) and [Developer Guide](https://www.kubeflow.org/docs/components/spark-operator/developer-guide/).
+For developing with Spark Operator, please refer to [Developer Guide](https://www.kubeflow.org/docs/components/spark-operator/developer-guide/).
+
+## Contributor Guide
+
+For contributing to Spark Operator, please refer to [Contributor Guide](CONTRIBUTING.md).
 
 ## Community
 
 * Join the [CNCF Slack Channel](https://www.kubeflow.org/docs/about/community/#kubeflow-slack-channels) and then join `#kubeflow-spark-operator` Channel.
 * Check out our blog post [Announcing the Kubeflow Spark Operator: Building a Stronger Spark on Kubernetes Community](https://blog.kubeflow.org/operators/2024/04/15/kubeflow-spark-operator.html)
-* Check out [who is using the Spark Operator](docs/adopters.md).
+
+## Adopters
+
+Check out [adopters of Spark Operator](ADOPTERS.md).
