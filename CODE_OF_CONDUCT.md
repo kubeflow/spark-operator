@@ -1,3 +1,3 @@
 # Code of Conduct
 
-Kubeflow Spark Operator follows the [CNCF Code of Conduct](https://github.com/cncf/foundation/blob/main/code-of-conduct.md).
+For the code of conduct, please refer to the [Kubeflow Community Code of Conduct](https://www.kubeflow.org/docs/about/contributing/#follow-the-code-of-conduct).
