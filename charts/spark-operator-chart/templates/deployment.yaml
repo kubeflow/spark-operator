@@ -62,15 +62,15 @@ spec:
           {{- toYaml .Values.securityContext | nindent 10 }}
         {{- if or .Values.metrics.enable .Values.webhook.enable }}
         ports:
-          {{ if .Values.metrics.enable -}}
-          - name: {{ .Values.metrics.portName | quote }}
-            containerPort: {{ .Values.metrics.port }}
-          {{- end }}
-          {{ if .Values.webhook.enable -}}
-          - name: {{ .Values.webhook.portName | quote }}
-            containerPort: {{ .Values.webhook.port }}
-          {{- end }}
-        {{ end -}}
+        {{- if .Values.metrics.enable }}
+        - name: {{ .Values.metrics.portName | quote }}
+          containerPort: {{ .Values.metrics.port }}
+        {{- end }}
+        {{- if .Values.webhook.enable }}
+        - name: {{ .Values.webhook.portName | quote }}
+          containerPort: {{ .Values.webhook.port }}
+        {{- end }}
+        {{- end }}
         args:
         - -v={{ .Values.logLevel }}
         - -logtostderr
@@ -96,11 +96,7 @@ spec:
         - -webhook-secret-namespace={{ .Release.Namespace }}
         - -webhook-svc-name={{ include "spark-operator.webhookServiceName" . }}
         - -webhook-svc-namespace={{ .Release.Namespace }}
-        - -webhook-config-name={{ include "spark-operator.fullname" . }}-webhook-config
         - -webhook-port={{ .Values.webhook.port }}
-        - -webhook-timeout={{ .Values.webhook.timeout }}
-        - -webhook-namespace-selector={{ .Values.webhook.namespaceSelector }}
-        - -webhook-object-selector={{ .Values.webhook.objectSelector }}
         {{- end }}
         - -enable-resource-quota-enforcement={{ .Values.resourceQuotaEnforcement.enable }}
         {{- if gt (int .Values.replicaCount) 1 }}

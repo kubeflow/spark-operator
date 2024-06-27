@@ -1,0 +1,56 @@
+suite: Test spark operator mutating webhook configuration
+
+templates:
+  - webhook/mutatingwebhookconfiguration.yaml
+
+release:
+  name: spark-operator
+
+tests:
+  - it: Should not render the webhook configuration if webhook.enable is false
+    set:
+      webhook:
+        enable: false
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: Should render the webhook configuration if webhook.enable is true
+    set:
+      webhook:
+        enable: true
+    asserts:
+      - containsDocument:
+          apiVersion: admissionregistration.k8s.io/v1
+          kind: MutatingWebhookConfiguration
+          name: spark-operator-webhook
+
+  - it: Should use the specified webhook port
+    set:
+      webhook:
+        enable: true
+        port: 12345
+    asserts:
+      - equal:
+          path: webhooks[?(@.name == "webhook.sparkoperator.k8s.io")].clientConfig.service.port
+          value: 12345
+
+  - it: Should use the specified failure policy
+    set:
+      webhook:
+        enable: true
+        failurePolicy: Fail
+    asserts:
+      - equal:
+          path: webhooks[?(@.name == "webhook.sparkoperator.k8s.io")].failurePolicy
+          value: Fail
+
+  - it: Should should use the specified timeoutSeconds
+    set:
+      webhook:
+        enable: true
+        timeoutSeconds: 5
+    asserts:
+      - equal:
+          path: webhooks[?(@.name == "webhook.sparkoperator.k8s.io")].timeoutSeconds
+          value: 5

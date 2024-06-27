@@ -1,0 +1,73 @@
+suite: Test spark operator validating webhook configuration
+
+templates:
+  - webhook/validatingwebhookconfiguration.yaml
+
+release:
+  name: spark-operator
+
+tests:
+  - it: Should not render the webhook configuration if webhook.enable is false
+    set:
+      webhook:
+        enable: false
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: Should not render the webhook configuration if resourceQuotaEnforcement.enable is false
+    set:
+      resourceQuotaEnforcement:
+        enable: false
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: Should render the webhook configuration if webhook.enable and resourceQuotaEnforcement.enable are both true
+    set:
+      webhook:
+        enable: true
+      resourceQuotaEnforcement:
+        enable: true
+    asserts:
+      - containsDocument:
+          apiVersion: admissionregistration.k8s.io/v1
+          kind: ValidatingWebhookConfiguration
+          name: spark-operator-webhook
+
+  - it: Should use the specified webhook port
+    set:
+      webhook:
+        enable: true
+        port: 12345
+      resourceQuotaEnforcement:
+        enable: true
+    asserts:
+      - equal:
+          path: webhooks[?(@.name == "quotaenforcer.sparkoperator.k8s.io")].clientConfig.service.port
+          value: 12345
+
+  - it: Should use the specified failure policy
+    set:
+      webhook:
+        enable: true
+        failurePolicy: Fail
+      resourceQuotaEnforcement:
+        enable: true
+    asserts:
+      - equal:
+          path: webhooks[?(@.name == "quotaenforcer.sparkoperator.k8s.io")].failurePolicy
+          value: Fail
+
+  - it: Should should use the specified timeoutSeconds
+    set:
+      webhook:
+        enable: true
+        timeoutSeconds: 5
+      resourceQuotaEnforcement:
+        enable: true
+    asserts:
+      - equal:
+          path: webhooks[?(@.name == "quotaenforcer.sparkoperator.k8s.io")].timeoutSeconds
+          value: 5
+

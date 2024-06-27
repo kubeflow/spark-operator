@@ -22,13 +22,21 @@ rules:
   resources:
   - services
   - configmaps
-  - secrets
   verbs:
   - create
   - get
   - delete
   - update
   - patch
+- apiGroups:
+  - ""
+  resources:
+  - secrets
+  resourceNames:
+  - {{ include "spark-operator.webhookSecretName" . }}
+  verbs:
+  - get
+  - update
 - apiGroups:
   - extensions
   - networking.k8s.io
@@ -71,11 +79,11 @@ rules:
   resources:
   - mutatingwebhookconfigurations
   - validatingwebhookconfigurations
+  resourceNames:
+  - {{ include "spark-operator.webhookName" . }}
   verbs:
-  - create
   - get
   - update
-  - delete
 - apiGroups:
   - sparkoperator.k8s.io
   resources:

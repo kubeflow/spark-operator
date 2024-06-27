@@ -1,6 +1,6 @@
 # spark-operator
 
-![Version: 1.4.2](https://img.shields.io/badge/Version-1.4.2-informational?style=flat-square) ![AppVersion: v1beta2-1.6.1-3.5.0](https://img.shields.io/badge/AppVersion-v1beta2--1.6.1--3.5.0-informational?style=flat-square)
+![Version: 1.4.3](https://img.shields.io/badge/Version-1.4.3-informational?style=flat-square) ![AppVersion: v1beta2-1.6.2-3.5.0](https://img.shields.io/badge/AppVersion-v1beta2--1.6.2--3.5.0-informational?style=flat-square)
 
 A Helm chart for Spark on Kubernetes operator
 
@@ -132,12 +132,14 @@ See [helm uninstall](https://helm.sh/docs/helm/helm_uninstall) for command docum
 | uiService.enable | bool | `true` | Enable UI service creation for Spark application |
 | volumeMounts | list | `[]` |  |
 | volumes | list | `[]` |  |
-| webhook.enable | bool | `false` | Enable webhook server |
-| webhook.namespaceSelector | string | `""` | The webhook server will only operate on namespaces with this label, specified in the form key1=value1,key2=value2. Empty string (default) will operate on all namespaces |
-| webhook.objectSelector | string | `""` | The webhook will only operate on resources with this label/s, specified in the form key1=value1,key2=value2, OR key in (value1,value2). Empty string (default) will operate on all objects |
-| webhook.port | int | `8080` | Webhook service port |
-| webhook.portName | string | `"webhook"` | Webhook container port name and service target port name |
+| webhook.enable | bool | `false` | Specifies whether to enable webhook server |
+| webhook.failurePolicy | string | `"Ignore"` | Specifies how unrecognized errors are handled, allowed values are `Ignore` or `Fail`. |
+| webhook.namespaceSelector | object | `{}` | Specifies the namespace selector to run the webhook on an object based on whether the namespace for that object matches the selector. Empty selector means all namespaces. |
+| webhook.objectSelector | object | `{}` | Specifies the object selector to run the webhook on an object based on whether the labels for that object matches the selector Empty selector means all objects. |
+| webhook.port | int | `8080` | Specifies webhook port |
+| webhook.portName | string | `"webhook"` | Specifies webhook service port name |
 | webhook.timeout | int | `30` | The annotations applied to init job, required to restore certs deleted by the cleanup job during upgrade |
+| webhook.timeoutSeconds | int | `30` | Specifies the timeout seconds of the webhook, the value must be between 1 and 30. |
 
 ## Maintainers
 

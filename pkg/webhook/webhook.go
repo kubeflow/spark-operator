@@ -23,15 +23,11 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"strings"
 	"time"
 
 	"github.com/golang/glog"
 	admissionv1 "k8s.io/api/admission/v1"
-	arv1 "k8s.io/api/admissionregistration/v1"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/equality"
-	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
@@ -41,13 +37,15 @@ import (
 	crinformers "github.com/kubeflow/spark-operator/pkg/client/informers/externalversions"
 	crdlisters "github.com/kubeflow/spark-operator/pkg/client/listers/sparkoperator.k8s.io/v1beta2"
 	"github.com/kubeflow/spark-operator/pkg/config"
-	"github.com/kubeflow/spark-operator/pkg/util"
 	"github.com/kubeflow/spark-operator/pkg/webhook/resourceusage"
 )
 
 const (
-	webhookName      = "webhook.sparkoperator.k8s.io"
-	quotaWebhookName = "quotaenforcer.sparkoperator.k8s.io"
+	Path          = "/webhook"
+	CAKeyPem      = "ca-key.pem"
+	CACertPem     = "ca-cert.pem"
+	ServerKeyPem  = "server-key.pem"
+	ServerCertPem = "server-cert.pem"
 )
 
 var podResource = metav1.GroupVersionResource{
@@ -75,43 +73,31 @@ type WebHook struct {
 	lister                         crdlisters.SparkApplicationLister
 	server                         *http.Server
 	certProvider                   *certProvider
-	serviceRef                     *arv1.ServiceReference
-	failurePolicy                  arv1.FailurePolicyType
-	selector                       *metav1.LabelSelector
-	objectSelector                 *metav1.LabelSelector
 	sparkJobNamespace              string
-	deregisterOnExit               bool
 	enableResourceQuotaEnforcement bool
 	resourceQuotaEnforcer          resourceusage.ResourceQuotaEnforcer
 	coreV1InformerFactory          informers.SharedInformerFactory
-	timeoutSeconds                 *int32
 }
 
 // Configuration parsed from command-line flags
 type webhookFlags struct {
-	webhookSecretName        string
-	webhookSecretNamespace   string
-	webhookServiceName       string
-	webhookServiceNamespace  string
-	webhookConfigName        string
-	webhookPort              int
-	webhookFailOnError       bool
-	webhookNamespaceSelector string
-	webhookObjectSelector    string
+	webhookName             string
+	webhookPort             int
+	webhookSecretName       string
+	webhookSecretNamespace  string
+	webhookServiceName      string
+	webhookServiceNamespace string
 }
 
 var userConfig webhookFlags
 
 func init() {
+	flag.StringVar(&userConfig.webhookName, "webhook-name", "spark-operator-webhook", "The name of the webhook server.")
+	flag.IntVar(&userConfig.webhookPort, "webhook-port", 8080, "Service port of the webhook server.")
 	flag.StringVar(&userConfig.webhookSecretName, "webhook-secret-name", "spark-operator-tls", "The name of the secret that contains the webhook server's TLS certificate and key.")
 	flag.StringVar(&userConfig.webhookSecretNamespace, "webhook-secret-namespace", "spark-operator", "The namespace of the secret that contains the webhook server's TLS certificate and key.")
 	flag.StringVar(&userConfig.webhookServiceName, "webhook-svc-name", "spark-webhook", "The name of the Service for the webhook server.")
 	flag.StringVar(&userConfig.webhookServiceNamespace, "webhook-svc-namespace", "spark-operator", "The namespace of the Service for the webhook server.")
-	flag.StringVar(&userConfig.webhookConfigName, "webhook-config-name", "spark-webhook-config", "The name of the MutatingWebhookConfiguration object to create.")
-	flag.IntVar(&userConfig.webhookPort, "webhook-port", 8080, "Service port of the webhook server.")
-	flag.BoolVar(&userConfig.webhookFailOnError, "webhook-fail-on-error", false, "Whether Kubernetes should reject requests when the webhook fails.")
-	flag.StringVar(&userConfig.webhookNamespaceSelector, "webhook-namespace-selector", "", "The webhook will only operate on namespaces with this label, specified in the form key1=value1,key2=value2. Required if webhook-fail-on-error is true.")
-	flag.StringVar(&userConfig.webhookObjectSelector, "webhook-object-selector", "", "The webhook will only operate on pods with this label/s, specified in the form key1=value1,key2=value2, OR key in (value1,value2).")
 }
 
 // New creates a new WebHook instance.
@@ -132,49 +118,14 @@ func New(
 		return nil, fmt.Errorf("failed to create certificate provider: %v", err)
 	}
 
-	path := "/webhook"
-	serviceRef := &arv1.ServiceReference{
-		Namespace: userConfig.webhookServiceNamespace,
-		Name:      userConfig.webhookServiceName,
-		Path:      &path,
-	}
-
 	hook := &WebHook{
 		clientset:                      clientset,
 		informerFactory:                informerFactory,
 		lister:                         informerFactory.Sparkoperator().V1beta2().SparkApplications().Lister(),
 		certProvider:                   certProvider,
-		serviceRef:                     serviceRef,
 		sparkJobNamespace:              jobNamespace,
-		deregisterOnExit:               deregisterOnExit,
-		failurePolicy:                  arv1.Ignore,
 		coreV1InformerFactory:          coreV1InformerFactory,
 		enableResourceQuotaEnforcement: enableResourceQuotaEnforcement,
-		timeoutSeconds:                 func(b int32) *int32 { return &b }(int32(*webhookTimeout)),
-	}
-
-	if userConfig.webhookFailOnError {
-		hook.failurePolicy = arv1.Fail
-	}
-
-	if userConfig.webhookNamespaceSelector == "" {
-		if userConfig.webhookFailOnError {
-			return nil, fmt.Errorf("webhook-namespace-selector must be set when webhook-fail-on-error is true")
-		}
-	} else {
-		selector, err := parseSelector(userConfig.webhookNamespaceSelector)
-		if err != nil {
-			return nil, err
-		}
-		hook.selector = selector
-	}
-
-	if userConfig.webhookObjectSelector != "" {
-		selector, err := metav1.ParseToLabelSelector(userConfig.webhookObjectSelector)
-		if err != nil {
-			return nil, err
-		}
-		hook.objectSelector = selector
 	}
 
 	if enableResourceQuotaEnforcement {
@@ -182,7 +133,7 @@ func New(
 	}
 
 	mux := http.NewServeMux()
-	mux.HandleFunc(path, hook.serve)
+	mux.HandleFunc(Path, hook.serve)
 	hook.server = &http.Server{
 		Addr:    fmt.Sprintf(":%d", userConfig.webhookPort),
 		Handler: mux,
@@ -191,63 +142,45 @@ func New(
 	return hook, nil
 }
 
-func parseSelector(selectorArg string) (*metav1.LabelSelector, error) {
-	selector := &metav1.LabelSelector{
-		MatchLabels: make(map[string]string),
-	}
-
-	selectorStrs := strings.Split(selectorArg, ",")
-	for _, selectorStr := range selectorStrs {
-		kv := strings.SplitN(selectorStr, "=", 2)
-		if len(kv) != 2 || kv[0] == "" || kv[1] == "" {
-			return nil, fmt.Errorf("webhook selector must be in the form key1=value1,key2=value2")
-		}
-		selector.MatchLabels[kv[0]] = kv[1]
-	}
-
-	return selector, nil
-}
-
-// Start starts the admission webhook server and registers itself to the API server.
+// Start starts the webhook server.
 func (wh *WebHook) Start(stopCh <-chan struct{}) error {
-	wh.updateSecret(userConfig.webhookSecretName, userConfig.webhookSecretNamespace)
+	if err := wh.updateSecret(userConfig.webhookSecretName, userConfig.webhookSecretNamespace); err != nil {
+		return fmt.Errorf("failed to update secret: %v", err)
+	}
+
+	if err := wh.updateMutatingWebhookConfiguration(userConfig.webhookName); err != nil {
+		return fmt.Errorf("failed to update mutating webhook configuration: %v", err)
+	}
+
+	if wh.enableResourceQuotaEnforcement {
+		if err := wh.updateValidatingWebhookConfiguration(userConfig.webhookName); err != nil {
+			return fmt.Errorf("failed to update validating webhook configuration: %v", err)
+		}
+		if err := wh.resourceQuotaEnforcer.WaitForCacheSync(stopCh); err != nil {
+			return err
+		}
+	}
 
 	tlsCfg, err := wh.certProvider.TLSConfig()
 	if err != nil {
 		return fmt.Errorf("failed to get TLS config: %v", err)
 	}
 	wh.server.TLSConfig = tlsCfg
-
-	if wh.enableResourceQuotaEnforcement {
-		err := wh.resourceQuotaEnforcer.WaitForCacheSync(stopCh)
-		if err != nil {
-			return err
-		}
-	}
-
 	go func() {
-		glog.Info("Starting the Spark admission webhook server")
+		glog.Info("Starting the webhook server")
 		if err := wh.server.ListenAndServeTLS("", ""); err != nil && err != http.ErrServerClosed {
 			glog.Errorf("error while serving the Spark admission webhook: %v\n", err)
 		}
 	}()
 
-	return wh.selfRegistration(userConfig.webhookConfigName)
+	return nil
 }
 
-// Stop deregisters itself with the API server and stops the admission webhook server.
+// Stop stops the webhook server.
 func (wh *WebHook) Stop() error {
-	// Do not deregister if strict error handling is enabled; pod deletions are common, and we
-	// don't want to create windows where pods can be created without being subject to the webhook.
-	if wh.failurePolicy != arv1.Fail {
-		if err := wh.selfDeregistration(userConfig.webhookConfigName); err != nil {
-			return err
-		}
-		glog.Infof("Webhook %s deregistered", userConfig.webhookConfigName)
-	}
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	glog.Info("Stopping the Spark pod admission webhook server")
+	glog.Info("Stopping the webhook server")
 	return wh.server.Shutdown(ctx)
 }
 
@@ -328,7 +261,7 @@ func (wh *WebHook) serve(w http.ResponseWriter, r *http.Request) {
 }
 
 func (wh *WebHook) updateSecret(name, namespace string) error {
-	secret, err := wh.clientset.CoreV1().Secrets(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+	old, err := wh.clientset.CoreV1().Secrets(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 	if err != nil {
 		return fmt.Errorf("failed to get webhook secret: %v", err)
 	}
@@ -353,28 +286,68 @@ func (wh *WebHook) updateSecret(name, namespace string) error {
 		return fmt.Errorf("failed to get server cert: %v", err)
 	}
 
-	newSecret := corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: namespace,
-		},
-		Data: map[string][]byte{
-			"ca-key.pem":      caKey,
-			"ca-cert.pem":     caCert,
-			"server-key.pem":  serverKey,
-			"server-cert.pem": serverCert,
-		},
-	}
+	new := old.DeepCopy()
+	new.Data[CAKeyPem] = caKey
+	new.Data[CACertPem] = caCert
+	new.Data[ServerKeyPem] = serverKey
+	new.Data[ServerCertPem] = serverCert
 
-	if !equality.Semantic.DeepEqual(newSecret, secret) {
-		secret.Data = newSecret.Data
-		_, err := wh.clientset.CoreV1().Secrets(namespace).Update(context.TODO(), secret, metav1.UpdateOptions{})
-		if err != nil {
-			return fmt.Errorf("failed to update webhook secret: %v", err)
-		}
+	_, err = wh.clientset.CoreV1().Secrets(namespace).Update(context.TODO(), new, metav1.UpdateOptions{})
+	if err != nil {
+		return fmt.Errorf("failed to update webhook secret: %v", err)
 	}
 
 	glog.Infof("Updated webhook secret %s/%s", namespace, name)
+	return nil
+}
+
+func (wh *WebHook) updateMutatingWebhookConfiguration(name string) error {
+	caBundle, err := wh.certProvider.CACert()
+	if err != nil {
+		return fmt.Errorf("failed to get CA certificate: %v", err)
+	}
+
+	old, err := wh.clientset.AdmissionregistrationV1().MutatingWebhookConfigurations().Get(context.TODO(), name, metav1.GetOptions{})
+	if err != nil {
+		return fmt.Errorf("failed to get mutating webhook configuration: %v", err)
+	}
+
+	new := old.DeepCopy()
+	for i := range new.Webhooks {
+		new.Webhooks[i].ClientConfig.CABundle = caBundle
+	}
+
+	_, err = wh.clientset.AdmissionregistrationV1().MutatingWebhookConfigurations().Update(context.TODO(), new, metav1.UpdateOptions{})
+	if err != nil {
+		return err
+	}
+
+	glog.Infof("Updated mutating webhook configuration %s", name)
+	return nil
+}
+
+func (wh *WebHook) updateValidatingWebhookConfiguration(name string) error {
+	caBundle, err := wh.certProvider.CACert()
+	if err != nil {
+		return fmt.Errorf("failed to get CA certificate: %v", err)
+	}
+
+	old, err := wh.clientset.AdmissionregistrationV1().ValidatingWebhookConfigurations().Get(context.TODO(), name, metav1.GetOptions{})
+	if err != nil {
+		return fmt.Errorf("failed to get validating webhook configuration: %v", err)
+	}
+
+	new := old.DeepCopy()
+	for i := range new.Webhooks {
+		new.Webhooks[i].ClientConfig.CABundle = caBundle
+	}
+
+	_, err = wh.clientset.AdmissionregistrationV1().ValidatingWebhookConfigurations().Update(context.TODO(), new, metav1.UpdateOptions{})
+	if err != nil {
+		return err
+	}
+
+	glog.Infof("Updated validating webhook configuration %s", name)
 	return nil
 }
 
@@ -408,143 +381,6 @@ func denyRequest(w http.ResponseWriter, reason string, code int) {
 	if err != nil {
 		glog.Errorf("failed to write response body: %v", err)
 	}
-}
-
-func (wh *WebHook) selfRegistration(webhookConfigName string) error {
-	caBundle, err := wh.certProvider.CACert()
-	if err != nil {
-		return fmt.Errorf("failed to get CA certificate: %v", err)
-	}
-
-	mwcClient := wh.clientset.AdmissionregistrationV1().MutatingWebhookConfigurations()
-	vwcClient := wh.clientset.AdmissionregistrationV1().ValidatingWebhookConfigurations()
-
-	mutatingRules := []arv1.RuleWithOperations{
-		{
-			Operations: []arv1.OperationType{arv1.Create},
-			Rule: arv1.Rule{
-				APIGroups:   []string{""},
-				APIVersions: []string{"v1"},
-				Resources:   []string{"pods"},
-			},
-		},
-	}
-
-	validatingRules := []arv1.RuleWithOperations{
-		{
-			Operations: []arv1.OperationType{arv1.Create, arv1.Update},
-			Rule: arv1.Rule{
-				APIGroups:   []string{crdapi.GroupName},
-				APIVersions: []string{crdv1beta2.Version},
-				Resources:   []string{sparkApplicationResource.Resource, scheduledSparkApplicationResource.Resource},
-			},
-		},
-	}
-
-	sideEffect := arv1.SideEffectClassNoneOnDryRun
-
-	mutatingWebhook := arv1.MutatingWebhook{
-		Name:  webhookName,
-		Rules: mutatingRules,
-		ClientConfig: arv1.WebhookClientConfig{
-			Service:  wh.serviceRef,
-			CABundle: caBundle,
-		},
-		FailurePolicy:           &wh.failurePolicy,
-		NamespaceSelector:       wh.selector,
-		ObjectSelector:          wh.objectSelector,
-		TimeoutSeconds:          wh.timeoutSeconds,
-		SideEffects:             &sideEffect,
-		AdmissionReviewVersions: []string{"v1"},
-	}
-
-	validatingWebhook := arv1.ValidatingWebhook{
-		Name:  quotaWebhookName,
-		Rules: validatingRules,
-		ClientConfig: arv1.WebhookClientConfig{
-			Service:  wh.serviceRef,
-			CABundle: caBundle,
-		},
-		FailurePolicy:           &wh.failurePolicy,
-		NamespaceSelector:       wh.selector,
-		ObjectSelector:          wh.objectSelector,
-		TimeoutSeconds:          wh.timeoutSeconds,
-		SideEffects:             &sideEffect,
-		AdmissionReviewVersions: []string{"v1"},
-	}
-
-	mutatingWebhooks := []arv1.MutatingWebhook{mutatingWebhook}
-	validatingWebhooks := []arv1.ValidatingWebhook{validatingWebhook}
-
-	mutatingExisting, mutatingGetErr := mwcClient.Get(context.TODO(), webhookConfigName, metav1.GetOptions{})
-	if mutatingGetErr != nil {
-		if !errors.IsNotFound(mutatingGetErr) {
-			return mutatingGetErr
-		}
-		// Create case.
-		glog.Info("Creating a MutatingWebhookConfiguration for the Spark pod admission webhook")
-		webhookConfig := &arv1.MutatingWebhookConfiguration{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: webhookConfigName,
-			},
-			Webhooks: mutatingWebhooks,
-		}
-		if _, err := mwcClient.Create(context.TODO(), webhookConfig, metav1.CreateOptions{}); err != nil {
-			return err
-		}
-	} else {
-		// Update case.
-		glog.Info("Updating existing MutatingWebhookConfiguration for the Spark pod admission webhook")
-		if !equality.Semantic.DeepEqual(mutatingWebhooks, mutatingExisting.Webhooks) {
-			mutatingExisting.Webhooks = mutatingWebhooks
-			if _, err := mwcClient.Update(context.TODO(), mutatingExisting, metav1.UpdateOptions{}); err != nil {
-				return err
-			}
-		}
-	}
-
-	if wh.enableResourceQuotaEnforcement {
-		validatingExisting, validatingGetErr := vwcClient.Get(context.TODO(), webhookConfigName, metav1.GetOptions{})
-		if validatingGetErr != nil {
-			if !errors.IsNotFound(validatingGetErr) {
-				return validatingGetErr
-			}
-			// Create case.
-			glog.Info("Creating a ValidatingWebhookConfiguration for the SparkApplication resource quota enforcement webhook")
-			webhookConfig := &arv1.ValidatingWebhookConfiguration{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: webhookConfigName,
-				},
-				Webhooks: validatingWebhooks,
-			}
-			if _, err := vwcClient.Create(context.TODO(), webhookConfig, metav1.CreateOptions{}); err != nil {
-				return err
-			}
-
-		} else {
-			// Update case.
-			glog.Info("Updating existing ValidatingWebhookConfiguration for the SparkApplication resource quota enforcement webhook")
-			if !equality.Semantic.DeepEqual(validatingWebhooks, validatingExisting.Webhooks) {
-				validatingExisting.Webhooks = validatingWebhooks
-				if _, err := vwcClient.Update(context.TODO(), validatingExisting, metav1.UpdateOptions{}); err != nil {
-					return err
-				}
-			}
-		}
-	}
-	return nil
-}
-
-func (wh *WebHook) selfDeregistration(webhookConfigName string) error {
-	mutatingConfigs := wh.clientset.AdmissionregistrationV1().MutatingWebhookConfigurations()
-	validatingConfigs := wh.clientset.AdmissionregistrationV1().ValidatingWebhookConfigurations()
-	if wh.enableResourceQuotaEnforcement {
-		err := validatingConfigs.Delete(context.TODO(), webhookConfigName, metav1.DeleteOptions{GracePeriodSeconds: int64ptr(0)})
-		if err != nil {
-			return err
-		}
-	}
-	return mutatingConfigs.Delete(context.TODO(), webhookConfigName, metav1.DeleteOptions{GracePeriodSeconds: int64ptr(0)})
 }
 
 func admitSparkApplications(review *admissionv1.AdmissionReview, enforcer resourceusage.ResourceQuotaEnforcer) (*admissionv1.AdmissionResponse, error) {
@@ -610,11 +446,6 @@ func mutatePods(
 
 	response := &admissionv1.AdmissionResponse{Allowed: true}
 
-	if !isSparkPod(pod) || !inSparkJobNamespace(review.Request.Namespace, sparkJobNs) {
-		glog.V(2).Infof("Pod %s in namespace %s is not subject to mutation", pod.GetObjectMeta().GetName(), review.Request.Namespace)
-		return response, nil
-	}
-
 	// Try getting the SparkApplication name from the annotation for that.
 	appName := pod.Labels[config.SparkAppNameLabel]
 	if appName == "" {
@@ -639,19 +470,4 @@ func mutatePods(
 	}
 
 	return response, nil
-}
-
-func inSparkJobNamespace(podNs string, sparkJobNamespace string) bool {
-	if sparkJobNamespace == corev1.NamespaceAll {
-		return true
-	}
-	return podNs == sparkJobNamespace
-}
-
-func isSparkPod(pod *corev1.Pod) bool {
-	return util.IsLaunchedBySparkOperator(pod) && (util.IsDriverPod(pod) || util.IsExecutorPod(pod))
-}
-
-func int64ptr(n int64) *int64 {
-	return &n
 }
