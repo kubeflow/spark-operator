@@ -17,7 +17,9 @@ limitations under the License.
 package sparkapplication
 
 import (
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -62,6 +64,7 @@ func runSparkSubmit(submission *submission) (bool, error) {
 
 	cmd := execCommand(command, submission.args...)
 	glog.V(2).Infof("spark-submit arguments: %v", cmd.Args)
+	cmd.Stderr = os.Stderr
 	output, err := cmd.Output()
 	glog.V(3).Infof("spark-submit output: %s", string(output))
 	if err != nil {
@@ -83,7 +86,7 @@ func runSparkSubmit(submission *submission) (bool, error) {
 	return true, nil
 }
 
-func buildSubmissionCommandArgs(app *v1beta2.SparkApplication, driverPodName string, submissionID string) ([]string, error) {
+func buildSubmissionCommandArgs(app *v1beta2.SparkApplication, driverPodName string, submissionID string, driverPodTemplate *string, executorPodTemplate *string) ([]string, error) {
 	var args []string
 	if app.Spec.MainClass != nil {
 		args = append(args, "--class", *app.Spec.MainClass)
@@ -184,6 +187,23 @@ func buildSubmissionCommandArgs(app *v1beta2.SparkApplication, driverPodName str
 		}
 	}
 
+	if driverPodTemplate != nil {
+		args = append(args, "--conf", fmt.Sprintf("%s=%s", config.SparkDriverPodTemplateFile, *driverPodTemplate))
+	}
+	if executorPodTemplate != nil {
+		args = append(args, "--conf", fmt.Sprintf("%s=%s", config.SparkExecutorPodTemplateFile, *executorPodTemplate))
+	}
+
+	if app.Spec.Driver.TemplateContainerName != nil {
+		conf := fmt.Sprintf("%s=%s", config.SparkDriverPodTemplateContainerName, *app.Spec.Driver.TemplateContainerName)
+		args = append(args, "--conf", conf)
+	}
+
+	if app.Spec.Executor.TemplateContainerName != nil {
+		conf := fmt.Sprintf("%s=%s", config.SparkExecutorPodTemplateContainerName, *app.Spec.Executor.TemplateContainerName)
+		args = append(args, "--conf", conf)
+	}
+
 	if app.Spec.MainApplicationFile != nil {
 		// Add the main application file if it is present.
 		args = append(args, *app.Spec.MainApplicationFile)
@@ -195,6 +215,38 @@ func buildSubmissionCommandArgs(app *v1beta2.SparkApplication, driverPodName str
 	}
 
 	return args, nil
+}
+
+func createPodTemplateFile(template *v1.PodTemplateSpec, role string, submissionID string) (*string, error) {
+	bytes, err := json.Marshal(template)
+	if err != nil {
+		return nil, err
+	}
+	tmpFile, err := ioutil.TempFile(os.TempDir(), fmt.Sprintf("%s-podtemplate-%s-*.json", submissionID, role))
+	if err != nil {
+		return nil, err
+	}
+	_, err = tmpFile.Write(bytes)
+	if err != nil {
+		deletePodTemplateFile(tmpFile.Name())
+		return nil, err
+	}
+	err = tmpFile.Close()
+
+	if err != nil {
+		deletePodTemplateFile(tmpFile.Name())
+		return nil, err
+	}
+	name := tmpFile.Name()
+	return &name, nil
+}
+
+func deletePodTemplateFile(fileName string) error {
+	err := os.Remove(fileName)
+	if os.IsNotExist(err) {
+		return nil
+	}
+	return err
 }
 
 func getMasterURL() (string, error) {
