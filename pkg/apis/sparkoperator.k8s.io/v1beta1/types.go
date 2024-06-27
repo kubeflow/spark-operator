@@ -14,6 +14,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+// +kubebuilder:skip
+
 package v1beta1
 
 import (
@@ -409,7 +411,7 @@ type SparkPodSpec struct {
 
 // DriverSpec is specification of the driver.
 type DriverSpec struct {
-	SparkPodSpec
+	SparkPodSpec `json:",inline"`
 	// PodName is the name of the driver pod that the user creates. This is used for the
 	// in-cluster client mode in which the user creates a client pod where the driver of
 	// the user application runs. It's an error to set this field if Mode is not
@@ -426,7 +428,7 @@ type DriverSpec struct {
 
 // ExecutorSpec is specification of the executor.
 type ExecutorSpec struct {
-	SparkPodSpec
+	SparkPodSpec `json:",inline"`
 	// Instances is the number of executor instances.
 	// Optional.
 	Instances *int32 `json:"instances,omitempty"`

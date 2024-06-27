@@ -86,15 +86,13 @@ To run unit tests, run the following command:
 go test ./...
 ```
 
-## Build the API Specification Doc
+## Build the CRD API Specification Doc
 
-When you update the API, or specifically the `SparkApplication` and `ScheduledSparkApplication` specifications, the API specification doc needs to be updated. To update the API specification doc, run the following command:
+When you update the API, or specifically the `SparkApplication` and `ScheduledSparkApplication` specifications, the API specification doc needs to be updated. Currently, we are using [gen-crd-api-reference-docs](https://github.com/ahmetb/gen-crd-api-reference-docs) to generate our API Reference Docs. To update the API docs, run the following command and `docs/api-docs.md` will be updated:
 
 ```bash
 make build-api-docs
 ```
-
-Running the above command will update the file `docs/api-docs.md`.
 
 ## Develop with the Helm Chart
 

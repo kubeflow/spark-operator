@@ -84,8 +84,14 @@ const (
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // +k8s:defaulter-gen=true
-// +kubebuilder:subresource:status
+// +kubebuilder:metadata:annotations="api-approved.kubernetes.io=https://github.com/kubeflow/spark-operator/pull/1298"
 // +kubebuilder:resource:scope=Namespaced,shortName=scheduledsparkapp,singular=scheduledsparkapplication
+// +kubebuilder:subresource:status
+// +kubebuilder:printcolumn:JSONPath=.spec.schedule,name=Schedule,type=string
+// +kubebuilder:printcolumn:JSONPath=.spec.suspend,name=Suspend,type=string
+// +kubebuilder:printcolumn:JSONPath=.status.lastRun,name=Last Run,type=date
+// +kubebuilder:printcolumn:JSONPath=.status.lastRunName,name=Last Run Name,type=string
+// +kubebuilder:printcolumn:JSONPath=.metadata.creationTimestamp,name=Age,type=date
 
 type ScheduledSparkApplication struct {
 	metav1.TypeMeta   `json:",inline"`
@@ -165,8 +171,14 @@ type ScheduledSparkApplicationList struct {
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // +k8s:defaulter-gen=true
-// +kubebuilder:subresource:status
+// +kubebuilder:metadata:annotations="api-approved.kubernetes.io=https://github.com/kubeflow/spark-operator/pull/1298"
 // +kubebuilder:resource:scope=Namespaced,shortName=sparkapp,singular=sparkapplication
+// +kubebuilder:subresource:status
+// +kubebuilder:printcolumn:JSONPath=.status.applicationState.state,name=Status,type=string
+// +kubebuilder:printcolumn:JSONPath=.status.executionAttempts,name=Attempts,type=string
+// +kubebuilder:printcolumn:JSONPath=.status.lastSubmissionAttemptTime,name=Start,type=string
+// +kubebuilder:printcolumn:JSONPath=.status.terminationTime,name=Finish,type=string
+// +kubebuilder:printcolumn:JSONPath=.metadata.creationTimestamp,name=Age,type=date
 
 // SparkApplication represents a Spark application running on and using Kubernetes as a cluster manager.
 type SparkApplication struct {

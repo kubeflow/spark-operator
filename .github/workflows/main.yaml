@@ -18,6 +18,11 @@ jobs:
         with:
           fetch-depth: "0"
 
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
       - name: The API documentation hasn't changed
         run: |
           make build-api-docs
@@ -42,7 +47,7 @@ jobs:
 
       - name: build sparkctl
         run: |
-          make all
+          make build-sparkctl
 
   build-spark-operator:
     runs-on: ubuntu-latest
