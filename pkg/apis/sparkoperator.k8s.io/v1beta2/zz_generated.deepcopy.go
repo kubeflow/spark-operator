@@ -249,6 +249,11 @@ func (in *ExecutorSpec) DeepCopyInto(out *ExecutorSpec) {
 		*out = new(string)
 		**out = **in
 	}
+	if in.Lifecycle != nil {
+		in, out := &in.Lifecycle, &out.Lifecycle
+		*out = new(v1.Lifecycle)
+		(*in).DeepCopyInto(*out)
+	}
 	if in.DeleteOnTermination != nil {
 		in, out := &in.DeleteOnTermination, &out.DeleteOnTermination
 		*out = new(bool)
@@ -834,6 +839,16 @@ func (in *SparkPodSpec) DeepCopyInto(out *SparkPodSpec) {
 	}
 	if in.MemoryOverhead != nil {
 		in, out := &in.MemoryOverhead, &out.MemoryOverhead
+		*out = new(string)
+		**out = **in
+	}
+	if in.MemoryLimit != nil {
+		in, out := &in.MemoryLimit, &out.MemoryLimit
+		*out = new(string)
+		**out = **in
+	}
+	if in.MemoryRequestOverride != nil {
+		in, out := &in.MemoryRequestOverride, &out.MemoryRequestOverride
 		*out = new(string)
 		**out = **in
 	}

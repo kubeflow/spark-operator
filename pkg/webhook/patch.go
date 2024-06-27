@@ -49,6 +49,19 @@ func patchSparkPod(pod *corev1.Pod, app *v1beta2.SparkApplication) []patchOperat
 		patchOps = append(patchOps, addOwnerReference(pod, app))
 	}
 
+	glog.V(2).Infof("Pod %s is starting to add patches", pod.GetObjectMeta().GetName())
+	op := addMemoryLimit(pod, app)
+	if op != nil {
+		glog.V(2).Infof("Pod %s is adding memoryLimitPatch", pod.GetObjectMeta().GetName())
+		patchOps = append(patchOps, *op)
+	}
+
+	op = overrideMemoryRequest(pod, app)
+	if op != nil {
+		glog.V(2).Infof("Pod %s is adding overrideMemoryRequest", pod.GetObjectMeta().GetName())
+		patchOps = append(patchOps, *op)
+	}
+
 	patchOps = append(patchOps, addVolumes(pod, app)...)
 	patchOps = append(patchOps, addGeneralConfigMaps(pod, app)...)
 	patchOps = append(patchOps, addSparkConfigMap(pod, app)...)
@@ -66,7 +79,7 @@ func patchSparkPod(pod *corev1.Pod, app *v1beta2.SparkApplication) []patchOperat
 	patchOps = append(patchOps, addContainerPorts(pod, app)...)
 	patchOps = append(patchOps, addPriorityClassName(pod, app)...)
 
-	op := addSchedulerName(pod, app)
+	op = addSchedulerName(pod, app)
 	if op != nil {
 		patchOps = append(patchOps, *op)
 	}
@@ -124,6 +137,76 @@ func addOwnerReference(pod *corev1.Pod, app *v1beta2.SparkApplication) patchOper
 	}
 
 	return patchOperation{Op: "add", Path: path, Value: value}
+}
+
+func convertJavaMemoryStringToK8sMemoryString(memory string) string {
+	if strings.HasSuffix(memory, "Gi") || strings.HasSuffix(memory, "Mi") {
+		return memory
+	}
+	// Convert the memory string from 'g' to 'Gi' and from 'm' to 'Mi.
+	if strings.HasSuffix(memory, "g") || strings.HasSuffix(memory, "m") {
+		return strings.ToUpper(memory) + "i"
+	}
+
+	return memory
+
+}
+
+// Function to add memory limit to the container
+func addMemoryLimit(pod *corev1.Pod, app *v1beta2.SparkApplication) *patchOperation {
+	i := findContainer(pod)
+	if i < 0 {
+		glog.Warningf("not able to add memory limit as Spark container was not found in pod %s", pod.Name)
+		return nil
+	}
+	var memoryLimit *string
+	if util.IsDriverPod(pod) {
+		// Convert the memory limit to bytes.
+		memoryLimit = app.Spec.Driver.MemoryLimit
+	} else if util.IsExecutorPod(pod) {
+		memoryLimit = app.Spec.Executor.MemoryLimit
+	}
+
+	if memoryLimit == nil {
+		return nil
+	}
+
+	limitQunatity, err := resource.ParseQuantity(convertJavaMemoryStringToK8sMemoryString(*memoryLimit))
+	if err != nil {
+		glog.Warningf("failed to parse memory limit %s: %v", *memoryLimit, err)
+		return nil
+	}
+
+	glog.V(1).Infof("adding to container %s memory limit: %s.", pod.Name, *memoryLimit)
+	return &patchOperation{Op: "add", Path: fmt.Sprintf("/spec/containers/%d/resources/limits/memory", i), Value: limitQunatity}
+}
+
+// Function to add memory limit to the container
+func overrideMemoryRequest(pod *corev1.Pod, app *v1beta2.SparkApplication) *patchOperation {
+	i := findContainer(pod)
+	if i < 0 {
+		glog.Warningf("not able to override memory request as Spark container was not found in pod %s", pod.Name)
+		return nil
+	}
+	var memoryRequestOverride *string
+	if util.IsDriverPod(pod) {
+		memoryRequestOverride = app.Spec.Driver.MemoryRequestOverride
+	} else if util.IsExecutorPod(pod) {
+		memoryRequestOverride = app.Spec.Executor.MemoryRequestOverride
+	}
+
+	if memoryRequestOverride == nil {
+		return nil
+	}
+
+	memoryRequest, err := resource.ParseQuantity(convertJavaMemoryStringToK8sMemoryString(*memoryRequestOverride))
+	if err != nil {
+		glog.Warningf("failed to parse memory limit %s: %v", *memoryRequestOverride, err)
+		return nil
+	}
+
+	glog.V(1).Infof("adding to container %s override memory request limit: %s.", pod.Name, *memoryRequestOverride)
+	return &patchOperation{Op: "add", Path: fmt.Sprintf("/spec/containers/%d/resources/requests/memory", i), Value: memoryRequest}
 }
 
 func addVolumes(pod *corev1.Pod, app *v1beta2.SparkApplication) []patchOperation {

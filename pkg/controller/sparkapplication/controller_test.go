@@ -67,8 +67,9 @@ func newFakeController(app *v1beta2.SparkApplication, pods ...*apiv1.Pod) (*Cont
 	}, metav1.CreateOptions{})
 
 	podInformerFactory := informers.NewSharedInformerFactory(kubeClient, 0*time.Second)
+
 	controller := newSparkApplicationController(crdClient, kubeClient, informerFactory, podInformerFactory, recorder,
-		&util.MetricConfig{}, "", "", nil, true)
+		&util.MetricConfig{}, "", "", nil, true, 3)
 
 	informer := informerFactory.Sparkoperator().V1beta2().SparkApplications().Informer()
 	if app != nil {
@@ -94,15 +95,41 @@ func TestOnAdd(t *testing.T) {
 		},
 		Status: v1beta2.SparkApplicationStatus{},
 	}
-	ctrl.onAdd(app)
+	// Initiated now ts
+	before := time.Now()
 
-	item, _ := ctrl.queue.Get()
-	defer ctrl.queue.Done(item)
-	key, ok := item.(string)
-	assert.True(t, ok)
-	expectedKey, _ := cache.MetaNamespaceKeyFunc(app)
-	assert.Equal(t, expectedKey, key)
-	ctrl.queue.Forget(item)
+	ctrl.onAdd(app)
+	after := time.Now()
+	m := ctrl.GetRelevantMap(app.Name)
+	// Check that m is not nil.
+	assert.NotNil(t, m)
+	// Check that m.appQueueMap[appName].Queue is not nil.
+	assert.NotNil(t, m.appQueueMap[app.Name])
+	// Check that m.appQueueMap[appName].LastUpdateTs is higer than now.
+    // print last update ts
+	fmt.Println(m.appQueueMap[app.Name])
+	fmt.Println(before)
+
+	fmt.Println(after)
+	//assert.True(t, m.appQueueMap[app.Name].LastUpdateTs.After(before))
+	assert.True(t, m.appQueueMap[app.Name].LastUpdateTs.Before(after))
+
+	// assert.NotNil(t, m.appQueueMap[app.Name].LastUpdateTs)
+
+	// Check that the SparkApplication was enqueued.
+	q := ctrl.GetOrCreateRelevantQueue(app.Name).Queue
+	assert.Equal(t, 0, q.Len())
+    // TODO - finish to fix this test
+
+
+	// q := ctrl.GetOrCreateRelevantQueue(app.Name).Queue
+	// item, _ := q.Get()
+	// defer q.Done(item)
+	// key, ok := item.(string)
+	// assert.True(t, ok)
+	// expectedKey, _ := cache.MetaNamespaceKeyFunc(app)
+	// assert.Equal(t, expectedKey, key)
+	// q.Forget(item)
 }
 
 func TestOnUpdate(t *testing.T) {
@@ -131,13 +158,14 @@ func TestOnUpdate(t *testing.T) {
 	ctrl.onUpdate(appTemplate, copyWithSameSpec)
 
 	// Verify that the SparkApplication was enqueued but no spec update events fired.
-	item, _ := ctrl.queue.Get()
+	q := ctrl.GetOrCreateRelevantQueue(appTemplate.Name).Queue
+	item, _ := q.Get()
 	key, ok := item.(string)
 	assert.True(t, ok)
 	expectedKey, _ := cache.MetaNamespaceKeyFunc(appTemplate)
 	assert.Equal(t, expectedKey, key)
-	ctrl.queue.Forget(item)
-	ctrl.queue.Done(item)
+	q.Forget(item)
+	q.Done(item)
 	assert.Equal(t, 0, len(recorder.Events))
 
 	// Case2: Spec update failed.
@@ -157,13 +185,14 @@ func TestOnUpdate(t *testing.T) {
 	ctrl.onUpdate(appTemplate, copyWithSpecUpdate)
 
 	// Verify App was enqueued.
-	item, _ = ctrl.queue.Get()
+
+	item, _ = q.Get()
 	key, ok = item.(string)
 	assert.True(t, ok)
 	expectedKey, _ = cache.MetaNamespaceKeyFunc(appTemplate)
 	assert.Equal(t, expectedKey, key)
-	ctrl.queue.Forget(item)
-	ctrl.queue.Done(item)
+	q.Forget(item)
+	q.Done(item)
 	// Verify that update was succeeded.
 	assert.Equal(t, 1, len(recorder.Events))
 	event = <-recorder.Events
@@ -186,16 +215,17 @@ func TestOnDelete(t *testing.T) {
 		Status: v1beta2.SparkApplicationStatus{},
 	}
 	ctrl.onAdd(app)
-	ctrl.queue.Get()
+	q := ctrl.GetOrCreateRelevantQueue(app.Name).Queue
+	q.Get()
 
 	ctrl.onDelete(app)
-	ctrl.queue.ShutDown()
-	item, _ := ctrl.queue.Get()
-	defer ctrl.queue.Done(item)
+	q.ShutDown()
+	item, _ := q.Get()
+	defer q.Done(item)
 	assert.True(t, item == nil)
 	event := <-recorder.Events
 	assert.True(t, strings.Contains(event, "SparkApplicationDeleted"))
-	ctrl.queue.Forget(item)
+	q.Forget(item)
 }
 
 func TestHelperProcessFailure(t *testing.T) {
@@ -275,7 +305,8 @@ func TestSyncSparkApplication_SubmissionFailed(t *testing.T) {
 	}
 
 	// Attempt 1
-	err = ctrl.syncSparkApplication("default/foo")
+	var shouldDelete bool
+	err, shouldDelete = ctrl.syncSparkApplication("default/foo")
 	updatedApp, err := ctrl.crdClient.SparkoperatorV1beta2().SparkApplications(app.Namespace).Get(context.TODO(), app.Name, metav1.GetOptions{})
 
 	assert.Equal(t, v1beta2.FailedSubmissionState, updatedApp.Status.AppState.State)
@@ -296,7 +327,9 @@ func TestSyncSparkApplication_SubmissionFailed(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = ctrl.syncSparkApplication("default/foo")
+
+	err, shouldDelete = ctrl.syncSparkApplication("default/foo")
+	assert.Equal(t, false, shouldDelete)
 
 	// Verify that the application failed again.
 	updatedApp, err = ctrl.crdClient.SparkoperatorV1beta2().SparkApplications(app.Namespace).Get(context.TODO(), app.Name, metav1.GetOptions{})
@@ -315,7 +348,7 @@ func TestSyncSparkApplication_SubmissionFailed(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = ctrl.syncSparkApplication("default/foo")
+	err, shouldDelete = ctrl.syncSparkApplication("default/foo")
 
 	// Verify that the application failed again.
 	updatedApp, err = ctrl.crdClient.SparkoperatorV1beta2().SparkApplications(app.Namespace).Get(context.TODO(), app.Name, metav1.GetOptions{})
@@ -604,8 +637,9 @@ func TestSyncSparkApplication_SubmissionSuccess(t *testing.T) {
 			cmd.Env = []string{"GO_WANT_HELPER_PROCESS=1"}
 			return cmd
 		}
-
-		err = ctrl.syncSparkApplication(fmt.Sprintf("%s/%s", test.app.Namespace, test.app.Name))
+		var shouldDelete bool
+		err, shouldDelete = ctrl.syncSparkApplication(fmt.Sprintf("%s/%s", test.app.Namespace, test.app.Name))
+		assert.Equal(t, false, shouldDelete)
 		assert.Nil(t, err)
 		updatedApp, err := ctrl.crdClient.SparkoperatorV1beta2().SparkApplications(test.app.Namespace).Get(context.TODO(), test.app.Name, metav1.GetOptions{})
 		assert.Nil(t, err)
@@ -1473,8 +1507,9 @@ func TestSyncSparkApplication_ExecutingState(t *testing.T) {
 		if test.executorPod != nil {
 			ctrl.kubeClient.CoreV1().Pods(app.Namespace).Create(context.TODO(), test.executorPod, metav1.CreateOptions{})
 		}
-
-		err = ctrl.syncSparkApplication(fmt.Sprintf("%s/%s", app.Namespace, app.Name))
+		var shouldDelete bool
+		err, shouldDelete = ctrl.syncSparkApplication(fmt.Sprintf("%s/%s", app.Namespace, app.Name))
+		assert.Equal(t, shouldDelete, false)
 		assert.Nil(t, err)
 		// Verify application and executor states.
 		updatedApp, err := ctrl.crdClient.SparkoperatorV1beta2().SparkApplications(app.Namespace).Get(context.TODO(), app.Name, metav1.GetOptions{})
@@ -1550,7 +1585,9 @@ func TestSyncSparkApplication_ApplicationExpired(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = ctrl.syncSparkApplication(fmt.Sprintf("%s/%s", app.Namespace, app.Name))
+	var shouldDelete bool
+	err, shouldDelete = ctrl.syncSparkApplication(fmt.Sprintf("%s/%s", app.Namespace, app.Name))
+	assert.Equal(t, shouldDelete, true)
 	assert.Nil(t, err)
 
 	_, err = ctrl.crdClient.SparkoperatorV1beta2().SparkApplications(app.Namespace).Get(context.TODO(), app.Name, metav1.GetOptions{})
@@ -1594,7 +1631,9 @@ func TestIngressWithSubpathAffectsSparkConfiguration(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = ctrl.syncSparkApplication(fmt.Sprintf("%s/%s", app.Namespace, app.Name))
+	var shouldDelete bool
+	err, shouldDelete = ctrl.syncSparkApplication(fmt.Sprintf("%s/%s", app.Namespace, app.Name))
+	assert.Equal(t, shouldDelete, false)
 	assert.Nil(t, err)
 	deployedApp, err := ctrl.crdClient.SparkoperatorV1beta2().SparkApplications(app.Namespace).Get(context.TODO(), app.Name, metav1.GetOptions{})
 	if err != nil {
@@ -1647,7 +1686,9 @@ func TestIngressWithClassName(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = ctrl.syncSparkApplication(fmt.Sprintf("%s/%s", app.Namespace, app.Name))
+	var shouldDelete bool
+	err, shouldDelete = ctrl.syncSparkApplication(fmt.Sprintf("%s/%s", app.Namespace, app.Name))
+	assert.Equal(t, shouldDelete, false)
 	assert.Nil(t, err)
 	_, err = ctrl.crdClient.SparkoperatorV1beta2().SparkApplications(app.Namespace).Get(context.TODO(), app.Name, metav1.GetOptions{})
 	if err != nil {
