@@ -19,6 +19,7 @@ package sparkapplication
 import (
 	"context"
 	"fmt"
+	"log"
 	"os"
 	"os/exec"
 	"strings"
@@ -921,6 +922,122 @@ func TestSyncSparkApplication_SubmissionSuccess(t *testing.T) {
 
 	for _, test := range testcases {
 		testFn(test, t)
+	}
+
+	// Test remove driver finalizer
+	testFn2 := func(test testcase, t *testing.T) {
+		ctrl, _ := newFakeController(test.app)
+		_, err := ctrl.crdClient.SparkoperatorV1beta2().SparkApplications(test.app.Namespace).Create(context.TODO(), test.app, metav1.CreateOptions{})
+		if err != nil {
+			t.Fatal(err)
+		}
+		pod := &apiv1.Pod{
+			ObjectMeta: metav1.ObjectMeta{
+				Finalizers: []string{},
+				Name:       getDriverPodName(test.app),
+			},
+		}
+		_, err = ctrl.kubeClient.CoreV1().Pods(test.app.Namespace).Create(context.TODO(), pod, metav1.CreateOptions{})
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		execCommand = func(command string, args ...string) *exec.Cmd {
+			cs := []string{"-test.run=TestHelperProcessSuccess", "--", command}
+			cs = append(cs, args...)
+			cmd := exec.Command(os.Args[0], cs...)
+			cmd.Env = []string{"GO_WANT_HELPER_PROCESS=1"}
+			return cmd
+		}
+
+		err = ctrl.syncSparkApplication(fmt.Sprintf("%s/%s", test.app.Namespace, test.app.Name))
+		assert.Nil(t, err)
+		updatedApp, err := ctrl.crdClient.SparkoperatorV1beta2().SparkApplications(test.app.Namespace).Get(context.TODO(), test.app.Name, metav1.GetOptions{})
+		assert.Nil(t, err)
+		assert.Equal(t, test.expectedState, updatedApp.Status.AppState.State)
+		_, err = ctrl.kubeClient.CoreV1().Pods(test.app.Namespace).Get(context.TODO(), getDriverPodName(test.app), metav1.GetOptions{})
+		if !errors.IsNotFound(err) {
+			log.Fatal(err)
+		}
+	}
+
+	testcases = []testcase{
+		{
+			app: &v1beta2.SparkApplication{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "foo",
+					Namespace: "default",
+				},
+				Status: v1beta2.SparkApplicationStatus{
+					AppState: v1beta2.ApplicationState{
+						State: v1beta2.SucceedingState,
+					},
+				},
+				Spec: v1beta2.SparkApplicationSpec{
+					RestartPolicy: restartPolicyAlways,
+				},
+			},
+			expectedState: v1beta2.PendingRerunState,
+		},
+		{
+			app: &v1beta2.SparkApplication{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "foo",
+					Namespace: "default",
+				},
+				Status: v1beta2.SparkApplicationStatus{
+					AppState: v1beta2.ApplicationState{
+						State: v1beta2.FailingState,
+					},
+					SubmissionAttempts: 1,
+					ExecutionAttempts:  1,
+					TerminationTime:    metav1.Time{Time: metav1.Now().Add(-2000 * time.Second)},
+				},
+				Spec: v1beta2.SparkApplicationSpec{
+					RestartPolicy: restartPolicyAlways,
+				},
+			},
+			expectedState: v1beta2.PendingRerunState,
+		},
+		{
+			app: &v1beta2.SparkApplication{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "foo",
+					Namespace: "default",
+				},
+				Status: v1beta2.SparkApplicationStatus{
+					AppState: v1beta2.ApplicationState{
+						State: v1beta2.FailedSubmissionState,
+					},
+					SubmissionAttempts:        1,
+					LastSubmissionAttemptTime: metav1.Time{Time: metav1.Now().Add(-2000 * time.Second)},
+				},
+				Spec: v1beta2.SparkApplicationSpec{
+					RestartPolicy: restartPolicyAlways,
+				},
+			},
+			expectedState: v1beta2.FailedSubmissionState,
+		},
+		{
+			app: &v1beta2.SparkApplication{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "foo",
+					Namespace: "default",
+				},
+				Status: v1beta2.SparkApplicationStatus{
+					AppState: v1beta2.ApplicationState{
+						State: v1beta2.InvalidatingState,
+					},
+				},
+				Spec: v1beta2.SparkApplicationSpec{
+					RestartPolicy: restartPolicyOnFailure,
+				},
+			},
+			expectedState: v1beta2.PendingRerunState,
+		},
+	}
+	for _, test := range testcases {
+		testFn2(test, t)
 	}
 }
 
