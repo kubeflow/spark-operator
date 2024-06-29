@@ -179,7 +179,7 @@ func TestMutatePod(t *testing.T) {
 	assert.True(t, len(response.Patch) > 0)
 	var patchOps []*patchOperation
 	json.Unmarshal(response.Patch, &patchOps)
-	assert.Equal(t, 6, len(patchOps))
+	assert.Equal(t, 7, len(patchOps))
 }
 
 func serializePod(pod *corev1.Pod) ([]byte, error) {

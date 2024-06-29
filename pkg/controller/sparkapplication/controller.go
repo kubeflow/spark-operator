@@ -51,6 +51,7 @@ import (
 	crdlisters "github.com/kubeflow/spark-operator/pkg/client/listers/sparkoperator.k8s.io/v1beta2"
 	"github.com/kubeflow/spark-operator/pkg/config"
 	"github.com/kubeflow/spark-operator/pkg/util"
+	"github.com/kubeflow/spark-operator/pkg/webhook"
 )
 
 const (
@@ -613,6 +614,9 @@ func (c *Controller) syncSparkApplication(key string) error {
 			return err
 		}
 	case v1beta2.CompletedState, v1beta2.FailedState:
+		if err := c.removeDriverPodFinalizer(app); err != nil {
+			return err
+		}
 		if c.hasApplicationExpired(app) {
 			glog.Infof("Garbage collecting expired SparkApplication %s/%s", app.Namespace, app.Name)
 			err := c.crdClient.SparkoperatorV1beta2().SparkApplications(app.Namespace).Delete(context.TODO(), app.Name, metav1.DeleteOptions{GracePeriodSeconds: int64ptr(0)})
@@ -893,6 +897,10 @@ func (c *Controller) deleteSparkResources(app *v1beta2.SparkApplication) error {
 		driverPodName = getDriverPodName(app)
 	}
 
+	if err := c.removeDriverPodFinalizer(app); err != nil {
+		return fmt.Errorf("delete spark resource, %w", err)
+	}
+
 	glog.V(2).Infof("Deleting pod %s in namespace %s", driverPodName, app.Namespace)
 	err := c.kubeClient.CoreV1().Pods(app.Namespace).Delete(context.TODO(), driverPodName, metav1.DeleteOptions{})
 	if err != nil && !errors.IsNotFound(err) {
@@ -1122,6 +1130,36 @@ func (c *Controller) cleanUpOnTermination(oldApp, newApp *v1beta2.SparkApplicati
 			return err
 		}
 	}
+	return nil
+}
+
+func (c *Controller) removeDriverPodFinalizer(app *v1beta2.SparkApplication) error {
+	driverPodName := app.Status.DriverInfo.PodName
+	if driverPodName == "" {
+		driverPodName = getDriverPodName(app)
+	}
+	pod, err := c.kubeClient.CoreV1().Pods(app.Namespace).Get(context.TODO(), driverPodName, metav1.GetOptions{})
+	if errors.IsNotFound(err) {
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("get driver pod %s failed, %w", driverPodName, err)
+	}
+	oldFinalizer := pod.Finalizers
+	var newFinalizer []string
+	for _, finalizer := range oldFinalizer {
+		if finalizer != webhook.DriverFinalize {
+			newFinalizer = append(newFinalizer, finalizer)
+		}
+	}
+	if len(oldFinalizer) != len(newFinalizer) {
+		pod.Finalizers = newFinalizer
+		_, err := c.kubeClient.CoreV1().Pods(app.Namespace).Update(context.TODO(), pod, metav1.UpdateOptions{})
+		if err != nil {
+			return fmt.Errorf("remove driver pod finalizer failed, %w", err)
+		}
+	}
+
 	return nil
 }
 

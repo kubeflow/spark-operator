@@ -32,7 +32,9 @@ import (
 )
 
 const (
-	maxNameLength = 63
+	maxNameLength  = 63
+	addOperation   = "add"
+	DriverFinalize = "kubeflow/spark-operator"
 )
 
 // patchOperation represents a RFC6902 JSON patch operation.
@@ -47,6 +49,7 @@ func patchSparkPod(pod *corev1.Pod, app *v1beta2.SparkApplication) []patchOperat
 
 	if util.IsDriverPod(pod) {
 		patchOps = append(patchOps, addOwnerReference(pod, app))
+		patchOps = append(patchOps, addFinalizer(pod, app))
 	}
 
 	patchOps = append(patchOps, addVolumes(pod, app)...)
@@ -853,4 +856,14 @@ func addShareProcessNamespace(pod *corev1.Pod, app *v1beta2.SparkApplication) *p
 		return nil
 	}
 	return &patchOperation{Op: "add", Path: "/spec/shareProcessNamespace", Value: *shareProcessNamespace}
+}
+
+func addFinalizer(pod *corev1.Pod, app *v1beta2.SparkApplication) patchOperation {
+	var value []string
+	if len(pod.ObjectMeta.Finalizers) == 0 {
+		value = []string{DriverFinalize}
+	} else {
+		value = append(pod.Finalizers, DriverFinalize)
+	}
+	return patchOperation{Op: addOperation, Path: "/metadata/finalizers", Value: value}
 }
