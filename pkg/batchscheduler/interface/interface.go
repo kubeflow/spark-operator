@@ -21,8 +21,6 @@ import (
 )
 
 type BatchScheduler interface {
-	Name() string
-
 	ShouldSchedule(app *v1beta2.SparkApplication) bool
 	DoBatchSchedulingOnSubmission(app *v1beta2.SparkApplication) error
 	CleanupOnCompletion(app *v1beta2.SparkApplication) error
