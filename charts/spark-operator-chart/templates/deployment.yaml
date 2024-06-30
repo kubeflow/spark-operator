@@ -111,6 +111,7 @@ spec:
         {{- if .Values.webhook.enable }}
         readinessProbe:
           httpGet:
+            scheme: HTTPS
             path: /readyz
             port: {{ .Values.webhook.port }}
           initialDelaySeconds: 5
