@@ -3,9 +3,10 @@ package yunikorn
 import (
 	"encoding/json"
 	"fmt"
-	"k8s.io/client-go/rest"
 
-	"github.com/apache/yunikorn-k8shim/pkg/cache"
+	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
+	"k8s.io/client-go/rest"
 
 	"github.com/kubeflow/spark-operator/pkg/apis/sparkoperator.k8s.io/v1beta2"
 	schedulerinterface "github.com/kubeflow/spark-operator/pkg/batchscheduler/interface"
@@ -20,6 +21,18 @@ const (
 
 	QueueLabel = "queue"
 )
+
+// This struct has been defined to match the struct from yunikorn-k8shim v1.5.1 but including tags for JSON marshalling
+// https://github.com/apache/yunikorn-k8shim/blob/v1.5.1/pkg/cache/amprotocol.go#L47-L56
+type taskGroup struct {
+	Name         string                       `json:"name"`
+	MinMember    int32                        `json:"minMember"`
+	MinResource  map[string]resource.Quantity `json:"minResource,omitempty"`
+	NodeSelector map[string]string            `json:"nodeSelector,omitempty"`
+	Tolerations  []v1.Toleration              `json:"tolerations,omitempty"`
+	Affinity     *v1.Affinity                 `json:"affinity,omitempty"`
+	Labels       map[string]string            `json:"labels,omitempty"`
+}
 
 type YunikornBatchScheduler struct{}
 
@@ -41,7 +54,7 @@ func (y *YunikornBatchScheduler) DoBatchSchedulingOnSubmission(app *v1beta2.Spar
 		return fmt.Errorf("failed to calculate driver resource usage: %w", err)
 	}
 
-	taskGroups := []cache.TaskGroup{
+	taskGroups := []taskGroup{
 		{
 			Name:         DriverTaskGroupName,
 			MinMember:    1,
@@ -63,7 +76,7 @@ func (y *YunikornBatchScheduler) DoBatchSchedulingOnSubmission(app *v1beta2.Spar
 			return fmt.Errorf("failed to calculate executor resource usage: %w", err)
 		}
 
-		taskGroups = append(taskGroups, cache.TaskGroup{
+		taskGroups = append(taskGroups, taskGroup{
 			Name:         ExecutorTaskGroupName,
 			MinMember:    initialExecutors,
 			MinResource:  executorMinResources,
@@ -103,7 +116,7 @@ func getInitialExecutors(app *v1beta2.SparkApplication) int32 {
 	return initialExecutors
 }
 
-func addTaskGroupAnnotations(app *v1beta2.SparkApplication, taskGroups []cache.TaskGroup) error {
+func addTaskGroupAnnotations(app *v1beta2.SparkApplication, taskGroups []taskGroup) error {
 	marshalledTaskGroups, err := json.Marshal(taskGroups)
 	if err != nil {
 		return fmt.Errorf("failed to marshal taskGroups: %w", err)

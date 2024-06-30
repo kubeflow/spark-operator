@@ -1,8 +1,9 @@
 package yunikorn
 
 import (
-	"github.com/stretchr/testify/assert"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestMergeMaps(t *testing.T) {
@@ -14,7 +15,7 @@ func TestMergeMaps(t *testing.T) {
 		{
 			m1:       map[string]string{},
 			m2:       map[string]string{},
-			expected: map[string]string{},
+			expected: nil,
 		},
 		{
 			m1:       map[string]string{"key1": "value1"},
