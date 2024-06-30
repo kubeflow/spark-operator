@@ -19,6 +19,8 @@ package webhook
 import (
 	"context"
 	"encoding/json"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 	"time"
 
@@ -38,6 +40,19 @@ import (
 	crdinformers "github.com/kubeflow/spark-operator/pkg/client/informers/externalversions"
 	"github.com/kubeflow/spark-operator/pkg/config"
 )
+
+func TestReadinessProbe(t *testing.T) {
+	webhook := &WebHook{}
+
+	req, err := http.NewRequest("GET", "/readyz", nil)
+	assert.NoError(t, err)
+
+	rr := httptest.NewRecorder()
+	handler := http.HandlerFunc(webhook.readyz)
+	handler.ServeHTTP(rr, req)
+
+	assert.Equal(t, http.StatusOK, rr.Code)
+}
 
 func TestMutatePod(t *testing.T) {
 	crdClient := crdclientfake.NewSimpleClientset()
