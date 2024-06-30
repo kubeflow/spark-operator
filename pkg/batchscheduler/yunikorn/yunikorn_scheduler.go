@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	v1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/client-go/rest"
 
 	"github.com/kubeflow/spark-operator/pkg/apis/sparkoperator.k8s.io/v1beta2"
@@ -22,16 +21,16 @@ const (
 	QueueLabel = "queue"
 )
 
-// This struct has been defined to match the struct from yunikorn-k8shim v1.5.1 but including tags for JSON marshalling
+// Defined separately rather than imported to include tags for JSON marshalling
 // https://github.com/apache/yunikorn-k8shim/blob/v1.5.1/pkg/cache/amprotocol.go#L47-L56
 type taskGroup struct {
-	Name         string                       `json:"name"`
-	MinMember    int32                        `json:"minMember"`
-	MinResource  map[string]resource.Quantity `json:"minResource,omitempty"`
-	NodeSelector map[string]string            `json:"nodeSelector,omitempty"`
-	Tolerations  []v1.Toleration              `json:"tolerations,omitempty"`
-	Affinity     *v1.Affinity                 `json:"affinity,omitempty"`
-	Labels       map[string]string            `json:"labels,omitempty"`
+	Name         string            `json:"name"`
+	MinMember    int32             `json:"minMember"`
+	MinResource  map[string]string `json:"minResource,omitempty"`
+	NodeSelector map[string]string `json:"nodeSelector,omitempty"`
+	Tolerations  []v1.Toleration   `json:"tolerations,omitempty"`
+	Affinity     *v1.Affinity      `json:"affinity,omitempty"`
+	Labels       map[string]string `json:"labels,omitempty"`
 }
 
 type YunikornBatchScheduler struct{}
@@ -49,7 +48,7 @@ func (y *YunikornBatchScheduler) CleanupOnCompletion(app *v1beta2.SparkApplicati
 }
 
 func (y *YunikornBatchScheduler) DoBatchSchedulingOnSubmission(app *v1beta2.SparkApplication) error {
-	driverMinResources, err := driverResourceUsage(app)
+	driverMinResources, err := driverPodResourceUsage(app)
 	if err != nil {
 		return fmt.Errorf("failed to calculate driver resource usage: %w", err)
 	}
@@ -71,7 +70,7 @@ func (y *YunikornBatchScheduler) DoBatchSchedulingOnSubmission(app *v1beta2.Spar
 	// if the initial number of executors is zero
 	initialExecutors := getInitialExecutors(app)
 	if initialExecutors > 0 {
-		executorMinResources, err := executorResourceUsage(app)
+		executorMinResources, err := executorPodResourceUsage(app)
 		if err != nil {
 			return fmt.Errorf("failed to calculate executor resource usage: %w", err)
 		}
