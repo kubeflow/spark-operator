@@ -1,0 +1,37 @@
+suite: Test spark operator pdb
+
+templates:
+  - pdb.yaml
+
+release:
+  name: spark-operator
+
+tests:
+  - it: Should not render spark operator pdb if pdb.enabled is false
+    set:
+      pdb:
+        enabled: false
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: Should render spark operator pdb if pdb.enabled is true
+    set:
+      pdb:
+        enabled: true
+    documentIndex: 0
+    asserts:
+      - containsDocument:
+          apiVersion: policy/v1
+          kind: PodDisruptionBudget
+          name: spark-operator-pdb
+
+  - it: Should set minAvailable from values
+    set:
+      pdb:
+        enabled: true
+        minAvailable: 3
+    asserts:
+      - equal:
+          path: spec.template.minAvailable
+          value: 3

@@ -9,6 +9,11 @@ commonLabels: {}
 # if this is greater than 1
 replicaCount: 1
 
+# Whether to deploy a PodDisruptionBudget. Make sure you deploy at least 2 replicas before enabling this.
+pdb:
+  enabled: false
+  minAvailable: 1
+
 image:
   # -- Image repository
   repository: docker.io/kubeflow/spark-operator
