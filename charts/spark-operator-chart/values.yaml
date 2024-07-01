@@ -108,6 +108,14 @@ webhook:
   objectSelector: ""
   # -- The annotations applied to init job, required to restore certs deleted by the cleanup job during upgrade
   timeout: 30
+  # certManager, uses cert-manager to handle self-signed certificates
+  # `issuerRef` is required
+  certManager:
+    enable: false
+    expiration: 720h0m0s
+    issuerRef: {}
+      # name: selfsigned
+      # kind: ClusterIssuer
 
 metrics:
   # -- Enable prometheus metric scraping
