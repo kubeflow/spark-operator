@@ -6,74 +6,11 @@ A Helm chart for Spark on Kubernetes operator
 
 **Homepage:** <https://github.com/kubeflow/spark-operator>
 
-## Introduction
+## Maintainers
 
-This chart bootstraps a [Kubernetes Operator for Apache Spark](https://github.com/kubeflow/spark-operator) deployment using the [Helm](https://helm.sh) package manager.
-
-## Prerequisites
-
-- Helm >= 3
-- Kubernetes >= 1.16
-
-## Previous Helm Chart
-
-The previous `spark-operator` Helm chart hosted at [helm/charts](https://github.com/helm/charts) has been moved to this repository in accordance with the [Deprecation timeline](https://github.com/helm/charts#deprecation-timeline). Note that a few things have changed between this version and the old version:
-
-- This repository **only** supports Helm chart installations using Helm 3+ since the `apiVersion` on the chart has been marked as `v2`.
-- Previous versions of the Helm chart have not been migrated, and the version has been set to `1.0.0` at the onset. If you are looking for old versions of the chart, it's best to run `helm pull incubator/sparkoperator --version <your-version>` until you are ready to move to this repository's version.
-- Several configuration properties have been changed, carefully review the [values](#values) section below to make sure you're aligned with the new values.
-
-## Usage
-
-### Add Helm Repo
-
-```shell
-helm repo add spark-operator https://kubeflow.github.io/spark-operator
-
-helm repo update
-```
-
-See [helm repo](https://helm.sh/docs/helm/helm_repo) for command documentation.
-
-### Install the chart
-
-```shell
-helm install [RELEASE_NAME] spark-operator/spark-operator
-```
-
-For example, if you want to create a release with name `spark-operator` in the `default` namespace:
-
-```shell
-helm install spark-operator spark-operator/spark-operator
-```
-
-Note that `helm` will fail to install if the namespace doesn't exist. Either create the namespace beforehand or pass the `--create-namespace` flag to the `helm install` command.
-
-```shell
-helm install spark-operator spark-operator/spark-operator \
-    --namespace spark-operator \
-    --create-namespace
-```
-
-See [helm install](https://helm.sh/docs/helm/helm_install) for command documentation.
-
-### Upgrade the chart
-
-```shell
-helm upgrade [RELEASE_NAME] spark-operator/spark-operator [flags]
-```
-
-See [helm upgrade](https://helm.sh/docs/helm/helm_upgrade) for command documentation.
-
-### Uninstall the chart
-
-```shell
-helm uninstall [RELEASE_NAME]
-```
-
-This removes all the Kubernetes resources associated with the chart and deletes the release, except for the `crds`, those will have to be removed manually.
-
-See [helm uninstall](https://helm.sh/docs/helm/helm_uninstall) for command documentation.
+| Name | Email | Url |
+| ---- | ------ | --- |
+| yuchaoran2011 | <yuchaoran2011@gmail.com> |  |
 
 ## Values
 
@@ -84,6 +21,7 @@ See [helm uninstall](https://helm.sh/docs/helm/helm_uninstall) for command docum
 | commonLabels | object | `{}` | Common labels to add to the resources |
 | controllerThreads | int | `10` | Operator concurrency, higher values might increase memory usage |
 | envFrom | list | `[]` | Pod environment variable sources |
+| extraEnv | list | `[]` | Extra environment variables to add to the operator pod |
 | fullnameOverride | string | `""` | String to override release name |
 | image.pullPolicy | string | `"IfNotPresent"` | Image pull policy |
 | image.repository | string | `"docker.io/kubeflow/spark-operator"` | Image repository |
@@ -139,8 +77,3 @@ See [helm uninstall](https://helm.sh/docs/helm/helm_uninstall) for command docum
 | webhook.portName | string | `"webhook"` | Webhook container port name and service target port name |
 | webhook.timeout | int | `30` | The annotations applied to init job, required to restore certs deleted by the cleanup job during upgrade |
 
-## Maintainers
-
-| Name | Email | Url |
-| ---- | ------ | --- |
-| yuchaoran2011 | <yuchaoran2011@gmail.com> |  |

@@ -48,13 +48,16 @@ spec:
       - name: {{ .Chart.Name }}
         image: {{ .Values.image.repository }}:{{ default .Chart.AppVersion .Values.image.tag }}
         imagePullPolicy: {{ .Values.image.pullPolicy }}
-        {{- if gt (int .Values.replicaCount) 1 }}
         env:
+        {{- if gt (int .Values.replicaCount) 1 }}
           - name: POD_NAME
             valueFrom:
               fieldRef:
                 apiVersion: v1
                 fieldPath: metadata.name
+        {{- end }}
+        {{- with .Values.extraEnv }}
+          {{- toYaml . | nindent 10 }}
         {{- end }}
         envFrom:
           {{- toYaml .Values.envFrom | nindent 10 }}

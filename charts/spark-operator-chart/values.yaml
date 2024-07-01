@@ -78,6 +78,13 @@ logLevel: 2
 # -- Pod environment variable sources
 envFrom: []
 
+# -- Extra environment variables to add to the operator pod
+extraEnv: []
+  # - name: KUBERNETES_REQUEST_TIMEOUT
+  #   value: ""
+  # - name: KUBERNETES_CONNECTION_TIMEOUT
+  #   value: ""
+
 # podSecurityContext -- Pod security context
 podSecurityContext: {}
 
