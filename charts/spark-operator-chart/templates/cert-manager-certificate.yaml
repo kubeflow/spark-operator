@@ -1,6 +1,6 @@
 {{- $webhookSvc := printf "%s-webhook.%s" (include "spark-operator.fullname" .) .Release.Namespace -}}
 {{- if and .Values.webhook.enable .Values.webhook.certManager.enable }}
-apiVersion: cert-manager.io/v1alpha3
+apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
   name: {{ include "spark-operator.fullname" . }}-webhook-cert
