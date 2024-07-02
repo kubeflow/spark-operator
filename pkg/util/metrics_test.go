@@ -21,18 +21,20 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+
+	"github.com/kubeflow/spark-operator/pkg/common"
 )
 
 func TestPositiveGauge_EmptyLabels(t *testing.T) {
 	gauge := NewPositiveGauge("testGauge", "test-description", []string{})
 	emptyMap := map[string]string{}
 	gauge.Dec(emptyMap)
-	assert.Equal(t, fetchGaugeValue(gauge.gaugeMetric, emptyMap), float64(0))
+	assert.Equal(t, float64(0), fetchGaugeValue(gauge.gaugeMetric, emptyMap), common.Epsilon)
 
 	gauge.Inc(emptyMap)
-	assert.Equal(t, fetchGaugeValue(gauge.gaugeMetric, emptyMap), float64(1))
+	assert.InEpsilon(t, float64(1), fetchGaugeValue(gauge.gaugeMetric, emptyMap), common.Epsilon)
 	gauge.Dec(map[string]string{})
-	assert.Equal(t, fetchGaugeValue(gauge.gaugeMetric, emptyMap), float64(0))
+	assert.Equal(t, float64(0), fetchGaugeValue(gauge.gaugeMetric, emptyMap), common.Epsilon)
 }
 
 func TestPositiveGauge_WithLabels(t *testing.T) {
@@ -62,7 +64,7 @@ func TestPositiveGauge_WithLabels(t *testing.T) {
 	}()
 
 	wg.Wait()
-	assert.Equal(t, float64(5), fetchGaugeValue(gauge.gaugeMetric, app1))
+	assert.InEpsilon(t, float64(5), fetchGaugeValue(gauge.gaugeMetric, app1), common.Epsilon)
 	// Always Positive Gauge.
-	assert.Equal(t, float64(0), fetchGaugeValue(gauge.gaugeMetric, app2))
+	assert.Equal(t, float64(0), fetchGaugeValue(gauge.gaugeMetric, app2), common.Epsilon)
 }

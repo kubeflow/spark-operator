@@ -1,4 +1,4 @@
-package util
+package util_test
 
 import (
 	"crypto/rand"
@@ -8,10 +8,13 @@ import (
 	"time"
 
 	"k8s.io/client-go/util/cert"
+
+	"github.com/kubeflow/spark-operator/pkg/common"
+	"github.com/kubeflow/spark-operator/pkg/util"
 )
 
 func TestNewPrivateKey(t *testing.T) {
-	_, err := NewPrivateKey()
+	_, err := util.NewPrivateKey()
 	if err != nil {
 		t.Errorf("failed to generate private key: %v", err)
 	}
@@ -24,11 +27,11 @@ func TestNewSignedServerCert(t *testing.T) {
 		NotBefore:    time.Now(),
 	}
 
-	caKey, _ := rsa.GenerateKey(rand.Reader, RSAKeySize)
+	caKey, _ := rsa.GenerateKey(rand.Reader, common.RSAKeySize)
 	caCert := &x509.Certificate{}
-	serverKey, _ := rsa.GenerateKey(rand.Reader, RSAKeySize)
+	serverKey, _ := rsa.GenerateKey(rand.Reader, common.RSAKeySize)
 
-	serverCert, err := NewSignedServerCert(cfg, caKey, caCert, serverKey)
+	serverCert, err := util.NewSignedServerCert(cfg, caKey, caCert, serverKey)
 	if err != nil {
 		t.Errorf("failed to generate signed server certificate: %v", err)
 	}

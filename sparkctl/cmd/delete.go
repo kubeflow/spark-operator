@@ -22,7 +22,6 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
-
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	crdclientset "github.com/kubeflow/spark-operator/pkg/client/clientset/versioned"
@@ -32,7 +31,7 @@ var deleteCmd = &cobra.Command{
 	Use:   "delete <name>",
 	Short: "Delete a SparkApplication object",
 	Long:  `Delete a SparkApplication object with a given name`,
-	Run: func(cmd *cobra.Command, args []string) {
+	Run: func(_ *cobra.Command, args []string) {
 		if len(args) != 1 {
 			fmt.Fprintln(os.Stderr, "must specify a SparkApplication name")
 			return

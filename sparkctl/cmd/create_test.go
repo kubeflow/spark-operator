@@ -22,7 +22,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/kubeflow/spark-operator/pkg/apis/sparkoperator.k8s.io/v1beta2"
+	"github.com/kubeflow/spark-operator/api/v1beta2"
 )
 
 func TestIsLocalFile(t *testing.T) {
@@ -84,9 +84,9 @@ func TestValidateSpec(t *testing.T) {
 	testFn := func(test testcase, t *testing.T) {
 		err := validateSpec(test.spec)
 		if test.expectsValidationError {
-			assert.True(t, err != nil, "%s: expected error got nothing", test.name)
+			assert.Error(t, err, "%s: expected error got nothing", test.name)
 		} else {
-			assert.True(t, err == nil, "%s: did not expect error got %v", test.name, err)
+			assert.NoError(t, err, "%s: did not expect error got %v", test.name, err)
 		}
 	}
 
@@ -161,12 +161,12 @@ func TestLoadFromYAML(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	assert.Equal(t, app.Name, "example")
-	assert.Equal(t, *app.Spec.MainClass, "org.examples.SparkExample")
-	assert.Equal(t, *app.Spec.MainApplicationFile, "local:///path/to/example.jar")
-	assert.Equal(t, *app.Spec.Driver.Image, "spark")
-	assert.Equal(t, *app.Spec.Executor.Image, "spark")
-	assert.Equal(t, int(*app.Spec.Executor.Instances), 1)
+	assert.Equal(t, "example", app.Name)
+	assert.Equal(t, "org.examples.SparkExample", *app.Spec.MainClass)
+	assert.Equal(t, "local:///path/to/example.jar", *app.Spec.MainApplicationFile)
+	assert.Equal(t, "spark", *app.Spec.Driver.Image)
+	assert.Equal(t, "spark", *app.Spec.Executor.Image)
+	assert.Equal(t, 1, int(*app.Spec.Executor.Instances))
 }
 
 func TestHandleHadoopConfiguration(t *testing.T) {
@@ -175,8 +175,8 @@ func TestHandleHadoopConfiguration(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	assert.Equal(t, configMap.Name, "test-hadoop-config")
-	assert.Equal(t, len(configMap.BinaryData), 1)
-	assert.Equal(t, len(configMap.Data), 1)
+	assert.Equal(t, "test-hadoop-config", configMap.Name)
+	assert.Len(t, configMap.BinaryData, 1)
+	assert.Len(t, configMap.Data, 1)
 	assert.True(t, strings.Contains(configMap.Data["core-site.xml"], "fs.gs.impl"))
 }

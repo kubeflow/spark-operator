@@ -1,0 +1,26 @@
+run:
+  deadline: 5m
+
+linters:
+  enable:
+  - revive
+  - gci
+  - depguard
+  - godot
+  - testifylint
+  - unconvert
+
+issues:
+  exclude-rules:
+  # Disable errcheck linter for test files.
+  - path: _test.go
+    linters:
+    - errcheck
+
+linters-settings:
+  gci:
+    sections:
+      - standard
+      - default
+      - prefix(github.com/kubeflow/spark-operator)
+    

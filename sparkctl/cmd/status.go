@@ -23,7 +23,7 @@ import (
 	"github.com/olekukonko/tablewriter"
 	"github.com/spf13/cobra"
 
-	"github.com/kubeflow/spark-operator/pkg/apis/sparkoperator.k8s.io/v1beta2"
+	"github.com/kubeflow/spark-operator/api/v1beta2"
 	crdclientset "github.com/kubeflow/spark-operator/pkg/client/clientset/versioned"
 )
 
@@ -31,7 +31,7 @@ var statusCmd = &cobra.Command{
 	Use:   "status <name>",
 	Short: "Check status of a SparkApplication",
 	Long:  `Check status of a SparkApplication with a given name`,
-	Run: func(cmd *cobra.Command, args []string) {
+	Run: func(_ *cobra.Command, args []string) {
 		if len(args) != 1 {
 			fmt.Fprintln(os.Stderr, "must specify a SparkApplication name")
 			return

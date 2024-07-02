@@ -28,12 +28,14 @@ COPY go.sum go.sum
 RUN go mod download
 
 # Copy the go source code
-COPY main.go main.go
+COPY api/ api/
+COPY cmd/ cmd/
+COPY internal/ internal/
 COPY pkg/ pkg/
 
 # Build
 ARG TARGETARCH
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=${TARGETARCH} GO111MODULE=on go build -a -o /usr/bin/spark-operator main.go
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=${TARGETARCH} GO111MODULE=on go build -a -o /usr/bin/spark-operator cmd/main.go
 
 FROM ${SPARK_IMAGE}
 USER root

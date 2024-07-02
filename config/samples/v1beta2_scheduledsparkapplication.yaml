@@ -1,0 +1,34 @@
+apiVersion: sparkoperator.k8s.io/v1beta2
+kind: ScheduledSparkApplication
+metadata:
+  labels:
+    app.kubernetes.io/name: spark-operator
+    app.kubernetes.io/managed-by: kustomize
+  name: scheduledsparkapplication-sample
+spec:
+  schedule: "@every 3m"
+  concurrencyPolicy: Allow
+  template:
+    type: Scala
+    mode: cluster
+    image: spark:3.5.0
+    imagePullPolicy: IfNotPresent
+    mainClass: org.apache.spark.examples.SparkPi
+    mainApplicationFile: local:///opt/spark/examples/jars/spark-examples_2.12-3.5.0.jar
+    sparkVersion: 3.5.0
+    restartPolicy:
+      type: Never
+    driver:
+      labels:
+        version: 3.5.0
+      cores: 1
+      coreLimit: 1200m
+      memory: 512m
+      serviceAccount: spark-operator-spark
+    executor:
+      labels:
+        version: 3.5.0
+      instances: 1
+      cores: 1
+      coreLimit: 1200m
+      memory: 512m

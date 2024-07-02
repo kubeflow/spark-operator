@@ -1,0 +1,140 @@
+{{/*
+Copyright 2024 The Kubeflow authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    https://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "spark-operator.controller.deploymentName" . }}
+  labels:
+    {{- include "spark-operator.controller.labels" . | nindent 4 }}
+spec:
+  {{- with .Values.controller.replicaCount }}
+  replicas: {{ . }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "spark-operator.controller.selectorLabels" . | nindent 6 }}
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        {{- include "spark-operator.controller.selectorLabels" . | nindent 8 }}
+        {{- with .Values.podLabels }}
+          {{- toYaml . | trim | nindent 8 }}
+        {{- end }}
+      {{- if or .Values.podAnnotations .Values.prometheus.metrics.enable }}
+      annotations:
+      {{- if .Values.prometheus.metrics.enable }}
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "{{ .Values.prometheus.metrics.port }}"
+        prometheus.io/path: {{ .Values.prometheus.metrics.endpoint }}
+      {{- end }}
+      {{- with .Values.podAnnotations }}
+        {{- toYaml . | trim | nindent 8 }}
+      {{- end }}
+      {{- end }}
+    spec:
+      containers:
+      - name: spark-operator-controller
+        image: {{ include "spark-operator.image" . }}
+        {{- with .Values.image.pullPolicy }}
+        imagePullPolicy: {{ . }}
+        {{- end }}
+        args:
+        - controller
+        - start
+        {{- with .Values.controller.logLevel }}
+        - --zap-log-level={{ . }}
+        {{- end }}
+        {{- with .Values.spark.jobNamespaces }}
+        - --namespaces={{ . | join "," }}
+        {{- end }}
+        - --enable-ui-service={{ .Values.controller.uiService.enable}}
+        - --ingress-url-format={{ .Values.controller.ingressUrlFormat }}
+        - --controller-threads={{ .Values.controller.workers }}
+        - --enable-batch-scheduler={{ .Values.batchScheduler.enable }}
+        {{- with .Values.controller.labelSelectorFilter }}
+        - --label-selector-filter={{ . }}
+        {{- end }}
+        {{- if .Values.prometheus.metrics.enable }}
+        - --enable-metrics=true
+        - --metrics-labels=app_type
+        - --metrics-port={{ .Values.prometheus.metrics.port }}
+        - --metrics-endpoint={{ .Values.prometheus.metrics.endpoint }}
+        - --metrics-prefix={{ .Values.prometheus.metrics.prefix }}
+        {{- end }}
+        - --leader-election=true
+        - --leader-election-lock-name={{ include "spark-operator.controller.leaderElectionName" . }}
+        - --leader-election-lock-namespace={{ .Release.Namespace }}
+        env:
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: metadata.name
+        {{- with .Values.envFrom }}
+        envFrom:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+        {{- with .Values.securityContext }}
+        securityContext:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+        {{- if .Values.prometheus.metrics.enable }}
+        ports:
+        - name: {{ .Values.prometheus.metrics.portName | quote }}
+          containerPort: {{ .Values.prometheus.metrics.port }}
+        {{- end }}
+        {{- with .Values.volumeMounts }}
+        volumeMounts:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+        {{- with .Values.resources }}
+        resources:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+      {{- with .Values.sidecars }}
+      {{- toYaml . | nindent 6 }}
+      {{- end }}
+      {{- with .Values.image.pullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.volumes }}
+      volumes:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.priorityClassName }}
+      priorityClassName: {{ . }}
+      {{- end }}
+      serviceAccountName: {{ include "spark-operator.controller.serviceAccountName" . }}
+      {{- with .Values.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

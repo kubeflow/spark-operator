@@ -1,0 +1,118 @@
+/*
+Copyright 2024 The Kubeflow authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    https://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
+package webhook
+
+import (
+	"context"
+	"strconv"
+
+	"k8s.io/apimachinery/pkg/runtime"
+	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
+
+	"github.com/kubeflow/spark-operator/api/v1beta2"
+	"github.com/kubeflow/spark-operator/pkg/common"
+	"github.com/kubeflow/spark-operator/pkg/util"
+)
+
+// +kubebuilder:webhook:path=/mutate-sparkoperator-k8s-io-v1beta2-sparkapplication,mutating=true,failurePolicy=fail,sideEffects=None,groups=sparkoperator.k8s.io,resources=sparkapplications,verbs=create;update,versions=v1beta2,name=msparkapplication.kb.io,admissionReviewVersions=v1
+
+// SparkApplicationDefaulter sets default values for a SparkApplication.
+type SparkApplicationDefaulter struct{}
+
+// NewSparkApplicationValidator creates a new SparkApplicationValidator instance.
+func NewSparkApplicationDefaulter() *SparkApplicationDefaulter {
+	return &SparkApplicationDefaulter{}
+}
+
+// SparkApplicationDefaulter implements admission.CustomDefaulter.
+var _ admission.CustomDefaulter = &SparkApplicationDefaulter{}
+
+// Default implements admission.CustomDefaulter.
+func (d *SparkApplicationDefaulter) Default(ctx context.Context, obj runtime.Object) error {
+	app, ok := obj.(*v1beta2.SparkApplication)
+	if !ok {
+		return nil
+	}
+	logger.Info("Defaulting SparkApplication", "name", app.Name, "namespace", app.Namespace)
+	defaultSparkApplication(app)
+	return nil
+}
+
+// defaultSparkApplication sets default values for certain fields of a SparkApplication.
+func defaultSparkApplication(app *v1beta2.SparkApplication) {
+	if app.Spec.Mode == "" {
+		app.Spec.Mode = v1beta2.DeployModeCluster
+	}
+
+	if app.Spec.RestartPolicy.Type == "" {
+		app.Spec.RestartPolicy.Type = v1beta2.RestartPolicyNever
+	}
+
+	if app.Spec.RestartPolicy.Type != v1beta2.RestartPolicyNever {
+		if app.Spec.RestartPolicy.OnSubmissionFailureRetryInterval == nil {
+			app.Spec.RestartPolicy.OnSubmissionFailureRetryInterval = util.Int64Ptr(5)
+		}
+		if app.Spec.RestartPolicy.OnFailureRetryInterval == nil {
+			app.Spec.RestartPolicy.OnFailureRetryInterval = util.Int64Ptr(5)
+		}
+	}
+
+	defaultDriverSpec(app)
+	defaultExecutorSpec(app)
+}
+
+func defaultDriverSpec(app *v1beta2.SparkApplication) {
+	if app.Spec.Driver.Cores == nil {
+		if app.Spec.SparkConf == nil || app.Spec.SparkConf[common.SparkDriverCores] == "" {
+			app.Spec.Driver.Cores = util.Int32Ptr(1)
+		}
+	}
+
+	if app.Spec.Driver.Memory == nil {
+		if app.Spec.SparkConf == nil || app.Spec.SparkConf[common.SparkDriverMemory] == "" {
+			app.Spec.Driver.Memory = util.StringPtr("1g")
+		}
+	}
+}
+
+func defaultExecutorSpec(app *v1beta2.SparkApplication) {
+	if app.Spec.Executor.Cores == nil {
+		if app.Spec.SparkConf == nil || app.Spec.SparkConf[common.SparkExecutorCores] == "" {
+			app.Spec.Executor.Cores = util.Int32Ptr(1)
+		}
+	}
+
+	if app.Spec.Executor.Memory == nil {
+		if app.Spec.SparkConf == nil || app.Spec.SparkConf[common.SparkExecutorMemory] == "" {
+			app.Spec.Executor.Memory = util.StringPtr("1g")
+		}
+	}
+
+	if app.Spec.Executor.Instances == nil {
+		// Check whether dynamic allocation is enabled in application spec.
+		enableDynamicAllocation := app.Spec.DynamicAllocation != nil && app.Spec.DynamicAllocation.Enabled
+		// Check whether dynamic allocation is enabled in spark conf.
+		if !enableDynamicAllocation && app.Spec.SparkConf != nil {
+			if dynamicConf, _ := strconv.ParseBool(app.Spec.SparkConf[common.SparkDynamicAllocationEnabled]); dynamicConf {
+				enableDynamicAllocation = true
+			}
+			if !enableDynamicAllocation && app.Spec.SparkConf[common.SparkExecutorInstances] == "" {
+				app.Spec.Executor.Instances = util.Int32Ptr(1)
+			}
+		}
+	}
+}

@@ -17,45 +17,102 @@ limitations under the License.
 package util
 
 import (
+	"fmt"
 	"hash"
 	"hash/fnv"
-	"reflect"
+	"os"
+	"strings"
 
-	apiv1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	corev1 "k8s.io/api/core/v1"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 
-	"github.com/kubeflow/spark-operator/pkg/apis/sparkoperator.k8s.io/v1beta2"
-	"github.com/kubeflow/spark-operator/pkg/config"
+	"github.com/kubeflow/spark-operator/pkg/common"
 )
+
+var (
+	logger = log.Log.WithName("")
+)
+
+func GetMasterURL() (string, error) {
+	kubernetesServiceHost := os.Getenv(common.EnvKubernetesServiceHost)
+	if kubernetesServiceHost == "" {
+		return "", fmt.Errorf("environment variable %s is not found", common.EnvKubernetesServiceHost)
+	}
+	kubernetesServicePort := os.Getenv(common.EnvKubernetesServicePort)
+	if kubernetesServicePort == "" {
+		return "", fmt.Errorf("environment variable %s is not found", common.EnvKubernetesServicePort)
+	}
+	// check if the host is IPv6 address
+	if strings.Contains(kubernetesServiceHost, ":") && !strings.HasPrefix(kubernetesServiceHost, "[") {
+		return fmt.Sprintf("k8s://https://[%s]:%s", kubernetesServiceHost, kubernetesServicePort), nil
+	}
+	return fmt.Sprintf("k8s://https://%s:%s", kubernetesServiceHost, kubernetesServicePort), nil
+}
+
+// GetDriverAnnotationOption returns a spark-submit option for a driver annotation of the given key and value.
+func GetDriverAnnotationOption(key string, value string) string {
+	return fmt.Sprintf("%s%s=%s", common.SparkKubernetesDriverAnnotationPrefix, key, value)
+}
+
+// GetExecutorAnnotationOption returns a spark-submit option for an executor annotation of the given key and value.
+func GetExecutorAnnotationOption(key string, value string) string {
+	return fmt.Sprintf("%s%s=%s", common.SparkKubernetesExecutorAnnotationPrefix, key, value)
+}
 
 // NewHash32 returns a 32-bit hash computed from the given byte slice.
 func NewHash32() hash.Hash32 {
 	return fnv.New32()
 }
 
-// GetOwnerReference returns an OwnerReference pointing to the given app.
-func GetOwnerReference(app *v1beta2.SparkApplication) metav1.OwnerReference {
-	controller := true
-	return metav1.OwnerReference{
-		APIVersion: v1beta2.SchemeGroupVersion.String(),
-		Kind:       reflect.TypeOf(v1beta2.SparkApplication{}).Name(),
-		Name:       app.Name,
-		UID:        app.UID,
-		Controller: &controller,
+// Helper functions to check and remove a string from a slice of strings.
+// ContainsString checks if a given string is present in a slice
+func ContainsString(slice []string, s string) bool {
+	for _, item := range slice {
+		if item == s {
+			return true
+		}
 	}
+	return false
 }
 
-// IsLaunchedBySparkOperator returns whether the given pod is launched by the Spark Operator.
-func IsLaunchedBySparkOperator(pod *apiv1.Pod) bool {
-	return pod.Labels[config.LaunchedBySparkOperatorLabel] == "true"
+// RemoveString removes a given string from a slice, if present
+func RemoveString(slice []string, s string) (result []string) {
+	for _, item := range slice {
+		if item != s {
+			result = append(result, item)
+		}
+	}
+	return result
 }
 
-// IsDriverPod returns whether the given pod is a Spark driver Pod.
-func IsDriverPod(pod *apiv1.Pod) bool {
-	return pod.Labels[config.SparkRoleLabel] == config.SparkDriverRole
+func BoolPtr(b bool) *bool {
+	return &b
 }
 
-// IsExecutorPod returns whether the given pod is a Spark executor Pod.
-func IsExecutorPod(pod *apiv1.Pod) bool {
-	return pod.Labels[config.SparkRoleLabel] == config.SparkExecutorRole
+func Int32Ptr(n int32) *int32 {
+	return &n
+}
+
+func Int64Ptr(n int64) *int64 {
+	return &n
+}
+
+func StringPtr(s string) *string {
+	return &s
+}
+
+// SumResourceList sums the resource list.
+func SumResourceList(list []corev1.ResourceList) corev1.ResourceList {
+	totalResource := corev1.ResourceList{}
+	for _, l := range list {
+		for name, quantity := range l {
+			if value, ok := totalResource[name]; !ok {
+				totalResource[name] = quantity.DeepCopy()
+			} else {
+				value.Add(quantity)
+				totalResource[name] = value
+			}
+		}
+	}
+	return totalResource
 }

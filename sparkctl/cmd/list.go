@@ -23,7 +23,6 @@ import (
 
 	"github.com/olekukonko/tablewriter"
 	"github.com/spf13/cobra"
-
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	crdclientset "github.com/kubeflow/spark-operator/pkg/client/clientset/versioned"
@@ -33,7 +32,7 @@ var listCmd = &cobra.Command{
 	Use:   "list",
 	Short: "List SparkApplication objects",
 	Long:  `List SparkApplication objects in a given namespaces.`,
-	Run: func(cmd *cobra.Command, args []string) {
+	Run: func(_ *cobra.Command, args []string) {
 		crdClientset, err := getSparkApplicationClient()
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "failed to get SparkApplication client: %v\n", err)
@@ -56,7 +55,7 @@ func doList(crdClientset crdclientset.Interface) error {
 	table.SetHeader([]string{"Name", "State", "Submission Age", "Termination Age"})
 	for _, app := range apps.Items {
 		table.Append([]string{
-			string(app.Name),
+			app.Name,
 			string(app.Status.AppState.State),
 			getSinceTime(app.Status.LastSubmissionAttemptTime),
 			getSinceTime(app.Status.TerminationTime),

@@ -24,7 +24,7 @@ import (
 	"context"
 	time "time"
 
-	sparkoperatork8siov1beta1 "github.com/kubeflow/spark-operator/pkg/apis/sparkoperator.k8s.io/v1beta1"
+	sparkoperatork8siov1beta1 "github.com/kubeflow/spark-operator/api/v1beta1"
 	versioned "github.com/kubeflow/spark-operator/pkg/client/clientset/versioned"
 	internalinterfaces "github.com/kubeflow/spark-operator/pkg/client/informers/externalversions/internalinterfaces"
 	v1beta1 "github.com/kubeflow/spark-operator/pkg/client/listers/sparkoperator.k8s.io/v1beta1"

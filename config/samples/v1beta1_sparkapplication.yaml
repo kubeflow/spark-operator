@@ -1,0 +1,23 @@
+apiVersion: sparkoperator.k8s.io/v1beta1
+kind: SparkApplication
+metadata:
+  labels:
+    app.kubernetes.io/name: spark-operator
+    app.kubernetes.io/managed-by: kustomize
+  name: sparkapplication-sample
+spec:
+  type: Scala
+  mode: cluster
+  image: spark:3.5.0
+  imagePullPolicy: IfNotPresent
+  mainClass: org.apache.spark.examples.SparkPi
+  mainApplicationFile: local:///opt/spark/examples/jars/spark-examples_2.12-3.5.0.jar
+  sparkVersion: 3.5.0
+  driver:
+    labels:
+      version: 3.5.0
+    serviceAccount: spark-operator-spark
+  executor:
+    labels:
+      version: 3.5.0
+    instances: 1

@@ -26,7 +26,7 @@ import (
 )
 
 type blobGCS struct {
-	projectId string
+	projectID string
 	endpoint  string
 	region    string
 }
@@ -41,7 +41,7 @@ func (blob blobGCS) setPublicACL(
 	}
 	defer client.Close()
 
-	handle := client.Bucket(bucket).UserProject(blob.projectId)
+	handle := client.Bucket(bucket).UserProject(blob.projectID)
 	if err = handle.Object(filePath).ACL().Set(ctx, storage.AllUsers, storage.RoleReader); err != nil {
 		return fmt.Errorf("failed to set ACL on GCS object %s: %v", filePath, err)
 	}
@@ -58,7 +58,7 @@ func newGCSBlob(
 		return nil, err
 	}
 
-	projectId, err := gcp.DefaultProjectID(creds)
+	projectID, err := gcp.DefaultProjectID(creds)
 	if err != nil {
 		return nil, err
 	}
@@ -70,7 +70,7 @@ func newGCSBlob(
 
 	b, err := gcsblob.OpenBucket(ctx, c, bucket, nil)
 	return &uploadHandler{
-		blob:             blobGCS{endpoint: endpoint, region: region, projectId: string(projectId)},
+		blob:             blobGCS{endpoint: endpoint, region: region, projectID: string(projectID)},
 		ctx:              ctx,
 		b:                b,
 		blobUploadBucket: bucket,

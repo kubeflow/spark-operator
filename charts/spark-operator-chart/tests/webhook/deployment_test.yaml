@@ -1,0 +1,265 @@
+#
+# Copyright 2024 The Kubeflow authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+suite: Test webhook deployment
+
+templates:
+  - webhook/deployment.yaml
+
+release:
+  name: spark-operator
+  namespace: spark-operator
+
+tests:
+  - it: Should create webhook deployment by default
+    asserts:
+      - hasDocuments:
+          count: 1
+
+  - it: Should create webhook deployment if `webhook.enable` is true
+    set:
+      webhook:
+        enable: true
+    asserts:
+      - containsDocument:
+          apiVersion: apps/v1
+          kind: Deployment
+          name: spark-operator-webhook
+
+  - it: Should add pod annotations if podAnnotations is set
+    set:
+      webhook:
+        enable: true
+      podAnnotations:
+        key1: value1
+        key2: value2
+    asserts:
+      - equal:
+          path: spec.template.metadata.annotations.key1
+          value: value1
+      - equal:
+          path: spec.template.metadata.annotations.key2
+          value: value2
+
+  - it: Should use the specified image pull policy if `image.pullPolicy` is set
+    set:
+      image:
+        pullPolicy: Always
+      webhook:
+        enable: true
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].imagePullPolicy
+          value: Always
+
+  - it: Should add secrets if `image.pullSecrets` is set
+    set:
+      image.pullSecrets:
+        - name: test-secret1
+        - name: test-secret2
+      webhook:
+        enable: true
+    asserts:
+      - equal:
+          path: spec.template.spec.imagePullSecrets[0].name
+          value: test-secret1
+      - equal:
+          path: spec.template.spec.imagePullSecrets[1].name
+          value: test-secret2
+
+  - it: Should use the specified webhook port and port name
+    set:
+      webhook:
+        enable: true
+        port: 12345
+        portName: test-port
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].ports
+          content:
+            name: test-port
+            containerPort: 12345
+          count: 1
+
+  - it: Should add resources if resources is set
+    set:
+      webhook:
+        enable: true
+      resources:
+        requests:
+          memory: "64Mi"
+          cpu: "250m"
+        limits:
+          memory: "128Mi"
+          cpu: "500m"
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].resources
+          value:
+            requests:
+              memory: "64Mi"
+              cpu: "250m"
+            limits:
+              memory: "128Mi"
+              cpu: "500m"
+
+  - it: Should add volumes if `volumes` is set
+    set:
+      webhook:
+        enable: true
+      volumes:
+        - name: volume1
+          emptyDir: {}
+        - name: volume2
+          emptyDir: {}
+    asserts:
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: volume1
+            emptyDir: {}
+          count: 1
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: volume2
+            emptyDir: {}
+          count: 1
+
+  - it: Should add volume mounts if `volumeMounts` is set
+    set:
+      webhook:
+        enable: true
+      volumeMounts:
+        - name: volume1
+          mountPath: /volume1
+        - name: volume2
+          mountPath: /volume2
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content:
+            name: volume1
+            mountPath: /volume1
+          count: 1
+      - contains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content:
+            name: volume2
+            mountPath: /volume2
+          count: 1
+
+  - it: Should add nodeSelector if `nodeSelector` is set
+    set:
+      webhook:
+        enable: true
+      nodeSelector:
+        key1: value1
+        key2: value2
+    asserts:
+      - equal:
+          path: spec.template.spec.nodeSelector.key1
+          value: value1
+      - equal:
+          path: spec.template.spec.nodeSelector.key2
+          value: value2
+
+  - it: Should add affinity if `affinity` is set
+    set:
+      webhook:
+        enable: true
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: topology.kubernetes.io/zone
+                    operator: In
+                    values:
+                      - antarctica-east1
+                      - antarctica-west1
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 1
+              preference:
+                matchExpressions:
+                  - key: another-node-label-key
+                    operator: In
+                    values:
+                      - another-node-label-value
+    asserts:
+      - equal:
+          path: spec.template.spec.affinity
+          value:
+            nodeAffinity:
+              requiredDuringSchedulingIgnoredDuringExecution:
+                nodeSelectorTerms:
+                  - matchExpressions:
+                      - key: topology.kubernetes.io/zone
+                        operator: In
+                        values:
+                          - antarctica-east1
+                          - antarctica-west1
+              preferredDuringSchedulingIgnoredDuringExecution:
+                - weight: 1
+                  preference:
+                    matchExpressions:
+                      - key: another-node-label-key
+                        operator: In
+                        values:
+                          - another-node-label-value
+
+  - it: Should add tolerations if tolerations is set
+    set:
+      webhook:
+        enable: true
+      tolerations:
+        - key: key1
+          operator: Equal
+          value: value1
+          effect: NoSchedule
+        - key: key2
+          operator: Exists
+          effect: NoSchedule
+    asserts:
+      - equal:
+          path: spec.template.spec.tolerations
+          value:
+            - key: key1
+              operator: Equal
+              value: value1
+              effect: NoSchedule
+            - key: key2
+              operator: Exists
+              effect: NoSchedule
+
+  - it: Should add pod securityContext if `podSecurityContext` is set
+    set:
+      webhook:
+        enable: true
+      podSecurityContext:
+        runAsUser: 1000
+        runAsGroup: 2000
+        fsGroup: 3000
+    asserts:
+      - equal:
+          path: spec.template.spec.securityContext.runAsUser
+          value: 1000
+      - equal:
+          path: spec.template.spec.securityContext.runAsGroup
+          value: 2000
+      - equal:
+          path: spec.template.spec.securityContext.fsGroup
+          value: 3000

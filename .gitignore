@@ -1,9 +1,11 @@
-.vscode/
+bin/
 vendor/
-spark-operator
-.idea/
-**/*.iml
+cover.out
 sparkctl/sparkctl
-spark-on-k8s-operator
 sparkctl/sparkctl-linux-amd64
 sparkctl/sparkctl-darwin-amd64
+**/*.iml
+
+# Various IDEs
+.idea/
+.vscode/

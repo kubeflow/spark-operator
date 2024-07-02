@@ -25,8 +25,7 @@ import (
 
 	"github.com/olekukonko/tablewriter"
 	"github.com/spf13/cobra"
-
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes"
@@ -147,7 +146,7 @@ func streamEvents(events watch.Interface, streamSince int64) error {
 	table.Render()
 
 	// Set 10 minutes inactivity timeout
-	watchExpire := time.Duration(10 * time.Minute)
+	watchExpire := 10 * time.Minute
 	intr := interrupt.New(nil, events.Stop)
 	return intr.Run(func() error {
 		// Start rendering contents of the table without table header as it is already printed

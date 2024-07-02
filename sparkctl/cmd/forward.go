@@ -69,7 +69,7 @@ var forwardCmd = &cobra.Command{
 		}
 		restClient := kubeClientset.CoreV1().RESTClient()
 
-		driverPodUrl, driverPodName, err := getDriverPodUrlAndName(args[0], restClient, crdClientset)
+		driverPodURL, driverPodName, err := getDriverPodURLAndName(args[0], restClient, crdClientset)
 		if err != nil {
 			fmt.Fprintf(os.Stderr,
 				"failed to get an API server URL of the driver pod of SparkApplication %s: %v\n",
@@ -80,7 +80,7 @@ var forwardCmd = &cobra.Command{
 		stopCh := make(chan struct{}, 1)
 		readyCh := make(chan struct{})
 
-		forwarder, err := newPortForwarder(config, driverPodUrl, stopCh, readyCh)
+		forwarder, err := newPortForwarder(config, driverPodURL, stopCh, readyCh)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "failed to get a port forwarder: %v\n", err)
 			return
@@ -120,7 +120,7 @@ func newPortForwarder(
 	return fw, nil
 }
 
-func getDriverPodUrlAndName(
+func getDriverPodURLAndName(
 	name string,
 	restClient rest.Interface,
 	crdClientset crdclientset.Interface) (*url.URL, string, error) {

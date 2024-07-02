@@ -1,0 +1,102 @@
+#
+# Copyright 2024 The Kubeflow authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+suite: Test prometheus pod monitor
+
+templates:
+  - prometheus/podmonitor.yaml
+
+release:
+  name: spark-operator
+  namespace: spark-operator
+
+tests:
+  - it: Should not create pod monitor by default
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: Should fail if `prometheus.podMonitor.create` is true and `prometheus.metrics.enable` is false
+    set:
+      prometheus:
+        metrics:
+          enable: false
+        podMonitor:
+          create: true
+    asserts:
+      - failedTemplate:
+          errorMessage: "`metrics.enable` must be set to true when `podMonitor.create` is true."
+
+  - it: Should fail if the cluster does not support `monitoring.coreos.com/v1/PodMonitor` even if`prometheus.podMonitor.create` and `prometheus.metrics.enable` are both true
+    set:
+      prometheus:
+        metrics:
+          enable: true
+        podMonitor:
+          create: true
+    asserts:
+      - failedTemplate:
+          errorMessage: "The cluster does not support the required API version `monitoring.coreos.com/v1` for `PodMonitor`."
+
+  - it: Should create pod monitor if the cluster support `monitoring.coreos.com/v1/PodMonitor` and `prometheus.podMonitor.create` and `prometheus.metrics.enable` are both true
+    capabilities:
+      apiVersions:
+        - monitoring.coreos.com/v1/PodMonitor
+    set:
+      prometheus:
+        metrics:
+          enable: true
+        podMonitor:
+          create: true
+    asserts:
+      - containsDocument:
+          apiVersion: monitoring.coreos.com/v1
+          kind: PodMonitor
+          name: spark-operator-podmonitor
+
+  - it: Should use the specified labels, jobLabel and podMetricsEndpoint
+    capabilities:
+      apiVersions:
+        - monitoring.coreos.com/v1/PodMonitor
+    set:
+      prometheus:
+        metrics:
+          enable: true
+          portName: custom-port
+        podMonitor:
+          create: true
+          labels:
+            key1: value1
+            key2: value2
+          jobLabel: custom-job-label
+          podMetricsEndpoint:
+            scheme: https
+            interval: 10s
+    asserts:
+      - equal:
+          path: metadata.labels
+          value:
+            key1: value1
+            key2: value2
+      - equal:
+          path: spec.podMetricsEndpoints[0]
+          value:
+            port: custom-port
+            scheme: https
+            interval: 10s
+      - equal:
+          path: spec.jobLabel
+          value: custom-job-label

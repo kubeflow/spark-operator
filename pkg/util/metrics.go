@@ -26,7 +26,6 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	prometheusmodel "github.com/prometheus/client_model/go"
-
 	"k8s.io/client-go/util/workqueue"
 )
 
@@ -42,7 +41,7 @@ func RegisterMetric(metric prometheus.Collector) {
 		if _, ok := err.(prometheus.AlreadyRegisteredError); ok {
 			return
 		}
-		glog.Errorf("failed to register metric: %v", err)
+		logger.Error(err, "Failed to register metric")
 	}
 }
 
@@ -214,4 +213,11 @@ func (p *WorkQueueMetrics) NewLongestRunningProcessorSecondsMetric(name string) 
 	)
 	RegisterMetric(longestRunningProcessorMicrosecondsMetric)
 	return longestRunningProcessorMicrosecondsMetric
+}
+
+func FetchCounterValue(m *prometheus.CounterVec, labels map[string]string) float64 {
+	pb := &prometheusmodel.Metric{}
+	m.With(labels).Write(pb)
+
+	return pb.GetCounter().GetValue()
 }

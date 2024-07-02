@@ -1,0 +1,58 @@
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: spark-operator-controller
+rules:
+- apiGroups:
+  - sparkoperator.k8s.io
+  resources:
+  - scheduledsparkapplications
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - sparkoperator.k8s.io
+  resources:
+  - scheduledsparkapplications/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - sparkoperator.k8s.io
+  resources:
+  - scheduledsparkapplications/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - sparkoperator.k8s.io
+  resources:
+  - sparkapplications
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - sparkoperator.k8s.io
+  resources:
+  - sparkapplications/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - sparkoperator.k8s.io
+  resources:
+  - sparkapplications/status
+  verbs:
+  - get
+  - patch
+  - update

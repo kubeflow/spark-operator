@@ -11,14 +11,12 @@ import (
 	"time"
 
 	"k8s.io/client-go/util/cert"
-)
 
-const (
-	RSAKeySize = 2048
+	"github.com/kubeflow/spark-operator/pkg/common"
 )
 
 func NewPrivateKey() (*rsa.PrivateKey, error) {
-	key, err := rsa.GenerateKey(rand.Reader, RSAKeySize)
+	key, err := rsa.GenerateKey(rand.Reader, common.RSAKeySize)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate private key: %v", err)
 	}

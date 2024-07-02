@@ -19,7 +19,6 @@ package cmd
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -36,7 +35,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/yaml"
 	clientset "k8s.io/client-go/kubernetes"
 
-	"github.com/kubeflow/spark-operator/pkg/apis/sparkoperator.k8s.io/v1beta2"
+	"github.com/kubeflow/spark-operator/api/v1beta2"
 	crdclientset "github.com/kubeflow/spark-operator/pkg/client/clientset/versioned"
 )
 
@@ -293,12 +292,12 @@ func filterLocalFiles(files []string) ([]string, error) {
 }
 
 func isLocalFile(file string) (bool, error) {
-	fileUrl, err := url.Parse(file)
+	fileURL, err := url.Parse(file)
 	if err != nil {
 		return false, err
 	}
 
-	if fileUrl.Scheme == "file" || fileUrl.Scheme == "" {
+	if fileURL.Scheme == "file" || fileURL.Scheme == "" {
 		return true, nil
 	}
 
@@ -332,7 +331,7 @@ func (uh uploadHandler) uploadToBucket(uploadPath, localFilePath string) (string
 		fmt.Printf("uploading local file: %s\n", fileName)
 
 		// Prepare the file for upload.
-		data, err := ioutil.ReadFile(localFilePath)
+		data, err := os.ReadFile(localFilePath)
 		if err != nil {
 			return "", fmt.Errorf("failed to read file: %s", err)
 		}
@@ -387,21 +386,21 @@ func uploadLocalDependencies(app *v1beta2.SparkApplication, files []string) ([]s
 			"unable to upload local dependencies: no upload location specified via --upload-to")
 	}
 
-	uploadLocationUrl, err := url.Parse(UploadToPath)
+	uploadLocationURL, err := url.Parse(UploadToPath)
 	if err != nil {
 		return nil, err
 	}
-	uploadBucket := uploadLocationUrl.Host
+	uploadBucket := uploadLocationURL.Host
 
 	var uh *uploadHandler
 	ctx := context.Background()
-	switch uploadLocationUrl.Scheme {
+	switch uploadLocationURL.Scheme {
 	case "gs":
 		uh, err = newGCSBlob(ctx, uploadBucket, UploadToEndpoint, UploadToRegion)
 	case "s3":
 		uh, err = newS3Blob(ctx, uploadBucket, UploadToEndpoint, UploadToRegion, S3ForcePathStyle)
 	default:
-		return nil, fmt.Errorf("unsupported upload location URL scheme: %s", uploadLocationUrl.Scheme)
+		return nil, fmt.Errorf("unsupported upload location URL scheme: %s", uploadLocationURL.Scheme)
 	}
 
 	// Check if bucket has been successfully setup
@@ -457,7 +456,7 @@ func buildHadoopConfigMap(appName string, hadoopConfDir string) (*apiv1.ConfigMa
 		return nil, fmt.Errorf("%s is not a directory", hadoopConfDir)
 	}
 
-	files, err := ioutil.ReadDir(hadoopConfDir)
+	files, err := os.ReadDir(hadoopConfDir)
 	if err != nil {
 		return nil, err
 	}
@@ -472,7 +471,7 @@ func buildHadoopConfigMap(appName string, hadoopConfDir string) (*apiv1.ConfigMa
 		if file.IsDir() {
 			continue
 		}
-		content, err := ioutil.ReadFile(filepath.Join(hadoopConfDir, file.Name()))
+		content, err := os.ReadFile(filepath.Join(hadoopConfDir, file.Name()))
 		if err != nil {
 			return nil, err
 		}
