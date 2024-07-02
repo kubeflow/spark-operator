@@ -94,6 +94,7 @@ See [helm uninstall](https://helm.sh/docs/helm/helm_uninstall) for command docum
 | labelSelectorFilter | string | `""` | A comma-separated list of key=value, or key labels to filter resources during watch and list based on the specified labels. |
 | leaderElection.lockName | string | `"spark-operator-lock"` | Leader election lock name. Ref: https://github.com/kubeflow/spark-operator/blob/master/docs/user-guide.md#enabling-leader-election-for-high-availability. |
 | leaderElection.lockNamespace | string | `""` | Optionally store the lock in another namespace. Defaults to operator's namespace |
+| livenessProbe | object | `{}` | Liveness probe configuration for main container |
 | logLevel | int | `2` | Set higher levels for more verbose logging |
 | metrics.enable | bool | `true` | Enable prometheus metric scraping |
 | metrics.endpoint | string | `"/metrics"` | Metrics serving endpoint |
@@ -115,6 +116,7 @@ See [helm uninstall](https://helm.sh/docs/helm/helm_uninstall) for command docum
 | rbac.create | bool | `false` | **DEPRECATED** use `createRole` and `createClusterRole` |
 | rbac.createClusterRole | bool | `true` | Create and use RBAC `ClusterRole` resources |
 | rbac.createRole | bool | `true` | Create and use RBAC `Role` resources |
+| readinessProbe | object | `{}` | Readiness probe configuration for main container |
 | replicaCount | int | `1` | Desired number of pods, leaderElection will be enabled if this is greater than 1 |
 | resourceQuotaEnforcement.enable | bool | `false` | Whether to enable the ResourceQuota enforcement for SparkApplication resources. Requires the webhook to be enabled by setting `webhook.enable` to true. Ref: https://github.com/kubeflow/spark-operator/blob/master/docs/user-guide.md#enabling-resource-quota-enforcement. |
 | resources | object | `{}` | Pod resource requests and limits Note, that each job submission will spawn a JVM within the Spark Operator Pod using "/usr/local/openjdk-11/bin/java -Xmx128m". Kubernetes may kill these Java processes at will to enforce resource limits. When that happens, you will see the following error: 'failed to run spark-submit for SparkApplication [...]: signal: killed' - when this happens, you may want to increase memory limits. |

@@ -183,6 +183,9 @@ func New(
 
 	mux := http.NewServeMux()
 	mux.HandleFunc(path, hook.serve)
+	mux.HandleFunc("/healthz", func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
 	hook.server = &http.Server{
 		Addr:    fmt.Sprintf(":%d", userConfig.webhookPort),
 		Handler: mux,

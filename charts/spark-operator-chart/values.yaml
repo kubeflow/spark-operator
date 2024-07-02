@@ -161,6 +161,27 @@ resources: {}
   #   cpu: 100m
   #   memory: 300Mi
 
+
+# readinessProbe -- Readiness probe configuration for main container
+readinessProbe: {}
+#  failureThreshold: 3
+#  httpGet:
+#    path: /healthz
+#    port: 8080
+#    scheme: HTTPS
+#  initialDelaySeconds: 1
+#  periodSeconds: 15
+
+# livenessProbe -- Liveness probe configuration for main container
+livenessProbe: {}
+#  failureThreshold: 3
+#  httpGet:
+#    path: /healthz
+#    port: 8080
+#    scheme: HTTPS
+#  initialDelaySeconds: 3
+#  periodSeconds: 15
+
 batchScheduler:
   # -- Enable batch scheduler for spark jobs scheduling. If enabled, users can specify batch scheduler name in spark application
   enable: false
