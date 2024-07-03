@@ -1,0 +1,37 @@
+suite: Test spark operator podDisruptionBudget
+
+templates:
+  - poddisruptionbudget.yaml
+
+release:
+  name: spark-operator
+
+tests:
+  - it: Should not render spark operator podDisruptionBudget if podDisruptionBudget.enable is false
+    set:
+      podDisruptionBudget:
+        enable: false
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: Should render spark operator podDisruptionBudget if podDisruptionBudget.enable is true
+    set:
+      podDisruptionBudget:
+        enable: true
+    documentIndex: 0
+    asserts:
+      - containsDocument:
+          apiVersion: policy/v1
+          kind: PodDisruptionBudget
+          name: spark-operator-podDisruptionBudget
+
+  - it: Should set minAvailable from values
+    set:
+      podDisruptionBudget:
+        enable: true
+        minAvailable: 3
+    asserts:
+      - equal:
+          path: spec.template.minAvailable
+          value: 3
