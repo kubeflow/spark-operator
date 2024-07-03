@@ -8,7 +8,7 @@
 
 ### Release Process
 
-1. Make sure the last commit you want to release past `spark-operator -postsubmit` testing.
+1. Make sure the last commit you want to release passed `spark-operator -postsubmit` testing.
 
 2. Check out that commit.
 
