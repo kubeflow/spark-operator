@@ -1,4 +1,4 @@
-# Releasing the Training Operator
+# Releasing the Spark Operator
 
 ## Prerequisite
 
