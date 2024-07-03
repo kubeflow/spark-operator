@@ -170,6 +170,19 @@ resources: {}
   #   cpu: 100m
   #   memory: 300Mi
 
+# readinessProbe -- Only used if the webhook is enabled
+readinessProbe:
+  # -- Seconds after start before probe begins
+  initialDelaySeconds: 5
+  # -- Interval between each probe in seconds
+  periodSeconds: 10
+  # -- Seconds before the probe times out
+  timeoutSeconds: 1
+  # -- Successful probes needed for the webhook to be considered ready
+  successThreshold: 1
+  # -- Failed probes needed for the webhook to be considered not ready
+  failureThreshold: 3
+
 batchScheduler:
   # -- Enable batch scheduler for spark jobs scheduling. If enabled, users can specify batch scheduler name in spark application
   enable: false

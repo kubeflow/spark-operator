@@ -183,6 +183,7 @@ func New(
 
 	mux := http.NewServeMux()
 	mux.HandleFunc(path, hook.serve)
+	mux.HandleFunc("/readyz", hook.readyz)
 	hook.server = &http.Server{
 		Addr:    fmt.Sprintf(":%d", userConfig.webhookPort),
 		Handler: mux,
@@ -249,6 +250,10 @@ func (wh *WebHook) Stop() error {
 	defer cancel()
 	glog.Info("Stopping the Spark pod admission webhook server")
 	return wh.server.Shutdown(ctx)
+}
+
+func (wh *WebHook) readyz(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusOK)
 }
 
 func (wh *WebHook) serve(w http.ResponseWriter, r *http.Request) {

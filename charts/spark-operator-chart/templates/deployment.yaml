@@ -108,6 +108,16 @@ spec:
         - -leader-election-lock-namespace={{ default .Release.Namespace .Values.leaderElection.lockNamespace }}
         - -leader-election-lock-name={{ .Values.leaderElection.lockName }}
         {{- end }}
+        {{- if .Values.webhook.enable }}
+        readinessProbe:
+          httpGet:
+            scheme: HTTPS
+            path: /readyz
+            port: {{ .Values.webhook.port }}
+          {{- with .Values.readinessProbe }}
+          {{- toYaml . | nindent 10 }}
+          {{- end }}
+        {{- end }}
         {{- with .Values.resources }}
         resources:
           {{- toYaml . | nindent 10 }}

@@ -140,6 +140,14 @@ tests:
             containerPort: 8080
           count: 1
 
+  - it: Should add a readiness probe if webhook.enable is true
+    set:
+      webhook:
+        enable: true
+    asserts:
+      - exists:
+          path: spec.template.spec.containers[0].readinessProbe
+
   - it: Should add resources if resources is set
     set:
       resources:
