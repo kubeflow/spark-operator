@@ -1,4 +1,5 @@
-{{- if $.Values.pdb.enabled }}
+{{- if $.Values.podDisruptionBudget.enable }}
+{{- if (gt (int $.Values.replicaCount) 1) }}
 apiVersion: policy/v1
 kind: PodDisruptionBudget
 metadata:
@@ -9,5 +10,8 @@ spec:
   selector:
     matchLabels:
       {{- include "spark-operator.selectorLabels" . | nindent 6 }}
-  minAvailable: {{ $.Values.pdb.minAvailable }}
+  minAvailable: {{ $.Values.podDisruptionBudget.minAvailable }}
+{{- else }}
+{{- fail "replicaCount must be greater than 1 to enable PodDisruptionBudget" }}
+{{- end }}
 {{- end }}
