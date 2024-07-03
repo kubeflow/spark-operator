@@ -1,6 +1,6 @@
 # spark-operator
 
-![Version: 1.4.2](https://img.shields.io/badge/Version-1.4.2-informational?style=flat-square) ![AppVersion: v1beta2-1.6.1-3.5.0](https://img.shields.io/badge/AppVersion-v1beta2--1.6.1--3.5.0-informational?style=flat-square)
+![Version: 1.4.3](https://img.shields.io/badge/Version-1.4.3-informational?style=flat-square) ![AppVersion: v1beta2-1.6.1-3.5.0](https://img.shields.io/badge/AppVersion-v1beta2--1.6.1--3.5.0-informational?style=flat-square)
 
 A Helm chart for Spark on Kubernetes operator
 
@@ -41,6 +41,9 @@ A Helm chart for Spark on Kubernetes operator
 | nameOverride | string | `""` | String to partially override `spark-operator.fullname` template (will maintain the release name) |
 | nodeSelector | object | `{}` | Node labels for pod assignment |
 | podAnnotations | object | `{}` | Additional annotations to add to the pod |
+| podDisruptionBudget | object | `{"enable":false,"minAvailable":1}` | podDisruptionBudget to avoid service degradation |
+| podDisruptionBudget.enable | bool | `false` | Specifies whether to enable pod disruption budget. Ref: [Specifying a Disruption Budget for your Application](https://kubernetes.io/docs/tasks/run-application/configure-pdb/) |
+| podDisruptionBudget.minAvailable | int | `1` | The number of pods that must be available. Require `replicaCount` to be greater than 1 |
 | podLabels | object | `{}` | Additional labels to add to the pod |
 | podMonitor | object | `{"enable":false,"jobLabel":"spark-operator-podmonitor","labels":{},"podMetricsEndpoint":{"interval":"5s","scheme":"http"}}` | Prometheus pod monitor for operator's pod. |
 | podMonitor.enable | bool | `false` | If enabled, a pod monitor for operator's pod will be submitted. Note that prometheus metrics should be enabled as well. |

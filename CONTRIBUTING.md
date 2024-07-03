@@ -1,11 +1,11 @@
-# How to Contribute
+# Contributing to Kubeflow Spark Operator
 
-We'd love to accept your patches and contributions to this project. There are
-just a few small guidelines you need to follow.
+Welcome to the Kubeflow Spark Operator project. We'd love to accept your patches and contributions to this project. For detailed information about how to contribute to Kubeflow, please refer to [Contributing to Kubeflow](https://www.kubeflow.org/docs/about/contributing/).
 
-## Code reviews
+## Developer Guide
 
-All submissions, including submissions by project members, require review. We
-use GitHub pull requests for this purpose. Consult
-[GitHub Help](https://help.github.com/articles/about-pull-requests/) for more
-information on using pull requests.
+For how to develope with spark operator, please refer to [Developer Guide](https://www.kubeflow.org/docs/components/spark-operator/developer-guide/).
+
+## Code Reviews
+
+All submissions, including submissions by project members, require review. We use GitHub pull requests for this purpose. Consult [GitHub Help](https://help.github.com/articles/about-pull-requests/) for more information on using pull requests.
