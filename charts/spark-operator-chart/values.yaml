@@ -134,6 +134,15 @@ podMonitor:
     scheme: http
     interval: 5s
 
+# -- podDisruptionBudget to avoid service degradation
+podDisruptionBudget:
+  # -- Specifies whether to enable pod disruption budget.
+  # Ref: [Specifying a Disruption Budget for your Application](https://kubernetes.io/docs/tasks/run-application/configure-pdb/)
+  enable: false
+  # -- The number of pods that must be available.
+  # Require `replicaCount` to be greater than 1
+  minAvailable: 1
+
 # nodeSelector -- Node labels for pod assignment
 nodeSelector: {}
 
