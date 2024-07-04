@@ -6,6 +6,7 @@ metadata:
   labels:
     {{- include "spark-operator.labels" . | nindent 4 }}
 spec:
+  commonName: {{ include "spark-operator.webhookServiceName" . }} 
   dnsNames:
     - {{ include "spark-operator.webhookServiceName" . }}.svc
     - {{ include "spark-operator.webhookServiceName" . }}.svc.cluster.local
