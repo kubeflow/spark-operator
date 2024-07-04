@@ -108,11 +108,13 @@ webhook:
   objectSelector: ""
   # -- The annotations applied to init job, required to restore certs deleted by the cleanup job during upgrade
   timeout: 30
-  # certManager, uses cert-manager to handle self-signed certificates
-  # `issuerRef` is required
   certManager:
+    # -- Specifies whether to use cert-manager to handle self-signed certificates
     enable: false
+    # -- Expiration time
     expiration: 720h0m0s
+    # --  Reference to the issuer responsible for issuing the certificate.
+    # Issuer reference is required to enable cert manager.
     issuerRef: {}
       # name: selfsigned
       # kind: ClusterIssuer
