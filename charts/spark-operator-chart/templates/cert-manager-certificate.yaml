@@ -16,7 +16,7 @@ spec:
     {{ fail "webhook.certManager.issuerRef is required when certManager is enabled"}}
   {{- end }}
   renewBefore: {{ .Values.webhook.certManager.expiration }}
-  secretName: {{ include "spark-operator.fullname" . }}-webhook-certs
+  secretName: {{ include "spark-operator.webhookSecretName" . }}
   subject:
     organizationalUnits:
       - {{ include "spark-operator.fullname" . }}
