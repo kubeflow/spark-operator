@@ -8,8 +8,12 @@ metadata:
 spec:
   commonName: {{ include "spark-operator.webhookServiceName" . }} 
   dnsNames:
-    - {{ include "spark-operator.webhookServiceName" . }}.svc
-    - {{ include "spark-operator.webhookServiceName" . }}.svc.cluster.local
+    - {{ include "spark-operator.webhookServiceName" . }}.{{ .Release.Namespace }}.svc
+    - {{ include "spark-operator.webhookServiceName" . }}.{{ .Release.Namespace }}.svc.cluster.local
+  isCA: true
+  privateKey:
+    algorithm: RSA
+    size: 2048
   duration: 87600h0m0s
   {{- if .Values.webhook.certManager.issuerRef }}
   issuerRef: {{ toYaml .Values.webhook.certManager.issuerRef | nindent 4 }}
