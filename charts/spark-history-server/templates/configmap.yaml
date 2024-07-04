@@ -1,0 +1,65 @@
+{{/*
+
+Copyright 2024 The Kubeflow authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    https://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+
+*/}}
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "spark-history-server.configMapName" . }}
+  labels:
+    {{- include "spark-history-server.labels" . | nindent 4 }}
+data:
+  spark-defaults.conf: |
+    #
+    # Licensed to the Apache Software Foundation (ASF) under one or more
+    # contributor license agreements.  See the NOTICE file distributed with
+    # this work for additional information regarding copyright ownership.
+    # The ASF licenses this file to You under the Apache License, Version 2.0
+    # (the "License"); you may not use this file except in compliance with
+    # the License.  You may obtain a copy of the License at
+    #
+    #    http://www.apache.org/licenses/LICENSE-2.0
+    #
+    # Unless required by applicable law or agreed to in writing, software
+    # distributed under the License is distributed on an "AS IS" BASIS,
+    # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    # See the License for the specific language governing permissions and
+    # limitations under the License.
+    #
+
+    {{- if .Values.storage.s3.enable }}
+    spark.hadoop.fs.s3a.impl org.apache.hadoop.fs.s3a.S3AFileSystem
+    spark.hadoop.fs.s3a.endpoint s3.amazonaws.com
+    {{- else if .Values.storage.gcs.enable }}
+    spark.hadoop.fs.AbstractFileSystem.gs.impl com.google.cloud.hadoop.fs.gcs.GoogleHadoopFS
+    spark.hadoop.fs.gs.impl com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem
+    spark.hadoop.fs.gs.auth.service.account.enable true
+    spark.hadoop.fs.gs.auth.service.account.json.keyfile /etc/gcs/keyfile.json
+    {{- else if .Values.storage.abs.enable }}
+    spark.hadoop.fs.AbstractFileSystem.wasbs.impl org.apache.hadoop.fs.azure.Wasbs
+    spark.hadoop.fs.wasbs.impl org.apache.hadoop.fs.azure.NativeAzureFileSystem
+    {{- else if .Values.storage.oss.enable }}
+    {{- required "storage.oss.endpoint is required when storage.oss.enable is true" .Values.storage.oss.endpoint }}
+    spark.hadoop.fs.AbstractFileSystem.oss.impl org.apache.hadoop.fs.aliyun.oss.OSS
+    spark.hadoop.fs.oss.impl org.apache.hadoop.fs.aliyun.oss.AliyunOSSFileSystem
+    spark.hadoop.fs.oss.endpoint {{ .Values.storage.oss.endpoint }}
+    spark.hadoop.fs.oss.credentials.provider com.aliyun.oss.common.auth.EnvironmentVariableCredentialsProvider
+    {{- end }}
+
+    {{- with .Values.sparkConf }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}

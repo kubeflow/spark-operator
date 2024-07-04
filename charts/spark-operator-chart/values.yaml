@@ -5,8 +5,7 @@
 # -- Common labels to add to the resources
 commonLabels: {}
 
-# replicaCount -- Desired number of pods, leaderElection will be enabled
-# if this is greater than 1
+# replicaCount -- Desired number of pods
 replicaCount: 1
 
 image:

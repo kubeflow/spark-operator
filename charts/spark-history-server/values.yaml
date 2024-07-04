@@ -1,0 +1,198 @@
+#
+# Copyright 2024 The Kubeflow authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+# Default values for spark-history-server.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+# -- String to partially override `spark-history-server.fullname` template (will maintain the release name)
+nameOverride: ""
+
+# -- String to fully override `spark-history-server.fullname` template
+fullnameOverride: ""
+
+# -- Desired number of pods
+replicaCount: 1
+
+image:
+  # -- Image registry
+  registry: docker.io
+  # -- Image repository
+  repository: kubeflow/spark-history-server
+  # -- Image pull policy
+  pullPolicy: IfNotPresent
+  # -- Image tag, if set, overrides the image tag whose default is the chart appVersion.
+  tag: ""
+  # -- Image pull secrets
+  pullSecrets: []
+  # - name: custom-secret
+
+sparkConf:
+  # The URL to the directory containing application event logs to load.
+  spark.history.fs.logDirectory: file:///tmp/spark-events
+
+  # How often to reload log data from storage
+  # spark.history.fs.update.interval: 10
+
+storage:
+  s3:
+    # -- Specifies whether to enable AWS S3 / Minio as event log storage.
+    enable: false
+    # -- Name of an existing secret containing the keys `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` to access artifact storage on AWS S3 / MINIO.
+    existingSecret: ""
+    # -- If S3 is enabled and no existing secret is specified, create the secret used to connect to S3 / Minio.
+    createSecret:
+      # -- AWS access key ID
+      accessKeyId: ""
+      # -- AWS secret access key
+      secretAccessKey: ""
+    # -- Name of an existing secret containing the key `ca-bundle.crt` used to store the CA certificate for TLS connections.
+    existingCaSecret: ""
+    # -- If S3 is enabled and no existing CA secret is specified, create the secret used to secure connection to S3 / Minio.
+    createCaSecret:
+      # -- Content of CA bundle
+      caBundle: ""
+
+  gcs:
+    # -- Specifies whether to enable Google Cloud Storage (GCS) as event log storage.
+    enable: false
+    # -- Name of an existing secret containing the key `keyfile.json` used to store credentials to access GCS.
+    existingSecret: ""
+    # -- If GCS is enabled and no existing secret is specified, create the secret used to connect to GCS.
+    createSecret:
+      # -- Content of key file
+      keyFile: ""
+
+  abs:
+    # -- Specifies whether to enable Azure Blob Storage (ABS) as event log storage.
+    enable: false
+    # -- Name of an existing secret containing the key `AZURE_STORAGE_CONNECTION_STRING` or `AZURE_STORAGE_ACCESS_KEY` to store credentials to access ABS.
+    existingSecret: ""
+    # -- If ABS is enabled as artifact store backend and no existing secret is specified, create the secret used to connect to Azure.
+    createSecret:
+      # Azure blob storage connection string
+      azureStorageConnectionString: ""
+      # Azure blob storage access key
+      azureStorageAccessKey: ""
+
+  oss:
+    # -- Specifies whether to enable Alibaba Cloud Object Storage Service (OSS) as event log storage.
+    enable: false
+    # -- Endpoint of OSS e.g. `oss-cn-beijing-internal.aliyuncs.com`.
+    endpoint: ""
+    # -- Name of an existing secret containing the key `OSS_ACCESS_KEY_ID` and `OSS_ACCESS_KEY_SECRET` to store credentials to access OSS.
+    existingSecret: ""
+    # -- If OSS is enabled and no existing secret is specified, create the secret used to store OSS access credentials.
+    createSecret:
+      # -- Alibaba Cloud access key ID
+      accessKeyId: ""
+      # -- Alibaba Cloud access key secret
+      accessKeySecret: ""
+
+serviceAccount:
+  # -- Specifies whether a service account should be created.
+  create: true
+  # -- Annotations to add to the service account.
+  annotations: {}
+  # -- The name of the service account to use.
+  # If not set and create is true, a name is generated using the fullname template.
+  name: ""
+
+# -- List of volumes that can be mounted by the containers.
+volumes: []
+# - name: spark-history-server-vol
+#   persistentVolumeClaim:
+#     claimName: spark-history-server-pvc
+#     readOnly: true
+
+# -- List of volume mounts that can be referenced by the containers.
+volumeMounts: []
+# - name: spark-history-server-vol
+#   mountPath: /mnt/history
+#   subPath: ""
+
+# -- List of environment variables to set in the container.
+env: []
+# - name: ENV_NAME
+#   value: ENV_VALUE
+
+# -- List of sources to populate environment variables in the container.
+envFrom: []
+# - configMapRef:
+#     name: configmap-name
+#     optional: false
+# - secretRef:
+#     name: secret-name
+#     optional: false
+
+# -- Annotations to add to the pod
+podAnnotations: {}
+
+# -- Pod security context
+podSecurityContext: {}
+# fsGroup: 2000
+
+# -- Container security context
+securityContext: {}
+# capabilities:
+#   drop:
+#   - ALL
+# readOnlyRootFilesystem: true
+# runAsNonRoot: true
+# runAsUser: 1000
+
+# -- Node selector
+nodeSelector: {}
+
+# -- Pod affinity
+affinity: {}
+
+# -- Pod tolerations
+tolerations: []
+
+# -- Pod resources
+resources: {}
+# limits:
+#   cpu: 100m
+#   memory: 128Mi
+# requests:
+#   cpu: 100m
+#   memory: 128Mi
+
+service:
+  # -- Service type
+  type: ClusterIP
+  # -- Service port
+  port: 18080
+
+ingress:
+  # -- Specifies whether an ingress resource should be created
+  enable: false
+  # -- Ingress class name
+  className: ""
+  # -- Annotations to add to the ingress
+  annotations: {}
+  # kubernetes.io/ingress.class: nginx
+  # kubernetes.io/tls-acme: "true"
+  hosts:
+  - host: chart-example.local
+    paths:
+    - path: /
+      pathType: ImplementationSpecific
+  tls: []
+  # - secretName: chart-example-tls
+  #   hosts:
+  #     - chart-example.local
