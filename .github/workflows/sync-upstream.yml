@@ -1,0 +1,27 @@
+name: Sync spark-operator with upstream
+
+on:
+  schedule:
+    - cron: "0 0 * * 6"
+  workflow_dispatch:
+
+jobs:
+  main:
+    name: Sync upstream
+    runs-on: [self-hosted, zendesk-stable]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          repository: zendesk/kubeflow-spark-operator
+          path: kubeflow-spark-operator
+
+      - name: Sync Upstream
+        run: |
+          cd kubeflow-spark-operator
+          git remote | grep upstream || git remote add upstream https://github.com/kubeflow/spark-operator
+          git fetch upstream
+          git checkout master
+          git merge upstream/master
+          git push origin master
