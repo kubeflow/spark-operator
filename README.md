@@ -31,7 +31,7 @@ The Kubernetes Operator for Apache Spark currently supports the following list o
 
 **Current API version:** *`v1beta2`*
 
-**If you are currently using the `v1beta1` version of the APIs in your manifests, please update them to use the `v1beta2` version by changing `apiVersion: "sparkoperator.k8s.io/<version>"` to `apiVersion: "sparkoperator.k8s.io/v1beta2"`. You will also need to delete the `previous` version of the CustomResourceDefinitions named `sparkapplications.sparkoperator.k8s.io` and `scheduledsparkapplications.sparkoperator.k8s.io`, and replace them with the `v1beta2` version either by installing the latest version of the operator or by running `kubectl create -f manifest/crds`.**
+**If you are currently using the `v1beta1` version of the APIs in your manifests, please update them to use the `v1beta2` version by changing `apiVersion: "sparkoperator.k8s.io/<version>"` to `apiVersion: "sparkoperator.k8s.io/v1beta2"`. You will also need to delete the `previous` version of the CustomResourceDefinitions named `sparkapplications.sparkoperator.k8s.io` and `scheduledsparkapplications.sparkoperator.k8s.io`, and replace them with the `v1beta2` version either by installing the latest version of the operator or by running `kubectl create -f config/crd/bases`.**
 
 ## Prerequisites
 
