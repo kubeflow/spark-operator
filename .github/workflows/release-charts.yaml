@@ -1,0 +1,58 @@
+name: Release Helm charts
+
+on:
+  release:
+    types: [published]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+
+      - name: Configure Git
+        run: |
+          git config user.name "$GITHUB_ACTOR"
+          git config user.email "$GITHUB_ACTOR@users.noreply.github.com"
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v4.2.0
+        with:
+          version: v3.14.4
+
+      - name: Package Helm charts
+        run: |
+          for chart in $(ls charts); do
+            helm package charts/$chart
+          done
+
+      - name: Save packaged charts to temp directory
+        run: |
+          mkdir -p /tmp/charts
+          cp *.tgz /tmp/charts
+
+      - name: Checkout to branch gh-pages
+        uses: actions/checkout@v4
+        with:
+          ref: gh-pages
+          fetch-depth: 0
+
+      - name: Copy packages charts
+        run: |
+          cp /tmp/charts/*.tgz .
+
+      - name: Update Helm charts repo index
+        env:
+          CHART_URL: https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}
+        run: |
+          helm repo index --merge index.yaml --url $CHART_URL .
+          git add index.yaml
+          git commit -s -m "Update index.yaml" || exit 0
+          git push
