@@ -1,10 +1,6 @@
 # spark-operator
 
-<<<<<<< HEAD
-![Version: 1.4.4](https://img.shields.io/badge/Version-1.4.4-informational?style=flat-square) ![AppVersion: v1beta2-1.6.1-3.5.0](https://img.shields.io/badge/AppVersion-v1beta2--1.6.1--3.5.0-informational?style=flat-square)
-=======
-![Version: 1.4.5](https://img.shields.io/badge/Version-1.4.5-informational?style=flat-square) ![AppVersion: v1beta2-1.6.2-3.5.0](https://img.shields.io/badge/AppVersion-v1beta2--1.6.2--3.5.0-informational?style=flat-square)
->>>>>>> bc9dcc2dfb6ced0611f7198b795670873b700c20
+![Version: 1.4.6](https://img.shields.io/badge/Version-1.4.6-informational?style=flat-square) ![AppVersion: v1beta2-1.6.2-3.5.0](https://img.shields.io/badge/AppVersion-v1beta2--1.6.2--3.5.0-informational?style=flat-square)
 
 A Helm chart for Spark on Kubernetes operator
 
