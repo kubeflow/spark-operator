@@ -138,10 +138,10 @@ podMonitor:
 podDisruptionBudget:
   # -- Specifies whether to enable pod disruption budget.
   # Ref: [Specifying a Disruption Budget for your Application](https://kubernetes.io/docs/tasks/run-application/configure-pdb/)
-  enable: true
+  enable: false
   # -- The number of pods that must be available.
   # Require `replicaCount` to be greater than 1
-  minAvailable: 3
+  minAvailable: 1
 
 # -- Topology spread constraints rely on node labels to identify the topology domain(s) that each Node is in.
 # Ref: [Pod Topology Spread Constraints](https://kubernetes.io/docs/concepts/workloads/pods/pod-topology-spread-constraints/)
