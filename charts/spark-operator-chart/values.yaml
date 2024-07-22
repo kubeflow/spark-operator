@@ -7,7 +7,7 @@ commonLabels: {}
 
 # replicaCount -- Desired number of pods, leaderElection will be enabled
 # if this is greater than 1
-replicaCount: 3
+replicaCount: 1
 
 image:
   # -- Image repository
