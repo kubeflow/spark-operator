@@ -47,7 +47,7 @@ string
 <td>
 <code>metadata</code><br/>
 <em>
-<a href="https://v1-18.docs.kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#objectmeta-v1-meta">
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.24/#objectmeta-v1-meta">
 Kubernetes meta/v1.ObjectMeta
 </a>
 </em>
@@ -197,7 +197,7 @@ string
 <td>
 <code>metadata</code><br/>
 <em>
-<a href="https://v1-18.docs.kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#objectmeta-v1-meta">
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.24/#objectmeta-v1-meta">
 Kubernetes meta/v1.ObjectMeta
 </a>
 </em>
@@ -401,7 +401,7 @@ The controller will add environment variable HADOOP_CONF_DIR to the path where t
 <td>
 <code>volumes</code><br/>
 <em>
-<a href="https://v1-18.docs.kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#volume-v1-core">
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.24/#volume-v1-core">
 []Kubernetes core/v1.Volume
 </a>
 </em>
@@ -768,7 +768,7 @@ string
 <td>
 <code>resources</code><br/>
 <em>
-<a href="https://v1-18.docs.kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#resourcelist-v1-core">
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.24/#resourcelist-v1-core">
 Kubernetes core/v1.ResourceList
 </a>
 </em>
@@ -1048,7 +1048,7 @@ This may be useful for sidecar proxies like Envoy injected by Istio which requir
 <td>
 <code>serviceType</code><br/>
 <em>
-<a href="https://v1-18.docs.kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#servicetype-v1-core">
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.24/#servicetype-v1-core">
 Kubernetes core/v1.ServiceType
 </a>
 </em>
@@ -1109,7 +1109,7 @@ map[string]string
 <td>
 <code>ingressTLS</code><br/>
 <em>
-<a href="https://v1-18.docs.kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#ingresstls-v1-networking">
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.24/#ingresstls-v1-networking">
 []Kubernetes networking/v1.IngressTLS
 </a>
 </em>
@@ -1197,7 +1197,7 @@ GC settings or other logging.</p>
 <td>
 <code>lifecycle</code><br/>
 <em>
-<a href="https://v1-18.docs.kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#lifecycle-v1-core">
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.24/#lifecycle-v1-core">
 Kubernetes core/v1.Lifecycle
 </a>
 </em>
@@ -1438,7 +1438,7 @@ GC settings or other logging.</p>
 <td>
 <code>lifecycle</code><br/>
 <em>
-<a href="https://v1-18.docs.kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#lifecycle-v1-core">
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.24/#lifecycle-v1-core">
 Kubernetes core/v1.Lifecycle
 </a>
 </em>
@@ -2066,7 +2066,7 @@ Defaults to 1.</p>
 <td>
 <code>lastRun</code><br/>
 <em>
-<a href="https://v1-18.docs.kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#time-v1-meta">
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.24/#time-v1-meta">
 Kubernetes meta/v1.Time
 </a>
 </em>
@@ -2079,7 +2079,7 @@ Kubernetes meta/v1.Time
 <td>
 <code>nextRun</code><br/>
 <em>
-<a href="https://v1-18.docs.kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#time-v1-meta">
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.24/#time-v1-meta">
 Kubernetes meta/v1.Time
 </a>
 </em>
@@ -2423,7 +2423,7 @@ The controller will add environment variable HADOOP_CONF_DIR to the path where t
 <td>
 <code>volumes</code><br/>
 <em>
-<a href="https://v1-18.docs.kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#volume-v1-core">
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.24/#volume-v1-core">
 []Kubernetes core/v1.Volume
 </a>
 </em>
@@ -2694,7 +2694,7 @@ string
 <td>
 <code>lastSubmissionAttemptTime</code><br/>
 <em>
-<a href="https://v1-18.docs.kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#time-v1-meta">
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.24/#time-v1-meta">
 Kubernetes meta/v1.Time
 </a>
 </em>
@@ -2707,7 +2707,7 @@ Kubernetes meta/v1.Time
 <td>
 <code>terminationTime</code><br/>
 <em>
-<a href="https://v1-18.docs.kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#time-v1-meta">
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.24/#time-v1-meta">
 Kubernetes meta/v1.Time
 </a>
 </em>
@@ -2929,7 +2929,7 @@ string
 <td>
 <code>env</code><br/>
 <em>
-<a href="https://v1-18.docs.kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#envvar-v1-core">
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.24/#envvar-v1-core">
 []Kubernetes core/v1.EnvVar
 </a>
 </em>
@@ -2956,7 +2956,7 @@ Deprecated. Consider using <code>env</code> instead.</p>
 <td>
 <code>envFrom</code><br/>
 <em>
-<a href="https://v1-18.docs.kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#envfromsource-v1-core">
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.24/#envfromsource-v1-core">
 []Kubernetes core/v1.EnvFromSource
 </a>
 </em>
@@ -3009,7 +3009,7 @@ map[string]string
 <td>
 <code>volumeMounts</code><br/>
 <em>
-<a href="https://v1-18.docs.kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#volumemount-v1-core">
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.24/#volumemount-v1-core">
 []Kubernetes core/v1.VolumeMount
 </a>
 </em>
@@ -3023,7 +3023,7 @@ map[string]string
 <td>
 <code>affinity</code><br/>
 <em>
-<a href="https://v1-18.docs.kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#affinity-v1-core">
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.24/#affinity-v1-core">
 Kubernetes core/v1.Affinity
 </a>
 </em>
@@ -3037,7 +3037,7 @@ Kubernetes core/v1.Affinity
 <td>
 <code>tolerations</code><br/>
 <em>
-<a href="https://v1-18.docs.kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#toleration-v1-core">
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.24/#toleration-v1-core">
 []Kubernetes core/v1.Toleration
 </a>
 </em>
@@ -3051,7 +3051,7 @@ Kubernetes core/v1.Affinity
 <td>
 <code>podSecurityContext</code><br/>
 <em>
-<a href="https://v1-18.docs.kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#podsecuritycontext-v1-core">
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.24/#podsecuritycontext-v1-core">
 Kubernetes core/v1.PodSecurityContext
 </a>
 </em>
@@ -3065,7 +3065,7 @@ Kubernetes core/v1.PodSecurityContext
 <td>
 <code>securityContext</code><br/>
 <em>
-<a href="https://v1-18.docs.kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#securitycontext-v1-core">
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.24/#securitycontext-v1-core">
 Kubernetes core/v1.SecurityContext
 </a>
 </em>
@@ -3091,7 +3091,7 @@ string
 <td>
 <code>sidecars</code><br/>
 <em>
-<a href="https://v1-18.docs.kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#container-v1-core">
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.24/#container-v1-core">
 []Kubernetes core/v1.Container
 </a>
 </em>
@@ -3105,7 +3105,7 @@ string
 <td>
 <code>initContainers</code><br/>
 <em>
-<a href="https://v1-18.docs.kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#container-v1-core">
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.24/#container-v1-core">
 []Kubernetes core/v1.Container
 </a>
 </em>
@@ -3144,7 +3144,7 @@ This field is mutually exclusive with nodeSelector at SparkApplication level (wh
 <td>
 <code>dnsConfig</code><br/>
 <em>
-<a href="https://v1-18.docs.kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#poddnsconfig-v1-core">
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.24/#poddnsconfig-v1-core">
 Kubernetes core/v1.PodDNSConfig
 </a>
 </em>
@@ -3182,7 +3182,7 @@ string
 <td>
 <code>hostAliases</code><br/>
 <em>
-<a href="https://v1-18.docs.kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#hostalias-v1-core">
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.24/#hostalias-v1-core">
 []Kubernetes core/v1.HostAlias
 </a>
 </em>
@@ -3253,7 +3253,7 @@ Defaults to spark-driver-ui-port.</p>
 <td>
 <code>serviceType</code><br/>
 <em>
-<a href="https://v1-18.docs.kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#servicetype-v1-core">
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.24/#servicetype-v1-core">
 Kubernetes core/v1.ServiceType
 </a>
 </em>
@@ -3303,7 +3303,7 @@ map[string]string
 <td>
 <code>ingressTLS</code><br/>
 <em>
-<a href="https://v1-18.docs.kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#ingresstls-v1-networking">
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.24/#ingresstls-v1-networking">
 []Kubernetes networking/v1.IngressTLS
 </a>
 </em>
@@ -3317,5 +3317,5 @@ map[string]string
 </table>
 <hr/>
 <p><em>
-Generated with <code>https://github.com/ahmetb/gen-crd-api-reference-docs.git</code> on git commit <code>ccf856504caaeac38151b57a950d3f8a7942b9db</code>.
+Generated with <code>gen-crd-api-reference-docs</code>.
 </em></p>
