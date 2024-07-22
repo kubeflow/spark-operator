@@ -7,7 +7,7 @@ commonLabels: {}
 
 # replicaCount -- Desired number of pods, leaderElection will be enabled
 # if this is greater than 1
-replicaCount: 1
+replicaCount: 3
 
 image:
   # -- Image repository
@@ -138,10 +138,22 @@ podMonitor:
 podDisruptionBudget:
   # -- Specifies whether to enable pod disruption budget.
   # Ref: [Specifying a Disruption Budget for your Application](https://kubernetes.io/docs/tasks/run-application/configure-pdb/)
-  enable: false
+  enable: true
   # -- The number of pods that must be available.
   # Require `replicaCount` to be greater than 1
-  minAvailable: 1
+  minAvailable: 3
+
+# -- Topology spread constraints rely on node labels to identify the topology domain(s) that each Node is in.
+# Ref: [Pod Topology Spread Constraints](https://kubernetes.io/docs/concepts/workloads/pods/pod-topology-spread-constraints/)
+# Specify topologySpreadConstraints without the labelSelector field, the labelSelector field will be set
+# to "spark-operator.selectorLabels" subtemplate in the deployment.yaml file.
+topologySpreadConstraints: []
+# - maxSkew: 1
+#   topologyKey: topology.kubernetes.io/zone
+#   whenUnsatisfiable: ScheduleAnyway
+# - maxSkew: 1
+#   topologyKey: kubernetes.io/hostname
+#   whenUnsatisfiable: DoNotSchedule
 
 # nodeSelector -- Node labels for pod assignment
 nodeSelector: {}

@@ -299,3 +299,54 @@ tests:
             - key: key2
               operator: Exists
               effect: NoSchedule
+
+  - it: Should not contain topologySpreadConstraints if topologySpreadConstraints is not set
+    set:
+      topologySpreadConstraints: []
+    asserts:
+      - notExists:
+          path: spec.template.spec.topologySpreadConstraints
+
+  - it: Should add topologySpreadConstraints if topologySpreadConstraints is set and replicaCount is greater than 1
+    set:
+      replicaCount: 2
+      topologySpreadConstraints:
+      - maxSkew: 1
+        topologyKey: topology.kubernetes.io/zone
+        whenUnsatisfiable: ScheduleAnyway
+      - maxSkew: 1
+        topologyKey: kubernetes.io/hostname
+        whenUnsatisfiable: DoNotSchedule
+    asserts:
+      - equal:
+          path: spec.template.spec.topologySpreadConstraints
+          value:
+          - labelSelector:
+              matchLabels:
+                app.kubernetes.io/instance: spark-operator
+                app.kubernetes.io/name: spark-operator
+            maxSkew: 1
+            topologyKey: topology.kubernetes.io/zone
+            whenUnsatisfiable: ScheduleAnyway
+          - labelSelector:
+              matchLabels:
+                app.kubernetes.io/instance: spark-operator
+                app.kubernetes.io/name: spark-operator
+            maxSkew: 1
+            topologyKey: kubernetes.io/hostname
+            whenUnsatisfiable: DoNotSchedule
+
+  - it: Should fail if topologySpreadConstraints is set and replicaCount is not greater than 1
+    set:
+      replicaCount: 1
+      topologySpreadConstraints:
+      - maxSkew: 1
+        topologyKey: topology.kubernetes.io/zone
+        whenUnsatisfiable: ScheduleAnyway
+      - maxSkew: 1
+        topologyKey: kubernetes.io/hostname
+        whenUnsatisfiable: DoNotSchedule
+    asserts:
+      - failedTemplate:
+          errorMessage: "replicaCount must be greater than 1 to enable topologySpreadConstraints."
+  
