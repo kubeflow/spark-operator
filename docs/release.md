@@ -52,14 +52,7 @@ If you want to push changes to the `release-X.Y` release branch, you have to che
 
 ### Create GitHub tag
 
-1. After the above PR is merged, rebase your release branch:
-
-    ```bash
-    git fetch upstream
-    git rebase upstream/release-X.Y
-    ```
-
-2. Modify `VERSION` file in the root directory of the project:
+1. Modify `VERSION` file in the root directory of the project:
 
     - For the RC tag as follows:
 
@@ -73,11 +66,19 @@ If you want to push changes to the `release-X.Y` release branch, you have to che
     vX.Y.Z
     ```
 
-3. Commit the changes:
+2. Modify `version` and `appVersion` in `Chart.yaml`:
 
     ```bash
     VERSION=$(cat VERSION)
+    sed -i "s/^version.*/version: ${VERSION}/" charts/spark-operator-chart/Chart.yaml
+    sed -i "s/^appVersion.*/appVersion: ${VERSION}/" charts/spark-operator-chart/Chart.yaml
+    ```
+
+3. Commit the changes:
+
+    ```bash
     git add VERSION
+    git add charts/spark-operator-chart/Chart.yaml
     git commit -s -m "Release $VERSION"
     git push
     ```
