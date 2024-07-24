@@ -4,6 +4,7 @@ Below are the adopters of project Spark Operator. If you are using Spark Operato
 
 | Organization | Contact (GitHub User Name) | Environment | Description of Use |
 | ------------- | ------------- | ------------- | ------------- |
+| [Alibaba Cloud](https://www.alibabacloud.com) | [@ChenYi015](https://github.com/ChenYi015) | Production | AI & Data Infrastructure |
 | [Beeline](https://beeline.ru) | @spestua | Evaluation | ML & Data Infrastructure |
 | Bringg | @EladDolev | Production | ML & Analytics Data Platform |
 | [Caicloud](https://intl.caicloud.io/) | @gaocegege | Production | Cloud-Native AI Platform |
