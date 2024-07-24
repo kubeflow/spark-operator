@@ -69,7 +69,8 @@ If you want to push changes to the `release-X.Y` release branch, you have to che
 2. Modify `version` and `appVersion` in `Chart.yaml`:
 
     ```bash
-    VERSION=$(cat VERSION)
+    # Get version and remove the leading 'v'
+    VERSION=$(cat VERSION | sed "s/^v//")
     sed -i "s/^version.*/version: ${VERSION}/" charts/spark-operator-chart/Chart.yaml
     sed -i "s/^appVersion.*/appVersion: ${VERSION}/" charts/spark-operator-chart/Chart.yaml
     ```
