@@ -18,6 +18,11 @@ jobs:
         with:
           fetch-depth: "0"
 
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
       - name: The API documentation hasn't changed
         run: |
           make build-api-docs
@@ -42,7 +47,7 @@ jobs:
 
       - name: build sparkctl
         run: |
-          make all
+          make build-sparkctl
 
   build-spark-operator:
     runs-on: ubuntu-latest
@@ -57,18 +62,17 @@ jobs:
         with:
           go-version-file: "go.mod"
 
-      - name: Run gofmt check
-        run: make fmt-check
+      - name: Run go fmt check
+        run: make go-fmt
 
-      - name: Run static analysis
-        run: make static-analysis
+      - name: Run go vet
+        run: make go-vet
 
       - name: Run unit tests
         run: make unit-test
 
       - name: Build Spark-Operator Docker Image
-        run: |
-          docker build -t docker.io/kubeflow/spark-operator:latest .
+        run: make docker-build IMAGE_TAG=latest
 
       - name: Check changes in resources used in docker file
         run: |
