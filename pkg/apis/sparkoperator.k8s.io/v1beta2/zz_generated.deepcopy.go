@@ -881,6 +881,16 @@ func (in *SparkPodSpec) DeepCopyInto(out *SparkPodSpec) {
 		*out = new(string)
 		**out = **in
 	}
+	if in.MemoryLimit != nil {
+		in, out := &in.MemoryLimit, &out.MemoryLimit
+		*out = new(string)
+		**out = **in
+	}
+	if in.MemoryRequestOverride != nil {
+		in, out := &in.MemoryRequestOverride, &out.MemoryRequestOverride
+		*out = new(string)
+		**out = **in
+	}
 	if in.GPU != nil {
 		in, out := &in.GPU, &out.GPU
 		*out = new(GPUSpec)

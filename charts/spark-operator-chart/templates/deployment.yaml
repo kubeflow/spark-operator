@@ -74,6 +74,11 @@ spec:
         args:
         - -v={{ .Values.logLevel }}
         - -logtostderr
+        - -max-queue-time-without-update-in-minutes=30
+        - -queue-cleaner-interval-in-minutes=10
+        - -enable-profiling=false
+        - -api-qps={{ .Values.k8sBurstQps }}
+        - -api-burst={{ .Values.k8sQps }}
         {{- if eq (len $jobNamespaces) 1 }}
         - -namespace={{ index $jobNamespaces 0 }}
         {{- end }}
