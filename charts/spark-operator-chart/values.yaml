@@ -143,6 +143,18 @@ podDisruptionBudget:
   # Require `replicaCount` to be greater than 1
   minAvailable: 1
 
+# -- Topology spread constraints rely on node labels to identify the topology domain(s) that each Node is in.
+# Ref: [Pod Topology Spread Constraints](https://kubernetes.io/docs/concepts/workloads/pods/pod-topology-spread-constraints/)
+# Specify topologySpreadConstraints without the labelSelector field, the labelSelector field will be set
+# to "spark-operator.selectorLabels" subtemplate in the deployment.yaml file.
+topologySpreadConstraints: []
+# - maxSkew: 1
+#   topologyKey: topology.kubernetes.io/zone
+#   whenUnsatisfiable: ScheduleAnyway
+# - maxSkew: 1
+#   topologyKey: kubernetes.io/hostname
+#   whenUnsatisfiable: DoNotSchedule
+
 # nodeSelector -- Node labels for pod assignment
 nodeSelector: {}
 

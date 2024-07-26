@@ -138,3 +138,13 @@ spec:
       tolerations:
         {{- toYaml . | nindent 8 }}
       {{- end }}
+      {{- if and .Values.topologySpreadConstraints (gt (int .Values.replicaCount) 1) }}
+      {{- $selectorLabels := include "spark-operator.selectorLabels" . | fromYaml -}}
+      {{- $labelSelectorDict := dict "labelSelector" ( dict "matchLabels" $selectorLabels ) }}
+      topologySpreadConstraints:
+      {{- range .Values.topologySpreadConstraints }}
+      - {{ mergeOverwrite . $labelSelectorDict | toYaml | nindent 8 | trim }}
+      {{- end }}
+      {{ else if and .Values.topologySpreadConstraints (eq (int .Values.replicaCount) 1) }}
+      {{ fail "replicaCount must be greater than 1 to enable topologySpreadConstraints."}}
+      {{- end }}
