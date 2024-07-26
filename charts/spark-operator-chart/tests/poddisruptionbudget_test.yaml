@@ -17,21 +17,22 @@ tests:
 
   - it: Should render spark operator podDisruptionBudget if podDisruptionBudget.enable is true
     set:
+      replicaCount: 2
       podDisruptionBudget:
         enable: true
-    documentIndex: 0
     asserts:
       - containsDocument:
           apiVersion: policy/v1
           kind: PodDisruptionBudget
-          name: spark-operator-podDisruptionBudget
+          name: spark-operator-pdb
 
   - it: Should set minAvailable from values
     set:
+      replicaCount: 2
       podDisruptionBudget:
         enable: true
         minAvailable: 3
     asserts:
       - equal:
-          path: spec.template.minAvailable
+          path: spec.minAvailable
           value: 3

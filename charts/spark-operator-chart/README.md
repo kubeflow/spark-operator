@@ -1,6 +1,6 @@
 # spark-operator
 
-![Version: 1.4.5](https://img.shields.io/badge/Version-1.4.5-informational?style=flat-square) ![AppVersion: v1beta2-1.6.2-3.5.0](https://img.shields.io/badge/AppVersion-v1beta2--1.6.2--3.5.0-informational?style=flat-square)
+![Version: 1.4.6](https://img.shields.io/badge/Version-1.4.6-informational?style=flat-square) ![AppVersion: v1beta2-1.6.2-3.5.0](https://img.shields.io/badge/AppVersion-v1beta2--1.6.2--3.5.0-informational?style=flat-square)
 
 A Helm chart for Spark on Kubernetes operator
 
@@ -132,6 +132,7 @@ See [helm uninstall](https://helm.sh/docs/helm/helm_uninstall) for command docum
 | sidecars | list | `[]` | Sidecar containers |
 | sparkJobNamespaces | list | `[""]` | List of namespaces where to run spark jobs |
 | tolerations | list | `[]` | List of node taints to tolerate |
+| topologySpreadConstraints | list | `[]` | Topology spread constraints rely on node labels to identify the topology domain(s) that each Node is in. Ref: [Pod Topology Spread Constraints](https://kubernetes.io/docs/concepts/workloads/pods/pod-topology-spread-constraints/) Specify topologySpreadConstraints without the labelSelector field, the labelSelector field will be set to "spark-operator.selectorLabels" subtemplate in the deployment.yaml file. |
 | uiService.enable | bool | `true` | Enable UI service creation for Spark application |
 | volumeMounts | list | `[]` |  |
 | volumes | list | `[]` |  |
