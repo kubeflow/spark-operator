@@ -1,0 +1,127 @@
+{{/*
+
+Copyright 2024 The Kubeflow authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    https://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+
+*/}}
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "spark-history-server.fullname" . }}
+  labels:
+    {{- include "spark-history-server.labels" . | nindent 4 }}
+spec:
+  {{- with .Values.replicaCount }}
+  replicas: {{ . }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "spark-history-server.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "spark-history-server.selectorLabels" . | nindent 8 }}
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      containers:
+      - name: {{ .Chart.Name }}
+        image: {{ include "spark-history-server.imageName" . }}
+        {{- with .Values.image.pullPolicy }}
+        imagePullPolicy: {{ . }}
+        {{- end }}
+        args:
+        - history-server
+        ports:
+        - name: http
+          containerPort: {{ .Values.service.port }}
+          protocol: TCP
+        env:
+        - name: HADOOP_CONF_DIR
+          value: /etc/hadoop
+        - name: SPARK_NO_DAEMONIZE
+          value: "true"
+        {{- with .Values.env }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+        envFrom:
+        - secretRef:
+            name: {{ include "spark-history-server.secretName" . }}
+        {{- if .Values.storage.s3.enable | and .Values.storage.s3.existingSecret | and .Values.storage.s3.existingCaSecret }}
+        - secretRef:
+            name: {{ .Values.storage.s3.existingSecret }}
+        - secretRef:
+            name: {{ .Values.storage.s3.existingCaSecret }}
+        {{- else if .Values.storage.abs.enable | and .Values.storage.abs.existingSecret }}
+        - secretRef:
+            name: {{ .Values.storage.abs.existingSecret }}
+        {{- else if .Values.storage.oss.enable | and .Values.storage.oss.existingSecret }}
+        - secretRef:
+            name: {{ .Values.storage.oss.existingSecret }}
+        {{- end }}
+        {{- with .Values.envFrom }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+        volumeMounts:
+        - name: spark-history-server-conf
+          mountPath: /opt/spark/conf
+        {{- if .Values.storage.gcs.enable | and .Values.storage.gcs.existingSecret }}
+        - name: gcs-keyfile
+          mountPath: /etc/gcs/keyfile.json
+        {{- end }}
+        {{- with .Values.volumeMounts }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+        {{- with .Values.securityContext }}
+        securityContext:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+        {{- with .Values.resources }}
+        resources:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+      {{- with .Values.image.pullSecrets }}
+      imagePullSecrets:
+      {{- toYaml . | nindent 6 }}
+      {{- end }}
+      volumes:
+      - name: spark-history-server-conf
+        configMap:
+          name: {{ include "spark-history-server.configMapName" . }}
+      {{- if .Values.storage.gcs.enable | and .Values.storage.gcs.existingSecret }}
+      - name: gcs-keyfile
+        secretRef:
+          name: {{ .Values.storage.gcs.existingSecret }}
+      {{- end }}
+      {{- with .Values.volumes }}
+      {{- toYaml . | nindent 6 }}
+      {{- end }}
+      serviceAccountName: {{ include "spark-history-server.serviceAccountName" . }}
+      {{- with .Values.securityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
