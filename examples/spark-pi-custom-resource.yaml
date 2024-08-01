@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-apiVersion: "sparkoperator.k8s.io/v1beta2"
+apiVersion: sparkoperator.k8s.io/v1beta2
 kind: SparkApplication
 metadata:
   name: spark-pi-custom-resource
@@ -21,38 +21,34 @@ metadata:
 spec:
   type: Scala
   mode: cluster
-  image: "spark:3.5.0"
-  imagePullPolicy: Always
+  image: spark:3.5.0
+  imagePullPolicy: IfNotPresent
   mainClass: org.apache.spark.examples.SparkPi
-  mainApplicationFile: "local:///opt/spark/examples/jars/spark-examples_2.12-3.5.0.jar"
-  sparkVersion: "3.5.0"
+  mainApplicationFile: local:///opt/spark/examples/jars/spark-examples_2.12-3.5.0.jar
+  sparkVersion: 3.5.0
   restartPolicy:
     type: Never
   volumes:
-    - name: "test-volume"
-      hostPath:
-        path: "/tmp"
-        type: Directory
+  - name: test-volume
+    hostPath:
+      path: /tmp
+      type: Directory
   driver:
-    cores: 1
-    coreLimit: "1200m"
-    memory: "512m"
     labels:
       version: 3.5.0
+    cores: 1
+    coreLimit: 1200m
+    memory: 512m
     serviceAccount: spark-operator-spark
     volumeMounts:
-      - name: "test-volume"
-        mountPath: "/tmp"
+    - name: test-volume
+      mountPath: /tmp
   executor:
-    cores: 1
-    instances: 1
-    memory: "512m"
     labels:
       version: 3.5.0
+    instances: 1
+    cores: 1
+    memory: 512m
     volumeMounts:
-      - name: "test-volume"
-        mountPath: "/tmp"
-  batchSchedulerOptions:
-    resources:
-        cpu: "2"
-        memory: "4096m"
+    - name: test-volume
+      mountPath: /tmp
