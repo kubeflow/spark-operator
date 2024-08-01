@@ -1,0 +1,10 @@
+coverage:
+  status:
+    project:
+      default:
+        threshold: 0.1%
+    patch:
+      default:
+        target: 60%
+ignore:
+  - "**/*_generated.*"

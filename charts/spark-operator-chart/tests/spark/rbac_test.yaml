@@ -1,0 +1,123 @@
+#
+# Copyright 2024 The Kubeflow authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+suite: Test spark rbac
+
+templates:
+  - spark/rbac.yaml
+
+release:
+  name: spark-operator
+  namespace: spark-operator
+
+tests:
+  - it: Should not create spark RBAC resources if `spark.rbac.create` is false
+    set:
+      spark:
+        rbac:
+          create: false
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: Should create spark role by default
+    documentIndex: 0
+    asserts:
+      - containsDocument:
+          apiVersion: rbac.authorization.k8s.io/v1
+          kind: Role
+          name: spark-operator-spark
+
+  - it: Should create spark role binding by default
+    set:
+      rbac:
+        spark:
+          create: true
+    documentIndex: 1
+    asserts:
+      - containsDocument:
+          apiVersion: rbac.authorization.k8s.io/v1
+          kind: RoleBinding
+          name: spark-operator-spark
+
+  - it: Should create a single spark role with namespace "" by default
+    documentIndex: 0
+    asserts:
+      - containsDocument:
+          apiVersion: rbac.authorization.k8s.io/v1
+          kind: Role
+          name: spark-operator-spark
+
+  - it: Should create a single spark role binding with namespace "" by default
+    documentIndex: 1
+    asserts:
+      - containsDocument:
+          apiVersion: rbac.authorization.k8s.io/v1
+          kind: RoleBinding
+          name: spark-operator-spark
+          namespace: ""
+
+  - it: Should create multiple spark roles if `spark.jobNamespaces` is set with multiple values
+    set:
+      spark.jobNamespaces:
+        - ns1
+        - ns2
+    documentIndex: 0
+    asserts:
+      - containsDocument:
+          apiVersion: rbac.authorization.k8s.io/v1
+          kind: Role
+          name: spark-operator-spark
+          namespace: ns1
+
+  - it: Should create multiple spark role bindings if `spark.jobNamespaces` is set with multiple values
+    set:
+      spark.jobNamespaces:
+        - ns1
+        - ns2
+    documentIndex: 1
+    asserts:
+      - containsDocument:
+          apiVersion: rbac.authorization.k8s.io/v1
+          kind: RoleBinding
+          name: spark-operator-spark
+          namespace: ns1
+
+  - it: Should create multiple spark roles if `spark.jobNamespaces` is set with multiple values
+    set:
+      spark.jobNamespaces:
+        - ns1
+        - ns2
+    documentIndex: 2
+    asserts:
+      - containsDocument:
+          apiVersion: rbac.authorization.k8s.io/v1
+          kind: Role
+          name: spark-operator-spark
+          namespace: ns2
+
+  - it: Should create multiple spark role bindings if `spark.jobNamespaces` is set with multiple values
+    set:
+      spark.jobNamespaces:
+        - ns1
+        - ns2
+    documentIndex: 3
+    asserts:
+      - containsDocument:
+          apiVersion: rbac.authorization.k8s.io/v1
+          kind: RoleBinding
+          name: spark-operator-spark
+          namespace: ns2

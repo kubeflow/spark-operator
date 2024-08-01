@@ -36,8 +36,7 @@ spec:
     name: v1beta2
     schema:
       openAPIV3Schema:
-        description: SparkApplication represents a Spark application running on and
-          using Kubernetes as a cluster manager.
+        description: SparkApplication is the Schema for the sparkapplications API
         properties:
           apiVersion:
             description: |-
@@ -58,7 +57,7 @@ spec:
             type: object
           spec:
             description: |-
-              SparkApplicationSpec describes the specification of a Spark application using Kubernetes as a cluster manager.
+              SparkApplicationSpec defines the desired state of SparkApplication
               It carries every pieces of information a spark-submit command takes and recognizes.
             properties:
               arguments:
@@ -4827,7 +4826,7 @@ spec:
                     serviceLabels:
                       additionalProperties:
                         type: string
-                      description: ServiceLables is a map of key,value pairs of labels
+                      description: ServiceLabels is a map of key,value pairs of labels
                         that might be added to the service object.
                       type: object
                     servicePort:
@@ -9734,7 +9733,7 @@ spec:
                   serviceLabels:
                     additionalProperties:
                       type: string
-                    description: ServiceLables is a map of key,value pairs of labels
+                    description: ServiceLabels is a map of key,value pairs of labels
                       that might be added to the service object.
                     type: object
                   servicePort:
@@ -11466,8 +11465,7 @@ spec:
             - type
             type: object
           status:
-            description: SparkApplicationStatus describes the current status of a
-              Spark application.
+            description: SparkApplicationStatus defines the observed state of SparkApplication
             properties:
               applicationState:
                 description: AppState tells the overall application state.
@@ -11487,6 +11485,8 @@ spec:
                   podName:
                     type: string
                   webUIAddress:
+                    description: UI Details for the UI created via ClusterIP service
+                      accessible from within the cluster.
                     type: string
                   webUIIngressAddress:
                     type: string
@@ -11494,8 +11494,6 @@ spec:
                     description: Ingress Details if an ingress for the UI was created.
                     type: string
                   webUIPort:
-                    description: UI Details for the UI created via ClusterIP service
-                      accessible from within the cluster.
                     format: int32
                     type: integer
                   webUIServiceName:
@@ -11543,9 +11541,6 @@ spec:
             required:
             - driverInfo
             type: object
-        required:
-        - metadata
-        - spec
         type: object
     served: true
     storage: true

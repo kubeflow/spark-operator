@@ -1,0 +1,119 @@
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: MutatingWebhookConfiguration
+metadata:
+  name: mutating-webhook-configuration
+webhooks:
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
+      path: /mutate--v1-pod
+  failurePolicy: Fail
+  matchPolicy: Exact
+  name: mutate-pod.sparkoperator.k8s.io
+  reinvocationPolicy: Never
+  rules:
+  - apiGroups:
+    - ""
+    apiVersions:
+    - v1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - pods
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
+      path: /mutate-sparkoperator-k8s-io-v1beta2-sparkapplication
+  failurePolicy: Fail
+  matchPolicy: Exact
+  name: mutate-sparkapplication.sparkoperator.k8s.io
+  reinvocationPolicy: Never
+  rules:
+  - apiGroups:
+    - sparkoperator.k8s.io
+    apiVersions:
+    - v1beta2
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - sparkapplications
+  sideEffects: None
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  name: validating-webhook-configuration
+webhooks:
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
+      path: /validate-sparkoperator-k8s-io-v1beta2-sparkapplication
+  failurePolicy: Fail
+  matchPolicy: Exact
+  name: mutate-scheduledsparkapplication.sparkoperator.k8s.io
+  rules:
+  - apiGroups:
+    - sparkoperator.k8s.io
+    apiVersions:
+    - v1beta2
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - scheduledsparkapplications
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
+      path: /validate-sparkoperator-k8s-io-v1beta2-scheduledsparkapplication
+  failurePolicy: Fail
+  matchPolicy: Exact
+  name: validate-scheduledsparkapplication.sparkoperator.k8s.io
+  rules:
+  - apiGroups:
+    - sparkoperator.k8s.io
+    apiVersions:
+    - v1beta2
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - scheduledsparkapplications
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
+      path: /validate-sparkoperator-k8s-io-v1beta2-sparkapplication
+  failurePolicy: Fail
+  matchPolicy: Exact
+  name: validate-sparkapplication.sparkoperator.k8s.io
+  rules:
+  - apiGroups:
+    - sparkoperator.k8s.io
+    apiVersions:
+    - v1beta2
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - sparkapplications
+  sideEffects: None

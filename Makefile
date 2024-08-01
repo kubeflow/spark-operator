@@ -12,10 +12,18 @@ endif
 SHELL = /usr/bin/env bash -o pipefail
 .SHELLFLAGS = -ec
 
+# Version information.
+VERSION=$(shell cat VERSION | sed "s/^v//")
+BUILD_DATE = $(shell date -u +"%Y-%m-%dT%H:%M:%S%:z")
+GIT_COMMIT = $(shell git rev-parse HEAD)
+GIT_TAG = $(shell if [ -z "`git status --porcelain`" ]; then git describe --exact-match --tags HEAD 2>/dev/null; fi)
+GIT_TREE_STATE = $(shell if [ -z "`git status --porcelain`" ]; then echo "clean" ; else echo "dirty"; fi)
+GIT_SHA = $(shell git rev-parse --short HEAD || echo "HEAD")
+GIT_VERSION = ${VERSION}-${GIT_SHA}
+
 REPO=github.com/kubeflow/spark-operator
 SPARK_OPERATOR_GOPATH=/go/src/github.com/kubeflow/spark-operator
 SPARK_OPERATOR_CHART_PATH=charts/spark-operator-chart
-OPERATOR_VERSION ?= $$(grep appVersion $(SPARK_OPERATOR_CHART_PATH)/Chart.yaml | awk '{print $$2}')
 DEP_VERSION:=`grep DEP_VERSION= Dockerfile | awk -F\" '{print $$2}'`
 BUILDER=`grep "FROM golang:" Dockerfile | awk '{print $$2}'`
 UNAME:=`uname | tr '[:upper:]' '[:lower:]'`
@@ -27,9 +35,18 @@ UNAME:=`uname | tr '[:upper:]' '[:lower:]'`
 CONTAINER_TOOL ?= docker
 
 # Image URL to use all building/pushing image targets
-IMAGE_REPOSITORY ?= docker.io/kubeflow/spark-operator
-IMAGE_TAG ?= $(OPERATOR_VERSION)
-OPERATOR_IMAGE ?= $(IMAGE_REPOSITORY):$(IMAGE_TAG)
+IMAGE_REGISTRY ?= docker.io
+IMAGE_REPOSITORY ?= kubeflow/spark-operator
+IMAGE_TAG ?= $(VERSION)
+IMAGE ?= $(IMAGE_REGISTRY)/$(IMAGE_REPOSITORY):$(IMAGE_TAG)
+
+# Kind cluster
+KIND_CLUSTER_NAME ?= spark-operator
+KIND_CONFIG_FILE ?= charts/spark-operator-chart/ci/kind-config.yaml
+KIND_KUBE_CONFIG ?= $(HOME)/.kube/config
+
+# ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
+ENVTEST_K8S_VERSION = 1.29.3
 
 ##@ General
 
@@ -46,7 +63,11 @@ OPERATOR_IMAGE ?= $(IMAGE_REPOSITORY):$(IMAGE_TAG)
 
 .PHONY: help
 help: ## Display this help.
-	@awk 'BEGIN {FS = ":.*##"; printf "\nUsage:\n  make \033[36m<target>\033[0m\n"} /^[a-zA-Z_0-9-]+:.*?##/ { printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2 } /^##@/ { printf "\n\033[1m%s\033[0m\n", substr($$0, 5) } ' $(MAKEFILE_LIST)
+	@awk 'BEGIN {FS = ":.*##"; printf "\nUsage:\n  make \033[36m<target>\033[0m\n"} /^[a-zA-Z_0-9-]+:.*?##/ { printf "  \033[36m%-30s\033[0m %s\n", $$1, $$2 } /^##@/ { printf "\n\033[1m%s\033[0m\n", substr($$0, 5) } ' $(MAKEFILE_LIST)
+
+.PHONY: version
+version: ## Print version information.
+	@echo "Version: ${VERSION}"
 
 ##@ Development
 
@@ -94,20 +115,28 @@ lint-fix: golangci-lint ## Run golangci-lint linter and perform fixes.
 	$(GOLANGCI_LINT) run --fix
 
 .PHONY: unit-test
-unit-test: clean ## Run go unit tests.
-	@echo "running unit tests"
+unit-test: envtest ## Run unit tests.
+	@echo "Running unit tests..."
+	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)"
 	go test $(shell go list ./... | grep -v /e2e) -coverprofile cover.out
 
 .PHONY: e2e-test
-e2e-test: clean ## Run go integration tests.
-	@echo "running integration tests"
-	go test -v ./test/e2e/ --kubeconfig "$(HOME)/.kube/config" --operator-image=docker.io/spark-operator/spark-operator:local
+e2e-test: envtest ## Run the e2e tests against a Kind k8s instance that is spun up.
+	@echo "Running e2e tests..."
+	go test ./test/e2e/ -v -ginkgo.v -timeout 30m
 
 ##@ Build
 
+override LDFLAGS += \
+  -X ${REPO}.version=v${VERSION} \
+  -X ${REPO}.buildDate=${BUILD_DATE} \
+  -X ${REPO}.gitCommit=${GIT_COMMIT} \
+  -X ${REPO}.gitTreeState=${GIT_TREE_STATE} \
+  -extldflags "-static"
+
 .PHONY: build-operator
-build-operator: ## Build spark-operator binary.
-	go build -o bin/spark-operator main.go
+build-operator: ## Build Spark operator
+	go build -o bin/spark-operator -ldflags '${LDFLAGS}' cmd/main.go
 
 .PHONY: build-sparkctl
 build-sparkctl: ## Build sparkctl binary.
@@ -117,7 +146,7 @@ build-sparkctl: ## Build sparkctl binary.
 	-v $$(pwd):$(SPARK_OPERATOR_GOPATH) $(BUILDER) sh -c \
 	"apk add --no-cache bash git && \
 	cd sparkctl && \
-	./build.sh" || true
+	bash build.sh" || true
 
 .PHONY: install-sparkctl
 install-sparkctl: | sparkctl/sparkctl-darwin-amd64 sparkctl/sparkctl-linux-amd64 ## Install sparkctl binary.
@@ -141,7 +170,7 @@ clean-sparkctl: ## Clean sparkctl binary.
 build-api-docs: gen-crd-api-reference-docs ## Build api documentaion.
 	$(GEN_CRD_API_REFERENCE_DOCS) \
 	-config hack/api-docs/config.json \
-	-api-dir github.com/kubeflow/spark-operator/pkg/apis/sparkoperator.k8s.io/v1beta2 \
+	-api-dir github.com/kubeflow/spark-operator/api/v1beta2 \
 	-template-dir hack/api-docs/template \
 	-out-file docs/api-docs.md
 
@@ -150,11 +179,11 @@ build-api-docs: gen-crd-api-reference-docs ## Build api documentaion.
 # More info: https://docs.docker.com/develop/develop-images/build_enhancements/
 .PHONY: docker-build
 docker-build: ## Build docker image with the operator.
-	$(CONTAINER_TOOL) build -t ${IMAGE_REPOSITORY}:${IMAGE_TAG} .
+	$(CONTAINER_TOOL) build -t ${IMAGE} .
 
 .PHONY: docker-push
 docker-push: ## Push docker image with the operator.
-	$(CONTAINER_TOOL) push ${IMAGE_REPOSITORY}:${IMAGE_TAG}
+	$(CONTAINER_TOOL) push ${IMAGE}
 
 # PLATFORMS defines the target platforms for the operator image be built to provide support to multiple
 # architectures. (i.e. make docker-buildx IMG=myregistry/mypoperator:0.0.1). To use this option you need to:
@@ -164,14 +193,11 @@ docker-push: ## Push docker image with the operator.
 # To adequately provide solutions that are compatible with multiple platforms, you should consider using this option.
 PLATFORMS ?= linux/amd64,linux/arm64
 .PHONY: docker-buildx
-docker-buildx: ## Build and push docker image for the operator for cross-platform support.
-	# copy existing Dockerfile and insert --platform=${BUILDPLATFORM} into Dockerfile.cross, and preserve the original Dockerfile
-	sed -e '1 s/\(^FROM\)/FROM --platform=\$$\{BUILDPLATFORM\}/; t' -e ' 1,// s//FROM --platform=\$$\{BUILDPLATFORM\}/' Dockerfile > Dockerfile.cross
+docker-buildx: ## Build and push docker image for the operator for cross-platform support
 	- $(CONTAINER_TOOL) buildx create --name spark-operator-builder
 	$(CONTAINER_TOOL) buildx use spark-operator-builder
-	- $(CONTAINER_TOOL) buildx build --push --platform=$(PLATFORMS) --tag ${IMAGE_REPOSITORY}:${IMAGE_TAG} -f Dockerfile.cross .
+	- $(CONTAINER_TOOL) buildx build --push --platform=$(PLATFORMS) --tag ${IMAGE} -f Dockerfile .
 	- $(CONTAINER_TOOL) buildx rm spark-operator-builder
-	rm Dockerfile.cross
 
 ##@ Helm
 
@@ -185,11 +211,11 @@ helm-unittest: helm-unittest-plugin ## Run Helm chart unittests.
 
 .PHONY: helm-lint
 helm-lint: ## Run Helm chart lint test.
-	docker run --rm --workdir /workspace --volume "$$(pwd):/workspace" quay.io/helmpack/chart-testing:latest ct lint --target-branch master
+	docker run --rm --workdir /workspace --volume "$$(pwd):/workspace" quay.io/helmpack/chart-testing:latest ct lint --target-branch master --validate-maintainers=false
 
 .PHONY: helm-docs
-helm-docs: ## Generates markdown documentation for helm charts from requirements and values files.
-	docker run --rm --volume "$$(pwd):/helm-docs" -u "$(id -u)" jnorwood/helm-docs:latest
+helm-docs: helm-docs-plugin ## Generates markdown documentation for helm charts from requirements and values files.
+	$(HELM_DOCS) --sort-values-order=file
 
 ##@ Deployment
 
@@ -197,12 +223,27 @@ ifndef ignore-not-found
   ignore-not-found = false
 endif
 
-.PHONY: install-crds
-install-crds: manifests kustomize ## Install CRDs into the K8s cluster specified in ~/.kube/config.
-	$(KUSTOMIZE) build config/crd | $(KUBECTL) create -f -
+.PHONY: kind-create-cluster
+kind-create-cluster: kind ## Create a kind cluster for integration tests.
+	if ! $(KIND) get clusters 2>/dev/null | grep -q "^$(KIND_CLUSTER_NAME)$$"; then \
+		kind create cluster --name $(KIND_CLUSTER_NAME) --config $(KIND_CONFIG_FILE) --kubeconfig $(KIND_KUBE_CONFIG); \
+	fi
 
-.PHONY: uninstall-crds
-uninstall-crds: manifests kustomize ## Uninstall CRDs from the K8s cluster specified in ~/.kube/config. Call with ignore-not-found=true to ignore resource not found errors during deletion.
+.PHONY: kind-load-image
+kind-load-image: kind-create-cluster docker-build ## Load the image into the kind cluster.
+	kind load docker-image --name $(KIND_CLUSTER_NAME) $(IMAGE)
+
+.PHONY: kind-delete-custer
+kind-delete-custer: kind ## Delete the created kind cluster.
+	$(KIND) delete cluster --name $(KIND_CLUSTER_NAME) && \
+	rm -f $(KIND_KUBE_CONFIG)
+
+.PHONY: install
+install-crd: manifests kustomize ## Install CRDs into the K8s cluster specified in ~/.kube/config.
+	$(KUSTOMIZE) build config/crd | $(KUBECTL) apply -f -
+
+.PHONY: uninstall
+uninstall-crd: manifests kustomize ## Uninstall CRDs from the K8s cluster specified in ~/.kube/config. Call with ignore-not-found=true to ignore resource not found errors during deletion.
 	$(KUSTOMIZE) build config/crd | $(KUBECTL) delete --ignore-not-found=$(ignore-not-found) -f -
 
 .PHONY: deploy
@@ -231,6 +272,7 @@ GOLANGCI_LINT = $(LOCALBIN)/golangci-lint-$(GOLANGCI_LINT_VERSION)
 GEN_CRD_API_REFERENCE_DOCS ?= $(LOCALBIN)/gen-crd-api-reference-docs-$(GEN_CRD_API_REFERENCE_DOCS_VERSION)
 HELM ?= helm
 HELM_UNITTEST ?= unittest
+HELM_DOCS ?= $(LOCALBIN)/helm-docs-$(HELM_DOCS_VERSION)
 
 ## Tool Versions
 KUSTOMIZE_VERSION ?= v5.4.1
@@ -240,6 +282,7 @@ ENVTEST_VERSION ?= release-0.18
 GOLANGCI_LINT_VERSION ?= v1.57.2
 GEN_CRD_API_REFERENCE_DOCS_VERSION ?= v0.3.0
 HELM_UNITTEST_VERSION ?= 0.5.1
+HELM_DOCS_VERSION ?= v1.14.2
 
 .PHONY: kustomize
 kustomize: $(KUSTOMIZE) ## Download kustomize locally if necessary.
@@ -274,9 +317,13 @@ $(GEN_CRD_API_REFERENCE_DOCS): $(LOCALBIN)
 .PHONY: helm-unittest-plugin
 helm-unittest-plugin: ## Download helm unittest plugin locally if necessary.
 	if [ -z "$(shell helm plugin list | grep unittest)" ]; then \
-		echo "Installing helm unittest plugin..."; \
+		echo "Installing helm unittest plugin"; \
 		helm plugin install https://github.com/helm-unittest/helm-unittest.git --version $(HELM_UNITTEST_VERSION); \
 	fi
+
+.PHONY: helm-docs-plugin
+helm-docs-plugin: ## Download helm-docs plugin locally if necessary.
+	$(call go-install-tool,$(HELM_DOCS),github.com/norwoodj/helm-docs/cmd/helm-docs,$(HELM_DOCS_VERSION))
 
 # go-install-tool will 'go install' any package with custom target and name of binary, if it doesn't exist
 # $1 - target path with name of binary (ideally with version)
