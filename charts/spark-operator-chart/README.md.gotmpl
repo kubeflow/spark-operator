@@ -43,19 +43,15 @@ See [helm repo](https://helm.sh/docs/helm/helm_repo) for command documentation.
 helm install [RELEASE_NAME] spark-operator/spark-operator
 ```
 
-For example, if you want to create a release with name `spark-operator` in the `default` namespace:
-
-```shell
-helm install spark-operator spark-operator/spark-operator
-```
-
-Note that `helm` will fail to install if the namespace doesn't exist. Either create the namespace beforehand or pass the `--create-namespace` flag to the `helm install` command.
+For example, if you want to create a release with name `spark-operator` in the `spark-operator` namespace:
 
 ```shell
 helm install spark-operator spark-operator/spark-operator \
     --namespace spark-operator \
     --create-namespace
 ```
+
+Note that by passing the `--create-namespace` flag to the `helm install` command, `helm` will create the release namespace if it does not exist.
 
 See [helm install](https://helm.sh/docs/helm/helm_install) for command documentation.
 

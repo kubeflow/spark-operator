@@ -1,0 +1,537 @@
+#
+# Copyright 2024 The Kubeflow authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+suite: Test controller deployment
+
+templates:
+  - controller/deployment.yaml
+
+release:
+  name: spark-operator
+  namespace: spark-operator
+
+tests:
+  - it: Should use the specified image repository if `image.registry`, `image.repository` and `image.tag` are set
+    set:
+      image:
+        registry: test-registry
+        repository: test-repository
+        tag: test-tag
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: test-registry/test-repository:test-tag
+
+  - it: Should use the specified image pull policy if `image.pullPolicy` is set
+    set:
+      image:
+        pullPolicy: Always
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[*].imagePullPolicy
+          value: Always
+
+  - it: Should set replicas if `controller.replicas` is set
+    set:
+      controller:
+        replicas: 10
+    asserts:
+      - equal:
+          path: spec.replicas
+          value: 10
+
+  - it: Should add pod labels if `controller.labels` is set
+    set:
+      controller:
+        labels:
+          key1: value1
+          key2: value2
+    asserts:
+      - equal:
+          path: spec.template.metadata.labels.key1
+          value: value1
+      - equal:
+          path: spec.template.metadata.labels.key2
+          value: value2
+
+  - it: Should add prometheus annotations if `metrics.enable` is true
+    set:
+      prometheus:
+        metrics:
+          enable: true
+          port: 10254
+          endpoint: /metrics
+    asserts:
+      - equal:
+          path: spec.template.metadata.annotations["prometheus.io/scrape"]
+          value: "true"
+      - equal:
+          path: spec.template.metadata.annotations["prometheus.io/port"]
+          value: "10254"
+      - equal:
+          path: spec.template.metadata.annotations["prometheus.io/path"]
+          value: /metrics
+
+  - it: Should add pod annotations if `controller.annotations` is set
+    set:
+      controller:
+        annotations:
+          key1: value1
+          key2: value2
+    asserts:
+      - equal:
+          path: spec.template.metadata.annotations.key1
+          value: value1
+      - equal:
+          path: spec.template.metadata.annotations.key2
+          value: value2
+
+  - it: Should contain `--zap-log-level` arg if `controller.logLevel` is set
+    set:
+      controller:
+        logLevel: debug
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[?(@.name=="spark-operator-controller")].args
+          content: --zap-log-level=debug
+
+  - it: Should contain `--namespaces` arg if `spark.jobNamespaces` is set
+    set:
+      spark.jobNamespaces:
+        - ns1
+        - ns2
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[?(@.name=="spark-operator-controller")].args
+          content: --namespaces=ns1,ns2
+
+  - it: Should contain `--controller-threads` arg if `controller.workers` is set
+    set:
+      controller:
+        workers: 30
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[?(@.name=="spark-operator-controller")].args
+          content: --controller-threads=30
+
+  - it: Should contain `--enable-ui-service` arg if `controller.uiService.enable` is set to `true`
+    set:
+      controller:
+        uiService:
+          enable: true
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[?(@.name=="spark-operator-controller")].args
+          content: --enable-ui-service=true
+
+  - it: Should contain `--ingress-url-format` arg if `controller.uiIngress.enable` is set to `true` and `controller.uiIngress.urlFormat` is set
+    set:
+      controller:
+        uiService:
+          enable: true
+        uiIngress:
+          enable: true
+          urlFormat: "{{$appName}}.example.com/{{$appNamespace}}/{{$appName}}"
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[?(@.name=="spark-operator-controller")].args
+          content: --ingress-url-format={{$appName}}.example.com/{{$appNamespace}}/{{$appName}}
+
+  - it: Should contain `--enable-batch-scheduler` arg if `controller.batchScheduler.enable` is `true`
+    set:
+      controller:
+        batchScheduler:
+          enable: true
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[?(@.name=="spark-operator-controller")].args
+          content: --enable-batch-scheduler=true
+
+  - it: Should contain `--enable-metrics` arg if `prometheus.metrics.enable` is set to `true`
+    set:
+      prometheus:
+        metrics:
+          enable: true
+          port: 12345
+          portName: test-port
+          endpoint: /test-endpoint
+          prefix: test-prefix
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[?(@.name=="spark-operator-controller")].args
+          content: --enable-metrics=true
+      - contains:
+          path: spec.template.spec.containers[?(@.name=="spark-operator-controller")].args
+          content: --metrics-bind-address=:12345
+      - contains:
+          path: spec.template.spec.containers[?(@.name=="spark-operator-controller")].args
+          content: --metrics-endpoint=/test-endpoint
+      - contains:
+          path: spec.template.spec.containers[?(@.name=="spark-operator-controller")].args
+          content: --metrics-prefix=test-prefix
+      - contains:
+          path: spec.template.spec.containers[?(@.name=="spark-operator-controller")].args
+          content: --metrics-labels=app_type
+
+  - it: Should enable leader election by default
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[?(@.name=="spark-operator-controller")].args
+          content: --leader-election=true
+      - contains:
+          path: spec.template.spec.containers[?(@.name=="spark-operator-controller")].args
+          content: --leader-election-lock-name=spark-operator-controller-lock
+      - contains:
+          path: spec.template.spec.containers[?(@.name=="spark-operator-controller")].args
+          content: --leader-election-lock-namespace=spark-operator
+
+  - it: Should add metric ports if `prometheus.metrics.enable` is true
+    set:
+      prometheus:
+        metrics:
+          enable: true
+          port: 10254
+          portName: metrics
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].ports
+          content:
+            name: metrics
+            containerPort: 10254
+          count: 1
+
+  - it: Should add environment variables if `controller.env` is set
+    set:
+      controller:
+        env:
+          - name: ENV_NAME_1
+            value: ENV_VALUE_1
+          - name: ENV_NAME_2
+            valueFrom:
+              configMapKeyRef:
+                name: test-configmap
+                key: test-key
+                optional: false
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: ENV_NAME_1
+            value: ENV_VALUE_1
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: ENV_NAME_2
+            valueFrom:
+              configMapKeyRef:
+                name: test-configmap
+                key: test-key
+                optional: false
+
+  - it: Should add environment variable sources if `controller.envFrom` is set
+    set:
+      controller:
+        envFrom:
+          - configMapRef:
+              name: test-configmap
+              optional: false
+          - secretRef:
+              name: test-secret
+              optional: false
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].envFrom
+          content:
+            configMapRef:
+              name: test-configmap
+              optional: false
+      - contains:
+          path: spec.template.spec.containers[0].envFrom
+          content:
+            secretRef:
+              name: test-secret
+              optional: false
+
+  - it: Should add volume mounts if `controller.volumeMounts` is set
+    set:
+      controller:
+        volumeMounts:
+          - name: volume1
+            mountPath: /volume1
+          - name: volume2
+            mountPath: /volume2
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content:
+            name: volume1
+            mountPath: /volume1
+      - contains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content:
+            name: volume2
+            mountPath: /volume2
+
+  - it: Should add resources if `controller.resources` is set
+    set:
+      controller:
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "250m"
+          limits:
+            memory: "128Mi"
+            cpu: "500m"
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].resources
+          value:
+            requests:
+              memory: "64Mi"
+              cpu: "250m"
+            limits:
+              memory: "128Mi"
+              cpu: "500m"
+
+  - it: Should add container securityContext if `controller.securityContext` is set
+    set:
+      controller:
+        securityContext:
+          runAsUser: 1000
+          runAsGroup: 2000
+          fsGroup: 3000
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].securityContext
+          value:
+            runAsUser: 1000
+            runAsGroup: 2000
+            fsGroup: 3000
+
+  - it: Should add sidecars if `controller.sidecars` is set
+    set:
+      controller:
+        sidecars:
+          - name: sidecar1
+            image: sidecar-image1
+          - name: sidecar2
+            image: sidecar-image2
+    asserts:
+      - contains:
+          path: spec.template.spec.containers
+          content:
+            name: sidecar1
+            image: sidecar-image1
+      - contains:
+          path: spec.template.spec.containers
+          content:
+            name: sidecar2
+            image: sidecar-image2
+
+  - it: Should add secrets if `image.pullSecrets` is set
+    set:
+      image:
+        pullSecrets:
+          - name: test-secret1
+          - name: test-secret2
+    asserts:
+      - equal:
+          path: spec.template.spec.imagePullSecrets[0].name
+          value: test-secret1
+      - equal:
+          path: spec.template.spec.imagePullSecrets[1].name
+          value: test-secret2
+
+  - it: Should add volumes if `controller.volumes` is set
+    set:
+      controller:
+        volumes:
+          - name: volume1
+            emptyDir: {}
+          - name: volume2
+            emptyDir: {}
+    asserts:
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: volume1
+            emptyDir: {}
+          count: 1
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: volume2
+            emptyDir: {}
+          count: 1
+
+  - it: Should add nodeSelector if `controller.nodeSelector` is set
+    set:
+      controller:
+        nodeSelector:
+          key1: value1
+          key2: value2
+    asserts:
+      - equal:
+          path: spec.template.spec.nodeSelector.key1
+          value: value1
+      - equal:
+          path: spec.template.spec.nodeSelector.key2
+          value: value2
+
+  - it: Should add affinity if `controller.affinity` is set
+    set:
+      controller:
+        affinity:
+          nodeAffinity:
+            requiredDuringSchedulingIgnoredDuringExecution:
+              nodeSelectorTerms:
+                - matchExpressions:
+                    - key: topology.kubernetes.io/zone
+                      operator: In
+                      values:
+                        - antarctica-east1
+                        - antarctica-west1
+            preferredDuringSchedulingIgnoredDuringExecution:
+              - weight: 1
+                preference:
+                  matchExpressions:
+                    - key: another-node-label-key
+                      operator: In
+                      values:
+                        - another-node-label-value
+    asserts:
+      - equal:
+          path: spec.template.spec.affinity
+          value:
+            nodeAffinity:
+              requiredDuringSchedulingIgnoredDuringExecution:
+                nodeSelectorTerms:
+                  - matchExpressions:
+                      - key: topology.kubernetes.io/zone
+                        operator: In
+                        values:
+                          - antarctica-east1
+                          - antarctica-west1
+              preferredDuringSchedulingIgnoredDuringExecution:
+                - weight: 1
+                  preference:
+                    matchExpressions:
+                      - key: another-node-label-key
+                        operator: In
+                        values:
+                          - another-node-label-value
+
+  - it: Should add tolerations if `controller.tolerations` is set
+    set:
+      controller:
+        tolerations:
+          - key: key1
+            operator: Equal
+            value: value1
+            effect: NoSchedule
+          - key: key2
+            operator: Exists
+            effect: NoSchedule
+    asserts:
+      - equal:
+          path: spec.template.spec.tolerations
+          value:
+            - key: key1
+              operator: Equal
+              value: value1
+              effect: NoSchedule
+            - key: key2
+              operator: Exists
+              effect: NoSchedule
+
+  - it: Should add priorityClassName if `controller.priorityClassName` is set
+    set:
+      controller:
+        priorityClassName: test-priority-class
+    asserts:
+      - equal:
+          path: spec.template.spec.priorityClassName
+          value: test-priority-class
+
+  - it: Should add pod securityContext if `controller.podSecurityContext` is set
+    set:
+      controller:
+        podSecurityContext:
+          runAsUser: 1000
+          runAsGroup: 2000
+          fsGroup: 3000
+    asserts:
+      - equal:
+          path: spec.template.spec.securityContext
+          value:
+            runAsUser: 1000
+            runAsGroup: 2000
+            fsGroup: 3000
+
+  - it: Should not contain topologySpreadConstraints if `controller.topologySpreadConstraints` is not set
+    set:
+      controller:
+        topologySpreadConstraints: []
+    asserts:
+      - notExists:
+          path: spec.template.spec.topologySpreadConstraints
+
+  - it: Should add topologySpreadConstraints if `controller.topologySpreadConstraints` is set and `controller.replicas` is greater than 1
+    set:
+      controller:
+        replicas: 2
+        topologySpreadConstraints:
+          - maxSkew: 1
+            topologyKey: topology.kubernetes.io/zone
+            whenUnsatisfiable: ScheduleAnyway
+          - maxSkew: 1
+            topologyKey: kubernetes.io/hostname
+            whenUnsatisfiable: DoNotSchedule
+    asserts:
+      - equal:
+          path: spec.template.spec.topologySpreadConstraints
+          value:
+            - labelSelector:
+                matchLabels:
+                  app.kubernetes.io/component: controller
+                  app.kubernetes.io/instance: spark-operator
+                  app.kubernetes.io/name: spark-operator
+              maxSkew: 1
+              topologyKey: topology.kubernetes.io/zone
+              whenUnsatisfiable: ScheduleAnyway
+            - labelSelector:
+                matchLabels:
+                  app.kubernetes.io/component: controller
+                  app.kubernetes.io/instance: spark-operator
+                  app.kubernetes.io/name: spark-operator
+              maxSkew: 1
+              topologyKey: kubernetes.io/hostname
+              whenUnsatisfiable: DoNotSchedule
+
+  - it: Should fail if `controller.topologySpreadConstraints` is set and `controller.replicas` is not greater than 1
+    set:
+      controller:
+        replicas: 1
+        topologySpreadConstraints:
+          - maxSkew: 1
+            topologyKey: topology.kubernetes.io/zone
+            whenUnsatisfiable: ScheduleAnyway
+          - maxSkew: 1
+            topologyKey: kubernetes.io/hostname
+            whenUnsatisfiable: DoNotSchedule
+    asserts:
+      - failedTemplate:
+          errorMessage: "controller.replicas must be greater than 1 to enable topology spread constraints for controller pods"

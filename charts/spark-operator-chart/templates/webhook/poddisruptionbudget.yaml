@@ -14,16 +14,21 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
-apiVersion: v1
-kind: Service
+{{- if .Values.webhook.podDisruptionBudget.enable }}
+{{- if le (int .Values.webhook.replicas) 1 }}
+{{- fail "webhook.replicas must be greater than 1 to enable pod disruption budget for webhook" }}
+{{- end -}}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
 metadata:
-  name: {{ include "spark-operator.webhook.serviceName" . }}
+  name: {{ include "spark-operator.webhook.podDisruptionBudgetName" . }}
   labels:
     {{- include "spark-operator.webhook.labels" . | nindent 4 }}
 spec:
   selector:
-    {{- include "spark-operator.webhook.selectorLabels" . | nindent 4 }}
-  ports:
-  - port: {{ .Values.webhook.port }}
-    targetPort: {{ .Values.webhook.portName | quote }}
-    name: {{ .Values.webhook.portName }}
+    matchLabels:
+      {{- include "spark-operator.webhook.selectorLabels" . | nindent 6 }}
+  {{- with .Values.webhook.podDisruptionBudget.minAvailable }}
+  minAvailable: {{ . }}
+  {{- end }}
+{{- end }}

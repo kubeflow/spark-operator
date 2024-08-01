@@ -14,16 +14,9 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
-apiVersion: v1
-kind: Service
-metadata:
-  name: {{ include "spark-operator.webhook.serviceName" . }}
-  labels:
-    {{- include "spark-operator.webhook.labels" . | nindent 4 }}
-spec:
-  selector:
-    {{- include "spark-operator.webhook.selectorLabels" . | nindent 4 }}
-  ports:
-  - port: {{ .Values.webhook.port }}
-    targetPort: {{ .Values.webhook.portName | quote }}
-    name: {{ .Values.webhook.portName }}
+{{/*
+Create the name of pod monitor
+*/}}
+{{- define "spark-operator.prometheus.podMonitorName" -}}
+{{- include "spark-operator.fullname" . }}-podmonitor
+{{- end -}}
