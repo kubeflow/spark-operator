@@ -38,6 +38,19 @@ func (c Capabilities) String() string {
 	return strings.Join(keys, ", ")
 }
 
+var (
+	IngressCapabilities Capabilities
+)
+
+func InitializeIngressCapabilities(client kubernetes.Interface) (err error) {
+	if IngressCapabilities != nil {
+		return
+	}
+
+	IngressCapabilities, err = getPreferredAvailableAPIs(client, "Ingress")
+	return
+}
+
 // getPreferredAvailableAPIs queries the cluster for the preferred resources information and returns a Capabilities
 // instance containing those api groups that support the specified kind.
 //
@@ -69,16 +82,4 @@ func getPreferredAvailableAPIs(client kubernetes.Interface, kind string) (Capabi
 	}
 
 	return caps, nil
-}
-
-var (
-	IngressCapabilities Capabilities
-)
-
-func InitializeIngressCapabilities(client kubernetes.Interface) (err error) {
-	if IngressCapabilities != nil {
-		return
-	}
-	IngressCapabilities, err = getPreferredAvailableAPIs(client, "Ingress")
-	return
 }
