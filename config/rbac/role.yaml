@@ -1,0 +1,130 @@
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: spark-operator-controller
+rules:
+- resources:
+  - configmaps
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+- resources:
+  - events
+  verbs:
+  - create
+  - patch
+  - update
+- resources:
+  - nodes
+  verbs:
+  - get
+- resources:
+  - pods
+  verbs:
+  - create
+  - delete
+  - deletecollection
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- resources:
+  - resourcequotas
+  verbs:
+  - get
+  - list
+  - watch
+- resources:
+  - services
+  verbs:
+  - create
+  - delete
+  - get
+- apiGroups:
+  - apiextensions.k8s.io
+  resources:
+  - customresourcedefinitions
+  verbs:
+  - get
+- apiGroups:
+  - extensions
+  resources:
+  - ingresses
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - networking.k8s.io
+  resources:
+  - ingresses
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - sparkoperator.k8s.io
+  resources:
+  - scheduledsparkapplications
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - sparkoperator.k8s.io
+  resources:
+  - scheduledsparkapplications/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - sparkoperator.k8s.io
+  resources:
+  - scheduledsparkapplications/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - sparkoperator.k8s.io
+  resources:
+  - sparkapplications
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - sparkoperator.k8s.io
+  resources:
+  - sparkapplications/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - sparkoperator.k8s.io
+  resources:
+  - sparkapplications/status
+  verbs:
+  - get
+  - patch
+  - update

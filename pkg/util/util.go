@@ -17,45 +17,63 @@ limitations under the License.
 package util
 
 import (
-	"hash"
-	"hash/fnv"
-	"reflect"
+	"fmt"
+	"os"
+	"strings"
 
-	apiv1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
-	"github.com/kubeflow/spark-operator/pkg/apis/sparkoperator.k8s.io/v1beta2"
-	"github.com/kubeflow/spark-operator/pkg/config"
+	"github.com/kubeflow/spark-operator/pkg/common"
 )
 
-// NewHash32 returns a 32-bit hash computed from the given byte slice.
-func NewHash32() hash.Hash32 {
-	return fnv.New32()
-}
-
-// GetOwnerReference returns an OwnerReference pointing to the given app.
-func GetOwnerReference(app *v1beta2.SparkApplication) metav1.OwnerReference {
-	controller := true
-	return metav1.OwnerReference{
-		APIVersion: v1beta2.SchemeGroupVersion.String(),
-		Kind:       reflect.TypeOf(v1beta2.SparkApplication{}).Name(),
-		Name:       app.Name,
-		UID:        app.UID,
-		Controller: &controller,
+func GetMasterURL() (string, error) {
+	kubernetesServiceHost := os.Getenv(common.EnvKubernetesServiceHost)
+	if kubernetesServiceHost == "" {
+		return "", fmt.Errorf("environment variable %s is not found", common.EnvKubernetesServiceHost)
 	}
+
+	kubernetesServicePort := os.Getenv(common.EnvKubernetesServicePort)
+	if kubernetesServicePort == "" {
+		return "", fmt.Errorf("environment variable %s is not found", common.EnvKubernetesServicePort)
+	}
+	// check if the host is IPv6 address
+	if strings.Contains(kubernetesServiceHost, ":") && !strings.HasPrefix(kubernetesServiceHost, "[") {
+		return fmt.Sprintf("k8s://https://[%s]:%s", kubernetesServiceHost, kubernetesServicePort), nil
+	}
+	return fmt.Sprintf("k8s://https://%s:%s", kubernetesServiceHost, kubernetesServicePort), nil
 }
 
-// IsLaunchedBySparkOperator returns whether the given pod is launched by the Spark Operator.
-func IsLaunchedBySparkOperator(pod *apiv1.Pod) bool {
-	return pod.Labels[config.LaunchedBySparkOperatorLabel] == "true"
+// Helper functions to check and remove a string from a slice of strings.
+// ContainsString checks if a given string is present in a slice
+func ContainsString(slice []string, s string) bool {
+	for _, item := range slice {
+		if item == s {
+			return true
+		}
+	}
+	return false
 }
 
-// IsDriverPod returns whether the given pod is a Spark driver Pod.
-func IsDriverPod(pod *apiv1.Pod) bool {
-	return pod.Labels[config.SparkRoleLabel] == config.SparkDriverRole
+// RemoveString removes a given string from a slice, if present
+func RemoveString(slice []string, s string) (result []string) {
+	for _, item := range slice {
+		if item != s {
+			result = append(result, item)
+		}
+	}
+	return result
 }
 
-// IsExecutorPod returns whether the given pod is a Spark executor Pod.
-func IsExecutorPod(pod *apiv1.Pod) bool {
-	return pod.Labels[config.SparkRoleLabel] == config.SparkExecutorRole
+func BoolPtr(b bool) *bool {
+	return &b
+}
+
+func Int32Ptr(n int32) *int32 {
+	return &n
+}
+
+func Int64Ptr(n int64) *int64 {
+	return &n
+}
+
+func StringPtr(s string) *string {
+	return &s
 }

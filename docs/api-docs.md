@@ -9,642 +9,7 @@
 <p>Package v1beta2 is the v1beta2 version of the API.</p>
 </div>
 Resource Types:
-<ul><li>
-<a href="#sparkoperator.k8s.io/v1beta2.ScheduledSparkApplication">ScheduledSparkApplication</a>
-</li><li>
-<a href="#sparkoperator.k8s.io/v1beta2.SparkApplication">SparkApplication</a>
-</li></ul>
-<h3 id="sparkoperator.k8s.io/v1beta2.ScheduledSparkApplication">ScheduledSparkApplication
-</h3>
-<div>
-</div>
-<table>
-<thead>
-<tr>
-<th>Field</th>
-<th>Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>
-<code>apiVersion</code><br/>
-string</td>
-<td>
-<code>
-sparkoperator.k8s.io/v1beta2
-</code>
-</td>
-</tr>
-<tr>
-<td>
-<code>kind</code><br/>
-string
-</td>
-<td><code>ScheduledSparkApplication</code></td>
-</tr>
-<tr>
-<td>
-<code>metadata</code><br/>
-<em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.24/#objectmeta-v1-meta">
-Kubernetes meta/v1.ObjectMeta
-</a>
-</em>
-</td>
-<td>
-Refer to the Kubernetes API documentation for the fields of the
-<code>metadata</code> field.
-</td>
-</tr>
-<tr>
-<td>
-<code>spec</code><br/>
-<em>
-<a href="#sparkoperator.k8s.io/v1beta2.ScheduledSparkApplicationSpec">
-ScheduledSparkApplicationSpec
-</a>
-</em>
-</td>
-<td>
-<br/>
-<br/>
-<table>
-<tr>
-<td>
-<code>schedule</code><br/>
-<em>
-string
-</em>
-</td>
-<td>
-<p>Schedule is a cron schedule on which the application should run.</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>template</code><br/>
-<em>
-<a href="#sparkoperator.k8s.io/v1beta2.SparkApplicationSpec">
-SparkApplicationSpec
-</a>
-</em>
-</td>
-<td>
-<p>Template is a template from which SparkApplication instances can be created.</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>suspend</code><br/>
-<em>
-bool
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-<p>Suspend is a flag telling the controller to suspend subsequent runs of the application if set to true.
-Defaults to false.</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>concurrencyPolicy</code><br/>
-<em>
-<a href="#sparkoperator.k8s.io/v1beta2.ConcurrencyPolicy">
-ConcurrencyPolicy
-</a>
-</em>
-</td>
-<td>
-<p>ConcurrencyPolicy is the policy governing concurrent SparkApplication runs.</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>successfulRunHistoryLimit</code><br/>
-<em>
-int32
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-<p>SuccessfulRunHistoryLimit is the number of past successful runs of the application to keep.
-Defaults to 1.</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>failedRunHistoryLimit</code><br/>
-<em>
-int32
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-<p>FailedRunHistoryLimit is the number of past failed runs of the application to keep.
-Defaults to 1.</p>
-</td>
-</tr>
-</table>
-</td>
-</tr>
-<tr>
-<td>
-<code>status</code><br/>
-<em>
-<a href="#sparkoperator.k8s.io/v1beta2.ScheduledSparkApplicationStatus">
-ScheduledSparkApplicationStatus
-</a>
-</em>
-</td>
-<td>
-</td>
-</tr>
-</tbody>
-</table>
-<h3 id="sparkoperator.k8s.io/v1beta2.SparkApplication">SparkApplication
-</h3>
-<div>
-<p>SparkApplication represents a Spark application running on and using Kubernetes as a cluster manager.</p>
-</div>
-<table>
-<thead>
-<tr>
-<th>Field</th>
-<th>Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>
-<code>apiVersion</code><br/>
-string</td>
-<td>
-<code>
-sparkoperator.k8s.io/v1beta2
-</code>
-</td>
-</tr>
-<tr>
-<td>
-<code>kind</code><br/>
-string
-</td>
-<td><code>SparkApplication</code></td>
-</tr>
-<tr>
-<td>
-<code>metadata</code><br/>
-<em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.24/#objectmeta-v1-meta">
-Kubernetes meta/v1.ObjectMeta
-</a>
-</em>
-</td>
-<td>
-Refer to the Kubernetes API documentation for the fields of the
-<code>metadata</code> field.
-</td>
-</tr>
-<tr>
-<td>
-<code>spec</code><br/>
-<em>
-<a href="#sparkoperator.k8s.io/v1beta2.SparkApplicationSpec">
-SparkApplicationSpec
-</a>
-</em>
-</td>
-<td>
-<br/>
-<br/>
-<table>
-<tr>
-<td>
-<code>type</code><br/>
-<em>
-<a href="#sparkoperator.k8s.io/v1beta2.SparkApplicationType">
-SparkApplicationType
-</a>
-</em>
-</td>
-<td>
-<p>Type tells the type of the Spark application.</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>sparkVersion</code><br/>
-<em>
-string
-</em>
-</td>
-<td>
-<p>SparkVersion is the version of Spark the application uses.</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>mode</code><br/>
-<em>
-<a href="#sparkoperator.k8s.io/v1beta2.DeployMode">
-DeployMode
-</a>
-</em>
-</td>
-<td>
-<p>Mode is the deployment mode of the Spark application.</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>proxyUser</code><br/>
-<em>
-string
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-<p>ProxyUser specifies the user to impersonate when submitting the application.
-It maps to the command-line flag &ldquo;&ndash;proxy-user&rdquo; in spark-submit.</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>image</code><br/>
-<em>
-string
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-<p>Image is the container image for the driver, executor, and init-container. Any custom container images for the
-driver, executor, or init-container takes precedence over this.</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>imagePullPolicy</code><br/>
-<em>
-string
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-<p>ImagePullPolicy is the image pull policy for the driver, executor, and init-container.</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>imagePullSecrets</code><br/>
-<em>
-[]string
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-<p>ImagePullSecrets is the list of image-pull secrets.</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>mainClass</code><br/>
-<em>
-string
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-<p>MainClass is the fully-qualified main class of the Spark application.
-This only applies to Java/Scala Spark applications.</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>mainApplicationFile</code><br/>
-<em>
-string
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-<p>MainFile is the path to a bundled JAR, Python, or R file of the application.</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>arguments</code><br/>
-<em>
-[]string
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-<p>Arguments is a list of arguments to be passed to the application.</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>sparkConf</code><br/>
-<em>
-map[string]string
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-<p>SparkConf carries user-specified Spark configuration properties as they would use the  &ldquo;&ndash;conf&rdquo; option in
-spark-submit.</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>hadoopConf</code><br/>
-<em>
-map[string]string
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-<p>HadoopConf carries user-specified Hadoop configuration properties as they would use the  the &ldquo;&ndash;conf&rdquo; option
-in spark-submit.  The SparkApplication controller automatically adds prefix &ldquo;spark.hadoop.&rdquo; to Hadoop
-configuration properties.</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>sparkConfigMap</code><br/>
-<em>
-string
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-<p>SparkConfigMap carries the name of the ConfigMap containing Spark configuration files such as log4j.properties.
-The controller will add environment variable SPARK_CONF_DIR to the path where the ConfigMap is mounted to.</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>hadoopConfigMap</code><br/>
-<em>
-string
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-<p>HadoopConfigMap carries the name of the ConfigMap containing Hadoop configuration files such as core-site.xml.
-The controller will add environment variable HADOOP_CONF_DIR to the path where the ConfigMap is mounted to.</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>volumes</code><br/>
-<em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.24/#volume-v1-core">
-[]Kubernetes core/v1.Volume
-</a>
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-<p>Volumes is the list of Kubernetes volumes that can be mounted by the driver and/or executors.</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>driver</code><br/>
-<em>
-<a href="#sparkoperator.k8s.io/v1beta2.DriverSpec">
-DriverSpec
-</a>
-</em>
-</td>
-<td>
-<p>Driver is the driver specification.</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>executor</code><br/>
-<em>
-<a href="#sparkoperator.k8s.io/v1beta2.ExecutorSpec">
-ExecutorSpec
-</a>
-</em>
-</td>
-<td>
-<p>Executor is the executor specification.</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>deps</code><br/>
-<em>
-<a href="#sparkoperator.k8s.io/v1beta2.Dependencies">
-Dependencies
-</a>
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-<p>Deps captures all possible types of dependencies of a Spark application.</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>restartPolicy</code><br/>
-<em>
-<a href="#sparkoperator.k8s.io/v1beta2.RestartPolicy">
-RestartPolicy
-</a>
-</em>
-</td>
-<td>
-<p>RestartPolicy defines the policy on if and in which conditions the controller should restart an application.</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>nodeSelector</code><br/>
-<em>
-map[string]string
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-<p>NodeSelector is the Kubernetes node selector to be added to the driver and executor pods.
-This field is mutually exclusive with nodeSelector at podSpec level (driver or executor).
-This field will be deprecated in future versions (at SparkApplicationSpec level).</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>failureRetries</code><br/>
-<em>
-int32
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-<p>FailureRetries is the number of times to retry a failed application before giving up.
-This is best effort and actual retry attempts can be &gt;= the value specified.</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>retryInterval</code><br/>
-<em>
-int64
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-<p>RetryInterval is the unit of intervals in seconds between submission retries.</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>pythonVersion</code><br/>
-<em>
-string
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-<p>This sets the major Python version of the docker
-image used to run the driver and executor containers. Can either be 2 or 3, default 2.</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>memoryOverheadFactor</code><br/>
-<em>
-string
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-<p>This sets the Memory Overhead Factor that will allocate memory to non-JVM memory.
-For JVM-based jobs this value will default to 0.10, for non-JVM jobs 0.40. Value of this field will
-be overridden by <code>Spec.Driver.MemoryOverhead</code> and <code>Spec.Executor.MemoryOverhead</code> if they are set.</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>monitoring</code><br/>
-<em>
-<a href="#sparkoperator.k8s.io/v1beta2.MonitoringSpec">
-MonitoringSpec
-</a>
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-<p>Monitoring configures how monitoring is handled.</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>batchScheduler</code><br/>
-<em>
-string
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-<p>BatchScheduler configures which batch scheduler will be used for scheduling</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>timeToLiveSeconds</code><br/>
-<em>
-int64
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-<p>TimeToLiveSeconds defines the Time-To-Live (TTL) duration in seconds for this SparkApplication
-after its termination.
-The SparkApplication object will be garbage collected if the current time is more than the
-TimeToLiveSeconds since its termination.</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>batchSchedulerOptions</code><br/>
-<em>
-<a href="#sparkoperator.k8s.io/v1beta2.BatchSchedulerConfiguration">
-BatchSchedulerConfiguration
-</a>
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-<p>BatchSchedulerOptions provides fine-grained control on how to batch scheduling.</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>sparkUIOptions</code><br/>
-<em>
-<a href="#sparkoperator.k8s.io/v1beta2.SparkUIConfiguration">
-SparkUIConfiguration
-</a>
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-<p>SparkUIOptions allows configuring the Service and the Ingress to expose the sparkUI</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>driverIngressOptions</code><br/>
-<em>
-<a href="#sparkoperator.k8s.io/v1beta2.DriverIngressConfiguration">
-[]DriverIngressConfiguration
-</a>
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-<p>DriverIngressOptions allows configuring the Service and the Ingress to expose ports inside Spark Driver</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>dynamicAllocation</code><br/>
-<em>
-<a href="#sparkoperator.k8s.io/v1beta2.DynamicAllocation">
-DynamicAllocation
-</a>
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-<p>DynamicAllocation configures dynamic allocation that becomes available for the Kubernetes
-scheduler backend since Spark 3.0.</p>
-</td>
-</tr>
-</table>
-</td>
-</tr>
-<tr>
-<td>
-<code>status</code><br/>
-<em>
-<a href="#sparkoperator.k8s.io/v1beta2.SparkApplicationStatus">
-SparkApplicationStatus
-</a>
-</em>
-</td>
-<td>
-</td>
-</tr>
-</tbody>
-</table>
+<ul></ul>
 <h3 id="sparkoperator.k8s.io/v1beta2.ApplicationState">ApplicationState
 </h3>
 <p>
@@ -953,9 +318,9 @@ string
 </tr>
 <tr>
 <td>
-<code>webUIPort</code><br/>
+<code>webUIAddress</code><br/>
 <em>
-int32
+string
 </em>
 </td>
 <td>
@@ -964,9 +329,9 @@ int32
 </tr>
 <tr>
 <td>
-<code>webUIAddress</code><br/>
+<code>webUIPort</code><br/>
 <em>
-string
+int32
 </em>
 </td>
 <td>
@@ -1079,7 +444,7 @@ map[string]string
 </td>
 <td>
 <em>(Optional)</em>
-<p>ServiceLables is a map of key,value pairs of labels that might be added to the service object.</p>
+<p>ServiceLabels is a map of key,value pairs of labels that might be added to the service object.</p>
 </td>
 </tr>
 <tr>
@@ -1950,9 +1315,146 @@ int64
 </thead>
 <tbody><tr><td><p>&#34;FailedValidation&#34;</p></td>
 <td></td>
+</tr><tr><td><p>&#34;&#34;</p></td>
+<td></td>
 </tr><tr><td><p>&#34;Scheduled&#34;</p></td>
 <td></td>
+</tr><tr><td><p>&#34;Validating&#34;</p></td>
+<td></td>
 </tr></tbody>
+</table>
+<h3 id="sparkoperator.k8s.io/v1beta2.ScheduledSparkApplication">ScheduledSparkApplication
+</h3>
+<div>
+<p>ScheduledSparkApplication is the Schema for the scheduledsparkapplications API.</p>
+</div>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>metadata</code><br/>
+<em>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.24/#objectmeta-v1-meta">
+Kubernetes meta/v1.ObjectMeta
+</a>
+</em>
+</td>
+<td>
+Refer to the Kubernetes API documentation for the fields of the
+<code>metadata</code> field.
+</td>
+</tr>
+<tr>
+<td>
+<code>spec</code><br/>
+<em>
+<a href="#sparkoperator.k8s.io/v1beta2.ScheduledSparkApplicationSpec">
+ScheduledSparkApplicationSpec
+</a>
+</em>
+</td>
+<td>
+<br/>
+<br/>
+<table>
+<tr>
+<td>
+<code>schedule</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<p>Schedule is a cron schedule on which the application should run.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>template</code><br/>
+<em>
+<a href="#sparkoperator.k8s.io/v1beta2.SparkApplicationSpec">
+SparkApplicationSpec
+</a>
+</em>
+</td>
+<td>
+<p>Template is a template from which SparkApplication instances can be created.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>suspend</code><br/>
+<em>
+bool
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Suspend is a flag telling the controller to suspend subsequent runs of the application if set to true.
+Defaults to false.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>concurrencyPolicy</code><br/>
+<em>
+<a href="#sparkoperator.k8s.io/v1beta2.ConcurrencyPolicy">
+ConcurrencyPolicy
+</a>
+</em>
+</td>
+<td>
+<p>ConcurrencyPolicy is the policy governing concurrent SparkApplication runs.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>successfulRunHistoryLimit</code><br/>
+<em>
+int32
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>SuccessfulRunHistoryLimit is the number of past successful runs of the application to keep.
+Defaults to 1.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>failedRunHistoryLimit</code><br/>
+<em>
+int32
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>FailedRunHistoryLimit is the number of past failed runs of the application to keep.
+Defaults to 1.</p>
+</td>
+</tr>
+</table>
+</td>
+</tr>
+<tr>
+<td>
+<code>status</code><br/>
+<em>
+<a href="#sparkoperator.k8s.io/v1beta2.ScheduledSparkApplicationStatus">
+ScheduledSparkApplicationStatus
+</a>
+</em>
+</td>
+<td>
+</td>
+</tr>
+</tbody>
 </table>
 <h3 id="sparkoperator.k8s.io/v1beta2.ScheduledSparkApplicationSpec">ScheduledSparkApplicationSpec
 </h3>
@@ -1960,6 +1462,7 @@ int64
 (<em>Appears on:</em><a href="#sparkoperator.k8s.io/v1beta2.ScheduledSparkApplication">ScheduledSparkApplication</a>)
 </p>
 <div>
+<p>ScheduledSparkApplicationSpec defines the desired state of ScheduledSparkApplication.</p>
 </div>
 <table>
 <thead>
@@ -2053,6 +1556,7 @@ Defaults to 1.</p>
 (<em>Appears on:</em><a href="#sparkoperator.k8s.io/v1beta2.ScheduledSparkApplication">ScheduledSparkApplication</a>)
 </p>
 <div>
+<p>ScheduledSparkApplicationStatus defines the observed state of ScheduledSparkApplication.</p>
 </div>
 <table>
 <thead>
@@ -2213,25 +1717,490 @@ SecretType
 </tr>
 </thead>
 <tbody><tr><td><p>&#34;GCPServiceAccount&#34;</p></td>
-<td><p>GCPServiceAccountSecret is for secrets from a GCP service account Json key file that needs
+<td><p>SecretTypeGCPServiceAccount is for secrets from a GCP service account Json key file that needs
 the environment variable GOOGLE_APPLICATION_CREDENTIALS.</p>
 </td>
 </tr><tr><td><p>&#34;Generic&#34;</p></td>
-<td><p>GenericType is for secrets that needs no special handling.</p>
+<td><p>SecretTypeGeneric is for secrets that needs no special handling.</p>
 </td>
 </tr><tr><td><p>&#34;HadoopDelegationToken&#34;</p></td>
-<td><p>HadoopDelegationTokenSecret is for secrets from an Hadoop delegation token that needs the
+<td><p>SecretTypeHadoopDelegationToken is for secrets from an Hadoop delegation token that needs the
 environment variable HADOOP_TOKEN_FILE_LOCATION.</p>
 </td>
 </tr></tbody>
 </table>
+<h3 id="sparkoperator.k8s.io/v1beta2.SparkApplication">SparkApplication
+</h3>
+<div>
+<p>SparkApplication is the Schema for the sparkapplications API</p>
+</div>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>metadata</code><br/>
+<em>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.24/#objectmeta-v1-meta">
+Kubernetes meta/v1.ObjectMeta
+</a>
+</em>
+</td>
+<td>
+Refer to the Kubernetes API documentation for the fields of the
+<code>metadata</code> field.
+</td>
+</tr>
+<tr>
+<td>
+<code>spec</code><br/>
+<em>
+<a href="#sparkoperator.k8s.io/v1beta2.SparkApplicationSpec">
+SparkApplicationSpec
+</a>
+</em>
+</td>
+<td>
+<br/>
+<br/>
+<table>
+<tr>
+<td>
+<code>type</code><br/>
+<em>
+<a href="#sparkoperator.k8s.io/v1beta2.SparkApplicationType">
+SparkApplicationType
+</a>
+</em>
+</td>
+<td>
+<p>Type tells the type of the Spark application.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>sparkVersion</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<p>SparkVersion is the version of Spark the application uses.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>mode</code><br/>
+<em>
+<a href="#sparkoperator.k8s.io/v1beta2.DeployMode">
+DeployMode
+</a>
+</em>
+</td>
+<td>
+<p>Mode is the deployment mode of the Spark application.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>proxyUser</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>ProxyUser specifies the user to impersonate when submitting the application.
+It maps to the command-line flag &ldquo;&ndash;proxy-user&rdquo; in spark-submit.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>image</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Image is the container image for the driver, executor, and init-container. Any custom container images for the
+driver, executor, or init-container takes precedence over this.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>imagePullPolicy</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>ImagePullPolicy is the image pull policy for the driver, executor, and init-container.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>imagePullSecrets</code><br/>
+<em>
+[]string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>ImagePullSecrets is the list of image-pull secrets.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>mainClass</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>MainClass is the fully-qualified main class of the Spark application.
+This only applies to Java/Scala Spark applications.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>mainApplicationFile</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>MainFile is the path to a bundled JAR, Python, or R file of the application.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>arguments</code><br/>
+<em>
+[]string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Arguments is a list of arguments to be passed to the application.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>sparkConf</code><br/>
+<em>
+map[string]string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>SparkConf carries user-specified Spark configuration properties as they would use the  &ldquo;&ndash;conf&rdquo; option in
+spark-submit.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>hadoopConf</code><br/>
+<em>
+map[string]string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>HadoopConf carries user-specified Hadoop configuration properties as they would use the  the &ldquo;&ndash;conf&rdquo; option
+in spark-submit.  The SparkApplication controller automatically adds prefix &ldquo;spark.hadoop.&rdquo; to Hadoop
+configuration properties.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>sparkConfigMap</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>SparkConfigMap carries the name of the ConfigMap containing Spark configuration files such as log4j.properties.
+The controller will add environment variable SPARK_CONF_DIR to the path where the ConfigMap is mounted to.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>hadoopConfigMap</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>HadoopConfigMap carries the name of the ConfigMap containing Hadoop configuration files such as core-site.xml.
+The controller will add environment variable HADOOP_CONF_DIR to the path where the ConfigMap is mounted to.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>volumes</code><br/>
+<em>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.24/#volume-v1-core">
+[]Kubernetes core/v1.Volume
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Volumes is the list of Kubernetes volumes that can be mounted by the driver and/or executors.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>driver</code><br/>
+<em>
+<a href="#sparkoperator.k8s.io/v1beta2.DriverSpec">
+DriverSpec
+</a>
+</em>
+</td>
+<td>
+<p>Driver is the driver specification.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>executor</code><br/>
+<em>
+<a href="#sparkoperator.k8s.io/v1beta2.ExecutorSpec">
+ExecutorSpec
+</a>
+</em>
+</td>
+<td>
+<p>Executor is the executor specification.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>deps</code><br/>
+<em>
+<a href="#sparkoperator.k8s.io/v1beta2.Dependencies">
+Dependencies
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Deps captures all possible types of dependencies of a Spark application.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>restartPolicy</code><br/>
+<em>
+<a href="#sparkoperator.k8s.io/v1beta2.RestartPolicy">
+RestartPolicy
+</a>
+</em>
+</td>
+<td>
+<p>RestartPolicy defines the policy on if and in which conditions the controller should restart an application.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>nodeSelector</code><br/>
+<em>
+map[string]string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>NodeSelector is the Kubernetes node selector to be added to the driver and executor pods.
+This field is mutually exclusive with nodeSelector at podSpec level (driver or executor).
+This field will be deprecated in future versions (at SparkApplicationSpec level).</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>failureRetries</code><br/>
+<em>
+int32
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>FailureRetries is the number of times to retry a failed application before giving up.
+This is best effort and actual retry attempts can be &gt;= the value specified.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>retryInterval</code><br/>
+<em>
+int64
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>RetryInterval is the unit of intervals in seconds between submission retries.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>pythonVersion</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>This sets the major Python version of the docker
+image used to run the driver and executor containers. Can either be 2 or 3, default 2.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>memoryOverheadFactor</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>This sets the Memory Overhead Factor that will allocate memory to non-JVM memory.
+For JVM-based jobs this value will default to 0.10, for non-JVM jobs 0.40. Value of this field will
+be overridden by <code>Spec.Driver.MemoryOverhead</code> and <code>Spec.Executor.MemoryOverhead</code> if they are set.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>monitoring</code><br/>
+<em>
+<a href="#sparkoperator.k8s.io/v1beta2.MonitoringSpec">
+MonitoringSpec
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Monitoring configures how monitoring is handled.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>batchScheduler</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>BatchScheduler configures which batch scheduler will be used for scheduling</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>timeToLiveSeconds</code><br/>
+<em>
+int64
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>TimeToLiveSeconds defines the Time-To-Live (TTL) duration in seconds for this SparkApplication
+after its termination.
+The SparkApplication object will be garbage collected if the current time is more than the
+TimeToLiveSeconds since its termination.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>batchSchedulerOptions</code><br/>
+<em>
+<a href="#sparkoperator.k8s.io/v1beta2.BatchSchedulerConfiguration">
+BatchSchedulerConfiguration
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>BatchSchedulerOptions provides fine-grained control on how to batch scheduling.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>sparkUIOptions</code><br/>
+<em>
+<a href="#sparkoperator.k8s.io/v1beta2.SparkUIConfiguration">
+SparkUIConfiguration
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>SparkUIOptions allows configuring the Service and the Ingress to expose the sparkUI</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>driverIngressOptions</code><br/>
+<em>
+<a href="#sparkoperator.k8s.io/v1beta2.DriverIngressConfiguration">
+[]DriverIngressConfiguration
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>DriverIngressOptions allows configuring the Service and the Ingress to expose ports inside Spark Driver</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>dynamicAllocation</code><br/>
+<em>
+<a href="#sparkoperator.k8s.io/v1beta2.DynamicAllocation">
+DynamicAllocation
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>DynamicAllocation configures dynamic allocation that becomes available for the Kubernetes
+scheduler backend since Spark 3.0.</p>
+</td>
+</tr>
+</table>
+</td>
+</tr>
+<tr>
+<td>
+<code>status</code><br/>
+<em>
+<a href="#sparkoperator.k8s.io/v1beta2.SparkApplicationStatus">
+SparkApplicationStatus
+</a>
+</em>
+</td>
+<td>
+</td>
+</tr>
+</tbody>
+</table>
 <h3 id="sparkoperator.k8s.io/v1beta2.SparkApplicationSpec">SparkApplicationSpec
 </h3>
 <p>
-(<em>Appears on:</em><a href="#sparkoperator.k8s.io/v1beta2.SparkApplication">SparkApplication</a>, <a href="#sparkoperator.k8s.io/v1beta2.ScheduledSparkApplicationSpec">ScheduledSparkApplicationSpec</a>)
+(<em>Appears on:</em><a href="#sparkoperator.k8s.io/v1beta2.ScheduledSparkApplicationSpec">ScheduledSparkApplicationSpec</a>, <a href="#sparkoperator.k8s.io/v1beta2.SparkApplication">SparkApplication</a>)
 </p>
 <div>
-<p>SparkApplicationSpec describes the specification of a Spark application using Kubernetes as a cluster manager.
+<p>SparkApplicationSpec defines the desired state of SparkApplication
 It carries every pieces of information a spark-submit command takes and recognizes.</p>
 </div>
 <table>
@@ -2658,7 +2627,7 @@ scheduler backend since Spark 3.0.</p>
 (<em>Appears on:</em><a href="#sparkoperator.k8s.io/v1beta2.SparkApplication">SparkApplication</a>)
 </p>
 <div>
-<p>SparkApplicationStatus describes the current status of a Spark application.</p>
+<p>SparkApplicationStatus defines the observed state of SparkApplication</p>
 </div>
 <table>
 <thead>
@@ -2747,7 +2716,7 @@ ApplicationState
 <code>executorState</code><br/>
 <em>
 <a href="#sparkoperator.k8s.io/v1beta2.ExecutorState">
-map[string]github.com/kubeflow/spark-operator/pkg/apis/sparkoperator.k8s.io/v1beta2.ExecutorState
+map[string]github.com/kubeflow/spark-operator/api/v1beta2.ExecutorState
 </a>
 </em>
 </td>
@@ -2971,7 +2940,7 @@ Deprecated. Consider using <code>env</code> instead.</p>
 <code>envSecretKeyRefs</code><br/>
 <em>
 <a href="#sparkoperator.k8s.io/v1beta2.NameKey">
-map[string]github.com/kubeflow/spark-operator/pkg/apis/sparkoperator.k8s.io/v1beta2.NameKey
+map[string]github.com/kubeflow/spark-operator/api/v1beta2.NameKey
 </a>
 </em>
 </td>
@@ -3284,7 +3253,7 @@ map[string]string
 </td>
 <td>
 <em>(Optional)</em>
-<p>ServiceLables is a map of key,value pairs of labels that might be added to the service object.</p>
+<p>ServiceLabels is a map of key,value pairs of labels that might be added to the service object.</p>
 </td>
 </tr>
 <tr>
