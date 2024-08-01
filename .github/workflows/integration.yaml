@@ -98,7 +98,7 @@ jobs:
         run: |
           BRANCH=""
           if [ "${{ github.event_name }}" == "push" ]; then
-            BRANCH=${{ github.ref }}
+            BRANCH=${{ github.ref_name }}
           elif [ "${{ github.event_name }}" == "pull_request" ]; then
             BRANCH=${{ github.base_ref }}
           fi
@@ -115,22 +115,8 @@ jobs:
         with:
           version: v3.14.3
 
-      - name: Produce the helm documentation
-        run: |
-          make helm-docs
-          if ! git diff --quiet -- charts/spark-operator-chart/README.md; then
-            echo "Need to re-run 'make helm-docs' and commit the changes"
-            false
-          fi
-
       - name: Set up chart-testing
         uses: helm/chart-testing-action@v2.6.1
-
-      - name: Print chart-testing version information
-        run: ct version
-
-      - name: Run chart-testing (lint)
-        run: ct lint --check-version-increment=false
 
       - name: Run chart-testing (list-changed)
         id: list-changed
@@ -142,10 +128,25 @@ jobs:
             echo "changed=true" >> "$GITHUB_OUTPUT"
           fi
 
+      - name: Run chart-testing (lint)
+        if: steps.list-changed.outputs.changed == 'true'
+        run: ct lint --check-version-increment=false --target-branch $BRANCH
+
       - name: Detect CRDs drift between chart and manifest
+        if: steps.list-changed.outputs.changed == 'true'
         run: make detect-crds-drift
 
+      - name: Produce the helm documentation
+        if: steps.list-changed.outputs.changed == 'true'
+        run: |
+          make helm-docs
+          if ! git diff --quiet -- charts/spark-operator-chart/README.md; then
+            echo "Need to re-run 'make helm-docs' and commit the changes"
+            false
+          fi
+
       - name: setup minikube
+        if: steps.list-changed.outputs.changed == 'true'
         uses: manusa/actions-setup-minikube@v2.11.0
         with:
           minikube version: v1.33.0
@@ -154,6 +155,7 @@ jobs:
           github token: ${{ inputs.github-token }}
 
       - name: Run chart-testing (install)
+        if: steps.list-changed.outputs.changed == 'true'
         run: |
           docker build -t docker.io/kubeflow/spark-operator:local .
           minikube image load docker.io/kubeflow/spark-operator:local
