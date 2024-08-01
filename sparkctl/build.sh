@@ -13,15 +13,15 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-SCRIPT=`basename ${BASH_SOURCE[0]}`
-DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd -P )"
+
+SCRIPT=$(basename ${BASH_SOURCE[0]})
+DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
 set -e
 platforms=("linux:amd64" "darwin:amd64")
-for platform in "${platforms[@]}"
-do
-  GOOS="${platform%%:*}"
-  GOARCH="${platform#*:}"
-  echo $GOOS
-  echo $GOARCH
-  CGO_ENABLED=0 GOOS=$GOOS GOARCH=$GOARCH go build -buildvcs=false -o sparkctl-${GOOS}-${GOARCH}
+for platform in "${platforms[@]}"; do
+    GOOS="${platform%%:*}"
+    GOARCH="${platform#*:}"
+    echo $GOOS
+    echo $GOARCH
+    CGO_ENABLED=0 GOOS=$GOOS GOARCH=$GOARCH go build -buildvcs=false -o sparkctl-${GOOS}-${GOARCH}
 done

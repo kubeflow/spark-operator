@@ -53,7 +53,7 @@ func newS3Blob(
 	if region == "" {
 		region = "us-east1"
 	}
-	endpointResolver := aws.EndpointResolverWithOptionsFunc(func(service, region string, options ...interface{}) (aws.Endpoint, error) {
+	endpointResolver := aws.EndpointResolverWithOptionsFunc(func(service, region string, _ ...interface{}) (aws.Endpoint, error) {
 		if service == s3.ServiceID && endpoint != "" {
 			return aws.Endpoint{
 				PartitionID:   "aws",

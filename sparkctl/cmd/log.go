@@ -24,15 +24,14 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
-
-	apiv1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	clientset "k8s.io/client-go/kubernetes"
 
 	crdclientset "github.com/kubeflow/spark-operator/pkg/client/clientset/versioned"
 )
 
-var ExecutorId int32
+var ExecutorID int32
 var FollowLogs bool
 
 var logCommand = &cobra.Command{
@@ -64,7 +63,7 @@ var logCommand = &cobra.Command{
 }
 
 func init() {
-	logCommand.Flags().Int32VarP(&ExecutorId, "executor", "e", -1,
+	logCommand.Flags().Int32VarP(&ExecutorID, "executor", "e", -1,
 		"id of the executor to fetch logs for")
 	logCommand.Flags().BoolVarP(&FollowLogs, "follow", "f", false, "whether to stream the logs")
 }
@@ -96,9 +95,8 @@ func doLog(
 
 	if followLogs {
 		return streamLogs(os.Stdout, kubeClient, podName)
-	} else {
-		return printLogs(os.Stdout, kubeClient, podName)
 	}
+	return printLogs(os.Stdout, kubeClient, podName)
 }
 
 func getPodNameChannel(
@@ -107,7 +105,7 @@ func getPodNameChannel(
 
 	channel := make(chan string, 1)
 	go func() {
-		for true {
+		for {
 			app, _ := crdClient.SparkoperatorV1beta2().SparkApplications(Namespace).Get(
 				context.TODO(),
 				sparkApplicationName,
@@ -125,12 +123,12 @@ func getPodNameChannel(
 func waitForLogsFromPodChannel(
 	podName string,
 	kubeClient clientset.Interface,
-	crdClient crdclientset.Interface) chan bool {
+	_ crdclientset.Interface) chan bool {
 
 	channel := make(chan bool, 1)
 	go func() {
-		for true {
-			_, err := kubeClient.CoreV1().Pods(Namespace).GetLogs(podName, &apiv1.PodLogOptions{}).Do(context.TODO()).Raw()
+		for {
+			_, err := kubeClient.CoreV1().Pods(Namespace).GetLogs(podName, &corev1.PodLogOptions{}).Do(context.TODO()).Raw()
 
 			if err == nil {
 				channel <- true
@@ -143,7 +141,7 @@ func waitForLogsFromPodChannel(
 
 // printLogs is a one time operation that prints the fetched logs of the given pod.
 func printLogs(out io.Writer, kubeClientset clientset.Interface, podName string) error {
-	rawLogs, err := kubeClientset.CoreV1().Pods(Namespace).GetLogs(podName, &apiv1.PodLogOptions{}).Do(context.TODO()).Raw()
+	rawLogs, err := kubeClientset.CoreV1().Pods(Namespace).GetLogs(podName, &corev1.PodLogOptions{}).Do(context.TODO()).Raw()
 	if err != nil {
 		return err
 	}
@@ -153,7 +151,7 @@ func printLogs(out io.Writer, kubeClientset clientset.Interface, podName string)
 
 // streamLogs streams the logs of the given pod until there are no more logs available.
 func streamLogs(out io.Writer, kubeClientset clientset.Interface, podName string) error {
-	request := kubeClientset.CoreV1().Pods(Namespace).GetLogs(podName, &apiv1.PodLogOptions{Follow: true})
+	request := kubeClientset.CoreV1().Pods(Namespace).GetLogs(podName, &corev1.PodLogOptions{Follow: true})
 	reader, err := request.Stream(context.TODO())
 	if err != nil {
 		return err

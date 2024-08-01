@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-apiVersion: "sparkoperator.k8s.io/v1beta2"
+apiVersion: sparkoperator.k8s.io/v1beta2
 kind: SparkApplication
 metadata:
   name: spark-pi
@@ -21,37 +21,22 @@ metadata:
 spec:
   type: Scala
   mode: cluster
-  image: "spark:3.5.0"
-  imagePullPolicy: Always
+  image: spark:3.5.0
+  imagePullPolicy: IfNotPresent
   mainClass: org.apache.spark.examples.SparkPi
-  mainApplicationFile: "local:///opt/spark/examples/jars/spark-examples_2.12-3.5.0.jar"
-  sparkVersion: "3.5.0"
-  sparkUIOptions:
-    serviceLabels:
-      test-label/v1: 'true'
-  restartPolicy:
-    type: Never
-  volumes:
-    - name: "test-volume"
-      hostPath:
-        path: "/tmp"
-        type: Directory
+  mainApplicationFile: local:///opt/spark/examples/jars/spark-examples_2.12-3.5.0.jar
+  sparkVersion: 3.5.0
   driver:
-    cores: 1
-    coreLimit: "1200m"
-    memory: "512m"
     labels:
       version: 3.5.0
+    cores: 1
+    coreLimit: 1200m
+    memory: 512m
     serviceAccount: spark-operator-spark
-    volumeMounts:
-      - name: "test-volume"
-        mountPath: "/tmp"
   executor:
-    cores: 1
-    instances: 1
-    memory: "512m"
     labels:
       version: 3.5.0
-    volumeMounts:
-      - name: "test-volume"
-        mountPath: "/tmp"
+    instances: 1
+    cores: 1
+    coreLimit: 1200m
+    memory: 512m
