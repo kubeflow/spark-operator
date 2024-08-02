@@ -25,7 +25,7 @@ require (
 	k8s.io/apiextensions-apiserver v0.30.2
 	k8s.io/apimachinery v0.30.2
 	k8s.io/client-go v1.5.2
-	k8s.io/kubernetes v1.30.2
+	k8s.io/kubernetes v1.30.3
 	k8s.io/utils v0.0.0-20240710235135-d4aae2beeffc
 	sigs.k8s.io/controller-runtime v0.17.5
 	volcano.sh/apis v1.9.0
