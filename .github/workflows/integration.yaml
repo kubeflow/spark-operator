@@ -130,6 +130,8 @@ jobs:
 
       - name: Run chart-testing (lint)
         if: steps.list-changed.outputs.changed == 'true'
+        env:
+            BRANCH: ${{ steps.get_branch.outputs.BRANCH }}
         run: ct lint --check-version-increment=false --target-branch $BRANCH
 
       - name: Detect CRDs drift between chart and manifest
