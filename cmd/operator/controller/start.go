@@ -207,8 +207,10 @@ func start() {
 	if enableBatchScheduler {
 		registry = scheduler.GetRegistry()
 
-		// Register volcano scheduler.
+		// Register Volcano and Yunikorn schedulers.
 		registry.Register(common.VolcanoSchedulerName, volcano.Factory)
+		// TODO(jacobsalway): enable once the integration is ready
+		//registry.Register(yunikorn.SchedulerName, yunikorn.Factory)
 	}
 
 	// Setup controller for SparkApplication.
