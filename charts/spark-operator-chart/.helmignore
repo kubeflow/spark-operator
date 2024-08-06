@@ -3,6 +3,7 @@
 # negation (prefixed with !). Only one pattern per line.
 
 ci/
+.helmignore
 
 # Common VCS dirs
 .git/
@@ -21,16 +22,16 @@ ci/
 *~
 
 # Various IDEs
+*.tmproj
 .project
 .idea/
-*.tmproj
 .vscode/
 
 # MacOS
 .DS_Store
 
 # helm-unittest
-./tests
+tests
 .debug
 __snapshot__
 
