@@ -49,7 +49,7 @@ tests:
           path: webhooks[*].failurePolicy
           value: Fail
 
-  - it: Should set namespaceSelector if sparkJobNamespaces is not empty
+  - it: Should set namespaceSelector if `spark.jobNamespaces` is set with non-empty strings
     set:
       spark:
         jobNamespaces:
@@ -67,6 +67,19 @@ tests:
                   - ns1
                   - ns2
                   - ns3
+
+  - it: Should not set namespaceSelector if `spark.jobNamespaces` contains empty string
+    set:
+      spark:
+        jobNamespaces:
+          - ""
+          - ns1
+          - ns2
+          - ns3
+    asserts:
+      - notExists:
+          path: webhooks[*].namespaceSelector
+
 
   - it: Should should use the specified timeoutSeconds
     set:

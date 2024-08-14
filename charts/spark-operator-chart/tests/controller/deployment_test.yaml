@@ -110,13 +110,25 @@ tests:
 
   - it: Should contain `--namespaces` arg if `spark.jobNamespaces` is set
     set:
-      spark.jobNamespaces:
-        - ns1
-        - ns2
+      spark:
+        jobNamespaces:
+          - ns1
+          - ns2
     asserts:
       - contains:
           path: spec.template.spec.containers[?(@.name=="spark-operator-controller")].args
           content: --namespaces=ns1,ns2
+
+  - it: Should set namespaces to all namespaces (`""`) if `spark.jobNamespaces` contains empty string
+    set:
+      spark:
+        jobNamespaces:
+          - ""
+          - default
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[?(@.name=="spark-operator-controller")].args
+          content: --namespaces=""
 
   - it: Should contain `--controller-threads` arg if `controller.workers` is set
     set:

@@ -52,7 +52,11 @@ spec:
         - --zap-log-level={{ . }}
         {{- end }}
         {{- with .Values.spark.jobNamespaces }}
+        {{- if has "" . }}
+        - --namespaces=""
+        {{- else }}
         - --namespaces={{ . | join "," }}
+        {{- end }}
         {{- end }}
         - --webhook-secret-name={{ include "spark-operator.webhook.secretName" . }}
         - --webhook-secret-namespace={{ .Release.Namespace }}
