@@ -300,9 +300,7 @@ func newTLSOptions() []func(c *tls.Config) {
 // newCacheOptions creates and returns a cache.Options instance configured with default namespaces and object caching settings.
 func newCacheOptions() cache.Options {
 	defaultNamespaces := make(map[string]cache.Config)
-	if util.ContainsString(namespaces, cache.AllNamespaces) {
-		defaultNamespaces[cache.AllNamespaces] = cache.Config{}
-	} else {
+	if !util.ContainsString(namespaces, cache.AllNamespaces) {
 		for _, ns := range namespaces {
 			defaultNamespaces[ns] = cache.Config{}
 		}
