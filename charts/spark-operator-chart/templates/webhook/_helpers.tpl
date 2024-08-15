@@ -49,18 +49,32 @@ Create the name of service account to be used by webhook
 {{- end -}}
 
 {{/*
-Create the name of the role to be used by webhook
+Create the name of the cluster role to be used by the webhook
 */}}
-{{- define "spark-operator.webhook.roleName" -}}
-{{- include "spark-operator.webhook.name" . }}
-{{- end -}}
+{{- define "spark-operator.webhook.clusterRoleName" -}}
+{{ include "spark-operator.webhook.name" . }}
+{{- end }}
 
 {{/*
-Create the name of the role binding to be used by webhook
+Create the name of the cluster role binding to be used by the webhook
+*/}}
+{{- define "spark-operator.webhook.clusterRoleBindingName" -}}
+{{ include "spark-operator.webhook.clusterRoleName" . }}
+{{- end }}
+
+{{/*
+Create the name of the role to be used by the webhook
+*/}}
+{{- define "spark-operator.webhook.roleName" -}}
+{{ include "spark-operator.webhook.name" . }}
+{{- end }}
+
+{{/*
+Create the name of the role binding to be used by the webhook
 */}}
 {{- define "spark-operator.webhook.roleBindingName" -}}
-{{- include "spark-operator.webhook.name" . }}
-{{- end -}}
+{{ include "spark-operator.webhook.roleName" . }}
+{{- end }}
 
 {{/*
 Create the name of the secret to be used by webhook
@@ -110,4 +124,43 @@ Create the name of the pod disruption budget to be used by webhook
 */}}
 {{- define "spark-operator.webhook.podDisruptionBudgetName" -}}
 {{ include "spark-operator.webhook.name" . }}-pdb
+{{- end -}}
+
+{{/*
+Create the role policy rules for the webhook in every Spark job namespace
+*/}}
+{{- define "spark-operator.webhook.policyRules" -}}
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - resourcequotas
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - sparkoperator.k8s.io
+  resources:
+  - sparkapplications
+  - sparkapplications/status
+  - sparkapplications/finalizers
+  - scheduledsparkapplications
+  - scheduledsparkapplications/status
+  - scheduledsparkapplications/finalizers
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
 {{- end -}}
