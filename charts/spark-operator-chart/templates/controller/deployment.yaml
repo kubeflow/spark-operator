@@ -73,6 +73,11 @@ spec:
         {{- with .Values.controller.batchScheduler.enable }}
         - --enable-batch-scheduler=true
         {{- end }}
+        {{- if .Values.controller.zoneSelection.enable }}
+        - --enable-zone-selection=true
+        - --zone-selection-list={{ .Values.controller.zoneSelection.zones | join "," }}
+        - --zone-selection-strategy={{ .Values.controller.zoneSelection.strategy }}
+        {{- end }}
         {{- if .Values.prometheus.metrics.enable }}
         - --enable-metrics=true
         - --metrics-bind-address=:{{ .Values.prometheus.metrics.port }}

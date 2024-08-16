@@ -68,6 +68,14 @@ controller:
     # If enabled, users can specify batch scheduler name in spark application.
     enable: false
 
+  zoneSelection:
+    # -- Specifies whether to enable zone selection on app submission.
+    enable: false
+    # -- List of available zones.
+    zones: []
+    # -- Strategy to use for zone selection.
+    strategy: round-robin
+
   serviceAccount:
     # -- Specifies whether to create a service account for the controller.
     create: true

@@ -73,6 +73,11 @@ var (
 	// Batch scheduler
 	enableBatchScheduler bool
 
+	// Zone selection
+	enableZoneSelection   bool
+	zoneSelectionList     []string
+	zoneSelectionStrategy string
+
 	// Spark web UI service and ingress
 	enableUIService  bool
 	ingressClassName string
@@ -130,6 +135,10 @@ func NewStartCommand() *cobra.Command {
 	command.Flags().BoolVar(&enableUIService, "enable-ui-service", true, "Enable Spark Web UI service.")
 	command.Flags().StringVar(&ingressClassName, "ingress-class-name", "", "Set ingressClassName for ingress resources created.")
 	command.Flags().StringVar(&ingressURLFormat, "ingress-url-format", "", "Ingress URL format.")
+
+	command.Flags().BoolVar(&enableZoneSelection, "enable-zone-selection", false, "Enable zone selection.")
+	command.Flags().StringSliceVar(&zoneSelectionList, "zone-selection-list", []string{}, "List of topology.kubernetes.io/zone values to use for zone selection.")
+	command.Flags().StringVar(&zoneSelectionStrategy, "zone-selection-strategy", "round-robin", "The strategy to use for zone selection.")
 
 	command.Flags().BoolVar(&enableLeaderElection, "leader-election", false, "Enable leader election for controller manager. "+
 		"Enabling this will ensure there is only one active controller manager.")

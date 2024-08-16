@@ -90,6 +90,9 @@ See [helm uninstall](https://helm.sh/docs/helm/helm_uninstall) for command docum
 | controller.uiIngress.enable | bool | `false` | Specifies whether to create ingress for Spark web UI. `controller.uiService.enable` must be `true` to enable ingress. |
 | controller.uiIngress.urlFormat | string | `""` | Ingress URL format. Required if `controller.uiIngress.enable` is true. |
 | controller.batchScheduler.enable | bool | `false` | Specifies whether to enable batch scheduler for spark jobs scheduling. If enabled, users can specify batch scheduler name in spark application. |
+| controller.zoneSelection.enable | bool | `false` | Specifies whether to enable zone selection on app submission. |
+| controller.zoneSelection.zones | list | `[]` | List of available zones. |
+| controller.zoneSelection.strategy | string | `"round-robin"` | Strategy to use for zone selection. |
 | controller.serviceAccount.create | bool | `true` | Specifies whether to create a service account for the controller. |
 | controller.serviceAccount.name | string | `""` | Optional name for the controller service account. |
 | controller.serviceAccount.annotations | object | `{}` | Extra annotations for the controller service account. |
