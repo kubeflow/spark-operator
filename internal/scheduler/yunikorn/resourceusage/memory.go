@@ -70,6 +70,9 @@ func driverMemoryRequest(app *v1beta2.SparkApplication) (string, error) {
 		return "", err
 	}
 
+	// Convert memory quantity to mebibytes even if larger than a gibibyte to match Spark
+	// https://github.com/apache/spark/blob/11b682cf5b7c5360a02410be288b7905eecc1d28/resource-managers/kubernetes/core/src/main/scala/org/apache/spark/deploy/k8s/features/BasicDriverFeatureStep.scala#L88
+	// https://github.com/apache/spark/blob/11b682cf5b7c5360a02410be288b7905eecc1d28/resource-managers/kubernetes/core/src/main/scala/org/apache/spark/deploy/k8s/features/BasicExecutorFeatureStep.scala#L121
 	return bytesToMi(requestBytes), nil
 }
 
@@ -84,5 +87,6 @@ func executorMemoryRequest(app *v1beta2.SparkApplication) (string, error) {
 		return "", err
 	}
 
+	// See comment above in driver
 	return bytesToMi(requestBytes), nil
 }

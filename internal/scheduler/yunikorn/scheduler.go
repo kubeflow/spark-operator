@@ -4,19 +4,23 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/kubeflow/spark-operator/internal/scheduler/yunikorn/resourceusage"
-
 	v1 "k8s.io/api/core/v1"
 
 	"github.com/kubeflow/spark-operator/api/v1beta2"
 	"github.com/kubeflow/spark-operator/internal/scheduler"
+	"github.com/kubeflow/spark-operator/internal/scheduler/yunikorn/resourceusage"
 )
 
 const (
 	SchedulerName = "yunikorn"
 
-	driverTaskGroupName     = "spark-driver"
-	executorTaskGroupName   = "spark-executor"
+	// The names are set to match the Yunikorn gang scheduling example for Spark, but these can be any
+	// value as long as what's on the pod matches the task group definition
+	// https://yunikorn.apache.org/docs/next/user_guide/gang_scheduling/#enable-gang-scheduling-for-spark-jobs
+	driverTaskGroupName   = "spark-driver"
+	executorTaskGroupName = "spark-executor"
+
+	// https://yunikorn.apache.org/docs/next/user_guide/labels_and_annotations_in_yunikorn/
 	taskGroupNameAnnotation = "yunikorn.apache.org/task-group-name"
 	taskGroupsAnnotation    = "yunikorn.apache.org/task-groups"
 	queueLabel              = "queue"
@@ -58,9 +62,12 @@ func (s *Scheduler) Schedule(app *v1beta2.SparkApplication) error {
 
 	taskGroups := []taskGroup{
 		{
-			Name:         driverTaskGroupName,
-			MinMember:    1,
-			MinResource:  driverMinResources,
+			Name:        driverTaskGroupName,
+			MinMember:   1,
+			MinResource: driverMinResources,
+			// app.Spec.NodeSelector is passed "spark.kubernetes.node.selector.%s", which means it will be present
+			// in the pod definition before the mutating webhook. The mutating webhook merges the driver/executor-specific
+			// NodeSelector with what's already present
 			NodeSelector: mergeMaps(app.Spec.NodeSelector, app.Spec.Driver.NodeSelector),
 			Tolerations:  app.Spec.Driver.Tolerations,
 			Affinity:     app.Spec.Driver.Affinity,
@@ -80,13 +87,16 @@ func (s *Scheduler) Schedule(app *v1beta2.SparkApplication) error {
 			Name:         executorTaskGroupName,
 			MinMember:    initialExecutors,
 			MinResource:  executorMinResources,
-			NodeSelector: mergeMaps(app.Spec.NodeSelector, app.Spec.Executor.NodeSelector),
+			NodeSelector: mergeMaps(app.Spec.NodeSelector, app.Spec.Executor.NodeSelector), // See comment for driver
 			Tolerations:  app.Spec.Executor.Tolerations,
 			Affinity:     app.Spec.Executor.Affinity,
 			Labels:       app.Spec.Executor.Labels,
 		})
 	}
 
+	// Yunikorn re-uses the application ID set by the driver under the label "spark-app-selector",
+	// so there is no need to set an application ID
+	// https://github.com/apache/yunikorn-k8shim/blob/2278b3217c702ccb796e4d623bc7837625e5a4ec/pkg/common/utils/utils.go#L168-L171
 	addQueueLabels(app)
 	if err := addTaskGroupAnnotations(app, taskGroups); err != nil {
 		return fmt.Errorf("failed to add task group annotations: %w", err)
@@ -109,7 +119,6 @@ func addTaskGroupAnnotations(app *v1beta2.SparkApplication, taskGroups []taskGro
 	if app.Spec.Driver.Annotations == nil {
 		app.Spec.Driver.Annotations = make(map[string]string)
 	}
-
 	if app.Spec.Executor.Annotations == nil {
 		app.Spec.Executor.Annotations = make(map[string]string)
 	}
@@ -117,7 +126,8 @@ func addTaskGroupAnnotations(app *v1beta2.SparkApplication, taskGroups []taskGro
 	app.Spec.Driver.Annotations[taskGroupNameAnnotation] = driverTaskGroupName
 	app.Spec.Executor.Annotations[taskGroupNameAnnotation] = executorTaskGroupName
 
-	// The task group annotation only needs to be present on the originating pod
+	// The task group definition only needs to be present on the originating pod
+	// https://yunikorn.apache.org/docs/next/user_guide/gang_scheduling/#app-configuration
 	app.Spec.Driver.Annotations[taskGroupsAnnotation] = string(marshalledTaskGroups)
 
 	return nil
@@ -128,7 +138,6 @@ func addQueueLabels(app *v1beta2.SparkApplication) {
 		if app.Spec.Driver.Labels == nil {
 			app.Spec.Driver.Labels = make(map[string]string)
 		}
-
 		if app.Spec.Executor.Labels == nil {
 			app.Spec.Executor.Labels = make(map[string]string)
 		}

@@ -6,11 +6,10 @@ import (
 
 	v1 "k8s.io/api/core/v1"
 
-	"github.com/kubeflow/spark-operator/pkg/util"
-
 	"github.com/stretchr/testify/assert"
 
 	"github.com/kubeflow/spark-operator/api/v1beta2"
+	"github.com/kubeflow/spark-operator/pkg/util"
 )
 
 func TestSchedule(t *testing.T) {

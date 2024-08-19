@@ -9,7 +9,11 @@ import (
 )
 
 func cpuRequest(cores *int32, coreRequest *string) (string, error) {
+	// coreRequest takes precedence over cores if specified
+	// coreLimit is not relevant as pods are scheduled based on request values
 	if coreRequest != nil {
+		// Fail fast by validating coreRequest before app submission even though
+		// both Spark and Yunikorn validate this field anyway
 		if _, err := resource.ParseQuantity(*coreRequest); err != nil {
 			return "", fmt.Errorf("failed to parse %s: %w", *coreRequest, err)
 		}

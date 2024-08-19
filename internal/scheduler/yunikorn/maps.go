@@ -1,8 +1,6 @@
 package yunikorn
 
-import (
-	"maps"
-)
+import "maps"
 
 func mergeMaps(m1, m2 map[string]string) map[string]string {
 	out := make(map[string]string)
