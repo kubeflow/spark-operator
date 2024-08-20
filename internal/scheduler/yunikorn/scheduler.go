@@ -26,6 +26,7 @@ import (
 	"github.com/kubeflow/spark-operator/api/v1beta2"
 	"github.com/kubeflow/spark-operator/internal/scheduler"
 	"github.com/kubeflow/spark-operator/internal/scheduler/yunikorn/resourceusage"
+	"github.com/kubeflow/spark-operator/pkg/util"
 )
 
 const (
@@ -91,7 +92,7 @@ func (s *Scheduler) Schedule(app *v1beta2.SparkApplication) error {
 
 	// A minMember of zero is not a valid config for a Yunikorn task group, so we should leave out
 	// the executor task group completely if the initial number of executors is zero
-	if initialExecutors := resourceusage.NumInitialExecutors(app); initialExecutors > 0 {
+	if numInitialExecutors := util.GetInitialExecutorNumber(app); numInitialExecutors > 0 {
 		executorMinResources, err := resourceusage.ExecutorPodRequests(app)
 		if err != nil {
 			return fmt.Errorf("failed to calculate executor minResources: %w", err)
@@ -99,7 +100,7 @@ func (s *Scheduler) Schedule(app *v1beta2.SparkApplication) error {
 
 		taskGroups = append(taskGroups, taskGroup{
 			Name:         executorTaskGroupName,
-			MinMember:    initialExecutors,
+			MinMember:    numInitialExecutors,
 			MinResource:  executorMinResources,
 			NodeSelector: mergeNodeSelector(app.Spec.NodeSelector, app.Spec.Executor.NodeSelector),
 			Tolerations:  app.Spec.Executor.Tolerations,
@@ -166,8 +167,8 @@ func mergeNodeSelector(appNodeSelector map[string]string, podNodeSelector map[st
 	// in the pod definition before the mutating webhook. The mutating webhook merges the driver/executor-specific
 	// NodeSelector with what's already present
 	nodeSelector := make(map[string]string)
-	maps.Copy(appNodeSelector, nodeSelector)
-	maps.Copy(podNodeSelector, nodeSelector)
+	maps.Copy(nodeSelector, appNodeSelector)
+	maps.Copy(nodeSelector, podNodeSelector)
 
 	// Return nil if there are no entries in the map so that the field is skipped during JSON marshalling
 	if len(nodeSelector) == 0 {

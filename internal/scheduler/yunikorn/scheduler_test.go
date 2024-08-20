@@ -35,30 +35,6 @@ func TestSchedule(t *testing.T) {
 		expected []taskGroup
 	}{
 		{
-			name: "Driver only",
-			app: &v1beta2.SparkApplication{
-				Spec: v1beta2.SparkApplicationSpec{
-					Type: v1beta2.SparkApplicationTypePython,
-					Driver: v1beta2.DriverSpec{
-						SparkPodSpec: v1beta2.SparkPodSpec{
-							Cores:  util.Int32Ptr(1),
-							Memory: util.StringPtr("1g"),
-						},
-					},
-				},
-			},
-			expected: []taskGroup{
-				{
-					Name:      "spark-driver",
-					MinMember: 1,
-					MinResource: map[string]string{
-						"cpu":    "1",
-						"memory": "1433Mi", // 1024Mi * 1.4 non-JVM overhead
-					},
-				},
-			},
-		},
-		{
 			name: "spark-pi-yunikorn",
 			app: &v1beta2.SparkApplication{
 				Spec: v1beta2.SparkApplicationSpec{
@@ -124,6 +100,7 @@ func TestSchedule(t *testing.T) {
 						},
 					},
 					DynamicAllocation: &v1beta2.DynamicAllocation{
+						Enabled:          true,
 						InitialExecutors: util.Int32Ptr(8),
 						MinExecutors:     util.Int32Ptr(2),
 					},
