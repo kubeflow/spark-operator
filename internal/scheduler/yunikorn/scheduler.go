@@ -19,6 +19,7 @@ package yunikorn
 import (
 	"encoding/json"
 	"fmt"
+	"maps"
 
 	v1 "k8s.io/api/core/v1"
 
@@ -78,13 +79,10 @@ func (s *Scheduler) Schedule(app *v1beta2.SparkApplication) error {
 
 	taskGroups := []taskGroup{
 		{
-			Name:        driverTaskGroupName,
-			MinMember:   1,
-			MinResource: driverMinResources,
-			// app.Spec.NodeSelector is passed "spark.kubernetes.node.selector.%s", which means it will be present
-			// in the pod definition before the mutating webhook. The mutating webhook merges the driver/executor-specific
-			// NodeSelector with what's already present
-			NodeSelector: mergeMaps(app.Spec.NodeSelector, app.Spec.Driver.NodeSelector),
+			Name:         driverTaskGroupName,
+			MinMember:    1,
+			MinResource:  driverMinResources,
+			NodeSelector: mergeNodeSelector(app.Spec.NodeSelector, app.Spec.Driver.NodeSelector),
 			Tolerations:  app.Spec.Driver.Tolerations,
 			Affinity:     app.Spec.Driver.Affinity,
 			Labels:       app.Spec.Driver.Labels,
@@ -103,7 +101,7 @@ func (s *Scheduler) Schedule(app *v1beta2.SparkApplication) error {
 			Name:         executorTaskGroupName,
 			MinMember:    initialExecutors,
 			MinResource:  executorMinResources,
-			NodeSelector: mergeMaps(app.Spec.NodeSelector, app.Spec.Executor.NodeSelector), // See comment for driver
+			NodeSelector: mergeNodeSelector(app.Spec.NodeSelector, app.Spec.Executor.NodeSelector),
 			Tolerations:  app.Spec.Executor.Tolerations,
 			Affinity:     app.Spec.Executor.Affinity,
 			Labels:       app.Spec.Executor.Labels,
@@ -161,4 +159,19 @@ func addQueueLabels(app *v1beta2.SparkApplication) {
 		app.Spec.Driver.Labels[queueLabel] = *app.Spec.BatchSchedulerOptions.Queue
 		app.Spec.Executor.Labels[queueLabel] = *app.Spec.BatchSchedulerOptions.Queue
 	}
+}
+
+func mergeNodeSelector(appNodeSelector map[string]string, podNodeSelector map[string]string) map[string]string {
+	// app.Spec.NodeSelector is passed "spark.kubernetes.node.selector.%s", which means it will be present
+	// in the pod definition before the mutating webhook. The mutating webhook merges the driver/executor-specific
+	// NodeSelector with what's already present
+	nodeSelector := make(map[string]string)
+	maps.Copy(appNodeSelector, nodeSelector)
+	maps.Copy(podNodeSelector, nodeSelector)
+
+	// Return nil if there are no entries in the map so that the field is skipped during JSON marshalling
+	if len(nodeSelector) == 0 {
+		return nil
+	}
+	return nodeSelector
 }

@@ -268,3 +268,41 @@ func TestSchedule(t *testing.T) {
 		})
 	}
 }
+
+func TestMergeNodeSelector(t *testing.T) {
+	testCases := []struct {
+		appNodeSelector map[string]string
+		podNodeSelector map[string]string
+		expected        map[string]string
+	}{
+		{
+			appNodeSelector: map[string]string{},
+			podNodeSelector: map[string]string{},
+			expected:        nil,
+		},
+		{
+			appNodeSelector: map[string]string{"key1": "value1"},
+			podNodeSelector: map[string]string{},
+			expected:        map[string]string{"key1": "value1"},
+		},
+		{
+			appNodeSelector: map[string]string{},
+			podNodeSelector: map[string]string{"key1": "value1"},
+			expected:        map[string]string{"key1": "value1"},
+		},
+		{
+			appNodeSelector: map[string]string{"key1": "value1"},
+			podNodeSelector: map[string]string{"key2": "value2"},
+			expected:        map[string]string{"key1": "value1", "key2": "value2"},
+		},
+		{
+			appNodeSelector: map[string]string{"key1": "value1"},
+			podNodeSelector: map[string]string{"key1": "value2", "key2": "value2"},
+			expected:        map[string]string{"key1": "value2", "key2": "value2"},
+		},
+	}
+
+	for _, tc := range testCases {
+		assert.Equal(t, tc.expected, mergeNodeSelector(tc.appNodeSelector, tc.podNodeSelector))
+	}
+}
