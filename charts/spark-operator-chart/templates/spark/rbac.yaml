@@ -67,7 +67,7 @@ subjects:
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
-  name: {{ include "spark-operator.spark.serviceAccountName" $ }}
+  name: {{ include "spark-operator.spark.roleName" $ }}
 {{- end }}
 {{- end }}
 {{- end }}
