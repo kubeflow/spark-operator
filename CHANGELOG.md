@@ -1,5 +1,36 @@
 # Changelog
 
+## [v2.0.0-rc.0](https://github.com/kubeflow/spark-operator/tree/v2.0.0-rc.0) (2024-08-09)
+
+### Breaking Changes
+
+- Use controller-runtime to reconsturct spark operator ([#2072](https://github.com/kubeflow/spark-operator/pull/2072) by [@ChenYi015](https://github.com/ChenYi015))
+
+### Misc
+
+- Fix CI: environment variable BRANCH is missed ([#2111](https://github.com/kubeflow/spark-operator/pull/2111) by [@ChenYi015](https://github.com/ChenYi015))
+- Fix broken integration test CI ([#2109](https://github.com/kubeflow/spark-operator/pull/2109) by [@ChenYi015](https://github.com/ChenYi015))
+
+- Update workflow and docs for releasing Spark operator ([#2089](https://github.com/kubeflow/spark-operator/pull/2089) by [@ChenYi015](https://github.com/ChenYi015))
+
+### What's Changed
+
+- Release v2.0.0-rc.0 ([#2115](https://github.com/kubeflow/spark-operator/pull/2115) by [@ChenYi015](https://github.com/ChenYi015))
+- Cherry pick #2089 #2109 #2111 ([#2110](https://github.com/kubeflow/spark-operator/pull/2110) by [@ChenYi015](https://github.com/ChenYi015))
+- Cherry pick #2081 #2046 #2091 #2072 ([#2108](https://github.com/kubeflow/spark-operator/pull/2108) by [@ChenYi015](https://github.com/ChenYi015))
+
+[Full Changelog](https://github.com/kubeflow/spark-operator/compare/spark-operator-chart-1.4.3...v2.0.0-rc.0)
+
+## [spark-operator-chart-1.4.6](https://github.com/kubeflow/spark-operator/tree/spark-operator-chart-1.4.6) (2024-07-26)
+
+- Add topologySpreadConstraints ([#2091](https://github.com/kubeflow/spark-operator/pull/2091) by [@jbhalodia-slack](https://github.com/jbhalodia-slack))
+- Add Alibaba Cloud to adopters ([#2097](https://github.com/kubeflow/spark-operator/pull/2097) by [@ChenYi015](https://github.com/ChenYi015))
+- Update Stale bot settings ([#2095](https://github.com/kubeflow/spark-operator/pull/2095) by [@andreyvelich](https://github.com/andreyvelich))
+- Add @ChenYi015 to approvers ([#2096](https://github.com/kubeflow/spark-operator/pull/2096) by [@ChenYi015](https://github.com/ChenYi015))
+- Add CHANGELOG.md file and use python script to generate it automatically ([#2087](https://github.com/kubeflow/spark-operator/pull/2087) by [@ChenYi015](https://github.com/ChenYi015))
+
+[Full Changelog](https://github.com/kubeflow/spark-operator/compare/spark-operator-chart-1.4.5...spark-operator-chart-1.4.6)
+
 ## [spark-operator-chart-1.4.5](https://github.com/kubeflow/spark-operator/tree/spark-operator-chart-1.4.5) (2024-07-22)
 
 - Update the process to build api-docs, generate CRD manifests and code ([#2046](https://github.com/kubeflow/spark-operator/pull/2046) by [@ChenYi015](https://github.com/ChenYi015))
