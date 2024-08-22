@@ -2828,6 +2828,22 @@ TODO: investigate if we should use v1.PodSpec and limit what can be set instead.
 <tbody>
 <tr>
 <td>
+<code>template</code><br/>
+<em>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.24/#podtemplatespec-v1-core">
+Kubernetes core/v1.PodTemplateSpec
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Template is a pod template that can be used to define the driver or executor pod configurations that Spark configurations do not support.
+Spark version &gt;= 3.0.0 is required.
+Ref: <a href="https://spark.apache.org/docs/latest/running-on-kubernetes.html#pod-template">https://spark.apache.org/docs/latest/running-on-kubernetes.html#pod-template</a>.</p>
+</td>
+</tr>
+<tr>
+<td>
 <code>cores</code><br/>
 <em>
 int32
