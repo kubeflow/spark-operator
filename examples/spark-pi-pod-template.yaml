@@ -1,0 +1,197 @@
+#
+# Copyright 2024 The Kubeflow authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: test-configmap
+  namespace: default
+data:
+  KEY1: VALUE1
+
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: test-secret
+  namespace: default
+stringData:
+  KEY2: VALUE2
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: test-configmap-2
+  namespace: default
+data:
+  KEY3: VALUE3
+
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: test-secret-2
+  namespace: default
+stringData:
+  KEY4: VALUE4
+
+---
+apiVersion: sparkoperator.k8s.io/v1beta2
+kind: SparkApplication
+metadata:
+  name: spark-pi-pod-template
+  namespace: default
+spec:
+  type: Scala
+  mode: cluster
+  sparkVersion: 3.5.3
+  image: spark:3.5.3
+  imagePullPolicy: IfNotPresent
+  mainApplicationFile: local:///opt/spark/examples/jars/spark-examples.jar
+  mainClass: org.apache.spark.examples.SparkPi
+  arguments:
+  - "10000"
+  driver:
+    template:
+      metadata:
+        labels:
+          spark.apache.org/version: 3.5.3
+        annotations:
+          spark.apache.org/version: 3.5.3
+      spec:
+        containers:
+        - name: spark-kubernetes-driver
+          env:
+          - name: KEY0
+            value: VALUE0
+          - name: KEY1
+            valueFrom:
+              configMapKeyRef:
+                name: test-configmap
+                key: KEY1
+          - name: KEY2
+            valueFrom:
+              secretKeyRef:
+                name: test-secret
+                key: KEY2
+          envFrom:
+          - configMapRef:
+              name: test-configmap-2
+          - secretRef:
+              name: test-secret-2
+          ports:
+          - name: custom-port
+            containerPort: 12345
+            protocol: TCP
+          # The resources section will not work for cpu/memory requests and limits.
+          # Ref: https://spark.apache.org/docs/latest/running-on-kubernetes.html#pod-template.
+          resources:
+            requests:
+              # Please use `spec.driver.cores` instead.
+              cpu: 500m
+              # Please use `spec.driver.memory` and `spec.driver.memoryOverhead` instead.
+              memory: 512Mi
+            limits:
+              # Please use `spec.driver.coreLimit` instead.
+              cpu: 1
+              # Please use `spec.driver.memory` and `spec.driver.memoryOverhead` instead.
+              memory: 1Gi
+        nodeSelector:
+          kubernetes.io/os: linux
+        affinity:
+          podAffinity:
+            preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 1
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    spark-app-name: spark-pi-pod-template
+                topologyKey: kubernetes.io/hostname
+        tolerations:
+        - operator: Exists
+          effect: NoSchedule
+        serviceAccountName: spark-operator-spark
+    cores: 1
+    coreLimit: "1"
+    memory: 512m
+    memoryOverhead: 512m
+  executor:
+    instances: 1
+    template:
+      metadata:
+        labels:
+          spark.apache.org/version: 3.5.3
+        annotations:
+          spark.apache.org/version: 3.5.3
+      spec:
+        containers:
+        - name: spark-kubernetes-executor
+          env:
+          - name: KEY0
+            value: VALUE0
+          - name: KEY1
+            valueFrom:
+              configMapKeyRef:
+                name: test-configmap
+                key: KEY1
+          - name: KEY2
+            valueFrom:
+              secretKeyRef:
+                name: test-secret
+                key: KEY2
+          envFrom:
+          - configMapRef:
+              name: test-configmap-2
+          - secretRef:
+              name: test-secret-2
+          volumeMounts:
+          - name: spark-local-dir-1
+            mountPath: /mnt/disk1
+          # The resources section will not work for cpu/memory requests and limits.
+          # Ref: https://spark.apache.org/docs/latest/running-on-kubernetes.html#pod-template.
+          resources:
+            requests:
+              # Please use `spec.executor.cores` instead.
+              cpu: 1
+              # Please use `spec.executor.memory` and `spec.executor.memoryOverhead` instead.
+              memory: 1Gi
+            limits:
+              # Please use `spec.executor.coreLimit` instead.
+              cpu: 1500m
+              # Please use `spec.executor.memory` and `spec.executor.memoryOverhead` instead.
+              memory: 1512Mi
+        volumes:
+        - name: spark-local-dir-1
+          emptyDir:
+            sizeLimit: 100Mi
+        nodeSelector:
+          kubernetes.io/os: linux
+        affinity:
+          podAffinity:
+            preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 1
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    spark-app-name: spark-pi-pod-template
+                topologyKey: kubernetes.io/hostname
+        tolerations:
+        - operator: Exists
+          effect: NoSchedule
+    cores: 1
+    coreLimit: 1500m
+    memory: 1g
+    memoryOverhead: 512m
