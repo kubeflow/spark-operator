@@ -19,6 +19,7 @@ package sparkapplication
 import (
 	"context"
 	"fmt"
+	"os"
 	"strconv"
 	"time"
 
@@ -643,8 +644,10 @@ func (r *Reconciler) getSparkApplication(key types.NamespacedName) (*v1beta2.Spa
 // submitSparkApplication creates a new submission for the given SparkApplication and submits it using spark-submit.
 func (r *Reconciler) submitSparkApplication(app *v1beta2.SparkApplication) (submitErr error) {
 	logger.Info("Submitting SparkApplication", "name", app.Name, "namespace", app.Namespace, "state", app.Status.AppState.State)
+
 	// SubmissionID must be set before creating any resources to ensure all the resources are labeled.
 	app.Status.SubmissionID = uuid.New().String()
+	app.Status.DriverInfo.PodName = util.GetDriverPodName(app)
 	app.Status.LastSubmissionAttemptTime = metav1.Now()
 	app.Status.SubmissionAttempts = app.Status.SubmissionAttempts + 1
 
@@ -736,8 +739,12 @@ func (r *Reconciler) submitSparkApplication(app *v1beta2.SparkApplication) (subm
 		}
 	}
 
-	driverPodName := util.GetDriverPodName(app)
-	app.Status.DriverInfo.PodName = driverPodName
+	defer func() {
+		if err := r.cleanUpPodTemplateFiles(app); err != nil {
+			logger.Error(fmt.Errorf("failed to clean up pod template files: %v", err), "name", app.Name, "namespace", app.Namespace)
+		}
+	}()
+
 	sparkSubmitArgs, err := buildSparkSubmitArgs(app)
 	if err != nil {
 		return fmt.Errorf("failed to build spark-submit arguments: %v", err)
@@ -746,6 +753,7 @@ func (r *Reconciler) submitSparkApplication(app *v1beta2.SparkApplication) (subm
 	// Try submitting the application by running spark-submit.
 	logger.Info("Running spark-submit for SparkApplication", "name", app.Name, "namespace", app.Namespace, "arguments", sparkSubmitArgs)
 	if err := runSparkSubmit(newSubmission(sparkSubmitArgs, app)); err != nil {
+		r.recordSparkApplicationEvent(app)
 		return fmt.Errorf("failed to run spark-submit: %v", err)
 	}
 	return nil
@@ -1222,5 +1230,20 @@ func (r *Reconciler) cleanUpOnTermination(_, newApp *v1beta2.SparkApplication) e
 			return err
 		}
 	}
+	return nil
+}
+
+// cleanUpPodTemplateFiles cleans up the driver and executor pod template files.
+func (r *Reconciler) cleanUpPodTemplateFiles(app *v1beta2.SparkApplication) error {
+	if app.Spec.Driver.Template == nil && app.Spec.Executor.Template == nil {
+		return nil
+	}
+	path := fmt.Sprintf("/tmp/spark/%s", app.Status.SubmissionID)
+	if err := os.RemoveAll(path); err != nil {
+		if !os.IsNotExist(err) {
+			return err
+		}
+	}
+	logger.V(1).Info("Deleted pod template files", "path", path)
 	return nil
 }

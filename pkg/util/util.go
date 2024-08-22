@@ -19,7 +19,11 @@ package util
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
+
+	"golang.org/x/mod/semver"
+	"sigs.k8s.io/yaml"
 
 	"github.com/kubeflow/spark-operator/pkg/common"
 )
@@ -76,4 +80,41 @@ func Int64Ptr(n int64) *int64 {
 
 func StringPtr(s string) *string {
 	return &s
+}
+
+// CompareSemanticVersion compares two semantic versions.
+func CompareSemanticVersion(v1, v2 string) int {
+	// Add 'v' prefix if needed
+	addPrefix := func(s string) string {
+		if !strings.HasPrefix(s, "v") {
+			return "v" + s
+		}
+		return s
+	}
+	return semver.Compare(addPrefix(v1), addPrefix(v2))
+}
+
+// WriteObjectToFile marshals the given object into a YAML document and writes it to the given file.
+func WriteObjectToFile(obj interface{}, filePath string) error {
+	if err := os.MkdirAll(filepath.Dir(filePath), 0755); err != nil {
+		return err
+	}
+
+	file, err := os.Create(filePath)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	data, err := yaml.Marshal(obj)
+	if err != nil {
+		return err
+	}
+
+	_, err = file.Write(data)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
