@@ -19,6 +19,7 @@ package sparkapplication
 import (
 	"context"
 	"fmt"
+	"os"
 	"strconv"
 	"time"
 
@@ -718,6 +719,9 @@ func (r *Reconciler) submitSparkApplication(app *v1beta2.SparkApplication) error
 	// Try submitting the application by running spark-submit.
 	logger.Info("Running spark-submit for SparkApplication", "name", app.Name, "namespace", app.Namespace, "arguments", sparkSubmitArgs)
 	submitted, err := runSparkSubmit(newSubmission(sparkSubmitArgs, app))
+	if err := r.cleanUpPodTemplateFiles(app); err != nil {
+		return fmt.Errorf("failed to clean up pod template files: %v", err)
+	}
 	if err != nil {
 		r.recordSparkApplicationEvent(app)
 		return fmt.Errorf("failed to run spark-submit: %v", err)
@@ -1226,5 +1230,20 @@ func (r *Reconciler) cleanUpOnTermination(_, newApp *v1beta2.SparkApplication) e
 			return err
 		}
 	}
+	return nil
+}
+
+// cleanUpPodTemplateFiles cleans up the driver and executor pod template files.
+func (r *Reconciler) cleanUpPodTemplateFiles(app *v1beta2.SparkApplication) error {
+	if app.Spec.Driver.Template == nil && app.Spec.Executor.Template == nil {
+		return nil
+	}
+	path := fmt.Sprintf("/tmp/spark/%s", app.Status.SubmissionID)
+	if err := os.RemoveAll(path); err != nil {
+		if !os.IsNotExist(err) {
+			return err
+		}
+	}
+	logger.V(1).Info("Deleted pod template files", "path", path)
 	return nil
 }
