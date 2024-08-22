@@ -428,3 +428,29 @@ func GetExecutorRequestResource(app *v1beta2.SparkApplication) corev1.ResourceLi
 	}
 	return SumResourceList(resourceList)
 }
+
+// GetInitialExecutorNumber calculates the initial number of executor pods that will be requested by the driver on startup.
+func GetInitialExecutorNumber(app *v1beta2.SparkApplication) int32 {
+	// The reference for this implementation: https://github.com/apache/spark/blob/ba208b9ca99990fa329c36b28d0aa2a5f4d0a77e/core/src/main/scala/org/apache/spark/scheduler/cluster/SchedulerBackendUtils.scala#L31
+	var initialNumExecutors int32
+
+	dynamicAllocationEnabled := app.Spec.DynamicAllocation != nil && app.Spec.DynamicAllocation.Enabled
+	if dynamicAllocationEnabled {
+		if app.Spec.Executor.Instances != nil {
+			initialNumExecutors = max(initialNumExecutors, *app.Spec.Executor.Instances)
+		}
+		if app.Spec.DynamicAllocation.InitialExecutors != nil {
+			initialNumExecutors = max(initialNumExecutors, *app.Spec.DynamicAllocation.InitialExecutors)
+		}
+		if app.Spec.DynamicAllocation.MinExecutors != nil {
+			initialNumExecutors = max(initialNumExecutors, *app.Spec.DynamicAllocation.MinExecutors)
+		}
+	} else {
+		initialNumExecutors = 2
+		if app.Spec.Executor.Instances != nil {
+			initialNumExecutors = *app.Spec.Executor.Instances
+		}
+	}
+
+	return initialNumExecutors
+}

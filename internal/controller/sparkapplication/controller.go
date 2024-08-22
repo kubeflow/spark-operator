@@ -43,6 +43,7 @@ import (
 	"github.com/kubeflow/spark-operator/internal/metrics"
 	"github.com/kubeflow/spark-operator/internal/scheduler"
 	"github.com/kubeflow/spark-operator/internal/scheduler/volcano"
+	"github.com/kubeflow/spark-operator/internal/scheduler/yunikorn"
 	"github.com/kubeflow/spark-operator/pkg/common"
 	"github.com/kubeflow/spark-operator/pkg/util"
 )
@@ -1197,6 +1198,8 @@ func (r *Reconciler) shouldDoBatchScheduling(app *v1beta2.SparkApplication) (boo
 			RestConfig: r.manager.GetConfig(),
 		}
 		scheduler, err = r.registry.GetScheduler(schedulerName, config)
+	case yunikorn.SchedulerName:
+		scheduler, err = r.registry.GetScheduler(schedulerName, nil)
 	}
 
 	if err != nil || scheduler == nil {
