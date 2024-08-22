@@ -14,7 +14,7 @@
 # limitations under the License.
 #
 
-suite: Test spark rbac
+suite: Test Spark RBAC
 
 templates:
   - spark/rbac.yaml
@@ -24,7 +24,7 @@ release:
   namespace: spark-operator
 
 tests:
-  - it: Should not create spark RBAC resources if `spark.rbac.create` is false
+  - it: Should not create RBAC resources for Spark if `spark.rbac.create` is false
     set:
       spark:
         rbac:
@@ -33,48 +33,42 @@ tests:
       - hasDocuments:
           count: 0
 
-  - it: Should create spark role by default
+  - it: Should create RBAC resources for Spark in namespace `default` by default
     documentIndex: 0
     asserts:
       - containsDocument:
           apiVersion: rbac.authorization.k8s.io/v1
           kind: Role
           name: spark-operator-spark
+          namespace: default
 
-  - it: Should create spark role binding by default
-    set:
-      rbac:
-        spark:
-          create: true
+  - it: Should create RBAC resources for Spark in namespace `default` by default
     documentIndex: 1
     asserts:
       - containsDocument:
           apiVersion: rbac.authorization.k8s.io/v1
           kind: RoleBinding
           name: spark-operator-spark
+          namespace: default
+      - contains:
+          path: subjects
+          content:
+            kind: ServiceAccount
+            name: spark-operator-spark
+            namespace: default
+      - equal:
+          path: roleRef
+          value:
+            apiGroup: rbac.authorization.k8s.io
+            kind: Role
+            name: spark-operator-spark
 
-  - it: Should create a single spark role with namespace "" by default
-    documentIndex: 0
-    asserts:
-      - containsDocument:
-          apiVersion: rbac.authorization.k8s.io/v1
-          kind: Role
-          name: spark-operator-spark
-
-  - it: Should create a single spark role binding with namespace "" by default
-    documentIndex: 1
-    asserts:
-      - containsDocument:
-          apiVersion: rbac.authorization.k8s.io/v1
-          kind: RoleBinding
-          name: spark-operator-spark
-          namespace: ""
-
-  - it: Should create multiple spark roles if `spark.jobNamespaces` is set with multiple values
+  - it: Should create RBAC resources for Spark in every Spark job namespace
     set:
-      spark.jobNamespaces:
-        - ns1
-        - ns2
+      spark:
+        jobNamespaces:
+          - ns1
+          - ns2
     documentIndex: 0
     asserts:
       - containsDocument:
@@ -83,11 +77,12 @@ tests:
           name: spark-operator-spark
           namespace: ns1
 
-  - it: Should create multiple spark role bindings if `spark.jobNamespaces` is set with multiple values
+  - it: Should create RBAC resources for Spark in every Spark job namespace
     set:
-      spark.jobNamespaces:
-        - ns1
-        - ns2
+      spark:
+        jobNamespaces:
+          - ns1
+          - ns2
     documentIndex: 1
     asserts:
       - containsDocument:
@@ -95,12 +90,25 @@ tests:
           kind: RoleBinding
           name: spark-operator-spark
           namespace: ns1
+      - contains:
+          path: subjects
+          content:
+            kind: ServiceAccount
+            name: spark-operator-spark
+            namespace: ns1
+      - equal:
+          path: roleRef
+          value:
+            apiGroup: rbac.authorization.k8s.io
+            kind: Role
+            name: spark-operator-spark
 
-  - it: Should create multiple spark roles if `spark.jobNamespaces` is set with multiple values
+  - it: Should create RBAC resources for Spark in every Spark job namespace
     set:
-      spark.jobNamespaces:
-        - ns1
-        - ns2
+      spark:
+        jobNamespaces:
+          - ns1
+          - ns2
     documentIndex: 2
     asserts:
       - containsDocument:
@@ -109,11 +117,12 @@ tests:
           name: spark-operator-spark
           namespace: ns2
 
-  - it: Should create multiple spark role bindings if `spark.jobNamespaces` is set with multiple values
+  - it: Should create RBAC resources for Spark in every Spark job namespace
     set:
-      spark.jobNamespaces:
-        - ns1
-        - ns2
+      spark:
+        jobNamespaces:
+          - ns1
+          - ns2
     documentIndex: 3
     asserts:
       - containsDocument:
@@ -121,3 +130,53 @@ tests:
           kind: RoleBinding
           name: spark-operator-spark
           namespace: ns2
+      - contains:
+          path: subjects
+          content:
+            kind: ServiceAccount
+            name: spark-operator-spark
+            namespace: ns2
+      - equal:
+          path: roleRef
+          value:
+            apiGroup: rbac.authorization.k8s.io
+            kind: Role
+            name: spark-operator-spark
+
+  - it: Should use the specified service account name if `spark.serviceAccount.name` is set
+    set:
+      spark:
+        serviceAccount:
+          name: spark
+    documentIndex: 0
+    asserts:
+      - containsDocument:
+          apiVersion: rbac.authorization.k8s.io/v1
+          kind: Role
+          name: spark
+          namespace: default
+
+  - it: Should use the specified service account name if `spark.serviceAccount.name` is set
+    set:
+      spark:
+        serviceAccount:
+          name: spark
+    documentIndex: 1
+    asserts:
+      - containsDocument:
+          apiVersion: rbac.authorization.k8s.io/v1
+          kind: RoleBinding
+          name: spark
+          namespace: default
+      - contains:
+          path: subjects
+          content:
+            kind: ServiceAccount
+            name: spark
+            namespace: default
+      - equal:
+          path: roleRef
+          value:
+            apiGroup: rbac.authorization.k8s.io
+            kind: Role
+            name: spark
