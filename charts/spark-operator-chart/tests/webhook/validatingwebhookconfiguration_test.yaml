@@ -31,6 +31,14 @@ tests:
           kind: ValidatingWebhookConfiguration
           name: spark-operator-webhook
 
+  - it: Should not create the validating webhook configuration if `webhook.enable` is `false`
+    set:
+      webhook:
+        enable: false
+    asserts:
+      - hasDocuments:
+          count: 0
+
   - it: Should use the specified webhook port
     set:
       webhook:
