@@ -164,6 +164,9 @@ controller:
     minAvailable: 1
 
 webhook:
+  # -- Specifies whether to enable webhook.
+  enable: true
+
   # -- Number of replicas of webhook server.
   replicas: 1
 
