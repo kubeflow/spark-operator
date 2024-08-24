@@ -31,6 +31,14 @@ tests:
           kind: Deployment
           name: spark-operator-webhook
 
+  - it: Should not create webhook deployment if `webhook.enable` is `false`
+    set:
+      webhook:
+        enable: false
+    asserts:
+      - hasDocuments:
+          count: 0
+
   - it: Should set replicas if `webhook.replicas` is set
     set:
       webhook:

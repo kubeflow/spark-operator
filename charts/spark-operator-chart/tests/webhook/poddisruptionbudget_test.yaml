@@ -24,6 +24,14 @@ release:
   namespace: spark-operator
 
 tests:
+  - it: Should not render podDisruptionBudget if `webhook.enable` is `false`
+    set:
+      webhook:
+        enable: false
+    asserts:
+      - hasDocuments:
+          count: 0
+
   - it: Should not render podDisruptionBudget if `webhook.podDisruptionBudget.enable` is false
     set:
       webhook:
@@ -40,7 +48,7 @@ tests:
         podDisruptionBudget:
           enable: true
     asserts:
-      - failedTemplate: 
+      - failedTemplate:
           errorMessage: "webhook.replicas must be greater than 1 to enable pod disruption budget for webhook"
 
   - it: Should render spark operator podDisruptionBudget if `webhook.podDisruptionBudget.enable` is true
