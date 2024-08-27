@@ -413,6 +413,8 @@ type SparkPodSpec struct {
 	// Spark version >= 3.0.0 is required.
 	// Ref: https://spark.apache.org/docs/latest/running-on-kubernetes.html#pod-template.
 	// +optional
+	// +kubebuilder:validation:Schemaless
+	// +kubebuilder:validation:Type:=object
 	Template *corev1.PodTemplateSpec `json:"template,omitempty"`
 	// Cores maps to `spark.driver.cores` or `spark.executor.cores` for the driver and executors, respectively.
 	// +optional
