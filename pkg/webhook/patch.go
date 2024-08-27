@@ -552,7 +552,24 @@ func addSchedulerName(pod *corev1.Pod, app *v1beta2.SparkApplication) *patchOper
 	return &patchOperation{Op: "add", Path: "/spec/schedulerName", Value: *schedulerName}
 }
 
-func addPriorityClassName(pod *corev1.Pod, app *v1beta2.SparkApplication) []patchOperation {
+func addDriverExecutorSelfPriorityClassName(pod *corev1.Pod, app *v1beta2.SparkApplication) []patchOperation {
+	var priorityClassName *string
+
+	if util.IsDriverPod(pod) {
+		priorityClassName = app.Spec.Driver.PriorityClassName
+	}
+	if util.IsExecutorPod(pod) {
+		priorityClassName = app.Spec.Executor.PriorityClassName
+	}
+
+	var ops []patchOperation
+	if priorityClassName != nil && *priorityClassName != "" {
+		ops = append(ops, patchOperation{Op: "add", Path: "/spec/priorityClassName", Value: *priorityClassName})
+	}
+	return ops
+}
+
+func addDriverExecutorUnifyPriorityClassName(pod *corev1.Pod, app *v1beta2.SparkApplication) []patchOperation {
 	var priorityClassName *string
 
 	if app.Spec.BatchSchedulerOptions != nil {
@@ -572,6 +589,14 @@ func addPriorityClassName(pod *corev1.Pod, app *v1beta2.SparkApplication) []patc
 	}
 
 	return ops
+}
+
+func addPriorityClassName(pod *corev1.Pod, app *v1beta2.SparkApplication) []patchOperation {
+	if *app.Spec.BatchSchedulerOptions.PriorityClassSplitting {
+		return addDriverExecutorSelfPriorityClassName(pod, app)
+	} else {
+		return addDriverExecutorUnifyPriorityClassName(pod, app)
+	}
 }
 
 func addToleration(pod *corev1.Pod, toleration corev1.Toleration, first bool) patchOperation {
