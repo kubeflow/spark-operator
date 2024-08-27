@@ -475,12 +475,7 @@ func addSchedulerName(pod *corev1.Pod, app *v1beta2.SparkApplication) error {
 	return nil
 }
 
-func addPriorityClassName(pod *corev1.Pod, app *v1beta2.SparkApplication) error {
-	var priorityClassName *string
-	if app.Spec.BatchSchedulerOptions != nil {
-		priorityClassName = app.Spec.BatchSchedulerOptions.PriorityClassName
-	}
-
+func podPriorityClassAssign(pod *corev1.Pod, priorityClassName *string) {
 	if priorityClassName != nil && *priorityClassName != "" {
 		pod.Spec.PriorityClassName = *priorityClassName
 		if pod.Spec.Priority != nil {
@@ -490,7 +485,38 @@ func addPriorityClassName(pod *corev1.Pod, app *v1beta2.SparkApplication) error 
 			pod.Spec.PreemptionPolicy = nil
 		}
 	}
+}
+
+func addDriverExecutorSelfPriorityClassName(pod *corev1.Pod, app *v1beta2.SparkApplication) error {
+	var priorityClassName *string
+	if util.IsDriverPod(pod) {
+		priorityClassName = app.Spec.Driver.PriorityClassName
+	}
+	if util.IsExecutorPod(pod) {
+		priorityClassName = app.Spec.Executor.PriorityClassName
+	}
+
+	podPriorityClassAssign(pod, priorityClassName)
+
 	return nil
+}
+
+func addDriverExecutorUnifyPriorityClassName(pod *corev1.Pod, app *v1beta2.SparkApplication) error {
+	var priorityClassName *string
+	if app.Spec.BatchSchedulerOptions != nil {
+		priorityClassName = app.Spec.BatchSchedulerOptions.PriorityClassName
+	}
+
+	podPriorityClassAssign(pod, priorityClassName)
+
+	return nil
+}
+func addPriorityClassName(pod *corev1.Pod, app *v1beta2.SparkApplication) error {
+	if *app.Spec.BatchSchedulerOptions.PriorityClassSplitting {
+		return addDriverExecutorSelfPriorityClassName(pod, app)
+	} else {
+		return addDriverExecutorUnifyPriorityClassName(pod, app)
+	}
 }
 
 func addPodSecurityContext(pod *corev1.Pod, app *v1beta2.SparkApplication) error {
