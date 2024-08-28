@@ -70,8 +70,9 @@ spec:
         - --ingress-url-format={{ . }}
         {{- end }}
         {{- end }}
-        {{- with .Values.controller.batchScheduler.enable }}
+        {{- if .Values.controller.batchScheduler.enable }}
         - --enable-batch-scheduler=true
+        - --default-batch-scheduler={{ .Values.controller.batchScheduler.default }}
         {{- end }}
         {{- if .Values.prometheus.metrics.enable }}
         - --enable-metrics=true

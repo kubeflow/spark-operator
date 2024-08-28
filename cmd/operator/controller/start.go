@@ -20,6 +20,7 @@ import (
 	"crypto/tls"
 	"flag"
 	"os"
+	"slices"
 	"time"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
@@ -72,7 +73,8 @@ var (
 	cacheSyncTimeout  time.Duration
 
 	// Batch scheduler
-	enableBatchScheduler bool
+	enableBatchScheduler  bool
+	defaultBatchScheduler string
 
 	// Spark web UI service and ingress
 	enableUIService  bool
@@ -128,6 +130,8 @@ func NewStartCommand() *cobra.Command {
 	command.Flags().DurationVar(&cacheSyncTimeout, "cache-sync-timeout", 30*time.Second, "Informer cache sync timeout.")
 
 	command.Flags().BoolVar(&enableBatchScheduler, "enable-batch-scheduler", false, "Enable batch schedulers.")
+	command.Flags().StringVar(&defaultBatchScheduler, "default-batch-scheduler", "", "Default batch scheduler.")
+
 	command.Flags().BoolVar(&enableUIService, "enable-ui-service", true, "Enable Spark Web UI service.")
 	command.Flags().StringVar(&ingressClassName, "ingress-class-name", "", "Set ingressClassName for ingress resources created.")
 	command.Flags().StringVar(&ingressURLFormat, "ingress-url-format", "", "Ingress URL format.")
@@ -207,8 +211,14 @@ func start() {
 	var registry *scheduler.Registry
 	if enableBatchScheduler {
 		registry = scheduler.GetRegistry()
-		registry.Register(common.VolcanoSchedulerName, volcano.Factory)
-		registry.Register(yunikorn.SchedulerName, yunikorn.Factory)
+		_ = registry.Register(common.VolcanoSchedulerName, volcano.Factory)
+		_ = registry.Register(yunikorn.SchedulerName, yunikorn.Factory)
+
+		schedulerNames := registry.GetRegisteredSchedulerNames()
+		if defaultBatchScheduler != "" && !slices.Contains(schedulerNames, defaultBatchScheduler) {
+			logger.Error(nil, "Failed to find default batch scheduler in registered schedulers")
+			os.Exit(1)
+		}
 	}
 
 	// Setup controller for SparkApplication.
@@ -348,6 +358,7 @@ func newSparkApplicationReconcilerOptions() sparkapplication.Options {
 		EnableUIService:         enableUIService,
 		IngressClassName:        ingressClassName,
 		IngressURLFormat:        ingressURLFormat,
+		DefaultBatchScheduler:   defaultBatchScheduler,
 		SparkApplicationMetrics: sparkApplicationMetrics,
 		SparkExecutorMetrics:    sparkExecutorMetrics,
 	}
