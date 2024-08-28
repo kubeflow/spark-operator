@@ -54,10 +54,11 @@ var (
 
 // Options defines the options of the controller.
 type Options struct {
-	Namespaces       []string
-	EnableUIService  bool
-	IngressClassName string
-	IngressURLFormat string
+	Namespaces            []string
+	EnableUIService       bool
+	IngressClassName      string
+	IngressURLFormat      string
+	DefaultBatchScheduler string
 
 	SparkApplicationMetrics *metrics.SparkApplicationMetrics
 	SparkExecutorMetrics    *metrics.SparkExecutorMetrics
@@ -1184,14 +1185,24 @@ func (r *Reconciler) resetSparkApplicationStatus(app *v1beta2.SparkApplication) 
 }
 
 func (r *Reconciler) shouldDoBatchScheduling(app *v1beta2.SparkApplication) (bool, scheduler.Interface) {
-	if r.registry == nil || app.Spec.BatchScheduler == nil || *app.Spec.BatchScheduler == "" {
+	// If batch scheduling isn't enabled
+	if r.registry == nil {
+		return false, nil
+	}
+
+	schedulerName := r.options.DefaultBatchScheduler
+	if app.Spec.BatchScheduler != nil && *app.Spec.BatchScheduler != "" {
+		schedulerName = *app.Spec.BatchScheduler
+	}
+
+	// If both the default and app batch scheduler are unspecified or empty
+	if schedulerName == "" {
 		return false, nil
 	}
 
 	var err error
 	var scheduler scheduler.Interface
 
-	schedulerName := *app.Spec.BatchScheduler
 	switch schedulerName {
 	case common.VolcanoSchedulerName:
 		config := &volcano.Config{
