@@ -475,14 +475,6 @@ func addSchedulerName(pod *corev1.Pod, app *v1beta2.SparkApplication) error {
 	return nil
 }
 
-func setPodPriorityClassName(pod *corev1.Pod, priorityClassName *string) {
-	if priorityClassName != nil && *priorityClassName != "" {
-		pod.Spec.PriorityClassName = *priorityClassName
-		pod.Spec.Priority = nil
-		pod.Spec.PreemptionPolicy = nil
-	}
-}
-
 func addPriorityClassName(pod *corev1.Pod, app *v1beta2.SparkApplication) error {
 	var priorityClassName *string
 
@@ -494,7 +486,11 @@ func addPriorityClassName(pod *corev1.Pod, app *v1beta2.SparkApplication) error 
 		priorityClassName = app.Spec.BatchSchedulerOptions.PriorityClassName
 	}
 
-	setPodPriorityClassName(pod, priorityClassName)
+	if priorityClassName != nil && *priorityClassName != "" {
+		pod.Spec.PriorityClassName = *priorityClassName
+		pod.Spec.Priority = nil
+		pod.Spec.PreemptionPolicy = nil
+	}
 
 	return nil
 }
