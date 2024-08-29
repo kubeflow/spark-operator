@@ -108,11 +108,6 @@ spec:
                           PriorityClass resource, it's being used in Volcano batch
                           scheduler.
                         type: string
-                      priorityClassSplitting:
-                        description: PriorityClassSplitting stands for the splitting
-                          of the priority class, it's being used driver and executor
-                          pods
-                        type: boolean
                       queue:
                         description: Queue stands for the resource queue which the
                           application belongs to, it's being used in Volcano batch

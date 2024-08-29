@@ -273,9 +273,6 @@ type BatchSchedulerConfiguration struct {
 	// If specified, volcano scheduler will consider it as the resources requested.
 	// +optional
 	Resources corev1.ResourceList `json:"resources,omitempty"`
-	// PriorityClassSplitting stands for the splitting of the priority class, it's being used driver and executor pods
-	// +optional
-	PriorityClassSplitting *bool `json:"priorityClassSplitting,omitempty"`
 }
 
 // SparkUIConfiguration is for driver UI specific configuration parameters.
