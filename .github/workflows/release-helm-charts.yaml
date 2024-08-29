@@ -2,17 +2,25 @@ name: Release Helm charts
 
 on:
   release:
-    types: [published]
+    types:
+      - published
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  HELM_REGISTRY: ghcr.io
+  HELM_REPOSITORY: ${{ github.repository_owner }}/helm-charts
+
 jobs:
-  build:
+  release_helm_charts:
     permissions:
       contents: write
+      packages: write
+
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout source code
         uses: actions/checkout@v4
@@ -27,10 +35,28 @@ jobs:
         with:
           version: v3.14.4
 
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.HELM_REGISTRY }}
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Read version from VERSION file
+        run: |
+          VERSION=$(cat VERSION)
+          echo "VERSION=${VERSION}" >> $GITHUB_ENV
+
       - name: Package Helm charts
         run: |
           for chart in $(ls charts); do
-            helm package charts/$chart
+            helm package charts/${chart}
+          done
+
+      - name: Upload charts to GHCR
+        run: |
+          for pkg in $(ls *.tgz); do
+            helm push ${pkg} oci://${{ env.HELM_REGISTRY }}/${{ env.HELM_REPOSITORY }}
           done
 
       - name: Save packaged charts to temp directory
@@ -44,7 +70,7 @@ jobs:
           ref: gh-pages
           fetch-depth: 0
 
-      - name: Copy packages charts
+      - name: Copy packaged charts
         run: |
           cp /tmp/charts/*.tgz .
 
@@ -52,7 +78,7 @@ jobs:
         env:
           CHART_URL: https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}
         run: |
-          helm repo index --merge index.yaml --url $CHART_URL .
+          helm repo index --merge index.yaml --url ${CHART_URL} .
           git add index.yaml
-          git commit -s -m "Update index.yaml" || exit 0
+          git commit -s -m "Add index for Spark operator chart ${VERSION}" || exit 0
           git push

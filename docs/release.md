@@ -71,28 +71,42 @@ If you want to push changes to the `release-X.Y` release branch, you have to che
     ```bash
     # Get version and remove the leading 'v'
     VERSION=$(cat VERSION | sed "s/^v//")
+
+    # Change the version and appVersion in Chart.yaml
+    # On Linux
     sed -i "s/^version.*/version: ${VERSION}/" charts/spark-operator-chart/Chart.yaml
     sed -i "s/^appVersion.*/appVersion: ${VERSION}/" charts/spark-operator-chart/Chart.yaml
+
+    # On MacOS
+    sed -i '' "s/^version.*/version: ${VERSION}/" charts/spark-operator-chart/Chart.yaml
+    sed -i '' "s/^appVersion.*/appVersion: ${VERSION}/" charts/spark-operator-chart/Chart.yaml
     ```
 
-3. Commit the changes:
+3. Update the Helm chart README:
+
+    ```bash
+    make helm-docs
+    ```
+
+4. Commit the changes:
 
     ```bash
     git add VERSION
     git add charts/spark-operator-chart/Chart.yaml
-    git commit -s -m "Release $VERSION"
-    git push
+    git add charts/spark-operator-chart/README.md
+    git commit -s -m "Spark Operator Official Release v${VERSION}"
+    git push origin release-X.Y
     ```
 
-4. Submit a PR to the release branch. After the PR is merged, a new tag will be automatically created if the `VERSION` file has changed.
+5. Submit a PR to the release branch.
 
 ### Release Spark Operator Image
 
-After a pre-release/release tag is pushed, a release workflow will be triggered to build and push Spark operator docker image to Docker Hub.
+After `VERSION` file is modified and pushed to the release branch, a release workflow will be triggered to build and push Spark operator docker images to Docker Hub.
 
 ### Publish release
 
-After a pre-release/release tag is pushed, a release workflow will be triggered to create a new draft release.
+After `VERSION` file is modified and pushed to the release branch, a release workflow will be triggered to create a new draft release with the Spark operator Helm chart packaged as an artifact. After modifying the release notes, then publish the release.
 
 ### Release Spark Operator Helm Chart
 
