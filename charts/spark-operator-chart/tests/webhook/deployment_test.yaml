@@ -48,6 +48,15 @@ tests:
           path: spec.replicas
           value: 10
 
+  - it: Should set replicas if `webhook.replicas` is set
+    set:
+      webhook:
+        replicas: 0
+    asserts:
+      - equal:
+          path: spec.replicas
+          value: 0
+
   - it: Should add pod labels if `webhook.labels` is set
     set:
       webhook:

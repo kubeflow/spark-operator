@@ -53,6 +53,15 @@ tests:
           path: spec.replicas
           value: 10
 
+  - it: Should set replicas if `controller.replicas` is set
+    set:
+      controller:
+        replicas: 0
+    asserts:
+      - equal:
+          path: spec.replicas
+          value: 0
+
   - it: Should add pod labels if `controller.labels` is set
     set:
       controller:
