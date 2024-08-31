@@ -27,9 +27,9 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-
 	"helm.sh/helm/v3/pkg/action"
 	"helm.sh/helm/v3/pkg/chart/loader"
+	"helm.sh/helm/v3/pkg/chartutil"
 	"helm.sh/helm/v3/pkg/cli"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -128,7 +128,10 @@ var _ = BeforeSuite(func() {
 	chart, err := loader.Load(chartPath)
 	Expect(err).NotTo(HaveOccurred())
 	Expect(chart).NotTo(BeNil())
-	release, err := installAction.Run(chart, nil)
+	values, err := chartutil.ReadValuesFile(filepath.Join(chartPath, "ci", "ci-values.yaml"))
+	Expect(err).NotTo(HaveOccurred())
+	Expect(values).NotTo(BeNil())
+	release, err := installAction.Run(chart, values)
 	Expect(err).NotTo(HaveOccurred())
 	Expect(release).NotTo(BeNil())
 })
