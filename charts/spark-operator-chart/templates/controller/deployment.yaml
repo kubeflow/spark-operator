@@ -57,7 +57,11 @@ spec:
         - --zap-log-level={{ . }}
         {{- end }}
         {{- with .Values.spark.jobNamespaces }}
+        {{- if has "" . }}
+        - --namespaces=""
+        {{- else }}
         - --namespaces={{ . | join "," }}
+        {{- end }}
         {{- end }}
         - --controller-threads={{ .Values.controller.workers }}
         {{- with .Values.controller.uiService.enable }}
