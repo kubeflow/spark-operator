@@ -42,6 +42,7 @@ import (
 	"github.com/kubeflow/spark-operator/api/v1beta2"
 	"github.com/kubeflow/spark-operator/internal/metrics"
 	"github.com/kubeflow/spark-operator/internal/scheduler"
+	"github.com/kubeflow/spark-operator/internal/scheduler/kubescheduler"
 	"github.com/kubeflow/spark-operator/internal/scheduler/volcano"
 	"github.com/kubeflow/spark-operator/internal/scheduler/yunikorn"
 	"github.com/kubeflow/spark-operator/pkg/common"
@@ -59,6 +60,8 @@ type Options struct {
 	IngressClassName      string
 	IngressURLFormat      string
 	DefaultBatchScheduler string
+
+	KubeSchedulerNames []string
 
 	SparkApplicationMetrics *metrics.SparkApplicationMetrics
 	SparkExecutorMetrics    *metrics.SparkExecutorMetrics
@@ -1211,6 +1214,16 @@ func (r *Reconciler) shouldDoBatchScheduling(app *v1beta2.SparkApplication) (boo
 		scheduler, err = r.registry.GetScheduler(schedulerName, config)
 	case yunikorn.SchedulerName:
 		scheduler, err = r.registry.GetScheduler(schedulerName, nil)
+	}
+
+	for _, name := range r.options.KubeSchedulerNames {
+		if schedulerName == name {
+			config := &kubescheduler.Config{
+				SchedulerName: name,
+				Client:        r.manager.GetClient(),
+			}
+			scheduler, err = r.registry.GetScheduler(name, config)
+		}
 	}
 
 	if err != nil || scheduler == nil {

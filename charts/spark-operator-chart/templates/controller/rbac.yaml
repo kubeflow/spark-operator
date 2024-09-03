@@ -129,6 +129,17 @@ rules:
   - podgroups
   verbs:
   - "*"
+- apiGroups:
+  - scheduling.x-k8s.io
+  resources:
+  - podgroups
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - delete
 {{- end }}
 ---
 
