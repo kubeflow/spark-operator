@@ -74,7 +74,12 @@ spec:
         {{- end }}
         {{- if .Values.controller.batchScheduler.enable }}
         - --enable-batch-scheduler=true
-        - --default-batch-scheduler={{ .Values.controller.batchScheduler.default }}
+        {{- with .Values.controller.batchScheduler.kubeSchedulerNames }}
+        - --kube-scheduler-names={{ . | join "," }}
+        {{- end }}
+        {{- with .Values.controller.batchScheduler.default }}
+        - --default-batch-scheduler={{ . }}
+        {{- end }}
         {{- end }}
         {{- if .Values.prometheus.metrics.enable }}
         - --enable-metrics=true

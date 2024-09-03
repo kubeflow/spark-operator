@@ -45,6 +45,7 @@ import (
 	logzap "sigs.k8s.io/controller-runtime/pkg/log/zap"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	ctrlwebhook "sigs.k8s.io/controller-runtime/pkg/webhook"
+	schedulingv1alpha1 "sigs.k8s.io/scheduler-plugins/apis/scheduling/v1alpha1"
 
 	sparkoperator "github.com/kubeflow/spark-operator"
 	"github.com/kubeflow/spark-operator/api/v1beta1"
@@ -53,6 +54,7 @@ import (
 	"github.com/kubeflow/spark-operator/internal/controller/sparkapplication"
 	"github.com/kubeflow/spark-operator/internal/metrics"
 	"github.com/kubeflow/spark-operator/internal/scheduler"
+	"github.com/kubeflow/spark-operator/internal/scheduler/kubescheduler"
 	"github.com/kubeflow/spark-operator/internal/scheduler/volcano"
 	"github.com/kubeflow/spark-operator/internal/scheduler/yunikorn"
 	"github.com/kubeflow/spark-operator/pkg/common"
@@ -74,6 +76,7 @@ var (
 
 	// Batch scheduler
 	enableBatchScheduler  bool
+	kubeSchedulerNames    []string
 	defaultBatchScheduler string
 
 	// Spark web UI service and ingress
@@ -106,6 +109,7 @@ var (
 
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
+	utilruntime.Must(schedulingv1alpha1.AddToScheme(scheme))
 
 	utilruntime.Must(v1beta1.AddToScheme(scheme))
 	utilruntime.Must(v1beta2.AddToScheme(scheme))
@@ -130,6 +134,7 @@ func NewStartCommand() *cobra.Command {
 	command.Flags().DurationVar(&cacheSyncTimeout, "cache-sync-timeout", 30*time.Second, "Informer cache sync timeout.")
 
 	command.Flags().BoolVar(&enableBatchScheduler, "enable-batch-scheduler", false, "Enable batch schedulers.")
+	command.Flags().StringSliceVar(&kubeSchedulerNames, "kube-scheduler-names", []string{}, "The kube-scheduler names for scheduling Spark applications.")
 	command.Flags().StringVar(&defaultBatchScheduler, "default-batch-scheduler", "", "Default batch scheduler.")
 
 	command.Flags().BoolVar(&enableUIService, "enable-ui-service", true, "Enable Spark Web UI service.")
@@ -213,6 +218,11 @@ func start() {
 		registry = scheduler.GetRegistry()
 		_ = registry.Register(common.VolcanoSchedulerName, volcano.Factory)
 		_ = registry.Register(yunikorn.SchedulerName, yunikorn.Factory)
+
+		// Register kube-schedulers.
+		for _, name := range kubeSchedulerNames {
+			registry.Register(name, kubescheduler.Factory)
+		}
 
 		schedulerNames := registry.GetRegisteredSchedulerNames()
 		if defaultBatchScheduler != "" && !slices.Contains(schedulerNames, defaultBatchScheduler) {
@@ -361,6 +371,9 @@ func newSparkApplicationReconcilerOptions() sparkapplication.Options {
 		DefaultBatchScheduler:   defaultBatchScheduler,
 		SparkApplicationMetrics: sparkApplicationMetrics,
 		SparkExecutorMetrics:    sparkExecutorMetrics,
+	}
+	if enableBatchScheduler {
+		options.KubeSchedulerNames = kubeSchedulerNames
 	}
 	return options
 }
