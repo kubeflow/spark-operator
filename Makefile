@@ -246,7 +246,7 @@ endif
 .PHONY: kind-create-cluster
 kind-create-cluster: kind ## Create a kind cluster for integration tests.
 	if ! $(KIND) get clusters 2>/dev/null | grep -q "^$(KIND_CLUSTER_NAME)$$"; then \
-		kind create cluster --name $(KIND_CLUSTER_NAME) --config $(KIND_CONFIG_FILE) --kubeconfig $(KIND_KUBE_CONFIG); \
+		kind create cluster --name $(KIND_CLUSTER_NAME) --config $(KIND_CONFIG_FILE) --kubeconfig $(KIND_KUBE_CONFIG) --wait=1m; \
 	fi
 
 .PHONY: kind-load-image
