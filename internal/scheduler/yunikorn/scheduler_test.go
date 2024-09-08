@@ -242,6 +242,9 @@ func TestSchedule(t *testing.T) {
 				assert.Equal(t, *options.Queue, tc.app.Spec.Driver.Labels[queueLabel])
 				assert.Equal(t, *options.Queue, tc.app.Spec.Executor.Labels[queueLabel])
 			}
+
+			assert.Equal(t, "yunikorn", *tc.app.Spec.Driver.SchedulerName)
+			assert.Equal(t, "yunikorn", *tc.app.Spec.Executor.SchedulerName)
 		})
 	}
 }
