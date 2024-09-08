@@ -109,6 +109,11 @@ func (s *Scheduler) Schedule(app *v1beta2.SparkApplication) error {
 		})
 	}
 
+	// Ensure that the driver and executors pods are scheduled by Yunikorn
+	// if it is installed with the admissions controller disabled
+	app.Spec.Driver.SchedulerName = util.StringPtr(SchedulerName)
+	app.Spec.Executor.SchedulerName = util.StringPtr(SchedulerName)
+
 	// Yunikorn re-uses the application ID set by the driver under the label "spark-app-selector",
 	// so there is no need to set an application ID
 	// https://github.com/apache/yunikorn-k8shim/blob/2278b3217c702ccb796e4d623bc7837625e5a4ec/pkg/common/utils/utils.go#L168-L171
