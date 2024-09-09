@@ -49,6 +49,11 @@ func (in *BatchSchedulerConfiguration) DeepCopyInto(out *BatchSchedulerConfigura
 		*out = new(string)
 		**out = **in
 	}
+	if in.PriorityClassName != nil {
+		in, out := &in.PriorityClassName, &out.PriorityClassName
+		*out = new(string)
+		**out = **in
+	}
 	if in.Resources != nil {
 		in, out := &in.Resources, &out.Resources
 		*out = make(v1.ResourceList, len(*in))

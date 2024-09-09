@@ -207,6 +207,10 @@ func (s *Scheduler) syncPodGroup(app *v1beta2.SparkApplication, size int32, minR
 			if app.Spec.BatchSchedulerOptions.Queue != nil {
 				podGroup.Spec.Queue = *app.Spec.BatchSchedulerOptions.Queue
 			}
+			// Update pod group priorityClassName if it's specified in Spark Application
+			if app.Spec.BatchSchedulerOptions.PriorityClassName != nil {
+				podGroup.Spec.PriorityClassName = *app.Spec.BatchSchedulerOptions.PriorityClassName
+			}
 		}
 		_, err = s.volcanoClient.SchedulingV1beta1().PodGroups(namespace).Create(context.TODO(), &podGroup, metav1.CreateOptions{})
 	} else {
