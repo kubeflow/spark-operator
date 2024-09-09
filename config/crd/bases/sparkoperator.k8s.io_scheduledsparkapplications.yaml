@@ -103,11 +103,6 @@ spec:
                     description: BatchSchedulerOptions provides fine-grained control
                       on how to batch scheduling.
                     properties:
-                      priorityClassName:
-                        description: PriorityClassName stands for the name of k8s
-                          PriorityClass resource, it's being used in Volcano batch
-                          scheduler.
-                        type: string
                       queue:
                         description: Queue stands for the resource queue which the
                           application belongs to, it's being used in Volcano batch

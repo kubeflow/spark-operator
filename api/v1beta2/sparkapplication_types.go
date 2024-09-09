@@ -266,9 +266,6 @@ type BatchSchedulerConfiguration struct {
 	// Queue stands for the resource queue which the application belongs to, it's being used in Volcano batch scheduler.
 	// +optional
 	Queue *string `json:"queue,omitempty"`
-	// PriorityClassName stands for the name of k8s PriorityClass resource, it's being used in Volcano batch scheduler.
-	// +optional
-	PriorityClassName *string `json:"priorityClassName,omitempty"`
 	// Resources stands for the resource list custom request for. Usually it is used to define the lower-bound limit.
 	// If specified, volcano scheduler will consider it as the resources requested.
 	// +optional

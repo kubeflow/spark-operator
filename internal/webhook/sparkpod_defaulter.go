@@ -482,8 +482,6 @@ func addPriorityClassName(pod *corev1.Pod, app *v1beta2.SparkApplication) error 
 		priorityClassName = app.Spec.Driver.PriorityClassName
 	} else if util.IsExecutorPod(pod) && *app.Spec.Executor.PriorityClassName != "" {
 		priorityClassName = app.Spec.Executor.PriorityClassName
-	} else if app.Spec.BatchSchedulerOptions != nil {
-		priorityClassName = app.Spec.BatchSchedulerOptions.PriorityClassName
 	}
 
 	if priorityClassName != nil && *priorityClassName != "" {
