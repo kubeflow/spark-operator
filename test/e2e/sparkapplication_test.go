@@ -21,7 +21,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -29,16 +28,10 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/apimachinery/pkg/util/yaml"
 
 	"github.com/kubeflow/spark-operator/api/v1beta2"
 	"github.com/kubeflow/spark-operator/pkg/util"
-)
-
-const (
-	PollInterval = 1 * time.Second
-	WaitTimeout  = 300 * time.Second
 )
 
 var _ = Describe("Example SparkApplication", func() {
@@ -72,15 +65,7 @@ var _ = Describe("Example SparkApplication", func() {
 		It("should complete successfully", func() {
 			By("Waiting for SparkApplication to complete")
 			key := types.NamespacedName{Namespace: app.Namespace, Name: app.Name}
-			cancelCtx, cancelFunc := context.WithTimeout(ctx, WaitTimeout)
-			defer cancelFunc()
-			Expect(wait.PollUntilContextCancel(cancelCtx, PollInterval, true, func(ctx context.Context) (done bool, err error) {
-				err = k8sClient.Get(ctx, key, app)
-				if app.Status.AppState.State == v1beta2.ApplicationStateCompleted {
-					return true, nil
-				}
-				return false, err
-			})).NotTo(HaveOccurred())
+			Expect(waitForSparkApplicationCompleted(ctx, key)).NotTo(HaveOccurred())
 
 			By("Checking out driver logs")
 			driverPodName := util.GetDriverPodName(app)
@@ -148,15 +133,7 @@ var _ = Describe("Example SparkApplication", func() {
 		It("Should complete successfully", func() {
 			By("Waiting for SparkApplication to complete")
 			key := types.NamespacedName{Namespace: app.Namespace, Name: app.Name}
-			cancelCtx, cancelFunc := context.WithTimeout(ctx, WaitTimeout)
-			defer cancelFunc()
-			Expect(wait.PollUntilContextCancel(cancelCtx, PollInterval, true, func(ctx context.Context) (done bool, err error) {
-				err = k8sClient.Get(ctx, key, app)
-				if app.Status.AppState.State == v1beta2.ApplicationStateCompleted {
-					return true, nil
-				}
-				return false, err
-			})).NotTo(HaveOccurred())
+			Expect(waitForSparkApplicationCompleted(ctx, key)).NotTo(HaveOccurred())
 
 			By("Checking out driver logs")
 			driverPodName := util.GetDriverPodName(app)
@@ -197,15 +174,7 @@ var _ = Describe("Example SparkApplication", func() {
 		It("Should complete successfully", func() {
 			By("Waiting for SparkApplication to complete")
 			key := types.NamespacedName{Namespace: app.Namespace, Name: app.Name}
-			cancelCtx, cancelFunc := context.WithTimeout(ctx, WaitTimeout)
-			defer cancelFunc()
-			Expect(wait.PollUntilContextCancel(cancelCtx, PollInterval, true, func(ctx context.Context) (done bool, err error) {
-				err = k8sClient.Get(ctx, key, app)
-				if app.Status.AppState.State == v1beta2.ApplicationStateCompleted {
-					return true, nil
-				}
-				return false, err
-			})).NotTo(HaveOccurred())
+			Expect(waitForSparkApplicationCompleted(ctx, key)).NotTo(HaveOccurred())
 
 			By("Checking out driver logs")
 			driverPodName := util.GetDriverPodName(app)
@@ -246,15 +215,7 @@ var _ = Describe("Example SparkApplication", func() {
 		It("Should complete successfully", func() {
 			By("Waiting for SparkApplication to complete")
 			key := types.NamespacedName{Namespace: app.Namespace, Name: app.Name}
-			cancelCtx, cancelFunc := context.WithTimeout(ctx, WaitTimeout)
-			defer cancelFunc()
-			Expect(wait.PollUntilContextCancel(cancelCtx, PollInterval, true, func(ctx context.Context) (done bool, err error) {
-				err = k8sClient.Get(ctx, key, app)
-				if app.Status.AppState.State == v1beta2.ApplicationStateCompleted {
-					return true, nil
-				}
-				return false, err
-			})).NotTo(HaveOccurred())
+			Expect(waitForSparkApplicationCompleted(ctx, key)).NotTo(HaveOccurred())
 
 			By("Checking out driver logs")
 			driverPodName := util.GetDriverPodName(app)
