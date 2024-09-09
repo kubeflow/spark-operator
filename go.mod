@@ -28,7 +28,7 @@ require (
 	k8s.io/kubernetes v1.30.2
 	k8s.io/utils v0.0.0-20240710235135-d4aae2beeffc
 	sigs.k8s.io/controller-runtime v0.17.5
-	sigs.k8s.io/scheduler-plugins v0.29.7
+	sigs.k8s.io/scheduler-plugins v0.29.8
 	volcano.sh/apis v1.9.0
 )
 
