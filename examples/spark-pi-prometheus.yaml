@@ -22,7 +22,7 @@ metadata:
 spec:
   type: Scala
   mode: cluster
-  image: gcr.io/spark-operator/spark:v3.5.2-gcs-prometheus
+  image: spark:3.5.2-gcs-prometheus
   imagePullPolicy: Always
   mainClass: org.apache.spark.examples.SparkPi
   mainApplicationFile: local:///opt/spark/examples/jars/spark-examples_2.12-3.5.2.jar
