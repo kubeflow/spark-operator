@@ -1,4 +1,4 @@
-{{/*
+/*
 Copyright 2024 The Kubeflow authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -12,18 +12,16 @@ distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
-*/}}
+*/
 
-{{- if .Values.controller.serviceAccount.create }}
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: {{ include "spark-operator.controller.serviceAccountName" . }}
-  namespace: {{ .Release.Namespace }}
-  labels:
-    {{- include "spark-operator.controller.labels" . | nindent 4 }}
-  {{- with .Values.controller.serviceAccount.annotations }}
-  annotations:
-    {{- toYaml . | nindent 4 }}
-  {{- end }}
-{{- end }}
+package kubescheduler
+
+import (
+	"fmt"
+
+	"github.com/kubeflow/spark-operator/api/v1beta2"
+)
+
+func getPodGroupName(app *v1beta2.SparkApplication) string {
+	return fmt.Sprintf("%s-pg", app.Name)
+}

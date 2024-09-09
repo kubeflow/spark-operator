@@ -18,7 +18,8 @@ limitations under the License.
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: {{ include "spark-operator.controller.name" . }}
+  name: {{ include "spark-operator.controller.clusterRoleName" . }}
+  namespace: {{ .Release.Namespace }}
   labels:
     {{- include "spark-operator.controller.labels" . | nindent 4 }}
   {{- with .Values.controller.rbac.annotations }}
@@ -26,50 +27,6 @@ metadata:
     {{- toYaml . | nindent 4 }}
   {{- end }}
 rules:
-- apiGroups:
-  - ""
-  resources:
-  - pods
-  verbs:
-  - get
-  - list
-  - watch
-  - create
-  - update
-  - patch
-  - delete
-  - deletecollection
-- apiGroups:
-  - ""
-  resources:
-  - configmaps
-  verbs:
-  - get
-  - create
-  - update
-  - patch
-  - delete
-- apiGroups:
-  - ""
-  resources:
-  - services
-  verbs:
-  - get
-  - list
-  - watch
-  - create
-  - update
-  - patch
-  - delete
-- apiGroups:
-  - extensions
-  - networking.k8s.io
-  resources:
-  - ingresses
-  verbs:
-  - get
-  - create
-  - delete
 - apiGroups:
   - ""
   resources:
@@ -90,52 +47,16 @@ rules:
   - customresourcedefinitions
   verbs:
   - get
-- apiGroups:
-  - sparkoperator.k8s.io
-  resources:
-  - sparkapplications
-  - scheduledsparkapplications
-  verbs:
-  - get
-  - list
-  - watch
-  - create
-  - update
-  - patch
-  - delete
-- apiGroups:
-  - sparkoperator.k8s.io
-  resources:
-  - sparkapplications/status
-  - scheduledsparkapplications/status
-  verbs:
-  - get
-  - update
-  - patch
-- apiGroups:
-  - sparkoperator.k8s.io
-  resources:
-  - sparkapplications/finalizers
-  - scheduledsparkapplications/finalizers
-  verbs:
-  - update
-{{- if .Values.controller.batchScheduler.enable }}
-{{/* required for the `volcano` batch scheduler */}}
-- apiGroups:
-  - scheduling.incubator.k8s.io
-  - scheduling.sigs.dev
-  - scheduling.volcano.sh
-  resources:
-  - podgroups
-  verbs:
-  - "*"
+{{- if not .Values.spark.jobNamespaces | or (has "" .Values.spark.jobNamespaces) }}
+{{ include "spark-operator.controller.policyRules" . }}
 {{- end }}
 ---
 
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: {{ include "spark-operator.controller.name" . }}
+  name: {{ include "spark-operator.controller.clusterRoleBindingName" . }}
+  namespace: {{ .Release.Namespace }}
   labels:
     {{- include "spark-operator.controller.labels" . | nindent 4 }}
   {{- with .Values.controller.rbac.annotations }}
@@ -149,13 +70,14 @@ subjects:
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: {{ include "spark-operator.controller.name" . }}
-
+  name: {{ include "spark-operator.controller.clusterRoleName" . }}
 ---
+
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
-  name: {{ include "spark-operator.controller.name" . }}
+  name: {{ include "spark-operator.controller.roleName" . }}
+  namespace: {{ .Release.Namespace }}
   labels:
     {{- include "spark-operator.controller.labels" . | nindent 4 }}
   {{- with .Values.controller.rbac.annotations }}
@@ -178,12 +100,16 @@ rules:
   verbs:
   - get
   - update
-
+{{- if has .Release.Namespace .Values.spark.jobNamespaces }}
+{{ include "spark-operator.controller.policyRules" . }}
+{{- end }}
 ---
+
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
-  name: {{ include "spark-operator.controller.name" . }}
+  name: {{ include "spark-operator.controller.roleBindingName" . }}
+  namespace: {{ .Release.Namespace }}
   labels:
     {{- include "spark-operator.controller.labels" . | nindent 4 }}
   {{- with .Values.controller.rbac.annotations }}
@@ -197,5 +123,48 @@ subjects:
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
-  name: {{ include "spark-operator.controller.name" . }}
+  name: {{ include "spark-operator.controller.roleName" . }}
+
+{{- if and .Values.spark.jobNamespaces (not (has "" .Values.spark.jobNamespaces)) }}
+{{- range $jobNamespace := .Values.spark.jobNamespaces }}
+{{- if ne $jobNamespace $.Release.Namespace }}
+---
+
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ include "spark-operator.controller.roleName" $ }}
+  namespace: {{ $jobNamespace }}
+  labels:
+    {{- include "spark-operator.controller.labels" $ | nindent 4 }}
+  {{- with $.Values.controller.rbac.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+rules:
+{{ include "spark-operator.controller.policyRules" $ }}
+---
+
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ include "spark-operator.controller.roleBindingName" $ }}
+  namespace: {{ $jobNamespace }}
+  labels:
+    {{- include "spark-operator.controller.labels" $ | nindent 4 }}
+  {{- with $.Values.controller.rbac.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+subjects:
+- kind: ServiceAccount
+  name: {{ include "spark-operator.controller.serviceAccountName" $ }}
+  namespace: {{ $.Release.Namespace }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ include "spark-operator.controller.roleName" $ }}
+{{- end }}
+{{- end }}
+{{- end }}
 {{- end }}

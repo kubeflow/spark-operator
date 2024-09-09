@@ -1,6 +1,6 @@
 module github.com/kubeflow/spark-operator
 
-go 1.22.5
+go 1.23.1
 
 require (
 	cloud.google.com/go/storage v1.43.0
@@ -28,6 +28,7 @@ require (
 	k8s.io/kubernetes v1.30.2
 	k8s.io/utils v0.0.0-20240710235135-d4aae2beeffc
 	sigs.k8s.io/controller-runtime v0.17.5
+	sigs.k8s.io/scheduler-plugins v0.29.7
 	volcano.sh/apis v1.9.0
 )
 

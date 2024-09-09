@@ -14,9 +14,9 @@
 # limitations under the License.
 #
 
-ARG SPARK_IMAGE=spark:3.5.0
+ARG SPARK_IMAGE=spark:3.5.2
 
-FROM golang:1.22.5 AS builder
+FROM golang:1.23.1 AS builder
 
 WORKDIR /workspace
 

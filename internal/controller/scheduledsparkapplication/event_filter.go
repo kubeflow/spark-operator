@@ -35,9 +35,14 @@ var _ predicate.Predicate = &EventFilter{}
 // NewEventFilter creates a new EventFilter instance.
 func NewEventFilter(namespaces []string) *EventFilter {
 	nsMap := make(map[string]bool)
-	for _, ns := range namespaces {
-		nsMap[ns] = true
+	if len(namespaces) == 0 {
+		nsMap[metav1.NamespaceAll] = true
+	} else {
+		for _, ns := range namespaces {
+			nsMap[ns] = true
+		}
 	}
+
 	return &EventFilter{
 		namespaces: nsMap,
 	}

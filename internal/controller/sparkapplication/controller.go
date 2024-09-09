@@ -42,6 +42,7 @@ import (
 	"github.com/kubeflow/spark-operator/api/v1beta2"
 	"github.com/kubeflow/spark-operator/internal/metrics"
 	"github.com/kubeflow/spark-operator/internal/scheduler"
+	"github.com/kubeflow/spark-operator/internal/scheduler/kubescheduler"
 	"github.com/kubeflow/spark-operator/internal/scheduler/volcano"
 	"github.com/kubeflow/spark-operator/internal/scheduler/yunikorn"
 	"github.com/kubeflow/spark-operator/pkg/common"
@@ -54,10 +55,13 @@ var (
 
 // Options defines the options of the controller.
 type Options struct {
-	Namespaces       []string
-	EnableUIService  bool
-	IngressClassName string
-	IngressURLFormat string
+	Namespaces            []string
+	EnableUIService       bool
+	IngressClassName      string
+	IngressURLFormat      string
+	DefaultBatchScheduler string
+
+	KubeSchedulerNames []string
 
 	SparkApplicationMetrics *metrics.SparkApplicationMetrics
 	SparkExecutorMetrics    *metrics.SparkExecutorMetrics
@@ -1184,14 +1188,24 @@ func (r *Reconciler) resetSparkApplicationStatus(app *v1beta2.SparkApplication) 
 }
 
 func (r *Reconciler) shouldDoBatchScheduling(app *v1beta2.SparkApplication) (bool, scheduler.Interface) {
-	if r.registry == nil || app.Spec.BatchScheduler == nil || *app.Spec.BatchScheduler == "" {
+	// If batch scheduling isn't enabled
+	if r.registry == nil {
+		return false, nil
+	}
+
+	schedulerName := r.options.DefaultBatchScheduler
+	if app.Spec.BatchScheduler != nil && *app.Spec.BatchScheduler != "" {
+		schedulerName = *app.Spec.BatchScheduler
+	}
+
+	// If both the default and app batch scheduler are unspecified or empty
+	if schedulerName == "" {
 		return false, nil
 	}
 
 	var err error
 	var scheduler scheduler.Interface
 
-	schedulerName := *app.Spec.BatchScheduler
 	switch schedulerName {
 	case common.VolcanoSchedulerName:
 		config := &volcano.Config{
@@ -1200,6 +1214,16 @@ func (r *Reconciler) shouldDoBatchScheduling(app *v1beta2.SparkApplication) (boo
 		scheduler, err = r.registry.GetScheduler(schedulerName, config)
 	case yunikorn.SchedulerName:
 		scheduler, err = r.registry.GetScheduler(schedulerName, nil)
+	}
+
+	for _, name := range r.options.KubeSchedulerNames {
+		if schedulerName == name {
+			config := &kubescheduler.Config{
+				SchedulerName: name,
+				Client:        r.manager.GetClient(),
+			}
+			scheduler, err = r.registry.GetScheduler(name, config)
+		}
 	}
 
 	if err != nil || scheduler == nil {

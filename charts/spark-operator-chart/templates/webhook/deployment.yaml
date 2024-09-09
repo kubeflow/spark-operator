@@ -22,9 +22,7 @@ metadata:
   labels:
     {{- include "spark-operator.webhook.labels" . | nindent 4 }}
 spec:
-  {{- with .Values.webhook.replicas }}
-  replicas: {{ . }}
-  {{- end }}
+  replicas: {{ .Values.webhook.replicas }}
   selector:
     matchLabels:
       {{- include "spark-operator.webhook.selectorLabels" . | nindent 6 }}
@@ -53,7 +51,11 @@ spec:
         - --zap-log-level={{ . }}
         {{- end }}
         {{- with .Values.spark.jobNamespaces }}
+        {{- if has "" . }}
+        - --namespaces=""
+        {{- else }}
         - --namespaces={{ . | join "," }}
+        {{- end }}
         {{- end }}
         - --webhook-secret-name={{ include "spark-operator.webhook.secretName" . }}
         - --webhook-secret-namespace={{ .Release.Namespace }}
