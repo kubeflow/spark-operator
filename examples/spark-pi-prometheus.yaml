@@ -22,7 +22,7 @@ metadata:
 spec:
   type: Scala
   mode: cluster
-  image: spark:3.5.2-gcs-prometheus
+  image: {IMAGE_REGISTRY}/{IMAGE_REPOSITORY}/spark:3.5.2-gcs-prometheus
   imagePullPolicy: Always
   mainClass: org.apache.spark.examples.SparkPi
   mainApplicationFile: local:///opt/spark/examples/jars/spark-examples_2.12-3.5.2.jar
