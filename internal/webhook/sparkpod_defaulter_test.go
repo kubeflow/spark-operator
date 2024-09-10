@@ -782,10 +782,12 @@ func TestPatchSparkPod_PriorityClassName(t *testing.T) {
 		},
 		Spec: v1beta2.SparkApplicationSpec{
 			Driver: v1beta2.DriverSpec{
-				SparkPodSpec: v1beta2.SparkPodSpec{},
+				SparkPodSpec:      v1beta2.SparkPodSpec{},
+				PriorityClassName: &priorityClassName,
 			},
 			Executor: v1beta2.ExecutorSpec{
-				SparkPodSpec: v1beta2.SparkPodSpec{},
+				SparkPodSpec:      v1beta2.SparkPodSpec{},
+				PriorityClassName: &priorityClassName,
 			},
 		},
 	}
