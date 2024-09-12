@@ -27,16 +27,10 @@ spec:
   mainApplicationFile: local:///opt/spark/examples/src/main/python/pi.py
   sparkVersion: 3.5.2
   driver:
-    labels:
-      version: 3.5.2
     cores: 1
-    coreLimit: 1200m
     memory: 512m
     serviceAccount: spark-operator-spark
   executor:
-    labels:
-      version: 3.5.2
     instances: 1
     cores: 1
-    coreLimit: 1200m
     memory: 512m

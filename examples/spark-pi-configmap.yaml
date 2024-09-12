@@ -33,18 +33,13 @@ spec:
     configMap:
       name: test-configmap
   driver:
-    labels:
-      version: 3.5.2
     cores: 1
-    coreLimit: 1200m
     memory: 512m
-    serviceAccount: spark-operator-spark
     volumeMounts:
     - name: config-vol
       mountPath: /opt/spark/config
+    serviceAccount: spark-operator-spark
   executor:
-    labels:
-      version: 3.5.2
     instances: 1
     cores: 1
     memory: 512m
