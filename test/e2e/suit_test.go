@@ -149,6 +149,8 @@ var _ = BeforeSuite(func() {
 	validatingWebhookKey := types.NamespacedName{Name: ValidatingWebhookName}
 	Expect(waitForMutatingWebhookReady(context.Background(), mutatingWebhookKey)).NotTo(HaveOccurred())
 	Expect(waitForValidatingWebhookReady(context.Background(), validatingWebhookKey)).NotTo(HaveOccurred())
+	// TODO: Remove this when there is a better way to ensure the webhooks are ready before running the e2e tests.
+	time.Sleep(10 * time.Second)
 })
 
 var _ = AfterSuite(func() {
