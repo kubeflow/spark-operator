@@ -255,8 +255,7 @@ kind-load-image: kind-create-cluster docker-build ## Load the image into the kin
 
 .PHONY: kind-delete-custer
 kind-delete-custer: kind ## Delete the created kind cluster.
-	$(KIND) delete cluster --name $(KIND_CLUSTER_NAME) && \
-	rm -f $(KIND_KUBE_CONFIG)
+	$(KIND) delete cluster --name $(KIND_CLUSTER_NAME) --kubeconfig $(KIND_KUBE_CONFIG)
 
 .PHONY: install
 install-crd: manifests kustomize ## Install CRDs into the K8s cluster specified in ~/.kube/config.
