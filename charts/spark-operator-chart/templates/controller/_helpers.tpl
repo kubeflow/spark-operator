@@ -98,6 +98,13 @@ Create the name of the pod disruption budget to be used by controller
 {{- end -}}
 
 {{/*
+Create the name of the service used by controller
+*/}}
+{{- define "spark-operator.controller.serviceName" -}}
+{{ include "spark-operator.controller.name" . }}-svc
+{{- end -}}
+
+{{/*
 Create the role policy rules for the controller in every Spark job namespace
 */}}
 {{- define "spark-operator.controller.policyRules" -}}
