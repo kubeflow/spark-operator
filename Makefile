@@ -101,6 +101,9 @@ version: ## Print version information.
 	@echo "Git SHA: ${GIT_SHA}"
 	@echo "Git Version: ${GIT_VERSION}"
 
+.PHONY: print-%
+print-%: ; @echo $*=$($*)
+
 ##@ Development
 
 .PHONY: manifests
