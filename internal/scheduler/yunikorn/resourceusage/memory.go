@@ -70,6 +70,26 @@ func memoryRequestBytes(podSpec *v1beta2.SparkPodSpec, memoryOverheadFactor floa
 	return memoryBytes + memoryOverheadBytes, nil
 }
 
+func executorPysparkMemoryBytes(app *v1beta2.SparkApplication) (int64, error) {
+	pysparkMemory, found := app.Spec.SparkConf["spark.executor.pyspark.memory"]
+	if app.Spec.Type != v1beta2.SparkApplicationTypePython || !found {
+		return 0, nil
+	}
+
+	// This fields defaults to mebibytes if no resource suffix is specified
+	// https://github.com/apache/spark/blob/7de71a2ec78d985c2a045f13c1275101b126cec4/docs/configuration.md?plain=1#L289-L305
+	if _, err := strconv.Atoi(pysparkMemory); err == nil {
+		pysparkMemory = pysparkMemory + "m"
+	}
+
+	pysparkMemoryBytes, err := byteStringAsBytes(pysparkMemory)
+	if err != nil {
+		return 0, nil
+	}
+
+	return pysparkMemoryBytes, nil
+}
+
 func bytesToMi(b int64) string {
 	// this floors the value to the nearest mebibyte
 	return fmt.Sprintf("%dMi", b/1024/1024)
@@ -103,6 +123,11 @@ func executorMemoryRequest(app *v1beta2.SparkApplication) (string, error) {
 		return "", err
 	}
 
+	pysparkMemoryBytes, err := executorPysparkMemoryBytes(app)
+	if err != nil {
+		return "", err
+	}
+
 	// See comment above in driver
-	return bytesToMi(requestBytes), nil
+	return bytesToMi(requestBytes + pysparkMemoryBytes), nil
 }

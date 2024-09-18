@@ -223,6 +223,49 @@ func TestSchedule(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "spark.executor.pyspark.memory",
+			app: &v1beta2.SparkApplication{
+				Spec: v1beta2.SparkApplicationSpec{
+					Type: v1beta2.SparkApplicationTypePython,
+					Driver: v1beta2.DriverSpec{
+						SparkPodSpec: v1beta2.SparkPodSpec{
+							Cores:  util.Int32Ptr(1),
+							Memory: util.StringPtr("512m"),
+						},
+					},
+					Executor: v1beta2.ExecutorSpec{
+						Instances: util.Int32Ptr(2),
+						SparkPodSpec: v1beta2.SparkPodSpec{
+							Cores:  util.Int32Ptr(1),
+							Memory: util.StringPtr("512m"),
+						},
+					},
+					SparkConf: map[string]string{
+						"spark.executor.pyspark.memory": "500m",
+					},
+				},
+			},
+			expected: []taskGroup{
+				{
+					Name:      "spark-driver",
+					MinMember: 1,
+					MinResource: map[string]string{
+						"cpu":    "1",
+						"memory": "896Mi", // 512Mi + 384Mi min overhead
+					},
+				},
+				{
+					Name:      "spark-executor",
+					MinMember: 2,
+					MinResource: map[string]string{
+						"cpu": "1",
+						// 512Mi + 384Mi min overhead + 500Mi spark.executor.pyspark.memory
+						"memory": "1396Mi",
+					},
+				},
+			},
+		},
 	}
 
 	scheduler := &Scheduler{}
