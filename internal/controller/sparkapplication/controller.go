@@ -672,7 +672,7 @@ func (r *Reconciler) submitSparkApplication(app *v1beta2.SparkApplication) error
 	if r.options.EnableUIService {
 		service, err := r.createWebUIService(app)
 		if err != nil {
-			return fmt.Errorf("failed to create web UI service")
+			return fmt.Errorf("failed to create web UI service: %v", err)
 		}
 		app.Status.DriverInfo.WebUIServiceName = service.serviceName
 		app.Status.DriverInfo.WebUIPort = service.servicePort
@@ -696,7 +696,7 @@ func (r *Reconciler) submitSparkApplication(app *v1beta2.SparkApplication) error
 			}
 			ingress, err := r.createWebUIIngress(app, *service, ingressURL, r.options.IngressClassName)
 			if err != nil {
-				return fmt.Errorf("failed to create web UI service")
+				return fmt.Errorf("failed to create web UI service: %v", err)
 			}
 			app.Status.DriverInfo.WebUIIngressAddress = ingress.ingressURL.String()
 			app.Status.DriverInfo.WebUIIngressName = ingress.ingressName
