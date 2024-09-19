@@ -37,6 +37,11 @@ func IsExecutorPod(pod *corev1.Pod) bool {
 	return pod.Labels[common.LabelSparkRole] == common.SparkRoleExecutor
 }
 
+// GetSparkExecutorID returns the Spark executor ID by checking out pod labels.
+func GetSparkExecutorID(pod *corev1.Pod) string {
+	return pod.Labels[common.LabelSparkExecutorID]
+}
+
 // GetAppName returns the spark application name by checking out pod labels.
 func GetAppName(pod *corev1.Pod) string {
 	return pod.Labels[common.LabelSparkAppName]

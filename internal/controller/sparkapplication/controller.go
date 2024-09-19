@@ -19,6 +19,7 @@ package sparkapplication
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/golang/glog"
@@ -65,6 +66,8 @@ type Options struct {
 
 	SparkApplicationMetrics *metrics.SparkApplicationMetrics
 	SparkExecutorMetrics    *metrics.SparkExecutorMetrics
+
+	MaxTrackedExecutorPerApp int
 }
 
 // Reconciler reconciles a SparkApplication object.
@@ -812,6 +815,10 @@ func (r *Reconciler) updateExecutorState(_ context.Context, app *v1beta2.SparkAp
 	var executorApplicationID string
 	for _, pod := range pods {
 		if util.IsExecutorPod(&pod) {
+			// If the executor number is higher than the `MaxTrackedExecutorPerApp` we want to stop persisting executors
+			if executorID, _ := strconv.Atoi(util.GetSparkExecutorID(&pod)); executorID > r.options.MaxTrackedExecutorPerApp {
+				continue
+			}
 			newState := util.GetExecutorState(&pod)
 			oldState, exists := app.Status.ExecutorState[pod.Name]
 			// Only record an executor event if the executor state is new or it has changed.
