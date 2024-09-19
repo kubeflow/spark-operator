@@ -51,6 +51,12 @@ func GetApplicationState(app *v1beta2.SparkApplication) v1beta2.ApplicationState
 	return app.Status.AppState.State
 }
 
+// IsTerminated returns whether the given SparkApplication is terminated.
+func IsTerminated(app *v1beta2.SparkApplication) bool {
+	return app.Status.AppState.State == v1beta2.ApplicationStateCompleted ||
+		app.Status.AppState.State == v1beta2.ApplicationStateFailed
+}
+
 // IsExpired returns whether the given SparkApplication is expired.
 func IsExpired(app *v1beta2.SparkApplication) bool {
 	// The application has no TTL defined and will never expire.
