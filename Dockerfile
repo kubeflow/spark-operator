@@ -20,11 +20,23 @@ FROM golang:1.23.1 AS builder
 
 WORKDIR /workspace
 
-COPY . .
+RUN apt-get update \
+    && apt-get install -y libcap2-bin \
+    && rm -rf /var/lib/apt/lists/*
 
+RUN --mount=type=cache,target=/go/pkg/mod/ \
+    --mount=type=bind,source=go.mod,target=go.mod \
+    --mount=type=bind,source=go.sum,target=go.sum \
+    go mod download
+
+COPY . .
+ENV GOCACHE=/root/.cache/go-build
 ARG TARGETARCH
 
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=${TARGETARCH} GO111MODULE=on make build-operator
+RUN --mount=type=cache,target=/go/pkg/mod/ \
+    --mount=type=cache,target="/root/.cache/go-build" \
+    CGO_ENABLED=0 GOOS=linux GOARCH=${TARGETARCH} GO111MODULE=on make build-operator
+RUN setcap 'cap_net_bind_service=+ep' /workspace/bin/spark-operator
 
 FROM ${SPARK_IMAGE}
 
@@ -33,6 +45,12 @@ USER root
 RUN apt-get update \
     && apt-get install -y tini \
     && rm -rf /var/lib/apt/lists/*
+
+RUN mkdir -p /etc/k8s-webhook-server/serving-certs && \
+    chmod -R g+rw /etc/k8s-webhook-server/serving-certs && \
+    chown -R spark /etc/k8s-webhook-server/serving-certs
+
+USER spark
 
 COPY --from=builder /workspace/bin/spark-operator /usr/bin/spark-operator
 
