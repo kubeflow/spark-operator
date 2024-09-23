@@ -178,6 +178,19 @@ controller:
     # -- Specifies pprof service port name.
     portName: pprof
 
+  # Workqueue rate limiter configuration forwarded to the controller-runtime Reconciler.
+  workqueueRateLimiter:
+    # -- Specifies the average rate of items process by the workqueue rate limiter.
+    bucketQPS: 50
+    # -- Specifies the maximum number of items that can be in the workqueue at any given time.
+    bucketSize: 500
+    maxDelay:
+      # -- Specifies whether to enable max delay for the workqueue rate limiter.
+      # This is useful to avoid losing events when the workqueue is full.
+      enable: true
+      # -- Specifies the maximum delay duration for the workqueue rate limiter.
+      duration: 6h
+
 webhook:
   # -- Specifies whether to enable webhook.
   enable: true
