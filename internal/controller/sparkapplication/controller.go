@@ -42,7 +42,9 @@ import (
 	"github.com/kubeflow/spark-operator/api/v1beta2"
 	"github.com/kubeflow/spark-operator/internal/metrics"
 	"github.com/kubeflow/spark-operator/internal/scheduler"
+	"github.com/kubeflow/spark-operator/internal/scheduler/kubescheduler"
 	"github.com/kubeflow/spark-operator/internal/scheduler/volcano"
+	"github.com/kubeflow/spark-operator/internal/scheduler/yunikorn"
 	"github.com/kubeflow/spark-operator/pkg/common"
 	"github.com/kubeflow/spark-operator/pkg/util"
 )
@@ -53,10 +55,13 @@ var (
 
 // Options defines the options of the controller.
 type Options struct {
-	Namespaces       []string
-	EnableUIService  bool
-	IngressClassName string
-	IngressURLFormat string
+	Namespaces            []string
+	EnableUIService       bool
+	IngressClassName      string
+	IngressURLFormat      string
+	DefaultBatchScheduler string
+
+	KubeSchedulerNames []string
 
 	SparkApplicationMetrics *metrics.SparkApplicationMetrics
 	SparkExecutorMetrics    *metrics.SparkExecutorMetrics
@@ -366,9 +371,11 @@ func (r *Reconciler) reconcileRunningSparkApplication(ctx context.Context, req c
 			if err := r.updateSparkApplicationState(ctx, app); err != nil {
 				return err
 			}
+
 			if err := r.updateSparkApplicationStatus(ctx, app); err != nil {
 				return err
 			}
+
 			return nil
 		},
 	)
@@ -524,85 +531,62 @@ func (r *Reconciler) reconcileFailingSparkApplication(ctx context.Context, req c
 }
 
 func (r *Reconciler) reconcileCompletedSparkApplication(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	key := req.NamespacedName
-	retryErr := retry.RetryOnConflict(
-		retry.DefaultRetry,
-		func() error {
-			old, err := r.getSparkApplication(key)
-			if err != nil {
-				return err
-			}
-			if old.Status.AppState.State != v1beta2.ApplicationStateCompleted {
-				return nil
-			}
-			app := old.DeepCopy()
-
-			if util.IsExpired(app) {
-				logger.Info("Deleting expired SparkApplication", "name", app.Name, "namespace", app.Namespace, "state", app.Status.AppState.State)
-				if err := r.client.Delete(ctx, app); err != nil {
-					return err
-				}
-				return nil
-			}
-			if err := r.updateExecutorState(ctx, app); err != nil {
-				return err
-			}
-			if err := r.updateSparkApplicationStatus(ctx, app); err != nil {
-				return err
-			}
-			if err := r.cleanUpOnTermination(old, app); err != nil {
-				logger.Error(err, "Failed to clean up resources for SparkApplication", "name", old.Name, "namespace", old.Namespace, "state", old.Status.AppState.State)
-				return err
-			}
-			return nil
-		},
-	)
-	if retryErr != nil {
-		logger.Error(retryErr, "Failed to reconcile SparkApplication", "name", key.Name, "namespace", key.Namespace)
-		return ctrl.Result{}, retryErr
-	}
-	return ctrl.Result{}, nil
+	return r.reconcileTerminatedSparkApplication(ctx, req)
 }
 
 func (r *Reconciler) reconcileFailedSparkApplication(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	key := req.NamespacedName
-	retryErr := retry.RetryOnConflict(
-		retry.DefaultRetry,
-		func() error {
-			old, err := r.getSparkApplication(key)
-			if err != nil {
-				return err
-			}
-			if old.Status.AppState.State != v1beta2.ApplicationStateFailed {
-				return nil
-			}
-			app := old.DeepCopy()
+	return r.reconcileTerminatedSparkApplication(ctx, req)
+}
 
-			if util.IsExpired(app) {
-				logger.Info("Deleting expired SparkApplication", "name", app.Name, "namespace", app.Namespace, "state", app.Status.AppState.State)
-				if err := r.client.Delete(ctx, app); err != nil {
-					return err
-				}
-				return nil
-			}
-			if err := r.updateExecutorState(ctx, app); err != nil {
-				return err
-			}
-			if err := r.updateSparkApplicationStatus(ctx, app); err != nil {
-				return err
-			}
-			if err := r.cleanUpOnTermination(old, app); err != nil {
-				logger.Error(err, "Failed to clean up resources for SparkApplication", "name", old.Name, "namespace", old.Namespace, "state", old.Status.AppState.State)
-				return err
-			}
-			return nil
-		},
-	)
-	if retryErr != nil {
-		logger.Error(retryErr, "Failed to reconcile SparkApplication", "name", key.Name, "namespace", key.Namespace)
-		return ctrl.Result{}, retryErr
+func (r *Reconciler) reconcileTerminatedSparkApplication(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+	key := req.NamespacedName
+	old, err := r.getSparkApplication(key)
+	if err != nil {
+		return ctrl.Result{Requeue: true}, err
 	}
-	return ctrl.Result{}, nil
+
+	app := old.DeepCopy()
+	if !util.IsTerminated(app) {
+		return ctrl.Result{}, nil
+	}
+
+	if util.IsExpired(app) {
+		logger.Info("Deleting expired SparkApplication", "name", app.Name, "namespace", app.Namespace, "state", app.Status.AppState.State)
+		if err := r.client.Delete(ctx, app); err != nil {
+			return ctrl.Result{Requeue: true}, err
+		}
+		return ctrl.Result{}, nil
+	}
+
+	if err := r.updateExecutorState(ctx, app); err != nil {
+		return ctrl.Result{Requeue: true}, err
+	}
+
+	if err := r.updateSparkApplicationStatus(ctx, app); err != nil {
+		return ctrl.Result{Requeue: true}, err
+	}
+
+	if err := r.cleanUpOnTermination(old, app); err != nil {
+		logger.Error(err, "Failed to clean up resources for SparkApplication", "name", old.Name, "namespace", old.Namespace, "state", old.Status.AppState.State)
+		return ctrl.Result{Requeue: true}, err
+	}
+
+	// If termination time or TTL is not set, will not requeue this application.
+	if app.Status.TerminationTime.IsZero() || app.Spec.TimeToLiveSeconds == nil || *app.Spec.TimeToLiveSeconds <= 0 {
+		return ctrl.Result{}, nil
+	}
+
+	// Otherwise, requeue the application for subsequent deletion.
+	now := time.Now()
+	ttl := time.Duration(*app.Spec.TimeToLiveSeconds) * time.Second
+	survival := now.Sub(app.Status.TerminationTime.Time)
+
+	// If survival time is greater than TTL, requeue the application immediately.
+	if survival >= ttl {
+		return ctrl.Result{Requeue: true}, nil
+	}
+	// Otherwise, requeue the application after (TTL - survival) seconds.
+	return ctrl.Result{RequeueAfter: ttl - survival}, nil
 }
 
 func (r *Reconciler) reconcileUnknownSparkApplication(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
@@ -667,7 +651,7 @@ func (r *Reconciler) submitSparkApplication(app *v1beta2.SparkApplication) error
 	if r.options.EnableUIService {
 		service, err := r.createWebUIService(app)
 		if err != nil {
-			return fmt.Errorf("failed to create web UI service")
+			return fmt.Errorf("failed to create web UI service: %v", err)
 		}
 		app.Status.DriverInfo.WebUIServiceName = service.serviceName
 		app.Status.DriverInfo.WebUIPort = service.servicePort
@@ -691,7 +675,7 @@ func (r *Reconciler) submitSparkApplication(app *v1beta2.SparkApplication) error
 			}
 			ingress, err := r.createWebUIIngress(app, *service, ingressURL, r.options.IngressClassName)
 			if err != nil {
-				return fmt.Errorf("failed to create web UI service")
+				return fmt.Errorf("failed to create web UI ingress: %v", err)
 			}
 			app.Status.DriverInfo.WebUIIngressAddress = ingress.ingressURL.String()
 			app.Status.DriverInfo.WebUIIngressName = ingress.ingressName
@@ -1183,20 +1167,42 @@ func (r *Reconciler) resetSparkApplicationStatus(app *v1beta2.SparkApplication) 
 }
 
 func (r *Reconciler) shouldDoBatchScheduling(app *v1beta2.SparkApplication) (bool, scheduler.Interface) {
-	if r.registry == nil || app.Spec.BatchScheduler == nil || *app.Spec.BatchScheduler == "" {
+	// If batch scheduling isn't enabled
+	if r.registry == nil {
+		return false, nil
+	}
+
+	schedulerName := r.options.DefaultBatchScheduler
+	if app.Spec.BatchScheduler != nil && *app.Spec.BatchScheduler != "" {
+		schedulerName = *app.Spec.BatchScheduler
+	}
+
+	// If both the default and app batch scheduler are unspecified or empty
+	if schedulerName == "" {
 		return false, nil
 	}
 
 	var err error
 	var scheduler scheduler.Interface
 
-	schedulerName := *app.Spec.BatchScheduler
 	switch schedulerName {
 	case common.VolcanoSchedulerName:
 		config := &volcano.Config{
 			RestConfig: r.manager.GetConfig(),
 		}
 		scheduler, err = r.registry.GetScheduler(schedulerName, config)
+	case yunikorn.SchedulerName:
+		scheduler, err = r.registry.GetScheduler(schedulerName, nil)
+	}
+
+	for _, name := range r.options.KubeSchedulerNames {
+		if schedulerName == name {
+			config := &kubescheduler.Config{
+				SchedulerName: name,
+				Client:        r.manager.GetClient(),
+			}
+			scheduler, err = r.registry.GetScheduler(name, config)
+		}
 	}
 
 	if err != nil || scheduler == nil {

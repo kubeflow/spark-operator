@@ -53,6 +53,15 @@ tests:
           path: spec.replicas
           value: 10
 
+  - it: Should set replicas if `controller.replicas` is set
+    set:
+      controller:
+        replicas: 0
+    asserts:
+      - equal:
+          path: spec.replicas
+          value: 0
+
   - it: Should add pod labels if `controller.labels` is set
     set:
       controller:
@@ -110,13 +119,25 @@ tests:
 
   - it: Should contain `--namespaces` arg if `spark.jobNamespaces` is set
     set:
-      spark.jobNamespaces:
-        - ns1
-        - ns2
+      spark:
+        jobNamespaces:
+          - ns1
+          - ns2
     asserts:
       - contains:
           path: spec.template.spec.containers[?(@.name=="spark-operator-controller")].args
           content: --namespaces=ns1,ns2
+
+  - it: Should set namespaces to all namespaces (`""`) if `spark.jobNamespaces` contains empty string
+    set:
+      spark:
+        jobNamespaces:
+          - ""
+          - default
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[?(@.name=="spark-operator-controller")].args
+          content: --namespaces=""
 
   - it: Should contain `--controller-threads` arg if `controller.workers` is set
     set:
@@ -159,6 +180,17 @@ tests:
       - contains:
           path: spec.template.spec.containers[?(@.name=="spark-operator-controller")].args
           content: --enable-batch-scheduler=true
+
+  - it: Should contain `--default-batch-scheduler` arg if `controller.batchScheduler.default` is set
+    set:
+      controller:
+        batchScheduler:
+          enable: true
+          default: yunikorn
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[?(@.name=="spark-operator-controller")].args
+          content: --default-batch-scheduler=yunikorn
 
   - it: Should contain `--enable-metrics` arg if `prometheus.metrics.enable` is set to `true`
     set:
@@ -535,3 +567,29 @@ tests:
     asserts:
       - failedTemplate:
           errorMessage: "controller.replicas must be greater than 1 to enable topology spread constraints for controller pods"
+
+  - it: Should contain `--pprof-bind-address` arg if `controller.pprof.enable` is set to `true`
+    set:
+      controller:
+        pprof:
+          enable: true
+          port: 12345
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[?(@.name=="spark-operator-controller")].args
+          content: --pprof-bind-address=:12345
+
+  - it: Should add pprof ports if `controller.pprof.enable` is set to `true`
+    set:
+      controller:
+        pprof:
+          enable: true
+          port: 12345
+          portName: pprof-test
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[?(@.name=="spark-operator-controller")].ports
+          content:
+            name: pprof-test
+            containerPort: 12345
+          count: 1

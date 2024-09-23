@@ -49,6 +49,34 @@ Create the name of the service account to be used by the controller
 {{- end -}}
 
 {{/*
+Create the name of the cluster role to be used by the controller
+*/}}
+{{- define "spark-operator.controller.clusterRoleName" -}}
+{{ include "spark-operator.controller.name" . }}
+{{- end }}
+
+{{/*
+Create the name of the cluster role binding to be used by the controller
+*/}}
+{{- define "spark-operator.controller.clusterRoleBindingName" -}}
+{{ include "spark-operator.controller.clusterRoleName" . }}
+{{- end }}
+
+{{/*
+Create the name of the role to be used by the controller
+*/}}
+{{- define "spark-operator.controller.roleName" -}}
+{{ include "spark-operator.controller.name" . }}
+{{- end }}
+
+{{/*
+Create the name of the role binding to be used by the controller
+*/}}
+{{- define "spark-operator.controller.roleBindingName" -}}
+{{ include "spark-operator.controller.roleName" . }}
+{{- end }}
+
+{{/*
 Create the name of the deployment to be used by controller
 */}}
 {{- define "spark-operator.controller.deploymentName" -}}
@@ -67,4 +95,96 @@ Create the name of the pod disruption budget to be used by controller
 */}}
 {{- define "spark-operator.controller.podDisruptionBudgetName" -}}
 {{ include "spark-operator.controller.name" . }}-pdb
+{{- end -}}
+
+{{/*
+Create the name of the service used by controller
+*/}}
+{{- define "spark-operator.controller.serviceName" -}}
+{{ include "spark-operator.controller.name" . }}-svc
+{{- end -}}
+
+{{/*
+Create the role policy rules for the controller in every Spark job namespace
+*/}}
+{{- define "spark-operator.controller.policyRules" -}}
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+  - deletecollection
+- apiGroups:
+  - ""
+  resources:
+  - configmaps
+  verbs:
+  - get
+  - create
+  - update
+  - patch
+  - delete
+- apiGroups:
+  - ""
+  resources:
+  - services
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+- apiGroups:
+  - extensions
+  - networking.k8s.io
+  resources:
+  - ingresses
+  verbs:
+  - get
+  - create
+  - delete
+- apiGroups:
+  - sparkoperator.k8s.io
+  resources:
+  - sparkapplications
+  - scheduledsparkapplications
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+- apiGroups:
+  - sparkoperator.k8s.io
+  resources:
+  - sparkapplications/status
+  - sparkapplications/finalizers
+  - scheduledsparkapplications/status
+  - scheduledsparkapplications/finalizers
+  verbs:
+  - get
+  - update
+  - patch
+{{- if .Values.controller.batchScheduler.enable }}
+{{/* required for the `volcano` batch scheduler */}}
+- apiGroups:
+  - scheduling.incubator.k8s.io
+  - scheduling.sigs.dev
+  - scheduling.volcano.sh
+  resources:
+  - podgroups
+  verbs:
+  - "*"
+{{- end }}
 {{- end -}}

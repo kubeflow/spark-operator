@@ -69,7 +69,6 @@ tests:
           annotations:
             key1: value1
             key2: value2
-    documentIndex: 0
     asserts:
       - equal:
           path: metadata.annotations.key1
@@ -77,3 +76,90 @@ tests:
       - equal:
           path: metadata.annotations.key2
           value: value2
+
+  - it: Should create role and rolebinding for controller in release namespace 
+    documentIndex: 2
+    asserts:
+      - containsDocument:
+          apiVersion: rbac.authorization.k8s.io/v1
+          kind: Role
+          name: spark-operator-controller
+          namespace: spark-operator
+
+  - it: Should create role and rolebinding for controller in release namespace
+    documentIndex: 3
+    asserts:
+      - containsDocument:
+          apiVersion: rbac.authorization.k8s.io/v1
+          kind: RoleBinding
+          name: spark-operator-controller
+          namespace: spark-operator
+      - contains:
+          path: subjects
+          content:
+            kind: ServiceAccount
+            name: spark-operator-controller
+            namespace: spark-operator
+          count: 1
+      - equal:
+          path: roleRef
+          value:
+            apiGroup: rbac.authorization.k8s.io
+            kind: Role
+            name: spark-operator-controller
+
+  - it: Should create roles and rolebindings for controller in every spark job namespace if `spark.jobNamespaces` is set and does not contain empty string
+    set:
+      spark:
+        jobNamespaces:
+          - default
+          - spark
+    documentIndex: 4
+    asserts:
+      - containsDocument:
+          apiVersion: rbac.authorization.k8s.io/v1
+          kind: Role
+          name: spark-operator-controller
+          namespace: default
+
+  - it: Should create roles and rolebindings for controller in every spark job namespace if `spark.jobNamespaces` is set and does not contain empty string
+    set:
+      spark:
+        jobNamespaces:
+          - default
+          - spark
+    documentIndex: 5
+    asserts:
+      - containsDocument:
+          apiVersion: rbac.authorization.k8s.io/v1
+          kind: RoleBinding
+          name: spark-operator-controller
+          namespace: default
+
+  - it: Should create roles and rolebindings for controller in every spark job namespace if `spark.jobNamespaces` is set and does not contain empty string
+    set:
+      spark:
+        jobNamespaces:
+          - default
+          - spark
+    documentIndex: 6
+    asserts:
+      - containsDocument:
+          apiVersion: rbac.authorization.k8s.io/v1
+          kind: Role
+          name: spark-operator-controller
+          namespace: spark
+
+  - it: Should create roles and rolebindings for controller in every spark job namespace if `spark.jobNamespaces` is set and does not contain empty string
+    set:
+      spark:
+        jobNamespaces:
+          - default
+          - spark
+    documentIndex: 7
+    asserts:
+      - containsDocument:
+          apiVersion: rbac.authorization.k8s.io/v1
+          kind: RoleBinding
+          name: spark-operator-controller
+          namespace: spark

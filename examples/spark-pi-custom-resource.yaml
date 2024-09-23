@@ -21,34 +21,20 @@ metadata:
 spec:
   type: Scala
   mode: cluster
-  image: spark:3.5.0
+  image: spark:3.5.2
   imagePullPolicy: IfNotPresent
   mainClass: org.apache.spark.examples.SparkPi
-  mainApplicationFile: local:///opt/spark/examples/jars/spark-examples_2.12-3.5.0.jar
-  sparkVersion: 3.5.0
+  mainApplicationFile: local:///opt/spark/examples/jars/spark-examples_2.12-3.5.2.jar
+  sparkVersion: 3.5.2
   restartPolicy:
     type: Never
-  volumes:
-  - name: test-volume
-    hostPath:
-      path: /tmp
-      type: Directory
   driver:
-    labels:
-      version: 3.5.0
-    cores: 1
-    coreLimit: 1200m
+    coreRequest: "0.5"
+    coreLimit: 800m
     memory: 512m
     serviceAccount: spark-operator-spark
-    volumeMounts:
-    - name: test-volume
-      mountPath: /tmp
   executor:
-    labels:
-      version: 3.5.0
     instances: 1
-    cores: 1
+    coreRequest: "1200m"
+    coreLimit: 1500m
     memory: 512m
-    volumeMounts:
-    - name: test-volume
-      mountPath: /tmp

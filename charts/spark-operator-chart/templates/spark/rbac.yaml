@@ -16,7 +16,7 @@ limitations under the License.
 
 {{- if .Values.spark.rbac.create -}}
 {{- range $jobNamespace := .Values.spark.jobNamespaces | default list }}
-{{- if $jobNamespace }}
+{{- if ne $jobNamespace "" }}
 
 ---
 apiVersion: rbac.authorization.k8s.io/v1
@@ -67,7 +67,7 @@ subjects:
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
-  name: {{ include "spark-operator.spark.serviceAccountName" $ }}
+  name: {{ include "spark-operator.spark.roleName" $ }}
 {{- end }}
 {{- end }}
 {{- end }}

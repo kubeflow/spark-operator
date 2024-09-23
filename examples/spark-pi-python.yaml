@@ -22,21 +22,15 @@ spec:
   type: Python
   pythonVersion: "3"
   mode: cluster
-  image: spark:3.5.0
+  image: spark:3.5.2
   imagePullPolicy: IfNotPresent
   mainApplicationFile: local:///opt/spark/examples/src/main/python/pi.py
-  sparkVersion: 3.5.0
+  sparkVersion: 3.5.2
   driver:
-    labels:
-      version: 3.5.0
     cores: 1
-    coreLimit: 1200m
     memory: 512m
     serviceAccount: spark-operator-spark
   executor:
-    labels:
-      version: 3.5.0
     instances: 1
     cores: 1
-    coreLimit: 1200m
     memory: 512m

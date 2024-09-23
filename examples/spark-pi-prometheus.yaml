@@ -22,28 +22,27 @@ metadata:
 spec:
   type: Scala
   mode: cluster
-  image: gcr.io/spark-operator/spark:v3.1.1-gcs-prometheus
+  image: {IMAGE_REGISTRY}/{IMAGE_REPOSITORY}/spark:3.5.2-gcs-prometheus
   imagePullPolicy: Always
   mainClass: org.apache.spark.examples.SparkPi
-  mainApplicationFile: local:///opt/spark/examples/jars/spark-examples_2.12-3.1.1.jar
+  mainApplicationFile: local:///opt/spark/examples/jars/spark-examples_2.12-3.5.2.jar
   arguments:
   - "100000"
-  sparkVersion: 3.1.1
+  sparkVersion: 3.5.2
   restartPolicy:
     type: Never
   driver:
     cores: 1
-    coreLimit: 1200m
     memory: 512m
     labels:
-      version: 3.1.1
+      version: 3.5.2
     serviceAccount: spark-operator-spark
   executor:
     cores: 1
     instances: 1
     memory: 512m
     labels:
-      version: 3.1.1
+      version: 3.5.2
   monitoring:
     exposeDriverMetrics: true
     exposeExecutorMetrics: true

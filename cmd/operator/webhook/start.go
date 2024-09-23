@@ -130,7 +130,7 @@ func NewStartCommand() *cobra.Command {
 	}
 
 	command.Flags().IntVar(&controllerThreads, "controller-threads", 10, "Number of worker threads used by the SparkApplication controller.")
-	command.Flags().StringSliceVar(&namespaces, "namespaces", []string{"default"}, "The Kubernetes namespace to manage. Will manage custom resource objects of the managed CRD types for the whole cluster if unset.")
+	command.Flags().StringSliceVar(&namespaces, "namespaces", []string{}, "The Kubernetes namespace to manage. Will manage custom resource objects of the managed CRD types for the whole cluster if unset or contains empty string.")
 	command.Flags().StringVar(&labelSelectorFilter, "label-selector-filter", "", "A comma-separated list of key=value, or key labels to filter resources during watch and list based on the specified labels.")
 	command.Flags().DurationVar(&cacheSyncTimeout, "cache-sync-timeout", 30*time.Second, "Informer cache sync timeout.")
 
@@ -368,9 +368,7 @@ func newTLSOptions() []func(c *tls.Config) {
 // newCacheOptions creates and returns a cache.Options instance configured with default namespaces and object caching settings.
 func newCacheOptions() cache.Options {
 	defaultNamespaces := make(map[string]cache.Config)
-	if util.ContainsString(namespaces, cache.AllNamespaces) {
-		defaultNamespaces[cache.AllNamespaces] = cache.Config{}
-	} else {
+	if !util.ContainsString(namespaces, cache.AllNamespaces) {
 		for _, ns := range namespaces {
 			defaultNamespaces[ns] = cache.Config{}
 		}

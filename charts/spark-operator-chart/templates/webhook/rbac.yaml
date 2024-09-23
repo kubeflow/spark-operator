@@ -14,11 +14,13 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
+{{- if .Values.webhook.enable }}
 {{- if .Values.webhook.rbac.create }}
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: {{ include "spark-operator.webhook.name" . }}
+  name: {{ include "spark-operator.webhook.clusterRoleName" . }}
+  namespace: {{ .Release.Namespace }}
   labels:
     {{- include "spark-operator.webhook.labels" . | nindent 4 }}
   {{- with .Values.webhook.rbac.annotations }}
@@ -26,22 +28,6 @@ metadata:
     {{- toYaml . | nindent 4 }}
   {{- end }}
 rules:
-- apiGroups:
-  - ""
-  resources:
-  - pods
-  verbs:
-  - get
-  - list
-  - watch
-- apiGroups:
-  - ""
-  resources:
-  - resourcequotas
-  verbs:
-  - get
-  - list
-  - watch
 - apiGroups:
   - ""
   resources:
@@ -68,29 +54,16 @@ rules:
   verbs:
   - get
   - update
-- apiGroups:
-  - sparkoperator.k8s.io
-  resources:
-  - sparkapplications
-  - sparkapplications/status
-  - sparkapplications/finalizers
-  - scheduledsparkapplications
-  - scheduledsparkapplications/status
-  - scheduledsparkapplications/finalizers
-  verbs:
-  - get
-  - list
-  - watch
-  - create
-  - update
-  - patch
-  - delete
+{{- if not .Values.spark.jobNamespaces | or (has "" .Values.spark.jobNamespaces) }}
+{{ include "spark-operator.webhook.policyRules" . }}
+{{- end }}
 ---
 
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: {{ include "spark-operator.webhook.name" . }}
+  name: {{ include "spark-operator.webhook.clusterRoleBindingName" . }}
+  namespace: {{ .Release.Namespace }}
   labels:
     {{- include "spark-operator.webhook.labels" . | nindent 4 }}
   {{- with .Values.webhook.rbac.annotations }}
@@ -104,13 +77,14 @@ subjects:
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: {{ include "spark-operator.webhook.name" . }}
-
+  name: {{ include "spark-operator.webhook.clusterRoleName" . }}
 ---
+
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
-  name: {{ include "spark-operator.webhook.name" . }}
+  name: {{ include "spark-operator.webhook.roleName" . }}
+  namespace: {{ .Release.Namespace }}
   labels:
     {{- include "spark-operator.webhook.labels" . | nindent 4 }}
   {{- with .Values.webhook.rbac.annotations }}
@@ -148,12 +122,16 @@ rules:
   verbs:
   - get
   - update
+{{- if has .Release.Namespace .Values.spark.jobNamespaces }}
+{{ include "spark-operator.webhook.policyRules" . }}
+{{- end }}
 
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
-  name: {{ include "spark-operator.webhook.name" . }}
+  name: {{ include "spark-operator.webhook.roleBindingName" . }}
+  namespace: {{ .Release.Namespace }}
   labels:
     {{- include "spark-operator.webhook.labels" . | nindent 4 }}
   {{- with .Values.webhook.rbac.annotations }}
@@ -167,5 +145,49 @@ subjects:
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
-  name: {{ include "spark-operator.webhook.name" . }}
+  name: {{ include "spark-operator.webhook.roleName" . }}
+
+{{- if and .Values.spark.jobNamespaces (not (has "" .Values.spark.jobNamespaces)) }}
+{{- range $jobNamespace := .Values.spark.jobNamespaces }}
+{{- if ne $jobNamespace $.Release.Namespace }}
+---
+
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ include "spark-operator.webhook.roleName" $ }}
+  namespace: {{ $jobNamespace }}
+  labels:
+    {{- include "spark-operator.webhook.labels" $ | nindent 4 }}
+  {{- with $.Values.webhook.rbac.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+rules:
+{{ include "spark-operator.webhook.policyRules" $ }}
+---
+
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ include "spark-operator.webhook.roleBindingName" $ }}
+  namespace: {{ $jobNamespace }}
+  labels:
+    {{- include "spark-operator.webhook.labels" $ | nindent 4 }}
+  {{- with $.Values.webhook.rbac.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+subjects:
+- kind: ServiceAccount
+  name: {{ include "spark-operator.webhook.serviceAccountName" $ }}
+  namespace: {{ $.Release.Namespace }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ include "spark-operator.webhook.roleName" $ }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- end }}
 {{- end }}

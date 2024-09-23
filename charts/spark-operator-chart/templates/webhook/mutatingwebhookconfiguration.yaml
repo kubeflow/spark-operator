@@ -14,6 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
+{{- if .Values.webhook.enable }}
 apiVersion: admissionregistration.k8s.io/v1
 kind: MutatingWebhookConfiguration
 metadata:
@@ -33,15 +34,17 @@ webhooks:
   {{- with .Values.webhook.failurePolicy }}
   failurePolicy: {{ . }}
   {{- end }}
-  {{- if .Values.spark.jobNamespaces }}
+  {{- with .Values.spark.jobNamespaces }}
+  {{- if not (has "" .) }}
   namespaceSelector:
     matchExpressions:
     - key: kubernetes.io/metadata.name
       operator: In
       values:
-      {{- range .Values.spark.jobNamespaces }}
-      - {{ . }}
+      {{- range $jobNamespace := . }}
+      - {{ $jobNamespace }}
       {{- end }}
+  {{- end }}
   {{- end }}
   objectSelector:
     matchLabels:
@@ -66,15 +69,17 @@ webhooks:
   {{- with .Values.webhook.failurePolicy }}
   failurePolicy: {{ . }}
   {{- end }}
-  {{- if .Values.spark.jobNamespaces }}
+  {{- with .Values.spark.jobNamespaces }}
+  {{- if not (has "" .) }}
   namespaceSelector:
     matchExpressions:
     - key: kubernetes.io/metadata.name
       operator: In
       values:
-      {{- range .Values.spark.jobNamespaces }}
-      - {{ . }}
+      {{- range $jobNamespace := . }}
+      - {{ $jobNamespace }}
       {{- end }}
+  {{- end }}
   {{- end }}
   rules:
   - apiGroups: ["sparkoperator.k8s.io"]
@@ -96,15 +101,17 @@ webhooks:
   {{- with .Values.webhook.failurePolicy }}
   failurePolicy: {{ . }}
   {{- end }}
-  {{- if .Values.spark.jobNamespaces }}
+  {{- with .Values.spark.jobNamespaces }}
+  {{- if not (has "" .) }}
   namespaceSelector:
     matchExpressions:
     - key: kubernetes.io/metadata.name
       operator: In
       values:
-      {{- range .Values.spark.jobNamespaces }}
-      - {{ . }}
+      {{- range $jobNamespace := . }}
+      - {{ $jobNamespace }}
       {{- end }}
+  {{- end }}
   {{- end }}
   rules:
   - apiGroups: ["sparkoperator.k8s.io"]
@@ -114,3 +121,4 @@ webhooks:
   {{- with .Values.webhook.timeoutSeconds }}
   timeoutSeconds: {{ . }}
   {{- end }}
+{{- end }}

@@ -23,6 +23,7 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -49,15 +50,19 @@ type SparkPodDefaulter struct {
 var _ admission.CustomDefaulter = &SparkPodDefaulter{}
 
 // NewSparkPodDefaulter creates a new SparkPodDefaulter instance.
-func NewSparkPodDefaulter(client client.Client, sparkJobNamespaces []string) *SparkPodDefaulter {
-	m := make(map[string]bool)
-	for _, ns := range sparkJobNamespaces {
-		m[ns] = true
+func NewSparkPodDefaulter(client client.Client, namespaces []string) *SparkPodDefaulter {
+	nsMap := make(map[string]bool)
+	if len(namespaces) == 0 {
+		nsMap[metav1.NamespaceAll] = true
+	} else {
+		for _, ns := range namespaces {
+			nsMap[ns] = true
+		}
 	}
 
 	return &SparkPodDefaulter{
 		client:             client,
-		sparkJobNamespaces: m,
+		sparkJobNamespaces: nsMap,
 	}
 }
 
@@ -93,7 +98,7 @@ func (d *SparkPodDefaulter) Default(ctx context.Context, obj runtime.Object) err
 }
 
 func (d *SparkPodDefaulter) isSparkJobNamespace(ns string) bool {
-	return d.sparkJobNamespaces[ns]
+	return d.sparkJobNamespaces[metav1.NamespaceAll] || d.sparkJobNamespaces[ns]
 }
 
 type mutateSparkPodOption func(pod *corev1.Pod, app *v1beta2.SparkApplication) error
@@ -477,19 +482,19 @@ func addSchedulerName(pod *corev1.Pod, app *v1beta2.SparkApplication) error {
 
 func addPriorityClassName(pod *corev1.Pod, app *v1beta2.SparkApplication) error {
 	var priorityClassName *string
-	if app.Spec.BatchSchedulerOptions != nil {
-		priorityClassName = app.Spec.BatchSchedulerOptions.PriorityClassName
+
+	if util.IsDriverPod(pod) {
+		priorityClassName = app.Spec.Driver.PriorityClassName
+	} else if util.IsExecutorPod(pod) {
+		priorityClassName = app.Spec.Executor.PriorityClassName
 	}
 
 	if priorityClassName != nil && *priorityClassName != "" {
 		pod.Spec.PriorityClassName = *priorityClassName
-		if pod.Spec.Priority != nil {
-			pod.Spec.Priority = nil
-		}
-		if pod.Spec.PreemptionPolicy != nil {
-			pod.Spec.PreemptionPolicy = nil
-		}
+		pod.Spec.Priority = nil
+		pod.Spec.PreemptionPolicy = nil
 	}
+
 	return nil
 }
 

@@ -8,16 +8,16 @@ metadata:
 spec:
   type: Scala
   mode: cluster
-  image: spark:3.5.0
+  image: spark:3.5.2
   imagePullPolicy: IfNotPresent
   mainClass: org.apache.spark.examples.SparkPi
-  mainApplicationFile: local:///opt/spark/examples/jars/spark-examples_2.12-3.5.0.jar
-  sparkVersion: 3.5.0
+  mainApplicationFile: local:///opt/spark/examples/jars/spark-examples_2.12-3.5.2.jar
+  sparkVersion: 3.5.2
   driver:
     labels:
-      version: 3.5.0
+      version: 3.5.2
     serviceAccount: spark-operator-spark
   executor:
     labels:
-      version: 3.5.0
+      version: 3.5.2
     instances: 1

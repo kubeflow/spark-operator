@@ -67,6 +67,13 @@ controller:
     # -- Specifies whether to enable batch scheduler for spark jobs scheduling.
     # If enabled, users can specify batch scheduler name in spark application.
     enable: false
+    # -- Specifies a list of kube-scheduler names for scheduling Spark pods.
+    kubeSchedulerNames: []
+    # - default-scheduler
+    # -- Default batch scheduler to be used if not specified by the user.
+    # If specified, this value must be either "volcano" or "yunikorn". Specifying any other
+    # value will cause the controller to error on startup.
+    default: ""
 
   serviceAccount:
     # -- Specifies whether to create a service account for the controller.
@@ -163,7 +170,18 @@ controller:
     # Require `controller.replicas` to be greater than 1
     minAvailable: 1
 
+  pprof:
+    # -- Specifies whether to enable pprof.
+    enable: false
+    # -- Specifies pprof port.
+    port: 6060
+    # -- Specifies pprof service port name.
+    portName: pprof
+
 webhook:
+  # -- Specifies whether to enable webhook.
+  enable: true
+
   # -- Number of replicas of webhook server.
   replicas: 1
 

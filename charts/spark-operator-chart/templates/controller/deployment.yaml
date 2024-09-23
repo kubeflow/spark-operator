@@ -21,9 +21,7 @@ metadata:
   labels:
     {{- include "spark-operator.controller.labels" . | nindent 4 }}
 spec:
-  {{- with .Values.controller.replicas }}
-  replicas: {{ . }}
-  {{- end }}
+  replicas: {{ .Values.controller.replicas }}
   selector:
     matchLabels:
       {{- include "spark-operator.controller.selectorLabels" . | nindent 6 }}
@@ -59,7 +57,11 @@ spec:
         - --zap-log-level={{ . }}
         {{- end }}
         {{- with .Values.spark.jobNamespaces }}
+        {{- if has "" . }}
+        - --namespaces=""
+        {{- else }}
         - --namespaces={{ . | join "," }}
+        {{- end }}
         {{- end }}
         - --controller-threads={{ .Values.controller.workers }}
         {{- with .Values.controller.uiService.enable }}
@@ -70,8 +72,14 @@ spec:
         - --ingress-url-format={{ . }}
         {{- end }}
         {{- end }}
-        {{- with .Values.controller.batchScheduler.enable }}
+        {{- if .Values.controller.batchScheduler.enable }}
         - --enable-batch-scheduler=true
+        {{- with .Values.controller.batchScheduler.kubeSchedulerNames }}
+        - --kube-scheduler-names={{ . | join "," }}
+        {{- end }}
+        {{- with .Values.controller.batchScheduler.default }}
+        - --default-batch-scheduler={{ . }}
+        {{- end }}
         {{- end }}
         {{- if .Values.prometheus.metrics.enable }}
         - --enable-metrics=true
@@ -83,10 +91,19 @@ spec:
         - --leader-election=true
         - --leader-election-lock-name={{ include "spark-operator.controller.leaderElectionName" . }}
         - --leader-election-lock-namespace={{ .Release.Namespace }}
-        {{- if .Values.prometheus.metrics.enable }}
+        {{- if .Values.controller.pprof.enable }}
+        - --pprof-bind-address=:{{ .Values.controller.pprof.port }}
+        {{- end }}
+        {{- if or .Values.prometheus.metrics.enable .Values.controller.pprof.enable }}
         ports:
+        {{- if .Values.controller.pprof.enable }}
+        - name: {{ .Values.controller.pprof.portName | quote }}
+          containerPort: {{ .Values.controller.pprof.port }}
+        {{- end }}
+        {{- if .Values.prometheus.metrics.enable }}
         - name: {{ .Values.prometheus.metrics.portName | quote }}
           containerPort: {{ .Values.prometheus.metrics.port }}
+        {{- end }}
         {{- end }}
         {{- with .Values.controller.env }}
         env:

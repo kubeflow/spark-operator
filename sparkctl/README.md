@@ -2,10 +2,39 @@
 
 `sparkctl` is a command-line tool of the Spark Operator for creating, listing, checking status of, getting logs of, and deleting `SparkApplication`s. It can also do port forwarding from a local port to the Spark web UI port for accessing the Spark web UI on the driver. Each function is implemented as a sub-command of `sparkctl`.
 
-To build `sparkctl`, make sure you followed build steps [here](https://github.com/kubeflow/spark-operator/blob/master/docs/developer-guide.md#build-the-operator) and have all the dependencies, then run the following command from within `sparkctl/`:
+To build the `sparkctl` binary, run the following command in the root directory of the project:
 
 ```bash
-go build -o sparkctl
+make build-sparkctl
+```
+
+Then the `sparkctl` binary can be found in the `bin` directory:
+
+```bash
+$ bin/sparkctl --help         
+sparkctl is the command-line tool for working with the Spark Operator. It supports creating, deleting and 
+           checking status of SparkApplication objects. It also supports fetching application logs.
+
+Usage:
+  sparkctl [command]
+
+Available Commands:
+  completion  Generate the autocompletion script for the specified shell
+  create      Create a SparkApplication object
+  delete      Delete a SparkApplication object
+  event       Shows SparkApplication events
+  forward     Start to forward a local port to the remote port of the driver UI
+  help        Help about any command
+  list        List SparkApplication objects
+  log         log is a sub-command of sparkctl that fetches logs of a Spark application.
+  status      Check status of a SparkApplication
+
+Flags:
+  -h, --help                help for sparkctl
+  -k, --kubeconfig string   The path to the local Kubernetes configuration file (default "/Users/chenyi/.kube/config")
+  -n, --namespace string    The namespace in which the SparkApplication is to be created (default "default")
+
+Use "sparkctl [command] --help" for more information about a command.
 ```
 
 ## Flags

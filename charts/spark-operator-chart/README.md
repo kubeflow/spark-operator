@@ -90,6 +90,8 @@ See [helm uninstall](https://helm.sh/docs/helm/helm_uninstall) for command docum
 | controller.uiIngress.enable | bool | `false` | Specifies whether to create ingress for Spark web UI. `controller.uiService.enable` must be `true` to enable ingress. |
 | controller.uiIngress.urlFormat | string | `""` | Ingress URL format. Required if `controller.uiIngress.enable` is true. |
 | controller.batchScheduler.enable | bool | `false` | Specifies whether to enable batch scheduler for spark jobs scheduling. If enabled, users can specify batch scheduler name in spark application. |
+| controller.batchScheduler.kubeSchedulerNames | list | `[]` | Specifies a list of kube-scheduler names for scheduling Spark pods. |
+| controller.batchScheduler.default | string | `""` | Default batch scheduler to be used if not specified by the user. If specified, this value must be either "volcano" or "yunikorn". Specifying any other value will cause the controller to error on startup. |
 | controller.serviceAccount.create | bool | `true` | Specifies whether to create a service account for the controller. |
 | controller.serviceAccount.name | string | `""` | Optional name for the controller service account. |
 | controller.serviceAccount.annotations | object | `{}` | Extra annotations for the controller service account. |
@@ -112,6 +114,10 @@ See [helm uninstall](https://helm.sh/docs/helm/helm_uninstall) for command docum
 | controller.sidecars | list | `[]` | Sidecar containers for controller pods. |
 | controller.podDisruptionBudget.enable | bool | `false` | Specifies whether to create pod disruption budget for controller. Ref: [Specifying a Disruption Budget for your Application](https://kubernetes.io/docs/tasks/run-application/configure-pdb/) |
 | controller.podDisruptionBudget.minAvailable | int | `1` | The number of pods that must be available. Require `controller.replicas` to be greater than 1 |
+| controller.pprof.enable | bool | `false` | Specifies whether to enable pprof. |
+| controller.pprof.port | int | `6060` | Specifies pprof port. |
+| controller.pprof.portName | string | `"pprof"` | Specifies pprof service port name. |
+| webhook.enable | bool | `true` | Specifies whether to enable webhook. |
 | webhook.replicas | int | `1` | Number of replicas of webhook server. |
 | webhook.logLevel | string | `"info"` | Configure the verbosity of logging, can be one of `debug`, `info`, `error`. |
 | webhook.port | int | `9443` | Specifies webhook port. |

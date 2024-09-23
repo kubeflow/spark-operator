@@ -31,6 +31,14 @@ tests:
           kind: Deployment
           name: spark-operator-webhook
 
+  - it: Should not create webhook deployment if `webhook.enable` is `false`
+    set:
+      webhook:
+        enable: false
+    asserts:
+      - hasDocuments:
+          count: 0
+
   - it: Should set replicas if `webhook.replicas` is set
     set:
       webhook:
@@ -39,6 +47,15 @@ tests:
       - equal:
           path: spec.replicas
           value: 10
+
+  - it: Should set replicas if `webhook.replicas` is set
+    set:
+      webhook:
+        replicas: 0
+    asserts:
+      - equal:
+          path: spec.replicas
+          value: 0
 
   - it: Should add pod labels if `webhook.labels` is set
     set:
@@ -106,6 +123,17 @@ tests:
       - contains:
           path: spec.template.spec.containers[?(@.name=="spark-operator-webhook")].args
           content: --namespaces=ns1,ns2
+
+  - it: Should set namespaces to all namespaces (`""`) if `spark.jobNamespaces` contains empty string
+    set:
+      spark:
+        jobNamespaces:
+          - ""
+          - default
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[?(@.name=="spark-operator-webhook")].args
+          content: --namespaces=""
 
   - it: Should contain `--enable-metrics` arg if `prometheus.metrics.enable` is set to `true`
     set:

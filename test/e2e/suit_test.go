@@ -27,12 +27,15 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-
 	"helm.sh/helm/v3/pkg/action"
 	"helm.sh/helm/v3/pkg/chart/loader"
+	"helm.sh/helm/v3/pkg/chartutil"
 	"helm.sh/helm/v3/pkg/cli"
+	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
@@ -53,6 +56,12 @@ import (
 const (
 	ReleaseName      = "spark-operator"
 	ReleaseNamespace = "spark-operator"
+
+	MutatingWebhookName   = "spark-operator-webhook"
+	ValidatingWebhookName = "spark-operator-webhook"
+
+	PollInterval = 1 * time.Second
+	WaitTimeout  = 5 * time.Minute
 )
 
 var (
@@ -123,14 +132,25 @@ var _ = BeforeSuite(func() {
 	installAction.ReleaseName = ReleaseName
 	installAction.Namespace = envSettings.Namespace()
 	installAction.Wait = true
-	installAction.Timeout = 5 * time.Minute
+	installAction.Timeout = WaitTimeout
 	chartPath := filepath.Join("..", "..", "charts", "spark-operator-chart")
 	chart, err := loader.Load(chartPath)
 	Expect(err).NotTo(HaveOccurred())
 	Expect(chart).NotTo(BeNil())
-	release, err := installAction.Run(chart, nil)
+	values, err := chartutil.ReadValuesFile(filepath.Join(chartPath, "ci", "ci-values.yaml"))
+	Expect(err).NotTo(HaveOccurred())
+	Expect(values).NotTo(BeNil())
+	release, err := installAction.Run(chart, values)
 	Expect(err).NotTo(HaveOccurred())
 	Expect(release).NotTo(BeNil())
+
+	By("Waiting for the webhooks to be ready")
+	mutatingWebhookKey := types.NamespacedName{Name: MutatingWebhookName}
+	validatingWebhookKey := types.NamespacedName{Name: ValidatingWebhookName}
+	Expect(waitForMutatingWebhookReady(context.Background(), mutatingWebhookKey)).NotTo(HaveOccurred())
+	Expect(waitForValidatingWebhookReady(context.Background(), validatingWebhookKey)).NotTo(HaveOccurred())
+	// TODO: Remove this when there is a better way to ensure the webhooks are ready before running the e2e tests.
+	time.Sleep(10 * time.Second)
 })
 
 var _ = AfterSuite(func() {
@@ -144,7 +164,7 @@ var _ = AfterSuite(func() {
 	uninstallAction := action.NewUninstall(actionConfig)
 	Expect(uninstallAction).NotTo(BeNil())
 	uninstallAction.Wait = true
-	uninstallAction.Timeout = 5 * time.Minute
+	uninstallAction.Timeout = WaitTimeout
 	resp, err := uninstallAction.Run(ReleaseName)
 	Expect(err).To(BeNil())
 	Expect(resp).NotTo(BeNil())
@@ -157,3 +177,95 @@ var _ = AfterSuite(func() {
 	err = testEnv.Stop()
 	Expect(err).ToNot(HaveOccurred())
 })
+
+func waitForMutatingWebhookReady(ctx context.Context, key types.NamespacedName) error {
+	cancelCtx, cancelFunc := context.WithTimeout(ctx, WaitTimeout)
+	defer cancelFunc()
+
+	mutatingWebhook := admissionregistrationv1.MutatingWebhookConfiguration{}
+	err := wait.PollUntilContextCancel(cancelCtx, PollInterval, true, func(ctx context.Context) (bool, error) {
+		if err := k8sClient.Get(ctx, key, &mutatingWebhook); err != nil {
+			return false, err
+		}
+
+		for _, wh := range mutatingWebhook.Webhooks {
+			// Checkout webhook CA certificate
+			if wh.ClientConfig.CABundle == nil {
+				return false, nil
+			}
+
+			// Checkout webhook service endpoints
+			svcRef := wh.ClientConfig.Service
+			if svcRef == nil {
+				return false, fmt.Errorf("webhook service is nil")
+			}
+			endpoints := corev1.Endpoints{}
+			endpointsKey := types.NamespacedName{Namespace: svcRef.Namespace, Name: svcRef.Name}
+			if err := k8sClient.Get(ctx, endpointsKey, &endpoints); err != nil {
+				return false, err
+			}
+			if len(endpoints.Subsets) == 0 {
+				return false, nil
+			}
+		}
+
+		return true, nil
+	})
+	return err
+}
+
+func waitForValidatingWebhookReady(ctx context.Context, key types.NamespacedName) error {
+	cancelCtx, cancelFunc := context.WithTimeout(ctx, WaitTimeout)
+	defer cancelFunc()
+
+	validatingWebhook := admissionregistrationv1.ValidatingWebhookConfiguration{}
+	err := wait.PollUntilContextCancel(cancelCtx, PollInterval, true, func(ctx context.Context) (bool, error) {
+		if err := k8sClient.Get(ctx, key, &validatingWebhook); err != nil {
+			return false, err
+		}
+
+		for _, wh := range validatingWebhook.Webhooks {
+			// Checkout webhook CA certificate
+			if wh.ClientConfig.CABundle == nil {
+				return false, nil
+			}
+
+			// Checkout webhook service endpoints
+			svcRef := wh.ClientConfig.Service
+			if svcRef == nil {
+				return false, fmt.Errorf("webhook service is nil")
+			}
+			endpoints := corev1.Endpoints{}
+			endpointsKey := types.NamespacedName{Namespace: svcRef.Namespace, Name: svcRef.Name}
+			if err := k8sClient.Get(ctx, endpointsKey, &endpoints); err != nil {
+				return false, err
+			}
+			if len(endpoints.Subsets) == 0 {
+				return false, nil
+			}
+		}
+
+		return true, nil
+	})
+	return err
+}
+
+func waitForSparkApplicationCompleted(ctx context.Context, key types.NamespacedName) error {
+	cancelCtx, cancelFunc := context.WithTimeout(ctx, WaitTimeout)
+	defer cancelFunc()
+
+	app := &v1beta2.SparkApplication{}
+	err := wait.PollUntilContextCancel(cancelCtx, PollInterval, true, func(ctx context.Context) (bool, error) {
+		if err := k8sClient.Get(ctx, key, app); err != nil {
+			return false, err
+		}
+		switch app.Status.AppState.State {
+		case v1beta2.ApplicationStateFailedSubmission, v1beta2.ApplicationStateFailed:
+			return false, fmt.Errorf(app.Status.AppState.ErrorMessage)
+		case v1beta2.ApplicationStateCompleted:
+			return true, nil
+		}
+		return false, nil
+	})
+	return err
+}

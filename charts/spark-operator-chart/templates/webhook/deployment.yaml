@@ -14,6 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */}}
 
+{{- if .Values.webhook.enable }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -21,9 +22,7 @@ metadata:
   labels:
     {{- include "spark-operator.webhook.labels" . | nindent 4 }}
 spec:
-  {{- with .Values.webhook.replicas }}
-  replicas: {{ . }}
-  {{- end }}
+  replicas: {{ .Values.webhook.replicas }}
   selector:
     matchLabels:
       {{- include "spark-operator.webhook.selectorLabels" . | nindent 6 }}
@@ -52,7 +51,11 @@ spec:
         - --zap-log-level={{ . }}
         {{- end }}
         {{- with .Values.spark.jobNamespaces }}
+        {{- if has "" . }}
+        - --namespaces=""
+        {{- else }}
         - --namespaces={{ . | join "," }}
+        {{- end }}
         {{- end }}
         - --webhook-secret-name={{ include "spark-operator.webhook.secretName" . }}
         - --webhook-secret-namespace={{ .Release.Namespace }}
@@ -153,3 +156,4 @@ spec:
       - {{ mergeOverwrite . $labelSelectorDict | toYaml | nindent 8 | trim }}
       {{- end }}
       {{- end }}
+{{- end }}

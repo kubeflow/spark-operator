@@ -36,12 +36,12 @@ Create the name of the service account to be used by spark applications
 Create the name of the role to be used by spark service account
 */}}
 {{- define "spark-operator.spark.roleName" -}}
-{{- include "spark-operator.spark.name" . }}
+{{- include "spark-operator.spark.serviceAccountName" . }}
 {{- end -}}
 
 {{/*
 Create the name of the role binding to be used by spark service account
 */}}
 {{- define "spark-operator.spark.roleBindingName" -}}
-{{- include "spark-operator.spark.name" . }}
+{{- include "spark-operator.spark.serviceAccountName" . }}
 {{- end -}}
