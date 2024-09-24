@@ -781,14 +781,13 @@ func TestPatchSparkPod_PriorityClassName(t *testing.T) {
 			UID:  "spark-test-1",
 		},
 		Spec: v1beta2.SparkApplicationSpec{
-			BatchSchedulerOptions: &v1beta2.BatchSchedulerConfiguration{
+			Driver: v1beta2.DriverSpec{
+				SparkPodSpec:      v1beta2.SparkPodSpec{},
 				PriorityClassName: &priorityClassName,
 			},
-			Driver: v1beta2.DriverSpec{
-				SparkPodSpec: v1beta2.SparkPodSpec{},
-			},
 			Executor: v1beta2.ExecutorSpec{
-				SparkPodSpec: v1beta2.SparkPodSpec{},
+				SparkPodSpec:      v1beta2.SparkPodSpec{},
+				PriorityClassName: &priorityClassName,
 			},
 		},
 	}

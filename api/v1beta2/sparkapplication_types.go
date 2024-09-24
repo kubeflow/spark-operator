@@ -536,6 +536,9 @@ type DriverSpec struct {
 	// Ports settings for the pods, following the Kubernetes specifications.
 	// +optional
 	Ports []Port `json:"ports,omitempty"`
+	// PriorityClassName is the name of the PriorityClass for the driver pod.
+	// +optional
+	PriorityClassName *string `json:"priorityClassName,omitempty"`
 }
 
 // ExecutorSpec is specification of the executor.
@@ -563,6 +566,9 @@ type ExecutorSpec struct {
 	// Ports settings for the pods, following the Kubernetes specifications.
 	// +optional
 	Ports []Port `json:"ports,omitempty"`
+	// PriorityClassName is the name of the PriorityClass for the executor pod.
+	// +optional
+	PriorityClassName *string `json:"priorityClassName,omitempty"`
 }
 
 // NamePath is a pair of a name and a path to which the named objects should be mounted to.

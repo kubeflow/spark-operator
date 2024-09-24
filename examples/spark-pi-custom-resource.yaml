@@ -28,27 +28,13 @@ spec:
   sparkVersion: 3.5.2
   restartPolicy:
     type: Never
-  volumes:
-  - name: test-volume
-    hostPath:
-      path: /tmp
-      type: Directory
   driver:
-    labels:
-      version: 3.5.2
-    cores: 1
-    coreLimit: 1200m
+    coreRequest: "0.5"
+    coreLimit: 800m
     memory: 512m
     serviceAccount: spark-operator-spark
-    volumeMounts:
-    - name: test-volume
-      mountPath: /tmp
   executor:
-    labels:
-      version: 3.5.2
     instances: 1
-    cores: 1
+    coreRequest: "1200m"
+    coreLimit: 1500m
     memory: 512m
-    volumeMounts:
-    - name: test-volume
-      mountPath: /tmp

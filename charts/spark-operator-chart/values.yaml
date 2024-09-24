@@ -170,6 +170,14 @@ controller:
     # Require `controller.replicas` to be greater than 1
     minAvailable: 1
 
+  pprof:
+    # -- Specifies whether to enable pprof.
+    enable: false
+    # -- Specifies pprof port.
+    port: 6060
+    # -- Specifies pprof service port name.
+    portName: pprof
+
 webhook:
   # -- Specifies whether to enable webhook.
   enable: true

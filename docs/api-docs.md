@@ -625,6 +625,18 @@ executors to connect to the driver.</p>
 <p>Ports settings for the pods, following the Kubernetes specifications.</p>
 </td>
 </tr>
+<tr>
+<td>
+<code>priorityClassName</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>PriorityClassName is the name of the PriorityClass for the driver pod.</p>
+</td>
+</tr>
 </tbody>
 </table>
 <h3 id="sparkoperator.k8s.io/v1beta2.DriverState">DriverState
@@ -838,6 +850,18 @@ Maps to <code>spark.kubernetes.executor.deleteOnTermination</code> that is avail
 <td>
 <em>(Optional)</em>
 <p>Ports settings for the pods, following the Kubernetes specifications.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>priorityClassName</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>PriorityClassName is the name of the PriorityClass for the executor pod.</p>
 </td>
 </tr>
 </tbody>

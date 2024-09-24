@@ -212,7 +212,7 @@ func (r *Reconciler) createDriverIngressLegacy(app *v1beta2.SparkApplication, se
 	if len(ingressTLSHosts) != 0 {
 		ingress.Spec.TLS = convertIngressTLSHostsToLegacy(ingressTLSHosts)
 	}
-	logger.Info("Creating extensions.v1beta1/Ingress for SparkApplication web UI", app.Name, "namespace", app.Namespace, "ingressName", ingress.Name)
+	logger.Info("Creating extensions.v1beta1/Ingress for SparkApplication web UI", "name", app.Name, "namespace", app.Namespace, "ingressName", ingress.Name)
 	if err := r.client.Create(context.TODO(), ingress); err != nil {
 		return nil, fmt.Errorf("failed to create ingress %s/%s: %v", ingress.Namespace, ingress.Name, err)
 	}

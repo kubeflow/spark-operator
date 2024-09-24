@@ -567,3 +567,29 @@ tests:
     asserts:
       - failedTemplate:
           errorMessage: "controller.replicas must be greater than 1 to enable topology spread constraints for controller pods"
+
+  - it: Should contain `--pprof-bind-address` arg if `controller.pprof.enable` is set to `true`
+    set:
+      controller:
+        pprof:
+          enable: true
+          port: 12345
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[?(@.name=="spark-operator-controller")].args
+          content: --pprof-bind-address=:12345
+
+  - it: Should add pprof ports if `controller.pprof.enable` is set to `true`
+    set:
+      controller:
+        pprof:
+          enable: true
+          port: 12345
+          portName: pprof-test
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[?(@.name=="spark-operator-controller")].ports
+          content:
+            name: pprof-test
+            containerPort: 12345
+          count: 1

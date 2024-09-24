@@ -101,6 +101,7 @@ var (
 	metricsJobStartLatencyBuckets []float64
 
 	healthProbeBindAddress string
+	pprofBindAddress       string
 	secureMetrics          bool
 	enableHTTP2            bool
 	development            bool
@@ -161,6 +162,9 @@ func NewStartCommand() *cobra.Command {
 	command.Flags().BoolVar(&secureMetrics, "secure-metrics", false, "If set the metrics endpoint is served securely")
 	command.Flags().BoolVar(&enableHTTP2, "enable-http2", false, "If set, HTTP/2 will be enabled for the metrics and webhook servers")
 
+	command.Flags().StringVar(&pprofBindAddress, "pprof-bind-address", "0", "The address the pprof endpoint binds to. "+
+		"If not set, it will be 0 in order to disable the pprof server")
+
 	flagSet := flag.NewFlagSet("controller", flag.ExitOnError)
 	ctrl.RegisterFlags(flagSet)
 	zapOptions.BindFlags(flagSet)
@@ -193,6 +197,7 @@ func start() {
 			TLSOpts: tlsOptions,
 		}),
 		HealthProbeBindAddress:  healthProbeBindAddress,
+		PprofBindAddress:        pprofBindAddress,
 		LeaderElection:          enableLeaderElection,
 		LeaderElectionID:        leaderElectionLockName,
 		LeaderElectionNamespace: leaderElectionLockNamespace,

@@ -14,7 +14,7 @@ Below are the adopters of project Spark Operator. If you are using Spark Operato
 | CloudZone | @iftachsc | Evaluation | Big Data Analytics Consultancy |
 | Cyren | @avnerl | Evaluation | Data pipelines |
 | [C2FO](https://www.c2fo.com/) | @vanhoale | Production | Data Platform / Data Infrastructure |
-| [Data Mechanics](https://www.datamechanics.co)  | @jrj-d | Production | Managed Spark Platform |
+| [Spot by Netapp](https://spot.io/product/ocean-apache-spark/)  | @ImpSy | Production | Managed Spark Platform |
 | [DeepCure](https://www.deepcure.ai) | @mschroering | Production | Spark / ML |
 | [DiDi](https://www.didiglobal.com) | @Run-Lin | Evaluation | Data Infrastructure |
 | Exacaster | @minutis | Evaluation | Data pipelines |
