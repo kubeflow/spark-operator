@@ -1,5 +1,22 @@
 # Changelog
 
+## [v2.0.1](https://github.com/kubeflow/spark-operator/tree/v2.0.1) (2024-09-26)
+
+### New Features
+
+- FEATURE: build operator image as non-root ([#2171](https://github.com/kubeflow/spark-operator/pull/2171) by [@ImpSy](https://github.com/ImpSy))
+
+### Bug Fixes
+
+- Update controller RBAC for ConfigMap and PersistentVolumeClaim ([#2187](https://github.com/kubeflow/spark-operator/pull/2187) by [@ChenYi015](https://github.com/ChenYi015))
+
+### Misc
+
+- Bump github.com/onsi/ginkgo/v2 from 2.19.0 to 2.20.2 ([#2188](https://github.com/kubeflow/spark-operator/pull/2188) by [@dependabot[bot]](https://github.com/apps/dependabot))
+- Bump github.com/onsi/gomega from 1.33.1 to 1.34.2 ([#2189](https://github.com/kubeflow/spark-operator/pull/2189) by [@dependabot[bot]](https://github.com/apps/dependabot))
+
+**Full Changelog**: https://github.com/kubeflow/spark-operator/compare/v2.0.0...v2.0.1
+
 ## [v2.0.0](https://github.com/kubeflow/spark-operator/tree/v2.0.0) (2024-09-23)
 
 ### Breaking Changes
