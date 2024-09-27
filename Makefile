@@ -139,13 +139,13 @@ go-vet: ## Run go vet against code.
 	@echo "Running go vet..."
 	go vet ./...
 
-.PHONY: lint
-lint: golangci-lint ## Run golangci-lint linter.
+.PHONY: go-lint
+go-lint: golangci-lint ## Run golangci-lint linter.
 	@echo "Running golangci-lint run..."
 	$(GOLANGCI_LINT) run
 
-.PHONY: lint-fix
-lint-fix: golangci-lint ## Run golangci-lint linter and perform fixes.
+.PHONY: go-lint-fix
+go-lint-fix: golangci-lint ## Run golangci-lint linter and perform fixes.
 	@echo "Running golangci-lint run --fix..."
 	$(GOLANGCI_LINT) run --fix
 
