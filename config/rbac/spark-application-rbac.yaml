@@ -1,5 +1,5 @@
 #
-# Copyright 2018 Google LLC
+# Copyright 2024 The Kubeflow authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -25,12 +25,22 @@ metadata:
   namespace: default
   name: spark-role
 rules:
-- apiGroups: [""]
-  resources: ["pods"]
-  verbs: ["*"]
-- apiGroups: [""]
-  resources: ["services"]
-  verbs: ["*"]
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  - configmaps
+  - persistentvolumeclaims
+  - services
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+  - deletecollection
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
