@@ -1,5 +1,80 @@
 # Changelog
 
+## [v2.0.1](https://github.com/kubeflow/spark-operator/tree/v2.0.1) (2024-09-26)
+
+### New Features
+
+- FEATURE: build operator image as non-root ([#2171](https://github.com/kubeflow/spark-operator/pull/2171) by [@ImpSy](https://github.com/ImpSy))
+
+### Bug Fixes
+
+- Update controller RBAC for ConfigMap and PersistentVolumeClaim ([#2187](https://github.com/kubeflow/spark-operator/pull/2187) by [@ChenYi015](https://github.com/ChenYi015))
+
+### Misc
+
+- Bump github.com/onsi/ginkgo/v2 from 2.19.0 to 2.20.2 ([#2188](https://github.com/kubeflow/spark-operator/pull/2188) by [@dependabot[bot]](https://github.com/apps/dependabot))
+- Bump github.com/onsi/gomega from 1.33.1 to 1.34.2 ([#2189](https://github.com/kubeflow/spark-operator/pull/2189) by [@dependabot[bot]](https://github.com/apps/dependabot))
+
+**Full Changelog**: https://github.com/kubeflow/spark-operator/compare/v2.0.0...v2.0.1
+
+## [v2.0.0](https://github.com/kubeflow/spark-operator/tree/v2.0.0) (2024-09-23)
+
+### Breaking Changes
+
+- Use controller-runtime to reconsturct spark operator ([#2072](https://github.com/kubeflow/spark-operator/pull/2072) by [@ChenYi015](https://github.com/ChenYi015))
+- feat: support driver and executor pod use different priority ([#2146](https://github.com/kubeflow/spark-operator/pull/2146) by [@Kevinz857](https://github.com/Kevinz857))
+
+### New Features
+
+- Support gang scheduling with Yunikorn ([#2107](https://github.com/kubeflow/spark-operator/pull/2107)) by [@jacobsalway](https://github.com/jacobsalway)
+- Reintroduce option webhook.enable ([#2142](https://github.com/kubeflow/spark-operator/pull/2142) by [@ChenYi015](https://github.com/ChenYi015))
+- Add default batch scheduler argument ([#2143](https://github.com/kubeflow/spark-operator/pull/2143) by [@jacobsalway](https://github.com/jacobsalway))
+- Support extended kube-scheduler as batch scheduler ([#2136](https://github.com/kubeflow/spark-operator/pull/2136) by [@ChenYi015](https://github.com/ChenYi015))
+- Set schedulerName to Yunikorn ([#2153](https://github.com/kubeflow/spark-operator/pull/2153) by [@jacobsalway](https://github.com/jacobsalway))
+- Feature: Add pprof endpoint ([#2164](https://github.com/kubeflow/spark-operator/pull/2164) by [@ImpSy](https://github.com/ImpSy))
+
+### Bug Fixes
+
+- fix: Add default values for namespaces to match usage descriptions  ([#2128](https://github.com/kubeflow/spark-operator/pull/2128) by [@snappyyouth](https://github.com/snappyyouth))
+- Fix: Spark role binding did not render properly when setting spark service account name ([#2135](https://github.com/kubeflow/spark-operator/pull/2135) by [@ChenYi015](https://github.com/ChenYi015))
+- fix: unable to set controller/webhook replicas to zero ([#2147](https://github.com/kubeflow/spark-operator/pull/2147) by [@ChenYi015](https://github.com/ChenYi015))
+- Adding support for setting spark job namespaces to all namespaces ([#2123](https://github.com/kubeflow/spark-operator/pull/2123) by [@ChenYi015](https://github.com/ChenYi015))
+- Fix: e2e test failes due to webhook not ready ([#2149](https://github.com/kubeflow/spark-operator/pull/2149) by [@ChenYi015](https://github.com/ChenYi015))
+- fix: webhook not working when settings spark job namespaces to empty ([#2163](https://github.com/kubeflow/spark-operator/pull/2163) by [@ChenYi015](https://github.com/ChenYi015))
+- fix: The logger had an odd number of arguments, making it panic ([#2166](https://github.com/kubeflow/spark-operator/pull/2166) by [@tcassaert](https://github.com/tcassaert))
+- fix the make kind-delete-custer to avoid accidental kubeconfig deletion ([#2172](https://github.com/kubeflow/spark-operator/pull/2172) by [@ImpSy](https://github.com/ImpSy))
+- Add specific error in log line when failed to create web UI service ([#2170](https://github.com/kubeflow/spark-operator/pull/2170) by [@tcassaert](https://github.com/tcassaert))
+- Account for spark.executor.pyspark.memory in Yunikorn gang scheduling ([#2178](https://github.com/kubeflow/spark-operator/pull/2178) by [@jacobsalway](https://github.com/jacobsalway))
+- Fix: spark application does not respect time to live seconds ([#2165](https://github.com/kubeflow/spark-operator/pull/2165) by [@ChenYi015](https://github.com/ChenYi015))
+
+### Misc
+
+- Update workflow and docs for releasing Spark operator ([#2089](https://github.com/kubeflow/spark-operator/pull/2089) by [@ChenYi015](https://github.com/ChenYi015))
+- Fix broken integration test CI ([#2109](https://github.com/kubeflow/spark-operator/pull/2109) by [@ChenYi015](https://github.com/ChenYi015))
+- Fix CI: environment variable BRANCH is missed ([#2111](https://github.com/kubeflow/spark-operator/pull/2111) by [@ChenYi015](https://github.com/ChenYi015))
+- Update Makefile for building sparkctl ([#2119](https://github.com/kubeflow/spark-operator/pull/2119) by [@ChenYi015](https://github.com/ChenYi015))
+- Update release workflow and docs ([#2121](https://github.com/kubeflow/spark-operator/pull/2121) by [@ChenYi015](https://github.com/ChenYi015))
+- Run e2e tests on Kind ([#2148](https://github.com/kubeflow/spark-operator/pull/2148) by [@jacobsalway](https://github.com/jacobsalway))
+- Upgrade to Go 1.23.1 ([#2155](https://github.com/kubeflow/spark-operator/pull/2155) by [@jacobsalway](https://github.com/jacobsalway))
+- Upgrade to Spark 3.5.2 ([#2154](https://github.com/kubeflow/spark-operator/pull/2154) by [@jacobsalway](https://github.com/jacobsalway))
+- Bump sigs.k8s.io/scheduler-plugins from 0.29.7 to 0.29.8 ([#2159](https://github.com/kubeflow/spark-operator/pull/2159) by [@dependabot[bot]](https://github.com/apps/dependabot))
+- Bump gocloud.dev from 0.37.0 to 0.39.0 ([#2160](https://github.com/kubeflow/spark-operator/pull/2160) by [@dependabot[bot]](https://github.com/apps/dependabot))
+- Update e2e tests ([#2161](https://github.com/kubeflow/spark-operator/pull/2161) by [@ChenYi015](https://github.com/ChenYi015))
+- Upgrade to Spark 3.5.2(#2012) ([#2157](https://github.com/kubeflow/spark-operator/pull/2157) by [@ha2hi](https://github.com/ha2hi))
+- Bump github.com/aws/aws-sdk-go-v2/config from 1.27.27 to 1.27.33 ([#2174](https://github.com/kubeflow/spark-operator/pull/2174) by [@dependabot[bot]](https://github.com/apps/dependabot))
+- Bump helm.sh/helm/v3 from 3.15.3 to 3.16.1 ([#2173](https://github.com/kubeflow/spark-operator/pull/2173) by [@dependabot[bot]](https://github.com/apps/dependabot))
+- implement workflow to scan latest released docker image ([#2177](https://github.com/kubeflow/spark-operator/pull/2177) by [@ImpSy](https://github.com/ImpSy))
+
+## What's Changed
+
+- Cherry pick #2081 #2046 #2091 #2072 by @ChenYi015 in https://github.com/kubeflow/spark-operator/pull/2108
+- Cherry pick #2089 #2109 #2111 by @ChenYi015 in https://github.com/kubeflow/spark-operator/pull/2110
+- Release v2.0.0-rc.0 by @ChenYi015 in https://github.com/kubeflow/spark-operator/pull/2115
+- Cherry pick commits for releasing v2.0.0 by @ChenYi015 in https://github.com/kubeflow/spark-operator/pull/2156
+- Release v2.0.0 by @ChenYi015 in https://github.com/kubeflow/spark-operator/pull/2182
+
+**Full Changelog**: https://github.com/kubeflow/spark-operator/compare/v1beta2-1.6.2-3.5.0...v2.0.0
+
 ## [v2.0.0-rc.0](https://github.com/kubeflow/spark-operator/tree/v2.0.0-rc.0) (2024-08-09)
 
 ### Breaking Changes
