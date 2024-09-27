@@ -121,7 +121,6 @@ func TestSetSparkApplicationDefaultsOnFailureRestartPolicyShouldSetDefaultValueF
 }
 
 func TestSetSparkApplicationDefaultsDriverSpecDefaults(t *testing.T) {
-
 	//Case1: Driver config not set.
 	app := &SparkApplication{
 		Spec: SparkApplicationSpec{},

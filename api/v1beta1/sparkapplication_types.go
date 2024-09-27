@@ -70,8 +70,8 @@ type SparkApplicationSpec struct {
 	// spark-submit.
 	// Optional.
 	SparkConf map[string]string `json:"sparkConf,omitempty"`
-	// HadoopConf carries user-specified Hadoop configuration properties as they would use the  the "--conf" option
-	// in spark-submit.  The SparkApplication controller automatically adds prefix "spark.hadoop." to Hadoop
+	// HadoopConf carries user-specified Hadoop configuration properties as they would use the "--conf" option
+	// in spark-submit. The SparkApplication controller automatically adds prefix "spark.hadoop." to Hadoop
 	// configuration properties.
 	// Optional.
 	HadoopConf map[string]string `json:"hadoopConf,omitempty"`

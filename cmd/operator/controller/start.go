@@ -248,7 +248,7 @@ func start() {
 
 		// Register kube-schedulers.
 		for _, name := range kubeSchedulerNames {
-			registry.Register(name, kubescheduler.Factory)
+			_ = registry.Register(name, kubescheduler.Factory)
 		}
 
 		schedulerNames := registry.GetRegisteredSchedulerNames()

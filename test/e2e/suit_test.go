@@ -18,6 +18,7 @@ package e2e_test
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -27,6 +28,7 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+
 	"helm.sh/helm/v3/pkg/action"
 	"helm.sh/helm/v3/pkg/chart/loader"
 	"helm.sh/helm/v3/pkg/chartutil"
@@ -261,7 +263,7 @@ func waitForSparkApplicationCompleted(ctx context.Context, key types.NamespacedN
 		}
 		switch app.Status.AppState.State {
 		case v1beta2.ApplicationStateFailedSubmission, v1beta2.ApplicationStateFailed:
-			return false, fmt.Errorf(app.Status.AppState.ErrorMessage)
+			return false, errors.New(app.Status.AppState.ErrorMessage)
 		case v1beta2.ApplicationStateCompleted:
 			return true, nil
 		}
