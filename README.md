@@ -1,6 +1,6 @@
 # Kubeflow Spark Operator
 
-[![Go Report Card](https://goreportcard.com/badge/github.com/kubeflow/spark-operator)](https://goreportcard.com/report/github.com/kubeflow/spark-operator)
+[![Integration Test](https://github.com/kubeflow/spark-operator/actions/workflows/integration.yaml/badge.svg)](https://github.com/kubeflow/spark-operator/actions/workflows/integration.yaml)[![Go Report Card](https://goreportcard.com/badge/github.com/kubeflow/spark-operator)](https://goreportcard.com/report/github.com/kubeflow/spark-operator)
 
 ## What is Spark Operator?
 
@@ -55,6 +55,7 @@ The following table lists the most recent few versions of the operator.
 
 | Operator Version | API Version | Kubernetes Version | Base Spark Version |
 | ------------- | ------------- | ------------- | ------------- |
+| `v2.0.x` | `v1beta2` | 1.16+ | `3.5.2` |
 | `v1beta2-1.6.x-3.5.0` | `v1beta2` | 1.16+ | `3.5.0` |
 | `v1beta2-1.5.x-3.5.0` | `v1beta2` | 1.16+ | `3.5.0` |
 | `v1beta2-1.4.x-3.5.0` | `v1beta2` | 1.16+ | `3.5.0` |
