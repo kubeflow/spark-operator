@@ -624,3 +624,11 @@ tests:
       - notContains:
           path: spec.template.spec.containers[?(@.name=="spark-operator-controller")].args
           content: --workqueue-ratelimiter-max-delay=1h
+  - it: Should contain `--max-tracked-executor-per-app` arg if `controller.maxTrackedExecutorPerApp` is set
+    set:
+      controller:
+        maxTrackedExecutorPerApp: 123
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[?(@.name=="spark-operator-controller")].args
+          content: --max-tracked-executor-per-app=123

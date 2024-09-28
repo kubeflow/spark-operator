@@ -99,6 +99,9 @@ spec:
         {{- if .Values.controller.workqueueRateLimiter.maxDelay.enable }}
         - --workqueue-ratelimiter-max-delay={{ .Values.controller.workqueueRateLimiter.maxDelay.duration }}
         {{- end }}
+        {{- if .Values.controller.maxTrackedExecutorPerApp }}
+        - --max-tracked-executor-per-app={{ .Values.controller.maxTrackedExecutorPerApp }}
+        {{- end }}
         {{- if or .Values.prometheus.metrics.enable .Values.controller.pprof.enable }}
         ports:
         {{- if .Values.controller.pprof.enable }}
