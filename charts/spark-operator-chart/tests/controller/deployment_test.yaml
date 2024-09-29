@@ -593,3 +593,34 @@ tests:
             name: pprof-test
             containerPort: 12345
           count: 1
+
+  - it: Should contain `--workqueue-ratelimiter-max-delay` arg if `controller.workqueueRateLimiter.maxDelay.enable` is set to `true`
+    set:
+      controller:
+        workqueueRateLimiter:
+          bucketQPS: 1
+          bucketSize: 2
+          maxDelay:
+            enable: true
+            duration: 3h
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[?(@.name=="spark-operator-controller")].args
+          content: --workqueue-ratelimiter-bucket-qps=1
+      - contains:
+          path: spec.template.spec.containers[?(@.name=="spark-operator-controller")].args
+          content: --workqueue-ratelimiter-bucket-size=2
+      - contains:
+          path: spec.template.spec.containers[?(@.name=="spark-operator-controller")].args
+          content: --workqueue-ratelimiter-max-delay=3h
+
+  - it: Should contain `--workqueue-ratelimiter-max-delay` arg if `controller.workqueueRateLimiter.maxDelay.enable` is set to `true`
+    set:
+      controller:
+          maxDelay:
+            enable: false
+            duration: 1h
+    asserts:
+      - notContains:
+          path: spec.template.spec.containers[?(@.name=="spark-operator-controller")].args
+          content: --workqueue-ratelimiter-max-delay=1h

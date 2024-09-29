@@ -25,6 +25,7 @@ import (
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
+	"golang.org/x/time/rate"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
 	"github.com/spf13/cobra"
@@ -73,6 +74,11 @@ var (
 	// Controller
 	controllerThreads int
 	cacheSyncTimeout  time.Duration
+
+	//WorkQueue
+	workqueueRateLimiterBucketQPS  int
+	workqueueRateLimiterBucketSize int
+	workqueueRateLimiterMaxDelay   time.Duration
 
 	// Batch scheduler
 	enableBatchScheduler  bool
@@ -133,6 +139,10 @@ func NewStartCommand() *cobra.Command {
 	command.Flags().IntVar(&controllerThreads, "controller-threads", 10, "Number of worker threads used by the SparkApplication controller.")
 	command.Flags().StringSliceVar(&namespaces, "namespaces", []string{}, "The Kubernetes namespace to manage. Will manage custom resource objects of the managed CRD types for the whole cluster if unset or contains empty string.")
 	command.Flags().DurationVar(&cacheSyncTimeout, "cache-sync-timeout", 30*time.Second, "Informer cache sync timeout.")
+
+	command.Flags().IntVar(&workqueueRateLimiterBucketQPS, "workqueue-ratelimiter-bucket-qps", 10, "QPS of the bucket rate of the workqueue.")
+	command.Flags().IntVar(&workqueueRateLimiterBucketSize, "workqueue-ratelimiter-bucket-size", 100, "The token bucket size of the workqueue.")
+	command.Flags().DurationVar(&workqueueRateLimiterMaxDelay, "workqueue-ratelimiter-max-delay", rate.InfDuration, "The maximum delay of the workqueue.")
 
 	command.Flags().BoolVar(&enableBatchScheduler, "enable-batch-scheduler", false, "Enable batch schedulers.")
 	command.Flags().StringSliceVar(&kubeSchedulerNames, "kube-scheduler-names", []string{}, "The kube-scheduler names for scheduling Spark applications.")
@@ -355,6 +365,7 @@ func newControllerOptions() controller.Options {
 	options := controller.Options{
 		MaxConcurrentReconciles: controllerThreads,
 		CacheSyncTimeout:        cacheSyncTimeout,
+		RateLimiter:             util.NewRateLimiter(workqueueRateLimiterBucketQPS, workqueueRateLimiterBucketSize, workqueueRateLimiterMaxDelay),
 	}
 	return options
 }

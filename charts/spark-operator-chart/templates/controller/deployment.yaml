@@ -94,6 +94,11 @@ spec:
         {{- if .Values.controller.pprof.enable }}
         - --pprof-bind-address=:{{ .Values.controller.pprof.port }}
         {{- end }}
+        - --workqueue-ratelimiter-bucket-qps={{ .Values.controller.workqueueRateLimiter.bucketQPS }}
+        - --workqueue-ratelimiter-bucket-size={{ .Values.controller.workqueueRateLimiter.bucketSize }}
+        {{- if .Values.controller.workqueueRateLimiter.maxDelay.enable }}
+        - --workqueue-ratelimiter-max-delay={{ .Values.controller.workqueueRateLimiter.maxDelay.duration }}
+        {{- end }}
         {{- if or .Values.prometheus.metrics.enable .Values.controller.pprof.enable }}
         ports:
         {{- if .Values.controller.pprof.enable }}
