@@ -25,17 +25,18 @@ import (
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
-	"golang.org/x/time/rate"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
+	"golang.org/x/time/rate"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
+	"k8s.io/client-go/kubernetes"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/utils/clock"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -225,6 +226,17 @@ func start() {
 	})
 	if err != nil {
 		logger.Error(err, "failed to create manager")
+		os.Exit(1)
+	}
+
+	clientset, err := kubernetes.NewForConfig(cfg)
+	if err != nil {
+		logger.Error(err, "failed to create clientset")
+		os.Exit(1)
+	}
+
+	if err = util.InitializeIngressCapabilities(clientset); err != nil {
+		logger.Error(err, "failed to retrieve cluster ingress capabilities")
 		os.Exit(1)
 	}
 
