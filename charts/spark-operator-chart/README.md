@@ -117,6 +117,10 @@ See [helm uninstall](https://helm.sh/docs/helm/helm_uninstall) for command docum
 | controller.pprof.enable | bool | `false` | Specifies whether to enable pprof. |
 | controller.pprof.port | int | `6060` | Specifies pprof port. |
 | controller.pprof.portName | string | `"pprof"` | Specifies pprof service port name. |
+| controller.workqueueRateLimiter.bucketQPS | int | `50` | Specifies the average rate of items process by the workqueue rate limiter. |
+| controller.workqueueRateLimiter.bucketSize | int | `500` | Specifies the maximum number of items that can be in the workqueue at any given time. |
+| controller.workqueueRateLimiter.maxDelay.enable | bool | `true` | Specifies whether to enable max delay for the workqueue rate limiter. This is useful to avoid losing events when the workqueue is full. |
+| controller.workqueueRateLimiter.maxDelay.duration | string | `"6h"` | Specifies the maximum delay duration for the workqueue rate limiter. |
 | webhook.enable | bool | `true` | Specifies whether to enable webhook. |
 | webhook.replicas | int | `1` | Number of replicas of webhook server. |
 | webhook.logLevel | string | `"info"` | Configure the verbosity of logging, can be one of `debug`, `info`, `error`. |
