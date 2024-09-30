@@ -266,6 +266,95 @@ func TestSchedule(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "spark.memory.offHeap.size",
+			app: &v1beta2.SparkApplication{
+				Spec: v1beta2.SparkApplicationSpec{
+					Type: v1beta2.SparkApplicationTypePython,
+					Driver: v1beta2.DriverSpec{
+						SparkPodSpec: v1beta2.SparkPodSpec{
+							Cores:  util.Int32Ptr(1),
+							Memory: util.StringPtr("512m"),
+						},
+					},
+					Executor: v1beta2.ExecutorSpec{
+						Instances: util.Int32Ptr(2),
+						SparkPodSpec: v1beta2.SparkPodSpec{
+							Cores:  util.Int32Ptr(1),
+							Memory: util.StringPtr("512m"),
+						},
+					},
+					SparkConf: map[string]string{
+						"spark.memory.offHeap.enabled": "true",
+						"spark.memory.offHeap.size":    "400m",
+					},
+				},
+			},
+			expected: []taskGroup{
+				{
+					Name:      "spark-driver",
+					MinMember: 1,
+					MinResource: map[string]string{
+						"cpu":    "1",
+						"memory": "896Mi", // 512Mi + 384Mi min overhead
+					},
+				},
+				{
+					Name:      "spark-executor",
+					MinMember: 2,
+					MinResource: map[string]string{
+						"cpu": "1",
+						// 512Mi + 384Mi min overhead + 400Mi spark.memory.offHeap.size
+						"memory": "1296Mi",
+					},
+				},
+			},
+		},
+		{
+			name: "spark.memory.offHeap.size and spark.executor.pyspark.memory",
+			app: &v1beta2.SparkApplication{
+				Spec: v1beta2.SparkApplicationSpec{
+					Type: v1beta2.SparkApplicationTypePython,
+					Driver: v1beta2.DriverSpec{
+						SparkPodSpec: v1beta2.SparkPodSpec{
+							Cores:  util.Int32Ptr(1),
+							Memory: util.StringPtr("512m"),
+						},
+					},
+					Executor: v1beta2.ExecutorSpec{
+						Instances: util.Int32Ptr(2),
+						SparkPodSpec: v1beta2.SparkPodSpec{
+							Cores:  util.Int32Ptr(1),
+							Memory: util.StringPtr("512m"),
+						},
+					},
+					SparkConf: map[string]string{
+						"spark.memory.offHeap.enabled":  "true",
+						"spark.memory.offHeap.size":     "400m",
+						"spark.executor.pyspark.memory": "500m",
+					},
+				},
+			},
+			expected: []taskGroup{
+				{
+					Name:      "spark-driver",
+					MinMember: 1,
+					MinResource: map[string]string{
+						"cpu":    "1",
+						"memory": "896Mi", // 512Mi + 384Mi min overhead
+					},
+				},
+				{
+					Name:      "spark-executor",
+					MinMember: 2,
+					MinResource: map[string]string{
+						"cpu": "1",
+						// 512Mi + 384Mi min overhead + 400Mi spark.memory.offHeap.size + 500Mi spark.executor.pyspark.memory
+						"memory": "1796Mi",
+					},
+				},
+			},
+		},
 	}
 
 	scheduler := &Scheduler{}
