@@ -20,10 +20,6 @@ FROM golang:1.23.1 AS builder
 
 WORKDIR /workspace
 
-RUN apt-get update \
-    && apt-get install -y libcap2-bin \
-    && rm -rf /var/lib/apt/lists/*
-
 RUN --mount=type=cache,target=/go/pkg/mod/ \
     --mount=type=bind,source=go.mod,target=go.mod \
     --mount=type=bind,source=go.sum,target=go.sum \
@@ -36,7 +32,6 @@ ARG TARGETARCH
 RUN --mount=type=cache,target=/go/pkg/mod/ \
     --mount=type=cache,target="/root/.cache/go-build" \
     CGO_ENABLED=0 GOOS=linux GOARCH=${TARGETARCH} GO111MODULE=on make build-operator
-RUN setcap 'cap_net_bind_service=+ep' /workspace/bin/spark-operator
 
 FROM ${SPARK_IMAGE}
 
