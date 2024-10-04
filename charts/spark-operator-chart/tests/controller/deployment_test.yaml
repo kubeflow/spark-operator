@@ -316,6 +316,11 @@ tests:
           content:
             name: volume2
             mountPath: /volume2
+      - contains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content:
+            name: tmp
+            mountPath: /tmp
 
   - it: Should add resources if `controller.resources` is set
     set:
@@ -408,6 +413,13 @@ tests:
           content:
             name: volume2
             emptyDir: {}
+          count: 1
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: tmp
+            emptyDir:
+              sizeLimit: 500Mi
           count: 1
 
   - it: Should add nodeSelector if `controller.nodeSelector` is set
