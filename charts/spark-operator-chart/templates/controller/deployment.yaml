@@ -118,8 +118,8 @@ spec:
         envFrom:
         {{- toYaml . | nindent 8 }}
         {{- end }}
-        {{- with .Values.controller.volumeMounts }}
         volumeMounts:
+        {{- with .Values.controller.volumeMounts }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
           {{- if .Values.controller.controllerTmpDirectory.enable }}
@@ -151,8 +151,8 @@ spec:
       imagePullSecrets:
       {{- toYaml . | nindent 6 }}
       {{- end }}
-      {{- with .Values.controller.volumes }}
       volumes:
+      {{- with .Values.controller.volumes }}
       {{- toYaml . | nindent 6 }}
       {{- end }}
         {{- if .Values.controller.controllerTmpDirectory.enable }}
