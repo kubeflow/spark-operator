@@ -274,6 +274,27 @@ tests:
             mountPath: /volume2
           count: 1
 
+    - it: Should add volume and volume mounts if `webhook.webhookCertsDirectory` is enabled
+    set:
+      webhook:
+        webhookCertsDirectory:
+          enabled: true
+          sizeLimit: 100Mi
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[?(@.name=="spark-operator-webhook"].volumeMounts
+          content:
+            name: serving-certs
+            mountPath: /etc/k8s-webhook-server/serving-certs
+            subPath: serving-certs
+            readOnly: false
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: serving-certs
+            emptyDir:
+              sizeLimit: 100Mi
+
   - it: Should add resources if `webhook.resources` is set
     set:
       webhook:
