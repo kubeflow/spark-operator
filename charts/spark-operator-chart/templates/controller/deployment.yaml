@@ -120,10 +120,13 @@ spec:
         {{- end }}
         {{- with .Values.controller.volumeMounts }}
         volumeMounts:
+          {{- if .Values.controller.controllerTmpDirectory.enable }}
           - name: "tmp"
             mountPath: "/tmp"
+          {{- end }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
+        
         {{- with .Values.controller.resources }}
         resources:
           {{- toYaml . | nindent 10 }}
@@ -151,9 +154,11 @@ spec:
       {{- end }}
       {{- with .Values.controller.volumes }}
       volumes:
+        {{- if .Values.controller.controllerTmpDirectory.enable }}
         - name: tmp
           emptyDir:
-            sizeLimit: 500Mi
+            sizeLimit: {{ .Values.controller.controllerTmpDirectory.sizeLimit }}
+        {{- end }}
       {{- toYaml . | nindent 6 }}
       {{- end }}
       {{- with .Values.controller.nodeSelector }}
