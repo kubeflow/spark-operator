@@ -316,11 +316,25 @@ tests:
           content:
             name: volume2
             mountPath: /volume2
+  
+- it: Should add volume mounts if `controller.controllerTmpDirectory` is enabled
+    set:
+      controller:
+        controllerTmpDirectory:
+          enabled: true
+          sizeLimit: 1Gi
+    asserts:
       - contains:
-          path: spec.template.spec.containers[0].volumeMounts
+          path: spec.template.spec.containers[?(@.name=="spark-operator-controller"].volumeMounts
           content:
             name: tmp
             mountPath: /tmp
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: tmp
+            emptyDir:
+              sizeLimit: 1Gi
 
   - it: Should add resources if `controller.resources` is set
     set:
@@ -413,13 +427,6 @@ tests:
           content:
             name: volume2
             emptyDir: {}
-          count: 1
-      - contains:
-          path: spec.template.spec.volumes
-          content:
-            name: tmp
-            emptyDir:
-              sizeLimit: 500Mi
           count: 1
 
   - it: Should add nodeSelector if `controller.nodeSelector` is set
