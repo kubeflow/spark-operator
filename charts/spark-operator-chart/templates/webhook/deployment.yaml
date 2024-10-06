@@ -94,14 +94,14 @@ spec:
         {{- end }}
         {{- with .Values.webhook.volumeMounts }}
         volumeMounts:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
           {{- if .Values.webhook.webhookCertsDirectory.enable }}
           - name: serving-certs
             mountPath: /etc/k8s-webhook-server/serving-certs
             subPath: serving-certs
             readOnly: false
           {{- end }}
-          {{- toYaml . | nindent 10 }}
-        {{- end }}
         {{- with .Values.webhook.resources }}
         resources:
           {{- toYaml . | nindent 10 }}
@@ -129,13 +129,13 @@ spec:
       {{- end }}
       {{- with .Values.webhook.volumes }}
       volumes:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
         {{- if .Values.webhook.webhookCertsDirectory.enable }}
         - name: serving-certs
           emptyDir:
           sizeLimit: {{ .Values.webhook.webhookCertsDirectory.sizeLimit }}
         {{- end }}
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
       {{- with .Values.webhook.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
