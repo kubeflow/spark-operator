@@ -274,7 +274,7 @@ tests:
             mountPath: /volume2
           count: 1
 
-    - it: Should add volume and volume mounts if `webhook.webhookCertsDirectory` is enabled
+  - it: Should add volume and volume mounts if `webhook.webhookCertsDirectory` is enabled
     set:
       webhook:
         webhookCertsDirectory:
