@@ -159,6 +159,15 @@ controller:
     # runAsGroup: 2000
     # fsGroup: 3000
 
+  # -- Create volume and volumeMount to download Spark artifacts for running Spark Applications
+  # This is required if setting controller.securityContext.readOnlyRootFilesystem: true or 
+  # controller.podSecurityContext.readOnlyRootFilesystem: true
+  controllerTmpDirectory:
+    # -- Specifies whether to create the volume and volumeMount
+    enable: true
+    # -- Specifies the size of the emptyDir to create
+    sizeLimit: 500Mi
+
   # -- Sidecar containers for controller pods.
   sidecars: []
 
@@ -302,6 +311,15 @@ webhook:
     # runAsUser: 1000
     # runAsGroup: 2000
     # fsGroup: 3000
+
+  # -- Create volume and volumeMount to generate certificates in
+  # This is required if setting webhook.securityContext.readOnlyRootFilesystem: true or 
+  # webhook.podSecurityContext.readOnlyRootFilesystem: true
+  webhookCertsDirectory:
+    # -- Specifies whether to create the volume and volumeMount
+    enable: true
+    # -- Specifies the size of the emptyDir to create
+    sizeLimit: 50Mi
 
   # Pod disruption budget for webhook to avoid service degradation.
   podDisruptionBudget:
