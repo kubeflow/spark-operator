@@ -316,8 +316,8 @@ tests:
           content:
             name: volume2
             mountPath: /volume2
-  
-- it: Should add volume mounts if `controller.controllerTmpDirectory` is enabled
+
+  - it: Should add volume mounts if `controller.controllerTmpDirectory` is enabled
     set:
       controller:
         controllerTmpDirectory:
