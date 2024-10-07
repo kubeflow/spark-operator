@@ -20,7 +20,7 @@ require (
 	go.uber.org/zap v1.27.0
 	gocloud.dev v0.39.0
 	golang.org/x/net v0.29.0
-	golang.org/x/time v0.6.0
+	golang.org/x/time v0.7.0
 	helm.sh/helm/v3 v3.16.1
 	k8s.io/api v0.31.0
 	k8s.io/apiextensions-apiserver v0.31.0
