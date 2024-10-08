@@ -302,8 +302,13 @@ func addGeneralConfigMaps(pod *corev1.Pod, app *v1beta2.SparkApplication) error 
 			volumeName = volumeName[0:maxNameLength]
 			logger.Info(fmt.Sprintf("ConfigMap volume name is too long. Truncating to length %d. Result: %s.", maxNameLength, volumeName))
 		}
-		addConfigMapVolume(pod, namePath.Name, volumeName)
-		addConfigMapVolumeMount(pod, volumeName, namePath.Path)
+		if err := addConfigMapVolume(pod, namePath.Name, volumeName); err != nil {
+			return err
+		}
+
+		if err := addConfigMapVolumeMount(pod, volumeName, namePath.Path); err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -334,11 +339,21 @@ func addPrometheusConfig(pod *corev1.Pod, app *v1beta2.SparkApplication) error {
 	if app.Spec.Monitoring.Prometheus.PortName != nil {
 		promPortName = *app.Spec.Monitoring.Prometheus.PortName
 	}
-	addConfigMapVolume(pod, name, volumeName)
-	addConfigMapVolumeMount(pod, volumeName, mountPath)
-	logger.Info("could not mount volume %s in path %s", volumeName, mountPath)
-	addContainerPort(pod, promPort, promProtocol, promPortName)
-	logger.Info("could not expose port %d to scrape metrics outside the pod", promPort)
+
+	if err := addConfigMapVolume(pod, name, volumeName); err != nil {
+		return err
+	}
+
+	if err := addConfigMapVolumeMount(pod, volumeName, mountPath); err != nil {
+		logger.Info("could not mount volume %s in path %s", volumeName, mountPath)
+		return err
+	}
+
+	if err := addContainerPort(pod, promPort, promProtocol, promPortName); err != nil {
+		logger.Info("could not expose port %d to scrape metrics outside the pod", promPort)
+		return err
+	}
+
 	return nil
 }
 
@@ -352,10 +367,8 @@ func addContainerPorts(pod *corev1.Pod, app *v1beta2.SparkApplication) error {
 	}
 
 	for _, p := range ports {
-		addContainerPort(pod, p.ContainerPort, p.Protocol, p.Name)
-		{
+		if err := addContainerPort(pod, p.ContainerPort, p.Protocol, p.Name); err != nil {
 			logger.Info("could not expose port named %s", p.Name)
-			continue
 		}
 	}
 	return nil

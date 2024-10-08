@@ -92,7 +92,6 @@ func TestGetDriverResource(t *testing.T) {
 }
 
 func TestGetExecutorResource(t *testing.T) {
-
 	oneCore := int32(1)
 	oneCoreStr := "1"
 	oneGB := "1024m"
