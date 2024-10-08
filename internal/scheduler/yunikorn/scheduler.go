@@ -21,7 +21,7 @@ import (
 	"fmt"
 	"maps"
 
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 
 	"github.com/kubeflow/spark-operator/api/v1beta2"
 	"github.com/kubeflow/spark-operator/internal/scheduler"
@@ -47,13 +47,13 @@ const (
 // This struct has been defined separately rather than imported so that tags can be included for JSON marshalling
 // https://github.com/apache/yunikorn-k8shim/blob/207e4031c6484c965fca4018b6b8176afc5956b4/pkg/cache/amprotocol.go#L47-L56
 type taskGroup struct {
-	Name         string            `json:"name"`
-	MinMember    int32             `json:"minMember"`
-	MinResource  map[string]string `json:"minResource,omitempty"`
-	NodeSelector map[string]string `json:"nodeSelector,omitempty"`
-	Tolerations  []v1.Toleration   `json:"tolerations,omitempty"`
-	Affinity     *v1.Affinity      `json:"affinity,omitempty"`
-	Labels       map[string]string `json:"labels,omitempty"`
+	Name         string              `json:"name"`
+	MinMember    int32               `json:"minMember"`
+	MinResource  map[string]string   `json:"minResource,omitempty"`
+	NodeSelector map[string]string   `json:"nodeSelector,omitempty"`
+	Tolerations  []corev1.Toleration `json:"tolerations,omitempty"`
+	Affinity     *corev1.Affinity    `json:"affinity,omitempty"`
+	Labels       map[string]string   `json:"labels,omitempty"`
 }
 
 type Scheduler struct{}

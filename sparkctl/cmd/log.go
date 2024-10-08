@@ -73,7 +73,6 @@ func doLog(
 	followLogs bool,
 	kubeClient clientset.Interface,
 	crdClient crdclientset.Interface) error {
-
 	timeout := 30 * time.Second
 
 	podNameChannel := getPodNameChannel(name, crdClient)
@@ -102,7 +101,6 @@ func doLog(
 func getPodNameChannel(
 	sparkApplicationName string,
 	crdClient crdclientset.Interface) chan string {
-
 	channel := make(chan string, 1)
 	go func() {
 		for {
@@ -124,7 +122,6 @@ func waitForLogsFromPodChannel(
 	podName string,
 	kubeClient clientset.Interface,
 	_ crdclientset.Interface) chan bool {
-
 	channel := make(chan bool, 1)
 	go func() {
 		for {

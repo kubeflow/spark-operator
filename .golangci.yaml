@@ -1,39 +1,66 @@
 run:
-  deadline: 5m
+  # Timeout for analysis, e.g. 30s, 5m.
+  # Default: 1m
+  timeout: 1m
 
 linters:
+  # Enable specific linters.
+  # https://golangci-lint.run/usage/linters/#enabled-by-default
   enable:
-  - revive
-  - gci
-  - depguard
-  - godot
-  - testifylint
-  - unconvert
+    # Detects places where loop variables are copied.
+    - copyloopvar
+    # Checks for duplicate words in the source code.
+    - dupword
+    # Tool for detection of FIXME, TODO and other comment keywords.
+    # - godox
+    # Check import statements are formatted according to the 'goimport' command.
+    - goimports
+    # Enforces consistent import aliases.
+    - importas
+    # Find code that shadows one of Go's predeclared identifiers.
+    - predeclared
+    # Check that struct tags are well aligned.
+    - tagalign
+    # Remove unnecessary type conversions.
+    - unconvert
+    # Checks Go code for unused constants, variables, functions and types.
+    - unused
 
 issues:
-  exclude-rules:
-  # Disable errcheck linter for test files.
-  - path: _test.go
-    linters:
-    - errcheck
+  # Which dirs to exclude: issues from them won't be reported.
+  # Can use regexp here: `generated.*`, regexp is applied on full path,
+  # including the path prefix if one is set.
+  # Default dirs are skipped independently of this option's value (see exclude-dirs-use-default).
+  # "/" will be replaced by current OS file path separator to properly work on Windows.
+  # Default: []
+  exclude-dirs:
+    - sparkctl
+  # Maximum issues count per one linter.
+  # Set to 0 to disable.
+  # Default: 50
+  max-issues-per-linter: 50
+  # Maximum count of issues with the same text.
+  # Set to 0 to disable.
+  # Default: 3
+  max-same-issues: 3
 
 linters-settings:
-  gci:
-    sections:
-      - standard
-      - default
-      - prefix(github.com/kubeflow/spark-operator)
-  depguard:
-    Main:
-      files:
-        - $all
-        - "!$test"
-      listMode: Lax
-      deny:
-        reflect: Please don't use reflect package
-    Test:
-      files:
-        - $test
-      listMode: Lax
-      deny:
-        reflect: Please don't use reflect package
+  importas:
+    # List of aliases
+    alias:
+    - pkg: k8s.io/api/admissionregistration/v1
+      alias: admissionregistrationv1
+    - pkg: k8s.io/api/apps/v1
+      alias: appsv1
+    - pkg: k8s.io/api/batch/v1
+      alias: batchv1
+    - pkg: k8s.io/api/core/v1
+      alias: corev1
+    - pkg: k8s.io/api/extensions/v1beta1
+      alias: extensionsv1beta1
+    - pkg: k8s.io/api/networking/v1
+      alias: networkingv1
+    - pkg: k8s.io/apimachinery/pkg/apis/meta/v1
+      alias: metav1
+    - pkg: sigs.k8s.io/controller-runtime
+      alias: ctrl

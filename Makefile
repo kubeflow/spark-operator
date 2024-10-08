@@ -55,7 +55,7 @@ KIND_VERSION ?= v0.23.0
 ENVTEST_VERSION ?= release-0.18
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
 ENVTEST_K8S_VERSION ?= 1.29.3
-GOLANGCI_LINT_VERSION ?= v1.57.2
+GOLANGCI_LINT_VERSION ?= v1.61.0
 GEN_CRD_API_REFERENCE_DOCS_VERSION ?= v0.3.0
 HELM_VERSION ?= v3.15.3
 HELM_UNITTEST_VERSION ?= 0.5.1
@@ -139,13 +139,13 @@ go-vet: ## Run go vet against code.
 	@echo "Running go vet..."
 	go vet ./...
 
-.PHONY: lint
-lint: golangci-lint ## Run golangci-lint linter.
+.PHONY: go-lint
+go-lint: golangci-lint ## Run golangci-lint linter.
 	@echo "Running golangci-lint run..."
 	$(GOLANGCI_LINT) run
 
-.PHONY: lint-fix
-lint-fix: golangci-lint ## Run golangci-lint linter and perform fixes.
+.PHONY: go-lint-fix
+go-lint-fix: golangci-lint ## Run golangci-lint linter and perform fixes.
 	@echo "Running golangci-lint run --fix..."
 	$(GOLANGCI_LINT) run --fix
 

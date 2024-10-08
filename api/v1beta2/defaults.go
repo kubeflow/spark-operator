@@ -54,7 +54,6 @@ func SetSparkApplicationDefaults(app *SparkApplication) {
 }
 
 func setDriverSpecDefaults(spec *DriverSpec, sparkConf map[string]string) {
-
 	if _, exists := sparkConf["spark.driver.cores"]; !exists && spec.Cores == nil {
 		spec.Cores = new(int32)
 		*spec.Cores = 1

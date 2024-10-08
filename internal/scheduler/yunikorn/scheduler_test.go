@@ -20,9 +20,8 @@ import (
 	"encoding/json"
 	"testing"
 
-	v1 "k8s.io/api/core/v1"
-
 	"github.com/stretchr/testify/assert"
+	corev1 "k8s.io/api/core/v1"
 
 	"github.com/kubeflow/spark-operator/api/v1beta2"
 	"github.com/kubeflow/spark-operator/pkg/util"
@@ -139,12 +138,12 @@ func TestSchedule(t *testing.T) {
 							Cores:        util.Int32Ptr(1),
 							Memory:       util.StringPtr("1g"),
 							NodeSelector: map[string]string{"key": "newvalue", "key2": "value2"},
-							Tolerations: []v1.Toleration{
+							Tolerations: []corev1.Toleration{
 								{
 									Key:      "example-key",
-									Operator: v1.TolerationOpEqual,
+									Operator: corev1.TolerationOpEqual,
 									Value:    "example-value",
-									Effect:   v1.TaintEffectNoSchedule,
+									Effect:   corev1.TaintEffectNoSchedule,
 								},
 							},
 						},
@@ -154,15 +153,15 @@ func TestSchedule(t *testing.T) {
 						SparkPodSpec: v1beta2.SparkPodSpec{
 							Cores:  util.Int32Ptr(1),
 							Memory: util.StringPtr("1g"),
-							Affinity: &v1.Affinity{
-								NodeAffinity: &v1.NodeAffinity{
-									RequiredDuringSchedulingIgnoredDuringExecution: &v1.NodeSelector{
-										NodeSelectorTerms: []v1.NodeSelectorTerm{
+							Affinity: &corev1.Affinity{
+								NodeAffinity: &corev1.NodeAffinity{
+									RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
+										NodeSelectorTerms: []corev1.NodeSelectorTerm{
 											{
-												MatchExpressions: []v1.NodeSelectorRequirement{
+												MatchExpressions: []corev1.NodeSelectorRequirement{
 													{
 														Key:      "another-key",
-														Operator: v1.NodeSelectorOpIn,
+														Operator: corev1.NodeSelectorOpIn,
 														Values:   []string{"value1", "value2"},
 													},
 												},
@@ -185,12 +184,12 @@ func TestSchedule(t *testing.T) {
 						"memory": "1433Mi", // 1024Mi * 1.4 non-JVM overhead
 					},
 					NodeSelector: map[string]string{"key": "newvalue", "key2": "value2"},
-					Tolerations: []v1.Toleration{
+					Tolerations: []corev1.Toleration{
 						{
 							Key:      "example-key",
-							Operator: v1.TolerationOpEqual,
+							Operator: corev1.TolerationOpEqual,
 							Value:    "example-value",
-							Effect:   v1.TaintEffectNoSchedule,
+							Effect:   corev1.TaintEffectNoSchedule,
 						},
 					},
 				},
@@ -202,15 +201,15 @@ func TestSchedule(t *testing.T) {
 						"memory": "1433Mi", // 1024Mi * 1.4 non-JVM overhead
 					},
 					NodeSelector: map[string]string{"key": "value"}, // No executor specific node-selector
-					Affinity: &v1.Affinity{
-						NodeAffinity: &v1.NodeAffinity{
-							RequiredDuringSchedulingIgnoredDuringExecution: &v1.NodeSelector{
-								NodeSelectorTerms: []v1.NodeSelectorTerm{
+					Affinity: &corev1.Affinity{
+						NodeAffinity: &corev1.NodeAffinity{
+							RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
+								NodeSelectorTerms: []corev1.NodeSelectorTerm{
 									{
-										MatchExpressions: []v1.NodeSelectorRequirement{
+										MatchExpressions: []corev1.NodeSelectorRequirement{
 											{
 												Key:      "another-key",
-												Operator: v1.NodeSelectorOpIn,
+												Operator: corev1.NodeSelectorOpIn,
 												Values:   []string{"value1", "value2"},
 											},
 										},
@@ -277,7 +276,7 @@ func TestSchedule(t *testing.T) {
 			}
 
 			err = scheduler.Schedule(tc.app)
-			assert.Nil(t, err)
+			assert.NoError(t, err)
 			assert.JSONEq(t, string(marshalledExpected), tc.app.Spec.Driver.Annotations[taskGroupsAnnotation])
 
 			options := tc.app.Spec.BatchSchedulerOptions

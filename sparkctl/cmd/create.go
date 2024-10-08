@@ -29,7 +29,7 @@ import (
 	"gocloud.dev/blob"
 	"gocloud.dev/gcerrors"
 
-	apiv1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/yaml"
@@ -158,7 +158,9 @@ func createFromScheduledSparkApplication(name string, kubeClient clientset.Inter
 
 func createSparkApplication(app *v1beta2.SparkApplication, kubeClient clientset.Interface, crdClient crdclientset.Interface) error {
 	if DeleteIfExists {
-		deleteSparkApplication(app.Name, crdClient)
+		if err := deleteSparkApplication(app.Name, crdClient); err != nil {
+			return err
+		}
 	}
 
 	v1beta2.SetSparkApplicationDefaults(app)
@@ -188,7 +190,9 @@ func createSparkApplication(app *v1beta2.SparkApplication, kubeClient clientset.
 	fmt.Printf("SparkApplication \"%s\" created\n", app.Name)
 
 	if LogsEnabled {
-		doLog(app.Name, true, kubeClient, crdClient)
+		if err := doLog(app.Name, true, kubeClient, crdClient); err != nil {
+			return nil
+		}
 	}
 
 	return nil
@@ -446,7 +450,7 @@ func handleHadoopConfiguration(
 	return nil
 }
 
-func buildHadoopConfigMap(appName string, hadoopConfDir string) (*apiv1.ConfigMap, error) {
+func buildHadoopConfigMap(appName string, hadoopConfDir string) (*corev1.ConfigMap, error) {
 	info, err := os.Stat(hadoopConfDir)
 	if err != nil {
 		return nil, err
@@ -483,7 +487,7 @@ func buildHadoopConfigMap(appName string, hadoopConfDir string) (*apiv1.ConfigMa
 		}
 	}
 
-	configMap := &apiv1.ConfigMap{
+	configMap := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      appName + "-hadoop-config",
 			Namespace: Namespace,

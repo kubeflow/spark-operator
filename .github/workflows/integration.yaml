@@ -16,39 +16,71 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  code-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Run go mod tidy
+        run: |
+          go mod tidy
+          if ! git diff --quiet; then
+            echo "Please run 'go mod tidy' and commit the changes."
+            git diff
+            false
+          fi
+
+      - name: Run go fmt check
+        run: |
+          make go-fmt
+          if ! git diff --quiet; then
+            echo "Need to re-run 'make go-fmt' and commit the changes."
+            git diff
+            false
+          fi
+
+      - name: Run go vet check
+        run: |
+          make go-vet
+          if ! git diff --quiet; then
+            echo "Need to re-run 'make go-vet' and commit the changes."
+            git diff
+            false
+          fi
+
+      - name: Run golangci-lint
+        run: |
+          make go-lint
+
   build-api-docs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout source code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
 
-      - name: The API documentation hasn't changed
+      - name: Build API docs
         run: |
           make build-api-docs
-          if ! git diff --quiet -- docs/api-docs.md; then
-            echo "Need to re-run 'make build-api-docs' and commit the changes"
-            git diff -- docs/api-docs.md;
+          if ! git diff --quiet; then
+            echo "Need to re-run 'make build-api-docs' and commit the changes."
+            git diff
             false
           fi
-
-  build-sparkctl:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout source code
-        uses: actions/checkout@v4
-
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version-file: go.mod
-
-      - name: build sparkctl
-        run: make build-sparkctl
 
   build-spark-operator:
     runs-on: ubuntu-latest
@@ -63,17 +95,27 @@ jobs:
         with:
           go-version-file: go.mod
 
-      - name: Run go fmt check
-        run: make go-fmt
-
-      - name: Run go vet check
-        run: make go-vet
-
-      - name: Run unit tests
+      - name: Run go unit tests
         run: make unit-test
 
       - name: Build Spark operator
         run: make build-operator
+
+  build-sparkctl:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Build sparkctl
+        run: make build-sparkctl
 
   build-helm-chart:
     runs-on: ubuntu-latest
@@ -128,7 +170,7 @@ jobs:
         run: |
           make helm-docs
           if ! git diff --quiet -- charts/spark-operator-chart/README.md; then
-            echo "Need to re-run 'make helm-docs' and commit the changes"
+            echo "Need to re-run 'make helm-docs' and commit the changes."
             false
           fi
 

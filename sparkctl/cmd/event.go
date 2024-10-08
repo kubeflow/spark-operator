@@ -25,7 +25,7 @@ import (
 
 	"github.com/olekukonko/tablewriter"
 	"github.com/spf13/cobra"
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes"
@@ -122,7 +122,7 @@ func prepareEventsHeader(table *tablewriter.Table) *tablewriter.Table {
 	return table
 }
 
-func printEvents(events *v1.EventList) error {
+func printEvents(events *corev1.EventList) error {
 	// Render all event rows
 	table := prepareNewTable()
 	table = prepareEventsHeader(table)
@@ -156,7 +156,7 @@ func streamEvents(events watch.Interface, streamSince int64) error {
 		ctx, cancel := context.WithTimeout(ctx, watchExpire)
 		defer cancel()
 		_, err := clientWatch.UntilWithoutRetry(ctx, events, func(ev watch.Event) (bool, error) {
-			if event, isEvent := ev.Object.(*v1.Event); isEvent {
+			if event, isEvent := ev.Object.(*corev1.Event); isEvent {
 				// Ensure to display events which are newer than last creation time of SparkApplication
 				// for this specific application name
 				if streamSince <= event.CreationTimestamp.Unix() {

@@ -27,7 +27,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	apiv1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	clientset "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -157,7 +157,7 @@ func runPortForward(
 			if err != nil {
 				break
 			}
-			if pod.Status.Phase == apiv1.PodSucceeded || pod.Status.Phase == apiv1.PodFailed {
+			if pod.Status.Phase == corev1.PodSucceeded || pod.Status.Phase == corev1.PodFailed {
 				break
 			}
 			time.Sleep(1 * time.Second)
