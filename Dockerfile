@@ -46,9 +46,9 @@ RUN apt-get update \
     && apt-get install -y tini \
     && rm -rf /var/lib/apt/lists/*
 
-RUN mkdir -p /etc/k8s-webhook-server/serving-certs && \
+RUN mkdir -p /etc/k8s-webhook-server/serving-certs /home/spark && \
     chmod -R g+rw /etc/k8s-webhook-server/serving-certs && \
-    chown -R spark /etc/k8s-webhook-server/serving-certs
+    chown -R spark /etc/k8s-webhook-server/serving-certs /home/spark
 
 USER spark
 
