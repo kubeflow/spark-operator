@@ -345,7 +345,7 @@ func (r *Reconciler) reconcileFailedSubmissionSparkApplication(ctx context.Conte
 						return err
 					}
 				} else {
-					// Make sure its requeued to retry
+					// If we're waiting before retrying then reconcile will not modify anything, so we need to requeue.
 					result.RequeueAfter = timeUntilNextRetryDue
 				}
 			} else {
@@ -507,6 +507,9 @@ func (r *Reconciler) reconcileSucceedingSparkApplication(ctx context.Context, re
 
 func (r *Reconciler) reconcileFailingSparkApplication(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	key := req.NamespacedName
+
+	var result ctrl.Result
+
 	retryErr := retry.RetryOnConflict(
 		retry.DefaultRetry,
 		func() error {
@@ -520,12 +523,19 @@ func (r *Reconciler) reconcileFailingSparkApplication(ctx context.Context, req c
 			app := old.DeepCopy()
 
 			if util.ShouldRetry(app) {
-				if isNextRetryDue(app) {
+				timeUntilNextRetryDue, err := timeUntilNextRetryDue(app)
+				if err != nil {
+					return err
+				}
+				if timeUntilNextRetryDue < 0 {
 					if err := r.deleteSparkResources(ctx, app); err != nil {
 						logger.Error(err, "failed to delete spark resources", "name", app.Name, "namespace", app.Namespace)
 						return err
 					}
 					app.Status.AppState.State = v1beta2.ApplicationStatePendingRerun
+				} else {
+					// If we're waiting before retrying then reconcile will not modify anything, so we need to requeue.
+					result.RequeueAfter = timeUntilNextRetryDue
 				}
 			} else {
 				app.Status.AppState.State = v1beta2.ApplicationStateFailed
@@ -538,9 +548,9 @@ func (r *Reconciler) reconcileFailingSparkApplication(ctx context.Context, req c
 	)
 	if retryErr != nil {
 		logger.Error(retryErr, "Failed to reconcile SparkApplication", "name", key.Name, "namespace", key.Namespace)
-		return ctrl.Result{}, retryErr
+		return result, retryErr
 	}
-	return ctrl.Result{}, nil
+	return result, nil
 }
 
 func (r *Reconciler) reconcileCompletedSparkApplication(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
