@@ -316,48 +316,49 @@ func (r *Reconciler) reconcileSubmittedSparkApplication(ctx context.Context, req
 func (r *Reconciler) reconcileFailedSubmissionSparkApplication(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	key := req.NamespacedName
 
-	result, err := func() (ctrl.Result, error) {
-		old, err := r.getSparkApplication(key)
-		if err != nil {
-			return ctrl.Result{}, err
-		}
-		if old.Status.AppState.State != v1beta2.ApplicationStateFailedSubmission {
-			return ctrl.Result{}, nil
-		}
-		app := old.DeepCopy()
-
-		if util.ShouldRetry(app) {
-			timeUntilNextRetryDue, err := timeUntilNextRetryDue(app)
-			if err != nil {
-				return ctrl.Result{}, err
-			}
-			if timeUntilNextRetryDue < 0 {
-				if r.validateSparkResourceDeletion(ctx, app) {
-					_ = r.submitSparkApplication(app)
-				} else {
-					if err := r.deleteSparkResources(ctx, app); err != nil {
-						logger.Error(err, "failed to delete resources associated with SparkApplication", "name", app.Name, "namespace", app.Namespace)
-					}
-					return ctrl.Result{}, err
-				}
-			} else {
-				return ctrl.Result{RequeueAfter: timeUntilNextRetryDue}, nil
-			}
-		} else {
-			app.Status.AppState.State = v1beta2.ApplicationStateFailed
-			app.Status.TerminationTime = metav1.Now()
-			r.recordSparkApplicationEvent(app)
-		}
-
-		if err := r.updateSparkApplicationStatus(ctx, app); err != nil {
-			return ctrl.Result{}, err
-		}
-		return ctrl.Result{}, nil
-	}()
+	var result ctrl.Result
 
 	retryErr := retry.RetryOnConflict(
 		retry.DefaultRetry,
-		func() error { return err },
+		func() error {
+			old, err := r.getSparkApplication(key)
+			if err != nil {
+				return err
+			}
+			if old.Status.AppState.State != v1beta2.ApplicationStateFailedSubmission {
+				return nil
+			}
+			app := old.DeepCopy()
+
+			if util.ShouldRetry(app) {
+				timeUntilNextRetryDue, err := timeUntilNextRetryDue(app)
+				if err != nil {
+					return err
+				}
+				if timeUntilNextRetryDue < 0 {
+					if r.validateSparkResourceDeletion(ctx, app) {
+						_ = r.submitSparkApplication(app)
+					} else {
+						if err := r.deleteSparkResources(ctx, app); err != nil {
+							logger.Error(err, "failed to delete resources associated with SparkApplication", "name", app.Name, "namespace", app.Namespace)
+						}
+						return err
+					}
+				} else {
+					// Make sure its requeued to retry
+					result.RequeueAfter = timeUntilNextRetryDue
+				}
+			} else {
+				app.Status.AppState.State = v1beta2.ApplicationStateFailed
+				app.Status.TerminationTime = metav1.Now()
+				r.recordSparkApplicationEvent(app)
+			}
+
+			if err := r.updateSparkApplicationStatus(ctx, app); err != nil {
+				return err
+			}
+			return nil
+		},
 	)
 	if retryErr != nil {
 		logger.Error(retryErr, "Failed to reconcile SparkApplication", "name", key.Name, "namespace", key.Namespace)
