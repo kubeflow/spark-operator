@@ -315,40 +315,51 @@ func (r *Reconciler) reconcileSubmittedSparkApplication(ctx context.Context, req
 
 func (r *Reconciler) reconcileFailedSubmissionSparkApplication(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	key := req.NamespacedName
-	retryErr := retry.RetryOnConflict(
-		retry.DefaultRetry,
-		func() error {
-			old, err := r.getSparkApplication(key)
-			if err != nil {
-				return err
-			}
-			if old.Status.AppState.State != v1beta2.ApplicationStateFailedSubmission {
-				return nil
-			}
-			app := old.DeepCopy()
 
-			if util.ShouldRetry(app) {
-				if isNextRetryDue(app) {
-					if r.validateSparkResourceDeletion(ctx, app) {
-						_ = r.submitSparkApplication(app)
-					} else {
-						if err := r.deleteSparkResources(ctx, app); err != nil {
-							logger.Error(err, "failed to delete resources associated with SparkApplication", "name", app.Name, "namespace", app.Namespace)
-						}
-						return err
+	func() (ctrl.Result, error) {
+		old, err := r.getSparkApplication(key)
+		if err != nil {
+			return ctrl.Result{}, err
+		}
+		if old.Status.AppState.State != v1beta2.ApplicationStateFailedSubmission {
+			return ctrl.Result{}, nil
+		}
+		app := old.DeepCopy()
+
+		if util.ShouldRetry(app) {
+			timeUntilNextRetryDue, err := timeUntilNextRetryDue(app)
+			if err != nil {
+				return ctrl.Result{}, err
+			}
+			if timeUntilNextRetryDue < 0 {
+				if r.validateSparkResourceDeletion(ctx, app) {
+					_ = r.submitSparkApplication(app)
+				} else {
+					if err := r.deleteSparkResources(ctx, app); err != nil {
+						logger.Error(err, "failed to delete resources associated with SparkApplication", "name", app.Name, "namespace", app.Namespace)
 					}
+					return ctrl.Result{}, err
 				}
 			} else {
-				app.Status.AppState.State = v1beta2.ApplicationStateFailed
-				app.Status.TerminationTime = metav1.Now()
-				r.recordSparkApplicationEvent(app)
+				return ctrl.Result{RequeueAfter: timeUntilNextRetryDue}, nil
 			}
+		} else {
+			app.Status.AppState.State = v1beta2.ApplicationStateFailed
+			app.Status.TerminationTime = metav1.Now()
+			r.recordSparkApplicationEvent(app)
+		}
 
-			if err := r.updateSparkApplicationStatus(ctx, app); err != nil {
-				return err
-			}
-			return nil
-		},
+		if err := r.updateSparkApplicationStatus(ctx, app); err != nil {
+			return ctrl.Result{}, err
+		}
+		return ctrl.Result{}, nil
+	}
+
+	result, err = func()
+
+	retryErr := retry.RetryOnConflict(
+		retry.DefaultRetry,
+		func() error { return err },
 	)
 	if retryErr != nil {
 		logger.Error(retryErr, "Failed to reconcile SparkApplication", "name", key.Name, "namespace", key.Namespace)
@@ -753,6 +764,28 @@ func isNextRetryDue(app *v1beta2.SparkApplication) bool {
 	currentTime := time.Now()
 	logger.Info(fmt.Sprintf("currentTime is %v, interval is %v", currentTime, interval))
 	return currentTime.After(lastEventTime.Add(interval))
+}
+
+func timeUntilNextRetryDue(app *v1beta2.SparkApplication) (time.Duration, error) {
+	var retryInterval *int64
+	switch app.Status.AppState.State {
+	case v1beta2.ApplicationStateFailedSubmission:
+		retryInterval = app.Spec.RestartPolicy.OnSubmissionFailureRetryInterval
+	case v1beta2.ApplicationStateFailing:
+		retryInterval = app.Spec.RestartPolicy.OnFailureRetryInterval
+	}
+
+	attemptsDone := app.Status.SubmissionAttempts
+	lastAttemptTime := app.Status.LastSubmissionAttemptTime
+	if retryInterval == nil || lastAttemptTime.IsZero() || attemptsDone <= 0 {
+		return -1, fmt.Errorf("invalid retry interval (%v), last attempt time (%v) or attemptsDone (%v)", retryInterval, lastAttemptTime, attemptsDone)
+	}
+
+	// Retry wait time is attempts*RetryInterval to do a linear backoff.
+	interval := time.Duration(*retryInterval) * time.Second * time.Duration(attemptsDone)
+	currentTime := time.Now()
+	logger.Info(fmt.Sprintf("currentTime is %v, interval is %v", currentTime, interval))
+	return interval - currentTime.Sub(lastAttemptTime.Time), nil
 }
 
 // updateDriverState finds the driver pod of the application
