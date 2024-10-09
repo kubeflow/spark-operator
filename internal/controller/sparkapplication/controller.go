@@ -342,7 +342,7 @@ func (r *Reconciler) reconcileFailedSubmissionSparkApplication(ctx context.Conte
 						if err := r.deleteSparkResources(ctx, app); err != nil {
 							logger.Error(err, "failed to delete resources associated with SparkApplication", "name", app.Name, "namespace", app.Namespace)
 						}
-						return err
+						return fmt.Errorf("resources associated with SparkApplication name: %s namespace: %s, needed to be deleted", app.Name, app.Namespace)
 					}
 				} else {
 					// If we're waiting before retrying then reconcile will not modify anything, so we need to requeue.
