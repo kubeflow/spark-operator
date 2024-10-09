@@ -38,6 +38,15 @@ jobs:
             false
           fi
 
+      - name: Generate code
+        run: |
+          make generate
+          if ! git diff --quiet; then
+            echo "Need to re-run 'make generate' and commit the changes."
+            git diff
+            false
+          fi
+
       - name: Run go fmt check
         run: |
           make go-fmt
@@ -145,6 +154,18 @@ jobs:
       - name: Set up chart-testing
         uses: helm/chart-testing-action@v2.6.1
 
+      - name: Generate manifests
+        run: |
+          make manifests
+          if ! git diff --quiet; then
+            echo "Need to re-run 'make manifests' and commit the changes."
+            git diff
+            false
+          fi
+
+      - name: Detect CRDs drift between chart and manifest
+        run: make detect-crds-drift
+
       - name: Run chart-testing (list-changed)
         id: list-changed
         env:
@@ -160,10 +181,6 @@ jobs:
         env:
           BRANCH: ${{ steps.get_branch.outputs.BRANCH }}
         run: ct lint --check-version-increment=false --target-branch $BRANCH
-
-      - name: Detect CRDs drift between chart and manifest
-        if: steps.list-changed.outputs.changed == 'true'
-        run: make detect-crds-drift
 
       - name: Produce the helm documentation
         if: steps.list-changed.outputs.changed == 'true'
