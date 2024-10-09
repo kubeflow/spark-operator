@@ -316,7 +316,7 @@ func (r *Reconciler) reconcileSubmittedSparkApplication(ctx context.Context, req
 func (r *Reconciler) reconcileFailedSubmissionSparkApplication(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	key := req.NamespacedName
 
-	func() (ctrl.Result, error) {
+	result, err := func() (ctrl.Result, error) {
 		old, err := r.getSparkApplication(key)
 		if err != nil {
 			return ctrl.Result{}, err
@@ -353,9 +353,7 @@ func (r *Reconciler) reconcileFailedSubmissionSparkApplication(ctx context.Conte
 			return ctrl.Result{}, err
 		}
 		return ctrl.Result{}, nil
-	}
-
-	result, err = func()
+	}()
 
 	retryErr := retry.RetryOnConflict(
 		retry.DefaultRetry,
@@ -363,9 +361,9 @@ func (r *Reconciler) reconcileFailedSubmissionSparkApplication(ctx context.Conte
 	)
 	if retryErr != nil {
 		logger.Error(retryErr, "Failed to reconcile SparkApplication", "name", key.Name, "namespace", key.Namespace)
-		return ctrl.Result{}, retryErr
+		return result, retryErr
 	}
-	return ctrl.Result{}, nil
+	return result, nil
 }
 
 func (r *Reconciler) reconcileRunningSparkApplication(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
