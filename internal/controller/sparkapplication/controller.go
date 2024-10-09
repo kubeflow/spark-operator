@@ -337,7 +337,7 @@ func (r *Reconciler) reconcileFailedSubmissionSparkApplication(ctx context.Conte
 				}
 				if timeUntilNextRetryDue <= 0 {
 					if r.validateSparkResourceDeletion(ctx, app) {
-						_ = r.submitSparkApplication(app)
+						err = r.submitSparkApplication(app)
 					} else {
 						if err := r.deleteSparkResources(ctx, app); err != nil {
 							logger.Error(err, "failed to delete resources associated with SparkApplication", "name", app.Name, "namespace", app.Namespace)
@@ -652,9 +652,28 @@ func (r *Reconciler) getSparkApplication(key types.NamespacedName) (*v1beta2.Spa
 }
 
 // submitSparkApplication creates a new submission for the given SparkApplication and submits it using spark-submit.
-func (r *Reconciler) submitSparkApplication(app *v1beta2.SparkApplication) error {
+func (r *Reconciler) submitSparkApplication(app *v1beta2.SparkApplication) (returned_error error) {
 	logger.Info("Submitting SparkApplication", "name", app.Name, "namespace", app.Namespace, "state", app.Status.AppState.State)
 
+
+	defer func() {
+		app.Status.SubmissionAttempts = app.Status.SubmissionAttempts + 1
+		app.Status.SubmissionID = uuid.New().String()
+		app.Status.LastSubmissionAttemptTime = metav1.Now()
+
+		if returned_error == nil {
+			app.Status.AppState = v1beta2.ApplicationState{
+				State: v1beta2.ApplicationStateSubmitted,
+			}
+		} else {
+			app.Status.AppState = v1beta2.ApplicationState{
+				State:        v1beta2.ApplicationStateFailedSubmission,
+				ErrorMessage: returned_error.Error(),
+			}
+		}
+		r.recordSparkApplicationEvent(app)
+	}()
+	
 	if util.PrometheusMonitoringEnabled(app) {
 		logger.Info("Configure Prometheus monitoring for SparkApplication", "name", app.Name, "namespace", app.Namespace)
 		if err := configPrometheusMonitoring(app, r.client); err != nil {
@@ -729,7 +748,6 @@ func (r *Reconciler) submitSparkApplication(app *v1beta2.SparkApplication) error
 
 	driverPodName := util.GetDriverPodName(app)
 	app.Status.DriverInfo.PodName = driverPodName
-	app.Status.SubmissionID = uuid.New().String()
 	sparkSubmitArgs, err := buildSparkSubmitArgs(app)
 	if err != nil {
 		return fmt.Errorf("failed to build spark-submit arguments: %v", err)
@@ -739,7 +757,6 @@ func (r *Reconciler) submitSparkApplication(app *v1beta2.SparkApplication) error
 	logger.Info("Running spark-submit for SparkApplication", "name", app.Name, "namespace", app.Namespace, "arguments", sparkSubmitArgs)
 	submitted, err := runSparkSubmit(newSubmission(sparkSubmitArgs, app))
 	if err != nil {
-		r.recordSparkApplicationEvent(app)
 		return fmt.Errorf("failed to run spark-submit: %v", err)
 	}
 	if !submitted {
@@ -748,14 +765,6 @@ func (r *Reconciler) submitSparkApplication(app *v1beta2.SparkApplication) error
 		// error gets returned from runSparkSubmit. If this is the case, we simply return.
 		return nil
 	}
-
-	app.Status.AppState = v1beta2.ApplicationState{
-		State: v1beta2.ApplicationStateSubmitted,
-	}
-	app.Status.SubmissionAttempts = app.Status.SubmissionAttempts + 1
-	app.Status.ExecutionAttempts = app.Status.ExecutionAttempts + 1
-	app.Status.LastSubmissionAttemptTime = metav1.Now()
-	r.recordSparkApplicationEvent(app)
 	return nil
 }
 
