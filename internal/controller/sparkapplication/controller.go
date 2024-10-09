@@ -335,7 +335,7 @@ func (r *Reconciler) reconcileFailedSubmissionSparkApplication(ctx context.Conte
 				if err != nil {
 					return err
 				}
-				if timeUntilNextRetryDue < 0 {
+				if timeUntilNextRetryDue <= 0 {
 					if r.validateSparkResourceDeletion(ctx, app) {
 						_ = r.submitSparkApplication(app)
 					} else {
@@ -527,7 +527,7 @@ func (r *Reconciler) reconcileFailingSparkApplication(ctx context.Context, req c
 				if err != nil {
 					return err
 				}
-				if timeUntilNextRetryDue < 0 {
+				if timeUntilNextRetryDue <= 0 {
 					if err := r.deleteSparkResources(ctx, app); err != nil {
 						logger.Error(err, "failed to delete spark resources", "name", app.Name, "namespace", app.Namespace)
 						return err
@@ -757,22 +757,6 @@ func (r *Reconciler) submitSparkApplication(app *v1beta2.SparkApplication) error
 	app.Status.LastSubmissionAttemptTime = metav1.Now()
 	r.recordSparkApplicationEvent(app)
 	return nil
-}
-
-// Helper func to determine if the next retry the SparkApplication is due now.
-func isNextRetryDue(app *v1beta2.SparkApplication) bool {
-	retryInterval := app.Spec.RestartPolicy.OnFailureRetryInterval
-	attemptsDone := app.Status.SubmissionAttempts
-	lastEventTime := app.Status.LastSubmissionAttemptTime
-	if retryInterval == nil || lastEventTime.IsZero() || attemptsDone <= 0 {
-		return false
-	}
-
-	// Retry if we have waited at-least equal to attempts*RetryInterval since we do a linear back-off.
-	interval := time.Duration(*retryInterval) * time.Second * time.Duration(attemptsDone)
-	currentTime := time.Now()
-	logger.Info(fmt.Sprintf("currentTime is %v, interval is %v", currentTime, interval))
-	return currentTime.After(lastEventTime.Add(interval))
 }
 
 func timeUntilNextRetryDue(app *v1beta2.SparkApplication) (time.Duration, error) {
