@@ -259,17 +259,7 @@ func (r *Reconciler) reconcileNewSparkApplication(ctx context.Context, req ctrl.
 			}
 			app := old.DeepCopy()
 
-			if err := r.submitSparkApplication(app); err != nil {
-				logger.Error(err, "Failed to submit SparkApplication", "name", app.Name, "namespace", app.Namespace)
-				app.Status = v1beta2.SparkApplicationStatus{
-					AppState: v1beta2.ApplicationState{
-						State:        v1beta2.ApplicationStateFailedSubmission,
-						ErrorMessage: err.Error(),
-					},
-					SubmissionAttempts:        app.Status.SubmissionAttempts + 1,
-					LastSubmissionAttemptTime: metav1.Now(),
-				}
-			}
+			r.submitSparkApplication(app)
 			if err := r.updateSparkApplicationStatus(ctx, app); err != nil {
 				return err
 			}
@@ -337,7 +327,7 @@ func (r *Reconciler) reconcileFailedSubmissionSparkApplication(ctx context.Conte
 				}
 				if timeUntilNextRetryDue <= 0 {
 					if r.validateSparkResourceDeletion(ctx, app) {
-						err = r.submitSparkApplication(app)
+						r.submitSparkApplication(app)
 					} else {
 						if err := r.deleteSparkResources(ctx, app); err != nil {
 							logger.Error(err, "failed to delete resources associated with SparkApplication", "name", app.Name, "namespace", app.Namespace)
@@ -418,9 +408,7 @@ func (r *Reconciler) reconcilePendingRerunSparkApplication(ctx context.Context, 
 				logger.Info("Successfully deleted resources associated with SparkApplication", "name", app.Name, "namespace", app.Namespace, "state", app.Status.AppState.State)
 				r.recordSparkApplicationEvent(app)
 				r.resetSparkApplicationStatus(app)
-				if err = r.submitSparkApplication(app); err != nil {
-					logger.Error(err, "Failed to run spark-submit", "name", app.Name, "namespace", app.Namespace, "state", app.Status.AppState.State)
-				}
+				r.submitSparkApplication(app)
 			}
 			if err := r.updateSparkApplicationStatus(ctx, app); err != nil {
 				return err
@@ -655,7 +643,6 @@ func (r *Reconciler) getSparkApplication(key types.NamespacedName) (*v1beta2.Spa
 func (r *Reconciler) submitSparkApplication(app *v1beta2.SparkApplication) (returned_error error) {
 	logger.Info("Submitting SparkApplication", "name", app.Name, "namespace", app.Namespace, "state", app.Status.AppState.State)
 
-
 	defer func() {
 		app.Status.SubmissionAttempts = app.Status.SubmissionAttempts + 1
 		app.Status.SubmissionID = uuid.New().String()
@@ -665,6 +652,7 @@ func (r *Reconciler) submitSparkApplication(app *v1beta2.SparkApplication) (retu
 			app.Status.AppState = v1beta2.ApplicationState{
 				State: v1beta2.ApplicationStateSubmitted,
 			}
+			logger.Error(returned_error, "Failed to submit SparkApplication", "name", app.Name, "namespace", app.Namespace, "state", app.Status.AppState.State)
 		} else {
 			app.Status.AppState = v1beta2.ApplicationState{
 				State:        v1beta2.ApplicationStateFailedSubmission,
