@@ -652,6 +652,7 @@ func (r *Reconciler) submitSparkApplication(app *v1beta2.SparkApplication) (retu
 			app.Status.AppState = v1beta2.ApplicationState{
 				State: v1beta2.ApplicationStateSubmitted,
 			}
+			app.Status.ExecutionAttempts = app.Status.ExecutionAttempts + 1
 		} else {
 			logger.Error(returned_error, "Failed to submit SparkApplication", "name", app.Name, "namespace", app.Namespace, "state", app.Status.AppState.State)
 			app.Status.AppState = v1beta2.ApplicationState{
