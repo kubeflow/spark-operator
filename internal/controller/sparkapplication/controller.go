@@ -652,8 +652,8 @@ func (r *Reconciler) submitSparkApplication(app *v1beta2.SparkApplication) (retu
 			app.Status.AppState = v1beta2.ApplicationState{
 				State: v1beta2.ApplicationStateSubmitted,
 			}
-			logger.Error(returned_error, "Failed to submit SparkApplication", "name", app.Name, "namespace", app.Namespace, "state", app.Status.AppState.State)
 		} else {
+			logger.Error(returned_error, "Failed to submit SparkApplication", "name", app.Name, "namespace", app.Namespace, "state", app.Status.AppState.State)
 			app.Status.AppState = v1beta2.ApplicationState{
 				State:        v1beta2.ApplicationStateFailedSubmission,
 				ErrorMessage: returned_error.Error(),
@@ -745,7 +745,7 @@ func (r *Reconciler) submitSparkApplication(app *v1beta2.SparkApplication) (retu
 	logger.Info("Running spark-submit for SparkApplication", "name", app.Name, "namespace", app.Namespace, "arguments", sparkSubmitArgs)
 	spark_submit_err := runSparkSubmit(newSubmission(sparkSubmitArgs, app))
 	if spark_submit_err != nil {
-		return fmt.Errorf("failed to run spark-submit: %v", err)
+		return fmt.Errorf("failed to run spark-submit: %v", spark_submit_err)
 	}
 	return nil
 }
