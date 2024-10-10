@@ -173,8 +173,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	}
 	logger.Info("Reconciling SparkApplication", "name", app.Name, "namespace", app.Namespace, "state", app.Status.AppState.State)
 	defer func() {
-		// TODO(tomnewton): This doesn't seem to be showing the state at end of reconsile.
-		logger.Info("Finished reconciling SparkApplication", "name", app.Name, "namespace", app.Namespace, "state", app.Status.AppState.State)
+		logger.Info("Finished reconciling SparkApplication", "name", app.Name, "namespace", app.Namespace)
 	}()
 
 	// Check if the spark application is being deleted
