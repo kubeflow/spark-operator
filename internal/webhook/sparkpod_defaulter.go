@@ -191,7 +191,7 @@ func addVolume(pod *corev1.Pod, volume corev1.Volume) error {
 func addVolumeMount(pod *corev1.Pod, mount corev1.VolumeMount) error {
 	i := findContainer(pod)
 	if i < 0 {
-		logger.Info("not able to add VolumeMount %s as Spark container was not found in pod %s", mount.Name, pod.Name)
+		return fmt.Errorf("failed to add volumeMounts as Spark container not found")
 	}
 
 	pod.Spec.Containers[i].VolumeMounts = append(pod.Spec.Containers[i].VolumeMounts, mount)
@@ -228,7 +228,7 @@ func addEnvFrom(pod *corev1.Pod, app *v1beta2.SparkApplication) error {
 
 	i := findContainer(pod)
 	if i < 0 {
-		return fmt.Errorf("not able to add EnvFrom as Spark container was not found in pod")
+		return fmt.Errorf("failed to add envFrom as Spark container not found")
 	}
 
 	pod.Spec.Containers[i].EnvFrom = append(pod.Spec.Containers[i].EnvFrom, envFrom...)
@@ -238,7 +238,7 @@ func addEnvFrom(pod *corev1.Pod, app *v1beta2.SparkApplication) error {
 func addEnvironmentVariable(pod *corev1.Pod, name, value string) error {
 	i := findContainer(pod)
 	if i < 0 {
-		return fmt.Errorf("not able to add environment variable as Spark container was not found")
+		return fmt.Errorf("failed to add env as Spark container not found")
 	}
 
 	pod.Spec.Containers[i].Env = append(pod.Spec.Containers[i].Env, corev1.EnvVar{
@@ -345,13 +345,11 @@ func addPrometheusConfig(pod *corev1.Pod, app *v1beta2.SparkApplication) error {
 	}
 
 	if err := addConfigMapVolumeMount(pod, volumeName, mountPath); err != nil {
-		logger.Info("could not mount volume %s in path %s", volumeName, mountPath)
-		return err
+		return fmt.Errorf("failed to mount volume %s in path %s: %v", volumeName, mountPath, err)
 	}
 
 	if err := addContainerPort(pod, promPort, promProtocol, promPortName); err != nil {
-		logger.Info("could not expose port %d to scrape metrics outside the pod", promPort)
-		return err
+		return fmt.Errorf("failed to expose port %d to scrape metrics outside the pod: %v", promPort, err)
 	}
 
 	return nil
@@ -368,7 +366,7 @@ func addContainerPorts(pod *corev1.Pod, app *v1beta2.SparkApplication) error {
 
 	for _, p := range ports {
 		if err := addContainerPort(pod, p.ContainerPort, p.Protocol, p.Name); err != nil {
-			logger.Info("could not expose port named %s", p.Name)
+			return fmt.Errorf("failed to expose port named %s: %v", p.Name, err)
 		}
 	}
 	return nil
@@ -377,7 +375,7 @@ func addContainerPorts(pod *corev1.Pod, app *v1beta2.SparkApplication) error {
 func addContainerPort(pod *corev1.Pod, port int32, protocol string, portName string) error {
 	i := findContainer(pod)
 	if i < 0 {
-		return fmt.Errorf("not able to add containerPort %d as Spark container was not found in pod", port)
+		return fmt.Errorf("failed to add containerPort %d as Spark container not found", port)
 	}
 
 	containerPort := corev1.ContainerPort{
@@ -605,7 +603,7 @@ func addGPU(pod *corev1.Pod, app *v1beta2.SparkApplication) error {
 
 	i := findContainer(pod)
 	if i < 0 {
-		return fmt.Errorf("not able to add GPU as Spark container was not found in pod %s", pod.Name)
+		return fmt.Errorf("failed to add GPU as Spark container was not found in pod %s", pod.Name)
 	}
 	if pod.Spec.Containers[i].Resources.Limits == nil {
 		pod.Spec.Containers[i].Resources.Limits = make(corev1.ResourceList)
@@ -672,8 +670,7 @@ func addPodLifeCycleConfig(pod *corev1.Pod, app *v1beta2.SparkApplication) error
 		}
 	}
 	if i == len(pod.Spec.Containers) {
-		logger.Info("Spark container %s not found in pod %s", containerName, pod.Name)
-		return nil
+		return fmt.Errorf("Spark container %s not found in pod %s", containerName, pod.Name)
 	}
 
 	pod.Spec.Containers[i].Lifecycle = lifeCycle
