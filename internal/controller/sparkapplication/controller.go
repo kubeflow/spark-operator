@@ -172,6 +172,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		return ctrl.Result{Requeue: true}, err
 	}
 	logger.Info("Reconciling SparkApplication", "name", app.Name, "namespace", app.Namespace, "state", app.Status.AppState.State)
+	defer func() {
+		logger.Info("Finished reconciling SparkApplication", "name", app.Name, "namespace", app.Namespace, "state", app.Status.AppState.State)
+	}()
 
 	// Check if the spark application is being deleted
 	if !app.DeletionTimestamp.IsZero() {
@@ -662,7 +665,7 @@ func (r *Reconciler) submitSparkApplication(app *v1beta2.SparkApplication) (retu
 		}
 		r.recordSparkApplicationEvent(app)
 	}()
-	
+
 	if util.PrometheusMonitoringEnabled(app) {
 		logger.Info("Configure Prometheus monitoring for SparkApplication", "name", app.Name, "namespace", app.Namespace)
 		if err := configPrometheusMonitoring(app, r.client); err != nil {
