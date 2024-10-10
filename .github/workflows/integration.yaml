@@ -16,39 +16,80 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  code-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Run go mod tidy
+        run: |
+          go mod tidy
+          if ! git diff --quiet; then
+            echo "Please run 'go mod tidy' and commit the changes."
+            git diff
+            false
+          fi
+
+      - name: Generate code
+        run: |
+          make generate
+          if ! git diff --quiet; then
+            echo "Need to re-run 'make generate' and commit the changes."
+            git diff
+            false
+          fi
+
+      - name: Run go fmt check
+        run: |
+          make go-fmt
+          if ! git diff --quiet; then
+            echo "Need to re-run 'make go-fmt' and commit the changes."
+            git diff
+            false
+          fi
+
+      - name: Run go vet check
+        run: |
+          make go-vet
+          if ! git diff --quiet; then
+            echo "Need to re-run 'make go-vet' and commit the changes."
+            git diff
+            false
+          fi
+
+      - name: Run golangci-lint
+        run: |
+          make go-lint
+
   build-api-docs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout source code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
 
-      - name: The API documentation hasn't changed
+      - name: Build API docs
         run: |
           make build-api-docs
-          if ! git diff --quiet -- docs/api-docs.md; then
-            echo "Need to re-run 'make build-api-docs' and commit the changes"
-            git diff -- docs/api-docs.md;
+          if ! git diff --quiet; then
+            echo "Need to re-run 'make build-api-docs' and commit the changes."
+            git diff
             false
           fi
-
-  build-sparkctl:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout source code
-        uses: actions/checkout@v4
-
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version-file: go.mod
-
-      - name: build sparkctl
-        run: make build-sparkctl
 
   build-spark-operator:
     runs-on: ubuntu-latest
@@ -63,17 +104,27 @@ jobs:
         with:
           go-version-file: go.mod
 
-      - name: Run go fmt check
-        run: make go-fmt
-
-      - name: Run go vet check
-        run: make go-vet
-
-      - name: Run unit tests
+      - name: Run go unit tests
         run: make unit-test
 
       - name: Build Spark operator
         run: make build-operator
+
+  build-sparkctl:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Build sparkctl
+        run: make build-sparkctl
 
   build-helm-chart:
     runs-on: ubuntu-latest
@@ -103,6 +154,18 @@ jobs:
       - name: Set up chart-testing
         uses: helm/chart-testing-action@v2.6.1
 
+      - name: Generate manifests
+        run: |
+          make manifests
+          if ! git diff --quiet; then
+            echo "Need to re-run 'make manifests' and commit the changes."
+            git diff
+            false
+          fi
+
+      - name: Detect CRDs drift between chart and manifest
+        run: make detect-crds-drift
+
       - name: Run chart-testing (list-changed)
         id: list-changed
         env:
@@ -119,22 +182,18 @@ jobs:
           BRANCH: ${{ steps.get_branch.outputs.BRANCH }}
         run: ct lint --check-version-increment=false --target-branch $BRANCH
 
-      - name: Detect CRDs drift between chart and manifest
-        if: steps.list-changed.outputs.changed == 'true'
-        run: make detect-crds-drift
-
       - name: Produce the helm documentation
         if: steps.list-changed.outputs.changed == 'true'
         run: |
           make helm-docs
           if ! git diff --quiet -- charts/spark-operator-chart/README.md; then
-            echo "Need to re-run 'make helm-docs' and commit the changes"
+            echo "Need to re-run 'make helm-docs' and commit the changes."
             false
           fi
 
       - name: setup minikube
         if: steps.list-changed.outputs.changed == 'true'
-        uses: manusa/actions-setup-minikube@v2.11.0
+        uses: manusa/actions-setup-minikube@v2.12.0
         with:
           minikube version: v1.33.0
           kubernetes version: v1.30.0

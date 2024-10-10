@@ -197,30 +197,27 @@ func dependenciesOption(app *v1beta2.SparkApplication) ([]string, error) {
 
 func imageOption(app *v1beta2.SparkApplication) ([]string, error) {
 	var args []string
-	if app.Spec.Image == nil || *app.Spec.Image == "" {
-		return nil, nil
+	if app.Spec.Image != nil && *app.Spec.Image != "" {
+		args = append(args,
+			"--conf",
+			fmt.Sprintf("%s=%s", common.SparkKubernetesContainerImage, *app.Spec.Image),
+		)
 	}
-	args = append(args,
-		"--conf",
-		fmt.Sprintf("%s=%s", common.SparkKubernetesContainerImage, *app.Spec.Image),
-	)
 
-	if app.Spec.ImagePullPolicy == nil || *app.Spec.ImagePullPolicy == "" {
-		return nil, nil
+	if app.Spec.ImagePullPolicy != nil && *app.Spec.ImagePullPolicy != "" {
+		args = append(args,
+			"--conf",
+			fmt.Sprintf("%s=%s", common.SparkKubernetesContainerImagePullPolicy, *app.Spec.ImagePullPolicy),
+		)
 	}
-	args = append(args,
-		"--conf",
-		fmt.Sprintf("%s=%s", common.SparkKubernetesContainerImagePullPolicy, *app.Spec.ImagePullPolicy),
-	)
 
-	if len(app.Spec.ImagePullSecrets) == 0 {
-		return nil, nil
+	if len(app.Spec.ImagePullSecrets) > 0 {
+		secrets := strings.Join(app.Spec.ImagePullSecrets, ",")
+		args = append(args,
+			"--conf",
+			fmt.Sprintf("%s=%s", common.SparkKubernetesContainerImagePullSecrets, secrets),
+		)
 	}
-	secrets := strings.Join(app.Spec.ImagePullSecrets, ",")
-	args = append(args,
-		"--conf",
-		fmt.Sprintf("%s=%s", common.SparkKubernetesContainerImagePullSecrets, secrets),
-	)
 
 	return args, nil
 }

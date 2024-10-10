@@ -1939,8 +1939,8 @@ map[string]string
 </td>
 <td>
 <em>(Optional)</em>
-<p>HadoopConf carries user-specified Hadoop configuration properties as they would use the  the &ldquo;&ndash;conf&rdquo; option
-in spark-submit.  The SparkApplication controller automatically adds prefix &ldquo;spark.hadoop.&rdquo; to Hadoop
+<p>HadoopConf carries user-specified Hadoop configuration properties as they would use the &ldquo;&ndash;conf&rdquo; option
+in spark-submit. The SparkApplication controller automatically adds prefix &ldquo;spark.hadoop.&rdquo; to Hadoop
 configuration properties.</p>
 </td>
 </tr>
@@ -2381,8 +2381,8 @@ map[string]string
 </td>
 <td>
 <em>(Optional)</em>
-<p>HadoopConf carries user-specified Hadoop configuration properties as they would use the  the &ldquo;&ndash;conf&rdquo; option
-in spark-submit.  The SparkApplication controller automatically adds prefix &ldquo;spark.hadoop.&rdquo; to Hadoop
+<p>HadoopConf carries user-specified Hadoop configuration properties as they would use the &ldquo;&ndash;conf&rdquo; option
+in spark-submit. The SparkApplication controller automatically adds prefix &ldquo;spark.hadoop.&rdquo; to Hadoop
 configuration properties.</p>
 </td>
 </tr>

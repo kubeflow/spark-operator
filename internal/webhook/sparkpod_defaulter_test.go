@@ -1106,7 +1106,6 @@ func TestPatchSparkPod_DNSConfig(t *testing.T) {
 
 	assert.NotNil(t, modifiedExecutorPod.Spec.DNSConfig)
 	assert.Equal(t, sampleDNSConfig, modifiedExecutorPod.Spec.DNSConfig)
-
 }
 
 func TestPatchSparkPod_NodeSector(t *testing.T) {
@@ -1660,7 +1659,6 @@ func TestPatchSparkPod_EnvFrom(t *testing.T) {
 }
 
 func TestPatchSparkPod_GracePeriodSeconds(t *testing.T) {
-
 	app := &v1beta2.SparkApplication{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "spark-test-hostNetwork",

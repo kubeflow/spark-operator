@@ -31,10 +31,12 @@ import (
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
+	"golang.org/x/time/rate"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
+	"k8s.io/client-go/kubernetes"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/utils/clock"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -73,6 +75,11 @@ var (
 	// Controller
 	controllerThreads int
 	cacheSyncTimeout  time.Duration
+
+	//WorkQueue
+	workqueueRateLimiterBucketQPS  int
+	workqueueRateLimiterBucketSize int
+	workqueueRateLimiterMaxDelay   time.Duration
 
 	// Batch scheduler
 	enableBatchScheduler  bool
@@ -133,6 +140,10 @@ func NewStartCommand() *cobra.Command {
 	command.Flags().IntVar(&controllerThreads, "controller-threads", 10, "Number of worker threads used by the SparkApplication controller.")
 	command.Flags().StringSliceVar(&namespaces, "namespaces", []string{}, "The Kubernetes namespace to manage. Will manage custom resource objects of the managed CRD types for the whole cluster if unset or contains empty string.")
 	command.Flags().DurationVar(&cacheSyncTimeout, "cache-sync-timeout", 30*time.Second, "Informer cache sync timeout.")
+
+	command.Flags().IntVar(&workqueueRateLimiterBucketQPS, "workqueue-ratelimiter-bucket-qps", 10, "QPS of the bucket rate of the workqueue.")
+	command.Flags().IntVar(&workqueueRateLimiterBucketSize, "workqueue-ratelimiter-bucket-size", 100, "The token bucket size of the workqueue.")
+	command.Flags().DurationVar(&workqueueRateLimiterMaxDelay, "workqueue-ratelimiter-max-delay", rate.InfDuration, "The maximum delay of the workqueue.")
 
 	command.Flags().BoolVar(&enableBatchScheduler, "enable-batch-scheduler", false, "Enable batch schedulers.")
 	command.Flags().StringSliceVar(&kubeSchedulerNames, "kube-scheduler-names", []string{}, "The kube-scheduler names for scheduling Spark applications.")
@@ -218,6 +229,17 @@ func start() {
 		os.Exit(1)
 	}
 
+	clientset, err := kubernetes.NewForConfig(cfg)
+	if err != nil {
+		logger.Error(err, "failed to create clientset")
+		os.Exit(1)
+	}
+
+	if err = util.InitializeIngressCapabilities(clientset); err != nil {
+		logger.Error(err, "failed to retrieve cluster ingress capabilities")
+		os.Exit(1)
+	}
+
 	var registry *scheduler.Registry
 	if enableBatchScheduler {
 		registry = scheduler.GetRegistry()
@@ -226,7 +248,7 @@ func start() {
 
 		// Register kube-schedulers.
 		for _, name := range kubeSchedulerNames {
-			registry.Register(name, kubescheduler.Factory)
+			_ = registry.Register(name, kubescheduler.Factory)
 		}
 
 		schedulerNames := registry.GetRegisteredSchedulerNames()
@@ -355,6 +377,7 @@ func newControllerOptions() controller.Options {
 	options := controller.Options{
 		MaxConcurrentReconciles: controllerThreads,
 		CacheSyncTimeout:        cacheSyncTimeout,
+		RateLimiter:             util.NewRateLimiter(workqueueRateLimiterBucketQPS, workqueueRateLimiterBucketSize, workqueueRateLimiterMaxDelay),
 	}
 	return options
 }
