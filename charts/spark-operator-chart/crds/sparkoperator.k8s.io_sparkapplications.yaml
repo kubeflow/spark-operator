@@ -9514,8 +9514,8 @@ spec:
                 additionalProperties:
                   type: string
                 description: |-
-                  HadoopConf carries user-specified Hadoop configuration properties as they would use the  the "--conf" option
-                  in spark-submit.  The SparkApplication controller automatically adds prefix "spark.hadoop." to Hadoop
+                  HadoopConf carries user-specified Hadoop configuration properties as they would use the "--conf" option
+                  in spark-submit. The SparkApplication controller automatically adds prefix "spark.hadoop." to Hadoop
                   configuration properties.
                 type: object
               hadoopConfigMap:
