@@ -173,6 +173,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	}
 	logger.Info("Reconciling SparkApplication", "name", app.Name, "namespace", app.Namespace, "state", app.Status.AppState.State)
 	defer func() {
+		// TODO(tomnewton): This doesn't seem to be showing the state at end of reconsile.
 		logger.Info("Finished reconciling SparkApplication", "name", app.Name, "namespace", app.Namespace, "state", app.Status.AppState.State)
 	}()
 
@@ -645,11 +646,11 @@ func (r *Reconciler) getSparkApplication(key types.NamespacedName) (*v1beta2.Spa
 // submitSparkApplication creates a new submission for the given SparkApplication and submits it using spark-submit.
 func (r *Reconciler) submitSparkApplication(app *v1beta2.SparkApplication) (returned_error error) {
 	logger.Info("Submitting SparkApplication", "name", app.Name, "namespace", app.Namespace, "state", app.Status.AppState.State)
+	app.Status.SubmissionID = uuid.New().String() // Must be set before calling spark-submit so it can be added to the driver pod labels.
+	app.Status.LastSubmissionAttemptTime = metav1.Now()
 
 	defer func() {
 		app.Status.SubmissionAttempts = app.Status.SubmissionAttempts + 1
-		app.Status.SubmissionID = uuid.New().String()
-		app.Status.LastSubmissionAttemptTime = metav1.Now()
 
 		if returned_error == nil {
 			app.Status.AppState = v1beta2.ApplicationState{

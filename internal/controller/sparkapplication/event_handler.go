@@ -141,6 +141,7 @@ func (h *SparkPodEventHandler) enqueueSparkAppForUpdate(ctx context.Context, pod
 		return
 	}
 
+	logger.Info("Enqueueing SparkApplication for update", "key", key)
 	queue.AddRateLimited(ctrl.Request{NamespacedName: key})
 }
 
