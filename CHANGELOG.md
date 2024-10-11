@@ -1,5 +1,32 @@
 # Changelog
 
+## [v2.0.2](https://github.com/kubeflow/spark-operator/tree/v2.0.2) (2024-10-10)
+
+### Bug Fixes
+
+- Fix ingress capability discovery ([#2201](https://github.com/kubeflow/spark-operator/pull/2201) by [@jacobsalway](https://github.com/jacobsalway))
+- fix: imagePullPolicy was ignored ([#2222](https://github.com/kubeflow/spark-operator/pull/2222) by [@missedone](https://github.com/missedone))
+- fix: spark-submission failed due to lack of permission by user `spark` ([#2223](https://github.com/kubeflow/spark-operator/pull/2223) by [@missedone](https://github.com/missedone))
+- Remove `cap_net_bind_service` from image ([#2216](https://github.com/kubeflow/spark-operator/pull/2216) by [@jacobsalway](https://github.com/jacobsalway))
+- fix: webhook panics due to logging ([#2232](https://github.com/kubeflow/spark-operator/pull/2232) by [@ChenYi015](https://github.com/ChenYi015))
+
+### Misc
+
+- Bump github.com/aws/aws-sdk-go-v2 from 1.30.5 to 1.31.0 ([#2207](https://github.com/kubeflow/spark-operator/pull/2207) by [@dependabot[bot]](https://github.com/apps/dependabot))
+- Bump golang.org/x/net from 0.28.0 to 0.29.0 ([#2205](https://github.com/kubeflow/spark-operator/pull/2205) by [@dependabot[bot]](https://github.com/apps/dependabot))
+- Bump github.com/docker/docker from 27.0.3+incompatible to 27.1.1+incompatible ([#2125](https://github.com/kubeflow/spark-operator/pull/2125) by [@dependabot[bot]](https://github.com/apps/dependabot))
+- Bump github.com/aws/aws-sdk-go-v2/service/s3 from 1.58.3 to 1.63.3 ([#2206](https://github.com/kubeflow/spark-operator/pull/2206) by [@dependabot[bot]](https://github.com/apps/dependabot))
+- Update integration test workflow and add golangci lint check ([#2197](https://github.com/kubeflow/spark-operator/pull/2197) by [@ChenYi015](https://github.com/ChenYi015))
+- Bump github.com/aws/aws-sdk-go-v2 from 1.31.0 to 1.32.0 ([#2229](https://github.com/kubeflow/spark-operator/pull/2229) by [@dependabot[bot]](https://github.com/apps/dependabot))
+- Bump cloud.google.com/go/storage from 1.43.0 to 1.44.0 ([#2228](https://github.com/kubeflow/spark-operator/pull/2228) by [@dependabot[bot]](https://github.com/apps/dependabot))
+- Bump manusa/actions-setup-minikube from 2.11.0 to 2.12.0 ([#2226](https://github.com/kubeflow/spark-operator/pull/2226) by [@dependabot[bot]](https://github.com/apps/dependabot))
+- Bump golang.org/x/time from 0.6.0 to 0.7.0 ([#2227](https://github.com/kubeflow/spark-operator/pull/2227) by [@dependabot[bot]](https://github.com/apps/dependabot))
+- Bump github.com/aws/aws-sdk-go-v2/config from 1.27.33 to 1.27.42 ([#2231](https://github.com/kubeflow/spark-operator/pull/2231) by [@dependabot[bot]](https://github.com/apps/dependabot))
+- Bump github.com/prometheus/client_golang from 1.19.1 to 1.20.4 ([#2204](https://github.com/kubeflow/spark-operator/pull/2204) by [@dependabot[bot]](https://github.com/apps/dependabot))
+- Add check for generating manifests and code ([#2234](https://github.com/kubeflow/spark-operator/pull/2234) by [@ChenYi015](https://github.com/ChenYi015))
+
+[Full Changelog](https://github.com/kubeflow/spark-operator/compare/v2.0.1...v2.0.2)
+
 ## [v2.0.1](https://github.com/kubeflow/spark-operator/tree/v2.0.1) (2024-09-26)
 
 ### New Features
@@ -15,7 +42,7 @@
 - Bump github.com/onsi/ginkgo/v2 from 2.19.0 to 2.20.2 ([#2188](https://github.com/kubeflow/spark-operator/pull/2188) by [@dependabot[bot]](https://github.com/apps/dependabot))
 - Bump github.com/onsi/gomega from 1.33.1 to 1.34.2 ([#2189](https://github.com/kubeflow/spark-operator/pull/2189) by [@dependabot[bot]](https://github.com/apps/dependabot))
 
-**Full Changelog**: https://github.com/kubeflow/spark-operator/compare/v2.0.0...v2.0.1
+[Full Changelog](https://github.com/kubeflow/spark-operator/compare/v2.0.0...v2.0.1)
 
 ## [v2.0.0](https://github.com/kubeflow/spark-operator/tree/v2.0.0) (2024-09-23)
 
@@ -67,13 +94,13 @@
 
 ## What's Changed
 
-- Cherry pick #2081 #2046 #2091 #2072 by @ChenYi015 in https://github.com/kubeflow/spark-operator/pull/2108
-- Cherry pick #2089 #2109 #2111 by @ChenYi015 in https://github.com/kubeflow/spark-operator/pull/2110
-- Release v2.0.0-rc.0 by @ChenYi015 in https://github.com/kubeflow/spark-operator/pull/2115
-- Cherry pick commits for releasing v2.0.0 by @ChenYi015 in https://github.com/kubeflow/spark-operator/pull/2156
-- Release v2.0.0 by @ChenYi015 in https://github.com/kubeflow/spark-operator/pull/2182
+- Cherry pick #2081 #2046 #2091 #2072 by @ChenYi015 in <https://github.com/kubeflow/spark-operator/pull/2108>
+- Cherry pick #2089 #2109 #2111 by @ChenYi015 in <https://github.com/kubeflow/spark-operator/pull/2110>
+- Release v2.0.0-rc.0 by @ChenYi015 in <https://github.com/kubeflow/spark-operator/pull/2115>
+- Cherry pick commits for releasing v2.0.0 by @ChenYi015 in <https://github.com/kubeflow/spark-operator/pull/2156>
+- Release v2.0.0 by @ChenYi015 in <https://github.com/kubeflow/spark-operator/pull/2182>
 
-**Full Changelog**: https://github.com/kubeflow/spark-operator/compare/v1beta2-1.6.2-3.5.0...v2.0.0
+[Full Changelog](https://github.com/kubeflow/spark-operator/compare/v1beta2-1.6.2-3.5.0...v2.0.0)
 
 ## [v2.0.0-rc.0](https://github.com/kubeflow/spark-operator/tree/v2.0.0-rc.0) (2024-08-09)
 
