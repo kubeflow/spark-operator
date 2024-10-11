@@ -51,6 +51,9 @@ controller:
   # -- Configure the verbosity of logging, can be one of `debug`, `info`, `error`.
   logLevel: info
 
+  # -- Specifies the maximum number of Executor pods that can be tracked by the controller per SparkApplication.
+  maxTrackedExecutorPerApp: 1000
+
   uiService:
     # -- Specifies whether to create service for Spark web UI.
     enable: true

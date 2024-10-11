@@ -73,8 +73,9 @@ var (
 	namespaces []string
 
 	// Controller
-	controllerThreads int
-	cacheSyncTimeout  time.Duration
+	controllerThreads        int
+	cacheSyncTimeout         time.Duration
+	maxTrackedExecutorPerApp int
 
 	//WorkQueue
 	workqueueRateLimiterBucketQPS  int
@@ -140,6 +141,7 @@ func NewStartCommand() *cobra.Command {
 	command.Flags().IntVar(&controllerThreads, "controller-threads", 10, "Number of worker threads used by the SparkApplication controller.")
 	command.Flags().StringSliceVar(&namespaces, "namespaces", []string{}, "The Kubernetes namespace to manage. Will manage custom resource objects of the managed CRD types for the whole cluster if unset or contains empty string.")
 	command.Flags().DurationVar(&cacheSyncTimeout, "cache-sync-timeout", 30*time.Second, "Informer cache sync timeout.")
+	command.Flags().IntVar(&maxTrackedExecutorPerApp, "max-tracked-executor-per-app", 1000, "The maximum number of tracked executors per SparkApplication.")
 
 	command.Flags().IntVar(&workqueueRateLimiterBucketQPS, "workqueue-ratelimiter-bucket-qps", 10, "QPS of the bucket rate of the workqueue.")
 	command.Flags().IntVar(&workqueueRateLimiterBucketSize, "workqueue-ratelimiter-bucket-size", 100, "The token bucket size of the workqueue.")
@@ -392,13 +394,14 @@ func newSparkApplicationReconcilerOptions() sparkapplication.Options {
 		sparkExecutorMetrics.Register()
 	}
 	options := sparkapplication.Options{
-		Namespaces:              namespaces,
-		EnableUIService:         enableUIService,
-		IngressClassName:        ingressClassName,
-		IngressURLFormat:        ingressURLFormat,
-		DefaultBatchScheduler:   defaultBatchScheduler,
-		SparkApplicationMetrics: sparkApplicationMetrics,
-		SparkExecutorMetrics:    sparkExecutorMetrics,
+		Namespaces:               namespaces,
+		EnableUIService:          enableUIService,
+		IngressClassName:         ingressClassName,
+		IngressURLFormat:         ingressURLFormat,
+		DefaultBatchScheduler:    defaultBatchScheduler,
+		SparkApplicationMetrics:  sparkApplicationMetrics,
+		SparkExecutorMetrics:     sparkExecutorMetrics,
+		MaxTrackedExecutorPerApp: maxTrackedExecutorPerApp,
 	}
 	if enableBatchScheduler {
 		options.KubeSchedulerNames = kubeSchedulerNames

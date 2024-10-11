@@ -299,3 +299,51 @@ var _ = Describe("GetSparkApplicationID", func() {
 		})
 	})
 })
+
+var _ = Describe("GetSparkExecutorID", func() {
+	Context("Pod without labels", func() {
+		pod := &corev1.Pod{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "test-app",
+				Namespace: "test-namespace",
+			},
+		}
+
+		It("Should return empty executor ID", func() {
+			Expect(util.GetSparkExecutorID(pod)).To(BeEmpty())
+		})
+	})
+
+	Context("Pod without executor ID label", func() {
+		pod := &corev1.Pod{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "test-app",
+				Namespace: "test-namespace",
+				Labels: map[string]string{
+					common.LabelSparkAppName: "test-app",
+				},
+			},
+		}
+
+		It("Should return empty executor ID", func() {
+			Expect(util.GetSparkExecutorID(pod)).To(BeEmpty())
+		})
+	})
+
+	Context("Pod with executor ID label", func() {
+		pod := &corev1.Pod{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "test-app",
+				Namespace: "test-namespace",
+				Labels: map[string]string{
+					common.LabelSparkAppName:    "test-app",
+					common.LabelSparkExecutorID: "1",
+				},
+			},
+		}
+
+		It("Should return the executor ID", func() {
+			Expect(util.GetSparkExecutorID(pod)).To(Equal("1"))
+		})
+	})
+})

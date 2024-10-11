@@ -309,6 +309,9 @@ const (
 
 	// LabelSubmissionID is the label that records the submission ID of the current run of an application.
 	LabelSubmissionID = LabelAnnotationPrefix + "submission-id"
+
+	// LabelSparkExecutorID is the label that records executor pod ID
+	LabelSparkExecutorID = "spark-exec-id"
 )
 
 const (
