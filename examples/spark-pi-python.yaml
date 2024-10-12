@@ -22,10 +22,10 @@ spec:
   type: Python
   pythonVersion: "3"
   mode: cluster
-  image: spark:3.5.2
+  image: spark:3.5.3
   imagePullPolicy: IfNotPresent
   mainApplicationFile: local:///opt/spark/examples/src/main/python/pi.py
-  sparkVersion: 3.5.2
+  sparkVersion: 3.5.3
   driver:
     cores: 1
     memory: 512m
