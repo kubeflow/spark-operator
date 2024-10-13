@@ -23,15 +23,15 @@ spec:
   mode: cluster
   image: spark:3.5.2
   imagePullPolicy: IfNotPresent
-  mainClass: non-existent
-  mainApplicationFile: local:///non-existent.jar
+  mainClass: dummy
+  mainApplicationFile: local:///dummy.jar
   sparkVersion: 3.5.2
   restartPolicy:
     type: OnFailure
     onSubmissionFailureRetries: 3
     onSubmissionFailureRetryInterval: 1
   driver:
-    serviceAccount: non-existent
+    serviceAccount: non-existent  # This is the important part that causes submission to fail.
     labels:
       version: 3.5.2
     cores: 1
