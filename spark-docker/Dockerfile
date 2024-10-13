@@ -14,7 +14,7 @@
 # limitations under the License.
 #
 
-ARG SPARK_IMAGE=spark:3.5.2
+ARG SPARK_IMAGE=spark:3.5.3
 FROM ${SPARK_IMAGE}
 
 # Switch to user root so we can add additional jars and configuration files.

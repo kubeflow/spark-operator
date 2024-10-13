@@ -369,7 +369,8 @@ var _ = Describe("SparkApplication Controller", func() {
 			Expect(result.Requeue).To(BeFalse())
 
 			app := &v1beta2.SparkApplication{}
-			k8sClient.Get(ctx, key, app)
+			err = k8sClient.Get(ctx, key, app)
+			Expect(err).NotTo(HaveOccurred())
 			Expect(app.Status.ExecutorState).To(HaveLen(2))
 		})
 
@@ -388,7 +389,8 @@ var _ = Describe("SparkApplication Controller", func() {
 			Expect(result.Requeue).To(BeFalse())
 
 			app := &v1beta2.SparkApplication{}
-			k8sClient.Get(ctx, key, app)
+			err = k8sClient.Get(ctx, key, app)
+			Expect(err).NotTo(HaveOccurred())
 			Expect(app.Status.ExecutorState).To(HaveLen(1))
 		})
 	})
