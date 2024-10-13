@@ -239,7 +239,7 @@ var _ = Describe("Example SparkApplication", func() {
 
 	Context("fail-submission", func() {
 		ctx := context.Background()
-		path := filepath.Join("..", "..", "examples", "fail-submission.yaml")
+		path := filepath.Join("bad_examples", "fail-submission.yaml")
 		app := &v1beta2.SparkApplication{}
 
 		BeforeEach(func() {
@@ -294,7 +294,7 @@ var _ = Describe("Example SparkApplication", func() {
 
 	Context("application-fails", func() {
 		ctx := context.Background()
-		path := filepath.Join("..", "..", "examples", "application-fail.yaml")
+		path := filepath.Join("bad_examples", "fail-application.yaml")
 		app := &v1beta2.SparkApplication{}
 
 		BeforeEach(func() {
