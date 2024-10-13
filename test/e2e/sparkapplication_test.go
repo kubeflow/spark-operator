@@ -292,6 +292,66 @@ var _ = Describe("Example SparkApplication", func() {
 		})
 	})
 
+	Context("application-fails", func() {
+		ctx := context.Background()
+		path := filepath.Join("..", "..", "examples", "application-fail.yaml")
+		app := &v1beta2.SparkApplication{}
+
+		BeforeEach(func() {
+			By("Parsing SparkApplication from file")
+			file, err := os.Open(path)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(file).NotTo(BeNil())
+
+			decoder := yaml.NewYAMLOrJSONDecoder(file, 100)
+			Expect(decoder).NotTo(BeNil())
+			Expect(decoder.Decode(app)).NotTo(HaveOccurred())
+
+			By("Creating SparkApplication")
+			Expect(k8sClient.Create(ctx, app)).To(Succeed())
+		})
+
+		AfterEach(func() {
+			key := types.NamespacedName{Namespace: app.Namespace, Name: app.Name}
+			Expect(k8sClient.Get(ctx, key, app)).To(Succeed())
+
+			By("Deleting SparkApplication")
+			Expect(k8sClient.Delete(ctx, app)).To(Succeed())
+		})
+
+		It("Application fails and retries until retries are exhausted", func() {
+			By("Waiting for SparkApplication to complete")
+			key := types.NamespacedName{Namespace: app.Namespace, Name: app.Name}
+			apps, polling_err := collectStatusesUntilSparkApplicationTerminates(ctx, key)
+			Expect(polling_err).To(HaveOccurred())
+
+			By("Should eventually fail")
+			final_app := apps[len(apps)-1]
+			Expect(final_app.Status.AppState.State).To(Equal(v1beta2.ApplicationStateFailed))
+			Expect(final_app.Status.AppState.ErrorMessage).To(ContainSubstring("driver container failed"))
+			Expect(final_app.Status.ExecutionAttempts).To(Equal(*app.Spec.RestartPolicy.OnFailureRetries + 1))
+
+			By("Only valid statuses appear in other apps")
+			validStatuses := []v1beta2.ApplicationStateType{
+				v1beta2.ApplicationStateNew,
+				v1beta2.ApplicationStateSubmitted,
+				v1beta2.ApplicationStateRunning,
+				v1beta2.ApplicationStateFailing,
+				v1beta2.ApplicationStatePendingRerun,
+			}
+			for _, app := range apps[:len(apps)-1] {
+				Expect(validStatuses).To(ContainElement(app.Status.AppState.State))
+			}
+
+			By("Checking out driver logs")
+			driverPodName := util.GetDriverPodName(app)
+			bytes, err := clientset.CoreV1().Pods(app.Namespace).GetLogs(driverPodName, &corev1.PodLogOptions{}).Do(ctx).Raw()
+			Expect(err).NotTo(HaveOccurred())
+			Expect(bytes).NotTo(BeEmpty())
+			Expect(strings.Contains(string(bytes), "NoSuchFileException")).To(BeTrue())
+		})
+	})
+
 	Context("spark-pi-python", func() {
 		ctx := context.Background()
 		path := filepath.Join("..", "..", "examples", "spark-pi-python.yaml")
