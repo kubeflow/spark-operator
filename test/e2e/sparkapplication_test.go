@@ -265,9 +265,9 @@ var _ = Describe("Example SparkApplication", func() {
 		})
 
 		It("Fails submission and retries until retries are exhausted", func() {
-			By("Waiting for SparkApplication to complete")
+			By("Waiting for SparkApplication to terminate")
 			key := types.NamespacedName{Namespace: app.Namespace, Name: app.Name}
-			apps, polling_err := collectStatusesUntilSparkApplicationTerminates(ctx, key)
+			apps, polling_err := collectSparkApplicationsUntilTermination(ctx, key)
 			Expect(polling_err).To(HaveOccurred())
 
 			By("Should eventually fail")
@@ -320,9 +320,9 @@ var _ = Describe("Example SparkApplication", func() {
 		})
 
 		It("Application fails and retries until retries are exhausted", func() {
-			By("Waiting for SparkApplication to complete")
+			By("Waiting for SparkApplication to terminate")
 			key := types.NamespacedName{Namespace: app.Namespace, Name: app.Name}
-			apps, polling_err := collectStatusesUntilSparkApplicationTerminates(ctx, key)
+			apps, polling_err := collectSparkApplicationsUntilTermination(ctx, key)
 			Expect(polling_err).To(HaveOccurred())
 
 			By("Should eventually fail")

@@ -262,9 +262,8 @@ func waitForSparkApplicationCompleted(ctx context.Context, key types.NamespacedN
 			return false, err
 		}
 		switch app.Status.AppState.State {
-		case v1beta2.ApplicationStateFailed:
-			// TODO: Try combining this case with the one below. 
-			return true, errors.New(app.Status.AppState.ErrorMessage)
+		case v1beta2.ApplicationStateFailedSubmission, v1beta2.ApplicationStateFailed:
+			return false, errors.New(app.Status.AppState.ErrorMessage)
 		case v1beta2.ApplicationStateCompleted:
 			return true, nil
 		}
@@ -273,13 +272,12 @@ func waitForSparkApplicationCompleted(ctx context.Context, key types.NamespacedN
 	return err
 }
 
-
-func collectStatusesUntilSparkApplicationTerminates(ctx context.Context, key types.NamespacedName) ([]v1beta2.SparkApplication, error) {
+func collectSparkApplicationsUntilTermination(ctx context.Context, key types.NamespacedName) ([]v1beta2.SparkApplication, error) {
 	cancelCtx, cancelFunc := context.WithTimeout(ctx, WaitTimeout)
 	defer cancelFunc()
 
 	apps := []v1beta2.SparkApplication{}
-	
+
 	err := wait.PollUntilContextCancel(cancelCtx, PollInterval, true, func(ctx context.Context) (bool, error) {
 		app := v1beta2.SparkApplication{}
 		if err := k8sClient.Get(ctx, key, &app); err != nil {
