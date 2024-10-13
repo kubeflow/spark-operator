@@ -18,17 +18,22 @@ package e2e_test
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 
+	// "time"
+
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/yaml"
 
@@ -233,6 +238,78 @@ var _ = Describe("Example SparkApplication", func() {
 			Expect(err).NotTo(HaveOccurred())
 			Expect(bytes).NotTo(BeEmpty())
 			Expect(strings.Contains(string(bytes), "Pi is roughly 3")).To(BeTrue())
+		})
+	})
+
+	Context("fail-submission", func() {
+		ctx := context.Background()
+		path := filepath.Join("..", "..", "examples", "fail-submission.yaml")
+		app := &v1beta2.SparkApplication{}
+
+		BeforeEach(func() {
+			By("Parsing SparkApplication from file")
+			file, err := os.Open(path)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(file).NotTo(BeNil())
+
+			decoder := yaml.NewYAMLOrJSONDecoder(file, 100)
+			Expect(decoder).NotTo(BeNil())
+			Expect(decoder.Decode(app)).NotTo(HaveOccurred())
+
+			By("Creating SparkApplication")
+			Expect(k8sClient.Create(ctx, app)).To(Succeed())
+		})
+
+		AfterEach(func() {
+			key := types.NamespacedName{Namespace: app.Namespace, Name: app.Name}
+			Expect(k8sClient.Get(ctx, key, app)).To(Succeed())
+
+			By("Deleting SparkApplication")
+			Expect(k8sClient.Delete(ctx, app)).To(Succeed())
+		})
+
+		It("Fails submission and retries until retries are exhausted", func() {
+			By("Waiting for SparkApplication to complete")
+			key := types.NamespacedName{Namespace: app.Namespace, Name: app.Name}
+			Expect(waitForSparkApplicationCompleted(ctx, key)).To(HaveOccurred())
+
+			app := &v1beta2.SparkApplication{}
+			fetch_app_err := k8sClient.Get(ctx, key, app)
+			Expect(fetch_app_err).NotTo(HaveOccurred())
+			Expect(app.Status.AppState.State).To(Equal(v1beta2.ApplicationStateFailed))
+			Expect(app.Status.AppState.ErrorMessage).To(ContainSubstring("failed to run spark-submit"))
+			Expect(app.Status.SubmissionAttempts).To(Equal(*app.Spec.RestartPolicy.OnSubmissionFailureRetries + 1))
+
+			By("Checking SparkApplication events")
+			eventList := &corev1.EventList{}
+			err := k8sClient.List(ctx, eventList, &client.ListOptions{
+				Namespace:     app.Namespace,
+				FieldSelector: fields.AndSelectors(
+					fields.OneTermEqualSelector("involvedObject.kind", "SparkApplication"),
+					fields.OneTermEqualSelector("involvedObject.name", app.Name),
+					// fields.OneTermEqualSelector("involvedObject.uid", string(app.ObjectMeta.UID)),
+				),
+			})
+			Expect(err).NotTo(HaveOccurred())
+
+			var sparkAppEvents []corev1.Event
+			for _, event := range eventList.Items {
+				if event.InvolvedObject.Kind == "SparkApplication" && event.InvolvedObject.Name == app.Name {
+					sparkAppEvents = append(sparkAppEvents, event)
+				}
+			}
+			// "spark-application-controller"
+			By("Printing SparkApplication events")
+			for _, event := range sparkAppEvents {
+				fmt.Printf("Event: %v, Reason: %v, Message: %v\n", event.LastTimestamp, event.Reason, event.Message)
+			}
+
+			By("Checking driver does not exist")
+			driverPodName := util.GetDriverPodName(app)
+			_, get_driver_err := clientset.CoreV1().Pods(app.Namespace).Get(ctx, driverPodName, metav1.GetOptions{})
+			Expect(get_driver_err).To(HaveOccurred())
+			// TODO(tomnewton): Switch to proper not found error code
+			Expect(strings.Contains(get_driver_err.Error(), "not found")).To(BeTrue())
 		})
 	})
 
