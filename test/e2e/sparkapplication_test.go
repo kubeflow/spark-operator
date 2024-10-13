@@ -18,22 +18,18 @@ package e2e_test
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 
-	// "time"
-
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
+	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/yaml"
 
@@ -271,45 +267,28 @@ var _ = Describe("Example SparkApplication", func() {
 		It("Fails submission and retries until retries are exhausted", func() {
 			By("Waiting for SparkApplication to complete")
 			key := types.NamespacedName{Namespace: app.Namespace, Name: app.Name}
-			Expect(waitForSparkApplicationCompleted(ctx, key)).To(HaveOccurred())
+			apps, polling_err := collectStatusesUntilSparkApplicationTerminates(ctx, key)
+			Expect(polling_err).To(HaveOccurred())
 
-			app := &v1beta2.SparkApplication{}
-			fetch_app_err := k8sClient.Get(ctx, key, app)
-			Expect(fetch_app_err).NotTo(HaveOccurred())
-			Expect(app.Status.AppState.State).To(Equal(v1beta2.ApplicationStateFailed))
-			Expect(app.Status.AppState.ErrorMessage).To(ContainSubstring("failed to run spark-submit"))
-			Expect(app.Status.SubmissionAttempts).To(Equal(*app.Spec.RestartPolicy.OnSubmissionFailureRetries + 1))
+			By("Should eventually fail")
+			final_app := apps[len(apps)-1]
+			Expect(final_app.Status.AppState.State).To(Equal(v1beta2.ApplicationStateFailed))
+			Expect(final_app.Status.AppState.ErrorMessage).To(ContainSubstring("failed to run spark-submit"))
+			Expect(final_app.Status.SubmissionAttempts).To(Equal(*app.Spec.RestartPolicy.OnSubmissionFailureRetries + 1))
 
-			By("Checking SparkApplication events")
-			eventList := &corev1.EventList{}
-			err := k8sClient.List(ctx, eventList, &client.ListOptions{
-				Namespace:     app.Namespace,
-				FieldSelector: fields.AndSelectors(
-					fields.OneTermEqualSelector("involvedObject.kind", "SparkApplication"),
-					fields.OneTermEqualSelector("involvedObject.name", app.Name),
-					// fields.OneTermEqualSelector("involvedObject.uid", string(app.ObjectMeta.UID)),
-				),
-			})
-			Expect(err).NotTo(HaveOccurred())
-
-			var sparkAppEvents []corev1.Event
-			for _, event := range eventList.Items {
-				if event.InvolvedObject.Kind == "SparkApplication" && event.InvolvedObject.Name == app.Name {
-					sparkAppEvents = append(sparkAppEvents, event)
-				}
+			By("Only valid statuses appear in other apps")
+			validStatuses := []v1beta2.ApplicationStateType{
+				v1beta2.ApplicationStateNew,
+				v1beta2.ApplicationStateFailedSubmission,
 			}
-			// "spark-application-controller"
-			By("Printing SparkApplication events")
-			for _, event := range sparkAppEvents {
-				fmt.Printf("Event: %v, Reason: %v, Message: %v\n", event.LastTimestamp, event.Reason, event.Message)
+			for _, app := range apps[:len(apps)-1] {
+				Expect(validStatuses).To(ContainElement(app.Status.AppState.State))
 			}
 
 			By("Checking driver does not exist")
 			driverPodName := util.GetDriverPodName(app)
 			_, get_driver_err := clientset.CoreV1().Pods(app.Namespace).Get(ctx, driverPodName, metav1.GetOptions{})
-			Expect(get_driver_err).To(HaveOccurred())
-			// TODO(tomnewton): Switch to proper not found error code
-			Expect(strings.Contains(get_driver_err.Error(), "not found")).To(BeTrue())
+			Expect(errors.IsNotFound(get_driver_err)).To(BeTrue())
 		})
 	})
 
