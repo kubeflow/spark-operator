@@ -643,7 +643,8 @@ func (r *Reconciler) getSparkApplication(key types.NamespacedName) (*v1beta2.Spa
 // submitSparkApplication creates a new submission for the given SparkApplication and submits it using spark-submit.
 func (r *Reconciler) submitSparkApplication(app *v1beta2.SparkApplication) (returned_error error) {
 	logger.Info("Submitting SparkApplication", "name", app.Name, "namespace", app.Namespace, "state", app.Status.AppState.State)
-	app.Status.SubmissionID = uuid.New().String() // Must be set before calling spark-submit so it can be added to the driver pod labels.
+	// SubmissionID must be set before creating any resources to ensure all the resources are labeled.
+	app.Status.SubmissionID = uuid.New().String()
 	app.Status.LastSubmissionAttemptTime = metav1.Now()
 
 	defer func() {
