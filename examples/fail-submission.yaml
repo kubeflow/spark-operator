@@ -31,11 +31,11 @@ spec:
     onSubmissionFailureRetries: 3
     onSubmissionFailureRetryInterval: 1
   driver:
-    serviceAccount: non-existent  # This is the important part that causes submission to fail.
     labels:
       version: 3.5.2
     cores: 1
     memory: 512m
+    serviceAccount: non-existent  # This is the important part that causes submission to fail.
   executor:
     labels:
       version: 3.5.2
