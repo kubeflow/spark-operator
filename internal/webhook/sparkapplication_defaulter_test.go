@@ -148,7 +148,7 @@ func TestDefaultedSparkApplicationIsValid_LotsOfNestedOmitedValues(t *testing.T)
 		}
 	  }`)
 
-	assert.NoError(t, validateAgainstCRD(jsonData), "Test input must be valid against CRD")
+	assert.NoError(t, validateAgainstCRD(jsonData), "For a valid test input must match the CRD schema")
 	defaultedData, err := runDefaultingWebhook(jsonData)
 	assert.NoError(t, err)
 	assert.NoError(t, validateAgainstCRD(defaultedData), "Ensure still valid against CRD after defaulting webhook")
@@ -172,8 +172,39 @@ func TestDefaultedSparkApplicationIsValid_LotsOfHighLevelOmitedValues(t *testing
 		}
 	  }`)
 
-	assert.NoError(t, validateAgainstCRD(jsonData), "Test input must be valid against CRD")
+	assert.NoError(t, validateAgainstCRD(jsonData), "For a valid test input must match the CRD schema")
 	defaultedData, err := runDefaultingWebhook(jsonData)
 	assert.NoError(t, err)
 	assert.NoError(t, validateAgainstCRD(defaultedData), "Ensure still valid against CRD after defaulting webhook")
 }
+
+func TestInvalidDataFailsCRDValidation_MissingSpec(t *testing.T) {
+	jsonData := []byte(`{
+		"apiVersion": "sparkoperator.k8s.io/v1beta2",
+		"kind": "SparkApplication",
+		"metadata": {
+		  "name": "test"
+		},
+	  }`)
+
+	assert.Error(t, validateAgainstCRD(jsonData))
+}
+
+func TestInvalidDataFailsCRDValidation_MissingMetaData(t *testing.T) {
+	jsonData := []byte(`{
+		"apiVersion": "sparkoperator.k8s.io/v1beta2",
+		"kind": "SparkApplication",
+		"spec": {
+		  "image": "dummy",
+		  "mode": "cluster",
+		  "type": "Python",
+		  "sparkUIOptions": {},
+		  "sparkVersion": "3.5.0",
+		  "driver": {},
+		  "executor": {}
+		}
+	  }`)
+
+	assert.Error(t, validateAgainstCRD(jsonData))
+}
+
