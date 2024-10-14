@@ -107,7 +107,7 @@ func getSchemaFromCRD() (*openapi3.Schema, error) {
 
 func validateAgainstCRD(jsonData []byte) error {
 	var data map[string]interface{}
-	unmarshalJsonErr := json.Unmarshal([]byte(jsonData), &data)
+	unmarshalJsonErr := json.Unmarshal(jsonData, &data)
 	if unmarshalJsonErr != nil {
 		return fmt.Errorf("Failed to unmarshal JSON: %v", unmarshalJsonErr)
 	}
