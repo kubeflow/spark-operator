@@ -119,7 +119,7 @@ func validateAgainstCRD(jsonData []byte) error {
 	return schema.VisitJSON(data)
 }
 
-func TestDefaultSparkApplicationSparkUIOptions(t *testing.T) {
+func TestDefaultedSparkApplicationIsValid_SparkUIOptions(t *testing.T) {
 	jsonData := []byte(`{
 		"apiVersion": "sparkoperator.k8s.io/v1beta2",
 		"kind": "SparkApplication",
@@ -152,3 +152,37 @@ func TestDefaultSparkApplicationSparkUIOptions(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NoError(t, validateAgainstCRD(defaultedData), "Ensure still valid against CRD after defaulting webhook")
 }
+
+// func TestDefaultedSparkApplicationIsValid_SparkUIOptions(t *testing.T) {
+// 	jsonData := []byte(`{
+// 		"apiVersion": "sparkoperator.k8s.io/v1beta2",
+// 		"kind": "SparkApplication",
+// 		"metadata": {
+// 		  "name": "test"
+// 		},
+// 		"spec": {
+// 		  "image": "dummy",
+// 		  "mainApplicationFile": "local:///dummy.py",
+// 		  "mode": "cluster",
+// 		  "type": "Python",
+// 		  "sparkUIOptions": {
+// 			"ingressTLS": [
+// 			  {
+// 				"hosts": [
+// 				  "*.dummy"
+// 				],
+// 				"secretName": "spark-ui-tls-secret"
+// 			  }
+// 			]
+// 		  },
+// 		  "sparkVersion": "3.5.0",
+// 		  "driver": {},
+// 		  "executor": {}
+// 		}
+// 	  }`)
+
+// 	assert.NoError(t, validateAgainstCRD(jsonData), "Test input must be valid against CRD")
+// 	defaultedData, err := runDefaultingWebhook(jsonData)
+// 	assert.NoError(t, err)
+// 	assert.NoError(t, validateAgainstCRD(defaultedData), "Ensure still valid against CRD after defaulting webhook")
+// }
