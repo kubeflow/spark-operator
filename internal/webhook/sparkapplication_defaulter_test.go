@@ -40,7 +40,6 @@ import (
 	// "github.com/kubeflow/spark-operator/pkg/common"
 	jsonpatch "github.com/evanphx/json-patch"
 	"github.com/getkin/kin-openapi/openapi3"
-	"k8s.io/kube-openapi/pkg/validation/validate"
 )
 
 func readYamlAndConvertToJSON(path string) ([]byte, error) {
@@ -103,17 +102,31 @@ func TestDefaultSparkApplicationSparkUIOptions(t *testing.T) {
 		jsonpatch.MergePatch(rawJSON, []byte(patch.Json()))
 	}
 
-	// data, err := os.ReadFile("/home/tomnewton/spark_operator_private/charts/spark-operator-chart/crds/sparkoperator.k8s.io_sparkapplications.yaml")
-	loader := openapi3.NewLoader()
-	schema, _ := loader.LoadFromFile("/home/tomnewton/spark_operator_private/charts/spark-operator-chart/crds/sparkoperator.k8s.io_sparkapplications.yaml")
+	var marshalledJSON map[string]interface{}
+	_ = json.Unmarshal(rawJSON, &marshalledJSON)
 
-	schema.NewSchema()
-	// example := openapi3.NewExample(rawJSON)
-	// err = example.Validate(ctx, openapi3.ValidationOption(schema))
-	specValidator := validate.NewSchemaValidator(&schema, nil, "", nil)
-	_ = specValidator.Validate(rawJSON)
+	schema := &openapi3.Schema{}
+	// 	Type: openapi3.TypeObject,
+	// 	Properties: map[string]*openapi3.SchemaRef{
+	// 		"replicas": {Value: &openapi3.Schema{
+	// 			Type:    "integer",
+	// 			Minimum: openapi3.Float64Ptr(1),
+	// 		}},
+	// 		"image": {Value: &openapi3.Schema{
+	// 			Type: openapi3.TypeString,
+	// 		}},
+	// 	},
+	// 	Required: []string{"image"},
+	// }
 
-	
+	jsonData := []byte(`{
+		"replicas": 5,
+		"image": "nginx:latest"
+	}`)
+
+	schema = &openapi3.Schema{}
+	schema.VisitJSON(jsonData)
+
 }
 
 // func TestPatchSparkPod_OwnerReference(t *testing.T) {
