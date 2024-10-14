@@ -184,10 +184,13 @@ func TestInvalidDataFailsCRDValidation_MissingSpec(t *testing.T) {
 		"kind": "SparkApplication",
 		"metadata": {
 		  "name": "test"
-		},
+		}
 	  }`)
 
-	assert.Error(t, validateAgainstCRD(jsonData))
+	err := validateAgainstCRD(jsonData)
+	if assert.Error(t, err) {
+		assert.Contains(t, err.Error(), "\"spec\" is missing")
+	}
 }
 
 func TestInvalidDataFailsCRDValidation_MissingMetaData(t *testing.T) {
@@ -205,6 +208,8 @@ func TestInvalidDataFailsCRDValidation_MissingMetaData(t *testing.T) {
 		}
 	  }`)
 
-	assert.Error(t, validateAgainstCRD(jsonData))
+	err := validateAgainstCRD(jsonData)
+	if assert.Error(t, err) {
+		assert.Contains(t, err.Error(), "\"metadata\" is missing")
+	}
 }
-
