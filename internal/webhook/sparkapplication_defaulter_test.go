@@ -24,29 +24,20 @@ import (
 	"path/filepath"
 	"testing"
 
-	// "github.com/evanphx/json-patch"
-	// "github.com/stretchr/testify/assert"
-	// corev1 "k8s.io/api/core/v1"
-	// "k8s.io/apimachinery/pkg/api/resource"
-	// metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"github.com/stretchr/testify/assert"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
-
-	// "gomodules.xyz/jsonpatch/v2"
 
 	"github.com/ghodss/yaml"
 	"github.com/kubeflow/spark-operator/api/v1beta2"
 
-	// "github.com/kubeflow/spark-operator/pkg/common"
-	"github.com/evanphx/json-patch"
+	jsonpatch "github.com/evanphx/json-patch"
 	"github.com/getkin/kin-openapi/openapi3"
 )
 
-
-
-func runWebhook(rawJSON []byte) ([]byte, error) {
+func runDefaultingWebhook(json_data []byte) ([]byte, error) {
 	request := new(admission.Request)
-	request.Object = runtime.RawExtension{Raw: rawJSON}
+	request.Object = runtime.RawExtension{Raw: json_data}
 	webhook := admission.WithCustomDefaulter(runtime.NewScheme(), &v1beta2.SparkApplication{}, NewSparkApplicationDefaulter())
 	response := webhook.Handle(context.TODO(), *request)
 
@@ -59,120 +50,77 @@ func runWebhook(rawJSON []byte) ([]byte, error) {
 	if decode_err != nil {
 		return nil, fmt.Errorf("Failed to decode patches: %v", decode_err)
 	}
-	rawJSON, apply_err := decoded_patch.Apply(rawJSON)
+	json_data, apply_err := decoded_patch.Apply(json_data)
 	if apply_err != nil {
 		return nil, fmt.Errorf("Failed to apply patches: %v", apply_err)
 	}
 
-	return rawJSON, nil
+	return json_data, nil
 }
 
-// func getFieldFromMapInterface(m interface{}, field string) (map[string]interface{}, error) {
-// 	var unmarshalledData map[string]interface{}
-// 	parse_err := yaml.Unmarshal(yamlData, &unmarshalledData)
-// 	if parse_err != nil {
-// 		return "", fmt.Errorf("Failed to parse YAML: %v", parse_err)
-// 	}
-
-// 	return unmarshalledData[field].(string), nil
-// 	if m, ok = data.(map[string]interface{}); ok {
-//         // Iterate over the map
-//         for key, value := range m {
-//             fmt.Printf("Key: %s, Value: %v\n", key, value)
-//         }
-//     } else {
-//         fmt.Println("Provided data is not a map[string]interface{}")
-//     }
-// }
-
-func readField(data interface{}, field_name string) (interface{}, error) {
-	if m, ok := data.(map[string]interface{}); ok {
-		return m[field_name], nil
-	}
-	return nil, fmt.Errorf("Failed to read field")
-}
-
-func readIndex(data interface{}, index int) (interface{}, error) {
-	if m, ok := data.([]interface{}); ok {
-		return m[index], nil
-	}
-	return nil, fmt.Errorf("Failed to read field")
-}
-
-func convertMapKeys(i interface{},  field ...any) (interface{}, error) {
+func getField(i interface{}, fields ...any) (interface{}, error) {
 	for _, field := range fields {
 		switch x := field.(type) {
 		case string:
-			if m, ok := data.([string]interface{}); ok {
-				i = m[field], nil
+			if m, ok := i.(map[string]interface{}); ok {
+				i = m[x]
 			}
 		case int:
-			if m, ok := data.([]interface{}); ok {
-				i = m[field], nil
+			if m, ok := i.([]interface{}); ok {
+				i = m[x]
 			}
-		return i
+		}
+	}
+	return i, nil
 }
 
-func validateAgainstCRD(rawJSON []byte) error {
-	crd_path := filepath.Join("..", "..", "charts/spark-operator-chart/crds/sparkoperator.k8s.io_sparkapplications.yaml")
-	yamlData, read_crd_err := os.ReadFile(crd_path)
-	if read_crd_err != nil {
-		return fmt.Errorf("Failed to read CRD: %v", read_crd_err)
+func getSchemaFromCRD() (*openapi3.Schema, error) {
+	crdPath := filepath.Join("..", "..", "charts/spark-operator-chart/crds/sparkoperator.k8s.io_sparkapplications.yaml")
+	yamlData, readCrdErr := os.ReadFile(crdPath)
+	if readCrdErr != nil {
+		return nil, fmt.Errorf("Failed to read CRD: %v", readCrdErr)
 	}
 
-	var unmarshalledData interface{}
-	parse_crd := yaml.Unmarshal(yamlData, &unmarshalledData)
-	if parse_crd != nil {
-		return fmt.Errorf("Failed to unmarshal CRD: %v", parse_crd)
+	var crdInterface interface{}
+	crdInterfaceErr := yaml.Unmarshal(yamlData, &crdInterface)
+	if crdInterfaceErr != nil {
+		return nil, fmt.Errorf("Failed to unmarshal CRD: %v", crdInterfaceErr)
+	}
+	schemaInterface, schemaInterfaceErr := getField(crdInterface, "spec", "versions", 0, "schema", "openAPIV3Schema")
+	if schemaInterfaceErr != nil {
+		return nil, fmt.Errorf("Failed to get field: %v", schemaInterfaceErr)
 	}
 
-	spec, err := readField(unmarshalledData, "spec")
-	if err != nil {
-		return fmt.Errorf("Failed to read 'spec' field: %v", err)
+	schemaJson, schemaJsonErr := json.Marshal(schemaInterface)
+	if schemaJsonErr != nil {
+		return nil, fmt.Errorf("Failed to convert to json: %v", schemaJsonErr)
 	}
 
-	versions, err := readField(spec, "versions")
-	if err != nil {
-		return fmt.Errorf("Failed to read 'versions' field: %v", err)
+	schema := openapi3.Schema{}
+	schemaErr := json.Unmarshal(schemaJson, &schema)
+	if schemaErr != nil {
+		return nil, fmt.Errorf("Failed to unmarshal CRD: %v", schemaErr)
 	}
 
-	version, err := readIndex(versions, 0)
-	if err != nil {
-		return fmt.Errorf("Failed to read index 0: %v", err)
-	}
+	return &schema, nil
+}
 
-	schema, err := readField(version, "schema")
-	if err != nil {
-		return fmt.Errorf("Failed to read 'schema' field: %v", err)
-	}
-
-	openapi3Schema, err := readField(schema, "openAPIV3Schema")
-	if err != nil {
-		return fmt.Errorf("Failed to read 'openAPIV3Schema' field: %v", err)
-	}
-
-	openapi3SchemaJSON, marshal_err := json.Marshal(openapi3Schema)
-    if marshal_err != nil {
-        return fmt.Errorf("Failed to marshal spec to JSON: %v", marshal_err)
-    }
-
-	schema2 := openapi3.Schema{} 
-	parse_as_schema_err := json.Unmarshal(openapi3SchemaJSON, &schema2)
-	if parse_as_schema_err != nil {
-		return fmt.Errorf("Failed to unmarshal CRD: %v", parse_as_schema_err)
-	}
-
+func validateAgainstCRD(jsonData []byte) error {
 	var data map[string]interface{}
-	unmarshal_json_err := json.Unmarshal([]byte(rawJSON), &data)
-	if unmarshal_json_err != nil {
-		return fmt.Errorf("Failed to unmarshal JSON: %v", unmarshal_json_err)
+	unmarshalJsonErr := json.Unmarshal([]byte(jsonData), &data)
+	if unmarshalJsonErr != nil {
+		return fmt.Errorf("Failed to unmarshal JSON: %v", unmarshalJsonErr)
 	}
 
-	return schema2.VisitJSON(data)
+	schema, err := getSchemaFromCRD()
+	if err != nil {
+		return fmt.Errorf("Failed to get schema from CRD: %v", err)
+	}
+	return schema.VisitJSON(data)
 }
 
 func TestDefaultSparkApplicationSparkUIOptions(t *testing.T) {
-	rawJSON := []byte(`{
+	jsonData := []byte(`{
 		"apiVersion": "sparkoperator.k8s.io/v1beta2",
 		"kind": "SparkApplication",
 		"metadata": {
@@ -199,95 +147,8 @@ func TestDefaultSparkApplicationSparkUIOptions(t *testing.T) {
 		}
 	  }`)
 
-	err := validateAgainstCRD(rawJSON)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	// ctx := context.TODO()
-	// request := new(admission.Request)
-	// request.Object = runtime.RawExtension{Raw: rawJSON}
-	// webhook := admission.WithCustomDefaulter(runtime.NewScheme(), &v1beta2.SparkApplication{}, NewSparkApplicationDefaulter())
-	// response := webhook.Handle(ctx, *request)
-
-	// data_patches, encode_err := json.Marshal(response.Patches)
-	// if encode_err != nil {
-	// 	t.Fatal(encode_err)
-	// }
-	// decoded_patch, err := jsonpatch.DecodePatch(data_patches)
-	// if err != nil {
-	// 	t.Fatal(err)
-	// }
-	// rawJSON, err = decoded_patch.Apply(rawJSON)
-	// if err != nil {
-	// 	t.Fatal(err)
-	// }
-
-	// var marshalledJSON map[string]interface{}
-	// _ = json.Unmarshal(rawJSON, &marshalledJSON)
-
-	// yamlData, _ := os.ReadFile("/home/tomnewton/spark_operator_private/charts/spark-operator-chart/crds/schema.yaml")
-
-	// schema := openapi3.Schema{} 
-	// err = yaml.Unmarshal(yamlData, &schema)
-	// if err != nil {
-	// 	t.Fatal(err)
-	// }
-	// logger.Info("Schema", "schema", schema)
-
-	// var data map[string]interface{}
-
-	// err = json.Unmarshal([]byte(rawJSON), &data)
-	// if err != nil {
-	// 	t.Fatalf("Failed to parse JSON: %v", err)
-	// }
-
-	// err = schema.VisitJSON(data)
-	// if err != nil {
-	// 	t.Fatalf("Failed to validate JSON: %v", err)
-	// }
-
+	assert.NoError(t, validateAgainstCRD(jsonData), "Test input must be valid against CRD")
+	defaultedData, err := runDefaultingWebhook(jsonData)
+	assert.NoError(t, err)
+	assert.NoError(t, validateAgainstCRD(defaultedData), "Ensure still valid against CRD after defaulting webhook")
 }
-
-// func TestPatchSparkPod_OwnerReference(t *testing.T) {
-// 	app := &v1beta2.SparkApplication{
-// 		ObjectMeta: metav1.ObjectMeta{
-// 			Name: "spark-test",
-// 			UID:  "spark-test-1",
-// 		},
-// 	}
-
-// 	pod := &corev1.Pod{
-// 		ObjectMeta: metav1.ObjectMeta{
-// 			Name: "spark-driver",
-// 			Labels: map[string]string{
-// 				common.LabelSparkRole:               common.SparkRoleDriver,
-// 				common.LabelLaunchedBySparkOperator: "true",
-// 			},
-// 		},
-// 		Spec: corev1.PodSpec{
-// 			Containers: []corev1.Container{
-// 				{
-// 					Name:  common.SparkDriverContainerName,
-// 					Image: "spark-driver:latest",
-// 				},
-// 			},
-// 		},
-// 	}
-
-// 	// Test patching a pod without existing OwnerReference and Volume.
-// 	modifiedPod, err := getModifiedPod(pod, app)
-// 	if err != nil {
-// 		t.Fatal(err)
-// 	}
-// 	assert.Len(t, modifiedPod.OwnerReferences, 1)
-
-// 	// Test patching a pod with existing OwnerReference and Volume.
-// 	pod.OwnerReferences = append(pod.OwnerReferences, metav1.OwnerReference{Name: "owner-reference1"})
-
-// 	modifiedPod, err = getModifiedPod(pod, app)
-// 	if err != nil {
-// 		t.Fatal(err)
-// 	}
-// 	assert.Len(t, modifiedPod.OwnerReferences, 2)
-// }
