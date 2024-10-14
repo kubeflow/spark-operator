@@ -35,7 +35,7 @@ import (
 	// "gomodules.xyz/jsonpatch/v2"
 
 	"github.com/kubeflow/spark-operator/api/v1beta2"
-	"gopkg.in/yaml.v2"
+	"github.com/ghodss/yaml"
 
 	// "github.com/kubeflow/spark-operator/pkg/common"
 	jsonpatch "github.com/evanphx/json-patch"
@@ -66,6 +66,10 @@ func readYamlAndConvertToJSON(path string) ([]byte, error) {
 	return jsonBytes, nil
 }
 
+func StringPtr(s string) *string {
+	return &s
+}
+
 func TestDefaultSparkApplicationSparkUIOptions(t *testing.T) {
 	rawJSON := []byte(`{
 		"apiVersion": "sparkoperator.k8s.io/v1beta2",
@@ -75,7 +79,7 @@ func TestDefaultSparkApplicationSparkUIOptions(t *testing.T) {
 		},
 		"spec": {
 		  "image": "dummy",
-		  "mainApplicationFile": "dummy",
+		  "mainApplicationFile": null,
 		  "mode": "cluster",
 		  "type": "Python",
 		  "sparkUIOptions": {
@@ -105,27 +109,49 @@ func TestDefaultSparkApplicationSparkUIOptions(t *testing.T) {
 	var marshalledJSON map[string]interface{}
 	_ = json.Unmarshal(rawJSON, &marshalledJSON)
 
-	schema := &openapi3.Schema{}
-	// 	Type: openapi3.TypeObject,
+	yamlData, _ := os.ReadFile("/home/tomnewton/spark_operator_private/charts/spark-operator-chart/crds/schema.yaml")
+
+	schema := openapi3.Schema{} 
+	err := yaml.Unmarshal(yamlData, &schema)
+	if err != nil {
+		t.Fatal(err)
+	}
+	logger.Info("Schema", "schema", schema)
+
+	var data map[string]interface{}
+
+	// Parse the JSON into the map
+	err = json.Unmarshal([]byte(rawJSON), &data)
+	if err != nil {
+		t.Fatalf("Failed to parse JSON: %v", err)
+	}
+	// jsonData, _ := yaml.YAMLToJSON(yamlData)
+	// schema := openapi3.Schema{}
+	// schema.UnmarshalJSON(jsonData)
+
+	// schema := &openapi3.Schema{
+	// 	Type: ["object"],
 	// 	Properties: map[string]*openapi3.SchemaRef{
-	// 		"replicas": {Value: &openapi3.Schema{
-	// 			Type:    "integer",
-	// 			Minimum: openapi3.Float64Ptr(1),
-	// 		}},
-	// 		"image": {Value: &openapi3.Schema{
-	// 			Type: openapi3.TypeString,
-	// 		}},
+	// 		"replicas": {
+	// 			Value: &openapi3.Schema{},
+	// 		},
+	// 		"image": {
+	// 			Value: &openapi3.Schema{},
+	// 		},
 	// 	},
-	// 	Required: []string{"image"},
+	// 	Required: []string{"image"}, // The "image" field is required
 	// }
 
-	jsonData := []byte(`{
-		"replicas": 5,
-		"image": "nginx:latest"
-	}`)
+	// jsonData := []byte(`{
+	// 	"replicas": 5,
+	// 	"image": "nginx:latest"
+	// }`)
 
-	schema = &openapi3.Schema{}
-	schema.VisitJSON(jsonData)
+	// schema = &openapi3.Schema{}
+	err = schema.VisitJSON(data)
+	if err != nil {
+		t.Fatalf("Failed to validate JSON: %v", err)
+	}
 
 }
 
