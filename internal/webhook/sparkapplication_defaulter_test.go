@@ -19,8 +19,6 @@ package webhook
 import (
 	"context"
 	"encoding/json"
-	"fmt"
-	"io"
 	"os"
 	"testing"
 
@@ -38,37 +36,10 @@ import (
 	"github.com/ghodss/yaml"
 
 	// "github.com/kubeflow/spark-operator/pkg/common"
-	jsonpatch "github.com/evanphx/json-patch"
+	"github.com/evanphx/json-patch"
 	"github.com/getkin/kin-openapi/openapi3"
 )
 
-func readYamlAndConvertToJSON(path string) ([]byte, error) {
-	file, err := os.Open(path)
-	if err != nil {
-		return nil, fmt.Errorf("failed to open file: %w", err)
-	}
-
-	var unmarshalledData map[string]interface{}
-	fileData, err := io.ReadAll(file)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read file: %w", err)
-	}
-	err = yaml.Unmarshal(fileData, &unmarshalledData)
-	if err != nil {
-		return nil, fmt.Errorf("failed to unmarshal YAML: %w", err)
-	}
-
-	jsonBytes, err := json.Marshal(unmarshalledData)
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal JSON: %w", err)
-	}
-
-	return jsonBytes, nil
-}
-
-func StringPtr(s string) *string {
-	return &s
-}
 
 func TestDefaultSparkApplicationSparkUIOptions(t *testing.T) {
 	rawJSON := []byte(`{
@@ -79,7 +50,7 @@ func TestDefaultSparkApplicationSparkUIOptions(t *testing.T) {
 		},
 		"spec": {
 		  "image": "dummy",
-		  "mainApplicationFile": null,
+		  "mainApplicationFile": "local:///dummy.py",
 		  "mode": "cluster",
 		  "type": "Python",
 		  "sparkUIOptions": {
@@ -92,7 +63,9 @@ func TestDefaultSparkApplicationSparkUIOptions(t *testing.T) {
 			  }
 			]
 		  },
-		  "sparkVersion": "3.5.0"
+		  "sparkVersion": "3.5.0",
+		  "driver": {},
+		  "executor": {}
 		}
 	  }`)
 
@@ -102,9 +75,29 @@ func TestDefaultSparkApplicationSparkUIOptions(t *testing.T) {
 	webhook := admission.WithCustomDefaulter(runtime.NewScheme(), &v1beta2.SparkApplication{}, NewSparkApplicationDefaulter())
 	response := webhook.Handle(ctx, *request)
 
-	for _, patch := range response.Patches {
-		jsonpatch.MergePatch(rawJSON, []byte(patch.Json()))
+	data_patches, encode_err := json.Marshal(response.Patches)
+	if encode_err != nil {
+		t.Fatal(encode_err)
 	}
+	decoded_patch, err := jsonpatch.DecodePatch(data_patches)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rawJSON, err = decoded_patch.Apply(rawJSON)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// for _, patch := range response.Patches {
+	// 	patch_data := []byte(patch.Json())
+	// 	decoded_patch, err := jsonpatch.DecodePatch(patches)
+	// 	if err != nil {
+	// 		t.Fatal(err)
+	// 	}
+	// 	rawJSON, err = decoded_patch.Apply(rawJSON)
+	// 	if err != nil {
+	// 		t.Fatal(err)
+	// 	}
+	// }
 
 	var marshalledJSON map[string]interface{}
 	_ = json.Unmarshal(rawJSON, &marshalledJSON)
@@ -112,7 +105,7 @@ func TestDefaultSparkApplicationSparkUIOptions(t *testing.T) {
 	yamlData, _ := os.ReadFile("/home/tomnewton/spark_operator_private/charts/spark-operator-chart/crds/schema.yaml")
 
 	schema := openapi3.Schema{} 
-	err := yaml.Unmarshal(yamlData, &schema)
+	err = yaml.Unmarshal(yamlData, &schema)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -120,34 +113,11 @@ func TestDefaultSparkApplicationSparkUIOptions(t *testing.T) {
 
 	var data map[string]interface{}
 
-	// Parse the JSON into the map
 	err = json.Unmarshal([]byte(rawJSON), &data)
 	if err != nil {
 		t.Fatalf("Failed to parse JSON: %v", err)
 	}
-	// jsonData, _ := yaml.YAMLToJSON(yamlData)
-	// schema := openapi3.Schema{}
-	// schema.UnmarshalJSON(jsonData)
 
-	// schema := &openapi3.Schema{
-	// 	Type: ["object"],
-	// 	Properties: map[string]*openapi3.SchemaRef{
-	// 		"replicas": {
-	// 			Value: &openapi3.Schema{},
-	// 		},
-	// 		"image": {
-	// 			Value: &openapi3.Schema{},
-	// 		},
-	// 	},
-	// 	Required: []string{"image"}, // The "image" field is required
-	// }
-
-	// jsonData := []byte(`{
-	// 	"replicas": 5,
-	// 	"image": "nginx:latest"
-	// }`)
-
-	// schema = &openapi3.Schema{}
 	err = schema.VisitJSON(data)
 	if err != nil {
 		t.Fatalf("Failed to validate JSON: %v", err)
