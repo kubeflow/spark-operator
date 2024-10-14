@@ -21,7 +21,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -59,7 +58,6 @@ var _ = Describe("Example SparkApplication", func() {
 		})
 
 		AfterEach(func() {
-			time.Sleep(1500 * time.Second)
 			key := types.NamespacedName{Namespace: app.Namespace, Name: app.Name}
 			Expect(k8sClient.Get(ctx, key, app)).To(Succeed())
 
