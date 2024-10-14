@@ -88,9 +88,9 @@ type ScheduledSparkApplicationStatus struct {
 // ScheduledSparkApplication is the Schema for the scheduledsparkapplications API.
 type ScheduledSparkApplication struct {
 	metav1.TypeMeta   `json:",inline"`
-	metav1.ObjectMeta `json:"metadata,omitempty"`
+	metav1.ObjectMeta `json:"metadata"`
 
-	Spec   ScheduledSparkApplicationSpec   `json:"spec,omitempty"`
+	Spec   ScheduledSparkApplicationSpec   `json:"spec"`
 	Status ScheduledSparkApplicationStatus `json:"status,omitempty"`
 }
 

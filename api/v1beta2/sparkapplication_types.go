@@ -187,9 +187,9 @@ type SparkApplicationStatus struct {
 // SparkApplication is the Schema for the sparkapplications API
 type SparkApplication struct {
 	metav1.TypeMeta   `json:",inline"`
-	metav1.ObjectMeta `json:"metadata,omitempty"`
+	metav1.ObjectMeta `json:"metadata"`
 
-	Spec   SparkApplicationSpec   `json:"spec,omitempty"`
+	Spec   SparkApplicationSpec   `json:"spec"`
 	Status SparkApplicationStatus `json:"status,omitempty"`
 }
 
