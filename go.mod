@@ -18,7 +18,7 @@ require (
 	github.com/spf13/viper v1.19.0
 	github.com/stretchr/testify v1.9.0
 	go.uber.org/zap v1.27.0
-	gocloud.dev v0.39.0
+	gocloud.dev v0.40.0
 	golang.org/x/net v0.30.0
 	golang.org/x/time v0.7.0
 	helm.sh/helm/v3 v3.16.1
