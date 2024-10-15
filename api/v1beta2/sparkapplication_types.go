@@ -402,6 +402,9 @@ type Dependencies struct {
 	// given with the "packages" option.
 	// +optional
 	Repositories []string `json:"repositories,omitempty"`
+	// Archives is a list of archives to be extracted into the working directory of each executor.
+	// +optional
+	Archives []string `json:"archives,omitempty"`
 }
 
 // SparkPodSpec defines common things that can be customized for a Spark driver or executor pod.

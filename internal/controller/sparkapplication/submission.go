@@ -192,6 +192,10 @@ func dependenciesOption(app *v1beta2.SparkApplication) ([]string, error) {
 		args = append(args, "--files", strings.Join(app.Spec.Deps.Files, ","))
 	}
 
+	if len(app.Spec.Deps.Archives) > 0 {
+		args = append(args, "--archives", strings.Join(app.Spec.Deps.Archives, ","))
+	}
+
 	return args, nil
 }
 
