@@ -4749,6 +4749,12 @@ spec:
                           - name
                           type: object
                         type: array
+                      template:
+                        description: |-
+                          Template is a pod template that can be used to define the driver or executor pod configurations that Spark configurations do not support.
+                          Spark version >= 3.0.0 is required.
+                          Ref: https://spark.apache.org/docs/latest/running-on-kubernetes.html#pod-template.
+                        type: object
                       terminationGracePeriodSeconds:
                         description: Termination grace period seconds for the pod
                         format: int64
@@ -9506,6 +9512,12 @@ spec:
                           - name
                           type: object
                         type: array
+                      template:
+                        description: |-
+                          Template is a pod template that can be used to define the driver or executor pod configurations that Spark configurations do not support.
+                          Spark version >= 3.0.0 is required.
+                          Ref: https://spark.apache.org/docs/latest/running-on-kubernetes.html#pod-template.
+                        type: object
                       terminationGracePeriodSeconds:
                         description: Termination grace period seconds for the pod
                         format: int64
@@ -10345,6 +10357,23 @@ spec:
                                     May contain labels and annotations that will be copied into the PVC
                                     when creating it. No other fields are allowed and will be rejected during
                                     validation.
+                                  properties:
+                                    annotations:
+                                      additionalProperties:
+                                        type: string
+                                      type: object
+                                    finalizers:
+                                      items:
+                                        type: string
+                                      type: array
+                                    labels:
+                                      additionalProperties:
+                                        type: string
+                                      type: object
+                                    name:
+                                      type: string
+                                    namespace:
+                                      type: string
                                   type: object
                                 spec:
                                   description: |-

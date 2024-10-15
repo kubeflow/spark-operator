@@ -307,6 +307,9 @@ const (
 	// LabelLaunchedBySparkOperator is a label on Spark pods launched through the Spark Operator.
 	LabelLaunchedBySparkOperator = LabelAnnotationPrefix + "launched-by-spark-operator"
 
+	// LabelMutatedBySparkOperator is a label on Spark pods that need to be mutated by webhook.
+	LabelMutatedBySparkOperator = LabelAnnotationPrefix + "mutated-by-spark-operator"
+
 	// LabelSubmissionID is the label that records the submission ID of the current run of an application.
 	LabelSubmissionID = LabelAnnotationPrefix + "submission-id"
 

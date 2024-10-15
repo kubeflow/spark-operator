@@ -49,6 +49,7 @@ webhooks:
   objectSelector:
     matchLabels:
       sparkoperator.k8s.io/launched-by-spark-operator: "true"
+      sparkoperator.k8s.io/mutated-by-spark-operator: "true"
   rules:
   - apiGroups: [""]
     apiVersions: ["v1"]
