@@ -501,6 +501,8 @@ type SparkPodSpec struct {
 	// ShareProcessNamespace settings for the pod, following the Kubernetes specifications.
 	// +optional
 	ShareProcessNamespace *bool `json:"shareProcessNamespace,omitempty"`
+
+	RuntimeClassName *string `json:"runtimeClassName,omitempty" protobuf:"bytes,29,opt,name=runtimeClassName"`
 }
 
 // DriverSpec is specification of the driver.
