@@ -1,11 +1,32 @@
 # Kubeflow Spark Operator
 
-[![Integration Test](https://github.com/kubeflow/spark-operator/actions/workflows/integration.yaml/badge.svg)](https://github.com/kubeflow/spark-operator/actions/workflows/integration.yaml)[![Go Report Card](https://goreportcard.com/badge/github.com/kubeflow/spark-operator)](https://goreportcard.com/report/github.com/kubeflow/spark-operator)
+[![Integration Test](https://github.com/kubeflow/spark-operator/actions/workflows/integration.yaml/badge.svg)](https://github.com/kubeflow/spark-operator/actions/workflows/integration.yaml)
+[![Go Report Card](https://goreportcard.com/badge/github.com/kubeflow/spark-operator)](https://goreportcard.com/report/github.com/kubeflow/spark-operator)
 
 ## What is Spark Operator?
 
 The Kubernetes Operator for Apache Spark aims to make specifying and running [Spark](https://github.com/apache/spark) applications as easy and idiomatic as running other workloads on Kubernetes. It uses
 [Kubernetes custom resources](https://kubernetes.io/docs/concepts/extend-kubernetes/api-extension/custom-resources/) for specifying, running, and surfacing status of Spark applications.
+
+## Quick Start
+
+For a more detailed guide, please refer to the [Getting Started guide](https://www.kubeflow.org/docs/components/spark-operator/getting-started/).
+
+```bash
+# Add the Helm repository
+helm repo add spark-operator https://kubeflow.github.io/spark-operator
+helm repo update
+
+# Install the operator into the spark-operator namespace and wait for deployments to be ready
+helm install spark-operator spark-operator/spark-operator \
+    --namespace spark-operator --create-namespace --wait
+
+# Create an example application in the default namespace
+kubectl apply -f https://raw.githubusercontent.com/kubeflow/spark-operator/refs/heads/master/examples/spark-pi.yaml
+
+# Get the status of the application
+kubectl get sparkapp spark-pi
+```
 
 ## Overview
 
