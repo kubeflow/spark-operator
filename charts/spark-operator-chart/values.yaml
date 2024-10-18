@@ -158,10 +158,14 @@ controller:
     #   memory: 300Mi
 
   # -- Security context for controller containers.
-  securityContext: {}
-    # runAsUser: 1000
-    # runAsGroup: 2000
-    # fsGroup: 3000
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 185
+    runAsGroup: 185
+    fsGroup: 185
+    capabilities:
+      drop:
+      - ALL
 
   # -- Sidecar containers for controller pods.
   sidecars: []
@@ -301,10 +305,14 @@ webhook:
     #   memory: 300Mi
 
   # -- Security context for webhook containers.
-  securityContext: {}
-    # runAsUser: 1000
-    # runAsGroup: 2000
-    # fsGroup: 3000
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 185
+    runAsGroup: 185
+    fsGroup: 185
+    capabilities:
+      drop:
+      - ALL
 
   # Pod disruption budget for webhook to avoid service degradation.
   podDisruptionBudget:
