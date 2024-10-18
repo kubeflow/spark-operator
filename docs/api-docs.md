@@ -1913,7 +1913,6 @@ string
 </em>
 </td>
 <td>
-<em>(Optional)</em>
 <p>MainFile is the path to a bundled JAR, Python, or R file of the application.</p>
 </td>
 </tr>
@@ -2355,7 +2354,6 @@ string
 </em>
 </td>
 <td>
-<em>(Optional)</em>
 <p>MainFile is the path to a bundled JAR, Python, or R file of the application.</p>
 </td>
 </tr>
