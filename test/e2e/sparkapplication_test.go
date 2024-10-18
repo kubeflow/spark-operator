@@ -287,8 +287,8 @@ var _ = Describe("Example SparkApplication", func() {
 
 			By("Checking driver does not exist")
 			driverPodName := util.GetDriverPodName(app)
-            driverPodKey := types.NamespacedName{Namespace: app.Namespace, Name: driverPodName}
-            err := k8sClient.Get(ctx, driverPodKey, &corev1.Pod{})
+			driverPodKey := types.NamespacedName{Namespace: app.Namespace, Name: driverPodName}
+			err := k8sClient.Get(ctx, driverPodKey, &corev1.Pod{})
 			Expect(errors.IsNotFound(err)).To(BeTrue())
 		})
 	})
