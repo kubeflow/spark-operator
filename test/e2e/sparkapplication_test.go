@@ -271,10 +271,10 @@ var _ = Describe("Example SparkApplication", func() {
 			Expect(polling_err).To(HaveOccurred())
 
 			By("Should eventually fail")
-			final_app := apps[len(apps)-1]
-			Expect(final_app.Status.AppState.State).To(Equal(v1beta2.ApplicationStateFailed))
-			Expect(final_app.Status.AppState.ErrorMessage).To(ContainSubstring("failed to run spark-submit"))
-			Expect(final_app.Status.SubmissionAttempts).To(Equal(*app.Spec.RestartPolicy.OnSubmissionFailureRetries + 1))
+			finalApp := apps[len(apps)-1]
+			Expect(finalApp.Status.AppState.State).To(Equal(v1beta2.ApplicationStateFailed))
+			Expect(finalApp.Status.AppState.ErrorMessage).To(ContainSubstring("failed to run spark-submit"))
+			Expect(finalApp.Status.SubmissionAttempts).To(Equal(*app.Spec.RestartPolicy.OnSubmissionFailureRetries + 1))
 
 			By("Only valid statuses appear in other apps")
 			validStatuses := []v1beta2.ApplicationStateType{
