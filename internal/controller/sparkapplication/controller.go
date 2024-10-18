@@ -746,9 +746,8 @@ func (r *Reconciler) submitSparkApplication(app *v1beta2.SparkApplication) (retu
 
 	// Try submitting the application by running spark-submit.
 	logger.Info("Running spark-submit for SparkApplication", "name", app.Name, "namespace", app.Namespace, "arguments", sparkSubmitArgs)
-	spark_submit_err := runSparkSubmit(newSubmission(sparkSubmitArgs, app))
-	if spark_submit_err != nil {
-		return fmt.Errorf("failed to run spark-submit: %v", spark_submit_err)
+	if err := runSparkSubmit(newSubmission(sparkSubmitArgs, app)); err != nil {
+		return fmt.Errorf("failed to run spark-submit: %v", err)
 	}
 	return nil
 }
