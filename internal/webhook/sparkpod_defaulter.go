@@ -130,6 +130,7 @@ func mutateSparkPod(pod *corev1.Pod, app *v1beta2.SparkApplication) error {
 		addTerminationGracePeriodSeconds,
 		addPodLifeCycleConfig,
 		addShareProcessNamespace,
+		addRuntimeClassName,
 	}
 
 	for _, option := range options {
@@ -674,6 +675,16 @@ func addPodLifeCycleConfig(pod *corev1.Pod, app *v1beta2.SparkApplication) error
 	}
 
 	pod.Spec.Containers[i].Lifecycle = lifeCycle
+	return nil
+}
+
+func addRuntimeClassName(pod *corev1.Pod, app *v1beta2.SparkApplication) error {
+	nvidiaRuntimeClass := "nvidia"
+
+	if app.Spec.Executor.GPU != nil {
+		app.Spec.Driver.RuntimeClassName = &nvidiaRuntimeClass
+	}
+
 	return nil
 }
 
