@@ -29,6 +29,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/kubeflow/spark-operator/api/v1beta2"
+	"github.com/kubeflow/spark-operator/pkg/util"
 )
 
 var _ = Describe("ScheduledSparkApplication Controller", func() {
@@ -61,6 +62,7 @@ var _ = Describe("ScheduledSparkApplication Controller", func() {
 							RestartPolicy: v1beta2.RestartPolicy{
 								Type: v1beta2.RestartPolicyNever,
 							},
+							MainApplicationFile: util.StringPtr("local:///dummy.jar"),
 						},
 					},
 					// TODO(user): Specify other spec details if needed.

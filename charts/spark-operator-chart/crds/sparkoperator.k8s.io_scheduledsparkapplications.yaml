@@ -11573,6 +11573,7 @@ spec:
                 required:
                 - driver
                 - executor
+                - mainApplicationFile
                 - sparkVersion
                 - type
                 type: object
@@ -11621,6 +11622,9 @@ spec:
                   application.
                 type: string
             type: object
+        required:
+        - metadata
+        - spec
         type: object
     served: true
     storage: true
