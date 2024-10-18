@@ -62,8 +62,7 @@ type SparkApplicationSpec struct {
 	// +optional
 	MainClass *string `json:"mainClass,omitempty"`
 	// MainFile is the path to a bundled JAR, Python, or R file of the application.
-	// +optional
-	MainApplicationFile *string `json:"mainApplicationFile,omitempty"`
+	MainApplicationFile *string `json:"mainApplicationFile"`
 	// Arguments is a list of arguments to be passed to the application.
 	// +optional
 	Arguments []string `json:"arguments,omitempty"`

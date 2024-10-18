@@ -11475,6 +11475,7 @@ spec:
             required:
             - driver
             - executor
+            - mainApplicationFile
             - sparkVersion
             - type
             type: object
