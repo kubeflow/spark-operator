@@ -65,9 +65,46 @@ jobs:
             echo "Tag '${VERSION}' does not exist."
           fi
 
-  build_images:
+  release_sparkctl:
     needs:
       - check-release
+
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - linux
+          - darwin
+        arch:
+          - amd64
+          - arm64
+
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+
+      - name: Build sparkctl binary
+        run: |
+          make build-sparkctl
+
+      - name: Read version from VERSION file
+        run: |
+          VERSION=$(cat VERSION)
+          echo "VERSION=${VERSION}" >> $GITHUB_ENV
+
+      - name: Upload sparkctl binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: sparkctl-${{ env.VERSION }}-${{ matrix.os }}-${{ matrix.arch }}
+          path: bin/sparkctl
+          if-no-files-found: error
+          retention-days: 1
+
+  build_images:
+    needs:
+      - release_sparkctl
 
     runs-on: ubuntu-latest
 
@@ -90,10 +127,6 @@ jobs:
       - name: Read version from VERSION file
         run: |
           VERSION=$(cat VERSION)
-          if [[ ! ${VERSION} =~ ${{ env.SEMVER_PATTERN }} ]]; then
-              echo "Version '${VERSION}' does not match semver pattern."
-              exit 1
-          fi
           echo "VERSION=${VERSION}" >> $GITHUB_ENV
 
       - name: Docker meta
