@@ -29,6 +29,11 @@ import (
 
 	"github.com/kubeflow/spark-operator/api/v1beta2"
 	"github.com/kubeflow/spark-operator/pkg/common"
+	"sigs.k8s.io/controller-runtime/pkg/log"
+)
+
+var (
+	logger = log.Log.WithName("")
 )
 
 // GetDriverPodName returns name of the driver pod of the given spark application.
@@ -102,6 +107,28 @@ func ShouldRetry(app *v1beta2.SparkApplication) bool {
 		}
 	}
 	return false
+}
+
+func TimeUntilNextRetryDue(app *v1beta2.SparkApplication) (time.Duration, error) {
+	var retryInterval *int64
+	switch app.Status.AppState.State {
+	case v1beta2.ApplicationStateFailedSubmission:
+		retryInterval = app.Spec.RestartPolicy.OnSubmissionFailureRetryInterval
+	case v1beta2.ApplicationStateFailing:
+		retryInterval = app.Spec.RestartPolicy.OnFailureRetryInterval
+	}
+
+	attemptsDone := app.Status.SubmissionAttempts
+	lastAttemptTime := app.Status.LastSubmissionAttemptTime
+	if retryInterval == nil || lastAttemptTime.IsZero() || attemptsDone <= 0 {
+		return -1, fmt.Errorf("invalid retry interval (%v), last attempt time (%v) or attemptsDone (%v)", retryInterval, lastAttemptTime, attemptsDone)
+	}
+
+	// Retry wait time is attempts*RetryInterval to do a linear backoff.
+	interval := time.Duration(*retryInterval) * time.Second * time.Duration(attemptsDone)
+	currentTime := time.Now()
+	logger.Info(fmt.Sprintf("currentTime is %v, interval is %v", currentTime, interval))
+	return interval - currentTime.Sub(lastAttemptTime.Time), nil
 }
 
 func GetLocalVolumes(app *v1beta2.SparkApplication) map[string]corev1.Volume {

@@ -322,7 +322,7 @@ func (r *Reconciler) reconcileFailedSubmissionSparkApplication(ctx context.Conte
 			app := old.DeepCopy()
 
 			if util.ShouldRetry(app) {
-				timeUntilNextRetryDue, err := timeUntilNextRetryDue(app)
+				timeUntilNextRetryDue, err := util.TimeUntilNextRetryDue(app)
 				if err != nil {
 					return err
 				}
@@ -512,7 +512,7 @@ func (r *Reconciler) reconcileFailingSparkApplication(ctx context.Context, req c
 			app := old.DeepCopy()
 
 			if util.ShouldRetry(app) {
-				timeUntilNextRetryDue, err := timeUntilNextRetryDue(app)
+				timeUntilNextRetryDue, err := util.TimeUntilNextRetryDue(app)
 				if err != nil {
 					return err
 				}
@@ -751,28 +751,6 @@ func (r *Reconciler) submitSparkApplication(app *v1beta2.SparkApplication) (retu
 		return fmt.Errorf("failed to run spark-submit: %v", spark_submit_err)
 	}
 	return nil
-}
-
-func timeUntilNextRetryDue(app *v1beta2.SparkApplication) (time.Duration, error) {
-	var retryInterval *int64
-	switch app.Status.AppState.State {
-	case v1beta2.ApplicationStateFailedSubmission:
-		retryInterval = app.Spec.RestartPolicy.OnSubmissionFailureRetryInterval
-	case v1beta2.ApplicationStateFailing:
-		retryInterval = app.Spec.RestartPolicy.OnFailureRetryInterval
-	}
-
-	attemptsDone := app.Status.SubmissionAttempts
-	lastAttemptTime := app.Status.LastSubmissionAttemptTime
-	if retryInterval == nil || lastAttemptTime.IsZero() || attemptsDone <= 0 {
-		return -1, fmt.Errorf("invalid retry interval (%v), last attempt time (%v) or attemptsDone (%v)", retryInterval, lastAttemptTime, attemptsDone)
-	}
-
-	// Retry wait time is attempts*RetryInterval to do a linear backoff.
-	interval := time.Duration(*retryInterval) * time.Second * time.Duration(attemptsDone)
-	currentTime := time.Now()
-	logger.Info(fmt.Sprintf("currentTime is %v, interval is %v", currentTime, interval))
-	return interval - currentTime.Sub(lastAttemptTime.Time), nil
 }
 
 // updateDriverState finds the driver pod of the application
