@@ -21,6 +21,8 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/kubeflow/spark-operator/pkg/common"
 	"github.com/kubeflow/spark-operator/pkg/util"
@@ -127,5 +129,75 @@ var _ = Describe("StringPtr", func() {
 	It("Should return a pointer to the given string value", func() {
 		s := "hello"
 		Expect(util.StringPtr(s)).To(Equal(&s))
+	})
+})
+
+var _ = Describe("CompareSemanticVersions", func() {
+	It("Should return 0 if the two versions are equal", func() {
+		Expect(util.CompareSemanticVersion("1.2.3", "1.2.3"))
+		Expect(util.CompareSemanticVersion("1.2.3", "v1.2.3")).To(Equal(0))
+	})
+
+	It("Should return -1 if the first version is less than the second version", func() {
+		Expect(util.CompareSemanticVersion("2.3.4", "2.4.5")).To(Equal(-1))
+		Expect(util.CompareSemanticVersion("2.4.5", "2.4.8")).To(Equal(-1))
+		Expect(util.CompareSemanticVersion("2.4.8", "3.5.2")).To(Equal(-1))
+	})
+
+	It("Should return +1 if the first version is greater than the second version", func() {
+		Expect(util.CompareSemanticVersion("2.4.5", "2.3.4")).To(Equal(1))
+		Expect(util.CompareSemanticVersion("2.4.8", "2.4.5")).To(Equal(1))
+		Expect(util.CompareSemanticVersion("3.5.2", "2.4.8")).To(Equal(1))
+	})
+})
+
+var _ = Describe("WriteObjectToFile", func() {
+	It("Should write the object to the file", func() {
+		podTemplate := &corev1.PodTemplateSpec{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "test-pod",
+				Labels: map[string]string{
+					"key1": "value1",
+					"key2": "value2",
+				},
+				Annotations: map[string]string{
+					"key3": "value3",
+					"key4": "value4",
+				},
+			},
+			Spec: corev1.PodSpec{
+				Containers: []corev1.Container{
+					{
+						Name:  "test-container",
+						Image: "test-image",
+					},
+				},
+			},
+		}
+
+		expected := `metadata:
+  annotations:
+    key3: value3
+    key4: value4
+  creationTimestamp: null
+  labels:
+    key1: value1
+    key2: value2
+  name: test-pod
+spec:
+  containers:
+  - image: test-image
+    name: test-container
+    resources: {}
+`
+		file := "pod-template.yaml"
+		Expect(util.WriteObjectToFile(podTemplate, file)).To(Succeed())
+
+		data, err := os.ReadFile(file)
+		Expect(err).NotTo(HaveOccurred())
+		actual := string(data)
+
+		Expect(actual).To(Equal(expected))
+		Expect(os.Remove(file)).NotTo(HaveOccurred())
 	})
 })

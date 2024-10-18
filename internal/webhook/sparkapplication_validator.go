@@ -117,6 +117,10 @@ func (v *SparkApplicationValidator) ValidateDelete(ctx context.Context, obj runt
 func (v *SparkApplicationValidator) validateSpec(_ context.Context, app *v1beta2.SparkApplication) error {
 	logger.V(1).Info("Validating SparkApplication spec", "name", app.Name, "namespace", app.Namespace, "state", util.GetApplicationState(app))
 
+	if err := v.validateSparkVersion(app); err != nil {
+		return err
+	}
+
 	if app.Spec.NodeSelector != nil && (app.Spec.Driver.NodeSelector != nil || app.Spec.Executor.NodeSelector != nil) {
 		return fmt.Errorf("node selector cannot be defined at both SparkApplication and Driver/Executor")
 	}
@@ -141,6 +145,16 @@ func (v *SparkApplicationValidator) validateSpec(_ context.Context, app *v1beta2
 		ingressURLFormats[item.IngressURLFormat] = true
 	}
 
+	return nil
+}
+
+func (v *SparkApplicationValidator) validateSparkVersion(app *v1beta2.SparkApplication) error {
+	// The pod template feature requires Spark version 3.0.0 or higher.
+	if app.Spec.Driver.Template != nil || app.Spec.Executor.Template != nil {
+		if util.CompareSemanticVersion(app.Spec.SparkVersion, "3.0.0") < 0 {
+			return fmt.Errorf("pod template feature requires Spark version 3.0.0 or higher")
+		}
+	}
 	return nil
 }
 

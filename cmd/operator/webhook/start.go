@@ -379,6 +379,7 @@ func newCacheOptions() cache.Options {
 		&corev1.Pod{}: {
 			Label: labels.SelectorFromSet(labels.Set{
 				common.LabelLaunchedBySparkOperator: "true",
+				common.LabelMutatedBySparkOperator:  "true",
 			}),
 		},
 		&v1beta2.SparkApplication{}:          {},
