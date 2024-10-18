@@ -641,25 +641,24 @@ func (r *Reconciler) getSparkApplication(key types.NamespacedName) (*v1beta2.Spa
 }
 
 // submitSparkApplication creates a new submission for the given SparkApplication and submits it using spark-submit.
-func (r *Reconciler) submitSparkApplication(app *v1beta2.SparkApplication) (returned_error error) {
+func (r *Reconciler) submitSparkApplication(app *v1beta2.SparkApplication) (submitErr error) {
 	logger.Info("Submitting SparkApplication", "name", app.Name, "namespace", app.Namespace, "state", app.Status.AppState.State)
 	// SubmissionID must be set before creating any resources to ensure all the resources are labeled.
 	app.Status.SubmissionID = uuid.New().String()
 	app.Status.LastSubmissionAttemptTime = metav1.Now()
+	app.Status.SubmissionAttempts = app.Status.SubmissionAttempts + 1
 
 	defer func() {
-		app.Status.SubmissionAttempts = app.Status.SubmissionAttempts + 1
-
-		if returned_error == nil {
+		if submitErr == nil {
 			app.Status.AppState = v1beta2.ApplicationState{
 				State: v1beta2.ApplicationStateSubmitted,
 			}
 			app.Status.ExecutionAttempts = app.Status.ExecutionAttempts + 1
 		} else {
-			logger.Error(returned_error, "Failed to submit SparkApplication", "name", app.Name, "namespace", app.Namespace, "state", app.Status.AppState.State)
+			logger.Info("Failed to submit SparkApplication", "name", app.Name, "namespace", app.Namespace, "state", app.Status.AppState.State, "error", submitErr)
 			app.Status.AppState = v1beta2.ApplicationState{
 				State:        v1beta2.ApplicationStateFailedSubmission,
-				ErrorMessage: returned_error.Error(),
+				ErrorMessage: submitErr.Error(),
 			}
 		}
 		r.recordSparkApplicationEvent(app)

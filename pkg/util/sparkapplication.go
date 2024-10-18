@@ -29,11 +29,6 @@ import (
 
 	"github.com/kubeflow/spark-operator/api/v1beta2"
 	"github.com/kubeflow/spark-operator/pkg/common"
-	"sigs.k8s.io/controller-runtime/pkg/log"
-)
-
-var (
-	logger = log.Log.WithName("")
 )
 
 // GetDriverPodName returns name of the driver pod of the given spark application.
@@ -127,7 +122,6 @@ func TimeUntilNextRetryDue(app *v1beta2.SparkApplication) (time.Duration, error)
 	// Retry wait time is attempts*RetryInterval to do a linear backoff.
 	interval := time.Duration(*retryInterval) * time.Second * time.Duration(attemptsDone)
 	currentTime := time.Now()
-	logger.Info(fmt.Sprintf("currentTime is %v, interval is %v", currentTime, interval))
 	return interval - currentTime.Sub(lastAttemptTime.Time), nil
 }
 
