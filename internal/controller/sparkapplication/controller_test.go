@@ -95,6 +95,9 @@ var _ = Describe("SparkApplication Controller", func() {
 							common.LabelSparkAppName: app.Name,
 						},
 					},
+					Spec: v1beta2.SparkApplicationSpec{
+						MainApplicationFile: util.StringPtr("local:///dummy.jar"),
+					},
 				}
 				v1beta2.SetSparkApplicationDefaults(app)
 				Expect(k8sClient.Create(ctx, app)).To(Succeed())
@@ -145,6 +148,9 @@ var _ = Describe("SparkApplication Controller", func() {
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      appName,
 						Namespace: appNamespace,
+					},
+					Spec: v1beta2.SparkApplicationSpec{
+						MainApplicationFile: util.StringPtr("local:///dummy.jar"),
 					},
 				}
 				v1beta2.SetSparkApplicationDefaults(app)
@@ -202,6 +208,9 @@ var _ = Describe("SparkApplication Controller", func() {
 						Name:      appName,
 						Namespace: appNamespace,
 					},
+					Spec: v1beta2.SparkApplicationSpec{
+						MainApplicationFile: util.StringPtr("local:///dummy.jar"),
+					},
 				}
 				v1beta2.SetSparkApplicationDefaults(app)
 				Expect(k8sClient.Create(ctx, app)).To(Succeed())
@@ -252,6 +261,9 @@ var _ = Describe("SparkApplication Controller", func() {
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      appName,
 						Namespace: appNamespace,
+					},
+					Spec: v1beta2.SparkApplicationSpec{
+						MainApplicationFile: util.StringPtr("local:///dummy.jar"),
 					},
 				}
 				v1beta2.SetSparkApplicationDefaults(app)
@@ -308,6 +320,9 @@ var _ = Describe("SparkApplication Controller", func() {
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      appName,
 						Namespace: appNamespace,
+					},
+					Spec: v1beta2.SparkApplicationSpec{
+						MainApplicationFile: util.StringPtr("local:///dummy.jar"),
 					},
 				}
 				v1beta2.SetSparkApplicationDefaults(app)
