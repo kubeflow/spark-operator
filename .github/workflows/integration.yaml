@@ -209,6 +209,9 @@ jobs:
 
   e2e-test:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        k8s_version: [v1.28.13, v1.29.8, v1.30.4, v1.31.1]
     steps:
       - name: Checkout source code
         uses: actions/checkout@v4
@@ -221,7 +224,7 @@ jobs:
           go-version-file: go.mod
 
       - name: Create a Kind cluster
-        run: make kind-create-cluster
+        run: make kind-create-cluster KIND_K8S_VERSION=${{ matrix.k8s_version }}
 
       - name: Build and load image to Kind cluster
         run: |
