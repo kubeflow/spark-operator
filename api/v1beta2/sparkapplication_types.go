@@ -415,6 +415,7 @@ type SparkPodSpec struct {
 	// +optional
 	// +kubebuilder:validation:Schemaless
 	// +kubebuilder:validation:Type:=object
+	// +kubebuilder:pruning:PreserveUnknownFields
 	Template *corev1.PodTemplateSpec `json:"template,omitempty"`
 	// Cores maps to `spark.driver.cores` or `spark.executor.cores` for the driver and executors, respectively.
 	// +optional

@@ -4700,6 +4700,7 @@ spec:
                       Spark version >= 3.0.0 is required.
                       Ref: https://spark.apache.org/docs/latest/running-on-kubernetes.html#pod-template.
                     type: object
+                    x-kubernetes-preserve-unknown-fields: true
                   terminationGracePeriodSeconds:
                     description: Termination grace period seconds for the pod
                     format: int64
@@ -9433,6 +9434,7 @@ spec:
                       Spark version >= 3.0.0 is required.
                       Ref: https://spark.apache.org/docs/latest/running-on-kubernetes.html#pod-template.
                     type: object
+                    x-kubernetes-preserve-unknown-fields: true
                   terminationGracePeriodSeconds:
                     description: Termination grace period seconds for the pod
                     format: int64
