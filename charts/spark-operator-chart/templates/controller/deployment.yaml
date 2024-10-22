@@ -69,6 +69,9 @@ spec:
         {{- with .Values.controller.uiIngress.urlFormat }}
         - --ingress-url-format={{ . }}
         {{- end }}
+        {{- with .Values.controller.uiIngress.ingressClassName }}
+        - --ingress-class-name={{ . }}
+        {{- end }}
         {{- end }}
         {{- if .Values.controller.batchScheduler.enable }}
         - --enable-batch-scheduler=true

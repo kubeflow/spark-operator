@@ -171,6 +171,19 @@ tests:
           path: spec.template.spec.containers[?(@.name=="spark-operator-controller")].args
           content: --ingress-url-format={{$appName}}.example.com/{{$appNamespace}}/{{$appName}}
 
+  - it: Should contain `--ingress-class-name` arg if `controller.uiIngress.enable` is set to `true` and `controller.uiIngress.ingressClassName` is set
+    set:
+      controller:
+        uiService:
+          enable: true
+        uiIngress:
+          enable: true
+          ingressClassName: nginx
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[?(@.name=="spark-operator-controller")].args
+          content: --ingress-class-name=nginx
+
   - it: Should contain `--enable-batch-scheduler` arg if `controller.batchScheduler.enable` is `true`
     set:
       controller:
