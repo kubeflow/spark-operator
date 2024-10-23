@@ -65,6 +65,8 @@ controller:
     # -- Ingress URL format.
     # Required if `controller.uiIngress.enable` is true.
     urlFormat: ""
+    # -- Optionally set the ingressClassName.
+    ingressClassName: ""
 
   batchScheduler:
     # -- Specifies whether to enable batch scheduler for spark jobs scheduling.
