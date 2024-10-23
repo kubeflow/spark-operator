@@ -172,6 +172,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		return ctrl.Result{Requeue: true}, err
 	}
 	logger.Info("Reconciling SparkApplication", "name", app.Name, "namespace", app.Namespace, "state", app.Status.AppState.State)
+	defer logger.Info("Finished reconciling SparkApplication", "name", app.Name, "namespace", app.Namespace)
 
 	// Check if the spark application is being deleted
 	if !app.DeletionTimestamp.IsZero() {
@@ -259,17 +260,7 @@ func (r *Reconciler) reconcileNewSparkApplication(ctx context.Context, req ctrl.
 			}
 			app := old.DeepCopy()
 
-			if err := r.submitSparkApplication(app); err != nil {
-				logger.Error(err, "Failed to submit SparkApplication", "name", app.Name, "namespace", app.Namespace)
-				app.Status = v1beta2.SparkApplicationStatus{
-					AppState: v1beta2.ApplicationState{
-						State:        v1beta2.ApplicationStateFailedSubmission,
-						ErrorMessage: err.Error(),
-					},
-					SubmissionAttempts:        app.Status.SubmissionAttempts + 1,
-					LastSubmissionAttemptTime: metav1.Now(),
-				}
-			}
+			_ = r.submitSparkApplication(app)
 			if err := r.updateSparkApplicationStatus(ctx, app); err != nil {
 				return err
 			}
@@ -315,6 +306,9 @@ func (r *Reconciler) reconcileSubmittedSparkApplication(ctx context.Context, req
 
 func (r *Reconciler) reconcileFailedSubmissionSparkApplication(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	key := req.NamespacedName
+
+	var result ctrl.Result
+
 	retryErr := retry.RetryOnConflict(
 		retry.DefaultRetry,
 		func() error {
@@ -328,15 +322,22 @@ func (r *Reconciler) reconcileFailedSubmissionSparkApplication(ctx context.Conte
 			app := old.DeepCopy()
 
 			if util.ShouldRetry(app) {
-				if isNextRetryDue(app) {
+				timeUntilNextRetryDue, err := util.TimeUntilNextRetryDue(app)
+				if err != nil {
+					return err
+				}
+				if timeUntilNextRetryDue <= 0 {
 					if r.validateSparkResourceDeletion(ctx, app) {
 						_ = r.submitSparkApplication(app)
 					} else {
 						if err := r.deleteSparkResources(ctx, app); err != nil {
 							logger.Error(err, "failed to delete resources associated with SparkApplication", "name", app.Name, "namespace", app.Namespace)
 						}
-						return err
+						return fmt.Errorf("resources associated with SparkApplication name: %s namespace: %s, needed to be deleted", app.Name, app.Namespace)
 					}
+				} else {
+					// If we're waiting before retrying then reconcile will not modify anything, so we need to requeue.
+					result.RequeueAfter = timeUntilNextRetryDue
 				}
 			} else {
 				app.Status.AppState.State = v1beta2.ApplicationStateFailed
@@ -352,9 +353,9 @@ func (r *Reconciler) reconcileFailedSubmissionSparkApplication(ctx context.Conte
 	)
 	if retryErr != nil {
 		logger.Error(retryErr, "Failed to reconcile SparkApplication", "name", key.Name, "namespace", key.Namespace)
-		return ctrl.Result{}, retryErr
+		return result, retryErr
 	}
-	return ctrl.Result{}, nil
+	return result, nil
 }
 
 func (r *Reconciler) reconcileRunningSparkApplication(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
@@ -408,9 +409,7 @@ func (r *Reconciler) reconcilePendingRerunSparkApplication(ctx context.Context, 
 				logger.Info("Successfully deleted resources associated with SparkApplication", "name", app.Name, "namespace", app.Namespace, "state", app.Status.AppState.State)
 				r.recordSparkApplicationEvent(app)
 				r.resetSparkApplicationStatus(app)
-				if err = r.submitSparkApplication(app); err != nil {
-					logger.Error(err, "Failed to run spark-submit", "name", app.Name, "namespace", app.Namespace, "state", app.Status.AppState.State)
-				}
+				_ = r.submitSparkApplication(app)
 			}
 			if err := r.updateSparkApplicationStatus(ctx, app); err != nil {
 				return err
@@ -497,6 +496,9 @@ func (r *Reconciler) reconcileSucceedingSparkApplication(ctx context.Context, re
 
 func (r *Reconciler) reconcileFailingSparkApplication(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	key := req.NamespacedName
+
+	var result ctrl.Result
+
 	retryErr := retry.RetryOnConflict(
 		retry.DefaultRetry,
 		func() error {
@@ -510,12 +512,19 @@ func (r *Reconciler) reconcileFailingSparkApplication(ctx context.Context, req c
 			app := old.DeepCopy()
 
 			if util.ShouldRetry(app) {
-				if isNextRetryDue(app) {
+				timeUntilNextRetryDue, err := util.TimeUntilNextRetryDue(app)
+				if err != nil {
+					return err
+				}
+				if timeUntilNextRetryDue <= 0 {
 					if err := r.deleteSparkResources(ctx, app); err != nil {
 						logger.Error(err, "failed to delete spark resources", "name", app.Name, "namespace", app.Namespace)
 						return err
 					}
 					app.Status.AppState.State = v1beta2.ApplicationStatePendingRerun
+				} else {
+					// If we're waiting before retrying then reconcile will not modify anything, so we need to requeue.
+					result.RequeueAfter = timeUntilNextRetryDue
 				}
 			} else {
 				app.Status.AppState.State = v1beta2.ApplicationStateFailed
@@ -528,9 +537,9 @@ func (r *Reconciler) reconcileFailingSparkApplication(ctx context.Context, req c
 	)
 	if retryErr != nil {
 		logger.Error(retryErr, "Failed to reconcile SparkApplication", "name", key.Name, "namespace", key.Namespace)
-		return ctrl.Result{}, retryErr
+		return result, retryErr
 	}
-	return ctrl.Result{}, nil
+	return result, nil
 }
 
 func (r *Reconciler) reconcileCompletedSparkApplication(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
@@ -632,8 +641,28 @@ func (r *Reconciler) getSparkApplication(key types.NamespacedName) (*v1beta2.Spa
 }
 
 // submitSparkApplication creates a new submission for the given SparkApplication and submits it using spark-submit.
-func (r *Reconciler) submitSparkApplication(app *v1beta2.SparkApplication) error {
+func (r *Reconciler) submitSparkApplication(app *v1beta2.SparkApplication) (submitErr error) {
 	logger.Info("Submitting SparkApplication", "name", app.Name, "namespace", app.Namespace, "state", app.Status.AppState.State)
+	// SubmissionID must be set before creating any resources to ensure all the resources are labeled.
+	app.Status.SubmissionID = uuid.New().String()
+	app.Status.LastSubmissionAttemptTime = metav1.Now()
+	app.Status.SubmissionAttempts = app.Status.SubmissionAttempts + 1
+
+	defer func() {
+		if submitErr == nil {
+			app.Status.AppState = v1beta2.ApplicationState{
+				State: v1beta2.ApplicationStateSubmitted,
+			}
+			app.Status.ExecutionAttempts = app.Status.ExecutionAttempts + 1
+		} else {
+			logger.Info("Failed to submit SparkApplication", "name", app.Name, "namespace", app.Namespace, "state", app.Status.AppState.State, "error", submitErr)
+			app.Status.AppState = v1beta2.ApplicationState{
+				State:        v1beta2.ApplicationStateFailedSubmission,
+				ErrorMessage: submitErr.Error(),
+			}
+		}
+		r.recordSparkApplicationEvent(app)
+	}()
 
 	if util.PrometheusMonitoringEnabled(app) {
 		logger.Info("Configure Prometheus monitoring for SparkApplication", "name", app.Name, "namespace", app.Namespace)
@@ -709,7 +738,6 @@ func (r *Reconciler) submitSparkApplication(app *v1beta2.SparkApplication) error
 
 	driverPodName := util.GetDriverPodName(app)
 	app.Status.DriverInfo.PodName = driverPodName
-	app.Status.SubmissionID = uuid.New().String()
 	sparkSubmitArgs, err := buildSparkSubmitArgs(app)
 	if err != nil {
 		return fmt.Errorf("failed to build spark-submit arguments: %v", err)
@@ -717,42 +745,10 @@ func (r *Reconciler) submitSparkApplication(app *v1beta2.SparkApplication) error
 
 	// Try submitting the application by running spark-submit.
 	logger.Info("Running spark-submit for SparkApplication", "name", app.Name, "namespace", app.Namespace, "arguments", sparkSubmitArgs)
-	submitted, err := runSparkSubmit(newSubmission(sparkSubmitArgs, app))
-	if err != nil {
-		r.recordSparkApplicationEvent(app)
+	if err := runSparkSubmit(newSubmission(sparkSubmitArgs, app)); err != nil {
 		return fmt.Errorf("failed to run spark-submit: %v", err)
 	}
-	if !submitted {
-		// The application may not have been submitted even if err == nil, e.g., when some
-		// state update caused an attempt to re-submit the application, in which case no
-		// error gets returned from runSparkSubmit. If this is the case, we simply return.
-		return nil
-	}
-
-	app.Status.AppState = v1beta2.ApplicationState{
-		State: v1beta2.ApplicationStateSubmitted,
-	}
-	app.Status.SubmissionAttempts = app.Status.SubmissionAttempts + 1
-	app.Status.ExecutionAttempts = app.Status.ExecutionAttempts + 1
-	app.Status.LastSubmissionAttemptTime = metav1.Now()
-	r.recordSparkApplicationEvent(app)
 	return nil
-}
-
-// Helper func to determine if the next retry the SparkApplication is due now.
-func isNextRetryDue(app *v1beta2.SparkApplication) bool {
-	retryInterval := app.Spec.RestartPolicy.OnFailureRetryInterval
-	attemptsDone := app.Status.SubmissionAttempts
-	lastEventTime := app.Status.LastSubmissionAttemptTime
-	if retryInterval == nil || lastEventTime.IsZero() || attemptsDone <= 0 {
-		return false
-	}
-
-	// Retry if we have waited at-least equal to attempts*RetryInterval since we do a linear back-off.
-	interval := time.Duration(*retryInterval) * time.Second * time.Duration(attemptsDone)
-	currentTime := time.Now()
-	logger.Info(fmt.Sprintf("currentTime is %v, interval is %v", currentTime, interval))
-	return currentTime.After(lastEventTime.Add(interval))
 }
 
 // updateDriverState finds the driver pod of the application

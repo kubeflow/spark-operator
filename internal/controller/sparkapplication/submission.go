@@ -43,10 +43,10 @@ func newSubmission(args []string, app *v1beta2.SparkApplication) *submission {
 	}
 }
 
-func runSparkSubmit(submission *submission) (bool, error) {
+func runSparkSubmit(submission *submission) error {
 	sparkHome, present := os.LookupEnv(common.EnvSparkHome)
 	if !present {
-		return false, fmt.Errorf("env %s is not specified", common.EnvSparkHome)
+		return fmt.Errorf("env %s is not specified", common.EnvSparkHome)
 	}
 	command := filepath.Join(sparkHome, "bin", "spark-submit")
 	cmd := exec.Command(command, submission.args...)
@@ -58,14 +58,14 @@ func runSparkSubmit(submission *submission) (bool, error) {
 		}
 		// The driver pod of the application already exists.
 		if strings.Contains(errorMsg, common.ErrorCodePodAlreadyExists) {
-			return false, fmt.Errorf("driver pod already exist")
+			return fmt.Errorf("driver pod already exist")
 		}
 		if errorMsg != "" {
-			return false, fmt.Errorf("failed to run spark-submit: %s", errorMsg)
+			return fmt.Errorf("failed to run spark-submit: %s", errorMsg)
 		}
-		return false, fmt.Errorf("failed to run spark-submit: %v", err)
+		return fmt.Errorf("failed to run spark-submit: %v", err)
 	}
-	return true, nil
+	return nil
 }
 
 // buildSparkSubmitArgs builds the arguments for spark-submit.
