@@ -161,6 +161,7 @@ controller:
   securityContext:
     runAsNonRoot: true
     fsGroup: 185
+    allowPrivilegeEscalation: false
     capabilities:
       drop:
       - ALL
@@ -306,6 +307,7 @@ webhook:
   securityContext:
     runAsNonRoot: true
     fsGroup: 185
+    allowPrivilegeEscalation: false
     capabilities:
       drop:
       - ALLL
