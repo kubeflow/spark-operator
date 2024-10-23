@@ -160,8 +160,6 @@ controller:
   # -- Security context for controller containers.
   securityContext:
     runAsNonRoot: true
-    runAsUser: 185
-    runAsGroup: 185
     fsGroup: 185
     capabilities:
       drop:
@@ -307,12 +305,10 @@ webhook:
   # -- Security context for webhook containers.
   securityContext:
     runAsNonRoot: true
-    runAsUser: 185
-    runAsGroup: 185
     fsGroup: 185
     capabilities:
       drop:
-      - ALL
+      - ALLL
 
   # Pod disruption budget for webhook to avoid service degradation.
   podDisruptionBudget:
