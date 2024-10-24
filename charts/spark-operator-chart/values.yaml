@@ -261,7 +261,11 @@ webhook:
   sidecars: []
 
   # -- Volumes for webhook pods.
-  volumes: []
+  volumes:
+    # -- Create a dir for the webhook to generate its certificates in.
+    - name: serving-certs
+      emptyDir:
+        sizeLimit: 500Mi
 
   # -- Node selector for webhook pods.
   nodeSelector: {}
@@ -297,7 +301,13 @@ webhook:
   envFrom: []
 
   # -- Volume mounts for webhook containers.
-  volumeMounts: []
+  volumeMounts:
+    # -- Mount a dir for the webhook to generate its certificates in.
+    - name: serving-certs
+      mountPath: /etc/k8s-webhook-server/serving-certs
+      subPath: serving-certs
+      readOnly: false
+
 
   # -- Pod resource requests and limits for webhook pods.
   resources: {}
@@ -310,6 +320,7 @@ webhook:
 
   # -- Security context for webhook containers.
   securityContext:
+    readOnlyRootFilesystem: true
     privileged: false
     allowPrivilegeEscalation: false
     runAsNonRoot: true
