@@ -355,6 +355,7 @@ tests:
     set:
       controller:
         securityContext:
+          readOnlyRootFilesystem: true
           runAsUser: 1000
           runAsGroup: 2000
           fsGroup: 3000
@@ -362,6 +363,7 @@ tests:
       - equal:
           path: spec.template.spec.containers[0].securityContext
           value:
+            readOnlyRootFilesystem: true
             runAsUser: 1000
             runAsGroup: 2000
             fsGroup: 3000
