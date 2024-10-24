@@ -26,7 +26,9 @@ RUN --mount=type=cache,target=/go/pkg/mod/ \
     go mod download
 
 COPY . .
+
 ENV GOCACHE=/root/.cache/go-build
+
 ARG TARGETARCH
 
 RUN --mount=type=cache,target=/go/pkg/mod/ \
@@ -34,6 +36,10 @@ RUN --mount=type=cache,target=/go/pkg/mod/ \
     CGO_ENABLED=0 GOOS=linux GOARCH=${TARGETARCH} GO111MODULE=on make build-operator
 
 FROM ${SPARK_IMAGE}
+
+ARG SPARK_UID=185
+
+ARG SPARK_GID=185
 
 USER root
 
@@ -45,7 +51,7 @@ RUN mkdir -p /etc/k8s-webhook-server/serving-certs /home/spark && \
     chmod -R g+rw /etc/k8s-webhook-server/serving-certs && \
     chown -R spark /etc/k8s-webhook-server/serving-certs /home/spark
 
-USER spark
+USER ${SPARK_UID}:${SPARK_GID}
 
 COPY --from=builder /workspace/bin/spark-operator /usr/bin/spark-operator
 
