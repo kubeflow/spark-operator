@@ -1,0 +1,6 @@
+blank_issues_enabled: true
+
+contact_links:
+  - name: Spark Operator Documentation
+    url: https://www.kubeflow.org/docs/components/spark-operator
+    about: Much help can be found in the docs
