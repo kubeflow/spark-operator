@@ -120,10 +120,8 @@ controller:
   priorityClassName: ""
 
   # -- Security context for controller pods.
-  podSecurityContext: {}
-    # runAsUser: 1000
-    # runAsGroup: 2000
-    # fsGroup: 3000
+  podSecurityContext:
+    fsGroup: 185
 
   # -- Topology spread constraints rely on node labels to identify the topology domain(s) that each Node is in.
   # Ref: [Pod Topology Spread Constraints](https://kubernetes.io/docs/concepts/workloads/pods/pod-topology-spread-constraints/).
@@ -158,10 +156,13 @@ controller:
     #   memory: 300Mi
 
   # -- Security context for controller containers.
-  securityContext: {}
-    # runAsUser: 1000
-    # runAsGroup: 2000
-    # fsGroup: 3000
+  securityContext:
+    privileged: false
+    allowPrivilegeEscalation: false
+    runAsNonRoot: true
+    capabilities:
+      drop:
+      - ALL
 
   # -- Sidecar containers for controller pods.
   sidecars: []
@@ -266,10 +267,8 @@ webhook:
   priorityClassName: ""
 
   # -- Security context for webhook pods.
-  podSecurityContext: {}
-    # runAsUser: 1000
-    # runAsGroup: 2000
-    # fsGroup: 3000
+  podSecurityContext:
+    fsGroup: 185
 
   # -- Topology spread constraints rely on node labels to identify the topology domain(s) that each Node is in.
   # Ref: [Pod Topology Spread Constraints](https://kubernetes.io/docs/concepts/workloads/pods/pod-topology-spread-constraints/).
@@ -301,10 +300,13 @@ webhook:
     #   memory: 300Mi
 
   # -- Security context for webhook containers.
-  securityContext: {}
-    # runAsUser: 1000
-    # runAsGroup: 2000
-    # fsGroup: 3000
+  securityContext:
+    privileged: false
+    allowPrivilegeEscalation: false
+    runAsNonRoot: true
+    capabilities:
+      drop:
+      - ALL
 
   # Pod disruption budget for webhook to avoid service degradation.
   podDisruptionBudget:
