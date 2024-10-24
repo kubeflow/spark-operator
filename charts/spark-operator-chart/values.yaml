@@ -105,7 +105,11 @@ controller:
     # key2: value2
 
   # -- Volumes for controller pods.
-  volumes: []
+  volumes:
+    # -- Create a tmp directory to write Spark artifacts to for deployed Spark apps.
+    - name: tmp
+      emptyDir:
+        sizeLimit: 1Gi
 
   # -- Node selector for controller pods.
   nodeSelector: {}
@@ -141,7 +145,11 @@ controller:
   envFrom: []
 
   # -- Volume mounts for controller containers.
-  volumeMounts: []
+  volumeMounts:
+    # -- Mount a tmp directory to write Spark artifacts to for deployed Spark apps.
+    - name: tmp
+      mountPath: "/tmp"
+      readOnly: false
 
   # -- Pod resource requests and limits for controller containers.
   # Note, that each job submission will spawn a JVM within the controller pods using "/usr/local/openjdk-11/bin/java -Xmx128m".
@@ -157,6 +165,7 @@ controller:
 
   # -- Security context for controller containers.
   securityContext:
+    readOnlyRootFilesystem: true
     privileged: false
     allowPrivilegeEscalation: false
     runAsNonRoot: true
