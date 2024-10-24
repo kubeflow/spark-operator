@@ -65,9 +65,51 @@ jobs:
             echo "Tag '${VERSION}' does not exist."
           fi
 
-  build_images:
+  release_sparkctl:
     needs:
       - check-release
+
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: true
+      matrix:
+        os:
+          - linux
+          - darwin
+        arch:
+          - amd64
+          - arm64
+
+    env:
+      GOOS: ${{ matrix.os }}
+      GOARCH: ${{ matrix.arch }}
+
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+
+      - name: Read version from VERSION file
+        run: |
+          VERSION=$(cat VERSION | sed "s/^v//")
+          echo "VERSION=${VERSION}" >> $GITHUB_ENV
+
+      - name: Build sparkctl binary
+        run: |
+          make build-sparkctl
+          tar -czvf sparkctl-${VERSION}-${GOOS}-${GOARCH}.tgz -C bin sparkctl
+
+      - name: Upload sparkctl binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: sparkctl-${{ env.VERSION }}-${{ env.GOOS }}-${{ env.GOARCH }}
+          path: sparkctl-${{ env.VERSION }}-${{ env.GOOS }}-${{ env.GOARCH }}.tgz
+          if-no-files-found: error
+          retention-days: 1
+
+  build_images:
+    needs:
+      - release_sparkctl
 
     runs-on: ubuntu-latest
 
@@ -90,10 +132,6 @@ jobs:
       - name: Read version from VERSION file
         run: |
           VERSION=$(cat VERSION)
-          if [[ ! ${VERSION} =~ ${{ env.SEMVER_PATTERN }} ]]; then
-              echo "Version '${VERSION}' does not match semver pattern."
-              exit 1
-          fi
           echo "VERSION=${VERSION}" >> $GITHUB_ENV
 
       - name: Docker meta
@@ -250,6 +288,11 @@ jobs:
             helm package charts/${chart}
           done
 
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: sparkctl-*
+
       - name: Release
         id: release
         uses: softprops/action-gh-release@v2
@@ -262,3 +305,4 @@ jobs:
           draft: true
           files: |
             *.tgz
+            sparkctl-*/sparkctl-*.tgz
