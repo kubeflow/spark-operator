@@ -83,32 +83,9 @@ func defaultSparkApplication(app *v1beta2.SparkApplication) {
 }
 
 func defaultDriverSpec(app *v1beta2.SparkApplication) {
-	if app.Spec.Driver.Cores == nil {
-		if app.Spec.SparkConf == nil || app.Spec.SparkConf[common.SparkDriverCores] == "" {
-			app.Spec.Driver.Cores = util.Int32Ptr(1)
-		}
-	}
-
-	if app.Spec.Driver.Memory == nil {
-		if app.Spec.SparkConf == nil || app.Spec.SparkConf[common.SparkDriverMemory] == "" {
-			app.Spec.Driver.Memory = util.StringPtr("1g")
-		}
-	}
 }
 
 func defaultExecutorSpec(app *v1beta2.SparkApplication) {
-	if app.Spec.Executor.Cores == nil {
-		if app.Spec.SparkConf == nil || app.Spec.SparkConf[common.SparkExecutorCores] == "" {
-			app.Spec.Executor.Cores = util.Int32Ptr(1)
-		}
-	}
-
-	if app.Spec.Executor.Memory == nil {
-		if app.Spec.SparkConf == nil || app.Spec.SparkConf[common.SparkExecutorMemory] == "" {
-			app.Spec.Executor.Memory = util.StringPtr("1g")
-		}
-	}
-
 	if app.Spec.Executor.Instances == nil {
 		// Check whether dynamic allocation is enabled in application spec.
 		enableDynamicAllocation := app.Spec.DynamicAllocation != nil && app.Spec.DynamicAllocation.Enabled
