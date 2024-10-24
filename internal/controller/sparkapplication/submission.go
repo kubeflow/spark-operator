@@ -83,15 +83,17 @@ func buildSparkSubmitArgs(app *v1beta2.SparkApplication) ([]string, error) {
 		submissionWaitAppCompletionOption,
 		sparkConfOption,
 		hadoopConfOption,
+		driverPodTemplateOption,
 		driverPodNameOption,
 		driverConfOption,
-		driverSecretOption,
 		driverEnvOption,
+		driverSecretOption,
 		driverVolumeMountsOption,
+		executorPodTemplateOption,
 		executorConfOption,
+		executorEnvOption,
 		executorSecretOption,
 		executorVolumeMountsOption,
-		executorEnvOption,
 		nodeSelectorOption,
 		dynamicAllocationOption,
 		proxyUserOption,
@@ -302,6 +304,12 @@ func driverConfOption(app *v1beta2.SparkApplication) ([]string, error) {
 
 	property = fmt.Sprintf(common.SparkKubernetesDriverLabelTemplate, common.LabelLaunchedBySparkOperator)
 	args = append(args, "--conf", fmt.Sprintf("%s=%s", property, "true"))
+
+	// If Spark version is less than 3.0.0 or driver pod template is not defined, then the driver pod needs to be mutated by the webhook.
+	if util.CompareSemanticVersion(app.Spec.SparkVersion, "3.0.0") < 0 || app.Spec.Driver.Template == nil {
+		property = fmt.Sprintf(common.SparkKubernetesDriverLabelTemplate, common.LabelMutatedBySparkOperator)
+		args = append(args, "--conf", fmt.Sprintf("%s=%s", property, "true"))
+	}
 
 	property = fmt.Sprintf(common.SparkKubernetesDriverLabelTemplate, common.LabelSubmissionID)
 	args = append(args, "--conf", fmt.Sprintf("%s=%s", property, app.Status.SubmissionID))
@@ -645,6 +653,12 @@ func executorConfOption(app *v1beta2.SparkApplication) ([]string, error) {
 
 	property = fmt.Sprintf(common.SparkKubernetesExecutorLabelTemplate, common.LabelLaunchedBySparkOperator)
 	args = append(args, "--conf", fmt.Sprintf("%s=%s", property, "true"))
+
+	// If Spark version is less than 3.0.0 or executor pod template is not defined, then the executor pods need to be mutated by the webhook.
+	if util.CompareSemanticVersion(app.Spec.SparkVersion, "3.0.0") < 0 || app.Spec.Executor.Template == nil {
+		property = fmt.Sprintf(common.SparkKubernetesExecutorLabelTemplate, common.LabelMutatedBySparkOperator)
+		args = append(args, "--conf", fmt.Sprintf("%s=%s", property, "true"))
+	}
 
 	property = fmt.Sprintf(common.SparkKubernetesExecutorLabelTemplate, common.LabelSubmissionID)
 	args = append(args, "--conf", fmt.Sprintf("%s=%s", property, app.Status.SubmissionID))
@@ -1021,4 +1035,46 @@ func mainApplicationFileOption(app *v1beta2.SparkApplication) ([]string, error) 
 // applicationOption returns the application arguments.
 func applicationOption(app *v1beta2.SparkApplication) ([]string, error) {
 	return app.Spec.Arguments, nil
+}
+
+// driverPodTemplateOption returns the driver pod template arguments.
+func driverPodTemplateOption(app *v1beta2.SparkApplication) ([]string, error) {
+	if app.Spec.Driver.Template == nil {
+		return []string{}, nil
+	}
+
+	podTemplateFile := fmt.Sprintf("/tmp/spark/%s/driver-pod-template.yaml", app.Status.SubmissionID)
+	if err := util.WriteObjectToFile(app.Spec.Driver.Template, podTemplateFile); err != nil {
+		return []string{}, err
+	}
+	logger.V(1).Info("Created driver pod template file for SparkApplication", "name", app.Name, "namespace", app.Namespace, "file", podTemplateFile)
+
+	args := []string{
+		"--conf",
+		fmt.Sprintf("%s=%s", common.SparkKubernetesDriverPodTemplateFile, podTemplateFile),
+		"--conf",
+		fmt.Sprintf("%s=%s", common.SparkKubernetesDriverPodTemplateContainerName, common.SparkDriverContainerName),
+	}
+	return args, nil
+}
+
+// executorPodTemplateOption returns the executor pod template arguments.
+func executorPodTemplateOption(app *v1beta2.SparkApplication) ([]string, error) {
+	if app.Spec.Executor.Template == nil {
+		return []string{}, nil
+	}
+
+	podTemplateFile := fmt.Sprintf("/tmp/spark/%s/executor-pod-template.yaml", app.Status.SubmissionID)
+	if err := util.WriteObjectToFile(app.Spec.Executor.Template, podTemplateFile); err != nil {
+		return []string{}, err
+	}
+	logger.V(1).Info("Created executor pod template file for SparkApplication", "name", app.Name, "namespace", app.Namespace, "file", podTemplateFile)
+
+	args := []string{
+		"--conf",
+		fmt.Sprintf("%s=%s", common.SparkKubernetesExecutorPodTemplateFile, podTemplateFile),
+		"--conf",
+		fmt.Sprintf("%s=%s", common.SparkKubernetesExecutorPodTemplateContainerName, common.Spark3DefaultExecutorContainerName),
+	}
+	return args, nil
 }

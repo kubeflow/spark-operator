@@ -19,6 +19,7 @@ require (
 	github.com/stretchr/testify v1.9.0
 	go.uber.org/zap v1.27.0
 	gocloud.dev v0.40.0
+	golang.org/x/mod v0.20.0
 	golang.org/x/net v0.30.0
 	golang.org/x/time v0.7.0
 	helm.sh/helm/v3 v3.16.2
@@ -30,6 +31,7 @@ require (
 	k8s.io/utils v0.0.0-20240711033017-18e509b52bc8
 	sigs.k8s.io/controller-runtime v0.17.5
 	sigs.k8s.io/scheduler-plugins v0.29.8
+	sigs.k8s.io/yaml v1.4.0
 	volcano.sh/apis v1.9.0
 )
 
@@ -229,7 +231,6 @@ require (
 	sigs.k8s.io/kustomize/api v0.17.2 // indirect
 	sigs.k8s.io/kustomize/kyaml v0.17.1 // indirect
 	sigs.k8s.io/structured-merge-diff/v4 v4.4.1 // indirect
-	sigs.k8s.io/yaml v1.4.0 // indirect
 )
 
 replace (

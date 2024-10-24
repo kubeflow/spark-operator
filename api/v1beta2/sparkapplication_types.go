@@ -409,6 +409,14 @@ type Dependencies struct {
 // SparkPodSpec defines common things that can be customized for a Spark driver or executor pod.
 // TODO: investigate if we should use v1.PodSpec and limit what can be set instead.
 type SparkPodSpec struct {
+	// Template is a pod template that can be used to define the driver or executor pod configurations that Spark configurations do not support.
+	// Spark version >= 3.0.0 is required.
+	// Ref: https://spark.apache.org/docs/latest/running-on-kubernetes.html#pod-template.
+	// +optional
+	// +kubebuilder:validation:Schemaless
+	// +kubebuilder:validation:Type:=object
+	// +kubebuilder:pruning:PreserveUnknownFields
+	Template *corev1.PodTemplateSpec `json:"template,omitempty"`
 	// Cores maps to `spark.driver.cores` or `spark.executor.cores` for the driver and executors, respectively.
 	// +optional
 	// +kubebuilder:validation:Minimum=1
