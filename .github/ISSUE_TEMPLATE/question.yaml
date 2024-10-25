@@ -1,5 +1,5 @@
 name: Question
-description: Ask question about Spark operator.
+description: Ask question about the Spark operator.
 labels: 
   - kind/question
   - lifecycle/needs-triage
@@ -13,7 +13,7 @@ body:
     attributes:
       label: What question do you want to ask?
       description: |
-        A clear and concise description of what you want to ask about Spark operator.
+        A clear and concise description of what you want to ask about the Spark operator.
       value: |
         - [ ] ✋ I have searched the open/closed issues and my issue is not listed.
     validations:

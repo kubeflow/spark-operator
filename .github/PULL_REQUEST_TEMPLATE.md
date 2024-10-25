@@ -1,6 +1,6 @@
 <!--  Thanks for sending a pull request! Here are some tips for you:
 1. If this is your first time, check our contributor guidelines: https://www.kubeflow.org/docs/about/contributing
-2. To know more about how to develop with Spark operator, check the developer guide: https://www.kubeflow.org/docs/components/spark-operator/developer-guide/
+2. To know more about how to develop with the Spark operator, check the developer guide: https://www.kubeflow.org/docs/components/spark-operator/developer-guide/
 3. If you want *faster* PR reviews, check how: https://git.k8s.io/community/contributors/guide/pull-requests.md#best-practices-for-faster-reviews
 4. Please open an issue to discuss significant work before you start. We appreciate your contributions and don't want your efforts to go to waste!
 -->

@@ -1,5 +1,5 @@
 name: Bug Report
-description: Tell us about a problem you are experiencing with Spark operator.
+description: Tell us about a problem you are experiencing with the Spark operator.
 labels:
   - kind/bug
   - lifecycle/needs-triage

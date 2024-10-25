@@ -1,5 +1,5 @@
 name: Feature Request
-description: Suggest an idea for Spark operator.
+description: Suggest an idea for the Spark operator.
 labels: 
   - kind/feature
   - lifecycle/needs-triage
@@ -19,8 +19,8 @@ body:
     attributes:
       label: What feature you would like to be added?
       description: |
-        A clear and concise description of what you want to add to Spark operator.
-        Please consider to write Spark operator enhancement proposal if it is a large feature request.
+        A clear and concise description of what you want to add to the Spark operator.
+        Please consider to write a Spark operator enhancement proposal if it is a large feature request.
     validations:
       required: true
   - type: textarea
