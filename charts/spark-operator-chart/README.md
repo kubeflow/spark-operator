@@ -101,7 +101,8 @@ See [helm uninstall](https://helm.sh/docs/helm/helm_uninstall) for command docum
 | controller.rbac.annotations | object | `{}` | Extra annotations for the controller RBAC resources. |
 | controller.labels | object | `{}` | Extra labels for controller pods. |
 | controller.annotations | object | `{}` | Extra annotations for controller pods. |
-| controller.volumes | list | `[]` | Volumes for controller pods. |
+| controller.volumes | list | `[{"emptyDir":{"sizeLimit":"1Gi"},"name":"tmp"}]` | Volumes for controller pods. |
+| controller.volumes[0] | object | `{"emptyDir":{"sizeLimit":"1Gi"},"name":"tmp"}` | Create a tmp directory to write Spark artifacts to for deployed Spark apps. |
 | controller.nodeSelector | object | `{}` | Node selector for controller pods. |
 | controller.affinity | object | `{}` | Affinity for controller pods. |
 | controller.tolerations | list | `[]` | List of node taints to tolerate for controller pods. |
@@ -110,9 +111,10 @@ See [helm uninstall](https://helm.sh/docs/helm/helm_uninstall) for command docum
 | controller.topologySpreadConstraints | list | `[]` | Topology spread constraints rely on node labels to identify the topology domain(s) that each Node is in. Ref: [Pod Topology Spread Constraints](https://kubernetes.io/docs/concepts/workloads/pods/pod-topology-spread-constraints/). The labelSelector field in topology spread constraint will be set to the selector labels for controller pods if not specified. |
 | controller.env | list | `[]` | Environment variables for controller containers. |
 | controller.envFrom | list | `[]` | Environment variable sources for controller containers. |
-| controller.volumeMounts | list | `[]` | Volume mounts for controller containers. |
+| controller.volumeMounts | list | `[{"mountPath":"/tmp","name":"tmp","readOnly":false}]` | Volume mounts for controller containers. |
+| controller.volumeMounts[0] | object | `{"mountPath":"/tmp","name":"tmp","readOnly":false}` | Mount a tmp directory to write Spark artifacts to for deployed Spark apps. |
 | controller.resources | object | `{}` | Pod resource requests and limits for controller containers. Note, that each job submission will spawn a JVM within the controller pods using "/usr/local/openjdk-11/bin/java -Xmx128m". Kubernetes may kill these Java processes at will to enforce resource limits. When that happens, you will see the following error: 'failed to run spark-submit for SparkApplication [...]: signal: killed' - when this happens, you may want to increase memory limits. |
-| controller.securityContext | object | `{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]},"privileged":false,"runAsNonRoot":true}` | Security context for controller containers. |
+| controller.securityContext | object | `{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]},"privileged":false,"readOnlyRootFilesystem":true,"runAsNonRoot":true}` | Security context for controller containers. |
 | controller.sidecars | list | `[]` | Sidecar containers for controller pods. |
 | controller.podDisruptionBudget.enable | bool | `false` | Specifies whether to create pod disruption budget for controller. Ref: [Specifying a Disruption Budget for your Application](https://kubernetes.io/docs/tasks/run-application/configure-pdb/) |
 | controller.podDisruptionBudget.minAvailable | int | `1` | The number of pods that must be available. Require `controller.replicas` to be greater than 1 |
@@ -139,7 +141,8 @@ See [helm uninstall](https://helm.sh/docs/helm/helm_uninstall) for command docum
 | webhook.labels | object | `{}` | Extra labels for webhook pods. |
 | webhook.annotations | object | `{}` | Extra annotations for webhook pods. |
 | webhook.sidecars | list | `[]` | Sidecar containers for webhook pods. |
-| webhook.volumes | list | `[]` | Volumes for webhook pods. |
+| webhook.volumes | list | `[{"emptyDir":{"sizeLimit":"500Mi"},"name":"serving-certs"}]` | Volumes for webhook pods. |
+| webhook.volumes[0] | object | `{"emptyDir":{"sizeLimit":"500Mi"},"name":"serving-certs"}` | Create a dir for the webhook to generate its certificates in. |
 | webhook.nodeSelector | object | `{}` | Node selector for webhook pods. |
 | webhook.affinity | object | `{}` | Affinity for webhook pods. |
 | webhook.tolerations | list | `[]` | List of node taints to tolerate for webhook pods. |
@@ -148,9 +151,10 @@ See [helm uninstall](https://helm.sh/docs/helm/helm_uninstall) for command docum
 | webhook.topologySpreadConstraints | list | `[]` | Topology spread constraints rely on node labels to identify the topology domain(s) that each Node is in. Ref: [Pod Topology Spread Constraints](https://kubernetes.io/docs/concepts/workloads/pods/pod-topology-spread-constraints/). The labelSelector field in topology spread constraint will be set to the selector labels for webhook pods if not specified. |
 | webhook.env | list | `[]` | Environment variables for webhook containers. |
 | webhook.envFrom | list | `[]` | Environment variable sources for webhook containers. |
-| webhook.volumeMounts | list | `[]` | Volume mounts for webhook containers. |
+| webhook.volumeMounts | list | `[{"mountPath":"/etc/k8s-webhook-server/serving-certs","name":"serving-certs","readOnly":false,"subPath":"serving-certs"}]` | Volume mounts for webhook containers. |
+| webhook.volumeMounts[0] | object | `{"mountPath":"/etc/k8s-webhook-server/serving-certs","name":"serving-certs","readOnly":false,"subPath":"serving-certs"}` | Mount a dir for the webhook to generate its certificates in. |
 | webhook.resources | object | `{}` | Pod resource requests and limits for webhook pods. |
-| webhook.securityContext | object | `{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]},"privileged":false,"runAsNonRoot":true}` | Security context for webhook containers. |
+| webhook.securityContext | object | `{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]},"privileged":false,"readOnlyRootFilesystem":true,"runAsNonRoot":true}` | Security context for webhook containers. |
 | webhook.podDisruptionBudget.enable | bool | `false` | Specifies whether to create pod disruption budget for webhook. Ref: [Specifying a Disruption Budget for your Application](https://kubernetes.io/docs/tasks/run-application/configure-pdb/) |
 | webhook.podDisruptionBudget.minAvailable | int | `1` | The number of pods that must be available. Require `webhook.replicas` to be greater than 1 |
 | spark.jobNamespaces | list | `["default"]` | List of namespaces where to run spark jobs. If empty string is included, all namespaces will be allowed. Make sure the namespaces have already existed. |
