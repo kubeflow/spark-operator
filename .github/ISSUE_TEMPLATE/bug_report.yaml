@@ -1,0 +1,54 @@
+name: Bug Report
+description: Tell us about a problem you are experiencing with the Spark operator.
+labels:
+  - kind/bug
+  - lifecycle/needs-triage
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to fill out this Spark operator bug report!
+  - type: textarea
+    id: problem
+    attributes:
+      label: What happened?
+      description: |
+        Please provide a clear and concise description of the issue you are encountering, and a reproduction of your configuration.
+        If your request is for a new feature, please use the `Feature request` template.
+      value: |
+        - [ ] ✋ I have searched the open/closed issues and my issue is not listed.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Reproduction Code
+      description: Steps to reproduce the behavior.
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: A clear and concise description of what you expected to happen.
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: A clear and concise description of what actually happened.
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment & Versions
+      value: |
+        - Kubernetes Version:
+        - Spark Operator Version:
+        - Apache Spark Version:
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+      description: Add any other context about the problem here.
+  - type: input
+    id: votes
+    attributes:
+      label: Impacted by this bug?
+      value: Give it a 👍 We prioritize the issues with most 👍

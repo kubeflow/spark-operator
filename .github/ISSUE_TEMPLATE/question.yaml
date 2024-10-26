@@ -1,0 +1,30 @@
+name: Question
+description: Ask question about the Spark operator.
+labels: 
+  - kind/question
+  - lifecycle/needs-triage
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to fill out this question!
+  - type: textarea
+    id: feature
+    attributes:
+      label: What question do you want to ask?
+      description: |
+        A clear and concise description of what you want to ask about the Spark operator.
+      value: |
+        - [ ] ✋ I have searched the open/closed issues and my issue is not listed.
+    validations:
+      required: true
+  - type: textarea
+    id: rationale
+    attributes:
+      label: Additional context
+      description: Add any other context or screenshots about the question here.
+  - type: input
+    id: votes
+    attributes:
+      label: Have the same question?
+      value: Give it a 👍 We prioritize the question with most 👍
