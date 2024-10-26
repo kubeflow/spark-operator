@@ -1,0 +1,47 @@
+name: Feature Request
+description: Suggest an idea for the Spark operator.
+labels: 
+  - kind/feature
+  - lifecycle/needs-triage
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to fill out this Spark operator feature request!
+  - type: markdown
+    attributes:
+      value: |
+        - Please vote on this issue by adding a 👍 [reaction](https://blog.github.com/2016-03-10-add-reactions-to-pull-requests-issues-and-comments/) to the original issue to help the community and maintainers prioritize this request.
+        - Please do not leave "+1" or other comments that do not add relevant new information or questions, they generate extra noise for issue followers and do not help prioritize the request.
+        - If you are interested in working on this issue or have submitted a pull request, please leave a comment.
+  - type: textarea
+    id: feature
+    attributes:
+      label: What feature you would like to be added?
+      description: |
+        A clear and concise description of what you want to add to the Spark operator.
+        Please consider to write a Spark operator enhancement proposal if it is a large feature request.
+    validations:
+      required: true
+  - type: textarea
+    id: rationale
+    attributes:
+      label: Why is this needed?
+  - type: textarea
+    id: solution
+    attributes:
+      label: Describe the solution you would like
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Describe alternatives you have considered
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+      description: Add any other context or screenshots about the feature request here.
+  - type: input
+    id: votes
+    attributes:
+      label: Love this feature?
+      value: Give it a 👍 We prioritize the features with most 👍
