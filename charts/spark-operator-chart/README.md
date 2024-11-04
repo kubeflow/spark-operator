@@ -97,6 +97,7 @@ See [helm uninstall](https://helm.sh/docs/helm/helm_uninstall) for command docum
 | controller.serviceAccount.create | bool | `true` | Specifies whether to create a service account for the controller. |
 | controller.serviceAccount.name | string | `""` | Optional name for the controller service account. |
 | controller.serviceAccount.annotations | object | `{}` | Extra annotations for the controller service account. |
+| controller.serviceAccount.automountServiceAccountToken | bool | `true` | Auto-mount service account token to the controller pods. |
 | controller.rbac.create | bool | `true` | Specifies whether to create RBAC resources for the controller. |
 | controller.rbac.annotations | object | `{}` | Extra annotations for the controller RBAC resources. |
 | controller.labels | object | `{}` | Extra labels for controller pods. |
@@ -134,6 +135,7 @@ See [helm uninstall](https://helm.sh/docs/helm/helm_uninstall) for command docum
 | webhook.serviceAccount.create | bool | `true` | Specifies whether to create a service account for the webhook. |
 | webhook.serviceAccount.name | string | `""` | Optional name for the webhook service account. |
 | webhook.serviceAccount.annotations | object | `{}` | Extra annotations for the webhook service account. |
+| webhook.serviceAccount.automountServiceAccountToken | bool | `true` | Auto-mount service account token to the webhook pods. |
 | webhook.rbac.create | bool | `true` | Specifies whether to create RBAC resources for the webhook. |
 | webhook.rbac.annotations | object | `{}` | Extra annotations for the webhook RBAC resources. |
 | webhook.labels | object | `{}` | Extra labels for webhook pods. |
@@ -157,6 +159,7 @@ See [helm uninstall](https://helm.sh/docs/helm/helm_uninstall) for command docum
 | spark.serviceAccount.create | bool | `true` | Specifies whether to create a service account for spark applications. |
 | spark.serviceAccount.name | string | `""` | Optional name for the spark service account. |
 | spark.serviceAccount.annotations | object | `{}` | Optional annotations for the spark service account. |
+| spark.serviceAccount.automountServiceAccountToken | bool | `true` | Auto-mount service account token to the spark applications pods. |
 | spark.rbac.create | bool | `true` | Specifies whether to create RBAC resources for spark applications. |
 | spark.rbac.annotations | object | `{}` | Optional annotations for the spark application RBAC resources. |
 | prometheus.metrics.enable | bool | `true` | Specifies whether to enable prometheus metrics scraping. |

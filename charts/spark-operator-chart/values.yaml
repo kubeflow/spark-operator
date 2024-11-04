@@ -87,6 +87,8 @@ controller:
     name: ""
     # -- Extra annotations for the controller service account.
     annotations: {}
+    # -- Auto-mount service account token to the controller pods.
+    automountServiceAccountToken: true
 
   rbac:
     # -- Specifies whether to create RBAC resources for the controller.
@@ -231,6 +233,8 @@ webhook:
     name: ""
     # -- Extra annotations for the webhook service account.
     annotations: {}
+    # -- Auto-mount service account token to the webhook pods.
+    automountServiceAccountToken: true
 
   rbac:
     # -- Specifies whether to create RBAC resources for the webhook.
@@ -331,6 +335,8 @@ spark:
     name: ""
     # -- Optional annotations for the spark service account.
     annotations: {}
+    # -- Auto-mount service account token to the spark applications pods.
+    automountServiceAccountToken: true
 
   rbac:
     # -- Specifies whether to create RBAC resources for spark applications.
