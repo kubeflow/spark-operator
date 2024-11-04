@@ -773,10 +773,13 @@ func (r *Reconciler) updateDriverState(_ context.Context, app *v1beta2.SparkAppl
 	}
 
 	if driverPod == nil {
-		app.Status.AppState.State = v1beta2.ApplicationStateFailing
-		app.Status.AppState.ErrorMessage = "driver pod not found"
-		app.Status.TerminationTime = metav1.Now()
-		return nil
+		if metav1.Now().Sub(app.Status.LastSubmissionAttemptTime.Time) > 10*time.Second {
+			app.Status.AppState.State = v1beta2.ApplicationStateFailing
+			app.Status.AppState.ErrorMessage = "driver pod not found"
+			app.Status.TerminationTime = metav1.Now()
+			return nil
+		}
+		return fmt.Errorf("driver pod not found, give it some time")
 	}
 
 	app.Status.SparkApplicationID = util.GetSparkApplicationID(driverPod)
