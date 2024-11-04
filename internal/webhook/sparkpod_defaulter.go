@@ -537,7 +537,7 @@ func addContainerSecurityContext(pod *corev1.Pod, app *v1beta2.SparkApplication)
 		if i < 0 {
 			return fmt.Errorf("executor container not found in pod")
 		}
-		if app.Spec.Driver.SecurityContext == nil {
+		if app.Spec.Executor.SecurityContext == nil {
 			return nil
 		}
 		pod.Spec.Containers[i].SecurityContext = app.Spec.Executor.SecurityContext
