@@ -141,6 +141,7 @@ spec:
       priorityClassName: {{ . }}
       {{- end }}
       serviceAccountName: {{ include "spark-operator.webhook.serviceAccountName" . }}
+      automountServiceAccountToken: {{ .Values.webhook.serviceAccount.automountServiceAccountToken }}
       {{- with .Values.webhook.podSecurityContext }}
       securityContext:
         {{- toYaml . | nindent 8 }}
