@@ -259,17 +259,20 @@ func (r *Reconciler) reconcileNewSparkApplication(ctx context.Context, req ctrl.
 			}
 			app := old.DeepCopy()
 
-			if err := r.submitSparkApplication(app); err != nil {
-				logger.Error(err, "Failed to submit SparkApplication", "name", app.Name, "namespace", app.Namespace)
-				app.Status = v1beta2.SparkApplicationStatus{
-					AppState: v1beta2.ApplicationState{
-						State:        v1beta2.ApplicationStateFailedSubmission,
-						ErrorMessage: err.Error(),
-					},
-					SubmissionAttempts:        app.Status.SubmissionAttempts + 1,
-					LastSubmissionAttemptTime: metav1.Now(),
-				}
+			// Check if driver pod still exists
+			driverPodName := util.GetDriverPodName(app)
+			driverPod := &corev1.Pod{}
+			if err := r.client.Get(ctx, types.NamespacedName{Namespace: app.Namespace, Name: driverPodName}, driverPod); err == nil {
+				// If the driver pod exists, log and requeue with delay
+				logger.Info("Driver pod still exists; requeuing for cleanup", "name", driverPodName, "namespace", app.Namespace)
+				return fmt.Errorf("driver pod still exists, waiting for cleanup")
+			} else if !errors.IsNotFound(err) {
+				// Other errors are handled as a retry
+				return err
 			}
+
+			// Submit Spark application
+			_ = r.submitSparkApplication(app)
 			if err := r.updateSparkApplicationStatus(ctx, app); err != nil {
 				return err
 			}
@@ -278,7 +281,8 @@ func (r *Reconciler) reconcileNewSparkApplication(ctx context.Context, req ctrl.
 	)
 	if retryErr != nil {
 		logger.Error(retryErr, "Failed to reconcile SparkApplication", "name", key.Name, "namespace", key.Namespace)
-		return ctrl.Result{Requeue: true}, retryErr
+		// Requeue with a delay to allow for driver pod cleanup if needed
+		return ctrl.Result{RequeueAfter: 5 * time.Second}, retryErr
 	}
 	return ctrl.Result{}, nil
 }
