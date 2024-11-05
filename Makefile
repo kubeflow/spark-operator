@@ -52,7 +52,7 @@ LOCALBIN ?= $(shell pwd)/bin
 KUSTOMIZE_VERSION ?= v5.4.1
 CONTROLLER_TOOLS_VERSION ?= v0.15.0
 KIND_VERSION ?= v0.23.0
-KIND_K8S_VERSION ?= v1.29.3
+KIND_K8S_VERSION ?= v1.31.1
 ENVTEST_VERSION ?= release-0.18
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
 ENVTEST_K8S_VERSION ?= 1.29.3
