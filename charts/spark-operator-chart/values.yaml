@@ -106,7 +106,7 @@ controller:
 
   # -- Volumes for controller pods.
   volumes:
-    # -- Create a tmp directory to write Spark artifacts to for deployed Spark apps.
+    # Create a tmp directory to write Spark artifacts to for deployed Spark apps.
     - name: tmp
       emptyDir:
         sizeLimit: 1Gi
@@ -146,7 +146,7 @@ controller:
 
   # -- Volume mounts for controller containers.
   volumeMounts:
-    # -- Mount a tmp directory to write Spark artifacts to for deployed Spark apps.
+    # Mount a tmp directory to write Spark artifacts to for deployed Spark apps.
     - name: tmp
       mountPath: "/tmp"
       readOnly: false
@@ -262,7 +262,7 @@ webhook:
 
   # -- Volumes for webhook pods.
   volumes:
-    # -- Create a dir for the webhook to generate its certificates in.
+    # Create a dir for the webhook to generate its certificates in.
     - name: serving-certs
       emptyDir:
         sizeLimit: 500Mi
@@ -302,7 +302,7 @@ webhook:
 
   # -- Volume mounts for webhook containers.
   volumeMounts:
-    # -- Mount a dir for the webhook to generate its certificates in.
+    # Mount a dir for the webhook to generate its certificates in.
     - name: serving-certs
       mountPath: /etc/k8s-webhook-server/serving-certs
       subPath: serving-certs
