@@ -278,6 +278,9 @@ func (r *Reconciler) reconcileNewSparkApplication(ctx context.Context, req ctrl.
 			if err := r.updateSparkApplicationStatus(ctx, app); err != nil {
 				return err
 			}
+
+			// Log successful submission
+			logger.Info("Successfully submitted SparkApplication", "name", app.Name, "namespace", app.Namespace)
 			return nil
 		},
 	)
