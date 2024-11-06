@@ -124,7 +124,7 @@ spec:
         {{- end }}
         {{- with .Values.controller.volumeMounts }}
         volumeMounts:
-        {{- toYaml . | nindent 8 }}
+          {{- toYaml . | nindent 8 }}
         {{- end }}
         {{- with .Values.controller.resources }}
         resources:
@@ -153,7 +153,7 @@ spec:
       {{- end }}
       {{- with .Values.controller.volumes }}
       volumes:
-      {{- toYaml . | nindent 6 }}
+        {{- toYaml . | nindent 6 }}
       {{- end }}
       {{- with .Values.controller.nodeSelector }}
       nodeSelector:
