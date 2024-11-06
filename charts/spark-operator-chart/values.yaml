@@ -106,10 +106,10 @@ controller:
 
   # -- Volumes for controller pods.
   volumes:
-    # Create a tmp directory to write Spark artifacts to for deployed Spark apps.
-    - name: tmp
-      emptyDir:
-        sizeLimit: 1Gi
+  # Create a tmp directory to write Spark artifacts to for deployed Spark apps.
+  - name: tmp
+    emptyDir:
+      sizeLimit: 1Gi
 
   # -- Node selector for controller pods.
   nodeSelector: {}
@@ -146,10 +146,10 @@ controller:
 
   # -- Volume mounts for controller containers.
   volumeMounts:
-    # Mount a tmp directory to write Spark artifacts to for deployed Spark apps.
-    - name: tmp
-      mountPath: "/tmp"
-      readOnly: false
+  # Mount a tmp directory to write Spark artifacts to for deployed Spark apps.
+  - name: tmp
+    mountPath: "/tmp"
+    readOnly: false
 
   # -- Pod resource requests and limits for controller containers.
   # Note, that each job submission will spawn a JVM within the controller pods using "/usr/local/openjdk-11/bin/java -Xmx128m".
@@ -262,10 +262,10 @@ webhook:
 
   # -- Volumes for webhook pods.
   volumes:
-    # Create a dir for the webhook to generate its certificates in.
-    - name: serving-certs
-      emptyDir:
-        sizeLimit: 500Mi
+  # Create a dir for the webhook to generate its certificates in.
+  - name: serving-certs
+    emptyDir:
+      sizeLimit: 500Mi
 
   # -- Node selector for webhook pods.
   nodeSelector: {}
@@ -302,11 +302,11 @@ webhook:
 
   # -- Volume mounts for webhook containers.
   volumeMounts:
-    # Mount a dir for the webhook to generate its certificates in.
-    - name: serving-certs
-      mountPath: /etc/k8s-webhook-server/serving-certs
-      subPath: serving-certs
-      readOnly: false
+  # Mount a dir for the webhook to generate its certificates in.
+  - name: serving-certs
+    mountPath: /etc/k8s-webhook-server/serving-certs
+    subPath: serving-certs
+    readOnly: false
 
 
   # -- Pod resource requests and limits for webhook pods.
