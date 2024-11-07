@@ -262,10 +262,10 @@ webhook:
 
   # -- Volumes for webhook pods.
   volumes:
-    # Create a dir for the webhook to generate its certificates in.
-    - name: serving-certs
-      emptyDir:
-        sizeLimit: 500Mi
+  # Create a dir for the webhook to generate its certificates in.
+  - name: serving-certs
+    emptyDir:
+      sizeLimit: 500Mi
 
   # -- Node selector for webhook pods.
   nodeSelector: {}
