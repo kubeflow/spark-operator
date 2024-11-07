@@ -107,7 +107,11 @@ controller:
     # key2: value2
 
   # -- Volumes for controller pods.
-  volumes: []
+  volumes:
+  # Create a tmp directory to write Spark artifacts to for deployed Spark apps.
+  - name: tmp
+    emptyDir:
+      sizeLimit: 1Gi
 
   # -- Node selector for controller pods.
   nodeSelector: {}
@@ -143,7 +147,11 @@ controller:
   envFrom: []
 
   # -- Volume mounts for controller containers.
-  volumeMounts: []
+  volumeMounts:
+  # Mount a tmp directory to write Spark artifacts to for deployed Spark apps.
+  - name: tmp
+    mountPath: "/tmp"
+    readOnly: false
 
   # -- Pod resource requests and limits for controller containers.
   # Note, that each job submission will spawn a JVM within the controller pods using "/usr/local/openjdk-11/bin/java -Xmx128m".
@@ -159,6 +167,7 @@ controller:
 
   # -- Security context for controller containers.
   securityContext:
+    readOnlyRootFilesystem: true
     privileged: false
     allowPrivilegeEscalation: false
     runAsNonRoot: true
@@ -256,7 +265,11 @@ webhook:
   sidecars: []
 
   # -- Volumes for webhook pods.
-  volumes: []
+  volumes:
+  # Create a dir for the webhook to generate its certificates in.
+  - name: serving-certs
+    emptyDir:
+      sizeLimit: 500Mi
 
   # -- Node selector for webhook pods.
   nodeSelector: {}
@@ -292,7 +305,13 @@ webhook:
   envFrom: []
 
   # -- Volume mounts for webhook containers.
-  volumeMounts: []
+  volumeMounts:
+  # Mount a dir for the webhook to generate its certificates in.
+  - name: serving-certs
+    mountPath: /etc/k8s-webhook-server/serving-certs
+    subPath: serving-certs
+    readOnly: false
+
 
   # -- Pod resource requests and limits for webhook pods.
   resources: {}
@@ -305,6 +324,7 @@ webhook:
 
   # -- Security context for webhook containers.
   securityContext:
+    readOnlyRootFilesystem: true
     privileged: false
     allowPrivilegeEscalation: false
     runAsNonRoot: true
