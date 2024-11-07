@@ -146,10 +146,10 @@ controller:
 
   # -- Volume mounts for controller containers.
   volumeMounts:
-    # Mount a tmp directory to write Spark artifacts to for deployed Spark apps.
-    - name: tmp
-      mountPath: "/tmp"
-      readOnly: false
+  # Mount a tmp directory to write Spark artifacts to for deployed Spark apps.
+  - name: tmp
+    mountPath: "/tmp"
+    readOnly: false
 
   # -- Pod resource requests and limits for controller containers.
   # Note, that each job submission will spawn a JVM within the controller pods using "/usr/local/openjdk-11/bin/java -Xmx128m".
