@@ -299,10 +299,14 @@ tests:
     set:
       webhook:
         securityContext:
+          readOnlyRootFilesystem: true
           runAsUser: 1000
           runAsGroup: 2000
           fsGroup: 3000
     asserts:
+      - equal:
+          path: spec.template.spec.containers[0].securityContext.readOnlyRootFilesystem
+          value: true
       - equal:
           path: spec.template.spec.containers[0].securityContext.runAsUser
           value: 1000
