@@ -302,11 +302,11 @@ webhook:
 
   # -- Volume mounts for webhook containers.
   volumeMounts:
-    # Mount a dir for the webhook to generate its certificates in.
-    - name: serving-certs
-      mountPath: /etc/k8s-webhook-server/serving-certs
-      subPath: serving-certs
-      readOnly: false
+  # Mount a dir for the webhook to generate its certificates in.
+  - name: serving-certs
+    mountPath: /etc/k8s-webhook-server/serving-certs
+    subPath: serving-certs
+    readOnly: false
 
 
   # -- Pod resource requests and limits for webhook pods.
