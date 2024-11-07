@@ -74,7 +74,7 @@ var _ = Describe("SparkApplication Controller", func() {
 		})
 	})
 
-	Context("When reconciling a submitted SparkApplication when driver pod is not yet created", func() {
+	Context("When reconciling a submitted SparkApplication and driver pod is not yet created", func() {
 		ctx := context.Background()
 		appName := "test"
 		appNamespace := "default"
@@ -117,7 +117,7 @@ var _ = Describe("SparkApplication Controller", func() {
 			Expect(k8sClient.Delete(ctx, app)).To(Succeed())
 		})
 
-		It("Should successfully reconcile a submitted SparkApplication", func() {
+		It("Should requeue submitted SparkApplication when inside the grace period", func() {
 			By("Reconciling the created test SparkApplication")
 			reconciler := sparkapplication.NewReconciler(
 				nil,
@@ -125,13 +125,32 @@ var _ = Describe("SparkApplication Controller", func() {
 				k8sClient,
 				nil,
 				nil,
-				sparkapplication.Options{Namespaces: []string{appNamespace}},
+				sparkapplication.Options{Namespaces: []string{appNamespace}, DriverPodCreationGracePeriod: 10 * time.Second},
 			)
 			_, err := reconciler.Reconcile(ctx, reconcile.Request{NamespacedName: key})
 			Expect(err).To(MatchError("driver pod not found, give it some time"))
 			app := &v1beta2.SparkApplication{}
 			Expect(k8sClient.Get(ctx, key, app)).To(Succeed())
 			Expect(app.Status.AppState.State).To(Equal(v1beta2.ApplicationStateSubmitted))
+		})
+
+		It("Should fail a SparkApplication when outside the grace period", func() {
+			By("Reconciling the created test SparkApplication")
+			reconciler := sparkapplication.NewReconciler(
+				nil,
+				k8sClient.Scheme(),
+				k8sClient,
+				nil,
+				nil,
+				sparkapplication.Options{Namespaces: []string{appNamespace}, DriverPodCreationGracePeriod: 0 * time.Second},
+			)
+			result, err := reconciler.Reconcile(ctx, reconcile.Request{NamespacedName: key})
+			Expect(err).NotTo(HaveOccurred())
+			Expect(result.Requeue).To(BeFalse())
+
+			app := &v1beta2.SparkApplication{}
+			Expect(k8sClient.Get(ctx, key, app)).To(Succeed())
+			Expect(app.Status.AppState.State).To(Equal(v1beta2.ApplicationStateFailing))
 		})
 	})
 	
