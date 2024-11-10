@@ -74,7 +74,7 @@ var _ = Describe("SparkApplication Controller", func() {
 		})
 	})
 
-	Context("When reconciling a submitted SparkApplication and driver pod is not yet created", func() {
+	Context("When reconciling a submitted SparkApplication", func() {
 		ctx := context.Background()
 		appName := "test"
 		appNamespace := "default"
@@ -103,7 +103,7 @@ var _ = Describe("SparkApplication Controller", func() {
 				Expect(k8sClient.Create(ctx, app)).To(Succeed())
 
 				app.Status.AppState.State = v1beta2.ApplicationStateSubmitted
-				app.Status.DriverInfo.PodName = "test-driver"
+				app.Status.DriverInfo.PodName = appName + "-driver"
 				app.Status.LastSubmissionAttemptTime = metav1.NewTime(time.Now())
 				Expect(k8sClient.Status().Update(ctx, app)).To(Succeed())
 			}
@@ -117,7 +117,7 @@ var _ = Describe("SparkApplication Controller", func() {
 			Expect(k8sClient.Delete(ctx, app)).To(Succeed())
 		})
 
-		It("Should requeue submitted SparkApplication when inside the grace period", func() {
+		It("Should requeue submitted SparkApplication when driver pod not found inside the grace period", func() {
 			By("Reconciling the created test SparkApplication")
 			reconciler := sparkapplication.NewReconciler(
 				nil,
@@ -128,13 +128,13 @@ var _ = Describe("SparkApplication Controller", func() {
 				sparkapplication.Options{Namespaces: []string{appNamespace}, DriverPodCreationGracePeriod: 10 * time.Second},
 			)
 			_, err := reconciler.Reconcile(ctx, reconcile.Request{NamespacedName: key})
-			Expect(err).To(MatchError("driver pod not found, give it some time"))
+			Expect(err).To(MatchError("driver pod not found, while inside the grace period"))
 			app := &v1beta2.SparkApplication{}
 			Expect(k8sClient.Get(ctx, key, app)).To(Succeed())
 			Expect(app.Status.AppState.State).To(Equal(v1beta2.ApplicationStateSubmitted))
 		})
 
-		It("Should fail a SparkApplication when outside the grace period", func() {
+		It("Should fail a SparkApplication when driver pod not found outside the grace period", func() {
 			By("Reconciling the created test SparkApplication")
 			reconciler := sparkapplication.NewReconciler(
 				nil,
@@ -152,8 +152,31 @@ var _ = Describe("SparkApplication Controller", func() {
 			Expect(k8sClient.Get(ctx, key, app)).To(Succeed())
 			Expect(app.Status.AppState.State).To(Equal(v1beta2.ApplicationStateFailing))
 		})
+
+		It("Should successfully reconcile a SparkApplication when driver pod exists", func() {
+			By("Reconciling the created test SparkApplication")
+			driverPod := createDriverPod(appName, appNamespace)
+			Expect(k8sClient.Create(ctx, driverPod)).To(Succeed())
+
+			reconciler := sparkapplication.NewReconciler(
+				nil,
+				k8sClient.Scheme(),
+				k8sClient,
+				nil,
+				nil,
+				sparkapplication.Options{Namespaces: []string{appNamespace}, DriverPodCreationGracePeriod: 0 * time.Second},
+			)
+			result, err := reconciler.Reconcile(ctx, reconcile.Request{NamespacedName: key})
+			Expect(err).NotTo(HaveOccurred())
+			Expect(result.Requeue).To(BeFalse())
+
+			app := &v1beta2.SparkApplication{}
+			Expect(k8sClient.Get(ctx, key, app)).To(Succeed())
+			Expect(app.Status.AppState.State).To(Equal(v1beta2.ApplicationStateSubmitted))
+		})
+
 	})
-	
+
 	Context("When reconciling a completed SparkApplication", func() {
 		ctx := context.Background()
 		appName := "test"
