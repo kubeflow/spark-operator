@@ -74,7 +74,7 @@ var _ = Describe("SparkApplication Controller", func() {
 		})
 	})
 
-	Context("When reconciling a submitted SparkApplication", func() {
+	Context("When reconciling a submitted SparkApplication with no driver pod", func() {
 		ctx := context.Background()
 		appName := "test"
 		appNamespace := "default"
@@ -103,7 +103,7 @@ var _ = Describe("SparkApplication Controller", func() {
 				Expect(k8sClient.Create(ctx, app)).To(Succeed())
 
 				app.Status.AppState.State = v1beta2.ApplicationStateSubmitted
-				app.Status.DriverInfo.PodName = appName + "-driver"
+				app.Status.DriverInfo.PodName = "non-existent-driver"
 				app.Status.LastSubmissionAttemptTime = metav1.NewTime(time.Now())
 				Expect(k8sClient.Status().Update(ctx, app)).To(Succeed())
 			}
@@ -152,12 +152,59 @@ var _ = Describe("SparkApplication Controller", func() {
 			Expect(k8sClient.Get(ctx, key, app)).To(Succeed())
 			Expect(app.Status.AppState.State).To(Equal(v1beta2.ApplicationStateFailing))
 		})
+	})
 
-		It("Should successfully reconcile a SparkApplication when driver pod exists", func() {
+	Context("When reconciling a SparkApplication with driver pod", func() {
+		ctx := context.Background()
+		appName := "test"
+		appNamespace := "default"
+		key := types.NamespacedName{
+			Name:      appName,
+			Namespace: appNamespace,
+		}
+
+		BeforeEach(func() {
+			By("Creating a test SparkApplication")
+			app := &v1beta2.SparkApplication{}
+			if err := k8sClient.Get(ctx, key, app); err != nil && errors.IsNotFound(err) {
+				app = &v1beta2.SparkApplication{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      appName,
+						Namespace: appNamespace,
+						Labels: map[string]string{
+							common.LabelSparkAppName: app.Name,
+						},
+					},
+					Spec: v1beta2.SparkApplicationSpec{
+						MainApplicationFile: util.StringPtr("local:///dummy.jar"),
+					},
+				}
+				v1beta2.SetSparkApplicationDefaults(app)
+				Expect(k8sClient.Create(ctx, app)).To(Succeed())
+
+				app.Status.AppState.State = v1beta2.ApplicationStateSubmitted
+				driverPod := createDriverPod(appName, appNamespace)
+				Expect(k8sClient.Create(ctx, driverPod)).To(Succeed())
+				app.Status.DriverInfo.PodName = driverPod.Name
+				Expect(k8sClient.Status().Update(ctx, app)).To(Succeed())
+			}
+		})
+
+		AfterEach(func() {
+			app := &v1beta2.SparkApplication{}
+			Expect(k8sClient.Get(ctx, key, app)).To(Succeed())
+
+			By("Deleting the created test SparkApplication")
+			Expect(k8sClient.Delete(ctx, app)).To(Succeed())
+
+			By("Deleting the driver pod")
+			driverPod := &corev1.Pod{}
+			Expect(k8sClient.Get(ctx, getDriverNamespacedName(appName, appNamespace), driverPod)).To(Succeed())
+			Expect(k8sClient.Delete(ctx, driverPod)).To(Succeed())
+		})
+
+		It("When reconciling a submitted SparkApplication when driver pod exists", func() {
 			By("Reconciling the created test SparkApplication")
-			driverPod := createDriverPod(appName, appNamespace)
-			Expect(k8sClient.Create(ctx, driverPod)).To(Succeed())
-
 			reconciler := sparkapplication.NewReconciler(
 				nil,
 				k8sClient.Scheme(),
@@ -174,7 +221,6 @@ var _ = Describe("SparkApplication Controller", func() {
 			Expect(k8sClient.Get(ctx, key, app)).To(Succeed())
 			Expect(app.Status.AppState.State).To(Equal(v1beta2.ApplicationStateSubmitted))
 		})
-
 	})
 
 	Context("When reconciling a completed SparkApplication", func() {
