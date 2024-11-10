@@ -398,15 +398,15 @@ func newSparkApplicationReconcilerOptions() sparkapplication.Options {
 		sparkExecutorMetrics.Register()
 	}
 	options := sparkapplication.Options{
-		Namespaces:               namespaces,
-		EnableUIService:          enableUIService,
-		IngressClassName:         ingressClassName,
-		IngressURLFormat:         ingressURLFormat,
-		DefaultBatchScheduler:    defaultBatchScheduler,
+		Namespaces:                   namespaces,
+		EnableUIService:              enableUIService,
+		IngressClassName:             ingressClassName,
+		IngressURLFormat:             ingressURLFormat,
+		DefaultBatchScheduler:        defaultBatchScheduler,
 		DriverPodCreationGracePeriod: driverPodCreationGracePeriod,
-		SparkApplicationMetrics:  sparkApplicationMetrics,
-		SparkExecutorMetrics:     sparkExecutorMetrics,
-		MaxTrackedExecutorPerApp: maxTrackedExecutorPerApp,
+		SparkApplicationMetrics:      sparkApplicationMetrics,
+		SparkExecutorMetrics:         sparkExecutorMetrics,
+		MaxTrackedExecutorPerApp:     maxTrackedExecutorPerApp,
 	}
 	if enableBatchScheduler {
 		options.KubeSchedulerNames = kubeSchedulerNames
