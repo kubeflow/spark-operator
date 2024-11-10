@@ -91,9 +91,6 @@ var _ = Describe("SparkApplication Controller", func() {
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      appName,
 						Namespace: appNamespace,
-						Labels: map[string]string{
-							common.LabelSparkAppName: app.Name,
-						},
 					},
 					Spec: v1beta2.SparkApplicationSpec{
 						MainApplicationFile: util.StringPtr("local:///dummy.jar"),
@@ -171,9 +168,6 @@ var _ = Describe("SparkApplication Controller", func() {
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      appName,
 						Namespace: appNamespace,
-						Labels: map[string]string{
-							common.LabelSparkAppName: app.Name,
-						},
 					},
 					Spec: v1beta2.SparkApplicationSpec{
 						MainApplicationFile: util.StringPtr("local:///dummy.jar"),
