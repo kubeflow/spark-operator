@@ -651,6 +651,14 @@ tests:
       - notContains:
           path: spec.template.spec.containers[?(@.name=="spark-operator-controller")].args
           content: --workqueue-ratelimiter-max-delay=1h
+  - it: Should contain `driver-pod-creation-grace-period` arg if `controller.driverPodCreationGracePeriod` is set
+    set:
+      controller:
+        driverPodCreationGracePeriod: 30s
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[?(@.name=="spark-operator-controller")].args
+          content: --driver-pod-creation-grace-period=30s
   - it: Should contain `--max-tracked-executor-per-app` arg if `controller.maxTrackedExecutorPerApp` is set
     set:
       controller:

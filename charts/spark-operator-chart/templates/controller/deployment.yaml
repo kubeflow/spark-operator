@@ -100,6 +100,9 @@ spec:
         {{- if .Values.controller.workqueueRateLimiter.maxDelay.enable }}
         - --workqueue-ratelimiter-max-delay={{ .Values.controller.workqueueRateLimiter.maxDelay.duration }}
         {{- end }}
+        {{- if .Values.controller.driverPodCreationGracePeriod }}
+        - --driver-pod-creation-grace-period={{ .Values.controller.driverPodCreationGracePeriod }}
+        {{- end }}
         {{- if .Values.controller.maxTrackedExecutorPerApp }}
         - --max-tracked-executor-per-app={{ .Values.controller.maxTrackedExecutorPerApp }}
         {{- end }}
