@@ -840,20 +840,22 @@ func executorVolumeMountsOption(app *v1beta2.SparkApplication) ([]string, error)
 		}
 		switch volumeType {
 		case common.VolumeTypeEmptyDir:
-			args = append(
-				args,
-				"--conf",
-				fmt.Sprintf(
-					"%s=%s",
+			if volume.EmptyDir.SizeLimit != nil {
+				args = append(
+					args,
+					"--conf",
 					fmt.Sprintf(
-						common.SparkKubernetesExecutorVolumesOptionsTemplate,
-						common.VolumeTypeEmptyDir,
-						volume.Name,
-						"sizeLimit",
+						"%s=%s",
+						fmt.Sprintf(
+							common.SparkKubernetesExecutorVolumesOptionsTemplate,
+							common.VolumeTypeEmptyDir,
+							volume.Name,
+							"sizeLimit",
+						),
+						volume.EmptyDir.SizeLimit.String(),
 					),
-					volume.EmptyDir.SizeLimit.String(),
-				),
-			)
+				)
+			}
 		case common.VolumeTypeHostPath:
 			args = append(
 				args,
