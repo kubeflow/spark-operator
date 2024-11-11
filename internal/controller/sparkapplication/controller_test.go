@@ -125,7 +125,7 @@ var _ = Describe("SparkApplication Controller", func() {
 				sparkapplication.Options{Namespaces: []string{appNamespace}, DriverPodCreationGracePeriod: 10 * time.Second},
 			)
 			_, err := reconciler.Reconcile(ctx, reconcile.Request{NamespacedName: key})
-			Expect(err).To(MatchError("driver pod not found, while inside the grace period"))
+			Expect(err).To(MatchError(ContainSubstring("driver pod not found, while inside the grace period. Grace period of")))
 			app := &v1beta2.SparkApplication{}
 			Expect(k8sClient.Get(ctx, key, app)).To(Succeed())
 			Expect(app.Status.AppState.State).To(Equal(v1beta2.ApplicationStateSubmitted))

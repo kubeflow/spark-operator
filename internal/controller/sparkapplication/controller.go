@@ -781,7 +781,7 @@ func (r *Reconciler) updateDriverState(_ context.Context, app *v1beta2.SparkAppl
 			app.Status.TerminationTime = metav1.Now()
 			return nil
 		}
-		return fmt.Errorf("driver pod not found, while inside the grace period")
+		return fmt.Errorf("driver pod not found, while inside the grace period. Grace period of %v expires at %v", r.options.DriverPodCreationGracePeriod, app.Status.LastSubmissionAttemptTime.Add(r.options.DriverPodCreationGracePeriod))
 	}
 
 	app.Status.SparkApplicationID = util.GetSparkApplicationID(driverPod)
