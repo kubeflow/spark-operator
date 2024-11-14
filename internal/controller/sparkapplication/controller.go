@@ -28,6 +28,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	extensionsv1beta1 "k8s.io/api/extensions/v1beta1"
 	networkingv1 "k8s.io/api/networking/v1"
+	policyv1 "k8s.io/api/policy/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -42,7 +43,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/kubeflow/spark-operator/api/v1beta2"
-	"github.com/kubeflow/spark-operator/internal/metrics"
 	"github.com/kubeflow/spark-operator/internal/scheduler"
 	"github.com/kubeflow/spark-operator/internal/scheduler/kubescheduler"
 	"github.com/kubeflow/spark-operator/internal/scheduler/volcano"
@@ -54,22 +54,6 @@ import (
 var (
 	logger = log.Log.WithName("")
 )
-
-// Options defines the options of the controller.
-type Options struct {
-	Namespaces            []string
-	EnableUIService       bool
-	IngressClassName      string
-	IngressURLFormat      string
-	DefaultBatchScheduler string
-
-	KubeSchedulerNames []string
-
-	SparkApplicationMetrics *metrics.SparkApplicationMetrics
-	SparkExecutorMetrics    *metrics.SparkExecutorMetrics
-
-	MaxTrackedExecutorPerApp int
-}
 
 // Reconciler reconciles a SparkApplication object.
 type Reconciler struct {
@@ -111,6 +95,7 @@ func NewReconciler(
 // +kubebuilder:rbac:groups=,resources=resourcequotas,verbs=get;list;watch
 // +kubebuilder:rbac:groups=extensions,resources=ingresses,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=networking.k8s.io,resources=ingresses,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=policy,resources=poddisruptionbudgets,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=apiextensions.k8s.io,resources=customresourcedefinitions,verbs=get
 // +kubebuilder:rbac:groups=sparkoperator.k8s.io,resources=sparkapplications,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=sparkoperator.k8s.io,resources=sparkapplications/status,verbs=get;update;patch
@@ -165,7 +150,7 @@ func NewReconciler(
 // +--------------------------------------------------------------------------------------------------------------------+
 func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	key := req.NamespacedName
-	app, err := r.getSparkApplication(key)
+	app, err := r.getSparkApplication(ctx, key)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			return ctrl.Result{}, nil
@@ -232,7 +217,7 @@ func (r *Reconciler) SetupWithManager(mgr ctrl.Manager, options controller.Optio
 
 func (r *Reconciler) handleSparkApplicationDeletion(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	key := req.NamespacedName
-	app, err := r.getSparkApplication(key)
+	app, err := r.getSparkApplication(ctx, key)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			return ctrl.Result{}, nil
@@ -252,7 +237,7 @@ func (r *Reconciler) reconcileNewSparkApplication(ctx context.Context, req ctrl.
 	retryErr := retry.RetryOnConflict(
 		retry.DefaultRetry,
 		func() error {
-			old, err := r.getSparkApplication(key)
+			old, err := r.getSparkApplication(ctx, key)
 			if err != nil {
 				return err
 			}
@@ -261,7 +246,7 @@ func (r *Reconciler) reconcileNewSparkApplication(ctx context.Context, req ctrl.
 			}
 			app := old.DeepCopy()
 
-			_ = r.submitSparkApplication(app)
+			_ = r.submitSparkApplication(ctx, app)
 			if err := r.updateSparkApplicationStatus(ctx, app); err != nil {
 				return err
 			}
@@ -280,7 +265,7 @@ func (r *Reconciler) reconcileSubmittedSparkApplication(ctx context.Context, req
 	retryErr := retry.RetryOnConflict(
 		retry.DefaultRetry,
 		func() error {
-			old, err := r.getSparkApplication(key)
+			old, err := r.getSparkApplication(ctx, key)
 			if err != nil {
 				return err
 			}
@@ -313,7 +298,7 @@ func (r *Reconciler) reconcileFailedSubmissionSparkApplication(ctx context.Conte
 	retryErr := retry.RetryOnConflict(
 		retry.DefaultRetry,
 		func() error {
-			old, err := r.getSparkApplication(key)
+			old, err := r.getSparkApplication(ctx, key)
 			if err != nil {
 				return err
 			}
@@ -329,7 +314,7 @@ func (r *Reconciler) reconcileFailedSubmissionSparkApplication(ctx context.Conte
 				}
 				if timeUntilNextRetryDue <= 0 {
 					if r.validateSparkResourceDeletion(ctx, app) {
-						_ = r.submitSparkApplication(app)
+						_ = r.submitSparkApplication(ctx, app)
 					} else {
 						if err := r.deleteSparkResources(ctx, app); err != nil {
 							logger.Error(err, "failed to delete resources associated with SparkApplication", "name", app.Name, "namespace", app.Namespace)
@@ -364,7 +349,7 @@ func (r *Reconciler) reconcileRunningSparkApplication(ctx context.Context, req c
 	retryErr := retry.RetryOnConflict(
 		retry.DefaultRetry,
 		func() error {
-			old, err := r.getSparkApplication(key)
+			old, err := r.getSparkApplication(ctx, key)
 			if err != nil {
 				return err
 			}
@@ -396,7 +381,7 @@ func (r *Reconciler) reconcilePendingRerunSparkApplication(ctx context.Context, 
 	retryErr := retry.RetryOnConflict(
 		retry.DefaultRetry,
 		func() error {
-			old, err := r.getSparkApplication(key)
+			old, err := r.getSparkApplication(ctx, key)
 			if err != nil {
 				return err
 			}
@@ -410,7 +395,7 @@ func (r *Reconciler) reconcilePendingRerunSparkApplication(ctx context.Context, 
 				logger.Info("Successfully deleted resources associated with SparkApplication", "name", app.Name, "namespace", app.Namespace, "state", app.Status.AppState.State)
 				r.recordSparkApplicationEvent(app)
 				r.resetSparkApplicationStatus(app)
-				_ = r.submitSparkApplication(app)
+				_ = r.submitSparkApplication(ctx, app)
 			}
 			if err := r.updateSparkApplicationStatus(ctx, app); err != nil {
 				return err
@@ -430,7 +415,7 @@ func (r *Reconciler) reconcileInvalidatingSparkApplication(ctx context.Context, 
 	retryErr := retry.RetryOnConflict(
 		retry.DefaultRetry,
 		func() error {
-			old, err := r.getSparkApplication(key)
+			old, err := r.getSparkApplication(ctx, key)
 			if err != nil {
 				return err
 			}
@@ -464,7 +449,7 @@ func (r *Reconciler) reconcileSucceedingSparkApplication(ctx context.Context, re
 	retryErr := retry.RetryOnConflict(
 		retry.DefaultRetry,
 		func() error {
-			old, err := r.getSparkApplication(key)
+			old, err := r.getSparkApplication(ctx, key)
 			if err != nil {
 				return err
 			}
@@ -503,7 +488,7 @@ func (r *Reconciler) reconcileFailingSparkApplication(ctx context.Context, req c
 	retryErr := retry.RetryOnConflict(
 		retry.DefaultRetry,
 		func() error {
-			old, err := r.getSparkApplication(key)
+			old, err := r.getSparkApplication(ctx, key)
 			if err != nil {
 				return err
 			}
@@ -553,7 +538,7 @@ func (r *Reconciler) reconcileFailedSparkApplication(ctx context.Context, req ct
 
 func (r *Reconciler) reconcileTerminatedSparkApplication(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	key := req.NamespacedName
-	old, err := r.getSparkApplication(key)
+	old, err := r.getSparkApplication(ctx, key)
 	if err != nil {
 		return ctrl.Result{Requeue: true}, err
 	}
@@ -607,7 +592,7 @@ func (r *Reconciler) reconcileUnknownSparkApplication(ctx context.Context, req c
 	retryErr := retry.RetryOnConflict(
 		retry.DefaultRetry,
 		func() error {
-			old, err := r.getSparkApplication(key)
+			old, err := r.getSparkApplication(ctx, key)
 			if err != nil {
 				return err
 			}
@@ -633,16 +618,16 @@ func (r *Reconciler) reconcileUnknownSparkApplication(ctx context.Context, req c
 }
 
 // getSparkApplication gets the SparkApplication with the given name and namespace.
-func (r *Reconciler) getSparkApplication(key types.NamespacedName) (*v1beta2.SparkApplication, error) {
+func (r *Reconciler) getSparkApplication(ctx context.Context, key types.NamespacedName) (*v1beta2.SparkApplication, error) {
 	app := &v1beta2.SparkApplication{}
-	if err := r.client.Get(context.TODO(), key, app); err != nil {
+	if err := r.client.Get(ctx, key, app); err != nil {
 		return nil, err
 	}
 	return app, nil
 }
 
 // submitSparkApplication creates a new submission for the given SparkApplication and submits it using spark-submit.
-func (r *Reconciler) submitSparkApplication(app *v1beta2.SparkApplication) (submitErr error) {
+func (r *Reconciler) submitSparkApplication(ctx context.Context, app *v1beta2.SparkApplication) (submitErr error) {
 	logger.Info("Submitting SparkApplication", "name", app.Name, "namespace", app.Namespace, "state", app.Status.AppState.State)
 
 	// SubmissionID must be set before creating any resources to ensure all the resources are labeled.
@@ -739,20 +724,17 @@ func (r *Reconciler) submitSparkApplication(app *v1beta2.SparkApplication) (subm
 		}
 	}
 
+	if err := r.createPodDisruptionBudgets(ctx, app); err != nil {
+		return fmt.Errorf("failed to create pod disruption budget: %v", err)
+	}
+
 	defer func() {
 		if err := r.cleanUpPodTemplateFiles(app); err != nil {
 			logger.Error(fmt.Errorf("failed to clean up pod template files: %v", err), "name", app.Name, "namespace", app.Namespace)
 		}
 	}()
 
-	sparkSubmitArgs, err := buildSparkSubmitArgs(app)
-	if err != nil {
-		return fmt.Errorf("failed to build spark-submit arguments: %v", err)
-	}
-
-	// Try submitting the application by running spark-submit.
-	logger.Info("Running spark-submit for SparkApplication", "name", app.Name, "namespace", app.Namespace, "arguments", sparkSubmitArgs)
-	if err := runSparkSubmit(newSubmission(sparkSubmitArgs, app)); err != nil {
+	if err := r.options.getSparkSubmitter().submit(app); err != nil {
 		r.recordSparkApplicationEvent(app)
 		return fmt.Errorf("failed to run spark-submit: %v", err)
 	}
@@ -761,13 +743,13 @@ func (r *Reconciler) submitSparkApplication(app *v1beta2.SparkApplication) (subm
 
 // updateDriverState finds the driver pod of the application
 // and updates the driver state based on the current phase of the pod.
-func (r *Reconciler) updateDriverState(_ context.Context, app *v1beta2.SparkApplication) error {
+func (r *Reconciler) updateDriverState(ctx context.Context, app *v1beta2.SparkApplication) error {
 	// Either the driver pod doesn't exist yet or its name has not been updated.
 	if app.Status.DriverInfo.PodName == "" {
 		return fmt.Errorf("empty driver pod name with application state %s", app.Status.AppState.State)
 	}
 
-	driverPod, err := r.getDriverPod(app)
+	driverPod, err := r.getDriverPod(ctx, app)
 	if err != nil {
 		return err
 	}
@@ -808,8 +790,8 @@ func (r *Reconciler) updateDriverState(_ context.Context, app *v1beta2.SparkAppl
 
 // updateExecutorState lists the executor pods of the application
 // and updates the executor state based on the current phase of the pods.
-func (r *Reconciler) updateExecutorState(_ context.Context, app *v1beta2.SparkApplication) error {
-	podList, err := r.getExecutorPods(app)
+func (r *Reconciler) updateExecutorState(ctx context.Context, app *v1beta2.SparkApplication) error {
+	podList, err := r.getExecutorPods(ctx, app)
 	if err != nil {
 		return err
 	}
@@ -884,22 +866,22 @@ func (r *Reconciler) updateExecutorState(_ context.Context, app *v1beta2.SparkAp
 	return nil
 }
 
-func (r *Reconciler) getExecutorPods(app *v1beta2.SparkApplication) (*corev1.PodList, error) {
+func (r *Reconciler) getExecutorPods(ctx context.Context, app *v1beta2.SparkApplication) (*corev1.PodList, error) {
 	matchLabels := util.GetResourceLabels(app)
 	matchLabels[common.LabelSparkRole] = common.SparkRoleExecutor
 	pods := &corev1.PodList{}
-	if err := r.client.List(context.TODO(), pods, client.InNamespace(app.Namespace), client.MatchingLabels(matchLabels)); err != nil {
+	if err := r.client.List(ctx, pods, client.InNamespace(app.Namespace), client.MatchingLabels(matchLabels)); err != nil {
 		return nil, fmt.Errorf("failed to get pods for SparkApplication %s/%s: %v", app.Namespace, app.Name, err)
 	}
 	return pods, nil
 }
 
-func (r *Reconciler) getDriverPod(app *v1beta2.SparkApplication) (*corev1.Pod, error) {
+func (r *Reconciler) getDriverPod(ctx context.Context, app *v1beta2.SparkApplication) (*corev1.Pod, error) {
 	pod := &corev1.Pod{}
 	var err error
 
 	key := types.NamespacedName{Namespace: app.Namespace, Name: app.Status.DriverInfo.PodName}
-	err = r.client.Get(context.TODO(), key, pod)
+	err = r.client.Get(ctx, key, pod)
 	if err == nil {
 		return pod, nil
 	}
@@ -941,6 +923,10 @@ func (r *Reconciler) deleteSparkResources(ctx context.Context, app *v1beta2.Spar
 	}
 
 	if err := r.deleteWebUIIngress(ctx, app); err != nil {
+		return err
+	}
+
+	if err := r.deletePodDisruptionBudgets(ctx, app); err != nil {
 		return err
 	}
 
@@ -1021,7 +1007,7 @@ func (r *Reconciler) deleteWebUIIngress(ctx context.Context, app *v1beta2.SparkA
 	if util.IngressCapabilities.Has("extensions/v1beta1") {
 		logger.V(1).Info("Deleting extensions/v1beta1 Spark UI Ingress", "name", ingressName, "namespace", app.Namespace)
 		if err := r.client.Delete(
-			context.TODO(),
+			ctx,
 			&extensionsv1beta1.Ingress{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      ingressName,
@@ -1246,4 +1232,70 @@ func (r *Reconciler) cleanUpPodTemplateFiles(app *v1beta2.SparkApplication) erro
 	}
 	logger.V(1).Info("Deleted pod template files", "path", path)
 	return nil
+}
+
+func (r *Reconciler) createPodDisruptionBudgets(ctx context.Context, app *v1beta2.SparkApplication) error {
+	for role, spec := range getPodDisruptionBudgetRoles(app) {
+		labels := util.GetResourceLabels(app)
+		labels[common.LabelSparkRole] = role
+
+		name := getPodDisruptionBudgetName(app.Name, role)
+		logger.Info("Creating Spark PodDisruptionBudget", "name", name, "namespace", app.Namespace)
+
+		if err := r.client.Create(ctx, &policyv1.PodDisruptionBudget{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:            name,
+				Namespace:       app.Namespace,
+				Labels:          labels,
+				OwnerReferences: []metav1.OwnerReference{util.GetOwnerReference(app)},
+			},
+			Spec: *spec,
+		}); err != nil && !errors.IsAlreadyExists(err) {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (r *Reconciler) deletePodDisruptionBudgets(ctx context.Context, app *v1beta2.SparkApplication) error {
+	for role, _ := range getPodDisruptionBudgetRoles(app) {
+		name := getPodDisruptionBudgetName(app.Name, role)
+		logger.Info("Deleting Spark PodDisruptionBudget", "name", name, "namespace", app.Namespace)
+
+		if err := r.client.Delete(
+			ctx,
+			&policyv1.PodDisruptionBudget{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      name,
+					Namespace: app.Namespace,
+				},
+			},
+			&client.DeleteOptions{
+				GracePeriodSeconds: util.Int64Ptr(0),
+			},
+		); err != nil && !errors.IsNotFound(err) {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func getPodDisruptionBudgetRoles(app *v1beta2.SparkApplication) map[string]*policyv1.PodDisruptionBudgetSpec {
+	roles := make(map[string]*policyv1.PodDisruptionBudgetSpec)
+
+	if app.Spec.Driver.PodDisruptionBudgetSpec != nil {
+		roles[common.SparkRoleDriver] = app.Spec.Driver.PodDisruptionBudgetSpec
+	}
+
+	if app.Spec.Executor.PodDisruptionBudgetSpec != nil {
+		roles[common.SparkRoleExecutor] = app.Spec.Executor.PodDisruptionBudgetSpec
+	}
+
+	return roles
+}
+
+func getPodDisruptionBudgetName(app, role string) string {
+	return app + "-" + role
 }

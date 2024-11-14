@@ -19,6 +19,7 @@ package v1beta2
 import (
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
+	policyv1 "k8s.io/api/policy/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -549,6 +550,9 @@ type DriverSpec struct {
 	// PriorityClassName is the name of the PriorityClass for the driver pod.
 	// +optional
 	PriorityClassName *string `json:"priorityClassName,omitempty"`
+	// PodDisruptionBudgetSpec is the PodDisruptionBudget specification for the Spark Driver.
+	// +optional
+	PodDisruptionBudgetSpec *policyv1.PodDisruptionBudgetSpec `json:"podDisruptionBudgetSpec,omitempty"`
 }
 
 // ExecutorSpec is specification of the executor.
@@ -579,6 +583,9 @@ type ExecutorSpec struct {
 	// PriorityClassName is the name of the PriorityClass for the executor pod.
 	// +optional
 	PriorityClassName *string `json:"priorityClassName,omitempty"`
+	// PodDisruptionBudgetSpec is the PodDisruptionBudget specification for the Spark Executors.
+	// +optional
+	PodDisruptionBudgetSpec *policyv1.PodDisruptionBudgetSpec `json:"podDisruptionBudgetSpec,omitempty"`
 }
 
 // NamePath is a pair of a name and a path to which the named objects should be mounted to.

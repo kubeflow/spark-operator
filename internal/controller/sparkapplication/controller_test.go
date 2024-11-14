@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package sparkapplication_test
+package sparkapplication
 
 import (
 	"context"
@@ -23,19 +23,28 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-
 	corev1 "k8s.io/api/core/v1"
+	policyv1 "k8s.io/api/policy/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/kubeflow/spark-operator/api/v1beta2"
-	"github.com/kubeflow/spark-operator/internal/controller/sparkapplication"
 	"github.com/kubeflow/spark-operator/pkg/common"
 	"github.com/kubeflow/spark-operator/pkg/util"
 )
+
+type fakeSparkSubmitter struct {
+}
+
+var _ sparkSubmitter = &fakeSparkSubmitter{}
+
+func (s *fakeSparkSubmitter) submit(*v1beta2.SparkApplication) error {
+	return nil
+}
 
 var _ = Describe("SparkApplication Controller", func() {
 	Context("When reconciling a new SparkApplication", func() {
@@ -117,13 +126,16 @@ var _ = Describe("SparkApplication Controller", func() {
 
 		It("Should successfully reconcile a completed SparkApplication", func() {
 			By("Reconciling the created test SparkApplication")
-			reconciler := sparkapplication.NewReconciler(
+			reconciler := NewReconciler(
 				nil,
 				k8sClient.Scheme(),
 				k8sClient,
 				nil,
 				nil,
-				sparkapplication.Options{Namespaces: []string{appNamespace}},
+				Options{
+					Namespaces:     []string{appNamespace},
+					sparkSubmitter: &fakeSparkSubmitter{},
+				},
 			)
 			result, err := reconciler.Reconcile(ctx, reconcile.Request{NamespacedName: key})
 			Expect(err).NotTo(HaveOccurred())
@@ -176,13 +188,13 @@ var _ = Describe("SparkApplication Controller", func() {
 			Expect(k8sClient.Status().Update(ctx, app)).To(Succeed())
 
 			By("Reconciling the expired SparkApplication")
-			reconciler := sparkapplication.NewReconciler(
+			reconciler := NewReconciler(
 				nil,
 				k8sClient.Scheme(),
 				k8sClient,
 				nil,
 				nil,
-				sparkapplication.Options{Namespaces: []string{appNamespace}},
+				Options{Namespaces: []string{appNamespace}},
 			)
 			result, err := reconciler.Reconcile(ctx, reconcile.Request{NamespacedName: key})
 			Expect(err).NotTo(HaveOccurred())
@@ -230,13 +242,13 @@ var _ = Describe("SparkApplication Controller", func() {
 
 		It("Should successfully reconcile a failed SparkApplication", func() {
 			By("Reconciling the created test SparkApplication")
-			reconciler := sparkapplication.NewReconciler(
+			reconciler := NewReconciler(
 				nil,
 				k8sClient.Scheme(),
 				k8sClient,
 				nil,
 				nil,
-				sparkapplication.Options{Namespaces: []string{appNamespace}},
+				Options{Namespaces: []string{appNamespace}},
 			)
 			result, err := reconciler.Reconcile(ctx, reconcile.Request{NamespacedName: key})
 			Expect(err).NotTo(HaveOccurred())
@@ -289,13 +301,13 @@ var _ = Describe("SparkApplication Controller", func() {
 			Expect(k8sClient.Status().Update(ctx, app)).To(Succeed())
 
 			By("Reconciling the expired SparkApplication")
-			reconciler := sparkapplication.NewReconciler(
+			reconciler := NewReconciler(
 				nil,
 				k8sClient.Scheme(),
 				k8sClient,
 				nil,
 				nil,
-				sparkapplication.Options{Namespaces: []string{appNamespace}},
+				Options{Namespaces: []string{appNamespace}},
 			)
 			result, err := reconciler.Reconcile(ctx, reconcile.Request{NamespacedName: key})
 			Expect(err).NotTo(HaveOccurred())
@@ -371,13 +383,13 @@ var _ = Describe("SparkApplication Controller", func() {
 
 		It("Should add the executors to the SparkApplication", func() {
 			By("Reconciling the running SparkApplication")
-			reconciler := sparkapplication.NewReconciler(
+			reconciler := NewReconciler(
 				nil,
 				k8sClient.Scheme(),
 				k8sClient,
 				record.NewFakeRecorder(3),
 				nil,
-				sparkapplication.Options{Namespaces: []string{appNamespace}, MaxTrackedExecutorPerApp: 10},
+				Options{Namespaces: []string{appNamespace}, MaxTrackedExecutorPerApp: 10},
 			)
 			result, err := reconciler.Reconcile(ctx, reconcile.Request{NamespacedName: key})
 			Expect(err).NotTo(HaveOccurred())
@@ -390,13 +402,13 @@ var _ = Describe("SparkApplication Controller", func() {
 
 		It("Should only add 1 executor to the SparkApplication", func() {
 			By("Reconciling the running SparkApplication")
-			reconciler := sparkapplication.NewReconciler(
+			reconciler := NewReconciler(
 				nil,
 				k8sClient.Scheme(),
 				k8sClient,
 				record.NewFakeRecorder(3),
 				nil,
-				sparkapplication.Options{Namespaces: []string{appNamespace}, MaxTrackedExecutorPerApp: 1},
+				Options{Namespaces: []string{appNamespace}, MaxTrackedExecutorPerApp: 1},
 			)
 			result, err := reconciler.Reconcile(ctx, reconcile.Request{NamespacedName: key})
 			Expect(err).NotTo(HaveOccurred())
@@ -405,6 +417,84 @@ var _ = Describe("SparkApplication Controller", func() {
 			app := &v1beta2.SparkApplication{}
 			Expect(k8sClient.Get(ctx, key, app)).NotTo(HaveOccurred())
 			Expect(app.Status.ExecutorState).To(HaveLen(1))
+		})
+	})
+
+	Context("When reconciling a SparkApplication with PodDisruptionBudget", func() {
+		ctx := context.Background()
+		appName := "test-pdb"
+		appNamespace := "default"
+		key := types.NamespacedName{
+			Name:      appName,
+			Namespace: appNamespace,
+		}
+		pdbMinAvailable := &intstr.IntOrString{Type: intstr.Int, IntVal: 1}
+		recorder := record.NewFakeRecorder(1024)
+
+		BeforeEach(func() {
+			By("Creating a test SparkApplication")
+			app := &v1beta2.SparkApplication{}
+			if err := k8sClient.Get(ctx, key, app); err != nil && errors.IsNotFound(err) {
+				app = &v1beta2.SparkApplication{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      appName,
+						Namespace: appNamespace,
+						Labels: map[string]string{
+							common.LabelSparkAppName: app.Name,
+						},
+					},
+					Spec: v1beta2.SparkApplicationSpec{
+						MainApplicationFile: util.StringPtr("local:///dummy.jar"),
+						Driver: v1beta2.DriverSpec{
+							PodDisruptionBudgetSpec: &policyv1.PodDisruptionBudgetSpec{
+								MinAvailable: pdbMinAvailable,
+							},
+						},
+						Executor: v1beta2.ExecutorSpec{
+							PodDisruptionBudgetSpec: &policyv1.PodDisruptionBudgetSpec{
+								MinAvailable: pdbMinAvailable,
+							},
+						},
+					},
+				}
+				v1beta2.SetSparkApplicationDefaults(app)
+				Expect(k8sClient.Create(ctx, app)).To(Succeed())
+			}
+		})
+
+		BeforeEach(func() {
+			By("Reconciling the created test SparkApplication")
+			reconciler := NewReconciler(
+				nil,
+				k8sClient.Scheme(),
+				k8sClient,
+				recorder,
+				nil,
+				Options{Namespaces: []string{appNamespace}, sparkSubmitter: &fakeSparkSubmitter{}},
+			)
+			result, err := reconciler.Reconcile(ctx, reconcile.Request{NamespacedName: key})
+			Expect(err).NotTo(HaveOccurred())
+			Expect(result.Requeue).To(BeFalse())
+		})
+
+		AfterEach(func() {
+			app := &v1beta2.SparkApplication{}
+			Expect(k8sClient.Get(ctx, key, app)).To(Succeed())
+
+			By("Deleting the created test SparkApplication")
+			Expect(k8sClient.Delete(ctx, app)).To(Succeed())
+		})
+
+		It("Should create a driver PodDisruptionBudget", func() {
+			pdb := &policyv1.PodDisruptionBudget{}
+			Expect(k8sClient.Get(ctx, types.NamespacedName{Name: appName + "-driver", Namespace: appNamespace}, pdb)).To(Succeed())
+			Expect(pdb.Spec.MinAvailable).To(Equal(pdbMinAvailable))
+		})
+
+		It("Should create an executor PodDisruptionBudget", func() {
+			pdb := &policyv1.PodDisruptionBudget{}
+			Expect(k8sClient.Get(ctx, types.NamespacedName{Name: appName + "-executor", Namespace: appNamespace}, pdb)).To(Succeed())
+			Expect(pdb.Spec.MinAvailable).To(Equal(pdbMinAvailable))
 		})
 	})
 })

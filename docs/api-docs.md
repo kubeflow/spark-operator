@@ -649,6 +649,20 @@ string
 <p>PriorityClassName is the name of the PriorityClass for the driver pod.</p>
 </td>
 </tr>
+<tr>
+<td>
+<code>podDisruptionBudgetSpec</code><br/>
+<em>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.24/#poddisruptionbudgetspec-v1-policy">
+Kubernetes policy/v1.PodDisruptionBudgetSpec
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>PodDisruptionBudgetSpec is the PodDisruptionBudget specification for the Spark Driver.</p>
+</td>
+</tr>
 </tbody>
 </table>
 <h3 id="sparkoperator.k8s.io/v1beta2.DriverState">DriverState
@@ -874,6 +888,20 @@ string
 <td>
 <em>(Optional)</em>
 <p>PriorityClassName is the name of the PriorityClass for the executor pod.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>podDisruptionBudgetSpec</code><br/>
+<em>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.24/#poddisruptionbudgetspec-v1-policy">
+Kubernetes policy/v1.PodDisruptionBudgetSpec
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>PodDisruptionBudgetSpec is the PodDisruptionBudget specification for the Spark Executors.</p>
 </td>
 </tr>
 </tbody>
