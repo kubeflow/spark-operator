@@ -284,6 +284,20 @@ var _ = Describe("GetDefaultUIServiceName", func() {
 	It("Should return the default UI service name", func() {
 		Expect(util.GetDefaultUIServiceName(app)).To(Equal("test-app-ui-svc"))
 	})
+
+	appWithLongName := &v1beta2.SparkApplication{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-app-with-a-long-name-that-would-be-over-63-characters",
+			Namespace: "test-namespace",
+		},
+	}
+
+	It("Should truncate the app name so the service name is below 63 characters", func() {
+		serviceName := util.GetDefaultUIServiceName(appWithLongName)
+		Expect(len(serviceName)).To(BeNumerically("<=", 63))
+		Expect(serviceName).To(HavePrefix(appWithLongName.Name[:47]))
+		Expect(serviceName).To(HaveSuffix("-ui-svc"))
+	})
 })
 
 var _ = Describe("GetDefaultUIIngressName", func() {
@@ -296,6 +310,20 @@ var _ = Describe("GetDefaultUIIngressName", func() {
 
 	It("Should return the default UI ingress name", func() {
 		Expect(util.GetDefaultUIIngressName(app)).To(Equal("test-app-ui-ingress"))
+	})
+
+	appWithLongName := &v1beta2.SparkApplication{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-app-with-a-long-name-that-would-be-over-63-characters",
+			Namespace: "test-namespace",
+		},
+	}
+
+	It("Should truncate the app name so the ingress name is below 63 characters", func() {
+		serviceName := util.GetDefaultUIIngressName(appWithLongName)
+		Expect(len(serviceName)).To(BeNumerically("<=", 63))
+		Expect(serviceName).To(HavePrefix(appWithLongName.Name[:42]))
+		Expect(serviceName).To(HaveSuffix("-ui-ingress"))
 	})
 })
 
