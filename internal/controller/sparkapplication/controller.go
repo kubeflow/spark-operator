@@ -63,6 +63,8 @@ type Options struct {
 	IngressURLFormat      string
 	DefaultBatchScheduler string
 
+	DriverPodCreationGracePeriod time.Duration
+
 	KubeSchedulerNames []string
 
 	SparkApplicationMetrics *metrics.SparkApplicationMetrics
@@ -773,10 +775,13 @@ func (r *Reconciler) updateDriverState(_ context.Context, app *v1beta2.SparkAppl
 	}
 
 	if driverPod == nil {
-		app.Status.AppState.State = v1beta2.ApplicationStateFailing
-		app.Status.AppState.ErrorMessage = "driver pod not found"
-		app.Status.TerminationTime = metav1.Now()
-		return nil
+		if app.Status.AppState.State != v1beta2.ApplicationStateSubmitted || metav1.Now().Sub(app.Status.LastSubmissionAttemptTime.Time) > r.options.DriverPodCreationGracePeriod {
+			app.Status.AppState.State = v1beta2.ApplicationStateFailing
+			app.Status.AppState.ErrorMessage = "driver pod not found"
+			app.Status.TerminationTime = metav1.Now()
+			return nil
+		}
+		return fmt.Errorf("driver pod not found, while inside the grace period. Grace period of %v expires at %v", r.options.DriverPodCreationGracePeriod, app.Status.LastSubmissionAttemptTime.Add(r.options.DriverPodCreationGracePeriod))
 	}
 
 	app.Status.SparkApplicationID = util.GetSparkApplicationID(driverPod)
