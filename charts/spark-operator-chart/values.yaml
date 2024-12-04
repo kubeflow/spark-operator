@@ -51,6 +51,9 @@ controller:
   # -- Configure the verbosity of logging, can be one of `debug`, `info`, `error`.
   logLevel: info
 
+  # -- Grace period after a successful spark-submit when driver pod not found errors will be retried. Useful if the driver pod can take some time to be created.
+  driverPodCreationGracePeriod: 10s
+
   # -- Specifies the maximum number of Executor pods that can be tracked by the controller per SparkApplication.
   maxTrackedExecutorPerApp: 1000
 
