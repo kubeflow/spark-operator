@@ -1,5 +1,5 @@
 /*
-Copyright 2017 Google LLC
+Copyright 2018 Google LLC
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -14,14 +14,26 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package main
+package app
 
 import (
-	_ "k8s.io/client-go/plugin/pkg/client/auth"
+	"time"
 
-	"github.com/kubeflow/spark-operator/sparkctl/cmd"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/duration"
 )
 
-func main() {
-	cmd.Execute()
+func getSinceTime(timestamp metav1.Time) string {
+	if timestamp.IsZero() {
+		return "N.A."
+	}
+
+	return duration.ShortHumanDuration(time.Since(timestamp.Time))
+}
+
+func formatNotAvailable(info string) string {
+	if info == "" {
+		return "N.A."
+	}
+	return info
 }

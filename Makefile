@@ -178,7 +178,7 @@ build-operator: ## Build Spark operator.
 .PHONY: build-sparkctl
 build-sparkctl: ## Build sparkctl binary.
 	echo "Building sparkctl binary..."
-	CGO_ENABLED=0 go build -o $(SPARKCTL) -buildvcs=false sparkctl/main.go
+	CGO_ENABLED=0 go build -o $(SPARKCTL) -buildvcs=false cmd/sparkctl/main.go
 
 .PHONY: install-sparkctl
 install-sparkctl: build-sparkctl ## Install sparkctl binary.
