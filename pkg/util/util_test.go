@@ -18,9 +18,12 @@ package util_test
 
 import (
 	"os"
+	"testing"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+
+	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -201,3 +204,52 @@ spec:
 		Expect(os.Remove(file)).NotTo(HaveOccurred())
 	})
 })
+
+func TestIsLocalFile(t *testing.T) {
+	type testcase struct {
+		file    string
+		isLocal bool
+	}
+
+	testFn := func(test testcase, t *testing.T) {
+		isLocal, err := util.IsLocalFile(test.file)
+		if err != nil {
+			t.Fatal(err)
+		}
+		assert.Equal(t, test.isLocal, isLocal, "%s: expected %v got %v", test.file, test.isLocal, isLocal)
+	}
+
+	testcases := []testcase{
+		{file: "/path/to/file", isLocal: true},
+		{file: "file:///path/to/file", isLocal: true},
+		{file: "local:///path/to/file", isLocal: false},
+		{file: "http://localhost/path/to/file", isLocal: false},
+	}
+
+	for _, test := range testcases {
+		testFn(test, t)
+	}
+}
+
+func TestFilterLocalFiles(t *testing.T) {
+	files := []string{
+		"path/to/file",
+		"/path/to/file",
+		"file:///file/to/path",
+		"http://localhost/path/to/file",
+		"hdfs://localhost/path/to/file",
+		"gs://bucket/path/to/file",
+	}
+
+	expected := []string{
+		"path/to/file",
+		"/path/to/file",
+		"file:///file/to/path",
+	}
+
+	actual, err := util.FilterLocalFiles(files)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assert.Equal(t, expected, actual)
+}

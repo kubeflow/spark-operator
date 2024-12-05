@@ -16,9 +16,20 @@ limitations under the License.
 
 package common
 
+// Hadoop environment variables.
+const (
+	// EnvHadoopConfDir is the environment variable to add to the driver and executor Pods that point
+	// to the directory where the Hadoop ConfigMap is mounted.
+	EnvHadoopConfDir = "HADOOP_CONF_DIR"
+)
+
 // Spark environment variables.
 const (
 	EnvSparkHome = "SPARK_HOME"
+
+	// EnvSparkConfDir is the environment variable to add to the driver and executor Pods that point
+	// to the directory where the Spark ConfigMap is mounted.
+	EnvSparkConfDir = "SPARK_CONF_DIR"
 
 	EnvKubernetesServiceHost = "KUBERNETES_SERVICE_HOST"
 
@@ -278,14 +289,6 @@ const (
 
 	// HadoopConfigMapVolumeName is the name of the ConfigMap volume of Hadoop configuration files.
 	HadoopConfigMapVolumeName = "hadoop-configmap-volume"
-
-	// EnvSparkConfDir is the environment variable to add to the driver and executor Pods that point
-	// to the directory where the Spark ConfigMap is mounted.
-	EnvSparkConfDir = "SPARK_CONF_DIR"
-
-	// EnvHadoopConfDir is the environment variable to add to the driver and executor Pods that point
-	// to the directory where the Hadoop ConfigMap is mounted.
-	EnvHadoopConfDir = "HADOOP_CONF_DIR"
 )
 
 const (

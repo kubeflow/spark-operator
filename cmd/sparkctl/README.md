@@ -1,6 +1,6 @@
 # sparkctl
 
-`sparkctl` is a command-line tool of the Spark Operator for creating, listing, checking status of, getting logs of, and deleting `SparkApplication`s. It can also do port forwarding from a local port to the Spark web UI port for accessing the Spark web UI on the driver. Each function is implemented as a sub-command of `sparkctl`.
+`sparkctl` is a command-line tool of the Spark Operator for creating, listing, checking status of, getting logs of, and deleting `SparkApplication` objects. It can also do port forwarding from a local port to the Spark web UI port for accessing the Spark web UI on the driver. Each function is implemented as a sub-command of `sparkctl`.
 
 To build the `sparkctl` binary, run the following command in the root directory of the project:
 
@@ -10,28 +10,28 @@ make build-sparkctl
 
 Then the `sparkctl` binary can be found in the `bin` directory:
 
-```bash
-$ bin/sparkctl --help         
-sparkctl is the command-line tool for working with the Spark Operator. It supports creating, deleting and 
-           checking status of SparkApplication objects. It also supports fetching application logs.
+```text
+$ bin/sparkctl --help                       
+sparkctl is the command-line tool for working with the Spark Operator.
+It supports creating, deleting and checking status of SparkApplication objects. It also supports fetching application logs.
 
 Usage:
   sparkctl [command]
 
 Available Commands:
   completion  Generate the autocompletion script for the specified shell
-  create      Create a SparkApplication object
-  delete      Delete a SparkApplication object
-  event       Shows SparkApplication events
+  create      Create a SparkApplication from file or ScheduledSparkApplication
+  delete      Delete a SparkApplication
+  event       Show events associated with a SparkApplication
   forward     Start to forward a local port to the remote port of the driver UI
+  get         Get status of a SparkApplication
   help        Help about any command
-  list        List SparkApplication objects
-  log         log is a sub-command of sparkctl that fetches logs of a Spark application.
-  status      Check status of a SparkApplication
+  list        List SparkApplications in a given namespace.
+  log         Fetch logs of the driver pod of a SparkApplication
 
 Flags:
   -h, --help                help for sparkctl
-  -k, --kubeconfig string   The path to the local Kubernetes configuration file (default "/Users/chenyi/.kube/config")
+      --kubeconfig string   Paths to a kubeconfig. Only required if out-of-cluster.
   -n, --namespace string    The namespace in which the SparkApplication is to be created (default "default")
 
 Use "sparkctl [command] --help" for more information about a command.
@@ -41,9 +41,8 @@ Use "sparkctl [command] --help" for more information about a command.
 
 The following global flags are available for all the sub commands:
 
-* `--namespace`: the Kubernetes namespace of the `SparkApplication`(s). Defaults to `default`.
-* `--kubeconfig`: the path to the file storing configuration for accessing the Kubernetes API server. Defaults to
-`$HOME/.kube/config`
+- `-n` or `--namespace`: the Kubernetes namespace of the `SparkApplication`(s). Defaults to `default`.
+- `--kubeconfig`: the path to the file storing configuration for accessing the Kubernetes API server. Defaults to `$HOME/.kube/config`
 
 ## Available Commands
 
@@ -109,14 +108,14 @@ SDK uses the default credential provider chain to find AWS credentials.
 The SDK uses the first provider in the chain that returns credentials without an error.
 The default provider chain looks for credentials in the following order:
 
-* Environment variables
+- Environment variables
 
-    ```
+    ```text
     AWS_ACCESS_KEY_ID
     AWS_SECRET_ACCESS_KEY
     ```
 
-- Shared credentials file (.aws/credentials)
+- Shared credentials file (`.aws/credentials`)
 
 For more information about AWS SDK authentication, please check [Specifying Credentials](https://docs.aws.amazon.com/sdk-for-go/v1/developer-guide/configuring-sdk.html#specifying-credentials).
 
@@ -169,23 +168,22 @@ Publicly available files are referenced through URIs in the default form `https:
 Usage:
 
 ```bash
-sparkctl list
+sparkctl list [-n <namespace>]
 ```
 
-### Status
+### Get
 
-`status` is a sub command of `sparkctl` for checking and printing the status of a `SparkApplication` in the namespace specified by `--namespace`.
+`get` is a sub command of `sparkctl` for checking and printing the status of a `SparkApplication` in the namespace specified by `-n` or `--namespace`.
 
 Usage:
 
 ```bash
-sparkctl status <SparkApplication name>
+sparkctl get [-n <namespace>] <name>
 ```
 
 ### Event
 
-`event` is a sub command of `sparkctl` for listing `SparkApplication` events in the namespace
-specified by `--namespace`.
+`event` is a sub command of `sparkctl` for listing `SparkApplication` events in the namespace specified by `-n` or `--namespace`.
 
 The `event` command also supports streaming the events with the `--follow` or `-f` flag.
 The command will display events since last creation of the `SparkApplication` for the specific `name`, and continues to stream events even if `ResourceVersion` changes.
@@ -193,29 +191,29 @@ The command will display events since last creation of the `SparkApplication` fo
 Usage:
 
 ```bash
-sparkctl event <SparkApplication name> [-f]
+sparkctl event [-n <namespace>] [-f] <name>
 ```
 
 ### Log
 
-`log` is a sub command of `sparkctl` for fetching the logs of a pod of `SparkApplication` with the given name in the namespace specified by `--namespace`. The command by default fetches the logs of the driver pod. To make it fetch logs of an executor pod instead, use the flag `--executor` or `-e` to specify the ID of the executor whose logs should be fetched.
+`log` is a sub command of `sparkctl` for fetching the logs of a pod of `SparkApplication` with the given name in the namespace specified by `-n` or `--namespace`. The command by default fetches the logs of the driver pod. To make it fetch logs of an executor pod instead, use the flag `--executor` or `-e` to specify the ID of the executor whose logs should be fetched.
 
 The `log` command also supports streaming the driver or executor logs with the `--follow` or `-f` flag. It works in the same way as `kubectl logs -f`, i.e., it streams logs until no more logs are available.
 
 Usage:
 
 ```bash
-sparkctl log <SparkApplication name> [-e <executor ID, e.g., 1>] [-f]
+sparkctl log [-n <namespace>] <name> [-e <executor ID, e.g., 1>] [-f]
 ```
 
 ### Delete
 
-`delete` is a sub command of `sparkctl` for deleting a `SparkApplication` with the given name in the namespace specified by `--namespace`.
+`delete` is a sub command of `sparkctl` for deleting a `SparkApplication` with the given name in the namespace specified by `-n` or `--namespace`.
 
 Usage:
 
 ```bash
-sparkctl delete <SparkApplication name>
+sparkctl delete [-n <namespace>] <name>
 ```
 
 ### Forward
@@ -225,7 +223,7 @@ sparkctl delete <SparkApplication name>
 Usage:
 
 ```bash
-sparkctl forward <SparkApplication name> [--local-port <local port>] [--remote-port <remote port>]
+sparkctl forward [-n <namespace>] <name> [--local-port <local port>] [--remote-port <remote port>]
 ```
 
 Once port forwarding starts, users can open `127.0.0.1:<local port>` or `localhost:<local port>` in a browser to access the Spark web UI. Forwarding continues until it is interrupted or the driver pod terminates.
