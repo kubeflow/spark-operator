@@ -20,11 +20,11 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/kubeflow/spark-operator/cmd/operator"
+	"github.com/kubeflow/spark-operator/cmd/operator/app"
 )
 
 func main() {
-	if err := operator.NewCommand().Execute(); err != nil {
+	if err := app.NewCommand().Execute(); err != nil {
 		fmt.Fprintf(os.Stderr, "%v\n", err)
 		os.Exit(1)
 	}

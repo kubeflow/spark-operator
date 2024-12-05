@@ -14,14 +14,14 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package operator
+package app
 
 import (
 	"github.com/spf13/cobra"
 
-	"github.com/kubeflow/spark-operator/cmd/operator/controller"
-	"github.com/kubeflow/spark-operator/cmd/operator/version"
-	"github.com/kubeflow/spark-operator/cmd/operator/webhook"
+	"github.com/kubeflow/spark-operator/cmd/operator/app/controller"
+	"github.com/kubeflow/spark-operator/cmd/operator/app/version"
+	"github.com/kubeflow/spark-operator/cmd/operator/app/webhook"
 )
 
 func NewCommand() *cobra.Command {
