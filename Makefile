@@ -173,12 +173,12 @@ override LDFLAGS += \
 .PHONY: build-operator
 build-operator: ## Build Spark operator.
 	echo "Building spark-operator binary..."
-	go build -o $(SPARK_OPERATOR) -ldflags '${LDFLAGS}' cmd/main.go
+	go build -o $(SPARK_OPERATOR) -ldflags '${LDFLAGS}' cmd/operator/main.go
 
 .PHONY: build-sparkctl
 build-sparkctl: ## Build sparkctl binary.
 	echo "Building sparkctl binary..."
-	CGO_ENABLED=0 go build -o $(SPARKCTL) -buildvcs=false sparkctl/main.go
+	CGO_ENABLED=0 go build -o $(SPARKCTL) -buildvcs=false cmd/sparkctl/main.go
 
 .PHONY: install-sparkctl
 install-sparkctl: build-sparkctl ## Install sparkctl binary.
@@ -191,7 +191,7 @@ clean: ## Clean spark-operator and sparktcl binaries.
 	rm -f $(SPARKCTL)
 
 .PHONY: build-api-docs
-build-api-docs: gen-crd-api-reference-docs ## Build api documentaion.
+build-api-docs: gen-crd-api-reference-docs ## Build api documentation.
 	$(GEN_CRD_API_REFERENCE_DOCS) \
 	-config hack/api-docs/config.json \
 	-api-dir github.com/kubeflow/spark-operator/api/v1beta2 \
