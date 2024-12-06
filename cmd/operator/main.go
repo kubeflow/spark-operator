@@ -20,11 +20,29 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/kubeflow/spark-operator/cmd/operator/app"
+	"github.com/spf13/cobra"
+
+	"github.com/kubeflow/spark-operator/cmd/operator/controller"
+	"github.com/kubeflow/spark-operator/cmd/operator/version"
+	"github.com/kubeflow/spark-operator/cmd/operator/webhook"
 )
 
+func NewCommand() *cobra.Command {
+	command := &cobra.Command{
+		Use:   "spark-operator",
+		Short: "Spark operator",
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			return cmd.Help()
+		},
+	}
+	command.AddCommand(controller.NewCommand())
+	command.AddCommand(webhook.NewCommand())
+	command.AddCommand(version.NewCommand())
+	return command
+}
+
 func main() {
-	if err := app.NewCommand().Execute(); err != nil {
+	if err := NewCommand().Execute(); err != nil {
 		fmt.Fprintf(os.Stderr, "%v\n", err)
 		os.Exit(1)
 	}
