@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"plugin"
 	"strconv"
 	"time"
 
@@ -62,6 +63,7 @@ type Options struct {
 	IngressClassName      string
 	IngressURLFormat      string
 	DefaultBatchScheduler string
+	PluginPath            string
 
 	DriverPodCreationGracePeriod time.Duration
 
@@ -166,6 +168,7 @@ func NewReconciler(
 // |                                                                                                                    |
 // +--------------------------------------------------------------------------------------------------------------------+
 func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+
 	key := req.NamespacedName
 	app, err := r.getSparkApplication(key)
 	if err != nil {
@@ -747,18 +750,60 @@ func (r *Reconciler) submitSparkApplication(app *v1beta2.SparkApplication) (subm
 		}
 	}()
 
-	sparkSubmitArgs, err := buildSparkSubmitArgs(app)
-	if err != nil {
-		return fmt.Errorf("failed to build spark-submit arguments: %v", err)
+	// open the  plugin and call the method
+	if r.options.PluginPath != "" {
+		err := r.launchSparkApplicationViaPlug(app)
+		if err != nil {
+			return fmt.Errorf("failed to build spark-submit arguments: %v", err)
+		}
+	} else {
+		sparkSubmitArgs, err := buildSparkSubmitArgs(app)
+		if err != nil {
+			return fmt.Errorf("failed to build spark-submit arguments: %v", err)
+		}
+
+		// Try submitting the application by running spark-submit.
+		logger.Info("Running spark-submit for SparkApplication", "name", app.Name, "namespace", app.Namespace, "arguments", sparkSubmitArgs)
+		if err := runSparkSubmit(newSubmission(sparkSubmitArgs, app)); err != nil {
+			r.recordSparkApplicationEvent(app)
+			return fmt.Errorf("failed to run spark-submit: %v", err)
+		}
 	}
 
-	// Try submitting the application by running spark-submit.
-	logger.Info("Running spark-submit for SparkApplication", "name", app.Name, "namespace", app.Namespace, "arguments", sparkSubmitArgs)
-	if err := runSparkSubmit(newSubmission(sparkSubmitArgs, app)); err != nil {
-		r.recordSparkApplicationEvent(app)
-		return fmt.Errorf("failed to run spark-submit: %v", err)
-	}
 	return nil
+}
+
+func (r *Reconciler) launchSparkApplicationViaPlug(app *v1beta2.SparkApplication) error {
+
+	// Validate plugin path
+	if r.options.PluginPath == "" {
+		return fmt.Errorf("plugin path is not set in options")
+	}
+
+	// Load the plugin
+	plugin, err := plugin.Open(r.options.PluginPath)
+	if err != nil {
+		return fmt.Errorf("failed to load plugin from path %s: %w", r.options.PluginPath, err)
+	}
+
+	// Lookup the constructor symbol
+	cnstrSym, err := plugin.Lookup("New")
+	if err != nil {
+		return fmt.Errorf("failed to lookup symbol 'New' in plugin: %w", err)
+	}
+
+	// Assert the correct type
+	cnstr, ok := cnstrSym.(func() v1beta2.SparkAppLauncher)
+	if !ok {
+		return fmt.Errorf("symbol 'New' is not of expected type 'func() v1beta2.SparkAppLauncher'")
+	}
+
+	// create an object of the SparkAppLauncher type and launch Spark app
+	launcher := cnstr()
+	if launcher == nil {
+		return fmt.Errorf("plugin constructor 'New' returned a nil SparkAppLauncher")
+	}
+	return launcher.LaunchSparkApplication(app, r.client)
 }
 
 // updateDriverState finds the driver pod of the application

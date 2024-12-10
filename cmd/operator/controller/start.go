@@ -116,6 +116,9 @@ var (
 	enableHTTP2            bool
 	development            bool
 	zapOptions             = logzap.Options{}
+
+	// Spark app launch
+	pluginPath string
 )
 
 func init() {
@@ -181,6 +184,8 @@ func NewStartCommand() *cobra.Command {
 
 	command.Flags().StringVar(&pprofBindAddress, "pprof-bind-address", "0", "The address the pprof endpoint binds to. "+
 		"If not set, it will be 0 in order to disable the pprof server")
+
+	command.Flags().StringVar(&pluginPath, "plugin-path", "", "Set path to plugin to custom launch spark applications.")
 
 	flagSet := flag.NewFlagSet("controller", flag.ExitOnError)
 	ctrl.RegisterFlags(flagSet)
@@ -407,6 +412,7 @@ func newSparkApplicationReconcilerOptions() sparkapplication.Options {
 		SparkApplicationMetrics:      sparkApplicationMetrics,
 		SparkExecutorMetrics:         sparkExecutorMetrics,
 		MaxTrackedExecutorPerApp:     maxTrackedExecutorPerApp,
+		PluginPath:                   pluginPath,
 	}
 	if enableBatchScheduler {
 		options.KubeSchedulerNames = kubeSchedulerNames
