@@ -51,6 +51,9 @@ controller:
   # -- Configure the verbosity of logging, can be one of `debug`, `info`, `error`.
   logLevel: info
 
+  # -- Grace period after a successful spark-submit when driver pod not found errors will be retried. Useful if the driver pod can take some time to be created.
+  driverPodCreationGracePeriod: 10s
+
   # -- Specifies the maximum number of Executor pods that can be tracked by the controller per SparkApplication.
   maxTrackedExecutorPerApp: 1000
 
@@ -87,6 +90,8 @@ controller:
     name: ""
     # -- Extra annotations for the controller service account.
     annotations: {}
+    # -- Auto-mount service account token to the controller pods.
+    automountServiceAccountToken: true
 
   rbac:
     # -- Specifies whether to create RBAC resources for the controller.
@@ -105,7 +110,11 @@ controller:
     # key2: value2
 
   # -- Volumes for controller pods.
-  volumes: []
+  volumes:
+  # Create a tmp directory to write Spark artifacts to for deployed Spark apps.
+  - name: tmp
+    emptyDir:
+      sizeLimit: 1Gi
 
   # -- Node selector for controller pods.
   nodeSelector: {}
@@ -141,7 +150,11 @@ controller:
   envFrom: []
 
   # -- Volume mounts for controller containers.
-  volumeMounts: []
+  volumeMounts:
+  # Mount a tmp directory to write Spark artifacts to for deployed Spark apps.
+  - name: tmp
+    mountPath: "/tmp"
+    readOnly: false
 
   # -- Pod resource requests and limits for controller containers.
   # Note, that each job submission will spawn a JVM within the controller pods using "/usr/local/openjdk-11/bin/java -Xmx128m".
@@ -157,6 +170,7 @@ controller:
 
   # -- Security context for controller containers.
   securityContext:
+    readOnlyRootFilesystem: true
     privileged: false
     allowPrivilegeEscalation: false
     runAsNonRoot: true
@@ -231,6 +245,8 @@ webhook:
     name: ""
     # -- Extra annotations for the webhook service account.
     annotations: {}
+    # -- Auto-mount service account token to the webhook pods.
+    automountServiceAccountToken: true
 
   rbac:
     # -- Specifies whether to create RBAC resources for the webhook.
@@ -252,7 +268,11 @@ webhook:
   sidecars: []
 
   # -- Volumes for webhook pods.
-  volumes: []
+  volumes:
+  # Create a dir for the webhook to generate its certificates in.
+  - name: serving-certs
+    emptyDir:
+      sizeLimit: 500Mi
 
   # -- Node selector for webhook pods.
   nodeSelector: {}
@@ -288,7 +308,13 @@ webhook:
   envFrom: []
 
   # -- Volume mounts for webhook containers.
-  volumeMounts: []
+  volumeMounts:
+  # Mount a dir for the webhook to generate its certificates in.
+  - name: serving-certs
+    mountPath: /etc/k8s-webhook-server/serving-certs
+    subPath: serving-certs
+    readOnly: false
+
 
   # -- Pod resource requests and limits for webhook pods.
   resources: {}
@@ -301,6 +327,7 @@ webhook:
 
   # -- Security context for webhook containers.
   securityContext:
+    readOnlyRootFilesystem: true
     privileged: false
     allowPrivilegeEscalation: false
     runAsNonRoot: true
@@ -331,6 +358,8 @@ spark:
     name: ""
     # -- Optional annotations for the spark service account.
     annotations: {}
+    # -- Auto-mount service account token to the spark applications pods.
+    automountServiceAccountToken: true
 
   rbac:
     # -- Specifies whether to create RBAC resources for spark applications.

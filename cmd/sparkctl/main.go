@@ -19,9 +19,9 @@ package main
 import (
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
-	"github.com/kubeflow/spark-operator/sparkctl/cmd"
+	"github.com/kubeflow/spark-operator/cmd/sparkctl/app"
 )
 
 func main() {
-	cmd.Execute()
+	app.Execute()
 }

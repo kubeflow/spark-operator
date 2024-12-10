@@ -198,6 +198,7 @@ func start() {
 			Port:     webhookPort,
 			CertDir:  webhookCertDir,
 			CertName: webhookCertName,
+			KeyName:  webhookKeyName,
 			TLSOpts:  tlsOptions,
 		}),
 		HealthProbeBindAddress:  healthProbeBindAddress,

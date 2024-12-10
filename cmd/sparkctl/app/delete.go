@@ -14,54 +14,51 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package cmd
+package app
 
 import (
 	"context"
 	"fmt"
 	"os"
 
-	"github.com/olekukonko/tablewriter"
 	"github.com/spf13/cobra"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	crdclientset "github.com/kubeflow/spark-operator/pkg/client/clientset/versioned"
 )
 
-var listCmd = &cobra.Command{
-	Use:   "list",
-	Short: "List SparkApplication objects",
-	Long:  `List SparkApplication objects in a given namespaces.`,
+var deleteCmd = &cobra.Command{
+	Use:   "delete <name>",
+	Short: "Delete a SparkApplication object",
+	Long:  `Delete a SparkApplication object with a given name`,
 	Run: func(_ *cobra.Command, args []string) {
+		if len(args) != 1 {
+			fmt.Fprintln(os.Stderr, "must specify a SparkApplication name")
+			return
+		}
+
 		crdClientset, err := getSparkApplicationClient()
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "failed to get SparkApplication client: %v\n", err)
 			return
 		}
 
-		if err = doList(crdClientset); err != nil {
-			fmt.Fprintf(os.Stderr, "failed to list SparkApplications: %v\n", err)
+		if err := doDelete(args[0], crdClientset); err != nil {
+			fmt.Fprintf(os.Stderr, "failed to delete SparkApplication %s: %v\n", args[0], err)
 		}
 	},
 }
 
-func doList(crdClientset crdclientset.Interface) error {
-	apps, err := crdClientset.SparkoperatorV1beta2().SparkApplications(Namespace).List(context.TODO(), metav1.ListOptions{})
-	if err != nil {
+func doDelete(name string, crdClientset crdclientset.Interface) error {
+	if err := deleteSparkApplication(name, crdClientset); err != nil {
 		return err
 	}
 
-	table := tablewriter.NewWriter(os.Stdout)
-	table.SetHeader([]string{"Name", "State", "Submission Age", "Termination Age"})
-	for _, app := range apps.Items {
-		table.Append([]string{
-			app.Name,
-			string(app.Status.AppState.State),
-			getSinceTime(app.Status.LastSubmissionAttemptTime),
-			getSinceTime(app.Status.TerminationTime),
-		})
-	}
-	table.Render()
+	fmt.Printf("SparkApplication \"%s\" deleted\n", name)
 
 	return nil
+}
+
+func deleteSparkApplication(name string, crdClientset crdclientset.Interface) error {
+	return crdClientset.SparkoperatorV1beta2().SparkApplications(Namespace).Delete(context.TODO(), name, metav1.DeleteOptions{})
 }
