@@ -1,5 +1,59 @@
 # Changelog
 
+## [v2.1.0](https://github.com/kubeflow/spark-operator/tree/v2.1.0) (2024-12-06)
+
+### New Features
+
+- Upgrade to Spark 3.5.3 ([#2202](https://github.com/kubeflow/spark-operator/pull/2202) by [@jacobsalway](https://github.com/jacobsalway))
+- feat: support archives param for spark-submit ([#2256](https://github.com/kubeflow/spark-operator/pull/2256) by [@kaka-zb](https://github.com/kaka-zb))
+- Allow --ingress-class-name to be specified in chart ([#2278](https://github.com/kubeflow/spark-operator/pull/2278) by [@jacobsalway](https://github.com/jacobsalway))
+- Update default container security context ([#2265](https://github.com/kubeflow/spark-operator/pull/2265) by [@ChenYi015](https://github.com/ChenYi015))
+- Support pod template for Spark 3.x applications ([#2141](https://github.com/kubeflow/spark-operator/pull/2141) by [@ChenYi015](https://github.com/ChenYi015))
+- Allow setting automountServiceAccountToken ([#2298](https://github.com/kubeflow/spark-operator/pull/2298) by [@Aranch](https://github.com/Aransh))
+- Allow the Controller and Webhook Containers to run with the securityContext: readOnlyRootfilesystem: true ([#2282](https://github.com/kubeflow/spark-operator/pull/2282) by [@npgretz](https://github.com/npgretz))
+- Use NSS_WRAPPER_PASSWD instead of /etc/passwd as in spark-operator image entrypoint.sh ([#2312](https://github.com/kubeflow/spark-operator/pull/2312) by [@Aakcht](https://github.com/Aakcht))
+
+### Bug Fixes
+
+- Minor fixes to e2e test `make` targets ([#2242](https://github.com/kubeflow/spark-operator/pull/2242) by [@Tom-Newton](https://github.com/Tom-Newton))
+- Added off heap memory to calculation for YuniKorn gang scheduling ([#2209](https://github.com/kubeflow/spark-operator/pull/2209) by [@guangyu-yang-rokt](https://github.com/guangyu-yang-rokt))
+- Add permissions to controller serviceaccount to list and watch ingresses ([#2246](https://github.com/kubeflow/spark-operator/pull/2246) by [@tcassaert](https://github.com/tcassaert))
+- Make sure enable-ui-service flag is set to false when controller.uiService.enable is set to false ([#2261](https://github.com/kubeflow/spark-operator/pull/2261) by [@Roberdvs](https://github.com/Roberdvs))
+- `omitempty` corrections ([#2255](https://github.com/kubeflow/spark-operator/pull/2255) by [@Tom-Newton](https://github.com/Tom-Newton))
+- Fix retries ([#2241](https://github.com/kubeflow/spark-operator/pull/2241) by [@Tom-Newton](https://github.com/Tom-Newton))
+- Fix: executor container security context does not work ([#2306](https://github.com/kubeflow/spark-operator/pull/2306) by [@ChenYi015](https://github.com/ChenYi015))
+- Fix: should not add emptyDir sizeLimit conf if it is nil ([#2305](https://github.com/kubeflow/spark-operator/pull/2305) by [@ChenYi015](https://github.com/ChenYi015))
+- Fix: should not add emptyDir sizeLimit conf on executor pods if it is nil ([#2316](https://github.com/kubeflow/spark-operator/pull/2316) by [@Cian911](https://github.com/Cian911))
+- Truncate UI service name if over 63 characters ([#2311](https://github.com/kubeflow/spark-operator/pull/2311) by [@jacobsalway](https://github.com/jacobsalway))
+- The webhook-key-name command-line param isn't taking effect ([#2344](https://github.com/kubeflow/spark-operator/pull/2344) by [@c-h-afzal](https://github.com/c-h-afzal))
+- Robustness to driver pod taking time to create ([#2315](https://github.com/kubeflow/spark-operator/pull/2315) by [@Tom-Newton](https://github.com/Tom-Newton))
+
+### Misc
+
+- remove redundant test.sh file ([#2243](https://github.com/kubeflow/spark-operator/pull/2243) by [@ChenYi015](https://github.com/ChenYi015))
+- Bump github.com/aws/aws-sdk-go-v2/config from 1.27.42 to 1.27.43 ([#2252](https://github.com/kubeflow/spark-operator/pull/2252) by [@dependabot[bot]](https://github.com/apps/dependabot))
+- Bump manusa/actions-setup-minikube from 2.12.0 to 2.13.0 ([#2247](https://github.com/kubeflow/spark-operator/pull/2247) by [@dependabot[bot]](https://github.com/apps/dependabot))
+- Bump golang.org/x/net from 0.29.0 to 0.30.0 ([#2251](https://github.com/kubeflow/spark-operator/pull/2251) by [@dependabot[bot]](https://github.com/apps/dependabot))
+- Bump aquasecurity/trivy-action from 0.24.0 to 0.27.0 ([#2248](https://github.com/kubeflow/spark-operator/pull/2248) by [@dependabot[bot]](https://github.com/apps/dependabot))
+- Bump gocloud.dev from 0.39.0 to 0.40.0 ([#2250](https://github.com/kubeflow/spark-operator/pull/2250) by [@dependabot[bot]](https://github.com/apps/dependabot))
+- Add Quick Start guide to README ([#2259](https://github.com/kubeflow/spark-operator/pull/2259) by [@jacobsalway](https://github.com/jacobsalway))
+- Bump github.com/aws/aws-sdk-go-v2/service/s3 from 1.63.3 to 1.65.3 ([#2249](https://github.com/kubeflow/spark-operator/pull/2249) by [@dependabot[bot]](https://github.com/apps/dependabot))
+- Add release badge to README ([#2263](https://github.com/kubeflow/spark-operator/pull/2263) by [@jacobsalway](https://github.com/jacobsalway))
+- Bump helm.sh/helm/v3 from 3.16.1 to 3.16.2 ([#2275](https://github.com/kubeflow/spark-operator/pull/2275) by [@dependabot[bot]](https://github.com/apps/dependabot))
+- Bump github.com/prometheus/client_golang from 1.20.4 to 1.20.5 ([#2274](https://github.com/kubeflow/spark-operator/pull/2274) by [@dependabot[bot]](https://github.com/apps/dependabot))
+- Bump cloud.google.com/go/storage from 1.44.0 to 1.45.0 ([#2273](https://github.com/kubeflow/spark-operator/pull/2273) by [@dependabot[bot]](https://github.com/apps/dependabot))
+- Run e2e tests with Kubernetes version matrix ([#2266](https://github.com/kubeflow/spark-operator/pull/2266) by [@jacobsalway](https://github.com/jacobsalway))
+- Bump aquasecurity/trivy-action from 0.27.0 to 0.28.0 ([#2270](https://github.com/kubeflow/spark-operator/pull/2270) by [@dependabot[bot]](https://github.com/apps/dependabot))
+- Bump github.com/aws/aws-sdk-go-v2/service/s3 from 1.65.3 to 1.66.0 ([#2271](https://github.com/kubeflow/spark-operator/pull/2271) by [@dependabot[bot]](https://github.com/apps/dependabot))
+- Bump github.com/aws/aws-sdk-go-v2/config from 1.27.43 to 1.28.0 ([#2272](https://github.com/kubeflow/spark-operator/pull/2272) by [@dependabot[bot]](https://github.com/apps/dependabot))
+- Add workflow for releasing sparkctl binary ([#2264](https://github.com/kubeflow/spark-operator/pull/2264) by [@ChenYi015](https://github.com/ChenYi015))
+- Bump `volcano.sh/apis` to 1.10.0 ([#2320](https://github.com/kubeflow/spark-operator/pull/2320) by [@jacobsalway](https://github.com/jacobsalway))
+- Bump aquasecurity/trivy-action from 0.28.0 to 0.29.0 ([#2332](https://github.com/kubeflow/spark-operator/pull/2332) by [@dependabot[bot]](https://github.com/apps/dependabot))
+- Bump github.com/onsi/ginkgo/v2 from 2.20.2 to 2.22.0 ([#2335](https://github.com/kubeflow/spark-operator/pull/2335) by [@dependabot[bot]](https://github.com/apps/dependabot))
+- Move sparkctl to cmd directory ([#2347](https://github.com/kubeflow/spark-operator/pull/2347) by [@ChenYi015](https://github.com/ChenYi015))
+
+[Full Changelog](https://github.com/kubeflow/spark-operator/compare/a8b5d6...v2.1.0 )
+
 ## [v2.0.2](https://github.com/kubeflow/spark-operator/tree/v2.0.2) (2024-10-10)
 
 ### Bug Fixes
