@@ -17,6 +17,7 @@ limitations under the License.
 package util
 
 import (
+	"crypto/md5"
 	"fmt"
 	"reflect"
 	"strings"
@@ -155,12 +156,25 @@ func GetExecutorLocalVolumeMounts(app *v1beta2.SparkApplication) []corev1.Volume
 	return volumeMounts
 }
 
+func generateName(name, suffix string) string {
+	// Some resource names are used as DNS labels, so must be 63 characters or shorter
+	preferredName := fmt.Sprintf("%s-%s", name, suffix)
+	if len(preferredName) <= 63 {
+		return preferredName
+	}
+
+	// Truncate the name and append a hash to ensure uniqueness while staying below the limit
+	maxNameLength := 63 - len(suffix) - 10 // 8 for the hash, 2 for the dash
+	hash := fmt.Sprintf("%x", md5.Sum([]byte(preferredName)))
+	return fmt.Sprintf("%s-%s-%s", name[:maxNameLength], hash[:8], suffix)
+}
+
 func GetDefaultUIServiceName(app *v1beta2.SparkApplication) string {
-	return fmt.Sprintf("%s-ui-svc", app.Name)
+	return generateName(app.Name, "ui-svc")
 }
 
 func GetDefaultUIIngressName(app *v1beta2.SparkApplication) string {
-	return fmt.Sprintf("%s-ui-ingress", app.Name)
+	return generateName(app.Name, "ui-ingress")
 }
 
 func GetResourceLabels(app *v1beta2.SparkApplication) map[string]string {

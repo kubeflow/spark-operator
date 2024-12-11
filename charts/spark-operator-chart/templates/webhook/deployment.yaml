@@ -94,7 +94,7 @@ spec:
         {{- end }}
         {{- with .Values.webhook.volumeMounts }}
         volumeMounts:
-          {{- toYaml . | nindent 10 }}
+        {{- toYaml . | nindent 8 }}
         {{- end }}
         {{- with .Values.webhook.resources }}
         resources:
@@ -123,7 +123,7 @@ spec:
       {{- end }}
       {{- with .Values.webhook.volumes }}
       volumes:
-        {{- toYaml . | nindent 8 }}
+      {{- toYaml . | nindent 6 }}
       {{- end }}
       {{- with .Values.webhook.nodeSelector }}
       nodeSelector:
@@ -141,6 +141,7 @@ spec:
       priorityClassName: {{ . }}
       {{- end }}
       serviceAccountName: {{ include "spark-operator.webhook.serviceAccountName" . }}
+      automountServiceAccountToken: {{ .Values.webhook.serviceAccount.automountServiceAccountToken }}
       {{- with .Values.webhook.podSecurityContext }}
       securityContext:
         {{- toYaml . | nindent 8 }}
