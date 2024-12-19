@@ -160,7 +160,11 @@ func (s *Scheduler) syncPodGroupInClusterMode(app *v1beta2.SparkApplication) err
 	// In cluster mode, the initial size of PodGroup is set to 1 in order to schedule driver pod first.
 	if _, ok := app.Spec.Driver.Annotations[v1beta1.KubeGroupNameAnnotationKey]; !ok {
 		// Both driver and executor resource will be considered.
-		totalResource := util.SumResourceList([]corev1.ResourceList{util.GetDriverRequestResource(app), util.GetExecutorRequestResource(app)})
+		totalResource, err := sparkApplicationResourceUsage(app)
+		if err != nil {
+			return err
+		}
+
 		if app.Spec.BatchSchedulerOptions != nil && len(app.Spec.BatchSchedulerOptions.Resources) > 0 {
 			totalResource = app.Spec.BatchSchedulerOptions.Resources
 		}
