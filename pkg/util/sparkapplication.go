@@ -19,6 +19,7 @@ package util
 import (
 	"crypto/md5"
 	"fmt"
+	"os"
 	"reflect"
 	"strings"
 	"time"
@@ -27,9 +28,14 @@ import (
 	networkingv1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/yaml"
 
 	"github.com/kubeflow/spark-operator/api/v1beta2"
 	"github.com/kubeflow/spark-operator/pkg/common"
+)
+
+const (
+	bufferSize = 1024
 )
 
 // GetDriverPodName returns name of the driver pod of the given spark application.
@@ -494,4 +500,19 @@ func GetInitialExecutorNumber(app *v1beta2.SparkApplication) int32 {
 	}
 
 	return initialNumExecutors
+}
+
+func LoadSparkApplicationFromFile(filePath string) (*v1beta2.SparkApplication, error) {
+	file, err := os.Open(filePath)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+
+	decoder := yaml.NewYAMLOrJSONDecoder(file, bufferSize)
+	app := &v1beta2.SparkApplication{}
+	if err := decoder.Decode(app); err != nil {
+		return nil, err
+	}
+	return app, nil
 }

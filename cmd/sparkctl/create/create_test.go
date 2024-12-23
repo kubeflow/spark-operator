@@ -14,26 +14,23 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package app
+package create
 
 import (
-	"time"
+	"strings"
+	"testing"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/duration"
+	"github.com/stretchr/testify/assert"
 )
 
-func getSinceTime(timestamp metav1.Time) string {
-	if timestamp.IsZero() {
-		return "N.A."
+func TestHandleHadoopConfiguration(t *testing.T) {
+	configMap, err := buildHadoopConfigMap("test", "default", "testdata/hadoop-conf")
+	if err != nil {
+		t.Fatal(err)
 	}
 
-	return duration.ShortHumanDuration(time.Since(timestamp.Time))
-}
-
-func formatNotAvailable(info string) string {
-	if info == "" {
-		return "N.A."
-	}
-	return info
+	assert.Equal(t, "test-hadoop-conf", configMap.Name)
+	assert.Len(t, configMap.BinaryData, 1)
+	assert.Len(t, configMap.Data, 1)
+	assert.True(t, strings.Contains(configMap.Data["core-site.xml"], "fs.gs.impl"))
 }

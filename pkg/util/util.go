@@ -18,11 +18,15 @@ package util
 
 import (
 	"fmt"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"golang.org/x/mod/semver"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/duration"
 	"sigs.k8s.io/yaml"
 
 	"github.com/kubeflow/spark-operator/pkg/common"
@@ -117,4 +121,45 @@ func WriteObjectToFile(obj interface{}, filePath string) error {
 	}
 
 	return nil
+}
+
+func GetSinceTime(timestamp metav1.Time) string {
+	if timestamp.IsZero() {
+		return "N.A."
+	}
+
+	return duration.ShortHumanDuration(time.Since(timestamp.Time))
+}
+
+func FormatNotAvailable(info string) string {
+	if info == "" {
+		return "N.A."
+	}
+	return info
+}
+
+func FilterLocalFiles(files []string) ([]string, error) {
+	var localFiles []string
+	for _, file := range files {
+		if isLocal, err := IsLocalFile(file); err != nil {
+			return nil, err
+		} else if isLocal {
+			localFiles = append(localFiles, file)
+		}
+	}
+
+	return localFiles, nil
+}
+
+func IsLocalFile(file string) (bool, error) {
+	url, err := url.Parse(file)
+	if err != nil {
+		return false, err
+	}
+
+	if url.Scheme == "" || url.Scheme == "file" {
+		return true, nil
+	}
+
+	return false, nil
 }
