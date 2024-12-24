@@ -1,0 +1,110 @@
+#
+# Copyright 2024 The Kubeflow authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+suite: Test hook job
+
+templates:
+  - hook/job.yaml
+
+release:
+  name: spark-operator
+  namespace: spark-operator
+
+tests:
+  - it: Should not create hook job if `hook.upgradeCrd` is false
+    set:
+      hook:
+        upgradeCrd: false
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: Should create hook job by default
+    asserts:
+      - containsDocument:
+          apiVersion: batch/v1
+          kind: Job
+          name: spark-operator-hook
+
+  - it: Should use the specified image repository if `image.registry`, `image.repository` and `image.tag` are set
+    set:
+      image:
+        registry: test-registry
+        repository: test-repository
+        tag: test-tag
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[?(@.name=="spark-operator-hook")].image
+          value: test-registry/test-repository:test-tag
+
+  - it: Should use the specified image pull policy if `image.pullPolicy` is set
+    set:
+      image:
+        pullPolicy: Always
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[*].imagePullPolicy
+          value: Always
+
+  - it: Should add resources if `hook.resources` is set
+    set:
+      hook:
+        resources:
+          requests:
+            memory: 64Mi
+            cpu: 250m
+          limits:
+            memory: 128Mi
+            cpu: 500m
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[?(@.name=="spark-operator-hook")].resources
+          value:
+            requests:
+              memory: 64Mi
+              cpu: 250m
+            limits:
+              memory: 128Mi
+              cpu: 500m
+
+  - it: Should add container securityContext if `hook.securityContext` is set
+    set:
+      hook:
+        securityContext:
+          readOnlyRootFilesystem: true
+          runAsUser: 1000
+          runAsGroup: 2000
+          fsGroup: 3000
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+              - ALL
+          runAsNonRoot: true
+          privileged: false
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[?(@.name=="spark-operator-hook")].securityContext
+          value:
+            readOnlyRootFilesystem: true
+            runAsUser: 1000
+            runAsGroup: 2000
+            fsGroup: 3000
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            runAsNonRoot: true
+            privileged: false

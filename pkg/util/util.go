@@ -118,3 +118,17 @@ func WriteObjectToFile(obj interface{}, filePath string) error {
 
 	return nil
 }
+
+// ReadObjectFromFile unmarshals the given YAML document into the given object.
+func ReadObjectFromFile(obj interface{}, filePath string) error {
+	bytes, err := os.ReadFile(filePath)
+	if err != nil {
+		return fmt.Errorf("failed to open %s: %v", filePath, err)
+	}
+
+	if err := yaml.Unmarshal(bytes, obj); err != nil {
+		return fmt.Errorf("failed to unmarshal %s: %v", filePath, err)
+	}
+
+	return nil
+}
