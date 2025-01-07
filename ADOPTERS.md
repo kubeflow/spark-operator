@@ -32,7 +32,7 @@ Below are the adopters of project Spark Operator. If you are using Spark Operato
 | [Molex](https://www.molex.com/) | @AshishPushpSingh | Evaluation/Production | Data Platform |
 | [MongoDB](https://www.mongodb.com) | @chickenpopcorn | Production | Data Infrastructure |
 | Nielsen Identity Engine | @roitvt | Evaluation | Data pipelines |
-| [Ninja Van](https://tech.ninjavan.co/) | @hongshaoyang | Producrtion | Data Infrastructure |
+| [Ninja Van](https://tech.ninjavan.co/) | @hongshaoyang | Production | Data Infrastructure |
 | [PUBG](https://careers.pubg.com/#/en/) | @jacobhjkim | Production | ML & Data Infrastructure |
 | [Qualytics](https://www.qualytics.co/) | @josecsotomorales | Production | Data Quality Platform |
 | Riskified | @henbh | Evaluation | Analytics Data Platform |
