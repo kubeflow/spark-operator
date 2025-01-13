@@ -210,6 +210,11 @@ func (in *DriverSpec) DeepCopyInto(out *DriverSpec) {
 		*out = new(string)
 		**out = **in
 	}
+	if in.MemoryLimit != nil {
+		in, out := &in.MemoryLimit, &out.MemoryLimit
+		*out = new(string)
+		**out = **in
+	}
 	if in.JavaOptions != nil {
 		in, out := &in.JavaOptions, &out.JavaOptions
 		*out = new(string)
@@ -307,6 +312,11 @@ func (in *ExecutorSpec) DeepCopyInto(out *ExecutorSpec) {
 	}
 	if in.CoreRequest != nil {
 		in, out := &in.CoreRequest, &out.CoreRequest
+		*out = new(string)
+		**out = **in
+	}
+	if in.MemoryLimit != nil {
+		in, out := &in.MemoryLimit, &out.MemoryLimit
 		*out = new(string)
 		**out = **in
 	}

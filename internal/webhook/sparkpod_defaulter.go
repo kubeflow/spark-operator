@@ -97,6 +97,49 @@ func (d *SparkPodDefaulter) Default(ctx context.Context, obj runtime.Object) err
 	return nil
 }
 
+func convertJavaMemoryStringToK8sMemoryString(memory string) string {
+	if strings.HasSuffix(memory, "Gi") || strings.HasSuffix(memory, "Mi") {
+		return memory
+	}
+	// Convert the memory string from 'g' to 'Gi' and from 'm' to 'Mi.
+	if strings.HasSuffix(memory, "g") || strings.HasSuffix(memory, "m") {
+		return strings.ToUpper(memory) + "i"
+	}
+
+	return memory
+
+}
+
+func addMemoryLimit(pod *corev1.Pod, app *v1beta2.SparkApplication) error {
+	i := findContainer(pod)
+	if i < 0 {
+		return fmt.Errorf("failed to add memory limit as Spark container was not found in pod %s", pod.Name)
+	}
+
+	var memoryLimit *string
+	if util.IsDriverPod(pod) {
+		memoryLimit = app.Spec.Driver.MemoryLimit
+	} else if util.IsExecutorPod(pod) {
+		memoryLimit = app.Spec.Executor.MemoryLimit
+	}
+
+	if memoryLimit == nil {
+		return nil
+	}
+
+	// Convert memory limit to a Kubernetes-compatible quantity
+	limitQuantity, err := resource.ParseQuantity(convertJavaMemoryStringToK8sMemoryString(*memoryLimit))
+	if err != nil {
+		return fmt.Errorf("failed to parse memory limit %s: %v", *memoryLimit, err)
+	}
+
+	// Apply the memory limit to the container's resources
+	logger.Info(fmt.Sprintf("Adding memory limit %s to container in pod %s", *memoryLimit, pod.Name))
+	pod.Spec.Containers[i].Resources.Limits[corev1.ResourceMemory] = limitQuantity
+	logger.Info(fmt.Sprintf("Successfully added memory limit %s to container in pod %s", limitQuantity.String(), pod.Name))
+	return nil
+}
+
 func (d *SparkPodDefaulter) isSparkJobNamespace(ns string) bool {
 	return d.sparkJobNamespaces[metav1.NamespaceAll] || d.sparkJobNamespaces[ns]
 }
@@ -123,6 +166,7 @@ func mutateSparkPod(pod *corev1.Pod, app *v1beta2.SparkApplication) error {
 		addNodeSelectors,
 		addAffinity,
 		addTolerations,
+		addMemoryLimit,
 		addGPU,
 		addPrometheusConfig,
 		addContainerSecurityContext,

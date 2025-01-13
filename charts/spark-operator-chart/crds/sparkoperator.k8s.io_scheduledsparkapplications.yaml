@@ -2970,6 +2970,11 @@ spec:
                         description: Memory is the amount of memory to request for
                           the pod.
                         type: string
+                      memoryLimit:
+                        description: |-
+                          MemoryLimit is overriding the driver pod memory limit.
+                          By default, the memory limit and request are equal - use carefully.
+                        type: string
                       memoryOverhead:
                         description: MemoryOverhead is the amount of off-heap memory
                           to allocate in cluster mode, in MiB unless otherwise specified.
@@ -7755,6 +7760,11 @@ spec:
                       memory:
                         description: Memory is the amount of memory to request for
                           the pod.
+                        type: string
+                      memoryLimit:
+                        description: |-
+                          MemoryLimit is overriding the executor pod memory limit.
+                          By default, the memory limit and request are equal - use carefully.
                         type: string
                       memoryOverhead:
                         description: MemoryOverhead is the amount of off-heap memory
