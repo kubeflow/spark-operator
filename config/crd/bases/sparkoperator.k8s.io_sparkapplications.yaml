@@ -18,6 +18,9 @@ spec:
   scope: Namespaced
   versions:
   - additionalPrinterColumns:
+    - jsonPath: .spec.suspend
+      name: Suspend
+      type: boolean
     - jsonPath: .status.applicationState.state
       name: Status
       type: string
@@ -10488,6 +10491,15 @@ spec:
                 description: SparkVersion is the version of Spark the application
                   uses.
                 type: string
+              suspend:
+                description: |-
+                  Suspend specifies whether the Spark operator should create Pods or not.
+                  If a SparkApplication is created with suspend set to true, no Pods are created
+                  by the Spark operator. If a SparkApplication is suspended after creation
+                  (i.e. the flag goes from false to true), the Spark operator will delete
+                  all active Pods associated with this SparkApplication.
+                  Users must design their Spark application to gracefully handle this.
+                type: boolean
               timeToLiveSeconds:
                 description: |-
                   TimeToLiveSeconds defines the Time-To-Live (TTL) duration in seconds for this SparkApplication
@@ -12311,6 +12323,7 @@ spec:
             - executor
             - mainApplicationFile
             - sparkVersion
+            - suspend
             - type
             type: object
           status:
