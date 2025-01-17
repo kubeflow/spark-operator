@@ -171,9 +171,16 @@ func (f *EventFilter) Update(e event.UpdateEvent) bool {
 		return false
 	}
 
-	// The spec has changed. This is currently best effort as we can potentially miss updates
-	// and end up in an inconsistent state.
+	// The spec has changed except for Spec.Suspend.
+	// This is currently best effort as we can potentially miss updates and end up in an inconsistent state.
 	if !equality.Semantic.DeepEqual(oldApp.Spec, newApp.Spec) {
+
+		// Only Spec.Suspend can be updated
+		oldApp.Spec.Suspend = newApp.Spec.Suspend
+		if equality.Semantic.DeepEqual(oldApp.Spec, newApp.Spec) {
+			return true
+		}
+
 		// Force-set the application status to Invalidating which handles clean-up and application re-run.
 		newApp.Status.AppState.State = v1beta2.ApplicationStateInvalidating
 		f.logger.Info("Updating SparkApplication status", "name", newApp.Name, "namespace", newApp.Namespace, " oldState", oldApp.Status.AppState.State, "newState", newApp.Status.AppState.State)
