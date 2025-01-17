@@ -238,6 +238,22 @@ SparkApplicationSpec
 <table>
 <tr>
 <td>
+<code>suspend</code><br/>
+<em>
+bool
+</em>
+</td>
+<td>
+<p>Suspend specifies whether the Spark operator should create Pods or not.
+If a SparkApplication is created with suspend set to true, no Pods are created
+by the Spark operator. If a SparkApplication is suspended after creation
+(i.e. the flag goes from false to true), the Spark operator will delete
+all active Pods associated with this SparkApplication.
+Users must design their Spark application to gracefully handle this.</p>
+</td>
+</tr>
+<tr>
+<td>
 <code>type</code><br/>
 <em>
 <a href="#sparkoperator.k8s.io/v1beta2.SparkApplicationType">
@@ -729,11 +745,17 @@ string
 <td></td>
 </tr><tr><td><p>&#34;PENDING_RERUN&#34;</p></td>
 <td></td>
+</tr><tr><td><p>&#34;RESUMING&#34;</p></td>
+<td></td>
 </tr><tr><td><p>&#34;RUNNING&#34;</p></td>
 <td></td>
 </tr><tr><td><p>&#34;SUBMITTED&#34;</p></td>
 <td></td>
 </tr><tr><td><p>&#34;SUCCEEDING&#34;</p></td>
+<td></td>
+</tr><tr><td><p>&#34;SUSPENDED&#34;</p></td>
+<td></td>
+</tr><tr><td><p>&#34;SUSPENDING&#34;</p></td>
 <td></td>
 </tr><tr><td><p>&#34;UNKNOWN&#34;</p></td>
 <td></td>
@@ -2329,6 +2351,22 @@ It carries every pieces of information a spark-submit command takes and recogniz
 </tr>
 </thead>
 <tbody>
+<tr>
+<td>
+<code>suspend</code><br/>
+<em>
+bool
+</em>
+</td>
+<td>
+<p>Suspend specifies whether the Spark operator should create Pods or not.
+If a SparkApplication is created with suspend set to true, no Pods are created
+by the Spark operator. If a SparkApplication is suspended after creation
+(i.e. the flag goes from false to true), the Spark operator will delete
+all active Pods associated with this SparkApplication.
+Users must design their Spark application to gracefully handle this.</p>
+</td>
+</tr>
 <tr>
 <td>
 <code>type</code><br/>
