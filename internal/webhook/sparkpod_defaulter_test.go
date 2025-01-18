@@ -2087,6 +2087,46 @@ func TestPatchSparkPod_ShareProcessNamespace(t *testing.T) {
 	}
 }
 
+func TestConvertJavaMemoryStringToK8sMemoryString(t *testing.T) {
+	tests := map[string]struct {
+		input  string
+		result string
+	}{
+		"Memory g": {
+			input:  "1g",
+			result: "1Gi",
+		},
+		"Memory Gi": {
+			input:  "1Gi",
+			result: "1Gi",
+		},
+		"Memory m": {
+			input:  "1m",
+			result: "1Mi",
+		},
+		"Memory Mi": {
+			input:  "1Mi",
+			result: "1Mi",
+		},
+		"Memory invalid": {
+			input:  "1Y",
+			result: "1Y",
+		},
+		"Memory empty": {
+			input:  "",
+			result: "",
+		},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			if got, expected := convertJavaMemoryStringToK8sMemoryString(test.input), test.result; got != expected {
+				t.Fatalf("convertJavaMemoryStringToK8sMemoryString(%q) returned %q; expected %q", test.input, got, expected)
+			}
+		})
+	}
+}
+
 func TestPatchSparkPod_MemoryLimit(t *testing.T) {
 
 	var memory = "1Gi"
