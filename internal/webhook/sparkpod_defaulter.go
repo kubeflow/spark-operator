@@ -133,6 +133,10 @@ func addMemoryLimit(pod *corev1.Pod, app *v1beta2.SparkApplication) error {
 		return fmt.Errorf("failed to parse memory limit %s: %v", *memoryLimit, err)
 	}
 
+	if pod.Spec.Containers[i].Resources.Limits == nil {
+		pod.Spec.Containers[i].Resources.Limits = corev1.ResourceList{}
+	}
+
 	// Apply the memory limit to the container's resources
 	logger.Info(fmt.Sprintf("Adding memory limit %s to container in pod %s", *memoryLimit, pod.Name))
 	pod.Spec.Containers[i].Resources.Limits[corev1.ResourceMemory] = limitQuantity
