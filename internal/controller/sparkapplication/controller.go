@@ -786,6 +786,10 @@ func (r *Reconciler) reconcileSuspendedSparkApplication(ctx context.Context, req
 						State: v1beta2.ApplicationStateResuming,
 					}
 				}
+			} else {
+				err := fmt.Errorf("resources associated with SparkApplication still exist: %s/%s", app.Namespace, app.Name)
+				logger.Error(err, "Failed to confirm being deleted resources associated with SparkApplication", "name", app.Name, "namespace", app.Namespace, "state", app.Status.AppState.State)
+				return err
 			}
 			if err := r.updateSparkApplicationStatus(ctx, app); err != nil {
 				return err
