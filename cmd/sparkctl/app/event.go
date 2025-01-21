@@ -30,9 +30,9 @@ import (
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes"
 	clientWatch "k8s.io/client-go/tools/watch"
-	"k8s.io/kubernetes/pkg/util/interrupt"
 
 	crdclientset "github.com/kubeflow/spark-operator/pkg/client/clientset/versioned"
+	"github.com/kubeflow/spark-operator/pkg/util"
 )
 
 var FollowEvents bool
@@ -147,7 +147,7 @@ func streamEvents(events watch.Interface, streamSince int64) error {
 
 	// Set 10 minutes inactivity timeout
 	watchExpire := 10 * time.Minute
-	intr := interrupt.New(nil, events.Stop)
+	intr := util.NewInterruptHandler(nil, events.Stop)
 	return intr.Run(func() error {
 		// Start rendering contents of the table without table header as it is already printed
 		table = prepareNewTable()
