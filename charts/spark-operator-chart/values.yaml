@@ -177,6 +177,8 @@ controller:
     capabilities:
       drop:
       - ALL
+    seccompProfile:
+      type: RuntimeDefault
 
   # -- Sidecar containers for controller pods.
   sidecars: []
@@ -334,6 +336,8 @@ webhook:
     capabilities:
       drop:
       - ALL
+    seccompProfile:
+      type: RuntimeDefault
 
   # Pod disruption budget for webhook to avoid service degradation.
   podDisruptionBudget:
