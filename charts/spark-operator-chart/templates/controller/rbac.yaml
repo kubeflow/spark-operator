@@ -47,6 +47,24 @@ rules:
   - customresourcedefinitions
   verbs:
   - get
+- apiGroups:
+    - sparkoperator.k8s.io
+  resources:
+    - sparkapplications
+    - scheduledsparkapplications
+    - sparkapplications/status
+    - scheduledsparkapplications/status
+  verbs:
+    - get
+    - list
+    - watch
+    - create
+    - update
+    - delete
+    - patch
+- apiGroups: [""]
+  resources: ["pods","pod/status","services","endpoints","configmaps",]
+  verbs: ["get", "list", "watch", "create", "delete", "update", "patch"]
 {{- if not .Values.spark.jobNamespaces | or (has "" .Values.spark.jobNamespaces) }}
 {{ include "spark-operator.controller.policyRules" . }}
 {{- end }}
