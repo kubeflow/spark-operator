@@ -27,6 +27,12 @@ spec:
   sparkVersion: 3.5.3
   sparkConf:
     # Expose Spark metrics for Prometheus
+    "spark.kubernetes.driver.annotation.prometheus.io/scrape": "true"
+    "spark.kubernetes.driver.annotation.prometheus.io/path": "/metrics/executors/prometheus/"
+    "spark.kubernetes.driver.annotation.prometheus.io/port": "4040"
+    "spark.kubernetes.driver.service.annotation.prometheus.io/scrape": "true"
+    "spark.kubernetes.driver.service.annotation.prometheus.io/path": "/metrics/driver/prometheus/"
+    "spark.kubernetes.driver.service.annotation.prometheus.io/port": "4040"
     "spark.ui.prometheus.enabled": "true"
     "spark.executor.processTreeMetrics.enabled": "true"
     "spark.metrics.conf.*.sink.prometheusServlet.class": "org.apache.spark.metrics.sink.PrometheusServlet"
