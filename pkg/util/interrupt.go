@@ -1,17 +1,23 @@
 /*
-Copyright 2025 The Kubeflow authors.
+Copyright 2016 The Kubernetes Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-    https://www.apache.org/licenses/LICENSE-2.0
+    http://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
+*/
+
+/*
+Original code from Kubernetes (https://github.com/kubernetes/kubernetes)
+https://github.com/kubernetes/kubernetes/blob/master/pkg/util/interrupt/interrupt.go
+Only naming has been changed from the original implementation.
 */
 
 package util
@@ -27,7 +33,7 @@ import (
 // supported platforms (linux, darwin, windows).
 var terminationSignals = []os.Signal{syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT}
 
-// Handler guarantees execution of notifications after a critical section (the function passed
+// InterruptHandler Handler guarantees execution of notifications after a critical section (the function passed
 // to a Run method), even in the presence of process termination. It guarantees exactly once
 // invocation of the provided notify functions.
 type InterruptHandler struct {
@@ -36,7 +42,7 @@ type InterruptHandler struct {
 	once   sync.Once
 }
 
-// New creates a new handler that guarantees all notify functions are run after the critical
+// NewInterruptHandler New creates a new handler that guarantees all notify functions are run after the critical
 // section exits (or is interrupted by the OS), then invokes the final handler. If no final
 // handler is specified, the default final is `os.Exit(1)`. A handler can only be used for
 // one critical section.
