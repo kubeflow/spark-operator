@@ -211,7 +211,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        k8s_version: [v1.28.13, v1.29.8, v1.30.4, v1.31.1]
+        k8s_version: [v1.29.12, v1.30.8, v1.31.4, v1.32.1]
     steps:
       - name: Checkout source code
         uses: actions/checkout@v4
