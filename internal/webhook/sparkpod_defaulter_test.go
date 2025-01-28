@@ -2086,3 +2086,84 @@ func TestPatchSparkPod_ShareProcessNamespace(t *testing.T) {
 		}
 	}
 }
+
+func TestPatchSparkPod_RuntimeClassName(t *testing.T) {
+	app := &v1beta2.SparkApplication{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "spark-test",
+			UID:  "spark-test-1",
+		},
+		Spec: v1beta2.SparkApplicationSpec{
+			Driver: v1beta2.DriverSpec{
+				SparkPodSpec: v1beta2.SparkPodSpec{},
+			},
+			Executor: v1beta2.ExecutorSpec{
+				SparkPodSpec: v1beta2.SparkPodSpec{},
+			},
+		},
+	}
+
+	var testRuntimeClassName = "test-class"
+	tests := []*string{
+		nil,
+		&testRuntimeClassName,
+	}
+
+	for _, test := range tests {
+		app.Spec.Driver.RuntimeClassName = test
+		app.Spec.Executor.RuntimeClassName = test
+		driverPod := &corev1.Pod{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "spark-driver",
+				Labels: map[string]string{
+					common.LabelSparkRole:               common.SparkRoleDriver,
+					common.LabelLaunchedBySparkOperator: "true",
+				},
+			},
+			Spec: corev1.PodSpec{
+				Containers: []corev1.Container{
+					{
+						Name:  common.SparkDriverContainerName,
+						Image: "spark-driver:latest",
+					},
+				},
+			},
+		}
+
+		executorPod := &corev1.Pod{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "spark-executor",
+				Labels: map[string]string{
+					common.LabelSparkRole:               common.SparkRoleExecutor,
+					common.LabelLaunchedBySparkOperator: "true",
+				},
+			},
+			Spec: corev1.PodSpec{
+				Containers: []corev1.Container{
+					{
+						Name:  common.SparkExecutorContainerName,
+						Image: "spark-executor:latest",
+					},
+				},
+			},
+		}
+
+		modifiedDriverPod, err := getModifiedPod(driverPod, app)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		modifiedExecutorPod, err := getModifiedPod(executorPod, app)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if test == nil {
+			assert.Nil(t, modifiedDriverPod.Spec.RuntimeClassName)
+			assert.Nil(t, modifiedExecutorPod.Spec.RuntimeClassName)
+		} else {
+			assert.Equal(t, "test-class", *modifiedDriverPod.Spec.RuntimeClassName)
+			assert.Equal(t, "test-class", *modifiedExecutorPod.Spec.RuntimeClassName)
+		}
+	}
+}

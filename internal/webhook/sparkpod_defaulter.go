@@ -130,6 +130,7 @@ func mutateSparkPod(pod *corev1.Pod, app *v1beta2.SparkApplication) error {
 		addTerminationGracePeriodSeconds,
 		addPodLifeCycleConfig,
 		addShareProcessNamespace,
+		addRuntimeClass,
 	}
 
 	for _, option := range options {
@@ -702,6 +703,22 @@ func addShareProcessNamespace(pod *corev1.Pod, app *v1beta2.SparkApplication) er
 	}
 
 	pod.Spec.ShareProcessNamespace = shareProcessNamespace
+	return nil
+}
+
+func addRuntimeClass(pod *corev1.Pod, app *v1beta2.SparkApplication) error {
+	var runtimeClass *string
+	if util.IsDriverPod(pod) {
+		runtimeClass = app.Spec.Driver.RuntimeClassName
+	}
+	if util.IsExecutorPod(pod) {
+		runtimeClass = app.Spec.Executor.RuntimeClassName
+	}
+
+	if runtimeClass == nil {
+		return nil
+	}
+	pod.Spec.RuntimeClassName = runtimeClass
 	return nil
 }
 

@@ -3402,6 +3402,10 @@ spec:
                         description: ShareProcessNamespace settings for the pod, following
                           the Kubernetes specifications.
                         type: boolean
+                      runtimeClassName:
+                        description: RuntimeClassName settings for the pod, following
+                          the Kubernetes specifications.
+                        type: string
                       sidecars:
                         description: Sidecars is a list of sidecar containers that
                           run along side the main Spark container.
@@ -8166,6 +8170,10 @@ spec:
                         description: ShareProcessNamespace settings for the pod, following
                           the Kubernetes specifications.
                         type: boolean
+                      runtimeClassName:
+                        description: RuntimeClassName settings for the pod, following
+                          the Kubernetes specifications.
+                        type: string
                       sidecars:
                         description: Sidecars is a list of sidecar containers that
                           run along side the main Spark container.

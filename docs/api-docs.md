@@ -3223,6 +3223,18 @@ bool
 <p>ShareProcessNamespace settings for the pod, following the Kubernetes specifications.</p>
 </td>
 </tr>
+<tr>
+<td>
+<code>runtimeClassName</code><br/>
+<em>
+bool
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>RuntimeClassName settings for the pod, following the Kubernetes specifications.</p>
+</td>
+</tr>
 </tbody>
 </table>
 <h3 id="sparkoperator.k8s.io/v1beta2.SparkUIConfiguration">SparkUIConfiguration
