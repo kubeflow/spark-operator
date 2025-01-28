@@ -3187,7 +3187,7 @@ spec:
                         type: array
                       priorityClassName:
                         description: PriorityClassName is the name of the PriorityClass
-                          for the driver pod.
+                          for the pod.
                         type: string
                       schedulerName:
                         description: SchedulerName specifies the scheduler that will
@@ -7965,7 +7965,7 @@ spec:
                         type: array
                       priorityClassName:
                         description: PriorityClassName is the name of the PriorityClass
-                          for the executor pod.
+                          for the pod.
                         type: string
                       schedulerName:
                         description: SchedulerName specifies the scheduler that will

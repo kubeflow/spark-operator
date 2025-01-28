@@ -89,11 +89,11 @@ func (d *SparkPodDefaulter) Default(ctx context.Context, obj runtime.Object) err
 	}
 
 	logger.Info("Mutating Spark pod", "name", pod.Name, "namespace", namespace, "phase", pod.Status.Phase)
-	if err := mutateSparkPod(pod, app); err != nil {
+	mutator := newSparkPodMutator(pod, app)
+	if err := mutator.mutate(); err != nil {
 		logger.Info("Denying Spark pod", "name", pod.Name, "namespace", namespace, "errorMessage", err.Error())
 		return fmt.Errorf("failed to mutate Spark pod: %v", err)
 	}
-
 	return nil
 }
 
@@ -101,9 +101,34 @@ func (d *SparkPodDefaulter) isSparkJobNamespace(ns string) bool {
 	return d.sparkJobNamespaces[metav1.NamespaceAll] || d.sparkJobNamespaces[ns]
 }
 
-type mutateSparkPodOption func(pod *corev1.Pod, app *v1beta2.SparkApplication) error
+type mutateSparkPodOption func(mutator *SparkPodMutator) error
 
-func mutateSparkPod(pod *corev1.Pod, app *v1beta2.SparkApplication) error {
+type SparkPodMutator struct {
+	pod       *corev1.Pod
+	container *corev1.Container
+	app       *v1beta2.SparkApplication
+}
+
+func newSparkPodMutator(pod *corev1.Pod, app *v1beta2.SparkApplication) *SparkPodMutator {
+	return &SparkPodMutator{
+		pod:       pod,
+		container: findContainer(pod),
+		app:       app,
+	}
+}
+
+func (m *SparkPodMutator) getSparkPodSpec() *v1beta2.SparkPodSpec {
+	if util.IsDriverPod(m.pod) {
+		return &m.app.Spec.Driver.SparkPodSpec
+	}
+	return &m.app.Spec.Executor.SparkPodSpec
+}
+
+func (m *SparkPodMutator) mutate() error {
+	if err := m.validate(); err != nil {
+		return err
+	}
+
 	options := []mutateSparkPodOption{
 		addOwnerReference,
 		addEnvVars,
@@ -133,7 +158,7 @@ func mutateSparkPod(pod *corev1.Pod, app *v1beta2.SparkApplication) error {
 	}
 
 	for _, option := range options {
-		if err := option(pod, app); err != nil {
+		if err := option(m); err != nil {
 			return err
 		}
 	}
@@ -141,160 +166,106 @@ func mutateSparkPod(pod *corev1.Pod, app *v1beta2.SparkApplication) error {
 	return nil
 }
 
-func addOwnerReference(pod *corev1.Pod, app *v1beta2.SparkApplication) error {
-	if !util.IsDriverPod(pod) {
+func (m *SparkPodMutator) validate() error {
+	if util.IsDriverPod(m.pod) || util.IsExecutorPod(m.pod) {
+		if m.container == nil {
+			return fmt.Errorf("container not found")
+		}
 		return nil
 	}
-	ownerReference := util.GetOwnerReference(app)
-	pod.ObjectMeta.OwnerReferences = append(pod.ObjectMeta.OwnerReferences, ownerReference)
+	return fmt.Errorf("pod is not a driver or executor")
+
+}
+
+func addOwnerReference(m *SparkPodMutator) error {
+	if !util.IsDriverPod(m.pod) {
+		return nil
+	}
+	ownerReference := util.GetOwnerReference(m.app)
+	m.pod.ObjectMeta.OwnerReferences = append(m.pod.ObjectMeta.OwnerReferences, ownerReference)
 	return nil
 }
 
-func addVolumes(pod *corev1.Pod, app *v1beta2.SparkApplication) error {
-	volumes := app.Spec.Volumes
+func addVolumes(m *SparkPodMutator) error {
+	volumes := m.app.Spec.Volumes
 
 	volumeMap := make(map[string]corev1.Volume)
 	for _, v := range volumes {
 		volumeMap[v.Name] = v
 	}
 
-	var volumeMounts []corev1.VolumeMount
-	if util.IsDriverPod(pod) {
-		volumeMounts = app.Spec.Driver.VolumeMounts
-	} else if util.IsExecutorPod(pod) {
-		volumeMounts = app.Spec.Executor.VolumeMounts
-	}
+	volumeMounts := m.getSparkPodSpec().VolumeMounts
 
 	addedVolumeMap := make(map[string]corev1.Volume)
-	for _, m := range volumeMounts {
+	for _, mount := range volumeMounts {
 		// Skip adding localDirVolumes
-		if strings.HasPrefix(m.Name, common.SparkLocalDirVolumePrefix) {
+		if strings.HasPrefix(mount.Name, common.SparkLocalDirVolumePrefix) {
 			continue
 		}
 
-		if v, ok := volumeMap[m.Name]; ok {
-			if _, ok := addedVolumeMap[m.Name]; !ok {
-				_ = addVolume(pod, v)
-				addedVolumeMap[m.Name] = v
+		if v, ok := volumeMap[mount.Name]; ok {
+			if _, ok := addedVolumeMap[mount.Name]; !ok {
+				addVolume(m.pod, v)
+				addedVolumeMap[mount.Name] = v
 			}
-			_ = addVolumeMount(pod, m)
+			addVolumeMount(m.container, mount)
 		}
 	}
 	return nil
 }
 
-func addVolume(pod *corev1.Pod, volume corev1.Volume) error {
+func addVolume(pod *corev1.Pod, volume corev1.Volume) {
 	pod.Spec.Volumes = append(pod.Spec.Volumes, volume)
+}
+
+func addVolumeMount(container *corev1.Container, mount corev1.VolumeMount) {
+	container.VolumeMounts = append(container.VolumeMounts, mount)
+}
+
+func addEnvVars(m *SparkPodMutator) error {
+	envs := m.getSparkPodSpec().Env
+	m.container.Env = append(m.container.Env, envs...)
 	return nil
 }
 
-func addVolumeMount(pod *corev1.Pod, mount corev1.VolumeMount) error {
-	i := findContainer(pod)
-	if i < 0 {
-		return fmt.Errorf("failed to add volumeMounts as Spark container not found")
-	}
-
-	pod.Spec.Containers[i].VolumeMounts = append(pod.Spec.Containers[i].VolumeMounts, mount)
+func addEnvFrom(m *SparkPodMutator) error {
+	envFrom := m.getSparkPodSpec().EnvFrom
+	m.container.EnvFrom = append(m.container.EnvFrom, envFrom...)
 	return nil
 }
 
-func addEnvVars(pod *corev1.Pod, app *v1beta2.SparkApplication) error {
-	i := findContainer(pod)
-	if util.IsDriverPod(pod) {
-		if len(app.Spec.Driver.Env) == 0 {
-			return nil
-		} else if i < 0 {
-			return fmt.Errorf("failed to add envs as driver container not found")
-		}
-		pod.Spec.Containers[i].Env = append(pod.Spec.Containers[i].Env, app.Spec.Driver.Env...)
-	} else if util.IsExecutorPod(pod) {
-		if len(app.Spec.Driver.Env) == 0 {
-			return nil
-		} else if i < 0 {
-			return fmt.Errorf("failed to add envs as executor container not found")
-		}
-		pod.Spec.Containers[i].Env = append(pod.Spec.Containers[i].Env, app.Spec.Executor.Env...)
-	}
-	return nil
-}
-
-func addEnvFrom(pod *corev1.Pod, app *v1beta2.SparkApplication) error {
-	var envFrom []corev1.EnvFromSource
-	if util.IsDriverPod(pod) {
-		envFrom = app.Spec.Driver.EnvFrom
-	} else if util.IsExecutorPod(pod) {
-		envFrom = app.Spec.Executor.EnvFrom
-	}
-
-	i := findContainer(pod)
-	if i < 0 {
-		return fmt.Errorf("failed to add envFrom as Spark container not found")
-	}
-
-	pod.Spec.Containers[i].EnvFrom = append(pod.Spec.Containers[i].EnvFrom, envFrom...)
-	return nil
-}
-
-func addEnvironmentVariable(pod *corev1.Pod, name, value string) error {
-	i := findContainer(pod)
-	if i < 0 {
-		return fmt.Errorf("failed to add env as Spark container not found")
-	}
-
-	pod.Spec.Containers[i].Env = append(pod.Spec.Containers[i].Env, corev1.EnvVar{
+func addEnvironmentVariable(container *corev1.Container, name, value string) {
+	container.Env = append(container.Env, corev1.EnvVar{
 		Name:  name,
 		Value: value,
 	})
-	return nil
 }
 
-func addSparkConfigMap(pod *corev1.Pod, app *v1beta2.SparkApplication) error {
-	if app.Spec.SparkConfigMap == nil {
+func addSparkConfigMap(m *SparkPodMutator) error {
+	if m.app.Spec.SparkConfigMap == nil {
 		return nil
 	}
 
-	if err := addConfigMapVolume(pod, *app.Spec.SparkConfigMap, common.SparkConfigMapVolumeName); err != nil {
-		return err
-	}
-
-	if err := addConfigMapVolumeMount(pod, common.SparkConfigMapVolumeName, common.DefaultSparkConfDir); err != nil {
-		return err
-	}
-
-	if err := addEnvironmentVariable(pod, common.EnvSparkConfDir, common.DefaultSparkConfDir); err != nil {
-		return err
-	}
-
+	addConfigMapVolume(m.pod, *m.app.Spec.SparkConfigMap, common.SparkConfigMapVolumeName)
+	addConfigMapVolumeMount(m.container, common.SparkConfigMapVolumeName, common.DefaultSparkConfDir)
+	addEnvironmentVariable(m.container, common.EnvSparkConfDir, common.DefaultSparkConfDir)
 	return nil
 }
 
-func addHadoopConfigMap(pod *corev1.Pod, app *v1beta2.SparkApplication) error {
-	if app.Spec.HadoopConfigMap == nil {
+func addHadoopConfigMap(m *SparkPodMutator) error {
+	if m.app.Spec.HadoopConfigMap == nil {
 		return nil
 	}
 
-	if err := addConfigMapVolume(pod, *app.Spec.HadoopConfigMap, common.HadoopConfigMapVolumeName); err != nil {
-		return err
-	}
-
-	if err := addConfigMapVolumeMount(pod, common.HadoopConfigMapVolumeName, common.DefaultHadoopConfDir); err != nil {
-		return err
-	}
-
-	if err := addEnvironmentVariable(pod, common.EnvHadoopConfDir, common.DefaultHadoopConfDir); err != nil {
-		return err
-	}
+	addConfigMapVolume(m.pod, *m.app.Spec.HadoopConfigMap, common.HadoopConfigMapVolumeName)
+	addConfigMapVolumeMount(m.container, common.HadoopConfigMapVolumeName, common.DefaultHadoopConfDir)
+	addEnvironmentVariable(m.container, common.EnvHadoopConfDir, common.DefaultHadoopConfDir)
 
 	return nil
 }
 
-func addGeneralConfigMaps(pod *corev1.Pod, app *v1beta2.SparkApplication) error {
-	var configMaps []v1beta2.NamePath
-	if util.IsDriverPod(pod) {
-		configMaps = app.Spec.Driver.ConfigMaps
-	} else if util.IsExecutorPod(pod) {
-		configMaps = app.Spec.Executor.ConfigMaps
-	}
+func addGeneralConfigMaps(m *SparkPodMutator) error {
+	configMaps := m.getSparkPodSpec().ConfigMaps
 
 	for _, namePath := range configMaps {
 		volumeName := namePath.Name + "-vol"
@@ -302,92 +273,65 @@ func addGeneralConfigMaps(pod *corev1.Pod, app *v1beta2.SparkApplication) error 
 			volumeName = volumeName[0:maxNameLength]
 			logger.Info(fmt.Sprintf("ConfigMap volume name is too long. Truncating to length %d. Result: %s.", maxNameLength, volumeName))
 		}
-		if err := addConfigMapVolume(pod, namePath.Name, volumeName); err != nil {
-			return err
-		}
-
-		if err := addConfigMapVolumeMount(pod, volumeName, namePath.Path); err != nil {
-			return err
-		}
+		addConfigMapVolume(m.pod, namePath.Name, volumeName)
+		addConfigMapVolumeMount(m.container, volumeName, namePath.Path)
 	}
 	return nil
 }
 
-func addPrometheusConfig(pod *corev1.Pod, app *v1beta2.SparkApplication) error {
+func addPrometheusConfig(m *SparkPodMutator) error {
 	// Skip if Prometheus Monitoring is not enabled or an in-container ConfigFile is used,
 	// in which cases a Prometheus ConfigMap won't be created.
-	if !util.PrometheusMonitoringEnabled(app) || (util.HasMetricsPropertiesFile(app) && util.HasPrometheusConfigFile(app)) {
+	if !util.PrometheusMonitoringEnabled(m.app) || (util.HasMetricsPropertiesFile(m.app) && util.HasPrometheusConfigFile(m.app)) {
 		return nil
 	}
 
-	if util.IsDriverPod(pod) && !util.ExposeDriverMetrics(app) {
+	if util.IsDriverPod(m.pod) && !util.ExposeDriverMetrics(m.app) {
 		return nil
 	}
-	if util.IsExecutorPod(pod) && !util.ExposeExecutorMetrics(app) {
+	if util.IsExecutorPod(m.pod) && !util.ExposeExecutorMetrics(m.app) {
 		return nil
 	}
 
-	name := util.GetPrometheusConfigMapName(app)
+	name := util.GetPrometheusConfigMapName(m.app)
 	volumeName := name + "-vol"
 	mountPath := common.PrometheusConfigMapMountPath
 	promPort := common.DefaultPrometheusJavaAgentPort
-	if app.Spec.Monitoring.Prometheus.Port != nil {
-		promPort = *app.Spec.Monitoring.Prometheus.Port
+	if m.app.Spec.Monitoring.Prometheus.Port != nil {
+		promPort = *m.app.Spec.Monitoring.Prometheus.Port
 	}
 	promProtocol := common.DefaultPrometheusPortProtocol
 	promPortName := common.DefaultPrometheusPortName
-	if app.Spec.Monitoring.Prometheus.PortName != nil {
-		promPortName = *app.Spec.Monitoring.Prometheus.PortName
+	if m.app.Spec.Monitoring.Prometheus.PortName != nil {
+		promPortName = *m.app.Spec.Monitoring.Prometheus.PortName
 	}
 
-	if err := addConfigMapVolume(pod, name, volumeName); err != nil {
-		return err
-	}
-
-	if err := addConfigMapVolumeMount(pod, volumeName, mountPath); err != nil {
-		return fmt.Errorf("failed to mount volume %s in path %s: %v", volumeName, mountPath, err)
-	}
-
-	if err := addContainerPort(pod, promPort, promProtocol, promPortName); err != nil {
-		return fmt.Errorf("failed to expose port %d to scrape metrics outside the pod: %v", promPort, err)
-	}
+	addConfigMapVolume(m.pod, name, volumeName)
+	addConfigMapVolumeMount(m.container, volumeName, mountPath)
+	addContainerPort(m.container, promPort, promProtocol, promPortName)
 
 	return nil
 }
 
-func addContainerPorts(pod *corev1.Pod, app *v1beta2.SparkApplication) error {
-	var ports []v1beta2.Port
-
-	if util.IsDriverPod(pod) {
-		ports = app.Spec.Driver.Ports
-	} else if util.IsExecutorPod(pod) {
-		ports = app.Spec.Executor.Ports
-	}
+func addContainerPorts(m *SparkPodMutator) error {
+	ports := m.getSparkPodSpec().Ports
 
 	for _, p := range ports {
-		if err := addContainerPort(pod, p.ContainerPort, p.Protocol, p.Name); err != nil {
-			return fmt.Errorf("failed to expose port named %s: %v", p.Name, err)
-		}
+		addContainerPort(m.container, p.ContainerPort, p.Protocol, p.Name)
 	}
 	return nil
 }
 
-func addContainerPort(pod *corev1.Pod, port int32, protocol string, portName string) error {
-	i := findContainer(pod)
-	if i < 0 {
-		return fmt.Errorf("failed to add containerPort %d as Spark container not found", port)
-	}
-
+func addContainerPort(container *corev1.Container, port int32, protocol string, portName string) {
 	containerPort := corev1.ContainerPort{
 		Name:          portName,
 		ContainerPort: port,
 		Protocol:      corev1.Protocol(protocol),
 	}
-	pod.Spec.Containers[i].Ports = append(pod.Spec.Containers[i].Ports, containerPort)
-	return nil
+	container.Ports = append(container.Ports, containerPort)
 }
 
-func addConfigMapVolume(pod *corev1.Pod, configMapName string, configMapVolumeName string) error {
+func addConfigMapVolume(pod *corev1.Pod, configMapName string, configMapVolumeName string) {
 	volume := corev1.Volume{
 		Name: configMapVolumeName,
 		VolumeSource: corev1.VolumeSource{
@@ -398,197 +342,130 @@ func addConfigMapVolume(pod *corev1.Pod, configMapName string, configMapVolumeNa
 			},
 		},
 	}
-	return addVolume(pod, volume)
+	addVolume(pod, volume)
 }
 
-func addConfigMapVolumeMount(pod *corev1.Pod, configMapVolumeName string, mountPath string) error {
+func addConfigMapVolumeMount(container *corev1.Container, configMapVolumeName string, mountPath string) {
 	mount := corev1.VolumeMount{
 		Name:      configMapVolumeName,
 		ReadOnly:  true,
 		MountPath: mountPath,
 	}
-	return addVolumeMount(pod, mount)
+	addVolumeMount(container, mount)
 }
 
-func addAffinity(pod *corev1.Pod, app *v1beta2.SparkApplication) error {
-	var affinity *corev1.Affinity
-	if util.IsDriverPod(pod) {
-		affinity = app.Spec.Driver.Affinity
-	} else if util.IsExecutorPod(pod) {
-		affinity = app.Spec.Executor.Affinity
-	}
+func addAffinity(m *SparkPodMutator) error {
+	affinity := m.getSparkPodSpec().Affinity
 	if affinity == nil {
 		return nil
 	}
-	pod.Spec.Affinity = affinity.DeepCopy()
+	m.pod.Spec.Affinity = affinity.DeepCopy()
 	return nil
 }
 
-func addTolerations(pod *corev1.Pod, app *v1beta2.SparkApplication) error {
-	var tolerations []corev1.Toleration
-	if util.IsDriverPod(pod) {
-		tolerations = app.Spec.Driver.SparkPodSpec.Tolerations
-	} else if util.IsExecutorPod(pod) {
-		tolerations = app.Spec.Executor.SparkPodSpec.Tolerations
+func addTolerations(m *SparkPodMutator) error {
+	tolerations := m.getSparkPodSpec().Tolerations
+
+	if m.pod.Spec.Tolerations == nil {
+		m.pod.Spec.Tolerations = []corev1.Toleration{}
 	}
 
-	if pod.Spec.Tolerations == nil {
-		pod.Spec.Tolerations = []corev1.Toleration{}
-	}
-
-	pod.Spec.Tolerations = append(pod.Spec.Tolerations, tolerations...)
+	m.pod.Spec.Tolerations = append(m.pod.Spec.Tolerations, tolerations...)
 	return nil
 }
 
-func addNodeSelectors(pod *corev1.Pod, app *v1beta2.SparkApplication) error {
-	var nodeSelector map[string]string
-	if util.IsDriverPod(pod) {
-		nodeSelector = app.Spec.Driver.NodeSelector
-	} else if util.IsExecutorPod(pod) {
-		nodeSelector = app.Spec.Executor.NodeSelector
-	}
+func addNodeSelectors(m *SparkPodMutator) error {
+	nodeSelector := m.getSparkPodSpec().NodeSelector
 
-	if pod.Spec.NodeSelector == nil {
-		pod.Spec.NodeSelector = make(map[string]string)
+	if m.pod.Spec.NodeSelector == nil {
+		m.pod.Spec.NodeSelector = make(map[string]string)
 	}
 
 	for k, v := range nodeSelector {
-		pod.Spec.NodeSelector[k] = v
+		m.pod.Spec.NodeSelector[k] = v
 	}
 	return nil
 }
 
-func addDNSConfig(pod *corev1.Pod, app *v1beta2.SparkApplication) error {
-	var dnsConfig *corev1.PodDNSConfig
-	if util.IsDriverPod(pod) {
-		dnsConfig = app.Spec.Driver.DNSConfig
-	} else if util.IsExecutorPod(pod) {
-		dnsConfig = app.Spec.Executor.DNSConfig
-	}
+func addDNSConfig(m *SparkPodMutator) error {
+	dnsConfig := m.getSparkPodSpec().DNSConfig
 
 	if dnsConfig != nil {
-		pod.Spec.DNSConfig = dnsConfig
+		m.pod.Spec.DNSConfig = dnsConfig
 	}
 	return nil
 }
 
-func addSchedulerName(pod *corev1.Pod, app *v1beta2.SparkApplication) error {
+func addSchedulerName(m *SparkPodMutator) error {
 	var schedulerName *string
 	// NOTE: Preferred to use `BatchScheduler` if application spec has it configured.
-	if app.Spec.BatchScheduler != nil {
-		schedulerName = app.Spec.BatchScheduler
-	} else if util.IsDriverPod(pod) {
-		schedulerName = app.Spec.Driver.SchedulerName
-	} else if util.IsExecutorPod(pod) {
-		schedulerName = app.Spec.Executor.SchedulerName
+	if m.app.Spec.BatchScheduler != nil {
+		schedulerName = m.app.Spec.BatchScheduler
+	} else {
+		schedulerName = m.getSparkPodSpec().SchedulerName
 	}
 
 	if schedulerName == nil || *schedulerName == "" {
 		return nil
 	}
 
-	pod.Spec.SchedulerName = *schedulerName
+	m.pod.Spec.SchedulerName = *schedulerName
 	return nil
 }
 
-func addPriorityClassName(pod *corev1.Pod, app *v1beta2.SparkApplication) error {
-	var priorityClassName *string
-
-	if util.IsDriverPod(pod) {
-		priorityClassName = app.Spec.Driver.PriorityClassName
-	} else if util.IsExecutorPod(pod) {
-		priorityClassName = app.Spec.Executor.PriorityClassName
-	}
+func addPriorityClassName(m *SparkPodMutator) error {
+	priorityClassName := m.getSparkPodSpec().PriorityClassName
 
 	if priorityClassName != nil && *priorityClassName != "" {
-		pod.Spec.PriorityClassName = *priorityClassName
-		pod.Spec.Priority = nil
-		pod.Spec.PreemptionPolicy = nil
+		m.pod.Spec.PriorityClassName = *priorityClassName
+		m.pod.Spec.Priority = nil
+		m.pod.Spec.PreemptionPolicy = nil
 	}
 
 	return nil
 }
 
-func addPodSecurityContext(pod *corev1.Pod, app *v1beta2.SparkApplication) error {
-	var securityContext *corev1.PodSecurityContext
-	if util.IsDriverPod(pod) {
-		securityContext = app.Spec.Driver.PodSecurityContext
-	} else if util.IsExecutorPod(pod) {
-		securityContext = app.Spec.Executor.PodSecurityContext
-	}
+func addPodSecurityContext(m *SparkPodMutator) error {
+	securityContext := m.getSparkPodSpec().PodSecurityContext
 
 	if securityContext != nil {
-		pod.Spec.SecurityContext = securityContext
+		m.pod.Spec.SecurityContext = securityContext
 	}
 	return nil
 }
 
-func addContainerSecurityContext(pod *corev1.Pod, app *v1beta2.SparkApplication) error {
-	i := findContainer(pod)
-	if util.IsDriverPod(pod) {
-		if i < 0 {
-			return fmt.Errorf("driver container not found in pod")
-		}
-		if app.Spec.Driver.SecurityContext == nil {
-			return nil
-		}
-		pod.Spec.Containers[i].SecurityContext = app.Spec.Driver.SecurityContext
-	} else if util.IsExecutorPod(pod) {
-		if i < 0 {
-			return fmt.Errorf("executor container not found in pod")
-		}
-		if app.Spec.Executor.SecurityContext == nil {
-			return nil
-		}
-		pod.Spec.Containers[i].SecurityContext = app.Spec.Executor.SecurityContext
+func addContainerSecurityContext(m *SparkPodMutator) error {
+	securityContext := m.getSparkPodSpec().SecurityContext
+	if securityContext != nil {
+		m.container.SecurityContext = securityContext
 	}
 	return nil
 }
 
-func addSidecarContainers(pod *corev1.Pod, app *v1beta2.SparkApplication) error {
-	var sidecars []corev1.Container
-	if util.IsDriverPod(pod) {
-		sidecars = app.Spec.Driver.Sidecars
-	} else if util.IsExecutorPod(pod) {
-		sidecars = app.Spec.Executor.Sidecars
-	}
+func addSidecarContainers(m *SparkPodMutator) error {
+	sidecars := m.getSparkPodSpec().Sidecars
 
 	for _, sidecar := range sidecars {
-		if !hasContainer(pod, &sidecar) {
-			pod.Spec.Containers = append(pod.Spec.Containers, *sidecar.DeepCopy())
+		if !hasContainer(m.pod.Spec.Containers, &sidecar) {
+			m.pod.Spec.Containers = append(m.pod.Spec.Containers, *sidecar.DeepCopy())
 		}
 	}
 	return nil
 }
 
-func addInitContainers(pod *corev1.Pod, app *v1beta2.SparkApplication) error {
-	var initContainers []corev1.Container
-	if util.IsDriverPod(pod) {
-		initContainers = app.Spec.Driver.InitContainers
-	} else if util.IsExecutorPod(pod) {
-		initContainers = app.Spec.Executor.InitContainers
-	}
-
-	if pod.Spec.InitContainers == nil {
-		pod.Spec.InitContainers = []corev1.Container{}
-	}
+func addInitContainers(m *SparkPodMutator) error {
+	initContainers := m.getSparkPodSpec().InitContainers
 
 	for _, container := range initContainers {
-		if !hasInitContainer(pod, &container) {
-			pod.Spec.InitContainers = append(pod.Spec.InitContainers, *container.DeepCopy())
+		if !hasContainer(m.pod.Spec.InitContainers, &container) {
+			m.pod.Spec.InitContainers = append(m.pod.Spec.InitContainers, *container.DeepCopy())
 		}
 	}
 	return nil
 }
 
-func addGPU(pod *corev1.Pod, app *v1beta2.SparkApplication) error {
-	var gpu *v1beta2.GPUSpec
-	if util.IsDriverPod(pod) {
-		gpu = app.Spec.Driver.GPU
-	}
-	if util.IsExecutorPod(pod) {
-		gpu = app.Spec.Executor.GPU
-	}
+func addGPU(m *SparkPodMutator) error {
+	gpu := m.getSparkPodSpec().GPU
 	if gpu == nil {
 		return nil
 	}
@@ -601,111 +478,62 @@ func addGPU(pod *corev1.Pod, app *v1beta2.SparkApplication) error {
 		return nil
 	}
 
-	i := findContainer(pod)
-	if i < 0 {
-		return fmt.Errorf("failed to add GPU as Spark container was not found in pod %s", pod.Name)
+	if m.container.Resources.Limits == nil {
+		m.container.Resources.Limits = make(corev1.ResourceList)
 	}
-	if pod.Spec.Containers[i].Resources.Limits == nil {
-		pod.Spec.Containers[i].Resources.Limits = make(corev1.ResourceList)
-	}
-	pod.Spec.Containers[i].Resources.Limits[corev1.ResourceName(gpu.Name)] = *resource.NewQuantity(gpu.Quantity, resource.DecimalSI)
+	m.container.Resources.Limits[corev1.ResourceName(gpu.Name)] = *resource.NewQuantity(gpu.Quantity, resource.DecimalSI)
 	return nil
 }
 
-func addHostNetwork(pod *corev1.Pod, app *v1beta2.SparkApplication) error {
-	var hostNetwork *bool
-	if util.IsDriverPod(pod) {
-		hostNetwork = app.Spec.Driver.HostNetwork
-	}
-	if util.IsExecutorPod(pod) {
-		hostNetwork = app.Spec.Executor.HostNetwork
-	}
-
+func addHostNetwork(m *SparkPodMutator) error {
+	hostNetwork := m.getSparkPodSpec().HostNetwork
 	if hostNetwork == nil || !*hostNetwork {
 		return nil
 	}
 
 	// For Pods with hostNetwork, explicitly set its DNS policy to “ClusterFirstWithHostNet”
 	// Detail: https://kubernetes.io/docs/concepts/services-networking/dns-pod-service/#pod-s-dns-policy
-	pod.Spec.HostNetwork = true
-	pod.Spec.DNSPolicy = corev1.DNSClusterFirstWithHostNet
+	m.pod.Spec.HostNetwork = true
+	m.pod.Spec.DNSPolicy = corev1.DNSClusterFirstWithHostNet
 	return nil
 }
 
-func addTerminationGracePeriodSeconds(pod *corev1.Pod, app *v1beta2.SparkApplication) error {
-	var gracePeriodSeconds *int64
-	if util.IsDriverPod(pod) {
-		gracePeriodSeconds = app.Spec.Driver.TerminationGracePeriodSeconds
-	} else if util.IsExecutorPod(pod) {
-		gracePeriodSeconds = app.Spec.Executor.TerminationGracePeriodSeconds
-	}
-
+func addTerminationGracePeriodSeconds(m *SparkPodMutator) error {
+	gracePeriodSeconds := m.getSparkPodSpec().TerminationGracePeriodSeconds
 	if gracePeriodSeconds == nil {
 		return nil
 	}
 
-	pod.Spec.TerminationGracePeriodSeconds = gracePeriodSeconds
+	m.pod.Spec.TerminationGracePeriodSeconds = gracePeriodSeconds
 	return nil
 }
 
-func addPodLifeCycleConfig(pod *corev1.Pod, app *v1beta2.SparkApplication) error {
-	var lifeCycle *corev1.Lifecycle
-	var containerName string
-	if util.IsDriverPod(pod) {
-		lifeCycle = app.Spec.Driver.Lifecycle
-		containerName = common.SparkDriverContainerName
-	} else if util.IsExecutorPod(pod) {
-		lifeCycle = app.Spec.Executor.Lifecycle
-		containerName = common.SparkExecutorContainerName
-	}
-	if lifeCycle == nil {
+func addPodLifeCycleConfig(m *SparkPodMutator) error {
+	lifecycle := m.getSparkPodSpec().Lifecycle
+	if lifecycle == nil {
 		return nil
 	}
-
-	i := 0
-	// Find the driver container in the pod.
-	for ; i < len(pod.Spec.Containers); i++ {
-		if pod.Spec.Containers[i].Name == containerName {
-			break
-		}
-	}
-	if i == len(pod.Spec.Containers) {
-		return fmt.Errorf("Spark container %s not found in pod %s", containerName, pod.Name)
-	}
-
-	pod.Spec.Containers[i].Lifecycle = lifeCycle
+	m.container.Lifecycle = lifecycle.DeepCopy()
 	return nil
 }
 
-func addHostAliases(pod *corev1.Pod, app *v1beta2.SparkApplication) error {
-	var hostAliases []corev1.HostAlias
-	if util.IsDriverPod(pod) {
-		hostAliases = app.Spec.Driver.HostAliases
-	} else if util.IsExecutorPod(pod) {
-		hostAliases = app.Spec.Executor.HostAliases
-	}
-
-	pod.Spec.HostAliases = append(pod.Spec.HostAliases, hostAliases...)
+func addHostAliases(m *SparkPodMutator) error {
+	hostAliases := m.getSparkPodSpec().HostAliases
+	m.pod.Spec.HostAliases = append(m.pod.Spec.HostAliases, hostAliases...)
 	return nil
 }
 
-func addShareProcessNamespace(pod *corev1.Pod, app *v1beta2.SparkApplication) error {
-	var shareProcessNamespace *bool
-	if util.IsDriverPod(pod) {
-		shareProcessNamespace = app.Spec.Driver.ShareProcessNamespace
-	} else if util.IsExecutorPod(pod) {
-		shareProcessNamespace = app.Spec.Executor.ShareProcessNamespace
-	}
-
+func addShareProcessNamespace(m *SparkPodMutator) error {
+	shareProcessNamespace := m.getSparkPodSpec().ShareProcessNamespace
 	if shareProcessNamespace == nil || !*shareProcessNamespace {
 		return nil
 	}
 
-	pod.Spec.ShareProcessNamespace = shareProcessNamespace
+	m.pod.Spec.ShareProcessNamespace = shareProcessNamespace
 	return nil
 }
 
-func findContainer(pod *corev1.Pod) int {
+func findContainer(pod *corev1.Pod) *corev1.Container {
 	var candidateContainerNames []string
 	if util.IsDriverPod(pod) {
 		candidateContainerNames = append(candidateContainerNames, common.SparkDriverContainerName)
@@ -715,30 +543,21 @@ func findContainer(pod *corev1.Pod) int {
 	}
 
 	if len(candidateContainerNames) == 0 {
-		return -1
+		return nil
 	}
 
 	for i := 0; i < len(pod.Spec.Containers); i++ {
 		for _, name := range candidateContainerNames {
 			if pod.Spec.Containers[i].Name == name {
-				return i
+				return &pod.Spec.Containers[i]
 			}
 		}
 	}
-	return -1
+	return nil
 }
 
-func hasContainer(pod *corev1.Pod, container *corev1.Container) bool {
-	for _, c := range pod.Spec.Containers {
-		if container.Name == c.Name && container.Image == c.Image {
-			return true
-		}
-	}
-	return false
-}
-
-func hasInitContainer(pod *corev1.Pod, container *corev1.Container) bool {
-	for _, c := range pod.Spec.InitContainers {
+func hasContainer(containers []corev1.Container, container *corev1.Container) bool {
+	for _, c := range containers {
 		if container.Name == c.Name && container.Image == c.Image {
 			return true
 		}
