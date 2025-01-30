@@ -268,7 +268,7 @@ kind-delete-cluster: kind ## Delete the created kind cluster.
 
 .PHONY: install
 install-crd: manifests kustomize ## Install CRDs into the K8s cluster specified in ~/.kube/config.
-	$(KUSTOMIZE) build config/crd | $(KUBECTL) replace -f -
+	$(KUSTOMIZE) build config/crd | $(KUBECTL) create -f - 2>/dev/null || $(KUSTOMIZE) build config/crd | $(KUBECTL) replace -f -
 
 .PHONY: uninstall
 uninstall-crd: manifests kustomize ## Uninstall CRDs from the K8s cluster specified in ~/.kube/config. Call with ignore-not-found=true to ignore resource not found errors during deletion.
