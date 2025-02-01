@@ -52,7 +52,7 @@ func NewSparkPodEventHandler(client client.Client, metrics *metrics.SparkExecuto
 }
 
 // Create implements handler.EventHandler.
-func (h *SparkPodEventHandler) Create(ctx context.Context, event event.CreateEvent, queue workqueue.RateLimitingInterface) {
+func (h *SparkPodEventHandler) Create(ctx context.Context, event event.CreateEvent, queue workqueue.TypedRateLimitingInterface[ctrl.Request]) {
 	pod, ok := event.Object.(*corev1.Pod)
 	if !ok {
 		return
@@ -66,7 +66,7 @@ func (h *SparkPodEventHandler) Create(ctx context.Context, event event.CreateEve
 }
 
 // Update implements handler.EventHandler.
-func (h *SparkPodEventHandler) Update(ctx context.Context, event event.UpdateEvent, queue workqueue.RateLimitingInterface) {
+func (h *SparkPodEventHandler) Update(ctx context.Context, event event.UpdateEvent, queue workqueue.TypedRateLimitingInterface[ctrl.Request]) {
 	oldPod, ok := event.ObjectOld.(*corev1.Pod)
 	if !ok {
 		return
@@ -90,7 +90,7 @@ func (h *SparkPodEventHandler) Update(ctx context.Context, event event.UpdateEve
 }
 
 // Delete implements handler.EventHandler.
-func (h *SparkPodEventHandler) Delete(ctx context.Context, event event.DeleteEvent, queue workqueue.RateLimitingInterface) {
+func (h *SparkPodEventHandler) Delete(ctx context.Context, event event.DeleteEvent, queue workqueue.TypedRateLimitingInterface[ctrl.Request]) {
 	pod, ok := event.Object.(*corev1.Pod)
 	if !ok {
 		return
@@ -105,7 +105,7 @@ func (h *SparkPodEventHandler) Delete(ctx context.Context, event event.DeleteEve
 }
 
 // Generic implements handler.EventHandler.
-func (h *SparkPodEventHandler) Generic(ctx context.Context, event event.GenericEvent, queue workqueue.RateLimitingInterface) {
+func (h *SparkPodEventHandler) Generic(ctx context.Context, event event.GenericEvent, queue workqueue.TypedRateLimitingInterface[ctrl.Request]) {
 	pod, ok := event.Object.(*corev1.Pod)
 	if !ok {
 		return
@@ -115,7 +115,7 @@ func (h *SparkPodEventHandler) Generic(ctx context.Context, event event.GenericE
 	h.enqueueSparkAppForUpdate(ctx, pod, queue)
 }
 
-func (h *SparkPodEventHandler) enqueueSparkAppForUpdate(ctx context.Context, pod *corev1.Pod, queue workqueue.RateLimitingInterface) {
+func (h *SparkPodEventHandler) enqueueSparkAppForUpdate(ctx context.Context, pod *corev1.Pod, queue workqueue.TypedRateLimitingInterface[ctrl.Request]) {
 	name := util.GetAppName(pod)
 	if name == "" {
 		return
@@ -159,7 +159,7 @@ func NewSparkApplicationEventHandler(metrics *metrics.SparkApplicationMetrics) *
 }
 
 // Create implements handler.EventHandler.
-func (h *EventHandler) Create(ctx context.Context, event event.CreateEvent, queue workqueue.RateLimitingInterface) {
+func (h *EventHandler) Create(ctx context.Context, event event.CreateEvent, queue workqueue.TypedRateLimitingInterface[ctrl.Request]) {
 	app, ok := event.Object.(*v1beta2.SparkApplication)
 	if !ok {
 		return
@@ -174,7 +174,7 @@ func (h *EventHandler) Create(ctx context.Context, event event.CreateEvent, queu
 }
 
 // Update implements handler.EventHandler.
-func (h *EventHandler) Update(ctx context.Context, event event.UpdateEvent, queue workqueue.RateLimitingInterface) {
+func (h *EventHandler) Update(ctx context.Context, event event.UpdateEvent, queue workqueue.TypedRateLimitingInterface[ctrl.Request]) {
 	oldApp, ok := event.ObjectOld.(*v1beta2.SparkApplication)
 	if !ok {
 		return
@@ -194,7 +194,7 @@ func (h *EventHandler) Update(ctx context.Context, event event.UpdateEvent, queu
 }
 
 // Delete implements handler.EventHandler.
-func (h *EventHandler) Delete(ctx context.Context, event event.DeleteEvent, queue workqueue.RateLimitingInterface) {
+func (h *EventHandler) Delete(ctx context.Context, event event.DeleteEvent, queue workqueue.TypedRateLimitingInterface[ctrl.Request]) {
 	app, ok := event.Object.(*v1beta2.SparkApplication)
 	if !ok {
 		return
@@ -209,7 +209,7 @@ func (h *EventHandler) Delete(ctx context.Context, event event.DeleteEvent, queu
 }
 
 // Generic implements handler.EventHandler.
-func (h *EventHandler) Generic(ctx context.Context, event event.GenericEvent, queue workqueue.RateLimitingInterface) {
+func (h *EventHandler) Generic(ctx context.Context, event event.GenericEvent, queue workqueue.TypedRateLimitingInterface[ctrl.Request]) {
 	app, ok := event.Object.(*v1beta2.SparkApplication)
 	if !ok {
 		return

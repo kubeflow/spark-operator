@@ -38,7 +38,7 @@ func NewEventHandler() *EventHandler {
 }
 
 // Create implements handler.EventHandler.
-func (h *EventHandler) Create(ctx context.Context, event event.CreateEvent, queue workqueue.RateLimitingInterface) {
+func (h *EventHandler) Create(ctx context.Context, event event.CreateEvent, queue workqueue.TypedRateLimitingInterface[ctrl.Request]) {
 	mwc, ok := event.Object.(*admissionregistrationv1.MutatingWebhookConfiguration)
 	if !ok {
 		return
@@ -52,7 +52,7 @@ func (h *EventHandler) Create(ctx context.Context, event event.CreateEvent, queu
 }
 
 // Update implements handler.EventHandler.
-func (h *EventHandler) Update(ctx context.Context, event event.UpdateEvent, queue workqueue.RateLimitingInterface) {
+func (h *EventHandler) Update(ctx context.Context, event event.UpdateEvent, queue workqueue.TypedRateLimitingInterface[ctrl.Request]) {
 	oldWebhook, ok := event.ObjectOld.(*admissionregistrationv1.MutatingWebhookConfiguration)
 	if !ok {
 		return
@@ -74,7 +74,7 @@ func (h *EventHandler) Update(ctx context.Context, event event.UpdateEvent, queu
 }
 
 // Delete implements handler.EventHandler.
-func (h *EventHandler) Delete(ctx context.Context, event event.DeleteEvent, queue workqueue.RateLimitingInterface) {
+func (h *EventHandler) Delete(ctx context.Context, event event.DeleteEvent, queue workqueue.TypedRateLimitingInterface[ctrl.Request]) {
 	mwc, ok := event.Object.(*admissionregistrationv1.MutatingWebhookConfiguration)
 	if !ok {
 		return
@@ -88,7 +88,7 @@ func (h *EventHandler) Delete(ctx context.Context, event event.DeleteEvent, queu
 }
 
 // Generic implements handler.EventHandler.
-func (h *EventHandler) Generic(ctx context.Context, event event.GenericEvent, queue workqueue.RateLimitingInterface) {
+func (h *EventHandler) Generic(ctx context.Context, event event.GenericEvent, queue workqueue.TypedRateLimitingInterface[ctrl.Request]) {
 	mwc, ok := event.Object.(*admissionregistrationv1.MutatingWebhookConfiguration)
 	if !ok {
 		return
