@@ -8,7 +8,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/config v1.27.11
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.53.1
 	github.com/evanphx/json-patch v5.9.0+incompatible
-	github.com/golang/glog v1.2.1
+	github.com/golang/glog v1.2.4
 	github.com/google/uuid v1.6.0
 	github.com/olekukonko/tablewriter v0.0.5
 	github.com/pkg/errors v0.9.1
@@ -26,7 +26,6 @@ require (
 	k8s.io/apimachinery v0.29.3
 	k8s.io/client-go v1.5.2
 	k8s.io/kubectl v0.29.3
-	k8s.io/kubernetes v1.29.3
 	k8s.io/utils v0.0.0-20240310230437-4693a0247e57
 	volcano.sh/apis v1.8.2
 )
