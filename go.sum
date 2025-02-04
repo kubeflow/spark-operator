@@ -433,6 +433,8 @@ k8s.io/kube-openapi v0.0.0-20240403164606-bc84c2ddaf99 h1:w6nThEmGo9zcL+xH1Tu6pj
 k8s.io/kube-openapi v0.0.0-20240403164606-bc84c2ddaf99/go.mod h1:yD4MZYeKMBwQKVht279WycxKyM84kkAx2DPrTXaeb98=
 k8s.io/kubectl v0.29.3 h1:RuwyyIU42MAISRIePaa8Q7A3U74Q9P4MoJbDFz9o3us=
 k8s.io/kubectl v0.29.3/go.mod h1:yCxfY1dbwgVdEt2zkJ6d5NNLOhhWgTyrqACIoFhpdd4=
+k8s.io/kubernetes v1.29.3 h1:EuOAKN4zpiP+kBx/0e9yS5iBkPSyLml19juOqZxBtDw=
+k8s.io/kubernetes v1.29.3/go.mod h1:CP+Z+S9haxyB7J+nV6ywYry4dqlphArPXjcc0CsBVXc=
 k8s.io/utils v0.0.0-20240310230437-4693a0247e57 h1:gbqbevonBh57eILzModw6mrkbwM0gQBEuevE/AaBsHY=
 k8s.io/utils v0.0.0-20240310230437-4693a0247e57/go.mod h1:OLgZIPagt7ERELqWJFomSt595RzquPNLL48iOWgYOg0=
 sigs.k8s.io/json v0.0.0-20221116044647-bc3834ca7abd h1:EDPBXCAspyGV4jQlpZSudPeMmr1bNJefnuqLsRAsHZo=
