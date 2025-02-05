@@ -31,6 +31,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/util/cert"
+	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/kubeflow/spark-operator/pkg/common"
@@ -63,6 +64,9 @@ func NewProvider(client client.Client, name, namespace string) *Provider {
 
 // SyncSecret syncs the secret containing the certificates to the given name and namespace.
 func (cp *Provider) SyncSecret(ctx context.Context, name, namespace string) error {
+	logger := ctrl.LoggerFrom(ctx, "name", name, "namespace", namespace)
+	logger.Info("Syncing webhook secret")
+
 	secret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
@@ -73,10 +77,13 @@ func (cp *Provider) SyncSecret(ctx context.Context, name, namespace string) erro
 		Name:      name,
 		Namespace: namespace,
 	}
+
 	if err := cp.client.Get(ctx, key, secret); err != nil {
 		if !errors.IsNotFound(err) {
 			return err
 		}
+
+		logger.Info("Creating secret as it does not exist")
 		if err := cp.client.Create(ctx, secret); err != nil {
 			if errors.IsAlreadyExists(err) {
 				return err
@@ -194,6 +201,9 @@ func (cp *Provider) WriteFile(path, certName, keyName string) error {
 }
 
 func (cp *Provider) Generate() error {
+	logger := ctrl.Log.WithName("")
+	logger.Info("Generating certificates.")
+
 	// Generate CA private caKey
 	caKey, err := NewPrivateKey()
 	if err != nil {
@@ -277,22 +287,32 @@ func (cp *Provider) parseSecret(secret *corev1.Secret) error {
 }
 
 func (cp *Provider) updateSecret(ctx context.Context, secret *corev1.Secret) error {
+	if secret == nil {
+		return fmt.Errorf("secret is nil")
+	}
+
 	caKey, err := cp.CAKey()
 	if err != nil {
 		return fmt.Errorf("failed to get CA key: %v", err)
 	}
+
 	caCert, err := cp.CACert()
 	if err != nil {
 		return fmt.Errorf("failed to get CA certificate: %v", err)
 	}
+
 	serverKey, err := cp.ServerKey()
 	if err != nil {
 		return fmt.Errorf("failed to get server key: %v", err)
 	}
+
 	serverCert, err := cp.ServerCert()
 	if err != nil {
 		return fmt.Errorf("failed to get server certificate: %v", err)
 	}
+
+	logger := ctrl.LoggerFrom(ctx, "name", secret.Name, "namespace", secret.Namespace)
+	logger.Info("Updating secret")
 	if secret.Data == nil {
 		secret.Data = make(map[string][]byte)
 	}
