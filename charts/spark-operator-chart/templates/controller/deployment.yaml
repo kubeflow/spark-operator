@@ -89,9 +89,13 @@ spec:
         - --metrics-prefix={{ .Values.prometheus.metrics.prefix }}
         - --metrics-labels=app_type
         {{- end }}
+        {{ if .Values.controller.leaderElection.enable }}
         - --leader-election=true
         - --leader-election-lock-name={{ include "spark-operator.controller.leaderElectionName" . }}
         - --leader-election-lock-namespace={{ .Release.Namespace }}
+        {{- else -}}
+        - --leader-election=false
+        {{- end }}
         {{- if .Values.controller.pprof.enable }}
         - --pprof-bind-address=:{{ .Values.controller.pprof.port }}
         {{- end }}
