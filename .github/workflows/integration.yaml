@@ -166,6 +166,9 @@ jobs:
       - name: Detect CRDs drift between chart and manifest
         run: make detect-crds-drift
 
+      - name: Run helm unittest
+        run: make helm-unittest
+
       - name: Run chart-testing (list-changed)
         id: list-changed
         env:

@@ -367,18 +367,31 @@ tests:
           privileged: false
     asserts:
       - equal:
-          path: spec.template.spec.containers[0].securityContext
+          path: spec.template.spec.containers[0].securityContext.readOnlyRootFilesystem
+          value: true
+      - equal:
+          path: spec.template.spec.containers[0].securityContext.runAsUser
+          value: 1000
+      - equal:
+          path: spec.template.spec.containers[0].securityContext.runAsGroup
+          value: 2000
+      - equal:
+          path: spec.template.spec.containers[0].securityContext.fsGroup
+          value: 3000
+      - equal:
+          path: spec.template.spec.containers[0].securityContext.allowPrivilegeEscalation
+          value: false
+      - equal:
+          path: spec.template.spec.containers[0].securityContext.capabilities
           value:
-            readOnlyRootFilesystem: true
-            runAsUser: 1000
-            runAsGroup: 2000
-            fsGroup: 3000
-            allowPrivilegeEscalation: false
-            capabilities:
-              drop:
-                - ALL
-            runAsNonRoot: true
-            privileged: false
+            drop:
+              - ALL
+      - equal:
+          path: spec.template.spec.containers[0].securityContext.runAsNonRoot
+          value: true
+      - equal:
+          path: spec.template.spec.containers[0].securityContext.privileged
+          value: false
 
   - it: Should add sidecars if `controller.sidecars` is set
     set:
@@ -644,9 +657,9 @@ tests:
   - it: Should contain `--workqueue-ratelimiter-max-delay` arg if `controller.workqueueRateLimiter.maxDelay.enable` is set to `true`
     set:
       controller:
-          maxDelay:
-            enable: false
-            duration: 1h
+        maxDelay:
+          enable: false
+          duration: 1h
     asserts:
       - notContains:
           path: spec.template.spec.containers[?(@.name=="spark-operator-controller")].args
