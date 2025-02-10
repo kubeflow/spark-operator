@@ -85,6 +85,7 @@ metadata:
     {{- toYaml . | nindent 4 }}
   {{- end }}
 rules:
+{{- if .Values.controller.leaderElection.enable }}
 - apiGroups:
   - coordination.k8s.io
   resources:
@@ -100,6 +101,7 @@ rules:
   verbs:
   - get
   - update
+{{- end }}
 {{- if has .Release.Namespace .Values.spark.jobNamespaces }}
 {{ include "spark-operator.controller.policyRules" . }}
 {{- end }}

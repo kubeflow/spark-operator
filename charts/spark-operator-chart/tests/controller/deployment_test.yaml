@@ -242,6 +242,16 @@ tests:
       - contains:
           path: spec.template.spec.containers[?(@.name=="spark-operator-controller")].args
           content: --leader-election-lock-namespace=spark-operator
+  
+  - it: Should disable leader election if `controller.leaderElection.enable` is set to `false`
+    set:
+      controller:
+        leaderElection:
+          enable: false
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[?(@.name=="spark-operator-controller")].args
+          content: --leader-election=false
 
   - it: Should add metric ports if `prometheus.metrics.enable` is true
     set:

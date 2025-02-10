@@ -74,9 +74,13 @@ spec:
         - --metrics-prefix={{ .Values.prometheus.metrics.prefix }}
         - --metrics-labels=app_type
         {{- end }}
+        {{ if .Values.webhook.leaderElection.enable }}
         - --leader-election=true
         - --leader-election-lock-name={{ include "spark-operator.webhook.leaderElectionName" . }}
         - --leader-election-lock-namespace={{ .Release.Namespace }}
+        {{- else -}}
+        - --leader-election=false
+        {{- end }}
         ports:
         - name: {{ .Values.webhook.portName | quote }}
           containerPort: {{ .Values.webhook.port }}
