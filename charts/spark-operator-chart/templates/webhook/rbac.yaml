@@ -107,6 +107,7 @@ rules:
   verbs:
   - get
   - update
+{{- if .Values.webhook.leaderElection.enable }}
 - apiGroups:
   - coordination.k8s.io
   resources:
@@ -122,6 +123,7 @@ rules:
   verbs:
   - get
   - update
+{{- end }}
 {{- if has .Release.Namespace .Values.spark.jobNamespaces }}
 {{ include "spark-operator.webhook.policyRules" . }}
 {{- end }}

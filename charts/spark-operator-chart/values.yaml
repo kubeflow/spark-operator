@@ -45,6 +45,10 @@ controller:
   # -- Number of replicas of controller.
   replicas: 1
 
+  leaderElection:
+    # -- Specifies whether to enable leader election for controller.
+    enable: true
+
   # -- Reconcile concurrency, higher values might increase memory usage.
   workers: 10
 
@@ -219,6 +223,10 @@ webhook:
 
   # -- Number of replicas of webhook server.
   replicas: 1
+
+  leaderElection:
+    # -- Specifies whether to enable leader election for webhook.
+    enable: true
 
   # -- Configure the verbosity of logging, can be one of `debug`, `info`, `error`.
   logLevel: info

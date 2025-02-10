@@ -84,6 +84,7 @@ See [helm uninstall](https://helm.sh/docs/helm/helm_uninstall) for command docum
 | image.pullPolicy | string | `"IfNotPresent"` | Image pull policy. |
 | image.pullSecrets | list | `[]` | Image pull secrets for private image registry. |
 | controller.replicas | int | `1` | Number of replicas of controller. |
+| controller.leaderElection.enable | bool | `true` | Specifies whether to enable leader election for controller. |
 | controller.workers | int | `10` | Reconcile concurrency, higher values might increase memory usage. |
 | controller.logLevel | string | `"info"` | Configure the verbosity of logging, can be one of `debug`, `info`, `error`. |
 | controller.driverPodCreationGracePeriod | string | `"10s"` | Grace period after a successful spark-submit when driver pod not found errors will be retried. Useful if the driver pod can take some time to be created. |
@@ -127,6 +128,7 @@ See [helm uninstall](https://helm.sh/docs/helm/helm_uninstall) for command docum
 | controller.workqueueRateLimiter.maxDelay.duration | string | `"6h"` | Specifies the maximum delay duration for the workqueue rate limiter. |
 | webhook.enable | bool | `true` | Specifies whether to enable webhook. |
 | webhook.replicas | int | `1` | Number of replicas of webhook server. |
+| webhook.leaderElection.enable | bool | `true` | Specifies whether to enable leader election for webhook. |
 | webhook.logLevel | string | `"info"` | Configure the verbosity of logging, can be one of `debug`, `info`, `error`. |
 | webhook.port | int | `9443` | Specifies webhook port. |
 | webhook.portName | string | `"webhook"` | Specifies webhook service port name. |
