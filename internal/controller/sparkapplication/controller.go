@@ -167,7 +167,7 @@ func NewReconciler(
 // +--------------------------------------------------------------------------------------------------------------------+
 func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	key := req.NamespacedName
-	app, err := r.getSparkApplication(key)
+	app, err := r.getSparkApplication(ctx, key)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			return ctrl.Result{}, nil
@@ -234,7 +234,7 @@ func (r *Reconciler) SetupWithManager(mgr ctrl.Manager, options controller.Optio
 
 func (r *Reconciler) handleSparkApplicationDeletion(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	key := req.NamespacedName
-	app, err := r.getSparkApplication(key)
+	app, err := r.getSparkApplication(ctx, key)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			return ctrl.Result{}, nil
@@ -254,7 +254,7 @@ func (r *Reconciler) reconcileNewSparkApplication(ctx context.Context, req ctrl.
 	retryErr := retry.RetryOnConflict(
 		retry.DefaultRetry,
 		func() error {
-			old, err := r.getSparkApplication(key)
+			old, err := r.getSparkApplication(ctx, key)
 			if err != nil {
 				return err
 			}
@@ -282,7 +282,7 @@ func (r *Reconciler) reconcileSubmittedSparkApplication(ctx context.Context, req
 	retryErr := retry.RetryOnConflict(
 		retry.DefaultRetry,
 		func() error {
-			old, err := r.getSparkApplication(key)
+			old, err := r.getSparkApplication(ctx, key)
 			if err != nil {
 				return err
 			}
@@ -315,7 +315,7 @@ func (r *Reconciler) reconcileFailedSubmissionSparkApplication(ctx context.Conte
 	retryErr := retry.RetryOnConflict(
 		retry.DefaultRetry,
 		func() error {
-			old, err := r.getSparkApplication(key)
+			old, err := r.getSparkApplication(ctx, key)
 			if err != nil {
 				return err
 			}
@@ -366,7 +366,7 @@ func (r *Reconciler) reconcileRunningSparkApplication(ctx context.Context, req c
 	retryErr := retry.RetryOnConflict(
 		retry.DefaultRetry,
 		func() error {
-			old, err := r.getSparkApplication(key)
+			old, err := r.getSparkApplication(ctx, key)
 			if err != nil {
 				return err
 			}
@@ -398,7 +398,7 @@ func (r *Reconciler) reconcilePendingRerunSparkApplication(ctx context.Context, 
 	retryErr := retry.RetryOnConflict(
 		retry.DefaultRetry,
 		func() error {
-			old, err := r.getSparkApplication(key)
+			old, err := r.getSparkApplication(ctx, key)
 			if err != nil {
 				return err
 			}
@@ -432,7 +432,7 @@ func (r *Reconciler) reconcileInvalidatingSparkApplication(ctx context.Context, 
 	retryErr := retry.RetryOnConflict(
 		retry.DefaultRetry,
 		func() error {
-			old, err := r.getSparkApplication(key)
+			old, err := r.getSparkApplication(ctx, key)
 			if err != nil {
 				return err
 			}
@@ -466,7 +466,7 @@ func (r *Reconciler) reconcileSucceedingSparkApplication(ctx context.Context, re
 	retryErr := retry.RetryOnConflict(
 		retry.DefaultRetry,
 		func() error {
-			old, err := r.getSparkApplication(key)
+			old, err := r.getSparkApplication(ctx, key)
 			if err != nil {
 				return err
 			}
@@ -505,7 +505,7 @@ func (r *Reconciler) reconcileFailingSparkApplication(ctx context.Context, req c
 	retryErr := retry.RetryOnConflict(
 		retry.DefaultRetry,
 		func() error {
-			old, err := r.getSparkApplication(key)
+			old, err := r.getSparkApplication(ctx, key)
 			if err != nil {
 				return err
 			}
@@ -555,7 +555,7 @@ func (r *Reconciler) reconcileFailedSparkApplication(ctx context.Context, req ct
 
 func (r *Reconciler) reconcileTerminatedSparkApplication(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	key := req.NamespacedName
-	old, err := r.getSparkApplication(key)
+	old, err := r.getSparkApplication(ctx, key)
 	if err != nil {
 		return ctrl.Result{Requeue: true}, err
 	}
@@ -609,7 +609,7 @@ func (r *Reconciler) reconcileUnknownSparkApplication(ctx context.Context, req c
 	retryErr := retry.RetryOnConflict(
 		retry.DefaultRetry,
 		func() error {
-			old, err := r.getSparkApplication(key)
+			old, err := r.getSparkApplication(ctx, key)
 			if err != nil {
 				return err
 			}
@@ -635,9 +635,9 @@ func (r *Reconciler) reconcileUnknownSparkApplication(ctx context.Context, req c
 }
 
 // getSparkApplication gets the SparkApplication with the given name and namespace.
-func (r *Reconciler) getSparkApplication(key types.NamespacedName) (*v1beta2.SparkApplication, error) {
+func (r *Reconciler) getSparkApplication(ctx context.Context, key types.NamespacedName) (*v1beta2.SparkApplication, error) {
 	app := &v1beta2.SparkApplication{}
-	if err := r.client.Get(context.TODO(), key, app); err != nil {
+	if err := r.client.Get(ctx, key, app); err != nil {
 		return nil, err
 	}
 	return app, nil
@@ -763,13 +763,13 @@ func (r *Reconciler) submitSparkApplication(app *v1beta2.SparkApplication) (subm
 
 // updateDriverState finds the driver pod of the application
 // and updates the driver state based on the current phase of the pod.
-func (r *Reconciler) updateDriverState(_ context.Context, app *v1beta2.SparkApplication) error {
+func (r *Reconciler) updateDriverState(ctx context.Context, app *v1beta2.SparkApplication) error {
 	// Either the driver pod doesn't exist yet or its name has not been updated.
 	if app.Status.DriverInfo.PodName == "" {
 		return fmt.Errorf("empty driver pod name with application state %s", app.Status.AppState.State)
 	}
 
-	driverPod, err := r.getDriverPod(app)
+	driverPod, err := r.getDriverPod(ctx, app)
 	if err != nil {
 		return err
 	}
@@ -813,8 +813,8 @@ func (r *Reconciler) updateDriverState(_ context.Context, app *v1beta2.SparkAppl
 
 // updateExecutorState lists the executor pods of the application
 // and updates the executor state based on the current phase of the pods.
-func (r *Reconciler) updateExecutorState(_ context.Context, app *v1beta2.SparkApplication) error {
-	podList, err := r.getExecutorPods(app)
+func (r *Reconciler) updateExecutorState(ctx context.Context, app *v1beta2.SparkApplication) error {
+	podList, err := r.getExecutorPods(ctx, app)
 	if err != nil {
 		return err
 	}
@@ -889,22 +889,22 @@ func (r *Reconciler) updateExecutorState(_ context.Context, app *v1beta2.SparkAp
 	return nil
 }
 
-func (r *Reconciler) getExecutorPods(app *v1beta2.SparkApplication) (*corev1.PodList, error) {
+func (r *Reconciler) getExecutorPods(ctx context.Context, app *v1beta2.SparkApplication) (*corev1.PodList, error) {
 	matchLabels := util.GetResourceLabels(app)
 	matchLabels[common.LabelSparkRole] = common.SparkRoleExecutor
 	pods := &corev1.PodList{}
-	if err := r.client.List(context.TODO(), pods, client.InNamespace(app.Namespace), client.MatchingLabels(matchLabels)); err != nil {
+	if err := r.client.List(ctx, pods, client.InNamespace(app.Namespace), client.MatchingLabels(matchLabels)); err != nil {
 		return nil, fmt.Errorf("failed to get pods for SparkApplication %s/%s: %v", app.Namespace, app.Name, err)
 	}
 	return pods, nil
 }
 
-func (r *Reconciler) getDriverPod(app *v1beta2.SparkApplication) (*corev1.Pod, error) {
+func (r *Reconciler) getDriverPod(ctx context.Context, app *v1beta2.SparkApplication) (*corev1.Pod, error) {
 	pod := &corev1.Pod{}
 	var err error
 
 	key := types.NamespacedName{Namespace: app.Namespace, Name: app.Status.DriverInfo.PodName}
-	err = r.client.Get(context.TODO(), key, pod)
+	err = r.client.Get(ctx, key, pod)
 	if err == nil {
 		return pod, nil
 	}
