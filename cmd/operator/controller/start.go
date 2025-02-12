@@ -383,7 +383,7 @@ func newControllerOptions() controller.Options {
 	options := controller.Options{
 		MaxConcurrentReconciles: controllerThreads,
 		CacheSyncTimeout:        cacheSyncTimeout,
-		RateLimiter:             util.NewRateLimiter(workqueueRateLimiterBucketQPS, workqueueRateLimiterBucketSize, workqueueRateLimiterMaxDelay),
+		RateLimiter:             util.NewRateLimiter[ctrl.Request](workqueueRateLimiterBucketQPS, workqueueRateLimiterBucketSize, workqueueRateLimiterMaxDelay),
 	}
 	return options
 }

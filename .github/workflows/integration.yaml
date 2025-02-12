@@ -214,7 +214,16 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        k8s_version: [v1.28.13, v1.29.8, v1.30.4, v1.31.1]
+        k8s_version:
+          - v1.24.17
+          - v1.25.16
+          - v1.26.15
+          - v1.27.16
+          - v1.28.15
+          - v1.29.12
+          - v1.30.8
+          - v1.31.4
+          - v1.32.0
     steps:
       - name: Checkout source code
         uses: actions/checkout@v4
@@ -230,8 +239,7 @@ jobs:
         run: make kind-create-cluster KIND_K8S_VERSION=${{ matrix.k8s_version }}
 
       - name: Build and load image to Kind cluster
-        run: |
-          make kind-load-image IMAGE_TAG=local
+        run: make kind-load-image IMAGE_TAG=local
 
       - name: Run e2e tests
         run: make e2e-test
