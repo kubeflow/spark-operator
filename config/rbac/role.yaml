@@ -54,17 +54,6 @@ rules:
   - get
 - apiGroups:
   - extensions
-  resources:
-  - ingresses
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
   - networking.k8s.io
   resources:
   - ingresses
@@ -80,31 +69,6 @@ rules:
   - sparkoperator.k8s.io
   resources:
   - scheduledsparkapplications
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - sparkoperator.k8s.io
-  resources:
-  - scheduledsparkapplications/finalizers
-  verbs:
-  - update
-- apiGroups:
-  - sparkoperator.k8s.io
-  resources:
-  - scheduledsparkapplications/status
-  verbs:
-  - get
-  - patch
-  - update
-- apiGroups:
-  - sparkoperator.k8s.io
-  resources:
   - sparkapplications
   verbs:
   - create
@@ -117,12 +81,14 @@ rules:
 - apiGroups:
   - sparkoperator.k8s.io
   resources:
+  - scheduledsparkapplications/finalizers
   - sparkapplications/finalizers
   verbs:
   - update
 - apiGroups:
   - sparkoperator.k8s.io
   resources:
+  - scheduledsparkapplications/status
   - sparkapplications/status
   verbs:
   - get
