@@ -37,12 +37,30 @@ spec:
     labels:
       version: 3.5.3
     serviceAccount: spark-operator-spark
+    securityContext:
+      capabilities:
+        drop:
+          - ALL
+      runAsGroup: 0
+      runAsNonRoot: true
+      allowPrivilegeEscalation: false
+      seccompProfile:
+        type: RuntimeDefault
   executor:
     cores: 1
     instances: 1
     memory: 512m
     labels:
       version: 3.5.3
+    securityContext:
+      capabilities:
+        drop:
+          - ALL
+      runAsGroup: 0
+      runAsNonRoot: true
+      allowPrivilegeEscalation: false
+      seccompProfile:
+        type: RuntimeDefault
   monitoring:
     exposeDriverMetrics: true
     exposeExecutorMetrics: true

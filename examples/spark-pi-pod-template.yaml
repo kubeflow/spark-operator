@@ -124,6 +124,15 @@ spec:
         - operator: Exists
           effect: NoSchedule
         serviceAccountName: spark-operator-spark
+        securityContext:
+          capabilities:
+            drop:
+              - ALL
+          runAsGroup: 0
+          runAsNonRoot: true
+          allowPrivilegeEscalation: false
+          seccompProfile:
+            type: RuntimeDefault
     cores: 1
     coreLimit: "1"
     memory: 512m
@@ -191,6 +200,15 @@ spec:
         tolerations:
         - operator: Exists
           effect: NoSchedule
+        securityContext:
+          capabilities:
+            drop:
+              - ALL
+          runAsGroup: 0
+          runAsNonRoot: true
+          allowPrivilegeEscalation: false
+          seccompProfile:
+            type: RuntimeDefault
     cores: 1
     coreLimit: 1500m
     memory: 1g
