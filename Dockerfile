@@ -14,34 +14,47 @@
 # limitations under the License.
 #
 
-ARG SPARK_IMAGE=gcr.io/spark-operator/spark:v3.1.1
+ARG SPARK_IMAGE=spark:3.5.3-hadoop3
 
-FROM golang:1.15.2-alpine as builder
+FROM golang:1.23.1 AS builder
 
 WORKDIR /workspace
 
-# Copy the Go Modules manifests
-COPY go.mod go.mod
-COPY go.sum go.sum
-# Cache deps before building and copying source so that we don't need to re-download as much
-# and so that source changes don't invalidate our downloaded layer
-RUN go mod download
+RUN --mount=type=cache,target=/go/pkg/mod/ \
+    --mount=type=bind,source=go.mod,target=go.mod \
+    --mount=type=bind,source=go.sum,target=go.sum \
+    go mod download
 
-# Copy the go source code
-COPY main.go main.go
-COPY pkg/ pkg/
+COPY . .
 
-# Build
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 GO111MODULE=on go build -a -o /usr/bin/spark-operator main.go
+ENV GOCACHE=/root/.cache/go-build
+
+ARG TARGETARCH
+
+RUN --mount=type=cache,target=/go/pkg/mod/ \
+    --mount=type=cache,target="/root/.cache/go-build" \
+    CGO_ENABLED=0 GOOS=linux GOARCH=${TARGETARCH} GO111MODULE=on make build-operator
 
 FROM ${SPARK_IMAGE}
+
+ARG SPARK_UID=185
+
+ARG SPARK_GID=185
+
 USER root
-COPY --from=builder /usr/bin/spark-operator /usr/bin/
-RUN apt-get update --allow-releaseinfo-change \
-    && apt-get update \
-    && apt-get install -y openssl curl tini \
+
+RUN apt-get update \
+    && apt-get install -y tini \
     && rm -rf /var/lib/apt/lists/*
-COPY hack/gencerts.sh /usr/bin/
+
+RUN mkdir -p /etc/k8s-webhook-server/serving-certs /home/spark && \
+    chmod -R g+rw /etc/k8s-webhook-server/serving-certs && \
+    chown -R spark /etc/k8s-webhook-server/serving-certs /home/spark
+
+USER ${SPARK_UID}:${SPARK_GID}
+
+COPY --from=builder /workspace/bin/spark-operator /usr/bin/spark-operator
 
 COPY entrypoint.sh /usr/bin/
+
 ENTRYPOINT ["/usr/bin/entrypoint.sh"]
