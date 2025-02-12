@@ -508,6 +508,15 @@ type SparkPodSpec struct {
 	// ShareProcessNamespace settings for the pod, following the Kubernetes specifications.
 	// +optional
 	ShareProcessNamespace *bool `json:"shareProcessNamespace,omitempty"`
+	// Lifecycle for running preStop or postStart commands
+	// +optional
+	Lifecycle *corev1.Lifecycle `json:"lifecycle,omitempty"`
+	// Ports settings for the pods, following the Kubernetes specifications.
+	// +optional
+	Ports []Port `json:"ports,omitempty"`
+	// PriorityClassName is the name of the PriorityClass for the pod.
+	// +optional
+	PriorityClassName *string `json:"priorityClassName,omitempty"`
 }
 
 // DriverSpec is specification of the driver.
@@ -528,9 +537,6 @@ type DriverSpec struct {
 	// GC settings or other logging.
 	// +optional
 	JavaOptions *string `json:"javaOptions,omitempty"`
-	// Lifecycle for running preStop or postStart commands
-	// +optional
-	Lifecycle *corev1.Lifecycle `json:"lifecycle,omitempty"`
 	// KubernetesMaster is the URL of the Kubernetes master used by the driver to manage executor pods and
 	// other Kubernetes resources. Default to https://kubernetes.default.svc.
 	// +optional
@@ -543,12 +549,6 @@ type DriverSpec struct {
 	// executors to connect to the driver.
 	// +optional
 	ServiceLabels map[string]string `json:"serviceLabels,omitempty"`
-	// Ports settings for the pods, following the Kubernetes specifications.
-	// +optional
-	Ports []Port `json:"ports,omitempty"`
-	// PriorityClassName is the name of the PriorityClass for the driver pod.
-	// +optional
-	PriorityClassName *string `json:"priorityClassName,omitempty"`
 }
 
 // ExecutorSpec is specification of the executor.
@@ -566,19 +566,10 @@ type ExecutorSpec struct {
 	// GC settings or other logging.
 	// +optional
 	JavaOptions *string `json:"javaOptions,omitempty"`
-	// Lifecycle for running preStop or postStart commands
-	// +optional
-	Lifecycle *corev1.Lifecycle `json:"lifecycle,omitempty"`
 	// DeleteOnTermination specify whether executor pods should be deleted in case of failure or normal termination.
 	// Maps to `spark.kubernetes.executor.deleteOnTermination` that is available since Spark 3.0.
 	// +optional
 	DeleteOnTermination *bool `json:"deleteOnTermination,omitempty"`
-	// Ports settings for the pods, following the Kubernetes specifications.
-	// +optional
-	Ports []Port `json:"ports,omitempty"`
-	// PriorityClassName is the name of the PriorityClass for the executor pod.
-	// +optional
-	PriorityClassName *string `json:"priorityClassName,omitempty"`
 }
 
 // NamePath is a pair of a name and a path to which the named objects should be mounted to.

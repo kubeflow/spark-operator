@@ -572,20 +572,6 @@ GC settings or other logging.</p>
 </tr>
 <tr>
 <td>
-<code>lifecycle</code><br/>
-<em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.24/#lifecycle-v1-core">
-Kubernetes core/v1.Lifecycle
-</a>
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-<p>Lifecycle for running preStop or postStart commands</p>
-</td>
-</tr>
-<tr>
-<td>
 <code>kubernetesMaster</code><br/>
 <em>
 string
@@ -621,32 +607,6 @@ map[string]string
 <em>(Optional)</em>
 <p>ServiceLabels defines the labels to be added to the Kubernetes headless service used by
 executors to connect to the driver.</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>ports</code><br/>
-<em>
-<a href="#sparkoperator.k8s.io/v1beta2.Port">
-[]Port
-</a>
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-<p>Ports settings for the pods, following the Kubernetes specifications.</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>priorityClassName</code><br/>
-<em>
-string
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-<p>PriorityClassName is the name of the PriorityClass for the driver pod.</p>
 </td>
 </tr>
 </tbody>
@@ -825,20 +785,6 @@ GC settings or other logging.</p>
 </tr>
 <tr>
 <td>
-<code>lifecycle</code><br/>
-<em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.24/#lifecycle-v1-core">
-Kubernetes core/v1.Lifecycle
-</a>
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-<p>Lifecycle for running preStop or postStart commands</p>
-</td>
-</tr>
-<tr>
-<td>
 <code>deleteOnTermination</code><br/>
 <em>
 bool
@@ -848,32 +794,6 @@ bool
 <em>(Optional)</em>
 <p>DeleteOnTermination specify whether executor pods should be deleted in case of failure or normal termination.
 Maps to <code>spark.kubernetes.executor.deleteOnTermination</code> that is available since Spark 3.0.</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>ports</code><br/>
-<em>
-<a href="#sparkoperator.k8s.io/v1beta2.Port">
-[]Port
-</a>
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-<p>Ports settings for the pods, following the Kubernetes specifications.</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>priorityClassName</code><br/>
-<em>
-string
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-<p>PriorityClassName is the name of the PriorityClass for the executor pod.</p>
 </td>
 </tr>
 </tbody>
@@ -1103,7 +1023,7 @@ string
 <h3 id="sparkoperator.k8s.io/v1beta2.Port">Port
 </h3>
 <p>
-(<em>Appears on:</em><a href="#sparkoperator.k8s.io/v1beta2.DriverSpec">DriverSpec</a>, <a href="#sparkoperator.k8s.io/v1beta2.ExecutorSpec">ExecutorSpec</a>)
+(<em>Appears on:</em><a href="#sparkoperator.k8s.io/v1beta2.SparkPodSpec">SparkPodSpec</a>)
 </p>
 <div>
 <p>Port represents the port definition in the pods objects.</p>
@@ -3221,6 +3141,46 @@ bool
 <td>
 <em>(Optional)</em>
 <p>ShareProcessNamespace settings for the pod, following the Kubernetes specifications.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>lifecycle</code><br/>
+<em>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.24/#lifecycle-v1-core">
+Kubernetes core/v1.Lifecycle
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Lifecycle for running preStop or postStart commands</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>ports</code><br/>
+<em>
+<a href="#sparkoperator.k8s.io/v1beta2.Port">
+[]Port
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Ports settings for the pods, following the Kubernetes specifications.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>priorityClassName</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>PriorityClassName is the name of the PriorityClass for the pod.</p>
 </td>
 </tr>
 </tbody>

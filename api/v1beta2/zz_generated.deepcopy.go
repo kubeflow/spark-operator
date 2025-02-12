@@ -215,11 +215,6 @@ func (in *DriverSpec) DeepCopyInto(out *DriverSpec) {
 		*out = new(string)
 		**out = **in
 	}
-	if in.Lifecycle != nil {
-		in, out := &in.Lifecycle, &out.Lifecycle
-		*out = new(v1.Lifecycle)
-		(*in).DeepCopyInto(*out)
-	}
 	if in.KubernetesMaster != nil {
 		in, out := &in.KubernetesMaster, &out.KubernetesMaster
 		*out = new(string)
@@ -238,16 +233,6 @@ func (in *DriverSpec) DeepCopyInto(out *DriverSpec) {
 		for key, val := range *in {
 			(*out)[key] = val
 		}
-	}
-	if in.Ports != nil {
-		in, out := &in.Ports, &out.Ports
-		*out = make([]Port, len(*in))
-		copy(*out, *in)
-	}
-	if in.PriorityClassName != nil {
-		in, out := &in.PriorityClassName, &out.PriorityClassName
-		*out = new(string)
-		**out = **in
 	}
 }
 
@@ -315,24 +300,9 @@ func (in *ExecutorSpec) DeepCopyInto(out *ExecutorSpec) {
 		*out = new(string)
 		**out = **in
 	}
-	if in.Lifecycle != nil {
-		in, out := &in.Lifecycle, &out.Lifecycle
-		*out = new(v1.Lifecycle)
-		(*in).DeepCopyInto(*out)
-	}
 	if in.DeleteOnTermination != nil {
 		in, out := &in.DeleteOnTermination, &out.DeleteOnTermination
 		*out = new(bool)
-		**out = **in
-	}
-	if in.Ports != nil {
-		in, out := &in.Ports, &out.Ports
-		*out = make([]Port, len(*in))
-		copy(*out, *in)
-	}
-	if in.PriorityClassName != nil {
-		in, out := &in.PriorityClassName, &out.PriorityClassName
-		*out = new(string)
 		**out = **in
 	}
 }
@@ -1048,6 +1018,21 @@ func (in *SparkPodSpec) DeepCopyInto(out *SparkPodSpec) {
 	if in.ShareProcessNamespace != nil {
 		in, out := &in.ShareProcessNamespace, &out.ShareProcessNamespace
 		*out = new(bool)
+		**out = **in
+	}
+	if in.Lifecycle != nil {
+		in, out := &in.Lifecycle, &out.Lifecycle
+		*out = new(v1.Lifecycle)
+		(*in).DeepCopyInto(*out)
+	}
+	if in.Ports != nil {
+		in, out := &in.Ports, &out.Ports
+		*out = make([]Port, len(*in))
+		copy(*out, *in)
+	}
+	if in.PriorityClassName != nil {
+		in, out := &in.PriorityClassName, &out.PriorityClassName
+		*out = new(string)
 		**out = **in
 	}
 }

@@ -782,12 +782,14 @@ func TestPatchSparkPod_PriorityClassName(t *testing.T) {
 		},
 		Spec: v1beta2.SparkApplicationSpec{
 			Driver: v1beta2.DriverSpec{
-				SparkPodSpec:      v1beta2.SparkPodSpec{},
-				PriorityClassName: &priorityClassName,
+				SparkPodSpec: v1beta2.SparkPodSpec{
+					PriorityClassName: &priorityClassName,
+				},
 			},
 			Executor: v1beta2.ExecutorSpec{
-				SparkPodSpec:      v1beta2.SparkPodSpec{},
-				PriorityClassName: &priorityClassName,
+				SparkPodSpec: v1beta2.SparkPodSpec{
+					PriorityClassName: &priorityClassName,
+				},
 			},
 		},
 	}
@@ -1755,13 +1757,17 @@ func TestPatchSparkPod_Lifecycle(t *testing.T) {
 		},
 		Spec: v1beta2.SparkApplicationSpec{
 			Driver: v1beta2.DriverSpec{
-				Lifecycle: &corev1.Lifecycle{
-					PreStop: &corev1.LifecycleHandler{Exec: preStopTest},
+				SparkPodSpec: v1beta2.SparkPodSpec{
+					Lifecycle: &corev1.Lifecycle{
+						PreStop: &corev1.LifecycleHandler{Exec: preStopTest},
+					},
 				},
 			},
 			Executor: v1beta2.ExecutorSpec{
-				Lifecycle: &corev1.Lifecycle{
-					PostStart: &corev1.LifecycleHandler{Exec: postStartTest},
+				SparkPodSpec: v1beta2.SparkPodSpec{
+					Lifecycle: &corev1.Lifecycle{
+						PostStart: &corev1.LifecycleHandler{Exec: postStartTest},
+					},
 				},
 			},
 		},
@@ -1817,7 +1823,8 @@ func TestPatchSparkPod_Lifecycle(t *testing.T) {
 
 func getModifiedPod(old *corev1.Pod, app *v1beta2.SparkApplication) (*corev1.Pod, error) {
 	newPod := old.DeepCopy()
-	if err := mutateSparkPod(newPod, app); err != nil {
+	mutator := newSparkPodMutator(newPod, app)
+	if err := mutator.mutate(); err != nil {
 		return nil, err
 	}
 	return newPod, nil
@@ -1932,15 +1939,19 @@ func TestPatchSparkPod_Ports(t *testing.T) {
 		},
 		Spec: v1beta2.SparkApplicationSpec{
 			Driver: v1beta2.DriverSpec{
-				Ports: []v1beta2.Port{
-					{Name: "driverPort1", ContainerPort: 8080, Protocol: "TCP"},
-					{Name: "driverPort2", ContainerPort: 8081, Protocol: "TCP"},
+				SparkPodSpec: v1beta2.SparkPodSpec{
+					Ports: []v1beta2.Port{
+						{Name: "driverPort1", ContainerPort: 8080, Protocol: "TCP"},
+						{Name: "driverPort2", ContainerPort: 8081, Protocol: "TCP"},
+					},
 				},
 			},
 			Executor: v1beta2.ExecutorSpec{
-				Ports: []v1beta2.Port{
-					{Name: "executorPort1", ContainerPort: 8082, Protocol: "TCP"},
-					{Name: "executorPort2", ContainerPort: 8083, Protocol: "TCP"},
+				SparkPodSpec: v1beta2.SparkPodSpec{
+					Ports: []v1beta2.Port{
+						{Name: "executorPort1", ContainerPort: 8082, Protocol: "TCP"},
+						{Name: "executorPort2", ContainerPort: 8083, Protocol: "TCP"},
+					},
 				},
 			},
 		},
