@@ -674,8 +674,6 @@ func executorConfOption(app *v1beta2.SparkApplication) ([]string, error) {
 	} else if app.Spec.Image != nil && *app.Spec.Image != "" {
 		args = append(args, "--conf",
 			fmt.Sprintf("%s=%s", common.SparkKubernetesExecutorContainerImage, *app.Spec.Image))
-	} else {
-		return nil, fmt.Errorf("executor container image is not specified")
 	}
 
 	if app.Spec.Executor.Cores != nil {
