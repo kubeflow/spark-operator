@@ -320,8 +320,6 @@ func driverConfOption(app *v1beta2.SparkApplication) ([]string, error) {
 	} else if app.Spec.Image != nil && *app.Spec.Image != "" {
 		args = append(args, "--conf",
 			fmt.Sprintf("%s=%s", common.SparkKubernetesDriverContainerImage, *app.Spec.Image))
-	} else {
-		return nil, fmt.Errorf("driver container image is not specified")
 	}
 
 	if app.Spec.Driver.Cores != nil {
