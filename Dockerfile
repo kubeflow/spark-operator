@@ -43,6 +43,22 @@ ARG SPARK_GID=185
 
 USER root
 
+# Add AWS Jars
+RUN mkdir -p $SPARK_HOME/jars
+ADD https://repo1.maven.org/maven2/org/apache/hadoop/hadoop-aws/3.1.1/hadoop-aws-3.1.1.jar $SPARK_HOME/jars
+RUN chmod 644 $SPARK_HOME/jars/hadoop-aws-3.1.1.jar
+
+ADD https://repo1.maven.org/maven2/com/amazonaws/aws-java-sdk-bundle/1.11.814/aws-java-sdk-bundle-1.11.814.jar $SPARK_HOME/jars
+RUN chmod 644 $SPARK_HOME/jars/aws-java-sdk-bundle-1.11.814.jar
+
+ADD https://repo1.maven.org/maven2/org/apache/spark/spark-avro_2.12/3.1.1/spark-avro_2.12-3.1.1.jar $SPARK_HOME/jars
+RUN chmod 644 $SPARK_HOME/jars/spark-avro_2.12-3.1.1.jar
+
+# Add gcs connector
+ADD https://storage.googleapis.com/hadoop-lib/gcs/gcs-connector-hadoop3-latest.jar  $SPARK_HOME/jars
+RUN chmod 644 $SPARK_HOME/jars/gcs-connector-hadoop3-latest.jar
+
+# Build Operator and run
 RUN apt-get update \
     && apt-get install -y tini \
     && rm -rf /var/lib/apt/lists/*
