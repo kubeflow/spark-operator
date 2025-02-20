@@ -57,6 +57,8 @@ var createCmd = &cobra.Command{
 	Short: "Create a SparkApplication object",
 	Long:  `Create a SparkApplication from a given YAML file storing the application specification.`,
 	Run: func(cmd *cobra.Command, args []string) {
+		ctx := cmd.Context()
+
 		if From != "" && len(args) != 1 {
 			fmt.Fprintln(os.Stderr, "must specify the name of a ScheduledSparkApplication")
 			return
@@ -80,11 +82,11 @@ var createCmd = &cobra.Command{
 		}
 
 		if From != "" {
-			if err := createFromScheduledSparkApplication(args[0], kubeClient, crdClient); err != nil {
+			if err := createFromScheduledSparkApplication(ctx, args[0], kubeClient, crdClient); err != nil {
 				fmt.Fprintf(os.Stderr, "%v\n", err)
 			}
 		} else {
-			if err := createFromYaml(args[0], kubeClient, crdClient); err != nil {
+			if err := createFromYaml(ctx, args[0], kubeClient, crdClient); err != nil {
 				fmt.Fprintf(os.Stderr, "%v\n", err)
 			}
 		}
@@ -114,20 +116,20 @@ func init() {
 		"the name of ScheduledSparkApplication from which a forced SparkApplication run is created")
 }
 
-func createFromYaml(yamlFile string, kubeClient clientset.Interface, crdClient crdclientset.Interface) error {
+func createFromYaml(ctx context.Context, yamlFile string, kubeClient clientset.Interface, crdClient crdclientset.Interface) error {
 	app, err := loadFromYAML(yamlFile)
 	if err != nil {
 		return fmt.Errorf("failed to read a SparkApplication from %s: %v", yamlFile, err)
 	}
 
-	if err := createSparkApplication(app, kubeClient, crdClient); err != nil {
+	if err := createSparkApplication(ctx, app, kubeClient, crdClient); err != nil {
 		return fmt.Errorf("failed to create SparkApplication %s: %v", app.Name, err)
 	}
 
 	return nil
 }
 
-func createFromScheduledSparkApplication(name string, kubeClient clientset.Interface, crdClient crdclientset.Interface) error {
+func createFromScheduledSparkApplication(ctx context.Context, name string, kubeClient clientset.Interface, crdClient crdclientset.Interface) error {
 	sapp, err := crdClient.SparkoperatorV1beta2().ScheduledSparkApplications(Namespace).Get(context.TODO(), From, metav1.GetOptions{})
 	if err != nil {
 		return fmt.Errorf("failed to get ScheduledSparkApplication %s: %v", From, err)
@@ -149,14 +151,14 @@ func createFromScheduledSparkApplication(name string, kubeClient clientset.Inter
 		Spec: *sapp.Spec.Template.DeepCopy(),
 	}
 
-	if err := createSparkApplication(app, kubeClient, crdClient); err != nil {
+	if err := createSparkApplication(ctx, app, kubeClient, crdClient); err != nil {
 		return fmt.Errorf("failed to create SparkApplication %s: %v", app.Name, err)
 	}
 
 	return nil
 }
 
-func createSparkApplication(app *v1beta2.SparkApplication, kubeClient clientset.Interface, crdClient crdclientset.Interface) error {
+func createSparkApplication(ctx context.Context, app *v1beta2.SparkApplication, kubeClient clientset.Interface, crdClient crdclientset.Interface) error {
 	if DeleteIfExists {
 		if err := deleteSparkApplication(app.Name, crdClient); err != nil {
 			return err
@@ -190,7 +192,7 @@ func createSparkApplication(app *v1beta2.SparkApplication, kubeClient clientset.
 	fmt.Printf("SparkApplication \"%s\" created\n", app.Name)
 
 	if LogsEnabled {
-		if err := doLog(app.Name, true, kubeClient, crdClient); err != nil {
+		if err := doLog(ctx, app.Name, true, kubeClient, crdClient); err != nil {
 			return nil
 		}
 	}

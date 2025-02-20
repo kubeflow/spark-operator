@@ -17,6 +17,7 @@ limitations under the License.
 package app
 
 import (
+	"context"
 	"fmt"
 	"os"
 
@@ -52,7 +53,9 @@ func init() {
 }
 
 func Execute() {
-	if err := rootCmd.Execute(); err != nil {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	if err := rootCmd.ExecuteContext(ctx); err != nil {
 		fmt.Fprintf(os.Stderr, "%v", err)
 	}
 }
