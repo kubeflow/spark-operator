@@ -714,6 +714,7 @@ func findContainer(pod *corev1.Pod) int {
 		candidateContainerNames = append(candidateContainerNames, common.SparkExecutorContainerName, common.Spark3DefaultExecutorContainerName)
 	}
 
+	// return -1 if the pod is not a Driver or an Executor pod
 	if len(candidateContainerNames) == 0 {
 		return -1
 	}
@@ -725,7 +726,8 @@ func findContainer(pod *corev1.Pod) int {
 			}
 		}
 	}
-	return -1
+	// if no containers match the candidateContainerNames, assume the first container is the spark container.
+	return 0
 }
 
 func hasContainer(pod *corev1.Pod, container *corev1.Container) bool {
