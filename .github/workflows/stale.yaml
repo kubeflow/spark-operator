@@ -1,0 +1,39 @@
+name: Mark stale issues and pull requests
+
+on:
+  schedule:
+    - cron: "0 */2 * * *"
+
+jobs:
+  stale:
+    runs-on: ubuntu-latest
+
+    permissions:
+      issues: write
+      pull-requests: write
+
+    steps:
+      - uses: actions/stale@v9
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          days-before-stale: 90
+          days-before-close: 20
+          operations-per-run: 200
+          stale-issue-message: >
+            This issue has been automatically marked as stale because it has not had
+            recent activity. It will be closed if no further activity occurs. Thank you
+            for your contributions.
+          close-issue-message: >
+            This issue has been automatically closed because it has not had recent
+            activity. Please comment "/reopen" to reopen it.
+          stale-issue-label: lifecycle/stale
+          exempt-issue-labels: lifecycle/frozen
+          stale-pr-message: >
+            This pull request has been automatically marked as stale because it has not had
+            recent activity. It will be closed if no further activity occurs. Thank you
+            for your contributions.
+          close-pr-message: >
+            This pull request has been automatically closed because it has not had recent
+            activity. Please comment "/reopen" to reopen it.
+          stale-pr-label: lifecycle/stale
+          exempt-pr-labels: lifecycle/frozen

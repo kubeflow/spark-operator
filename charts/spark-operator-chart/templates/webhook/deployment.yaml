@@ -1,0 +1,160 @@
+{{/*
+Copyright 2024 The Kubeflow authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    https://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+{{- if .Values.webhook.enable }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "spark-operator.webhook.deploymentName" . }}
+  labels:
+    {{- include "spark-operator.webhook.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.webhook.replicas }}
+  selector:
+    matchLabels:
+      {{- include "spark-operator.webhook.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "spark-operator.webhook.selectorLabels" . | nindent 8 }}
+      {{- with .Values.webhook.labels }}
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.webhook.annotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      containers:
+      - name: spark-operator-webhook
+        image: {{ include "spark-operator.image" . }}
+        {{- with .Values.image.pullPolicy }}
+        imagePullPolicy: {{ . }}
+        {{- end }}
+        args:
+        - webhook
+        - start
+        {{- with .Values.webhook.logLevel }}
+        - --zap-log-level={{ . }}
+        {{- end }}
+        {{- with .Values.spark.jobNamespaces }}
+        {{- if has "" . }}
+        - --namespaces=""
+        {{- else }}
+        - --namespaces={{ . | join "," }}
+        {{- end }}
+        {{- end }}
+        - --webhook-secret-name={{ include "spark-operator.webhook.secretName" . }}
+        - --webhook-secret-namespace={{ .Release.Namespace }}
+        - --webhook-svc-name={{ include "spark-operator.webhook.serviceName" . }}
+        - --webhook-svc-namespace={{ .Release.Namespace }}
+        - --webhook-port={{ .Values.webhook.port }}
+        - --mutating-webhook-name={{ include "spark-operator.webhook.name" . }}
+        - --validating-webhook-name={{ include "spark-operator.webhook.name" . }}
+        {{- with .Values.webhook.resourceQuotaEnforcement.enable }}
+        - --enable-resource-quota-enforcement=true
+        {{- end }}
+        {{- if .Values.prometheus.metrics.enable }}
+        - --enable-metrics=true
+        - --metrics-bind-address=:{{ .Values.prometheus.metrics.port }}
+        - --metrics-endpoint={{ .Values.prometheus.metrics.endpoint }}
+        - --metrics-prefix={{ .Values.prometheus.metrics.prefix }}
+        - --metrics-labels=app_type
+        {{- end }}
+        - --leader-election=true
+        - --leader-election-lock-name={{ include "spark-operator.webhook.leaderElectionName" . }}
+        - --leader-election-lock-namespace={{ .Release.Namespace }}
+        ports:
+        - name: {{ .Values.webhook.portName | quote }}
+          containerPort: {{ .Values.webhook.port }}
+        {{- if .Values.prometheus.metrics.enable }}
+        - name: {{ .Values.prometheus.metrics.portName | quote }}
+          containerPort: {{ .Values.prometheus.metrics.port }}
+        {{- end }}
+        {{- with .Values.webhook.env }}
+        env:
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+        {{- with .Values.webhook.envFrom }}
+        envFrom:
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+        {{- with .Values.webhook.volumeMounts }}
+        volumeMounts:
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+        {{- with .Values.webhook.resources }}
+        resources:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+        livenessProbe:
+          httpGet:
+            port: 8081
+            scheme: HTTP
+            path: /healthz
+        readinessProbe:
+          httpGet:
+            port: 8081
+            scheme: HTTP
+            path: /readyz
+        {{- with .Values.webhook.securityContext }}
+        securityContext:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+      {{- with .Values.webhook.sidecars }}
+      {{- toYaml . | nindent 6 }}
+      {{- end }}
+      {{- with .Values.image.pullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.webhook.volumes }}
+      volumes:
+      {{- toYaml . | nindent 6 }}
+      {{- end }}
+      {{- with .Values.webhook.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.webhook.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.webhook.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.webhook.priorityClassName }}
+      priorityClassName: {{ . }}
+      {{- end }}
+      serviceAccountName: {{ include "spark-operator.webhook.serviceAccountName" . }}
+      automountServiceAccountToken: {{ .Values.webhook.serviceAccount.automountServiceAccountToken }}
+      {{- with .Values.webhook.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- if .Values.webhook.topologySpreadConstraints }}
+      {{- if le (int .Values.webhook.replicas) 1 }}
+      {{- fail "webhook.replicas must be greater than 1 to enable topology spread constraints for webhook pods"}}
+      {{- end }}
+      {{- $selectorLabels := include "spark-operator.webhook.selectorLabels" . | fromYaml }}
+      {{- $labelSelectorDict := dict "labelSelector" ( dict "matchLabels" $selectorLabels ) }}
+      topologySpreadConstraints:
+      {{- range .Values.webhook.topologySpreadConstraints }}
+      - {{ mergeOverwrite . $labelSelectorDict | toYaml | nindent 8 | trim }}
+      {{- end }}
+      {{- end }}
+{{- end }}

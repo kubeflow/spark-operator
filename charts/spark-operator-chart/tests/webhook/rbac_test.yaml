@@ -1,0 +1,165 @@
+#
+# Copyright 2024 The Kubeflow authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+suite: Test webhook rbac
+
+templates:
+  - webhook/rbac.yaml
+
+release:
+  name: spark-operator
+  namespace: spark-operator
+
+tests:
+  - it: Should not create webhook RBAC resources if `webhook.rbac.create` is false
+    set:
+      webhook:
+        rbac:
+          create: false
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: Should create webhook ClusterRole by default
+    documentIndex: 0
+    asserts:
+      - containsDocument:
+          apiVersion: rbac.authorization.k8s.io/v1
+          kind: ClusterRole
+          name: spark-operator-webhook
+
+  - it: Should create webhook ClusterRoleBinding by default
+    documentIndex: 1
+    asserts:
+      - containsDocument:
+          apiVersion: rbac.authorization.k8s.io/v1
+          kind: ClusterRoleBinding
+          name: spark-operator-webhook
+      - contains:
+          path: subjects
+          content:
+            kind: ServiceAccount
+            name: spark-operator-webhook
+            namespace: spark-operator
+          count: 1
+      - equal:
+          path: roleRef
+          value:
+            apiGroup: rbac.authorization.k8s.io
+            kind: ClusterRole
+            name: spark-operator-webhook
+
+  - it: Should add extra annotations to webhook ClusterRole if `webhook.rbac.annotations` is set
+    set:
+      webhook:
+        rbac:
+          annotations:
+            key1: value1
+            key2: value2
+    asserts:
+      - equal:
+          path: metadata.annotations.key1
+          value: value1
+      - equal:
+          path: metadata.annotations.key2
+          value: value2
+
+  - it: Should create role and rolebinding for webhook in release namespace
+    documentIndex: 2
+    asserts:
+      - containsDocument:
+          apiVersion: rbac.authorization.k8s.io/v1
+          kind: Role
+          name: spark-operator-webhook
+          namespace: spark-operator
+
+  - it: Should create role and rolebinding for webhook in release namespace
+    documentIndex: 3
+    asserts:
+      - containsDocument:
+          apiVersion: rbac.authorization.k8s.io/v1
+          kind: RoleBinding
+          name: spark-operator-webhook
+          namespace: spark-operator
+      - contains:
+          path: subjects
+          content:
+            kind: ServiceAccount
+            name: spark-operator-webhook
+            namespace: spark-operator
+          count: 1
+      - equal:
+          path: roleRef
+          value:
+            apiGroup: rbac.authorization.k8s.io
+            kind: Role
+            name: spark-operator-webhook
+
+  - it: Should create roles and rolebindings for webhook in every spark job namespace if `spark.jobNamespaces` is set and does not contain empty string
+    set:
+      spark:
+        jobNamespaces:
+          - default
+          - spark
+    documentIndex: 4
+    asserts:
+      - containsDocument:
+          apiVersion: rbac.authorization.k8s.io/v1
+          kind: Role
+          name: spark-operator-webhook
+          namespace: default
+
+  - it: Should create roles and rolebindings for webhook in every spark job namespace if `spark.jobNamespaces` is set and does not contain empty string
+    set:
+      spark:
+        jobNamespaces:
+          - default
+          - spark
+    documentIndex: 5
+    asserts:
+      - containsDocument:
+          apiVersion: rbac.authorization.k8s.io/v1
+          kind: RoleBinding
+          name: spark-operator-webhook
+          namespace: default
+
+  - it: Should create roles and rolebindings for webhook in every spark job namespace if `spark.jobNamespaces` is set and does not contain empty string
+    set:
+      spark:
+        jobNamespaces:
+          - default
+          - spark
+    documentIndex: 6
+    asserts:
+      - containsDocument:
+          apiVersion: rbac.authorization.k8s.io/v1
+          kind: Role
+          name: spark-operator-webhook
+          namespace: spark
+
+  - it: Should create roles and rolebindings for webhook in every spark job namespace if `spark.jobNamespaces` is set and does not contain empty string
+    set:
+      spark:
+        jobNamespaces:
+          - default
+          - spark
+    documentIndex: 7
+    asserts:
+      - containsDocument:
+          apiVersion: rbac.authorization.k8s.io/v1
+          kind: RoleBinding
+          name: spark-operator-webhook
+          namespace: spark

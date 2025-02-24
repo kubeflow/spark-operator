@@ -1,6 +1,12 @@
 {{ template "chart.header" . }}
 
+{{ template "chart.deprecationWarning" . }}
+
+{{ template "chart.badgesSection" . }}
+
 {{ template "chart.description" . }}
+
+{{ template "chart.homepageLine" . }}
 
 ## Introduction
 
@@ -19,61 +25,53 @@ The previous `spark-operator` Helm chart hosted at [helm/charts](https://github.
 - Previous versions of the Helm chart have not been migrated, and the version has been set to `1.0.0` at the onset. If you are looking for old versions of the chart, it's best to run `helm pull incubator/sparkoperator --version <your-version>` until you are ready to move to this repository's version.
 - Several configuration properties have been changed, carefully review the [values](#values) section below to make sure you're aligned with the new values.
 
-## Installing the chart
+## Usage
+
+### Add Helm Repo
 
 ```shell
+helm repo add spark-operator https://kubeflow.github.io/spark-operator
 
-$ helm repo add spark-operator https://googlecloudplatform.github.io/spark-on-k8s-operator
-
-$ helm install my-release spark-operator/spark-operator
+helm repo update
 ```
 
-This will create a release of `spark-operator` in the default namespace. To install in a different one:
+See [helm repo](https://helm.sh/docs/helm/helm_repo) for command documentation.
+
+### Install the chart
 
 ```shell
-$ helm install -n spark my-release spark-operator/spark-operator
+helm install [RELEASE_NAME] spark-operator/spark-operator
 ```
 
-Note that `helm` will fail to install if the namespace doesn't exist. Either create the namespace beforehand or pass the `--create-namespace` flag to the `helm install` command.
-
-## Uninstalling the chart
-
-To uninstall `my-release`:
+For example, if you want to create a release with name `spark-operator` in the `spark-operator` namespace:
 
 ```shell
-$ helm uninstall my-release
+helm install spark-operator spark-operator/spark-operator \
+    --namespace spark-operator \
+    --create-namespace
 ```
 
-The command removes all the Kubernetes components associated with the chart and deletes the release, except for the `crds`, those will have to be removed manually.
+Note that by passing the `--create-namespace` flag to the `helm install` command, `helm` will create the release namespace if it does not exist.
 
-## Test the chart
+See [helm install](https://helm.sh/docs/helm/helm_install) for command documentation.
 
-Install [chart-testing cli](https://github.com/helm/chart-testing#installation)
+### Upgrade the chart
 
-In Mac OS, you can just:
-
-```bash
-pip install yamale
-pip install yamllint
-brew install chart-testing
+```shell
+helm upgrade [RELEASE_NAME] spark-operator/spark-operator [flags]
 ```
 
-Run ct lint and Verify `All charts linted successfully`
+See [helm upgrade](https://helm.sh/docs/helm/helm_upgrade) for command documentation.
 
-```bash
-Chart version ok.
-Validating /Users/chethanuk/Work/Github/Personal/spark-on-k8s-operator-1/charts/spark-operator-chart/Chart.yaml...
-Validation success! 👍
-Validating maintainers...
-==> Linting charts/spark-operator-chart
-[INFO] Chart.yaml: icon is recommended
+### Uninstall the chart
 
-1 chart(s) linted, 0 chart(s) failed
-------------------------------------------------------------------------------------------------------------------------
- ✔︎ spark-operator => (version: "1.1.0", path: "charts/spark-operator-chart")
-------------------------------------------------------------------------------------------------------------------------
-All charts linted successfully
+```shell
+helm uninstall [RELEASE_NAME]
 ```
+
+This removes all the Kubernetes resources associated with the chart and deletes the release, except for the `crds`, those will have to be removed manually.
+
+See [helm uninstall](https://helm.sh/docs/helm/helm_uninstall) for command documentation.
 
 {{ template "chart.valuesSection" . }}
 

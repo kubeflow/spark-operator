@@ -1,3 +1,19 @@
+{{/*
+Copyright 2024 The Kubeflow authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    https://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
 {{/* vim: set filetype=mustache: */}}
 {{/*
 Expand the name of the chart.
@@ -41,6 +57,9 @@ helm.sh/chart: {{ include "spark-operator.chart" . }}
 app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
 {{- end }}
 app.kubernetes.io/managed-by: {{ .Release.Service }}
+{{- with .Values.commonLabels }}
+{{ toYaml . }}
+{{- end }}
 {{- end }}
 
 {{/*
@@ -52,25 +71,8 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end }}
 
 {{/*
-Create the name of the service account to be used by the operator
+Spark Operator image
 */}}
-{{- define "spark-operator.serviceAccountName" -}}
-{{- if .Values.serviceAccounts.sparkoperator.create -}}
-{{ default (include "spark-operator.fullname" .) .Values.serviceAccounts.sparkoperator.name }}
-{{- else -}}
-{{ default "default" .Values.serviceAccounts.sparkoperator.name }}
+{{- define "spark-operator.image" -}}
+{{ printf "%s/%s:%s" .Values.image.registry .Values.image.repository (.Values.image.tag | default .Chart.AppVersion) }}
 {{- end -}}
-{{- end -}}
-
-{{/*
-Create the name of the service account to be used by spark apps
-*/}}
-{{- define "spark.serviceAccountName" -}}
-{{- if .Values.serviceAccounts.spark.create -}}
-{{- $sparkServiceaccount := printf "%s-%s" .Release.Name "spark" -}}
-    {{ default $sparkServiceaccount .Values.serviceAccounts.spark.name }}
-{{- else -}}
-    {{ default "default" .Values.serviceAccounts.spark.name }}
-{{- end -}}
-{{- end -}}
-

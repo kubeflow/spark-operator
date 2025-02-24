@@ -1,0 +1,76 @@
+#
+# Copyright 2024 The Kubeflow authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+suite: Test webhook pod disruption budget
+
+templates:
+  - webhook/poddisruptionbudget.yaml
+
+release:
+  name: spark-operator
+  namespace: spark-operator
+
+tests:
+  - it: Should not render podDisruptionBudget if `webhook.enable` is `false`
+    set:
+      webhook:
+        enable: false
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: Should not render podDisruptionBudget if `webhook.podDisruptionBudget.enable` is false
+    set:
+      webhook:
+        podDisruptionBudget:
+          enable: false
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: Should fail if `webhook.replicas` is less than 2 when `webhook.podDisruptionBudget.enable` is true
+    set:
+      webhook:
+        replicas: 1
+        podDisruptionBudget:
+          enable: true
+    asserts:
+      - failedTemplate:
+          errorMessage: "webhook.replicas must be greater than 1 to enable pod disruption budget for webhook"
+
+  - it: Should render spark operator podDisruptionBudget if `webhook.podDisruptionBudget.enable` is true
+    set:
+      webhook:
+        replicas: 2
+        podDisruptionBudget:
+          enable: true
+    asserts:
+      - containsDocument:
+          apiVersion: policy/v1
+          kind: PodDisruptionBudget
+          name: spark-operator-webhook-pdb
+
+  - it: Should set minAvailable if `webhook.podDisruptionBudget.minAvailable` is specified
+    set:
+      webhook:
+        replicas: 2
+        podDisruptionBudget:
+          enable: true
+          minAvailable: 3
+    asserts:
+      - equal:
+          path: spec.minAvailable
+          value: 3

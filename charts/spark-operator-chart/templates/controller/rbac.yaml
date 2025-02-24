@@ -1,0 +1,170 @@
+{{/*
+Copyright 2024 The Kubeflow authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    https://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+{{- if .Values.controller.rbac.create -}}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "spark-operator.controller.clusterRoleName" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "spark-operator.controller.labels" . | nindent 4 }}
+  {{- with .Values.controller.rbac.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - nodes
+  verbs:
+  - get
+- apiGroups:
+  - ""
+  resources:
+  - events
+  verbs:
+  - create
+  - update
+  - patch
+- apiGroups:
+  - apiextensions.k8s.io
+  resources:
+  - customresourcedefinitions
+  verbs:
+  - get
+{{- if not .Values.spark.jobNamespaces | or (has "" .Values.spark.jobNamespaces) }}
+{{ include "spark-operator.controller.policyRules" . }}
+{{- end }}
+---
+
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "spark-operator.controller.clusterRoleBindingName" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "spark-operator.controller.labels" . | nindent 4 }}
+  {{- with .Values.controller.rbac.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+subjects:
+- kind: ServiceAccount
+  name: {{ include "spark-operator.controller.serviceAccountName" . }}
+  namespace: {{ .Release.Namespace }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ include "spark-operator.controller.clusterRoleName" . }}
+---
+
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ include "spark-operator.controller.roleName" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "spark-operator.controller.labels" . | nindent 4 }}
+  {{- with .Values.controller.rbac.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+rules:
+- apiGroups:
+  - coordination.k8s.io
+  resources:
+  - leases
+  verbs:
+  - create
+- apiGroups:
+  - coordination.k8s.io
+  resources:
+  - leases
+  resourceNames:
+  - {{ include "spark-operator.controller.leaderElectionName" . }}
+  verbs:
+  - get
+  - update
+{{- if has .Release.Namespace .Values.spark.jobNamespaces }}
+{{ include "spark-operator.controller.policyRules" . }}
+{{- end }}
+---
+
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ include "spark-operator.controller.roleBindingName" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "spark-operator.controller.labels" . | nindent 4 }}
+  {{- with .Values.controller.rbac.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+subjects:
+- kind: ServiceAccount
+  name: {{ include "spark-operator.controller.serviceAccountName" . }}
+  namespace: {{ .Release.Namespace }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ include "spark-operator.controller.roleName" . }}
+
+{{- if and .Values.spark.jobNamespaces (not (has "" .Values.spark.jobNamespaces)) }}
+{{- range $jobNamespace := .Values.spark.jobNamespaces }}
+{{- if ne $jobNamespace $.Release.Namespace }}
+---
+
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ include "spark-operator.controller.roleName" $ }}
+  namespace: {{ $jobNamespace }}
+  labels:
+    {{- include "spark-operator.controller.labels" $ | nindent 4 }}
+  {{- with $.Values.controller.rbac.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+rules:
+{{ include "spark-operator.controller.policyRules" $ }}
+---
+
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ include "spark-operator.controller.roleBindingName" $ }}
+  namespace: {{ $jobNamespace }}
+  labels:
+    {{- include "spark-operator.controller.labels" $ | nindent 4 }}
+  {{- with $.Values.controller.rbac.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+subjects:
+- kind: ServiceAccount
+  name: {{ include "spark-operator.controller.serviceAccountName" $ }}
+  namespace: {{ $.Release.Namespace }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ include "spark-operator.controller.roleName" $ }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- end }}

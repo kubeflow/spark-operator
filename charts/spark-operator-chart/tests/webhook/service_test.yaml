@@ -1,0 +1,49 @@
+#
+# Copyright 2024 The Kubeflow authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+suite: Test webhook service
+
+templates:
+  - webhook/service.yaml
+
+release:
+  name: spark-operator
+  namespace: spark-operator
+
+tests:
+  - it: Should not create webhook service if `webhook.enable` is `false`
+    set:
+      webhook:
+        enable: false
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: Should create the webhook service correctly
+    set:
+      webhook:
+        portName: webhook
+    asserts:
+      - containsDocument:
+          apiVersion: v1
+          kind: Service
+          name: spark-operator-webhook-svc
+      - equal:
+          path: spec.ports[0]
+          value:
+            port: 9443
+            targetPort: webhook
+            name: webhook

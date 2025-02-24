@@ -1,0 +1,192 @@
+{{/*
+Copyright 2024 The Kubeflow authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    https://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/}}
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "spark-operator.controller.deploymentName" . }}
+  labels:
+    {{- include "spark-operator.controller.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.controller.replicas }}
+  selector:
+    matchLabels:
+      {{- include "spark-operator.controller.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "spark-operator.controller.selectorLabels" . | nindent 8 }}
+        {{- with .Values.controller.labels }}
+          {{- toYaml . | nindent 8 }}
+        {{- end }}
+      {{- if or .Values.controller.annotations .Values.prometheus.metrics.enable }}
+      annotations:
+      {{- if .Values.prometheus.metrics.enable }}
+        prometheus.io/scrape: "true"
+        prometheus.io/port: {{ .Values.prometheus.metrics.port | quote }}
+        prometheus.io/path: {{ .Values.prometheus.metrics.endpoint }}
+      {{- end }}
+      {{- with .Values.controller.annotations }}
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- end }}
+    spec:
+      containers:
+      - name: spark-operator-controller
+        image: {{ include "spark-operator.image" . }}
+        {{- with .Values.image.pullPolicy }}
+        imagePullPolicy: {{ . }}
+        {{- end }}
+        args:
+        - controller
+        - start
+        {{- with .Values.controller.logLevel }}
+        - --zap-log-level={{ . }}
+        {{- end }}
+        {{- with .Values.spark.jobNamespaces }}
+        {{- if has "" . }}
+        - --namespaces=""
+        {{- else }}
+        - --namespaces={{ . | join "," }}
+        {{- end }}
+        {{- end }}
+        - --controller-threads={{ .Values.controller.workers }}
+        - --enable-ui-service={{ .Values.controller.uiService.enable }}
+        {{- if .Values.controller.uiIngress.enable }}
+        {{- with .Values.controller.uiIngress.urlFormat }}
+        - --ingress-url-format={{ . }}
+        {{- end }}
+        {{- with .Values.controller.uiIngress.ingressClassName }}
+        - --ingress-class-name={{ . }}
+        {{- end }}
+        {{- end }}
+        {{- if .Values.controller.batchScheduler.enable }}
+        - --enable-batch-scheduler=true
+        {{- with .Values.controller.batchScheduler.kubeSchedulerNames }}
+        - --kube-scheduler-names={{ . | join "," }}
+        {{- end }}
+        {{- with .Values.controller.batchScheduler.default }}
+        - --default-batch-scheduler={{ . }}
+        {{- end }}
+        {{- end }}
+        {{- if .Values.prometheus.metrics.enable }}
+        - --enable-metrics=true
+        - --metrics-bind-address=:{{ .Values.prometheus.metrics.port }}
+        - --metrics-endpoint={{ .Values.prometheus.metrics.endpoint }}
+        - --metrics-prefix={{ .Values.prometheus.metrics.prefix }}
+        - --metrics-labels=app_type
+        {{- end }}
+        - --leader-election=true
+        - --leader-election-lock-name={{ include "spark-operator.controller.leaderElectionName" . }}
+        - --leader-election-lock-namespace={{ .Release.Namespace }}
+        {{- if .Values.controller.pprof.enable }}
+        - --pprof-bind-address=:{{ .Values.controller.pprof.port }}
+        {{- end }}
+        - --workqueue-ratelimiter-bucket-qps={{ .Values.controller.workqueueRateLimiter.bucketQPS }}
+        - --workqueue-ratelimiter-bucket-size={{ .Values.controller.workqueueRateLimiter.bucketSize }}
+        {{- if .Values.controller.workqueueRateLimiter.maxDelay.enable }}
+        - --workqueue-ratelimiter-max-delay={{ .Values.controller.workqueueRateLimiter.maxDelay.duration }}
+        {{- end }}
+        {{- if .Values.controller.driverPodCreationGracePeriod }}
+        - --driver-pod-creation-grace-period={{ .Values.controller.driverPodCreationGracePeriod }}
+        {{- end }}
+        {{- if .Values.controller.maxTrackedExecutorPerApp }}
+        - --max-tracked-executor-per-app={{ .Values.controller.maxTrackedExecutorPerApp }}
+        {{- end }}
+        {{- if or .Values.prometheus.metrics.enable .Values.controller.pprof.enable }}
+        ports:
+        {{- if .Values.controller.pprof.enable }}
+        - name: {{ .Values.controller.pprof.portName | quote }}
+          containerPort: {{ .Values.controller.pprof.port }}
+        {{- end }}
+        {{- if .Values.prometheus.metrics.enable }}
+        - name: {{ .Values.prometheus.metrics.portName | quote }}
+          containerPort: {{ .Values.prometheus.metrics.port }}
+        {{- end }}
+        {{- end }}
+        {{- with .Values.controller.env }}
+        env:
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+        {{- with .Values.controller.envFrom }}
+        envFrom:
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+        {{- with .Values.controller.volumeMounts }}
+        volumeMounts:
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+        {{- with .Values.controller.resources }}
+        resources:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+        livenessProbe:
+          httpGet:
+            port: 8081
+            scheme: HTTP
+            path: /healthz
+        readinessProbe:
+          httpGet:
+            port: 8081
+            scheme: HTTP
+            path: /readyz
+        {{- with .Values.controller.securityContext }}
+        securityContext:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+      {{- with .Values.controller.sidecars }}
+      {{- toYaml . | nindent 6 }}
+      {{- end }}
+      {{- with .Values.image.pullSecrets }}
+      imagePullSecrets:
+      {{- toYaml . | nindent 6 }}
+      {{- end }}
+      {{- with .Values.controller.volumes }}
+      volumes:
+      {{- toYaml . | nindent 6 }}
+      {{- end }}
+      {{- with .Values.controller.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.controller.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.controller.tolerations }}
+      tolerations:
+      {{- toYaml . | nindent 6 }}
+      {{- end }}
+      {{- with .Values.controller.priorityClassName }}
+      priorityClassName: {{ . }}
+      {{- end }}
+      serviceAccountName: {{ include "spark-operator.controller.serviceAccountName" . }}
+      automountServiceAccountToken: {{ .Values.controller.serviceAccount.automountServiceAccountToken }}
+      {{- with .Values.controller.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- if .Values.controller.topologySpreadConstraints }}
+      {{- if le (int .Values.controller.replicas) 1 }}
+      {{- fail "controller.replicas must be greater than 1 to enable topology spread constraints for controller pods"}}
+      {{- end }}
+      {{- $selectorLabels := include "spark-operator.controller.selectorLabels" . | fromYaml }}
+      {{- $labelSelectorDict := dict "labelSelector" ( dict "matchLabels" $selectorLabels ) }}
+      topologySpreadConstraints:
+      {{- range .Values.controller.topologySpreadConstraints }}
+      - {{ mergeOverwrite . $labelSelectorDict | toYaml | nindent 8 | trim }}
+      {{- end }}
+      {{- end }}

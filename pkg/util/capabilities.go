@@ -19,6 +19,8 @@ package util
 import (
 	"strings"
 
+	"github.com/golang/glog"
+	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/kubernetes"
 )
 
@@ -36,6 +38,19 @@ func (c Capabilities) String() string {
 	return strings.Join(keys, ", ")
 }
 
+var (
+	IngressCapabilities Capabilities
+)
+
+func InitializeIngressCapabilities(client kubernetes.Interface) (err error) {
+	if IngressCapabilities != nil {
+		return
+	}
+
+	IngressCapabilities, err = getPreferredAvailableAPIs(client, "Ingress")
+	return
+}
+
 // getPreferredAvailableAPIs queries the cluster for the preferred resources information and returns a Capabilities
 // instance containing those api groups that support the specified kind.
 //
@@ -44,7 +59,11 @@ func getPreferredAvailableAPIs(client kubernetes.Interface, kind string) (Capabi
 	discoveryclient := client.Discovery()
 	lists, err := discoveryclient.ServerPreferredResources()
 	if err != nil {
-		return nil, err
+		if discovery.IsGroupDiscoveryFailedError(err) {
+			glog.Infof("There is an orphaned API service. Server reports: %s", err)
+		} else {
+			return nil, err
+		}
 	}
 
 	caps := Capabilities{}
@@ -63,16 +82,4 @@ func getPreferredAvailableAPIs(client kubernetes.Interface, kind string) (Capabi
 	}
 
 	return caps, nil
-}
-
-var (
-	IngressCapabilities Capabilities
-)
-
-func InitializeIngressCapabilities(client kubernetes.Interface) (err error) {
-	if IngressCapabilities != nil {
-		return
-	}
-	IngressCapabilities, err = getPreferredAvailableAPIs(client, "Ingress")
-	return
 }

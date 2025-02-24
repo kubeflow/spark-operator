@@ -1,0 +1,32 @@
+name: Trivy image scanning
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 0 * * 1' # Every Monday at 00:00
+
+jobs:
+  image-scanning:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Add image to environment
+        run: make print-IMAGE >> $GITHUB_ENV
+
+      - name: trivy scan for github security tab
+        uses: aquasecurity/trivy-action@0.29.0
+        with:
+          image-ref: '${{ env.IMAGE }}'
+          format: 'sarif'
+          ignore-unfixed: true
+          vuln-type: 'os,library'
+          severity: 'CRITICAL,HIGH'
+          output: 'trivy-results.sarif'
+          timeout: 30m0s
+
+      - name: Upload Trivy scan results to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: 'trivy-results.sarif'

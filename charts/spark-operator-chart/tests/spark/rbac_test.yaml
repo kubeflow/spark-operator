@@ -1,0 +1,182 @@
+#
+# Copyright 2024 The Kubeflow authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+suite: Test Spark RBAC
+
+templates:
+  - spark/rbac.yaml
+
+release:
+  name: spark-operator
+  namespace: spark-operator
+
+tests:
+  - it: Should not create RBAC resources for Spark if `spark.rbac.create` is false
+    set:
+      spark:
+        rbac:
+          create: false
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: Should create RBAC resources for Spark in namespace `default` by default
+    documentIndex: 0
+    asserts:
+      - containsDocument:
+          apiVersion: rbac.authorization.k8s.io/v1
+          kind: Role
+          name: spark-operator-spark
+          namespace: default
+
+  - it: Should create RBAC resources for Spark in namespace `default` by default
+    documentIndex: 1
+    asserts:
+      - containsDocument:
+          apiVersion: rbac.authorization.k8s.io/v1
+          kind: RoleBinding
+          name: spark-operator-spark
+          namespace: default
+      - contains:
+          path: subjects
+          content:
+            kind: ServiceAccount
+            name: spark-operator-spark
+            namespace: default
+      - equal:
+          path: roleRef
+          value:
+            apiGroup: rbac.authorization.k8s.io
+            kind: Role
+            name: spark-operator-spark
+
+  - it: Should create RBAC resources for Spark in every Spark job namespace
+    set:
+      spark:
+        jobNamespaces:
+          - ns1
+          - ns2
+    documentIndex: 0
+    asserts:
+      - containsDocument:
+          apiVersion: rbac.authorization.k8s.io/v1
+          kind: Role
+          name: spark-operator-spark
+          namespace: ns1
+
+  - it: Should create RBAC resources for Spark in every Spark job namespace
+    set:
+      spark:
+        jobNamespaces:
+          - ns1
+          - ns2
+    documentIndex: 1
+    asserts:
+      - containsDocument:
+          apiVersion: rbac.authorization.k8s.io/v1
+          kind: RoleBinding
+          name: spark-operator-spark
+          namespace: ns1
+      - contains:
+          path: subjects
+          content:
+            kind: ServiceAccount
+            name: spark-operator-spark
+            namespace: ns1
+      - equal:
+          path: roleRef
+          value:
+            apiGroup: rbac.authorization.k8s.io
+            kind: Role
+            name: spark-operator-spark
+
+  - it: Should create RBAC resources for Spark in every Spark job namespace
+    set:
+      spark:
+        jobNamespaces:
+          - ns1
+          - ns2
+    documentIndex: 2
+    asserts:
+      - containsDocument:
+          apiVersion: rbac.authorization.k8s.io/v1
+          kind: Role
+          name: spark-operator-spark
+          namespace: ns2
+
+  - it: Should create RBAC resources for Spark in every Spark job namespace
+    set:
+      spark:
+        jobNamespaces:
+          - ns1
+          - ns2
+    documentIndex: 3
+    asserts:
+      - containsDocument:
+          apiVersion: rbac.authorization.k8s.io/v1
+          kind: RoleBinding
+          name: spark-operator-spark
+          namespace: ns2
+      - contains:
+          path: subjects
+          content:
+            kind: ServiceAccount
+            name: spark-operator-spark
+            namespace: ns2
+      - equal:
+          path: roleRef
+          value:
+            apiGroup: rbac.authorization.k8s.io
+            kind: Role
+            name: spark-operator-spark
+
+  - it: Should use the specified service account name if `spark.serviceAccount.name` is set
+    set:
+      spark:
+        serviceAccount:
+          name: spark
+    documentIndex: 0
+    asserts:
+      - containsDocument:
+          apiVersion: rbac.authorization.k8s.io/v1
+          kind: Role
+          name: spark
+          namespace: default
+
+  - it: Should use the specified service account name if `spark.serviceAccount.name` is set
+    set:
+      spark:
+        serviceAccount:
+          name: spark
+    documentIndex: 1
+    asserts:
+      - containsDocument:
+          apiVersion: rbac.authorization.k8s.io/v1
+          kind: RoleBinding
+          name: spark
+          namespace: default
+      - contains:
+          path: subjects
+          content:
+            kind: ServiceAccount
+            name: spark
+            namespace: default
+      - equal:
+          path: roleRef
+          value:
+            apiGroup: rbac.authorization.k8s.io
+            kind: Role
+            name: spark

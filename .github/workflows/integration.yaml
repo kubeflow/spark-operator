@@ -1,0 +1,234 @@
+name: Integration Test
+
+on:
+  pull_request:
+    branches:
+      - master
+      - release-*
+
+  push:
+    branches:
+      - master
+      - release-*
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.actor }}
+  cancel-in-progress: true
+
+jobs:
+  code-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Run go mod tidy
+        run: |
+          go mod tidy
+          if ! git diff --quiet; then
+            echo "Please run 'go mod tidy' and commit the changes."
+            git diff
+            false
+          fi
+
+      - name: Generate code
+        run: |
+          make generate
+          if ! git diff --quiet; then
+            echo "Need to re-run 'make generate' and commit the changes."
+            git diff
+            false
+          fi
+
+      - name: Run go fmt check
+        run: |
+          make go-fmt
+          if ! git diff --quiet; then
+            echo "Need to re-run 'make go-fmt' and commit the changes."
+            git diff
+            false
+          fi
+
+      - name: Run go vet check
+        run: |
+          make go-vet
+          if ! git diff --quiet; then
+            echo "Need to re-run 'make go-vet' and commit the changes."
+            git diff
+            false
+          fi
+
+      - name: Run golangci-lint
+        run: |
+          make go-lint
+
+  build-api-docs:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Build API docs
+        run: |
+          make build-api-docs
+          if ! git diff --quiet; then
+            echo "Need to re-run 'make build-api-docs' and commit the changes."
+            git diff
+            false
+          fi
+
+  build-spark-operator:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Run go unit tests
+        run: make unit-test
+
+      - name: Build Spark operator
+        run: make build-operator
+
+  build-sparkctl:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Build sparkctl
+        run: make build-sparkctl
+
+  build-helm-chart:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Determine branch name
+        id: get_branch
+        run: |
+          BRANCH=""
+          if [ "${{ github.event_name }}" == "push" ]; then
+            BRANCH=${{ github.ref_name }}
+          elif [ "${{ github.event_name }}" == "pull_request" ]; then
+            BRANCH=${{ github.base_ref }}
+          fi
+          echo "Branch name: $BRANCH"
+          echo "BRANCH=$BRANCH" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout source code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: v3.14.3
+
+      - name: Set up chart-testing
+        uses: helm/chart-testing-action@v2.6.1
+
+      - name: Generate manifests
+        run: |
+          make manifests
+          if ! git diff --quiet; then
+            echo "Need to re-run 'make manifests' and commit the changes."
+            git diff
+            false
+          fi
+
+      - name: Detect CRDs drift between chart and manifest
+        run: make detect-crds-drift
+
+      - name: Run chart-testing (list-changed)
+        id: list-changed
+        env:
+          BRANCH: ${{ steps.get_branch.outputs.BRANCH }}
+        run: |
+          changed=$(ct list-changed --target-branch $BRANCH)
+          if [[ -n "$changed" ]]; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Run chart-testing (lint)
+        if: steps.list-changed.outputs.changed == 'true'
+        env:
+          BRANCH: ${{ steps.get_branch.outputs.BRANCH }}
+        run: ct lint --check-version-increment=false --target-branch $BRANCH
+
+      - name: Produce the helm documentation
+        if: steps.list-changed.outputs.changed == 'true'
+        run: |
+          make helm-docs
+          if ! git diff --quiet -- charts/spark-operator-chart/README.md; then
+            echo "Need to re-run 'make helm-docs' and commit the changes."
+            false
+          fi
+
+      - name: setup minikube
+        if: steps.list-changed.outputs.changed == 'true'
+        uses: manusa/actions-setup-minikube@v2.13.0
+        with:
+          minikube version: v1.33.0
+          kubernetes version: v1.30.0
+          start args: --memory 6g --cpus=2 --addons ingress
+          github token: ${{ inputs.github-token }}
+
+      - name: Run chart-testing (install)
+        if: steps.list-changed.outputs.changed == 'true'
+        run: |
+          docker build -t docker.io/kubeflow/spark-operator:local .
+          minikube image load docker.io/kubeflow/spark-operator:local
+          ct install
+
+  e2e-test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        k8s_version: [v1.28.13, v1.29.8, v1.30.4, v1.31.1]
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Create a Kind cluster
+        run: make kind-create-cluster KIND_K8S_VERSION=${{ matrix.k8s_version }}
+
+      - name: Build and load image to Kind cluster
+        run: |
+          make kind-load-image IMAGE_TAG=local
+
+      - name: Run e2e tests
+        run: make e2e-test
