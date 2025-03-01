@@ -62,7 +62,7 @@ const (
 	MutatingWebhookName   = "spark-operator-webhook"
 	ValidatingWebhookName = "spark-operator-webhook"
 
-	PollInterval = 1 * time.Second
+	PollInterval = 5 * time.Second
 	WaitTimeout  = 5 * time.Minute
 )
 
@@ -258,6 +258,12 @@ func waitForSparkApplicationCompleted(ctx context.Context, key types.NamespacedN
 
 	app := &v1beta2.SparkApplication{}
 	err := wait.PollUntilContextCancel(cancelCtx, PollInterval, true, func(ctx context.Context) (bool, error) {
+		// Debugging for e2e test failures
+		pods, _ := clientset.CoreV1().Pods(corev1.NamespaceAll).List(ctx, metav1.ListOptions{})
+		for _, pod := range pods.Items {
+			logf.Log.Info(fmt.Sprintf("Pod %s/%s is %s", pod.Namespace, pod.Name, pod.Status.Phase))
+		}
+
 		if err := k8sClient.Get(ctx, key, app); err != nil {
 			return false, err
 		}
