@@ -391,6 +391,8 @@ prometheus:
     endpoint: /metrics
     # -- Metrics prefix, will be added to all exported metrics.
     prefix: ""
+    # -- Job Start Latency histogram buckets. Specified in seconds.
+    jobStartLatencyBuckets: "30,60,90,120,150,180,210,240,270,300"
 
   # Prometheus pod monitor for controller pods
   podMonitor:
