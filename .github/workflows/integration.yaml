@@ -208,7 +208,7 @@ jobs:
         run: |
           docker build -t docker.io/kubeflow/spark-operator:local .
           minikube image load docker.io/kubeflow/spark-operator:local
-          ct install
+          ct install --target-branch ${{ steps.get_branch.outputs.BRANCH }}
 
   e2e-test:
     runs-on: ubuntu-latest
