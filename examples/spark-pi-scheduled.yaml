@@ -25,11 +25,11 @@ spec:
   template:
     type: Scala
     mode: cluster
-    image: spark:3.5.3
+    image: spark:3.5.4
     imagePullPolicy: IfNotPresent
     mainClass: org.apache.spark.examples.SparkPi
     mainApplicationFile: local:///opt/spark/examples/jars/spark-examples.jar
-    sparkVersion: 3.5.3
+    sparkVersion: 3.5.4
     restartPolicy:
       type: Never
     driver:
