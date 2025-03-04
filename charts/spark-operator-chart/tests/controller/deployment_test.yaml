@@ -214,6 +214,7 @@ tests:
           portName: test-port
           endpoint: /test-endpoint
           prefix: test-prefix
+          jobStartLatencyBuckets: "180,360,420,690"
     asserts:
       - contains:
           path: spec.template.spec.containers[?(@.name=="spark-operator-controller")].args
@@ -230,6 +231,9 @@ tests:
       - contains:
           path: spec.template.spec.containers[?(@.name=="spark-operator-controller")].args
           content: --metrics-labels=app_type
+      - contains:
+          path: spec.template.spec.containers[?(@.name=="spark-operator-controller")].args
+          content: --metrics-job-start-latency-buckets=180,360,420,690
 
   - it: Should enable leader election by default
     asserts:
