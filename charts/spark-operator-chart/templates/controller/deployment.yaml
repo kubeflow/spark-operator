@@ -88,6 +88,7 @@ spec:
         - --metrics-endpoint={{ .Values.prometheus.metrics.endpoint }}
         - --metrics-prefix={{ .Values.prometheus.metrics.prefix }}
         - --metrics-labels=app_type
+        - --metrics-job-start-latency-buckets={{ .Values.prometheus.metrics.jobStartLatencyBuckets }}
         {{- end }}
         {{ if .Values.controller.leaderElection.enable }}
         - --leader-election=true
