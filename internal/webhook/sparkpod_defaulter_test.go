@@ -1742,7 +1742,7 @@ func TestPatchSparkPod_GracePeriodSeconds(t *testing.T) {
 }
 
 func TestPatchSparkPod_Lifecycle(t *testing.T) {
-	testcases := []struct{
+	testcases := []struct {
 		ExecutorContainerName string
 	}{
 		{
@@ -1778,7 +1778,7 @@ func TestPatchSparkPod_Lifecycle(t *testing.T) {
 				},
 			},
 		}
-	
+
 		driverPod := &corev1.Pod{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "spark-driver",
@@ -1796,7 +1796,7 @@ func TestPatchSparkPod_Lifecycle(t *testing.T) {
 				},
 			},
 		}
-	
+
 		executorPod := &corev1.Pod{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "spark-executor",
@@ -1814,7 +1814,7 @@ func TestPatchSparkPod_Lifecycle(t *testing.T) {
 				},
 			},
 		}
-	
+
 		modifiedDriverPod, err := getModifiedPod(driverPod, app)
 		if err != nil {
 			t.Fatal(err)
