@@ -1742,77 +1742,90 @@ func TestPatchSparkPod_GracePeriodSeconds(t *testing.T) {
 }
 
 func TestPatchSparkPod_Lifecycle(t *testing.T) {
-	preStopTest := &corev1.ExecAction{
-		Command: []string{"/bin/sh", "-c", "echo Hello from the pre stop handler > /usr/share/message"},
-	}
-	postStartTest := &corev1.ExecAction{
-		Command: []string{"/bin/sh", "-c", "echo Hello from the post start handler > /usr/share/message"},
-	}
-	app := &v1beta2.SparkApplication{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "spark-test",
-			UID:  "spark-test-1",
+	testcases := []struct {
+		ExecutorContainerName string
+	}{
+		{
+			ExecutorContainerName: common.SparkExecutorContainerName,
 		},
-		Spec: v1beta2.SparkApplicationSpec{
-			Driver: v1beta2.DriverSpec{
-				Lifecycle: &corev1.Lifecycle{
-					PreStop: &corev1.LifecycleHandler{Exec: preStopTest},
-				},
-			},
-			Executor: v1beta2.ExecutorSpec{
-				Lifecycle: &corev1.Lifecycle{
-					PostStart: &corev1.LifecycleHandler{Exec: postStartTest},
-				},
-			},
+		{
+			ExecutorContainerName: common.Spark3DefaultExecutorContainerName,
 		},
 	}
 
-	driverPod := &corev1.Pod{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "spark-driver",
-			Labels: map[string]string{
-				common.LabelSparkRole:               common.SparkRoleDriver,
-				common.LabelLaunchedBySparkOperator: "true",
+	for _, testCase := range testcases {
+		preStopTest := &corev1.ExecAction{
+			Command: []string{"/bin/sh", "-c", "echo Hello from the pre stop handler > /usr/share/message"},
+		}
+		postStartTest := &corev1.ExecAction{
+			Command: []string{"/bin/sh", "-c", "echo Hello from the post start handler > /usr/share/message"},
+		}
+		app := &v1beta2.SparkApplication{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "spark-test",
+				UID:  "spark-test-1",
 			},
-		},
-		Spec: corev1.PodSpec{
-			Containers: []corev1.Container{
-				{
-					Name:  common.SparkDriverContainerName,
-					Image: "spark-driver:latest",
+			Spec: v1beta2.SparkApplicationSpec{
+				Driver: v1beta2.DriverSpec{
+					Lifecycle: &corev1.Lifecycle{
+						PreStop: &corev1.LifecycleHandler{Exec: preStopTest},
+					},
+				},
+				Executor: v1beta2.ExecutorSpec{
+					Lifecycle: &corev1.Lifecycle{
+						PostStart: &corev1.LifecycleHandler{Exec: postStartTest},
+					},
 				},
 			},
-		},
-	}
+		}
 
-	executorPod := &corev1.Pod{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "spark-executor",
-			Labels: map[string]string{
-				common.LabelSparkRole:               common.SparkRoleExecutor,
-				common.LabelLaunchedBySparkOperator: "true",
-			},
-		},
-		Spec: corev1.PodSpec{
-			Containers: []corev1.Container{
-				{
-					Name:  common.SparkExecutorContainerName,
-					Image: "spark-executor:latest",
+		driverPod := &corev1.Pod{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "spark-driver",
+				Labels: map[string]string{
+					common.LabelSparkRole:               common.SparkRoleDriver,
+					common.LabelLaunchedBySparkOperator: "true",
 				},
 			},
-		},
-	}
+			Spec: corev1.PodSpec{
+				Containers: []corev1.Container{
+					{
+						Name:  common.SparkDriverContainerName,
+						Image: "spark-driver:latest",
+					},
+				},
+			},
+		}
 
-	modifiedDriverPod, err := getModifiedPod(driverPod, app)
-	if err != nil {
-		t.Fatal(err)
+		executorPod := &corev1.Pod{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "spark-executor",
+				Labels: map[string]string{
+					common.LabelSparkRole:               common.SparkRoleExecutor,
+					common.LabelLaunchedBySparkOperator: "true",
+				},
+			},
+			Spec: corev1.PodSpec{
+				Containers: []corev1.Container{
+					{
+						Name:  testCase.ExecutorContainerName,
+						Image: "spark-executor:latest",
+					},
+				},
+			},
+		}
+
+		modifiedDriverPod, err := getModifiedPod(driverPod, app)
+		if err != nil {
+			t.Fatal(err)
+		}
+		modifiedExecutorPod, err := getModifiedPod(executorPod, app)
+		if err != nil {
+			t.Fatal(err)
+		}
+		assert.Equal(t, preStopTest, modifiedDriverPod.Spec.Containers[0].Lifecycle.PreStop.Exec)
+		assert.Equal(t, postStartTest, modifiedExecutorPod.Spec.Containers[0].Lifecycle.PostStart.Exec)
 	}
-	modifiedExecutorPod, err := getModifiedPod(executorPod, app)
-	if err != nil {
-		t.Fatal(err)
-	}
-	assert.Equal(t, preStopTest, modifiedDriverPod.Spec.Containers[0].Lifecycle.PreStop.Exec)
-	assert.Equal(t, postStartTest, modifiedExecutorPod.Spec.Containers[0].Lifecycle.PostStart.Exec)
 }
 
 func getModifiedPod(old *corev1.Pod, app *v1beta2.SparkApplication) (*corev1.Pod, error) {
