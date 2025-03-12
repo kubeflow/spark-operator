@@ -9,7 +9,6 @@ examples/
 hack/
 manifest/
 spark-docker/
-sparkctl/
 test/
 vendor/
 .dockerignore
