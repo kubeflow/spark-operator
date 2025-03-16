@@ -1412,6 +1412,21 @@ string
 </tr>
 <tr>
 <td>
+<code>timeZone</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>TimeZone is the time zone in which the cron schedule will be interpreted in.
+This value is passed to time.LoadLocation, so it must be either &ldquo;Local&rdquo;, &ldquo;UTC&rdquo;,
+or a valid IANA location name e.g. &ldquo;America/New_York&rdquo;.
+Defaults to &ldquo;Local&rdquo;.</p>
+</td>
+</tr>
+<tr>
+<td>
 <code>template</code><br/>
 <em>
 <a href="#sparkoperator.k8s.io/v1beta2.SparkApplicationSpec">
@@ -1517,6 +1532,21 @@ string
 </td>
 <td>
 <p>Schedule is a cron schedule on which the application should run.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>timeZone</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>TimeZone is the time zone in which the cron schedule will be interpreted in.
+This value is passed to time.LoadLocation, so it must be either &ldquo;Local&rdquo;, &ldquo;UTC&rdquo;,
+or a valid IANA location name e.g. &ldquo;America/New_York&rdquo;.
+Defaults to &ldquo;Local&rdquo;.</p>
 </td>
 </tr>
 <tr>
