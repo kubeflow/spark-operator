@@ -34,6 +34,12 @@ type ScheduledSparkApplicationSpec struct {
 
 	// Schedule is a cron schedule on which the application should run.
 	Schedule string `json:"schedule"`
+	// TimeZone is the time zone in which the cron schedule will be interpreted in.
+	// This value is passed to time.LoadLocation, so it must be either "Local", "UTC",
+	// or a valid IANA location name e.g. "America/New_York".
+	// +optional
+	// Defaults to "Local".
+	TimeZone string `json:"timeZone"`
 	// Template is a template from which SparkApplication instances can be created.
 	Template SparkApplicationSpec `json:"template"`
 	// Suspend is a flag telling the controller to suspend subsequent runs of the application if set to true.
