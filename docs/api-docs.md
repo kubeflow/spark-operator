@@ -2880,6 +2880,18 @@ string
 </tr>
 <tr>
 <td>
+<code>memoryLimit</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>MemoryLimit overrides the memory limit of the pod.</p>
+</td>
+</tr>
+<tr>
+<td>
 <code>memoryOverhead</code><br/>
 <em>
 string
