@@ -3119,7 +3119,8 @@ spec:
                           the pod.
                         type: string
                       memoryLimit:
-                        description: MemoryLimit overrides the memory limit of the pod.
+                        description: MemoryLimit overrides the memory limit of the
+                          pod.
                         type: string
                       memoryOverhead:
                         description: MemoryOverhead is the amount of off-heap memory
@@ -8246,7 +8247,8 @@ spec:
                           the pod.
                         type: string
                       memoryLimit:
-                        description: MemoryLimit overrides the memory limit of the pod.
+                        description: MemoryLimit overrides the memory limit of the
+                          pod.
                         type: string
                       memoryOverhead:
                         description: MemoryOverhead is the amount of off-heap memory
