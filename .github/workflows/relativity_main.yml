@@ -54,7 +54,7 @@ jobs:
           tags: spark-operator:local
           outputs: 'type=docker,dest=/tmp/base-image.tar'
           build-args: |
-            SPARK_IMAGE=${{ secrets.BASE_IMAGE }}:v1.9.3
+            SPARK_IMAGE=${{ secrets.BASE_IMAGE }}:v1.9.6
 
       - name: Cache image
         uses: actions/upload-artifact@v4
