@@ -83,6 +83,12 @@ Create the name of the secret to be used by webhook
 {{ include "spark-operator.webhook.name" . }}-certs
 {{- end -}}
 
+{{/*
+Create the name of the certificate to be used by webhook
+*/}}
+{{- define "spark-operator.webhook.certificateName" -}}
+{{ include "spark-operator.webhook.name" . }}-certificate
+{{- end -}}
 
 {{/*
 Create the name of the service to be used by webhook
