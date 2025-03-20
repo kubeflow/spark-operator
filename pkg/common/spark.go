@@ -38,7 +38,7 @@ const (
 
 	SparkExecutorInstances = "spark.executor.instances"
 
-	SparkExecutorEnvTemplate = "spark.executor.env.%s"
+	SparkExecutorEnvTemplate = "spark.executorEnv.%s"
 
 	SparkExecutorCores = "spark.executor.cores"
 
