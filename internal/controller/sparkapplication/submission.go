@@ -742,11 +742,11 @@ func executorSecretOption(app *v1beta2.SparkApplication) ([]string, error) {
 		args = append(args, "--conf", fmt.Sprintf("%s=%s", property, secret.Path))
 		switch secret.Type {
 		case v1beta2.SecretTypeGCPServiceAccount:
-			property := fmt.Sprintf(common.SparkKubernetesDriverEnvTemplate, common.EnvGoogleApplicationCredentials)
+			property := fmt.Sprintf(common.SparkExecutorEnvTemplate, common.EnvGoogleApplicationCredentials)
 			args = append(args, "--conf", fmt.Sprintf("%s=%s", property,
 				filepath.Join(secret.Path, common.ServiceAccountJSONKeyFileName)))
 		case v1beta2.SecretTypeHadoopDelegationToken:
-			property := fmt.Sprintf(common.SparkKubernetesDriverEnvTemplate, common.EnvHadoopTokenFileLocation)
+			property := fmt.Sprintf(common.SparkExecutorEnvTemplate, common.EnvHadoopTokenFileLocation)
 			args = append(args, "--conf", fmt.Sprintf("%s=%s", property,
 				filepath.Join(secret.Path, common.HadoopDelegationTokenFileName)))
 		}
