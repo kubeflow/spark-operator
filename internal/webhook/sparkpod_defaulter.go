@@ -125,9 +125,8 @@ func addMemoryLimit(pod *corev1.Pod, app *v1beta2.SparkApplication) error {
 	}
 
 	// Apply the memory limit to the container's resources
-	logger.Info(fmt.Sprintf("Adding memory limit %s to container in pod %s", *memoryLimit, pod.Name))
 	pod.Spec.Containers[i].Resources.Limits[corev1.ResourceMemory] = limitQuantity
-	logger.Info(fmt.Sprintf("Successfully added memory limit %s to container in pod %s", limitQuantity.String(), pod.Name))
+	logger.V(1).Info("Added memory limit to Spark container in pod", "name", pod.Name, "namespace", pod.Namespace, "memoryLimit", limitQuantity.String())
 	return nil
 }
 
