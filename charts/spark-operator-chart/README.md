@@ -83,6 +83,9 @@ See [helm uninstall](https://helm.sh/docs/helm/helm_uninstall) for command docum
 | image.tag | string | If not set, the chart appVersion will be used. | Image tag. |
 | image.pullPolicy | string | `"IfNotPresent"` | Image pull policy. |
 | image.pullSecrets | list | `[]` | Image pull secrets for private image registry. |
+| hook.upgradeCrd | bool | `true` | Specifies whether to update CRDs with a Helm hook job. |
+| hook.resources | object | `{"limits":{"cpu":"100m","memory":"64Mi"},"requests":{"cpu":"100m","memory":"64Mi"}}` | Resource requests and limits for hook containers. |
+| hook.securityContext | object | `{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]},"privileged":false,"readOnlyRootFilesystem":true,"runAsNonRoot":true}` | Security context for hook containers. |
 | controller.replicas | int | `1` | Number of replicas of controller. |
 | controller.leaderElection.enable | bool | `true` | Specifies whether to enable leader election for controller. |
 | controller.workers | int | `10` | Reconcile concurrency, higher values might increase memory usage. |
