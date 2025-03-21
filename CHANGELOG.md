@@ -1,5 +1,49 @@
 # Changelog
 
+## [v2.1.1](https://github.com/kubeflow/spark-operator/tree/v2.1.1) (2025-03-21)
+
+### Features
+
+- Adding seccompProfile RuntimeDefault ([#2397](https://github.com/kubeflow/spark-operator/pull/2397) by [@tarekabouzeid](https://github.com/tarekabouzeid))
+- Add option for disabling leader election ([#2423](https://github.com/kubeflow/spark-operator/pull/2423) by [@ChenYi015](https://github.com/ChenYi015))
+- Controller should only be granted event permissions in spark job namespaces ([#2426](https://github.com/kubeflow/spark-operator/pull/2426) by [@ChenYi015](https://github.com/ChenYi015))
+- Make image optional ([#2439](https://github.com/kubeflow/spark-operator/pull/2439) by [@jbhalodia-slack](https://github.com/jbhalodia-slack))
+- Support non-standard Spark container names ([#2441](https://github.com/kubeflow/spark-operator/pull/2441) by [@jbhalodia-slack](https://github.com/jbhalodia-slack))
+- add support for metrics-job-start-latency-buckets flag in helm ([#2450](https://github.com/kubeflow/spark-operator/pull/2450) by [@nabuskey](https://github.com/nabuskey))
+
+### Bug Fixes
+
+- fix: webhook fail to add lifecycle to Spark3 executor pods ([#2458](https://github.com/kubeflow/spark-operator/pull/2458) by [@pvbouwel](https://github.com/pvbouwel))
+- change env in executorSecretOption ([#2467](https://github.com/kubeflow/spark-operator/pull/2467) by [@TQJADE](https://github.com/TQJADE))
+
+### Misc
+
+- Move sparkctl to cmd directory ([#2347](https://github.com/kubeflow/spark-operator/pull/2347) by [@ChenYi015](https://github.com/ChenYi015))
+- Bump golang.org/x/net from 0.30.0 to 0.32.0 ([#2350](https://github.com/kubeflow/spark-operator/pull/2350) by [@dependabot[bot]](https://github.com/apps/dependabot))
+- Bump golang.org/x/crypto from 0.30.0 to 0.31.0 ([#2365](https://github.com/kubeflow/spark-operator/pull/2365) by [@dependabot[bot]](https://github.com/apps/dependabot))
+- add an example of using prometheus servlet ([#2403](https://github.com/kubeflow/spark-operator/pull/2403) by [@nabuskey](https://github.com/nabuskey))
+- Remove dependency on `k8s.io/kubernetes` ([#2398](https://github.com/kubeflow/spark-operator/pull/2398) by [@jacobsalway](https://github.com/jacobsalway))
+- fix make deploy and install ([#2412](https://github.com/kubeflow/spark-operator/pull/2412) by [@nabuskey](https://github.com/nabuskey))
+- Add helm unittest step to integration test workflow ([#2424](https://github.com/kubeflow/spark-operator/pull/2424) by [@ChenYi015](https://github.com/ChenYi015))
+- ensure passed context is used ([#2432](https://github.com/kubeflow/spark-operator/pull/2432) by [@nabuskey](https://github.com/nabuskey))
+- Bump manusa/actions-setup-minikube from 2.13.0 to 2.13.1 ([#2390](https://github.com/kubeflow/spark-operator/pull/2390) by [@dependabot[bot]](https://github.com/apps/dependabot))
+- Bump helm/chart-testing-action from 2.6.1 to 2.7.0 ([#2391](https://github.com/kubeflow/spark-operator/pull/2391) by [@dependabot[bot]](https://github.com/apps/dependabot))
+- Bump golang.org/x/mod from 0.21.0 to 0.23.0 ([#2427](https://github.com/kubeflow/spark-operator/pull/2427) by [@dependabot[bot]](https://github.com/apps/dependabot))
+- Bump github.com/golang/glog from 1.2.2 to 1.2.4 ([#2411](https://github.com/kubeflow/spark-operator/pull/2411) by [@dependabot[bot]](https://github.com/apps/dependabot))
+- Bump golang.org/x/net from 0.32.0 to 0.35.0 ([#2428](https://github.com/kubeflow/spark-operator/pull/2428) by [@dependabot[bot]](https://github.com/apps/dependabot))
+- Support Kubernetes 1.32 ([#2416](https://github.com/kubeflow/spark-operator/pull/2416) by [@jacobsalway](https://github.com/jacobsalway))
+- use cmd context in sparkctl ([#2447](https://github.com/kubeflow/spark-operator/pull/2447) by [@nabuskey](https://github.com/nabuskey))
+- Bump golang.org/x/net from 0.35.0 to 0.36.0 ([#2470](https://github.com/kubeflow/spark-operator/pull/2470) by [@dependabot[bot]](https://github.com/apps/dependabot))
+- Bump aquasecurity/trivy-action from 0.29.0 to 0.30.0 ([#2475](https://github.com/kubeflow/spark-operator/pull/2475) by [@dependabot[bot]](https://github.com/apps/dependabot))
+- Bump golang.org/x/net from 0.35.0 to 0.37.0 ([#2472](https://github.com/kubeflow/spark-operator/pull/2472) by [@dependabot[bot]](https://github.com/apps/dependabot))
+- Bump github.com/containerd/containerd from 1.7.19 to 1.7.27 ([#2476](https://github.com/kubeflow/spark-operator/pull/2476) by [@dependabot[bot]](https://github.com/apps/dependabot))
+- Bump k8s.io/apimachinery from 0.32.0 to 0.32.3 ([#2474](https://github.com/kubeflow/spark-operator/pull/2474) by [@dependabot[bot]](https://github.com/apps/dependabot))
+- Bump github.com/aws/aws-sdk-go-v2/service/s3 from 1.66.0 to 1.78.2 ([#2473](https://github.com/kubeflow/spark-operator/pull/2473) by [@dependabot[bot]](https://github.com/apps/dependabot))
+- Bump github.com/aws/aws-sdk-go-v2/config from 1.28.0 to 1.29.9 ([#2463](https://github.com/kubeflow/spark-operator/pull/2463) by [@dependabot[bot]](https://github.com/apps/dependabot))
+- Bump sigs.k8s.io/scheduler-plugins from 0.29.8 to 0.30.6 ([#2444](https://github.com/kubeflow/spark-operator/pull/2444) by [@dependabot[bot]](https://github.com/apps/dependabot))
+
+[Full Changelog](https://github.com/kubeflow/spark-operator/compare/v2.1.0...v2.1.1)
+
 ## [v2.1.0](https://github.com/kubeflow/spark-operator/tree/v2.1.0) (2024-12-06)
 
 ### New Features
