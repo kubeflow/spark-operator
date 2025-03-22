@@ -29,7 +29,7 @@ commonLabels: {}
 
 image:
   # -- Image registry.
-  registry: docker.io
+  registry: ghcr.io
   # -- Image repository.
   repository: kubeflow/spark-operator
   # -- Image tag.
