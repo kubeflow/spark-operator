@@ -35,7 +35,7 @@ UNAME := `uname | tr '[:upper:]' '[:lower:]'`
 CONTAINER_TOOL ?= docker
 
 # Image URL to use all building/pushing image targets
-IMAGE_REGISTRY ?= docker.io
+IMAGE_REGISTRY ?= ghcr.io
 IMAGE_REPOSITORY ?= kubeflow/spark-operator
 IMAGE_TAG ?= $(VERSION)
 IMAGE ?= $(IMAGE_REGISTRY)/$(IMAGE_REPOSITORY):$(IMAGE_TAG)
