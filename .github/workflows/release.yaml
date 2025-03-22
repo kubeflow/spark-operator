@@ -13,7 +13,7 @@ concurrency:
 
 env:
   SEMVER_PATTERN: '^v([0-9]+)\.([0-9]+)\.([0-9]+)(-rc\.([0-9]+))?$'
-  IMAGE_REGISTRY: docker.io
+  IMAGE_REGISTRY: ghcr.io
   IMAGE_REPOSITORY: kubeflow/spark-operator
 
 jobs:
