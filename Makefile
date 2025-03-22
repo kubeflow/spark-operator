@@ -177,7 +177,7 @@ build-operator: ## Build Spark operator.
 
 .PHONY: build-sparkctl
 build-sparkctl: ## Build sparkctl binary.
-	echo "⚠️ Warning: sparkctl is deprecated and no longer maintained. It will be removed in a future release."
+	echo "⚠️ Warning: sparkctl is deprecated and no longer maintained. It will be removed in a future release. Please use kubectl instead."
 	echo "Building sparkctl binary..."
 	CGO_ENABLED=0 go build -o $(SPARKCTL) -buildvcs=false cmd/sparkctl/main.go
 
