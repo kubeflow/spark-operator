@@ -17,11 +17,16 @@ limitations under the License.
 package main
 
 import (
+	"fmt"
+	"os"
+
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
 	"github.com/kubeflow/spark-operator/cmd/sparkctl/app"
 )
 
+// Deprecated: sparkctl is no longer maintained. Use kubectl or other tools instead.
 func main() {
+	fmt.Fprintln(os.Stderr, "⚠️ Warning: sparkctl is deprecated and no longer maintained. Use kubectl instead.")
 	app.Execute()
 }
