@@ -1,4 +1,6 @@
 # sparkctl
+> ⚠️ **Deprecated:** `sparkctl` is no longer actively maintained and may be removed in a future release.  
+> We recommend using `kubectl` or other Kubernetes-native tools to manage `SparkApplication` resources.
 
 `sparkctl` is a command-line tool of the Spark Operator for creating, listing, checking status of, getting logs of, and deleting `SparkApplication`s. It can also do port forwarding from a local port to the Spark web UI port for accessing the Spark web UI on the driver. Each function is implemented as a sub-command of `sparkctl`.
 
