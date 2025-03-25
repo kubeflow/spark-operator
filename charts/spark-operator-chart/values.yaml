@@ -41,6 +41,29 @@ image:
   pullSecrets: []
   # - name: <secret-name>
 
+hook:
+  # -- Specifies whether to update CRDs with a Helm hook job.
+  upgradeCrd: true
+
+  # -- Resource requests and limits for hook containers.
+  resources:
+    requests:
+      cpu: 100m
+      memory: 64Mi
+    limits:
+      cpu: 100m
+      memory: 64Mi
+
+  # -- Security context for hook containers.
+  securityContext:
+    readOnlyRootFilesystem: true
+    privileged: false
+    allowPrivilegeEscalation: false
+    runAsNonRoot: true
+    capabilities:
+      drop:
+      - ALL
+
 controller:
   # -- Number of replicas of controller.
   replicas: 1
