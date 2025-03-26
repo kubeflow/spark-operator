@@ -21,7 +21,7 @@ metadata:
 spec:
   type: Scala
   mode: cluster
-  image: spark:3.5.3
+  image: spark:3.5.5
   imagePullPolicy: IfNotPresent
   mainClass: non-existent
   mainApplicationFile: local:///non-existent.jar
