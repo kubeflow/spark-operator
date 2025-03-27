@@ -21,7 +21,10 @@ import (
 	"fmt"
 	"reflect"
 	"sort"
+	"strings"
 	"time"
+
+	_ "time/tzdata"
 
 	"github.com/robfig/cron/v3"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -107,7 +110,30 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		return ctrl.Result{}, nil
 	}
 
-	schedule, parseErr := cron.ParseStandard(scheduledApp.Spec.Schedule)
+	timezone := scheduledApp.Spec.TimeZone
+	if timezone == "" {
+		timezone = "Local"
+	} else {
+		// Explicitly validate the timezone for a better user experience, but only if it's explicitly specified
+		_, err = time.LoadLocation(timezone)
+		if err != nil {
+			logger.Error(err, "Failed to load timezone location", "name", scheduledApp.Name, "namespace", scheduledApp.Namespace, "timezone", timezone)
+			scheduledApp.Status.ScheduleState = v1beta2.ScheduleStateFailedValidation
+			scheduledApp.Status.Reason = fmt.Sprintf("Invalid timezone: %v", err)
+			if updateErr := r.updateScheduledSparkApplicationStatus(ctx, scheduledApp); updateErr != nil {
+				return ctrl.Result{Requeue: true}, updateErr
+			}
+			return ctrl.Result{}, nil
+		}
+	}
+
+	// Ensure backwards compatibility if the schedule is relying on internal functionality of robfig/cron
+	cronSchedule := scheduledApp.Spec.Schedule
+	if !strings.HasPrefix(cronSchedule, "CRON_TZ=") && !strings.HasPrefix(cronSchedule, "TZ=") {
+		cronSchedule = fmt.Sprintf("CRON_TZ=%s %s", timezone, cronSchedule)
+	}
+
+	schedule, parseErr := cron.ParseStandard(cronSchedule)
 	if parseErr != nil {
 		logger.Error(err, "Failed to parse schedule of ScheduledSparkApplication", "name", scheduledApp.Name, "namespace", scheduledApp.Namespace, "schedule", scheduledApp.Spec.Schedule)
 		scheduledApp.Status.ScheduleState = v1beta2.ScheduleStateFailedValidation

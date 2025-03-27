@@ -34,6 +34,12 @@ type ScheduledSparkApplicationSpec struct {
 
 	// Schedule is a cron schedule on which the application should run.
 	Schedule string `json:"schedule"`
+	// TimeZone is the time zone in which the cron schedule will be interpreted in.
+	// This value is passed to time.LoadLocation, so it must be either "Local", "UTC",
+	// or a valid IANA location name e.g. "America/New_York".
+	// +optional
+	// Defaults to "Local".
+	TimeZone string `json:"timeZone"`
 	// Template is a template from which SparkApplication instances can be created.
 	Template SparkApplicationSpec `json:"template"`
 	// Suspend is a flag telling the controller to suspend subsequent runs of the application if set to true.
@@ -80,6 +86,7 @@ type ScheduledSparkApplicationStatus struct {
 // +kubebuilder:resource:scope=Namespaced,shortName=scheduledsparkapp,singular=scheduledsparkapplication
 // +kubebuilder:subresource:status
 // +kubebuilder:printcolumn:JSONPath=.spec.schedule,name=Schedule,type=string
+// +kubebuilder:printcolumn:JSONPath=.spec.timeZone,name=TimeZone,type=string
 // +kubebuilder:printcolumn:JSONPath=.spec.suspend,name=Suspend,type=string
 // +kubebuilder:printcolumn:JSONPath=.status.lastRun,name=Last Run,type=date
 // +kubebuilder:printcolumn:JSONPath=.status.lastRunName,name=Last Run Name,type=string
