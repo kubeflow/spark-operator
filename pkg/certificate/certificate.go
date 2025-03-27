@@ -25,6 +25,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -89,15 +90,24 @@ func (cp *Provider) SyncSecret(ctx context.Context, name, namespace string) erro
 		len(secret.Data[common.CACertPem]) == 0 ||
 		len(secret.Data[common.ServerCertPem]) == 0 ||
 		len(secret.Data[common.ServerKeyPem]) == 0 {
-		if err := cp.Generate(); err != nil {
-			return fmt.Errorf("failed to generate certificate: %v", err)
-		}
-		if err := cp.updateSecret(ctx, secret); err != nil {
-			return err
-		}
-		return nil
+		return cp.generateAndUpdateSecret(ctx, secret)
 	}
-	return cp.parseSecret(secret)
+
+	if err := cp.parseSecret(secret); err != nil {
+		return err
+	}
+
+	pool := x509.NewCertPool()
+	pool.AddCert(cp.caCert)
+	if _, err := cp.serverCert.Verify(x509.VerifyOptions{
+		DNSName:     cp.commonName,
+		Roots:       pool,
+		CurrentTime: time.Now().AddDate(0, 0, 180),
+	}); err != nil {
+		return cp.generateAndUpdateSecret(ctx, secret)
+	}
+
+	return nil
 }
 
 // CAKey returns the PEM-encoded CA private key.
@@ -301,6 +311,16 @@ func (cp *Provider) updateSecret(ctx context.Context, secret *corev1.Secret) err
 	secret.Data[common.ServerKeyPem] = serverKey
 	secret.Data[common.ServerCertPem] = serverCert
 	if err := cp.client.Update(ctx, secret); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (cp *Provider) generateAndUpdateSecret(ctx context.Context, secret *corev1.Secret) error {
+	if err := cp.Generate(); err != nil {
+		return fmt.Errorf("failed to generate certificate: %v", err)
+	}
+	if err := cp.updateSecret(ctx, secret); err != nil {
 		return err
 	}
 	return nil
