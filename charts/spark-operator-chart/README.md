@@ -134,6 +134,10 @@ See [helm uninstall](https://helm.sh/docs/helm/helm_uninstall) for command docum
 | webhook.portName | string | `"webhook"` | Specifies webhook service port name. |
 | webhook.failurePolicy | string | `"Fail"` | Specifies how unrecognized errors are handled. Available options are `Ignore` or `Fail`. |
 | webhook.timeoutSeconds | int | `10` | Specifies the timeout seconds of the webhook, the value must be between 1 and 30. |
+| webhook.certManager.enable | bool | `false` | Specifies whether to use cert-manager to generate certificates for webhook. |
+| webhook.certManager.issuerRef | object | `{}` | The reference to the issuer. |
+| webhook.certManager.duration | string | `""` | The duration of the certificate validity. |
+| webhook.certManager.renewBefore | string | `""` | The duration before the certificate expiration to renew the certificate. |
 | webhook.resourceQuotaEnforcement.enable | bool | `false` | Specifies whether to enable the ResourceQuota enforcement for SparkApplication resources. |
 | webhook.serviceAccount.create | bool | `true` | Specifies whether to create a service account for the webhook. |
 | webhook.serviceAccount.name | string | `""` | Optional name for the webhook service account. |

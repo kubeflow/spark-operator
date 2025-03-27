@@ -242,7 +242,6 @@ func start() {
 			Jitter:   0.1,
 		},
 		func() (bool, error) {
-			logger.Info("Syncing webhook secret", "name", webhookSecretName, "namespace", webhookSecretNamespace)
 			if err := certProvider.SyncSecret(context.TODO(), webhookSecretName, webhookSecretNamespace); err != nil {
 				if errors.IsAlreadyExists(err) || errors.IsConflict(err) {
 					return false, nil
