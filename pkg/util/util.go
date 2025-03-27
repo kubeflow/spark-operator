@@ -28,6 +28,19 @@ import (
 	"github.com/kubeflow/spark-operator/pkg/common"
 )
 
+var unitMap = map[string]string{
+	"k":  "Ki",
+	"kb": "Ki",
+	"m":  "Mi",
+	"mb": "Mi",
+	"g":  "Gi",
+	"gb": "Gi",
+	"t":  "Ti",
+	"tb": "Ti",
+	"p":  "Pi",
+	"pb": "Pi",
+}
+
 func GetMasterURL() (string, error) {
 	kubernetesServiceHost := os.Getenv(common.EnvKubernetesServiceHost)
 	if kubernetesServiceHost == "" {
@@ -117,4 +130,16 @@ func WriteObjectToFile(obj interface{}, filePath string) error {
 	}
 
 	return nil
+}
+
+func ConvertJavaMemoryStringToK8sMemoryString(memory string) string {
+
+	for unit, k8sUnit := range unitMap {
+		if strings.HasSuffix(strings.ToLower(memory), unit) {
+			return strings.TrimSuffix(memory, unit) + k8sUnit
+		}
+	}
+
+	// return original memory value if no conversion is needed
+	return memory
 }
