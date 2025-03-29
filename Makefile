@@ -36,7 +36,7 @@ CONTAINER_TOOL ?= docker
 
 # Image URL to use all building/pushing image targets
 IMAGE_REGISTRY ?= ghcr.io
-IMAGE_REPOSITORY ?= kubeflow/spark-operator
+IMAGE_REPOSITORY ?= kubeflow/spark-operator/controller
 IMAGE_TAG ?= $(VERSION)
 IMAGE ?= $(IMAGE_REGISTRY)/$(IMAGE_REPOSITORY):$(IMAGE_TAG)
 
