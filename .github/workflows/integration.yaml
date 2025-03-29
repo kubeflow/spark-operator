@@ -206,8 +206,8 @@ jobs:
       - name: Run chart-testing (install)
         if: steps.list-changed.outputs.changed == 'true'
         run: |
-          docker build -t ghcr.io/kubeflow/spark-operator:local .
-          minikube image load ghcr.io/kubeflow/spark-operator:local
+          docker build -t ghcr.io/kubeflow/spark-operator/controller:local .
+          minikube image load ghcr.io/kubeflow/spark-operator/controller:local
           ct install --target-branch ${{ steps.get_branch.outputs.BRANCH }}
 
   e2e-test:
