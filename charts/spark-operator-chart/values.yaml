@@ -31,7 +31,7 @@ image:
   # -- Image registry.
   registry: ghcr.io
   # -- Image repository.
-  repository: kubeflow/spark-operator
+  repository: kubeflow/spark-operator/controller
   # -- Image tag.
   # @default -- If not set, the chart appVersion will be used.
   tag: ""
