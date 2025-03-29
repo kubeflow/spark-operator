@@ -78,8 +78,8 @@ See [helm uninstall](https://helm.sh/docs/helm/helm_uninstall) for command docum
 | nameOverride | string | `""` | String to partially override release name. |
 | fullnameOverride | string | `""` | String to fully override release name. |
 | commonLabels | object | `{}` | Common labels to add to the resources. |
-| image.registry | string | `"docker.io"` | Image registry. |
-| image.repository | string | `"kubeflow/spark-operator"` | Image repository. |
+| image.registry | string | `"ghcr.io"` | Image registry. |
+| image.repository | string | `"kubeflow/spark-operator/controller"` | Image repository. |
 | image.tag | string | If not set, the chart appVersion will be used. | Image tag. |
 | image.pullPolicy | string | `"IfNotPresent"` | Image pull policy. |
 | image.pullSecrets | list | `[]` | Image pull secrets for private image registry. |
