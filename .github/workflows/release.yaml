@@ -151,7 +151,7 @@ jobs:
       - name: Login to container registry
         uses: docker/login-action@v3
         with:
-          registry: ${{ env.IMAGE_REGISTRY }} 
+          registry: ${{ env.IMAGE_REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
