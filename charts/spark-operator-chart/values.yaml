@@ -29,9 +29,9 @@ commonLabels: {}
 
 image:
   # -- Image registry.
-  registry: docker.io
+  registry: ghcr.io
   # -- Image repository.
-  repository: kubeflow/spark-operator
+  repository: kubeflow/spark-operator/controller
   # -- Image tag.
   # @default -- If not set, the chart appVersion will be used.
   tag: ""
