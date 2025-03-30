@@ -39,7 +39,7 @@ type ScheduledSparkApplicationSpec struct {
 	// or a valid IANA location name e.g. "America/New_York".
 	// +optional
 	// Defaults to "Local".
-	TimeZone string `json:"timeZone"`
+	TimeZone string `json:"timeZone,omitempty"`
 	// Template is a template from which SparkApplication instances can be created.
 	Template SparkApplicationSpec `json:"template"`
 	// Suspend is a flag telling the controller to suspend subsequent runs of the application if set to true.
