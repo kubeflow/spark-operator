@@ -16,7 +16,7 @@
 
 ARG SPARK_IMAGE=spark:3.5.5
 
-FROM golang:1.23.1 AS builder
+FROM golang:1.24.1 AS builder
 
 WORKDIR /workspace
 
