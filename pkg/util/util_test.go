@@ -201,3 +201,31 @@ spec:
 		Expect(os.Remove(file)).NotTo(HaveOccurred())
 	})
 })
+
+var _ = Describe("ConvertJavaMemoryStringToK8sMemoryString", func() {
+	It("Should return a memory converted in expected K8s unit", func() {
+
+		unitMap := map[string]string{
+			"k":  "Ki",
+			"kb": "Ki",
+			"m":  "Mi",
+			"mb": "Mi",
+			"g":  "Gi",
+			"gb": "Gi",
+			"t":  "Ti",
+			"tb": "Ti",
+			"p":  "Pi",
+			"pb": "Pi",
+			"Ki": "Ki",
+			"Mi": "Mi",
+			"Gi": "Gi",
+			"Ti": "Ti",
+			"Pi": "Pi",
+		}
+
+		for unit, response := range unitMap {
+			Expect(util.ConvertJavaMemoryStringToK8sMemoryString(unit)).To(Equal(response))
+		}
+
+	})
+})
