@@ -322,11 +322,15 @@ func setupLog() {
 				config = zap.NewProductionEncoderConfig()
 			} else {
 				config = zap.NewDevelopmentEncoderConfig()
+				config.EncodeLevel = zapcore.CapitalColorLevelEncoder
 			}
-			config.EncodeLevel = zapcore.CapitalColorLevelEncoder
 			config.EncodeTime = zapcore.ISO8601TimeEncoder
 			config.EncodeCaller = zapcore.ShortCallerEncoder
-			o.Encoder = zapcore.NewConsoleEncoder(config)
+			if !development {
+				o.Encoder = zapcore.NewJSONEncoder(config)
+			} else {
+				o.Encoder = zapcore.NewConsoleEncoder(config)
+			}
 		}),
 	)
 }
