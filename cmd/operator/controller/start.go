@@ -264,6 +264,8 @@ func start() {
 		}
 	}
 
+	sparkSubmitter := &sparkapplication.SparkSubmitter{}
+
 	// Setup controller for SparkApplication.
 	if err = sparkapplication.NewReconciler(
 		mgr,
@@ -271,6 +273,7 @@ func start() {
 		mgr.GetClient(),
 		mgr.GetEventRecorderFor("spark-application-controller"),
 		registry,
+		sparkSubmitter,
 		newSparkApplicationReconcilerOptions(),
 	).SetupWithManager(mgr, newControllerOptions()); err != nil {
 		logger.Error(err, "Failed to create controller", "controller", "SparkApplication")
