@@ -75,12 +75,13 @@ type Options struct {
 
 // Reconciler reconciles a SparkApplication object.
 type Reconciler struct {
-	manager  ctrl.Manager
-	scheme   *runtime.Scheme
-	client   client.Client
-	recorder record.EventRecorder
-	options  Options
-	registry *scheduler.Registry
+	manager   ctrl.Manager
+	scheme    *runtime.Scheme
+	client    client.Client
+	recorder  record.EventRecorder
+	registry  *scheduler.Registry
+	submitter SparkApplicationSubmitter
+	options   Options
 }
 
 // Reconciler implements reconcile.Reconciler.
@@ -93,15 +94,17 @@ func NewReconciler(
 	client client.Client,
 	recorder record.EventRecorder,
 	registry *scheduler.Registry,
+	submitter SparkApplicationSubmitter,
 	options Options,
 ) *Reconciler {
 	return &Reconciler{
-		manager:  manager,
-		scheme:   scheme,
-		client:   client,
-		recorder: recorder,
-		registry: registry,
-		options:  options,
+		manager:   manager,
+		scheme:    scheme,
+		client:    client,
+		recorder:  recorder,
+		registry:  registry,
+		submitter: submitter,
+		options:   options,
 	}
 }
 
@@ -263,7 +266,7 @@ func (r *Reconciler) reconcileNewSparkApplication(ctx context.Context, req ctrl.
 			}
 			app := old.DeepCopy()
 
-			_ = r.submitSparkApplication(app)
+			_ = r.submitSparkApplication(ctx, app)
 			if err := r.updateSparkApplicationStatus(ctx, app); err != nil {
 				return err
 			}
@@ -331,7 +334,7 @@ func (r *Reconciler) reconcileFailedSubmissionSparkApplication(ctx context.Conte
 				}
 				if timeUntilNextRetryDue <= 0 {
 					if r.validateSparkResourceDeletion(ctx, app) {
-						_ = r.submitSparkApplication(app)
+						_ = r.submitSparkApplication(ctx, app)
 					} else {
 						if err := r.deleteSparkResources(ctx, app); err != nil {
 							logger.Error(err, "failed to delete resources associated with SparkApplication", "name", app.Name, "namespace", app.Namespace)
@@ -412,7 +415,7 @@ func (r *Reconciler) reconcilePendingRerunSparkApplication(ctx context.Context, 
 				logger.Info("Successfully deleted resources associated with SparkApplication", "name", app.Name, "namespace", app.Namespace, "state", app.Status.AppState.State)
 				r.recordSparkApplicationEvent(app)
 				r.resetSparkApplicationStatus(app)
-				_ = r.submitSparkApplication(app)
+				_ = r.submitSparkApplication(ctx, app)
 			}
 			if err := r.updateSparkApplicationStatus(ctx, app); err != nil {
 				return err
@@ -644,7 +647,7 @@ func (r *Reconciler) getSparkApplication(ctx context.Context, key types.Namespac
 }
 
 // submitSparkApplication creates a new submission for the given SparkApplication and submits it using spark-submit.
-func (r *Reconciler) submitSparkApplication(app *v1beta2.SparkApplication) (submitErr error) {
+func (r *Reconciler) submitSparkApplication(ctx context.Context, app *v1beta2.SparkApplication) (submitErr error) {
 	logger.Info("Submitting SparkApplication", "name", app.Name, "namespace", app.Namespace, "state", app.Status.AppState.State)
 
 	// SubmissionID must be set before creating any resources to ensure all the resources are labeled.
@@ -747,17 +750,11 @@ func (r *Reconciler) submitSparkApplication(app *v1beta2.SparkApplication) (subm
 		}
 	}()
 
-	sparkSubmitArgs, err := buildSparkSubmitArgs(app)
-	if err != nil {
-		return fmt.Errorf("failed to build spark-submit arguments: %v", err)
+	if err := r.submitter.Submit(ctx, app); err != nil {
+		r.recordSparkApplicationEvent(app)
+		return fmt.Errorf("failed to submit spark application: %v", err)
 	}
 
-	// Try submitting the application by running spark-submit.
-	logger.Info("Running spark-submit for SparkApplication", "name", app.Name, "namespace", app.Namespace, "arguments", sparkSubmitArgs)
-	if err := runSparkSubmit(newSubmission(sparkSubmitArgs, app)); err != nil {
-		r.recordSparkApplicationEvent(app)
-		return fmt.Errorf("failed to run spark-submit: %v", err)
-	}
 	return nil
 }
 
