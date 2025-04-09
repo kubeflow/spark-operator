@@ -33,8 +33,7 @@ issues:
   # Default dirs are skipped independently of this option's value (see exclude-dirs-use-default).
   # "/" will be replaced by current OS file path separator to properly work on Windows.
   # Default: []
-  exclude-dirs:
-    - sparkctl
+  exclude-dirs: []
   # Maximum issues count per one linter.
   # Set to 0 to disable.
   # Default: 50
