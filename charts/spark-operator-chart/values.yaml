@@ -407,3 +407,17 @@ prometheus:
     podMetricsEndpoint:
       scheme: http
       interval: 5s
+
+certManager:
+  # -- Specifies whether to use cert-manager to generate certificate for webhook.
+  # -- `webhook.enable` must be set to `true` to enable cert-manager.
+  enable: false
+  # -- The reference to the issuer.
+  issuerRef: {}
+    # group: cert-manager.io
+    # kind: ClusterIssuer
+    # name: selfsigned
+  # -- The duration of the certificate validity.
+  duration: ""
+  # -- The duration before the certificate expiration to renew the certificate.
+  renewBefore: ""
