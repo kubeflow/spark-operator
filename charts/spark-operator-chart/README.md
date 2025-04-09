@@ -175,6 +175,10 @@ See [helm uninstall](https://helm.sh/docs/helm/helm_uninstall) for command docum
 | prometheus.podMonitor.labels | object | `{}` | Pod monitor labels |
 | prometheus.podMonitor.jobLabel | string | `"spark-operator-podmonitor"` | The label to use to retrieve the job name from |
 | prometheus.podMonitor.podMetricsEndpoint | object | `{"interval":"5s","scheme":"http"}` | Prometheus metrics endpoint properties. `metrics.portName` will be used as a port |
+| certManager.enable | bool | `false` | `webhook.enable` must be set to `true` to enable cert-manager. |
+| certManager.issuerRef | object | `{}` | The reference to the issuer. |
+| certManager.duration | string | `""` | The duration of the certificate validity. |
+| certManager.renewBefore | string | `""` | The duration before the certificate expiration to renew the certificate. |
 
 ## Maintainers
 

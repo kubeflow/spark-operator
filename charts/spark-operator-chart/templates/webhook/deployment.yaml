@@ -67,6 +67,9 @@ spec:
         {{- with .Values.webhook.resourceQuotaEnforcement.enable }}
         - --enable-resource-quota-enforcement=true
         {{- end }}
+        {{- if .Values.certManager.enable }}
+        - --enable-cert-manager=true
+        {{- end }}
         {{- if .Values.prometheus.metrics.enable }}
         - --enable-metrics=true
         - --metrics-bind-address=:{{ .Values.prometheus.metrics.port }}

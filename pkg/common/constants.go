@@ -30,10 +30,16 @@ const (
 )
 
 const (
+	// Internal Cert
 	CAKeyPem      = "ca-key.pem"
 	CACertPem     = "ca-cert.pem"
 	ServerKeyPem  = "server-key.pem"
 	ServerCertPem = "server-cert.pem"
+
+	// Cert Manager
+	CACert  = "ca.crt"
+	TLSCert = "tls.crt"
+	TLSKey  = "tls.key"
 )
 
 // Kubernetes volume types.

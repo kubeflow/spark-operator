@@ -86,6 +86,9 @@ var (
 	webhookServiceName             string
 	webhookServiceNamespace        string
 
+	// Cert Manager
+	enableCertManager bool
+
 	// Leader election
 	enableLeaderElection        bool
 	leaderElectionLockName      string
@@ -129,11 +132,13 @@ func NewStartCommand() *cobra.Command {
 		},
 	}
 
+	// Controller
 	command.Flags().IntVar(&controllerThreads, "controller-threads", 10, "Number of worker threads used by the SparkApplication controller.")
 	command.Flags().StringSliceVar(&namespaces, "namespaces", []string{}, "The Kubernetes namespace to manage. Will manage custom resource objects of the managed CRD types for the whole cluster if unset or contains empty string.")
 	command.Flags().StringVar(&labelSelectorFilter, "label-selector-filter", "", "A comma-separated list of key=value, or key labels to filter resources during watch and list based on the specified labels.")
 	command.Flags().DurationVar(&cacheSyncTimeout, "cache-sync-timeout", 30*time.Second, "Informer cache sync timeout.")
 
+	// Webhook
 	command.Flags().StringVar(&webhookCertDir, "webhook-cert-dir", "/etc/k8s-webhook-server/serving-certs", "The directory that contains the webhook server key and certificate. "+
 		"When running as nonRoot, you must create and own this directory before running this command.")
 	command.Flags().StringVar(&webhookCertName, "webhook-cert-name", "tls.crt", "The file name of webhook server certificate.")
@@ -147,6 +152,10 @@ func NewStartCommand() *cobra.Command {
 	command.Flags().StringVar(&webhookServiceNamespace, "webhook-svc-namespace", "spark-webhook", "The name of the Service for the webhook server.")
 	command.Flags().BoolVar(&enableResourceQuotaEnforcement, "enable-resource-quota-enforcement", false, "Whether to enable ResourceQuota enforcement for SparkApplication resources. Requires the webhook to be enabled.")
 
+	// Cert Manager
+	command.Flags().BoolVar(&enableCertManager, "enable-cert-manager", false, "Enable cert-manager to manage the webhook server's TLS certificate.")
+
+	// Leader election
 	command.Flags().BoolVar(&enableLeaderElection, "leader-election", false, "Enable leader election for controller manager. "+
 		"Enabling this will ensure there is only one active controller manager.")
 	command.Flags().StringVar(&leaderElectionLockName, "leader-election-lock-name", "spark-operator-lock", "Name of the ConfigMap for leader election.")
@@ -155,6 +164,7 @@ func NewStartCommand() *cobra.Command {
 	command.Flags().DurationVar(&leaderElectionRenewDeadline, "leader-election-renew-deadline", 14*time.Second, "Leader election renew deadline.")
 	command.Flags().DurationVar(&leaderElectionRetryPeriod, "leader-election-retry-period", 4*time.Second, "Leader election retry period.")
 
+	// Prometheus metrics
 	command.Flags().BoolVar(&enableMetrics, "enable-metrics", false, "Enable metrics.")
 	command.Flags().StringVar(&metricsBindAddress, "metrics-bind-address", "0", "The address the metric endpoint binds to. "+
 		"Use the port :8080. If not set, it will be 0 in order to disable the metrics server")
@@ -232,6 +242,7 @@ func start() {
 		client,
 		webhookServiceName,
 		webhookServiceNamespace,
+		enableCertManager,
 	)
 
 	if err := wait.ExponentialBackoff(
@@ -242,7 +253,6 @@ func start() {
 			Jitter:   0.1,
 		},
 		func() (bool, error) {
-			logger.Info("Syncing webhook secret", "name", webhookSecretName, "namespace", webhookSecretNamespace)
 			if err := certProvider.SyncSecret(context.TODO(), webhookSecretName, webhookSecretNamespace); err != nil {
 				if errors.IsAlreadyExists(err) || errors.IsConflict(err) {
 					return false, nil
@@ -262,22 +272,24 @@ func start() {
 		os.Exit(1)
 	}
 
-	if err := mutatingwebhookconfiguration.NewReconciler(
-		mgr.GetClient(),
-		certProvider,
-		mutatingWebhookName,
-	).SetupWithManager(mgr, controller.Options{}); err != nil {
-		logger.Error(err, "Failed to create controller", "controller", "MutatingWebhookConfiguration")
-		os.Exit(1)
-	}
+	if !enableCertManager {
+		if err := mutatingwebhookconfiguration.NewReconciler(
+			mgr.GetClient(),
+			certProvider,
+			mutatingWebhookName,
+		).SetupWithManager(mgr, controller.Options{}); err != nil {
+			logger.Error(err, "Failed to create controller", "controller", "MutatingWebhookConfiguration")
+			os.Exit(1)
+		}
 
-	if err := validatingwebhookconfiguration.NewReconciler(
-		mgr.GetClient(),
-		certProvider,
-		validatingWebhookName,
-	).SetupWithManager(mgr, controller.Options{}); err != nil {
-		logger.Error(err, "Failed to create controller", "controller", "ValidatingWebhookConfiguration")
-		os.Exit(1)
+		if err := validatingwebhookconfiguration.NewReconciler(
+			mgr.GetClient(),
+			certProvider,
+			validatingWebhookName,
+		).SetupWithManager(mgr, controller.Options{}); err != nil {
+			logger.Error(err, "Failed to create controller", "controller", "ValidatingWebhookConfiguration")
+			os.Exit(1)
+		}
 	}
 
 	if err := ctrl.NewWebhookManagedBy(mgr).
