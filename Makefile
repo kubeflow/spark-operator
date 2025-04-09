@@ -64,7 +64,6 @@ HELM_DOCS_VERSION ?= v1.14.2
 
 ## Binaries
 SPARK_OPERATOR ?= $(LOCALBIN)/spark-operator
-SPARKCTL ?= $(LOCALBIN)/sparkctl
 KUBECTL ?= kubectl
 KUSTOMIZE ?= $(LOCALBIN)/kustomize-$(KUSTOMIZE_VERSION)
 CONTROLLER_GEN ?= $(LOCALBIN)/controller-gen-$(CONTROLLER_TOOLS_VERSION)
@@ -175,21 +174,9 @@ build-operator: ## Build Spark operator.
 	echo "Building spark-operator binary..."
 	go build -o $(SPARK_OPERATOR) -ldflags '${LDFLAGS}' cmd/operator/main.go
 
-.PHONY: build-sparkctl
-build-sparkctl: ## Build sparkctl binary.
-	echo "⚠️ Warning: sparkctl is deprecated and no longer maintained. It will be removed in a future release. Please use kubectl instead."
-	echo "Building sparkctl binary..."
-	CGO_ENABLED=0 go build -o $(SPARKCTL) -buildvcs=false cmd/sparkctl/main.go
-
-.PHONY: install-sparkctl
-install-sparkctl: build-sparkctl ## Install sparkctl binary.
-	echo "Installing sparkctl binary to /usr/local/bin..."; \
-	sudo cp $(SPARKCTL) /usr/local/bin
-
 .PHONY: clean
-clean: ## Clean spark-operator and sparktcl binaries.
+clean: ## Clean binaries.
 	rm -f $(SPARK_OPERATOR)
-	rm -f $(SPARKCTL)
 
 .PHONY: build-api-docs
 build-api-docs: gen-crd-api-reference-docs ## Build api documentation.
