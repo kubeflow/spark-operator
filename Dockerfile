@@ -55,6 +55,8 @@ USER ${SPARK_UID}:${SPARK_GID}
 
 COPY --from=builder /workspace/bin/spark-operator /usr/bin/spark-operator
 
+COPY --from=builder /workspace/charts/spark-operator-chart/crds /etc/spark-operator/crds
+
 COPY entrypoint.sh /usr/bin/
 
 ENTRYPOINT ["/usr/bin/entrypoint.sh"]
