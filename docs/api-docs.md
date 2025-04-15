@@ -559,6 +559,19 @@ Maps to <code>spark.kubernetes.driver.request.cores</code> that is available sin
 </tr>
 <tr>
 <td>
+<code>memoryLimit</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>MemoryLimit is overriding the driver pod memory limit.
+By default, the memory limit and request are equal - use carefully.</p>
+</td>
+</tr>
+<tr>
+<td>
 <code>javaOptions</code><br/>
 <em>
 string
@@ -808,6 +821,19 @@ string
 <em>(Optional)</em>
 <p>CoreRequest is the physical CPU core request for the executors.
 Maps to <code>spark.kubernetes.executor.request.cores</code> that is available since Spark 2.4.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>memoryLimit</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>MemoryLimit is overriding the executor pod memory limit.
+By default, the memory limit and request are equal - use carefully.</p>
 </td>
 </tr>
 <tr>
