@@ -2099,3 +2099,89 @@ func TestPatchSparkPod_ShareProcessNamespace(t *testing.T) {
 		}
 	}
 }
+
+func TestPatchSparkPod_MemoryLimit(t *testing.T) {
+
+	var memory = "1Gi"
+	var memoryLimit = "10Gi"
+
+	app := &v1beta2.SparkApplication{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "spark-test-memory",
+			UID:  "spark-test-1",
+		},
+		Spec: v1beta2.SparkApplicationSpec{
+			Driver: v1beta2.DriverSpec{
+				SparkPodSpec: v1beta2.SparkPodSpec{
+					Memory:      &memory,
+					MemoryLimit: &memoryLimit,
+				},
+			},
+			Executor: v1beta2.ExecutorSpec{
+				SparkPodSpec: v1beta2.SparkPodSpec{
+					Memory:      &memory,
+					MemoryLimit: &memoryLimit,
+				},
+			},
+		},
+	}
+
+	driverPod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "spark-test-memory",
+			Labels: map[string]string{
+				common.LabelSparkRole:               common.SparkRoleDriver,
+				common.LabelLaunchedBySparkOperator: "true",
+			},
+		},
+		Spec: corev1.PodSpec{
+			Containers: []corev1.Container{
+				{
+					Name:  common.SparkDriverContainerName,
+					Image: "spark-driver:latest",
+				},
+			},
+		},
+	}
+
+	modifiedDriverPod, err := getModifiedPod(driverPod, app)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	expectedDriverMemoryRequest := modifiedDriverPod.Spec.Containers[0].Resources.Requests[corev1.ResourceMemory]
+	expectedDriverMemoryLimit := modifiedDriverPod.Spec.Containers[0].Resources.Limits[corev1.ResourceMemory]
+
+	assert.Equal(t, "10Gi", expectedDriverMemoryLimit.String())
+	assert.NotEqual(t, expectedDriverMemoryRequest.String(), expectedDriverMemoryLimit.String())
+
+	executorPod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "spark-test-memory",
+			Labels: map[string]string{
+				common.LabelSparkRole:               common.SparkRoleExecutor,
+				common.LabelLaunchedBySparkOperator: "true",
+			},
+		},
+		Spec: corev1.PodSpec{
+			Containers: []corev1.Container{
+				{
+					Name:  common.SparkExecutorContainerName,
+					Image: "spark-executor:latest",
+				},
+			},
+		},
+	}
+
+	modifiedExecutorPod, err := getModifiedPod(executorPod, app)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	expectedExecutorMemoryRequest := modifiedExecutorPod.Spec.Containers[0].Resources.Requests[corev1.ResourceMemory]
+	expectedExecutorMemoryLimit := modifiedExecutorPod.Spec.Containers[0].Resources.Limits[corev1.ResourceMemory]
+
+	assert.Equal(t, "10Gi", expectedExecutorMemoryLimit.String())
+	assert.NotEqual(t, expectedExecutorMemoryRequest.String(), expectedExecutorMemoryLimit.String())
+
+}
