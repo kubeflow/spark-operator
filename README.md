@@ -43,8 +43,6 @@ The Kubernetes Operator for Apache Spark currently supports the following list o
 * Supports automatic application re-submission for updated `SparkApplication` objects with updated specification.
 * Supports automatic application restart with a configurable restart policy.
 * Supports automatic retries of failed submissions with optional linear back-off.
-* Supports mounting local Hadoop configuration as a Kubernetes ConfigMap automatically via `sparkctl`.
-* Supports automatically staging local application dependencies to Google Cloud Storage (GCS) via `sparkctl`.
 * Supports collecting and exporting application-level metrics and driver/executor metrics to Prometheus.
 
 ## Project Status
