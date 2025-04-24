@@ -98,5 +98,9 @@ func defaultExecutorSpec(app *v1beta2.SparkApplication) {
 				app.Spec.Executor.Instances = util.Int32Ptr(1)
 			}
 		}
+		// Set default for ShuffleTrackingEnabled to true if dynamicAllocation.enabled is true.
+		if enableDynamicAllocation && app.Spec.DynamicAllocation.ShuffleTrackingEnabled == nil {
+			app.Spec.DynamicAllocation.ShuffleTrackingEnabled = util.BoolPtr(true)
+		}
 	}
 }

@@ -741,6 +741,21 @@ int32
 </tr>
 <tr>
 <td>
+<code>shuffleTrackingEnabled</code><br/>
+<em>
+bool
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>ShuffleTrackingEnabled enables shuffle file tracking for executors, which allows dynamic allocation without
+the need for an external shuffle service. This option will try to keep alive executors that are storing
+shuffle data for active jobs. If external shuffle service is enabled, set ShuffleTrackingEnabled to false.
+ShuffleTrackingEnabled is true by default if dynamicAllocation.enabled is true.</p>
+</td>
+</tr>
+<tr>
+<td>
 <code>shuffleTrackingTimeout</code><br/>
 <em>
 int64
