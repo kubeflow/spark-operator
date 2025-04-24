@@ -279,6 +279,11 @@ func (in *DynamicAllocation) DeepCopyInto(out *DynamicAllocation) {
 		*out = new(int32)
 		**out = **in
 	}
+	if in.ShuffleTrackingEnabled != nil {
+		in, out := &in.ShuffleTrackingEnabled, &out.ShuffleTrackingEnabled
+		*out = new(bool)
+		**out = **in
+	}
 	if in.ShuffleTrackingTimeout != nil {
 		in, out := &in.ShuffleTrackingTimeout, &out.ShuffleTrackingTimeout
 		*out = new(int64)
