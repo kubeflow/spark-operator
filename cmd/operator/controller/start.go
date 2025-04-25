@@ -137,7 +137,10 @@ func NewStartCommand() *cobra.Command {
 			development = viper.GetBool("development")
 		},
 		PreRunE: func(_ *cobra.Command, args []string) error {
-			return json.Unmarshal([]byte(ingressTLSstring), &ingressTLS)
+			if ingressTLSstring != "" {
+				return json.Unmarshal([]byte(ingressTLSstring), &ingressTLS)
+			}
+			return nil
 		},
 		Run: func(_ *cobra.Command, args []string) {
 			sparkoperator.PrintVersion(false)
@@ -406,6 +409,7 @@ func newSparkApplicationReconcilerOptions() sparkapplication.Options {
 		sparkExecutorMetrics = metrics.NewSparkExecutorMetrics(metricsPrefix, metricsLabels)
 		sparkExecutorMetrics.Register()
 	}
+	logger.Info("Ingress TLS configuration", "ingressTLS", ingressTLS)
 	options := sparkapplication.Options{
 		Namespaces:                   namespaces,
 		EnableUIService:              enableUIService,
