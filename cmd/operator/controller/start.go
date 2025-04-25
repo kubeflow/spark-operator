@@ -138,7 +138,10 @@ func NewStartCommand() *cobra.Command {
 		},
 		PreRunE: func(_ *cobra.Command, args []string) error {
 			if ingressTLSstring != "" {
-				return json.Unmarshal([]byte(ingressTLSstring), &ingressTLS)
+				err := json.Unmarshal([]byte(ingressTLSstring), &ingressTLS)
+				if err != nil {
+					return err
+				}
 			}
 			return nil
 		},

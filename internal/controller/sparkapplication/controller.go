@@ -61,6 +61,7 @@ type Options struct {
 	EnableUIService       bool
 	IngressClassName      string
 	IngressURLFormat      string
+	IngressTLS            []networkingv1.IngressTLS
 	DefaultBatchScheduler string
 
 	DriverPodCreationGracePeriod time.Duration
@@ -323,7 +324,7 @@ func (r *Reconciler) reconcileSubmittedSparkApplication(ctx context.Context, req
 						app.Spec.SparkConf[common.SparkUIProxyBase] = ingressURL.Path
 						app.Spec.SparkConf[common.SparkUIProxyRedirectURI] = "/"
 					}
-					ingress, err := r.createWebUIIngress(app, *service, ingressURL, r.options.IngressClassName)
+					ingress, err := r.createWebUIIngress(app, *service, ingressURL, r.options.IngressClassName, r.options.IngressTLS, r.options.IngressAnnotations)
 					if err != nil {
 						return fmt.Errorf("failed to create web UI ingress: %v", err)
 					}

@@ -89,12 +89,12 @@ func (r *Reconciler) createDriverIngress(app *v1beta2.SparkApplication, driverIn
 	}
 	ingressName := fmt.Sprintf("%s-ing-%d", app.Name, *driverIngressConfiguration.ServicePort)
 	if util.IngressCapabilities.Has("networking.k8s.io/v1") {
-		return r.createDriverIngressV1(app, service, ingressName, ingressURL, ingressClassName)
+		return r.createDriverIngressV1(app, service, ingressName, ingressURL, ingressClassName, nil)
 	}
 	return r.createDriverIngressLegacy(app, service, ingressName, ingressURL)
 }
 
-func (r *Reconciler) createDriverIngressV1(app *v1beta2.SparkApplication, service SparkService, ingressName string, ingressURL *url.URL, ingressClassName string) (*SparkIngress, error) {
+func (r *Reconciler) createDriverIngressV1(app *v1beta2.SparkApplication, service SparkService, ingressName string, ingressURL *url.URL, ingressClassName string, defaultIngressTLS *[]networkingv1.IngressTLS) (*SparkIngress, error) {
 	ingressResourceAnnotations := util.GetWebUIIngressAnnotations(app)
 	ingressTLSHosts := util.GetWebUIIngressTLS(app)
 
@@ -149,6 +149,8 @@ func (r *Reconciler) createDriverIngressV1(app *v1beta2.SparkApplication, servic
 	}
 	if len(ingressTLSHosts) != 0 {
 		ingress.Spec.TLS = ingressTLSHosts
+	} else if defaultIngressTLS != nil && len(*defaultIngressTLS) != 0 {
+		ingress.Spec.TLS = *defaultIngressTLS
 	}
 	if len(ingressClassName) != 0 {
 		ingress.Spec.IngressClassName = &ingressClassName

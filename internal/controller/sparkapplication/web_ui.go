@@ -24,6 +24,7 @@ import (
 	"github.com/kubeflow/spark-operator/v2/api/v1beta2"
 	"github.com/kubeflow/spark-operator/v2/pkg/common"
 	"github.com/kubeflow/spark-operator/v2/pkg/util"
+	networkingv1 "k8s.io/api/networking/v1"
 )
 
 func (r *Reconciler) createWebUIService(app *v1beta2.SparkApplication) (*SparkService, error) {
@@ -46,10 +47,10 @@ func (r *Reconciler) createWebUIService(app *v1beta2.SparkApplication) (*SparkSe
 	return r.createDriverIngressService(app, portName, port, targetPort, serviceName, serviceType, serviceAnnotations, serviceLabels)
 }
 
-func (r *Reconciler) createWebUIIngress(app *v1beta2.SparkApplication, service SparkService, ingressURL *url.URL, ingressClassName string) (*SparkIngress, error) {
+func (r *Reconciler) createWebUIIngress(app *v1beta2.SparkApplication, service SparkService, ingressURL *url.URL, ingressClassName string, ingressTLS []networkingv1.IngressTLS) (*SparkIngress, error) {
 	ingressName := util.GetDefaultUIIngressName(app)
 	if util.IngressCapabilities.Has("networking.k8s.io/v1") {
-		return r.createDriverIngressV1(app, service, ingressName, ingressURL, ingressClassName)
+		return r.createDriverIngressV1(app, service, ingressName, ingressURL, ingressClassName, &ingressTLS)
 	}
 	return r.createDriverIngressLegacy(app, service, ingressName, ingressURL)
 }
