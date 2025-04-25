@@ -18,10 +18,12 @@ package controller
 
 import (
 	"crypto/tls"
+	"encoding/json"
 	"flag"
 	"os"
 	"slices"
 	"time"
+	networkingv1 "k8s.io/api/networking/v1"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
@@ -85,6 +87,7 @@ var (
 	enableBatchScheduler  bool
 	kubeSchedulerNames    []string
 	defaultBatchScheduler string
+	ingressTLS            []networkingv1.IngressTLS
 
 	// Spark web UI service and ingress
 	enableUIService  bool
@@ -126,11 +129,15 @@ func init() {
 }
 
 func NewStartCommand() *cobra.Command {
+	var ingressTLSstring string
 	var command = &cobra.Command{
 		Use:   "start",
 		Short: "Start controller and webhook",
 		PreRun: func(_ *cobra.Command, args []string) {
 			development = viper.GetBool("development")
+		},
+		PreRunE: func(_ *cobra.Command, args []string) error {
+			return json.Unmarshal([]byte(ingressTLSstring), &ingressTLS)
 		},
 		Run: func(_ *cobra.Command, args []string) {
 			sparkoperator.PrintVersion(false)
@@ -154,6 +161,7 @@ func NewStartCommand() *cobra.Command {
 	command.Flags().BoolVar(&enableUIService, "enable-ui-service", true, "Enable Spark Web UI service.")
 	command.Flags().StringVar(&ingressClassName, "ingress-class-name", "", "Set ingressClassName for ingress resources created.")
 	command.Flags().StringVar(&ingressURLFormat, "ingress-url-format", "", "Ingress URL format.")
+	command.Flags().StringVar(&ingressTLSstring, "ingress-tls", "", "JSON format string for the default TLS config on the Spark UI ingresses. e.g. '[{\"hosts\":[\"example.com\"],\"secretName\":\"example-secret\"}]' `ingressTLS` in the SparkApplication spec will override this value.")
 
 	command.Flags().BoolVar(&enableLeaderElection, "leader-election", false, "Enable leader election for controller manager. "+
 		"Enabling this will ensure there is only one active controller manager.")
