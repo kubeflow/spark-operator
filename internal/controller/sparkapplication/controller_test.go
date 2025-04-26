@@ -77,7 +77,7 @@ var _ = Describe("SparkApplication Controller", func() {
 
 		It("Should create an ingress for the Spark UI with TLS and annotations", func() {
 			By("Reconciling the new test SparkApplication")
-			ingressTLS := []networkingv1.IngressTLS{
+			defaultIngressTLS := []networkingv1.IngressTLS{
 				{
 					Hosts:      []string{"example.com", "www.example.com"},
 					SecretName: "example-tls-secret",
@@ -87,7 +87,7 @@ var _ = Describe("SparkApplication Controller", func() {
 					SecretName: "another-tls-secret",
 				},
 			}
-			ingressAnnotations := map[string]string{
+			defaultIngressAnnotations := map[string]string{
 				"cert-manager.io/cluster-issuer": "letsencrypt",
 				"kubernetes.io/ingress.class":    "nginx",
 			}
@@ -97,16 +97,17 @@ var _ = Describe("SparkApplication Controller", func() {
 				k8sClient,
 				record.NewFakeRecorder(3),
 				nil,
-				sparkapplication.Options{EnableUIService: true, IngressURLFormat: "{{$appName}}.spark.test.com", IngressTLS: ingressTLS, IngressAnnotations: ingressAnnotations, Namespaces: []string{appNamespace}},
+				sparkapplication.Options{EnableUIService: true, IngressURLFormat: "{{$appName}}.spark.test.com", DefaultIngressTLS: defaultIngressTLS, DefaultIngressAnnotations: defaultIngressAnnotations, Namespaces: []string{appNamespace}},
 			)
 			_, err := reconciler.Reconcile(ctx, reconcile.Request{NamespacedName: key})
 			Expect(err).NotTo(HaveOccurred())
 
 			ingress := &networkingv1.Ingress{}
 			Expect(k8sClient.Get(ctx, types.NamespacedName{Name: appName + "-ui-ingress", Namespace: appNamespace}, ingress)).To(Succeed())
-			Expect(ingress.Spec.TLS).To(Equal(ingressTLS))
-			Expect(ingress.ObjectMeta.Annotations).To(Equal(ingressAnnotations))
+			Expect(ingress.Spec.TLS).To(Equal(defaultIngressTLS))
+			Expect(ingress.ObjectMeta.Annotations).To(Equal(defaultIngressAnnotations))
 		})
+		// TODO(tomnewton):
 		// Test with no TLS options
 		// Test with SparkApplication TLS options overriding.
 	})

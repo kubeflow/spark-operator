@@ -418,7 +418,7 @@ func newSparkApplicationReconcilerOptions() sparkapplication.Options {
 		EnableUIService:              enableUIService,
 		IngressClassName:             ingressClassName,
 		IngressURLFormat:             ingressURLFormat,
-		IngressTLS:                   ingressTLS,
+		DefaultIngressTLS:            ingressTLS,
 		DefaultBatchScheduler:        defaultBatchScheduler,
 		DriverPodCreationGracePeriod: driverPodCreationGracePeriod,
 		SparkApplicationMetrics:      sparkApplicationMetrics,
