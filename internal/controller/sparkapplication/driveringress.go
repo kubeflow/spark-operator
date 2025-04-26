@@ -147,10 +147,11 @@ func (r *Reconciler) createDriverIngressV1(app *v1beta2.SparkApplication, servic
 		}
 		ingress.ObjectMeta.Annotations["nginx.ingress.kubernetes.io/rewrite-target"] = "/$2"
 	}
+	if len(ingressTLSHosts) == 0 && defaultIngressTLS != nil && len(*defaultIngressTLS) != 0 {
+		ingressTLSHosts = *defaultIngressTLS
+	}
 	if len(ingressTLSHosts) != 0 {
 		ingress.Spec.TLS = ingressTLSHosts
-	} else if defaultIngressTLS != nil && len(*defaultIngressTLS) != 0 {
-		ingress.Spec.TLS = *defaultIngressTLS
 	}
 	if len(ingressClassName) != 0 {
 		ingress.Spec.IngressClassName = &ingressClassName
