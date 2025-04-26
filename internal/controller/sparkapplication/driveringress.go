@@ -89,14 +89,20 @@ func (r *Reconciler) createDriverIngress(app *v1beta2.SparkApplication, driverIn
 	}
 	ingressName := fmt.Sprintf("%s-ing-%d", app.Name, *driverIngressConfiguration.ServicePort)
 	if util.IngressCapabilities.Has("networking.k8s.io/v1") {
-		return r.createDriverIngressV1(app, service, ingressName, ingressURL, ingressClassName, nil)
+		return r.createDriverIngressV1(app, service, ingressName, ingressURL, ingressClassName, nil, nil)
 	}
 	return r.createDriverIngressLegacy(app, service, ingressName, ingressURL)
 }
 
-func (r *Reconciler) createDriverIngressV1(app *v1beta2.SparkApplication, service SparkService, ingressName string, ingressURL *url.URL, ingressClassName string, defaultIngressTLS *[]networkingv1.IngressTLS) (*SparkIngress, error) {
+func (r *Reconciler) createDriverIngressV1(app *v1beta2.SparkApplication, service SparkService, ingressName string, ingressURL *url.URL, ingressClassName string, defaultIngressTLS *[]networkingv1.IngressTLS, defaultIngressAnnotations *map[string]string) (*SparkIngress, error) {
 	ingressResourceAnnotations := util.GetWebUIIngressAnnotations(app)
+	if len(ingressResourceAnnotations) == 0 && defaultIngressAnnotations != nil && len(*defaultIngressAnnotations) != 0 {
+		ingressResourceAnnotations = *defaultIngressAnnotations
+	}
 	ingressTLSHosts := util.GetWebUIIngressTLS(app)
+	if len(ingressTLSHosts) == 0 && defaultIngressTLS != nil && len(*defaultIngressTLS) != 0 {
+		ingressTLSHosts = *defaultIngressTLS
+	}
 
 	ingressURLPath := ingressURL.Path
 	// If we're serving on a subpath, we need to ensure we create capture groups
@@ -146,9 +152,6 @@ func (r *Reconciler) createDriverIngressV1(app *v1beta2.SparkApplication, servic
 			ingress.ObjectMeta.Annotations = make(map[string]string)
 		}
 		ingress.ObjectMeta.Annotations["nginx.ingress.kubernetes.io/rewrite-target"] = "/$2"
-	}
-	if len(ingressTLSHosts) == 0 && defaultIngressTLS != nil && len(*defaultIngressTLS) != 0 {
-		ingressTLSHosts = *defaultIngressTLS
 	}
 	if len(ingressTLSHosts) != 0 {
 		ingress.Spec.TLS = ingressTLSHosts

@@ -62,6 +62,7 @@ type Options struct {
 	IngressClassName      string
 	IngressURLFormat      string
 	IngressTLS            []networkingv1.IngressTLS
+	IngressAnnotations	map[string]string
 	DefaultBatchScheduler string
 
 	DriverPodCreationGracePeriod time.Duration

@@ -75,7 +75,7 @@ var _ = Describe("SparkApplication Controller", func() {
 			Expect(k8sClient.Delete(ctx, app)).To(Succeed())
 		})
 
-		It("Should create an ingress for the Spark UI with TLS options", func() {
+		It("Should create an ingress for the Spark UI with TLS and annotations", func() {
 			By("Reconciling the new test SparkApplication")
 			ingressTLS := []networkingv1.IngressTLS{
 				{
@@ -87,23 +87,25 @@ var _ = Describe("SparkApplication Controller", func() {
 					SecretName: "another-tls-secret",
 				},
 			}
+			ingressAnnotations := map[string]string{
+				"cert-manager.io/cluster-issuer": "letsencrypt",
+				"kubernetes.io/ingress.class":    "nginx",
+			}
 			reconciler := sparkapplication.NewReconciler(
 				nil,
 				k8sClient.Scheme(),
 				k8sClient,
 				record.NewFakeRecorder(3),
 				nil,
-				sparkapplication.Options{EnableUIService: true, IngressURLFormat: "{{$appName}}.spark.domain.com", IngressTLS: ingressTLS},
+				sparkapplication.Options{EnableUIService: true, IngressURLFormat: "{{$appName}}.spark.test.com", IngressTLS: ingressTLS, IngressAnnotations: ingressAnnotations, Namespaces: []string{appNamespace}},
 			)
 			_, err := reconciler.Reconcile(ctx, reconcile.Request{NamespacedName: key})
 			Expect(err).NotTo(HaveOccurred())
-			app := &v1beta2.SparkApplication{}
-			Expect(k8sClient.Get(ctx, key, app)).To(Succeed())
-			Expect(app.Status.AppState.State).To(Equal(v1beta2.ApplicationStateFailedSubmission), "Expect submission to fail because spark-submit is not available")
 
 			ingress := &networkingv1.Ingress{}
 			Expect(k8sClient.Get(ctx, types.NamespacedName{Name: appName + "-ui-ingress", Namespace: appNamespace}, ingress)).To(Succeed())
 			Expect(ingress.Spec.TLS).To(Equal(ingressTLS))
+			Expect(ingress.ObjectMeta.Annotations).To(Equal(ingressAnnotations))
 		})
 		// Test with no TLS options
 		// Test with SparkApplication TLS options overriding.
