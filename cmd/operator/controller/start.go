@@ -23,6 +23,7 @@ import (
 	"os"
 	"slices"
 	"time"
+
 	networkingv1 "k8s.io/api/networking/v1"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
@@ -417,6 +418,7 @@ func newSparkApplicationReconcilerOptions() sparkapplication.Options {
 		EnableUIService:              enableUIService,
 		IngressClassName:             ingressClassName,
 		IngressURLFormat:             ingressURLFormat,
+		IngressTLS:                   ingressTLS,
 		DefaultBatchScheduler:        defaultBatchScheduler,
 		DriverPodCreationGracePeriod: driverPodCreationGracePeriod,
 		SparkApplicationMetrics:      sparkApplicationMetrics,
