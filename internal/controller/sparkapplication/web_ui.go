@@ -47,10 +47,10 @@ func (r *Reconciler) createWebUIService(app *v1beta2.SparkApplication) (*SparkSe
 	return r.createDriverIngressService(app, portName, port, targetPort, serviceName, serviceType, serviceAnnotations, serviceLabels)
 }
 
-func (r *Reconciler) createWebUIIngress(app *v1beta2.SparkApplication, service SparkService, ingressURL *url.URL, ingressClassName string, ingressTLS []networkingv1.IngressTLS, ingressAnnotations map[string]string) (*SparkIngress, error) {
+func (r *Reconciler) createWebUIIngress(app *v1beta2.SparkApplication, service SparkService, ingressURL *url.URL, ingressClassName string, defaultIngressTLS []networkingv1.IngressTLS, defaultIngressAnnotations map[string]string) (*SparkIngress, error) {
 	ingressName := util.GetDefaultUIIngressName(app)
 	if util.IngressCapabilities.Has("networking.k8s.io/v1") {
-		return r.createDriverIngressV1(app, service, ingressName, ingressURL, ingressClassName, &ingressTLS, &ingressAnnotations)
+		return r.createDriverIngressV1(app, service, ingressName, ingressURL, ingressClassName, &defaultIngressTLS, &defaultIngressAnnotations)
 	}
 	return r.createDriverIngressLegacy(app, service, ingressName, ingressURL)
 }

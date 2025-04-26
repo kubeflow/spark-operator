@@ -57,13 +57,13 @@ var (
 
 // Options defines the options of the controller.
 type Options struct {
-	Namespaces            []string
-	EnableUIService       bool
-	IngressClassName      string
-	IngressURLFormat      string
-	IngressTLS            []networkingv1.IngressTLS
-	IngressAnnotations	map[string]string
-	DefaultBatchScheduler string
+	Namespaces                []string
+	EnableUIService           bool
+	IngressClassName          string
+	IngressURLFormat          string
+	DefaultIngressTLS         []networkingv1.IngressTLS
+	DefaultIngressAnnotations map[string]string
+	DefaultBatchScheduler     string
 
 	DriverPodCreationGracePeriod time.Duration
 
