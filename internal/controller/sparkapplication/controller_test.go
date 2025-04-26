@@ -106,12 +106,12 @@ var _ = Describe("SparkApplication Controller", func() {
 			By("Reconciling the new test SparkApplication")
 			defaultIngressTLS := []networkingv1.IngressTLS{
 				{
-					Hosts:      []string{"example.com", "www.example.com"},
+					Hosts:      []string{"*.test.com", "*.test2.com"},
 					SecretName: "example-tls-secret",
 				},
 				{
-					Hosts:      []string{"another-example.com"},
-					SecretName: "another-tls-secret",
+					Hosts:      []string{"another-test.com"},
+					SecretName: "test-tls-secret",
 				},
 			}
 			defaultIngressAnnotations := map[string]string{
@@ -150,8 +150,8 @@ var _ = Describe("SparkApplication Controller", func() {
 		}
 		ingressTLS := []networkingv1.IngressTLS{
 			{
-				Hosts:      []string{"example.com"},
-				SecretName: "example-tls-secret",
+				Hosts:      []string{"*.test.com"},
+				SecretName: "test-tls-secret",
 			},
 		}
 		ingressAnnotations := map[string]string{"cert-manager.io/cluster-issuer": "letsencrypt"}
@@ -214,7 +214,7 @@ var _ = Describe("SparkApplication Controller", func() {
 			By("Reconciling the new test SparkApplication")
 			defaultIngressTLS := []networkingv1.IngressTLS{
 				{
-					Hosts:      []string{"default.com"},
+					Hosts:      []string{"*.default.com"},
 					SecretName: "default-tls-secret",
 				},
 			}
