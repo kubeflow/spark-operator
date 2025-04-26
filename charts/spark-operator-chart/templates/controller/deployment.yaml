@@ -72,8 +72,11 @@ spec:
         {{- with .Values.controller.uiIngress.ingressClassName }}
         - --ingress-class-name={{ . }}
         {{- end }}
-        {{- with .Values.controller.uiIngress.ingressTLS }}
-        - --ingress-tls={{ . | toJson }}
+        {{- with .Values.controller.uiIngress.defaultIngressTLS }}
+        - --default-ingress-tls={{ . | toJson }}
+        {{- end }}
+        {{- with .Values.controller.uiIngress.defaultIngressAnnotations }}
+        - --default-ingress-annotations={{ . | toJson }}
         {{- end }}
         {{- end }}
         {{- if .Values.controller.batchScheduler.enable }}

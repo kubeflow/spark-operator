@@ -74,7 +74,13 @@ controller:
     urlFormat: ""
     # -- Optionally set the ingressClassName.
     ingressClassName: ""
-    ingressTLS: []
+    defaultIngressTLS: []
+    # - hosts:
+    #   - "*.example.com"
+    #   secretName: "example-secret"
+    defaultIngressAnnotations: {}
+      # key1: value1
+      # key2: value2
 
   batchScheduler:
     # -- Specifies whether to enable batch scheduler for spark jobs scheduling.
