@@ -1,11 +1,2 @@
 image:
   tag: local
-
-controller:
-  uiIngress:
-    enable: true
-    urlFormat: app.fake.com
-    ingressTLS:
-    - hosts:
-      - "*.fake.com"
-      secretName: test-secret

@@ -74,10 +74,12 @@ controller:
     urlFormat: ""
     # -- Optionally set the ingressClassName.
     ingressClassName: ""
+    # -- Optionally set default TLS configuration for the Spark UI's ingress. `ingressTLS` in the SparkApplication spec overrides this.
     defaultIngressTLS: []
     # - hosts:
     #   - "*.example.com"
     #   secretName: "example-secret"
+    # -- Optionally set default ingress annotations for the Spark UI's ingress. `ingressAnnotations` in the SparkApplication spec overrides this.
     defaultIngressAnnotations: {}
       # key1: value1
       # key2: value2
