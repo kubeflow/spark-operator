@@ -40,8 +40,8 @@ import (
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
-	"github.com/kubeflow/spark-operator/api/v1beta1"
-	"github.com/kubeflow/spark-operator/api/v1beta2"
+	"github.com/kubeflow/spark-operator/v2/api/v1beta1"
+	"github.com/kubeflow/spark-operator/v2/api/v1beta2"
 	// +kubebuilder:scaffold:imports
 )
 

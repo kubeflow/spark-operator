@@ -29,10 +29,10 @@ import (
 	"volcano.sh/apis/pkg/apis/scheduling/v1beta1"
 	volcanoclientset "volcano.sh/apis/pkg/client/clientset/versioned"
 
-	"github.com/kubeflow/spark-operator/api/v1beta2"
-	"github.com/kubeflow/spark-operator/internal/scheduler"
-	"github.com/kubeflow/spark-operator/pkg/common"
-	"github.com/kubeflow/spark-operator/pkg/util"
+	"github.com/kubeflow/spark-operator/v2/api/v1beta2"
+	"github.com/kubeflow/spark-operator/v2/internal/scheduler"
+	"github.com/kubeflow/spark-operator/v2/pkg/common"
+	"github.com/kubeflow/spark-operator/v2/pkg/util"
 )
 
 var (

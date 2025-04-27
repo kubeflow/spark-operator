@@ -28,8 +28,8 @@ import (
 	"k8s.io/utils/clock"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	"github.com/kubeflow/spark-operator/api/v1beta2"
-	"github.com/kubeflow/spark-operator/pkg/util"
+	"github.com/kubeflow/spark-operator/v2/api/v1beta2"
+	"github.com/kubeflow/spark-operator/v2/pkg/util"
 )
 
 var _ = Describe("ScheduledSparkApplication Controller", func() {

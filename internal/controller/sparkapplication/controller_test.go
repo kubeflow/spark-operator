@@ -31,10 +31,10 @@ import (
 	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	"github.com/kubeflow/spark-operator/api/v1beta2"
-	"github.com/kubeflow/spark-operator/internal/controller/sparkapplication"
-	"github.com/kubeflow/spark-operator/pkg/common"
-	"github.com/kubeflow/spark-operator/pkg/util"
+	"github.com/kubeflow/spark-operator/v2/api/v1beta2"
+	"github.com/kubeflow/spark-operator/v2/internal/controller/sparkapplication"
+	"github.com/kubeflow/spark-operator/v2/pkg/common"
+	"github.com/kubeflow/spark-operator/v2/pkg/util"
 )
 
 var _ = Describe("SparkApplication Controller", func() {

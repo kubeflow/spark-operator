@@ -24,8 +24,8 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/kubeflow/spark-operator/pkg/common"
-	"github.com/kubeflow/spark-operator/pkg/util"
+	"github.com/kubeflow/spark-operator/v2/pkg/common"
+	"github.com/kubeflow/spark-operator/v2/pkg/util"
 )
 
 var _ = Describe("GetMasterURL", func() {

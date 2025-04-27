@@ -1,4 +1,4 @@
-module github.com/kubeflow/spark-operator
+module github.com/kubeflow/spark-operator/v2
 
 go 1.24.1
 
