@@ -21,7 +21,7 @@ import (
 
 	"k8s.io/apimachinery/pkg/api/resource"
 
-	"github.com/kubeflow/spark-operator/api/v1beta2"
+	"github.com/kubeflow/spark-operator/v2/api/v1beta2"
 )
 
 func cpuRequest(cores *int32, coreRequest *string) (string, error) {

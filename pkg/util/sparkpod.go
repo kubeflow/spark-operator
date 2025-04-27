@@ -19,7 +19,7 @@ package util
 import (
 	corev1 "k8s.io/api/core/v1"
 
-	"github.com/kubeflow/spark-operator/pkg/common"
+	"github.com/kubeflow/spark-operator/v2/pkg/common"
 )
 
 // IsLaunchedBySparkOperator returns whether the given pod is launched by the Spark Operator.

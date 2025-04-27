@@ -30,8 +30,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 
-	"github.com/kubeflow/spark-operator/pkg/certificate"
-	"github.com/kubeflow/spark-operator/pkg/common"
+	"github.com/kubeflow/spark-operator/v2/pkg/certificate"
+	"github.com/kubeflow/spark-operator/v2/pkg/common"
 )
 
 var _ = Describe("Certificate Provider", func() {

@@ -49,17 +49,17 @@ import (
 	ctrlwebhook "sigs.k8s.io/controller-runtime/pkg/webhook"
 	schedulingv1alpha1 "sigs.k8s.io/scheduler-plugins/apis/scheduling/v1alpha1"
 
-	sparkoperator "github.com/kubeflow/spark-operator"
-	"github.com/kubeflow/spark-operator/api/v1beta2"
-	"github.com/kubeflow/spark-operator/internal/controller/scheduledsparkapplication"
-	"github.com/kubeflow/spark-operator/internal/controller/sparkapplication"
-	"github.com/kubeflow/spark-operator/internal/metrics"
-	"github.com/kubeflow/spark-operator/internal/scheduler"
-	"github.com/kubeflow/spark-operator/internal/scheduler/kubescheduler"
-	"github.com/kubeflow/spark-operator/internal/scheduler/volcano"
-	"github.com/kubeflow/spark-operator/internal/scheduler/yunikorn"
-	"github.com/kubeflow/spark-operator/pkg/common"
-	"github.com/kubeflow/spark-operator/pkg/util"
+	sparkoperator "github.com/kubeflow/spark-operator/v2"
+	"github.com/kubeflow/spark-operator/v2/api/v1beta2"
+	"github.com/kubeflow/spark-operator/v2/internal/controller/scheduledsparkapplication"
+	"github.com/kubeflow/spark-operator/v2/internal/controller/sparkapplication"
+	"github.com/kubeflow/spark-operator/v2/internal/metrics"
+	"github.com/kubeflow/spark-operator/v2/internal/scheduler"
+	"github.com/kubeflow/spark-operator/v2/internal/scheduler/kubescheduler"
+	"github.com/kubeflow/spark-operator/v2/internal/scheduler/volcano"
+	"github.com/kubeflow/spark-operator/v2/internal/scheduler/yunikorn"
+	"github.com/kubeflow/spark-operator/v2/pkg/common"
+	"github.com/kubeflow/spark-operator/v2/pkg/util"
 	// +kubebuilder:scaffold:imports
 )
 
