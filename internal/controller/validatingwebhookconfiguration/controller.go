@@ -28,7 +28,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	"github.com/kubeflow/spark-operator/pkg/certificate"
+	"github.com/kubeflow/spark-operator/v2/pkg/certificate"
 )
 
 var (

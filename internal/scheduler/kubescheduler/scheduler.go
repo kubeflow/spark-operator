@@ -28,9 +28,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	schedulingv1alpha1 "sigs.k8s.io/scheduler-plugins/apis/scheduling/v1alpha1"
 
-	"github.com/kubeflow/spark-operator/api/v1beta2"
-	"github.com/kubeflow/spark-operator/internal/scheduler"
-	"github.com/kubeflow/spark-operator/pkg/util"
+	"github.com/kubeflow/spark-operator/v2/api/v1beta2"
+	"github.com/kubeflow/spark-operator/v2/internal/scheduler"
+	"github.com/kubeflow/spark-operator/v2/pkg/util"
 )
 
 const (

@@ -25,8 +25,8 @@ import (
 
 	"k8s.io/client-go/util/cert"
 
-	"github.com/kubeflow/spark-operator/pkg/certificate"
-	"github.com/kubeflow/spark-operator/pkg/common"
+	"github.com/kubeflow/spark-operator/v2/pkg/certificate"
+	"github.com/kubeflow/spark-operator/v2/pkg/common"
 )
 
 func TestNewPrivateKey(t *testing.T) {
