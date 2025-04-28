@@ -37,7 +37,7 @@ Deploy a companion HTTP server with the Spark Operator that:
     - `DELETE /sparkapplications/{namespace}/{name}` → Delete
     - `GET /sparkapplications?namespace={ns}` → List
 3. **Accepts and returns** only JSON representations of the CRD, ensuring that manifests applied via `kubectl` or submitted via this REST API behave identically with no difference in outcomes.
-4. **Leverages in-cluster config** for authentication, mounting a namespaced ServiceAccount token bound to a Role granting access to `sparkapplications.sparkoperator.k8s.io` within that namespace.
+4. **Leverages in-cluster config** for authentication, mounting a namespaced ServiceAccount token bound to a `Role` (or `ClusterRole`) granting access to `sparkapplications.sparkoperator.k8s.io` within that namespace.
 5. **Supports TLS termination** via mounted certificates (cert-manager or manual).
 6. **Emits** structured logs and exposes Prometheus metrics for request counts and latencies.
 
@@ -81,7 +81,7 @@ As a user without Kubernetes expertise, I want to use a familiar HTTP API to sub
 ## Graduation Criteria
 
 - Alpha: Basic CRUD endpoints implemented, tested in one real cluster, enabled by a feature flag in Helm.
-- Beta: TLS support, metrics, and documentation completed; rolling upgrades tested.
+- Beta:  Metrics, and documentation completed; rolling upgrades tested.
 - Stable: No feature flag; production-grade documentation and test coverage ≥ 90%; promoted in Spark Operator release notes.
 
 ## Implementation History
