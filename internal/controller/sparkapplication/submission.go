@@ -1004,6 +1004,9 @@ func dynamicAllocationOption(app *v1beta2.SparkApplication) ([]string, error) {
 	if dynamicAllocation.ShuffleTrackingEnabled != nil {
 		args = append(args, "--conf",
 			fmt.Sprintf("%s=%t", common.SparkDynamicAllocationShuffleTrackingEnabled, *dynamicAllocation.ShuffleTrackingEnabled))
+	} else {
+	  	args = append(args, "--conf",
+		    fmt.Sprintf("%s=true", common.SparkDynamicAllocationShuffleTrackingEnabled))
 	}
 	if dynamicAllocation.ShuffleTrackingTimeout != nil {
 		args = append(args, "--conf",
