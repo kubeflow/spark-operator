@@ -86,21 +86,26 @@ func defaultDriverSpec(app *v1beta2.SparkApplication) {
 }
 
 func defaultExecutorSpec(app *v1beta2.SparkApplication) {
-	if app.Spec.Executor.Instances == nil {
-		// Check whether dynamic allocation is enabled in application spec.
-		enableDynamicAllocation := app.Spec.DynamicAllocation != nil && app.Spec.DynamicAllocation.Enabled
-		// Check whether dynamic allocation is enabled in spark conf.
-		if !enableDynamicAllocation && app.Spec.SparkConf != nil {
-			if dynamicConf, _ := strconv.ParseBool(app.Spec.SparkConf[common.SparkDynamicAllocationEnabled]); dynamicConf {
-				enableDynamicAllocation = true
-			}
-			if !enableDynamicAllocation && app.Spec.SparkConf[common.SparkExecutorInstances] == "" {
-				app.Spec.Executor.Instances = util.Int32Ptr(1)
-			}
+
+	isDynamicAllocationSpecEnabled := app.Spec.DynamicAllocation != nil && app.Spec.DynamicAllocation.Enabled
+
+	if app.Spec.Executor.Instances == nil && !isDynamicAllocationSpecEnabled {
+		// Parse SparkConf values
+		isDynamicAllocationConfEnabled := false
+		executorInstancesFromConf := ""
+		if app.Spec.SparkConf != nil {
+			isDynamicAllocationConfEnabled, _ = strconv.ParseBool(app.Spec.SparkConf[common.SparkDynamicAllocationEnabled])
+			executorInstancesFromConf = app.Spec.SparkConf[common.SparkExecutorInstances]
 		}
-		// Set default for ShuffleTrackingEnabled to true if dynamicAllocation.enabled is true.
-		if enableDynamicAllocation && app.Spec.DynamicAllocation.ShuffleTrackingEnabled == nil {
-			app.Spec.DynamicAllocation.ShuffleTrackingEnabled = util.BoolPtr(true)
+
+		if executorInstancesFromConf == "" && !isDynamicAllocationConfEnabled {
+			app.Spec.Executor.Instances = util.Int32Ptr(1)
 		}
 	}
+
+	// Set default for ShuffleTrackingEnabled to true if dynamicAllocation.enabled is true.
+	if isDynamicAllocationSpecEnabled && app.Spec.DynamicAllocation.ShuffleTrackingEnabled == nil {
+		app.Spec.DynamicAllocation.ShuffleTrackingEnabled = util.BoolPtr(true)
+	}
+
 }
