@@ -41,6 +41,8 @@ Deploy a companion HTTP server with the Spark Operator that:
 5. **Supports TLS termination** via mounted certificates (cert-manager or manual).
 6. **Emits** structured logs and exposes Prometheus metrics for request counts and latencies.
 
+7. ![Create spark app exmaple](./spark_app_post_uml.svg)
+
 ### User Stories (Optional)
 
 #### Story 1
