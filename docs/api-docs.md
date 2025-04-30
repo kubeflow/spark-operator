@@ -244,9 +244,9 @@ bool
 </em>
 </td>
 <td>
-<p>Suspend specifies whether the Spark operator should create Pods or not.
-If a SparkApplication is created with suspend set to true, no Pods are created
-by the Spark operator. If a SparkApplication is suspended after creation
+<p>Suspend indicates whether the SparkApplication should be suspended.
+When true, the controller skips submitting the Spark job.
+If a SparkApplication is suspended after creation
 (i.e. the flag goes from false to true), the Spark operator will delete
 all active Pods associated with this SparkApplication.
 Users must design their Spark application to gracefully handle this.</p>
@@ -2359,9 +2359,9 @@ bool
 </em>
 </td>
 <td>
-<p>Suspend specifies whether the Spark operator should create Pods or not.
-If a SparkApplication is created with suspend set to true, no Pods are created
-by the Spark operator. If a SparkApplication is suspended after creation
+<p>Suspend indicates whether the SparkApplication should be suspended.
+When true, the controller skips submitting the Spark job.
+If a SparkApplication is suspended after creation
 (i.e. the flag goes from false to true), the Spark operator will delete
 all active Pods associated with this SparkApplication.
 Users must design their Spark application to gracefully handle this.</p>
