@@ -408,6 +408,11 @@ func (r *Reconciler) reconcilePendingRerunSparkApplication(ctx context.Context, 
 			app := old.DeepCopy()
 
 			logger.Info("Pending rerun SparkApplication", "name", app.Name, "namespace", app.Namespace, "state", app.Status.AppState.State)
+			// delete any pending resources & then perform validation on resouce deletion
+			if err := r.deleteSparkResources(ctx, app); err != nil {
+				logger.Error(err, "failed to delete spark resources", "name", app.Name, "namespace", app.Namespace)
+				return err
+			}
 			if r.validateSparkResourceDeletion(ctx, app) {
 				logger.Info("Successfully deleted resources associated with SparkApplication", "name", app.Name, "namespace", app.Namespace, "state", app.Status.AppState.State)
 				r.recordSparkApplicationEvent(app)
