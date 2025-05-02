@@ -16,6 +16,333 @@ limitations under the License.
 
 package sparkapplication
 
+import (
+	"fmt"
+	"github.com/kubeflow/spark-operator/api/v1beta2"
+	"github.com/kubeflow/spark-operator/pkg/common"
+	"github.com/kubeflow/spark-operator/pkg/util"
+	"github.com/stretchr/testify/assert"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"slices"
+	"testing"
+)
+
+func TestExecutorConfOption(t *testing.T) {
+	tests := []struct {
+		name     string
+		app      *v1beta2.SparkApplication
+		expected []string
+	}{
+		{
+			name: "minimal executor configuration",
+			app: &v1beta2.SparkApplication{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "spark-minimal",
+				},
+				Status: v1beta2.SparkApplicationStatus{
+					SubmissionID: "minimal-123",
+				},
+				Spec: v1beta2.SparkApplicationSpec{
+					Executor: v1beta2.ExecutorSpec{},
+				},
+			},
+			expected: []string{
+				"--conf", fmt.Sprintf("%s=%s", fmt.Sprintf(common.SparkKubernetesExecutorLabelTemplate, common.LabelSparkAppName), "spark-minimal"),
+				"--conf", fmt.Sprintf("%s=%s", fmt.Sprintf(common.SparkKubernetesExecutorLabelTemplate, common.LabelLaunchedBySparkOperator), "true"),
+				"--conf", fmt.Sprintf("%s=%s", fmt.Sprintf(common.SparkKubernetesExecutorLabelTemplate, common.LabelMutatedBySparkOperator), "true"),
+				"--conf", fmt.Sprintf("%s=%s", fmt.Sprintf(common.SparkKubernetesExecutorLabelTemplate, common.LabelSubmissionID), "minimal-123"),
+			},
+		},
+		{
+			name: "custom executor configs",
+			app: &v1beta2.SparkApplication{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "spark-executor",
+				},
+				Status: v1beta2.SparkApplicationStatus{
+					SubmissionID: "exec-123",
+				},
+				Spec: v1beta2.SparkApplicationSpec{
+					Executor: v1beta2.ExecutorSpec{
+						CoreRequest: util.StringPtr("2"),
+						SparkPodSpec: v1beta2.SparkPodSpec{
+							Image:          util.StringPtr("custom-executor:v1"),
+							Cores:          util.Int32Ptr(4),
+							CoreLimit:      util.StringPtr("4"),
+							Memory:         util.StringPtr("4g"),
+							MemoryOverhead: util.StringPtr("1g"),
+						},
+						Instances:           util.Int32Ptr(3),
+						DeleteOnTermination: util.BoolPtr(true),
+					},
+				},
+			},
+			expected: []string{
+				"--conf", fmt.Sprintf("%s=%s", fmt.Sprintf(common.SparkKubernetesExecutorLabelTemplate, common.LabelSparkAppName), "spark-executor"),
+				"--conf", fmt.Sprintf("%s=%s", fmt.Sprintf(common.SparkKubernetesExecutorLabelTemplate, common.LabelLaunchedBySparkOperator), "true"),
+				"--conf", fmt.Sprintf("%s=%s", fmt.Sprintf(common.SparkKubernetesExecutorLabelTemplate, common.LabelMutatedBySparkOperator), "true"),
+				"--conf", fmt.Sprintf("%s=%s", fmt.Sprintf(common.SparkKubernetesExecutorLabelTemplate, common.LabelSubmissionID), "exec-123"),
+				"--conf", fmt.Sprintf("%s=%s", common.SparkKubernetesExecutorContainerImage, "custom-executor:v1"),
+				"--conf", fmt.Sprintf("%s=%d", common.SparkExecutorCores, 4),
+				"--conf", fmt.Sprintf("%s=%s", common.SparkKubernetesExecutorLimitCores, "4"),
+				"--conf", fmt.Sprintf("%s=%s", common.SparkKubernetesExecutorRequestCores, "2"),
+				"--conf", fmt.Sprintf("%s=%s", common.SparkExecutorMemory, "4g"),
+				"--conf", fmt.Sprintf("%s=%s", common.SparkExecutorMemoryOverhead, "1g"),
+				"--conf", fmt.Sprintf("%s=%d", common.SparkExecutorInstances, 3),
+				"--conf", fmt.Sprintf("%s=%t", common.SparkKubernetesExecutorDeleteOnTermination, true),
+			},
+		},
+	}
+
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			options, err := executorConfOption(testCase.app)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			slices.Sort(options)
+			slices.Sort(testCase.expected)
+
+			assert.Equal(t, testCase.expected, options, "Executor configuration options do not match expected values")
+		})
+	}
+}
+
+func TestDriverVolumeMountsOption(t *testing.T) {
+	tests := []struct {
+		name     string
+		app      *v1beta2.SparkApplication
+		expected []string
+	}{
+		{
+			name: "basic local volume",
+			app: &v1beta2.SparkApplication{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "spark-volumes",
+				},
+				Spec: v1beta2.SparkApplicationSpec{
+					Volumes: []corev1.Volume{
+						{
+							Name: fmt.Sprintf("%stest", common.SparkLocalDirVolumePrefix),
+							VolumeSource: corev1.VolumeSource{
+								HostPath: &corev1.HostPathVolumeSource{
+									Path: "/tmp/test-path",
+								},
+							},
+						},
+					},
+					Driver: v1beta2.DriverSpec{
+						SparkPodSpec: v1beta2.SparkPodSpec{
+							VolumeMounts: []corev1.VolumeMount{
+								{
+									Name:      fmt.Sprintf("%stest", common.SparkLocalDirVolumePrefix),
+									MountPath: "/tmp/mount-path",
+									ReadOnly:  true,
+								},
+							},
+						},
+					},
+				},
+			},
+			expected: []string{
+				"--conf", fmt.Sprintf("%s=%s",
+					fmt.Sprintf(common.SparkKubernetesDriverVolumesMountPathTemplate, common.VolumeTypeHostPath, fmt.Sprintf("%stest", common.SparkLocalDirVolumePrefix)),
+					"/tmp/mount-path"),
+				"--conf", fmt.Sprintf("%s=%s",
+					fmt.Sprintf(common.SparkKubernetesDriverVolumesOptionsTemplate, common.VolumeTypeHostPath, fmt.Sprintf("%stest", common.SparkLocalDirVolumePrefix), "path"),
+					"/tmp/test-path"),
+				"--conf", fmt.Sprintf("%s=%s",
+					fmt.Sprintf(common.SparkKubernetesDriverVolumesMountReadOnlyTemplate, common.VolumeTypeHostPath, fmt.Sprintf("%stest", common.SparkLocalDirVolumePrefix)),
+					"true"),
+			},
+		},
+		{
+			name: "emptydir volume with size limit",
+			app: &v1beta2.SparkApplication{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "spark-emptydir",
+				},
+				Spec: v1beta2.SparkApplicationSpec{
+					Volumes: []corev1.Volume{
+						{
+							Name: fmt.Sprintf("%semptydir", common.SparkLocalDirVolumePrefix),
+							VolumeSource: corev1.VolumeSource{
+								EmptyDir: &corev1.EmptyDirVolumeSource{
+									SizeLimit: resource.NewQuantity(10*1024*1024*1024, resource.BinarySI), // 10Gi
+								},
+							},
+						},
+					},
+					Driver: v1beta2.DriverSpec{
+						SparkPodSpec: v1beta2.SparkPodSpec{
+							VolumeMounts: []corev1.VolumeMount{
+								{
+									Name:      fmt.Sprintf("%semptydir", common.SparkLocalDirVolumePrefix),
+									MountPath: "/tmp/scratch",
+									ReadOnly:  false,
+								},
+							},
+						},
+					},
+				},
+			},
+			expected: []string{
+				"--conf", fmt.Sprintf("%s=%s",
+					fmt.Sprintf(common.SparkKubernetesDriverVolumesMountPathTemplate, common.VolumeTypeEmptyDir, fmt.Sprintf("%semptydir", common.SparkLocalDirVolumePrefix)),
+					"/tmp/scratch"),
+				"--conf", fmt.Sprintf("%s=%s",
+					fmt.Sprintf(common.SparkKubernetesDriverVolumesOptionsTemplate, common.VolumeTypeEmptyDir, fmt.Sprintf("%semptydir", common.SparkLocalDirVolumePrefix), "sizeLimit"),
+					"10Gi"),
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			options, err := driverVolumeMountsOption(tt.app)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			slices.Sort(options)
+			slices.Sort(tt.expected)
+
+			assert.Equal(t, tt.expected, options, "Driver volume mount options do not match expected values")
+		})
+	}
+}
+
+func TestDriverConfOption(t *testing.T) {
+	tests := []struct {
+		name     string
+		app      *v1beta2.SparkApplication
+		expected []string
+	}{
+		{
+			name: "basic driver configuration",
+			app: &v1beta2.SparkApplication{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "spark-test",
+					Labels: map[string]string{
+						"environment": "test",
+						"team":        "spark",
+					},
+				},
+				Status: v1beta2.SparkApplicationStatus{
+					SubmissionID: "submission-id-123",
+				},
+				Spec: v1beta2.SparkApplicationSpec{
+					Driver: v1beta2.DriverSpec{
+						SparkPodSpec: v1beta2.SparkPodSpec{
+							Cores:      util.Int32Ptr(2),
+							CoreLimit:  util.StringPtr("2"),
+							Memory:     util.StringPtr("2g"),
+							Image:      util.StringPtr("spark-driver:latest"),
+							ConfigMaps: []v1beta2.NamePath{{Name: "driver-config", Path: "/etc/config"}},
+						},
+					},
+				},
+			},
+			expected: []string{
+				"--conf", fmt.Sprintf("%s=%s", fmt.Sprintf(common.SparkKubernetesDriverLabelTemplate, common.LabelSparkAppName), "spark-test"),
+				"--conf", fmt.Sprintf("%s=%s", fmt.Sprintf(common.SparkKubernetesDriverLabelTemplate, common.LabelLaunchedBySparkOperator), "true"),
+				"--conf", fmt.Sprintf("%s=%s", fmt.Sprintf(common.SparkKubernetesDriverLabelTemplate, common.LabelMutatedBySparkOperator), "true"),
+				"--conf", fmt.Sprintf("%s=%s", fmt.Sprintf(common.SparkKubernetesDriverLabelTemplate, common.LabelSubmissionID), "submission-id-123"),
+				"--conf", fmt.Sprintf("%s=%s", common.SparkKubernetesDriverContainerImage, "spark-driver:latest"),
+				"--conf", fmt.Sprintf("%s=%d", common.SparkDriverCores, 2),
+				"--conf", fmt.Sprintf("%s=%s", common.SparkKubernetesDriverLimitCores, "2"),
+				"--conf", fmt.Sprintf("%s=%s", common.SparkDriverMemory, "2g"),
+				"--conf", fmt.Sprintf("%s=%s", fmt.Sprintf(common.SparkKubernetesDriverLabelTemplate, "environment"), "test"),
+				"--conf", fmt.Sprintf("%s=%s", fmt.Sprintf(common.SparkKubernetesDriverLabelTemplate, "team"), "spark"),
+			},
+		},
+		{
+			name: "minimal driver configuration",
+			app: &v1beta2.SparkApplication{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "spark-minimal",
+				},
+				Status: v1beta2.SparkApplicationStatus{
+					SubmissionID: "minimal-123",
+				},
+				Spec: v1beta2.SparkApplicationSpec{
+					Driver: v1beta2.DriverSpec{},
+				},
+			},
+			expected: []string{
+				"--conf", fmt.Sprintf("%s=%s", fmt.Sprintf(common.SparkKubernetesDriverLabelTemplate, common.LabelSparkAppName), "spark-minimal"),
+				"--conf", fmt.Sprintf("%s=%s", fmt.Sprintf(common.SparkKubernetesDriverLabelTemplate, common.LabelLaunchedBySparkOperator), "true"),
+				"--conf", fmt.Sprintf("%s=%s", fmt.Sprintf(common.SparkKubernetesDriverLabelTemplate, common.LabelMutatedBySparkOperator), "true"),
+				"--conf", fmt.Sprintf("%s=%s", fmt.Sprintf(common.SparkKubernetesDriverLabelTemplate, common.LabelSubmissionID), "minimal-123"),
+			},
+		},
+		{
+			name: "driver with labels and annotations",
+			app: &v1beta2.SparkApplication{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "spark-labels",
+				},
+				Status: v1beta2.SparkApplicationStatus{
+					SubmissionID: "labels-123",
+				},
+				Spec: v1beta2.SparkApplicationSpec{
+					Driver: v1beta2.DriverSpec{
+						SparkPodSpec: v1beta2.SparkPodSpec{
+							Labels: map[string]string{
+								"custom-label": "label-value",
+								"priority":     "high",
+							},
+							Annotations: map[string]string{
+								"custom-annotation":       "annotation-value",
+								"sidecar.istio.io/inject": "false",
+							},
+						},
+						ServiceLabels: map[string]string{
+							"service-label": "service-value",
+							"environment":   "production",
+						},
+						ServiceAnnotations: map[string]string{
+							"service-annotation":   "svc-annotation-value",
+							"prometheus.io/scrape": "true",
+						},
+					},
+				},
+			},
+			expected: []string{
+				"--conf", fmt.Sprintf("%s=%s", fmt.Sprintf(common.SparkKubernetesDriverLabelTemplate, common.LabelSparkAppName), "spark-labels"),
+				"--conf", fmt.Sprintf("%s=%s", fmt.Sprintf(common.SparkKubernetesDriverLabelTemplate, common.LabelLaunchedBySparkOperator), "true"),
+				"--conf", fmt.Sprintf("%s=%s", fmt.Sprintf(common.SparkKubernetesDriverLabelTemplate, common.LabelMutatedBySparkOperator), "true"),
+				"--conf", fmt.Sprintf("%s=%s", fmt.Sprintf(common.SparkKubernetesDriverLabelTemplate, common.LabelSubmissionID), "labels-123"),
+				"--conf", fmt.Sprintf("%s=%s", fmt.Sprintf(common.SparkKubernetesDriverLabelTemplate, "custom-label"), "label-value"),
+				"--conf", fmt.Sprintf("%s=%s", fmt.Sprintf(common.SparkKubernetesDriverLabelTemplate, "priority"), "high"),
+				"--conf", fmt.Sprintf("%s=%s", fmt.Sprintf(common.SparkKubernetesDriverAnnotationTemplate, "custom-annotation"), "annotation-value"),
+				"--conf", fmt.Sprintf("%s=%s", fmt.Sprintf(common.SparkKubernetesDriverAnnotationTemplate, "sidecar.istio.io/inject"), "false"),
+				"--conf", fmt.Sprintf("%s=%s", fmt.Sprintf(common.SparkKubernetesDriverServiceLabelTemplate, "service-label"), "service-value"),
+				"--conf", fmt.Sprintf("%s=%s", fmt.Sprintf(common.SparkKubernetesDriverServiceLabelTemplate, "environment"), "production"),
+				"--conf", fmt.Sprintf("%s=%s", fmt.Sprintf(common.SparkKubernetesDriverServiceAnnotationTemplate, "service-annotation"), "svc-annotation-value"),
+				"--conf", fmt.Sprintf("%s=%s", fmt.Sprintf(common.SparkKubernetesDriverServiceAnnotationTemplate, "prometheus.io/scrape"), "true"),
+			},
+		},
+	}
+
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			options, err := driverConfOption(testCase.app)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			slices.Sort(options)
+			slices.Sort(testCase.expected)
+
+			assert.Equal(t, testCase.expected, options, "Driver configuration options do not match expected values")
+		})
+	}
+}
+
 // import (
 // 	"fmt"
 // 	"os"
