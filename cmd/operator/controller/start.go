@@ -50,7 +50,6 @@ import (
 	schedulingv1alpha1 "sigs.k8s.io/scheduler-plugins/apis/scheduling/v1alpha1"
 
 	sparkoperator "github.com/kubeflow/spark-operator"
-	"github.com/kubeflow/spark-operator/api/v1beta1"
 	"github.com/kubeflow/spark-operator/api/v1beta2"
 	"github.com/kubeflow/spark-operator/internal/controller/scheduledsparkapplication"
 	"github.com/kubeflow/spark-operator/internal/controller/sparkapplication"
@@ -122,7 +121,6 @@ func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 	utilruntime.Must(schedulingv1alpha1.AddToScheme(scheme))
 
-	utilruntime.Must(v1beta1.AddToScheme(scheme))
 	utilruntime.Must(v1beta2.AddToScheme(scheme))
 	// +kubebuilder:scaffold:scheme
 }

@@ -14,22 +14,6 @@ resources:
     controller: true
     domain: sparkoperator.k8s.io
     kind: SparkApplication
-    path: github.com/kubeflow/spark-operator/api/v1beta1
-    version: v1beta1
-  - api:
-      crdVersion: v1
-      namespaced: true
-    controller: true
-    domain: sparkoperator.k8s.io
-    kind: ScheduledSparkApplication
-    path: github.com/kubeflow/spark-operator/api/v1beta1
-    version: v1beta1
-  - api:
-      crdVersion: v1
-      namespaced: true
-    controller: true
-    domain: sparkoperator.k8s.io
-    kind: SparkApplication
     path: github.com/kubeflow/spark-operator/api/v1beta2
     version: v1beta2
     webhooks:
