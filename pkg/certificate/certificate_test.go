@@ -43,7 +43,7 @@ var _ = Describe("Certificate Provider", func() {
 
 		BeforeEach(func() {
 			By("Creating a new cert provider")
-			cp = certificate.NewProvider(k8sClient, secretName, secretNamespace)
+			cp = certificate.NewProvider(k8sClient, secretName, secretNamespace, false)
 			Expect(cp).NotTo(BeNil())
 
 			By("Generating new certificates")
@@ -108,7 +108,7 @@ var _ = Describe("Certificate Provider", func() {
 
 		It("Should generate new certificates and update webhook secret", func() {
 			By("Creating a new CertProvider")
-			cp := certificate.NewProvider(k8sClient, secretName, secretNamespace)
+			cp := certificate.NewProvider(k8sClient, secretName, secretNamespace, false)
 			Expect(cp.SyncSecret(context.TODO(), secretName, secretNamespace)).To(Succeed())
 
 			By("Checking out whether the data of webhook secret is populated")
@@ -142,7 +142,7 @@ var _ = Describe("Certificate Provider", func() {
 			Expect(k8sClient.Create(ctx, secret)).To(Succeed())
 
 			By("Creating a new CertProvider and synchronize generated certificates to webhook secret")
-			cp := certificate.NewProvider(k8sClient, secretName, secretNamespace)
+			cp := certificate.NewProvider(k8sClient, secretName, secretNamespace, false)
 			Expect(cp.SyncSecret(context.TODO(), secretName, secretNamespace)).To(Succeed())
 
 			By("Creating a new webhook secret with data populated")
@@ -160,7 +160,7 @@ var _ = Describe("Certificate Provider", func() {
 
 		It("Should synchronize webhook certificates data", func() {
 			By("Creating a new cert provider and synchronize generated certificates to webhook secret")
-			cp := certificate.NewProvider(k8sClient, secretName, secretNamespace)
+			cp := certificate.NewProvider(k8sClient, secretName, secretNamespace, false)
 			Expect(cp.SyncSecret(context.TODO(), secretName, secretNamespace)).To(Succeed())
 
 			By("Checking out whether the webhook certificates is synchronized into the cert provider")
@@ -199,10 +199,10 @@ var _ = Describe("Certificate Provider", func() {
 			Expect(k8sClient.Update(ctx, secret)).To(Succeed())
 
 			By("Creating a new cert provider and synchronize should generate new certificates")
-			cp := certificate.NewProvider(k8sClient, secretName, secretNamespace)
+			cp := certificate.NewProvider(k8sClient, secretName, secretNamespace, false)
 			Expect(cp.SyncSecret(context.TODO(), secretName, secretNamespace)).To(Succeed())
 
-			By("Checking out whether the webhook certificate changed after syncronize")
+			By("Checking out whether the webhook certificate changed after synchronize")
 			serverPEM, err := cp.ServerCert()
 			Expect(err).To(BeNil())
 			Expect(serverPEM).ShouldNot(Equal(expiredPEM))
