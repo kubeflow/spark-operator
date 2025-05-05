@@ -122,6 +122,7 @@ var _ = Describe("SparkApplication Controller", func() {
 				k8sClient,
 				nil,
 				nil,
+				&sparkapplication.SparkSubmitter{},
 				sparkapplication.Options{Namespaces: []string{appNamespace}, DriverPodCreationGracePeriod: 10 * time.Second},
 			)
 			_, err := reconciler.Reconcile(ctx, reconcile.Request{NamespacedName: key})
@@ -139,6 +140,7 @@ var _ = Describe("SparkApplication Controller", func() {
 				k8sClient,
 				nil,
 				nil,
+				&sparkapplication.SparkSubmitter{},
 				sparkapplication.Options{Namespaces: []string{appNamespace}, DriverPodCreationGracePeriod: 0 * time.Second},
 			)
 			result, err := reconciler.Reconcile(ctx, reconcile.Request{NamespacedName: key})
@@ -205,6 +207,7 @@ var _ = Describe("SparkApplication Controller", func() {
 				k8sClient,
 				nil,
 				nil,
+				&sparkapplication.SparkSubmitter{},
 				sparkapplication.Options{Namespaces: []string{appNamespace}, DriverPodCreationGracePeriod: 0 * time.Second},
 			)
 			result, err := reconciler.Reconcile(ctx, reconcile.Request{NamespacedName: key})
@@ -266,6 +269,7 @@ var _ = Describe("SparkApplication Controller", func() {
 				k8sClient,
 				nil,
 				nil,
+				&sparkapplication.SparkSubmitter{},
 				sparkapplication.Options{Namespaces: []string{appNamespace}},
 			)
 			result, err := reconciler.Reconcile(ctx, reconcile.Request{NamespacedName: key})
@@ -325,6 +329,7 @@ var _ = Describe("SparkApplication Controller", func() {
 				k8sClient,
 				nil,
 				nil,
+				&sparkapplication.SparkSubmitter{},
 				sparkapplication.Options{Namespaces: []string{appNamespace}},
 			)
 			result, err := reconciler.Reconcile(ctx, reconcile.Request{NamespacedName: key})
@@ -379,6 +384,7 @@ var _ = Describe("SparkApplication Controller", func() {
 				k8sClient,
 				nil,
 				nil,
+				&sparkapplication.SparkSubmitter{},
 				sparkapplication.Options{Namespaces: []string{appNamespace}},
 			)
 			result, err := reconciler.Reconcile(ctx, reconcile.Request{NamespacedName: key})
@@ -438,6 +444,7 @@ var _ = Describe("SparkApplication Controller", func() {
 				k8sClient,
 				nil,
 				nil,
+				&sparkapplication.SparkSubmitter{},
 				sparkapplication.Options{Namespaces: []string{appNamespace}},
 			)
 			result, err := reconciler.Reconcile(ctx, reconcile.Request{NamespacedName: key})
@@ -520,6 +527,7 @@ var _ = Describe("SparkApplication Controller", func() {
 				k8sClient,
 				record.NewFakeRecorder(3),
 				nil,
+				&sparkapplication.SparkSubmitter{},
 				sparkapplication.Options{Namespaces: []string{appNamespace}, MaxTrackedExecutorPerApp: 10},
 			)
 			result, err := reconciler.Reconcile(ctx, reconcile.Request{NamespacedName: key})
@@ -539,6 +547,7 @@ var _ = Describe("SparkApplication Controller", func() {
 				k8sClient,
 				record.NewFakeRecorder(3),
 				nil,
+				&sparkapplication.SparkSubmitter{},
 				sparkapplication.Options{Namespaces: []string{appNamespace}, MaxTrackedExecutorPerApp: 1},
 			)
 			result, err := reconciler.Reconcile(ctx, reconcile.Request{NamespacedName: key})
