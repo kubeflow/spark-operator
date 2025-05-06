@@ -18,6 +18,9 @@ package sparkapplication
 
 import (
 	"fmt"
+	"slices"
+	"testing"
+
 	"github.com/kubeflow/spark-operator/api/v1beta2"
 	"github.com/kubeflow/spark-operator/pkg/common"
 	"github.com/kubeflow/spark-operator/pkg/util"
@@ -25,8 +28,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"slices"
-	"testing"
 )
 
 func TestExecutorConfOption(t *testing.T) {
