@@ -29,6 +29,12 @@ const (
 	EventSparkApplicationFailed = "SparkApplicationFailed"
 
 	EventSparkApplicationPendingRerun = "SparkApplicationPendingRerun"
+
+	EventSparkApplicationSuspending = "SparkApplicationSuspending"
+
+	EventSparkApplicationSuspended = "SparkApplicationSuspended"
+
+	EventSparkApplicationResuming = "SparkApplicationResuming"
 )
 
 // Spark driver events
