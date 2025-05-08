@@ -20,6 +20,7 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"flag"
+	"fmt"
 	"os"
 	"slices"
 	"time"
@@ -136,18 +137,18 @@ func NewStartCommand() *cobra.Command {
 	var command = &cobra.Command{
 		Use:   "start",
 		Short: "Start controller and webhook",
-		PreRun: func(_ *cobra.Command, args []string) {
-			development = viper.GetBool("development")
-		},
 		PreRunE: func(_ *cobra.Command, args []string) error {
+			development = viper.GetBool("development")
+
 			if defaultIngressTLSstring != "" {
-				err := json.Unmarshal([]byte(defaultIngressTLSstring), &defaultIngressTLS)
-				if err != nil {
-					return err
+				if err := json.Unmarshal([]byte(defaultIngressTLSstring), &defaultIngressTLS); err != nil {
+					return fmt.Errorf("failed parsing default-ingress-tls JSON string from CLI: %v", err)
 				}
 			}
 			if defaultIngressAnnotationsString != "" {
-				return json.Unmarshal([]byte(defaultIngressAnnotationsString), &defaultIngressAnnotations)
+				if err := json.Unmarshal([]byte(defaultIngressAnnotationsString), &defaultIngressAnnotations); err != nil {
+					return fmt.Errorf("failed parsing default-ingress-annotations JSON string from CLI: %v", err)
+				}
 			}
 			return nil
 		},
