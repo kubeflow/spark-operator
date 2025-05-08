@@ -252,15 +252,13 @@ func HasPrometheusConfigFile(app *v1beta2.SparkApplication) bool {
 
 // HasPrometheusConfig returns if Prometheus monitoring defines metricsProperties in the spec.
 func HasMetricsProperties(app *v1beta2.SparkApplication) bool {
-	return PrometheusMonitoringEnabled(app) &&
-		app.Spec.Monitoring.MetricsProperties != nil &&
+	return app.Spec.Monitoring.MetricsProperties != nil &&
 		*app.Spec.Monitoring.MetricsProperties != ""
 }
 
 // HasPrometheusConfigFile returns if Monitoring defines metricsPropertiesFile in the spec.
 func HasMetricsPropertiesFile(app *v1beta2.SparkApplication) bool {
-	return PrometheusMonitoringEnabled(app) &&
-		app.Spec.Monitoring.MetricsPropertiesFile != nil &&
+	return app.Spec.Monitoring.MetricsPropertiesFile != nil &&
 		*app.Spec.Monitoring.MetricsPropertiesFile != ""
 }
 

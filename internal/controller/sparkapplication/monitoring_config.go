@@ -35,7 +35,7 @@ import (
 
 func configPrometheusMonitoring(app *v1beta2.SparkApplication, client client.Client) error {
 	port := common.DefaultPrometheusJavaAgentPort
-	if app.Spec.Monitoring.Prometheus.Port != nil {
+	if app.Spec.Monitoring.Prometheus != nil && app.Spec.Monitoring.Prometheus.Port != nil {
 		port = *app.Spec.Monitoring.Prometheus.Port
 	}
 
@@ -63,12 +63,14 @@ func configPrometheusMonitoring(app *v1beta2.SparkApplication, client client.Cli
 
 	var javaOption string
 
-	javaOption = fmt.Sprintf(
-		"-javaagent:%s=%d:%s/%s",
-		app.Spec.Monitoring.Prometheus.JmxExporterJar,
-		port,
-		common.PrometheusConfigMapMountPath,
-		common.PrometheusConfigKey)
+	if app.Spec.Monitoring.Prometheus != nil {
+		javaOption = fmt.Sprintf(
+			"-javaagent:%s=%d:%s/%s",
+			app.Spec.Monitoring.Prometheus.JmxExporterJar,
+			port,
+			common.PrometheusConfigMapMountPath,
+			common.PrometheusConfigKey)
+	}
 
 	if util.HasPrometheusConfigFile(app) {
 		configFile := *app.Spec.Monitoring.Prometheus.ConfigFile
@@ -133,7 +135,7 @@ func buildPrometheusConfigMap(app *v1beta2.SparkApplication, prometheusConfigMap
 		configMapData[common.MetricsPropertiesKey] = metricsProperties
 	}
 
-	if !util.HasPrometheusConfigFile(app) {
+	if app.Spec.Monitoring.Prometheus != nil && !util.HasPrometheusConfigFile(app) {
 		prometheusConfig := common.DefaultPrometheusConfiguration
 		if app.Spec.Monitoring.Prometheus.Configuration != nil {
 			prometheusConfig = *app.Spec.Monitoring.Prometheus.Configuration
