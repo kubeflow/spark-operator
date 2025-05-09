@@ -989,10 +989,6 @@ func dynamicAllocationOption(app *v1beta2.SparkApplication) ([]string, error) {
 	args = append(args, "--conf",
 		fmt.Sprintf("%s=true", common.SparkDynamicAllocationEnabled))
 
-	// Turn on shuffle tracking if dynamic allocation is enabled.
-	args = append(args, "--conf",
-		fmt.Sprintf("%s=true", common.SparkDynamicAllocationShuffleTrackingEnabled))
-
 	if dynamicAllocation.InitialExecutors != nil {
 		args = append(args, "--conf",
 			fmt.Sprintf("%s=%d", common.SparkDynamicAllocationInitialExecutors, *dynamicAllocation.InitialExecutors))
@@ -1005,6 +1001,12 @@ func dynamicAllocationOption(app *v1beta2.SparkApplication) ([]string, error) {
 		args = append(args, "--conf",
 			fmt.Sprintf("%s=%d", common.SparkDynamicAllocationMaxExecutors, *dynamicAllocation.MaxExecutors))
 	}
+	shuffleTrackingEnabled := true
+	if dynamicAllocation.ShuffleTrackingEnabled != nil {
+		shuffleTrackingEnabled = *dynamicAllocation.ShuffleTrackingEnabled
+	}
+	args = append(args, "--conf",
+		fmt.Sprintf("%s=%t", common.SparkDynamicAllocationShuffleTrackingEnabled, shuffleTrackingEnabled))
 	if dynamicAllocation.ShuffleTrackingTimeout != nil {
 		args = append(args, "--conf",
 			fmt.Sprintf("%s=%d", common.SparkDynamicAllocationShuffleTrackingTimeout, *dynamicAllocation.ShuffleTrackingTimeout))
