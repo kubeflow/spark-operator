@@ -72,6 +72,16 @@ spec:
         annotations:
           spark.apache.org/version: 3.5.5
       spec:
+        securityContext:
+          capabilities:
+            drop:
+              - ALL
+          runAsGroup: 185
+          runAsUser: 185
+          runAsNonRoot: true
+          allowPrivilegeEscalation: false
+          seccompProfile:
+            type: RuntimeDefault
         containers:
         - name: spark-kubernetes-driver
           env:
@@ -137,6 +147,16 @@ spec:
         annotations:
           spark.apache.org/version: 3.5.5
       spec:
+        securityContext:
+          capabilities:
+            drop:
+              - ALL
+          runAsGroup: 185
+          runAsUser: 185
+          runAsNonRoot: true
+          allowPrivilegeEscalation: false
+          seccompProfile:
+            type: RuntimeDefault
         containers:
         - name: spark-kubernetes-executor
           env:

@@ -33,8 +33,28 @@ spec:
     coreLimit: 800m
     memory: 512m
     serviceAccount: spark-operator-spark
+    securityContext:
+      capabilities:
+        drop:
+          - ALL
+      runAsGroup: 185
+      runAsUser: 185
+      runAsNonRoot: true
+      allowPrivilegeEscalation: false
+      seccompProfile:
+        type: RuntimeDefault
   executor:
     instances: 1
     coreRequest: "1200m"
     coreLimit: 1500m
     memory: 512m
+    securityContext:
+      capabilities:
+        drop:
+          - ALL
+      runAsGroup: 185
+      runAsUser: 185
+      runAsNonRoot: true
+      allowPrivilegeEscalation: false
+      seccompProfile:
+        type: RuntimeDefault
