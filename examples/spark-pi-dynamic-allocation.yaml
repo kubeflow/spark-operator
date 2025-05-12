@@ -33,7 +33,7 @@ spec:
     securityContext:
       capabilities:
         drop:
-          - ALL
+        - ALL
       runAsGroup: 185
       runAsUser: 185
       runAsNonRoot: true
@@ -47,7 +47,7 @@ spec:
     securityContext:
       capabilities:
         drop:
-          - ALL
+        - ALL
       runAsGroup: 185
       runAsUser: 185
       runAsNonRoot: true
