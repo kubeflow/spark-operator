@@ -737,7 +737,7 @@ spec:
   timeToLiveSeconds: 3600
 ```
 
-Note that this feature requires that informer cache resync to be enabled, which is true by default with a resync internal of 30 seconds. You can change the resync interval by setting the flag `-resync-interval=<interval>`.
+Note that this feature requires that informer cache resync to be enabled, which is true by default with a resync interval of 30 seconds. You can change the resync interval by setting the flag `-resync-interval=<interval>`.
 
 ## Running Spark Applications on a Schedule using a ScheduledSparkApplication
 
