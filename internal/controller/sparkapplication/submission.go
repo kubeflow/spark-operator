@@ -40,6 +40,7 @@ type SparkSubmitter struct {
 }
 
 // SparkSubmitter implements SparkApplicationSubmitter interface.
+// This interface is highly experimental and may go under significant changes or removed in the future.
 var _ SparkApplicationSubmitter = &SparkSubmitter{}
 
 // Submit implements SparkApplicationSubmitter interface.
