@@ -18,7 +18,6 @@ package webhook
 
 import (
 	"context"
-	"strconv"
 
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
@@ -87,24 +86,19 @@ func defaultDriverSpec(app *v1beta2.SparkApplication) {
 
 func defaultExecutorSpec(app *v1beta2.SparkApplication) {
 
-	isDynamicAllocationSpecEnabled := app.Spec.DynamicAllocation != nil && app.Spec.DynamicAllocation.Enabled
+	isDynamicAllocationEnabled := util.IsDynamicAllocationEnabled(app)
 
-	if app.Spec.Executor.Instances == nil && !isDynamicAllocationSpecEnabled {
-		// Parse SparkConf values
-		isDynamicAllocationConfEnabled := false
-		executorInstancesFromConf := ""
-		if app.Spec.SparkConf != nil {
-			isDynamicAllocationConfEnabled, _ = strconv.ParseBool(app.Spec.SparkConf[common.SparkDynamicAllocationEnabled])
-			executorInstancesFromConf = app.Spec.SparkConf[common.SparkExecutorInstances]
-		}
-
-		if executorInstancesFromConf == "" && !isDynamicAllocationConfEnabled {
-			app.Spec.Executor.Instances = util.Int32Ptr(1)
-		}
+	if app.Spec.Executor.Instances == nil &&
+		app.Spec.SparkConf[common.SparkExecutorInstances] == "" &&
+		!isDynamicAllocationEnabled {
+		app.Spec.Executor.Instances = util.Int32Ptr(1)
 	}
 
-	// Set default for ShuffleTrackingEnabled to true if dynamicAllocation.enabled is true.
-	if isDynamicAllocationSpecEnabled && app.Spec.DynamicAllocation.ShuffleTrackingEnabled == nil {
+	// Set default for ShuffleTrackingEnabled to true if DynamicAllocation.enabled is true and
+	// DynamicAllocation.ShuffleTrackingEnabled is nil.
+	if isDynamicAllocationEnabled &&
+		app.Spec.DynamicAllocation != nil &&
+		app.Spec.DynamicAllocation.ShuffleTrackingEnabled == nil {
 		app.Spec.DynamicAllocation.ShuffleTrackingEnabled = util.BoolPtr(true)
 	}
 
