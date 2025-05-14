@@ -1,0 +1,134 @@
+#
+# Copyright 2025 The Kubeflow authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+suite: Test CertManager Certificate
+
+templates:
+  - certmanager/certificate.yaml
+
+release:
+  name: spark-operator
+  namespace: spark-operator
+
+tests:
+  - it: Should not create Certificate if `webhook.enable` is `false`
+    capabilities:
+      apiVersions:
+        - cert-manager.io/v1/Certificate
+    set:
+      webhook:
+        enable: false
+      certManager:
+        enable: true
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: Should not create Certificate if `certManager.enable` is `false`
+    capabilities:
+      apiVersions:
+        - cert-manager.io/v1/Certificate
+    set:
+      webhook:
+        enable: true
+      certManager:
+        enable: false
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: Should create Certificate if `webhook.enable` is `true` and `certManager.enable` is `true`
+    capabilities:
+      apiVersions:
+        - cert-manager.io/v1/Certificate
+    set:
+      webhook:
+        enable: true
+      certManager:
+        enable: true
+    asserts:
+      - containsDocument:
+          apiVersion: cert-manager.io/v1
+          kind: Certificate
+          name: spark-operator-certificate
+          namespace: spark-operator
+
+  - it: Should fail if the cluster does not support `cert-manager.io/v1/Certificate`
+    set:
+      webhook:
+        enable: true
+      certManager:
+        enable: true
+    asserts:
+      - failedTemplate:
+          errorMessage: "The cluster does not support the required API version `cert-manager.io/v1` for `Certificate`."
+
+  - it: Should use self signed issuer if `certManager.issuerRef` is not set
+    capabilities:
+      apiVersions:
+        - cert-manager.io/v1/Certificate
+    set:
+      webhook:
+        enable: true
+      certManager:
+        enable: true
+        issuerRef:
+          group: cert-manager.io
+          kind: Issuer
+          name: test-issuer
+    asserts:
+      - equal:
+          path: spec.issuerRef
+          value:
+            group: cert-manager.io
+            kind: Issuer
+            name: test-issuer
+
+  - it: Should use the specified issuer if `certManager.issuerRef` is set
+    capabilities:
+      apiVersions:
+        - cert-manager.io/v1/Certificate
+    set:
+      webhook:
+        enable: true
+      certManager:
+        enable: true
+        issuerRef:
+          group: cert-manager.io
+          kind: Issuer
+          name: test-issuer
+    asserts:
+      - equal:
+          path: spec.issuerRef
+          value:
+            group: cert-manager.io
+            kind: Issuer
+            name: test-issuer
+
+  - it: Should use the specified duration if `certManager.duration` is set
+    capabilities:
+      apiVersions:
+        - cert-manager.io/v1/Certificate
+    set:
+      webhook:
+        enable: true
+      certManager:
+        enable: true
+        duration: 8760h
+    asserts:
+      - equal:
+          path: spec.duration
+          value: 8760h
