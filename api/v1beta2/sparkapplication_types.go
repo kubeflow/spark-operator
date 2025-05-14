@@ -703,6 +703,12 @@ type DynamicAllocation struct {
 	// MaxExecutors is the upper bound for the number of executors if dynamic allocation is enabled.
 	// +optional
 	MaxExecutors *int32 `json:"maxExecutors,omitempty"`
+	// ShuffleTrackingEnabled enables shuffle file tracking for executors, which allows dynamic allocation without
+	// the need for an external shuffle service. This option will try to keep alive executors that are storing
+	// shuffle data for active jobs. If external shuffle service is enabled, set ShuffleTrackingEnabled to false.
+	// ShuffleTrackingEnabled is true by default if dynamicAllocation.enabled is true.
+	// +optional
+	ShuffleTrackingEnabled *bool `json:"shuffleTrackingEnabled,omitempty"`
 	// ShuffleTrackingTimeout controls the timeout in milliseconds for executors that are holding
 	// shuffle data if shuffle tracking is enabled (true by default if dynamic allocation is enabled).
 	// +optional

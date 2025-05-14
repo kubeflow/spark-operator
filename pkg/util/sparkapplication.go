@@ -20,6 +20,7 @@ import (
 	"crypto/md5"
 	"fmt"
 	"reflect"
+	"strconv"
 	"strings"
 	"time"
 
@@ -494,4 +495,14 @@ func GetInitialExecutorNumber(app *v1beta2.SparkApplication) int32 {
 	}
 
 	return initialNumExecutors
+}
+
+// IsDynamicAllocationEnabled determines if Spark Dynamic Allocation is enabled in app.Spec.DynamicAllocation or in
+// app.Spec.SparkConf. app.Spec.DynamicAllocation configs will take precedence over app.Spec.SparkConf configs.
+func IsDynamicAllocationEnabled(app *v1beta2.SparkApplication) bool {
+	if app.Spec.DynamicAllocation != nil {
+		return app.Spec.DynamicAllocation.Enabled
+	}
+	dynamicAllocationConfVal, _ := strconv.ParseBool(app.Spec.SparkConf[common.SparkDynamicAllocationEnabled])
+	return dynamicAllocationConfVal
 }

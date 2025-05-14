@@ -356,3 +356,69 @@ var _ = Describe("DriverStateToApplicationState", func() {
 		Expect(util.DriverStateToApplicationState(v1beta2.DriverStateUnknown)).To(Equal(v1beta2.ApplicationStateUnknown))
 	})
 })
+
+var _ = Describe("Check if IsDynamicAllocationEnabled", func() {
+	Context("when app.Spec.DynamicAllocation is True", func() {
+		app := &v1beta2.SparkApplication{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "test-app",
+				Namespace: "test-namespace",
+			},
+			Spec: v1beta2.SparkApplicationSpec{
+				DynamicAllocation: &v1beta2.DynamicAllocation{
+					Enabled: true,
+				},
+			},
+		}
+		It("Should return true", func() {
+			Expect(util.IsDynamicAllocationEnabled(app)).To(BeTrue())
+		})
+	})
+	Context("when app.Spec.DynamicAllocation is nil but True in app.Spec.SparkConf", func() {
+		app := &v1beta2.SparkApplication{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "test-app",
+				Namespace: "test-namespace",
+			},
+			Spec: v1beta2.SparkApplicationSpec{
+				SparkConf: map[string]string{
+					"spark.dynamicAllocation.enabled": "true",
+				},
+			},
+		}
+		It("Should return true", func() {
+			Expect(util.IsDynamicAllocationEnabled(app)).To(BeTrue())
+		})
+	})
+	Context("when app.Spec.DynamicAllocation is nil and not set in app.Spec.SparkConf", func() {
+		app := &v1beta2.SparkApplication{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "test-app",
+				Namespace: "test-namespace",
+			},
+		}
+		It("Should return false", func() {
+			Expect(util.IsDynamicAllocationEnabled(app)).To(BeFalse())
+		})
+	})
+	Context("when app.Spec.DynamicAllocation is True but false in app.Spec.SparkConf", func() {
+		app := &v1beta2.SparkApplication{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "test-app",
+				Namespace: "test-namespace",
+			},
+			Spec: v1beta2.SparkApplicationSpec{
+				DynamicAllocation: &v1beta2.DynamicAllocation{
+					Enabled: true,
+				},
+				SparkConf: map[string]string{
+					"spark.dynamicAllocation.enabled": "false",
+				},
+			},
+		}
+		It("Should return true because app.Spec.DynamicAllocation configs will take precedence over "+
+			"app.Spec.SparkConf configs", func() {
+			Expect(util.IsDynamicAllocationEnabled(app)).To(BeTrue())
+		})
+	})
+})
