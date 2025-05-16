@@ -83,6 +83,7 @@ func TestConfigPrometheusMonitoring(t *testing.T) {
 			assert.Len(t, test.app.Spec.Driver.Annotations, 3, "expected 3 driver annotations")
 			assert.Equal(t, test.port, test.app.Spec.Driver.Annotations[common.PrometheusPortAnnotation], "java agent port mismatch")
 			assert.Equal(t, test.driverJavaOptions, *test.app.Spec.Driver.JavaOptions, "driver Java options mismatch")
+
 		}
 
 		if test.app.Spec.Monitoring.ExposeExecutorMetrics {
@@ -239,6 +240,74 @@ func TestConfigPrometheusMonitoring(t *testing.T) {
 			port:                  "8091",
 			driverJavaOptions:     "-XX:+PrintGCDetails -XX:+PrintGCTimeStamps -javaagent:/prometheus/exporter.jar=8091:/etc/metrics/conf/prometheus.yaml",
 			executorJavaOptions:   "-XX:+PrintGCDetails -XX:+PrintGCTimeStamps -javaagent:/prometheus/exporter.jar=8091:/etc/metrics/conf/prometheus.yaml",
+		},
+		{
+			app: &v1beta2.SparkApplication{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "driver-only",
+					Namespace: "default",
+				},
+				Spec: v1beta2.SparkApplicationSpec{
+					Monitoring: &v1beta2.MonitoringSpec{
+						ExposeDriverMetrics:   true,
+						ExposeExecutorMetrics: false,
+						Prometheus: &v1beta2.PrometheusSpec{
+							JmxExporterJar: "/prometheus/exporter.jar",
+						},
+					},
+					Driver: v1beta2.DriverSpec{JavaOptions: util.StringPtr("testdummy")},
+				},
+			},
+			metricsProperties: common.DefaultMetricsProperties,
+			prometheusConfig:  common.DefaultPrometheusConfiguration,
+			port:              fmt.Sprintf("%d", common.DefaultPrometheusJavaAgentPort),
+			driverJavaOptions: "testdummy -javaagent:/prometheus/exporter.jar=8090:/etc/metrics/conf/prometheus.yaml",
+		},
+		{
+			app: &v1beta2.SparkApplication{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "executor-only",
+					Namespace: "default",
+				},
+				Spec: v1beta2.SparkApplicationSpec{
+					Monitoring: &v1beta2.MonitoringSpec{
+						ExposeDriverMetrics:   false,
+						ExposeExecutorMetrics: true,
+						Prometheus: &v1beta2.PrometheusSpec{
+							JmxExporterJar: "/prometheus/exporter.jar",
+						},
+					},
+					Executor: v1beta2.ExecutorSpec{JavaOptions: util.StringPtr("testdummy")},
+				},
+			},
+			metricsProperties:   common.DefaultMetricsProperties,
+			prometheusConfig:    common.DefaultPrometheusConfiguration,
+			port:                fmt.Sprintf("%d", common.DefaultPrometheusJavaAgentPort),
+			executorJavaOptions: "testdummy -javaagent:/prometheus/exporter.jar=8090:/etc/metrics/conf/prometheus.yaml",
+		},
+		{
+			app: &v1beta2.SparkApplication{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "custom-port-name",
+					Namespace: "default",
+				},
+				Spec: v1beta2.SparkApplicationSpec{
+					Monitoring: &v1beta2.MonitoringSpec{
+						ExposeDriverMetrics:   true,
+						ExposeExecutorMetrics: true,
+						Prometheus: &v1beta2.PrometheusSpec{
+							JmxExporterJar: "/prometheus/exporter.jar",
+							Port:           util.Int32Ptr(1000),
+							PortName:       util.StringPtr("metrics-port"),
+						},
+					},
+				},
+			},
+			metricsProperties:   common.DefaultMetricsProperties,
+			prometheusConfig:    common.DefaultPrometheusConfiguration,
+			port:                "1000",
+			driverJavaOptions:   "-javaagent:/prometheus/exporter.jar=1000:/etc/metrics/conf/prometheus.yaml",
+			executorJavaOptions: "-javaagent:/prometheus/exporter.jar=1000:/etc/metrics/conf/prometheus.yaml",
 		},
 	}
 
