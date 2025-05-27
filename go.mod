@@ -9,7 +9,7 @@ require (
 	github.com/onsi/gomega v1.36.1
 	github.com/prometheus/client_golang v1.21.1
 	github.com/robfig/cron/v3 v3.0.1
-	github.com/spf13/cobra v1.8.1
+	github.com/spf13/cobra v1.9.1
 	github.com/spf13/viper v1.20.1
 	github.com/stretchr/testify v1.10.0
 	go.uber.org/zap v1.27.0
