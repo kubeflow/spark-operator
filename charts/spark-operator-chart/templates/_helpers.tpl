@@ -74,5 +74,5 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 Spark Operator image
 */}}
 {{- define "spark-operator.image" -}}
-{{ printf "%s/%s:%s" .Values.image.registry .Values.image.repository (.Values.image.tag | default .Chart.AppVersion) }}
+{{ printf "%s/%s:%s" .Values.image.registry .Values.image.repository (.Values.image.tag | default .Chart.AppVersion | toString) }}
 {{- end -}}

@@ -1,0 +1,56 @@
+{{- /*
+Copyright 2025 The Kubeflow authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    https://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/ -}}
+
+{{- if .Values.webhook.enable }}
+{{- if .Values.certManager.enable }}
+{{- if not (.Capabilities.APIVersions.Has "cert-manager.io/v1/Certificate") }}
+{{- fail "The cluster does not support the required API version `cert-manager.io/v1` for `Certificate`." }}
+{{- end }}
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: {{ include "spark-operator.certManager.certificate.name" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "spark-operator.labels" . | nindent 4 }}
+spec:
+  secretName: {{ include "spark-operator.webhook.secretName" . }}
+  issuerRef:
+    {{- if not .Values.certManager.issuerRef }}
+    group: cert-manager.io
+    kind: Issuer
+    name: {{ include "spark-operator.certManager.issuer.name" . }}
+    {{- else }}
+    {{- toYaml .Values.certManager.issuerRef | nindent 4 }}
+    {{- end }}
+  commonName: {{ include "spark-operator.webhook.serviceName" . }}.{{ .Release.Namespace }}.svc
+  dnsNames:
+  - {{ include "spark-operator.webhook.serviceName" . }}.{{ .Release.Namespace }}.svc
+  - {{ include "spark-operator.webhook.serviceName" . }}.{{ .Release.Namespace }}.svc.cluster.local
+  subject:
+    organizationalUnits:
+     - spark-operator
+  usages:
+  - server auth
+  - client auth
+  {{- with .Values.certManager.duration }}
+  duration: {{ . }}
+  {{- end }}
+  {{- with .Values.certManager.renewBefore }}
+  renewBefore: {{ . }}
+  {{- end }}
+{{- end }}
+{{- end }}
