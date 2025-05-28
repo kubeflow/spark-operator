@@ -28,8 +28,8 @@ import (
 	"volcano.sh/apis/pkg/apis/scheduling/v1beta1"
 	fakevolcanoclientset "volcano.sh/apis/pkg/client/clientset/versioned/fake"
 
-	"github.com/kubeflow/spark-operator/api/v1beta2"
-	"github.com/kubeflow/spark-operator/pkg/util"
+	"github.com/kubeflow/spark-operator/v2/api/v1beta2"
+	"github.com/kubeflow/spark-operator/v2/pkg/util"
 )
 
 func TestSchedule(t *testing.T) {

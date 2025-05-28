@@ -19,7 +19,7 @@ package version
 import (
 	"github.com/spf13/cobra"
 
-	sparkoperator "github.com/kubeflow/spark-operator"
+	sparkoperator "github.com/kubeflow/spark-operator/v2"
 )
 
 var (

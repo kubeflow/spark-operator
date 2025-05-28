@@ -19,7 +19,7 @@ package volcano
 import (
 	"fmt"
 
-	"github.com/kubeflow/spark-operator/api/v1beta2"
+	"github.com/kubeflow/spark-operator/v2/api/v1beta2"
 )
 
 func getPodGroupName(app *v1beta2.SparkApplication) string {

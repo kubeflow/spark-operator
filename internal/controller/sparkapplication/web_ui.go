@@ -21,9 +21,9 @@ import (
 	"net/url"
 	"strconv"
 
-	"github.com/kubeflow/spark-operator/api/v1beta2"
-	"github.com/kubeflow/spark-operator/pkg/common"
-	"github.com/kubeflow/spark-operator/pkg/util"
+	"github.com/kubeflow/spark-operator/v2/api/v1beta2"
+	"github.com/kubeflow/spark-operator/v2/pkg/common"
+	"github.com/kubeflow/spark-operator/v2/pkg/util"
 )
 
 func (r *Reconciler) createWebUIService(app *v1beta2.SparkApplication) (*SparkService, error) {

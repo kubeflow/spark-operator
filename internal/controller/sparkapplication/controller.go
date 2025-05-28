@@ -41,14 +41,14 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	"github.com/kubeflow/spark-operator/api/v1beta2"
-	"github.com/kubeflow/spark-operator/internal/metrics"
-	"github.com/kubeflow/spark-operator/internal/scheduler"
-	"github.com/kubeflow/spark-operator/internal/scheduler/kubescheduler"
-	"github.com/kubeflow/spark-operator/internal/scheduler/volcano"
-	"github.com/kubeflow/spark-operator/internal/scheduler/yunikorn"
-	"github.com/kubeflow/spark-operator/pkg/common"
-	"github.com/kubeflow/spark-operator/pkg/util"
+	"github.com/kubeflow/spark-operator/v2/api/v1beta2"
+	"github.com/kubeflow/spark-operator/v2/internal/metrics"
+	"github.com/kubeflow/spark-operator/v2/internal/scheduler"
+	"github.com/kubeflow/spark-operator/v2/internal/scheduler/kubescheduler"
+	"github.com/kubeflow/spark-operator/v2/internal/scheduler/volcano"
+	"github.com/kubeflow/spark-operator/v2/internal/scheduler/yunikorn"
+	"github.com/kubeflow/spark-operator/v2/pkg/common"
+	"github.com/kubeflow/spark-operator/v2/pkg/util"
 )
 
 var (
