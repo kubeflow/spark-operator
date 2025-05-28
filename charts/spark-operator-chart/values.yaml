@@ -409,15 +409,20 @@ prometheus:
       interval: 5s
 
 certManager:
-  # -- Specifies whether to use cert-manager to generate certificate for webhook.
-  # -- `webhook.enable` must be set to `true` to enable cert-manager.
+  # -- Specifies whether to use [cert-manager](https://cert-manager.io) to generate certificate for webhook.
+  # `webhook.enable` must be set to `true` to enable cert-manager.
   enable: false
   # -- The reference to the issuer.
+  # @default -- A self-signed issuer will be created and used if not specified.
   issuerRef: {}
     # group: cert-manager.io
     # kind: ClusterIssuer
     # name: selfsigned
-  # -- The duration of the certificate validity.
+  # -- The duration of the certificate validity (e.g. `2160h`).
+  # See [cert-manager.io/v1.Certificate](https://cert-manager.io/docs/reference/api-docs/#cert-manager.io/v1.Certificate).
+  # @default -- `2160h` (90 days) will be used if not specified.
   duration: ""
-  # -- The duration before the certificate expiration to renew the certificate.
+  # -- The duration before the certificate expiration to renew the certificate (e.g. `720h`).
+  # See [cert-manager.io/v1.Certificate](https://cert-manager.io/docs/reference/api-docs/#cert-manager.io/v1.Certificate).
+  # @default -- 1/3 of issued certificate’s lifetime.
   renewBefore: ""
