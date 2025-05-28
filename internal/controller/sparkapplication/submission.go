@@ -17,6 +17,7 @@ limitations under the License.
 package sparkapplication
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"os/exec"
@@ -26,30 +27,47 @@ import (
 	"github.com/kubeflow/spark-operator/api/v1beta2"
 	"github.com/kubeflow/spark-operator/pkg/common"
 	"github.com/kubeflow/spark-operator/pkg/util"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
-// submission includes information of a Spark application to be submitted.
-type submission struct {
-	namespace string
-	name      string
-	args      []string
+// SparkApplicationSubmitter is the interface for submitting a SparkApplication.
+type SparkApplicationSubmitter interface {
+	Submit(ctx context.Context, app *v1beta2.SparkApplication) error
 }
 
-func newSubmission(args []string, app *v1beta2.SparkApplication) *submission {
-	return &submission{
-		namespace: app.Namespace,
-		name:      app.Name,
-		args:      args,
+// SparkSubmitter submits a SparkApplication by calling spark-submit.
+type SparkSubmitter struct {
+}
+
+// SparkSubmitter implements SparkApplicationSubmitter interface.
+// This interface is highly experimental and may go under significant changes or removed in the future.
+var _ SparkApplicationSubmitter = &SparkSubmitter{}
+
+// Submit implements SparkApplicationSubmitter interface.
+func (*SparkSubmitter) Submit(ctx context.Context, app *v1beta2.SparkApplication) error {
+	logger := log.FromContext(ctx)
+
+	args, err := buildSparkSubmitArgs(app)
+	if err != nil {
+		return fmt.Errorf("failed to build spark-submit arguments: %v", err)
 	}
+
+	// Try submitting the application by running spark-submit.
+	logger.Info("Running spark-submit", "arguments", args)
+	if err := runSparkSubmit(args); err != nil {
+		return fmt.Errorf("failed to run spark-submit: %v", err)
+	}
+
+	return nil
 }
 
-func runSparkSubmit(submission *submission) error {
+func runSparkSubmit(args []string) error {
 	sparkHome, present := os.LookupEnv(common.EnvSparkHome)
 	if !present {
 		return fmt.Errorf("env %s is not specified", common.EnvSparkHome)
 	}
 	command := filepath.Join(sparkHome, "bin", "spark-submit")
-	cmd := exec.Command(command, submission.args...)
+	cmd := exec.Command(command, args...)
 	_, err := cmd.Output()
 	if err != nil {
 		var errorMsg string
