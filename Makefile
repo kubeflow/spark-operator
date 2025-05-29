@@ -21,7 +21,7 @@ GIT_TREE_STATE := $(shell if [ -z "`git status --porcelain`" ]; then echo "clean
 GIT_SHA := $(shell git rev-parse --short HEAD || echo "HEAD")
 GIT_VERSION := ${VERSION}+${GIT_SHA}
 
-REPO := github.com/kubeflow/spark-operator
+MODULE_PATH := $(shell awk '/^module/{print $$2; exit}' go.mod)
 SPARK_OPERATOR_GOPATH := /go/src/github.com/kubeflow/spark-operator
 SPARK_OPERATOR_CHART_PATH := charts/spark-operator-chart
 DEP_VERSION := `grep DEP_VERSION= Dockerfile | awk -F\" '{print $$2}'`
@@ -163,10 +163,10 @@ e2e-test: envtest ## Run the e2e tests against a Kind k8s instance that is spun 
 ##@ Build
 
 override LDFLAGS += \
-  -X ${REPO}.version=${GIT_VERSION} \
-  -X ${REPO}.buildDate=${BUILD_DATE} \
-  -X ${REPO}.gitCommit=${GIT_COMMIT} \
-  -X ${REPO}.gitTreeState=${GIT_TREE_STATE} \
+  -X ${MODULE_PATH}.version=${GIT_VERSION} \
+  -X ${MODULE_PATH}.buildDate=${BUILD_DATE} \
+  -X ${MODULE_PATH}.gitCommit=${GIT_COMMIT} \
+  -X ${MODULE_PATH}.gitTreeState=${GIT_TREE_STATE} \
   -extldflags "-static"
 
 .PHONY: build-operator
