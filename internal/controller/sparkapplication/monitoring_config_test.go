@@ -56,30 +56,30 @@ func TestConfigPrometheusMonitoring(t *testing.T) {
 		err = fakeClient.Get(context.TODO(), client.ObjectKeyFromObject(configMap), configMap)
 		assert.NoError(t, err, "failed to get ConfigMap %s", configMapName)
 
-		if test.app.Spec.Monitoring.Prometheus.ConfigFile == nil &&
+		if test.app.Spec.Monitoring.Prometheus != nil && test.app.Spec.Monitoring.Prometheus.ConfigFile == nil &&
 			test.app.Spec.Monitoring.MetricsPropertiesFile == nil {
 			assert.Len(t, configMap.Data, 2, "expected 2 data items")
 		}
 
-		if test.app.Spec.Monitoring.Prometheus.ConfigFile != nil &&
+		if test.app.Spec.Monitoring.Prometheus != nil && test.app.Spec.Monitoring.Prometheus.ConfigFile != nil &&
 			test.app.Spec.Monitoring.MetricsPropertiesFile == nil {
 			assert.Len(t, configMap.Data, 1, "expected 1 data item")
 		}
 
-		if test.app.Spec.Monitoring.Prometheus.ConfigFile == nil &&
+		if test.app.Spec.Monitoring.Prometheus != nil && test.app.Spec.Monitoring.Prometheus.ConfigFile == nil &&
 			test.app.Spec.Monitoring.MetricsPropertiesFile != nil {
 			assert.Len(t, configMap.Data, 1, "expected 1 data item")
 		}
 
-		if test.app.Spec.Monitoring.MetricsPropertiesFile == nil {
+		if test.app.Spec.Monitoring.Prometheus != nil && test.app.Spec.Monitoring.MetricsPropertiesFile == nil {
 			assert.Equal(t, test.metricsProperties, configMap.Data[common.MetricsPropertiesKey], "metrics.properties mismatch")
 		}
 
-		if test.app.Spec.Monitoring.Prometheus.ConfigFile == nil {
+		if test.app.Spec.Monitoring.Prometheus != nil && test.app.Spec.Monitoring.Prometheus.ConfigFile == nil {
 			assert.Equal(t, test.prometheusConfig, configMap.Data[common.PrometheusConfigKey], "prometheus.yaml mismatch")
 		}
 
-		if test.app.Spec.Monitoring.ExposeDriverMetrics {
+		if test.app.Spec.Monitoring.Prometheus != nil && test.app.Spec.Monitoring.ExposeDriverMetrics {
 			assert.Len(t, test.app.Spec.Driver.Annotations, 3, "expected 3 driver annotations")
 			assert.Equal(t, test.port, test.app.Spec.Driver.Annotations[common.PrometheusPortAnnotation], "java agent port mismatch")
 			assert.Equal(t, test.driverJavaOptions, *test.app.Spec.Driver.JavaOptions, "driver Java options mismatch")
@@ -308,6 +308,32 @@ func TestConfigPrometheusMonitoring(t *testing.T) {
 			port:                "1000",
 			driverJavaOptions:   "-javaagent:/prometheus/exporter.jar=1000:/etc/metrics/conf/prometheus.yaml",
 			executorJavaOptions: "-javaagent:/prometheus/exporter.jar=1000:/etc/metrics/conf/prometheus.yaml",
+		},
+		{
+			app: &v1beta2.SparkApplication{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "app2",
+					Namespace: "default",
+				},
+				Spec: v1beta2.SparkApplicationSpec{
+					Driver: v1beta2.DriverSpec{
+						JavaOptions: util.StringPtr("-XX:+PrintGCDetails -XX:+PrintGCTimeStamps"),
+					},
+					Executor: v1beta2.ExecutorSpec{
+						JavaOptions: util.StringPtr("-XX:+PrintGCDetails -XX:+PrintGCTimeStamps"),
+					},
+					Monitoring: &v1beta2.MonitoringSpec{
+						ExposeDriverMetrics:   false,
+						ExposeExecutorMetrics: false,
+						MetricsProperties:     util.StringPtr("testcase2dummy"),
+					},
+				},
+			},
+			metricsProperties:   "testcase2dummy",
+			prometheusConfig:    "",
+			port:                "8090",
+			driverJavaOptions:   "-XX:+PrintGCDetails -XX:+PrintGCTimeStamps ",
+			executorJavaOptions: "-XX:+PrintGCDetails -XX:+PrintGCTimeStamps ",
 		},
 	}
 
