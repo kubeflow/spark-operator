@@ -1,8 +1,7 @@
-bin/
-vendor/
-cover.out
-**/*.iml
-
-# Various IDEs
 .idea/
 .vscode/
+bin/
+codecov.yaml
+cover.out
+.DS_Store
+*.iml
