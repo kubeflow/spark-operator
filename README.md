@@ -15,18 +15,22 @@ For a more detailed guide, please refer to the [Getting Started guide](https://w
 
 ```bash
 # Add the Helm repository
-helm repo add spark-operator https://kubeflow.github.io/spark-operator
-helm repo update
+helm repo add --force-update spark-operator https://kubeflow.github.io/spark-operator
 
 # Install the operator into the spark-operator namespace and wait for deployments to be ready
 helm install spark-operator spark-operator/spark-operator \
-    --namespace spark-operator --create-namespace --wait
+    --namespace spark-operator \
+    --create-namespace \
+    --wait
 
 # Create an example application in the default namespace
 kubectl apply -f https://raw.githubusercontent.com/kubeflow/spark-operator/refs/heads/master/examples/spark-pi.yaml
 
 # Get the status of the application
 kubectl get sparkapp spark-pi
+
+# Delete the application
+kubectl delete sparkapp spark-pi
 ```
 
 ## Overview
@@ -75,6 +79,7 @@ The following table lists the most recent few versions of the operator.
 
 | Operator Version      | API Version | Kubernetes Version | Base Spark Version |
 |-----------------------|-------------|--------------------|--------------------|
+| `v2.2.x`              | `v1beta2`   | 1.16+              | `3.5.5`            |
 | `v2.1.x`              | `v1beta2`   | 1.16+              | `3.5.3`            |
 | `v2.0.x`              | `v1beta2`   | 1.16+              | `3.5.2`            |
 | `v1beta2-1.6.x-3.5.0` | `v1beta2`   | 1.16+              | `3.5.0`            |
