@@ -17,6 +17,7 @@ limitations under the License.
 package sparkapplication
 
 import (
+	"context"
 	"fmt"
 	"net/url"
 	"strconv"
@@ -26,7 +27,7 @@ import (
 	"github.com/kubeflow/spark-operator/v2/pkg/util"
 )
 
-func (r *Reconciler) createWebUIService(app *v1beta2.SparkApplication) (*SparkService, error) {
+func (r *Reconciler) createWebUIService(ctx context.Context, app *v1beta2.SparkApplication) (*SparkService, error) {
 	portName := getWebUIServicePortName(app)
 	port, err := getWebUIServicePort(app)
 	if err != nil {
@@ -43,15 +44,15 @@ func (r *Reconciler) createWebUIService(app *v1beta2.SparkApplication) (*SparkSe
 	serviceLabels := util.GetWebUIServiceLabels(app)
 	serviceAnnotations := util.GetWebUIServiceAnnotations(app)
 
-	return r.createDriverIngressService(app, portName, port, targetPort, serviceName, serviceType, serviceAnnotations, serviceLabels)
+	return r.createDriverIngressService(ctx, app, portName, port, targetPort, serviceName, serviceType, serviceAnnotations, serviceLabels)
 }
 
-func (r *Reconciler) createWebUIIngress(app *v1beta2.SparkApplication, service SparkService, ingressURL *url.URL, ingressClassName string) (*SparkIngress, error) {
+func (r *Reconciler) createWebUIIngress(ctx context.Context, app *v1beta2.SparkApplication, service SparkService, ingressURL *url.URL, ingressClassName string) (*SparkIngress, error) {
 	ingressName := util.GetDefaultUIIngressName(app)
 	if util.IngressCapabilities.Has("networking.k8s.io/v1") {
-		return r.createDriverIngressV1(app, service, ingressName, ingressURL, ingressClassName)
+		return r.createDriverIngressV1(ctx, app, service, ingressName, ingressURL, ingressClassName)
 	}
-	return r.createDriverIngressLegacy(app, service, ingressName, ingressURL)
+	return r.createDriverIngressLegacy(ctx, app, service, ingressName, ingressURL)
 }
 
 func getWebUIServicePortName(app *v1beta2.SparkApplication) string {

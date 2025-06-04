@@ -51,10 +51,6 @@ import (
 	"github.com/kubeflow/spark-operator/v2/pkg/util"
 )
 
-var (
-	logger = log.Log.WithName("")
-)
-
 // Options defines the options of the controller.
 type Options struct {
 	Namespaces            []string
@@ -169,6 +165,7 @@ func NewReconciler(
 // |                                                                                                                    |
 // +--------------------------------------------------------------------------------------------------------------------+
 func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+	logger := log.FromContext(ctx)
 	key := req.NamespacedName
 	app, err := r.getSparkApplication(ctx, key)
 	if err != nil {
@@ -177,8 +174,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		}
 		return ctrl.Result{Requeue: true}, err
 	}
-	logger.Info("Reconciling SparkApplication", "name", app.Name, "namespace", app.Namespace, "state", app.Status.AppState.State)
-	defer logger.Info("Finished reconciling SparkApplication", "name", app.Name, "namespace", app.Namespace)
+
+	logger.Info("Reconciling SparkApplication", "state", app.Status.AppState.State)
+	defer logger.Info("Finished reconciling SparkApplication")
 
 	// Check if the spark application is being deleted
 	if !app.DeletionTimestamp.IsZero() {
@@ -236,6 +234,8 @@ func (r *Reconciler) SetupWithManager(mgr ctrl.Manager, options controller.Optio
 }
 
 func (r *Reconciler) handleSparkApplicationDeletion(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+	logger := log.FromContext(ctx)
+
 	key := req.NamespacedName
 	app, err := r.getSparkApplication(ctx, key)
 	if err != nil {
@@ -246,13 +246,14 @@ func (r *Reconciler) handleSparkApplicationDeletion(ctx context.Context, req ctr
 	}
 
 	if err := r.deleteSparkResources(ctx, app); err != nil {
-		logger.Error(err, "Failed to delete resources associated with SparkApplication", "name", app.Name, "namespace", app.Namespace)
+		logger.Error(err, "Failed to delete resources associated with SparkApplication")
 		return ctrl.Result{Requeue: true}, err
 	}
 	return ctrl.Result{}, nil
 }
 
 func (r *Reconciler) reconcileNewSparkApplication(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+	logger := log.FromContext(ctx)
 	key := req.NamespacedName
 	retryErr := retry.RetryOnConflict(
 		retry.DefaultRetry,
@@ -274,13 +275,14 @@ func (r *Reconciler) reconcileNewSparkApplication(ctx context.Context, req ctrl.
 		},
 	)
 	if retryErr != nil {
-		logger.Error(retryErr, "Failed to reconcile SparkApplication", "name", key.Name, "namespace", key.Namespace)
+		logger.Error(retryErr, "Failed to reconcile SparkApplication")
 		return ctrl.Result{Requeue: true}, retryErr
 	}
 	return ctrl.Result{}, nil
 }
 
 func (r *Reconciler) reconcileSubmittedSparkApplication(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+	logger := log.FromContext(ctx)
 	key := req.NamespacedName
 	retryErr := retry.RetryOnConflict(
 		retry.DefaultRetry,
@@ -304,13 +306,14 @@ func (r *Reconciler) reconcileSubmittedSparkApplication(ctx context.Context, req
 		},
 	)
 	if retryErr != nil {
-		logger.Error(retryErr, "Failed to reconcile SparkApplication", "name", key.Name, "namespace", key.Namespace)
+		logger.Error(retryErr, "Failed to reconcile SparkApplication")
 		return ctrl.Result{}, retryErr
 	}
 	return ctrl.Result{}, nil
 }
 
 func (r *Reconciler) reconcileFailedSubmissionSparkApplication(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+	logger := log.FromContext(ctx)
 	key := req.NamespacedName
 
 	var result ctrl.Result
@@ -337,7 +340,7 @@ func (r *Reconciler) reconcileFailedSubmissionSparkApplication(ctx context.Conte
 						_ = r.submitSparkApplication(ctx, app)
 					} else {
 						if err := r.deleteSparkResources(ctx, app); err != nil {
-							logger.Error(err, "failed to delete resources associated with SparkApplication", "name", app.Name, "namespace", app.Namespace)
+							logger.Error(err, "failed to delete resources associated with SparkApplication")
 						}
 						return fmt.Errorf("resources associated with SparkApplication name: %s namespace: %s, needed to be deleted", app.Name, app.Namespace)
 					}
@@ -358,13 +361,14 @@ func (r *Reconciler) reconcileFailedSubmissionSparkApplication(ctx context.Conte
 		},
 	)
 	if retryErr != nil {
-		logger.Error(retryErr, "Failed to reconcile SparkApplication", "name", key.Name, "namespace", key.Namespace)
+		logger.Error(retryErr, "Failed to reconcile SparkApplication")
 		return result, retryErr
 	}
 	return result, nil
 }
 
 func (r *Reconciler) reconcileRunningSparkApplication(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+	logger := log.FromContext(ctx)
 	key := req.NamespacedName
 	retryErr := retry.RetryOnConflict(
 		retry.DefaultRetry,
@@ -390,13 +394,14 @@ func (r *Reconciler) reconcileRunningSparkApplication(ctx context.Context, req c
 		},
 	)
 	if retryErr != nil {
-		logger.Error(retryErr, "Failed to reconcile SparkApplication", "name", key.Name, "namespace", key.Namespace)
+		logger.Error(retryErr, "Failed to reconcile SparkApplication")
 		return ctrl.Result{}, retryErr
 	}
 	return ctrl.Result{}, nil
 }
 
 func (r *Reconciler) reconcilePendingRerunSparkApplication(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+	logger := log.FromContext(ctx)
 	key := req.NamespacedName
 	retryErr := retry.RetryOnConflict(
 		retry.DefaultRetry,
@@ -410,9 +415,9 @@ func (r *Reconciler) reconcilePendingRerunSparkApplication(ctx context.Context, 
 			}
 			app := old.DeepCopy()
 
-			logger.Info("Pending rerun SparkApplication", "name", app.Name, "namespace", app.Namespace, "state", app.Status.AppState.State)
+			logger.Info("Pending rerun SparkApplication", "state", app.Status.AppState.State)
 			if r.validateSparkResourceDeletion(ctx, app) {
-				logger.Info("Successfully deleted resources associated with SparkApplication", "name", app.Name, "namespace", app.Namespace, "state", app.Status.AppState.State)
+				logger.Info("Successfully deleted resources associated with SparkApplication", "state", app.Status.AppState.State)
 				r.recordSparkApplicationEvent(app)
 				r.resetSparkApplicationStatus(app)
 				_ = r.submitSparkApplication(ctx, app)
@@ -424,13 +429,14 @@ func (r *Reconciler) reconcilePendingRerunSparkApplication(ctx context.Context, 
 		},
 	)
 	if retryErr != nil {
-		logger.Error(retryErr, "Failed to reconcile SparkApplication", "name", key.Name, "namespace", key.Namespace)
+		logger.Error(retryErr, "Failed to reconcile SparkApplication")
 		return ctrl.Result{}, retryErr
 	}
 	return ctrl.Result{}, nil
 }
 
 func (r *Reconciler) reconcileInvalidatingSparkApplication(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+	logger := log.FromContext(ctx)
 	key := req.NamespacedName
 	retryErr := retry.RetryOnConflict(
 		retry.DefaultRetry,
@@ -446,7 +452,7 @@ func (r *Reconciler) reconcileInvalidatingSparkApplication(ctx context.Context, 
 
 			// Invalidate the current run and enqueue the SparkApplication for re-execution.
 			if err := r.deleteSparkResources(ctx, app); err != nil {
-				logger.Error(err, "Failed to delete resources associated with SparkApplication", "name", app.Name, "namespace", app.Namespace)
+				logger.Error(err, "Failed to delete resources associated with SparkApplication")
 			} else {
 				r.resetSparkApplicationStatus(app)
 				app.Status.AppState.State = v1beta2.ApplicationStatePendingRerun
@@ -458,13 +464,14 @@ func (r *Reconciler) reconcileInvalidatingSparkApplication(ctx context.Context, 
 		},
 	)
 	if retryErr != nil {
-		logger.Error(retryErr, "Failed to reconcile SparkApplication", "name", key.Name, "namespace", key.Namespace)
+		logger.Error(retryErr, "Failed to reconcile SparkApplication")
 		return ctrl.Result{}, retryErr
 	}
 	return ctrl.Result{}, nil
 }
 
 func (r *Reconciler) reconcileSucceedingSparkApplication(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+	logger := log.FromContext(ctx)
 	key := req.NamespacedName
 	retryErr := retry.RetryOnConflict(
 		retry.DefaultRetry,
@@ -480,7 +487,7 @@ func (r *Reconciler) reconcileSucceedingSparkApplication(ctx context.Context, re
 
 			if util.ShouldRetry(app) {
 				if err := r.deleteSparkResources(ctx, app); err != nil {
-					logger.Error(err, "failed to delete spark resources", "name", app.Name, "namespace", app.Namespace)
+					logger.Error(err, "failed to delete spark resources")
 					return err
 				}
 				app.Status.AppState.State = v1beta2.ApplicationStatePendingRerun
@@ -494,13 +501,14 @@ func (r *Reconciler) reconcileSucceedingSparkApplication(ctx context.Context, re
 		},
 	)
 	if retryErr != nil {
-		logger.Error(retryErr, "Failed to reconcile SparkApplication", "name", key.Name, "namespace", key.Namespace)
+		logger.Error(retryErr, "Failed to reconcile SparkApplication")
 		return ctrl.Result{}, retryErr
 	}
 	return ctrl.Result{}, nil
 }
 
 func (r *Reconciler) reconcileFailingSparkApplication(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+	logger := log.FromContext(ctx)
 	key := req.NamespacedName
 
 	var result ctrl.Result
@@ -524,7 +532,7 @@ func (r *Reconciler) reconcileFailingSparkApplication(ctx context.Context, req c
 				}
 				if timeUntilNextRetryDue <= 0 {
 					if err := r.deleteSparkResources(ctx, app); err != nil {
-						logger.Error(err, "failed to delete spark resources", "name", app.Name, "namespace", app.Namespace)
+						logger.Error(err, "failed to delete spark resources")
 						return err
 					}
 					app.Status.AppState.State = v1beta2.ApplicationStatePendingRerun
@@ -542,7 +550,7 @@ func (r *Reconciler) reconcileFailingSparkApplication(ctx context.Context, req c
 		},
 	)
 	if retryErr != nil {
-		logger.Error(retryErr, "Failed to reconcile SparkApplication", "name", key.Name, "namespace", key.Namespace)
+		logger.Error(retryErr, "Failed to reconcile SparkApplication")
 		return result, retryErr
 	}
 	return result, nil
@@ -557,6 +565,7 @@ func (r *Reconciler) reconcileFailedSparkApplication(ctx context.Context, req ct
 }
 
 func (r *Reconciler) reconcileTerminatedSparkApplication(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+	logger := log.FromContext(ctx)
 	key := req.NamespacedName
 	old, err := r.getSparkApplication(ctx, key)
 	if err != nil {
@@ -569,7 +578,7 @@ func (r *Reconciler) reconcileTerminatedSparkApplication(ctx context.Context, re
 	}
 
 	if util.IsExpired(app) {
-		logger.Info("Deleting expired SparkApplication", "name", app.Name, "namespace", app.Namespace, "state", app.Status.AppState.State)
+		logger.Info("Deleting expired SparkApplication", "state", app.Status.AppState.State)
 		if err := r.client.Delete(ctx, app); err != nil {
 			return ctrl.Result{Requeue: true}, err
 		}
@@ -584,8 +593,8 @@ func (r *Reconciler) reconcileTerminatedSparkApplication(ctx context.Context, re
 		return ctrl.Result{Requeue: true}, err
 	}
 
-	if err := r.cleanUpOnTermination(old, app); err != nil {
-		logger.Error(err, "Failed to clean up resources for SparkApplication", "name", old.Name, "namespace", old.Namespace, "state", old.Status.AppState.State)
+	if err := r.cleanUpOnTermination(ctx, old, app); err != nil {
+		logger.Error(err, "Failed to clean up resources for SparkApplication", "state", old.Status.AppState.State)
 		return ctrl.Result{Requeue: true}, err
 	}
 
@@ -608,6 +617,7 @@ func (r *Reconciler) reconcileTerminatedSparkApplication(ctx context.Context, re
 }
 
 func (r *Reconciler) reconcileUnknownSparkApplication(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+	logger := log.FromContext(ctx)
 	key := req.NamespacedName
 	retryErr := retry.RetryOnConflict(
 		retry.DefaultRetry,
@@ -631,7 +641,7 @@ func (r *Reconciler) reconcileUnknownSparkApplication(ctx context.Context, req c
 		},
 	)
 	if retryErr != nil {
-		logger.Error(retryErr, "Failed to reconcile SparkApplication", "name", key.Name, "namespace", key.Namespace)
+		logger.Error(retryErr, "Failed to reconcile SparkApplication")
 		return ctrl.Result{}, retryErr
 	}
 	return ctrl.Result{}, nil
@@ -648,7 +658,8 @@ func (r *Reconciler) getSparkApplication(ctx context.Context, key types.Namespac
 
 // submitSparkApplication creates a new submission for the given SparkApplication and submits it using spark-submit.
 func (r *Reconciler) submitSparkApplication(ctx context.Context, app *v1beta2.SparkApplication) (submitErr error) {
-	logger.Info("Submitting SparkApplication", "name", app.Name, "namespace", app.Namespace, "state", app.Status.AppState.State)
+	logger := log.FromContext(ctx)
+	logger.Info("Submitting SparkApplication", "state", app.Status.AppState.State)
 
 	// SubmissionID must be set before creating any resources to ensure all the resources are labeled.
 	app.Status.SubmissionID = uuid.New().String()
@@ -663,7 +674,7 @@ func (r *Reconciler) submitSparkApplication(ctx context.Context, app *v1beta2.Sp
 			}
 			app.Status.ExecutionAttempts = app.Status.ExecutionAttempts + 1
 		} else {
-			logger.Info("Failed to submit SparkApplication", "name", app.Name, "namespace", app.Namespace, "state", app.Status.AppState.State, "error", submitErr)
+			logger.Info("Failed to submit SparkApplication", "state", app.Status.AppState.State, "error", submitErr)
 			app.Status.AppState = v1beta2.ApplicationState{
 				State:        v1beta2.ApplicationStateFailedSubmission,
 				ErrorMessage: submitErr.Error(),
@@ -673,15 +684,15 @@ func (r *Reconciler) submitSparkApplication(ctx context.Context, app *v1beta2.Sp
 	}()
 
 	if util.PrometheusMonitoringEnabled(app) {
-		logger.Info("Configure Prometheus monitoring for SparkApplication", "name", app.Name, "namespace", app.Namespace)
+		logger.Info("Configure Prometheus monitoring for SparkApplication")
 		if err := configPrometheusMonitoring(app, r.client); err != nil {
 			return fmt.Errorf("failed to configure Prometheus monitoring: %v", err)
 		}
 	}
 
 	// Use batch scheduler to perform scheduling task before submitting (before build command arguments).
-	if needScheduling, scheduler := r.shouldDoBatchScheduling(app); needScheduling {
-		logger.Info("Do batch scheduling for SparkApplication", "name", app.Name, "namespace", app.Namespace)
+	if needScheduling, scheduler := r.shouldDoBatchScheduling(ctx, app); needScheduling {
+		logger.Info("Do batch scheduling for SparkApplication")
 		if err := scheduler.Schedule(app); err != nil {
 			return fmt.Errorf("failed to process batch scheduler: %v", err)
 		}
@@ -689,14 +700,14 @@ func (r *Reconciler) submitSparkApplication(ctx context.Context, app *v1beta2.Sp
 
 	// Create web UI service for spark applications if enabled.
 	if r.options.EnableUIService {
-		service, err := r.createWebUIService(app)
+		service, err := r.createWebUIService(ctx, app)
 		if err != nil {
 			return fmt.Errorf("failed to create web UI service: %v", err)
 		}
 		app.Status.DriverInfo.WebUIServiceName = service.serviceName
 		app.Status.DriverInfo.WebUIPort = service.servicePort
 		app.Status.DriverInfo.WebUIAddress = fmt.Sprintf("%s:%d", service.serviceIP, app.Status.DriverInfo.WebUIPort)
-		logger.Info("Created web UI service for SparkApplication", "name", app.Name, "namespace", app.Namespace)
+		logger.Info("Created web UI service for SparkApplication")
 
 		// Create UI Ingress if ingress-format is set.
 		if r.options.IngressURLFormat != "" {
@@ -713,19 +724,19 @@ func (r *Reconciler) submitSparkApplication(ctx context.Context, app *v1beta2.Sp
 				app.Spec.SparkConf[common.SparkUIProxyBase] = ingressURL.Path
 				app.Spec.SparkConf[common.SparkUIProxyRedirectURI] = "/"
 			}
-			ingress, err := r.createWebUIIngress(app, *service, ingressURL, r.options.IngressClassName)
+			ingress, err := r.createWebUIIngress(ctx, app, *service, ingressURL, r.options.IngressClassName)
 			if err != nil {
 				return fmt.Errorf("failed to create web UI ingress: %v", err)
 			}
 			app.Status.DriverInfo.WebUIIngressAddress = ingress.ingressURL.String()
 			app.Status.DriverInfo.WebUIIngressName = ingress.ingressName
-			logger.Info("Created web UI ingress for SparkApplication", "name", app.Name, "namespace", app.Namespace)
+			logger.Info("Created web UI ingress for SparkApplication")
 		}
 	}
 
 	for _, driverIngressConfiguration := range app.Spec.DriverIngressOptions {
-		logger.Info("Creating driver ingress service for SparkApplication", "name", app.Name, "namespace", app.Namespace)
-		service, err := r.createDriverIngressServiceFromConfiguration(app, &driverIngressConfiguration)
+		logger.Info("Creating driver ingress service for SparkApplication")
+		service, err := r.createDriverIngressServiceFromConfiguration(ctx, app, &driverIngressConfiguration)
 		if err != nil {
 			return fmt.Errorf("failed to create driver ingress service for SparkApplication: %v", err)
 		}
@@ -736,17 +747,17 @@ func (r *Reconciler) submitSparkApplication(ctx context.Context, app *v1beta2.Sp
 			if err != nil {
 				return fmt.Errorf("failed to get driver ingress url: %v", err)
 			}
-			ingress, err := r.createDriverIngress(app, &driverIngressConfiguration, *service, ingressURL, r.options.IngressClassName)
+			ingress, err := r.createDriverIngress(ctx, app, &driverIngressConfiguration, *service, ingressURL, r.options.IngressClassName)
 			if err != nil {
 				return fmt.Errorf("failed to create driver ingress: %v", err)
 			}
-			logger.V(1).Info("Created driver ingress for SparkApplication", "name", app.Name, "namespace", app.Namespace, "ingressName", ingress.ingressName, "ingressURL", ingress.ingressURL)
+			logger.V(1).Info("Created driver ingress for SparkApplication", "ingressName", ingress.ingressName, "ingressURL", ingress.ingressURL)
 		}
 	}
 
 	defer func() {
-		if err := r.cleanUpPodTemplateFiles(app); err != nil {
-			logger.Error(fmt.Errorf("failed to clean up pod template files: %v", err), "name", app.Name, "namespace", app.Namespace)
+		if err := r.cleanUpPodTemplateFiles(ctx, app); err != nil {
+			logger.Error(err, "failed to clean up pod template files")
 		}
 	}()
 
@@ -956,8 +967,9 @@ func (r *Reconciler) deleteDriverPod(ctx context.Context, app *v1beta2.SparkAppl
 	if podName == "" {
 		podName = util.GetDriverPodName(app)
 	}
-
-	logger.Info("Deleting driver pod", "name", podName, "namespace", app.Namespace)
+	
+	logger := log.FromContext(ctx)
+	logger.Info("Deleting driver pod", "pod", podName)
 	if err := r.client.Delete(
 		ctx,
 		&corev1.Pod{
@@ -974,11 +986,12 @@ func (r *Reconciler) deleteDriverPod(ctx context.Context, app *v1beta2.SparkAppl
 }
 
 func (r *Reconciler) deleteWebUIService(ctx context.Context, app *v1beta2.SparkApplication) error {
+	logger := log.FromContext(ctx)
 	svcName := app.Status.DriverInfo.WebUIServiceName
 	if svcName == "" {
 		return nil
 	}
-	logger.Info("Deleting Spark web UI service", "name", svcName, "namespace", app.Namespace)
+	logger.Info("Deleting Spark web UI service", "service", svcName)
 	if err := r.client.Delete(
 		ctx,
 		&corev1.Service{
@@ -997,13 +1010,14 @@ func (r *Reconciler) deleteWebUIService(ctx context.Context, app *v1beta2.SparkA
 }
 
 func (r *Reconciler) deleteWebUIIngress(ctx context.Context, app *v1beta2.SparkApplication) error {
+	logger := log.FromContext(ctx)
 	ingressName := app.Status.DriverInfo.WebUIIngressName
 	if ingressName == "" {
 		return nil
 	}
 
 	if util.IngressCapabilities.Has("networking.k8s.io/v1") {
-		logger.Info("Deleting Spark web UI ingress", "name", ingressName, "namespace", app.Namespace)
+		logger.Info("Deleting Spark web UI ingress", "ingress", ingressName)
 		if err := r.client.Delete(
 			ctx,
 			&networkingv1.Ingress{
@@ -1021,7 +1035,7 @@ func (r *Reconciler) deleteWebUIIngress(ctx context.Context, app *v1beta2.SparkA
 	}
 
 	if util.IngressCapabilities.Has("extensions/v1beta1") {
-		logger.V(1).Info("Deleting extensions/v1beta1 Spark UI Ingress", "name", ingressName, "namespace", app.Namespace)
+		logger.V(1).Info("Deleting extensions/v1beta1 Spark UI Ingress", "name", ingressName)
 		if err := r.client.Delete(
 			context.TODO(),
 			&extensionsv1beta1.Ingress{
@@ -1179,7 +1193,8 @@ func (r *Reconciler) resetSparkApplicationStatus(app *v1beta2.SparkApplication) 
 	}
 }
 
-func (r *Reconciler) shouldDoBatchScheduling(app *v1beta2.SparkApplication) (bool, scheduler.Interface) {
+func (r *Reconciler) shouldDoBatchScheduling(ctx context.Context, app *v1beta2.SparkApplication) (bool, scheduler.Interface) {
+	logger := log.FromContext(ctx)
 	// If batch scheduling isn't enabled
 	if r.registry == nil {
 		return false, nil
@@ -1219,15 +1234,15 @@ func (r *Reconciler) shouldDoBatchScheduling(app *v1beta2.SparkApplication) (boo
 	}
 
 	if err != nil || scheduler == nil {
-		logger.Error(err, "Failed to get scheduler for SparkApplication", "name", app.Name, "namespace", app.Namespace, "scheduler", schedulerName)
+		logger.Error(err, "Failed to get scheduler for SparkApplication", "scheduler", schedulerName)
 		return false, nil
 	}
 	return scheduler.ShouldSchedule(app), scheduler
 }
 
 // Clean up when the spark application is terminated.
-func (r *Reconciler) cleanUpOnTermination(_, newApp *v1beta2.SparkApplication) error {
-	if needScheduling, scheduler := r.shouldDoBatchScheduling(newApp); needScheduling {
+func (r *Reconciler) cleanUpOnTermination(ctx context.Context, _, newApp *v1beta2.SparkApplication) error {
+	if needScheduling, scheduler := r.shouldDoBatchScheduling(ctx, newApp); needScheduling {
 		if err := scheduler.Cleanup(newApp); err != nil {
 			return err
 		}
@@ -1236,7 +1251,8 @@ func (r *Reconciler) cleanUpOnTermination(_, newApp *v1beta2.SparkApplication) e
 }
 
 // cleanUpPodTemplateFiles cleans up the driver and executor pod template files.
-func (r *Reconciler) cleanUpPodTemplateFiles(app *v1beta2.SparkApplication) error {
+func (r *Reconciler) cleanUpPodTemplateFiles(ctx context.Context, app *v1beta2.SparkApplication) error {
+	logger := log.FromContext(ctx)
 	if app.Spec.Driver.Template == nil && app.Spec.Executor.Template == nil {
 		return nil
 	}

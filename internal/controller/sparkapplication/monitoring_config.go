@@ -41,7 +41,6 @@ func configPrometheusMonitoring(app *v1beta2.SparkApplication, client client.Cli
 
 	// If one or both of the metricsPropertiesFile and Prometheus.ConfigFile are not set
 	if !util.HasMetricsPropertiesFile(app) || !util.HasPrometheusConfigFile(app) {
-		logger.V(1).Info("Creating a ConfigMap for metrics and Prometheus configurations")
 		configMapName := util.GetPrometheusConfigMapName(app)
 		configMap := buildPrometheusConfigMap(app, configMapName)
 		key := types.NamespacedName{Namespace: configMap.Namespace, Name: configMap.Name}
@@ -56,7 +55,6 @@ func configPrometheusMonitoring(app *v1beta2.SparkApplication, client client.Cli
 			cm.Data = configMap.Data
 			return client.Update(context.TODO(), cm)
 		}); retryErr != nil {
-			logger.Error(retryErr, "Failed to create/update Prometheus ConfigMap for SparkApplication", "name", app.Name, "ConfigMap name", configMap.Name, "namespace", app.Namespace)
 			return retryErr
 		}
 	}

@@ -1068,7 +1068,6 @@ func driverPodTemplateOption(app *v1beta2.SparkApplication) ([]string, error) {
 	if err := util.WriteObjectToFile(app.Spec.Driver.Template, podTemplateFile); err != nil {
 		return []string{}, err
 	}
-	logger.V(1).Info("Created driver pod template file for SparkApplication", "name", app.Name, "namespace", app.Namespace, "file", podTemplateFile)
 
 	args := []string{
 		"--conf",
@@ -1089,7 +1088,6 @@ func executorPodTemplateOption(app *v1beta2.SparkApplication) ([]string, error) 
 	if err := util.WriteObjectToFile(app.Spec.Executor.Template, podTemplateFile); err != nil {
 		return []string{}, err
 	}
-	logger.V(1).Info("Created executor pod template file for SparkApplication", "name", app.Name, "namespace", app.Namespace, "file", podTemplateFile)
 
 	args := []string{
 		"--conf",
