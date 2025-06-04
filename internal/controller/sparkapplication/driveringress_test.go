@@ -25,7 +25,7 @@ import (
 	"github.com/kubeflow/spark-operator/v2/pkg/common"
 	"github.com/kubeflow/spark-operator/v2/pkg/util"
 	"github.com/stretchr/testify/assert"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
@@ -268,7 +268,7 @@ func TestCreateDriverIngressService(t *testing.T) {
 					},
 					targetPort: intstr.IntOrString{
 						Type:   intstr.Int,
-						IntVal: int32(*app1.Spec.DriverIngressOptions[0].ServicePort),
+						IntVal: *app1.Spec.DriverIngressOptions[0].ServicePort,
 					},
 				},
 			},
@@ -286,7 +286,7 @@ func TestCreateDriverIngressService(t *testing.T) {
 					serviceName:     fmt.Sprintf(serviceNameFormat, app2.GetName(), *app2.Spec.DriverIngressOptions[0].ServicePort),
 					serviceType:     v1.ServiceTypeClusterIP,
 					servicePortName: fmt.Sprintf(portNameFormat, *app2.Spec.DriverIngressOptions[0].ServicePort),
-					servicePort:     int32(*app2.Spec.DriverIngressOptions[0].ServicePort),
+					servicePort:     *app2.Spec.DriverIngressOptions[0].ServicePort,
 				},
 			},
 			expectedSelector: map[string]string{
