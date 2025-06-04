@@ -25,7 +25,7 @@ import (
 	"github.com/kubeflow/spark-operator/v2/pkg/common"
 	"github.com/kubeflow/spark-operator/v2/pkg/util"
 	"github.com/stretchr/testify/assert"
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
@@ -172,7 +172,7 @@ func TestCreateDriverIngressService(t *testing.T) {
 			SparkApplicationID: "foo-3",
 		},
 	}
-	var serviceTypeNodePort v1.ServiceType = v1.ServiceTypeNodePort
+	var serviceTypeNodePort corev1.ServiceType = corev1.ServiceTypeNodePort
 	app5 := &v1beta2.SparkApplication{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "foo5",
@@ -260,7 +260,7 @@ func TestCreateDriverIngressService(t *testing.T) {
 			expectedServices: []SparkService{
 				{
 					serviceName:     fmt.Sprintf(serviceNameFormat, app1.GetName(), *app1.Spec.DriverIngressOptions[0].ServicePort),
-					serviceType:     v1.ServiceTypeClusterIP,
+					serviceType:     corev1.ServiceTypeClusterIP,
 					servicePortName: fmt.Sprintf(portNameFormat, *app1.Spec.DriverIngressOptions[0].ServicePort),
 					servicePort:     *app1.Spec.DriverIngressOptions[0].ServicePort,
 					serviceLabels: map[string]string{
@@ -284,7 +284,7 @@ func TestCreateDriverIngressService(t *testing.T) {
 			expectedServices: []SparkService{
 				{
 					serviceName:     fmt.Sprintf(serviceNameFormat, app2.GetName(), *app2.Spec.DriverIngressOptions[0].ServicePort),
-					serviceType:     v1.ServiceTypeClusterIP,
+					serviceType:     corev1.ServiceTypeClusterIP,
 					servicePortName: fmt.Sprintf(portNameFormat, *app2.Spec.DriverIngressOptions[0].ServicePort),
 					servicePort:     *app2.Spec.DriverIngressOptions[0].ServicePort,
 				},
@@ -301,7 +301,7 @@ func TestCreateDriverIngressService(t *testing.T) {
 			expectedServices: []SparkService{
 				{
 					serviceName:     fmt.Sprintf(serviceNameFormat, app4.GetName(), *app4.Spec.DriverIngressOptions[0].ServicePort),
-					serviceType:     v1.ServiceTypeClusterIP,
+					serviceType:     corev1.ServiceTypeClusterIP,
 					servicePortName: fmt.Sprintf(portNameFormat, *app4.Spec.DriverIngressOptions[0].ServicePort),
 					servicePort:     4041,
 					targetPort: intstr.IntOrString{
@@ -322,7 +322,7 @@ func TestCreateDriverIngressService(t *testing.T) {
 			expectedServices: []SparkService{
 				{
 					serviceName:     fmt.Sprintf(serviceNameFormat, app5.GetName(), *app5.Spec.DriverIngressOptions[0].ServicePort),
-					serviceType:     v1.ServiceTypeNodePort,
+					serviceType:     corev1.ServiceTypeNodePort,
 					servicePortName: fmt.Sprintf(portNameFormat, *app5.Spec.DriverIngressOptions[0].ServicePort),
 					servicePort:     *app5.Spec.DriverIngressOptions[0].ServicePort,
 				},
@@ -339,7 +339,7 @@ func TestCreateDriverIngressService(t *testing.T) {
 			expectedServices: []SparkService{
 				{
 					serviceName:     fmt.Sprintf(serviceNameFormat, app6.GetName(), *app6.Spec.DriverIngressOptions[0].ServicePort),
-					serviceType:     v1.ServiceTypeClusterIP,
+					serviceType:     corev1.ServiceTypeClusterIP,
 					servicePortName: "http-spark-test",
 					servicePort:     int32(80),
 				},
@@ -356,7 +356,7 @@ func TestCreateDriverIngressService(t *testing.T) {
 			expectedServices: []SparkService{
 				{
 					serviceName:     fmt.Sprintf(serviceNameFormat, app7.GetName(), *app7.Spec.DriverIngressOptions[0].ServicePort),
-					serviceType:     v1.ServiceTypeClusterIP,
+					serviceType:     corev1.ServiceTypeClusterIP,
 					servicePortName: fmt.Sprintf(portNameFormat, *app7.Spec.DriverIngressOptions[0].ServicePort),
 					servicePort:     *app7.Spec.DriverIngressOptions[0].ServicePort,
 					serviceAnnotations: map[string]string{
@@ -380,7 +380,7 @@ func TestCreateDriverIngressService(t *testing.T) {
 			expectedServices: []SparkService{
 				{
 					serviceName:     fmt.Sprintf(serviceNameFormat, app8.GetName(), *app8.Spec.DriverIngressOptions[0].ServicePort),
-					serviceType:     v1.ServiceTypeClusterIP,
+					serviceType:     corev1.ServiceTypeClusterIP,
 					servicePortName: fmt.Sprintf(portNameFormat, *app8.Spec.DriverIngressOptions[0].ServicePort),
 					servicePort:     *app8.Spec.DriverIngressOptions[0].ServicePort,
 					serviceLabels: map[string]string{
