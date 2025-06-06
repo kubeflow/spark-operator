@@ -172,10 +172,11 @@ Create the role policy rules for the controller in every Spark job namespace
   - ingresses
   verbs:
   - get
-  - create
-  - delete
   - list
   - watch
+  - create
+  - update
+  - delete
 - apiGroups:
   - sparkoperator.k8s.io
   resources:
