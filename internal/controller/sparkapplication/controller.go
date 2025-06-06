@@ -297,9 +297,64 @@ func (r *Reconciler) reconcileSubmittedSparkApplication(ctx context.Context, req
 			if err := r.updateSparkApplicationState(ctx, app); err != nil {
 				return err
 			}
+
+			// Create web UI service for spark applications if enabled.
+			if r.options.EnableUIService {
+				service, err := r.createWebUIService(app)
+				if err != nil {
+					return fmt.Errorf("failed to create web UI service: %v", err)
+				}
+				app.Status.DriverInfo.WebUIServiceName = service.serviceName
+				app.Status.DriverInfo.WebUIPort = service.servicePort
+				app.Status.DriverInfo.WebUIAddress = fmt.Sprintf("%s:%d", service.serviceIP, app.Status.DriverInfo.WebUIPort)
+
+				// Create UI Ingress if ingress-format is set.
+				if r.options.IngressURLFormat != "" {
+					// We are going to want to use an ingress url.
+					ingressURL, err := getDriverIngressURL(r.options.IngressURLFormat, app)
+					if err != nil {
+						return fmt.Errorf("failed to get ingress url: %v", err)
+					}
+					// need to ensure the spark.ui variables are configured correctly if a subPath is used.
+					if ingressURL.Path != "" {
+						if app.Spec.SparkConf == nil {
+							app.Spec.SparkConf = make(map[string]string)
+						}
+						app.Spec.SparkConf[common.SparkUIProxyBase] = ingressURL.Path
+						app.Spec.SparkConf[common.SparkUIProxyRedirectURI] = "/"
+					}
+					ingress, err := r.createWebUIIngress(app, *service, ingressURL, r.options.IngressClassName)
+					if err != nil {
+						return fmt.Errorf("failed to create web UI ingress: %v", err)
+					}
+					app.Status.DriverInfo.WebUIIngressAddress = ingress.ingressURL.String()
+					app.Status.DriverInfo.WebUIIngressName = ingress.ingressName
+				}
+			}
+
+			for _, driverIngressConfiguration := range app.Spec.DriverIngressOptions {
+				service, err := r.createDriverIngressServiceFromConfiguration(app, &driverIngressConfiguration)
+				if err != nil {
+					return fmt.Errorf("failed to create driver ingress service for SparkApplication: %v", err)
+				}
+				// Create ingress if ingress-format is set.
+				if driverIngressConfiguration.IngressURLFormat != "" {
+					// We are going to want to use an ingress url.
+					ingressURL, err := getDriverIngressURL(driverIngressConfiguration.IngressURLFormat, app)
+					if err != nil {
+						return fmt.Errorf("failed to get driver ingress url: %v", err)
+					}
+					_, err = r.createDriverIngress(app, &driverIngressConfiguration, *service, ingressURL, r.options.IngressClassName)
+					if err != nil {
+						return fmt.Errorf("failed to create driver ingress: %v", err)
+					}
+				}
+			}
+
 			if err := r.updateSparkApplicationStatus(ctx, app); err != nil {
 				return err
 			}
+
 			return nil
 		},
 	)
@@ -684,63 +739,6 @@ func (r *Reconciler) submitSparkApplication(ctx context.Context, app *v1beta2.Sp
 		logger.Info("Do batch scheduling for SparkApplication", "name", app.Name, "namespace", app.Namespace)
 		if err := scheduler.Schedule(app); err != nil {
 			return fmt.Errorf("failed to process batch scheduler: %v", err)
-		}
-	}
-
-	// Create web UI service for spark applications if enabled.
-	if r.options.EnableUIService {
-		service, err := r.createWebUIService(app)
-		if err != nil {
-			return fmt.Errorf("failed to create web UI service: %v", err)
-		}
-		app.Status.DriverInfo.WebUIServiceName = service.serviceName
-		app.Status.DriverInfo.WebUIPort = service.servicePort
-		app.Status.DriverInfo.WebUIAddress = fmt.Sprintf("%s:%d", service.serviceIP, app.Status.DriverInfo.WebUIPort)
-		logger.Info("Created web UI service for SparkApplication", "name", app.Name, "namespace", app.Namespace)
-
-		// Create UI Ingress if ingress-format is set.
-		if r.options.IngressURLFormat != "" {
-			// We are going to want to use an ingress url.
-			ingressURL, err := getDriverIngressURL(r.options.IngressURLFormat, app.Name, app.Namespace)
-			if err != nil {
-				return fmt.Errorf("failed to get ingress url: %v", err)
-			}
-			// need to ensure the spark.ui variables are configured correctly if a subPath is used.
-			if ingressURL.Path != "" {
-				if app.Spec.SparkConf == nil {
-					app.Spec.SparkConf = make(map[string]string)
-				}
-				app.Spec.SparkConf[common.SparkUIProxyBase] = ingressURL.Path
-				app.Spec.SparkConf[common.SparkUIProxyRedirectURI] = "/"
-			}
-			ingress, err := r.createWebUIIngress(app, *service, ingressURL, r.options.IngressClassName)
-			if err != nil {
-				return fmt.Errorf("failed to create web UI ingress: %v", err)
-			}
-			app.Status.DriverInfo.WebUIIngressAddress = ingress.ingressURL.String()
-			app.Status.DriverInfo.WebUIIngressName = ingress.ingressName
-			logger.Info("Created web UI ingress for SparkApplication", "name", app.Name, "namespace", app.Namespace)
-		}
-	}
-
-	for _, driverIngressConfiguration := range app.Spec.DriverIngressOptions {
-		logger.Info("Creating driver ingress service for SparkApplication", "name", app.Name, "namespace", app.Namespace)
-		service, err := r.createDriverIngressServiceFromConfiguration(app, &driverIngressConfiguration)
-		if err != nil {
-			return fmt.Errorf("failed to create driver ingress service for SparkApplication: %v", err)
-		}
-		// Create ingress if ingress-format is set.
-		if driverIngressConfiguration.IngressURLFormat != "" {
-			// We are going to want to use an ingress url.
-			ingressURL, err := getDriverIngressURL(driverIngressConfiguration.IngressURLFormat, app.Name, app.Namespace)
-			if err != nil {
-				return fmt.Errorf("failed to get driver ingress url: %v", err)
-			}
-			ingress, err := r.createDriverIngress(app, &driverIngressConfiguration, *service, ingressURL, r.options.IngressClassName)
-			if err != nil {
-				return fmt.Errorf("failed to create driver ingress: %v", err)
-			}
-			logger.V(1).Info("Created driver ingress for SparkApplication", "name", app.Name, "namespace", app.Namespace, "ingressName", ingress.ingressName, "ingressURL", ingress.ingressURL)
 		}
 	}
 

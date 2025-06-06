@@ -55,11 +55,20 @@ type SparkIngress struct {
 	ingressTLS       []networkingv1.IngressTLS
 }
 
-var ingressAppNameURLRegex = regexp.MustCompile(`{{\s*[$]appName\s*}}`)
-var ingressAppNamespaceURLRegex = regexp.MustCompile(`{{\s*[$]appNamespace\s*}}`)
+var (
+	ingressAppNameURLRegex      = regexp.MustCompile(`{{\s*[$]appName\s*}}`)
+	ingressAppNamespaceURLRegex = regexp.MustCompile(`{{\s*[$]appNamespace\s*}}`)
+	ingressAppIdURLRegex        = regexp.MustCompile(`{{\s*[$]appId\s*}}`)
+)
 
-func getDriverIngressURL(ingressURLFormat string, appName string, appNamespace string) (*url.URL, error) {
-	ingressURL := ingressAppNamespaceURLRegex.ReplaceAllString(ingressAppNameURLRegex.ReplaceAllString(ingressURLFormat, appName), appNamespace)
+func getDriverIngressURL(ingressURLFormat string, app *v1beta2.SparkApplication) (*url.URL, error) {
+	if app == nil {
+		return nil, fmt.Errorf("app cannot be nil")
+	}
+
+	ingressURL := ingressAppNameURLRegex.ReplaceAllString(ingressURLFormat, app.Name)
+	ingressURL = ingressAppNamespaceURLRegex.ReplaceAllString(ingressURL, app.Namespace)
+	ingressURL = ingressAppIdURLRegex.ReplaceAllString(ingressURL, app.Status.SparkApplicationID)
 	parsedURL, err := url.Parse(ingressURL)
 	if err != nil {
 		return nil, err
@@ -145,10 +154,19 @@ func (r *Reconciler) createDriverIngressV1(app *v1beta2.SparkApplication, servic
 		ingress.Spec.IngressClassName = &ingressClassName
 	}
 
-	logger.Info("Creating networking.v1/Ingress for SparkApplication web UI", "name", app.Name, "namespace", app.Namespace, "ingressName", ingress.Name)
 	if err := r.client.Create(context.TODO(), ingress); err != nil {
-		return nil, fmt.Errorf("failed to create ingress %s/%s: %v", ingress.Namespace, ingress.Name, err)
+		if !errors.IsAlreadyExists(err) {
+			return nil, fmt.Errorf("failed to create ingress %s/%s: %v", ingress.Namespace, ingress.Name, err)
+		}
+
+		if err := r.client.Update(context.TODO(), ingress); err != nil {
+			return nil, fmt.Errorf("failed to update ingress %s/%s: %v", ingress.Namespace, ingress.Name, err)
+		}
+		logger.Info("Updated networking.v1/Ingress for SparkApplication", "name", app.Name, "namespace", app.Namespace, "ingressName", ingress.Name)
+	} else {
+		logger.Info("Created networking.v1/Ingress for SparkApplication", "name", app.Name, "namespace", app.Namespace, "ingressName", ingress.Name)
 	}
+
 	return &SparkIngress{
 		ingressName:      ingress.Name,
 		ingressURL:       ingressURL,
@@ -212,10 +230,19 @@ func (r *Reconciler) createDriverIngressLegacy(app *v1beta2.SparkApplication, se
 	if len(ingressTLSHosts) != 0 {
 		ingress.Spec.TLS = convertIngressTLSHostsToLegacy(ingressTLSHosts)
 	}
-	logger.Info("Creating extensions.v1beta1/Ingress for SparkApplication web UI", "name", app.Name, "namespace", app.Namespace, "ingressName", ingress.Name)
 	if err := r.client.Create(context.TODO(), ingress); err != nil {
-		return nil, fmt.Errorf("failed to create ingress %s/%s: %v", ingress.Namespace, ingress.Name, err)
+		if !errors.IsAlreadyExists(err) {
+			return nil, fmt.Errorf("failed to create ingress %s/%s: %v", ingress.Namespace, ingress.Name, err)
+		}
+
+		if err := r.client.Update(context.TODO(), ingress); err != nil {
+			return nil, fmt.Errorf("failed to update ingress %s/%s: %v", ingress.Namespace, ingress.Name, err)
+		}
+		logger.Info("Updated extensions.v1beta1/Ingress for SparkApplication", "name", app.Name, "namespace", app.Namespace, "ingressName", ingress.Name)
+	} else {
+		logger.Info("Created extensions.v1beta1/Ingress for SparkApplication", "name", app.Name, "namespace", app.Namespace, "ingressName", ingress.Name)
 	}
+
 	return &SparkIngress{
 		ingressName: ingress.Name,
 		ingressURL:  ingressURL,
@@ -288,6 +315,9 @@ func (r *Reconciler) createDriverIngressService(
 		if err := r.client.Update(context.TODO(), service); err != nil {
 			return nil, err
 		}
+		logger.Info("Updated service for SparkApplication", "name", app.Name, "namespace", app.Namespace, "serviceName", service.Name)
+	} else {
+		logger.Info("Created service for SparkApplication", "name", app.Name, "namespace", app.Namespace, "serviceName", service.Name)
 	}
 
 	return &SparkService{
