@@ -74,6 +74,15 @@ controller:
     urlFormat: ""
     # -- Optionally set the ingressClassName.
     ingressClassName: ""
+    # -- Optionally set default TLS configuration for the Spark UI's ingress. `ingressTLS` in the SparkApplication spec overrides this.
+    tls: []
+    # - hosts:
+    #   - "*.example.com"
+    #   secretName: "example-secret"
+    # -- Optionally set default ingress annotations for the Spark UI's ingress. `ingressAnnotations` in the SparkApplication spec overrides this.
+    annotations: {}
+      # key1: value1
+      # key2: value2
 
   batchScheduler:
     # -- Specifies whether to enable batch scheduler for spark jobs scheduling.
