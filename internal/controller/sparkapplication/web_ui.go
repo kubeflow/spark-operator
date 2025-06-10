@@ -21,10 +21,11 @@ import (
 	"net/url"
 	"strconv"
 
+	networkingv1 "k8s.io/api/networking/v1"
+
 	"github.com/kubeflow/spark-operator/v2/api/v1beta2"
 	"github.com/kubeflow/spark-operator/v2/pkg/common"
 	"github.com/kubeflow/spark-operator/v2/pkg/util"
-	networkingv1 "k8s.io/api/networking/v1"
 )
 
 func (r *Reconciler) createWebUIService(app *v1beta2.SparkApplication) (*SparkService, error) {

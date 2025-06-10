@@ -25,8 +25,6 @@ import (
 	"slices"
 	"time"
 
-	networkingv1 "k8s.io/api/networking/v1"
-
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
@@ -37,6 +35,7 @@ import (
 	"go.uber.org/zap/zapcore"
 	"golang.org/x/time/rate"
 	corev1 "k8s.io/api/core/v1"
+	networkingv1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
