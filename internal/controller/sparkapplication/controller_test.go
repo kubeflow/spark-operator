@@ -47,25 +47,25 @@ var _ = Describe("SparkApplication Controller", func() {
 			Name:      appName,
 			Namespace: appNamespace,
 		}
+		appConfig := &v1beta2.SparkApplication{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      appName,
+				Namespace: appNamespace,
+			},
+			Spec: v1beta2.SparkApplicationSpec{
+				MainApplicationFile: util.StringPtr("local:///dummy.jar"),
+			},
+		}
 		ingressKey := types.NamespacedName{
-			Name:      appName + "-ui-ingress",
+			Name:      util.GetDefaultUIIngressName(appConfig),
 			Namespace: appNamespace,
 		}
 
 		BeforeEach(func() {
 			By("Creating a test SparkApplication")
-			app := &v1beta2.SparkApplication{}
+			app := appConfig.DeepCopy()
 			if err := k8sClient.Get(ctx, key, app); err != nil && errors.IsNotFound(err) {
 				util.IngressCapabilities = util.Capabilities{"networking.k8s.io/v1": true}
-				app = &v1beta2.SparkApplication{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      appName,
-						Namespace: appNamespace,
-					},
-					Spec: v1beta2.SparkApplicationSpec{
-						MainApplicationFile: util.StringPtr("local:///dummy.jar"),
-					},
-				}
 				v1beta2.SetSparkApplicationDefaults(app)
 				Expect(k8sClient.Create(ctx, app)).To(Succeed())
 			}
@@ -98,7 +98,7 @@ var _ = Describe("SparkApplication Controller", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			ingress := &networkingv1.Ingress{}
-			Expect(k8sClient.Get(ctx, types.NamespacedName{Name: appName + "-ui-ingress", Namespace: appNamespace}, ingress)).To(Succeed())
+			Expect(k8sClient.Get(ctx, ingressKey, ingress)).To(Succeed())
 			Expect(ingress.Spec.TLS).To(HaveLen(0))
 			Expect(ingress.ObjectMeta.Annotations).To(HaveLen(0))
 		})
@@ -146,10 +146,6 @@ var _ = Describe("SparkApplication Controller", func() {
 			Name:      appName,
 			Namespace: appNamespace,
 		}
-		ingressKey := types.NamespacedName{
-			Name:      appName + "-ui-ingress",
-			Namespace: appNamespace,
-		}
 		ingressTLS := []networkingv1.IngressTLS{
 			{
 				Hosts:      []string{"*.test.com"},
@@ -157,25 +153,30 @@ var _ = Describe("SparkApplication Controller", func() {
 			},
 		}
 		ingressAnnotations := map[string]string{"cert-manager.io/cluster-issuer": "letsencrypt"}
+		appConfig := &v1beta2.SparkApplication{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      appName,
+				Namespace: appNamespace,
+			},
+			Spec: v1beta2.SparkApplicationSpec{
+				MainApplicationFile: util.StringPtr("local:///dummy.jar"),
+				SparkUIOptions: &v1beta2.SparkUIConfiguration{
+					IngressTLS:         ingressTLS,
+					IngressAnnotations: ingressAnnotations,
+				},
+			},
+		}
+		ingressKey := types.NamespacedName{
+			Name:      util.GetDefaultUIIngressName(appConfig),
+			Namespace: appNamespace,
+		}
 
 		BeforeEach(func() {
 			By("Creating a test SparkApplication")
-			app := &v1beta2.SparkApplication{}
+			app := appConfig.DeepCopy()
 			if err := k8sClient.Get(ctx, key, app); err != nil && errors.IsNotFound(err) {
 				util.IngressCapabilities = util.Capabilities{"networking.k8s.io/v1": true}
-				app = &v1beta2.SparkApplication{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      appName,
-						Namespace: appNamespace,
-					},
-					Spec: v1beta2.SparkApplicationSpec{
-						MainApplicationFile: util.StringPtr("local:///dummy.jar"),
-						SparkUIOptions: &v1beta2.SparkUIConfiguration{
-							IngressTLS:         ingressTLS,
-							IngressAnnotations: ingressAnnotations,
-						},
-					},
-				}
+
 				v1beta2.SetSparkApplicationDefaults(app)
 				Expect(k8sClient.Create(ctx, app)).To(Succeed())
 			}
@@ -237,7 +238,7 @@ var _ = Describe("SparkApplication Controller", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			ingress := &networkingv1.Ingress{}
-			Expect(k8sClient.Get(ctx, types.NamespacedName{Name: appName + "-ui-ingress", Namespace: appNamespace}, ingress)).To(Succeed())
+			Expect(k8sClient.Get(ctx, ingressKey, ingress)).To(Succeed())
 			Expect(ingress.Spec.TLS).To(Equal(ingressTLS))
 			Expect(ingress.ObjectMeta.Annotations).To(Equal(ingressAnnotations))
 		})
