@@ -184,6 +184,37 @@ tests:
           path: spec.template.spec.containers[?(@.name=="spark-operator-controller")].args
           content: --ingress-class-name=nginx
 
+  - it: Should contain `--ingress-tls` arg if `controller.uiIngress.enable` is set to `true` and `controller.uiIngress.tls` is set
+    set:
+      controller:
+        uiService:
+          enable: true
+        uiIngress:
+          enable: true
+          tls:
+            - hosts:
+                - "*.test.com"
+              secretName: test-secret
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[?(@.name=="spark-operator-controller")].args
+          content: '--ingress-tls=[{"hosts":["*.test.com"],"secretName":"test-secret"}]'
+
+  - it: Should contain `--ingress-annotations` arg if `controller.uiIngress.enable` is set to `true` and `controller.uiIngress.annotations` is set
+    set:
+      controller:
+        uiService:
+          enable: true
+        uiIngress:
+          enable: true
+          annotations:
+            cert-manager.io/cluster-issuer: "letsencrypt"
+            kubernetes.io/ingress.class: nginx
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[?(@.name=="spark-operator-controller")].args
+          content: '--ingress-annotations={"cert-manager.io/cluster-issuer":"letsencrypt","kubernetes.io/ingress.class":"nginx"}'
+
   - it: Should contain `--enable-batch-scheduler` arg if `controller.batchScheduler.enable` is `true`
     set:
       controller:
@@ -246,7 +277,7 @@ tests:
       - contains:
           path: spec.template.spec.containers[?(@.name=="spark-operator-controller")].args
           content: --leader-election-lock-namespace=spark-operator
-  
+
   - it: Should disable leader election if `controller.leaderElection.enable` is set to `false`
     set:
       controller:

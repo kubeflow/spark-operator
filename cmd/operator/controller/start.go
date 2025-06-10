@@ -18,7 +18,9 @@ package controller
 
 import (
 	"crypto/tls"
+	"encoding/json"
 	"flag"
+	"fmt"
 	"os"
 	"slices"
 	"time"
@@ -33,6 +35,7 @@ import (
 	"go.uber.org/zap/zapcore"
 	"golang.org/x/time/rate"
 	corev1 "k8s.io/api/core/v1"
+	networkingv1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
@@ -87,9 +90,11 @@ var (
 	defaultBatchScheduler string
 
 	// Spark web UI service and ingress
-	enableUIService  bool
-	ingressClassName string
-	ingressURLFormat string
+	enableUIService    bool
+	ingressClassName   string
+	ingressURLFormat   string
+	ingressTLS         []networkingv1.IngressTLS
+	ingressAnnotations map[string]string
 
 	// Leader election
 	enableLeaderElection        bool
@@ -126,11 +131,25 @@ func init() {
 }
 
 func NewStartCommand() *cobra.Command {
+	var ingressTLSstring string
+	var ingressAnnotationsString string
 	var command = &cobra.Command{
 		Use:   "start",
 		Short: "Start controller and webhook",
-		PreRun: func(_ *cobra.Command, args []string) {
+		PreRunE: func(_ *cobra.Command, args []string) error {
 			development = viper.GetBool("development")
+
+			if ingressTLSstring != "" {
+				if err := json.Unmarshal([]byte(ingressTLSstring), &ingressTLS); err != nil {
+					return fmt.Errorf("failed parsing ingress-tls JSON string from CLI: %v", err)
+				}
+			}
+			if ingressAnnotationsString != "" {
+				if err := json.Unmarshal([]byte(ingressAnnotationsString), &ingressAnnotations); err != nil {
+					return fmt.Errorf("failed parsing ingress-annotations JSON string from CLI: %v", err)
+				}
+			}
+			return nil
 		},
 		Run: func(_ *cobra.Command, args []string) {
 			sparkoperator.PrintVersion(false)
@@ -154,6 +173,8 @@ func NewStartCommand() *cobra.Command {
 	command.Flags().BoolVar(&enableUIService, "enable-ui-service", true, "Enable Spark Web UI service.")
 	command.Flags().StringVar(&ingressClassName, "ingress-class-name", "", "Set ingressClassName for ingress resources created.")
 	command.Flags().StringVar(&ingressURLFormat, "ingress-url-format", "", "Ingress URL format.")
+	command.Flags().StringVar(&ingressTLSstring, "ingress-tls", "", "JSON format string for the default TLS config on the Spark UI ingresses. e.g. '[{\"hosts\":[\"*.example.com\"],\"secretName\":\"example-secret\"}]'. `ingressTLS` in the SparkApplication spec will override this value.")
+	command.Flags().StringVar(&ingressAnnotationsString, "ingress-annotations", "", "JSON format string for the default ingress annotations for the Spark UI ingresses. e.g. '[{\"cert-manager.io/cluster-issuer\": \"letsencrypt\"}]'. `ingressAnnotations` in the SparkApplication spec will override this value.")
 
 	command.Flags().BoolVar(&enableLeaderElection, "leader-election", false, "Enable leader election for controller manager. "+
 		"Enabling this will ensure there is only one active controller manager.")
@@ -403,6 +424,8 @@ func newSparkApplicationReconcilerOptions() sparkapplication.Options {
 		EnableUIService:              enableUIService,
 		IngressClassName:             ingressClassName,
 		IngressURLFormat:             ingressURLFormat,
+		IngressTLS:                   ingressTLS,
+		IngressAnnotations:           ingressAnnotations,
 		DefaultBatchScheduler:        defaultBatchScheduler,
 		DriverPodCreationGracePeriod: driverPodCreationGracePeriod,
 		SparkApplicationMetrics:      sparkApplicationMetrics,
