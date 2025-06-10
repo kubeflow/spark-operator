@@ -73,10 +73,10 @@ spec:
         - --ingress-class-name={{ . }}
         {{- end }}
         {{- with .Values.controller.uiIngress.tls }}
-        - --ingress-tls={{ . | toJson | quote }}
+        - --ingress-tls={{ . | toJson }}
         {{- end }}
         {{- with .Values.controller.uiIngress.annotations }}
-        - --ingress-annotations={{ . | toJson | quote }}
+        - --ingress-annotations={{ . | toJson }}
         {{- end }}
         {{- end }}
         {{- if .Values.controller.batchScheduler.enable }}
