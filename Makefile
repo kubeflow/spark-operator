@@ -172,7 +172,7 @@ override LDFLAGS += \
 .PHONY: build-operator
 build-operator: ## Build Spark operator.
 	echo "Building spark-operator binary..."
-	go build -o $(SPARK_OPERATOR) -ldflags '${LDFLAGS}' cmd/operator/main.go
+	CGO_ENABLED=0 go build -o $(SPARK_OPERATOR) -ldflags '${LDFLAGS}' cmd/operator/main.go
 
 .PHONY: clean
 clean: ## Clean binaries.
