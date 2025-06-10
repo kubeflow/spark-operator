@@ -89,19 +89,19 @@ func (r *Reconciler) createDriverIngress(app *v1beta2.SparkApplication, driverIn
 	}
 	ingressName := fmt.Sprintf("%s-ing-%d", app.Name, *driverIngressConfiguration.ServicePort)
 	if util.IngressCapabilities.Has("networking.k8s.io/v1") {
-		return r.createDriverIngressV1(app, service, ingressName, ingressURL, ingressClassName, nil, nil)
+		return r.createDriverIngressV1(app, service, ingressName, ingressURL, ingressClassName, []networkingv1.IngressTLS{}, map[string]string{})
 	}
 	return r.createDriverIngressLegacy(app, service, ingressName, ingressURL)
 }
 
-func (r *Reconciler) createDriverIngressV1(app *v1beta2.SparkApplication, service SparkService, ingressName string, ingressURL *url.URL, ingressClassName string, defaultIngressTLS *[]networkingv1.IngressTLS, defaultIngressAnnotations *map[string]string) (*SparkIngress, error) {
+func (r *Reconciler) createDriverIngressV1(app *v1beta2.SparkApplication, service SparkService, ingressName string, ingressURL *url.URL, ingressClassName string, defaultIngressTLS []networkingv1.IngressTLS, defaultIngressAnnotations map[string]string) (*SparkIngress, error) {
 	ingressResourceAnnotations := util.GetWebUIIngressAnnotations(app)
-	if len(ingressResourceAnnotations) == 0 && defaultIngressAnnotations != nil && len(*defaultIngressAnnotations) != 0 {
-		ingressResourceAnnotations = *defaultIngressAnnotations
+	if len(ingressResourceAnnotations) == 0 && len(defaultIngressAnnotations) != 0 {
+		ingressResourceAnnotations = defaultIngressAnnotations
 	}
 	ingressTLSHosts := util.GetWebUIIngressTLS(app)
-	if len(ingressTLSHosts) == 0 && defaultIngressTLS != nil && len(*defaultIngressTLS) != 0 {
-		ingressTLSHosts = *defaultIngressTLS
+	if len(ingressTLSHosts) == 0 && len(defaultIngressTLS) != 0 {
+		ingressTLSHosts = defaultIngressTLS
 	}
 
 	ingressURLPath := ingressURL.Path
