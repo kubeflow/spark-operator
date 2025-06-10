@@ -126,7 +126,7 @@ var _ = Describe("SparkApplication Controller", func() {
 				record.NewFakeRecorder(3),
 				nil,
 				&sparkapplication.SparkSubmitter{},
-				sparkapplication.Options{EnableUIService: true, IngressURLFormat: "{{$appName}}.spark.test.com", DefaultIngressTLS: defaultIngressTLS, DefaultIngressAnnotations: defaultIngressAnnotations, Namespaces: []string{appNamespace}},
+				sparkapplication.Options{EnableUIService: true, IngressURLFormat: "{{$appName}}.spark.test.com", IngressTLS: defaultIngressTLS, IngressAnnotations: defaultIngressAnnotations, Namespaces: []string{appNamespace}},
 			)
 			_, err := reconciler.Reconcile(ctx, reconcile.Request{NamespacedName: key})
 			Expect(err).NotTo(HaveOccurred())
@@ -232,7 +232,7 @@ var _ = Describe("SparkApplication Controller", func() {
 				record.NewFakeRecorder(3),
 				nil,
 				&sparkapplication.SparkSubmitter{},
-				sparkapplication.Options{EnableUIService: true, IngressURLFormat: "{{$appName}}.spark.test.com", DefaultIngressTLS: defaultIngressTLS, DefaultIngressAnnotations: defaultIngressAnnotations, Namespaces: []string{appNamespace}},
+				sparkapplication.Options{EnableUIService: true, IngressURLFormat: "{{$appName}}.spark.test.com", IngressTLS: defaultIngressTLS, IngressAnnotations: defaultIngressAnnotations, Namespaces: []string{appNamespace}},
 			)
 			_, err := reconciler.Reconcile(ctx, reconcile.Request{NamespacedName: key})
 			Expect(err).NotTo(HaveOccurred())

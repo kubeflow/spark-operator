@@ -86,16 +86,16 @@ var (
 	workqueueRateLimiterMaxDelay   time.Duration
 
 	// Batch scheduler
-	enableBatchScheduler      bool
-	kubeSchedulerNames        []string
-	defaultBatchScheduler     string
-	defaultIngressTLS         []networkingv1.IngressTLS
-	defaultIngressAnnotations map[string]string
+	enableBatchScheduler  bool
+	kubeSchedulerNames    []string
+	defaultBatchScheduler string
 
 	// Spark web UI service and ingress
-	enableUIService  bool
-	ingressClassName string
-	ingressURLFormat string
+	enableUIService    bool
+	ingressClassName   string
+	ingressURLFormat   string
+	ingressTLS         []networkingv1.IngressTLS
+	ingressAnnotations map[string]string
 
 	// Leader election
 	enableLeaderElection        bool
@@ -132,22 +132,22 @@ func init() {
 }
 
 func NewStartCommand() *cobra.Command {
-	var defaultIngressTLSstring string
-	var defaultIngressAnnotationsString string
+	var ingressTLSstring string
+	var ingressAnnotationsString string
 	var command = &cobra.Command{
 		Use:   "start",
 		Short: "Start controller and webhook",
 		PreRunE: func(_ *cobra.Command, args []string) error {
 			development = viper.GetBool("development")
 
-			if defaultIngressTLSstring != "" {
-				if err := json.Unmarshal([]byte(defaultIngressTLSstring), &defaultIngressTLS); err != nil {
-					return fmt.Errorf("failed parsing default-ingress-tls JSON string from CLI: %v", err)
+			if ingressTLSstring != "" {
+				if err := json.Unmarshal([]byte(ingressTLSstring), &ingressTLS); err != nil {
+					return fmt.Errorf("failed parsing ingress-tls JSON string from CLI: %v", err)
 				}
 			}
-			if defaultIngressAnnotationsString != "" {
-				if err := json.Unmarshal([]byte(defaultIngressAnnotationsString), &defaultIngressAnnotations); err != nil {
-					return fmt.Errorf("failed parsing default-ingress-annotations JSON string from CLI: %v", err)
+			if ingressAnnotationsString != "" {
+				if err := json.Unmarshal([]byte(ingressAnnotationsString), &ingressAnnotations); err != nil {
+					return fmt.Errorf("failed parsing ingress-annotations JSON string from CLI: %v", err)
 				}
 			}
 			return nil
@@ -174,8 +174,8 @@ func NewStartCommand() *cobra.Command {
 	command.Flags().BoolVar(&enableUIService, "enable-ui-service", true, "Enable Spark Web UI service.")
 	command.Flags().StringVar(&ingressClassName, "ingress-class-name", "", "Set ingressClassName for ingress resources created.")
 	command.Flags().StringVar(&ingressURLFormat, "ingress-url-format", "", "Ingress URL format.")
-	command.Flags().StringVar(&defaultIngressTLSstring, "default-ingress-tls", "", "JSON format string for the default TLS config on the Spark UI ingresses. e.g. '[{\"hosts\":[\"*.example.com\"],\"secretName\":\"example-secret\"}]'. `ingressTLS` in the SparkApplication spec will override this value.")
-	command.Flags().StringVar(&defaultIngressAnnotationsString, "default-ingress-annotations", "", "JSON format string for the default ingress annotations for the Spark UI ingresses. e.g. '[{\"cert-manager.io/cluster-issuer\": \"letsencrypt\"}]'. `ingressAnnotations` in the SparkApplication spec will override this value.")
+	command.Flags().StringVar(&ingressTLSstring, "ingress-tls", "", "JSON format string for the default TLS config on the Spark UI ingresses. e.g. '[{\"hosts\":[\"*.example.com\"],\"secretName\":\"example-secret\"}]'. `ingressTLS` in the SparkApplication spec will override this value.")
+	command.Flags().StringVar(&ingressAnnotationsString, "ingress-annotations", "", "JSON format string for the default ingress annotations for the Spark UI ingresses. e.g. '[{\"cert-manager.io/cluster-issuer\": \"letsencrypt\"}]'. `ingressAnnotations` in the SparkApplication spec will override this value.")
 
 	command.Flags().BoolVar(&enableLeaderElection, "leader-election", false, "Enable leader election for controller manager. "+
 		"Enabling this will ensure there is only one active controller manager.")
@@ -425,8 +425,8 @@ func newSparkApplicationReconcilerOptions() sparkapplication.Options {
 		EnableUIService:              enableUIService,
 		IngressClassName:             ingressClassName,
 		IngressURLFormat:             ingressURLFormat,
-		DefaultIngressTLS:            defaultIngressTLS,
-		DefaultIngressAnnotations:    defaultIngressAnnotations,
+		IngressTLS:                   ingressTLS,
+		IngressAnnotations:           ingressAnnotations,
 		DefaultBatchScheduler:        defaultBatchScheduler,
 		DriverPodCreationGracePeriod: driverPodCreationGracePeriod,
 		SparkApplicationMetrics:      sparkApplicationMetrics,
