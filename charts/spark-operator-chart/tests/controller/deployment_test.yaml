@@ -184,36 +184,36 @@ tests:
           path: spec.template.spec.containers[?(@.name=="spark-operator-controller")].args
           content: --ingress-class-name=nginx
 
-  - it: Should contain `--default-ingress-tls` arg if `controller.uiIngress.enable` is set to `true` and `controller.uiIngress.defaultIngressTLS` is set
+  - it: Should contain `--ingress-tls` arg if `controller.uiIngress.enable` is set to `true` and `controller.uiIngress.tls` is set
     set:
       controller:
         uiService:
           enable: true
         uiIngress:
           enable: true
-          defaultIngressTLS:
-          - hosts:
-            - "*.test.com"
-            secretName: test-secret
+          tls:
+            - hosts:
+                - "*.test.com"
+              secretName: test-secret
     asserts:
       - contains:
           path: spec.template.spec.containers[?(@.name=="spark-operator-controller")].args
-          content: '--default-ingress-tls=[{"hosts":["*.test.com"],"secretName":"test-secret"}]'
+          content: '--ingress-tls="[{\"hosts\":[\"*.test.com\"],\"secretName\":\"test-secret\"}]"'
 
-  - it: Should contain `--default-ingress-annotations` arg if `controller.uiIngress.enable` is set to `true` and `controller.uiIngress.defaultIngressAnnotations` is set
+  - it: Should contain `--ingress-annotations` arg if `controller.uiIngress.enable` is set to `true` and `controller.uiIngress.annotations` is set
     set:
       controller:
         uiService:
           enable: true
         uiIngress:
           enable: true
-          defaultIngressAnnotations:
+          annotations:
             cert-manager.io/cluster-issuer: "letsencrypt"
             kubernetes.io/ingress.class: nginx
     asserts:
       - contains:
           path: spec.template.spec.containers[?(@.name=="spark-operator-controller")].args
-          content: '--default-ingress-annotations={"cert-manager.io/cluster-issuer":"letsencrypt","kubernetes.io/ingress.class":"nginx"}'
+          content: '--ingress-annotations="{\"cert-manager.io/cluster-issuer\":\"letsencrypt\",\"kubernetes.io/ingress.class\":\"nginx\"}"'
 
   - it: Should contain `--enable-batch-scheduler` arg if `controller.batchScheduler.enable` is `true`
     set:
