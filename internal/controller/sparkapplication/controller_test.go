@@ -39,7 +39,7 @@ import (
 )
 
 var _ = Describe("SparkApplication Controller", func() {
-	Context("When reconciling a new SparkApplication", func() {
+	Context("When reconciling a submitted SparkApplication", func() {
 		ctx := context.Background()
 		appName := "test"
 		appNamespace := "default"
@@ -68,6 +68,13 @@ var _ = Describe("SparkApplication Controller", func() {
 				util.IngressCapabilities = util.Capabilities{"networking.k8s.io/v1": true}
 				v1beta2.SetSparkApplicationDefaults(app)
 				Expect(k8sClient.Create(ctx, app)).To(Succeed())
+
+				driverPod := createDriverPod(appName, appNamespace)
+				Expect(k8sClient.Create(ctx, driverPod)).To(Succeed())
+
+				app.Status.DriverInfo.PodName = driverPod.Name
+				app.Status.AppState.State = v1beta2.ApplicationStateSubmitted
+				Expect(k8sClient.Status().Update(ctx, app)).To(Succeed())
 			}
 		})
 
@@ -81,6 +88,11 @@ var _ = Describe("SparkApplication Controller", func() {
 			Expect(k8sClient.Get(ctx, ingressKey, ingress)).To(Succeed())
 			By("Deleting the created test ingress")
 			Expect(k8sClient.Delete(ctx, ingress)).To(Succeed())
+
+			driverPod := &corev1.Pod{}
+			By("Deleting the driver pod")
+			Expect(k8sClient.Get(ctx, getDriverNamespacedName(appName, appNamespace), driverPod)).To(Succeed())
+			Expect(k8sClient.Delete(ctx, driverPod)).To(Succeed())
 		})
 
 		It("Should create an ingress for the Spark UI with no TLS or annotations", func() {
@@ -138,7 +150,7 @@ var _ = Describe("SparkApplication Controller", func() {
 		})
 	})
 
-	Context("When reconciling a new SparkApplication with spark UI ingress TLS and annotations", func() {
+	Context("When reconciling a submitted SparkApplication with spark UI ingress TLS and annotations", func() {
 		ctx := context.Background()
 		appName := "test"
 		appNamespace := "default"
@@ -179,6 +191,13 @@ var _ = Describe("SparkApplication Controller", func() {
 
 				v1beta2.SetSparkApplicationDefaults(app)
 				Expect(k8sClient.Create(ctx, app)).To(Succeed())
+
+				driverPod := createDriverPod(appName, appNamespace)
+				Expect(k8sClient.Create(ctx, driverPod)).To(Succeed())
+
+				app.Status.DriverInfo.PodName = driverPod.Name
+				app.Status.AppState.State = v1beta2.ApplicationStateSubmitted
+				Expect(k8sClient.Status().Update(ctx, app)).To(Succeed())
 			}
 		})
 
@@ -192,6 +211,11 @@ var _ = Describe("SparkApplication Controller", func() {
 			Expect(k8sClient.Get(ctx, ingressKey, ingress)).To(Succeed())
 			By("Deleting the created test ingress")
 			Expect(k8sClient.Delete(ctx, ingress)).To(Succeed())
+
+			driverPod := &corev1.Pod{}
+			By("Deleting the driver pod")
+			Expect(k8sClient.Get(ctx, getDriverNamespacedName(appName, appNamespace), driverPod)).To(Succeed())
+			Expect(k8sClient.Delete(ctx, driverPod)).To(Succeed())
 		})
 
 		It("Should create an ingress for the Spark UI with TLS and annotations", func() {
