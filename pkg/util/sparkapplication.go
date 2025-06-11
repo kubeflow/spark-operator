@@ -85,18 +85,20 @@ func ShouldRetry(app *v1beta2.SparkApplication) bool {
 	case v1beta2.ApplicationStateSucceeding:
 		return app.Spec.RestartPolicy.Type == v1beta2.RestartPolicyAlways
 	case v1beta2.ApplicationStateFailing:
-		if app.Spec.RestartPolicy.Type == v1beta2.RestartPolicyAlways {
+		switch app.Spec.RestartPolicy.Type {
+		case v1beta2.RestartPolicyAlways:
 			return true
-		} else if app.Spec.RestartPolicy.Type == v1beta2.RestartPolicyOnFailure {
+		case v1beta2.RestartPolicyOnFailure:
 			// We retry if we haven't hit the retry limit.
 			if app.Spec.RestartPolicy.OnFailureRetries != nil && app.Status.ExecutionAttempts <= *app.Spec.RestartPolicy.OnFailureRetries {
 				return true
 			}
 		}
 	case v1beta2.ApplicationStateFailedSubmission:
-		if app.Spec.RestartPolicy.Type == v1beta2.RestartPolicyAlways {
+		switch app.Spec.RestartPolicy.Type {
+		case v1beta2.RestartPolicyAlways:
 			return true
-		} else if app.Spec.RestartPolicy.Type == v1beta2.RestartPolicyOnFailure {
+		case v1beta2.RestartPolicyOnFailure:
 			// We retry if we haven't hit the retry limit.
 			if app.Spec.RestartPolicy.OnSubmissionFailureRetries != nil && app.Status.SubmissionAttempts <= *app.Spec.RestartPolicy.OnSubmissionFailureRetries {
 				return true

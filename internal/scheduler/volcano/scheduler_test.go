@@ -224,7 +224,7 @@ func TestSchedule(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			tc.app.ObjectMeta.Annotations = make(map[string]string)
+			tc.app.ObjectMeta.Annotations = make(map[string]string) //nolint:staticcheck
 			tc.app.Spec.Driver.Annotations = make(map[string]string)
 			tc.app.Spec.Executor.Annotations = make(map[string]string)
 
@@ -253,10 +253,11 @@ func TestSchedule(t *testing.T) {
 				assert.Equal(t, tc.expectedPriorityName, capturedPodGroup.Spec.PriorityClassName)
 			}
 
-			if tc.expectedMode == "client" {
+			switch tc.expectedMode {
+			case "client":
 				assert.Contains(t, tc.app.Spec.Executor.Annotations, v1beta1.KubeGroupNameAnnotationKey)
 				assert.NotContains(t, tc.app.Spec.Driver.Annotations, v1beta1.KubeGroupNameAnnotationKey)
-			} else if tc.expectedMode == "cluster" {
+			case "cluster":
 				assert.Contains(t, tc.app.Spec.Driver.Annotations, v1beta1.KubeGroupNameAnnotationKey)
 				assert.Contains(t, tc.app.Spec.Executor.Annotations, v1beta1.KubeGroupNameAnnotationKey)
 			}

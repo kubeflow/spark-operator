@@ -107,10 +107,10 @@ func (s *Scheduler) Schedule(app *v1beta2.SparkApplication) error {
 	}
 
 	// Add a label `scheduling.x-k8s.io/pod-group` to mark the pod belongs to a group
-	if app.ObjectMeta.Labels == nil {
-		app.ObjectMeta.Labels = make(map[string]string)
+	if app.ObjectMeta.Labels == nil { //nolint:staticcheck
+		app.ObjectMeta.Labels = make(map[string]string) //nolint:staticcheck
 	}
-	app.ObjectMeta.Labels[schedulingv1alpha1.PodGroupLabel] = podGroup.Name
+	app.ObjectMeta.Labels[schedulingv1alpha1.PodGroupLabel] = podGroup.Name //nolint:staticcheck
 
 	return nil
 }
