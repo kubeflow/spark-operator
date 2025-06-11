@@ -46,7 +46,7 @@ func TestConfigPrometheusMonitoring(t *testing.T) {
 	fakeClient := fake.NewFakeClient()
 
 	testFn := func(test testcase, t *testing.T) {
-		err := configPrometheusMonitoring(test.app, fakeClient)
+		err := configPrometheusMonitoring(context.TODO(), test.app, fakeClient)
 		assert.NoError(t, err, "failed to configure Prometheus monitoring")
 
 		configMapName := util.GetPrometheusConfigMapName(test.app)
