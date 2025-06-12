@@ -25,8 +25,10 @@ import (
 	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
+	"github.com/go-logr/logr"
 	"github.com/kubeflow/spark-operator/v2/api/v1beta2"
 	"github.com/kubeflow/spark-operator/v2/pkg/util"
 )
@@ -116,6 +118,7 @@ type EventFilter struct {
 	client     client.Client
 	recorder   record.EventRecorder
 	namespaces map[string]bool
+	logger     logr.Logger
 }
 
 var _ predicate.Predicate = &EventFilter{}
@@ -134,6 +137,7 @@ func NewSparkApplicationEventFilter(client client.Client, recorder record.EventR
 		client:     client,
 		recorder:   recorder,
 		namespaces: nsMap,
+		logger:     log.Log.WithName(""),
 	}
 }
 
@@ -172,9 +176,9 @@ func (f *EventFilter) Update(e event.UpdateEvent) bool {
 	if !equality.Semantic.DeepEqual(oldApp.Spec, newApp.Spec) {
 		// Force-set the application status to Invalidating which handles clean-up and application re-run.
 		newApp.Status.AppState.State = v1beta2.ApplicationStateInvalidating
-		logger.Info("Updating SparkApplication status", "name", newApp.Name, "namespace", newApp.Namespace, " oldState", oldApp.Status.AppState.State, "newState", newApp.Status.AppState.State)
+		f.logger.Info("Updating SparkApplication status", "name", newApp.Name, "namespace", newApp.Namespace, " oldState", oldApp.Status.AppState.State, "newState", newApp.Status.AppState.State)
 		if err := f.client.Status().Update(context.TODO(), newApp); err != nil {
-			logger.Error(err, "Failed to update application status", "application", newApp.Name)
+			f.logger.Error(err, "Failed to update application status", "application", newApp.Name)
 			f.recorder.Eventf(
 				newApp,
 				corev1.EventTypeWarning,

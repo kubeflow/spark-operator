@@ -17,18 +17,20 @@ limitations under the License.
 package sparkapplication
 
 import (
+	"context"
 	"fmt"
 	"net/url"
 	"testing"
 
-	"github.com/kubeflow/spark-operator/v2/api/v1beta2"
-	"github.com/kubeflow/spark-operator/v2/pkg/common"
-	"github.com/kubeflow/spark-operator/v2/pkg/util"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+
+	"github.com/kubeflow/spark-operator/v2/api/v1beta2"
+	"github.com/kubeflow/spark-operator/v2/pkg/common"
+	"github.com/kubeflow/spark-operator/v2/pkg/util"
 )
 
 func TestCreateDriverIngressService(t *testing.T) {
@@ -51,7 +53,7 @@ func TestCreateDriverIngressService(t *testing.T) {
 		}
 
 		ingressOptions := tc.app.Spec.DriverIngressOptions[0]
-		ingressConfig, err := reconciler.createDriverIngressServiceFromConfiguration(tc.app, &ingressOptions)
+		ingressConfig, err := reconciler.createDriverIngressServiceFromConfiguration(context.TODO(), tc.app, &ingressOptions)
 
 		if tc.expectError {
 			assert.Error(t, err, "Expected an error but got none")
@@ -89,7 +91,7 @@ func TestCreateDriverIngressService(t *testing.T) {
 		// Test ingress creation
 		driverUrl, err := url.Parse("http://localhost")
 		assert.NoError(t, err, "Failed to parse driver ingress url")
-		_, err = reconciler.createDriverIngress(tc.app, &ingressOptions, *ingressConfig, driverUrl, "ingressClass")
+		_, err = reconciler.createDriverIngress(context.TODO(), tc.app, &ingressOptions, *ingressConfig, driverUrl, "ingressClass")
 
 		if tc.expectError {
 			assert.Error(t, err, "Expected an error but got none")
