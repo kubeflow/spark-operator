@@ -20,20 +20,21 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/golang/glog"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	"github.com/kubeflow/spark-operator/v2/api/v1beta2"
 	"github.com/kubeflow/spark-operator/v2/pkg/common"
 	"github.com/kubeflow/spark-operator/v2/pkg/util"
 )
 
-func configPrometheusMonitoring(app *v1beta2.SparkApplication, client client.Client) error {
+func configPrometheusMonitoring(ctx context.Context, app *v1beta2.SparkApplication, client client.Client) error {
+	logger := log.FromContext(ctx)
 	port := common.DefaultPrometheusJavaAgentPort
 	if app.Spec.Monitoring.Prometheus != nil && app.Spec.Monitoring.Prometheus.Port != nil {
 		port = *app.Spec.Monitoring.Prometheus.Port
@@ -41,22 +42,20 @@ func configPrometheusMonitoring(app *v1beta2.SparkApplication, client client.Cli
 
 	// If one or both of the metricsPropertiesFile and Prometheus.ConfigFile are not set
 	if !util.HasMetricsPropertiesFile(app) || !util.HasPrometheusConfigFile(app) {
-		logger.V(1).Info("Creating a ConfigMap for metrics and Prometheus configurations")
 		configMapName := util.GetPrometheusConfigMapName(app)
 		configMap := buildPrometheusConfigMap(app, configMapName)
 		key := types.NamespacedName{Namespace: configMap.Namespace, Name: configMap.Name}
 		if retryErr := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 			cm := &corev1.ConfigMap{}
-			if err := client.Get(context.TODO(), key, cm); err != nil {
+			if err := client.Get(ctx, key, cm); err != nil {
 				if errors.IsNotFound(err) {
-					return client.Create(context.TODO(), configMap)
+					return client.Create(ctx, configMap)
 				}
 				return err
 			}
 			cm.Data = configMap.Data
-			return client.Update(context.TODO(), cm)
+			return client.Update(ctx, cm)
 		}); retryErr != nil {
-			logger.Error(retryErr, "Failed to create/update Prometheus ConfigMap for SparkApplication", "name", app.Name, "ConfigMap name", configMap.Name, "namespace", app.Namespace)
 			return retryErr
 		}
 	}
@@ -74,9 +73,8 @@ func configPrometheusMonitoring(app *v1beta2.SparkApplication, client client.Cli
 
 	if util.HasPrometheusConfigFile(app) {
 		configFile := *app.Spec.Monitoring.Prometheus.ConfigFile
-		glog.V(2).Infof("Overriding the default Prometheus configuration with config file %s in the Spark image.", configFile)
-		javaOption = fmt.Sprintf("-javaagent:%s=%d:%s", app.Spec.Monitoring.Prometheus.JmxExporterJar,
-			port, configFile)
+		logger.V(1).Info("Overriding the default Prometheus configuration with config file in the Spark image.", "configFile", configFile)
+		javaOption = fmt.Sprintf("-javaagent:%s=%d:%s", app.Spec.Monitoring.Prometheus.JmxExporterJar, port, configFile)
 	}
 
 	/* work around for push gateway issue: https://github.com/prometheus/pushgateway/issues/97 */

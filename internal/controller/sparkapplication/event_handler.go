@@ -26,6 +26,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	"github.com/kubeflow/spark-operator/v2/api/v1beta2"
 	"github.com/kubeflow/spark-operator/v2/internal/metrics"
@@ -53,6 +54,7 @@ func NewSparkPodEventHandler(client client.Client, metrics *metrics.SparkExecuto
 
 // Create implements handler.EventHandler.
 func (h *SparkPodEventHandler) Create(ctx context.Context, event event.CreateEvent, queue workqueue.TypedRateLimitingInterface[ctrl.Request]) {
+	logger := log.FromContext(ctx)
 	pod, ok := event.Object.(*corev1.Pod)
 	if !ok {
 		return
@@ -81,6 +83,7 @@ func (h *SparkPodEventHandler) Update(ctx context.Context, event event.UpdateEve
 		return
 	}
 
+	logger := log.FromContext(ctx)
 	logger.Info("Spark pod updated", "name", newPod.Name, "namespace", newPod.Namespace, "oldPhase", oldPod.Status.Phase, "newPhase", newPod.Status.Phase)
 	h.enqueueSparkAppForUpdate(ctx, newPod, queue)
 
@@ -96,7 +99,8 @@ func (h *SparkPodEventHandler) Delete(ctx context.Context, event event.DeleteEve
 		return
 	}
 
-	logger.Info("Spark pod deleted", "name", pod.Name, "namespace", pod.Namespace, "phase", pod.Status.Phase)
+	logger := log.FromContext(ctx, "pod", pod.Name, "phase", pod.Status.Phase)
+	logger.Info("Spark pod deleted")
 	h.enqueueSparkAppForUpdate(ctx, pod, queue)
 
 	if h.metrics != nil && util.IsExecutorPod(pod) {
@@ -111,7 +115,8 @@ func (h *SparkPodEventHandler) Generic(ctx context.Context, event event.GenericE
 		return
 	}
 
-	logger.Info("Spark pod generic event ", "name", pod.Name, "namespace", pod.Namespace, "phase", pod.Status.Phase)
+	logger := log.FromContext(ctx, "pod", pod.Name, "phase", pod.Status.Phase)
+	logger.Info("Spark pod generic event ")
 	h.enqueueSparkAppForUpdate(ctx, pod, queue)
 }
 
@@ -165,7 +170,8 @@ func (h *EventHandler) Create(ctx context.Context, event event.CreateEvent, queu
 		return
 	}
 
-	logger.Info("SparkApplication created", "name", app.Name, "namespace", app.Namespace, "state", app.Status.AppState.State)
+	logger := log.FromContext(ctx, "namespace", app.Namespace, "name", app.Name)
+	logger.Info("SparkApplication created")
 	queue.AddRateLimited(ctrl.Request{NamespacedName: types.NamespacedName{Name: app.Name, Namespace: app.Namespace}})
 
 	if h.metrics != nil {
@@ -185,6 +191,7 @@ func (h *EventHandler) Update(ctx context.Context, event event.UpdateEvent, queu
 		return
 	}
 
+	logger := log.FromContext(ctx)
 	logger.Info("SparkApplication updated", "name", oldApp.Name, "namespace", oldApp.Namespace, "oldState", oldApp.Status.AppState.State, "newState", newApp.Status.AppState.State)
 	queue.AddRateLimited(ctrl.Request{NamespacedName: types.NamespacedName{Name: newApp.Name, Namespace: newApp.Namespace}})
 
@@ -200,7 +207,8 @@ func (h *EventHandler) Delete(ctx context.Context, event event.DeleteEvent, queu
 		return
 	}
 
-	logger.Info("SparkApplication deleted", "name", app.Name, "namespace", app.Namespace, "state", app.Status.AppState.State)
+	logger := log.FromContext(ctx, "name", app.Name, "namespace", app.Namespace)
+	logger.Info("SparkApplication deleted", "state", app.Status.AppState.State)
 	queue.AddRateLimited(ctrl.Request{NamespacedName: types.NamespacedName{Name: app.Name, Namespace: app.Namespace}})
 
 	if h.metrics != nil {
@@ -215,6 +223,7 @@ func (h *EventHandler) Generic(ctx context.Context, event event.GenericEvent, qu
 		return
 	}
 
-	logger.Info("SparkApplication generic event", "name", app.Name, "namespace", app.Namespace, "state", app.Status.AppState.State)
+	logger := log.FromContext(ctx, "name", app.Name, "namespace", app.Namespace)
+	logger.Info("SparkApplication generic event", "state", app.Status.AppState.State)
 	queue.AddRateLimited(ctrl.Request{NamespacedName: types.NamespacedName{Name: app.Name, Namespace: app.Namespace}})
 }
