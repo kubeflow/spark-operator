@@ -180,7 +180,7 @@ func addOwnerReference(pod *corev1.Pod, app *v1beta2.SparkApplication) error {
 		return nil
 	}
 	ownerReference := util.GetOwnerReference(app)
-	pod.ObjectMeta.OwnerReferences = append(pod.ObjectMeta.OwnerReferences, ownerReference) //nolint:staticcheck
+	pod.OwnerReferences = append(pod.OwnerReferences, ownerReference)
 	return nil
 }
 
@@ -461,9 +461,9 @@ func addAffinity(pod *corev1.Pod, app *v1beta2.SparkApplication) error {
 func addTolerations(pod *corev1.Pod, app *v1beta2.SparkApplication) error {
 	var tolerations []corev1.Toleration
 	if util.IsDriverPod(pod) {
-		tolerations = app.Spec.Driver.SparkPodSpec.Tolerations //nolint:staticcheck
+		tolerations = app.Spec.Driver.Tolerations
 	} else if util.IsExecutorPod(pod) {
-		tolerations = app.Spec.Executor.SparkPodSpec.Tolerations //nolint:staticcheck
+		tolerations = app.Spec.Executor.Tolerations
 	}
 
 	if pod.Spec.Tolerations == nil {

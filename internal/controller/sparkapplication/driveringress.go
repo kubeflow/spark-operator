@@ -145,15 +145,15 @@ func (r *Reconciler) createDriverIngressV1(ctx context.Context, app *v1beta2.Spa
 	}
 
 	if len(ingressResourceAnnotations) != 0 {
-		ingress.ObjectMeta.Annotations = ingressResourceAnnotations //nolint:staticcheck
+		ingress.Annotations = ingressResourceAnnotations
 	}
 
 	// If we're serving on a subpath, we need to ensure we use the capture groups
 	if ingressURL.Path != "" && ingressURL.Path != "/" {
-		if ingress.ObjectMeta.Annotations == nil { //nolint:staticcheck
-			ingress.ObjectMeta.Annotations = make(map[string]string) //nolint:staticcheck
+		if ingress.Annotations == nil {
+			ingress.Annotations = make(map[string]string)
 		}
-		ingress.ObjectMeta.Annotations["nginx.ingress.kubernetes.io/rewrite-target"] = "/$2" //nolint:staticcheck
+		ingress.Annotations["nginx.ingress.kubernetes.io/rewrite-target"] = "/$2"
 	}
 	if len(ingressTLSHosts) != 0 {
 		ingress.Spec.TLS = ingressTLSHosts
@@ -226,15 +226,15 @@ func (r *Reconciler) createDriverIngressLegacy(ctx context.Context, app *v1beta2
 	}
 
 	if len(ingressResourceAnnotations) != 0 {
-		ingress.ObjectMeta.Annotations = ingressResourceAnnotations //nolint:staticcheck
+		ingress.Annotations = ingressResourceAnnotations
 	}
 
 	// If we're serving on a subpath, we need to ensure we use the capture groups
 	if ingressURL.Path != "" && ingressURL.Path != "/" {
-		if ingress.ObjectMeta.Annotations == nil { //nolint:staticcheck
-			ingress.ObjectMeta.Annotations = make(map[string]string) //nolint:staticcheck
+		if ingress.Annotations == nil {
+			ingress.Annotations = make(map[string]string)
 		}
-		ingress.ObjectMeta.Annotations["nginx.ingress.kubernetes.io/rewrite-target"] = "/$2" //nolint:staticcheck
+		ingress.Annotations["nginx.ingress.kubernetes.io/rewrite-target"] = "/$2"
 	}
 	if len(ingressTLSHosts) != 0 {
 		ingress.Spec.TLS = convertIngressTLSHostsToLegacy(ingressTLSHosts)
@@ -310,11 +310,11 @@ func (r *Reconciler) createDriverIngressService(
 	}
 
 	if len(serviceLabels) != 0 {
-		service.ObjectMeta.Labels = serviceLabels //nolint:staticcheck
+		service.Labels = serviceLabels
 	}
 
 	if len(serviceAnnotations) != 0 {
-		service.ObjectMeta.Annotations = serviceAnnotations //nolint:staticcheck
+		service.Annotations = serviceAnnotations
 	}
 
 	if err := r.client.Create(ctx, service); err != nil {

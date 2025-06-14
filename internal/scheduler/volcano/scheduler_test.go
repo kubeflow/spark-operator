@@ -224,7 +224,7 @@ func TestSchedule(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			tc.app.ObjectMeta.Annotations = make(map[string]string) //nolint:staticcheck
+			tc.app.Annotations = make(map[string]string)
 			tc.app.Spec.Driver.Annotations = make(map[string]string)
 			tc.app.Spec.Executor.Annotations = make(map[string]string)
 
