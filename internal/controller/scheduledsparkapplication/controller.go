@@ -168,8 +168,8 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			return ctrl.Result{RequeueAfter: schedule.Next(now).Sub(now)}, nil
 		}
 
-		if nextRunTime.Time.After(now) {
-			return ctrl.Result{RequeueAfter: nextRunTime.Time.Sub(now)}, nil
+		if nextRunTime.After(now) {
+			return ctrl.Result{RequeueAfter: nextRunTime.Sub(now)}, nil
 		}
 
 		ok, err := r.shouldStartNextRun(scheduledApp)
@@ -320,9 +320,10 @@ func (r *Reconciler) checkAndUpdatePastRuns(ctx context.Context, scheduledApp *v
 	var completedApps []*v1beta2.SparkApplication
 	var failedApps []*v1beta2.SparkApplication
 	for _, app := range apps {
-		if app.Status.AppState.State == v1beta2.ApplicationStateCompleted {
+		switch app.Status.AppState.State {
+		case v1beta2.ApplicationStateCompleted:
 			completedApps = append(completedApps, app)
-		} else if app.Status.AppState.State == v1beta2.ApplicationStateFailed {
+		case v1beta2.ApplicationStateFailed:
 			failedApps = append(failedApps, app)
 		}
 	}

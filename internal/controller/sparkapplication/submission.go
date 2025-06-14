@@ -423,11 +423,12 @@ func driverSecretOption(app *v1beta2.SparkApplication) ([]string, error) {
 	for _, secret := range app.Spec.Driver.Secrets {
 		property := fmt.Sprintf(common.SparkKubernetesDriverSecretsTemplate, secret.Name)
 		args = append(args, "--conf", fmt.Sprintf("%s=%s", property, secret.Path))
-		if secret.Type == v1beta2.SecretTypeGCPServiceAccount {
+		switch secret.Type {
+		case v1beta2.SecretTypeGCPServiceAccount:
 			property := fmt.Sprintf(common.SparkKubernetesDriverEnvTemplate, common.EnvGoogleApplicationCredentials)
 			conf := fmt.Sprintf("%s=%s", property, filepath.Join(secret.Path, common.ServiceAccountJSONKeyFileName))
 			args = append(args, "--conf", conf)
-		} else if secret.Type == v1beta2.SecretTypeHadoopDelegationToken {
+		case v1beta2.SecretTypeHadoopDelegationToken:
 			property := fmt.Sprintf(common.SparkKubernetesDriverEnvTemplate, common.EnvHadoopTokenFileLocation)
 			conf := fmt.Sprintf("%s=%s", property, filepath.Join(secret.Path, common.HadoopDelegationTokenFileName))
 			args = append(args, "--conf", conf)

@@ -22,5 +22,5 @@ import (
 
 func CreateValidMetricNameLabel(prefix, name string) string {
 	// "-" is not a valid character for prometheus metric names or labels.
-	return strings.Replace(prefix+name, "-", "_", -1)
+	return strings.ReplaceAll(prefix+name, "-", "_")
 }

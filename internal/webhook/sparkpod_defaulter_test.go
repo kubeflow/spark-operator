@@ -818,7 +818,7 @@ func TestPatchSparkPod_PriorityClassName(t *testing.T) {
 	assert.Equal(t, priorityClassName, modifiedDriverPod.Spec.PriorityClassName)
 
 	var defaultPriority int32
-	var defaultPolicy corev1.PreemptionPolicy = corev1.PreemptLowerPriority
+	var defaultPolicy = corev1.PreemptLowerPriority
 	executorPod := &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "spark-executor",

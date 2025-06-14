@@ -17,6 +17,7 @@ limitations under the License.
 package util
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -108,8 +109,9 @@ func CompareSemanticVersion(v1, v2 string) int {
 }
 
 // WriteObjectToFile marshals the given object into a YAML document and writes it to the given file.
-func WriteObjectToFile(obj interface{}, filePath string) error {
-	if err := os.MkdirAll(filepath.Dir(filePath), 0755); err != nil {
+func WriteObjectToFile(obj interface{}, filePath string) (err error) {
+	err = os.MkdirAll(filepath.Dir(filePath), 0755)
+	if err != nil {
 		return err
 	}
 
@@ -117,7 +119,12 @@ func WriteObjectToFile(obj interface{}, filePath string) error {
 	if err != nil {
 		return err
 	}
-	defer file.Close()
+	defer func(file *os.File) {
+		fileErr := file.Close()
+		if fileErr != nil {
+			err = errors.Join(err, fileErr)
+		}
+	}(file)
 
 	data, err := yaml.Marshal(obj)
 	if err != nil {

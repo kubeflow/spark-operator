@@ -30,13 +30,13 @@ import (
 
 var _ = Describe("GetMasterURL", func() {
 	BeforeEach(func() {
-		os.Setenv(common.EnvKubernetesServiceHost, "127.0.0.1")
-		os.Setenv(common.EnvKubernetesServicePort, "443")
+		os.Setenv(common.EnvKubernetesServiceHost, "127.0.0.1") //nolint:errcheck
+		os.Setenv(common.EnvKubernetesServicePort, "443")       //nolint:errcheck
 	})
 
 	AfterEach(func() {
-		os.Unsetenv(common.EnvKubernetesServiceHost)
-		os.Unsetenv(common.EnvKubernetesServicePort)
+		os.Unsetenv(common.EnvKubernetesServiceHost) //nolint:errcheck
+		os.Unsetenv(common.EnvKubernetesServicePort) //nolint:errcheck
 	})
 
 	Context("IPv4 address", func() {
@@ -50,13 +50,13 @@ var _ = Describe("GetMasterURL", func() {
 
 var _ = Describe("GetMasterURL", func() {
 	BeforeEach(func() {
-		os.Setenv(common.EnvKubernetesServiceHost, "::1")
-		os.Setenv(common.EnvKubernetesServicePort, "443")
+		os.Setenv(common.EnvKubernetesServiceHost, "::1") //nolint:errcheck
+		os.Setenv(common.EnvKubernetesServicePort, "443") //nolint:errcheck
 	})
 
 	AfterEach(func() {
-		os.Unsetenv(common.EnvKubernetesServiceHost)
-		os.Unsetenv(common.EnvKubernetesServicePort)
+		os.Unsetenv(common.EnvKubernetesServiceHost) //nolint:errcheck
+		os.Unsetenv(common.EnvKubernetesServicePort) //nolint:errcheck
 	})
 
 	Context("IPv6 address", func() {
