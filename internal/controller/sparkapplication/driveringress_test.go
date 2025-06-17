@@ -174,7 +174,7 @@ func TestCreateDriverIngressService(t *testing.T) {
 			SparkApplicationID: "foo-3",
 		},
 	}
-	var serviceTypeNodePort corev1.ServiceType = corev1.ServiceTypeNodePort
+	var serviceTypeNodePort = corev1.ServiceTypeNodePort
 	app5 := &v1beta2.SparkApplication{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "foo5",

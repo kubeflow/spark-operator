@@ -30,13 +30,13 @@ import (
 
 var _ = Describe("GetMasterURL", func() {
 	BeforeEach(func() {
-		os.Setenv(common.EnvKubernetesServiceHost, "127.0.0.1")
-		os.Setenv(common.EnvKubernetesServicePort, "443")
+		Expect(os.Setenv(common.EnvKubernetesServiceHost, "127.0.0.1")).NotTo(HaveOccurred())
+		Expect(os.Setenv(common.EnvKubernetesServicePort, "443")).NotTo(HaveOccurred())
 	})
 
 	AfterEach(func() {
-		os.Unsetenv(common.EnvKubernetesServiceHost)
-		os.Unsetenv(common.EnvKubernetesServicePort)
+		Expect(os.Unsetenv(common.EnvKubernetesServiceHost)).NotTo(HaveOccurred())
+		Expect(os.Unsetenv(common.EnvKubernetesServicePort)).NotTo(HaveOccurred())
 	})
 
 	Context("IPv4 address", func() {
@@ -50,13 +50,13 @@ var _ = Describe("GetMasterURL", func() {
 
 var _ = Describe("GetMasterURL", func() {
 	BeforeEach(func() {
-		os.Setenv(common.EnvKubernetesServiceHost, "::1")
-		os.Setenv(common.EnvKubernetesServicePort, "443")
+		Expect(os.Setenv(common.EnvKubernetesServiceHost, "::1")).NotTo(HaveOccurred())
+		Expect(os.Setenv(common.EnvKubernetesServicePort, "443")).NotTo(HaveOccurred())
 	})
 
 	AfterEach(func() {
-		os.Unsetenv(common.EnvKubernetesServiceHost)
-		os.Unsetenv(common.EnvKubernetesServicePort)
+		Expect(os.Unsetenv(common.EnvKubernetesServiceHost)).NotTo(HaveOccurred())
+		Expect(os.Unsetenv(common.EnvKubernetesServicePort)).NotTo(HaveOccurred())
 	})
 
 	Context("IPv6 address", func() {
