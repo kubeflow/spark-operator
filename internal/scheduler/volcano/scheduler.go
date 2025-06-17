@@ -108,8 +108,8 @@ func (s *Scheduler) ShouldSchedule(_ *v1beta2.SparkApplication) bool {
 
 // Schedule implements batchscheduler.Interface.
 func (s *Scheduler) Schedule(app *v1beta2.SparkApplication) error {
-	if app.ObjectMeta.Annotations == nil {
-		app.ObjectMeta.Annotations = make(map[string]string)
+	if app.Annotations == nil {
+		app.Annotations = make(map[string]string)
 	}
 	if app.Spec.Driver.Annotations == nil {
 		app.Spec.Driver.Annotations = make(map[string]string)
