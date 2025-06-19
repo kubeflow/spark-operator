@@ -26,11 +26,6 @@ SPARK_OPERATOR_PKG="github.com/kubeflow/spark-operator/v2"
 
 source "${CODEGEN_PKG}/kube_codegen.sh"
 
-# Generate tagged helper code: conversions, deepcopy, defaults and validations
-kube::codegen::gen_helpers \
-    --boilerplate "${SCRIPT_ROOT}/hack/boilerplate.go.txt" \
-    "${SCRIPT_ROOT}"
-
 # Generate register code
 kube::codegen::gen_register \
     --boilerplate "${SCRIPT_ROOT}/hack/boilerplate.go.txt" \
