@@ -91,6 +91,8 @@ type ScheduledSparkApplicationStatus struct {
 // +kubebuilder:printcolumn:JSONPath=.status.lastRun,name=Last Run,type=date
 // +kubebuilder:printcolumn:JSONPath=.status.lastRunName,name=Last Run Name,type=string
 // +kubebuilder:printcolumn:JSONPath=.metadata.creationTimestamp,name=Age,type=date
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+// +genclient
 
 // ScheduledSparkApplication is the Schema for the scheduledsparkapplications API.
 type ScheduledSparkApplication struct {
@@ -102,6 +104,7 @@ type ScheduledSparkApplication struct {
 }
 
 // +kubebuilder:object:root=true
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // ScheduledSparkApplicationList contains a list of ScheduledSparkApplication.
 type ScheduledSparkApplicationList struct {
