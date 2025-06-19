@@ -27,6 +27,7 @@ fullnameOverride: ""
 # -- Common labels to add to the resources.
 commonLabels: {}
 
+# Image used by the Spark operator.
 image:
   # -- Image registry.
   registry: ghcr.io
@@ -40,6 +41,20 @@ image:
   # -- Image pull secrets for private image registry.
   pullSecrets: []
   # - name: <secret-name>
+
+# Helm hook configuration.
+hook:
+  # -- Whether to create a Helm pre-install/pre-upgrade hook Job to update CRDs.
+  upgradeCrd: false
+  # Image used by the Helm hook Job.
+  image:
+    # -- Image registry.
+    registry: ghcr.io
+    # -- Image repository.
+    repository: kubeflow/spark-operator/kubectl
+    # -- Image tag.
+    # @default -- If not set, the chart appVersion will be used.
+    tag: ""
 
 controller:
   # -- Number of replicas of controller.
