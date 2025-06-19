@@ -74,7 +74,6 @@ GOLANGCI_LINT ?= $(LOCALBIN)/golangci-lint-$(GOLANGCI_LINT_VERSION)
 GEN_CRD_API_REFERENCE_DOCS ?= $(LOCALBIN)/gen-crd-api-reference-docs-$(GEN_CRD_API_REFERENCE_DOCS_VERSION)
 HELM ?= $(LOCALBIN)/helm-$(HELM_VERSION)
 HELM_DOCS ?= $(LOCALBIN)/helm-docs-$(HELM_DOCS_VERSION)
-CODE_GENERATOR ?= $(LOCALBIN)/code-generator-$(CODE_GENERATOR_VERSION)
 
 ##@ General
 
@@ -121,13 +120,12 @@ update-crd: manifests ## Update CRD files in the Helm chart.
 	cp config/crd/bases/* charts/spark-operator-chart/crds/
 
 .PHONY: verify-codegen
-verify-codegen: $(CODE_GENERATOR) ## Install code-generator changes
-$(CODE_GENERATOR): $(LOCALBIN)
-	$(call go-install-tool,$(CODE_GENERATOR),k8s.io/code-generator/cmd/deepcopy-gen,$(CODE_GENERATOR_VERSION))
-	$(call go-install-tool,$(CODE_GENERATOR),k8s.io/code-generator/cmd/register-gen,$(CODE_GENERATOR_VERSION))
-	$(call go-install-tool,$(CODE_GENERATOR),k8s.io/code-generator/cmd/client-gen,$(CODE_GENERATOR_VERSION))
-	$(call go-install-tool,$(CODE_GENERATOR),k8s.io/code-generator/cmd/lister-gen,$(CODE_GENERATOR_VERSION))
-	$(call go-install-tool,$(CODE_GENERATOR),k8s.io/code-generator/cmd/informer-gen,$(CODE_GENERATOR_VERSION))
+verify-codegen: $(LOCALBIN) ## Install code-generator commands and verify changes
+	$(call go-install-tool,$(LOCALBIN)/deepcopy-gen,k8s.io/code-generator/cmd/deepcopy-gen,$(CODE_GENERATOR_VERSION))
+	$(call go-install-tool,$(LOCALBIN)/register-gen,k8s.io/code-generator/cmd/register-gen,$(CODE_GENERATOR_VERSION))
+	$(call go-install-tool,$(LOCALBIN)/client-gen,k8s.io/code-generator/cmd/client-gen,$(CODE_GENERATOR_VERSION))
+	$(call go-install-tool,$(LOCALBIN)/lister-gen,k8s.io/code-generator/cmd/lister-gen,$(CODE_GENERATOR_VERSION))
+	$(call go-install-tool,$(LOCALBIN)/informer-gen,k8s.io/code-generator/cmd/informer-gen,$(CODE_GENERATOR_VERSION))
 	./hack/verify-codegen.sh
 
 .PHONY: go-clean
