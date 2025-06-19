@@ -21,24 +21,24 @@ metadata:
 spec:
   type: Scala
   mode: cluster
-  image: spark:3.5.5
+  image: spark:4.0.0
   imagePullPolicy: IfNotPresent
   mainClass: dummy
   mainApplicationFile: local:///dummy.jar
-  sparkVersion: 3.5.2
+  sparkVersion: 4.0.0
   restartPolicy:
     type: OnFailure
     onSubmissionFailureRetries: 3
     onSubmissionFailureRetryInterval: 1
   driver:
     labels:
-      version: 3.5.2
+      version: 4.0.0
     cores: 1
     memory: 512m
     serviceAccount: non-existent  # This is the important part that causes submission to fail.
   executor:
     labels:
-      version: 3.5.2
+      version: 4.0.0
     instances: 1
     cores: 1
     memory: 512m
