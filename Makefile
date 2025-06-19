@@ -121,11 +121,11 @@ update-crd: manifests ## Update CRD files in the Helm chart.
 
 .PHONY: verify-codegen
 verify-codegen: $(LOCALBIN) ## Install code-generator commands and verify changes
-	$(call go-install-tool,$(LOCALBIN)/deepcopy-gen,k8s.io/code-generator/cmd/deepcopy-gen,$(CODE_GENERATOR_VERSION))
-	$(call go-install-tool,$(LOCALBIN)/register-gen,k8s.io/code-generator/cmd/register-gen,$(CODE_GENERATOR_VERSION))
-	$(call go-install-tool,$(LOCALBIN)/client-gen,k8s.io/code-generator/cmd/client-gen,$(CODE_GENERATOR_VERSION))
-	$(call go-install-tool,$(LOCALBIN)/lister-gen,k8s.io/code-generator/cmd/lister-gen,$(CODE_GENERATOR_VERSION))
-	$(call go-install-tool,$(LOCALBIN)/informer-gen,k8s.io/code-generator/cmd/informer-gen,$(CODE_GENERATOR_VERSION))
+	$(call go-install-tool,$(LOCALBIN)/deepcopy-gen-$(CODE_GENERATOR_VERSION),k8s.io/code-generator/cmd/deepcopy-gen,$(CODE_GENERATOR_VERSION))
+	$(call go-install-tool,$(LOCALBIN)/register-gen-$(CODE_GENERATOR_VERSION),k8s.io/code-generator/cmd/register-gen,$(CODE_GENERATOR_VERSION))
+	$(call go-install-tool,$(LOCALBIN)/client-gen-$(CODE_GENERATOR_VERSION),k8s.io/code-generator/cmd/client-gen,$(CODE_GENERATOR_VERSION))
+	$(call go-install-tool,$(LOCALBIN)/lister-gen-$(CODE_GENERATOR_VERSION),k8s.io/code-generator/cmd/lister-gen,$(CODE_GENERATOR_VERSION))
+	$(call go-install-tool,$(LOCALBIN)/informer-gen-$(CODE_GENERATOR_VERSION),k8s.io/code-generator/cmd/informer-gen,$(CODE_GENERATOR_VERSION))
 	./hack/verify-codegen.sh
 
 .PHONY: go-clean
