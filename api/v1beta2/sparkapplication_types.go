@@ -25,10 +25,6 @@ import (
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
 
-func init() {
-	SchemeBuilder.Register(&SparkApplication{}, &SparkApplicationList{})
-}
-
 // SparkApplicationSpec defines the desired state of SparkApplication
 // It carries every pieces of information a spark-submit command takes and recognizes.
 type SparkApplicationSpec struct {
@@ -182,6 +178,8 @@ type SparkApplicationStatus struct {
 // +kubebuilder:printcolumn:JSONPath=.status.lastSubmissionAttemptTime,name=Start,type=string
 // +kubebuilder:printcolumn:JSONPath=.status.terminationTime,name=Finish,type=string
 // +kubebuilder:printcolumn:JSONPath=.metadata.creationTimestamp,name=Age,type=date
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+// +genclient
 
 // SparkApplication is the Schema for the sparkapplications API
 type SparkApplication struct {
@@ -193,6 +191,7 @@ type SparkApplication struct {
 }
 
 // +kubebuilder:object:root=true
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // SparkApplicationList contains a list of SparkApplication
 type SparkApplicationList struct {

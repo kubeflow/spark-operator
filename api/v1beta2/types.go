@@ -14,21 +14,10 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+/*
+This file is needed for kubernetes/code-generator/kube_codegen.sh script used in hack/update-codegen.sh.
+*/
+
 package v1beta2
 
-import (
-	"k8s.io/apimachinery/pkg/runtime/schema"
-)
-
-const (
-	Group   = "sparkoperator.k8s.io"
-	Version = "v1beta2"
-)
-
-// SchemeGroupVersion is the group version used to register these objects.
-var SchemeGroupVersion = schema.GroupVersion{Group: Group, Version: Version}
-
-// Resource takes an unqualified resource and returns a Group-qualified GroupResource.
-func Resource(resource string) schema.GroupResource {
-	return SchemeGroupVersion.WithResource(resource).GroupResource()
-}
+//+genclient
