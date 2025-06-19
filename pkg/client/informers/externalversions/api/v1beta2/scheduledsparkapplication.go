@@ -22,9 +22,9 @@ import (
 	time "time"
 
 	v2apiv1beta2 "github.com/kubeflow/spark-operator/v2/api/v1beta2"
-	versioned "github.com/kubeflow/spark-operator/v2/client-go/clientset/versioned"
-	internalinterfaces "github.com/kubeflow/spark-operator/v2/client-go/informers/externalversions/internalinterfaces"
-	apiv1beta2 "github.com/kubeflow/spark-operator/v2/client-go/listers/api/v1beta2"
+	versioned "github.com/kubeflow/spark-operator/v2/pkg/client/clientset/versioned"
+	internalinterfaces "github.com/kubeflow/spark-operator/v2/pkg/client/informers/externalversions/internalinterfaces"
+	apiv1beta2 "github.com/kubeflow/spark-operator/v2/pkg/client/listers/api/v1beta2"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	watch "k8s.io/apimachinery/pkg/watch"

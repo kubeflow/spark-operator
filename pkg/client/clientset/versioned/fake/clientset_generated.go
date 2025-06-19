@@ -18,9 +18,9 @@ limitations under the License.
 package fake
 
 import (
-	clientset "github.com/kubeflow/spark-operator/v2/client-go/clientset/versioned"
-	sparkoperatorv1beta2 "github.com/kubeflow/spark-operator/v2/client-go/clientset/versioned/typed/api/v1beta2"
-	fakesparkoperatorv1beta2 "github.com/kubeflow/spark-operator/v2/client-go/clientset/versioned/typed/api/v1beta2/fake"
+	clientset "github.com/kubeflow/spark-operator/v2/pkg/client/clientset/versioned"
+	sparkoperatorv1beta2 "github.com/kubeflow/spark-operator/v2/pkg/client/clientset/versioned/typed/api/v1beta2"
+	fakesparkoperatorv1beta2 "github.com/kubeflow/spark-operator/v2/pkg/client/clientset/versioned/typed/api/v1beta2/fake"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/discovery"

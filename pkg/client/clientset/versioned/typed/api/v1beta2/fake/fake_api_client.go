@@ -18,7 +18,7 @@ limitations under the License.
 package fake
 
 import (
-	v1beta2 "github.com/kubeflow/spark-operator/v2/client-go/clientset/versioned/typed/api/v1beta2"
+	v1beta2 "github.com/kubeflow/spark-operator/v2/pkg/client/clientset/versioned/typed/api/v1beta2"
 	rest "k8s.io/client-go/rest"
 	testing "k8s.io/client-go/testing"
 )

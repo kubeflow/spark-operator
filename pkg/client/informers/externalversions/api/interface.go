@@ -18,8 +18,8 @@ limitations under the License.
 package api
 
 import (
-	v1beta2 "github.com/kubeflow/spark-operator/v2/client-go/informers/externalversions/api/v1beta2"
-	internalinterfaces "github.com/kubeflow/spark-operator/v2/client-go/informers/externalversions/internalinterfaces"
+	v1beta2 "github.com/kubeflow/spark-operator/v2/pkg/client/informers/externalversions/api/v1beta2"
+	internalinterfaces "github.com/kubeflow/spark-operator/v2/pkg/client/informers/externalversions/internalinterfaces"
 )
 
 // Interface provides access to each of this group's versions.

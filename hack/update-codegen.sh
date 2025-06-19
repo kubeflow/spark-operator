@@ -34,7 +34,7 @@ kube::codegen::gen_register \
 # Generate client code: client, lister, informer in client-go directory
 kube::codegen::gen_client \
     --with-watch \
-    --output-dir "${SCRIPT_ROOT}/client-go" \
-    --output-pkg "${SPARK_OPERATOR_PKG}/client-go" \
+    --output-dir "${SCRIPT_ROOT}/pkg/client" \
+    --output-pkg "${SPARK_OPERATOR_PKG}/pkg/client" \
     --boilerplate "${SCRIPT_ROOT}/hack/boilerplate.go.txt" \
     "${SCRIPT_ROOT}"

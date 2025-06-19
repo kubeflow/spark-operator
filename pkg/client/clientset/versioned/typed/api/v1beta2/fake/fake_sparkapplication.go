@@ -19,7 +19,7 @@ package fake
 
 import (
 	v1beta2 "github.com/kubeflow/spark-operator/v2/api/v1beta2"
-	apiv1beta2 "github.com/kubeflow/spark-operator/v2/client-go/clientset/versioned/typed/api/v1beta2"
+	apiv1beta2 "github.com/kubeflow/spark-operator/v2/pkg/client/clientset/versioned/typed/api/v1beta2"
 	gentype "k8s.io/client-go/gentype"
 )
 

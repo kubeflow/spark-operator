@@ -21,7 +21,7 @@ import (
 	fmt "fmt"
 	http "net/http"
 
-	sparkoperatorv1beta2 "github.com/kubeflow/spark-operator/v2/client-go/clientset/versioned/typed/api/v1beta2"
+	sparkoperatorv1beta2 "github.com/kubeflow/spark-operator/v2/pkg/client/clientset/versioned/typed/api/v1beta2"
 	discovery "k8s.io/client-go/discovery"
 	rest "k8s.io/client-go/rest"
 	flowcontrol "k8s.io/client-go/util/flowcontrol"

@@ -21,7 +21,7 @@ import (
 	context "context"
 
 	apiv1beta2 "github.com/kubeflow/spark-operator/v2/api/v1beta2"
-	scheme "github.com/kubeflow/spark-operator/v2/client-go/clientset/versioned/scheme"
+	scheme "github.com/kubeflow/spark-operator/v2/pkg/client/clientset/versioned/scheme"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"
 	watch "k8s.io/apimachinery/pkg/watch"

@@ -21,7 +21,7 @@ import (
 	http "net/http"
 
 	apiv1beta2 "github.com/kubeflow/spark-operator/v2/api/v1beta2"
-	scheme "github.com/kubeflow/spark-operator/v2/client-go/clientset/versioned/scheme"
+	scheme "github.com/kubeflow/spark-operator/v2/pkg/client/clientset/versioned/scheme"
 	rest "k8s.io/client-go/rest"
 )
 
