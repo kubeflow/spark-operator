@@ -47,6 +47,10 @@ jobs:
             false
           fi
 
+      - name: Verify Codegen
+        run: |
+          make verify-codegen
+
       - name: Run go fmt check
         run: |
           make go-fmt
