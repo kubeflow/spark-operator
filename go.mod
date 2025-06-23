@@ -5,7 +5,7 @@ go 1.24.1
 tool k8s.io/code-generator
 
 require (
-	github.com/go-logr/logr v1.4.2
+	github.com/go-logr/logr v1.4.3
 	github.com/golang/glog v1.2.4
 	github.com/google/uuid v1.6.0
 	github.com/onsi/ginkgo/v2 v2.22.0
