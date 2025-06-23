@@ -137,7 +137,7 @@ jobs:
       - name: Install Helm
         uses: azure/setup-helm@v4
         with:
-          version: v3.14.3
+          version: v3.18.2
 
       - name: Set up chart-testing
         uses: helm/chart-testing-action@v2.7.0
@@ -186,8 +186,8 @@ jobs:
         if: steps.list-changed.outputs.changed == 'true'
         uses: manusa/actions-setup-minikube@v2.14.0
         with:
-          minikube version: v1.33.0
-          kubernetes version: v1.30.0
+          minikube version: v1.36.0
+          kubernetes version: v1.33.0
           start args: --memory 6g --cpus=2 --addons ingress
           github token: ${{ inputs.github-token }}
 
@@ -212,6 +212,7 @@ jobs:
           - v1.30.8
           - v1.31.4
           - v1.32.0
+          - v1.33.0
     steps:
       - name: Checkout source code
         uses: actions/checkout@v4
