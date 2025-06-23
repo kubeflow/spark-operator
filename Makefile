@@ -53,7 +53,6 @@ KUSTOMIZE_VERSION ?= v5.6.0
 CONTROLLER_TOOLS_VERSION ?= v0.18.0
 KIND_VERSION ?= v0.29.0
 KIND_K8S_VERSION ?= v1.33.0
-ENVTEST_VERSION ?= release-0.21
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
 ENVTEST_K8S_VERSION ?= v1.33.0
 GOLANGCI_LINT_VERSION ?= v2.1.6
@@ -69,7 +68,6 @@ KUBECTL ?= kubectl
 KUSTOMIZE ?= $(LOCALBIN)/kustomize-$(KUSTOMIZE_VERSION)
 CONTROLLER_GEN ?= $(LOCALBIN)/controller-gen-$(CONTROLLER_TOOLS_VERSION)
 KIND ?= $(LOCALBIN)/kind-$(KIND_VERSION)
-ENVTEST ?= $(LOCALBIN)/setup-envtest-$(ENVTEST_VERSION)
 GOLANGCI_LINT ?= $(LOCALBIN)/golangci-lint-$(GOLANGCI_LINT_VERSION)
 GEN_CRD_API_REFERENCE_DOCS ?= $(LOCALBIN)/gen-crd-api-reference-docs-$(GEN_CRD_API_REFERENCE_DOCS_VERSION)
 HELM ?= $(LOCALBIN)/helm-$(HELM_VERSION)
@@ -159,15 +157,16 @@ go-lint-fix: golangci-lint ## Run golangci-lint linter and perform fixes.
 	$(GOLANGCI_LINT) run --fix
 
 .PHONY: unit-test
-unit-test: envtest ## Run unit tests.
+unit-test: ## Run unit tests.
 	@echo "Running unit tests..."
-	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)"
-	go test $(shell go list ./... | grep -v /e2e) -coverprofile cover.out
+	LOCALBIN=$(LOCALBIN) ENVTEST_K8S_VERSION=$(ENVTEST_K8S_VERSION) \
+		go test $(shell go list ./... | grep -v /e2e) -coverprofile cover.out
 
 .PHONY: e2e-test
-e2e-test: envtest ## Run the e2e tests against a Kind k8s instance that is spun up.
+e2e-test: ## Run the e2e tests against a Kind k8s instance that is spun up.
 	@echo "Running e2e tests..."
-	go test ./test/e2e/ -v -ginkgo.v -timeout 30m
+	LOCALBIN=$(LOCALBIN) ENVTEST_K8S_VERSION=$(ENVTEST_K8S_VERSION) \
+    	go test ./test/e2e/ -v -ginkgo.v -timeout 30m
 
 ##@ Build
 
@@ -299,11 +298,6 @@ $(CONTROLLER_GEN): $(LOCALBIN)
 kind: $(KIND) ## Download kind locally if necessary.
 $(KIND): $(LOCALBIN)
 	$(call go-install-tool,$(KIND),sigs.k8s.io/kind,$(KIND_VERSION))
-
-.PHONY: envtest
-envtest: $(ENVTEST) ## Download setup-envtest locally if necessary.
-$(ENVTEST): $(LOCALBIN)
-	$(call go-install-tool,$(ENVTEST),sigs.k8s.io/controller-runtime/tools/setup-envtest,$(ENVTEST_VERSION))
 
 .PHONY: golangci-lint
 golangci-lint: $(GOLANGCI_LINT) ## Download golangci-lint locally if necessary.
