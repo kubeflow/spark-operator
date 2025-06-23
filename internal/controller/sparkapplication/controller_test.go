@@ -337,9 +337,8 @@ var _ = Describe("SparkApplication Controller", func() {
 				&sparkapplication.SparkSubmitter{},
 				sparkapplication.Options{Namespaces: []string{appNamespace}, DriverPodCreationGracePeriod: 0 * time.Second},
 			)
-			result, err := reconciler.Reconcile(ctx, reconcile.Request{NamespacedName: key})
+			_, err := reconciler.Reconcile(ctx, reconcile.Request{NamespacedName: key})
 			Expect(err).NotTo(HaveOccurred())
-			Expect(result.Requeue).To(BeFalse())
 
 			app := &v1beta2.SparkApplication{}
 			Expect(k8sClient.Get(ctx, key, app)).To(Succeed())
@@ -404,9 +403,8 @@ var _ = Describe("SparkApplication Controller", func() {
 				&sparkapplication.SparkSubmitter{},
 				sparkapplication.Options{Namespaces: []string{appNamespace}, DriverPodCreationGracePeriod: 0 * time.Second},
 			)
-			result, err := reconciler.Reconcile(ctx, reconcile.Request{NamespacedName: key})
+			_, err := reconciler.Reconcile(ctx, reconcile.Request{NamespacedName: key})
 			Expect(err).NotTo(HaveOccurred())
-			Expect(result.Requeue).To(BeFalse())
 
 			app := &v1beta2.SparkApplication{}
 			Expect(k8sClient.Get(ctx, key, app)).To(Succeed())
@@ -466,9 +464,8 @@ var _ = Describe("SparkApplication Controller", func() {
 				&sparkapplication.SparkSubmitter{},
 				sparkapplication.Options{Namespaces: []string{appNamespace}},
 			)
-			result, err := reconciler.Reconcile(ctx, reconcile.Request{NamespacedName: key})
+			_, err := reconciler.Reconcile(ctx, reconcile.Request{NamespacedName: key})
 			Expect(err).NotTo(HaveOccurred())
-			Expect(result.Requeue).To(BeFalse())
 		})
 	})
 
@@ -526,9 +523,8 @@ var _ = Describe("SparkApplication Controller", func() {
 				&sparkapplication.SparkSubmitter{},
 				sparkapplication.Options{Namespaces: []string{appNamespace}},
 			)
-			result, err := reconciler.Reconcile(ctx, reconcile.Request{NamespacedName: key})
+			_, err := reconciler.Reconcile(ctx, reconcile.Request{NamespacedName: key})
 			Expect(err).NotTo(HaveOccurred())
-			Expect(result.Requeue).To(BeFalse())
 		})
 	})
 
@@ -581,9 +577,8 @@ var _ = Describe("SparkApplication Controller", func() {
 				&sparkapplication.SparkSubmitter{},
 				sparkapplication.Options{Namespaces: []string{appNamespace}},
 			)
-			result, err := reconciler.Reconcile(ctx, reconcile.Request{NamespacedName: key})
+			_, err := reconciler.Reconcile(ctx, reconcile.Request{NamespacedName: key})
 			Expect(err).NotTo(HaveOccurred())
-			Expect(result.Requeue).To(BeFalse())
 		})
 	})
 
@@ -641,9 +636,8 @@ var _ = Describe("SparkApplication Controller", func() {
 				&sparkapplication.SparkSubmitter{},
 				sparkapplication.Options{Namespaces: []string{appNamespace}},
 			)
-			result, err := reconciler.Reconcile(ctx, reconcile.Request{NamespacedName: key})
+			_, err := reconciler.Reconcile(ctx, reconcile.Request{NamespacedName: key})
 			Expect(err).NotTo(HaveOccurred())
-			Expect(result.Requeue).To(BeFalse())
 		})
 	})
 
@@ -724,9 +718,8 @@ var _ = Describe("SparkApplication Controller", func() {
 				&sparkapplication.SparkSubmitter{},
 				sparkapplication.Options{Namespaces: []string{appNamespace}, MaxTrackedExecutorPerApp: 10},
 			)
-			result, err := reconciler.Reconcile(ctx, reconcile.Request{NamespacedName: key})
+			_, err := reconciler.Reconcile(ctx, reconcile.Request{NamespacedName: key})
 			Expect(err).NotTo(HaveOccurred())
-			Expect(result.Requeue).To(BeFalse())
 
 			app := &v1beta2.SparkApplication{}
 			Expect(k8sClient.Get(ctx, key, app)).NotTo(HaveOccurred())
@@ -744,9 +737,8 @@ var _ = Describe("SparkApplication Controller", func() {
 				&sparkapplication.SparkSubmitter{},
 				sparkapplication.Options{Namespaces: []string{appNamespace}, MaxTrackedExecutorPerApp: 1},
 			)
-			result, err := reconciler.Reconcile(ctx, reconcile.Request{NamespacedName: key})
+			_, err := reconciler.Reconcile(ctx, reconcile.Request{NamespacedName: key})
 			Expect(err).NotTo(HaveOccurred())
-			Expect(result.Requeue).To(BeFalse())
 
 			app := &v1beta2.SparkApplication{}
 			Expect(k8sClient.Get(ctx, key, app)).NotTo(HaveOccurred())
