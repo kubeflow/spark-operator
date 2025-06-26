@@ -1,0 +1,272 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    api-approved.kubernetes.io: https://github.com/kubeflow/spark-operator/pull/1298
+    controller-gen.kubebuilder.io/version: v0.17.1
+  name: sparkconnects.sparkoperator.k8s.io
+spec:
+  group: sparkoperator.k8s.io
+  names:
+    kind: SparkConnect
+    listKind: SparkConnectList
+    plural: sparkconnects
+    shortNames:
+    - sparkconn
+    singular: sparkconnect
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns:
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: SparkConnect is the Schema for the sparkconnections API.
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: SparkConnectSpec defines the desired state of SparkConnect.
+            properties:
+              dynamicAllocation:
+                description: |-
+                  DynamicAllocation configures dynamic allocation that becomes available for the Kubernetes
+                  scheduler backend since Spark 3.0.
+                properties:
+                  enabled:
+                    description: Enabled controls whether dynamic allocation is enabled
+                      or not.
+                    type: boolean
+                  initialExecutors:
+                    description: |-
+                      InitialExecutors is the initial number of executors to request. If .spec.executor.instances
+                      is also set, the initial number of executors is set to the bigger of that and this option.
+                    format: int32
+                    type: integer
+                  maxExecutors:
+                    description: MaxExecutors is the upper bound for the number of
+                      executors if dynamic allocation is enabled.
+                    format: int32
+                    type: integer
+                  minExecutors:
+                    description: MinExecutors is the lower bound for the number of
+                      executors if dynamic allocation is enabled.
+                    format: int32
+                    type: integer
+                  shuffleTrackingEnabled:
+                    description: |-
+                      ShuffleTrackingEnabled enables shuffle file tracking for executors, which allows dynamic allocation without
+                      the need for an external shuffle service. This option will try to keep alive executors that are storing
+                      shuffle data for active jobs. If external shuffle service is enabled, set ShuffleTrackingEnabled to false.
+                      ShuffleTrackingEnabled is true by default if dynamicAllocation.enabled is true.
+                    type: boolean
+                  shuffleTrackingTimeout:
+                    description: |-
+                      ShuffleTrackingTimeout controls the timeout in milliseconds for executors that are holding
+                      shuffle data if shuffle tracking is enabled (true by default if dynamic allocation is enabled).
+                    format: int64
+                    type: integer
+                type: object
+              executor:
+                description: Executor is the Spark executor specification.
+                properties:
+                  cores:
+                    description: Cores maps to `spark.driver.cores` or `spark.executor.cores`
+                      for the driver and executors, respectively.
+                    format: int32
+                    minimum: 1
+                    type: integer
+                  instances:
+                    description: Instances is the number of executor instances.
+                    format: int32
+                    minimum: 0
+                    type: integer
+                  memory:
+                    description: Memory is the amount of memory to request for the
+                      pod.
+                    type: string
+                  template:
+                    description: |-
+                      Template is a pod template that can be used to define the driver or executor pod configurations that Spark configurations do not support.
+                      Spark version >= 3.0.0 is required.
+                      Ref: https://spark.apache.org/docs/latest/running-on-kubernetes.html#pod-template.
+                    type: object
+                    x-kubernetes-preserve-unknown-fields: true
+                type: object
+              hadoopConf:
+                additionalProperties:
+                  type: string
+                description: |-
+                  HadoopConf carries user-specified Hadoop configuration properties as they would use the "--conf" option
+                  in spark-submit. The SparkApplication controller automatically adds prefix "spark.hadoop." to Hadoop
+                  configuration properties.
+                type: object
+              image:
+                description: |-
+                  Image is the container image for the driver, executor, and init-container. Any custom container images for the
+                  driver, executor, or init-container takes precedence over this.
+                type: string
+              server:
+                description: Server is the Spark connect server specification.
+                properties:
+                  cores:
+                    description: Cores maps to `spark.driver.cores` or `spark.executor.cores`
+                      for the driver and executors, respectively.
+                    format: int32
+                    minimum: 1
+                    type: integer
+                  memory:
+                    description: Memory is the amount of memory to request for the
+                      pod.
+                    type: string
+                  template:
+                    description: |-
+                      Template is a pod template that can be used to define the driver or executor pod configurations that Spark configurations do not support.
+                      Spark version >= 3.0.0 is required.
+                      Ref: https://spark.apache.org/docs/latest/running-on-kubernetes.html#pod-template.
+                    type: object
+                    x-kubernetes-preserve-unknown-fields: true
+                type: object
+              sparkConf:
+                additionalProperties:
+                  type: string
+                description: |-
+                  SparkConf carries user-specified Spark configuration properties as they would use the "--conf" option in
+                  spark-submit.
+                type: object
+              sparkVersion:
+                description: SparkVersion is the version of Spark the spark connect
+                  use.
+                type: string
+            required:
+            - executor
+            - server
+            - sparkVersion
+            type: object
+          status:
+            description: SparkConnectStatus defines the observed state of SparkConnect.
+            properties:
+              conditions:
+                description: Represents the latest available observations of a SparkConnect's
+                  current state.
+                items:
+                  description: Condition contains details for one aspect of the current
+                    state of this API Resource.
+                  properties:
+                    lastTransitionTime:
+                      description: |-
+                        lastTransitionTime is the last time the condition transitioned from one status to another.
+                        This should be when the underlying condition changed.  If that is not known, then using the time when the API field changed is acceptable.
+                      format: date-time
+                      type: string
+                    message:
+                      description: |-
+                        message is a human readable message indicating details about the transition.
+                        This may be an empty string.
+                      maxLength: 32768
+                      type: string
+                    observedGeneration:
+                      description: |-
+                        observedGeneration represents the .metadata.generation that the condition was set based upon.
+                        For instance, if .metadata.generation is currently 12, but the .status.conditions[x].observedGeneration is 9, the condition is out of date
+                        with respect to the current state of the instance.
+                      format: int64
+                      minimum: 0
+                      type: integer
+                    reason:
+                      description: |-
+                        reason contains a programmatic identifier indicating the reason for the condition's last transition.
+                        Producers of specific condition types may define expected values and meanings for this field,
+                        and whether the values are considered a guaranteed API.
+                        The value should be a CamelCase string.
+                        This field may not be empty.
+                      maxLength: 1024
+                      minLength: 1
+                      pattern: ^[A-Za-z]([A-Za-z0-9_,:]*[A-Za-z0-9_])?$
+                      type: string
+                    status:
+                      description: status of the condition, one of True, False, Unknown.
+                      enum:
+                      - "True"
+                      - "False"
+                      - Unknown
+                      type: string
+                    type:
+                      description: type of condition in CamelCase or in foo.example.com/CamelCase.
+                      maxLength: 316
+                      pattern: ^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*/)?(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])$
+                      type: string
+                  required:
+                  - lastTransitionTime
+                  - message
+                  - reason
+                  - status
+                  - type
+                  type: object
+                type: array
+                x-kubernetes-list-map-keys:
+                - type
+                x-kubernetes-list-type: map
+              executors:
+                additionalProperties:
+                  type: integer
+                description: Executors represents the current state of the SparkConnect
+                  executors.
+                type: object
+              lastUpdateTime:
+                description: LastUpdateTime is the time at which the SparkConnect
+                  controller last updated the SparkConnect.
+                format: date-time
+                type: string
+              server:
+                description: Server represents the current state of the SparkConnect
+                  server.
+                properties:
+                  podIp:
+                    description: PodIP is the IP address of the pod that is running
+                      the Spark Connect server.
+                    type: string
+                  podName:
+                    description: PodName is the name of the pod that is running the
+                      Spark Connect server.
+                    type: string
+                  serviceName:
+                    description: ServiceName is the name of the service that is exposing
+                      the Spark Connect server.
+                    type: string
+                type: object
+              startTime:
+                description: StartTime is the time at which the SparkConnect controller
+                  started processing the SparkConnect.
+                format: date-time
+                type: string
+              state:
+                description: State represents the current state of the SparkConnect.
+                type: string
+            type: object
+        required:
+        - metadata
+        - spec
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
