@@ -394,6 +394,18 @@ func (r *Reconciler) mutateServerPod(ctx context.Context, conn *v1alpha1.SparkCo
 			},
 		)
 
+		container.Lifecycle = &corev1.Lifecycle{
+			PreStop: &corev1.LifecycleHandler{
+				Exec: &corev1.ExecAction{
+					Command: []string{
+						"bash",
+						"-c",
+						"${SPARK_HOME}/sbin/stop-connect-server.sh",
+					},
+				},
+			},
+		}
+
 		pod.Spec.Volumes = append(
 			pod.Spec.Volumes,
 			corev1.Volume{
