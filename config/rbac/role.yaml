@@ -46,6 +46,9 @@ rules:
   - create
   - delete
   - get
+  - list
+  - update
+  - watch
 - apiGroups:
   - apiextensions.k8s.io
   resources:
@@ -69,6 +72,7 @@ rules:
   resources:
   - scheduledsparkapplications
   - sparkapplications
+  - sparkconnects
   verbs:
   - create
   - delete
@@ -89,6 +93,7 @@ rules:
   resources:
   - scheduledsparkapplications/status
   - sparkapplications/status
+  - sparkconnects/status
   verbs:
   - get
   - patch

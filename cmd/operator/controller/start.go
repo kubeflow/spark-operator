@@ -53,9 +53,11 @@ import (
 	schedulingv1alpha1 "sigs.k8s.io/scheduler-plugins/apis/scheduling/v1alpha1"
 
 	sparkoperator "github.com/kubeflow/spark-operator/v2"
+	"github.com/kubeflow/spark-operator/v2/api/v1alpha1"
 	"github.com/kubeflow/spark-operator/v2/api/v1beta2"
 	"github.com/kubeflow/spark-operator/v2/internal/controller/scheduledsparkapplication"
 	"github.com/kubeflow/spark-operator/v2/internal/controller/sparkapplication"
+	"github.com/kubeflow/spark-operator/v2/internal/controller/sparkconnect"
 	"github.com/kubeflow/spark-operator/v2/internal/metrics"
 	"github.com/kubeflow/spark-operator/v2/internal/scheduler"
 	"github.com/kubeflow/spark-operator/v2/internal/scheduler/kubescheduler"
@@ -126,6 +128,7 @@ func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 	utilruntime.Must(schedulingv1alpha1.AddToScheme(scheme))
 
+	utilruntime.Must(v1alpha1.AddToScheme(scheme))
 	utilruntime.Must(v1beta2.AddToScheme(scheme))
 	// +kubebuilder:scaffold:scheme
 }
@@ -311,6 +314,18 @@ func start() {
 		os.Exit(1)
 	}
 
+	// Setup controller for SparkConnect.
+	if err = sparkconnect.NewReconciler(
+		mgr,
+		mgr.GetScheme(),
+		mgr.GetClient(),
+		mgr.GetEventRecorderFor("SparkConnect"),
+		newSparkConnectReconcilerOptions(),
+	).SetupWithManager(mgr, newControllerOptions()); err != nil {
+		logger.Error(err, "Failed to create controller", "controller", "SparkConnect")
+		os.Exit(1)
+	}
+
 	// +kubebuilder:scaffold:builder
 
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
@@ -390,10 +405,12 @@ func newCacheOptions() cache.Options {
 					common.LabelLaunchedBySparkOperator: "true",
 				}),
 			},
-			&corev1.ConfigMap{}:             {},
-			&corev1.PersistentVolumeClaim{}: {},
-			&corev1.Service{}:               {},
-			&v1beta2.SparkApplication{}:     {},
+			&corev1.ConfigMap{}:                  {},
+			&corev1.PersistentVolumeClaim{}:      {},
+			&corev1.Service{}:                    {},
+			&v1beta2.SparkApplication{}:          {},
+			&v1beta2.ScheduledSparkApplication{}: {},
+			&v1alpha1.SparkConnect{}:             {},
 		},
 	}
 
@@ -440,6 +457,13 @@ func newSparkApplicationReconcilerOptions() sparkapplication.Options {
 
 func newScheduledSparkApplicationReconcilerOptions() scheduledsparkapplication.Options {
 	options := scheduledsparkapplication.Options{
+		Namespaces: namespaces,
+	}
+	return options
+}
+
+func newSparkConnectReconcilerOptions() sparkconnect.Options {
+	options := sparkconnect.Options{
 		Namespaces: namespaces,
 	}
 	return options
