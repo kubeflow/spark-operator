@@ -14,7 +14,7 @@
 # limitations under the License.
 #
 
-ARG SPARK_IMAGE=spark:3.5.5
+ARG SPARK_IMAGE=index.docker.io/library/spark:4.0.0
 
 FROM golang:1.24.1 AS builder
 
