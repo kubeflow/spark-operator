@@ -1,6 +1,28 @@
 # Changelog
 
-## [HEAD](https://github.com/kubeflow/spark-operator/tree/v2.2.0) (2025-05-29)
+## [v2.2.1](https://github.com/kubeflow/spark-operator/tree/v2.2.1) (2025-06-27)
+
+### Features
+
+- Customize ingress URL with Spark application ID ([#2554](https://github.com/kubeflow/spark-operator/pull/2554) by [@ChenYi015](https://github.com/ChenYi015))
+- Make default ingress tls and annotations congurable in the helm config ([#2513](https://github.com/kubeflow/spark-operator/pull/2513) by [@Tom-Newton](https://github.com/Tom-Newton))
+- Use code-generator for clientset, informers, listers ([#2563](https://github.com/kubeflow/spark-operator/pull/2563) by [@jbhalodia-slack](https://github.com/jbhalodia-slack))
+
+### Misc
+
+- add driver ingress unit tests ([#2552](https://github.com/kubeflow/spark-operator/pull/2552) by [@nabuskey](https://github.com/nabuskey))
+- Get logger from context ([#2551](https://github.com/kubeflow/spark-operator/pull/2551) by [@ChenYi015](https://github.com/ChenYi015))
+- Update golangci lint ([#2560](https://github.com/kubeflow/spark-operator/pull/2560) by [@joshuacuellar1](https://github.com/joshuacuellar1))
+
+### Dependencies
+
+- Bump aquasecurity/trivy-action from 0.30.0 to 0.31.0 ([#2557](https://github.com/kubeflow/spark-operator/pull/2557) by [@dependabot[bot]](https://github.com/apps/dependabot))
+- Bump github.com/prometheus/client_golang from 1.21.1 to 1.22.0 ([#2548](https://github.com/kubeflow/spark-operator/pull/2548) by [@dependabot[bot]](https://github.com/apps/dependabot))
+- Bump sigs.k8s.io/scheduler-plugins from 0.30.6 to 0.31.8 ([#2549](https://github.com/kubeflow/spark-operator/pull/2549) by [@dependabot[bot]](https://github.com/apps/dependabot))
+- Bump golang.org/x/mod from 0.24.0 to 0.25.0 ([#2566](https://github.com/kubeflow/spark-operator/pull/2566) by [@dependabot[bot]](https://github.com/apps/dependabot))
+- Bump github.com/go-logr/logr from 1.4.2 to 1.4.3 ([#2567](https://github.com/kubeflow/spark-operator/pull/2567) by [@dependabot[bot]](https://github.com/apps/dependabot))
+
+## [v2.2.0](https://github.com/kubeflow/spark-operator/tree/v2.2.0) (2025-05-29)
 
 ### Features
 
