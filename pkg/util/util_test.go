@@ -22,6 +22,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/equality"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/kubeflow/spark-operator/v2/pkg/common"
@@ -226,6 +227,39 @@ var _ = Describe("ConvertJavaMemoryStringToK8sMemoryString", func() {
 		for unit, response := range unitMap {
 			Expect(util.ConvertJavaMemoryStringToK8sMemoryString(unit)).To(Equal(response))
 		}
+	})
+})
 
+var _ = Describe("ReadObjectFromFile", func() {
+	It("Should read object from the given file", func() {
+		oldObj := &corev1.PodTemplateSpec{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "test-pod",
+				Labels: map[string]string{
+					"key1": "value1",
+					"key2": "value2",
+				},
+				Annotations: map[string]string{
+					"key3": "value3",
+					"key4": "value4",
+				},
+			},
+			Spec: corev1.PodSpec{
+				Containers: []corev1.Container{
+					{
+						Name:  "test-container",
+						Image: "test-image",
+					},
+				},
+			},
+		}
+
+		file := "pod-template.yaml"
+		Expect(util.WriteObjectToFile(oldObj, file)).To(Succeed())
+
+		newObj := &corev1.PodTemplateSpec{}
+		Expect(util.ReadObjectFromFile(newObj, file)).To(Succeed())
+
+		Expect(equality.Semantic.DeepEqual(oldObj, newObj))
 	})
 })
