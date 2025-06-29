@@ -435,3 +435,10 @@ certManager:
   # See [cert-manager.io/v1.Certificate](https://cert-manager.io/docs/reference/api-docs/#cert-manager.io/v1.Certificate).
   # @default -- 1/3 of issued certificate’s lifetime.
   renewBefore: ""
+
+  jupyter-gateway:
+    # -- Specifies whether to enable Jupyter Gateway.
+    enable: true
+    namespace: enterprise-gateway
+    kip:
+      enabled: false
