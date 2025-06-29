@@ -30,6 +30,13 @@ keywords:
 
 home: https://github.com/kubeflow/spark-operator
 
+dependencies:
+  - name: enterprise-gateway
+    version: 3.3.0-dev.0
+    repository: https://lresende.github.io/helm-chart/
+    alias: jupyter-gateway
+    condition: jupyter-gateway.enable
+
 maintainers:
 - name: yuchaoran2011
   email: yuchaoran2011@gmail.com
