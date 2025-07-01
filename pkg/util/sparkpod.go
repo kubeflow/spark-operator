@@ -49,7 +49,7 @@ func GetAppName(pod *corev1.Pod) string {
 
 // GetConnName returns the spark connection name by checking out pod labels.
 func GetConnName(pod *corev1.Pod) string {
-	return pod.Labels[common.LabelSparkConnName]
+	return pod.Labels[common.LabelSparkConnectName]
 }
 
 // GetSparkApplicationID returns the spark application ID by checking out pod labels.

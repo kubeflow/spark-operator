@@ -304,8 +304,8 @@ const (
 	// LabelSparkAppName is the name of the label for the SparkApplication object name.
 	LabelSparkAppName = LabelAnnotationPrefix + "app-name"
 
-	// LabelSparkConnName is the name of the label for the SparkConnect object name.
-	LabelSparkConnName = LabelAnnotationPrefix + "conn-name"
+	// LabelSparkConnectName is the name of the label for the SparkConnect object name.
+	LabelSparkConnectName = LabelAnnotationPrefix + "connect-name"
 
 	// LabelScheduledSparkAppName is the name of the label for the ScheduledSparkApplication object name.
 	LabelScheduledSparkAppName = LabelAnnotationPrefix + "scheduled-app-name"

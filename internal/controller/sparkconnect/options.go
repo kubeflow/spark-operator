@@ -141,7 +141,7 @@ func driverConfOption(conn *v1alpha1.SparkConnect) ([]string, error) {
 	property = fmt.Sprintf(common.SparkKubernetesDriverLabelTemplate, common.LabelLaunchedBySparkOperator)
 	args = append(args, "--conf", fmt.Sprintf("%s=%s", property, "true"))
 
-	property = fmt.Sprintf(common.SparkKubernetesDriverLabelTemplate, common.LabelSparkConnName)
+	property = fmt.Sprintf(common.SparkKubernetesDriverLabelTemplate, common.LabelSparkConnectName)
 	args = append(args, "--conf", fmt.Sprintf("%s=%s", property, conn.Name))
 
 	// Populate SparkApplication labels to driver pod
@@ -181,7 +181,7 @@ func executorConfOption(conn *v1alpha1.SparkConnect) ([]string, error) {
 	args = append(args, "--conf", fmt.Sprintf("%s=%s", property, "true"))
 
 	// Add a label to recognize SparkConnect object name
-	property = fmt.Sprintf(common.SparkKubernetesExecutorLabelTemplate, common.LabelSparkConnName)
+	property = fmt.Sprintf(common.SparkKubernetesExecutorLabelTemplate, common.LabelSparkConnectName)
 	args = append(args, "--conf", fmt.Sprintf("%s=%s", property, conn.Name))
 
 	// Populate SparkApplication labels to executor pod

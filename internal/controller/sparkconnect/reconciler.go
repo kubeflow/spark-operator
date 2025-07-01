@@ -111,7 +111,7 @@ func (r *Reconciler) SetupWithManager(mgr ctrl.Manager, options controller.Optio
 			&handler.TypedFuncs[client.Object, reconcile.Request]{
 				CreateFunc: func(ctx context.Context, e event.TypedCreateEvent[client.Object], q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
 					labels := e.Object.GetLabels()
-					name := labels[common.LabelSparkConnName]
+					name := labels[common.LabelSparkConnectName]
 					if name != "" {
 						key := types.NamespacedName{
 							Namespace: e.Object.GetNamespace(),
@@ -122,7 +122,7 @@ func (r *Reconciler) SetupWithManager(mgr ctrl.Manager, options controller.Optio
 				},
 				UpdateFunc: func(ctx context.Context, e event.TypedUpdateEvent[client.Object], q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
 					labels := e.ObjectNew.GetLabels()
-					name := labels[common.LabelSparkConnName]
+					name := labels[common.LabelSparkConnectName]
 					if name != "" {
 						key := types.NamespacedName{
 							Namespace: e.ObjectNew.GetNamespace(),
@@ -133,7 +133,7 @@ func (r *Reconciler) SetupWithManager(mgr ctrl.Manager, options controller.Optio
 				},
 				DeleteFunc: func(ctx context.Context, e event.TypedDeleteEvent[client.Object], q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
 					labels := e.Object.GetLabels()
-					name := labels[common.LabelSparkConnName]
+					name := labels[common.LabelSparkConnectName]
 					if name != "" {
 						key := types.NamespacedName{
 							Namespace: e.Object.GetNamespace(),
@@ -144,7 +144,7 @@ func (r *Reconciler) SetupWithManager(mgr ctrl.Manager, options controller.Optio
 				},
 				GenericFunc: func(ctx context.Context, e event.TypedGenericEvent[client.Object], q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
 					labels := e.Object.GetLabels()
-					name := labels[common.LabelSparkConnName]
+					name := labels[common.LabelSparkConnectName]
 					if name != "" {
 						key := types.NamespacedName{
 							Namespace: e.Object.GetNamespace(),
@@ -253,7 +253,7 @@ func (r *Reconciler) mutateConfigMap(ctx context.Context, conn *v1alpha1.SparkCo
 
 	}
 	cm.Labels[common.LabelCreatedBySparkOperator] = "true"
-	cm.Labels[common.LabelSparkConnName] = conn.Name
+	cm.Labels[common.LabelSparkConnectName] = conn.Name
 
 	if err := ctrl.SetControllerReference(conn, cm, r.scheme); err != nil {
 		return fmt.Errorf("failed to set controller reference")
@@ -436,7 +436,7 @@ func (r *Reconciler) mutateServerPod(ctx context.Context, conn *v1alpha1.SparkCo
 		pod.Labels = map[string]string{}
 	}
 	pod.Labels[common.LabelLaunchedBySparkOperator] = "true"
-	pod.Labels[common.LabelSparkConnName] = conn.Name
+	pod.Labels[common.LabelSparkConnectName] = conn.Name
 
 	return nil
 }
@@ -504,14 +504,14 @@ func (r *Reconciler) mutateServerService(ctx context.Context, conn *v1alpha1.Spa
 			svc.Spec.Selector = map[string]string{}
 		}
 		svc.Spec.Selector[common.LabelCreatedBySparkOperator] = "true"
-		svc.Spec.Selector[common.LabelSparkConnName] = conn.Name
+		svc.Spec.Selector[common.LabelSparkConnectName] = conn.Name
 	}
 
 	if svc.Labels == nil {
 		svc.Labels = make(map[string]string)
 	}
 	svc.Labels[common.LabelCreatedBySparkOperator] = "true"
-	svc.Labels[common.LabelSparkConnName] = conn.Name
+	svc.Labels[common.LabelSparkConnectName] = conn.Name
 
 	if err := ctrl.SetControllerReference(conn, svc, r.scheme); err != nil {
 		return fmt.Errorf("failed to set controller reference: %v", err)
@@ -562,7 +562,7 @@ func (r *Reconciler) updateExecutorStatus(ctx context.Context, conn *v1alpha1.Sp
 func (r *Reconciler) listExecutorPods(ctx context.Context, conn *v1alpha1.SparkConnect) (*corev1.PodList, error) {
 	labels := map[string]string{
 		common.LabelLaunchedBySparkOperator: "true",
-		common.LabelSparkConnName:           conn.Name,
+		common.LabelSparkConnectName:           conn.Name,
 		common.LabelSparkRole:               common.SparkRoleExecutor,
 	}
 	pods := &corev1.PodList{}
