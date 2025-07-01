@@ -299,7 +299,7 @@ func (r *Reconciler) createOrUpdateServerPod(ctx context.Context, conn *v1alpha1
 		condition := metav1.Condition{
 			Type:    string(v1alpha1.SparkConnectConditionServerPodReady),
 			Status:  metav1.ConditionTrue,
-			Reason:  string(v1alpha1.SparkConnectConditionServerPodReady),
+			Reason:  string(v1alpha1.SparkConnectConditionReasonServerPodReady),
 			Message: "Server pod is ready",
 		}
 		_ = meta.SetStatusCondition(&conn.Status.Conditions, condition)
@@ -308,7 +308,7 @@ func (r *Reconciler) createOrUpdateServerPod(ctx context.Context, conn *v1alpha1
 		condition := metav1.Condition{
 			Type:    string(v1alpha1.SparkConnectConditionServerPodReady),
 			Status:  metav1.ConditionFalse,
-			Reason:  string(v1alpha1.SparkConnectConditionServerPodReady),
+			Reason:  string(v1alpha1.SparkConnectConditionReasonServerPodNotReady),
 			Message: fmt.Sprintf("Server pod is not ready: %s", pod.Status.Message),
 		}
 		_ = meta.SetStatusCondition(&conn.Status.Conditions, condition)
@@ -562,7 +562,7 @@ func (r *Reconciler) updateExecutorStatus(ctx context.Context, conn *v1alpha1.Sp
 func (r *Reconciler) listExecutorPods(ctx context.Context, conn *v1alpha1.SparkConnect) (*corev1.PodList, error) {
 	labels := map[string]string{
 		common.LabelLaunchedBySparkOperator: "true",
-		common.LabelSparkConnectName:           conn.Name,
+		common.LabelSparkConnectName:        conn.Name,
 		common.LabelSparkRole:               common.SparkRoleExecutor,
 	}
 	pods := &corev1.PodList{}
