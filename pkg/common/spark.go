@@ -272,6 +272,9 @@ const (
 	// SparkConfigMapVolumeName is the name of the ConfigMap volume of Spark configuration files.
 	SparkConfigMapVolumeName = "spark-configmap-volume"
 
+	// SparkConfigMapVolumeMountName is the name of the volume mount of Spark configuration files.
+	SparkConfigMapVolumeMountName = "spark-conf"
+
 	// DefaultHadoopConfDir is the default directory for Spark configuration files if not specified.
 	// This directory is where the Hadoop ConfigMap is mounted in the driver and executor containers.
 	DefaultHadoopConfDir = "/etc/hadoop/conf"

@@ -387,7 +387,7 @@ func (r *Reconciler) mutateServerPod(ctx context.Context, conn *v1alpha1.SparkCo
 		container.VolumeMounts = append(
 			container.VolumeMounts,
 			corev1.VolumeMount{
-				Name:      "spark-conf",
+				Name:      common.SparkConfigMapVolumeMountName,
 				SubPath:   ExecutorPodTemplateFileName,
 				MountPath: fmt.Sprintf("/tmp/spark/%s", ExecutorPodTemplateFileName),
 				ReadOnly:  true,
@@ -409,7 +409,7 @@ func (r *Reconciler) mutateServerPod(ctx context.Context, conn *v1alpha1.SparkCo
 		pod.Spec.Volumes = append(
 			pod.Spec.Volumes,
 			corev1.Volume{
-				Name: "spark-conf",
+				Name: common.SparkConfigMapVolumeMountName,
 				VolumeSource: corev1.VolumeSource{
 					ConfigMap: &corev1.ConfigMapVolumeSource{
 						LocalObjectReference: corev1.LocalObjectReference{
