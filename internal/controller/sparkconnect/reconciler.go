@@ -312,7 +312,7 @@ func (r *Reconciler) createOrUpdateServerPod(ctx context.Context, conn *v1alpha1
 			Message: "Server pod is not ready",
 		}
 		_ = meta.SetStatusCondition(&conn.Status.Conditions, condition)
-		conn.Status.State = v1alpha1.SparkConnectStateUnready
+		conn.Status.State = v1alpha1.SparkConnectStateNotReady
 	}
 
 	conn.Status.Server.PodName = pod.Name

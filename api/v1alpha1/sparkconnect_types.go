@@ -160,7 +160,7 @@ const (
 	SparkConnectStateNew          SparkConnectState = ""
 	SparkConnectStateProvisioning SparkConnectState = "Provisioning"
 	SparkConnectStateReady        SparkConnectState = "Ready"
-	SparkConnectStateUnready      SparkConnectState = "Unready"
+	SparkConnectStateNotReady     SparkConnectState = "NotReady"
 	SparkConnectStateFailed       SparkConnectState = "Failed"
 )
 
