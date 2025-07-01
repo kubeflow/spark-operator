@@ -279,6 +279,9 @@ const (
 	// This directory is where the Hadoop ConfigMap is mounted in the driver and executor containers.
 	DefaultHadoopConfDir = "/etc/hadoop/conf"
 
+	// SparkHadoopPropertiesPrefix is the prefix of the Spark configuration keys for Hadoop properties.
+	SparkHadoopPropertiesPrefix = "spark.hadoop."
+
 	// HadoopConfigMapVolumeName is the name of the ConfigMap volume of Hadoop configuration files.
 	HadoopConfigMapVolumeName = "hadoop-configmap-volume"
 

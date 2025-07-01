@@ -18,6 +18,7 @@ package sparkconnect
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/kubeflow/spark-operator/v2/api/v1alpha1"
 	"github.com/kubeflow/spark-operator/v2/pkg/common"
@@ -129,7 +130,13 @@ func hadoopConfOption(conn *v1alpha1.SparkConnect) ([]string, error) {
 	var args []string
 	// Add Hadoop configuration properties.
 	for key, value := range conn.Spec.HadoopConf {
-		args = append(args, "--conf", fmt.Sprintf("spark.hadoop.%s=%s", key, value))
+		if strings.HasPrefix(key, common.SparkHadoopPropertiesPrefix) {
+			args = append(args, "--conf", fmt.Sprintf("%s=%s", key, value))
+		} else {
+			// Add prefix to the configuration key if it does not start with `spark.hadoop.`.
+			// Users will be able to use the configuration key with or without prefix.
+			args = append(args, "--conf", fmt.Sprintf("%s%s=%s", common.SparkHadoopPropertiesPrefix, key, value))
+		}
 	}
 	return args, nil
 }
