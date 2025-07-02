@@ -14,7 +14,7 @@
 # limitations under the License.
 #
 
-ARG BASE_IMAGE=alpine:3.22.0
+ARG BASE_IMAGE=docker.io/library/alpine:3.22.0
 
 FROM ${BASE_IMAGE} AS builder
 
