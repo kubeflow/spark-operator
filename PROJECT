@@ -13,6 +13,14 @@ resources:
       namespaced: true
     controller: true
     domain: sparkoperator.k8s.io
+    kind: SparkConnect
+    path: github.com/kubeflow/spark-operator/api/v1alpha1
+    version: v1alpha1
+  - api:
+      crdVersion: v1
+      namespaced: true
+    controller: true
+    domain: sparkoperator.k8s.io
     kind: SparkApplication
     path: github.com/kubeflow/spark-operator/api/v1beta2
     version: v1beta2

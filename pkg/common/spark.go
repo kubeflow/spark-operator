@@ -272,9 +272,15 @@ const (
 	// SparkConfigMapVolumeName is the name of the ConfigMap volume of Spark configuration files.
 	SparkConfigMapVolumeName = "spark-configmap-volume"
 
+	// SparkConfigMapVolumeMountName is the name of the volume mount of Spark configuration files.
+	SparkConfigMapVolumeMountName = "spark-conf"
+
 	// DefaultHadoopConfDir is the default directory for Spark configuration files if not specified.
 	// This directory is where the Hadoop ConfigMap is mounted in the driver and executor containers.
 	DefaultHadoopConfDir = "/etc/hadoop/conf"
+
+	// SparkHadoopPropertiesPrefix is the prefix of the Spark configuration keys for Hadoop properties.
+	SparkHadoopPropertiesPrefix = "spark.hadoop."
 
 	// HadoopConfigMapVolumeName is the name of the ConfigMap volume of Hadoop configuration files.
 	HadoopConfigMapVolumeName = "hadoop-configmap-volume"
@@ -286,6 +292,9 @@ const (
 	// EnvHadoopConfDir is the environment variable to add to the driver and executor Pods that point
 	// to the directory where the Hadoop ConfigMap is mounted.
 	EnvHadoopConfDir = "HADOOP_CONF_DIR"
+
+	// EnvSparkNoDaemonize is the environment variable to run the proposed command in the foreground.
+	EnvSparkNoDaemonize = "SPARK_NO_DAEMONIZE"
 )
 
 const (
@@ -301,11 +310,17 @@ const (
 	// LabelSparkAppName is the name of the label for the SparkApplication object name.
 	LabelSparkAppName = LabelAnnotationPrefix + "app-name"
 
+	// LabelSparkConnectName is the name of the label for the SparkConnect object name.
+	LabelSparkConnectName = LabelAnnotationPrefix + "connect-name"
+
 	// LabelScheduledSparkAppName is the name of the label for the ScheduledSparkApplication object name.
 	LabelScheduledSparkAppName = LabelAnnotationPrefix + "scheduled-app-name"
 
 	// LabelLaunchedBySparkOperator is a label on Spark pods launched through the Spark Operator.
 	LabelLaunchedBySparkOperator = LabelAnnotationPrefix + "launched-by-spark-operator"
+
+	// LabelCreatedBySparkOperator is a label on resources (e.g. Pod, ConfigMap and Ingress) created by the Spark Operator.
+	LabelCreatedBySparkOperator = LabelAnnotationPrefix + "created-by-spark-operator"
 
 	// LabelMutatedBySparkOperator is a label on Spark pods that need to be mutated by webhook.
 	LabelMutatedBySparkOperator = LabelAnnotationPrefix + "mutated-by-spark-operator"
