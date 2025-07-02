@@ -16,6 +16,7 @@ env:
   IMAGE_REGISTRY: ghcr.io
   OPERATOR_IMAGE_REPOSITORY: ${{ github.repository }}/controller
   KUBECTL_IMAGE_REPOSITORY: ${{ github.repository }}/kubectl
+  KUBECTL_VERSION: 1.33.2
 
 jobs:
   check-release:
@@ -190,6 +191,8 @@ jobs:
         with:
           file: docker/Dockerfile.kubectl
           platforms: ${{ matrix.platform }}
+          build-args: |
+            KUBECTL_VERSION=${{ env.KUBECTL_VERSION }}
           labels: ${{ steps.meta.outputs.labels }}
           outputs: type=image,name=${{ env.IMAGE_REGISTRY }}/${{ env.KUBECTL_IMAGE_REPOSITORY }},push-by-digest=true,name-canonical=true,push=true
 
