@@ -262,6 +262,9 @@ const (
 
 	// SparkRoleExecutor is the value of the spark-role label for the executors.
 	SparkRoleExecutor = "executor"
+
+	// SparkRoleConnectServer is the value of the spark-role label for Spark connect server pods.
+	SparkRoleConnectServer = "connect-server"
 )
 
 const (
@@ -303,6 +306,9 @@ const (
 
 	// LabelSparkRole is the driver/executor label set by the operator/spark-distribution on the driver/executors Pods.
 	LabelSparkRole = "spark-role"
+
+	// LabelSparkVersion is the spark version label set by the operator/spark-distribution on the driver/executors Pods.
+	LabelSparkVersion = "spark-version"
 
 	// LabelAnnotationPrefix is the prefix of every labels and annotations added by the controller.
 	LabelAnnotationPrefix = "sparkoperator.k8s.io/"
