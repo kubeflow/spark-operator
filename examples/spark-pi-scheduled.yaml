@@ -25,7 +25,7 @@ spec:
   template:
     type: Scala
     mode: cluster
-    image: index.docker.io/library/spark:4.0.0
+    image: docker.io/library/spark:4.0.0
     imagePullPolicy: IfNotPresent
     mainClass: org.apache.spark.examples.SparkPi
     mainApplicationFile: local:///opt/spark/examples/jars/spark-examples.jar

@@ -21,7 +21,7 @@ spec:
   type: Python
   pythonVersion: "3"
   mode: cluster
-  image: index.docker.io/library/spark:4.0.0
+  image: docker.io/library/spark:4.0.0
   imagePullPolicy: IfNotPresent
   mainApplicationFile: local:///opt/spark/examples/src/main/python/pi.py
   sparkVersion: 4.0.0
