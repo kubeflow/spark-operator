@@ -56,6 +56,9 @@ spec:
         {{- with .Values.controller.logLevel }}
         - --zap-log-level={{ . }}
         {{- end }}
+        {{- with .Values.controller.logEncoder }}
+        - --zap-encoder={{ . }}
+        {{- end }}
         {{- with .Values.spark.jobNamespaces }}
         {{- if has "" . }}
         - --namespaces=""

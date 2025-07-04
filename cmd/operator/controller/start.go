@@ -351,19 +351,12 @@ func setupLog() {
 		logzap.UseFlagOptions(&zapOptions),
 		func(o *logzap.Options) {
 			o.Development = development
-		}, func(o *logzap.Options) {
 			o.ZapOpts = append(o.ZapOpts, zap.AddCaller())
-		}, func(o *logzap.Options) {
-			var config zapcore.EncoderConfig
-			if !development {
-				config = zap.NewProductionEncoderConfig()
-			} else {
-				config = zap.NewDevelopmentEncoderConfig()
-			}
-			config.EncodeLevel = zapcore.CapitalColorLevelEncoder
-			config.EncodeTime = zapcore.ISO8601TimeEncoder
-			config.EncodeCaller = zapcore.ShortCallerEncoder
-			o.Encoder = zapcore.NewConsoleEncoder(config)
+			o.EncoderConfigOptions = append(o.EncoderConfigOptions, func(config *zapcore.EncoderConfig) {
+				config.EncodeLevel = zapcore.CapitalLevelEncoder
+				config.EncodeTime = zapcore.ISO8601TimeEncoder
+				config.EncodeCaller = zapcore.ShortCallerEncoder
+			})
 		}),
 	)
 }

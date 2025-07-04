@@ -55,6 +55,9 @@ controller:
   # -- Configure the verbosity of logging, can be one of `debug`, `info`, `error`.
   logLevel: info
 
+  # -- Configure the encoder of logging, can be one of `console` or `json`.
+  logEncoder: console
+
   # -- Grace period after a successful spark-submit when driver pod not found errors will be retried. Useful if the driver pod can take some time to be created.
   driverPodCreationGracePeriod: 10s
 
@@ -239,6 +242,9 @@ webhook:
 
   # -- Configure the verbosity of logging, can be one of `debug`, `info`, `error`.
   logLevel: info
+
+  # -- Configure the encoder of logging, can be one of `console` or `json`.
+  logEncoder: console
 
   # -- Specifies webhook port.
   port: 9443
