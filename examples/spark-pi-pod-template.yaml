@@ -57,8 +57,8 @@ metadata:
 spec:
   type: Scala
   mode: cluster
-  sparkVersion: 3.5.5
-  image: spark:3.5.5
+  sparkVersion: 4.0.0
+  image: docker.io/library/spark:4.0.0
   imagePullPolicy: IfNotPresent
   mainApplicationFile: local:///opt/spark/examples/jars/spark-examples.jar
   mainClass: org.apache.spark.examples.SparkPi
@@ -68,9 +68,9 @@ spec:
     template:
       metadata:
         labels:
-          spark.apache.org/version: 3.5.5
+          spark.apache.org/version: 4.0.0
         annotations:
-          spark.apache.org/version: 3.5.5
+          spark.apache.org/version: 4.0.0
       spec:
         securityContext:
           capabilities:
@@ -143,9 +143,9 @@ spec:
     template:
       metadata:
         labels:
-          spark.apache.org/version: 3.5.5
+          spark.apache.org/version: 4.0.0
         annotations:
-          spark.apache.org/version: 3.5.5
+          spark.apache.org/version: 4.0.0
       spec:
         securityContext:
           capabilities:

@@ -22,20 +22,20 @@ metadata:
 spec:
   type: Scala
   mode: cluster
-  image: {IMAGE_REGISTRY}/{IMAGE_REPOSITORY}/spark:3.5.5-gcs-prometheus
+  image: {IMAGE_REGISTRY}/{IMAGE_REPOSITORY}/docker.io/library/spark:4.0.0-gcs-prometheus
   imagePullPolicy: Always
   mainClass: org.apache.spark.examples.SparkPi
   mainApplicationFile: local:///opt/spark/examples/jars/spark-examples.jar
   arguments:
   - "100000"
-  sparkVersion: 3.5.5
+  sparkVersion: 4.0.0
   restartPolicy:
     type: Never
   driver:
     cores: 1
     memory: 512m
     labels:
-      version: 3.5.5
+      version: 4.0.0
     serviceAccount: spark-operator-spark
     securityContext:
       capabilities:
@@ -62,7 +62,7 @@ spec:
       seccompProfile:
         type: RuntimeDefault
     labels:
-      version: 3.5.5
+      version: 4.0.0
   monitoring:
     exposeDriverMetrics: true
     exposeExecutorMetrics: true
