@@ -247,13 +247,13 @@ func (r *Reconciler) createOrUpdateConfigMap(ctx context.Context, conn *v1alpha1
 }
 
 // mutateConfigMap mutates the configmap for the SparkConnect resource.
-func (r *Reconciler) mutateConfigMap(ctx context.Context, conn *v1alpha1.SparkConnect, cm *corev1.ConfigMap) error {
+func (r *Reconciler) mutateConfigMap(_ context.Context, conn *v1alpha1.SparkConnect, cm *corev1.ConfigMap) error {
 	if cm.Labels == nil {
 		cm.Labels = map[string]string{}
-
 	}
-	cm.Labels[common.LabelCreatedBySparkOperator] = "true"
-	cm.Labels[common.LabelSparkConnectName] = conn.Name
+	for key, val := range GetCommonLabels(conn) {
+		cm.Labels[key] = val
+	}
 
 	if err := ctrl.SetControllerReference(conn, cm, r.scheme); err != nil {
 		return fmt.Errorf("failed to set controller reference")
@@ -322,7 +322,7 @@ func (r *Reconciler) createOrUpdateServerPod(ctx context.Context, conn *v1alpha1
 }
 
 // mutateServerPod mutates the server pod for SparkConnect.
-func (r *Reconciler) mutateServerPod(ctx context.Context, conn *v1alpha1.SparkConnect, pod *corev1.Pod) error {
+func (r *Reconciler) mutateServerPod(_ context.Context, conn *v1alpha1.SparkConnect, pod *corev1.Pod) error {
 	// Server pod not created yet.
 	if pod.CreationTimestamp.IsZero() {
 		template := conn.Spec.Server.Template
@@ -432,11 +432,14 @@ func (r *Reconciler) mutateServerPod(ctx context.Context, conn *v1alpha1.SparkCo
 		return fmt.Errorf("failed to set controller reference: %v", err)
 	}
 
+	// Set labels on server pod.
 	if pod.Labels == nil {
 		pod.Labels = map[string]string{}
 	}
-	pod.Labels[common.LabelLaunchedBySparkOperator] = "true"
-	pod.Labels[common.LabelSparkConnectName] = conn.Name
+	for key, val := range GetServerSelectorLabels(conn) {
+		pod.Labels[key] = val
+	}
+	pod.Labels[common.LabelSparkVersion] = conn.Spec.SparkVersion
 
 	return nil
 }
@@ -470,7 +473,7 @@ func (r *Reconciler) createOrUpdateServerService(ctx context.Context, conn *v1al
 }
 
 // mutateServerService mutates the server service for the SparkConnect resource.
-func (r *Reconciler) mutateServerService(ctx context.Context, conn *v1alpha1.SparkConnect, svc *corev1.Service) error {
+func (r *Reconciler) mutateServerService(_ context.Context, conn *v1alpha1.SparkConnect, svc *corev1.Service) error {
 	if svc.CreationTimestamp.IsZero() {
 		svc.Spec.Type = corev1.ServiceTypeClusterIP
 		svc.Spec.Ports = []corev1.ServicePort{
@@ -500,19 +503,24 @@ func (r *Reconciler) mutateServerService(ctx context.Context, conn *v1alpha1.Spa
 			},
 		}
 
+		// Set pod label selector on server service.
 		if svc.Spec.Selector == nil {
 			svc.Spec.Selector = map[string]string{}
 		}
-		svc.Spec.Selector[common.LabelCreatedBySparkOperator] = "true"
-		svc.Spec.Selector[common.LabelSparkConnectName] = conn.Name
+		for key, val := range GetServerSelectorLabels(conn) {
+			svc.Spec.Selector[key] = val
+		}
 	}
 
+	// Set labels on server service.
 	if svc.Labels == nil {
 		svc.Labels = make(map[string]string)
 	}
-	svc.Labels[common.LabelCreatedBySparkOperator] = "true"
-	svc.Labels[common.LabelSparkConnectName] = conn.Name
+	for key, val := range GetCommonLabels(conn) {
+		svc.Labels[key] = val
+	}
 
+	// Set controller owner reference on server service.
 	if err := ctrl.SetControllerReference(conn, svc, r.scheme); err != nil {
 		return fmt.Errorf("failed to set controller reference: %v", err)
 	}
