@@ -55,7 +55,7 @@ rules:
     labels:
       app_namespace: "$1"
       app_id: "$2"
-  - pattern: metrics<name=(\S+)\.(\S+)\.driver\.spark\.streaming\.(\S+)\.(\S+)><>Value
+  - pattern: metrics<name=(\S+)\.(\S+)\.driver\.spark\.streaming\.(\S+)\.(.*)><>Value
     name: spark_structured_streaming_driver_$4
     type: GAUGE
     labels:
