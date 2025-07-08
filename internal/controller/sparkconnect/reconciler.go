@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
@@ -213,7 +214,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (reconcile
 	if err := r.updateSparkConnectStatus(ctx, old, conn); err != nil {
 		if errors.IsConflict(err) {
 			logger.V(1).Info("conflict updating SparkConnect status")
-			return ctrl.Result{Requeue: true}, nil
+			return ctrl.Result{RequeueAfter: time.Second}, nil
 		}
 		return ctrl.Result{}, fmt.Errorf("failed to update SparkConnect status: %v", err)
 	}

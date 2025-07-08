@@ -19,6 +19,7 @@ package validatingwebhookconfiguration
 import (
 	"context"
 	"fmt"
+	"time"
 
 	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -72,7 +73,7 @@ func (r *Reconciler) SetupWithManager(mgr ctrl.Manager, options controller.Optio
 func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger.Info("Updating CA bundle of ValidatingWebhookConfiguration", "name", req.Name)
 	if err := r.updateValidatingWebhookConfiguration(ctx, req.NamespacedName); err != nil {
-		return ctrl.Result{Requeue: true}, nil
+		return ctrl.Result{RequeueAfter: time.Second}, nil
 	}
 	return ctrl.Result{}, nil
 }
