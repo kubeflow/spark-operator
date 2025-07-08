@@ -20,7 +20,38 @@ import (
 	"fmt"
 
 	"github.com/kubeflow/spark-operator/v2/api/v1alpha1"
+	"github.com/kubeflow/spark-operator/v2/pkg/common"
 )
+
+// GetCommonLabels returns the labels for resources owned by SparkConnect.
+func GetCommonLabels(conn *v1alpha1.SparkConnect) map[string]string {
+	labels := map[string]string{
+		common.LabelCreatedBySparkOperator: "true",
+		common.LabelSparkConnectName:       conn.Name,
+	}
+	return labels
+}
+
+// GetServerSelectorLabels returns the labels used to select server pods owned by SparkConnect.
+func GetServerSelectorLabels(conn *v1alpha1.SparkConnect) map[string]string {
+	labels := map[string]string{
+		common.LabelLaunchedBySparkOperator: "true",
+		common.LabelSparkConnectName:        conn.Name,
+		common.LabelSparkRole:               common.SparkRoleConnectServer,
+		common.LabelSparkVersion:            conn.Spec.SparkVersion,
+	}
+	return labels
+}
+
+// GetExecutorSelectorLabels returns the labels used to select executor pods owned by Spark connect server pod.
+func GetExecutorSelectorLabels(conn *v1alpha1.SparkConnect) map[string]string {
+	labels := map[string]string{
+		common.LabelLaunchedBySparkOperator: "true",
+		common.LabelSparkConnectName:        conn.Name,
+		common.LabelSparkRole:               common.SparkRoleExecutor,
+	}
+	return labels
+}
 
 // GetConfigMapName returns the name of the config map for SparkConnect.
 func GetConfigMapName(conn *v1alpha1.SparkConnect) string {
