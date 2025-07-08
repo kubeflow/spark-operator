@@ -18,13 +18,10 @@ package webhook_test
 
 import (
 	"context"
-	"crypto/tls"
 	"fmt"
-	"net"
 	"path/filepath"
 	"runtime"
 	"testing"
-	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -66,7 +63,7 @@ var _ = BeforeSuite(func() {
 
 	By("bootstrapping test environment")
 	testEnv = &envtest.Environment{
-		CRDDirectoryPaths:     []string{filepath.Join("..", "..", "..", "config", "crd", "bases")},
+		CRDDirectoryPaths:     []string{filepath.Join("..", "..", "config", "crd", "bases")},
 		ErrorIfCRDPathMissing: false,
 
 		// The BinaryAssetsDirectory is only required if you want to run the tests directly
@@ -74,12 +71,8 @@ var _ = BeforeSuite(func() {
 		// default path defined in controller-runtime which is /usr/local/kubebuilder/.
 		// Note that you must have the required binaries setup under the bin directory to perform
 		// the tests directly. When we run make test it will be setup and used automatically.
-		BinaryAssetsDirectory: filepath.Join("..", "..", "..", "bin", "k8s",
+		BinaryAssetsDirectory: filepath.Join("..", "..", "bin", "k8s",
 			fmt.Sprintf("1.32.0-%s-%s", runtime.GOOS, runtime.GOARCH)),
-
-		WebhookInstallOptions: envtest.WebhookInstallOptions{
-			Paths: []string{filepath.Join("..", "..", "config", "webhook")},
-		},
 	}
 
 	var err error
@@ -88,13 +81,9 @@ var _ = BeforeSuite(func() {
 	Expect(err).NotTo(HaveOccurred())
 	Expect(cfg).NotTo(BeNil())
 
-	err = v1beta2.AddToScheme(scheme.Scheme)
-	Expect(err).NotTo(HaveOccurred())
-
+	Expect(admissionv1.AddToScheme(scheme.Scheme)).NotTo(HaveOccurred())
+	Expect(v1beta2.AddToScheme(scheme.Scheme)).NotTo(HaveOccurred())
 	// +kubebuilder:scaffold:scheme
-
-	err = admissionv1.AddToScheme(scheme.Scheme)
-	Expect(err).NotTo(HaveOccurred())
 
 	k8sClient, err = client.New(cfg, client.Options{Scheme: scheme.Scheme})
 	Expect(err).NotTo(HaveOccurred())
@@ -114,28 +103,12 @@ var _ = BeforeSuite(func() {
 	})
 	Expect(err).NotTo(HaveOccurred())
 
-	// err = (&v1beta2.SparkApplication{}).SetupWebhookWithManager(mgr)
-	// Expect(err).NotTo(HaveOccurred())
-
 	// +kubebuilder:scaffold:webhook
 
 	go func() {
 		defer GinkgoRecover()
-		err = mgr.Start(ctx)
-		Expect(err).NotTo(HaveOccurred())
+		Expect(mgr.Start(ctx)).NotTo(HaveOccurred())
 	}()
-
-	// wait for the webhook server to get ready
-	dialer := &net.Dialer{Timeout: time.Second}
-	addrPort := fmt.Sprintf("%s:%d", webhookInstallOptions.LocalServingHost, webhookInstallOptions.LocalServingPort)
-	Eventually(func() error {
-		conn, err := tls.DialWithDialer(dialer, "tcp", addrPort, &tls.Config{InsecureSkipVerify: true})
-		if err != nil {
-			return err
-		}
-		return conn.Close()
-	}).Should(Succeed())
-
 })
 
 var _ = AfterSuite(func() {
