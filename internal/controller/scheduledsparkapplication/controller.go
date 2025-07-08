@@ -101,7 +101,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		if errors.IsNotFound(err) {
 			return ctrl.Result{}, nil
 		}
-		return ctrl.Result{Requeue: true}, err
+		return ctrl.Result{}, err
 	}
 	scheduledApp := oldScheduledApp.DeepCopy()
 	logger.Info("Reconciling ScheduledSparkApplication", "name", scheduledApp.Name, "namespace", scheduledApp.Namespace, "state", scheduledApp.Status.ScheduleState)
@@ -121,7 +121,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			scheduledApp.Status.ScheduleState = v1beta2.ScheduleStateFailedValidation
 			scheduledApp.Status.Reason = fmt.Sprintf("Invalid timezone: %v", err)
 			if updateErr := r.updateScheduledSparkApplicationStatus(ctx, scheduledApp); updateErr != nil {
-				return ctrl.Result{Requeue: true}, updateErr
+				return ctrl.Result{}, updateErr
 			}
 			return ctrl.Result{}, nil
 		}
@@ -139,7 +139,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		scheduledApp.Status.ScheduleState = v1beta2.ScheduleStateFailedValidation
 		scheduledApp.Status.Reason = parseErr.Error()
 		if updateErr := r.updateScheduledSparkApplicationStatus(ctx, scheduledApp); updateErr != nil {
-			return ctrl.Result{Requeue: true}, updateErr
+			return ctrl.Result{}, updateErr
 		}
 		return ctrl.Result{}, nil
 	}
@@ -154,7 +154,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		}
 		scheduledApp.Status.ScheduleState = v1beta2.ScheduleStateScheduled
 		if err := r.updateScheduledSparkApplicationStatus(ctx, scheduledApp); err != nil {
-			return ctrl.Result{Requeue: true}, err
+			return ctrl.Result{}, err
 		}
 		return ctrl.Result{RequeueAfter: nextRunTime.Sub(now)}, err
 	case v1beta2.ScheduleStateScheduled:
@@ -163,7 +163,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		if nextRunTime.IsZero() {
 			scheduledApp.Status.NextRun = metav1.NewTime(schedule.Next(now))
 			if err := r.updateScheduledSparkApplicationStatus(ctx, scheduledApp); err != nil {
-				return ctrl.Result{Requeue: true}, err
+				return ctrl.Result{}, err
 			}
 			return ctrl.Result{RequeueAfter: schedule.Next(now).Sub(now)}, nil
 		}
@@ -174,7 +174,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 
 		ok, err := r.shouldStartNextRun(scheduledApp)
 		if err != nil {
-			return ctrl.Result{Requeue: true}, err
+			return ctrl.Result{}, err
 		}
 		if !ok {
 			return ctrl.Result{RequeueAfter: schedule.Next(now).Sub(now)}, nil
@@ -191,10 +191,10 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		scheduledApp.Status.LastRunName = app.Name
 		scheduledApp.Status.NextRun = metav1.NewTime(schedule.Next(now))
 		if err = r.checkAndUpdatePastRuns(ctx, scheduledApp); err != nil {
-			return ctrl.Result{Requeue: true}, err
+			return ctrl.Result{}, err
 		}
 		if err := r.updateScheduledSparkApplicationStatus(ctx, scheduledApp); err != nil {
-			return ctrl.Result{Requeue: true}, err
+			return ctrl.Result{}, err
 		}
 		return ctrl.Result{RequeueAfter: schedule.Next(now).Sub(now)}, nil
 	case v1beta2.ScheduleStateFailedValidation:

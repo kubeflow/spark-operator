@@ -339,7 +339,7 @@ var _ = Describe("SparkApplication Controller", func() {
 			)
 			result, err := reconciler.Reconcile(ctx, reconcile.Request{NamespacedName: key})
 			Expect(err).NotTo(HaveOccurred())
-			Expect(result.Requeue).To(BeFalse())
+			Expect(result.RequeueAfter).To(Equal(time.Duration(0)))
 
 			app := &v1beta2.SparkApplication{}
 			Expect(k8sClient.Get(ctx, key, app)).To(Succeed())
@@ -406,7 +406,7 @@ var _ = Describe("SparkApplication Controller", func() {
 			)
 			result, err := reconciler.Reconcile(ctx, reconcile.Request{NamespacedName: key})
 			Expect(err).NotTo(HaveOccurred())
-			Expect(result.Requeue).To(BeFalse())
+			Expect(result.RequeueAfter).To(Equal(time.Duration(0)))
 
 			app := &v1beta2.SparkApplication{}
 			Expect(k8sClient.Get(ctx, key, app)).To(Succeed())
@@ -468,7 +468,7 @@ var _ = Describe("SparkApplication Controller", func() {
 			)
 			result, err := reconciler.Reconcile(ctx, reconcile.Request{NamespacedName: key})
 			Expect(err).NotTo(HaveOccurred())
-			Expect(result.Requeue).To(BeFalse())
+			Expect(result.RequeueAfter).To(Equal(time.Duration(0)))
 		})
 	})
 
@@ -528,7 +528,7 @@ var _ = Describe("SparkApplication Controller", func() {
 			)
 			result, err := reconciler.Reconcile(ctx, reconcile.Request{NamespacedName: key})
 			Expect(err).NotTo(HaveOccurred())
-			Expect(result.Requeue).To(BeFalse())
+			Expect(result.RequeueAfter).To(Equal(time.Duration(0)))
 		})
 	})
 
@@ -583,7 +583,7 @@ var _ = Describe("SparkApplication Controller", func() {
 			)
 			result, err := reconciler.Reconcile(ctx, reconcile.Request{NamespacedName: key})
 			Expect(err).NotTo(HaveOccurred())
-			Expect(result.Requeue).To(BeFalse())
+			Expect(result.RequeueAfter).To(Equal(time.Duration(0)))
 		})
 	})
 
@@ -643,7 +643,7 @@ var _ = Describe("SparkApplication Controller", func() {
 			)
 			result, err := reconciler.Reconcile(ctx, reconcile.Request{NamespacedName: key})
 			Expect(err).NotTo(HaveOccurred())
-			Expect(result.Requeue).To(BeFalse())
+			Expect(result.RequeueAfter).To(Equal(time.Duration(0)))
 		})
 	})
 
@@ -726,7 +726,7 @@ var _ = Describe("SparkApplication Controller", func() {
 			)
 			result, err := reconciler.Reconcile(ctx, reconcile.Request{NamespacedName: key})
 			Expect(err).NotTo(HaveOccurred())
-			Expect(result.Requeue).To(BeFalse())
+			Expect(result.RequeueAfter).To(Equal(time.Duration(0)))
 
 			app := &v1beta2.SparkApplication{}
 			Expect(k8sClient.Get(ctx, key, app)).NotTo(HaveOccurred())
@@ -746,7 +746,7 @@ var _ = Describe("SparkApplication Controller", func() {
 			)
 			result, err := reconciler.Reconcile(ctx, reconcile.Request{NamespacedName: key})
 			Expect(err).NotTo(HaveOccurred())
-			Expect(result.Requeue).To(BeFalse())
+			Expect(result.RequeueAfter).To(Equal(time.Duration(0)))
 
 			app := &v1beta2.SparkApplication{}
 			Expect(k8sClient.Get(ctx, key, app)).NotTo(HaveOccurred())

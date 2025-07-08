@@ -61,13 +61,25 @@ func NewFilteredScheduledSparkApplicationInformer(client versioned.Interface, na
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.SparkoperatorV1beta2().ScheduledSparkApplications(namespace).List(context.TODO(), options)
+				return client.SparkoperatorV1beta2().ScheduledSparkApplications(namespace).List(context.Background(), options)
 			},
 			WatchFunc: func(options v1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.SparkoperatorV1beta2().ScheduledSparkApplications(namespace).Watch(context.TODO(), options)
+				return client.SparkoperatorV1beta2().ScheduledSparkApplications(namespace).Watch(context.Background(), options)
+			},
+			ListWithContextFunc: func(ctx context.Context, options v1.ListOptions) (runtime.Object, error) {
+				if tweakListOptions != nil {
+					tweakListOptions(&options)
+				}
+				return client.SparkoperatorV1beta2().ScheduledSparkApplications(namespace).List(ctx, options)
+			},
+			WatchFuncWithContext: func(ctx context.Context, options v1.ListOptions) (watch.Interface, error) {
+				if tweakListOptions != nil {
+					tweakListOptions(&options)
+				}
+				return client.SparkoperatorV1beta2().ScheduledSparkApplications(namespace).Watch(ctx, options)
 			},
 		},
 		&v2apiv1beta2.ScheduledSparkApplication{},
