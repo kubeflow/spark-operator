@@ -240,6 +240,10 @@ spec:
                 description: Server represents the current state of the SparkConnect
                   server.
                 properties:
+                  driverContainerStatus:
+                    description: DriverContainerStatus is the status of the Spark
+                      Connect Server driver container
+                    type: string
                   podIp:
                     description: PodIP is the IP address of the pod that is running
                       the Spark Connect server.

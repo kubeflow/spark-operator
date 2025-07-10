@@ -182,4 +182,7 @@ type SparkConnectServerStatus struct {
 
 	// ServiceName is the name of the service that is exposing the Spark Connect server.
 	ServiceName string `json:"serviceName,omitempty"`
+
+	// DriverContainerStatus is the status of the Spark Connect Server driver container
+	DriverContainerStatus string `json:"driverContainerStatus,omitempty"`
 }
