@@ -842,11 +842,11 @@ func (r *Reconciler) updateExecutorState(ctx context.Context, app *v1beta2.Spark
 				if newState == v1beta2.ExecutorStateFailed {
 					execContainerState := util.GetExecutorContainerTerminatedState(&pod)
 					if execContainerState != nil {
-						r.recordExecutorEvent(app, newState, pod.Name, execContainerState.ExitCode, execContainerState.Reason)
+						r.recordExecutorEvent(app, newState, pod.Name, execContainerState.ExitCode, execContainerState.Reason, pod.Status.Message)
 					} else {
 						// If we can't find the container state,
 						// we need to set the exitCode and the Reason to unambiguous values.
-						r.recordExecutorEvent(app, newState, pod.Name, -1, "Unknown (Container not Found)")
+						r.recordExecutorEvent(app, newState, pod.Name, -1, "Unknown (Container not Found)", pod.Status.Message)
 					}
 				} else {
 					r.recordExecutorEvent(app, newState, pod.Name)
@@ -1165,7 +1165,7 @@ func (r *Reconciler) recordExecutorEvent(app *v1beta2.SparkApplication, state v1
 	case v1beta2.ExecutorStateCompleted:
 		r.recorder.Eventf(app, corev1.EventTypeNormal, common.EventSparkExecutorCompleted, "Executor %s completed", args...)
 	case v1beta2.ExecutorStateFailed:
-		r.recorder.Eventf(app, corev1.EventTypeWarning, common.EventSparkExecutorFailed, "Executor %s failed with ExitCode: %d, Reason: %s", args...)
+		r.recorder.Eventf(app, corev1.EventTypeWarning, common.EventSparkExecutorFailed, "Executor %s failed with ExitCode: %d, Reason: %s, Pod Message: %s", args...)
 	case v1beta2.ExecutorStateUnknown:
 		r.recorder.Eventf(app, corev1.EventTypeWarning, common.EventSparkExecutorUnknown, "Executor %s in unknown state", args...)
 	}
