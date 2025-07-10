@@ -1,0 +1,37 @@
+{{- /*
+Copyright 2025 The Kubeflow authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    https://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/ -}}
+
+{{- if .Values.hook.upgradeCrd -}}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "spark-operator.hook.clusterRoleBinding.name" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "spark-operator.hook.labels" . | nindent 4 }}
+  annotations:
+    helm.sh/hook: pre-install,pre-upgrade
+    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded,hook-failed
+    helm.sh/hook-weight: "3"
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ include "spark-operator.hook.clusterRole.name" . }}
+subjects:
+- kind: ServiceAccount
+  name: {{ include "spark-operator.hook.serviceAccount.name" . }}
+  namespace: {{ .Release.Namespace }}
+{{- end }}

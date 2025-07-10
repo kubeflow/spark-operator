@@ -226,6 +226,5 @@ var _ = Describe("ConvertJavaMemoryStringToK8sMemoryString", func() {
 		for unit, response := range unitMap {
 			Expect(util.ConvertJavaMemoryStringToK8sMemoryString(unit)).To(Equal(response))
 		}
-
 	})
 })
