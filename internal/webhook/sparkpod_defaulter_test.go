@@ -20,6 +20,9 @@ import (
 	"fmt"
 	"testing"
 
+	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
+
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -1551,6 +1554,158 @@ func TestPatchSparkPod_Env(t *testing.T) {
 	assert.Equal(t, drvEnvVal, modifiedDriverPod.Spec.Containers[0].Env[0].Value)
 	assert.Nil(t, modifiedDriverPod.Spec.Containers[0].Env[0].ValueFrom)
 }
+
+var _ = Describe("addEnvVars", func() {
+	app := &v1beta2.SparkApplication{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-app",
+			Namespace: "test-namespace",
+		},
+	}
+
+	driver := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-app-driver",
+			Namespace: "test-namespace",
+			Labels: map[string]string{
+				common.LabelLaunchedBySparkOperator: "true",
+				common.LabelSparkRole:               common.SparkRoleDriver,
+			},
+		},
+		Spec: corev1.PodSpec{
+			Containers: []corev1.Container{
+				{
+					Name: common.SparkDriverContainerName,
+				},
+			},
+		},
+	}
+
+	executor := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-app-executor",
+			Namespace: "test-namespace",
+			Labels: map[string]string{
+				common.LabelLaunchedBySparkOperator: "true",
+				common.LabelSparkRole:               common.SparkRoleExecutor,
+			},
+		},
+		Spec: corev1.PodSpec{
+			Containers: []corev1.Container{
+				{
+					Name: common.Spark3DefaultExecutorContainerName,
+				},
+			},
+		},
+	}
+
+	Context("SparkApplication with both driver and executor env set", func() {
+		BeforeEach(func() {
+			app.Spec.Driver.Env = []corev1.EnvVar{
+				{
+					Name:  "KEY1",
+					Value: "VALUE1",
+				},
+				{
+					Name:  "KEY2",
+					Value: "VALUE2",
+				},
+			}
+			app.Spec.Executor.Env = []corev1.EnvVar{
+				{
+					Name:  "KEY3",
+					Value: "VALUE3",
+				},
+				{
+					Name:  "KEY4",
+					Value: "VALUE4",
+				},
+			}
+		})
+
+		AfterEach(func() {
+			driver.Spec.Containers[0].Env = nil
+			executor.Spec.Containers[0].Env = nil
+		})
+
+		It("Should add environment variables to driver pod", func() {
+			Expect(addEnvVars(driver, app)).NotTo(HaveOccurred())
+			Expect(driver.Spec.Containers[0].Env).To(ContainElement(corev1.EnvVar{Name: "KEY1", Value: "VALUE1"}))
+			Expect(driver.Spec.Containers[0].Env).To(ContainElement(corev1.EnvVar{Name: "KEY2", Value: "VALUE2"}))
+		})
+
+		It("Should add environment variables to executor pods", func() {
+			Expect(addEnvVars(executor, app)).NotTo(HaveOccurred())
+			Expect(executor.Spec.Containers[0].Env).To(ContainElement(corev1.EnvVar{Name: "KEY3", Value: "VALUE3"}))
+			Expect(executor.Spec.Containers[0].Env).To(ContainElement(corev1.EnvVar{Name: "KEY4", Value: "VALUE4"}))
+		})
+	})
+
+	Context("SparkApplication with only driver env set", func() {
+		BeforeEach(func() {
+			app.Spec.Driver.Env = []corev1.EnvVar{
+				{
+					Name:  "KEY1",
+					Value: "VALUE1",
+				},
+				{
+					Name:  "KEY2",
+					Value: "VALUE2",
+				},
+			}
+			app.Spec.Executor.Env = nil
+		})
+
+		AfterEach(func() {
+			driver.Spec.Containers[0].Env = nil
+			executor.Spec.Containers[0].Env = nil
+		})
+
+		It("Should add environment variables to driver pod", func() {
+			Expect(addEnvVars(driver, app)).NotTo(HaveOccurred())
+			Expect(driver.Spec.Containers[0].Env).To(ContainElement(corev1.EnvVar{Name: "KEY1", Value: "VALUE1"}))
+			Expect(driver.Spec.Containers[0].Env).To(ContainElement(corev1.EnvVar{Name: "KEY2", Value: "VALUE2"}))
+		})
+
+		It("Should not add environment variables to executor pods", func() {
+			Expect(addEnvVars(executor, app)).NotTo(HaveOccurred())
+			Expect(executor.Spec.Containers[0].Env).To(HaveLen(0))
+		})
+
+	})
+
+	Context("SparkApplication with only executor env set", func() {
+		BeforeEach(func() {
+			app.Spec.Driver.Env = nil
+			app.Spec.Executor.Env = []corev1.EnvVar{
+				{
+					Name:  "KEY3",
+					Value: "VALUE3",
+				},
+				{
+					Name:  "KEY4",
+					Value: "VALUE4",
+				},
+			}
+		})
+
+		AfterEach(func() {
+			driver.Spec.Containers[0].Env = nil
+			executor.Spec.Containers[0].Env = nil
+		})
+
+		It("Should add environment variables to driver pod", func() {
+			Expect(addEnvVars(driver, app)).NotTo(HaveOccurred())
+			Expect(driver.Spec.Containers[0].Env).To(HaveLen(0))
+		})
+
+		It("Should add environment variables to executor pods", func() {
+			Expect(addEnvVars(executor, app)).NotTo(HaveOccurred())
+			Expect(executor.Spec.Containers[0].Env).To(ContainElement(corev1.EnvVar{Name: "KEY3", Value: "VALUE3"}))
+			Expect(executor.Spec.Containers[0].Env).To(ContainElement(corev1.EnvVar{Name: "KEY4", Value: "VALUE4"}))
+		})
+	})
+})
 
 func TestPatchSparkPod_EnvFrom(t *testing.T) {
 	configMapName := "test-config-map"

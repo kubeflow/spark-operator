@@ -242,7 +242,7 @@ func addEnvVars(pod *corev1.Pod, app *v1beta2.SparkApplication) error {
 		}
 		pod.Spec.Containers[i].Env = append(pod.Spec.Containers[i].Env, app.Spec.Driver.Env...)
 	} else if util.IsExecutorPod(pod) {
-		if len(app.Spec.Driver.Env) == 0 {
+		if len(app.Spec.Executor.Env) == 0 {
 			return nil
 		} else if i < 0 {
 			return fmt.Errorf("failed to add envs as executor container not found")
