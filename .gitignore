@@ -5,3 +5,4 @@ codecov.yaml
 cover.out
 .DS_Store
 *.iml
+test/e2e/logs/

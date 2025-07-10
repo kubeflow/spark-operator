@@ -62,6 +62,10 @@ var _ = Describe("Example SparkApplication", func() {
 			key := types.NamespacedName{Namespace: app.Namespace, Name: app.Name}
 			Expect(k8sClient.Get(ctx, key, app)).To(Succeed())
 
+			By("Writing driver logs")
+			driverPodName := util.GetDriverPodName(app)
+			writePodLogs(ctx, app.Namespace, driverPodName)
+
 			By("Deleting SparkApplication")
 			Expect(k8sClient.Delete(ctx, app)).To(Succeed())
 		})
@@ -115,6 +119,10 @@ var _ = Describe("Example SparkApplication", func() {
 		AfterEach(func() {
 			key := types.NamespacedName{Namespace: app.Namespace, Name: app.Name}
 			Expect(k8sClient.Get(ctx, key, app)).To(Succeed())
+
+			By("Writing driver logs")
+			driverPodName := util.GetDriverPodName(app)
+			writePodLogs(ctx, app.Namespace, driverPodName)
 
 			volumes := app.Spec.Volumes
 			By("Deleting SparkApplication")
@@ -200,6 +208,10 @@ var _ = Describe("Example SparkApplication", func() {
 		AfterEach(func() {
 			key := types.NamespacedName{Namespace: app.Namespace, Name: app.Name}
 			Expect(k8sClient.Get(ctx, key, app)).To(Succeed())
+
+			By("Writing driver logs")
+			driverPodName := util.GetDriverPodName(app)
+			writePodLogs(ctx, app.Namespace, driverPodName)
 
 			By("Deleting SparkApplication")
 			Expect(k8sClient.Delete(ctx, app)).To(Succeed())
@@ -375,6 +387,10 @@ var _ = Describe("Example SparkApplication", func() {
 		AfterEach(func() {
 			key := types.NamespacedName{Namespace: app.Namespace, Name: app.Name}
 			Expect(k8sClient.Get(ctx, key, app)).To(Succeed())
+
+			By("Writing driver logs")
+			driverPodName := util.GetDriverPodName(app)
+			writePodLogs(ctx, app.Namespace, driverPodName)
 
 			By("Deleting SparkApplication")
 			Expect(k8sClient.Delete(ctx, app)).To(Succeed())

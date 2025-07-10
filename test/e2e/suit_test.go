@@ -62,6 +62,8 @@ const (
 	MutatingWebhookName   = "spark-operator-webhook"
 	ValidatingWebhookName = "spark-operator-webhook"
 
+	ControllerName = "spark-operator-controller"
+
 	PollInterval = 1 * time.Second
 	WaitTimeout  = 5 * time.Minute
 )
@@ -152,6 +154,9 @@ var _ = BeforeSuite(func() {
 })
 
 var _ = AfterSuite(func() {
+	By("Capturing the Spark operator logs")
+	writeControllerLogs(context.Background())
+
 	By("Uninstalling the Spark operator helm chart")
 	envSettings := cli.New()
 	envSettings.SetNamespace(ReleaseNamespace)
@@ -289,4 +294,29 @@ func collectSparkApplicationsUntilTermination(ctx context.Context, key types.Nam
 		return false, nil
 	})
 	return apps, err
+}
+
+func writePodLogs(ctx context.Context, podNamespace string, podName string) {
+	bytes, err := clientset.CoreV1().Pods(podNamespace).GetLogs(podName, &corev1.PodLogOptions{}).Do(ctx).Raw()
+	Expect(err).NotTo(HaveOccurred())
+	dir := filepath.Join("logs", podNamespace)
+	if _, err := os.Stat(dir); os.IsNotExist(err) {
+		os.MkdirAll(dir, 0755)
+	}
+	err = os.WriteFile(filepath.Join(dir, fmt.Sprintf("%s.log", podName)), bytes, 0644)
+	Expect(err).NotTo(HaveOccurred())
+}
+
+func writeControllerLogs(ctx context.Context) {
+	deployment, err := clientset.AppsV1().Deployments(ReleaseNamespace).Get(ctx, ControllerName, metav1.GetOptions{})
+	Expect(err).NotTo(HaveOccurred())
+	listOptions := metav1.ListOptions{
+		LabelSelector: metav1.FormatLabelSelector(&metav1.LabelSelector{MatchLabels: deployment.Spec.Selector.MatchLabels}),
+	}
+	pods, err := clientset.CoreV1().Pods(ReleaseNamespace).List(ctx, listOptions)
+	Expect(err).NotTo(HaveOccurred())
+	Expect(pods).NotTo(BeNil())
+	for _, pod := range pods.Items {
+		writePodLogs(ctx, ReleaseNamespace, pod.Name)
+	}
 }
