@@ -301,7 +301,8 @@ func writePodLogs(ctx context.Context, podNamespace string, podName string) {
 	Expect(err).NotTo(HaveOccurred())
 	dir := filepath.Join("logs", podNamespace)
 	if _, err := os.Stat(dir); os.IsNotExist(err) {
-		os.MkdirAll(dir, 0755)
+		err = os.MkdirAll(dir, 0755)
+		Expect(err).NotTo(HaveOccurred())
 	}
 	err = os.WriteFile(filepath.Join(dir, fmt.Sprintf("%s.log", podName)), bytes, 0644)
 	Expect(err).NotTo(HaveOccurred())
