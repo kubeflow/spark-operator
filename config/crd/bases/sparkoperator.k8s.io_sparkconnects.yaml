@@ -21,6 +21,12 @@ spec:
     - jsonPath: .metadata.creationTimestamp
       name: Age
       type: date
+    - jsonPath: .status.state
+      name: Status
+      type: string
+    - jsonPath: .status.server.podName
+      name: PodName
+      type: string
     name: v1alpha1
     schema:
       openAPIV3Schema:
