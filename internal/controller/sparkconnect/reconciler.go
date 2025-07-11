@@ -305,6 +305,7 @@ func (r *Reconciler) createOrUpdateServerPod(ctx context.Context, conn *v1alpha1
 		_ = meta.SetStatusCondition(&conn.Status.Conditions, condition)
 		conn.Status.State = v1alpha1.SparkConnectStateReady
 	} else {
+		conn.Status.State = v1alpha1.SparkConnectStateNotReady
 		condition := metav1.Condition{
 			Type:    string(v1alpha1.SparkConnectConditionServerPodReady),
 			Status:  metav1.ConditionFalse,
@@ -315,6 +316,9 @@ func (r *Reconciler) createOrUpdateServerPod(ctx context.Context, conn *v1alpha1
 		conn.Status.State = v1alpha1.SparkConnectStateNotReady
 	}
 
+	driverContainerStatus := getDriverContainerStatus(pod)
+
+	conn.Status.Server.DriverContainerStatus = driverContainerStatus
 	conn.Status.Server.PodName = pod.Name
 	conn.Status.Server.PodIP = pod.Status.PodIP
 
@@ -582,4 +586,42 @@ func (r *Reconciler) listExecutorPods(ctx context.Context, conn *v1alpha1.SparkC
 		return nil, fmt.Errorf("failed to list executor pods for SparkConnect %s/%s: %v", conn.Namespace, conn.Name, err)
 	}
 	return pods, nil
+}
+
+func getDriverContainerPodStatus(pod *corev1.Pod) *corev1.ContainerStatus {
+	var driverContainerStatus *corev1.ContainerStatus
+	for i := range pod.Status.ContainerStatuses {
+		if pod.Status.ContainerStatuses[i].Name == common.SparkDriverContainerName {
+			driverContainerStatus = &pod.Status.ContainerStatuses[i]
+			break
+		}
+	}
+	return driverContainerStatus
+}
+
+func getDriverContainerStatus(pod *corev1.Pod) string {
+	driverContainerPodStatus := getDriverContainerPodStatus(pod)
+
+	if driverContainerPodStatus == nil {
+		return ""
+	}
+
+	state := ""
+	reason := ""
+	message := fmt.Sprintf("Server pod is not ready: %s", pod.Status.Message)
+
+	if driverContainerPodStatus.State.Waiting != nil {
+		state = "Waiting"
+		reason = driverContainerPodStatus.State.Waiting.Reason
+		message = fmt.Sprintf("Driver container is waiting: %s", driverContainerPodStatus.State.Waiting.Message)
+	} else if driverContainerPodStatus.State.Terminated != nil {
+		state = "Terminated"
+		reason = driverContainerPodStatus.State.Terminated.Reason
+		message = fmt.Sprintf("Driver container is terminated: %s", driverContainerPodStatus.State.Terminated.Message)
+	} else if driverContainerPodStatus.State.Running != nil {
+		state = "Running"
+		message = fmt.Sprintf("Driver container is running at %s", driverContainerPodStatus.State.Running.StartedAt)
+	}
+
+	return fmt.Sprintf("%s: %s %s", state, reason, message)
 }
