@@ -129,6 +129,15 @@ See [helm uninstall](https://helm.sh/docs/helm/helm_uninstall) for command docum
 | controller.workqueueRateLimiter.bucketSize | int | `500` | Specifies the maximum number of items that can be in the workqueue at any given time. |
 | controller.workqueueRateLimiter.maxDelay.enable | bool | `true` | Specifies whether to enable max delay for the workqueue rate limiter. This is useful to avoid losing events when the workqueue is full. |
 | controller.workqueueRateLimiter.maxDelay.duration | string | `"6h"` | Specifies the maximum delay duration for the workqueue rate limiter. |
+| controller.submitter.type | string | `"default"` | Type of submitter to use: 'default' or 'grpc'. |
+| controller.submitter.grpcServerAddress | string | `"localhost:50051"` | gRPC server address for alternate Spark submit (used when submitter.type is 'grpc'). When using native submit plugin sidecar, this should be 'localhost:50051'. |
+| controller.submitter.grpcSubmitTimeout | string | `"10s"` | Timeout for gRPC Spark submit (used when submitter.type is 'grpc'). |
+| controller.submitter.nativeSubmitPlugin.enabled | bool | `false` | Enable native submit plugin sidecar. |
+| controller.submitter.nativeSubmitPlugin.image | string | `"docker.io/library/native-submit:0.0.1"` | Native submit plugin image. |
+| controller.submitter.nativeSubmitPlugin.imagePullPolicy | string | `"IfNotPresent"` | Native submit plugin image pull policy. |
+| controller.submitter.nativeSubmitPlugin.port | int | `50051` | Native submit plugin container port. |
+| controller.submitter.nativeSubmitPlugin.portName | string | `"grpc"` | Native submit plugin container port name. |
+| controller.submitter.nativeSubmitPlugin.resources | object | `{}` | Resource requests and limits for native submit plugin. |
 | webhook.enable | bool | `true` | Specifies whether to enable webhook. |
 | webhook.replicas | int | `1` | Number of replicas of webhook server. |
 | webhook.leaderElection.enable | bool | `true` | Specifies whether to enable leader election for webhook. |

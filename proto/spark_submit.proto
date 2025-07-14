@@ -1,0 +1,898 @@
+syntax = "proto3";
+
+package spark;
+
+import "google/protobuf/wrappers.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "nativesubmit/proto/spark";
+
+
+// SparkApplicationSpec
+message SparkApplicationSpec {
+  SparkApplicationType type = 1;
+  DeployMode mode = 2;
+  google.protobuf.StringValue image = 3;
+  google.protobuf.StringValue image_pull_policy = 4;
+  repeated string image_pull_secrets = 5;
+  map<string, string> spark_conf = 6;
+  map<string, string> hadoop_conf = 7;
+  google.protobuf.StringValue spark_config_map = 8;
+  google.protobuf.StringValue hadoop_config_map = 9;
+  repeated string arguments = 10;
+  google.protobuf.StringValue main_class = 11;
+  google.protobuf.StringValue main_application_file = 12;
+  google.protobuf.StringValue proxy_user = 13;
+  google.protobuf.Int32Value failure_retries = 15;
+  google.protobuf.Int64Value retry_interval = 16;
+  google.protobuf.StringValue memory_overhead_factor = 17;
+  MonitoringSpec monitoring = 18;
+  google.protobuf.StringValue batch_scheduler = 19;
+  google.protobuf.Int64Value time_to_live_seconds = 20;
+  BatchSchedulerConfiguration batch_scheduler_configuration = 21;
+  DriverSpec driver = 22;
+  ExecutorSpec executor = 23;
+  repeated Volume volumes = 24;
+  Dependencies deps = 25;
+  DynamicAllocation dynamic_allocation = 26;
+  string python_version = 27;
+  string spark_version = 28;
+  RestartPolicy restart_policy = 29;
+  SparkUIConfiguration spark_ui_configuration = 30;
+  repeated DriverIngressConfiguration driver_ingress_configuration = 31;
+
+  // Add more fields as needed
+}
+
+// Metadata for Kubernetes objects
+message ObjectMeta {
+  string name = 1;
+  string generate_name = 2;
+  string namespace = 3;
+  string self_link = 4;
+  string uid = 5;
+  string resource_version = 6;
+  int64 generation = 7;
+  google.protobuf.Timestamp creation_timestamp = 8;
+  google.protobuf.Timestamp deletion_timestamp = 9;
+  google.protobuf.Int64Value deletion_grace_period_seconds = 10;
+  map<string, string> labels = 11;
+  map<string, string> annotations = 12;
+  repeated OwnerReference owner_references = 13;
+  repeated string finalizers = 14;
+  repeated ManagedFieldsEntry managed_fields = 15;
+}
+
+enum ManagedFieldsOperationType {
+  MANAGED_FIELDS_OPERATION_TYPE_UNSPECIFIED = 0;
+  MANAGED_FIELDS_OPERATION_TYPE_APPLY = 1;
+  MANAGED_FIELDS_OPERATION_TYPE_UPDATE = 2;
+}
+
+message FieldsV1 {
+  string raw = 1;
+}
+
+message ManagedFieldsEntry {
+  string manager = 1;
+  ManagedFieldsOperationType operation = 2;
+  string api_version = 3;
+  google.protobuf.Timestamp my_time = 4;
+  string fields_type = 5;
+  FieldsV1 fields_v1 = 6;
+  string sub_resource = 7;
+}
+
+message OwnerReference {
+  string api_version = 1;
+  string kind = 2;
+  string name = 3;
+  string uid = 4;
+  google.protobuf.BoolValue controller = 5;
+  google.protobuf.BoolValue block_owner_deletion = 6;
+}
+
+enum SparkApplicationType {
+  SPARK_APPLICATION_TYPE_UNSPECIFIED = 0;
+  SPARK_APPLICATION_TYPE_JAVA = 1;
+  SPARK_APPLICATION_TYPE_SCALA = 2;
+  SPARK_APPLICATION_TYPE_PYTHON = 3;
+  SPARK_APPLICATION_TYPE_R = 4;
+}
+enum DeployMode {
+  DEPLOY_MODE_UNSPECIFIED = 0;
+  DEPLOY_MODE_CLUSTER = 1;
+  DEPLOY_MODE_CLIENT = 2;
+  DEPLOY_MODE_IN_CLUSTER_CLIENT = 3;
+}
+message DriverIngressConfiguration {
+  google.protobuf.Int32Value service_port = 1;
+  google.protobuf.StringValue service_port_name = 2;
+  ServiceType service_type = 3;
+  map<string, string> service_annotations = 4;
+  map<string, string> service_labels = 5;
+  string ingress_url_format = 6;
+  map<string, string> ingress_annotations = 7;
+  repeated IngressTLS ingress_tls = 8;
+
+}
+message SparkUIConfiguration {
+  google.protobuf.Int32Value service_port = 1;
+  google.protobuf.StringValue service_port_name = 2;
+  ServiceType service_type = 3;
+  map<string, string> service_annotations = 4;
+  map<string, string> service_labels = 5;
+  map<string, string> ingress_annotations = 6;
+  repeated IngressTLS ingress_tls = 7;
+}
+message IngressTLS {
+  repeated string hosts = 1;
+  string secret_name = 2;
+}
+enum ServiceType {
+  SERVICE_TYPE_UNSPECIFIED = 0;
+  SERVICE_TYPE_CLUSTER_IP = 1;
+  SERVICE_TYPE_NODE_PORT = 2;
+  SERVICE_TYPE_LOAD_BALANCER = 3;
+  SERVICE_TYPE_EXTERNAL_NAME = 4;
+}
+
+message BatchSchedulerConfiguration {
+  google.protobuf.StringValue queue = 1;
+  google.protobuf.StringValue priority_class_name = 2;
+  map<string, Quantity> resources = 3;
+}
+message MonitoringSpec {
+  bool expose_driver_metrics = 1;
+  bool expose_executor_metrics = 2;
+  google.protobuf.StringValue metrics_properties = 3;
+  google.protobuf.StringValue metrics_properties_file = 4;
+  PrometheusSpec prometheus = 5;
+
+}
+message PrometheusSpec {
+  string jmx_exporter_jar = 1;
+  google.protobuf.Int32Value port = 2;
+  google.protobuf.StringValue port_name = 3;
+  google.protobuf.StringValue config_file = 4;
+  google.protobuf.StringValue configuration = 5;
+}
+// RestartPolicy
+message RestartPolicy{
+  string type = 1;
+}
+
+// DriverSpec and ExecutorSpec
+message DriverSpec {
+ SparkPodSpec spark_pod_spec = 1;
+ google.protobuf.StringValue pod_name = 2;
+ google.protobuf.StringValue core_request = 3;
+ google.protobuf.StringValue java_options = 4;
+ Lifecycle life_cycle = 5;
+ google.protobuf.StringValue kubernetes_master = 6;
+ map<string, string> service_annotations = 7;
+ map<string, string> service_labels = 8;
+ repeated Ports ports = 9;
+ google.protobuf.StringValue priority_class_name = 10;
+
+  // Add more fields as needed
+}
+
+message SparkPodSpec {
+ PodTemplateSpec template = 1;
+ google.protobuf.Int32Value cores = 2;
+ string core_limit = 3;
+ string memory = 4;
+ string memory_overhead = 5;
+ GPUSpec gpu = 6;
+ string image = 7;
+ repeated NamePath configmaps = 8;
+ repeated SecretInfo secrets = 9;
+ repeated EnvVar env = 10;
+ map<string, string> env_vars = 11;
+ repeated EnvFromSource env_from = 12;
+ map<string, string> labels = 13;
+ map<string, string> annotations = 14;
+ repeated VolumeMount volume_mounts = 15;
+ Affinity affinity = 16;
+ repeated Toleration tolerations = 17;
+ PodSecurityContext pod_security_context = 18;
+ SecurityContext security_context = 19;
+ google.protobuf.StringValue scheduler_name = 20;
+ repeated Container sidecars = 21;
+ repeated Container init_containers = 22;
+ google.protobuf.BoolValue host_network = 23;
+ map<string, string> node_selector = 24;
+ PodDNSConfig dns_config = 25;
+ int64 termination_grace_period_seconds = 26;
+ google.protobuf.StringValue service_account = 27;
+ repeated HostAlias host_aliases = 28;
+ google.protobuf.BoolValue share_process_namespace = 29; 
+
+}
+message PodTemplateSpec {
+  ObjectMeta object_meta = 1;
+  PodSpec pod_spec = 2;
+}
+
+enum DNSPolicy {
+  DNS_POLICY_UNSPECIFIED = 0;
+  DNS_POLICY_CLUSTER_FIRST_WITH_HOST_NET = 1;
+  DNS_POLICY_CLUSTER_FIRST = 2;
+  DNS_POLICY_DEFAULT = 3;
+  DNS_POLICY_NONE = 4;
+}
+message PodSpec {
+  repeated Volume volumes = 1;
+  repeated Container containers = 2;
+  repeated EphemeralContainer ephemeral_containers = 3;
+  RestartPolicy restart_policy = 4;
+  google.protobuf.Int64Value termination_grace_period_seconds = 5;
+  google.protobuf.Int64Value active_deadline_seconds = 6;
+  DNSPolicy dns_policy = 7;
+  map<string, string> node_selector = 8;
+  string service_account_name = 9;
+  string deprecated_service_account = 10;
+  google.protobuf.BoolValue auto_mount_service_account_token = 11;
+  string node_name = 12;
+  bool host_network = 13;
+  bool host_pid = 14;
+  bool host_ipc = 15;
+  google.protobuf.BoolValue share_process_name = 16;
+  PodSecurityContext security_context = 17;
+  repeated LocalObjectReference image_pull_secrets = 18;
+  string host_name = 19;
+  string sub_domain = 20;
+  Affinity affinity = 21;
+  string scheduler_name = 22;
+  repeated Toleration tolerations = 23;
+  repeated HostAlias host_aliases = 24;
+  string priority_class_name = 25;
+  google.protobuf.Int32Value priority = 26;
+  PodDNSConfig dns_config = 27;
+  repeated PodReadinessGate readiness_gates = 28;
+  google.protobuf.StringValue runtime_class_name = 29;
+  google.protobuf.BoolValue enable_service_links = 30;
+  map<string, Quantity> overhead = 31;
+  repeated TopologySpreadConstraint topology_spread_constraints = 32;
+  google.protobuf.BoolValue set_host_name_as_fqdn = 33;
+  PodOS os = 34;
+  google.protobuf.BoolValue host_users = 35;
+  repeated PodSchedulingGate scheduling_gates = 36;
+  repeated PodResourceClaim resource_claims = 37;
+
+}
+message EphemeralContainer {
+  EphemeralContainerCommon ephemeral_container_common = 1;
+  string target_container_name = 2;
+}
+message EphemeralContainerCommon {
+  string name = 1;
+  string image = 2;
+  repeated string command = 3;
+  repeated string args = 4;
+  string working_dir = 5;
+  repeated ContainerPort ports = 6;
+  repeated EnvFromSource env_from = 7;
+  repeated EnvVar env = 8;
+  ResourceRequirements resources = 9;
+  repeated ContainerResizePolicy resize_policy = 10;
+  ContainerRestartPolicy restart_policy = 11;
+  repeated VolumeMount volume_mounts = 12;
+  repeated VolumeDevice volume_devices = 13;
+  Probe readiness_probe = 14;
+  Lifecycle life_cycle = 15;
+  string termination_message_path = 16;
+  TerminationMessagePolicy termination_message_policy = 17;
+  PullPolicy image_pull_policy = 18;
+  SecurityContext security_context = 19;
+  bool stdin = 20;
+  bool stdin_once = 21;
+  bool tty = 22;
+}
+message PodReadinessGate {
+  PodConditionType condition_type = 1;
+}
+enum PodConditionType {
+  POD_CONDITION_TYPE_UNSPECIFIED = 0;
+  POD_CONDITION_TYPE_CONTAINERS_READY = 1;
+  POD_CONDITION_TYPE_INITIALIZED = 2;
+  POD_CONDITION_TYPE_READY = 3;
+  POD_CONDITION_TYPE_POD_SCHEDULED = 4;
+  POD_CONDITION_TYPE_DISRUPTION_TARGET = 5;
+  POD_CONDITION_TYPE_POD_READY_TO_START_CONTAINERS = 6;
+}
+
+message TopologySpreadConstraint {
+  int32 max_skew = 1;
+  string topology_key = 2;
+  UnsatisfiableConstraintAction when_unsatisfiable = 3;
+  LabelSelector label_selector = 4;
+  google.protobuf.Int32Value min_domains = 5;
+  NodeInclusionPolicy node_affinity_policy = 6;
+  NodeInclusionPolicy node_taints_policy = 7;
+  repeated string match_label_keys = 8;
+}
+
+enum UnsatisfiableConstraintAction{
+  UNSATISFIABLE_CONSTRAINT_ACTION_UNSPECIFIED = 0;
+  UNSATISFIABLE_CONSTRAINT_ACTION_DO_NOT_SCHEDULE = 1;
+  UNSATISFIABLE_CONSTRAINT_ACTION_SCHEDULE_ANYWAY = 2;
+}
+
+enum NodeInclusionPolicy {
+  NODE_INCLUSION_POLICY_UNSPECIFIED = 0;
+  NODE_INCLUSION_POLCIY_IGNORE = 1;
+  NODE_INCLUSION_POLCIY_HONOR = 2;
+}
+
+message PodSchedulingGate {
+  string name = 1;
+}
+
+message PodOS {
+  string name = 1;
+}
+
+
+message PodResourceClaim {
+  string name = 1;
+  ClaimSource source = 2;
+}
+
+message ClaimSource {
+  google.protobuf.StringValue resource_claim_name = 1;
+  google.protobuf.StringValue resource_claim_template_name = 2;
+}
+
+
+message GPUSpec {
+  string name = 1;
+  int64 quantity = 2;
+}
+message NamePath {
+  string name = 1;
+  string path = 2;
+}
+message SecretInfo {
+  string name = 1;
+  string path = 2;
+  SecretType type = 3;
+}
+enum SecretType {
+  SECRET_TYPE_UNSPECIFIED = 0;
+  SECRET_TYPE_GCP_SERVICE_ACCOUNT = 1;
+  SECRET_TYPE_HADOOP_DELEGATION_TOKEN = 2;
+  SECRET_TYPE_GENERIC = 3;
+}
+message Affinity {
+  NodeAffinity node_affinity = 1;
+  PodAffinity pod_affinity = 2;
+  PodAntiAffinity pod_anti_affinity = 3;
+}
+message PodAntiAffinity {
+  LabelSelector label_selector = 1;
+  repeated string namespaces = 2;
+  string topology_key = 3;
+  LabelSelector namespace_selector = 4;
+  repeated string match_label_keys = 5;
+  repeated string mismatch_label_keys = 6;
+}
+message PodAffinity {
+  repeated PodAffinityTerm required_during_scheduling_ignored_during_execution = 1;
+  repeated WeightedPodAffinityTerm preferred_during_scheduling_ignored_during_execution = 2;
+}
+message WeightedPodAffinityTerm {
+  int32 weight = 1;
+  PodAffinityTerm pod_affinity_term = 2;
+}
+message PodAffinityTerm {
+  LabelSelector label_selector = 1;
+  repeated string namespaces = 2;
+  string topology_key = 3;
+  LabelSelector namespace_selector = 4;
+  repeated string match_label_keys = 5;
+  repeated string mismatch_label_keys = 6;
+}
+
+message LabelSelector {
+  map<string, string> match_labels = 1;
+  LabelSelectorRequirement match_expressions = 2;
+}
+
+message LabelSelectorRequirement {
+  string key = 1;
+  LabelSelectorOperator operator = 2;
+  repeated string values = 3;
+}
+
+enum LabelSelectorOperator {
+  LABEL_SELECTOR_OPERATOR_UNSPECIFIED = 0;
+  LABEL_SELECTOR_OPERATOR_IN = 1;
+  LABEL_SELECTOR_OPERATOR_NOT_IN = 2;
+  LABEL_SELECTOR_OPERATOR_EXISTS = 3;
+  LABEL_SELECTOR_OPERATOR_DOES_NOT_EXIST = 4;
+
+}
+
+message NodeAffinity {
+  NodeSelector required_during_scheduling_ignored_during_execution = 1;
+  repeated PreferredSchedulingTerm preferred_during_scheduling_ignored_during_execution = 2;
+}
+
+message PreferredSchedulingTerm {
+  int32 weight = 1;
+  NodeSelectorTerm preference = 2;
+}
+
+message NodeSelector {
+  repeated NodeSelectorTerm node_selector_terms = 1;
+}
+message NodeSelectorTerm {
+  repeated NodeSelectorRequirement match_expressions = 1;
+  repeated NodeSelectorRequirement match_fields = 2;
+}
+
+message NodeSelectorRequirement {
+  string key = 1;
+  NodeSelectorOperator operator = 2;
+  repeated string values = 3;
+}
+
+enum NodeSelectorOperator {
+  NODE_SELECTOR_OPERATOR_UNSPECIFIED = 0;
+  NODE_SELECTOR_OPERATOR_IN = 1;
+  NODE_SELECTOR_OPERATOR_NOT_IN = 2;
+  NODE_SELECTOR_OPERATOR_EXISTS = 3;
+  NODE_SELECTOR_OPERATOR_DOES_NOT_EXIST = 4;
+  NODE_SELECTOR_OPERATOR_GT = 5;
+  NODE_SELECTOR_OPERATOR_LT = 6;
+}
+
+message Toleration {
+  string key = 1;
+  TolerationOperator operator = 2;
+  string value = 3;
+  TaintEffect effect = 4;
+  google.protobuf.Int64Value toleration_seconds = 5;
+}
+enum TaintEffect {
+  TAINT_EFFECT_UNSPECIFIED = 0;
+  TAINT_EFFECT_NO_SCHEDULE = 1;
+  TAINT_EFFECT_PREFER_NO_SCHEDULE = 2;
+  TAINT_EFFECT_NO_SCHEDULE_NO_ADMIT = 3;
+  TAINT_EFFECT_NO_EXECUTE = 4;
+}
+enum TolerationOperator {
+  TOLERATION_OPERATOR_UNSPECIFIED = 0;
+  TOLERATION_OPERATOR_EXISTS = 1;
+  TOLERATION_OPERATOR_EQUAL = 2;
+}
+
+
+message PodSecurityContext {
+  SELinuxOptions se_linux_options = 1;
+  WindowsSecurityContextOptions windows_security_context_options = 2;
+  google.protobuf.Int64Value run_as_user = 3;
+  google.protobuf.Int64Value run_as_group = 4;
+  google.protobuf.BoolValue run_as_nonroot = 5;
+  repeated int64 supplemental_groups = 6;
+  google.protobuf.Int64Value fs_group = 7;
+  repeated Sysctl sys_ctl = 8;
+  PodFSGroupChangePolicy fs_group_change_policy = 9;
+  SeccompProfile sec_comp_profile = 10;
+}
+
+
+enum PodFSGroupChangePolicy {
+ POD_FS_GROUP_CHANGE_POLICY_UNSPECIFIED = 0;
+ POD_FS_GROUP_CHANGE_POLICY_ON_ROOT_MISMATCH = 1;
+ POD_FS_GROUP_CHANGE_POLICY_ALWAYS = 2;
+}
+
+message Sysctl {
+  string name = 1;
+  string value = 2;
+}
+
+message Container {
+  string name = 1;
+  string image = 2;
+  repeated string command = 3;
+  repeated string args = 4;
+  string working_dir = 5;
+  repeated ContainerPort ports = 6;
+  repeated EnvFromSource env_from = 7;
+  repeated EnvVar env = 8;
+  ResourceRequirements resources = 9;
+  repeated ContainerResizePolicy resize_policy = 10;
+  ContainerRestartPolicy restart_policy = 11;
+  repeated VolumeMount volume_mounts = 12;
+  repeated VolumeDevice volume_devices = 13;
+  Probe liveness_probe = 14;
+  Probe readiness_probe = 15;
+  Probe startup_probe = 16;
+  Lifecycle life_cycle = 17;
+  string termination_message_path = 18;
+  TerminationMessagePolicy termination_message_policy = 19;
+  PullPolicy image_pull_policy = 20;
+  SecurityContext security_context = 21;
+  bool stdin = 22;
+  bool stdin_once = 23;
+  bool tty = 24;
+}
+
+message ContainerPort {
+  string name = 1;
+  int32 host_port = 2;
+  int32 container_port = 3;
+  Protocol protocol = 4;
+  string host_ip = 5;
+}
+
+enum Protocol {
+  PROTOCOL_UNSPECIFIED = 0;
+  PROTOCOL_TCP = 1;
+  PROTOCOL_UDP = 2;
+  PROTOCOL_SCTP = 3;
+
+}
+
+message ConfigMapEnvSource {
+  LocalObjectReference local_object_reference = 1;
+  google.protobuf.BoolValue optional = 2;
+}
+
+message EnvFromSource {
+  string prefix = 1;
+  ConfigMapEnvSource config_map_ref = 2;
+  SecretEnvSource secret_ref = 3;
+}
+
+message SecretEnvSource {
+  LocalObjectReference local_object_reference = 1;
+  google.protobuf.BoolValue optional = 3;
+}
+
+message EnvVar {
+  string name = 1;
+  string value = 2;
+  EnvVarSource value_from = 3;
+}
+
+message EnvVarSource {
+ ObjectFieldSelector field_ref = 1;
+ ResourceFieldSelector resource_field_ref = 2;
+ ConfigMapKeySelector config_map_key_ref = 3;
+ SecretKeySelector secret_key_ref = 4;
+}
+
+message SecretKeySelector {
+  LocalObjectReference local_object_reference = 1;
+  string key = 2;
+  google.protobuf.BoolValue optional = 3;
+}
+
+message ConfigMapKeySelector {
+  LocalObjectReference local_object_reference = 1;
+  string key = 2;
+  google.protobuf.BoolValue optional = 3;
+}
+message LocalObjectReference {
+  string name = 1;
+}
+
+
+message ResourceFieldSelector {
+  string container_name = 1;
+  string resource = 2;
+  Quantity divisor = 3;
+}
+
+message ObjectFieldSelector {
+  string api_version = 1;
+  string field_path = 2;
+}
+
+message ResourceRequirements {
+  map<string, Quantity> limits = 1;
+  map<string, Quantity> requests = 2;
+  repeated ResourceClaim claims = 3;
+}
+
+message ResourceClaim {
+  string name = 1;
+}
+
+
+
+message ResourceListEntry {
+    string resource_name = 1;
+    Quantity quantity = 2;
+}
+
+message Quantity {
+    Int64Amount i = 1;
+    InfDecAmount d = 2;
+    string s = 3;
+    Format format = 4;
+}
+
+message InfDecAmount {
+    string dec = 1; // Representing *inf.Dec as a string
+}
+
+message Int64Amount {
+    int64 value = 1;
+    Scale scale = 2;
+}
+
+message Scale {
+    int32 value = 1;
+}
+
+enum Format {
+    FORMAT_UNSPECIFIED = 0;
+    DECIMAL_EXPONENT = 1; // e.g., 12e6
+    BINARY_SI = 2;        // e.g., 12Mi (12 * 2^20)
+    DECIMAL_SI = 3;       // e.g., 12M  (12 * 10^6)
+}
+
+message ContainerResizePolicy {
+  string resource_name = 1;
+  ResourceResizeRestartPolicy restart_policy = 2;
+}
+enum ResourceResizeRestartPolicy {
+  RESOURCE_RESIZE_RESTART_POLICY_UNSPECIFIED = 0;
+  RESOURCE_RESIZE_RESTART_POLICY_NOT_REQUIRED = 1;
+  RESOURCE_RESIZE_RESTART_POLICY_RESTART_CONTAINER = 2;
+}
+
+
+enum ContainerRestartPolicy {
+  CONTAINER_RESTART_POLICY_UNSPECIFIED = 0;
+  CONTAINER_RESTART_POLICY_ALWAYS = 1;
+}
+message VolumeDevice {
+  string name = 1;
+  string device_path = 2;
+
+}
+message ProbeHandler {
+  ExecAction exec = 1;
+  HTTPGetAction http_get = 2;
+  TCPSocketAction tcp_socket = 3;
+}
+
+message Probe {
+  ProbeHandler probe_handler = 1;
+  int32 initial_delay_seconds = 2;
+  int32 timeout_seconds = 3;
+  int32 period_seconds = 4;
+  int32 success_threshold = 5;
+  int32 failure_threshold = 6;
+  google.protobuf.Int64Value termination_grace_period_seconds = 7;
+
+}
+enum TerminationMessagePolicy {
+  TERMINATION_MESSAGE_POLICY_UNSPECIFIED = 0;
+  TERMINATION_MESSAGE_POLICY_FILE = 1;
+  TERMINATION_MESSAGE_FALLBACK_TO_LOGS_ON_ERROR = 2;
+}
+enum PullPolicy {
+   PULL_POLICY_UNSPECIFIED = 0;
+  PULL_POLICY_ALWAYS = 1;
+  PULL_POLICY_NEVER = 2;
+  PULL_POLICY_IF_NOT_PRESENT = 3;
+}
+
+message SecurityContext {
+ Capabilities capabilities = 1;
+ google.protobuf.BoolValue privileged = 2;
+ SELinuxOptions se_linux_options = 3;
+ WindowsSecurityContextOptions windows_security_context_options = 4;
+ google.protobuf.Int64Value run_as_user = 5;
+ google.protobuf.Int64Value run_as_group = 6;
+ google.protobuf.BoolValue run_as_non_root = 7;
+ google.protobuf.BoolValue read_only_file_system = 8;
+ google.protobuf.BoolValue allow_privilege_escalation = 9;
+ ProcMountType proc_mount = 10;
+ SeccompProfile sec_comp_profile = 11;
+
+}
+message Capabilities {
+  repeated string add = 1;
+  repeated string drop = 2;
+}
+message SELinuxOptions {
+  string user = 1;
+  string role = 2;
+  string type = 3;
+  string level = 4;
+}
+message WindowsSecurityContextOptions {
+  google.protobuf.StringValue gmsa_credential_spec_name = 1;
+  google.protobuf.StringValue gmsa_credential_spec = 2;
+  google.protobuf.StringValue run_as_user_name = 3;
+  google.protobuf.BoolValue host_process = 4;
+
+}
+enum ProcMountType {
+  PROC_MOUNT_TYPE_UNSPECIFIED = 0; //default value
+  PROC_MOUNT_TYPE_DEFAULT = 1;
+  PROC_MOUNT_TYPE_UNMASKED = 2;
+}
+
+message SeccompProfile {
+  SeccompProfileType type = 1;
+  google.protobuf.StringValue local_host_profile = 2;
+}
+
+// Enum for SeccompProfileType
+enum SeccompProfileType {
+  SECCOMP_PROFILE_TYPE_UNSPECIFIED = 0;
+  SECCOMP_PROFILE_TYPE_LOCALHOST = 1;
+  SECCOMP_PROFILE_TYPE_RUNTIME_DEFAULT = 2;
+  SECCOMP_PROFILE_TYPE_UNCONFINED = 3;
+}
+
+
+message PodDNSConfig {
+  repeated string name_servers = 1;
+  repeated string searches = 2;
+  repeated PodDNSConfigOption options = 3;
+}
+
+message PodDNSConfigOption {
+  string name = 1;
+  string value = 2;
+}
+
+
+message HostAlias {
+  string ip = 1;
+  repeated string host_names = 2;
+}
+
+message Lifecycle {
+  LifecycleHandler post_start = 1;
+  LifecycleHandler pre_stop = 2;
+
+  // Add more fields as needed
+}
+
+message LifecycleHandler {
+ ExecAction exec = 1;
+ HTTPGetAction http_get = 2;
+ TCPSocketAction tcp_socket = 3;
+ SleepAction sleep = 4;
+ // Add more fields as needed
+}
+
+message SleepAction {
+  int64 seconds = 1;
+}
+message TCPSocketAction {
+  IntOrString port = 1;
+  string host = 2;
+}
+
+message ExecAction {
+  repeated string command = 1;
+}
+
+// Message for HTTPGetAction
+message HTTPGetAction {
+  string path = 1;
+  IntOrString port = 2;
+  string host = 3;
+  URIScheme scheme = 4;
+  repeated HTTPHeader http_headers = 5;
+}
+
+// Enum for URI Scheme
+enum URIScheme {
+  URISCHEME_UNSPECIFIED = 0;
+  URISCHEME_HTTP = 1;   // http://
+  URISCHEME_HTTPS = 2;  // https://
+}
+
+// Message for HTTPHeader
+message HTTPHeader {
+  string name = 1;
+  string value = 2;
+}
+
+// Message for IntOrString (since intstr.IntOrString can be either int or string)
+message IntOrString {
+  oneof type {
+    int32 int_val = 1;
+    string str_val = 2;
+  }
+}
+
+
+
+
+message Ports {
+  string name = 1;
+  string protocol = 2;
+  string container_port = 3;
+}
+
+message ExecutorSpec {
+ SparkPodSpec spark_pod_spec = 1;
+ google.protobuf.Int32Value instances = 2;
+ google.protobuf.StringValue core_request = 3;
+ google.protobuf.StringValue java_options = 4;
+ Lifecycle life_cycle = 5;
+ google.protobuf.BoolValue delete_on_termination = 6;
+ repeated Ports ports = 7;
+ google.protobuf.StringValue priority_class_name = 8;
+  // Add more fields as needed
+}
+
+// Volume and VolumeMount
+message Volume {
+  string name = 1;
+  string type = 2; // e.g., "hostPath", "emptyDir", etc.
+  string path = 3;
+  // Add more fields as needed for different volume types
+}
+
+message VolumeMount {
+  string name = 1;
+  string mount_path = 2;
+  bool read_only = 3;
+}
+
+// SparkApplicationStatus (simplified)
+message SparkApplicationStatus {
+  string application_state = 1;
+  string spark_application_id = 2;
+  string submission_id = 3;
+  // Add more fields as needed
+}
+
+// The SparkApplication CRD
+message SparkApplication {
+  ObjectMeta metadata = 1;
+  SparkApplicationSpec spec = 2;
+  SparkApplicationStatus status = 3;
+}
+
+// The request message containing the SparkApplication and submission ID.
+message RunAltSparkSubmitRequest {
+  SparkApplication spark_application = 1;
+  string submission_id = 2;
+}
+
+// The response message indicating success or failure.
+message RunAltSparkSubmitResponse {
+  bool success = 1;
+  string error_message = 2;
+}
+
+// Dependencies specifies all possible types of dependencies of a Spark application.
+message Dependencies {
+  repeated string jars = 1;
+  repeated string files = 2;
+  repeated string py_files = 3;
+  repeated string packages = 4;
+  repeated string exclude_packages = 5;
+  repeated string repositories = 6;
+  repeated string archives = 7;
+}
+
+message DynamicAllocation {
+  bool enabled = 1;
+  int32 initial_executors = 2;
+  int32 min_executors = 3;
+  int32 max_executors = 4;
+  int64 shuffle_tracking_timeout = 5;
+}
+
+// The Spark submit service definition.
+service SparkSubmitService {
+  rpc RunAltSparkSubmit(RunAltSparkSubmitRequest) returns (RunAltSparkSubmitResponse);
+}

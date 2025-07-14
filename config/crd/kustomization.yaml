@@ -4,6 +4,7 @@
 resources:
 - bases/sparkoperator.k8s.io_scheduledsparkapplications.yaml
 - bases/sparkoperator.k8s.io_sparkapplications.yaml
+- bases/sparkoperator.k8s.io_sparkconnects.yaml
 # +kubebuilder:scaffold:crdkustomizeresource
 
 patches:

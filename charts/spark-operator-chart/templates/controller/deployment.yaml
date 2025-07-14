@@ -120,6 +120,15 @@ spec:
         {{- if .Values.controller.maxTrackedExecutorPerApp }}
         - --max-tracked-executor-per-app={{ .Values.controller.maxTrackedExecutorPerApp }}
         {{- end }}
+        {{- if .Values.controller.submitter.type }}
+        - --submitter-type={{ .Values.controller.submitter.type }}
+        {{- end }}
+        {{- if .Values.controller.submitter.grpcServerAddress }}
+        - --grpc-server-address={{ .Values.controller.submitter.grpcServerAddress }}
+        {{- end }}
+        {{- if .Values.controller.submitter.grpcSubmitTimeout }}
+        - --grpc-submit-timeout={{ .Values.controller.submitter.grpcSubmitTimeout }}
+        {{- end }}
         {{- if or .Values.prometheus.metrics.enable .Values.controller.pprof.enable }}
         ports:
         {{- if .Values.controller.pprof.enable }}
@@ -161,6 +170,34 @@ spec:
         securityContext:
           {{- toYaml . | nindent 10 }}
         {{- end }}
+      {{- if .Values.controller.submitter.nativeSubmitPlugin.enabled }}
+      - name: native-submit
+        image: {{ .Values.controller.submitter.nativeSubmitPlugin.image }}
+        {{- with .Values.controller.submitter.nativeSubmitPlugin.imagePullPolicy }}
+        imagePullPolicy: {{ . }}
+        {{- end }}
+        ports:
+        - name: grpc
+          containerPort: 50051
+        - name: health
+          containerPort: 9090
+        {{- with .Values.controller.submitter.nativeSubmitPlugin.resources }}
+        resources:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+        livenessProbe:
+          httpGet:
+            port: 9090
+            path: /health
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            port: 9090
+            path: /ready
+          initialDelaySeconds: 5
+          periodSeconds: 5
+      {{- end }}
       {{- with .Values.controller.sidecars }}
       {{- toYaml . | nindent 6 }}
       {{- end }}
