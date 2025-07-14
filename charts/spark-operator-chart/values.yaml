@@ -198,6 +198,36 @@ controller:
 
   # -- Sidecar containers for controller pods.
   sidecars: []
+  
+  # -- Spark submitter configuration
+  submitter:
+    # -- Type of submitter to use: 'default' or 'grpc'
+    type: "default"
+    # -- gRPC server address for alternate Spark submit (used when submitter.type is 'grpc')
+    # When using native submit plugin sidecar, this should be 'localhost:50051'
+    grpcServerAddress: "localhost:50051"
+    # -- Timeout for gRPC Spark submit (used when submitter.type is 'grpc')
+    grpcSubmitTimeout: "10s"
+    # -- Native submit plugin sidecar configuration
+    nativeSubmitPlugin:
+      # -- Enable native submit plugin sidecar
+      enabled: false
+      # -- Native submit plugin image
+      image: "docker.io/library/native-submit:0.0.1"
+      # -- Native submit plugin image pull policy
+      imagePullPolicy: "IfNotPresent"
+      # -- Native submit plugin container port
+      port: 50051
+      # -- Native submit plugin container port name
+      portName: "grpc"
+      # -- Resource requests and limits for native submit plugin
+      resources: {}
+        # limits:
+        #   cpu: 100m
+        #   memory: 128Mi
+        # requests:
+        #   cpu: 50m
+        #   memory: 64Mi
 
   # Pod disruption budget for controller to avoid service degradation.
   podDisruptionBudget:

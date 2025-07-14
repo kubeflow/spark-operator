@@ -1,0 +1,27 @@
+# Example values file for gRPC submitter with native submit plugin sidecar
+image:
+  repository: docker.io/library/spark-operator
+  tag: dev
+  pullPolicy: IfNotPresent
+controller:
+  submitter:
+    # Enable gRPC submitter
+    type: "grpc"
+    # gRPC server address (points to the sidecar container)
+    grpcServerAddress: "localhost:50051"
+    # Timeout for gRPC Spark submit
+    grpcSubmitTimeout: "10s"
+    # Enable native submit plugin sidecar
+    nativeSubmitPlugin:
+      enabled: true
+      image: "docker.io/library/native-submit:0.0.1"
+      imagePullPolicy: "IfNotPresent"
+      port: 50051
+      portName: "grpc"
+      resources:
+        limits:
+          cpu: 100m
+          memory: 128Mi
+        requests:
+          cpu: 50m
+          memory: 64Mi 

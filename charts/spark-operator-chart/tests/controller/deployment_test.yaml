@@ -727,3 +727,51 @@ tests:
       - contains:
           path: spec.template.spec.containers[?(@.name=="spark-operator-controller")].args
           content: --max-tracked-executor-per-app=123
+
+  - it: Should add native-submit sidecar container if `controller.submitter.nativeSubmitPlugin.enabled` is set to `true`
+    set:
+      controller:
+        submitter:
+          nativeSubmitPlugin:
+            enabled: true
+            image: "docker.io/library/native-submit:0.0.1"
+            imagePullPolicy: "IfNotPresent"
+            resources:
+              limits:
+                cpu: 100m
+                memory: 128Mi
+              requests:
+                cpu: 50m
+                memory: 64Mi
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[?(@.name=="native-submit")].name
+          value: native-submit
+      - equal:
+          path: spec.template.spec.containers[?(@.name=="native-submit")].image
+          value: docker.io/library/native-submit:0.0.1
+      - equal:
+          path: spec.template.spec.containers[?(@.name=="native-submit")].imagePullPolicy
+          value: IfNotPresent
+      - contains:
+          path: spec.template.spec.containers[?(@.name=="native-submit")].ports
+          content:
+            name: grpc
+            containerPort: 50051
+      - contains:
+          path: spec.template.spec.containers[?(@.name=="native-submit")].ports
+          content:
+            name: health
+            containerPort: 9090
+      - equal:
+          path: spec.template.spec.containers[?(@.name=="native-submit")].livenessProbe.httpGet.port
+          value: 9090
+      - equal:
+          path: spec.template.spec.containers[?(@.name=="native-submit")].livenessProbe.httpGet.path
+          value: /health
+      - equal:
+          path: spec.template.spec.containers[?(@.name=="native-submit")].readinessProbe.httpGet.port
+          value: 9090
+      - equal:
+          path: spec.template.spec.containers[?(@.name=="native-submit")].readinessProbe.httpGet.path
+          value: /ready
