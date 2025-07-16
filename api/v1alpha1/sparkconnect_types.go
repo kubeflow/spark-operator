@@ -30,6 +30,8 @@ func init() {
 // +kubebuilder:resource:scope=Namespaced,shortName=sparkconn,singular=sparkconnect
 // +kubebuilder:subresource:status
 // +kubebuilder:printcolumn:JSONPath=.metadata.creationTimestamp,name=Age,type=date
+// +kubebuilder:printcolumn:JSONPath=.status.state,name="Status",type=string
+// +kubebuilder:printcolumn:JSONPath=.status.server.podName,name="PodName",type=string
 
 // SparkConnect is the Schema for the sparkconnections API.
 type SparkConnect struct {
