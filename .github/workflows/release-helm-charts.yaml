@@ -30,10 +30,16 @@ jobs:
           git config user.name "$GITHUB_ACTOR"
           git config user.email "$GITHUB_ACTOR@users.noreply.github.com"
 
+      - name: Get Helm version
+        id: get_helm_version
+        run: |
+          HELM_VERSION=$(grep -e '^	helm.sh/helm/v3 v' go.mod | cut -d ' ' -f 2)
+          echo "HELM_VERSION=$HELM_VERSION" >> "$GITHUB_OUTPUT"
+
       - name: Set up Helm
-        uses: azure/setup-helm@v4.2.0
+        uses: azure/setup-helm@v4
         with:
-          version: v3.14.4
+          version: ${{ steps.get_helm_version.outputs.HELM_VERSION }}
 
       - name: Login to GHCR
         uses: docker/login-action@v3
