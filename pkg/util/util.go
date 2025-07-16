@@ -150,3 +150,13 @@ func ConvertJavaMemoryStringToK8sMemoryString(memory string) string {
 	// return original memory value if no conversion is needed
 	return memory
 }
+
+func SetIfNotExists[K comparable, V any](m map[K]V, key K, value V) {
+	if m == nil {
+		return
+	}
+
+	if _, ok := m[key]; !ok {
+		m[key] = value
+	}
+}
