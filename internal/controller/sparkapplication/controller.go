@@ -318,14 +318,6 @@ func (r *Reconciler) reconcileSubmittedSparkApplication(ctx context.Context, req
 					if err != nil {
 						return fmt.Errorf("failed to get ingress url: %v", err)
 					}
-					// need to ensure the spark.ui variables are configured correctly if a subPath is used.
-					if ingressURL.Path != "" {
-						if app.Spec.SparkConf == nil {
-							app.Spec.SparkConf = make(map[string]string)
-						}
-						app.Spec.SparkConf[common.SparkUIProxyBase] = ingressURL.Path
-						app.Spec.SparkConf[common.SparkUIProxyRedirectURI] = "/"
-					}
 					ingress, err := r.createWebUIIngress(ctx, app, *service, ingressURL, r.options.IngressClassName, r.options.IngressTLS, r.options.IngressAnnotations)
 					if err != nil {
 						return fmt.Errorf("failed to create web UI ingress: %v", err)
@@ -738,6 +730,10 @@ func (r *Reconciler) submitSparkApplication(ctx context.Context, app *v1beta2.Sp
 		}
 		r.recordSparkApplicationEvent(app)
 	}()
+
+	if err := r.configWebUI(ctx, app); err != nil {
+		return fmt.Errorf("failed to configure web UI: %v", err)
+	}
 
 	if util.PrometheusMonitoringEnabled(app) {
 		logger.Info("Configure Prometheus monitoring for SparkApplication")

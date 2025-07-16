@@ -29,6 +29,27 @@ import (
 	"github.com/kubeflow/spark-operator/v2/pkg/util"
 )
 
+func (r *Reconciler) configWebUI(_ context.Context, app *v1beta2.SparkApplication) error {
+	if !r.options.EnableUIService || r.options.IngressURLFormat == "" {
+		return nil
+	}
+
+	ingressURL, err := getDriverIngressURL(r.options.IngressURLFormat, app)
+	if err != nil {
+		return fmt.Errorf("failed to get ingress url: %v", err)
+	}
+	if ingressURL.Path == "" {
+		return nil
+	}
+
+	if app.Spec.SparkConf == nil {
+		app.Spec.SparkConf = make(map[string]string)
+	}
+	util.SetIfNotExists(app.Spec.SparkConf, common.SparkUIProxyBase, ingressURL.Path)
+	util.SetIfNotExists(app.Spec.SparkConf, common.SparkUIProxyRedirectURI, "/")
+	return nil
+}
+
 func (r *Reconciler) createWebUIService(ctx context.Context, app *v1beta2.SparkApplication) (*SparkService, error) {
 	portName := getWebUIServicePortName(app)
 	port, err := getWebUIServicePort(app)
