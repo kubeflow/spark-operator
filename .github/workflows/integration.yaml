@@ -134,10 +134,16 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Get Helm version
+        id: get_helm_version
+        run: |
+          HELM_VERSION=$(grep -e '^	helm.sh/helm/v3 v' go.mod | cut -d ' ' -f 2)
+          echo "HELM_VERSION=$HELM_VERSION" >> "$GITHUB_OUTPUT"
+
       - name: Install Helm
         uses: azure/setup-helm@v4
         with:
-          version: v3.14.3
+          version: ${{ steps.get_helm_version.outputs.HELM_VERSION }}
 
       - name: Set up chart-testing
         uses: helm/chart-testing-action@v2.7.0
