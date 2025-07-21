@@ -14,7 +14,9 @@ concurrency:
 env:
   SEMVER_PATTERN: '^v([0-9]+)\.([0-9]+)\.([0-9]+)(-rc\.([0-9]+))?$'
   IMAGE_REGISTRY: ghcr.io
-  IMAGE_REPOSITORY: kubeflow/spark-operator/controller
+  OPERATOR_IMAGE_REPOSITORY: ${{ github.repository }}/controller
+  KUBECTL_IMAGE_REPOSITORY: ${{ github.repository }}/kubectl
+  KUBECTL_VERSION: 1.33.2
 
 jobs:
   check-release:
@@ -65,7 +67,7 @@ jobs:
             echo "Tag '${VERSION}' does not exist."
           fi
 
-  build_images:
+  build_operator_images:
     needs:
       - check-release
 
@@ -96,7 +98,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_REPOSITORY }}
+          images: ${{ env.IMAGE_REGISTRY }}/${{ env.OPERATOR_IMAGE_REPOSITORY }}
           tags: |
             type=semver,pattern={{version}},value=${{ env.VERSION }}
 
@@ -119,7 +121,7 @@ jobs:
         with:
           platforms: ${{ matrix.platform }}
           labels: ${{ steps.meta.outputs.labels }}
-          outputs: type=image,name=${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_REPOSITORY }},push-by-digest=true,name-canonical=true,push=true
+          outputs: type=image,name=${{ env.IMAGE_REGISTRY }}/${{ env.OPERATOR_IMAGE_REPOSITORY }},push-by-digest=true,name-canonical=true,push=true
 
       - name: Export digest
         run: |
@@ -130,14 +132,87 @@ jobs:
       - name: Upload digest
         uses: actions/upload-artifact@v4
         with:
-          name: digests-${{ env.PLATFORM_PAIR }}
+          name: digests-operator-${{ env.PLATFORM_PAIR }}
           path: /tmp/digests/*
           if-no-files-found: error
           retention-days: 1
 
-  release_images:
+  build_kubectl_images:
     needs:
-      - build_images
+      - check-release
+
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        platform:
+          - linux/amd64
+          - linux/arm64
+
+    steps:
+      - name: Prepare
+        run: |
+          platform=${{ matrix.platform }}
+          echo "PLATFORM_PAIR=${platform//\//-}" >> $GITHUB_ENV
+
+      - name: Checkout source code
+        uses: actions/checkout@v4
+
+      - name: Read version from VERSION file
+        run: |
+          VERSION=$(cat VERSION)
+          echo "VERSION=${VERSION}" >> $GITHUB_ENV
+
+      - name: Docker meta
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE_REGISTRY }}/${{ env.KUBECTL_IMAGE_REPOSITORY }}
+          tags: |
+            type=semver,pattern={{version}},value=${{ env.VERSION }}
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to container registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.IMAGE_REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push by digest
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          file: docker/Dockerfile.kubectl
+          platforms: ${{ matrix.platform }}
+          build-args: |
+            KUBECTL_VERSION=${{ env.KUBECTL_VERSION }}
+          labels: ${{ steps.meta.outputs.labels }}
+          outputs: type=image,name=${{ env.IMAGE_REGISTRY }}/${{ env.KUBECTL_IMAGE_REPOSITORY }},push-by-digest=true,name-canonical=true,push=true
+
+      - name: Export digest
+        run: |
+          mkdir -p /tmp/digests
+          digest="${{ steps.build.outputs.digest }}"
+          touch "/tmp/digests/${digest#sha256:}"
+
+      - name: Upload digest
+        uses: actions/upload-artifact@v4
+        with:
+          name: digests-kubectl-${{ env.PLATFORM_PAIR }}
+          path: /tmp/digests/*
+          if-no-files-found: error
+          retention-days: 1
+
+  release_operator_images:
+    needs:
+      - build_operator_images
 
     runs-on: ubuntu-latest
 
@@ -154,7 +229,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_REPOSITORY }}
+          images: ${{ env.IMAGE_REGISTRY }}/${{ env.OPERATOR_IMAGE_REPOSITORY }}
           tags: |
             type=semver,pattern={{version}},value=${{ env.VERSION }}
 
@@ -162,7 +237,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           path: /tmp/digests
-          pattern: digests-*
+          pattern: digests-operator-*
           merge-multiple: true
 
       - name: Set up Docker buildx
@@ -179,15 +254,66 @@ jobs:
         working-directory: /tmp/digests
         run: |
           docker buildx imagetools create $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
-            $(printf '${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_REPOSITORY }}@sha256:%s ' *)
+            $(printf '${{ env.IMAGE_REGISTRY }}/${{ env.OPERATOR_IMAGE_REPOSITORY }}@sha256:%s ' *)
 
       - name: Inspect image
         run: |
-          docker buildx imagetools inspect ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_REPOSITORY }}:${{ steps.meta.outputs.version }}
+          docker buildx imagetools inspect ${{ env.IMAGE_REGISTRY }}/${{ env.OPERATOR_IMAGE_REPOSITORY }}:${{ steps.meta.outputs.version }}
+
+  release_kubectl_images:
+    needs:
+      - build_kubectl_images
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+
+      - name: Read version from VERSION file
+        run: |
+          VERSION=$(cat VERSION)
+          echo "VERSION=${VERSION}" >> $GITHUB_ENV
+
+      - name: Docker meta
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE_REGISTRY }}/${{ env.KUBECTL_IMAGE_REPOSITORY }}
+          tags: |
+            type=semver,pattern={{version}},value=${{ env.VERSION }}
+
+      - name: Download digests
+        uses: actions/download-artifact@v4
+        with:
+          path: /tmp/digests
+          pattern: digests-kubectl-*
+          merge-multiple: true
+
+      - name: Set up Docker buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to container registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.IMAGE_REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create manifest list and push
+        working-directory: /tmp/digests
+        run: |
+          docker buildx imagetools create $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
+            $(printf '${{ env.IMAGE_REGISTRY }}/${{ env.KUBECTL_IMAGE_REPOSITORY }}@sha256:%s ' *)
+
+      - name: Inspect image
+        run: |
+          docker buildx imagetools inspect ${{ env.IMAGE_REGISTRY }}/${{ env.KUBECTL_IMAGE_REPOSITORY }}:${{ steps.meta.outputs.version }}
 
   push_tag:
     needs:
-      - release_images
+      - release_operator_images
+      - release_kubectl_images
 
     runs-on: ubuntu-latest
 
@@ -209,7 +335,7 @@ jobs:
 
       - name: Create and push tag
         run: |
-          git tag -a "${VERSION}" -m "Spark Operator Official Release ${VERSION}"
+          git tag -a "${VERSION}" -m "Official Release ${VERSION}"
           git push origin "${VERSION}"
 
   draft_release:
@@ -251,7 +377,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          name: "Spark Operator ${{ env.VERSION }}"
+          name: ${{ env.VERSION }}
           tag_name: ${{ env.VERSION }}
           prerelease: ${{ contains(env.VERSION, 'rc') }}
           target_commitish: ${{ github.sha }}

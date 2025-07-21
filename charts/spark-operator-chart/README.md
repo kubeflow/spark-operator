@@ -83,6 +83,10 @@ See [helm uninstall](https://helm.sh/docs/helm/helm_uninstall) for command docum
 | image.tag | string | If not set, the chart appVersion will be used. | Image tag. |
 | image.pullPolicy | string | `"IfNotPresent"` | Image pull policy. |
 | image.pullSecrets | list | `[]` | Image pull secrets for private image registry. |
+| hook.upgradeCrd | bool | `false` | Whether to create a Helm pre-install/pre-upgrade hook Job to update CRDs. |
+| hook.image.registry | string | `"ghcr.io"` | Image registry. |
+| hook.image.repository | string | `"kubeflow/spark-operator/kubectl"` | Image repository. |
+| hook.image.tag | string | If not set, the chart appVersion will be used. | Image tag. |
 | controller.replicas | int | `1` | Number of replicas of controller. |
 | controller.leaderElection.enable | bool | `true` | Specifies whether to enable leader election for controller. |
 | controller.workers | int | `10` | Reconcile concurrency, higher values might increase memory usage. |
