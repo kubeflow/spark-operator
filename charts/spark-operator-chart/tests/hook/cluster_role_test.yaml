@@ -50,6 +50,7 @@ tests:
         - customresourcedefinitions
         resourceNames:
         - sparkapplications.sparkoperator.k8s.io
+        - sparkconnects.sparkoperator.k8s.io
         - scheduledsparkapplications.sparkoperator.k8s.io
         verbs:
         - get
