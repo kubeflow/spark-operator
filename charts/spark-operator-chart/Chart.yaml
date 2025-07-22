@@ -20,9 +20,9 @@ name: spark-operator
 
 description: A Helm chart for Spark on Kubernetes operator.
 
-version: 2.3.0-rc.0
+version: 2.3.0-rc.1
 
-appVersion: 2.3.0-rc.0
+appVersion: 2.3.0-rc.1
 
 keywords:
 - apache spark
