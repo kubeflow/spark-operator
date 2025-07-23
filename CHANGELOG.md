@@ -1,5 +1,41 @@
 # Changelog
 
+## [v2.3.0](https://github.com/kubeflow/spark-operator/tree/v2.3.0) (2025-07-22)
+
+### Features
+
+- Add support for Spark Connect ([#2569](https://github.com/kubeflow/spark-operator/pull/2569) by [@ChenYi015](https://github.com/ChenYi015))
+- upgrade to Spark 4.0.0 ([#2564](https://github.com/kubeflow/spark-operator/pull/2564) by [@nabuskey](https://github.com/nabuskey))
+- Make logging encoder configurable ([#2580](https://github.com/kubeflow/spark-operator/pull/2580) by [@ChenYi015](https://github.com/ChenYi015))
+- Include pod.Status.Message in recordExecutorEvent ([#2589](https://github.com/kubeflow/spark-operator/pull/2589) by [@matschaffer-roblox](https://github.com/matschaffer-roblox))
+- Add print columns for Spark Connect ([#2592](https://github.com/kubeflow/spark-operator/pull/2592) by [@nabuskey](https://github.com/nabuskey)
+- chore: update prometheus pattern and labels for structured streaming driver ([#2581](https://github.com/kubeflow/spark-operator/pull/2581) by [@yahwang](https://github.com/yahwang))
+- Add Helm hook to upgrade CRDs ([#2371](https://github.com/kubeflow/spark-operator/pull/2371) by [@ChenYi015](https://github.com/ChenYi015))
+
+### Bug Fixes
+
+- Splat recordExecutorEvent args for cleaner event messages ([#2582](https://github.com/kubeflow/spark-operator/pull/2582) by [@matschaffer-roblox](https://github.com/matschaffer-roblox))
+- fix: should add executor env when driver env is empty ([#2586](https://github.com/kubeflow/spark-operator/pull/2586) by [@ChenYi015](https://github.com/ChenYi015))
+- Add web UI configurations when enabling UI service and ingress ([#2599](https://github.com/kubeflow/spark-operator/pull/2599) by [@ChenYi015](https://github.com/ChenYi015))
+- Grant get/patch permissions for SparkConnect CRD to hook ClusterRole ([#2605](https://github.com/kubeflow/spark-operator/pull/2605) by [@ChenYi015](https://github.com/ChenYi015))
+
+### Dependencies
+
+- Bump aquasecurity/trivy-action from 0.31.0 to 0.32.0 ([#2585](https://github.com/kubeflow/spark-operator/pull/2585) by [@dependabot[bot]](https://github.com/apps/dependabot))
+- Bump github.com/go-viper/mapstructure/v2 from 2.2.1 to 2.3.0 ([#2572](https://github.com/kubeflow/spark-operator/pull/2572) by [@dependabot[bot]](https://github.com/apps/dependabot))
+- Bump sigs.k8s.io/yaml from 1.4.0 to 1.5.0 ([#2577](https://github.com/kubeflow/spark-operator/pull/2577) by [@dependabot[bot]](https://github.com/apps/dependabot))
+- Bump helm.sh/helm/v3 from 3.17.3 to 3.18.4 ([#2587](https://github.com/kubeflow/spark-operator/pull/2587) by [@dependabot[bot]](https://github.com/apps/dependabot))
+- Bump golang.org/x/mod from 0.25.0 to 0.26.0 ([#2608](https://github.com/kubeflow/spark-operator/pull/2608) by [@dependabot[bot]](https://github.com/apps/dependabot))
+- Bump github.com/onsi/gomega from 1.36.1 to 1.37.0 ([#2607](https://github.com/kubeflow/spark-operator/pull/2607) by [@dependabot[bot]](https://github.com/apps/dependabot))
+
+### Misc
+
+- Add SparkConnect e2e test ([#2578](https://github.com/kubeflow/spark-operator/pull/2578) by [@ChenYi015](https://github.com/ChenYi015))
+- feat(docs): Guide to report security vulnerabilities ([#2593](https://github.com/kubeflow/spark-operator/pull/2593) by [@andreyvelich](https://github.com/andreyvelich))
+- Read Helm version from go.mod file ([#2598](https://github.com/kubeflow/spark-operator/pull/2598) by [@ChenYi015](https://github.com/ChenYi015))
+
+[Full Changelog](https://github.com/kubeflow/spark-operator/compare/v2.2.1...v2.3.0)
+
 ## [v2.2.1](https://github.com/kubeflow/spark-operator/tree/v2.2.1) (2025-06-27)
 
 ### Features
