@@ -77,14 +77,6 @@ metadata:
     {{- toYaml . | nindent 4 }}
   {{- end }}
 rules:
-- apiGroups:
-  - ""
-  resources:
-  - events
-  verbs:
-  - create
-  - update
-  - patch
 {{- if .Values.controller.leaderElection.enable }}
 - apiGroups:
   - coordination.k8s.io
@@ -104,6 +96,15 @@ rules:
 {{- end }}
 {{- if has .Release.Namespace .Values.spark.jobNamespaces }}
 {{ include "spark-operator.controller.policyRules" . }}
+{{- else }}
+- apiGroups:
+  - ""
+  resources:
+  - events
+  verbs:
+  - create
+  - update
+  - patch
 {{- end }}
 ---
 
