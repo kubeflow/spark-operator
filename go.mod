@@ -1,8 +1,6 @@
 module github.com/kubeflow/spark-operator
 
-go 1.24.0
-
-toolchain go1.24.4
+go 1.23.11
 
 require (
 	cloud.google.com/go/storage v1.40.0
