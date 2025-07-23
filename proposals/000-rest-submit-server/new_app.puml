@@ -1,0 +1,12 @@
+@startuml
+actor User
+participant "REST Submit Server" as REST
+participant "Kubernetes API" as K8s
+participant "Spark Operator" as Operator
+
+User -> REST: POST /sparkapplications (CRD as JSON)
+REST -> K8s: CreateNamespacedCustomObject (go-client)
+K8s <--> Operator: Existed behaivor
+K8s --> REST: Event/Status
+REST --> User: Response (200 OK / Details)
+@enduml
