@@ -49,8 +49,6 @@ import (
 	"github.com/kubeflow/spark-operator/pkg/controller/sparkapplication"
 	"github.com/kubeflow/spark-operator/pkg/util"
 	"github.com/kubeflow/spark-operator/pkg/webhook"
-	"sigs.k8s.io/controller-runtime/pkg/metrics"
-    "github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 var (
