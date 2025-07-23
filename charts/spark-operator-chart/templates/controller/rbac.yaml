@@ -96,6 +96,15 @@ rules:
 {{- end }}
 {{- if has .Release.Namespace .Values.spark.jobNamespaces }}
 {{ include "spark-operator.controller.policyRules" . }}
+{{- else }}
+- apiGroups:
+  - ""
+  resources:
+  - events
+  verbs:
+  - create
+  - update
+  - patch
 {{- end }}
 ---
 
