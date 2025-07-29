@@ -106,10 +106,15 @@ func (p *PositiveGauge) Inc(labelMap map[string]string) {
 	p.mux.Lock()
 	defer p.mux.Unlock()
 
+	if labelMap == nil {
+		glog.Error("labelMap cannot be nil")
+		return
+	}
+
 	if m, err := p.gaugeMetric.GetMetricWith(labelMap); err != nil {
-		glog.Errorf("Error while exporting metrics: %v", err)
+		glog.Errorf("Error while getting metric for %s with labels %v: %v", p.name, labelMap, err)
 	} else {
-		glog.V(2).Infof("Incrementing %s with labels %s", p.name, labelMap)
+		glog.V(2).Infof("Incrementing %s with labels %v", p.name, labelMap)
 		m.Inc()
 	}
 }
@@ -119,30 +124,71 @@ func (p *PositiveGauge) Dec(labelMap map[string]string) {
 	p.mux.Lock()
 	defer p.mux.Unlock()
 
+	if labelMap == nil {
+		glog.Error("labelMap cannot be nil")
+		return
+	}
+
 	// Decrement only if positive
 	val := fetchGaugeValue(p.gaugeMetric, labelMap)
 	if val > 0 {
-		glog.V(2).Infof("Decrementing %s with labels %s metricVal to %v", p.name, labelMap, val-1)
+		glog.V(2).Infof("Decrementing %s with labels %v from %v to %v", p.name, labelMap, val, val-1)
 		if m, err := p.gaugeMetric.GetMetricWith(labelMap); err != nil {
-			glog.Errorf("Error while exporting metrics: %v", err)
+			glog.Errorf("Error while getting metric for %s with labels %v: %v", p.name, labelMap, err)
 		} else {
 			m.Dec()
 		}
+	} else {
+		glog.V(2).Infof("Cannot decrement %s with labels %v: current value is %v (not positive)", p.name, labelMap, val)
 	}
 }
 
+// WorkQueueMetrics provides Prometheus metrics for Kubernetes work queues
 type WorkQueueMetrics struct {
 	prefix string
 }
 
+var metricsServer *http.Server
+
 func InitializeMetrics(metricsConfig *MetricConfig) {
+	if metricsConfig == nil {
+		glog.Error("metricsConfig cannot be nil")
+		return
+	}
+	if metricsConfig.MetricsPort == "" {
+		glog.Error("metricsPort cannot be empty")
+		return
+	}
+	if metricsConfig.MetricsEndpoint == "" {
+		glog.Error("metricsEndpoint cannot be empty")
+		return
+	}
+
 	// Start the metrics endpoint for Prometheus to scrape
 	http.Handle(metricsConfig.MetricsEndpoint, promhttp.Handler())
-	go http.ListenAndServe(fmt.Sprintf(":%s", metricsConfig.MetricsPort), nil)
-	glog.Infof("Started Metrics server at localhost:%s%s", metricsConfig.MetricsPort, metricsConfig.MetricsEndpoint)
+	
+	metricsServer = &http.Server{
+		Addr: fmt.Sprintf(":%s", metricsConfig.MetricsPort),
+	}
+	
+	go func() {
+		glog.Infof("Started Metrics server at localhost:%s%s", metricsConfig.MetricsPort, metricsConfig.MetricsEndpoint)
+		if err := metricsServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			glog.Errorf("Failed to start metrics server: %v", err)
+		}
+	}()
 
 	workQueueMetrics := WorkQueueMetrics{prefix: metricsConfig.MetricsPrefix}
 	workqueue.SetProvider(&workQueueMetrics)
+}
+
+// ShutdownMetricsServer gracefully shuts down the metrics server
+func ShutdownMetricsServer() error {
+	if metricsServer != nil {
+		glog.Info("Shutting down metrics server")
+		return metricsServer.Close()
+	}
+	return nil
 }
 
 // Depth Metric for the kubernetes workqueue.

@@ -448,7 +448,7 @@ func (c *Controller) getAndUpdateAppState(app *v1beta2.SparkApplication) error {
 
 func (c *Controller) handleSparkApplicationDeletion(app *v1beta2.SparkApplication) {
 	if c.metrics != nil {
-		c.metrics.exportMetricsOnDelete(app)
+		c.metrics.HandleSparkApplicationDelete(app)
 	}
 	// SparkApplication deletion requested, lets delete driver pod.
 	if err := c.deleteSparkResources(app); err != nil {
@@ -536,6 +536,9 @@ func (c *Controller) syncSparkApplication(key string) error {
 		c.handleSparkApplicationDeletion(app)
 		return nil
 	}
+	if c.metrics != nil && app.ObjectMeta.CreationTimestamp.Time.After(time.Now().Add(-5*time.Second)) {
+        c.metrics.HandleSparkApplicationCreate(app)
+    }
 
 	appCopy := app.DeepCopy()
 	// Apply the default values to the copy. Note that the default values applied
@@ -868,7 +871,7 @@ func (c *Controller) updateStatusAndExportMetrics(oldApp, newApp *v1beta2.SparkA
 
 	// Export metrics if the update was successful.
 	if c.metrics != nil {
-		c.metrics.exportMetrics(oldApp, updatedApp)
+		c.metrics.HandleSparkApplicationUpdate(oldApp, updatedApp)
 	}
 
 	return nil
