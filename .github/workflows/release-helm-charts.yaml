@@ -23,7 +23,7 @@ jobs:
 
     steps:
       - name: Checkout source code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Configure Git
         run: |
@@ -71,7 +71,7 @@ jobs:
           cp *.tgz /tmp/charts
 
       - name: Checkout to branch gh-pages
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           ref: gh-pages
           fetch-depth: 0
