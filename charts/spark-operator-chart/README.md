@@ -88,6 +88,7 @@ See [helm uninstall](https://helm.sh/docs/helm/helm_uninstall) for command docum
 | hook.image.repository | string | `"kubeflow/spark-operator/kubectl"` | Image repository. |
 | hook.image.tag | string | If not set, the chart appVersion will be used. | Image tag. |
 | controller.replicas | int | `1` | Number of replicas of controller. |
+| controller.revisionHistoryLimit | int | `10` | The number of old history to retain to allow rollback. |
 | controller.leaderElection.enable | bool | `true` | Specifies whether to enable leader election for controller. |
 | controller.workers | int | `10` | Reconcile concurrency, higher values might increase memory usage. |
 | controller.logLevel | string | `"info"` | Configure the verbosity of logging, can be one of `debug`, `info`, `error`. |
@@ -135,6 +136,7 @@ See [helm uninstall](https://helm.sh/docs/helm/helm_uninstall) for command docum
 | controller.workqueueRateLimiter.maxDelay.duration | string | `"6h"` | Specifies the maximum delay duration for the workqueue rate limiter. |
 | webhook.enable | bool | `true` | Specifies whether to enable webhook. |
 | webhook.replicas | int | `1` | Number of replicas of webhook server. |
+| webhook.revisionHistoryLimit | int | `10` | The number of old history to retain to allow rollback. |
 | webhook.leaderElection.enable | bool | `true` | Specifies whether to enable leader election for webhook. |
 | webhook.logLevel | string | `"info"` | Configure the verbosity of logging, can be one of `debug`, `info`, `error`. |
 | webhook.logEncoder | string | `"console"` | Configure the encoder of logging, can be one of `console` or `json`. |
