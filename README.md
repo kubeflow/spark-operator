@@ -4,6 +4,7 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/kubeflow/spark-operator)](https://goreportcard.com/report/github.com/kubeflow/spark-operator)
 [![GitHub release](https://img.shields.io/github/v/release/kubeflow/spark-operator)](https://github.com/kubeflow/spark-operator/releases)
 [![OpenSSF Best Practices](https://www.bestpractices.dev/projects/10524/badge)](https://www.bestpractices.dev/projects/10524)
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fkubeflow%2Fspark-operator.svg?type=shield)](https://app.fossa.com/projects/git%2Bgithub.com%2Fkubeflow%2Fspark-operator?ref=badge_shield)
 
 ## What is Spark Operator?
 
@@ -112,3 +113,7 @@ For contributing to Spark Operator, please refer to [Contributor Guide](CONTRIBU
 ## Adopters
 
 Check out [adopters of Spark Operator](ADOPTERS.md).
+
+
+## License
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fkubeflow%2Fspark-operator.svg?type=large)](https://app.fossa.com/projects/git%2Bgithub.com%2Fkubeflow%2Fspark-operator?ref=badge_large)
