@@ -21,10 +21,20 @@ metadata:
   labels:
     {{- include "spark-operator.controller.labels" . | nindent 4 }}
 spec:
+  {{- with .Values.controller.progressDeadlineSeconds }}
+  progressDeadlineSeconds: {{ . }}
+  {{- end }}
   replicas: {{ .Values.controller.replicas }}
+  {{- with .Values.controller.revisionHistoryLimit }}
+  revisionHistoryLimit: {{ . }}
+  {{- end }}
   selector:
     matchLabels:
       {{- include "spark-operator.controller.selectorLabels" . | nindent 6 }}
+  {{- with .Values.controller.strategy }}
+  strategy:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
   template:
     metadata:
       labels:
@@ -152,6 +162,7 @@ spec:
         volumeMounts:
         {{- toYaml . | nindent 8 }}
         {{- end }}
+        resources: {}
         {{- with .Values.controller.resources }}
         resources:
           {{- toYaml . | nindent 10 }}
@@ -170,33 +181,36 @@ spec:
         securityContext:
           {{- toYaml . | nindent 10 }}
         {{- end }}
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
       {{- if .Values.controller.submitter.nativeSubmitPlugin.enabled }}
       - name: native-submit
         image: {{ .Values.controller.submitter.nativeSubmitPlugin.image }}
         {{- with .Values.controller.submitter.nativeSubmitPlugin.imagePullPolicy }}
         imagePullPolicy: {{ . }}
         {{- end }}
+        {{- with .Values.controller.submitter.nativeSubmitPlugin.ports }}
         ports:
-        - name: grpc
-          containerPort: 50051
-        - name: health
-          containerPort: 9090
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+        {{- with .Values.controller.submitter.nativeSubmitPlugin.livenessProbe }}
+        livenessProbe:
+        {{- toYaml . | nindent 10 }}
+        {{- end }}
+        {{- with .Values.controller.submitter.nativeSubmitPlugin.readinessProbe }}
+        readinessProbe:
+        {{- toYaml . | nindent 10 }}
+        {{- end }}
         {{- with .Values.controller.submitter.nativeSubmitPlugin.resources }}
         resources:
           {{- toYaml . | nindent 10 }}
         {{- end }}
-        livenessProbe:
-          httpGet:
-            port: 9090
-            path: /health
-          initialDelaySeconds: 30
-          periodSeconds: 10
-        readinessProbe:
-          httpGet:
-            port: 9090
-            path: /ready
-          initialDelaySeconds: 5
-          periodSeconds: 5
+        {{- with .Values.controller.submitter.nativeSubmitPlugin.terminationMessagePath }}
+        terminationMessagePath: {{ . }}
+        {{- end }}
+        {{- with .Values.controller.submitter.nativeSubmitPlugin.terminationMessagePolicy }}
+        terminationMessagePolicy: {{ . }}
+        {{- end }}
       {{- end }}
       {{- with .Values.controller.sidecars }}
       {{- toYaml . | nindent 6 }}
@@ -224,8 +238,20 @@ spec:
       {{- with .Values.controller.priorityClassName }}
       priorityClassName: {{ . }}
       {{- end }}
+      {{- with .Values.controller.dnsPolicy }}
+      dnsPolicy: {{ . }}
+      {{- end }}
+      {{- with .Values.controller.restartPolicy }}
+      restartPolicy: {{ . }}
+      {{- end }}
+      {{- with .Values.controller.schedulerName }}
+      schedulerName: {{ . }}
+      {{- end }}
       serviceAccountName: {{ include "spark-operator.controller.serviceAccountName" . }}
       automountServiceAccountToken: {{ .Values.controller.serviceAccount.automountServiceAccountToken }}
+      {{- with .Values.controller.terminationGracePeriodSeconds }}
+      terminationGracePeriodSeconds: {{ . }}
+      {{- end }}
       {{- with .Values.controller.podSecurityContext }}
       securityContext:
         {{- toYaml . | nindent 8 }}
