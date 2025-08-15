@@ -44,6 +44,19 @@ image:
 controller:
   # -- Number of replicas of controller.
   replicas: 1
+  
+  # -- Progress deadline seconds for deployment
+  progressDeadlineSeconds: 600
+  
+  # -- Revision history limit for deployment
+  revisionHistoryLimit: 10
+  
+  # -- Deployment strategy
+  strategy:
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25%
+    type: RollingUpdate
 
   leaderElection:
     # -- Specifies whether to enable leader election for controller.
@@ -143,6 +156,18 @@ controller:
 
   # -- Priority class for controller pods.
   priorityClassName: ""
+  
+  # -- Pod DNS policy
+  dnsPolicy: ClusterFirst
+  
+  # -- Pod restart policy
+  restartPolicy: Always
+  
+  # -- Pod scheduler name
+  schedulerName: default-scheduler
+  
+  # -- Pod termination grace period seconds
+  terminationGracePeriodSeconds: 30
 
   # -- Security context for controller pods.
   podSecurityContext:
@@ -213,13 +238,41 @@ controller:
       # -- Enable native submit plugin sidecar
       enabled: false
       # -- Native submit plugin image
-      image: "docker.io/library/native-submit:0.0.1"
+      image: "docker.io/library/native-submit-plugin:08142025"
       # -- Native submit plugin image pull policy
       imagePullPolicy: "IfNotPresent"
       # -- Native submit plugin container port
       port: 50051
       # -- Native submit plugin container port name
       portName: "grpc"
+      # -- Container ports configuration
+      ports:
+        - containerPort: 50051
+          name: metrics
+          protocol: TCP
+      # -- Liveness probe configuration
+      livenessProbe:
+        failureThreshold: 3
+        httpGet:
+          path: /healthz
+          port: 9090
+          scheme: HTTP
+        periodSeconds: 10
+        successThreshold: 1
+        timeoutSeconds: 1
+      # -- Readiness probe configuration
+      readinessProbe:
+        failureThreshold: 3
+        httpGet:
+          path: /readyz
+          port: 9090
+          scheme: HTTP
+        periodSeconds: 10
+        successThreshold: 1
+        timeoutSeconds: 1
+      # -- Container termination configuration
+      terminationMessagePath: /dev/termination-log
+      terminationMessagePolicy: File
       # -- Resource requests and limits for native submit plugin
       resources: {}
         # limits:

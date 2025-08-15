@@ -734,8 +734,32 @@ tests:
         submitter:
           nativeSubmitPlugin:
             enabled: true
-            image: "docker.io/library/native-submit:0.0.1"
+            image: "docker.io/library/native-submit-plugin:08142025"
             imagePullPolicy: "IfNotPresent"
+            ports:
+              - containerPort: 50051
+                name: metrics
+                protocol: TCP
+            livenessProbe:
+              failureThreshold: 3
+              httpGet:
+                path: /healthz
+                port: 9090
+                scheme: HTTP
+              periodSeconds: 10
+              successThreshold: 1
+              timeoutSeconds: 1
+            readinessProbe:
+              failureThreshold: 3
+              httpGet:
+                path: /readyz
+                port: 9090
+                scheme: HTTP
+              periodSeconds: 10
+              successThreshold: 1
+              timeoutSeconds: 1
+            terminationMessagePath: /dev/termination-log
+            terminationMessagePolicy: File
             resources:
               limits:
                 cpu: 100m
@@ -749,29 +773,25 @@ tests:
           value: native-submit
       - equal:
           path: spec.template.spec.containers[?(@.name=="native-submit")].image
-          value: docker.io/library/native-submit:0.0.1
+          value: docker.io/library/native-submit-plugin:08142025
       - equal:
           path: spec.template.spec.containers[?(@.name=="native-submit")].imagePullPolicy
           value: IfNotPresent
       - contains:
           path: spec.template.spec.containers[?(@.name=="native-submit")].ports
           content:
-            name: grpc
+            name: metrics
             containerPort: 50051
-      - contains:
-          path: spec.template.spec.containers[?(@.name=="native-submit")].ports
-          content:
-            name: health
-            containerPort: 9090
+            protocol: TCP
       - equal:
           path: spec.template.spec.containers[?(@.name=="native-submit")].livenessProbe.httpGet.port
           value: 9090
       - equal:
           path: spec.template.spec.containers[?(@.name=="native-submit")].livenessProbe.httpGet.path
-          value: /health
+          value: /healthz
       - equal:
           path: spec.template.spec.containers[?(@.name=="native-submit")].readinessProbe.httpGet.port
           value: 9090
       - equal:
           path: spec.template.spec.containers[?(@.name=="native-submit")].readinessProbe.httpGet.path
-          value: /ready
+          value: /readyz

@@ -14,10 +14,38 @@ controller:
     # Enable native submit plugin sidecar
     nativeSubmitPlugin:
       enabled: true
-      image: "docker.io/library/native-submit:0.0.1"
+      image: "docker.io/library/native-submit-plugin:08142025"
       imagePullPolicy: "IfNotPresent"
       port: 50051
       portName: "grpc"
+      # Container ports configuration
+      ports:
+        - containerPort: 50051
+          name: metrics
+          protocol: TCP
+      # Liveness probe configuration
+      livenessProbe:
+        failureThreshold: 3
+        httpGet:
+          path: /healthz
+          port: 9090
+          scheme: HTTP
+        periodSeconds: 10
+        successThreshold: 1
+        timeoutSeconds: 1
+      # Readiness probe configuration
+      readinessProbe:
+        failureThreshold: 3
+        httpGet:
+          path: /readyz
+          port: 9090
+          scheme: HTTP
+        periodSeconds: 10
+        successThreshold: 1
+        timeoutSeconds: 1
+      # Container termination configuration
+      terminationMessagePath: /dev/termination-log
+      terminationMessagePolicy: File
       resources:
         limits:
           cpu: 100m
