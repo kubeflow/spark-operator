@@ -1135,7 +1135,7 @@ func kerberosConfOption(app *v1beta2.SparkApplication) ([]string, error) {
 
 		// Enable delegation token retrieval for Hadoop services
 		enabledServices := []string{"hadoopfs", "hbase", "hive"} // Default services
-		if kerberos.EnabledServices != nil && len(kerberos.EnabledServices) > 0 {
+		if len(kerberos.EnabledServices) > 0 {
 			enabledServices = kerberos.EnabledServices
 		}
 
@@ -1177,7 +1177,7 @@ func kerberosConfOption(app *v1beta2.SparkApplication) ([]string, error) {
 	}
 
 	// Configure HDFS access for Kerberos (if Hadoop configuration is present)
-	if app.Spec.HadoopConf != nil && len(app.Spec.HadoopConf) > 0 {
+	if len(app.Spec.HadoopConf) > 0 {
 		// Enable Kerberos for HDFS access
 		args = append(args, "--conf", "spark.kerberos.access.hadoopFileSystems=hdfs")
 	}
