@@ -102,6 +102,7 @@ func buildSparkSubmitArgs(app *v1beta2.SparkApplication) ([]string, error) {
 		submissionWaitAppCompletionOption,
 		sparkConfOption,
 		hadoopConfOption,
+		kerberosConfOption,
 		driverPodTemplateOption,
 		driverPodNameOption,
 		driverConfOption,
@@ -431,6 +432,10 @@ func driverSecretOption(app *v1beta2.SparkApplication) ([]string, error) {
 		case v1beta2.SecretTypeHadoopDelegationToken:
 			property := fmt.Sprintf(common.SparkKubernetesDriverEnvTemplate, common.EnvHadoopTokenFileLocation)
 			conf := fmt.Sprintf("%s=%s", property, filepath.Join(secret.Path, common.HadoopDelegationTokenFileName))
+			args = append(args, "--conf", conf)
+		case v1beta2.SecretTypeKerberosKeytab:
+			property := fmt.Sprintf(common.SparkKubernetesDriverEnvTemplate, common.EnvKerberosKeytabFile)
+			conf := fmt.Sprintf("%s=%s", property, filepath.Join(secret.Path, common.KerberosKeytabFileName))
 			args = append(args, "--conf", conf)
 		}
 	}
@@ -769,6 +774,10 @@ func executorSecretOption(app *v1beta2.SparkApplication) ([]string, error) {
 			property := fmt.Sprintf(common.SparkExecutorEnvTemplate, common.EnvHadoopTokenFileLocation)
 			args = append(args, "--conf", fmt.Sprintf("%s=%s", property,
 				filepath.Join(secret.Path, common.HadoopDelegationTokenFileName)))
+		case v1beta2.SecretTypeKerberosKeytab:
+			property := fmt.Sprintf(common.SparkExecutorEnvTemplate, common.EnvKerberosKeytabFile)
+			args = append(args, "--conf", fmt.Sprintf("%s=%s", property,
+				filepath.Join(secret.Path, common.KerberosKeytabFileName)))
 		}
 	}
 	return args, nil
@@ -1096,5 +1105,82 @@ func executorPodTemplateOption(app *v1beta2.SparkApplication) ([]string, error) 
 		"--conf",
 		fmt.Sprintf("%s=%s", common.SparkKubernetesExecutorPodTemplateContainerName, common.Spark3DefaultExecutorContainerName),
 	}
+	return args, nil
+}
+
+// kerberosConfOption returns Kerberos-specific configuration arguments.
+func kerberosConfOption(app *v1beta2.SparkApplication) ([]string, error) {
+	if app.Spec.Kerberos == nil {
+		return nil, nil
+	}
+
+	var args []string
+	kerberos := app.Spec.Kerberos
+
+	// Set the Kerberos principal and enable keytab-based authentication
+	if kerberos.Principal != nil {
+		// Hadoop-level Kerberos configuration
+		args = append(args, "--conf", "spark.hadoop.hadoop.security.authentication=kerberos")
+		args = append(args, "--conf", "spark.hadoop.hadoop.security.authorization=true")
+		
+		// Spark Kerberos configuration for long-running applications
+		args = append(args, "--conf", fmt.Sprintf("spark.kerberos.principal=%s", *kerberos.Principal))
+		
+		// Set credential renewal strategy
+		renewalCredentials := "keytab" // Default for Spark 4.0+
+		if kerberos.RenewalCredentials != nil {
+			renewalCredentials = *kerberos.RenewalCredentials
+		}
+		args = append(args, "--conf", fmt.Sprintf("spark.kerberos.renewal.credentials=%s", renewalCredentials))
+		
+		// Enable delegation token retrieval for Hadoop services
+		enabledServices := []string{"hadoopfs", "hbase", "hive"} // Default services
+		if kerberos.EnabledServices != nil && len(kerberos.EnabledServices) > 0 {
+			enabledServices = kerberos.EnabledServices
+		}
+		
+		for _, service := range enabledServices {
+			args = append(args, "--conf", fmt.Sprintf("spark.security.credentials.%s.enabled=true", service))
+		}
+	}
+
+	// Set keytab configuration
+	if kerberos.KeytabSecret != nil && kerberos.Principal != nil {
+		keytabFileName := common.KerberosKeytabFileName
+		if kerberos.KeytabFile != nil {
+			keytabFileName = *kerberos.KeytabFile
+		}
+		keytabPath := fmt.Sprintf("%s/%s", common.DefaultKerberosKeytabMountPath, keytabFileName)
+		
+		// Spark Kerberos keytab configuration
+		args = append(args, "--conf", fmt.Sprintf("spark.kerberos.keytab=%s", keytabPath))
+		
+		// Hadoop Kerberos configuration (for backward compatibility and direct Hadoop access)
+		args = append(args, "--conf", fmt.Sprintf("spark.hadoop.hadoop.kerberos.principal=%s", *kerberos.Principal))
+		args = append(args, "--conf", fmt.Sprintf("spark.hadoop.hadoop.kerberos.keytab=%s", keytabPath))
+	}
+
+	// Set Kerberos config file path
+	if kerberos.ConfigSecret != nil {
+		configFileName := common.KerberosConfigFileName
+		if kerberos.ConfigFile != nil {
+			configFileName = *kerberos.ConfigFile
+		}
+		configPath := fmt.Sprintf("%s/%s", common.DefaultKerberosConfigMountPath, configFileName)
+		
+		// Set Java system property for Kerberos configuration
+		args = append(args, "--conf", fmt.Sprintf("spark.hadoop.java.security.krb5.conf=%s", configPath))
+		
+		// Set driver and executor JVM options for krb5.conf
+		args = append(args, "--conf", fmt.Sprintf("spark.driver.extraJavaOptions=-Djava.security.krb5.conf=%s", configPath))
+		args = append(args, "--conf", fmt.Sprintf("spark.executor.extraJavaOptions=-Djava.security.krb5.conf=%s", configPath))
+	}
+
+	// Configure HDFS access for Kerberos (if Hadoop configuration is present)
+	if app.Spec.HadoopConf != nil && len(app.Spec.HadoopConf) > 0 {
+		// Enable Kerberos for HDFS access
+		args = append(args, "--conf", "spark.kerberos.access.hadoopFileSystems=hdfs")
+	}
+
 	return args, nil
 }
