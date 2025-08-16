@@ -409,6 +409,31 @@ spark:
     # -- Optional annotations for the spark application RBAC resources.
     annotations: {}
 
+  # Kerberos configuration for Spark applications
+  kerberos:
+    # -- Enable Kerberos authentication support for Spark applications.
+    enabled: false
+
+    # -- Default Kerberos principal for authentication (can be overridden per application).
+    # Example: spark@EXAMPLE.COM
+    defaultPrincipal: ""
+
+    # -- Default Kerberos realm (can be overridden per application).
+    # Example: EXAMPLE.COM
+    defaultRealm: ""
+
+    # -- Default Kerberos KDC address (can be overridden per application).
+    # Example: kdc.example.com:88
+    defaultKDC: ""
+
+    # -- Name of the secret containing the default Kerberos keytab file.
+    # This secret should contain a file named 'krb5.keytab'
+    defaultKeytabSecret: ""
+
+    # -- Name of the secret containing the default Kerberos configuration (krb5.conf).
+    # This secret should contain a file named 'krb5.conf'
+    defaultConfigSecret: ""
+
 prometheus:
   metrics:
     # -- Specifies whether to enable prometheus metrics scraping.

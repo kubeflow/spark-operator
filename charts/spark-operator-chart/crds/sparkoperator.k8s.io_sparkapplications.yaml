@@ -10260,6 +10260,56 @@ spec:
                 items:
                   type: string
                 type: array
+              kerberos:
+                description: Kerberos configures Kerberos authentication for Hadoop
+                  access.
+                properties:
+                  configFile:
+                    description: |-
+                      ConfigFile is the path to the krb5.conf file within the config secret.
+                      Defaults to "krb5.conf" if not specified.
+                    type: string
+                  configSecret:
+                    description: ConfigSecret is the name of the secret containing
+                      the Kerberos configuration file (krb5.conf).
+                    type: string
+                  enabledServices:
+                    description: |-
+                      EnabledServices specifies which Hadoop services should have Kerberos credentials enabled.
+                      Defaults to ["hadoopfs", "hbase", "hive"] if not specified.
+                    items:
+                      type: string
+                    type: array
+                  kdc:
+                    description: KDC is the Key Distribution Center address.
+                    type: string
+                  keytabFile:
+                    description: |-
+                      KeytabFile is the path to the keytab file within the keytab secret.
+                      Defaults to "krb5.keytab" if not specified.
+                    type: string
+                  keytabSecret:
+                    description: KeytabSecret is the name of the secret containing
+                      the Kerberos keytab file.
+                    type: string
+                  principal:
+                    description: Principal is the Kerberos principal name for authentication.
+                    type: string
+                  realm:
+                    description: Realm is the Kerberos realm. This is optional and
+                      can be inferred from the principal.
+                    type: string
+                  renewalCredentials:
+                    description: |-
+                      RenewalCredentials specifies the credential renewal strategy.
+                      Valid values are "keytab" (default) and "ccache".
+                      "keytab" enables automatic renewal using the provided keytab.
+                      "ccache" uses existing ticket cache (requires manual ticket management).
+                    enum:
+                    - keytab
+                    - ccache
+                    type: string
+                type: object
               mainApplicationFile:
                 description: MainFile is the path to a bundled JAR, Python, or R file
                   of the application.
