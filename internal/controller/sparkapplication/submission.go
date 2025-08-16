@@ -1122,23 +1122,23 @@ func kerberosConfOption(app *v1beta2.SparkApplication) ([]string, error) {
 		// Hadoop-level Kerberos configuration
 		args = append(args, "--conf", "spark.hadoop.hadoop.security.authentication=kerberos")
 		args = append(args, "--conf", "spark.hadoop.hadoop.security.authorization=true")
-		
+
 		// Spark Kerberos configuration for long-running applications
 		args = append(args, "--conf", fmt.Sprintf("spark.kerberos.principal=%s", *kerberos.Principal))
-		
+
 		// Set credential renewal strategy
 		renewalCredentials := "keytab" // Default for Spark 4.0+
 		if kerberos.RenewalCredentials != nil {
 			renewalCredentials = *kerberos.RenewalCredentials
 		}
 		args = append(args, "--conf", fmt.Sprintf("spark.kerberos.renewal.credentials=%s", renewalCredentials))
-		
+
 		// Enable delegation token retrieval for Hadoop services
 		enabledServices := []string{"hadoopfs", "hbase", "hive"} // Default services
 		if kerberos.EnabledServices != nil && len(kerberos.EnabledServices) > 0 {
 			enabledServices = kerberos.EnabledServices
 		}
-		
+
 		for _, service := range enabledServices {
 			args = append(args, "--conf", fmt.Sprintf("spark.security.credentials.%s.enabled=true", service))
 		}
@@ -1151,10 +1151,10 @@ func kerberosConfOption(app *v1beta2.SparkApplication) ([]string, error) {
 			keytabFileName = *kerberos.KeytabFile
 		}
 		keytabPath := fmt.Sprintf("%s/%s", common.DefaultKerberosKeytabMountPath, keytabFileName)
-		
+
 		// Spark Kerberos keytab configuration
 		args = append(args, "--conf", fmt.Sprintf("spark.kerberos.keytab=%s", keytabPath))
-		
+
 		// Hadoop Kerberos configuration (for backward compatibility and direct Hadoop access)
 		args = append(args, "--conf", fmt.Sprintf("spark.hadoop.hadoop.kerberos.principal=%s", *kerberos.Principal))
 		args = append(args, "--conf", fmt.Sprintf("spark.hadoop.hadoop.kerberos.keytab=%s", keytabPath))
@@ -1167,10 +1167,10 @@ func kerberosConfOption(app *v1beta2.SparkApplication) ([]string, error) {
 			configFileName = *kerberos.ConfigFile
 		}
 		configPath := fmt.Sprintf("%s/%s", common.DefaultKerberosConfigMountPath, configFileName)
-		
+
 		// Set Java system property for Kerberos configuration
 		args = append(args, "--conf", fmt.Sprintf("spark.hadoop.java.security.krb5.conf=%s", configPath))
-		
+
 		// Set driver and executor JVM options for krb5.conf
 		args = append(args, "--conf", fmt.Sprintf("spark.driver.extraJavaOptions=-Djava.security.krb5.conf=%s", configPath))
 		args = append(args, "--conf", fmt.Sprintf("spark.executor.extraJavaOptions=-Djava.security.krb5.conf=%s", configPath))
