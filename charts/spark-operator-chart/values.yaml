@@ -44,19 +44,6 @@ image:
 controller:
   # -- Number of replicas of controller.
   replicas: 1
-  
-  # -- Progress deadline seconds for deployment
-  progressDeadlineSeconds: 600
-  
-  # -- Revision history limit for deployment
-  revisionHistoryLimit: 10
-  
-  # -- Deployment strategy
-  strategy:
-    rollingUpdate:
-      maxSurge: 25%
-      maxUnavailable: 25%
-    type: RollingUpdate
 
   leaderElection:
     # -- Specifies whether to enable leader election for controller.
@@ -156,18 +143,6 @@ controller:
 
   # -- Priority class for controller pods.
   priorityClassName: ""
-  
-  # -- Pod DNS policy
-  dnsPolicy: ClusterFirst
-  
-  # -- Pod restart policy
-  restartPolicy: Always
-  
-  # -- Pod scheduler name
-  schedulerName: default-scheduler
-  
-  # -- Pod termination grace period seconds
-  terminationGracePeriodSeconds: 30
 
   # -- Security context for controller pods.
   podSecurityContext:
