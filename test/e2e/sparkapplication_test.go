@@ -393,4 +393,28 @@ var _ = Describe("Example SparkApplication", func() {
 			Expect(strings.Contains(string(bytes), "Pi is roughly 3")).To(BeTrue())
 		})
 	})
+
+	Context("long-name-validation", func() {
+		ctx := context.Background()
+		path := filepath.Join("bad_examples", "long-name-validation.yaml")
+		app := &v1beta2.SparkApplication{}
+
+		BeforeEach(func() {
+			By("Parsing SparkApplication from file")
+			file, err := os.Open(path)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(file).NotTo(BeNil())
+
+			decoder := yaml.NewYAMLOrJSONDecoder(file, 100)
+			Expect(decoder).NotTo(BeNil())
+			Expect(decoder.Decode(app)).NotTo(HaveOccurred())
+		})
+
+		It("Should be rejected by the webhook due to name length exceeding the limit", func() {
+			By("Attempting to create SparkApplication with a name that exceeds the maximum length")
+			err := k8sClient.Create(ctx, app)
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("name must be no more than 53 characters"))
+		})
+	})
 })
