@@ -142,6 +142,9 @@ type SparkApplicationSpec struct {
 	// scheduler backend since Spark 3.0.
 	// +optional
 	DynamicAllocation *DynamicAllocation `json:"dynamicAllocation,omitempty"`
+	// Kerberos configures Kerberos authentication for Hadoop access.
+	// +optional
+	Kerberos *KerberosSpec `json:"kerberos,omitempty"`
 }
 
 // SparkApplicationStatus defines the observed state of SparkApplication
@@ -604,6 +607,9 @@ const (
 	// SecretTypeHadoopDelegationToken is for secrets from an Hadoop delegation token that needs the
 	// environment variable HADOOP_TOKEN_FILE_LOCATION.
 	SecretTypeHadoopDelegationToken SecretType = "HadoopDelegationToken"
+	// SecretTypeKerberosKeytab is for secrets from a Kerberos keytab file that needs the
+	// environment variable KRB5_KEYTAB_FILE.
+	SecretTypeKerberosKeytab SecretType = "KerberosKeytab"
 	// SecretTypeGeneric is for secrets that needs no special handling.
 	SecretTypeGeneric SecretType = "Generic"
 )
@@ -716,4 +722,42 @@ type DynamicAllocation struct {
 	// shuffle data if shuffle tracking is enabled (true by default if dynamic allocation is enabled).
 	// +optional
 	ShuffleTrackingTimeout *int64 `json:"shuffleTrackingTimeout,omitempty"`
+}
+
+// KerberosSpec defines the Kerberos authentication configuration for Hadoop access.
+type KerberosSpec struct {
+	// Principal is the Kerberos principal name for authentication.
+	// +optional
+	Principal *string `json:"principal,omitempty"`
+	// KeytabSecret is the name of the secret containing the Kerberos keytab file.
+	// +optional
+	KeytabSecret *string `json:"keytabSecret,omitempty"`
+	// KeytabFile is the path to the keytab file within the keytab secret.
+	// Defaults to "krb5.keytab" if not specified.
+	// +optional
+	KeytabFile *string `json:"keytabFile,omitempty"`
+	// ConfigSecret is the name of the secret containing the Kerberos configuration file (krb5.conf).
+	// +optional
+	ConfigSecret *string `json:"configSecret,omitempty"`
+	// ConfigFile is the path to the krb5.conf file within the config secret.
+	// Defaults to "krb5.conf" if not specified.
+	// +optional
+	ConfigFile *string `json:"configFile,omitempty"`
+	// Realm is the Kerberos realm. This is optional and can be inferred from the principal.
+	// +optional
+	Realm *string `json:"realm,omitempty"`
+	// KDC is the Key Distribution Center address.
+	// +optional
+	KDC *string `json:"kdc,omitempty"`
+	// RenewalCredentials specifies the credential renewal strategy.
+	// Valid values are "keytab" (default) and "ccache".
+	// "keytab" enables automatic renewal using the provided keytab.
+	// "ccache" uses existing ticket cache (requires manual ticket management).
+	// +optional
+	// +kubebuilder:validation:Enum={keytab,ccache}
+	RenewalCredentials *string `json:"renewalCredentials,omitempty"`
+	// EnabledServices specifies which Hadoop services should have Kerberos credentials enabled.
+	// Defaults to ["hadoopfs", "hbase", "hive"] if not specified.
+	// +optional
+	EnabledServices []string `json:"enabledServices,omitempty"`
 }

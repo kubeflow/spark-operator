@@ -1,0 +1,120 @@
+#
+# Copyright 2024 The Kubeflow authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+# Example SparkApplication with Kerberos authentication for secure Hadoop access
+# Prerequisites:
+# 1. Create secrets containing keytab and krb5.conf files:
+#    kubectl create secret generic spark-kerberos-keytab --from-file=krb5.keytab=/path/to/spark.keytab
+#    kubectl create secret generic spark-kerberos-config --from-file=krb5.conf=/path/to/krb5.conf
+# 2. Ensure HDFS and other Hadoop services are configured for Kerberos authentication
+
+apiVersion: "sparkoperator.k8s.io/v1beta2"
+kind: SparkApplication
+metadata:
+  name: spark-pi-kerberos
+  namespace: default
+spec:
+  type: Scala
+  mode: cluster
+  image: "spark:4.0.0"
+  imagePullPolicy: Always
+  mainClass: org.apache.spark.examples.SparkPi
+  mainApplicationFile: "local:///opt/spark/examples/jars/spark-examples_2.12-4.0.0.jar"
+  sparkVersion: "4.0.0"
+  restartPolicy:
+    type: Never
+    
+  # Kerberos configuration for secure Hadoop access
+  kerberos:
+    # Kerberos principal (user@REALM)
+    principal: "spark@EXAMPLE.COM"
+    # Realm (optional, can be inferred from principal)
+    realm: "EXAMPLE.COM"
+    # KDC address (optional)
+    kdc: "kdc.example.com:88"
+    # Secret containing keytab file
+    keytabSecret: "spark-kerberos-keytab"
+    # keytabFile: "krb5.keytab"  # Default, can be customized
+    # Secret containing krb5.conf
+    configSecret: "spark-kerberos-config"
+    # configFile: "krb5.conf"  # Default, can be customized
+    # Credential renewal strategy for long-running applications (Spark 4+)
+    renewalCredentials: "keytab"  # or "ccache" for ticket cache
+    # Services that should have Kerberos credentials enabled
+    enabledServices: ["hadoopfs", "hbase", "hive"]
+    
+  # Hadoop configuration for Kerberos-enabled HDFS
+  hadoopConf:
+    # Enable Kerberos authentication
+    "hadoop.security.authentication": "kerberos"
+    "hadoop.security.authorization": "true"
+    # HDFS configuration for Kerberos
+    "dfs.nameservices": "hdfs-cluster"
+    "dfs.ha.namenodes.hdfs-cluster": "nn1,nn2"
+    "dfs.namenode.rpc-address.hdfs-cluster.nn1": "namenode1.example.com:8020"
+    "dfs.namenode.rpc-address.hdfs-cluster.nn2": "namenode2.example.com:8020"
+    "dfs.client.failover.proxy.provider.hdfs-cluster": "org.apache.hadoop.hdfs.server.namenode.ha.ConfiguredFailoverProxyProvider"
+    
+  # Spark configuration
+  sparkConf:
+    # SQL warehouse access configuration (if using Hive)
+    "spark.sql.warehouse.dir": "hdfs://hdfs-cluster/user/hive/warehouse"
+    "spark.sql.hive.metastore.version": "3.1.2"
+    "spark.sql.hive.metastore.jars": "builtin"
+    # Enable adaptive query execution for better performance
+    "spark.sql.adaptive.enabled": "true"
+    "spark.sql.adaptive.coalescePartitions.enabled": "true"
+    # Enable Kerberos for additional services (optional)
+    "spark.security.credentials.yarn.enabled": "true"
+    
+  driver:
+    cores: 1
+    coreLimit: "1200m"
+    memory: "512m"
+    labels:
+      version: 3.5.3
+    serviceAccount: spark
+    # Mount Kerberos keytab as secret
+    secrets:
+      - name: "spark-kerberos-keytab"
+        path: "/etc/kerberos/keytab"
+        secretType: "KerberosKeytab"
+      - name: "spark-kerberos-config"
+        path: "/etc/kerberos/conf"
+        secretType: "Generic"
+    # Set environment variables for Kerberos
+    env:
+      - name: "KRB5_CONFIG"
+        value: "/etc/kerberos/conf/krb5.conf"
+        
+  executor:
+    cores: 1
+    instances: 1
+    memory: "512m"
+    labels:
+      version: 3.5.3
+    # Mount Kerberos keytab as secret
+    secrets:
+      - name: "spark-kerberos-keytab"
+        path: "/etc/kerberos/keytab"
+        secretType: "KerberosKeytab"
+      - name: "spark-kerberos-config"
+        path: "/etc/kerberos/conf"
+        secretType: "Generic"
+    # Set environment variables for Kerberos
+    env:
+      - name: "KRB5_CONFIG"
+        value: "/etc/kerberos/conf/krb5.conf"
