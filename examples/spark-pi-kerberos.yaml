@@ -85,8 +85,8 @@ spec:
     coreLimit: "1200m"
     memory: "512m"
     labels:
-      version: 3.5.3
-    serviceAccount: spark
+      version: 4.0.0
+    serviceAccount: spark-operator-spark
     # Mount Kerberos keytab as secret
     secrets:
       - name: "spark-kerberos-keytab"
@@ -105,7 +105,7 @@ spec:
     instances: 1
     memory: "512m"
     labels:
-      version: 3.5.3
+      version: 4.0.0
     # Mount Kerberos keytab as secret
     secrets:
       - name: "spark-kerberos-keytab"

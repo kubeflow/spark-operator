@@ -1,6 +1,6 @@
 # spark-operator
 
-![Version: 2.4.0](https://img.shields.io/badge/Version-2.4.0-informational?style=flat-square) ![AppVersion: 2.4.0](https://img.shields.io/badge/AppVersion-2.4.0-informational?style=flat-square)
+![Version: 2.3.0](https://img.shields.io/badge/Version-2.3.0-informational?style=flat-square) ![AppVersion: 2.3.0](https://img.shields.io/badge/AppVersion-2.3.0-informational?style=flat-square)
 
 A Helm chart for Spark on Kubernetes operator.
 
@@ -173,7 +173,7 @@ See [helm uninstall](https://helm.sh/docs/helm/helm_uninstall) for command docum
 | spark.serviceAccount.automountServiceAccountToken | bool | `true` | Auto-mount service account token to the spark applications pods. |
 | spark.rbac.create | bool | `true` | Specifies whether to create RBAC resources for spark applications. |
 | spark.rbac.annotations | object | `{}` | Optional annotations for the spark application RBAC resources. |
-| spark.kerberos.enabled | bool | `false` | Enable Kerberos authentication support for Spark applications. |
+| spark.kerberos.enable | bool | `false` | Enable Kerberos authentication support for Spark applications. |
 | spark.kerberos.defaultPrincipal | string | `""` | Default Kerberos principal for authentication (can be overridden per application). Example: spark@EXAMPLE.COM |
 | spark.kerberos.defaultRealm | string | `""` | Default Kerberos realm (can be overridden per application). Example: EXAMPLE.COM |
 | spark.kerberos.defaultKDC | string | `""` | Default Kerberos KDC address (can be overridden per application). Example: kdc.example.com:88 |

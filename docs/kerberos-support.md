@@ -150,6 +150,39 @@ spark.driver.extraJavaOptions=-Djava.security.krb5.conf=<config-path>
 spark.executor.extraJavaOptions=-Djava.security.krb5.conf=<config-path>
 ```
 
+### Integration with Existing Spark Configuration
+
+**JavaOptions Interaction:**
+When using Kerberos configuration, the operator automatically adds Kerberos-related JVM options to `spark.driver.extraJavaOptions` and `spark.executor.extraJavaOptions`. 
+
+⚠️ **Important**: If you specify `javaOptions` in your driver or executor specification, those options will **completely override** the Kerberos JVM options, potentially breaking Kerberos authentication. To use both Kerberos and custom JVM options, you have two options:
+
+**Option 1: Use sparkConf instead of javaOptions (Recommended)**
+```yaml
+spec:
+  sparkConf:
+    # Your custom JVM options - will be merged with Kerberos options
+    "spark.driver.extraJavaOptions": "-XX:+UseG1GC -Xms1g"
+    "spark.executor.extraJavaOptions": "-XX:+UseG1GC -Xms512m"
+  kerberos:
+    # Kerberos configuration
+```
+
+**Option 2: Include Kerberos options in your javaOptions**
+```yaml
+spec:
+  driver:
+    # Include both your options AND the Kerberos krb5.conf option
+    javaOptions: "-XX:+UseG1GC -Xms1g -Djava.security.krb5.conf=/etc/krb5-config/krb5.conf"
+  executor:
+    javaOptions: "-XX:+UseG1GC -Xms512m -Djava.security.krb5.conf=/etc/krb5-config/krb5.conf"
+  kerberos:
+    # Other Kerberos configuration
+```
+
+**SparkConf Interaction:**
+If you manually specify `spark.driver.extraJavaOptions` or `spark.executor.extraJavaOptions` in your `sparkConf`, the operator will **append** the Kerberos JVM options to those values, ensuring both your custom options and Kerberos authentication work together.
+
 ### Credential Renewal Strategies
 
 **Keytab-based Renewal (Recommended)**:
