@@ -1,5 +1,5 @@
 #
-# Copyright 2024 The Kubeflow authors.
+# Copyright 2025 The Kubeflow authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -29,7 +29,7 @@ metadata:
 spec:
   type: Scala
   mode: cluster
-  image: "spark:4.0.0"
+  image: docker.io/library/spark:4.0.0
   imagePullPolicy: Always
   mainClass: org.apache.spark.examples.SparkPi
   mainApplicationFile: "local:///opt/spark/examples/jars/spark-examples_2.12-4.0.0.jar"

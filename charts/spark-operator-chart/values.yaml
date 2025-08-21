@@ -412,7 +412,7 @@ spark:
   # Kerberos configuration for Spark applications
   kerberos:
     # -- Enable Kerberos authentication support for Spark applications.
-    enabled: false
+    enable: false
 
     # -- Default Kerberos principal for authentication (can be overridden per application).
     # Example: spark@EXAMPLE.COM
