@@ -614,6 +614,67 @@ func TestPatchSparkPod_Tolerations(t *testing.T) {
 	assert.Equal(t, app.Spec.Driver.Tolerations[1], modifiedPod.Spec.Tolerations[1])
 }
 
+func TestPatchSparkPod_TopologySpreadConstraints(t *testing.T) {
+	app := &v1beta2.SparkApplication{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "spark-test",
+			UID:  "spark-test-1",
+		},
+		Spec: v1beta2.SparkApplicationSpec{
+			Driver: v1beta2.DriverSpec{
+				SparkPodSpec: v1beta2.SparkPodSpec{
+					TopologySpreadConstraint: []corev1.TopologySpreadConstraint{
+						{
+							MaxSkew:           1,
+							TopologyKey:       "topologyKey1",
+							WhenUnsatisfiable: corev1.DoNotSchedule,
+							LabelSelector:     &metav1.LabelSelector{MatchLabels: map[string]string{"spark-role": "driver"}},
+						},
+						{
+							MaxSkew:            1,
+							TopologyKey:        "topologyKey1",
+							WhenUnsatisfiable:  corev1.DoNotSchedule,
+							LabelSelector:      &metav1.LabelSelector{MatchLabels: map[string]string{"spark-role": "driver", "sparkJobId": "sparkjob123"}},
+							MinDomains:         func(i int32) *int32 { return &i }(1),
+							NodeAffinityPolicy: func(v corev1.NodeInclusionPolicy) *corev1.NodeInclusionPolicy { return &v }(corev1.NodeInclusionPolicyIgnore),
+							NodeTaintsPolicy:   func(v corev1.NodeInclusionPolicy) *corev1.NodeInclusionPolicy { return &v }(corev1.NodeInclusionPolicyIgnore),
+							MatchLabelKeys:     []string{"sparkDriver"},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	// Test patching a pod with a TopologySpreadConstraint.
+	pod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "spark-driver",
+			Labels: map[string]string{
+				common.LabelSparkRole:               common.SparkRoleDriver,
+				common.LabelLaunchedBySparkOperator: "true",
+			},
+		},
+		Spec: corev1.PodSpec{
+			Containers: []corev1.Container{
+				{
+					Name:  common.SparkDriverContainerName,
+					Image: "spark-driver:latest",
+				},
+			},
+		},
+	}
+
+	modifiedPod, err := getModifiedPod(pod, app)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	assert.Len(t, modifiedPod.Spec.TopologySpreadConstraints, 2)
+	assert.Equal(t, app.Spec.Driver.TopologySpreadConstraint[0], modifiedPod.Spec.TopologySpreadConstraints[0])
+	assert.Equal(t, app.Spec.Driver.TopologySpreadConstraint[1], modifiedPod.Spec.TopologySpreadConstraints[1])
+}
+
 func TestPatchSparkPod_SecurityContext(t *testing.T) {
 	var user int64 = 1000
 	var user2 int64 = 2000
