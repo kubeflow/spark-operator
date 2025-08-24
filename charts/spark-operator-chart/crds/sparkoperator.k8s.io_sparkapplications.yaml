@@ -149,7 +149,7 @@ spec:
               driver:
                 description: Driver is the driver specification.
                 properties:
-                  topologySpreadConstraint:
+                  topologySpreadConstraints:
                     type: object
                     required:
                       - maxSkew
@@ -5292,7 +5292,7 @@ spec:
               executor:
                 description: Executor is the executor specification.
                 properties:
-                  topologySpreadConstraint:
+                  topologySpreadConstraints:
                     type: object
                     required:
                       - maxSkew
