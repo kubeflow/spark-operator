@@ -476,7 +476,7 @@ type SparkPodSpec struct {
 	Affinity *corev1.Affinity `json:"affinity,omitempty"`
 	// Affinity specifies the affinity/anti-affinity settings for the pod.
 	// +optional
-	TopologySpreadConstraint []corev1.TopologySpreadConstraint `json:"topologySpreadConstraint,omitempty"`
+	TopologySpreadConstraint []corev1.TopologySpreadConstraint `json:"topologySpreadConstraints,omitempty"`
 	// Tolerations specifies the tolerations listed in ".spec.tolerations" to be applied to the pod.
 	// +optional
 	Tolerations []corev1.Toleration `json:"tolerations,omitempty"`
