@@ -57,6 +57,21 @@ tests:
           path: spec.replicas
           value: 0
 
+  - it: Should set revisionHistoryLimit to the default value
+    asserts:
+      - equal:
+          path: spec.revisionHistoryLimit
+          value: 10
+
+  - it: Should set revisionHistoryLimit if `controller.revisionHistoryLimit` is set
+    set:
+      webhook:
+        revisionHistoryLimit: 2
+    asserts:
+      - equal:
+          path: spec.revisionHistoryLimit
+          value: 2
+
   - it: Should add pod labels if `webhook.labels` is set
     set:
       webhook:
