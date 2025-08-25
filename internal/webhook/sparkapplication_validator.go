@@ -34,6 +34,11 @@ import (
 // Modifying the path for an invalid path can cause API server errors; failing to locate the webhook.
 // +kubebuilder:webhook:admissionReviewVersions=v1,failurePolicy=fail,groups=sparkoperator.k8s.io,matchPolicy=Exact,mutating=false,name=validate-sparkapplication.sparkoperator.k8s.io,path=/validate-sparkoperator-k8s-io-v1beta2-sparkapplication,reinvocationPolicy=Never,resources=sparkapplications,sideEffects=None,verbs=create;update,versions=v1beta2,webhookVersions=v1
 
+const (
+	// 63 (Kubernetes limit) - 10 (max suffix length, e.g., "-driver-svc")
+	maxAppNameLength = 53
+)
+
 type SparkApplicationValidator struct {
 	client client.Client
 
@@ -58,6 +63,11 @@ func (v *SparkApplicationValidator) ValidateCreate(ctx context.Context, obj runt
 		return nil, nil
 	}
 	logger.Info("Validating SparkApplication create", "name", app.Name, "namespace", app.Namespace, "state", util.GetApplicationState(app))
+
+	if err := v.validateMetadata(ctx, app); err != nil {
+		return nil, err
+	}
+
 	if err := v.validateSpec(ctx, app); err != nil {
 		return nil, err
 	}
@@ -88,6 +98,10 @@ func (v *SparkApplicationValidator) ValidateUpdate(ctx context.Context, oldObj r
 	// Skip validating when spec does not change.
 	if equality.Semantic.DeepEqual(oldApp.Spec, newApp.Spec) {
 		return nil, nil
+	}
+
+	if err := v.validateMetadata(ctx, newApp); err != nil {
+		return nil, err
 	}
 
 	if err := v.validateSpec(ctx, newApp); err != nil {
@@ -183,5 +197,14 @@ func (v *SparkApplicationValidator) validateResourceUsage(ctx context.Context, a
 		}
 	}
 
+	return nil
+}
+
+func (v *SparkApplicationValidator) validateMetadata(ctx context.Context, app *v1beta2.SparkApplication) error {
+	meta := app.ObjectMeta
+	err := validateNameLength(ctx, meta)
+	if err != nil {
+		return err
+	}
 	return nil
 }

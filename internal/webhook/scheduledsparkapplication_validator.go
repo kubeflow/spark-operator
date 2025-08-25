@@ -45,7 +45,7 @@ func (v *ScheduledSparkApplicationValidator) ValidateCreate(ctx context.Context,
 		return nil, nil
 	}
 	logger.Info("Validating SchedulingSparkApplication create", "name", app.Name, "namespace", app.Namespace)
-	if err := v.validate(app); err != nil {
+	if err := v.validate(ctx, app); err != nil {
 		return nil, err
 	}
 	return nil, nil
@@ -58,7 +58,7 @@ func (v *ScheduledSparkApplicationValidator) ValidateUpdate(ctx context.Context,
 		return nil, nil
 	}
 	logger.Info("Validating SchedulingSparkApplication update", "name", newApp.Name, "namespace", newApp.Namespace)
-	if err := v.validate(newApp); err != nil {
+	if err := v.validate(ctx, newApp); err != nil {
 		return nil, err
 	}
 	return nil, nil
@@ -74,7 +74,11 @@ func (v *ScheduledSparkApplicationValidator) ValidateDelete(ctx context.Context,
 	return nil, nil
 }
 
-func (v *ScheduledSparkApplicationValidator) validate(_ *v1beta2.ScheduledSparkApplication) error {
-	// TODO: implement validate logic
+func (v *ScheduledSparkApplicationValidator) validate(ctx context.Context, app *v1beta2.ScheduledSparkApplication) error {
+	meta := app.ObjectMeta
+	err := validateNameLength(ctx, meta)
+	if err != nil {
+		return err
+	}
 	return nil
 }
