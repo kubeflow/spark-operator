@@ -643,6 +643,20 @@ DynamicAllocation
 scheduler backend since Spark 3.0.</p>
 </td>
 </tr>
+<tr>
+<td>
+<code>kerberos</code><br/>
+<em>
+<a href="#sparkoperator.k8s.io/v1beta2.KerberosSpec">
+KerberosSpec
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Kerberos configures Kerberos authentication for Hadoop access.</p>
+</td>
+</tr>
 </table>
 </td>
 </tr>
@@ -1609,6 +1623,138 @@ int64
 </tr>
 </tbody>
 </table>
+<h3 id="sparkoperator.k8s.io/v1beta2.KerberosSpec">KerberosSpec
+</h3>
+<p>
+(<em>Appears on:</em><a href="#sparkoperator.k8s.io/v1beta2.SparkApplicationSpec">SparkApplicationSpec</a>)
+</p>
+<div>
+<p>KerberosSpec defines the Kerberos authentication configuration for Hadoop access.</p>
+</div>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>principal</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Principal is the Kerberos principal name for authentication.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>keytabSecret</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>KeytabSecret is the name of the secret containing the Kerberos keytab file.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>keytabFile</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>KeytabFile is the path to the keytab file within the keytab secret.
+Defaults to &ldquo;krb5.keytab&rdquo; if not specified.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>configSecret</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>ConfigSecret is the name of the secret containing the Kerberos configuration file (krb5.conf).</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>configFile</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>ConfigFile is the path to the krb5.conf file within the config secret.
+Defaults to &ldquo;krb5.conf&rdquo; if not specified.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>realm</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Realm is the Kerberos realm. This is optional and can be inferred from the principal.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>kdc</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>KDC is the Key Distribution Center address.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>renewalCredentials</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>RenewalCredentials specifies the credential renewal strategy.
+Valid values are &ldquo;keytab&rdquo; (default) and &ldquo;ccache&rdquo;.
+&ldquo;keytab&rdquo; enables automatic renewal using the provided keytab.
+&ldquo;ccache&rdquo; uses existing ticket cache (requires manual ticket management).</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>enabledServices</code><br/>
+<em>
+[]string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>EnabledServices specifies which Hadoop services should have Kerberos credentials enabled.
+Defaults to [&ldquo;hadoopfs&rdquo;, &ldquo;hbase&rdquo;, &ldquo;hive&rdquo;] if not specified.</p>
+</td>
+</tr>
+</tbody>
+</table>
 <h3 id="sparkoperator.k8s.io/v1beta2.MonitoringSpec">MonitoringSpec
 </h3>
 <p>
@@ -2310,6 +2456,10 @@ the environment variable GOOGLE_APPLICATION_CREDENTIALS.</p>
 <td><p>SecretTypeHadoopDelegationToken is for secrets from an Hadoop delegation token that needs the
 environment variable HADOOP_TOKEN_FILE_LOCATION.</p>
 </td>
+</tr><tr><td><p>&#34;KerberosKeytab&#34;</p></td>
+<td><p>SecretTypeKerberosKeytab is for secrets from a Kerberos keytab file that needs the
+environment variable KRB5_KEYTAB_FILE.</p>
+</td>
 </tr></tbody>
 </table>
 <h3 id="sparkoperator.k8s.io/v1beta2.SparkApplicationSpec">SparkApplicationSpec
@@ -2734,6 +2884,20 @@ DynamicAllocation
 <em>(Optional)</em>
 <p>DynamicAllocation configures dynamic allocation that becomes available for the Kubernetes
 scheduler backend since Spark 3.0.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>kerberos</code><br/>
+<em>
+<a href="#sparkoperator.k8s.io/v1beta2.KerberosSpec">
+KerberosSpec
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Kerberos configures Kerberos authentication for Hadoop access.</p>
 </td>
 </tr>
 </tbody>

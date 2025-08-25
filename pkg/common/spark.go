@@ -394,4 +394,24 @@ const (
 	// delegation token. This name is added to the delegation token secret mount path to
 	// form the path to the file referred to by HADOOP_TOKEN_FILE_LOCATION.
 	HadoopDelegationTokenFileName = "hadoop.token"
+
+	// EnvKerberosKeytabFile is the environment variable for specifying the location
+	// where the Kerberos keytab file is located.
+	EnvKerberosKeytabFile = "KRB5_KEYTAB_FILE"
+
+	// EnvKerberosConfig is the environment variable for specifying the location
+	// where the Kerberos configuration file (krb5.conf) is located.
+	EnvKerberosConfig = "KRB5_CONFIG"
+
+	// KerberosKeytabFileName is the default name of the Kerberos keytab file.
+	KerberosKeytabFileName = "krb5.keytab"
+
+	// KerberosConfigFileName is the default name of the Kerberos configuration file.
+	KerberosConfigFileName = "krb5.conf"
+
+	// DefaultKerberosKeytabMountPath is the default path where Kerberos keytab secrets are mounted.
+	DefaultKerberosKeytabMountPath = "/etc/kerberos/keytab"
+
+	// DefaultKerberosConfigMountPath is the default path where Kerberos config secrets are mounted.
+	DefaultKerberosConfigMountPath = "/etc/kerberos/conf"
 )
