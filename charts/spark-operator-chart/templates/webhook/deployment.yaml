@@ -23,6 +23,7 @@ metadata:
     {{- include "spark-operator.webhook.labels" . | nindent 4 }}
 spec:
   replicas: {{ .Values.webhook.replicas }}
+  revisionHistoryLimit: {{ .Values.webhook.revisionHistoryLimit }}
   selector:
     matchLabels:
       {{- include "spark-operator.webhook.selectorLabels" . | nindent 6 }}

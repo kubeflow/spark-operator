@@ -22,6 +22,7 @@ metadata:
     {{- include "spark-operator.controller.labels" . | nindent 4 }}
 spec:
   replicas: {{ .Values.controller.replicas }}
+  revisionHistoryLimit: {{ .Values.controller.revisionHistoryLimit }}
   selector:
     matchLabels:
       {{- include "spark-operator.controller.selectorLabels" . | nindent 6 }}

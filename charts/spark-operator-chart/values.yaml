@@ -60,6 +60,9 @@ controller:
   # -- Number of replicas of controller.
   replicas: 1
 
+  # -- The number of old history to retain to allow rollback.
+  revisionHistoryLimit: 10
+
   leaderElection:
     # -- Specifies whether to enable leader election for controller.
     enable: true
@@ -250,6 +253,9 @@ webhook:
 
   # -- Number of replicas of webhook server.
   replicas: 1
+
+  # -- The number of old history to retain to allow rollback.
+  revisionHistoryLimit: 10
 
   leaderElection:
     # -- Specifies whether to enable leader election for webhook.
