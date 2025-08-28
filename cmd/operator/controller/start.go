@@ -124,6 +124,12 @@ var (
 	zapOptions             = logzap.Options{}
 )
 
+var (
+	submitterType     string
+	grpcServerAddress string
+	grpcSubmitTimeout time.Duration
+)
+
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 	utilruntime.Must(schedulingv1alpha1.AddToScheme(scheme))
@@ -203,6 +209,10 @@ func NewStartCommand() *cobra.Command {
 
 	command.Flags().StringVar(&pprofBindAddress, "pprof-bind-address", "0", "The address the pprof endpoint binds to. "+
 		"If not set, it will be 0 in order to disable the pprof server")
+
+	command.Flags().StringVar(&submitterType, "submitter-type", "default", "SparkApplication submitter type: 'default' or 'grpc'.")
+	command.Flags().StringVar(&grpcServerAddress, "grpc-server-address", "localhost:50051", "gRPC server address for alternate Spark submit.")
+	command.Flags().DurationVar(&grpcSubmitTimeout, "grpc-submit-timeout", 10*time.Second, "Timeout for gRPC Spark submit.")
 
 	flagSet := flag.NewFlagSet("controller", flag.ExitOnError)
 	ctrl.RegisterFlags(flagSet)
@@ -286,7 +296,15 @@ func start() {
 		}
 	}
 
-	sparkSubmitter := &sparkapplication.SparkSubmitter{}
+	var sparkSubmitter sparkapplication.SparkApplicationSubmitter
+	switch submitterType {
+	case "grpc":
+		sparkSubmitter = sparkapplication.NewGRPCSparkSubmitter(grpcServerAddress, grpcSubmitTimeout)
+		logger.Info("Using gRPC SparkApplication submitter", "address", grpcServerAddress, "timeout", grpcSubmitTimeout)
+	default:
+		sparkSubmitter = &sparkapplication.SparkSubmitter{}
+		logger.Info("Using default SparkApplication submitter")
+	}
 
 	// Setup controller for SparkApplication.
 	if err = sparkapplication.NewReconciler(
@@ -441,6 +459,9 @@ func newSparkApplicationReconcilerOptions() sparkapplication.Options {
 		SparkApplicationMetrics:      sparkApplicationMetrics,
 		SparkExecutorMetrics:         sparkExecutorMetrics,
 		MaxTrackedExecutorPerApp:     maxTrackedExecutorPerApp,
+		SubmitterType:                submitterType,
+		GRPCServerAddress:            grpcServerAddress,
+		GRPCSubmitTimeout:            grpcSubmitTimeout,
 	}
 	if enableBatchScheduler {
 		options.KubeSchedulerNames = kubeSchedulerNames

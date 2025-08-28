@@ -69,6 +69,11 @@ type Options struct {
 	SparkExecutorMetrics    *metrics.SparkExecutorMetrics
 
 	MaxTrackedExecutorPerApp int
+
+	// Submitter configuration
+	SubmitterType     string        // "default" or "grpc"
+	GRPCServerAddress string        // gRPC server address, e.g., "localhost:50051"
+	GRPCSubmitTimeout time.Duration // gRPC submit timeout, e.g., 10 * time.Second
 }
 
 // Reconciler reconciles a SparkApplication object.
