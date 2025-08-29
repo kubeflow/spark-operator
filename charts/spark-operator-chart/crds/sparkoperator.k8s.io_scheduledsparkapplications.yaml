@@ -183,6 +183,43 @@ spec:
                   driver:
                     description: Driver is the driver specification.
                     properties:
+                      topologySpreadConstraints:
+                        type: object
+                        required:
+                          - maxSkew
+                          - topologyKey
+                          - whenUnsatisfiable
+                        properties:
+                          maxSkew:
+                            type: integer
+                            format: int32
+                            description: >-
+                              Degree to which pods can be unevenly distributed across topology domains.
+                          topologyKey:
+                            type: string
+                            description: >-
+                              The key of node labels. Nodes that have the same value for this label
+                              belong to the same topology domain.
+                          whenUnsatisfiable:
+                            type: string
+                            enum: [ "DoNotSchedule", "ScheduleAnyway" ]
+                            description: >-
+                              Action when it’s impossible to satisfy the constraint.
+                          labelSelector:
+                            $ref: "#/definitions/io.k8s.apimachinery.pkg.apis.meta.v1.LabelSelector"
+                          matchLabelKeys:
+                            type: array
+                            items:
+                              type: string
+                          minDomains:
+                            type: integer
+                            format: int32
+                          nodeAffinityPolicy:
+                            type: string
+                            enum: [ "Honor", "Ignore" ]
+                          nodeTaintsPolicy:
+                            type: string
+                            enum: [ "Honor", "Ignore" ]
                       affinity:
                         description: Affinity specifies the affinity/anti-affinity
                           settings for the pod.
@@ -5313,6 +5350,40 @@ spec:
                   executor:
                     description: Executor is the executor specification.
                     properties:
+                      topologySpreadConstraints:
+                        type: object
+                        required:
+                          - maxSkew
+                          - topologyKey
+                          - whenUnsatisfiable
+                        properties:
+                          maxSkew:
+                            type: integer
+                            format: int32
+                            description: >-
+                              Degree to which pods can be unevenly distributed across topology domains.
+                          topologyKey:
+                            type: string
+                            description: >-
+                              The key of node labels. Nodes that have the same value for this label
+                              belong to the same topology domain.
+                          whenUnsatisfiable:
+                            type: string
+                            enum: [ "DoNotSchedule", "ScheduleAnyway" ]
+                            description: >-
+                              Action when it’s impossible to satisfy the constraint.
+                          labelSelector:
+                            $ref: "#/definitions/io.k8s.apimachinery.pkg.apis.meta.v1.LabelSelector"
+                          matchLabelKeys:
+                            type: array
+                            items:
+                              type: string
+                          minDomains:
+                            type: integer
+                            format: int32
+                          nodeAffinityPolicy:
+                            type: string
+                            enum: [ "Honor", "Ignore" ]
                       affinity:
                         description: Affinity specifies the affinity/anti-affinity
                           settings for the pod.

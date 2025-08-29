@@ -3149,6 +3149,20 @@ Kubernetes core/v1.Affinity
 </tr>
 <tr>
 <td>
+<code>topologySpreadConstraints</code><br/>
+<em>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.24/#topologyspreadconstraint-v1-core">
+[]Kubernetes core/v1.TopologySpreadConstraint
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>TopologySpreadConstraint specifies how to spread matching pods among the given topology.</p>
+</td>
+</tr>
+<tr>
+<td>
 <code>tolerations</code><br/>
 <em>
 <a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.24/#toleration-v1-core">

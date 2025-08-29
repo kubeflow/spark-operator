@@ -155,6 +155,7 @@ func mutateSparkPod(pod *corev1.Pod, app *v1beta2.SparkApplication) error {
 		addSchedulerName,
 		addNodeSelectors,
 		addAffinity,
+		addTopologySpreadConstraints,
 		addTolerations,
 		addMemoryLimit,
 		addGPU,
@@ -455,6 +456,20 @@ func addAffinity(pod *corev1.Pod, app *v1beta2.SparkApplication) error {
 		return nil
 	}
 	pod.Spec.Affinity = affinity.DeepCopy()
+	return nil
+}
+
+func addTopologySpreadConstraints(pod *corev1.Pod, app *v1beta2.SparkApplication) error {
+	var topologySpreadConstraints []corev1.TopologySpreadConstraint
+	if util.IsDriverPod(pod) {
+		topologySpreadConstraints = app.Spec.Driver.TopologySpreadConstraint
+	} else if util.IsExecutorPod(pod) {
+		topologySpreadConstraints = app.Spec.Executor.TopologySpreadConstraint
+	}
+	if topologySpreadConstraints == nil {
+		return nil
+	}
+	pod.Spec.TopologySpreadConstraints = append(pod.Spec.TopologySpreadConstraints, topologySpreadConstraints...)
 	return nil
 }
 
