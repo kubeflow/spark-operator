@@ -33,6 +33,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/yaml"
+	"k8s.io/utils/ptr"
 
 	"github.com/kubeflow/spark-operator/v2/api/v1beta2"
 	"github.com/kubeflow/spark-operator/v2/pkg/common"
@@ -439,7 +440,7 @@ var _ = Describe("Example SparkApplication", func() {
 
 			By("Suspending Spark Application")
 			Expect(k8sClient.Get(ctx, key, app)).To(Succeed())
-			app.Spec.Suspend = true
+			app.Spec.Suspend = ptr.To(true)
 			Expect(k8sClient.Update(ctx, app)).To(Succeed())
 
 			By("Waiting for SparkApplication to Suspended")
@@ -451,7 +452,7 @@ var _ = Describe("Example SparkApplication", func() {
 
 			By("Resuming for SparkApplication")
 			Expect(k8sClient.Get(ctx, key, app)).To(Succeed())
-			app.Spec.Suspend = false
+			app.Spec.Suspend = ptr.To(false)
 			Expect(k8sClient.Update(ctx, app)).To(Succeed())
 
 			By("Waiting for SparkApplication to Running")

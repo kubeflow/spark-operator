@@ -30,6 +30,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
+	"k8s.io/utils/ptr"
+
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
@@ -781,7 +783,7 @@ var _ = Describe("SparkApplication Controller", func() {
 		Context("Suspend", func() {
 			When("reconciling a new SparkApplication with Suspend=True", func() {
 				BeforeEach(func() {
-					app.Spec.Suspend = true
+					app.Spec.Suspend = ptr.To(true)
 					Expect(k8sClient.Create(ctx, app)).To(Succeed())
 				})
 				AfterEach(func() {
@@ -834,7 +836,7 @@ var _ = Describe("SparkApplication Controller", func() {
 					executorPod2.Status.Phase = corev1.PodRunning
 					Expect(k8sClient.Status().Update(ctx, executorPod2)).To(Succeed())
 
-					app.Spec.Suspend = true
+					app.Spec.Suspend = ptr.To(true)
 					Expect(k8sClient.Update(ctx, app)).To(Succeed())
 				})
 				AfterEach(func() {
@@ -879,7 +881,7 @@ var _ = Describe("SparkApplication Controller", func() {
 			})
 			When("reconciling a Terminated(Failed or Completed) SparkApplication with Suspend=true", func() {
 				BeforeEach(func() {
-					app.Spec.Suspend = true
+					app.Spec.Suspend = ptr.To(true)
 					Expect(k8sClient.Create(ctx, app)).To(Succeed())
 					app.Status.AppState.State = v1beta2.ApplicationStateFailed
 					Expect(k8sClient.Status().Update(ctx, app)).To(Succeed())
@@ -913,7 +915,7 @@ var _ = Describe("SparkApplication Controller", func() {
 			})
 			When("reconciling Resuming SparkApplication with Suspend=true", func() {
 				BeforeEach(func() {
-					app.Spec.Suspend = true
+					app.Spec.Suspend = ptr.To(true)
 					Expect(k8sClient.Create(ctx, app)).To(Succeed())
 					app.Status.AppState.State = v1beta2.ApplicationStateResuming
 					Expect(k8sClient.Status().Update(ctx, app)).To(Succeed())
@@ -948,7 +950,7 @@ var _ = Describe("SparkApplication Controller", func() {
 			When("reconciling a Suspending SparkApplication with Suspend=true", func() {
 				var driverPod *corev1.Pod
 				BeforeEach(func() {
-					app.Spec.Suspend = true
+					app.Spec.Suspend = ptr.To(true)
 					Expect(k8sClient.Create(ctx, app)).To(Succeed())
 
 					driverPod = createDriverPod(appName, appNamespace)
@@ -994,7 +996,7 @@ var _ = Describe("SparkApplication Controller", func() {
 		Context("Resume", func() {
 			When("reconciling Suspended SparkApplication with Suspend=false(resuming)", func() {
 				BeforeEach(func() {
-					app.Spec.Suspend = false
+					app.Spec.Suspend = ptr.To(false)
 					Expect(k8sClient.Create(ctx, app)).To(Succeed())
 					app.Status.AppState.State = v1beta2.ApplicationStateSuspended
 					Expect(k8sClient.Status().Update(ctx, app)).To(Succeed())
@@ -1029,7 +1031,7 @@ var _ = Describe("SparkApplication Controller", func() {
 			When("reconciling Suspending SparkApplication with Suspend=false(resuming)", func() {
 				var driverPod *corev1.Pod
 				BeforeEach(func() {
-					app.Spec.Suspend = false
+					app.Spec.Suspend = ptr.To(false)
 					Expect(k8sClient.Create(ctx, app)).To(Succeed())
 
 					driverPod = createDriverPod(appName, appNamespace)
@@ -1081,7 +1083,7 @@ var _ = Describe("SparkApplication Controller", func() {
 			})
 			When("reconciling Resuming SparkApplication with Suspend=false(resuming)", func() {
 				BeforeEach(func() {
-					app.Spec.Suspend = false
+					app.Spec.Suspend = ptr.To(false)
 					Expect(k8sClient.Create(ctx, app)).To(Succeed())
 					app.Status.AppState.State = v1beta2.ApplicationStateResuming
 					Expect(k8sClient.Status().Update(ctx, app)).To(Succeed())

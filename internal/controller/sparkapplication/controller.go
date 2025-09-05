@@ -34,6 +34,8 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/retry"
+	"k8s.io/utils/ptr"
+
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -197,7 +199,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		return r.handleSparkApplicationDeletion(ctx, req)
 	}
 
-	if app.Spec.Suspend {
+	if ptr.Deref(app.Spec.Suspend, false) {
 		if !util.IsTerminated(app) &&
 			app.Status.AppState.State != v1beta2.ApplicationStateSuspended &&
 			app.Status.AppState.State != v1beta2.ApplicationStateSuspending {
@@ -781,7 +783,7 @@ func (r *Reconciler) reconcileSuspendedSparkApplication(ctx context.Context, req
 				logger.Info("Successfully deleted resources associated with SparkApplication", "name", app.Name, "namespace", app.Namespace, "state", app.Status.AppState.State)
 				r.resetSparkApplicationStatus(app)
 				r.recordSparkApplicationEvent(app)
-				if !app.Spec.Suspend {
+				if !ptr.Deref(app.Spec.Suspend, false) {
 					app.Status.AppState = v1beta2.ApplicationState{
 						State: v1beta2.ApplicationStateResuming,
 					}

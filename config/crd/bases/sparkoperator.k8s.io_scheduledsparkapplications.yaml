@@ -12409,7 +12409,6 @@ spec:
                 - executor
                 - mainApplicationFile
                 - sparkVersion
-                - suspend
                 - type
                 type: object
               timeZone:

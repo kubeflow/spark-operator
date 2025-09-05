@@ -41,7 +41,7 @@ type SparkApplicationSpec struct {
 	// (i.e. the flag goes from false to true), the Spark operator will delete
 	// all active Pods associated with this SparkApplication.
 	// Users must design their Spark application to gracefully handle this.
-	Suspend bool `json:"suspend"`
+	Suspend *bool `json:"suspend,omitempty"`
 	// Type tells the type of the Spark application.
 	// +kubebuilder:validation:Enum={Java,Python,Scala,R}
 	Type SparkApplicationType `json:"type"`
