@@ -297,7 +297,7 @@ func (r *Reconciler) reconcileNewSparkApplication(ctx context.Context, req ctrl.
 			}
 			app := old.DeepCopy()
 
-			_ = r.submitSparkApplication(ctx, app)
+			r.submitSparkApplication(ctx, app)
 			if err := r.updateSparkApplicationStatus(ctx, app); err != nil {
 				return err
 			}
@@ -414,7 +414,7 @@ func (r *Reconciler) reconcileFailedSubmissionSparkApplication(ctx context.Conte
 				}
 				if timeUntilNextRetryDue <= 0 {
 					if r.validateSparkResourceDeletion(ctx, app) {
-						_ = r.submitSparkApplication(ctx, app)
+						r.submitSparkApplication(ctx, app)
 					} else {
 						if err := r.deleteSparkResources(ctx, app); err != nil {
 							logger.Error(err, "failed to delete resources associated with SparkApplication")
@@ -497,7 +497,7 @@ func (r *Reconciler) reconcilePendingRerunSparkApplication(ctx context.Context, 
 				logger.Info("Successfully deleted resources associated with SparkApplication", "state", app.Status.AppState.State)
 				r.recordSparkApplicationEvent(app)
 				r.resetSparkApplicationStatus(app)
-				_ = r.submitSparkApplication(ctx, app)
+				r.submitSparkApplication(ctx, app)
 			}
 			if err := r.updateSparkApplicationStatus(ctx, app); err != nil {
 				return err
@@ -823,7 +823,7 @@ func (r *Reconciler) reconcileResumingSparkApplication(ctx context.Context, req 
 
 			r.recordSparkApplicationEvent(app)
 
-			_ = r.submitSparkApplication(ctx, app)
+			r.submitSparkApplication(ctx, app)
 			if err := r.updateSparkApplicationStatus(ctx, app); err != nil {
 				return err
 			}
@@ -874,7 +874,8 @@ func (r *Reconciler) getSparkApplication(ctx context.Context, key types.Namespac
 }
 
 // submitSparkApplication creates a new submission for the given SparkApplication and submits it using spark-submit.
-func (r *Reconciler) submitSparkApplication(ctx context.Context, app *v1beta2.SparkApplication) (submitErr error) {
+// The submission result are recorded in app.Status.{AppState,ExecutionAttempts}.
+func (r *Reconciler) submitSparkApplication(ctx context.Context, app *v1beta2.SparkApplication) {
 	logger := log.FromContext(ctx)
 	logger.Info("Submitting SparkApplication", "state", app.Status.AppState.State)
 
@@ -884,6 +885,7 @@ func (r *Reconciler) submitSparkApplication(ctx context.Context, app *v1beta2.Sp
 	app.Status.LastSubmissionAttemptTime = metav1.Now()
 	app.Status.SubmissionAttempts = app.Status.SubmissionAttempts + 1
 
+	var submitErr error
 	defer func() {
 		if submitErr == nil {
 			app.Status.AppState = v1beta2.ApplicationState{
@@ -901,13 +903,15 @@ func (r *Reconciler) submitSparkApplication(ctx context.Context, app *v1beta2.Sp
 	}()
 
 	if err := r.configWebUI(ctx, app); err != nil {
-		return fmt.Errorf("failed to configure web UI: %v", err)
+		submitErr = fmt.Errorf("failed to configure web UI: %v", err)
+		return
 	}
 
 	if util.PrometheusMonitoringEnabled(app) {
 		logger.Info("Configure Prometheus monitoring for SparkApplication")
 		if err := configPrometheusMonitoring(ctx, app, r.client); err != nil {
-			return fmt.Errorf("failed to configure Prometheus monitoring: %v", err)
+			submitErr = fmt.Errorf("failed to configure Prometheus monitoring: %v", err)
+			return
 		}
 	}
 
@@ -915,7 +919,8 @@ func (r *Reconciler) submitSparkApplication(ctx context.Context, app *v1beta2.Sp
 	if needScheduling, scheduler := r.shouldDoBatchScheduling(ctx, app); needScheduling {
 		logger.Info("Do batch scheduling for SparkApplication")
 		if err := scheduler.Schedule(app); err != nil {
-			return fmt.Errorf("failed to process batch scheduler: %v", err)
+			submitErr = fmt.Errorf("failed to process batch scheduler: %v", err)
+			return
 		}
 	}
 
@@ -927,10 +932,9 @@ func (r *Reconciler) submitSparkApplication(ctx context.Context, app *v1beta2.Sp
 
 	if err := r.submitter.Submit(ctx, app); err != nil {
 		r.recordSparkApplicationEvent(app)
-		return fmt.Errorf("failed to submit spark application: %v", err)
+		submitErr = fmt.Errorf("failed to submit spark application: %v", err)
+		return
 	}
-
-	return nil
 }
 
 // updateDriverState finds the driver pod of the application
