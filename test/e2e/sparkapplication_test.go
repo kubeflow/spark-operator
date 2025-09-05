@@ -439,9 +439,12 @@ var _ = Describe("Example SparkApplication", func() {
 			}).WithTimeout(5 * time.Second).Should(Succeed())
 
 			By("Suspending Spark Application")
-			Expect(k8sClient.Get(ctx, key, app)).To(Succeed())
-			app.Spec.Suspend = ptr.To(true)
-			Expect(k8sClient.Update(ctx, app)).To(Succeed())
+			Eventually(func(g Gomega) {
+				app := &v1beta2.SparkApplication{}
+				Expect(k8sClient.Get(ctx, key, app)).To(Succeed())
+				app.Spec.Suspend = ptr.To(true)
+				Expect(k8sClient.Update(ctx, app)).To(Succeed())
+			}).WithTimeout(5 * time.Second).Should(Succeed())
 
 			By("Waiting for SparkApplication to Suspended")
 			Eventually(func(g Gomega) {
@@ -451,9 +454,12 @@ var _ = Describe("Example SparkApplication", func() {
 			}).WithTimeout(3 * time.Minute).Should(Succeed())
 
 			By("Resuming for SparkApplication")
-			Expect(k8sClient.Get(ctx, key, app)).To(Succeed())
-			app.Spec.Suspend = ptr.To(false)
-			Expect(k8sClient.Update(ctx, app)).To(Succeed())
+			Eventually(func(g Gomega) {
+				app := &v1beta2.SparkApplication{}
+				Expect(k8sClient.Get(ctx, key, app)).To(Succeed())
+				app.Spec.Suspend = ptr.To(false)
+				Expect(k8sClient.Update(ctx, app)).To(Succeed())
+			}).WithTimeout(5 * time.Second).Should(Succeed())
 
 			By("Waiting for SparkApplication to Running")
 			Eventually(func(g Gomega) {
