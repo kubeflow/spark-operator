@@ -107,6 +107,7 @@ var (
 	leaderElectionRetryPeriod   time.Duration
 
 	driverPodCreationGracePeriod time.Duration
+	labelSelectorFilter          string
 
 	// Metrics
 	enableMetrics                 bool
@@ -188,6 +189,8 @@ func NewStartCommand() *cobra.Command {
 	command.Flags().DurationVar(&leaderElectionRetryPeriod, "leader-election-retry-period", 4*time.Second, "Leader election retry period.")
 
 	command.Flags().DurationVar(&driverPodCreationGracePeriod, "driver-pod-creation-grace-period", 10*time.Second, "Grace period after a successful spark-submit when driver pod not found errors will be retried. Useful if the driver pod can take some time to be created.")
+
+	command.Flags().StringVar(&labelSelectorFilter, "label-selector-filter", "", "Label selector to filter SparkApplications.")
 
 	command.Flags().BoolVar(&enableMetrics, "enable-metrics", false, "Enable metrics.")
 	command.Flags().StringVar(&metricsBindAddress, "metrics-bind-address", "0", "The address the metric endpoint binds to. "+
@@ -389,6 +392,16 @@ func newCacheOptions() cache.Options {
 		}
 	}
 
+	filterByObject := cache.ByObject{}
+	if labelSelectorFilter != "" {
+		selector, err := labels.Parse(labelSelectorFilter)
+		if err != nil {
+			logger.Error(err, "failed to parse spark application label selector", "label-selector", labelSelectorFilter)
+			os.Exit(1)
+		}
+		filterByObject.Label = selector
+	}
+
 	options := cache.Options{
 		Scheme:            scheme,
 		DefaultNamespaces: defaultNamespaces,
@@ -401,7 +414,7 @@ func newCacheOptions() cache.Options {
 			&corev1.ConfigMap{}:                  {},
 			&corev1.PersistentVolumeClaim{}:      {},
 			&corev1.Service{}:                    {},
-			&v1beta2.SparkApplication{}:          {},
+			&v1beta2.SparkApplication{}:          filterByObject,
 			&v1beta2.ScheduledSparkApplication{}: {},
 			&v1alpha1.SparkConnect{}:             {},
 		},
