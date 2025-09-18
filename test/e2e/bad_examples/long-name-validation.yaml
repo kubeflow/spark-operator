@@ -1,8 +1,7 @@
 apiVersion: sparkoperator.k8s.io/v1beta2
 kind: SparkApplication
 metadata:
-  name: this-is-a-very-very-very-long-application-name-that-exceeds-the-limit
-  namespace: default
+  name: this-is-a-very-very-very-long-application-name-that-words
 spec:
   type: Scala
   mode: cluster

@@ -19,7 +19,9 @@ package webhook
 import (
 	"context"
 	"fmt"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/validation"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	ctrl "sigs.k8s.io/controller-runtime"
 )
@@ -46,9 +48,9 @@ type Options struct {
 // and early error message.
 func validateNameLength(_ context.Context, appMeta metav1.ObjectMeta) error {
 	var allErrs field.ErrorList
-	if len(appMeta.Name) > maxAppNameLength {
+	if len(appMeta.Name) > validation.LabelValueMaxLength {
 		allErrs = append(allErrs, field.Invalid(field.NewPath("metadata", "name"), appMeta.Name,
-			fmt.Sprintf("name must be no more than %d characters to allow for resource suffixes", maxAppNameLength)))
+			fmt.Sprintf("name length must not exceed %d characters to allow for resource suffixes", maxAppNameLength)))
 	}
 	if allErrs != nil {
 		return allErrs.ToAggregate()

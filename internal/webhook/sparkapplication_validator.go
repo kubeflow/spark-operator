@@ -23,6 +23,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/util/validation"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
@@ -98,10 +99,6 @@ func (v *SparkApplicationValidator) ValidateUpdate(ctx context.Context, oldObj r
 	// Skip validating when spec does not change.
 	if equality.Semantic.DeepEqual(oldApp.Spec, newApp.Spec) {
 		return nil, nil
-	}
-
-	if err := v.validateMetadata(ctx, newApp); err != nil {
-		return nil, err
 	}
 
 	if err := v.validateSpec(ctx, newApp); err != nil {
@@ -202,9 +199,14 @@ func (v *SparkApplicationValidator) validateResourceUsage(ctx context.Context, a
 
 func (v *SparkApplicationValidator) validateMetadata(ctx context.Context, app *v1beta2.SparkApplication) error {
 	meta := app.ObjectMeta
-	err := validateNameLength(ctx, meta)
-	if err != nil {
+	if err := validateNameLength(ctx, meta); err != nil {
 		return err
 	}
+
+	svcName := util.GetDefaultUIServiceName(app)
+	if errs := validation.IsDNS1035Label(svcName); len(errs) != 0 {
+		return fmt.Errorf("spark UI service name %q is not a DNS 1035 label. Try to make the application name shorter", svcName)
+	}
+
 	return nil
 }
