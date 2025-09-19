@@ -63,6 +63,9 @@ controller:
   leaderElection:
     # -- Specifies whether to enable leader election for controller.
     enable: true
+    leaseDuration: 15
+    renewDeadline: 10
+    retryPeriod: 5
 
   # -- Reconcile concurrency, higher values might increase memory usage.
   workers: 10

@@ -727,3 +727,15 @@ tests:
       - contains:
           path: spec.template.spec.containers[?(@.name=="spark-operator-controller")].args
           content: --max-tracked-executor-per-app=123
+
+  - it: Should append 's' to leader-election-lease-duration if set as integer
+    set:
+      controller:
+        leaderElection:
+          enable: true
+          leaseDuration: 120
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: "--leader-election-lease-duration=120s"
+
