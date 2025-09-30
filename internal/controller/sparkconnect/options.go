@@ -210,6 +210,12 @@ func executorConfOption(conn *v1alpha1.SparkConnect) ([]string, error) {
 			fmt.Sprintf("%s=%d", common.SparkExecutorCores, *conn.Spec.Executor.Cores))
 	}
 
+	// Executor memory
+	if conn.Spec.Executor.Memory != nil {
+		args = append(args, "--conf",
+			fmt.Sprintf("%s=%s", common.SparkExecutorMemory, *conn.Spec.Executor.Memory))
+	}
+
 	// Use SparkConnect object name as executor pod name prefix.
 	args = append(args, "--conf", fmt.Sprintf("%s=%s", common.SparkKubernetesExecutorPodNamePrefix, conn.Name))
 
