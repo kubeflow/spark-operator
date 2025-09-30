@@ -17,6 +17,12 @@ limitations under the License.
 package webhook
 
 import (
+	"context"
+	"fmt"
+
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/validation"
+	"k8s.io/apimachinery/pkg/util/validation/field"
 	ctrl "sigs.k8s.io/controller-runtime"
 )
 
@@ -34,4 +40,20 @@ type Options struct {
 	WebhookServiceNamespace        string
 	WebhookMetricsBindAddress      string
 	EnableResourceQuotaEnforcement bool
+}
+
+// validateNameLength checks if the application name exceeds the limit for Kubernetes labels.
+// The RFC 1123 DNS label regex is handled by Kubernetes itself,
+// we only need to check the length here to provide a more specific
+// and early error message.
+func validateNameLength(_ context.Context, appMeta metav1.ObjectMeta) error {
+	var allErrs field.ErrorList
+	if len(appMeta.Name) > validation.LabelValueMaxLength {
+		allErrs = append(allErrs, field.Invalid(field.NewPath("metadata", "name"), appMeta.Name,
+			fmt.Sprintf("name length must not exceed %d characters to allow for resource suffixes", maxAppNameLength)))
+	}
+	if allErrs != nil {
+		return allErrs.ToAggregate()
+	}
+	return nil
 }
