@@ -742,3 +742,24 @@ tests:
       - contains:
           path: spec.template.spec.containers[?(@.name=="spark-operator-controller")].args
           content: --max-tracked-executor-per-app=123
+
+
+  - it: Should add leader election parameters if `controller.leaderElection.leaseDuration`, `controller.leaderElection.renewDeadline` and `controller.leaderElection.retryPeriod` are set.
+    set:
+      controller:
+        leaderElection:
+          enable: true
+          leaseDuration: 120s
+          renewDeadline: 30s
+          retryPeriod: 15s
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[?(@.name=="spark-operator-controller")].args
+          content: --leader-election-lease-duration=120s
+      - contains:
+          path: spec.template.spec.containers[?(@.name=="spark-operator-controller")].args
+          content: --leader-election-renew-deadline=30s
+      - contains:
+          path: spec.template.spec.containers[?(@.name=="spark-operator-controller")].args
+          content: --leader-election-retry-period=15s
+

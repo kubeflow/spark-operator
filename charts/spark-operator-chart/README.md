@@ -90,6 +90,9 @@ See [helm uninstall](https://helm.sh/docs/helm/helm_uninstall) for command docum
 | controller.replicas | int | `1` | Number of replicas of controller. |
 | controller.revisionHistoryLimit | int | `10` | The number of old history to retain to allow rollback. |
 | controller.leaderElection.enable | bool | `true` | Specifies whether to enable leader election for controller. |
+| controller.leaderElection.leaseDuration | string | `"15s"` | Leader election lease duration. |
+| controller.leaderElection.renewDeadline | string | `"10s"` | Leader election renew deadline. |
+| controller.leaderElection.retryPeriod | string | `"2s"` | Leader election retry period. |
 | controller.workers | int | `10` | Reconcile concurrency, higher values might increase memory usage. |
 | controller.logLevel | string | `"info"` | Configure the verbosity of logging, can be one of `debug`, `info`, `error`. |
 | controller.logEncoder | string | `"console"` | Configure the encoder of logging, can be one of `console` or `json`. |
