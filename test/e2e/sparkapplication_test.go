@@ -21,6 +21,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -32,6 +33,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/yaml"
+	"k8s.io/utils/ptr"
 
 	"github.com/kubeflow/spark-operator/v2/api/v1beta2"
 	"github.com/kubeflow/spark-operator/v2/pkg/common"
@@ -384,6 +386,94 @@ var _ = Describe("Example SparkApplication", func() {
 			By("Waiting for SparkApplication to complete")
 			key := types.NamespacedName{Namespace: app.Namespace, Name: app.Name}
 			Expect(waitForSparkApplicationCompleted(ctx, key)).NotTo(HaveOccurred())
+
+			By("Checking out driver logs")
+			driverPodName := util.GetDriverPodName(app)
+			bytes, err := clientset.CoreV1().Pods(app.Namespace).GetLogs(driverPodName, &corev1.PodLogOptions{}).Do(ctx).Raw()
+			Expect(err).NotTo(HaveOccurred())
+			Expect(bytes).NotTo(BeEmpty())
+			Expect(strings.Contains(string(bytes), "Pi is roughly 3")).To(BeTrue())
+		})
+	})
+
+	Context("spark-pi: Suspend and Resume", func() {
+		ctx := context.Background()
+		path := filepath.Join("..", "..", "examples", "spark-pi.yaml")
+		app := &v1beta2.SparkApplication{}
+
+		BeforeEach(func() {
+			By("Parsing SparkApplication from file")
+			file, err := os.Open(path)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(file).NotTo(BeNil())
+
+			decoder := yaml.NewYAMLOrJSONDecoder(file, 100)
+			Expect(decoder).NotTo(BeNil())
+			Expect(decoder.Decode(app)).NotTo(HaveOccurred())
+
+			By("Creating SparkApplication")
+			Expect(k8sClient.Create(ctx, app)).To(Succeed())
+		})
+
+		AfterEach(func() {
+			key := types.NamespacedName{Namespace: app.Namespace, Name: app.Name}
+			Expect(k8sClient.Get(ctx, key, app)).To(Succeed())
+
+			By("Deleting SparkApplication")
+			Expect(k8sClient.Delete(ctx, app)).To(Succeed())
+		})
+
+		It("should complete successfully", func() {
+			key := types.NamespacedName{Namespace: app.Namespace, Name: app.Name}
+
+			By("Waiting for SparkApplication to Running")
+			Eventually(func(g Gomega) {
+				app := &v1beta2.SparkApplication{}
+				g.Expect(k8sClient.Get(ctx, key, app)).To(Succeed())
+				g.Expect(app.Status.AppState.State).To(Equal(v1beta2.ApplicationStateRunning))
+			}).WithTimeout(3 * time.Minute).Should(Succeed())
+			Consistently(func(g Gomega) {
+				app := &v1beta2.SparkApplication{}
+				g.Expect(k8sClient.Get(ctx, key, app)).To(Succeed())
+				g.Expect(app.Status.AppState.State).To(Equal(v1beta2.ApplicationStateRunning))
+			}).WithTimeout(5 * time.Second).Should(Succeed())
+
+			By("Suspending Spark Application")
+			Eventually(func(g Gomega) {
+				app := &v1beta2.SparkApplication{}
+				Expect(k8sClient.Get(ctx, key, app)).To(Succeed())
+				app.Spec.Suspend = ptr.To(true)
+				Expect(k8sClient.Update(ctx, app)).To(Succeed())
+			}).WithTimeout(5 * time.Second).Should(Succeed())
+
+			By("Waiting for SparkApplication to Suspended")
+			Eventually(func(g Gomega) {
+				app := &v1beta2.SparkApplication{}
+				g.Expect(k8sClient.Get(ctx, key, app)).To(Succeed())
+				g.Expect(app.Status.AppState.State).To(Equal(v1beta2.ApplicationStateSuspended))
+			}).WithTimeout(3 * time.Minute).Should(Succeed())
+
+			By("Resuming for SparkApplication")
+			Eventually(func(g Gomega) {
+				app := &v1beta2.SparkApplication{}
+				Expect(k8sClient.Get(ctx, key, app)).To(Succeed())
+				app.Spec.Suspend = ptr.To(false)
+				Expect(k8sClient.Update(ctx, app)).To(Succeed())
+			}).WithTimeout(5 * time.Second).Should(Succeed())
+
+			By("Waiting for SparkApplication to Running")
+			Eventually(func(g Gomega) {
+				app := &v1beta2.SparkApplication{}
+				g.Expect(k8sClient.Get(ctx, key, app)).To(Succeed())
+				g.Expect(app.Status.AppState.State).To(Equal(v1beta2.ApplicationStateRunning))
+			}).WithTimeout(3 * time.Minute).Should(Succeed())
+
+			By("Waiting for SparkApplication to complete")
+			Eventually(func(g Gomega) {
+				app := &v1beta2.SparkApplication{}
+				g.Expect(k8sClient.Get(ctx, key, app)).To(Succeed())
+				g.Expect(app.Status.AppState.State).To(Equal(v1beta2.ApplicationStateCompleted))
+			}).WithTimeout(3 * time.Minute).Should(Succeed())
 
 			By("Checking out driver logs")
 			driverPodName := util.GetDriverPodName(app)

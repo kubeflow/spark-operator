@@ -34,6 +34,8 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/retry"
+	"k8s.io/utils/ptr"
+
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -131,6 +133,10 @@ func NewReconciler(
 
 // Reconcile handles Create, Update and Delete events of the custom resource.
 // State Machine for SparkApplication:
+// NOTE:
+//   - Suspending can be transitioned from any state except for Terminated(Failed or Completed) and Suspended
+//     by setting Spec.Suspend=True (depicted in ** in below diagram)
+//
 // +--------------------------------------------------------------------------------------------------------------------+
 // |        +---------------------------------------------------------------------------------------------+             |
 // |        |       +----------+                                                                          |             |
@@ -150,20 +156,28 @@ func NewReconciler(
 // |      |         |    |    |          |          |          |           |           |          |          |          |
 // |      |         |    |    |          |          |          |           |           |          |          |          |
 // |      |         |    |    |          |          |          |           |           |          |          |          |
-// |      +---------+    |    +----^-----+          +-----+----+           +-----+-----+          +----------+          |
-// |                     |         |                      |                      |                                      |
-// |                     |         |                      |                      |                                      |
-// |    +------------+   |         |             +-------------------------------+                                      |
-// |    |            |   |   +-----+-----+       |        |                +-----------+          +----------+          |
-// |    |            |   |   |  Pending  |       |        |                |           |          |          |          |
+// |      +---------+    |    +----^--^--+          +-----+----+           +-----+-----+          +----------+          |
+// |                     |         |  |                   |                      |                                      |
+// |                     |         |  +------+            |                      |                                      |
+// |    +------------+   |         |         |   +-------------------------------+                                      |
+// |    |            |   |   +-----+-----+   |   |        |                +-----------+          +----------+          |
+// |    |            |   |   |  Pending  |   |   |        |                |           |          |          |          |
 // |    |            |   +---+   Rerun   <-------+        +---------------->Succeeding +---------->Completed |          |
 // |    |Invalidating|       |           <-------+                         |           |          |          |          |
-// |    |            +------->           |       |                         |           |          |          |          |
-// |    |            |       |           |       |                         |           |          |          |          |
-// |    |            |       +-----------+       |                         +-----+-----+          +----------+          |
-// |    +------------+                           |                               |                                      |
-// |                                             |                               |                                      |
-// |                                             +-------------------------------+                                      |
+// |    |            +------->           |   |   |                         |           |          |          |          |
+// |    |            |       |           |   |   |                         |           |          |          |          |
+// |    |            |       +-----------+   |   |                         +-----+-----+          +----------+          |
+// |    +------------+                       |   |                               |                                      |
+// |                                         |   |                               |                                      |
+// |                                         |   +-------------------------------+                                      |
+// |                                         |                                                                          |
+// |                                   +-----+----+      +-----------+      +------------+         +----+               |
+// |                                   |          |      |           |      |            |         |    |               |
+// |                                   |          |      |           |      |            |         |    |               |
+// |                                   | Resuming <----- + Suspended <------+ Suspending <---------+ ** |               |
+// |                                   |          |      |           |      |            |         |    |               |
+// |                                   |          |      |           |      |            |         |    |               |
+// |                                   +----------+      +-----------+      +------------+         +----+               |
 // |                                                                                                                    |
 // +--------------------------------------------------------------------------------------------------------------------+
 func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
@@ -184,6 +198,15 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	if !app.DeletionTimestamp.IsZero() {
 		return r.handleSparkApplicationDeletion(ctx, req)
 	}
+
+	if ptr.Deref(app.Spec.Suspend, false) {
+		if !util.IsTerminated(app) &&
+			app.Status.AppState.State != v1beta2.ApplicationStateSuspended &&
+			app.Status.AppState.State != v1beta2.ApplicationStateSuspending {
+			return r.transitionToSuspending(ctx, req)
+		}
+	}
+
 	switch app.Status.AppState.State {
 	case v1beta2.ApplicationStateNew:
 		return r.reconcileNewSparkApplication(ctx, req)
@@ -207,6 +230,12 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		return r.reconcileFailedSparkApplication(ctx, req)
 	case v1beta2.ApplicationStateUnknown:
 		return r.reconcileUnknownSparkApplication(ctx, req)
+	case v1beta2.ApplicationStateSuspended:
+		return r.reconcileSuspendedSparkApplication(ctx, req)
+	case v1beta2.ApplicationStateSuspending:
+		return r.reconcileSuspendingSparkApplication(ctx, req)
+	case v1beta2.ApplicationStateResuming:
+		return r.reconcileResumingSparkApplication(ctx, req)
 	}
 	return ctrl.Result{}, nil
 }
@@ -268,7 +297,7 @@ func (r *Reconciler) reconcileNewSparkApplication(ctx context.Context, req ctrl.
 			}
 			app := old.DeepCopy()
 
-			_ = r.submitSparkApplication(ctx, app)
+			r.submitSparkApplication(ctx, app)
 			if err := r.updateSparkApplicationStatus(ctx, app); err != nil {
 				return err
 			}
@@ -385,7 +414,7 @@ func (r *Reconciler) reconcileFailedSubmissionSparkApplication(ctx context.Conte
 				}
 				if timeUntilNextRetryDue <= 0 {
 					if r.validateSparkResourceDeletion(ctx, app) {
-						_ = r.submitSparkApplication(ctx, app)
+						r.submitSparkApplication(ctx, app)
 					} else {
 						if err := r.deleteSparkResources(ctx, app); err != nil {
 							logger.Error(err, "failed to delete resources associated with SparkApplication")
@@ -468,7 +497,7 @@ func (r *Reconciler) reconcilePendingRerunSparkApplication(ctx context.Context, 
 				logger.Info("Successfully deleted resources associated with SparkApplication", "state", app.Status.AppState.State)
 				r.recordSparkApplicationEvent(app)
 				r.resetSparkApplicationStatus(app)
-				_ = r.submitSparkApplication(ctx, app)
+				r.submitSparkApplication(ctx, app)
 			}
 			if err := r.updateSparkApplicationStatus(ctx, app); err != nil {
 				return err
@@ -695,6 +724,146 @@ func (r *Reconciler) reconcileUnknownSparkApplication(ctx context.Context, req c
 	return ctrl.Result{}, nil
 }
 
+func (r *Reconciler) reconcileSuspendingSparkApplication(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+	logger := log.FromContext(ctx)
+	key := req.NamespacedName
+	retryErr := retry.RetryOnConflict(
+		retry.DefaultRetry,
+		func() error {
+			old, err := r.getSparkApplication(ctx, key)
+			if err != nil {
+				return err
+			}
+			if old.Status.AppState.State != v1beta2.ApplicationStateSuspending {
+				return nil
+			}
+			app := old.DeepCopy()
+
+			r.recordSparkApplicationEvent(app)
+
+			if err := r.deleteSparkResources(ctx, app); err != nil {
+				logger.Error(err, "failed to delete spark resources", "name", app.Name, "namespace", app.Namespace)
+				return err
+			}
+
+			app.Status.AppState = v1beta2.ApplicationState{
+				State: v1beta2.ApplicationStateSuspended,
+			}
+			r.resetSparkApplicationStatus(app)
+
+			if err := r.updateSparkApplicationStatus(ctx, app); err != nil {
+				return err
+			}
+			return nil
+		},
+	)
+	if retryErr != nil {
+		logger.Error(retryErr, "Failed to reconcile SparkApplication", "name", key.Name, "namespace", key.Namespace)
+		return ctrl.Result{}, retryErr
+	}
+	return ctrl.Result{}, nil
+}
+
+func (r *Reconciler) reconcileSuspendedSparkApplication(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+	logger := log.FromContext(ctx)
+	key := req.NamespacedName
+	retryErr := retry.RetryOnConflict(
+		retry.DefaultRetry,
+		func() error {
+			old, err := r.getSparkApplication(ctx, key)
+			if err != nil {
+				return err
+			}
+			if old.Status.AppState.State != v1beta2.ApplicationStateSuspended {
+				return nil
+			}
+			app := old.DeepCopy()
+
+			if r.validateSparkResourceDeletion(ctx, app) {
+				logger.Info("Successfully deleted resources associated with SparkApplication", "name", app.Name, "namespace", app.Namespace, "state", app.Status.AppState.State)
+				r.resetSparkApplicationStatus(app)
+				r.recordSparkApplicationEvent(app)
+				if !ptr.Deref(app.Spec.Suspend, false) {
+					app.Status.AppState = v1beta2.ApplicationState{
+						State: v1beta2.ApplicationStateResuming,
+					}
+				}
+			} else {
+				err := fmt.Errorf("resources associated with SparkApplication still exist: %s/%s", app.Namespace, app.Name)
+				logger.Error(err, "Failed to confirm being deleted resources associated with SparkApplication", "name", app.Name, "namespace", app.Namespace, "state", app.Status.AppState.State)
+				return err
+			}
+			if err := r.updateSparkApplicationStatus(ctx, app); err != nil {
+				return err
+			}
+			return nil
+		},
+	)
+	if retryErr != nil {
+		logger.Error(retryErr, "Failed to reconcile SparkApplication", "name", key.Name, "namespace", key.Namespace)
+		return ctrl.Result{}, retryErr
+	}
+	return ctrl.Result{}, nil
+}
+
+func (r *Reconciler) reconcileResumingSparkApplication(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+	logger := log.FromContext(ctx)
+	key := req.NamespacedName
+	retryErr := retry.RetryOnConflict(
+		retry.DefaultRetry,
+		func() error {
+			old, err := r.getSparkApplication(ctx, key)
+			if err != nil {
+				return err
+			}
+			if old.Status.AppState.State != v1beta2.ApplicationStateResuming {
+				return nil
+			}
+			app := old.DeepCopy()
+
+			r.recordSparkApplicationEvent(app)
+
+			r.submitSparkApplication(ctx, app)
+			if err := r.updateSparkApplicationStatus(ctx, app); err != nil {
+				return err
+			}
+			return nil
+		},
+	)
+	if retryErr != nil {
+		logger.Error(retryErr, "Failed to reconcile SparkApplication", "name", key.Name, "namespace", key.Namespace)
+		return ctrl.Result{Requeue: true}, retryErr
+	}
+	return ctrl.Result{}, nil
+}
+
+func (r *Reconciler) transitionToSuspending(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+	logger := log.FromContext(ctx)
+	key := req.NamespacedName
+	retryErr := retry.RetryOnConflict(
+		retry.DefaultRetry,
+		func() error {
+			old, err := r.getSparkApplication(ctx, key)
+			if err != nil {
+				return err
+			}
+			app := old.DeepCopy()
+
+			app.Status.AppState.State = v1beta2.ApplicationStateSuspending
+			if err := r.updateSparkApplicationStatus(ctx, app); err != nil {
+				return err
+			}
+
+			return nil
+		},
+	)
+	if retryErr != nil {
+		logger.Error(retryErr, "Failed to reconcile SparkApplication", "name", key.Name, "namespace", key.Namespace)
+		return ctrl.Result{Requeue: true}, retryErr
+	}
+	return ctrl.Result{}, nil
+}
+
 // getSparkApplication gets the SparkApplication with the given name and namespace.
 func (r *Reconciler) getSparkApplication(ctx context.Context, key types.NamespacedName) (*v1beta2.SparkApplication, error) {
 	app := &v1beta2.SparkApplication{}
@@ -705,7 +874,8 @@ func (r *Reconciler) getSparkApplication(ctx context.Context, key types.Namespac
 }
 
 // submitSparkApplication creates a new submission for the given SparkApplication and submits it using spark-submit.
-func (r *Reconciler) submitSparkApplication(ctx context.Context, app *v1beta2.SparkApplication) (submitErr error) {
+// The submission result are recorded in app.Status.{AppState,ExecutionAttempts}.
+func (r *Reconciler) submitSparkApplication(ctx context.Context, app *v1beta2.SparkApplication) {
 	logger := log.FromContext(ctx)
 	logger.Info("Submitting SparkApplication", "state", app.Status.AppState.State)
 
@@ -715,6 +885,7 @@ func (r *Reconciler) submitSparkApplication(ctx context.Context, app *v1beta2.Sp
 	app.Status.LastSubmissionAttemptTime = metav1.Now()
 	app.Status.SubmissionAttempts = app.Status.SubmissionAttempts + 1
 
+	var submitErr error
 	defer func() {
 		if submitErr == nil {
 			app.Status.AppState = v1beta2.ApplicationState{
@@ -732,13 +903,15 @@ func (r *Reconciler) submitSparkApplication(ctx context.Context, app *v1beta2.Sp
 	}()
 
 	if err := r.configWebUI(ctx, app); err != nil {
-		return fmt.Errorf("failed to configure web UI: %v", err)
+		submitErr = fmt.Errorf("failed to configure web UI: %v", err)
+		return
 	}
 
 	if util.PrometheusMonitoringEnabled(app) {
 		logger.Info("Configure Prometheus monitoring for SparkApplication")
 		if err := configPrometheusMonitoring(ctx, app, r.client); err != nil {
-			return fmt.Errorf("failed to configure Prometheus monitoring: %v", err)
+			submitErr = fmt.Errorf("failed to configure Prometheus monitoring: %v", err)
+			return
 		}
 	}
 
@@ -746,7 +919,8 @@ func (r *Reconciler) submitSparkApplication(ctx context.Context, app *v1beta2.Sp
 	if needScheduling, scheduler := r.shouldDoBatchScheduling(ctx, app); needScheduling {
 		logger.Info("Do batch scheduling for SparkApplication")
 		if err := scheduler.Schedule(app); err != nil {
-			return fmt.Errorf("failed to process batch scheduler: %v", err)
+			submitErr = fmt.Errorf("failed to process batch scheduler: %v", err)
+			return
 		}
 	}
 
@@ -758,10 +932,9 @@ func (r *Reconciler) submitSparkApplication(ctx context.Context, app *v1beta2.Sp
 
 	if err := r.submitter.Submit(ctx, app); err != nil {
 		r.recordSparkApplicationEvent(app)
-		return fmt.Errorf("failed to submit spark application: %v", err)
+		submitErr = fmt.Errorf("failed to submit spark application: %v", err)
+		return
 	}
-
-	return nil
 }
 
 // updateDriverState finds the driver pod of the application
@@ -1134,6 +1307,30 @@ func (r *Reconciler) recordSparkApplicationEvent(app *v1beta2.SparkApplication) 
 			"SparkApplication %s is pending rerun",
 			app.Name,
 		)
+	case v1beta2.ApplicationStateSuspending:
+		r.recorder.Eventf(
+			app,
+			corev1.EventTypeWarning,
+			common.EventSparkApplicationSuspending,
+			"SparkApplication %s is suspending",
+			app.Name,
+		)
+	case v1beta2.ApplicationStateSuspended:
+		r.recorder.Eventf(
+			app,
+			corev1.EventTypeWarning,
+			common.EventSparkApplicationSuspended,
+			"SparkApplication %s is suspended",
+			app.Name,
+		)
+	case v1beta2.ApplicationStateResuming:
+		r.recorder.Eventf(
+			app,
+			corev1.EventTypeWarning,
+			common.EventSparkApplicationResuming,
+			"SparkApplication %s is resuming",
+			app.Name,
+		)
 	}
 }
 
@@ -1184,6 +1381,11 @@ func (r *Reconciler) resetSparkApplicationStatus(app *v1beta2.SparkApplication) 
 		status.LastSubmissionAttemptTime = metav1.Time{}
 		status.DriverInfo = v1beta2.DriverInfo{}
 		status.AppState.ErrorMessage = ""
+		status.ExecutorState = nil
+	case v1beta2.ApplicationStateSuspended:
+		status.SparkApplicationID = ""
+		status.AppState.ErrorMessage = ""
+		status.DriverInfo = v1beta2.DriverInfo{}
 		status.ExecutorState = nil
 	}
 }

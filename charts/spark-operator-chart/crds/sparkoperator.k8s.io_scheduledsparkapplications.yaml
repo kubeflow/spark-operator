@@ -10570,6 +10570,15 @@ spec:
                     description: SparkVersion is the version of Spark the application
                       uses.
                     type: string
+                  suspend:
+                    description: |-
+                      Suspend indicates whether the SparkApplication should be suspended.
+                      When true, the controller skips submitting the Spark job.
+                      If a SparkApplication is suspended after creation
+                      (i.e. the flag goes from false to true), the Spark operator will delete
+                      all active Pods associated with this SparkApplication.
+                      Users must design their Spark application to gracefully handle this.
+                    type: boolean
                   timeToLiveSeconds:
                     description: |-
                       TimeToLiveSeconds defines the Time-To-Live (TTL) duration in seconds for this SparkApplication

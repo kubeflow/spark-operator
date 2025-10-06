@@ -35,6 +35,13 @@ type SparkApplicationSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make generate" to regenerate code after modifying this file
 
+	// Suspend indicates whether the SparkApplication should be suspended.
+	// When true, the controller skips submitting the Spark job.
+	// If a SparkApplication is suspended after creation
+	// (i.e. the flag goes from false to true), the Spark operator will delete
+	// all active Pods associated with this SparkApplication.
+	// Users must design their Spark application to gracefully handle this.
+	Suspend *bool `json:"suspend,omitempty"`
 	// Type tells the type of the Spark application.
 	// +kubebuilder:validation:Enum={Java,Python,Scala,R}
 	Type SparkApplicationType `json:"type"`
@@ -177,6 +184,7 @@ type SparkApplicationStatus struct {
 // +kubebuilder:metadata:annotations="api-approved.kubernetes.io=https://github.com/kubeflow/spark-operator/pull/1298"
 // +kubebuilder:resource:scope=Namespaced,shortName=sparkapp,singular=sparkapplication
 // +kubebuilder:subresource:status
+// +kubebuilder:printcolumn:JSONPath=.spec.suspend,name=Suspend,type=boolean
 // +kubebuilder:printcolumn:JSONPath=.status.applicationState.state,name=Status,type=string
 // +kubebuilder:printcolumn:JSONPath=.status.executionAttempts,name=Attempts,type=string
 // +kubebuilder:printcolumn:JSONPath=.status.lastSubmissionAttemptTime,name=Start,type=string
@@ -346,6 +354,9 @@ const (
 	ApplicationStateInvalidating     ApplicationStateType = "INVALIDATING"
 	ApplicationStateSucceeding       ApplicationStateType = "SUCCEEDING"
 	ApplicationStateFailing          ApplicationStateType = "FAILING"
+	ApplicationStateSuspending       ApplicationStateType = "SUSPENDING"
+	ApplicationStateSuspended        ApplicationStateType = "SUSPENDED"
+	ApplicationStateResuming         ApplicationStateType = "RESUMING"
 	ApplicationStateUnknown          ApplicationStateType = "UNKNOWN"
 )
 

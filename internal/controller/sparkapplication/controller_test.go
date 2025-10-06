@@ -30,6 +30,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
+	"k8s.io/utils/ptr"
+
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/kubeflow/spark-operator/v2/api/v1beta2"
@@ -751,6 +754,351 @@ var _ = Describe("SparkApplication Controller", func() {
 			app := &v1beta2.SparkApplication{}
 			Expect(k8sClient.Get(ctx, key, app)).NotTo(HaveOccurred())
 			Expect(app.Status.ExecutorState).To(HaveLen(1))
+		})
+	})
+
+	Context("Suspend and Resume", func() {
+		ctx := context.Background()
+		appName := "test"
+		appNamespace := "default"
+		key := types.NamespacedName{
+			Name:      appName,
+			Namespace: appNamespace,
+		}
+
+		var app *v1beta2.SparkApplication
+		BeforeEach(func() {
+			app = &v1beta2.SparkApplication{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      appName,
+					Namespace: appNamespace,
+				},
+				Spec: v1beta2.SparkApplicationSpec{
+					MainApplicationFile: util.StringPtr("local:///dummy.jar"),
+				},
+			}
+			v1beta2.SetSparkApplicationDefaults(app)
+		})
+
+		Context("Suspend", func() {
+			When("reconciling a new SparkApplication with Suspend=True", func() {
+				BeforeEach(func() {
+					app.Spec.Suspend = ptr.To(true)
+					Expect(k8sClient.Create(ctx, app)).To(Succeed())
+				})
+				AfterEach(func() {
+					app := &v1beta2.SparkApplication{}
+					Expect(k8sClient.Get(ctx, key, app)).To(Succeed())
+
+					By("Deleting the created test SparkApplication")
+					Expect(k8sClient.Delete(ctx, app)).To(Succeed())
+				})
+				It("should transition to Suspending state", func() {
+					By("Reconciling the new SparkApplication with Suspend=true")
+					reconciler := sparkapplication.NewReconciler(
+						nil,
+						k8sClient.Scheme(),
+						k8sClient,
+						record.NewFakeRecorder(3),
+						nil,
+						&sparkapplication.SparkSubmitter{},
+						sparkapplication.Options{Namespaces: []string{appNamespace}, MaxTrackedExecutorPerApp: 10},
+					)
+					result, err := reconciler.Reconcile(ctx, reconcile.Request{NamespacedName: key})
+					Expect(err).NotTo(HaveOccurred())
+					Expect(result.Requeue).To(BeFalse())
+
+					app := &v1beta2.SparkApplication{}
+					Expect(k8sClient.Get(ctx, key, app)).NotTo(HaveOccurred())
+					Expect(app.Status.AppState).To(BeEquivalentTo(v1beta2.ApplicationState{State: v1beta2.ApplicationStateSuspending}))
+				})
+			})
+			When("reconciling a Non-Terminated(e.g. Running) SparkApplication with Suspend=true", func() {
+				BeforeEach(func() {
+					Expect(k8sClient.Create(ctx, app)).To(Succeed())
+
+					driverPod := createDriverPod(appName, appNamespace)
+					Expect(k8sClient.Create(ctx, driverPod)).To(Succeed())
+					driverPod.Status.Phase = corev1.PodRunning
+					Expect(k8sClient.Status().Update(ctx, driverPod)).To(Succeed())
+
+					app.Status.DriverInfo.PodName = driverPod.Name
+					app.Status.AppState.State = v1beta2.ApplicationStateRunning
+					Expect(k8sClient.Status().Update(ctx, app)).To(Succeed())
+
+					executorPod1 := createExecutorPod(appName, appNamespace, 1)
+					Expect(k8sClient.Create(ctx, executorPod1)).To(Succeed())
+					executorPod1.Status.Phase = corev1.PodRunning
+					Expect(k8sClient.Status().Update(ctx, executorPod1)).To(Succeed())
+
+					executorPod2 := createExecutorPod(appName, appNamespace, 2)
+					Expect(k8sClient.Create(ctx, executorPod2)).To(Succeed())
+					executorPod2.Status.Phase = corev1.PodRunning
+					Expect(k8sClient.Status().Update(ctx, executorPod2)).To(Succeed())
+
+					app.Spec.Suspend = ptr.To(true)
+					Expect(k8sClient.Update(ctx, app)).To(Succeed())
+				})
+				AfterEach(func() {
+					app := &v1beta2.SparkApplication{}
+					Expect(k8sClient.Get(ctx, key, app)).To(Succeed())
+
+					By("Deleting the created test SparkApplication")
+					Expect(k8sClient.Delete(ctx, app)).To(Succeed())
+
+					By("Deleting the driver pod")
+					driverPod := &corev1.Pod{}
+					Expect(k8sClient.Get(ctx, getDriverNamespacedName(appName, appNamespace), driverPod)).To(Succeed())
+					Expect(k8sClient.Delete(ctx, driverPod)).To(Succeed())
+
+					By("Deleting the executor pods")
+					executorPod1 := &corev1.Pod{}
+					Expect(k8sClient.Get(ctx, getExecutorNamespacedName(appName, appNamespace, 1), executorPod1)).To(Succeed())
+					Expect(k8sClient.Delete(ctx, executorPod1)).To(Succeed())
+					executorPod2 := &corev1.Pod{}
+					Expect(k8sClient.Get(ctx, getExecutorNamespacedName(appName, appNamespace, 2), executorPod2)).To(Succeed())
+					Expect(k8sClient.Delete(ctx, executorPod2)).To(Succeed())
+				})
+				It("should transition to Suspending state", func() {
+					By("Reconciling the Running SparkApplication with Suspend=true")
+					reconciler := sparkapplication.NewReconciler(
+						nil,
+						k8sClient.Scheme(),
+						k8sClient,
+						record.NewFakeRecorder(3),
+						nil,
+						&sparkapplication.SparkSubmitter{},
+						sparkapplication.Options{Namespaces: []string{appNamespace}, MaxTrackedExecutorPerApp: 10},
+					)
+					result, err := reconciler.Reconcile(ctx, reconcile.Request{NamespacedName: key})
+					Expect(err).NotTo(HaveOccurred())
+					Expect(result.Requeue).To(BeFalse())
+
+					app := &v1beta2.SparkApplication{}
+					Expect(k8sClient.Get(ctx, key, app)).NotTo(HaveOccurred())
+					Expect(app.Status.AppState).To(BeEquivalentTo(v1beta2.ApplicationState{State: v1beta2.ApplicationStateSuspending}))
+				})
+			})
+			When("reconciling a Terminated(Failed or Completed) SparkApplication with Suspend=true", func() {
+				BeforeEach(func() {
+					app.Spec.Suspend = ptr.To(true)
+					Expect(k8sClient.Create(ctx, app)).To(Succeed())
+					app.Status.AppState.State = v1beta2.ApplicationStateFailed
+					Expect(k8sClient.Status().Update(ctx, app)).To(Succeed())
+				})
+				AfterEach(func() {
+					app := &v1beta2.SparkApplication{}
+					Expect(k8sClient.Get(ctx, key, app)).To(Succeed())
+
+					By("Deleting the created test SparkApplication")
+					Expect(k8sClient.Delete(ctx, app)).To(Succeed())
+				})
+				It("should not change its application state", func() {
+					By("Reconciling the terminated SparkApplication with Suspend=true")
+					reconciler := sparkapplication.NewReconciler(
+						nil,
+						k8sClient.Scheme(),
+						k8sClient,
+						record.NewFakeRecorder(3),
+						nil,
+						&sparkapplication.SparkSubmitter{},
+						sparkapplication.Options{Namespaces: []string{appNamespace}, MaxTrackedExecutorPerApp: 10},
+					)
+					result, err := reconciler.Reconcile(ctx, reconcile.Request{NamespacedName: key})
+					Expect(err).NotTo(HaveOccurred())
+					Expect(result.Requeue).To(BeFalse())
+
+					app := &v1beta2.SparkApplication{}
+					Expect(k8sClient.Get(ctx, key, app)).NotTo(HaveOccurred())
+					Expect(app.Status.AppState).To(BeEquivalentTo(v1beta2.ApplicationState{State: v1beta2.ApplicationStateFailed}))
+				})
+			})
+			When("reconciling Resuming SparkApplication with Suspend=true", func() {
+				BeforeEach(func() {
+					app.Spec.Suspend = ptr.To(true)
+					Expect(k8sClient.Create(ctx, app)).To(Succeed())
+					app.Status.AppState.State = v1beta2.ApplicationStateResuming
+					Expect(k8sClient.Status().Update(ctx, app)).To(Succeed())
+				})
+				AfterEach(func() {
+					app := &v1beta2.SparkApplication{}
+					Expect(k8sClient.Get(ctx, key, app)).To(Succeed())
+
+					By("Deleting the created test SparkApplication")
+					Expect(k8sClient.Delete(ctx, app)).To(Succeed())
+				})
+				It("should transition to Suspending state", func() {
+					By("Reconciling the Resuming SparkApplication with Suspend=true")
+					reconciler := sparkapplication.NewReconciler(
+						nil,
+						k8sClient.Scheme(),
+						k8sClient,
+						record.NewFakeRecorder(3),
+						nil,
+						&sparkapplication.SparkSubmitter{},
+						sparkapplication.Options{Namespaces: []string{appNamespace}, MaxTrackedExecutorPerApp: 10},
+					)
+					result, err := reconciler.Reconcile(ctx, reconcile.Request{NamespacedName: key})
+					Expect(err).NotTo(HaveOccurred())
+					Expect(result.Requeue).To(BeFalse())
+
+					app := &v1beta2.SparkApplication{}
+					Expect(k8sClient.Get(ctx, key, app)).NotTo(HaveOccurred())
+					Expect(app.Status.AppState).To(BeEquivalentTo(v1beta2.ApplicationState{State: v1beta2.ApplicationStateSuspending}))
+				})
+			})
+			When("reconciling a Suspending SparkApplication with Suspend=true", func() {
+				var driverPod *corev1.Pod
+				BeforeEach(func() {
+					app.Spec.Suspend = ptr.To(true)
+					Expect(k8sClient.Create(ctx, app)).To(Succeed())
+
+					driverPod = createDriverPod(appName, appNamespace)
+					Expect(k8sClient.Create(ctx, driverPod)).To(Succeed())
+					driverPod.Status.Phase = corev1.PodRunning
+					Expect(k8sClient.Status().Update(ctx, driverPod)).To(Succeed())
+
+					app.Status.DriverInfo.PodName = driverPod.Name
+					Expect(k8sClient.Status().Update(ctx, app)).To(Succeed())
+
+					app.Status.AppState.State = v1beta2.ApplicationStateSuspending
+					Expect(k8sClient.Status().Update(ctx, app)).To(Succeed())
+				})
+				AfterEach(func() {
+					app := &v1beta2.SparkApplication{}
+					Expect(k8sClient.Get(ctx, key, app)).To(Succeed())
+
+					By("Deleting the created test SparkApplication")
+					Expect(k8sClient.Delete(ctx, app)).To(Succeed())
+				})
+				It("should delete dependent spark resources and transition to Suspended app state", func() {
+					By("Reconciling the Suspending SparkApplication with Suspend=true")
+					reconciler := sparkapplication.NewReconciler(
+						nil,
+						k8sClient.Scheme(),
+						k8sClient,
+						record.NewFakeRecorder(3),
+						nil,
+						&sparkapplication.SparkSubmitter{},
+						sparkapplication.Options{Namespaces: []string{appNamespace}, MaxTrackedExecutorPerApp: 10},
+					)
+					result, err := reconciler.Reconcile(ctx, reconcile.Request{NamespacedName: key})
+					Expect(err).NotTo(HaveOccurred())
+					Expect(result.Requeue).To(BeFalse())
+
+					Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(driverPod), &corev1.Pod{})).To(Satisfy(errors.IsNotFound))
+					app := &v1beta2.SparkApplication{}
+					Expect(k8sClient.Get(ctx, key, app)).NotTo(HaveOccurred())
+					Expect(app.Status.AppState).To(BeEquivalentTo(v1beta2.ApplicationState{State: v1beta2.ApplicationStateSuspended}))
+				})
+			})
+		})
+		Context("Resume", func() {
+			When("reconciling Suspended SparkApplication with Suspend=false(resuming)", func() {
+				BeforeEach(func() {
+					app.Spec.Suspend = ptr.To(false)
+					Expect(k8sClient.Create(ctx, app)).To(Succeed())
+					app.Status.AppState.State = v1beta2.ApplicationStateSuspended
+					Expect(k8sClient.Status().Update(ctx, app)).To(Succeed())
+				})
+				AfterEach(func() {
+					app := &v1beta2.SparkApplication{}
+					Expect(k8sClient.Get(ctx, key, app)).To(Succeed())
+
+					By("Deleting the created test SparkApplication")
+					Expect(k8sClient.Delete(ctx, app)).To(Succeed())
+				})
+				It("should transition to Resuming state", func() {
+					By("Reconciling the Suspended SparkApplication with Suspend=false")
+					reconciler := sparkapplication.NewReconciler(
+						nil,
+						k8sClient.Scheme(),
+						k8sClient,
+						record.NewFakeRecorder(3),
+						nil,
+						&sparkapplication.SparkSubmitter{},
+						sparkapplication.Options{Namespaces: []string{appNamespace}, MaxTrackedExecutorPerApp: 10},
+					)
+					result, err := reconciler.Reconcile(ctx, reconcile.Request{NamespacedName: key})
+					Expect(err).NotTo(HaveOccurred())
+					Expect(result.Requeue).To(BeFalse())
+
+					app := &v1beta2.SparkApplication{}
+					Expect(k8sClient.Get(ctx, key, app)).NotTo(HaveOccurred())
+					Expect(app.Status.AppState).To(BeEquivalentTo(v1beta2.ApplicationState{State: v1beta2.ApplicationStateResuming}))
+				})
+			})
+			When("reconciling Suspending SparkApplication with Suspend=false(resuming)", func() {
+				var driverPod *corev1.Pod
+				BeforeEach(func() {
+					app.Spec.Suspend = ptr.To(false)
+					Expect(k8sClient.Create(ctx, app)).To(Succeed())
+
+					driverPod = createDriverPod(appName, appNamespace)
+					Expect(k8sClient.Create(ctx, driverPod)).To(Succeed())
+					driverPod.Status.Phase = corev1.PodRunning
+					Expect(k8sClient.Status().Update(ctx, driverPod)).To(Succeed())
+
+					app.Status.DriverInfo.PodName = driverPod.Name
+					Expect(k8sClient.Status().Update(ctx, app)).To(Succeed())
+
+					app.Status.AppState.State = v1beta2.ApplicationStateSuspending
+					Expect(k8sClient.Status().Update(ctx, app)).To(Succeed())
+				})
+				AfterEach(func() {
+					app := &v1beta2.SparkApplication{}
+					Expect(k8sClient.Get(ctx, key, app)).To(Succeed())
+
+					By("Deleting the created test SparkApplication")
+					Expect(k8sClient.Delete(ctx, app)).To(Succeed())
+				})
+				It("should transition to Suspended -> Resuming state", func() {
+					By("Reconciling the Suspending SparkApplication with Suspend=false")
+					reconciler := sparkapplication.NewReconciler(
+						nil,
+						k8sClient.Scheme(),
+						k8sClient,
+						record.NewFakeRecorder(3),
+						nil,
+						&sparkapplication.SparkSubmitter{},
+						sparkapplication.Options{Namespaces: []string{appNamespace}, MaxTrackedExecutorPerApp: 10},
+					)
+					result, err := reconciler.Reconcile(ctx, reconcile.Request{NamespacedName: key})
+					Expect(err).NotTo(HaveOccurred())
+					Expect(result.Requeue).To(BeFalse())
+
+					Expect(k8sClient.Get(ctx, client.ObjectKeyFromObject(driverPod), &corev1.Pod{})).To(Satisfy(errors.IsNotFound))
+					app := &v1beta2.SparkApplication{}
+					Expect(k8sClient.Get(ctx, key, app)).NotTo(HaveOccurred())
+					Expect(app.Status.AppState).To(BeEquivalentTo(v1beta2.ApplicationState{State: v1beta2.ApplicationStateSuspended}))
+
+					By("Reconciling the Suspended SparkApplication with Suspend=false")
+					result, err = reconciler.Reconcile(ctx, reconcile.Request{NamespacedName: key})
+					Expect(err).NotTo(HaveOccurred())
+					Expect(result.Requeue).To(BeFalse())
+					app = &v1beta2.SparkApplication{}
+					Expect(k8sClient.Get(ctx, key, app)).NotTo(HaveOccurred())
+					Expect(app.Status.AppState).To(BeEquivalentTo(v1beta2.ApplicationState{State: v1beta2.ApplicationStateResuming}))
+				})
+			})
+			When("reconciling Resuming SparkApplication with Suspend=false(resuming)", func() {
+				BeforeEach(func() {
+					app.Spec.Suspend = ptr.To(false)
+					Expect(k8sClient.Create(ctx, app)).To(Succeed())
+					app.Status.AppState.State = v1beta2.ApplicationStateResuming
+					Expect(k8sClient.Status().Update(ctx, app)).To(Succeed())
+				})
+				AfterEach(func() {
+					app := &v1beta2.SparkApplication{}
+					Expect(k8sClient.Get(ctx, key, app)).To(Succeed())
+
+					By("Deleting the created test SparkApplication")
+					Expect(k8sClient.Delete(ctx, app)).To(Succeed())
+				})
+				It("should submit pods and transition to Submitted", func() {
+					Skip("This transition can not test because there is no spark-submit")
+				})
+			})
 		})
 	})
 })
