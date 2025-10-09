@@ -16,7 +16,7 @@ if ! getent passwd "$myuid" &> /dev/null; then
         NSS_WRAPPER_GROUP="$(mktemp)"
         export LD_PRELOAD="$wrapper" NSS_WRAPPER_PASSWD NSS_WRAPPER_GROUP
         mygid="$(id -g)"
-        printf 'spark:x:%s:%s:${SPARK_USER_NAME:-anonymous uid}:%s:/bin/false\n' "$myuid" "$mygid" "$SPARK_HOME" > "$NSS_WRAPPER_PASSWD"
+        printf 'spark:x:%s:%s:%s:%s:/bin/false\n' "$myuid" "$mygid" "${SPARK_USER_NAME:-anonymous uid}" "$SPARK_HOME" > "$NSS_WRAPPER_PASSWD"
         printf 'spark:x:%s:\n' "$mygid" > "$NSS_WRAPPER_GROUP"
         break
       fi
