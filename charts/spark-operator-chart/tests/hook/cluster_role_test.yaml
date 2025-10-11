@@ -55,3 +55,4 @@ tests:
         verbs:
         - get
         - patch
+        - create
