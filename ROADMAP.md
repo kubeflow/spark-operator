@@ -6,6 +6,7 @@
 - [x] Cert manger support ([#1178](https://github.com/kubeflow/spark-operator/issues/1178))
 - [ ] Improve controller performance
 - [ ] Notebooks integration
+- [ ] [Kubeflow SDK](https://github.com/kubeflow/sdk) integration
 - [ ] Rest API for submitting jobs
 - [ ] Deprecation of webhook by moving all functionality into the pod template ([#2502](https://github.com/kubeflow/spark-operator/issues/2502))
 - [ ] Watching namespaces based on labels
