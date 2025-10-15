@@ -18,13 +18,18 @@ package sparkapplication
 
 import (
 	"fmt"
+	"os"
 	"slices"
+	"strings"
 	"testing"
 
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/yaml"
 
 	"github.com/kubeflow/spark-operator/v2/api/v1beta2"
 	"github.com/kubeflow/spark-operator/v2/pkg/common"
@@ -341,6 +346,217 @@ func TestDriverConfOption(t *testing.T) {
 			slices.Sort(testCase.expected)
 
 			assert.Equal(t, testCase.expected, options, "Driver configuration options do not match expected values")
+		})
+	}
+}
+
+func TestDriverPodTemplateContents(t *testing.T) {
+	appName := "test"
+	uid := types.UID(uuid.New().String())
+	appOwnerReference := util.GetOwnerReference(&v1beta2.SparkApplication{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: appName,
+			UID:  uid,
+		},
+	})
+	for name, tc := range map[string]struct {
+		app              *v1beta2.SparkApplication
+		expectedTemplate corev1.PodTemplateSpec
+	}{
+		"no pod template": {
+			app: &v1beta2.SparkApplication{},
+			expectedTemplate: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					OwnerReferences: []metav1.OwnerReference{appOwnerReference},
+				},
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{{
+						Name: common.SparkDriverContainerName,
+					}},
+				},
+			},
+		},
+		"with pod template": {
+			app: &v1beta2.SparkApplication{
+				Spec: v1beta2.SparkApplicationSpec{
+					Driver: v1beta2.DriverSpec{
+						SparkPodSpec: v1beta2.SparkPodSpec{
+							Template: &corev1.PodTemplateSpec{
+								ObjectMeta: metav1.ObjectMeta{
+									OwnerReferences: []metav1.OwnerReference{{Name: "owner-in-template"}},
+								},
+								Spec: corev1.PodSpec{
+									Containers: []corev1.Container{
+										{Name: common.SparkDriverContainerName, Image: "image"},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			expectedTemplate: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					OwnerReferences: []metav1.OwnerReference{
+						{Name: "owner-in-template"},
+						appOwnerReference,
+					},
+				},
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{
+						{Name: common.SparkDriverContainerName, Image: "image"},
+					},
+				},
+			},
+		},
+		"pod template already has owner references": {
+			app: &v1beta2.SparkApplication{
+				Spec: v1beta2.SparkApplicationSpec{
+					Driver: v1beta2.DriverSpec{
+						SparkPodSpec: v1beta2.SparkPodSpec{
+							Template: &corev1.PodTemplateSpec{
+								ObjectMeta: metav1.ObjectMeta{
+									OwnerReferences: []metav1.OwnerReference{{Name: "owner-in-template"}, appOwnerReference},
+								},
+							},
+						},
+					},
+				},
+			},
+			expectedTemplate: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					OwnerReferences: []metav1.OwnerReference{
+						{Name: "owner-in-template"},
+						appOwnerReference,
+					},
+				},
+			},
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			submissionID := "TestDriverPodTemplateOption-" + strings.ReplaceAll(name, " ", "_") + "-" + uuid.New().String()
+			tc.app.Name = appName
+			tc.app.UID = uid
+			tc.app.Status.SubmissionID = submissionID
+
+			_, err := driverPodTemplateOption(tc.app)
+			assert.NoError(t, err)
+			defer func() { _ = os.RemoveAll(fmt.Sprintf("/tmp/spark/%s", submissionID)) }()
+
+			expectedBytes, err := yaml.Marshal(tc.expectedTemplate)
+			assert.NoError(t, err)
+
+			actualBytes, err := os.ReadFile(fmt.Sprintf("/tmp/spark/%s/driver-pod-template.yaml", submissionID))
+			assert.NoError(t, err)
+
+			assert.Equal(t, string(expectedBytes), string(actualBytes))
+		})
+	}
+}
+
+func TestExecutorPodTemplateContents(t *testing.T) {
+	appName := "test"
+	uid := types.UID(uuid.New().String())
+	appNonControllerOwnerReference := util.GetOwnerReference(&v1beta2.SparkApplication{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: appName,
+			UID:  uid,
+		},
+	})
+	appNonControllerOwnerReference.Controller = nil
+	appNonControllerOwnerReference.BlockOwnerDeletion = nil
+
+	for name, tc := range map[string]struct {
+		app              *v1beta2.SparkApplication
+		expectedTemplate corev1.PodTemplateSpec
+	}{
+		"no pod template": {
+			app: &v1beta2.SparkApplication{},
+			expectedTemplate: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					OwnerReferences: []metav1.OwnerReference{appNonControllerOwnerReference},
+				},
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{{
+						Name: common.Spark3DefaultExecutorContainerName,
+					}},
+				},
+			},
+		},
+		"with pod template": {
+			app: &v1beta2.SparkApplication{
+				Spec: v1beta2.SparkApplicationSpec{
+					Executor: v1beta2.ExecutorSpec{
+						SparkPodSpec: v1beta2.SparkPodSpec{
+							Template: &corev1.PodTemplateSpec{
+								ObjectMeta: metav1.ObjectMeta{
+									OwnerReferences: []metav1.OwnerReference{{Name: "owner-in-template"}},
+								},
+								Spec: corev1.PodSpec{
+									Containers: []corev1.Container{
+										{Name: common.Spark3DefaultExecutorContainerName, Image: "image"},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			expectedTemplate: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					OwnerReferences: []metav1.OwnerReference{
+						{Name: "owner-in-template"},
+						appNonControllerOwnerReference,
+					},
+				},
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{
+						{Name: common.Spark3DefaultExecutorContainerName, Image: "image"},
+					},
+				},
+			},
+		},
+		"pod template already has owner references": {
+			app: &v1beta2.SparkApplication{
+				Spec: v1beta2.SparkApplicationSpec{
+					Executor: v1beta2.ExecutorSpec{
+						SparkPodSpec: v1beta2.SparkPodSpec{
+							Template: &corev1.PodTemplateSpec{
+								ObjectMeta: metav1.ObjectMeta{
+									OwnerReferences: []metav1.OwnerReference{{Name: "owner-in-template"}, appNonControllerOwnerReference},
+								},
+							},
+						},
+					},
+				},
+			},
+			expectedTemplate: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					OwnerReferences: []metav1.OwnerReference{
+						{Name: "owner-in-template"},
+						appNonControllerOwnerReference,
+					},
+				},
+			},
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			submissionID := "TestExecutorPodTemplateOption-" + strings.ReplaceAll(name, " ", "_") + "-" + uuid.New().String()
+			tc.app.Name = appName
+			tc.app.UID = uid
+			tc.app.Status.SubmissionID = submissionID
+
+			_, err := executorPodTemplateOption(tc.app)
+			assert.NoError(t, err)
+			defer func() { _ = os.RemoveAll(fmt.Sprintf("/tmp/spark/%s", submissionID)) }()
+
+			expectedBytes, err := yaml.Marshal(tc.expectedTemplate)
+			assert.NoError(t, err)
+
+			actualBytes, err := os.ReadFile(fmt.Sprintf("/tmp/spark/%s/executor-pod-template.yaml", submissionID))
+			assert.NoError(t, err)
+
+			assert.Equal(t, string(expectedBytes), string(actualBytes))
 		})
 	}
 }
