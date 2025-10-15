@@ -5079,6 +5079,40 @@ spec:
                           - name
                           type: object
                         type: array
+                      sparkApplicationLabelsMutation:
+                        description: |-
+                          SparkApplicationLabelsMutation defines how to mutate the labels of the SparkApplication to the Spark pod.
+                          If not specified, any labels in SparkApplication are mutated to the Spark pod for backward compatibility.
+                        properties:
+                          labelKeyMatches:
+                            description: |-
+                              LabelKeyMatches is a list of match conditions for label keys in SparkApplication to be mutated to the Spark pod or not.
+                              If multiple conditions are specified, conditions are OR-ed.
+                              If empty list specified, any labels will not match the condition. i.e., no labels are mutated.
+                            items:
+                              description: MutatingLabelKeyMatchCondition defines
+                                a condition for how to match a label key
+                              properties:
+                                fixed:
+                                  description: |-
+                                    Fixed is a fixed string to be matched against a label key.
+                                    Fixed and Regex are mutually exclusive, and at least one of them must be specified.
+                                  minLength: 1
+                                  type: string
+                                invert:
+                                  description: Invert indicates whether to invert
+                                    the match result.
+                                  type: boolean
+                                regex:
+                                  description: |-
+                                    Regex is a condition matched to the regex pattern of a label key.
+                                    Fixed and Regex are mutually exclusive, and at least one of them must be specified.
+                                  minLength: 1
+                                  type: string
+                              type: object
+                            maxItems: 32
+                            type: array
+                        type: object
                       template:
                         description: |-
                           Template is a pod template that can be used to define the driver or executor pod configurations that Spark configurations do not support.
@@ -10192,6 +10226,40 @@ spec:
                           - name
                           type: object
                         type: array
+                      sparkApplicationLabelsMutation:
+                        description: |-
+                          SparkApplicationLabelsMutation defines how to mutate the labels of the SparkApplication to the Spark pod.
+                          If not specified, any labels in SparkApplication are mutated to the Spark pod for backward compatibility.
+                        properties:
+                          labelKeyMatches:
+                            description: |-
+                              LabelKeyMatches is a list of match conditions for label keys in SparkApplication to be mutated to the Spark pod or not.
+                              If multiple conditions are specified, conditions are OR-ed.
+                              If empty list specified, any labels will not match the condition. i.e., no labels are mutated.
+                            items:
+                              description: MutatingLabelKeyMatchCondition defines
+                                a condition for how to match a label key
+                              properties:
+                                fixed:
+                                  description: |-
+                                    Fixed is a fixed string to be matched against a label key.
+                                    Fixed and Regex are mutually exclusive, and at least one of them must be specified.
+                                  minLength: 1
+                                  type: string
+                                invert:
+                                  description: Invert indicates whether to invert
+                                    the match result.
+                                  type: boolean
+                                regex:
+                                  description: |-
+                                    Regex is a condition matched to the regex pattern of a label key.
+                                    Fixed and Regex are mutually exclusive, and at least one of them must be specified.
+                                  minLength: 1
+                                  type: string
+                              type: object
+                            maxItems: 32
+                            type: array
+                        type: object
                       template:
                         description: |-
                           Template is a pod template that can be used to define the driver or executor pod configurations that Spark configurations do not support.

@@ -1711,6 +1711,61 @@ PrometheusSpec
 </tr>
 </tbody>
 </table>
+<h3 id="sparkoperator.k8s.io/v1beta2.MutatingLabelKeyMatchCondition">MutatingLabelKeyMatchCondition
+</h3>
+<p>
+(<em>Appears on:</em><a href="#sparkoperator.k8s.io/v1beta2.SparkApplicationLabelsMutationSpec">SparkApplicationLabelsMutationSpec</a>)
+</p>
+<div>
+<p>MutatingLabelKeyMatchCondition defines a condition for how to match a label key</p>
+</div>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>fixed</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Fixed is a fixed string to be matched against a label key.
+Fixed and Regex are mutually exclusive, and at least one of them must be specified.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>regex</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Regex is a condition matched to the regex pattern of a label key.
+Fixed and Regex are mutually exclusive, and at least one of them must be specified.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>invert</code><br/>
+<em>
+bool
+</em>
+</td>
+<td>
+<p>Invert indicates whether to invert the match result.</p>
+</td>
+</tr>
+</tbody>
+</table>
 <h3 id="sparkoperator.k8s.io/v1beta2.NameKey">NameKey
 </h3>
 <p>
@@ -2333,6 +2388,40 @@ the environment variable GOOGLE_APPLICATION_CREDENTIALS.</p>
 environment variable HADOOP_TOKEN_FILE_LOCATION.</p>
 </td>
 </tr></tbody>
+</table>
+<h3 id="sparkoperator.k8s.io/v1beta2.SparkApplicationLabelsMutationSpec">SparkApplicationLabelsMutationSpec
+</h3>
+<p>
+(<em>Appears on:</em><a href="#sparkoperator.k8s.io/v1beta2.SparkPodSpec">SparkPodSpec</a>)
+</p>
+<div>
+<p>SparkApplicationLabelsMutationSpec defines how to mutate the labels of the SparkApplication to the Spark pod.</p>
+</div>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>labelKeyMatches</code><br/>
+<em>
+<a href="#sparkoperator.k8s.io/v1beta2.MutatingLabelKeyMatchCondition">
+[]MutatingLabelKeyMatchCondition
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>LabelKeyMatches is a list of match conditions for label keys in SparkApplication to be mutated to the Spark pod or not.
+If multiple conditions are specified, conditions are OR-ed.
+If empty list specified, any labels will not match the condition. i.e., no labels are mutated.</p>
+</td>
+</tr>
+</tbody>
 </table>
 <h3 id="sparkoperator.k8s.io/v1beta2.SparkApplicationSpec">SparkApplicationSpec
 </h3>
@@ -3354,6 +3443,21 @@ bool
 <td>
 <em>(Optional)</em>
 <p>ShareProcessNamespace settings for the pod, following the Kubernetes specifications.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>sparkApplicationLabelsMutation</code><br/>
+<em>
+<a href="#sparkoperator.k8s.io/v1beta2.SparkApplicationLabelsMutationSpec">
+SparkApplicationLabelsMutationSpec
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>SparkApplicationLabelsMutation defines how to mutate the labels of the SparkApplication to the Spark pod.
+If not specified, any labels in SparkApplication are mutated to the Spark pod for backward compatibility.</p>
 </td>
 </tr>
 </tbody>

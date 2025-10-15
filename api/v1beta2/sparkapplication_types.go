@@ -525,6 +525,38 @@ type SparkPodSpec struct {
 	// ShareProcessNamespace settings for the pod, following the Kubernetes specifications.
 	// +optional
 	ShareProcessNamespace *bool `json:"shareProcessNamespace,omitempty"`
+	// SparkApplicationLabelsMutation defines how to mutate the labels of the SparkApplication to the Spark pod.
+	// If not specified, any labels in SparkApplication are mutated to the Spark pod for backward compatibility.
+	// +optional
+	SparkApplicationLabelsMutation *SparkApplicationLabelsMutationSpec `json:"sparkApplicationLabelsMutation,omitempty"`
+}
+
+// SparkApplicationLabelsMutationSpec defines how to mutate the labels of the SparkApplication to the Spark pod.
+type SparkApplicationLabelsMutationSpec struct {
+	// LabelKeyMatches is a list of match conditions for label keys in SparkApplication to be mutated to the Spark pod or not.
+	// If multiple conditions are specified, conditions are OR-ed.
+	// If empty list specified, any labels will not match the condition. i.e., no labels are mutated.
+	// +optional
+	// +kubebuilder:validation:MaxItems=32
+	LabelKeyMatches []MutatingLabelKeyMatchCondition `json:"labelKeyMatches,omitempty"`
+}
+
+// MutatingLabelKeyMatchCondition defines a condition for how to match a label key
+type MutatingLabelKeyMatchCondition struct {
+	// Fixed is a fixed string to be matched against a label key.
+	// Fixed and Regex are mutually exclusive, and at least one of them must be specified.
+	// +optional
+	// +kubebuilder:validation:MinLength=1
+	Fixed *string `json:"fixed,omitempty"`
+
+	// Regex is a condition matched to the regex pattern of a label key.
+	// Fixed and Regex are mutually exclusive, and at least one of them must be specified.
+	// +optional
+	// +kubebuilder:validation:MinLength=1
+	Regex *string `json:"regex,omitempty"`
+
+	// Invert indicates whether to invert the match result.
+	Invert bool `json:"invert,omitempty"`
 }
 
 // DriverSpec is specification of the driver.
