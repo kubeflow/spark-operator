@@ -25,6 +25,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/utils/ptr"
 
 	"github.com/kubeflow/spark-operator/v2/api/v1beta2"
 	"github.com/kubeflow/spark-operator/v2/pkg/common"
@@ -231,6 +232,7 @@ func TestDriverConfOption(t *testing.T) {
 					Labels: map[string]string{
 						"environment": "test",
 						"team":        "spark",
+						"not-mutated": "true",
 					},
 				},
 				Status: v1beta2.SparkApplicationStatus{
@@ -244,6 +246,9 @@ func TestDriverConfOption(t *testing.T) {
 							Memory:     util.StringPtr("2g"),
 							Image:      util.StringPtr("spark-driver:latest"),
 							ConfigMaps: []v1beta2.NamePath{{Name: "driver-config", Path: "/etc/config"}},
+							SparkApplicationLabelsMutation: &v1beta2.SparkApplicationLabelsMutationSpec{
+								LabelKeyMatches: []v1beta2.MutatingLabelKeyMatchCondition{{Fixed: ptr.To("not-mutated"), Invert: true}},
+							},
 						},
 					},
 				},
@@ -341,6 +346,125 @@ func TestDriverConfOption(t *testing.T) {
 			slices.Sort(testCase.expected)
 
 			assert.Equal(t, testCase.expected, options, "Driver configuration options do not match expected values")
+		})
+	}
+}
+
+func TestShouldMutateLabelKey(t *testing.T) {
+	for name, tc := range map[string]struct {
+		key      string
+		mutation *v1beta2.SparkApplicationLabelsMutationSpec
+		expected bool
+	}{
+		"nil mutation spec": {
+			key:      "any-key",
+			mutation: nil,
+			expected: true,
+		},
+		"empty mutation spec": {
+			key:      "any-key",
+			mutation: &v1beta2.SparkApplicationLabelsMutationSpec{},
+			expected: false,
+		},
+		"include fixed match": {
+			key: "fixed-key",
+			mutation: &v1beta2.SparkApplicationLabelsMutationSpec{
+				LabelKeyMatches: []v1beta2.MutatingLabelKeyMatchCondition{{Fixed: ptr.To("fixed-key")}},
+			},
+			expected: true,
+		},
+		"include regex match": {
+			key: "match-123",
+			mutation: &v1beta2.SparkApplicationLabelsMutationSpec{
+				LabelKeyMatches: []v1beta2.MutatingLabelKeyMatchCondition{{Regex: ptr.To("^match-[0-9]+$")}},
+			},
+			expected: true,
+		},
+		"include no match": {
+			key: "other-key",
+			mutation: &v1beta2.SparkApplicationLabelsMutationSpec{
+				LabelKeyMatches: []v1beta2.MutatingLabelKeyMatchCondition{{Fixed: ptr.To("fixed-key")}},
+			},
+			expected: false,
+		},
+		"include multiple conditions, one match": {
+			key: "match-123",
+			mutation: &v1beta2.SparkApplicationLabelsMutationSpec{
+				LabelKeyMatches: []v1beta2.MutatingLabelKeyMatchCondition{
+					{Fixed: ptr.To("fixed-key")},
+					{Regex: ptr.To("^match-[0-9]+$")},
+				},
+			},
+			expected: true,
+		},
+		"include multiple conditions, no match": {
+			key: "no-match",
+			mutation: &v1beta2.SparkApplicationLabelsMutationSpec{
+				LabelKeyMatches: []v1beta2.MutatingLabelKeyMatchCondition{
+					{Fixed: ptr.To("fixed-key")},
+					{Regex: ptr.To("^match-[0-9]+$")},
+				},
+			},
+			expected: false,
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			got := shouldMutateLabelKey(tc.key, tc.mutation)
+			assert.Equal(t, tc.expected, got)
+		})
+	}
+}
+
+func TestMatchLabelKeyOnLabelKeyCondition(t *testing.T) {
+	for name, tc := range map[string]struct {
+		key      string
+		cond     v1beta2.MutatingLabelKeyMatchCondition
+		expected bool
+	}{
+		"fixed match": {
+			key:      "fixed-key",
+			cond:     v1beta2.MutatingLabelKeyMatchCondition{Fixed: ptr.To("fixed-key")},
+			expected: true,
+		},
+		"fixed no match": {
+			key:      "other-key",
+			cond:     v1beta2.MutatingLabelKeyMatchCondition{Fixed: ptr.To("fixed-key")},
+			expected: false,
+		},
+		"fixed match with invert": {
+			key:      "fixed-key",
+			cond:     v1beta2.MutatingLabelKeyMatchCondition{Fixed: ptr.To("fixed-key"), Invert: true},
+			expected: false,
+		},
+		"fixed no match with invert": {
+			key:      "other-key",
+			cond:     v1beta2.MutatingLabelKeyMatchCondition{Fixed: ptr.To("fixed-key"), Invert: true},
+			expected: true,
+		},
+		"regex match": {
+			key:      "match-123",
+			cond:     v1beta2.MutatingLabelKeyMatchCondition{Regex: ptr.To("^match-[0-9]+$")},
+			expected: true,
+		},
+		"regex no match": {
+			key:      "no-match",
+			cond:     v1beta2.MutatingLabelKeyMatchCondition{Regex: ptr.To("^match-[0-9]+$")},
+			expected: false,
+		},
+		"regex match with invert": {
+			key:      "match-123",
+			cond:     v1beta2.MutatingLabelKeyMatchCondition{Regex: ptr.To("^match-[0-9]+$"), Invert: true},
+			expected: false,
+		},
+		"regex no match with invert": {
+			key:      "no-match",
+			cond:     v1beta2.MutatingLabelKeyMatchCondition{Regex: ptr.To("^match-[0-9]+$"), Invert: true},
+			expected: true,
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			got := matchLabelKeyOnLabelKeyCondition(tc.key, tc.cond)
+			assert.Equal(t, tc.expected, got)
 		})
 	}
 }

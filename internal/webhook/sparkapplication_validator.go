@@ -19,10 +19,12 @@ package webhook
 import (
 	"context"
 	"fmt"
+	"regexp"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/util/validation/field"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
@@ -145,6 +147,19 @@ func (v *SparkApplicationValidator) validateSpec(_ context.Context, app *v1beta2
 		ingressURLFormats[item.IngressURLFormat] = true
 	}
 
+	if app.Spec.Driver.SparkApplicationLabelsMutation != nil {
+		path := field.NewPath("spec").Child("driver").Child("sparkApplicationLabelsMutation")
+		if errs := validateSparkApplicationLabelsMutationSpec(path, app.Spec.Driver.SparkApplicationLabelsMutation); len(errs) > 0 {
+			return errs.ToAggregate()
+		}
+	}
+	if app.Spec.Executor.SparkApplicationLabelsMutation != nil {
+		path := field.NewPath("spec").Child("executor").Child("sparkApplicationLabelsMutation")
+		if errs := validateSparkApplicationLabelsMutationSpec(path, app.Spec.Executor.SparkApplicationLabelsMutation); len(errs) > 0 {
+			return errs.ToAggregate()
+		}
+	}
+
 	return nil
 }
 
@@ -183,5 +198,50 @@ func (v *SparkApplicationValidator) validateResourceUsage(ctx context.Context, a
 		}
 	}
 
+	return nil
+}
+
+func validateSparkApplicationLabelsMutationSpec(path *field.Path, mutation *v1beta2.SparkApplicationLabelsMutationSpec) field.ErrorList {
+	var allErrs field.ErrorList
+	if mutation == nil {
+		return nil
+	}
+	allErrs = append(allErrs, validateMutatingLabelKeyMatchConditions(path.Child("labelKeyMatches"), mutation.LabelKeyMatches)...)
+	if len(allErrs) > 0 {
+		return allErrs
+	}
+	return nil
+}
+
+func validateMutatingLabelKeyMatchConditions(path *field.Path, conditions []v1beta2.MutatingLabelKeyMatchCondition) field.ErrorList {
+	var allErrs field.ErrorList
+	for i := range conditions {
+		allErrs = append(allErrs, validateMutatingLabelKeyCondition(path.Index(i), conditions[i])...)
+	}
+	if len(allErrs) > 0 {
+		return allErrs
+	}
+	return nil
+}
+
+func validateMutatingLabelKeyCondition(path *field.Path, condition v1beta2.MutatingLabelKeyMatchCondition) field.ErrorList {
+	var allErrs field.ErrorList
+
+	if condition.Fixed == nil && condition.Regex == nil {
+		allErrs = append(allErrs, field.Required(path, "must specify either fixed or regex"))
+	} else if condition.Fixed != nil && condition.Regex != nil {
+		allErrs = append(allErrs, field.Invalid(path, "", "only one of fixed or regex can be specified"))
+	}
+
+	if condition.Regex != nil {
+		var err error
+		if _, err = regexp.Compile(*condition.Regex); err != nil {
+			allErrs = append(allErrs, field.Invalid(path.Child("regex"), *condition.Regex, fmt.Sprintf("invalid regex: %v", err)))
+		}
+	}
+
+	if len(allErrs) > 0 {
+		return allErrs
+	}
 	return nil
 }

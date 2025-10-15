@@ -22,8 +22,11 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
+	"slices"
 	"strings"
 
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	"github.com/kubeflow/spark-operator/v2/api/v1beta2"
@@ -385,8 +388,10 @@ func driverConfOption(app *v1beta2.SparkApplication) ([]string, error) {
 
 	// Populate SparkApplication labels to driver pod
 	for key, value := range app.Labels {
-		property = fmt.Sprintf(common.SparkKubernetesDriverLabelTemplate, key)
-		args = append(args, "--conf", fmt.Sprintf("%s=%s", property, value))
+		if shouldMutateLabelKey(key, app.Spec.Driver.SparkApplicationLabelsMutation) {
+			property = fmt.Sprintf(common.SparkKubernetesDriverLabelTemplate, key)
+			args = append(args, "--conf", fmt.Sprintf("%s=%s", property, value))
+		}
 	}
 
 	for key, value := range app.Spec.Driver.Labels {
@@ -730,9 +735,12 @@ func executorConfOption(app *v1beta2.SparkApplication) ([]string, error) {
 
 	// Populate SparkApplication labels to executor pod
 	for key, value := range app.Labels {
-		property := fmt.Sprintf(common.SparkKubernetesExecutorLabelTemplate, key)
-		args = append(args, "--conf", fmt.Sprintf("%s=%s", property, value))
+		if shouldMutateLabelKey(key, app.Spec.Executor.SparkApplicationLabelsMutation) {
+			property = fmt.Sprintf(common.SparkKubernetesExecutorLabelTemplate, key)
+			args = append(args, "--conf", fmt.Sprintf("%s=%s", property, value))
+		}
 	}
+
 	for key, value := range app.Spec.Executor.Labels {
 		property := fmt.Sprintf(common.SparkKubernetesExecutorLabelTemplate, key)
 		args = append(args, "--conf", fmt.Sprintf("%s=%s", property, value))
@@ -1097,4 +1105,36 @@ func executorPodTemplateOption(app *v1beta2.SparkApplication) ([]string, error) 
 		fmt.Sprintf("%s=%s", common.SparkKubernetesExecutorPodTemplateContainerName, common.Spark3DefaultExecutorContainerName),
 	}
 	return args, nil
+}
+
+var includeAllLabelKeys = v1beta2.SparkApplicationLabelsMutationSpec{
+	LabelKeyMatches: []v1beta2.MutatingLabelKeyMatchCondition{{Regex: ptr.To(`^.*$`)}},
+}
+
+func shouldMutateLabelKey(key string, mutation *v1beta2.SparkApplicationLabelsMutationSpec) bool {
+	effectiveMutation := ptr.Deref(mutation, includeAllLabelKeys)
+	return slices.ContainsFunc(effectiveMutation.LabelKeyMatches, func(c v1beta2.MutatingLabelKeyMatchCondition) bool {
+		return matchLabelKeyOnLabelKeyCondition(key, c)
+	})
+}
+
+func matchLabelKeyOnLabelKeyCondition(key string, condition v1beta2.MutatingLabelKeyMatchCondition) bool {
+	conclude := func(r bool) bool {
+		if condition.Invert {
+			return !r
+		}
+		return r
+	}
+
+	if condition.Fixed != nil && *condition.Fixed == key {
+		return conclude(true)
+	}
+	if condition.Regex != nil {
+		// No need to catch error because condition.Regex is validated in webhook
+		matched, _ := regexp.Match(*condition.Regex, []byte(key))
+		return conclude(matched)
+	}
+
+	// Not expect to reach because fixed and regex are mutually exclusive (validated in webhook)
+	return conclude(false)
 }
