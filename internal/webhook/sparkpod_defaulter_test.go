@@ -73,6 +73,15 @@ func TestPatchSparkPod_OwnerReference(t *testing.T) {
 		t.Fatal(err)
 	}
 	assert.Len(t, modifiedPod.OwnerReferences, 2)
+
+	// Test patching OwnerReference be idempotent.
+	oldOwnerReferences := modifiedPod.DeepCopy().OwnerReferences
+	pod.OwnerReferences = modifiedPod.DeepCopy().OwnerReferences
+	modifiedPod, err = getModifiedPod(pod, app)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assert.Equal(t, modifiedPod.OwnerReferences, oldOwnerReferences)
 }
 
 func TestPatchSparkPod_Local_Volumes(t *testing.T) {

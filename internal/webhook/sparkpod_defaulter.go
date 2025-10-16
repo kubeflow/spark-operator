@@ -19,6 +19,8 @@ package webhook
 import (
 	"context"
 	"fmt"
+	"reflect"
+	"slices"
 	"strings"
 
 	corev1 "k8s.io/api/core/v1"
@@ -180,7 +182,11 @@ func addOwnerReference(pod *corev1.Pod, app *v1beta2.SparkApplication) error {
 		return nil
 	}
 	ownerReference := util.GetOwnerReference(app)
-	pod.OwnerReferences = append(pod.OwnerReferences, ownerReference)
+	if !slices.ContainsFunc(pod.OwnerReferences, func(r metav1.OwnerReference) bool {
+		return reflect.DeepEqual(r, ownerReference)
+	}) {
+		pod.OwnerReferences = append(pod.OwnerReferences, ownerReference)
+	}
 	return nil
 }
 
