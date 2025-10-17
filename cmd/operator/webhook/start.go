@@ -22,7 +22,6 @@ import (
 	"flag"
 	"os"
 	"time"
-
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
@@ -36,10 +35,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/apimachinery/pkg/runtime"
-	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
-	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -55,12 +51,12 @@ import (
 	"github.com/kubeflow/spark-operator/v2/internal/webhook"
 	"github.com/kubeflow/spark-operator/v2/pkg/certificate"
 	"github.com/kubeflow/spark-operator/v2/pkg/common"
+	operatorscheme "github.com/kubeflow/spark-operator/v2/pkg/scheme"
 	"github.com/kubeflow/spark-operator/v2/pkg/util"
 	// +kubebuilder:scaffold:imports
 )
 
 var (
-	scheme = runtime.NewScheme()
 	logger = ctrl.Log.WithName("")
 )
 
@@ -109,13 +105,6 @@ var (
 	development            bool
 	zapOptions             = logzap.Options{}
 )
-
-func init() {
-	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
-
-	utilruntime.Must(v1beta2.AddToScheme(scheme))
-	// +kubebuilder:scaffold:scheme
-}
 
 func NewStartCommand() *cobra.Command {
 	var command = &cobra.Command{
@@ -195,7 +184,7 @@ func start() {
 	// Create the manager.
 	tlsOptions := newTLSOptions()
 	mgr, err := ctrl.NewManager(cfg, ctrl.Options{
-		Scheme: scheme,
+		Scheme: operatorscheme.WebhookScheme,
 		Cache:  newCacheOptions(),
 		Metrics: metricsserver.Options{
 			BindAddress:   metricsBindAddress,
@@ -404,7 +393,7 @@ func newCacheOptions() cache.Options {
 	}
 
 	options := cache.Options{
-		Scheme:            scheme,
+		Scheme:            operatorscheme.WebhookScheme,
 		DefaultNamespaces: defaultNamespaces,
 		ByObject:          byObject,
 	}
