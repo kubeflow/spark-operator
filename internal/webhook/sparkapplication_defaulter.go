@@ -23,7 +23,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
 	"github.com/kubeflow/spark-operator/v2/api/v1beta2"
-	"github.com/kubeflow/spark-operator/v2/pkg/common"
+	operatorscheme "github.com/kubeflow/spark-operator/v2/pkg/scheme"
 	"github.com/kubeflow/spark-operator/v2/pkg/util"
 )
 
@@ -54,52 +54,6 @@ func (d *SparkApplicationDefaulter) Default(ctx context.Context, obj runtime.Obj
 	}
 
 	logger.Info("Defaulting SparkApplication", "name", app.Name, "namespace", app.Namespace, "state", util.GetApplicationState(app))
-	defaultSparkApplication(app)
+	operatorscheme.WebhookScheme.Default(app)
 	return nil
-}
-
-// defaultSparkApplication sets default values for certain fields of a SparkApplication.
-func defaultSparkApplication(app *v1beta2.SparkApplication) {
-	if app.Spec.Mode == "" {
-		app.Spec.Mode = v1beta2.DeployModeCluster
-	}
-
-	if app.Spec.RestartPolicy.Type == "" {
-		app.Spec.RestartPolicy.Type = v1beta2.RestartPolicyNever
-	}
-
-	if app.Spec.RestartPolicy.Type != v1beta2.RestartPolicyNever {
-		if app.Spec.RestartPolicy.OnSubmissionFailureRetryInterval == nil {
-			app.Spec.RestartPolicy.OnSubmissionFailureRetryInterval = util.Int64Ptr(5)
-		}
-		if app.Spec.RestartPolicy.OnFailureRetryInterval == nil {
-			app.Spec.RestartPolicy.OnFailureRetryInterval = util.Int64Ptr(5)
-		}
-	}
-
-	defaultDriverSpec(app)
-	defaultExecutorSpec(app)
-}
-
-func defaultDriverSpec(app *v1beta2.SparkApplication) {
-}
-
-func defaultExecutorSpec(app *v1beta2.SparkApplication) {
-
-	isDynamicAllocationEnabled := util.IsDynamicAllocationEnabled(app)
-
-	if app.Spec.Executor.Instances == nil &&
-		app.Spec.SparkConf[common.SparkExecutorInstances] == "" &&
-		!isDynamicAllocationEnabled {
-		app.Spec.Executor.Instances = util.Int32Ptr(1)
-	}
-
-	// Set default for ShuffleTrackingEnabled to true if DynamicAllocation.enabled is true and
-	// DynamicAllocation.ShuffleTrackingEnabled is nil.
-	if isDynamicAllocationEnabled &&
-		app.Spec.DynamicAllocation != nil &&
-		app.Spec.DynamicAllocation.ShuffleTrackingEnabled == nil {
-		app.Spec.DynamicAllocation.ShuffleTrackingEnabled = util.BoolPtr(true)
-	}
-
 }
