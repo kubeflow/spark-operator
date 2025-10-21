@@ -37,10 +37,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/apimachinery/pkg/runtime"
-	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes"
-	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/utils/clock"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
@@ -50,7 +47,6 @@ import (
 	logzap "sigs.k8s.io/controller-runtime/pkg/log/zap"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	ctrlwebhook "sigs.k8s.io/controller-runtime/pkg/webhook"
-	schedulingv1alpha1 "sigs.k8s.io/scheduler-plugins/apis/scheduling/v1alpha1"
 
 	sparkoperator "github.com/kubeflow/spark-operator/v2"
 	"github.com/kubeflow/spark-operator/v2/api/v1alpha1"
@@ -64,12 +60,12 @@ import (
 	"github.com/kubeflow/spark-operator/v2/internal/scheduler/volcano"
 	"github.com/kubeflow/spark-operator/v2/internal/scheduler/yunikorn"
 	"github.com/kubeflow/spark-operator/v2/pkg/common"
+	operatorscheme "github.com/kubeflow/spark-operator/v2/pkg/scheme"
 	"github.com/kubeflow/spark-operator/v2/pkg/util"
 	// +kubebuilder:scaffold:imports
 )
 
 var (
-	scheme = runtime.NewScheme()
 	logger = ctrl.Log.WithName("")
 )
 
@@ -123,15 +119,6 @@ var (
 	development            bool
 	zapOptions             = logzap.Options{}
 )
-
-func init() {
-	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
-	utilruntime.Must(schedulingv1alpha1.AddToScheme(scheme))
-
-	utilruntime.Must(v1alpha1.AddToScheme(scheme))
-	utilruntime.Must(v1beta2.AddToScheme(scheme))
-	// +kubebuilder:scaffold:scheme
-}
 
 func NewStartCommand() *cobra.Command {
 	var ingressTLSstring string
@@ -225,7 +212,7 @@ func start() {
 	// Create the manager.
 	tlsOptions := newTLSOptions()
 	mgr, err := ctrl.NewManager(cfg, ctrl.Options{
-		Scheme: scheme,
+		Scheme: operatorscheme.ControllerScheme,
 		Cache:  newCacheOptions(),
 		Metrics: metricsserver.Options{
 			BindAddress:   metricsBindAddress,
@@ -393,7 +380,7 @@ func newCacheOptions() cache.Options {
 	}
 
 	options := cache.Options{
-		Scheme:            scheme,
+		Scheme:            operatorscheme.ControllerScheme,
 		DefaultNamespaces: defaultNamespaces,
 		ByObject: map[client.Object]cache.ByObject{
 			&corev1.Pod{}: {

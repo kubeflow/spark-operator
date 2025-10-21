@@ -25,10 +25,6 @@ import (
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
 
-func init() {
-	SchemeBuilder.Register(&SparkApplication{}, &SparkApplicationList{})
-}
-
 // SparkApplicationSpec defines the desired state of SparkApplication
 // It carries every pieces of information a spark-submit command takes and recognizes.
 type SparkApplicationSpec struct {
