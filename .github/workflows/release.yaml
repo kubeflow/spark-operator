@@ -7,6 +7,9 @@ on:
     paths:
       - VERSION
 
+permissions:
+  contents: read
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -72,6 +75,10 @@ jobs:
       - check-release
 
     runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      packages: write
 
     strategy:
       fail-fast: false
@@ -142,6 +149,10 @@ jobs:
       - check-release
 
     runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      packages: write
 
     strategy:
       fail-fast: false
@@ -216,6 +227,10 @@ jobs:
 
     runs-on: ubuntu-latest
 
+    permissions:
+      contents: read
+      packages: write
+
     steps:
       - name: Checkout source code
         uses: actions/checkout@v5
@@ -265,6 +280,10 @@ jobs:
       - build_kubectl_images
 
     runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      packages: write
 
     steps:
       - name: Checkout source code
@@ -316,6 +335,9 @@ jobs:
       - release_kubectl_images
 
     runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
 
     steps:
       - name: Checkout source code
