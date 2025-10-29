@@ -139,7 +139,8 @@ func (s *Scheduler) syncPodGroup(podGroup *schedulingv1alpha1.PodGroup) error {
 		Name:      podGroup.Name,
 	}
 
-	if err := s.client.Get(context.TODO(), key, &schedulingv1alpha1.PodGroup{}); err != nil {
+	existing := &schedulingv1alpha1.PodGroup{}
+	if err := s.client.Get(context.TODO(), key, existing); err != nil {
 		if !errors.IsNotFound(err) {
 			return err
 		}
@@ -150,6 +151,8 @@ func (s *Scheduler) syncPodGroup(podGroup *schedulingv1alpha1.PodGroup) error {
 		logger.Info("Created PodGroup", "Name", podGroup.Name, "Namespace", podGroup.Namespace)
 		return nil
 	}
+
+	podGroup.SetResourceVersion(existing.GetResourceVersion())
 
 	if err := s.client.Update(context.TODO(), podGroup); err != nil {
 		return err
