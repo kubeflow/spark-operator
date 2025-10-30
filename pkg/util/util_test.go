@@ -115,7 +115,7 @@ var _ = Describe("BoolPtr", func() {
 var _ = Describe("Int32Ptr", func() {
 	It("Should return a pointer to the given int32 value", func() {
 		i := int32(42)
-		Expect(util.Int32Ptr(i)).To(Equal(&i))
+		Expect(ptr.To[int32](i)).To(Equal(&i))
 	})
 })
 

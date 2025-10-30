@@ -77,12 +77,12 @@ func TestExecutorConfOption(t *testing.T) {
 						CoreRequest: util.StringPtr("2"),
 						SparkPodSpec: v1beta2.SparkPodSpec{
 							Image:          util.StringPtr("custom-executor:v1"),
-							Cores:          util.Int32Ptr(4),
+							Cores:          ptr.To[int32](4),
 							CoreLimit:      util.StringPtr("4"),
 							Memory:         util.StringPtr("4g"),
 							MemoryOverhead: util.StringPtr("1g"),
 						},
-						Instances:           util.Int32Ptr(3),
+						Instances:           ptr.To[int32](3),
 						DeleteOnTermination: ptr.To(true),
 					},
 				},
@@ -245,7 +245,7 @@ func TestDriverConfOption(t *testing.T) {
 				Spec: v1beta2.SparkApplicationSpec{
 					Driver: v1beta2.DriverSpec{
 						SparkPodSpec: v1beta2.SparkPodSpec{
-							Cores:      util.Int32Ptr(2),
+							Cores:      ptr.To[int32](2),
 							CoreLimit:  util.StringPtr("2"),
 							Memory:     util.StringPtr("2g"),
 							Image:      util.StringPtr("spark-driver:latest"),
@@ -1133,9 +1133,9 @@ func TestExecutorPodTemplateContents(t *testing.T) {
 // 		Spec: v1beta2.SparkApplicationSpec{
 // 			DynamicAllocation: &v1beta2.DynamicAllocation{
 // 				Enabled:                true,
-// 				InitialExecutors:       util.Int32Ptr(2),
-// 				MinExecutors:           util.Int32Ptr(0),
-// 				MaxExecutors:           util.Int32Ptr(10),
+// 				InitialExecutors:       ptr.To[int32](2),
+// 				MinExecutors:           ptr.To[int32](0),
+// 				MaxExecutors:           ptr.To[int32](10),
 // 				ShuffleTrackingTimeout: util.Int64Ptr(6000000),
 // 			},
 // 		},

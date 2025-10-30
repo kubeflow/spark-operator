@@ -24,6 +24,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
@@ -139,7 +140,7 @@ func TestConfigPrometheusMonitoring(t *testing.T) {
 						MetricsProperties:     util.StringPtr("testcase2dummy"),
 						Prometheus: &v1beta2.PrometheusSpec{
 							JmxExporterJar: "/prometheus/exporter.jar",
-							Port:           util.Int32Ptr(8091),
+							Port:           ptr.To[int32](8091),
 							Configuration:  util.StringPtr("testcase2dummy"),
 						},
 					},
@@ -170,7 +171,7 @@ func TestConfigPrometheusMonitoring(t *testing.T) {
 						MetricsProperties:     util.StringPtr("testcase3dummy"),
 						Prometheus: &v1beta2.PrometheusSpec{
 							JmxExporterJar: "/prometheus/exporter.jar",
-							Port:           util.Int32Ptr(8091),
+							Port:           ptr.To[int32](8091),
 							ConfigFile:     util.StringPtr("testcase3dummy.yaml"),
 						},
 					},
@@ -200,7 +201,7 @@ func TestConfigPrometheusMonitoring(t *testing.T) {
 						MetricsPropertiesFile: util.StringPtr("/testcase4dummy/metrics.properties"),
 						Prometheus: &v1beta2.PrometheusSpec{
 							JmxExporterJar: "/prometheus/exporter.jar",
-							Port:           util.Int32Ptr(8091),
+							Port:           ptr.To[int32](8091),
 							ConfigFile:     util.StringPtr("testcase4dummy.yaml"),
 						},
 					},
@@ -230,7 +231,7 @@ func TestConfigPrometheusMonitoring(t *testing.T) {
 						MetricsPropertiesFile: util.StringPtr("/testcase5dummy/metrics.properties"),
 						Prometheus: &v1beta2.PrometheusSpec{
 							JmxExporterJar: "/prometheus/exporter.jar",
-							Port:           util.Int32Ptr(8091),
+							Port:           ptr.To[int32](8091),
 						},
 					},
 				},
@@ -297,7 +298,7 @@ func TestConfigPrometheusMonitoring(t *testing.T) {
 						ExposeExecutorMetrics: true,
 						Prometheus: &v1beta2.PrometheusSpec{
 							JmxExporterJar: "/prometheus/exporter.jar",
-							Port:           util.Int32Ptr(1000),
+							Port:           ptr.To[int32](1000),
 							PortName:       util.StringPtr("metrics-port"),
 						},
 					},

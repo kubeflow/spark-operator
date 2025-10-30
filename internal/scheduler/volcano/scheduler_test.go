@@ -25,6 +25,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	clienttesting "k8s.io/client-go/testing"
+	"k8s.io/utils/ptr"
 	"volcano.sh/apis/pkg/apis/scheduling/v1beta1"
 	fakevolcanoclientset "volcano.sh/apis/pkg/client/clientset/versioned/fake"
 
@@ -53,7 +54,7 @@ func TestSchedule(t *testing.T) {
 						SparkPodSpec: v1beta2.SparkPodSpec{},
 					},
 					Executor: v1beta2.ExecutorSpec{
-						Instances:    util.Int32Ptr(1),
+						Instances:    ptr.To[int32](1),
 						SparkPodSpec: v1beta2.SparkPodSpec{},
 					},
 					BatchSchedulerOptions: &v1beta2.BatchSchedulerConfiguration{
@@ -79,7 +80,7 @@ func TestSchedule(t *testing.T) {
 						SparkPodSpec: v1beta2.SparkPodSpec{},
 					},
 					Executor: v1beta2.ExecutorSpec{
-						Instances:    util.Int32Ptr(1),
+						Instances:    ptr.To[int32](1),
 						SparkPodSpec: v1beta2.SparkPodSpec{},
 					},
 					BatchSchedulerOptions: &v1beta2.BatchSchedulerConfiguration{
@@ -103,14 +104,14 @@ func TestSchedule(t *testing.T) {
 					Driver: v1beta2.DriverSpec{
 						SparkPodSpec: v1beta2.SparkPodSpec{
 							Memory: util.StringPtr("2g"),
-							Cores:  util.Int32Ptr(1),
+							Cores:  ptr.To[int32](1),
 						},
 					},
 					Executor: v1beta2.ExecutorSpec{
-						Instances: util.Int32Ptr(2),
+						Instances: ptr.To[int32](2),
 						SparkPodSpec: v1beta2.SparkPodSpec{
 							Memory: util.StringPtr("1g"),
-							Cores:  util.Int32Ptr(1),
+							Cores:  ptr.To[int32](1),
 						},
 					},
 					BatchSchedulerOptions: &v1beta2.BatchSchedulerConfiguration{
@@ -138,14 +139,14 @@ func TestSchedule(t *testing.T) {
 					Driver: v1beta2.DriverSpec{
 						SparkPodSpec: v1beta2.SparkPodSpec{
 							Memory: util.StringPtr("2g"),
-							Cores:  util.Int32Ptr(1),
+							Cores:  ptr.To[int32](1),
 						},
 					},
 					Executor: v1beta2.ExecutorSpec{
-						Instances: util.Int32Ptr(2),
+						Instances: ptr.To[int32](2),
 						SparkPodSpec: v1beta2.SparkPodSpec{
 							Memory: util.StringPtr("1g"),
-							Cores:  util.Int32Ptr(1),
+							Cores:  ptr.To[int32](1),
 						},
 					},
 					BatchSchedulerOptions: nil,
@@ -167,14 +168,14 @@ func TestSchedule(t *testing.T) {
 					Driver: v1beta2.DriverSpec{
 						SparkPodSpec: v1beta2.SparkPodSpec{
 							Memory: util.StringPtr("2g"),
-							Cores:  util.Int32Ptr(1),
+							Cores:  ptr.To[int32](1),
 						},
 					},
 					Executor: v1beta2.ExecutorSpec{
-						Instances: util.Int32Ptr(3),
+						Instances: ptr.To[int32](3),
 						SparkPodSpec: v1beta2.SparkPodSpec{
 							Memory: util.StringPtr("1g"),
-							Cores:  util.Int32Ptr(1),
+							Cores:  ptr.To[int32](1),
 						},
 					},
 					BatchSchedulerOptions: &v1beta2.BatchSchedulerConfiguration{
@@ -203,14 +204,14 @@ func TestSchedule(t *testing.T) {
 					Driver: v1beta2.DriverSpec{
 						SparkPodSpec: v1beta2.SparkPodSpec{
 							Memory: util.StringPtr("2g"),
-							Cores:  util.Int32Ptr(1),
+							Cores:  ptr.To[int32](1),
 						},
 					},
 					Executor: v1beta2.ExecutorSpec{
-						Instances: util.Int32Ptr(2),
+						Instances: ptr.To[int32](2),
 						SparkPodSpec: v1beta2.SparkPodSpec{
 							Memory: util.StringPtr("1g"),
-							Cores:  util.Int32Ptr(1),
+							Cores:  ptr.To[int32](1),
 						},
 					},
 					BatchSchedulerOptions: nil,
