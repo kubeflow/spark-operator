@@ -163,6 +163,9 @@ unit-test: envtest ## Run unit tests.
 	@echo "Running unit tests..."
 	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)"
 	go test $(shell go list ./... | grep -v /e2e) -coverprofile cover.out
+	@echo "Generating HTML coverage report..."
+	go tool cover -html=cover.out -o cover.html
+	@echo "Coverage report available at cover.html"
 
 .PHONY: e2e-test
 e2e-test: envtest ## Run the e2e tests against a Kind k8s instance that is spun up.
