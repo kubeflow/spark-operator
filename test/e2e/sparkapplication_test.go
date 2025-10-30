@@ -33,6 +33,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/yaml"
+	clientretry "k8s.io/client-go/util/retry"
 	"k8s.io/utils/ptr"
 
 	"github.com/kubeflow/spark-operator/v2/api/v1beta2"
@@ -440,10 +441,15 @@ var _ = Describe("Example SparkApplication", func() {
 
 			By("Suspending Spark Application")
 			Eventually(func(g Gomega) {
-				app := &v1beta2.SparkApplication{}
-				Expect(k8sClient.Get(ctx, key, app)).To(Succeed())
-				app.Spec.Suspend = ptr.To(true)
-				Expect(k8sClient.Update(ctx, app)).To(Succeed())
+				err := clientretry.RetryOnConflict(clientretry.DefaultRetry, func() error {
+					app := &v1beta2.SparkApplication{}
+					if err := k8sClient.Get(ctx, key, app); err != nil {
+						return err
+					}
+					app.Spec.Suspend = ptr.To(true)
+					return k8sClient.Update(ctx, app)
+				})
+				g.Expect(err).NotTo(HaveOccurred())
 			}).WithTimeout(5 * time.Second).Should(Succeed())
 
 			By("Waiting for SparkApplication to Suspended")
@@ -455,10 +461,15 @@ var _ = Describe("Example SparkApplication", func() {
 
 			By("Resuming for SparkApplication")
 			Eventually(func(g Gomega) {
-				app := &v1beta2.SparkApplication{}
-				Expect(k8sClient.Get(ctx, key, app)).To(Succeed())
-				app.Spec.Suspend = ptr.To(false)
-				Expect(k8sClient.Update(ctx, app)).To(Succeed())
+				err := clientretry.RetryOnConflict(clientretry.DefaultRetry, func() error {
+					app := &v1beta2.SparkApplication{}
+					if err := k8sClient.Get(ctx, key, app); err != nil {
+						return err
+					}
+					app.Spec.Suspend = ptr.To(false)
+					return k8sClient.Update(ctx, app)
+				})
+				g.Expect(err).NotTo(HaveOccurred())
 			}).WithTimeout(5 * time.Second).Should(Succeed())
 
 			By("Waiting for SparkApplication to Running")
