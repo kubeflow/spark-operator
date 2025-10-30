@@ -175,16 +175,16 @@ func newTestSparkApplication() *v1beta2.SparkApplication {
 			Driver: v1beta2.DriverSpec{
 				SparkPodSpec: v1beta2.SparkPodSpec{
 					Cores:          ptr.To[int32](1),
-					Memory:         util.StringPtr("1Gi"),
-					MemoryOverhead: util.StringPtr("256Mi"),
+					Memory:         ptr.To("1Gi"),
+					MemoryOverhead: ptr.To("256Mi"),
 				},
 			},
 			Executor: v1beta2.ExecutorSpec{
 				Instances: ptr.To[int32](2),
 				SparkPodSpec: v1beta2.SparkPodSpec{
 					Cores:          ptr.To[int32](1),
-					Memory:         util.StringPtr("2Gi"),
-					MemoryOverhead: util.StringPtr("512Mi"),
+					Memory:         ptr.To("2Gi"),
+					MemoryOverhead: ptr.To("512Mi"),
 				},
 			},
 		},

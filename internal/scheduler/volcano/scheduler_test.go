@@ -58,8 +58,8 @@ func TestSchedule(t *testing.T) {
 						SparkPodSpec: v1beta2.SparkPodSpec{},
 					},
 					BatchSchedulerOptions: &v1beta2.BatchSchedulerConfiguration{
-						Queue:             util.StringPtr("high-priority"),
-						PriorityClassName: util.StringPtr("high"),
+						Queue:             ptr.To("high-priority"),
+						PriorityClassName: ptr.To("high"),
 					},
 				},
 			},
@@ -84,7 +84,7 @@ func TestSchedule(t *testing.T) {
 						SparkPodSpec: v1beta2.SparkPodSpec{},
 					},
 					BatchSchedulerOptions: &v1beta2.BatchSchedulerConfiguration{
-						Queue: util.StringPtr("batch-queue"),
+						Queue: ptr.To("batch-queue"),
 					},
 				},
 			},
@@ -103,14 +103,14 @@ func TestSchedule(t *testing.T) {
 					Mode: v1beta2.DeployModeClient,
 					Driver: v1beta2.DriverSpec{
 						SparkPodSpec: v1beta2.SparkPodSpec{
-							Memory: util.StringPtr("2g"),
+							Memory: ptr.To("2g"),
 							Cores:  ptr.To[int32](1),
 						},
 					},
 					Executor: v1beta2.ExecutorSpec{
 						Instances: ptr.To[int32](2),
 						SparkPodSpec: v1beta2.SparkPodSpec{
-							Memory: util.StringPtr("1g"),
+							Memory: ptr.To("1g"),
 							Cores:  ptr.To[int32](1),
 						},
 					},
@@ -138,14 +138,14 @@ func TestSchedule(t *testing.T) {
 					Mode: v1beta2.DeployModeClient,
 					Driver: v1beta2.DriverSpec{
 						SparkPodSpec: v1beta2.SparkPodSpec{
-							Memory: util.StringPtr("2g"),
+							Memory: ptr.To("2g"),
 							Cores:  ptr.To[int32](1),
 						},
 					},
 					Executor: v1beta2.ExecutorSpec{
 						Instances: ptr.To[int32](2),
 						SparkPodSpec: v1beta2.SparkPodSpec{
-							Memory: util.StringPtr("1g"),
+							Memory: ptr.To("1g"),
 							Cores:  ptr.To[int32](1),
 						},
 					},
@@ -167,19 +167,19 @@ func TestSchedule(t *testing.T) {
 					Mode: v1beta2.DeployModeCluster,
 					Driver: v1beta2.DriverSpec{
 						SparkPodSpec: v1beta2.SparkPodSpec{
-							Memory: util.StringPtr("2g"),
+							Memory: ptr.To("2g"),
 							Cores:  ptr.To[int32](1),
 						},
 					},
 					Executor: v1beta2.ExecutorSpec{
 						Instances: ptr.To[int32](3),
 						SparkPodSpec: v1beta2.SparkPodSpec{
-							Memory: util.StringPtr("1g"),
+							Memory: ptr.To("1g"),
 							Cores:  ptr.To[int32](1),
 						},
 					},
 					BatchSchedulerOptions: &v1beta2.BatchSchedulerConfiguration{
-						Queue: util.StringPtr("gpu-queue"),
+						Queue: ptr.To("gpu-queue"),
 						Resources: corev1.ResourceList{
 							corev1.ResourceCPU:         resource.MustParse("6"),
 							corev1.ResourceMemory:      resource.MustParse("12Gi"),
@@ -203,14 +203,14 @@ func TestSchedule(t *testing.T) {
 					Mode: v1beta2.DeployModeCluster,
 					Driver: v1beta2.DriverSpec{
 						SparkPodSpec: v1beta2.SparkPodSpec{
-							Memory: util.StringPtr("2g"),
+							Memory: ptr.To("2g"),
 							Cores:  ptr.To[int32](1),
 						},
 					},
 					Executor: v1beta2.ExecutorSpec{
 						Instances: ptr.To[int32](2),
 						SparkPodSpec: v1beta2.SparkPodSpec{
-							Memory: util.StringPtr("1g"),
+							Memory: ptr.To("1g"),
 							Cores:  ptr.To[int32](1),
 						},
 					},

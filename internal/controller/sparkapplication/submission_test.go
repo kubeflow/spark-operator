@@ -74,13 +74,13 @@ func TestExecutorConfOption(t *testing.T) {
 				},
 				Spec: v1beta2.SparkApplicationSpec{
 					Executor: v1beta2.ExecutorSpec{
-						CoreRequest: util.StringPtr("2"),
+						CoreRequest: ptr.To("2"),
 						SparkPodSpec: v1beta2.SparkPodSpec{
-							Image:          util.StringPtr("custom-executor:v1"),
+							Image:          ptr.To("custom-executor:v1"),
 							Cores:          ptr.To[int32](4),
-							CoreLimit:      util.StringPtr("4"),
-							Memory:         util.StringPtr("4g"),
-							MemoryOverhead: util.StringPtr("1g"),
+							CoreLimit:      ptr.To("4"),
+							Memory:         ptr.To("4g"),
+							MemoryOverhead: ptr.To("1g"),
 						},
 						Instances:           ptr.To[int32](3),
 						DeleteOnTermination: ptr.To(true),
@@ -246,9 +246,9 @@ func TestDriverConfOption(t *testing.T) {
 					Driver: v1beta2.DriverSpec{
 						SparkPodSpec: v1beta2.SparkPodSpec{
 							Cores:      ptr.To[int32](2),
-							CoreLimit:  util.StringPtr("2"),
-							Memory:     util.StringPtr("2g"),
-							Image:      util.StringPtr("spark-driver:latest"),
+							CoreLimit:  ptr.To("2"),
+							Memory:     ptr.To("2g"),
+							Image:      ptr.To("spark-driver:latest"),
 							ConfigMaps: []v1beta2.NamePath{{Name: "driver-config", Path: "/etc/config"}},
 						},
 					},
@@ -1171,7 +1171,7 @@ func TestExecutorPodTemplateContents(t *testing.T) {
 // 		},
 // 		Spec: v1beta2.SparkApplicationSpec{
 // 			Mode:      v1beta2.ClusterMode,
-// 			ProxyUser: util.StringPtr("foo"),
+// 			ProxyUser: ptr.To("foo"),
 // 		},
 // 	}
 

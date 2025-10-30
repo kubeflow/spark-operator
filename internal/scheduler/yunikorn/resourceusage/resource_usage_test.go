@@ -21,8 +21,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"k8s.io/utils/ptr"
-
-	"github.com/kubeflow/spark-operator/v2/pkg/util"
 )
 
 func TestCpuRequest(t *testing.T) {
@@ -33,8 +31,8 @@ func TestCpuRequest(t *testing.T) {
 	}{
 		{nil, nil, "1"},
 		{ptr.To[int32](1), nil, "1"},
-		{nil, util.StringPtr("1"), "1"},
-		{ptr.To[int32](1), util.StringPtr("500m"), "500m"},
+		{nil, ptr.To("1"), "1"},
+		{ptr.To[int32](1), ptr.To("500m"), "500m"},
 	}
 
 	for _, tc := range testCases {

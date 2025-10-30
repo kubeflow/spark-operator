@@ -129,19 +129,19 @@ func TestConfigPrometheusMonitoring(t *testing.T) {
 				},
 				Spec: v1beta2.SparkApplicationSpec{
 					Driver: v1beta2.DriverSpec{
-						JavaOptions: util.StringPtr("-XX:+PrintGCDetails -XX:+PrintGCTimeStamps"),
+						JavaOptions: ptr.To("-XX:+PrintGCDetails -XX:+PrintGCTimeStamps"),
 					},
 					Executor: v1beta2.ExecutorSpec{
-						JavaOptions: util.StringPtr("-XX:+PrintGCDetails -XX:+PrintGCTimeStamps"),
+						JavaOptions: ptr.To("-XX:+PrintGCDetails -XX:+PrintGCTimeStamps"),
 					},
 					Monitoring: &v1beta2.MonitoringSpec{
 						ExposeDriverMetrics:   true,
 						ExposeExecutorMetrics: true,
-						MetricsProperties:     util.StringPtr("testcase2dummy"),
+						MetricsProperties:     ptr.To("testcase2dummy"),
 						Prometheus: &v1beta2.PrometheusSpec{
 							JmxExporterJar: "/prometheus/exporter.jar",
 							Port:           ptr.To[int32](8091),
-							Configuration:  util.StringPtr("testcase2dummy"),
+							Configuration:  ptr.To("testcase2dummy"),
 						},
 					},
 				},
@@ -160,19 +160,19 @@ func TestConfigPrometheusMonitoring(t *testing.T) {
 				},
 				Spec: v1beta2.SparkApplicationSpec{
 					Driver: v1beta2.DriverSpec{
-						JavaOptions: util.StringPtr("-XX:+PrintGCDetails -XX:+PrintGCTimeStamps"),
+						JavaOptions: ptr.To("-XX:+PrintGCDetails -XX:+PrintGCTimeStamps"),
 					},
 					Executor: v1beta2.ExecutorSpec{
-						JavaOptions: util.StringPtr("-XX:+PrintGCDetails -XX:+PrintGCTimeStamps"),
+						JavaOptions: ptr.To("-XX:+PrintGCDetails -XX:+PrintGCTimeStamps"),
 					},
 					Monitoring: &v1beta2.MonitoringSpec{
 						ExposeDriverMetrics:   true,
 						ExposeExecutorMetrics: true,
-						MetricsProperties:     util.StringPtr("testcase3dummy"),
+						MetricsProperties:     ptr.To("testcase3dummy"),
 						Prometheus: &v1beta2.PrometheusSpec{
 							JmxExporterJar: "/prometheus/exporter.jar",
 							Port:           ptr.To[int32](8091),
-							ConfigFile:     util.StringPtr("testcase3dummy.yaml"),
+							ConfigFile:     ptr.To("testcase3dummy.yaml"),
 						},
 					},
 				},
@@ -190,19 +190,19 @@ func TestConfigPrometheusMonitoring(t *testing.T) {
 				},
 				Spec: v1beta2.SparkApplicationSpec{
 					Driver: v1beta2.DriverSpec{
-						JavaOptions: util.StringPtr("-XX:+PrintGCDetails -XX:+PrintGCTimeStamps"),
+						JavaOptions: ptr.To("-XX:+PrintGCDetails -XX:+PrintGCTimeStamps"),
 					},
 					Executor: v1beta2.ExecutorSpec{
-						JavaOptions: util.StringPtr("-XX:+PrintGCDetails -XX:+PrintGCTimeStamps"),
+						JavaOptions: ptr.To("-XX:+PrintGCDetails -XX:+PrintGCTimeStamps"),
 					},
 					Monitoring: &v1beta2.MonitoringSpec{
 						ExposeDriverMetrics:   true,
 						ExposeExecutorMetrics: true,
-						MetricsPropertiesFile: util.StringPtr("/testcase4dummy/metrics.properties"),
+						MetricsPropertiesFile: ptr.To("/testcase4dummy/metrics.properties"),
 						Prometheus: &v1beta2.PrometheusSpec{
 							JmxExporterJar: "/prometheus/exporter.jar",
 							Port:           ptr.To[int32](8091),
-							ConfigFile:     util.StringPtr("testcase4dummy.yaml"),
+							ConfigFile:     ptr.To("testcase4dummy.yaml"),
 						},
 					},
 				},
@@ -220,15 +220,15 @@ func TestConfigPrometheusMonitoring(t *testing.T) {
 				},
 				Spec: v1beta2.SparkApplicationSpec{
 					Driver: v1beta2.DriverSpec{
-						JavaOptions: util.StringPtr("-XX:+PrintGCDetails -XX:+PrintGCTimeStamps"),
+						JavaOptions: ptr.To("-XX:+PrintGCDetails -XX:+PrintGCTimeStamps"),
 					},
 					Executor: v1beta2.ExecutorSpec{
-						JavaOptions: util.StringPtr("-XX:+PrintGCDetails -XX:+PrintGCTimeStamps"),
+						JavaOptions: ptr.To("-XX:+PrintGCDetails -XX:+PrintGCTimeStamps"),
 					},
 					Monitoring: &v1beta2.MonitoringSpec{
 						ExposeDriverMetrics:   true,
 						ExposeExecutorMetrics: true,
-						MetricsPropertiesFile: util.StringPtr("/testcase5dummy/metrics.properties"),
+						MetricsPropertiesFile: ptr.To("/testcase5dummy/metrics.properties"),
 						Prometheus: &v1beta2.PrometheusSpec{
 							JmxExporterJar: "/prometheus/exporter.jar",
 							Port:           ptr.To[int32](8091),
@@ -256,7 +256,7 @@ func TestConfigPrometheusMonitoring(t *testing.T) {
 							JmxExporterJar: "/prometheus/exporter.jar",
 						},
 					},
-					Driver: v1beta2.DriverSpec{JavaOptions: util.StringPtr("testdummy")},
+					Driver: v1beta2.DriverSpec{JavaOptions: ptr.To("testdummy")},
 				},
 			},
 			metricsProperties: common.DefaultMetricsProperties,
@@ -278,7 +278,7 @@ func TestConfigPrometheusMonitoring(t *testing.T) {
 							JmxExporterJar: "/prometheus/exporter.jar",
 						},
 					},
-					Executor: v1beta2.ExecutorSpec{JavaOptions: util.StringPtr("testdummy")},
+					Executor: v1beta2.ExecutorSpec{JavaOptions: ptr.To("testdummy")},
 				},
 			},
 			metricsProperties:   common.DefaultMetricsProperties,
@@ -299,7 +299,7 @@ func TestConfigPrometheusMonitoring(t *testing.T) {
 						Prometheus: &v1beta2.PrometheusSpec{
 							JmxExporterJar: "/prometheus/exporter.jar",
 							Port:           ptr.To[int32](1000),
-							PortName:       util.StringPtr("metrics-port"),
+							PortName:       ptr.To("metrics-port"),
 						},
 					},
 				},
@@ -318,15 +318,15 @@ func TestConfigPrometheusMonitoring(t *testing.T) {
 				},
 				Spec: v1beta2.SparkApplicationSpec{
 					Driver: v1beta2.DriverSpec{
-						JavaOptions: util.StringPtr("-XX:+PrintGCDetails -XX:+PrintGCTimeStamps"),
+						JavaOptions: ptr.To("-XX:+PrintGCDetails -XX:+PrintGCTimeStamps"),
 					},
 					Executor: v1beta2.ExecutorSpec{
-						JavaOptions: util.StringPtr("-XX:+PrintGCDetails -XX:+PrintGCTimeStamps"),
+						JavaOptions: ptr.To("-XX:+PrintGCDetails -XX:+PrintGCTimeStamps"),
 					},
 					Monitoring: &v1beta2.MonitoringSpec{
 						ExposeDriverMetrics:   false,
 						ExposeExecutorMetrics: false,
-						MetricsProperties:     util.StringPtr("testcase2dummy"),
+						MetricsProperties:     ptr.To("testcase2dummy"),
 					},
 				},
 			},

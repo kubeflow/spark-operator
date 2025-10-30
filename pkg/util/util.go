@@ -80,10 +80,6 @@ func RemoveString(slice []string, s string) (result []string) {
 	return result
 }
 
-func StringPtr(s string) *string {
-	return &s
-}
-
 // CompareSemanticVersion compares two semantic versions.
 func CompareSemanticVersion(v1, v2 string) int {
 	// Add 'v' prefix if needed
