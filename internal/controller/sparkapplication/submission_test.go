@@ -1136,7 +1136,7 @@ func TestExecutorPodTemplateContents(t *testing.T) {
 // 				InitialExecutors:       ptr.To[int32](2),
 // 				MinExecutors:           ptr.To[int32](0),
 // 				MaxExecutors:           ptr.To[int32](10),
-// 				ShuffleTrackingTimeout: util.Int64Ptr(6000000),
+// 				ShuffleTrackingTimeout: ptr.To[int64](6000000),
 // 			},
 // 		},
 // 	}

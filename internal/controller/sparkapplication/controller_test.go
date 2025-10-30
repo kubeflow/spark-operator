@@ -514,7 +514,7 @@ var _ = Describe("SparkApplication Controller", func() {
 			By("Set TimeToLiveSeconds and make the SparkApplication expired")
 			app := &v1beta2.SparkApplication{}
 			Expect(k8sClient.Get(ctx, key, app)).To(Succeed())
-			app.Spec.TimeToLiveSeconds = util.Int64Ptr(60)
+			app.Spec.TimeToLiveSeconds = ptr.To[int64](60)
 			Expect(k8sClient.Update(ctx, app)).To(Succeed())
 			app.Status.TerminationTime = metav1.NewTime(time.Now().Add(-2 * time.Minute))
 			Expect(k8sClient.Status().Update(ctx, app)).To(Succeed())
@@ -629,7 +629,7 @@ var _ = Describe("SparkApplication Controller", func() {
 			By("Set TimeToLiveSeconds and make the SparkApplication expired")
 			app := &v1beta2.SparkApplication{}
 			Expect(k8sClient.Get(ctx, key, app)).To(Succeed())
-			app.Spec.TimeToLiveSeconds = util.Int64Ptr(60)
+			app.Spec.TimeToLiveSeconds = ptr.To[int64](60)
 			Expect(k8sClient.Update(ctx, app)).To(Succeed())
 			app.Status.TerminationTime = metav1.NewTime(time.Now().Add(-2 * time.Minute))
 			Expect(k8sClient.Status().Update(ctx, app)).To(Succeed())

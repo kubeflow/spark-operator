@@ -122,7 +122,7 @@ var _ = Describe("Int32Ptr", func() {
 var _ = Describe("Int64Ptr", func() {
 	It("Should return a pointer to the given int64 value", func() {
 		i := int64(42)
-		Expect(util.Int64Ptr(i)).To(Equal(&i))
+		Expect(ptr.To[int64](i)).To(Equal(&i))
 	})
 })
 

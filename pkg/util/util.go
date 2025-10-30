@@ -80,10 +80,6 @@ func RemoveString(slice []string, s string) (result []string) {
 	return result
 }
 
-func Int64Ptr(n int64) *int64 {
-	return &n
-}
-
 func StringPtr(s string) *string {
 	return &s
 }
