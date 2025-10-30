@@ -80,10 +80,6 @@ func RemoveString(slice []string, s string) (result []string) {
 	return result
 }
 
-func BoolPtr(b bool) *bool {
-	return &b
-}
-
 func Int32Ptr(n int32) *int32 {
 	return &n
 }

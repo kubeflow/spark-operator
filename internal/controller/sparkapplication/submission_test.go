@@ -29,6 +29,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/yaml"
 
 	"github.com/kubeflow/spark-operator/v2/api/v1beta2"
@@ -82,7 +83,7 @@ func TestExecutorConfOption(t *testing.T) {
 							MemoryOverhead: util.StringPtr("1g"),
 						},
 						Instances:           util.Int32Ptr(3),
-						DeleteOnTermination: util.BoolPtr(true),
+						DeleteOnTermination: ptr.To(true),
 					},
 				},
 			},

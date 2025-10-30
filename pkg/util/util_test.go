@@ -23,6 +23,7 @@ import (
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/utils/ptr"
 
 	"github.com/kubeflow/spark-operator/v2/pkg/common"
 	"github.com/kubeflow/spark-operator/v2/pkg/util"
@@ -107,7 +108,7 @@ var _ = Describe("RemoveString", func() {
 var _ = Describe("BoolPtr", func() {
 	It("Should return a pointer to the given bool value", func() {
 		b := true
-		Expect(util.BoolPtr(b)).To(Equal(&b))
+		Expect(ptr.To(b)).To(Equal(&b))
 	})
 })
 
