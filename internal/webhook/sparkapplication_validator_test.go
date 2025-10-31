@@ -246,6 +246,57 @@ func newTestScheme(t *testing.T) *runtime.Scheme {
 	return scheme
 }
 
+func TestSparkApplicationValidatorValidateName(t *testing.T) {
+	validator := newTestValidator(t, false)
+
+	tests := []struct {
+		name      string
+		appName   string
+		wantError bool
+	}{
+		// Valid names
+		{"valid simple name", "test-app", false},
+		{"valid name with numbers", "test-app-123", false},
+		{"valid single letter", "a", false},
+		{"valid name ending with number", "my-app-1", false},
+		{"valid name with multiple hyphens", "my-test-app-123", false},
+		{"valid 63 char name", strings.Repeat("a", 63), false},
+		{"valid name with hyphens in middle", "a-b-c-d-e", false},
+
+		// Invalid names
+		{"name starting with number", "123test-app", true},
+		{"name with uppercase", "Test-App", true},
+		{"name with uppercase at start", "TestApp", true},
+		{"name with uppercase in middle", "test-App", true},
+		{"name starting with hyphen", "-test-app", true},
+		{"name ending with hyphen", "test-app-", true},
+		{"name with consecutive hyphens", "test--app", true},
+		{"empty name", "", true},
+		{"name too long", strings.Repeat("a", 64), true},
+		{"name with special characters", "test@app", true},
+		{"name with underscore", "test_app", true},
+		{"name with spaces", "test app", true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			app := newSparkApplication()
+			app.Name = tt.appName
+
+			_, err := validator.ValidateCreate(context.Background(), app)
+			hasError := err != nil
+
+			if hasError != tt.wantError {
+				t.Errorf("validateName(%q) = error %v, wantError %v, got error: %v", tt.appName, hasError, tt.wantError, err)
+			}
+
+			if hasError && !strings.Contains(err.Error(), "name must contain only lowercase letters") {
+				t.Errorf("validateName(%q) error message should mention validation requirements, got: %v", tt.appName, err)
+			}
+		})
+	}
+}
+
 func newSparkApplication() *v1beta2.SparkApplication {
 	mainFile := "local:///app.py"
 	return &v1beta2.SparkApplication{
