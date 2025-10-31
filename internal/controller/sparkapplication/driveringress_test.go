@@ -26,11 +26,11 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	"github.com/kubeflow/spark-operator/v2/api/v1beta2"
 	"github.com/kubeflow/spark-operator/v2/pkg/common"
-	"github.com/kubeflow/spark-operator/v2/pkg/util"
 )
 
 func TestCreateDriverIngressService(t *testing.T) {
@@ -111,7 +111,7 @@ func TestCreateDriverIngressService(t *testing.T) {
 		Spec: v1beta2.SparkApplicationSpec{
 			DriverIngressOptions: []v1beta2.DriverIngressConfiguration{
 				{
-					ServicePort:   util.Int32Ptr(8888),
+					ServicePort:   ptr.To[int32](8888),
 					ServiceLabels: map[string]string{"foo": "bar"},
 				},
 			},
@@ -130,7 +130,7 @@ func TestCreateDriverIngressService(t *testing.T) {
 		Spec: v1beta2.SparkApplicationSpec{
 			DriverIngressOptions: []v1beta2.DriverIngressConfiguration{
 				{
-					ServicePort: util.Int32Ptr(8888),
+					ServicePort: ptr.To[int32](8888),
 				},
 			},
 		},
@@ -166,7 +166,7 @@ func TestCreateDriverIngressService(t *testing.T) {
 		Spec: v1beta2.SparkApplicationSpec{
 			DriverIngressOptions: []v1beta2.DriverIngressConfiguration{
 				{
-					ServicePort: util.Int32Ptr(4041),
+					ServicePort: ptr.To[int32](4041),
 				},
 			},
 		},
@@ -184,7 +184,7 @@ func TestCreateDriverIngressService(t *testing.T) {
 		Spec: v1beta2.SparkApplicationSpec{
 			DriverIngressOptions: []v1beta2.DriverIngressConfiguration{
 				{
-					ServicePort: util.Int32Ptr(8888),
+					ServicePort: ptr.To[int32](8888),
 					ServiceType: &serviceTypeNodePort,
 				},
 			},
@@ -222,7 +222,7 @@ func TestCreateDriverIngressService(t *testing.T) {
 		Spec: v1beta2.SparkApplicationSpec{
 			DriverIngressOptions: []v1beta2.DriverIngressConfiguration{
 				{
-					ServicePort: util.Int32Ptr(8888),
+					ServicePort: ptr.To[int32](8888),
 					ServiceAnnotations: map[string]string{
 						"key": "value",
 					},
@@ -243,7 +243,7 @@ func TestCreateDriverIngressService(t *testing.T) {
 		Spec: v1beta2.SparkApplicationSpec{
 			DriverIngressOptions: []v1beta2.DriverIngressConfiguration{
 				{
-					ServicePort: util.Int32Ptr(8888),
+					ServicePort: ptr.To[int32](8888),
 					ServiceLabels: map[string]string{
 						"foo": "bar",
 					},

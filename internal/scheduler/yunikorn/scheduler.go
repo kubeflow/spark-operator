@@ -22,6 +22,7 @@ import (
 	"maps"
 
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/utils/ptr"
 
 	"github.com/kubeflow/spark-operator/v2/api/v1beta2"
 	"github.com/kubeflow/spark-operator/v2/internal/scheduler"
@@ -111,8 +112,8 @@ func (s *Scheduler) Schedule(app *v1beta2.SparkApplication) error {
 
 	// Ensure that the driver and executors pods are scheduled by Yunikorn
 	// if it is installed with the admissions controller disabled
-	app.Spec.Driver.SchedulerName = util.StringPtr(SchedulerName)
-	app.Spec.Executor.SchedulerName = util.StringPtr(SchedulerName)
+	app.Spec.Driver.SchedulerName = ptr.To(SchedulerName)
+	app.Spec.Executor.SchedulerName = ptr.To(SchedulerName)
 
 	// Yunikorn re-uses the application ID set by the driver under the label "spark-app-selector",
 	// so there is no need to set an application ID

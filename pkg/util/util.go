@@ -80,22 +80,6 @@ func RemoveString(slice []string, s string) (result []string) {
 	return result
 }
 
-func BoolPtr(b bool) *bool {
-	return &b
-}
-
-func Int32Ptr(n int32) *int32 {
-	return &n
-}
-
-func Int64Ptr(n int64) *int64 {
-	return &n
-}
-
-func StringPtr(s string) *string {
-	return &s
-}
-
 // CompareSemanticVersion compares two semantic versions.
 func CompareSemanticVersion(v1, v2 string) int {
 	// Add 'v' prefix if needed

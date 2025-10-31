@@ -27,6 +27,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
@@ -173,17 +174,17 @@ func newTestSparkApplication() *v1beta2.SparkApplication {
 			SparkVersion: "3.5.0",
 			Driver: v1beta2.DriverSpec{
 				SparkPodSpec: v1beta2.SparkPodSpec{
-					Cores:          util.Int32Ptr(1),
-					Memory:         util.StringPtr("1Gi"),
-					MemoryOverhead: util.StringPtr("256Mi"),
+					Cores:          ptr.To[int32](1),
+					Memory:         ptr.To("1Gi"),
+					MemoryOverhead: ptr.To("256Mi"),
 				},
 			},
 			Executor: v1beta2.ExecutorSpec{
-				Instances: util.Int32Ptr(2),
+				Instances: ptr.To[int32](2),
 				SparkPodSpec: v1beta2.SparkPodSpec{
-					Cores:          util.Int32Ptr(1),
-					Memory:         util.StringPtr("2Gi"),
-					MemoryOverhead: util.StringPtr("512Mi"),
+					Cores:          ptr.To[int32](1),
+					Memory:         ptr.To("2Gi"),
+					MemoryOverhead: ptr.To("512Mi"),
 				},
 			},
 		},

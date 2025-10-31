@@ -28,6 +28,7 @@ import (
 	networkingv1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/utils/ptr"
 
 	"github.com/kubeflow/spark-operator/v2/api/v1beta2"
 	"github.com/kubeflow/spark-operator/v2/pkg/common"
@@ -281,8 +282,8 @@ func GetOwnerReference(app *v1beta2.SparkApplication) metav1.OwnerReference {
 		Kind:               reflect.TypeOf(v1beta2.SparkApplication{}).Name(),
 		Name:               app.Name,
 		UID:                app.UID,
-		Controller:         BoolPtr(true),
-		BlockOwnerDeletion: BoolPtr(true),
+		Controller:         ptr.To(true),
+		BlockOwnerDeletion: ptr.To(true),
 	}
 }
 

@@ -22,9 +22,9 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/utils/ptr"
 
 	"github.com/kubeflow/spark-operator/v2/api/v1beta2"
-	"github.com/kubeflow/spark-operator/v2/pkg/util"
 )
 
 func TestSchedule(t *testing.T) {
@@ -40,21 +40,21 @@ func TestSchedule(t *testing.T) {
 					Type: v1beta2.SparkApplicationTypeScala,
 					Driver: v1beta2.DriverSpec{
 						SparkPodSpec: v1beta2.SparkPodSpec{
-							Cores:     util.Int32Ptr(1),
-							CoreLimit: util.StringPtr("1200m"),
-							Memory:    util.StringPtr("512m"),
+							Cores:     ptr.To[int32](1),
+							CoreLimit: ptr.To("1200m"),
+							Memory:    ptr.To("512m"),
 						},
 					},
 					Executor: v1beta2.ExecutorSpec{
-						Instances: util.Int32Ptr(2),
+						Instances: ptr.To[int32](2),
 						SparkPodSpec: v1beta2.SparkPodSpec{
-							Cores:     util.Int32Ptr(1),
-							CoreLimit: util.StringPtr("1200m"),
-							Memory:    util.StringPtr("512m"),
+							Cores:     ptr.To[int32](1),
+							CoreLimit: ptr.To("1200m"),
+							Memory:    ptr.To("512m"),
 						},
 					},
 					BatchSchedulerOptions: &v1beta2.BatchSchedulerConfiguration{
-						Queue: util.StringPtr("root.default"),
+						Queue: ptr.To("root.default"),
 					},
 				},
 			},
@@ -82,29 +82,29 @@ func TestSchedule(t *testing.T) {
 			app: &v1beta2.SparkApplication{
 				Spec: v1beta2.SparkApplicationSpec{
 					Type:                 v1beta2.SparkApplicationTypePython,
-					MemoryOverheadFactor: util.StringPtr("0.3"),
+					MemoryOverheadFactor: ptr.To("0.3"),
 					Driver: v1beta2.DriverSpec{
-						CoreRequest: util.StringPtr("2000m"),
+						CoreRequest: ptr.To("2000m"),
 						SparkPodSpec: v1beta2.SparkPodSpec{
-							Cores:  util.Int32Ptr(4),
-							Memory: util.StringPtr("8g"),
+							Cores:  ptr.To[int32](4),
+							Memory: ptr.To("8g"),
 						},
 					},
 					Executor: v1beta2.ExecutorSpec{
-						Instances: util.Int32Ptr(4),
+						Instances: ptr.To[int32](4),
 						SparkPodSpec: v1beta2.SparkPodSpec{
-							MemoryOverhead: util.StringPtr("2g"),
-							Cores:          util.Int32Ptr(8),
-							Memory:         util.StringPtr("64g"),
+							MemoryOverhead: ptr.To("2g"),
+							Cores:          ptr.To[int32](8),
+							Memory:         ptr.To("64g"),
 						},
 					},
 					DynamicAllocation: &v1beta2.DynamicAllocation{
 						Enabled:          true,
-						InitialExecutors: util.Int32Ptr(8),
-						MinExecutors:     util.Int32Ptr(2),
+						InitialExecutors: ptr.To[int32](8),
+						MinExecutors:     ptr.To[int32](2),
 					},
 					BatchSchedulerOptions: &v1beta2.BatchSchedulerConfiguration{
-						Queue: util.StringPtr("root.default"),
+						Queue: ptr.To("root.default"),
 					},
 				},
 			},
@@ -135,8 +135,8 @@ func TestSchedule(t *testing.T) {
 					NodeSelector: map[string]string{"key": "value"},
 					Driver: v1beta2.DriverSpec{
 						SparkPodSpec: v1beta2.SparkPodSpec{
-							Cores:        util.Int32Ptr(1),
-							Memory:       util.StringPtr("1g"),
+							Cores:        ptr.To[int32](1),
+							Memory:       ptr.To("1g"),
 							NodeSelector: map[string]string{"key": "newvalue", "key2": "value2"},
 							Tolerations: []corev1.Toleration{
 								{
@@ -149,10 +149,10 @@ func TestSchedule(t *testing.T) {
 						},
 					},
 					Executor: v1beta2.ExecutorSpec{
-						Instances: util.Int32Ptr(1),
+						Instances: ptr.To[int32](1),
 						SparkPodSpec: v1beta2.SparkPodSpec{
-							Cores:  util.Int32Ptr(1),
-							Memory: util.StringPtr("1g"),
+							Cores:  ptr.To[int32](1),
+							Memory: ptr.To("1g"),
 							Affinity: &corev1.Affinity{
 								NodeAffinity: &corev1.NodeAffinity{
 									RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
@@ -229,15 +229,15 @@ func TestSchedule(t *testing.T) {
 					Type: v1beta2.SparkApplicationTypePython,
 					Driver: v1beta2.DriverSpec{
 						SparkPodSpec: v1beta2.SparkPodSpec{
-							Cores:  util.Int32Ptr(1),
-							Memory: util.StringPtr("512m"),
+							Cores:  ptr.To[int32](1),
+							Memory: ptr.To("512m"),
 						},
 					},
 					Executor: v1beta2.ExecutorSpec{
-						Instances: util.Int32Ptr(2),
+						Instances: ptr.To[int32](2),
 						SparkPodSpec: v1beta2.SparkPodSpec{
-							Cores:  util.Int32Ptr(1),
-							Memory: util.StringPtr("512m"),
+							Cores:  ptr.To[int32](1),
+							Memory: ptr.To("512m"),
 						},
 					},
 					SparkConf: map[string]string{
@@ -272,15 +272,15 @@ func TestSchedule(t *testing.T) {
 					Type: v1beta2.SparkApplicationTypePython,
 					Driver: v1beta2.DriverSpec{
 						SparkPodSpec: v1beta2.SparkPodSpec{
-							Cores:  util.Int32Ptr(1),
-							Memory: util.StringPtr("512m"),
+							Cores:  ptr.To[int32](1),
+							Memory: ptr.To("512m"),
 						},
 					},
 					Executor: v1beta2.ExecutorSpec{
-						Instances: util.Int32Ptr(2),
+						Instances: ptr.To[int32](2),
 						SparkPodSpec: v1beta2.SparkPodSpec{
-							Cores:  util.Int32Ptr(1),
-							Memory: util.StringPtr("512m"),
+							Cores:  ptr.To[int32](1),
+							Memory: ptr.To("512m"),
 						},
 					},
 					SparkConf: map[string]string{
@@ -316,15 +316,15 @@ func TestSchedule(t *testing.T) {
 					Type: v1beta2.SparkApplicationTypePython,
 					Driver: v1beta2.DriverSpec{
 						SparkPodSpec: v1beta2.SparkPodSpec{
-							Cores:  util.Int32Ptr(1),
-							Memory: util.StringPtr("512m"),
+							Cores:  ptr.To[int32](1),
+							Memory: ptr.To("512m"),
 						},
 					},
 					Executor: v1beta2.ExecutorSpec{
-						Instances: util.Int32Ptr(2),
+						Instances: ptr.To[int32](2),
 						SparkPodSpec: v1beta2.SparkPodSpec{
-							Cores:  util.Int32Ptr(1),
-							Memory: util.StringPtr("512m"),
+							Cores:  ptr.To[int32](1),
+							Memory: ptr.To("512m"),
 						},
 					},
 					SparkConf: map[string]string{

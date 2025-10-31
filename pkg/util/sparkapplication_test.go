@@ -24,6 +24,7 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/utils/ptr"
 
 	"github.com/kubeflow/spark-operator/v2/api/v1beta2"
 	"github.com/kubeflow/spark-operator/v2/pkg/common"
@@ -143,7 +144,7 @@ var _ = Describe("IsExpired", func() {
 				Namespace: "test-namespace",
 			},
 			Spec: v1beta2.SparkApplicationSpec{
-				TimeToLiveSeconds: util.Int64Ptr(3600),
+				TimeToLiveSeconds: ptr.To[int64](3600),
 			},
 		}
 
@@ -160,7 +161,7 @@ var _ = Describe("IsExpired", func() {
 				Namespace: "test-namespace",
 			},
 			Spec: v1beta2.SparkApplicationSpec{
-				TimeToLiveSeconds: util.Int64Ptr(3600),
+				TimeToLiveSeconds: ptr.To[int64](3600),
 			},
 			Status: v1beta2.SparkApplicationStatus{
 				TerminationTime: metav1.NewTime(now.Add(-30 * time.Minute)),
@@ -180,7 +181,7 @@ var _ = Describe("IsExpired", func() {
 				Namespace: "test-namespace",
 			},
 			Spec: v1beta2.SparkApplicationSpec{
-				TimeToLiveSeconds: util.Int64Ptr(3600),
+				TimeToLiveSeconds: ptr.To[int64](3600),
 			},
 			Status: v1beta2.SparkApplicationStatus{
 				TerminationTime: metav1.NewTime(now.Add(-2 * time.Hour)),

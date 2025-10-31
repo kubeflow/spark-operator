@@ -34,6 +34,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/utils/clock"
+	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -43,7 +44,6 @@ import (
 
 	"github.com/kubeflow/spark-operator/v2/api/v1beta2"
 	"github.com/kubeflow/spark-operator/v2/pkg/common"
-	"github.com/kubeflow/spark-operator/v2/pkg/util"
 )
 
 var (
@@ -246,7 +246,7 @@ func (r *Reconciler) createSparkApplication(
 				Kind:               reflect.TypeOf(v1beta2.ScheduledSparkApplication{}).Name(),
 				Name:               scheduledApp.Name,
 				UID:                scheduledApp.UID,
-				BlockOwnerDeletion: util.BoolPtr(true),
+				BlockOwnerDeletion: ptr.To(true),
 			}},
 		},
 		Spec: scheduledApp.Spec.Template,

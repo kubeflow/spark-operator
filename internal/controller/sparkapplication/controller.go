@@ -1169,7 +1169,7 @@ func (r *Reconciler) deleteWebUIService(ctx context.Context, app *v1beta2.SparkA
 			},
 		},
 		&client.DeleteOptions{
-			GracePeriodSeconds: util.Int64Ptr(0),
+			GracePeriodSeconds: ptr.To[int64](0),
 		},
 	); err != nil && !errors.IsNotFound(err) {
 		return err
@@ -1195,7 +1195,7 @@ func (r *Reconciler) deleteWebUIIngress(ctx context.Context, app *v1beta2.SparkA
 				},
 			},
 			&client.DeleteOptions{
-				GracePeriodSeconds: util.Int64Ptr(0),
+				GracePeriodSeconds: ptr.To[int64](0),
 			},
 		); err != nil && !errors.IsNotFound(err) {
 			return err
@@ -1213,7 +1213,7 @@ func (r *Reconciler) deleteWebUIIngress(ctx context.Context, app *v1beta2.SparkA
 				},
 			},
 			&client.DeleteOptions{
-				GracePeriodSeconds: util.Int64Ptr(0),
+				GracePeriodSeconds: ptr.To[int64](0),
 			},
 		); err != nil && !errors.IsNotFound(err) {
 			return err
