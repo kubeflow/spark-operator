@@ -108,7 +108,7 @@ func getWebUITargetPort(app *v1beta2.SparkApplication) (int32, error) {
 	if !ok {
 		return common.DefaultSparkWebUIPort, nil
 	}
-	port, err := strconv.Atoi(portStr)
+	port, err := strconv.ParseInt(portStr, 10, 32)
 	if err != nil {
 		return common.DefaultSparkWebUIPort, nil
 	}
