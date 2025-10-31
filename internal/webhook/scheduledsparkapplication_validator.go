@@ -23,7 +23,6 @@ import (
 
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
-
 	"github.com/kubeflow/spark-operator/v2/api/v1beta2"
 )
 
