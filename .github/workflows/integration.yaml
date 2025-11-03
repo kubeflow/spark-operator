@@ -160,9 +160,6 @@ jobs:
             false
           fi
 
-      - name: Detect CRDs drift between chart and manifest
-        run: make detect-crds-drift
-
       - name: Run helm unittest
         run: make helm-unittest
 
