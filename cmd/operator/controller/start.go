@@ -28,6 +28,7 @@ import (
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
+	"k8s.io/client-go/rest"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -204,6 +205,7 @@ func start() {
 
 	// Create the client rest config. Use kubeConfig if given, otherwise assume in-cluster.
 	cfg, err := ctrl.GetConfig()
+	cfg.WarningHandler = rest.NoWarnings{}
 	if err != nil {
 		logger.Error(err, "failed to get kube config")
 		os.Exit(1)
