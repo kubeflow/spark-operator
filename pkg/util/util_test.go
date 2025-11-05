@@ -23,6 +23,7 @@ import (
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/utils/ptr"
 
 	"github.com/kubeflow/spark-operator/v2/pkg/common"
 	"github.com/kubeflow/spark-operator/v2/pkg/util"
@@ -107,28 +108,28 @@ var _ = Describe("RemoveString", func() {
 var _ = Describe("BoolPtr", func() {
 	It("Should return a pointer to the given bool value", func() {
 		b := true
-		Expect(util.BoolPtr(b)).To(Equal(&b))
+		Expect(ptr.To(b)).To(Equal(&b))
 	})
 })
 
 var _ = Describe("Int32Ptr", func() {
 	It("Should return a pointer to the given int32 value", func() {
 		i := int32(42)
-		Expect(util.Int32Ptr(i)).To(Equal(&i))
+		Expect(ptr.To[int32](i)).To(Equal(&i))
 	})
 })
 
 var _ = Describe("Int64Ptr", func() {
 	It("Should return a pointer to the given int64 value", func() {
 		i := int64(42)
-		Expect(util.Int64Ptr(i)).To(Equal(&i))
+		Expect(ptr.To[int64](i)).To(Equal(&i))
 	})
 })
 
 var _ = Describe("StringPtr", func() {
 	It("Should return a pointer to the given string value", func() {
 		s := "hello"
-		Expect(util.StringPtr(s)).To(Equal(&s))
+		Expect(ptr.To(s)).To(Equal(&s))
 	})
 })
 

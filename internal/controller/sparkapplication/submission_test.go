@@ -29,6 +29,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/yaml"
 
 	"github.com/kubeflow/spark-operator/v2/api/v1beta2"
@@ -73,16 +74,16 @@ func TestExecutorConfOption(t *testing.T) {
 				},
 				Spec: v1beta2.SparkApplicationSpec{
 					Executor: v1beta2.ExecutorSpec{
-						CoreRequest: util.StringPtr("2"),
+						CoreRequest: ptr.To("2"),
 						SparkPodSpec: v1beta2.SparkPodSpec{
-							Image:          util.StringPtr("custom-executor:v1"),
-							Cores:          util.Int32Ptr(4),
-							CoreLimit:      util.StringPtr("4"),
-							Memory:         util.StringPtr("4g"),
-							MemoryOverhead: util.StringPtr("1g"),
+							Image:          ptr.To("custom-executor:v1"),
+							Cores:          ptr.To[int32](4),
+							CoreLimit:      ptr.To("4"),
+							Memory:         ptr.To("4g"),
+							MemoryOverhead: ptr.To("1g"),
 						},
-						Instances:           util.Int32Ptr(3),
-						DeleteOnTermination: util.BoolPtr(true),
+						Instances:           ptr.To[int32](3),
+						DeleteOnTermination: ptr.To(true),
 					},
 				},
 			},
@@ -244,10 +245,10 @@ func TestDriverConfOption(t *testing.T) {
 				Spec: v1beta2.SparkApplicationSpec{
 					Driver: v1beta2.DriverSpec{
 						SparkPodSpec: v1beta2.SparkPodSpec{
-							Cores:      util.Int32Ptr(2),
-							CoreLimit:  util.StringPtr("2"),
-							Memory:     util.StringPtr("2g"),
-							Image:      util.StringPtr("spark-driver:latest"),
+							Cores:      ptr.To[int32](2),
+							CoreLimit:  ptr.To("2"),
+							Memory:     ptr.To("2g"),
+							Image:      ptr.To("spark-driver:latest"),
 							ConfigMaps: []v1beta2.NamePath{{Name: "driver-config", Path: "/etc/config"}},
 						},
 					},
@@ -1132,10 +1133,10 @@ func TestExecutorPodTemplateContents(t *testing.T) {
 // 		Spec: v1beta2.SparkApplicationSpec{
 // 			DynamicAllocation: &v1beta2.DynamicAllocation{
 // 				Enabled:                true,
-// 				InitialExecutors:       util.Int32Ptr(2),
-// 				MinExecutors:           util.Int32Ptr(0),
-// 				MaxExecutors:           util.Int32Ptr(10),
-// 				ShuffleTrackingTimeout: util.Int64Ptr(6000000),
+// 				InitialExecutors:       ptr.To[int32](2),
+// 				MinExecutors:           ptr.To[int32](0),
+// 				MaxExecutors:           ptr.To[int32](10),
+// 				ShuffleTrackingTimeout: ptr.To[int64](6000000),
 // 			},
 // 		},
 // 	}
@@ -1170,7 +1171,7 @@ func TestExecutorPodTemplateContents(t *testing.T) {
 // 		},
 // 		Spec: v1beta2.SparkApplicationSpec{
 // 			Mode:      v1beta2.ClusterMode,
-// 			ProxyUser: util.StringPtr("foo"),
+// 			ProxyUser: ptr.To("foo"),
 // 		},
 // 	}
 
