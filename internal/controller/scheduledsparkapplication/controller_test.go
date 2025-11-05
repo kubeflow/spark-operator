@@ -26,10 +26,10 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/clock"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/kubeflow/spark-operator/v2/api/v1beta2"
-	"github.com/kubeflow/spark-operator/v2/pkg/util"
 )
 
 var _ = Describe("ScheduledSparkApplication Controller", func() {
@@ -62,7 +62,7 @@ var _ = Describe("ScheduledSparkApplication Controller", func() {
 							RestartPolicy: v1beta2.RestartPolicy{
 								Type: v1beta2.RestartPolicyNever,
 							},
-							MainApplicationFile: util.StringPtr("local:///dummy.jar"),
+							MainApplicationFile: ptr.To("local:///dummy.jar"),
 						},
 					},
 					// TODO(user): Specify other spec details if needed.

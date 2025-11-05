@@ -56,7 +56,7 @@ var _ = Describe("SparkApplication Controller", func() {
 				Namespace: appNamespace,
 			},
 			Spec: v1beta2.SparkApplicationSpec{
-				MainApplicationFile: util.StringPtr("local:///dummy.jar"),
+				MainApplicationFile: ptr.To("local:///dummy.jar"),
 			},
 		}
 		ingressKey := types.NamespacedName{
@@ -174,7 +174,7 @@ var _ = Describe("SparkApplication Controller", func() {
 				Namespace: appNamespace,
 			},
 			Spec: v1beta2.SparkApplicationSpec{
-				MainApplicationFile: util.StringPtr("local:///dummy.jar"),
+				MainApplicationFile: ptr.To("local:///dummy.jar"),
 				SparkUIOptions: &v1beta2.SparkUIConfiguration{
 					IngressTLS:         ingressTLS,
 					IngressAnnotations: ingressAnnotations,
@@ -290,7 +290,7 @@ var _ = Describe("SparkApplication Controller", func() {
 						Namespace: appNamespace,
 					},
 					Spec: v1beta2.SparkApplicationSpec{
-						MainApplicationFile: util.StringPtr("local:///dummy.jar"),
+						MainApplicationFile: ptr.To("local:///dummy.jar"),
 					},
 				}
 				v1beta2.SetSparkApplicationDefaults(app)
@@ -369,7 +369,7 @@ var _ = Describe("SparkApplication Controller", func() {
 						Namespace: appNamespace,
 					},
 					Spec: v1beta2.SparkApplicationSpec{
-						MainApplicationFile: util.StringPtr("local:///dummy.jar"),
+						MainApplicationFile: ptr.To("local:///dummy.jar"),
 					},
 				}
 				v1beta2.SetSparkApplicationDefaults(app)
@@ -439,7 +439,7 @@ var _ = Describe("SparkApplication Controller", func() {
 						},
 					},
 					Spec: v1beta2.SparkApplicationSpec{
-						MainApplicationFile: util.StringPtr("local:///dummy.jar"),
+						MainApplicationFile: ptr.To("local:///dummy.jar"),
 					},
 				}
 				v1beta2.SetSparkApplicationDefaults(app)
@@ -494,7 +494,7 @@ var _ = Describe("SparkApplication Controller", func() {
 						Namespace: appNamespace,
 					},
 					Spec: v1beta2.SparkApplicationSpec{
-						MainApplicationFile: util.StringPtr("local:///dummy.jar"),
+						MainApplicationFile: ptr.To("local:///dummy.jar"),
 					},
 				}
 				v1beta2.SetSparkApplicationDefaults(app)
@@ -514,7 +514,7 @@ var _ = Describe("SparkApplication Controller", func() {
 			By("Set TimeToLiveSeconds and make the SparkApplication expired")
 			app := &v1beta2.SparkApplication{}
 			Expect(k8sClient.Get(ctx, key, app)).To(Succeed())
-			app.Spec.TimeToLiveSeconds = util.Int64Ptr(60)
+			app.Spec.TimeToLiveSeconds = ptr.To[int64](60)
 			Expect(k8sClient.Update(ctx, app)).To(Succeed())
 			app.Status.TerminationTime = metav1.NewTime(time.Now().Add(-2 * time.Minute))
 			Expect(k8sClient.Status().Update(ctx, app)).To(Succeed())
@@ -554,7 +554,7 @@ var _ = Describe("SparkApplication Controller", func() {
 						Namespace: appNamespace,
 					},
 					Spec: v1beta2.SparkApplicationSpec{
-						MainApplicationFile: util.StringPtr("local:///dummy.jar"),
+						MainApplicationFile: ptr.To("local:///dummy.jar"),
 					},
 				}
 				v1beta2.SetSparkApplicationDefaults(app)
@@ -609,7 +609,7 @@ var _ = Describe("SparkApplication Controller", func() {
 						Namespace: appNamespace,
 					},
 					Spec: v1beta2.SparkApplicationSpec{
-						MainApplicationFile: util.StringPtr("local:///dummy.jar"),
+						MainApplicationFile: ptr.To("local:///dummy.jar"),
 					},
 				}
 				v1beta2.SetSparkApplicationDefaults(app)
@@ -629,7 +629,7 @@ var _ = Describe("SparkApplication Controller", func() {
 			By("Set TimeToLiveSeconds and make the SparkApplication expired")
 			app := &v1beta2.SparkApplication{}
 			Expect(k8sClient.Get(ctx, key, app)).To(Succeed())
-			app.Spec.TimeToLiveSeconds = util.Int64Ptr(60)
+			app.Spec.TimeToLiveSeconds = ptr.To[int64](60)
 			Expect(k8sClient.Update(ctx, app)).To(Succeed())
 			app.Status.TerminationTime = metav1.NewTime(time.Now().Add(-2 * time.Minute))
 			Expect(k8sClient.Status().Update(ctx, app)).To(Succeed())
@@ -669,7 +669,7 @@ var _ = Describe("SparkApplication Controller", func() {
 						Namespace: appNamespace,
 					},
 					Spec: v1beta2.SparkApplicationSpec{
-						MainApplicationFile: util.StringPtr("local:///dummy.jar"),
+						MainApplicationFile: ptr.To("local:///dummy.jar"),
 					},
 				}
 				v1beta2.SetSparkApplicationDefaults(app)
@@ -774,7 +774,7 @@ var _ = Describe("SparkApplication Controller", func() {
 					Namespace: appNamespace,
 				},
 				Spec: v1beta2.SparkApplicationSpec{
-					MainApplicationFile: util.StringPtr("local:///dummy.jar"),
+					MainApplicationFile: ptr.To("local:///dummy.jar"),
 				},
 			}
 			v1beta2.SetSparkApplicationDefaults(app)
