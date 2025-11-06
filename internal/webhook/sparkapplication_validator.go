@@ -19,6 +19,7 @@ package webhook
 import (
 	"context"
 	"fmt"
+	"regexp"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
@@ -58,6 +59,11 @@ func (v *SparkApplicationValidator) ValidateCreate(ctx context.Context, obj runt
 		return nil, nil
 	}
 	logger.Info("Validating SparkApplication create", "name", app.Name, "namespace", app.Namespace, "state", util.GetApplicationState(app))
+
+	// Validate metadata.name early to prevent downstream Service creation failures
+	if err := v.validateName(app.Name); err != nil {
+		return nil, err
+	}
 	if err := v.validateSpec(ctx, app); err != nil {
 		return nil, err
 	}
@@ -84,6 +90,11 @@ func (v *SparkApplicationValidator) ValidateUpdate(ctx context.Context, oldObj r
 	}
 
 	logger.Info("Validating SparkApplication update", "name", newApp.Name, "namespace", newApp.Namespace)
+
+	// Name is immutable in Kubernetes, but validate anyway for safety in case of admission reconcilers
+	if err := v.validateName(newApp.Name); err != nil {
+		return nil, err
+	}
 
 	// Skip validating when spec does not change.
 	if equality.Semantic.DeepEqual(oldApp.Spec, newApp.Spec) {
@@ -145,6 +156,20 @@ func (v *SparkApplicationValidator) validateSpec(_ context.Context, app *v1beta2
 		ingressURLFormats[item.IngressURLFormat] = true
 	}
 
+	return nil
+}
+
+// validateName ensures the SparkApplication metadata.name is a valid DNS-1035 label
+// This prevents failures later when creating related resources like Services which
+// require DNS-1035 compliant names.
+func (v *SparkApplicationValidator) validateName(name string) error {
+	// DNS-1035: must start with letter, contain only lowercase letters, numbers, and hyphens
+	// must not have consecutive hyphens, and must end with letter or number
+	// Max length is 63 characters
+	namePattern := regexp.MustCompile(`^[a-z]([a-z0-9]|-[a-z0-9]){0,61}[a-z0-9]?$`)
+	if !namePattern.MatchString(name) {
+		return fmt.Errorf("invalid SparkApplication name %q: name must contain only lowercase letters, numbers, and hyphens, and end with a letter or number", name)
+	}
 	return nil
 }
 

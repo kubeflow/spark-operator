@@ -18,7 +18,10 @@ package webhook
 
 import (
 	"context"
+	"strings"
 	"testing"
+
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/kubeflow/spark-operator/v2/api/v1beta2"
 )
@@ -37,7 +40,12 @@ func TestScheduledSparkApplicationValidatorValidateCreate(t *testing.T) {
 	})
 
 	t.Run("accepts ScheduledSparkApplication instances", func(t *testing.T) {
-		app := &v1beta2.ScheduledSparkApplication{}
+		app := &v1beta2.ScheduledSparkApplication{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "test-app",
+				Namespace: "default",
+			},
+		}
 		warnings, err := validator.ValidateCreate(context.Background(), app)
 		if err != nil {
 			t.Fatalf("expected no error, got %v", err)
@@ -66,8 +74,18 @@ func TestScheduledSparkApplicationValidatorValidateUpdate(t *testing.T) {
 	})
 
 	t.Run("accepts ScheduledSparkApplication instances", func(t *testing.T) {
-		oldApp := &v1beta2.ScheduledSparkApplication{}
-		newApp := &v1beta2.ScheduledSparkApplication{}
+		oldApp := &v1beta2.ScheduledSparkApplication{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "test-app",
+				Namespace: "default",
+			},
+		}
+		newApp := &v1beta2.ScheduledSparkApplication{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "test-app",
+				Namespace: "default",
+			},
+		}
 		warnings, err := validator.ValidateUpdate(context.Background(), oldApp, newApp)
 		if err != nil {
 			t.Fatalf("expected no error, got %v", err)
@@ -100,4 +118,59 @@ func TestScheduledSparkApplicationValidatorValidateDelete(t *testing.T) {
 			t.Fatalf("expected no warnings, got %v", warnings)
 		}
 	})
+}
+
+func TestScheduledSparkApplicationValidatorValidateName(t *testing.T) {
+	validator := NewScheduledSparkApplicationValidator()
+
+	tests := []struct {
+		name      string
+		appName   string
+		wantError bool
+	}{
+		// Valid names
+		{"valid simple name", "test-app", false},
+		{"valid name with numbers", "test-app-123", false},
+		{"valid single letter", "a", false},
+		{"valid name ending with number", "my-app-1", false},
+		{"valid name with multiple hyphens", "my-test-app-123", false},
+		{"valid 63 char name", strings.Repeat("a", 63), false},
+		{"valid name with hyphens in middle", "a-b-c-d-e", false},
+
+		// Invalid names
+		{"name starting with number", "123test-app", true},
+		{"name with uppercase", "Test-App", true},
+		{"name with uppercase at start", "TestApp", true},
+		{"name with uppercase in middle", "test-App", true},
+		{"name starting with hyphen", "-test-app", true},
+		{"name ending with hyphen", "test-app-", true},
+		{"name with consecutive hyphens", "test--app", true},
+		{"empty name", "", true},
+		{"name too long", strings.Repeat("a", 64), true},
+		{"name with special characters", "test@app", true},
+		{"name with underscore", "test_app", true},
+		{"name with spaces", "test app", true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			app := &v1beta2.ScheduledSparkApplication{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      tt.appName,
+					Namespace: "default",
+				},
+			}
+
+			_, err := validator.ValidateCreate(context.Background(), app)
+			hasError := err != nil
+
+			if hasError != tt.wantError {
+				t.Errorf("validateName(%q) = error %v, wantError %v, got error: %v", tt.appName, hasError, tt.wantError, err)
+			}
+
+			if hasError && !strings.Contains(err.Error(), "name must contain only lowercase letters") {
+				t.Errorf("validateName(%q) error message should mention validation requirements, got: %v", tt.appName, err)
+			}
+		})
+	}
 }
