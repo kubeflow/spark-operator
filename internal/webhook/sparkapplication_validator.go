@@ -163,7 +163,10 @@ func (v *SparkApplicationValidator) validateSpec(_ context.Context, app *v1beta2
 // This prevents failures later when creating related resources like Services which
 // require DNS-1035 compliant names.
 func (v *SparkApplicationValidator) validateName(name string) error {
-	namePattern := regexp.MustCompile(`^[a-z]([-a-z0-9]{0,61}[a-z0-9])?$`)
+	// DNS-1035: must start with letter, contain only lowercase letters, numbers, and hyphens
+	// must not have consecutive hyphens, and must end with letter or number
+	// Max length is 63 characters
+	namePattern := regexp.MustCompile(`^[a-z]([a-z0-9]|-[a-z0-9]){0,61}[a-z0-9]?$`)
 	if !namePattern.MatchString(name) {
 		return fmt.Errorf("invalid SparkApplication name %q: name must contain only lowercase letters, numbers, and hyphens, and end with a letter or number", name)
 	}

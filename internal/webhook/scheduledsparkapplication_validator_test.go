@@ -40,7 +40,12 @@ func TestScheduledSparkApplicationValidatorValidateCreate(t *testing.T) {
 	})
 
 	t.Run("accepts ScheduledSparkApplication instances", func(t *testing.T) {
-		app := &v1beta2.ScheduledSparkApplication{}
+		app := &v1beta2.ScheduledSparkApplication{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "test-app",
+				Namespace: "default",
+			},
+		}
 		warnings, err := validator.ValidateCreate(context.Background(), app)
 		if err != nil {
 			t.Fatalf("expected no error, got %v", err)
@@ -69,8 +74,18 @@ func TestScheduledSparkApplicationValidatorValidateUpdate(t *testing.T) {
 	})
 
 	t.Run("accepts ScheduledSparkApplication instances", func(t *testing.T) {
-		oldApp := &v1beta2.ScheduledSparkApplication{}
-		newApp := &v1beta2.ScheduledSparkApplication{}
+		oldApp := &v1beta2.ScheduledSparkApplication{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "test-app",
+				Namespace: "default",
+			},
+		}
+		newApp := &v1beta2.ScheduledSparkApplication{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "test-app",
+				Namespace: "default",
+			},
+		}
 		warnings, err := validator.ValidateUpdate(context.Background(), oldApp, newApp)
 		if err != nil {
 			t.Fatalf("expected no error, got %v", err)
