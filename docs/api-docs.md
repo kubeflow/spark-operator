@@ -3308,6 +3308,18 @@ Kubernetes core/v1.PodDNSConfig
 </tr>
 <tr>
 <td>
+<code>enableServiceLinks</code><br/>
+<em>
+bool
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>EnableServiceLinks controls whether service environment variables are automatically injected into the pod.</p>
+</td>
+</tr>
+<tr>
+<td>
 <code>terminationGracePeriodSeconds</code><br/>
 <em>
 int64

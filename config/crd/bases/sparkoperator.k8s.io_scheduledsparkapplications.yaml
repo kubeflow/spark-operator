@@ -1199,6 +1199,10 @@ spec:
                             type: array
                             x-kubernetes-list-type: atomic
                         type: object
+                      enableServiceLinks:
+                        description: EnableServiceLinks controls whether service environment
+                          variables are automatically injected into the pod.
+                        type: boolean
                       env:
                         description: Env carries the environment variables to add
                           to the pod.
@@ -6334,6 +6338,10 @@ spec:
                             type: array
                             x-kubernetes-list-type: atomic
                         type: object
+                      enableServiceLinks:
+                        description: EnableServiceLinks controls whether service environment
+                          variables are automatically injected into the pod.
+                        type: boolean
                       env:
                         description: Env carries the environment variables to add
                           to the pod.

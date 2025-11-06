@@ -1043,6 +1043,11 @@ func (in *SparkPodSpec) DeepCopyInto(out *SparkPodSpec) {
 		*out = new(v1.PodDNSConfig)
 		(*in).DeepCopyInto(*out)
 	}
+	if in.EnableServiceLinks != nil {
+		in, out := &in.EnableServiceLinks, &out.EnableServiceLinks
+		*out = new(bool)
+		**out = **in
+	}
 	if in.TerminationGracePeriodSeconds != nil {
 		in, out := &in.TerminationGracePeriodSeconds, &out.TerminationGracePeriodSeconds
 		*out = new(int64)

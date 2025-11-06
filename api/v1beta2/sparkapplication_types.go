@@ -509,6 +509,9 @@ type SparkPodSpec struct {
 	// DnsConfig dns settings for the pod, following the Kubernetes specifications.
 	// +optional
 	DNSConfig *corev1.PodDNSConfig `json:"dnsConfig,omitempty"`
+	// EnableServiceLinks controls whether service environment variables are automatically injected into the pod.
+	// +optional
+	EnableServiceLinks *bool `json:"enableServiceLinks,omitempty"`
 	// Termination grace period seconds for the pod
 	// +optional
 	TerminationGracePeriodSeconds *int64 `json:"terminationGracePeriodSeconds,omitempty"`

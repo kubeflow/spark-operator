@@ -149,6 +149,7 @@ func mutateSparkPod(pod *corev1.Pod, app *v1beta2.SparkApplication) error {
 		addVolumes,
 		addContainerPorts,
 		addHostNetwork,
+		addEnableServiceLinks,
 		addHostAliases,
 		addInitContainers,
 		addSidecarContainers,
@@ -669,6 +670,22 @@ func addHostNetwork(pod *corev1.Pod, app *v1beta2.SparkApplication) error {
 	// Detail: https://kubernetes.io/docs/concepts/services-networking/dns-pod-service/#pod-s-dns-policy
 	pod.Spec.HostNetwork = true
 	pod.Spec.DNSPolicy = corev1.DNSClusterFirstWithHostNet
+	return nil
+}
+
+func addEnableServiceLinks(pod *corev1.Pod, app *v1beta2.SparkApplication) error {
+	var enableServiceLinks *bool
+	if util.IsDriverPod(pod) {
+		enableServiceLinks = app.Spec.Driver.EnableServiceLinks
+	} else if util.IsExecutorPod(pod) {
+		enableServiceLinks = app.Spec.Executor.EnableServiceLinks
+	}
+
+	if enableServiceLinks == nil {
+		return nil
+	}
+
+	pod.Spec.EnableServiceLinks = enableServiceLinks
 	return nil
 }
 
