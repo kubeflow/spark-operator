@@ -19,9 +19,10 @@ package webhook
 import (
 	"context"
 	"fmt"
-	"regexp"
+	"strings"
 
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/util/validation"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
 	"github.com/kubeflow/spark-operator/v2/api/v1beta2"
@@ -93,12 +94,8 @@ func (v *ScheduledSparkApplicationValidator) validate(_ *v1beta2.ScheduledSparkA
 // results in a valid DNS-1035 label for Kubernetes Service names. This prevents failures later
 // when creating SparkApplication resources that require DNS-1035 compliant names.
 func (v *ScheduledSparkApplicationValidator) validateName(name string) error {
-	// DNS-1035: must start with letter, contain only lowercase letters, numbers, and hyphens
-	// must not have consecutive hyphens, and must end with letter or number
-	// Max length is 63 characters
-	namePattern := regexp.MustCompile(`^[a-z]([a-z0-9]|-[a-z0-9]){0,61}[a-z0-9]?$`)
-	if !namePattern.MatchString(name) {
-		return fmt.Errorf("invalid ScheduledSparkApplication name %q: name must contain only lowercase letters, numbers, and hyphens, and end with a letter or number", name)
+	if errs := validation.IsDNS1035Label(name); len(errs) > 0 {
+		return fmt.Errorf("invalid ScheduledSparkApplication name %q: %s", name, strings.Join(errs, ", "))
 	}
 	return nil
 }

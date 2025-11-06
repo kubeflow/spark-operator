@@ -19,11 +19,12 @@ package webhook
 import (
 	"context"
 	"fmt"
-	"regexp"
+	"strings"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/util/validation"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
@@ -163,12 +164,8 @@ func (v *SparkApplicationValidator) validateSpec(_ context.Context, app *v1beta2
 // This prevents failures later when creating related resources like Services which
 // require DNS-1035 compliant names.
 func (v *SparkApplicationValidator) validateName(name string) error {
-	// DNS-1035: must start with letter, contain only lowercase letters, numbers, and hyphens
-	// must not have consecutive hyphens, and must end with letter or number
-	// Max length is 63 characters
-	namePattern := regexp.MustCompile(`^[a-z]([a-z0-9]|-[a-z0-9]){0,61}[a-z0-9]?$`)
-	if !namePattern.MatchString(name) {
-		return fmt.Errorf("invalid SparkApplication name %q: name must contain only lowercase letters, numbers, and hyphens, and end with a letter or number", name)
+	if errs := validation.IsDNS1035Label(name); len(errs) > 0 {
+		return fmt.Errorf("invalid SparkApplication name %q: %s", name, strings.Join(errs, ", "))
 	}
 	return nil
 }
