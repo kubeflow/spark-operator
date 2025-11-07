@@ -102,6 +102,31 @@ func TestExecutorConfOption(t *testing.T) {
 				"--conf", fmt.Sprintf("%s=%t", common.SparkKubernetesExecutorDeleteOnTermination, true),
 			},
 		},
+		{
+			name: "kueue labels on SparkApplication should not be propagated to executor conf",
+			app: &v1beta2.SparkApplication{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "spark-kueue",
+					Labels: map[string]string{
+						"environment":               "production",
+						"kueue.x-k8s.io/queue-name": "high-priority",
+					},
+				},
+				Status: v1beta2.SparkApplicationStatus{
+					SubmissionID: "minimal-123",
+				},
+				Spec: v1beta2.SparkApplicationSpec{
+					Executor: v1beta2.ExecutorSpec{},
+				},
+			},
+			expected: []string{
+				"--conf", fmt.Sprintf("%s=%s", fmt.Sprintf(common.SparkKubernetesExecutorLabelTemplate, "environment"), "production"),
+				"--conf", fmt.Sprintf("%s=%s", fmt.Sprintf(common.SparkKubernetesExecutorLabelTemplate, common.LabelSparkAppName), "spark-kueue"),
+				"--conf", fmt.Sprintf("%s=%s", fmt.Sprintf(common.SparkKubernetesExecutorLabelTemplate, common.LabelLaunchedBySparkOperator), "true"),
+				"--conf", fmt.Sprintf("%s=%s", fmt.Sprintf(common.SparkKubernetesExecutorLabelTemplate, common.LabelMutatedBySparkOperator), "true"),
+				"--conf", fmt.Sprintf("%s=%s", fmt.Sprintf(common.SparkKubernetesExecutorLabelTemplate, common.LabelSubmissionID), "minimal-123"),
+			},
+		},
 	}
 
 	for _, testCase := range tests {
@@ -281,6 +306,31 @@ func TestDriverConfOption(t *testing.T) {
 				},
 			},
 			expected: []string{
+				"--conf", fmt.Sprintf("%s=%s", fmt.Sprintf(common.SparkKubernetesDriverLabelTemplate, common.LabelSparkAppName), "spark-minimal"),
+				"--conf", fmt.Sprintf("%s=%s", fmt.Sprintf(common.SparkKubernetesDriverLabelTemplate, common.LabelLaunchedBySparkOperator), "true"),
+				"--conf", fmt.Sprintf("%s=%s", fmt.Sprintf(common.SparkKubernetesDriverLabelTemplate, common.LabelMutatedBySparkOperator), "true"),
+				"--conf", fmt.Sprintf("%s=%s", fmt.Sprintf(common.SparkKubernetesDriverLabelTemplate, common.LabelSubmissionID), "minimal-123"),
+			},
+		},
+		{
+			name: "kueue labels on SparkApplication should not be propagated to driver conf",
+			app: &v1beta2.SparkApplication{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "spark-minimal",
+					Labels: map[string]string{
+						"environment":               "production",
+						"kueue.x-k8s.io/queue-name": "high-priority",
+					},
+				},
+				Status: v1beta2.SparkApplicationStatus{
+					SubmissionID: "minimal-123",
+				},
+				Spec: v1beta2.SparkApplicationSpec{
+					Driver: v1beta2.DriverSpec{},
+				},
+			},
+			expected: []string{
+				"--conf", fmt.Sprintf("%s=%s", fmt.Sprintf(common.SparkKubernetesDriverLabelTemplate, "environment"), "production"),
 				"--conf", fmt.Sprintf("%s=%s", fmt.Sprintf(common.SparkKubernetesDriverLabelTemplate, common.LabelSparkAppName), "spark-minimal"),
 				"--conf", fmt.Sprintf("%s=%s", fmt.Sprintf(common.SparkKubernetesDriverLabelTemplate, common.LabelLaunchedBySparkOperator), "true"),
 				"--conf", fmt.Sprintf("%s=%s", fmt.Sprintf(common.SparkKubernetesDriverLabelTemplate, common.LabelMutatedBySparkOperator), "true"),

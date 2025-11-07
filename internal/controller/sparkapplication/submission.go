@@ -390,6 +390,13 @@ func driverConfOption(app *v1beta2.SparkApplication) ([]string, error) {
 
 	// Populate SparkApplication labels to driver pod
 	for key, value := range app.Labels {
+		// Don't propagate Kueue labels to driver pod.
+		// This is a quick workaround to avoid issues in Kueue integration.
+		// Community may consider a better label propagation control mechanisms in the future.
+		// ref: https://github.com/kubeflow/spark-operator/issues/2669#issuecomment-3500165528
+		if strings.HasPrefix(key, common.KueueLabelPrefix) {
+			continue
+		}
 		property = fmt.Sprintf(common.SparkKubernetesDriverLabelTemplate, key)
 		args = append(args, "--conf", fmt.Sprintf("%s=%s", property, value))
 	}
@@ -735,6 +742,13 @@ func executorConfOption(app *v1beta2.SparkApplication) ([]string, error) {
 
 	// Populate SparkApplication labels to executor pod
 	for key, value := range app.Labels {
+		// Don't propagate Kueue labels to driver pod.
+		// This is a quick workaround to avoid issues in Kueue integration.
+		// Community may consider a better label propagation control mechanisms in the future.
+		// ref: https://github.com/kubeflow/spark-operator/issues/2669#issuecomment-3500165528
+		if strings.HasPrefix(key, common.KueueLabelPrefix) {
+			continue
+		}
 		property := fmt.Sprintf(common.SparkKubernetesExecutorLabelTemplate, key)
 		args = append(args, "--conf", fmt.Sprintf("%s=%s", property, value))
 	}
