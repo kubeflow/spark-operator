@@ -18,8 +18,11 @@ package webhook
 
 import (
 	"context"
+	"fmt"
+	"strings"
 
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/util/validation"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
 	"github.com/kubeflow/spark-operator/v2/api/v1beta2"
@@ -45,6 +48,10 @@ func (v *ScheduledSparkApplicationValidator) ValidateCreate(ctx context.Context,
 		return nil, nil
 	}
 	logger.Info("Validating SchedulingSparkApplication create", "name", app.Name, "namespace", app.Namespace)
+	// Validate metadata.name early to prevent downstream Service creation failures
+	if err := v.validateName(app.Name); err != nil {
+		return nil, err
+	}
 	if err := v.validate(app); err != nil {
 		return nil, err
 	}
@@ -58,6 +65,10 @@ func (v *ScheduledSparkApplicationValidator) ValidateUpdate(ctx context.Context,
 		return nil, nil
 	}
 	logger.Info("Validating SchedulingSparkApplication update", "name", newApp.Name, "namespace", newApp.Namespace)
+	// Name is immutable in Kubernetes, but validate anyway for safety in case of admission reconcilers
+	if err := v.validateName(newApp.Name); err != nil {
+		return nil, err
+	}
 	if err := v.validate(newApp); err != nil {
 		return nil, err
 	}
@@ -76,5 +87,15 @@ func (v *ScheduledSparkApplicationValidator) ValidateDelete(ctx context.Context,
 
 func (v *ScheduledSparkApplicationValidator) validate(_ *v1beta2.ScheduledSparkApplication) error {
 	// TODO: implement validate logic
+	return nil
+}
+
+// validateName ensures the ScheduledSparkApplication metadata.name, when combined with suffixes,
+// results in a valid DNS-1035 label for Kubernetes Service names. This prevents failures later
+// when creating SparkApplication resources that require DNS-1035 compliant names.
+func (v *ScheduledSparkApplicationValidator) validateName(name string) error {
+	if errs := validation.IsDNS1035Label(name); len(errs) > 0 {
+		return fmt.Errorf("invalid ScheduledSparkApplication name %q: %s", name, strings.Join(errs, ", "))
+	}
 	return nil
 }
