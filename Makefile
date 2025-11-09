@@ -109,15 +109,11 @@ print-%: ; @echo $*=$($*)
 
 .PHONY: manifests
 manifests: controller-gen ## Generate CustomResourceDefinition, RBAC and WebhookConfiguration manifests.
-	$(CONTROLLER_GEN) crd:generateEmbeddedObjectMeta=true rbac:roleName=spark-operator-controller webhook paths="./..." output:crd:artifacts:config=config/crd/bases
+	$(CONTROLLER_GEN) crd:generateEmbeddedObjectMeta=true paths="./..." output:crd:artifacts:config=$(SPARK_OPERATOR_CHART_PATH)/crds
 
 .PHONY: generate
 generate: controller-gen ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
 	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
-
-.PHONY: update-crd
-update-crd: manifests ## Update CRD files in the Helm chart.
-	cp config/crd/bases/* charts/spark-operator-chart/crds/
 
 .PHONY: verify-codegen
 verify-codegen: $(LOCALBIN) ## Install code-generator commands and verify changes
@@ -225,10 +221,6 @@ docker-buildx: ## Build and push docker image for the operator for cross-platfor
 
 ##@ Helm
 
-.PHONY: detect-crds-drift
-detect-crds-drift: manifests ## Detect CRD drift.
-	diff -q $(SPARK_OPERATOR_CHART_PATH)/crds config/crd/bases
-
 .PHONY: helm-unittest
 helm-unittest: helm-unittest-plugin ## Run Helm chart unittests.
 	$(HELM) unittest $(SPARK_OPERATOR_CHART_PATH) --strict --file "tests/**/*_test.yaml"
@@ -268,16 +260,16 @@ kind-delete-cluster: kind ## Delete the created kind cluster.
 
 .PHONY: install
 install-crd: manifests kustomize ## Install CRDs into the K8s cluster specified in ~/.kube/config.
-	$(KUSTOMIZE) build config/crd | $(KUBECTL) create -f - 2>/dev/null || $(KUSTOMIZE) build config/crd | $(KUBECTL) replace -f -
+	$(KUBECTL) apply --server-side -f $(SPARK_OPERATOR_CHART_PATH)/crds
 
 .PHONY: uninstall
 uninstall-crd: manifests kustomize ## Uninstall CRDs from the K8s cluster specified in ~/.kube/config. Call with ignore-not-found=true to ignore resource not found errors during deletion.
-	$(KUSTOMIZE) build config/crd | $(KUBECTL) delete --ignore-not-found=$(ignore-not-found) -f -
+	$(KUBECTL) delete --ignore-not-found=$(ignore-not-found) -f $(SPARK_OPERATOR_CHART_PATH)/crds
 
 .PHONY: deploy
 deploy: IMAGE_TAG=local
-deploy: helm manifests update-crd kind-load-image ## Deploy controller to the K8s cluster specified in ~/.kube/config.
-	$(HELM) upgrade --install -f charts/spark-operator-chart/ci/ci-values.yaml spark-operator ./charts/spark-operator-chart/
+deploy: helm manifests kind-load-image ## Deploy controller to the K8s cluster specified in ~/.kube/config.
+	$(HELM) upgrade --install -f $(SPARK_OPERATOR_CHART_PATH)/ci/ci-values.yaml spark-operator $(SPARK_OPERATOR_CHART_PATH)
 
 .PHONY: undeploy
 undeploy: helm ## Uninstall spark-operator

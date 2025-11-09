@@ -1,5 +1,0 @@
-## Append samples of your project ##
-resources:
-- v1beta2_sparkapplication.yaml
-- v1beta2_scheduledsparkapplication.yaml
-# +kubebuilder:scaffold:manifestskustomizesamples
