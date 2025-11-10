@@ -170,7 +170,9 @@ func driverConfOption(conn *v1alpha1.SparkConnect) ([]string, error) {
 	}
 
 	args = append(args, "--conf", "spark.driver.bindAddress=0.0.0.0")
-	args = append(args, "--conf", "spark.driver.host=${POD_IP}")
+
+	driverHost := "$(host=${POD_IP}; if [[ $host == *:* ]] && [[ $host != \\[* ]]; then echo \"[$host]\"; else echo \"$host\"; fi)"
+	args = append(args, "--conf", fmt.Sprintf("spark.driver.host=%s", driverHost))
 	args = append(args, "--conf", "spark.driver.port=7078")
 
 	// Driver pod name
