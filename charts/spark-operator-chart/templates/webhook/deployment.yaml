@@ -144,6 +144,9 @@ spec:
       affinity:
         {{- toYaml . | nindent 8 }}
       {{- end }}
+      {{- if and (semverCompare ">=1.30-0" .Capabilities.KubeVersion.Version) (kindIs "bool" .Values.webhook.hostUsers) }}
+      hostUsers: {{ .Values.webhook.hostUsers }}
+      {{- end }}
       {{- with .Values.webhook.tolerations }}
       tolerations:
         {{- toYaml . | nindent 8 }}
