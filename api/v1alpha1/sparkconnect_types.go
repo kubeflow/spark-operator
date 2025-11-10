@@ -87,6 +87,10 @@ type SparkConnectSpec struct {
 // ServerSpec is specification of the Spark connect server.
 type ServerSpec struct {
 	SparkPodSpec `json:",inline"`
+
+	// Service exposes the Spark connect server.
+	// +optional
+	Service *corev1.Service `json:"service,omitempty"`
 }
 
 // ExecutorSpec is specification of the executor.

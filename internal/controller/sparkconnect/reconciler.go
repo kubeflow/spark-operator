@@ -447,16 +447,18 @@ func (r *Reconciler) mutateServerPod(_ context.Context, conn *v1alpha1.SparkConn
 // createOrUpdateServerService creates or updates the server service for the SparkConnect resource.
 func (r *Reconciler) createOrUpdateServerService(ctx context.Context, conn *v1alpha1.SparkConnect) error {
 	logger := ctrl.LoggerFrom(ctx)
-	logger.V(1).Info("Create or update server service")
 
-	svc := &corev1.Service{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      GetServerServiceName(conn),
-			Namespace: conn.Namespace,
-		},
+	// Use the service specified in the server spec if provided.
+	svc := conn.Spec.Server.Service
+	if svc == nil {
+		svc = &corev1.Service{}
 	}
+	svc.Name = GetServerServiceName(conn)
+	// Namespace provided by user will be ignored.
+	svc.Namespace = conn.Namespace
 
-	_, err := controllerutil.CreateOrUpdate(ctx, r.client, svc, func() error {
+	// Create or update server service.
+	opResult, err := controllerutil.CreateOrUpdate(ctx, r.client, svc, func() error {
 		if err := r.mutateServerService(ctx, conn, svc); err != nil {
 			return fmt.Errorf("failed to mutate server service: %v", err)
 		}
@@ -464,6 +466,12 @@ func (r *Reconciler) createOrUpdateServerService(ctx context.Context, conn *v1al
 	})
 	if err != nil {
 		return fmt.Errorf("failed to create or update server service: %v", err)
+	}
+	switch opResult {
+	case controllerutil.OperationResultCreated:
+		logger.Info("Server service created")
+	case controllerutil.OperationResultUpdated:
+		logger.Info("Server service updated")
 	}
 
 	// Update SparkConnect status.
@@ -475,7 +483,6 @@ func (r *Reconciler) createOrUpdateServerService(ctx context.Context, conn *v1al
 // mutateServerService mutates the server service for the SparkConnect resource.
 func (r *Reconciler) mutateServerService(_ context.Context, conn *v1alpha1.SparkConnect, svc *corev1.Service) error {
 	if svc.CreationTimestamp.IsZero() {
-		svc.Spec.Type = corev1.ServiceTypeClusterIP
 		svc.Spec.Ports = []corev1.ServicePort{
 			{
 				Name:       "driver-rpc",

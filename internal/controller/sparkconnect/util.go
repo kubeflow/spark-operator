@@ -65,6 +65,13 @@ func GetServerPodName(conn *v1alpha1.SparkConnect) string {
 
 // GetServerServiceName returns the name of the server service for SparkConnect.
 func GetServerServiceName(conn *v1alpha1.SparkConnect) string {
+	// Use the service specified in the server spec if provided.
+	svc := conn.Spec.Server.Service
+	if svc != nil {
+		return svc.Name
+	}
+
+	// Otherwise, use the default service name.
 	return fmt.Sprintf("%s-server", conn.Name)
 }
 
