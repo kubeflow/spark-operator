@@ -408,6 +408,72 @@ func (r *Reconciler) reconcilePendingRerunSparkApplication(ctx context.Context, 
 			app := old.DeepCopy()
 
 			logger.Info("Pending rerun SparkApplication", "name", app.Name, "namespace", app.Namespace, "state", app.Status.AppState.State)
+
+			// Check if driver pod exists and is running. If so, sync the application state.
+			// This handles the case where the operator restarts and finds running pods
+			// with SparkApplications stuck in PENDING_RERUN state.
+			driverPodName := app.Status.DriverInfo.PodName
+			if driverPodName == "" {
+				driverPodName = util.GetDriverPodName(app)
+			}
+
+			driverPod := &corev1.Pod{}
+			err = r.client.Get(ctx, types.NamespacedName{Name: driverPodName, Namespace: app.Namespace}, driverPod)
+			if err == nil {
+				// Verify pod ownership before syncing state
+				podAppName := driverPod.Labels[common.LabelSparkAppName]
+				podSubmissionID := driverPod.Labels[common.LabelSubmissionID]
+
+				// Check app name match - this is the primary ownership check
+				if podAppName != app.Name {
+					logger.Info("Driver pod exists but does not belong to this application",
+						"name", app.Name, "namespace", app.Namespace, "podName", driverPod.Name,
+						"podAppName", podAppName, "expectedAppName", app.Name)
+				} else if (driverPod.Status.Phase == corev1.PodRunning || driverPod.Status.Phase == corev1.PodPending) && driverPod.DeletionTimestamp == nil {
+					// Don't check submission ID mismatch here - in PENDING_RERUN state, the app's
+					// SubmissionID is stale (from the previous attempt). We want to adopt the
+					// running pod and restore its submission ID to the app status.
+					// Driver pod exists and belongs to this app - check if it's running or pending
+					// Also verify it's not being deleted (DeletionTimestamp is nil)
+					logger.Info("Driver pod exists and is running/pending, syncing application state",
+						"name", app.Name, "namespace", app.Namespace, "podName", driverPod.Name, "podPhase", driverPod.Status.Phase)
+					// Update the driver info if it wasn't set
+					if app.Status.DriverInfo.PodName == "" {
+						app.Status.DriverInfo.PodName = driverPod.Name
+					}
+					// Restore the submission ID for this live attempt
+					// resetSparkApplicationStatus clears this field when entering PENDING_RERUN,
+					// but the driver pod retains it in its label
+					if app.Status.SubmissionID == "" && podSubmissionID != "" {
+						app.Status.SubmissionID = podSubmissionID
+					}
+					// Preserve the start time and execution attempts from the pod's creation time
+					// since the application is already running
+					if app.Status.LastSubmissionAttemptTime.IsZero() {
+						app.Status.LastSubmissionAttemptTime = driverPod.CreationTimestamp
+					}
+					if app.Status.ExecutionAttempts == 0 {
+						// We don't know the exact number of attempts, but at least 1
+						app.Status.ExecutionAttempts = 1
+					}
+					if app.Status.SubmissionAttempts == 0 {
+						// Also set submission attempts to avoid retry calculation errors
+						app.Status.SubmissionAttempts = 1
+					}
+					// Sync the application state to match the actual pod state
+					if err := r.updateSparkApplicationState(ctx, app); err != nil {
+						logger.Error(err, "Failed to sync application state from running pod", "name", app.Name, "namespace", app.Namespace)
+						// Continue with normal flow even if sync fails
+					}
+				} else {
+					logger.Info("Driver pod exists but is not running/pending",
+						"name", app.Name, "namespace", app.Namespace, "podPhase", driverPod.Status.Phase)
+				}
+			} else if !errors.IsNotFound(err) {
+				logger.Error(err, "Failed to get driver pod", "name", driverPodName, "namespace", app.Namespace)
+			}
+
+			// If resources are deleted, proceed with normal resubmission flow
 			if r.validateSparkResourceDeletion(ctx, app) {
 				logger.Info("Successfully deleted resources associated with SparkApplication", "name", app.Name, "namespace", app.Namespace, "state", app.Status.AppState.State)
 				r.recordSparkApplicationEvent(app)

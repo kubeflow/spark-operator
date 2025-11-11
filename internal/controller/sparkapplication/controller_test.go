@@ -550,6 +550,417 @@ var _ = Describe("SparkApplication Controller", func() {
 			Expect(app.Status.ExecutorState).To(HaveLen(1))
 		})
 	})
+
+	Context("When reconciling a pending rerun SparkApplication with running driver pod", func() {
+		ctx := context.Background()
+		appName := "test-pending-rerun"
+		appNamespace := "default"
+		key := types.NamespacedName{
+			Name:      appName,
+			Namespace: appNamespace,
+		}
+
+		BeforeEach(func() {
+			By("Creating a test SparkApplication in pending rerun state")
+			app := &v1beta2.SparkApplication{}
+			if err := k8sClient.Get(ctx, key, app); err != nil && errors.IsNotFound(err) {
+				app = &v1beta2.SparkApplication{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      appName,
+						Namespace: appNamespace,
+					},
+					Spec: v1beta2.SparkApplicationSpec{
+						MainApplicationFile: util.StringPtr("local:///dummy.jar"),
+					},
+				}
+				v1beta2.SetSparkApplicationDefaults(app)
+				Expect(k8sClient.Create(ctx, app)).To(Succeed())
+
+				// Create a running driver pod (simulating operator restart scenario)
+				driverPod := createDriverPod(appName, appNamespace)
+				Expect(k8sClient.Create(ctx, driverPod)).To(Succeed())
+				driverPod.Status.Phase = corev1.PodRunning
+				Expect(k8sClient.Status().Update(ctx, driverPod)).To(Succeed())
+
+				// Set app to pending rerun with no start time or attempts
+				app.Status.AppState.State = v1beta2.ApplicationStatePendingRerun
+				app.Status.DriverInfo.PodName = driverPod.Name
+				app.Status.LastSubmissionAttemptTime = metav1.Time{} // Empty time
+				app.Status.ExecutionAttempts = 0
+				Expect(k8sClient.Status().Update(ctx, app)).To(Succeed())
+			}
+		})
+
+		AfterEach(func() {
+			app := &v1beta2.SparkApplication{}
+			Expect(k8sClient.Get(ctx, key, app)).To(Succeed())
+
+			By("Deleting the created test SparkApplication")
+			Expect(k8sClient.Delete(ctx, app)).To(Succeed())
+
+			By("Deleting the driver pod")
+			driverPod := &corev1.Pod{}
+			Expect(k8sClient.Get(ctx, getDriverNamespacedName(appName, appNamespace), driverPod)).To(Succeed())
+			Expect(k8sClient.Delete(ctx, driverPod)).To(Succeed())
+		})
+
+		It("Should preserve start time and execution attempts from running driver pod", func() {
+			By("Reconciling the pending rerun SparkApplication")
+			reconciler := sparkapplication.NewReconciler(
+				nil,
+				k8sClient.Scheme(),
+				k8sClient,
+				record.NewFakeRecorder(3),
+				nil,
+				sparkapplication.Options{Namespaces: []string{appNamespace}},
+			)
+			result, err := reconciler.Reconcile(ctx, reconcile.Request{NamespacedName: key})
+			Expect(err).NotTo(HaveOccurred())
+			Expect(result.Requeue).To(BeFalse())
+
+			app := &v1beta2.SparkApplication{}
+			Expect(k8sClient.Get(ctx, key, app)).To(Succeed())
+
+			// Verify that start time was set from pod creation time
+			Expect(app.Status.LastSubmissionAttemptTime.IsZero()).To(BeFalse())
+
+			// Verify that execution attempts was set to 1
+			Expect(app.Status.ExecutionAttempts).To(Equal(int32(1)))
+
+			// Verify state transitioned to running
+			Expect(app.Status.AppState.State).To(Equal(v1beta2.ApplicationStateRunning))
+		})
+	})
+
+	Context("When reconciling a pending rerun SparkApplication with pending driver pod", func() {
+		ctx := context.Background()
+		appName := "test-pending-rerun-pending-pod"
+		appNamespace := "default"
+		key := types.NamespacedName{
+			Name:      appName,
+			Namespace: appNamespace,
+		}
+
+		BeforeEach(func() {
+			By("Creating a test SparkApplication in pending rerun state")
+			app := &v1beta2.SparkApplication{}
+			if err := k8sClient.Get(ctx, key, app); err != nil && errors.IsNotFound(err) {
+				app = &v1beta2.SparkApplication{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      appName,
+						Namespace: appNamespace,
+					},
+					Spec: v1beta2.SparkApplicationSpec{
+						MainApplicationFile: util.StringPtr("local:///dummy.jar"),
+					},
+				}
+				v1beta2.SetSparkApplicationDefaults(app)
+				Expect(k8sClient.Create(ctx, app)).To(Succeed())
+
+				// Create a pending driver pod
+				driverPod := createDriverPod(appName, appNamespace)
+				Expect(k8sClient.Create(ctx, driverPod)).To(Succeed())
+				driverPod.Status.Phase = corev1.PodPending
+				Expect(k8sClient.Status().Update(ctx, driverPod)).To(Succeed())
+
+				// Set app to pending rerun with no start time or attempts
+				app.Status.AppState.State = v1beta2.ApplicationStatePendingRerun
+				app.Status.DriverInfo.PodName = driverPod.Name
+				app.Status.LastSubmissionAttemptTime = metav1.Time{} // Empty time
+				app.Status.ExecutionAttempts = 0
+				Expect(k8sClient.Status().Update(ctx, app)).To(Succeed())
+			}
+		})
+
+		AfterEach(func() {
+			app := &v1beta2.SparkApplication{}
+			Expect(k8sClient.Get(ctx, key, app)).To(Succeed())
+
+			By("Deleting the created test SparkApplication")
+			Expect(k8sClient.Delete(ctx, app)).To(Succeed())
+
+			By("Deleting the driver pod")
+			driverPod := &corev1.Pod{}
+			Expect(k8sClient.Get(ctx, getDriverNamespacedName(appName, appNamespace), driverPod)).To(Succeed())
+			Expect(k8sClient.Delete(ctx, driverPod)).To(Succeed())
+		})
+
+		It("Should preserve start time and execution attempts from pending driver pod", func() {
+			By("Reconciling the pending rerun SparkApplication")
+			reconciler := sparkapplication.NewReconciler(
+				nil,
+				k8sClient.Scheme(),
+				k8sClient,
+				record.NewFakeRecorder(3),
+				nil,
+				sparkapplication.Options{Namespaces: []string{appNamespace}},
+			)
+			result, err := reconciler.Reconcile(ctx, reconcile.Request{NamespacedName: key})
+			Expect(err).NotTo(HaveOccurred())
+			Expect(result.Requeue).To(BeFalse())
+
+			app := &v1beta2.SparkApplication{}
+			Expect(k8sClient.Get(ctx, key, app)).To(Succeed())
+
+			// Verify that start time was set from pod creation time
+			Expect(app.Status.LastSubmissionAttemptTime.IsZero()).To(BeFalse())
+
+			// Verify that execution attempts was set to 1
+			Expect(app.Status.ExecutionAttempts).To(Equal(int32(1)))
+		})
+	})
+
+	Context("When reconciling a pending rerun SparkApplication with failed driver pod", func() {
+		ctx := context.Background()
+		appName := "test-pending-rerun-failed-pod"
+		appNamespace := "default"
+		key := types.NamespacedName{
+			Name:      appName,
+			Namespace: appNamespace,
+		}
+
+		BeforeEach(func() {
+			By("Creating a test SparkApplication in pending rerun state")
+			app := &v1beta2.SparkApplication{}
+			if err := k8sClient.Get(ctx, key, app); err != nil && errors.IsNotFound(err) {
+				app = &v1beta2.SparkApplication{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      appName,
+						Namespace: appNamespace,
+					},
+					Spec: v1beta2.SparkApplicationSpec{
+						MainApplicationFile: util.StringPtr("local:///dummy.jar"),
+					},
+				}
+				v1beta2.SetSparkApplicationDefaults(app)
+				Expect(k8sClient.Create(ctx, app)).To(Succeed())
+
+				// Create a failed driver pod (terminal state)
+				driverPod := createDriverPod(appName, appNamespace)
+				Expect(k8sClient.Create(ctx, driverPod)).To(Succeed())
+				driverPod.Status.Phase = corev1.PodFailed
+				Expect(k8sClient.Status().Update(ctx, driverPod)).To(Succeed())
+
+				// Set app to pending rerun with no start time or attempts
+				app.Status.AppState.State = v1beta2.ApplicationStatePendingRerun
+				app.Status.DriverInfo.PodName = driverPod.Name
+				app.Status.LastSubmissionAttemptTime = metav1.Time{} // Empty time
+				app.Status.ExecutionAttempts = 0
+				Expect(k8sClient.Status().Update(ctx, app)).To(Succeed())
+			}
+		})
+
+		AfterEach(func() {
+			app := &v1beta2.SparkApplication{}
+			Expect(k8sClient.Get(ctx, key, app)).To(Succeed())
+
+			By("Deleting the created test SparkApplication")
+			Expect(k8sClient.Delete(ctx, app)).To(Succeed())
+
+			By("Deleting the driver pod if it exists")
+			driverPod := &corev1.Pod{}
+			if err := k8sClient.Get(ctx, getDriverNamespacedName(appName, appNamespace), driverPod); err == nil {
+				Expect(k8sClient.Delete(ctx, driverPod)).To(Succeed())
+			}
+		})
+
+		It("Should not preserve start time when driver pod is in failed state", func() {
+			By("Reconciling the pending rerun SparkApplication")
+			reconciler := sparkapplication.NewReconciler(
+				nil,
+				k8sClient.Scheme(),
+				k8sClient,
+				record.NewFakeRecorder(3),
+				nil,
+				sparkapplication.Options{Namespaces: []string{appNamespace}},
+			)
+			result, err := reconciler.Reconcile(ctx, reconcile.Request{NamespacedName: key})
+			Expect(err).NotTo(HaveOccurred())
+			Expect(result.Requeue).To(BeFalse())
+
+			app := &v1beta2.SparkApplication{}
+			Expect(k8sClient.Get(ctx, key, app)).To(Succeed())
+
+			// When driver pod is in failed state, the normal pending rerun flow should proceed
+			// This means the app should remain in pending rerun state (waiting for pod deletion)
+			// and should NOT have preserved the start time or execution attempts from the failed pod
+			Expect(app.Status.AppState.State).To(Equal(v1beta2.ApplicationStatePendingRerun))
+
+			// Start time and execution attempts should remain empty/zero since the pod is failed
+			// and needs to be cleaned up before resubmission
+			Expect(app.Status.LastSubmissionAttemptTime.IsZero()).To(BeTrue())
+			Expect(app.Status.ExecutionAttempts).To(Equal(int32(0)))
+		})
+	})
+
+	Context("When reconciling a pending rerun SparkApplication with mismatched driver pod", func() {
+		ctx := context.Background()
+		appName := "test-pending-rerun-mismatch"
+		appNamespace := "default"
+		key := types.NamespacedName{
+			Name:      appName,
+			Namespace: appNamespace,
+		}
+
+		BeforeEach(func() {
+			By("Creating a test SparkApplication in pending rerun state")
+			app := &v1beta2.SparkApplication{}
+			if err := k8sClient.Get(ctx, key, app); err != nil && errors.IsNotFound(err) {
+				app = &v1beta2.SparkApplication{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      appName,
+						Namespace: appNamespace,
+					},
+					Spec: v1beta2.SparkApplicationSpec{
+						MainApplicationFile: util.StringPtr("local:///dummy.jar"),
+					},
+				}
+				v1beta2.SetSparkApplicationDefaults(app)
+				Expect(k8sClient.Create(ctx, app)).To(Succeed())
+
+				// Create a driver pod with WRONG app name label (simulating name collision)
+				driverPod := createDriverPod(appName, appNamespace)
+				// Override the app name label to simulate a different application
+				driverPod.Labels[common.LabelSparkAppName] = "different-app"
+				Expect(k8sClient.Create(ctx, driverPod)).To(Succeed())
+				driverPod.Status.Phase = corev1.PodRunning
+				Expect(k8sClient.Status().Update(ctx, driverPod)).To(Succeed())
+
+				// Set app to pending rerun with no start time or attempts
+				app.Status.AppState.State = v1beta2.ApplicationStatePendingRerun
+				app.Status.DriverInfo.PodName = driverPod.Name
+				app.Status.LastSubmissionAttemptTime = metav1.Time{} // Empty time
+				app.Status.ExecutionAttempts = 0
+				Expect(k8sClient.Status().Update(ctx, app)).To(Succeed())
+			}
+		})
+
+		AfterEach(func() {
+			app := &v1beta2.SparkApplication{}
+			Expect(k8sClient.Get(ctx, key, app)).To(Succeed())
+
+			By("Deleting the created test SparkApplication")
+			Expect(k8sClient.Delete(ctx, app)).To(Succeed())
+
+			By("Deleting the driver pod")
+			driverPod := &corev1.Pod{}
+			Expect(k8sClient.Get(ctx, getDriverNamespacedName(appName, appNamespace), driverPod)).To(Succeed())
+			Expect(k8sClient.Delete(ctx, driverPod)).To(Succeed())
+		})
+
+		It("Should not sync state from pod with mismatched app name label", func() {
+			By("Reconciling the pending rerun SparkApplication")
+			reconciler := sparkapplication.NewReconciler(
+				nil,
+				k8sClient.Scheme(),
+				k8sClient,
+				record.NewFakeRecorder(3),
+				nil,
+				sparkapplication.Options{Namespaces: []string{appNamespace}},
+			)
+			result, err := reconciler.Reconcile(ctx, reconcile.Request{NamespacedName: key})
+			Expect(err).NotTo(HaveOccurred())
+			Expect(result.Requeue).To(BeFalse())
+
+			app := &v1beta2.SparkApplication{}
+			Expect(k8sClient.Get(ctx, key, app)).To(Succeed())
+
+			// Should NOT have synced state from the mismatched pod
+			// Start time and execution attempts should remain empty/zero
+			Expect(app.Status.LastSubmissionAttemptTime.IsZero()).To(BeTrue())
+			Expect(app.Status.ExecutionAttempts).To(Equal(int32(0)))
+
+			// Should remain in pending rerun state
+			Expect(app.Status.AppState.State).To(Equal(v1beta2.ApplicationStatePendingRerun))
+		})
+	})
+
+	Context("When reconciling a pending rerun SparkApplication with pod being deleted", func() {
+		ctx := context.Background()
+		appName := "test-pending-rerun-deleting"
+		appNamespace := "default"
+		key := types.NamespacedName{
+			Name:      appName,
+			Namespace: appNamespace,
+		}
+
+		BeforeEach(func() {
+			By("Creating a test SparkApplication in pending rerun state")
+			app := &v1beta2.SparkApplication{}
+			if err := k8sClient.Get(ctx, key, app); err != nil && errors.IsNotFound(err) {
+				app = &v1beta2.SparkApplication{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      appName,
+						Namespace: appNamespace,
+					},
+					Spec: v1beta2.SparkApplicationSpec{
+						MainApplicationFile: util.StringPtr("local:///dummy.jar"),
+					},
+				}
+				v1beta2.SetSparkApplicationDefaults(app)
+				Expect(k8sClient.Create(ctx, app)).To(Succeed())
+
+				// Create a driver pod with a finalizer so it doesn't immediately disappear
+				driverPod := createDriverPod(appName, appNamespace)
+				driverPod.Finalizers = []string{"sparkoperator.k8s.io/test-finalizer"}
+				Expect(k8sClient.Create(ctx, driverPod)).To(Succeed())
+				driverPod.Status.Phase = corev1.PodRunning
+				Expect(k8sClient.Status().Update(ctx, driverPod)).To(Succeed())
+
+				// Delete the pod - it will have DeletionTimestamp set but won't be fully deleted due to finalizer
+				Expect(k8sClient.Delete(ctx, driverPod)).To(Succeed())
+
+				// Set app to pending rerun with no start time or attempts
+				app.Status.AppState.State = v1beta2.ApplicationStatePendingRerun
+				app.Status.DriverInfo.PodName = driverPod.Name
+				app.Status.LastSubmissionAttemptTime = metav1.Time{} // Empty time
+				app.Status.ExecutionAttempts = 0
+				app.Status.SubmissionAttempts = 0
+				Expect(k8sClient.Status().Update(ctx, app)).To(Succeed())
+			}
+		})
+
+		AfterEach(func() {
+			app := &v1beta2.SparkApplication{}
+			if err := k8sClient.Get(ctx, key, app); err == nil {
+				By("Deleting the created test SparkApplication")
+				Expect(k8sClient.Delete(ctx, app)).To(Succeed())
+			}
+
+			By("Removing finalizer and deleting the driver pod if it exists")
+			driverPod := &corev1.Pod{}
+			if err := k8sClient.Get(ctx, getDriverNamespacedName(appName, appNamespace), driverPod); err == nil {
+				// Remove finalizer so pod can be deleted
+				driverPod.Finalizers = []string{}
+				_ = k8sClient.Update(ctx, driverPod)
+				_ = k8sClient.Delete(ctx, driverPod)
+			}
+		})
+
+		It("Should not sync state from pod with deletion timestamp set", func() {
+			By("Reconciling the pending rerun SparkApplication")
+			reconciler := sparkapplication.NewReconciler(
+				nil,
+				k8sClient.Scheme(),
+				k8sClient,
+				record.NewFakeRecorder(3),
+				nil,
+				sparkapplication.Options{Namespaces: []string{appNamespace}},
+			)
+			result, err := reconciler.Reconcile(ctx, reconcile.Request{NamespacedName: key})
+			Expect(err).NotTo(HaveOccurred())
+			Expect(result.Requeue).To(BeFalse())
+
+			By("Verifying that start time and attempts were NOT preserved from the deleting pod")
+			app := &v1beta2.SparkApplication{}
+			Expect(k8sClient.Get(ctx, key, app)).To(Succeed())
+
+			// Should NOT have preserved metadata from a pod being deleted
+			Expect(app.Status.LastSubmissionAttemptTime.IsZero()).To(BeTrue(), "LastSubmissionAttemptTime should remain empty when pod is being deleted")
+			Expect(app.Status.ExecutionAttempts).To(Equal(int32(0)), "ExecutionAttempts should remain 0 when pod is being deleted")
+			Expect(app.Status.SubmissionAttempts).To(Equal(int32(0)), "SubmissionAttempts should remain 0 when pod is being deleted")
+		})
+	})
 })
 
 func getDriverNamespacedName(appName string, appNamespace string) types.NamespacedName {
