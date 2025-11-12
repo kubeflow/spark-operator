@@ -17,6 +17,10 @@ limitations under the License.
 apiVersion: apps/v1
 kind: Deployment
 metadata:
+  {{- with .Values.controller.deploymentAnnotations }}
+  annotations:
+    {{- tpl (toYaml .) $ | nindent 4 }}
+  {{- end }}
   name: {{ include "spark-operator.controller.deploymentName" . }}
   labels:
     {{- include "spark-operator.controller.labels" . | nindent 4 }}
