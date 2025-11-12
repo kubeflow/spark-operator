@@ -149,7 +149,7 @@ jobs:
           version: ${{ steps.get_helm_version.outputs.HELM_VERSION }}
 
       - name: Set up chart-testing
-        uses: helm/chart-testing-action@v2.7.0
+        uses: helm/chart-testing-action@v2.8.0
 
       - name: Generate manifests
         run: |
