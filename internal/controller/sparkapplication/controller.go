@@ -742,7 +742,7 @@ func (r *Reconciler) reconcileSuspendingSparkApplication(ctx context.Context, re
 			r.recordSparkApplicationEvent(app)
 
 			if err := r.deleteSparkResources(ctx, app); err != nil {
-				logger.Error(err, "failed to delete spark resources", "name", app.Name, "namespace", app.Namespace)
+				logger.Error(err, "failed to delete spark resources")
 				return err
 			}
 
@@ -758,7 +758,7 @@ func (r *Reconciler) reconcileSuspendingSparkApplication(ctx context.Context, re
 		},
 	)
 	if retryErr != nil {
-		logger.Error(retryErr, "Failed to reconcile SparkApplication", "name", key.Name, "namespace", key.Namespace)
+		logger.Error(retryErr, "Failed to reconcile SparkApplication")
 		return ctrl.Result{}, retryErr
 	}
 	return ctrl.Result{}, nil
@@ -780,7 +780,7 @@ func (r *Reconciler) reconcileSuspendedSparkApplication(ctx context.Context, req
 			app := old.DeepCopy()
 
 			if r.validateSparkResourceDeletion(ctx, app) {
-				logger.Info("Successfully deleted resources associated with SparkApplication", "name", app.Name, "namespace", app.Namespace, "state", app.Status.AppState.State)
+				logger.Info("Successfully deleted resources associated with SparkApplication", "state", app.Status.AppState.State)
 				r.resetSparkApplicationStatus(app)
 				r.recordSparkApplicationEvent(app)
 				if !ptr.Deref(app.Spec.Suspend, false) {
@@ -789,8 +789,8 @@ func (r *Reconciler) reconcileSuspendedSparkApplication(ctx context.Context, req
 					}
 				}
 			} else {
-				err := fmt.Errorf("resources associated with SparkApplication still exist: %s/%s", app.Namespace, app.Name)
-				logger.Error(err, "Failed to confirm being deleted resources associated with SparkApplication", "name", app.Name, "namespace", app.Namespace, "state", app.Status.AppState.State)
+				err := fmt.Errorf("resources associated with SparkApplication still exist")
+				logger.Error(err, "Failed to confirm being deleted resources associated with SparkApplication", "state", app.Status.AppState.State)
 				return err
 			}
 			if err := r.updateSparkApplicationStatus(ctx, app); err != nil {
@@ -800,7 +800,7 @@ func (r *Reconciler) reconcileSuspendedSparkApplication(ctx context.Context, req
 		},
 	)
 	if retryErr != nil {
-		logger.Error(retryErr, "Failed to reconcile SparkApplication", "name", key.Name, "namespace", key.Namespace)
+		logger.Error(retryErr, "Failed to reconcile SparkApplication")
 		return ctrl.Result{}, retryErr
 	}
 	return ctrl.Result{}, nil
@@ -831,7 +831,7 @@ func (r *Reconciler) reconcileResumingSparkApplication(ctx context.Context, req 
 		},
 	)
 	if retryErr != nil {
-		logger.Error(retryErr, "Failed to reconcile SparkApplication", "name", key.Name, "namespace", key.Namespace)
+		logger.Error(retryErr, "Failed to reconcile SparkApplication")
 		return ctrl.Result{Requeue: true}, retryErr
 	}
 	return ctrl.Result{}, nil
@@ -858,7 +858,7 @@ func (r *Reconciler) transitionToSuspending(ctx context.Context, req ctrl.Reques
 		},
 	)
 	if retryErr != nil {
-		logger.Error(retryErr, "Failed to reconcile SparkApplication", "name", key.Name, "namespace", key.Namespace)
+		logger.Error(retryErr, "Failed to reconcile SparkApplication")
 		return ctrl.Result{Requeue: true}, retryErr
 	}
 	return ctrl.Result{}, nil
