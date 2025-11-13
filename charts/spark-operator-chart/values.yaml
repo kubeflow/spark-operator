@@ -81,6 +81,12 @@ controller:
 
   # -- Configure the encoder of logging, can be one of `console` or `json`.
   logEncoder: console
+  
+  # -- Manager product to use with the default manager factory.
+  managerProduct: default
+
+  # -- Fallback manager product used when the primary selection cannot be applied.
+  managerProductFallback: default
 
   # -- Grace period after a successful spark-submit when driver pod not found errors will be retried. Useful if the driver pod can take some time to be created.
   driverPodCreationGracePeriod: 10s
