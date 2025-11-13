@@ -81,7 +81,7 @@ controller:
 
   # -- Configure the encoder of logging, can be one of `console` or `json`.
   logEncoder: console
-  
+
   # -- Manager product to use with the default manager factory.
   managerProduct: default
 
