@@ -71,6 +71,9 @@ var (
 )
 
 var (
+	managerProductName     string
+	managerProductFallback string
+
 	namespaces []string
 
 	// Controller
@@ -191,6 +194,8 @@ func NewStartCommand() *cobra.Command {
 
 	command.Flags().StringVar(&pprofBindAddress, "pprof-bind-address", "0", "The address the pprof endpoint binds to. "+
 		"If not set, it will be 0 in order to disable the pprof server")
+	command.Flags().StringVar(&managerProductName, "manager-product", "default", "Manager product to use with the default manager factory")
+	command.Flags().StringVar(&managerProductFallback, "manager-product-fallback", "default", "Fallback manager product to use when the primary choice cannot be applied")
 
 	flagSet := flag.NewFlagSet("controller", flag.ExitOnError)
 	ctrl.RegisterFlags(flagSet)
@@ -211,39 +216,30 @@ func start() {
 		os.Exit(1)
 	}
 
-	// Create the manager.
 	tlsOptions := newTLSOptions()
-	mgr, err := ctrl.NewManager(cfg, ctrl.Options{
-		Scheme: operatorscheme.ControllerScheme,
-		Cache:  newCacheOptions(),
-		Metrics: metricsserver.Options{
-			BindAddress:   metricsBindAddress,
-			SecureServing: secureMetrics,
-			TLSOpts:       tlsOptions,
-		},
-		WebhookServer: ctrlwebhook.NewServer(ctrlwebhook.Options{
-			TLSOpts: tlsOptions,
-		}),
-		HealthProbeBindAddress:  healthProbeBindAddress,
-		PprofBindAddress:        pprofBindAddress,
-		LeaderElection:          enableLeaderElection,
-		LeaderElectionID:        leaderElectionLockName,
-		LeaderElectionNamespace: leaderElectionLockNamespace,
-		LeaseDuration:           &leaderElectionLeaseDuration,
-		RenewDeadline:           &leaderElectionRenewDeadline,
-		RetryPeriod:             &leaderElectionRetryPeriod,
-		// LeaderElectionReleaseOnCancel defines if the leader should step down voluntarily
-		// when the Manager ends. This requires the binary to immediately end when the
-		// Manager is stopped, otherwise, this setting is unsafe. Setting this significantly
-		// speeds up voluntary leader transitions as the new leader don't have to wait
-		// LeaseDuration time first.
-		//
-		// In the default scaffold provided, the program ends immediately after
-		// the manager stops, so would be fine to enable this option. However,
-		// if you are doing or is intended to do any operation such as perform cleanups
-		// after the manager stops then its usage might be unsafe.
-		// LeaderElectionReleaseOnCancel: true,
-	})
+
+	options := newManagerOptions(tlsOptions)
+
+	logger.V(1).Info("registered manager products", "products", registeredManagerProductNames())
+
+	if err := applyManagerProduct(managerProductName); err != nil {
+		logger.Error(err, "failed to apply manager product", "product", managerProductName)
+		if managerProductFallback != "" && managerProductFallback != managerProductName {
+			logger.Info("attempting manager product fallback", "fallback", managerProductFallback)
+			if err := applyManagerProduct(managerProductFallback); err != nil {
+				logger.Error(err, "failed to apply manager product fallback", "fallback", managerProductFallback)
+				os.Exit(1)
+			}
+			logger.Info("using manager product fallback", "product", managerProductFallback)
+		} else {
+			os.Exit(1)
+		}
+	} else {
+		logger.Info("using manager product", "product", managerProductName)
+	}
+
+	// Create the manager.
+	mgr, err := managerFactory(cfg, options)
 	if err != nil {
 		logger.Error(err, "failed to create manager")
 		os.Exit(1)
@@ -370,6 +366,40 @@ func newTLSOptions() []func(c *tls.Config) {
 		tlsOpts = append(tlsOpts, disableHTTP2)
 	}
 	return tlsOpts
+}
+
+func newManagerOptions(tlsOptions []func(*tls.Config)) ctrl.Options {
+	return ctrl.Options{
+		Scheme: operatorscheme.ControllerScheme,
+		Cache:  newCacheOptions(),
+		Metrics: metricsserver.Options{
+			BindAddress:   metricsBindAddress,
+			SecureServing: secureMetrics,
+			TLSOpts:       tlsOptions,
+		},
+		WebhookServer: ctrlwebhook.NewServer(ctrlwebhook.Options{
+			TLSOpts: tlsOptions,
+		}),
+		HealthProbeBindAddress:  healthProbeBindAddress,
+		PprofBindAddress:        pprofBindAddress,
+		LeaderElection:          enableLeaderElection,
+		LeaderElectionID:        leaderElectionLockName,
+		LeaderElectionNamespace: leaderElectionLockNamespace,
+		LeaseDuration:           &leaderElectionLeaseDuration,
+		RenewDeadline:           &leaderElectionRenewDeadline,
+		RetryPeriod:             &leaderElectionRetryPeriod,
+		// LeaderElectionReleaseOnCancel defines if the leader should step down voluntarily
+		// when the Manager ends. This requires the binary to immediately end when the
+		// Manager is stopped, otherwise, this setting is unsafe. Setting this significantly
+		// speeds up voluntary leader transitions as the new leader don't have to wait
+		// LeaseDuration time first.
+		//
+		// In the default scaffold provided, the program ends immediately after
+		// the manager stops, so would be fine to enable this option. However,
+		// if you are doing or is intended to do any operation such as perform cleanups
+		// after the manager stops then its usage might be unsafe.
+		// LeaderElectionReleaseOnCancel: true,
+	}
 }
 
 // newCacheOptions creates and returns a cache.Options instance configured with default namespaces and object caching settings.
