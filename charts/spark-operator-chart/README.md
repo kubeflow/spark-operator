@@ -118,6 +118,7 @@ See [helm uninstall](https://helm.sh/docs/helm/helm_uninstall) for command docum
 | controller.volumes | list | `[{"emptyDir":{"sizeLimit":"1Gi"},"name":"tmp"}]` | Volumes for controller pods. |
 | controller.nodeSelector | object | `{}` | Node selector for controller pods. |
 | controller.affinity | object | `{}` | Affinity for controller pods. |
+| controller.hostUsers | string | `nil` | Whether to use user namespace or not Kubernetes version 1.30 for feature beta (1.33 for GA) or higher is required with support from OS and OCI runtime ref: https://kubernetes.io/docs/concepts/workloads/pods/user-namespaces/ |
 | controller.tolerations | list | `[]` | List of node taints to tolerate for controller pods. |
 | controller.priorityClassName | string | `""` | Priority class for controller pods. |
 | controller.podSecurityContext | object | `{"fsGroup":185}` | Security context for controller pods. |
@@ -160,6 +161,7 @@ See [helm uninstall](https://helm.sh/docs/helm/helm_uninstall) for command docum
 | webhook.volumes | list | `[{"emptyDir":{"sizeLimit":"500Mi"},"name":"serving-certs"}]` | Volumes for webhook pods. |
 | webhook.nodeSelector | object | `{}` | Node selector for webhook pods. |
 | webhook.affinity | object | `{}` | Affinity for webhook pods. |
+| webhook.hostUsers | string | `nil` | Whether to use user namespace or not Kubernetes version 1.30 for feature beta (1.33 for GA) or higher is required with support from OS and OCI runtime ref: https://kubernetes.io/docs/concepts/workloads/pods/user-namespaces/ |
 | webhook.tolerations | list | `[]` | List of node taints to tolerate for webhook pods. |
 | webhook.priorityClassName | string | `""` | Priority class for webhook pods. |
 | webhook.podSecurityContext | object | `{"fsGroup":185}` | Security context for webhook pods. |

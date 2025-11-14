@@ -162,6 +162,11 @@ controller:
   # -- Affinity for controller pods.
   affinity: {}
 
+  # -- Whether to use user namespace or not
+  # Kubernetes version 1.30 for feature beta (1.33 for GA) or higher is required with support from OS and OCI runtime
+  # ref: https://kubernetes.io/docs/concepts/workloads/pods/user-namespaces/
+  hostUsers: null
+
   # -- List of node taints to tolerate for controller pods.
   tolerations: []
 
@@ -331,6 +336,11 @@ webhook:
 
   # -- Affinity for webhook pods.
   affinity: {}
+
+  # -- Whether to use user namespace or not
+  # Kubernetes version 1.30 for feature beta (1.33 for GA) or higher is required with support from OS and OCI runtime
+  # ref: https://kubernetes.io/docs/concepts/workloads/pods/user-namespaces/
+  hostUsers: null
 
   # -- List of node taints to tolerate for webhook pods.
   tolerations: []
