@@ -498,6 +498,8 @@ func (r *Reconciler) reconcilePendingRerunSparkApplication(ctx context.Context, 
 				r.recordSparkApplicationEvent(app)
 				r.resetSparkApplicationStatus(app)
 				r.submitSparkApplication(ctx, app)
+			} else {
+				logger.Info("Resources associated with SparkApplication still exist")
 			}
 			if err := r.updateSparkApplicationStatus(ctx, app); err != nil {
 				return err
@@ -789,9 +791,7 @@ func (r *Reconciler) reconcileSuspendedSparkApplication(ctx context.Context, req
 					}
 				}
 			} else {
-				err := fmt.Errorf("resources associated with SparkApplication still exist")
-				logger.Error(err, "Failed to confirm being deleted resources associated with SparkApplication", "state", app.Status.AppState.State)
-				return err
+				logger.Info("Resources associated with SparkApplication still exist")
 			}
 			if err := r.updateSparkApplicationStatus(ctx, app); err != nil {
 				return err
