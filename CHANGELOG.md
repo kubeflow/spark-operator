@@ -1,5 +1,85 @@
 # Changelog
 
+## [v2.4.0](https://github.com/kubeflow/spark-operator/tree/v2.4.0) (2025-11-14)
+
+### Features
+
+- fix(chart): add revisionHistoryLimit option ([#2625](https://github.com/kubeflow/spark-operator/pull/2625) by [@t3mi](https://github.com/t3mi))
+- Suspend/Resume feature on SparkApplication ([#2387](https://github.com/kubeflow/spark-operator/pull/2387) by [@everpeace](https://github.com/everpeace))
+- Set ControllerReference on driver pod and non-Controller OwnerReference on executor pod at submission time ([#2670](https://github.com/kubeflow/spark-operator/pull/2670) by [@everpeace](https://github.com/everpeace))
+- added SparkApp name validator to accept valid DNS-1035 format ([#2711](https://github.com/kubeflow/spark-operator/pull/2711) by [@aryankumar04](https://github.com/aryankumar04))
+- No propagate Kueue labels to driver and executor pods ([#2714](https://github.com/kubeflow/spark-operator/pull/2714) by [@everpeace](https://github.com/everpeace))
+- feat: add support for customizing connect service ([#2709](https://github.com/kubeflow/spark-operator/pull/2709) by [@ChenYi015](https://github.com/ChenYi015))
+
+### Bug Fixes
+
+- Grant get/patch permissions for SparkConnect CRD to hook ClusterRole ([#2605](https://github.com/kubeflow/spark-operator/pull/2605) by [@ChenYi015](https://github.com/ChenYi015))
+- Grant create events permissions to Controller ([#2616](https://github.com/kubeflow/spark-operator/pull/2616) by [@Rockawear](https://github.com/Rockawear))
+- fix(connect): propagate executor memory setting to spark options ([#2656](https://github.com/kubeflow/spark-operator/pull/2656) by [@mrjoe7](https://github.com/mrjoe7))
+- [fix] add miss cli params. Add leader election params in chart ([#2657](https://github.com/kubeflow/spark-operator/pull/2657) by [@aagumin](https://github.com/aagumin))
+- fix: webhook encoder configuration ([#2664](https://github.com/kubeflow/spark-operator/pull/2664) by [@pvbouwel](https://github.com/pvbouwel))
+- bugfix: hook.upgradeCrd use cases ([#2663](https://github.com/kubeflow/spark-operator/pull/2663) by [@pvbouwel](https://github.com/pvbouwel))
+- Correct entrypoint.sh for Openshift ([#2645](https://github.com/kubeflow/spark-operator/pull/2645) by [@Reamer](https://github.com/Reamer))
+- Fix driver host configuration to handle IPv6 addresses ([#2703](https://github.com/kubeflow/spark-operator/pull/2703) by [@tiagotxm](https://github.com/tiagotxm))
+- Add permissions for sparkconnects/finalizers ([#2727](https://github.com/kubeflow/spark-operator/pull/2727) by [@ChenYi015](https://github.com/ChenYi015))
+- Remove redundant name and namespace context in logs ([#2723](https://github.com/kubeflow/spark-operator/pull/2723) by [@ChenYi015](https://github.com/ChenYi015))
+- Logging info when resources associated with SparkApplication still exist ([#2725](https://github.com/kubeflow/spark-operator/pull/2725) by [@ChenYi015](https://github.com/ChenYi015))
+
+### Unit Tests
+
+- Add kube-scheduler podgroup unit tests ([#2689](https://github.com/kubeflow/spark-operator/pull/2689) by [@shadowinlife](https://github.com/shadowinlife))
+- Generate HTML coverage report after running unit tests ([#2691](https://github.com/kubeflow/spark-operator/pull/2691) by [@shadowinlife](https://github.com/shadowinlife))
+- Avoid 409 (Conflict) error at e2e tests with retry. ([#2695](https://github.com/kubeflow/spark-operator/pull/2695) by [@shadowinlife](https://github.com/shadowinlife))
+- Add unit test for sparkapplication_validator ([#2692](https://github.com/kubeflow/spark-operator/pull/2692) by [@shadowinlife](https://github.com/shadowinlife))
+- Add unit test for scheduledsparkapplication_validator ([#2694](https://github.com/kubeflow/spark-operator/pull/2694) by [@shadowinlife](https://github.com/shadowinlife))
+- Refactor the unit tests for web_ui.go ([#2696](https://github.com/kubeflow/spark-operator/pull/2696) by [@shadowinlife](https://github.com/shadowinlife))
+
+### Refactor
+
+- unify SparkApplication defaulting logic ([#2671](https://github.com/kubeflow/spark-operator/pull/2671) by [@zhzhuang-zju](https://github.com/zhzhuang-zju))
+- Replace strconv.Atoi with strconv.ParseInt ([#2699](https://github.com/kubeflow/spark-operator/pull/2699) by [@ChenYi015](https://github.com/ChenYi015))
+- refactor: use ptr.To to replace util.XxxPtr ([#2693](https://github.com/kubeflow/spark-operator/pull/2693) by [@ChenYi015](https://github.com/ChenYi015))
+
+### Dependencies
+
+- Bump actions/checkout from 4 to 5 ([#2623](https://github.com/kubeflow/spark-operator/pull/2623) by [@dependabot[bot]](https://github.com/apps/dependabot))
+- Bump actions/download-artifact from 4 to 5 ([#2624](https://github.com/kubeflow/spark-operator/pull/2624) by [@dependabot[bot]](https://github.com/apps/dependabot))
+- Bump helm.sh/helm/v3 from 3.18.4 to 3.18.5 ([#2627](https://github.com/kubeflow/spark-operator/pull/2627) by [@dependabot[bot]](https://github.com/apps/dependabot))
+- Bump github.com/go-viper/mapstructure/v2 from 2.3.0 to 2.4.0 ([#2635](https://github.com/kubeflow/spark-operator/pull/2635) by [@dependabot[bot]](https://github.com/apps/dependabot))
+- Bump actions/setup-go from 5 to 6 ([#2651](https://github.com/kubeflow/spark-operator/pull/2651) by [@dependabot[bot]](https://github.com/apps/dependabot))
+- Bump actions/stale from 9 to 10 ([#2649](https://github.com/kubeflow/spark-operator/pull/2649) by [@dependabot[bot]](https://github.com/apps/dependabot))
+- Bump aquasecurity/trivy-action from 0.32.0 to 0.33.1 ([#2650](https://github.com/kubeflow/spark-operator/pull/2650) by [@dependabot[bot]](https://github.com/apps/dependabot))
+- Bump github.com/golang/glog from 1.2.4 to 1.2.5 ([#2620](https://github.com/kubeflow/spark-operator/pull/2620) by [@dependabot[bot]](https://github.com/apps/dependabot))
+- Bump github.com/onsi/ginkgo/v2 from 2.23.3 to 2.26.0 ([#2660](https://github.com/kubeflow/spark-operator/pull/2660) by [@dependabot[bot]](https://github.com/apps/dependabot))
+- Bump sigs.k8s.io/scheduler-plugins from 0.31.8 to 0.32.7 ([#2675](https://github.com/kubeflow/spark-operator/pull/2675) by [@dependabot[bot]](https://github.com/apps/dependabot))
+- Bump github/codeql-action from 3 to 4 ([#2672](https://github.com/kubeflow/spark-operator/pull/2672) by [@dependabot[bot]](https://github.com/apps/dependabot))
+- Bump github.com/stretchr/testify from 1.10.0 to 1.11.1 ([#2673](https://github.com/kubeflow/spark-operator/pull/2673) by [@dependabot[bot]](https://github.com/apps/dependabot))
+- Bump golang.org/x/time from 0.9.0 to 0.14.0 ([#2686](https://github.com/kubeflow/spark-operator/pull/2686) by [@dependabot[bot]](https://github.com/apps/dependabot))
+- Bump github.com/prometheus/client_golang from 1.22.0 to 1.23.2 ([#2682](https://github.com/kubeflow/spark-operator/pull/2682) by [@dependabot[bot]](https://github.com/apps/dependabot))
+- Bump github.com/spf13/viper from 1.20.1 to 1.21.0 ([#2683](https://github.com/kubeflow/spark-operator/pull/2683) by [@dependabot[bot]](https://github.com/apps/dependabot))
+- Bump github/codeql-action from 3.29.2 to 4.31.0 ([#2684](https://github.com/kubeflow/spark-operator/pull/2684) by [@dependabot[bot]](https://github.com/apps/dependabot))
+- Bump github.com/containerd/containerd from 1.7.27 to 1.7.29 ([#2712](https://github.com/kubeflow/spark-operator/pull/2712) by [@dependabot[bot]](https://github.com/apps/dependabot))
+- Bump sigs.k8s.io/yaml from 1.5.0 to 1.6.0 ([#2704](https://github.com/kubeflow/spark-operator/pull/2704) by [@dependabot[bot]](https://github.com/apps/dependabot))
+- Bump github.com/spf13/cobra from 1.9.1 to 1.10.1 ([#2705](https://github.com/kubeflow/spark-operator/pull/2705) by [@dependabot[bot]](https://github.com/apps/dependabot))
+- Bump github/codeql-action from 4.31.0 to 4.31.2 ([#2707](https://github.com/kubeflow/spark-operator/pull/2707) by [@dependabot[bot]](https://github.com/apps/dependabot))
+- Bump actions/upload-artifact from 4 to 5 ([#2681](https://github.com/kubeflow/spark-operator/pull/2681) by [@dependabot[bot]](https://github.com/apps/dependabot))
+- Bump actions/download-artifact from 5 to 6 ([#2680](https://github.com/kubeflow/spark-operator/pull/2680) by [@dependabot[bot]](https://github.com/apps/dependabot))
+- Bump actions/checkout from 4.2.2 to 5.0.0 ([#2685](https://github.com/kubeflow/spark-operator/pull/2685) by [@dependabot[bot]](https://github.com/apps/dependabot))
+- Bump ossf/scorecard-action from 2.4.2 to 2.4.3 ([#2687](https://github.com/kubeflow/spark-operator/pull/2687) by [@dependabot[bot]](https://github.com/apps/dependabot))
+- Bump github.com/onsi/ginkgo/v2 from 2.26.0 to 2.27.2 ([#2719](https://github.com/kubeflow/spark-operator/pull/2719) by [@dependabot[bot]](https://github.com/apps/dependabot))
+- Bump golang.org/x/mod from 0.27.0 to 0.29.0 ([#2720](https://github.com/kubeflow/spark-operator/pull/2720) by [@dependabot[bot]](https://github.com/apps/dependabot))
+- Bump helm/chart-testing-action from 2.7.0 to 2.8.0 ([#2722](https://github.com/kubeflow/spark-operator/pull/2722) by [@dependabot[bot]](https://github.com/apps/dependabot))
+
+### Misc
+
+- Add changelog for v2.3.0 ([#2614](https://github.com/kubeflow/spark-operator/pull/2614) by [@ChenYi015](https://github.com/ChenYi015))
+- Update README ([#2634](https://github.com/kubeflow/spark-operator/pull/2634) by [@ChenYi015](https://github.com/ChenYi015))
+- Add Spark Operator Roadmap ([#2622](https://github.com/kubeflow/spark-operator/pull/2622) by [@ChenYi015](https://github.com/ChenYi015))
+- CI: Add Scorecard workflow ([#2654](https://github.com/kubeflow/spark-operator/pull/2654) by [@AdamKorcz](https://github.com/AdamKorcz))
+- Update GitHub action workflow permissions ([#2678](https://github.com/kubeflow/spark-operator/pull/2678) by [@ChenYi015](https://github.com/ChenYi015))
+
+[Full Changelog](https://github.com/kubeflow/spark-operator/compare/v2.3.0...v2.4.0)
+
 ## [v2.3.0](https://github.com/kubeflow/spark-operator/tree/v2.3.0) (2025-07-22)
 
 ### Features
