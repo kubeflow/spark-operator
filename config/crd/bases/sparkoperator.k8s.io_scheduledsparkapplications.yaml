@@ -12418,6 +12418,20 @@ spec:
                   or a valid IANA location name e.g. "America/New_York".
                   Defaults to "Local".
                 type: string
+              timestampPrecision:
+                default: nanos
+                description: |-
+                  TimestampPrecision controls the precision of the timestamp appended to generated
+                  SparkApplication names for scheduled runs.
+
+                  Allowed values: "nanos", "micros", "millis", "seconds"
+                  Defaults to "nanos" to preserve current behavior.
+                enum:
+                - nanos
+                - micros
+                - millis
+                - seconds
+                type: string
             required:
             - schedule
             - template
