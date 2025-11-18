@@ -38,6 +38,16 @@ type ScheduledSparkApplicationSpec struct {
 	TimeZone string `json:"timeZone,omitempty"`
 	// Template is a template from which SparkApplication instances can be created.
 	Template SparkApplicationSpec `json:"template"`
+	// TimestampPrecision controls the precision of the timestamp appended to generated
+	// SparkApplication names for scheduled runs.
+	//
+	// Allowed values: "nanos", "micros", "millis", "seconds"
+	// +kubebuilder:validation:Enum=nanos;micros;millis;seconds
+	// +optional
+	// +kubebuilder:default:=nanos
+	// Defaults to "nanos" to preserve current behavior.
+	TimestampPrecision string `json:"timestampPrecision,omitempty"`
+
 	// Suspend is a flag telling the controller to suspend subsequent runs of the application if set to true.
 	// +optional
 	// Defaults to false.
