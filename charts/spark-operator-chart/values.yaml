@@ -57,6 +57,10 @@ hook:
     tag: ""
 
 controller:
+  # -- default precision for ScheduledSparkApplication timestamp suffix
+  scheduledSparkApplication:
+    timestampPrecision: "nanos"
+
   # -- Number of replicas of controller.
   replicas: 1
 
