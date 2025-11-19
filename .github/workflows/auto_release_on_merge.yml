@@ -10,6 +10,9 @@ jobs:
   check-and-release:
     if: github.event.pull_request.merged == true && startsWith(github.event.pull_request.head.ref, 'update-spark-base-')
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: read
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
