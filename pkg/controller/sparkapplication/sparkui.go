@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"net/url"
 	"strconv"
+	"math"
 
 	clientset "k8s.io/client-go/kubernetes"
 
@@ -68,7 +69,13 @@ func getUITargetPort(app *v1beta2.SparkApplication) (int32, error) {
 	portStr, ok := app.Spec.SparkConf[sparkUIPortConfigurationKey]
 	if ok {
 		port, err := strconv.Atoi(portStr)
-		return int32(port), err
+		if err != nil {
+			return defaultSparkWebUIPort, err
+		}
+		if port < math.MinInt32 || port > math.MaxInt32 {
+			return defaultSparkWebUIPort, fmt.Errorf("Spark UI port %d out of int32 bounds", port)
+		}
+		return int32(port), nil
 	}
 	return defaultSparkWebUIPort, nil
 }
