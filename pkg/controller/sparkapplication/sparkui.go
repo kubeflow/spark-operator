@@ -70,10 +70,10 @@ func getUITargetPort(app *v1beta2.SparkApplication) (int32, error) {
 	if ok {
 		port, err := strconv.Atoi(portStr)
 		if err != nil {
-			return defaultSparkWebUIPort, err
+			return defaultSparkWebUIPort, nil
 		}
 		if port < math.MinInt32 || port > math.MaxInt32 {
-			return defaultSparkWebUIPort, fmt.Errorf("Spark UI port %d out of int32 bounds", port)
+			return defaultSparkWebUIPort, nil
 		}
 		return int32(port), nil
 	}
