@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"os"
 	"slices"
+	"strings"
 	"time"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
@@ -119,6 +120,9 @@ var (
 	enableHTTP2            bool
 	development            bool
 	zapOptions             = logzap.Options{}
+
+	// Controller-wide scheduled SA timestamp precision (flag)
+	scheduledSATimestampPrecision string
 )
 
 func NewStartCommand() *cobra.Command {
@@ -166,6 +170,9 @@ func NewStartCommand() *cobra.Command {
 	command.Flags().StringVar(&ingressURLFormat, "ingress-url-format", "", "Ingress URL format.")
 	command.Flags().StringVar(&ingressTLSstring, "ingress-tls", "", "JSON format string for the default TLS config on the Spark UI ingresses. e.g. '[{\"hosts\":[\"*.example.com\"],\"secretName\":\"example-secret\"}]'. `ingressTLS` in the SparkApplication spec will override this value.")
 	command.Flags().StringVar(&ingressAnnotationsString, "ingress-annotations", "", "JSON format string for the default ingress annotations for the Spark UI ingresses. e.g. '[{\"cert-manager.io/cluster-issuer\": \"letsencrypt\"}]'. `ingressAnnotations` in the SparkApplication spec will override this value.")
+
+	// New flag for scheduled SA timestamp precision
+	command.Flags().StringVar(&scheduledSATimestampPrecision, "scheduled-sa-timestamp-precision", "", "Default timestamp precision for ScheduledSparkApplication run name suffixes. One of: nanos,micros,millis,seconds,minutes. If unset, defaults to nanos.")
 
 	command.Flags().BoolVar(&enableLeaderElection, "leader-election", false, "Enable leader election for controller manager. "+
 		"Enabling this will ensure there is only one active controller manager.")
@@ -442,7 +449,8 @@ func newSparkApplicationReconcilerOptions() sparkapplication.Options {
 
 func newScheduledSparkApplicationReconcilerOptions() scheduledsparkapplication.Options {
 	options := scheduledsparkapplication.Options{
-		Namespaces: namespaces,
+		Namespaces:                    namespaces,
+		ScheduledSATimestampPrecision: strings.TrimSpace(scheduledSATimestampPrecision),
 	}
 	return options
 }

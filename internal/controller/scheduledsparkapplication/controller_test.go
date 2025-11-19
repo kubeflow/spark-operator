@@ -18,6 +18,8 @@ package scheduledsparkapplication
 
 import (
 	"context"
+	"testing"
+	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -91,3 +93,26 @@ var _ = Describe("ScheduledSparkApplication Controller", func() {
 		})
 	})
 })
+
+// TestFormatTimestampLengths validates timestamp lengths returned for each precision.
+func TestFormatTimestampLengths(t *testing.T) {
+	// deterministic time value
+	// seconds: 1700000000 (10 digits)
+	// choose a time with specific nanoseconds so nanos/millis/micros lengths are stable
+	now := time.Unix(1700000000, 123456789) // arbitrary fixed timestamp
+
+	cases := map[string]int{
+		"minutes": 8,  // Unix()/60 => ~8 digits depending on epoch; test expects approximate len
+		"seconds": 10,
+		"millis":  13,
+		"micros":  16,
+		"nanos":   19,
+	}
+
+	for precision, wantLen := range cases {
+		s := formatTimestamp(precision, now)
+		if len(s) != wantLen {
+			t.Fatalf("precision=%s: got len %d, want %d (value=%s)", precision, len(s), wantLen, s)
+		}
+	}
+}
