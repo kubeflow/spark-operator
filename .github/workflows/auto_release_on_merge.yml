@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           ref: relativity-main
           fetch-depth: 0
@@ -41,7 +41,7 @@ jobs:
           NEW_PATCH=$((PATCH + 1))
           NEW_VERSION="v${MAJOR}.${MINOR}.${NEW_PATCH}"
           
-          echo "new_version=${NEW_VERSION}" >> $GITHUB_OUTPUT
+          echo "new_version=${NEW_VERSION}" >> "$GITHUB_OUTPUT"
           echo "New version will be: $NEW_VERSION"
 
       - name: Create and push tag
@@ -50,7 +50,7 @@ jobs:
           NEW_VERSION="${{ steps.get-version.outputs.new_version }}"
           git tag -a "$NEW_VERSION" -m "Release $NEW_VERSION - Updated spark-base version"
           git push origin "$NEW_VERSION"
-          echo "tag_created=true" >> $GITHUB_OUTPUT
+          echo "tag_created=true" >> "$GITHUB_OUTPUT"
           echo "Created and pushed tag: $NEW_VERSION"
 
       - name: Create GitHub Release
@@ -75,9 +75,10 @@ jobs:
 
       - name: Trigger spark-operator update
         if: steps.create-tag.outputs.tag_created == 'true'
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
         run: |
           # Extract spark-base version from PR title
-          PR_TITLE="${{ github.event.pull_request.title }}"
           SPARK_BASE_VERSION=$(echo "$PR_TITLE" | grep -oP 'v[0-9.]+' || echo "")
           
           if [ -z "$SPARK_BASE_VERSION" ]; then
