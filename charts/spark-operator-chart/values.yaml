@@ -115,6 +115,15 @@ controller:
       # key1: value1
       # key2: value2
 
+  # New: sparkConnect ingress Helm defaults
+  sparkConnect:
+    ingress:
+      enabled: false
+      className: ""
+      annotations: {}
+      hosts: []
+      tls: []
+
   batchScheduler:
     # -- Specifies whether to enable batch scheduler for spark jobs scheduling.
     # If enabled, users can specify batch scheduler name in spark application.

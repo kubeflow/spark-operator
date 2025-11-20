@@ -139,6 +139,48 @@ spec:
                     format: int32
                     minimum: 1
                     type: integer
+                  ingress:
+                    description: Ingress config to expose the Spark connect server
+                      outside the cluster.
+                    properties:
+                      annotations:
+                        additionalProperties:
+                          type: string
+                        description: Annotations to add to the Ingress resource.
+                        type: object
+                      className:
+                        description: ClassName is the ingressClassName to set on the
+                          Ingress.
+                        type: string
+                      enabled:
+                        description: Enabled toggles creation of an Ingress for the
+                          Spark Connect server.
+                        type: boolean
+                      hosts:
+                        description: Hosts is the list of hostnames for the Ingress
+                          rules.
+                        items:
+                          type: string
+                        type: array
+                      tls:
+                        description: TLS holds TLS config for the Ingress.
+                        items:
+                          description: IngressTLS defines TLS configuration for the
+                            ingress.
+                          properties:
+                            hosts:
+                              description: Hosts is a list of hosts included in the
+                                TLS certificate.
+                              items:
+                                type: string
+                              type: array
+                            secretName:
+                              description: SecretName is the name of the secret that
+                                holds the TLS certificate.
+                              type: string
+                          type: object
+                        type: array
+                    type: object
                   memory:
                     description: Memory is the amount of memory to request for the
                       pod.

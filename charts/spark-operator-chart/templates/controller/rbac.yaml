@@ -39,6 +39,21 @@ rules:
   - customresourcedefinitions
   verbs:
   - get
+
+# Added ingress permissions for SparkConnect controller
+- apiGroups:
+  - networking.k8s.io
+  resources:
+  - ingresses
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+
 {{- if not .Values.spark.jobNamespaces | or (has "" .Values.spark.jobNamespaces) }}
 {{ include "spark-operator.controller.policyRules" . }}
 {{- end }}
