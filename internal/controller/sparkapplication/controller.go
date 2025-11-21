@@ -1487,10 +1487,10 @@ func (r *Reconciler) cleanUpPodTemplateFiles(ctx context.Context, app *v1beta2.S
 func isDriverStuckInPending(ctx context.Context, pod *corev1.Pod) (bool, string, string) {
 	logger := log.FromContext(ctx)
 	logger.Info("Checking driver pod for failure reasons", "pod", pod.Name)
-	reason := util.GetPodFailureReason(pod)
+	reason, msg := util.GetPodFailureReason(pod)
 	unschedulable := util.IsPodUnschedulable(pod)
 	if reason != "" && !unschedulable {
-		return true, reason, pod.Status.Message
+		return true, reason, msg
 	}
 	return false, "", ""
 }

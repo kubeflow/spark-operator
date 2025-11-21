@@ -87,7 +87,8 @@ func (h *SparkPodEventHandler) Update(ctx context.Context, event event.UpdateEve
 	if newPod.Status.Phase != oldPod.Status.Phase {
 		logger.Info("Spark pod updated", "name", newPod.Name, "namespace", newPod.Namespace, "oldPhase", oldPod.Status.Phase, "newPhase", newPod.Status.Phase)
 	} else if util.DriverFailureReasonChanged(oldPod, newPod) {
-		logger.Info("Spark driver pod waiting reason updated", "name", newPod.Name, "namespace", newPod.Namespace, "phase", newPod.Status.Phase, "reason", util.GetPodFailureReason(newPod))
+		rsn, _ := util.GetPodFailureReason(newPod)
+		logger.Info("Spark driver pod waiting reason updated", "name", newPod.Name, "namespace", newPod.Namespace, "phase", newPod.Status.Phase, "reason", rsn)
 	} else {
 		logger.Info("Spark driver pod scheduling condition updated", "name", newPod.Name, "namespace", newPod.Namespace, "phase", newPod.Status.Phase)
 	}

@@ -84,13 +84,13 @@ func ShouldProcessPodUpdate(oldPod, newPod *corev1.Pod) bool {
 }
 
 func DriverFailureReasonChanged(oldPod, newPod *corev1.Pod) bool {
-	oldReason := GetPodFailureReason(oldPod)
-	newReason := GetPodFailureReason(newPod)
+	oldReason, _ := GetPodFailureReason(oldPod)
+	newReason, _ := GetPodFailureReason(newPod)
 
 	return newReason != "" && newReason != oldReason
 }
 
-func GetPodFailureReason(pod *corev1.Pod) string {
+func GetPodFailureReason(pod *corev1.Pod) (string, string) {
 	for _, status := range pod.Status.ContainerStatuses {
 		if status.State.Waiting == nil {
 			continue
@@ -98,11 +98,11 @@ func GetPodFailureReason(pod *corev1.Pod) string {
 
 		switch status.State.Waiting.Reason {
 		case common.ReasonImagePullBackOff, common.ReasonErrImagePull:
-			return status.State.Waiting.Reason
+			return status.State.Waiting.Reason, status.State.Waiting.Message
 		}
 	}
 
-	return ""
+	return "", ""
 }
 
 func BecameUnschedulable(oldPod, newPod *corev1.Pod) bool {
