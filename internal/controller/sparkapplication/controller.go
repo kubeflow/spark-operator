@@ -326,6 +326,23 @@ func (r *Reconciler) reconcileSubmittedSparkApplication(ctx context.Context, req
 			}
 			app := old.DeepCopy()
 
+			pod, err := r.getDriverPod(ctx, app)
+
+			if pod != nil || err != nil {
+				failed, reason, message := isDriverStuckInPending(ctx, pod)
+
+				if failed && app.Status.AppState.State != v1beta2.ApplicationStateFailed {
+					logger.Info("Change status for failed dirver pod")
+					app.Status.AppState.State = v1beta2.ApplicationStateFailed
+					app.Status.AppState.ErrorMessage = fmt.Sprintf("%s, %s", reason, message)
+					app.Status.TerminationTime = metav1.Now()
+					if err := r.updateSparkApplicationStatus(ctx, app); err != nil {
+						return err
+					}
+					return nil
+				}
+			}
+
 			if err := r.updateSparkApplicationState(ctx, app); err != nil {
 				return err
 			}
@@ -1461,4 +1478,17 @@ func (r *Reconciler) cleanUpPodTemplateFiles(ctx context.Context, app *v1beta2.S
 	}
 	logger.V(1).Info("Deleted pod template files", "path", path)
 	return nil
+}
+
+// Returns true if the driver pod has failed due to unschedulable reason.
+// Failed, reason, message
+func isDriverStuckInPending(ctx context.Context, pod *corev1.Pod) (bool, string, string) {
+	logger := log.FromContext(ctx)
+	logger.Info("Checking driver pod for failure reasons", "pod", pod.Name)
+	reason := util.GetPodFailureReason(pod)
+	unschedulable := util.IsPodUnschedulable(pod)
+	if reason != "" || unschedulable {
+		return true, reason, pod.Status.Message
+	}
+	return false, "", ""
 }
