@@ -327,8 +327,10 @@ func (r *Reconciler) reconcileSubmittedSparkApplication(ctx context.Context, req
 			app := old.DeepCopy()
 
 			pod, err := r.getDriverPod(ctx, app)
-
-			if pod != nil || err != nil {
+			if err != nil {
+				return err
+			}
+			if pod != nil {
 				failed, reason, message := isDriverStuckInPending(ctx, pod)
 
 				if failed && app.Status.AppState.State != v1beta2.ApplicationStateFailed {
@@ -1487,7 +1489,7 @@ func isDriverStuckInPending(ctx context.Context, pod *corev1.Pod) (bool, string,
 	logger.Info("Checking driver pod for failure reasons", "pod", pod.Name)
 	reason := util.GetPodFailureReason(pod)
 	unschedulable := util.IsPodUnschedulable(pod)
-	if reason != "" || unschedulable {
+	if reason != "" && !unschedulable {
 		return true, reason, pod.Status.Message
 	}
 	return false, "", ""
