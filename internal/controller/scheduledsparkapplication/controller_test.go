@@ -102,7 +102,7 @@ func TestFormatTimestampLengths(t *testing.T) {
 	now := time.Unix(1700000000, 123456789) // arbitrary fixed timestamp
 
 	cases := map[string]int{
-		"minutes": 8,  // Unix()/60 => ~8 digits depending on epoch; test expects approximate len
+		"minutes": 8, // Unix()/60 => ~8 digits depending on epoch; test expects approximate len
 		"seconds": 10,
 		"millis":  13,
 		"micros":  16,

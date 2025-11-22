@@ -61,6 +61,16 @@ controller:
   scheduledSparkApplication:
     timestampPrecision: "nanos"
 
+  submission:
+    # one of "local" or "grpc"
+    method: "local"
+    # gRPC endpoint host:port (only used if method = grpc)
+    grpcEndpoint: ""
+    # whether to use insecure (plaintext) gRPC. Set false for TLS.
+    grpcInsecure: true
+    # dial timeout (string form like "5s")
+    grpcDialTimeout: 5s
+
   # -- Number of replicas of controller.
   replicas: 1
 
@@ -105,7 +115,7 @@ controller:
     urlFormat: ""
     # -- Optionally set the ingressClassName.
     ingressClassName: ""
-    # -- Optionally set default TLS configuration for the Spark UI's ingress. `ingressTLS` in the SparkApplication spec overrides this.
+    # -- Optionally set default TLS configuration for the Spark UI's ingress. `ingressTLS` in the SparkApplication spec will override this.
     tls: []
     # - hosts:
     #   - "*.example.com"

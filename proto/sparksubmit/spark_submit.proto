@@ -1,0 +1,36 @@
+syntax = "proto3";
+
+package sparksubmit;
+
+// IMPORTANT: set go_package to your module path + target proto package path
+// Format: "<module-path>/proto/sparksubmit; sparksubmit"
+option go_package = "github.com/kubeflow/spark-operator/v2/proto/sparksubmit; sparksubmit";
+
+// Request used by SparkSubmitService.Submit
+message SubmitRequest {
+  // Name to use for the SparkApplication (optional depending on server)
+  string name = 1;
+
+  // The SparkApplication content serialized as JSON (tests refer to ApplicationJson).
+  string application_json = 2;
+
+  // optional namespace
+  string namespace = 3;
+}
+
+// Response returned by SparkSubmitService.Submit
+message SubmitResponse {
+  // whether submission succeeded
+  bool ok = 1;
+
+  // human readable message or error
+  string message = 2;
+
+  // created application name (optional)
+  string application_name = 3;
+}
+
+// gRPC service used by the controller to submit Spark applications over gRPC.
+service SparkSubmitService {
+  rpc Submit(SubmitRequest) returns (SubmitResponse);
+}

@@ -70,6 +70,12 @@ spec:
         - --controller-threads={{ .Values.controller.workers }}
         - --enable-ui-service={{ .Values.controller.uiService.enable }}
         - --scheduled-sa-timestamp-precision={{ .Values.controller.scheduledSparkApplication.timestampPrecision }}
+        - --submission-method={{ .Values.controller.submission.method }}
+        {{- if .Values.controller.submission.grpcEndpoint }}
+        - --grpc-submit-endpoint={{ .Values.controller.submission.grpcEndpoint }}
+        {{- end }}
+        - --grpc-insecure={{ .Values.controller.submission.grpcInsecure }}
+        - --grpc-dial-timeout={{ .Values.controller.submission.grpcDialTimeout }}
         {{- if .Values.controller.uiIngress.enable }}
         {{- with .Values.controller.uiIngress.urlFormat }}
         - --ingress-url-format={{ . }}

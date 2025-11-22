@@ -123,6 +123,12 @@ var (
 
 	// Controller-wide scheduled SA timestamp precision (flag)
 	scheduledSATimestampPrecision string
+
+	// Submission-related flags
+	submissionMethod   string
+	grpcSubmitEndpoint string
+	grpcInsecure       bool
+	grpcDialTimeout    time.Duration
 )
 
 func NewStartCommand() *cobra.Command {
@@ -173,6 +179,12 @@ func NewStartCommand() *cobra.Command {
 
 	// New flag for scheduled SA timestamp precision
 	command.Flags().StringVar(&scheduledSATimestampPrecision, "scheduled-sa-timestamp-precision", "", "Default timestamp precision for ScheduledSparkApplication run name suffixes. One of: nanos,micros,millis,seconds,minutes. If unset, defaults to nanos.")
+
+	// Submission flags
+	command.Flags().StringVar(&submissionMethod, "submission-method", "local", "Submission method: local (spark-submit) or grpc")
+	command.Flags().StringVar(&grpcSubmitEndpoint, "grpc-submit-endpoint", "", "gRPC endpoint to submit SparkApplications (host:port)")
+	command.Flags().BoolVar(&grpcInsecure, "grpc-insecure", true, "Use insecure gRPC (plaintext). Set to false to use TLS.")
+	command.Flags().DurationVar(&grpcDialTimeout, "grpc-dial-timeout", 5*time.Second, "Dial timeout for gRPC submitter.")
 
 	command.Flags().BoolVar(&enableLeaderElection, "leader-election", false, "Enable leader election for controller manager. "+
 		"Enabling this will ensure there is only one active controller manager.")
@@ -285,7 +297,20 @@ func start() {
 		}
 	}
 
-	sparkSubmitter := &sparkapplication.SparkSubmitter{}
+	// choose spark submitter based on the submission method
+	var sparkSubmitter sparkapplication.SparkApplicationSubmitter
+	switch strings.ToLower(strings.TrimSpace(submissionMethod)) {
+	case "grpc":
+		if strings.TrimSpace(grpcSubmitEndpoint) == "" {
+			logger.Error(nil, "grpc-submit-endpoint must be provided when submission-method=grpc")
+			os.Exit(1)
+		}
+		grpcSub := sparkapplication.NewGRPCSubmitter(grpcSubmitEndpoint, grpcInsecure, grpcDialTimeout)
+		sparkSubmitter = grpcSub
+	default:
+		// fallback to local spark-submit implementation (existing)
+		sparkSubmitter = &sparkapplication.SparkSubmitter{}
+	}
 
 	// Setup controller for SparkApplication.
 	if err = sparkapplication.NewReconciler(
