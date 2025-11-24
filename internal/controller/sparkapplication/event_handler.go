@@ -57,7 +57,7 @@ func (h *SparkPodEventHandler) Create(ctx context.Context, event event.CreateEve
 	if !ok {
 		return
 	}
-	logger.Info("Spark pod created", "name", pod.Name, "namespace", pod.Namespace, "phase", pod.Status.Phase)
+	logger.Info("Spark pod created", "name", pod.Name, "namespace", pod.Namespace, "phase", pod.Status.Phase, "submissionID", pod.Labels[common.LabelSubmissionID])
 	h.enqueueSparkAppForUpdate(ctx, pod, queue)
 
 	if h.metrics != nil && util.IsExecutorPod(pod) {
@@ -81,7 +81,7 @@ func (h *SparkPodEventHandler) Update(ctx context.Context, event event.UpdateEve
 		return
 	}
 
-	logger.Info("Spark pod updated", "name", newPod.Name, "namespace", newPod.Namespace, "oldPhase", oldPod.Status.Phase, "newPhase", newPod.Status.Phase)
+	logger.Info("Spark pod updated", "name", newPod.Name, "namespace", newPod.Namespace, "oldPhase", oldPod.Status.Phase, "newPhase", newPod.Status.Phase, "submissionID", newPod.Labels[common.LabelSubmissionID])
 	h.enqueueSparkAppForUpdate(ctx, newPod, queue)
 
 	if h.metrics != nil && util.IsExecutorPod(oldPod) && util.IsExecutorPod(newPod) {
@@ -129,15 +129,38 @@ func (h *SparkPodEventHandler) enqueueSparkAppForUpdate(ctx context.Context, pod
 	app := &v1beta2.SparkApplication{}
 	if submissionID, ok := pod.Labels[common.LabelSubmissionID]; ok {
 		if err := h.client.Get(ctx, key, app); err != nil {
+			logger.Error(err, "Failed to fetch SparkApplication for pod event",
+				"podName", pod.Name,
+				"podSubmissionID", submissionID,
+				"appName", name)
 			return
 		}
 		if app.Status.SubmissionID != submissionID {
+			logger.Info("Pod event FILTERED OUT due to SubmissionID mismatch - reconciliation NOT triggered",
+				"podName", pod.Name,
+				"podNamespace", pod.Namespace,
+				"podPhase", pod.Status.Phase,
+				"podSubmissionID", submissionID,
+				"appName", app.Name,
+				"appSubmissionID", app.Status.SubmissionID,
+				"appState", app.Status.AppState.State,
+				"reason", "SubmissionID_mismatch")
 			return
 		}
+		logger.Info("Pod event ACCEPTED - SubmissionIDs match, triggering reconciliation",
+			"podName", pod.Name,
+			"podNamespace", pod.Namespace,
+			"podPhase", pod.Status.Phase,
+			"submissionID", submissionID,
+			"appName", app.Name,
+			"appState", app.Status.AppState.State)
 	}
 
 	// Do not enqueue SparkApplication in invalidating state when driver pod get deleted.
 	if util.GetApplicationState(app) == v1beta2.ApplicationStateInvalidating {
+		logger.Info("Pod event filtered - app in INVALIDATING state",
+			"podName", pod.Name,
+			"appName", app.Name)
 		return
 	}
 
