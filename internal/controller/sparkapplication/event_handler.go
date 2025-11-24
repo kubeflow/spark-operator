@@ -126,32 +126,13 @@ func (h *SparkPodEventHandler) enqueueSparkAppForUpdate(ctx context.Context, pod
 		Name:      name,
 	}
 
-	// Always fetch the SparkApplication to validate its state
 	app := &v1beta2.SparkApplication{}
-	if err := h.client.Get(ctx, key, app); err != nil {
-		logger.Error(err, "Failed to get SparkApplication for pod event", "name", name, "namespace", namespace)
-		return
-	}
-
-	// Check SubmissionID if the pod has one
 	if submissionID, ok := pod.Labels[common.LabelSubmissionID]; ok {
-		// Allow SubmissionID mismatch in PENDING_RERUN state - the reconciler
-		// has special logic to adopt orphaned pods and restore their SubmissionID
+		if err := h.client.Get(ctx, key, app); err != nil {
+			return
+		}
 		if app.Status.SubmissionID != submissionID {
-			if app.Status.AppState.State == v1beta2.ApplicationStatePendingRerun {
-				logger.Info("SubmissionID mismatch in PENDING_RERUN state, allowing reconciliation for adoption",
-					"name", name, "namespace", namespace,
-					"podSubmissionID", submissionID,
-					"appSubmissionID", app.Status.SubmissionID)
-				// Continue to enqueue - let reconciler adopt the pod
-			} else {
-				logger.Info("SubmissionID mismatch, dropping event to prevent state corruption",
-					"name", name, "namespace", namespace,
-					"podSubmissionID", submissionID,
-					"appSubmissionID", app.Status.SubmissionID,
-					"appState", app.Status.AppState.State)
-				return
-			}
+			return
 		}
 	}
 
