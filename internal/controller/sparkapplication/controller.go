@@ -424,6 +424,17 @@ func (r *Reconciler) reconcilePendingRerunSparkApplication(ctx context.Context, 
 				podAppName := driverPod.Labels[common.LabelSparkAppName]
 				podSubmissionID := driverPod.Labels[common.LabelSubmissionID]
 
+				// Log pod and app SubmissionIDs for debugging
+				logger.Info("Found existing driver pod during PENDING_RERUN reconciliation",
+					"name", app.Name,
+					"namespace", app.Namespace,
+					"podName", driverPod.Name,
+					"podPhase", driverPod.Status.Phase,
+					"podAppName", podAppName,
+					"podSubmissionID", podSubmissionID,
+					"appSubmissionID", app.Status.SubmissionID,
+					"submissionIDsMatch", podSubmissionID == app.Status.SubmissionID)
+
 				// Check app name match - this is the primary ownership check
 				if podAppName != app.Name {
 					logger.Info("Driver pod exists but does not belong to this application",
@@ -445,7 +456,20 @@ func (r *Reconciler) reconcilePendingRerunSparkApplication(ctx context.Context, 
 					// resetSparkApplicationStatus clears this field when entering PENDING_RERUN,
 					// but the driver pod retains it in its label
 					if app.Status.SubmissionID == "" && podSubmissionID != "" {
+						logger.Info("Restoring SubmissionID from driver pod label",
+							"name", app.Name,
+							"namespace", app.Namespace,
+							"podSubmissionID", podSubmissionID,
+							"appSubmissionID", app.Status.SubmissionID)
 						app.Status.SubmissionID = podSubmissionID
+					} else if app.Status.SubmissionID != "" && podSubmissionID != "" && app.Status.SubmissionID != podSubmissionID {
+						// Log mismatch detection - this indicates a bug
+						logger.Error(nil, "SubmissionID MISMATCH detected - pod updates may be ignored!",
+							"name", app.Name,
+							"namespace", app.Namespace,
+							"appSubmissionID", app.Status.SubmissionID,
+							"podSubmissionID", podSubmissionID,
+							"action", "NOT_RESTORING")
 					}
 					// Preserve the start time and execution attempts from the pod's creation time
 					// since the application is already running
@@ -714,10 +738,21 @@ func (r *Reconciler) submitSparkApplication(app *v1beta2.SparkApplication) (subm
 	logger.Info("Submitting SparkApplication", "name", app.Name, "namespace", app.Namespace, "state", app.Status.AppState.State)
 
 	// SubmissionID must be set before creating any resources to ensure all the resources are labeled.
+	oldSubmissionID := app.Status.SubmissionID
 	app.Status.SubmissionID = uuid.New().String()
 	app.Status.DriverInfo.PodName = util.GetDriverPodName(app)
 	app.Status.LastSubmissionAttemptTime = metav1.Now()
 	app.Status.SubmissionAttempts = app.Status.SubmissionAttempts + 1
+
+	// Log SubmissionID generation after all fields are populated
+	logger.Info("Generated new SubmissionID for SparkApplication",
+		"name", app.Name,
+		"namespace", app.Namespace,
+		"oldSubmissionID", oldSubmissionID,
+		"newSubmissionID", app.Status.SubmissionID,
+		"driverPodName", app.Status.DriverInfo.PodName,
+		"submissionAttempt", app.Status.SubmissionAttempts,
+		"lastSubmissionAttemptTime", app.Status.LastSubmissionAttemptTime)
 
 	defer func() {
 		if submitErr == nil {
@@ -996,8 +1031,25 @@ func (r *Reconciler) updateSparkApplicationState(ctx context.Context, app *v1bet
 // updateSparkApplicationStatus updates the status of the SparkApplication.
 func (r *Reconciler) updateSparkApplicationStatus(ctx context.Context, app *v1beta2.SparkApplication) error {
 	if err := r.client.Status().Update(ctx, app); err != nil {
+		// Log failure with details
+		logger.Error(err, "FAILED to update SparkApplication status",
+			"name", app.Name,
+			"namespace", app.Namespace,
+			"state", app.Status.AppState.State,
+			"submissionID", app.Status.SubmissionID,
+			"driverPodName", app.Status.DriverInfo.PodName,
+			"errorType", fmt.Sprintf("%T", err))
 		return err
 	}
+	// Log before status update
+	logger.Info("Updated SparkApplication status to API server",
+		"name", app.Name,
+		"namespace", app.Namespace,
+		"state", app.Status.AppState.State,
+		"submissionID", app.Status.SubmissionID,
+		"driverPodName", app.Status.DriverInfo.PodName,
+		"resourceVersion", app.ResourceVersion)
+
 	return nil
 }
 
