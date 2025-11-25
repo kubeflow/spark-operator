@@ -101,7 +101,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		if errors.IsNotFound(err) {
 			return ctrl.Result{}, nil
 		}
-		return ctrl.Result{Requeue: true}, err
+		return ctrl.Result{Requeue: true}, err // nolint: staticcheck
 	}
 	scheduledApp := oldScheduledApp.DeepCopy()
 	logger.Info("Reconciling ScheduledSparkApplication", "name", scheduledApp.Name, "namespace", scheduledApp.Namespace, "state", scheduledApp.Status.ScheduleState)
@@ -154,7 +154,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		}
 		scheduledApp.Status.ScheduleState = v1beta2.ScheduleStateScheduled
 		if err := r.updateScheduledSparkApplicationStatus(ctx, scheduledApp); err != nil {
-			return ctrl.Result{Requeue: true}, err
+			return ctrl.Result{Requeue: true}, err // nolint: staticcheck
 		}
 		return ctrl.Result{RequeueAfter: nextRunTime.Sub(now)}, err
 	case v1beta2.ScheduleStateScheduled:
@@ -163,7 +163,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		if nextRunTime.IsZero() {
 			scheduledApp.Status.NextRun = metav1.NewTime(schedule.Next(now))
 			if err := r.updateScheduledSparkApplicationStatus(ctx, scheduledApp); err != nil {
-				return ctrl.Result{Requeue: true}, err
+				return ctrl.Result{Requeue: true}, err // nolint: staticcheck
 			}
 			return ctrl.Result{RequeueAfter: schedule.Next(now).Sub(now)}, nil
 		}
@@ -174,7 +174,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 
 		ok, err := r.shouldStartNextRun(scheduledApp)
 		if err != nil {
-			return ctrl.Result{Requeue: true}, err
+			return ctrl.Result{Requeue: true}, err // nolint: staticcheck
 		}
 		if !ok {
 			return ctrl.Result{RequeueAfter: schedule.Next(now).Sub(now)}, nil
@@ -191,10 +191,10 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		scheduledApp.Status.LastRunName = app.Name
 		scheduledApp.Status.NextRun = metav1.NewTime(schedule.Next(now))
 		if err = r.checkAndUpdatePastRuns(ctx, scheduledApp); err != nil {
-			return ctrl.Result{Requeue: true}, err
+			return ctrl.Result{Requeue: true}, err // nolint: staticcheck
 		}
 		if err := r.updateScheduledSparkApplicationStatus(ctx, scheduledApp); err != nil {
-			return ctrl.Result{Requeue: true}, err
+			return ctrl.Result{Requeue: true}, err // nolint: staticcheck
 		}
 		return ctrl.Result{RequeueAfter: schedule.Next(now).Sub(now)}, nil
 	case v1beta2.ScheduleStateFailedValidation:
