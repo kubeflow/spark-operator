@@ -334,7 +334,12 @@ func (r *Reconciler) reconcileSubmittedSparkApplication(ctx context.Context, req
 				failed, reason, message := isDriverStuckInPending(ctx, pod)
 
 				if failed && app.Status.AppState.State != v1beta2.ApplicationStateFailed {
-					logger.Info("Change status for failed dirver pod")
+					logger.Info("Change status for failed driver pod",
+						"reason", reason,
+						"message", message,
+						"pod", pod.Name,
+						"namespace", pod.Namespace,
+					)
 					app.Status.AppState.State = v1beta2.ApplicationStateFailed
 					app.Status.AppState.ErrorMessage = fmt.Sprintf("%s, %s", reason, message)
 					app.Status.TerminationTime = metav1.Now()
@@ -1482,15 +1487,21 @@ func (r *Reconciler) cleanUpPodTemplateFiles(ctx context.Context, app *v1beta2.S
 	return nil
 }
 
-// Returns true if the driver pod has failed due to unschedulable reason.
-// Failed, reason, message
-func isDriverStuckInPending(ctx context.Context, pod *corev1.Pod) (bool, string, string) {
+// Returns true if the driver pod is stuck in Pending due to a container waiting
+// reason (e.g. image pull errors), and is not simply unschedulable.
+func isDriverStuckInPending(ctx context.Context, pod *corev1.Pod) (stuck bool, reason string, msg string) {
 	logger := log.FromContext(ctx)
 	logger.Info("Checking driver pod for failure reasons", "pod", pod.Name)
-	reason, msg := util.GetPodFailureReason(pod)
+
+	if pod.Status.Phase != corev1.PodPending {
+		return
+	}
+
+	reason, msg = util.GetPodFailureReason(pod)
 	unschedulable := util.IsPodUnschedulable(pod)
 	if reason != "" && !unschedulable {
-		return true, reason, msg
+		stuck = true
+		return
 	}
-	return false, "", ""
+	return
 }
