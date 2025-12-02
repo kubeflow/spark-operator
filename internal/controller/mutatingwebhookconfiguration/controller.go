@@ -19,6 +19,8 @@ package mutatingwebhookconfiguration
 import (
 	"context"
 	"fmt"
+	"reflect"
+	"strings"
 
 	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -29,6 +31,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/kubeflow/spark-operator/v2/pkg/certificate"
+	"github.com/kubeflow/spark-operator/v2/pkg/util"
 )
 
 var (
@@ -55,8 +58,14 @@ func NewReconciler(client client.Client, certProvider *certificate.Provider, nam
 }
 
 func (r *Reconciler) SetupWithManager(mgr ctrl.Manager, options controller.Options) error {
+	kind := reflect.TypeOf(admissionregistrationv1.MutatingWebhookConfiguration{}).Name()
+	name := strings.ToLower(kind)
+
+	// Use a custom log constructor.
+	options.LogConstructor = util.NewLogConstructor(mgr.GetLogger(), kind)
+
 	return ctrl.NewControllerManagedBy(mgr).
-		Named("mutating-webhook-configuration-controller").
+		Named(name).
 		Watches(
 			&admissionregistrationv1.MutatingWebhookConfiguration{},
 			NewEventHandler(),

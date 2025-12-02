@@ -24,8 +24,11 @@ import (
 	"strings"
 
 	"golang.org/x/mod/semver"
+	"k8s.io/klog/v2"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/yaml"
 
+	"github.com/go-logr/logr"
 	"github.com/kubeflow/spark-operator/v2/pkg/common"
 )
 
@@ -143,4 +146,22 @@ func SetIfNotExists[K comparable, V any](m map[K]V, key K, value V) {
 	if _, ok := m[key]; !ok {
 		m[key] = value
 	}
+}
+
+// NewLogConstructor returns a log constructor for the given kind.
+func NewLogConstructor(logger logr.Logger, kind string) func(*reconcile.Request) logr.Logger {
+	// Use the lowercase of kind as controller name, as it will show up in the metrics,
+	// and thus should be a prometheus compatible name(underscores and alphanumeric characters only).
+	name := strings.ToLower(kind)
+
+	// Use a custom log constructor.
+	logConstructor := func(req *reconcile.Request) logr.Logger {
+		logger := logger.WithValues("controller", name)
+		if req != nil {
+			logger = logger.WithValues(kind, klog.KRef(req.Namespace, req.Name))
+		}
+		return logger
+	}
+
+	return logConstructor
 }
