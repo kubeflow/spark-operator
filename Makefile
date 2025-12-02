@@ -291,7 +291,7 @@ $(LOCALBIN):
 .PHONY: kustomize
 kustomize: $(KUSTOMIZE) ## Download kustomize locally if necessary.
 $(KUSTOMIZE): $(LOCALBIN)
-	$(call go-install-tool,$(KUSTOMIZE),sigs.k8s.io/kustomize/kustomize/v5,$(KUSTOMIZE_VERSION))
+	$(call go-install-tool,$(LOCALBIN)/kustomize-$(KUSTOMIZE_VERSION),sigs.k8s.io/kustomize/kustomize/v5,$(KUSTOMIZE_VERSION))
 
 .PHONY: controller-gen
 controller-gen: $(CONTROLLER_GEN) ## Download controller-gen locally if necessary.
@@ -324,16 +324,27 @@ $(HELM): $(LOCALBIN)
 	$(call go-install-tool,$(HELM),helm.sh/helm/v3/cmd/helm,$(HELM_VERSION))
 
 .PHONY: helm-unittest-plugin
-helm-unittest-plugin: helm ## Download helm unittest plugin locally if necessary.
+helm-unittest-plugin: helm ## Download Helm unittest plugin if necessary.
 	if [ -z "$(shell $(HELM) plugin list | grep unittest)" ]; then \
 		echo "Installing helm unittest plugin"; \
 		$(HELM) plugin install https://github.com/helm-unittest/helm-unittest.git --version $(HELM_UNITTEST_VERSION); \
 	fi
 
 .PHONY: helm-docs-plugin
-helm-docs-plugin: $(HELM_DOCS) ## Download helm-docs plugin locally if necessary.
+helm-docs-plugin: helm ## Download helm-docs plugin if necessary.
 $(HELM_DOCS): $(LOCALBIN)
 	$(call go-install-tool,$(HELM_DOCS),github.com/norwoodj/helm-docs/cmd/helm-docs,$(HELM_DOCS_VERSION))
+
+# protoc generation for gRPC
+PROTO_DIRS := proto
+
+.PHONY: proto-gen
+proto-gen: ## Generate Go protobuf and gRPC code (requires protoc and plugins)
+	@echo "Generating proto stubs..."
+	@if ! command -v protoc >/dev/null 2>&1; then echo "protoc not found, please install protoc"; exit 1; fi
+	@if ! command -v protoc-gen-go >/dev/null 2>&1; then GO111MODULE=on go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.36.8; fi
+	@if ! command -v protoc-gen-go-grpc >/dev/null 2>&1; then GO111MODULE=on go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.3.0; fi
+	protoc --go_out=. --go-grpc_out=. -I $(PROTO_DIRS) $(PROTO_DIRS)/spark_submit.proto
 
 # go-install-tool will 'go install' any package with custom target and name of binary, if it doesn't exist
 # $1 - target path with name of binary (ideally with version)
