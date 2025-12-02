@@ -91,6 +91,44 @@ type ServerSpec struct {
 	// Service exposes the Spark connect server.
 	// +optional
 	Service *corev1.Service `json:"service,omitempty"`
+
+	// Ingress config to expose the Spark connect server outside the cluster.
+	// +optional
+	Ingress *IngressSpec `json:"ingress,omitempty"`
+}
+
+// IngressTLS defines TLS configuration for the ingress.
+type IngressTLS struct {
+	// SecretName is the name of the secret that holds the TLS certificate.
+	// +optional
+	SecretName string `json:"secretName,omitempty"`
+
+	// Hosts is a list of hosts included in the TLS certificate.
+	// +optional
+	Hosts []string `json:"hosts,omitempty"`
+}
+
+// IngressSpec defines the ingress options used to expose the Spark Connect server.
+type IngressSpec struct {
+	// Enabled toggles creation of an Ingress for the Spark Connect server.
+	// +optional
+	Enabled bool `json:"enabled,omitempty"`
+
+	// ClassName is the ingressClassName to set on the Ingress.
+	// +optional
+	ClassName string `json:"className,omitempty"`
+
+	// Annotations to add to the Ingress resource.
+	// +optional
+	Annotations map[string]string `json:"annotations,omitempty"`
+
+	// Hosts is the list of hostnames for the Ingress rules.
+	// +optional
+	Hosts []string `json:"hosts,omitempty"`
+
+	// TLS holds TLS config for the Ingress.
+	// +optional
+	TLS []IngressTLS `json:"tls,omitempty"`
 }
 
 // ExecutorSpec is specification of the executor.

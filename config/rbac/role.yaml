@@ -57,6 +57,16 @@ rules:
   - get
 - apiGroups:
   - extensions
+  resources:
+  - ingresses
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - update
+  - watch
+- apiGroups:
   - networking.k8s.io
   resources:
   - ingresses
@@ -65,6 +75,7 @@ rules:
   - delete
   - get
   - list
+  - patch
   - update
   - watch
 - apiGroups:
