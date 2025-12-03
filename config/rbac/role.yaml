@@ -70,7 +70,6 @@ rules:
 - apiGroups:
   - sparkoperator.k8s.io
   resources:
-  - scheduledsparkapplications
   - sparkapplications
   - sparkconnects
   verbs:
@@ -84,14 +83,12 @@ rules:
 - apiGroups:
   - sparkoperator.k8s.io
   resources:
-  - scheduledsparkapplications/finalizers
   - sparkapplications/finalizers
   verbs:
   - update
 - apiGroups:
   - sparkoperator.k8s.io
   resources:
-  - scheduledsparkapplications/status
   - sparkapplications/status
   - sparkconnects/status
   verbs:

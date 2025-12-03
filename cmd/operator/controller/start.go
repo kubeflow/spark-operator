@@ -65,7 +65,6 @@ import (
 	"github.com/kubeflow/spark-operator/v2/pkg/util"
 	// +kubebuilder:scaffold:imports
 )
-
 var (
 	logger = ctrl.Log.WithName("")
 )
@@ -119,6 +118,9 @@ var (
 	enableHTTP2            bool
 	development            bool
 	zapOptions             = logzap.Options{}
+
+	// Controller-wide scheduled SA timestamp precision (flag)
+	scheduledSATimestampPrecision string
 )
 
 func NewStartCommand() *cobra.Command {
@@ -166,6 +168,9 @@ func NewStartCommand() *cobra.Command {
 	command.Flags().StringVar(&ingressURLFormat, "ingress-url-format", "", "Ingress URL format.")
 	command.Flags().StringVar(&ingressTLSstring, "ingress-tls", "", "JSON format string for the default TLS config on the Spark UI ingresses. e.g. '[{\"hosts\":[\"*.example.com\"],\"secretName\":\"example-secret\"}]'. `ingressTLS` in the SparkApplication spec will override this value.")
 	command.Flags().StringVar(&ingressAnnotationsString, "ingress-annotations", "", "JSON format string for the default ingress annotations for the Spark UI ingresses. e.g. '[{\"cert-manager.io/cluster-issuer\": \"letsencrypt\"}]'. `ingressAnnotations` in the SparkApplication spec will override this value.")
+
+	// New flag for scheduled SA timestamp precision
+	command.Flags().StringVar(&scheduledSATimestampPrecision, "scheduled-sa-timestamp-precision", "", "Default timestamp precision for ScheduledSparkApplication run name suffixes. One of: nanos,micros,millis,seconds,minutes. If unset, defaults to nanos.")
 
 	command.Flags().BoolVar(&enableLeaderElection, "leader-election", false, "Enable leader election for controller manager. "+
 		"Enabling this will ensure there is only one active controller manager.")
@@ -232,17 +237,6 @@ func start() {
 		LeaseDuration:           &leaderElectionLeaseDuration,
 		RenewDeadline:           &leaderElectionRenewDeadline,
 		RetryPeriod:             &leaderElectionRetryPeriod,
-		// LeaderElectionReleaseOnCancel defines if the leader should step down voluntarily
-		// when the Manager ends. This requires the binary to immediately end when the
-		// Manager is stopped, otherwise, this setting is unsafe. Setting this significantly
-		// speeds up voluntary leader transitions as the new leader don't have to wait
-		// LeaseDuration time first.
-		//
-		// In the default scaffold provided, the program ends immediately after
-		// the manager stops, so would be fine to enable this option. However,
-		// if you are doing or is intended to do any operation such as perform cleanups
-		// after the manager stops then its usage might be unsafe.
-		// LeaderElectionReleaseOnCancel: true,
 	})
 	if err != nil {
 		logger.Error(err, "failed to create manager")
@@ -318,8 +312,6 @@ func start() {
 		os.Exit(1)
 	}
 
-	// +kubebuilder:scaffold:builder
-
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
 		logger.Error(err, "Failed to set up health check")
 		os.Exit(1)
@@ -354,12 +346,6 @@ func setupLog() {
 }
 
 func newTLSOptions() []func(c *tls.Config) {
-	// if the enable-http2 flag is false (the default), http/2 should be disabled
-	// due to its vulnerabilities. More specifically, disabling http/2 will
-	// prevent from being vulnerable to the HTTP/2 Stream Cancellation and
-	// Rapid Reset CVEs. For more information see:
-	// - https://github.com/advisories/GHSA-qppj-fm5r-hxr3
-	// - https://github.com/advisories/GHSA-4374-p667-p6c8
 	disableHTTP2 := func(c *tls.Config) {
 		logger.Info("disabling http/2")
 		c.NextProtos = []string{"http/1.1"}
@@ -372,7 +358,6 @@ func newTLSOptions() []func(c *tls.Config) {
 	return tlsOpts
 }
 
-// newCacheOptions creates and returns a cache.Options instance configured with default namespaces and object caching settings.
 func newCacheOptions() cache.Options {
 	defaultNamespaces := make(map[string]cache.Config)
 	if !util.ContainsString(namespaces, cache.AllNamespaces) {
@@ -402,7 +387,6 @@ func newCacheOptions() cache.Options {
 	return options
 }
 
-// newControllerOptions creates and returns a controller.Options instance configured with the given options.
 func newControllerOptions() controller.Options {
 	options := controller.Options{
 		MaxConcurrentReconciles: controllerThreads,
@@ -442,7 +426,8 @@ func newSparkApplicationReconcilerOptions() sparkapplication.Options {
 
 func newScheduledSparkApplicationReconcilerOptions() scheduledsparkapplication.Options {
 	options := scheduledsparkapplication.Options{
-		Namespaces: namespaces,
+		Namespaces:                    namespaces,
+		ScheduledSATimestampPrecision: strings.TrimSpace(scheduledSATimestampPrecision),
 	}
 	return options
 }

@@ -82,35 +82,6 @@ controller:
   # -- Configure the encoder of logging, can be one of `console` or `json`.
   logEncoder: console
 
-  # -- Grace period after a successful spark-submit when driver pod not found errors will be retried. Useful if the driver pod can take some time to be created.
-  driverPodCreationGracePeriod: 10s
-
-  # -- Specifies the maximum number of Executor pods that can be tracked by the controller per SparkApplication.
-  maxTrackedExecutorPerApp: 1000
-
-  uiService:
-    # -- Specifies whether to create service for Spark web UI.
-    enable: true
-
-  uiIngress:
-    # -- Specifies whether to create ingress for Spark web UI.
-    # `controller.uiService.enable` must be `true` to enable ingress.
-    enable: false
-    # -- Ingress URL format.
-    # Required if `controller.uiIngress.enable` is true.
-    urlFormat: ""
-    # -- Optionally set the ingressClassName.
-    ingressClassName: ""
-    # -- Optionally set default TLS configuration for the Spark UI's ingress. `ingressTLS` in the SparkApplication spec overrides this.
-    tls: []
-    # - hosts:
-    #   - "*.example.com"
-    #   secretName: "example-secret"
-    # -- Optionally set default ingress annotations for the Spark UI's ingress. `ingressAnnotations` in the SparkApplication spec overrides this.
-    annotations: {}
-      # key1: value1
-      # key2: value2
-
   batchScheduler:
     # -- Specifies whether to enable batch scheduler for spark jobs scheduling.
     # If enabled, users can specify batch scheduler name in spark application.
@@ -122,6 +93,13 @@ controller:
     # If specified, this value must be either "volcano" or "yunikorn". Specifying any other
     # value will cause the controller to error on startup.
     default: ""
+
+  # ScheduledSparkApplication controller configurations.
+  scheduledSparkApplication:
+    # -- Default timestamp precision for the ScheduledSparkApplication name suffix.
+    # Can be one of `nanos`, `micros`, `millis`, `seconds`, `minutes`.
+    # Defaults to `nanos` to preserve current behavior.
+    timestampPrecision: nanos
 
   serviceAccount:
     # -- Specifies whether to create a service account for the controller.
