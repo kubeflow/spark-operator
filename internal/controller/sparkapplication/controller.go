@@ -188,7 +188,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		if errors.IsNotFound(err) {
 			return ctrl.Result{}, nil
 		}
-		return ctrl.Result{Requeue: true}, err
+		return ctrl.Result{Requeue: true}, err // nolint: staticcheck
 	}
 
 	logger.Info("Reconciling SparkApplication", "state", app.Status.AppState.State)
@@ -272,12 +272,12 @@ func (r *Reconciler) handleSparkApplicationDeletion(ctx context.Context, req ctr
 		if errors.IsNotFound(err) {
 			return ctrl.Result{}, nil
 		}
-		return ctrl.Result{Requeue: true}, err
+		return ctrl.Result{Requeue: true}, err // nolint: staticcheck
 	}
 
 	if err := r.deleteSparkResources(ctx, app); err != nil {
 		logger.Error(err, "Failed to delete resources associated with SparkApplication")
-		return ctrl.Result{Requeue: true}, err
+		return ctrl.Result{Requeue: true}, err // nolint: staticcheck
 	}
 	return ctrl.Result{}, nil
 }
@@ -306,7 +306,7 @@ func (r *Reconciler) reconcileNewSparkApplication(ctx context.Context, req ctrl.
 	)
 	if retryErr != nil {
 		logger.Error(retryErr, "Failed to reconcile SparkApplication")
-		return ctrl.Result{Requeue: true}, retryErr
+		return ctrl.Result{RequeueAfter: time.Second * 0}, retryErr
 	}
 	return ctrl.Result{}, nil
 }
@@ -648,7 +648,7 @@ func (r *Reconciler) reconcileTerminatedSparkApplication(ctx context.Context, re
 	key := req.NamespacedName
 	old, err := r.getSparkApplication(ctx, key)
 	if err != nil {
-		return ctrl.Result{Requeue: true}, err
+		return ctrl.Result{Requeue: true}, err // nolint: staticcheck
 	}
 
 	app := old.DeepCopy()
@@ -659,22 +659,22 @@ func (r *Reconciler) reconcileTerminatedSparkApplication(ctx context.Context, re
 	if util.IsExpired(app) {
 		logger.Info("Deleting expired SparkApplication", "state", app.Status.AppState.State)
 		if err := r.client.Delete(ctx, app); err != nil {
-			return ctrl.Result{Requeue: true}, err
+			return ctrl.Result{Requeue: true}, err // nolint: staticcheck
 		}
 		return ctrl.Result{}, nil
 	}
 
 	if err := r.updateExecutorState(ctx, app); err != nil {
-		return ctrl.Result{Requeue: true}, err
+		return ctrl.Result{Requeue: true}, err // nolint: staticcheck
 	}
 
 	if err := r.updateSparkApplicationStatus(ctx, app); err != nil {
-		return ctrl.Result{Requeue: true}, err
+		return ctrl.Result{Requeue: true}, err // nolint: staticcheck
 	}
 
 	if err := r.cleanUpOnTermination(ctx, old, app); err != nil {
 		logger.Error(err, "Failed to clean up resources for SparkApplication", "state", old.Status.AppState.State)
-		return ctrl.Result{Requeue: true}, err
+		return ctrl.Result{Requeue: true}, err // nolint: staticcheck
 	}
 
 	// If termination time or TTL is not set, will not requeue this application.

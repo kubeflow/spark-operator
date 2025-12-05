@@ -197,7 +197,7 @@ func waitForMutatingWebhookReady(ctx context.Context, key types.NamespacedName) 
 			if svcRef == nil {
 				return false, fmt.Errorf("webhook service is nil")
 			}
-			endpoints := corev1.Endpoints{}
+			endpoints := corev1.Endpoints{} // nolint: staticcheck
 			endpointsKey := types.NamespacedName{Namespace: svcRef.Namespace, Name: svcRef.Name}
 			if err := k8sClient.Get(ctx, endpointsKey, &endpoints); err != nil {
 				return false, err
@@ -233,7 +233,7 @@ func waitForValidatingWebhookReady(ctx context.Context, key types.NamespacedName
 			if svcRef == nil {
 				return false, fmt.Errorf("webhook service is nil")
 			}
-			endpoints := corev1.Endpoints{}
+			endpoints := corev1.Endpoints{} // nolint: staticcheck
 			endpointsKey := types.NamespacedName{Namespace: svcRef.Namespace, Name: svcRef.Name}
 			if err := k8sClient.Get(ctx, endpointsKey, &endpoints); err != nil {
 				return false, err
