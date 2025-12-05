@@ -68,6 +68,12 @@ spec:
         {{- end }}
         {{- end }}
         - --controller-threads={{ .Values.controller.workers }}
+        {{- with .Values.controller.managerProduct }}
+        - --manager-product={{ . }}
+    {{- end }}
+        {{- with .Values.controller.managerProductFallback }}
+        - --manager-product-fallback={{ . }}
+    {{- end }}
         - --enable-ui-service={{ .Values.controller.uiService.enable }}
         {{- if .Values.controller.uiIngress.enable }}
         {{- with .Values.controller.uiIngress.urlFormat }}

@@ -54,6 +54,14 @@ The Kubernetes Operator for Apache Spark currently supports the following list o
 - Supports automatic retries of failed submissions with optional linear back-off.
 - Supports collecting and exporting application-level metrics and driver/executor metrics to Prometheus.
 
+### Manager customization
+
+The operator now exposes a pluggable manager construction workflow. You can supply alternative
+manager products via the `--manager-product` flag (also available through the Helm chart) and
+optionally specify a `--manager-product-fallback`. See
+[docs/manager-products.md](docs/manager-products.md) for guidance and examples, including a manager
+powered by `kubernetes-controller-sharding`.
+
 ## Project Status
 
 **Project status:** *beta*
