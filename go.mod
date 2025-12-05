@@ -1,6 +1,6 @@
 module github.com/kubeflow/spark-operator/v2
 
-go 1.24.1
+go 1.24.10
 
 tool k8s.io/code-generator
 
