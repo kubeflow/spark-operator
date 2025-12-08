@@ -879,6 +879,11 @@ func (r *Reconciler) submitSparkApplication(ctx context.Context, app *v1beta2.Sp
 	logger := log.FromContext(ctx)
 	logger.Info("Submitting SparkApplication", "state", app.Status.AppState.State)
 
+	// Clear stale status from previous execution attempts to avoid showing outdated
+	// executor states and termination time when the application is retrying.
+	app.Status.TerminationTime = metav1.Time{}
+	app.Status.ExecutorState = nil
+
 	// SubmissionID must be set before creating any resources to ensure all the resources are labeled.
 	app.Status.SubmissionID = uuid.New().String()
 	app.Status.DriverInfo.PodName = util.GetDriverPodName(app)
