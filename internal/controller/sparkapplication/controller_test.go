@@ -1134,6 +1134,40 @@ func createDriverPod(appName string, appNamespace string) *corev1.Pod {
 	return pod
 }
 
+var _ = Describe("SparkApplication Controller - Status Clearing on Retry", func() {
+	It("Should clear stale TerminationTime and ExecutorState when resubmitting", func() {
+		ctx := context.Background()
+		appName := "test-retry"
+		appNamespace := "default"
+		key := types.NamespacedName{Name: appName, Namespace: appNamespace}
+
+		// Create app with stale status from previous attempt
+		app := &v1beta2.SparkApplication{
+			ObjectMeta: metav1.ObjectMeta{Name: appName, Namespace: appNamespace},
+			Spec:       v1beta2.SparkApplicationSpec{MainApplicationFile: ptr.To("local:///dummy.jar")},
+		}
+		v1beta2.SetSparkApplicationDefaults(app)
+		Expect(k8sClient.Create(ctx, app)).To(Succeed())
+		defer func() { Expect(k8sClient.Delete(ctx, app)).To(Succeed()) }()
+
+		app.Status.AppState.State = v1beta2.ApplicationStatePendingRerun
+		app.Status.TerminationTime = metav1.NewTime(time.Now().Add(-5 * time.Minute))
+		app.Status.ExecutorState = map[string]v1beta2.ExecutorState{"old-exec": v1beta2.ExecutorStateCompleted}
+		Expect(k8sClient.Status().Update(ctx, app)).To(Succeed())
+
+		// Reconcile - submission may fail but status clearing should happen
+		reconciler := sparkapplication.NewReconciler(nil, k8sClient.Scheme(), k8sClient,
+			record.NewFakeRecorder(3), nil, &sparkapplication.SparkSubmitter{},
+			sparkapplication.Options{Namespaces: []string{appNamespace}})
+		_, _ = reconciler.Reconcile(ctx, reconcile.Request{NamespacedName: key})
+
+		// Verify stale status is cleared
+		Expect(k8sClient.Get(ctx, key, app)).To(Succeed())
+		Expect(app.Status.TerminationTime.IsZero()).To(BeTrue(), "TerminationTime should be cleared")
+		Expect(app.Status.ExecutorState).To(BeNil(), "ExecutorState should be cleared")
+	})
+})
+
 func getExecutorNamespacedName(appName string, appNamespace string, id int) types.NamespacedName {
 	return types.NamespacedName{
 		Name:      fmt.Sprintf("%s-exec%d", appName, id),
