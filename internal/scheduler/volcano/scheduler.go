@@ -214,9 +214,42 @@ func (s *Scheduler) syncPodGroup(app *v1beta2.SparkApplication, size int32, minR
 		}
 		_, err = s.volcanoClient.SchedulingV1beta1().PodGroups(namespace).Create(context.TODO(), &podGroup, metav1.CreateOptions{})
 	} else {
+		// podGroup already exists -- keep it in sync with SparkApplication spec.
+		updated := false
+
+		// ensure MinMember matches the desired size
 		if pg.Spec.MinMember != size {
 			pg.Spec.MinMember = size
-			_, err = s.volcanoClient.SchedulingV1beta1().PodGroups(namespace).Update(context.TODO(), pg, metav1.UpdateOptions{})
+			updated = true
+		}
+
+		if app.Spec.BatchSchedulerOptions != nil {
+			opts := app.Spec.BatchSchedulerOptions
+
+			// keep queue consistant with BatchSchedulerOptions.Queue.
+			if opts.Queue != nil && pg.Spec.Queue != *opts.Queue {
+				pg.Spec.Queue = *opts.Queue
+				updated = true
+			}
+
+			// keep priorityClassName consistant with BatchSchedulerOptions.PriorityClassName.
+			if opts.PriorityClassName != nil && pg.Spec.PriorityClassName != *opts.PriorityClassName {
+				pg.Spec.PriorityClassName = *opts.PriorityClassName
+				updated = true
+			}
+
+			// if explicit resources are provided, always override MinResources.
+			if len(opts.Resources) > 0 {
+				res := opts.Resources
+				pg.Spec.MinResources = &res
+				updated = true
+			}
+		}
+
+		if updated {
+			_, err = s.volcanoClient.SchedulingV1beta1().PodGroups(namespace).Update(
+				context.TODO(), pg, metav1.UpdateOptions{},
+			)
 		}
 	}
 
