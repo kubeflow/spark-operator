@@ -27,7 +27,7 @@ jobs:
 
     steps:
       - name: Checkout source code
-        uses: actions/checkout@v5.0.0
+        uses: actions/checkout@v6.0.1
         with:
           fetch-depth: 0
 
@@ -94,7 +94,7 @@ jobs:
           echo "PLATFORM_PAIR=${platform//\//-}" >> $GITHUB_ENV
 
       - name: Checkout source code
-        uses: actions/checkout@v5.0.0
+        uses: actions/checkout@v6.0.1
 
       - name: Read version from VERSION file
         run: |
@@ -168,7 +168,7 @@ jobs:
           echo "PLATFORM_PAIR=${platform//\//-}" >> $GITHUB_ENV
 
       - name: Checkout source code
-        uses: actions/checkout@v5.0.0
+        uses: actions/checkout@v6.0.1
 
       - name: Read version from VERSION file
         run: |
@@ -233,7 +233,7 @@ jobs:
 
     steps:
       - name: Checkout source code
-        uses: actions/checkout@v5.0.0
+        uses: actions/checkout@v6.0.1
 
       - name: Read version from VERSION file
         run: |
@@ -287,7 +287,7 @@ jobs:
 
     steps:
       - name: Checkout source code
-        uses: actions/checkout@v5.0.0
+        uses: actions/checkout@v6.0.1
 
       - name: Read version from VERSION file
         run: |
@@ -341,7 +341,7 @@ jobs:
 
     steps:
       - name: Checkout source code
-        uses: actions/checkout@v5.0.0
+        uses: actions/checkout@v6.0.1
         with:
           fetch-depth: 0
 
@@ -371,7 +371,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v5.0.0
+        uses: actions/checkout@v6.0.1
 
       - name: Configure Git
         run: |
