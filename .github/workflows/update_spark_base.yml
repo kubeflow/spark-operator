@@ -1,0 +1,81 @@
+name: Update Spark Base Version
+
+on:
+  repository_dispatch:
+    types: [spark-base-updated]
+  workflow_dispatch:
+    inputs:
+      spark_base_version:
+        description: 'Spark base version to update to (e.g., v1.9.18)'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  update-spark-base-version:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: relativity-main
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set version variable
+        id: set-version
+        run: |
+          if [ "${{ github.event_name }}" = "repository_dispatch" ]; then
+            VERSION="${{ github.event.client_payload.version }}"
+          else
+            VERSION="${{ inputs.spark_base_version }}"
+          fi
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "Updating to version: ${VERSION}"
+
+      - name: Update workflow files
+        id: update-files
+        run: |
+          VERSION="${{ steps.set-version.outputs.version }}"
+          
+          # Update relativity_main.yml
+          sed -i "s|SPARK_IMAGE=\${{ secrets.BASE_IMAGE }}:v[0-9.]*|SPARK_IMAGE=\${{ secrets.BASE_IMAGE }}:${VERSION}|g" .github/workflows/relativity_main.yml
+          
+          # Update relativity_release.yaml
+          sed -i "s|SPARK_IMAGE=\${{ secrets.BASE_IMAGE }}:v[0-9.]*|SPARK_IMAGE=\${{ secrets.BASE_IMAGE }}:${VERSION}|g" .github/workflows/relativity_release.yaml
+          
+          # Check if any files were modified
+          if git diff --quiet; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "No changes detected"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            echo "Changes detected:"
+            git diff
+          fi
+
+      - name: Create Pull Request
+        if: steps.update-files.outputs.changed == 'true'
+        uses: peter-evans/create-pull-request@v7
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "Update spark-base version to ${{ steps.set-version.outputs.version }}"
+          title: "Update spark-base version to ${{ steps.set-version.outputs.version }}"
+          body: |
+            This PR updates the spark-base image version to `${{ steps.set-version.outputs.version }}`.
+            
+            ## Changes
+            - Updated `.github/workflows/relativity_main.yml`
+            - Updated `.github/workflows/relativity_release.yaml`
+            
+            This PR was automatically created by the update-spark-base workflow.
+          branch: update-spark-base-${{ steps.set-version.outputs.version }}
+          base: relativity-main
+          delete-branch: true
+
+      - name: No changes needed
+        if: steps.update-files.outputs.changed == 'false'
+        run: |
+          echo "Spark base version is already up to date. No PR created."
