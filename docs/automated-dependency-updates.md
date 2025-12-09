@@ -40,46 +40,37 @@ curl -X POST \
 
 **Trigger:**
 - Pull Request closed event on `relativity-main` branch
-- Only runs when:
-  - PR is merged (not just closed)
-  - PR branch name starts with `update-spark-base-`
 
 **Actions:**
 - Retrieves the latest tag version
 - Increments the patch version (e.g., `v1.1.67` → `v1.1.68`)
-- Creates and pushes a new tag
+- Creates and pushes a new annotated tag
 - Creates a GitHub release with auto-generated release notes
-- Triggers a repository dispatch event to the spark-operator repository (when configured)
+- Triggers a repository dispatch event to the spark-operator repository to update the operator image
 
 **Version Management:**
-The workflow automatically increments the patch version. For manual version control or major/minor version changes, create tags manually:
-
-```bash
-git tag -a v2.0.0 -m "Release v2.0.0"
-git push origin v2.0.0
-```
+The workflow automatically increments the patch version. For manual version control or major/minor version changes, create tags manually.
 
 ### 3. Integration with spark-operator Repository
 
-After a successful release, the workflow prepares a payload to notify the spark-operator repository:
+After a successful release, the workflow automatically triggers the `update-operator-image` workflow in the spark-operator repository:
 
 ```json
 {
-  "event_type": "spark-on-k8s-operator-updated",
+  "event_type": "update-operator-image",
   "client_payload": {
-    "version": "v1.1.68",
-    "spark_base_version": "v1.9.18",
-    "repository": "relativityone/spark-on-k8s-operator"
+    "spark_on_k8s_version": "v1.1.68"
   }
 }
 ```
 
-**Setup Required:**
+**Setup Required:** (Current PAT expires on 9th Dec 2026)
 To enable automatic triggering of the spark-operator repository, add a GitHub Personal Access Token as a secret:
 
 1. Create a PAT with `repo` scope for the spark-operator repository
-2. Add it as a secret named `SPARK_OPERATOR_DISPATCH_TOKEN` in this repository
-3. Uncomment the curl command in `auto_release_on_merge.yml` (lines 77-81)
+2. Ensure the PAT owner has write access to the `relativityone/spark-operator` repository
+3. Add it as a secret named `SPARK_OPERATOR_DISPATCH_TOKEN` in this repository
+4. The workflow will automatically trigger the `update-operator-image` workflow in the spark-operator repository
 
 ## Integration with spark-base Repository
 
@@ -123,12 +114,12 @@ spark-base repository
                             v
                      GitHub Release Created
                             |
-                            | (dispatch event)
+                            | (dispatch: update-operator-image)
                             v
                      spark-operator repository
                             |
                             v
-                     (updates image references)
+                     (updates operator image to v1.1.68)
 ```
 
 ## Testing
@@ -143,9 +134,10 @@ spark-base repository
 
 ### Test the Release Workflow
 
-1. Merge a PR with branch name `update-spark-base-v1.9.18`
-2. Verify a new tag and release are created
+1. Merge any PR to the `relativity-main` branch
+2. Verify a new tag and release are created with incremented patch version
 3. Check the Actions tab for workflow execution logs
+4. Verify the spark-operator repository receives the dispatch event
 
 ## Troubleshooting
 
@@ -155,14 +147,15 @@ spark-base repository
 - Ensure the branch `relativity-main` exists and is accessible
 
 ### Release Not Created
-- Verify the PR branch name starts with `update-spark-base-`
 - Check that the PR was merged (not just closed)
 - Review the workflow permissions (needs write access to tags and releases)
+- Verify Git configuration is set correctly (user.name and user.email)
 
 ### spark-operator Not Triggered
 - Ensure `SPARK_OPERATOR_DISPATCH_TOKEN` secret is configured
-- Verify the curl command is uncommented in the workflow
-- Check that the PAT has appropriate permissions
+- Verify the PAT has `repo` scope and the token owner has write access to `relativityone/spark-operator`
+- Check the workflow logs for API response codes (403/404 indicate permission issues)
+- Verify the target repository has a workflow that listens for `update-operator-image` repository_dispatch events
 
 ## Security Considerations
 
