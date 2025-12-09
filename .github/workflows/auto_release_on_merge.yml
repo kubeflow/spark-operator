@@ -8,7 +8,7 @@ on:
 
 jobs:
   check-and-release:
-    if: github.event.pull_request.merged == true && startsWith(github.event.pull_request.head.ref, 'update-spark-base-')
+    if: github.event.pull_request.merged == true 
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -32,18 +32,8 @@ jobs:
           # Get the latest tag
           LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v1.1.0")
           echo "Latest tag: $LATEST_TAG"
-          
-          # Extract version numbers
-          VERSION=${LATEST_TAG#v}
-          IFS='.' read -r -a VERSION_PARTS <<< "$VERSION"
-          MAJOR="${VERSION_PARTS[0]}"
-          MINOR="${VERSION_PARTS[1]}"
-          PATCH="${VERSION_PARTS[2]:-0}"
-          
-          # Increment patch version
-          NEW_PATCH=$((PATCH + 1))
-          NEW_VERSION="v${MAJOR}.${MINOR}.${NEW_PATCH}"
-          
+          NEW_VERSION=$(echo "$LATEST_TAG" | awk -F'.' '{OFS="."; $NF=$NF+1; print}')
+
           echo "new_version=${NEW_VERSION}" >> "$GITHUB_OUTPUT"
           echo "New version will be: $NEW_VERSION"
 
@@ -63,7 +53,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tag_name: ${{ steps.get-version.outputs.new_version }}
-          release_name: Release ${{ steps.get-version.outputs.new_version }}
+          release_name: ${{ steps.get-version.outputs.new_version }}
           body: |
             ## Release ${{ steps.get-version.outputs.new_version }}
             
@@ -79,38 +69,26 @@ jobs:
       - name: Trigger spark-operator update
         if: steps.create-tag.outputs.tag_created == 'true'
         env:
-          PR_TITLE: ${{ github.event.pull_request.title }}
+          GITHUB_TOKEN: ${{ secrets.SPARK_OPERATOR_DISPATCH_TOKEN }}
         run: |
-          # Extract spark-base version from PR title
-          SPARK_BASE_VERSION=$(echo "$PR_TITLE" | grep -oP 'v[0-9.]+' || echo "")
-          
-          if [ -z "$SPARK_BASE_VERSION" ]; then
-            echo "Warning: Could not extract spark-base version from PR title"
-            SPARK_BASE_VERSION="unknown"
-          fi
+          NEW_VERSION="${{ steps.get-version.outputs.new_version }}"
           
           # Prepare payload for spark-operator repo
           PAYLOAD=$(cat <<EOF
           {
-            "event_type": "spark-on-k8s-operator-updated",
+            "event_type": "update-operator-image",
             "client_payload": {
-              "version": "${{ steps.get-version.outputs.new_version }}",
-              "spark_base_version": "${SPARK_BASE_VERSION}",
-              "repository": "${{ github.repository }}"
+              "spark_on_k8s_version": "${NEW_VERSION}"
             }
           }
           EOF
           )
           
-          # Note: This requires a PAT with repo scope stored in secrets.SPARK_OPERATOR_DISPATCH_TOKEN
-          # Uncomment the following lines when the token is configured:
-          # curl -X POST \
-          #   -H "Accept: application/vnd.github.v3+json" \
-          #   -H "Authorization: token ${{ secrets.SPARK_OPERATOR_DISPATCH_TOKEN }}" \
-          #   https://api.github.com/repos/relativityone/spark-operator/dispatches \
-          #   -d "$PAYLOAD"
+          # Trigger the workflow in spark-operator repository
+          curl -X POST \
+            -H "Accept: application/vnd.github.v3+json" \
+            -H "Authorization: token ${GITHUB_TOKEN}" \
+            https://api.github.com/repos/relativityone/spark-operator/dispatches \
+            -d "$PAYLOAD"
           
-          echo "Payload prepared for spark-operator (requires SPARK_OPERATOR_DISPATCH_TOKEN secret):"
-          echo "$PAYLOAD"
-          echo ""
-          echo "To enable automatic triggering, add SPARK_OPERATOR_DISPATCH_TOKEN secret with a PAT that has repo scope for the spark-operator repository"
+          echo "Successfully triggered update-operator-image workflow in spark-operator repository with version: ${NEW_VERSION}"
