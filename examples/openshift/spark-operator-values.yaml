@@ -1,0 +1,22 @@
+# Helm values override for Spark Operator to support OpenShift restricted-v2 SCC
+#
+# Why fsGroup: null is required:
+# The upstream Helm chart sets fsGroup: 185 as a default in values.yaml.
+# Using an empty object {} merges with the defaults rather than replacing them,
+# so fsGroup: 185 persists in the rendered Deployment manifests.
+# Explicitly setting fsGroup: null removes the field entirely, allowing OpenShift's
+# restricted-v2 SCC to inject the appropriate values from the namespace's UID range.
+
+controller:
+  podSecurityContext:
+    fsGroup: null  # Override upstream default (185) to let OpenShift SCC assign
+
+webhook:
+  enable: true
+  podSecurityContext:
+    fsGroup: null  # Override upstream default (185) to let OpenShift SCC assign
+
+spark:
+  jobNamespaces:
+    - docling-spark  # Specify namespaces where Spark jobs can run
+  # Note: Leave the array empty (jobNamespaces: []) to watch all namespaces
