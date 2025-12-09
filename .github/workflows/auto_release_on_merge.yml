@@ -25,6 +25,8 @@ jobs:
         run: |
           git config user.name "$GITHUB_ACTOR"
           git config user.email "$GITHUB_ACTOR@users.noreply.github.com"
+          echo "Git user.name: $(git config user.name)"
+          echo "Git user.email: $(git config user.email)"
 
       - name: Get current version
         id: get-version
