@@ -26,25 +26,11 @@ spec:
     labels:
       version: 3.5.0
     serviceAccount: spark-driver
-    securityContext:
-      runAsNonRoot: true
-      allowPrivilegeEscalation: false
-      capabilities:
-        drop:
-          - ALL
-      seccompProfile:
-        type: RuntimeDefault
+    securityContext: {}
   executor:
     cores: 1
     instances: 2
     memory: "4g"
     labels:
       version: 3.5.0
-    securityContext:
-      runAsNonRoot: true
-      allowPrivilegeEscalation: false
-      capabilities:
-        drop:
-          - ALL
-      seccompProfile:
-        type: RuntimeDefault
+    securityContext: {}

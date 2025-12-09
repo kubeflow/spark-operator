@@ -91,7 +91,9 @@ helm install spark-operator spark-operator/spark-operator \
 
 > **Version Note:** We use v2.2.1 which includes Spark 3.5.5. Newer versions (v2.3.x+) ship with Spark 4.x which may have breaking changes. See the [version matrix](https://github.com/kubeflow/spark-operator?tab=readme-ov-file#version-matrix) for details.
 
-### 4. Verify Installation
+### 4. Verify Installation and Security Context
+After installation, verify the operator pods are running and, crucially, that the cluster is correctly enforcing the restricted-v2 security policy required for the custom image.
+1. Check Pod Status
 ```bash
 oc get pods -n kubeflow-spark-operator
 ```
@@ -99,6 +101,20 @@ oc get pods -n kubeflow-spark-operator
 You should see:
 - `spark-operator-controller-*` (Running)
 - `spark-operator-webhook-*` (Running)
+
+2. Confirm Security Context Constraint (SCC)
+Use the describe command to confirm that the restricted-v2 policy is assigned to the pods.
+```oc describe pod <POD_NAME> -n kubeflow-spark-operator
+```
+Look for the following line in the Annotations section:
+```Annotations: 
+  openshift.io/scc: restricted-v2
+```
+
+3. Verify Arbitrary UID Injection (Acceptance Criteria)
+To definitively prove that the container is running with a random non-root UID and is a member of the required Group 0, execute the id command inside the container. This confirms the environment is ready for the compatible Spark image.
+```oc exec -n kubeflow-spark-operator <POD_NAME> -- id
+```
 
 ## 3. SparkApplication CRD
 
@@ -140,27 +156,16 @@ spec:
     cores: 1
     memory: "4g"
     serviceAccount: spark-driver
-    securityContext:
-      runAsNonRoot: true
-      allowPrivilegeEscalation: false
-      capabilities:
-        drop: ["ALL"]
-      seccompProfile:
-        type: RuntimeDefault
+    securityContext: {}
   executor:
     cores: 1
     instances: 2
     memory: "4g"
-    securityContext:
-      runAsNonRoot: true
-      allowPrivilegeEscalation: false
-      capabilities:
-        drop: ["ALL"]
-      seccompProfile:
-        type: RuntimeDefault
+    securityContext: {}
 ```
 
 > **Note:** See `k8s/docling-spark-app.yaml` for the complete configuration including `timeToLiveSeconds` and labels.
+> **Note:** To ensure compatibility with OpenShift's default restricted-v2 Security Context Constraint (SCC), the explicit securityContext block (including runAsNonRoot, fsGroup, etc.) has been removed from both the driver and executor specifications in k8s/docling-spark-app.yaml.
 
 ## 4. About Docling-Spark Application
 
@@ -194,6 +199,24 @@ Proceed directly to Step 2 (Deploy to Red Hat AI).
 **Best for:** Processing your own documents, customizing the application, or production deployments.
 
 **Why you need this:** The `assets/` directory is copied into the Docker image at build time (see `Dockerfile` line 47). To process different PDFs, you must rebuild the image with your files.
+
+#### **Image Compatibility Rationale (Arbitrary UID)**
+
+> The `Dockerfile` has been modified to ensure the container image is compatible with OpenShift/ROSA's security model, which enforces running containers with a random, non-root User ID (UID).
+>
+> The critical change involves setting the ownership group for key directories like `/opt/spark` and `/app` to **Group ID 0 (root)** and making them **group-writable** (`chmod -R g=u`). This allows the arbitrary non-root user (who is a member of Group 0) to read and write to all necessary Spark and application paths, satisfying the `restricted-v2` SCC.
+>
+> **Crucially, the fixed user creation (`USER 185`) and `ENV HOME=/home/spark` have been removed.**
+
+```RUN chgrp -R 0 /opt/spark \
+    && chmod -R g=u /opt/spark \
+    && mkdir -p /opt/spark/work-dir /opt/spark/logs /tmp \
+    && chgrp -R 0 /opt/spark/work-dir /opt/spark/logs /tmp \
+    && chmod -R g=u /opt/spark/work-dir /opt/spark/logs /tmp \
+    && mkdir -p /app/input /app/output \
+    && chgrp -R 0 /app \
+    && chmod -R g=u /app
+```
 
 **Steps:**
 
