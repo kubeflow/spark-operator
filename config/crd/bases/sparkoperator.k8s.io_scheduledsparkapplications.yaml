@@ -1150,11 +1150,12 @@ spec:
                           Maps to `spark.kubernetes.driver.request.cores` that is available since Spark 3.0.
                         type: string
                       cores:
+                        anyOf:
+                        - type: integer
+                        - type: string
                         description: Cores maps to `spark.driver.cores` or `spark.executor.cores`
                           for the driver and executors, respectively.
-                        format: int32
-                        minimum: 1
-                        type: integer
+                        x-kubernetes-int-or-string: true
                       dnsConfig:
                         description: DnsConfig dns settings for the pod, following
                           the Kubernetes specifications.
@@ -6280,11 +6281,12 @@ spec:
                           Maps to `spark.kubernetes.executor.request.cores` that is available since Spark 2.4.
                         type: string
                       cores:
+                        anyOf:
+                        - type: integer
+                        - type: string
                         description: Cores maps to `spark.driver.cores` or `spark.executor.cores`
                           for the driver and executors, respectively.
-                        format: int32
-                        minimum: 1
-                        type: integer
+                        x-kubernetes-int-or-string: true
                       deleteOnTermination:
                         description: |-
                           DeleteOnTermination specify whether executor pods should be deleted in case of failure or normal termination.

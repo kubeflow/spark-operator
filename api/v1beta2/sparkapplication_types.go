@@ -20,6 +20,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
@@ -429,8 +430,7 @@ type SparkPodSpec struct {
 	Template *corev1.PodTemplateSpec `json:"template,omitempty"`
 	// Cores maps to `spark.driver.cores` or `spark.executor.cores` for the driver and executors, respectively.
 	// +optional
-	// +kubebuilder:validation:Minimum=1
-	Cores *int32 `json:"cores,omitempty"`
+	Cores *intstr.IntOrString `json:"cores,omitempty"`
 	// CoreLimit specifies a hard limit on CPU cores for the pod.
 	// Optional
 	CoreLimit *string `json:"coreLimit,omitempty"`
