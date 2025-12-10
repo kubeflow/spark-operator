@@ -1,14 +1,12 @@
 name: Auto Release and Notify Spark Operator
 
 on:
-  pull_request:
-    types: [closed]
+  push:
     branches:
       - relativity-main
 
 jobs:
   check-and-release:
-    if: github.event.pull_request.merged == true 
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -20,13 +18,6 @@ jobs:
           ref: relativity-main
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Configure Git
-        run: |
-          git config user.name "$GITHUB_ACTOR"
-          git config user.email "$GITHUB_ACTOR@users.noreply.github.com"
-          echo "Git user.name: $(git config user.name)"
-          echo "Git user.email: $(git config user.email)"
 
       - name: Get current version
         id: get-version
@@ -42,8 +33,10 @@ jobs:
       - name: Create and push tag
         id: create-tag
         run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
           NEW_VERSION="${{ steps.get-version.outputs.new_version }}"
-          git tag -a "$NEW_VERSION" -m "Release $NEW_VERSION - Updated spark-base version"
+          git tag -a "$NEW_VERSION" -m "Release $NEW_VERSION"
           git push origin "$NEW_VERSION"
           echo "tag_created=true" >> "$GITHUB_OUTPUT"
           echo "Created and pushed tag: $NEW_VERSION"
@@ -96,5 +89,15 @@ jobs:
             -H "Authorization: token ${GITHUB_TOKEN}" \
             https://api.github.com/repos/relativityone/spark-operator/dispatches \
             -d "$PAYLOAD"
+            
+          HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+          BODY=$(echo "$RESPONSE" | sed '$d')
           
-          echo "Successfully triggered update-operator-image workflow in spark-operator repository with version: ${NEW_VERSION}"
+          if [ "$HTTP_CODE" -eq 204 ]; then
+            echo "Successfully triggered update-operator-image workflow in spark-operator repository with version: ${NEW_VERSION}"
+            echo "The receiving workflow should access the value as: github.event.client_payload.spark_on_k8s_version"
+          else
+            echo "Failed to trigger workflow. HTTP code: $HTTP_CODE"
+            echo "Response: $BODY"
+            exit 1
+          fi
