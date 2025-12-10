@@ -84,18 +84,17 @@ jobs:
           echo "Version value: ${NEW_VERSION}"
           
           # Trigger the workflow in spark-operator repository
-          curl -X POST \
+          RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
             -H "Accept: application/vnd.github.v3+json" \
             -H "Authorization: token ${GITHUB_TOKEN}" \
             https://api.github.com/repos/relativityone/spark-operator/dispatches \
-            -d "$PAYLOAD"
-            
+            -d "$PAYLOAD")
+          
           HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
           BODY=$(echo "$RESPONSE" | sed '$d')
           
           if [ "$HTTP_CODE" -eq 204 ]; then
             echo "Successfully triggered update-operator-image workflow in spark-operator repository with version: ${NEW_VERSION}"
-            echo "The receiving workflow should access the value as: github.event.client_payload.spark_on_k8s_version"
           else
             echo "Failed to trigger workflow. HTTP code: $HTTP_CODE"
             echo "Response: $BODY"
