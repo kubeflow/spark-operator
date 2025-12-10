@@ -20,17 +20,18 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Azure Login
-        uses: Azure/login@v2
-        with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
+      # TODO: Uncomment this when we have a new PAT
+      # - name: Azure Login
+      #   uses: Azure/login@v2
+      #   with:
+      #     creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      - name: Get KeyVault Secrets
-        uses: Azure/get-keyvault-secrets@v1
-        with:
-          keyvault: "ai-services-dev"
-          secrets: "githubServiceAccountPAT"
-        id: kv
+      # - name: Get KeyVault Secrets
+      #   uses: Azure/get-keyvault-secrets@v1
+      #   with:
+      #     keyvault: "ai-services-dev"
+      #     secrets: "githubServiceAccountPAT"
+      #   id: kv
       
       - name: Set version variable
         id: set-version
@@ -70,7 +71,8 @@ jobs:
         if: steps.update-files.outputs.changed == 'true'
         uses: peter-evans/create-pull-request@v7
         with:
-          token: ${{ steps.kv.outputs.githubServiceAccountPAT }}
+          # token: ${{ steps.kv.outputs.githubServiceAccountPAT }} 
+          token: ${{ secrets.SPARK_OPERATOR_DISPATCH_TOKEN }} ### Remove this line when we have a new PAT
           commit-message: "Update spark-base version to ${{ steps.set-version.outputs.version }}"
           title: "Update spark-base version to ${{ steps.set-version.outputs.version }}"
           body: |

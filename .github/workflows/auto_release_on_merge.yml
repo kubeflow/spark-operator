@@ -19,6 +19,19 @@ jobs:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
+      # TODO: Uncomment this when we have a new PAT
+      # - name: Azure Login
+      #   uses: Azure/login@v2
+      #   with:
+      #     creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      # - name: Get KeyVault Secrets
+      #   uses: Azure/get-keyvault-secrets@v1
+      #   with:
+      #     keyvault: "ai-services-dev"
+      #     secrets: "githubServiceAccountPAT"
+      #   id: kv
+          
       - name: Get current version
         id: get-version
         run: |
@@ -64,7 +77,8 @@ jobs:
       - name: Trigger spark-operator update
         if: steps.create-tag.outputs.tag_created == 'true'
         env:
-          GITHUB_TOKEN: ${{ secrets.SPARK_OPERATOR_DISPATCH_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.SPARK_OPERATOR_DISPATCH_TOKEN }} ### Remove this line when we have a new PAT
+          # GITHUB_TOKEN: ${{ steps.kv.outputs.githubServiceAccountPAT }}
         run: |
           NEW_VERSION="${{ steps.get-version.outputs.new_version }}"
           
