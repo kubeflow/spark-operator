@@ -18,12 +18,20 @@ jobs:
   update-spark-base-version:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          ref: relativity-main
-          token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/checkout@v4
 
+      - name: Azure Login
+        uses: Azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Get KeyVault Secrets
+        uses: Azure/get-keyvault-secrets@v1
+        with:
+          keyvault: "ai-services-dev"
+          secrets: "githubServiceAccountPAT"
+        id: kv
+      
       - name: Set version variable
         id: set-version
         run: |
@@ -41,10 +49,12 @@ jobs:
           VERSION="${{ steps.set-version.outputs.version }}"
           
           # Update relativity_main.yml
-          sed -i "s|SPARK_IMAGE=\${{ secrets.BASE_IMAGE }}:v[0-9.]*|SPARK_IMAGE=\${{ secrets.BASE_IMAGE }}:${VERSION}|g" .github/workflows/relativity_main.yml
+          # Match any SPARK_IMAGE line ending with :v followed by version numbers
+          # Use capture group to preserve everything before the version
+          sed -i "s|\(SPARK_IMAGE=.*:\)v[0-9.]*|\1${VERSION}|g" .github/workflows/relativity_main.yml
           
           # Update relativity_release.yaml
-          sed -i "s|SPARK_IMAGE=\${{ secrets.BASE_IMAGE }}:v[0-9.]*|SPARK_IMAGE=\${{ secrets.BASE_IMAGE }}:${VERSION}|g" .github/workflows/relativity_release.yaml
+          sed -i "s|\(SPARK_IMAGE=.*:\)v[0-9.]*|\1${VERSION}|g" .github/workflows/relativity_release.yaml
           
           # Check if any files were modified
           if git diff --quiet; then
@@ -60,7 +70,7 @@ jobs:
         if: steps.update-files.outputs.changed == 'true'
         uses: peter-evans/create-pull-request@v7
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ steps.kv.outputs.githubServiceAccountPAT }}
           commit-message: "Update spark-base version to ${{ steps.set-version.outputs.version }}"
           title: "Update spark-base version to ${{ steps.set-version.outputs.version }}"
           body: |
