@@ -5,11 +5,13 @@ on:
     branches:
       - master
       - release-*
+      - odh
 
   push:
     branches:
       - master
       - release-*
+      - odh
 
 permissions:
   contents: read
