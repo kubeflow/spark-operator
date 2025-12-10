@@ -20,18 +20,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # TODO: Uncomment this when we have a new PAT
-      # - name: Azure Login
-      #   uses: Azure/login@v2
-      #   with:
-      #     creds: ${{ secrets.AZURE_CREDENTIALS }}
+      - name: Azure Login
+        uses: Azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      # - name: Get KeyVault Secrets
-      #   uses: Azure/get-keyvault-secrets@v1
-      #   with:
-      #     keyvault: "ai-services-dev"
-      #     secrets: "githubServiceAccountPAT"
-      #   id: kv
+      - name: Get KeyVault Secrets
+        uses: Azure/get-keyvault-secrets@v1
+        with:
+          keyvault: "ai-services-dev"
+          secrets: "githubServiceAccountPAT"
+        id: kv
       
       - name: Set version variable
         id: set-version
@@ -48,15 +47,10 @@ jobs:
         id: update-files
         run: |
           VERSION="${{ steps.set-version.outputs.version }}"
-          
-          # Update relativity_main.yml
-          # Match any SPARK_IMAGE line ending with :v followed by version numbers
-          # Use capture group to preserve everything before the version
-          sed -i "s|\(SPARK_IMAGE=.*:\)v[0-9.]*|\1${VERSION}|g" .github/workflows/relativity_main.yml
-          
-          # Update relativity_release.yaml
-          sed -i "s|\(SPARK_IMAGE=.*:\)v[0-9.]*|\1${VERSION}|g" .github/workflows/relativity_release.yaml
-          
+
+          # Replace the entire line in spark-base-version file
+          echo "${VERSION}" > spark-base-version
+
           # Check if any files were modified
           if git diff --quiet; then
             echo "changed=false" >> "$GITHUB_OUTPUT"
@@ -71,16 +65,14 @@ jobs:
         if: steps.update-files.outputs.changed == 'true'
         uses: peter-evans/create-pull-request@v7
         with:
-          # token: ${{ steps.kv.outputs.githubServiceAccountPAT }} 
-          token: ${{ secrets.SPARK_OPERATOR_DISPATCH_TOKEN }} ### Remove this line when we have a new PAT
+          token: ${{ steps.kv.outputs.githubServiceAccountPAT }} 
           commit-message: "Update spark-base version to ${{ steps.set-version.outputs.version }}"
           title: "Update spark-base version to ${{ steps.set-version.outputs.version }}"
           body: |
             This PR updates the spark-base image version to `${{ steps.set-version.outputs.version }}`.
             
             ## Changes
-            - Updated `.github/workflows/relativity_main.yml`
-            - Updated `.github/workflows/relativity_release.yaml`
+            - Updated `spark-base-version`
             
             This PR was automatically created by the update-spark-base workflow.
           branch: update-spark-base-${{ steps.set-version.outputs.version }}
