@@ -75,16 +75,20 @@ jobs:
         run: |
           NEW_VERSION="${{ steps.get-version.outputs.new_version }}"
           
-          # Prepare payload for spark-operator repo
-          PAYLOAD=$(cat <<EOF
-          {
-            "event_type": "update-operator-image",
-            "client_payload": {
-              "spark_on_k8s_version": "${NEW_VERSION}"
-            }
-          }
-          EOF
-          )
+          # Prepare payload for spark-operator repo using jq for reliable JSON construction
+          PAYLOAD=$(jq -n \
+            --arg event_type "update-operator-image" \
+            --arg version "$NEW_VERSION" \
+            '{
+              "event_type": $event_type,
+              "client_payload": {
+                "spark_on_k8s_version": $version
+              }
+            }')
+          
+          echo "Payload being sent:"
+          echo "$PAYLOAD" | jq .
+          echo "Version value: ${NEW_VERSION}"
           
           # Trigger the workflow in spark-operator repository
           curl -X POST \
