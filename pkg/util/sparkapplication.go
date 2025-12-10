@@ -160,6 +160,14 @@ func GetExecutorLocalVolumeMounts(app *v1beta2.SparkApplication) []corev1.Volume
 	return volumeMounts
 }
 
+func GetExecutorPriorityClassName(app *v1beta2.SparkApplication) string {
+	if app.Spec.Executor.PriorityClassName != nil {
+		return *app.Spec.Executor.PriorityClassName
+	}
+
+	return ""
+}
+
 func generateName(name, suffix string) string {
 	// Some resource names are used as DNS labels, so must be 63 characters or shorter
 	preferredName := fmt.Sprintf("%s-%s", name, suffix)
