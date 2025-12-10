@@ -46,10 +46,10 @@ jobs:
           else
             NEW_VERSION="v$RAW_VERSION"
           fi
-          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
-          echo "Updating to version: ${VERSION}"
+          echo "version=${NEW_VERSION}" >> "$GITHUB_OUTPUT"
+          echo "Updating to version: ${NEW_VERSION}"
 
-      - name: Update workflow files
+      - name: Update version file
         id: update-files
         run: |
           VERSION="${{ steps.set-version.outputs.version }}"
