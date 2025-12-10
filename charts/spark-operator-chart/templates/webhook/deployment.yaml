@@ -136,6 +136,10 @@ spec:
       volumes:
       {{- toYaml . | nindent 6 }}
       {{- end }}
+      {{- with .Values.controller.dnsConfig }}
+      dnsConfig:
+      {{- toYaml . | nindent 8 }}
+      {{- end }}
       {{- with .Values.webhook.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
