@@ -1,0 +1,38 @@
+# requirements-docker.txt - For Docker/Linux environments
+
+# Core processing
+docling>=2.0.0
+docling-core>=2.0.0
+docling-ibm-models>=2.0.0
+docling-parse>=2.0.0
+
+# Data processing
+pandas>=2.0.0
+numpy>=1.24.0
+pyarrow>=14.0.0
+
+# Document processing
+pillow>=10.0.0
+opencv-python-headless>=4.8.0
+lxml>=4.9.0
+
+# OCR - Linux compatible alternatives
+easyocr>=1.7.0
+pytesseract>=0.3.10
+
+# Table processing
+python-docx>=1.1.0
+openpyxl>=3.1.0
+
+# Utilities
+python-dotenv>=1.0.0
+typing-extensions>=4.8.0
+pydantic>=2.0.0
+tqdm>=4.66.0
+
+# HTTP/Networking
+requests>=2.31.0
+urllib3>=2.0.0
+
+# Serialization
+jsonlines>=4.0.0
