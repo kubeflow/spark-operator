@@ -36,9 +36,15 @@ jobs:
         id: set-version
         run: |
           if [ "${{ github.event_name }}" = "repository_dispatch" ]; then
-            VERSION="${{ github.event.client_payload.version }}"
+            RAW_VERSION="${{ github.event.client_payload.version }}"
           else
-            VERSION="${{ inputs.spark_base_version }}"
+            RAW_VERSION="${{ inputs.spark_base_version }}"
+          fi
+          # Ensure version starts with 'v'
+          if [[ "$RAW_VERSION" == v* ]]; then
+            NEW_VERSION="$RAW_VERSION"
+          else
+            NEW_VERSION="v$RAW_VERSION"
           fi
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
           echo "Updating to version: ${VERSION}"

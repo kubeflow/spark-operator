@@ -44,6 +44,12 @@ jobs:
         run: |
           # Read the file and trim whitespace/newlines
           SPARK_BASE_VERSION=$(cat spark-base-version | xargs)
+          # Ensure version starts with 'v'
+          if [[ "$SPARK_BASE_VERSION" == v* ]]; then
+            SPARK_BASE_VERSION="$SPARK_BASE_VERSION"
+          else
+            SPARK_BASE_VERSION="v$SPARK_BASE_VERSION"
+          fi
           echo "Read spark-base version: ${SPARK_BASE_VERSION}"
           echo "SPARK_BASE_VERSION=${SPARK_BASE_VERSION}" >> "$GITHUB_OUTPUT"
           
