@@ -85,6 +85,33 @@ If you are running the Kubernetes Operator for Apache Spark on Google Kubernetes
 
 For more information, check the [Design](docs/design.md), [API Specification](docs/api-docs.md) and detailed [User Guide](docs/user-guide.md).
 
+## Automated Deployment
+
+This repository is part of an automated deployment chain for Spark infrastructure. The deployment process works as follows:
+
+1. **Upstream Trigger** (from `spark-base` repository):
+   - When a new spark-base image is built, tested, and released, it automatically triggers this repository via a repository dispatch event
+   - The dispatch includes the new spark-base version (e.g., `v1.9.18`)
+
+2. **Automatic Version Update** (in this repository):
+   - Upon receiving the dispatch event, a workflow automatically updates the `spark-base-version` file with the new version
+   - A pull request is created with the updated version for review
+   - Validate if the changes are sufficient and if not modify necessary parts of code.
+
+3. **Release & Deployment** (after PR merge):
+   - When the PR is merged to `relativity-main`, the workflow automatically:
+     - Increments the patch version of the spark-operator (e.g., `v1.1.68` → `v1.1.69`)
+     - Creates a new git tag and GitHub release
+     - Triggers the downstream `spark-operator` repository to update its image references
+
+4. **Downstream Process** (in `spark-operator` repository):
+   - Receives the dispatch event with the new spark-operator version
+   - Creates a PR with updated versions for both spark-operator and spark-pi
+   - After validation and merge, triggers automatic deployment to production
+   - Final step requires manual validation if the image was promoted and approving the deployment pipeline in Harness.
+
+For more details on the automated dependency update process, see [Automated Dependency Updates](./docs/automated-dependency-updates.md).
+
 ## Contributing
 
 Please check [CONTRIBUTING.md](CONTRIBUTING.md) and the [Developer Guide](docs/developer-guide.md) out.

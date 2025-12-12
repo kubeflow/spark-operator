@@ -31,7 +31,7 @@ jobs:
           keyvault: "ai-services-dev"
           secrets: "githubServiceAccountPAT"
         id: kv
-      
+
       - name: Set version variable
         id: set-version
         run: |
@@ -71,7 +71,7 @@ jobs:
         if: steps.update-files.outputs.changed == 'true'
         uses: peter-evans/create-pull-request@v7
         with:
-          token: ${{ steps.kv.outputs.githubServiceAccountPAT }} 
+          token: ${{ steps.kv.outputs.githubServiceAccountPAT }}
           commit-message: "Update spark-base version to ${{ steps.set-version.outputs.version }}"
           title: "Update spark-base version to ${{ steps.set-version.outputs.version }}"
           body: |
