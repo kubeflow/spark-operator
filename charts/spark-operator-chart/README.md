@@ -195,6 +195,102 @@ See [helm uninstall](https://helm.sh/docs/helm/helm_uninstall) for command docum
 | certManager.duration | string | `2160h` (90 days) will be used if not specified. | The duration of the certificate validity (e.g. `2160h`). See [cert-manager.io/v1.Certificate](https://cert-manager.io/docs/reference/api-docs/#cert-manager.io/v1.Certificate). |
 | certManager.renewBefore | string | 1/3 of issued certificate’s lifetime. | The duration before the certificate expiration to renew the certificate (e.g. `720h`). See [cert-manager.io/v1.Certificate](https://cert-manager.io/docs/reference/api-docs/#cert-manager.io/v1.Certificate). |
 
+---
+
+## Default Spark UI Ingress TLS and Annotations
+
+Starting from the release that includes PR #2513, the Spark Operator supports **default TLS configuration and default annotations for the Spark UI Ingress** via Helm values.
+
+This is useful when you want **all SparkApplications to share a common TLS or annotation configuration** without having to repeat the same settings in every SparkApplication spec.
+
+### How It Works
+
+There are **two levels of configuration** for Spark UI ingress:
+
+1. **Application-level configuration**  
+   
+    Defined in the SparkApplication spec under:
+
+```yaml
+   spec:
+     sparkUIOptions:
+       ingressTLS: []
+       ingressAnnotations: {}
+```
+
+2. **Helm-level default configuration (NEW FEATURE)**
+
+    Defined in the Helm values under:
+
+```yaml
+    controller:
+        uiIngress:
+            tls: []
+            annotations: {}
+```
+Precedence rule:
+
+- If a SparkApplication explicitly sets `spec.sparkUIOptions.ingressTLS` or `ingressAnnotations`, those values are used.
+- Otherwise, the operator falls back to the Helm defaults defined in:
+  - `controller.uiIngress.tls`
+  - `controller.uiIngress.annotations`
+
+### Example: Configure Default TLS via Helm
+This example enables TLS for **all Spark UI ingresses by default**:
+```yaml
+    controller:
+        uiIngress:
+            enable: true
+            urlFormat: "{{ .Name }}.spark.example.com"
+            tls:
+            - secretName: spark-ui-tls
+                hosts:
+                - "*.spark.example.com"
+```
+With this configuration:
+- Every SparkApplication UI ingress will use the TLS secret `spark-ui-tls`
+- Unless explicitly overridden in the SparkApplication spec
+
+### Example: Configure Default Ingress Annotations via Helm
+
+```yaml
+    controller:
+        uiIngress:
+            enable: true
+            urlFormat: "{{ .Name }}.spark.example.com"
+            annotations:
+            nginx.ingress.kubernetes.io/rewrite-target: /
+            nginx.ingress.kubernetes.io/ssl-redirect: "true"
+```
+These annotations will be applied to all Spark UI ingress resources by default.
+
+### Example: Overriding Defaults in a SparkApplication
+You can override the Helm defaults at the application level:
+
+```yaml
+    apiVersion: sparkoperator.k8s.io/v1beta2
+        kind: SparkApplication
+        metadata:
+        name: spark-pi
+        spec:
+        sparkUIOptions:
+            ingressTLS:
+            - secretName: custom-ui-tls
+                hosts:
+                - spark-pi.custom.example.com
+            ingressAnnotations:
+            nginx.ingress.kubernetes.io/ssl-redirect: "false"
+```
+In this case:
+- The Helm defaults are ignored
+- The SparkApplication uses its own TLS and annotation settings
+
+### Important Notes
+- `controller.uiIngress.enable` must be set to true for ingress to be created.
+- `controller.uiIngress.urlFormat` is required when enabling ingress.
+- Helm defaults apply only when **the SparkApplication does not define its own ingress TLS or annotations**.
+
+
 ## Maintainers
 
 | Name | Email | Url |
