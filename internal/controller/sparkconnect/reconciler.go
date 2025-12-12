@@ -19,7 +19,6 @@ package sparkconnect
 import (
 	"context"
 	"fmt"
-	"reflect"
 	"strings"
 
 	corev1 "k8s.io/api/core/v1"
@@ -89,7 +88,7 @@ func NewReconciler(
 
 // SetupWithManager sets up the SparkConnect reconciler with the manager.
 func (r *Reconciler) SetupWithManager(mgr ctrl.Manager, options controller.Options) error {
-	kind := reflect.TypeOf(v1alpha1.SparkConnect{}).Name()
+	kind := "SparkConnect"
 
 	// Use a custom log constructor.
 	options.LogConstructor = util.NewLogConstructor(mgr.GetLogger(), kind)

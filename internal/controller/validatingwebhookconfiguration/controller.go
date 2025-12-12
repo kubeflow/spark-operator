@@ -19,7 +19,6 @@ package validatingwebhookconfiguration
 import (
 	"context"
 	"fmt"
-	"reflect"
 	"strings"
 
 	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
@@ -58,7 +57,7 @@ func NewReconciler(client client.Client, certProvider *certificate.Provider, nam
 }
 
 func (r *Reconciler) SetupWithManager(mgr ctrl.Manager, options controller.Options) error {
-	kind := reflect.TypeOf(admissionregistrationv1.ValidatingWebhookConfiguration{}).Name()
+	kind := "ValidatingWebhookConfiguration"
 	name := strings.ToLower(kind)
 
 	// Use a custom log constructor.

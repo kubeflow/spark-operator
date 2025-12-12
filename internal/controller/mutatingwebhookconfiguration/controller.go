@@ -19,7 +19,6 @@ package mutatingwebhookconfiguration
 import (
 	"context"
 	"fmt"
-	"reflect"
 	"strings"
 
 	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
@@ -58,7 +57,7 @@ func NewReconciler(client client.Client, certProvider *certificate.Provider, nam
 }
 
 func (r *Reconciler) SetupWithManager(mgr ctrl.Manager, options controller.Options) error {
-	kind := reflect.TypeOf(admissionregistrationv1.MutatingWebhookConfiguration{}).Name()
+	kind := "MutatingWebhookConfiguration"
 	name := strings.ToLower(kind)
 
 	// Use a custom log constructor.

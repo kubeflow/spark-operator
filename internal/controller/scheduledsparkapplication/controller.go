@@ -207,7 +207,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *Reconciler) SetupWithManager(mgr ctrl.Manager, options controller.Options) error {
-	kind := reflect.TypeOf(v1beta2.ScheduledSparkApplication{}).Name()
+	kind := "ScheduledSparkApplication"
 	name := strings.ToLower(kind)
 
 	// Use a custom log constructor.
