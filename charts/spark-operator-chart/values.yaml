@@ -57,6 +57,10 @@ hook:
     tag: ""
 
 controller:
+  # -- default precision for ScheduledSparkApplication timestamp suffix
+  scheduledSparkApplication:
+    timestampPrecision: "nanos"
+
   # -- Number of replicas of controller.
   replicas: 1
 
@@ -110,6 +114,15 @@ controller:
     annotations: {}
       # key1: value1
       # key2: value2
+
+  # New: sparkConnect ingress Helm defaults
+  sparkConnect:
+    ingress:
+      enabled: false
+      className: ""
+      annotations: {}
+      hosts: []
+      tls: []
 
   batchScheduler:
     # -- Specifies whether to enable batch scheduler for spark jobs scheduling.
