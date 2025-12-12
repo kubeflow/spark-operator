@@ -173,7 +173,7 @@ func (f *EventFilter) Update(e event.UpdateEvent) bool {
 
 	// The spec has changed except for Spec.Suspend.
 	// This is currently best effort as we can potentially miss updates and end up in an inconsistent state.
-	if !equality.Semantic.DeepEqual(oldApp.Spec, newApp.Spec) {
+	if !equality.Semantic.DeepEqual(oldApp.Spec, newApp.Spec) && !f.canHotUpdate(oldApp, newApp) {
 
 		// Only Spec.Suspend can be updated
 		oldApp.Spec.Suspend = newApp.Spec.Suspend
@@ -199,6 +199,23 @@ func (f *EventFilter) Update(e event.UpdateEvent) bool {
 	}
 
 	return true
+}
+
+// Hot update is allowed only for PriorityClassName changes.
+func (f *EventFilter) canHotUpdate(oldApp *v1beta2.SparkApplication, newApp *v1beta2.SparkApplication) bool {
+	oldSpecCopy := oldApp.Spec.DeepCopy()
+	newSpecCopy := newApp.Spec.DeepCopy()
+
+	var oldPriorityClassName = util.GetExecutorPriorityClassName(oldApp)
+	var newPriorityClassName = util.GetExecutorPriorityClassName(newApp)
+	newSpecCopy.Executor.PriorityClassName = &oldPriorityClassName
+
+	if equality.Semantic.DeepEqual(oldSpecCopy, newSpecCopy) {
+		f.logger.Info("HotUpdating PriorityClassName", "name", newApp.Name, "namespace", newApp.Namespace, "oldPriorityClassName", oldPriorityClassName, "newPriorityClassName", newPriorityClassName)
+		return true
+	}
+
+	return false
 }
 
 // Delete implements predicate.Predicate.
