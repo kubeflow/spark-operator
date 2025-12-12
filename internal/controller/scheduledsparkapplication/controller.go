@@ -44,6 +44,7 @@ import (
 
 	"github.com/kubeflow/spark-operator/v2/api/v1beta2"
 	"github.com/kubeflow/spark-operator/v2/pkg/common"
+	"github.com/kubeflow/spark-operator/v2/pkg/util"
 )
 
 var (
@@ -206,8 +207,14 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *Reconciler) SetupWithManager(mgr ctrl.Manager, options controller.Options) error {
+	kind := "ScheduledSparkApplication"
+	name := strings.ToLower(kind)
+
+	// Use a custom log constructor.
+	options.LogConstructor = util.NewLogConstructor(mgr.GetLogger(), kind)
+
 	return ctrl.NewControllerManagedBy(mgr).
-		Named("scheduled-spark-application-controller").
+		Named(name).
 		Watches(
 			&v1beta2.ScheduledSparkApplication{},
 			NewEventHandler(),
