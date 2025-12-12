@@ -81,7 +81,7 @@ jobs:
         env:
           GITHUB_PAT: ${{ steps.kv.outputs.githubServiceAccountPAT }}
         run: |
-          # NEW_VERSION="${{ steps.get-version.outputs.new_version }}"
+          NEW_VERSION="${{ steps.get-version.outputs.new_version }}"
           
           # Prepare payload for spark-operator repo using jq for reliable JSON construction
           PAYLOAD=$(jq -n \
