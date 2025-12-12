@@ -19,6 +19,7 @@ package sparkapplication
 import (
 	"context"
 	"fmt"
+	"math"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -27,7 +28,9 @@ import (
 	"strings"
 
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
@@ -319,6 +322,38 @@ func nodeSelectorOption(app *v1beta2.SparkApplication) ([]string, error) {
 	return args, nil
 }
 
+// parseCoresForSpark converts the cores value (which may be IntOrString like "100m", "0.5", "1.25")
+// into an integer number of cores suitable for spark.{driver,executor}.cores,
+// which only support integer values.
+func parseCoresForSpark(v *intstr.IntOrString) (int32, error) {
+	if v == nil {
+		// Spark default if not specified
+		return 1, nil
+	}
+
+	if v.Type == intstr.Int {
+		if v.IntVal <= 0 {
+			return 0, fmt.Errorf("cores must be positive, got %d", v.IntVal)
+		}
+		return v.IntVal, nil
+	}
+
+	// String case: e.g. "100m", "500m", "0.5", "1.25"
+	qty, err := resource.ParseQuantity(v.StrVal)
+	if err != nil {
+		return 0, err
+	}
+
+	cores := float64(qty.MilliValue()) / 1000.0
+	if cores <= 0 {
+		return 0, fmt.Errorf("cores must be positive, got %s", v.StrVal)
+	}
+
+	// Spark cores must be an integer; we round up so that we never
+	// under-allocate from Spark's perspective.
+	return int32(math.Ceil(cores)), nil
+}
+
 func driverConfOption(app *v1beta2.SparkApplication) ([]string, error) {
 	var args []string
 	var property string
@@ -347,8 +382,12 @@ func driverConfOption(app *v1beta2.SparkApplication) ([]string, error) {
 	}
 
 	if app.Spec.Driver.Cores != nil {
+		driverCores, err := parseCoresForSpark(app.Spec.Driver.Cores)
+		if err != nil {
+			return nil, err
+		}
 		args = append(args, "--conf",
-			fmt.Sprintf("%s=%d", common.SparkDriverCores, *app.Spec.Driver.Cores))
+			fmt.Sprintf("%s=%d", common.SparkDriverCores, driverCores))
 	}
 
 	if app.Spec.Driver.CoreRequest != nil {
@@ -710,8 +749,13 @@ func executorConfOption(app *v1beta2.SparkApplication) ([]string, error) {
 
 	if app.Spec.Executor.Cores != nil {
 		// Property "spark.executor.cores" does not allow float values.
+		// We accept IntOrString (e.g. "100m", "0.5", "1.25") and round *up* to an integer core value.
+		executorCores, err := parseCoresForSpark(app.Spec.Executor.Cores)
+		if err != nil {
+			return nil, err
+		}
 		args = append(args, "--conf",
-			fmt.Sprintf("%s=%d", common.SparkExecutorCores, *app.Spec.Executor.Cores))
+			fmt.Sprintf("%s=%d", common.SparkExecutorCores, executorCores))
 	}
 	if app.Spec.Executor.CoreRequest != nil {
 		args = append(args, "--conf",
@@ -753,17 +797,17 @@ func executorConfOption(app *v1beta2.SparkApplication) ([]string, error) {
 		args = append(args, "--conf", fmt.Sprintf("%s=%s", property, value))
 	}
 	for key, value := range app.Spec.Executor.Labels {
-		property := fmt.Sprintf(common.SparkKubernetesExecutorLabelTemplate, key)
+		property = fmt.Sprintf(common.SparkKubernetesExecutorLabelTemplate, key)
 		args = append(args, "--conf", fmt.Sprintf("%s=%s", property, value))
 	}
 
 	for key, value := range app.Spec.Executor.Annotations {
-		property := fmt.Sprintf(common.SparkKubernetesExecutorAnnotationTemplate, key)
+		property = fmt.Sprintf(common.SparkKubernetesExecutorAnnotationTemplate, key)
 		args = append(args, "--conf", fmt.Sprintf("%s=%s", property, value))
 	}
 
 	for key, value := range app.Spec.Executor.EnvSecretKeyRefs {
-		property := fmt.Sprintf(common.SparkKubernetesExecutorSecretKeyRefTemplate, key)
+		property = fmt.Sprintf(common.SparkKubernetesExecutorSecretKeyRefTemplate, key)
 		args = append(args, "--conf", fmt.Sprintf("%s=%s:%s", property, value.Name, value.Key))
 	}
 
