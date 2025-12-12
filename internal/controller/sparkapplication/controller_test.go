@@ -757,6 +757,279 @@ var _ = Describe("SparkApplication Controller", func() {
 		})
 	})
 
+	Context("When reconciling a succeeding SparkApplication with Always retry policy", func() {
+		ctx := context.Background()
+		appName := "test"
+		appNamespace := "default"
+		key := types.NamespacedName{
+			Name:      appName,
+			Namespace: appNamespace,
+		}
+
+		BeforeEach(func() {
+			By("Creating a SparkApplication with Always restart policy")
+			app := &v1beta2.SparkApplication{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      appName,
+					Namespace: appNamespace,
+				},
+				Spec: v1beta2.SparkApplicationSpec{
+					MainApplicationFile: ptr.To("local:///dummy.jar"),
+					RestartPolicy: v1beta2.RestartPolicy{
+						Type: v1beta2.RestartPolicyAlways,
+					},
+				},
+			}
+			v1beta2.SetSparkApplicationDefaults(app)
+			Expect(k8sClient.Create(ctx, app)).Should(Succeed())
+
+			By("Creating a driver pod with Succeeded phase")
+			driver := createDriverPod(appName, appNamespace)
+			Expect(k8sClient.Create(ctx, driver)).Should(Succeed())
+			driver.Status.Phase = corev1.PodSucceeded
+			Expect(k8sClient.Status().Update(ctx, driver)).Should(Succeed())
+
+			By("Creating a executor pod with Succeeded phase")
+			executor := createExecutorPod(appName, appNamespace, 1)
+			Expect(k8sClient.Create(ctx, executor)).To(Succeed())
+			executor.Status.Phase = corev1.PodSucceeded
+			Expect(k8sClient.Status().Update(ctx, executor)).To(Succeed())
+
+			By("Updating the SparkApplication state to Succeeding")
+			now := time.Now()
+			app.Status.SparkApplicationID = "test-app-id"
+			app.Status.SubmissionAttempts = 1
+			app.Status.LastSubmissionAttemptTime = metav1.NewTime(now.Add(-5 * time.Minute))
+			app.Status.ExecutionAttempts = 1
+			app.Status.TerminationTime = metav1.NewTime(now.Add(-30 * time.Second))
+			app.Status.AppState.State = v1beta2.ApplicationStateSucceeding
+			app.Status.DriverInfo.PodName = driver.Name
+			app.Status.ExecutorState = map[string]v1beta2.ExecutorState{
+				executor.Name: util.GetExecutorState(executor),
+			}
+			Expect(k8sClient.Status().Update(ctx, app)).Should(Succeed())
+		})
+
+		AfterEach(func() {
+			By("Deleting the test SparkApplication")
+			app := &v1beta2.SparkApplication{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      appName,
+					Namespace: appNamespace,
+				},
+			}
+			Expect(client.IgnoreNotFound(k8sClient.Delete(ctx, app))).Should(Succeed())
+
+			By("Deleting the driver pod")
+			driverKey := getDriverNamespacedName(appName, appNamespace)
+			driver := &corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      driverKey.Name,
+					Namespace: driverKey.Namespace,
+				},
+			}
+			Expect(client.IgnoreNotFound(k8sClient.Delete(ctx, driver))).Should(Succeed())
+
+			By("Deleting the executor pods")
+			executorKey := getExecutorNamespacedName(appName, appNamespace, 1)
+			executor := &corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      executorKey.Name,
+					Namespace: executorKey.Namespace,
+				},
+			}
+			Expect(client.IgnoreNotFound(k8sClient.Delete(ctx, executor))).Should(Succeed())
+		})
+
+		It("Should reset SparkApplication status when transitioning to PendingRerun", func() {
+			By("Reconciling the failing SparkApplication")
+			reconciler := sparkapplication.NewReconciler(
+				nil,
+				k8sClient.Scheme(),
+				k8sClient,
+				record.NewFakeRecorder(3),
+				nil,
+				&sparkapplication.SparkSubmitter{},
+				sparkapplication.Options{Namespaces: []string{appNamespace}},
+			)
+			_, err := reconciler.Reconcile(ctx, reconcile.Request{NamespacedName: key})
+			Expect(err).NotTo(HaveOccurred())
+
+			By("Checking whether the SparkApplication status has been reset")
+			app := &v1beta2.SparkApplication{}
+			Expect(k8sClient.Get(ctx, key, app)).NotTo(HaveOccurred())
+			Expect(app.Status.SparkApplicationID).To(BeEmpty())
+			Expect(app.Status.TerminationTime).To(BeZero())
+			Expect(app.Status.AppState.State).To(Equal(v1beta2.ApplicationStatePendingRerun))
+			Expect(app.Status.AppState.ErrorMessage).To(BeEmpty())
+			Expect(app.Status.DriverInfo).To(BeZero())
+			Expect(app.Status.ExecutorState).To(BeEmpty())
+		})
+
+		It("Should delete existing driver and executor pods when transitioning to PendingRerun", func() {
+			By("Reconciling the failing SparkApplication")
+			reconciler := sparkapplication.NewReconciler(
+				nil,
+				k8sClient.Scheme(),
+				k8sClient,
+				record.NewFakeRecorder(3),
+				nil,
+				&sparkapplication.SparkSubmitter{},
+				sparkapplication.Options{Namespaces: []string{appNamespace}},
+			)
+			_, err := reconciler.Reconcile(ctx, reconcile.Request{NamespacedName: key})
+			Expect(err).NotTo(HaveOccurred())
+
+			By("Checking whether the driver pod has been deleted")
+			driverKey := getDriverNamespacedName(appName, appNamespace)
+			driverPod := &corev1.Pod{}
+			Expect(errors.IsNotFound(k8sClient.Get(ctx, driverKey, driverPod))).To(BeTrue())
+
+			By("Checking whether the executor pods has been deleted")
+			executorKey := getDriverNamespacedName(appName, appNamespace)
+			executorPod := &corev1.Pod{}
+			Expect(errors.IsNotFound(k8sClient.Get(ctx, executorKey, executorPod))).To(BeTrue())
+		})
+	})
+
+	Context("When reconciling a failing SparkApplication which should retry", func() {
+		ctx := context.Background()
+		appName := "test"
+		appNamespace := "default"
+		key := types.NamespacedName{
+			Name:      appName,
+			Namespace: appNamespace,
+		}
+
+		BeforeEach(func() {
+			By("Creating a SparkApplication with OnFailure restart policy")
+			app := &v1beta2.SparkApplication{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      appName,
+					Namespace: appNamespace,
+				},
+				Spec: v1beta2.SparkApplicationSpec{
+					MainApplicationFile: ptr.To("local:///dummy.jar"),
+					RestartPolicy: v1beta2.RestartPolicy{
+						Type:                   v1beta2.RestartPolicyOnFailure,
+						OnFailureRetries:       ptr.To[int32](3),
+						OnFailureRetryInterval: ptr.To[int64](10),
+					},
+				},
+			}
+			v1beta2.SetSparkApplicationDefaults(app)
+			Expect(k8sClient.Create(ctx, app)).Should(Succeed())
+
+			By("Creating a driver pod with Failed phase")
+			driver := createDriverPod(appName, appNamespace)
+			Expect(k8sClient.Create(ctx, driver)).Should(Succeed())
+			driver.Status.Phase = corev1.PodFailed
+			Expect(k8sClient.Status().Update(ctx, driver)).Should(Succeed())
+
+			By("Creating a executor pod with Failed phase")
+			executor := createExecutorPod(appName, appNamespace, 1)
+			Expect(k8sClient.Create(ctx, executor)).To(Succeed())
+			executor.Status.Phase = corev1.PodFailed
+			Expect(k8sClient.Status().Update(ctx, executor)).To(Succeed())
+
+			By("Updating the SparkApplication state to Failing")
+			now := time.Now()
+			app.Status.SparkApplicationID = "test-app-id"
+			app.Status.SubmissionAttempts = 1
+			app.Status.LastSubmissionAttemptTime = metav1.NewTime(now.Add(-5 * time.Minute))
+			app.Status.ExecutionAttempts = 1
+			app.Status.TerminationTime = metav1.NewTime(now.Add(-30 * time.Second))
+			app.Status.AppState.State = v1beta2.ApplicationStateFailing
+			app.Status.AppState.ErrorMessage = "Driver pod failed"
+			app.Status.DriverInfo.PodName = driver.Name
+			app.Status.ExecutorState = map[string]v1beta2.ExecutorState{
+				executor.Name: util.GetExecutorState(executor),
+			}
+			Expect(k8sClient.Status().Update(ctx, app)).Should(Succeed())
+		})
+
+		AfterEach(func() {
+			By("Deleting the test SparkApplication")
+			app := &v1beta2.SparkApplication{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      appName,
+					Namespace: appNamespace,
+				},
+			}
+			Expect(client.IgnoreNotFound(k8sClient.Delete(ctx, app))).Should(Succeed())
+
+			By("Deleting the driver pod")
+			driverKey := getDriverNamespacedName(appName, appNamespace)
+			driver := &corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      driverKey.Name,
+					Namespace: driverKey.Namespace,
+				},
+			}
+			Expect(client.IgnoreNotFound(k8sClient.Delete(ctx, driver))).Should(Succeed())
+
+			By("Deleting the executor pods")
+			executorKey := getExecutorNamespacedName(appName, appNamespace, 1)
+			executor := &corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      executorKey.Name,
+					Namespace: executorKey.Namespace,
+				},
+			}
+			Expect(client.IgnoreNotFound(k8sClient.Delete(ctx, executor))).Should(Succeed())
+		})
+
+		It("Should reset SparkApplication status when transitioning to PendingRerun", func() {
+			By("Reconciling the failing SparkApplication")
+			reconciler := sparkapplication.NewReconciler(
+				nil,
+				k8sClient.Scheme(),
+				k8sClient,
+				record.NewFakeRecorder(3),
+				nil,
+				&sparkapplication.SparkSubmitter{},
+				sparkapplication.Options{Namespaces: []string{appNamespace}},
+			)
+			_, err := reconciler.Reconcile(ctx, reconcile.Request{NamespacedName: key})
+			Expect(err).NotTo(HaveOccurred())
+
+			By("Checking whether the SparkApplication status has been reset")
+			app := &v1beta2.SparkApplication{}
+			Expect(k8sClient.Get(ctx, key, app)).NotTo(HaveOccurred())
+			Expect(app.Status.SparkApplicationID).To(BeEmpty())
+			Expect(app.Status.TerminationTime).To(BeZero())
+			Expect(app.Status.AppState.State).To(Equal(v1beta2.ApplicationStatePendingRerun))
+			Expect(app.Status.AppState.ErrorMessage).To(BeEmpty())
+			Expect(app.Status.DriverInfo).To(BeZero())
+			Expect(app.Status.ExecutorState).To(BeEmpty())
+		})
+
+		It("Should delete existing driver and executor pods when transitioning to PendingRerun", func() {
+			By("Reconciling the failing SparkApplication")
+			reconciler := sparkapplication.NewReconciler(
+				nil,
+				k8sClient.Scheme(),
+				k8sClient,
+				record.NewFakeRecorder(3),
+				nil,
+				&sparkapplication.SparkSubmitter{},
+				sparkapplication.Options{Namespaces: []string{appNamespace}},
+			)
+			_, err := reconciler.Reconcile(ctx, reconcile.Request{NamespacedName: key})
+			Expect(err).NotTo(HaveOccurred())
+
+			By("Checking whether the driver pod has been deleted")
+			driverKey := getDriverNamespacedName(appName, appNamespace)
+			driverPod := &corev1.Pod{}
+			Expect(errors.IsNotFound(k8sClient.Get(ctx, driverKey, driverPod))).To(BeTrue())
+
+			By("Checking whether the executor pods has been deleted")
+			executorKey := getDriverNamespacedName(appName, appNamespace)
+			executorPod := &corev1.Pod{}
+			Expect(errors.IsNotFound(k8sClient.Get(ctx, executorKey, executorPod))).To(BeTrue())
+		})
+	})
+
 	Context("Suspend and Resume", func() {
 		ctx := context.Background()
 		appName := "test"
