@@ -60,8 +60,9 @@ spec:
           metadata:
             type: object
           spec:
-            description: ScheduledSparkApplicationSpec defines the desired state of
-              ScheduledSparkApplication.
+            description: |-
+              ScheduledSparkApplicationSpec defines the desired state of ScheduledSparkApplication.
+              ScheduledSparkApplicationSpec defines the desired state of ScheduledSparkApplication.
             properties:
               concurrencyPolicy:
                 description: ConcurrencyPolicy is the policy governing concurrent
@@ -12417,6 +12418,21 @@ spec:
                   This value is passed to time.LoadLocation, so it must be either "Local", "UTC",
                   or a valid IANA location name e.g. "America/New_York".
                   Defaults to "Local".
+                type: string
+              timestampPrecision:
+                default: nanos
+                description: |-
+                  TimestampPrecision controls the precision of the timestamp appended to generated
+                  SparkApplication names for scheduled runs.
+
+                  Allowed values: "nanos", "micros", "millis", "seconds", "minutes"
+                  Defaults to "nanos" to preserve current behavior.
+                enum:
+                - nanos
+                - micros
+                - millis
+                - seconds
+                - minutes
                 type: string
             required:
             - schedule

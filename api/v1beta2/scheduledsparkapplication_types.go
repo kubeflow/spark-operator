@@ -20,9 +20,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
-// NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
-
 // ScheduledSparkApplicationSpec defines the desired state of ScheduledSparkApplication.
 type ScheduledSparkApplicationSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
@@ -38,6 +35,7 @@ type ScheduledSparkApplicationSpec struct {
 	TimeZone string `json:"timeZone,omitempty"`
 	// Template is a template from which SparkApplication instances can be created.
 	Template SparkApplicationSpec `json:"template"`
+
 	// Suspend is a flag telling the controller to suspend subsequent runs of the application if set to true.
 	// +optional
 	// Defaults to false.
