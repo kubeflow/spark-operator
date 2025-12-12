@@ -69,6 +69,7 @@ spec:
         {{- end }}
         - --controller-threads={{ .Values.controller.workers }}
         - --enable-ui-service={{ .Values.controller.uiService.enable }}
+        - --scheduled-sa-timestamp-precision={{ .Values.controller.scheduledSparkApplication.timestampPrecision }}
         {{- if .Values.controller.uiIngress.enable }}
         {{- with .Values.controller.uiIngress.urlFormat }}
         - --ingress-url-format={{ . }}

@@ -18,6 +18,8 @@ package scheduledsparkapplication
 
 import (
 	"context"
+	"testing"
+	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -34,23 +36,19 @@ import (
 
 var _ = Describe("ScheduledSparkApplication Controller", func() {
 	Context("When reconciling a resource", func() {
-		const resourceName = "test-resource"
 
+		const name = "test-resource"
 		ctx := context.Background()
 
-		typeNamespacedName := types.NamespacedName{
-			Name:      resourceName,
-			Namespace: "default", // TODO(user):Modify as needed
-		}
-		scheduledsparkapplication := &v1beta2.ScheduledSparkApplication{}
+		key := types.NamespacedName{Name: name, Namespace: "default"}
+		obj := &v1beta2.ScheduledSparkApplication{}
 
 		BeforeEach(func() {
-			By("creating the custom resource for the Kind ScheduledSparkApplication")
-			err := k8sClient.Get(ctx, typeNamespacedName, scheduledsparkapplication)
-			if err != nil && errors.IsNotFound(err) {
+			err := k8sClient.Get(ctx, key, obj)
+			if errors.IsNotFound(err) {
 				resource := &v1beta2.ScheduledSparkApplication{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      resourceName,
+						Name:      name,
 						Namespace: "default",
 					},
 					Spec: v1beta2.ScheduledSparkApplicationSpec{
@@ -65,29 +63,57 @@ var _ = Describe("ScheduledSparkApplication Controller", func() {
 							MainApplicationFile: ptr.To("local:///dummy.jar"),
 						},
 					},
-					// TODO(user): Specify other spec details if needed.
 				}
 				Expect(k8sClient.Create(ctx, resource)).To(Succeed())
 			}
 		})
 
 		AfterEach(func() {
-			// TODO(user): Cleanup logic after each test, like removing the resource instance.
-			resource := &v1beta2.ScheduledSparkApplication{}
-			err := k8sClient.Get(ctx, typeNamespacedName, resource)
-			Expect(err).NotTo(HaveOccurred())
-
-			By("Cleanup the specific resource instance ScheduledSparkApplication")
-			Expect(k8sClient.Delete(ctx, resource)).To(Succeed())
+			res := &v1beta2.ScheduledSparkApplication{}
+			Expect(k8sClient.Get(ctx, key, res)).To(Succeed())
+			Expect(k8sClient.Delete(ctx, res)).To(Succeed())
 		})
 
-		It("should successfully reconcile the resource", func() {
-			By("Reconciling the created resource")
-			reconciler := NewReconciler(k8sClient.Scheme(), k8sClient, nil, clock.RealClock{}, Options{Namespaces: []string{"default"}})
-			_, err := reconciler.Reconcile(ctx, reconcile.Request{NamespacedName: typeNamespacedName})
+		It("should reconcile successfully", func() {
+			r := NewReconciler(
+				k8sClient.Scheme(),
+				k8sClient,
+				nil,
+				clock.RealClock{},
+				Options{Namespaces: []string{"default"}},
+			)
+
+			_, err := r.Reconcile(ctx, reconcile.Request{NamespacedName: key})
 			Expect(err).NotTo(HaveOccurred())
-			// TODO(user): Add more specific assertions depending on your controller's reconciliation logic.
-			// Example: If you expect a certain status condition after reconciliation, verify it here.
 		})
 	})
 })
+
+// Timestamp precision tests
+func TestFormatTimestampLengths(t *testing.T) {
+	now := time.Unix(1700000000, 123456789)
+
+	cases := map[string]int{
+		"minutes": 8, // variable → validated differently
+		"seconds": 10,
+		"millis":  13,
+		"micros":  16,
+		"nanos":   19,
+	}
+
+	for precision, expectLen := range cases {
+		s := formatTimestamp(precision, now)
+
+		if precision == "minutes" {
+			if len(s) < 7 || len(s) > 9 {
+				t.Fatalf("minutes: got %d digits (%s), expected between 7-9", len(s), s)
+			}
+			continue
+		}
+
+		if len(s) != expectLen {
+			t.Fatalf("precision=%s: got len %d want %d (%s)",
+				precision, len(s), expectLen, s)
+		}
+	}
+}
