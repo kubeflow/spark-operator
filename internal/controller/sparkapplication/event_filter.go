@@ -115,10 +115,11 @@ func (f *sparkPodEventFilter) filter(pod *corev1.Pod) bool {
 }
 
 type EventFilter struct {
-	client     client.Client
-	recorder   record.EventRecorder
-	namespaces map[string]bool
-	logger     logr.Logger
+	client         client.Client
+	recorder       record.EventRecorder
+	namespaces     map[string]bool
+	logger         logr.Logger
+	changeDetector *ChangeDetector
 }
 
 var _ predicate.Predicate = &EventFilter{}
@@ -134,10 +135,11 @@ func NewSparkApplicationEventFilter(client client.Client, recorder record.EventR
 	}
 
 	return &EventFilter{
-		client:     client,
-		recorder:   recorder,
-		namespaces: nsMap,
-		logger:     log.Log.WithName(""),
+		client:         client,
+		recorder:       recorder,
+		namespaces:     nsMap,
+		logger:         log.Log.WithName(""),
+		changeDetector: NewChangeDetector(),
 	}
 }
 
@@ -175,27 +177,114 @@ func (f *EventFilter) Update(e event.UpdateEvent) bool {
 	// This is currently best effort as we can potentially miss updates and end up in an inconsistent state.
 	if !equality.Semantic.DeepEqual(oldApp.Spec, newApp.Spec) {
 
-		// Only Spec.Suspend can be updated
-		oldApp.Spec.Suspend = newApp.Spec.Suspend
-		if equality.Semantic.DeepEqual(oldApp.Spec, newApp.Spec) {
+		// Only Spec.Suspend can be updated without restart
+		oldAppCopy := oldApp.DeepCopy()
+		oldAppCopy.Spec.Suspend = newApp.Spec.Suspend
+		if equality.Semantic.DeepEqual(oldAppCopy.Spec, newApp.Spec) {
 			return true
 		}
 
-		// Force-set the application status to Invalidating which handles clean-up and application re-run.
+		// Use intelligent change detection to determine the appropriate restart strategy
+		return f.handleSelectiveRestart(oldApp, newApp)
+	}
+
+	return true
+}
+
+// handleSelectiveRestart handles spec changes with selective restart strategy.
+// It detects the scope of changes and transitions to the appropriate state.
+func (f *EventFilter) handleSelectiveRestart(oldApp, newApp *v1beta2.SparkApplication) bool {
+	// Only apply selective restart when application is running
+	if newApp.Status.AppState.State != v1beta2.ApplicationStateRunning {
+		// For non-running applications, use default invalidating behavior
 		newApp.Status.AppState.State = v1beta2.ApplicationStateInvalidating
-		f.logger.Info("Updating SparkApplication status", "name", newApp.Name, "namespace", newApp.Namespace, " oldState", oldApp.Status.AppState.State, "newState", newApp.Status.AppState.State)
+		f.logger.Info("Application not running, using full restart", "name", newApp.Name, "namespace", newApp.Namespace, "state", oldApp.Status.AppState.State)
 		if err := f.client.Status().Update(context.TODO(), newApp); err != nil {
 			f.logger.Error(err, "Failed to update application status", "application", newApp.Name)
+			return false
+		}
+		return true
+	}
+
+	// Detect changes
+	result := f.changeDetector.DetectChanges(oldApp, newApp)
+	f.logger.Info("Change detection result", "name", newApp.Name, "namespace", newApp.Namespace, "scope", result.Scope,
+		"driverChanges", result.DriverChanges, "executorChanges", result.ExecutorChanges, "serviceChanges", result.ServiceChanges)
+
+	switch result.Scope {
+	case UpdateScopeNone:
+		// No changes detected, nothing to do
+		return true
+
+	case UpdateScopeFull:
+		// Full restart required - use existing invalidating behavior
+		newApp.Status.AppState.State = v1beta2.ApplicationStateInvalidating
+		f.logger.Info("Full restart required", "name", newApp.Name, "namespace", newApp.Namespace, "driverChanges", result.DriverChanges)
+		f.recorder.Eventf(
+			newApp,
+			corev1.EventTypeNormal,
+			"SparkApplicationFullRestart",
+			"SparkApplication %s requires full restart due to driver or core configuration changes",
+			newApp.Name,
+		)
+
+	case UpdateScopeExecutorDynamic:
+		// Check if dynamic allocation is enabled
+		if !IsDynamicAllocationEnabled(newApp) {
+			// Dynamic allocation not enabled, fall back to full restart
+			newApp.Status.AppState.State = v1beta2.ApplicationStateInvalidating
+			f.logger.Info("Executor changes detected but dynamic allocation not enabled, using full restart",
+				"name", newApp.Name, "namespace", newApp.Namespace)
 			f.recorder.Eventf(
 				newApp,
 				corev1.EventTypeWarning,
-				"SparkApplicationSpecUpdateFailed",
-				"Failed to update spec for SparkApplication %s: %v",
+				"SparkApplicationFullRestartRequired",
+				"SparkApplication %s executor changes detected but dynamic allocation not enabled, performing full restart",
 				newApp.Name,
-				err,
 			)
-			return false
+		} else {
+			// Use executor scaling state
+			newApp.Status.AppState.State = v1beta2.ApplicationStateExecutorScaling
+			f.logger.Info("Executor scaling initiated", "name", newApp.Name, "namespace", newApp.Namespace,
+				"instancesChanged", result.ExecutorChanges.InstancesChanged,
+				"oldInstances", result.ExecutorChanges.OldInstances,
+				"newInstances", result.ExecutorChanges.NewInstances)
+			f.recorder.Eventf(
+				newApp,
+				corev1.EventTypeNormal,
+				"SparkApplicationExecutorScaling",
+				"SparkApplication %s scaling executors from %d to %d",
+				newApp.Name,
+				result.ExecutorChanges.OldInstances,
+				result.ExecutorChanges.NewInstances,
+			)
 		}
+
+	case UpdateScopeHot:
+		// Hot update - no pod restart needed
+		newApp.Status.AppState.State = v1beta2.ApplicationStateHotUpdating
+		f.logger.Info("Hot update initiated", "name", newApp.Name, "namespace", newApp.Namespace,
+			"serviceChanges", result.ServiceChanges, "metadataChanges", result.MetadataChanges)
+		f.recorder.Eventf(
+			newApp,
+			corev1.EventTypeNormal,
+			"SparkApplicationHotUpdate",
+			"SparkApplication %s applying hot update for service/metadata changes",
+			newApp.Name,
+		)
+	}
+
+	if err := f.client.Status().Update(context.TODO(), newApp); err != nil {
+		f.logger.Error(err, "Failed to update application status", "application", newApp.Name)
+		f.recorder.Eventf(
+			newApp,
+			corev1.EventTypeWarning,
+			"SparkApplicationSpecUpdateFailed",
+			"Failed to update spec for SparkApplication %s: %v",
+			newApp.Name,
+			err,
+		)
+		return false
 	}
 
 	return true

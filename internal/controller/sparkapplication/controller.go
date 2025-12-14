@@ -110,7 +110,7 @@ func NewReconciler(
 
 // +kubebuilder:rbac:groups=,resources=pods,verbs=get;list;watch;create;update;patch;delete;deletecollection
 // +kubebuilder:rbac:groups=,resources=configmaps,verbs=get;list;create;update;patch;delete
-// +kubebuilder:rbac:groups=,resources=services,verbs=get;create;delete
+// +kubebuilder:rbac:groups=,resources=services,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=,resources=nodes,verbs=get
 // +kubebuilder:rbac:groups=,resources=events,verbs=create;update;patch
 // +kubebuilder:rbac:groups=,resources=resourcequotas,verbs=get;list;watch
@@ -236,6 +236,10 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		return r.reconcileSuspendingSparkApplication(ctx, req)
 	case v1beta2.ApplicationStateResuming:
 		return r.reconcileResumingSparkApplication(ctx, req)
+	case v1beta2.ApplicationStateExecutorScaling:
+		return r.reconcileExecutorScalingSparkApplication(ctx, req)
+	case v1beta2.ApplicationStateHotUpdating:
+		return r.reconcileHotUpdatingSparkApplication(ctx, req)
 	}
 	return ctrl.Result{}, nil
 }
@@ -1460,5 +1464,344 @@ func (r *Reconciler) cleanUpPodTemplateFiles(ctx context.Context, app *v1beta2.S
 		}
 	}
 	logger.V(1).Info("Deleted pod template files", "path", path)
+	return nil
+}
+
+// reconcileExecutorScalingSparkApplication handles executor scaling via Spark's dynamic allocation.
+// This state is entered when executor instance count or resource changes are detected
+// and dynamic allocation is enabled. The scaling is handled by Spark's dynamic allocation
+// mechanism - the operator just needs to ensure the driver is still running and transition
+// back to running state.
+func (r *Reconciler) reconcileExecutorScalingSparkApplication(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+	logger := log.FromContext(ctx)
+	key := req.NamespacedName
+	retryErr := retry.RetryOnConflict(
+		retry.DefaultRetry,
+		func() error {
+			old, err := r.getSparkApplication(ctx, key)
+			if err != nil {
+				return err
+			}
+			if old.Status.AppState.State != v1beta2.ApplicationStateExecutorScaling {
+				return nil
+			}
+			app := old.DeepCopy()
+
+			// Update application state to check if driver is still running
+			if err := r.updateSparkApplicationState(ctx, app); err != nil {
+				return err
+			}
+
+			// Check if driver is still running
+			driverPod, err := r.getDriverPod(ctx, app)
+			if err != nil {
+				return err
+			}
+
+			if driverPod == nil {
+				// Driver pod is gone, transition to failing
+				app.Status.AppState.State = v1beta2.ApplicationStateFailing
+				app.Status.AppState.ErrorMessage = "driver pod not found during executor scaling"
+				logger.Info("Driver pod not found during executor scaling, transitioning to failing",
+					"name", app.Name, "namespace", app.Namespace)
+				r.recorder.Eventf(
+					app,
+					corev1.EventTypeWarning,
+					"SparkApplicationExecutorScalingFailed",
+					"SparkApplication %s driver pod not found during executor scaling",
+					app.Name,
+				)
+			} else {
+				driverState := util.GetDriverState(driverPod)
+				if util.IsDriverTerminated(driverState) {
+					// Driver has terminated, update state accordingly
+					newState := util.DriverStateToApplicationState(driverState)
+					app.Status.AppState.State = newState
+					logger.Info("Driver terminated during executor scaling",
+						"name", app.Name, "namespace", app.Namespace, "newState", newState)
+				} else {
+					// Driver is still running, executor scaling is complete
+					// Spark's dynamic allocation will handle the actual scaling
+					app.Status.AppState.State = v1beta2.ApplicationStateRunning
+					logger.Info("Executor scaling complete, transitioning back to running",
+						"name", app.Name, "namespace", app.Namespace)
+					r.recorder.Eventf(
+						app,
+						corev1.EventTypeNormal,
+						"SparkApplicationExecutorScalingComplete",
+						"SparkApplication %s executor scaling complete",
+						app.Name,
+					)
+				}
+			}
+
+			if err := r.updateSparkApplicationStatus(ctx, app); err != nil {
+				return err
+			}
+			return nil
+		},
+	)
+	if retryErr != nil {
+		logger.Error(retryErr, "Failed to reconcile SparkApplication in executor scaling state")
+		return ctrl.Result{}, retryErr
+	}
+	return ctrl.Result{}, nil
+}
+
+// reconcileHotUpdatingSparkApplication handles hot updates that don't require pod restarts.
+// This includes service configuration changes, ingress changes, and metadata updates.
+func (r *Reconciler) reconcileHotUpdatingSparkApplication(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+	logger := log.FromContext(ctx)
+	key := req.NamespacedName
+	retryErr := retry.RetryOnConflict(
+		retry.DefaultRetry,
+		func() error {
+			old, err := r.getSparkApplication(ctx, key)
+			if err != nil {
+				return err
+			}
+			if old.Status.AppState.State != v1beta2.ApplicationStateHotUpdating {
+				return nil
+			}
+			app := old.DeepCopy()
+
+			// Check if driver is still running
+			driverPod, err := r.getDriverPod(ctx, app)
+			if err != nil {
+				return err
+			}
+
+			if driverPod == nil {
+				// Driver pod is gone, transition to failing
+				app.Status.AppState.State = v1beta2.ApplicationStateFailing
+				app.Status.AppState.ErrorMessage = "driver pod not found during hot update"
+				logger.Info("Driver pod not found during hot update, transitioning to failing",
+					"name", app.Name, "namespace", app.Namespace)
+				r.recorder.Eventf(
+					app,
+					corev1.EventTypeWarning,
+					"SparkApplicationHotUpdateFailed",
+					"SparkApplication %s driver pod not found during hot update",
+					app.Name,
+				)
+			} else {
+				driverState := util.GetDriverState(driverPod)
+				if util.IsDriverTerminated(driverState) {
+					// Driver has terminated, update state accordingly
+					newState := util.DriverStateToApplicationState(driverState)
+					app.Status.AppState.State = newState
+					logger.Info("Driver terminated during hot update",
+						"name", app.Name, "namespace", app.Namespace, "newState", newState)
+				} else {
+					// Driver is still running, apply hot updates
+					if err := r.applyHotUpdates(ctx, app); err != nil {
+						logger.Error(err, "Failed to apply hot updates",
+							"name", app.Name, "namespace", app.Namespace)
+						// Don't fail the application, just log and retry
+						return err
+					}
+
+					// Hot updates complete, transition back to running
+					app.Status.AppState.State = v1beta2.ApplicationStateRunning
+					logger.Info("Hot update complete, transitioning back to running",
+						"name", app.Name, "namespace", app.Namespace)
+					r.recorder.Eventf(
+						app,
+						corev1.EventTypeNormal,
+						"SparkApplicationHotUpdateComplete",
+						"SparkApplication %s hot update complete",
+						app.Name,
+					)
+				}
+			}
+
+			if err := r.updateSparkApplicationStatus(ctx, app); err != nil {
+				return err
+			}
+			return nil
+		},
+	)
+	if retryErr != nil {
+		logger.Error(retryErr, "Failed to reconcile SparkApplication in hot updating state")
+		return ctrl.Result{}, retryErr
+	}
+	return ctrl.Result{}, nil
+}
+
+// applyHotUpdates applies configuration changes that don't require pod restarts.
+// This includes updating service annotations, labels, and ingress configurations.
+func (r *Reconciler) applyHotUpdates(ctx context.Context, app *v1beta2.SparkApplication) error {
+	logger := log.FromContext(ctx)
+
+	// Update driver service annotations and labels if changed
+	if err := r.updateDriverService(ctx, app); err != nil {
+		logger.Error(err, "Failed to update driver service", "name", app.Name, "namespace", app.Namespace)
+		return err
+	}
+
+	// Update web UI service if needed
+	if r.options.EnableUIService && app.Status.DriverInfo.WebUIServiceName != "" {
+		if err := r.updateWebUIService(ctx, app); err != nil {
+			logger.Error(err, "Failed to update web UI service", "name", app.Name, "namespace", app.Namespace)
+			return err
+		}
+	}
+
+	// Update ingress if needed
+	if app.Status.DriverInfo.WebUIIngressName != "" {
+		if err := r.updateWebUIIngress(ctx, app); err != nil {
+			logger.Error(err, "Failed to update web UI ingress", "name", app.Name, "namespace", app.Namespace)
+			return err
+		}
+	}
+
+	return nil
+}
+
+// updateDriverService updates the driver headless service with new annotations and labels.
+func (r *Reconciler) updateDriverService(ctx context.Context, app *v1beta2.SparkApplication) error {
+	logger := log.FromContext(ctx)
+
+	// Get the driver service name
+	driverServiceName := util.GetDriverPodName(app) + "-svc"
+	service := &corev1.Service{}
+	key := types.NamespacedName{Namespace: app.Namespace, Name: driverServiceName}
+
+	if err := r.client.Get(ctx, key, service); err != nil {
+		if errors.IsNotFound(err) {
+			// Service doesn't exist, nothing to update
+			return nil
+		}
+		return err
+	}
+
+	// Check if updates are needed
+	needsUpdate := false
+	if app.Spec.Driver.ServiceAnnotations != nil {
+		if service.Annotations == nil {
+			service.Annotations = make(map[string]string)
+		}
+		for k, v := range app.Spec.Driver.ServiceAnnotations {
+			if service.Annotations[k] != v {
+				service.Annotations[k] = v
+				needsUpdate = true
+			}
+		}
+	}
+
+	if app.Spec.Driver.ServiceLabels != nil {
+		if service.Labels == nil {
+			service.Labels = make(map[string]string)
+		}
+		for k, v := range app.Spec.Driver.ServiceLabels {
+			if service.Labels[k] != v {
+				service.Labels[k] = v
+				needsUpdate = true
+			}
+		}
+	}
+
+	if needsUpdate {
+		logger.Info("Updating driver service", "service", driverServiceName)
+		if err := r.client.Update(ctx, service); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// updateWebUIService updates the web UI service with new configuration.
+func (r *Reconciler) updateWebUIService(ctx context.Context, app *v1beta2.SparkApplication) error {
+	logger := log.FromContext(ctx)
+
+	service := &corev1.Service{}
+	key := types.NamespacedName{Namespace: app.Namespace, Name: app.Status.DriverInfo.WebUIServiceName}
+
+	if err := r.client.Get(ctx, key, service); err != nil {
+		if errors.IsNotFound(err) {
+			return nil
+		}
+		return err
+	}
+
+	needsUpdate := false
+
+	// Update annotations from SparkUIOptions
+	if app.Spec.SparkUIOptions != nil && app.Spec.SparkUIOptions.ServiceAnnotations != nil {
+		if service.Annotations == nil {
+			service.Annotations = make(map[string]string)
+		}
+		for k, v := range app.Spec.SparkUIOptions.ServiceAnnotations {
+			if service.Annotations[k] != v {
+				service.Annotations[k] = v
+				needsUpdate = true
+			}
+		}
+	}
+
+	// Update labels from SparkUIOptions
+	if app.Spec.SparkUIOptions != nil && app.Spec.SparkUIOptions.ServiceLabels != nil {
+		if service.Labels == nil {
+			service.Labels = make(map[string]string)
+		}
+		for k, v := range app.Spec.SparkUIOptions.ServiceLabels {
+			if service.Labels[k] != v {
+				service.Labels[k] = v
+				needsUpdate = true
+			}
+		}
+	}
+
+	if needsUpdate {
+		logger.Info("Updating web UI service", "service", app.Status.DriverInfo.WebUIServiceName)
+		if err := r.client.Update(ctx, service); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// updateWebUIIngress updates the web UI ingress with new configuration.
+func (r *Reconciler) updateWebUIIngress(ctx context.Context, app *v1beta2.SparkApplication) error {
+	logger := log.FromContext(ctx)
+
+	if !util.IngressCapabilities.Has("networking.k8s.io/v1") {
+		return nil
+	}
+
+	ingress := &networkingv1.Ingress{}
+	key := types.NamespacedName{Namespace: app.Namespace, Name: app.Status.DriverInfo.WebUIIngressName}
+
+	if err := r.client.Get(ctx, key, ingress); err != nil {
+		if errors.IsNotFound(err) {
+			return nil
+		}
+		return err
+	}
+
+	needsUpdate := false
+
+	// Update annotations from SparkUIOptions
+	if app.Spec.SparkUIOptions != nil && app.Spec.SparkUIOptions.IngressAnnotations != nil {
+		if ingress.Annotations == nil {
+			ingress.Annotations = make(map[string]string)
+		}
+		for k, v := range app.Spec.SparkUIOptions.IngressAnnotations {
+			if ingress.Annotations[k] != v {
+				ingress.Annotations[k] = v
+				needsUpdate = true
+			}
+		}
+	}
+
+	if needsUpdate {
+		logger.Info("Updating web UI ingress", "ingress", app.Status.DriverInfo.WebUIIngressName)
+		if err := r.client.Update(ctx, ingress); err != nil {
+			return err
+		}
+	}
+
 	return nil
 }

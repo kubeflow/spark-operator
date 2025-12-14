@@ -733,12 +733,21 @@ string
 </thead>
 <tbody><tr><td><p>&#34;COMPLETED&#34;</p></td>
 <td></td>
+</tr><tr><td><p>&#34;EXECUTOR_SCALING&#34;</p></td>
+<td><p>ApplicationStateExecutorScaling indicates the application is scaling executors via dynamic allocation.
+This state is entered when executor instance count changes are detected and dynamic allocation is enabled.</p>
+</td>
 </tr><tr><td><p>&#34;FAILED&#34;</p></td>
 <td></td>
 </tr><tr><td><p>&#34;SUBMISSION_FAILED&#34;</p></td>
 <td></td>
 </tr><tr><td><p>&#34;FAILING&#34;</p></td>
 <td></td>
+</tr><tr><td><p>&#34;HOT_UPDATING&#34;</p></td>
+<td><p>ApplicationStateHotUpdating indicates the application is applying hot updates.
+This state is entered when service configuration, ingress, or metadata changes are detected
+that can be applied without restarting any pods.</p>
+</td>
 </tr><tr><td><p>&#34;INVALIDATING&#34;</p></td>
 <td></td>
 </tr><tr><td><p>&#34;&#34;</p></td>
