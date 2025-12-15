@@ -38,10 +38,7 @@ RUN CGO_ENABLED=0 GOOS=linux GOARCH=${TARGETARCH} GO111MODULE=on go build -a -o 
 FROM ${SPARK_IMAGE}
 USER root
 COPY --from=builder /usr/bin/spark-operator /usr/bin/
-RUN apt-get update --allow-releaseinfo-change \
-    && apt-get update \
-    && apt-get install -y tini \
-    && rm -rf /var/lib/apt/lists/*
+RUN apk add --no-cache tini
 
 COPY entrypoint.sh /usr/bin/
 
