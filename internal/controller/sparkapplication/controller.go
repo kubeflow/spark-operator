@@ -496,7 +496,6 @@ func (r *Reconciler) reconcilePendingRerunSparkApplication(ctx context.Context, 
 			if r.validateSparkResourceDeletion(ctx, app) {
 				logger.Info("Successfully deleted resources associated with SparkApplication", "state", app.Status.AppState.State)
 				r.recordSparkApplicationEvent(app)
-				r.resetSparkApplicationStatus(app)
 				r.submitSparkApplication(ctx, app)
 			} else {
 				logger.Info("Resources associated with SparkApplication still exist")
@@ -569,6 +568,7 @@ func (r *Reconciler) reconcileSucceedingSparkApplication(ctx context.Context, re
 					logger.Error(err, "failed to delete spark resources")
 					return err
 				}
+				r.resetSparkApplicationStatus(app)
 				app.Status.AppState.State = v1beta2.ApplicationStatePendingRerun
 			} else {
 				app.Status.AppState.State = v1beta2.ApplicationStateCompleted
@@ -614,6 +614,7 @@ func (r *Reconciler) reconcileFailingSparkApplication(ctx context.Context, req c
 						logger.Error(err, "failed to delete spark resources")
 						return err
 					}
+					r.resetSparkApplicationStatus(app)
 					app.Status.AppState.State = v1beta2.ApplicationStatePendingRerun
 				} else {
 					// If we're waiting before retrying then reconcile will not modify anything, so we need to requeue.
@@ -1367,6 +1368,12 @@ func (r *Reconciler) recordExecutorEvent(app *v1beta2.SparkApplication, state v1
 func (r *Reconciler) resetSparkApplicationStatus(app *v1beta2.SparkApplication) {
 	status := &app.Status
 	switch status.AppState.State {
+	case v1beta2.ApplicationStateSucceeding, v1beta2.ApplicationStateFailing:
+		status.SparkApplicationID = ""
+		status.TerminationTime = metav1.Time{}
+		status.AppState.ErrorMessage = ""
+		status.DriverInfo = v1beta2.DriverInfo{}
+		status.ExecutorState = nil
 	case v1beta2.ApplicationStateInvalidating:
 		status.SparkApplicationID = ""
 		status.SubmissionAttempts = 0
@@ -1374,13 +1381,7 @@ func (r *Reconciler) resetSparkApplicationStatus(app *v1beta2.SparkApplication) 
 		status.LastSubmissionAttemptTime = metav1.Time{}
 		status.TerminationTime = metav1.Time{}
 		status.AppState.ErrorMessage = ""
-		status.ExecutorState = nil
-	case v1beta2.ApplicationStatePendingRerun:
-		status.SparkApplicationID = ""
-		status.SubmissionAttempts = 0
-		status.LastSubmissionAttemptTime = metav1.Time{}
 		status.DriverInfo = v1beta2.DriverInfo{}
-		status.AppState.ErrorMessage = ""
 		status.ExecutorState = nil
 	case v1beta2.ApplicationStateSuspended:
 		status.SparkApplicationID = ""
