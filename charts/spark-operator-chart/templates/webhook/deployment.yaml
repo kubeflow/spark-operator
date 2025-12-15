@@ -138,7 +138,7 @@ spec:
       {{- end }}
       {{- with .Values.webhook.dnsConfig }}
       dnsConfig:
-      {{- toYaml . | nindent 8 }}
+        {{- toYaml . | nindent 8 }}
       {{- end }}
       {{- with .Values.webhook.nodeSelector }}
       nodeSelector:

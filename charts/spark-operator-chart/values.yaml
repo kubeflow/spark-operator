@@ -334,7 +334,7 @@ webhook:
     emptyDir:
       sizeLimit: 500Mi
 
-  # -- DNS configuration for controller pods.
+  # -- DNS configuration for webhook pods.
   dnsConfig: {}
 
   # -- Node selector for webhook pods.
