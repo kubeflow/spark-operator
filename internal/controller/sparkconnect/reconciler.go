@@ -88,6 +88,11 @@ func NewReconciler(
 
 // SetupWithManager sets up the SparkConnect reconciler with the manager.
 func (r *Reconciler) SetupWithManager(mgr ctrl.Manager, options controller.Options) error {
+	kind := "SparkConnect"
+
+	// Use a custom log constructor.
+	options.LogConstructor = util.NewLogConstructor(mgr.GetLogger(), kind)
+
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&v1alpha1.SparkConnect{}).
 		Owns(
