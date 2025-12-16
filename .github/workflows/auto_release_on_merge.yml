@@ -99,7 +99,7 @@ jobs:
             '{
               "event_type": $event_type,
               "client_payload": {
-                "spark_on_k8s_version": $spark_on_k8s_version
+                "spark_on_k8s_version": $spark_on_k8s_version,
                 "spark_base_version": $spark_base_version
               }
             }')
