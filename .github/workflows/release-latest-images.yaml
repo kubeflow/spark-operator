@@ -182,7 +182,7 @@ jobs:
             type=raw,value=latest
 
       - name: Download digests
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v7
         with:
           path: /tmp/digests
           pattern: digests-operator-*
@@ -236,7 +236,7 @@ jobs:
             type=raw,value=latest
 
       - name: Download digests
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v7
         with:
           path: /tmp/digests
           pattern: digests-kubectl-*
