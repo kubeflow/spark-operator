@@ -87,6 +87,9 @@ See [helm uninstall](https://helm.sh/docs/helm/helm_uninstall) for command docum
 | hook.image.registry | string | `"ghcr.io"` | Image registry. |
 | hook.image.repository | string | `"kubeflow/spark-operator/kubectl"` | Image repository. |
 | hook.image.tag | string | If not set, the chart appVersion will be used. | Image tag. |
+| hook.affinity | object | `{}` | Affinity for controller pods. |
+| hook.nodeSelector | object | `{}` | Node selector for controller pods. |
+| hook.tolerations | list | `[]` | List of node taints to tolerate for controller pods. |
 | controller.replicas | int | `1` | Number of replicas of controller. |
 | controller.revisionHistoryLimit | int | `10` | The number of old history to retain to allow rollback. |
 | controller.leaderElection.enable | bool | `true` | Specifies whether to enable leader election for controller. |

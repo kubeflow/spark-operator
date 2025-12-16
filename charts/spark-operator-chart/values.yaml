@@ -55,6 +55,14 @@ hook:
     # -- Image tag.
     # @default -- If not set, the chart appVersion will be used.
     tag: ""
+  # -- Node selector for controller pods.
+  nodeSelector: {}
+
+  # -- Affinity for controller pods.
+  affinity: {}
+
+  # -- List of node taints to tolerate for controller pods.
+  tolerations: []
 
 controller:
   # -- Number of replicas of controller.
