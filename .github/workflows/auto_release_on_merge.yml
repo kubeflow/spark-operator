@@ -1,12 +1,17 @@
 name: Auto Release and Notify Spark Operator
 
 on:
-  push:
+  workflow_run:
+    workflows: ["CI"]
     branches:
       - relativity-main
+    types:
+      - completed
       
 jobs:
   check-and-release:
+    # Only run if the CI workflow completed successfully
+    if: github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     permissions:
       contents: write
