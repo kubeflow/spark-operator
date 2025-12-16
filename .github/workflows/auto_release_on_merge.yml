@@ -90,15 +90,17 @@ jobs:
           GITHUB_PAT: ${{ steps.kv.outputs.githubServiceAccountPAT }}
         run: |
           NEW_VERSION="${{ steps.get-version.outputs.new_version }}"
-          
+          SPARK_BASE_VERSION=$(cat spark-base-version | xargs)
           # Prepare payload for spark-operator repo using jq for reliable JSON construction
           PAYLOAD=$(jq -n \
             --arg event_type "update-operator-image" \
-            --arg version "$NEW_VERSION" \
+            --arg spark_on_k8s_version "$NEW_VERSION" \
+            --arg spark_base_version "$SPARK_BASE_VERSION" \
             '{
               "event_type": $event_type,
               "client_payload": {
-                "spark_on_k8s_version": $version
+                "spark_on_k8s_version": $spark_on_k8s_version
+                "spark_base_version": $spark_base_version
               }
             }')
           

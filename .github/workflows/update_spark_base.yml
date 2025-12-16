@@ -55,7 +55,7 @@ jobs:
           VERSION="${{ steps.set-version.outputs.version }}"
 
           # Replace the entire line in spark-base-version file
-          echo "${VERSION}" > spark-base-version
+          echo -n "${VERSION}" > spark-base-version
 
           # Check if any files were modified
           if git diff --quiet; then
