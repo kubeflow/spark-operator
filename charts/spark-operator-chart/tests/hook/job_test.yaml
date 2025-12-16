@@ -65,3 +65,86 @@ tests:
   - equal:
       path: spec.template.spec.containers[*].imagePullPolicy
       value: Always
+
+- it: Should add nodeSelector if `hook.nodeSelector` is set
+  set:
+    hook:
+      upgradeCrd: true
+      nodeSelector:
+        key1: value1
+        key2: value2
+  asserts:
+    - equal:
+        path: spec.template.spec.nodeSelector.key1
+        value: value1
+    - equal:
+        path: spec.template.spec.nodeSelector.key2
+        value: value2
+
+- it: Should add affinity if `hook.affinity` is set
+  set:
+    hook:
+      upgradeCrd: true
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: topology.kubernetes.io/zone
+                    operator: In
+                    values:
+                      - antarctica-east1
+                      - antarctica-west1
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 1
+              preference:
+                matchExpressions:
+                  - key: another-node-label-key
+                    operator: In
+                    values:
+                      - another-node-label-value
+  asserts:
+    - equal:
+        path: spec.template.spec.affinity
+        value:
+          nodeAffinity:
+            requiredDuringSchedulingIgnoredDuringExecution:
+              nodeSelectorTerms:
+                - matchExpressions:
+                    - key: topology.kubernetes.io/zone
+                      operator: In
+                      values:
+                        - antarctica-east1
+                        - antarctica-west1
+            preferredDuringSchedulingIgnoredDuringExecution:
+              - weight: 1
+                preference:
+                  matchExpressions:
+                    - key: another-node-label-key
+                      operator: In
+                      values:
+                        - another-node-label-value
+
+- it: Should add tolerations if `hook.tolerations` is set
+  set:
+    hook:
+      upgradeCrd: true
+      tolerations:
+        - key: key1
+          operator: Equal
+          value: value1
+          effect: NoSchedule
+        - key: key2
+          operator: Exists
+          effect: NoSchedule
+  asserts:
+    - equal:
+        path: spec.template.spec.tolerations
+        value:
+          - key: key1
+            operator: Equal
+            value: value1
+            effect: NoSchedule
+          - key: key2
+            operator: Exists
+            effect: NoSchedule
