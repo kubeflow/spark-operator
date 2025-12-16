@@ -55,13 +55,13 @@ hook:
     # -- Image tag.
     # @default -- If not set, the chart appVersion will be used.
     tag: ""
-  # -- Node selector for controller pods.
+  # -- Node selector for the Helm hook Job.
   nodeSelector: {}
 
-  # -- Affinity for controller pods.
+  # -- Affinity for the Helm hook Job.
   affinity: {}
 
-  # -- List of node taints to tolerate for controller pods.
+  # -- List of node taints to tolerate for the Helm hook Job.
   tolerations: []
 
 controller:
