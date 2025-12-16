@@ -17,12 +17,6 @@ jobs:
       contents: write
       pull-requests: read
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          ref: relativity-main
-          fetch-depth: 0 # Necessary to get the latest tag
-
       - name: Azure Login
         uses: Azure/login@v2
         with:
@@ -34,6 +28,13 @@ jobs:
           keyvault: "ai-services-dev"
           secrets: "githubServiceAccountPAT"
         id: kv
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: relativity-main
+          fetch-depth: 0 # Necessary to get the latest tag
+          token: ${{ steps.kv.outputs.githubServiceAccountPAT }}
           
       - name: Get current version
         id: get-version
@@ -52,9 +53,11 @@ jobs:
 
       - name: Create and push tag
         id: create-tag
+        env:
+          GITHUB_TOKEN: ${{ steps.kv.outputs.githubServiceAccountPAT }}
         run: |
-          git config --local user.email "action@github.com"
-          git config --local user.name "GitHub Action"
+          git config --local user.email "aiservices_github_svc@github.com"
+          git config --local user.name "aiservices_github_svc"
           NEW_VERSION="${{ steps.get-version.outputs.new_version }}"
           git tag -a "$NEW_VERSION" -m "Release $NEW_VERSION"
           git push origin "$NEW_VERSION"
@@ -65,7 +68,7 @@ jobs:
         if: steps.create-tag.outputs.tag_created == 'true'
         uses: actions/create-release@v1
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ steps.kv.outputs.githubServiceAccountPAT }}
         with:
           tag_name: ${{ steps.get-version.outputs.new_version }}
           release_name: ${{ steps.get-version.outputs.new_version }}
