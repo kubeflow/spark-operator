@@ -22,6 +22,20 @@ RUN apt-get update && apt-get install -y \
     libgl1 \
     && rm -rf /var/lib/apt/lists/*
 
+# --- OpenShift Arbitrary UID Compatibility ---
+# IMPORTANT: Temporarily switch to root (UID 0) to change permissions
+USER 0
+
+# Set Spark/App directories to be owned by group 0 and group-writable (g=u)
+RUN chgrp -R 0 /opt/spark \
+    && chmod -R g=u /opt/spark \
+    && mkdir -p /opt/spark/work-dir /opt/spark/logs /tmp \
+    && chgrp -R 0 /opt/spark/work-dir /opt/spark/logs /tmp \
+    && chmod -R g=u /opt/spark/work-dir /opt/spark/logs /tmp \
+    && mkdir -p /app/input /app/output \
+    && chgrp -R 0 /app \
+    && chmod -R g=u /app
+
 # Copy ONLY requirements first (for better caching)
 COPY requirements-docker.txt .
 
@@ -31,20 +45,7 @@ RUN pip install --no-cache-dir --upgrade pip && \
 
 # Set Python path
 ENV PYTHONPATH="/app:$PYTHONPATH"
-ENV HOME=/home/spark
-
-RUN mkdir -p /app/input /app/output /home/spark && \
-    chmod 777 /app/input /app/output && \
-    chmod -R 777 /opt/spark/work-dir && \
-    if ! id -u spark > /dev/null 2>&1; then \
-        useradd -m -u 185 -s /bin/bash spark; \
-    fi && \
-    chown -R spark:0 /home/spark /app && \
-    chmod -R 777 /home/spark /app
 
 # Copy application code LAST
 COPY --chown=spark:0 scripts/ /app/scripts/
 COPY --chown=spark:0 assets/ /app/assets/
-
-# Switch to non-root user
-USER spark
