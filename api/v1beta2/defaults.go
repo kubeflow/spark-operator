@@ -20,6 +20,7 @@ import (
 	"strconv"
 
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/utils/ptr"
 )
 
@@ -27,11 +28,12 @@ func addDefaultingFuncs(scheme *runtime.Scheme) error {
 	return RegisterDefaults(scheme)
 }
 
-// RegisterDefaults adds defaulters functions to the given scheme.
-// Public to allow building arbitrary schemes.
+// RegisterDefaults adds defaulting functions to the given scheme.
 // All generated defaulters are covering - they call all nested defaulters.
 func RegisterDefaults(scheme *runtime.Scheme) error {
-	scheme.AddTypeDefaultingFunc(&SparkApplication{}, func(obj interface{}) { SetSparkApplicationDefaults(obj.(*SparkApplication)) })
+	scheme.AddTypeDefaultingFunc(&SparkApplication{}, func(obj interface{}) {
+		SetSparkApplicationDefaults(obj.(*SparkApplication))
+	})
 	return nil
 }
 
@@ -56,12 +58,11 @@ func SetSparkApplicationDefaults(app *SparkApplication) {
 	if app.Spec.RestartPolicy.Type != RestartPolicyNever {
 		// Default to 5 sec if the RestartPolicy is OnFailure or Always and these values aren't specified.
 		if app.Spec.RestartPolicy.OnFailureRetryInterval == nil {
-			app.Spec.RestartPolicy.OnFailureRetryInterval = ptr.To[int64](5)
+			app.Spec.RestartPolicy.OnFailureRetryInterval = ptr.To
 		}
 
 		if app.Spec.RestartPolicy.OnSubmissionFailureRetryInterval == nil {
-			app.Spec.RestartPolicy.OnSubmissionFailureRetryInterval = new(int64)
-			app.Spec.RestartPolicy.OnSubmissionFailureRetryInterval = ptr.To[int64](5)
+			app.Spec.RestartPolicy.OnSubmissionFailureRetryInterval = ptr.To
 		}
 	}
 
@@ -70,36 +71,40 @@ func SetSparkApplicationDefaults(app *SparkApplication) {
 }
 
 func setDriverSpecDefaults(spec *DriverSpec, sparkConf map[string]string) {
+	// Default Cores = 1 if not set
 	if _, exists := sparkConf["spark.driver.cores"]; !exists && spec.Cores == nil {
-		spec.Cores = new(int32)
-		*spec.Cores = 1
+		v := intstr.FromInt(1)
+		spec.Cores = &v
 	}
+
+	// Default Memory = 1g if not set
 	if _, exists := sparkConf["spark.driver.memory"]; !exists && spec.Memory == nil {
-		spec.Memory = new(string)
-		*spec.Memory = "1g"
+		spec.Memory = ptr.To("1g")
 	}
 }
 
 func setExecutorSpecDefaults(spec *ExecutorSpec, sparkConf map[string]string, allocSpec *DynamicAllocation) {
+	// Default Cores = 1 if not set
 	if _, exists := sparkConf["spark.executor.cores"]; !exists && spec.Cores == nil {
-		spec.Cores = new(int32)
-		*spec.Cores = 1
+		v := intstr.FromInt(1)
+		spec.Cores = &v
 	}
+
+	// Default Memory = 1g if not set
 	if _, exists := sparkConf["spark.executor.memory"]; !exists && spec.Memory == nil {
-		spec.Memory = new(string)
-		*spec.Memory = "1g"
+		spec.Memory = ptr.To("1g")
 	}
 
 	isDynamicAllocationEnabled := isDynamicAllocationEnabled(sparkConf, allocSpec)
 
+	// Default executor instances = 1 (when not using dynamic allocation)
 	if spec.Instances == nil &&
 		sparkConf["spark.executor.instances"] == "" &&
 		!isDynamicAllocationEnabled {
-		spec.Instances = ptr.To[int32](1)
+		spec.Instances = ptr.To
 	}
 
-	// Set default for ShuffleTrackingEnabled to true if DynamicAllocation.enabled is true and
-	// DynamicAllocation.ShuffleTrackingEnabled is nil.
+	// ShuffleTrackingEnabled default = true only when dynamic allocation is turned on
 	if isDynamicAllocationEnabled && allocSpec != nil && allocSpec.ShuffleTrackingEnabled == nil {
 		allocSpec.ShuffleTrackingEnabled = ptr.To(true)
 	}

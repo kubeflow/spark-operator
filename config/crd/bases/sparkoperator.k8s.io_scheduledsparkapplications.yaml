@@ -60,8 +60,9 @@ spec:
           metadata:
             type: object
           spec:
-            description: ScheduledSparkApplicationSpec defines the desired state of
-              ScheduledSparkApplication.
+            description: |-
+              ScheduledSparkApplicationSpec defines the desired state of ScheduledSparkApplication.
+              ScheduledSparkApplicationSpec defines the desired state of ScheduledSparkApplication.
             properties:
               concurrencyPolicy:
                 description: ConcurrencyPolicy is the policy governing concurrent
@@ -1149,11 +1150,12 @@ spec:
                           Maps to `spark.kubernetes.driver.request.cores` that is available since Spark 3.0.
                         type: string
                       cores:
+                        anyOf:
+                        - type: integer
+                        - type: string
                         description: Cores maps to `spark.driver.cores` or `spark.executor.cores`
                           for the driver and executors, respectively.
-                        format: int32
-                        minimum: 1
-                        type: integer
+                        x-kubernetes-int-or-string: true
                       dnsConfig:
                         description: DnsConfig dns settings for the pod, following
                           the Kubernetes specifications.
@@ -6279,11 +6281,12 @@ spec:
                           Maps to `spark.kubernetes.executor.request.cores` that is available since Spark 2.4.
                         type: string
                       cores:
+                        anyOf:
+                        - type: integer
+                        - type: string
                         description: Cores maps to `spark.driver.cores` or `spark.executor.cores`
                           for the driver and executors, respectively.
-                        format: int32
-                        minimum: 1
-                        type: integer
+                        x-kubernetes-int-or-string: true
                       deleteOnTermination:
                         description: |-
                           DeleteOnTermination specify whether executor pods should be deleted in case of failure or normal termination.
@@ -12417,6 +12420,21 @@ spec:
                   This value is passed to time.LoadLocation, so it must be either "Local", "UTC",
                   or a valid IANA location name e.g. "America/New_York".
                   Defaults to "Local".
+                type: string
+              timestampPrecision:
+                default: nanos
+                description: |-
+                  TimestampPrecision controls the precision of the timestamp appended to generated
+                  SparkApplication names for scheduled runs.
+
+                  Allowed values: "nanos", "micros", "millis", "seconds", "minutes"
+                  Defaults to "nanos" to preserve current behavior.
+                enum:
+                - nanos
+                - micros
+                - millis
+                - seconds
+                - minutes
                 type: string
             required:
             - schedule

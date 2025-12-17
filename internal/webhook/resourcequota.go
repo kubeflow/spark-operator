@@ -25,6 +25,7 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
+	"k8s.io/apimachinery/pkg/util/intstr"
 
 	"github.com/kubeflow/spark-operator/v2/api/v1beta2"
 	"github.com/kubeflow/spark-operator/v2/pkg/common"
@@ -47,6 +48,32 @@ var javaStringSuffixes = map[string]int64{
 
 var javaStringPattern = regexp.MustCompile(`([0-9]+)([a-z]+)?`)
 var javaFractionStringPattern = regexp.MustCompile(`([0-9]+\.[0-9]+)([a-z]+)?`)
+
+// parseCoresToMilli converts the cores field (IntOrString) to milli-cores.
+func parseCoresToMilli(v *intstr.IntOrString) (int64, error) {
+	if v == nil {
+		return common.DefaultCPUMilliCores, nil
+	}
+
+	if v.Type == intstr.Int {
+		if v.IntVal <= 0 {
+			return 0, fmt.Errorf("cores must be positive, got %d", v.IntVal)
+		}
+		return int64(v.IntVal) * 1000, nil
+	}
+
+	// String case: e.g. "100m", "500m", "0.5", "1.25"
+	qty, err := resource.ParseQuantity(v.StrVal)
+	if err != nil {
+		return 0, err
+	}
+
+	if qty.MilliValue() <= 0 {
+		return 0, fmt.Errorf("cores must be positive, got %s", v.StrVal)
+	}
+
+	return qty.MilliValue(), nil
+}
 
 // getResourceList returns the resource requests of the given SparkApplication.
 func getResourceList(app *v1beta2.SparkApplication) (corev1.ResourceList, error) {
@@ -101,12 +128,11 @@ func getCoresRequests(app *v1beta2.SparkApplication) (corev1.ResourceList, error
 }
 
 func getSparkPodCoresRequests(podSpec *v1beta2.SparkPodSpec, replicas int64) (corev1.ResourceList, error) {
-	var milliCores int64
-	if podSpec.Cores != nil {
-		milliCores = int64(*podSpec.Cores) * 1000
-	} else {
-		milliCores = common.DefaultCPUMilliCores
+	milliCores, err := parseCoresToMilli(podSpec.Cores)
+	if err != nil {
+		return nil, err
 	}
+
 	resourceList := corev1.ResourceList{
 		corev1.ResourceCPU:         *resource.NewMilliQuantity(milliCores*replicas, resource.DecimalSI),
 		corev1.ResourceRequestsCPU: *resource.NewMilliQuantity(milliCores*replicas, resource.DecimalSI),
@@ -142,11 +168,14 @@ func getSparkPodCoresLimits(podSpec *v1beta2.SparkPodSpec, replicas int64) (core
 			return nil, err
 		}
 		milliCores = quantity.MilliValue()
-	} else if podSpec.Cores != nil {
-		milliCores = int64(*podSpec.Cores) * 1000
 	} else {
-		milliCores = common.DefaultCPUMilliCores
+		var err error
+		milliCores, err = parseCoresToMilli(podSpec.Cores)
+		if err != nil {
+			return nil, err
+		}
 	}
+
 	resourceList := corev1.ResourceList{
 		corev1.ResourceLimitsCPU: *resource.NewMilliQuantity(milliCores*replicas, resource.DecimalSI),
 	}
