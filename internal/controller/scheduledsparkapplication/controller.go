@@ -42,6 +42,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
+	"strconv"
+
 	"github.com/kubeflow/spark-operator/v2/api/v1beta2"
 	"github.com/kubeflow/spark-operator/v2/pkg/common"
 	"github.com/kubeflow/spark-operator/v2/pkg/util"
@@ -243,9 +245,17 @@ func (r *Reconciler) createSparkApplication(
 	for key, value := range scheduledApp.Labels {
 		labels[key] = value
 	}
+
+	// Determine timestamp precision (default to nanos for backwards compatibility)
+	precision := scheduledApp.Spec.TimestampPrecision
+	if precision == "" {
+		precision = "nanos"
+	}
+	suffix := formatTimestamp(precision, t)
+
 	app := &v1beta2.SparkApplication{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      fmt.Sprintf("%s-%d", scheduledApp.Name, t.UnixNano()),
+			Name:      fmt.Sprintf("%s-%s", scheduledApp.Name, suffix),
 			Namespace: scheduledApp.Namespace,
 			Labels:    labels,
 			OwnerReferences: []metav1.OwnerReference{{
@@ -262,6 +272,28 @@ func (r *Reconciler) createSparkApplication(
 		return nil, err
 	}
 	return app, nil
+}
+
+// formatTimestamp returns a decimal timestamp string according to the requested precision.
+// Allowed precisions: "nanos", "micros", "millis", "seconds", "minutes".
+// If precision is empty or unrecognized, defaults to "nanos" (current behavior).
+func formatTimestamp(precision string, t time.Time) string {
+	switch precision {
+	case "minutes":
+		// Use Unix epoch minutes. matches CronJob approach which is per-minute granularity.
+		return strconv.FormatInt(t.Unix()/60, 10)
+	case "seconds":
+		return strconv.FormatInt(t.Unix(), 10)
+	case "millis":
+		// Use UnixNano()/1e6 for compatibility with older Go versions.
+		return strconv.FormatInt(t.UnixNano()/1e6, 10)
+	case "micros":
+		return strconv.FormatInt(t.UnixNano()/1e3, 10)
+	case "nanos":
+		fallthrough
+	default:
+		return strconv.FormatInt(t.UnixNano(), 10)
+	}
 }
 
 // shouldStartNextRun checks if the next run should be started.
