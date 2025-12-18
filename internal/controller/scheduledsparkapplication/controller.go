@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"reflect"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -53,6 +54,11 @@ var (
 
 type Options struct {
 	Namespaces []string
+
+	// ScheduledSATimestampPrecision is the controller-wide precision for scheduled SparkApplication name suffixes.
+	// Allowed values: "nanos", "micros", "millis", "seconds", "minutes".
+	// If empty, default to "nanos".
+	ScheduledSATimestampPrecision string
 }
 
 // Reconciler reconciles a ScheduledSparkApplication object
@@ -88,13 +94,6 @@ func NewReconciler(
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
-// TODO(user): Modify the Reconcile function to compare the state specified by
-// the ScheduledSparkApplication object against the actual cluster state, and then
-// perform operations to make the cluster state reflect the state specified by
-// the user.
-//
-// For more details, check Reconcile and its Result here:
-// - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.18.2/pkg/reconcile
 func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	key := req.NamespacedName
 	oldScheduledApp, err := r.getScheduledSparkApplication(ctx, key)
@@ -243,9 +242,17 @@ func (r *Reconciler) createSparkApplication(
 	for key, value := range scheduledApp.Labels {
 		labels[key] = value
 	}
+
+	// Determine timestamp precision (controller-wide option; default to nanos)
+	precision := strings.TrimSpace(r.options.ScheduledSATimestampPrecision)
+	if precision == "" {
+		precision = "nanos"
+	}
+	suffix := formatTimestamp(precision, t)
+
 	app := &v1beta2.SparkApplication{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      fmt.Sprintf("%s-%d", scheduledApp.Name, t.UnixNano()),
+			Name:      fmt.Sprintf("%s-%s", scheduledApp.Name, suffix),
 			Namespace: scheduledApp.Namespace,
 			Labels:    labels,
 			OwnerReferences: []metav1.OwnerReference{{
@@ -262,6 +269,28 @@ func (r *Reconciler) createSparkApplication(
 		return nil, err
 	}
 	return app, nil
+}
+
+// formatTimestamp returns a decimal timestamp string according to the requested precision.
+// Allowed precisions: "nanos", "micros", "millis", "seconds", "minutes".
+// If precision is empty or unrecognized, defaults to "nanos" (current behavior).
+func formatTimestamp(precision string, t time.Time) string {
+	switch precision {
+	case "minutes":
+		// Use Unix epoch minutes. matches CronJob approach which is per-minute granularity.
+		return strconv.FormatInt(t.Unix()/60, 10)
+	case "seconds":
+		return strconv.FormatInt(t.Unix(), 10)
+	case "millis":
+		// Use UnixNano()/1e6 for compatibility with older Go versions.
+		return strconv.FormatInt(t.UnixNano()/1e6, 10)
+	case "micros":
+		return strconv.FormatInt(t.UnixNano()/1e3, 10)
+	case "nanos":
+		fallthrough
+	default:
+		return strconv.FormatInt(t.UnixNano(), 10)
+	}
 }
 
 // shouldStartNextRun checks if the next run should be started.
