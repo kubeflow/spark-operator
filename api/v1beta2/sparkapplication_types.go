@@ -354,6 +354,13 @@ const (
 	ApplicationStateSuspended        ApplicationStateType = "SUSPENDED"
 	ApplicationStateResuming         ApplicationStateType = "RESUMING"
 	ApplicationStateUnknown          ApplicationStateType = "UNKNOWN"
+	// ApplicationStateExecutorScaling indicates the application is scaling executors via dynamic allocation.
+	// This state is entered when executor instance count changes are detected and dynamic allocation is enabled.
+	ApplicationStateExecutorScaling ApplicationStateType = "EXECUTOR_SCALING"
+	// ApplicationStateHotUpdating indicates the application is applying hot updates.
+	// This state is entered when service configuration, ingress, or metadata changes are detected
+	// that can be applied without restarting any pods.
+	ApplicationStateHotUpdating ApplicationStateType = "HOT_UPDATING"
 )
 
 // ApplicationState tells the current state of the application and an error message in case of failures.
