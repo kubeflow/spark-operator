@@ -1,0 +1,113 @@
+name: OpenShift Docling E2E Test
+
+on:
+  workflow_dispatch:
+    inputs:
+      # FUTURE USE:
+      # Maintainers can provide a PR number or existing upstream branch name to run this
+      # job against. If no PR number or branch name is provided, this job will run against
+      # content in the "main" branch instead.
+      pr_or_branch:
+        description: "Pull request number or branch name"
+        required: true
+        default: "main"
+  push:
+    branches:
+      - main
+      - ec2-github-runner-RHAIENG-2487
+
+env:
+  INSTANCE_TYPE: "m5.xlarge"
+
+# We don't need anything other than Bash for our shell..
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  launch-ec2-runner:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write # This is required for OIDC (AWS auth)
+      contents: read
+    outputs:
+      label: ${{ steps.start-ec2-runner.outputs.label }}
+      ec2-instance-id: ${{ steps.start-ec2-runner.outputs.ec2-instance-id }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@61815dcd50bd041e203e49132bacad1fd04d2708 # v5.1.1
+        with:
+          role-to-assume: "arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/${{ vars.SPARK_OPERATOR_IAM_ROLE }}"
+          aws-region: us-east-2
+          role-session-name: odh-spark-operator  # For tracking in CloudTrail
+
+      - name: Start EC2 runner
+        id: start-ec2-runner
+        uses: machulav/ec2-github-runner@a6dbcefcf8a31a861f5e078bb153ed332130c512 # v2.4.3
+        with:
+          mode: start
+          github-token: "${{ secrets.SPARK_OPERATOR_GH_PERSONAL_ACCESS_TOKEN }}"
+          ec2-instance-type: "${{ env.INSTANCE_TYPE }}"
+          availability-zones-config: >
+            [
+              {"imageId": "ami-03ae00a3c1d00fd0f", "subnetId": "${{ vars.US_EAST_2A_SUBNET_ID }}", "securityGroupId": "${{ vars.US_EAST_2_SG_ID }}"},
+              {"imageId": "ami-03ae00a3c1d00fd0f", "subnetId": "${{ vars.US_EAST_2B_SUBNET_ID }}", "securityGroupId": "${{ vars.US_EAST_2_SG_ID }}"},
+              {"imageId": "ami-03ae00a3c1d00fd0f", "subnetId": "${{ vars.US_EAST_2C_SUBNET_ID }}", "securityGroupId": "${{ vars.US_EAST_2_SG_ID }}"}
+            ]
+          block-device-mappings: >
+            [
+              {"DeviceName": "/dev/sda1", "Ebs": {"VolumeSize": 150}}
+            ]
+          aws-resource-tags: >
+            [
+              {"Key": "Name", "Value": "spark-operator-gh-runner"},
+              {"Key": "GitHubRepository", "Value": "${{ github.repository }}"},
+              {"Key": "GitHubRef", "Value": "${{ github.ref }}"},
+              {"Key": "GitHubPR", "Value": "${{ github.event.number || 'N/A' }}"}
+            ]
+
+  openshift-docling-e2e:
+    needs:
+      - launch-ec2-runner
+    runs-on: ${{ needs.launch-ec2-runner.outputs.label }}
+
+    steps:
+      - name: Setup Environment
+        run: echo "Running on EC2 ${{ needs.launch-ec2-runner.outputs.ec2-instance-id }}"
+
+      - uses: actions/checkout@v6
+
+      - name: Hello world
+        run: |
+          echo hello
+          cat /etc/os-release
+          df -h
+
+  stop-ec2-runner:
+    permissions:
+      id-token: write # This is required for OIDC (AWS auth)
+      contents: read
+    needs:
+      - launch-ec2-runner
+      - openshift-docling-e2e
+    runs-on: ubuntu-latest
+    if: ${{ always() && needs.launch-ec2-runner.outputs.ec2-instance-id != '' }}
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@61815dcd50bd041e203e49132bacad1fd04d2708 # v5.1.1
+        with:
+          role-to-assume: "arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/${{ vars.SPARK_OPERATOR_IAM_ROLE }}"
+          aws-region: us-east-2
+          role-session-name: odh-spark-operator  # For tracking in CloudTrail
+
+      - name: Stop EC2 runner
+        uses: machulav/ec2-github-runner@a6dbcefcf8a31a861f5e078bb153ed332130c512 # v2.4.3
+        with:
+          mode: stop
+          github-token: "${{ secrets.SPARK_OPERATOR_GH_PERSONAL_ACCESS_TOKEN }}"
+          label: ${{ needs.launch-ec2-runner.outputs.label }}
+          ec2-instance-id: ${{ needs.launch-ec2-runner.outputs.ec2-instance-id }}
