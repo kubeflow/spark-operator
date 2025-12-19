@@ -1,0 +1,8 @@
+# Chart Releaser configuration
+owner: opendatahub-io
+git-repo: spark-operator
+charts-repo-url: https://opendatahub-io.github.io/spark-operator
+pages-branch: gh-pages
+charts-dir: charts
+release-name-template: "{{ .Name }}-{{ .Version }}"
+
