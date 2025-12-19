@@ -170,7 +170,7 @@ controller:
 
   # -- Security context for controller pods.
   podSecurityContext:
-    fsGroup: 185
+    fsGroup: null  # Override upstream default (185) to let OpenShift SCC assign
 
   # -- Topology spread constraints rely on node labels to identify the topology domain(s) that each Node is in.
   # Ref: [Pod Topology Spread Constraints](https://kubernetes.io/docs/concepts/workloads/pods/pod-topology-spread-constraints/).
@@ -345,7 +345,7 @@ webhook:
 
   # -- Security context for webhook pods.
   podSecurityContext:
-    fsGroup: 185
+    fsGroup: null  # Override upstream default (185) to let OpenShift SCC assign
 
   # -- Topology spread constraints rely on node labels to identify the topology domain(s) that each Node is in.
   # Ref: [Pod Topology Spread Constraints](https://kubernetes.io/docs/concepts/workloads/pods/pod-topology-spread-constraints/).
