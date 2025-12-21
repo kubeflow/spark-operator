@@ -184,6 +184,17 @@ func (f *EventFilter) Update(e event.UpdateEvent) bool {
 			return true
 		}
 
+		// Check if only Service/Ingress related fields changed while application is running.
+		// These resources can be updated without restarting the application.
+		if newApp.Status.AppState.State == v1beta2.ApplicationStateRunning &&
+			isServiceIngressFieldsOnlyChange(oldApp, newApp) {
+			f.logger.V(1).Info("Only Service/Ingress fields changed, updating resources without restart",
+				"name", newApp.Name, "namespace", newApp.Namespace)
+			// Return true to trigger reconcile without changing state to Invalidating.
+			// The reconcileRunningSparkApplication will handle the Service/Ingress update.
+			return true
+		}
+
 		// Check if only webhook-patched fields changed (requires PartialRestart feature gate).
 		// These fields are applied by the mutating webhook when new pods are created,
 		// so we don't need to trigger a reconcile - the webhook cache will automatically
@@ -243,6 +254,71 @@ func (f *EventFilter) Generic(e event.GenericEvent) bool {
 
 func (f *EventFilter) filter(app *v1beta2.SparkApplication) bool {
 	return f.namespaces[metav1.NamespaceAll] || f.namespaces[app.Namespace]
+}
+
+// isServiceIngressFieldsOnlyChange checks if the spec changes only involve fields
+// related to Service and Ingress configuration that can be updated without
+// restarting the application.
+//
+// Service/Ingress related fields:
+// - SparkUIOptions (ServiceAnnotations, ServiceLabels, IngressAnnotations, etc.)
+// - DriverIngressOptions (ServiceAnnotations, ServiceLabels, IngressAnnotations, etc.)
+// - Driver.ServiceAnnotations
+// - Driver.ServiceLabels
+func isServiceIngressFieldsOnlyChange(oldApp, newApp *v1beta2.SparkApplication) bool {
+	// Check if any service/ingress field actually changed
+	if !hasServiceIngressFieldChanges(oldApp, newApp) {
+		return false
+	}
+
+	// DeepCopy only the Spec (not the entire SparkApplication) for better performance
+	oldSpec := oldApp.Spec.DeepCopy()
+	newSpec := newApp.Spec.DeepCopy()
+
+	// Zero out service/ingress related fields in both copies
+	clearServiceIngressFieldsFromSpec(oldSpec)
+	clearServiceIngressFieldsFromSpec(newSpec)
+
+	// Also zero out Suspend field as it's handled separately
+	oldSpec.Suspend = nil
+	newSpec.Suspend = nil
+
+	// If specs are equal after clearing service/ingress fields,
+	// then only service/ingress fields changed
+	return equality.Semantic.DeepEqual(oldSpec, newSpec)
+}
+
+// clearServiceIngressFieldsFromSpec zeros out the Service/Ingress related fields from a Spec.
+func clearServiceIngressFieldsFromSpec(spec *v1beta2.SparkApplicationSpec) {
+	spec.SparkUIOptions = nil
+	spec.DriverIngressOptions = nil
+	spec.Driver.ServiceAnnotations = nil
+	spec.Driver.ServiceLabels = nil
+}
+
+// hasServiceIngressFieldChanges checks if any Service/Ingress related fields changed.
+func hasServiceIngressFieldChanges(oldApp, newApp *v1beta2.SparkApplication) bool {
+	// Check SparkUIOptions
+	if !equality.Semantic.DeepEqual(oldApp.Spec.SparkUIOptions, newApp.Spec.SparkUIOptions) {
+		return true
+	}
+
+	// Check DriverIngressOptions
+	if !equality.Semantic.DeepEqual(oldApp.Spec.DriverIngressOptions, newApp.Spec.DriverIngressOptions) {
+		return true
+	}
+
+	// Check Driver service annotations
+	if !equality.Semantic.DeepEqual(oldApp.Spec.Driver.ServiceAnnotations, newApp.Spec.Driver.ServiceAnnotations) {
+		return true
+	}
+
+	// Check Driver service labels
+	if !equality.Semantic.DeepEqual(oldApp.Spec.Driver.ServiceLabels, newApp.Spec.Driver.ServiceLabels) {
+		return true
+	}
+
+	return false
 }
 
 // isWebhookPatchedFieldsOnlyChange checks if the spec changes only involve fields

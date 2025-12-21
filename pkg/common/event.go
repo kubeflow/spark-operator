@@ -62,3 +62,22 @@ const (
 
 	EventSparkExecutorUnknown = "SparkExecutorUnknown"
 )
+
+// Service/Ingress events
+const (
+	EventSparkUIServiceUpdated = "SparkUIServiceUpdated"
+
+	EventSparkUIServiceUpdateFailed = "SparkUIServiceUpdateFailed"
+
+	EventSparkUIIngressUpdated = "SparkUIIngressUpdated"
+
+	EventSparkUIIngressUpdateFailed = "SparkUIIngressUpdateFailed"
+
+	EventSparkDriverIngressServiceUpdated = "SparkDriverIngressServiceUpdated"
+
+	EventSparkDriverIngressServiceUpdateFailed = "SparkDriverIngressServiceUpdateFailed"
+
+	EventSparkDriverIngressUpdated = "SparkDriverIngressUpdated"
+
+	EventSparkDriverIngressUpdateFailed = "SparkDriverIngressUpdateFailed"
+)
