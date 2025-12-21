@@ -469,6 +469,15 @@ func (r *Reconciler) reconcileRunningSparkApplication(ctx context.Context, req c
 				return err
 			}
 
+			// Update Service/Ingress resources if needed.
+			// These functions use create-or-update pattern, so they will update
+			// existing resources if configuration has changed.
+			if err := r.updateServiceIngressResources(ctx, app); err != nil {
+				logger.Error(err, "Failed to update Service/Ingress resources")
+				// Don't return error to avoid blocking the reconcile loop.
+				// Service/Ingress updates are best-effort during running state.
+			}
+
 			if err := r.updateSparkApplicationStatus(ctx, app); err != nil {
 				return err
 			}
@@ -481,6 +490,78 @@ func (r *Reconciler) reconcileRunningSparkApplication(ctx context.Context, req c
 		return ctrl.Result{}, retryErr
 	}
 	return ctrl.Result{}, nil
+}
+
+// updateServiceIngressResources updates Service and Ingress resources for a running application.
+// This allows hot-updating Service/Ingress configuration without restarting the application.
+func (r *Reconciler) updateServiceIngressResources(ctx context.Context, app *v1beta2.SparkApplication) error {
+	logger := log.FromContext(ctx)
+
+	// Update web UI service if enabled
+	if r.options.EnableUIService {
+		service, err := r.createWebUIService(ctx, app)
+		if err != nil {
+			r.recorder.Eventf(app, corev1.EventTypeWarning, common.EventSparkUIServiceUpdateFailed,
+				"Failed to update Spark UI service: %v", err)
+			return fmt.Errorf("failed to update web UI service: %v", err)
+		}
+		logger.V(1).Info("Updated web UI service", "name", service.serviceName)
+		r.recorder.Eventf(app, corev1.EventTypeNormal, common.EventSparkUIServiceUpdated,
+			"Spark UI service %s updated", service.serviceName)
+
+		// Update UI Ingress if ingress-format is set
+		if r.options.IngressURLFormat != "" {
+			ingressURL, err := getDriverIngressURL(r.options.IngressURLFormat, app)
+			if err != nil {
+				r.recorder.Eventf(app, corev1.EventTypeWarning, common.EventSparkUIIngressUpdateFailed,
+					"Failed to get ingress URL: %v", err)
+				return fmt.Errorf("failed to get ingress url: %v", err)
+			}
+			ingress, err := r.createWebUIIngress(ctx, app, *service, ingressURL, r.options.IngressClassName, r.options.IngressTLS, r.options.IngressAnnotations)
+			if err != nil {
+				r.recorder.Eventf(app, corev1.EventTypeWarning, common.EventSparkUIIngressUpdateFailed,
+					"Failed to update Spark UI ingress: %v", err)
+				return fmt.Errorf("failed to update web UI ingress: %v", err)
+			}
+			logger.V(1).Info("Updated web UI ingress", "name", ingress.ingressName)
+			r.recorder.Eventf(app, corev1.EventTypeNormal, common.EventSparkUIIngressUpdated,
+				"Spark UI ingress %s updated", ingress.ingressName)
+		}
+	}
+
+	// Update driver ingress services and ingresses
+	for _, driverIngressConfiguration := range app.Spec.DriverIngressOptions {
+		service, err := r.createDriverIngressServiceFromConfiguration(ctx, app, &driverIngressConfiguration)
+		if err != nil {
+			r.recorder.Eventf(app, corev1.EventTypeWarning, common.EventSparkDriverIngressServiceUpdateFailed,
+				"Failed to update driver ingress service: %v", err)
+			return fmt.Errorf("failed to update driver ingress service: %v", err)
+		}
+		logger.V(1).Info("Updated driver ingress service", "name", service.serviceName)
+		r.recorder.Eventf(app, corev1.EventTypeNormal, common.EventSparkDriverIngressServiceUpdated,
+			"Driver ingress service %s updated", service.serviceName)
+
+		// Update ingress if ingress-format is set
+		if driverIngressConfiguration.IngressURLFormat != "" {
+			ingressURL, err := getDriverIngressURL(driverIngressConfiguration.IngressURLFormat, app)
+			if err != nil {
+				r.recorder.Eventf(app, corev1.EventTypeWarning, common.EventSparkDriverIngressUpdateFailed,
+					"Failed to get driver ingress URL: %v", err)
+				return fmt.Errorf("failed to get driver ingress url: %v", err)
+			}
+			ingress, err := r.createDriverIngress(ctx, app, &driverIngressConfiguration, *service, ingressURL, r.options.IngressClassName)
+			if err != nil {
+				r.recorder.Eventf(app, corev1.EventTypeWarning, common.EventSparkDriverIngressUpdateFailed,
+					"Failed to update driver ingress: %v", err)
+				return fmt.Errorf("failed to update driver ingress: %v", err)
+			}
+			logger.V(1).Info("Updated driver ingress", "name", ingress.ingressName)
+			r.recorder.Eventf(app, corev1.EventTypeNormal, common.EventSparkDriverIngressUpdated,
+				"Driver ingress %s updated", ingress.ingressName)
+		}
+	}
+
+	return nil
 }
 
 func (r *Reconciler) reconcilePendingRerunSparkApplication(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
