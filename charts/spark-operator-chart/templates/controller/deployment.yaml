@@ -135,10 +135,15 @@ spec:
           containerPort: {{ .Values.prometheus.metrics.port }}
         {{- end }}
         {{- end }}
-        {{- with .Values.controller.env }}
+
+        # --- Global scheduled-spark-app timestamp precision env var (default from values.yaml)
         env:
-        {{- toYaml . | nindent 8 }}
+        - name: SCHEDULED_SA_TIMESTAMP_PRECISION
+          value: {{ .Values.controller.scheduledSparkApplication.timestampPrecision | quote }}
+        {{- with .Values.controller.env }}
+{{ toYaml . | nindent 8 }}
         {{- end }}
+
         {{- with .Values.controller.envFrom }}
         envFrom:
         {{- toYaml . | nindent 8 }}

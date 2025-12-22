@@ -22,6 +22,7 @@ import (
 	"strings"
 
 	corev1 "k8s.io/api/core/v1"
+	networkingv1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -176,6 +177,7 @@ func (r *Reconciler) SetupWithManager(mgr ctrl.Manager, options controller.Optio
 // +kubebuilder:rbac:groups=,resources=services,verbs=get;list;watch;create;update;delete
 // +kubebuilder:rbac:groups=sparkoperator.k8s.io,resources=sparkconnects,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=sparkoperator.k8s.io,resources=sparkconnects/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=networking.k8s.io,resources=ingresses,verbs=get;list;watch;create;update;patch;delete
 
 // Reconcile implements reconcile.TypedReconciler.
 func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (reconcile.Result, error) {
@@ -215,12 +217,17 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (reconcile
 		return reconcile.Result{}, err
 	}
 
+	// Reconcile ingress after the service exists
+	if err := r.createOrUpdateServerIngress(ctx, conn); err != nil {
+		return reconcile.Result{}, err
+	}
+
 	if err := r.updateSparkConnectStatus(ctx, old, conn); err != nil {
 		if errors.IsConflict(err) {
 			logger.V(1).Info("conflict updating SparkConnect status")
 			return ctrl.Result{Requeue: true}, nil
 		}
-		return ctrl.Result{}, fmt.Errorf("failed to update SparkConnect status: %v", err)
+		return reconcile.Result{}, fmt.Errorf("failed to update SparkConnect status: %v", err)
 	}
 
 	return reconcile.Result{}, nil
@@ -538,6 +545,157 @@ func (r *Reconciler) mutateServerService(_ context.Context, conn *v1alpha1.Spark
 	}
 
 	return nil
+}
+
+// createOrUpdateServerIngress creates or updates an Ingress for the SparkConnect server if enabled,
+// or deletes it if disabled.
+func (r *Reconciler) createOrUpdateServerIngress(ctx context.Context, conn *v1alpha1.SparkConnect) error {
+	logger := ctrl.LoggerFrom(ctx)
+
+	// If ingress not configured or nil, ensure it's absent.
+	if conn.Spec.Server.Ingress == nil || !conn.Spec.Server.Ingress.Enabled {
+		if err := r.cleanupServerIngress(ctx, conn); err != nil {
+			return fmt.Errorf("failed to cleanup server ingress: %v", err)
+		}
+		return nil
+	}
+
+	ingress := buildIngressForSparkConnect(conn)
+
+	// Set owner reference
+	if err := ctrl.SetControllerReference(conn, ingress, r.scheme); err != nil {
+		return fmt.Errorf("failed to set controller reference on ingress: %v", err)
+	}
+
+	// Create or update ingress
+	_, err := controllerutil.CreateOrUpdate(ctx, r.client, ingress, func() error {
+		// desired spec already set in buildIngressForSparkConnect
+		return nil
+	})
+	if err != nil {
+		// If the create/update failed because the API doesn't know NetworkingV1, surface friendly message
+		if errors.IsNotFound(err) {
+			logger.Info("ingress resource kind not found in cluster; ensure networking.k8s.io/v1 is available")
+		}
+		return fmt.Errorf("failed to create or update ingress: %v", err)
+	}
+	logger.Info("Server ingress reconciled", "name", fmt.Sprintf("%s-connect-ingress", conn.Name))
+	return nil
+}
+
+// cleanupServerIngress deletes the ingress with the expected name if present.
+func (r *Reconciler) cleanupServerIngress(ctx context.Context, conn *v1alpha1.SparkConnect) error {
+	name := fmt.Sprintf("%s-connect-ingress", conn.Name)
+	ing := &networkingv1.Ingress{}
+	err := r.client.Get(ctx, types.NamespacedName{Name: name, Namespace: conn.Namespace}, ing)
+	if err != nil {
+		if errors.IsNotFound(err) {
+			return nil
+		}
+		return fmt.Errorf("get ingress failed: %v", err)
+	}
+	if err := r.client.Delete(ctx, ing); err != nil {
+		return fmt.Errorf("delete ingress failed: %v", err)
+	}
+	return nil
+}
+
+// buildIngressForSparkConnect constructs a networking.k8s.io/v1 Ingress for the SparkConnect server.
+func buildIngressForSparkConnect(conn *v1alpha1.SparkConnect) *networkingv1.Ingress {
+	name := fmt.Sprintf("%s-connect-ingress", conn.Name)
+	svcName := GetServerServiceName(conn)
+	namespace := conn.Namespace
+
+	annotations := map[string]string{}
+	if conn.Spec.Server.Ingress != nil && conn.Spec.Server.Ingress.Annotations != nil {
+		for k, v := range conn.Spec.Server.Ingress.Annotations {
+			annotations[k] = v
+		}
+	}
+
+	ingress := &networkingv1.Ingress{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:        name,
+			Namespace:   namespace,
+			Annotations: annotations,
+			Labels: map[string]string{
+				common.LabelCreatedBySparkOperator: "true",
+				common.LabelSparkConnectName:       conn.Name,
+			},
+		},
+		Spec: networkingv1.IngressSpec{},
+	}
+
+	// IngressClassName
+	if conn.Spec.Server.Ingress != nil && conn.Spec.Server.Ingress.ClassName != "" {
+		ingress.Spec.IngressClassName = &conn.Spec.Server.Ingress.ClassName
+	}
+
+	// Build rules
+	if conn.Spec.Server.Ingress != nil && len(conn.Spec.Server.Ingress.Hosts) > 0 {
+		for _, host := range conn.Spec.Server.Ingress.Hosts {
+			pathType := networkingv1.PathTypeImplementationSpecific
+			rule := networkingv1.IngressRule{
+				Host: host,
+				IngressRuleValue: networkingv1.IngressRuleValue{
+					HTTP: &networkingv1.HTTPIngressRuleValue{
+						Paths: []networkingv1.HTTPIngressPath{
+							{
+								Path:     "/",
+								PathType: &pathType,
+								Backend: networkingv1.IngressBackend{
+									Service: &networkingv1.IngressServiceBackend{
+										Name: svcName,
+										Port: networkingv1.ServiceBackendPort{
+											// Use the spark-connect-server port from service (15002)
+											Number: 15002,
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			}
+			ingress.Spec.Rules = append(ingress.Spec.Rules, rule)
+		}
+	} else {
+		// no hosts provided: create a default rule without host that points at the service
+		pathType := networkingv1.PathTypeImplementationSpecific
+		rule := networkingv1.IngressRule{
+			IngressRuleValue: networkingv1.IngressRuleValue{
+				HTTP: &networkingv1.HTTPIngressRuleValue{
+					Paths: []networkingv1.HTTPIngressPath{
+						{
+							Path:     "/",
+							PathType: &pathType,
+							Backend: networkingv1.IngressBackend{
+								Service: &networkingv1.IngressServiceBackend{
+									Name: svcName,
+									Port: networkingv1.ServiceBackendPort{
+										Number: 15002,
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		}
+		ingress.Spec.Rules = append(ingress.Spec.Rules, rule)
+	}
+
+	// TLS
+	if conn.Spec.Server.Ingress != nil && len(conn.Spec.Server.Ingress.TLS) > 0 {
+		for _, t := range conn.Spec.Server.Ingress.TLS {
+			ingress.Spec.TLS = append(ingress.Spec.TLS, networkingv1.IngressTLS{
+				SecretName: t.SecretName,
+				Hosts:      t.Hosts,
+			})
+		}
+	}
+
+	return ingress
 }
 
 // updateSparkConnectStatus updates the status of the SparkConnect resource.
