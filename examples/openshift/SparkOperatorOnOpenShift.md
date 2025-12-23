@@ -47,7 +47,7 @@ oc login
 brew install helm
 
 # Add the Spark Operator Helm repo
-helm repo add spark-operator https://kubeflow.github.io/spark-operator
+helm repo add spark-operator https://opendatahub-io.github.io/spark-operator
 helm repo update
 ```
 
