@@ -55,6 +55,14 @@ hook:
     # -- Image tag.
     # @default -- If not set, the chart appVersion will be used.
     tag: ""
+  # -- Node selector for the Helm hook Job.
+  nodeSelector: {}
+
+  # -- Affinity for the Helm hook Job.
+  affinity: {}
+
+  # -- List of node taints to tolerate for the Helm hook Job.
+  tolerations: []
 
 controller:
   # -- Number of replicas of controller.
