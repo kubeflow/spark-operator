@@ -1025,3 +1025,350 @@ func createExecutorPod(appName string, appNamespace string, id int) *corev1.Pod 
 	}
 	return pod
 }
+
+var _ = Describe("Orphaned Resource Cleanup", func() {
+	Context("When reconciling a NEW SparkApplication with orphaned driver pod", func() {
+		ctx := context.Background()
+		appName := "test-orphaned-pod"
+		appNamespace := "default"
+		key := types.NamespacedName{
+			Name:      appName,
+			Namespace: appNamespace,
+		}
+
+		BeforeEach(func() {
+			By("Creating an orphaned driver pod")
+			driverPod := createDriverPod(appName, appNamespace)
+			driverPod.Status.Phase = corev1.PodPending
+			Expect(k8sClient.Create(ctx, driverPod)).To(Succeed())
+
+			By("Creating a NEW SparkApplication (simulating controller restart)")
+			app := &v1beta2.SparkApplication{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      appName,
+					Namespace: appNamespace,
+				},
+				Spec: v1beta2.SparkApplicationSpec{
+					MainApplicationFile: util.StringPtr("local:///dummy.jar"),
+				},
+			}
+			v1beta2.SetSparkApplicationDefaults(app)
+			Expect(k8sClient.Create(ctx, app)).To(Succeed())
+
+			// Application state should be NEW (empty string)
+			app.Status.AppState.State = v1beta2.ApplicationStateNew
+			Expect(k8sClient.Status().Update(ctx, app)).To(Succeed())
+		})
+
+		AfterEach(func() {
+			By("Cleaning up the SparkApplication")
+			app := &v1beta2.SparkApplication{}
+			if err := k8sClient.Get(ctx, key, app); err == nil {
+				Expect(k8sClient.Delete(ctx, app)).To(Succeed())
+			}
+
+			By("Cleaning up the driver pod if it still exists")
+			driverPod := &corev1.Pod{}
+			if err := k8sClient.Get(ctx, getDriverNamespacedName(appName, appNamespace), driverPod); err == nil {
+				Expect(k8sClient.Delete(ctx, driverPod)).To(Succeed())
+			}
+		})
+
+		It("Should detect and cleanup orphaned driver pod, then requeue", func() {
+			By("Reconciling the NEW SparkApplication with orphaned pod")
+			reconciler := sparkapplication.NewReconciler(
+				nil,
+				k8sClient.Scheme(),
+				k8sClient,
+				&record.FakeRecorder{},
+				nil,
+				sparkapplication.Options{Namespaces: []string{appNamespace}},
+			)
+
+			_, err := reconciler.Reconcile(ctx, reconcile.Request{NamespacedName: key})
+
+			By("Expecting error indicating orphaned resources were deleted")
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("orphaned resources"))
+			Expect(err.Error()).To(ContainSubstring("were deleted, requeuing for submission"))
+
+			By("Verifying driver pod was deleted")
+			Eventually(func() bool {
+				driverPod := &corev1.Pod{}
+				err := k8sClient.Get(ctx, getDriverNamespacedName(appName, appNamespace), driverPod)
+				return errors.IsNotFound(err)
+			}, 5*time.Second, 500*time.Millisecond).Should(BeTrue())
+
+			By("Verifying application state remains NEW")
+			app := &v1beta2.SparkApplication{}
+			Expect(k8sClient.Get(ctx, key, app)).To(Succeed())
+			Expect(app.Status.AppState.State).To(Equal(v1beta2.ApplicationStateNew))
+		})
+	})
+
+	Context("When reconciling a NEW SparkApplication with no orphaned resources", func() {
+		ctx := context.Background()
+		appName := "test-no-orphaned"
+		appNamespace := "default"
+		key := types.NamespacedName{
+			Name:      appName,
+			Namespace: appNamespace,
+		}
+
+		BeforeEach(func() {
+			By("Creating a NEW SparkApplication without any orphaned resources")
+			app := &v1beta2.SparkApplication{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      appName,
+					Namespace: appNamespace,
+				},
+				Spec: v1beta2.SparkApplicationSpec{
+					MainApplicationFile: util.StringPtr("local:///dummy.jar"),
+				},
+			}
+			v1beta2.SetSparkApplicationDefaults(app)
+			Expect(k8sClient.Create(ctx, app)).To(Succeed())
+
+			app.Status.AppState.State = v1beta2.ApplicationStateNew
+			Expect(k8sClient.Status().Update(ctx, app)).To(Succeed())
+		})
+
+		AfterEach(func() {
+			app := &v1beta2.SparkApplication{}
+			if err := k8sClient.Get(ctx, key, app); err == nil {
+				Expect(k8sClient.Delete(ctx, app)).To(Succeed())
+			}
+		})
+
+		It("Should proceed with normal submission without cleanup", func() {
+			By("Reconciling the NEW SparkApplication")
+			reconciler := sparkapplication.NewReconciler(
+				nil,
+				k8sClient.Scheme(),
+				k8sClient,
+				&record.FakeRecorder{},
+				nil,
+				sparkapplication.Options{Namespaces: []string{appNamespace}},
+			)
+
+			result, err := reconciler.Reconcile(ctx, reconcile.Request{NamespacedName: key})
+
+			By("Expecting no error from resource validation")
+			Expect(err).NotTo(HaveOccurred())
+			Expect(result.Requeue).To(BeFalse())
+
+			By("Verifying application state transitioned from NEW")
+			app := &v1beta2.SparkApplication{}
+			Expect(k8sClient.Get(ctx, key, app)).To(Succeed())
+			// State should no longer be NEW after submission attempt
+			Expect(app.Status.AppState.State).NotTo(Equal(v1beta2.ApplicationStateNew))
+		})
+	})
+
+	Context("When reconciling a NEW SparkApplication with orphaned service", func() {
+		ctx := context.Background()
+		appName := "test-orphaned-service"
+		appNamespace := "default"
+		key := types.NamespacedName{
+			Name:      appName,
+			Namespace: appNamespace,
+		}
+
+		BeforeEach(func() {
+			By("Creating an orphaned web UI service")
+			service := &corev1.Service{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      fmt.Sprintf("%s-ui-svc", appName),
+					Namespace: appNamespace,
+					Labels: map[string]string{
+						common.LabelSparkAppName: appName,
+					},
+				},
+				Spec: corev1.ServiceSpec{
+					Ports: []corev1.ServicePort{
+						{
+							Port: 4040,
+						},
+					},
+					Selector: map[string]string{
+						common.LabelSparkRole: common.SparkRoleDriver,
+					},
+				},
+			}
+			Expect(k8sClient.Create(ctx, service)).To(Succeed())
+
+			By("Creating a NEW SparkApplication")
+			app := &v1beta2.SparkApplication{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      appName,
+					Namespace: appNamespace,
+				},
+				Spec: v1beta2.SparkApplicationSpec{
+					MainApplicationFile: util.StringPtr("local:///dummy.jar"),
+				},
+			}
+			v1beta2.SetSparkApplicationDefaults(app)
+			Expect(k8sClient.Create(ctx, app)).To(Succeed())
+
+			// Set status with service name to trigger validation
+			app.Status.AppState.State = v1beta2.ApplicationStateNew
+			app.Status.DriverInfo.WebUIServiceName = service.Name
+			Expect(k8sClient.Status().Update(ctx, app)).To(Succeed())
+		})
+
+		AfterEach(func() {
+			app := &v1beta2.SparkApplication{}
+			if err := k8sClient.Get(ctx, key, app); err == nil {
+				Expect(k8sClient.Delete(ctx, app)).To(Succeed())
+			}
+
+			service := &corev1.Service{}
+			serviceKey := types.NamespacedName{
+				Name:      fmt.Sprintf("%s-ui-svc", appName),
+				Namespace: appNamespace,
+			}
+			if err := k8sClient.Get(ctx, serviceKey, service); err == nil {
+				Expect(k8sClient.Delete(ctx, service)).To(Succeed())
+			}
+		})
+
+		It("Should detect and cleanup orphaned service", func() {
+			By("Reconciling the NEW SparkApplication with orphaned service")
+			reconciler := sparkapplication.NewReconciler(
+				nil,
+				k8sClient.Scheme(),
+				k8sClient,
+				&record.FakeRecorder{},
+				nil,
+				sparkapplication.Options{Namespaces: []string{appNamespace}},
+			)
+
+			_, err := reconciler.Reconcile(ctx, reconcile.Request{NamespacedName: key})
+
+			By("Expecting error indicating orphaned resources were deleted")
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("orphaned resources"))
+
+			By("Verifying service was deleted")
+			Eventually(func() bool {
+				service := &corev1.Service{}
+				serviceKey := types.NamespacedName{
+					Name:      fmt.Sprintf("%s-ui-svc", appName),
+					Namespace: appNamespace,
+				}
+				err := k8sClient.Get(ctx, serviceKey, service)
+				return errors.IsNotFound(err)
+			}, 5*time.Second, 500*time.Millisecond).Should(BeTrue())
+		})
+	})
+
+	Context("When reconciling a NEW SparkApplication with multiple orphaned resources", func() {
+		ctx := context.Background()
+		appName := "test-multiple-orphaned"
+		appNamespace := "default"
+		key := types.NamespacedName{
+			Name:      appName,
+			Namespace: appNamespace,
+		}
+
+		BeforeEach(func() {
+			By("Creating orphaned driver pod")
+			driverPod := createDriverPod(appName, appNamespace)
+			driverPod.Status.Phase = corev1.PodRunning
+			Expect(k8sClient.Create(ctx, driverPod)).To(Succeed())
+
+			By("Creating orphaned web UI service")
+			service := &corev1.Service{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      fmt.Sprintf("%s-ui-svc", appName),
+					Namespace: appNamespace,
+					Labels: map[string]string{
+						common.LabelSparkAppName: appName,
+					},
+				},
+				Spec: corev1.ServiceSpec{
+					Ports: []corev1.ServicePort{
+						{
+							Port: 4040,
+						},
+					},
+					Selector: map[string]string{
+						common.LabelSparkRole: common.SparkRoleDriver,
+					},
+				},
+			}
+			Expect(k8sClient.Create(ctx, service)).To(Succeed())
+
+			By("Creating a NEW SparkApplication")
+			app := &v1beta2.SparkApplication{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      appName,
+					Namespace: appNamespace,
+				},
+				Spec: v1beta2.SparkApplicationSpec{
+					MainApplicationFile: util.StringPtr("local:///dummy.jar"),
+				},
+			}
+			v1beta2.SetSparkApplicationDefaults(app)
+			Expect(k8sClient.Create(ctx, app)).To(Succeed())
+
+			app.Status.AppState.State = v1beta2.ApplicationStateNew
+			app.Status.DriverInfo.WebUIServiceName = service.Name
+			Expect(k8sClient.Status().Update(ctx, app)).To(Succeed())
+		})
+
+		AfterEach(func() {
+			app := &v1beta2.SparkApplication{}
+			if err := k8sClient.Get(ctx, key, app); err == nil {
+				Expect(k8sClient.Delete(ctx, app)).To(Succeed())
+			}
+
+			driverPod := &corev1.Pod{}
+			if err := k8sClient.Get(ctx, getDriverNamespacedName(appName, appNamespace), driverPod); err == nil {
+				Expect(k8sClient.Delete(ctx, driverPod)).To(Succeed())
+			}
+
+			service := &corev1.Service{}
+			serviceKey := types.NamespacedName{
+				Name:      fmt.Sprintf("%s-ui-svc", appName),
+				Namespace: appNamespace,
+			}
+			if err := k8sClient.Get(ctx, serviceKey, service); err == nil {
+				Expect(k8sClient.Delete(ctx, service)).To(Succeed())
+			}
+		})
+
+		It("Should detect and cleanup all orphaned resources", func() {
+			By("Reconciling the NEW SparkApplication with multiple orphaned resources")
+			reconciler := sparkapplication.NewReconciler(
+				nil,
+				k8sClient.Scheme(),
+				k8sClient,
+				&record.FakeRecorder{},
+				nil,
+				sparkapplication.Options{Namespaces: []string{appNamespace}},
+			)
+
+			_, err := reconciler.Reconcile(ctx, reconcile.Request{NamespacedName: key})
+
+			By("Expecting error indicating cleanup occurred")
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("orphaned resources"))
+
+			By("Verifying all resources were deleted")
+			Eventually(func() bool {
+				driverPod := &corev1.Pod{}
+				podErr := k8sClient.Get(ctx, getDriverNamespacedName(appName, appNamespace), driverPod)
+
+				service := &corev1.Service{}
+				serviceKey := types.NamespacedName{
+					Name:      fmt.Sprintf("%s-ui-svc", appName),
+					Namespace: appNamespace,
+				}
+				serviceErr := k8sClient.Get(ctx, serviceKey, service)
+
+				return errors.IsNotFound(podErr) && errors.IsNotFound(serviceErr)
+			}, 5*time.Second, 500*time.Millisecond).Should(BeTrue())
+		})
+	})
+})

@@ -263,6 +263,54 @@ func (r *Reconciler) reconcileNewSparkApplication(ctx context.Context, req ctrl.
 			}
 			app := old.DeepCopy()
 
+			// Check for orphaned resources from previous submission attempts before submitting.
+			// This handles the case where the controller crashed after creating resources but before
+			// updating the status to "Submitted". Without this check, we would attempt submission
+			// again and get HTTP 409 "driver pod already exists" error.
+			//
+			// IMPORTANT: Only clean up resources if SubmissionID is NOT yet set.
+			// If SubmissionID is already set, this is a retry within RetryOnConflict due to status
+			// update failure. Any resources found were created in a previous iteration of this
+			// retry loop, so we should NOT delete them - just proceed with the status update retry.
+			if app.Status.SubmissionID == "" {
+				// First submission attempt - check for any orphaned resources
+				if !r.validateSparkResourceDeletion(ctx, app) {
+					logger.Info("Orphaned Spark resources detected for NEW SparkApplication, initiating cleanup",
+						"name", app.Name,
+						"namespace", app.Namespace,
+						"submissionID", app.Status.SubmissionID,
+						"expectedDriverPodName", util.GetDriverPodName(app))
+
+					// Emit metric to track frequency of orphaned resource detection
+					if r.options.SparkApplicationMetrics != nil {
+						r.options.SparkApplicationMetrics.IncOrphanedResourceCleanupCount(app)
+					}
+
+					// Delete the orphaned resources
+					if err := r.deleteSparkResources(ctx, app); err != nil {
+						logger.Error(err, "Failed to delete orphaned resources for NEW SparkApplication",
+							"name", app.Name,
+							"namespace", app.Namespace,
+							"submissionID", app.Status.SubmissionID)
+						return err
+					}
+
+					logger.Info("Successfully deleted orphaned Spark resources for NEW SparkApplication",
+						"name", app.Name,
+						"namespace", app.Namespace)
+
+					// Return error to requeue - we need to wait for Kubernetes garbage collection
+					// to complete the deletion before attempting submission
+					return fmt.Errorf("orphaned resources for SparkApplication name: %s namespace: %s were deleted, requeuing for submission", app.Name, app.Namespace)
+				}
+			}
+
+			// Log successful validation before proceeding with submission
+			logger.Info("Submitting NEW SparkApplication (resources validated)",
+				"name", app.Name,
+				"namespace", app.Namespace,
+				"resourcesClean", true)
+
 			_ = r.submitSparkApplication(app)
 			if err := r.updateSparkApplicationStatus(ctx, app); err != nil {
 				return err
@@ -1171,14 +1219,41 @@ func (r *Reconciler) validateSparkResourceDeletion(ctx context.Context, app *v1b
 	if driverPodName == "" {
 		driverPodName = util.GetDriverPodName(app)
 	}
-	if err := r.client.Get(ctx, types.NamespacedName{Name: driverPodName, Namespace: app.Namespace}, &corev1.Pod{}); err == nil || !errors.IsNotFound(err) {
+	driverPod := &corev1.Pod{}
+	if err := r.client.Get(ctx, types.NamespacedName{Name: driverPodName, Namespace: app.Namespace}, driverPod); err == nil {
+		// Orphaned driver pod found - log details for debugging
+		logger.Info("Orphaned driver pod found during validation",
+			"name", app.Name,
+			"namespace", app.Namespace,
+			"podName", driverPodName,
+			"podPhase", driverPod.Status.Phase,
+			"podCreationTimestamp", driverPod.CreationTimestamp,
+			"podLabels", driverPod.Labels)
+		return false
+	} else if !errors.IsNotFound(err) {
+		// Error checking pod existence - log and assume it might exist (conservative)
+		logger.Error(err, "Error checking driver pod existence during validation",
+			"name", app.Name,
+			"namespace", app.Namespace,
+			"podName", driverPodName)
 		return false
 	}
 
 	// Validate whether Spark web UI service has been deleted.
 	sparkUIServiceName := app.Status.DriverInfo.WebUIServiceName
 	if sparkUIServiceName != "" {
-		if err := r.client.Get(ctx, types.NamespacedName{Name: sparkUIServiceName, Namespace: app.Namespace}, &corev1.Service{}); err == nil || !errors.IsNotFound(err) {
+		if err := r.client.Get(ctx, types.NamespacedName{Name: sparkUIServiceName, Namespace: app.Namespace}, &corev1.Service{}); err == nil {
+			// Orphaned service found - log for debugging
+			logger.Info("Orphaned web UI service found during validation",
+				"name", app.Name,
+				"namespace", app.Namespace,
+				"serviceName", sparkUIServiceName)
+			return false
+		} else if !errors.IsNotFound(err) {
+			logger.Error(err, "Error checking web UI service existence during validation",
+				"name", app.Name,
+				"namespace", app.Namespace,
+				"serviceName", sparkUIServiceName)
 			return false
 		}
 	}
@@ -1186,7 +1261,18 @@ func (r *Reconciler) validateSparkResourceDeletion(ctx context.Context, app *v1b
 	// Validate whether Spark web UI ingress has been deleted.
 	sparkUIIngressName := app.Status.DriverInfo.WebUIIngressName
 	if sparkUIIngressName != "" {
-		if err := r.client.Get(ctx, types.NamespacedName{Name: sparkUIIngressName, Namespace: app.Namespace}, &networkingv1.Ingress{}); err == nil || !errors.IsNotFound(err) {
+		if err := r.client.Get(ctx, types.NamespacedName{Name: sparkUIIngressName, Namespace: app.Namespace}, &networkingv1.Ingress{}); err == nil {
+			// Orphaned ingress found - log for debugging
+			logger.Info("Orphaned web UI ingress found during validation",
+				"name", app.Name,
+				"namespace", app.Namespace,
+				"ingressName", sparkUIIngressName)
+			return false
+		} else if !errors.IsNotFound(err) {
+			logger.Error(err, "Error checking web UI ingress existence during validation",
+				"name", app.Name,
+				"namespace", app.Namespace,
+				"ingressName", sparkUIIngressName)
 			return false
 		}
 	}

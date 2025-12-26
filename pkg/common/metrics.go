@@ -37,6 +37,8 @@ const (
 	MetricSparkApplicationStartLatencySeconds = "spark_application_start_latency_seconds"
 
 	MetricSparkApplicationStartLatencySecondsHistogram = "spark_application_start_latency_seconds_histogram"
+
+	MetricSparkApplicationOrphanedResourceCleanupCount = "spark_application_orphaned_resource_cleanup_count"
 )
 
 // Spark executor metric names.
