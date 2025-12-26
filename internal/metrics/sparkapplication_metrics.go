@@ -40,6 +40,8 @@ type SparkApplicationMetrics struct {
 	successCount          *prometheus.CounterVec
 	failureCount          *prometheus.CounterVec
 
+	orphanedResourceCleanupCount *prometheus.CounterVec
+
 	successExecutionTimeSeconds *prometheus.SummaryVec
 	failureExecutionTimeSeconds *prometheus.SummaryVec
 
@@ -101,6 +103,13 @@ func NewSparkApplicationMetrics(prefix string, labels []string, jobStartLatencyB
 			},
 			validLabels,
 		),
+		orphanedResourceCleanupCount: prometheus.NewCounterVec(
+			prometheus.CounterOpts{
+				Name: util.CreateValidMetricNameLabel(prefix, common.MetricSparkApplicationOrphanedResourceCleanupCount),
+				Help: "Total number of orphaned resource cleanups for SparkApplication (detects controller crashes during submission)",
+			},
+			validLabels,
+		),
 		successExecutionTimeSeconds: prometheus.NewSummaryVec(
 			prometheus.SummaryOpts{
 				Name: util.CreateValidMetricNameLabel(prefix, common.MetricSparkApplicationSuccessExecutionTimeSeconds),
@@ -149,6 +158,9 @@ func (m *SparkApplicationMetrics) Register() {
 	}
 	if err := metrics.Registry.Register(m.failureCount); err != nil {
 		logger.Error(err, "Failed to register spark application metric", "name", common.MetricSparkApplicationFailureCount)
+	}
+	if err := metrics.Registry.Register(m.orphanedResourceCleanupCount); err != nil {
+		logger.Error(err, "Failed to register spark application metric", "name", common.MetricSparkApplicationOrphanedResourceCleanupCount)
 	}
 	if err := metrics.Registry.Register(m.successExecutionTimeSeconds); err != nil {
 		logger.Error(err, "Failed to register spark application metric", "name", common.MetricSparkApplicationSuccessExecutionTimeSeconds)
@@ -305,6 +317,20 @@ func (m *SparkApplicationMetrics) incFailureCount(app *v1beta2.SparkApplication)
 
 	counter.Inc()
 	logger.V(1).Info("Increased spark application failure count", "name", app.Name, "namespace", app.Namespace, "metric", common.MetricSparkApplicationFailureCount, "labels", labels)
+}
+
+// IncOrphanedResourceCleanupCount increments the orphaned resource cleanup counter.
+// This method is public (exported) so it can be called from the controller package.
+func (m *SparkApplicationMetrics) IncOrphanedResourceCleanupCount(app *v1beta2.SparkApplication) {
+	labels := m.getMetricLabels(app)
+	counter, err := m.orphanedResourceCleanupCount.GetMetricWith(labels)
+	if err != nil {
+		logger.Error(err, "Failed to collect metric for SparkApplication", "name", app.Name, "namespace", app.Namespace, "metric", common.MetricSparkApplicationOrphanedResourceCleanupCount, "labels", labels)
+		return
+	}
+
+	counter.Inc()
+	logger.V(1).Info("Increased spark application orphaned resource cleanup count", "name", app.Name, "namespace", app.Namespace, "metric", common.MetricSparkApplicationOrphanedResourceCleanupCount, "labels", labels)
 }
 
 func (m *SparkApplicationMetrics) observeSuccessExecutionTimeSeconds(app *v1beta2.SparkApplication) {
