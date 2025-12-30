@@ -29,6 +29,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
 	"github.com/kubeflow/spark-operator/v2/api/v1beta2"
@@ -75,6 +76,7 @@ func (d *SparkPodDefaulter) Default(ctx context.Context, obj runtime.Object) err
 		return nil
 	}
 
+	logger := log.FromContext(ctx)
 	namespace := pod.Namespace
 	if !d.isSparkJobNamespace(namespace) {
 		return nil
@@ -90,9 +92,8 @@ func (d *SparkPodDefaulter) Default(ctx context.Context, obj runtime.Object) err
 		return fmt.Errorf("failed to get SparkApplication %s/%s: %v", namespace, appName, err)
 	}
 
-	logger.Info("Mutating Spark pod", "name", pod.Name, "namespace", namespace, "phase", pod.Status.Phase)
+	logger.Info("Mutating Spark pod", "phase", pod.Status.Phase)
 	if err := mutateSparkPod(pod, app); err != nil {
-		logger.Info("Denying Spark pod", "name", pod.Name, "namespace", namespace, "errorMessage", err.Error())
 		return fmt.Errorf("failed to mutate Spark pod: %v", err)
 	}
 
@@ -128,7 +129,6 @@ func addMemoryLimit(pod *corev1.Pod, app *v1beta2.SparkApplication) error {
 
 	// Apply the memory limit to the container's resources
 	pod.Spec.Containers[i].Resources.Limits[corev1.ResourceMemory] = limitQuantity
-	logger.V(1).Info("Added memory limit to Spark container in pod", "name", pod.Name, "namespace", pod.Namespace, "memoryLimit", limitQuantity.String())
 	return nil
 }
 
@@ -336,11 +336,12 @@ func addGeneralConfigMaps(pod *corev1.Pod, app *v1beta2.SparkApplication) error 
 		configMaps = app.Spec.Executor.ConfigMaps
 	}
 
+	logger := log.FromContext(context.TODO())
 	for _, namePath := range configMaps {
 		volumeName := namePath.Name + "-vol"
 		if len(volumeName) > maxNameLength {
 			volumeName = volumeName[0:maxNameLength]
-			logger.Info(fmt.Sprintf("ConfigMap volume name is too long. Truncating to length %d. Result: %s.", maxNameLength, volumeName))
+			logger.Info("ConfigMap volume name is too long. Truncating", "result", volumeName)
 		}
 		if err := addConfigMapVolume(pod, namePath.Name, volumeName); err != nil {
 			return err
@@ -632,6 +633,8 @@ func addGPU(pod *corev1.Pod, app *v1beta2.SparkApplication) error {
 	if gpu == nil {
 		return nil
 	}
+
+	logger := log.FromContext(context.TODO())
 	if gpu.Name == "" {
 		logger.V(1).Info(fmt.Sprintf("Please specify GPU resource name, such as: nvidia.com/gpu, amd.com/gpu etc. Current gpu spec: %+v", gpu))
 		return nil

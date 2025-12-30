@@ -20,6 +20,7 @@ import (
 	"context"
 
 	"k8s.io/apimachinery/pkg/runtime"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
 	"github.com/kubeflow/spark-operator/v2/api/v1beta2"
@@ -53,7 +54,8 @@ func (d *SparkApplicationDefaulter) Default(ctx context.Context, obj runtime.Obj
 		return nil
 	}
 
-	logger.Info("Defaulting SparkApplication", "name", app.Name, "namespace", app.Namespace, "state", util.GetApplicationState(app))
+	logger := log.FromContext(ctx)
+	logger.Info("Defaulting SparkApplication", "state", util.GetApplicationState(app))
 	operatorscheme.WebhookScheme.Default(app)
 	return nil
 }

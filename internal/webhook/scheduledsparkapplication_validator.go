@@ -23,6 +23,7 @@ import (
 
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/validation"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
 	"github.com/kubeflow/spark-operator/v2/api/v1beta2"
@@ -47,7 +48,8 @@ func (v *ScheduledSparkApplicationValidator) ValidateCreate(ctx context.Context,
 	if !ok {
 		return nil, nil
 	}
-	logger.Info("Validating SchedulingSparkApplication create", "name", app.Name, "namespace", app.Namespace)
+	logger := log.FromContext(ctx)
+	logger.Info("Validating ScheduledSparkApplication create")
 	// Validate metadata.name early to prevent downstream Service creation failures
 	if err := v.validateName(app.Name); err != nil {
 		return nil, err
@@ -64,7 +66,8 @@ func (v *ScheduledSparkApplicationValidator) ValidateUpdate(ctx context.Context,
 	if !ok {
 		return nil, nil
 	}
-	logger.Info("Validating SchedulingSparkApplication update", "name", newApp.Name, "namespace", newApp.Namespace)
+	logger := log.FromContext(ctx)
+	logger.Info("Validating ScheduledSparkApplication update")
 	// Name is immutable in Kubernetes, but validate anyway for safety in case of admission reconcilers
 	if err := v.validateName(newApp.Name); err != nil {
 		return nil, err
@@ -77,11 +80,11 @@ func (v *ScheduledSparkApplicationValidator) ValidateUpdate(ctx context.Context,
 
 // ValidateDelete implements admission.CustomValidator.
 func (v *ScheduledSparkApplicationValidator) ValidateDelete(ctx context.Context, obj runtime.Object) (warnings admission.Warnings, err error) {
-	app, ok := obj.(*v1beta2.ScheduledSparkApplication)
-	if !ok {
+	if _, ok := obj.(*v1beta2.ScheduledSparkApplication); !ok {
 		return nil, nil
 	}
-	logger.Info("Validating ScheduledSparkApplication delete", "name", app.Name, "namespace", app.Namespace)
+	logger := log.FromContext(ctx)
+	logger.Info("Validating ScheduledSparkApplication delete")
 	return nil, nil
 }
 

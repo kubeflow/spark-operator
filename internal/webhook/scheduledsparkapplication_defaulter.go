@@ -20,6 +20,7 @@ import (
 	"context"
 
 	"k8s.io/apimachinery/pkg/runtime"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
 	"github.com/kubeflow/spark-operator/v2/api/v1beta2"
@@ -40,10 +41,11 @@ var _ admission.CustomDefaulter = &ScheduledSparkApplicationDefaulter{}
 
 // Default implements admission.CustomDefaulter.
 func (d *ScheduledSparkApplicationDefaulter) Default(ctx context.Context, obj runtime.Object) error {
-	app, ok := obj.(*v1beta2.ScheduledSparkApplication)
-	if !ok {
+	if _, ok := obj.(*v1beta2.ScheduledSparkApplication); !ok {
 		return nil
 	}
-	logger.Info("Defaulting ScheduledSparkApplication", "name", app.Name, "namespace", app.Namespace)
+
+	logger := log.FromContext(ctx)
+	logger.Info("Defaulting ScheduledSparkApplication")
 	return nil
 }

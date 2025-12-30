@@ -16,14 +16,6 @@ limitations under the License.
 
 package webhook
 
-import (
-	ctrl "sigs.k8s.io/controller-runtime"
-)
-
-var (
-	logger = ctrl.Log.WithName("")
-)
-
 type Options struct {
 	SparkJobNamespaces             []string
 	WebhookName                    string
