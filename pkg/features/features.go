@@ -26,6 +26,17 @@ import (
 	featuregatetesting "k8s.io/component-base/featuregate/testing"
 )
 
+const (
+	// PartialRestart enables skipping reconcile for webhook-patched executor fields.
+	// When enabled, changes to executor's PriorityClassName, NodeSelector, Tolerations,
+	// Affinity, and SchedulerName will not trigger application restart since these fields
+	// are applied by the mutating webhook when new pods are created.
+	//
+	// owner: @Kevinz857
+	// alpha: v2.5.0
+	PartialRestart featuregate.Feature = "PartialRestart"
+)
+
 // To add a new feature gate, follow these steps:
 //
 // 1. Define a new feature gate constant:
@@ -60,7 +71,9 @@ func init() {
 //
 // Entries are separated from each other with blank lines to avoid sweeping gofmt changes
 // when adding or removing one entry.
-var defaultFeatureGates = map[featuregate.Feature]featuregate.FeatureSpec{}
+var defaultFeatureGates = map[featuregate.Feature]featuregate.FeatureSpec{
+	PartialRestart: {Default: false, PreRelease: featuregate.Alpha},
+}
 
 // SetFeatureGateDuringTest sets the specified feature gate to the specified value during a test.
 func SetFeatureGateDuringTest(tb testing.TB, f featuregate.Feature, value bool) {

@@ -68,6 +68,13 @@ controller:
   # -- Number of replicas of controller.
   replicas: 1
 
+  # -- Feature gates to enable or disable specific features.
+  # Example:
+  # featureGates:
+  # - name: PartialRestart
+  #   enabled: true
+  featureGates: []
+
   # -- The number of old history to retain to allow rollback.
   revisionHistoryLimit: 10
 

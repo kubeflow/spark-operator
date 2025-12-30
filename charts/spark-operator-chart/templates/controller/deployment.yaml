@@ -124,6 +124,9 @@ spec:
         {{- if .Values.controller.maxTrackedExecutorPerApp }}
         - --max-tracked-executor-per-app={{ .Values.controller.maxTrackedExecutorPerApp }}
         {{- end }}
+        {{- if .Values.controller.featureGates }}
+        - --feature-gates={{ range $index, $gate := .Values.controller.featureGates }}{{ if $index }},{{ end }}{{ $gate.name }}={{ $gate.enabled }}{{ end }}
+        {{- end }}
         {{- if or .Values.prometheus.metrics.enable .Values.controller.pprof.enable }}
         ports:
         {{- if .Values.controller.pprof.enable }}

@@ -18,6 +18,7 @@ package sparkapplication
 
 import (
 	"context"
+	"reflect"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
@@ -30,6 +31,7 @@ import (
 
 	"github.com/go-logr/logr"
 	"github.com/kubeflow/spark-operator/v2/api/v1beta2"
+	"github.com/kubeflow/spark-operator/v2/pkg/features"
 	"github.com/kubeflow/spark-operator/v2/pkg/util"
 )
 
@@ -175,10 +177,28 @@ func (f *EventFilter) Update(e event.UpdateEvent) bool {
 	// This is currently best effort as we can potentially miss updates and end up in an inconsistent state.
 	if !equality.Semantic.DeepEqual(oldApp.Spec, newApp.Spec) {
 
-		// Only Spec.Suspend can be updated
-		oldApp.Spec.Suspend = newApp.Spec.Suspend
-		if equality.Semantic.DeepEqual(oldApp.Spec, newApp.Spec) {
+		// Only Spec.Suspend can be updated without any action
+		oldAppCopy := oldApp.DeepCopy()
+		oldAppCopy.Spec.Suspend = newApp.Spec.Suspend
+		if equality.Semantic.DeepEqual(oldAppCopy.Spec, newApp.Spec) {
 			return true
+		}
+
+		// Check if only webhook-patched fields changed (requires PartialRestart feature gate).
+		// These fields are applied by the mutating webhook when new pods are created,
+		// so we don't need to trigger a reconcile - the webhook cache will automatically
+		// use the new values for any newly created pods.
+		if features.Enabled(features.PartialRestart) && f.isWebhookPatchedFieldsOnlyChange(oldApp, newApp) {
+			f.logger.Info("Only webhook-patched fields changed, skipping reconcile",
+				"name", newApp.Name, "namespace", newApp.Namespace)
+			f.recorder.Eventf(
+				newApp,
+				corev1.EventTypeNormal,
+				"SparkApplicationWebhookFieldsUpdated",
+				"SparkApplication %s webhook-patched fields updated, new pods will use updated values",
+				newApp.Name,
+			)
+			return false
 		}
 
 		// Force-set the application status to Invalidating which handles clean-up and application re-run.
@@ -223,4 +243,77 @@ func (f *EventFilter) Generic(e event.GenericEvent) bool {
 
 func (f *EventFilter) filter(app *v1beta2.SparkApplication) bool {
 	return f.namespaces[metav1.NamespaceAll] || f.namespaces[app.Namespace]
+}
+
+// isWebhookPatchedFieldsOnlyChange checks if the spec changes only involve fields
+// that are patched by the mutating webhook when pods are created.
+// These fields don't require a full application restart because:
+// 1. They don't affect already running pods
+// 2. The webhook will automatically apply the new values to any newly created pods
+//
+// Currently supported webhook-patched fields for Executor:
+// - PriorityClassName
+// - NodeSelector
+// - Tolerations
+// - Affinity
+// - SchedulerName
+//
+// Note: Driver field changes still require full restart since the driver pod
+// is not recreated during the application lifecycle.
+func (f *EventFilter) isWebhookPatchedFieldsOnlyChange(oldApp, newApp *v1beta2.SparkApplication) bool {
+	// First check if there are any webhook-patched field changes
+	if !hasExecutorWebhookFieldChanges(oldApp, newApp) {
+		// No webhook fields changed, so this is not a "webhook-only" change
+		return false
+	}
+
+	// Create copies to compare non-webhook fields
+	oldCopy := oldApp.DeepCopy()
+	newCopy := newApp.DeepCopy()
+
+	// Zero out webhook-patched executor fields in both copies
+	clearWebhookPatchedExecutorFields(&oldCopy.Spec.Executor)
+	clearWebhookPatchedExecutorFields(&newCopy.Spec.Executor)
+
+	// Also zero out Suspend field as it's handled separately
+	oldCopy.Spec.Suspend = nil
+	newCopy.Spec.Suspend = nil
+
+	// If specs are equal after clearing webhook-patched fields,
+	// then only webhook-patched fields changed
+	return equality.Semantic.DeepEqual(oldCopy.Spec, newCopy.Spec)
+}
+
+// clearWebhookPatchedExecutorFields zeros out the executor fields that are
+// patched by the mutating webhook.
+func clearWebhookPatchedExecutorFields(executor *v1beta2.ExecutorSpec) {
+	executor.PriorityClassName = nil
+	executor.NodeSelector = nil
+	executor.Tolerations = nil
+	executor.Affinity = nil
+	executor.SchedulerName = nil
+}
+
+// hasExecutorWebhookFieldChanges checks if any webhook-patched executor fields changed.
+// This is useful for logging which fields triggered the skip.
+func hasExecutorWebhookFieldChanges(oldApp, newApp *v1beta2.SparkApplication) bool {
+	oldExec := &oldApp.Spec.Executor
+	newExec := &newApp.Spec.Executor
+
+	if !reflect.DeepEqual(oldExec.PriorityClassName, newExec.PriorityClassName) {
+		return true
+	}
+	if !reflect.DeepEqual(oldExec.NodeSelector, newExec.NodeSelector) {
+		return true
+	}
+	if !reflect.DeepEqual(oldExec.Tolerations, newExec.Tolerations) {
+		return true
+	}
+	if !reflect.DeepEqual(oldExec.Affinity, newExec.Affinity) {
+		return true
+	}
+	if !reflect.DeepEqual(oldExec.SchedulerName, newExec.SchedulerName) {
+		return true
+	}
+	return false
 }
