@@ -91,6 +91,7 @@ See [helm uninstall](https://helm.sh/docs/helm/helm_uninstall) for command docum
 | hook.affinity | object | `{}` | Affinity for the Helm hook Job. |
 | hook.tolerations | list | `[]` | List of node taints to tolerate for the Helm hook Job. |
 | controller.replicas | int | `1` | Number of replicas of controller. |
+| controller.featureGates | list | `[]` | Feature gates to enable or disable specific features. Example: featureGates: - name: PartialRestart   enabled: true |
 | controller.revisionHistoryLimit | int | `10` | The number of old history to retain to allow rollback. |
 | controller.leaderElection.enable | bool | `true` | Specifies whether to enable leader election for controller. |
 | controller.leaderElection.leaseDuration | string | `"15s"` | Leader election lease duration. |

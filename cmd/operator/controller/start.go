@@ -31,6 +31,7 @@ import (
 
 	// Import features package to register feature gates.
 	_ "github.com/kubeflow/spark-operator/v2/pkg/features"
+	utilfeature "k8s.io/apiserver/pkg/util/feature"
 	"k8s.io/client-go/rest"
 
 	"github.com/spf13/cobra"
@@ -199,6 +200,8 @@ func NewStartCommand() *cobra.Command {
 	ctrl.RegisterFlags(flagSet)
 	zapOptions.BindFlags(flagSet)
 	command.Flags().AddGoFlagSet(flagSet)
+
+	utilfeature.DefaultMutableFeatureGate.AddFlag(command.Flags())
 
 	return command
 }

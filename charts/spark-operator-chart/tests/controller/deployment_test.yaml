@@ -828,3 +828,33 @@ tests:
           path: spec.template.spec.containers[?(@.name=="spark-operator-controller")].args
           content: --leader-election-retry-period=15s
 
+  - it: Should not contain `--feature-gates` arg if `controller.featureGates` is not set
+    asserts:
+      - notContains:
+          path: spec.template.spec.containers[?(@.name=="spark-operator-controller")].args
+          pattern: --feature-gates=.*
+
+  - it: Should contain `--feature-gates` arg with single feature gate if `controller.featureGates` is set
+    set:
+      controller:
+        featureGates:
+          - name: PartialRestart
+            enabled: true
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[?(@.name=="spark-operator-controller")].args
+          content: --feature-gates=PartialRestart=true
+
+  - it: Should contain `--feature-gates` arg with multiple feature gates if `controller.featureGates` is set
+    set:
+      controller:
+        featureGates:
+          - name: PartialRestart
+            enabled: true
+          - name: AnotherFeature
+            enabled: false
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[?(@.name=="spark-operator-controller")].args
+          content: --feature-gates=PartialRestart=true,AnotherFeature=false
+
