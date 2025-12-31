@@ -33,6 +33,7 @@ import (
 
 	"github.com/kubeflow/spark-operator/v2/api/v1beta2"
 	"github.com/kubeflow/spark-operator/v2/pkg/common"
+	"github.com/kubeflow/spark-operator/v2/pkg/features"
 	"github.com/kubeflow/spark-operator/v2/pkg/util"
 )
 
@@ -99,6 +100,7 @@ func buildSparkSubmitArgs(app *v1beta2.SparkApplication) ([]string, error) {
 		deployModeOption,
 		mainClassOption,
 		nameOption,
+		loadSparkDefaultsOption,
 		dependenciesOption,
 		namespaceOption,
 		imageOption,
@@ -1150,6 +1152,15 @@ func executorPodTemplateOption(app *v1beta2.SparkApplication) ([]string, error) 
 		fmt.Sprintf("%s=%s", common.SparkKubernetesExecutorPodTemplateFile, podTemplateFile),
 		"--conf",
 		fmt.Sprintf("%s=%s", common.SparkKubernetesExecutorPodTemplateContainerName, common.Spark3DefaultExecutorContainerName),
+	}
+	return args, nil
+}
+
+// loadSparkDefaultsOption adds `--load-spark-defaults` flag to the command when feature gate `LoadSparkDefaults` is enabled.
+func loadSparkDefaultsOption(_ *v1beta2.SparkApplication) ([]string, error) {
+	args := []string{}
+	if features.Enabled(features.LoadSparkDefaults) {
+		args = append(args, "--load-spark-defaults")
 	}
 	return args, nil
 }
