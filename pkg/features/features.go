@@ -35,6 +35,14 @@ const (
 	// owner: @Kevinz857
 	// alpha: v2.5.0
 	PartialRestart featuregate.Feature = "PartialRestart"
+
+	// LoadSparkDefaults enables loading of Spark default properties file (e.g. `${SPARK_CONF_DIR}/spark-defaults.conf` or `${SPARK_HOME}/conf/spark-defaults.conf`).
+	// When enabled, operator will add `--load-spark-defaults` flag to spark-submit command (available since Spark 4.0.0).
+	// See https://github.com/kubeflow/spark-operator/issues/2795.
+	//
+	// owner: @ChenYi015
+	// alpha: v2.5.0
+	LoadSparkDefaults featuregate.Feature = "LoadSparkDefaults"
 )
 
 // To add a new feature gate, follow these steps:
@@ -73,6 +81,8 @@ func init() {
 // when adding or removing one entry.
 var defaultFeatureGates = map[featuregate.Feature]featuregate.FeatureSpec{
 	PartialRestart: {Default: false, PreRelease: featuregate.Alpha},
+
+	LoadSparkDefaults: {Default: false, PreRelease: featuregate.Alpha},
 }
 
 // SetFeatureGateDuringTest sets the specified feature gate to the specified value during a test.
