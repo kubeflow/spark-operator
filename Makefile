@@ -19,7 +19,7 @@ GIT_COMMIT := $(shell git rev-parse HEAD)
 GIT_TAG := $(shell if [ -z "`git status --porcelain`" ]; then git describe --exact-match --tags HEAD 2>/dev/null; fi)
 GIT_TREE_STATE := $(shell if [ -z "`git status --porcelain`" ]; then echo "clean" ; else echo "dirty"; fi)
 GIT_SHA := $(shell git rev-parse --short HEAD || echo "HEAD")
-GIT_VERSION := ${VERSION}+${GIT_SHA}
+GIT_VERSION := v${VERSION}
 
 MODULE_PATH := $(shell awk '/^module/{print $$2; exit}' go.mod)
 SPARK_OPERATOR_GOPATH := /go/src/github.com/kubeflow/spark-operator
@@ -94,13 +94,10 @@ help: ## Display this help.
 
 .PHONY: version
 version: ## Print version information.
-	@echo "Version: ${VERSION}"
-	@echo "Build Date: ${BUILD_DATE}"
-	@echo "Git Commit: ${GIT_COMMIT}"
-	@echo "Git Tag: ${GIT_TAG}"
-	@echo "Git Tree State: ${GIT_TREE_STATE}"
-	@echo "Git SHA: ${GIT_SHA}"
 	@echo "Git Version: ${GIT_VERSION}"
+	@echo "Git Commit: ${GIT_COMMIT}"
+	@echo "Git Tree State: ${GIT_TREE_STATE}"
+	@echo "Build Date: ${BUILD_DATE}"
 
 .PHONY: print-%
 print-%: ; @echo $*=$($*)
@@ -175,10 +172,10 @@ e2e-test: envtest ## Run the e2e tests against a Kind k8s instance that is spun 
 ##@ Build
 
 override LDFLAGS += \
-  -X ${MODULE_PATH}.version=${GIT_VERSION} \
-  -X ${MODULE_PATH}.buildDate=${BUILD_DATE} \
-  -X ${MODULE_PATH}.gitCommit=${GIT_COMMIT} \
-  -X ${MODULE_PATH}.gitTreeState=${GIT_TREE_STATE} \
+  -X k8s.io/component-base/version.gitVersion=${GIT_VERSION} \
+  -X k8s.io/component-base/version.gitCommit=${GIT_COMMIT} \
+  -X k8s.io/component-base/version.gitTreeState=${GIT_TREE_STATE} \
+  -X k8s.io/component-base/version.buildDate=${BUILD_DATE} \
   -extldflags "-static"
 
 .PHONY: build-operator
