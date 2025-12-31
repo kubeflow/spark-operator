@@ -92,7 +92,7 @@ func (d *SparkPodDefaulter) Default(ctx context.Context, obj runtime.Object) err
 		return fmt.Errorf("failed to get SparkApplication %s/%s: %v", namespace, appName, err)
 	}
 
-	logger.Info("Mutating Spark pod", "phase", pod.Status.Phase)
+	logger.Info("Mutating Pod", "phase", pod.Status.Phase)
 	if err := mutateSparkPod(pod, app); err != nil {
 		return fmt.Errorf("failed to mutate Spark pod: %v", err)
 	}

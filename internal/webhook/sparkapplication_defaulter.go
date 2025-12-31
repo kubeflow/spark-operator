@@ -55,7 +55,7 @@ func (d *SparkApplicationDefaulter) Default(ctx context.Context, obj runtime.Obj
 	}
 
 	logger := log.FromContext(ctx)
-	logger.Info("Defaulting SparkApplication", "state", util.GetApplicationState(app))
+	logger.Info("Mutating SparkApplication", "state", util.GetApplicationState(app))
 	operatorscheme.WebhookScheme.Default(app)
 	return nil
 }

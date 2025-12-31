@@ -46,6 +46,6 @@ func (d *ScheduledSparkApplicationDefaulter) Default(ctx context.Context, obj ru
 	}
 
 	logger := log.FromContext(ctx)
-	logger.Info("Defaulting ScheduledSparkApplication")
+	logger.Info("Mutating ScheduledSparkApplication")
 	return nil
 }
