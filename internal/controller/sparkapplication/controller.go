@@ -923,7 +923,10 @@ func (r *Reconciler) submitSparkApplication(ctx context.Context, app *v1beta2.Sp
 	}
 
 	// Use batch scheduler to perform scheduling task before submitting (before build command arguments).
-	if needScheduling, scheduler := r.shouldDoBatchScheduling(ctx, app); needScheduling {
+	if needScheduling, scheduler, err := r.shouldDoBatchScheduling(ctx, app); err != nil {
+		submitErr = fmt.Errorf("failed during batch scheduler setup or check: %v", err)
+		return
+	} else if needScheduling {
 		logger.Info("Do batch scheduling for SparkApplication")
 		if err := scheduler.Schedule(app); err != nil {
 			submitErr = fmt.Errorf("failed to process batch scheduler: %v", err)
@@ -1397,11 +1400,10 @@ func (r *Reconciler) resetSparkApplicationStatus(app *v1beta2.SparkApplication) 
 	}
 }
 
-func (r *Reconciler) shouldDoBatchScheduling(ctx context.Context, app *v1beta2.SparkApplication) (bool, scheduler.Interface) {
-	logger := log.FromContext(ctx)
+func (r *Reconciler) shouldDoBatchScheduling(ctx context.Context, app *v1beta2.SparkApplication) (bool, scheduler.Interface, error) {
 	// If batch scheduling isn't enabled
 	if r.registry == nil {
-		return false, nil
+		return false, nil, nil
 	}
 
 	schedulerName := r.options.DefaultBatchScheduler
@@ -1411,7 +1413,7 @@ func (r *Reconciler) shouldDoBatchScheduling(ctx context.Context, app *v1beta2.S
 
 	// If both the default and app batch scheduler are unspecified or empty
 	if schedulerName == "" {
-		return false, nil
+		return false, nil, nil
 	}
 
 	var err error
@@ -1438,15 +1440,14 @@ func (r *Reconciler) shouldDoBatchScheduling(ctx context.Context, app *v1beta2.S
 	}
 
 	if err != nil || scheduler == nil {
-		logger.Error(err, "Failed to get scheduler for SparkApplication", "scheduler", schedulerName)
-		return false, nil
+		return false, nil, fmt.Errorf("failed to get scheduler %s: %v", schedulerName, err)
 	}
-	return scheduler.ShouldSchedule(app), scheduler
+	return scheduler.ShouldSchedule(app), scheduler, nil
 }
 
 // Clean up when the spark application is terminated.
 func (r *Reconciler) cleanUpOnTermination(ctx context.Context, _, newApp *v1beta2.SparkApplication) error {
-	if needScheduling, scheduler := r.shouldDoBatchScheduling(ctx, newApp); needScheduling {
+	if needScheduling, scheduler, _ := r.shouldDoBatchScheduling(ctx, newApp); needScheduling {
 		if err := scheduler.Cleanup(newApp); err != nil {
 			return err
 		}
