@@ -16,6 +16,12 @@ limitations under the License.
 
 package webhook
 
+import (
+	"github.com/go-logr/logr"
+	"k8s.io/klog/v2"
+	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
+)
+
 type Options struct {
 	SparkJobNamespaces             []string
 	WebhookName                    string
@@ -26,4 +32,18 @@ type Options struct {
 	WebhookServiceNamespace        string
 	WebhookMetricsBindAddress      string
 	EnableResourceQuotaEnforcement bool
+}
+
+// LogConstructor is used to customize the loggers used in webhooks.
+func LogConstructor(logger logr.Logger, req *admission.Request) logr.Logger {
+	if req == nil {
+		return logger
+	}
+
+	return logger.WithValues(
+		req.Kind.Kind,
+		klog.KRef(req.Namespace, req.Name),
+		"requestID",
+		req.UID,
+	)
 }
