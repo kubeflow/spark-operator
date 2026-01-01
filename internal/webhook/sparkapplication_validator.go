@@ -26,6 +26,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/validation"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
 	"github.com/kubeflow/spark-operator/v2/api/v1beta2"
@@ -59,7 +60,8 @@ func (v *SparkApplicationValidator) ValidateCreate(ctx context.Context, obj runt
 	if !ok {
 		return nil, nil
 	}
-	logger.Info("Validating SparkApplication create", "name", app.Name, "namespace", app.Namespace, "state", util.GetApplicationState(app))
+	logger := log.FromContext(ctx)
+	logger.Info("Validating SparkApplication create", "state", util.GetApplicationState(app))
 
 	// Validate metadata.name early to prevent downstream Service creation failures
 	if err := v.validateName(app.Name); err != nil {
@@ -90,7 +92,8 @@ func (v *SparkApplicationValidator) ValidateUpdate(ctx context.Context, oldObj r
 		return nil, nil
 	}
 
-	logger.Info("Validating SparkApplication update", "name", newApp.Name, "namespace", newApp.Namespace)
+	logger := log.FromContext(ctx)
+	logger.Info("Validating SparkApplication update", "state", util.GetApplicationState(newApp))
 
 	// Name is immutable in Kubernetes, but validate anyway for safety in case of admission reconcilers
 	if err := v.validateName(newApp.Name); err != nil {
@@ -122,13 +125,12 @@ func (v *SparkApplicationValidator) ValidateDelete(ctx context.Context, obj runt
 	if !ok {
 		return nil, nil
 	}
-	logger.Info("Validating SparkApplication delete", "name", app.Name, "namespace", app.Namespace, "state", util.GetApplicationState(app))
+	logger := log.FromContext(ctx)
+	logger.Info("Validating SparkApplication delete", "state", util.GetApplicationState(app))
 	return nil, nil
 }
 
-func (v *SparkApplicationValidator) validateSpec(_ context.Context, app *v1beta2.SparkApplication) error {
-	logger.V(1).Info("Validating SparkApplication spec", "name", app.Name, "namespace", app.Namespace, "state", util.GetApplicationState(app))
-
+func (v *SparkApplicationValidator) validateSpec(ctx context.Context, app *v1beta2.SparkApplication) error {
 	if err := v.validateSparkVersion(app); err != nil {
 		return err
 	}
@@ -181,8 +183,6 @@ func (v *SparkApplicationValidator) validateSparkVersion(app *v1beta2.SparkAppli
 }
 
 func (v *SparkApplicationValidator) validateResourceUsage(ctx context.Context, app *v1beta2.SparkApplication) error {
-	logger.V(1).Info("Validating SparkApplication resource usage", "name", app.Name, "namespace", app.Namespace, "state", util.GetApplicationState(app))
-
 	requests, err := getResourceList(app)
 	if err != nil {
 		return fmt.Errorf("failed to calculate resource quests: %v", err)
