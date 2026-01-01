@@ -69,22 +69,6 @@ var _ = Describe("GetMasterURL", func() {
 	})
 })
 
-var _ = Describe("ContainsString", func() {
-	slice := []string{"a", "b", "c"}
-
-	Context("When the string is in the slice", func() {
-		It("Should return true", func() {
-			Expect(util.ContainsString(slice, "b")).To(BeTrue())
-		})
-	})
-
-	Context("When the string is not in the slice", func() {
-		It("Should return false", func() {
-			Expect(util.ContainsString(slice, "d")).To(BeFalse())
-		})
-	})
-})
-
 var _ = Describe("RemoveString", func() {
 	Context("When the string is in the slice", func() {
 		slice := []string{"a", "b", "c"}

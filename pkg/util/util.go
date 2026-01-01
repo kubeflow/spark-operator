@@ -62,17 +62,6 @@ func GetMasterURL() (string, error) {
 	return fmt.Sprintf("k8s://https://%s:%s", kubernetesServiceHost, kubernetesServicePort), nil
 }
 
-// Helper functions to check and remove a string from a slice of strings.
-// ContainsString checks if a given string is present in a slice
-func ContainsString(slice []string, s string) bool {
-	for _, item := range slice {
-		if item == s {
-			return true
-		}
-	}
-	return false
-}
-
 // RemoveString removes a given string from a slice, if present
 func RemoveString(slice []string, s string) (result []string) {
 	for _, item := range slice {

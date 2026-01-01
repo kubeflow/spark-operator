@@ -21,6 +21,7 @@ import (
 	"crypto/tls"
 	"flag"
 	"os"
+	"slices"
 	"time"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
@@ -53,7 +54,6 @@ import (
 	"github.com/kubeflow/spark-operator/v2/pkg/certificate"
 	"github.com/kubeflow/spark-operator/v2/pkg/common"
 	operatorscheme "github.com/kubeflow/spark-operator/v2/pkg/scheme"
-	"github.com/kubeflow/spark-operator/v2/pkg/util"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -363,7 +363,7 @@ func newTLSOptions() []func(c *tls.Config) {
 // newCacheOptions creates and returns a cache.Options instance configured with default namespaces and object caching settings.
 func newCacheOptions() cache.Options {
 	defaultNamespaces := make(map[string]cache.Config)
-	if !util.ContainsString(namespaces, cache.AllNamespaces) {
+	if !slices.Contains(namespaces, cache.AllNamespaces) {
 		for _, ns := range namespaces {
 			defaultNamespaces[ns] = cache.Config{}
 		}
