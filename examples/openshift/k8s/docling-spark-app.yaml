@@ -7,7 +7,7 @@ spec:
   type: Python
   pythonVersion: "3"
   mode: cluster
-  image: quay.io/rishasin/docling-spark:latest
+  image: quay.io/ssankepe/docling-spark:with-pdfs
   imagePullPolicy: Always
   timeToLiveSeconds: 1200  # <--- (Keeps pod for 20 minutes)
   mainApplicationFile: local:///app/scripts/run_spark_job.py
