@@ -141,7 +141,7 @@ metadata:
 spec:
   type: Python
   mode: cluster
-  image: quay.io/rishasin/docling-spark:latest
+  image: quay.io/ssankepe/docling-spark:with-pdfs
   imagePullPolicy: Always
   mainApplicationFile: local:///app/scripts/run_spark_job.py
   arguments:
@@ -188,7 +188,7 @@ The `docling-spark` application demonstrates a production-grade pattern for proc
 You have two options depending on your use case:
 
 #### **Option A: Use Pre-Built Image (Recommended for Quick Start)**
-The repository is pre-configured to use `quay.io/rishasin/docling-spark:latest`, which contains sample PDFs from the `assets/` directory. This allows you to **skip the build step entirely** and deploy immediately.
+The repository is pre-configured to use `quay.io/ssankepe/docling-spark:with-pdfs`, which contains sample PDFs from the `assets/` directory. This allows you to **skip the build step entirely** and deploy immediately.
 
 Proceed directly to Step 2 (Deploy to Red Hat AI).
 

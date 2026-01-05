@@ -122,9 +122,9 @@ var _ = BeforeSuite(func() {
 
 	// Initialize test environment - connect to existing Kind cluster
 	testEnv = &envtest.Environment{
-		CRDDirectoryPaths:     []string{filepath.Join("..", "..", "config", "crd", "bases")},
+		CRDDirectoryPaths:     []string{filepath.Join("..", "..", "..""config", "crd", "bases")},
 		ErrorIfCRDPathMissing: true,
-		BinaryAssetsDirectory: filepath.Join("..", "..", "bin", "k8s",
+		BinaryAssetsDirectory: filepath.Join("..", "..", "..", "bin", "k8s",
 			fmt.Sprintf("1.32.0-%s-%s", runtime.GOOS, runtime.GOARCH)),
 		UseExistingCluster: ptr.To(true),
 	}
@@ -165,7 +165,7 @@ var _ = BeforeSuite(func() {
 	// Apply RBAC from examples/openshift/k8s/base/rbac.yaml
 	// This creates: ServiceAccount, Role, and RoleBinding for spark-driver
 	By("Applying RBAC from examples/openshift/k8s/base/rbac.yaml")
-	rbacPath := filepath.Join("..", "..", "examples", "openshift", "k8s", "base", "rbac.yaml")
+	rbacPath := filepath.Join("..", "k8s", "base", "rbac.yaml")
 	applyYAMLFile(rbacPath)
 
 	// Add Helm repository

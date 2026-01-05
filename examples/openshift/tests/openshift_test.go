@@ -131,7 +131,7 @@ var _ = Describe("OpenShift Spark Operator", func() {
 		ctx := context.Background()
 
 		// Path to the docling spark app YAML
-		path := filepath.Join("..", "..", "examples", "openshift", "k8s", "docling-spark-app.yaml")
+		path := filepath.Join("..", "k8s", "docling-spark-app.yaml")
 
 		var app *v1beta2.SparkApplication
 
