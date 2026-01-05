@@ -36,20 +36,9 @@ on:
   push:
     branches:
       - odh
-      - openshift-e2e-ec2-runner #temporary branch for testing
     paths:
       - 'examples/openshift/**'
-      - 'test/e2e-openshift/**'
-      - '.github/workflows/openshift-docling-e2e.yaml'
-
-  # Automatic trigger on pull requests
-  pull_request:
-    branches:
-      - odh
-      - openshift-e2e-ec2-runner #temporary branch for testing
-    paths:
-      - 'examples/openshift/**'
-      - 'test/e2e-openshift/**'
+      - 'examples/openshift/tests/**'
       - '.github/workflows/openshift-docling-e2e.yaml'
 
 env:
@@ -304,7 +293,7 @@ jobs:
           echo ""
 
           # Run the OpenShift-specific tests from the separate directory
-          go test ./test/e2e-openshift/ \
+          go test ./examples/openshift/tests/ \
             -v \
             -ginkgo.v \
             -timeout 30m
