@@ -16,8 +16,7 @@
 #
 # Triggers:
 #   - Manual (workflow_dispatch)
-#   - Push to release* branches when OpenShift-related files change
-#   - Pull requests when OpenShift-related files change
+#   - Push to odh branch when OpenShift-related files change
 #
 # ============================================================================
 
@@ -38,7 +37,6 @@ on:
       - odh
     paths:
       - 'examples/openshift/**'
-      - 'examples/openshift/tests/**'
       - '.github/workflows/openshift-docling-e2e.yaml'
 
 env:
@@ -202,7 +200,7 @@ jobs:
 
       # ======================================================================
       # Step 4: Free up disk space
-      # The docling-spark image is very large (~800MB+), need space
+      # The docling-spark image is very large (~9.5GB), need space
       # ======================================================================
       - name: Free up disk space
         run: |
