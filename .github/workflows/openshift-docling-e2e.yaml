@@ -194,7 +194,7 @@ jobs:
           helm version
 
           echo "Installing Kind..."
-          curl -Lo ./kind https://kind.sigs.k8s.io/dl/v0.24.0/kind-linux-amd64
+          curl -Lo ./kind https://kind.sigs.k8s.io/dl/v0.31.0/kind-linux-amd64
           sudo install -o root -g root -m 0755 kind /usr/local/bin/kind
           kind version
 
