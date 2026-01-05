@@ -292,8 +292,8 @@ jobs:
           echo "  3. Run docling-spark-app workload"
           echo ""
 
-          # Run the OpenShift-specific tests from the separate directory
-          go test ./examples/openshift/tests/ \
+          # Run the OpenShift-specific tests (requires -tags=openshift to include)
+          go test -tags=openshift ./examples/openshift/tests/ \
             -v \
             -ginkgo.v \
             -timeout 30m

@@ -1,3 +1,6 @@
+//go:build openshift
+// +build openshift
+
 /*
 Copyright 2024 The Kubeflow authors.
 
