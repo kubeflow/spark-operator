@@ -1,0 +1,121 @@
+# ============================================================================
+# OpenShift Spark Pi E2E Test (Lightweight)
+# ============================================================================
+#
+# This workflow runs lightweight E2E tests using the Spark Pi example.
+# It validates the Spark Operator installation and basic SparkApplication
+# functionality without requiring the heavy docling-spark image.
+#
+# Runs on: Default GitHub runner (ubuntu-latest)
+# Duration: ~5-10 minutes
+#
+# ============================================================================
+
+name: OpenShift Spark Pi E2E
+
+on:
+  push:
+    branches:
+      - odh
+    paths:
+      - 'examples/openshift/**'
+      - '.github/workflows/openshift-spark-pi-e2e.yaml'
+  pull_request:
+    paths:
+      - 'examples/openshift/**'
+      - '.github/workflows/openshift-spark-pi-e2e.yaml'
+  workflow_dispatch:
+    inputs:
+      debug_enabled:
+        description: 'Run with debug logging'
+        required: false
+        default: 'false'
+
+jobs:
+  spark-pi-e2e:
+    name: Spark Pi E2E Test
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      # ======================================================================
+      # Step 1: Checkout code
+      # ======================================================================
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # ======================================================================
+      # Step 2: Set up Helm
+      # ======================================================================
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: 'v3.14.0'
+
+      # ======================================================================
+      # Step 3: Create Kind cluster
+      # ======================================================================
+      - name: Create Kind cluster
+        uses: helm/kind-action@v1
+        with:
+          cluster_name: spark-operator
+
+      # ======================================================================
+      # Step 4: Verify cluster is ready
+      # ======================================================================
+      - name: Verify cluster is ready
+        run: |
+          echo "Waiting for cluster to be ready..."
+          kubectl wait --for=condition=Ready nodes --all --timeout=120s
+          
+          echo ""
+          echo "Cluster nodes:"
+          kubectl get nodes -o wide
+          
+          echo ""
+          echo "Cluster info:"
+          kubectl cluster-info
+
+      # ======================================================================
+      # Step 5: Run operator install test (keep operator for Spark Pi test)
+      # ======================================================================
+      - name: Run operator install test
+        working-directory: examples/openshift/tests
+        run: |
+          echo "Running operator install test..."
+          chmod +x test-operator-install.sh
+          CLEANUP=false ./test-operator-install.sh
+
+      # ======================================================================
+      # Step 6: Run Spark Pi test
+      # ======================================================================
+      - name: Run Spark Pi test
+        working-directory: examples/openshift/tests
+        run: |
+          echo "Running Spark Pi test..."
+          chmod +x test-spark-pi.sh
+          ./test-spark-pi.sh
+
+      # Note: No explicit cleanup step needed - Kind cluster deletion handles it
+
+      # ======================================================================
+      # Debug: Show cluster state on failure
+      # ======================================================================
+      - name: Debug - Show cluster state
+        if: failure()
+        run: |
+          echo "=== Pods in all namespaces ==="
+          kubectl get pods -A
+          
+          echo ""
+          echo "=== SparkApplications ==="
+          kubectl get sparkapplications -A -o yaml 2>/dev/null || echo "No SparkApplications found"
+          
+          echo ""
+          echo "=== Events ==="
+          kubectl get events -A --sort-by='.lastTimestamp' | tail -50
+          
+          echo ""
+          echo "=== Operator logs ==="
+          kubectl logs -n spark-operator-openshift -l app.kubernetes.io/name=spark-operator --tail=100 2>/dev/null || echo "No operator logs"
+

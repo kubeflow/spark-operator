@@ -1,0 +1,48 @@
+# ============================================================================
+# Spark Pi Application for OpenShift E2E Tests
+# ============================================================================
+#
+# This SparkApplication runs the classic Spark Pi example.
+# It's designed for OpenShift compatibility:
+#   - Empty securityContext (allows OpenShift to assign UIDs)
+#   - Uses spark-driver serviceAccount
+#
+# Variables (substituted by envsubst):
+#   $APP_NAME       - Name of the SparkApplication
+#   $APP_NAMESPACE  - Namespace to deploy to
+#   $SPARK_IMAGE    - Spark image to use
+#
+# ============================================================================
+apiVersion: sparkoperator.k8s.io/v1beta2
+kind: SparkApplication
+metadata:
+  name: ${APP_NAME}
+  namespace: ${APP_NAMESPACE}
+spec:
+  type: Scala
+  mode: cluster
+  image: ${SPARK_IMAGE}
+  imagePullPolicy: IfNotPresent
+  mainClass: org.apache.spark.examples.SparkPi
+  mainApplicationFile: local:///opt/spark/examples/jars/spark-examples_2.12-3.5.0.jar
+  arguments:
+    - "1000"
+  sparkVersion: "3.5.0"
+  restartPolicy:
+    type: Never
+  driver:
+    cores: 1
+    coreLimit: "1200m"
+    memory: "512m"
+    labels:
+      version: 3.5.0
+    serviceAccount: spark-driver
+    securityContext: {}
+  executor:
+    cores: 1
+    instances: 1
+    memory: "512m"
+    labels:
+      version: 3.5.0
+    securityContext: {}
+
