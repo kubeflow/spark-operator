@@ -1,5 +1,5 @@
 /*
-Copyright 2024 The Kubeflow authors.
+Copyright 2025 The Kubeflow authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -17,24 +17,22 @@ limitations under the License.
 package version
 
 import (
-	"github.com/spf13/cobra"
+	"fmt"
 
-	"github.com/kubeflow/spark-operator/v2/pkg/version"
+	"k8s.io/component-base/version"
 )
 
-var (
-	short bool
-)
-
-func NewCommand() *cobra.Command {
-	command := &cobra.Command{
-		Use:   "version",
-		Short: "Print version information",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			version.PrintVersion(short)
-			return nil
-		},
+// PrintVersion prints version information to stdout.
+func PrintVersion(short bool) {
+	v := version.Get()
+	fmt.Printf("Git Version: %s\n", v.GitVersion)
+	if short {
+		return
 	}
-	command.Flags().BoolVar(&short, "short", false, "Print just the version string.")
-	return command
+	fmt.Printf("Git Commit: %s\n", v.GitCommit)
+	fmt.Printf("Git Tree State: %s\n", v.GitTreeState)
+	fmt.Printf("Build Date: %s\n", v.BuildDate)
+	fmt.Printf("Go Version: %s\n", v.GoVersion)
+	fmt.Printf("Compiler: %s\n", v.Compiler)
+	fmt.Printf("Platform: %s\n", v.Platform)
 }

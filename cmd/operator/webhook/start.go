@@ -46,7 +46,6 @@ import (
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	ctrlwebhook "sigs.k8s.io/controller-runtime/pkg/webhook"
 
-	sparkoperator "github.com/kubeflow/spark-operator/v2"
 	"github.com/kubeflow/spark-operator/v2/api/v1beta2"
 	"github.com/kubeflow/spark-operator/v2/internal/controller/mutatingwebhookconfiguration"
 	"github.com/kubeflow/spark-operator/v2/internal/controller/validatingwebhookconfiguration"
@@ -54,6 +53,7 @@ import (
 	"github.com/kubeflow/spark-operator/v2/pkg/certificate"
 	"github.com/kubeflow/spark-operator/v2/pkg/common"
 	operatorscheme "github.com/kubeflow/spark-operator/v2/pkg/scheme"
+	"github.com/kubeflow/spark-operator/v2/pkg/version"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -115,7 +115,7 @@ func NewStartCommand() *cobra.Command {
 			development = viper.GetBool("development")
 		},
 		Run: func(cmd *cobra.Command, args []string) {
-			sparkoperator.PrintVersion(false)
+			version.PrintVersion(false)
 			start()
 		},
 	}
