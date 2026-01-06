@@ -69,11 +69,11 @@ controller:
   replicas: 1
 
   # -- Feature gates to enable or disable specific features.
-  # Example:
-  # featureGates:
-  # - name: PartialRestart
-  #   enabled: true
-  featureGates: []
+  featureGates:
+  - name: PartialRestart
+    enabled: false
+  - name: LoadSparkDefaults
+    enabled: false
 
   # -- The number of old history to retain to allow rollback.
   revisionHistoryLimit: 10
