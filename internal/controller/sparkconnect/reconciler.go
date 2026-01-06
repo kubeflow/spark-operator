@@ -21,6 +21,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"sort"
 	"strings"
 
 	corev1 "k8s.io/api/core/v1"
@@ -474,10 +475,22 @@ func (r *Reconciler) computeServerPodSpecHash(conn *v1alpha1.SparkConnect) (stri
 		hashData.Image = container.Image
 		hashData.Command = container.Command
 		hashData.Args = container.Args
-		hashData.Env = container.Env
+		// Sort env vars by name for deterministic hashing
+		envVars := make([]corev1.EnvVar, len(container.Env))
+		copy(envVars, container.Env)
+		sort.Slice(envVars, func(i, j int) bool {
+			return envVars[i].Name < envVars[j].Name
+		})
+		hashData.Env = envVars
 		hashData.Resources = container.Resources
 	}
-	hashData.Volumes = tempPod.Spec.Volumes
+	// Sort volumes by name for deterministic hashing
+	volumes := make([]corev1.Volume, len(tempPod.Spec.Volumes))
+	copy(volumes, tempPod.Spec.Volumes)
+	sort.Slice(volumes, func(i, j int) bool {
+		return volumes[i].Name < volumes[j].Name
+	})
+	hashData.Volumes = volumes
 
 	// Serialize to YAML for hashing
 	hashBytes, err := yaml.Marshal(hashData)
@@ -554,7 +567,7 @@ func (r *Reconciler) createOrUpdateServerPod(ctx context.Context, conn *v1alpha1
 			"pod", podName,
 			"oldHash", existingPod.Annotations[ServerPodSpecHashAnnotationKey],
 			"newHash", desiredHash)
-		
+
 		// Set updating condition
 		condition := metav1.Condition{
 			Type:    string(v1alpha1.SparkConnectConditionServerPodUpdating),

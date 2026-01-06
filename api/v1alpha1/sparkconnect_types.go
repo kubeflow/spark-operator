@@ -155,7 +155,7 @@ type SparkConnectConditionType string
 
 // All possible condition types of the SparkConnect.
 const (
-	SparkConnectConditionServerPodReady   SparkConnectConditionType = "ServerPodReady"
+	SparkConnectConditionServerPodReady    SparkConnectConditionType = "ServerPodReady"
 	SparkConnectConditionServerPodUpdating SparkConnectConditionType = "ServerPodUpdating"
 )
 
@@ -164,8 +164,8 @@ type SparkConnectConditionReason string
 
 // All possible reasons of SparkConnect conditions.
 const (
-	SparkConnectConditionReasonServerPodReady      SparkConnectConditionReason = "ServerPodReady"
-	SparkConnectConditionReasonServerPodNotReady   SparkConnectConditionReason = "ServerPodNotReady"
+	SparkConnectConditionReasonServerPodReady       SparkConnectConditionReason = "ServerPodReady"
+	SparkConnectConditionReasonServerPodNotReady    SparkConnectConditionReason = "ServerPodNotReady"
 	SparkConnectConditionReasonServerPodSpecChanged SparkConnectConditionReason = "ServerPodSpecChanged"
 )
 
