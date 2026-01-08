@@ -62,6 +62,25 @@ tests:
           path: spec.replicas
           value: 0
 
+  - it: Should not contain deployment annotations by default
+    asserts:
+      - isNull:
+          path: metadata.annotations
+
+  - it: Should set annotations if `controller.deploymentAnnotations` is set
+    set:
+      controller:
+        deploymentAnnotations:
+          key1: value1
+          key2: value2
+    asserts:
+      - equal:
+          path: metadata.annotations["key1"]
+          value: value1
+      - equal:
+          path: metadata.annotations["key2"]
+          value: value2
+
   - it: Should set revisionHistoryLimit to the default value
     asserts:
       - equal:
