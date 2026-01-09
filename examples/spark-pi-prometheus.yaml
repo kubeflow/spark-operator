@@ -22,13 +22,13 @@ metadata:
 spec:
   type: Scala
   mode: cluster
-  image: {IMAGE_REGISTRY}/{IMAGE_REPOSITORY}/docker.io/library/spark:4.0.0-gcs-prometheus
+  image: {IMAGE_REGISTRY}/{IMAGE_REPOSITORY}/docker.io/library/spark:4.0.1-gcs-prometheus
   imagePullPolicy: Always
   mainClass: org.apache.spark.examples.SparkPi
   mainApplicationFile: local:///opt/spark/examples/jars/spark-examples.jar
   arguments:
   - "100000"
-  sparkVersion: 4.0.0
+  sparkVersion: 4.0.1
   restartPolicy:
     type: Never
   driver:
