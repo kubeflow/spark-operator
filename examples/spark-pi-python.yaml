@@ -22,10 +22,10 @@ spec:
   type: Python
   pythonVersion: "3"
   mode: cluster
-  image: docker.io/library/spark:4.0.0
+  image: docker.io/library/spark:4.0.1
   imagePullPolicy: IfNotPresent
   mainApplicationFile: local:///opt/spark/examples/src/main/python/pi.py
-  sparkVersion: 4.0.0
+  sparkVersion: 4.0.1
   driver:
     cores: 1
     memory: 512m
