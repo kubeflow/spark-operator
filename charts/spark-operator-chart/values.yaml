@@ -171,6 +171,9 @@ controller:
     emptyDir:
       sizeLimit: 1Gi
 
+  # -- DNS configuration for controller pods.
+  dnsConfig: {}
+
   # -- Node selector for controller pods.
   nodeSelector: {}
 
@@ -346,6 +349,9 @@ webhook:
     emptyDir:
       sizeLimit: 500Mi
 
+  # -- DNS configuration for webhook pods.
+  dnsConfig: {}
+
   # -- Node selector for webhook pods.
   nodeSelector: {}
 
@@ -391,7 +397,6 @@ webhook:
     mountPath: /etc/k8s-webhook-server/serving-certs
     subPath: serving-certs
     readOnly: false
-
 
   # -- Pod resource requests and limits for webhook pods.
   resources: {}
