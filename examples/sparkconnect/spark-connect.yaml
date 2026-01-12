@@ -19,7 +19,7 @@ metadata:
   name: spark-connect
   namespace: default
 spec:
-  sparkVersion: 4.0.0
+  sparkVersion: 4.0.1
   server:
     template:
       metadata:
@@ -32,7 +32,7 @@ spec:
       spec:
         containers:
         - name: spark-kubernetes-driver
-          image: spark:4.0.0
+          image: docker.io/library/spark:4.0.1
           imagePullPolicy: Always
           resources:
             requests:
@@ -67,7 +67,7 @@ spec:
       spec:
         containers:
         - name: spark-kubernetes-executor
-          image: spark:4.0.0
+          image: docker.io/library/spark:4.0.1
           imagePullPolicy: Always
         securityContext:
           capabilities:
