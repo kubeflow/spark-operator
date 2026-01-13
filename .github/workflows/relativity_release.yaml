@@ -5,16 +5,23 @@ on:
     tags:
       - 'v*'
 
+permissions:
+  id-token: write
+  contents: read
+
 jobs:
   release:
     runs-on: ubuntu-latest
+    environment: 'prod'
     steps:
       - uses: actions/checkout@v3
 
       - name: Azure login
-        uses: Azure/login@v1
+        uses: Azure/login@v2
         with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
+          client-id: ${{ secrets.DDO_SPARK_AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          allow-no-subscriptions: true
 
       - name: Get secrets
         uses: Azure/get-keyvault-secrets@v1

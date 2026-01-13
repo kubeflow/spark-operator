@@ -13,17 +13,21 @@ on:
 permissions:
   contents: write
   pull-requests: write
+  id-token: write
 
 jobs:
   update-spark-base-version:
     runs-on: ubuntu-latest
+    environment: 'nonprod'
     steps:
       - uses: actions/checkout@v4
 
       - name: Azure Login
         uses: Azure/login@v2
         with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
+          client-id: ${{ secrets.DDO_SPARK_AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          allow-no-subscriptions: true
 
       - name: Get KeyVault Secrets
         uses: Azure/get-keyvault-secrets@v1
