@@ -67,6 +67,9 @@ spec:
         - --namespaces={{ . | join "," }}
         {{- end }}
         {{- end }}
+        {{- with .Values.spark.jobNamespaceSelector }}
+        - --namespace-selector={{ . }}
+        {{- end }}
         - --controller-threads={{ .Values.controller.workers }}
         - --enable-ui-service={{ .Values.controller.uiService.enable }}
         {{- if .Values.controller.uiIngress.enable }}

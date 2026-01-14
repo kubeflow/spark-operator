@@ -52,7 +52,8 @@ var (
 )
 
 type Options struct {
-	Namespaces []string
+	Namespaces        []string
+	NamespaceSelector string
 }
 
 // Reconciler reconciles a ScheduledSparkApplication object
@@ -213,14 +214,22 @@ func (r *Reconciler) SetupWithManager(mgr ctrl.Manager, options controller.Optio
 	// Use a custom log constructor.
 	options.LogConstructor = util.NewLogConstructor(mgr.GetLogger(), kind)
 
+	// Create event filter with error handling
+	eventFilter, err := NewEventFilter(
+		mgr.GetClient(),
+		r.options.Namespaces,
+		r.options.NamespaceSelector,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to create scheduled spark application event filter: %v", err)
+	}
+
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(name).
 		Watches(
 			&v1beta2.ScheduledSparkApplication{},
 			NewEventHandler(),
-			builder.WithPredicates(
-				NewEventFilter(r.options.Namespaces),
-			)).
+			builder.WithPredicates(eventFilter)).
 		WithOptions(options).
 		Complete(r)
 }

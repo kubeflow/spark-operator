@@ -1,60 +1,75 @@
 package util
 
 import (
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"context"
+
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 )
 
-// NamespacePredicate is a predicate.Predicate that filters events based on the namespaces.
-type NamespacePredicate struct {
-	namespaces map[string]bool
+// namespacePredicate is a predicate.Predicate
+// that filters events based on namespace list and/or label selector.
+type namespacePredicate struct {
+	client           client.Client
+	namespaceMatcher *NamespaceMatcher
 }
 
-// NewNamespacePredicate creates a new NamespacePredicate instance.
-func NewNamespacePredicate(namespaces []string) predicate.Predicate {
-	nsMap := make(map[string]bool)
-	if len(namespaces) == 0 {
-		nsMap[metav1.NamespaceAll] = true
-	} else {
-		for _, ns := range namespaces {
-			nsMap[ns] = true
-		}
+// NewNamespacePredicate creates a predicate that filters events based on
+// namespace list and/or label selector.
+//
+// If namespaceSelector is empty, only explicit namespaces are matched.
+// If namespaces is empty, all namespaces are matched.
+func NewNamespacePredicate(c client.Client, namespaces []string, namespaceSelector string) (predicate.Predicate, error) {
+	matcher, err := NewNamespaceMatcher(namespaces, namespaceSelector)
+	if err != nil {
+		return nil, err
 	}
 
-	return &NamespacePredicate{
-		namespaces: nsMap,
-	}
+	return &namespacePredicate{
+		client:           c,
+		namespaceMatcher: matcher,
+	}, nil
 }
 
 // Create implements the predicate.Predicate interface.
-func (p *NamespacePredicate) Create(e event.CreateEvent) bool {
-	return p.predicate(e.Object)
+func (p *namespacePredicate) Create(e event.CreateEvent) bool {
+	matched, err := p.namespaceMatcher.MatchesWithClient(context.TODO(), p.client, e.Object.GetNamespace())
+	if err != nil {
+		return false
+	}
+	return matched
 }
 
 // Update implements the predicate.Predicate interface.
-func (p *NamespacePredicate) Update(e event.UpdateEvent) bool {
-	return p.predicate(e.ObjectNew)
+func (p *namespacePredicate) Update(e event.UpdateEvent) bool {
+	matched, err := p.namespaceMatcher.MatchesWithClient(context.TODO(), p.client, e.ObjectNew.GetNamespace())
+	if err != nil {
+		return false
+	}
+	return matched
 }
 
 // Delete implements the predicate.Predicate interface.
-func (p *NamespacePredicate) Delete(e event.DeleteEvent) bool {
-	return p.namespaces[e.Object.GetNamespace()]
+func (p *namespacePredicate) Delete(e event.DeleteEvent) bool {
+	matched, err := p.namespaceMatcher.MatchesWithClient(context.TODO(), p.client, e.Object.GetNamespace())
+	if err != nil {
+		return false
+	}
+	return matched
 }
 
 // Generic implements the predicate.Predicate interface.
-func (p *NamespacePredicate) Generic(e event.GenericEvent) bool {
-	return p.predicate(e.Object)
+func (p *namespacePredicate) Generic(e event.GenericEvent) bool {
+	matched, err := p.namespaceMatcher.MatchesWithClient(context.TODO(), p.client, e.Object.GetNamespace())
+	if err != nil {
+		return false
+	}
+	return matched
 }
 
-// predicate filters events by namespace.
-func (p *NamespacePredicate) predicate(obj client.Object) bool {
-	return p.namespaces[metav1.NamespaceAll] || p.namespaces[obj.GetNamespace()]
-}
-
-// NamespacePredicate implements the predicate.Predicate interface.
-var _ predicate.Predicate = &NamespacePredicate{}
+// namespacePredicate implements the predicate.Predicate interface.
+var _ predicate.Predicate = &namespacePredicate{}
 
 // LabelPredicate is a predicate.Predicate that filters events based on label selectors.
 type LabelPredicate struct {

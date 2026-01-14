@@ -54,7 +54,8 @@ const (
 // Options defines the options of SparkConnect reconciler.
 type Options struct {
 	// A list of namespaces that should be watched.
-	Namespaces []string
+	Namespaces        []string
+	NamespaceSelector string
 }
 
 // Reconciler reconciles a SparkConnect object.
@@ -92,6 +93,16 @@ func (r *Reconciler) SetupWithManager(mgr ctrl.Manager, options controller.Optio
 
 	// Use a custom log constructor.
 	options.LogConstructor = util.NewLogConstructor(mgr.GetLogger(), kind)
+
+	// Create predicate before the builder chain.
+	namespacePredicate, err := util.NewNamespacePredicate(
+		r.client,
+		r.options.Namespaces,
+		r.options.NamespaceSelector,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to create namespace predicate: %w", err)
+	}
 
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&v1alpha1.SparkConnect{}).
@@ -165,7 +176,7 @@ func (r *Reconciler) SetupWithManager(mgr ctrl.Manager, options controller.Optio
 				}),
 			),
 		).
-		WithEventFilter(util.NewNamespacePredicate(r.options.Namespaces)).
+		WithEventFilter(namespacePredicate).
 		WithOptions(options).
 		Complete(r)
 }
