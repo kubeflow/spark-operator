@@ -75,7 +75,8 @@ var (
 )
 
 var (
-	namespaces []string
+	namespaces        []string
+	namespaceSelector string
 
 	// Controller
 	controllerThreads        int
@@ -154,6 +155,7 @@ func NewStartCommand() *cobra.Command {
 
 	command.Flags().IntVar(&controllerThreads, "controller-threads", 10, "Number of worker threads used by the SparkApplication controller.")
 	command.Flags().StringSliceVar(&namespaces, "namespaces", []string{}, "The Kubernetes namespace to manage. Will manage custom resource objects of the managed CRD types for the whole cluster if unset or contains empty string.")
+	command.Flags().StringVar(&namespaceSelector, "namespace-selector", "", "Label selector for namespaces to watch (e.g., 'spark-operator=enabled,env in (prod,staging)'). Namespaces matching this selector will be watched in addition to those specified via --namespaces. Requires ClusterRole permission to list and watch namespaces.")
 	command.Flags().DurationVar(&cacheSyncTimeout, "cache-sync-timeout", 30*time.Second, "Informer cache sync timeout.")
 	command.Flags().IntVar(&maxTrackedExecutorPerApp, "max-tracked-executor-per-app", 1000, "The maximum number of tracked executors per SparkApplication.")
 
@@ -380,8 +382,15 @@ func newTLSOptions() []func(c *tls.Config) {
 
 // newCacheOptions creates and returns a cache.Options instance configured with default namespaces and object caching settings.
 func newCacheOptions() cache.Options {
-	defaultNamespaces := make(map[string]cache.Config)
-	if !slices.Contains(namespaces, cache.AllNamespaces) {
+	var defaultNamespaces map[string]cache.Config
+
+	// When using namespace selector, we need to cache ALL namespaces for resources
+	// because we'll filter dynamically in the event filter based on namespace labels.
+	// When using explicit namespace list only, we can cache just those namespaces.
+	if namespaceSelector != "" {
+		defaultNamespaces = nil
+	} else if !slices.Contains(namespaces, cache.AllNamespaces) {
+		defaultNamespaces = make(map[string]cache.Config)
 		for _, ns := range namespaces {
 			defaultNamespaces[ns] = cache.Config{}
 		}
@@ -391,6 +400,7 @@ func newCacheOptions() cache.Options {
 		Scheme:            operatorscheme.ControllerScheme,
 		DefaultNamespaces: defaultNamespaces,
 		ByObject: map[client.Object]cache.ByObject{
+			&corev1.Namespace{}: {},
 			&corev1.Pod{}: {
 				Label: labels.SelectorFromSet(labels.Set{
 					common.LabelLaunchedBySparkOperator: "true",
@@ -429,6 +439,7 @@ func newSparkApplicationReconcilerOptions() sparkapplication.Options {
 	}
 	options := sparkapplication.Options{
 		Namespaces:                   namespaces,
+		NamespaceSelector:            namespaceSelector,
 		EnableUIService:              enableUIService,
 		IngressClassName:             ingressClassName,
 		IngressURLFormat:             ingressURLFormat,
@@ -448,14 +459,16 @@ func newSparkApplicationReconcilerOptions() sparkapplication.Options {
 
 func newScheduledSparkApplicationReconcilerOptions() scheduledsparkapplication.Options {
 	options := scheduledsparkapplication.Options{
-		Namespaces: namespaces,
+		Namespaces:        namespaces,
+		NamespaceSelector: namespaceSelector,
 	}
 	return options
 }
 
 func newSparkConnectReconcilerOptions() sparkconnect.Options {
 	options := sparkconnect.Options{
-		Namespaces: namespaces,
+		Namespaces:        namespaces,
+		NamespaceSelector: namespaceSelector,
 	}
 	return options
 }
