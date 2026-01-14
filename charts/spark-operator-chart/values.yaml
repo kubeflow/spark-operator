@@ -426,9 +426,17 @@ webhook:
 spark:
   # -- List of namespaces where to run spark jobs.
   # If empty string is included, all namespaces will be allowed.
+  # Namespaces specified here will be watched in addition to those matching jobNamespaceSelector.
   # Make sure the namespaces have already existed.
   jobNamespaces:
   - default
+
+  # -- Label selector to filter namespaces to watch.
+  # Supports standard Kubernetes label selector syntax (e.g., 'spark-operator=enabled,env in (prod,staging)').
+  # Namespaces matching this selector will be watched in addition to those in jobNamespaces.
+  # When specified, requires ClusterRole permission to list and watch namespaces.
+  # Leave empty to disable namespace selector functionality.
+  jobNamespaceSelector: ""
 
   serviceAccount:
     # -- Specifies whether to create a service account for spark applications.
