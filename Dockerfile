@@ -61,6 +61,14 @@ RUN set -ex; \
         https://repo1.maven.org/maven2/org/apache/spark/spark-avro_2.12/3.1.1/spark-avro_2.12-3.1.1.jar && \
     wget -q -O $SPARK_HOME/jars/gcs-connector-hadoop3-latest.jar \
         https://storage.googleapis.com/hadoop-lib/gcs/gcs-connector-hadoop3-latest.jar && \
+    wget -q -O $SPARK_HOME/jars/hadoop-azure-3.3.4.jar \
+        https://repo1.maven.org/maven2/org/apache/hadoop/hadoop-azure/3.3.4/hadoop-azure-3.3.4.jar && \
+    wget -q -O $SPARK_HOME/jars/azure-storage-blob-12.25.0.jar \
+        https://repo1.maven.org/maven2/com/azure/azure-storage-blob/12.25.0/azure-storage-blob-12.25.0.jar && \
+    wget -q -O $SPARK_HOME/jars/azure-core-1.51.0.jar \
+        https://repo1.maven.org/maven2/com/azure/azure-core/1.51.0/azure-core-1.51.0.jar && \
+    wget -q -O $SPARK_HOME/jars/azure-core-http-netty-1.15.3.jar \
+        https://repo1.maven.org/maven2/com/azure/azure-core-http-netty/1.15.3/azure-core-http-netty-1.15.3.jar && \
     # Set permissions for all JARs at once
     chmod 644 $SPARK_HOME/jars/*.jar && \
     # Set directory permissions
