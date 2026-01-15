@@ -84,7 +84,7 @@ func imageOption(conn *v1alpha1.SparkConnect) ([]string, error) {
 
 	template := conn.Spec.Executor.Template
 	if template != nil && len(template.Spec.Containers) != 0 {
-		index := 0
+		index := -1
 		for i, container := range template.Spec.Containers {
 			if container.Name == common.Spark3DefaultExecutorContainerName {
 				index = i
@@ -92,9 +92,13 @@ func imageOption(conn *v1alpha1.SparkConnect) ([]string, error) {
 			}
 		}
 
-		if template.Spec.Containers[index].Image != "" {
+		if index != -1 && template.Spec.Containers[index].Image != "" {
 			executorImage = template.Spec.Containers[index].Image
 		}
+	}
+
+	if executorImage == "" {
+		return nil, fmt.Errorf("image is not specified")
 	}
 
 	args = append(

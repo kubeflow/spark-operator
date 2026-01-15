@@ -38,23 +38,34 @@ var _ = Describe("Options functions", func() {
                 Spec: v1alpha1.SparkConnectSpec{
                     SparkVersion: "3.5.0",
                     Image:        &image,
-                    Server: v1alpha1.ServerSpec{},
-                    Executor: v1alpha1.ExecutorSpec{},
+                    Server:       v1alpha1.ServerSpec{},
+                    Executor:     v1alpha1.ExecutorSpec{},
                 },
             }
 
             args, err := imageOption(conn)
             Expect(err).NotTo(HaveOccurred())
-            Expect(args).To(ContainElements(
-                "--conf",
-                SatisfyAll(
-                    ContainSubstring(common.SparkKubernetesContainerImage+"="+image),
-                ),
-                "--conf",
-                SatisfyAll(
-                    ContainSubstring(common.SparkKubernetesExecutorContainerImage+"="+image),
-                ),
-            ))
+            Expect(args).To(ContainElement("--conf"))
+            Expect(args).To(ContainElement(ContainSubstring(common.SparkKubernetesContainerImage + "=" + image)))
+            Expect(args).To(ContainElement(ContainSubstring(common.SparkKubernetesExecutorContainerImage + "=" + image)))
+        })
+
+        It("returns error when no image is specified", func() {
+            conn := &v1alpha1.SparkConnect{
+                ObjectMeta: metav1.ObjectMeta{
+                    Name:      "test-spark-no-image",
+                    Namespace: "default",
+                },
+                Spec: v1alpha1.SparkConnectSpec{
+                    SparkVersion: "3.5.0",
+                    Server:       v1alpha1.ServerSpec{},
+                    Executor:     v1alpha1.ExecutorSpec{},
+                },
+            }
+
+            _, err := imageOption(conn)
+            Expect(err).To(HaveOccurred())
+            Expect(err.Error()).To(ContainSubstring("image is not specified"))
         })
     })
 })
