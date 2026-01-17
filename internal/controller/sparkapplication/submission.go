@@ -1082,17 +1082,13 @@ func applicationOption(app *v1beta2.SparkApplication) ([]string, error) {
 
 // driverPodTemplateOption returns the driver pod template arguments.
 func driverPodTemplateOption(app *v1beta2.SparkApplication) ([]string, error) {
-	template := app.Spec.Driver.Template
-	// Spark expects the template to have a driver container
-	// if user specifies a driver pod template, it is responsible
-	// for user to ensure the template has a driver container
-	if template == nil {
-		template = &corev1.PodTemplateSpec{
-			Spec: corev1.PodSpec{
-				Containers: []corev1.Container{{Name: common.SparkDriverContainerName}},
-			},
-		}
+	// Only generate pod template file if user explicitly provides a template
+	// This allows sparkConf and spark-defaults.conf to work properly
+	if app.Spec.Driver.Template == nil {
+		return []string{}, nil
 	}
+
+	template := app.Spec.Driver.Template
 
 	ownerReference := util.GetOwnerReference(app)
 	if !slices.ContainsFunc(template.OwnerReferences, func(r metav1.OwnerReference) bool {
@@ -1117,18 +1113,13 @@ func driverPodTemplateOption(app *v1beta2.SparkApplication) ([]string, error) {
 
 // executorPodTemplateOption returns the executor pod template arguments.
 func executorPodTemplateOption(app *v1beta2.SparkApplication) ([]string, error) {
-	template := app.Spec.Executor.Template
-
-	// Spark expects the template to have a driver container
-	// if user specifies a driver pod template, it is responsible
-	// for user to ensure the template has a driver container
-	if template == nil {
-		template = &corev1.PodTemplateSpec{
-			Spec: corev1.PodSpec{
-				Containers: []corev1.Container{{Name: common.Spark3DefaultExecutorContainerName}},
-			},
-		}
+	// Only generate pod template file if user explicitly provides a template
+	// This allows sparkConf and spark-defaults.conf to work properly
+	if app.Spec.Executor.Template == nil {
+		return []string{}, nil
 	}
+
+	template := app.Spec.Executor.Template
 
 	// we put non-controller owner reference so that
 	// other controller (e.g. Kueue) can recognize the executor pods
