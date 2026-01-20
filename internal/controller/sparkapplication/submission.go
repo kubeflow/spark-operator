@@ -26,6 +26,7 @@ import (
 	"slices"
 	"strings"
 
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -1081,13 +1082,21 @@ func applicationOption(app *v1beta2.SparkApplication) ([]string, error) {
 
 // driverPodTemplateOption returns the driver pod template arguments.
 func driverPodTemplateOption(app *v1beta2.SparkApplication) ([]string, error) {
-	// Only generate pod template file if user explicitly provides a template
-	// This allows sparkConf and spark-defaults.conf to work properly
-	if app.Spec.Driver.Template == nil {
-		return []string{}, nil
+	// Create a template (either from user-provided or a minimal default)
+	// This allows sparkConf pod template settings to work properly
+	var template *corev1.PodTemplateSpec
+	if app.Spec.Driver.Template != nil {
+		template = app.Spec.Driver.Template
+	} else {
+		// Create a minimal template with owner reference and container
+		template = &corev1.PodTemplateSpec{
+			Spec: corev1.PodSpec{
+				Containers: []corev1.Container{{
+					Name: common.SparkDriverContainerName,
+				}},
+			},
+		}
 	}
-
-	template := app.Spec.Driver.Template
 
 	ownerReference := util.GetOwnerReference(app)
 	if !slices.ContainsFunc(template.OwnerReferences, func(r metav1.OwnerReference) bool {
@@ -1112,13 +1121,21 @@ func driverPodTemplateOption(app *v1beta2.SparkApplication) ([]string, error) {
 
 // executorPodTemplateOption returns the executor pod template arguments.
 func executorPodTemplateOption(app *v1beta2.SparkApplication) ([]string, error) {
-	// Only generate pod template file if user explicitly provides a template
-	// This allows sparkConf and spark-defaults.conf to work properly
-	if app.Spec.Executor.Template == nil {
-		return []string{}, nil
+	// Create a template (either from user-provided or a minimal default)
+	// This allows sparkConf pod template settings to work properly
+	var template *corev1.PodTemplateSpec
+	if app.Spec.Executor.Template != nil {
+		template = app.Spec.Executor.Template
+	} else {
+		// Create a minimal template with owner reference and container
+		template = &corev1.PodTemplateSpec{
+			Spec: corev1.PodSpec{
+				Containers: []corev1.Container{{
+					Name: common.Spark3DefaultExecutorContainerName,
+				}},
+			},
+		}
 	}
-
-	template := app.Spec.Executor.Template
 
 	// we put non-controller owner reference so that
 	// other controller (e.g. Kueue) can recognize the executor pods
