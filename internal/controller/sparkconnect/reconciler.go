@@ -295,6 +295,21 @@ func (r *Reconciler) createOrUpdateServerPod(ctx context.Context, conn *v1alpha1
 		return nil
 	})
 	if err != nil {
+		// Check if error is due to resource quota
+		if strings.Contains(err.Error(), "exceeded quota") || strings.Contains(err.Error(), "insufficient quota") {
+			r.recorder.Event(conn, corev1.EventTypeWarning, "ResourceQuotaExceeded",
+				fmt.Sprintf("Failed to create server pod: resource quota exceeded. Error: %v", err))
+			
+			// Update status to reflect the error
+			condition := metav1.Condition{
+				Type:    string(v1alpha1.SparkConnectConditionServerPodReady),
+				Status:  metav1.ConditionFalse,
+				Reason:  "ResourceQuotaExceeded",
+				Message: fmt.Sprintf("Server pod creation failed due to resource quota: %v", err),
+			}
+			_ = meta.SetStatusCondition(&conn.Status.Conditions, condition)
+			conn.Status.State = v1alpha1.SparkConnectStateFailed
+		}
 		return fmt.Errorf("failed to create or update server pod: %v", err)
 	}
 
@@ -569,12 +584,41 @@ func (r *Reconciler) updateExecutorStatus(ctx context.Context, conn *v1alpha1.Sp
 	}
 
 	executors := make(map[string]int)
+	hasQuotaIssue := false
+	
 	for _, executor := range podList.Items {
 		phase := strings.ToLower(string(executor.Status.Phase))
 		executors[phase]++
+		
+		// Check for resource quota issues in executor pods
+		if executor.Status.Phase == corev1.PodFailed {
+			for _, condition := range executor.Status.Conditions {
+				if condition.Type == corev1.PodScheduled && 
+				   condition.Status == corev1.ConditionFalse &&
+				   (strings.Contains(condition.Message, "quota") || 
+				    strings.Contains(condition.Reason, "OutOfQuota")) {
+					hasQuotaIssue = true
+					r.recorder.Event(conn, corev1.EventTypeWarning, "ExecutorQuotaExceeded",
+						fmt.Sprintf("Executor pod %s failed due to resource quota: %s", executor.Name, condition.Message))
+					break
+				}
+			}
+		}
 	}
 
 	conn.Status.Executors = executors
+	
+	// Update conditions if executors have quota issues
+	if hasQuotaIssue {
+		condition := metav1.Condition{
+			Type:    "ExecutorsReady",
+			Status:  metav1.ConditionFalse,
+			Reason:  "ResourceQuotaExceeded",
+			Message: "One or more executor pods failed to start due to resource quota limits",
+		}
+		_ = meta.SetStatusCondition(&conn.Status.Conditions, condition)
+	}
+	
 	return nil
 }
 

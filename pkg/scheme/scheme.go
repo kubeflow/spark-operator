@@ -40,6 +40,7 @@ func init() {
 	// +kubebuilder:scaffold:scheme
 
 	utilruntime.Must(clientgoscheme.AddToScheme(WebhookScheme))
+	utilruntime.Must(v1alpha1.AddToScheme(WebhookScheme))
 	utilruntime.Must(v1beta2.AddToScheme(WebhookScheme))
 	// +kubebuilder:scaffold:scheme
 }
