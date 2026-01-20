@@ -47,6 +47,7 @@ import (
 	ctrlwebhook "sigs.k8s.io/controller-runtime/pkg/webhook"
 
 	sparkoperator "github.com/kubeflow/spark-operator/v2"
+	"github.com/kubeflow/spark-operator/v2/api/v1alpha1"
 	"github.com/kubeflow/spark-operator/v2/api/v1beta2"
 	"github.com/kubeflow/spark-operator/v2/internal/controller/mutatingwebhookconfiguration"
 	"github.com/kubeflow/spark-operator/v2/internal/controller/validatingwebhookconfiguration"
@@ -306,6 +307,15 @@ func start() {
 		WithLogConstructor(webhook.LogConstructor).
 		Complete(); err != nil {
 		logger.Error(err, "Failed to create mutating webhook for Spark pod")
+		os.Exit(1)
+	}
+
+	if err := ctrl.NewWebhookManagedBy(mgr).
+		For(&v1alpha1.SparkConnect{}).
+		WithValidator(webhook.NewSparkConnectValidator(mgr.GetClient(), enableResourceQuotaEnforcement)).
+		WithLogConstructor(webhook.LogConstructor).
+		Complete(); err != nil {
+		logger.Error(err, "Failed to create validating webhook for SparkConnect")
 		os.Exit(1)
 	}
 
