@@ -57,6 +57,21 @@ tests:
           path: spec.replicas
           value: 0
 
+  - it: Should not contain deployment annotations by default
+    asserts:
+      - isNull:
+          path: metadata.annotations
+
+  - it: Should set annotations if `webhook.deploymentAnnotations` is set
+    set:
+      webhook:
+        deploymentAnnotations:
+          secret.reloader.stakater.com/reload: "{{ include \"spark-operator.webhook.secretName\" . }}"
+    asserts:
+      - equal:
+          path: metadata.annotations["secret.reloader.stakater.com/reload"]
+          value: spark-operator-webhook-certs
+
   - it: Should set revisionHistoryLimit to the default value
     asserts:
       - equal:
