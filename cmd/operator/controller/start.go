@@ -93,11 +93,12 @@ var (
 	defaultBatchScheduler string
 
 	// Spark web UI service and ingress
-	enableUIService    bool
-	ingressClassName   string
-	ingressURLFormat   string
-	ingressTLS         []networkingv1.IngressTLS
-	ingressAnnotations map[string]string
+	enableUIService          bool
+	ingressClassName         string
+	ingressURLFormat         string
+	ingressTLS               []networkingv1.IngressTLS
+	ingressAnnotations       map[string]string
+	useIngressAgnosticMode   bool
 
 	// Leader election
 	enableLeaderElection        bool
@@ -170,6 +171,7 @@ func NewStartCommand() *cobra.Command {
 	command.Flags().StringVar(&ingressURLFormat, "ingress-url-format", "", "Ingress URL format.")
 	command.Flags().StringVar(&ingressTLSstring, "ingress-tls", "", "JSON format string for the default TLS config on the Spark UI ingresses. e.g. '[{\"hosts\":[\"*.example.com\"],\"secretName\":\"example-secret\"}]'. `ingressTLS` in the SparkApplication spec will override this value.")
 	command.Flags().StringVar(&ingressAnnotationsString, "ingress-annotations", "", "JSON format string for the default ingress annotations for the Spark UI ingresses. e.g. '[{\"cert-manager.io/cluster-issuer\": \"letsencrypt\"}]'. `ingressAnnotations` in the SparkApplication spec will override this value.")
+	command.Flags().BoolVar(&useIngressAgnosticMode, "use-ingress-agnostic-mode", false, "When enabled, disables nginx-specific ingress path modifications (regex capture groups) and annotation injection (nginx.ingress.kubernetes.io/rewrite-target). This allows the ingress to work with any ingress controller like Traefik, HAProxy, etc.")
 
 	command.Flags().BoolVar(&enableLeaderElection, "leader-election", false, "Enable leader election for controller manager. "+
 		"Enabling this will ensure there is only one active controller manager.")
@@ -439,6 +441,7 @@ func newSparkApplicationReconcilerOptions() sparkapplication.Options {
 		SparkApplicationMetrics:      sparkApplicationMetrics,
 		SparkExecutorMetrics:         sparkExecutorMetrics,
 		MaxTrackedExecutorPerApp:     maxTrackedExecutorPerApp,
+		UseIngressAgnosticMode:       useIngressAgnosticMode,
 	}
 	if enableBatchScheduler {
 		options.KubeSchedulerNames = kubeSchedulerNames

@@ -89,13 +89,21 @@ func (r *Reconciler) createDriverIngress(ctx context.Context, app *v1beta2.Spark
 		return nil, fmt.Errorf("cannot create Driver Ingress for application %s/%s due to empty ServicePort on driverIngressConfiguration", app.Namespace, app.Name)
 	}
 	ingressName := fmt.Sprintf("%s-ing-%d", app.Name, *driverIngressConfiguration.ServicePort)
-	if util.IngressCapabilities.Has("networking.k8s.io/v1") {
-		return r.createDriverIngressV1(ctx, app, service, ingressName, ingressURL, ingressClassName, []networkingv1.IngressTLS{}, map[string]string{})
+
+	// Determine if ingress-agnostic mode should be used
+	// Per-application setting takes precedence over global setting
+	useIngressAgnosticMode := r.options.UseIngressAgnosticMode
+	if driverIngressConfiguration.UseIngressAgnosticMode != nil {
+		useIngressAgnosticMode = *driverIngressConfiguration.UseIngressAgnosticMode
 	}
-	return r.createDriverIngressLegacy(ctx, app, service, ingressName, ingressURL)
+
+	if util.IngressCapabilities.Has("networking.k8s.io/v1") {
+		return r.createDriverIngressV1(ctx, app, service, ingressName, ingressURL, ingressClassName, []networkingv1.IngressTLS{}, map[string]string{}, useIngressAgnosticMode)
+	}
+	return r.createDriverIngressLegacy(ctx, app, service, ingressName, ingressURL, useIngressAgnosticMode)
 }
 
-func (r *Reconciler) createDriverIngressV1(ctx context.Context, app *v1beta2.SparkApplication, service SparkService, ingressName string, ingressURL *url.URL, ingressClassName string, defaultIngressTLS []networkingv1.IngressTLS, defaultIngressAnnotations map[string]string) (*SparkIngress, error) {
+func (r *Reconciler) createDriverIngressV1(ctx context.Context, app *v1beta2.SparkApplication, service SparkService, ingressName string, ingressURL *url.URL, ingressClassName string, defaultIngressTLS []networkingv1.IngressTLS, defaultIngressAnnotations map[string]string, useIngressAgnosticMode bool) (*SparkIngress, error) {
 	logger := log.FromContext(ctx)
 	ingressResourceAnnotations := util.GetWebUIIngressAnnotations(app)
 	if len(ingressResourceAnnotations) == 0 && len(defaultIngressAnnotations) != 0 {
@@ -107,12 +115,17 @@ func (r *Reconciler) createDriverIngressV1(ctx context.Context, app *v1beta2.Spa
 	}
 
 	ingressURLPath := ingressURL.Path
-	// If we're serving on a subpath, we need to ensure we create capture groups
-	if ingressURLPath != "" && ingressURLPath != "/" {
-		ingressURLPath = ingressURLPath + "(/|$)(.*)"
-	}
+	pathType := networkingv1.PathTypePrefix
 
-	implementationSpecific := networkingv1.PathTypeImplementationSpecific
+	// In ingress-agnostic mode, use the path as-is without nginx-specific modifications
+	// In legacy mode, add regex capture groups for nginx-ingress compatibility
+	if !useIngressAgnosticMode {
+		// Legacy nginx-specific behavior: add capture groups for subpaths
+		if ingressURLPath != "" && ingressURLPath != "/" {
+			ingressURLPath = ingressURLPath + "(/|$)(.*)"
+		}
+		pathType = networkingv1.PathTypeImplementationSpecific
+	}
 
 	ingress := &networkingv1.Ingress{
 		ObjectMeta: metav1.ObjectMeta{
@@ -136,7 +149,7 @@ func (r *Reconciler) createDriverIngressV1(ctx context.Context, app *v1beta2.Spa
 								},
 							},
 							Path:     ingressURLPath,
-							PathType: &implementationSpecific,
+							PathType: &pathType,
 						}},
 					},
 				},
@@ -148,8 +161,8 @@ func (r *Reconciler) createDriverIngressV1(ctx context.Context, app *v1beta2.Spa
 		ingress.Annotations = ingressResourceAnnotations
 	}
 
-	// If we're serving on a subpath, we need to ensure we use the capture groups
-	if ingressURL.Path != "" && ingressURL.Path != "/" {
+	// Only add nginx-specific rewrite-target annotation in legacy mode (not ingress-agnostic mode)
+	if !useIngressAgnosticMode && ingressURL.Path != "" && ingressURL.Path != "/" {
 		if ingress.Annotations == nil {
 			ingress.Annotations = make(map[string]string)
 		}
@@ -184,7 +197,7 @@ func (r *Reconciler) createDriverIngressV1(ctx context.Context, app *v1beta2.Spa
 	}, nil
 }
 
-func (r *Reconciler) createDriverIngressLegacy(ctx context.Context, app *v1beta2.SparkApplication, service SparkService, ingressName string, ingressURL *url.URL) (*SparkIngress, error) {
+func (r *Reconciler) createDriverIngressLegacy(ctx context.Context, app *v1beta2.SparkApplication, service SparkService, ingressName string, ingressURL *url.URL, useIngressAgnosticMode bool) (*SparkIngress, error) {
 	logger := log.FromContext(ctx)
 	ingressResourceAnnotations := util.GetWebUIIngressAnnotations(app)
 	// var ingressTLSHosts networkingv1.IngressTLS[]
@@ -192,9 +205,13 @@ func (r *Reconciler) createDriverIngressLegacy(ctx context.Context, app *v1beta2
 	ingressTLSHosts := util.GetWebUIIngressTLS(app)
 
 	ingressURLPath := ingressURL.Path
-	// If we're serving on a subpath, we need to ensure we create capture groups.
-	if ingressURLPath != "" && ingressURLPath != "/" {
-		ingressURLPath = ingressURLPath + "(/|$)(.*)"
+	// In ingress-agnostic mode, use the path as-is without nginx-specific modifications
+	// In legacy mode, add regex capture groups for nginx-ingress compatibility
+	if !useIngressAgnosticMode {
+		// Legacy nginx-specific behavior: add capture groups for subpaths
+		if ingressURLPath != "" && ingressURLPath != "/" {
+			ingressURLPath = ingressURLPath + "(/|$)(.*)"
+		}
 	}
 
 	ingress := &extensionsv1beta1.Ingress{
@@ -229,8 +246,8 @@ func (r *Reconciler) createDriverIngressLegacy(ctx context.Context, app *v1beta2
 		ingress.Annotations = ingressResourceAnnotations
 	}
 
-	// If we're serving on a subpath, we need to ensure we use the capture groups
-	if ingressURL.Path != "" && ingressURL.Path != "/" {
+	// Only add nginx-specific rewrite-target annotation in legacy mode (not ingress-agnostic mode)
+	if !useIngressAgnosticMode && ingressURL.Path != "" && ingressURL.Path != "/" {
 		if ingress.Annotations == nil {
 			ingress.Annotations = make(map[string]string)
 		}

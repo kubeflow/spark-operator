@@ -70,10 +70,10 @@ controller:
 
   # -- Feature gates to enable or disable specific features.
   featureGates:
-  - name: PartialRestart
-    enabled: false
-  - name: LoadSparkDefaults
-    enabled: false
+    - name: PartialRestart
+      enabled: false
+    - name: LoadSparkDefaults
+      enabled: false
 
   # -- The number of old history to retain to allow rollback.
   revisionHistoryLimit: 10
@@ -125,6 +125,11 @@ controller:
     annotations: {}
       # key1: value1
       # key2: value2
+    # -- When enabled, disables nginx-specific ingress path modifications (regex capture groups like `(/|$)(.*)`)
+    # and annotation injection (`nginx.ingress.kubernetes.io/rewrite-target`).
+    # This allows the ingress to work with any ingress controller like Traefik, HAProxy, Istio, OpenShift Routes, etc.
+    # Can be overridden per SparkApplication via `sparkUIOptions.useIngressAgnosticMode` or `driverIngressOptions[].useIngressAgnosticMode`.
+    useIngressAgnosticMode: false
 
   batchScheduler:
     # -- Specifies whether to enable batch scheduler for spark jobs scheduling.
@@ -166,10 +171,10 @@ controller:
 
   # -- Volumes for controller pods.
   volumes:
-  # Create a tmp directory to write Spark artifacts to for deployed Spark apps.
-  - name: tmp
-    emptyDir:
-      sizeLimit: 1Gi
+    # Create a tmp directory to write Spark artifacts to for deployed Spark apps.
+    - name: tmp
+      emptyDir:
+        sizeLimit: 1Gi
 
   # -- Node selector for controller pods.
   nodeSelector: {}
@@ -211,10 +216,10 @@ controller:
 
   # -- Volume mounts for controller containers.
   volumeMounts:
-  # Mount a tmp directory to write Spark artifacts to for deployed Spark apps.
-  - name: tmp
-    mountPath: "/tmp"
-    readOnly: false
+    # Mount a tmp directory to write Spark artifacts to for deployed Spark apps.
+    - name: tmp
+      mountPath: "/tmp"
+      readOnly: false
 
   # -- Pod resource requests and limits for controller containers.
   # Note, that each job submission will spawn a JVM within the controller pods using "/usr/local/openjdk-11/bin/java -Xmx128m".
@@ -236,7 +241,7 @@ controller:
     runAsNonRoot: true
     capabilities:
       drop:
-      - ALL
+        - ALL
     seccompProfile:
       type: RuntimeDefault
 
@@ -341,10 +346,10 @@ webhook:
 
   # -- Volumes for webhook pods.
   volumes:
-  # Create a dir for the webhook to generate its certificates in.
-  - name: serving-certs
-    emptyDir:
-      sizeLimit: 500Mi
+    # Create a dir for the webhook to generate its certificates in.
+    - name: serving-certs
+      emptyDir:
+        sizeLimit: 500Mi
 
   # -- Node selector for webhook pods.
   nodeSelector: {}
@@ -386,12 +391,11 @@ webhook:
 
   # -- Volume mounts for webhook containers.
   volumeMounts:
-  # Mount a dir for the webhook to generate its certificates in.
-  - name: serving-certs
-    mountPath: /etc/k8s-webhook-server/serving-certs
-    subPath: serving-certs
-    readOnly: false
-
+    # Mount a dir for the webhook to generate its certificates in.
+    - name: serving-certs
+      mountPath: /etc/k8s-webhook-server/serving-certs
+      subPath: serving-certs
+      readOnly: false
 
   # -- Pod resource requests and limits for webhook pods.
   resources: {}
@@ -410,7 +414,7 @@ webhook:
     runAsNonRoot: true
     capabilities:
       drop:
-      - ALL
+        - ALL
     seccompProfile:
       type: RuntimeDefault
 
@@ -428,7 +432,7 @@ spark:
   # If empty string is included, all namespaces will be allowed.
   # Make sure the namespaces have already existed.
   jobNamespaces:
-  - default
+    - default
 
   serviceAccount:
     # -- Specifies whether to create a service account for spark applications.
