@@ -97,7 +97,7 @@ spec:
         - --metrics-bind-address=:{{ .Values.prometheus.metrics.port }}
         - --metrics-endpoint={{ .Values.prometheus.metrics.endpoint }}
         - --metrics-prefix={{ .Values.prometheus.metrics.prefix }}
-        - --metrics-labels=app_type
+        - --metrics-labels={{ default "app_type" .Values.prometheus.metrics.labels }}
         - --metrics-job-start-latency-buckets={{ .Values.prometheus.metrics.jobStartLatencyBuckets }}
         {{- end }}
         {{ if .Values.controller.leaderElection.enable }}

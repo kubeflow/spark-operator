@@ -280,6 +280,37 @@ tests:
       - contains:
           path: spec.template.spec.containers[?(@.name=="spark-operator-controller")].args
           content: --metrics-job-start-latency-buckets=180,360,420,690
+ 
+  - it: Should set metrics-labels arg if `prometheus.metrics.labels` is set to not empty
+    set:
+      prometheus:
+        metrics:
+          enable: true
+          port: 12345
+          portName: test-port
+          endpoint: /test-endpoint
+          prefix: test-prefix
+          jobStartLatencyBuckets: "180,360,420,690"
+          labels: test1,test2
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[?(@.name=="spark-operator-controller")].args
+          content: --enable-metrics=true
+      - contains:
+          path: spec.template.spec.containers[?(@.name=="spark-operator-controller")].args
+          content: --metrics-bind-address=:12345
+      - contains:
+          path: spec.template.spec.containers[?(@.name=="spark-operator-controller")].args
+          content: --metrics-endpoint=/test-endpoint
+      - contains:
+          path: spec.template.spec.containers[?(@.name=="spark-operator-controller")].args
+          content: --metrics-prefix=test-prefix
+      - contains:
+          path: spec.template.spec.containers[?(@.name=="spark-operator-controller")].args
+          content: --metrics-labels=test1,test2
+      - contains:
+          path: spec.template.spec.containers[?(@.name=="spark-operator-controller")].args
+          content: --metrics-job-start-latency-buckets=180,360,420,690
 
   - it: Should enable leader election by default
     asserts:

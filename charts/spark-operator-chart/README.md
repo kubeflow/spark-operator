@@ -1,6 +1,6 @@
 # spark-operator
 
-![Version: 2.3.0](https://img.shields.io/badge/Version-2.3.0-informational?style=flat-square) ![AppVersion: 2.3.0](https://img.shields.io/badge/AppVersion-2.3.0-informational?style=flat-square)
+![Version: 2.4.0](https://img.shields.io/badge/Version-2.4.0-informational?style=flat-square) ![AppVersion: 2.3.0](https://img.shields.io/badge/AppVersion-2.3.0-informational?style=flat-square)
 
 A Helm chart for Spark on Kubernetes operator.
 
@@ -190,6 +190,7 @@ See [helm uninstall](https://helm.sh/docs/helm/helm_uninstall) for command docum
 | prometheus.metrics.endpoint | string | `"/metrics"` | Metrics serving endpoint. |
 | prometheus.metrics.prefix | string | `""` | Metrics prefix, will be added to all exported metrics. |
 | prometheus.metrics.jobStartLatencyBuckets | string | `"30,60,90,120,150,180,210,240,270,300"` | Job Start Latency histogram buckets. Specified in seconds. |
+| prometheus.metrics.labels | string | `""` | Labels to be added to the Spark Operator standard metrics, e.g., "label1Key,label2Key" Defaults to 'app_type' if not set. |
 | prometheus.podMonitor.create | bool | `false` | Specifies whether to create pod monitor. Note that prometheus metrics should be enabled as well. |
 | prometheus.podMonitor.labels | object | `{}` | Pod monitor labels |
 | prometheus.podMonitor.jobLabel | string | `"spark-operator-podmonitor"` | The label to use to retrieve the job name from |
