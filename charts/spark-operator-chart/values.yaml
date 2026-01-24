@@ -460,7 +460,7 @@ prometheus:
     prefix: ""
     # -- Job Start Latency histogram buckets. Specified in seconds.
     jobStartLatencyBuckets: "30,60,90,120,150,180,210,240,270,300"
-    # -- Labels to be added to the Spark Operator standard metrics, e.g., "label1Key,label2Key"
+    # -- Labels to be added to the Spark Operator standard metrics, e.g., "label1Key,label2Key".
     # Defaults to 'app_type' if not set.
     labels: ""
 
