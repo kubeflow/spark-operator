@@ -1,2 +1,11 @@
 image:
   tag: local
+
+# Configure spark jobs to run in:
+# 1. "default" namespace explicitly (for core e2e tests)
+# 2. Any namespace with "spark=enabled" label (for namespace filtering tests)
+# This uses OR logic: namespace is watched if in list OR matches selector
+spark:
+  jobNamespaces:
+    - default
+  jobNamespaceSelector: "spark=enabled"
