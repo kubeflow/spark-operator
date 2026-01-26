@@ -22,7 +22,6 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
@@ -37,26 +36,26 @@ import (
 
 // sparkPodEventFilter filters Spark pod events.
 type sparkPodEventFilter struct {
-	namespaces map[string]bool
+	client           client.Client
+	namespaceMatcher *util.NamespaceMatcher
+	logger           logr.Logger
 }
 
 // sparkPodEventFilter implements the predicate.Predicate interface.
 var _ predicate.Predicate = &sparkPodEventFilter{}
 
 // newSparkPodEventFilter creates a new SparkPodEventFilter instance.
-func newSparkPodEventFilter(namespaces []string) *sparkPodEventFilter {
-	nsMap := make(map[string]bool)
-	if len(namespaces) == 0 {
-		nsMap[metav1.NamespaceAll] = true
-	} else {
-		for _, ns := range namespaces {
-			nsMap[ns] = true
-		}
+func newSparkPodEventFilter(client client.Client, namespaces []string, namespaceSelector string) (*sparkPodEventFilter, error) {
+	matcher, err := util.NewNamespaceMatcher(namespaces, namespaceSelector)
+	if err != nil {
+		return nil, err
 	}
 
 	return &sparkPodEventFilter{
-		namespaces: nsMap,
-	}
+		client:           client,
+		namespaceMatcher: matcher,
+		logger:           log.Log.WithName("spark-pod-event-filter"),
+	}, nil
 }
 
 // Create implements predicate.Predicate.
@@ -113,34 +112,37 @@ func (f *sparkPodEventFilter) filter(pod *corev1.Pod) bool {
 		return false
 	}
 
-	return f.namespaces[metav1.NamespaceAll] || f.namespaces[pod.Namespace]
+	// Check if namespace matches using the matcher
+	matched, err := f.namespaceMatcher.MatchesWithClient(context.TODO(), f.client, pod.Namespace)
+	if err != nil {
+		f.logger.Error(err, "failed to check namespace match", "namespace", pod.Namespace, "pod", pod.Name)
+		return false
+	}
+
+	return matched
 }
 
 type EventFilter struct {
-	client     client.Client
-	recorder   record.EventRecorder
-	namespaces map[string]bool
-	logger     logr.Logger
+	client           client.Client
+	recorder         record.EventRecorder
+	namespaceMatcher *util.NamespaceMatcher
+	logger           logr.Logger
 }
 
 var _ predicate.Predicate = &EventFilter{}
 
-func NewSparkApplicationEventFilter(client client.Client, recorder record.EventRecorder, namespaces []string) *EventFilter {
-	nsMap := make(map[string]bool)
-	if len(namespaces) == 0 {
-		nsMap[metav1.NamespaceAll] = true
-	} else {
-		for _, ns := range namespaces {
-			nsMap[ns] = true
-		}
+func NewSparkApplicationEventFilter(client client.Client, recorder record.EventRecorder, namespaces []string, namespaceSelector string) (*EventFilter, error) {
+	matcher, err := util.NewNamespaceMatcher(namespaces, namespaceSelector)
+	if err != nil {
+		return nil, err
 	}
 
 	return &EventFilter{
-		client:     client,
-		recorder:   recorder,
-		namespaces: nsMap,
-		logger:     log.Log.WithName(""),
-	}
+		client:           client,
+		recorder:         recorder,
+		namespaceMatcher: matcher,
+		logger:           log.Log.WithName("spark-application-event-filter"),
+	}, nil
 }
 
 // Create implements predicate.Predicate.
@@ -242,7 +244,14 @@ func (f *EventFilter) Generic(e event.GenericEvent) bool {
 }
 
 func (f *EventFilter) filter(app *v1beta2.SparkApplication) bool {
-	return f.namespaces[metav1.NamespaceAll] || f.namespaces[app.Namespace]
+	// Check if namespace matches using the matcher
+	matched, err := f.namespaceMatcher.MatchesWithClient(context.TODO(), f.client, app.Namespace)
+	if err != nil {
+		f.logger.Error(err, "failed to check namespace match", "namespace", app.Namespace, "app", app.Name)
+		return false
+	}
+
+	return matched
 }
 
 // isWebhookPatchedFieldsOnlyChange checks if the spec changes only involve fields

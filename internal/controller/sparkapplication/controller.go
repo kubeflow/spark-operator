@@ -56,6 +56,7 @@ import (
 // Options defines the options of the controller.
 type Options struct {
 	Namespaces            []string
+	NamespaceSelector     string
 	EnableUIService       bool
 	IngressClassName      string
 	IngressURLFormat      string
@@ -248,23 +249,37 @@ func (r *Reconciler) SetupWithManager(mgr ctrl.Manager, options controller.Optio
 	// Use a custom log constructor.
 	options.LogConstructor = util.NewLogConstructor(mgr.GetLogger(), kind)
 
+	// Create event filters with error handling
+	podEventFilter, err := newSparkPodEventFilter(
+		mgr.GetClient(),
+		r.options.Namespaces,
+		r.options.NamespaceSelector,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to create spark pod event filter: %v", err)
+	}
+
+	appEventFilter, err := NewSparkApplicationEventFilter(
+		mgr.GetClient(),
+		mgr.GetEventRecorderFor("spark-application-event-handler"),
+		r.options.Namespaces,
+		r.options.NamespaceSelector,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to create spark application event filter: %v", err)
+	}
+
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(name).
 		Watches(
 			&corev1.Pod{},
 			NewSparkPodEventHandler(mgr.GetClient(), r.options.SparkExecutorMetrics),
-			builder.WithPredicates(newSparkPodEventFilter(r.options.Namespaces)),
+			builder.WithPredicates(podEventFilter),
 		).
 		Watches(
 			&v1beta2.SparkApplication{},
 			NewSparkApplicationEventHandler(r.options.SparkApplicationMetrics),
-			builder.WithPredicates(
-				NewSparkApplicationEventFilter(
-					mgr.GetClient(),
-					mgr.GetEventRecorderFor("spark-application-event-handler"),
-					r.options.Namespaces,
-				),
-			),
+			builder.WithPredicates(appEventFilter),
 		).
 		WithOptions(options).
 		Complete(r)
