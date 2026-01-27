@@ -395,68 +395,68 @@ func TestCreateDriverIngressV1WithIngressAgnosticMode(t *testing.T) {
 	}
 
 	tests := []struct {
-		name                     string
-		urlPath                  string
-		useIngressAgnosticMode   bool
-		expectedPath             string
-		expectNginxRewriteAnnot  bool
-		expectedPathType         string // "Prefix" or "ImplementationSpecific"
+		name                    string
+		urlPath                 string
+		useIngressAgnosticMode  bool
+		expectedPath            string
+		expectNginxRewriteAnnot bool
+		expectedPathType        string // "Prefix" or "ImplementationSpecific"
 	}{
 		{
-			name:                     "legacy mode with subpath - should add regex and nginx annotation",
-			urlPath:                  "/spark",
-			useIngressAgnosticMode:   false,
-			expectedPath:             "/spark(/|$)(.*)",
-			expectNginxRewriteAnnot:  true,
-			expectedPathType:         "ImplementationSpecific",
+			name:                    "legacy mode with subpath - should add regex and nginx annotation",
+			urlPath:                 "/spark",
+			useIngressAgnosticMode:  false,
+			expectedPath:            "/spark(/|$)(.*)",
+			expectNginxRewriteAnnot: true,
+			expectedPathType:        "ImplementationSpecific",
 		},
 		{
-			name:                     "ingress-agnostic mode with subpath - should preserve path and no nginx annotation",
-			urlPath:                  "/spark",
-			useIngressAgnosticMode:   true,
-			expectedPath:             "/spark",
-			expectNginxRewriteAnnot:  false,
-			expectedPathType:         "Prefix",
+			name:                    "ingress-agnostic mode with subpath - should preserve path and no nginx annotation",
+			urlPath:                 "/spark",
+			useIngressAgnosticMode:  true,
+			expectedPath:            "/spark",
+			expectNginxRewriteAnnot: false,
+			expectedPathType:        "Prefix",
 		},
 		{
-			name:                     "legacy mode with root path - no modifications",
-			urlPath:                  "/",
-			useIngressAgnosticMode:   false,
-			expectedPath:             "/",
-			expectNginxRewriteAnnot:  false,
-			expectedPathType:         "ImplementationSpecific",
+			name:                    "legacy mode with root path - no modifications",
+			urlPath:                 "/",
+			useIngressAgnosticMode:  false,
+			expectedPath:            "/",
+			expectNginxRewriteAnnot: false,
+			expectedPathType:        "ImplementationSpecific",
 		},
 		{
-			name:                     "ingress-agnostic mode with root path - no modifications",
-			urlPath:                  "/",
-			useIngressAgnosticMode:   true,
-			expectedPath:             "/",
-			expectNginxRewriteAnnot:  false,
-			expectedPathType:         "Prefix",
+			name:                    "ingress-agnostic mode with root path - no modifications",
+			urlPath:                 "/",
+			useIngressAgnosticMode:  true,
+			expectedPath:            "/",
+			expectNginxRewriteAnnot: false,
+			expectedPathType:        "Prefix",
 		},
 		{
-			name:                     "legacy mode with empty path - no modifications",
-			urlPath:                  "",
-			useIngressAgnosticMode:   false,
-			expectedPath:             "",
-			expectNginxRewriteAnnot:  false,
-			expectedPathType:         "ImplementationSpecific",
+			name:                    "legacy mode with empty path - no modifications",
+			urlPath:                 "",
+			useIngressAgnosticMode:  false,
+			expectedPath:            "",
+			expectNginxRewriteAnnot: false,
+			expectedPathType:        "ImplementationSpecific",
 		},
 		{
-			name:                     "ingress-agnostic mode with nested path - should preserve path",
-			urlPath:                  "/namespace/app-name",
-			useIngressAgnosticMode:   true,
-			expectedPath:             "/namespace/app-name",
-			expectNginxRewriteAnnot:  false,
-			expectedPathType:         "Prefix",
+			name:                    "ingress-agnostic mode with nested path - should preserve path",
+			urlPath:                 "/namespace/app-name",
+			useIngressAgnosticMode:  true,
+			expectedPath:            "/namespace/app-name",
+			expectNginxRewriteAnnot: false,
+			expectedPathType:        "Prefix",
 		},
 		{
-			name:                     "legacy mode with nested path - should add regex",
-			urlPath:                  "/namespace/app-name",
-			useIngressAgnosticMode:   false,
-			expectedPath:             "/namespace/app-name(/|$)(.*)",
-			expectNginxRewriteAnnot:  true,
-			expectedPathType:         "ImplementationSpecific",
+			name:                    "legacy mode with nested path - should add regex",
+			urlPath:                 "/namespace/app-name",
+			useIngressAgnosticMode:  false,
+			expectedPath:            "/namespace/app-name(/|$)(.*)",
+			expectNginxRewriteAnnot: true,
+			expectedPathType:        "ImplementationSpecific",
 		},
 	}
 

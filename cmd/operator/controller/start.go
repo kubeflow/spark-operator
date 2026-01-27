@@ -93,12 +93,12 @@ var (
 	defaultBatchScheduler string
 
 	// Spark web UI service and ingress
-	enableUIService          bool
-	ingressClassName         string
-	ingressURLFormat         string
-	ingressTLS               []networkingv1.IngressTLS
-	ingressAnnotations       map[string]string
-	useIngressAgnosticMode   bool
+	enableUIService        bool
+	ingressClassName       string
+	ingressURLFormat       string
+	ingressTLS             []networkingv1.IngressTLS
+	ingressAnnotations     map[string]string
+	useIngressAgnosticMode bool
 
 	// Leader election
 	enableLeaderElection        bool
