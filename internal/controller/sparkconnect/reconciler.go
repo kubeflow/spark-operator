@@ -31,6 +31,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/workqueue"
+	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -490,28 +491,32 @@ func (r *Reconciler) mutateServerService(_ context.Context, conn *v1alpha1.Spark
 	if svc.CreationTimestamp.IsZero() {
 		svc.Spec.Ports = []corev1.ServicePort{
 			{
-				Name:       "driver-rpc",
-				Port:       7078,
-				TargetPort: intstr.FromInt(7078),
-				Protocol:   corev1.ProtocolTCP,
+				Name:        "driver-rpc",
+				Port:        7078,
+				TargetPort:  intstr.FromInt(7078),
+				Protocol:    corev1.ProtocolTCP,
+				AppProtocol: ptr.To("tcp"),
 			},
 			{
-				Name:       "blockmanager",
-				Port:       7079,
-				TargetPort: intstr.FromInt(7079),
-				Protocol:   corev1.ProtocolTCP,
+				Name:        "blockmanager",
+				Port:        7079,
+				TargetPort:  intstr.FromInt(7079),
+				Protocol:    corev1.ProtocolTCP,
+				AppProtocol: ptr.To("tcp"),
 			},
 			{
-				Name:       "web-ui",
-				Port:       4040,
-				TargetPort: intstr.FromInt(4040),
-				Protocol:   corev1.ProtocolTCP,
+				Name:        "web-ui",
+				Port:        4040,
+				TargetPort:  intstr.FromInt(4040),
+				Protocol:    corev1.ProtocolTCP,
+				AppProtocol: ptr.To("http"),
 			},
 			{
-				Name:       "spark-connect-server",
-				Port:       15002,
-				TargetPort: intstr.FromInt(15002),
-				Protocol:   corev1.ProtocolTCP,
+				Name:        "spark-connect-server",
+				Port:        15002,
+				TargetPort:  intstr.FromInt(15002),
+				Protocol:    corev1.ProtocolTCP,
+				AppProtocol: ptr.To("grpc"),
 			},
 		}
 
