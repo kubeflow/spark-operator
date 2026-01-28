@@ -33,15 +33,30 @@ rules:
   - nodes
   verbs:
   - get
+{{- if .Values.spark.jobNamespaceSelector }}
+# When namespace selector is used, controller needs permissions to discover namespaces
+- apiGroups:
+  - ""
+  resources:
+  - namespaces
+  verbs:
+  - get
+  - list
+  - watch
+{{- end }}
+{{- if or (not .Values.spark.jobNamespaces) (has "" .Values.spark.jobNamespaces) .Values.spark.jobNamespaceSelector }}
+# Include cluster-wide permissions when:
+# 1. jobNamespaces is not set (watch all)
+# 2. jobNamespaces contains "" (watch all)
+# 3. jobNamespaceSelector is set (dynamic discovery)
+{{ include "spark-operator.controller.policyRules" . }}
+{{- end }}
 - apiGroups:
   - apiextensions.k8s.io
   resources:
   - customresourcedefinitions
   verbs:
   - get
-{{- if not .Values.spark.jobNamespaces | or (has "" .Values.spark.jobNamespaces) }}
-{{ include "spark-operator.controller.policyRules" . }}
-{{- end }}
 ---
 
 apiVersion: rbac.authorization.k8s.io/v1

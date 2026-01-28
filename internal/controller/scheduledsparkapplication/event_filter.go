@@ -17,35 +17,40 @@ limitations under the License.
 package scheduledsparkapplication
 
 import (
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"context"
+
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
+	"github.com/go-logr/logr"
 	"github.com/kubeflow/spark-operator/v2/api/v1beta2"
+	"github.com/kubeflow/spark-operator/v2/pkg/util"
 )
 
 // EventFilter filters out ScheduledSparkApplication events.
 type EventFilter struct {
-	namespaces map[string]bool
+	client           client.Client
+	namespaceMatcher *util.NamespaceMatcher
+	logger           logr.Logger
 }
 
 // EventHandler handles ScheduledSparkApplication events.
 var _ predicate.Predicate = &EventFilter{}
 
 // NewEventFilter creates a new EventFilter instance.
-func NewEventFilter(namespaces []string) *EventFilter {
-	nsMap := make(map[string]bool)
-	if len(namespaces) == 0 {
-		nsMap[metav1.NamespaceAll] = true
-	} else {
-		for _, ns := range namespaces {
-			nsMap[ns] = true
-		}
+func NewEventFilter(client client.Client, namespaces []string, namespaceSelector string) (*EventFilter, error) {
+	matcher, err := util.NewNamespaceMatcher(namespaces, namespaceSelector)
+	if err != nil {
+		return nil, err
 	}
 
 	return &EventFilter{
-		namespaces: nsMap,
-	}
+		client:           client,
+		namespaceMatcher: matcher,
+		logger:           log.Log.WithName("scheduled-spark-application-event-filter"),
+	}, nil
 }
 
 // Create implements predicate.Predicate.
@@ -82,5 +87,12 @@ func (f *EventFilter) Generic(e event.GenericEvent) bool {
 }
 
 func (f *EventFilter) filter(app *v1beta2.ScheduledSparkApplication) bool {
-	return f.namespaces[metav1.NamespaceAll] || f.namespaces[app.Namespace]
+	// Check if namespace matches using the matcher
+	matched, err := f.namespaceMatcher.MatchesWithClient(context.TODO(), f.client, app.Namespace)
+	if err != nil {
+		f.logger.Error(err, "failed to check namespace match", "namespace", app.Namespace, "app", app.Name)
+		return false
+	}
+
+	return matched
 }
