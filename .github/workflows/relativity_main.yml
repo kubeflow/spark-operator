@@ -59,15 +59,15 @@ jobs:
         id: get-spark-base-version
         run: |
           # Read the file and trim whitespace/newlines
-          SPARK_BASE_VERSION=$(cat spark-base-version | xargs)
+          SPARK_VERSION=$(cat spark-base-version | xargs)
           # Ensure version starts with 'v'
-          if [[ "$SPARK_BASE_VERSION" == v* ]]; then
-            SPARK_BASE_VERSION="$SPARK_BASE_VERSION"
+          if [[ "$SPARK_VERSION" == v* ]]; then
+            SPARK_VERSION="$SPARK_VERSION"
           else
-            SPARK_BASE_VERSION="v$SPARK_BASE_VERSION"
+            SPARK_VERSION="v$SPARK_VERSION"
           fi
           
-          SPARK_IMAGE=${{secrets.BASE_IMAGE}}:${SPARK_BASE_VERSION}
+          SPARK_IMAGE=${{vars.SPARK_IMAGE_PATH}}:${SPARK_VERSION}
           echo "Read spark-base version: ${SPARK_IMAGE}"
           echo "SPARK_IMAGE=${SPARK_IMAGE}" >> "$GITHUB_OUTPUT"
 

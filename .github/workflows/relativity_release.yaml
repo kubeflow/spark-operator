@@ -57,7 +57,7 @@ jobs:
           else
             SPARK_BASE_VERSION="v$SPARK_BASE_VERSION"
           fi
-          SPARK_IMAGE=${{secrets.BASE_IMAGE}}:${SPARK_BASE_VERSION}
+          SPARK_IMAGE=${{vars.SPARK_IMAGE_PATH}}:${SPARK_BASE_VERSION}
           echo "Read spark version: ${SPARK_IMAGE}"
           echo "SPARK_IMAGE=${SPARK_IMAGE}" >> "$GITHUB_OUTPUT"
           
