@@ -18,7 +18,10 @@ package sparkconnect
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
+	"sort"
 	"strings"
 
 	corev1 "k8s.io/api/core/v1"
@@ -49,6 +52,8 @@ import (
 
 const (
 	ExecutorPodTemplateFileName = "executor-pod-template.yaml"
+	// ServerPodSpecHashAnnotationKey is the annotation key for storing the server pod spec hash
+	ServerPodSpecHashAnnotationKey = "sparkoperator.k8s.io/server-pod-spec-hash"
 )
 
 // Options defines the options of SparkConnect reconciler.
@@ -286,19 +291,333 @@ func (r *Reconciler) mutateConfigMap(_ context.Context, conn *v1alpha1.SparkConn
 	return nil
 }
 
-// createOrUpdateServerPod creates or updates the server pod for the SparkConnect resource.
-func (r *Reconciler) createOrUpdateServerPod(ctx context.Context, conn *v1alpha1.SparkConnect) error {
-	logger := ctrl.LoggerFrom(ctx)
-	logger.V(1).Info("Create or update server pod")
+// buildServerPodSpec builds the server pod spec from the SparkConnect resource.
+// This is a helper function used for both pod creation and hash computation.
+func (r *Reconciler) buildServerPodSpec(conn *v1alpha1.SparkConnect, pod *corev1.Pod, isNewPod bool) error {
+	// Apply template if provided (only on creation, as pod spec is immutable)
+	if isNewPod {
+		template := conn.Spec.Server.Template
+		if template != nil {
+			// Merge labels and annotations from template
+			if pod.Labels == nil {
+				pod.Labels = make(map[string]string)
+			}
+			for k, v := range template.Labels {
+				pod.Labels[k] = v
+			}
+			if pod.Annotations == nil {
+				pod.Annotations = make(map[string]string)
+			}
+			for k, v := range template.Annotations {
+				pod.Annotations[k] = v
+			}
+			// Apply pod spec from template
+			pod.Spec = template.Spec
+		}
+	}
 
-	pod := &corev1.Pod{
+	// Ensure annotations map exists
+	if pod.Annotations == nil {
+		pod.Annotations = make(map[string]string)
+	}
+
+	// Add a default server container if not specified.
+	if len(pod.Spec.Containers) == 0 {
+		pod.Spec.Containers = append(pod.Spec.Containers, corev1.Container{
+			Name: common.SparkDriverContainerName,
+		})
+	}
+
+	index := 0
+	for i, container := range pod.Spec.Containers {
+		if container.Name == common.SparkDriverContainerName {
+			index = i
+			break
+		}
+	}
+
+	// Build Spark connect server container.
+	container := &pod.Spec.Containers[index]
+
+	// Setup image - always use spec image if provided, otherwise use container image from template
+	if conn.Spec.Image != nil && *conn.Spec.Image != "" {
+		container.Image = *conn.Spec.Image
+	} else if container.Image == "" {
+		return fmt.Errorf("image is not specified")
+	}
+
+	// Setup entrypoint - always set from spec
+	container.Command = []string{"bash", "-c"}
+	args, err := buildStartConnectServerArgs(conn)
+	if err != nil {
+		return fmt.Errorf("failed to build spark connection args: %v", err)
+	}
+	container.Args = []string{strings.Join(args, " ")}
+
+	// Setup environment variables - ensure required env vars are present
+	envVars := make(map[string]corev1.EnvVar)
+	// Preserve existing env vars
+	for _, env := range container.Env {
+		envVars[env.Name] = env
+	}
+	// Add/update required env vars
+	envVars["POD_IP"] = corev1.EnvVar{
+		Name: "POD_IP",
+		ValueFrom: &corev1.EnvVarSource{
+			FieldRef: &corev1.ObjectFieldSelector{
+				FieldPath: "status.podIP",
+			},
+		},
+	}
+	envVars[common.EnvSparkNoDaemonize] = corev1.EnvVar{
+		Name:  common.EnvSparkNoDaemonize,
+		Value: "true",
+	}
+	// Convert back to slice
+	container.Env = make([]corev1.EnvVar, 0, len(envVars))
+	for _, env := range envVars {
+		container.Env = append(container.Env, env)
+	}
+
+	// Setup volumes and volumeMounts - ensure ConfigMap volume is present
+	volumeMounts := make(map[string]corev1.VolumeMount)
+	for _, vm := range container.VolumeMounts {
+		volumeMounts[vm.Name] = vm
+	}
+	volumeMounts[common.SparkConfigMapVolumeMountName] = corev1.VolumeMount{
+		Name:      common.SparkConfigMapVolumeMountName,
+		SubPath:   ExecutorPodTemplateFileName,
+		MountPath: fmt.Sprintf("/tmp/spark/%s", ExecutorPodTemplateFileName),
+		ReadOnly:  true,
+	}
+	container.VolumeMounts = make([]corev1.VolumeMount, 0, len(volumeMounts))
+	for _, vm := range volumeMounts {
+		container.VolumeMounts = append(container.VolumeMounts, vm)
+	}
+
+	// Setup lifecycle hook - always set PreStop hook
+	container.Lifecycle = &corev1.Lifecycle{
+		PreStop: &corev1.LifecycleHandler{
+			Exec: &corev1.ExecAction{
+				Command: []string{
+					"bash",
+					"-c",
+					"${SPARK_HOME}/sbin/stop-connect-server.sh",
+				},
+			},
+		},
+	}
+
+	// Ensure ConfigMap volume is present
+	volumes := make(map[string]corev1.Volume)
+	for _, vol := range pod.Spec.Volumes {
+		volumes[vol.Name] = vol
+	}
+	volumes[common.SparkConfigMapVolumeMountName] = corev1.Volume{
+		Name: common.SparkConfigMapVolumeMountName,
+		VolumeSource: corev1.VolumeSource{
+			ConfigMap: &corev1.ConfigMapVolumeSource{
+				LocalObjectReference: corev1.LocalObjectReference{
+					Name: GetConfigMapName(conn),
+				},
+				Items: []corev1.KeyToPath{
+					{
+						Key:  ExecutorPodTemplateFileName,
+						Path: ExecutorPodTemplateFileName,
+					},
+				},
+			},
+		},
+	}
+	pod.Spec.Volumes = make([]corev1.Volume, 0, len(volumes))
+	for _, vol := range volumes {
+		pod.Spec.Volumes = append(pod.Spec.Volumes, vol)
+	}
+
+	return nil
+}
+
+// computeServerPodSpecHash computes a deterministic hash of the server pod spec.
+// This hash is used to detect when the pod spec has changed and needs to be recreated.
+func (r *Reconciler) computeServerPodSpecHash(conn *v1alpha1.SparkConnect) (string, error) {
+	// Create a temporary pod to compute the hash from the desired spec
+	tempPod := &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      GetServerPodName(conn),
 			Namespace: conn.Namespace,
 		},
 	}
 
-	_, err := controllerutil.CreateOrUpdate(ctx, r.client, pod, func() error {
+	// Build the pod spec without setting annotations or owner references
+	if err := r.buildServerPodSpec(conn, tempPod, true); err != nil {
+		return "", fmt.Errorf("failed to build pod spec for hash computation: %v", err)
+	}
+
+	// Create a hashable representation of the pod spec
+	// We hash the container image, command, args, env vars, volumes, and resources
+	hashData := struct {
+		Image     string
+		Command   []string
+		Args      []string
+		Env       []corev1.EnvVar
+		Resources corev1.ResourceRequirements
+		Volumes   []corev1.Volume
+		Labels    map[string]string
+	}{
+		Image:     "",
+		Command:   []string{},
+		Args:      []string{},
+		Env:       []corev1.EnvVar{},
+		Resources: corev1.ResourceRequirements{},
+		Volumes:   []corev1.Volume{},
+		Labels:    tempPod.Labels,
+	}
+
+	// Find the server container
+	index := 0
+	for i, container := range tempPod.Spec.Containers {
+		if container.Name == common.SparkDriverContainerName {
+			index = i
+			break
+		}
+	}
+	if index < len(tempPod.Spec.Containers) {
+		container := tempPod.Spec.Containers[index]
+		hashData.Image = container.Image
+		hashData.Command = container.Command
+		hashData.Args = container.Args
+		// Sort env vars by name for deterministic hashing
+		envVars := make([]corev1.EnvVar, len(container.Env))
+		copy(envVars, container.Env)
+		sort.Slice(envVars, func(i, j int) bool {
+			return envVars[i].Name < envVars[j].Name
+		})
+		hashData.Env = envVars
+		hashData.Resources = container.Resources
+	}
+	// Sort volumes by name for deterministic hashing
+	volumes := make([]corev1.Volume, len(tempPod.Spec.Volumes))
+	copy(volumes, tempPod.Spec.Volumes)
+	sort.Slice(volumes, func(i, j int) bool {
+		return volumes[i].Name < volumes[j].Name
+	})
+	hashData.Volumes = volumes
+
+	// Serialize to YAML for hashing
+	hashBytes, err := yaml.Marshal(hashData)
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal pod spec for hashing: %v", err)
+	}
+
+	// Compute SHA256 hash
+	hash := sha256.Sum256(hashBytes)
+	return hex.EncodeToString(hash[:]), nil
+}
+
+// needsPodRestart checks if the pod needs to be restarted due to spec changes.
+func (r *Reconciler) needsPodRestart(ctx context.Context, conn *v1alpha1.SparkConnect, pod *corev1.Pod) (bool, string, error) {
+	// If pod doesn't exist, no restart needed (will be created)
+	if pod == nil || pod.CreationTimestamp.IsZero() {
+		return false, "", nil
+	}
+
+	// If pod is being deleted, don't restart
+	if !pod.DeletionTimestamp.IsZero() {
+		return false, "", nil
+	}
+
+	// Compute desired spec hash
+	desiredHash, err := r.computeServerPodSpecHash(conn)
+	if err != nil {
+		return false, "", fmt.Errorf("failed to compute desired pod spec hash: %v", err)
+	}
+
+	// Get current hash from pod annotations
+	currentHash := pod.Annotations[ServerPodSpecHashAnnotationKey]
+
+	// If hashes differ, pod needs restart
+	if currentHash != desiredHash {
+		return true, desiredHash, nil
+	}
+
+	return false, desiredHash, nil
+}
+
+// createOrUpdateServerPod creates or updates the server pod for the SparkConnect resource.
+func (r *Reconciler) createOrUpdateServerPod(ctx context.Context, conn *v1alpha1.SparkConnect) error {
+	logger := ctrl.LoggerFrom(ctx)
+	logger.V(1).Info("Create or update server pod")
+
+	podName := GetServerPodName(conn)
+	podKey := types.NamespacedName{
+		Name:      podName,
+		Namespace: conn.Namespace,
+	}
+
+	// Check if pod exists and if it needs restart
+	existingPod := &corev1.Pod{}
+	err := r.client.Get(ctx, podKey, existingPod)
+	if err != nil && !errors.IsNotFound(err) {
+		return fmt.Errorf("failed to get existing server pod: %v", err)
+	}
+
+	// Check if pod needs restart due to spec changes
+	needsRestart := false
+	desiredHash := ""
+	if err == nil {
+		var err2 error
+		needsRestart, desiredHash, err2 = r.needsPodRestart(ctx, conn, existingPod)
+		if err2 != nil {
+			return fmt.Errorf("failed to check if pod needs restart: %v", err2)
+		}
+	}
+
+	// If pod needs restart, delete it first
+	if needsRestart {
+		logger.Info("Server pod spec changed, deleting pod for recreation",
+			"pod", podName,
+			"oldHash", existingPod.Annotations[ServerPodSpecHashAnnotationKey],
+			"newHash", desiredHash)
+
+		// Set updating condition
+		condition := metav1.Condition{
+			Type:    string(v1alpha1.SparkConnectConditionServerPodUpdating),
+			Status:  metav1.ConditionTrue,
+			Reason:  string(v1alpha1.SparkConnectConditionReasonServerPodSpecChanged),
+			Message: fmt.Sprintf("Server pod spec changed, restarting pod with new spec hash: %s", desiredHash),
+		}
+		_ = meta.SetStatusCondition(&conn.Status.Conditions, condition)
+		conn.Status.State = v1alpha1.SparkConnectStateNotReady
+
+		// Emit event
+		r.recorder.Eventf(conn, corev1.EventTypeNormal, "SparkConnectServerPodSpecChanged",
+			"Server pod spec changed, restarting pod %s", podName)
+
+		// Delete the pod
+		if err := r.client.Delete(ctx, existingPod); err != nil {
+			if !errors.IsNotFound(err) {
+				return fmt.Errorf("failed to delete server pod for restart: %v", err)
+			}
+		} else {
+			logger.Info("Deleted server pod for restart", "pod", podName)
+			r.recorder.Eventf(conn, corev1.EventTypeNormal, "SparkConnectServerPodDeleting",
+				"Deleted server pod %s for restart", podName)
+		}
+
+		// Wait for deletion to complete before recreating
+		// The next reconcile will recreate the pod
+		return nil
+	}
+
+	// Create or update the pod
+	pod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      podName,
+			Namespace: conn.Namespace,
+		},
+	}
+
+	_, err = controllerutil.CreateOrUpdate(ctx, r.client, pod, func() error {
 		// Mutate server pod.
 		if err := r.mutateServerPod(ctx, conn, pod); err != nil {
 			return fmt.Errorf("failed to build server pod: %v", err)
@@ -319,6 +638,8 @@ func (r *Reconciler) createOrUpdateServerPod(ctx context.Context, conn *v1alpha1
 			Message: "Server pod is ready",
 		}
 		_ = meta.SetStatusCondition(&conn.Status.Conditions, condition)
+		// Remove updating condition if present
+		_ = meta.RemoveStatusCondition(&conn.Status.Conditions, string(v1alpha1.SparkConnectConditionServerPodUpdating))
 		conn.Status.State = v1alpha1.SparkConnectStateReady
 	} else {
 		condition := metav1.Condition{
@@ -338,110 +659,22 @@ func (r *Reconciler) createOrUpdateServerPod(ctx context.Context, conn *v1alpha1
 }
 
 // mutateServerPod mutates the server pod for SparkConnect.
+// This function always applies mutations, not just on creation, to ensure the pod spec
+// matches the desired state from the SparkConnect resource.
 func (r *Reconciler) mutateServerPod(_ context.Context, conn *v1alpha1.SparkConnect, pod *corev1.Pod) error {
-	// Server pod not created yet.
-	if pod.CreationTimestamp.IsZero() {
-		template := conn.Spec.Server.Template
-		if template != nil {
-			pod.Labels = template.Labels
-			pod.Annotations = template.Annotations
-			pod.Spec = template.Spec
-		}
+	isNewPod := pod.CreationTimestamp.IsZero()
 
-		// Add a default server container if not specified.
-		if len(pod.Spec.Containers) == 0 {
-			pod.Spec.Containers = append(pod.Spec.Containers, corev1.Container{
-				Name: common.SparkDriverContainerName,
-			})
-		}
-
-		index := 0
-		for i, container := range pod.Spec.Containers {
-			if container.Name == common.SparkDriverContainerName {
-				index = i
-				break
-			}
-		}
-
-		// Build Spark connect server container.
-		container := &pod.Spec.Containers[index]
-
-		// Setup image.
-		if container.Image == "" {
-			if conn.Spec.Image == nil || *conn.Spec.Image == "" {
-				return fmt.Errorf("image is not specified")
-			}
-			container.Image = *conn.Spec.Image
-		}
-
-		// Setup entrypoint.
-		container.Command = []string{"bash", "-c"}
-		args, err := buildStartConnectServerArgs(conn)
-		if err != nil {
-			return fmt.Errorf("failed to build spark connection args: %v", err)
-		}
-		container.Args = []string{strings.Join(args, " ")}
-
-		// Setup environment variables.
-		container.Env = append(
-			container.Env,
-			corev1.EnvVar{
-				Name: "POD_IP",
-				ValueFrom: &corev1.EnvVarSource{
-					FieldRef: &corev1.ObjectFieldSelector{
-						FieldPath: "status.podIP",
-					},
-				},
-			},
-			corev1.EnvVar{
-				Name:  common.EnvSparkNoDaemonize,
-				Value: "true",
-			},
-		)
-
-		// Setup volumes and volumeMounts.
-		container.VolumeMounts = append(
-			container.VolumeMounts,
-			corev1.VolumeMount{
-				Name:      common.SparkConfigMapVolumeMountName,
-				SubPath:   ExecutorPodTemplateFileName,
-				MountPath: fmt.Sprintf("/tmp/spark/%s", ExecutorPodTemplateFileName),
-				ReadOnly:  true,
-			},
-		)
-
-		container.Lifecycle = &corev1.Lifecycle{
-			PreStop: &corev1.LifecycleHandler{
-				Exec: &corev1.ExecAction{
-					Command: []string{
-						"bash",
-						"-c",
-						"${SPARK_HOME}/sbin/stop-connect-server.sh",
-					},
-				},
-			},
-		}
-
-		pod.Spec.Volumes = append(
-			pod.Spec.Volumes,
-			corev1.Volume{
-				Name: common.SparkConfigMapVolumeMountName,
-				VolumeSource: corev1.VolumeSource{
-					ConfigMap: &corev1.ConfigMapVolumeSource{
-						LocalObjectReference: corev1.LocalObjectReference{
-							Name: GetConfigMapName(conn),
-						},
-						Items: []corev1.KeyToPath{
-							{
-								Key:  ExecutorPodTemplateFileName,
-								Path: ExecutorPodTemplateFileName,
-							},
-						},
-					},
-				},
-			},
-		)
+	// Build the pod spec
+	if err := r.buildServerPodSpec(conn, pod, isNewPod); err != nil {
+		return err
 	}
+
+	// Compute and set spec hash annotation
+	specHash, err := r.computeServerPodSpecHash(conn)
+	if err != nil {
+		return fmt.Errorf("failed to compute pod spec hash: %v", err)
+	}
+	pod.Annotations[ServerPodSpecHashAnnotationKey] = specHash
 
 	// Set controller owner reference on server pod.
 	if err := ctrl.SetControllerReference(conn, pod, r.scheme); err != nil {
