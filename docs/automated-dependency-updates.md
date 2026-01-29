@@ -1,30 +1,30 @@
 # Automated Dependency Update Workflow
 
-This document describes the automated workflow for updating the spark-base image version in the spark-on-k8s-operator repository.
+This document describes the automated workflow for updating the spark image version in the spark-on-k8s-operator repository.
 
 ## Overview
 
 The workflow consists of three main components:
 
-1. **Update Spark Base Version** (`update_spark_base.yml`) - Receives updates from the spark-base repository and creates a PR
+1. **Update Spark Version** (`update_spark_base.yml`) - Receives updates from the spark repository and creates a PR
 2. **Auto Release on Merge** (`auto_release_on_merge.yml`) - Creates a release after the PR is merged
 3. **Trigger to spark-operator** - Notifies the spark-operator repository to update its image references
 
 ## Workflow Details
 
-### 1. Update Spark Base Version Workflow
+### 1. Update Spark Version Workflow
 
 **Trigger:** 
-- `repository_dispatch` event from spark-base repository
+- `repository_dispatch` event from spark repository
 - Manual trigger via `workflow_dispatch` with version input
 
 **Actions:**
-- Receives the new spark-base version (e.g., `v1.9.18`)
+- Receives the new spark version (e.g., `v1.9.18`)
 - Updates the `SPARK_IMAGE` build argument in:
   - `.github/workflows/relativity_main.yml`
   - `.github/workflows/relativity_release.yaml`
 - Creates a Pull Request with the changes to the `relativity-main` branch
-- PR title format: "Update spark-base version to vX.Y.Z"
+- PR title format: "Update spark version to vX.Y.Z"
 
 **Usage:**
 ```bash
@@ -32,8 +32,8 @@ The workflow consists of three main components:
 curl -X POST \
   -H "Accept: application/vnd.github.v3+json" \
   -H "Authorization: token ${GITHUB_TOKEN}" \
-  https://api.github.com/repos/relativityone/spark-on-k8s-operator/actions/workflows/update_spark_base.yml/dispatches \
-  -d '{"ref":"relativity-main","inputs":{"spark_base_version":"v1.9.18"}}'
+  https://api.github.com/repos/relativityone/spark-on-k8s-operator/actions/workflows/update_spark.yml/dispatches \
+  -d '{"ref":"relativity-main","inputs":{"spark_version":"v1.9.18"}}'
 ```
 
 ### 2. Auto Release on Merge Workflow
@@ -72,12 +72,12 @@ To enable automatic triggering of the spark-operator repository, add a GitHub Pe
 3. Add it as a secret named `SPARK_OPERATOR_DISPATCH_TOKEN` in this repository
 4. The workflow will automatically trigger the `update-operator-image` workflow in the spark-operator repository
 
-## Integration with spark-base Repository
+## Integration with spark Repository
 
-For the spark-base repository to trigger this workflow, it should dispatch an event after creating a release:
+For the spark repository to trigger this workflow, it should dispatch an event after creating a release:
 
 ```yaml
-# In spark-base repository's release workflow
+# In spark repository's release workflow
 - name: Trigger spark-on-k8s-operator update
   run: |
     curl -X POST \
@@ -85,7 +85,7 @@ For the spark-base repository to trigger this workflow, it should dispatch an ev
       -H "Authorization: token ${{ secrets.SPARK_ON_K8S_OPERATOR_DISPATCH_TOKEN }}" \
       https://api.github.com/repos/relativityone/spark-on-k8s-operator/dispatches \
       -d '{
-        "event_type": "spark-base-updated",
+        "event_type": "spark-updated",
         "client_payload": {
           "version": "${{ steps.get-version.outputs.version }}"
         }
@@ -95,12 +95,12 @@ For the spark-base repository to trigger this workflow, it should dispatch an ev
 ## Workflow Diagram
 
 ```
-spark-base repository
+spark repository
     |
     | (creates release v1.9.18)
     |
     v
-[Dispatch Event] ──> update_spark_base.yml
+[Dispatch Event] ──> update_spark.yml
                             |
                             | (creates PR)
                             v
@@ -127,7 +127,7 @@ spark-base repository
 ### Test the Update Workflow Manually
 
 1. Go to Actions tab in GitHub
-2. Select "Update Spark Base Version"
+2. Select "Update Spark Version"
 3. Click "Run workflow"
 4. Enter a version (e.g., `v1.9.18`)
 5. Verify the PR is created correctly

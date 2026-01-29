@@ -89,12 +89,12 @@ For more information, check the [Design](docs/design.md), [API Specification](do
 
 This repository is part of an automated deployment chain for Spark infrastructure. The deployment process works as follows:
 
-1. **Upstream Trigger** (from `spark-base` repository):
-   - When a new spark-base image is built, tested, and released, it automatically triggers this repository via a repository dispatch event
-   - The dispatch includes the new spark-base version (e.g., `v1.9.18`)
+1. **Upstream Trigger** (from `spark` repository):
+   - When a new spark image is built, tested, and released, it automatically triggers this repository via a repository dispatch event
+   - The dispatch includes the new spark version (e.g., `v1.9.18`)
 
 2. **Automatic Version Update** (in this repository):
-   - Upon receiving the dispatch event, a workflow automatically updates the `spark-base-version` file with the new version
+   - Upon receiving the dispatch event, a workflow automatically updates the `spark-version` file with the new version
    - A pull request is created with the updated version for review
    - Validate if the changes are sufficient and if not modify necessary parts of code.
 

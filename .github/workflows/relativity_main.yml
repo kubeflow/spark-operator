@@ -55,11 +55,11 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
 
-      - name: Get spark-base version
-        id: get-spark-base-version
+      - name: Get spark version
+        id: get-spark-version
         run: |
           # Read the file and trim whitespace/newlines
-          SPARK_VERSION=$(cat spark-base-version | xargs)
+          SPARK_VERSION=$(cat spark-version | xargs)
           # Ensure version starts with 'v'
           if [[ "$SPARK_VERSION" == v* ]]; then
             SPARK_VERSION="$SPARK_VERSION"
@@ -68,7 +68,7 @@ jobs:
           fi
           
           SPARK_IMAGE=${{vars.SPARK_IMAGE_PATH}}:${SPARK_VERSION}
-          echo "Read spark-base version: ${SPARK_IMAGE}"
+          echo "Read spark version: ${SPARK_IMAGE}"
           echo "SPARK_IMAGE=${SPARK_IMAGE}" >> "$GITHUB_OUTPUT"
 
       - name: Build image
@@ -77,7 +77,7 @@ jobs:
           tags: spark-operator:local
           outputs: 'type=docker,dest=/tmp/base-image.tar'
           build-args: |
-            SPARK_IMAGE=${{ steps.get-spark-base-version.outputs.SPARK_IMAGE }}
+            SPARK_IMAGE=${{ steps.get-spark-version.outputs.SPARK_IMAGE }}
 
       - name: Cache image
         uses: actions/upload-artifact@v4

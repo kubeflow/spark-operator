@@ -1,12 +1,12 @@
-name: Update Spark Base Version
+name: Update Spark Version
 
 on:
   repository_dispatch:
     types: [spark-base-updated]
   workflow_dispatch:
     inputs:
-      spark_base_version:
-        description: 'Spark base version to update to (e.g., v1.9.18)'
+      spark_version:
+        description: 'Spark version to update to (e.g., v1.9.18)'
         required: true
         type: string
 
@@ -16,7 +16,7 @@ permissions:
   id-token: write
 
 jobs:
-  update-spark-base-version:
+  update-spark-version:
     runs-on: ubuntu-latest
     environment: 'nonprod'
     steps:
@@ -42,7 +42,7 @@ jobs:
           if [ "${{ github.event_name }}" = "repository_dispatch" ]; then
             RAW_VERSION="${{ github.event.client_payload.version }}"
           else
-            RAW_VERSION="${{ inputs.spark_base_version }}"
+            RAW_VERSION="${{ inputs.spark_version }}"
           fi
           # Ensure version starts with 'v'
           if [[ "$RAW_VERSION" == v* ]]; then
@@ -58,8 +58,8 @@ jobs:
         run: |
           VERSION="${{ steps.set-version.outputs.version }}"
 
-          # Replace the entire line in spark-base-version file
-          echo -n "${VERSION}" > spark-base-version
+          # Replace the entire line in spark-version file
+          echo -n "${VERSION}" > spark-version
 
           # Check if any files were modified
           if git diff --quiet; then
@@ -76,20 +76,20 @@ jobs:
         uses: peter-evans/create-pull-request@v7
         with:
           token: ${{ steps.kv.outputs.githubServiceAccountPAT }}
-          commit-message: "Update spark-base version to ${{ steps.set-version.outputs.version }}"
-          title: "Update spark-base version to ${{ steps.set-version.outputs.version }}"
+          commit-message: "Update spark version to ${{ steps.set-version.outputs.version }}"
+          title: "Update spark version to ${{ steps.set-version.outputs.version }}"
           body: |
-            This PR updates the spark-base image version to `${{ steps.set-version.outputs.version }}`.
+            This PR updates the spark image version to `${{ steps.set-version.outputs.version }}`.
             
             ## Changes
-            - Updated `spark-base-version`
+            - Updated `spark-version`
             
-            This PR was automatically created by the update-spark-base workflow.
-          branch: update-spark-base-${{ steps.set-version.outputs.version }}
+            This PR was automatically created by the update-spark workflow.
+          branch: update-spark-${{ steps.set-version.outputs.version }}
           base: relativity-main
           delete-branch: true
 
       - name: No changes needed
         if: steps.update-files.outputs.changed == 'false'
         run: |
-          echo "Spark base version is already up to date. No PR created."
+          echo "Spark version is already up to date. No PR created."
