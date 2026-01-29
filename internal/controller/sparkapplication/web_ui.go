@@ -72,10 +72,18 @@ func (r *Reconciler) createWebUIService(ctx context.Context, app *v1beta2.SparkA
 
 func (r *Reconciler) createWebUIIngress(ctx context.Context, app *v1beta2.SparkApplication, service SparkService, ingressURL *url.URL, ingressClassName string, defaultIngressTLS []networkingv1.IngressTLS, defaultIngressAnnotations map[string]string) (*SparkIngress, error) {
 	ingressName := util.GetDefaultUIIngressName(app)
-	if util.IngressCapabilities.Has("networking.k8s.io/v1") {
-		return r.createDriverIngressV1(ctx, app, service, ingressName, ingressURL, ingressClassName, defaultIngressTLS, defaultIngressAnnotations)
+
+	// Determine if ingress-agnostic mode should be used
+	// Per-application setting takes precedence over global setting
+	useIngressAgnosticMode := r.options.UseIngressAgnosticMode
+	if app.Spec.SparkUIOptions != nil && app.Spec.SparkUIOptions.UseIngressAgnosticMode != nil {
+		useIngressAgnosticMode = *app.Spec.SparkUIOptions.UseIngressAgnosticMode
 	}
-	return r.createDriverIngressLegacy(ctx, app, service, ingressName, ingressURL)
+
+	if util.IngressCapabilities.Has("networking.k8s.io/v1") {
+		return r.createDriverIngressV1(ctx, app, service, ingressName, ingressURL, ingressClassName, defaultIngressTLS, defaultIngressAnnotations, useIngressAgnosticMode)
+	}
+	return r.createDriverIngressLegacy(ctx, app, service, ingressName, ingressURL, useIngressAgnosticMode)
 }
 
 func getWebUIServicePortName(app *v1beta2.SparkApplication) string {
