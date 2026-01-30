@@ -84,3 +84,11 @@ jobs:
         with:
           name: base-image
           path: /tmp/base-image.tar
+
+      - name: Load image for validation
+        run: docker load -i /tmp/base-image.tar
+
+      - name: Validate security remediations
+        run: |
+          chmod +x ./scripts/validate-image-security.sh
+          ./scripts/validate-image-security.sh spark-operator:local
