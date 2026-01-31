@@ -1,0 +1,39 @@
+[project]
+name = "kubeflow_spark_api"
+dynamic = ["version"]
+requires-python = ">=3.9"
+authors = [
+  { name = "The Kubeflow Authors", email = "kubeflow-discuss@googlegroups.com" },
+]
+license = "Apache-2.0"
+description = "Kubeflow Spark Operator API models for Kubernetes resources to interact with Kubeflow APIs."
+readme = "README.md"
+keywords = ["kubeflow", "spark-operator", "spark", "data-processing", "api"]
+classifiers = [
+  "Intended Audience :: Developers",
+  "Intended Audience :: Education",
+  "Intended Audience :: Science/Research",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "License :: OSI Approved :: Apache Software License",
+  "Operating System :: OS Independent",
+  "Topic :: Scientific/Engineering",
+  "Topic :: Scientific/Engineering :: Artificial Intelligence",
+  "Topic :: Software Development",
+  "Topic :: Software Development :: Libraries",
+  "Topic :: Software Development :: Libraries :: Python Modules",
+]
+dependencies = ["pydantic>=2.10.0"]
+
+[project.urls]
+Homepage = "https://github.com/kubeflow/spark-operator"
+Documentation = "https://www.kubeflow.org/docs/components/spark-operator/"
+Source = "https://github.com/kubeflow/spark-operator"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.version]
+path = "kubeflow_spark_api/__init__.py"

@@ -4,6 +4,8 @@
 
 - [Write](https://docs.github.com/organizations/managing-access-to-your-organizations-repositories/repository-permission-levels-for-an-organization#permission-levels-for-repositories-owned-by-an-organization) permission for the Spark operator repository.
 
+- Maintainer access to [the Kubeflow Spark Operator API Python modules](https://pypi.org/project/kubeflow-spark-api/).
+
 - Create a [GitHub Token](https://docs.github.com/github/authenticating-to-github/keeping-your-account-and-data-secure/creating-a-personal-access-token).
 
 - Install `PyGithub` to generate the [Changelog](../CHANGELOG.md):
@@ -11,6 +13,23 @@
   ```bash
   pip install PyGithub==2.3.0
   ```
+
+- Install `twine` and `build` to publish the SDK package:
+
+  ```
+  pip install twine>=6.1.0
+  pip install build>=1.3.0
+  ```
+
+  - Create a [PyPI Token](https://pypi.org/help/#apitoken) to publish Spark Operator SDK.
+
+  - Add the following config to your `~/.pypirc` file:
+
+    ```
+    [pypi]
+       username = __token__
+       password = <PYPI_TOKEN>
+    ```
 
 ## Versioning policy
 
@@ -99,6 +118,29 @@ If you want to push changes to the `release-X.Y` release branch, you have to che
     ```
 
 5. Submit a PR to the release branch.
+
+### Release Kubeflow Spark Operator API Modules
+
+1. Update the `API_VERSION` in [the `gen-api.sh` file](../../hack/python-api/gen-api.sh).
+
+   You must follow this semantic `X.Y.ZrcN` for the RC or `X.Y.Z` for the public release.
+
+   For example:
+
+   ```sh
+   API_VERSION = "2.1.0rc0"
+   ```
+
+1. Generate and publish the Kubeflow Spark Operator API models:
+
+   ```
+   make python-api
+   cd api/python_api
+   rm -rf dist
+   python -m build
+   twine upload dist/*
+   cd ../..
+   ```
 
 ### Release Spark Operator Image
 
