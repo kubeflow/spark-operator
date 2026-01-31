@@ -14,6 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+// +k8s:openapi-gen=true
 // +k8s:deepcopy-gen=package,register
 
 // Package v1beta2 is the v1beta2 version of the API.
