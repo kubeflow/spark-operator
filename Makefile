@@ -124,6 +124,10 @@ verify-codegen: $(LOCALBIN) ## Install code-generator commands and verify change
 	$(call go-install-tool,$(LOCALBIN)/informer-gen-$(CODE_GENERATOR_VERSION),k8s.io/code-generator/cmd/informer-gen,$(CODE_GENERATOR_VERSION))
 	./hack/verify-codegen.sh
 
+.PHONY: python-api
+python-api: manifests ## Generate Python APIs from CRDs.
+	hack/openapi/gen-openapi.sh
+
 .PHONY: go-clean
 go-clean: ## Clean up caches and output.
 	@echo "cleaning up caches and output"
