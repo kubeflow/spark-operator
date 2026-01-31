@@ -127,6 +127,7 @@ verify-codegen: $(LOCALBIN) ## Install code-generator commands and verify change
 .PHONY: python-api
 python-api: manifests ## Generate Python APIs from CRDs.
 	hack/openapi/gen-openapi.sh
+	CONTAINER_TOOL=$(CONTAINER_TOOL) hack/python-api/gen-api.sh
 
 .PHONY: go-clean
 go-clean: ## Clean up caches and output.
