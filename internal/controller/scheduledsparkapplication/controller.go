@@ -52,8 +52,28 @@ var (
 )
 
 type Options struct {
-	Namespaces        []string
-	NamespaceSelector string
+	Namespaces         []string
+	NamespaceSelector  string
+	TimestampPrecision string
+}
+
+// formatTimestamp formats the given time according to the specified precision.
+// Supported precisions: nanos (default), micros, millis, seconds, minutes.
+func formatTimestamp(t time.Time, precision string) string {
+	switch precision {
+	case "minutes":
+		return fmt.Sprintf("%d", t.Unix()/60)
+	case "seconds":
+		return fmt.Sprintf("%d", t.Unix())
+	case "millis":
+		return fmt.Sprintf("%d", t.UnixMilli())
+	case "micros":
+		return fmt.Sprintf("%d", t.UnixMicro())
+	case "nanos":
+		fallthrough
+	default:
+		return fmt.Sprintf("%d", t.UnixNano())
+	}
 }
 
 // Reconciler reconciles a ScheduledSparkApplication object
@@ -254,7 +274,7 @@ func (r *Reconciler) createSparkApplication(
 	}
 	app := &v1beta2.SparkApplication{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      fmt.Sprintf("%s-%d", scheduledApp.Name, t.UnixNano()),
+			Name:      fmt.Sprintf("%s-%s", scheduledApp.Name, formatTimestamp(t, r.options.TimestampPrecision)),
 			Namespace: scheduledApp.Namespace,
 			Labels:    labels,
 			OwnerReferences: []metav1.OwnerReference{{

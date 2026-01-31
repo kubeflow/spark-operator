@@ -118,12 +118,13 @@ var (
 	metricsLabels                 []string
 	metricsJobStartLatencyBuckets []float64
 
-	healthProbeBindAddress string
-	pprofBindAddress       string
-	secureMetrics          bool
-	enableHTTP2            bool
-	development            bool
-	zapOptions             = logzap.Options{}
+	healthProbeBindAddress                      string
+	pprofBindAddress                            string
+	secureMetrics                               bool
+	enableHTTP2                                 bool
+	scheduledSparkApplicationTimestampPrecision string
+	development                                 bool
+	zapOptions                                  = logzap.Options{}
 )
 
 func NewStartCommand() *cobra.Command {
@@ -145,6 +146,12 @@ func NewStartCommand() *cobra.Command {
 					return fmt.Errorf("failed parsing ingress-annotations JSON string from CLI: %v", err)
 				}
 			}
+
+			validPrecisions := []string{"nanos", "micros", "millis", "seconds", "minutes"}
+			if !slices.Contains(validPrecisions, scheduledSparkApplicationTimestampPrecision) {
+				return fmt.Errorf("invalid value %q for --scheduled-spark-application-timestamp-precision, valid values: %v", scheduledSparkApplicationTimestampPrecision, validPrecisions)
+			}
+
 			return nil
 		},
 		Run: func(_ *cobra.Command, args []string) {
@@ -197,6 +204,8 @@ func NewStartCommand() *cobra.Command {
 
 	command.Flags().StringVar(&pprofBindAddress, "pprof-bind-address", "0", "The address the pprof endpoint binds to. "+
 		"If not set, it will be 0 in order to disable the pprof server")
+
+	command.Flags().StringVar(&scheduledSparkApplicationTimestampPrecision, "scheduled-spark-application-timestamp-precision", "nanos", "Timestamp precision for ScheduledSparkApplication run names. Valid values: nanos, micros, millis, seconds, minutes.")
 
 	flagSet := flag.NewFlagSet("controller", flag.ExitOnError)
 	ctrl.RegisterFlags(flagSet)
@@ -459,8 +468,9 @@ func newSparkApplicationReconcilerOptions() sparkapplication.Options {
 
 func newScheduledSparkApplicationReconcilerOptions() scheduledsparkapplication.Options {
 	options := scheduledsparkapplication.Options{
-		Namespaces:        namespaces,
-		NamespaceSelector: namespaceSelector,
+		Namespaces:         namespaces,
+		NamespaceSelector:  namespaceSelector,
+		TimestampPrecision: scheduledSparkApplicationTimestampPrecision,
 	}
 	return options
 }
