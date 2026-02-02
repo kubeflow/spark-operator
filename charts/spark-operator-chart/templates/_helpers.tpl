@@ -78,6 +78,17 @@ Spark Operator image
 {{- end -}}
 
 {{/*
+Spark Operator control-plane version
+*/}}
+{{- define "sparkoperator.version" -}}
+{{- if hasPrefix "0.0.0-" .Chart.Version -}}
+dev
+{{- else -}}
+{{- printf "v%s" .Chart.Version -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
 Whether the RestSubmitter feature gate is enabled.
 */}}
 {{- define "spark-operator.submitter.enabled" -}}
