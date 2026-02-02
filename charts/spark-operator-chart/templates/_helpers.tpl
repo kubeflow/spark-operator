@@ -80,11 +80,11 @@ Spark Operator image
 {{/*
 Spark Operator control-plane version
 */}}
-{{- define "sparkoperator.version" -}}
-{{- if hasPrefix "0.0.0-" .Chart.Version -}}
+{{- define "spark-operator.version" -}}  
+{{- if hasPrefix "0.0.0-" .Chart.Version -}} 
 dev
 {{- else -}}
-{{- printf "v%s" .Chart.Version -}}
+{{ printf "v%s" .Chart.Version }}
 {{- end -}}
 {{- end -}}
 
@@ -103,5 +103,4 @@ Whether the DefaultTimeToLive feature gate is enabled.
 {{- define "spark-operator.defaultTimeToLive.enabled" -}}
 {{- range .Values.controller.featureGates -}}
 {{- if and (eq .name "DefaultTimeToLive") .enabled -}}true{{- end -}}
-{{- end -}}
 {{- end -}}
