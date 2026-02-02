@@ -80,10 +80,17 @@ Spark Operator image
 {{/*
 Spark Operator control-plane version
 */}}
-{{- define "sparkoperator.version" -}}
+{{- define "spark-operator.version" -}}
 {{- if hasPrefix "0.0.0-" .Chart.Version -}}
 dev
 {{- else -}}
 {{- printf "v%s" .Chart.Version -}}
 {{- end -}}
+{{- end -}}
+
+{{/*
+Backwards-compatibility alias for templates still using the old name.
+*/}}
+{{- define "sparkoperator.version" -}}
+{{- include "spark-operator.version" . -}}
 {{- end -}}
