@@ -52,7 +52,7 @@ func TestSparkApplicationValidatorValidateCreate_Success(t *testing.T) {
 	}
 }
 
-func TestSparkApplicationValidatorValidateCreate_DriverIngressDuplicatePort(t *testing.T) {
+func TestSparkApplicationValidatorValidateCreate_DriverIngressSamePortDifferentHosts(t *testing.T) {
 	validator := newTestValidator(t, false)
 
 	app := newSparkApplication()
@@ -67,8 +67,29 @@ func TestSparkApplicationValidatorValidateCreate_DriverIngressDuplicatePort(t *t
 		},
 	}
 
-	if _, err := validator.ValidateCreate(context.Background(), app); err == nil || !strings.Contains(err.Error(), "duplicate ServicePort") {
-		t.Fatalf("expected duplicate service port error, got %v", err)
+	if _, err := validator.ValidateCreate(context.Background(), app); err != nil {
+		t.Fatalf("expected success for same port with different hosts, got error: %v", err)
+	}
+}
+
+func TestSparkApplicationValidatorValidateCreate_DriverIngressDuplicatePortAndHost(t *testing.T) {
+	validator := newTestValidator(t, false)
+
+	app := newSparkApplication()
+	app.Spec.DriverIngressOptions = []v1beta2.DriverIngressConfiguration{
+		{
+			ServicePort:      ptr.To[int32](4040),
+			IngressURLFormat: "http://spark-a",
+		},
+		{
+			ServicePort:      ptr.To[int32](4040),
+			IngressURLFormat: "http://spark-a", // Same host as above - should error
+		},
+	}
+
+	_, err := validator.ValidateCreate(context.Background(), app)
+	if err == nil || !strings.Contains(err.Error(), "duplicate IngressURLFormat") {
+		t.Fatalf("expected duplicate IngressURLFormat error, got %v", err)
 	}
 }
 
