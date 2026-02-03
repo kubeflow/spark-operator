@@ -1,0 +1,55 @@
+name: Welcome New Contributors
+
+on:
+  pull_request_target:
+    types:
+      - opened
+  issues:
+    types:
+      - opened
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
+jobs:
+  welcome:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/first-interaction@1c4688942c71f71d4f5502a26ea67c331730fa4d # v3.1.0
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          issue_message: |
+            🎉 **Welcome to the Kubeflow Spark Operator!** 🎉
+
+            Thanks for opening your first issue! We're happy to have you as part of our community 🚀
+
+            **Here's what happens next:**
+
+            - Our team will review your issue soon!
+            - If you'd like to contribute to this issue, check out our [Contributing Guide](https://github.com/kubeflow/spark-operator/blob/master/CONTRIBUTING.md) for repo-specific guidelines and the [Kubeflow Contributor Guide](https://www.kubeflow.org/docs/about/contributing/) for general community standards.
+
+            **Join the community:**
+
+            - **Slack**: Join our [#kubeflow-spark-on-kubernetes](https://www.kubeflow.org/docs/about/community/#kubeflow-slack-channels) Slack channel.
+
+            Feel free to ask questions in the comments if you need any help or clarification!
+            Thanks again for contributing to Kubeflow! 🙏
+
+          pr_message: |
+            🎉 **Welcome to the Kubeflow Spark Operator!** 🎉
+
+            Thanks for opening your first PR! We're happy to have you as part of our community 🚀
+
+            **Here's what happens next:**
+
+            - If you haven't already, please check out our [Contributing Guide](https://github.com/kubeflow/spark-operator/blob/master/CONTRIBUTING.md) for repo-specific guidelines and the [Kubeflow Contributor Guide](https://www.kubeflow.org/docs/about/contributing/) for general community standards.
+            - Our team will review your PR soon!
+
+            **Join the community:**
+
+            - **Slack**: Join our [#kubeflow-spark-on-kubernetes](https://www.kubeflow.org/docs/about/community/#kubeflow-slack-channels) Slack channel.
+
+            Feel free to ask questions in the comments if you need any help or clarification!
+            Thanks again for contributing to Kubeflow! 🙏
