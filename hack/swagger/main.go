@@ -86,7 +86,7 @@ func main() {
 }
 
 func swaggify(name string) string {
-	name = strings.ReplaceAll(name, "github.com/kubeflow/spark-operator/v2/api/", "sparkoperator.")
+	name = strings.ReplaceAll(name, "github.com/kubeflow/spark-operator/v2/api/", "")
 	name = strings.ReplaceAll(name, "k8s.io", "io.k8s")
 	name = strings.ReplaceAll(name, "/", ".")
 	return name

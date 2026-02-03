@@ -109,8 +109,9 @@ manifests: controller-gen ## Generate CustomResourceDefinition, RBAC and Webhook
 	$(CONTROLLER_GEN) crd:generateEmbeddedObjectMeta=true rbac:roleName=spark-operator-controller webhook paths="./..." output:crd:artifacts:config=config/crd/bases
 
 .PHONY: generate
-generate: controller-gen ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
+generate: controller-gen manifests ## Generate Go code and Python APIs.
 	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
+	$(MAKE) python-api
 
 .PHONY: update-crd
 update-crd: manifests ## Update CRD files in the Helm chart.

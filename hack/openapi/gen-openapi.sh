@@ -32,7 +32,12 @@ echo ">> Using ${OPENAPI_PKG}"
 echo "Generating OpenAPI specification for Kubeflow Spark Operator"
 
 # This list needs to cover all of the types used transitively from the Kubeflow Spark Operator APIs.
-# Update this list if Kubeflow Spark Operator depends on new external APIs.
+# openapi-gen does not automatically resolve transitive dependencies, so all external API
+# packages referenced directly or indirectly by the CRD schemas must be listed here.
+#
+# For example, Kubernetes networking types (k8s.io/api/networking/v1) reference
+# apimachinery types such as intstr.IntOrString (e.g. NetworkPolicyPort), which must
+# be explicitly included to avoid unresolved OpenAPI schemas.
 EXTRA_PACKAGES=(
   k8s.io/apimachinery/pkg/apis/meta/v1
   k8s.io/apimachinery/pkg/api/resource
