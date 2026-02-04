@@ -8,6 +8,18 @@
 
 - Create a [GitHub Token](https://docs.github.com/github/authenticating-to-github/keeping-your-account-and-data-secure/creating-a-personal-access-token).
 
+- Create an isolated Python environment (recommended):
+
+  ```bash
+  # Using venv
+  python -m venv .venv
+  source .venv/bin/activate
+
+  # Or using uv (faster dependency management)
+  uv venv
+  source .venv/bin/activate
+  ```
+
 - Install `PyGithub` to generate the [Changelog](../CHANGELOG.md):
 
   ```bash
