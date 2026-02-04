@@ -17,21 +17,20 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, ConfigDict, Field, StrictInt, StrictStr
+from pydantic import BaseModel, ConfigDict, Field, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional
+from kubeflow_spark_api.models.io_k8s_apimachinery_pkg_api_resource_quantity import IoK8sApimachineryPkgApiResourceQuantity
 from typing import Optional, Set
 from typing_extensions import Self
 
-class V1beta2RestartPolicy(BaseModel):
+class SparkV1beta2BatchSchedulerConfiguration(BaseModel):
     """
-    RestartPolicy is the policy of if and in which conditions the controller should restart a terminated application. This completely defines actions to be taken on any kind of Failures during an application run.
+    BatchSchedulerConfiguration used to configure how to batch scheduling Spark Application
     """ # noqa: E501
-    on_failure_retries: Optional[StrictInt] = Field(default=None, description="OnFailureRetries the number of times to retry running an application before giving up.", alias="onFailureRetries")
-    on_failure_retry_interval: Optional[StrictInt] = Field(default=None, description="OnFailureRetryInterval is the interval in seconds between retries on failed runs.", alias="onFailureRetryInterval")
-    on_submission_failure_retries: Optional[StrictInt] = Field(default=None, description="OnSubmissionFailureRetries is the number of times to retry submitting an application before giving up. This is best effort and actual retry attempts can be >= the value specified due to caching. These are required if RestartPolicy is OnFailure.", alias="onSubmissionFailureRetries")
-    on_submission_failure_retry_interval: Optional[StrictInt] = Field(default=None, description="OnSubmissionFailureRetryInterval is the interval in seconds between retries on failed submissions.", alias="onSubmissionFailureRetryInterval")
-    type: Optional[StrictStr] = Field(default=None, description="Type specifies the RestartPolicyType.")
-    __properties: ClassVar[List[str]] = ["onFailureRetries", "onFailureRetryInterval", "onSubmissionFailureRetries", "onSubmissionFailureRetryInterval", "type"]
+    priority_class_name: Optional[StrictStr] = Field(default=None, description="PriorityClassName stands for the name of k8s PriorityClass resource, it's being used in Volcano batch scheduler.", alias="priorityClassName")
+    queue: Optional[StrictStr] = Field(default=None, description="Queue stands for the resource queue which the application belongs to, it's being used in Volcano batch scheduler.")
+    resources: Optional[Dict[str, IoK8sApimachineryPkgApiResourceQuantity]] = Field(default=None, description="Resources stands for the resource list custom request for. Usually it is used to define the lower-bound limit. If specified, volcano scheduler will consider it as the resources requested.")
+    __properties: ClassVar[List[str]] = ["priorityClassName", "queue", "resources"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -51,7 +50,7 @@ class V1beta2RestartPolicy(BaseModel):
 
     @classmethod
     def from_json(cls, json_str: str) -> Optional[Self]:
-        """Create an instance of V1beta2RestartPolicy from a JSON string"""
+        """Create an instance of SparkV1beta2BatchSchedulerConfiguration from a JSON string"""
         return cls.from_dict(json.loads(json_str))
 
     def to_dict(self) -> Dict[str, Any]:
@@ -72,11 +71,18 @@ class V1beta2RestartPolicy(BaseModel):
             exclude=excluded_fields,
             exclude_none=True,
         )
+        # override the default output from pydantic by calling `to_dict()` of each value in resources (dict)
+        _field_dict = {}
+        if self.resources:
+            for _key_resources in self.resources:
+                if self.resources[_key_resources]:
+                    _field_dict[_key_resources] = self.resources[_key_resources].to_dict()
+            _dict['resources'] = _field_dict
         return _dict
 
     @classmethod
     def from_dict(cls, obj: Optional[Dict[str, Any]]) -> Optional[Self]:
-        """Create an instance of V1beta2RestartPolicy from a dict"""
+        """Create an instance of SparkV1beta2BatchSchedulerConfiguration from a dict"""
         if obj is None:
             return None
 
@@ -84,11 +90,14 @@ class V1beta2RestartPolicy(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
-            "onFailureRetries": obj.get("onFailureRetries"),
-            "onFailureRetryInterval": obj.get("onFailureRetryInterval"),
-            "onSubmissionFailureRetries": obj.get("onSubmissionFailureRetries"),
-            "onSubmissionFailureRetryInterval": obj.get("onSubmissionFailureRetryInterval"),
-            "type": obj.get("type")
+            "priorityClassName": obj.get("priorityClassName"),
+            "queue": obj.get("queue"),
+            "resources": dict(
+                (_k, IoK8sApimachineryPkgApiResourceQuantity.from_dict(_v))
+                for _k, _v in obj["resources"].items()
+            )
+            if obj.get("resources") is not None
+            else None
         })
         return _obj
 

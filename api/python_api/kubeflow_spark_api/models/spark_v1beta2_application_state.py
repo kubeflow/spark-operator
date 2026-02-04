@@ -22,18 +22,13 @@ from typing import Any, ClassVar, Dict, List, Optional
 from typing import Optional, Set
 from typing_extensions import Self
 
-class V1beta2Dependencies(BaseModel):
+class SparkV1beta2ApplicationState(BaseModel):
     """
-    Dependencies specifies all possible types of dependencies of a Spark application.
+    ApplicationState tells the current state of the application and an error message in case of failures.
     """ # noqa: E501
-    archives: Optional[List[StrictStr]] = Field(default=None, description="Archives is a list of archives to be extracted into the working directory of each executor.")
-    exclude_packages: Optional[List[StrictStr]] = Field(default=None, description="ExcludePackages is a list of \"groupId:artifactId\", to exclude while resolving the dependencies provided in Packages to avoid dependency conflicts.", alias="excludePackages")
-    files: Optional[List[StrictStr]] = Field(default=None, description="Files is a list of files the Spark application depends on.")
-    jars: Optional[List[StrictStr]] = Field(default=None, description="Jars is a list of JAR files the Spark application depends on.")
-    packages: Optional[List[StrictStr]] = Field(default=None, description="Packages is a list of maven coordinates of jars to include on the driver and executor classpaths. This will search the local maven repo, then maven central and any additional remote repositories given by the \"repositories\" option. Each package should be of the form \"groupId:artifactId:version\".")
-    py_files: Optional[List[StrictStr]] = Field(default=None, description="PyFiles is a list of Python files the Spark application depends on.", alias="pyFiles")
-    repositories: Optional[List[StrictStr]] = Field(default=None, description="Repositories is a list of additional remote repositories to search for the maven coordinate given with the \"packages\" option.")
-    __properties: ClassVar[List[str]] = ["archives", "excludePackages", "files", "jars", "packages", "pyFiles", "repositories"]
+    error_message: Optional[StrictStr] = Field(default=None, alias="errorMessage")
+    state: StrictStr
+    __properties: ClassVar[List[str]] = ["errorMessage", "state"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -53,7 +48,7 @@ class V1beta2Dependencies(BaseModel):
 
     @classmethod
     def from_json(cls, json_str: str) -> Optional[Self]:
-        """Create an instance of V1beta2Dependencies from a JSON string"""
+        """Create an instance of SparkV1beta2ApplicationState from a JSON string"""
         return cls.from_dict(json.loads(json_str))
 
     def to_dict(self) -> Dict[str, Any]:
@@ -78,7 +73,7 @@ class V1beta2Dependencies(BaseModel):
 
     @classmethod
     def from_dict(cls, obj: Optional[Dict[str, Any]]) -> Optional[Self]:
-        """Create an instance of V1beta2Dependencies from a dict"""
+        """Create an instance of SparkV1beta2ApplicationState from a dict"""
         if obj is None:
             return None
 
@@ -86,13 +81,8 @@ class V1beta2Dependencies(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
-            "archives": obj.get("archives"),
-            "excludePackages": obj.get("excludePackages"),
-            "files": obj.get("files"),
-            "jars": obj.get("jars"),
-            "packages": obj.get("packages"),
-            "pyFiles": obj.get("pyFiles"),
-            "repositories": obj.get("repositories")
+            "errorMessage": obj.get("errorMessage"),
+            "state": obj.get("state") if obj.get("state") is not None else ''
         })
         return _obj
 

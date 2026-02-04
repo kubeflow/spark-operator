@@ -47,19 +47,14 @@ EXTRA_PACKAGES=(
   k8s.io/api/networking/v1
 )
 
-# Generate OpenAPI Go code for each API version
-for VERSION in v1alpha1 v1beta2; do
-  echo "Generating OpenAPI for ${VERSION}"
-
-  go run ${OPENAPI_PKG}/cmd/openapi-gen \
-    --go-header-file "${SPARK_OPERATOR_ROOT}/hack/boilerplate.go.txt" \
-    --output-pkg "${SPARK_OPERATOR_PKG}/api/${VERSION}" \
-    --output-dir "${SPARK_OPERATOR_ROOT}/api/${VERSION}" \
-    --output-file "zz_generated.openapi.go" \
-    --report-filename "${SPARK_OPERATOR_ROOT}/hack/openapi/violation_exceptions.list" \
-    "${EXTRA_PACKAGES[@]}" \
-    "${SPARK_OPERATOR_ROOT}/api/${VERSION}"
-done
+go run ${OPENAPI_PKG}/cmd/openapi-gen \
+  --go-header-file "${SPARK_OPERATOR_ROOT}/hack/boilerplate.go.txt" \
+  --output-pkg "${SPARK_OPERATOR_PKG}/api/v1beta2" \
+  --output-dir "${SPARK_OPERATOR_ROOT}/api/v1beta2" \
+  --output-file "zz_generated.openapi.go" \
+  --report-filename "${SPARK_OPERATOR_ROOT}/hack/openapi/violation_exceptions.list" \
+  "${EXTRA_PACKAGES[@]}" \
+  "${SPARK_OPERATOR_ROOT}/api/v1beta2"
 
 # Generating OpenAPI Swagger for Kubeflow Spark Operator.
 echo "Generate OpenAPI Swagger for Kubeflow Spark Operator"

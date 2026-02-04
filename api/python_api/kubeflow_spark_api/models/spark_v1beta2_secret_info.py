@@ -17,20 +17,19 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, ConfigDict, Field, StrictInt, StrictStr
-from typing import Any, ClassVar, Dict, List, Optional
-from kubeflow_spark_api.models.io_k8s_api_core_v1_pod_template_spec import IoK8sApiCoreV1PodTemplateSpec
+from pydantic import BaseModel, ConfigDict, Field, StrictStr
+from typing import Any, ClassVar, Dict, List
 from typing import Optional, Set
 from typing_extensions import Self
 
-class V1alpha1SparkPodSpec(BaseModel):
+class SparkV1beta2SecretInfo(BaseModel):
     """
-    SparkPodSpec defines common things that can be customized for a Spark driver or executor pod.
+    SecretInfo captures information of a secret.
     """ # noqa: E501
-    cores: Optional[StrictInt] = Field(default=None, description="Cores maps to `spark.driver.cores` or `spark.executor.cores` for the driver and executors, respectively.")
-    memory: Optional[StrictStr] = Field(default=None, description="Memory is the amount of memory to request for the pod.")
-    template: Optional[IoK8sApiCoreV1PodTemplateSpec] = Field(default=None, description="Template is a pod template that can be used to define the driver or executor pod configurations that Spark configurations do not support. Spark version >= 3.0.0 is required. Ref: https://spark.apache.org/docs/latest/running-on-kubernetes.html#pod-template.")
-    __properties: ClassVar[List[str]] = ["cores", "memory", "template"]
+    name: StrictStr
+    path: StrictStr
+    secret_type: StrictStr = Field(alias="secretType")
+    __properties: ClassVar[List[str]] = ["name", "path", "secretType"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -50,7 +49,7 @@ class V1alpha1SparkPodSpec(BaseModel):
 
     @classmethod
     def from_json(cls, json_str: str) -> Optional[Self]:
-        """Create an instance of V1alpha1SparkPodSpec from a JSON string"""
+        """Create an instance of SparkV1beta2SecretInfo from a JSON string"""
         return cls.from_dict(json.loads(json_str))
 
     def to_dict(self) -> Dict[str, Any]:
@@ -71,14 +70,11 @@ class V1alpha1SparkPodSpec(BaseModel):
             exclude=excluded_fields,
             exclude_none=True,
         )
-        # override the default output from pydantic by calling `to_dict()` of template
-        if self.template:
-            _dict['template'] = self.template.to_dict()
         return _dict
 
     @classmethod
     def from_dict(cls, obj: Optional[Dict[str, Any]]) -> Optional[Self]:
-        """Create an instance of V1alpha1SparkPodSpec from a dict"""
+        """Create an instance of SparkV1beta2SecretInfo from a dict"""
         if obj is None:
             return None
 
@@ -86,9 +82,9 @@ class V1alpha1SparkPodSpec(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
-            "cores": obj.get("cores"),
-            "memory": obj.get("memory"),
-            "template": IoK8sApiCoreV1PodTemplateSpec.from_dict(obj["template"]) if obj.get("template") is not None else None
+            "name": obj.get("name") if obj.get("name") is not None else '',
+            "path": obj.get("path") if obj.get("path") is not None else '',
+            "secretType": obj.get("secretType") if obj.get("secretType") is not None else ''
         })
         return _obj
 

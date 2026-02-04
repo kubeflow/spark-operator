@@ -17,18 +17,24 @@ import pprint
 import re  # noqa: F401
 import json
 
+from datetime import datetime
 from pydantic import BaseModel, ConfigDict, Field, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional
 from typing import Optional, Set
 from typing_extensions import Self
 
-class V1beta2ApplicationState(BaseModel):
+class SparkV1beta2ScheduledSparkApplicationStatus(BaseModel):
     """
-    ApplicationState tells the current state of the application and an error message in case of failures.
+    ScheduledSparkApplicationStatus defines the observed state of ScheduledSparkApplication.
     """ # noqa: E501
-    error_message: Optional[StrictStr] = Field(default=None, alias="errorMessage")
-    state: StrictStr
-    __properties: ClassVar[List[str]] = ["errorMessage", "state"]
+    last_run: Optional[datetime] = Field(default=None, description="LastRun is the time when the last run of the application started.", alias="lastRun")
+    last_run_name: Optional[StrictStr] = Field(default=None, description="LastRunName is the name of the SparkApplication for the most recent run of the application.", alias="lastRunName")
+    next_run: Optional[datetime] = Field(default=None, description="NextRun is the time when the next run of the application will start.", alias="nextRun")
+    past_failed_run_names: Optional[List[StrictStr]] = Field(default=None, description="PastFailedRunNames keeps the names of SparkApplications for past failed runs.", alias="pastFailedRunNames")
+    past_successful_run_names: Optional[List[StrictStr]] = Field(default=None, description="PastSuccessfulRunNames keeps the names of SparkApplications for past successful runs.", alias="pastSuccessfulRunNames")
+    reason: Optional[StrictStr] = Field(default=None, description="Reason tells why the ScheduledSparkApplication is in the particular ScheduleState.")
+    schedule_state: Optional[StrictStr] = Field(default=None, description="ScheduleState is the current scheduling state of the application.", alias="scheduleState")
+    __properties: ClassVar[List[str]] = ["lastRun", "lastRunName", "nextRun", "pastFailedRunNames", "pastSuccessfulRunNames", "reason", "scheduleState"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -48,7 +54,7 @@ class V1beta2ApplicationState(BaseModel):
 
     @classmethod
     def from_json(cls, json_str: str) -> Optional[Self]:
-        """Create an instance of V1beta2ApplicationState from a JSON string"""
+        """Create an instance of SparkV1beta2ScheduledSparkApplicationStatus from a JSON string"""
         return cls.from_dict(json.loads(json_str))
 
     def to_dict(self) -> Dict[str, Any]:
@@ -73,7 +79,7 @@ class V1beta2ApplicationState(BaseModel):
 
     @classmethod
     def from_dict(cls, obj: Optional[Dict[str, Any]]) -> Optional[Self]:
-        """Create an instance of V1beta2ApplicationState from a dict"""
+        """Create an instance of SparkV1beta2ScheduledSparkApplicationStatus from a dict"""
         if obj is None:
             return None
 
@@ -81,8 +87,13 @@ class V1beta2ApplicationState(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
-            "errorMessage": obj.get("errorMessage"),
-            "state": obj.get("state") if obj.get("state") is not None else ''
+            "lastRun": obj.get("lastRun"),
+            "lastRunName": obj.get("lastRunName"),
+            "nextRun": obj.get("nextRun"),
+            "pastFailedRunNames": obj.get("pastFailedRunNames"),
+            "pastSuccessfulRunNames": obj.get("pastSuccessfulRunNames"),
+            "reason": obj.get("reason"),
+            "scheduleState": obj.get("scheduleState")
         })
         return _obj
 

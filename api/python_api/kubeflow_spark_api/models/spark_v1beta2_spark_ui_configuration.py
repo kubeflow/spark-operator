@@ -23,19 +23,18 @@ from kubeflow_spark_api.models.io_k8s_api_networking_v1_ingress_tls import IoK8s
 from typing import Optional, Set
 from typing_extensions import Self
 
-class V1beta2DriverIngressConfiguration(BaseModel):
+class SparkV1beta2SparkUIConfiguration(BaseModel):
     """
-    DriverIngressConfiguration is for driver ingress specific configuration parameters.
+    SparkUIConfiguration is for driver UI specific configuration parameters.
     """ # noqa: E501
     ingress_annotations: Optional[Dict[str, StrictStr]] = Field(default=None, description="IngressAnnotations is a map of key,value pairs of annotations that might be added to the ingress object. i.e. specify nginx as ingress.class", alias="ingressAnnotations")
     ingress_tls: Optional[List[IoK8sApiNetworkingV1IngressTLS]] = Field(default=None, description="TlsHosts is useful If we need to declare SSL certificates to the ingress object", alias="ingressTLS")
-    ingress_url_format: Optional[StrictStr] = Field(default=None, description="IngressURLFormat is the URL for the ingress.", alias="ingressURLFormat")
     service_annotations: Optional[Dict[str, StrictStr]] = Field(default=None, description="ServiceAnnotations is a map of key,value pairs of annotations that might be added to the service object.", alias="serviceAnnotations")
     service_labels: Optional[Dict[str, StrictStr]] = Field(default=None, description="ServiceLabels is a map of key,value pairs of labels that might be added to the service object.", alias="serviceLabels")
-    service_port: StrictInt = Field(description="ServicePort allows configuring the port at service level that might be different from the targetPort.", alias="servicePort")
-    service_port_name: StrictStr = Field(description="ServicePortName allows configuring the name of the service port. This may be useful for sidecar proxies like Envoy injected by Istio which require specific ports names to treat traffic as proper HTTP.", alias="servicePortName")
+    service_port: Optional[StrictInt] = Field(default=None, description="ServicePort allows configuring the port at service level that might be different from the targetPort. TargetPort should be the same as the one defined in spark.ui.port", alias="servicePort")
+    service_port_name: Optional[StrictStr] = Field(default=None, description="ServicePortName allows configuring the name of the service port. This may be useful for sidecar proxies like Envoy injected by Istio which require specific ports names to treat traffic as proper HTTP. Defaults to spark-driver-ui-port.", alias="servicePortName")
     service_type: Optional[StrictStr] = Field(default=None, description="ServiceType allows configuring the type of the service. Defaults to ClusterIP.  Possible enum values:  - `\"ClusterIP\"` means a service will only be accessible inside the cluster, via the cluster IP.  - `\"ExternalName\"` means a service consists of only a reference to an external name that kubedns or equivalent will return as a CNAME record, with no exposing or proxying of any pods involved.  - `\"LoadBalancer\"` means a service will be exposed via an external load balancer (if the cloud provider supports it), in addition to 'NodePort' type.  - `\"NodePort\"` means a service will be exposed on one port of every node, in addition to 'ClusterIP' type.", alias="serviceType")
-    __properties: ClassVar[List[str]] = ["ingressAnnotations", "ingressTLS", "ingressURLFormat", "serviceAnnotations", "serviceLabels", "servicePort", "servicePortName", "serviceType"]
+    __properties: ClassVar[List[str]] = ["ingressAnnotations", "ingressTLS", "serviceAnnotations", "serviceLabels", "servicePort", "servicePortName", "serviceType"]
 
     @field_validator('service_type')
     def service_type_validate_enum(cls, value):
@@ -65,7 +64,7 @@ class V1beta2DriverIngressConfiguration(BaseModel):
 
     @classmethod
     def from_json(cls, json_str: str) -> Optional[Self]:
-        """Create an instance of V1beta2DriverIngressConfiguration from a JSON string"""
+        """Create an instance of SparkV1beta2SparkUIConfiguration from a JSON string"""
         return cls.from_dict(json.loads(json_str))
 
     def to_dict(self) -> Dict[str, Any]:
@@ -97,7 +96,7 @@ class V1beta2DriverIngressConfiguration(BaseModel):
 
     @classmethod
     def from_dict(cls, obj: Optional[Dict[str, Any]]) -> Optional[Self]:
-        """Create an instance of V1beta2DriverIngressConfiguration from a dict"""
+        """Create an instance of SparkV1beta2SparkUIConfiguration from a dict"""
         if obj is None:
             return None
 
@@ -107,7 +106,6 @@ class V1beta2DriverIngressConfiguration(BaseModel):
         _obj = cls.model_validate({
             "ingressAnnotations": obj.get("ingressAnnotations"),
             "ingressTLS": [IoK8sApiNetworkingV1IngressTLS.from_dict(_item) for _item in obj["ingressTLS"]] if obj.get("ingressTLS") is not None else None,
-            "ingressURLFormat": obj.get("ingressURLFormat"),
             "serviceAnnotations": obj.get("serviceAnnotations"),
             "serviceLabels": obj.get("serviceLabels"),
             "servicePort": obj.get("servicePort"),

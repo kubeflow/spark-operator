@@ -19,11 +19,11 @@ import json
 
 from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional
-from kubeflow_spark_api.models.v1beta2_prometheus_spec import V1beta2PrometheusSpec
+from kubeflow_spark_api.models.spark_v1beta2_prometheus_spec import SparkV1beta2PrometheusSpec
 from typing import Optional, Set
 from typing_extensions import Self
 
-class V1beta2MonitoringSpec(BaseModel):
+class SparkV1beta2MonitoringSpec(BaseModel):
     """
     MonitoringSpec defines the monitoring specification.
     """ # noqa: E501
@@ -31,7 +31,7 @@ class V1beta2MonitoringSpec(BaseModel):
     expose_executor_metrics: StrictBool = Field(description="ExposeExecutorMetrics specifies whether to expose metrics on the executors.", alias="exposeExecutorMetrics")
     metrics_properties: Optional[StrictStr] = Field(default=None, description="MetricsProperties is the content of a custom metrics.properties for configuring the Spark metric system. If not specified, the content in spark-docker/conf/metrics.properties will be used.", alias="metricsProperties")
     metrics_properties_file: Optional[StrictStr] = Field(default=None, description="MetricsPropertiesFile is the container local path of file metrics.properties for configuring the Spark metric system. If not specified, value /etc/metrics/conf/metrics.properties will be used.", alias="metricsPropertiesFile")
-    prometheus: Optional[V1beta2PrometheusSpec] = Field(default=None, description="Prometheus is for configuring the Prometheus JMX exporter.")
+    prometheus: Optional[SparkV1beta2PrometheusSpec] = Field(default=None, description="Prometheus is for configuring the Prometheus JMX exporter.")
     __properties: ClassVar[List[str]] = ["exposeDriverMetrics", "exposeExecutorMetrics", "metricsProperties", "metricsPropertiesFile", "prometheus"]
 
     model_config = ConfigDict(
@@ -52,7 +52,7 @@ class V1beta2MonitoringSpec(BaseModel):
 
     @classmethod
     def from_json(cls, json_str: str) -> Optional[Self]:
-        """Create an instance of V1beta2MonitoringSpec from a JSON string"""
+        """Create an instance of SparkV1beta2MonitoringSpec from a JSON string"""
         return cls.from_dict(json.loads(json_str))
 
     def to_dict(self) -> Dict[str, Any]:
@@ -80,7 +80,7 @@ class V1beta2MonitoringSpec(BaseModel):
 
     @classmethod
     def from_dict(cls, obj: Optional[Dict[str, Any]]) -> Optional[Self]:
-        """Create an instance of V1beta2MonitoringSpec from a dict"""
+        """Create an instance of SparkV1beta2MonitoringSpec from a dict"""
         if obj is None:
             return None
 
@@ -92,7 +92,7 @@ class V1beta2MonitoringSpec(BaseModel):
             "exposeExecutorMetrics": obj.get("exposeExecutorMetrics") if obj.get("exposeExecutorMetrics") is not None else False,
             "metricsProperties": obj.get("metricsProperties"),
             "metricsPropertiesFile": obj.get("metricsPropertiesFile"),
-            "prometheus": V1beta2PrometheusSpec.from_dict(obj["prometheus"]) if obj.get("prometheus") is not None else None
+            "prometheus": SparkV1beta2PrometheusSpec.from_dict(obj["prometheus"]) if obj.get("prometheus") is not None else None
         })
         return _obj
 

@@ -18,21 +18,17 @@ import re  # noqa: F401
 import json
 
 from pydantic import BaseModel, ConfigDict, Field, StrictInt, StrictStr
-from typing import Any, ClassVar, Dict, List, Optional
-from kubeflow_spark_api.models.io_k8s_api_core_v1_pod_template_spec import IoK8sApiCoreV1PodTemplateSpec
-from kubeflow_spark_api.models.io_k8s_api_core_v1_service import IoK8sApiCoreV1Service
+from typing import Any, ClassVar, Dict, List
 from typing import Optional, Set
 from typing_extensions import Self
 
-class V1alpha1ServerSpec(BaseModel):
+class SparkV1beta2GPUSpec(BaseModel):
     """
-    ServerSpec is specification of the Spark connect server.
+    SparkV1beta2GPUSpec
     """ # noqa: E501
-    cores: Optional[StrictInt] = Field(default=None, description="Cores maps to `spark.driver.cores` or `spark.executor.cores` for the driver and executors, respectively.")
-    memory: Optional[StrictStr] = Field(default=None, description="Memory is the amount of memory to request for the pod.")
-    service: Optional[IoK8sApiCoreV1Service] = Field(default=None, description="Service exposes the Spark connect server.")
-    template: Optional[IoK8sApiCoreV1PodTemplateSpec] = Field(default=None, description="Template is a pod template that can be used to define the driver or executor pod configurations that Spark configurations do not support. Spark version >= 3.0.0 is required. Ref: https://spark.apache.org/docs/latest/running-on-kubernetes.html#pod-template.")
-    __properties: ClassVar[List[str]] = ["cores", "memory", "service", "template"]
+    name: StrictStr = Field(description="Name is GPU resource name, such as: nvidia.com/gpu or amd.com/gpu")
+    quantity: StrictInt = Field(description="Quantity is the number of GPUs to request for driver or executor.")
+    __properties: ClassVar[List[str]] = ["name", "quantity"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -52,7 +48,7 @@ class V1alpha1ServerSpec(BaseModel):
 
     @classmethod
     def from_json(cls, json_str: str) -> Optional[Self]:
-        """Create an instance of V1alpha1ServerSpec from a JSON string"""
+        """Create an instance of SparkV1beta2GPUSpec from a JSON string"""
         return cls.from_dict(json.loads(json_str))
 
     def to_dict(self) -> Dict[str, Any]:
@@ -73,17 +69,11 @@ class V1alpha1ServerSpec(BaseModel):
             exclude=excluded_fields,
             exclude_none=True,
         )
-        # override the default output from pydantic by calling `to_dict()` of service
-        if self.service:
-            _dict['service'] = self.service.to_dict()
-        # override the default output from pydantic by calling `to_dict()` of template
-        if self.template:
-            _dict['template'] = self.template.to_dict()
         return _dict
 
     @classmethod
     def from_dict(cls, obj: Optional[Dict[str, Any]]) -> Optional[Self]:
-        """Create an instance of V1alpha1ServerSpec from a dict"""
+        """Create an instance of SparkV1beta2GPUSpec from a dict"""
         if obj is None:
             return None
 
@@ -91,10 +81,8 @@ class V1alpha1ServerSpec(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
-            "cores": obj.get("cores"),
-            "memory": obj.get("memory"),
-            "service": IoK8sApiCoreV1Service.from_dict(obj["service"]) if obj.get("service") is not None else None,
-            "template": IoK8sApiCoreV1PodTemplateSpec.from_dict(obj["template"]) if obj.get("template") is not None else None
+            "name": obj.get("name") if obj.get("name") is not None else '',
+            "quantity": obj.get("quantity") if obj.get("quantity") is not None else 0
         })
         return _obj
 

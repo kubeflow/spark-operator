@@ -26,7 +26,6 @@ import (
 	builderutil "k8s.io/kube-openapi/pkg/openapiconv"
 	"k8s.io/kube-openapi/pkg/validation/spec"
 
-	sparkv1alpha1 "github.com/kubeflow/spark-operator/v2/api/v1alpha1"
 	sparkv1beta2 "github.com/kubeflow/spark-operator/v2/api/v1beta2"
 )
 
@@ -39,10 +38,6 @@ func main() {
 		return spec.MustCreateRef("#/definitions/" + swaggify(name))
 	}
 
-	// Load definitions from both API versions
-	for k, v := range sparkv1alpha1.GetOpenAPIDefinitions(refCallback) {
-		oAPIDefs[k] = v
-	}
 	for k, v := range sparkv1beta2.GetOpenAPIDefinitions(refCallback) {
 		oAPIDefs[k] = v
 	}
@@ -86,7 +81,7 @@ func main() {
 }
 
 func swaggify(name string) string {
-	name = strings.ReplaceAll(name, "github.com/kubeflow/spark-operator/v2/api/", "")
+	name = strings.ReplaceAll(name, "github.com/kubeflow/spark-operator/v2/api/", "spark.")
 	name = strings.ReplaceAll(name, "k8s.io", "io.k8s")
 	name = strings.ReplaceAll(name, "/", ".")
 	return name

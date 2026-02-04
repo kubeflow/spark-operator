@@ -22,13 +22,13 @@ from typing import Any, ClassVar, Dict, List
 from typing import Optional, Set
 from typing_extensions import Self
 
-class V1beta2NameKey(BaseModel):
+class SparkV1beta2NamePath(BaseModel):
     """
-    NameKey represents the name and key of a SecretKeyRef.
+    NamePath is a pair of a name and a path to which the named objects should be mounted to.
     """ # noqa: E501
-    key: StrictStr
     name: StrictStr
-    __properties: ClassVar[List[str]] = ["key", "name"]
+    path: StrictStr
+    __properties: ClassVar[List[str]] = ["name", "path"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -48,7 +48,7 @@ class V1beta2NameKey(BaseModel):
 
     @classmethod
     def from_json(cls, json_str: str) -> Optional[Self]:
-        """Create an instance of V1beta2NameKey from a JSON string"""
+        """Create an instance of SparkV1beta2NamePath from a JSON string"""
         return cls.from_dict(json.loads(json_str))
 
     def to_dict(self) -> Dict[str, Any]:
@@ -73,7 +73,7 @@ class V1beta2NameKey(BaseModel):
 
     @classmethod
     def from_dict(cls, obj: Optional[Dict[str, Any]]) -> Optional[Self]:
-        """Create an instance of V1beta2NameKey from a dict"""
+        """Create an instance of SparkV1beta2NamePath from a dict"""
         if obj is None:
             return None
 
@@ -81,8 +81,8 @@ class V1beta2NameKey(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
-            "key": obj.get("key") if obj.get("key") is not None else '',
-            "name": obj.get("name") if obj.get("name") is not None else ''
+            "name": obj.get("name") if obj.get("name") is not None else '',
+            "path": obj.get("path") if obj.get("path") is not None else ''
         })
         return _obj
 

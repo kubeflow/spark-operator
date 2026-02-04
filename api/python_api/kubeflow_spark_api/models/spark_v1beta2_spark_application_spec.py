@@ -20,30 +20,30 @@ import json
 from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictInt, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional
 from kubeflow_spark_api.models.io_k8s_api_core_v1_volume import IoK8sApiCoreV1Volume
-from kubeflow_spark_api.models.v1beta2_batch_scheduler_configuration import V1beta2BatchSchedulerConfiguration
-from kubeflow_spark_api.models.v1beta2_dependencies import V1beta2Dependencies
-from kubeflow_spark_api.models.v1beta2_driver_ingress_configuration import V1beta2DriverIngressConfiguration
-from kubeflow_spark_api.models.v1beta2_driver_spec import V1beta2DriverSpec
-from kubeflow_spark_api.models.v1beta2_dynamic_allocation import V1beta2DynamicAllocation
-from kubeflow_spark_api.models.v1beta2_executor_spec import V1beta2ExecutorSpec
-from kubeflow_spark_api.models.v1beta2_monitoring_spec import V1beta2MonitoringSpec
-from kubeflow_spark_api.models.v1beta2_restart_policy import V1beta2RestartPolicy
-from kubeflow_spark_api.models.v1beta2_spark_ui_configuration import V1beta2SparkUIConfiguration
+from kubeflow_spark_api.models.spark_v1beta2_batch_scheduler_configuration import SparkV1beta2BatchSchedulerConfiguration
+from kubeflow_spark_api.models.spark_v1beta2_dependencies import SparkV1beta2Dependencies
+from kubeflow_spark_api.models.spark_v1beta2_driver_ingress_configuration import SparkV1beta2DriverIngressConfiguration
+from kubeflow_spark_api.models.spark_v1beta2_driver_spec import SparkV1beta2DriverSpec
+from kubeflow_spark_api.models.spark_v1beta2_dynamic_allocation import SparkV1beta2DynamicAllocation
+from kubeflow_spark_api.models.spark_v1beta2_executor_spec import SparkV1beta2ExecutorSpec
+from kubeflow_spark_api.models.spark_v1beta2_monitoring_spec import SparkV1beta2MonitoringSpec
+from kubeflow_spark_api.models.spark_v1beta2_restart_policy import SparkV1beta2RestartPolicy
+from kubeflow_spark_api.models.spark_v1beta2_spark_ui_configuration import SparkV1beta2SparkUIConfiguration
 from typing import Optional, Set
 from typing_extensions import Self
 
-class V1beta2SparkApplicationSpec(BaseModel):
+class SparkV1beta2SparkApplicationSpec(BaseModel):
     """
     SparkApplicationSpec defines the desired state of SparkApplication It carries every pieces of information a spark-submit command takes and recognizes.
     """ # noqa: E501
     arguments: Optional[List[StrictStr]] = Field(default=None, description="Arguments is a list of arguments to be passed to the application.")
     batch_scheduler: Optional[StrictStr] = Field(default=None, description="BatchScheduler configures which batch scheduler will be used for scheduling", alias="batchScheduler")
-    batch_scheduler_options: Optional[V1beta2BatchSchedulerConfiguration] = Field(default=None, description="BatchSchedulerOptions provides fine-grained control on how to batch scheduling.", alias="batchSchedulerOptions")
-    deps: Optional[V1beta2Dependencies] = Field(default=None, description="Deps captures all possible types of dependencies of a Spark application.")
-    driver: V1beta2DriverSpec = Field(description="Driver is the driver specification.")
-    driver_ingress_options: Optional[List[V1beta2DriverIngressConfiguration]] = Field(default=None, description="DriverIngressOptions allows configuring the Service and the Ingress to expose ports inside Spark Driver", alias="driverIngressOptions")
-    dynamic_allocation: Optional[V1beta2DynamicAllocation] = Field(default=None, description="DynamicAllocation configures dynamic allocation that becomes available for the Kubernetes scheduler backend since Spark 3.0.", alias="dynamicAllocation")
-    executor: V1beta2ExecutorSpec = Field(description="Executor is the executor specification.")
+    batch_scheduler_options: Optional[SparkV1beta2BatchSchedulerConfiguration] = Field(default=None, description="BatchSchedulerOptions provides fine-grained control on how to batch scheduling.", alias="batchSchedulerOptions")
+    deps: Optional[SparkV1beta2Dependencies] = Field(default=None, description="Deps captures all possible types of dependencies of a Spark application.")
+    driver: SparkV1beta2DriverSpec = Field(description="Driver is the driver specification.")
+    driver_ingress_options: Optional[List[SparkV1beta2DriverIngressConfiguration]] = Field(default=None, description="DriverIngressOptions allows configuring the Service and the Ingress to expose ports inside Spark Driver", alias="driverIngressOptions")
+    dynamic_allocation: Optional[SparkV1beta2DynamicAllocation] = Field(default=None, description="DynamicAllocation configures dynamic allocation that becomes available for the Kubernetes scheduler backend since Spark 3.0.", alias="dynamicAllocation")
+    executor: SparkV1beta2ExecutorSpec = Field(description="Executor is the executor specification.")
     failure_retries: Optional[StrictInt] = Field(default=None, description="FailureRetries is the number of times to retry a failed application before giving up. This is best effort and actual retry attempts can be >= the value specified.", alias="failureRetries")
     hadoop_conf: Optional[Dict[str, StrictStr]] = Field(default=None, description="HadoopConf carries user-specified Hadoop configuration properties as they would use the \"--conf\" option in spark-submit. The SparkApplication controller automatically adds prefix \"spark.hadoop.\" to Hadoop configuration properties.", alias="hadoopConf")
     hadoop_config_map: Optional[StrictStr] = Field(default=None, description="HadoopConfigMap carries the name of the ConfigMap containing Hadoop configuration files such as core-site.xml. The controller will add environment variable HADOOP_CONF_DIR to the path where the ConfigMap is mounted to.", alias="hadoopConfigMap")
@@ -54,15 +54,15 @@ class V1beta2SparkApplicationSpec(BaseModel):
     main_class: Optional[StrictStr] = Field(default=None, description="MainClass is the fully-qualified main class of the Spark application. This only applies to Java/Scala Spark applications.", alias="mainClass")
     memory_overhead_factor: Optional[StrictStr] = Field(default=None, description="This sets the Memory Overhead Factor that will allocate memory to non-JVM memory. For JVM-based jobs this value will default to 0.10, for non-JVM jobs 0.40. Value of this field will be overridden by `Spec.Driver.MemoryOverhead` and `Spec.Executor.MemoryOverhead` if they are set.", alias="memoryOverheadFactor")
     mode: Optional[StrictStr] = Field(default=None, description="Mode is the deployment mode of the Spark application.")
-    monitoring: Optional[V1beta2MonitoringSpec] = Field(default=None, description="Monitoring configures how monitoring is handled.")
+    monitoring: Optional[SparkV1beta2MonitoringSpec] = Field(default=None, description="Monitoring configures how monitoring is handled.")
     node_selector: Optional[Dict[str, StrictStr]] = Field(default=None, description="NodeSelector is the Kubernetes node selector to be added to the driver and executor pods. This field is mutually exclusive with nodeSelector at podSpec level (driver or executor). This field will be deprecated in future versions (at SparkApplicationSpec level).", alias="nodeSelector")
     proxy_user: Optional[StrictStr] = Field(default=None, description="ProxyUser specifies the user to impersonate when submitting the application. It maps to the command-line flag \"--proxy-user\" in spark-submit.", alias="proxyUser")
     python_version: Optional[StrictStr] = Field(default=None, description="This sets the major Python version of the docker image used to run the driver and executor containers. Can either be 2 or 3, default 2.", alias="pythonVersion")
-    restart_policy: Optional[V1beta2RestartPolicy] = Field(default=None, description="RestartPolicy defines the policy on if and in which conditions the controller should restart an application.", alias="restartPolicy")
+    restart_policy: Optional[SparkV1beta2RestartPolicy] = Field(default=None, description="RestartPolicy defines the policy on if and in which conditions the controller should restart an application.", alias="restartPolicy")
     retry_interval: Optional[StrictInt] = Field(default=None, description="RetryInterval is the unit of intervals in seconds between submission retries.", alias="retryInterval")
     spark_conf: Optional[Dict[str, StrictStr]] = Field(default=None, description="SparkConf carries user-specified Spark configuration properties as they would use the  \"--conf\" option in spark-submit.", alias="sparkConf")
     spark_config_map: Optional[StrictStr] = Field(default=None, description="SparkConfigMap carries the name of the ConfigMap containing Spark configuration files such as log4j.properties. The controller will add environment variable SPARK_CONF_DIR to the path where the ConfigMap is mounted to.", alias="sparkConfigMap")
-    spark_ui_options: Optional[V1beta2SparkUIConfiguration] = Field(default=None, description="SparkUIOptions allows configuring the Service and the Ingress to expose the sparkUI", alias="sparkUIOptions")
+    spark_ui_options: Optional[SparkV1beta2SparkUIConfiguration] = Field(default=None, description="SparkUIOptions allows configuring the Service and the Ingress to expose the sparkUI", alias="sparkUIOptions")
     spark_version: StrictStr = Field(description="SparkVersion is the version of Spark the application uses.", alias="sparkVersion")
     suspend: Optional[StrictBool] = Field(default=None, description="Suspend indicates whether the SparkApplication should be suspended. When true, the controller skips submitting the Spark job. If a SparkApplication is suspended after creation (i.e. the flag goes from false to true), the Spark operator will delete all active Pods associated with this SparkApplication. Users must design their Spark application to gracefully handle this.")
     time_to_live_seconds: Optional[StrictInt] = Field(default=None, description="TimeToLiveSeconds defines the Time-To-Live (TTL) duration in seconds for this SparkApplication after its termination. The SparkApplication object will be garbage collected if the current time is more than the TimeToLiveSeconds since its termination.", alias="timeToLiveSeconds")
@@ -88,7 +88,7 @@ class V1beta2SparkApplicationSpec(BaseModel):
 
     @classmethod
     def from_json(cls, json_str: str) -> Optional[Self]:
-        """Create an instance of V1beta2SparkApplicationSpec from a JSON string"""
+        """Create an instance of SparkV1beta2SparkApplicationSpec from a JSON string"""
         return cls.from_dict(json.loads(json_str))
 
     def to_dict(self) -> Dict[str, Any]:
@@ -151,7 +151,7 @@ class V1beta2SparkApplicationSpec(BaseModel):
 
     @classmethod
     def from_dict(cls, obj: Optional[Dict[str, Any]]) -> Optional[Self]:
-        """Create an instance of V1beta2SparkApplicationSpec from a dict"""
+        """Create an instance of SparkV1beta2SparkApplicationSpec from a dict"""
         if obj is None:
             return None
 
@@ -161,12 +161,12 @@ class V1beta2SparkApplicationSpec(BaseModel):
         _obj = cls.model_validate({
             "arguments": obj.get("arguments"),
             "batchScheduler": obj.get("batchScheduler"),
-            "batchSchedulerOptions": V1beta2BatchSchedulerConfiguration.from_dict(obj["batchSchedulerOptions"]) if obj.get("batchSchedulerOptions") is not None else None,
-            "deps": V1beta2Dependencies.from_dict(obj["deps"]) if obj.get("deps") is not None else None,
-            "driver": V1beta2DriverSpec.from_dict(obj["driver"]) if obj.get("driver") is not None else None,
-            "driverIngressOptions": [V1beta2DriverIngressConfiguration.from_dict(_item) for _item in obj["driverIngressOptions"]] if obj.get("driverIngressOptions") is not None else None,
-            "dynamicAllocation": V1beta2DynamicAllocation.from_dict(obj["dynamicAllocation"]) if obj.get("dynamicAllocation") is not None else None,
-            "executor": V1beta2ExecutorSpec.from_dict(obj["executor"]) if obj.get("executor") is not None else None,
+            "batchSchedulerOptions": SparkV1beta2BatchSchedulerConfiguration.from_dict(obj["batchSchedulerOptions"]) if obj.get("batchSchedulerOptions") is not None else None,
+            "deps": SparkV1beta2Dependencies.from_dict(obj["deps"]) if obj.get("deps") is not None else None,
+            "driver": SparkV1beta2DriverSpec.from_dict(obj["driver"]) if obj.get("driver") is not None else None,
+            "driverIngressOptions": [SparkV1beta2DriverIngressConfiguration.from_dict(_item) for _item in obj["driverIngressOptions"]] if obj.get("driverIngressOptions") is not None else None,
+            "dynamicAllocation": SparkV1beta2DynamicAllocation.from_dict(obj["dynamicAllocation"]) if obj.get("dynamicAllocation") is not None else None,
+            "executor": SparkV1beta2ExecutorSpec.from_dict(obj["executor"]) if obj.get("executor") is not None else None,
             "failureRetries": obj.get("failureRetries"),
             "hadoopConf": obj.get("hadoopConf"),
             "hadoopConfigMap": obj.get("hadoopConfigMap"),
@@ -177,15 +177,15 @@ class V1beta2SparkApplicationSpec(BaseModel):
             "mainClass": obj.get("mainClass"),
             "memoryOverheadFactor": obj.get("memoryOverheadFactor"),
             "mode": obj.get("mode"),
-            "monitoring": V1beta2MonitoringSpec.from_dict(obj["monitoring"]) if obj.get("monitoring") is not None else None,
+            "monitoring": SparkV1beta2MonitoringSpec.from_dict(obj["monitoring"]) if obj.get("monitoring") is not None else None,
             "nodeSelector": obj.get("nodeSelector"),
             "proxyUser": obj.get("proxyUser"),
             "pythonVersion": obj.get("pythonVersion"),
-            "restartPolicy": V1beta2RestartPolicy.from_dict(obj["restartPolicy"]) if obj.get("restartPolicy") is not None else None,
+            "restartPolicy": SparkV1beta2RestartPolicy.from_dict(obj["restartPolicy"]) if obj.get("restartPolicy") is not None else None,
             "retryInterval": obj.get("retryInterval"),
             "sparkConf": obj.get("sparkConf"),
             "sparkConfigMap": obj.get("sparkConfigMap"),
-            "sparkUIOptions": V1beta2SparkUIConfiguration.from_dict(obj["sparkUIOptions"]) if obj.get("sparkUIOptions") is not None else None,
+            "sparkUIOptions": SparkV1beta2SparkUIConfiguration.from_dict(obj["sparkUIOptions"]) if obj.get("sparkUIOptions") is not None else None,
             "sparkVersion": obj.get("sparkVersion") if obj.get("sparkVersion") is not None else '',
             "suspend": obj.get("suspend"),
             "timeToLiveSeconds": obj.get("timeToLiveSeconds"),

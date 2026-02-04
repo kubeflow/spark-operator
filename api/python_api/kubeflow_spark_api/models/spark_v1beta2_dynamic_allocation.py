@@ -22,7 +22,7 @@ from typing import Any, ClassVar, Dict, List, Optional
 from typing import Optional, Set
 from typing_extensions import Self
 
-class V1beta2DynamicAllocation(BaseModel):
+class SparkV1beta2DynamicAllocation(BaseModel):
     """
     DynamicAllocation contains configuration options for dynamic allocation.
     """ # noqa: E501
@@ -52,7 +52,7 @@ class V1beta2DynamicAllocation(BaseModel):
 
     @classmethod
     def from_json(cls, json_str: str) -> Optional[Self]:
-        """Create an instance of V1beta2DynamicAllocation from a JSON string"""
+        """Create an instance of SparkV1beta2DynamicAllocation from a JSON string"""
         return cls.from_dict(json.loads(json_str))
 
     def to_dict(self) -> Dict[str, Any]:
@@ -77,7 +77,7 @@ class V1beta2DynamicAllocation(BaseModel):
 
     @classmethod
     def from_dict(cls, obj: Optional[Dict[str, Any]]) -> Optional[Self]:
-        """Create an instance of V1beta2DynamicAllocation from a dict"""
+        """Create an instance of SparkV1beta2DynamicAllocation from a dict"""
         if obj is None:
             return None
 

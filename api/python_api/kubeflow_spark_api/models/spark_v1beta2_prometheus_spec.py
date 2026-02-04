@@ -18,17 +18,20 @@ import re  # noqa: F401
 import json
 
 from pydantic import BaseModel, ConfigDict, Field, StrictInt, StrictStr
-from typing import Any, ClassVar, Dict, List
+from typing import Any, ClassVar, Dict, List, Optional
 from typing import Optional, Set
 from typing_extensions import Self
 
-class V1beta2GPUSpec(BaseModel):
+class SparkV1beta2PrometheusSpec(BaseModel):
     """
-    V1beta2GPUSpec
+    PrometheusSpec defines the Prometheus specification when Prometheus is to be used for collecting and exposing metrics.
     """ # noqa: E501
-    name: StrictStr = Field(description="Name is GPU resource name, such as: nvidia.com/gpu or amd.com/gpu")
-    quantity: StrictInt = Field(description="Quantity is the number of GPUs to request for driver or executor.")
-    __properties: ClassVar[List[str]] = ["name", "quantity"]
+    config_file: Optional[StrictStr] = Field(default=None, description="ConfigFile is the path to the custom Prometheus configuration file provided in the Spark image. ConfigFile takes precedence over Configuration, which is shown below.", alias="configFile")
+    configuration: Optional[StrictStr] = Field(default=None, description="Configuration is the content of the Prometheus configuration needed by the Prometheus JMX exporter. If not specified, the content in spark-docker/conf/prometheus.yaml will be used. Configuration has no effect if ConfigFile is set.")
+    jmx_exporter_jar: StrictStr = Field(description="JmxExporterJar is the path to the Prometheus JMX exporter jar in the container.", alias="jmxExporterJar")
+    port: Optional[StrictInt] = Field(default=None, description="Port is the port of the HTTP server run by the Prometheus JMX exporter. If not specified, 8090 will be used as the default.")
+    port_name: Optional[StrictStr] = Field(default=None, description="PortName is the port name of prometheus JMX exporter port. If not specified, jmx-exporter will be used as the default.", alias="portName")
+    __properties: ClassVar[List[str]] = ["configFile", "configuration", "jmxExporterJar", "port", "portName"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -48,7 +51,7 @@ class V1beta2GPUSpec(BaseModel):
 
     @classmethod
     def from_json(cls, json_str: str) -> Optional[Self]:
-        """Create an instance of V1beta2GPUSpec from a JSON string"""
+        """Create an instance of SparkV1beta2PrometheusSpec from a JSON string"""
         return cls.from_dict(json.loads(json_str))
 
     def to_dict(self) -> Dict[str, Any]:
@@ -73,7 +76,7 @@ class V1beta2GPUSpec(BaseModel):
 
     @classmethod
     def from_dict(cls, obj: Optional[Dict[str, Any]]) -> Optional[Self]:
-        """Create an instance of V1beta2GPUSpec from a dict"""
+        """Create an instance of SparkV1beta2PrometheusSpec from a dict"""
         if obj is None:
             return None
 
@@ -81,8 +84,11 @@ class V1beta2GPUSpec(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
-            "name": obj.get("name") if obj.get("name") is not None else '',
-            "quantity": obj.get("quantity") if obj.get("quantity") is not None else 0
+            "configFile": obj.get("configFile"),
+            "configuration": obj.get("configuration"),
+            "jmxExporterJar": obj.get("jmxExporterJar") if obj.get("jmxExporterJar") is not None else '',
+            "port": obj.get("port"),
+            "portName": obj.get("portName")
         })
         return _obj
 

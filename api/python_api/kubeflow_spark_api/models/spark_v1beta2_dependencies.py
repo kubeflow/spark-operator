@@ -19,18 +19,21 @@ import json
 
 from pydantic import BaseModel, ConfigDict, Field, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional
-from kubeflow_spark_api.models.io_k8s_apimachinery_pkg_api_resource_quantity import IoK8sApimachineryPkgApiResourceQuantity
 from typing import Optional, Set
 from typing_extensions import Self
 
-class V1beta2BatchSchedulerConfiguration(BaseModel):
+class SparkV1beta2Dependencies(BaseModel):
     """
-    BatchSchedulerConfiguration used to configure how to batch scheduling Spark Application
+    Dependencies specifies all possible types of dependencies of a Spark application.
     """ # noqa: E501
-    priority_class_name: Optional[StrictStr] = Field(default=None, description="PriorityClassName stands for the name of k8s PriorityClass resource, it's being used in Volcano batch scheduler.", alias="priorityClassName")
-    queue: Optional[StrictStr] = Field(default=None, description="Queue stands for the resource queue which the application belongs to, it's being used in Volcano batch scheduler.")
-    resources: Optional[Dict[str, IoK8sApimachineryPkgApiResourceQuantity]] = Field(default=None, description="Resources stands for the resource list custom request for. Usually it is used to define the lower-bound limit. If specified, volcano scheduler will consider it as the resources requested.")
-    __properties: ClassVar[List[str]] = ["priorityClassName", "queue", "resources"]
+    archives: Optional[List[StrictStr]] = Field(default=None, description="Archives is a list of archives to be extracted into the working directory of each executor.")
+    exclude_packages: Optional[List[StrictStr]] = Field(default=None, description="ExcludePackages is a list of \"groupId:artifactId\", to exclude while resolving the dependencies provided in Packages to avoid dependency conflicts.", alias="excludePackages")
+    files: Optional[List[StrictStr]] = Field(default=None, description="Files is a list of files the Spark application depends on.")
+    jars: Optional[List[StrictStr]] = Field(default=None, description="Jars is a list of JAR files the Spark application depends on.")
+    packages: Optional[List[StrictStr]] = Field(default=None, description="Packages is a list of maven coordinates of jars to include on the driver and executor classpaths. This will search the local maven repo, then maven central and any additional remote repositories given by the \"repositories\" option. Each package should be of the form \"groupId:artifactId:version\".")
+    py_files: Optional[List[StrictStr]] = Field(default=None, description="PyFiles is a list of Python files the Spark application depends on.", alias="pyFiles")
+    repositories: Optional[List[StrictStr]] = Field(default=None, description="Repositories is a list of additional remote repositories to search for the maven coordinate given with the \"packages\" option.")
+    __properties: ClassVar[List[str]] = ["archives", "excludePackages", "files", "jars", "packages", "pyFiles", "repositories"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -50,7 +53,7 @@ class V1beta2BatchSchedulerConfiguration(BaseModel):
 
     @classmethod
     def from_json(cls, json_str: str) -> Optional[Self]:
-        """Create an instance of V1beta2BatchSchedulerConfiguration from a JSON string"""
+        """Create an instance of SparkV1beta2Dependencies from a JSON string"""
         return cls.from_dict(json.loads(json_str))
 
     def to_dict(self) -> Dict[str, Any]:
@@ -71,18 +74,11 @@ class V1beta2BatchSchedulerConfiguration(BaseModel):
             exclude=excluded_fields,
             exclude_none=True,
         )
-        # override the default output from pydantic by calling `to_dict()` of each value in resources (dict)
-        _field_dict = {}
-        if self.resources:
-            for _key_resources in self.resources:
-                if self.resources[_key_resources]:
-                    _field_dict[_key_resources] = self.resources[_key_resources].to_dict()
-            _dict['resources'] = _field_dict
         return _dict
 
     @classmethod
     def from_dict(cls, obj: Optional[Dict[str, Any]]) -> Optional[Self]:
-        """Create an instance of V1beta2BatchSchedulerConfiguration from a dict"""
+        """Create an instance of SparkV1beta2Dependencies from a dict"""
         if obj is None:
             return None
 
@@ -90,14 +86,13 @@ class V1beta2BatchSchedulerConfiguration(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
-            "priorityClassName": obj.get("priorityClassName"),
-            "queue": obj.get("queue"),
-            "resources": dict(
-                (_k, IoK8sApimachineryPkgApiResourceQuantity.from_dict(_v))
-                for _k, _v in obj["resources"].items()
-            )
-            if obj.get("resources") is not None
-            else None
+            "archives": obj.get("archives"),
+            "excludePackages": obj.get("excludePackages"),
+            "files": obj.get("files"),
+            "jars": obj.get("jars"),
+            "packages": obj.get("packages"),
+            "pyFiles": obj.get("pyFiles"),
+            "repositories": obj.get("repositories")
         })
         return _obj
 

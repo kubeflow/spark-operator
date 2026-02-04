@@ -20,17 +20,17 @@ import json
 from datetime import datetime
 from pydantic import BaseModel, ConfigDict, Field, StrictInt, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional
-from kubeflow_spark_api.models.v1beta2_application_state import V1beta2ApplicationState
-from kubeflow_spark_api.models.v1beta2_driver_info import V1beta2DriverInfo
+from kubeflow_spark_api.models.spark_v1beta2_application_state import SparkV1beta2ApplicationState
+from kubeflow_spark_api.models.spark_v1beta2_driver_info import SparkV1beta2DriverInfo
 from typing import Optional, Set
 from typing_extensions import Self
 
-class V1beta2SparkApplicationStatus(BaseModel):
+class SparkV1beta2SparkApplicationStatus(BaseModel):
     """
     SparkApplicationStatus defines the observed state of SparkApplication
     """ # noqa: E501
-    application_state: Optional[V1beta2ApplicationState] = Field(default=None, description="AppState tells the overall application state.", alias="applicationState")
-    driver_info: V1beta2DriverInfo = Field(description="DriverInfo has information about the driver.", alias="driverInfo")
+    application_state: Optional[SparkV1beta2ApplicationState] = Field(default=None, description="AppState tells the overall application state.", alias="applicationState")
+    driver_info: SparkV1beta2DriverInfo = Field(description="DriverInfo has information about the driver.", alias="driverInfo")
     execution_attempts: Optional[StrictInt] = Field(default=None, description="ExecutionAttempts is the total number of attempts to run a submitted application to completion. Incremented upon each attempted run of the application and reset upon invalidation.", alias="executionAttempts")
     executor_state: Optional[Dict[str, StrictStr]] = Field(default=None, description="ExecutorState records the state of executors by executor Pod names.", alias="executorState")
     last_submission_attempt_time: Optional[datetime] = Field(default=None, description="LastSubmissionAttemptTime is the time for the last application submission attempt.", alias="lastSubmissionAttemptTime")
@@ -58,7 +58,7 @@ class V1beta2SparkApplicationStatus(BaseModel):
 
     @classmethod
     def from_json(cls, json_str: str) -> Optional[Self]:
-        """Create an instance of V1beta2SparkApplicationStatus from a JSON string"""
+        """Create an instance of SparkV1beta2SparkApplicationStatus from a JSON string"""
         return cls.from_dict(json.loads(json_str))
 
     def to_dict(self) -> Dict[str, Any]:
@@ -89,7 +89,7 @@ class V1beta2SparkApplicationStatus(BaseModel):
 
     @classmethod
     def from_dict(cls, obj: Optional[Dict[str, Any]]) -> Optional[Self]:
-        """Create an instance of V1beta2SparkApplicationStatus from a dict"""
+        """Create an instance of SparkV1beta2SparkApplicationStatus from a dict"""
         if obj is None:
             return None
 
@@ -97,8 +97,8 @@ class V1beta2SparkApplicationStatus(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
-            "applicationState": V1beta2ApplicationState.from_dict(obj["applicationState"]) if obj.get("applicationState") is not None else None,
-            "driverInfo": V1beta2DriverInfo.from_dict(obj["driverInfo"]) if obj.get("driverInfo") is not None else None,
+            "applicationState": SparkV1beta2ApplicationState.from_dict(obj["applicationState"]) if obj.get("applicationState") is not None else None,
+            "driverInfo": SparkV1beta2DriverInfo.from_dict(obj["driverInfo"]) if obj.get("driverInfo") is not None else None,
             "executionAttempts": obj.get("executionAttempts"),
             "executorState": obj.get("executorState"),
             "lastSubmissionAttemptTime": obj.get("lastSubmissionAttemptTime"),

@@ -20,16 +20,16 @@ import json
 from pydantic import BaseModel, ConfigDict, Field, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional
 from kubeflow_spark_api.models.io_k8s_apimachinery_pkg_apis_meta_v1_list_meta import IoK8sApimachineryPkgApisMetaV1ListMeta
-from kubeflow_spark_api.models.v1alpha1_spark_connect import V1alpha1SparkConnect
+from kubeflow_spark_api.models.spark_v1beta2_scheduled_spark_application import SparkV1beta2ScheduledSparkApplication
 from typing import Optional, Set
 from typing_extensions import Self
 
-class V1alpha1SparkConnectList(BaseModel):
+class SparkV1beta2ScheduledSparkApplicationList(BaseModel):
     """
-    SparkConnectList contains a list of SparkConnect.
+    ScheduledSparkApplicationList contains a list of ScheduledSparkApplication.
     """ # noqa: E501
     api_version: Optional[StrictStr] = Field(default=None, description="APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources", alias="apiVersion")
-    items: List[V1alpha1SparkConnect]
+    items: List[SparkV1beta2ScheduledSparkApplication]
     kind: Optional[StrictStr] = Field(default=None, description="Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds")
     metadata: Optional[IoK8sApimachineryPkgApisMetaV1ListMeta] = None
     __properties: ClassVar[List[str]] = ["apiVersion", "items", "kind", "metadata"]
@@ -52,7 +52,7 @@ class V1alpha1SparkConnectList(BaseModel):
 
     @classmethod
     def from_json(cls, json_str: str) -> Optional[Self]:
-        """Create an instance of V1alpha1SparkConnectList from a JSON string"""
+        """Create an instance of SparkV1beta2ScheduledSparkApplicationList from a JSON string"""
         return cls.from_dict(json.loads(json_str))
 
     def to_dict(self) -> Dict[str, Any]:
@@ -87,7 +87,7 @@ class V1alpha1SparkConnectList(BaseModel):
 
     @classmethod
     def from_dict(cls, obj: Optional[Dict[str, Any]]) -> Optional[Self]:
-        """Create an instance of V1alpha1SparkConnectList from a dict"""
+        """Create an instance of SparkV1beta2ScheduledSparkApplicationList from a dict"""
         if obj is None:
             return None
 
@@ -96,7 +96,7 @@ class V1alpha1SparkConnectList(BaseModel):
 
         _obj = cls.model_validate({
             "apiVersion": obj.get("apiVersion"),
-            "items": [V1alpha1SparkConnect.from_dict(_item) for _item in obj["items"]] if obj.get("items") is not None else None,
+            "items": [SparkV1beta2ScheduledSparkApplication.from_dict(_item) for _item in obj["items"]] if obj.get("items") is not None else None,
             "kind": obj.get("kind"),
             "metadata": IoK8sApimachineryPkgApisMetaV1ListMeta.from_dict(obj["metadata"]) if obj.get("metadata") is not None else None
         })

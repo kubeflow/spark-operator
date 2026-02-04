@@ -20,20 +20,20 @@ import json
 from pydantic import BaseModel, ConfigDict, Field, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional
 from kubeflow_spark_api.models.io_k8s_apimachinery_pkg_apis_meta_v1_object_meta import IoK8sApimachineryPkgApisMetaV1ObjectMeta
-from kubeflow_spark_api.models.v1alpha1_spark_connect_spec import V1alpha1SparkConnectSpec
-from kubeflow_spark_api.models.v1alpha1_spark_connect_status import V1alpha1SparkConnectStatus
+from kubeflow_spark_api.models.spark_v1beta2_spark_application_spec import SparkV1beta2SparkApplicationSpec
+from kubeflow_spark_api.models.spark_v1beta2_spark_application_status import SparkV1beta2SparkApplicationStatus
 from typing import Optional, Set
 from typing_extensions import Self
 
-class V1alpha1SparkConnect(BaseModel):
+class SparkV1beta2SparkApplication(BaseModel):
     """
-    SparkConnect is the Schema for the sparkconnections API.
+    SparkApplication is the Schema for the sparkapplications API
     """ # noqa: E501
     api_version: Optional[StrictStr] = Field(default=None, description="APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources", alias="apiVersion")
     kind: Optional[StrictStr] = Field(default=None, description="Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds")
     metadata: IoK8sApimachineryPkgApisMetaV1ObjectMeta
-    spec: V1alpha1SparkConnectSpec
-    status: Optional[V1alpha1SparkConnectStatus] = None
+    spec: SparkV1beta2SparkApplicationSpec
+    status: Optional[SparkV1beta2SparkApplicationStatus] = None
     __properties: ClassVar[List[str]] = ["apiVersion", "kind", "metadata", "spec", "status"]
 
     model_config = ConfigDict(
@@ -54,7 +54,7 @@ class V1alpha1SparkConnect(BaseModel):
 
     @classmethod
     def from_json(cls, json_str: str) -> Optional[Self]:
-        """Create an instance of V1alpha1SparkConnect from a JSON string"""
+        """Create an instance of SparkV1beta2SparkApplication from a JSON string"""
         return cls.from_dict(json.loads(json_str))
 
     def to_dict(self) -> Dict[str, Any]:
@@ -88,7 +88,7 @@ class V1alpha1SparkConnect(BaseModel):
 
     @classmethod
     def from_dict(cls, obj: Optional[Dict[str, Any]]) -> Optional[Self]:
-        """Create an instance of V1alpha1SparkConnect from a dict"""
+        """Create an instance of SparkV1beta2SparkApplication from a dict"""
         if obj is None:
             return None
 
@@ -99,8 +99,8 @@ class V1alpha1SparkConnect(BaseModel):
             "apiVersion": obj.get("apiVersion"),
             "kind": obj.get("kind"),
             "metadata": IoK8sApimachineryPkgApisMetaV1ObjectMeta.from_dict(obj["metadata"]) if obj.get("metadata") is not None else None,
-            "spec": V1alpha1SparkConnectSpec.from_dict(obj["spec"]) if obj.get("spec") is not None else None,
-            "status": V1alpha1SparkConnectStatus.from_dict(obj["status"]) if obj.get("status") is not None else None
+            "spec": SparkV1beta2SparkApplicationSpec.from_dict(obj["spec"]) if obj.get("spec") is not None else None,
+            "status": SparkV1beta2SparkApplicationStatus.from_dict(obj["status"]) if obj.get("status") is not None else None
         })
         return _obj
 

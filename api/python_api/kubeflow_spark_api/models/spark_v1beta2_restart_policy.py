@@ -19,19 +19,19 @@ import json
 
 from pydantic import BaseModel, ConfigDict, Field, StrictInt, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional
-from kubeflow_spark_api.models.io_k8s_api_core_v1_pod_template_spec import IoK8sApiCoreV1PodTemplateSpec
 from typing import Optional, Set
 from typing_extensions import Self
 
-class V1alpha1ExecutorSpec(BaseModel):
+class SparkV1beta2RestartPolicy(BaseModel):
     """
-    ExecutorSpec is specification of the executor.
+    RestartPolicy is the policy of if and in which conditions the controller should restart a terminated application. This completely defines actions to be taken on any kind of Failures during an application run.
     """ # noqa: E501
-    cores: Optional[StrictInt] = Field(default=None, description="Cores maps to `spark.driver.cores` or `spark.executor.cores` for the driver and executors, respectively.")
-    instances: Optional[StrictInt] = Field(default=None, description="Instances is the number of executor instances.")
-    memory: Optional[StrictStr] = Field(default=None, description="Memory is the amount of memory to request for the pod.")
-    template: Optional[IoK8sApiCoreV1PodTemplateSpec] = Field(default=None, description="Template is a pod template that can be used to define the driver or executor pod configurations that Spark configurations do not support. Spark version >= 3.0.0 is required. Ref: https://spark.apache.org/docs/latest/running-on-kubernetes.html#pod-template.")
-    __properties: ClassVar[List[str]] = ["cores", "instances", "memory", "template"]
+    on_failure_retries: Optional[StrictInt] = Field(default=None, description="OnFailureRetries the number of times to retry running an application before giving up.", alias="onFailureRetries")
+    on_failure_retry_interval: Optional[StrictInt] = Field(default=None, description="OnFailureRetryInterval is the interval in seconds between retries on failed runs.", alias="onFailureRetryInterval")
+    on_submission_failure_retries: Optional[StrictInt] = Field(default=None, description="OnSubmissionFailureRetries is the number of times to retry submitting an application before giving up. This is best effort and actual retry attempts can be >= the value specified due to caching. These are required if RestartPolicy is OnFailure.", alias="onSubmissionFailureRetries")
+    on_submission_failure_retry_interval: Optional[StrictInt] = Field(default=None, description="OnSubmissionFailureRetryInterval is the interval in seconds between retries on failed submissions.", alias="onSubmissionFailureRetryInterval")
+    type: Optional[StrictStr] = Field(default=None, description="Type specifies the RestartPolicyType.")
+    __properties: ClassVar[List[str]] = ["onFailureRetries", "onFailureRetryInterval", "onSubmissionFailureRetries", "onSubmissionFailureRetryInterval", "type"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -51,7 +51,7 @@ class V1alpha1ExecutorSpec(BaseModel):
 
     @classmethod
     def from_json(cls, json_str: str) -> Optional[Self]:
-        """Create an instance of V1alpha1ExecutorSpec from a JSON string"""
+        """Create an instance of SparkV1beta2RestartPolicy from a JSON string"""
         return cls.from_dict(json.loads(json_str))
 
     def to_dict(self) -> Dict[str, Any]:
@@ -72,14 +72,11 @@ class V1alpha1ExecutorSpec(BaseModel):
             exclude=excluded_fields,
             exclude_none=True,
         )
-        # override the default output from pydantic by calling `to_dict()` of template
-        if self.template:
-            _dict['template'] = self.template.to_dict()
         return _dict
 
     @classmethod
     def from_dict(cls, obj: Optional[Dict[str, Any]]) -> Optional[Self]:
-        """Create an instance of V1alpha1ExecutorSpec from a dict"""
+        """Create an instance of SparkV1beta2RestartPolicy from a dict"""
         if obj is None:
             return None
 
@@ -87,10 +84,11 @@ class V1alpha1ExecutorSpec(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
-            "cores": obj.get("cores"),
-            "instances": obj.get("instances"),
-            "memory": obj.get("memory"),
-            "template": IoK8sApiCoreV1PodTemplateSpec.from_dict(obj["template"]) if obj.get("template") is not None else None
+            "onFailureRetries": obj.get("onFailureRetries"),
+            "onFailureRetryInterval": obj.get("onFailureRetryInterval"),
+            "onSubmissionFailureRetries": obj.get("onSubmissionFailureRetries"),
+            "onSubmissionFailureRetryInterval": obj.get("onSubmissionFailureRetryInterval"),
+            "type": obj.get("type")
         })
         return _obj
 

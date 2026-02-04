@@ -18,21 +18,18 @@ import re  # noqa: F401
 import json
 
 from pydantic import BaseModel, ConfigDict, Field, StrictInt, StrictStr
-from typing import Any, ClassVar, Dict, List, Optional
+from typing import Any, ClassVar, Dict, List
 from typing import Optional, Set
 from typing_extensions import Self
 
-class V1beta2DriverInfo(BaseModel):
+class SparkV1beta2Port(BaseModel):
     """
-    DriverInfo captures information about the driver.
+    Port represents the port definition in the pods objects.
     """ # noqa: E501
-    pod_name: Optional[StrictStr] = Field(default=None, alias="podName")
-    web_ui_address: Optional[StrictStr] = Field(default=None, description="UI Details for the UI created via ClusterIP service accessible from within the cluster.", alias="webUIAddress")
-    web_ui_ingress_address: Optional[StrictStr] = Field(default=None, alias="webUIIngressAddress")
-    web_ui_ingress_name: Optional[StrictStr] = Field(default=None, description="Ingress Details if an ingress for the UI was created.", alias="webUIIngressName")
-    web_ui_port: Optional[StrictInt] = Field(default=None, alias="webUIPort")
-    web_ui_service_name: Optional[StrictStr] = Field(default=None, alias="webUIServiceName")
-    __properties: ClassVar[List[str]] = ["podName", "webUIAddress", "webUIIngressAddress", "webUIIngressName", "webUIPort", "webUIServiceName"]
+    container_port: StrictInt = Field(alias="containerPort")
+    name: StrictStr
+    protocol: StrictStr
+    __properties: ClassVar[List[str]] = ["containerPort", "name", "protocol"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -52,7 +49,7 @@ class V1beta2DriverInfo(BaseModel):
 
     @classmethod
     def from_json(cls, json_str: str) -> Optional[Self]:
-        """Create an instance of V1beta2DriverInfo from a JSON string"""
+        """Create an instance of SparkV1beta2Port from a JSON string"""
         return cls.from_dict(json.loads(json_str))
 
     def to_dict(self) -> Dict[str, Any]:
@@ -77,7 +74,7 @@ class V1beta2DriverInfo(BaseModel):
 
     @classmethod
     def from_dict(cls, obj: Optional[Dict[str, Any]]) -> Optional[Self]:
-        """Create an instance of V1beta2DriverInfo from a dict"""
+        """Create an instance of SparkV1beta2Port from a dict"""
         if obj is None:
             return None
 
@@ -85,12 +82,9 @@ class V1beta2DriverInfo(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
-            "podName": obj.get("podName"),
-            "webUIAddress": obj.get("webUIAddress"),
-            "webUIIngressAddress": obj.get("webUIIngressAddress"),
-            "webUIIngressName": obj.get("webUIIngressName"),
-            "webUIPort": obj.get("webUIPort"),
-            "webUIServiceName": obj.get("webUIServiceName")
+            "containerPort": obj.get("containerPort") if obj.get("containerPort") is not None else 0,
+            "name": obj.get("name") if obj.get("name") is not None else '',
+            "protocol": obj.get("protocol") if obj.get("protocol") is not None else ''
         })
         return _obj
 

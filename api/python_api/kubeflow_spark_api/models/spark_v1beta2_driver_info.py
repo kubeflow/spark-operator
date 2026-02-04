@@ -17,19 +17,22 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, ConfigDict, Field, StrictStr
+from pydantic import BaseModel, ConfigDict, Field, StrictInt, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional
 from typing import Optional, Set
 from typing_extensions import Self
 
-class V1alpha1SparkConnectServerStatus(BaseModel):
+class SparkV1beta2DriverInfo(BaseModel):
     """
-    V1alpha1SparkConnectServerStatus
+    DriverInfo captures information about the driver.
     """ # noqa: E501
-    pod_ip: Optional[StrictStr] = Field(default=None, description="PodIP is the IP address of the pod that is running the Spark Connect server.", alias="podIp")
-    pod_name: Optional[StrictStr] = Field(default=None, description="PodName is the name of the pod that is running the Spark Connect server.", alias="podName")
-    service_name: Optional[StrictStr] = Field(default=None, description="ServiceName is the name of the service that is exposing the Spark Connect server.", alias="serviceName")
-    __properties: ClassVar[List[str]] = ["podIp", "podName", "serviceName"]
+    pod_name: Optional[StrictStr] = Field(default=None, alias="podName")
+    web_ui_address: Optional[StrictStr] = Field(default=None, description="UI Details for the UI created via ClusterIP service accessible from within the cluster.", alias="webUIAddress")
+    web_ui_ingress_address: Optional[StrictStr] = Field(default=None, alias="webUIIngressAddress")
+    web_ui_ingress_name: Optional[StrictStr] = Field(default=None, description="Ingress Details if an ingress for the UI was created.", alias="webUIIngressName")
+    web_ui_port: Optional[StrictInt] = Field(default=None, alias="webUIPort")
+    web_ui_service_name: Optional[StrictStr] = Field(default=None, alias="webUIServiceName")
+    __properties: ClassVar[List[str]] = ["podName", "webUIAddress", "webUIIngressAddress", "webUIIngressName", "webUIPort", "webUIServiceName"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -49,7 +52,7 @@ class V1alpha1SparkConnectServerStatus(BaseModel):
 
     @classmethod
     def from_json(cls, json_str: str) -> Optional[Self]:
-        """Create an instance of V1alpha1SparkConnectServerStatus from a JSON string"""
+        """Create an instance of SparkV1beta2DriverInfo from a JSON string"""
         return cls.from_dict(json.loads(json_str))
 
     def to_dict(self) -> Dict[str, Any]:
@@ -74,7 +77,7 @@ class V1alpha1SparkConnectServerStatus(BaseModel):
 
     @classmethod
     def from_dict(cls, obj: Optional[Dict[str, Any]]) -> Optional[Self]:
-        """Create an instance of V1alpha1SparkConnectServerStatus from a dict"""
+        """Create an instance of SparkV1beta2DriverInfo from a dict"""
         if obj is None:
             return None
 
@@ -82,9 +85,12 @@ class V1alpha1SparkConnectServerStatus(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
-            "podIp": obj.get("podIp"),
             "podName": obj.get("podName"),
-            "serviceName": obj.get("serviceName")
+            "webUIAddress": obj.get("webUIAddress"),
+            "webUIIngressAddress": obj.get("webUIIngressAddress"),
+            "webUIIngressName": obj.get("webUIIngressName"),
+            "webUIPort": obj.get("webUIPort"),
+            "webUIServiceName": obj.get("webUIServiceName")
         })
         return _obj
 

@@ -31,30 +31,30 @@ from kubeflow_spark_api.models.io_k8s_api_core_v1_pod_template_spec import IoK8s
 from kubeflow_spark_api.models.io_k8s_api_core_v1_security_context import IoK8sApiCoreV1SecurityContext
 from kubeflow_spark_api.models.io_k8s_api_core_v1_toleration import IoK8sApiCoreV1Toleration
 from kubeflow_spark_api.models.io_k8s_api_core_v1_volume_mount import IoK8sApiCoreV1VolumeMount
-from kubeflow_spark_api.models.v1beta2_gpu_spec import V1beta2GPUSpec
-from kubeflow_spark_api.models.v1beta2_name_key import V1beta2NameKey
-from kubeflow_spark_api.models.v1beta2_name_path import V1beta2NamePath
-from kubeflow_spark_api.models.v1beta2_port import V1beta2Port
-from kubeflow_spark_api.models.v1beta2_secret_info import V1beta2SecretInfo
+from kubeflow_spark_api.models.spark_v1beta2_gpu_spec import SparkV1beta2GPUSpec
+from kubeflow_spark_api.models.spark_v1beta2_name_key import SparkV1beta2NameKey
+from kubeflow_spark_api.models.spark_v1beta2_name_path import SparkV1beta2NamePath
+from kubeflow_spark_api.models.spark_v1beta2_port import SparkV1beta2Port
+from kubeflow_spark_api.models.spark_v1beta2_secret_info import SparkV1beta2SecretInfo
 from typing import Optional, Set
 from typing_extensions import Self
 
-class V1beta2DriverSpec(BaseModel):
+class SparkV1beta2DriverSpec(BaseModel):
     """
     DriverSpec is specification of the driver.
     """ # noqa: E501
     affinity: Optional[IoK8sApiCoreV1Affinity] = Field(default=None, description="Affinity specifies the affinity/anti-affinity settings for the pod.")
     annotations: Optional[Dict[str, StrictStr]] = Field(default=None, description="Annotations are the Kubernetes annotations to be added to the pod.")
-    config_maps: Optional[List[V1beta2NamePath]] = Field(default=None, description="ConfigMaps carries information of other ConfigMaps to add to the pod.", alias="configMaps")
+    config_maps: Optional[List[SparkV1beta2NamePath]] = Field(default=None, description="ConfigMaps carries information of other ConfigMaps to add to the pod.", alias="configMaps")
     core_limit: Optional[StrictStr] = Field(default=None, description="CoreLimit specifies a hard limit on CPU cores for the pod. Optional", alias="coreLimit")
     core_request: Optional[StrictStr] = Field(default=None, description="CoreRequest is the physical CPU core request for the driver. Maps to `spark.kubernetes.driver.request.cores` that is available since Spark 3.0.", alias="coreRequest")
     cores: Optional[StrictInt] = Field(default=None, description="Cores maps to `spark.driver.cores` or `spark.executor.cores` for the driver and executors, respectively.")
     dns_config: Optional[IoK8sApiCoreV1PodDNSConfig] = Field(default=None, description="DnsConfig dns settings for the pod, following the Kubernetes specifications.", alias="dnsConfig")
     env: Optional[List[IoK8sApiCoreV1EnvVar]] = Field(default=None, description="Env carries the environment variables to add to the pod.")
     env_from: Optional[List[IoK8sApiCoreV1EnvFromSource]] = Field(default=None, description="EnvFrom is a list of sources to populate environment variables in the container.", alias="envFrom")
-    env_secret_key_refs: Optional[Dict[str, V1beta2NameKey]] = Field(default=None, description="EnvSecretKeyRefs holds a mapping from environment variable names to SecretKeyRefs. Deprecated. Consider using `env` instead.", alias="envSecretKeyRefs")
+    env_secret_key_refs: Optional[Dict[str, SparkV1beta2NameKey]] = Field(default=None, description="EnvSecretKeyRefs holds a mapping from environment variable names to SecretKeyRefs. Deprecated. Consider using `env` instead.", alias="envSecretKeyRefs")
     env_vars: Optional[Dict[str, StrictStr]] = Field(default=None, description="EnvVars carries the environment variables to add to the pod. Deprecated. Consider using `env` instead.", alias="envVars")
-    gpu: Optional[V1beta2GPUSpec] = Field(default=None, description="GPU specifies GPU requirement for the pod.")
+    gpu: Optional[SparkV1beta2GPUSpec] = Field(default=None, description="GPU specifies GPU requirement for the pod.")
     host_aliases: Optional[List[IoK8sApiCoreV1HostAlias]] = Field(default=None, description="HostAliases settings for the pod, following the Kubernetes specifications.", alias="hostAliases")
     host_network: Optional[StrictBool] = Field(default=None, description="HostNetwork indicates whether to request host networking for the pod or not.", alias="hostNetwork")
     image: Optional[StrictStr] = Field(default=None, description="Image is the container image to use. Overrides Spec.Image if set.")
@@ -69,10 +69,10 @@ class V1beta2DriverSpec(BaseModel):
     node_selector: Optional[Dict[str, StrictStr]] = Field(default=None, description="NodeSelector is the Kubernetes node selector to be added to the driver and executor pods. This field is mutually exclusive with nodeSelector at SparkApplication level (which will be deprecated).", alias="nodeSelector")
     pod_name: Optional[StrictStr] = Field(default=None, description="PodName is the name of the driver pod that the user creates. This is used for the in-cluster client mode in which the user creates a client pod where the driver of the user application runs. It's an error to set this field if Mode is not in-cluster-client.", alias="podName")
     pod_security_context: Optional[IoK8sApiCoreV1PodSecurityContext] = Field(default=None, description="PodSecurityContext specifies the PodSecurityContext to apply.", alias="podSecurityContext")
-    ports: Optional[List[V1beta2Port]] = Field(default=None, description="Ports settings for the pods, following the Kubernetes specifications.")
+    ports: Optional[List[SparkV1beta2Port]] = Field(default=None, description="Ports settings for the pods, following the Kubernetes specifications.")
     priority_class_name: Optional[StrictStr] = Field(default=None, description="PriorityClassName is the name of the PriorityClass for the driver pod.", alias="priorityClassName")
     scheduler_name: Optional[StrictStr] = Field(default=None, description="SchedulerName specifies the scheduler that will be used for scheduling", alias="schedulerName")
-    secrets: Optional[List[V1beta2SecretInfo]] = Field(default=None, description="Secrets carries information of secrets to add to the pod.")
+    secrets: Optional[List[SparkV1beta2SecretInfo]] = Field(default=None, description="Secrets carries information of secrets to add to the pod.")
     security_context: Optional[IoK8sApiCoreV1SecurityContext] = Field(default=None, description="SecurityContext specifies the container's SecurityContext to apply.", alias="securityContext")
     service_account: Optional[StrictStr] = Field(default=None, description="ServiceAccount is the name of the custom Kubernetes service account used by the pod.", alias="serviceAccount")
     service_annotations: Optional[Dict[str, StrictStr]] = Field(default=None, description="ServiceAnnotations defines the annotations to be added to the Kubernetes headless service used by executors to connect to the driver.", alias="serviceAnnotations")
@@ -103,7 +103,7 @@ class V1beta2DriverSpec(BaseModel):
 
     @classmethod
     def from_json(cls, json_str: str) -> Optional[Self]:
-        """Create an instance of V1beta2DriverSpec from a JSON string"""
+        """Create an instance of SparkV1beta2DriverSpec from a JSON string"""
         return cls.from_dict(json.loads(json_str))
 
     def to_dict(self) -> Dict[str, Any]:
@@ -226,7 +226,7 @@ class V1beta2DriverSpec(BaseModel):
 
     @classmethod
     def from_dict(cls, obj: Optional[Dict[str, Any]]) -> Optional[Self]:
-        """Create an instance of V1beta2DriverSpec from a dict"""
+        """Create an instance of SparkV1beta2DriverSpec from a dict"""
         if obj is None:
             return None
 
@@ -236,7 +236,7 @@ class V1beta2DriverSpec(BaseModel):
         _obj = cls.model_validate({
             "affinity": IoK8sApiCoreV1Affinity.from_dict(obj["affinity"]) if obj.get("affinity") is not None else None,
             "annotations": obj.get("annotations"),
-            "configMaps": [V1beta2NamePath.from_dict(_item) for _item in obj["configMaps"]] if obj.get("configMaps") is not None else None,
+            "configMaps": [SparkV1beta2NamePath.from_dict(_item) for _item in obj["configMaps"]] if obj.get("configMaps") is not None else None,
             "coreLimit": obj.get("coreLimit"),
             "coreRequest": obj.get("coreRequest"),
             "cores": obj.get("cores"),
@@ -244,13 +244,13 @@ class V1beta2DriverSpec(BaseModel):
             "env": [IoK8sApiCoreV1EnvVar.from_dict(_item) for _item in obj["env"]] if obj.get("env") is not None else None,
             "envFrom": [IoK8sApiCoreV1EnvFromSource.from_dict(_item) for _item in obj["envFrom"]] if obj.get("envFrom") is not None else None,
             "envSecretKeyRefs": dict(
-                (_k, V1beta2NameKey.from_dict(_v))
+                (_k, SparkV1beta2NameKey.from_dict(_v))
                 for _k, _v in obj["envSecretKeyRefs"].items()
             )
             if obj.get("envSecretKeyRefs") is not None
             else None,
             "envVars": obj.get("envVars"),
-            "gpu": V1beta2GPUSpec.from_dict(obj["gpu"]) if obj.get("gpu") is not None else None,
+            "gpu": SparkV1beta2GPUSpec.from_dict(obj["gpu"]) if obj.get("gpu") is not None else None,
             "hostAliases": [IoK8sApiCoreV1HostAlias.from_dict(_item) for _item in obj["hostAliases"]] if obj.get("hostAliases") is not None else None,
             "hostNetwork": obj.get("hostNetwork"),
             "image": obj.get("image"),
@@ -265,10 +265,10 @@ class V1beta2DriverSpec(BaseModel):
             "nodeSelector": obj.get("nodeSelector"),
             "podName": obj.get("podName"),
             "podSecurityContext": IoK8sApiCoreV1PodSecurityContext.from_dict(obj["podSecurityContext"]) if obj.get("podSecurityContext") is not None else None,
-            "ports": [V1beta2Port.from_dict(_item) for _item in obj["ports"]] if obj.get("ports") is not None else None,
+            "ports": [SparkV1beta2Port.from_dict(_item) for _item in obj["ports"]] if obj.get("ports") is not None else None,
             "priorityClassName": obj.get("priorityClassName"),
             "schedulerName": obj.get("schedulerName"),
-            "secrets": [V1beta2SecretInfo.from_dict(_item) for _item in obj["secrets"]] if obj.get("secrets") is not None else None,
+            "secrets": [SparkV1beta2SecretInfo.from_dict(_item) for _item in obj["secrets"]] if obj.get("secrets") is not None else None,
             "securityContext": IoK8sApiCoreV1SecurityContext.from_dict(obj["securityContext"]) if obj.get("securityContext") is not None else None,
             "serviceAccount": obj.get("serviceAccount"),
             "serviceAnnotations": obj.get("serviceAnnotations"),

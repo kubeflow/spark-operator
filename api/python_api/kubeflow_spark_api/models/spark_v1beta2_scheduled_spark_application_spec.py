@@ -19,11 +19,11 @@ import json
 
 from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictInt, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional
-from kubeflow_spark_api.models.v1beta2_spark_application_spec import V1beta2SparkApplicationSpec
+from kubeflow_spark_api.models.spark_v1beta2_spark_application_spec import SparkV1beta2SparkApplicationSpec
 from typing import Optional, Set
 from typing_extensions import Self
 
-class V1beta2ScheduledSparkApplicationSpec(BaseModel):
+class SparkV1beta2ScheduledSparkApplicationSpec(BaseModel):
     """
     ScheduledSparkApplicationSpec defines the desired state of ScheduledSparkApplication.
     """ # noqa: E501
@@ -32,7 +32,7 @@ class V1beta2ScheduledSparkApplicationSpec(BaseModel):
     schedule: StrictStr = Field(description="Schedule is a cron schedule on which the application should run.")
     successful_run_history_limit: Optional[StrictInt] = Field(default=None, description="SuccessfulRunHistoryLimit is the number of past successful runs of the application to keep. Defaults to 1.", alias="successfulRunHistoryLimit")
     suspend: Optional[StrictBool] = Field(default=None, description="Suspend is a flag telling the controller to suspend subsequent runs of the application if set to true. Defaults to false.")
-    template: V1beta2SparkApplicationSpec = Field(description="Template is a template from which SparkApplication instances can be created.")
+    template: SparkV1beta2SparkApplicationSpec = Field(description="Template is a template from which SparkApplication instances can be created.")
     time_zone: Optional[StrictStr] = Field(default=None, description="TimeZone is the time zone in which the cron schedule will be interpreted in. This value is passed to time.LoadLocation, so it must be either \"Local\", \"UTC\", or a valid IANA location name e.g. \"America/New_York\". Defaults to \"Local\".", alias="timeZone")
     __properties: ClassVar[List[str]] = ["concurrencyPolicy", "failedRunHistoryLimit", "schedule", "successfulRunHistoryLimit", "suspend", "template", "timeZone"]
 
@@ -54,7 +54,7 @@ class V1beta2ScheduledSparkApplicationSpec(BaseModel):
 
     @classmethod
     def from_json(cls, json_str: str) -> Optional[Self]:
-        """Create an instance of V1beta2ScheduledSparkApplicationSpec from a JSON string"""
+        """Create an instance of SparkV1beta2ScheduledSparkApplicationSpec from a JSON string"""
         return cls.from_dict(json.loads(json_str))
 
     def to_dict(self) -> Dict[str, Any]:
@@ -82,7 +82,7 @@ class V1beta2ScheduledSparkApplicationSpec(BaseModel):
 
     @classmethod
     def from_dict(cls, obj: Optional[Dict[str, Any]]) -> Optional[Self]:
-        """Create an instance of V1beta2ScheduledSparkApplicationSpec from a dict"""
+        """Create an instance of SparkV1beta2ScheduledSparkApplicationSpec from a dict"""
         if obj is None:
             return None
 
@@ -95,7 +95,7 @@ class V1beta2ScheduledSparkApplicationSpec(BaseModel):
             "schedule": obj.get("schedule") if obj.get("schedule") is not None else '',
             "successfulRunHistoryLimit": obj.get("successfulRunHistoryLimit"),
             "suspend": obj.get("suspend"),
-            "template": V1beta2SparkApplicationSpec.from_dict(obj["template"]) if obj.get("template") is not None else None,
+            "template": SparkV1beta2SparkApplicationSpec.from_dict(obj["template"]) if obj.get("template") is not None else None,
             "timeZone": obj.get("timeZone")
         })
         return _obj
