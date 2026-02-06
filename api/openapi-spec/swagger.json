@@ -11898,6 +11898,341 @@
           "format": "int-or-string"
         }
       },
+      "spark.v1alpha1.DynamicAllocation": {
+        "description": "DynamicAllocation contains configuration options for dynamic allocation.",
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "description": "Enabled controls whether dynamic allocation is enabled or not.",
+            "type": "boolean"
+          },
+          "initialExecutors": {
+            "description": "InitialExecutors is the initial number of executors to request. If .spec.executor.instances is also set, the initial number of executors is set to the bigger of that and this option.",
+            "type": "integer",
+            "format": "int32"
+          },
+          "maxExecutors": {
+            "description": "MaxExecutors is the upper bound for the number of executors if dynamic allocation is enabled.",
+            "type": "integer",
+            "format": "int32"
+          },
+          "minExecutors": {
+            "description": "MinExecutors is the lower bound for the number of executors if dynamic allocation is enabled.",
+            "type": "integer",
+            "format": "int32"
+          },
+          "shuffleTrackingEnabled": {
+            "description": "ShuffleTrackingEnabled enables shuffle file tracking for executors, which allows dynamic allocation without the need for an external shuffle service. This option will try to keep alive executors that are storing shuffle data for active jobs. If external shuffle service is enabled, set ShuffleTrackingEnabled to false. ShuffleTrackingEnabled is true by default if dynamicAllocation.enabled is true.",
+            "type": "boolean"
+          },
+          "shuffleTrackingTimeout": {
+            "description": "ShuffleTrackingTimeout controls the timeout in milliseconds for executors that are holding shuffle data if shuffle tracking is enabled (true by default if dynamic allocation is enabled).",
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
+      "spark.v1alpha1.ExecutorSpec": {
+        "description": "ExecutorSpec is specification of the executor.",
+        "type": "object",
+        "properties": {
+          "cores": {
+            "description": "Cores maps to `spark.driver.cores` or `spark.executor.cores` for the driver and executors, respectively.",
+            "type": "integer",
+            "format": "int32"
+          },
+          "instances": {
+            "description": "Instances is the number of executor instances.",
+            "type": "integer",
+            "format": "int32"
+          },
+          "memory": {
+            "description": "Memory is the amount of memory to request for the pod.",
+            "type": "string"
+          },
+          "template": {
+            "description": "Template is a pod template that can be used to define the driver or executor pod configurations that Spark configurations do not support. Spark version \u003e= 3.0.0 is required. Ref: https://spark.apache.org/docs/latest/running-on-kubernetes.html#pod-template.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/io.k8s.api.core.v1.PodTemplateSpec"
+              }
+            ]
+          }
+        }
+      },
+      "spark.v1alpha1.ServerSpec": {
+        "description": "ServerSpec is specification of the Spark connect server.",
+        "type": "object",
+        "properties": {
+          "cores": {
+            "description": "Cores maps to `spark.driver.cores` or `spark.executor.cores` for the driver and executors, respectively.",
+            "type": "integer",
+            "format": "int32"
+          },
+          "memory": {
+            "description": "Memory is the amount of memory to request for the pod.",
+            "type": "string"
+          },
+          "service": {
+            "description": "Service exposes the Spark connect server.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/io.k8s.api.core.v1.Service"
+              }
+            ]
+          },
+          "template": {
+            "description": "Template is a pod template that can be used to define the driver or executor pod configurations that Spark configurations do not support. Spark version \u003e= 3.0.0 is required. Ref: https://spark.apache.org/docs/latest/running-on-kubernetes.html#pod-template.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/io.k8s.api.core.v1.PodTemplateSpec"
+              }
+            ]
+          }
+        }
+      },
+      "spark.v1alpha1.SparkConnect": {
+        "description": "SparkConnect is the Schema for the sparkconnections API.",
+        "type": "object",
+        "required": [
+          "metadata",
+          "spec"
+        ],
+        "properties": {
+          "apiVersion": {
+            "description": "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
+            "type": "string"
+          },
+          "kind": {
+            "description": "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+            "type": "string"
+          },
+          "metadata": {
+            "default": {},
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/io.k8s.apimachinery.pkg.apis.meta.v1.ObjectMeta"
+              }
+            ]
+          },
+          "spec": {
+            "default": {},
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/spark.v1alpha1.SparkConnectSpec"
+              }
+            ]
+          },
+          "status": {
+            "default": {},
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/spark.v1alpha1.SparkConnectStatus"
+              }
+            ]
+          }
+        }
+      },
+      "spark.v1alpha1.SparkConnectList": {
+        "description": "SparkConnectList contains a list of SparkConnect.",
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "properties": {
+          "apiVersion": {
+            "description": "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
+            "type": "string"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "default": {},
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/spark.v1alpha1.SparkConnect"
+                }
+              ]
+            }
+          },
+          "kind": {
+            "description": "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+            "type": "string"
+          },
+          "metadata": {
+            "default": {},
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/io.k8s.apimachinery.pkg.apis.meta.v1.ListMeta"
+              }
+            ]
+          }
+        }
+      },
+      "spark.v1alpha1.SparkConnectServerStatus": {
+        "type": "object",
+        "properties": {
+          "podIp": {
+            "description": "PodIP is the IP address of the pod that is running the Spark Connect server.",
+            "type": "string"
+          },
+          "podName": {
+            "description": "PodName is the name of the pod that is running the Spark Connect server.",
+            "type": "string"
+          },
+          "serviceName": {
+            "description": "ServiceName is the name of the service that is exposing the Spark Connect server.",
+            "type": "string"
+          }
+        }
+      },
+      "spark.v1alpha1.SparkConnectSpec": {
+        "description": "SparkConnectSpec defines the desired state of SparkConnect.",
+        "type": "object",
+        "required": [
+          "sparkVersion",
+          "server",
+          "executor"
+        ],
+        "properties": {
+          "dynamicAllocation": {
+            "description": "DynamicAllocation configures dynamic allocation that becomes available for the Kubernetes scheduler backend since Spark 3.0.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/spark.v1alpha1.DynamicAllocation"
+              }
+            ]
+          },
+          "executor": {
+            "description": "Executor is the Spark executor specification.",
+            "default": {},
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/spark.v1alpha1.ExecutorSpec"
+              }
+            ]
+          },
+          "hadoopConf": {
+            "description": "HadoopConf carries user-specified Hadoop configuration properties as they would use the \"--conf\" option in spark-submit. The SparkApplication controller automatically adds prefix \"spark.hadoop.\" to Hadoop configuration properties.",
+            "type": "object",
+            "additionalProperties": {
+              "type": "string",
+              "default": ""
+            }
+          },
+          "image": {
+            "description": "Image is the container image for the driver, executor, and init-container. Any custom container images for the driver, executor, or init-container takes precedence over this.",
+            "type": "string"
+          },
+          "server": {
+            "description": "Server is the Spark connect server specification.",
+            "default": {},
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/spark.v1alpha1.ServerSpec"
+              }
+            ]
+          },
+          "sparkConf": {
+            "description": "SparkConf carries user-specified Spark configuration properties as they would use the \"--conf\" option in spark-submit.",
+            "type": "object",
+            "additionalProperties": {
+              "type": "string",
+              "default": ""
+            }
+          },
+          "sparkVersion": {
+            "description": "SparkVersion is the version of Spark the spark connect use.",
+            "type": "string",
+            "default": ""
+          }
+        }
+      },
+      "spark.v1alpha1.SparkConnectStatus": {
+        "description": "SparkConnectStatus defines the observed state of SparkConnect.",
+        "type": "object",
+        "properties": {
+          "conditions": {
+            "description": "Represents the latest available observations of a SparkConnect's current state.",
+            "type": "array",
+            "items": {
+              "default": {},
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/io.k8s.apimachinery.pkg.apis.meta.v1.Condition"
+                }
+              ]
+            },
+            "x-kubernetes-list-map-keys": [
+              "type"
+            ],
+            "x-kubernetes-list-type": "map",
+            "x-kubernetes-patch-merge-key": "type",
+            "x-kubernetes-patch-strategy": "merge"
+          },
+          "executors": {
+            "description": "Executors represents the current state of the SparkConnect executors.",
+            "type": "object",
+            "additionalProperties": {
+              "type": "integer",
+              "format": "int32",
+              "default": 0
+            }
+          },
+          "lastUpdateTime": {
+            "description": "LastUpdateTime is the time at which the SparkConnect controller last updated the SparkConnect.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/io.k8s.apimachinery.pkg.apis.meta.v1.Time"
+              }
+            ]
+          },
+          "server": {
+            "description": "Server represents the current state of the SparkConnect server.",
+            "default": {},
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/spark.v1alpha1.SparkConnectServerStatus"
+              }
+            ]
+          },
+          "startTime": {
+            "description": "StartTime is the time at which the SparkConnect controller started processing the SparkConnect.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/io.k8s.apimachinery.pkg.apis.meta.v1.Time"
+              }
+            ]
+          },
+          "state": {
+            "description": "State represents the current state of the SparkConnect.",
+            "type": "string"
+          }
+        }
+      },
+      "spark.v1alpha1.SparkPodSpec": {
+        "description": "SparkPodSpec defines common things that can be customized for a Spark driver or executor pod.",
+        "type": "object",
+        "properties": {
+          "cores": {
+            "description": "Cores maps to `spark.driver.cores` or `spark.executor.cores` for the driver and executors, respectively.",
+            "type": "integer",
+            "format": "int32"
+          },
+          "memory": {
+            "description": "Memory is the amount of memory to request for the pod.",
+            "type": "string"
+          },
+          "template": {
+            "description": "Template is a pod template that can be used to define the driver or executor pod configurations that Spark configurations do not support. Spark version \u003e= 3.0.0 is required. Ref: https://spark.apache.org/docs/latest/running-on-kubernetes.html#pod-template.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/io.k8s.api.core.v1.PodTemplateSpec"
+              }
+            ]
+          }
+        }
+      },
       "spark.v1beta2.ApplicationState": {
         "description": "ApplicationState tells the current state of the application and an error message in case of failures.",
         "type": "object",
