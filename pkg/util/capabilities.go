@@ -19,10 +19,12 @@ package util
 import (
 	"strings"
 
-	"github.com/golang/glog"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/kubernetes"
+	ctrl "sigs.k8s.io/controller-runtime"
 )
+
+var logger = ctrl.Log.WithName("capabilities")
 
 type Capabilities map[string]bool
 
@@ -60,7 +62,7 @@ func getPreferredAvailableAPIs(client kubernetes.Interface, kind string) (Capabi
 	lists, err := discoveryclient.ServerPreferredResources()
 	if err != nil {
 		if discovery.IsGroupDiscoveryFailedError(err) {
-			glog.Infof("There is an orphaned API service. Server reports: %s", err)
+			logger.Info("There is an orphaned API service", "error", err.Error())
 		} else {
 			return nil, err
 		}
