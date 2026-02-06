@@ -423,3 +423,58 @@ var _ = Describe("Check if IsDynamicAllocationEnabled", func() {
 		})
 	})
 })
+
+var _ = Describe("GetExecutorRequestResource", func() {
+	Context("when Executor.Instances is nil (dynamic allocation enabled)", func() {
+		app := &v1beta2.SparkApplication{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "test-app",
+				Namespace: "test-namespace",
+			},
+			Spec: v1beta2.SparkApplicationSpec{
+				DynamicAllocation: &v1beta2.DynamicAllocation{
+					Enabled:      true,
+					MinExecutors: ptr.To[int32](1),
+					MaxExecutors: ptr.To[int32](10),
+				},
+				Executor: v1beta2.ExecutorSpec{
+					SparkPodSpec: v1beta2.SparkPodSpec{
+						Cores:  ptr.To[int32](1),
+						Memory: ptr.To("1g"),
+					},
+				},
+			},
+		}
+
+		It("Should return resource list based on initial executor count without panicking", func() {
+			v1beta2.SetSparkApplicationDefaults(app)
+			Expect(app.Spec.Executor.Instances).To(BeNil())
+			Expect(func() { util.GetExecutorRequestResource(app) }).NotTo(Panic())
+			resources := util.GetExecutorRequestResource(app)
+			Expect(resources).NotTo(BeEmpty())
+		})
+	})
+
+	Context("when Executor.Instances is set", func() {
+		app := &v1beta2.SparkApplication{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "test-app",
+				Namespace: "test-namespace",
+			},
+			Spec: v1beta2.SparkApplicationSpec{
+				Executor: v1beta2.ExecutorSpec{
+					Instances: ptr.To[int32](2),
+					SparkPodSpec: v1beta2.SparkPodSpec{
+						Cores:  ptr.To[int32](1),
+						Memory: ptr.To("1g"),
+					},
+				},
+			},
+		}
+
+		It("Should return aggregated resources for all instances", func() {
+			resources := util.GetExecutorRequestResource(app)
+			Expect(resources).NotTo(BeEmpty())
+		})
+	})
+})
