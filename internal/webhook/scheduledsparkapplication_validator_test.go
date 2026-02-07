@@ -45,6 +45,9 @@ func TestScheduledSparkApplicationValidatorValidateCreate(t *testing.T) {
 				Name:      "test-app",
 				Namespace: "default",
 			},
+			Spec: v1beta2.ScheduledSparkApplicationSpec{
+				Schedule: "*/5 * * * *",
+			},
 		}
 		warnings, err := validator.ValidateCreate(context.Background(), app)
 		if err != nil {
@@ -79,11 +82,17 @@ func TestScheduledSparkApplicationValidatorValidateUpdate(t *testing.T) {
 				Name:      "test-app",
 				Namespace: "default",
 			},
+			Spec: v1beta2.ScheduledSparkApplicationSpec{
+				Schedule: "*/5 * * * *",
+			},
 		}
 		newApp := &v1beta2.ScheduledSparkApplication{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "test-app",
 				Namespace: "default",
+			},
+			Spec: v1beta2.ScheduledSparkApplicationSpec{
+				Schedule: "*/10 * * * *",
 			},
 		}
 		warnings, err := validator.ValidateUpdate(context.Background(), oldApp, newApp)
@@ -159,6 +168,9 @@ func TestScheduledSparkApplicationValidatorValidateName(t *testing.T) {
 					Name:      tt.appName,
 					Namespace: "default",
 				},
+				Spec: v1beta2.ScheduledSparkApplicationSpec{
+					Schedule: "*/5 * * * *",
+				},
 			}
 
 			_, err := validator.ValidateCreate(context.Background(), app)
@@ -174,3 +186,78 @@ func TestScheduledSparkApplicationValidatorValidateName(t *testing.T) {
 		})
 	}
 }
+
+func TestScheduledSparkApplicationValidatorValidate(t *testing.T) {
+	validator := NewScheduledSparkApplicationValidator()
+
+	tests := []struct {
+		name           string
+		schedule       string
+		timezone       string
+		wantError      bool
+		errorSubstring string
+	}{
+		// Valid schedules
+		{"valid simple cron", "*/5 * * * *", "", false, ""},
+		{"valid cron every hour", "0 * * * *", "", false, ""},
+		{"valid cron every day at midnight", "0 0 * * *", "", false, ""},
+		{"valid cron every minute", "* * * * *", "", false, ""},
+		{"valid cron with day of week", "0 0 * * 0", "", false, ""},
+		{"valid cron complex", "30 4 1,15 * 5", "", false, ""},
+
+		// Valid timezones
+		{"valid timezone UTC", "*/5 * * * *", "UTC", false, ""},
+		{"valid timezone Local", "*/5 * * * *", "Local", false, ""},
+		{"valid timezone America/New_York", "*/5 * * * *", "America/New_York", false, ""},
+		{"valid timezone Europe/London", "*/5 * * * *", "Europe/London", false, ""},
+		{"valid timezone Asia/Tokyo", "*/5 * * * *", "Asia/Tokyo", false, ""},
+		{"valid timezone Asia/Kolkata", "*/5 * * * *", "Asia/Kolkata", false, ""},
+
+		// Invalid schedules
+		{"invalid cron empty", "", "", true, "invalid schedule"},
+		{"invalid cron six fields", "* * * * * *", "", true, "invalid schedule"},
+		{"invalid cron bad field value", "*/5 25 * * *", "", true, "invalid schedule"},
+		{"invalid cron bad minute", "60 * * * *", "", true, "invalid schedule"},
+		{"invalid cron bad syntax", "badcron", "", true, "invalid schedule"},
+		{"invalid cron with letters", "abc def * * *", "", true, "invalid schedule"},
+
+		// Invalid timezones
+		{"invalid timezone", "*/5 * * * *", "Invalid/Timezone", true, "invalid timezone"},
+		{"invalid timezone random string", "*/5 * * * *", "foobar", true, "invalid timezone"},
+		{"invalid timezone with typo", "*/5 * * * *", "America/New_Yrok", true, "invalid timezone"},
+
+		// Schedule with embedded timezone prefix (should work)
+		{"schedule with CRON_TZ prefix", "CRON_TZ=UTC */5 * * * *", "", false, ""},
+		{"schedule with TZ prefix", "TZ=UTC */5 * * * *", "", false, ""},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			app := &v1beta2.ScheduledSparkApplication{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-app",
+					Namespace: "default",
+				},
+				Spec: v1beta2.ScheduledSparkApplicationSpec{
+					Schedule: tt.schedule,
+					TimeZone: tt.timezone,
+				},
+			}
+
+			_, err := validator.ValidateCreate(context.Background(), app)
+			hasError := err != nil
+
+			if hasError != tt.wantError {
+				t.Errorf("validate() with schedule=%q timezone=%q, error=%v, wantError=%v",
+					tt.schedule, tt.timezone, hasError, tt.wantError)
+			}
+
+			if tt.wantError && tt.errorSubstring != "" {
+				if err == nil || !strings.Contains(err.Error(), tt.errorSubstring) {
+					t.Errorf("validate() error should contain %q, got: %v", tt.errorSubstring, err)
+				}
+			}
+		})
+	}
+}
+
