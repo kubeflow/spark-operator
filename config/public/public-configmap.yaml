@@ -1,0 +1,10 @@
+# Public ConfigMap exposing the Spark Operator control-plane version.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: spark-operator-public
+  labels:
+    app.kubernetes.io/name: spark-operator
+    app.kubernetes.io/managed-by: kustomize
+data:
+  spark-operator-version: dev
