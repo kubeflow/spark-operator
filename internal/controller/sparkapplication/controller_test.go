@@ -1374,6 +1374,83 @@ var _ = Describe("SparkApplication Controller", func() {
 			})
 		})
 	})
+
+	Context("When reconciling a new SparkApplication with a pre-existing driver pod", func() {
+		ctx := context.Background()
+		appName := "test-idempotent"
+		appNamespace := "default"
+		key := types.NamespacedName{
+			Name:      appName,
+			Namespace: appNamespace,
+		}
+		existingSubmissionID := "previous-submission-id-12345"
+
+		BeforeEach(func() {
+			By("Creating a SparkApplication in New state")
+			app := &v1beta2.SparkApplication{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      appName,
+					Namespace: appNamespace,
+				},
+				Spec: v1beta2.SparkApplicationSpec{
+					MainApplicationFile: ptr.To("local:///dummy.jar"),
+				},
+			}
+			v1beta2.SetSparkApplicationDefaults(app)
+			Expect(k8sClient.Create(ctx, app)).To(Succeed())
+
+			By("Pre-creating a driver pod with submission labels")
+			driverPod := createDriverPod(appName, appNamespace)
+			driverPod.Labels[common.LabelSubmissionID] = existingSubmissionID
+			Expect(k8sClient.Create(ctx, driverPod)).To(Succeed())
+		})
+
+		AfterEach(func() {
+			By("Deleting the test SparkApplication")
+			app := &v1beta2.SparkApplication{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      appName,
+					Namespace: appNamespace,
+				},
+			}
+			Expect(client.IgnoreNotFound(k8sClient.Delete(ctx, app))).To(Succeed())
+
+			By("Deleting the driver pod")
+			driverKey := getDriverNamespacedName(appName, appNamespace)
+			driver := &corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      driverKey.Name,
+					Namespace: driverKey.Namespace,
+				},
+			}
+			Expect(client.IgnoreNotFound(k8sClient.Delete(ctx, driver))).To(Succeed())
+		})
+
+		It("Should recover submission state from existing driver pod instead of re-submitting", func() {
+			By("Reconciling the new SparkApplication")
+			reconciler := sparkapplication.NewReconciler(
+				nil,
+				k8sClient.Scheme(),
+				k8sClient,
+				record.NewFakeRecorder(3),
+				nil,
+				&sparkapplication.SparkSubmitter{},
+				sparkapplication.Options{Namespaces: []string{appNamespace}},
+			)
+			result, err := reconciler.Reconcile(ctx, reconcile.Request{NamespacedName: key})
+			Expect(err).NotTo(HaveOccurred())
+			Expect(result.Requeue).To(BeFalse())
+
+			By("Checking that the app transitioned to Submitted with the recovered SubmissionID")
+			app := &v1beta2.SparkApplication{}
+			Expect(k8sClient.Get(ctx, key, app)).NotTo(HaveOccurred())
+			Expect(app.Status.AppState.State).To(Equal(v1beta2.ApplicationStateSubmitted))
+			Expect(app.Status.SubmissionID).To(Equal(existingSubmissionID))
+			Expect(app.Status.DriverInfo.PodName).To(Equal(fmt.Sprintf("%s-driver", appName)))
+			Expect(app.Status.SubmissionAttempts).To(Equal(int32(1)))
+			Expect(app.Status.ExecutionAttempts).To(Equal(int32(1)))
+		})
+	})
 })
 
 func getDriverNamespacedName(appName string, appNamespace string) types.NamespacedName {

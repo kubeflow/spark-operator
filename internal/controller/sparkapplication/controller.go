@@ -306,20 +306,34 @@ func (r *Reconciler) handleSparkApplicationDeletion(ctx context.Context, req ctr
 func (r *Reconciler) reconcileNewSparkApplication(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := log.FromContext(ctx)
 	key := req.NamespacedName
+
+	// Fetch and validate state outside the retry loop.
+	old, err := r.getSparkApplication(ctx, key)
+	if err != nil {
+		return ctrl.Result{Requeue: true}, err
+	}
+	if old.Status.AppState.State != v1beta2.ApplicationStateNew {
+		return ctrl.Result{}, nil
+	}
+
+	// Submit once, outside the retry loop. submitSparkApplication is idempotent —
+	// if a driver pod already exists it will recover state instead of re-submitting.
+	app := old.DeepCopy()
+	r.submitSparkApplication(ctx, app)
+
+	// Use RetryOnConflict only for the status update.
 	retryErr := retry.RetryOnConflict(
 		retry.DefaultRetry,
 		func() error {
-			old, err := r.getSparkApplication(ctx, key)
+			fresh, err := r.getSparkApplication(ctx, key)
 			if err != nil {
 				return err
 			}
-			if old.Status.AppState.State != v1beta2.ApplicationStateNew {
+			if fresh.Status.AppState.State != v1beta2.ApplicationStateNew {
 				return nil
 			}
-			app := old.DeepCopy()
-
-			r.submitSparkApplication(ctx, app)
-			if err := r.updateSparkApplicationStatus(ctx, app); err != nil {
+			fresh.Status = app.Status
+			if err := r.updateSparkApplicationStatus(ctx, fresh); err != nil {
 				return err
 			}
 			return nil
@@ -831,22 +845,34 @@ func (r *Reconciler) reconcileSuspendedSparkApplication(ctx context.Context, req
 func (r *Reconciler) reconcileResumingSparkApplication(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := log.FromContext(ctx)
 	key := req.NamespacedName
+
+	// Fetch and validate state outside the retry loop.
+	old, err := r.getSparkApplication(ctx, key)
+	if err != nil {
+		return ctrl.Result{Requeue: true}, err
+	}
+	if old.Status.AppState.State != v1beta2.ApplicationStateResuming {
+		return ctrl.Result{}, nil
+	}
+
+	// Submit once, outside the retry loop. submitSparkApplication is idempotent.
+	app := old.DeepCopy()
+	r.recordSparkApplicationEvent(app)
+	r.submitSparkApplication(ctx, app)
+
+	// Use RetryOnConflict only for the status update.
 	retryErr := retry.RetryOnConflict(
 		retry.DefaultRetry,
 		func() error {
-			old, err := r.getSparkApplication(ctx, key)
+			fresh, err := r.getSparkApplication(ctx, key)
 			if err != nil {
 				return err
 			}
-			if old.Status.AppState.State != v1beta2.ApplicationStateResuming {
+			if fresh.Status.AppState.State != v1beta2.ApplicationStateResuming {
 				return nil
 			}
-			app := old.DeepCopy()
-
-			r.recordSparkApplicationEvent(app)
-
-			r.submitSparkApplication(ctx, app)
-			if err := r.updateSparkApplicationStatus(ctx, app); err != nil {
+			fresh.Status = app.Status
+			if err := r.updateSparkApplicationStatus(ctx, fresh); err != nil {
 				return err
 			}
 			return nil
@@ -897,13 +923,39 @@ func (r *Reconciler) getSparkApplication(ctx context.Context, key types.Namespac
 
 // submitSparkApplication creates a new submission for the given SparkApplication and submits it using spark-submit.
 // The submission result are recorded in app.Status.{AppState,ExecutionAttempts}.
+// This method is idempotent: if a driver pod already exists for this application (e.g. from a previous
+// submission attempt whose status update failed), the submission state is recovered from the existing pod
+// instead of re-running spark-submit.
 func (r *Reconciler) submitSparkApplication(ctx context.Context, app *v1beta2.SparkApplication) {
 	logger := log.FromContext(ctx)
 	logger.Info("Submitting SparkApplication", "state", app.Status.AppState.State)
 
+	// Check if a driver pod from a previous submission attempt already exists.
+	driverPodName := util.GetDriverPodName(app)
+	existingPod := &corev1.Pod{}
+	podKey := types.NamespacedName{Name: driverPodName, Namespace: app.Namespace}
+	if err := r.client.Get(ctx, podKey, existingPod); err == nil {
+		// Pod exists — verify it belongs to this application and was launched by the operator.
+		if existingPod.Labels[common.LabelSparkAppName] == app.Name &&
+			existingPod.Labels[common.LabelLaunchedBySparkOperator] == "true" {
+			logger.Info("Found existing driver pod from previous submission attempt, recovering state",
+				"pod", driverPodName, "submissionID", existingPod.Labels[common.LabelSubmissionID])
+			app.Status.SubmissionID = existingPod.Labels[common.LabelSubmissionID]
+			app.Status.DriverInfo.PodName = driverPodName
+			app.Status.LastSubmissionAttemptTime = metav1.Now()
+			app.Status.SubmissionAttempts = app.Status.SubmissionAttempts + 1
+			app.Status.AppState = v1beta2.ApplicationState{
+				State: v1beta2.ApplicationStateSubmitted,
+			}
+			app.Status.ExecutionAttempts = app.Status.ExecutionAttempts + 1
+			r.recordSparkApplicationEvent(app)
+			return
+		}
+	}
+
 	// SubmissionID must be set before creating any resources to ensure all the resources are labeled.
 	app.Status.SubmissionID = uuid.New().String()
-	app.Status.DriverInfo.PodName = util.GetDriverPodName(app)
+	app.Status.DriverInfo.PodName = driverPodName
 	app.Status.LastSubmissionAttemptTime = metav1.Now()
 	app.Status.SubmissionAttempts = app.Status.SubmissionAttempts + 1
 
