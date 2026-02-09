@@ -17,7 +17,7 @@ limitations under the License.
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: spark-operator-public
+  name: {{ include "spark-operator.fullname" . }}-public
   namespace: {{ .Release.Namespace }}
   labels:
     app: spark-operator

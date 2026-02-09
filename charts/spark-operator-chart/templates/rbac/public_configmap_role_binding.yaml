@@ -17,7 +17,7 @@ limitations under the License.
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
-  name: spark-operator-public
+  name: {{ include "spark-operator.fullname" . }}-public
   namespace: {{ .Release.Namespace }}
   labels:
     app: spark-operator
@@ -29,4 +29,4 @@ subjects:
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
-  name: spark-operator-public
+  name: {{ include "spark-operator.fullname" . }}-public
