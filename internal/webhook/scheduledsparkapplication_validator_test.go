@@ -260,4 +260,3 @@ func TestScheduledSparkApplicationValidatorValidate(t *testing.T) {
 		})
 	}
 }
-
