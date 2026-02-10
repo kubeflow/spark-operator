@@ -137,7 +137,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 
 	schedule, parseErr := cron.ParseStandard(cronSchedule)
 	if parseErr != nil {
-		logger.Error(err, "Failed to parse schedule of ScheduledSparkApplication", "name", scheduledApp.Name, "namespace", scheduledApp.Namespace, "schedule", scheduledApp.Spec.Schedule)
+		logger.Error(parseErr, "Failed to parse schedule of ScheduledSparkApplication", "name", scheduledApp.Name, "namespace", scheduledApp.Namespace, "schedule", scheduledApp.Spec.Schedule)
 		scheduledApp.Status.ScheduleState = v1beta2.ScheduleStateFailedValidation
 		scheduledApp.Status.Reason = parseErr.Error()
 		if updateErr := r.updateScheduledSparkApplicationStatus(ctx, scheduledApp); updateErr != nil {
