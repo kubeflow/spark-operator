@@ -127,6 +127,9 @@ spec:
         {{- if .Values.controller.maxTrackedExecutorPerApp }}
         - --max-tracked-executor-per-app={{ .Values.controller.maxTrackedExecutorPerApp }}
         {{- end }}
+        {{- if .Values.controller.scheduledSparkApplicationTimestampPrecision }}
+        - --scheduled-spark-application-timestamp-precision={{ .Values.controller.scheduledSparkApplicationTimestampPrecision }}
+        {{- end }}
         {{- if .Values.controller.featureGates }}
         - --feature-gates={{ range $index, $gate := .Values.controller.featureGates }}{{ if $index }},{{ end }}{{ $gate.name }}={{ $gate.enabled }}{{ end }}
         {{- end }}

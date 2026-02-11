@@ -103,6 +103,16 @@ controller:
   # -- Specifies the maximum number of Executor pods that can be tracked by the controller per SparkApplication.
   maxTrackedExecutorPerApp: 1000
 
+  # -- Timestamp precision for ScheduledSparkApplication run names.
+  # Valid values: nanos (default), micros, millis, seconds, minutes.
+  # Shorter precisions produce shorter names which helps with Kubernetes name length limits.
+  # NOTE: Using lower precisions such as "seconds" or "minutes" increases the risk of name
+  # collisions if multiple runs are created within the same time unit (for example during
+  # reconciliation loops or manual re-triggers). A collision will cause run creation to fail.
+  # Choose a precision compatible with your scheduling frequency: "minutes" is only suitable
+  # for jobs scheduled at most once per minute, "seconds" for jobs scheduled at most once per second.
+  scheduledSparkApplicationTimestampPrecision: nanos
+
   uiService:
     # -- Specifies whether to create service for Spark web UI.
     enable: true
