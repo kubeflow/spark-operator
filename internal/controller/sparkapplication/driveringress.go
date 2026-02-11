@@ -84,11 +84,11 @@ func getDriverIngressURL(ingressURLFormat string, app *v1beta2.SparkApplication)
 	return parsedURL, nil
 }
 
-func (r *Reconciler) createDriverIngress(ctx context.Context, app *v1beta2.SparkApplication, driverIngressConfiguration *v1beta2.DriverIngressConfiguration, service SparkService, ingressURL *url.URL, ingressClassName string) (*SparkIngress, error) {
+func (r *Reconciler) createDriverIngress(ctx context.Context, app *v1beta2.SparkApplication, driverIngressConfiguration *v1beta2.DriverIngressConfiguration, service SparkService, ingressURL *url.URL, ingressClassName string, index int) (*SparkIngress, error) {
 	if driverIngressConfiguration.ServicePort == nil {
 		return nil, fmt.Errorf("cannot create Driver Ingress for application %s/%s due to empty ServicePort on driverIngressConfiguration", app.Namespace, app.Name)
 	}
-	ingressName := fmt.Sprintf("%s-ing-%d", app.Name, *driverIngressConfiguration.ServicePort)
+	ingressName := getDriverIngressName(app, *driverIngressConfiguration.ServicePort, index)
 	if util.IngressCapabilities.Has("networking.k8s.io/v1") {
 		return r.createDriverIngressV1(ctx, app, service, ingressName, ingressURL, ingressClassName, []networkingv1.IngressTLS{}, map[string]string{})
 	}
@@ -363,8 +363,26 @@ func getDriverIngressServicePortName(driverIngressConfiguration *v1beta2.DriverI
 	return fmt.Sprintf("driver-ing-%d", port)
 }
 
-func getDriverIngressServiceName(app *v1beta2.SparkApplication, port int32) string {
-	return fmt.Sprintf("%s-driver-%d", app.Name, port)
+// getDriverIngressServiceName generates unique service name using port and index.
+// Note: The index-based naming means reordering DriverIngressOptions entries will
+// change resource names. Users should avoid reordering entries to prevent resource
+// recreation.
+func getDriverIngressServiceName(app *v1beta2.SparkApplication, port int32, index int) string {
+	if index == 0 {
+		return fmt.Sprintf("%s-driver-%d", app.Name, port)
+	}
+	return fmt.Sprintf("%s-driver-%d-%d", app.Name, port, index)
+}
+
+// getDriverIngressName generates unique ingress name using port and index.
+// Note: The index-based naming means reordering DriverIngressOptions entries will
+// change resource names. Users should avoid reordering entries to prevent resource
+// recreation.
+func getDriverIngressName(app *v1beta2.SparkApplication, port int32, index int) string {
+	if index == 0 {
+		return fmt.Sprintf("%s-ing-%d", app.Name, port)
+	}
+	return fmt.Sprintf("%s-ing-%d-%d", app.Name, port, index)
 }
 
 func getDriverIngressServiceType(driverIngressConfiguration *v1beta2.DriverIngressConfiguration) corev1.ServiceType {
@@ -398,13 +416,14 @@ func (r *Reconciler) createDriverIngressServiceFromConfiguration(
 	ctx context.Context,
 	app *v1beta2.SparkApplication,
 	driverIngressConfiguration *v1beta2.DriverIngressConfiguration,
+	index int,
 ) (*SparkService, error) {
 	portName := getDriverIngressServicePortName(driverIngressConfiguration)
 	port, err := getDriverIngressServicePort(driverIngressConfiguration)
 	if err != nil {
 		return nil, err
 	}
-	serviceName := getDriverIngressServiceName(app, port)
+	serviceName := getDriverIngressServiceName(app, port, index)
 	serviceType := getDriverIngressServiceType(driverIngressConfiguration)
 	serviceAnnotations := getDriverIngressServiceAnnotations(driverIngressConfiguration)
 	serviceLabels := getDriverIngressServiceLabels(driverIngressConfiguration)
