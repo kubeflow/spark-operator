@@ -109,8 +109,9 @@ manifests: controller-gen ## Generate CustomResourceDefinition, RBAC and Webhook
 	$(CONTROLLER_GEN) crd:generateEmbeddedObjectMeta=true rbac:roleName=spark-operator-controller webhook paths="./..." output:crd:artifacts:config=config/crd/bases
 
 .PHONY: generate
-generate: controller-gen ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
+generate: controller-gen manifests ## Generate Go code and Python APIs.
 	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
+	$(MAKE) python-api
 
 .PHONY: update-crd
 update-crd: manifests ## Update CRD files in the Helm chart.
@@ -123,6 +124,11 @@ verify-codegen: $(LOCALBIN) ## Install code-generator commands and verify change
 	$(call go-install-tool,$(LOCALBIN)/lister-gen-$(CODE_GENERATOR_VERSION),k8s.io/code-generator/cmd/lister-gen,$(CODE_GENERATOR_VERSION))
 	$(call go-install-tool,$(LOCALBIN)/informer-gen-$(CODE_GENERATOR_VERSION),k8s.io/code-generator/cmd/informer-gen,$(CODE_GENERATOR_VERSION))
 	./hack/verify-codegen.sh
+
+.PHONY: python-api
+python-api: manifests ## Generate Python APIs from CRDs.
+	hack/openapi/gen-openapi.sh
+	CONTAINER_TOOL=$(CONTAINER_TOOL) hack/python-api/gen-api.sh
 
 .PHONY: go-clean
 go-clean: ## Clean up caches and output.
