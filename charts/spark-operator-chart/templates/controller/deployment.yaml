@@ -85,6 +85,9 @@ spec:
         {{- with .Values.controller.uiIngress.annotations }}
         - --ingress-annotations={{ . | toJson }}
         {{- end }}
+        {{- if .Values.controller.uiIngress.useIngressAgnosticMode }}
+        - --use-ingress-agnostic-mode=true
+        {{- end }}
         {{- end }}
         {{- if .Values.controller.batchScheduler.enable }}
         - --enable-batch-scheduler=true

@@ -5211,6 +5211,13 @@ spec:
                       description: ServiceType allows configuring the type of the
                         service. Defaults to ClusterIP.
                       type: string
+                    useIngressAgnosticMode:
+                      description: |-
+                        UseIngressAgnosticMode when set to true, disables nginx-specific ingress path modifications
+                        (regex capture groups) and annotation injection (nginx.ingress.kubernetes.io/rewrite-target).
+                        This allows the ingress to work with any ingress controller like Traefik, HAProxy, etc.
+                        When false (default), the legacy nginx-specific behavior is used for backward compatibility.
+                      type: boolean
                   required:
                   - servicePort
                   - servicePortName
@@ -10486,6 +10493,13 @@ spec:
                     description: ServiceType allows configuring the type of the service.
                       Defaults to ClusterIP.
                     type: string
+                  useIngressAgnosticMode:
+                    description: |-
+                      UseIngressAgnosticMode when set to true, disables nginx-specific ingress path modifications
+                      (regex capture groups) and annotation injection (nginx.ingress.kubernetes.io/rewrite-target).
+                      This allows the ingress to work with any ingress controller like Traefik, HAProxy, etc.
+                      When false (default), the legacy nginx-specific behavior is used for backward compatibility.
+                    type: boolean
                 type: object
               sparkVersion:
                 description: SparkVersion is the version of Spark the application
