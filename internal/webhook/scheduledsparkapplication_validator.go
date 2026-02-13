@@ -20,7 +20,11 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
+	_ "time/tzdata"
+
+	"github.com/robfig/cron/v3"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/validation"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -88,8 +92,30 @@ func (v *ScheduledSparkApplicationValidator) ValidateDelete(ctx context.Context,
 	return nil, nil
 }
 
-func (v *ScheduledSparkApplicationValidator) validate(_ *v1beta2.ScheduledSparkApplication) error {
-	// TODO: implement validate logic
+func (v *ScheduledSparkApplicationValidator) validate(app *v1beta2.ScheduledSparkApplication) error {
+	// Validate TimeZone if specified
+	if app.Spec.TimeZone != "" {
+		if _, err := time.LoadLocation(app.Spec.TimeZone); err != nil {
+			return fmt.Errorf("invalid timezone %q: %v", app.Spec.TimeZone, err)
+		}
+	}
+
+	// Validate Schedule (cron expression)
+	timezone := app.Spec.TimeZone
+	if timezone == "" {
+		timezone = "Local"
+	}
+
+	// Ensure backwards compatibility if the schedule is relying on internal functionality of robfig/cron
+	cronSchedule := app.Spec.Schedule
+	if !strings.HasPrefix(cronSchedule, "CRON_TZ=") && !strings.HasPrefix(cronSchedule, "TZ=") {
+		cronSchedule = fmt.Sprintf("CRON_TZ=%s %s", timezone, cronSchedule)
+	}
+
+	if _, err := cron.ParseStandard(cronSchedule); err != nil {
+		return fmt.Errorf("invalid schedule %q: %v", app.Spec.Schedule, err)
+	}
+
 	return nil
 }
 
