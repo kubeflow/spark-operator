@@ -18,6 +18,10 @@ limitations under the License.
 apiVersion: apps/v1
 kind: Deployment
 metadata:
+  {{- with .Values.webhook.deploymentAnnotations }}
+  annotations:
+    {{- tpl (toYaml .) $ | nindent 4 }}
+  {{- end }}
   name: {{ include "spark-operator.webhook.deploymentName" . }}
   labels:
     {{- include "spark-operator.webhook.labels" . | nindent 4 }}
