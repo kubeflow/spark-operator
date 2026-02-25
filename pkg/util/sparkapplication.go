@@ -110,12 +110,14 @@ func ShouldRetry(app *v1beta2.SparkApplication) bool {
 }
 
 func TimeUntilNextRetryDue(app *v1beta2.SparkApplication) (time.Duration, error) {
-	var retryInterval *int64
-	switch app.Status.AppState.State {
-	case v1beta2.ApplicationStateFailedSubmission:
-		retryInterval = app.Spec.RestartPolicy.OnSubmissionFailureRetryInterval
-	case v1beta2.ApplicationStateFailing:
-		retryInterval = app.Spec.RestartPolicy.OnFailureRetryInterval
+	retryInterval := app.Spec.RestartPolicy.RetryInterval
+	if retryInterval == nil {
+		switch app.Status.AppState.State {
+		case v1beta2.ApplicationStateFailedSubmission:
+			retryInterval = app.Spec.RestartPolicy.OnSubmissionFailureRetryInterval
+		case v1beta2.ApplicationStateFailing:
+			retryInterval = app.Spec.RestartPolicy.OnFailureRetryInterval
+		}
 	}
 
 	attemptsDone := app.Status.SubmissionAttempts

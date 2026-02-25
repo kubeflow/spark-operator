@@ -230,7 +230,7 @@ var _ = Describe("TimeUntilNextRetryDue", func() {
 		app := &v1beta2.SparkApplication{
 			Spec: v1beta2.SparkApplicationSpec{
 				RestartPolicy: v1beta2.RestartPolicy{
-					RetryIntervalMethod: v1beta2.RestartPolicyRetryIntervalMethodLinear,
+					RetryIntervalMethod:    v1beta2.RestartPolicyRetryIntervalMethodLinear,
 					OnFailureRetryInterval: &retryInterval,
 				},
 			},
@@ -238,7 +238,7 @@ var _ = Describe("TimeUntilNextRetryDue", func() {
 				AppState: v1beta2.ApplicationState{
 					State: v1beta2.ApplicationStateFailing,
 				},
-				SubmissionAttempts:      3,
+				SubmissionAttempts:        3,
 				LastSubmissionAttemptTime: metav1.NewTime(time.Now().Add(-8 * time.Second)),
 			},
 		}
@@ -256,7 +256,7 @@ var _ = Describe("TimeUntilNextRetryDue", func() {
 		app := &v1beta2.SparkApplication{
 			Spec: v1beta2.SparkApplicationSpec{
 				RestartPolicy: v1beta2.RestartPolicy{
-					RetryIntervalMethod: v1beta2.RestartPolicyRetryIntervalMethodStatic,
+					RetryIntervalMethod:    v1beta2.RestartPolicyRetryIntervalMethodStatic,
 					OnFailureRetryInterval: &retryInterval,
 				},
 			},
@@ -264,7 +264,7 @@ var _ = Describe("TimeUntilNextRetryDue", func() {
 				AppState: v1beta2.ApplicationState{
 					State: v1beta2.ApplicationStateFailing,
 				},
-				SubmissionAttempts:      3,
+				SubmissionAttempts:        3,
 				LastSubmissionAttemptTime: metav1.NewTime(time.Now().Add(-8 * time.Second)),
 			},
 		}
@@ -274,6 +274,34 @@ var _ = Describe("TimeUntilNextRetryDue", func() {
 			Expect(err).NotTo(HaveOccurred())
 			Expect(d).To(BeNumerically(">", 1*time.Second))
 			Expect(d).To(BeNumerically("<", 3*time.Second))
+		})
+	})
+
+	Context("SparkApplication with explicit retry interval", func() {
+		retryInterval := int64(50)
+		onFailureRetryInterval := int64(10)
+		app := &v1beta2.SparkApplication{
+			Spec: v1beta2.SparkApplicationSpec{
+				RestartPolicy: v1beta2.RestartPolicy{
+					RetryIntervalMethod:    v1beta2.RestartPolicyRetryIntervalMethodStatic,
+					RetryInterval:          &retryInterval,
+					OnFailureRetryInterval: &onFailureRetryInterval,
+				},
+			},
+			Status: v1beta2.SparkApplicationStatus{
+				AppState: v1beta2.ApplicationState{
+					State: v1beta2.ApplicationStateFailing,
+				},
+				SubmissionAttempts:        3,
+				LastSubmissionAttemptTime: metav1.NewTime(time.Now().Add(-8 * time.Second)),
+			},
+		}
+
+		It("Should prioritize retryInterval over state specific retry intervals", func() {
+			d, err := util.TimeUntilNextRetryDue(app)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(d).To(BeNumerically(">", 41*time.Second))
+			Expect(d).To(BeNumerically("<", 43*time.Second))
 		})
 	})
 })

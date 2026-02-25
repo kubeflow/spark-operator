@@ -245,6 +245,12 @@ type RestartPolicy struct {
 	// +optional
 	RetryIntervalMethod RestartPolicyRetryIntervalMethod `json:"retryIntervalMethod,omitempty"`
 
+	// RetryInterval is the interval in seconds between retries.
+	// If set, it takes precedence over OnFailureRetryInterval and OnSubmissionFailureRetryInterval.
+	// +kubebuilder:validation:Minimum=1
+	// +optional
+	RetryInterval *int64 `json:"retryInterval,omitempty"`
+
 	// OnSubmissionFailureRetries is the number of times to retry submitting an application before giving up.
 	// This is best effort and actual retry attempts can be >= the value specified due to caching.
 	// These are required if RestartPolicy is OnFailure.
