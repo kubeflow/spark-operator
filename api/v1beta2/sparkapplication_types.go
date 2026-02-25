@@ -236,6 +236,15 @@ type RestartPolicy struct {
 	// +kubebuilder:validation:Enum={Never,Always,OnFailure}
 	Type RestartPolicyType `json:"type,omitempty"`
 
+	// RetryIntervalMethod specifies how retry interval should be calculated.
+	// Supported values are:
+	// - linear: retry interval is multiplied by number of attempts (linear backoff).
+	// - static: retry interval is always constant.
+	// +kubebuilder:validation:Enum={linear,static}
+	// +kubebuilder:default:=linear
+	// +optional
+	RetryIntervalMethod RestartPolicyRetryIntervalMethod `json:"retryIntervalMethod,omitempty"`
+
 	// OnSubmissionFailureRetries is the number of times to retry submitting an application before giving up.
 	// This is best effort and actual retry attempts can be >= the value specified due to caching.
 	// These are required if RestartPolicy is OnFailure.
@@ -265,6 +274,13 @@ const (
 	RestartPolicyNever     RestartPolicyType = "Never"
 	RestartPolicyOnFailure RestartPolicyType = "OnFailure"
 	RestartPolicyAlways    RestartPolicyType = "Always"
+)
+
+type RestartPolicyRetryIntervalMethod string
+
+const (
+	RestartPolicyRetryIntervalMethodLinear RestartPolicyRetryIntervalMethod = "linear"
+	RestartPolicyRetryIntervalMethodStatic RestartPolicyRetryIntervalMethod = "static"
 )
 
 // BatchSchedulerConfiguration used to configure how to batch scheduling Spark Application

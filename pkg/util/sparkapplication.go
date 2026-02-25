@@ -124,8 +124,17 @@ func TimeUntilNextRetryDue(app *v1beta2.SparkApplication) (time.Duration, error)
 		return -1, fmt.Errorf("invalid retry interval (%v), last attempt time (%v) or attemptsDone (%v)", retryInterval, lastAttemptTime, attemptsDone)
 	}
 
-	// Retry wait time is attempts*RetryInterval to do a linear backoff.
-	interval := time.Duration(*retryInterval) * time.Second * time.Duration(attemptsDone)
+	interval := time.Duration(*retryInterval) * time.Second
+	method := app.Spec.RestartPolicy.RetryIntervalMethod
+	if method == "" {
+		method = v1beta2.RestartPolicyRetryIntervalMethodLinear
+	}
+
+	// Linear mode keeps existing behavior: attempts*RetryInterval.
+	if method == v1beta2.RestartPolicyRetryIntervalMethodLinear {
+		interval = interval * time.Duration(attemptsDone)
+	}
+
 	currentTime := time.Now()
 	return interval - currentTime.Sub(lastAttemptTime.Time), nil
 }

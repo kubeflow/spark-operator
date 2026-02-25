@@ -224,6 +224,60 @@ var _ = Describe("IsDriverRunning", func() {
 	})
 })
 
+var _ = Describe("TimeUntilNextRetryDue", func() {
+	Context("SparkApplication with linear retry interval method", func() {
+		retryInterval := int64(10)
+		app := &v1beta2.SparkApplication{
+			Spec: v1beta2.SparkApplicationSpec{
+				RestartPolicy: v1beta2.RestartPolicy{
+					RetryIntervalMethod: v1beta2.RestartPolicyRetryIntervalMethodLinear,
+					OnFailureRetryInterval: &retryInterval,
+				},
+			},
+			Status: v1beta2.SparkApplicationStatus{
+				AppState: v1beta2.ApplicationState{
+					State: v1beta2.ApplicationStateFailing,
+				},
+				SubmissionAttempts:      3,
+				LastSubmissionAttemptTime: metav1.NewTime(time.Now().Add(-8 * time.Second)),
+			},
+		}
+
+		It("Should calculate duration with attempts multiplier", func() {
+			d, err := util.TimeUntilNextRetryDue(app)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(d).To(BeNumerically(">", 21*time.Second))
+			Expect(d).To(BeNumerically("<", 23*time.Second))
+		})
+	})
+
+	Context("SparkApplication with static retry interval method", func() {
+		retryInterval := int64(10)
+		app := &v1beta2.SparkApplication{
+			Spec: v1beta2.SparkApplicationSpec{
+				RestartPolicy: v1beta2.RestartPolicy{
+					RetryIntervalMethod: v1beta2.RestartPolicyRetryIntervalMethodStatic,
+					OnFailureRetryInterval: &retryInterval,
+				},
+			},
+			Status: v1beta2.SparkApplicationStatus{
+				AppState: v1beta2.ApplicationState{
+					State: v1beta2.ApplicationStateFailing,
+				},
+				SubmissionAttempts:      3,
+				LastSubmissionAttemptTime: metav1.NewTime(time.Now().Add(-8 * time.Second)),
+			},
+		}
+
+		It("Should calculate constant interval without attempts multiplier", func() {
+			d, err := util.TimeUntilNextRetryDue(app)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(d).To(BeNumerically(">", 1*time.Second))
+			Expect(d).To(BeNumerically("<", 3*time.Second))
+		})
+	})
+})
+
 var _ = Describe("GetLocalVolumes", func() {
 	Context("SparkApplication with local volumes", func() {
 		volume1 := corev1.Volume{
