@@ -10396,7 +10396,8 @@ spec:
                     minimum: 1
                     type: integer
                   retryInterval:
-                    description: RetryInterval is the interval in seconds between retries.
+                    description: |-
+                      RetryInterval is the interval in seconds between retries.
                       If set, it takes precedence over OnFailureRetryInterval and OnSubmissionFailureRetryInterval.
                     format: int64
                     minimum: 1
