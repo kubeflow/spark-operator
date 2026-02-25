@@ -240,6 +240,7 @@ var _ = Describe("TimeUntilNextRetryDue", func() {
 				},
 				SubmissionAttempts:        3,
 				LastSubmissionAttemptTime: metav1.NewTime(time.Now().Add(-8 * time.Second)),
+				TerminationTime:           metav1.NewTime(time.Now().Add(-1 * time.Second)),
 			},
 		}
 
@@ -265,7 +266,8 @@ var _ = Describe("TimeUntilNextRetryDue", func() {
 					State: v1beta2.ApplicationStateFailing,
 				},
 				SubmissionAttempts:        3,
-				LastSubmissionAttemptTime: metav1.NewTime(time.Now().Add(-8 * time.Second)),
+				LastSubmissionAttemptTime: metav1.NewTime(time.Now().Add(-80 * time.Second)),
+				TerminationTime:           metav1.NewTime(time.Now().Add(-8 * time.Second)),
 			},
 		}
 
@@ -293,7 +295,8 @@ var _ = Describe("TimeUntilNextRetryDue", func() {
 					State: v1beta2.ApplicationStateFailing,
 				},
 				SubmissionAttempts:        3,
-				LastSubmissionAttemptTime: metav1.NewTime(time.Now().Add(-8 * time.Second)),
+				LastSubmissionAttemptTime: metav1.NewTime(time.Now().Add(-80 * time.Second)),
+				TerminationTime:           metav1.NewTime(time.Now().Add(-8 * time.Second)),
 			},
 		}
 

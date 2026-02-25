@@ -121,16 +121,23 @@ func TimeUntilNextRetryDue(app *v1beta2.SparkApplication) (time.Duration, error)
 	}
 
 	attemptsDone := app.Status.SubmissionAttempts
-	lastAttemptTime := app.Status.LastSubmissionAttemptTime
-	if retryInterval == nil || lastAttemptTime.IsZero() || attemptsDone <= 0 {
-		return -1, fmt.Errorf("invalid retry interval (%v), last attempt time (%v) or attemptsDone (%v)", retryInterval, lastAttemptTime, attemptsDone)
-	}
-
-	interval := time.Duration(*retryInterval) * time.Second
 	method := app.Spec.RestartPolicy.RetryIntervalMethod
 	if method == "" {
 		method = v1beta2.RestartPolicyRetryIntervalMethodLinear
 	}
+
+	referenceTime := app.Status.LastSubmissionAttemptTime
+	// Keep linear mode unchanged. Static mode retries relative to failure time.
+	if method == v1beta2.RestartPolicyRetryIntervalMethodStatic &&
+		app.Status.AppState.State == v1beta2.ApplicationStateFailing &&
+		!app.Status.TerminationTime.IsZero() {
+		referenceTime = app.Status.TerminationTime
+	}
+	if retryInterval == nil || referenceTime.IsZero() || attemptsDone <= 0 {
+		return -1, fmt.Errorf("invalid retry interval (%v), reference time (%v) or attemptsDone (%v)", retryInterval, referenceTime, attemptsDone)
+	}
+
+	interval := time.Duration(*retryInterval) * time.Second
 
 	// Linear mode keeps existing behavior: attempts*RetryInterval.
 	if method == v1beta2.RestartPolicyRetryIntervalMethodLinear {
@@ -138,7 +145,7 @@ func TimeUntilNextRetryDue(app *v1beta2.SparkApplication) (time.Duration, error)
 	}
 
 	currentTime := time.Now()
-	return interval - currentTime.Sub(lastAttemptTime.Time), nil
+	return interval - currentTime.Sub(referenceTime.Time), nil
 }
 
 func GetLocalVolumes(app *v1beta2.SparkApplication) map[string]corev1.Volume {
