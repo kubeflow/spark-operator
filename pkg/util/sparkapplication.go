@@ -122,8 +122,13 @@ func TimeUntilNextRetryDue(app *v1beta2.SparkApplication) (time.Duration, error)
 
 	attemptsDone := app.Status.SubmissionAttempts
 	method := app.Spec.RestartPolicy.RetryIntervalMethod
-	if method == "" {
+	switch method {
+	case "":
 		method = v1beta2.RestartPolicyRetryIntervalMethodLinear
+	case v1beta2.RestartPolicyRetryIntervalMethodLinear, v1beta2.RestartPolicyRetryIntervalMethodStatic:
+		// valid values
+	default:
+		return -1, fmt.Errorf("invalid retry interval method (%v)", method)
 	}
 
 	referenceTime := app.Status.LastSubmissionAttemptTime

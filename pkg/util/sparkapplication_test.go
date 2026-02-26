@@ -227,6 +227,7 @@ var _ = Describe("IsDriverRunning", func() {
 var _ = Describe("TimeUntilNextRetryDue", func() {
 	Context("SparkApplication with linear retry interval method", func() {
 		retryInterval := int64(10)
+		now := time.Now()
 		app := &v1beta2.SparkApplication{
 			Spec: v1beta2.SparkApplicationSpec{
 				RestartPolicy: v1beta2.RestartPolicy{
@@ -239,8 +240,8 @@ var _ = Describe("TimeUntilNextRetryDue", func() {
 					State: v1beta2.ApplicationStateFailing,
 				},
 				SubmissionAttempts:        3,
-				LastSubmissionAttemptTime: metav1.NewTime(time.Now().Add(-8 * time.Second)),
-				TerminationTime:           metav1.NewTime(time.Now().Add(-1 * time.Second)),
+				LastSubmissionAttemptTime: metav1.NewTime(now.Add(-8 * time.Second)),
+				TerminationTime:           metav1.NewTime(now.Add(-1 * time.Second)),
 			},
 		}
 
@@ -254,6 +255,7 @@ var _ = Describe("TimeUntilNextRetryDue", func() {
 
 	Context("SparkApplication with static retry interval method", func() {
 		retryInterval := int64(10)
+		now := time.Now()
 		app := &v1beta2.SparkApplication{
 			Spec: v1beta2.SparkApplicationSpec{
 				RestartPolicy: v1beta2.RestartPolicy{
@@ -266,8 +268,8 @@ var _ = Describe("TimeUntilNextRetryDue", func() {
 					State: v1beta2.ApplicationStateFailing,
 				},
 				SubmissionAttempts:        3,
-				LastSubmissionAttemptTime: metav1.NewTime(time.Now().Add(-80 * time.Second)),
-				TerminationTime:           metav1.NewTime(time.Now().Add(-8 * time.Second)),
+				LastSubmissionAttemptTime: metav1.NewTime(now.Add(-80 * time.Second)),
+				TerminationTime:           metav1.NewTime(now.Add(-8 * time.Second)),
 			},
 		}
 
@@ -282,6 +284,7 @@ var _ = Describe("TimeUntilNextRetryDue", func() {
 	Context("SparkApplication with explicit retry interval", func() {
 		retryInterval := int64(50)
 		onFailureRetryInterval := int64(10)
+		now := time.Now()
 		app := &v1beta2.SparkApplication{
 			Spec: v1beta2.SparkApplicationSpec{
 				RestartPolicy: v1beta2.RestartPolicy{
@@ -295,8 +298,8 @@ var _ = Describe("TimeUntilNextRetryDue", func() {
 					State: v1beta2.ApplicationStateFailing,
 				},
 				SubmissionAttempts:        3,
-				LastSubmissionAttemptTime: metav1.NewTime(time.Now().Add(-80 * time.Second)),
-				TerminationTime:           metav1.NewTime(time.Now().Add(-8 * time.Second)),
+				LastSubmissionAttemptTime: metav1.NewTime(now.Add(-80 * time.Second)),
+				TerminationTime:           metav1.NewTime(now.Add(-8 * time.Second)),
 			},
 		}
 
@@ -305,6 +308,31 @@ var _ = Describe("TimeUntilNextRetryDue", func() {
 			Expect(err).NotTo(HaveOccurred())
 			Expect(d).To(BeNumerically(">", 41*time.Second))
 			Expect(d).To(BeNumerically("<", 43*time.Second))
+		})
+	})
+
+	Context("SparkApplication with invalid retry interval method", func() {
+		retryInterval := int64(10)
+		now := time.Now()
+		app := &v1beta2.SparkApplication{
+			Spec: v1beta2.SparkApplicationSpec{
+				RestartPolicy: v1beta2.RestartPolicy{
+					RetryIntervalMethod:    "unexpected",
+					OnFailureRetryInterval: &retryInterval,
+				},
+			},
+			Status: v1beta2.SparkApplicationStatus{
+				AppState: v1beta2.ApplicationState{
+					State: v1beta2.ApplicationStateFailing,
+				},
+				SubmissionAttempts:        1,
+				LastSubmissionAttemptTime: metav1.NewTime(now.Add(-1 * time.Second)),
+			},
+		}
+
+		It("Should return error", func() {
+			_, err := util.TimeUntilNextRetryDue(app)
+			Expect(err).To(HaveOccurred())
 		})
 	})
 })
