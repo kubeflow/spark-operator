@@ -139,16 +139,11 @@ func (v *SparkApplicationValidator) validateSpec(ctx context.Context, app *v1bet
 		return fmt.Errorf("node selector cannot be defined at both SparkApplication and Driver/Executor")
 	}
 
-	servicePorts := make(map[int32]bool)
 	ingressURLFormats := make(map[string]bool)
 	for _, item := range app.Spec.DriverIngressOptions {
 		if item.ServicePort == nil {
-			return fmt.Errorf("DriverIngressOptions has nill ServicePort")
+			return fmt.Errorf("DriverIngressOptions has nil ServicePort")
 		}
-		if servicePorts[*item.ServicePort] {
-			return fmt.Errorf("DriverIngressOptions has duplicate ServicePort: %d", *item.ServicePort)
-		}
-		servicePorts[*item.ServicePort] = true
 
 		if item.IngressURLFormat == "" {
 			return fmt.Errorf("DriverIngressOptions has empty IngressURLFormat")
