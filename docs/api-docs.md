@@ -1950,6 +1950,36 @@ RestartPolicyType
 </tr>
 <tr>
 <td>
+<code>retryIntervalMethod</code><br/>
+<em>
+<a href="#sparkoperator.k8s.io/v1beta2.RestartPolicyRetryIntervalMethod">
+RestartPolicyRetryIntervalMethod
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>RetryIntervalMethod specifies how retry interval should be calculated.
+Supported values are:
+- linear: retry interval is multiplied by number of attempts (linear backoff).
+- static: retry interval is always constant.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>retryInterval</code><br/>
+<em>
+int64
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>RetryInterval is the interval in seconds between retries.
+If set, it takes precedence over OnFailureRetryInterval and OnSubmissionFailureRetryInterval.</p>
+</td>
+</tr>
+<tr>
+<td>
 <code>onSubmissionFailureRetries</code><br/>
 <em>
 int32
@@ -1999,6 +2029,26 @@ int64
 </td>
 </tr>
 </tbody>
+</table>
+<h3 id="sparkoperator.k8s.io/v1beta2.RestartPolicyRetryIntervalMethod">RestartPolicyRetryIntervalMethod
+(<code>string</code> alias)</h3>
+<p>
+(<em>Appears on:</em><a href="#sparkoperator.k8s.io/v1beta2.RestartPolicy">RestartPolicy</a>)
+</p>
+<div>
+</div>
+<table>
+<thead>
+<tr>
+<th>Value</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr><td><p>&#34;linear&#34;</p></td>
+<td></td>
+</tr><tr><td><p>&#34;static&#34;</p></td>
+<td></td>
+</tr></tbody>
 </table>
 <h3 id="sparkoperator.k8s.io/v1beta2.RestartPolicyType">RestartPolicyType
 (<code>string</code> alias)</h3>
