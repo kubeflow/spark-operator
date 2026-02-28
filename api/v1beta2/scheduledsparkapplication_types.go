@@ -75,6 +75,10 @@ type ScheduledSparkApplicationStatus struct {
 	ScheduleState ScheduleState `json:"scheduleState,omitempty"`
 	// Reason tells why the ScheduledSparkApplication is in the particular ScheduleState.
 	Reason string `json:"reason,omitempty"`
+	// ObservedGeneration is the most recent generation observed for this ScheduledSparkApplication.
+	// It is used to detect spec changes and trigger re-evaluation of the schedule.
+	// +optional
+	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
 }
 
 // +kubebuilder:object:root=true
