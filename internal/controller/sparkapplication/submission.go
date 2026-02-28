@@ -1082,14 +1082,18 @@ func applicationOption(app *v1beta2.SparkApplication) ([]string, error) {
 
 // driverPodTemplateOption returns the driver pod template arguments.
 func driverPodTemplateOption(app *v1beta2.SparkApplication) ([]string, error) {
-	template := app.Spec.Driver.Template
-	// Spark expects the template to have a driver container
-	// if user specifies a driver pod template, it is responsible
-	// for user to ensure the template has a driver container
-	if template == nil {
+	// Create a template (either from user-provided or a minimal default)
+	// This allows sparkConf pod template settings to work properly
+	var template *corev1.PodTemplateSpec
+	if app.Spec.Driver.Template != nil {
+		template = app.Spec.Driver.Template
+	} else {
+		// Create a minimal template with owner reference and container
 		template = &corev1.PodTemplateSpec{
 			Spec: corev1.PodSpec{
-				Containers: []corev1.Container{{Name: common.SparkDriverContainerName}},
+				Containers: []corev1.Container{{
+					Name: common.SparkDriverContainerName,
+				}},
 			},
 		}
 	}
@@ -1117,15 +1121,18 @@ func driverPodTemplateOption(app *v1beta2.SparkApplication) ([]string, error) {
 
 // executorPodTemplateOption returns the executor pod template arguments.
 func executorPodTemplateOption(app *v1beta2.SparkApplication) ([]string, error) {
-	template := app.Spec.Executor.Template
-
-	// Spark expects the template to have a driver container
-	// if user specifies a driver pod template, it is responsible
-	// for user to ensure the template has a driver container
-	if template == nil {
+	// Create a template (either from user-provided or a minimal default)
+	// This allows sparkConf pod template settings to work properly
+	var template *corev1.PodTemplateSpec
+	if app.Spec.Executor.Template != nil {
+		template = app.Spec.Executor.Template
+	} else {
+		// Create a minimal template with owner reference and container
 		template = &corev1.PodTemplateSpec{
 			Spec: corev1.PodSpec{
-				Containers: []corev1.Container{{Name: common.Spark3DefaultExecutorContainerName}},
+				Containers: []corev1.Container{{
+					Name: common.Spark3DefaultExecutorContainerName,
+				}},
 			},
 		}
 	}
