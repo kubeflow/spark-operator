@@ -121,6 +121,7 @@ See [helm uninstall](https://helm.sh/docs/helm/helm_uninstall) for command docum
 | controller.labels | object | `{}` | Extra labels for controller pods. |
 | controller.annotations | object | `{}` | Extra annotations for controller pods. |
 | controller.volumes | list | `[{"emptyDir":{"sizeLimit":"1Gi"},"name":"tmp"}]` | Volumes for controller pods. |
+| controller.dnsConfig | object | `{}` | DNS configuration for controller pods. |
 | controller.nodeSelector | object | `{}` | Node selector for controller pods. |
 | controller.affinity | object | `{}` | Affinity for controller pods. |
 | controller.tolerations | list | `[]` | List of node taints to tolerate for controller pods. |
@@ -164,6 +165,7 @@ See [helm uninstall](https://helm.sh/docs/helm/helm_uninstall) for command docum
 | webhook.annotations | object | `{}` | Extra annotations for webhook pods. |
 | webhook.sidecars | list | `[]` | Sidecar containers for webhook pods. |
 | webhook.volumes | list | `[{"emptyDir":{"sizeLimit":"500Mi"},"name":"serving-certs"}]` | Volumes for webhook pods. |
+| webhook.dnsConfig | object | `{}` | DNS configuration for webhook pods. |
 | webhook.nodeSelector | object | `{}` | Node selector for webhook pods. |
 | webhook.affinity | object | `{}` | Affinity for webhook pods. |
 | webhook.tolerations | list | `[]` | List of node taints to tolerate for webhook pods. |
