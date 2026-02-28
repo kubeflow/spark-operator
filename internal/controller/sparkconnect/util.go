@@ -79,3 +79,15 @@ func GetServerServiceName(conn *v1alpha1.SparkConnect) string {
 func GetServerServiceHost(conn *v1alpha1.SparkConnect) string {
 	return fmt.Sprintf("%s.%s.svc.cluster.local", GetServerServiceName(conn), conn.Namespace)
 }
+
+// GetServerIngressName returns the name of the server ingress for SparkConnect.
+func GetServerIngressName(conn *v1alpha1.SparkConnect) string {
+	// Use the ingress specified in the server spec if provided.
+	ingress := conn.Spec.Server.Ingress
+	if ingress != nil && ingress.Name != "" {
+		return ingress.Name
+	}
+
+	// Otherwise, use the default ingress name.
+	return fmt.Sprintf("%s-server", conn.Name)
+}

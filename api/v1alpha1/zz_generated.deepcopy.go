@@ -22,6 +22,7 @@ package v1alpha1
 
 import (
 	"k8s.io/api/core/v1"
+	networkingv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 )
@@ -94,6 +95,11 @@ func (in *ServerSpec) DeepCopyInto(out *ServerSpec) {
 	if in.Service != nil {
 		in, out := &in.Service, &out.Service
 		*out = new(v1.Service)
+		(*in).DeepCopyInto(*out)
+	}
+	if in.Ingress != nil {
+		in, out := &in.Ingress, &out.Ingress
+		*out = new(networkingv1.Ingress)
 		(*in).DeepCopyInto(*out)
 	}
 }

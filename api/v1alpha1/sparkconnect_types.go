@@ -18,6 +18,7 @@ package v1alpha1
 
 import (
 	corev1 "k8s.io/api/core/v1"
+	networkingv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -91,6 +92,10 @@ type ServerSpec struct {
 	// Service exposes the Spark connect server.
 	// +optional
 	Service *corev1.Service `json:"service,omitempty"`
+
+	// Ingress exposes the Spark connect server to external traffic.
+	// +optional
+	Ingress *networkingv1.Ingress `json:"ingress,omitempty"`
 }
 
 // ExecutorSpec is specification of the executor.
@@ -188,4 +193,10 @@ type SparkConnectServerStatus struct {
 
 	// ServiceName is the name of the service that is exposing the Spark Connect server.
 	ServiceName string `json:"serviceName,omitempty"`
+
+	// IngressName is the name of the ingress that is exposing the Spark Connect server externally.
+	IngressName string `json:"ingressName,omitempty"`
+	
+	// IngressURL is the URL of the ingress that is exposing the Spark Connect server externally.
+	IngressURL string `json:"ingressUrl,omitempty"`
 }
