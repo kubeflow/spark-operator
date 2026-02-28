@@ -307,6 +307,12 @@ type SparkUIConfiguration struct {
 	// TlsHosts is useful If we need to declare SSL certificates to the ingress object
 	// +optional
 	IngressTLS []networkingv1.IngressTLS `json:"ingressTLS,omitempty"`
+	// UseIngressAgnosticMode when set to true, disables nginx-specific ingress path modifications
+	// (regex capture groups) and annotation injection (nginx.ingress.kubernetes.io/rewrite-target).
+	// This allows the ingress to work with any ingress controller like Traefik, HAProxy, etc.
+	// When false (default), the legacy nginx-specific behavior is used for backward compatibility.
+	// +optional
+	UseIngressAgnosticMode *bool `json:"useIngressAgnosticMode,omitempty"`
 }
 
 // DriverIngressConfiguration is for driver ingress specific configuration parameters.
@@ -333,6 +339,12 @@ type DriverIngressConfiguration struct {
 	// TlsHosts is useful If we need to declare SSL certificates to the ingress object
 	// +optional
 	IngressTLS []networkingv1.IngressTLS `json:"ingressTLS,omitempty"`
+	// UseIngressAgnosticMode when set to true, disables nginx-specific ingress path modifications
+	// (regex capture groups) and annotation injection (nginx.ingress.kubernetes.io/rewrite-target).
+	// This allows the ingress to work with any ingress controller like Traefik, HAProxy, etc.
+	// When false (default), the legacy nginx-specific behavior is used for backward compatibility.
+	// +optional
+	UseIngressAgnosticMode *bool `json:"useIngressAgnosticMode,omitempty"`
 }
 
 // ApplicationStateType represents the type of the current state of an application.
