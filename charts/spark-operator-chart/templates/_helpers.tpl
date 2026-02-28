@@ -76,3 +76,14 @@ Spark Operator image
 {{- define "spark-operator.image" -}}
 {{ printf "%s/%s:%s" .Values.image.registry .Values.image.repository (.Values.image.tag | default .Chart.AppVersion | toString) }}
 {{- end -}}
+
+{{/*
+Spark Operator control-plane version
+*/}}
+{{- define "spark-operator.version" -}}
+{{- if hasPrefix "0.0.0-" .Chart.Version -}}
+dev
+{{- else -}}
+{{ printf "v%s" .Chart.Version }}
+{{- end -}}
+{{- end -}}
