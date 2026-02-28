@@ -1138,6 +1138,11 @@ func (r *Reconciler) updateSparkApplicationStatus(ctx context.Context, app *v1be
 
 // Delete the resources associated with the spark application.
 func (r *Reconciler) deleteSparkResources(ctx context.Context, app *v1beta2.SparkApplication) error {
+	// Delete executor pods first to ensure deterministic cleanup
+	if err := r.deleteExecutorPods(ctx, app); err != nil {
+		return err
+	}
+
 	if err := r.deleteDriverPod(ctx, app); err != nil {
 		return err
 	}
@@ -1175,6 +1180,36 @@ func (r *Reconciler) deleteDriverPod(ctx context.Context, app *v1beta2.SparkAppl
 		return err
 	}
 
+	return nil
+}
+
+func (r *Reconciler) deleteExecutorPods(ctx context.Context, app *v1beta2.SparkApplication) error {
+	logger := log.FromContext(ctx)
+	
+	// Get all executor pods for this application
+	podList, err := r.getExecutorPods(ctx, app)
+	if err != nil {
+		return err
+	}
+	
+	if len(podList.Items) == 0 {
+		logger.V(1).Info("No executor pods found to delete")
+		return nil
+	}
+	
+	logger.Info("Deleting executor pods", "count", len(podList.Items))
+	
+	// Delete all executor pods
+	for _, pod := range podList.Items {
+		logger.V(1).Info("Deleting executor pod", "pod", pod.Name)
+		if err := r.client.Delete(ctx, &pod, client.PropagationPolicy(metav1.DeletePropagationBackground)); err != nil {
+			if !errors.IsNotFound(err) {
+				logger.Error(err, "Failed to delete executor pod", "pod", pod.Name)
+				return err
+			}
+		}
+	}
+	
 	return nil
 }
 
