@@ -21,6 +21,7 @@ rules:
   - update
 - resources:
   - nodes
+  - secrets
   verbs:
   - get
 - resources:
