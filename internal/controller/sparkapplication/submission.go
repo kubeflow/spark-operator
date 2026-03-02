@@ -53,8 +53,8 @@ type SparkSubmitter struct {
 var _ SparkApplicationSubmitter = &SparkSubmitter{}
 
 // Secrets ref regexp supports the following secret ref formats:
-//  1. Specific namespace: {secrets:namespace/secret-name:secret-key}
-//  2. Default namespace: {secrets:secret-name:secret-key}
+//  1. Specific namespace: ${secrets:namespace/secret-name:secret-key}
+//  2. Default namespace: ${secrets:secret-name:secret-key}
 var confSecretRefRegexp = regexp.MustCompile(`^\${secrets:(?P<namespace>[a-z][-a-z0-9]*/)?(?P<secret>[a-z][-a-z0-9.]*):(?P<key>[a-z][-a-z0-9.]*)}$`)
 var confSecretRefRegexpGroupNames = confSecretRefRegexp.SubexpNames()
 
