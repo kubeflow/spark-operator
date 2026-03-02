@@ -110,6 +110,7 @@ func NewReconciler(
 
 // +kubebuilder:rbac:groups=,resources=pods,verbs=get;list;watch;create;update;patch;delete;deletecollection
 // +kubebuilder:rbac:groups=,resources=configmaps,verbs=get;list;create;update;patch;delete
+// +kubebuilder:rbac:groups=,resources=secrets,verbs=get
 // +kubebuilder:rbac:groups=,resources=services,verbs=get;create;delete
 // +kubebuilder:rbac:groups=,resources=nodes,verbs=get
 // +kubebuilder:rbac:groups=,resources=events,verbs=create;update;patch

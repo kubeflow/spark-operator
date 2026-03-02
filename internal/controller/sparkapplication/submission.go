@@ -55,7 +55,8 @@ var _ SparkApplicationSubmitter = &SparkSubmitter{}
 // Secrets ref regexp supports the following secret ref formats:
 //  1. Specific namespace: {secrets:namespace/secret-name:secret-key}
 //  2. Default namespace: {secrets:secret-name:secret-key}
-var confSecretRefRegexp = regexp.MustCompile(`\${secrets:(?P<namespace>[a-z_-]+?/)?(?P<secret>[a-z_-]+):(?P<key>[a-z_-]+)}`)
+var confSecretRefRegexp = regexp.MustCompile(`^\${secrets:(?P<namespace>[a-z][-a-z0-9]*/)?(?P<secret>[a-z][-a-z0-9.]*):(?P<key>[a-z][-a-z0-9.]*)}$`)
+var confSecretRefRegexpGroupNames = confSecretRefRegexp.SubexpNames()
 
 // Submit implements SparkApplicationSubmitter interface.
 func (*SparkSubmitter) Submit(ctx context.Context, app *v1beta2.SparkApplication, client client.Client) error {
@@ -308,7 +309,7 @@ func sparkConfOption(ctx context.Context, app *v1beta2.SparkApplication, client 
 		if key != common.SparkKubernetesDriverPodName {
 			match := confSecretRefRegexp.FindStringSubmatch(value)
 			if match != nil {
-				resolvedValue, err := resolveConfValueFromSecretRef(match, ctx, client)
+				resolvedValue, err := resolveConfValueFromSecretRef(match, ctx, client, app.Namespace)
 				if err != nil {
 					return nil, fmt.Errorf("failed to resolve config value for: %s from secret ref: %s due to: %w", key, value, err)
 				}
@@ -320,9 +321,16 @@ func sparkConfOption(ctx context.Context, app *v1beta2.SparkApplication, client 
 	return args, nil
 }
 
-func resolveConfValueFromSecretRef(matches []string, ctx context.Context, k8sClient client.Client) (string, error) {
-	result := parseConfSecretRefValue(matches)
+func resolveConfValueFromSecretRef(match []string, ctx context.Context, k8sClient client.Client, appNamespace string) (string, error) {
+	result := parseConfSecretRefValue(match)
 	namespace := result["namespace"]
+	if namespace != "" {
+		namespace = strings.TrimSuffix(namespace, "/")
+	} else if appNamespace != "" {
+		namespace = appNamespace
+	} else {
+		namespace = "default"
+	}
 	secretName := result["secret"]
 	secretKey := result["key"]
 	secret := &corev1.Secret{}
@@ -337,22 +345,15 @@ func resolveConfValueFromSecretRef(matches []string, ctx context.Context, k8sCli
 	return "", fmt.Errorf("key %s not found in secret %s/%s", secretKey, namespace, secretName)
 }
 
-func parseConfSecretRefValue(matches []string) map[string]string {
+func parseConfSecretRefValue(match []string) map[string]string {
 	// Create a map to store the named results
 	result := make(map[string]string)
-	for i, name := range confSecretRefRegexp.SubexpNames() {
-		// Index 0 is the full match, so we skip it and ensure the name is not empty
-		if i != 0 && name != "" && matches != nil {
-			match := matches[i]
-			if name == "namespace" {
-				if match == "" {
-					match = "default"
-				} else {
-					match = strings.TrimSuffix(match, "/")
-				}
-			}
-			result[name] = match
+	for i, name := range confSecretRefRegexpGroupNames {
+		// Index 0 is always empty, skip
+		if i == 0 {
+			continue
 		}
+		result[name] = match[i]
 	}
 	return result
 }
