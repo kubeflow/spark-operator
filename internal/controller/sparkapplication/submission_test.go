@@ -164,7 +164,7 @@ func TestSparkConfOptionFromSecretRef(t *testing.T) {
 					SparkConf: map[string]string{
 						fmt.Sprintf("%sfs.objectStorage.access.key", common.SparkHadoopPropertiesPrefix):     "abc",
 						fmt.Sprintf("%sfs.objectStorage.secret.key", common.SparkHadoopPropertiesPrefix):     "${secrets:object-storage:secret-key}",
-						fmt.Sprintf("%sfs.objectStorage.encryption.key", common.SparkHadoopPropertiesPrefix): "${secrets:ops/object-storage-kms:encryption-key}",
+						fmt.Sprintf("%sfs.objectStorage.encryption.key", common.SparkHadoopPropertiesPrefix): "${secrets:ops/object-storage-1.kms:encryption.key-2}",
 					},
 				},
 			},
@@ -181,10 +181,10 @@ func TestSparkConfOptionFromSecretRef(t *testing.T) {
 				&corev1.Secret{
 					ObjectMeta: metav1.ObjectMeta{
 						Namespace: "ops",
-						Name:      "object-storage-kms",
+						Name:      "object-storage-1.kms",
 					},
 					Data: map[string][]byte{
-						"encryption-key": []byte("kms"),
+						"encryption.key-2": []byte("kms"),
 					},
 				},
 			},
