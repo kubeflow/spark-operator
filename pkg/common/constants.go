@@ -54,3 +54,8 @@ const (
 	// Epsilon is a small number used to compare 64 bit floating point numbers.
 	Epsilon = 1e-9
 )
+
+const (
+	ReasonErrImagePull     = "ErrImagePull"
+	ReasonImagePullBackOff = "ImagePullBackOff"
+)

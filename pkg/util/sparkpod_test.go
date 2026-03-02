@@ -347,3 +347,309 @@ var _ = Describe("GetSparkExecutorID", func() {
 		})
 	})
 })
+
+var _ = Describe("GetConnName", func() {
+	Context("Pod without labels", func() {
+		pod := &corev1.Pod{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "test-app",
+				Namespace: "test-namespace",
+			},
+		}
+
+		It("Should return empty connection name", func() {
+			Expect(util.GetConnName(pod)).To(BeEmpty())
+		})
+	})
+
+	Context("Pod with labels but without connect name", func() {
+		pod := &corev1.Pod{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "test-app",
+				Namespace: "test-namespace",
+				Labels: map[string]string{
+					common.LabelSparkAppName: "test-app",
+				},
+			},
+		}
+
+		It("Should return empty connection name", func() {
+			Expect(util.GetConnName(pod)).To(BeEmpty())
+		})
+	})
+
+	Context("Pod with spark connect name label", func() {
+		pod := &corev1.Pod{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "test-app",
+				Namespace: "test-namespace",
+				Labels: map[string]string{
+					common.LabelSparkAppName:     "test-app",
+					common.LabelSparkConnectName: "conn-1",
+				},
+			},
+		}
+
+		It("Should return the connection name", func() {
+			Expect(util.GetConnName(pod)).To(Equal("conn-1"))
+		})
+	})
+})
+
+var _ = Describe("IsPodReady", func() {
+	It("Returns true when PodReady condition is true", func() {
+		pod := &corev1.Pod{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "ready-pod",
+				Namespace: "test-namespace",
+			},
+			Status: corev1.PodStatus{
+				Conditions: []corev1.PodCondition{
+					{
+						Type:   corev1.PodReady,
+						Status: corev1.ConditionTrue,
+					},
+				},
+			},
+		}
+
+		Expect(util.IsPodReady(pod)).To(BeTrue())
+	})
+
+	It("Returns false when PodReady condition is false", func() {
+		pod := &corev1.Pod{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "not-ready-pod",
+				Namespace: "test-namespace",
+			},
+			Status: corev1.PodStatus{
+				Conditions: []corev1.PodCondition{
+					{
+						Type:   corev1.PodReady,
+						Status: corev1.ConditionFalse,
+					},
+				},
+			},
+		}
+
+		Expect(util.IsPodReady(pod)).To(BeFalse())
+	})
+
+	It("Returns false when PodReady condition is missing", func() {
+		pod := &corev1.Pod{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "no-condition-pod",
+				Namespace: "test-namespace",
+			},
+		}
+
+		Expect(util.IsPodReady(pod)).To(BeFalse())
+	})
+})
+
+var _ = Describe("ShouldProcessPodUpdate", func() {
+	It("Returns true when pod phase changes", func() {
+		oldPod := newTestPod(corev1.PodPending, nil, nil, nil)
+		newPod := newTestPod(corev1.PodRunning, nil, nil, nil)
+
+		Expect(util.ShouldProcessPodUpdate(oldPod, newPod)).To(BeTrue())
+	})
+
+	It("Returns false for non-driver pods when phase is unchanged", func() {
+		labels := map[string]string{
+			common.LabelSparkRole: common.SparkRoleExecutor,
+		}
+		oldPod := newTestPod(corev1.PodPending, labels, nil, nil)
+		newPod := newTestPod(corev1.PodPending, labels, nil, nil)
+
+		Expect(util.ShouldProcessPodUpdate(oldPod, newPod)).To(BeFalse())
+	})
+
+	It("Returns true when driver failure reason changes", func() {
+		labels := map[string]string{
+			common.LabelSparkRole: common.SparkRoleDriver,
+		}
+		oldStatuses := []corev1.ContainerStatus{
+			newWaitingContainerStatus(""),
+		}
+		newStatuses := []corev1.ContainerStatus{
+			newWaitingContainerStatus(common.ReasonImagePullBackOff),
+		}
+		oldPod := newTestPod(corev1.PodPending, labels, oldStatuses, nil)
+		newPod := newTestPod(corev1.PodPending, labels, newStatuses, nil)
+
+		Expect(util.ShouldProcessPodUpdate(oldPod, newPod)).To(BeTrue())
+	})
+
+	It("Returns true when driver pod becomes unschedulable", func() {
+		labels := map[string]string{
+			common.LabelSparkRole: common.SparkRoleDriver,
+		}
+		oldPod := newTestPod(corev1.PodPending, labels, nil, nil)
+		newPod := newTestPod(corev1.PodPending, labels, nil, []corev1.PodCondition{
+			{
+				Type:   corev1.PodScheduled,
+				Status: corev1.ConditionFalse,
+				Reason: corev1.PodReasonUnschedulable,
+			},
+		})
+
+		Expect(util.ShouldProcessPodUpdate(oldPod, newPod)).To(BeTrue())
+	})
+
+	It("Returns false when driver pod status does not change", func() {
+		labels := map[string]string{
+			common.LabelSparkRole: common.SparkRoleDriver,
+		}
+		oldPod := newTestPod(corev1.PodPending, labels, nil, nil)
+		newPod := newTestPod(corev1.PodPending, labels, nil, nil)
+
+		Expect(util.ShouldProcessPodUpdate(oldPod, newPod)).To(BeFalse())
+	})
+})
+
+var _ = Describe("DriverFailureReasonChanged", func() {
+	It("Returns true when failure reason changes to image pull backoff", func() {
+		oldPod := newTestPod(corev1.PodPending, nil, []corev1.ContainerStatus{
+			newWaitingContainerStatus(common.ReasonErrImagePull),
+		}, nil)
+		newPod := newTestPod(corev1.PodPending, nil, []corev1.ContainerStatus{
+			newWaitingContainerStatus(common.ReasonImagePullBackOff),
+		}, nil)
+
+		Expect(util.DriverFailureReasonChanged(oldPod, newPod)).To(BeTrue())
+	})
+
+	It("Returns false when new failure reason is empty", func() {
+		oldPod := newTestPod(corev1.PodPending, nil, []corev1.ContainerStatus{
+			newWaitingContainerStatus(common.ReasonImagePullBackOff),
+		}, nil)
+		newPod := newTestPod(corev1.PodPending, nil, []corev1.ContainerStatus{
+			newWaitingContainerStatus(""),
+		}, nil)
+
+		Expect(util.DriverFailureReasonChanged(oldPod, newPod)).To(BeFalse())
+	})
+
+	It("Returns false when failure reason is unchanged", func() {
+		oldPod := newTestPod(corev1.PodPending, nil, []corev1.ContainerStatus{
+			newWaitingContainerStatus(common.ReasonImagePullBackOff),
+		}, nil)
+		newPod := newTestPod(corev1.PodPending, nil, []corev1.ContainerStatus{
+			newWaitingContainerStatus(common.ReasonImagePullBackOff),
+		}, nil)
+
+		Expect(util.DriverFailureReasonChanged(oldPod, newPod)).To(BeFalse())
+	})
+})
+
+var _ = Describe("GetPodFailureReason", func() {
+	It("Returns ImagePullBackOff when container is waiting with that reason", func() {
+		pod := newTestPod(corev1.PodPending, nil, []corev1.ContainerStatus{
+			newWaitingContainerStatus(common.ReasonImagePullBackOff),
+		}, nil)
+
+		Expect(util.GetPodFailureReason(pod)).To(Equal(common.ReasonImagePullBackOff))
+	})
+
+	It("Returns ErrImagePull when container is waiting with that reason", func() {
+		pod := newTestPod(corev1.PodPending, nil, []corev1.ContainerStatus{
+			newWaitingContainerStatus(common.ReasonErrImagePull),
+		}, nil)
+
+		Expect(util.GetPodFailureReason(pod)).To(Equal(common.ReasonErrImagePull))
+	})
+
+	It("Returns empty string when waiting reason is not a failure", func() {
+		pod := newTestPod(corev1.PodPending, nil, []corev1.ContainerStatus{
+			newWaitingContainerStatus("CrashLoopBackOff"),
+		}, nil)
+
+		Expect(util.GetPodFailureReason(pod)).To(BeEmpty())
+	})
+})
+
+var _ = Describe("IsPodUnschedulable", func() {
+	It("Returns true when PodScheduled condition indicates unschedulable", func() {
+		pod := newTestPod(corev1.PodPending, nil, nil, []corev1.PodCondition{
+			{
+				Type:   corev1.PodScheduled,
+				Status: corev1.ConditionFalse,
+				Reason: corev1.PodReasonUnschedulable,
+			},
+		})
+
+		Expect(util.IsPodUnschedulable(pod)).To(BeTrue())
+	})
+
+	It("Returns false when PodScheduled condition reason differs", func() {
+		pod := newTestPod(corev1.PodPending, nil, nil, []corev1.PodCondition{
+			{
+				Type:   corev1.PodScheduled,
+				Status: corev1.ConditionFalse,
+				Reason: "SomeOtherReason",
+			},
+		})
+
+		Expect(util.IsPodUnschedulable(pod)).To(BeFalse())
+	})
+})
+
+var _ = Describe("BecameUnschedulable", func() {
+	It("Returns true when new pod becomes unschedulable", func() {
+		oldPod := newTestPod(corev1.PodPending, nil, nil, nil)
+		newPod := newTestPod(corev1.PodPending, nil, nil, []corev1.PodCondition{
+			{
+				Type:   corev1.PodScheduled,
+				Status: corev1.ConditionFalse,
+				Reason: corev1.PodReasonUnschedulable,
+			},
+		})
+
+		Expect(util.BecameUnschedulable(oldPod, newPod)).To(BeTrue())
+	})
+
+	It("Returns false when both pods are unschedulable", func() {
+		cond := []corev1.PodCondition{
+			{
+				Type:   corev1.PodScheduled,
+				Status: corev1.ConditionFalse,
+				Reason: corev1.PodReasonUnschedulable,
+			},
+		}
+		oldPod := newTestPod(corev1.PodPending, nil, nil, cond)
+		newPod := newTestPod(corev1.PodPending, nil, nil, cond)
+
+		Expect(util.BecameUnschedulable(oldPod, newPod)).To(BeFalse())
+	})
+})
+
+func newTestPod(phase corev1.PodPhase, labels map[string]string, statuses []corev1.ContainerStatus, conditions []corev1.PodCondition) *corev1.Pod {
+	return &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-pod",
+			Namespace: "test-namespace",
+			Labels:    labels,
+		},
+		Status: corev1.PodStatus{
+			Phase:             phase,
+			ContainerStatuses: statuses,
+			Conditions:        conditions,
+		},
+	}
+}
+
+func newWaitingContainerStatus(reason string) corev1.ContainerStatus {
+	var waiting *corev1.ContainerStateWaiting
+	if reason != "" {
+		waiting = &corev1.ContainerStateWaiting{Reason: reason}
+	} else {
+		waiting = &corev1.ContainerStateWaiting{}
+	}
+
+	return corev1.ContainerStatus{
+		State: corev1.ContainerState{
+			Waiting: waiting,
+		},
+	}
+}
