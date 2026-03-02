@@ -22,7 +22,9 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
+	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -204,9 +206,27 @@ func (f *EventFilter) Update(e event.UpdateEvent) bool {
 		}
 
 		// Force-set the application status to Invalidating which handles clean-up and application re-run.
-		newApp.Status.AppState.State = v1beta2.ApplicationStateInvalidating
-		f.logger.Info("Updating SparkApplication status", "name", newApp.Name, "namespace", newApp.Namespace, " oldState", oldApp.Status.AppState.State, "newState", newApp.Status.AppState.State)
-		if err := f.client.Status().Update(context.TODO(), newApp); err != nil {
+		// Use RetryOnConflict to handle concurrent updates and fetch a fresh copy to avoid modifying cached objects.
+		f.logger.Info("Updating SparkApplication status to Invalidating", "name", newApp.Name, "namespace", newApp.Namespace, "oldState", oldApp.Status.AppState.State)
+		err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+			// Fetch a fresh copy of the SparkApplication to avoid modifying the cached informer object
+			freshApp := &v1beta2.SparkApplication{}
+			if err := f.client.Get(context.TODO(), types.NamespacedName{Name: newApp.Name, Namespace: newApp.Namespace}, freshApp); err != nil {
+				return err
+			}
+
+			// Skip if already in a terminal or transitioning state
+			currentState := freshApp.Status.AppState.State
+			if currentState == v1beta2.ApplicationStateInvalidating ||
+				currentState == v1beta2.ApplicationStateFailed ||
+				currentState == v1beta2.ApplicationStateCompleted {
+				return nil
+			}
+
+			freshApp.Status.AppState.State = v1beta2.ApplicationStateInvalidating
+			return f.client.Status().Update(context.TODO(), freshApp)
+		})
+		if err != nil {
 			f.logger.Error(err, "Failed to update application status", "application", newApp.Name)
 			f.recorder.Eventf(
 				newApp,
@@ -216,7 +236,9 @@ func (f *EventFilter) Update(e event.UpdateEvent) bool {
 				newApp.Name,
 				err,
 			)
-			return false
+			// Return true to ensure the update event reaches the reconciler even if status update fails.
+			// This prevents silently dropping spec changes when there are conflicts.
+			return true
 		}
 	}
 
