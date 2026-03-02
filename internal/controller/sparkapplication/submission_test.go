@@ -152,7 +152,7 @@ func TestSparkConfOptionFromSecretRef(t *testing.T) {
 		name     string
 		app      *v1beta2.SparkApplication
 		given    []client.Object
-		expected []string
+		expected map[string][]string
 	}{
 		{
 			name: "spark conf value from secret ref",
@@ -188,10 +188,17 @@ func TestSparkConfOptionFromSecretRef(t *testing.T) {
 					},
 				},
 			},
-			expected: []string{
-				"--conf", fmt.Sprintf("%sfs.objectStorage.access.key=%s", common.SparkHadoopPropertiesPrefix, "abc"),
-				"--conf", fmt.Sprintf("%sfs.objectStorage.secret.key=%s", common.SparkHadoopPropertiesPrefix, "xyz"),
-				"--conf", fmt.Sprintf("%sfs.objectStorage.encryption.key=%s", common.SparkHadoopPropertiesPrefix, "kms"),
+			expected: map[string][]string{
+				"args": {
+					"--conf", fmt.Sprintf("%sfs.objectStorage.access.key=%s", common.SparkHadoopPropertiesPrefix, "abc"),
+					"--conf", fmt.Sprintf("%sfs.objectStorage.secret.key=%s", common.SparkHadoopPropertiesPrefix, "xyz"),
+					"--conf", fmt.Sprintf("%sfs.objectStorage.encryption.key=%s", common.SparkHadoopPropertiesPrefix, "kms"),
+				},
+				"sanitizedArgs": {
+					"--conf", fmt.Sprintf("%sfs.objectStorage.access.key=%s", common.SparkHadoopPropertiesPrefix, "abc"),
+					"--conf", fmt.Sprintf("%sfs.objectStorage.secret.key=%s", common.SparkHadoopPropertiesPrefix, "*****"),
+					"--conf", fmt.Sprintf("%sfs.objectStorage.encryption.key=%s", common.SparkHadoopPropertiesPrefix, "*****"),
+				},
 			},
 		},
 	}
@@ -199,15 +206,20 @@ func TestSparkConfOptionFromSecretRef(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			mockK8sClient := fake.NewClientBuilder().WithObjects(tt.given...).Build()
-			options, err := sparkConfOption(context.TODO(), tt.app, mockK8sClient)
+			options, sanitizedOptions, err := sparkConfOption(context.TODO(), tt.app, mockK8sClient)
 			if err != nil {
 				t.Fatal(err)
 			}
 
+			expectedOptions := tt.expected["args"]
+			expectedSanitizedOptions := tt.expected["sanitizedArgs"]
 			slices.Sort(options)
-			slices.Sort(tt.expected)
+			slices.Sort(sanitizedOptions)
+			slices.Sort(expectedOptions)
+			slices.Sort(expectedSanitizedOptions)
 
-			assert.Equal(t, tt.expected, options, "Spark config options do not match expected values")
+			assert.Equal(t, expectedOptions, options, "Spark config options do not match expected values")
+			assert.Equal(t, expectedSanitizedOptions, sanitizedOptions, "Spark satinized config options do not match expected values")
 		})
 	}
 }

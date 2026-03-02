@@ -319,10 +319,11 @@ func sparkConfOption(ctx context.Context, app *v1beta2.SparkApplication, client 
 				}
 				args = append(args, "--conf", fmt.Sprintf("%s=%s", key, resolvedValue))
 				sanitizedArgs = append(sanitizedArgs, "--conf", fmt.Sprintf("%s=*****", key))
+			} else {
+				confValue := fmt.Sprintf("%s=%s", key, value)
+				args = append(args, "--conf", confValue)
+				sanitizedArgs = append(sanitizedArgs, "--conf", confValue)
 			}
-			confValue := fmt.Sprintf("%s=%s", key, value)
-			args = append(args, "--conf", confValue)
-			sanitizedArgs = append(sanitizedArgs, "--conf", confValue)
 		}
 	}
 	return args, sanitizedArgs, nil
