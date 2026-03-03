@@ -12442,6 +12442,12 @@ spec:
                 format: date-time
                 nullable: true
                 type: string
+              observedGeneration:
+                description: |-
+                  ObservedGeneration is the most recent generation observed for this ScheduledSparkApplication.
+                  It is used to detect spec changes and trigger re-evaluation of the schedule.
+                format: int64
+                type: integer
               pastFailedRunNames:
                 description: PastFailedRunNames keeps the names of SparkApplications
                   for past failed runs.
