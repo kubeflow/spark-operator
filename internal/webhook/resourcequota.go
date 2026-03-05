@@ -294,7 +294,7 @@ func validateResourceQuota(resourceList corev1.ResourceList, resourceQuota corev
 		total.Add(used)
 		if total.Cmp(hard) > 0 {
 			return fmt.Errorf(
-				"Exceeded '%s' quota: requested=%s, used=%s, limit=%s (new total would be: %s)",
+				"exceeded '%s' quota: requested=%s, used=%s, limit=%s (new total would be: %s)",
 				key,
 				requested.String(),
 				used.String(),
