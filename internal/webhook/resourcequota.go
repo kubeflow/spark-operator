@@ -153,13 +153,16 @@ func getSparkPodCoresLimits(podSpec *v1beta2.SparkPodSpec, replicas int64) (core
 	return resourceList, nil
 }
 
-func getMemoryRequests(app *v1beta2.SparkApplication) (corev1.ResourceList, error) {
+func getMemory(
+	app *v1beta2.SparkApplication,
+	parseLimit bool,
+) (int64, error) {
 	// If memory overhead factor is set, use it. Otherwise, use the default value.
 	var memoryOverheadFactor float64
 	if app.Spec.MemoryOverheadFactor != nil {
 		parsed, err := strconv.ParseFloat(*app.Spec.MemoryOverheadFactor, 64)
 		if err != nil {
-			return nil, err
+			return -1, err
 		}
 		memoryOverheadFactor = parsed
 	} else if app.Spec.Type == v1beta2.SparkApplicationTypeJava {
@@ -169,9 +172,14 @@ func getMemoryRequests(app *v1beta2.SparkApplication) (corev1.ResourceList, erro
 	}
 
 	// Calculate driver pod memory requests.
-	driverResourceList, err := getSparkPodMemoryRequests(&app.Spec.Driver.SparkPodSpec, memoryOverheadFactor, 1)
+	driverMemory, err := getSparkPodMemory(
+		&app.Spec.Driver.SparkPodSpec,
+		memoryOverheadFactor,
+		1,
+		parseLimit,
+	)
 	if err != nil {
-		return nil, err
+		return -1, err
 	}
 
 	// Calculate executor pod memory requests.
@@ -179,44 +187,71 @@ func getMemoryRequests(app *v1beta2.SparkApplication) (corev1.ResourceList, erro
 	if app.Spec.Executor.Instances != nil {
 		replicas = int64(*app.Spec.Executor.Instances)
 	}
-	executorResourceList, err := getSparkPodMemoryRequests(&app.Spec.Executor.SparkPodSpec, memoryOverheadFactor, replicas)
+	executorMemory, err := getSparkPodMemory(
+		&app.Spec.Executor.SparkPodSpec,
+		memoryOverheadFactor,
+		replicas,
+		parseLimit,
+	)
 	if err != nil {
-		return nil, err
+		return -1, err
 	}
 
-	return util.SumResourceList([]corev1.ResourceList{driverResourceList, executorResourceList}), nil
+	return driverMemory + executorMemory, nil
 }
 
-func getSparkPodMemoryRequests(podSpec *v1beta2.SparkPodSpec, memoryOverheadFactor float64, replicas int64) (corev1.ResourceList, error) {
+func getSparkPodMemory(
+	podSpec *v1beta2.SparkPodSpec,
+	memoryOverheadFactor float64,
+	replicas int64,
+	parseLimit bool,
+) (int64, error) {
 	var memoryBytes, memoryOverheadBytes int64
-	if podSpec.Memory != nil {
-		parsed, err := parseJavaMemoryString(*podSpec.Memory)
-		if err != nil {
-			return nil, err
-		}
-		memoryBytes = parsed
+	var err error
+	if parseLimit && podSpec.MemoryLimit != nil {
+		memoryBytes, err = parseJavaMemoryString(*podSpec.MemoryLimit)
+	} else if podSpec.Memory != nil {
+		// Either in the case of parsing requests or if parsing limits but no limit is supplied
+		memoryBytes, err = parseJavaMemoryString(*podSpec.Memory)
+	} else {
+		memoryBytes = common.DefaultMemoryBytes
+	}
+	if err != nil {
+		return -1, err
 	}
 
 	if podSpec.MemoryOverhead != nil {
 		parsed, err := parseJavaMemoryString(*podSpec.MemoryOverhead)
 		if err != nil {
-			return nil, err
+			return -1, err
 		}
 		memoryOverheadBytes = parsed
 	} else {
 		memoryOverheadBytes = int64(math.Max(float64(memoryBytes)*memoryOverheadFactor, common.MinMemoryOverhead))
 	}
 
-	resourceList := corev1.ResourceList{
-		corev1.ResourceMemory:         *resource.NewQuantity((memoryBytes+memoryOverheadBytes)*replicas, resource.BinarySI),
-		corev1.ResourceRequestsMemory: *resource.NewQuantity((memoryBytes+memoryOverheadBytes)*replicas, resource.BinarySI),
-	}
-	return resourceList, nil
+	return (memoryBytes + memoryOverheadBytes) * replicas, nil
 }
 
-// For Spark pod, memory requests and limits are the same.
+func getMemoryRequests(app *v1beta2.SparkApplication) (corev1.ResourceList, error) {
+	memoryBytes, err := getMemory(app, false)
+	if err != nil {
+		return nil, err
+	}
+	return corev1.ResourceList{
+		corev1.ResourceMemory:         *resource.NewQuantity(memoryBytes, resource.BinarySI),
+		corev1.ResourceRequestsMemory: *resource.NewQuantity(memoryBytes, resource.BinarySI),
+	}, nil
+}
+
 func getMemoryLimits(app *v1beta2.SparkApplication) (corev1.ResourceList, error) {
-	return getMemoryRequests(app)
+	memoryBytes, err := getMemory(app, true)
+	if err != nil {
+		return nil, err
+	}
+	return corev1.ResourceList{
+		corev1.ResourceLimitsMemory: *resource.NewQuantity(memoryBytes, resource.BinarySI),
+	}, nil
 }
 
 // Logic copied from https://github.com/apache/spark/blob/5264164a67df498b73facae207eda12ee133be7d/common/network-common/src/main/java/org/apache/spark/network/util/JavaUtils.java#L276
@@ -245,15 +280,28 @@ func parseJavaMemoryString(s string) (int64, error) {
 }
 
 // Check whether the resource list will satisfy the resource quota.
-func validateResourceQuota(resourceList corev1.ResourceList, resourceQuota corev1.ResourceQuota) bool {
-	for key, quantity := range resourceList {
+func validateResourceQuota(resourceList corev1.ResourceList, resourceQuota corev1.ResourceQuota) error {
+	for key, requested := range resourceList {
 		if _, ok := resourceQuota.Status.Hard[key]; !ok {
 			continue
 		}
-		quantity.Add(resourceQuota.Status.Used[key])
-		if quantity.Cmp(resourceQuota.Spec.Hard[key]) > 0 {
-			return false
+
+		// These are to make formatting easier
+		total := requested.DeepCopy()
+		used := resourceQuota.Status.Used[key]
+		hard := resourceQuota.Status.Hard[key]
+
+		total.Add(used)
+		if total.Cmp(hard) > 0 {
+			return fmt.Errorf(
+				"Exceeded '%s' quota: requested=%s, used=%s, limit=%s (new total would be: %s)",
+				key,
+				requested.String(),
+				used.String(),
+				hard.String(),
+				total.String(),
+			)
 		}
 	}
-	return true
+	return nil
 }
