@@ -202,7 +202,7 @@ func (v *SparkApplicationValidator) validateResourceUsage(ctx context.Context, a
 		}
 
 		if err := validateResourceQuota(requests, resourceQuota); err != nil {
-			return fmt.Errorf("failed to validate resource quota \"%s/%s\" with error \"%s\"", resourceQuota.Namespace, resourceQuota.Name, err)
+			return fmt.Errorf("failed to validate resource quota \"%s/%s\" with error \"%v\"", resourceQuota.Namespace, resourceQuota.Name, err)
 		}
 	}
 
