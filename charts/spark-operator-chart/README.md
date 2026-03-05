@@ -102,6 +102,8 @@ See [helm uninstall](https://helm.sh/docs/helm/helm_uninstall) for command docum
 | controller.logEncoder | string | `"console"` | Configure the encoder of logging, can be one of `console` or `json`. |
 | controller.driverPodCreationGracePeriod | string | `"10s"` | Grace period after a successful spark-submit when driver pod not found errors will be retried. Useful if the driver pod can take some time to be created. |
 | controller.maxTrackedExecutorPerApp | int | `1000` | Specifies the maximum number of Executor pods that can be tracked by the controller per SparkApplication. |
+| controller.kubeAPIQPS | int | `5` | Maximum QPS to the API server from the controller client. |
+| controller.kubeAPIBurst | int | `10` | Maximum burst for throttle from the controller client. |
 | controller.scheduledSparkApplicationTimestampPrecision | string | `"nanos"` | Timestamp precision for ScheduledSparkApplication run names. Valid values: nanos (default), micros, millis, seconds, minutes. Shorter precisions produce shorter names which helps with Kubernetes name length limits. NOTE: Using lower precisions such as "seconds" or "minutes" increases the risk of name collisions if multiple runs are created within the same time unit (for example during reconciliation loops or manual re-triggers). A collision will cause run creation to fail. Choose a precision compatible with your scheduling frequency: "minutes" is only suitable for jobs scheduled at most once per minute, "seconds" for jobs scheduled at most once per second. |
 | controller.uiService.enable | bool | `true` | Specifies whether to create service for Spark web UI. |
 | controller.uiIngress.enable | bool | `false` | Specifies whether to create ingress for Spark web UI. `controller.uiService.enable` must be `true` to enable ingress. |
@@ -153,6 +155,8 @@ See [helm uninstall](https://helm.sh/docs/helm/helm_uninstall) for command docum
 | webhook.portName | string | `"webhook"` | Specifies webhook service port name. |
 | webhook.failurePolicy | string | `"Fail"` | Specifies how unrecognized errors are handled. Available options are `Ignore` or `Fail`. |
 | webhook.timeoutSeconds | int | `10` | Specifies the timeout seconds of the webhook, the value must be between 1 and 30. |
+| webhook.kubeAPIQPS | int | `5` | Maximum QPS to the API server from the controller client. |
+| webhook.kubeAPIBurst | int | `10` | Maximum burst for throttle from the controller client. |
 | webhook.resourceQuotaEnforcement.enable | bool | `false` | Specifies whether to enable the ResourceQuota enforcement for SparkApplication resources. |
 | webhook.serviceAccount.create | bool | `true` | Specifies whether to create a service account for the webhook. |
 | webhook.serviceAccount.name | string | `""` | Optional name for the webhook service account. |

@@ -127,6 +127,12 @@ spec:
         {{- if .Values.controller.maxTrackedExecutorPerApp }}
         - --max-tracked-executor-per-app={{ .Values.controller.maxTrackedExecutorPerApp }}
         {{- end }}
+        {{- if .Values.controller.kubeAPIQPS }}
+        - --kube-api-qps={{ .Values.controller.kubeAPIQPS }}
+        {{- end }}
+        {{- if .Values.controller.kubeAPIBurst }}
+        - --kube-api-burst={{ .Values.controller.kubeAPIBurst }}
+        {{- end }}
         {{- if .Values.controller.scheduledSparkApplicationTimestampPrecision }}
         - --scheduled-spark-application-timestamp-precision={{ .Values.controller.scheduledSparkApplicationTimestampPrecision }}
         {{- end }}

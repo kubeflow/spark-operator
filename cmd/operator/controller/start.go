@@ -110,6 +110,10 @@ var (
 
 	driverPodCreationGracePeriod time.Duration
 
+	// Kubernetes API server QPS and Burst for the controller manager's client.
+	kubeAPIQPS   float32
+	kubeAPIBurst int
+
 	// Metrics
 	enableMetrics                 bool
 	metricsBindAddress            string
@@ -190,6 +194,9 @@ func NewStartCommand() *cobra.Command {
 
 	command.Flags().DurationVar(&driverPodCreationGracePeriod, "driver-pod-creation-grace-period", 10*time.Second, "Grace period after a successful spark-submit when driver pod not found errors will be retried. Useful if the driver pod can take some time to be created.")
 
+	command.Flags().Float32Var(&kubeAPIQPS, "kube-api-qps", 5, "Maximum QPS to the API server from the controller client.")
+	command.Flags().IntVar(&kubeAPIBurst, "kube-api-burst", 10, "Maximum burst for throttle from the controller client.")
+
 	command.Flags().BoolVar(&enableMetrics, "enable-metrics", false, "Enable metrics.")
 	command.Flags().StringVar(&metricsBindAddress, "metrics-bind-address", "0", "The address the metric endpoint binds to. "+
 		"Use the port :8080. If not set, it will be 0 in order to disable the metrics server")
@@ -227,6 +234,9 @@ func start() {
 		logger.Error(err, "failed to get kube config")
 		os.Exit(1)
 	}
+
+	cfg.QPS = kubeAPIQPS
+	cfg.Burst = kubeAPIBurst
 
 	// Create the manager.
 	tlsOptions := newTLSOptions()
