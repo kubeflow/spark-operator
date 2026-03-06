@@ -171,9 +171,13 @@ func (r *Reconciler) createDriverIngressV1(ctx context.Context, app *v1beta2.Spa
 		}
 		// Ingress does not exist, create it.
 		if err := r.client.Create(ctx, ingress); err != nil {
-			return nil, fmt.Errorf("failed to create ingress %s/%s: %v", ingress.Namespace, ingress.Name, err)
+			if !errors.IsAlreadyExists(err) {
+				return nil, fmt.Errorf("failed to create ingress %s/%s: %v", ingress.Namespace, ingress.Name, err)
+			}
+			logger.Info("Ingress already exists (race), skipping create", "ingressName", ingress.Name)
+		} else {
+			logger.Info("Created networking.v1/Ingress for SparkApplication", "ingressName", ingress.Name)
 		}
-		logger.Info("Created networking.v1/Ingress for SparkApplication", "ingressName", ingress.Name)
 	} else {
 		// Ingress already exists, update it.
 		existingIngress.Spec = ingress.Spec
@@ -258,9 +262,13 @@ func (r *Reconciler) createDriverIngressLegacy(ctx context.Context, app *v1beta2
 		}
 		// Ingress does not exist, create it.
 		if err := r.client.Create(ctx, ingress); err != nil {
-			return nil, fmt.Errorf("failed to create ingress %s/%s: %v", ingress.Namespace, ingress.Name, err)
+			if !errors.IsAlreadyExists(err) {
+				return nil, fmt.Errorf("failed to create ingress %s/%s: %v", ingress.Namespace, ingress.Name, err)
+			}
+			logger.Info("Ingress already exists (race), skipping create", "ingressName", ingress.Name)
+		} else {
+			logger.Info("Created extensions.v1beta1/Ingress for SparkApplication", "ingressName", ingress.Name)
 		}
-		logger.Info("Created extensions.v1beta1/Ingress for SparkApplication", "ingressName", ingress.Name)
 	} else {
 		// Ingress already exists, update it.
 		existingLegacyIngress.Spec = ingress.Spec
@@ -346,12 +354,22 @@ func (r *Reconciler) createDriverIngressService(
 		}
 		// Service does not exist, create it.
 		if err := r.client.Create(ctx, service); err != nil {
-			return nil, err
+			if !errors.IsAlreadyExists(err) {
+				return nil, err
+			}
+			// Lost a race — another reconciliation created it; fetch it.
+			if err := r.client.Get(ctx, client.ObjectKeyFromObject(service), existing); err != nil {
+				return nil, err
+			}
+			service = existing
 		}
 		logger.Info("Created service for SparkApplication", "name", service.Name)
 	} else {
-		// Service already exists, update it.
-		existing.Spec = service.Spec
+		// Service already exists, update only mutable fields to preserve
+		// immutable fields like ClusterIP, ClusterIPs, and IPFamilies.
+		existing.Spec.Ports = service.Spec.Ports
+		existing.Spec.Selector = service.Spec.Selector
+		existing.Spec.Type = service.Spec.Type
 		existing.Labels = service.Labels
 		existing.Annotations = service.Annotations
 		existing.OwnerReferences = service.OwnerReferences

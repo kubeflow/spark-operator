@@ -351,8 +351,7 @@ func (r *Reconciler) reconcileSubmittedSparkApplication(ctx context.Context, req
 			}
 
 			// Create web UI service for spark applications if enabled.
-			// Guard: skip if resources were already created in a previous reconciliation.
-			if r.options.EnableUIService && app.Status.DriverInfo.WebUIServiceName == "" {
+			if r.options.EnableUIService {
 				service, err := r.createWebUIService(ctx, app)
 				if err != nil {
 					return fmt.Errorf("failed to create web UI service: %v", err)
