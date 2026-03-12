@@ -142,6 +142,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			logger.Error(err, "Failed to load timezone location", "name", scheduledApp.Name, "namespace", scheduledApp.Namespace, "timezone", timezone)
 			scheduledApp.Status.ScheduleState = v1beta2.ScheduleStateFailedValidation
 			scheduledApp.Status.Reason = fmt.Sprintf("Invalid timezone: %v", err)
+			scheduledApp.Status.ObservedGeneration = scheduledApp.Generation
 			if updateErr := r.updateScheduledSparkApplicationStatus(ctx, scheduledApp); updateErr != nil {
 				return ctrl.Result{Requeue: true}, updateErr
 			}
@@ -160,10 +161,26 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		logger.Error(parseErr, "Failed to parse schedule of ScheduledSparkApplication", "name", scheduledApp.Name, "namespace", scheduledApp.Namespace, "schedule", scheduledApp.Spec.Schedule)
 		scheduledApp.Status.ScheduleState = v1beta2.ScheduleStateFailedValidation
 		scheduledApp.Status.Reason = parseErr.Error()
+		scheduledApp.Status.ObservedGeneration = scheduledApp.Generation
 		if updateErr := r.updateScheduledSparkApplicationStatus(ctx, scheduledApp); updateErr != nil {
 			return ctrl.Result{Requeue: true}, updateErr
 		}
 		return ctrl.Result{}, nil
+	}
+
+	// Detect spec changes and reset state to trigger re-evaluation.
+	specChanged := scheduledApp.Generation != scheduledApp.Status.ObservedGeneration
+	if specChanged {
+		switch scheduledApp.Status.ScheduleState {
+		case v1beta2.ScheduleStateFailedValidation:
+			// Reset to New so the updated spec gets re-validated.
+			logger.Info("Spec changed while in FailedValidation state, resetting to New",
+				"name", scheduledApp.Name, "namespace", scheduledApp.Namespace,
+				"generation", scheduledApp.Generation, "observedGeneration", scheduledApp.Status.ObservedGeneration)
+			scheduledApp.Status.ScheduleState = v1beta2.ScheduleStateNew
+			scheduledApp.Status.Reason = ""
+			scheduledApp.Status.NextRun = metav1.Time{}
+		}
 	}
 
 	switch scheduledApp.Status.ScheduleState {
@@ -175,12 +192,28 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			scheduledApp.Status.NextRun = metav1.NewTime(nextRunTime)
 		}
 		scheduledApp.Status.ScheduleState = v1beta2.ScheduleStateScheduled
+		scheduledApp.Status.ObservedGeneration = scheduledApp.Generation
 		if err := r.updateScheduledSparkApplicationStatus(ctx, scheduledApp); err != nil {
 			return ctrl.Result{Requeue: true}, err
 		}
 		return ctrl.Result{RequeueAfter: nextRunTime.Sub(now)}, err
 	case v1beta2.ScheduleStateScheduled:
 		now := r.clock.Now()
+
+		// Recalculate nextRun if the spec has changed.
+		if specChanged {
+			logger.Info("Spec changed, recalculating nextRun",
+				"name", scheduledApp.Name, "namespace", scheduledApp.Namespace,
+				"generation", scheduledApp.Generation, "observedGeneration", scheduledApp.Status.ObservedGeneration)
+			nextRunTime := schedule.Next(now)
+			scheduledApp.Status.NextRun = metav1.NewTime(nextRunTime)
+			scheduledApp.Status.ObservedGeneration = scheduledApp.Generation
+			if err := r.updateScheduledSparkApplicationStatus(ctx, scheduledApp); err != nil {
+				return ctrl.Result{Requeue: true}, err
+			}
+			return ctrl.Result{RequeueAfter: nextRunTime.Sub(now)}, nil
+		}
+
 		nextRunTime := scheduledApp.Status.NextRun
 		if nextRunTime.IsZero() {
 			scheduledApp.Status.NextRun = metav1.NewTime(schedule.Next(now))
