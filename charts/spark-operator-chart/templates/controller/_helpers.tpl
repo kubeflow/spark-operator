@@ -136,6 +136,12 @@ Create the role policy rules for the controller in every Spark job namespace
 - apiGroups:
   - ""
   resources:
+  - secrets
+  verbs:
+  - get
+- apiGroups:
+  - ""
+  resources:
   - persistentvolumeclaims
   verbs:
   - get
