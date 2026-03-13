@@ -20,7 +20,7 @@ jobs:
         run: make print-IMAGE >> $GITHUB_ENV
 
       - name: trivy scan for github security tab
-        uses: aquasecurity/trivy-action@0.33.1
+        uses: aquasecurity/trivy-action@0.34.0
         with:
           image-ref: '${{ env.IMAGE }}'
           format: 'sarif'
