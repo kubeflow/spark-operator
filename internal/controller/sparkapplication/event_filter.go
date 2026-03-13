@@ -80,7 +80,7 @@ func (f *sparkPodEventFilter) Update(e event.UpdateEvent) bool {
 		return false
 	}
 
-	if newPod.Status.Phase == oldPod.Status.Phase {
+	if !util.ShouldProcessPodUpdate(oldPod, newPod) {
 		return false
 	}
 

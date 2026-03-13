@@ -65,3 +65,58 @@ func IsPodReady(pod *corev1.Pod) bool {
 	}
 	return false
 }
+
+func ShouldProcessPodUpdate(oldPod, newPod *corev1.Pod) bool {
+	if newPod.Status.Phase != oldPod.Status.Phase {
+		return true
+	}
+
+	// Only driver pod transitions can unblock the application status while the phase is pending.
+	if !IsDriverPod(newPod) {
+		return false
+	}
+
+	if DriverFailureReasonChanged(oldPod, newPod) {
+		return true
+	}
+
+	return BecameUnschedulable(oldPod, newPod)
+}
+
+func DriverFailureReasonChanged(oldPod, newPod *corev1.Pod) bool {
+	oldReason, _ := GetPodFailureReason(oldPod)
+	newReason, _ := GetPodFailureReason(newPod)
+
+	return newReason != "" && newReason != oldReason
+}
+
+func GetPodFailureReason(pod *corev1.Pod) (string, string) {
+	for _, status := range pod.Status.ContainerStatuses {
+		if status.State.Waiting == nil {
+			continue
+		}
+
+		switch status.State.Waiting.Reason {
+		case common.ReasonImagePullBackOff, common.ReasonErrImagePull:
+			return status.State.Waiting.Reason, status.State.Waiting.Message
+		}
+	}
+
+	return "", ""
+}
+
+func BecameUnschedulable(oldPod, newPod *corev1.Pod) bool {
+	return !IsPodUnschedulable(oldPod) && IsPodUnschedulable(newPod)
+}
+
+func IsPodUnschedulable(pod *corev1.Pod) bool {
+	for _, condition := range pod.Status.Conditions {
+		if condition.Type == corev1.PodScheduled &&
+			condition.Status == corev1.ConditionFalse &&
+			condition.Reason == corev1.PodReasonUnschedulable {
+			return true
+		}
+	}
+
+	return false
+}
