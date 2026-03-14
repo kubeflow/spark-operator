@@ -51,8 +51,8 @@ LOCALBIN ?= $(shell pwd)/bin
 ## Versions
 KUSTOMIZE_VERSION ?= v5.4.1
 CONTROLLER_TOOLS_VERSION ?= v0.17.1
-KIND_VERSION ?= v0.23.0
-KIND_K8S_VERSION ?= v1.32.0
+KIND_VERSION ?= v0.31.0
+KIND_K8S_VERSION ?= v1.35.0
 ENVTEST_VERSION ?= release-0.20
 # ENVTEST_K8S_VERSION is the version of Kubernetes to use for setting up ENVTEST binaries (i.e. 1.31)
 ENVTEST_K8S_VERSION ?= $(shell go list -m -f "{{ .Version }}" k8s.io/api | awk -F'[v.]' '{printf "1.%d", $$3}')
