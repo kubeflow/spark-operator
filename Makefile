@@ -110,7 +110,7 @@ manifests: controller-gen ## Generate CustomResourceDefinition, RBAC and Webhook
 
 .PHONY: generate
 generate: controller-gen manifests ## Generate Go code and Python APIs.
-	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
+	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate/boilerplate.go.txt" paths="./..."
 	$(MAKE) python-api
 
 .PHONY: update-crd
@@ -160,6 +160,11 @@ go-lint: golangci-lint ## Run golangci-lint linter.
 go-lint-fix: golangci-lint ## Run golangci-lint linter and perform fixes.
 	@echo "Running golangci-lint run --fix..."
 	$(GOLANGCI_LINT) run --fix
+
+.PHONY: verify-boilerplate
+verify-boilerplate: ## Verify copyright boilerplate headers in source files.
+	@echo "Running boilerplate header verification..."
+	./hack/verify-boilerplate.sh
 
 .PHONY: unit-test
 unit-test: setup-envtest ## Run unit tests.
