@@ -125,4 +125,36 @@ webhooks:
   {{- with .Values.webhook.timeoutSeconds }}
   timeoutSeconds: {{ . }}
   {{- end }}
+- name: mutate-sparkoperator-k8s-io-v1alpha1-sparkconnect.sparkoperator.k8s.io
+  admissionReviewVersions: ["v1"]
+  clientConfig:
+    service:
+      name: {{ include "spark-operator.webhook.serviceName" . }}
+      namespace: {{ .Release.Namespace }}
+      port: {{ .Values.webhook.port }}
+      path: /mutate-sparkoperator-k8s-io-v1alpha1-sparkconnect
+  sideEffects: NoneOnDryRun
+  {{- with .Values.webhook.failurePolicy }}
+  failurePolicy: {{ . }}
+  {{- end }}
+  {{- with .Values.spark.jobNamespaces }}
+  {{- if not (has "" .) }}
+  namespaceSelector:
+    matchExpressions:
+    - key: kubernetes.io/metadata.name
+      operator: In
+      values:
+      {{- range $jobNamespace := . }}
+      - {{ $jobNamespace }}
+      {{- end }}
+  {{- end }}
+  {{- end }}
+  rules:
+  - apiGroups: ["sparkoperator.k8s.io"]
+    apiVersions: ["v1alpha1"]
+    resources: ["sparkconnects"]
+    operations: ["CREATE", "UPDATE"]
+  {{- with .Values.webhook.timeoutSeconds }}
+  timeoutSeconds: {{ . }}
+  {{- end }}
 {{- end }}
