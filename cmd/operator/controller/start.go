@@ -415,7 +415,11 @@ func newCacheOptions() cache.Options {
 					common.LabelLaunchedBySparkOperator: "true",
 				}),
 			},
-			&corev1.ConfigMap{}:                  {},
+			&corev1.ConfigMap{}: {
+				Label: labels.SelectorFromSet(labels.Set{
+					common.LabelCreatedBySparkOperator: "true",
+				}),
+			},
 			&corev1.PersistentVolumeClaim{}:      {},
 			&corev1.Service{}:                    {},
 			&v1beta2.SparkApplication{}:          {},

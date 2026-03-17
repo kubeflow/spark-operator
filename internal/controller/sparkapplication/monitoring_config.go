@@ -33,7 +33,7 @@ import (
 	"github.com/kubeflow/spark-operator/v2/pkg/util"
 )
 
-func configPrometheusMonitoring(ctx context.Context, app *v1beta2.SparkApplication, client client.Client) error {
+func configPrometheusMonitoring(ctx context.Context, app *v1beta2.SparkApplication, c client.Client) error {
 	logger := log.FromContext(ctx)
 	port := common.DefaultPrometheusJavaAgentPort
 	if app.Spec.Monitoring.Prometheus != nil && app.Spec.Monitoring.Prometheus.Port != nil {
@@ -47,14 +47,41 @@ func configPrometheusMonitoring(ctx context.Context, app *v1beta2.SparkApplicati
 		key := types.NamespacedName{Namespace: configMap.Namespace, Name: configMap.Name}
 		if retryErr := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 			cm := &corev1.ConfigMap{}
-			if err := client.Get(ctx, key, cm); err != nil {
+			if err := c.Get(ctx, key, cm); err != nil {
 				if errors.IsNotFound(err) {
-					return client.Create(ctx, configMap)
+					if createErr := c.Create(ctx, configMap); createErr != nil {
+						// Handle upgrade scenario: ConfigMap exists in the cluster but is not
+						// visible in the filtered cache because it was created before the
+						// LabelCreatedBySparkOperator label selector was added to the informer.
+						// Use Patch (merge patch) instead of Update because we cannot Get the
+						// object from the filtered cache to obtain its resourceVersion.
+						if errors.IsAlreadyExists(createErr) {
+							base := &corev1.ConfigMap{
+								ObjectMeta: metav1.ObjectMeta{
+									Name:      key.Name,
+									Namespace: key.Namespace,
+								},
+							}
+							desired := base.DeepCopy()
+							desired.Labels = map[string]string{
+								common.LabelCreatedBySparkOperator: "true",
+							}
+							desired.Data = configMap.Data
+							desired.OwnerReferences = configMap.OwnerReferences
+							return c.Patch(ctx, desired, client.MergeFrom(base))
+						}
+						return createErr
+					}
+					return nil
 				}
 				return err
 			}
 			cm.Data = configMap.Data
-			return client.Update(ctx, cm)
+			if cm.Labels == nil {
+				cm.Labels = map[string]string{}
+			}
+			cm.Labels[common.LabelCreatedBySparkOperator] = "true"
+			return c.Update(ctx, cm)
 		}); retryErr != nil {
 			return retryErr
 		}
@@ -146,6 +173,9 @@ func buildPrometheusConfigMap(app *v1beta2.SparkApplication, prometheusConfigMap
 			Name:            prometheusConfigMapName,
 			Namespace:       app.Namespace,
 			OwnerReferences: []metav1.OwnerReference{util.GetOwnerReference(app)},
+			Labels: map[string]string{
+				common.LabelCreatedBySparkOperator: "true",
+			},
 		},
 		Data: configMapData,
 	}
