@@ -104,9 +104,9 @@ controller:
   maxTrackedExecutorPerApp: 1000
 
   # -- Maximum QPS to the API server from the controller client.
-  kubeAPIQPS: 5
+  kubeAPIQPS: 20
   # -- Maximum burst for throttle from the controller client.
-  kubeAPIBurst: 10
+  kubeAPIBurst: 30
 
   # -- Timestamp precision for ScheduledSparkApplication run names.
   # Valid values: nanos (default), micros, millis, seconds, minutes.
@@ -322,9 +322,9 @@ webhook:
   timeoutSeconds: 10
 
   # -- Maximum QPS to the API server from the controller client.
-  kubeAPIQPS: 5
+  kubeAPIQPS: 20
   # -- Maximum burst for throttle from the controller client.
-  kubeAPIBurst: 10
+  kubeAPIBurst: 30
 
   resourceQuotaEnforcement:
     # -- Specifies whether to enable the ResourceQuota enforcement for SparkApplication resources.

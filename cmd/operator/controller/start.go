@@ -194,8 +194,8 @@ func NewStartCommand() *cobra.Command {
 
 	command.Flags().DurationVar(&driverPodCreationGracePeriod, "driver-pod-creation-grace-period", 10*time.Second, "Grace period after a successful spark-submit when driver pod not found errors will be retried. Useful if the driver pod can take some time to be created.")
 
-	command.Flags().Float32Var(&kubeAPIQPS, "kube-api-qps", 5, "Maximum QPS to the API server from the controller client.")
-	command.Flags().IntVar(&kubeAPIBurst, "kube-api-burst", 10, "Maximum burst for throttle from the controller client.")
+	command.Flags().Float32Var(&kubeAPIQPS, "kube-api-qps", 20, "Maximum QPS to the API server from the controller client.")
+	command.Flags().IntVar(&kubeAPIBurst, "kube-api-burst", 30, "Maximum burst for throttle from the controller client.")
 
 	command.Flags().BoolVar(&enableMetrics, "enable-metrics", false, "Enable metrics.")
 	command.Flags().StringVar(&metricsBindAddress, "metrics-bind-address", "0", "The address the metric endpoint binds to. "+

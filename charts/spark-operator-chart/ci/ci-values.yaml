@@ -11,9 +11,9 @@ spark:
   jobNamespaceSelector: "spark=enabled"
 
 controller:
-  kubeAPIQPS: 50
-  kubeAPIBurst: 100
+  kubeAPIQPS: 20
+  kubeAPIBurst: 30
 
 webhook:
-  kubeAPIQPS: 50
-  kubeAPIBurst: 100
+  kubeAPIQPS: 20
+  kubeAPIBurst: 30
