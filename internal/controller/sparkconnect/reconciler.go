@@ -22,6 +22,7 @@ import (
 	"strings"
 
 	corev1 "k8s.io/api/core/v1"
+	networkingv1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -123,6 +124,14 @@ func (r *Reconciler) SetupWithManager(mgr ctrl.Manager, options controller.Optio
 				}),
 			),
 		).
+		Owns(
+			&networkingv1.Ingress{},
+			builder.WithPredicates(
+				util.NewLabelPredicate(map[string]string{
+					common.LabelCreatedBySparkOperator: "true",
+				}),
+			),
+		).
 		Watches(
 			&corev1.Pod{},
 			&handler.TypedFuncs[client.Object, reconcile.Request]{
@@ -186,6 +195,7 @@ func (r *Reconciler) SetupWithManager(mgr ctrl.Manager, options controller.Optio
 // +kubebuilder:rbac:groups=,resources=configmaps,verbs=get;list;create;update;delete
 // +kubebuilder:rbac:groups=,resources=pods,verbs=get;list;watch;create;update;delete
 // +kubebuilder:rbac:groups=,resources=services,verbs=get;list;watch;create;update;delete
+// +kubebuilder:rbac:groups=networking.k8s.io,resources=ingresses,verbs=get;list;watch;create;update;delete
 // +kubebuilder:rbac:groups=sparkoperator.k8s.io,resources=sparkconnects,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=sparkoperator.k8s.io,resources=sparkconnects/status,verbs=get;update;patch
 
@@ -224,6 +234,10 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (reconcile
 	}
 
 	if err := r.createOrUpdateServerService(ctx, conn); err != nil {
+		return reconcile.Result{}, err
+	}
+
+	if err := r.createOrUpdateServerIngress(ctx, conn); err != nil {
 		return reconcile.Result{}, err
 	}
 
@@ -553,6 +567,135 @@ func (r *Reconciler) mutateServerService(_ context.Context, conn *v1alpha1.Spark
 		return fmt.Errorf("failed to set controller reference: %v", err)
 	}
 
+	return nil
+}
+
+// createOrUpdateServerIngress creates or updates the server ingress for the SparkConnect resource.
+func (r *Reconciler) createOrUpdateServerIngress(ctx context.Context, conn *v1alpha1.SparkConnect) error {
+	logger := ctrl.LoggerFrom(ctx)
+
+	// Check if ingress is specified in the spec.
+	ingress := conn.Spec.Server.Ingress
+	if ingress == nil {
+		// No ingress specified, delete any existing ingress.
+		return r.deleteServerIngress(ctx, conn)
+	}
+
+	// Create or update the ingress.
+	ingress.Name = GetServerIngressName(conn)
+	// Namespace provided by user will be ignored.
+	ingress.Namespace = conn.Namespace
+
+	opResult, err := controllerutil.CreateOrUpdate(ctx, r.client, ingress, func() error {
+		if err := r.mutateServerIngress(ctx, conn, ingress); err != nil {
+			return fmt.Errorf("failed to mutate server ingress: %v", err)
+		}
+		return nil
+	})
+
+	if err != nil {
+		return fmt.Errorf("failed to create or update server ingress: %v", err)
+	}
+
+	switch opResult {
+	case controllerutil.OperationResultCreated:
+		logger.Info("Server ingress created")
+	case controllerutil.OperationResultUpdated:
+		logger.Info("Server ingress updated")
+	}
+
+	// Update SparkConnect status with ingress information.
+	conn.Status.Server.IngressName = ingress.Name
+
+	// Try to determine the ingress URL
+	if len(ingress.Spec.Rules) > 0 && ingress.Spec.Rules[0].Host != "" {
+		scheme := "http"
+		if len(ingress.Spec.TLS) > 0 {
+			scheme = "https"
+		}
+		conn.Status.Server.IngressURL = fmt.Sprintf("%s://%s", scheme, ingress.Spec.Rules[0].Host)
+	}
+
+	return nil
+}
+
+// mutateServerIngress mutates the server ingress for the SparkConnect resource.
+func (r *Reconciler) mutateServerIngress(_ context.Context, conn *v1alpha1.SparkConnect, ingress *networkingv1.Ingress) error {
+	if ingress.CreationTimestamp.IsZero() {
+		// Ensure the ingress spec has at least one rule if not provided by user
+		if len(ingress.Spec.Rules) == 0 {
+			pathTypePrefix := networkingv1.PathTypePrefix
+			ingress.Spec.Rules = []networkingv1.IngressRule{
+				{
+					Host: fmt.Sprintf("%s.%s.example.com", conn.Name, conn.Namespace),
+					IngressRuleValue: networkingv1.IngressRuleValue{
+						HTTP: &networkingv1.HTTPIngressRuleValue{
+							Paths: []networkingv1.HTTPIngressPath{
+								{
+									Path:     "/",
+									PathType: &pathTypePrefix,
+									Backend: networkingv1.IngressBackend{
+										Service: &networkingv1.IngressServiceBackend{
+											Name: GetServerServiceName(conn),
+											Port: networkingv1.ServiceBackendPort{
+												Number: 15002, // Spark Connect server port
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			}
+		}
+	}
+
+	// Ensure the ingress targets the correct service
+	for i := range ingress.Spec.Rules {
+		if ingress.Spec.Rules[i].HTTP != nil {
+			for j := range ingress.Spec.Rules[i].HTTP.Paths {
+				if ingress.Spec.Rules[i].HTTP.Paths[j].Backend.Service != nil {
+					ingress.Spec.Rules[i].HTTP.Paths[j].Backend.Service.Name = GetServerServiceName(conn)
+				}
+			}
+		}
+	}
+
+	// Set labels on server ingress.
+	if ingress.Labels == nil {
+		ingress.Labels = make(map[string]string)
+	}
+	for key, val := range GetCommonLabels(conn) {
+		ingress.Labels[key] = val
+	}
+
+	// Set controller owner reference on server ingress.
+	if err := ctrl.SetControllerReference(conn, ingress, r.scheme); err != nil {
+		return fmt.Errorf("failed to set controller reference: %v", err)
+	}
+
+	return nil
+}
+
+// deleteServerIngress deletes the server ingress for the SparkConnect resource.
+func (r *Reconciler) deleteServerIngress(ctx context.Context, conn *v1alpha1.SparkConnect) error {
+	ingressName := GetServerIngressName(conn)
+	ingress := &networkingv1.Ingress{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      ingressName,
+			Namespace: conn.Namespace,
+		},
+	}
+
+	if err := r.client.Delete(ctx, ingress); err != nil {
+		if errors.IsNotFound(err) {
+			return nil
+		}
+		return fmt.Errorf("failed to delete server ingress: %v", err)
+	}
+
+	ctrl.LoggerFrom(ctx).Info("Deleted server ingress")
 	return nil
 }
 
