@@ -94,6 +94,10 @@ var (
 	leaderElectionRenewDeadline time.Duration
 	leaderElectionRetryPeriod   time.Duration
 
+	// Kubernetes API server QPS and Burst for the controller manager's client.
+	kubeAPIQPS   float32
+	kubeAPIBurst int
+
 	// Metrics
 	enableMetrics      bool
 	metricsBindAddress string
@@ -126,6 +130,9 @@ func NewStartCommand() *cobra.Command {
 	command.Flags().StringSliceVar(&namespaces, "namespaces", []string{}, "The Kubernetes namespace to manage. Will manage custom resource objects of the managed CRD types for the whole cluster if unset or contains empty string.")
 	command.Flags().StringVar(&labelSelectorFilter, "label-selector-filter", "", "A comma-separated list of key=value, or key labels to filter resources during watch and list based on the specified labels.")
 	command.Flags().DurationVar(&cacheSyncTimeout, "cache-sync-timeout", 30*time.Second, "Informer cache sync timeout.")
+
+	command.Flags().Float32Var(&kubeAPIQPS, "kube-api-qps", 20, "Maximum QPS to the API server from the controller client.")
+	command.Flags().IntVar(&kubeAPIBurst, "kube-api-burst", 30, "Maximum burst for throttle from the controller client.")
 
 	// Webhook
 	command.Flags().StringVar(&webhookCertDir, "webhook-cert-dir", "/etc/k8s-webhook-server/serving-certs", "The directory that contains the webhook server key and certificate. "+
@@ -182,6 +189,9 @@ func start() {
 		logger.Error(err, "failed to get kube config")
 		os.Exit(1)
 	}
+
+	cfg.QPS = kubeAPIQPS
+	cfg.Burst = kubeAPIBurst
 
 	// Create the manager.
 	tlsOptions := newTLSOptions()
