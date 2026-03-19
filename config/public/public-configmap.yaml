@@ -7,4 +7,4 @@ metadata:
     app.kubernetes.io/name: spark-operator
     app.kubernetes.io/managed-by: kustomize
 data:
-  spark-operator-version: dev
+  spark_operator_version: dev
