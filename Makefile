@@ -51,8 +51,8 @@ LOCALBIN ?= $(shell pwd)/bin
 ## Versions
 KUSTOMIZE_VERSION ?= v5.4.1
 CONTROLLER_TOOLS_VERSION ?= v0.17.1
-KIND_VERSION ?= v0.23.0
-KIND_K8S_VERSION ?= v1.32.0
+KIND_VERSION ?= v0.31.0
+KIND_K8S_VERSION ?= v1.35.0
 ENVTEST_VERSION ?= release-0.20
 # ENVTEST_K8S_VERSION is the version of Kubernetes to use for setting up ENVTEST binaries (i.e. 1.31)
 ENVTEST_K8S_VERSION ?= $(shell go list -m -f "{{ .Version }}" k8s.io/api | awk -F'[v.]' '{printf "1.%d", $$3}')
@@ -109,8 +109,9 @@ manifests: controller-gen ## Generate CustomResourceDefinition, RBAC and Webhook
 	$(CONTROLLER_GEN) crd:generateEmbeddedObjectMeta=true rbac:roleName=spark-operator-controller webhook paths="./..." output:crd:artifacts:config=config/crd/bases
 
 .PHONY: generate
-generate: controller-gen ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
+generate: controller-gen manifests ## Generate Go code and Python APIs.
 	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
+	$(MAKE) python-api
 
 .PHONY: update-crd
 update-crd: manifests ## Update CRD files in the Helm chart.
@@ -123,6 +124,11 @@ verify-codegen: $(LOCALBIN) ## Install code-generator commands and verify change
 	$(call go-install-tool,$(LOCALBIN)/lister-gen-$(CODE_GENERATOR_VERSION),k8s.io/code-generator/cmd/lister-gen,$(CODE_GENERATOR_VERSION))
 	$(call go-install-tool,$(LOCALBIN)/informer-gen-$(CODE_GENERATOR_VERSION),k8s.io/code-generator/cmd/informer-gen,$(CODE_GENERATOR_VERSION))
 	./hack/verify-codegen.sh
+
+.PHONY: python-api
+python-api: manifests ## Generate Python APIs from CRDs.
+	hack/openapi/gen-openapi.sh
+	CONTAINER_TOOL=$(CONTAINER_TOOL) hack/python-api/gen-api.sh
 
 .PHONY: go-clean
 go-clean: ## Clean up caches and output.

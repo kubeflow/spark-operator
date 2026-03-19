@@ -24,7 +24,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/golang/glog"
 	"github.com/google/uuid"
 	corev1 "k8s.io/api/core/v1"
 	extensionsv1beta1 "k8s.io/api/extensions/v1beta1"
@@ -1015,6 +1014,7 @@ func (r *Reconciler) updateDriverState(ctx context.Context, app *v1beta2.SparkAp
 // updateExecutorState lists the executor pods of the application
 // and updates the executor state based on the current phase of the pods.
 func (r *Reconciler) updateExecutorState(ctx context.Context, app *v1beta2.SparkApplication) error {
+	logger := log.FromContext(ctx)
 	podList, err := r.getExecutorPods(ctx, app)
 	if err != nil {
 		return err
@@ -1078,7 +1078,7 @@ func (r *Reconciler) updateExecutorState(ctx context.Context, app *v1beta2.Spark
 				if app.Status.AppState.State == v1beta2.ApplicationStateCompleted {
 					app.Status.ExecutorState[name] = v1beta2.ExecutorStateCompleted
 				} else {
-					glog.Infof("Executor pod %s not found, assuming it was deleted.", name)
+					logger.Info("Executor pod not found, assuming it was deleted", "name", name)
 					app.Status.ExecutorState[name] = v1beta2.ExecutorStateFailed
 				}
 			} else {

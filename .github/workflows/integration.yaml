@@ -23,7 +23,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout source code
-        uses: actions/checkout@v5.0.0
+        uses: actions/checkout@v6.0.2
         with:
           fetch-depth: 0
 
@@ -80,7 +80,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout source code
-        uses: actions/checkout@v5.0.0
+        uses: actions/checkout@v6.0.2
         with:
           fetch-depth: 0
 
@@ -102,7 +102,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout source code
-        uses: actions/checkout@v5.0.0
+        uses: actions/checkout@v6.0.2
         with:
           fetch-depth: 0
 
@@ -133,7 +133,7 @@ jobs:
           echo "BRANCH=$BRANCH" >> "$GITHUB_OUTPUT"
 
       - name: Checkout source code
-        uses: actions/checkout@v5.0.0
+        uses: actions/checkout@v6.0.2
         with:
           fetch-depth: 0
 
@@ -212,18 +212,13 @@ jobs:
     strategy:
       matrix:
         k8s_version:
-          - v1.24.17
-          - v1.25.16
-          - v1.26.15
-          - v1.27.16
-          - v1.28.15
-          - v1.29.12
-          - v1.30.8
-          - v1.31.4
-          - v1.32.0
+          - v1.32.11
+          - v1.33.7
+          - v1.34.3
+          - v1.35.0
     steps:
       - name: Checkout source code
-        uses: actions/checkout@v5.0.0
+        uses: actions/checkout@v6.0.2
         with:
           fetch-depth: 0
 

@@ -23,7 +23,9 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
@@ -32,6 +34,28 @@ import (
 	"github.com/kubeflow/spark-operator/v2/pkg/common"
 	"github.com/kubeflow/spark-operator/v2/pkg/util"
 )
+
+// filteredCacheClient wraps a client.Client and overrides Get to simulate a
+// label-filtered informer cache. ConfigMaps that lack the required label are
+// invisible to Get (returns NotFound), just like a real ByObject label selector
+// would behave at runtime.
+type filteredCacheClient struct {
+	client.Client
+	requiredLabel string
+	requiredValue string
+}
+
+func (f *filteredCacheClient) Get(ctx context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
+	if err := f.Client.Get(ctx, key, obj, opts...); err != nil {
+		return err
+	}
+	if cm, ok := obj.(*corev1.ConfigMap); ok {
+		if cm.Labels[f.requiredLabel] != f.requiredValue {
+			return errors.NewNotFound(schema.GroupResource{Group: "", Resource: "configmaps"}, key.Name)
+		}
+	}
+	return nil
+}
 
 func TestConfigPrometheusMonitoring(t *testing.T) {
 	type testcase struct {
@@ -56,6 +80,9 @@ func TestConfigPrometheusMonitoring(t *testing.T) {
 		}
 		err = fakeClient.Get(context.TODO(), client.ObjectKeyFromObject(configMap), configMap)
 		assert.NoError(t, err, "failed to get ConfigMap %s", configMapName)
+
+		assert.Equal(t, "true", configMap.Labels[common.LabelCreatedBySparkOperator],
+			"ConfigMap %s should have LabelCreatedBySparkOperator label", configMapName)
 
 		if test.app.Spec.Monitoring.Prometheus != nil && test.app.Spec.Monitoring.Prometheus.ConfigFile == nil &&
 			test.app.Spec.Monitoring.MetricsPropertiesFile == nil {
@@ -341,4 +368,68 @@ func TestConfigPrometheusMonitoring(t *testing.T) {
 	for _, test := range testcases {
 		testFn(test, t)
 	}
+}
+
+func TestConfigPrometheusMonitoring_UpgradeExistingConfigMapWithoutLabel(t *testing.T) {
+	app := &v1beta2.SparkApplication{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "upgrade-app",
+			Namespace: "default",
+			UID:       "test-uid",
+		},
+		Spec: v1beta2.SparkApplicationSpec{
+			Monitoring: &v1beta2.MonitoringSpec{
+				ExposeDriverMetrics:   true,
+				ExposeExecutorMetrics: true,
+				Prometheus: &v1beta2.PrometheusSpec{
+					JmxExporterJar: "/prometheus/exporter.jar",
+				},
+			},
+		},
+	}
+
+	configMapName := util.GetPrometheusConfigMapName(app)
+
+	// Pre-create a ConfigMap WITHOUT the LabelCreatedBySparkOperator label,
+	// simulating a ConfigMap created by a previous version of the operator.
+	existingCM := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      configMapName,
+			Namespace: app.Namespace,
+			Labels: map[string]string{
+				"some-other-label": "should-be-preserved",
+			},
+		},
+		Data: map[string]string{
+			"old-key": "old-value",
+		},
+	}
+
+	underlying := fake.NewFakeClient(existingCM)
+
+	// Wrap the fake client to simulate a label-filtered informer cache:
+	// Get returns NotFound for ConfigMaps that lack LabelCreatedBySparkOperator,
+	// forcing the code through the Create -> AlreadyExists -> Patch path.
+	filtered := &filteredCacheClient{
+		Client:        underlying,
+		requiredLabel: common.LabelCreatedBySparkOperator,
+		requiredValue: "true",
+	}
+
+	err := configPrometheusMonitoring(context.TODO(), app, filtered)
+	assert.NoError(t, err, "configPrometheusMonitoring should handle pre-existing ConfigMap without label")
+
+	// Read back from the underlying (unfiltered) client to verify the patch was applied.
+	updatedCM := &corev1.ConfigMap{}
+	err = underlying.Get(context.TODO(), client.ObjectKeyFromObject(existingCM), updatedCM)
+	assert.NoError(t, err, "failed to get updated ConfigMap")
+
+	assert.Equal(t, "true", updatedCM.Labels[common.LabelCreatedBySparkOperator],
+		"Pre-existing ConfigMap should have LabelCreatedBySparkOperator added after upgrade")
+
+	assert.Equal(t, "should-be-preserved", updatedCM.Labels["some-other-label"],
+		"Merge patch should preserve pre-existing labels")
+
+	assert.Contains(t, updatedCM.Data, common.MetricsPropertiesKey,
+		"ConfigMap data should be updated with metrics properties")
 }

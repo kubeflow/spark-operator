@@ -48,6 +48,28 @@ webhooks:
     resources:
     - sparkapplications
   sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
+      path: /mutate-sparkoperator-k8s-io-v1alpha1-sparkconnect
+  failurePolicy: Fail
+  matchPolicy: Exact
+  name: mutate-sparkconnect.sparkoperator.k8s.io
+  reinvocationPolicy: Never
+  rules:
+  - apiGroups:
+    - sparkoperator.k8s.io
+    apiVersions:
+    - v1alpha1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - sparkconnects
+  sideEffects: None
 ---
 apiVersion: admissionregistration.k8s.io/v1
 kind: ValidatingWebhookConfiguration
@@ -116,4 +138,25 @@ webhooks:
     - UPDATE
     resources:
     - sparkapplications
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
+      path: /validate-sparkoperator-k8s-io-v1alpha1-sparkconnect
+  failurePolicy: Fail
+  matchPolicy: Exact
+  name: validate-sparkconnect.sparkoperator.k8s.io
+  rules:
+  - apiGroups:
+    - sparkoperator.k8s.io
+    apiVersions:
+    - v1alpha1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - sparkconnects
   sideEffects: None

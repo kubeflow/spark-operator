@@ -18,6 +18,7 @@ package scheduledsparkapplication
 
 import (
 	"context"
+	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -83,11 +84,53 @@ var _ = Describe("ScheduledSparkApplication Controller", func() {
 
 		It("should successfully reconcile the resource", func() {
 			By("Reconciling the created resource")
-			reconciler := NewReconciler(k8sClient.Scheme(), k8sClient, nil, clock.RealClock{}, Options{Namespaces: []string{"default"}})
+			reconciler := NewReconciler(k8sClient.Scheme(), k8sClient, nil, clock.RealClock{}, Options{Namespaces: []string{"default"}, TimestampPrecision: "nanos"})
 			_, err := reconciler.Reconcile(ctx, reconcile.Request{NamespacedName: typeNamespacedName})
 			Expect(err).NotTo(HaveOccurred())
 			// TODO(user): Add more specific assertions depending on your controller's reconciliation logic.
 			// Example: If you expect a certain status condition after reconciliation, verify it here.
 		})
+	})
+})
+
+var _ = Describe("formatTimestamp", func() {
+	var testTime time.Time
+
+	BeforeEach(func() {
+		// Use a fixed timestamp for consistent test results
+		testTime = time.Unix(1234567890, 123456789)
+	})
+
+	DescribeTable("should format timestamp with correct precision",
+		func(precision string, expectedLen int, checkFunc func(result string)) {
+			result := formatTimestamp(testTime, precision)
+			Expect(len(result)).To(BeNumerically("<=", expectedLen))
+			checkFunc(result)
+		},
+		Entry("nanos precision", "nanos", 20, func(result string) {
+			Expect(result).To(Equal("1234567890123456789"))
+		}),
+		Entry("micros precision", "micros", 17, func(result string) {
+			Expect(result).To(Equal("1234567890123456"))
+		}),
+		Entry("millis precision", "millis", 14, func(result string) {
+			Expect(result).To(Equal("1234567890123"))
+		}),
+		Entry("seconds precision", "seconds", 11, func(result string) {
+			Expect(result).To(Equal("1234567890"))
+		}),
+		Entry("minutes precision", "minutes", 9, func(result string) {
+			Expect(result).To(Equal("20576131"))
+		}),
+	)
+
+	It("should use nanos as default for unknown precision", func() {
+		result := formatTimestamp(testTime, "invalid")
+		Expect(result).To(Equal("1234567890123456789"))
+	})
+
+	It("should use nanos for empty precision", func() {
+		result := formatTimestamp(testTime, "")
+		Expect(result).To(Equal("1234567890123456789"))
 	})
 })

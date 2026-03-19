@@ -9,3 +9,11 @@ spark:
   jobNamespaces:
     - default
   jobNamespaceSelector: "spark=enabled"
+
+controller:
+  kubeAPIQPS: 100
+  kubeAPIBurst: 100
+
+webhook:
+  kubeAPIQPS: 100
+  kubeAPIBurst: 100

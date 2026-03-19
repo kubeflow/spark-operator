@@ -465,8 +465,10 @@ func GetExecutorRequestResource(app *v1beta2.SparkApplication) corev1.ResourceLi
 		}
 	}
 
+	instances := GetInitialExecutorNumber(app)
+
 	resourceList := []corev1.ResourceList{{}}
-	for i := int32(0); i < *app.Spec.Executor.Instances; i++ {
+	for i := int32(0); i < instances; i++ {
 		resourceList = append(resourceList, minResource)
 	}
 	return SumResourceList(resourceList)
