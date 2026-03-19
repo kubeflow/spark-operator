@@ -376,8 +376,8 @@ func (r *Reconciler) reconcileSubmittedSparkApplication(ctx context.Context, req
 				}
 			}
 
-			for _, driverIngressConfiguration := range app.Spec.DriverIngressOptions {
-				service, err := r.createDriverIngressServiceFromConfiguration(ctx, app, &driverIngressConfiguration)
+			for i, driverIngressConfiguration := range app.Spec.DriverIngressOptions {
+				service, err := r.createDriverIngressServiceFromConfiguration(ctx, app, &driverIngressConfiguration, i)
 				if err != nil {
 					return fmt.Errorf("failed to create driver ingress service for SparkApplication: %v", err)
 				}
@@ -388,7 +388,7 @@ func (r *Reconciler) reconcileSubmittedSparkApplication(ctx context.Context, req
 					if err != nil {
 						return fmt.Errorf("failed to get driver ingress url: %v", err)
 					}
-					_, err = r.createDriverIngress(ctx, app, &driverIngressConfiguration, *service, ingressURL, r.options.IngressClassName)
+					_, err = r.createDriverIngress(ctx, app, &driverIngressConfiguration, *service, ingressURL, r.options.IngressClassName, i)
 					if err != nil {
 						return fmt.Errorf("failed to create driver ingress: %v", err)
 					}
