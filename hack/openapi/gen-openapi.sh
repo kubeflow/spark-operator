@@ -52,7 +52,7 @@ for VERSION in v1alpha1 v1beta2; do
   echo "Generating OpenAPI for ${VERSION}"
 
   go run ${OPENAPI_PKG}/cmd/openapi-gen \
-    --go-header-file "${SPARK_OPERATOR_ROOT}/hack/boilerplate.go.txt" \
+    --go-header-file "${SPARK_OPERATOR_ROOT}/hack/boilerplate/boilerplate.go.txt" \
     --output-pkg "${SPARK_OPERATOR_PKG}/api/${VERSION}" \
     --output-dir "${SPARK_OPERATOR_ROOT}/api/${VERSION}" \
     --output-file "zz_generated.openapi.go" \

@@ -76,6 +76,10 @@ jobs:
         run: |
           make go-lint
 
+      - name: Verify boilerplate headers
+        run: |
+          make verify-boilerplate
+
   build-api-docs:
     runs-on: ubuntu-latest
     steps:
