@@ -23,4 +23,4 @@ metadata:
     app: spark-operator
     {{- include "spark-operator.labels" . | nindent 4 }}
 data:
-  spark-operator-version: {{ include "spark-operator.version" . | quote }}
+  spark_operator_version: {{ include "spark-operator.version" . | quote }}
