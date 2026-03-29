@@ -31,6 +31,13 @@ type SparkApplicationSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make generate" to regenerate code after modifying this file
 
+	// ManagedBy indicates the controller managing this SparkApplication.
+	// When set to a value other than the built-in operator's identifier,
+	// the operator skips reconciliation, allowing external controllers
+	// (e.g. MultiKueue) to manage the resource.
+	// This field is immutable once set.
+	// +optional
+	ManagedBy *string `json:"managedBy,omitempty"`
 	// Suspend indicates whether the SparkApplication should be suspended.
 	// When true, the controller skips submitting the Spark job.
 	// If a SparkApplication is suspended after creation

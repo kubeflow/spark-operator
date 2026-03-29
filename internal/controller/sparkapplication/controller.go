@@ -199,6 +199,12 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		return r.handleSparkApplicationDeletion(ctx, req)
 	}
 
+	// Skip reconciliation if another controller is managing this application.
+	if app.Spec.ManagedBy != nil && *app.Spec.ManagedBy != common.SparkOperatorManagerName {
+		logger.Info("Skipping reconciliation: managed by external controller", "managedBy", *app.Spec.ManagedBy)
+		return ctrl.Result{}, nil
+	}
+
 	if ptr.Deref(app.Spec.Suspend, false) {
 		if !util.IsTerminated(app) &&
 			app.Status.AppState.State != v1beta2.ApplicationStateSuspended &&
