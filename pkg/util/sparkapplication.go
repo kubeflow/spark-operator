@@ -139,7 +139,11 @@ func TimeUntilNextRetryDue(app *v1beta2.SparkApplication) (time.Duration, error)
 		referenceTime = app.Status.TerminationTime
 	}
 	if retryInterval == nil || referenceTime.IsZero() || attemptsDone <= 0 {
-		return -1, fmt.Errorf("invalid retry interval (%v), reference time (%v) or attemptsDone (%v)", retryInterval, referenceTime, attemptsDone)
+		var retryIntervalValue any
+		if retryInterval != nil {
+			retryIntervalValue = *retryInterval
+		}
+		return -1, fmt.Errorf("invalid retry interval (%v), reference time (%v) or attemptsDone (%v)", retryIntervalValue, referenceTime, attemptsDone)
 	}
 
 	interval := time.Duration(*retryInterval) * time.Second
