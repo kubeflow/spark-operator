@@ -17,12 +17,12 @@ apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: spark-operator-spark
-  namespace: default
+  namespace: system
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
-  namespace: default
+  namespace: system
   name: spark-role
 rules:
 - apiGroups:
@@ -46,11 +46,11 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
   name: spark-role-binding
-  namespace: default
+  namespace: system
 subjects:
 - kind: ServiceAccount
   name: spark-operator-spark
-  namespace: default
+  namespace: system
 roleRef:
   kind: Role
   name: spark-role
