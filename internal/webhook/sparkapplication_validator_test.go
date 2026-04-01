@@ -212,6 +212,49 @@ func TestSparkApplicationValidatorValidateCreate_ResourceQuotaExceeded(t *testin
 	}
 }
 
+func TestSparkApplicationValidatorValidateUpdate_ManagedByImmutable(t *testing.T) {
+	validator := newTestValidator(t, false)
+
+	// Changing managedBy once set should fail.
+	oldApp := newSparkApplication()
+	oldApp.Spec.ManagedBy = ptr.To("multikueue.x-k8s.io")
+	newApp := oldApp.DeepCopy()
+	newApp.Spec.ManagedBy = ptr.To("other-controller")
+
+	if _, err := validator.ValidateUpdate(context.Background(), oldApp, newApp); err == nil || !strings.Contains(err.Error(), "immutable") {
+		t.Fatalf("expected immutability error, got %v", err)
+	}
+
+	// Removing managedBy once set should fail.
+	newApp2 := oldApp.DeepCopy()
+	newApp2.Spec.ManagedBy = nil
+
+	if _, err := validator.ValidateUpdate(context.Background(), oldApp, newApp2); err == nil || !strings.Contains(err.Error(), "immutable") {
+		t.Fatalf("expected immutability error when removing managedBy, got %v", err)
+	}
+
+	// Keeping managedBy unchanged should succeed.
+	newApp3 := oldApp.DeepCopy()
+	newApp3.Spec.Arguments = []string{"--foo"}
+
+	if _, err := validator.ValidateUpdate(context.Background(), oldApp, newApp3); err != nil {
+		t.Fatalf("expected success when managedBy unchanged, got %v", err)
+	}
+}
+
+func TestSparkApplicationValidatorValidateUpdate_ManagedByCanBeSetInitially(t *testing.T) {
+	validator := newTestValidator(t, false)
+
+	// Setting managedBy for the first time (from nil) should succeed.
+	oldApp := newSparkApplication()
+	newApp := oldApp.DeepCopy()
+	newApp.Spec.ManagedBy = ptr.To("multikueue.x-k8s.io")
+
+	if _, err := validator.ValidateUpdate(context.Background(), oldApp, newApp); err != nil {
+		t.Fatalf("expected success when setting managedBy initially, got %v", err)
+	}
+}
+
 func TestSparkApplicationValidatorValidateDelete_Success(t *testing.T) {
 	validator := newTestValidator(t, false)
 

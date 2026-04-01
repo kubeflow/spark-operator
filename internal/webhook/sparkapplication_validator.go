@@ -100,6 +100,18 @@ func (v *SparkApplicationValidator) ValidateUpdate(ctx context.Context, oldObj r
 		return nil, err
 	}
 
+	// managedBy is immutable once set.
+	if oldApp.Spec.ManagedBy != nil {
+		oldVal := *oldApp.Spec.ManagedBy
+		newVal := ""
+		if newApp.Spec.ManagedBy != nil {
+			newVal = *newApp.Spec.ManagedBy
+		}
+		if oldVal != newVal {
+			return nil, fmt.Errorf("spec.managedBy is immutable once set: cannot change from %q to %q", oldVal, newVal)
+		}
+	}
+
 	// Skip validating when spec does not change.
 	if equality.Semantic.DeepEqual(oldApp.Spec, newApp.Spec) {
 		return nil, nil
