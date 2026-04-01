@@ -411,3 +411,94 @@ func TestCreateDriverIngressService(t *testing.T) {
 		testFn(test, t)
 	}
 }
+
+func TestBuildDriverServicePorts(t *testing.T) {
+	tests := []struct {
+		name          string
+		app           *v1beta2.SparkApplication
+		portName      string
+		port          int32
+		targetPort    int32
+		expectedPorts []corev1.ServicePort
+	}{
+		{
+			name:       "no user-defined ports",
+			app:        &v1beta2.SparkApplication{},
+			portName:   "spark-ui",
+			port:       4040,
+			targetPort: 4040,
+			expectedPorts: []corev1.ServicePort{
+				{Name: "spark-ui", Port: 4040, TargetPort: intstr.FromInt32(4040)},
+			},
+		},
+		{
+			name: "user-defined ports appended",
+			app: &v1beta2.SparkApplication{
+				Spec: v1beta2.SparkApplicationSpec{
+					Driver: v1beta2.DriverSpec{
+						Ports: []v1beta2.Port{
+							{Name: "metrics", ContainerPort: 9090, Protocol: "TCP"},
+							{Name: "debug", ContainerPort: 5005, Protocol: "TCP"},
+						},
+					},
+				},
+			},
+			portName:   "spark-ui",
+			port:       4040,
+			targetPort: 4040,
+			expectedPorts: []corev1.ServicePort{
+				{Name: "spark-ui", Port: 4040, TargetPort: intstr.FromInt32(4040)},
+				{Name: "metrics", Port: 9090, TargetPort: intstr.FromInt32(9090), Protocol: "TCP"},
+				{Name: "debug", Port: 5005, TargetPort: intstr.FromInt32(5005), Protocol: "TCP"},
+			},
+		},
+		{
+			name: "duplicate port number skipped",
+			app: &v1beta2.SparkApplication{
+				Spec: v1beta2.SparkApplicationSpec{
+					Driver: v1beta2.DriverSpec{
+						Ports: []v1beta2.Port{
+							{Name: "custom-ui", ContainerPort: 4040, Protocol: "TCP"},
+						},
+					},
+				},
+			},
+			portName:   "spark-ui",
+			port:       4040,
+			targetPort: 4040,
+			expectedPorts: []corev1.ServicePort{
+				{Name: "spark-ui", Port: 4040, TargetPort: intstr.FromInt32(4040)},
+			},
+		},
+		{
+			name: "duplicate port name skipped",
+			app: &v1beta2.SparkApplication{
+				Spec: v1beta2.SparkApplicationSpec{
+					Driver: v1beta2.DriverSpec{
+						Ports: []v1beta2.Port{
+							{Name: "spark-ui", ContainerPort: 9090, Protocol: "TCP"},
+						},
+					},
+				},
+			},
+			portName:   "spark-ui",
+			port:       4040,
+			targetPort: 4040,
+			expectedPorts: []corev1.ServicePort{
+				{Name: "spark-ui", Port: 4040, TargetPort: intstr.FromInt32(4040)},
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got := buildDriverServicePorts(tc.app, tc.portName, tc.port, tc.targetPort)
+			assert.Equal(t, len(tc.expectedPorts), len(got), "unexpected number of ports")
+			for i, expected := range tc.expectedPorts {
+				assert.Equal(t, expected.Name, got[i].Name)
+				assert.Equal(t, expected.Port, got[i].Port)
+				assert.Equal(t, expected.TargetPort.IntVal, got[i].TargetPort.IntVal)
+			}
+		})
+	}
+}
