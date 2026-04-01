@@ -17,6 +17,7 @@ limitations under the License.
 package sparkapplication
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"slices"
@@ -30,6 +31,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/yaml"
 
 	"github.com/kubeflow/spark-operator/v2/api/v1beta2"
@@ -140,6 +143,83 @@ func TestExecutorConfOption(t *testing.T) {
 			slices.Sort(testCase.expected)
 
 			assert.Equal(t, testCase.expected, options, "Executor configuration options do not match expected values")
+		})
+	}
+}
+
+func TestSparkConfOptionFromSecretRef(t *testing.T) {
+	tests := []struct {
+		name     string
+		app      *v1beta2.SparkApplication
+		given    []client.Object
+		expected map[string][]string
+	}{
+		{
+			name: "spark conf value from secret ref",
+			app: &v1beta2.SparkApplication{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "spark-conf-value-from-secret-ref",
+				},
+				Spec: v1beta2.SparkApplicationSpec{
+					SparkConf: map[string]string{
+						fmt.Sprintf("%sfs.objectStorage.access.key", common.SparkHadoopPropertiesPrefix):     "abc",
+						fmt.Sprintf("%sfs.objectStorage.secret.key", common.SparkHadoopPropertiesPrefix):     "${secrets:object-storage:secret-key}",
+						fmt.Sprintf("%sfs.objectStorage.encryption.key", common.SparkHadoopPropertiesPrefix): "${secrets:ops/object-storage-1.kms:encryption.key-2}",
+					},
+				},
+			},
+			given: []client.Object{
+				&corev1.Secret{
+					ObjectMeta: metav1.ObjectMeta{
+						Namespace: "default",
+						Name:      "object-storage",
+					},
+					Data: map[string][]byte{
+						"secret-key": []byte("xyz"),
+					},
+				},
+				&corev1.Secret{
+					ObjectMeta: metav1.ObjectMeta{
+						Namespace: "ops",
+						Name:      "object-storage-1.kms",
+					},
+					Data: map[string][]byte{
+						"encryption.key-2": []byte("kms"),
+					},
+				},
+			},
+			expected: map[string][]string{
+				"args": {
+					"--conf", fmt.Sprintf("%sfs.objectStorage.access.key=%s", common.SparkHadoopPropertiesPrefix, "abc"),
+					"--conf", fmt.Sprintf("%sfs.objectStorage.secret.key=%s", common.SparkHadoopPropertiesPrefix, "xyz"),
+					"--conf", fmt.Sprintf("%sfs.objectStorage.encryption.key=%s", common.SparkHadoopPropertiesPrefix, "kms"),
+				},
+				"sanitizedArgs": {
+					"--conf", fmt.Sprintf("%sfs.objectStorage.access.key=%s", common.SparkHadoopPropertiesPrefix, "abc"),
+					"--conf", fmt.Sprintf("%sfs.objectStorage.secret.key=%s", common.SparkHadoopPropertiesPrefix, "*****"),
+					"--conf", fmt.Sprintf("%sfs.objectStorage.encryption.key=%s", common.SparkHadoopPropertiesPrefix, "*****"),
+				},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockK8sClient := fake.NewClientBuilder().WithObjects(tt.given...).Build()
+			options, sanitizedOptions, err := sparkConfOption(context.TODO(), tt.app, mockK8sClient)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			expectedOptions := tt.expected["args"]
+			expectedSanitizedOptions := tt.expected["sanitizedArgs"]
+			slices.Sort(options)
+			slices.Sort(sanitizedOptions)
+			slices.Sort(expectedOptions)
+			slices.Sort(expectedSanitizedOptions)
+
+			assert.Equal(t, expectedOptions, options, "Spark config options do not match expected values")
+			assert.Equal(t, expectedSanitizedOptions, sanitizedOptions, "Spark satinized config options do not match expected values")
 		})
 	}
 }
