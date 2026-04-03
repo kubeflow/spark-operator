@@ -40,6 +40,15 @@ func GetMasterSelectorLabels(cluster *v1alpha1.SparkCluster) map[string]string {
 	}
 }
 
+// GetClusterWorkerLabels returns labels matching all worker pods for a cluster (across all groups).
+func GetClusterWorkerLabels(cluster *v1alpha1.SparkCluster) map[string]string {
+	return map[string]string{
+		common.LabelLaunchedBySparkOperator: "true",
+		common.LabelSparkClusterName:        cluster.Name,
+		common.LabelSparkRole:               common.SparkRoleClusterWorker,
+	}
+}
+
 // GetWorkerSelectorLabels returns the labels used to select worker pods for a given group.
 func GetWorkerSelectorLabels(cluster *v1alpha1.SparkCluster, groupName string) map[string]string {
 	return map[string]string{

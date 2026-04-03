@@ -255,7 +255,9 @@ func (r *Reconciler) mutateMasterPod(cluster *v1alpha1.SparkCluster, pod *corev1
 	if pod.CreationTimestamp.IsZero() {
 		// Apply template if provided.
 		if cluster.Spec.Master.Template != nil {
-			applyPodTemplate(pod, cluster.Spec.Master.Template)
+			if err := applyPodTemplate(pod, cluster.Spec.Master.Template); err != nil {
+				return fmt.Errorf("failed to apply master pod template: %v", err)
+			}
 		}
 
 		// Ensure at least one container exists.
@@ -265,7 +267,21 @@ func (r *Reconciler) mutateMasterPod(cluster *v1alpha1.SparkCluster, pod *corev1
 			})
 		}
 
-		container := &pod.Spec.Containers[0]
+		// Select the Spark master container by name.
+		var container *corev1.Container
+		if len(pod.Spec.Containers) == 1 {
+			container = &pod.Spec.Containers[0]
+		} else {
+			for i := range pod.Spec.Containers {
+				if pod.Spec.Containers[i].Name == "spark-master" {
+					container = &pod.Spec.Containers[i]
+					break
+				}
+			}
+			if container == nil {
+				return fmt.Errorf("master pod template defines multiple containers but none is named %q", "spark-master")
+			}
+		}
 
 		// Set image if not already set from template.
 		if container.Image == "" {
@@ -387,6 +403,29 @@ func (r *Reconciler) reconcileWorkerPods(ctx context.Context, cluster *v1alpha1.
 
 	masterURL := fmt.Sprintf("spark://%s:%d", GetMasterServiceHost(cluster), masterPort)
 
+	// Clean up pods from removed worker groups.
+	allWorkerPods := &corev1.PodList{}
+	if err := r.client.List(ctx, allWorkerPods,
+		client.InNamespace(cluster.Namespace),
+		client.MatchingLabels(GetClusterWorkerLabels(cluster)),
+	); err != nil {
+		return fmt.Errorf("failed to list all worker pods: %v", err)
+	}
+
+	activeGroups := make(map[string]bool, len(cluster.Spec.WorkerGroups))
+	for _, g := range cluster.Spec.WorkerGroups {
+		activeGroups[g.Name] = true
+	}
+
+	for i := range allWorkerPods.Items {
+		if !activeGroups[allWorkerPods.Items[i].Labels[LabelWorkerGroup]] {
+			logger.Info("Deleting orphan worker pod from removed group", "pod", allWorkerPods.Items[i].Name)
+			if err := r.client.Delete(ctx, &allWorkerPods.Items[i]); client.IgnoreNotFound(err) != nil {
+				return fmt.Errorf("failed to delete orphan pod %s: %v", allWorkerPods.Items[i].Name, err)
+			}
+		}
+	}
+
 	for _, group := range cluster.Spec.WorkerGroups {
 		replicas := int32(1)
 		if group.Replicas != nil {
@@ -445,7 +484,9 @@ func (r *Reconciler) reconcileWorkerPods(ctx context.Context, cluster *v1alpha1.
 func (r *Reconciler) mutateWorkerPod(cluster *v1alpha1.SparkCluster, group *v1alpha1.WorkerGroupSpec, pod *corev1.Pod, masterURL string) error {
 	if pod.CreationTimestamp.IsZero() {
 		if group.Template != nil {
-			applyPodTemplate(pod, group.Template)
+			if err := applyPodTemplate(pod, group.Template); err != nil {
+				return fmt.Errorf("failed to apply worker pod template: %v", err)
+			}
 		}
 
 		// Ensure at least one container exists.
@@ -455,7 +496,24 @@ func (r *Reconciler) mutateWorkerPod(cluster *v1alpha1.SparkCluster, group *v1al
 			})
 		}
 
-		container := &pod.Spec.Containers[0]
+		// Select the Spark worker container by name.
+		var container *corev1.Container
+		for i := range pod.Spec.Containers {
+			if pod.Spec.Containers[i].Name == "spark-worker" {
+				container = &pod.Spec.Containers[i]
+				break
+			}
+		}
+		if container == nil {
+			if len(pod.Spec.Containers) == 1 {
+				container = &pod.Spec.Containers[0]
+				if container.Name == "" {
+					container.Name = "spark-worker"
+				}
+			} else {
+				return fmt.Errorf("worker pod template must define a container named %q", "spark-worker")
+			}
+		}
 
 		// Set image.
 		if container.Image == "" {
@@ -537,14 +595,14 @@ func (r *Reconciler) updateStatus(ctx context.Context, old *v1alpha1.SparkCluste
 }
 
 // applyPodTemplate applies the SparkCluster pod template to a Pod.
-func applyPodTemplate(pod *corev1.Pod, tmpl *v1alpha1.SparkClusterPodTemplateSpec) {
+func applyPodTemplate(pod *corev1.Pod, tmpl *v1alpha1.SparkClusterPodTemplateSpec) error {
 	if tmpl.Metadata != nil {
 		pod.Labels = tmpl.Metadata.Labels
 		pod.Annotations = tmpl.Metadata.Annotations
 	}
 
 	if tmpl.Spec == nil {
-		return
+		return nil
 	}
 
 	pod.Spec.NodeSelector = tmpl.Spec.NodeSelector
@@ -569,7 +627,11 @@ func applyPodTemplate(pod *corev1.Pod, tmpl *v1alpha1.SparkClusterPodTemplateSpe
 		}
 
 		if c.Resources != nil {
-			container.Resources = convertResources(c.Resources)
+			res, err := convertResources(c.Resources)
+			if err != nil {
+				return fmt.Errorf("container %q: %v", c.Name, err)
+			}
+			container.Resources = res
 		}
 
 		if c.SecurityContext != nil {
@@ -590,23 +652,32 @@ func applyPodTemplate(pod *corev1.Pod, tmpl *v1alpha1.SparkClusterPodTemplateSpe
 
 		pod.Spec.Containers = append(pod.Spec.Containers, container)
 	}
+	return nil
 }
 
-func convertResources(r *v1alpha1.ResourceRequirements) corev1.ResourceRequirements {
+func convertResources(r *v1alpha1.ResourceRequirements) (corev1.ResourceRequirements, error) {
 	result := corev1.ResourceRequirements{}
 	if len(r.Requests) > 0 {
 		result.Requests = make(corev1.ResourceList)
 		for k, v := range r.Requests {
-			result.Requests[corev1.ResourceName(k)] = resource.MustParse(v)
+			q, err := resource.ParseQuantity(v)
+			if err != nil {
+				return result, fmt.Errorf("invalid request quantity %q for resource %q: %v", v, k, err)
+			}
+			result.Requests[corev1.ResourceName(k)] = q
 		}
 	}
 	if len(r.Limits) > 0 {
 		result.Limits = make(corev1.ResourceList)
 		for k, v := range r.Limits {
-			result.Limits[corev1.ResourceName(k)] = resource.MustParse(v)
+			q, err := resource.ParseQuantity(v)
+			if err != nil {
+				return result, fmt.Errorf("invalid limit quantity %q for resource %q: %v", v, k, err)
+			}
+			result.Limits[corev1.ResourceName(k)] = q
 		}
 	}
-	return result
+	return result, nil
 }
 
 func convertSecurityContext(sc *v1alpha1.SecurityContext) *corev1.SecurityContext {
