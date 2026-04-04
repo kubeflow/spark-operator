@@ -19,6 +19,7 @@ package webhook
 import (
 	"context"
 	"fmt"
+	"regexp"
 	"strings"
 
 	"k8s.io/apimachinery/pkg/api/equality"
@@ -180,6 +181,9 @@ func (v *SparkClusterValidator) validateImage(cluster *v1alpha1.SparkCluster) er
 	return nil
 }
 
+// dnsLabelRe matches valid DNS labels: lowercase alphanumeric and hyphens, start/end with alphanumeric.
+var dnsLabelRe = regexp.MustCompile(`^[a-z0-9]([a-z0-9\-]*[a-z0-9])?$`)
+
 func (v *SparkClusterValidator) validateWorkerGroups(cluster *v1alpha1.SparkCluster) error {
 	names := make(map[string]bool)
 	for _, group := range cluster.Spec.WorkerGroups {
@@ -191,9 +195,29 @@ func (v *SparkClusterValidator) validateWorkerGroups(cluster *v1alpha1.SparkClus
 		}
 		names[group.Name] = true
 
+		if err := validateWorkerGroupName(cluster.Name, group.Name); err != nil {
+			return err
+		}
+
 		if group.Replicas != nil && *group.Replicas < 0 {
 			return fmt.Errorf("worker group %q replicas must be non-negative", group.Name)
 		}
+	}
+	return nil
+}
+
+func validateWorkerGroupName(clusterName, groupName string) error {
+	if len(groupName) > 63 {
+		return fmt.Errorf("worker group name %q exceeds 63 characters", groupName)
+	}
+	if !dnsLabelRe.MatchString(groupName) {
+		return fmt.Errorf("worker group name %q must be a valid DNS label (lowercase alphanumeric and hyphens)", groupName)
+	}
+	// Derived pod name: <cluster>-worker-<group>-<index>
+	// Kubernetes limit is 253 chars; check at max index length (5 digits).
+	derived := fmt.Sprintf("%s-worker-%s-99999", clusterName, groupName)
+	if len(derived) > 253 {
+		return fmt.Errorf("derived worker pod name %q exceeds 253 characters", derived)
 	}
 	return nil
 }

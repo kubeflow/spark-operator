@@ -158,6 +158,33 @@ func TestSparkClusterValidatorValidateDelete_Success(t *testing.T) {
 	}
 }
 
+func TestSparkClusterValidatorValidateCreate_NegativeWorkerReplicas(t *testing.T) {
+	validator := NewSparkClusterValidator()
+
+	cluster := newSparkCluster()
+	neg := int32(-1)
+	cluster.Spec.WorkerGroups = []v1alpha1.WorkerGroupSpec{
+		{Name: "default", Replicas: &neg},
+	}
+
+	if _, err := validator.ValidateCreate(context.Background(), cluster); err == nil || !strings.Contains(err.Error(), "non-negative") {
+		t.Fatalf("expected non-negative replicas error, got %v", err)
+	}
+}
+
+func TestSparkClusterValidatorValidateCreate_InvalidWorkerGroupName(t *testing.T) {
+	validator := NewSparkClusterValidator()
+
+	cluster := newSparkCluster()
+	cluster.Spec.WorkerGroups = []v1alpha1.WorkerGroupSpec{
+		{Name: "Invalid_Name", Replicas: ptr.To[int32](1)},
+	}
+
+	if _, err := validator.ValidateCreate(context.Background(), cluster); err == nil || !strings.Contains(err.Error(), "valid DNS label") {
+		t.Fatalf("expected DNS label validation error, got %v", err)
+	}
+}
+
 func TestSparkClusterValidatorValidateCreate_NoWorkerGroups(t *testing.T) {
 	validator := NewSparkClusterValidator()
 

@@ -358,6 +358,9 @@ func (r *Reconciler) createOrUpdateMasterService(ctx context.Context, cluster *v
 
 func (r *Reconciler) mutateMasterService(cluster *v1alpha1.SparkCluster, svc *corev1.Service) error {
 	if svc.CreationTimestamp.IsZero() {
+		// Headless service for DNS-based worker registration.
+		svc.Spec.ClusterIP = corev1.ClusterIPNone
+
 		svc.Spec.Ports = []corev1.ServicePort{
 			{
 				Name:        "spark",
@@ -460,18 +463,17 @@ func (r *Reconciler) reconcileWorkerPods(ctx context.Context, cluster *v1alpha1.
 			return fmt.Errorf("failed to list worker pods: %v", err)
 		}
 
+		// Build desired pod name set (O(replicas)).
+		desired := make(map[string]bool, replicas)
+		for i := int32(0); i < replicas; i++ {
+			desired[GetWorkerPodName(cluster, group.Name, int(i))] = true
+		}
+
+		// Delete pods outside the desired set (O(N)).
 		for _, existing := range existingPods.Items {
-			// Check if this pod is beyond the desired replicas.
-			keep := false
-			for i := int32(0); i < replicas; i++ {
-				if existing.Name == GetWorkerPodName(cluster, group.Name, int(i)) {
-					keep = true
-					break
-				}
-			}
-			if !keep {
+			if !desired[existing.Name] {
 				logger.Info("Deleting excess worker pod", "pod", existing.Name)
-				if err := r.client.Delete(ctx, &existing); err != nil && !errors.IsNotFound(err) {
+				if err := r.client.Delete(ctx, &existing); client.IgnoreNotFound(err) != nil {
 					return fmt.Errorf("failed to delete excess worker pod %s: %v", existing.Name, err)
 				}
 			}
