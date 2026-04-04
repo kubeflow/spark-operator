@@ -265,6 +265,12 @@ const (
 
 	// SparkRoleConnectServer is the value of the spark-role label for Spark connect server pods.
 	SparkRoleConnectServer = "connect-server"
+
+	// SparkRoleClusterMaster is the value of the spark-role label for Spark cluster master pods.
+	SparkRoleClusterMaster = "cluster-master"
+
+	// SparkRoleClusterWorker is the value of the spark-role label for Spark cluster worker pods.
+	SparkRoleClusterWorker = "cluster-worker"
 )
 
 const (
@@ -321,6 +327,9 @@ const (
 
 	// LabelScheduledSparkAppName is the name of the label for the ScheduledSparkApplication object name.
 	LabelScheduledSparkAppName = LabelAnnotationPrefix + "scheduled-app-name"
+
+	// LabelSparkClusterName is the name of the label for the SparkCluster object name.
+	LabelSparkClusterName = LabelAnnotationPrefix + "cluster-name"
 
 	// LabelLaunchedBySparkOperator is a label on Spark pods launched through the Spark Operator.
 	LabelLaunchedBySparkOperator = LabelAnnotationPrefix + "launched-by-spark-operator"
