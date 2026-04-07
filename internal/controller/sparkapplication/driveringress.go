@@ -320,16 +320,7 @@ func (r *Reconciler) createDriverIngressService(
 			OwnerReferences: []metav1.OwnerReference{util.GetOwnerReference(app)},
 		},
 		Spec: corev1.ServiceSpec{
-			Ports: []corev1.ServicePort{
-				{
-					Name: portName,
-					Port: port,
-					TargetPort: intstr.IntOrString{
-						Type:   intstr.Int,
-						IntVal: targetPort,
-					},
-				},
-			},
+			Ports: buildDriverServicePorts(app, portName, port, targetPort),
 			Selector: map[string]string{
 				common.LabelSparkAppName: app.Name,
 				common.LabelSparkRole:    common.SparkRoleDriver,
@@ -458,4 +449,44 @@ func (r *Reconciler) createDriverIngressServiceFromConfiguration(
 	serviceAnnotations := getDriverIngressServiceAnnotations(driverIngressConfiguration)
 	serviceLabels := getDriverIngressServiceLabels(driverIngressConfiguration)
 	return r.createDriverIngressService(ctx, app, portName, port, port, serviceName, serviceType, serviceAnnotations, serviceLabels)
+}
+
+// buildDriverServicePorts builds the ServicePort list for a driver Service,
+// including the primary port and any user-defined ports from spec.driver.ports.
+// User-defined ports that collide with the primary port by name or number are skipped.
+func buildDriverServicePorts(app *v1beta2.SparkApplication, portName string, port int32, targetPort int32) []corev1.ServicePort {
+	ports := []corev1.ServicePort{
+		{
+			Name: portName,
+			Port: port,
+			TargetPort: intstr.IntOrString{
+				Type:   intstr.Int,
+				IntVal: targetPort,
+			},
+		},
+	}
+
+	usedNames := map[string]struct{}{portName: {}}
+	usedPorts := map[int32]struct{}{port: {}}
+
+	for _, p := range app.Spec.Driver.Ports {
+		if _, exists := usedNames[p.Name]; exists {
+			continue
+		}
+		if _, exists := usedPorts[p.ContainerPort]; exists {
+			continue
+		}
+
+		ports = append(ports, corev1.ServicePort{
+			Name:       p.Name,
+			Port:       p.ContainerPort,
+			TargetPort: intstr.FromInt32(p.ContainerPort),
+			Protocol:   corev1.Protocol(p.Protocol),
+		})
+
+		usedNames[p.Name] = struct{}{}
+		usedPorts[p.ContainerPort] = struct{}{}
+	}
+
+	return ports
 }
