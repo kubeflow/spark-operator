@@ -18,6 +18,8 @@ package webhook
 
 import (
 	"context"
+	"fmt"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -209,6 +211,58 @@ func TestSparkApplicationValidatorValidateCreate_ResourceQuotaExceeded(t *testin
 
 	if _, err := validator.ValidateCreate(context.Background(), newSparkApplication()); err == nil || !strings.Contains(err.Error(), "failed to validate resource quota") {
 		t.Fatalf("expected resource quota validation error, got %v", err)
+	}
+}
+
+func TestSparkApplicationValidatorValidateCreate_ResourceQuota_Mem(t *testing.T) {
+	cases := []struct {
+		hard, used   string
+		expect_error bool
+		err_pattern  string
+	}{
+		{"3Gi", "0", false, ""},
+		{"2Gi", "0", true, `failed to validate resource quota "default/strict" with error "exceeded '.*' quota: requested=3006477106, used=0, limit=2Gi \(new total would be: 3006477106\)"`},
+		{"1Gi", "0", true, `failed to validate resource quota "default/strict" with error "exceeded '.*' quota: requested=3006477106, used=0, limit=1Gi \(new total would be: 3006477106\)"`},
+		{"512Mi", "0", true, `failed to validate resource quota "default/strict" with error "exceeded '.*' quota: requested=3006477106, used=0, limit=512Mi \(new total would be: 3006477106\)"`},
+	}
+
+	for _, tc := range cases {
+		for _, kind := range []corev1.ResourceName{corev1.ResourceLimitsMemory, corev1.ResourceMemory, corev1.ResourceRequestsMemory} {
+			t.Run(fmt.Sprintf("%v-%v", kind, tc.hard), func(t *testing.T) {
+				quota := &corev1.ResourceQuota{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "strict",
+						Namespace: "default",
+					},
+					Spec: corev1.ResourceQuotaSpec{
+						Hard: corev1.ResourceList{
+							kind: resource.MustParse(tc.hard),
+						},
+					},
+					Status: corev1.ResourceQuotaStatus{
+						Hard: corev1.ResourceList{
+							kind: resource.MustParse(tc.hard),
+						},
+						Used: corev1.ResourceList{
+							kind: resource.MustParse(tc.used),
+						},
+					},
+				}
+
+				validator := newTestValidator(t, true, quota)
+
+				_, err := validator.ValidateCreate(context.Background(), newSparkApplication())
+				if err != nil && !tc.expect_error {
+					t.Errorf("Unexpected error:\n\texpected=<nil>\n\treturned=%v", err)
+				} else if err == nil && tc.expect_error {
+					t.Errorf("Unexpected error:\n\t pattern=%v\n\treturned=%v", tc.err_pattern, err)
+				} else if tc.expect_error {
+					if matched, _ := regexp.MatchString(tc.err_pattern, err.Error()); !matched {
+						t.Errorf("Unexpected error:\n\t pattern=%v\n\treturned=%v", tc.err_pattern, err)
+					}
+				}
+			})
+		}
 	}
 }
 
