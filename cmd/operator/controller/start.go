@@ -57,6 +57,7 @@ import (
 	"github.com/kubeflow/spark-operator/v2/api/v1beta2"
 	"github.com/kubeflow/spark-operator/v2/internal/controller/scheduledsparkapplication"
 	"github.com/kubeflow/spark-operator/v2/internal/controller/sparkapplication"
+	"github.com/kubeflow/spark-operator/v2/internal/controller/sparkcluster"
 	"github.com/kubeflow/spark-operator/v2/internal/controller/sparkconnect"
 	"github.com/kubeflow/spark-operator/v2/internal/metrics"
 	"github.com/kubeflow/spark-operator/v2/internal/scheduler"
@@ -333,6 +334,18 @@ func start() {
 		os.Exit(1)
 	}
 
+	// Setup controller for SparkCluster.
+	if err = sparkcluster.NewReconciler(
+		mgr,
+		mgr.GetScheme(),
+		mgr.GetClient(),
+		mgr.GetEventRecorderFor("SparkCluster"),
+		newSparkClusterReconcilerOptions(),
+	).SetupWithManager(mgr, newControllerOptions()); err != nil {
+		logger.Error(err, "Failed to create controller", "controller", "SparkCluster")
+		os.Exit(1)
+	}
+
 	// Setup controller for SparkConnect.
 	if err = sparkconnect.NewReconciler(
 		mgr,
@@ -485,6 +498,14 @@ func newScheduledSparkApplicationReconcilerOptions() scheduledsparkapplication.O
 		Namespaces:         namespaces,
 		NamespaceSelector:  namespaceSelector,
 		TimestampPrecision: scheduledSparkApplicationTimestampPrecision,
+	}
+	return options
+}
+
+func newSparkClusterReconcilerOptions() sparkcluster.Options {
+	options := sparkcluster.Options{
+		Namespaces:        namespaces,
+		NamespaceSelector: namespaceSelector,
 	}
 	return options
 }

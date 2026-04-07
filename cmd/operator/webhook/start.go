@@ -302,6 +302,16 @@ func start() {
 	}
 
 	if err := ctrl.NewWebhookManagedBy(mgr).
+		For(&v1alpha1.SparkCluster{}).
+		WithDefaulter(webhook.NewSparkClusterDefaulter()).
+		WithValidator(webhook.NewSparkClusterValidator()).
+		WithLogConstructor(webhook.LogConstructor).
+		Complete(); err != nil {
+		logger.Error(err, "Failed to create mutating webhook for SparkCluster")
+		os.Exit(1)
+	}
+
+	if err := ctrl.NewWebhookManagedBy(mgr).
 		For(&v1beta2.SparkApplication{}).
 		WithDefaulter(webhook.NewSparkApplicationDefaulter()).
 		WithValidator(webhook.NewSparkApplicationValidator(mgr.GetClient(), enableResourceQuotaEnforcement)).

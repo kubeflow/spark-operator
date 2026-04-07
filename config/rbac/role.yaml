@@ -72,6 +72,7 @@ rules:
   resources:
   - scheduledsparkapplications
   - sparkapplications
+  - sparkclusters
   - sparkconnects
   verbs:
   - create
@@ -93,6 +94,7 @@ rules:
   resources:
   - scheduledsparkapplications/status
   - sparkapplications/status
+  - sparkclusters/status
   - sparkconnects/status
   verbs:
   - get

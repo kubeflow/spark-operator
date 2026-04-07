@@ -19,3 +19,7 @@ package v1alpha1
 // SetSparkConnectDefaults sets default values for certain fields of a SparkConnect.
 func SetSparkConnectDefaults(conn *SparkConnect) {
 }
+
+// SetSparkClusterDefaults sets default values for certain fields of a SparkCluster.
+func SetSparkClusterDefaults(cluster *SparkCluster) {
+}
