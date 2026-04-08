@@ -53,7 +53,7 @@ func TestCreateDriverIngressService(t *testing.T) {
 		}
 
 		ingressOptions := tc.app.Spec.DriverIngressOptions[0]
-		ingressConfig, err := reconciler.createDriverIngressServiceFromConfiguration(context.TODO(), tc.app, &ingressOptions)
+		ingressConfig, err := reconciler.createDriverIngressServiceFromConfiguration(context.TODO(), tc.app, &ingressOptions, 0)
 
 		if tc.expectError {
 			assert.Error(t, err, "Expected an error but got none")
@@ -91,7 +91,7 @@ func TestCreateDriverIngressService(t *testing.T) {
 		// Test ingress creation
 		driverUrl, err := url.Parse("http://localhost")
 		assert.NoError(t, err, "Failed to parse driver ingress url")
-		_, err = reconciler.createDriverIngress(context.TODO(), tc.app, &ingressOptions, *ingressConfig, driverUrl, "ingressClass")
+		_, err = reconciler.createDriverIngress(context.TODO(), tc.app, &ingressOptions, *ingressConfig, driverUrl, "ingressClass", 0)
 
 		if tc.expectError {
 			assert.Error(t, err, "Expected an error but got none")
@@ -410,4 +410,45 @@ func TestCreateDriverIngressService(t *testing.T) {
 	for _, test := range testcases {
 		testFn(test, t)
 	}
+}
+
+func TestCreateDriverIngressServiceWithSamePort(t *testing.T) {
+	fakeClient := fake.NewFakeClient()
+	reconciler := Reconciler{
+		client: fakeClient,
+	}
+
+	app := &v1beta2.SparkApplication{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-app",
+			Namespace: "default",
+			UID:       "test-123",
+		},
+		Spec: v1beta2.SparkApplicationSpec{
+			DriverIngressOptions: []v1beta2.DriverIngressConfiguration{
+				{
+					ServicePort:      ptr.To[int32](4040),
+					IngressURLFormat: "private.example.com",
+				},
+				{
+					ServicePort:      ptr.To[int32](4040),
+					IngressURLFormat: "public.example.com",
+				},
+			},
+		},
+		Status: v1beta2.SparkApplicationStatus{
+			SparkApplicationID: "test-1",
+		},
+	}
+
+	svc1, err := reconciler.createDriverIngressServiceFromConfiguration(context.TODO(), app, &app.Spec.DriverIngressOptions[0], 0)
+	assert.NoError(t, err)
+	assert.Equal(t, "test-app-driver-4040", svc1.serviceName)
+
+	svc2, err := reconciler.createDriverIngressServiceFromConfiguration(context.TODO(), app, &app.Spec.DriverIngressOptions[1], 1)
+	assert.NoError(t, err)
+	assert.Equal(t, "test-app-driver-4040-1", svc2.serviceName)
+
+	assert.Equal(t, "test-app-ing-4040", getDriverIngressName(app, 4040, 0))
+	assert.Equal(t, "test-app-ing-4040-1", getDriverIngressName(app, 4040, 1))
 }
