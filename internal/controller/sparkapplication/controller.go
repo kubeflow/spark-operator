@@ -52,6 +52,8 @@ import (
 	"github.com/kubeflow/spark-operator/v2/pkg/util"
 )
 
+const pendingRerunRequeueDelay = 5 * time.Second
+
 // Options defines the options of the controller.
 type Options struct {
 	Namespaces            []string
@@ -500,6 +502,7 @@ func (r *Reconciler) reconcileRunningSparkApplication(ctx context.Context, req c
 func (r *Reconciler) reconcilePendingRerunSparkApplication(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := log.FromContext(ctx)
 	key := req.NamespacedName
+	var result ctrl.Result
 	retryErr := retry.RetryOnConflict(
 		retry.DefaultRetry,
 		func() error {
@@ -518,7 +521,13 @@ func (r *Reconciler) reconcilePendingRerunSparkApplication(ctx context.Context, 
 				r.recordSparkApplicationEvent(app)
 				r.submitSparkApplication(ctx, app)
 			} else {
-				logger.Info("Resources associated with SparkApplication still exist")
+				// Retry cleanup in case deletion is only partially complete, for example if the driver pod is gone
+				// but the UI Service is still terminating.
+				logger.Info("Resources associated with SparkApplication still exist, retrying deletion")
+				if err := r.deleteSparkResources(ctx, app); err != nil {
+					logger.Error(err, "failed to delete spark resources")
+				}
+				result.RequeueAfter = pendingRerunRequeueDelay
 			}
 			if err := r.updateSparkApplicationStatus(ctx, app); err != nil {
 				return err
@@ -528,9 +537,9 @@ func (r *Reconciler) reconcilePendingRerunSparkApplication(ctx context.Context, 
 	)
 	if retryErr != nil {
 		logger.Error(retryErr, "Failed to reconcile SparkApplication")
-		return ctrl.Result{}, retryErr
+		return result, retryErr
 	}
-	return ctrl.Result{}, nil
+	return result, nil
 }
 
 func (r *Reconciler) reconcileInvalidatingSparkApplication(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
