@@ -93,6 +93,140 @@ var _ = Describe("ScheduledSparkApplication Controller", func() {
 	})
 })
 
+var _ = Describe("ScheduledSparkApplication spec change detection", func() {
+	Context("when spec.schedule changes in ScheduleStateScheduled", func() {
+		const resourceName = "repro-schedule-change"
+		ctx := context.Background()
+		typeNamespacedName := types.NamespacedName{
+			Name:      resourceName,
+			Namespace: "default",
+		}
+
+		BeforeEach(func() {
+			resource := &v1beta2.ScheduledSparkApplication{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      resourceName,
+					Namespace: "default",
+				},
+				Spec: v1beta2.ScheduledSparkApplicationSpec{
+					Schedule:          "10 * * * *",
+					ConcurrencyPolicy: v1beta2.ConcurrencyAllow,
+					Template: v1beta2.SparkApplicationSpec{
+						Type: v1beta2.SparkApplicationTypeScala,
+						Mode: v1beta2.DeployModeCluster,
+						RestartPolicy: v1beta2.RestartPolicy{
+							Type: v1beta2.RestartPolicyNever,
+						},
+						MainApplicationFile: ptr.To("local:///dummy.jar"),
+					},
+				},
+			}
+			Expect(k8sClient.Create(ctx, resource)).To(Succeed())
+		})
+
+		AfterEach(func() {
+			resource := &v1beta2.ScheduledSparkApplication{}
+			err := k8sClient.Get(ctx, typeNamespacedName, resource)
+			if err == nil {
+				Expect(k8sClient.Delete(ctx, resource)).To(Succeed())
+			}
+		})
+
+		It("should recalculate nextRun when spec.schedule changes", func() {
+			reconciler := NewReconciler(k8sClient.Scheme(), k8sClient, nil, clock.RealClock{}, Options{Namespaces: []string{"default"}, TimestampPrecision: "nanos"})
+
+			By("Reconciling to reach ScheduleStateScheduled")
+			_, err := reconciler.Reconcile(ctx, reconcile.Request{NamespacedName: typeNamespacedName})
+			Expect(err).NotTo(HaveOccurred())
+
+			// Verify it's in Scheduled state
+			app := &v1beta2.ScheduledSparkApplication{}
+			Expect(k8sClient.Get(ctx, typeNamespacedName, app)).To(Succeed())
+			Expect(app.Status.ScheduleState).To(Equal(v1beta2.ScheduleStateScheduled))
+			oldNextRun := app.Status.NextRun
+
+			By("Changing spec.schedule from '10 * * * *' to '50 * * * *'")
+			app.Spec.Schedule = "50 * * * *"
+			Expect(k8sClient.Update(ctx, app)).To(Succeed())
+
+			By("Reconciling again after schedule change")
+			_, err = reconciler.Reconcile(ctx, reconcile.Request{NamespacedName: typeNamespacedName})
+			Expect(err).NotTo(HaveOccurred())
+
+			updatedApp := &v1beta2.ScheduledSparkApplication{}
+			Expect(k8sClient.Get(ctx, typeNamespacedName, updatedApp)).To(Succeed())
+			Expect(updatedApp.Status.NextRun.Time).NotTo(Equal(oldNextRun.Time),
+				"nextRun should be recalculated after spec.schedule change")
+		})
+	})
+
+	Context("when spec is fixed after FailedValidation", func() {
+		const resourceName = "repro-failed-validation"
+		ctx := context.Background()
+		typeNamespacedName := types.NamespacedName{
+			Name:      resourceName,
+			Namespace: "default",
+		}
+
+		BeforeEach(func() {
+			resource := &v1beta2.ScheduledSparkApplication{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      resourceName,
+					Namespace: "default",
+				},
+				Spec: v1beta2.ScheduledSparkApplicationSpec{
+					Schedule:          "invalid-cron",
+					ConcurrencyPolicy: v1beta2.ConcurrencyAllow,
+					Template: v1beta2.SparkApplicationSpec{
+						Type: v1beta2.SparkApplicationTypeScala,
+						Mode: v1beta2.DeployModeCluster,
+						RestartPolicy: v1beta2.RestartPolicy{
+							Type: v1beta2.RestartPolicyNever,
+						},
+						MainApplicationFile: ptr.To("local:///dummy.jar"),
+					},
+				},
+			}
+			Expect(k8sClient.Create(ctx, resource)).To(Succeed())
+		})
+
+		AfterEach(func() {
+			resource := &v1beta2.ScheduledSparkApplication{}
+			err := k8sClient.Get(ctx, typeNamespacedName, resource)
+			if err == nil {
+				Expect(k8sClient.Delete(ctx, resource)).To(Succeed())
+			}
+		})
+
+		It("should recover from FailedValidation when spec is fixed", func() {
+			reconciler := NewReconciler(k8sClient.Scheme(), k8sClient, nil, clock.RealClock{}, Options{Namespaces: []string{"default"}, TimestampPrecision: "nanos"})
+
+			By("Reconciling to reach ScheduleStateFailedValidation")
+			_, err := reconciler.Reconcile(ctx, reconcile.Request{NamespacedName: typeNamespacedName})
+			Expect(err).NotTo(HaveOccurred())
+
+			app := &v1beta2.ScheduledSparkApplication{}
+			Expect(k8sClient.Get(ctx, typeNamespacedName, app)).To(Succeed())
+			Expect(app.Status.ScheduleState).To(Equal(v1beta2.ScheduleStateFailedValidation))
+
+			By("Fixing spec.schedule to a valid cron expression")
+			app.Spec.Schedule = "10 * * * *"
+			Expect(k8sClient.Update(ctx, app)).To(Succeed())
+
+			By("Reconciling again after fixing the schedule")
+			_, err = reconciler.Reconcile(ctx, reconcile.Request{NamespacedName: typeNamespacedName})
+			Expect(err).NotTo(HaveOccurred())
+
+			updatedApp := &v1beta2.ScheduledSparkApplication{}
+			Expect(k8sClient.Get(ctx, typeNamespacedName, updatedApp)).To(Succeed())
+			Expect(updatedApp.Status.ScheduleState).To(Equal(v1beta2.ScheduleStateScheduled),
+				"should recover from FailedValidation to Scheduled after spec is fixed")
+			Expect(updatedApp.Status.NextRun.IsZero()).To(BeFalse(),
+				"nextRun should be set after recovering from FailedValidation")
+		})
+	})
+})
+
 var _ = Describe("formatTimestamp", func() {
 	var testTime time.Time
 

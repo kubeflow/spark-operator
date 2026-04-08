@@ -2254,6 +2254,19 @@ string
 <p>Reason tells why the ScheduledSparkApplication is in the particular ScheduleState.</p>
 </td>
 </tr>
+<tr>
+<td>
+<code>observedGeneration</code><br/>
+<em>
+int64
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>ObservedGeneration is the most recent generation observed for this ScheduledSparkApplication.
+It is used to detect spec changes and trigger re-evaluation of the schedule.</p>
+</td>
+</tr>
 </tbody>
 </table>
 <h3 id="sparkoperator.k8s.io/v1beta2.SecretInfo">SecretInfo
