@@ -23,12 +23,14 @@ import (
 	"os/exec"
 	"path/filepath"
 	"reflect"
+	"regexp"
 	"slices"
 	"strings"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	"github.com/kubeflow/spark-operator/v2/api/v1beta2"
@@ -39,7 +41,7 @@ import (
 
 // SparkApplicationSubmitter is the interface for submitting a SparkApplication.
 type SparkApplicationSubmitter interface {
-	Submit(ctx context.Context, app *v1beta2.SparkApplication) error
+	Submit(ctx context.Context, app *v1beta2.SparkApplication, client client.Client) error
 }
 
 // SparkSubmitter submits a SparkApplication by calling spark-submit.
@@ -50,17 +52,23 @@ type SparkSubmitter struct {
 // This interface is highly experimental and may go under significant changes or removed in the future.
 var _ SparkApplicationSubmitter = &SparkSubmitter{}
 
+// Secrets ref regexp supports the following secret ref formats:
+//  1. Specific namespace: ${secrets:namespace/secret-name:secret-key}
+//  2. Default namespace: ${secrets:secret-name:secret-key}
+var confSecretRefRegexp = regexp.MustCompile(`^\${secrets:(?P<namespace>[a-z][-a-z0-9]*/)?(?P<secret>[a-z][-a-z0-9.]*):(?P<key>[a-z][-a-z0-9.]*)}$`)
+var confSecretRefRegexpGroupNames = confSecretRefRegexp.SubexpNames()
+
 // Submit implements SparkApplicationSubmitter interface.
-func (*SparkSubmitter) Submit(ctx context.Context, app *v1beta2.SparkApplication) error {
+func (*SparkSubmitter) Submit(ctx context.Context, app *v1beta2.SparkApplication, client client.Client) error {
 	logger := log.FromContext(ctx)
 
-	args, err := buildSparkSubmitArgs(app)
+	args, sanitizedArgs, err := buildSparkSubmitArgs(ctx, app, client)
 	if err != nil {
 		return fmt.Errorf("failed to build spark-submit arguments: %v", err)
 	}
 
 	// Try submitting the application by running spark-submit.
-	logger.Info("Running spark-submit", "arguments", args)
+	logger.Info("Running spark-submit", "arguments", sanitizedArgs)
 	if err := runSparkSubmit(args); err != nil {
 		return fmt.Errorf("failed to run spark-submit: %v", err)
 	}
@@ -94,7 +102,7 @@ func runSparkSubmit(args []string) error {
 }
 
 // buildSparkSubmitArgs builds the arguments for spark-submit.
-func buildSparkSubmitArgs(app *v1beta2.SparkApplication) ([]string, error) {
+func buildSparkSubmitArgs(ctx context.Context, app *v1beta2.SparkApplication, client client.Client) ([]string, []string, error) {
 	optionFuncs := []sparkSubmitOptionFunc{
 		masterOption,
 		deployModeOption,
@@ -107,7 +115,6 @@ func buildSparkSubmitArgs(app *v1beta2.SparkApplication) ([]string, error) {
 		pythonVersionOption,
 		memoryOverheadFactorOption,
 		submissionWaitAppCompletionOption,
-		sparkConfOption,
 		hadoopConfOption,
 		driverPodTemplateOption,
 		driverPodNameOption,
@@ -128,15 +135,24 @@ func buildSparkSubmitArgs(app *v1beta2.SparkApplication) ([]string, error) {
 	}
 
 	var args []string
+	var sanitizedArgs []string
 	for _, optionFunc := range optionFuncs {
 		option, err := optionFunc(app)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		args = append(args, option...)
+		sanitizedArgs = append(sanitizedArgs, option...)
 	}
 
-	return args, nil
+	option, sanitizedOptions, err := sparkConfOption(ctx, app, client)
+	if err != nil {
+		return nil, nil, err
+	}
+	args = append(args, option...)
+	sanitizedArgs = append(sanitizedArgs, sanitizedOptions...)
+
+	return args, sanitizedArgs, nil
 }
 
 type sparkSubmitOptionFunc func(*v1beta2.SparkApplication) ([]string, error)
@@ -285,19 +301,69 @@ func submissionWaitAppCompletionOption(_ *v1beta2.SparkApplication) ([]string, e
 	return args, nil
 }
 
-func sparkConfOption(app *v1beta2.SparkApplication) ([]string, error) {
+func sparkConfOption(ctx context.Context, app *v1beta2.SparkApplication, client client.Client) ([]string, []string, error) {
 	if app.Spec.SparkConf == nil {
-		return nil, nil
+		return nil, nil, nil
 	}
 	var args []string
+	var sanitizedArgs []string
 	// Add Spark configuration properties.
 	for key, value := range app.Spec.SparkConf {
 		// Configuration property for the driver pod name has already been set.
 		if key != common.SparkKubernetesDriverPodName {
-			args = append(args, "--conf", fmt.Sprintf("%s=%s", key, value))
+			match := confSecretRefRegexp.FindStringSubmatch(value)
+			if match != nil {
+				resolvedValue, err := resolveConfValueFromSecretRef(match, ctx, client, app.Namespace)
+				if err != nil {
+					return nil, nil, fmt.Errorf("failed to resolve config value for: %s from secret ref: %s due to: %w", key, value, err)
+				}
+				args = append(args, "--conf", fmt.Sprintf("%s=%s", key, resolvedValue))
+				sanitizedArgs = append(sanitizedArgs, "--conf", fmt.Sprintf("%s=*****", key))
+			} else {
+				confValue := fmt.Sprintf("%s=%s", key, value)
+				args = append(args, "--conf", confValue)
+				sanitizedArgs = append(sanitizedArgs, "--conf", confValue)
+			}
 		}
 	}
-	return args, nil
+	return args, sanitizedArgs, nil
+}
+
+func resolveConfValueFromSecretRef(match []string, ctx context.Context, k8sClient client.Client, appNamespace string) (string, error) {
+	result := parseConfSecretRefValue(match)
+	namespace := result["namespace"]
+	if namespace != "" {
+		namespace = strings.TrimSuffix(namespace, "/")
+	} else if appNamespace != "" {
+		namespace = appNamespace
+	} else {
+		namespace = "default"
+	}
+	secretName := result["secret"]
+	secretKey := result["key"]
+	secret := &corev1.Secret{}
+	objectKey := client.ObjectKey{Namespace: namespace, Name: secretName}
+	err := k8sClient.Get(ctx, objectKey, secret)
+	if err != nil {
+		return "", fmt.Errorf("failed to retrieve secret %s/%s: %w", namespace, secretName, err)
+	}
+	if value, ok := secret.Data[secretKey]; ok {
+		return string(value), nil
+	}
+	return "", fmt.Errorf("key %s not found in secret %s/%s", secretKey, namespace, secretName)
+}
+
+func parseConfSecretRefValue(match []string) map[string]string {
+	// Create a map to store the named results
+	result := make(map[string]string)
+	for i, name := range confSecretRefRegexpGroupNames {
+		// Index 0 is always empty, skip
+		if i == 0 {
+			continue
+		}
+		result[name] = match[i]
+	}
+	return result
 }
 
 func hadoopConfOption(app *v1beta2.SparkApplication) ([]string, error) {
