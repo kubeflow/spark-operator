@@ -1121,6 +1121,33 @@ var _ = Describe("SparkApplication Controller", func() {
 			Expect(k8sClient.Get(ctx, key, app)).NotTo(HaveOccurred())
 			Expect(app.Status.AppState.State).To(Equal(v1beta2.ApplicationStatePendingRerun))
 		})
+
+		It("Should transition to Failed after pending rerun cleanup timeout", func() {
+			By("Setting pending rerun cleanup start time older than retry window")
+			app := &v1beta2.SparkApplication{}
+			Expect(k8sClient.Get(ctx, key, app)).NotTo(HaveOccurred())
+			app.Status.TerminationTime = metav1.NewTime(time.Now().Add(-31 * time.Second))
+			Expect(k8sClient.Status().Update(ctx, app)).Should(Succeed())
+
+			By("Reconciling the pending rerun SparkApplication")
+			reconciler := sparkapplication.NewReconciler(
+				nil,
+				k8sClient.Scheme(),
+				k8sClient,
+				record.NewFakeRecorder(3),
+				nil,
+				&sparkapplication.SparkSubmitter{},
+				sparkapplication.Options{Namespaces: []string{appNamespace}},
+			)
+			result, err := reconciler.Reconcile(ctx, reconcile.Request{NamespacedName: key})
+			Expect(err).NotTo(HaveOccurred())
+			Expect(result.RequeueAfter).To(BeZero())
+
+			By("Checking SparkApplication transitions to Failed with cleanup timeout error")
+			Expect(k8sClient.Get(ctx, key, app)).NotTo(HaveOccurred())
+			Expect(app.Status.AppState.State).To(Equal(v1beta2.ApplicationStateFailed))
+			Expect(app.Status.AppState.ErrorMessage).To(ContainSubstring("failed to delete resources before rerun"))
+		})
 	})
 
 	Context("Suspend and Resume", func() {

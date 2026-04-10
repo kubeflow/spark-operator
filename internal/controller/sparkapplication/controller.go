@@ -52,7 +52,11 @@ import (
 	"github.com/kubeflow/spark-operator/v2/pkg/util"
 )
 
-const pendingRerunRequeueDelay = 5 * time.Second
+const (
+	pendingRerunRequeueDelay = 5 * time.Second
+	// Keep PendingRerun cleanup retry budget aligned with the default Pod termination grace period (30s).
+	pendingRerunCleanupRetryWindow = 30 * time.Second
+)
 
 // Options defines the options of the controller.
 type Options struct {
@@ -518,16 +522,31 @@ func (r *Reconciler) reconcilePendingRerunSparkApplication(ctx context.Context, 
 			logger.Info("Pending rerun SparkApplication", "state", app.Status.AppState.State)
 			if r.validateSparkResourceDeletion(ctx, app) {
 				logger.Info("Successfully deleted resources associated with SparkApplication", "state", app.Status.AppState.State)
+				// This timestamp is used only for bounding PendingRerun cleanup retries.
+				app.Status.TerminationTime = metav1.Time{}
 				r.recordSparkApplicationEvent(app)
 				r.submitSparkApplication(ctx, app)
 			} else {
-				// Retry cleanup in case deletion is only partially complete, for example if the driver pod is gone
-				// but the UI Service is still terminating.
-				logger.Info("Resources associated with SparkApplication still exist, retrying deletion")
-				if err := r.deleteSparkResources(ctx, app); err != nil {
-					logger.Error(err, "failed to delete spark resources")
+				if app.Status.TerminationTime.IsZero() {
+					app.Status.TerminationTime = metav1.Now()
 				}
-				result.RequeueAfter = pendingRerunRequeueDelay
+
+				if time.Since(app.Status.TerminationTime.Time) >= pendingRerunCleanupRetryWindow {
+					app.Status.AppState.State = v1beta2.ApplicationStateFailed
+					app.Status.AppState.ErrorMessage = fmt.Sprintf(
+						"failed to delete resources before rerun within %s",
+						pendingRerunCleanupRetryWindow,
+					)
+					logger.Info("Pending rerun cleanup timed out, transitioning to failed state")
+				} else {
+					// Retry cleanup in case deletion is only partially complete, for example if the driver pod is gone
+					// but the UI Service is still terminating.
+					logger.Info("Resources associated with SparkApplication still exist, retrying deletion")
+					if err := r.deleteSparkResources(ctx, app); err != nil {
+						logger.Error(err, "failed to delete spark resources")
+					}
+					result.RequeueAfter = pendingRerunRequeueDelay
+				}
 			}
 			if err := r.updateSparkApplicationStatus(ctx, app); err != nil {
 				return err
