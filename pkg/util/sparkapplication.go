@@ -109,17 +109,70 @@ func ShouldRetry(app *v1beta2.SparkApplication) bool {
 	return false
 }
 
+func pendingRerunCleanupAttemptsDone(app *v1beta2.SparkApplication) (int32, bool) {
+	retryInterval := app.Spec.RestartPolicy.OnFailureRetryInterval
+	if retryInterval == nil || app.Status.TerminationTime.IsZero() {
+		return 0, false
+	}
+
+	baseInterval := time.Duration(*retryInterval) * time.Second
+	if baseInterval <= 0 {
+		return 0, false
+	}
+
+	elapsed := time.Since(app.Status.TerminationTime.Time)
+	if elapsed < 0 {
+		elapsed = 0
+	}
+
+	return int32(elapsed/baseInterval) + 1, true
+}
+
+// PendingRerunCleanupRetryBudgetExceeded returns whether cleanup retries for a PendingRerun app are exhausted.
+// This is intentionally separate from ShouldRetry because event filtering also uses ShouldRetry and
+// we do not want PendingRerun cleanup semantics to change queue behavior outside the controller.
+func PendingRerunCleanupRetryBudgetExceeded(app *v1beta2.SparkApplication) bool {
+	if app == nil || app.Status.AppState.State != v1beta2.ApplicationStatePendingRerun {
+		return false
+	}
+
+	if app.Spec.RestartPolicy.Type == v1beta2.RestartPolicyAlways {
+		return false
+	}
+	if app.Spec.RestartPolicy.Type != v1beta2.RestartPolicyOnFailure {
+		// PendingRerun can be reached from non-retry flows (e.g. INVALIDATING on spec update).
+		// Do not treat non-OnFailure policies as exhausted cleanup budget.
+		return false
+	}
+	if app.Spec.RestartPolicy.OnFailureRetries == nil {
+		return true
+	}
+
+	attemptsDone, ok := pendingRerunCleanupAttemptsDone(app)
+	if !ok {
+		return true
+	}
+	return attemptsDone > *app.Spec.RestartPolicy.OnFailureRetries
+}
+
 func TimeUntilNextRetryDue(app *v1beta2.SparkApplication) (time.Duration, error) {
 	var retryInterval *int64
+	lastAttemptTime := app.Status.LastSubmissionAttemptTime
+	attemptsDone := app.Status.SubmissionAttempts
 	switch app.Status.AppState.State {
 	case v1beta2.ApplicationStateFailedSubmission:
 		retryInterval = app.Spec.RestartPolicy.OnSubmissionFailureRetryInterval
 	case v1beta2.ApplicationStateFailing:
 		retryInterval = app.Spec.RestartPolicy.OnFailureRetryInterval
+	case v1beta2.ApplicationStatePendingRerun:
+		retryInterval = app.Spec.RestartPolicy.OnFailureRetryInterval
+		// PendingRerun cleanup retries are measured from the first cleanup attempt timestamp.
+		lastAttemptTime = app.Status.TerminationTime
+		if attempts, ok := pendingRerunCleanupAttemptsDone(app); ok {
+			attemptsDone = attempts
+		}
 	}
 
-	attemptsDone := app.Status.SubmissionAttempts
-	lastAttemptTime := app.Status.LastSubmissionAttemptTime
 	if retryInterval == nil || lastAttemptTime.IsZero() || attemptsDone <= 0 {
 		return -1, fmt.Errorf("invalid retry interval (%v), last attempt time (%v) or attemptsDone (%v)", retryInterval, lastAttemptTime, attemptsDone)
 	}

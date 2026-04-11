@@ -224,6 +224,123 @@ var _ = Describe("IsDriverRunning", func() {
 	})
 })
 
+var _ = Describe("ShouldRetry", func() {
+	Context("when PendingRerun cleanup retries remain", func() {
+		app := &v1beta2.SparkApplication{
+			Status: v1beta2.SparkApplicationStatus{
+				TerminationTime: metav1.NewTime(time.Now()),
+				AppState: v1beta2.ApplicationState{
+					State: v1beta2.ApplicationStatePendingRerun,
+				},
+			},
+			Spec: v1beta2.SparkApplicationSpec{
+				RestartPolicy: v1beta2.RestartPolicy{
+					Type:                   v1beta2.RestartPolicyOnFailure,
+					OnFailureRetries:       ptr.To[int32](3),
+					OnFailureRetryInterval: ptr.To[int64](10),
+				},
+			},
+		}
+
+		It("Should return false", func() {
+			Expect(util.ShouldRetry(app)).To(BeFalse())
+		})
+	})
+})
+
+var _ = Describe("PendingRerunCleanupRetryBudgetExceeded", func() {
+	Context("when restart policy is Never", func() {
+		app := &v1beta2.SparkApplication{
+			Status: v1beta2.SparkApplicationStatus{
+				TerminationTime: metav1.NewTime(time.Now().Add(-60 * time.Second)),
+				AppState: v1beta2.ApplicationState{
+					State: v1beta2.ApplicationStatePendingRerun,
+				},
+			},
+			Spec: v1beta2.SparkApplicationSpec{
+				RestartPolicy: v1beta2.RestartPolicy{
+					Type: v1beta2.RestartPolicyNever,
+				},
+			},
+		}
+
+		It("Should return false", func() {
+			Expect(util.PendingRerunCleanupRetryBudgetExceeded(app)).To(BeFalse())
+		})
+	})
+
+	Context("when PendingRerun cleanup retries remain", func() {
+		app := &v1beta2.SparkApplication{
+			Status: v1beta2.SparkApplicationStatus{
+				TerminationTime: metav1.NewTime(time.Now()),
+				AppState: v1beta2.ApplicationState{
+					State: v1beta2.ApplicationStatePendingRerun,
+				},
+			},
+			Spec: v1beta2.SparkApplicationSpec{
+				RestartPolicy: v1beta2.RestartPolicy{
+					Type:                   v1beta2.RestartPolicyOnFailure,
+					OnFailureRetries:       ptr.To[int32](3),
+					OnFailureRetryInterval: ptr.To[int64](10),
+				},
+			},
+		}
+
+		It("Should return false", func() {
+			Expect(util.PendingRerunCleanupRetryBudgetExceeded(app)).To(BeFalse())
+		})
+	})
+
+	Context("when PendingRerun cleanup retries are exhausted", func() {
+		app := &v1beta2.SparkApplication{
+			Status: v1beta2.SparkApplicationStatus{
+				TerminationTime: metav1.NewTime(time.Now().Add(-35 * time.Second)),
+				AppState: v1beta2.ApplicationState{
+					State: v1beta2.ApplicationStatePendingRerun,
+				},
+			},
+			Spec: v1beta2.SparkApplicationSpec{
+				RestartPolicy: v1beta2.RestartPolicy{
+					Type:                   v1beta2.RestartPolicyOnFailure,
+					OnFailureRetries:       ptr.To[int32](3),
+					OnFailureRetryInterval: ptr.To[int64](10),
+				},
+			},
+		}
+
+		It("Should return true", func() {
+			Expect(util.PendingRerunCleanupRetryBudgetExceeded(app)).To(BeTrue())
+		})
+	})
+})
+
+var _ = Describe("TimeUntilNextRetryDue", func() {
+	Context("when PendingRerun cleanup is on the second retry interval", func() {
+		app := &v1beta2.SparkApplication{
+			Status: v1beta2.SparkApplicationStatus{
+				TerminationTime: metav1.NewTime(time.Now().Add(-15 * time.Second)),
+				AppState: v1beta2.ApplicationState{
+					State: v1beta2.ApplicationStatePendingRerun,
+				},
+			},
+			Spec: v1beta2.SparkApplicationSpec{
+				RestartPolicy: v1beta2.RestartPolicy{
+					Type:                   v1beta2.RestartPolicyOnFailure,
+					OnFailureRetries:       ptr.To[int32](3),
+					OnFailureRetryInterval: ptr.To[int64](10),
+				},
+			},
+		}
+
+		It("Should return the remaining time in the current linear backoff window", func() {
+			due, err := util.TimeUntilNextRetryDue(app)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(due).To(BeNumerically(">", 0))
+			Expect(due).To(BeNumerically("<=", 20*time.Second))
+		})
+	})
+})
+
 var _ = Describe("GetLocalVolumes", func() {
 	Context("SparkApplication with local volumes", func() {
 		volume1 := corev1.Volume{

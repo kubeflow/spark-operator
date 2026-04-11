@@ -500,6 +500,7 @@ func (r *Reconciler) reconcileRunningSparkApplication(ctx context.Context, req c
 func (r *Reconciler) reconcilePendingRerunSparkApplication(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := log.FromContext(ctx)
 	key := req.NamespacedName
+	var result ctrl.Result
 	retryErr := retry.RetryOnConflict(
 		retry.DefaultRetry,
 		func() error {
@@ -515,10 +516,39 @@ func (r *Reconciler) reconcilePendingRerunSparkApplication(ctx context.Context, 
 			logger.Info("Pending rerun SparkApplication", "state", app.Status.AppState.State)
 			if r.validateSparkResourceDeletion(ctx, app) {
 				logger.Info("Successfully deleted resources associated with SparkApplication", "state", app.Status.AppState.State)
+				app.Status.TerminationTime = metav1.Time{}
 				r.recordSparkApplicationEvent(app)
 				r.submitSparkApplication(ctx, app)
 			} else {
-				logger.Info("Resources associated with SparkApplication still exist")
+				if app.Status.TerminationTime.IsZero() {
+					app.Status.TerminationTime = metav1.Now()
+				}
+				if util.PendingRerunCleanupRetryBudgetExceeded(app) {
+					app.Status.TerminationTime = metav1.Now()
+					app.Status.AppState.State = v1beta2.ApplicationStateFailed
+					app.Status.AppState.ErrorMessage = "failed to delete resources before rerun after exhausting cleanup retries"
+					r.recordSparkApplicationEvent(app)
+				} else {
+					timeUntilNextRetryDue, err := util.TimeUntilNextRetryDue(app)
+					if err != nil {
+						app.Status.TerminationTime = metav1.Now()
+						app.Status.AppState.State = v1beta2.ApplicationStateFailed
+						app.Status.AppState.ErrorMessage = fmt.Sprintf("failed to determine pending rerun cleanup retry: %v", err)
+						r.recordSparkApplicationEvent(app)
+					} else if timeUntilNextRetryDue <= 0 {
+						// Retry cleanup in case deletion is only partially complete, for example if the driver pod is gone
+						// but the UI Service/executors are still terminating.
+						logger.Info("Resources associated with SparkApplication still exist, retrying deletion")
+						if err := r.deleteSparkResources(ctx, app); err != nil {
+							logger.Error(err, "failed to delete spark resources")
+						}
+						result.Requeue = true
+					} else {
+						// Keep polling until Kubernetes GC has finished removing all resources associated with the app.
+						logger.Info("Resources associated with SparkApplication still exist, waiting for GC to complete")
+						result.RequeueAfter = timeUntilNextRetryDue
+					}
+				}
 			}
 			if err := r.updateSparkApplicationStatus(ctx, app); err != nil {
 				return err
@@ -528,9 +558,9 @@ func (r *Reconciler) reconcilePendingRerunSparkApplication(ctx context.Context, 
 	)
 	if retryErr != nil {
 		logger.Error(retryErr, "Failed to reconcile SparkApplication")
-		return ctrl.Result{}, retryErr
+		return result, retryErr
 	}
-	return ctrl.Result{}, nil
+	return result, nil
 }
 
 func (r *Reconciler) reconcileInvalidatingSparkApplication(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
