@@ -100,17 +100,6 @@ func (v *SparkApplicationValidator) ValidateUpdate(ctx context.Context, oldObj r
 		return nil, err
 	}
 
-	// spec.managedBy is immutable once set: it cannot be changed to a
-	// different value nor unset back to nil.
-	if oldApp.Spec.ManagedBy != nil {
-		if newApp.Spec.ManagedBy == nil {
-			return nil, fmt.Errorf("spec.managedBy is immutable once set: cannot change from %q to unset", *oldApp.Spec.ManagedBy)
-		}
-		if *oldApp.Spec.ManagedBy != *newApp.Spec.ManagedBy {
-			return nil, fmt.Errorf("spec.managedBy is immutable once set: cannot change from %q to %q", *oldApp.Spec.ManagedBy, *newApp.Spec.ManagedBy)
-		}
-	}
-
 	// Skip validating when spec does not change.
 	if equality.Semantic.DeepEqual(oldApp.Spec, newApp.Spec) {
 		return nil, nil
@@ -142,10 +131,6 @@ func (v *SparkApplicationValidator) ValidateDelete(ctx context.Context, obj runt
 }
 
 func (v *SparkApplicationValidator) validateSpec(ctx context.Context, app *v1beta2.SparkApplication) error {
-	if app.Spec.ManagedBy != nil && strings.TrimSpace(*app.Spec.ManagedBy) == "" {
-		return fmt.Errorf("spec.managedBy must not be empty or whitespace")
-	}
-
 	if err := v.validateSparkVersion(app); err != nil {
 		return err
 	}

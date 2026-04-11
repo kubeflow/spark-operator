@@ -212,39 +212,6 @@ func TestSparkApplicationValidatorValidateCreate_ResourceQuotaExceeded(t *testin
 	}
 }
 
-func TestSparkApplicationValidatorValidateUpdate_ManagedByImmutable(t *testing.T) {
-	validator := newTestValidator(t, false)
-
-	// Changing managedBy once set should fail.
-	oldApp := newSparkApplication()
-	oldApp.Spec.ManagedBy = ptr.To("kueue.x-k8s.io/multikueue")
-	newApp := oldApp.DeepCopy()
-	newApp.Spec.ManagedBy = ptr.To("other-controller")
-
-	if _, err := validator.ValidateUpdate(context.Background(), oldApp, newApp); err == nil || !strings.Contains(err.Error(), "immutable") {
-		t.Fatalf("expected immutability error when changing managedBy, got %v", err)
-	}
-
-	// Removing managedBy once set should fail (nil = unset).
-	newApp2 := oldApp.DeepCopy()
-	newApp2.Spec.ManagedBy = nil
-
-	_, err := validator.ValidateUpdate(context.Background(), oldApp, newApp2)
-	if err == nil {
-		t.Fatal("expected immutability error when unsetting managedBy, got nil")
-	}
-	if !strings.Contains(err.Error(), "immutable") || !strings.Contains(err.Error(), "unset") {
-		t.Fatalf("expected error mentioning 'immutable' and 'unset', got %v", err)
-	}
-
-	// Keeping managedBy unchanged should succeed.
-	newApp3 := oldApp.DeepCopy()
-	newApp3.Spec.Arguments = []string{"--foo"}
-
-	if _, err := validator.ValidateUpdate(context.Background(), oldApp, newApp3); err != nil {
-		t.Fatalf("expected success when managedBy unchanged, got %v", err)
-	}
-}
 
 func TestSparkApplicationValidatorValidateUpdate_ManagedByCanBeSetInitially(t *testing.T) {
 	validator := newTestValidator(t, false)
@@ -259,27 +226,6 @@ func TestSparkApplicationValidatorValidateUpdate_ManagedByCanBeSetInitially(t *t
 	}
 }
 
-func TestSparkApplicationValidatorValidateCreate_ManagedByRejectsEmpty(t *testing.T) {
-	validator := newTestValidator(t, false)
-
-	app := newSparkApplication()
-	app.Spec.ManagedBy = ptr.To("")
-
-	if _, err := validator.ValidateCreate(context.Background(), app); err == nil || !strings.Contains(err.Error(), "must not be empty") {
-		t.Fatalf("expected empty managedBy rejection, got %v", err)
-	}
-}
-
-func TestSparkApplicationValidatorValidateCreate_ManagedByRejectsWhitespace(t *testing.T) {
-	validator := newTestValidator(t, false)
-
-	app := newSparkApplication()
-	app.Spec.ManagedBy = ptr.To("   ")
-
-	if _, err := validator.ValidateCreate(context.Background(), app); err == nil || !strings.Contains(err.Error(), "must not be empty") {
-		t.Fatalf("expected whitespace managedBy rejection, got %v", err)
-	}
-}
 
 func TestSparkApplicationValidatorValidateCreate_ManagedByAcceptsExternalController(t *testing.T) {
 	validator := newTestValidator(t, false)
@@ -303,18 +249,6 @@ func TestSparkApplicationValidatorValidateCreate_ManagedByAcceptsOperatorName(t 
 	}
 }
 
-func TestSparkApplicationValidatorValidateUpdate_ManagedByRejectsEmptyOnInitialSet(t *testing.T) {
-	validator := newTestValidator(t, false)
-
-	// Setting managedBy to empty string (nil → "") on update must be rejected.
-	oldApp := newSparkApplication()
-	newApp := oldApp.DeepCopy()
-	newApp.Spec.ManagedBy = ptr.To("")
-
-	if _, err := validator.ValidateUpdate(context.Background(), oldApp, newApp); err == nil || !strings.Contains(err.Error(), "must not be empty") {
-		t.Fatalf("expected empty managedBy rejection on update, got %v", err)
-	}
-}
 
 func TestSparkApplicationValidatorValidateDelete_Success(t *testing.T) {
 	validator := newTestValidator(t, false)

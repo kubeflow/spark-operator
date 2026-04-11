@@ -27,6 +27,7 @@ import (
 
 // SparkApplicationSpec defines the desired state of SparkApplication
 // It carries every pieces of information a spark-submit command takes and recognizes.
+// +kubebuilder:validation:XValidation:rule="!has(oldSelf.managedBy) || (has(self.managedBy) && self.managedBy == oldSelf.managedBy)",message="spec.managedBy is immutable once set"
 type SparkApplicationSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make generate" to regenerate code after modifying this file
@@ -38,6 +39,7 @@ type SparkApplicationSpec struct {
 	// manage the resource. The value must be a non-empty string and the
 	// field is immutable once set.
 	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:Pattern=`\S`
 	// +optional
 	ManagedBy *string `json:"managedBy,omitempty"`
 	// Suspend indicates whether the SparkApplication should be suspended.

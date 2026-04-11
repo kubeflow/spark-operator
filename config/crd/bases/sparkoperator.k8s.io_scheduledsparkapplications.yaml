@@ -10360,6 +10360,7 @@ spec:
                       manage the resource. The value must be a non-empty string and the
                       field is immutable once set.
                     minLength: 1
+                    pattern: \S
                     type: string
                   memoryOverheadFactor:
                     description: |-
@@ -12421,6 +12422,10 @@ spec:
                 - sparkVersion
                 - type
                 type: object
+                x-kubernetes-validations:
+                - message: spec.managedBy is immutable once set
+                  rule: '!has(oldSelf.managedBy) || (has(self.managedBy) && self.managedBy
+                    == oldSelf.managedBy)'
               timeZone:
                 description: |-
                   TimeZone is the time zone in which the cron schedule will be interpreted in.
