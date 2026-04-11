@@ -212,6 +212,44 @@ func TestSparkApplicationValidatorValidateCreate_ResourceQuotaExceeded(t *testin
 	}
 }
 
+
+func TestSparkApplicationValidatorValidateUpdate_ManagedByCanBeSetInitially(t *testing.T) {
+	validator := newTestValidator(t, false)
+
+	// Setting managedBy for the first time (from nil) should succeed.
+	oldApp := newSparkApplication()
+	newApp := oldApp.DeepCopy()
+	newApp.Spec.ManagedBy = ptr.To("kueue.x-k8s.io/multikueue")
+
+	if _, err := validator.ValidateUpdate(context.Background(), oldApp, newApp); err != nil {
+		t.Fatalf("expected success when setting managedBy initially, got %v", err)
+	}
+}
+
+
+func TestSparkApplicationValidatorValidateCreate_ManagedByAcceptsExternalController(t *testing.T) {
+	validator := newTestValidator(t, false)
+
+	app := newSparkApplication()
+	app.Spec.ManagedBy = ptr.To("kueue.x-k8s.io/multikueue")
+
+	if _, err := validator.ValidateCreate(context.Background(), app); err != nil {
+		t.Fatalf("expected success for valid external managedBy, got %v", err)
+	}
+}
+
+func TestSparkApplicationValidatorValidateCreate_ManagedByAcceptsOperatorName(t *testing.T) {
+	validator := newTestValidator(t, false)
+
+	app := newSparkApplication()
+	app.Spec.ManagedBy = ptr.To("sparkoperator.k8s.io/spark-operator")
+
+	if _, err := validator.ValidateCreate(context.Background(), app); err != nil {
+		t.Fatalf("expected success when managedBy equals built-in operator name, got %v", err)
+	}
+}
+
+
 func TestSparkApplicationValidatorValidateDelete_Success(t *testing.T) {
 	validator := newTestValidator(t, false)
 

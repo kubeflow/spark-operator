@@ -10272,6 +10272,17 @@ spec:
                   MainClass is the fully-qualified main class of the Spark application.
                   This only applies to Java/Scala Spark applications.
                 type: string
+              managedBy:
+                description: |-
+                  ManagedBy indicates the controller managing this SparkApplication.
+                  When set to a value other than the built-in operator's identifier
+                  (`sparkoperator.k8s.io/spark-operator`), the operator skips
+                  reconciliation, allowing external controllers (e.g. MultiKueue) to
+                  manage the resource. The value must be a non-empty string and the
+                  field is immutable once set.
+                minLength: 1
+                pattern: \S
+                type: string
               memoryOverheadFactor:
                 description: |-
                   This sets the Memory Overhead Factor that will allocate memory to non-JVM memory.
@@ -12325,6 +12336,10 @@ spec:
             - sparkVersion
             - type
             type: object
+            x-kubernetes-validations:
+            - message: spec.managedBy is immutable once set
+              rule: '!has(oldSelf.managedBy) || (has(self.managedBy) && self.managedBy
+                == oldSelf.managedBy)'
           status:
             description: SparkApplicationStatus defines the observed state of SparkApplication
             properties:
