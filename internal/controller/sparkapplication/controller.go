@@ -194,15 +194,20 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	logger.Info("Reconciling SparkApplication", "state", app.Status.AppState.State)
 	defer logger.Info("Finished reconciling SparkApplication")
 
-	// Check if the spark application is being deleted
-	if !app.DeletionTimestamp.IsZero() {
-		return r.handleSparkApplicationDeletion(ctx, req)
-	}
-
-	// Skip reconciliation if another controller is managing this application.
+	// Skip reconciliation entirely (including deletion cleanup) if another
+	// controller is managing this application. The operator must not touch
+	// driver pods, services or ingresses that are owned by an external
+	// controller such as MultiKueue. Kubernetes garbage collection via
+	// ownerReferences will still clean up anything the operator itself
+	// created in the past, so no explicit cleanup is needed here.
 	if app.Spec.ManagedBy != nil && *app.Spec.ManagedBy != common.SparkOperatorManagerName {
 		logger.Info("Skipping reconciliation: managed by external controller", "managedBy", *app.Spec.ManagedBy)
 		return ctrl.Result{}, nil
+	}
+
+	// Check if the spark application is being deleted
+	if !app.DeletionTimestamp.IsZero() {
+		return r.handleSparkApplicationDeletion(ctx, req)
 	}
 
 	if ptr.Deref(app.Spec.Suspend, false) {

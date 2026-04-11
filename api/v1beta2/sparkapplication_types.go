@@ -32,10 +32,12 @@ type SparkApplicationSpec struct {
 	// Important: Run "make generate" to regenerate code after modifying this file
 
 	// ManagedBy indicates the controller managing this SparkApplication.
-	// When set to a value other than the built-in operator's identifier,
-	// the operator skips reconciliation, allowing external controllers
-	// (e.g. MultiKueue) to manage the resource.
-	// This field is immutable once set.
+	// When set to a value other than the built-in operator's identifier
+	// (`sparkoperator.k8s.io/spark-operator`), the operator skips
+	// reconciliation, allowing external controllers (e.g. MultiKueue) to
+	// manage the resource. The value must be a non-empty string and the
+	// field is immutable once set.
+	// +kubebuilder:validation:MinLength=1
 	// +optional
 	ManagedBy *string `json:"managedBy,omitempty"`
 	// Suspend indicates whether the SparkApplication should be suspended.

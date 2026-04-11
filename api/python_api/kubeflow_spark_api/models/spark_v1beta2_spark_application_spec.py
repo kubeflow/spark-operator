@@ -52,6 +52,7 @@ class SparkV1beta2SparkApplicationSpec(BaseModel):
     image_pull_secrets: Optional[List[StrictStr]] = Field(default=None, description="ImagePullSecrets is the list of image-pull secrets.", alias="imagePullSecrets")
     main_application_file: StrictStr = Field(description="MainFile is the path to a bundled JAR, Python, or R file of the application.", alias="mainApplicationFile")
     main_class: Optional[StrictStr] = Field(default=None, description="MainClass is the fully-qualified main class of the Spark application. This only applies to Java/Scala Spark applications.", alias="mainClass")
+    managed_by: Optional[StrictStr] = Field(default=None, description="ManagedBy indicates the controller managing this SparkApplication. When set to a value other than the built-in operator's identifier (`sparkoperator.k8s.io/spark-operator`), the operator skips reconciliation, allowing external controllers (e.g. MultiKueue) to manage the resource. The value must be a non-empty string and the field is immutable once set.", alias="managedBy")
     memory_overhead_factor: Optional[StrictStr] = Field(default=None, description="This sets the Memory Overhead Factor that will allocate memory to non-JVM memory. For JVM-based jobs this value will default to 0.10, for non-JVM jobs 0.40. Value of this field will be overridden by `Spec.Driver.MemoryOverhead` and `Spec.Executor.MemoryOverhead` if they are set.", alias="memoryOverheadFactor")
     mode: Optional[StrictStr] = Field(default=None, description="Mode is the deployment mode of the Spark application.")
     monitoring: Optional[SparkV1beta2MonitoringSpec] = Field(default=None, description="Monitoring configures how monitoring is handled.")
@@ -68,7 +69,7 @@ class SparkV1beta2SparkApplicationSpec(BaseModel):
     time_to_live_seconds: Optional[StrictInt] = Field(default=None, description="TimeToLiveSeconds defines the Time-To-Live (TTL) duration in seconds for this SparkApplication after its termination. The SparkApplication object will be garbage collected if the current time is more than the TimeToLiveSeconds since its termination.", alias="timeToLiveSeconds")
     type: StrictStr = Field(description="Type tells the type of the Spark application.")
     volumes: Optional[List[IoK8sApiCoreV1Volume]] = Field(default=None, description="Volumes is the list of Kubernetes volumes that can be mounted by the driver and/or executors.")
-    __properties: ClassVar[List[str]] = ["arguments", "batchScheduler", "batchSchedulerOptions", "deps", "driver", "driverIngressOptions", "dynamicAllocation", "executor", "failureRetries", "hadoopConf", "hadoopConfigMap", "image", "imagePullPolicy", "imagePullSecrets", "mainApplicationFile", "mainClass", "memoryOverheadFactor", "mode", "monitoring", "nodeSelector", "proxyUser", "pythonVersion", "restartPolicy", "retryInterval", "sparkConf", "sparkConfigMap", "sparkUIOptions", "sparkVersion", "suspend", "timeToLiveSeconds", "type", "volumes"]
+    __properties: ClassVar[List[str]] = ["arguments", "batchScheduler", "batchSchedulerOptions", "deps", "driver", "driverIngressOptions", "dynamicAllocation", "executor", "failureRetries", "hadoopConf", "hadoopConfigMap", "image", "imagePullPolicy", "imagePullSecrets", "mainApplicationFile", "mainClass", "managedBy", "memoryOverheadFactor", "mode", "monitoring", "nodeSelector", "proxyUser", "pythonVersion", "restartPolicy", "retryInterval", "sparkConf", "sparkConfigMap", "sparkUIOptions", "sparkVersion", "suspend", "timeToLiveSeconds", "type", "volumes"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -175,6 +176,7 @@ class SparkV1beta2SparkApplicationSpec(BaseModel):
             "imagePullSecrets": obj.get("imagePullSecrets"),
             "mainApplicationFile": obj.get("mainApplicationFile"),
             "mainClass": obj.get("mainClass"),
+            "managedBy": obj.get("managedBy"),
             "memoryOverheadFactor": obj.get("memoryOverheadFactor"),
             "mode": obj.get("mode"),
             "monitoring": SparkV1beta2MonitoringSpec.from_dict(obj["monitoring"]) if obj.get("monitoring") is not None else None,
