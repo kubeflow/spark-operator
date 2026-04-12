@@ -219,8 +219,6 @@ def file_extension(filename: str) -> str:
     # Handle special filenames
     if basename == "Dockerfile" or basename.startswith("Dockerfile."):
         return "Dockerfile"
-    if basename == "Makefile":
-        return "Makefile"
 
     # Standard extension extraction
     ext = os.path.splitext(filename)[1].lstrip(".")

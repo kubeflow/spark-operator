@@ -26,7 +26,13 @@ import boilerplate
 
 
 class TestBoilerplate(unittest.TestCase):
-    """Test cases for boilerplate verification."""
+    """
+    Test cases for boilerplate verification.
+
+    Note: run these tests from the hack/boilerplate directory.
+
+    $ python -m unittest boilerplate_test
+    """
 
     def setUp(self):
         """Set up test fixtures."""
