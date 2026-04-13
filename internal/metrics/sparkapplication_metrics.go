@@ -29,9 +29,10 @@ import (
 )
 
 type SparkApplicationMetrics struct {
-	prefix                 string
-	labels                 []string
-	jobStartLatencyBuckets []float64
+	prefix                  string
+	labels                  []string
+	jobSubmitLatencyBuckets []float64
+	jobStartLatencyBuckets  []float64
 
 	count                 *prometheus.CounterVec
 	submitCount           *prometheus.CounterVec
@@ -43,11 +44,14 @@ type SparkApplicationMetrics struct {
 	successExecutionTimeSeconds *prometheus.SummaryVec
 	failureExecutionTimeSeconds *prometheus.SummaryVec
 
+	submitLatencySeconds          *prometheus.SummaryVec
+	submitLatencySecondsHistogram *prometheus.HistogramVec
+
 	startLatencySeconds          *prometheus.SummaryVec
 	startLatencySecondsHistogram *prometheus.HistogramVec
 }
 
-func NewSparkApplicationMetrics(prefix string, labels []string, jobStartLatencyBuckets []float64) *SparkApplicationMetrics {
+func NewSparkApplicationMetrics(prefix string, labels []string, jobSubmitLatencyBuckets []float64, jobStartLatencyBuckets []float64) *SparkApplicationMetrics {
 	validLabels := make([]string, 0, len(labels))
 	for _, label := range labels {
 		validLabel := util.CreateValidMetricNameLabel("", label)
@@ -55,9 +59,10 @@ func NewSparkApplicationMetrics(prefix string, labels []string, jobStartLatencyB
 	}
 
 	return &SparkApplicationMetrics{
-		prefix:                 prefix,
-		labels:                 validLabels,
-		jobStartLatencyBuckets: jobStartLatencyBuckets,
+		prefix:                  prefix,
+		labels:                  validLabels,
+		jobSubmitLatencyBuckets: jobSubmitLatencyBuckets,
+		jobStartLatencyBuckets:  jobStartLatencyBuckets,
 
 		count: prometheus.NewCounterVec(
 			prometheus.CounterOpts{
@@ -113,6 +118,22 @@ func NewSparkApplicationMetrics(prefix string, labels []string, jobStartLatencyB
 			},
 			validLabels,
 		),
+		submitLatencySeconds: prometheus.NewSummaryVec(
+			prometheus.SummaryOpts{
+				Name:       util.CreateValidMetricNameLabel(prefix, common.MetricSparkApplicationSubmitLatencySeconds),
+				Help:       "Spark App Submit Latency from creation to submitted state",
+				Objectives: map[float64]float64{0.5: 0.05, 0.9: 0.01, 0.99: 0.001},
+			},
+			validLabels,
+		),
+		submitLatencySecondsHistogram: prometheus.NewHistogramVec(
+			prometheus.HistogramOpts{
+				Name:    util.CreateValidMetricNameLabel(prefix, common.MetricSparkApplicationSubmitLatencySecondsHistogram),
+				Help:    "Spark App Submit Latency counts in buckets from creation to submitted state",
+				Buckets: jobSubmitLatencyBuckets,
+			},
+			validLabels,
+		),
 		startLatencySeconds: prometheus.NewSummaryVec(
 			prometheus.SummaryOpts{
 				Name: util.CreateValidMetricNameLabel(prefix, common.MetricSparkApplicationStartLatencySeconds),
@@ -155,6 +176,12 @@ func (m *SparkApplicationMetrics) Register() {
 	}
 	if err := metrics.Registry.Register(m.failureExecutionTimeSeconds); err != nil {
 		logger.Error(err, "Failed to register spark application metric", "name", common.MetricSparkApplicationFailureExecutionTimeSeconds)
+	}
+	if err := metrics.Registry.Register(m.submitLatencySeconds); err != nil {
+		logger.Error(err, "Failed to register spark application metric", "name", common.MetricSparkApplicationSubmitLatencySeconds)
+	}
+	if err := metrics.Registry.Register(m.submitLatencySecondsHistogram); err != nil {
+		logger.Error(err, "Failed to register spark application metric", "name", common.MetricSparkApplicationSubmitLatencySecondsHistogram)
 	}
 	if err := metrics.Registry.Register(m.startLatencySeconds); err != nil {
 		logger.Error(err, "Failed to register spark application metric", "name", common.MetricSparkApplicationStartLatencySeconds)
@@ -200,6 +227,7 @@ func (m *SparkApplicationMetrics) HandleSparkApplicationUpdate(oldApp *v1beta2.S
 		m.incCount(newApp)
 	case v1beta2.ApplicationStateSubmitted:
 		m.incSubmitCount(newApp)
+		m.observeSubmitLatencySeconds(newApp)
 	case v1beta2.ApplicationStateFailedSubmission:
 		m.incFailedSubmissionCount(newApp)
 	case v1beta2.ApplicationStateRunning:
@@ -339,6 +367,29 @@ func (m *SparkApplicationMetrics) observeFailureExecutionTimeSeconds(app *v1beta
 	duration := app.Status.TerminationTime.Sub(app.Status.LastSubmissionAttemptTime.Time)
 	observer.Observe(duration.Seconds())
 	logger.V(1).Info("Observed spark application failure execution time seconds", "name", app.Name, "namespace", app.Namespace, "metric", common.MetricSparkApplicationFailureExecutionTimeSeconds, "labels", labels, "value", duration.Seconds())
+}
+
+func (m *SparkApplicationMetrics) observeSubmitLatencySeconds(app *v1beta2.SparkApplication) {
+	// Only export the spark application submit latency seconds metric for the first time
+	if app.Status.SubmissionAttempts != 1 {
+		return
+	}
+
+	labels := m.getMetricLabels(app)
+	latency := time.Since(app.CreationTimestamp.Time)
+	if observer, err := m.submitLatencySeconds.GetMetricWith(labels); err != nil {
+		logger.Error(err, "Failed to collect metric for SparkApplication", "name", app.Name, "namespace", app.Namespace, "metric", common.MetricSparkApplicationSubmitLatencySeconds, "labels", labels)
+	} else {
+		observer.Observe(latency.Seconds())
+		logger.V(1).Info("Observed spark application submit latency seconds", "name", app.Name, "namespace", app.Namespace, "metric", common.MetricSparkApplicationSubmitLatencySeconds, "labels", labels, "value", latency.Seconds())
+	}
+
+	if histogram, err := m.submitLatencySecondsHistogram.GetMetricWith(labels); err != nil {
+		logger.Error(err, "Failed to collect metric for SparkApplication", "name", app.Name, "namespace", app.Namespace, "metric", common.MetricSparkApplicationSubmitLatencySecondsHistogram, "labels", labels)
+	} else {
+		histogram.Observe(latency.Seconds())
+		logger.V(1).Info("Observed spark application submit latency seconds", "name", app.Name, "namespace", app.Namespace, "metric", common.MetricSparkApplicationSubmitLatencySecondsHistogram, "labels", labels, "value", latency.Seconds())
+	}
 }
 
 func (m *SparkApplicationMetrics) observeStartLatencySeconds(app *v1beta2.SparkApplication) {
