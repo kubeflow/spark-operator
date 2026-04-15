@@ -27,12 +27,6 @@ metadata:
     {{- toYaml . | nindent 4 }}
   {{- end }}
 rules:
-- apiGroups:
-  - ""
-  resources:
-  - nodes
-  verbs:
-  - get
 {{- if .Values.spark.jobNamespaceSelector }}
 # When namespace selector is used, controller needs permissions to discover namespaces
 - apiGroups:

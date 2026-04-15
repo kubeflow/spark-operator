@@ -163,3 +163,397 @@ tests:
           kind: RoleBinding
           name: spark-operator-controller
           namespace: spark
+
+  # ---- RBAC rule content assertions (least privilege) ----
+  # These tests set spark.jobNamespaces to [""] to trigger cluster-wide
+  # policyRules inclusion in the ClusterRole (documentIndex 0).
+
+  - it: Should grant pods only get/list/watch/create/update/delete in ClusterRole
+    set:
+      spark:
+        jobNamespaces:
+          - ""
+    documentIndex: 0
+    asserts:
+      - contains:
+          path: rules
+          content:
+            apiGroups:
+              - ""
+            resources:
+              - pods
+            verbs:
+              - get
+              - list
+              - watch
+              - create
+              - update
+              - delete
+      - notContains:
+          path: rules
+          content:
+            resources:
+              - pods
+            verbs:
+              - patch
+      - notContains:
+          path: rules
+          content:
+            resources:
+              - pods
+            verbs:
+              - deletecollection
+
+  - it: Should grant configmaps only get/list/watch/create/update/patch in ClusterRole
+    set:
+      spark:
+        jobNamespaces:
+          - ""
+    documentIndex: 0
+    asserts:
+      - contains:
+          path: rules
+          content:
+            apiGroups:
+              - ""
+            resources:
+              - configmaps
+            verbs:
+              - get
+              - list
+              - watch
+              - create
+              - update
+              - patch
+      - notContains:
+          path: rules
+          content:
+            resources:
+              - configmaps
+            verbs:
+              - delete
+
+  - it: Should not grant any permissions on persistentvolumeclaims in ClusterRole
+    set:
+      spark:
+        jobNamespaces:
+          - ""
+    documentIndex: 0
+    asserts:
+      - notContains:
+          path: rules
+          content:
+            resources:
+              - persistentvolumeclaims
+
+  - it: Should not grant any permissions on nodes in ClusterRole
+    set:
+      spark:
+        jobNamespaces:
+          - ""
+    documentIndex: 0
+    asserts:
+      - notContains:
+          path: rules
+          content:
+            resources:
+              - nodes
+
+  - it: Should not grant any permissions on resourcequotas in ClusterRole
+    set:
+      spark:
+        jobNamespaces:
+          - ""
+    documentIndex: 0
+    asserts:
+      - notContains:
+          path: rules
+          content:
+            resources:
+              - resourcequotas
+
+  - it: Should grant services get/list/watch/create/update/patch/delete in ClusterRole
+    set:
+      spark:
+        jobNamespaces:
+          - ""
+    documentIndex: 0
+    asserts:
+      - contains:
+          path: rules
+          content:
+            apiGroups:
+              - ""
+            resources:
+              - services
+            verbs:
+              - get
+              - list
+              - watch
+              - create
+              - update
+              - patch
+              - delete
+
+  - it: Should grant ingresses without list or watch in ClusterRole
+    set:
+      spark:
+        jobNamespaces:
+          - ""
+    documentIndex: 0
+    asserts:
+      - contains:
+          path: rules
+          content:
+            apiGroups:
+              - extensions
+              - networking.k8s.io
+            resources:
+              - ingresses
+            verbs:
+              - get
+              - create
+              - update
+              - delete
+      - notContains:
+          path: rules
+          content:
+            resources:
+              - ingresses
+            verbs:
+              - list
+      - notContains:
+          path: rules
+          content:
+            resources:
+              - ingresses
+            verbs:
+              - watch
+
+  - it: Should grant sparkapplications only get/list/watch/create/delete in ClusterRole
+    set:
+      spark:
+        jobNamespaces:
+          - ""
+    documentIndex: 0
+    asserts:
+      - contains:
+          path: rules
+          content:
+            apiGroups:
+              - sparkoperator.k8s.io
+            resources:
+              - sparkapplications
+            verbs:
+              - get
+              - list
+              - watch
+              - create
+              - delete
+      - notContains:
+          path: rules
+          content:
+            resources:
+              - sparkapplications
+            verbs:
+              - update
+      - notContains:
+          path: rules
+          content:
+            resources:
+              - sparkapplications
+            verbs:
+              - patch
+
+  - it: Should grant scheduledsparkapplications and sparkconnects only get/list/watch in ClusterRole
+    set:
+      spark:
+        jobNamespaces:
+          - ""
+    documentIndex: 0
+    asserts:
+      - contains:
+          path: rules
+          content:
+            apiGroups:
+              - sparkoperator.k8s.io
+            resources:
+              - scheduledsparkapplications
+              - sparkconnects
+            verbs:
+              - get
+              - list
+              - watch
+      - notContains:
+          path: rules
+          content:
+            resources:
+              - scheduledsparkapplications
+            verbs:
+              - create
+      - notContains:
+          path: rules
+          content:
+            resources:
+              - scheduledsparkapplications
+            verbs:
+              - update
+      - notContains:
+          path: rules
+          content:
+            resources:
+              - scheduledsparkapplications
+            verbs:
+              - patch
+      - notContains:
+          path: rules
+          content:
+            resources:
+              - scheduledsparkapplications
+            verbs:
+              - delete
+      - notContains:
+          path: rules
+          content:
+            resources:
+              - sparkconnects
+            verbs:
+              - create
+      - notContains:
+          path: rules
+          content:
+            resources:
+              - sparkconnects
+            verbs:
+              - update
+      - notContains:
+          path: rules
+          content:
+            resources:
+              - sparkconnects
+            verbs:
+              - patch
+      - notContains:
+          path: rules
+          content:
+            resources:
+              - sparkconnects
+            verbs:
+              - delete
+
+  - it: Should grant only update on status subresources in ClusterRole
+    set:
+      spark:
+        jobNamespaces:
+          - ""
+    documentIndex: 0
+    asserts:
+      - contains:
+          path: rules
+          content:
+            apiGroups:
+              - sparkoperator.k8s.io
+            resources:
+              - sparkapplications/status
+              - sparkconnects/status
+              - scheduledsparkapplications/status
+            verbs:
+              - update
+      - notContains:
+          path: rules
+          content:
+            resources:
+              - sparkapplications/status
+            verbs:
+              - get
+      - notContains:
+          path: rules
+          content:
+            resources:
+              - sparkapplications/status
+            verbs:
+              - patch
+      - notContains:
+          path: rules
+          content:
+            resources:
+              - scheduledsparkapplications/status
+            verbs:
+              - get
+      - notContains:
+          path: rules
+          content:
+            resources:
+              - scheduledsparkapplications/status
+            verbs:
+              - patch
+      - notContains:
+          path: rules
+          content:
+            resources:
+              - sparkconnects/status
+            verbs:
+              - get
+      - notContains:
+          path: rules
+          content:
+            resources:
+              - sparkconnects/status
+            verbs:
+              - patch
+
+  - it: Should grant only update on finalizer subresources in ClusterRole
+    set:
+      spark:
+        jobNamespaces:
+          - ""
+    documentIndex: 0
+    asserts:
+      - contains:
+          path: rules
+          content:
+            apiGroups:
+              - sparkoperator.k8s.io
+            resources:
+              - sparkapplications/finalizers
+            verbs:
+              - update
+      - contains:
+          path: rules
+          content:
+            apiGroups:
+              - sparkoperator.k8s.io
+            resources:
+              - scheduledsparkapplications/finalizers
+            verbs:
+              - update
+      - contains:
+          path: rules
+          content:
+            apiGroups:
+              - sparkoperator.k8s.io
+            resources:
+              - sparkconnects/finalizers
+            verbs:
+              - update
+      - notContains:
+          path: rules
+          content:
+            resources:
+              - sparkapplications/finalizers
+            verbs:
+              - patch
+      - notContains:
+          path: rules
+          content:
+            resources:
+              - scheduledsparkapplications/finalizers
+            verbs:
+              - patch
+      - notContains:
+          path: rules
+          content:
+            resources:
+              - sparkconnects/finalizers
+            verbs:
+              - patch
