@@ -107,7 +107,8 @@ type SparkApplicationSpec struct {
 	// This is best effort and actual retry attempts can be >= the value specified.
 	// +optional
 	FailureRetries *int32 `json:"failureRetries,omitempty"`
-	// RetryInterval is the unit of intervals in seconds between submission retries.
+	// RetryInterval is the unit of intervals in seconds between retry/poll attempts
+	// in controller-managed loops (for example submission retries and pending rerun cleanup polling).
 	// +optional
 	RetryInterval *int64 `json:"retryInterval,omitempty"`
 	// This sets the major Python version of the docker

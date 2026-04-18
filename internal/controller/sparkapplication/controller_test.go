@@ -1127,40 +1127,13 @@ var _ = Describe("SparkApplication Controller", func() {
 			Expect(app.Status.AppState.State).To(Equal(v1beta2.ApplicationStatePendingRerun))
 		})
 
-		It("Should transition to Failed after cleanup retries are exhausted", func() {
-			By("Setting the cleanup retry start time older than the retry budget")
-			app := &v1beta2.SparkApplication{}
-			Expect(k8sClient.Get(ctx, key, app)).NotTo(HaveOccurred())
-			app.Status.TerminationTime = metav1.NewTime(time.Now().Add(-35 * time.Second))
-			Expect(k8sClient.Status().Update(ctx, app)).Should(Succeed())
-
-			By("Reconciling the pending rerun SparkApplication")
-			reconciler := sparkapplication.NewReconciler(
-				nil,
-				k8sClient.Scheme(),
-				k8sClient,
-				record.NewFakeRecorder(3),
-				nil,
-				&sparkapplication.SparkSubmitter{},
-				sparkapplication.Options{Namespaces: []string{appNamespace}},
-			)
-			result, err := reconciler.Reconcile(ctx, reconcile.Request{NamespacedName: key})
-			Expect(err).NotTo(HaveOccurred())
-			Expect(result.RequeueAfter).To(BeZero())
-
-			By("Checking SparkApplication transitions to Failed")
-			Expect(k8sClient.Get(ctx, key, app)).NotTo(HaveOccurred())
-			Expect(app.Status.AppState.State).To(Equal(v1beta2.ApplicationStateFailed))
-			Expect(app.Status.TerminationTime).NotTo(BeZero())
-			Expect(app.Status.AppState.ErrorMessage).To(ContainSubstring("cleanup retries"))
-		})
-
-		It("Should transition to Failed when retry interval cannot be determined", func() {
-			By("Updating restart policy to Never so no failure retry interval is configured")
+		It("Should use spec retry interval for cleanup polling", func() {
+			By("Updating restart policy to Never and setting RetryInterval to 3 seconds")
 			app := &v1beta2.SparkApplication{}
 			Expect(k8sClient.Get(ctx, key, app)).NotTo(HaveOccurred())
 			app.Spec.RestartPolicy = v1beta2.RestartPolicy{Type: v1beta2.RestartPolicyNever}
-			Expect(k8sClient.Update(ctx, app)).Should(Succeed())
+			app.Spec.RetryInterval = ptr.To[int64](3)
+			Expect(k8sClient.Update(ctx, app)).To(Succeed())
 
 			By("Reconciling the pending rerun SparkApplication")
 			reconciler := sparkapplication.NewReconciler(
@@ -1174,13 +1147,12 @@ var _ = Describe("SparkApplication Controller", func() {
 			)
 			result, err := reconciler.Reconcile(ctx, reconcile.Request{NamespacedName: key})
 			Expect(err).NotTo(HaveOccurred())
-			Expect(result.RequeueAfter).To(BeZero())
-			Expect(result.Requeue).To(BeFalse())
+			Expect(result.RequeueAfter).Should(BeNumerically(">", 0))
+			Expect(result.RequeueAfter).Should(BeNumerically("<=", 3*time.Second))
 
-			By("Checking SparkApplication transitions to Failed with retry interval error")
+			By("Checking SparkApplication remains PendingRerun")
 			Expect(k8sClient.Get(ctx, key, app)).NotTo(HaveOccurred())
-			Expect(app.Status.AppState.State).To(Equal(v1beta2.ApplicationStateFailed))
-			Expect(app.Status.AppState.ErrorMessage).To(ContainSubstring("failed to determine pending rerun cleanup retry"))
+			Expect(app.Status.AppState.State).To(Equal(v1beta2.ApplicationStatePendingRerun))
 		})
 	})
 
