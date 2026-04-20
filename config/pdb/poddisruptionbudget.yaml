@@ -1,0 +1,14 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: controller-manager-pdb
+  labels:
+    app.kubernetes.io/name: spark-operator
+    app.kubernetes.io/managed-by: kustomize
+spec:
+  # Keeps at least 1 controller-manager pod available with only 1 replica
+  # Run controller-manager with >=2 replicas when applying this PDB
+  minAvailable: 1
+  selector:
+    matchLabels:
+      control-plane: controller-manager
