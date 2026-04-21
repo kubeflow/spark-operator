@@ -27,7 +27,7 @@ import (
 	operatorscheme "github.com/kubeflow/spark-operator/v2/pkg/scheme"
 )
 
-// +kubebuilder:webhook:admissionReviewVersions=v1,failurePolicy=fail,groups=sparkoperator.k8s.io,matchPolicy=Exact,mutating=true,name=mutate-sparkconnect.sparkoperator.k8s.io,path=/mutate-sparkoperator-k8s-io-v1alpha1-sparkconnect,reinvocationPolicy=Never,resources=sparkconnects,sideEffects=None,verbs=create;update,versions=v1alpha1,webhookVersions=v1
+// +kubebuilder:webhook:admissionReviewVersions=v1,failurePolicy=fail,groups=sparkoperator.k8s.io,matchPolicy=Exact,mutating=true,name=mutate-sparkconnect.sparkoperator.k8s.io,path=/mutate-sparkoperator-k8s-io-v1alpha1-sparkconnect,reinvocationPolicy=Never,resources=sparkconnects,sideEffects=NoneOnDryRun,verbs=create;update,versions=v1alpha1,webhookVersions=v1
 
 // SparkConnectDefaulter sets default values for a SparkConnect.
 type SparkConnectDefaulter struct{}
