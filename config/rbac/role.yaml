@@ -8,11 +8,11 @@ rules:
   - configmaps
   verbs:
   - create
-  - delete
   - get
   - list
   - patch
   - update
+  - watch
 - resources:
   - events
   verbs:
@@ -20,25 +20,13 @@ rules:
   - patch
   - update
 - resources:
-  - nodes
-  verbs:
-  - get
-- resources:
   - pods
   verbs:
   - create
   - delete
-  - deletecollection
   - get
   - list
-  - patch
   - update
-  - watch
-- resources:
-  - resourcequotas
-  verbs:
-  - get
-  - list
   - watch
 - resources:
   - services
@@ -47,6 +35,7 @@ rules:
   - delete
   - get
   - list
+  - patch
   - update
   - watch
 - apiGroups:
@@ -64,37 +53,34 @@ rules:
   - create
   - delete
   - get
-  - list
   - update
-  - watch
 - apiGroups:
   - sparkoperator.k8s.io
   resources:
   - scheduledsparkapplications
-  - sparkapplications
   - sparkconnects
   verbs:
-  - create
-  - delete
   - get
   - list
-  - patch
-  - update
   - watch
 - apiGroups:
   - sparkoperator.k8s.io
   resources:
   - scheduledsparkapplications/finalizers
+  - scheduledsparkapplications/status
   - sparkapplications/finalizers
+  - sparkapplications/status
+  - sparkconnects/finalizers
+  - sparkconnects/status
   verbs:
   - update
 - apiGroups:
   - sparkoperator.k8s.io
   resources:
-  - scheduledsparkapplications/status
-  - sparkapplications/status
-  - sparkconnects/status
+  - sparkapplications
   verbs:
+  - create
+  - delete
   - get
-  - patch
-  - update
+  - list
+  - watch
