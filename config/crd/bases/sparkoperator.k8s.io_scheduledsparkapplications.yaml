@@ -10354,14 +10354,17 @@ spec:
                   managedBy:
                     description: |-
                       ManagedBy indicates the controller managing this SparkApplication.
-                      When set to a value other than the built-in operator's identifier
-                      (`sparkoperator.k8s.io/spark-operator`), the operator skips
-                      reconciliation, allowing external controllers (e.g. MultiKueue) to
-                      manage the resource. The value must be a non-empty string and the
-                      field is immutable once set.
-                    minLength: 1
-                    pattern: \S
+                      Set to "sparkoperator.k8s.io/spark-operator" for the built-in operator
+                      (default behavior when field is omitted) or "kueue.x-k8s.io/multikueue"
+                      to delegate reconciliation to MultiKueue. The field is immutable once set.
+                    maxLength: 253
                     type: string
+                    x-kubernetes-validations:
+                    - message: managedBy must be 'sparkoperator.k8s.io/spark-operator'
+                        or 'kueue.x-k8s.io/multikueue'
+                      rule: self in ['sparkoperator.k8s.io/spark-operator', 'kueue.x-k8s.io/multikueue']
+                    - message: field is immutable
+                      rule: self == oldSelf
                   memoryOverheadFactor:
                     description: |-
                       This sets the Memory Overhead Factor that will allocate memory to non-JVM memory.
@@ -12422,10 +12425,6 @@ spec:
                 - sparkVersion
                 - type
                 type: object
-                x-kubernetes-validations:
-                - message: spec.managedBy is immutable once set
-                  rule: '!has(oldSelf.managedBy) || (has(self.managedBy) && self.managedBy
-                    == oldSelf.managedBy)'
               timeZone:
                 description: |-
                   TimeZone is the time zone in which the cron schedule will be interpreted in.

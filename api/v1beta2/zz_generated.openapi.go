@@ -2232,7 +2232,7 @@ func schema_spark_operator_v2_api_v1beta2_SparkApplicationSpec(ref common.Refere
 				Properties: map[string]spec.Schema{
 					"managedBy": {
 						SchemaProps: spec.SchemaProps{
-							Description: "ManagedBy indicates the controller managing this SparkApplication. When set to a value other than the built-in operator's identifier (`sparkoperator.k8s.io/spark-operator`), the operator skips reconciliation, allowing external controllers (e.g. MultiKueue) to manage the resource. The value must be a non-empty string and the field is immutable once set.",
+							Description: "ManagedBy indicates the controller managing this SparkApplication. Set to \"sparkoperator.k8s.io/spark-operator\" for the built-in operator (default behavior when field is omitted) or \"kueue.x-k8s.io/multikueue\" to delegate reconciliation to MultiKueue. The field is immutable once set.",
 							Type:        []string{"string"},
 							Format:      "",
 						},
