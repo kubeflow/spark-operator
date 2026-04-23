@@ -168,6 +168,39 @@ tests:
   # These tests set spark.jobNamespaces to [""] to trigger cluster-wide
   # policyRules inclusion in the ClusterRole (documentIndex 0).
 
+  - it: Should include controller policyRules in ClusterRole when jobNamespaceSelector is set
+    set:
+      spark:
+        jobNamespaces:
+          - default
+        jobNamespaceSelector: "spark=enabled"
+    documentIndex: 0
+    asserts:
+      - contains:
+          path: rules
+          content:
+            apiGroups:
+              - ""
+            resources:
+              - namespaces
+            verbs:
+              - get
+              - list
+              - watch
+      - contains:
+          path: rules
+          content:
+            apiGroups:
+              - sparkoperator.k8s.io
+            resources:
+              - sparkapplications
+            verbs:
+              - get
+              - list
+              - watch
+              - create
+              - delete
+
   - it: Should grant pods only get/list/watch/create/update/delete in ClusterRole
     set:
       spark:

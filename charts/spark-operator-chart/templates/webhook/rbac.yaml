@@ -54,7 +54,7 @@ rules:
   verbs:
   - get
   - update
-{{- if not .Values.spark.jobNamespaces | or (has "" .Values.spark.jobNamespaces) }}
+{{- if or (not .Values.spark.jobNamespaces) (has "" .Values.spark.jobNamespaces) .Values.spark.jobNamespaceSelector }}
 {{ include "spark-operator.webhook.policyRules" . }}
 {{- end }}
 ---
