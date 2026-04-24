@@ -182,9 +182,9 @@ func (r *Reconciler) SetupWithManager(mgr ctrl.Manager, options controller.Optio
 		Complete(r)
 }
 
-// +kubebuilder:rbac:groups=,resources=configmaps,verbs=get;list;watch;create;update
-// +kubebuilder:rbac:groups=,resources=pods,verbs=get;list;watch;create;update
-// +kubebuilder:rbac:groups=,resources=services,verbs=get;list;watch;create;update
+// +kubebuilder:rbac:groups="",resources=configmaps,verbs=get;list;watch;create;update
+// +kubebuilder:rbac:groups="",resources=pods,verbs=get;list;watch;create;update
+// +kubebuilder:rbac:groups="",resources=services,verbs=get;list;watch;create;update
 // +kubebuilder:rbac:groups=sparkoperator.k8s.io,resources=sparkconnects,verbs=get;list;watch
 // +kubebuilder:rbac:groups=sparkoperator.k8s.io,resources=sparkconnects/status,verbs=update
 // +kubebuilder:rbac:groups=sparkoperator.k8s.io,resources=sparkconnects/finalizers,verbs=update

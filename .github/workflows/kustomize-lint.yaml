@@ -1,0 +1,46 @@
+# Static validation of Kustomize manifests (no cluster required).
+# Functional e2e tests run via integration.yaml with deploy_method: [helm, kustomize].
+name: Kustomize Lint
+
+on:
+  pull_request:
+    branches:
+      - master
+      - release-*
+    paths:
+      - 'config/**'
+      - 'test/kustomize/**'
+      - '.github/workflows/kustomize-lint.yaml'
+
+  push:
+    branches:
+      - master
+      - release-*
+    paths:
+      - 'config/**'
+      - 'test/kustomize/**'
+      - '.github/workflows/kustomize-lint.yaml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.actor }}
+  cancel-in-progress: true
+
+jobs:
+  kustomize-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6
+        with:
+          go-version-file: go.mod
+
+      - name: Validate Kustomize build
+        run: make kustomize-lint

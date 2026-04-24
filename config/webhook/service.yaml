@@ -12,4 +12,5 @@ spec:
       protocol: TCP
       targetPort: 9443
   selector:
-    control-plane: controller-manager
+    app.kubernetes.io/component: webhook
+    app.kubernetes.io/name: spark-operator
