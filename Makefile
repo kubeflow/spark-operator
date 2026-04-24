@@ -40,6 +40,9 @@ IMAGE_REPOSITORY ?= kubeflow/spark-operator/controller
 IMAGE_TAG ?= $(VERSION)
 IMAGE ?= $(IMAGE_REGISTRY)/$(IMAGE_REPOSITORY):$(IMAGE_TAG)
 
+# Deployment method for e2e tests (helm or kustomize)
+DEPLOY_METHOD ?= helm
+
 # Kind cluster
 KIND_CLUSTER_NAME ?= spark-operator
 KIND_CONFIG_FILE ?= charts/spark-operator-chart/ci/kind-config.yaml
@@ -172,8 +175,15 @@ unit-test: setup-envtest ## Run unit tests.
 
 .PHONY: e2e-test
 e2e-test: envtest ## Run the e2e tests against a Kind k8s instance that is spun up.
-	@echo "Running e2e tests..."
-	go test ./test/e2e/ -v -ginkgo.v -timeout 30m
+	@echo "Running e2e tests (deploy_method=$(DEPLOY_METHOD))..."
+	DEPLOY_METHOD=$(DEPLOY_METHOD) go test ./test/e2e/ -v -ginkgo.v -timeout 30m
+
+##@ Kustomize
+
+.PHONY: kustomize-lint
+kustomize-lint: ## Validate Kustomize build output (no cluster needed).
+	@echo "Running Kustomize build validation..."
+	go test ./test/kustomize/ -v -count=1
 
 ##@ Build
 
