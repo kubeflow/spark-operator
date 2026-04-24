@@ -1,0 +1,9 @@
+# Manager Kustomization
+# Controller manager deployment and related resources
+
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - manager.yaml
+  - serviceaccount.yaml

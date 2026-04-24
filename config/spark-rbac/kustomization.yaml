@@ -1,0 +1,15 @@
+# Spark Application RBAC
+# Resources needed by Spark driver pods to create executor pods.
+#
+# Apply to each namespace where Spark applications will run:
+#   kubectl apply -k config/spark-rbac/ -n <app-namespace>
+#
+# This is intentionally separate from config/default/ (the operator
+# infrastructure) because these resources belong in application
+# namespaces, not the operator namespace.
+
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - spark-application-rbac.yaml

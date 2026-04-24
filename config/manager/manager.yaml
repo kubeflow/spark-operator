@@ -1,0 +1,133 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: spark-operator
+  labels:
+    app.kubernetes.io/name: spark-operator
+    app.kubernetes.io/component: operator
+    control-plane: controller-manager
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: spark-operator-controller
+  namespace: system
+  labels:
+    app.kubernetes.io/name: spark-operator
+    app.kubernetes.io/instance: spark-operator
+    app.kubernetes.io/component: controller
+    control-plane: controller-manager
+spec:
+  replicas: 1
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: spark-operator
+      app.kubernetes.io/instance: spark-operator
+      app.kubernetes.io/component: controller
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: spark-operator
+        app.kubernetes.io/instance: spark-operator
+        app.kubernetes.io/component: controller
+        control-plane: controller-manager
+      annotations:
+        kubectl.kubernetes.io/default-container: controller
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+        prometheus.io/path: /metrics
+    spec:
+      serviceAccountName: spark-operator-controller
+      automountServiceAccountToken: true
+      securityContext:
+        runAsNonRoot: true
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: spark-operator
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: spark-operator
+      containers:
+        - name: controller
+          image: ghcr.io/kubeflow/spark-operator/controller
+          imagePullPolicy: IfNotPresent
+          args:
+            - controller
+            - start
+            - --zap-log-level=info
+            - --zap-encoder=console
+            - --namespaces=
+            - --controller-threads=10
+            - --enable-ui-service=true
+            - --enable-metrics=true
+            - --metrics-bind-address=:8080
+            - --metrics-endpoint=/metrics
+            - --metrics-prefix=
+            - --metrics-labels=app_type
+            - --metrics-job-start-latency-buckets=30,60,90,120,150,180,210,240,270,300
+            - --leader-election=true
+            - --leader-election-lock-name=spark-operator-controller-lock
+            - --leader-election-lock-namespace=$(CONTROLLER_NAMESPACE)
+            - --leader-election-lease-duration=15s
+            - --leader-election-renew-deadline=10s
+            - --leader-election-retry-period=2s
+            - --workqueue-ratelimiter-bucket-qps=50
+            - --workqueue-ratelimiter-bucket-size=500
+            - --workqueue-ratelimiter-max-delay=6h
+            - --driver-pod-creation-grace-period=10s
+            - --max-tracked-executor-per-app=1000
+          env:
+            - name: OPERATOR_VERSION
+              value: "2.5.0-rc.0"
+            - name: CONTROLLER_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+          ports:
+            - name: metrics
+              containerPort: 8080
+          volumeMounts:
+            - mountPath: /tmp
+              name: tmp
+          livenessProbe:
+            httpGet:
+              port: 8081
+              path: /healthz
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          readinessProbe:
+            httpGet:
+              port: 8081
+              path: /readyz
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            privileged: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            seccompProfile:
+              type: RuntimeDefault
+          resources:
+            limits:
+              cpu: 500m
+              memory: 512Mi
+            requests:
+              cpu: 100m
+              memory: 128Mi
+      volumes:
+        - name: tmp
+          emptyDir:
+            sizeLimit: 1Gi
+      terminationGracePeriodSeconds: 10
