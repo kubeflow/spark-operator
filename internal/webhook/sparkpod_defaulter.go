@@ -41,7 +41,7 @@ const (
 	maxNameLength = 63
 )
 
-// +kubebuilder:webhook:admissionReviewVersions=v1,failurePolicy=fail,groups="",matchPolicy=Exact,mutating=true,name=mutate-pod.sparkoperator.k8s.io,path=/mutate--v1-pod,reinvocationPolicy=Never,resources=pods,sideEffects=NoneOnDryRun,verbs=create,versions=v1,webhookVersions=v1
+// +kubebuilder:webhook:admissionReviewVersions=v1,failurePolicy=fail,groups="",matchPolicy=Exact,mutating=true,name=mutate-pod.sparkoperator.k8s.io,path=/mutate--v1-pod,reinvocationPolicy=Never,resources=pods,sideEffects=None,verbs=create,versions=v1,webhookVersions=v1
 
 // SparkPodDefaulter defaults Spark pods.
 type SparkPodDefaulter struct {

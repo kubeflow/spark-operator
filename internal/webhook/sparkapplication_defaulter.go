@@ -28,12 +28,12 @@ import (
 	"github.com/kubeflow/spark-operator/v2/pkg/util"
 )
 
-// +kubebuilder:webhook:admissionReviewVersions=v1,failurePolicy=fail,groups=sparkoperator.k8s.io,matchPolicy=Exact,mutating=true,name=mutate-sparkapplication.sparkoperator.k8s.io,path=/mutate-sparkoperator-k8s-io-v1beta2-sparkapplication,reinvocationPolicy=Never,resources=sparkapplications,sideEffects=NoneOnDryRun,verbs=create;update,versions=v1beta2,webhookVersions=v1
+// +kubebuilder:webhook:admissionReviewVersions=v1,failurePolicy=fail,groups=sparkoperator.k8s.io,matchPolicy=Exact,mutating=true,name=mutate-sparkapplication.sparkoperator.k8s.io,path=/mutate-sparkoperator-k8s-io-v1beta2-sparkapplication,reinvocationPolicy=Never,resources=sparkapplications,sideEffects=None,verbs=create;update,versions=v1beta2,webhookVersions=v1
 
 // SparkApplicationDefaulter sets default values for a SparkApplication.
 type SparkApplicationDefaulter struct{}
 
-// NewSparkApplicationValidator creates a new SparkApplicationValidator instance.
+// NewSparkApplicationDefaulter creates a new SparkApplicationDefaulter instance.
 func NewSparkApplicationDefaulter() *SparkApplicationDefaulter {
 	return &SparkApplicationDefaulter{}
 }
