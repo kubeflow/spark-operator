@@ -526,8 +526,6 @@ var _ = Describe("Example SparkApplication", func() {
 			key := types.NamespacedName{Namespace: app.Namespace, Name: app.Name}
 			Expect(waitForSparkApplicationCompleted(ctx, key)).NotTo(HaveOccurred())
 
-			By("Waiting for SparkApplication to complete")
-
 			checkVolumeAndMount := func(pod corev1.Pod, containerName string) {
 				volumeFound := false
 				for _, vol := range pod.Spec.Volumes {
