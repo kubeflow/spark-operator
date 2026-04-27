@@ -494,4 +494,73 @@ var _ = Describe("Example SparkApplication", func() {
 			Expect(strings.Contains(string(bytes), "Pi is roughly 3")).To(BeTrue())
 		})
 	})
+
+	Context("spark-pi-emptydir-medium", func() {
+		ctx := context.Background()
+		path := filepath.Join("..", "..", "examples", "spark-pi-emptydir.yaml")
+		app := &v1beta2.SparkApplication{}
+
+		BeforeEach(func() {
+			By("Parsing SparkApplication from file")
+			file, err := os.Open(path)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(file).NotTo(BeNil())
+
+			decoder := yaml.NewYAMLOrJSONDecoder(file, 4096)
+			Expect(decoder.Decode(app)).To(Succeed())
+
+			By("Creating SparkApplication")
+			Expect(k8sClient.Create(ctx, app)).To(Succeed())
+		})
+
+		AfterEach(func() {
+			key := types.NamespacedName{Namespace: app.Namespace, Name: app.Name}
+			Expect(k8sClient.Get(ctx, key, app)).To(Succeed())
+
+			By("Deleting SparkApplication")
+			Expect(k8sClient.Delete(ctx, app)).To(Succeed())
+		})
+
+		It("should mount emptyDir with Memory medium on driver pod", func() {
+			By("Waiting for SparkApplication to complete")
+			key := types.NamespacedName{Namespace: app.Namespace, Name: app.Name}
+			Expect(waitForSparkApplicationCompleted(ctx, key)).NotTo(HaveOccurred())
+
+			By("Waiting for SparkApplication to complete")
+
+			checkVolumeAndMount := func(pod corev1.Pod, containerName string) {
+				volumeFound := false
+				for _, vol := range pod.Spec.Volumes {
+					if vol.Name == "spark-local-dir-1" {
+						volumeFound = true
+						Expect(vol.EmptyDir).NotTo(BeNil(), "pod %s: spark-local-dir-1 is not an emptyDir", pod.Name)
+						Expect(vol.EmptyDir.Medium).To(Equal(corev1.StorageMediumMemory), "pod %s", pod.Name)
+						break
+					}
+				}
+				Expect(volumeFound).To(BeTrue(), "pod %s: volume spark-local-dir-1 not found", pod.Name)
+
+				mountFound := false
+				for _, container := range pod.Spec.Containers {
+					if container.Name != containerName {
+						continue
+					}
+					for _, mount := range container.VolumeMounts {
+						if mount.Name == "spark-local-dir-1" {
+							mountFound = true
+							break
+						}
+					}
+				}
+				Expect(mountFound).To(BeTrue(), "pod %s: volumeMount spark-local-dir-1 not found in container %s", pod.Name, containerName)
+			}
+
+			By("Checking driver pod has spark-local-dir-1 with Memory medium and volumeMount")
+			driverPodName := util.GetDriverPodName(app)
+			driverPodKey := types.NamespacedName{Namespace: app.Namespace, Name: driverPodName}
+			driverPod := &corev1.Pod{}
+			Expect(k8sClient.Get(ctx, driverPodKey, driverPod)).NotTo(HaveOccurred())
+			checkVolumeAndMount(*driverPod, common.SparkDriverContainerName)
+		})
+	})
 })
