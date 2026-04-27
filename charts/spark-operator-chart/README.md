@@ -133,6 +133,8 @@ See [helm uninstall](https://helm.sh/docs/helm/helm_uninstall) for command docum
 | volumeMounts | list | `[]` |  |
 | volumes | list | `[]` |  |
 | webhook.enable | bool | `false` | Enable webhook server |
+| webhook.initAnnotations | object | `{"helm.sh/hook":"pre-install, pre-upgrade","helm.sh/hook-weight":"50"}` | The annotations applied to init job, required to restore certs deleted by the cleanup job during upgrade |
+| webhook.failOnError | bool | `false` | Whether Kubernetes should reject requests when the webhook fails. When false (default): webhook failures are ignored, pods may be created without mutations (e.g., missing tolerations). When true: webhook failures cause pod creation to fail, preventing misconfigured pods. IMPORTANT: When true, namespaceSelector MUST be set to avoid cluster-wide impact. Recommended for production environments to ensure consistent pod configuration. |
 | webhook.namespaceSelector | string | `""` | The webhook server will only operate on namespaces with this label, specified in the form key1=value1,key2=value2. Empty string (default) will operate on all namespaces |
 | webhook.objectSelector | string | `""` | The webhook will only operate on resources with this label/s, specified in the form key1=value1,key2=value2, OR key in (value1,value2). Empty string (default) will operate on all objects |
 | webhook.port | int | `8080` | Webhook service port |

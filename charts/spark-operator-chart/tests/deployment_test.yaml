@@ -299,3 +299,55 @@ tests:
             - key: key2
               operator: Exists
               effect: NoSchedule
+
+  - it: Should add webhook-fail-on-error arg when webhook is enabled
+    set:
+      webhook:
+        enable: true
+        failOnError: false
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: -webhook-fail-on-error=false
+
+  - it: Should set webhook-fail-on-error to true when explicitly enabled
+    set:
+      webhook:
+        enable: true
+        failOnError: true
+        namespaceSelector: "spark-webhook=enabled"
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].args
+          content: -webhook-fail-on-error=true
+
+  - it: Should fail when webhook.failOnError is true but namespaceSelector is empty
+    set:
+      webhook:
+        enable: true
+        failOnError: true
+        namespaceSelector: ""
+    asserts:
+      - failedTemplate:
+          errorMessage: "webhook.namespaceSelector must be set when webhook.failOnError is true"
+
+  - it: Should succeed when webhook.failOnError is false with empty namespaceSelector
+    set:
+      webhook:
+        enable: true
+        failOnError: false
+        namespaceSelector: ""
+    asserts:
+      - isKind:
+          of: Deployment
+
+  - it: Should succeed when webhook is disabled even if failOnError is true
+    set:
+      webhook:
+        enable: false
+        failOnError: true
+        namespaceSelector: ""
+    asserts:
+      - isKind:
+          of: Deployment
+
