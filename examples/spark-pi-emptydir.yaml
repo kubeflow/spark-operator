@@ -50,8 +50,8 @@ spec:
       seccompProfile:
         type: RuntimeDefault
     volumeMounts:
-          - mountPath: /datadir
-            name: spark-local-dir-1
+      - mountPath: /datadir
+        name: spark-local-dir-1
   executor:
     labels:
       version: 4.0.0
