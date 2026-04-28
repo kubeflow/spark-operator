@@ -1,0 +1,15 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: spark-operator-podmonitor
+  labels:
+    app.kubernetes.io/name: spark-operator
+    app.kubernetes.io/managed-by: kustomize
+spec:
+  podMetricsEndpoints:
+    - port: metrics
+      path: /metrics
+      scheme: http
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: spark-operator
