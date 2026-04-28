@@ -4,6 +4,9 @@
 # In the post-install hook, the token corresponding to the operator service account
 # is used to authenticate with the Kubernetes API server to install the secret bundle.
 {{- $jobNamespaces := .Values.sparkJobNamespaces | default list }}
+{{- if and .Values.webhook.enable .Values.webhook.failOnError (eq .Values.webhook.namespaceSelector "") }}
+  {{- fail "webhook.namespaceSelector must be set when webhook.failOnError is true. This prevents cluster-wide disruption if the webhook becomes unavailable." }}
+{{- end }}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -99,6 +102,7 @@ spec:
         - -webhook-config-name={{ include "spark-operator.fullname" . }}-webhook-config
         - -webhook-port={{ .Values.webhook.port }}
         - -webhook-timeout={{ .Values.webhook.timeout }}
+        - -webhook-fail-on-error={{ .Values.webhook.failOnError }}
         - -webhook-namespace-selector={{ .Values.webhook.namespaceSelector }}
         - -webhook-object-selector={{ .Values.webhook.objectSelector }}
         {{- end }}
