@@ -2230,6 +2230,13 @@ func schema_spark_operator_v2_api_v1beta2_SparkApplicationSpec(ref common.Refere
 				Description: "SparkApplicationSpec defines the desired state of SparkApplication It carries every pieces of information a spark-submit command takes and recognizes.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
+					"managedBy": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ManagedBy indicates the controller managing this SparkApplication. Set to \"sparkoperator.k8s.io/spark-operator\" for the built-in operator (default behavior when field is omitted) or \"kueue.x-k8s.io/multikueue\" to delegate reconciliation to MultiKueue. The field is immutable once set.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 					"suspend": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Suspend indicates whether the SparkApplication should be suspended. When true, the controller skips submitting the Spark job. If a SparkApplication is suspended after creation (i.e. the flag goes from false to true), the Spark operator will delete all active Pods associated with this SparkApplication. Users must design their Spark application to gracefully handle this.",
