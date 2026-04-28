@@ -166,7 +166,7 @@ go-lint-fix: golangci-lint ## Run golangci-lint linter and perform fixes.
 unit-test: setup-envtest ## Run unit tests.
 	@echo "Running unit tests..."
 	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)"
-	go test $(shell go list ./... | grep -v /e2e) -coverprofile cover.out
+	go test $(shell go list ./... | grep -v -e /e2e -e /drift) -coverprofile cover.out
 	@echo "Generating HTML coverage report..."
 	go tool cover -html=cover.out -o cover.html
 	@echo "Coverage report available at cover.html"
@@ -258,6 +258,10 @@ helm-lint: ## Run Helm chart lint test.
 .PHONY: helm-docs
 helm-docs: helm-docs-plugin ## Generates markdown documentation for helm charts from requirements and values files.
 	$(HELM_DOCS) --sort-values-order=file
+
+.PHONY: drift-check
+drift-check: helm ## Detect drift between Helm chart and Kustomize manifests.
+	HELM=$(HELM) go test ./test/drift/ -v -count=1
 
 ##@ Deployment
 
