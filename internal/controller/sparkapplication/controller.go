@@ -71,6 +71,12 @@ type Options struct {
 	SparkExecutorMetrics    *metrics.SparkExecutorMetrics
 
 	MaxTrackedExecutorPerApp int
+
+	// UseIngressAgnosticMode when set to true, disables nginx-specific ingress path modifications
+	// (regex capture groups) and annotation injection (nginx.ingress.kubernetes.io/rewrite-target).
+	// This allows the ingress to work with any ingress controller like Traefik, HAProxy, etc.
+	// Can be overridden per SparkApplication via sparkUIOptions.useIngressAgnosticMode.
+	UseIngressAgnosticMode bool
 }
 
 // Reconciler reconciles a SparkApplication object.
