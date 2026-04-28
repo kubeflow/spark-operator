@@ -118,9 +118,7 @@ Create the role policy rules for the controller in every Spark job namespace
   - watch
   - create
   - update
-  - patch
   - delete
-  - deletecollection
 - apiGroups:
   - ""
   resources:
@@ -132,19 +130,6 @@ Create the role policy rules for the controller in every Spark job namespace
   - create
   - update
   - patch
-  - delete
-- apiGroups:
-  - ""
-  resources:
-  - persistentvolumeclaims
-  verbs:
-  - get
-  - list
-  - watch
-  - create
-  - update
-  - patch
-  - delete
 - apiGroups:
   - ""
   resources:
@@ -172,8 +157,6 @@ Create the role policy rules for the controller in every Spark job namespace
   - ingresses
   verbs:
   - get
-  - list
-  - watch
   - create
   - update
   - delete
@@ -181,29 +164,47 @@ Create the role policy rules for the controller in every Spark job namespace
   - sparkoperator.k8s.io
   resources:
   - sparkapplications
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - delete
+- apiGroups:
+  - sparkoperator.k8s.io
+  resources:
   - scheduledsparkapplications
   - sparkconnects
   verbs:
   - get
   - list
   - watch
-  - create
-  - update
-  - patch
-  - delete
 - apiGroups:
   - sparkoperator.k8s.io
   resources:
   - sparkapplications/status
-  - sparkapplications/finalizers
-  - scheduledsparkapplications/status
-  - scheduledsparkapplications/finalizers
   - sparkconnects/status
+  - scheduledsparkapplications/status
+  verbs:
+  - update
+- apiGroups:
+  - sparkoperator.k8s.io
+  resources:
+  - sparkapplications/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - sparkoperator.k8s.io
+  resources:
+  - scheduledsparkapplications/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - sparkoperator.k8s.io
+  resources:
   - sparkconnects/finalizers
   verbs:
-  - get
   - update
-  - patch
 {{- if .Values.controller.batchScheduler.enable }}
 {{/* required for the `volcano` batch scheduler */}}
 - apiGroups:
