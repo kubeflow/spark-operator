@@ -60,6 +60,26 @@ func IsTerminated(app *v1beta2.SparkApplication) bool {
 		app.Status.AppState.State == v1beta2.ApplicationStateFailed
 }
 
+// EnsureTerminationTimeForTerminalState sets status.terminationTime when the app is
+// Completed or Failed but terminationTime was never recorded. Without this,
+// timeToLiveSeconds never applies because expiry uses terminationTime.
+//
+// If the app never recorded a driver execution (executionAttempts == 0) but did
+// attempt submission (submissionAttempts > 0), failure is tied to submission time
+// and we reuse lastSubmissionAttemptTime. Otherwise we use the current time so TTL
+// is not measured from an old submission after a long-running app.
+func EnsureTerminationTimeForTerminalState(app *v1beta2.SparkApplication) {
+	if !IsTerminated(app) || !app.Status.TerminationTime.IsZero() {
+		return
+	}
+	if app.Status.ExecutionAttempts == 0 && app.Status.SubmissionAttempts > 0 &&
+		!app.Status.LastSubmissionAttemptTime.IsZero() {
+		app.Status.TerminationTime = app.Status.LastSubmissionAttemptTime
+		return
+	}
+	app.Status.TerminationTime = metav1.Now()
+}
+
 // IsExpired returns whether the given SparkApplication is expired.
 func IsExpired(app *v1beta2.SparkApplication) bool {
 	// The application has no TTL defined and will never expire.

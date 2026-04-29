@@ -194,6 +194,94 @@ var _ = Describe("IsExpired", func() {
 	})
 })
 
+var _ = Describe("EnsureTerminationTimeForTerminalState", func() {
+	It("does nothing when not terminated", func() {
+		app := &v1beta2.SparkApplication{
+			Status: v1beta2.SparkApplicationStatus{
+				AppState: v1beta2.ApplicationState{State: v1beta2.ApplicationStateSubmitted},
+			},
+		}
+		util.EnsureTerminationTimeForTerminalState(app)
+		Expect(app.Status.TerminationTime.IsZero()).To(BeTrue())
+	})
+
+	It("does nothing when termination time is already set", func() {
+		t := metav1.NewTime(time.Now().Add(-time.Hour))
+		app := &v1beta2.SparkApplication{
+			Status: v1beta2.SparkApplicationStatus{
+				AppState:                    v1beta2.ApplicationState{State: v1beta2.ApplicationStateFailed},
+				TerminationTime:             t,
+				LastSubmissionAttemptTime: metav1.NewTime(time.Now()),
+			},
+		}
+		util.EnsureTerminationTimeForTerminalState(app)
+		Expect(app.Status.TerminationTime).To(Equal(t))
+	})
+
+	It("sets termination time from last submission when failed before any driver execution", func() {
+		submitAt := metav1.NewTime(time.Date(2026, 4, 26, 16, 40, 39, 0, time.UTC))
+		app := &v1beta2.SparkApplication{
+			Spec: v1beta2.SparkApplicationSpec{
+				TimeToLiveSeconds: ptr.To[int64](3600),
+			},
+			Status: v1beta2.SparkApplicationStatus{
+				AppState:                    v1beta2.ApplicationState{State: v1beta2.ApplicationStateFailed},
+				LastSubmissionAttemptTime: submitAt,
+				SubmissionAttempts:        1,
+				ExecutionAttempts:         0,
+			},
+		}
+		util.EnsureTerminationTimeForTerminalState(app)
+		Expect(app.Status.TerminationTime).To(Equal(submitAt))
+	})
+
+	It("uses current time when failed after driver execution even if last submission is old", func() {
+		oldSubmit := metav1.NewTime(time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC))
+		before := time.Now()
+		app := &v1beta2.SparkApplication{
+			Status: v1beta2.SparkApplicationStatus{
+				AppState:                    v1beta2.ApplicationState{State: v1beta2.ApplicationStateFailed},
+				LastSubmissionAttemptTime: oldSubmit,
+				SubmissionAttempts:        1,
+				ExecutionAttempts:         1,
+			},
+		}
+		util.EnsureTerminationTimeForTerminalState(app)
+		Expect(app.Status.TerminationTime.Time.After(before.Add(-time.Second))).To(BeTrue())
+		Expect(time.Since(app.Status.TerminationTime.Time)).To(BeNumerically("<", 5*time.Second))
+	})
+
+	It("uses current time for completed when termination time was missing", func() {
+		submitAt := metav1.NewTime(time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC))
+		before := time.Now()
+		app := &v1beta2.SparkApplication{
+			Status: v1beta2.SparkApplicationStatus{
+				AppState:                    v1beta2.ApplicationState{State: v1beta2.ApplicationStateCompleted},
+				LastSubmissionAttemptTime: submitAt,
+				SubmissionAttempts:        1,
+				ExecutionAttempts:         1,
+			},
+		}
+		util.EnsureTerminationTimeForTerminalState(app)
+		Expect(app.Status.TerminationTime.Time.After(before.Add(-time.Second))).To(BeTrue())
+		Expect(time.Since(app.Status.TerminationTime.Time)).To(BeNumerically("<", 5*time.Second))
+	})
+
+	It("uses current time when last submission time is missing", func() {
+		before := time.Now()
+		app := &v1beta2.SparkApplication{
+			Status: v1beta2.SparkApplicationStatus{
+				AppState:             v1beta2.ApplicationState{State: v1beta2.ApplicationStateFailed},
+				SubmissionAttempts: 1,
+				ExecutionAttempts:    0,
+			},
+		}
+		util.EnsureTerminationTimeForTerminalState(app)
+		Expect(app.Status.TerminationTime.Time.After(before.Add(-time.Second))).To(BeTrue())
+		Expect(time.Since(app.Status.TerminationTime.Time)).To(BeNumerically("<", 5*time.Second))
+	})
+})
+
 var _ = Describe("IsDriverRunning", func() {
 	Context("SparkApplication with completed state", func() {
 		app := &v1beta2.SparkApplication{
