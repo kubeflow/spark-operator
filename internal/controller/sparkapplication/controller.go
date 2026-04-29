@@ -675,6 +675,8 @@ func (r *Reconciler) reconcileTerminatedSparkApplication(ctx context.Context, re
 		return ctrl.Result{}, nil
 	}
 
+	util.EnsureTerminationTimeForTerminalState(app)
+
 	if util.IsExpired(app) {
 		logger.Info("Deleting expired SparkApplication", "state", app.Status.AppState.State)
 		if err := r.client.Delete(ctx, app); err != nil {
