@@ -90,21 +90,13 @@ If you are running Spark operator on Google Kubernetes Engine (GKE) and want to 
 The following table lists the most recent few versions of the operator.
 
 | Operator Version      | API Version | Kubernetes Version | Base Spark Version |
-| --------------------- | ----------- | ------------------ | ------------------ |
+|-----------------------| ----------- |--------------------|--------------------|
+| `v2.5.x`              | `v1beta2`   | 1.32+              | `4.0.1`            |
+| `v2.4.x`              | `v1beta2`   | 1.32+              | `4.0.0`            |
 | `v2.3.x`              | `v1beta2`   | 1.16+              | `4.0.0`            |
 | `v2.2.x`              | `v1beta2`   | 1.16+              | `3.5.5`            |
 | `v2.1.x`              | `v1beta2`   | 1.16+              | `3.5.3`            |
 | `v2.0.x`              | `v1beta2`   | 1.16+              | `3.5.2`            |
-| `v1beta2-1.6.x-3.5.0` | `v1beta2`   | 1.16+              | `3.5.0`            |
-| `v1beta2-1.5.x-3.5.0` | `v1beta2`   | 1.16+              | `3.5.0`            |
-| `v1beta2-1.4.x-3.5.0` | `v1beta2`   | 1.16+              | `3.5.0`            |
-| `v1beta2-1.3.x-3.1.1` | `v1beta2`   | 1.16+              | `3.1.1`            |
-| `v1beta2-1.2.3-3.1.1` | `v1beta2`   | 1.13+              | `3.1.1`            |
-| `v1beta2-1.2.2-3.0.0` | `v1beta2`   | 1.13+              | `3.0.0`            |
-| `v1beta2-1.2.1-3.0.0` | `v1beta2`   | 1.13+              | `3.0.0`            |
-| `v1beta2-1.2.0-3.0.0` | `v1beta2`   | 1.13+              | `3.0.0`            |
-| `v1beta2-1.1.x-2.4.5` | `v1beta2`   | 1.13+              | `2.4.5`            |
-| `v1beta2-1.0.x-2.4.4` | `v1beta2`   | 1.13+              | `2.4.4`            |
 
 ## Developer Guide
 
