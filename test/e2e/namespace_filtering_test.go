@@ -164,6 +164,18 @@ var _ = Describe("Namespace Filtering", func() {
 				nil,
 			)
 			Expect(err).NotTo(HaveOccurred())
+
+			// Wait for the controller's informer cache to index the new namespaces.
+			// Without this, there is a race: the SparkApplication create event may
+			// arrive at the controller's event filter before the namespace is in the
+			// cache, causing the filter to silently drop the event (no retry).
+			Eventually(func() map[string]string {
+				ns := &corev1.Namespace{}
+				if err := k8sClient.Get(ctx, types.NamespacedName{Name: nsLabeled.Name}, ns); err != nil {
+					return nil
+				}
+				return ns.Labels
+			}).WithTimeout(10 * time.Second).WithPolling(500 * time.Millisecond).Should(HaveKeyWithValue("spark", "enabled"))
 		})
 
 		AfterEach(func() {
