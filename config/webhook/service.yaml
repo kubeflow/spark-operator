@@ -1,15 +1,18 @@
 apiVersion: v1
 kind: Service
 metadata:
+  name: spark-operator-webhook-svc
+  namespace: system
   labels:
     app.kubernetes.io/name: spark-operator
-    app.kubernetes.io/managed-by: kustomize
-  name: webhook-service
-  namespace: system
+    app.kubernetes.io/instance: spark-operator
+    app.kubernetes.io/component: webhook
 spec:
+  selector:
+    app.kubernetes.io/name: spark-operator
+    app.kubernetes.io/instance: spark-operator
+    app.kubernetes.io/component: webhook
   ports:
     - port: 443
-      protocol: TCP
-      targetPort: 9443
-  selector:
-    control-plane: controller-manager
+      targetPort: webhook
+      name: webhook
