@@ -1105,8 +1105,8 @@ var _ = Describe("SparkApplication Controller", func() {
 			result, err := reconciler.Reconcile(ctx, reconcile.Request{NamespacedName: key})
 			Expect(err).NotTo(HaveOccurred())
 
-			By("Checking that reconciliation is requeued")
-			Expect(result.RequeueAfter).To(Equal(10 * time.Second))
+			By("Checking that reconciliation is requeued using OnFailureRetryInterval")
+			Expect(result.RequeueAfter).To(Equal(5 * time.Second))
 
 			By("Checking that the SparkApplication remains in PendingRerun state")
 			app := &v1beta2.SparkApplication{}
@@ -1189,7 +1189,7 @@ var _ = Describe("SparkApplication Controller", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			By("Checking that reconciliation is requeued")
-			Expect(result.RequeueAfter).To(Equal(10 * time.Second))
+			Expect(result.Requeue).To(BeTrue())
 
 			By("Checking that the SparkApplication remains in Suspended state")
 			app := &v1beta2.SparkApplication{}

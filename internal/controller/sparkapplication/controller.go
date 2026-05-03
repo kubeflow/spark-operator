@@ -52,8 +52,6 @@ import (
 	"github.com/kubeflow/spark-operator/v2/pkg/util"
 )
 
-const resourceCleanupCheckInterval = 10 * time.Second
-
 // Options defines the options of the controller.
 type Options struct {
 	Namespaces            []string
@@ -523,7 +521,11 @@ func (r *Reconciler) reconcilePendingRerunSparkApplication(ctx context.Context, 
 				r.submitSparkApplication(ctx, app)
 			} else {
 				logger.Info("Resources associated with SparkApplication still exist, will retry")
-				result.RequeueAfter = resourceCleanupCheckInterval
+				if app.Spec.RestartPolicy.OnFailureRetryInterval != nil {
+					result.RequeueAfter = time.Duration(*app.Spec.RestartPolicy.OnFailureRetryInterval) * time.Second
+				} else {
+					result.Requeue = true
+				}
 			}
 			if err := r.updateSparkApplicationStatus(ctx, app); err != nil {
 				return err
@@ -822,7 +824,11 @@ func (r *Reconciler) reconcileSuspendedSparkApplication(ctx context.Context, req
 				}
 			} else {
 				logger.Info("Resources associated with SparkApplication still exist, will retry")
-				result.RequeueAfter = resourceCleanupCheckInterval
+				if app.Spec.RestartPolicy.OnFailureRetryInterval != nil {
+					result.RequeueAfter = time.Duration(*app.Spec.RestartPolicy.OnFailureRetryInterval) * time.Second
+				} else {
+					result.Requeue = true
+				}
 			}
 			if err := r.updateSparkApplicationStatus(ctx, app); err != nil {
 				return err
