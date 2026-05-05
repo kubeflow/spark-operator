@@ -52,7 +52,6 @@ KIND_KUBE_CONFIG ?= $(HOME)/.kube/config
 LOCALBIN ?= $(shell pwd)/bin
 
 ## Versions
-KUSTOMIZE_VERSION ?= v5.4.1
 CONTROLLER_TOOLS_VERSION ?= v0.17.1
 KIND_VERSION ?= v0.31.0
 KIND_K8S_VERSION ?= v1.35.0
@@ -69,7 +68,6 @@ CODE_GENERATOR_VERSION ?= v0.33.1
 ## Binaries
 SPARK_OPERATOR ?= $(LOCALBIN)/spark-operator
 KUBECTL ?= kubectl
-KUSTOMIZE ?= $(LOCALBIN)/kustomize-$(KUSTOMIZE_VERSION)
 CONTROLLER_GEN ?= $(LOCALBIN)/controller-gen-$(CONTROLLER_TOOLS_VERSION)
 KIND ?= $(LOCALBIN)/kind-$(KIND_VERSION)
 ENVTEST ?= $(LOCALBIN)/setup-envtest-$(ENVTEST_VERSION)
@@ -287,12 +285,12 @@ kind-delete-cluster: kind ## Delete the created kind cluster.
 	$(KIND) delete cluster --name $(KIND_CLUSTER_NAME) --kubeconfig $(KIND_KUBE_CONFIG)
 
 .PHONY: install
-install-crd: manifests kustomize ## Install CRDs into the K8s cluster specified in ~/.kube/config.
-	$(KUSTOMIZE) build config/crd | $(KUBECTL) create -f - 2>/dev/null || $(KUSTOMIZE) build config/crd | $(KUBECTL) replace -f -
+install-crd: manifests ## Install CRDs into the K8s cluster specified in ~/.kube/config.
+	$(KUBECTL) kustomize config/crd | $(KUBECTL) create -f - 2>/dev/null || $(KUBECTL) kustomize config/crd | $(KUBECTL) replace -f -
 
 .PHONY: uninstall
-uninstall-crd: manifests kustomize ## Uninstall CRDs from the K8s cluster specified in ~/.kube/config. Call with ignore-not-found=true to ignore resource not found errors during deletion.
-	$(KUSTOMIZE) build config/crd | $(KUBECTL) delete --ignore-not-found=$(ignore-not-found) -f -
+uninstall-crd: manifests ## Uninstall CRDs from the K8s cluster specified in ~/.kube/config. Call with ignore-not-found=true to ignore resource not found errors during deletion.
+	$(KUBECTL) kustomize config/crd | $(KUBECTL) delete --ignore-not-found=$(ignore-not-found) -f -
 
 .PHONY: deploy
 deploy: IMAGE_TAG=local
@@ -307,11 +305,6 @@ undeploy: helm ## Uninstall spark-operator
 
 $(LOCALBIN):
 	mkdir -p $(LOCALBIN)
-
-.PHONY: kustomize
-kustomize: $(KUSTOMIZE) ## Download kustomize locally if necessary.
-$(KUSTOMIZE): $(LOCALBIN)
-	$(call go-install-tool,$(KUSTOMIZE),sigs.k8s.io/kustomize/kustomize/v5,$(KUSTOMIZE_VERSION))
 
 .PHONY: controller-gen
 controller-gen: $(CONTROLLER_GEN) ## Download controller-gen locally if necessary.
