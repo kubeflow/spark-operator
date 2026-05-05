@@ -231,6 +231,45 @@ func TestDriverVolumeMountsOption(t *testing.T) {
 					"10Gi"),
 			},
 		},
+		{
+			name: "emptydir volume with memory medium",
+			app: &v1beta2.SparkApplication{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "spark-emptydir-memory",
+				},
+				Spec: v1beta2.SparkApplicationSpec{
+					Volumes: []corev1.Volume{
+						{
+							Name: fmt.Sprintf("%semptydir", common.SparkLocalDirVolumePrefix),
+							VolumeSource: corev1.VolumeSource{
+								EmptyDir: &corev1.EmptyDirVolumeSource{
+									Medium: corev1.StorageMediumMemory,
+								},
+							},
+						},
+					},
+					Driver: v1beta2.DriverSpec{
+						SparkPodSpec: v1beta2.SparkPodSpec{
+							VolumeMounts: []corev1.VolumeMount{
+								{
+									Name:      fmt.Sprintf("%semptydir", common.SparkLocalDirVolumePrefix),
+									MountPath: "/tmp/scratch",
+									ReadOnly:  false,
+								},
+							},
+						},
+					},
+				},
+			},
+			expected: []string{
+				"--conf", fmt.Sprintf("%s=%s",
+					fmt.Sprintf(common.SparkKubernetesDriverVolumesMountPathTemplate, common.VolumeTypeEmptyDir, fmt.Sprintf("%semptydir", common.SparkLocalDirVolumePrefix)),
+					"/tmp/scratch"),
+				"--conf", fmt.Sprintf("%s=%s",
+					fmt.Sprintf(common.SparkKubernetesDriverVolumesOptionsTemplate, common.VolumeTypeEmptyDir, fmt.Sprintf("%semptydir", common.SparkLocalDirVolumePrefix), "medium"),
+					string(corev1.StorageMediumMemory)),
+			},
+		},
 	}
 
 	for _, tt := range tests {
