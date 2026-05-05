@@ -216,6 +216,10 @@ jobs:
           - v1.33.7
           - v1.34.3
           - v1.35.0
+        deploy_method:
+          - helm
+          - kustomize
+    name: e2e-test (${{ matrix.k8s_version }}, ${{ matrix.deploy_method }})
     steps:
       - name: Checkout source code
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -234,4 +238,4 @@ jobs:
         run: make kind-load-image IMAGE_TAG=local
 
       - name: Run e2e tests
-        run: make e2e-test
+        run: make e2e-test DEPLOY_METHOD=${{ matrix.deploy_method }} IMAGE_TAG=local
