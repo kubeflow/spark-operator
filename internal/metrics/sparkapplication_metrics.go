@@ -368,7 +368,7 @@ func (m *SparkApplicationMetrics) getMetricLabels(app *v1beta2.SparkApplication)
 	// Convert spark application validLabels to valid metric validLabels.
 	validLabels := make(map[string]string)
 	for key, val := range app.Labels {
-		newKey := util.CreateValidMetricNameLabel(m.prefix, key)
+		newKey := util.CreateValidMetricNameLabel("", key)
 		validLabels[newKey] = val
 	}
 
