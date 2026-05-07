@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -315,7 +316,20 @@ func (r *Reconciler) reconcileNewSparkApplication(ctx context.Context, req ctrl.
 			}
 			app := old.DeepCopy()
 
-			r.submitSparkApplication(ctx, app)
+			// Guard against duplicated submission: if the operator restarted after spark-submit
+			// succeeded but before the status update was persisted, the driver pod already
+			// exists while the application status is still New. Re-running spark-submit in
+			// that case would fail with "driver pod already exists". When the driver pod is
+			// ours, adopt it (submission id, attempts, etc.) and skip submit; further
+			// reconcile passes fill remaining status from the pod.
+			// See https://github.com/kubeflow/spark-operator/issues/2788.
+			adopted, err := r.tryAdoptExistingDriverPod(ctx, app)
+			if err != nil {
+				return err
+			}
+			if !adopted {
+				r.submitSparkApplication(ctx, app)
+			}
 			if err := r.updateSparkApplicationStatus(ctx, app); err != nil {
 				return err
 			}
@@ -957,6 +971,45 @@ func (r *Reconciler) submitSparkApplication(ctx context.Context, app *v1beta2.Sp
 		submitErr = fmt.Errorf("failed to submit spark application: %v", err)
 		return
 	}
+}
+
+// tryAdoptExistingDriverPod recovers status from a driver pod already created by a
+// prior successful spark-submit when the SparkApplication is still New because the
+// status write was lost (for example after a controller restart). It returns true when
+// the pod exists, looks like an operator driver for this app, and is owned by this
+// SparkApplication UID. Matching via owner reference avoids adopting a same-named pod
+// from an unrelated or recycled SparkApplication. Restores SubmissionID from the pod
+// label so pod event fan-out stays consistent with event_handler.
+func (r *Reconciler) tryAdoptExistingDriverPod(ctx context.Context, app *v1beta2.SparkApplication) (bool, error) {
+	driverPodName := util.GetDriverPodName(app)
+	pod := &corev1.Pod{}
+	if err := r.client.Get(ctx, types.NamespacedName{Namespace: app.Namespace, Name: driverPodName}, pod); err != nil {
+		if errors.IsNotFound(err) {
+			return false, nil
+		}
+		return false, fmt.Errorf("failed to check for existing driver pod %s: %v", driverPodName, err)
+	}
+	if !util.IsLaunchedBySparkOperator(pod) || !util.IsDriverPod(pod) {
+		return false, nil
+	}
+	if !slices.ContainsFunc(pod.OwnerReferences, func(ref metav1.OwnerReference) bool {
+		return ref.UID == app.UID
+	}) {
+		return false, nil
+	}
+	app.Status.DriverInfo.PodName = driverPodName
+	if id := pod.Labels[common.LabelSubmissionID]; id != "" {
+		app.Status.SubmissionID = id
+	}
+	app.Status.LastSubmissionAttemptTime = metav1.Now()
+	if app.Status.SubmissionAttempts == 0 {
+		app.Status.SubmissionAttempts = 1
+	}
+	if app.Status.ExecutionAttempts == 0 {
+		app.Status.ExecutionAttempts = 1
+	}
+	app.Status.AppState.State = v1beta2.ApplicationStateSubmitted
+	return true, nil
 }
 
 // updateDriverState finds the driver pod of the application
