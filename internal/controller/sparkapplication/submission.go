@@ -59,22 +59,25 @@ func (*SparkSubmitter) Submit(ctx context.Context, app *v1beta2.SparkApplication
 		return fmt.Errorf("failed to build spark-submit arguments: %v", err)
 	}
 
-	// Try submitting the application by running spark-submit.
+	// Try submitting the application by running spark-submit. The reconcile context is
+	// threaded into spark-submit so that controller shutdown (or any other context
+	// cancellation) terminates the child process instead of letting it run to completion
+	// and create a driver pod whose status update will never be persisted.
 	logger.Info("Running spark-submit", "arguments", args)
-	if err := runSparkSubmit(args); err != nil {
+	if err := runSparkSubmit(ctx, args); err != nil {
 		return fmt.Errorf("failed to run spark-submit: %v", err)
 	}
 
 	return nil
 }
 
-func runSparkSubmit(args []string) error {
+func runSparkSubmit(ctx context.Context, args []string) error {
 	sparkHome, present := os.LookupEnv(common.EnvSparkHome)
 	if !present {
 		return fmt.Errorf("env %s is not specified", common.EnvSparkHome)
 	}
 	command := filepath.Join(sparkHome, "bin", "spark-submit")
-	cmd := exec.Command(command, args...)
+	cmd := exec.CommandContext(ctx, command, args...)
 	_, err := cmd.Output()
 	if err != nil {
 		var errorMsg string
