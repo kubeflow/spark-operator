@@ -8,6 +8,9 @@ metadata:
     app.kubernetes.io/instance: spark-operator
     app.kubernetes.io/component: controller
 rules:
+- apiGroups: [""]
+  resources: [events]
+  verbs: [create, update, patch]
 - apiGroups: [coordination.k8s.io]
   resources: [leases]
   verbs: [create]

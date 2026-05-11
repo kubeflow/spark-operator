@@ -52,6 +52,8 @@ spec:
             - --metrics-endpoint=/metrics
             - --metrics-prefix=
             - --metrics-labels=app_type
+            - --kube-api-qps=20
+            - --kube-api-burst=30
             - --leader-election=true
             - --leader-election-lock-name=spark-operator-webhook-lock
             - --leader-election-lock-namespace=$(WEBHOOK_NAMESPACE)

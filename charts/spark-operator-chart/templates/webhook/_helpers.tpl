@@ -132,13 +132,15 @@ Create the role policy rules for the webhook in every Spark job namespace
 - apiGroups:
   - ""
   resources:
-  - resourcequotas
+  - pods
   verbs:
   - list
+  - watch
 - apiGroups:
   - sparkoperator.k8s.io
   resources:
   - sparkapplications
+  - scheduledsparkapplications
   verbs:
   - get
   - list
