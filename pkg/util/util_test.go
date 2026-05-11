@@ -190,26 +190,36 @@ spec:
 var _ = Describe("ConvertJavaMemoryStringToK8sMemoryString", func() {
 	It("Should return a memory converted in expected K8s unit", func() {
 
-		unitMap := map[string]string{
-			"k":  "Ki",
-			"kb": "Ki",
-			"m":  "Mi",
-			"mb": "Mi",
-			"g":  "Gi",
-			"gb": "Gi",
-			"t":  "Ti",
-			"tb": "Ti",
-			"p":  "Pi",
-			"pb": "Pi",
-			"Ki": "Ki",
-			"Mi": "Mi",
-			"Gi": "Gi",
-			"Ti": "Ti",
-			"Pi": "Pi",
+		testCases := map[string]string{
+			"100k":   "100Ki",
+			"512m":   "512Mi",
+			"2g":     "2Gi",
+			"1t":     "1Ti",
+			"1p":     "1Pi",
+			"100K":   "100Ki",
+			"512M":   "512Mi",
+			"2G":     "2Gi",
+			"1T":     "1Ti",
+			"1P":     "1Pi",
+			"2gb":    "2Gi",
+			"2GB":    "2Gi",
+			"2Gb":    "2Gi",
+			"2gB":    "2Gi",
+			"512mb":  "512Mi",
+			"512MB":  "512Mi",
+			"100Ki":  "100Ki",
+			"512Mi":  "512Mi",
+			"2Gi":    "2Gi",
+			" 2G":    "2Gi",
+			"2G ":    "2Gi",
+			"  2G  ": "2Gi",
+			"1024":   "1024",
+			"":       "",
 		}
 
-		for unit, response := range unitMap {
-			Expect(util.ConvertJavaMemoryStringToK8sMemoryString(unit)).To(Equal(response))
+		for input, expected := range testCases {
+			Expect(util.ConvertJavaMemoryStringToK8sMemoryString(input)).
+				To(Equal(expected), "input: %q", input)
 		}
 	})
 })
