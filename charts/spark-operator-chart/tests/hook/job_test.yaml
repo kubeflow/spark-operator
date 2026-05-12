@@ -148,3 +148,33 @@ tests:
           - key: key2
             operator: Exists
             effect: NoSchedule
+
+- it: Should add annotations to the hook pod if `hook.annotations` is set
+  set:
+    hook:
+      upgradeCrd: true
+      annotations:
+        key1: value1
+        key2: value2
+  asserts:
+    - equal:
+        path: spec.template.metadata.annotations.key1
+        value: value1
+    - equal:
+        path: spec.template.metadata.annotations.key2
+        value: value2
+
+- it: Should add labels to the hook pod if `hook.labels` is set
+  set:
+    hook:
+      upgradeCrd: true
+      labels:
+        key1: value1
+        key2: value2
+  asserts:
+    - equal:
+        path: spec.template.metadata.labels.key1
+        value: value1
+    - equal:
+        path: spec.template.metadata.labels.key2
+        value: value2
