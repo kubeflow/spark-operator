@@ -64,6 +64,16 @@ hook:
   # -- List of node taints to tolerate for the Helm hook Job.
   tolerations: []
 
+  # -- Extra labels for upgrade hook pod.
+  labels: {}
+    # key1: value1
+    # key2: value2
+
+  # -- Extra annotations for upgrade hook pod.
+  annotations: {}
+    # key1: value1
+    # key2: value2
+
 controller:
   # -- Number of replicas of controller.
   replicas: 1
