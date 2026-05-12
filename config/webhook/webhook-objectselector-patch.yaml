@@ -4,6 +4,33 @@ metadata:
   name: mutating-webhook-configuration
 webhooks:
 - name: mutate-pod.sparkoperator.k8s.io
+  namespaceSelector:
+    matchExpressions:
+    - key: kubernetes.io/metadata.name
+      operator: In
+      values:
+      - default
   objectSelector:
     matchLabels:
       sparkoperator.k8s.io/launched-by-spark-operator: "true"
+- name: mutate-sparkapplication.sparkoperator.k8s.io
+  namespaceSelector:
+    matchExpressions:
+    - key: kubernetes.io/metadata.name
+      operator: In
+      values:
+      - default
+- name: mutate-scheduledsparkapplication.sparkoperator.k8s.io
+  namespaceSelector:
+    matchExpressions:
+    - key: kubernetes.io/metadata.name
+      operator: In
+      values:
+      - default
+- name: mutate-sparkconnect.sparkoperator.k8s.io
+  namespaceSelector:
+    matchExpressions:
+    - key: kubernetes.io/metadata.name
+      operator: In
+      values:
+      - default
