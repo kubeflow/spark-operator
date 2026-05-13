@@ -28,6 +28,17 @@ metadata:
     {{- toYaml . | nindent 4 }}
   {{- end }}
 rules:
+{{- if .Values.spark.jobNamespaceSelector }}
+# When namespace selector is used, webhook needs permissions to discover namespaces
+- apiGroups:
+  - ""
+  resources:
+  - namespaces
+  verbs:
+  - get
+  - list
+  - watch
+{{- end }}
 - apiGroups:
   - ""
   resources:

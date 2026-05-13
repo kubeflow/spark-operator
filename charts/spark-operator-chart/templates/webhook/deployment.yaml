@@ -61,6 +61,9 @@ spec:
         - --namespaces={{ . | join "," }}
         {{- end }}
         {{- end }}
+        {{- with .Values.spark.jobNamespaceSelector }}
+        - --namespace-selector={{ . }}
+        {{- end }}
         - --webhook-secret-name={{ include "spark-operator.webhook.secretName" . }}
         - --webhook-secret-namespace={{ .Release.Namespace }}
         - --webhook-svc-name={{ include "spark-operator.webhook.serviceName" . }}

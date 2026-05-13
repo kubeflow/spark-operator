@@ -126,6 +126,29 @@ Create the name of the pod disruption budget to be used by webhook
 {{- end -}}
 
 {{/*
+Render the namespaceSelector field for a webhook entry in the
+MutatingWebhookConfiguration / ValidatingWebhookConfiguration. Emits nothing
+if neither `spark.webhookNamespaceSelector` is set nor `spark.jobNamespaces`
+holds a concrete list (an entry of "" is the all-namespaces sentinel and
+disables the name-based selector). Callers indent the result with `nindent`.
+*/}}
+{{- define "spark-operator.webhook.namespaceSelector" -}}
+{{- if .Values.spark.webhookNamespaceSelector -}}
+namespaceSelector:
+{{ toYaml .Values.spark.webhookNamespaceSelector | indent 2 -}}
+{{- else if and .Values.spark.jobNamespaces (not (has "" .Values.spark.jobNamespaces)) -}}
+namespaceSelector:
+  matchExpressions:
+  - key: kubernetes.io/metadata.name
+    operator: In
+    values:
+{{- range $jobNamespace := .Values.spark.jobNamespaces }}
+    - {{ $jobNamespace }}
+{{- end }}
+{{- end -}}
+{{- end -}}
+
+{{/*
 Create the role policy rules for the webhook in every Spark job namespace
 */}}
 {{- define "spark-operator.webhook.policyRules" -}}
