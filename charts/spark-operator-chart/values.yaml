@@ -486,6 +486,8 @@ prometheus:
     endpoint: /metrics
     # -- Metrics prefix, will be added to all exported metrics.
     prefix: ""
+    # -- Job Submit Latency histogram buckets. Specified in seconds.
+    jobSubmitLatencyBuckets: "0.5,1,2,4,8,16,32,64,128,256"
     # -- Job Start Latency histogram buckets. Specified in seconds.
     jobStartLatencyBuckets: "30,60,90,120,150,180,210,240,270,300"
     # -- Labels to be added to the Spark Operator standard metrics, e.g., "label1Key,label2Key".
