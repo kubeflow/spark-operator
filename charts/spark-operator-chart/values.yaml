@@ -64,12 +64,12 @@ hook:
   # -- List of node taints to tolerate for the Helm hook Job.
   tolerations: []
 
-  # -- Extra labels for upgrade hook pod.
+  # -- Extra labels for the Helm hook Job pod.
   labels: {}
     # key1: value1
     # key2: value2
 
-  # -- Extra annotations for upgrade hook pod.
+  # -- Extra annotations for the Helm hook Job pod.
   annotations: {}
     # key1: value1
     # key2: value2
