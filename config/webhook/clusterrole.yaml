@@ -10,6 +10,12 @@ rules:
   - apiGroups:
       - ""
     resources:
+      - resourcequotas
+    verbs:
+      - list
+  - apiGroups:
+      - ""
+    resources:
       - pods
     verbs:
       - list

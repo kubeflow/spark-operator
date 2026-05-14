@@ -217,19 +217,22 @@ tests:
               - list
               - watch
 
-  - it: Should not grant resourcequotas in webhook ClusterRole
+  - it: Should grant resourcequotas only list in webhook ClusterRole
     set:
       spark:
         jobNamespaces:
           - ""
     documentIndex: 0
     asserts:
-      - notContains:
+      - contains:
           path: rules
           content:
+            apiGroups:
+              - ""
             resources:
               - resourcequotas
-          any: true
+            verbs:
+              - list
 
   - it: Should grant sparkapplications and scheduledsparkapplications only get/list/watch in webhook ClusterRole
     set:

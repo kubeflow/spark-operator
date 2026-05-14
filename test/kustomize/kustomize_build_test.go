@@ -215,11 +215,11 @@ func TestKustomizeBuild(t *testing.T) {
 		require.NotNil(t, obj, "ClusterRole 'spark-operator-webhook' not found")
 		cr := convertTo[rbacv1.ClusterRole](t, obj)
 
-		for _, res := range []string{"pods", "sparkapplications", "scheduledsparkapplications", "mutatingwebhookconfigurations"} {
+		for _, res := range []string{"pods", "resourcequotas", "sparkapplications", "scheduledsparkapplications", "mutatingwebhookconfigurations"} {
 			assert.True(t, rulesHaveResource(cr.Rules, res),
 				"webhook ClusterRole should have '%s'", res)
 		}
-		for _, res := range []string{"events", "resourcequotas"} {
+		for _, res := range []string{"events"} {
 			assert.False(t, rulesHaveResource(cr.Rules, res),
 				"webhook ClusterRole should NOT have '%s' (not code-required)", res)
 		}
