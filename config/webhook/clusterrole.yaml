@@ -10,25 +10,14 @@ rules:
   - apiGroups:
       - ""
     resources:
-      - events
+      - resourcequotas
     verbs:
-      - create
-      - update
-      - patch
+      - list
   - apiGroups:
       - ""
     resources:
       - pods
     verbs:
-      - get
-      - list
-      - watch
-  - apiGroups:
-      - ""
-    resources:
-      - resourcequotas
-    verbs:
-      - get
       - list
       - watch
   - apiGroups:
@@ -59,14 +48,3 @@ rules:
       - get
       - list
       - watch
-  - apiGroups:
-      - sparkoperator.k8s.io
-    resources:
-      - sparkapplications/status
-      - sparkapplications/finalizers
-      - scheduledsparkapplications/status
-      - scheduledsparkapplications/finalizers
-    verbs:
-      - get
-      - update
-      - patch

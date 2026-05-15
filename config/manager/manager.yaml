@@ -84,6 +84,10 @@ spec:
             - --workqueue-ratelimiter-max-delay=6h
             - --driver-pod-creation-grace-period=10s
             - --max-tracked-executor-per-app=1000
+            - --kube-api-qps=20
+            - --kube-api-burst=30
+            - --feature-gates=PartialRestart=false,LoadSparkDefaults=false
+            - --scheduled-spark-application-timestamp-precision=nanos
           env:
             - name: OPERATOR_VERSION
               value: "2.5.0-rc.0"

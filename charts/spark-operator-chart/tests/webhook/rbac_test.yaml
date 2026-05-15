@@ -182,9 +182,10 @@ tests:
             apiGroups:
               - ""
             resources:
-              - resourcequotas
+              - pods
             verbs:
               - list
+              - watch
       - contains:
           path: rules
           content:
@@ -192,23 +193,29 @@ tests:
               - sparkoperator.k8s.io
             resources:
               - sparkapplications
+              - scheduledsparkapplications
             verbs:
               - get
               - list
               - watch
 
-  - it: Should not grant any permissions on pods in webhook ClusterRole
+  - it: Should grant pods list/watch in webhook ClusterRole
     set:
       spark:
         jobNamespaces:
           - ""
     documentIndex: 0
     asserts:
-      - notContains:
+      - contains:
           path: rules
           content:
+            apiGroups:
+              - ""
             resources:
               - pods
+            verbs:
+              - list
+              - watch
 
   - it: Should grant resourcequotas only list in webhook ClusterRole
     set:
@@ -226,22 +233,8 @@ tests:
               - resourcequotas
             verbs:
               - list
-      - notContains:
-          path: rules
-          content:
-            resources:
-              - resourcequotas
-            verbs:
-              - get
-      - notContains:
-          path: rules
-          content:
-            resources:
-              - resourcequotas
-            verbs:
-              - watch
 
-  - it: Should grant sparkapplications only get/list/watch in webhook ClusterRole
+  - it: Should grant sparkapplications and scheduledsparkapplications only get/list/watch in webhook ClusterRole
     set:
       spark:
         jobNamespaces:
@@ -255,6 +248,7 @@ tests:
               - sparkoperator.k8s.io
             resources:
               - sparkapplications
+              - scheduledsparkapplications
             verbs:
               - get
               - list
@@ -266,6 +260,7 @@ tests:
               - sparkoperator.k8s.io
             resources:
               - sparkapplications
+              - scheduledsparkapplications
             verbs:
               - create
       - notContains:
@@ -275,6 +270,7 @@ tests:
               - sparkoperator.k8s.io
             resources:
               - sparkapplications
+              - scheduledsparkapplications
             verbs:
               - update
       - notContains:
@@ -284,6 +280,7 @@ tests:
               - sparkoperator.k8s.io
             resources:
               - sparkapplications
+              - scheduledsparkapplications
             verbs:
               - patch
       - notContains:
@@ -293,10 +290,11 @@ tests:
               - sparkoperator.k8s.io
             resources:
               - sparkapplications
+              - scheduledsparkapplications
             verbs:
               - delete
 
-  - it: Should not grant any permissions on sparkapplications/status in webhook ClusterRole
+  - it: Should not grant any permissions on sparkapplications/status or finalizers in webhook ClusterRole
     set:
       spark:
         jobNamespaces:
@@ -308,23 +306,22 @@ tests:
           content:
             resources:
               - sparkapplications/status
+          any: true
       - notContains:
           path: rules
           content:
             resources:
               - sparkapplications/finalizers
-      - notContains:
-          path: rules
-          content:
-            resources:
-              - scheduledsparkapplications
+          any: true
       - notContains:
           path: rules
           content:
             resources:
               - scheduledsparkapplications/status
+          any: true
       - notContains:
           path: rules
           content:
             resources:
               - scheduledsparkapplications/finalizers
+          any: true
