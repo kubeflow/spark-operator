@@ -195,6 +195,7 @@ See [helm uninstall](https://helm.sh/docs/helm/helm_uninstall) for command docum
 | prometheus.metrics.portName | string | `"metrics"` | Metrics port name. |
 | prometheus.metrics.endpoint | string | `"/metrics"` | Metrics serving endpoint. |
 | prometheus.metrics.prefix | string | `""` | Metrics prefix, will be added to all exported metrics. |
+| prometheus.metrics.jobSubmitLatencyBuckets | string | `"0.5,1,2,4,8,16,32,64,128,256"` | Job Submit Latency histogram buckets. Specified in seconds. |
 | prometheus.metrics.jobStartLatencyBuckets | string | `"30,60,90,120,150,180,210,240,270,300"` | Job Start Latency histogram buckets. Specified in seconds. |
 | prometheus.metrics.labels | string | `""` | Labels to be added to the Spark Operator standard metrics, e.g., "label1Key,label2Key". Defaults to 'app_type' if not set. |
 | prometheus.podMonitor.create | bool | `false` | Specifies whether to create pod monitor. Note that prometheus metrics should be enabled as well. |
