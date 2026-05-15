@@ -25,6 +25,8 @@ import (
 	"reflect"
 	"slices"
 	"strings"
+	"syscall"
+	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -59,22 +61,35 @@ func (*SparkSubmitter) Submit(ctx context.Context, app *v1beta2.SparkApplication
 		return fmt.Errorf("failed to build spark-submit arguments: %v", err)
 	}
 
-	// Try submitting the application by running spark-submit.
+	// Try submitting the application by running spark-submit. The reconcile context is
+	// threaded into spark-submit so that controller shutdown (or any other context
+	// cancellation) signals the child process to exit. Cancellation can still arrive
+	// after spark-submit has already created the driver pod (e.g., between the create
+	// call and process exit), so this reduces, rather than eliminates, the chance of
+	// losing a status update for a freshly submitted SparkApplication.
 	logger.Info("Running spark-submit", "arguments", args)
-	if err := runSparkSubmit(args); err != nil {
+	if err := runSparkSubmit(ctx, args); err != nil {
 		return fmt.Errorf("failed to run spark-submit: %v", err)
 	}
 
 	return nil
 }
 
-func runSparkSubmit(args []string) error {
+func runSparkSubmit(ctx context.Context, args []string) error {
 	sparkHome, present := os.LookupEnv(common.EnvSparkHome)
 	if !present {
 		return fmt.Errorf("env %s is not specified", common.EnvSparkHome)
 	}
 	command := filepath.Join(sparkHome, "bin", "spark-submit")
-	cmd := exec.Command(command, args...)
+	cmd := exec.CommandContext(ctx, command, args...)
+	// exec.CommandContext defaults to SIGKILL on cancellation. Override so we send
+	// SIGTERM first, giving spark-submit and the underlying JVM a chance to shut
+	// down gracefully (release the API server connection, flush logs). WaitDelay
+	// caps how long we wait after the signal before the process is force-killed.
+	cmd.Cancel = func() error {
+		return cmd.Process.Signal(syscall.SIGTERM)
+	}
+	cmd.WaitDelay = 10 * time.Second
 	_, err := cmd.Output()
 	if err != nil {
 		var errorMsg string

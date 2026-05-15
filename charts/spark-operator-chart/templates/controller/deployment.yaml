@@ -124,6 +124,9 @@ spec:
         {{- if .Values.controller.driverPodCreationGracePeriod }}
         - --driver-pod-creation-grace-period={{ .Values.controller.driverPodCreationGracePeriod }}
         {{- end }}
+        {{- if .Values.controller.gracefulShutdownTimeout }}
+        - --graceful-shutdown-timeout={{ .Values.controller.gracefulShutdownTimeout }}
+        {{- end }}
         {{- if .Values.controller.maxTrackedExecutorPerApp }}
         - --max-tracked-executor-per-app={{ .Values.controller.maxTrackedExecutorPerApp }}
         {{- end }}
@@ -211,6 +214,9 @@ spec:
       {{- end }}
       serviceAccountName: {{ include "spark-operator.controller.serviceAccountName" . }}
       automountServiceAccountToken: {{ .Values.controller.serviceAccount.automountServiceAccountToken }}
+      {{- with .Values.controller.terminationGracePeriodSeconds }}
+      terminationGracePeriodSeconds: {{ . }}
+      {{- end }}
       {{- with .Values.controller.podSecurityContext }}
       securityContext:
         {{- toYaml . | nindent 8 }}

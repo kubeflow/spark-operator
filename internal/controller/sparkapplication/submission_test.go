@@ -17,14 +17,19 @@ limitations under the License.
 package sparkapplication
 
 import (
+	"context"
 	"fmt"
 	"os"
+	"path/filepath"
+	"runtime"
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -36,6 +41,114 @@ import (
 	"github.com/kubeflow/spark-operator/v2/pkg/common"
 	"github.com/kubeflow/spark-operator/v2/pkg/util"
 )
+
+// writeFakeSparkHome creates a temporary SPARK_HOME directory containing a
+// `bin/spark-submit` script with the given contents. The directory is cleaned
+// up at the end of the test. The script is executable.
+func writeFakeSparkHome(t *testing.T, script string) string {
+	t.Helper()
+	if runtime.GOOS == "windows" {
+		t.Skip("fake spark-submit shell script is not supported on Windows")
+	}
+	root := t.TempDir()
+	binDir := filepath.Join(root, "bin")
+	require.NoError(t, os.MkdirAll(binDir, 0o755))
+	sparkSubmit := filepath.Join(binDir, "spark-submit")
+	require.NoError(t, os.WriteFile(sparkSubmit, []byte(script), 0o755))
+	return root
+}
+
+func TestRunSparkSubmit(t *testing.T) {
+	t.Run("returns error when SPARK_HOME is not set", func(t *testing.T) {
+		// t.Setenv cannot unset, so save/restore manually.
+		old, present := os.LookupEnv(common.EnvSparkHome)
+		require.NoError(t, os.Unsetenv(common.EnvSparkHome))
+		t.Cleanup(func() {
+			if present {
+				_ = os.Setenv(common.EnvSparkHome, old)
+			}
+		})
+
+		err := runSparkSubmit(context.Background(), nil)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), common.EnvSparkHome)
+	})
+
+	t.Run("returns nil on successful spark-submit", func(t *testing.T) {
+		sparkHome := writeFakeSparkHome(t, "#!/bin/sh\nexit 0\n")
+		t.Setenv(common.EnvSparkHome, sparkHome)
+
+		assert.NoError(t, runSparkSubmit(context.Background(), []string{"--foo", "bar"}))
+	})
+
+	t.Run("surfaces stderr when spark-submit fails", func(t *testing.T) {
+		sparkHome := writeFakeSparkHome(t, "#!/bin/sh\necho boom 1>&2\nexit 1\n")
+		t.Setenv(common.EnvSparkHome, sparkHome)
+
+		err := runSparkSubmit(context.Background(), nil)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "boom")
+	})
+
+	t.Run("returns driver pod already exists error", func(t *testing.T) {
+		script := fmt.Sprintf("#!/bin/sh\necho %q 1>&2\nexit 1\n", "got "+common.ErrorCodePodAlreadyExists+" from apiserver")
+		sparkHome := writeFakeSparkHome(t, script)
+		t.Setenv(common.EnvSparkHome, sparkHome)
+
+		err := runSparkSubmit(context.Background(), nil)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "driver pod already exist")
+	})
+
+	t.Run("context cancellation triggers SIGTERM rather than SIGKILL", func(t *testing.T) {
+		if _, err := os.Stat("/bin/bash"); err != nil {
+			t.Skip("/bin/bash is required for this test")
+		}
+		// The script traps SIGTERM, emits a marker to stderr, and exits non-zero.
+		// A foreground busy-loop is used so the trap fires between sleeps and so
+		// no background process keeps stderr open after the script exits (which
+		// would delay Wait by WaitDelay). We require bash (not /bin/sh) because
+		// some POSIX shells (notably bash 3.2 invoked as sh on macOS) do not
+		// deliver trapped signals during builtins like `wait`. If runSparkSubmit
+		// defaulted to SIGKILL (the os/exec default for context-cancelled
+		// commands), the trap would never run and stderr would be empty.
+		// The script writes a "ready" marker once the trap is registered so the
+		// test can wait until SIGTERM will be delivered after the handler is in
+		// place, avoiding a race on slow/loaded test machines.
+		readyMarker := filepath.Join(t.TempDir(), "ready")
+		script := fmt.Sprintf(`#!/bin/bash
+trap 'echo SIGTERM_RECEIVED 1>&2; exit 42' TERM
+touch %q
+while true; do
+  sleep 0.1
+done
+`, readyMarker)
+		sparkHome := writeFakeSparkHome(t, script)
+		t.Setenv(common.EnvSparkHome, sparkHome)
+
+		ctx, cancel := context.WithCancel(context.Background())
+		// Cancel only after the script has installed the trap.
+		go func() {
+			deadline := time.Now().Add(5 * time.Second)
+			for time.Now().Before(deadline) {
+				if _, statErr := os.Stat(readyMarker); statErr == nil {
+					break
+				}
+				time.Sleep(20 * time.Millisecond)
+			}
+			cancel()
+		}()
+
+		start := time.Now()
+		err := runSparkSubmit(ctx, nil)
+		elapsed := time.Since(start)
+
+		require.Error(t, err)
+		assert.Less(t, elapsed, 8*time.Second, "runSparkSubmit should return promptly after SIGTERM")
+		assert.Contains(t, err.Error(), "SIGTERM_RECEIVED",
+			"spark-submit child should receive SIGTERM, not SIGKILL")
+	})
+}
 
 func TestExecutorConfOption(t *testing.T) {
 	tests := []struct {
