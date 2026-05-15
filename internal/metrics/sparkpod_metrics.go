@@ -44,7 +44,7 @@ func NewSparkExecutorMetrics(prefix string, labels []string) *SparkExecutorMetri
 
 	return &SparkExecutorMetrics{
 		prefix: prefix,
-		labels: labels,
+		labels: validLabels,
 
 		runningCount: prometheus.NewGaugeVec(
 			prometheus.GaugeOpts{
