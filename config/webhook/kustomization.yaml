@@ -13,6 +13,7 @@ resources:
 
 patches:
   - path: webhook-objectselector-patch.yaml
+  - path: webhook-validating-selector-patch.yaml
 
 configurations:
   - kustomizeconfig.yaml

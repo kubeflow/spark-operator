@@ -254,6 +254,11 @@ func TestKustomizeBuild(t *testing.T) {
 		assert.True(t, hasObjectSelector,
 			"pod mutation webhook should have objectSelector to prevent chicken-and-egg deadlock")
 
+		for _, wh := range mw.Webhooks {
+			assert.NotNil(t, wh.NamespaceSelector,
+				"mutating webhook %s should have namespaceSelector (added via kustomize patch)", wh.Name)
+		}
+
 		svcRefCount := 0
 		for _, wh := range mw.Webhooks {
 			if wh.ClientConfig.Service != nil && wh.ClientConfig.Service.Name == "spark-operator-webhook-svc" {
@@ -264,6 +269,11 @@ func TestKustomizeBuild(t *testing.T) {
 		vwObj := findResource(resources, "ValidatingWebhookConfiguration", "validating-webhook-configuration")
 		require.NotNil(t, vwObj, "ValidatingWebhookConfiguration not found")
 		vw := convertTo[admissionregistrationv1.ValidatingWebhookConfiguration](t, vwObj)
+
+		for _, wh := range vw.Webhooks {
+			assert.NotNil(t, wh.NamespaceSelector,
+				"validating webhook %s should have namespaceSelector (added via kustomize patch)", wh.Name)
+		}
 
 		for _, wh := range vw.Webhooks {
 			if wh.ClientConfig.Service != nil && wh.ClientConfig.Service.Name == "spark-operator-webhook-svc" {

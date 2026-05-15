@@ -1,0 +1,34 @@
+# Kustomize strategic-merge patch for ValidatingWebhookConfiguration selectors.
+#
+# controller-gen cannot emit namespaceSelector via kubebuilder markers, so we
+# add it here to align with the Helm chart defaults.
+#
+# namespaceSelector limits interception to the listed job namespaces
+# (default: "default"). Adjust the values list to match your deployment.
+
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  name: validating-webhook-configuration
+webhooks:
+- name: validate-sparkapplication.sparkoperator.k8s.io
+  namespaceSelector:
+    matchExpressions:
+    - key: kubernetes.io/metadata.name
+      operator: In
+      values:
+      - default
+- name: validate-scheduledsparkapplication.sparkoperator.k8s.io
+  namespaceSelector:
+    matchExpressions:
+    - key: kubernetes.io/metadata.name
+      operator: In
+      values:
+      - default
+- name: validate-sparkconnect.sparkoperator.k8s.io
+  namespaceSelector:
+    matchExpressions:
+    - key: kubernetes.io/metadata.name
+      operator: In
+      values:
+      - default
