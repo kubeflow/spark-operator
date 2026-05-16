@@ -498,9 +498,13 @@ func (r *Reconciler) reconcileRunningSparkApplication(ctx context.Context, req c
 func (r *Reconciler) reconcilePendingRerunSparkApplication(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := log.FromContext(ctx)
 	key := req.NamespacedName
+
+	var result ctrl.Result
+
 	retryErr := retry.RetryOnConflict(
 		retry.DefaultRetry,
 		func() error {
+			result = ctrl.Result{}
 			old, err := r.getSparkApplication(ctx, key)
 			if err != nil {
 				return err
@@ -516,7 +520,12 @@ func (r *Reconciler) reconcilePendingRerunSparkApplication(ctx context.Context, 
 				r.recordSparkApplicationEvent(app)
 				r.submitSparkApplication(ctx, app)
 			} else {
-				logger.Info("Resources associated with SparkApplication still exist")
+				logger.Info("Resources associated with SparkApplication still exist, will retry")
+				if app.Spec.RestartPolicy.OnFailureRetryInterval != nil {
+					result.RequeueAfter = time.Duration(*app.Spec.RestartPolicy.OnFailureRetryInterval) * time.Second
+				} else {
+					result.Requeue = true
+				}
 			}
 			if err := r.updateSparkApplicationStatus(ctx, app); err != nil {
 				return err
@@ -526,9 +535,9 @@ func (r *Reconciler) reconcilePendingRerunSparkApplication(ctx context.Context, 
 	)
 	if retryErr != nil {
 		logger.Error(retryErr, "Failed to reconcile SparkApplication")
-		return ctrl.Result{}, retryErr
+		return result, retryErr
 	}
-	return ctrl.Result{}, nil
+	return result, nil
 }
 
 func (r *Reconciler) reconcileInvalidatingSparkApplication(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
@@ -788,9 +797,13 @@ func (r *Reconciler) reconcileSuspendingSparkApplication(ctx context.Context, re
 func (r *Reconciler) reconcileSuspendedSparkApplication(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := log.FromContext(ctx)
 	key := req.NamespacedName
+
+	var result ctrl.Result
+
 	retryErr := retry.RetryOnConflict(
 		retry.DefaultRetry,
 		func() error {
+			result = ctrl.Result{}
 			old, err := r.getSparkApplication(ctx, key)
 			if err != nil {
 				return err
@@ -810,7 +823,12 @@ func (r *Reconciler) reconcileSuspendedSparkApplication(ctx context.Context, req
 					}
 				}
 			} else {
-				logger.Info("Resources associated with SparkApplication still exist")
+				logger.Info("Resources associated with SparkApplication still exist, will retry")
+				if app.Spec.RestartPolicy.OnFailureRetryInterval != nil {
+					result.RequeueAfter = time.Duration(*app.Spec.RestartPolicy.OnFailureRetryInterval) * time.Second
+				} else {
+					result.Requeue = true
+				}
 			}
 			if err := r.updateSparkApplicationStatus(ctx, app); err != nil {
 				return err
@@ -820,9 +838,9 @@ func (r *Reconciler) reconcileSuspendedSparkApplication(ctx context.Context, req
 	)
 	if retryErr != nil {
 		logger.Error(retryErr, "Failed to reconcile SparkApplication")
-		return ctrl.Result{}, retryErr
+		return result, retryErr
 	}
-	return ctrl.Result{}, nil
+	return result, nil
 }
 
 func (r *Reconciler) reconcileResumingSparkApplication(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
