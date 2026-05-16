@@ -10474,6 +10474,24 @@ spec:
                         format: int64
                         minimum: 1
                         type: integer
+                      retryInterval:
+                        description: |-
+                          RetryInterval is the interval in seconds between retries.
+                          If set, it takes precedence over OnFailureRetryInterval and OnSubmissionFailureRetryInterval.
+                        format: int64
+                        minimum: 1
+                        type: integer
+                      retryIntervalMethod:
+                        default: linear
+                        description: |-
+                          RetryIntervalMethod specifies how retry interval should be calculated.
+                          Supported values are:
+                          - linear: retry interval is multiplied by number of attempts (linear backoff).
+                          - static: retry interval is always constant.
+                        enum:
+                        - linear
+                        - static
+                        type: string
                       type:
                         description: Type specifies the RestartPolicyType.
                         enum:

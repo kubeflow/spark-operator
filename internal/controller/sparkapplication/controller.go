@@ -901,6 +901,8 @@ func (r *Reconciler) submitSparkApplication(ctx context.Context, app *v1beta2.Sp
 	// SubmissionID must be set before creating any resources to ensure all the resources are labeled.
 	app.Status.SubmissionID = uuid.New().String()
 	app.Status.DriverInfo.PodName = util.GetDriverPodName(app)
+	// Reset previous run termination timestamp so retry delays are computed from the current run.
+	app.Status.TerminationTime = metav1.Time{}
 	app.Status.LastSubmissionAttemptTime = metav1.Now()
 	app.Status.SubmissionAttempts = app.Status.SubmissionAttempts + 1
 
@@ -1403,7 +1405,6 @@ func (r *Reconciler) resetSparkApplicationStatus(app *v1beta2.SparkApplication) 
 		status.LastSubmissionAttemptTime = metav1.Time{}
 		status.TerminationTime = metav1.Time{}
 		status.AppState.ErrorMessage = ""
-		status.DriverInfo = v1beta2.DriverInfo{}
 		status.ExecutorState = nil
 	case v1beta2.ApplicationStateSuspended:
 		status.SparkApplicationID = ""
