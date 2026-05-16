@@ -65,6 +65,11 @@ func SetSparkApplicationDefaults(app *SparkApplication) {
 		}
 	}
 
+	// Default RetryInterval to 5 sec for retry/poll intervals.
+	if app.Spec.RetryInterval == nil {
+		app.Spec.RetryInterval = ptr.To[int64](5)
+	}
+
 	setDriverSpecDefaults(&app.Spec.Driver, app.Spec.SparkConf)
 	setExecutorSpecDefaults(&app.Spec.Executor, app.Spec.SparkConf, app.Spec.DynamicAllocation)
 }
