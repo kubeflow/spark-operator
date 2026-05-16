@@ -116,15 +116,16 @@ func WriteObjectToFile(obj interface{}, filePath string) (err error) {
 }
 
 func ConvertJavaMemoryStringToK8sMemoryString(memory string) string {
+	lower := strings.ToLower(strings.TrimSpace(memory))
 
 	for unit, k8sUnit := range unitMap {
-		if strings.HasSuffix(strings.ToLower(memory), unit) {
-			return strings.TrimSuffix(memory, unit) + k8sUnit
+		if strings.HasSuffix(lower, unit) {
+			return strings.TrimSuffix(lower, unit) + k8sUnit
 		}
 	}
 
-	// return original memory value if no conversion is needed
-	return memory
+	// return trimmed memory value if no conversion is needed
+	return strings.TrimSpace(memory)
 }
 
 func SetIfNotExists[K comparable, V any](m map[K]V, key K, value V) {
