@@ -45,28 +45,17 @@ const (
 
 // SparkPodDefaulter defaults Spark pods.
 type SparkPodDefaulter struct {
-	client             client.Client
-	sparkJobNamespaces map[string]bool
+	client client.Client
 }
 
 // SparkPodDefaulter implements admission.CustomDefaulter.
 var _ admission.CustomDefaulter = &SparkPodDefaulter{}
 
-// NewSparkPodDefaulter creates a new SparkPodDefaulter instance.
-func NewSparkPodDefaulter(client client.Client, namespaces []string) *SparkPodDefaulter {
-	nsMap := make(map[string]bool)
-	if len(namespaces) == 0 {
-		nsMap[metav1.NamespaceAll] = true
-	} else {
-		for _, ns := range namespaces {
-			nsMap[ns] = true
-		}
-	}
-
-	return &SparkPodDefaulter{
-		client:             client,
-		sparkJobNamespaces: nsMap,
-	}
+// NewSparkPodDefaulter creates a new SparkPodDefaulter instance. Namespace
+// scoping is applied externally via NewNamespaceFilteringDefaulter at
+// registration time.
+func NewSparkPodDefaulter(client client.Client) *SparkPodDefaulter {
+	return &SparkPodDefaulter{client: client}
 }
 
 // Default implements admission.CustomDefaulter.
@@ -78,9 +67,6 @@ func (d *SparkPodDefaulter) Default(ctx context.Context, obj runtime.Object) err
 
 	logger := log.FromContext(ctx)
 	namespace := pod.Namespace
-	if !d.isSparkJobNamespace(namespace) {
-		return nil
-	}
 
 	appName := pod.Labels[common.LabelSparkAppName]
 	if appName == "" {
@@ -130,10 +116,6 @@ func addMemoryLimit(pod *corev1.Pod, app *v1beta2.SparkApplication) error {
 	// Apply the memory limit to the container's resources
 	pod.Spec.Containers[i].Resources.Limits[corev1.ResourceMemory] = limitQuantity
 	return nil
-}
-
-func (d *SparkPodDefaulter) isSparkJobNamespace(ns string) bool {
-	return d.sparkJobNamespaces[metav1.NamespaceAll] || d.sparkJobNamespaces[ns]
 }
 
 type mutateSparkPodOption func(pod *corev1.Pod, app *v1beta2.SparkApplication) error

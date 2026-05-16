@@ -456,8 +456,28 @@ spark:
   # Namespaces matching this selector will be watched in addition to those in jobNamespaces.
   # When specified, requires ClusterRole permission to list and watch namespaces.
   # Leave empty to disable namespace selector functionality.
+  # Drives the --namespace-selector flag for both the controller and the webhook deployments.
   jobNamespaceSelector: ""
 
+  # -- Structured label selector embedded into the `namespaceSelector` field of every
+  # MutatingWebhookConfiguration / ValidatingWebhookConfiguration webhook entry.
+  # When set, replaces the default name-based selector built from `jobNamespaces`.
+  # For multi-tenant deployments, this should match `jobNamespaceSelector` (which is a string)
+  # in structured form -- the Kubernetes API requires `matchLabels` / `matchExpressions`
+  # and Helm cannot reliably parse arbitrary label-selector strings.
+  # Combining this with a non-empty `jobNamespaces` is not supported.
+  webhookNamespaceSelector: {}
+  # webhookNamespaceSelector:
+  #   matchLabels:
+  #     example.com/tenant: tenantA
+
+  # Note: the chart only renders Spark ServiceAccount/Role/RoleBinding for namespaces
+  # listed explicitly in `jobNamespaces`. When `jobNamespaces` is unset, empty, or
+  # contains the "" wildcard, or when `jobNamespaceSelector` / `webhookNamespaceSelector`
+  # is used, no Spark RBAC is rendered and the cluster admin must provision a
+  # ServiceAccount + Role + RoleBinding in every namespace where Spark jobs will run.
+  # ServiceAccount is intrinsically namespaced, so there is no Helm-only way to
+  # bootstrap RBAC into a label-selected set of namespaces.
   serviceAccount:
     # -- Specifies whether to create a service account for spark applications.
     create: true
