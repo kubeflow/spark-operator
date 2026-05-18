@@ -19,7 +19,6 @@ package webhook
 import (
 	"context"
 
-	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
@@ -39,12 +38,11 @@ func NewSparkApplicationDefaulter() *SparkApplicationDefaulter {
 }
 
 // SparkApplicationDefaulter implements admission.CustomDefaulter.
-var _ admission.CustomDefaulter = &SparkApplicationDefaulter{}
+var _ admission.Defaulter[*v1beta2.SparkApplication] = &SparkApplicationDefaulter{}
 
 // Default implements admission.CustomDefaulter.
-func (d *SparkApplicationDefaulter) Default(ctx context.Context, obj runtime.Object) error {
-	app, ok := obj.(*v1beta2.SparkApplication)
-	if !ok {
+func (d *SparkApplicationDefaulter) Default(ctx context.Context, app *v1beta2.SparkApplication) error {
+	if app == nil {
 		return nil
 	}
 

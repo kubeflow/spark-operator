@@ -19,7 +19,6 @@ package webhook
 import (
 	"context"
 
-	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
@@ -38,12 +37,11 @@ func NewSparkConnectDefaulter() *SparkConnectDefaulter {
 }
 
 // SparkConnectDefaulter implements admission.CustomDefaulter.
-var _ admission.CustomDefaulter = &SparkConnectDefaulter{}
+var _ admission.Defaulter[*v1alpha1.SparkConnect] = &SparkConnectDefaulter{}
 
 // Default implements admission.CustomDefaulter.
-func (d *SparkConnectDefaulter) Default(ctx context.Context, obj runtime.Object) error {
-	sc, ok := obj.(*v1alpha1.SparkConnect)
-	if !ok {
+func (d *SparkConnectDefaulter) Default(ctx context.Context, sc *v1alpha1.SparkConnect) error {
+	if sc == nil {
 		return nil
 	}
 

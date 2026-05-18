@@ -22,7 +22,6 @@ import (
 	"strings"
 
 	"k8s.io/apimachinery/pkg/api/equality"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/validation"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
@@ -43,12 +42,11 @@ func NewSparkConnectValidator() *SparkConnectValidator {
 	return &SparkConnectValidator{}
 }
 
-var _ admission.CustomValidator = &SparkConnectValidator{}
+var _ admission.Validator[*v1alpha1.SparkConnect] = &SparkConnectValidator{}
 
-// ValidateCreate implements admission.CustomValidator.
-func (v *SparkConnectValidator) ValidateCreate(ctx context.Context, obj runtime.Object) (warnings admission.Warnings, err error) {
-	sc, ok := obj.(*v1alpha1.SparkConnect)
-	if !ok {
+// ValidateCreate implements admission.Validator.
+func (v *SparkConnectValidator) ValidateCreate(ctx context.Context, sc *v1alpha1.SparkConnect) (warnings admission.Warnings, err error) {
+	if sc == nil {
 		return nil, nil
 	}
 
@@ -67,15 +65,9 @@ func (v *SparkConnectValidator) ValidateCreate(ctx context.Context, obj runtime.
 	return nil, nil
 }
 
-// ValidateUpdate implements admission.CustomValidator.
-func (v *SparkConnectValidator) ValidateUpdate(ctx context.Context, oldObj runtime.Object, newObj runtime.Object) (warnings admission.Warnings, err error) {
-	oldSC, ok := oldObj.(*v1alpha1.SparkConnect)
-	if !ok {
-		return nil, nil
-	}
-
-	newSC, ok := newObj.(*v1alpha1.SparkConnect)
-	if !ok {
+// ValidateUpdate implements admission.Validator.
+func (v *SparkConnectValidator) ValidateUpdate(ctx context.Context, oldSC *v1alpha1.SparkConnect, newSC *v1alpha1.SparkConnect) (warnings admission.Warnings, err error) {
+	if oldSC == nil || newSC == nil {
 		return nil, nil
 	}
 
@@ -99,10 +91,9 @@ func (v *SparkConnectValidator) ValidateUpdate(ctx context.Context, oldObj runti
 	return nil, nil
 }
 
-// ValidateDelete implements admission.CustomValidator.
-func (v *SparkConnectValidator) ValidateDelete(ctx context.Context, obj runtime.Object) (warnings admission.Warnings, err error) {
-	sc, ok := obj.(*v1alpha1.SparkConnect)
-	if !ok {
+// ValidateDelete implements admission.Validator.
+func (v *SparkConnectValidator) ValidateDelete(ctx context.Context, sc *v1alpha1.SparkConnect) (warnings admission.Warnings, err error) {
+	if sc == nil {
 		return nil, nil
 	}
 

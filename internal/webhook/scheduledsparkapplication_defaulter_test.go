@@ -30,13 +30,6 @@ import (
 func TestScheduledSparkApplicationDefaulterDefault(t *testing.T) {
 	defaulter := NewScheduledSparkApplicationDefaulter()
 
-	t.Run("returns nil for unrelated object types", func(t *testing.T) {
-		err := defaulter.Default(context.Background(), &v1beta2.SparkApplication{})
-		if err != nil {
-			t.Fatalf("expected no error, got %v", err)
-		}
-	})
-
 	t.Run("returns nil for ScheduledSparkApplication", func(t *testing.T) {
 		app := &v1beta2.ScheduledSparkApplication{}
 		err := defaulter.Default(context.Background(), app)
