@@ -32,7 +32,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/tools/record"
+	"k8s.io/client-go/tools/events"
 	"k8s.io/client-go/util/retry"
 	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -78,7 +78,7 @@ type Reconciler struct {
 	manager   ctrl.Manager
 	scheme    *runtime.Scheme
 	client    client.Client
-	recorder  record.EventRecorder
+	recorder  events.EventRecorder
 	registry  *scheduler.Registry
 	submitter SparkApplicationSubmitter
 	options   Options
@@ -92,7 +92,7 @@ func NewReconciler(
 	manager ctrl.Manager,
 	scheme *runtime.Scheme,
 	client client.Client,
-	recorder record.EventRecorder,
+	recorder events.EventRecorder,
 	registry *scheduler.Registry,
 	submitter SparkApplicationSubmitter,
 	options Options,
@@ -258,7 +258,7 @@ func (r *Reconciler) SetupWithManager(mgr ctrl.Manager, options controller.Optio
 
 	appEventFilter, err := NewSparkApplicationEventFilter(
 		mgr.GetClient(),
-		mgr.GetEventRecorderFor("spark-application-event-handler"),
+		mgr.GetEventRecorder("spark-application-event-handler"),
 		r.options.Namespaces,
 		r.options.NamespaceSelector,
 	)
@@ -976,6 +976,7 @@ func (r *Reconciler) updateDriverState(ctx context.Context, app *v1beta2.SparkAp
 		if app.Status.AppState.State != v1beta2.ApplicationStateSubmitted || metav1.Now().Sub(app.Status.LastSubmissionAttemptTime.Time) > r.options.DriverPodCreationGracePeriod {
 			r.recorder.Eventf(
 				app,
+				nil,
 				corev1.EventTypeWarning,
 				common.EventSparkDriverNotFound,
 				"Driver pod %s not found after grace period %v, marking application as Failing",
@@ -1304,6 +1305,7 @@ func (r *Reconciler) recordSparkApplicationEvent(app *v1beta2.SparkApplication) 
 	case v1beta2.ApplicationStateNew:
 		r.recorder.Eventf(
 			app,
+			nil,
 			corev1.EventTypeNormal,
 			common.EventSparkApplicationAdded,
 			"SparkApplication %s was added, enqueuing it for submission",
@@ -1312,6 +1314,7 @@ func (r *Reconciler) recordSparkApplicationEvent(app *v1beta2.SparkApplication) 
 	case v1beta2.ApplicationStateSubmitted:
 		r.recorder.Eventf(
 			app,
+			nil,
 			corev1.EventTypeNormal,
 			common.EventSparkApplicationSubmitted,
 			"SparkApplication %s was submitted successfully",
@@ -1320,6 +1323,7 @@ func (r *Reconciler) recordSparkApplicationEvent(app *v1beta2.SparkApplication) 
 	case v1beta2.ApplicationStateFailedSubmission:
 		r.recorder.Eventf(
 			app,
+			nil,
 			corev1.EventTypeWarning,
 			common.EventSparkApplicationSubmissionFailed,
 			"failed to submit SparkApplication %s: %s",
@@ -1329,6 +1333,7 @@ func (r *Reconciler) recordSparkApplicationEvent(app *v1beta2.SparkApplication) 
 	case v1beta2.ApplicationStateCompleted:
 		r.recorder.Eventf(
 			app,
+			nil,
 			corev1.EventTypeNormal,
 			common.EventSparkApplicationCompleted,
 			"SparkApplication %s completed",
@@ -1337,6 +1342,7 @@ func (r *Reconciler) recordSparkApplicationEvent(app *v1beta2.SparkApplication) 
 	case v1beta2.ApplicationStateFailed:
 		r.recorder.Eventf(
 			app,
+			nil,
 			corev1.EventTypeWarning,
 			common.EventSparkApplicationFailed,
 			"SparkApplication %s failed: %s",
@@ -1346,6 +1352,7 @@ func (r *Reconciler) recordSparkApplicationEvent(app *v1beta2.SparkApplication) 
 	case v1beta2.ApplicationStatePendingRerun:
 		r.recorder.Eventf(
 			app,
+			nil,
 			corev1.EventTypeWarning,
 			common.EventSparkApplicationPendingRerun,
 			"SparkApplication %s is pending rerun",
@@ -1354,6 +1361,7 @@ func (r *Reconciler) recordSparkApplicationEvent(app *v1beta2.SparkApplication) 
 	case v1beta2.ApplicationStateSuspending:
 		r.recorder.Eventf(
 			app,
+			nil,
 			corev1.EventTypeWarning,
 			common.EventSparkApplicationSuspending,
 			"SparkApplication %s is suspending",
@@ -1362,6 +1370,7 @@ func (r *Reconciler) recordSparkApplicationEvent(app *v1beta2.SparkApplication) 
 	case v1beta2.ApplicationStateSuspended:
 		r.recorder.Eventf(
 			app,
+			nil,
 			corev1.EventTypeWarning,
 			common.EventSparkApplicationSuspended,
 			"SparkApplication %s is suspended",
@@ -1370,6 +1379,7 @@ func (r *Reconciler) recordSparkApplicationEvent(app *v1beta2.SparkApplication) 
 	case v1beta2.ApplicationStateResuming:
 		r.recorder.Eventf(
 			app,
+			nil,
 			corev1.EventTypeWarning,
 			common.EventSparkApplicationResuming,
 			"SparkApplication %s is resuming",
@@ -1381,30 +1391,30 @@ func (r *Reconciler) recordSparkApplicationEvent(app *v1beta2.SparkApplication) 
 func (r *Reconciler) recordDriverEvent(app *v1beta2.SparkApplication, state v1beta2.DriverState, name string) {
 	switch state {
 	case v1beta2.DriverStatePending:
-		r.recorder.Eventf(app, corev1.EventTypeNormal, common.EventSparkDriverPending, "Driver %s is pending", name)
+		r.recorder.Eventf(app, nil, corev1.EventTypeNormal, common.EventSparkDriverPending, "Driver %s is pending", name)
 	case v1beta2.DriverStateRunning:
-		r.recorder.Eventf(app, corev1.EventTypeNormal, common.EventSparkDriverRunning, "Driver %s is running", name)
+		r.recorder.Eventf(app, nil, corev1.EventTypeNormal, common.EventSparkDriverRunning, "Driver %s is running", name)
 	case v1beta2.DriverStateCompleted:
-		r.recorder.Eventf(app, corev1.EventTypeNormal, common.EventSparkDriverCompleted, "Driver %s completed", name)
+		r.recorder.Eventf(app, nil, corev1.EventTypeNormal, common.EventSparkDriverCompleted, "Driver %s completed", name)
 	case v1beta2.DriverStateFailed:
-		r.recorder.Eventf(app, corev1.EventTypeWarning, common.EventSparkDriverFailed, "Driver %s failed", name)
+		r.recorder.Eventf(app, nil, corev1.EventTypeWarning, common.EventSparkDriverFailed, "Driver %s failed", name)
 	case v1beta2.DriverStateUnknown:
-		r.recorder.Eventf(app, corev1.EventTypeWarning, common.EventSparkDriverUnknown, "Driver %s in unknown state", name)
+		r.recorder.Eventf(app, nil, corev1.EventTypeWarning, common.EventSparkDriverUnknown, "Driver %s in unknown state", name)
 	}
 }
 
 func (r *Reconciler) recordExecutorEvent(app *v1beta2.SparkApplication, state v1beta2.ExecutorState, args ...any) {
 	switch state {
 	case v1beta2.ExecutorStatePending:
-		r.recorder.Eventf(app, corev1.EventTypeNormal, common.EventSparkExecutorPending, "Executor %s is pending", args...)
+		r.recorder.Eventf(app, nil, corev1.EventTypeNormal, common.EventSparkExecutorPending, "Executor %s is pending", app.Name, args...)
 	case v1beta2.ExecutorStateRunning:
-		r.recorder.Eventf(app, corev1.EventTypeNormal, common.EventSparkExecutorRunning, "Executor %s is running", args...)
+		r.recorder.Eventf(app, nil, corev1.EventTypeNormal, common.EventSparkExecutorRunning, "Executor %s is running", app.Name, args...)
 	case v1beta2.ExecutorStateCompleted:
-		r.recorder.Eventf(app, corev1.EventTypeNormal, common.EventSparkExecutorCompleted, "Executor %s completed", args...)
+		r.recorder.Eventf(app, nil, corev1.EventTypeNormal, common.EventSparkExecutorCompleted, "Executor %s completed", app.Name, args...)
 	case v1beta2.ExecutorStateFailed:
-		r.recorder.Eventf(app, corev1.EventTypeWarning, common.EventSparkExecutorFailed, "Executor %s failed with ExitCode: %d, Reason: %s, Pod Message: %s", args...)
+		r.recorder.Eventf(app, nil, corev1.EventTypeWarning, common.EventSparkExecutorFailed, "Executor %s failed with ExitCode: %d, Reason: %s, Pod Message: %s", app.Name, args...)
 	case v1beta2.ExecutorStateUnknown:
-		r.recorder.Eventf(app, corev1.EventTypeWarning, common.EventSparkExecutorUnknown, "Executor %s in unknown state", args...)
+		r.recorder.Eventf(app, nil, corev1.EventTypeWarning, common.EventSparkExecutorUnknown, "Executor %s in unknown state", app.Name, args...)
 	}
 }
 

@@ -328,7 +328,7 @@ func start() {
 		mgr,
 		mgr.GetScheme(),
 		mgr.GetClient(),
-		mgr.GetEventRecorderFor("spark-application-controller"),
+		mgr.GetEventRecorder("spark-application-controller"),
 		registry,
 		sparkSubmitter,
 		newSparkApplicationReconcilerOptions(),
@@ -341,7 +341,7 @@ func start() {
 	if err = scheduledsparkapplication.NewReconciler(
 		mgr.GetScheme(),
 		mgr.GetClient(),
-		mgr.GetEventRecorderFor("scheduled-spark-application-controller"),
+		mgr.GetEventRecorder("scheduled-spark-application-controller"),
 		clock.RealClock{},
 		newScheduledSparkApplicationReconcilerOptions(),
 	).SetupWithManager(mgr, newControllerOptions()); err != nil {
@@ -354,7 +354,7 @@ func start() {
 		mgr,
 		mgr.GetScheme(),
 		mgr.GetClient(),
-		mgr.GetEventRecorderFor("SparkConnect"),
+		mgr.GetEventRecorder("SparkConnect"),
 		newSparkConnectReconcilerOptions(),
 	).SetupWithManager(mgr, newControllerOptions()); err != nil {
 		logger.Error(err, "Failed to create controller", "controller", "SparkConnect")

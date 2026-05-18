@@ -32,7 +32,7 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/tools/record"
+	"k8s.io/client-go/tools/events"
 	"k8s.io/utils/clock"
 	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -80,7 +80,7 @@ func formatTimestamp(t time.Time, precision string) string {
 type Reconciler struct {
 	scheme   *runtime.Scheme
 	client   client.Client
-	recorder record.EventRecorder
+	recorder events.EventRecorder
 	clock    clock.Clock
 	options  Options
 }
@@ -90,7 +90,7 @@ var _ reconcile.Reconciler = &Reconciler{}
 func NewReconciler(
 	scheme *runtime.Scheme,
 	client client.Client,
-	recorder record.EventRecorder,
+	recorder events.EventRecorder,
 	clock clock.Clock,
 	options Options,
 ) *Reconciler {
