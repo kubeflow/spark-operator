@@ -21,6 +21,7 @@ from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictStr, field_
 from typing import Any, ClassVar, Dict, List, Optional
 from kubeflow_spark_api.models.io_k8s_api_core_v1_container_port import IoK8sApiCoreV1ContainerPort
 from kubeflow_spark_api.models.io_k8s_api_core_v1_container_resize_policy import IoK8sApiCoreV1ContainerResizePolicy
+from kubeflow_spark_api.models.io_k8s_api_core_v1_container_restart_rule import IoK8sApiCoreV1ContainerRestartRule
 from kubeflow_spark_api.models.io_k8s_api_core_v1_env_from_source import IoK8sApiCoreV1EnvFromSource
 from kubeflow_spark_api.models.io_k8s_api_core_v1_env_var import IoK8sApiCoreV1EnvVar
 from kubeflow_spark_api.models.io_k8s_api_core_v1_lifecycle import IoK8sApiCoreV1Lifecycle
@@ -39,7 +40,7 @@ class IoK8sApiCoreV1EphemeralContainer(BaseModel):
     args: Optional[List[StrictStr]] = Field(default=None, description="Arguments to the entrypoint. The image's CMD is used if this is not provided. Variable references $(VAR_NAME) are expanded using the container's environment. If a variable cannot be resolved, the reference in the input string will be unchanged. Double $$ are reduced to a single $, which allows for escaping the $(VAR_NAME) syntax: i.e. \"$$(VAR_NAME)\" will produce the string literal \"$(VAR_NAME)\". Escaped references will never be expanded, regardless of whether the variable exists or not. Cannot be updated. More info: https://kubernetes.io/docs/tasks/inject-data-application/define-command-argument-container/#running-a-command-in-a-shell")
     command: Optional[List[StrictStr]] = Field(default=None, description="Entrypoint array. Not executed within a shell. The image's ENTRYPOINT is used if this is not provided. Variable references $(VAR_NAME) are expanded using the container's environment. If a variable cannot be resolved, the reference in the input string will be unchanged. Double $$ are reduced to a single $, which allows for escaping the $(VAR_NAME) syntax: i.e. \"$$(VAR_NAME)\" will produce the string literal \"$(VAR_NAME)\". Escaped references will never be expanded, regardless of whether the variable exists or not. Cannot be updated. More info: https://kubernetes.io/docs/tasks/inject-data-application/define-command-argument-container/#running-a-command-in-a-shell")
     env: Optional[List[IoK8sApiCoreV1EnvVar]] = Field(default=None, description="List of environment variables to set in the container. Cannot be updated.")
-    env_from: Optional[List[IoK8sApiCoreV1EnvFromSource]] = Field(default=None, description="List of sources to populate environment variables in the container. The keys defined within a source must be a C_IDENTIFIER. All invalid keys will be reported as an event when the container is starting. When a key exists in multiple sources, the value associated with the last source will take precedence. Values defined by an Env with a duplicate key will take precedence. Cannot be updated.", alias="envFrom")
+    env_from: Optional[List[IoK8sApiCoreV1EnvFromSource]] = Field(default=None, description="List of sources to populate environment variables in the container. The keys defined within a source may consist of any printable ASCII characters except '='. When a key exists in multiple sources, the value associated with the last source will take precedence. Values defined by an Env with a duplicate key will take precedence. Cannot be updated.", alias="envFrom")
     image: Optional[StrictStr] = Field(default=None, description="Container image name. More info: https://kubernetes.io/docs/concepts/containers/images")
     image_pull_policy: Optional[StrictStr] = Field(default=None, description="Image pull policy. One of Always, Never, IfNotPresent. Defaults to Always if :latest tag is specified, or IfNotPresent otherwise. Cannot be updated. More info: https://kubernetes.io/docs/concepts/containers/images#updating-images  Possible enum values:  - `\"Always\"` means that kubelet always attempts to pull the latest image. Container will fail If the pull fails.  - `\"IfNotPresent\"` means that kubelet pulls if the image isn't present on disk. Container will fail if the image isn't present and the pull fails.  - `\"Never\"` means that kubelet never pulls an image, but only uses a local image. Container will fail if the image isn't present", alias="imagePullPolicy")
     lifecycle: Optional[IoK8sApiCoreV1Lifecycle] = Field(default=None, description="Lifecycle is not allowed for ephemeral containers.")
@@ -49,7 +50,8 @@ class IoK8sApiCoreV1EphemeralContainer(BaseModel):
     readiness_probe: Optional[IoK8sApiCoreV1Probe] = Field(default=None, description="Probes are not allowed for ephemeral containers.", alias="readinessProbe")
     resize_policy: Optional[List[IoK8sApiCoreV1ContainerResizePolicy]] = Field(default=None, description="Resources resize policy for the container.", alias="resizePolicy")
     resources: Optional[IoK8sApiCoreV1ResourceRequirements] = Field(default=None, description="Resources are not allowed for ephemeral containers. Ephemeral containers use spare resources already allocated to the pod.")
-    restart_policy: Optional[StrictStr] = Field(default=None, description="Restart policy for the container to manage the restart behavior of each container within a pod. This may only be set for init containers. You cannot set this field on ephemeral containers.", alias="restartPolicy")
+    restart_policy: Optional[StrictStr] = Field(default=None, description="Restart policy for the container to manage the restart behavior of each container within a pod. You cannot set this field on ephemeral containers.", alias="restartPolicy")
+    restart_policy_rules: Optional[List[IoK8sApiCoreV1ContainerRestartRule]] = Field(default=None, description="Represents a list of rules to be checked to determine if the container should be restarted on exit. You cannot set this field on ephemeral containers.", alias="restartPolicyRules")
     security_context: Optional[IoK8sApiCoreV1SecurityContext] = Field(default=None, description="Optional: SecurityContext defines the security options the ephemeral container should be run with. If set, the fields of SecurityContext override the equivalent fields of PodSecurityContext.", alias="securityContext")
     startup_probe: Optional[IoK8sApiCoreV1Probe] = Field(default=None, description="Probes are not allowed for ephemeral containers.", alias="startupProbe")
     stdin: Optional[StrictBool] = Field(default=None, description="Whether this container should allocate a buffer for stdin in the container runtime. If this is not set, reads from stdin in the container will always result in EOF. Default is false.")
@@ -61,7 +63,7 @@ class IoK8sApiCoreV1EphemeralContainer(BaseModel):
     volume_devices: Optional[List[IoK8sApiCoreV1VolumeDevice]] = Field(default=None, description="volumeDevices is the list of block devices to be used by the container.", alias="volumeDevices")
     volume_mounts: Optional[List[IoK8sApiCoreV1VolumeMount]] = Field(default=None, description="Pod volumes to mount into the container's filesystem. Subpath mounts are not allowed for ephemeral containers. Cannot be updated.", alias="volumeMounts")
     working_dir: Optional[StrictStr] = Field(default=None, description="Container's working directory. If not specified, the container runtime's default will be used, which might be configured in the container image. Cannot be updated.", alias="workingDir")
-    __properties: ClassVar[List[str]] = ["args", "command", "env", "envFrom", "image", "imagePullPolicy", "lifecycle", "livenessProbe", "name", "ports", "readinessProbe", "resizePolicy", "resources", "restartPolicy", "securityContext", "startupProbe", "stdin", "stdinOnce", "targetContainerName", "terminationMessagePath", "terminationMessagePolicy", "tty", "volumeDevices", "volumeMounts", "workingDir"]
+    __properties: ClassVar[List[str]] = ["args", "command", "env", "envFrom", "image", "imagePullPolicy", "lifecycle", "livenessProbe", "name", "ports", "readinessProbe", "resizePolicy", "resources", "restartPolicy", "restartPolicyRules", "securityContext", "startupProbe", "stdin", "stdinOnce", "targetContainerName", "terminationMessagePath", "terminationMessagePolicy", "tty", "volumeDevices", "volumeMounts", "workingDir"]
 
     @field_validator('image_pull_policy')
     def image_pull_policy_validate_enum(cls, value):
@@ -162,6 +164,13 @@ class IoK8sApiCoreV1EphemeralContainer(BaseModel):
         # override the default output from pydantic by calling `to_dict()` of resources
         if self.resources:
             _dict['resources'] = self.resources.to_dict()
+        # override the default output from pydantic by calling `to_dict()` of each item in restart_policy_rules (list)
+        _items = []
+        if self.restart_policy_rules:
+            for _item_restart_policy_rules in self.restart_policy_rules:
+                if _item_restart_policy_rules:
+                    _items.append(_item_restart_policy_rules.to_dict())
+            _dict['restartPolicyRules'] = _items
         # override the default output from pydantic by calling `to_dict()` of security_context
         if self.security_context:
             _dict['securityContext'] = self.security_context.to_dict()
@@ -208,6 +217,7 @@ class IoK8sApiCoreV1EphemeralContainer(BaseModel):
             "resizePolicy": [IoK8sApiCoreV1ContainerResizePolicy.from_dict(_item) for _item in obj["resizePolicy"]] if obj.get("resizePolicy") is not None else None,
             "resources": IoK8sApiCoreV1ResourceRequirements.from_dict(obj["resources"]) if obj.get("resources") is not None else None,
             "restartPolicy": obj.get("restartPolicy"),
+            "restartPolicyRules": [IoK8sApiCoreV1ContainerRestartRule.from_dict(_item) for _item in obj["restartPolicyRules"]] if obj.get("restartPolicyRules") is not None else None,
             "securityContext": IoK8sApiCoreV1SecurityContext.from_dict(obj["securityContext"]) if obj.get("securityContext") is not None else None,
             "startupProbe": IoK8sApiCoreV1Probe.from_dict(obj["startupProbe"]) if obj.get("startupProbe") is not None else None,
             "stdin": obj.get("stdin"),

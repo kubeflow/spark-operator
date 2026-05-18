@@ -19,20 +19,20 @@ import json
 
 from pydantic import BaseModel, ConfigDict, Field, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional
-from kubeflow_spark_api.models.io_k8s_api_core_v1_endpoint_subset import IoK8sApiCoreV1EndpointSubset
+from kubeflow_spark_api.models.io_k8s_api_networking_v1_ip_address_spec import IoK8sApiNetworkingV1IPAddressSpec
 from kubeflow_spark_api.models.io_k8s_apimachinery_pkg_apis_meta_v1_object_meta import IoK8sApimachineryPkgApisMetaV1ObjectMeta
 from typing import Optional, Set
 from typing_extensions import Self
 
-class IoK8sApiCoreV1Endpoints(BaseModel):
+class IoK8sApiNetworkingV1IPAddress(BaseModel):
     """
-    Endpoints is a collection of endpoints that implement the actual service. Example:    Name: \"mysvc\",   Subsets: [     {       Addresses: [{\"ip\": \"10.10.1.1\"}, {\"ip\": \"10.10.2.2\"}],       Ports: [{\"name\": \"a\", \"port\": 8675}, {\"name\": \"b\", \"port\": 309}]     },     {       Addresses: [{\"ip\": \"10.10.3.3\"}],       Ports: [{\"name\": \"a\", \"port\": 93}, {\"name\": \"b\", \"port\": 76}]     },  ]  Endpoints is a legacy API and does not contain information about all Service features. Use discoveryv1.EndpointSlice for complete information about Service endpoints.  Deprecated: This API is deprecated in v1.33+. Use discoveryv1.EndpointSlice.
+    IPAddress represents a single IP of a single IP Family. The object is designed to be used by APIs that operate on IP addresses. The object is used by the Service core API for allocation of IP addresses. An IP address can be represented in different formats, to guarantee the uniqueness of the IP, the name of the object is the IP address in canonical format, four decimal digits separated by dots suppressing leading zeros for IPv4 and the representation defined by RFC 5952 for IPv6. Valid: 192.168.1.5 or 2001:db8::1 or 2001:db8:aaaa:bbbb:cccc:dddd:eeee:1 Invalid: 10.01.2.3 or 2001:db8:0:0:0::1
     """ # noqa: E501
     api_version: Optional[StrictStr] = Field(default=None, description="APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources", alias="apiVersion")
     kind: Optional[StrictStr] = Field(default=None, description="Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds")
     metadata: Optional[IoK8sApimachineryPkgApisMetaV1ObjectMeta] = Field(default=None, description="Standard object's metadata. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata")
-    subsets: Optional[List[IoK8sApiCoreV1EndpointSubset]] = Field(default=None, description="The set of all endpoints is the union of all subsets. Addresses are placed into subsets according to the IPs they share. A single address with multiple ports, some of which are ready and some of which are not (because they come from different containers) will result in the address being displayed in different subsets for the different ports. No address will appear in both Addresses and NotReadyAddresses in the same subset. Sets of addresses and ports that comprise a service.")
-    __properties: ClassVar[List[str]] = ["apiVersion", "kind", "metadata", "subsets"]
+    spec: Optional[IoK8sApiNetworkingV1IPAddressSpec] = Field(default=None, description="spec is the desired state of the IPAddress. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#spec-and-status")
+    __properties: ClassVar[List[str]] = ["apiVersion", "kind", "metadata", "spec"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -52,7 +52,7 @@ class IoK8sApiCoreV1Endpoints(BaseModel):
 
     @classmethod
     def from_json(cls, json_str: str) -> Optional[Self]:
-        """Create an instance of IoK8sApiCoreV1Endpoints from a JSON string"""
+        """Create an instance of IoK8sApiNetworkingV1IPAddress from a JSON string"""
         return cls.from_dict(json.loads(json_str))
 
     def to_dict(self) -> Dict[str, Any]:
@@ -76,18 +76,14 @@ class IoK8sApiCoreV1Endpoints(BaseModel):
         # override the default output from pydantic by calling `to_dict()` of metadata
         if self.metadata:
             _dict['metadata'] = self.metadata.to_dict()
-        # override the default output from pydantic by calling `to_dict()` of each item in subsets (list)
-        _items = []
-        if self.subsets:
-            for _item_subsets in self.subsets:
-                if _item_subsets:
-                    _items.append(_item_subsets.to_dict())
-            _dict['subsets'] = _items
+        # override the default output from pydantic by calling `to_dict()` of spec
+        if self.spec:
+            _dict['spec'] = self.spec.to_dict()
         return _dict
 
     @classmethod
     def from_dict(cls, obj: Optional[Dict[str, Any]]) -> Optional[Self]:
-        """Create an instance of IoK8sApiCoreV1Endpoints from a dict"""
+        """Create an instance of IoK8sApiNetworkingV1IPAddress from a dict"""
         if obj is None:
             return None
 
@@ -98,7 +94,7 @@ class IoK8sApiCoreV1Endpoints(BaseModel):
             "apiVersion": obj.get("apiVersion"),
             "kind": obj.get("kind"),
             "metadata": IoK8sApimachineryPkgApisMetaV1ObjectMeta.from_dict(obj["metadata"]) if obj.get("metadata") is not None else None,
-            "subsets": [IoK8sApiCoreV1EndpointSubset.from_dict(_item) for _item in obj["subsets"]] if obj.get("subsets") is not None else None
+            "spec": IoK8sApiNetworkingV1IPAddressSpec.from_dict(obj["spec"]) if obj.get("spec") is not None else None
         })
         return _obj
 

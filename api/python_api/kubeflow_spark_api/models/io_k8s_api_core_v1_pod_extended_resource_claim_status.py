@@ -18,19 +18,18 @@ import re  # noqa: F401
 import json
 
 from pydantic import BaseModel, ConfigDict, Field, StrictStr
-from typing import Any, ClassVar, Dict, List, Optional
-from kubeflow_spark_api.models.io_k8s_api_core_v1_env_var_source import IoK8sApiCoreV1EnvVarSource
+from typing import Any, ClassVar, Dict, List
+from kubeflow_spark_api.models.io_k8s_api_core_v1_container_extended_resource_request import IoK8sApiCoreV1ContainerExtendedResourceRequest
 from typing import Optional, Set
 from typing_extensions import Self
 
-class IoK8sApiCoreV1EnvVar(BaseModel):
+class IoK8sApiCoreV1PodExtendedResourceClaimStatus(BaseModel):
     """
-    EnvVar represents an environment variable present in a Container.
+    PodExtendedResourceClaimStatus is stored in the PodStatus for the extended resource requests backed by DRA. It stores the generated name for the corresponding special ResourceClaim created by the scheduler.
     """ # noqa: E501
-    name: StrictStr = Field(description="Name of the environment variable. May consist of any printable ASCII characters except '='.")
-    value: Optional[StrictStr] = Field(default=None, description="Variable references $(VAR_NAME) are expanded using the previously defined environment variables in the container and any service environment variables. If a variable cannot be resolved, the reference in the input string will be unchanged. Double $$ are reduced to a single $, which allows for escaping the $(VAR_NAME) syntax: i.e. \"$$(VAR_NAME)\" will produce the string literal \"$(VAR_NAME)\". Escaped references will never be expanded, regardless of whether the variable exists or not. Defaults to \"\".")
-    value_from: Optional[IoK8sApiCoreV1EnvVarSource] = Field(default=None, description="Source for the environment variable's value. Cannot be used if value is not empty.", alias="valueFrom")
-    __properties: ClassVar[List[str]] = ["name", "value", "valueFrom"]
+    request_mappings: List[IoK8sApiCoreV1ContainerExtendedResourceRequest] = Field(description="RequestMappings identifies the mapping of <container, extended resource backed by DRA> to  device request in the generated ResourceClaim.", alias="requestMappings")
+    resource_claim_name: StrictStr = Field(description="ResourceClaimName is the name of the ResourceClaim that was generated for the Pod in the namespace of the Pod.", alias="resourceClaimName")
+    __properties: ClassVar[List[str]] = ["requestMappings", "resourceClaimName"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -50,7 +49,7 @@ class IoK8sApiCoreV1EnvVar(BaseModel):
 
     @classmethod
     def from_json(cls, json_str: str) -> Optional[Self]:
-        """Create an instance of IoK8sApiCoreV1EnvVar from a JSON string"""
+        """Create an instance of IoK8sApiCoreV1PodExtendedResourceClaimStatus from a JSON string"""
         return cls.from_dict(json.loads(json_str))
 
     def to_dict(self) -> Dict[str, Any]:
@@ -71,14 +70,18 @@ class IoK8sApiCoreV1EnvVar(BaseModel):
             exclude=excluded_fields,
             exclude_none=True,
         )
-        # override the default output from pydantic by calling `to_dict()` of value_from
-        if self.value_from:
-            _dict['valueFrom'] = self.value_from.to_dict()
+        # override the default output from pydantic by calling `to_dict()` of each item in request_mappings (list)
+        _items = []
+        if self.request_mappings:
+            for _item_request_mappings in self.request_mappings:
+                if _item_request_mappings:
+                    _items.append(_item_request_mappings.to_dict())
+            _dict['requestMappings'] = _items
         return _dict
 
     @classmethod
     def from_dict(cls, obj: Optional[Dict[str, Any]]) -> Optional[Self]:
-        """Create an instance of IoK8sApiCoreV1EnvVar from a dict"""
+        """Create an instance of IoK8sApiCoreV1PodExtendedResourceClaimStatus from a dict"""
         if obj is None:
             return None
 
@@ -86,9 +89,8 @@ class IoK8sApiCoreV1EnvVar(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
-            "name": obj.get("name") if obj.get("name") is not None else '',
-            "value": obj.get("value"),
-            "valueFrom": IoK8sApiCoreV1EnvVarSource.from_dict(obj["valueFrom"]) if obj.get("valueFrom") is not None else None
+            "requestMappings": [IoK8sApiCoreV1ContainerExtendedResourceRequest.from_dict(_item) for _item in obj["requestMappings"]] if obj.get("requestMappings") is not None else None,
+            "resourceClaimName": obj.get("resourceClaimName") if obj.get("resourceClaimName") is not None else ''
         })
         return _obj
 

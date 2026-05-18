@@ -17,28 +17,20 @@ import pprint
 import re  # noqa: F401
 import json
 
-from datetime import datetime
-from pydantic import BaseModel, ConfigDict, Field, StrictStr, field_validator
+from pydantic import BaseModel, ConfigDict, Field, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional
 from typing import Optional, Set
 from typing_extensions import Self
 
-class IoK8sApiCoreV1Taint(BaseModel):
+class IoK8sApiNetworkingV1ParentReference(BaseModel):
     """
-    The node this Taint is attached to has the \"effect\" on any pod that does not tolerate the Taint.
+    ParentReference describes a reference to a parent object.
     """ # noqa: E501
-    effect: StrictStr = Field(description="Required. The effect of the taint on pods that do not tolerate the taint. Valid effects are NoSchedule, PreferNoSchedule and NoExecute.  Possible enum values:  - `\"NoExecute\"` Evict any already-running pods that do not tolerate the taint. Currently enforced by NodeController.  - `\"NoSchedule\"` Do not allow new pods to schedule onto the node unless they tolerate the taint, but allow all pods submitted to Kubelet without going through the scheduler to start, and allow all already-running pods to continue running. Enforced by the scheduler.  - `\"PreferNoSchedule\"` Like TaintEffectNoSchedule, but the scheduler tries not to schedule new pods onto the node, rather than prohibiting new pods from scheduling onto the node entirely. Enforced by the scheduler.")
-    key: StrictStr = Field(description="Required. The taint key to be applied to a node.")
-    time_added: Optional[datetime] = Field(default=None, description="TimeAdded represents the time at which the taint was added.", alias="timeAdded")
-    value: Optional[StrictStr] = Field(default=None, description="The taint value corresponding to the taint key.")
-    __properties: ClassVar[List[str]] = ["effect", "key", "timeAdded", "value"]
-
-    @field_validator('effect')
-    def effect_validate_enum(cls, value):
-        """Validates the enum"""
-        if value not in set(['NoExecute', 'NoSchedule', 'PreferNoSchedule']):
-            raise ValueError("must be one of enum values ('NoExecute', 'NoSchedule', 'PreferNoSchedule')")
-        return value
+    group: Optional[StrictStr] = Field(default=None, description="Group is the group of the object being referenced.")
+    name: StrictStr = Field(description="Name is the name of the object being referenced.")
+    namespace: Optional[StrictStr] = Field(default=None, description="Namespace is the namespace of the object being referenced.")
+    resource: StrictStr = Field(description="Resource is the resource of the object being referenced.")
+    __properties: ClassVar[List[str]] = ["group", "name", "namespace", "resource"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -58,7 +50,7 @@ class IoK8sApiCoreV1Taint(BaseModel):
 
     @classmethod
     def from_json(cls, json_str: str) -> Optional[Self]:
-        """Create an instance of IoK8sApiCoreV1Taint from a JSON string"""
+        """Create an instance of IoK8sApiNetworkingV1ParentReference from a JSON string"""
         return cls.from_dict(json.loads(json_str))
 
     def to_dict(self) -> Dict[str, Any]:
@@ -83,7 +75,7 @@ class IoK8sApiCoreV1Taint(BaseModel):
 
     @classmethod
     def from_dict(cls, obj: Optional[Dict[str, Any]]) -> Optional[Self]:
-        """Create an instance of IoK8sApiCoreV1Taint from a dict"""
+        """Create an instance of IoK8sApiNetworkingV1ParentReference from a dict"""
         if obj is None:
             return None
 
@@ -91,10 +83,10 @@ class IoK8sApiCoreV1Taint(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
-            "effect": obj.get("effect"),
-            "key": obj.get("key") if obj.get("key") is not None else '',
-            "timeAdded": obj.get("timeAdded"),
-            "value": obj.get("value")
+            "group": obj.get("group"),
+            "name": obj.get("name"),
+            "namespace": obj.get("namespace"),
+            "resource": obj.get("resource")
         })
         return _obj
 

@@ -26,7 +26,7 @@ class IoK8sApiCoreV1GlusterfsVolumeSource(BaseModel):
     """
     Represents a Glusterfs mount that lasts the lifetime of a pod. Glusterfs volumes do not support ownership management or SELinux relabeling.
     """ # noqa: E501
-    endpoints: StrictStr = Field(description="endpoints is the endpoint name that details Glusterfs topology. More info: https://examples.k8s.io/volumes/glusterfs/README.md#create-a-pod")
+    endpoints: StrictStr = Field(description="endpoints is the endpoint name that details Glusterfs topology.")
     path: StrictStr = Field(description="path is the Glusterfs volume path. More info: https://examples.k8s.io/volumes/glusterfs/README.md#create-a-pod")
     read_only: Optional[StrictBool] = Field(default=None, description="readOnly here will force the Glusterfs volume to be mounted with read-only permissions. Defaults to false. More info: https://examples.k8s.io/volumes/glusterfs/README.md#create-a-pod", alias="readOnly")
     __properties: ClassVar[List[str]] = ["endpoints", "path", "readOnly"]

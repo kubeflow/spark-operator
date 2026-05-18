@@ -40,8 +40,8 @@ class IoK8sApiCoreV1ResourceQuotaSpec(BaseModel):
             return value
 
         for i in value:
-            if i not in set(['BestEffort', 'CrossNamespacePodAffinity', 'NotBestEffort', 'NotTerminating', 'PriorityClass', 'Terminating']):
-                raise ValueError("each list item must be one of ('BestEffort', 'CrossNamespacePodAffinity', 'NotBestEffort', 'NotTerminating', 'PriorityClass', 'Terminating')")
+            if i not in set(['BestEffort', 'CrossNamespacePodAffinity', 'NotBestEffort', 'NotTerminating', 'PriorityClass', 'Terminating', 'VolumeAttributesClass']):
+                raise ValueError("each list item must be one of ('BestEffort', 'CrossNamespacePodAffinity', 'NotBestEffort', 'NotTerminating', 'PriorityClass', 'Terminating', 'VolumeAttributesClass')")
         return value
 
     model_config = ConfigDict(

@@ -20,6 +20,7 @@ import json
 from pydantic import BaseModel, ConfigDict, Field
 from typing import Any, ClassVar, Dict, List, Optional
 from kubeflow_spark_api.models.io_k8s_api_core_v1_config_map_key_selector import IoK8sApiCoreV1ConfigMapKeySelector
+from kubeflow_spark_api.models.io_k8s_api_core_v1_file_key_selector import IoK8sApiCoreV1FileKeySelector
 from kubeflow_spark_api.models.io_k8s_api_core_v1_object_field_selector import IoK8sApiCoreV1ObjectFieldSelector
 from kubeflow_spark_api.models.io_k8s_api_core_v1_resource_field_selector import IoK8sApiCoreV1ResourceFieldSelector
 from kubeflow_spark_api.models.io_k8s_api_core_v1_secret_key_selector import IoK8sApiCoreV1SecretKeySelector
@@ -32,9 +33,10 @@ class IoK8sApiCoreV1EnvVarSource(BaseModel):
     """ # noqa: E501
     config_map_key_ref: Optional[IoK8sApiCoreV1ConfigMapKeySelector] = Field(default=None, description="Selects a key of a ConfigMap.", alias="configMapKeyRef")
     field_ref: Optional[IoK8sApiCoreV1ObjectFieldSelector] = Field(default=None, description="Selects a field of the pod: supports metadata.name, metadata.namespace, `metadata.labels['<KEY>']`, `metadata.annotations['<KEY>']`, spec.nodeName, spec.serviceAccountName, status.hostIP, status.podIP, status.podIPs.", alias="fieldRef")
+    file_key_ref: Optional[IoK8sApiCoreV1FileKeySelector] = Field(default=None, description="FileKeyRef selects a key of the env file. Requires the EnvFiles feature gate to be enabled.", alias="fileKeyRef")
     resource_field_ref: Optional[IoK8sApiCoreV1ResourceFieldSelector] = Field(default=None, description="Selects a resource of the container: only resources limits and requests (limits.cpu, limits.memory, limits.ephemeral-storage, requests.cpu, requests.memory and requests.ephemeral-storage) are currently supported.", alias="resourceFieldRef")
     secret_key_ref: Optional[IoK8sApiCoreV1SecretKeySelector] = Field(default=None, description="Selects a key of a secret in the pod's namespace", alias="secretKeyRef")
-    __properties: ClassVar[List[str]] = ["configMapKeyRef", "fieldRef", "resourceFieldRef", "secretKeyRef"]
+    __properties: ClassVar[List[str]] = ["configMapKeyRef", "fieldRef", "fileKeyRef", "resourceFieldRef", "secretKeyRef"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -81,6 +83,9 @@ class IoK8sApiCoreV1EnvVarSource(BaseModel):
         # override the default output from pydantic by calling `to_dict()` of field_ref
         if self.field_ref:
             _dict['fieldRef'] = self.field_ref.to_dict()
+        # override the default output from pydantic by calling `to_dict()` of file_key_ref
+        if self.file_key_ref:
+            _dict['fileKeyRef'] = self.file_key_ref.to_dict()
         # override the default output from pydantic by calling `to_dict()` of resource_field_ref
         if self.resource_field_ref:
             _dict['resourceFieldRef'] = self.resource_field_ref.to_dict()
@@ -101,6 +106,7 @@ class IoK8sApiCoreV1EnvVarSource(BaseModel):
         _obj = cls.model_validate({
             "configMapKeyRef": IoK8sApiCoreV1ConfigMapKeySelector.from_dict(obj["configMapKeyRef"]) if obj.get("configMapKeyRef") is not None else None,
             "fieldRef": IoK8sApiCoreV1ObjectFieldSelector.from_dict(obj["fieldRef"]) if obj.get("fieldRef") is not None else None,
+            "fileKeyRef": IoK8sApiCoreV1FileKeySelector.from_dict(obj["fileKeyRef"]) if obj.get("fileKeyRef") is not None else None,
             "resourceFieldRef": IoK8sApiCoreV1ResourceFieldSelector.from_dict(obj["resourceFieldRef"]) if obj.get("resourceFieldRef") is not None else None,
             "secretKeyRef": IoK8sApiCoreV1SecretKeySelector.from_dict(obj["secretKeyRef"]) if obj.get("secretKeyRef") is not None else None
         })

@@ -17,7 +17,7 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictInt, StrictStr
+from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictInt, StrictStr, field_validator
 from typing import Any, ClassVar, Dict, List, Optional
 from kubeflow_spark_api.models.io_k8s_api_core_v1_container_state import IoK8sApiCoreV1ContainerState
 from kubeflow_spark_api.models.io_k8s_api_core_v1_container_user import IoK8sApiCoreV1ContainerUser
@@ -44,9 +44,20 @@ class IoK8sApiCoreV1ContainerStatus(BaseModel):
     restart_count: StrictInt = Field(description="RestartCount holds the number of times the container has been restarted. Kubelet makes an effort to always increment the value, but there are cases when the state may be lost due to node restarts and then the value may be reset to 0. The value is never negative.", alias="restartCount")
     started: Optional[StrictBool] = Field(default=None, description="Started indicates whether the container has finished its postStart lifecycle hook and passed its startup probe. Initialized as false, becomes true after startupProbe is considered successful. Resets to false when the container is restarted, or if kubelet loses state temporarily. In both cases, startup probes will run again. Is always true when no startupProbe is defined and container is running and has passed the postStart lifecycle hook. The null value must be treated the same as false.")
     state: Optional[IoK8sApiCoreV1ContainerState] = Field(default=None, description="State holds details about the container's current condition.")
+    stop_signal: Optional[StrictStr] = Field(default=None, description="StopSignal reports the effective stop signal for this container  Possible enum values:  - `\"SIGABRT\"`  - `\"SIGALRM\"`  - `\"SIGBUS\"`  - `\"SIGCHLD\"`  - `\"SIGCLD\"`  - `\"SIGCONT\"`  - `\"SIGFPE\"`  - `\"SIGHUP\"`  - `\"SIGILL\"`  - `\"SIGINT\"`  - `\"SIGIO\"`  - `\"SIGIOT\"`  - `\"SIGKILL\"`  - `\"SIGPIPE\"`  - `\"SIGPOLL\"`  - `\"SIGPROF\"`  - `\"SIGPWR\"`  - `\"SIGQUIT\"`  - `\"SIGRTMAX\"`  - `\"SIGRTMAX-1\"`  - `\"SIGRTMAX-10\"`  - `\"SIGRTMAX-11\"`  - `\"SIGRTMAX-12\"`  - `\"SIGRTMAX-13\"`  - `\"SIGRTMAX-14\"`  - `\"SIGRTMAX-2\"`  - `\"SIGRTMAX-3\"`  - `\"SIGRTMAX-4\"`  - `\"SIGRTMAX-5\"`  - `\"SIGRTMAX-6\"`  - `\"SIGRTMAX-7\"`  - `\"SIGRTMAX-8\"`  - `\"SIGRTMAX-9\"`  - `\"SIGRTMIN\"`  - `\"SIGRTMIN+1\"`  - `\"SIGRTMIN+10\"`  - `\"SIGRTMIN+11\"`  - `\"SIGRTMIN+12\"`  - `\"SIGRTMIN+13\"`  - `\"SIGRTMIN+14\"`  - `\"SIGRTMIN+15\"`  - `\"SIGRTMIN+2\"`  - `\"SIGRTMIN+3\"`  - `\"SIGRTMIN+4\"`  - `\"SIGRTMIN+5\"`  - `\"SIGRTMIN+6\"`  - `\"SIGRTMIN+7\"`  - `\"SIGRTMIN+8\"`  - `\"SIGRTMIN+9\"`  - `\"SIGSEGV\"`  - `\"SIGSTKFLT\"`  - `\"SIGSTOP\"`  - `\"SIGSYS\"`  - `\"SIGTERM\"`  - `\"SIGTRAP\"`  - `\"SIGTSTP\"`  - `\"SIGTTIN\"`  - `\"SIGTTOU\"`  - `\"SIGURG\"`  - `\"SIGUSR1\"`  - `\"SIGUSR2\"`  - `\"SIGVTALRM\"`  - `\"SIGWINCH\"`  - `\"SIGXCPU\"`  - `\"SIGXFSZ\"`", alias="stopSignal")
     user: Optional[IoK8sApiCoreV1ContainerUser] = Field(default=None, description="User represents user identity information initially attached to the first process of the container")
     volume_mounts: Optional[List[IoK8sApiCoreV1VolumeMountStatus]] = Field(default=None, description="Status of volume mounts.", alias="volumeMounts")
-    __properties: ClassVar[List[str]] = ["allocatedResources", "allocatedResourcesStatus", "containerID", "image", "imageID", "lastState", "name", "ready", "resources", "restartCount", "started", "state", "user", "volumeMounts"]
+    __properties: ClassVar[List[str]] = ["allocatedResources", "allocatedResourcesStatus", "containerID", "image", "imageID", "lastState", "name", "ready", "resources", "restartCount", "started", "state", "stopSignal", "user", "volumeMounts"]
+
+    @field_validator('stop_signal')
+    def stop_signal_validate_enum(cls, value):
+        """Validates the enum"""
+        if value is None:
+            return value
+
+        if value not in set(['SIGABRT', 'SIGALRM', 'SIGBUS', 'SIGCHLD', 'SIGCLD', 'SIGCONT', 'SIGFPE', 'SIGHUP', 'SIGILL', 'SIGINT', 'SIGIO', 'SIGIOT', 'SIGKILL', 'SIGPIPE', 'SIGPOLL', 'SIGPROF', 'SIGPWR', 'SIGQUIT', 'SIGRTMAX', 'SIGRTMAX-1', 'SIGRTMAX-10', 'SIGRTMAX-11', 'SIGRTMAX-12', 'SIGRTMAX-13', 'SIGRTMAX-14', 'SIGRTMAX-2', 'SIGRTMAX-3', 'SIGRTMAX-4', 'SIGRTMAX-5', 'SIGRTMAX-6', 'SIGRTMAX-7', 'SIGRTMAX-8', 'SIGRTMAX-9', 'SIGRTMIN', 'SIGRTMIN+1', 'SIGRTMIN+10', 'SIGRTMIN+11', 'SIGRTMIN+12', 'SIGRTMIN+13', 'SIGRTMIN+14', 'SIGRTMIN+15', 'SIGRTMIN+2', 'SIGRTMIN+3', 'SIGRTMIN+4', 'SIGRTMIN+5', 'SIGRTMIN+6', 'SIGRTMIN+7', 'SIGRTMIN+8', 'SIGRTMIN+9', 'SIGSEGV', 'SIGSTKFLT', 'SIGSTOP', 'SIGSYS', 'SIGTERM', 'SIGTRAP', 'SIGTSTP', 'SIGTTIN', 'SIGTTOU', 'SIGURG', 'SIGUSR1', 'SIGUSR2', 'SIGVTALRM', 'SIGWINCH', 'SIGXCPU', 'SIGXFSZ']):
+            raise ValueError("must be one of enum values ('SIGABRT', 'SIGALRM', 'SIGBUS', 'SIGCHLD', 'SIGCLD', 'SIGCONT', 'SIGFPE', 'SIGHUP', 'SIGILL', 'SIGINT', 'SIGIO', 'SIGIOT', 'SIGKILL', 'SIGPIPE', 'SIGPOLL', 'SIGPROF', 'SIGPWR', 'SIGQUIT', 'SIGRTMAX', 'SIGRTMAX-1', 'SIGRTMAX-10', 'SIGRTMAX-11', 'SIGRTMAX-12', 'SIGRTMAX-13', 'SIGRTMAX-14', 'SIGRTMAX-2', 'SIGRTMAX-3', 'SIGRTMAX-4', 'SIGRTMAX-5', 'SIGRTMAX-6', 'SIGRTMAX-7', 'SIGRTMAX-8', 'SIGRTMAX-9', 'SIGRTMIN', 'SIGRTMIN+1', 'SIGRTMIN+10', 'SIGRTMIN+11', 'SIGRTMIN+12', 'SIGRTMIN+13', 'SIGRTMIN+14', 'SIGRTMIN+15', 'SIGRTMIN+2', 'SIGRTMIN+3', 'SIGRTMIN+4', 'SIGRTMIN+5', 'SIGRTMIN+6', 'SIGRTMIN+7', 'SIGRTMIN+8', 'SIGRTMIN+9', 'SIGSEGV', 'SIGSTKFLT', 'SIGSTOP', 'SIGSYS', 'SIGTERM', 'SIGTRAP', 'SIGTSTP', 'SIGTTIN', 'SIGTTOU', 'SIGURG', 'SIGUSR1', 'SIGUSR2', 'SIGVTALRM', 'SIGWINCH', 'SIGXCPU', 'SIGXFSZ')")
+        return value
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -149,6 +160,7 @@ class IoK8sApiCoreV1ContainerStatus(BaseModel):
             "restartCount": obj.get("restartCount") if obj.get("restartCount") is not None else 0,
             "started": obj.get("started"),
             "state": IoK8sApiCoreV1ContainerState.from_dict(obj["state"]) if obj.get("state") is not None else None,
+            "stopSignal": obj.get("stopSignal"),
             "user": IoK8sApiCoreV1ContainerUser.from_dict(obj["user"]) if obj.get("user") is not None else None,
             "volumeMounts": [IoK8sApiCoreV1VolumeMountStatus.from_dict(_item) for _item in obj["volumeMounts"]] if obj.get("volumeMounts") is not None else None
         })

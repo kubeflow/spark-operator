@@ -17,28 +17,20 @@ import pprint
 import re  # noqa: F401
 import json
 
-from datetime import datetime
-from pydantic import BaseModel, ConfigDict, Field, StrictStr, field_validator
+from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional
 from typing import Optional, Set
 from typing_extensions import Self
 
-class IoK8sApiCoreV1Taint(BaseModel):
+class IoK8sApiCoreV1FileKeySelector(BaseModel):
     """
-    The node this Taint is attached to has the \"effect\" on any pod that does not tolerate the Taint.
+    FileKeySelector selects a key of the env file.
     """ # noqa: E501
-    effect: StrictStr = Field(description="Required. The effect of the taint on pods that do not tolerate the taint. Valid effects are NoSchedule, PreferNoSchedule and NoExecute.  Possible enum values:  - `\"NoExecute\"` Evict any already-running pods that do not tolerate the taint. Currently enforced by NodeController.  - `\"NoSchedule\"` Do not allow new pods to schedule onto the node unless they tolerate the taint, but allow all pods submitted to Kubelet without going through the scheduler to start, and allow all already-running pods to continue running. Enforced by the scheduler.  - `\"PreferNoSchedule\"` Like TaintEffectNoSchedule, but the scheduler tries not to schedule new pods onto the node, rather than prohibiting new pods from scheduling onto the node entirely. Enforced by the scheduler.")
-    key: StrictStr = Field(description="Required. The taint key to be applied to a node.")
-    time_added: Optional[datetime] = Field(default=None, description="TimeAdded represents the time at which the taint was added.", alias="timeAdded")
-    value: Optional[StrictStr] = Field(default=None, description="The taint value corresponding to the taint key.")
-    __properties: ClassVar[List[str]] = ["effect", "key", "timeAdded", "value"]
-
-    @field_validator('effect')
-    def effect_validate_enum(cls, value):
-        """Validates the enum"""
-        if value not in set(['NoExecute', 'NoSchedule', 'PreferNoSchedule']):
-            raise ValueError("must be one of enum values ('NoExecute', 'NoSchedule', 'PreferNoSchedule')")
-        return value
+    key: StrictStr = Field(description="The key within the env file. An invalid key will prevent the pod from starting. The keys defined within a source may consist of any printable ASCII characters except '='. During Alpha stage of the EnvFiles feature gate, the key size is limited to 128 characters.")
+    optional: Optional[StrictBool] = Field(default=False, description="Specify whether the file or its key must be defined. If the file or key does not exist, then the env var is not published. If optional is set to true and the specified key does not exist, the environment variable will not be set in the Pod's containers.  If optional is set to false and the specified key does not exist, an error will be returned during Pod creation.")
+    path: StrictStr = Field(description="The path within the volume from which to select the file. Must be relative and may not contain the '..' path or start with '..'.")
+    volume_name: StrictStr = Field(description="The name of the volume mount containing the env file.", alias="volumeName")
+    __properties: ClassVar[List[str]] = ["key", "optional", "path", "volumeName"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -58,7 +50,7 @@ class IoK8sApiCoreV1Taint(BaseModel):
 
     @classmethod
     def from_json(cls, json_str: str) -> Optional[Self]:
-        """Create an instance of IoK8sApiCoreV1Taint from a JSON string"""
+        """Create an instance of IoK8sApiCoreV1FileKeySelector from a JSON string"""
         return cls.from_dict(json.loads(json_str))
 
     def to_dict(self) -> Dict[str, Any]:
@@ -83,7 +75,7 @@ class IoK8sApiCoreV1Taint(BaseModel):
 
     @classmethod
     def from_dict(cls, obj: Optional[Dict[str, Any]]) -> Optional[Self]:
-        """Create an instance of IoK8sApiCoreV1Taint from a dict"""
+        """Create an instance of IoK8sApiCoreV1FileKeySelector from a dict"""
         if obj is None:
             return None
 
@@ -91,10 +83,10 @@ class IoK8sApiCoreV1Taint(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
-            "effect": obj.get("effect"),
             "key": obj.get("key") if obj.get("key") is not None else '',
-            "timeAdded": obj.get("timeAdded"),
-            "value": obj.get("value")
+            "optional": obj.get("optional") if obj.get("optional") is not None else False,
+            "path": obj.get("path") if obj.get("path") is not None else '',
+            "volumeName": obj.get("volumeName") if obj.get("volumeName") is not None else ''
         })
         return _obj
 

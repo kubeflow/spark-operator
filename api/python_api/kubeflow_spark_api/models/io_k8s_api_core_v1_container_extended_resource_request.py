@@ -18,19 +18,18 @@ import re  # noqa: F401
 import json
 
 from pydantic import BaseModel, ConfigDict, Field, StrictStr
-from typing import Any, ClassVar, Dict, List, Optional
-from kubeflow_spark_api.models.io_k8s_api_core_v1_env_var_source import IoK8sApiCoreV1EnvVarSource
+from typing import Any, ClassVar, Dict, List
 from typing import Optional, Set
 from typing_extensions import Self
 
-class IoK8sApiCoreV1EnvVar(BaseModel):
+class IoK8sApiCoreV1ContainerExtendedResourceRequest(BaseModel):
     """
-    EnvVar represents an environment variable present in a Container.
+    ContainerExtendedResourceRequest has the mapping of container name, extended resource name to the device request name.
     """ # noqa: E501
-    name: StrictStr = Field(description="Name of the environment variable. May consist of any printable ASCII characters except '='.")
-    value: Optional[StrictStr] = Field(default=None, description="Variable references $(VAR_NAME) are expanded using the previously defined environment variables in the container and any service environment variables. If a variable cannot be resolved, the reference in the input string will be unchanged. Double $$ are reduced to a single $, which allows for escaping the $(VAR_NAME) syntax: i.e. \"$$(VAR_NAME)\" will produce the string literal \"$(VAR_NAME)\". Escaped references will never be expanded, regardless of whether the variable exists or not. Defaults to \"\".")
-    value_from: Optional[IoK8sApiCoreV1EnvVarSource] = Field(default=None, description="Source for the environment variable's value. Cannot be used if value is not empty.", alias="valueFrom")
-    __properties: ClassVar[List[str]] = ["name", "value", "valueFrom"]
+    container_name: StrictStr = Field(description="The name of the container requesting resources.", alias="containerName")
+    request_name: StrictStr = Field(description="The name of the request in the special ResourceClaim which corresponds to the extended resource.", alias="requestName")
+    resource_name: StrictStr = Field(description="The name of the extended resource in that container which gets backed by DRA.", alias="resourceName")
+    __properties: ClassVar[List[str]] = ["containerName", "requestName", "resourceName"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -50,7 +49,7 @@ class IoK8sApiCoreV1EnvVar(BaseModel):
 
     @classmethod
     def from_json(cls, json_str: str) -> Optional[Self]:
-        """Create an instance of IoK8sApiCoreV1EnvVar from a JSON string"""
+        """Create an instance of IoK8sApiCoreV1ContainerExtendedResourceRequest from a JSON string"""
         return cls.from_dict(json.loads(json_str))
 
     def to_dict(self) -> Dict[str, Any]:
@@ -71,14 +70,11 @@ class IoK8sApiCoreV1EnvVar(BaseModel):
             exclude=excluded_fields,
             exclude_none=True,
         )
-        # override the default output from pydantic by calling `to_dict()` of value_from
-        if self.value_from:
-            _dict['valueFrom'] = self.value_from.to_dict()
         return _dict
 
     @classmethod
     def from_dict(cls, obj: Optional[Dict[str, Any]]) -> Optional[Self]:
-        """Create an instance of IoK8sApiCoreV1EnvVar from a dict"""
+        """Create an instance of IoK8sApiCoreV1ContainerExtendedResourceRequest from a dict"""
         if obj is None:
             return None
 
@@ -86,9 +82,9 @@ class IoK8sApiCoreV1EnvVar(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
-            "name": obj.get("name") if obj.get("name") is not None else '',
-            "value": obj.get("value"),
-            "valueFrom": IoK8sApiCoreV1EnvVarSource.from_dict(obj["valueFrom"]) if obj.get("valueFrom") is not None else None
+            "containerName": obj.get("containerName") if obj.get("containerName") is not None else '',
+            "requestName": obj.get("requestName") if obj.get("requestName") is not None else '',
+            "resourceName": obj.get("resourceName") if obj.get("resourceName") is not None else ''
         })
         return _obj
 

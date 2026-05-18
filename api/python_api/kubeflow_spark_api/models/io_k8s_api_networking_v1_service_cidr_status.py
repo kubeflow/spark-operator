@@ -17,28 +17,18 @@ import pprint
 import re  # noqa: F401
 import json
 
-from datetime import datetime
-from pydantic import BaseModel, ConfigDict, Field, StrictStr, field_validator
+from pydantic import BaseModel, ConfigDict, Field
 from typing import Any, ClassVar, Dict, List, Optional
+from kubeflow_spark_api.models.io_k8s_apimachinery_pkg_apis_meta_v1_condition import IoK8sApimachineryPkgApisMetaV1Condition
 from typing import Optional, Set
 from typing_extensions import Self
 
-class IoK8sApiCoreV1Taint(BaseModel):
+class IoK8sApiNetworkingV1ServiceCIDRStatus(BaseModel):
     """
-    The node this Taint is attached to has the \"effect\" on any pod that does not tolerate the Taint.
+    ServiceCIDRStatus describes the current state of the ServiceCIDR.
     """ # noqa: E501
-    effect: StrictStr = Field(description="Required. The effect of the taint on pods that do not tolerate the taint. Valid effects are NoSchedule, PreferNoSchedule and NoExecute.  Possible enum values:  - `\"NoExecute\"` Evict any already-running pods that do not tolerate the taint. Currently enforced by NodeController.  - `\"NoSchedule\"` Do not allow new pods to schedule onto the node unless they tolerate the taint, but allow all pods submitted to Kubelet without going through the scheduler to start, and allow all already-running pods to continue running. Enforced by the scheduler.  - `\"PreferNoSchedule\"` Like TaintEffectNoSchedule, but the scheduler tries not to schedule new pods onto the node, rather than prohibiting new pods from scheduling onto the node entirely. Enforced by the scheduler.")
-    key: StrictStr = Field(description="Required. The taint key to be applied to a node.")
-    time_added: Optional[datetime] = Field(default=None, description="TimeAdded represents the time at which the taint was added.", alias="timeAdded")
-    value: Optional[StrictStr] = Field(default=None, description="The taint value corresponding to the taint key.")
-    __properties: ClassVar[List[str]] = ["effect", "key", "timeAdded", "value"]
-
-    @field_validator('effect')
-    def effect_validate_enum(cls, value):
-        """Validates the enum"""
-        if value not in set(['NoExecute', 'NoSchedule', 'PreferNoSchedule']):
-            raise ValueError("must be one of enum values ('NoExecute', 'NoSchedule', 'PreferNoSchedule')")
-        return value
+    conditions: Optional[List[IoK8sApimachineryPkgApisMetaV1Condition]] = Field(default=None, description="conditions holds an array of metav1.Condition that describe the state of the ServiceCIDR. Current service state")
+    __properties: ClassVar[List[str]] = ["conditions"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -58,7 +48,7 @@ class IoK8sApiCoreV1Taint(BaseModel):
 
     @classmethod
     def from_json(cls, json_str: str) -> Optional[Self]:
-        """Create an instance of IoK8sApiCoreV1Taint from a JSON string"""
+        """Create an instance of IoK8sApiNetworkingV1ServiceCIDRStatus from a JSON string"""
         return cls.from_dict(json.loads(json_str))
 
     def to_dict(self) -> Dict[str, Any]:
@@ -79,11 +69,18 @@ class IoK8sApiCoreV1Taint(BaseModel):
             exclude=excluded_fields,
             exclude_none=True,
         )
+        # override the default output from pydantic by calling `to_dict()` of each item in conditions (list)
+        _items = []
+        if self.conditions:
+            for _item_conditions in self.conditions:
+                if _item_conditions:
+                    _items.append(_item_conditions.to_dict())
+            _dict['conditions'] = _items
         return _dict
 
     @classmethod
     def from_dict(cls, obj: Optional[Dict[str, Any]]) -> Optional[Self]:
-        """Create an instance of IoK8sApiCoreV1Taint from a dict"""
+        """Create an instance of IoK8sApiNetworkingV1ServiceCIDRStatus from a dict"""
         if obj is None:
             return None
 
@@ -91,10 +88,7 @@ class IoK8sApiCoreV1Taint(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
-            "effect": obj.get("effect"),
-            "key": obj.get("key") if obj.get("key") is not None else '',
-            "timeAdded": obj.get("timeAdded"),
-            "value": obj.get("value")
+            "conditions": [IoK8sApimachineryPkgApisMetaV1Condition.from_dict(_item) for _item in obj["conditions"]] if obj.get("conditions") is not None else None
         })
         return _obj
 
