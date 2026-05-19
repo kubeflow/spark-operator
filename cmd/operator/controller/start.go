@@ -115,12 +115,13 @@ var (
 	kubeAPIBurst int
 
 	// Metrics
-	enableMetrics                 bool
-	metricsBindAddress            string
-	metricsEndpoint               string
-	metricsPrefix                 string
-	metricsLabels                 []string
-	metricsJobStartLatencyBuckets []float64
+	enableMetrics                  bool
+	metricsBindAddress             string
+	metricsEndpoint                string
+	metricsPrefix                  string
+	metricsLabels                  []string
+	metricsJobSubmitLatencyBuckets []float64
+	metricsJobStartLatencyBuckets  []float64
 
 	healthProbeBindAddress                      string
 	pprofBindAddress                            string
@@ -203,6 +204,7 @@ func NewStartCommand() *cobra.Command {
 	command.Flags().StringVar(&metricsEndpoint, "metrics-endpoint", "/metrics", "Metrics endpoint.")
 	command.Flags().StringVar(&metricsPrefix, "metrics-prefix", "", "Prefix for the metrics.")
 	command.Flags().StringSliceVar(&metricsLabels, "metrics-labels", []string{}, "Labels to be added to the metrics.")
+	command.Flags().Float64SliceVar(&metricsJobSubmitLatencyBuckets, "metrics-job-submit-latency-buckets", []float64{0.5, 1, 2, 4, 8, 16, 32, 64, 128, 256}, "Buckets for the job submit latency histogram.")
 	command.Flags().Float64SliceVar(&metricsJobStartLatencyBuckets, "metrics-job-start-latency-buckets", []float64{30, 60, 90, 120, 150, 180, 210, 240, 270, 300}, "Buckets for the job start latency histogram.")
 
 	command.Flags().StringVar(&healthProbeBindAddress, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
@@ -455,7 +457,7 @@ func newSparkApplicationReconcilerOptions() sparkapplication.Options {
 	var sparkApplicationMetrics *metrics.SparkApplicationMetrics
 	var sparkExecutorMetrics *metrics.SparkExecutorMetrics
 	if enableMetrics {
-		sparkApplicationMetrics = metrics.NewSparkApplicationMetrics(metricsPrefix, metricsLabels, metricsJobStartLatencyBuckets)
+		sparkApplicationMetrics = metrics.NewSparkApplicationMetrics(metricsPrefix, metricsLabels, metricsJobSubmitLatencyBuckets, metricsJobStartLatencyBuckets)
 		sparkApplicationMetrics.Register()
 		sparkExecutorMetrics = metrics.NewSparkExecutorMetrics(metricsPrefix, metricsLabels)
 		sparkExecutorMetrics.Register()

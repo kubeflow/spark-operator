@@ -34,6 +34,10 @@ const (
 
 	MetricSparkApplicationFailureExecutionTimeSeconds = "spark_application_failure_execution_time_seconds"
 
+	MetricSparkApplicationSubmitLatencySeconds = "spark_application_submit_latency_seconds"
+
+	MetricSparkApplicationSubmitLatencySecondsHistogram = "spark_application_submit_latency_seconds_histogram"
+
 	MetricSparkApplicationStartLatencySeconds = "spark_application_start_latency_seconds"
 
 	MetricSparkApplicationStartLatencySecondsHistogram = "spark_application_start_latency_seconds_histogram"
