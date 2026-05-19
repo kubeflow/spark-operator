@@ -22,6 +22,7 @@ import (
 	"flag"
 	"os"
 	"slices"
+	"strings"
 	"time"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
@@ -409,7 +410,6 @@ func newCacheOptions() cache.Options {
 	}
 
 	byObject := map[client.Object]cache.ByObject{
-		&corev1.Namespace{}: {},
 		&corev1.Pod{}: {
 			Label: labels.SelectorFromSet(labels.Set{
 				common.LabelLaunchedBySparkOperator: "true",
@@ -427,6 +427,13 @@ func newCacheOptions() cache.Options {
 				"metadata.name": validatingWebhookName,
 			}),
 		},
+	}
+
+	// Only cache Namespaces when a selector is configured; otherwise the
+	// matcher never needs to read them and we'd impose a cluster-scoped
+	// list/watch on installs that don't opt into label-based matching.
+	if strings.TrimSpace(namespaceSelector) != "" {
+		byObject[&corev1.Namespace{}] = cache.ByObject{}
 	}
 
 	if enableResourceQuotaEnforcement {
