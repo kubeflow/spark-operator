@@ -164,16 +164,28 @@ func TestNamespaceFilteringDefaulter_EmptyConfigMatchesEverything(t *testing.T) 
 	inner.AssertExpectations(t)
 }
 
-func TestNamespaceFilteringDefaulter_PassesThroughObjectsWithoutMeta(t *testing.T) {
+func TestNamespaceFilteringDefaulter_SkipsObjectsWithoutMeta(t *testing.T) {
 	inner := &mockDefaulter{}
-	inner.On("Default", mock.Anything, mock.Anything).Return(nil).Once()
 
-	// Explicit namespace list that would normally reject everything; the wrapper
-	// must still pass through objects that don't implement metav1.Object.
-	w := NewNamespaceFilteringDefaulter(inner, newMatcher(t, []string{"ns-a"}, ""), newClient(t))
+	// Objects that don't implement metav1.Object have no namespace to filter on;
+	// the wrapper admits them without invoking the inner defaulter. No
+	// expectation is registered so an unexpected call would panic on the mock.
+	w := NewNamespaceFilteringDefaulter(inner, newMatcher(t, nil, ""), newClient(t))
 	require.NoError(t, w.Default(context.Background(), &bareRuntimeObject{}))
 
-	inner.AssertExpectations(t)
+	inner.AssertNotCalled(t, "Default")
+}
+
+func TestNamespaceFilteringDefaulter_SkipsClusterScopedObjects(t *testing.T) {
+	inner := &mockDefaulter{}
+
+	// A label selector is configured so that MatchesWithClient would otherwise
+	// attempt to Get a namespace with name "" — verify we short-circuit before
+	// reaching the client and never call the inner defaulter.
+	w := NewNamespaceFilteringDefaulter(inner, newMatcher(t, nil, "tenant=tenantA"), newClient(t))
+	require.NoError(t, w.Default(context.Background(), newNamespace("cluster-scoped", nil)))
+
+	inner.AssertNotCalled(t, "Default")
 }
 
 func TestNamespaceFilteringDefaulter_PropagatesInnerError(t *testing.T) {

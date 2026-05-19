@@ -28,8 +28,10 @@ import (
 )
 
 // namespaceFilteringDefaulter wraps a CustomDefaulter and skips it when the
-// object's namespace does not match the operator's namespace scope. Objects that
-// do not implement metav1.Object (e.g. cluster-scoped) pass through unchanged.
+// object's namespace does not match the operator's namespace scope. Objects
+// without a namespace (non-metav1.Object or cluster-scoped) are admitted
+// without invoking the inner defaulter, since there is no namespace to filter
+// on and the wrapped CRDs are all namespace-scoped.
 type namespaceFilteringDefaulter struct {
 	inner   admission.CustomDefaulter
 	matcher *util.NamespaceMatcher
@@ -102,7 +104,13 @@ func (w *namespaceFilteringValidator) ValidateDelete(ctx context.Context, obj ru
 func matchesNamespace(ctx context.Context, c client.Client, matcher *util.NamespaceMatcher, obj runtime.Object) (bool, error) {
 	meta, ok := obj.(metav1.Object)
 	if !ok {
-		return true, nil
+		return false, nil
 	}
-	return matcher.MatchesWithClient(ctx, c, meta.GetNamespace())
+
+	namespace := meta.GetNamespace()
+	if namespace == "" {
+		return false, nil
+	}
+
+	return matcher.MatchesWithClient(ctx, c, namespace)
 }
