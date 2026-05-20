@@ -73,6 +73,7 @@ spec:
             - --metrics-prefix=
             - --metrics-labels=app_type
             - --metrics-job-start-latency-buckets=30,60,90,120,150,180,210,240,270,300
+            - --metrics-job-submit-latency-buckets=0.5,1,2,4,8,16,32,64,128,256
             - --leader-election=true
             - --leader-election-lock-name=spark-operator-controller-lock
             - --leader-election-lock-namespace=$(CONTROLLER_NAMESPACE)
