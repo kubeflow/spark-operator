@@ -41,6 +41,7 @@ import (
 	"golang.org/x/time/rate"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
+	policyv1 "k8s.io/api/policy/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/utils/clock"
@@ -84,6 +85,12 @@ var (
 	controllerThreads        int
 	cacheSyncTimeout         time.Duration
 	maxTrackedExecutorPerApp int
+
+	// Driver PDB feature gate. When enabled, the controller creates a
+	// PodDisruptionBudget for each SparkApplication that sets
+	// spec.driverPodDisruptionBudget=true. Defaults to false so the upgrade
+	// path is no-op for existing clusters.
+	enableDriverPDB bool
 
 	//WorkQueue
 	workqueueRateLimiterBucketQPS  int
@@ -199,6 +206,10 @@ func NewStartCommand() *cobra.Command {
 	command.Flags().StringVar(&namespaceSelector, "namespace-selector", "", "Label selector for namespaces to watch (e.g., 'spark-operator=enabled,env in (prod,staging)'). Namespaces matching this selector will be watched in addition to those specified via --namespaces. Requires ClusterRole permission to list and watch namespaces.")
 	command.Flags().DurationVar(&cacheSyncTimeout, "cache-sync-timeout", 30*time.Second, "Informer cache sync timeout.")
 	command.Flags().IntVar(&maxTrackedExecutorPerApp, "max-tracked-executor-per-app", 1000, "The maximum number of tracked executors per SparkApplication.")
+	command.Flags().BoolVar(&enableDriverPDB, "enable-driver-pdb", false,
+		"Enable creation of a PodDisruptionBudget for Spark driver pods. "+
+			"Each SparkApplication must additionally opt in via "+
+			"spec.driverPodDisruptionBudget=true.")
 
 	command.Flags().IntVar(&workqueueRateLimiterBucketQPS, "workqueue-ratelimiter-bucket-qps", 10, "QPS of the bucket rate of the workqueue.")
 	command.Flags().IntVar(&workqueueRateLimiterBucketSize, "workqueue-ratelimiter-bucket-size", 100, "The token bucket size of the workqueue.")
@@ -475,6 +486,11 @@ func newCacheOptions() cache.Options {
 			&v1beta2.SparkApplication{}:          {},
 			&v1beta2.ScheduledSparkApplication{}: {},
 			&v1alpha1.SparkConnect{}:             {},
+			&policyv1.PodDisruptionBudget{}: {
+				Label: labels.SelectorFromSet(labels.Set{
+					common.LabelLaunchedBySparkOperator: "true",
+				}),
+			},
 		},
 	}
 
@@ -513,6 +529,7 @@ func newSparkApplicationReconcilerOptions() sparkapplication.Options {
 		SparkApplicationMetrics:      sparkApplicationMetrics,
 		SparkExecutorMetrics:         sparkExecutorMetrics,
 		MaxTrackedExecutorPerApp:     maxTrackedExecutorPerApp,
+		EnableDriverPDB:              enableDriverPDB,
 	}
 	if enableBatchScheduler {
 		options.KubeSchedulerNames = kubeSchedulerNames

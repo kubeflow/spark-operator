@@ -659,6 +659,23 @@ DynamicAllocation
 scheduler backend since Spark 3.0.</p>
 </td>
 </tr>
+<tr>
+<td>
+<code>driverPodDisruptionBudget</code><br/>
+<em>
+bool
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>DriverPodDisruptionBudget controls whether a PodDisruptionBudget is
+created for the driver pod to prevent voluntary eviction (e.g.
+kubectl drain) while the application is running. A PDB is only
+created when this field is true AND the operator was started with
+&ndash;enable-driver-pdb. When unset or false, no PDB is created. The
+field has no effect when the operator-level gate is off.</p>
+</td>
+</tr>
 </table>
 </td>
 </tr>
@@ -2772,6 +2789,23 @@ DynamicAllocation
 <em>(Optional)</em>
 <p>DynamicAllocation configures dynamic allocation that becomes available for the Kubernetes
 scheduler backend since Spark 3.0.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>driverPodDisruptionBudget</code><br/>
+<em>
+bool
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>DriverPodDisruptionBudget controls whether a PodDisruptionBudget is
+created for the driver pod to prevent voluntary eviction (e.g.
+kubectl drain) while the application is running. A PDB is only
+created when this field is true AND the operator was started with
+&ndash;enable-driver-pdb. When unset or false, no PDB is created. The
+field has no effect when the operator-level gate is off.</p>
 </td>
 </tr>
 </tbody>
