@@ -124,6 +124,10 @@ controller:
   # -- Specifies the maximum number of Executor pods that can be tracked by the controller per SparkApplication.
   maxTrackedExecutorPerApp: 1000
 
+  # -- Driver PDB feature gate. When true, the controller creates a PodDisruptionBudget for each SparkApplication that sets spec.driverPodDisruptionBudget=true. Default false.
+  driverPodDisruptionBudget:
+    enable: false
+
   # -- Maximum QPS to the API server from the controller client.
   kubeAPIQPS: 20
   # -- Maximum burst for throttle from the controller client.

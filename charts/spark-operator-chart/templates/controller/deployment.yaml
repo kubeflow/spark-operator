@@ -132,6 +132,9 @@ spec:
         {{- if .Values.controller.maxTrackedExecutorPerApp }}
         - --max-tracked-executor-per-app={{ .Values.controller.maxTrackedExecutorPerApp }}
         {{- end }}
+        {{- if .Values.controller.driverPodDisruptionBudget.enable }}
+        - --enable-driver-pdb=true
+        {{- end }}
         {{- if .Values.controller.kubeAPIQPS }}
         - --kube-api-qps={{ .Values.controller.kubeAPIQPS }}
         {{- end }}

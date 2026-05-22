@@ -145,6 +145,14 @@ type SparkApplicationSpec struct {
 	// scheduler backend since Spark 3.0.
 	// +optional
 	DynamicAllocation *DynamicAllocation `json:"dynamicAllocation,omitempty"`
+	// DriverPodDisruptionBudget controls whether a PodDisruptionBudget is
+	// created for the driver pod to prevent voluntary eviction (e.g.
+	// kubectl drain) while the application is running. A PDB is only
+	// created when this field is true AND the operator was started with
+	// --enable-driver-pdb. When unset or false, no PDB is created. The
+	// field has no effect when the operator-level gate is off.
+	// +optional
+	DriverPodDisruptionBudget *bool `json:"driverPodDisruptionBudget,omitempty"`
 }
 
 // SparkApplicationStatus defines the observed state of SparkApplication

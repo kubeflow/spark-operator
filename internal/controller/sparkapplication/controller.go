@@ -28,6 +28,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	extensionsv1beta1 "k8s.io/api/extensions/v1beta1"
 	networkingv1 "k8s.io/api/networking/v1"
+	policyv1 "k8s.io/api/policy/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -39,6 +40,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
@@ -71,6 +73,11 @@ type Options struct {
 	SparkExecutorMetrics    *metrics.SparkExecutorMetrics
 
 	MaxTrackedExecutorPerApp int
+
+	// EnableDriverPDB gates creation of a PodDisruptionBudget for the driver pod.
+	// When false, the reconciler will not create or delete a PDB regardless of
+	// the SparkApplication spec. Defaults to false.
+	EnableDriverPDB bool
 }
 
 // Reconciler reconciles a SparkApplication object.
@@ -118,6 +125,7 @@ func NewReconciler(
 // +kubebuilder:rbac:groups=sparkoperator.k8s.io,resources=sparkapplications,verbs=get;list;watch;delete
 // +kubebuilder:rbac:groups=sparkoperator.k8s.io,resources=sparkapplications/status,verbs=update
 // +kubebuilder:rbac:groups=sparkoperator.k8s.io,resources=sparkapplications/finalizers,verbs=update
+// +kubebuilder:rbac:groups=policy,resources=poddisruptionbudgets,verbs=get;list;watch;create;delete
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -266,7 +274,7 @@ func (r *Reconciler) SetupWithManager(mgr ctrl.Manager, options controller.Optio
 		return fmt.Errorf("failed to create spark application event filter: %v", err)
 	}
 
-	return ctrl.NewControllerManagedBy(mgr).
+	ctrlBuilder := ctrl.NewControllerManagedBy(mgr).
 		Named(name).
 		Watches(
 			&corev1.Pod{},
@@ -277,7 +285,23 @@ func (r *Reconciler) SetupWithManager(mgr ctrl.Manager, options controller.Optio
 			&v1beta2.SparkApplication{},
 			NewSparkApplicationEventHandler(r.options.SparkApplicationMetrics),
 			builder.WithPredicates(appEventFilter),
-		).
+		)
+
+	// Watch owned driver PDBs so an edit/delete re-enqueues the owning
+	// SparkApplication. Only wired when the feature is on.
+	if r.options.EnableDriverPDB {
+		ctrlBuilder = ctrlBuilder.Watches(
+			&policyv1.PodDisruptionBudget{},
+			handler.EnqueueRequestForOwner(
+				mgr.GetScheme(),
+				mgr.GetRESTMapper(),
+				&v1beta2.SparkApplication{},
+				handler.OnlyControllerOwner(),
+			),
+		)
+	}
+
+	return ctrlBuilder.
 		WithOptions(options).
 		Complete(r)
 }
@@ -346,6 +370,13 @@ func (r *Reconciler) reconcileSubmittedSparkApplication(ctx context.Context, req
 
 			if err := r.updateSparkApplicationState(ctx, app); err != nil {
 				return err
+			}
+
+			// Converge the driver PDB to spec on every Submitted-state pass.
+			// Bubbles up so controller-runtime backoff retries transient
+			// API failures.
+			if err := r.ensureDriverPDB(ctx, app); err != nil {
+				return fmt.Errorf("failed to ensure driver PDB: %v", err)
 			}
 
 			// Create web UI service for spark applications if enabled.
@@ -479,6 +510,14 @@ func (r *Reconciler) reconcileRunningSparkApplication(ctx context.Context, req c
 
 			if err := r.updateSparkApplicationState(ctx, app); err != nil {
 				return err
+			}
+
+			// Converge the driver PDB to spec on every Running-state pass.
+			// Recovers PDBs missed because the operator was restarted with
+			// the gate flipped on after the app was already submitted, and
+			// picks up live spec flips on running apps.
+			if err := r.ensureDriverPDB(ctx, app); err != nil {
+				return fmt.Errorf("failed to ensure driver PDB: %v", err)
 			}
 
 			if err := r.updateSparkApplicationStatus(ctx, app); err != nil {
@@ -957,6 +996,12 @@ func (r *Reconciler) submitSparkApplication(ctx context.Context, app *v1beta2.Sp
 		submitErr = fmt.Errorf("failed to submit spark application: %v", err)
 		return
 	}
+
+	// Driver PDB creation lives in the Submitted/Running reconcile loops via
+	// ensureDriverPDB. Doing it here would couple PDB-create errors to the
+	// submit-or-FailedSubmission state machine - the deferred above flips the
+	// app to FailedSubmission on any non-nil submitErr, which would corrupt
+	// the state of an already-running app if the post-submit PDB call failed.
 }
 
 // updateDriverState finds the driver pod of the application
@@ -1158,6 +1203,11 @@ func (r *Reconciler) updateSparkApplicationStatus(ctx context.Context, app *v1be
 
 // Delete the resources associated with the spark application.
 func (r *Reconciler) deleteSparkResources(ctx context.Context, app *v1beta2.SparkApplication) error {
+	// Drop the driver PDB first so an in-flight `kubectl drain` does not block on an orphaned PDB whose target pod is gone.
+	if err := r.deleteDriverPDB(ctx, app); err != nil {
+		return err
+	}
+
 	if err := r.deleteDriverPod(ctx, app); err != nil {
 		return err
 	}
@@ -1495,6 +1545,16 @@ func (r *Reconciler) cleanUpOnTermination(ctx context.Context, _, newApp *v1beta
 		if err := scheduler.Cleanup(newApp); err != nil {
 			return err
 		}
+	}
+	// The driver PDB no longer protects anything once the app reaches a
+	// terminal state (the driver pod is Succeeded/Failed and ineligible for
+	// disruption). Removing it here also covers the case where the operator
+	// missed the Succeeding/Failing -> terminal transition (e.g. the
+	// controller pod itself was drained), since cleanUpOnTermination runs on
+	// every reconcile of an already-terminal app and deleteDriverPDB is
+	// idempotent.
+	if err := r.deleteDriverPDB(ctx, newApp); err != nil {
+		return err
 	}
 	return nil
 }
