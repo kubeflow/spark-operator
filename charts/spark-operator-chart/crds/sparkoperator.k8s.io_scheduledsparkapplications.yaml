@@ -4487,10 +4487,3 @@ spec:
           - metadata
           - spec
           type: object
-
-status:
-  acceptedNames:
-    kind: ""
-    plural: ""
-  conditions: []
-  storedVersions: []

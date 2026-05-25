@@ -25,6 +25,9 @@ jobs:
       - name: Run gofmt check
         run: make fmt-check
 
+      - name: Validate CRD manifests
+        run: make validate-crd-manifests
+
       - name: Run static analysis
         run: make static-analysis
 

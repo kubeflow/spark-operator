@@ -66,6 +66,14 @@ fmt-check: clean
 detect-crds-drift:
 	diff -q charts/spark-operator-chart/crds manifest/crds --exclude=kustomization.yaml
 
+validate-crd-manifests:
+	@echo "checking CRD manifests for forbidden top-level status block"
+	@if grep -n '^status:' charts/spark-operator-chart/crds/*.yaml manifest/crds/*.yaml; then \
+		echo "CRD files must not contain top-level status block (cluster-populated, breaks client dry-run)" >&2; \
+		exit 1; \
+	fi
+	@echo "CRD manifests OK"
+
 clean:
 	@echo "cleaning up caches and output"
 	go clean -cache -testcache -r -x 2>&1 >/dev/null
