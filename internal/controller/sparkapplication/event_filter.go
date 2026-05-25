@@ -179,9 +179,11 @@ func (f *EventFilter) Update(e event.UpdateEvent) bool {
 	// This is currently best effort as we can potentially miss updates and end up in an inconsistent state.
 	if !equality.Semantic.DeepEqual(oldApp.Spec, newApp.Spec) {
 
-		// Only Spec.Suspend can be updated without any action
+		// Spec.Suspend and Spec.TimeToLiveSeconds can be updated without invalidating
+		// the running application.
 		oldAppCopy := oldApp.DeepCopy()
 		oldAppCopy.Spec.Suspend = newApp.Spec.Suspend
+		oldAppCopy.Spec.TimeToLiveSeconds = newApp.Spec.TimeToLiveSeconds
 		if equality.Semantic.DeepEqual(oldAppCopy.Spec, newApp.Spec) {
 			return true
 		}

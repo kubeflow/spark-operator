@@ -22,6 +22,8 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/tools/record"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -1085,6 +1087,51 @@ func TestSparkApplicationEventFilter_Create_NonSparkApplication(t *testing.T) {
 
 	if result != false {
 		t.Errorf("Create() with non-SparkApplication = %v, expected false", result)
+	}
+}
+
+func TestSparkApplicationEventFilter_Update_TimeToLiveSecondsDoesNotInvalidate(t *testing.T) {
+	scheme := runtime.NewScheme()
+	_ = corev1.AddToScheme(scheme)
+	_ = v1beta2.AddToScheme(scheme)
+
+	oldApp := &v1beta2.SparkApplication{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:            "test-app",
+			Namespace:       "default",
+			ResourceVersion: "1",
+		},
+		Spec: v1beta2.SparkApplicationSpec{
+			Type:         v1beta2.SparkApplicationTypeScala,
+			SparkVersion: "3.5.0",
+		},
+		Status: v1beta2.SparkApplicationStatus{
+			AppState: v1beta2.ApplicationState{
+				State: v1beta2.ApplicationStateCompleted,
+			},
+		},
+	}
+	newApp := oldApp.DeepCopy()
+	newApp.ResourceVersion = "2"
+	newApp.Spec.TimeToLiveSeconds = ptr.To[int64](60)
+
+	fakeClient := fake.NewClientBuilder().
+		WithScheme(scheme).
+		WithStatusSubresource(&v1beta2.SparkApplication{}).
+		WithObjects(newApp.DeepCopy()).
+		Build()
+	filter, err := NewSparkApplicationEventFilter(fakeClient, record.NewFakeRecorder(10), []string{"default"}, "")
+	if err != nil {
+		t.Fatalf("NewSparkApplicationEventFilter() unexpected error: %v", err)
+	}
+
+	result := filter.Update(event.UpdateEvent{ObjectOld: oldApp, ObjectNew: newApp})
+
+	if result != true {
+		t.Errorf("Update() = %v, expected true", result)
+	}
+	if newApp.Status.AppState.State == v1beta2.ApplicationStateInvalidating {
+		t.Errorf("Update() moved application to %s for TimeToLiveSeconds-only change", v1beta2.ApplicationStateInvalidating)
 	}
 }
 
