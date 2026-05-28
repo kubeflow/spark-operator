@@ -471,3 +471,7 @@ chmod +x "$(1)"; \
 rm -rf "$${tmp}"; \
 }
 endef
+
+.PHONY: kind-e2e-test
+kind-e2e-test: IMAGE_TAG=local
+kind-e2e-test: kind-load-image e2e-test ## Build image, load into Kind cluster, and run the e2e suite.

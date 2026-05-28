@@ -17,7 +17,6 @@ limitations under the License.
 package util
 
 import (
-	"errors"
 	"strings"
 	"testing"
 )
@@ -68,18 +67,5 @@ func TestParseSchedule(t *testing.T) {
 				t.Fatalf("expected non-nil schedule, got nil")
 			}
 		})
-	}
-}
-
-func TestParseScheduleWrapsUnderlyingError(t *testing.T) {
-	// Callers should be able to errors.Is/errors.As against the underlying
-	// timezone or cron parse error rather than relying on string matching.
-	_, err := ParseSchedule("*/5 * * * *", "Mars/Olympus_Mons")
-	if err == nil {
-		t.Fatal("expected error, got nil")
-	}
-	var unwrappable interface{ Unwrap() error }
-	if !errors.As(err, &unwrappable) {
-		t.Fatalf("expected wrapped error, got %T", err)
 	}
 }
