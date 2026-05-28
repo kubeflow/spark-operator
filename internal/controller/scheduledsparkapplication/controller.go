@@ -26,7 +26,6 @@ import (
 
 	_ "time/tzdata"
 
-	"github.com/robfig/cron/v3"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -133,32 +132,12 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		return ctrl.Result{}, nil
 	}
 
-	timezone := scheduledApp.Spec.TimeZone
-	if timezone == "" {
-		timezone = "Local"
-	} else {
-		// Explicitly validate the timezone for a better user experience, but only if it's explicitly specified
-		_, err = time.LoadLocation(timezone)
-		if err != nil {
-			logger.Error(err, "Failed to load timezone location", "name", scheduledApp.Name, "namespace", scheduledApp.Namespace, "timezone", timezone)
-			scheduledApp.Status.ScheduleState = v1beta2.ScheduleStateFailedValidation
-			scheduledApp.Status.Reason = fmt.Sprintf("Invalid timezone: %v", err)
-			if updateErr := r.updateScheduledSparkApplicationStatus(ctx, scheduledApp); updateErr != nil {
-				return ctrl.Result{Requeue: true}, updateErr
-			}
-			return ctrl.Result{}, nil
-		}
-	}
-
-	// Ensure backwards compatibility if the schedule is relying on internal functionality of robfig/cron
-	cronSchedule := scheduledApp.Spec.Schedule
-	if !strings.HasPrefix(cronSchedule, "CRON_TZ=") && !strings.HasPrefix(cronSchedule, "TZ=") {
-		cronSchedule = fmt.Sprintf("CRON_TZ=%s %s", timezone, cronSchedule)
-	}
-
-	schedule, parseErr := cron.ParseStandard(cronSchedule)
+	// Schedule construction (timezone defaulting, CRON_TZ=/TZ= prefix handling,
+	// cron.ParseStandard) is shared with the validating webhook via util.ParseSchedule
+	// so that admission and reconciliation accept exactly the same set of inputs.
+	schedule, parseErr := util.ParseSchedule(scheduledApp.Spec.Schedule, scheduledApp.Spec.TimeZone)
 	if parseErr != nil {
-		logger.Error(parseErr, "Failed to parse schedule of ScheduledSparkApplication", "name", scheduledApp.Name, "namespace", scheduledApp.Namespace, "schedule", scheduledApp.Spec.Schedule)
+		logger.Error(parseErr, "Failed to parse schedule of ScheduledSparkApplication", "name", scheduledApp.Name, "namespace", scheduledApp.Namespace, "schedule", scheduledApp.Spec.Schedule, "timezone", scheduledApp.Spec.TimeZone)
 		scheduledApp.Status.ScheduleState = v1beta2.ScheduleStateFailedValidation
 		scheduledApp.Status.Reason = parseErr.Error()
 		if updateErr := r.updateScheduledSparkApplicationStatus(ctx, scheduledApp); updateErr != nil {

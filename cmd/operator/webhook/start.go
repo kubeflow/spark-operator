@@ -301,10 +301,11 @@ func start() {
 		os.Exit(1)
 	}
 
+	sparkAppValidator := webhook.NewSparkApplicationValidator(mgr.GetClient(), enableResourceQuotaEnforcement)
 	if err := ctrl.NewWebhookManagedBy(mgr).
 		For(&v1beta2.SparkApplication{}).
 		WithDefaulter(webhook.NewSparkApplicationDefaulter()).
-		WithValidator(webhook.NewSparkApplicationValidator(mgr.GetClient(), enableResourceQuotaEnforcement)).
+		WithValidator(sparkAppValidator).
 		WithLogConstructor(webhook.LogConstructor).
 		Complete(); err != nil {
 		logger.Error(err, "Failed to create mutating webhook for Spark application")
@@ -314,7 +315,7 @@ func start() {
 	if err := ctrl.NewWebhookManagedBy(mgr).
 		For(&v1beta2.ScheduledSparkApplication{}).
 		WithDefaulter(webhook.NewScheduledSparkApplicationDefaulter()).
-		WithValidator(webhook.NewScheduledSparkApplicationValidator()).
+		WithValidator(webhook.NewScheduledSparkApplicationValidator(sparkAppValidator)).
 		WithLogConstructor(webhook.LogConstructor).
 		Complete(); err != nil {
 		logger.Error(err, "Failed to create mutating webhook for Scheduled Spark application")
