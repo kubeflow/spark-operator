@@ -44,7 +44,7 @@ ARG SPARK_GID=185
 USER root
 
 RUN apt-get update \
-    && apt-get install -y tini \
+    && apt-get install -y catatonit \
     && rm -rf /var/lib/apt/lists/*
 
 RUN mkdir -p /etc/k8s-webhook-server/serving-certs /home/spark && \
