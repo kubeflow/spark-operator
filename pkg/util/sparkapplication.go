@@ -130,6 +130,29 @@ func TimeUntilNextRetryDue(app *v1beta2.SparkApplication) (time.Duration, error)
 	return interval - currentTime.Sub(lastAttemptTime.Time), nil
 }
 
+// TimeUntilNextDeletionPollDue returns the duration until the next poll for
+// Spark resource deletion is due. It implements linear backoff with
+// increasing gaps: the wait between poll n and poll n+1 is n * interval,
+// where interval is RestartPolicy.OnFailureRetryInterval.
+// A return value <= 0 means the next poll is due now.
+func TimeUntilNextDeletionPollDue(app *v1beta2.SparkApplication) (time.Duration, error) {
+	if app.Spec.RestartPolicy.OnFailureRetryInterval == nil {
+		return -1, fmt.Errorf("OnFailureRetryInterval is not set")
+	}
+	lastAttemptTime := app.Status.LastDeletionAttemptTime
+	if lastAttemptTime.IsZero() {
+		return -1, fmt.Errorf("LastDeletionAttemptTime is not set")
+	}
+
+	interval := time.Duration(*app.Spec.RestartPolicy.OnFailureRetryInterval) * time.Second
+	// The next poll is the (attempts+1)-th overall, due at a cumulative
+	// offset of n*(n+1)/2 * interval from LastDeletionAttemptTime.
+	n := int64(app.Status.DeletionPollAttempts) + 1
+	nextDueOffset := time.Duration(n*(n+1)/2) * interval
+	remaining := nextDueOffset - time.Since(lastAttemptTime.Time)
+	return remaining, nil
+}
+
 func GetLocalVolumes(app *v1beta2.SparkApplication) map[string]corev1.Volume {
 	volumes := make(map[string]corev1.Volume)
 	for _, volume := range app.Spec.Volumes {

@@ -12340,6 +12340,12 @@ spec:
                 required:
                 - state
                 type: object
+              deletionPollAttempts:
+                description: |-
+                  DeletionPollAttempts is the number of times the controller has polled for
+                  Spark resource deletion to complete for the current rerun or suspension.
+                format: int32
+                type: integer
               driverInfo:
                 description: DriverInfo has information about the driver.
                 properties:
@@ -12373,6 +12379,12 @@ spec:
                 description: ExecutorState records the state of executors by executor
                   Pod names.
                 type: object
+              lastDeletionAttemptTime:
+                description: |-
+                  LastDeletionAttemptTime is the time when deletion of Spark resources was
+                  last initiated for a rerun or suspension.
+                format: date-time
+                type: string
               lastSubmissionAttemptTime:
                 description: LastSubmissionAttemptTime is the time for the last application
                   submission attempt.

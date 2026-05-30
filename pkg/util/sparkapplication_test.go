@@ -478,3 +478,96 @@ var _ = Describe("GetExecutorRequestResource", func() {
 		})
 	})
 })
+
+var _ = Describe("TimeUntilNextDeletionPollDue", func() {
+	Context("when OnFailureRetryInterval is not set", func() {
+		app := &v1beta2.SparkApplication{
+			Status: v1beta2.SparkApplicationStatus{
+				LastDeletionAttemptTime: metav1.Now(),
+				DeletionPollAttempts:    0,
+			},
+		}
+
+		It("Should return an error", func() {
+			_, err := util.TimeUntilNextDeletionPollDue(app)
+			Expect(err).To(HaveOccurred())
+		})
+	})
+
+	Context("when LastDeletionAttemptTime is not set", func() {
+		app := &v1beta2.SparkApplication{
+			Spec: v1beta2.SparkApplicationSpec{
+				RestartPolicy: v1beta2.RestartPolicy{
+					OnFailureRetryInterval: ptr.To[int64](5),
+				},
+			},
+		}
+
+		It("Should return an error", func() {
+			_, err := util.TimeUntilNextDeletionPollDue(app)
+			Expect(err).To(HaveOccurred())
+		})
+	})
+
+	Context("when DeletionPollAttempts is 0 and deletion just started", func() {
+		app := &v1beta2.SparkApplication{
+			Spec: v1beta2.SparkApplicationSpec{
+				RestartPolicy: v1beta2.RestartPolicy{
+					OnFailureRetryInterval: ptr.To[int64](5),
+				},
+			},
+			Status: v1beta2.SparkApplicationStatus{
+				LastDeletionAttemptTime: metav1.Now(),
+				DeletionPollAttempts:    0,
+			},
+		}
+
+		It("Should return approximately 5s (n=1, offset=1*2/2*5s=5s)", func() {
+			dur, err := util.TimeUntilNextDeletionPollDue(app)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(dur).To(BeNumerically(">", 4*time.Second))
+			Expect(dur).To(BeNumerically("<=", 5*time.Second))
+		})
+	})
+
+	Context("when DeletionPollAttempts is 2", func() {
+		app := &v1beta2.SparkApplication{
+			Spec: v1beta2.SparkApplicationSpec{
+				RestartPolicy: v1beta2.RestartPolicy{
+					OnFailureRetryInterval: ptr.To[int64](5),
+				},
+			},
+			Status: v1beta2.SparkApplicationStatus{
+				LastDeletionAttemptTime: metav1.Now(),
+				DeletionPollAttempts:    2,
+			},
+		}
+
+		It("Should return approximately 30s (n=3, offset=3*4/2*5s=30s)", func() {
+			dur, err := util.TimeUntilNextDeletionPollDue(app)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(dur).To(BeNumerically(">", 29*time.Second))
+			Expect(dur).To(BeNumerically("<=", 30*time.Second))
+		})
+	})
+
+	Context("when enough time has elapsed that the poll is overdue", func() {
+		app := &v1beta2.SparkApplication{
+			Spec: v1beta2.SparkApplicationSpec{
+				RestartPolicy: v1beta2.RestartPolicy{
+					OnFailureRetryInterval: ptr.To[int64](5),
+				},
+			},
+			Status: v1beta2.SparkApplicationStatus{
+				LastDeletionAttemptTime: metav1.NewTime(time.Now().Add(-10 * time.Second)),
+				DeletionPollAttempts:    0,
+			},
+		}
+
+		It("Should return a non-positive duration (poll is overdue)", func() {
+			dur, err := util.TimeUntilNextDeletionPollDue(app)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(dur).To(BeNumerically("<=", 0))
+		})
+	})
+})
