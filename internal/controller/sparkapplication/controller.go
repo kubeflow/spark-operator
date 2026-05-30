@@ -523,6 +523,10 @@ func (r *Reconciler) reconcilePendingRerunSparkApplication(ctx context.Context, 
 				r.submitSparkApplication(ctx, app)
 			} else {
 				logger.Info("Resources associated with SparkApplication still exist, will retry")
+				if app.Status.LastDeletionAttemptTime.IsZero() {
+					app.Status.LastDeletionAttemptTime = metav1.Now()
+					app.Status.DeletionPollAttempts = 0
+				}
 				if wait, err := util.TimeUntilNextDeletionPollDue(app); err == nil {
 					if wait <= 0 {
 						result.Requeue = true
@@ -841,6 +845,10 @@ func (r *Reconciler) reconcileSuspendedSparkApplication(ctx context.Context, req
 				}
 			} else {
 				logger.Info("Resources associated with SparkApplication still exist, will retry")
+				if app.Status.LastDeletionAttemptTime.IsZero() {
+					app.Status.LastDeletionAttemptTime = metav1.Now()
+					app.Status.DeletionPollAttempts = 0
+				}
 				if wait, err := util.TimeUntilNextDeletionPollDue(app); err == nil {
 					if wait <= 0 {
 						result.Requeue = true

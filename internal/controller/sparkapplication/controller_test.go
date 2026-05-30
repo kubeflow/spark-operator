@@ -1049,7 +1049,8 @@ var _ = Describe("SparkApplication Controller", func() {
 				Spec: v1beta2.SparkApplicationSpec{
 					MainApplicationFile: ptr.To("local:///dummy.jar"),
 					RestartPolicy: v1beta2.RestartPolicy{
-						Type: v1beta2.RestartPolicyOnFailure,
+						Type:                   v1beta2.RestartPolicyOnFailure,
+						OnFailureRetryInterval: ptr.To[int64](5),
 					},
 				},
 			}

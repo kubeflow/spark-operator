@@ -510,44 +510,40 @@ var _ = Describe("TimeUntilNextDeletionPollDue", func() {
 	})
 
 	Context("when DeletionPollAttempts is 0 and deletion just started", func() {
-		app := &v1beta2.SparkApplication{
-			Spec: v1beta2.SparkApplicationSpec{
-				RestartPolicy: v1beta2.RestartPolicy{
-					OnFailureRetryInterval: ptr.To[int64](5),
-				},
-			},
-			Status: v1beta2.SparkApplicationStatus{
-				LastDeletionAttemptTime: metav1.Now(),
-				DeletionPollAttempts:    0,
-			},
-		}
-
 		It("Should return approximately 5s (n=1, offset=1*2/2*5s=5s)", func() {
+			app := &v1beta2.SparkApplication{
+				Spec: v1beta2.SparkApplicationSpec{
+					RestartPolicy: v1beta2.RestartPolicy{
+						OnFailureRetryInterval: ptr.To[int64](5),
+					},
+				},
+				Status: v1beta2.SparkApplicationStatus{
+					LastDeletionAttemptTime: metav1.NewTime(time.Now().Add(-100 * time.Millisecond)),
+					DeletionPollAttempts:    0,
+				},
+			}
 			dur, err := util.TimeUntilNextDeletionPollDue(app)
 			Expect(err).NotTo(HaveOccurred())
-			Expect(dur).To(BeNumerically(">", 4*time.Second))
-			Expect(dur).To(BeNumerically("<=", 5*time.Second))
+			Expect(dur).To(BeNumerically("~", 5*time.Second, 500*time.Millisecond))
 		})
 	})
 
 	Context("when DeletionPollAttempts is 2", func() {
-		app := &v1beta2.SparkApplication{
-			Spec: v1beta2.SparkApplicationSpec{
-				RestartPolicy: v1beta2.RestartPolicy{
-					OnFailureRetryInterval: ptr.To[int64](5),
-				},
-			},
-			Status: v1beta2.SparkApplicationStatus{
-				LastDeletionAttemptTime: metav1.Now(),
-				DeletionPollAttempts:    2,
-			},
-		}
-
 		It("Should return approximately 30s (n=3, offset=3*4/2*5s=30s)", func() {
+			app := &v1beta2.SparkApplication{
+				Spec: v1beta2.SparkApplicationSpec{
+					RestartPolicy: v1beta2.RestartPolicy{
+						OnFailureRetryInterval: ptr.To[int64](5),
+					},
+				},
+				Status: v1beta2.SparkApplicationStatus{
+					LastDeletionAttemptTime: metav1.NewTime(time.Now().Add(-100 * time.Millisecond)),
+					DeletionPollAttempts:    2,
+				},
+			}
 			dur, err := util.TimeUntilNextDeletionPollDue(app)
 			Expect(err).NotTo(HaveOccurred())
-			Expect(dur).To(BeNumerically(">", 29*time.Second))
-			Expect(dur).To(BeNumerically("<=", 30*time.Second))
+			Expect(dur).To(BeNumerically("~", 30*time.Second, 500*time.Millisecond))
 		})
 	})
 

@@ -130,10 +130,14 @@ func TimeUntilNextRetryDue(app *v1beta2.SparkApplication) (time.Duration, error)
 	return interval - currentTime.Sub(lastAttemptTime.Time), nil
 }
 
+const maxDeletionPollDelay = 5 * time.Minute
+
 // TimeUntilNextDeletionPollDue returns the duration until the next poll for
 // Spark resource deletion is due. It implements linear backoff with
 // increasing gaps: the wait between poll n and poll n+1 is n * interval,
 // where interval is RestartPolicy.OnFailureRetryInterval.
+// The cumulative offset is capped at maxDeletionPollDelay to prevent
+// overflow and excessively long waits.
 // A return value <= 0 means the next poll is due now.
 func TimeUntilNextDeletionPollDue(app *v1beta2.SparkApplication) (time.Duration, error) {
 	if app.Spec.RestartPolicy.OnFailureRetryInterval == nil {
@@ -149,6 +153,9 @@ func TimeUntilNextDeletionPollDue(app *v1beta2.SparkApplication) (time.Duration,
 	// offset of n*(n+1)/2 * interval from LastDeletionAttemptTime.
 	n := int64(app.Status.DeletionPollAttempts) + 1
 	nextDueOffset := time.Duration(n*(n+1)/2) * interval
+	if nextDueOffset > maxDeletionPollDelay {
+		nextDueOffset = maxDeletionPollDelay
+	}
 	remaining := nextDueOffset - time.Since(lastAttemptTime.Time)
 	return remaining, nil
 }
