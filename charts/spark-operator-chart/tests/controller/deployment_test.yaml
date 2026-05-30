@@ -260,6 +260,7 @@ tests:
           portName: test-port
           endpoint: /test-endpoint
           prefix: test-prefix
+          jobSubmitLatencyBuckets: "1,2,4,8,16"
           jobStartLatencyBuckets: "180,360,420,690"
     asserts:
       - contains:
@@ -279,6 +280,9 @@ tests:
           content: --metrics-labels=app_type
       - contains:
           path: spec.template.spec.containers[?(@.name=="spark-operator-controller")].args
+          content: --metrics-job-submit-latency-buckets=1,2,4,8,16
+      - contains:
+          path: spec.template.spec.containers[?(@.name=="spark-operator-controller")].args
           content: --metrics-job-start-latency-buckets=180,360,420,690
  
   - it: Should set metrics-labels arg if `prometheus.metrics.labels` is set to not empty
@@ -290,6 +294,7 @@ tests:
           portName: test-port
           endpoint: /test-endpoint
           prefix: test-prefix
+          jobSubmitLatencyBuckets: "1,2,4,8,16"
           jobStartLatencyBuckets: "180,360,420,690"
           labels: test1,test2
     asserts:

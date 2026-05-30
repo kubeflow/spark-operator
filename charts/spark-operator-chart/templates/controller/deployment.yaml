@@ -101,6 +101,7 @@ spec:
         - --metrics-endpoint={{ .Values.prometheus.metrics.endpoint }}
         - --metrics-prefix={{ .Values.prometheus.metrics.prefix }}
         - --metrics-labels={{ default "app_type" .Values.prometheus.metrics.labels }}
+        - --metrics-job-submit-latency-buckets={{ .Values.prometheus.metrics.jobSubmitLatencyBuckets }}
         - --metrics-job-start-latency-buckets={{ .Values.prometheus.metrics.jobStartLatencyBuckets }}
         {{- end }}
         {{ if .Values.controller.leaderElection.enable }}

@@ -21,8 +21,10 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 	"time"
 
@@ -59,9 +61,6 @@ const (
 	ReleaseName      = "spark-operator"
 	ReleaseNamespace = "spark-operator"
 
-	MutatingWebhookName   = "spark-operator-webhook"
-	ValidatingWebhookName = "spark-operator-webhook"
-
 	PollInterval = 1 * time.Second
 	WaitTimeout  = 5 * time.Minute
 )
@@ -71,6 +70,11 @@ var (
 	testEnv   *envtest.Environment
 	k8sClient client.Client
 	clientset *kubernetes.Clientset
+
+	// deployMethod is read from DEPLOY_METHOD env var; defaults to "helm".
+	deployMethod          string
+	mutatingWebhookName   string
+	validatingWebhookName string
 )
 
 func TestSparkOperator(t *testing.T) {
@@ -81,6 +85,24 @@ func TestSparkOperator(t *testing.T) {
 
 var _ = BeforeSuite(func() {
 	logf.SetLogger(zap.New(zap.WriteTo(GinkgoWriter), zap.UseDevMode(true)))
+
+	deployMethod = strings.ToLower(os.Getenv("DEPLOY_METHOD"))
+	if deployMethod == "" {
+		deployMethod = "helm"
+	}
+	GinkgoWriter.Printf("Deploy method: %s\n", deployMethod)
+
+	switch deployMethod {
+	case "helm":
+		mutatingWebhookName = "spark-operator-webhook"
+		validatingWebhookName = "spark-operator-webhook"
+	case "kustomize":
+		mutatingWebhookName = "mutating-webhook-configuration"
+		validatingWebhookName = "validating-webhook-configuration"
+	default:
+		Fail(fmt.Sprintf("unsupported DEPLOY_METHOD: %s (must be 'helm' or 'kustomize')", deployMethod))
+	}
+
 	var err error
 
 	By("Bootstrapping test environment")
@@ -114,6 +136,36 @@ var _ = BeforeSuite(func() {
 	Expect(err).NotTo(HaveOccurred())
 	Expect(clientset).NotTo(BeNil())
 
+	switch deployMethod {
+	case "helm":
+		installViaHelm()
+	case "kustomize":
+		installViaKustomize()
+	}
+
+	By("Waiting for the webhooks to be ready")
+	mutatingWebhookKey := types.NamespacedName{Name: mutatingWebhookName}
+	validatingWebhookKey := types.NamespacedName{Name: validatingWebhookName}
+	Expect(waitForMutatingWebhookReady(context.Background(), mutatingWebhookKey)).NotTo(HaveOccurred())
+	Expect(waitForValidatingWebhookReady(context.Background(), validatingWebhookKey)).NotTo(HaveOccurred())
+	// TODO: Remove this when there is a better way to ensure the webhooks are ready before running the e2e tests.
+	time.Sleep(10 * time.Second)
+})
+
+var _ = AfterSuite(func() {
+	switch deployMethod {
+	case "helm":
+		uninstallViaHelm()
+	case "kustomize":
+		uninstallViaKustomize()
+	}
+
+	By("Tearing down the test environment")
+	err := testEnv.Stop()
+	Expect(err).ToNot(HaveOccurred())
+})
+
+func installViaHelm() {
 	By("Creating release namespace")
 	namespace := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: ReleaseNamespace}}
 	Expect(k8sClient.Create(context.TODO(), namespace)).NotTo(HaveOccurred())
@@ -141,17 +193,9 @@ var _ = BeforeSuite(func() {
 	release, err := installAction.Run(chart, values)
 	Expect(err).NotTo(HaveOccurred())
 	Expect(release).NotTo(BeNil())
+}
 
-	By("Waiting for the webhooks to be ready")
-	mutatingWebhookKey := types.NamespacedName{Name: MutatingWebhookName}
-	validatingWebhookKey := types.NamespacedName{Name: ValidatingWebhookName}
-	Expect(waitForMutatingWebhookReady(context.Background(), mutatingWebhookKey)).NotTo(HaveOccurred())
-	Expect(waitForValidatingWebhookReady(context.Background(), validatingWebhookKey)).NotTo(HaveOccurred())
-	// TODO: Remove this when there is a better way to ensure the webhooks are ready before running the e2e tests.
-	time.Sleep(10 * time.Second)
-})
-
-var _ = AfterSuite(func() {
+func uninstallViaHelm() {
 	By("Uninstalling the Spark operator helm chart")
 	envSettings := cli.New()
 	envSettings.SetNamespace(ReleaseNamespace)
@@ -170,11 +214,76 @@ var _ = AfterSuite(func() {
 	By("Deleting release namespace")
 	namespace := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: ReleaseNamespace}}
 	Expect(k8sClient.Delete(context.TODO(), namespace)).NotTo(HaveOccurred())
+}
 
-	By("Tearing down the test environment")
-	err = testEnv.Stop()
-	Expect(err).ToNot(HaveOccurred())
-})
+func installViaKustomize() {
+	repoRoot := filepath.Join("..", "..")
+	kustomizeDir := filepath.Join(repoRoot, "config", "default")
+	kustomizationPath := filepath.Join(kustomizeDir, "kustomization.yaml")
+
+	imageTag := os.Getenv("IMAGE_TAG")
+	if imageTag != "" {
+		By(fmt.Sprintf("Installing the Spark operator via Kustomize (image tag override: %s)", imageTag))
+
+		origKustomization, err := os.ReadFile(kustomizationPath)
+		Expect(err).NotTo(HaveOccurred())
+		defer func() {
+			_ = os.WriteFile(kustomizationPath, origKustomization, 0644)
+		}()
+
+		lines := strings.Split(string(origKustomization), "\n")
+		for i, line := range lines {
+			if strings.Contains(line, "newTag:") {
+				lines[i] = "    newTag: " + imageTag
+			}
+		}
+		Expect(os.WriteFile(kustomizationPath, []byte(strings.Join(lines, "\n")), 0644)).NotTo(HaveOccurred())
+	} else {
+		By("Installing the Spark operator via Kustomize (using image from kustomization.yaml)")
+	}
+
+	applyCmd := exec.Command("kubectl", "apply", "-k", kustomizeDir, "--server-side", "--force-conflicts")
+	applyCmd.Stdout = GinkgoWriter
+	applyCmd.Stderr = GinkgoWriter
+	Expect(applyCmd.Run()).NotTo(HaveOccurred(), "Failed to apply Kustomize manifests")
+
+	By("Waiting for controller and webhook deployments to be ready")
+	for _, deploy := range []string{"spark-operator-controller", "spark-operator-webhook"} {
+		waitCmd := exec.Command("kubectl", "rollout", "status",
+			fmt.Sprintf("deployment/%s", deploy),
+			"-n", ReleaseNamespace,
+			"--timeout=300s")
+		waitCmd.Stdout = GinkgoWriter
+		waitCmd.Stderr = GinkgoWriter
+		Expect(waitCmd.Run()).NotTo(HaveOccurred(), fmt.Sprintf("%s deployment not ready", deploy))
+	}
+
+	// Apply Spark job RBAC (SA, Role, RoleBinding) to the namespace where e2e tests run Spark apps.
+	By("Applying Spark job RBAC to default namespace")
+	sparkRBACDir := filepath.Join(repoRoot, "config", "spark-rbac")
+	rbacCmd := exec.Command("kubectl", "apply", "-k", sparkRBACDir, "-n", "default", "--server-side", "--force-conflicts")
+	rbacCmd.Stdout = GinkgoWriter
+	rbacCmd.Stderr = GinkgoWriter
+	Expect(rbacCmd.Run()).NotTo(HaveOccurred(), "Failed to apply Spark job RBAC")
+}
+
+func uninstallViaKustomize() {
+	repoRoot := filepath.Join("..", "..")
+
+	By("Cleaning up Spark job RBAC from default namespace")
+	sparkRBACDir := filepath.Join(repoRoot, "config", "spark-rbac")
+	rbacDelCmd := exec.Command("kubectl", "delete", "-k", sparkRBACDir, "-n", "default", "--ignore-not-found", "--timeout=60s")
+	rbacDelCmd.Stdout = GinkgoWriter
+	rbacDelCmd.Stderr = GinkgoWriter
+	_ = rbacDelCmd.Run()
+
+	kustomizeDir := filepath.Join(repoRoot, "config", "default")
+	By("Uninstalling the Spark operator via Kustomize")
+	deleteCmd := exec.Command("kubectl", "delete", "-k", kustomizeDir, "--ignore-not-found", "--timeout=120s")
+	deleteCmd.Stdout = GinkgoWriter
+	deleteCmd.Stderr = GinkgoWriter
+	_ = deleteCmd.Run()
+}
 
 func waitForMutatingWebhookReady(ctx context.Context, key types.NamespacedName) error {
 	cancelCtx, cancelFunc := context.WithTimeout(ctx, WaitTimeout)

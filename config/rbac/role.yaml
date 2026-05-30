@@ -4,7 +4,9 @@ kind: ClusterRole
 metadata:
   name: spark-operator-controller
 rules:
-- resources:
+- apiGroups:
+  - ""
+  resources:
   - configmaps
   verbs:
   - create
@@ -13,13 +15,17 @@ rules:
   - patch
   - update
   - watch
-- resources:
+- apiGroups:
+  - ""
+  resources:
   - events
   verbs:
   - create
   - patch
   - update
-- resources:
+- apiGroups:
+  - ""
+  resources:
   - pods
   verbs:
   - create
@@ -28,7 +34,9 @@ rules:
   - list
   - update
   - watch
-- resources:
+- apiGroups:
+  - ""
+  resources:
   - services
   verbs:
   - create

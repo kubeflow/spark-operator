@@ -1,0 +1,31 @@
+# Default Kustomization - Main entry point for standalone deployment
+#
+# Usage:
+#   kustomize build config/default/ | kubectl apply --server-side -f -
+
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Default namespace for standalone deployment
+namespace: spark-operator
+
+# Resources to include
+resources:
+  - ../crd
+  - ../rbac
+  - ../manager
+  - ../webhook
+
+# Labels applied to all resources
+labels:
+  - includeSelectors: true
+    pairs:
+      app.kubernetes.io/name: spark-operator
+      app.kubernetes.io/managed-by: kustomize
+
+# Image configuration - tag is derived from the VERSION file at the repo root.
+# To update: make kustomize-set-image
+# CI/e2e tests override this via: kustomize edit set image ...
+images:
+  - name: ghcr.io/kubeflow/spark-operator/controller
+    newTag: v2.5.0-rc.0

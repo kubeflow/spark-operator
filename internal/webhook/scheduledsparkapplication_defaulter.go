@@ -26,20 +26,24 @@ import (
 	"github.com/kubeflow/spark-operator/v2/api/v1beta2"
 )
 
-// +kubebuilder:webhook:admissionReviewVersions=v1,failurePolicy=fail,groups=sparkoperator.k8s.io,matchPolicy=Exact,mutating=false,name=mutate-scheduledsparkapplication.sparkoperator.k8s.io,path=/validate-sparkoperator-k8s-io-v1beta2-sparkapplication,reinvocationPolicy=Never,resources=scheduledsparkapplications,sideEffects=None,verbs=create;update,versions=v1beta2,webhookVersions=v1
+// +kubebuilder:webhook:admissionReviewVersions=v1,failurePolicy=fail,groups=sparkoperator.k8s.io,matchPolicy=Exact,mutating=true,name=mutate-scheduledsparkapplication.sparkoperator.k8s.io,path=/mutate-sparkoperator-k8s-io-v1beta2-scheduledsparkapplication,reinvocationPolicy=Never,resources=scheduledsparkapplications,sideEffects=None,verbs=create;update,versions=v1beta2,webhookVersions=v1
 
-// ScheduledSparkApplicationDefaulter sets default values for a SparkApplication.
+// ScheduledSparkApplicationDefaulter sets default values for a ScheduledSparkApplication.
 type ScheduledSparkApplicationDefaulter struct{}
 
-// NewSparkApplicationValidator creates a new SparkApplicationValidator instance.
+// NewScheduledSparkApplicationDefaulter creates a new ScheduledSparkApplicationDefaulter instance.
 func NewScheduledSparkApplicationDefaulter() *ScheduledSparkApplicationDefaulter {
 	return &ScheduledSparkApplicationDefaulter{}
 }
 
-// SparkApplicationDefaulter implements admission.CustomDefaulter.
+// ScheduledSparkApplicationDefaulter implements admission.CustomDefaulter.
 var _ admission.CustomDefaulter = &ScheduledSparkApplicationDefaulter{}
 
 // Default implements admission.CustomDefaulter.
+// This is currently a no-op placeholder. Concrete defaulting logic (e.g., calling
+// operatorscheme.WebhookScheme.Default) will be added in a future PR.
+// The webhook is registered now so that the manifest path is correct and
+// ready when defaulting is implemented.
 func (d *ScheduledSparkApplicationDefaulter) Default(ctx context.Context, obj runtime.Object) error {
 	if _, ok := obj.(*v1beta2.ScheduledSparkApplication); !ok {
 		return nil

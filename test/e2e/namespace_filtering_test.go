@@ -144,6 +144,10 @@ var _ = Describe("Namespace Filtering", func() {
 		var testID string
 
 		BeforeEach(func() {
+			if deployMethod == "kustomize" {
+				Skip("Namespace filtering requires Helm deploy with jobNamespaceSelector configuration")
+			}
+
 			// Generate TRULY unique suffix using current time
 			testID = fmt.Sprintf("%d", time.Now().UnixNano())
 

@@ -550,6 +550,22 @@ func driverVolumeMountsOption(app *v1beta2.SparkApplication) ([]string, error) {
 					),
 				)
 			}
+			if volume.EmptyDir.Medium != corev1.StorageMediumDefault {
+				args = append(
+					args,
+					"--conf",
+					fmt.Sprintf(
+						"%s=%s",
+						fmt.Sprintf(
+							common.SparkKubernetesDriverVolumesOptionsTemplate,
+							common.VolumeTypeEmptyDir,
+							volume.Name,
+							"medium",
+						),
+						volume.EmptyDir.Medium,
+					),
+				)
+			}
 		case common.VolumeTypeHostPath:
 			args = append(
 				args,
@@ -890,6 +906,22 @@ func executorVolumeMountsOption(app *v1beta2.SparkApplication) ([]string, error)
 							"sizeLimit",
 						),
 						volume.EmptyDir.SizeLimit.String(),
+					),
+				)
+			}
+			if volume.EmptyDir.Medium != corev1.StorageMediumDefault {
+				args = append(
+					args,
+					"--conf",
+					fmt.Sprintf(
+						"%s=%s",
+						fmt.Sprintf(
+							common.SparkKubernetesExecutorVolumesOptionsTemplate,
+							common.VolumeTypeEmptyDir,
+							volume.Name,
+							"medium",
+						),
+						volume.EmptyDir.Medium,
 					),
 				)
 			}

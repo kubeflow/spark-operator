@@ -40,6 +40,9 @@ IMAGE_REPOSITORY ?= kubeflow/spark-operator/controller
 IMAGE_TAG ?= $(VERSION)
 IMAGE ?= $(IMAGE_REGISTRY)/$(IMAGE_REPOSITORY):$(IMAGE_TAG)
 
+# Deployment method for e2e tests (helm or kustomize)
+DEPLOY_METHOD ?= helm
+
 # Kind cluster
 KIND_CLUSTER_NAME ?= spark-operator
 KIND_CONFIG_FILE ?= charts/spark-operator-chart/ci/kind-config.yaml
@@ -49,7 +52,6 @@ KIND_KUBE_CONFIG ?= $(HOME)/.kube/config
 LOCALBIN ?= $(shell pwd)/bin
 
 ## Versions
-KUSTOMIZE_VERSION ?= v5.4.1
 CONTROLLER_TOOLS_VERSION ?= v0.17.1
 KIND_VERSION ?= v0.31.0
 KIND_K8S_VERSION ?= v1.35.0
@@ -66,7 +68,6 @@ CODE_GENERATOR_VERSION ?= v0.33.1
 ## Binaries
 SPARK_OPERATOR ?= $(LOCALBIN)/spark-operator
 KUBECTL ?= kubectl
-KUSTOMIZE ?= $(LOCALBIN)/kustomize-$(KUSTOMIZE_VERSION)
 CONTROLLER_GEN ?= $(LOCALBIN)/controller-gen-$(CONTROLLER_TOOLS_VERSION)
 KIND ?= $(LOCALBIN)/kind-$(KIND_VERSION)
 ENVTEST ?= $(LOCALBIN)/setup-envtest-$(ENVTEST_VERSION)
@@ -165,15 +166,29 @@ go-lint-fix: golangci-lint ## Run golangci-lint linter and perform fixes.
 unit-test: setup-envtest ## Run unit tests.
 	@echo "Running unit tests..."
 	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)"
-	go test $(shell go list ./... | grep -v /e2e) -coverprofile cover.out
+	go test $(shell go list ./... | grep -v -e /e2e -e /drift) -coverprofile cover.out
 	@echo "Generating HTML coverage report..."
 	go tool cover -html=cover.out -o cover.html
 	@echo "Coverage report available at cover.html"
 
 .PHONY: e2e-test
 e2e-test: envtest ## Run the e2e tests against a Kind k8s instance that is spun up.
-	@echo "Running e2e tests..."
-	go test ./test/e2e/ -v -ginkgo.v -timeout 30m
+	@echo "Running e2e tests (deploy_method=$(DEPLOY_METHOD))..."
+	DEPLOY_METHOD=$(DEPLOY_METHOD) IMAGE_TAG=$(IMAGE_TAG) go test ./test/e2e/ -v -ginkgo.v -timeout 30m
+
+##@ Kustomize
+
+.PHONY: kustomize-set-image
+kustomize-set-image: ## Update config/default/kustomization.yaml image tag from VERSION file.
+	@TAG=$$(cat VERSION) && \
+	sed -i.bak "s|    newTag: .*|    newTag: $$TAG|" config/default/kustomization.yaml && \
+	rm -f config/default/kustomization.yaml.bak && \
+	echo "Updated kustomize image tag to $$TAG"
+
+.PHONY: kustomize-lint
+kustomize-lint: ## Validate Kustomize build output (no cluster needed).
+	@echo "Running Kustomize build validation..."
+	go test ./test/kustomize/ -v -count=1
 
 ##@ Build
 
@@ -244,6 +259,10 @@ helm-lint: ## Run Helm chart lint test.
 helm-docs: helm-docs-plugin ## Generates markdown documentation for helm charts from requirements and values files.
 	$(HELM_DOCS) --sort-values-order=file
 
+.PHONY: drift-check
+drift-check: helm ## Detect drift between Helm chart and Kustomize manifests.
+	HELM=$(HELM) go test ./test/drift/ -v -count=1
+
 ##@ Deployment
 
 ifndef ignore-not-found
@@ -270,12 +289,12 @@ kind-delete-cluster: kind ## Delete the created kind cluster.
 	$(KIND) delete cluster --name $(KIND_CLUSTER_NAME) --kubeconfig $(KIND_KUBE_CONFIG)
 
 .PHONY: install
-install-crd: manifests kustomize ## Install CRDs into the K8s cluster specified in ~/.kube/config.
-	$(KUSTOMIZE) build config/crd | $(KUBECTL) create -f - 2>/dev/null || $(KUSTOMIZE) build config/crd | $(KUBECTL) replace -f -
+install-crd: manifests ## Install CRDs into the K8s cluster specified in ~/.kube/config.
+	$(KUBECTL) kustomize config/crd | $(KUBECTL) create -f - 2>/dev/null || $(KUBECTL) kustomize config/crd | $(KUBECTL) replace -f -
 
 .PHONY: uninstall
-uninstall-crd: manifests kustomize ## Uninstall CRDs from the K8s cluster specified in ~/.kube/config. Call with ignore-not-found=true to ignore resource not found errors during deletion.
-	$(KUSTOMIZE) build config/crd | $(KUBECTL) delete --ignore-not-found=$(ignore-not-found) -f -
+uninstall-crd: manifests ## Uninstall CRDs from the K8s cluster specified in ~/.kube/config. Call with ignore-not-found=true to ignore resource not found errors during deletion.
+	$(KUBECTL) kustomize config/crd | $(KUBECTL) delete --ignore-not-found=$(ignore-not-found) -f -
 
 .PHONY: deploy
 deploy: IMAGE_TAG=local
@@ -290,11 +309,6 @@ undeploy: helm ## Uninstall spark-operator
 
 $(LOCALBIN):
 	mkdir -p $(LOCALBIN)
-
-.PHONY: kustomize
-kustomize: $(KUSTOMIZE) ## Download kustomize locally if necessary.
-$(KUSTOMIZE): $(LOCALBIN)
-	$(call go-install-tool,$(KUSTOMIZE),sigs.k8s.io/kustomize/kustomize/v5,$(KUSTOMIZE_VERSION))
 
 .PHONY: controller-gen
 controller-gen: $(CONTROLLER_GEN) ## Download controller-gen locally if necessary.

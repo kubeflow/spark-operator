@@ -33,7 +33,7 @@ import (
 // SparkApplicationDefaulter sets default values for a SparkApplication.
 type SparkApplicationDefaulter struct{}
 
-// NewSparkApplicationValidator creates a new SparkApplicationValidator instance.
+// NewSparkApplicationDefaulter creates a new SparkApplicationDefaulter instance.
 func NewSparkApplicationDefaulter() *SparkApplicationDefaulter {
 	return &SparkApplicationDefaulter{}
 }

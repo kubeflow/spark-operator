@@ -1,0 +1,50 @@
+# Detect semantic drift between the Helm chart (source of truth) and Kustomize manifests.
+# Compares RBAC rules, webhook configurations, and deployment specs.
+name: Kustomize Drift Check
+
+on:
+  pull_request:
+    branches:
+      - master
+      - release-*
+    paths:
+      - 'config/**'
+      - 'charts/**'
+      - 'internal/**'
+      - 'test/drift/**'
+      - '.github/workflows/kustomize-drift-check.yaml'
+
+  push:
+    branches:
+      - master
+      - release-*
+    paths:
+      - 'config/**'
+      - 'charts/**'
+      - 'internal/**'
+      - 'test/drift/**'
+      - '.github/workflows/kustomize-drift-check.yaml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.actor }}
+  cancel-in-progress: true
+
+jobs:
+  drift-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6
+        with:
+          go-version-file: go.mod
+
+      - name: Run drift detection
+        run: make drift-check
