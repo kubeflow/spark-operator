@@ -85,27 +85,40 @@ func getDriverIngressURL(ingressURLFormat string, app *v1beta2.SparkApplication)
 	return parsedURL, nil
 }
 
-func (r *Reconciler) createDriverIngress(ctx context.Context, app *v1beta2.SparkApplication, driverIngressConfiguration *v1beta2.DriverIngressConfiguration, service SparkService, ingressURL *url.URL, ingressClassName string) (*SparkIngress, error) {
+func (r *Reconciler) createDriverIngress(ctx context.Context, app *v1beta2.SparkApplication, driverIngressConfiguration *v1beta2.DriverIngressConfiguration, service SparkService, ingressURL *url.URL, ingressClassName string, defaultIngressTLS []networkingv1.IngressTLS, defaultIngressAnnotations map[string]string) (*SparkIngress, error) {
 	if driverIngressConfiguration.ServicePort == nil {
 		return nil, fmt.Errorf("cannot create Driver Ingress for application %s/%s due to empty ServicePort on driverIngressConfiguration", app.Namespace, app.Name)
 	}
 	ingressName := fmt.Sprintf("%s-ing-%d", app.Name, *driverIngressConfiguration.ServicePort)
-	if util.IngressCapabilities.Has("networking.k8s.io/v1") {
-		return r.createDriverIngressV1(ctx, app, service, ingressName, ingressURL, ingressClassName, []networkingv1.IngressTLS{}, map[string]string{})
+
+	// Resolve annotations and TLS: per-entry values take precedence, falling back
+	// to the operator-wide defaults when the per-entry fields are empty.
+	ingressAnnotations := driverIngressConfiguration.IngressAnnotations
+	if len(ingressAnnotations) == 0 {
+		ingressAnnotations = defaultIngressAnnotations
 	}
-	return r.createDriverIngressLegacy(ctx, app, service, ingressName, ingressURL)
+	ingressTLS := driverIngressConfiguration.IngressTLS
+	if len(ingressTLS) == 0 {
+		ingressTLS = defaultIngressTLS
+	}
+
+	if util.IngressCapabilities.Has("networking.k8s.io/v1") {
+		return r.createDriverIngressV1(ctx, app, service, ingressName, ingressURL, ingressClassName, ingressTLS, ingressAnnotations)
+	}
+	return r.createDriverIngressLegacy(ctx, app, service, ingressName, ingressURL, ingressTLS, ingressAnnotations)
 }
 
-func (r *Reconciler) createDriverIngressV1(ctx context.Context, app *v1beta2.SparkApplication, service SparkService, ingressName string, ingressURL *url.URL, ingressClassName string, defaultIngressTLS []networkingv1.IngressTLS, defaultIngressAnnotations map[string]string) (*SparkIngress, error) {
+func (r *Reconciler) createDriverIngressV1(ctx context.Context, app *v1beta2.SparkApplication, service SparkService, ingressName string, ingressURL *url.URL, ingressClassName string, ingressTLS []networkingv1.IngressTLS, ingressAnnotations map[string]string) (*SparkIngress, error) {
 	logger := log.FromContext(ctx)
-	ingressResourceAnnotations := util.GetWebUIIngressAnnotations(app)
-	if len(ingressResourceAnnotations) == 0 && len(defaultIngressAnnotations) != 0 {
-		ingressResourceAnnotations = defaultIngressAnnotations
+
+	// Copy the annotations into a new map so that the rewrite-target mutation below
+	// never modifies the caller's source map (either the user's SparkApplication
+	// spec or the operator-wide default options).
+	ingressResourceAnnotations := make(map[string]string, len(ingressAnnotations))
+	for key, value := range ingressAnnotations {
+		ingressResourceAnnotations[key] = value
 	}
-	ingressTLSHosts := util.GetWebUIIngressTLS(app)
-	if len(ingressTLSHosts) == 0 && len(defaultIngressTLS) != 0 {
-		ingressTLSHosts = defaultIngressTLS
-	}
+	ingressTLSHosts := ingressTLS
 
 	ingressURLPath := ingressURL.Path
 	// If we're serving on a subpath, we need to ensure we create capture groups
@@ -199,12 +212,19 @@ func (r *Reconciler) createDriverIngressV1(ctx context.Context, app *v1beta2.Spa
 	}, nil
 }
 
-func (r *Reconciler) createDriverIngressLegacy(ctx context.Context, app *v1beta2.SparkApplication, service SparkService, ingressName string, ingressURL *url.URL) (*SparkIngress, error) {
+func (r *Reconciler) createDriverIngressLegacy(ctx context.Context, app *v1beta2.SparkApplication, service SparkService, ingressName string, ingressURL *url.URL, ingressTLS []networkingv1.IngressTLS, ingressAnnotations map[string]string) (*SparkIngress, error) {
 	logger := log.FromContext(ctx)
-	ingressResourceAnnotations := util.GetWebUIIngressAnnotations(app)
+
+	// Copy the annotations into a new map so that the rewrite-target mutation below
+	// never modifies the caller's source map (either the user's SparkApplication
+	// spec or the operator-wide default options).
+	ingressResourceAnnotations := make(map[string]string, len(ingressAnnotations))
+	for key, value := range ingressAnnotations {
+		ingressResourceAnnotations[key] = value
+	}
 	// var ingressTLSHosts networkingv1.IngressTLS[]
 	// That we convert later for extensionsv1beta1, but return as is in SparkIngress.
-	ingressTLSHosts := util.GetWebUIIngressTLS(app)
+	ingressTLSHosts := ingressTLS
 
 	ingressURLPath := ingressURL.Path
 	// If we're serving on a subpath, we need to ensure we create capture groups.
