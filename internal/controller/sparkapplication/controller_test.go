@@ -335,7 +335,7 @@ var _ = Describe("SparkApplication Controller", func() {
 				nil,
 				k8sClient.Scheme(),
 				k8sClient,
-				nil,
+				record.NewFakeRecorder(3),
 				nil,
 				&sparkapplication.SparkSubmitter{},
 				sparkapplication.Options{Namespaces: []string{appNamespace}, DriverPodCreationGracePeriod: 0 * time.Second},
