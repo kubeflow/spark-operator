@@ -175,7 +175,7 @@ func (f *EventFilter) Update(e event.UpdateEvent) bool {
 		return false
 	}
 
-	// The spec has changed except for Spec.Suspend.
+	// The spec has changed except for Spec.Suspend and Spec.TimeToLiveSeconds.
 	// This is currently best effort as we can potentially miss updates and end up in an inconsistent state.
 	if !equality.Semantic.DeepEqual(oldApp.Spec, newApp.Spec) {
 
@@ -286,9 +286,11 @@ func (f *EventFilter) isWebhookPatchedFieldsOnlyChange(oldApp, newApp *v1beta2.S
 	clearWebhookPatchedExecutorFields(&oldCopy.Spec.Executor)
 	clearWebhookPatchedExecutorFields(&newCopy.Spec.Executor)
 
-	// Also zero out Suspend field as it's handled separately
+	// Also zero out Suspend field and TimeToLiveSeconds as it's handled separately
 	oldCopy.Spec.Suspend = nil
 	newCopy.Spec.Suspend = nil
+	oldCopy.Spec.TimeToLiveSeconds = nil
+	newCopy.Spec.TimeToLiveSeconds = nil
 
 	// If specs are equal after clearing webhook-patched fields,
 	// then only webhook-patched fields changed

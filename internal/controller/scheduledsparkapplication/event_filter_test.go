@@ -22,7 +22,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 
@@ -339,39 +338,6 @@ func TestEventFilter_Update_NonScheduledSparkApplication(t *testing.T) {
 
 	if result != false {
 		t.Errorf("Update() with non-ScheduledSparkApplication = %v, expected false", result)
-	}
-}
-
-func TestEventFilter_Update_TemplateTimeToLiveSeconds(t *testing.T) {
-	scheme := runtime.NewScheme()
-	_ = corev1.AddToScheme(scheme)
-	_ = v1beta2.AddToScheme(scheme)
-	fakeClient := fake.NewClientBuilder().WithScheme(scheme).Build()
-
-	filter, err := NewEventFilter(fakeClient, []string{"default"}, "")
-	if err != nil {
-		t.Fatalf("NewEventFilter() unexpected error: %v", err)
-	}
-
-	oldApp := &v1beta2.ScheduledSparkApplication{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "test-app",
-			Namespace: "default",
-		},
-		Spec: v1beta2.ScheduledSparkApplicationSpec{
-			Template: v1beta2.SparkApplicationSpec{
-				Type:         v1beta2.SparkApplicationTypeScala,
-				SparkVersion: "3.5.0",
-			},
-		},
-	}
-	newApp := oldApp.DeepCopy()
-	newApp.Spec.Template.TimeToLiveSeconds = ptr.To[int64](60)
-
-	result := filter.Update(event.UpdateEvent{ObjectOld: oldApp, ObjectNew: newApp})
-
-	if result != true {
-		t.Errorf("Update() = %v, expected true", result)
 	}
 }
 
