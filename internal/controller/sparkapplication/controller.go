@@ -982,6 +982,19 @@ func (r *Reconciler) updateDriverState(ctx context.Context, app *v1beta2.SparkAp
 				app.Status.DriverInfo.PodName,
 				r.options.DriverPodCreationGracePeriod,
 			)
+			logger := log.FromContext(ctx)
+			if app.Status.AppState.State == v1beta2.ApplicationStateSubmitted {
+				logger.Info("Driver pod not found after creation grace period; marking SparkApplication as Failing",
+					"driverPodName", app.Status.DriverInfo.PodName,
+					"lastSubmissionAttemptTime", app.Status.LastSubmissionAttemptTime,
+					"gracePeriod", r.options.DriverPodCreationGracePeriod,
+				)
+			} else {
+				logger.Info("Driver pod not found; marking SparkApplication as Failing",
+					"driverPodName", app.Status.DriverInfo.PodName,
+					"previousState", app.Status.AppState.State,
+				)
+			}
 			app.Status.AppState.State = v1beta2.ApplicationStateFailing
 			app.Status.AppState.ErrorMessage = "driver pod not found"
 			app.Status.TerminationTime = metav1.Now()
