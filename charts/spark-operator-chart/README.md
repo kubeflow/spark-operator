@@ -90,6 +90,8 @@ See [helm uninstall](https://helm.sh/docs/helm/helm_uninstall) for command docum
 | hook.nodeSelector | object | `{}` | Node selector for the Helm hook Job. |
 | hook.affinity | object | `{}` | Affinity for the Helm hook Job. |
 | hook.tolerations | list | `[]` | List of node taints to tolerate for the Helm hook Job. |
+| hook.labels | object | `{}` | Extra labels for the Helm hook Job pod. |
+| hook.annotations | object | `{}` | Extra annotations for the Helm hook Job pod. |
 | controller.replicas | int | `1` | Number of replicas of controller. |
 | controller.featureGates | list | `[{"enabled":false,"name":"PartialRestart"},{"enabled":false,"name":"LoadSparkDefaults"}]` | Feature gates to enable or disable specific features. |
 | controller.revisionHistoryLimit | int | `10` | The number of old history to retain to allow rollback. |
