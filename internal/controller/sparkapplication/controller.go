@@ -523,20 +523,7 @@ func (r *Reconciler) reconcilePendingRerunSparkApplication(ctx context.Context, 
 				r.submitSparkApplication(ctx, app)
 			} else {
 				logger.Info("Resources associated with SparkApplication still exist, will retry")
-				if app.Status.LastDeletionAttemptTime.IsZero() {
-					app.Status.LastDeletionAttemptTime = metav1.Now()
-					app.Status.DeletionPollAttempts = 0
-				}
-				if wait, err := util.TimeUntilNextDeletionPollDue(app); err == nil {
-					if wait <= 0 {
-						result.Requeue = true
-					} else {
-						result.RequeueAfter = wait
-					}
-				} else {
-					result.Requeue = true
-				}
-				app.Status.DeletionPollAttempts++
+				result = computeDeletionPollRequeue(app)
 			}
 			if err := r.updateSparkApplicationStatus(ctx, app); err != nil {
 				return err
@@ -546,7 +533,7 @@ func (r *Reconciler) reconcilePendingRerunSparkApplication(ctx context.Context, 
 	)
 	if retryErr != nil {
 		logger.Error(retryErr, "Failed to reconcile SparkApplication")
-		return result, retryErr
+		return ctrl.Result{}, retryErr
 	}
 	return result, nil
 }
@@ -845,20 +832,7 @@ func (r *Reconciler) reconcileSuspendedSparkApplication(ctx context.Context, req
 				}
 			} else {
 				logger.Info("Resources associated with SparkApplication still exist, will retry")
-				if app.Status.LastDeletionAttemptTime.IsZero() {
-					app.Status.LastDeletionAttemptTime = metav1.Now()
-					app.Status.DeletionPollAttempts = 0
-				}
-				if wait, err := util.TimeUntilNextDeletionPollDue(app); err == nil {
-					if wait <= 0 {
-						result.Requeue = true
-					} else {
-						result.RequeueAfter = wait
-					}
-				} else {
-					result.Requeue = true
-				}
-				app.Status.DeletionPollAttempts++
+				result = computeDeletionPollRequeue(app)
 			}
 			if err := r.updateSparkApplicationStatus(ctx, app); err != nil {
 				return err
@@ -868,7 +842,7 @@ func (r *Reconciler) reconcileSuspendedSparkApplication(ctx context.Context, req
 	)
 	if retryErr != nil {
 		logger.Error(retryErr, "Failed to reconcile SparkApplication")
-		return result, retryErr
+		return ctrl.Result{}, retryErr
 	}
 	return result, nil
 }
@@ -1454,6 +1428,27 @@ func (r *Reconciler) recordExecutorEvent(app *v1beta2.SparkApplication, state v1
 	case v1beta2.ExecutorStateUnknown:
 		r.recorder.Eventf(app, corev1.EventTypeWarning, common.EventSparkExecutorUnknown, "Executor %s in unknown state", args...)
 	}
+}
+
+// computeDeletionPollRequeue initializes deletion tracking fields if needed,
+// computes the next backoff duration, and increments the poll counter.
+func computeDeletionPollRequeue(app *v1beta2.SparkApplication) ctrl.Result {
+	if app.Status.LastDeletionAttemptTime.IsZero() {
+		app.Status.LastDeletionAttemptTime = metav1.Now()
+		app.Status.DeletionPollAttempts = 0
+	}
+	var result ctrl.Result
+	if wait, err := util.TimeUntilNextDeletionPollDue(app); err == nil {
+		if wait <= 0 {
+			result.Requeue = true
+		} else {
+			result.RequeueAfter = wait
+		}
+	} else {
+		result.Requeue = true
+	}
+	app.Status.DeletionPollAttempts++
+	return result
 }
 
 func (r *Reconciler) resetSparkApplicationStatus(app *v1beta2.SparkApplication) {

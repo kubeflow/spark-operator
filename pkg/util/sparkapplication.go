@@ -151,10 +151,17 @@ func TimeUntilNextDeletionPollDue(app *v1beta2.SparkApplication) (time.Duration,
 	interval := time.Duration(*app.Spec.RestartPolicy.OnFailureRetryInterval) * time.Second
 	// The next poll is the (attempts+1)-th overall, due at a cumulative
 	// offset of n*(n+1)/2 * interval from LastDeletionAttemptTime.
+	// Cap before multiplication to prevent int64 overflow in time.Duration.
 	n := int64(app.Status.DeletionPollAttempts) + 1
-	nextDueOffset := time.Duration(n*(n+1)/2) * interval
-	if nextDueOffset > maxDeletionPollDelay {
-		nextDueOffset = maxDeletionPollDelay
+	var nextDueOffset time.Duration
+	if interval > 0 {
+		maxMultiplier := int64(maxDeletionPollDelay / interval)
+		triangular := n * (n + 1) / 2
+		if triangular > maxMultiplier {
+			nextDueOffset = maxDeletionPollDelay
+		} else {
+			nextDueOffset = time.Duration(triangular) * interval
+		}
 	}
 	remaining := nextDueOffset - time.Since(lastAttemptTime.Time)
 	return remaining, nil
