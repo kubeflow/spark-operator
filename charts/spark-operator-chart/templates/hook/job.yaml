@@ -28,6 +28,16 @@ metadata:
     helm.sh/hook-weight: "4"
 spec:
   template:
+    metadata:
+      labels:
+        {{- include "spark-operator.hook.labels" . | nindent 8 }}
+        {{- with .Values.hook.labels }}
+          {{- toYaml . | nindent 8 }}
+        {{- end }}
+      {{- with .Values.hook.annotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
     spec:
       containers:
       - name: spark-operator-hook

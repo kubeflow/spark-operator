@@ -23,4 +23,6 @@ if ! getent passwd "$myuid" &> /dev/null; then
     done
 fi
 
-exec /usr/bin/tini -s -- /usr/bin/spark-operator "$@"
+# Path for catatonit may differ depending on base container OS
+CATATONIT=$(which catatonit)
+exec "$CATATONIT" -- /usr/bin/spark-operator "$@"

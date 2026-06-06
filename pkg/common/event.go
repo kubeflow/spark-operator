@@ -35,6 +35,8 @@ const (
 	EventSparkApplicationSuspended = "SparkApplicationSuspended"
 
 	EventSparkApplicationResuming = "SparkApplicationResuming"
+
+	EventSparkDriverNotFound = "SparkDriverNotFound"
 )
 
 // Spark driver events
