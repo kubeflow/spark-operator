@@ -23,14 +23,20 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
+	extensionsv1beta1 "k8s.io/api/extensions/v1beta1"
+	networkingv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/utils/ptr"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	"github.com/kubeflow/spark-operator/v2/api/v1beta2"
 	"github.com/kubeflow/spark-operator/v2/pkg/common"
+	"github.com/kubeflow/spark-operator/v2/pkg/util"
 )
 
 func TestCreateDriverIngressService(t *testing.T) {
@@ -91,7 +97,7 @@ func TestCreateDriverIngressService(t *testing.T) {
 		// Test ingress creation
 		driverUrl, err := url.Parse("http://localhost")
 		assert.NoError(t, err, "Failed to parse driver ingress url")
-		_, err = reconciler.createDriverIngress(context.TODO(), tc.app, &ingressOptions, *ingressConfig, driverUrl, "ingressClass")
+		_, err = reconciler.createDriverIngress(context.TODO(), tc.app, &ingressOptions, *ingressConfig, driverUrl, "ingressClass", []networkingv1.IngressTLS{}, map[string]string{})
 
 		if tc.expectError {
 			assert.Error(t, err, "Expected an error but got none")
@@ -411,3 +417,208 @@ func TestCreateDriverIngressService(t *testing.T) {
 		testFn(test, t)
 	}
 }
+
+// TestDriverIngressAnnotationPrecedence tests that user annotations take precedence over operator defaults
+func TestDriverIngressAnnotationPrecedence(t *testing.T) {
+	// Set up Ingress capabilities to use networking.k8s.io/v1
+	util.IngressCapabilities = util.Capabilities{"networking.k8s.io/v1": true}
+
+	scheme := runtime.NewScheme()
+	require.NoError(t, corev1.AddToScheme(scheme))
+	require.NoError(t, networkingv1.AddToScheme(scheme))
+	require.NoError(t, extensionsv1beta1.AddToScheme(scheme))
+	require.NoError(t, v1beta2.AddToScheme(scheme))
+
+	testCases := []struct {
+		name               string
+		userAnnotations    map[string]string
+		userTLS            []networkingv1.IngressTLS
+		defaultAnnotations map[string]string
+		defaultTLS         []networkingv1.IngressTLS
+		expectHasUserKey   bool
+		expectHasDefaultKey bool
+		expectUserTLSHost  bool
+	}{
+		{
+			name: "user annotations take precedence over defaults",
+			userAnnotations: map[string]string{
+				"user-key": "user-value",
+			},
+			defaultAnnotations: map[string]string{
+				"default-key": "default-value",
+			},
+			expectHasUserKey:    true,
+			expectHasDefaultKey: false,
+		},
+		{
+			name:            "fallback to defaults when user annotations empty",
+			userAnnotations: nil,
+			defaultAnnotations: map[string]string{
+				"default-key": "default-value",
+			},
+			expectHasUserKey:    false,
+			expectHasDefaultKey: true,
+		},
+		{
+			name:                "both empty results in no annotations",
+			userAnnotations:     nil,
+			defaultAnnotations:  nil,
+			expectHasUserKey:    false,
+			expectHasDefaultKey: false,
+		},
+		{
+			name:    "user TLS takes precedence over defaults",
+			userTLS: []networkingv1.IngressTLS{{Hosts: []string{"user.example.com"}}},
+			defaultTLS: []networkingv1.IngressTLS{{Hosts: []string{"default.example.com"}}},
+			expectUserTLSHost: true,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			fakeClient := fake.NewClientBuilder().WithScheme(scheme).Build()
+			reconciler := Reconciler{
+				client: fakeClient,
+			}
+
+			driverURL, _ := url.Parse("http://test.example.com")
+			service := SparkService{
+				serviceName: "test-service",
+				servicePort: 4040,
+			}
+
+			app := &v1beta2.SparkApplication{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-app",
+					Namespace: "default",
+					UID:       "test-uid",
+				},
+				Spec: v1beta2.SparkApplicationSpec{
+					DriverIngressOptions: []v1beta2.DriverIngressConfiguration{
+						{
+							ServicePort:        ptr.To[int32](4040),
+							IngressAnnotations: tc.userAnnotations,
+							IngressTLS:         tc.userTLS,
+						},
+					},
+				},
+			}
+
+			_, err := reconciler.createDriverIngress(
+				context.TODO(),
+				app,
+				&app.Spec.DriverIngressOptions[0],
+				service,
+				driverURL,
+				"",
+				tc.defaultTLS,
+				tc.defaultAnnotations,
+			)
+
+			if err != nil {
+				t.Fatalf("createDriverIngress failed: %v", err)
+			}
+
+			// Verify by checking the created Ingress resource in the fake client
+			createdIngress := &networkingv1.Ingress{}
+			err = fakeClient.Get(context.TODO(), client.ObjectKey{
+				Namespace: "default",
+				Name:      "test-app-ing-4040",
+			}, createdIngress)
+
+			assert.NoError(t, err, "Ingress should be created")
+
+			// Verify annotations based on precedence
+			if tc.expectHasUserKey {
+				assert.Contains(t, createdIngress.Annotations, "user-key")
+				assert.Equal(t, "user-value", createdIngress.Annotations["user-key"])
+			}
+			if tc.expectHasDefaultKey {
+				assert.Contains(t, createdIngress.Annotations, "default-key")
+				assert.Equal(t, "default-value", createdIngress.Annotations["default-key"])
+			}
+
+			// Verify TLS based on precedence
+			if tc.expectUserTLSHost {
+				assert.Len(t, createdIngress.Spec.TLS, 1)
+				assert.Contains(t, createdIngress.Spec.TLS[0].Hosts, "user.example.com")
+			}
+		})
+	}
+}
+
+// TestDriverIngressAnnotationMutationPrevention tests that modifying annotations doesn't corrupt source
+func TestDriverIngressAnnotationMutationPrevention(t *testing.T) {
+	// Set up Ingress capabilities to use networking.k8s.io/v1
+	util.IngressCapabilities = util.Capabilities{"networking.k8s.io/v1": true}
+
+	scheme := runtime.NewScheme()
+	require.NoError(t, corev1.AddToScheme(scheme))
+	require.NoError(t, networkingv1.AddToScheme(scheme))
+	require.NoError(t, extensionsv1beta1.AddToScheme(scheme))
+	require.NoError(t, v1beta2.AddToScheme(scheme))
+
+	fakeClient := fake.NewClientBuilder().WithScheme(scheme).Build()
+	reconciler := Reconciler{
+		client: fakeClient,
+	}
+
+	driverURL, _ := url.Parse("http://test.example.com/path")
+	service := SparkService{
+		serviceName: "test-service",
+		servicePort: 4040,
+	}
+
+	// Create source maps that we'll verify aren't mutated
+	userAnnotations := map[string]string{
+		"user-key": "user-value",
+	}
+	defaultAnnotations := map[string]string{
+		"default-key": "default-value",
+	}
+
+	// Store original values
+	originalUserKey := userAnnotations["user-key"]
+	originalDefaultKey := defaultAnnotations["default-key"]
+
+	app := &v1beta2.SparkApplication{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-app",
+			Namespace: "default",
+			UID:       "test-uid",
+		},
+		Spec: v1beta2.SparkApplicationSpec{
+			DriverIngressOptions: []v1beta2.DriverIngressConfiguration{
+				{
+					ServicePort:        ptr.To[int32](4040),
+					IngressAnnotations: userAnnotations,
+				},
+			},
+		},
+	}
+
+	_, err := reconciler.createDriverIngress(
+		context.TODO(),
+		app,
+		&app.Spec.DriverIngressOptions[0],
+		service,
+		driverURL,
+		"",
+		nil,
+		defaultAnnotations,
+	)
+
+	assert.NoError(t, err)
+
+	// Verify source maps weren't mutated
+	assert.Equal(t, originalUserKey, userAnnotations["user-key"], "User annotations map was mutated")
+	assert.Equal(t, originalDefaultKey, defaultAnnotations["default-key"], "Default annotations map was mutated")
+
+	// Verify rewrite-target annotation wasn't added to source (it's added internally for subpath)
+	_, userHasRewrite := userAnnotations["nginx.ingress.kubernetes.io/rewrite-target"]
+	assert.False(t, userHasRewrite, "Rewrite-target annotation leaked into user's source map")
+
+	_, defaultHasRewrite := defaultAnnotations["nginx.ingress.kubernetes.io/rewrite-target"]
+	assert.False(t, defaultHasRewrite, "Rewrite-target annotation leaked into default source map")
+}
+
