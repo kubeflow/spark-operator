@@ -61,8 +61,9 @@ const (
 	ReleaseName      = "spark-operator"
 	ReleaseNamespace = "spark-operator"
 
-	PollInterval = 1 * time.Second
-	WaitTimeout  = 5 * time.Minute
+	PollInterval       = 1 * time.Second
+	WaitTimeout        = 8 * time.Minute
+	HelmInstallTimeout = 10 * time.Minute
 )
 
 var (
@@ -182,7 +183,7 @@ func installViaHelm() {
 	installAction.ReleaseName = ReleaseName
 	installAction.Namespace = envSettings.Namespace()
 	installAction.Wait = true
-	installAction.Timeout = WaitTimeout
+	installAction.Timeout = HelmInstallTimeout
 	chartPath := filepath.Join("..", "..", "charts", "spark-operator-chart")
 	chart, err := loader.Load(chartPath)
 	Expect(err).NotTo(HaveOccurred())
@@ -206,7 +207,7 @@ func uninstallViaHelm() {
 	uninstallAction := action.NewUninstall(actionConfig)
 	Expect(uninstallAction).NotTo(BeNil())
 	uninstallAction.Wait = true
-	uninstallAction.Timeout = WaitTimeout
+	uninstallAction.Timeout = HelmInstallTimeout
 	resp, err := uninstallAction.Run(ReleaseName)
 	Expect(err).To(BeNil())
 	Expect(resp).NotTo(BeNil())
