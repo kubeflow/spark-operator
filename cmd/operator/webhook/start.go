@@ -402,12 +402,6 @@ func newTLSOptions() []func(c *tls.Config) {
 
 // newCacheOptions creates and returns a cache.Options instance configured with default namespaces and object caching settings.
 func newCacheOptions() cache.Options {
-	defaultNamespaces := make(map[string]cache.Config)
-	if !slices.Contains(namespaces, cache.AllNamespaces) {
-		for _, ns := range namespaces {
-			defaultNamespaces[ns] = cache.Config{}
-		}
-	}
 
 	byObject := map[client.Object]cache.ByObject{
 		&corev1.Pod{}: {
@@ -429,11 +423,19 @@ func newCacheOptions() cache.Options {
 		},
 	}
 
+	var defaultNamespaces map[string]cache.Config
+
 	// Only cache Namespaces when a selector is configured; otherwise the
 	// matcher never needs to read them and we'd impose a cluster-scoped
 	// list/watch on installs that don't opt into label-based matching.
 	if strings.TrimSpace(namespaceSelector) != "" {
 		byObject[&corev1.Namespace{}] = cache.ByObject{}
+		defaultNamespaces = nil
+	} else if !slices.Contains(namespaces, cache.AllNamespaces) {
+		defaultNamespaces = make(map[string]cache.Config, len(namespaces))
+		for _, ns := range namespaces {
+			defaultNamespaces[ns] = cache.Config{}
+		}
 	}
 
 	if enableResourceQuotaEnforcement {
