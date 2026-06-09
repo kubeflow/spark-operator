@@ -430,14 +430,14 @@ func TestDriverIngressAnnotationPrecedence(t *testing.T) {
 	require.NoError(t, v1beta2.AddToScheme(scheme))
 
 	testCases := []struct {
-		name               string
-		userAnnotations    map[string]string
-		userTLS            []networkingv1.IngressTLS
-		defaultAnnotations map[string]string
-		defaultTLS         []networkingv1.IngressTLS
-		expectHasUserKey   bool
+		name                string
+		userAnnotations     map[string]string
+		userTLS             []networkingv1.IngressTLS
+		defaultAnnotations  map[string]string
+		defaultTLS          []networkingv1.IngressTLS
+		expectHasUserKey    bool
 		expectHasDefaultKey bool
-		expectUserTLSHost  bool
+		expectUserTLSHost   bool
 	}{
 		{
 			name: "user annotations take precedence over defaults",
@@ -467,9 +467,9 @@ func TestDriverIngressAnnotationPrecedence(t *testing.T) {
 			expectHasDefaultKey: false,
 		},
 		{
-			name:    "user TLS takes precedence over defaults",
-			userTLS: []networkingv1.IngressTLS{{Hosts: []string{"user.example.com"}}},
-			defaultTLS: []networkingv1.IngressTLS{{Hosts: []string{"default.example.com"}}},
+			name:              "user TLS takes precedence over defaults",
+			userTLS:           []networkingv1.IngressTLS{{Hosts: []string{"user.example.com"}}},
+			defaultTLS:        []networkingv1.IngressTLS{{Hosts: []string{"default.example.com"}}},
 			expectUserTLSHost: true,
 		},
 	}
@@ -621,4 +621,3 @@ func TestDriverIngressAnnotationMutationPrevention(t *testing.T) {
 	_, defaultHasRewrite := defaultAnnotations["nginx.ingress.kubernetes.io/rewrite-target"]
 	assert.False(t, defaultHasRewrite, "Rewrite-target annotation leaked into default source map")
 }
-
