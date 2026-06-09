@@ -386,7 +386,7 @@ func (r *Reconciler) reconcileSubmittedSparkApplication(ctx context.Context, req
 					if err != nil {
 						return fmt.Errorf("failed to get driver ingress url: %v", err)
 					}
-					_, err = r.createDriverIngress(ctx, app, &driverIngressConfiguration, *service, ingressURL, r.options.IngressClassName)
+					_, err = r.createDriverIngress(ctx, app, &driverIngressConfiguration, *service, ingressURL, r.options.IngressClassName, r.options.IngressTLS, r.options.IngressAnnotations)
 					if err != nil {
 						return fmt.Errorf("failed to create driver ingress: %v", err)
 					}
