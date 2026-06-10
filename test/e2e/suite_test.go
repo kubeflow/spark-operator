@@ -62,7 +62,7 @@ const (
 	ReleaseNamespace = "spark-operator"
 
 	PollInterval       = 1 * time.Second
-	WaitTimeout        = 8 * time.Minute
+	WaitTimeout        = 10 * time.Minute
 	HelmInstallTimeout = 10 * time.Minute
 )
 
