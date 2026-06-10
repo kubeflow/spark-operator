@@ -1,7 +1,19 @@
 name: Welcome New Contributors
 
+# NOTE: This workflow uses `pull_request_target` so it can post a welcome
+# comment on PRs opened from forks (the default `GITHUB_TOKEN` for
+# `pull_request` runs from forks is read-only and cannot comment).
+#
+# This is safe because the workflow:
+#   - Does NOT check out the PR's code (no `actions/checkout` of the head ref).
+#   - Does NOT execute or evaluate any PR-controlled input.
+#   - Only invokes a SHA-pinned `actions/first-interaction` action with
+#     hardcoded message bodies.
+#
+# Do not add `actions/checkout` of `${{ github.event.pull_request.head.* }}`
+# or interpolate untrusted PR fields into `run:` blocks here.
 on:
-  pull_request_target:
+  pull_request_target: # zizmor: ignore[dangerous-triggers]
     types:
       - opened
   issues:

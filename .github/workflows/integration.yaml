@@ -26,9 +26,10 @@ jobs:
         uses: actions/checkout@0c366fd6a839edf440554fa01a7085ccba70ac98 # v6.0.2
         with:
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Set up Go
-        uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6
+        uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6 # zizmor: ignore[cache-poisoning] caching is intentional for CI jobs
         with:
           go-version-file: go.mod
 
@@ -83,9 +84,10 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Set up Go
-        uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6
+        uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6 # zizmor: ignore[cache-poisoning] caching is intentional for CI jobs
         with:
           go-version-file: go.mod
 
@@ -105,9 +107,10 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Set up Go
-        uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6
+        uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6 # zizmor: ignore[cache-poisoning] caching is intentional for CI jobs
         with:
           go-version-file: go.mod
 
@@ -125,9 +128,9 @@ jobs:
         run: |
           BRANCH=""
           if [ "${{ github.event_name }}" == "push" ]; then
-            BRANCH=${{ github.ref_name }}
+            BRANCH=${GITHUB_REF_NAME}
           elif [ "${{ github.event_name }}" == "pull_request" ]; then
-            BRANCH=${{ github.base_ref }}
+            BRANCH=${GITHUB_BASE_REF}
           fi
           echo "Branch name: $BRANCH"
           echo "BRANCH=$BRANCH" >> "$GITHUB_OUTPUT"
@@ -136,6 +139,7 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Get Helm version
         id: get_helm_version
@@ -205,7 +209,9 @@ jobs:
         run: |
           docker build -t ghcr.io/kubeflow/spark-operator/controller:local .
           minikube image load ghcr.io/kubeflow/spark-operator/controller:local
-          ct install --target-branch ${{ steps.get_branch.outputs.BRANCH }}
+          ct install --target-branch ${STEPS_GET_BRANCH_OUTPUTS_BRANCH}
+        env:
+          STEPS_GET_BRANCH_OUTPUTS_BRANCH: ${{ steps.get_branch.outputs.BRANCH }}
 
   e2e-test:
     runs-on: ubuntu-latest
@@ -225,9 +231,10 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Set up Go
-        uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6
+        uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6 # zizmor: ignore[cache-poisoning] caching is intentional for CI jobs
         with:
           go-version-file: go.mod
 
