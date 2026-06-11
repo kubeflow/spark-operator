@@ -17,7 +17,7 @@ limitations under the License.
 // Package drift_test detects semantic drift between the Helm chart (source of
 // truth) and the Kustomize manifests. It renders both sides, parses them into
 // typed Kubernetes objects, and compares the fields that matter: RBAC rules,
-// webhook configurations, and deployment specs.
+// webhook configurations, deployment specs, pod volume configuration, and images.
 package drift_test
 
 import (
@@ -438,6 +438,26 @@ type portSpec struct {
 	ContainerPort int32
 }
 
+type volumeMountSpec struct {
+	Name      string
+	MountPath string
+	SubPath   string
+	ReadOnly  bool
+}
+
+type volumeSpec struct {
+	Name          string
+	EmptyDirLimit string
+}
+
+// imageSpec holds a normalized container image for Helm/Kustomize comparison.
+// Tags are normalized by stripping a leading "v" because Helm uses Chart.AppVersion
+// (e.g. 2.5.0-rc.0) while Kustomize uses the VERSION file (e.g. v2.5.0-rc.0).
+type imageSpec struct {
+	Repository string
+	Tag        string
+}
+
 // argsToIgnoreValue contains arg prefixes whose values are expected to differ
 // due to naming conventions between Helm and Kustomize. We compare only that
 // the arg key exists on both sides.
@@ -503,6 +523,78 @@ func extractContainer(t *testing.T, obj *unstructured.Unstructured, containerNam
 
 	t.Fatalf("container %q not found in deployment %s", containerName, obj.GetName())
 	return containerSpec{}
+}
+
+func parseImage(image string) imageSpec {
+	image = strings.TrimSpace(image)
+	lastColon := strings.LastIndex(image, ":")
+	if lastColon == -1 {
+		return imageSpec{Repository: image}
+	}
+	return imageSpec{
+		Repository: image[:lastColon],
+		Tag:        strings.TrimPrefix(image[lastColon+1:], "v"),
+	}
+}
+
+func extractImage(t *testing.T, obj *unstructured.Unstructured, containerName string) imageSpec {
+	t.Helper()
+	dep := convertTo[appsv1.Deployment](t, obj)
+
+	for _, c := range dep.Spec.Template.Spec.Containers {
+		if c.Name == containerName {
+			return parseImage(c.Image)
+		}
+	}
+
+	t.Fatalf("container %q not found in deployment %s", containerName, obj.GetName())
+	return imageSpec{}
+}
+
+func extractVolumeMounts(t *testing.T, obj *unstructured.Unstructured, containerName string) []volumeMountSpec {
+	t.Helper()
+	dep := convertTo[appsv1.Deployment](t, obj)
+
+	for _, c := range dep.Spec.Template.Spec.Containers {
+		if c.Name != containerName {
+			continue
+		}
+
+		var mounts []volumeMountSpec
+		for _, m := range c.VolumeMounts {
+			mounts = append(mounts, volumeMountSpec{
+				Name:      m.Name,
+				MountPath: m.MountPath,
+				SubPath:   m.SubPath,
+				ReadOnly:  m.ReadOnly,
+			})
+		}
+		sort.Slice(mounts, func(i, j int) bool {
+			return mounts[i].Name < mounts[j].Name
+		})
+		return mounts
+	}
+
+	t.Fatalf("container %q not found in deployment %s", containerName, obj.GetName())
+	return nil
+}
+
+func extractVolumes(t *testing.T, obj *unstructured.Unstructured) []volumeSpec {
+	t.Helper()
+	dep := convertTo[appsv1.Deployment](t, obj)
+
+	var volumes []volumeSpec
+	for _, v := range dep.Spec.Template.Spec.Volumes {
+		spec := volumeSpec{Name: v.Name}
+		if v.EmptyDir != nil && v.EmptyDir.SizeLimit != nil {
+			spec.EmptyDirLimit = v.EmptyDir.SizeLimit.String()
+		}
+		volumes = append(volumes, spec)
+	}
+	sort.Slice(volumes, func(i, j int) bool {
+		return volumes[i].Name < volumes[j].Name
+	})
+	return volumes
 }
 
 // ---------------------------------------------------------------------------
@@ -852,6 +944,16 @@ func TestDrift(t *testing.T) {
 				"Controller Deployment: securityContext differs")
 		})
 
+		t.Run("ControllerImage", func(t *testing.T) {
+			helmObj := findResource(helmResources, "Deployment", helmControllerDeploy)
+			kustObj := findResource(kustResources, "Deployment", kustControllerDeploy)
+			require.NotNil(t, helmObj)
+			require.NotNil(t, kustObj)
+
+			assert.Equal(t, extractImage(t, helmObj, helmControllerContainer), extractImage(t, kustObj, kustControllerContainer),
+				"Controller Deployment: image differs")
+		})
+
 		t.Run("WebhookArgs", func(t *testing.T) {
 			helmObj := findResource(helmResources, "Deployment", helmWebhookDeploy)
 			kustObj := findResource(kustResources, "Deployment", kustWebhookDeploy)
@@ -904,6 +1006,62 @@ func TestDrift(t *testing.T) {
 
 			assert.Equal(t, helmSpec.SecurityContext, kustSpec.SecurityContext,
 				"Webhook Deployment: securityContext differs")
+		})
+
+		t.Run("WebhookImage", func(t *testing.T) {
+			helmObj := findResource(helmResources, "Deployment", helmWebhookDeploy)
+			kustObj := findResource(kustResources, "Deployment", kustWebhookDeploy)
+			require.NotNil(t, helmObj)
+			require.NotNil(t, kustObj)
+
+			assert.Equal(t, extractImage(t, helmObj, helmWebhookContainer), extractImage(t, kustObj, kustWebhookContainer),
+				"Webhook Deployment: image differs")
+		})
+
+		t.Run("WebhookVolumeMounts", func(t *testing.T) {
+			helmObj := findResource(helmResources, "Deployment", helmWebhookDeploy)
+			kustObj := findResource(kustResources, "Deployment", kustWebhookDeploy)
+			require.NotNil(t, helmObj)
+			require.NotNil(t, kustObj)
+
+			helmMounts := extractVolumeMounts(t, helmObj, helmWebhookContainer)
+			kustMounts := extractVolumeMounts(t, kustObj, kustWebhookContainer)
+
+			assert.Equal(t, helmMounts, kustMounts,
+				"Webhook Deployment: volumeMounts differ")
+		})
+
+		t.Run("WebhookVolumes", func(t *testing.T) {
+			helmObj := findResource(helmResources, "Deployment", helmWebhookDeploy)
+			kustObj := findResource(kustResources, "Deployment", kustWebhookDeploy)
+			require.NotNil(t, helmObj)
+			require.NotNil(t, kustObj)
+
+			assert.Equal(t, extractVolumes(t, helmObj), extractVolumes(t, kustObj),
+				"Webhook Deployment: volumes differ")
+		})
+
+		t.Run("ControllerVolumeMounts", func(t *testing.T) {
+			helmObj := findResource(helmResources, "Deployment", helmControllerDeploy)
+			kustObj := findResource(kustResources, "Deployment", kustControllerDeploy)
+			require.NotNil(t, helmObj)
+			require.NotNil(t, kustObj)
+
+			helmMounts := extractVolumeMounts(t, helmObj, helmControllerContainer)
+			kustMounts := extractVolumeMounts(t, kustObj, kustControllerContainer)
+
+			assert.Equal(t, helmMounts, kustMounts,
+				"Controller Deployment: volumeMounts differ")
+		})
+
+		t.Run("ControllerVolumes", func(t *testing.T) {
+			helmObj := findResource(helmResources, "Deployment", helmControllerDeploy)
+			kustObj := findResource(kustResources, "Deployment", kustControllerDeploy)
+			require.NotNil(t, helmObj)
+			require.NotNil(t, kustObj)
+
+			assert.Equal(t, extractVolumes(t, helmObj), extractVolumes(t, kustObj),
+				"Controller Deployment: volumes differ")
 		})
 	})
 }

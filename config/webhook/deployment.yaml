@@ -71,6 +71,7 @@ spec:
             - mountPath: /etc/k8s-webhook-server/serving-certs
               name: serving-certs
               readOnly: false
+              subPath: serving-certs
           livenessProbe:
             httpGet:
               port: 8081
