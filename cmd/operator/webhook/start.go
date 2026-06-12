@@ -18,7 +18,6 @@ package webhook
 
 import (
 	"context"
-	"crypto/tls"
 	"flag"
 	"os"
 	"slices"
@@ -45,6 +44,8 @@ import (
 	logzap "sigs.k8s.io/controller-runtime/pkg/log/zap"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	ctrlwebhook "sigs.k8s.io/controller-runtime/pkg/webhook"
+
+	"github.com/kubeflow/spark-operator/v2/pkg/operatortls"
 
 	"github.com/kubeflow/spark-operator/v2/api/v1alpha1"
 	"github.com/kubeflow/spark-operator/v2/api/v1beta2"
@@ -108,6 +109,8 @@ var (
 	healthProbeBindAddress string
 	secureMetrics          bool
 	enableHTTP2            bool
+	tlsMinVersion          string
+	tlsCipherSuites        []string
 	development            bool
 	zapOptions             = logzap.Options{}
 )
@@ -171,6 +174,13 @@ func NewStartCommand() *cobra.Command {
 	command.Flags().StringVar(&healthProbeBindAddress, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
 	command.Flags().BoolVar(&secureMetrics, "secure-metrics", false, "If set the metrics endpoint is served securely")
 	command.Flags().BoolVar(&enableHTTP2, "enable-http2", false, "If set, HTTP/2 will be enabled for the metrics and webhook servers")
+	command.Flags().StringVar(&tlsMinVersion, "webhook-tls-min-version", "VersionTLS12",
+		"Minimum TLS version for the webhook and metrics servers. "+
+			"Possible values: VersionTLS12, VersionTLS13")
+	command.Flags().StringSliceVar(&tlsCipherSuites, "webhook-tls-cipher-suites", []string{},
+		"Comma-separated list of cipher suites for the webhook and metrics servers. "+
+			"If omitted, the default Go cipher suites are used. "+
+			"Applies to TLS 1.2 only; TLS 1.3 cipher suites are not configurable in Go. Possible values listed at https://pkg.go.dev/crypto/tls#CipherSuites")
 
 	flagSet := flag.NewFlagSet("controller", flag.ExitOnError)
 	ctrl.RegisterFlags(flagSet)
@@ -194,7 +204,11 @@ func start() {
 	cfg.Burst = kubeAPIBurst
 
 	// Create the manager.
-	tlsOptions := newTLSOptions()
+	tlsOptions, err := operatortls.SetupTLS(tlsMinVersion, tlsCipherSuites, enableHTTP2)
+	if err != nil {
+		logger.Error(err, "Failed to set up TLS")
+		os.Exit(1)
+	}
 	mgr, err := ctrl.NewManager(cfg, ctrl.Options{
 		Scheme: operatorscheme.WebhookScheme,
 		Cache:  newCacheOptions(),
@@ -363,25 +377,6 @@ func setupLog() {
 			})
 		}),
 	)
-}
-
-func newTLSOptions() []func(c *tls.Config) {
-	// if the enable-http2 flag is false (the default), http/2 should be disabled
-	// due to its vulnerabilities. More specifically, disabling http/2 will
-	// prevent from being vulnerable to the HTTP/2 Stream Cancellation and
-	// Rapid Reset CVEs. For more information see:
-	// - https://github.com/advisories/GHSA-qppj-fm5r-hxr3
-	// - https://github.com/advisories/GHSA-4374-p667-p6c8
-	disableHTTP2 := func(c *tls.Config) {
-		logger.Info("disabling http/2")
-		c.NextProtos = []string{"http/1.1"}
-	}
-
-	tlsOpts := []func(*tls.Config){}
-	if !enableHTTP2 {
-		tlsOpts = append(tlsOpts, disableHTTP2)
-	}
-	return tlsOpts
 }
 
 // newCacheOptions creates and returns a cache.Options instance configured with default namespaces and object caching settings.
