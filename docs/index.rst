@@ -93,7 +93,7 @@
 
    <section class="video-section">
    <h2 class="section-title">See It in Action</h2>
-   <p class="section-desc">Watch an introduction to running Apache Spark on Kubernetes with the Kubeflow Spark Operator.</p>
+   <p class="section-desc">Best practices for running Apache Spark on Kubernetes with the Kubeflow Spark Operator, presented at CNCF KubeCon NA 2024.</p>
    <div class="video-wrap">
    <iframe src="https://www.youtube-nocookie.com/embed/5m05fOVajto" title="Kubeflow Spark Operator" loading="lazy" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
    </div>
