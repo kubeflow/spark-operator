@@ -9,4 +9,7 @@ document.addEventListener("DOMContentLoaded", function () {
   var opts = document.querySelector("script[data-content_root]");
   var root = opts ? opts.getAttribute("data-content_root") : "./";
   brand.setAttribute("href", root + "index.html");
+  // It is internal navigation — ensure it stays in the same tab.
+  brand.removeAttribute("target");
+  brand.removeAttribute("rel");
 });
