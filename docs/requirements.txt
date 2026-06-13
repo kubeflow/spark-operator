@@ -19,6 +19,9 @@ sphinx-copybutton>=0.5.2,<1.0.0
 # Grid and Card Components
 sphinx-design>=0.6.0,<1.0.0
 
+# Open Graph / social preview cards
+sphinxext-opengraph>=0.9.0,<1.0.0
+
 # Live Reload for Development
 # Pinned to the livereload/tornado-based release. Newer (uvicorn/websocket)
 # releases raise "Task ... attached to a different loop" on Python 3.9.

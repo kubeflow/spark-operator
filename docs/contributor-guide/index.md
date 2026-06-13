@@ -1,4 +1,4 @@
-# Developer Guide
+# Contributor Guide
 
 ## Clone the Repository
 

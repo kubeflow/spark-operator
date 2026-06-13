@@ -37,6 +37,7 @@ extensions = [
     "sphinxcontrib.mermaid",  # Mermaid diagram rendering
     "sphinx_copybutton",  # Copy button on code blocks
     "sphinx_design",  # Grid layouts and card components
+    "sphinxext.opengraph",  # Open Graph / social preview cards
     "kubeflow_topnav",  # Top navigation bar (see docs/_ext/kubeflow_topnav/)
 ]
 
@@ -62,6 +63,7 @@ exclude_patterns = [
 html_theme = "furo"
 html_title = "Kubeflow Spark Operator"
 html_static_path = ["_static"]
+html_favicon = "_static/img/kubeflow-spark-operator-icon.png"
 html_css_files = ["css/custom.css"]
 html_js_files = [
     "js/external-links.js",
@@ -105,6 +107,22 @@ html_context = {
     "github_version": "master",
     "conf_py_path": "/docs/",
 }
+
+# Canonical site URL — used for canonical tags and Open Graph absolute URLs.
+# ReadTheDocs sets READTHEDOCS_CANONICAL_URL automatically at build time.
+html_baseurl = os.getenv(
+    "READTHEDOCS_CANONICAL_URL", "https://kubeflow.github.io/spark-operator/"
+)
+
+# -- Open Graph / social preview cards ---------------------------------------
+ogp_site_url = html_baseurl
+ogp_site_name = "Kubeflow Spark Operator"
+ogp_image = "_static/img/kubeflow-spark-operator-logo.png"
+ogp_description_length = 200
+ogp_enable_meta_description = True
+ogp_custom_meta_tags = [
+    '<meta name="twitter:card" content="summary_large_image">',
+]
 
 # -- MyST Parser configuration -----------------------------------------------
 myst_enable_extensions = [
