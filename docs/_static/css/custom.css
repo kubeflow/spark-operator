@@ -1031,6 +1031,7 @@ body[data-theme="light"] .landing-page {
 }
 
 .feature-card {
+    --c: var(--lp-blue);
     background: var(--lp-surface);
     border: 1px solid var(--lp-border);
     border-radius: var(--lp-radius);
@@ -1040,12 +1041,8 @@ body[data-theme="light"] .landing-page {
 
 .feature-card:hover {
     transform: translateY(-3px);
-    box-shadow: 0 8px 24px rgba(0,0,0,0.06);
-    border-color: var(--lp-blue);
-}
-
-body[data-theme="dark"] .feature-card:hover {
-    box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+    box-shadow: 0 8px 24px color-mix(in srgb, var(--c) 18%, transparent);
+    border-color: color-mix(in srgb, var(--c) 55%, var(--lp-border));
 }
 
 .feature-icon {
@@ -1054,14 +1051,23 @@ body[data-theme="dark"] .feature-card:hover {
     display: flex;
     align-items: center;
     justify-content: center;
-    background: rgba(61, 123, 229, 0.08);
+    background: color-mix(in srgb, var(--c) 13%, transparent);
     border-radius: 10px;
     margin-bottom: 1rem;
 }
 
-body[data-theme="dark"] .feature-icon {
-    background: rgba(90, 156, 245, 0.12);
+/* Override the inline blue stroke on the icon SVGs with the card's accent. */
+.feature-icon svg {
+    stroke: var(--c);
 }
+
+/* Muted accent per feature card. */
+.features-grid .feature-card:nth-child(1) { --c: #6ba8ff; }
+.features-grid .feature-card:nth-child(2) { --c: #4fd1c5; }
+.features-grid .feature-card:nth-child(3) { --c: #b794f6; }
+.features-grid .feature-card:nth-child(4) { --c: #68d391; }
+.features-grid .feature-card:nth-child(5) { --c: #818cf8; }
+.features-grid .feature-card:nth-child(6) { --c: #ed8936; }
 
 .feature-card h3 {
     font-family: 'DM Sans', sans-serif;
@@ -1106,23 +1112,35 @@ body[data-theme="dark"] .feature-icon {
 }
 
 .framework-chip {
+    --c: var(--lp-blue);
     padding: 0.55rem 1.25rem;
-    border: 1px solid var(--lp-border);
+    border: 1px solid color-mix(in srgb, var(--c) 32%, transparent);
     border-radius: 100px;
     font-family: 'JetBrains Mono', monospace;
     font-size: 0.88rem;
     font-weight: 500;
-    color: var(--lp-text);
-    background: var(--lp-surface);
+    color: var(--c);
+    background: color-mix(in srgb, var(--c) 9%, var(--lp-surface));
     transition: all 0.2s ease;
     cursor: default;
 }
 
 .framework-chip:hover {
-    border-color: var(--lp-blue);
-    color: var(--lp-blue);
-    background: rgba(61, 123, 229, 0.05);
+    border-color: color-mix(in srgb, var(--c) 60%, transparent);
+    color: var(--c);
+    background: color-mix(in srgb, var(--c) 17%, var(--lp-surface));
+    transform: translateY(-1px);
 }
+
+/* A muted, distinct accent per capability — interesting but not loud. */
+.framework-chip:nth-child(1) { --c: #6ba8ff; }
+.framework-chip:nth-child(2) { --c: #4fd1c5; }
+.framework-chip:nth-child(3) { --c: #b794f6; }
+.framework-chip:nth-child(4) { --c: #68d391; }
+.framework-chip:nth-child(5) { --c: #e6b566; }
+.framework-chip:nth-child(6) { --c: #f48fb1; }
+.framework-chip:nth-child(7) { --c: #818cf8; }
+.framework-chip:nth-child(8) { --c: #ed8936; }
 
 /* ---- DOC NAV ---- */
 
@@ -1137,8 +1155,10 @@ body[data-theme="dark"] .feature-icon {
 }
 
 .landing-page a.doc-card {
+    --c: var(--lp-blue);
     background: var(--lp-surface);
     border-color: var(--lp-border) !important;
+    border-left: 3px solid color-mix(in srgb, var(--c) 55%, transparent) !important;
 }
 
 .landing-page a.doc-card strong {
@@ -1150,9 +1170,18 @@ body[data-theme="dark"] .feature-icon {
 }
 
 .landing-page a.doc-card:hover {
-    border-color: var(--lp-blue) !important;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+    border-color: color-mix(in srgb, var(--c) 55%, var(--lp-border)) !important;
+    border-left-color: var(--c) !important;
+    box-shadow: 0 6px 20px color-mix(in srgb, var(--c) 22%, transparent);
 }
+
+/* Muted accent per documentation card. */
+.landing-page .doc-cards a.doc-card:nth-child(1) { --c: #6ba8ff; }
+.landing-page .doc-cards a.doc-card:nth-child(2) { --c: #4fd1c5; }
+.landing-page .doc-cards a.doc-card:nth-child(3) { --c: #b794f6; }
+.landing-page .doc-cards a.doc-card:nth-child(4) { --c: #68d391; }
+.landing-page .doc-cards a.doc-card:nth-child(5) { --c: #818cf8; }
+.landing-page .doc-cards a.doc-card:nth-child(6) { --c: #ed8936; }
 
 /* ---- QUICKSTART CODE ---- */
 
@@ -1234,6 +1263,7 @@ body[data-theme="dark"] .feature-icon {
 }
 
 .community-card {
+    --c: var(--lp-blue);
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -1249,17 +1279,13 @@ body[data-theme="dark"] .feature-icon {
 }
 
 .community-card:hover {
-    border-color: var(--lp-blue);
+    border-color: color-mix(in srgb, var(--c) 55%, var(--lp-border));
     transform: translateY(-2px);
-    box-shadow: 0 4px 16px rgba(0,0,0,0.06);
-}
-
-body[data-theme="dark"] .community-card:hover {
-    box-shadow: 0 4px 16px rgba(0,0,0,0.25);
+    box-shadow: 0 6px 18px color-mix(in srgb, var(--c) 18%, transparent);
 }
 
 .community-card svg {
-    color: var(--lp-blue);
+    color: var(--c);
 }
 
 .comm-icon {
@@ -1269,19 +1295,25 @@ body[data-theme="dark"] .community-card:hover {
     width: 56px;
     height: 56px;
     border-radius: 12px;
-    background: rgba(61, 123, 229, 0.08);
+    background: color-mix(in srgb, var(--c) 14%, transparent);
     line-height: 1;
 }
 
 .comm-icon svg {
     width: 30px;
     height: 30px;
-    color: var(--lp-blue);
+    color: var(--c);
 }
 
-body[data-theme="dark"] .comm-icon {
-    background: rgba(90, 156, 245, 0.12);
-}
+/* Muted accent per community card. */
+.community-links .community-card:nth-child(1) { --c: #6ba8ff; }
+.community-links .community-card:nth-child(2) { --c: #b794f6; }
+.community-links .community-card:nth-child(3) { --c: #4fd1c5; }
+.community-links .community-card:nth-child(4) { --c: #68d391; }
+.community-links .community-card:nth-child(5) { --c: #f48fb1; }
+.community-links .community-card:nth-child(6) { --c: #818cf8; }
+.community-links .community-card:nth-child(7) { --c: #ed8936; }
+.community-links .community-card:nth-child(8) { --c: #e6b566; }
 
 .community-card strong {
     color: var(--lp-text);
