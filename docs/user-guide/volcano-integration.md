@@ -39,7 +39,7 @@ spec:
   image: spark:3.5.1
   imagePullPolicy: Always
   mainClass: org.apache.spark.examples.SparkPi
-  mainApplicationFile: local:///opt/spark/examples/jars/spark-examples_2.12-v3.5.1.jar
+  mainApplicationFile: local:///opt/spark/examples/jars/spark-examples_2.12-3.5.1.jar
   sparkVersion: 3.5.1
   batchScheduler: volcano # Note: the batch scheduler name must be specified with `volcano`
   restartPolicy:

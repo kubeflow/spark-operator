@@ -24,7 +24,7 @@ spec:
 
 ## Specifying Deployment Mode
 
-A `SparkApplication` should set `.spec.deployMode` to `cluster`, as `client` is not currently implemented. The driver pod will then run `spark-submit` in `client` mode internally to run the driver program. Additional details of how `SparkApplication`s are run can be found in the [design documentation](../overview/index.md#architecture).
+A `SparkApplication` should set `.spec.mode` to `cluster`, as `client` is not currently implemented. The driver pod will then run `spark-submit` in `client` mode internally to run the driver program. Additional details of how `SparkApplication`s are run can be found in the [design documentation](../overview/index.md#architecture).
 
 ## Specifying Application Dependencies
 

@@ -22,6 +22,13 @@ html:
 	@echo
 	@echo "Build finished. The HTML pages are in $(BUILDDIR)/html."
 
+.PHONY: test
+test:
+	@echo "Strict build — warnings are treated as errors."
+	$(SPHINXBUILD) -b html -W --keep-going $(SPHINXOPTS) $(SOURCEDIR) $(BUILDDIR)/html
+	@echo
+	@echo "Docs build passed with no warnings."
+
 .PHONY: linkcheck
 linkcheck:
 	$(SPHINXBUILD) -b linkcheck $(SPHINXOPTS) $(SOURCEDIR) $(BUILDDIR)/linkcheck

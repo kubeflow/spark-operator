@@ -1,3 +1,7 @@
+/* Font import — DM Sans for headings, Source Sans 3 for body.
+   @import must be the first rule in the file or browsers ignore it. */
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&family=Source+Sans+3:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
+
 /* ============================================
    Kubeflow Spark Operator Documentation
    Aligned with Kubeflow visual language
@@ -693,8 +697,6 @@ body:has(.landing-page) .article-container {
     margin: 0 !important;
 }
 
-/* Font import — DM Sans for headings, Source Sans 3 for body */
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&family=Source+Sans+3:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
 
 .landing-page {
     --lp-blue: #6ba8ff;

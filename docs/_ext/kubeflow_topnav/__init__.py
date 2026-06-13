@@ -34,10 +34,24 @@ def _logo_data_uri():
     return f"data:image/png;base64,{encoded}"
 
 
-def setup(app):
+def _build_topnav(app, config):
+    """Render the top-nav once the config (incl. html_baseurl) is initialized.
+
+    The brand link falls back to the canonical site root for the no-JS / pre-JS
+    case; `_static/js/brand-link.js` then refines it to the per-page relative
+    root at runtime so it works under any hosting base path.
+    """
+    site_root = getattr(config, "html_baseurl", "") or "/"
+    if not site_root.endswith("/"):
+        site_root += "/"
     topnav_html = (Path(__file__).parent / "topnav.html").read_text(encoding="utf-8")
     topnav_html = topnav_html.replace("__LOGO_DATA_URI__", _logo_data_uri())
-    app.config.html_theme_options["announcement"] = topnav_html
+    topnav_html = topnav_html.replace("__SITE_ROOT__", site_root)
+    config.html_theme_options["announcement"] = topnav_html
+
+
+def setup(app):
+    app.connect("config-inited", _build_topnav)
     return {
         "version": "0.1",
         "parallel_read_safe": True,

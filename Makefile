@@ -222,6 +222,10 @@ build-api-docs: gen-crd-api-reference-docs ## Build api documentation.
 docs: ## Build the documentation website (HTML) with Sphinx.
 	cd docs && $(MAKE) html
 
+.PHONY: docs-test
+docs-test: ## Build the documentation website strictly (warnings treated as errors).
+	cd docs && $(MAKE) test
+
 .PHONY: docs-serve
 docs-serve: ## Build and serve the documentation website locally with live reload.
 	cd docs && $(MAKE) serve
