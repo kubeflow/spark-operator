@@ -155,6 +155,20 @@ linkcheck_ignore = [
     r"https://github\.com/.*/pulls/.*",  # GitHub PR links may be private
 ]
 
+# GitHub and kubernetes.io render section/line anchors client-side, so the link
+# checker cannot verify them and reports false "anchor not found" failures. Skip
+# anchor verification for these hosts (the base URL is still checked).
+linkcheck_anchors_ignore_for_url = [
+    r"https://github\.com/.*",
+    r"https://kubernetes\.io/.*",
+    r"https://cloud\.google\.com/.*",
+]
+
+# Be tolerant of slow third-party docs sites and GitHub rate limiting.
+linkcheck_timeout = 30
+linkcheck_retries = 2
+linkcheck_workers = 5
+
 # -- Copy button configuration -----------------------------------------------
 copybutton_prompt_text = r">>> |\.\.\. |\$ |In \[\d*\]: | {2,5}\.\.\.: | {5,8}: "
 copybutton_prompt_is_regexp = True

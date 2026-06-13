@@ -116,7 +116,7 @@ make build-operator
 
 In case you want to build the operator from the source code, e.g., to test a fix or a feature you write, you can do so following the instructions below.
 
-The easiest way to build the operator without worrying about its dependencies is to just build an image using the [Dockerfile](https://github.com/kubeflow/spark-operator/Dockerfile).
+The easiest way to build the operator without worrying about its dependencies is to just build an image using the [Dockerfile](https://github.com/kubeflow/spark-operator/blob/master/Dockerfile).
 
 ```shell
 make docker-build IMAGE_TAG=<image-tag>

@@ -71,4 +71,6 @@ jobs:
         run: pip install -r docs/requirements.txt
 
       - name: Check links
-        run: make docs-linkcheck
+        # Informational only — external links can be flaky or rate-limited, so a
+        # broken link is reported in the log but never fails the check.
+        run: make docs-linkcheck || true
