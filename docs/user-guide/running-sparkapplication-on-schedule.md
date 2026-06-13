@@ -13,7 +13,7 @@ metadata:
   name: spark-pi-scheduled
   namespace: default
 spec:
-  schedule: "@every 5m"
+  schedule: "*/5 * * * *"
   concurrencyPolicy: Allow
   successfulRunHistoryLimit: 3
   failedRunHistoryLimit: 3
