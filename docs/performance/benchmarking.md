@@ -127,7 +127,7 @@ The benchmarking process uses Locust, which creates user processes that execute 
 
 #### Installation
 
-The benchmarking test kit and scripts are available at the [Data on EKS](https://github.com/awslabs/data-on-eks/tree/main/analytics/terraform/spark-k8s-operator/examples/benchmark/spark-operator-benchmark-kit) GitHub repository.
+The benchmarking test kit and scripts are available in the [Data on EKS](https://awslabs.github.io/data-on-eks/docs/benchmarks/spark-operator-eks-benchmark) documentation.
 
 To begin, install Locust and its dependencies in a virtual environment:
 
@@ -365,4 +365,4 @@ We will continue running benchmarks to evaluate the effectiveness of these enhan
 
 ### Acknowledgments
 
-We extend our gratitude to [AWS](https://aws.amazon.com) for providing the infrastructure necessary for these benchmarks. We also thank Spark Operator community contributors *[Manabu McCloskey](https://github.com/nabuskey)*, *[Vara Bonthu](https://github.com/vara-bonthu)*, *[Alan Halcyon](https://github.com/alanty)* and *[Ratnopam Chakrabarti](https://github.com/ratnopamc)* for their efforts in executing these benchmarks.
+We extend our gratitude to [AWS](https://aws.amazon.com) for providing the infrastructure necessary for these benchmarks. We also thank Spark Operator community contributors *[Manabu McCloskey](https://github.com/nabuskey)*, *[Vara Bonthu](https://github.com/vara-bonthu)*, *[Alan Halcyon](https://github.com/alanty)* and *[Ratnopam Chakrabarti](https://github.com/ratnopam)* for their efforts in executing these benchmarks.
