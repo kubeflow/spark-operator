@@ -91,6 +91,14 @@
    </figure>
    </section>
 
+   <section class="video-section">
+   <h2 class="section-title">See It in Action</h2>
+   <p class="section-desc">Watch an introduction to running Apache Spark on Kubernetes with the Kubeflow Spark Operator.</p>
+   <div class="video-wrap">
+   <iframe src="https://www.youtube-nocookie.com/embed/5m05fOVajto" title="Kubeflow Spark Operator" loading="lazy" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+   </div>
+   </section>
+
    <section class="doc-nav">
    <h2 class="section-title">Documentation</h2>
    <p class="section-desc">Everything you need &mdash; from your first Spark job to production operation and contributing.</p>

@@ -979,6 +979,34 @@ body[data-theme="light"] .landing-page {
     border-radius: 6px;
 }
 
+/* ---- VIDEO / SEE IT IN ACTION ---- */
+
+.video-section {
+    padding: 3.5rem 2rem 4rem;
+    max-width: 900px;
+    margin: 0 auto;
+}
+
+.video-wrap {
+    position: relative;
+    width: 100%;
+    padding-bottom: 56.25%; /* 16:9 */
+    height: 0;
+    margin-top: 1rem;
+    border-radius: var(--lp-radius);
+    overflow: hidden;
+    box-shadow: 0 10px 36px rgba(0, 0, 0, 0.28);
+    border: 1px solid var(--lp-border);
+}
+
+.video-wrap iframe {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    border: 0;
+}
+
 @media (max-width: 600px) {
     .arch-figure {
         padding: 0.75rem;
