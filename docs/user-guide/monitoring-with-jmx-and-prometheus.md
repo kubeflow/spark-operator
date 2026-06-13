@@ -146,7 +146,7 @@ kubectl exec -it -n spark <driver-pod-name> -- curl http://localhost:8090/metric
 # Access prometheus exporter configuration
 kubectl exec -it -n spark <driver-pod-name> -- cat /etc/metrics/conf/prometheus.yaml
 
-# Check metrics are avaible inside Prometheus database
+# Check metrics are available inside Prometheus database
 kubectl run -i --rm --tty shell --image=curlimages/curl -- sh
 METRIC_NAME="spark_driver_livelistenerbus_queue_streams_size_type_gauges"
 curl "http://prometheus-stack-kube-prom-prometheus.monitoring:9090/api/v1/query?query=$METRIC_NAME"

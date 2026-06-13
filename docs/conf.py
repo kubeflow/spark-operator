@@ -70,6 +70,7 @@ html_js_files = [
     "js/sidebar-toggle.js",
     "js/landing-page.js",
     "js/theme-toggle.js",
+    "js/brand-link.js",
 ]
 
 # Furo theme options

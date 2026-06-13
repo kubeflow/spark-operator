@@ -2,7 +2,7 @@
 
 ## Creating a New SparkApplication
 
-A `SparkApplication` can be created from a YAML file storing the `SparkApplication` specification using either the `kubectl apply -f <YAML file path>` command. Once a `SparkApplication` is successfully created, the operator will receive it and submits the application as configured in the specification to run on the Kubernetes cluster. Please note, that `SparkOperator` submits `SparkApplication` in `Cluster` mode only.
+A `SparkApplication` can be created from a YAML file storing the `SparkApplication` specification using the `kubectl apply -f <YAML file path>` command. Once a `SparkApplication` is successfully created, the operator will receive it and submit the application as configured in the specification to run on the Kubernetes cluster. Please note that the operator submits `SparkApplication`s in `cluster` mode only.
 
 ## Deleting a SparkApplication
 

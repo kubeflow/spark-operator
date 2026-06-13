@@ -5,7 +5,12 @@ document.addEventListener("DOMContentLoaded", function () {
   var sidebar = document.querySelector(".sidebar-drawer");
   if (!sidebar) return;
 
-  var collapsed = localStorage.getItem("sidebar-collapsed") === "true";
+  var collapsed = false;
+  try {
+    collapsed = localStorage.getItem("sidebar-collapsed") === "true";
+  } catch (e) {
+    /* storage may be blocked (privacy mode, hardened browsers) — ignore */
+  }
 
   var btn = document.createElement("button");
   btn.className = "sidebar-toggle-btn";
@@ -23,7 +28,11 @@ document.addEventListener("DOMContentLoaded", function () {
   function apply(val) {
     collapsed = val;
     document.body.classList.toggle("sidebar-collapsed", collapsed);
-    localStorage.setItem("sidebar-collapsed", collapsed);
+    try {
+      localStorage.setItem("sidebar-collapsed", collapsed);
+    } catch (e) {
+      /* storage may be blocked — ignore */
+    }
   }
 
   btn.addEventListener("click", function () {

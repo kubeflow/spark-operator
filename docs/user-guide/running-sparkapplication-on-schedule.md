@@ -13,7 +13,7 @@ metadata:
   name: spark-pi-scheduled
   namespace: default
 spec:
-  schedule: "*/5 * * * *"
+  schedule: "@every 5m"
   concurrencyPolicy: Allow
   successfulRunHistoryLimit: 3
   failedRunHistoryLimit: 3
@@ -79,9 +79,9 @@ spec:
 
 ## Cron Schedule
 
-The cron schedule can be configured with `.spec.schedule`. The Spark Operator uses [github.com/robfig/cron/v3](https://pkg.go.dev/github.com/robfig/cron/v3) to parse the cron schedule. It accepts:
+The cron schedule can be configured with `.spec.schedule`. The Spark Operator parses the schedule with [github.com/robfig/cron/v3](https://pkg.go.dev/github.com/robfig/cron/v3) `ParseStandard`, which accepts:
 
-- Standard crontab specs, e.g. `"* * * * ?"`.
+- Standard 5-field crontab specs (`minute hour day-of-month month day-of-week`), e.g. `"*/5 * * * *"`. Note that the Quartz-style `?` placeholder is not supported.
 - Descriptors, e.g. `"@midnight"`, `"@every 1h30m"`.
 
 ## Concurrency Policy

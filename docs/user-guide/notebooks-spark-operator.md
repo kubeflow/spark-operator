@@ -36,7 +36,7 @@ This architecture enables scalable, elastic execution of big data or distributed
 ## Step 1: Deploy Enterprise Gateway
 
 
-We will start be deploying Jupyter Enterpise Gateway with support for remote kernel management.
+We will start by deploying Jupyter Enterprise Gateway with support for remote kernel management.
 
 Save the following manifest as `enterprise-gateway-helm.yaml` which will be used as the basic configuration for the gateway.
 
@@ -128,7 +128,7 @@ kubectl patch notebook <NOTEBOOK_NAME> \
 
 These variables configure JupyterLab to forward kernel execution to Jupyter Enterprise Gateway, which then runs PySpark jobs via the Spark Operator.
 
-## Additional Custimzation
+## Additional Customization
 
 If you want to customize your kernel configuration or the custom resource submitted to the Spark Operator, follow these steps:
 
