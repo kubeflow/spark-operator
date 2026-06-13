@@ -1,12 +1,23 @@
 # Getting Started
 
-For a more detailed guide on how to use, compose, and work with `SparkApplication`s, please refer to the
-User Guide. If you are running the Kubernetes Operator for Apache Spark on Google Kubernetes Engine and want to use Google Cloud Storage (GCS) and/or BigQuery for reading/writing data, also refer to the [GCP guide](../user-guide/gcp.md). The Kubernetes Operator for Apache Spark will simply be referred to as the operator for the rest of this guide.
+This guide walks you through installing the Spark Operator with Helm and running your first
+`SparkApplication`. The operator runs on **any conformant Kubernetes cluster** — there is no
+dependency on a specific cloud or distribution. Once you have a cluster, the steps below are the
+same whether you run on a managed service (EKS, GKE, AKS, OpenShift), a self-managed cluster
+(kubeadm, k3s, RKE2), or a local cluster for development (kind, minikube, Docker Desktop).
+
+For a deeper look at how to write, compose, and operate `SparkApplication`s, see the
+[User Guide](../user-guide/index.md). Throughout this guide, the Kubernetes Operator for Apache
+Spark is referred to simply as *the operator*.
 
 ## Prerequisites
 
-- Helm >= 3
-- Kubernetes >= 1.16
+- **A running Kubernetes cluster (v1.16 or later).** Bring your own cluster on any distribution.
+  If you don't have one yet, create it first with the tooling for your environment — for example,
+  `kind create cluster` or `minikube start` for local testing, or `eksctl` / `gcloud` / `az` for a
+  managed cluster.
+- **`kubectl`**, configured to point at that cluster. Verify access with `kubectl cluster-info`.
+- **Helm 3 or later.** See the [Helm installation guide](https://helm.sh/docs/intro/install/).
 
 ## Installation
 

@@ -10,7 +10,7 @@
    <div class="hero-bg-pattern"></div>
    <div class="hero-content">
    <div class="hero-badge">Open Source &middot; CNCF &middot; Kubeflow</div>
-   <h1 class="hero-title">Kubeflow Spark Operator</h1>
+   <h1 class="hero-title">Kubeflow<br><span class="hero-title-line2">Spark Operator</span></h1>
    <p class="hero-tagline">Run Apache Spark applications on Kubernetes as easily and idiomatically as any other workload &mdash; declaratively, with a single custom resource.</p>
    <div class="hero-actions">
    <a href="getting-started/index.html" class="btn btn-primary">Get Started <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg></a>
@@ -23,6 +23,7 @@
    <section class="what-is">
    <h2 class="section-title">What is Kubeflow Spark Operator?</h2>
    <p class="section-desc">The Kubernetes Operator for Apache Spark makes specifying and running Spark applications as easy and idiomatic as running other workloads on Kubernetes. It uses Kubernetes custom resources to specify, run, and surface the status of Spark applications. Define your job in a YAML <code>SparkApplication</code>, apply it to your cluster, and the operator automatically runs <code>spark-submit</code>, tracks driver and executor pods, restarts on failure, schedules cron jobs, and exports metrics &mdash; all without dealing with the Spark submission process yourself.</p>
+   <p class="section-desc">Kubeflow Spark Operator is a core component of <a href="https://www.kubeflow.org/">Kubeflow</a> &mdash; the open-source foundation of tools for AI platforms on Kubernetes.</p>
    </section>
 
    <section class="features">
@@ -82,6 +83,14 @@
    </div>
    </section>
 
+   <section class="architecture">
+   <h2 class="section-title">How It Works</h2>
+   <p class="section-desc">You submit a declarative <code>SparkApplication</code> with <code>kubectl</code>; the operator reconciles it &mdash; building the submission, running <code>spark-submit</code>, and monitoring the driver and executor pods until the job completes.</p>
+   <figure class="arch-figure">
+   <img src="_static/img/sparkoperator-arch.jpg" alt="Kubeflow Spark Operator architecture: a user submits a SparkApplication, the operator's controller, submission runner, pod monitor, and mutating admission webhook reconcile it against the Kubernetes API, and the driver pod launches executor pods to run the job.">
+   </figure>
+   </section>
+
    <section class="doc-nav">
    <h2 class="section-title">Documentation</h2>
    <p class="section-desc">Everything you need &mdash; from your first Spark job to production operation and contributing.</p>
@@ -139,6 +148,8 @@
 
    <footer class="landing-footer">
    <div class="footer-inner">
+   <p class="footer-kubeflow">Kubeflow Spark Operator is part of <a href="https://www.kubeflow.org/">Kubeflow</a> &mdash; the foundation of tools for AI platforms on Kubernetes.</p>
+   <a class="footer-cncf-link" href="https://www.cncf.io/"><img class="footer-cncf" src="_static/img/cncf-white.svg" alt="Cloud Native Computing Foundation"></a>
    <p>We are a <a href="https://www.cncf.io/">Cloud Native Computing Foundation</a> project.</p>
    <p class="footer-copy">&copy; 2026 The Kubeflow Authors &middot; Documentation distributed under CC BY 4.0</p>
    </div>

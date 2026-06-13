@@ -104,8 +104,9 @@ body {
 }
 
 .top-nav-logo {
-    height: 28px;
+    height: 30px;
     width: auto;
+    display: block;
 }
 
 .top-nav-links {
@@ -317,7 +318,9 @@ li::marker {
 
 pre {
     border-radius: 8px;
-    border: none;
+    /* Subtle border so the dark code box is clearly delineated — especially in
+       dark mode, where the box and the page background are both dark. */
+    border: 1px solid #39414f;
     background: #1e1e1e !important;
     padding: 1rem !important;
 }
@@ -336,8 +339,12 @@ pre code {
     color: #d4d4d4 !important;
 }
 
+/* Base color for every token. !important so the dark VS Code palette is used in
+   BOTH light and dark mode — otherwise, in light mode, Furo's light Pygments
+   theme colors un-styled tokens (e.g. YAML keys .nt) with dark colors that
+   vanish against the always-dark code background. */
 .highlight span {
-    color: #d4d4d4;
+    color: #d4d4d4 !important;
 }
 
 .highlight-bash .highlight span,
@@ -346,27 +353,55 @@ pre code {
     color: #d4d4d4 !important;
 }
 
-.highlight .k, .highlight .kn, .highlight .kd { color: #569cd6 !important; }
+.highlight .k, .highlight .kn, .highlight .kd, .highlight .kc { color: #569cd6 !important; }
 .highlight .n, .highlight .nn { color: #d4d4d4 !important; }
-.highlight .s, .highlight .s1, .highlight .s2 { color: #ce9178 !important; }
-.highlight .c, .highlight .c1, .highlight .cm { color: #6a9955 !important; }
+.highlight .s, .highlight .s1, .highlight .s2, .highlight .sb, .highlight .sd,
+.highlight .se, .highlight .sx, .highlight .l, .highlight .ld { color: #ce9178 !important; }
+.highlight .c, .highlight .c1, .highlight .cm, .highlight .ch, .highlight .cs { color: #6a9955 !important; }
 .highlight .o { color: #d4d4d4 !important; }
 .highlight .p { color: #d4d4d4 !important; }
-.highlight .mi, .highlight .mf { color: #b5cea8 !important; }
+.highlight .mi, .highlight .mf, .highlight .m, .highlight .mh, .highlight .mo { color: #b5cea8 !important; }
 .highlight .nb, .highlight .bp { color: #4ec9b0 !important; }
 .highlight .nf, .highlight .fm { color: #dcdcaa !important; }
 .highlight .nc { color: #4ec9b0 !important; }
 .highlight .ow { color: #569cd6 !important; }
 .highlight .gp { color: #6a9955 !important; }
 .highlight .w { color: #d4d4d4 !important; }
+/* YAML keys / tags / labels and variables → VS Code property light-blue */
+.highlight .nt, .highlight .nl, .highlight .na { color: #9cdcfe !important; }
+.highlight .nv, .highlight .vi, .highlight .vg { color: #9cdcfe !important; }
 
-/* Inline code */
-code {
-    color: var(--color-foreground-primary, var(--kf-heading));
-    background: var(--color-background-secondary, var(--kf-bg-subtle));
-    padding: 0.15em 0.4em;
-    border-radius: 3px;
-    font-size: 0.9em;
+/* Inline code — distinct blue-tinted chip so terms like `SparkApplication`
+   stand out clearly from body text. Scoped to inline code only (not code blocks). */
+:not(pre) > code {
+    color: #1c5298;
+    background: #eaf2fd;
+    border: 1px solid #cfe0f6;
+    padding: 0.12em 0.42em;
+    border-radius: 5px;
+    font-size: 0.88em;
+    font-weight: 500;
+}
+
+body[data-theme="dark"] :not(pre) > code {
+    color: #9ecbff;
+    background: rgba(99, 179, 237, 0.16);
+    border-color: rgba(99, 179, 237, 0.32);
+}
+
+@media (prefers-color-scheme: dark) {
+    body:not([data-theme="light"]) :not(pre) > code {
+        color: #9ecbff;
+        background: rgba(99, 179, 237, 0.16);
+        border-color: rgba(99, 179, 237, 0.32);
+    }
+}
+
+/* Keep code blocks free of the inline chip border/padding */
+pre code,
+.highlight pre code {
+    border: none !important;
+    padding: 0 !important;
 }
 
 /* Copy button */
@@ -671,21 +706,22 @@ body:has(.landing-page) .article-container {
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&family=Source+Sans+3:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
 
 .landing-page {
-    --lp-blue: #5a9cf5;
-    --lp-blue-deep: #1a3a6b;
-    --lp-blue-glow: #5a9cf5;
-    --lp-navy: #0c1b33;
-    --lp-surface: #1a1c24;
-    --lp-surface-alt: #1a1c24;
-    --lp-text: #e2e8f0;
-    --lp-text-muted: #94a3b8;
-    --lp-border: #2a2d38;
+    --lp-blue: #6ba8ff;
+    --lp-blue-deep: #163a73;
+    --lp-blue-glow: #4f9bff;
+    --lp-navy: #0a1d40;
+    /* Rich, saturated blue surfaces (lifted off near-black so it reads as blue) */
+    --lp-surface: #16315c;
+    --lp-surface-alt: #102444;
+    --lp-text: #eaf1fb;
+    --lp-text-muted: #a8c2e6;
+    --lp-border: #2a4576;
     --lp-radius: 12px;
 
     font-family: 'Source Sans 3', 'Segoe UI', sans-serif;
     color: var(--lp-text);
     line-height: 1.6;
-    background: #1a1c24;
+    background: linear-gradient(180deg, #0d2148 0%, #0b1c3c 100%);
 }
 
 /* ---- LANDING PAGE: LIGHT MODE ----
@@ -740,7 +776,7 @@ body[data-theme="light"] .landing-page {
 
 .hero {
     position: relative;
-    background: linear-gradient(145deg, var(--lp-navy) 0%, #162a50 50%, #1a3a6b 100%);
+    background: linear-gradient(145deg, var(--lp-navy) 0%, #123a7e 48%, #1f5bb8 100%);
     padding: 6rem 2rem 5rem;
     text-align: center;
     overflow: hidden;
@@ -805,6 +841,10 @@ body[data-theme="light"] .landing-page {
     padding: 0 !important;
 }
 
+.hero-title-line2 {
+    white-space: nowrap;
+}
+
 .hero-tagline {
     font-size: clamp(1.1rem, 2.5vw, 1.35rem);
     color: rgba(255,255,255,0.75);
@@ -825,8 +865,8 @@ body[data-theme="light"] .landing-page {
     display: inline-flex;
     align-items: center;
     gap: 0.5rem;
-    padding: 0.75rem 1.75rem;
-    border-radius: 8px;
+    padding: 0.75rem 1.9rem;
+    border-radius: 999px;
     font-size: 1rem;
     font-weight: 600;
     font-family: 'DM Sans', sans-serif;
@@ -920,6 +960,36 @@ body[data-theme="light"] .landing-page {
     padding: 4rem 2rem 2rem;
     max-width: 900px;
     margin: 0 auto;
+}
+
+/* ---- ARCHITECTURE / HOW IT WORKS ---- */
+
+.architecture {
+    padding: 3.5rem 2rem 4rem;
+    max-width: 1040px;
+    margin: 0 auto;
+}
+
+.arch-figure {
+    margin: 1rem 0 0;
+    background: #ffffff;
+    border: 1px solid var(--lp-border);
+    border-radius: var(--lp-radius);
+    padding: 1.25rem;
+    box-shadow: 0 10px 36px rgba(0, 0, 0, 0.28);
+}
+
+.arch-figure img {
+    display: block;
+    width: 100%;
+    height: auto;
+    border-radius: 6px;
+}
+
+@media (max-width: 600px) {
+    .arch-figure {
+        padding: 0.75rem;
+    }
 }
 
 /* ---- FEATURES GRID ---- */
@@ -1137,7 +1207,8 @@ body[data-theme="dark"] .feature-icon {
 
 .community-links {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    /* 8 cards in a clean, fully aligned 4 x 2 grid (no orphaned row). */
+    grid-template-columns: repeat(4, 1fr);
     gap: 1.25rem;
 }
 
@@ -1218,8 +1289,35 @@ body[data-theme="dark"] .comm-icon {
 
 .landing-footer {
     background: var(--lp-navy);
-    padding: 2rem;
+    padding: 2.5rem 2rem;
     text-align: center;
+}
+
+.footer-kubeflow {
+    color: rgba(255,255,255,0.78) !important;
+    font-size: 1rem !important;
+    max-width: 620px;
+    margin: 0 auto 1.5rem !important;
+    line-height: 1.6;
+}
+
+.footer-cncf-link {
+    display: inline-block;
+    margin: 0.5rem auto 1.25rem;
+    opacity: 0.9;
+    transition: opacity 0.2s ease;
+}
+
+.footer-cncf-link:hover {
+    opacity: 1;
+}
+
+.footer-cncf {
+    width: 280px;
+    max-width: 80%;
+    height: auto;
+    display: block;
+    margin: 0 auto;
 }
 
 .footer-inner p {
