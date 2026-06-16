@@ -1,0 +1,26 @@
+[project]
+name = "spark-operator-docs"
+version = "0.0.0"
+description = "Kubeflow Spark Operator documentation website"
+requires-python = ">=3.12"
+
+# The documentation website is built with Sphinx. Dependencies live in the
+# `docs` group and are installed with `uv sync --group docs`.
+[dependency-groups]
+docs = [
+    "sphinx>=7.2.0,<8.0.0",
+    "furo>=2024.8.6",
+    "myst-parser>=3.0.0,<4.0.0",
+    "sphinxcontrib-mermaid>=0.9.0,<1.0.0",
+    "sphinx-copybutton>=0.5.2,<1.0.0",
+    "sphinx-design>=0.6.0,<1.0.0",
+    "sphinxext-opengraph>=0.9.0,<1.0.0",
+    # Live reload for local development. Pinned to the livereload/tornado-based
+    # release; newer (uvicorn/websocket) releases raise
+    # "Task ... attached to a different loop" on some Python versions.
+    "sphinx-autobuild==2021.3.14",
+]
+
+# This is a documentation-only project; uv should not try to build/install it.
+[tool.uv]
+package = false

@@ -8,7 +8,7 @@ cover.html
 *.iml
 
 # Documentation website build artifacts
-docs/_build/
+docs/website/_build/
 
 # Python virtual environments
 .venv/

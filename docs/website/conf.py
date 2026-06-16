@@ -41,22 +41,16 @@ extensions = [
     "kubeflow_topnav",  # Top navigation bar (see docs/_ext/kubeflow_topnav/)
 ]
 
-# Add any paths that contain templates here, relative to this directory.
-templates_path = ["_templates"]
-
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
 exclude_patterns = [
     "_build",
+    ".venv",  # uv creates the virtualenv here; never treat it as source
     "Thumbs.db",
     ".DS_Store",
     "*.egg-info",
     "__pycache__",
     "README.md",
-    # Pre-existing standalone docs not part of the Sphinx navigation
-    "api-docs.md",
-    "kustomize-installation.md",
-    "release.md",
 ]
 
 # -- Options for HTML output -------------------------------------------------
@@ -96,7 +90,7 @@ html_theme_options = {
     "top_of_page_buttons": ["view", "edit"],
     "source_repository": "https://github.com/kubeflow/spark-operator",
     "source_branch": "master",
-    "source_directory": "docs/",
+    "source_directory": "docs/website/",
 }
 
 # ReadTheDocs version switcher integration
@@ -106,7 +100,7 @@ html_context = {
     "github_user": "kubeflow",
     "github_repo": "spark-operator",
     "github_version": "master",
-    "conf_py_path": "/docs/",
+    "conf_py_path": "/docs/website/",
 }
 
 # Canonical site URL — used for canonical tags and Open Graph absolute URLs.
