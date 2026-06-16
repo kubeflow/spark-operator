@@ -252,13 +252,16 @@ li::marker {
 
 .sidebar-tree a:hover,
 .sidebar-tree .reference:hover {
-    color: var(--color-sidebar-link-text--top-level, var(--kf-blue)) !important;
+    color: var(--kf-blue) !important;
+    background: rgba(66, 153, 225, 0.09);
 }
 
 .sidebar-tree .current > .reference,
 .sidebar-tree .current-page > .reference {
-    color: var(--color-brand-primary, var(--kf-blue)) !important;
+    color: var(--kf-blue) !important;
     font-weight: 600;
+    background: rgba(66, 153, 225, 0.12);
+    box-shadow: inset 3px 0 0 var(--kf-blue);
 }
 
 .sidebar-tree .caption {
@@ -269,25 +272,49 @@ li::marker {
     letter-spacing: 0.5px;
 }
 
+/* Each item: a comfortable, rounded clickable row that reads cleanly even when
+   the label wraps to two or three lines. */
 .sidebar-tree .reference {
-    padding: 0.35rem 0.75rem;
+    display: block;
+    padding: 0.4rem 0.7rem;
+    line-height: 1.4;
+    border-radius: 7px;
+    transition: background 0.12s ease, color 0.12s ease;
 }
 
+/* Breathing room between rows so wrapped labels don't blur together. */
+.sidebar-tree li {
+    margin: 0.15rem 0;
+}
+
+/* Tighten the gap directly under a top-level section that owns a sublist. */
+.sidebar-tree .toctree-l1 {
+    margin-top: 0.35rem;
+}
+
+/* Nested items: clear indent plus a subtle vertical guide line for hierarchy. */
 .sidebar-tree ul ul {
-    margin-left: 0.625rem;
+    margin-left: 0.55rem;
+    padding-left: 0.6rem;
+    border-left: 1px solid var(--color-background-border, var(--kf-border));
 }
 
+/* Top-level sections: prominent. */
 .sidebar-tree .toctree-l1 > a,
 .sidebar-tree .toctree-l1 > .reference {
     font-weight: 600;
+    font-size: 0.95rem;
 }
 
+/* Sub-items: lighter and slightly smaller, with muted text so the active and
+   top-level entries stand out. */
 .sidebar-tree .toctree-l2 > a,
 .sidebar-tree .toctree-l2 > .reference,
 .sidebar-tree .toctree-l3 > a,
 .sidebar-tree .toctree-l3 > .reference {
     font-weight: 400;
-    font-size: 0.9rem;
+    font-size: 0.875rem;
+    color: var(--color-foreground-muted, var(--kf-text-light)) !important;
 }
 
 /* Sidebar: make it stick while scrolling */
