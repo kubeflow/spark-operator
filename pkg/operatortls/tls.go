@@ -17,20 +17,20 @@ limitations under the License.
 package operatortls
 
 import (
-	"crypto/tls"
+	cryptotls "crypto/tls"
 	"fmt"
 	"strings"
 )
 
 // SetupTLS parses the TLS flags and returns TLS option functions for webhook and metrics servers.
-func SetupTLS(minVersion string, cipherSuites []string, enableHTTP2 bool) ([]func(*tls.Config), error) {
-	var tlsOpts []func(*tls.Config)
+func SetupTLS(minVersion string, cipherSuites []string, enableHTTP2 bool) ([]func(*cryptotls.Config), error) {
+	var tlsOpts []func(*cryptotls.Config)
 
 	ver, err := ParseTLSVersion(minVersion)
 	if err != nil {
 		return nil, fmt.Errorf("invalid --tls-min-version %q: %w", minVersion, err)
 	}
-	tlsOpts = append(tlsOpts, func(c *tls.Config) {
+	tlsOpts = append(tlsOpts, func(c *cryptotls.Config) {
 		c.MinVersion = ver
 	})
 
@@ -39,17 +39,17 @@ func SetupTLS(minVersion string, cipherSuites []string, enableHTTP2 bool) ([]fun
 		if err != nil {
 			return nil, fmt.Errorf("invalid --tls-cipher-suites: %w", err)
 		}
-		tlsOpts = append(tlsOpts, func(c *tls.Config) {
+		tlsOpts = append(tlsOpts, func(c *cryptotls.Config) {
 			c.CipherSuites = cipherIDs
 		})
 	}
 
 	if enableHTTP2 {
-		tlsOpts = append(tlsOpts, func(c *tls.Config) {
+		tlsOpts = append(tlsOpts, func(c *cryptotls.Config) {
 			c.NextProtos = []string{"h2", "http/1.1"}
 		})
 	} else {
-		tlsOpts = append(tlsOpts, func(c *tls.Config) {
+		tlsOpts = append(tlsOpts, func(c *cryptotls.Config) {
 			c.NextProtos = []string{"h2", "http/1.1"}
 		})
 	}
@@ -61,9 +61,9 @@ func SetupTLS(minVersion string, cipherSuites []string, enableHTTP2 bool) ([]fun
 func ParseTLSVersion(version string) (uint16, error) {
 	switch version {
 	case "VersionTLS12":
-		return tls.VersionTLS12, nil
+		return cryptotls.VersionTLS12, nil
 	case "VersionTLS13":
-		return tls.VersionTLS13, nil
+		return cryptotls.VersionTLS13, nil
 	default:
 		return 0, fmt.Errorf("unsupported TLS version: %s (use VersionTLS12 or VersionTLS13)", version)
 	}
@@ -73,7 +73,7 @@ func ParseTLSVersion(version string) (uint16, error) {
 // Empty strings are silently filtered out.
 func ParseCipherSuites(names []string) ([]uint16, error) {
 	allCiphers := make(map[string]uint16)
-	for _, cs := range tls.CipherSuites() {
+	for _, cs := range cryptotls.CipherSuites() {
 		allCiphers[cs.Name] = cs.ID
 	}
 	var ids []uint16
