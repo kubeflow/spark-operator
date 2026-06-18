@@ -54,7 +54,7 @@ var _ SparkApplicationSubmitter = &SparkSubmitter{}
 func (*SparkSubmitter) Submit(ctx context.Context, app *v1beta2.SparkApplication) error {
 	logger := log.FromContext(ctx)
 
-	args, err := buildSparkSubmitArgs(app)
+	args, err := buildSparkSubmitArgs(app, false)
 	if err != nil {
 		return fmt.Errorf("failed to build spark-submit arguments: %v", err)
 	}
@@ -94,7 +94,9 @@ func runSparkSubmit(args []string) error {
 }
 
 // buildSparkSubmitArgs builds the arguments for spark-submit.
-func buildSparkSubmitArgs(app *v1beta2.SparkApplication) ([]string, error) {
+// When skipPodTemplates is true, pod template file options are skipped
+// as the submission strategy handles pod templates separately.
+func buildSparkSubmitArgs(app *v1beta2.SparkApplication, skipPodTemplates bool) ([]string, error) {
 	optionFuncs := []sparkSubmitOptionFunc{
 		masterOption,
 		deployModeOption,
@@ -109,23 +111,28 @@ func buildSparkSubmitArgs(app *v1beta2.SparkApplication) ([]string, error) {
 		submissionWaitAppCompletionOption,
 		sparkConfOption,
 		hadoopConfOption,
-		driverPodTemplateOption,
 		driverPodNameOption,
 		driverConfOption,
 		driverEnvOption,
 		driverSecretOption,
 		driverVolumeMountsOption,
-		executorPodTemplateOption,
 		executorConfOption,
 		executorEnvOption,
 		executorSecretOption,
 		executorVolumeMountsOption,
 		nodeSelectorOption,
 		dynamicAllocationOption,
-		proxyUserOption,
-		mainApplicationFileOption,
-		applicationOption,
 	}
+
+	// Pod template options write files and add --conf args; skipped when the submission
+	// strategy sends templates inline (e.g., REST submitter).
+	if !skipPodTemplates {
+		optionFuncs = append(optionFuncs, driverPodTemplateOption, executorPodTemplateOption)
+	}
+
+	// These must come last: proxyUser is a spark-submit flag, mainApplicationFile is the
+	// positional JAR/py path, and applicationOption produces application arguments.
+	optionFuncs = append(optionFuncs, proxyUserOption, mainApplicationFileOption, applicationOption)
 
 	var args []string
 	for _, optionFunc := range optionFuncs {
