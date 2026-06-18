@@ -105,16 +105,19 @@ func TestSubmitRetry(t *testing.T) {
 func TestSubmitIdempotency(t *testing.T) {
 	setK8sEnv(t)
 
-	t.Run("treats DRIVER_POD_ALREADY_EXISTS as success when submission_id matches", func(t *testing.T) {
+	t.Run("duplicate submission returns success with existing pod details", func(t *testing.T) {
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			var req submitRequest
 			_ = json.NewDecoder(r.Body).Decode(&req)
-			w.WriteHeader(http.StatusUnprocessableEntity)
-			_ = json.NewEncoder(w).Encode(submitErrorResponse{
-				SubmissionID: req.SubmissionID,
-				Status:       422,
-				ErrorCode:    ErrorCodeDriverPodAlreadyExists,
-				Message:      "pod already exists",
+			w.WriteHeader(http.StatusOK)
+			_ = json.NewEncoder(w).Encode(submitResponse{
+				SubmissionID:        req.SubmissionID,
+				AppName:             "test-app",
+				SparkAppID:          "spark-existing-id",
+				DriverPodName:       "test-app-driver",
+				DriverPodUID:        "existing-uid",
+				Namespace:           "default",
+				DuplicateSubmission: true,
 			})
 		}))
 		defer server.Close()
@@ -125,14 +128,14 @@ func TestSubmitIdempotency(t *testing.T) {
 		assert.NoError(t, s.Submit(context.Background(), app))
 	})
 
-	t.Run("does not treat DRIVER_POD_ALREADY_EXISTS as success when submission_id differs", func(t *testing.T) {
+	t.Run("DRIVER_POD_ALREADY_EXISTS is a genuine conflict error", func(t *testing.T) {
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			w.WriteHeader(http.StatusUnprocessableEntity)
+			w.WriteHeader(http.StatusConflict)
 			_ = json.NewEncoder(w).Encode(submitErrorResponse{
 				SubmissionID: "different-sub-id",
-				Status:       422,
+				Status:       409,
 				ErrorCode:    ErrorCodeDriverPodAlreadyExists,
-				Message:      "pod already exists",
+				Message:      "Driver pod already exists for a different submission",
 			})
 		}))
 		defer server.Close()
@@ -243,17 +246,32 @@ func TestParseSubmitResponse(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, "sub-123", result.SubmissionID)
 		assert.Equal(t, "app-driver", result.DriverPodName)
+		assert.False(t, result.DuplicateSubmission)
+	})
+
+	t.Run("parses duplicate submission response (200)", func(t *testing.T) {
+		body, _ := json.Marshal(submitResponse{
+			SubmissionID: "sub-123", AppName: "app", SparkAppID: "spark-existing",
+			DriverPodName: "app-driver", DriverPodUID: "uid", Namespace: "ns",
+			DuplicateSubmission: true,
+		})
+		resp := &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(bytes.NewReader(body))}
+		result, err := parseSubmitResponse(resp)
+		assert.NoError(t, err)
+		assert.Equal(t, "sub-123", result.SubmissionID)
+		assert.Equal(t, "spark-existing", result.SparkAppID)
+		assert.True(t, result.DuplicateSubmission)
 	})
 
 	t.Run("structured error", func(t *testing.T) {
 		body, _ := json.Marshal(submitErrorResponse{
 			SubmissionID: "sub-123",
-			Status:       422,
+			Status:       409,
 			ErrorCode:    ErrorCodeDriverPodAlreadyExists,
 			Message:      "Failed to submit: pod already exists",
 			Timestamp:    "2026-06-17T23:30:00.123Z",
 		})
-		resp := &http.Response{StatusCode: 422, Body: io.NopCloser(bytes.NewReader(body))}
+		resp := &http.Response{StatusCode: http.StatusConflict, Body: io.NopCloser(bytes.NewReader(body))}
 		result, err := parseSubmitResponse(resp)
 		assert.Nil(t, result)
 		assert.Contains(t, err.Error(), "Failed to submit")
@@ -306,7 +324,7 @@ func TestCanRetry(t *testing.T) {
 	overloaded := &SubmitError{Code: ErrorCodeSubmitterOverloaded, StatusCode: 503, Message: "overloaded"}
 	internalErr := &SubmitError{Code: ErrorCodeInternalServerError, StatusCode: 500, Message: "internal"}
 	badRequest := &SubmitError{Code: ErrorCodeBadRequest, StatusCode: 400, Message: "bad request"}
-	podExists := &SubmitError{Code: ErrorCodeDriverPodAlreadyExists, StatusCode: 422, Message: "exists"}
+	podExists := &SubmitError{Code: ErrorCodeDriverPodAlreadyExists, StatusCode: 409, Message: "exists"}
 	invalidTemplate := &SubmitError{Code: ErrorCodeInvalidPodTemplate, StatusCode: 422, Message: "invalid"}
 
 	assert.True(t, s.canRetry(0, networkErr), "network error should retry")

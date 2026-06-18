@@ -25,20 +25,17 @@ limitations under the License.
 //     ownership remains with the operator via Kubernetes owner references.
 //  2. The request carries the same spark-submit argument vector the operator already produces
 //     via buildSparkSubmitArgs. There is no parallel spec schema.
-//  3. Every submission carries a client-supplied submission_id for correlation and operator-side
-//     idempotency. The client is responsible for providing a unique id; conflicts lead to failures.
+//  3. Every submission carries a client-supplied submission_id. Repeat submissions with the
+//     same submission_id are idempotent (returns 200 with duplicate_submission=true).
 //  4. Pod templates are sent inline as JSON. The operator omits podTemplateFile --conf entries
 //     from spark_submit_args; the submitter merges the inline template with the args exactly as
 //     Spark does when loading a podTemplateFile (template is base, --conf values layered on top).
 //
 // # Idempotency
 //
-// The submitter is stateless — it creates the driver pod via Spark libraries and returns
-// DRIVER_POD_ALREADY_EXISTS if the pod already exists. It does not track prior submissions.
-//
-// The operator achieves idempotency by comparing the returned submission_id with its own:
-//   - Match → retry of a completed submission, treat as success.
-//   - Mismatch → genuine conflict, treat as failure.
+// Duplicate submission (same submission_id) returns 200 with duplicate_submission=true
+// and existing pod details. The operator treats both 201 and 200 as success.
+// A genuine pod name conflict (different submission_id) returns DRIVER_POD_ALREADY_EXISTS error.
 //
 // # Request Payload
 //
@@ -59,7 +56,7 @@ limitations under the License.
 //	| driver_pod_template    | object (PodTemplateSpec)| no      | Inline driver template (omits podTemplateFile conf)    |
 //	| executor_pod_template  | object (PodTemplateSpec)| no      | Inline executor template                               |
 //
-// # Success Response (201 Created)
+// # Success Response (201 Created / 200 OK)
 //
 //	{
 //	  "submission_id": "550e8400-e29b-41d4-a716-446655440000",
@@ -68,18 +65,20 @@ limitations under the License.
 //	  "driver_pod_name": "spark-pi-abc123-driver",
 //	  "driver_pod_uid": "0c1f...",
 //	  "namespace": "spark-jobs",
-//	  "submitted_at": "2026-06-16T08:30:00Z"
+//	  "submitted_at": "2026-06-16T08:30:00Z",
+//	  "duplicate_submission": false
 //	}
 //
-//	| Field              | Type   | Notes                                                                |
-//	| ------------------ | ------ | -------------------------------------------------------------------- |
-//	| submission_id      | string | Echoes the request value                                             |
-//	| spark_app_id       | string | Spark application id assigned to the submission                      |
-//	| driver_pod_name    | string | Name of the created driver pod                                       |
-//	| driver_pod_uid     | string | UID of the driver pod; lets the operator bind to the exact object    |
+//	| Field                | Type   | Notes                                                                |
+//	| -------------------- | ------ | -------------------------------------------------------------------- |
+//	| submission_id        | string | Echoes the request value                                             |
+//	| spark_app_id         | string | Spark application id assigned to the submission                      |
+//	| driver_pod_name      | string | Name of the created driver pod                                       |
+//	| driver_pod_uid       | string | UID of the driver pod; lets the operator bind to the exact object    |
+//	| duplicate_submission | bool   | true when the pod already existed for this submission_id (200 OK)    |
 //
-//	Semantics of 201: the driver pod object was persisted to the API server. It does not assert
-//	the driver was scheduled, started, or succeeded.
+//	201: driver pod was created. 200: duplicate submission, existing pod returned.
+//	Neither asserts the driver was scheduled, started, or succeeded.
 //
 // # Error Response
 //
@@ -97,7 +96,7 @@ limitations under the License.
 //	| INVALID_SPARK_SUBMIT_ARGS  | 400  | No     | spark_submit_args failed Spark argument parsing     |
 //	| METHOD_NOT_ALLOWED         | 405  | No     | Non-POST request                                   |
 //	| UNSUPPORTED_MEDIA_TYPE     | 415  | No     | Content-Type is not application/json                |
-//	| DRIVER_POD_ALREADY_EXISTS  | 422  | No     | Pod name conflict (K8s 409)                        |
+//	| DRIVER_POD_ALREADY_EXISTS  | 409  | No     | Pod exists for a different submission_id (conflict) |
 //	| INVALID_POD_TEMPLATE       | 422  | No     | Template structurally invalid (K8s 422)            |
 //	| INTERNAL_SERVER_ERROR      | 500  | Yes    | Unexpected server failure                          |
 //	| SUBMITTER_OVERLOADED       | 503  | Yes    | Submitter at capacity; back off and retry          |
@@ -168,10 +167,6 @@ func (e *SubmitError) IsRetryable() bool {
 	return e.Code == ErrorCodeSubmitterOverloaded || e.Code == ErrorCodeInternalServerError
 }
 
-func (e *SubmitError) IsRetryOfCompletedSubmission(submissionID string) bool {
-	return e.Code == ErrorCodeDriverPodAlreadyExists && e.SubmissionID == submissionID
-}
-
 // --- Config and types ---
 
 var restLogger = ctrl.Log.WithName("rest-submitter")
@@ -214,14 +209,15 @@ type submitRequest struct {
 }
 
 type submitResponse struct {
-	SubmissionID  string `json:"submission_id"`
-	AppName       string `json:"app_name"`
-	Message       string `json:"message"`
-	SubmittedAt   string `json:"submitted_at"`
-	SparkAppID    string `json:"spark_app_id"`
-	DriverPodName string `json:"driver_pod_name"`
-	DriverPodUID  string `json:"driver_pod_uid"`
-	Namespace     string `json:"namespace"`
+	SubmissionID        string `json:"submission_id"`
+	AppName             string `json:"app_name"`
+	Message             string `json:"message"`
+	SubmittedAt         string `json:"submitted_at"`
+	SparkAppID          string `json:"spark_app_id"`
+	DriverPodName       string `json:"driver_pod_name"`
+	DriverPodUID        string `json:"driver_pod_uid"`
+	Namespace           string `json:"namespace"`
+	DuplicateSubmission bool   `json:"duplicate_submission"`
 }
 
 type submitErrorResponse struct {
@@ -302,7 +298,11 @@ func (c *RestSparkSubmitter) Submit(ctx context.Context, app *v1beta2.SparkAppli
 		return fmt.Errorf("failed to submit Spark application %s/%s: %w", app.Namespace, app.Name, err)
 	}
 
-	restLogger.Info("Submitted successfully",
+	msg := "Submitted successfully"
+	if response.DuplicateSubmission {
+		msg = "Duplicate submission detected, existing pod returned"
+	}
+	restLogger.Info(msg,
 		"name", app.Name,
 		"submissionId", response.SubmissionID,
 		"driverPod", response.DriverPodName,
@@ -323,8 +323,8 @@ func newSubmitRequest(args []string, app *v1beta2.SparkApplication) *submitReque
 }
 
 // doSubmitWithRetry submits the request with exponential backoff.
-// If the submitter returns DRIVER_POD_ALREADY_EXISTS for the same submission_id,
-// it is treated as idempotent success (the prior attempt created the pod).
+// The submitter handles duplicate submissions server-side: if the driver pod already exists
+// for the same submission_id, it returns 201 with duplicate_submission=true.
 func (c *RestSparkSubmitter) doSubmitWithRetry(ctx context.Context, request *submitRequest) (*submitResponse, error) {
 	jsonData, err := json.Marshal(request)
 	if err != nil {
@@ -340,13 +340,6 @@ func (c *RestSparkSubmitter) doSubmitWithRetry(ctx context.Context, request *sub
 			return result, nil
 		}
 		lastErr = postErr
-
-		var submitErr *SubmitError
-		if errors.As(lastErr, &submitErr) && submitErr.IsRetryOfCompletedSubmission(request.SubmissionID) {
-			restLogger.Info("Driver pod already exists for this submission, treating as success",
-				"submissionId", request.SubmissionID)
-			return &submitResponse{SubmissionID: request.SubmissionID}, nil
-		}
 
 		if !c.canRetry(attempt, lastErr) {
 			return nil, lastErr
@@ -409,7 +402,7 @@ func parseSubmitResponse(resp *http.Response) (*submitResponse, error) {
 		return nil, fmt.Errorf("failed to read response body from submitter service (status %d): %w", statusCode, readErr)
 	}
 
-	if statusCode == http.StatusCreated {
+	if statusCode == http.StatusCreated || statusCode == http.StatusOK {
 		var r submitResponse
 		if err := json.Unmarshal(body, &r); err != nil {
 			return nil, fmt.Errorf("failed to parse success response from submitter service (status %d): %w", statusCode, err)
