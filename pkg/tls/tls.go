@@ -23,7 +23,7 @@ import (
 )
 
 // SetupTLS parses the TLS flags and returns TLS option functions for webhook and metrics servers.
-func SetupTLS(minVersion string, cipherSuites []string, enableHTTP2 bool) ([]func(*cryptotls.Config), error) {
+func SetupTLS(minVersion string, cipherSuites []string) ([]func(*cryptotls.Config), error) {
 	var tlsOpts []func(*cryptotls.Config)
 
 	ver, err := ParseTLSVersion(minVersion)
@@ -44,15 +44,9 @@ func SetupTLS(minVersion string, cipherSuites []string, enableHTTP2 bool) ([]fun
 		})
 	}
 
-	if enableHTTP2 {
-		tlsOpts = append(tlsOpts, func(c *cryptotls.Config) {
-			c.NextProtos = []string{"h2", "http/1.1"}
-		})
-	} else {
-		tlsOpts = append(tlsOpts, func(c *cryptotls.Config) {
-			c.NextProtos = []string{"h2", "http/1.1"}
-		})
-	}
+	tlsOpts = append(tlsOpts, func(c *cryptotls.Config) {
+		c.NextProtos = []string{"h2", "http/1.1"}
+	})
 
 	return tlsOpts, nil
 }
