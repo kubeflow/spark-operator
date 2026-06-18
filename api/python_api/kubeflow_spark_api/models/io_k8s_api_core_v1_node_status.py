@@ -42,6 +42,7 @@ class IoK8sApiCoreV1NodeStatus(BaseModel):
     conditions: Optional[List[IoK8sApiCoreV1NodeCondition]] = Field(default=None, description="Conditions is an array of current observed node conditions. More info: https://kubernetes.io/docs/reference/node/node-status/#condition")
     config: Optional[IoK8sApiCoreV1NodeConfigStatus] = Field(default=None, description="Status of the config assigned to the node via the dynamic Kubelet config feature.")
     daemon_endpoints: Optional[IoK8sApiCoreV1NodeDaemonEndpoints] = Field(default=None, description="Endpoints of daemons running on the Node.", alias="daemonEndpoints")
+    declared_features: Optional[List[StrictStr]] = Field(default=None, description="DeclaredFeatures represents the features related to feature gates that are declared by the node.", alias="declaredFeatures")
     features: Optional[IoK8sApiCoreV1NodeFeatures] = Field(default=None, description="Features describes the set of features implemented by the CRI implementation.")
     images: Optional[List[IoK8sApiCoreV1ContainerImage]] = Field(default=None, description="List of container images on this node")
     node_info: Optional[IoK8sApiCoreV1NodeSystemInfo] = Field(default=None, description="Set of ids/uuids to uniquely identify the node. More info: https://kubernetes.io/docs/reference/node/node-status/#info", alias="nodeInfo")
@@ -49,7 +50,7 @@ class IoK8sApiCoreV1NodeStatus(BaseModel):
     runtime_handlers: Optional[List[IoK8sApiCoreV1NodeRuntimeHandler]] = Field(default=None, description="The available runtime handlers.", alias="runtimeHandlers")
     volumes_attached: Optional[List[IoK8sApiCoreV1AttachedVolume]] = Field(default=None, description="List of volumes that are attached to the node.", alias="volumesAttached")
     volumes_in_use: Optional[List[StrictStr]] = Field(default=None, description="List of attachable volumes in use (mounted) by the node.", alias="volumesInUse")
-    __properties: ClassVar[List[str]] = ["addresses", "allocatable", "capacity", "conditions", "config", "daemonEndpoints", "features", "images", "nodeInfo", "phase", "runtimeHandlers", "volumesAttached", "volumesInUse"]
+    __properties: ClassVar[List[str]] = ["addresses", "allocatable", "capacity", "conditions", "config", "daemonEndpoints", "declaredFeatures", "features", "images", "nodeInfo", "phase", "runtimeHandlers", "volumesAttached", "volumesInUse"]
 
     @field_validator('phase')
     def phase_validate_enum(cls, value):
@@ -189,6 +190,7 @@ class IoK8sApiCoreV1NodeStatus(BaseModel):
             "conditions": [IoK8sApiCoreV1NodeCondition.from_dict(_item) for _item in obj["conditions"]] if obj.get("conditions") is not None else None,
             "config": IoK8sApiCoreV1NodeConfigStatus.from_dict(obj["config"]) if obj.get("config") is not None else None,
             "daemonEndpoints": IoK8sApiCoreV1NodeDaemonEndpoints.from_dict(obj["daemonEndpoints"]) if obj.get("daemonEndpoints") is not None else None,
+            "declaredFeatures": obj.get("declaredFeatures"),
             "features": IoK8sApiCoreV1NodeFeatures.from_dict(obj["features"]) if obj.get("features") is not None else None,
             "images": [IoK8sApiCoreV1ContainerImage.from_dict(_item) for _item in obj["images"]] if obj.get("images") is not None else None,
             "nodeInfo": IoK8sApiCoreV1NodeSystemInfo.from_dict(obj["nodeInfo"]) if obj.get("nodeInfo") is not None else None,

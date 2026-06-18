@@ -23,7 +23,6 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/validation"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -52,14 +51,14 @@ func NewSparkApplicationValidator(client client.Client, enableResourceQuotaEnfor
 	}
 }
 
-var _ admission.CustomValidator = &SparkApplicationValidator{}
+var _ admission.Validator[*v1beta2.SparkApplication] = &SparkApplicationValidator{}
 
-// ValidateCreate implements admission.CustomValidator.
-func (v *SparkApplicationValidator) ValidateCreate(ctx context.Context, obj runtime.Object) (warnings admission.Warnings, err error) {
-	app, ok := obj.(*v1beta2.SparkApplication)
-	if !ok {
+// ValidateCreate implements admission.Validator.
+func (v *SparkApplicationValidator) ValidateCreate(ctx context.Context, app *v1beta2.SparkApplication) (warnings admission.Warnings, err error) {
+	if app == nil {
 		return nil, nil
 	}
+
 	logger := log.FromContext(ctx)
 	logger.Info("Validating SparkApplication create", "state", util.GetApplicationState(app))
 
@@ -80,15 +79,9 @@ func (v *SparkApplicationValidator) ValidateCreate(ctx context.Context, obj runt
 	return nil, nil
 }
 
-// ValidateUpdate implements admission.CustomValidator.
-func (v *SparkApplicationValidator) ValidateUpdate(ctx context.Context, oldObj runtime.Object, newObj runtime.Object) (warnings admission.Warnings, err error) {
-	oldApp, ok := oldObj.(*v1beta2.SparkApplication)
-	if !ok {
-		return nil, nil
-	}
-
-	newApp, ok := newObj.(*v1beta2.SparkApplication)
-	if !ok {
+// ValidateUpdate implements admission.Validator.
+func (v *SparkApplicationValidator) ValidateUpdate(ctx context.Context, oldApp *v1beta2.SparkApplication, newApp *v1beta2.SparkApplication) (warnings admission.Warnings, err error) {
+	if oldApp == nil || newApp == nil {
 		return nil, nil
 	}
 
@@ -119,12 +112,12 @@ func (v *SparkApplicationValidator) ValidateUpdate(ctx context.Context, oldObj r
 	return nil, nil
 }
 
-// ValidateDelete implements admission.CustomValidator.
-func (v *SparkApplicationValidator) ValidateDelete(ctx context.Context, obj runtime.Object) (warnings admission.Warnings, err error) {
-	app, ok := obj.(*v1beta2.SparkApplication)
-	if !ok {
+// ValidateDelete implements admission.Validator.
+func (v *SparkApplicationValidator) ValidateDelete(ctx context.Context, app *v1beta2.SparkApplication) (warnings admission.Warnings, err error) {
+	if app == nil {
 		return nil, nil
 	}
+
 	logger := log.FromContext(ctx)
 	logger.Info("Validating SparkApplication delete", "state", util.GetApplicationState(app))
 	return nil, nil

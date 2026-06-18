@@ -56,20 +56,32 @@ func NewScheduledSparkApplicationInformer(client versioned.Interface, namespace 
 // one. This reduces memory footprint and number of connections to the server.
 func NewFilteredScheduledSparkApplicationInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
 	return cache.NewSharedIndexInformer(
-		&cache.ListWatch{
+		cache.ToListWatcherWithWatchListSemantics(&cache.ListWatch{
 			ListFunc: func(options v1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.SparkoperatorV1beta2().ScheduledSparkApplications(namespace).List(context.TODO(), options)
+				return client.SparkoperatorV1beta2().ScheduledSparkApplications(namespace).List(context.Background(), options)
 			},
 			WatchFunc: func(options v1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.SparkoperatorV1beta2().ScheduledSparkApplications(namespace).Watch(context.TODO(), options)
+				return client.SparkoperatorV1beta2().ScheduledSparkApplications(namespace).Watch(context.Background(), options)
 			},
-		},
+			ListWithContextFunc: func(ctx context.Context, options v1.ListOptions) (runtime.Object, error) {
+				if tweakListOptions != nil {
+					tweakListOptions(&options)
+				}
+				return client.SparkoperatorV1beta2().ScheduledSparkApplications(namespace).List(ctx, options)
+			},
+			WatchFuncWithContext: func(ctx context.Context, options v1.ListOptions) (watch.Interface, error) {
+				if tweakListOptions != nil {
+					tweakListOptions(&options)
+				}
+				return client.SparkoperatorV1beta2().ScheduledSparkApplications(namespace).Watch(ctx, options)
+			},
+		}, client),
 		&v2apiv1beta2.ScheduledSparkApplication{},
 		resyncPeriod,
 		indexers,

@@ -52,7 +52,7 @@ KIND_KUBE_CONFIG ?= $(HOME)/.kube/config
 LOCALBIN ?= $(shell pwd)/bin
 
 ## Versions
-CONTROLLER_TOOLS_VERSION ?= v0.17.1
+CONTROLLER_TOOLS_VERSION ?= v0.20.1
 KIND_VERSION ?= v0.31.0
 KIND_K8S_VERSION ?= v1.35.0
 ENVTEST_VERSION ?= release-0.20
@@ -63,7 +63,7 @@ GEN_CRD_API_REFERENCE_DOCS_VERSION ?= v0.3.0
 HELM_VERSION ?= $(shell grep -e '^	helm.sh/helm/v3 v' go.mod | cut -d ' ' -f 2)
 HELM_UNITTEST_VERSION ?= 0.8.2
 HELM_DOCS_VERSION ?= v1.14.2
-CODE_GENERATOR_VERSION ?= v0.33.1
+CODE_GENERATOR_VERSION ?= v0.35.4
 
 ## Binaries
 SPARK_OPERATOR ?= $(LOCALBIN)/spark-operator

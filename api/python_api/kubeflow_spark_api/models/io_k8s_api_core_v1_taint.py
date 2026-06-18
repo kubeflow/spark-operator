@@ -29,7 +29,7 @@ class IoK8sApiCoreV1Taint(BaseModel):
     """ # noqa: E501
     effect: StrictStr = Field(description="Required. The effect of the taint on pods that do not tolerate the taint. Valid effects are NoSchedule, PreferNoSchedule and NoExecute.  Possible enum values:  - `\"NoExecute\"` Evict any already-running pods that do not tolerate the taint. Currently enforced by NodeController.  - `\"NoSchedule\"` Do not allow new pods to schedule onto the node unless they tolerate the taint, but allow all pods submitted to Kubelet without going through the scheduler to start, and allow all already-running pods to continue running. Enforced by the scheduler.  - `\"PreferNoSchedule\"` Like TaintEffectNoSchedule, but the scheduler tries not to schedule new pods onto the node, rather than prohibiting new pods from scheduling onto the node entirely. Enforced by the scheduler.")
     key: StrictStr = Field(description="Required. The taint key to be applied to a node.")
-    time_added: Optional[datetime] = Field(default=None, description="TimeAdded represents the time at which the taint was added. It is only written for NoExecute taints.", alias="timeAdded")
+    time_added: Optional[datetime] = Field(default=None, description="TimeAdded represents the time at which the taint was added.", alias="timeAdded")
     value: Optional[StrictStr] = Field(default=None, description="The taint value corresponding to the taint key.")
     __properties: ClassVar[List[str]] = ["effect", "key", "timeAdded", "value"]
 

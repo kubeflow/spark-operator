@@ -19,7 +19,6 @@ package webhook
 import (
 	"context"
 
-	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
@@ -36,16 +35,16 @@ func NewScheduledSparkApplicationDefaulter() *ScheduledSparkApplicationDefaulter
 	return &ScheduledSparkApplicationDefaulter{}
 }
 
-// ScheduledSparkApplicationDefaulter implements admission.CustomDefaulter.
-var _ admission.CustomDefaulter = &ScheduledSparkApplicationDefaulter{}
+// ScheduledSparkApplicationDefaulter implements admission.Defaulter.
+var _ admission.Defaulter[*v1beta2.ScheduledSparkApplication] = &ScheduledSparkApplicationDefaulter{}
 
-// Default implements admission.CustomDefaulter.
+// Default implements admission.Defaulter.
 // This is currently a no-op placeholder. Concrete defaulting logic (e.g., calling
 // operatorscheme.WebhookScheme.Default) will be added in a future PR.
 // The webhook is registered now so that the manifest path is correct and
 // ready when defaulting is implemented.
-func (d *ScheduledSparkApplicationDefaulter) Default(ctx context.Context, obj runtime.Object) error {
-	if _, ok := obj.(*v1beta2.ScheduledSparkApplication); !ok {
+func (d *ScheduledSparkApplicationDefaulter) Default(ctx context.Context, obj *v1beta2.ScheduledSparkApplication) error {
+	if obj == nil {
 		return nil
 	}
 

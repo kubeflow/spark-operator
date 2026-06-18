@@ -29,16 +29,6 @@ import (
 func TestScheduledSparkApplicationValidatorValidateCreate(t *testing.T) {
 	validator := NewScheduledSparkApplicationValidator()
 
-	t.Run("returns nil for unrelated object types", func(t *testing.T) {
-		warnings, err := validator.ValidateCreate(context.Background(), &v1beta2.SparkApplication{})
-		if err != nil {
-			t.Fatalf("expected no error, got %v", err)
-		}
-		if len(warnings) != 0 {
-			t.Fatalf("expected no warnings, got %v", warnings)
-		}
-	})
-
 	t.Run("accepts ScheduledSparkApplication instances", func(t *testing.T) {
 		app := &v1beta2.ScheduledSparkApplication{
 			ObjectMeta: metav1.ObjectMeta{
@@ -58,20 +48,6 @@ func TestScheduledSparkApplicationValidatorValidateCreate(t *testing.T) {
 
 func TestScheduledSparkApplicationValidatorValidateUpdate(t *testing.T) {
 	validator := NewScheduledSparkApplicationValidator()
-
-	t.Run("returns nil for unrelated object types", func(t *testing.T) {
-		warnings, err := validator.ValidateUpdate(
-			context.Background(),
-			&v1beta2.ScheduledSparkApplication{},
-			&v1beta2.SparkApplication{},
-		)
-		if err != nil {
-			t.Fatalf("expected no error, got %v", err)
-		}
-		if len(warnings) != 0 {
-			t.Fatalf("expected no warnings, got %v", warnings)
-		}
-	})
 
 	t.Run("accepts ScheduledSparkApplication instances", func(t *testing.T) {
 		oldApp := &v1beta2.ScheduledSparkApplication{
@@ -98,16 +74,6 @@ func TestScheduledSparkApplicationValidatorValidateUpdate(t *testing.T) {
 
 func TestScheduledSparkApplicationValidatorValidateDelete(t *testing.T) {
 	validator := NewScheduledSparkApplicationValidator()
-
-	t.Run("returns nil for unrelated object types", func(t *testing.T) {
-		warnings, err := validator.ValidateDelete(context.Background(), &v1beta2.SparkApplication{})
-		if err != nil {
-			t.Fatalf("expected no error, got %v", err)
-		}
-		if len(warnings) != 0 {
-			t.Fatalf("expected no warnings, got %v", warnings)
-		}
-	})
 
 	t.Run("accepts ScheduledSparkApplication instances", func(t *testing.T) {
 		warnings, err := validator.ValidateDelete(context.Background(), &v1beta2.ScheduledSparkApplication{})

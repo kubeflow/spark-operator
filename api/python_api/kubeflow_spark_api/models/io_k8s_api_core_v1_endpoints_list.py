@@ -26,7 +26,7 @@ from typing_extensions import Self
 
 class IoK8sApiCoreV1EndpointsList(BaseModel):
     """
-    EndpointsList is a list of endpoints.
+    EndpointsList is a list of endpoints. Deprecated: This API is deprecated in v1.33+.
     """ # noqa: E501
     api_version: Optional[StrictStr] = Field(default=None, description="APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources", alias="apiVersion")
     items: List[IoK8sApiCoreV1Endpoints] = Field(description="List of endpoints.")

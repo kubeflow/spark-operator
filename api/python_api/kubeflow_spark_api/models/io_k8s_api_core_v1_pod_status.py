@@ -18,13 +18,16 @@ import re  # noqa: F401
 import json
 
 from datetime import datetime
-from pydantic import BaseModel, ConfigDict, Field, StrictStr, field_validator
+from pydantic import BaseModel, ConfigDict, Field, StrictInt, StrictStr, field_validator
 from typing import Any, ClassVar, Dict, List, Optional
 from kubeflow_spark_api.models.io_k8s_api_core_v1_container_status import IoK8sApiCoreV1ContainerStatus
 from kubeflow_spark_api.models.io_k8s_api_core_v1_host_ip import IoK8sApiCoreV1HostIP
 from kubeflow_spark_api.models.io_k8s_api_core_v1_pod_condition import IoK8sApiCoreV1PodCondition
+from kubeflow_spark_api.models.io_k8s_api_core_v1_pod_extended_resource_claim_status import IoK8sApiCoreV1PodExtendedResourceClaimStatus
 from kubeflow_spark_api.models.io_k8s_api_core_v1_pod_ip import IoK8sApiCoreV1PodIP
 from kubeflow_spark_api.models.io_k8s_api_core_v1_pod_resource_claim_status import IoK8sApiCoreV1PodResourceClaimStatus
+from kubeflow_spark_api.models.io_k8s_api_core_v1_resource_requirements import IoK8sApiCoreV1ResourceRequirements
+from kubeflow_spark_api.models.io_k8s_apimachinery_pkg_api_resource_quantity import IoK8sApimachineryPkgApiResourceQuantity
 from typing import Optional, Set
 from typing_extensions import Self
 
@@ -32,23 +35,27 @@ class IoK8sApiCoreV1PodStatus(BaseModel):
     """
     PodStatus represents information about the status of a pod. Status may trail the actual state of a system, especially if the node that hosts the pod cannot contact the control plane.
     """ # noqa: E501
+    allocated_resources: Optional[Dict[str, IoK8sApimachineryPkgApiResourceQuantity]] = Field(default=None, description="AllocatedResources is the total requests allocated for this pod by the node. If pod-level requests are not set, this will be the total requests aggregated across containers in the pod.", alias="allocatedResources")
     conditions: Optional[List[IoK8sApiCoreV1PodCondition]] = Field(default=None, description="Current service state of pod. More info: https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle#pod-conditions")
     container_statuses: Optional[List[IoK8sApiCoreV1ContainerStatus]] = Field(default=None, description="Statuses of containers in this pod. Each container in the pod should have at most one status in this list, and all statuses should be for containers in the pod. However this is not enforced. If a status for a non-existent container is present in the list, or the list has duplicate names, the behavior of various Kubernetes components is not defined and those statuses might be ignored. More info: https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle#pod-and-container-status", alias="containerStatuses")
     ephemeral_container_statuses: Optional[List[IoK8sApiCoreV1ContainerStatus]] = Field(default=None, description="Statuses for any ephemeral containers that have run in this pod. Each ephemeral container in the pod should have at most one status in this list, and all statuses should be for containers in the pod. However this is not enforced. If a status for a non-existent container is present in the list, or the list has duplicate names, the behavior of various Kubernetes components is not defined and those statuses might be ignored. More info: https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle#pod-and-container-status", alias="ephemeralContainerStatuses")
+    extended_resource_claim_status: Optional[IoK8sApiCoreV1PodExtendedResourceClaimStatus] = Field(default=None, description="Status of extended resource claim backed by DRA.", alias="extendedResourceClaimStatus")
     host_ip: Optional[StrictStr] = Field(default=None, description="hostIP holds the IP address of the host to which the pod is assigned. Empty if the pod has not started yet. A pod can be assigned to a node that has a problem in kubelet which in turns mean that HostIP will not be updated even if there is a node is assigned to pod", alias="hostIP")
     host_ips: Optional[List[IoK8sApiCoreV1HostIP]] = Field(default=None, description="hostIPs holds the IP addresses allocated to the host. If this field is specified, the first entry must match the hostIP field. This list is empty if the pod has not started yet. A pod can be assigned to a node that has a problem in kubelet which in turns means that HostIPs will not be updated even if there is a node is assigned to this pod.", alias="hostIPs")
     init_container_statuses: Optional[List[IoK8sApiCoreV1ContainerStatus]] = Field(default=None, description="Statuses of init containers in this pod. The most recent successful non-restartable init container will have ready = true, the most recently started container will have startTime set. Each init container in the pod should have at most one status in this list, and all statuses should be for containers in the pod. However this is not enforced. If a status for a non-existent container is present in the list, or the list has duplicate names, the behavior of various Kubernetes components is not defined and those statuses might be ignored. More info: https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/#pod-and-container-status", alias="initContainerStatuses")
     message: Optional[StrictStr] = Field(default=None, description="A human readable message indicating details about why the pod is in this condition.")
     nominated_node_name: Optional[StrictStr] = Field(default=None, description="nominatedNodeName is set only when this pod preempts other pods on the node, but it cannot be scheduled right away as preemption victims receive their graceful termination periods. This field does not guarantee that the pod will be scheduled on this node. Scheduler may decide to place the pod elsewhere if other nodes become available sooner. Scheduler may also decide to give the resources on this node to a higher priority pod that is created after preemption. As a result, this field may be different than PodSpec.nodeName when the pod is scheduled.", alias="nominatedNodeName")
+    observed_generation: Optional[StrictInt] = Field(default=None, description="If set, this represents the .metadata.generation that the pod status was set based upon. The PodObservedGenerationTracking feature gate must be enabled to use this field.", alias="observedGeneration")
     phase: Optional[StrictStr] = Field(default=None, description="The phase of a Pod is a simple, high-level summary of where the Pod is in its lifecycle. The conditions array, the reason and message fields, and the individual container status arrays contain more detail about the pod's status. There are five possible phase values:  Pending: The pod has been accepted by the Kubernetes system, but one or more of the container images has not been created. This includes time before being scheduled as well as time spent downloading images over the network, which could take a while. Running: The pod has been bound to a node, and all of the containers have been created. At least one container is still running, or is in the process of starting or restarting. Succeeded: All containers in the pod have terminated in success, and will not be restarted. Failed: All containers in the pod have terminated, and at least one container has terminated in failure. The container either exited with non-zero status or was terminated by the system. Unknown: For some reason the state of the pod could not be obtained, typically due to an error in communicating with the host of the pod.  More info: https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle#pod-phase  Possible enum values:  - `\"Failed\"` means that all containers in the pod have terminated, and at least one container has terminated in a failure (exited with a non-zero exit code or was stopped by the system).  - `\"Pending\"` means the pod has been accepted by the system, but one or more of the containers has not been started. This includes time before being bound to a node, as well as time spent pulling images onto the host.  - `\"Running\"` means the pod has been bound to a node and all of the containers have been started. At least one container is still running or is in the process of being restarted.  - `\"Succeeded\"` means that all containers in the pod have voluntarily terminated with a container exit code of 0, and the system is not going to restart any of these containers.  - `\"Unknown\"` means that for some reason the state of the pod could not be obtained, typically due to an error in communicating with the host of the pod. Deprecated: It isn't being set since 2015 (74da3b14b0c0f658b3bb8d2def5094686d0e9095)")
     pod_ip: Optional[StrictStr] = Field(default=None, description="podIP address allocated to the pod. Routable at least within the cluster. Empty if not yet allocated.", alias="podIP")
     pod_ips: Optional[List[IoK8sApiCoreV1PodIP]] = Field(default=None, description="podIPs holds the IP addresses allocated to the pod. If this field is specified, the 0th entry must match the podIP field. Pods may be allocated at most 1 value for each of IPv4 and IPv6. This list is empty if no IPs have been allocated yet.", alias="podIPs")
     qos_class: Optional[StrictStr] = Field(default=None, description="The Quality of Service (QOS) classification assigned to the pod based on resource requirements See PodQOSClass type for available QOS classes More info: https://kubernetes.io/docs/concepts/workloads/pods/pod-qos/#quality-of-service-classes  Possible enum values:  - `\"BestEffort\"` is the BestEffort qos class.  - `\"Burstable\"` is the Burstable qos class.  - `\"Guaranteed\"` is the Guaranteed qos class.", alias="qosClass")
     reason: Optional[StrictStr] = Field(default=None, description="A brief CamelCase message indicating details about why the pod is in this state. e.g. 'Evicted'")
-    resize: Optional[StrictStr] = Field(default=None, description="Status of resources resize desired for pod's containers. It is empty if no resources resize is pending. Any changes to container resources will automatically set this to \"Proposed\"")
+    resize: Optional[StrictStr] = Field(default=None, description="Status of resources resize desired for pod's containers. It is empty if no resources resize is pending. Any changes to container resources will automatically set this to \"Proposed\" Deprecated: Resize status is moved to two pod conditions PodResizePending and PodResizeInProgress. PodResizePending will track states where the spec has been resized, but the Kubelet has not yet allocated the resources. PodResizeInProgress will track in-progress resizes, and should be present whenever allocated resources != acknowledged resources.")
     resource_claim_statuses: Optional[List[IoK8sApiCoreV1PodResourceClaimStatus]] = Field(default=None, description="Status of resource claims.", alias="resourceClaimStatuses")
+    resources: Optional[IoK8sApiCoreV1ResourceRequirements] = Field(default=None, description="Resources represents the compute resource requests and limits that have been applied at the pod level if pod-level requests or limits are set in PodSpec.Resources")
     start_time: Optional[datetime] = Field(default=None, description="RFC 3339 date and time at which the object was acknowledged by the Kubelet. This is before the Kubelet pulled the container image(s) for the pod.", alias="startTime")
-    __properties: ClassVar[List[str]] = ["conditions", "containerStatuses", "ephemeralContainerStatuses", "hostIP", "hostIPs", "initContainerStatuses", "message", "nominatedNodeName", "phase", "podIP", "podIPs", "qosClass", "reason", "resize", "resourceClaimStatuses", "startTime"]
+    __properties: ClassVar[List[str]] = ["allocatedResources", "conditions", "containerStatuses", "ephemeralContainerStatuses", "extendedResourceClaimStatus", "hostIP", "hostIPs", "initContainerStatuses", "message", "nominatedNodeName", "observedGeneration", "phase", "podIP", "podIPs", "qosClass", "reason", "resize", "resourceClaimStatuses", "resources", "startTime"]
 
     @field_validator('phase')
     def phase_validate_enum(cls, value):
@@ -109,6 +116,13 @@ class IoK8sApiCoreV1PodStatus(BaseModel):
             exclude=excluded_fields,
             exclude_none=True,
         )
+        # override the default output from pydantic by calling `to_dict()` of each value in allocated_resources (dict)
+        _field_dict = {}
+        if self.allocated_resources:
+            for _key_allocated_resources in self.allocated_resources:
+                if self.allocated_resources[_key_allocated_resources]:
+                    _field_dict[_key_allocated_resources] = self.allocated_resources[_key_allocated_resources].to_dict()
+            _dict['allocatedResources'] = _field_dict
         # override the default output from pydantic by calling `to_dict()` of each item in conditions (list)
         _items = []
         if self.conditions:
@@ -130,6 +144,9 @@ class IoK8sApiCoreV1PodStatus(BaseModel):
                 if _item_ephemeral_container_statuses:
                     _items.append(_item_ephemeral_container_statuses.to_dict())
             _dict['ephemeralContainerStatuses'] = _items
+        # override the default output from pydantic by calling `to_dict()` of extended_resource_claim_status
+        if self.extended_resource_claim_status:
+            _dict['extendedResourceClaimStatus'] = self.extended_resource_claim_status.to_dict()
         # override the default output from pydantic by calling `to_dict()` of each item in host_ips (list)
         _items = []
         if self.host_ips:
@@ -158,6 +175,9 @@ class IoK8sApiCoreV1PodStatus(BaseModel):
                 if _item_resource_claim_statuses:
                     _items.append(_item_resource_claim_statuses.to_dict())
             _dict['resourceClaimStatuses'] = _items
+        # override the default output from pydantic by calling `to_dict()` of resources
+        if self.resources:
+            _dict['resources'] = self.resources.to_dict()
         return _dict
 
     @classmethod
@@ -170,14 +190,22 @@ class IoK8sApiCoreV1PodStatus(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
+            "allocatedResources": dict(
+                (_k, IoK8sApimachineryPkgApiResourceQuantity.from_dict(_v))
+                for _k, _v in obj["allocatedResources"].items()
+            )
+            if obj.get("allocatedResources") is not None
+            else None,
             "conditions": [IoK8sApiCoreV1PodCondition.from_dict(_item) for _item in obj["conditions"]] if obj.get("conditions") is not None else None,
             "containerStatuses": [IoK8sApiCoreV1ContainerStatus.from_dict(_item) for _item in obj["containerStatuses"]] if obj.get("containerStatuses") is not None else None,
             "ephemeralContainerStatuses": [IoK8sApiCoreV1ContainerStatus.from_dict(_item) for _item in obj["ephemeralContainerStatuses"]] if obj.get("ephemeralContainerStatuses") is not None else None,
+            "extendedResourceClaimStatus": IoK8sApiCoreV1PodExtendedResourceClaimStatus.from_dict(obj["extendedResourceClaimStatus"]) if obj.get("extendedResourceClaimStatus") is not None else None,
             "hostIP": obj.get("hostIP"),
             "hostIPs": [IoK8sApiCoreV1HostIP.from_dict(_item) for _item in obj["hostIPs"]] if obj.get("hostIPs") is not None else None,
             "initContainerStatuses": [IoK8sApiCoreV1ContainerStatus.from_dict(_item) for _item in obj["initContainerStatuses"]] if obj.get("initContainerStatuses") is not None else None,
             "message": obj.get("message"),
             "nominatedNodeName": obj.get("nominatedNodeName"),
+            "observedGeneration": obj.get("observedGeneration"),
             "phase": obj.get("phase"),
             "podIP": obj.get("podIP"),
             "podIPs": [IoK8sApiCoreV1PodIP.from_dict(_item) for _item in obj["podIPs"]] if obj.get("podIPs") is not None else None,
@@ -185,6 +213,7 @@ class IoK8sApiCoreV1PodStatus(BaseModel):
             "reason": obj.get("reason"),
             "resize": obj.get("resize"),
             "resourceClaimStatuses": [IoK8sApiCoreV1PodResourceClaimStatus.from_dict(_item) for _item in obj["resourceClaimStatuses"]] if obj.get("resourceClaimStatuses") is not None else None,
+            "resources": IoK8sApiCoreV1ResourceRequirements.from_dict(obj["resources"]) if obj.get("resources") is not None else None,
             "startTime": obj.get("startTime")
         })
         return _obj

@@ -26,7 +26,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -50,7 +49,7 @@ type SparkPodDefaulter struct {
 }
 
 // SparkPodDefaulter implements admission.CustomDefaulter.
-var _ admission.CustomDefaulter = &SparkPodDefaulter{}
+var _ admission.Defaulter[*corev1.Pod] = &SparkPodDefaulter{}
 
 // NewSparkPodDefaulter creates a new SparkPodDefaulter instance.
 func NewSparkPodDefaulter(client client.Client, namespaces []string) *SparkPodDefaulter {
@@ -69,10 +68,9 @@ func NewSparkPodDefaulter(client client.Client, namespaces []string) *SparkPodDe
 	}
 }
 
-// Default implements admission.CustomDefaulter.
-func (d *SparkPodDefaulter) Default(ctx context.Context, obj runtime.Object) error {
-	pod, ok := obj.(*corev1.Pod)
-	if !ok {
+// Default implements admission.Defaulter.
+func (d *SparkPodDefaulter) Default(ctx context.Context, pod *corev1.Pod) error {
+	if pod == nil {
 		return nil
 	}
 

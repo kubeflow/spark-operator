@@ -22,7 +22,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/client-go/tools/record"
+	"k8s.io/client-go/tools/events"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/event"
@@ -1120,7 +1120,7 @@ func TestSparkApplicationEventFilter_Update_TimeToLiveSecondsDoesNotInvalidate(t
 		WithStatusSubresource(&v1beta2.SparkApplication{}).
 		WithObjects(newApp.DeepCopy()).
 		Build()
-	filter, err := NewSparkApplicationEventFilter(fakeClient, record.NewFakeRecorder(10), []string{"default"}, "")
+	filter, err := NewSparkApplicationEventFilter(fakeClient, events.NewFakeRecorder(10), []string{"default"}, "")
 	if err != nil {
 		t.Fatalf("NewSparkApplicationEventFilter() unexpected error: %v", err)
 	}

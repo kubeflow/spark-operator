@@ -48,6 +48,13 @@ linters:
         - pkg: sigs.k8s.io/controller-runtime
           alias: ctrl
 
+  exclusions:
+    rules:
+      # exclude staticcheck SA1019 for Result.Requeue.
+      - linters:
+          - staticcheck
+        text: "SA1019: .*\\.Requeue is deprecated: Use `RequeueAfter` instead."
+
 issues:
   # Maximum issues count per one linter.
   # Set to 0 to disable.

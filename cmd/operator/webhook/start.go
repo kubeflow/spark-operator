@@ -305,8 +305,7 @@ func start() {
 		}
 	}
 
-	if err := ctrl.NewWebhookManagedBy(mgr).
-		For(&v1alpha1.SparkConnect{}).
+	if err := ctrl.NewWebhookManagedBy(mgr, &v1alpha1.SparkConnect{}).
 		WithDefaulter(webhook.NewSparkConnectDefaulter()).
 		WithValidator(webhook.NewSparkConnectValidator()).
 		WithLogConstructor(webhook.LogConstructor).
@@ -315,8 +314,7 @@ func start() {
 		os.Exit(1)
 	}
 
-	if err := ctrl.NewWebhookManagedBy(mgr).
-		For(&v1beta2.SparkApplication{}).
+	if err := ctrl.NewWebhookManagedBy(mgr, &v1beta2.SparkApplication{}).
 		WithDefaulter(webhook.NewSparkApplicationDefaulter()).
 		WithValidator(webhook.NewSparkApplicationValidator(mgr.GetClient(), enableResourceQuotaEnforcement)).
 		WithLogConstructor(webhook.LogConstructor).
@@ -325,8 +323,7 @@ func start() {
 		os.Exit(1)
 	}
 
-	if err := ctrl.NewWebhookManagedBy(mgr).
-		For(&v1beta2.ScheduledSparkApplication{}).
+	if err := ctrl.NewWebhookManagedBy(mgr, &v1beta2.ScheduledSparkApplication{}).
 		WithDefaulter(webhook.NewScheduledSparkApplicationDefaulter()).
 		WithValidator(webhook.NewScheduledSparkApplicationValidator()).
 		WithLogConstructor(webhook.LogConstructor).
@@ -335,8 +332,7 @@ func start() {
 		os.Exit(1)
 	}
 
-	if err := ctrl.NewWebhookManagedBy(mgr).
-		For(&corev1.Pod{}).
+	if err := ctrl.NewWebhookManagedBy(mgr, &corev1.Pod{}).
 		WithDefaulter(webhook.NewSparkPodDefaulter(mgr.GetClient(), namespaces)).
 		WithLogConstructor(webhook.LogConstructor).
 		Complete(); err != nil {

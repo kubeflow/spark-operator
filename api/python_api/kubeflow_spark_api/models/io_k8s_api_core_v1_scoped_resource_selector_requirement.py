@@ -27,7 +27,7 @@ class IoK8sApiCoreV1ScopedResourceSelectorRequirement(BaseModel):
     A scoped-resource selector requirement is a selector that contains values, a scope name, and an operator that relates the scope name and values.
     """ # noqa: E501
     operator: StrictStr = Field(description="Represents a scope's relationship to a set of values. Valid operators are In, NotIn, Exists, DoesNotExist.  Possible enum values:  - `\"DoesNotExist\"`  - `\"Exists\"`  - `\"In\"`  - `\"NotIn\"`")
-    scope_name: StrictStr = Field(description="The name of the scope that the selector applies to.  Possible enum values:  - `\"BestEffort\"` Match all pod objects that have best effort quality of service  - `\"CrossNamespacePodAffinity\"` Match all pod objects that have cross-namespace pod (anti)affinity mentioned.  - `\"NotBestEffort\"` Match all pod objects that do not have best effort quality of service  - `\"NotTerminating\"` Match all pod objects where spec.activeDeadlineSeconds is nil  - `\"PriorityClass\"` Match all pod objects that have priority class mentioned  - `\"Terminating\"` Match all pod objects where spec.activeDeadlineSeconds >=0", alias="scopeName")
+    scope_name: StrictStr = Field(description="The name of the scope that the selector applies to.  Possible enum values:  - `\"BestEffort\"` Match all pod objects that have best effort quality of service  - `\"CrossNamespacePodAffinity\"` Match all pod objects that have cross-namespace pod (anti)affinity mentioned.  - `\"NotBestEffort\"` Match all pod objects that do not have best effort quality of service  - `\"NotTerminating\"` Match all pod objects where spec.activeDeadlineSeconds is nil  - `\"PriorityClass\"` Match all pod objects that have priority class mentioned  - `\"Terminating\"` Match all pod objects where spec.activeDeadlineSeconds >=0  - `\"VolumeAttributesClass\"` Match all pvc objects that have volume attributes class mentioned.", alias="scopeName")
     values: Optional[List[StrictStr]] = Field(default=None, description="An array of string values. If the operator is In or NotIn, the values array must be non-empty. If the operator is Exists or DoesNotExist, the values array must be empty. This array is replaced during a strategic merge patch.")
     __properties: ClassVar[List[str]] = ["operator", "scopeName", "values"]
 
@@ -41,8 +41,8 @@ class IoK8sApiCoreV1ScopedResourceSelectorRequirement(BaseModel):
     @field_validator('scope_name')
     def scope_name_validate_enum(cls, value):
         """Validates the enum"""
-        if value not in set(['BestEffort', 'CrossNamespacePodAffinity', 'NotBestEffort', 'NotTerminating', 'PriorityClass', 'Terminating']):
-            raise ValueError("must be one of enum values ('BestEffort', 'CrossNamespacePodAffinity', 'NotBestEffort', 'NotTerminating', 'PriorityClass', 'Terminating')")
+        if value not in set(['BestEffort', 'CrossNamespacePodAffinity', 'NotBestEffort', 'NotTerminating', 'PriorityClass', 'Terminating', 'VolumeAttributesClass']):
+            raise ValueError("must be one of enum values ('BestEffort', 'CrossNamespacePodAffinity', 'NotBestEffort', 'NotTerminating', 'PriorityClass', 'Terminating', 'VolumeAttributesClass')")
         return value
 
     model_config = ConfigDict(
