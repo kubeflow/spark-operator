@@ -35,7 +35,7 @@ jobs:
       - name: Check whether version matches semver pattern
         run: |
           VERSION=$(cat VERSION)
-          if [[ ${VERSION} =~ ${{ env.SEMVER_PATTERN }} ]]; then
+          if [[ ${VERSION} =~ ${SEMVER_PATTERN} ]]; then
             echo "Version '${VERSION}' matches semver pattern."
           else
             echo "Version '${VERSION}' does not match semver pattern."
@@ -284,7 +284,7 @@ jobs:
 
       - name: Inspect image
         run: |
-          docker buildx imagetools inspect ${{ env.IMAGE_REGISTRY }}/${OPERATOR_IMAGE_REPOSITORY}:${STEPS_META_OUTPUTS_VERSION}
+          docker buildx imagetools inspect ${IMAGE_REGISTRY}/${OPERATOR_IMAGE_REPOSITORY}:${STEPS_META_OUTPUTS_VERSION}
         env:
           STEPS_META_OUTPUTS_VERSION: ${{ steps.meta.outputs.version }}
 
@@ -342,7 +342,7 @@ jobs:
 
       - name: Inspect image
         run: |
-          docker buildx imagetools inspect ${{ env.IMAGE_REGISTRY }}/${KUBECTL_IMAGE_REPOSITORY}:${STEPS_META_OUTPUTS_VERSION}
+          docker buildx imagetools inspect ${IMAGE_REGISTRY}/${KUBECTL_IMAGE_REPOSITORY}:${STEPS_META_OUTPUTS_VERSION}
         env:
           STEPS_META_OUTPUTS_VERSION: ${{ steps.meta.outputs.version }}
 

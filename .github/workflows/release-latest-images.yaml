@@ -216,7 +216,7 @@ jobs:
 
       - name: Inspect image
         run: |
-          docker buildx imagetools inspect ${{ env.IMAGE_REGISTRY }}/${OPERATOR_IMAGE_REPOSITORY}:${STEPS_META_OUTPUTS_VERSION}
+          docker buildx imagetools inspect ${IMAGE_REGISTRY}/${OPERATOR_IMAGE_REPOSITORY}:${STEPS_META_OUTPUTS_VERSION}
         env:
           STEPS_META_OUTPUTS_VERSION: ${{ steps.meta.outputs.version }}
 
@@ -274,6 +274,6 @@ jobs:
 
       - name: Inspect image
         run: |
-          docker buildx imagetools inspect ${{ env.IMAGE_REGISTRY }}/${KUBECTL_IMAGE_REPOSITORY}:${STEPS_META_OUTPUTS_VERSION}
+          docker buildx imagetools inspect ${IMAGE_REGISTRY}/${KUBECTL_IMAGE_REPOSITORY}:${STEPS_META_OUTPUTS_VERSION}
         env:
           STEPS_META_OUTPUTS_VERSION: ${{ steps.meta.outputs.version }}

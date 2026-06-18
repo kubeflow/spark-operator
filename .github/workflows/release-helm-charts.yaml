@@ -64,7 +64,7 @@ jobs:
       - name: Upload charts to GHCR
         run: |
           for pkg in $(ls *.tgz); do
-            helm push ${pkg} oci://${{ env.HELM_REGISTRY }}/${HELM_REPOSITORY}
+            helm push ${pkg} oci://${HELM_REGISTRY}/${HELM_REPOSITORY}
           done
 
       - name: Save packaged charts to temp directory
