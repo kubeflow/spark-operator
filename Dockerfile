@@ -16,7 +16,7 @@
 
 ARG SPARK_IMAGE=docker.io/library/spark:4.0.1
 
-FROM golang:1.25.9 AS builder
+FROM golang:1.26.4 AS builder
 
 WORKDIR /workspace
 
