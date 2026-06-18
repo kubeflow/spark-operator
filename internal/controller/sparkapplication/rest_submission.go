@@ -269,7 +269,7 @@ func (c *RestSparkSubmitter) WaitForConnection(ctx context.Context) error {
 		req, _ := http.NewRequestWithContext(ctx, http.MethodGet, c.submitURL, nil)
 		resp, err := c.httpClient.Do(req)
 		if err == nil {
-			resp.Body.Close()
+			_ = resp.Body.Close()
 			restLogger.Info("Submitter service is ready", "addr", c.hostAddr)
 			return nil
 		}
