@@ -173,6 +173,10 @@ func NewStartCommand() *cobra.Command {
 				return fmt.Errorf("invalid value %q for --scheduled-spark-application-timestamp-precision, valid values: %v", scheduledSparkApplicationTimestampPrecision, validPrecisions)
 			}
 
+			if submitterMaxRetries < 1 {
+				return fmt.Errorf("invalid value %d for --submitter-max-retries, must be at least 1", submitterMaxRetries)
+			}
+
 			return nil
 		},
 		Run: func(_ *cobra.Command, args []string) {
@@ -345,7 +349,13 @@ func start() {
 		}
 	}
 
-	sparkSubmitter := newSparkSubmitter()
+	ctx := ctrl.SetupSignalHandler()
+
+	sparkSubmitter, err := newSparkSubmitter(ctx)
+	if err != nil {
+		logger.Error(err, "Failed to create spark submitter")
+		os.Exit(1)
+	}
 
 	// Setup controller for SparkApplication.
 	if err = sparkapplication.NewReconciler(
@@ -398,7 +408,7 @@ func start() {
 	}
 
 	logger.Info("Starting manager")
-	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
+	if err := mgr.Start(ctx); err != nil {
 		logger.Error(err, "Failed to start manager")
 		os.Exit(1)
 	}
@@ -518,14 +528,9 @@ func newSparkConnectReconcilerOptions() sparkconnect.Options {
 	return options
 }
 
-func newSparkSubmitter() sparkapplication.SparkApplicationSubmitter {
+func newSparkSubmitter(ctx context.Context) (sparkapplication.SparkApplicationSubmitter, error) {
 	if !features.Enabled(features.RestSubmitter) {
-		return &sparkapplication.SparkSubmitter{}
-	}
-
-	if submitterMaxRetries < 1 {
-		logger.Info("WARNING: --submitter-max-retries is less than 1, defaulting to 1", "configured", submitterMaxRetries)
-		submitterMaxRetries = 1
+		return &sparkapplication.SparkSubmitter{}, nil
 	}
 
 	var tlsCfg *sparkapplication.TLSConfig
@@ -546,17 +551,15 @@ func newSparkSubmitter() sparkapplication.SparkApplicationSubmitter {
 		TLS:             tlsCfg,
 	})
 	if err != nil {
-		logger.Error(err, "Failed to initialize REST submitter")
-		os.Exit(1)
+		return nil, fmt.Errorf("failed to initialize RestSubmitter: %w", err)
 	}
 
-	startupCtx, cancel := context.WithTimeout(context.Background(), submitterStartupTimeout)
+	startupCtx, cancel := context.WithTimeout(ctx, submitterStartupTimeout)
 	defer cancel()
 	if err := submitter.WaitForConnection(startupCtx); err != nil {
-		logger.Error(err, "REST submitter service not reachable at startup")
-		os.Exit(1)
+		return nil, fmt.Errorf("RestSubmitter service not reachable at startup: %w", err)
 	}
 
 	logger.Info("Using REST submitter service", "url", submitterServiceURL)
-	return submitter
+	return submitter, nil
 }

@@ -317,8 +317,8 @@ func newSubmitRequest(args []string, app *v1beta2.SparkApplication) *submitReque
 	return &submitRequest{
 		SubmissionID:        app.Status.SubmissionID,
 		SparkSubmitArgs:     args,
-		DriverPodTemplate:   app.Spec.Driver.Template,
-		ExecutorPodTemplate: app.Spec.Executor.Template,
+		DriverPodTemplate:   buildDriverPodTemplate(app),
+		ExecutorPodTemplate: buildExecutorPodTemplate(app),
 	}
 }
 
@@ -378,7 +378,7 @@ func (c *RestSparkSubmitter) canRetry(attempt int, err error) bool {
 	if errors.As(err, &submitErr) {
 		return submitErr.IsRetryable()
 	}
-	// Network and TLS errors (connection refused, timeout, cert reload) are transient and retryable.
+	// Network and TLS errors (connection refused, timeout) are transient and retryable.
 	return true
 }
 

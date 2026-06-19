@@ -186,7 +186,7 @@ func TestSubmitPodTemplates(t *testing.T) {
 		assert.NotNil(t, capturedReq.ExecutorPodTemplate)
 	})
 
-	t.Run("omits templates when not specified", func(t *testing.T) {
+	t.Run("sends default templates with owner ref when not specified", func(t *testing.T) {
 		var capturedReq submitRequest
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			_ = json.NewDecoder(r.Body).Decode(&capturedReq)
@@ -197,8 +197,10 @@ func TestSubmitPodTemplates(t *testing.T) {
 
 		s := newTestSubmitter(t, server.URL)
 		require.NoError(t, s.Submit(context.Background(), newTestApp()))
-		assert.Nil(t, capturedReq.DriverPodTemplate)
-		assert.Nil(t, capturedReq.ExecutorPodTemplate)
+		assert.NotNil(t, capturedReq.DriverPodTemplate)
+		assert.NotNil(t, capturedReq.ExecutorPodTemplate)
+		assert.Len(t, capturedReq.DriverPodTemplate.OwnerReferences, 1)
+		assert.Len(t, capturedReq.ExecutorPodTemplate.OwnerReferences, 1)
 	})
 }
 
