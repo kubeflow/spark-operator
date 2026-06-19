@@ -141,10 +141,10 @@ var (
 	submitterRequestTimeout time.Duration
 	submitterMaxRetries     int
 	submitterInitialBackoff time.Duration
-	submitterTLSEnabled  bool
-	submitterTLSCertFile string
-	submitterTLSKeyFile  string
-	submitterTLSCAFile   string
+	submitterTLSEnabled     bool
+	submitterTLSCertFile    string
+	submitterTLSKeyFile     string
+	submitterTLSCAFile      string
 )
 
 func NewStartCommand() *cobra.Command {
