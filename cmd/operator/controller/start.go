@@ -22,7 +22,6 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"path/filepath"
 	"slices"
 	"time"
 
@@ -142,10 +141,10 @@ var (
 	submitterRequestTimeout time.Duration
 	submitterMaxRetries     int
 	submitterInitialBackoff time.Duration
-	submitterTLSCertDir     string
-	submitterTLSCertName    string
-	submitterTLSKeyName     string
-	submitterTLSCAName      string
+	submitterTLSEnabled  bool
+	submitterTLSCertFile string
+	submitterTLSKeyFile  string
+	submitterTLSCAFile   string
 )
 
 func NewStartCommand() *cobra.Command {
@@ -173,8 +172,18 @@ func NewStartCommand() *cobra.Command {
 				return fmt.Errorf("invalid value %q for --scheduled-spark-application-timestamp-precision, valid values: %v", scheduledSparkApplicationTimestampPrecision, validPrecisions)
 			}
 
-			if submitterMaxRetries < 1 {
-				return fmt.Errorf("invalid value %d for --submitter-max-retries, must be at least 1", submitterMaxRetries)
+			if features.Enabled(features.RestSubmitter) {
+				if submitterServiceURL == "" {
+					return fmt.Errorf("--submitter-service-url is required when RestSubmitter feature gate is enabled")
+				}
+				if submitterMaxRetries < 1 {
+					return fmt.Errorf("invalid value %d for --submitter-max-retries, must be at least 1", submitterMaxRetries)
+				}
+				if submitterTLSEnabled {
+					if submitterTLSCertFile == "" || submitterTLSKeyFile == "" || submitterTLSCAFile == "" {
+						return fmt.Errorf("--submitter-tls-enabled requires --submitter-tls-cert-file, --submitter-tls-key-file, and --submitter-tls-ca-file")
+					}
+				}
 			}
 
 			return nil
@@ -249,10 +258,10 @@ func NewStartCommand() *cobra.Command {
 	command.Flags().DurationVar(&submitterRequestTimeout, "submitter-request-timeout", 2*time.Minute, "HTTP request timeout per spark submission attempt.")
 	command.Flags().IntVar(&submitterMaxRetries, "submitter-max-retries", 3, "Max retry attempts for transient spark submission failures.")
 	command.Flags().DurationVar(&submitterInitialBackoff, "submitter-initial-backoff", 2*time.Second, "Initial backoff duration before the first retry.")
-	command.Flags().StringVar(&submitterTLSCertDir, "submitter-tls-cert-dir", "", "Directory containing TLS files for the submitter. When set, TLS is enabled.")
-	command.Flags().StringVar(&submitterTLSCertName, "submitter-tls-cert-name", "tls.crt", "File name of the client certificate in the TLS cert directory.")
-	command.Flags().StringVar(&submitterTLSKeyName, "submitter-tls-key-name", "tls.key", "File name of the client private key in the TLS cert directory.")
-	command.Flags().StringVar(&submitterTLSCAName, "submitter-tls-ca-name", "ca.crt", "File name of the CA certificate in the TLS cert directory.")
+	command.Flags().BoolVar(&submitterTLSEnabled, "submitter-tls-enabled", false, "Enable mTLS for communication with the submitter service.")
+	command.Flags().StringVar(&submitterTLSCertFile, "submitter-tls-cert-file", "", "Path to the client certificate file for mTLS with the submitter service.")
+	command.Flags().StringVar(&submitterTLSKeyFile, "submitter-tls-key-file", "", "Path to the client private key file for mTLS with the submitter service.")
+	command.Flags().StringVar(&submitterTLSCAFile, "submitter-tls-ca-file", "", "Path to the CA certificate file for verifying the submitter service.")
 
 	flagSet := flag.NewFlagSet("controller", flag.ExitOnError)
 	ctrl.RegisterFlags(flagSet)
@@ -534,12 +543,12 @@ func newSparkSubmitter(ctx context.Context) (sparkapplication.SparkApplicationSu
 	}
 
 	var tlsCfg *sparkapplication.TLSConfig
-	if submitterTLSCertDir != "" {
+	if submitterTLSEnabled {
 		tlsCfg = &sparkapplication.TLSConfig{
 			Enabled:    true,
-			CertFile:   filepath.Join(submitterTLSCertDir, submitterTLSCertName),
-			KeyFile:    filepath.Join(submitterTLSCertDir, submitterTLSKeyName),
-			CACertFile: filepath.Join(submitterTLSCertDir, submitterTLSCAName),
+			CertFile:   submitterTLSCertFile,
+			KeyFile:    submitterTLSKeyFile,
+			CACertFile: submitterTLSCAFile,
 		}
 	}
 
