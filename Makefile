@@ -64,6 +64,8 @@ HELM_VERSION ?= $(shell grep -e '^	helm.sh/helm/v3 v' go.mod | cut -d ' ' -f 2)
 HELM_UNITTEST_VERSION ?= 0.8.2
 HELM_DOCS_VERSION ?= v1.14.2
 CODE_GENERATOR_VERSION ?= v0.35.4
+SHFMT_VERSION ?= v3.13.1
+SHELLCHECK_VERSION ?= v0.11.0
 
 ## Binaries
 SPARK_OPERATOR ?= $(LOCALBIN)/spark-operator
@@ -75,6 +77,8 @@ GOLANGCI_LINT ?= $(LOCALBIN)/golangci-lint-$(GOLANGCI_LINT_VERSION)
 GEN_CRD_API_REFERENCE_DOCS ?= $(LOCALBIN)/gen-crd-api-reference-docs-$(GEN_CRD_API_REFERENCE_DOCS_VERSION)
 HELM ?= $(LOCALBIN)/helm-$(HELM_VERSION)
 HELM_DOCS ?= $(LOCALBIN)/helm-docs-$(HELM_DOCS_VERSION)
+SHFMT ?= $(LOCALBIN)/shfmt-$(SHFMT_VERSION)
+SHELLCHECK ?= $(LOCALBIN)/shellcheck-$(SHELLCHECK_VERSION)
 
 ##@ General
 
@@ -161,6 +165,25 @@ go-lint: golangci-lint ## Run golangci-lint linter.
 go-lint-fix: golangci-lint ## Run golangci-lint linter and perform fixes.
 	@echo "Running golangci-lint run --fix..."
 	$(GOLANGCI_LINT) run --fix
+
+# Shell scripts to format and lint (all tracked *.sh files).
+SHELL_SCRIPTS = $(shell git ls-files '*.sh')
+
+# shfmt options: 2-space indent, indent switch cases, space after redirect operators.
+SHFMT_OPTIONS ?= --indent 2 --case-indent --space-redirects
+
+# Extra shellcheck options, e.g. set SHELLCHECK_OPTIONS=--severity=warning to only fail on warnings.
+SHELLCHECK_OPTIONS ?=
+
+.PHONY: shell-fmt
+shell-fmt: shfmt ## Format shell scripts with shfmt.
+	@echo "Running shfmt..."
+	$(SHFMT) --write --list $(SHFMT_OPTIONS) $(SHELL_SCRIPTS)
+
+.PHONY: shell-lint
+shell-lint: shellcheck ## Lint shell scripts with shellcheck.
+	@echo "Running shellcheck..."
+	$(SHELLCHECK) $(SHELLCHECK_OPTIONS) $(SHELL_SCRIPTS)
 
 .PHONY: unit-test
 unit-test: setup-envtest ## Run unit tests.
@@ -384,6 +407,16 @@ helm-docs-plugin: $(HELM_DOCS) ## Download helm-docs plugin locally if necessary
 $(HELM_DOCS): $(LOCALBIN)
 	$(call go-install-tool,$(HELM_DOCS),github.com/norwoodj/helm-docs/cmd/helm-docs,$(HELM_DOCS_VERSION))
 
+.PHONY: shfmt
+shfmt: $(SHFMT) ## Download shfmt locally if necessary.
+$(SHFMT): $(LOCALBIN)
+	$(call go-install-tool,$(SHFMT),mvdan.cc/sh/v3/cmd/shfmt,$(SHFMT_VERSION))
+
+.PHONY: shellcheck
+shellcheck: $(SHELLCHECK) ## Download shellcheck locally if necessary.
+$(SHELLCHECK): $(LOCALBIN)
+	$(call download-shellcheck,$(SHELLCHECK),$(SHELLCHECK_VERSION))
+
 # go-install-tool will 'go install' any package with custom target and name of binary, if it doesn't exist
 # $1 - target path with name of binary (ideally with version)
 # $2 - package url which can be installed
@@ -395,5 +428,29 @@ package=$(2)@$(3) ;\
 echo "Downloading $${package}" ;\
 GOBIN=$(LOCALBIN) go install $${package} ;\
 mv "$$(echo "$(1)" | sed "s/-$(3)$$//")" $(1) ;\
+}
+endef
+
+# download-shellcheck will download a pinned shellcheck release binary if it doesn't exist.
+# $1 - target path with name of binary (ideally with version)
+# $2 - shellcheck version (e.g. v0.11.0)
+define download-shellcheck
+@[ -f "$(1)" ] || { \
+set -e; \
+os=$$(uname -s | tr '[:upper:]' '[:lower:]'); \
+arch=$$(uname -m); \
+case "$$arch" in \
+  x86_64|amd64) arch=x86_64 ;; \
+  arm64|aarch64) arch=aarch64 ;; \
+  *) echo "Unsupported architecture: $$arch" >&2; exit 1 ;; \
+esac; \
+archive="shellcheck-$(2).$${os}.$${arch}.tar.gz"; \
+url="https://github.com/koalaman/shellcheck/releases/download/$(2)/$${archive}"; \
+echo "Downloading $${url}"; \
+tmp=$$(mktemp -d); \
+curl -fsSL "$${url}" | tar -xz -C "$${tmp}"; \
+mv "$${tmp}/shellcheck-$(2)/shellcheck" "$(1)"; \
+chmod +x "$(1)"; \
+rm -rf "$${tmp}"; \
 }
 endef

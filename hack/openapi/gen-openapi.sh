@@ -24,7 +24,6 @@ SPARK_OPERATOR_PKG="github.com/kubeflow/spark-operator/v2"
 
 cd "$CURRENT_DIR/../.."
 
-
 # Get the kube-openapi binary to generate OpenAPI spec.
 OPENAPI_PKG=$(go list -m -mod=readonly -f "{{.Dir}}" k8s.io/kube-openapi)
 echo ">> Using ${OPENAPI_PKG}"
@@ -51,7 +50,7 @@ EXTRA_PACKAGES=(
 for VERSION in v1alpha1 v1beta2; do
   echo "Generating OpenAPI for ${VERSION}"
 
-  go run ${OPENAPI_PKG}/cmd/openapi-gen \
+  go run "${OPENAPI_PKG}"/cmd/openapi-gen \
     --go-header-file "${SPARK_OPERATOR_ROOT}/hack/boilerplate.go.txt" \
     --output-pkg "${SPARK_OPERATOR_PKG}/api/${VERSION}" \
     --output-dir "${SPARK_OPERATOR_ROOT}/api/${VERSION}" \
@@ -63,4 +62,4 @@ done
 
 # Generating OpenAPI Swagger for Kubeflow Spark Operator.
 echo "Generate OpenAPI Swagger for Kubeflow Spark Operator"
-go run hack/swagger/main.go >api/openapi-spec/swagger.json
+go run hack/swagger/main.go > api/openapi-spec/swagger.json

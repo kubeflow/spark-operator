@@ -28,13 +28,13 @@ source "${CODEGEN_PKG}/kube_codegen.sh"
 
 # Generate register code
 kube::codegen::gen_register \
-    --boilerplate "${SCRIPT_ROOT}/hack/boilerplate.go.txt" \
-    "${SCRIPT_ROOT}"
+  --boilerplate "${SCRIPT_ROOT}/hack/boilerplate.go.txt" \
+  "${SCRIPT_ROOT}"
 
 # Generate client code: client, lister, informer in client-go directory
 kube::codegen::gen_client \
-    --with-watch \
-    --output-dir "${SCRIPT_ROOT}/pkg/client" \
-    --output-pkg "${SPARK_OPERATOR_PKG}/pkg/client" \
-    --boilerplate "${SCRIPT_ROOT}/hack/boilerplate.go.txt" \
-    "${SCRIPT_ROOT}"
+  --with-watch \
+  --output-dir "${SCRIPT_ROOT}/pkg/client" \
+  --output-pkg "${SPARK_OPERATOR_PKG}/pkg/client" \
+  --boilerplate "${SCRIPT_ROOT}/hack/boilerplate.go.txt" \
+  "${SCRIPT_ROOT}"
