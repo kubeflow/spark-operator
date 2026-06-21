@@ -432,6 +432,8 @@ mv "$$(echo "$(1)" | sed "s/-$(3)$$//")" $(1) ;\
 endef
 
 # download-shellcheck will download a pinned shellcheck release binary if it doesn't exist.
+# shellcheck publishes .tar.gz assets from v0.11.0 onward, which avoids an
+# xz/liblzma dependency. Pinning an older SHELLCHECK_VERSION would need .tar.xz.
 # $1 - target path with name of binary (ideally with version)
 # $2 - shellcheck version (e.g. v0.11.0)
 define download-shellcheck

@@ -1,5 +1,0 @@
-# ShellCheck configuration for the Spark operator repository.
-
-# Code-generator scripts source helper files that only exist at runtime
-# (e.g. ${CODEGEN_PKG}/kube_codegen.sh), which ShellCheck cannot follow.
-disable=SC1091

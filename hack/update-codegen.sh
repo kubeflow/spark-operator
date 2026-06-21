@@ -24,6 +24,7 @@ SCRIPT_ROOT="${SCRIPT_DIR}/.."
 CODEGEN_PKG="$($GO_CMD list -m -mod=readonly -f "{{.Dir}}" k8s.io/code-generator)"
 SPARK_OPERATOR_PKG="github.com/kubeflow/spark-operator/v2"
 
+# shellcheck source=/dev/null # provided by the code-generator module at runtime
 source "${CODEGEN_PKG}/kube_codegen.sh"
 
 # Generate register code

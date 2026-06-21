@@ -8,7 +8,6 @@ on:
       - release-*
     paths:
       - '**.sh'
-      - '.shellcheckrc'
       - 'Makefile'
       - '.github/workflows/shell-lint.yaml'
 
@@ -18,7 +17,6 @@ on:
       - release-*
     paths:
       - '**.sh'
-      - '.shellcheckrc'
       - 'Makefile'
       - '.github/workflows/shell-lint.yaml'
 
