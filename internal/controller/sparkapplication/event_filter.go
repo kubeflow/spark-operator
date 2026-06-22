@@ -36,7 +36,7 @@ import (
 
 // sparkPodEventFilter filters Spark pod events.
 type sparkPodEventFilter struct {
-	client           client.Client
+	namespaceReader  client.Reader
 	namespaceMatcher *util.NamespaceMatcher
 	logger           logr.Logger
 }
@@ -45,14 +45,14 @@ type sparkPodEventFilter struct {
 var _ predicate.Predicate = &sparkPodEventFilter{}
 
 // newSparkPodEventFilter creates a new SparkPodEventFilter instance.
-func newSparkPodEventFilter(client client.Client, namespaces []string, namespaceSelector string) (*sparkPodEventFilter, error) {
+func newSparkPodEventFilter(namespaceReader client.Reader, namespaces []string, namespaceSelector string) (*sparkPodEventFilter, error) {
 	matcher, err := util.NewNamespaceMatcher(namespaces, namespaceSelector)
 	if err != nil {
 		return nil, err
 	}
 
 	return &sparkPodEventFilter{
-		client:           client,
+		namespaceReader:  namespaceReader,
 		namespaceMatcher: matcher,
 		logger:           log.Log.WithName("spark-pod-event-filter"),
 	}, nil
@@ -113,7 +113,7 @@ func (f *sparkPodEventFilter) filter(pod *corev1.Pod) bool {
 	}
 
 	// Check if namespace matches using the matcher
-	matched, err := f.namespaceMatcher.MatchesWithClient(context.TODO(), f.client, pod.Namespace)
+	matched, err := f.namespaceMatcher.MatchesWithClient(context.TODO(), f.namespaceReader, pod.Namespace)
 	if err != nil {
 		f.logger.Error(err, "failed to check namespace match", "namespace", pod.Namespace, "pod", pod.Name)
 		return false
@@ -124,6 +124,7 @@ func (f *sparkPodEventFilter) filter(pod *corev1.Pod) bool {
 
 type EventFilter struct {
 	client           client.Client
+	namespaceReader  client.Reader
 	recorder         events.EventRecorder
 	namespaceMatcher *util.NamespaceMatcher
 	logger           logr.Logger
@@ -131,7 +132,7 @@ type EventFilter struct {
 
 var _ predicate.Predicate = &EventFilter{}
 
-func NewSparkApplicationEventFilter(client client.Client, recorder events.EventRecorder, namespaces []string, namespaceSelector string) (*EventFilter, error) {
+func NewSparkApplicationEventFilter(client client.Client, namespaceReader client.Reader, recorder events.EventRecorder, namespaces []string, namespaceSelector string) (*EventFilter, error) {
 	matcher, err := util.NewNamespaceMatcher(namespaces, namespaceSelector)
 	if err != nil {
 		return nil, err
@@ -139,6 +140,7 @@ func NewSparkApplicationEventFilter(client client.Client, recorder events.EventR
 
 	return &EventFilter{
 		client:           client,
+		namespaceReader:  namespaceReader,
 		recorder:         recorder,
 		namespaceMatcher: matcher,
 		logger:           log.Log.WithName("spark-application-event-filter"),
@@ -249,7 +251,7 @@ func (f *EventFilter) Generic(e event.GenericEvent) bool {
 
 func (f *EventFilter) filter(app *v1beta2.SparkApplication) bool {
 	// Check if namespace matches using the matcher
-	matched, err := f.namespaceMatcher.MatchesWithClient(context.TODO(), f.client, app.Namespace)
+	matched, err := f.namespaceMatcher.MatchesWithClient(context.TODO(), f.namespaceReader, app.Namespace)
 	if err != nil {
 		f.logger.Error(err, "failed to check namespace match", "namespace", app.Namespace, "app", app.Name)
 		return false

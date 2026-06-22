@@ -31,7 +31,7 @@ import (
 
 // EventFilter filters out ScheduledSparkApplication events.
 type EventFilter struct {
-	client           client.Client
+	namespaceReader  client.Reader
 	namespaceMatcher *util.NamespaceMatcher
 	logger           logr.Logger
 }
@@ -40,14 +40,14 @@ type EventFilter struct {
 var _ predicate.Predicate = &EventFilter{}
 
 // NewEventFilter creates a new EventFilter instance.
-func NewEventFilter(client client.Client, namespaces []string, namespaceSelector string) (*EventFilter, error) {
+func NewEventFilter(namespaceReader client.Reader, namespaces []string, namespaceSelector string) (*EventFilter, error) {
 	matcher, err := util.NewNamespaceMatcher(namespaces, namespaceSelector)
 	if err != nil {
 		return nil, err
 	}
 
 	return &EventFilter{
-		client:           client,
+		namespaceReader:  namespaceReader,
 		namespaceMatcher: matcher,
 		logger:           log.Log.WithName("scheduled-spark-application-event-filter"),
 	}, nil
@@ -88,7 +88,7 @@ func (f *EventFilter) Generic(e event.GenericEvent) bool {
 
 func (f *EventFilter) filter(app *v1beta2.ScheduledSparkApplication) bool {
 	// Check if namespace matches using the matcher
-	matched, err := f.namespaceMatcher.MatchesWithClient(context.TODO(), f.client, app.Namespace)
+	matched, err := f.namespaceMatcher.MatchesWithClient(context.TODO(), f.namespaceReader, app.Namespace)
 	if err != nil {
 		f.logger.Error(err, "failed to check namespace match", "namespace", app.Namespace, "app", app.Name)
 		return false

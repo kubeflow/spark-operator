@@ -97,7 +97,7 @@ func (r *Reconciler) SetupWithManager(mgr ctrl.Manager, options controller.Optio
 
 	// Create predicate before the builder chain.
 	namespacePredicate, err := util.NewNamespacePredicate(
-		r.client,
+		mgr.GetAPIReader(),
 		r.options.Namespaces,
 		r.options.NamespaceSelector,
 	)
