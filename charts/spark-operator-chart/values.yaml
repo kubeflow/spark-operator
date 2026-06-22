@@ -189,7 +189,7 @@ controller:
     # key1: value1
     # key2: value2
 
-  # -- Annotations for the controller deployment
+  # -- Annotations for the controller Deployment resource (metadata.annotations).
   deploymentAnnotations: {}
     # key1: value1
     # key2: value2
@@ -371,7 +371,7 @@ webhook:
     # key1: value1
     # key2: value2
 
-  # -- Annotations for the webhook deployment
+  # -- Annotations for the webhook Deployment resource (metadata.annotations).
   deploymentAnnotations: {}
     # key1: value1
     # key2: value2
