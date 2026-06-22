@@ -100,6 +100,20 @@ tests:
           path: spec.template.metadata.annotations.key2
           value: value2
 
+  - it: Should add deployment annotations if `webhook.deploymentAnnotations` is set
+    set:
+      webhook:
+        deploymentAnnotations:
+          key1: value1
+          key2: value2
+    asserts:
+      - equal:
+          path: metadata.annotations.key1
+          value: value1
+      - equal:
+          path: metadata.annotations.key2
+          value: value2
+
   - it: Should use the specified image repository if `image.registry`, `image.repository` and `image.tag` are set
     set:
       image:

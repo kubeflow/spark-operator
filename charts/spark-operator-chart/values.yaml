@@ -189,6 +189,11 @@ controller:
     # key1: value1
     # key2: value2
 
+  # -- Annotations for the controller deployment
+  deploymentAnnotations: {}
+    # key1: value1
+    # key2: value2
+
   # -- Volumes for controller pods.
   volumes:
   # Create a tmp directory to write Spark artifacts to for deployed Spark apps.
@@ -363,6 +368,11 @@ webhook:
 
   # -- Extra annotations for webhook pods.
   annotations: {}
+    # key1: value1
+    # key2: value2
+
+  # -- Annotations for the webhook deployment
+  deploymentAnnotations: {}
     # key1: value1
     # key2: value2
 
