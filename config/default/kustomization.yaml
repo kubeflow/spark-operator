@@ -23,6 +23,11 @@ labels:
       app.kubernetes.io/name: spark-operator
       app.kubernetes.io/managed-by: kustomize
 
+# The driver PodDisruptionBudget feature is opt-in. The --enable-driver-pdb
+# flag defaults to false in the binary, and this base overlay leaves it off so
+# that the default kustomize build stays in sync with the helm default-off
+# behaviour. To enable it, build config/overlays/driver-pdb instead.
+
 # Image configuration - tag is derived from the VERSION file at the repo root.
 # To update: make kustomize-set-image
 # CI/e2e tests override this via: kustomize edit set image ...
