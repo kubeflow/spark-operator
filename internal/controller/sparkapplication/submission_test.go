@@ -651,6 +651,57 @@ func TestExecutorPodTemplateContents(t *testing.T) {
 	}
 }
 
+func TestBuildSparkSubmitArgsSkipPodTemplates(t *testing.T) {
+	t.Setenv("KUBERNETES_SERVICE_HOST", "127.0.0.1")
+	t.Setenv("KUBERNETES_SERVICE_PORT", "6443")
+
+	app := &v1beta2.SparkApplication{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-app",
+			Namespace: "default",
+			UID:       "uid-123",
+		},
+		Spec: v1beta2.SparkApplicationSpec{
+			Type:                v1beta2.SparkApplicationTypeScala,
+			Mode:                v1beta2.DeployModeCluster,
+			MainApplicationFile: ptr.To("local:///app.jar"),
+			MainClass:           ptr.To("org.example.Main"),
+			SparkVersion:        "4.0.1",
+		},
+		Status: v1beta2.SparkApplicationStatus{
+			SubmissionID: "sub-123",
+		},
+	}
+
+	t.Run("includes pod template args when skipPodTemplates is false", func(t *testing.T) {
+		args, err := buildSparkSubmitArgs(app, false)
+		assert.NoError(t, err)
+
+		hasDriverTemplate := slices.ContainsFunc(args, func(s string) bool {
+			return strings.Contains(s, common.SparkKubernetesDriverPodTemplateFile)
+		})
+		hasExecutorTemplate := slices.ContainsFunc(args, func(s string) bool {
+			return strings.Contains(s, common.SparkKubernetesExecutorPodTemplateFile)
+		})
+		assert.True(t, hasDriverTemplate, "should include driver pod template conf")
+		assert.True(t, hasExecutorTemplate, "should include executor pod template conf")
+	})
+
+	t.Run("skips pod template args when skipPodTemplates is true", func(t *testing.T) {
+		args, err := buildSparkSubmitArgs(app, true)
+		assert.NoError(t, err)
+
+		hasDriverTemplate := slices.ContainsFunc(args, func(s string) bool {
+			return strings.Contains(s, common.SparkKubernetesDriverPodTemplateFile)
+		})
+		hasExecutorTemplate := slices.ContainsFunc(args, func(s string) bool {
+			return strings.Contains(s, common.SparkKubernetesExecutorPodTemplateFile)
+		})
+		assert.False(t, hasDriverTemplate, "should not include driver pod template conf")
+		assert.False(t, hasExecutorTemplate, "should not include executor pod template conf")
+	})
+}
+
 // import (
 // 	"fmt"
 // 	"os"

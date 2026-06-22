@@ -43,6 +43,12 @@ const (
 	// owner: @ChenYi015
 	// alpha: v2.5.0
 	LoadSparkDefaults featuregate.Feature = "LoadSparkDefaults"
+
+	// RestSubmitter enables the REST-based submission strategy instead of spark-submit.
+	//
+	// owner: @venkomirisetti
+	// alpha: v2.6.0
+	RestSubmitter featuregate.Feature = "RestSubmitter"
 )
 
 // To add a new feature gate, follow these steps:
@@ -83,6 +89,8 @@ var defaultFeatureGates = map[featuregate.Feature]featuregate.FeatureSpec{
 	PartialRestart: {Default: false, PreRelease: featuregate.Alpha},
 
 	LoadSparkDefaults: {Default: false, PreRelease: featuregate.Alpha},
+
+	RestSubmitter: {Default: false, PreRelease: featuregate.Alpha},
 }
 
 // SetFeatureGateDuringTest sets the specified feature gate to the specified value during a test.

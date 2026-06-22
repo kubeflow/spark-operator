@@ -17,6 +17,7 @@ limitations under the License.
 package controller
 
 import (
+	"context"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -29,7 +30,7 @@ import (
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
 	// Import features package to register feature gates.
-	_ "github.com/kubeflow/spark-operator/v2/pkg/features"
+	"github.com/kubeflow/spark-operator/v2/pkg/features"
 	utilfeature "k8s.io/apiserver/pkg/util/feature"
 	"k8s.io/client-go/rest"
 
@@ -133,6 +134,17 @@ var (
 	scheduledSparkApplicationTimestampPrecision string
 	development                                 bool
 	zapOptions                                  = logzap.Options{}
+
+	// REST submitter (behind RestSubmitter feature gate)
+	submitterServiceURL     string
+	submitterStartupTimeout time.Duration
+	submitterRequestTimeout time.Duration
+	submitterMaxRetries     int
+	submitterInitialBackoff time.Duration
+	submitterTLSEnabled     bool
+	submitterTLSCertFile    string
+	submitterTLSKeyFile     string
+	submitterTLSCAFile      string
 )
 
 func NewStartCommand() *cobra.Command {
@@ -158,6 +170,20 @@ func NewStartCommand() *cobra.Command {
 			validPrecisions := []string{"nanos", "micros", "millis", "seconds", "minutes"}
 			if !slices.Contains(validPrecisions, scheduledSparkApplicationTimestampPrecision) {
 				return fmt.Errorf("invalid value %q for --scheduled-spark-application-timestamp-precision, valid values: %v", scheduledSparkApplicationTimestampPrecision, validPrecisions)
+			}
+
+			if features.Enabled(features.RestSubmitter) {
+				if submitterServiceURL == "" {
+					return fmt.Errorf("--submitter-service-url is required when RestSubmitter feature gate is enabled")
+				}
+				if submitterMaxRetries < 1 {
+					return fmt.Errorf("invalid value %d for --submitter-max-retries, must be at least 1", submitterMaxRetries)
+				}
+				if submitterTLSEnabled {
+					if submitterTLSCertFile == "" || submitterTLSKeyFile == "" || submitterTLSCAFile == "" {
+						return fmt.Errorf("--submitter-tls-enabled requires --submitter-tls-cert-file, --submitter-tls-key-file, and --submitter-tls-ca-file")
+					}
+				}
 			}
 
 			return nil
@@ -225,6 +251,17 @@ func NewStartCommand() *cobra.Command {
 		"If not set, it will be 0 in order to disable the pprof server")
 
 	command.Flags().StringVar(&scheduledSparkApplicationTimestampPrecision, "scheduled-spark-application-timestamp-precision", "nanos", "Timestamp precision for ScheduledSparkApplication run names. Valid values: nanos, micros, millis, seconds, minutes.")
+
+	// REST submitter flags (used when RestSubmitter feature gate is enabled)
+	command.Flags().StringVar(&submitterServiceURL, "submitter-service-url", "", "Full submit endpoint URL of the submitter service (required when RestSubmitter feature gate is enabled).")
+	command.Flags().DurationVar(&submitterStartupTimeout, "submitter-startup-timeout", 5*time.Minute, "How long the controller waits for the submitter service to become reachable at startup.")
+	command.Flags().DurationVar(&submitterRequestTimeout, "submitter-request-timeout", 2*time.Minute, "HTTP request timeout per spark submission attempt.")
+	command.Flags().IntVar(&submitterMaxRetries, "submitter-max-retries", 3, "Max retry attempts for transient spark submission failures.")
+	command.Flags().DurationVar(&submitterInitialBackoff, "submitter-initial-backoff", 2*time.Second, "Initial backoff duration before the first retry.")
+	command.Flags().BoolVar(&submitterTLSEnabled, "submitter-tls-enabled", false, "Enable mTLS for communication with the submitter service.")
+	command.Flags().StringVar(&submitterTLSCertFile, "submitter-tls-cert-file", "", "Path to the client certificate file for mTLS with the submitter service.")
+	command.Flags().StringVar(&submitterTLSKeyFile, "submitter-tls-key-file", "", "Path to the client private key file for mTLS with the submitter service.")
+	command.Flags().StringVar(&submitterTLSCAFile, "submitter-tls-ca-file", "", "Path to the CA certificate file for verifying the submitter service.")
 
 	flagSet := flag.NewFlagSet("controller", flag.ExitOnError)
 	ctrl.RegisterFlags(flagSet)
@@ -321,7 +358,13 @@ func start() {
 		}
 	}
 
-	sparkSubmitter := &sparkapplication.SparkSubmitter{}
+	ctx := ctrl.SetupSignalHandler()
+
+	sparkSubmitter, err := newSparkSubmitter(ctx)
+	if err != nil {
+		logger.Error(err, "Failed to create spark submitter")
+		os.Exit(1)
+	}
 
 	// Setup controller for SparkApplication.
 	if err = sparkapplication.NewReconciler(
@@ -374,7 +417,7 @@ func start() {
 	}
 
 	logger.Info("Starting manager")
-	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
+	if err := mgr.Start(ctx); err != nil {
 		logger.Error(err, "Failed to start manager")
 		os.Exit(1)
 	}
@@ -492,4 +535,40 @@ func newSparkConnectReconcilerOptions() sparkconnect.Options {
 		NamespaceSelector: namespaceSelector,
 	}
 	return options
+}
+
+func newSparkSubmitter(ctx context.Context) (sparkapplication.SparkApplicationSubmitter, error) {
+	if !features.Enabled(features.RestSubmitter) {
+		return &sparkapplication.SparkSubmitter{}, nil
+	}
+
+	var tlsCfg *sparkapplication.TLSConfig
+	if submitterTLSEnabled {
+		tlsCfg = &sparkapplication.TLSConfig{
+			Enabled:    true,
+			CertFile:   submitterTLSCertFile,
+			KeyFile:    submitterTLSKeyFile,
+			CACertFile: submitterTLSCAFile,
+		}
+	}
+
+	submitter, err := sparkapplication.NewRestSparkSubmitter(sparkapplication.RestSparkSubmitterConfig{
+		URL:             submitterServiceURL,
+		RetryMaxRetries: submitterMaxRetries,
+		RequestTimeout:  submitterRequestTimeout,
+		InitialBackoff:  submitterInitialBackoff,
+		TLS:             tlsCfg,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to initialize RestSubmitter: %w", err)
+	}
+
+	startupCtx, cancel := context.WithTimeout(ctx, submitterStartupTimeout)
+	defer cancel()
+	if err := submitter.WaitForConnection(startupCtx); err != nil {
+		return nil, fmt.Errorf("RestSubmitter service not reachable at startup: %w", err)
+	}
+
+	logger.Info("Using REST submitter service", "url", submitterServiceURL)
+	return submitter, nil
 }
