@@ -31,7 +31,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
-	"k8s.io/client-go/tools/record"
+	"k8s.io/client-go/tools/events"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/interceptor"
@@ -81,7 +81,7 @@ func newPDBReconcilerWithOptions(opts pdbReconcilerOptions) *sparkapplication.Re
 		nil,
 		k8sClient.Scheme(),
 		c,
-		record.NewFakeRecorder(10),
+		events.NewFakeRecorder(10),
 		nil,
 		&noopSubmitter{},
 		sparkapplication.Options{
