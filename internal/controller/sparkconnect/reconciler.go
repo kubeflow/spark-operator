@@ -411,13 +411,25 @@ func (r *Reconciler) mutateServerPod(_ context.Context, conn *v1alpha1.SparkConn
 			},
 		)
 
+		// stop-connect-server.sh only works in daemon mode because it
+		// locates the JVM via the PID file that spark-daemon.sh writes.
+		// The operator runs the server with SPARK_NO_DAEMONIZE=true
+		// (foreground), so no PID file exists and the stop script fails
+		// with `no org.apache.spark.sql.connect.service.SparkConnectServer
+		// to stop`, leaving the JVM to be SIGKILLed at the end of the
+		// termination grace period without finalizing event logs.
+		//
+		// Send SIGTERM to the foreground JVM instead so Spark's shutdown
+		// hook runs (finalizes the .inprogress event log, closes the
+		// listener, etc.) and the pod exits cleanly. See
+		// kubeflow/spark-operator#2903.
 		container.Lifecycle = &corev1.Lifecycle{
 			PreStop: &corev1.LifecycleHandler{
 				Exec: &corev1.ExecAction{
 					Command: []string{
 						"bash",
 						"-c",
-						"${SPARK_HOME}/sbin/stop-connect-server.sh",
+						"pkill -TERM -f org.apache.spark.sql.connect.service.SparkConnectServer || true",
 					},
 				},
 			},
