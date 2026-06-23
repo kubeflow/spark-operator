@@ -71,6 +71,9 @@ spec:
         {{- with .Values.webhook.resourceQuotaEnforcement.enable }}
         - --enable-resource-quota-enforcement=true
         {{- end }}
+        {{- with .Values.webhook.sparkAllowedURLSchemes }}
+        - --spark-allowed-url-schemes={{ . | join "," }}
+        {{- end }}
         {{- if .Values.certManager.enable }}
         - --enable-cert-manager=true
         {{- end }}
