@@ -46,7 +46,7 @@ DEPLOY_METHOD ?= helm
 # Kind cluster
 KIND_CLUSTER_NAME ?= spark-operator
 KIND_CONFIG_FILE ?= charts/spark-operator-chart/ci/kind-config.yaml
-KIND_KUBE_CONFIG ?= $(HOME)/.kube/config
+KIND_KUBE_CONFIG ?= $(CURDIR)/.kube/config
 
 ## Location to install binaries
 LOCALBIN ?= $(shell pwd)/bin
@@ -172,9 +172,10 @@ unit-test: setup-envtest ## Run unit tests.
 	@echo "Coverage report available at cover.html"
 
 .PHONY: e2e-test
-e2e-test: envtest ## Run the e2e tests against a Kind k8s instance that is spun up.
+e2e-test: IMAGE_TAG=local
+e2e-test: envtest kind-create-cluster kind-load-image ## Run the e2e tests against a Kind k8s instance that is spun up.
 	@echo "Running e2e tests (deploy_method=$(DEPLOY_METHOD))..."
-	DEPLOY_METHOD=$(DEPLOY_METHOD) IMAGE_TAG=$(IMAGE_TAG) go test ./test/e2e/ -v -ginkgo.v -timeout 30m
+	DEPLOY_METHOD=$(DEPLOY_METHOD) IMAGE_TAG=$(IMAGE_TAG) KUBECONFIG=$(KIND_KUBE_CONFIG) go test ./test/e2e/ -v -ginkgo.v -timeout 30m
 
 ##@ Kustomize
 
@@ -313,21 +314,23 @@ kind-delete-cluster: kind ## Delete the created kind cluster.
 	$(KIND) delete cluster --name $(KIND_CLUSTER_NAME) --kubeconfig $(KIND_KUBE_CONFIG)
 
 .PHONY: install
-install-crd: manifests ## Install CRDs into the K8s cluster specified in ~/.kube/config.
-	$(KUBECTL) kustomize config/crd | $(KUBECTL) create -f - 2>/dev/null || $(KUBECTL) kustomize config/crd | $(KUBECTL) replace -f -
+install: install-crd ## Install CRDs into the K8s cluster specified in .kube/config.
+install-crd: manifests ## Install CRDs into the K8s cluster specified in .kube/config.
+	$(KUBECTL) kustomize config/crd | KUBECONFIG=$(KIND_KUBE_CONFIG) $(KUBECTL) create -f - 2>/dev/null || $(KUBECTL) kustomize config/crd | KUBECONFIG=$(KIND_KUBE_CONFIG) $(KUBECTL) replace -f -
 
 .PHONY: uninstall
-uninstall-crd: manifests ## Uninstall CRDs from the K8s cluster specified in ~/.kube/config. Call with ignore-not-found=true to ignore resource not found errors during deletion.
-	$(KUBECTL) kustomize config/crd | $(KUBECTL) delete --ignore-not-found=$(ignore-not-found) -f -
+uninstall: uninstall-crd ## Uninstall CRDs from the K8s cluster specified in .kube/config.
+uninstall-crd: manifests ## Uninstall CRDs from the K8s cluster specified in .kube/config. Call with ignore-not-found=true to ignore resource not found errors during deletion.
+	$(KUBECTL) kustomize config/crd | KUBECONFIG=$(KIND_KUBE_CONFIG) $(KUBECTL) delete --ignore-not-found=$(ignore-not-found) -f -
 
 .PHONY: deploy
 deploy: IMAGE_TAG=local
-deploy: helm manifests update-crd kind-load-image ## Deploy controller to the K8s cluster specified in ~/.kube/config.
-	$(HELM) upgrade --install -f charts/spark-operator-chart/ci/ci-values.yaml spark-operator ./charts/spark-operator-chart/
+deploy: helm manifests update-crd kind-load-image ## Deploy controller to the K8s cluster specified in .kube/config.
+	KUBECONFIG=$(KIND_KUBE_CONFIG) $(HELM) upgrade --install -f charts/spark-operator-chart/ci/ci-values.yaml spark-operator ./charts/spark-operator-chart/
 
 .PHONY: undeploy
 undeploy: helm ## Uninstall spark-operator
-	$(HELM) uninstall spark-operator
+	KUBECONFIG=$(KIND_KUBE_CONFIG) $(HELM) uninstall spark-operator
 
 ##@ Dependencies
 

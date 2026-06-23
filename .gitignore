@@ -1,5 +1,6 @@
 .idea/
 .vscode/
+.kube/
 bin/
 codecov.yaml
 cover.out
