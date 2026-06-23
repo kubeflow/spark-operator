@@ -224,6 +224,53 @@ var _ = Describe("IsDriverRunning", func() {
 	})
 })
 
+var _ = Describe("ShouldRetry", func() {
+	Context("when PendingRerun cleanup retries remain", func() {
+		app := &v1beta2.SparkApplication{
+			Status: v1beta2.SparkApplicationStatus{
+				TerminationTime: metav1.NewTime(time.Now()),
+				AppState: v1beta2.ApplicationState{
+					State: v1beta2.ApplicationStatePendingRerun,
+				},
+			},
+			Spec: v1beta2.SparkApplicationSpec{
+				RestartPolicy: v1beta2.RestartPolicy{
+					Type:                   v1beta2.RestartPolicyOnFailure,
+					OnFailureRetries:       ptr.To[int32](3),
+					OnFailureRetryInterval: ptr.To[int64](10),
+				},
+			},
+		}
+
+		It("Should return false", func() {
+			Expect(util.ShouldRetry(app)).To(BeFalse())
+		})
+	})
+})
+
+var _ = Describe("TimeUntilNextRetryDue", func() {
+	Context("when PendingRerun cleanup is in the second retry interval", func() {
+		app := &v1beta2.SparkApplication{
+			Status: v1beta2.SparkApplicationStatus{
+				TerminationTime: metav1.NewTime(time.Now().Add(-7 * time.Second)),
+				AppState: v1beta2.ApplicationState{
+					State: v1beta2.ApplicationStatePendingRerun,
+				},
+			},
+			Spec: v1beta2.SparkApplicationSpec{
+				RetryInterval: ptr.To[int64](5),
+			},
+		}
+
+		It("Should return remaining time in the current linear backoff window", func() {
+			due, err := util.TimeUntilNextRetryDue(app)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(due).To(BeNumerically(">", 0))
+			Expect(due).To(BeNumerically("<=", 10*time.Second))
+		})
+	})
+})
+
 var _ = Describe("GetLocalVolumes", func() {
 	Context("SparkApplication with local volumes", func() {
 		volume1 := corev1.Volume{

@@ -111,15 +111,29 @@ func ShouldRetry(app *v1beta2.SparkApplication) bool {
 
 func TimeUntilNextRetryDue(app *v1beta2.SparkApplication) (time.Duration, error) {
 	var retryInterval *int64
+	lastAttemptTime := app.Status.LastSubmissionAttemptTime
+	attemptsDone := app.Status.SubmissionAttempts
 	switch app.Status.AppState.State {
 	case v1beta2.ApplicationStateFailedSubmission:
 		retryInterval = app.Spec.RestartPolicy.OnSubmissionFailureRetryInterval
 	case v1beta2.ApplicationStateFailing:
 		retryInterval = app.Spec.RestartPolicy.OnFailureRetryInterval
+	case v1beta2.ApplicationStatePendingRerun:
+		retryInterval = app.Spec.RetryInterval
+		// PendingRerun cleanup polling starts from the first cleanup attempt timestamp.
+		lastAttemptTime = app.Status.TerminationTime
+		if retryInterval != nil && !lastAttemptTime.IsZero() {
+			baseInterval := time.Duration(*retryInterval) * time.Second
+			if baseInterval > 0 {
+				elapsed := time.Since(lastAttemptTime.Time)
+				if elapsed < 0 {
+					elapsed = 0
+				}
+				attemptsDone = int32(elapsed/baseInterval) + 1
+			}
+		}
 	}
 
-	attemptsDone := app.Status.SubmissionAttempts
-	lastAttemptTime := app.Status.LastSubmissionAttemptTime
 	if retryInterval == nil || lastAttemptTime.IsZero() || attemptsDone <= 0 {
 		return -1, fmt.Errorf("invalid retry interval (%v), last attempt time (%v) or attemptsDone (%v)", retryInterval, lastAttemptTime, attemptsDone)
 	}
