@@ -395,3 +395,27 @@ const (
 	// form the path to the file referred to by HADOOP_TOKEN_FILE_LOCATION.
 	HadoopDelegationTokenFileName = "hadoop.token"
 )
+
+// Spark Connect server service ports. These are the single source of truth for the
+// ports the Spark Connect server binds to and that its Service must expose.
+const (
+	// SparkConnectServerPortName is the name of the Spark Connect gRPC server port.
+	SparkConnectServerPortName = "spark-connect-server"
+	// SparkConnectServerPort is the default port the Spark Connect gRPC server binds to.
+	SparkConnectServerPort int32 = 15002
+
+	// SparkConnectDriverRPCPortName is the name of the driver RPC port.
+	SparkConnectDriverRPCPortName = "driver-rpc"
+	// SparkConnectDriverRPCPort is the port the driver RPC endpoint binds to (spark.driver.port).
+	SparkConnectDriverRPCPort int32 = 7078
+
+	// SparkConnectBlockManagerPortName is the name of the block manager port.
+	SparkConnectBlockManagerPortName = "blockmanager"
+	// SparkConnectBlockManagerPort is the port the block manager binds to (spark.driver.blockManager.port).
+	SparkConnectBlockManagerPort int32 = 7079
+
+	// SparkConnectWebUIPortName is the name of the Spark web UI port.
+	SparkConnectWebUIPortName = "web-ui"
+	// SparkConnectWebUIPort is the default Spark web UI port.
+	SparkConnectWebUIPort int32 = 4040
+)

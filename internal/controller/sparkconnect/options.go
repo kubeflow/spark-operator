@@ -177,8 +177,8 @@ func driverConfOption(conn *v1alpha1.SparkConnect) ([]string, error) {
 
 	driverHost := "$(host=${POD_IP}; if [[ $host == *:* ]] && [[ $host != \\[* ]]; then echo \"[$host]\"; else echo \"$host\"; fi)"
 	args = append(args, "--conf", fmt.Sprintf("spark.driver.host=%s", driverHost))
-	args = append(args, "--conf", "spark.driver.port=7078")
-	args = append(args, "--conf", "spark.driver.blockManager.port=7079")
+	args = append(args, "--conf", fmt.Sprintf("spark.driver.port=%d", common.SparkConnectDriverRPCPort))
+	args = append(args, "--conf", fmt.Sprintf("spark.driver.blockManager.port=%d", common.SparkConnectBlockManagerPort))
 
 	// Driver pod name
 	args = append(args, "--conf", fmt.Sprintf("%s=%s", common.SparkKubernetesDriverPodName, fmt.Sprintf("%s-server", conn.Name)))

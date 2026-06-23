@@ -23,6 +23,7 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/utils/ptr"
 
 	"github.com/kubeflow/spark-operator/v2/api/v1alpha1"
@@ -67,6 +68,69 @@ func TestSparkConnectValidatorValidateCreate_ImageRequired(t *testing.T) {
 
 	if _, err := validator.ValidateCreate(context.Background(), sc); err == nil || !strings.Contains(err.Error(), "image must be specified") {
 		t.Fatalf("expected image validation error, got %v", err)
+	}
+}
+
+func TestSparkConnectValidatorValidateCreate_ServerServicePorts(t *testing.T) {
+	validator := newTestSparkConnectValidator(t)
+
+	tests := []struct {
+		name      string
+		ports     []corev1.ServicePort
+		wantError bool
+	}{
+		{
+			name:      "no service ports",
+			ports:     nil,
+			wantError: false,
+		},
+		{
+			name:      "custom non-required port",
+			ports:     []corev1.ServicePort{{Name: "custom", Port: 9999}},
+			wantError: false,
+		},
+		{
+			name:      "required port with only a custom service-facing port",
+			ports:     []corev1.ServicePort{{Name: "web-ui", Port: 8080}},
+			wantError: false,
+		},
+		{
+			name:      "required port with matching targetPort",
+			ports:     []corev1.ServicePort{{Name: "web-ui", Port: 8080, TargetPort: intstr.FromInt32(4040)}},
+			wantError: false,
+		},
+		{
+			name:      "required port with conflicting targetPort",
+			ports:     []corev1.ServicePort{{Name: "web-ui", Port: 8080, TargetPort: intstr.FromInt32(9090)}},
+			wantError: true,
+		},
+		{
+			name:      "required port with conflicting protocol",
+			ports:     []corev1.ServicePort{{Name: "spark-connect-server", Protocol: corev1.ProtocolUDP}},
+			wantError: true,
+		},
+		{
+			name:      "driver-rpc with conflicting targetPort",
+			ports:     []corev1.ServicePort{{Name: "driver-rpc", TargetPort: intstr.FromInt32(1234)}},
+			wantError: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			sc := newSparkConnect()
+			sc.Spec.Server.Service = &corev1.Service{
+				Spec: corev1.ServiceSpec{Ports: tt.ports},
+			}
+			_, err := validator.ValidateCreate(context.Background(), sc)
+			if tt.wantError {
+				if err == nil || !strings.Contains(err.Error(), "invalid server.service") {
+					t.Fatalf("expected server.service conflict error, got %v", err)
+				}
+			} else if err != nil {
+				t.Fatalf("expected success, got %v", err)
+			}
+		})
 	}
 }
 
