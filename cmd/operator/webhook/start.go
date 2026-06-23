@@ -73,6 +73,7 @@ var (
 
 	// Webhook
 	enableResourceQuotaEnforcement bool
+	sparkAllowedURLSchemes         []string
 	webhookCertDir                 string
 	webhookCertName                string
 	webhookKeyName                 string
@@ -149,6 +150,7 @@ func NewStartCommand() *cobra.Command {
 	command.Flags().StringVar(&webhookServiceName, "webhook-svc-name", "spark-webhook", "The name of the Service for the webhook server.")
 	command.Flags().StringVar(&webhookServiceNamespace, "webhook-svc-namespace", "spark-webhook", "The name of the Service for the webhook server.")
 	command.Flags().BoolVar(&enableResourceQuotaEnforcement, "enable-resource-quota-enforcement", false, "Whether to enable ResourceQuota enforcement for SparkApplication resources. Requires the webhook to be enabled.")
+	command.Flags().StringSliceVar(&sparkAllowedURLSchemes, "spark-allowed-url-schemes", []string{}, "Comma-separated list of URL schemes permitted in fetch-capable SparkApplication fields (spec.sparkConf values, spec.deps.*, spec.mainApplicationFile) at admission time, in addition to the always-allowed local schemes (schemeless, file://, local://). Any other URL scheme is rejected. Add schemes your workloads require (e.g. gs,s3a,hdfs).")
 
 	// Cert Manager
 	command.Flags().BoolVar(&enableCertManager, "enable-cert-manager", false, "Enable cert-manager to manage the webhook server's TLS certificate.")
@@ -315,7 +317,7 @@ func start() {
 
 	if err := ctrl.NewWebhookManagedBy(mgr, &v1beta2.SparkApplication{}).
 		WithDefaulter(webhook.NewSparkApplicationDefaulter()).
-		WithValidator(webhook.NewSparkApplicationValidator(mgr.GetClient(), enableResourceQuotaEnforcement)).
+		WithValidator(webhook.NewSparkApplicationValidator(mgr.GetClient(), enableResourceQuotaEnforcement, sparkAllowedURLSchemes)).
 		WithLogConstructor(webhook.LogConstructor).
 		Complete(); err != nil {
 		logger.Error(err, "Failed to create mutating webhook for Spark application")

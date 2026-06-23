@@ -388,6 +388,12 @@ webhook:
     # -- Specifies whether to enable the ResourceQuota enforcement for SparkApplication resources.
     enable: false
 
+  # -- URL schemes permitted in fetch-capable SparkApplication fields (spec.sparkConf values,
+  # spec.deps.*, spec.mainApplicationFile) at admission time, in addition to the always-allowed
+  # local schemes (schemeless, file://, local://). Any other URL scheme is rejected.
+  # Add schemes your workloads require (e.g. gs, s3a, hdfs).
+  sparkAllowedURLSchemes: []
+
   serviceAccount:
     # -- Specifies whether to create a service account for the webhook.
     create: true

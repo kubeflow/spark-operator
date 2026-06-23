@@ -202,6 +202,10 @@ e2e-test: envtest kind-load-image kind-load-spark-image ## Run the e2e tests aga
 	@echo "Running e2e tests (deploy_method=$(DEPLOY_METHOD))..."
 	DEPLOY_METHOD=$(DEPLOY_METHOD) IMAGE_TAG=$(IMAGE_TAG) KUBECONFIG=$(KIND_KUBE_CONFIG) go test ./test/e2e/ -v -ginkgo.v -timeout 30m
 
+.PHONY: kind-e2e-test
+kind-e2e-test: IMAGE_TAG=local
+kind-e2e-test: kind-load-image e2e-test ## Build image, load into Kind cluster, and run the e2e suite.
+
 ##@ Kustomize
 
 .PHONY: kustomize-set-image
