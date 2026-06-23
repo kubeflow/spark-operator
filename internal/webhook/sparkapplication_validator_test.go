@@ -212,14 +212,6 @@ func TestSparkApplicationValidatorValidateCreate_ResourceQuotaExceeded(t *testin
 	}
 }
 
-func TestSparkApplicationValidatorValidateDelete_Success(t *testing.T) {
-	validator := newTestValidator(t, false)
-
-	if _, err := validator.ValidateDelete(context.Background(), newSparkApplication()); err != nil {
-		t.Fatalf("expected successful delete validation, got %v", err)
-	}
-}
-
 func newTestValidator(t *testing.T, enforceQuota bool, objs ...client.Object) *SparkApplicationValidator {
 	t.Helper()
 

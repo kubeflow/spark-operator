@@ -256,6 +256,10 @@ const (
 	SparkDynamicAllocationShuffleTrackingTimeout = "spark.dynamicAllocation.shuffleTracking.timeout"
 )
 
+// SparkOperatorManagerName is the default manager name for spec.managedBy.
+// When the field is unset or equals this value, the built-in operator manages the application.
+const SparkOperatorManagerName = "sparkoperator.k8s.io/spark-operator"
+
 const (
 	// SparkRoleDriver is the value of the spark-role label for the driver.
 	SparkRoleDriver = "driver"
