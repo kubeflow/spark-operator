@@ -498,9 +498,13 @@ func (r *Reconciler) reconcileRunningSparkApplication(ctx context.Context, req c
 func (r *Reconciler) reconcilePendingRerunSparkApplication(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := log.FromContext(ctx)
 	key := req.NamespacedName
+
+	var result ctrl.Result
+
 	retryErr := retry.RetryOnConflict(
 		retry.DefaultRetry,
 		func() error {
+			result = ctrl.Result{}
 			old, err := r.getSparkApplication(ctx, key)
 			if err != nil {
 				return err
@@ -513,10 +517,13 @@ func (r *Reconciler) reconcilePendingRerunSparkApplication(ctx context.Context, 
 			logger.Info("Pending rerun SparkApplication", "state", app.Status.AppState.State)
 			if r.validateSparkResourceDeletion(ctx, app) {
 				logger.Info("Successfully deleted resources associated with SparkApplication", "state", app.Status.AppState.State)
+				app.Status.LastDeletionAttemptTime = metav1.Time{}
+				app.Status.DeletionPollAttempts = 0
 				r.recordSparkApplicationEvent(app)
 				r.submitSparkApplication(ctx, app)
 			} else {
-				logger.Info("Resources associated with SparkApplication still exist")
+				logger.Info("Resources associated with SparkApplication still exist, will retry")
+				result = computeDeletionPollRequeue(app)
 			}
 			if err := r.updateSparkApplicationStatus(ctx, app); err != nil {
 				return err
@@ -528,7 +535,7 @@ func (r *Reconciler) reconcilePendingRerunSparkApplication(ctx context.Context, 
 		logger.Error(retryErr, "Failed to reconcile SparkApplication")
 		return ctrl.Result{}, retryErr
 	}
-	return ctrl.Result{}, nil
+	return result, nil
 }
 
 func (r *Reconciler) reconcileInvalidatingSparkApplication(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
@@ -552,6 +559,8 @@ func (r *Reconciler) reconcileInvalidatingSparkApplication(ctx context.Context, 
 			} else {
 				r.resetSparkApplicationStatus(app)
 				app.Status.AppState.State = v1beta2.ApplicationStatePendingRerun
+				app.Status.LastDeletionAttemptTime = metav1.Now()
+				app.Status.DeletionPollAttempts = 0
 			}
 			if err := r.updateSparkApplicationStatus(ctx, app); err != nil {
 				return err
@@ -588,6 +597,8 @@ func (r *Reconciler) reconcileSucceedingSparkApplication(ctx context.Context, re
 				}
 				r.resetSparkApplicationStatus(app)
 				app.Status.AppState.State = v1beta2.ApplicationStatePendingRerun
+				app.Status.LastDeletionAttemptTime = metav1.Now()
+				app.Status.DeletionPollAttempts = 0
 			} else {
 				app.Status.AppState.State = v1beta2.ApplicationStateCompleted
 			}
@@ -634,6 +645,8 @@ func (r *Reconciler) reconcileFailingSparkApplication(ctx context.Context, req c
 					}
 					r.resetSparkApplicationStatus(app)
 					app.Status.AppState.State = v1beta2.ApplicationStatePendingRerun
+					app.Status.LastDeletionAttemptTime = metav1.Now()
+					app.Status.DeletionPollAttempts = 0
 				} else {
 					// If we're waiting before retrying then reconcile will not modify anything, so we need to requeue.
 					result.RequeueAfter = timeUntilNextRetryDue
@@ -771,6 +784,8 @@ func (r *Reconciler) reconcileSuspendingSparkApplication(ctx context.Context, re
 				State: v1beta2.ApplicationStateSuspended,
 			}
 			r.resetSparkApplicationStatus(app)
+			app.Status.LastDeletionAttemptTime = metav1.Now()
+			app.Status.DeletionPollAttempts = 0
 
 			if err := r.updateSparkApplicationStatus(ctx, app); err != nil {
 				return err
@@ -788,9 +803,13 @@ func (r *Reconciler) reconcileSuspendingSparkApplication(ctx context.Context, re
 func (r *Reconciler) reconcileSuspendedSparkApplication(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := log.FromContext(ctx)
 	key := req.NamespacedName
+
+	var result ctrl.Result
+
 	retryErr := retry.RetryOnConflict(
 		retry.DefaultRetry,
 		func() error {
+			result = ctrl.Result{}
 			old, err := r.getSparkApplication(ctx, key)
 			if err != nil {
 				return err
@@ -802,6 +821,8 @@ func (r *Reconciler) reconcileSuspendedSparkApplication(ctx context.Context, req
 
 			if r.validateSparkResourceDeletion(ctx, app) {
 				logger.Info("Successfully deleted resources associated with SparkApplication", "state", app.Status.AppState.State)
+				app.Status.LastDeletionAttemptTime = metav1.Time{}
+				app.Status.DeletionPollAttempts = 0
 				r.resetSparkApplicationStatus(app)
 				r.recordSparkApplicationEvent(app)
 				if !ptr.Deref(app.Spec.Suspend, false) {
@@ -810,7 +831,8 @@ func (r *Reconciler) reconcileSuspendedSparkApplication(ctx context.Context, req
 					}
 				}
 			} else {
-				logger.Info("Resources associated with SparkApplication still exist")
+				logger.Info("Resources associated with SparkApplication still exist, will retry")
+				result = computeDeletionPollRequeue(app)
 			}
 			if err := r.updateSparkApplicationStatus(ctx, app); err != nil {
 				return err
@@ -822,7 +844,7 @@ func (r *Reconciler) reconcileSuspendedSparkApplication(ctx context.Context, req
 		logger.Error(retryErr, "Failed to reconcile SparkApplication")
 		return ctrl.Result{}, retryErr
 	}
-	return ctrl.Result{}, nil
+	return result, nil
 }
 
 func (r *Reconciler) reconcileResumingSparkApplication(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
@@ -1418,6 +1440,27 @@ func (r *Reconciler) recordExecutorEvent(app *v1beta2.SparkApplication, state v1
 	}
 }
 
+// computeDeletionPollRequeue initializes deletion tracking fields if needed,
+// computes the next backoff duration, and increments the poll counter.
+func computeDeletionPollRequeue(app *v1beta2.SparkApplication) ctrl.Result {
+	if app.Status.LastDeletionAttemptTime.IsZero() {
+		app.Status.LastDeletionAttemptTime = metav1.Now()
+		app.Status.DeletionPollAttempts = 0
+	}
+	var result ctrl.Result
+	if wait, err := util.TimeUntilNextDeletionPollDue(app); err == nil {
+		if wait <= 0 {
+			result.Requeue = true
+		} else {
+			result.RequeueAfter = wait
+		}
+	} else {
+		result.Requeue = true
+	}
+	app.Status.DeletionPollAttempts++
+	return result
+}
+
 func (r *Reconciler) resetSparkApplicationStatus(app *v1beta2.SparkApplication) {
 	status := &app.Status
 	switch status.AppState.State {
@@ -1432,6 +1475,8 @@ func (r *Reconciler) resetSparkApplicationStatus(app *v1beta2.SparkApplication) 
 		status.SubmissionAttempts = 0
 		status.ExecutionAttempts = 0
 		status.LastSubmissionAttemptTime = metav1.Time{}
+		status.LastDeletionAttemptTime = metav1.Time{}
+		status.DeletionPollAttempts = 0
 		status.TerminationTime = metav1.Time{}
 		status.AppState.ErrorMessage = ""
 		status.DriverInfo = v1beta2.DriverInfo{}

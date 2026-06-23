@@ -14446,6 +14446,11 @@
               }
             ]
           },
+          "deletionPollAttempts": {
+            "description": "DeletionPollAttempts is the number of times the controller has polled for Spark resource deletion to complete for the current rerun or suspension.",
+            "type": "integer",
+            "format": "int32"
+          },
           "driverInfo": {
             "description": "DriverInfo has information about the driver.",
             "default": {},
@@ -14467,6 +14472,14 @@
               "type": "string",
               "default": ""
             }
+          },
+          "lastDeletionAttemptTime": {
+            "description": "LastDeletionAttemptTime is the time when deletion of Spark resources was last initiated for a rerun or suspension.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/io.k8s.apimachinery.pkg.apis.meta.v1.Time"
+              }
+            ]
           },
           "lastSubmissionAttemptTime": {
             "description": "LastSubmissionAttemptTime is the time for the last application submission attempt.",
