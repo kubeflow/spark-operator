@@ -14,3 +14,9 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+
+  - package-ecosystem: "uv"
+    directory: "/docs/website"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 0 # security update PRs only
