@@ -124,6 +124,7 @@ See [helm uninstall](https://helm.sh/docs/helm/helm_uninstall) for command docum
 | controller.rbac.annotations | object | `{}` | Extra annotations for the controller RBAC resources. |
 | controller.labels | object | `{}` | Extra labels for controller pods. |
 | controller.annotations | object | `{}` | Extra annotations for controller pods. |
+| controller.deploymentAnnotations | object | `{}` | Annotations for the controller Deployment resource (metadata.annotations). |
 | controller.volumes | list | `[{"emptyDir":{"sizeLimit":"1Gi"},"name":"tmp"}]` | Volumes for controller pods. |
 | controller.nodeSelector | object | `{}` | Node selector for controller pods. |
 | controller.affinity | object | `{}` | Affinity for controller pods. |
@@ -168,6 +169,7 @@ See [helm uninstall](https://helm.sh/docs/helm/helm_uninstall) for command docum
 | webhook.rbac.annotations | object | `{}` | Extra annotations for the webhook RBAC resources. |
 | webhook.labels | object | `{}` | Extra labels for webhook pods. |
 | webhook.annotations | object | `{}` | Extra annotations for webhook pods. |
+| webhook.deploymentAnnotations | object | `{}` | Annotations for the webhook Deployment resource (metadata.annotations). |
 | webhook.sidecars | list | `[]` | Sidecar containers for webhook pods. |
 | webhook.volumes | list | `[{"emptyDir":{"sizeLimit":"500Mi"},"name":"serving-certs"}]` | Volumes for webhook pods. |
 | webhook.nodeSelector | object | `{}` | Node selector for webhook pods. |
