@@ -2,6 +2,8 @@ module github.com/kubeflow/spark-operator/v2
 
 go 1.25.0
 
+toolchain go1.25.11
+
 tool k8s.io/code-generator
 
 require (

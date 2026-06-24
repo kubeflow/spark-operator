@@ -14,9 +14,9 @@
 # limitations under the License.
 #
 
-ARG SPARK_IMAGE=docker.io/library/spark:4.0.1
+ARG SPARK_IMAGE=docker.io/library/spark:4.0.1@sha256:a552a335e0aedb44fa28b20ed7e9dc52c2e856faf87fb0409fb57dbf37b45bf7
 
-FROM golang:1.25.9 AS builder
+FROM docker.io/library/golang:1.25.11@sha256:00feed335fe561979f2cdcc30a5191231977c5631fe79c40f7d3ab63b4fa222f AS builder
 
 WORKDIR /workspace
 
