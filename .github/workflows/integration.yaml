@@ -209,8 +209,6 @@ jobs:
 
   e2e-test:
     runs-on: ubuntu-latest
-    env:
-      GOPROXY: "https://proxy.golang.org|direct"
     strategy:
       matrix:
         k8s_version:
@@ -232,19 +230,6 @@ jobs:
         uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6
         with:
           go-version-file: go.mod
-
-      - name: Download Go modules
-        run: |
-          for attempt in 1 2 3; do
-            if go mod download; then
-              exit 0
-            fi
-            if [ "$attempt" -eq 3 ]; then
-              exit 1
-            fi
-            echo "go mod download failed (attempt $attempt/3), retrying..."
-            sleep $((attempt * 10))
-          done
 
       - name: Create a Kind cluster
         run: make kind-create-cluster KIND_K8S_VERSION=${{ matrix.k8s_version }}
