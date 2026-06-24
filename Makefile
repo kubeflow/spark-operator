@@ -216,6 +216,30 @@ build-api-docs: gen-crd-api-reference-docs ## Build api documentation.
 	-template-dir hack/api-docs/template \
 	-out-file docs/api-docs.md
 
+##@ Documentation
+
+.PHONY: docs
+docs: ## Build the documentation website (HTML) with Sphinx.
+	cd docs/website && $(MAKE) html
+
+.PHONY: docs-test
+docs-test: ## Build the documentation website strictly (warnings treated as errors).
+	cd docs/website && $(MAKE) test
+
+.PHONY: docs-serve
+docs-serve: ## Build and serve the documentation website locally with live reload.
+	cd docs/website && $(MAKE) serve
+
+.PHONY: docs-linkcheck
+docs-linkcheck: ## Check all links in the documentation website.
+	cd docs/website && $(MAKE) linkcheck
+
+.PHONY: docs-clean
+docs-clean: ## Remove documentation website build artifacts.
+	cd docs/website && $(MAKE) clean
+
+##@ Build
+
 # If you wish to build the operator image targeting other platforms you can use the --platform flag.
 # (i.e. docker build --platform linux/arm64). However, you must enable docker buildKit for it.
 # More info: https://docs.docker.com/develop/develop-images/build_enhancements/

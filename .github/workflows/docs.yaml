@@ -1,0 +1,67 @@
+name: Documentation
+
+# Builds and link-checks the documentation website on every change.
+# This validates the docs in CI; publishing is handled separately by
+# Read the Docs (see .readthedocs.yaml), not by this workflow.
+
+on:
+  pull_request:
+    paths:
+      - "docs/website/**"
+      - ".readthedocs.yaml"
+      - ".github/workflows/docs.yaml"
+  push:
+    branches: [master]
+    paths:
+      - "docs/website/**"
+      - ".readthedocs.yaml"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    working-directory: docs/website
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    name: Build Documentation
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
+        with:
+          enable-cache: true
+
+      - name: Build documentation (warnings treated as errors)
+        run: uv run --group docs sphinx-build -b html -W --keep-going . _build/html
+
+      - name: Upload documentation artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: documentation
+          path: docs/website/_build/html
+          retention-days: 7
+
+  linkcheck:
+    runs-on: ubuntu-latest
+    name: Check Links
+    # Non-blocking: external links can be flaky and should not fail the PR.
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
+        with:
+          enable-cache: true
+
+      - name: Check links
+        # Informational only — a broken link is reported but never fails the check.
+        run: uv run --group docs sphinx-build -b linkcheck . _build/linkcheck || true
