@@ -128,7 +128,6 @@ var (
 	healthProbeBindAddress                      string
 	pprofBindAddress                            string
 	secureMetrics                               bool
-	enableHTTP2                                 bool
 	tlsMinVersion                               string
 	tlsCipherSuites                             []string
 	scheduledSparkApplicationTimestampPrecision string
@@ -238,7 +237,6 @@ func NewStartCommand() *cobra.Command {
 
 	command.Flags().StringVar(&healthProbeBindAddress, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
 	command.Flags().BoolVar(&secureMetrics, "secure-metrics", false, "If set the metrics endpoint is served securely")
-	command.Flags().BoolVar(&enableHTTP2, "enable-http2", false, "If set, HTTP/2 will be enabled for the metrics and webhook servers")
 	command.Flags().StringVar(&tlsMinVersion, "metric-tls-min-version", "VersionTLS12",
 		"Minimum TLS version for the metrics server. "+
 			"Possible values: VersionTLS12, VersionTLS13")
@@ -288,7 +286,7 @@ func start() {
 	cfg.Burst = kubeAPIBurst
 
 	// Create the manager.
-	tlsOptions, err := operatortls.SetupTLS(tlsMinVersion, tlsCipherSuites, enableHTTP2)
+	tlsOptions, err := operatortls.SetupTLS(tlsMinVersion, tlsCipherSuites)
 	if err != nil {
 		logger.Error(err, "Failed to set up TLS")
 		os.Exit(1)
