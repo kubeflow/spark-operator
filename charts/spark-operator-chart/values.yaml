@@ -55,6 +55,15 @@ hook:
     # -- Image tag.
     # @default -- If not set, the chart appVersion will be used.
     tag: ""
+  # -- Pod resource requests and limits for the Helm hook Job container.
+  resources:
+    requests:
+      cpu: 100m
+      memory: 64Mi
+    limits:
+      cpu: 100m
+      memory: 64Mi
+
   # -- Node selector for the Helm hook Job.
   nodeSelector: {}
 

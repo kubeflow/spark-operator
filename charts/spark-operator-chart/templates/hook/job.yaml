@@ -51,13 +51,10 @@ spec:
         - --force-conflicts
         - -f
         - /etc/spark-operator/crds
+        {{- with .Values.hook.resources }}
         resources:
-          requests:
-            cpu: 100m
-            memory: 64Mi
-          limits:
-            cpu: 100m
-            memory: 64Mi
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
         securityContext:
           readOnlyRootFilesystem: true
           privileged: false
