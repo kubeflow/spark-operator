@@ -102,7 +102,8 @@ See [helm uninstall](https://helm.sh/docs/helm/helm_uninstall) for command docum
 | controller.workers | int | `10` | Reconcile concurrency, higher values might increase memory usage. |
 | controller.logLevel | string | `"info"` | Configure the verbosity of logging, can be one of `debug`, `info`, `error`. |
 | controller.logEncoder | string | `"console"` | Configure the encoder of logging, can be one of `console` or `json`. |
-| controller.driverPodCreationGracePeriod | string | `"10s"` | Grace period after a successful spark-submit when driver pod not found errors will be retried. Useful if the driver pod can take some time to be created. |
+| controller.driverPodCreationGracePeriod | string | `"10s"` | Grace period after a successful spark-submit when driver pod not found errors will be retried. Also caps how long an in-flight spark-submit is given to exit after SIGTERM during controller shutdown (reconcile context is cancelled immediately on SIGTERM; this window is for reaping the JVM subprocess). Set lower than `terminationGracePeriodSeconds` so the manager exits before the kubelet sends SIGKILL. |
+| controller.terminationGracePeriodSeconds | int | `60` | Termination grace period for the controller pod. The kubelet sends SIGKILL when this elapses. Must be set higher than `controller.driverPodCreationGracePeriod` so the manager has time to interrupt and reap in-flight `spark-submit` subprocesses before the process is forcibly killed. |
 | controller.maxTrackedExecutorPerApp | int | `1000` | Specifies the maximum number of Executor pods that can be tracked by the controller per SparkApplication. |
 | controller.kubeAPIQPS | int | `20` | Maximum QPS to the API server from the controller client. |
 | controller.kubeAPIBurst | int | `30` | Maximum burst for throttle from the controller client. |
