@@ -87,6 +87,7 @@ See [helm uninstall](https://helm.sh/docs/helm/helm_uninstall) for command docum
 | hook.image.registry | string | `"ghcr.io"` | Image registry. |
 | hook.image.repository | string | `"kubeflow/spark-operator/kubectl"` | Image repository. |
 | hook.image.tag | string | If not set, the chart appVersion will be used. | Image tag. |
+| hook.resources | object | `{"limits":{"cpu":"100m","memory":"64Mi"},"requests":{"cpu":"100m","memory":"64Mi"}}` | Pod resource requests and limits for the Helm hook Job container. |
 | hook.nodeSelector | object | `{}` | Node selector for the Helm hook Job. |
 | hook.affinity | object | `{}` | Affinity for the Helm hook Job. |
 | hook.tolerations | list | `[]` | List of node taints to tolerate for the Helm hook Job. |

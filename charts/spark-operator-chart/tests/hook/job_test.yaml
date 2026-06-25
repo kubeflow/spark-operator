@@ -66,6 +66,43 @@ tests:
       path: spec.template.spec.containers[*].imagePullPolicy
       value: Always
 
+- it: Should use the default resources
+  set:
+    hook:
+      upgradeCrd: true
+  asserts:
+    - equal:
+        path: spec.template.spec.containers[?(@.name=="spark-operator-hook")].resources
+        value:
+          requests:
+            cpu: 100m
+            memory: 64Mi
+          limits:
+            cpu: 100m
+            memory: 64Mi
+
+- it: Should add resources if `hook.resources` is set
+  set:
+    hook:
+      upgradeCrd: true
+      resources:
+        requests:
+          cpu: 200m
+          memory: 256Mi
+        limits:
+          cpu: 500m
+          memory: 512Mi
+  asserts:
+    - equal:
+        path: spec.template.spec.containers[?(@.name=="spark-operator-hook")].resources
+        value:
+          requests:
+            cpu: 200m
+            memory: 256Mi
+          limits:
+            cpu: 500m
+            memory: 512Mi
+
 - it: Should add nodeSelector if `hook.nodeSelector` is set
   set:
     hook:
