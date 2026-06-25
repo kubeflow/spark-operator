@@ -147,4 +147,71 @@ var _ = Describe("mutateServerService", func() {
 			Expect(svc.Spec.Ports[0].Name).To(Equal("spark-connect-server"))
 		})
 	})
+
+	Context("when the user supplies ports via Server.Service", func() {
+		portNames := func(svc *corev1.Service) []string {
+			names := make([]string, 0, len(svc.Spec.Ports))
+			for _, p := range svc.Spec.Ports {
+				names = append(names, p.Name)
+			}
+			return names
+		}
+
+		It("should preserve a custom port and append all required ports", func() {
+			conn.Spec.Server.Service = &corev1.Service{
+				Spec: corev1.ServiceSpec{
+					Ports: []corev1.ServicePort{
+						{Name: "custom", Port: 9999},
+					},
+				},
+			}
+			svc := &corev1.Service{
+				ObjectMeta: metav1.ObjectMeta{Namespace: conn.Namespace},
+				Spec: corev1.ServiceSpec{
+					Ports: []corev1.ServicePort{
+						{Name: "custom", Port: 9999},
+					},
+				},
+			}
+			err := reconciler.mutateServerService(context.TODO(), conn, svc)
+			Expect(err).NotTo(HaveOccurred())
+
+			// Custom port preserved, all four required ports appended.
+			Expect(svc.Spec.Ports).To(HaveLen(5))
+			Expect(portNames(svc)).To(ContainElements(
+				"custom", "driver-rpc", "blockmanager", "web-ui", "spark-connect-server",
+			))
+		})
+
+		It("should not overwrite a user-defined required port", func() {
+			conn.Spec.Server.Service = &corev1.Service{
+				Spec: corev1.ServiceSpec{
+					Ports: []corev1.ServicePort{
+						{Name: "web-ui", Port: 8080},
+					},
+				},
+			}
+			svc := &corev1.Service{
+				ObjectMeta: metav1.ObjectMeta{Namespace: conn.Namespace},
+				Spec: corev1.ServiceSpec{
+					Ports: []corev1.ServicePort{
+						{Name: "web-ui", Port: 8080},
+					},
+				},
+			}
+			err := reconciler.mutateServerService(context.TODO(), conn, svc)
+			Expect(err).NotTo(HaveOccurred())
+
+			// The user's web-ui port wins; the other three required ports are appended.
+			Expect(svc.Spec.Ports).To(HaveLen(4))
+			Expect(portNames(svc)).To(ContainElements(
+				"driver-rpc", "blockmanager", "web-ui", "spark-connect-server",
+			))
+			for _, p := range svc.Spec.Ports {
+				if p.Name == "web-ui" {
+					Expect(p.Port).To(Equal(int32(8080)))
+				}
+			}
+		})
+	})
 })

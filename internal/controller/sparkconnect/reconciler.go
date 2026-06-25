@@ -498,40 +498,28 @@ func (r *Reconciler) createOrUpdateServerService(ctx context.Context, conn *v1al
 }
 
 // mutateServerService mutates the server service for the SparkConnect resource.
+// On creation, it preserves any user-supplied ports and appends the required
+// ports (by name) that are missing. Existing services are left untouched.
 func (r *Reconciler) mutateServerService(_ context.Context, conn *v1alpha1.SparkConnect, svc *corev1.Service) error {
 	if svc.CreationTimestamp.IsZero() {
-		svc.Spec.Ports = []corev1.ServicePort{
-			{
-				Name:        "driver-rpc",
-				Port:        7078,
-				TargetPort:  intstr.FromInt(7078),
-				Protocol:    corev1.ProtocolTCP,
-				AppProtocol: ptr.To("tcp"),
-			},
-			{
-				Name:        "blockmanager",
-				Port:        7079,
-				TargetPort:  intstr.FromInt(7079),
-				Protocol:    corev1.ProtocolTCP,
-				AppProtocol: ptr.To("tcp"),
-			},
-			{
-				Name:        "web-ui",
-				Port:        4040,
-				TargetPort:  intstr.FromInt(4040),
-				Protocol:    corev1.ProtocolTCP,
-				AppProtocol: ptr.To("http"),
-			},
-			{
-				Name:        "spark-connect-server",
-				Port:        15002,
-				TargetPort:  intstr.FromInt(15002),
-				Protocol:    corev1.ProtocolTCP,
-				AppProtocol: ptr.To("grpc"),
-			},
+		requiredPorts := []corev1.ServicePort{
+			{Name: "blockmanager", Port: 7079, TargetPort: intstr.FromInt32(7079), Protocol: corev1.ProtocolTCP, AppProtocol: ptr.To("tcp")},
+			{Name: "driver-rpc", Port: 7078, TargetPort: intstr.FromInt32(7078), Protocol: corev1.ProtocolTCP, AppProtocol: ptr.To("tcp")},
+			{Name: "spark-connect-server", Port: 15002, TargetPort: intstr.FromInt32(15002), Protocol: corev1.ProtocolTCP, AppProtocol: ptr.To("grpc")},
+			{Name: "web-ui", Port: 4040, TargetPort: intstr.FromInt32(4040), Protocol: corev1.ProtocolTCP, AppProtocol: ptr.To("http")},
 		}
 
-		// Set pod label selector on server service.
+		ports := map[string]struct{}{}
+		for _, port := range svc.Spec.Ports {
+			ports[port.Name] = struct{}{}
+		}
+		for _, port := range requiredPorts {
+			_, ok := ports[port.Name]
+			if !ok {
+				svc.Spec.Ports = append(svc.Spec.Ports, port)
+			}
+		}
+
 		if svc.Spec.Selector == nil {
 			svc.Spec.Selector = map[string]string{}
 		}
