@@ -23,6 +23,15 @@ labels:
       app.kubernetes.io/name: spark-operator
       app.kubernetes.io/managed-by: kustomize
 
+# Enable driver PDB feature for kustomize-based deployments.
+# The flag defaults to false in the binary; this patch enables it here so that
+# kustomize CI/e2e tests match the helm ci-values.yaml behaviour.
+patches:
+  - path: enable-driver-pdb-patch.yaml
+    target:
+      kind: Deployment
+      name: spark-operator-controller
+
 # Image configuration - tag is derived from the VERSION file at the repo root.
 # To update: make kustomize-set-image
 # CI/e2e tests override this via: kustomize edit set image ...

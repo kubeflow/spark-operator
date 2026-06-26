@@ -42,6 +42,7 @@ class SparkV1beta2SparkApplicationSpec(BaseModel):
     deps: Optional[SparkV1beta2Dependencies] = Field(default=None, description="Deps captures all possible types of dependencies of a Spark application.")
     driver: SparkV1beta2DriverSpec = Field(description="Driver is the driver specification.")
     driver_ingress_options: Optional[List[SparkV1beta2DriverIngressConfiguration]] = Field(default=None, description="DriverIngressOptions allows configuring the Service and the Ingress to expose ports inside Spark Driver", alias="driverIngressOptions")
+    driver_pod_disruption_budget: Optional[StrictBool] = Field(default=None, description="DriverPodDisruptionBudget controls whether a PodDisruptionBudget is created for the driver pod to prevent voluntary eviction (e.g. kubectl drain) while the application is running. A PDB is only created when this field is true AND the operator was started with --enable-driver-pdb. When unset or false, no PDB is created. The field has no effect when the operator-level gate is off.", alias="driverPodDisruptionBudget")
     dynamic_allocation: Optional[SparkV1beta2DynamicAllocation] = Field(default=None, description="DynamicAllocation configures dynamic allocation that becomes available for the Kubernetes scheduler backend since Spark 3.0.", alias="dynamicAllocation")
     executor: SparkV1beta2ExecutorSpec = Field(description="Executor is the executor specification.")
     failure_retries: Optional[StrictInt] = Field(default=None, description="FailureRetries is the number of times to retry a failed application before giving up. This is best effort and actual retry attempts can be >= the value specified.", alias="failureRetries")
@@ -68,7 +69,7 @@ class SparkV1beta2SparkApplicationSpec(BaseModel):
     time_to_live_seconds: Optional[StrictInt] = Field(default=None, description="TimeToLiveSeconds defines the Time-To-Live (TTL) duration in seconds for this SparkApplication after its termination. The SparkApplication object will be garbage collected if the current time is more than the TimeToLiveSeconds since its termination.", alias="timeToLiveSeconds")
     type: StrictStr = Field(description="Type tells the type of the Spark application.")
     volumes: Optional[List[IoK8sApiCoreV1Volume]] = Field(default=None, description="Volumes is the list of Kubernetes volumes that can be mounted by the driver and/or executors.")
-    __properties: ClassVar[List[str]] = ["arguments", "batchScheduler", "batchSchedulerOptions", "deps", "driver", "driverIngressOptions", "dynamicAllocation", "executor", "failureRetries", "hadoopConf", "hadoopConfigMap", "image", "imagePullPolicy", "imagePullSecrets", "mainApplicationFile", "mainClass", "memoryOverheadFactor", "mode", "monitoring", "nodeSelector", "proxyUser", "pythonVersion", "restartPolicy", "retryInterval", "sparkConf", "sparkConfigMap", "sparkUIOptions", "sparkVersion", "suspend", "timeToLiveSeconds", "type", "volumes"]
+    __properties: ClassVar[List[str]] = ["arguments", "batchScheduler", "batchSchedulerOptions", "deps", "driver", "driverIngressOptions", "driverPodDisruptionBudget", "dynamicAllocation", "executor", "failureRetries", "hadoopConf", "hadoopConfigMap", "image", "imagePullPolicy", "imagePullSecrets", "mainApplicationFile", "mainClass", "memoryOverheadFactor", "mode", "monitoring", "nodeSelector", "proxyUser", "pythonVersion", "restartPolicy", "retryInterval", "sparkConf", "sparkConfigMap", "sparkUIOptions", "sparkVersion", "suspend", "timeToLiveSeconds", "type", "volumes"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -165,6 +166,7 @@ class SparkV1beta2SparkApplicationSpec(BaseModel):
             "deps": SparkV1beta2Dependencies.from_dict(obj["deps"]) if obj.get("deps") is not None else None,
             "driver": SparkV1beta2DriverSpec.from_dict(obj["driver"]) if obj.get("driver") is not None else None,
             "driverIngressOptions": [SparkV1beta2DriverIngressConfiguration.from_dict(_item) for _item in obj["driverIngressOptions"]] if obj.get("driverIngressOptions") is not None else None,
+            "driverPodDisruptionBudget": obj.get("driverPodDisruptionBudget"),
             "dynamicAllocation": SparkV1beta2DynamicAllocation.from_dict(obj["dynamicAllocation"]) if obj.get("dynamicAllocation") is not None else None,
             "executor": SparkV1beta2ExecutorSpec.from_dict(obj["executor"]) if obj.get("executor") is not None else None,
             "failureRetries": obj.get("failureRetries"),

@@ -535,6 +535,41 @@ tests:
             verbs:
               - patch
 
+  - it: Should grant poddisruptionbudgets only get/list/watch/create/delete in ClusterRole
+    set:
+      spark:
+        jobNamespaces:
+          - ""
+    documentIndex: 0
+    asserts:
+      - contains:
+          path: rules
+          content:
+            apiGroups:
+              - policy
+            resources:
+              - poddisruptionbudgets
+            verbs:
+              - get
+              - list
+              - watch
+              - create
+              - delete
+      - notContains:
+          path: rules
+          content:
+            resources:
+              - poddisruptionbudgets
+            verbs:
+              - update
+      - notContains:
+          path: rules
+          content:
+            resources:
+              - poddisruptionbudgets
+            verbs:
+              - patch
+
   - it: Should grant only update on finalizer subresources in ClusterRole
     set:
       spark:

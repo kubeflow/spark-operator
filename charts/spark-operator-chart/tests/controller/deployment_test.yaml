@@ -240,6 +240,22 @@ tests:
           path: spec.template.spec.containers[?(@.name=="spark-operator-controller")].args
           content: --enable-batch-scheduler=true
 
+  - it: Should not contain `--enable-driver-pdb` arg by default
+    asserts:
+      - notContains:
+          path: spec.template.spec.containers[?(@.name=="spark-operator-controller")].args
+          content: --enable-driver-pdb=true
+
+  - it: Should contain `--enable-driver-pdb` arg if `controller.driverPodDisruptionBudget.enable` is `true`
+    set:
+      controller:
+        driverPodDisruptionBudget:
+          enable: true
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[?(@.name=="spark-operator-controller")].args
+          content: --enable-driver-pdb=true
+
   - it: Should contain `--default-batch-scheduler` arg if `controller.batchScheduler.default` is set
     set:
       controller:

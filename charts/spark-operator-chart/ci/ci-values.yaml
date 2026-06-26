@@ -13,6 +13,8 @@ spark:
 controller:
   kubeAPIQPS: 100
   kubeAPIBurst: 100
+  driverPodDisruptionBudget:
+    enable: true
 
 webhook:
   kubeAPIQPS: 100
