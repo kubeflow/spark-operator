@@ -76,3 +76,12 @@ Spark Operator image
 {{- define "spark-operator.image" -}}
 {{ printf "%s/%s:%s" .Values.image.registry .Values.image.repository (.Values.image.tag | default .Chart.AppVersion | toString) }}
 {{- end -}}
+
+{{/*
+Whether the RestSubmitter feature gate is enabled.
+*/}}
+{{- define "spark-operator.submitter.enabled" -}}
+{{- range .Values.controller.featureGates -}}
+{{- if and (eq .name "RestSubmitter") .enabled -}}true{{- end -}}
+{{- end -}}
+{{- end -}}

@@ -94,7 +94,7 @@ See [helm uninstall](https://helm.sh/docs/helm/helm_uninstall) for command docum
 | hook.labels | object | `{}` | Extra labels for the Helm hook Job pod. |
 | hook.annotations | object | `{}` | Extra annotations for the Helm hook Job pod. |
 | controller.replicas | int | `1` | Number of replicas of controller. |
-| controller.featureGates | list | `[{"enabled":false,"name":"PartialRestart"},{"enabled":false,"name":"LoadSparkDefaults"}]` | Feature gates to enable or disable specific features. |
+| controller.featureGates | list | `[{"enabled":false,"name":"PartialRestart"},{"enabled":false,"name":"LoadSparkDefaults"},{"enabled":false,"name":"RestSubmitter"}]` | Feature gates to enable or disable specific features. |
 | controller.revisionHistoryLimit | int | `10` | The number of old history to retain to allow rollback. |
 | controller.leaderElection.enable | bool | `true` | Specifies whether to enable leader election for controller. |
 | controller.leaderElection.leaseDuration | string | `"15s"` | Leader election lease duration. |
@@ -148,6 +148,13 @@ See [helm uninstall](https://helm.sh/docs/helm/helm_uninstall) for command docum
 | controller.workqueueRateLimiter.bucketSize | int | `500` | Specifies the maximum number of items that can be in the workqueue at any given time. |
 | controller.workqueueRateLimiter.maxDelay.enable | bool | `true` | Specifies whether to enable max delay for the workqueue rate limiter. This is useful to avoid losing events when the workqueue is full. |
 | controller.workqueueRateLimiter.maxDelay.duration | string | `"6h"` | Specifies the maximum delay duration for the workqueue rate limiter. |
+| submitter.serviceUrl | string | `"http://spark-operator-submitter-svc:8080/api/v1/spark-submit"` | URL of the REST submitter service endpoint. |
+| submitter.requestTimeout | string | `"2m"` | HTTP request timeout per spark submission attempt. |
+| submitter.startupTimeout | string | `"5m"` | How long the controller waits for the submitter service to become reachable at startup. |
+| submitter.maxRetries | int | `3` | Max retry attempts for transient submission failures. |
+| submitter.initialBackoff | string | `"2s"` | Initial backoff duration before the first retry. Doubles on each subsequent attempt. |
+| submitter.startupProbe.periodSeconds | int | `5` | Seconds between probe attempts. |
+| submitter.startupProbe.failureThreshold | int | `60` | Number of failures before restart. (failureThreshold × periodSeconds) should >= startupTimeout. |
 | webhook.enable | bool | `true` | Specifies whether to enable webhook. |
 | webhook.replicas | int | `1` | Number of replicas of webhook server. |
 | webhook.revisionHistoryLimit | int | `10` | The number of old history to retain to allow rollback. |

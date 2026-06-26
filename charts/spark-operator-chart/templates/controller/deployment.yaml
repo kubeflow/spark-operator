@@ -140,6 +140,13 @@ spec:
         {{- if .Values.controller.featureGates }}
         - --feature-gates={{ range $index, $gate := .Values.controller.featureGates }}{{ if $index }},{{ end }}{{ $gate.name }}={{ $gate.enabled }}{{ end }}
         {{- end }}
+        {{- if include "spark-operator.submitter.enabled" . }}
+        - --submitter-service-url={{ .Values.submitter.serviceUrl }}
+        - --submitter-request-timeout={{ .Values.submitter.requestTimeout }}
+        - --submitter-startup-timeout={{ .Values.submitter.startupTimeout }}
+        - --submitter-max-retries={{ .Values.submitter.maxRetries }}
+        - --submitter-initial-backoff={{ .Values.submitter.initialBackoff }}
+        {{- end }}
         {{- if or .Values.prometheus.metrics.enable .Values.controller.pprof.enable }}
         ports:
         {{- if .Values.controller.pprof.enable }}
@@ -166,6 +173,15 @@ spec:
         {{- with .Values.controller.resources }}
         resources:
           {{- toYaml . | nindent 10 }}
+        {{- end }}
+        {{- if include "spark-operator.submitter.enabled" . }}
+        startupProbe:
+          httpGet:
+            port: 8081
+            scheme: HTTP
+            path: /healthz
+          failureThreshold: {{ .Values.submitter.startupProbe.failureThreshold }}
+          periodSeconds: {{ .Values.submitter.startupProbe.periodSeconds }}
         {{- end }}
         livenessProbe:
           httpGet:
