@@ -17,6 +17,8 @@ limitations under the License.
 package util
 
 import (
+	"strconv"
+
 	corev1 "k8s.io/api/core/v1"
 
 	"github.com/kubeflow/spark-operator/v2/pkg/common"
@@ -40,6 +42,25 @@ func IsExecutorPod(pod *corev1.Pod) bool {
 // GetSparkExecutorID returns the Spark executor ID by checking out pod labels.
 func GetSparkExecutorID(pod *corev1.Pod) string {
 	return pod.Labels[common.LabelSparkExecutorID]
+}
+
+// ParseExecutorIDFromPodName returns the trailing integer in a Spark executor
+// pod name. Returns 0 if no trailing digits are present.
+// NOTE: This is a fallback for contexts where only the pod name is available
+// and the pod object (with its LabelSparkExecutorID label) can no longer be
+// retrieved — e.g. iterating Status.ExecutorState keys for terminated/UNKNOWN
+// executors whose pods are gone. For live pods, prefer GetSparkExecutorID.
+func ParseExecutorIDFromPodName(name string) int {
+	end := len(name)
+	start := end
+	for start > 0 && name[start-1] >= '0' && name[start-1] <= '9' {
+		start--
+	}
+	if start == end {
+		return 0
+	}
+	id, _ := strconv.Atoi(name[start:end])
+	return id
 }
 
 // GetAppName returns the spark application name by checking out pod labels.

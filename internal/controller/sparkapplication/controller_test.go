@@ -757,6 +757,559 @@ var _ = Describe("SparkApplication Controller", func() {
 		})
 	})
 
+	Context("When the live executor count is below the cap but executor IDs exceed it", func() {
+		ctx := context.Background()
+		appName := "test-high-id"
+		appNamespace := "default"
+		key := types.NamespacedName{Name: appName, Namespace: appNamespace}
+		lowID := 1
+		highID := 5
+
+		BeforeEach(func() {
+			app := &v1beta2.SparkApplication{}
+			if err := k8sClient.Get(ctx, key, app); err != nil && errors.IsNotFound(err) {
+				app = &v1beta2.SparkApplication{
+					ObjectMeta: metav1.ObjectMeta{Name: appName, Namespace: appNamespace},
+					Spec:       v1beta2.SparkApplicationSpec{MainApplicationFile: ptr.To("local:///dummy.jar")},
+				}
+				v1beta2.SetSparkApplicationDefaults(app)
+				Expect(k8sClient.Create(ctx, app)).To(Succeed())
+			}
+			driverPod := createDriverPod(appName, appNamespace)
+			Expect(k8sClient.Create(ctx, driverPod)).To(Succeed())
+			driverPod.Status.Phase = corev1.PodRunning
+			Expect(k8sClient.Status().Update(ctx, driverPod)).To(Succeed())
+
+			app.Status.DriverInfo.PodName = driverPod.Name
+			app.Status.AppState.State = v1beta2.ApplicationStateRunning
+			Expect(k8sClient.Status().Update(ctx, app)).To(Succeed())
+
+			for _, id := range []int{lowID, highID} {
+				pod := createExecutorPod(appName, appNamespace, id)
+				Expect(k8sClient.Create(ctx, pod)).To(Succeed())
+				pod.Status.Phase = corev1.PodRunning
+				Expect(k8sClient.Status().Update(ctx, pod)).To(Succeed())
+			}
+		})
+
+		AfterEach(func() {
+			app := &v1beta2.SparkApplication{}
+			Expect(k8sClient.Get(ctx, key, app)).To(Succeed())
+			Expect(k8sClient.Delete(ctx, app)).To(Succeed())
+
+			driverPod := &corev1.Pod{}
+			Expect(k8sClient.Get(ctx, getDriverNamespacedName(appName, appNamespace), driverPod)).To(Succeed())
+			Expect(k8sClient.Delete(ctx, driverPod)).To(Succeed())
+
+			for _, id := range []int{lowID, highID} {
+				pod := &corev1.Pod{}
+				Expect(k8sClient.Get(ctx, getExecutorNamespacedName(appName, appNamespace, id), pod)).To(Succeed())
+				Expect(k8sClient.Delete(ctx, pod)).To(Succeed())
+			}
+		})
+
+		It("Should track every live executor", func() {
+			reconciler := sparkapplication.NewReconciler(
+				nil,
+				k8sClient.Scheme(),
+				k8sClient,
+				record.NewFakeRecorder(3),
+				nil,
+				&sparkapplication.SparkSubmitter{},
+				sparkapplication.Options{Namespaces: []string{appNamespace}, MaxTrackedExecutorPerApp: 3},
+			)
+			result, err := reconciler.Reconcile(ctx, reconcile.Request{NamespacedName: key})
+			Expect(err).NotTo(HaveOccurred())
+			Expect(result.Requeue).To(BeFalse())
+
+			app := &v1beta2.SparkApplication{}
+			Expect(k8sClient.Get(ctx, key, app)).NotTo(HaveOccurred())
+			Expect(app.Status.ExecutorState).To(HaveLen(2))
+			Expect(app.Status.ExecutorState).To(HaveKey(getExecutorNamespacedName(appName, appNamespace, highID).Name))
+			Expect(app.Status.ExecutorState[getExecutorNamespacedName(appName, appNamespace, highID).Name]).To(Equal(v1beta2.ExecutorStateRunning))
+		})
+	})
+
+	Context("When executors churn and are replaced with higher IDs", func() {
+		ctx := context.Background()
+		appName := "test-churn"
+		appNamespace := "default"
+		key := types.NamespacedName{Name: appName, Namespace: appNamespace}
+		initialIDs := []int{1, 2, 3, 4}
+		replacementIDs := []int{5, 6, 7, 8}
+
+		BeforeEach(func() {
+			app := &v1beta2.SparkApplication{}
+			if err := k8sClient.Get(ctx, key, app); err != nil && errors.IsNotFound(err) {
+				app = &v1beta2.SparkApplication{
+					ObjectMeta: metav1.ObjectMeta{Name: appName, Namespace: appNamespace},
+					Spec:       v1beta2.SparkApplicationSpec{MainApplicationFile: ptr.To("local:///dummy.jar")},
+				}
+				v1beta2.SetSparkApplicationDefaults(app)
+				Expect(k8sClient.Create(ctx, app)).To(Succeed())
+			}
+			driverPod := createDriverPod(appName, appNamespace)
+			Expect(k8sClient.Create(ctx, driverPod)).To(Succeed())
+			driverPod.Status.Phase = corev1.PodRunning
+			Expect(k8sClient.Status().Update(ctx, driverPod)).To(Succeed())
+
+			app.Status.DriverInfo.PodName = driverPod.Name
+			app.Status.AppState.State = v1beta2.ApplicationStateRunning
+			Expect(k8sClient.Status().Update(ctx, app)).To(Succeed())
+		})
+
+		AfterEach(func() {
+			app := &v1beta2.SparkApplication{}
+			Expect(k8sClient.Get(ctx, key, app)).To(Succeed())
+			Expect(k8sClient.Delete(ctx, app)).To(Succeed())
+
+			driverPod := &corev1.Pod{}
+			Expect(k8sClient.Get(ctx, getDriverNamespacedName(appName, appNamespace), driverPod)).To(Succeed())
+			Expect(k8sClient.Delete(ctx, driverPod)).To(Succeed())
+
+			podList := &corev1.PodList{}
+			Expect(k8sClient.List(ctx, podList, &client.ListOptions{Namespace: appNamespace})).To(Succeed())
+			for i := range podList.Items {
+				pod := &podList.Items[i]
+				if util.IsExecutorPod(pod) && pod.Labels[common.LabelSparkAppName] == appName {
+					Expect(k8sClient.Delete(ctx, pod)).To(Succeed())
+				}
+			}
+		})
+
+		It("Should report replacement executors as Running after the original executors are deleted", func() {
+			reconciler := sparkapplication.NewReconciler(
+				nil,
+				k8sClient.Scheme(),
+				k8sClient,
+				record.NewFakeRecorder(10),
+				nil,
+				&sparkapplication.SparkSubmitter{},
+				sparkapplication.Options{Namespaces: []string{appNamespace}, MaxTrackedExecutorPerApp: 10},
+			)
+
+			By("Spawning the initial executor pods")
+			for _, id := range initialIDs {
+				pod := createExecutorPod(appName, appNamespace, id)
+				Expect(k8sClient.Create(ctx, pod)).To(Succeed())
+				pod.Status.Phase = corev1.PodRunning
+				Expect(k8sClient.Status().Update(ctx, pod)).To(Succeed())
+			}
+
+			_, err := reconciler.Reconcile(ctx, reconcile.Request{NamespacedName: key})
+			Expect(err).NotTo(HaveOccurred())
+
+			By("Deleting the initial executor pods")
+			for _, id := range initialIDs {
+				pod := &corev1.Pod{}
+				Expect(k8sClient.Get(ctx, getExecutorNamespacedName(appName, appNamespace, id), pod)).To(Succeed())
+				Expect(k8sClient.Delete(ctx, pod)).To(Succeed())
+			}
+
+			By("Spawning replacement executor pods with higher IDs")
+			for _, id := range replacementIDs {
+				pod := createExecutorPod(appName, appNamespace, id)
+				Expect(k8sClient.Create(ctx, pod)).To(Succeed())
+				pod.Status.Phase = corev1.PodRunning
+				Expect(k8sClient.Status().Update(ctx, pod)).To(Succeed())
+			}
+
+			_, err = reconciler.Reconcile(ctx, reconcile.Request{NamespacedName: key})
+			Expect(err).NotTo(HaveOccurred())
+
+			app := &v1beta2.SparkApplication{}
+			Expect(k8sClient.Get(ctx, key, app)).NotTo(HaveOccurred())
+
+			runningCount := 0
+			for _, state := range app.Status.ExecutorState {
+				if state == v1beta2.ExecutorStateRunning {
+					runningCount++
+				}
+			}
+			Expect(runningCount).To(Equal(len(replacementIDs)))
+
+			for _, id := range replacementIDs {
+				name := getExecutorNamespacedName(appName, appNamespace, id).Name
+				Expect(app.Status.ExecutorState).To(HaveKeyWithValue(name, v1beta2.ExecutorStateRunning))
+			}
+		})
+
+		It("Should evict stale entries and track replacements up to the cap when churn exceeds it", func() {
+			capacity := 3
+			reconciler := sparkapplication.NewReconciler(
+				nil,
+				k8sClient.Scheme(),
+				k8sClient,
+				record.NewFakeRecorder(20),
+				nil,
+				&sparkapplication.SparkSubmitter{},
+				sparkapplication.Options{Namespaces: []string{appNamespace}, MaxTrackedExecutorPerApp: capacity},
+			)
+
+			By("Spawning the initial executor pods")
+			for _, id := range initialIDs {
+				pod := createExecutorPod(appName, appNamespace, id)
+				Expect(k8sClient.Create(ctx, pod)).To(Succeed())
+				pod.Status.Phase = corev1.PodRunning
+				Expect(k8sClient.Status().Update(ctx, pod)).To(Succeed())
+			}
+
+			_, err := reconciler.Reconcile(ctx, reconcile.Request{NamespacedName: key})
+			Expect(err).NotTo(HaveOccurred())
+
+			By("Deleting the initial executor pods")
+			for _, id := range initialIDs {
+				pod := &corev1.Pod{}
+				Expect(k8sClient.Get(ctx, getExecutorNamespacedName(appName, appNamespace, id), pod)).To(Succeed())
+				Expect(k8sClient.Delete(ctx, pod)).To(Succeed())
+			}
+
+			By("Spawning replacement executor pods with higher IDs")
+			for _, id := range replacementIDs {
+				pod := createExecutorPod(appName, appNamespace, id)
+				Expect(k8sClient.Create(ctx, pod)).To(Succeed())
+				pod.Status.Phase = corev1.PodRunning
+				Expect(k8sClient.Status().Update(ctx, pod)).To(Succeed())
+			}
+
+			_, err = reconciler.Reconcile(ctx, reconcile.Request{NamespacedName: key})
+			Expect(err).NotTo(HaveOccurred())
+
+			app := &v1beta2.SparkApplication{}
+			Expect(k8sClient.Get(ctx, key, app)).NotTo(HaveOccurred())
+
+			// Cap is exceeded by stale entries plus 4 live replacements. The
+			// terminated pass evicts the 3 stale UNKNOWN entries (IDs 1, 2, 3)
+			// first, freeing space for 3 of the 4 replacements. The drop-newest
+			// live policy then drops the highest-ID live entry (ID 8), keeping
+			// IDs 5, 6, 7.
+			Expect(app.Status.ExecutorState).To(HaveLen(capacity))
+			for _, id := range initialIDs {
+				name := getExecutorNamespacedName(appName, appNamespace, id).Name
+				Expect(app.Status.ExecutorState).NotTo(HaveKey(name))
+			}
+			for _, id := range replacementIDs[:capacity] {
+				name := getExecutorNamespacedName(appName, appNamespace, id).Name
+				Expect(app.Status.ExecutorState).To(HaveKeyWithValue(name, v1beta2.ExecutorStateRunning))
+			}
+			for _, id := range replacementIDs[capacity:] {
+				name := getExecutorNamespacedName(appName, appNamespace, id).Name
+				Expect(app.Status.ExecutorState).NotTo(HaveKey(name))
+			}
+		})
+	})
+
+	Context("When the live executor count exceeds the cap", func() {
+		ctx := context.Background()
+		appName := "test-all-live"
+		appNamespace := "default"
+		key := types.NamespacedName{Name: appName, Namespace: appNamespace}
+		liveIDs := []int{1, 2, 3, 4, 5}
+		capacity := 3
+
+		BeforeEach(func() {
+			app := &v1beta2.SparkApplication{}
+			if err := k8sClient.Get(ctx, key, app); err != nil && errors.IsNotFound(err) {
+				app = &v1beta2.SparkApplication{
+					ObjectMeta: metav1.ObjectMeta{Name: appName, Namespace: appNamespace},
+					Spec:       v1beta2.SparkApplicationSpec{MainApplicationFile: ptr.To("local:///dummy.jar")},
+				}
+				v1beta2.SetSparkApplicationDefaults(app)
+				Expect(k8sClient.Create(ctx, app)).To(Succeed())
+			}
+			driverPod := createDriverPod(appName, appNamespace)
+			Expect(k8sClient.Create(ctx, driverPod)).To(Succeed())
+			driverPod.Status.Phase = corev1.PodRunning
+			Expect(k8sClient.Status().Update(ctx, driverPod)).To(Succeed())
+
+			app.Status.DriverInfo.PodName = driverPod.Name
+			app.Status.AppState.State = v1beta2.ApplicationStateRunning
+			Expect(k8sClient.Status().Update(ctx, app)).To(Succeed())
+
+			for _, id := range liveIDs {
+				pod := createExecutorPod(appName, appNamespace, id)
+				Expect(k8sClient.Create(ctx, pod)).To(Succeed())
+				pod.Status.Phase = corev1.PodRunning
+				Expect(k8sClient.Status().Update(ctx, pod)).To(Succeed())
+			}
+		})
+
+		AfterEach(func() {
+			app := &v1beta2.SparkApplication{}
+			Expect(k8sClient.Get(ctx, key, app)).To(Succeed())
+			Expect(k8sClient.Delete(ctx, app)).To(Succeed())
+
+			driverPod := &corev1.Pod{}
+			Expect(k8sClient.Get(ctx, getDriverNamespacedName(appName, appNamespace), driverPod)).To(Succeed())
+			Expect(k8sClient.Delete(ctx, driverPod)).To(Succeed())
+
+			for _, id := range liveIDs {
+				pod := &corev1.Pod{}
+				Expect(k8sClient.Get(ctx, getExecutorNamespacedName(appName, appNamespace, id), pod)).To(Succeed())
+				Expect(k8sClient.Delete(ctx, pod)).To(Succeed())
+			}
+		})
+
+		It("Should drop the newest live executors and keep the oldest within the cap", func() {
+			reconciler := sparkapplication.NewReconciler(
+				nil,
+				k8sClient.Scheme(),
+				k8sClient,
+				record.NewFakeRecorder(10),
+				nil,
+				&sparkapplication.SparkSubmitter{},
+				sparkapplication.Options{Namespaces: []string{appNamespace}, MaxTrackedExecutorPerApp: capacity},
+			)
+			_, err := reconciler.Reconcile(ctx, reconcile.Request{NamespacedName: key})
+			Expect(err).NotTo(HaveOccurred())
+
+			app := &v1beta2.SparkApplication{}
+			Expect(k8sClient.Get(ctx, key, app)).NotTo(HaveOccurred())
+
+			Expect(app.Status.ExecutorState).To(HaveLen(capacity))
+			for _, id := range liveIDs[:capacity] {
+				name := getExecutorNamespacedName(appName, appNamespace, id).Name
+				Expect(app.Status.ExecutorState).To(HaveKeyWithValue(name, v1beta2.ExecutorStateRunning))
+			}
+			for _, id := range liveIDs[capacity:] {
+				name := getExecutorNamespacedName(appName, appNamespace, id).Name
+				Expect(app.Status.ExecutorState).NotTo(HaveKey(name))
+			}
+		})
+	})
+
+	Context("When MaxTrackedExecutorPerApp is zero (no cap)", func() {
+		ctx := context.Background()
+		appName := "test-no-cap"
+		appNamespace := "default"
+		key := types.NamespacedName{Name: appName, Namespace: appNamespace}
+		liveIDs := []int{1, 2, 3, 4, 5}
+
+		BeforeEach(func() {
+			app := &v1beta2.SparkApplication{}
+			if err := k8sClient.Get(ctx, key, app); err != nil && errors.IsNotFound(err) {
+				app = &v1beta2.SparkApplication{
+					ObjectMeta: metav1.ObjectMeta{Name: appName, Namespace: appNamespace},
+					Spec:       v1beta2.SparkApplicationSpec{MainApplicationFile: ptr.To("local:///dummy.jar")},
+				}
+				v1beta2.SetSparkApplicationDefaults(app)
+				Expect(k8sClient.Create(ctx, app)).To(Succeed())
+			}
+			driverPod := createDriverPod(appName, appNamespace)
+			Expect(k8sClient.Create(ctx, driverPod)).To(Succeed())
+			driverPod.Status.Phase = corev1.PodRunning
+			Expect(k8sClient.Status().Update(ctx, driverPod)).To(Succeed())
+
+			app.Status.DriverInfo.PodName = driverPod.Name
+			app.Status.AppState.State = v1beta2.ApplicationStateRunning
+			Expect(k8sClient.Status().Update(ctx, app)).To(Succeed())
+
+			for _, id := range liveIDs {
+				pod := createExecutorPod(appName, appNamespace, id)
+				Expect(k8sClient.Create(ctx, pod)).To(Succeed())
+				pod.Status.Phase = corev1.PodRunning
+				Expect(k8sClient.Status().Update(ctx, pod)).To(Succeed())
+			}
+		})
+
+		AfterEach(func() {
+			app := &v1beta2.SparkApplication{}
+			Expect(k8sClient.Get(ctx, key, app)).To(Succeed())
+			Expect(k8sClient.Delete(ctx, app)).To(Succeed())
+
+			driverPod := &corev1.Pod{}
+			Expect(k8sClient.Get(ctx, getDriverNamespacedName(appName, appNamespace), driverPod)).To(Succeed())
+			Expect(k8sClient.Delete(ctx, driverPod)).To(Succeed())
+
+			for _, id := range liveIDs {
+				pod := &corev1.Pod{}
+				Expect(k8sClient.Get(ctx, getExecutorNamespacedName(appName, appNamespace, id), pod)).To(Succeed())
+				Expect(k8sClient.Delete(ctx, pod)).To(Succeed())
+			}
+		})
+
+		It("Should not evict any executor when the cap is non-positive", func() {
+			reconciler := sparkapplication.NewReconciler(
+				nil,
+				k8sClient.Scheme(),
+				k8sClient,
+				record.NewFakeRecorder(10),
+				nil,
+				&sparkapplication.SparkSubmitter{},
+				sparkapplication.Options{Namespaces: []string{appNamespace}, MaxTrackedExecutorPerApp: 0},
+			)
+			_, err := reconciler.Reconcile(ctx, reconcile.Request{NamespacedName: key})
+			Expect(err).NotTo(HaveOccurred())
+
+			app := &v1beta2.SparkApplication{}
+			Expect(k8sClient.Get(ctx, key, app)).NotTo(HaveOccurred())
+			Expect(app.Status.ExecutorState).To(HaveLen(len(liveIDs)))
+			for _, id := range liveIDs {
+				name := getExecutorNamespacedName(appName, appNamespace, id).Name
+				Expect(app.Status.ExecutorState).To(HaveKeyWithValue(name, v1beta2.ExecutorStateRunning))
+			}
+		})
+	})
+
+	Context("When the executor state map mixes COMPLETED, FAILED, UNKNOWN, and live entries", func() {
+		ctx := context.Background()
+		appName := "test-mixed"
+		appNamespace := "default"
+		key := types.NamespacedName{Name: appName, Namespace: appNamespace}
+		seededStates := map[int]v1beta2.ExecutorState{
+			1: v1beta2.ExecutorStateCompleted,
+			2: v1beta2.ExecutorStateFailed,
+			3: v1beta2.ExecutorStateUnknown,
+			4: v1beta2.ExecutorStateCompleted,
+		}
+		liveIDs := []int{100, 101, 102}
+		capacity := 5
+
+		BeforeEach(func() {
+			app := &v1beta2.SparkApplication{}
+			if err := k8sClient.Get(ctx, key, app); err != nil && errors.IsNotFound(err) {
+				app = &v1beta2.SparkApplication{
+					ObjectMeta: metav1.ObjectMeta{Name: appName, Namespace: appNamespace},
+					Spec:       v1beta2.SparkApplicationSpec{MainApplicationFile: ptr.To("local:///dummy.jar")},
+				}
+				v1beta2.SetSparkApplicationDefaults(app)
+				Expect(k8sClient.Create(ctx, app)).To(Succeed())
+			}
+			driverPod := createDriverPod(appName, appNamespace)
+			Expect(k8sClient.Create(ctx, driverPod)).To(Succeed())
+			driverPod.Status.Phase = corev1.PodRunning
+			Expect(k8sClient.Status().Update(ctx, driverPod)).To(Succeed())
+
+			app.Status.DriverInfo.PodName = driverPod.Name
+			app.Status.AppState.State = v1beta2.ApplicationStateRunning
+			app.Status.ExecutorState = map[string]v1beta2.ExecutorState{}
+			for id, state := range seededStates {
+				app.Status.ExecutorState[getExecutorNamespacedName(appName, appNamespace, id).Name] = state
+			}
+			Expect(k8sClient.Status().Update(ctx, app)).To(Succeed())
+
+			for _, id := range liveIDs {
+				pod := createExecutorPod(appName, appNamespace, id)
+				Expect(k8sClient.Create(ctx, pod)).To(Succeed())
+				pod.Status.Phase = corev1.PodRunning
+				Expect(k8sClient.Status().Update(ctx, pod)).To(Succeed())
+			}
+		})
+
+		AfterEach(func() {
+			app := &v1beta2.SparkApplication{}
+			Expect(k8sClient.Get(ctx, key, app)).To(Succeed())
+			Expect(k8sClient.Delete(ctx, app)).To(Succeed())
+
+			driverPod := &corev1.Pod{}
+			Expect(k8sClient.Get(ctx, getDriverNamespacedName(appName, appNamespace), driverPod)).To(Succeed())
+			Expect(k8sClient.Delete(ctx, driverPod)).To(Succeed())
+
+			for _, id := range liveIDs {
+				pod := &corev1.Pod{}
+				Expect(k8sClient.Get(ctx, getExecutorNamespacedName(appName, appNamespace, id), pod)).To(Succeed())
+				Expect(k8sClient.Delete(ctx, pod)).To(Succeed())
+			}
+		})
+
+		It("Should evict the oldest non-live entries first regardless of which terminal state they hold", func() {
+			reconciler := sparkapplication.NewReconciler(
+				nil,
+				k8sClient.Scheme(),
+				k8sClient,
+				record.NewFakeRecorder(10),
+				nil,
+				&sparkapplication.SparkSubmitter{},
+				sparkapplication.Options{Namespaces: []string{appNamespace}, MaxTrackedExecutorPerApp: capacity},
+			)
+			_, err := reconciler.Reconcile(ctx, reconcile.Request{NamespacedName: key})
+			Expect(err).NotTo(HaveOccurred())
+
+			app := &v1beta2.SparkApplication{}
+			Expect(k8sClient.Get(ctx, key, app)).NotTo(HaveOccurred())
+
+			Expect(app.Status.ExecutorState).To(HaveLen(capacity))
+			for _, id := range liveIDs {
+				name := getExecutorNamespacedName(appName, appNamespace, id).Name
+				Expect(app.Status.ExecutorState).To(HaveKeyWithValue(name, v1beta2.ExecutorStateRunning))
+			}
+			Expect(app.Status.ExecutorState).NotTo(HaveKey(getExecutorNamespacedName(appName, appNamespace, 1).Name))
+			Expect(app.Status.ExecutorState).NotTo(HaveKey(getExecutorNamespacedName(appName, appNamespace, 2).Name))
+			Expect(app.Status.ExecutorState).To(HaveKeyWithValue(getExecutorNamespacedName(appName, appNamespace, 3).Name, v1beta2.ExecutorStateUnknown))
+			Expect(app.Status.ExecutorState).To(HaveKeyWithValue(getExecutorNamespacedName(appName, appNamespace, 4).Name, v1beta2.ExecutorStateCompleted))
+		})
+	})
+
+	Context("When evicted executors share the same parsed ID", func() {
+		ctx := context.Background()
+		appName := "test-tie"
+		appNamespace := "default"
+		key := types.NamespacedName{Name: appName, Namespace: appNamespace}
+		// All three names parse to the same executor ID (7) but differ by
+		// prefix, so eviction order is decided solely by the name tie-breaker.
+		tiedNames := []string{"test-tie-a-exec7", "test-tie-m-exec7", "test-tie-z-exec7"}
+
+		BeforeEach(func() {
+			app := &v1beta2.SparkApplication{}
+			if err := k8sClient.Get(ctx, key, app); err != nil && errors.IsNotFound(err) {
+				app = &v1beta2.SparkApplication{
+					ObjectMeta: metav1.ObjectMeta{Name: appName, Namespace: appNamespace},
+					Spec:       v1beta2.SparkApplicationSpec{MainApplicationFile: ptr.To("local:///dummy.jar")},
+				}
+				v1beta2.SetSparkApplicationDefaults(app)
+				Expect(k8sClient.Create(ctx, app)).To(Succeed())
+			}
+			driverPod := createDriverPod(appName, appNamespace)
+			Expect(k8sClient.Create(ctx, driverPod)).To(Succeed())
+			driverPod.Status.Phase = corev1.PodRunning
+			Expect(k8sClient.Status().Update(ctx, driverPod)).To(Succeed())
+
+			app.Status.DriverInfo.PodName = driverPod.Name
+			app.Status.AppState.State = v1beta2.ApplicationStateRunning
+			app.Status.ExecutorState = map[string]v1beta2.ExecutorState{}
+			for _, name := range tiedNames {
+				app.Status.ExecutorState[name] = v1beta2.ExecutorStateCompleted
+			}
+			Expect(k8sClient.Status().Update(ctx, app)).To(Succeed())
+		})
+
+		AfterEach(func() {
+			app := &v1beta2.SparkApplication{}
+			Expect(k8sClient.Get(ctx, key, app)).To(Succeed())
+			Expect(k8sClient.Delete(ctx, app)).To(Succeed())
+
+			driverPod := &corev1.Pod{}
+			Expect(k8sClient.Get(ctx, getDriverNamespacedName(appName, appNamespace), driverPod)).To(Succeed())
+			Expect(k8sClient.Delete(ctx, driverPod)).To(Succeed())
+		})
+
+		It("Should break ID ties deterministically by name when evicting", func() {
+			reconciler := sparkapplication.NewReconciler(
+				nil,
+				k8sClient.Scheme(),
+				k8sClient,
+				record.NewFakeRecorder(10),
+				nil,
+				&sparkapplication.SparkSubmitter{},
+				sparkapplication.Options{Namespaces: []string{appNamespace}, MaxTrackedExecutorPerApp: 2},
+			)
+			_, err := reconciler.Reconcile(ctx, reconcile.Request{NamespacedName: key})
+			Expect(err).NotTo(HaveOccurred())
+
+			app := &v1beta2.SparkApplication{}
+			Expect(k8sClient.Get(ctx, key, app)).NotTo(HaveOccurred())
+
+			// Terminated entries sort ascending by (id, name) and are evicted
+			// from the front, so the lexicographically smallest name is dropped
+			// and the larger two are retained. Without the name tie-breaker this
+			// outcome would depend on random map iteration order.
+			Expect(app.Status.ExecutorState).To(HaveLen(2))
+			Expect(app.Status.ExecutorState).NotTo(HaveKey("test-tie-a-exec7"))
+			Expect(app.Status.ExecutorState).To(HaveKey("test-tie-m-exec7"))
+			Expect(app.Status.ExecutorState).To(HaveKey("test-tie-z-exec7"))
+		})
+	})
+
 	Context("When reconciling a succeeding SparkApplication with Always retry policy", func() {
 		ctx := context.Background()
 		appName := "test"
