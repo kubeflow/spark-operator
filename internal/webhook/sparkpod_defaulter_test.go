@@ -30,6 +30,7 @@ import (
 
 	"github.com/kubeflow/spark-operator/v2/api/v1beta2"
 	"github.com/kubeflow/spark-operator/v2/pkg/common"
+	pkgwebhook "github.com/kubeflow/spark-operator/v2/pkg/webhook"
 )
 
 func TestPatchSparkPod_OwnerReference(t *testing.T) {
@@ -1638,13 +1639,13 @@ var _ = Describe("addEnvVars", func() {
 		})
 
 		It("Should add environment variables to driver pod", func() {
-			Expect(addEnvVars(driver, app)).NotTo(HaveOccurred())
+			Expect(pkgwebhook.AddEnvVars(driver, app)).NotTo(HaveOccurred())
 			Expect(driver.Spec.Containers[0].Env).To(ContainElement(corev1.EnvVar{Name: "KEY1", Value: "VALUE1"}))
 			Expect(driver.Spec.Containers[0].Env).To(ContainElement(corev1.EnvVar{Name: "KEY2", Value: "VALUE2"}))
 		})
 
 		It("Should add environment variables to executor pods", func() {
-			Expect(addEnvVars(executor, app)).NotTo(HaveOccurred())
+			Expect(pkgwebhook.AddEnvVars(executor, app)).NotTo(HaveOccurred())
 			Expect(executor.Spec.Containers[0].Env).To(ContainElement(corev1.EnvVar{Name: "KEY3", Value: "VALUE3"}))
 			Expect(executor.Spec.Containers[0].Env).To(ContainElement(corev1.EnvVar{Name: "KEY4", Value: "VALUE4"}))
 		})
@@ -1671,13 +1672,13 @@ var _ = Describe("addEnvVars", func() {
 		})
 
 		It("Should add environment variables to driver pod", func() {
-			Expect(addEnvVars(driver, app)).NotTo(HaveOccurred())
+			Expect(pkgwebhook.AddEnvVars(driver, app)).NotTo(HaveOccurred())
 			Expect(driver.Spec.Containers[0].Env).To(ContainElement(corev1.EnvVar{Name: "KEY1", Value: "VALUE1"}))
 			Expect(driver.Spec.Containers[0].Env).To(ContainElement(corev1.EnvVar{Name: "KEY2", Value: "VALUE2"}))
 		})
 
 		It("Should not add environment variables to executor pods", func() {
-			Expect(addEnvVars(executor, app)).NotTo(HaveOccurred())
+			Expect(pkgwebhook.AddEnvVars(executor, app)).NotTo(HaveOccurred())
 			Expect(executor.Spec.Containers[0].Env).To(HaveLen(0))
 		})
 
@@ -1704,12 +1705,12 @@ var _ = Describe("addEnvVars", func() {
 		})
 
 		It("Should add environment variables to driver pod", func() {
-			Expect(addEnvVars(driver, app)).NotTo(HaveOccurred())
+			Expect(pkgwebhook.AddEnvVars(driver, app)).NotTo(HaveOccurred())
 			Expect(driver.Spec.Containers[0].Env).To(HaveLen(0))
 		})
 
 		It("Should add environment variables to executor pods", func() {
-			Expect(addEnvVars(executor, app)).NotTo(HaveOccurred())
+			Expect(pkgwebhook.AddEnvVars(executor, app)).NotTo(HaveOccurred())
 			Expect(executor.Spec.Containers[0].Env).To(ContainElement(corev1.EnvVar{Name: "KEY3", Value: "VALUE3"}))
 			Expect(executor.Spec.Containers[0].Env).To(ContainElement(corev1.EnvVar{Name: "KEY4", Value: "VALUE4"}))
 		})
