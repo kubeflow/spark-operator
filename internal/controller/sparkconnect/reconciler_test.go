@@ -18,16 +18,19 @@ package sparkconnect
 
 import (
 	"context"
+	"os"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/utils/ptr"
 
 	"github.com/kubeflow/spark-operator/v2/api/v1alpha1"
+	"github.com/kubeflow/spark-operator/v2/pkg/common"
 )
 
 var _ = Describe("mutateServerService", func() {
@@ -145,6 +148,109 @@ var _ = Describe("mutateServerService", func() {
 			// Ports should remain unchanged for existing services.
 			Expect(svc.Spec.Ports).To(HaveLen(1))
 			Expect(svc.Spec.Ports[0].Name).To(Equal("spark-connect-server"))
+		})
+	})
+})
+
+var _ = Describe("mutateServerPod", func() {
+	var (
+		reconciler *Reconciler
+		conn       *v1alpha1.SparkConnect
+		image      string
+	)
+
+	BeforeEach(func() {
+		reconciler = &Reconciler{
+			scheme: scheme.Scheme,
+		}
+		image = "apache/spark:4.0.0"
+		Expect(os.Setenv(common.EnvKubernetesServiceHost, "127.0.0.1")).NotTo(HaveOccurred())
+		Expect(os.Setenv(common.EnvKubernetesServicePort, "443")).NotTo(HaveOccurred())
+		conn = &v1alpha1.SparkConnect{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "test-spark-connect",
+				Namespace: "test-namespace",
+				UID:       "test-uid",
+			},
+			Spec: v1alpha1.SparkConnectSpec{
+				Image:        &image,
+				SparkVersion: "4.0.0",
+				Server: v1alpha1.ServerSpec{
+					SparkPodSpec: v1alpha1.SparkPodSpec{},
+				},
+				Executor: v1alpha1.ExecutorSpec{
+					SparkPodSpec: v1alpha1.SparkPodSpec{},
+				},
+			},
+		}
+	})
+
+	AfterEach(func() {
+		Expect(os.Unsetenv(common.EnvKubernetesServiceHost)).NotTo(HaveOccurred())
+		Expect(os.Unsetenv(common.EnvKubernetesServicePort)).NotTo(HaveOccurred())
+	})
+
+	Context("when creating a new server pod", func() {
+		It("should set default TCP startup and readiness probes", func() {
+			pod := &corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: conn.Namespace,
+				},
+			}
+			err := reconciler.mutateServerPod(context.TODO(), conn, pod)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(pod.Spec.Containers).NotTo(BeEmpty())
+
+			container := pod.Spec.Containers[0]
+			Expect(container.Name).To(Equal(common.SparkDriverContainerName))
+			Expect(container.StartupProbe).NotTo(BeNil())
+			Expect(container.StartupProbe.TCPSocket).NotTo(BeNil())
+			Expect(container.StartupProbe.TCPSocket.Port).To(Equal(intstr.FromInt(sparkConnectServerPort)))
+			Expect(container.ReadinessProbe).NotTo(BeNil())
+			Expect(container.ReadinessProbe.TCPSocket).NotTo(BeNil())
+			Expect(container.ReadinessProbe.TCPSocket.Port).To(Equal(intstr.FromInt(sparkConnectServerPort)))
+		})
+
+		It("should preserve user-provided startup and readiness probes", func() {
+			startupProbe := &corev1.Probe{
+				ProbeHandler: corev1.ProbeHandler{
+					HTTPGet: &corev1.HTTPGetAction{
+						Path: "/startup",
+						Port: intstr.FromInt(4040),
+					},
+				},
+			}
+			readinessProbe := &corev1.Probe{
+				ProbeHandler: corev1.ProbeHandler{
+					HTTPGet: &corev1.HTTPGetAction{
+						Path: "/ready",
+						Port: intstr.FromInt(4040),
+					},
+				},
+			}
+			conn.Spec.Server.Template = &corev1.PodTemplateSpec{
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{
+						{
+							Name:           common.SparkDriverContainerName,
+							Image:          image,
+							StartupProbe:   startupProbe,
+							ReadinessProbe: readinessProbe,
+						},
+					},
+				},
+			}
+			pod := &corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: conn.Namespace,
+				},
+			}
+			err := reconciler.mutateServerPod(context.TODO(), conn, pod)
+			Expect(err).NotTo(HaveOccurred())
+
+			container := pod.Spec.Containers[0]
+			Expect(container.StartupProbe).To(Equal(startupProbe))
+			Expect(container.ReadinessProbe).To(Equal(readinessProbe))
 		})
 	})
 })

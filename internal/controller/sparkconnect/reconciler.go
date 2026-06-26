@@ -50,6 +50,8 @@ import (
 
 const (
 	ExecutorPodTemplateFileName = "executor-pod-template.yaml"
+
+	sparkConnectServerPort = 15002
 )
 
 // Options defines the options of SparkConnect reconciler.
@@ -383,6 +385,8 @@ func (r *Reconciler) mutateServerPod(_ context.Context, conn *v1alpha1.SparkConn
 		}
 		container.Args = []string{strings.Join(args, " ")}
 
+		setDefaultSparkConnectServerProbes(container)
+
 		// Setup environment variables.
 		container.Env = append(
 			container.Env,
@@ -461,6 +465,42 @@ func (r *Reconciler) mutateServerPod(_ context.Context, conn *v1alpha1.SparkConn
 	return nil
 }
 
+func setDefaultSparkConnectServerProbes(container *corev1.Container) {
+	if container.StartupProbe == nil {
+		container.StartupProbe = newSparkConnectServerStartupProbe()
+	}
+	if container.ReadinessProbe == nil {
+		container.ReadinessProbe = newSparkConnectServerReadinessProbe()
+	}
+}
+
+func newSparkConnectServerStartupProbe() *corev1.Probe {
+	return &corev1.Probe{
+		ProbeHandler: corev1.ProbeHandler{
+			TCPSocket: &corev1.TCPSocketAction{
+				Port: intstr.FromInt(sparkConnectServerPort),
+			},
+		},
+		InitialDelaySeconds: 5,
+		PeriodSeconds:       10,
+		TimeoutSeconds:      1,
+		FailureThreshold:    30,
+	}
+}
+
+func newSparkConnectServerReadinessProbe() *corev1.Probe {
+	return &corev1.Probe{
+		ProbeHandler: corev1.ProbeHandler{
+			TCPSocket: &corev1.TCPSocketAction{
+				Port: intstr.FromInt(sparkConnectServerPort),
+			},
+		},
+		PeriodSeconds:    10,
+		TimeoutSeconds:   1,
+		FailureThreshold: 3,
+	}
+}
+
 // createOrUpdateServerService creates or updates the server service for the SparkConnect resource.
 func (r *Reconciler) createOrUpdateServerService(ctx context.Context, conn *v1alpha1.SparkConnect) error {
 	logger := ctrl.LoggerFrom(ctx)
@@ -524,8 +564,8 @@ func (r *Reconciler) mutateServerService(_ context.Context, conn *v1alpha1.Spark
 			},
 			{
 				Name:        "spark-connect-server",
-				Port:        15002,
-				TargetPort:  intstr.FromInt(15002),
+				Port:        sparkConnectServerPort,
+				TargetPort:  intstr.FromInt(sparkConnectServerPort),
 				Protocol:    corev1.ProtocolTCP,
 				AppProtocol: ptr.To("grpc"),
 			},
