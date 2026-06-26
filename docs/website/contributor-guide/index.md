@@ -57,8 +57,10 @@ General
 
 Development
   manifests                       Generate CustomResourceDefinition, RBAC and WebhookConfiguration manifests.
-  generate                        Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
+  generate                        Generate Go code and Python APIs.
   update-crd                      Update CRD files in the Helm chart.
+  verify-codegen                  Install code-generator commands and verify changes
+  python-api                      Generate Python APIs from CRDs.
   go-clean                        Clean up caches and output.
   go-fmt                          Run go fmt against code.
   go-vet                          Run go vet against code.
@@ -67,10 +69,23 @@ Development
   unit-test                       Run unit tests.
   e2e-test                        Run the e2e tests against a Kind k8s instance that is spun up.
 
+Kustomize
+  kustomize-set-image             Update config/default/kustomization.yaml image tag from VERSION file.
+  kustomize-lint                  Validate Kustomize build output (no cluster needed).
+
 Build
   build-operator                  Build Spark operator.
   clean                           Clean binaries.
   build-api-docs                  Build api documentation.
+
+Documentation
+  docs                            Build the documentation website (HTML) with Sphinx.
+  docs-test                       Build the documentation website strictly (warnings treated as errors).
+  docs-serve                      Build and serve the documentation website locally with live reload.
+  docs-linkcheck                  Check all links in the documentation website.
+  docs-clean                      Remove documentation website build artifacts.
+
+Build
   docker-build                    Build docker image with the operator.
   docker-push                     Push docker image with the operator.
   docker-buildx                   Build and push docker image for the operator for cross-platform support
@@ -80,20 +95,23 @@ Helm
   helm-unittest                   Run Helm chart unittests.
   helm-lint                       Run Helm chart lint test.
   helm-docs                       Generates markdown documentation for helm charts from requirements and values files.
+  drift-check                     Detect drift between Helm chart and Kustomize manifests.
 
 Deployment
   kind-create-cluster             Create a kind cluster for integration tests.
   kind-load-image                 Load the image into the kind cluster.
   kind-delete-cluster             Delete the created kind cluster.
-  install-crd                     Install CRDs into the K8s cluster specified in ~/.kube/config.
-  uninstall-crd                   Uninstall CRDs from the K8s cluster specified in ~/.kube/config. Call with ignore-not-found=true to ignore resource not found errors during deletion.
-  deploy                          Deploy controller to the K8s cluster specified in ~/.kube/config.
+  install                         Install CRDs into the K8s cluster specified in .kube/config.
+  install-crd                     Install CRDs into the K8s cluster specified in .kube/config.
+  uninstall                       Uninstall CRDs from the K8s cluster specified in .kube/config.
+  uninstall-crd                   Uninstall CRDs from the K8s cluster specified in .kube/config. Call with ignore-not-found=true to ignore resource not found errors during deletion.
+  deploy                          Deploy controller to the K8s cluster specified in .kube/config.
   undeploy                        Uninstall spark-operator
 
 Dependencies
-  kustomize                       Download kustomize locally if necessary.
   controller-gen                  Download controller-gen locally if necessary.
   kind                            Download kind locally if necessary.
+  setup-envtest                   Download the binaries required for ENVTEST in the local bin directory.
   envtest                         Download setup-envtest locally if necessary.
   golangci-lint                   Download golangci-lint locally if necessary.
   gen-crd-api-reference-docs      Download gen-crd-api-reference-docs locally if necessary.
@@ -167,16 +185,8 @@ make unit-test
 To run e2e tests, run the following command:
 
 ```shell
-# Create a kind cluster
-make kind-create-cluster
-
-# Build docker image
-make docker-build IMAGE_TAG=local
-
-# Load docker image to kind cluster
-make kind-load-image IMAGE_TAG=local
-
 # Run e2e tests
+# Create a kind cluster, build docker image, then load the image to the cluster
 make e2e-test
 
 # Delete the kind cluster
