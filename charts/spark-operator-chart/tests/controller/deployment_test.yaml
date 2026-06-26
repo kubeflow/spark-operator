@@ -123,6 +123,20 @@ tests:
           path: spec.template.metadata.annotations.key2
           value: value2
 
+  - it: Should add deployment annotations if `controller.deploymentAnnotations` is set
+    set:
+      controller:
+        deploymentAnnotations:
+          key1: value1
+          key2: value2
+    asserts:
+      - equal:
+          path: metadata.annotations.key1
+          value: value1
+      - equal:
+          path: metadata.annotations.key2
+          value: value2
+
   - it: Should contain `--zap-log-level` arg if `controller.logLevel` is set
     set:
       controller:
