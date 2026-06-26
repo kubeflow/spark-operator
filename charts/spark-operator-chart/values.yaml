@@ -84,6 +84,8 @@ controller:
     enabled: false
   - name: LoadSparkDefaults
     enabled: false
+  - name: RestSubmitter
+    enabled: false
 
   # -- The number of old history to retain to allow rollback.
   revisionHistoryLimit: 10
@@ -297,6 +299,34 @@ controller:
       enable: true
       # -- Specifies the maximum delay duration for the workqueue rate limiter.
       duration: 6h
+
+# REST Submitter Service configuration.
+# The submitter service itself is deployed separately (see submitter service repository).
+# These values configure the controller's connection to the submitter.
+# Enable via controller.featureGates RestSubmitter=true.
+submitter:
+  # -- URL of the REST submitter service endpoint.
+  serviceUrl: http://spark-operator-submitter-svc:8080/api/v1/spark-submit
+
+  # -- HTTP request timeout per spark submission attempt.
+  requestTimeout: 2m
+
+  # -- How long the controller waits for the submitter service to become reachable at startup.
+  startupTimeout: 5m
+
+  # -- Max retry attempts for transient submission failures.
+  maxRetries: 3
+
+  # -- Initial backoff duration before the first retry. Doubles on each subsequent attempt.
+  initialBackoff: 2s
+
+  # Controller startup probe settings. Allows the controller to block during startup
+  # without being killed by liveness probe. Should cover startupTimeout.
+  startupProbe:
+    # -- Seconds between probe attempts.
+    periodSeconds: 5
+    # -- Number of failures before restart. (failureThreshold × periodSeconds) should >= startupTimeout.
+    failureThreshold: 60
 
 webhook:
   # -- Specifies whether to enable webhook.
