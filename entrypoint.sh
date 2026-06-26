@@ -10,19 +10,22 @@ myuid="$(id -u)"
 # It's to resolve OpenShift random UID case.
 # See also: https://github.com/docker-library/postgres/pull/448
 if ! getent passwd "$myuid" &> /dev/null; then
-    for wrapper in {/usr,}/lib{/*,}/libnss_wrapper.so; do
-      if [ -s "$wrapper" ]; then
-        NSS_WRAPPER_PASSWD="$(mktemp)"
-        NSS_WRAPPER_GROUP="$(mktemp)"
-        export LD_PRELOAD="$wrapper" NSS_WRAPPER_PASSWD NSS_WRAPPER_GROUP
-        mygid="$(id -g)"
-        printf 'spark:x:%s:%s:%s:%s:/bin/false\n' "$myuid" "$mygid" "${SPARK_USER_NAME:-anonymous uid}" "$SPARK_HOME" > "$NSS_WRAPPER_PASSWD"
-        printf 'spark:x:%s:\n' "$mygid" > "$NSS_WRAPPER_GROUP"
-        break
-      fi
-    done
+  for wrapper in {/usr,}/lib{/*,}/libnss_wrapper.so; do
+    if [ -s "$wrapper" ]; then
+      NSS_WRAPPER_PASSWD="$(mktemp)"
+      NSS_WRAPPER_GROUP="$(mktemp)"
+      export LD_PRELOAD="$wrapper" NSS_WRAPPER_PASSWD NSS_WRAPPER_GROUP
+      mygid="$(id -g)"
+      printf 'spark:x:%s:%s:%s:%s:/bin/false\n' "$myuid" "$mygid" "${SPARK_USER_NAME:-anonymous uid}" "$SPARK_HOME" > "$NSS_WRAPPER_PASSWD"
+      printf 'spark:x:%s:\n' "$mygid" > "$NSS_WRAPPER_GROUP"
+      break
+    fi
+  done
 fi
 
 # Path for catatonit may differ depending on base container OS
-CATATONIT=$(command -v catatonit) || { echo "error: catatonit not found in PATH" >&2; exit 1; }
+CATATONIT=$(command -v catatonit) || {
+  echo "error: catatonit not found in PATH" >&2
+  exit 1
+}
 exec "$CATATONIT" -- /usr/bin/spark-operator "$@"

@@ -43,7 +43,7 @@ jobs:
           persist-credentials: false
 
       - name: Set up Go
-        uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6 # zizmor: ignore[cache-poisoning] caching is intentional for CI jobs
+        uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0 # zizmor: ignore[cache-poisoning] caching is intentional for CI jobs
         with:
           go-version-file: go.mod
 

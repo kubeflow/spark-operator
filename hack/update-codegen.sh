@@ -24,17 +24,18 @@ SCRIPT_ROOT="${SCRIPT_DIR}/.."
 CODEGEN_PKG="$($GO_CMD list -m -mod=readonly -f "{{.Dir}}" k8s.io/code-generator)"
 SPARK_OPERATOR_PKG="github.com/kubeflow/spark-operator/v2"
 
+# shellcheck source=/dev/null # provided by the code-generator module at runtime
 source "${CODEGEN_PKG}/kube_codegen.sh"
 
 # Generate register code
 kube::codegen::gen_register \
-    --boilerplate "${SCRIPT_ROOT}/hack/boilerplate.go.txt" \
-    "${SCRIPT_ROOT}"
+  --boilerplate "${SCRIPT_ROOT}/hack/boilerplate.go.txt" \
+  "${SCRIPT_ROOT}"
 
 # Generate client code: client, lister, informer in client-go directory
 kube::codegen::gen_client \
-    --with-watch \
-    --output-dir "${SCRIPT_ROOT}/pkg/client" \
-    --output-pkg "${SPARK_OPERATOR_PKG}/pkg/client" \
-    --boilerplate "${SCRIPT_ROOT}/hack/boilerplate.go.txt" \
-    "${SCRIPT_ROOT}"
+  --with-watch \
+  --output-dir "${SCRIPT_ROOT}/pkg/client" \
+  --output-pkg "${SPARK_OPERATOR_PKG}/pkg/client" \
+  --boilerplate "${SCRIPT_ROOT}/hack/boilerplate.go.txt" \
+  "${SCRIPT_ROOT}"

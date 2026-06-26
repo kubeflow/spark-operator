@@ -8,3 +8,21 @@ repos:
           - --chart-search-root=charts
           - --template-files=README.md.gotmpl
           - --sort-values-order=file
+  - repo: local
+    hooks:
+      - id: shfmt
+        name: shfmt
+        description: Format shell scripts with shfmt
+        entry: make shell-fmt
+        language: system
+        types: [shell]
+        pass_filenames: false
+        require_serial: true
+      - id: shellcheck
+        name: shellcheck
+        description: Lint shell scripts with shellcheck
+        entry: make shell-lint
+        language: system
+        types: [shell]
+        pass_filenames: false
+        require_serial: true

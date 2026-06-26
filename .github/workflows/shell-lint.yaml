@@ -1,0 +1,54 @@
+# Static formatting and lint checks for shell scripts (no cluster required).
+name: Shell Lint
+
+on:
+  pull_request:
+    branches:
+      - master
+      - release-*
+    paths:
+      - '**.sh'
+      - 'Makefile'
+      - '.github/workflows/shell-lint.yaml'
+
+  push:
+    branches:
+      - master
+      - release-*
+    paths:
+      - '**.sh'
+      - 'Makefile'
+      - '.github/workflows/shell-lint.yaml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.actor }}
+  cancel-in-progress: true
+
+jobs:
+  shell-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6
+        with:
+          go-version-file: go.mod
+
+      - name: Check shell script formatting
+        run: |
+          make shell-fmt
+          if ! git diff --quiet; then
+            echo "Shell scripts are not formatted. Run 'make shell-fmt' and commit the changes."
+            git diff
+            false
+          fi
+
+      - name: Run shellcheck
+        run: make shell-lint
