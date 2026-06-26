@@ -248,7 +248,7 @@ func (r *Reconciler) SetupWithManager(mgr ctrl.Manager, options controller.Optio
 
 	// Create event filters with error handling
 	podEventFilter, err := newSparkPodEventFilter(
-		mgr.GetClient(),
+		mgr.GetAPIReader(),
 		r.options.Namespaces,
 		r.options.NamespaceSelector,
 	)
@@ -258,6 +258,7 @@ func (r *Reconciler) SetupWithManager(mgr ctrl.Manager, options controller.Optio
 
 	appEventFilter, err := NewSparkApplicationEventFilter(
 		mgr.GetClient(),
+		mgr.GetAPIReader(),
 		mgr.GetEventRecorder("spark-application-event-handler"),
 		r.options.Namespaces,
 		r.options.NamespaceSelector,

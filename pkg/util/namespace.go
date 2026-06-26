@@ -97,9 +97,9 @@ func (m *NamespaceMatcher) MatchesNamespace(ns *corev1.Namespace) bool {
 	return m.Matches(ns.Name, ns.Labels)
 }
 
-// MatchesWithClient retrieves the namespace from the cache and checks if it matches.
-// This is useful in EventFilters where you only have the namespace name.
-func (m *NamespaceMatcher) MatchesWithClient(ctx context.Context, c client.Client, namespaceName string) (bool, error) {
+// MatchesWithClient retrieves the namespace and checks if it matches.
+// The reader should be an uncached API reader in predicates to avoid informer cache lag.
+func (m *NamespaceMatcher) MatchesWithClient(ctx context.Context, r client.Reader, namespaceName string) (bool, error) {
 	// Fast-path: if watching all namespaces, always match
 	if m.explicitNamespaces[metav1.NamespaceAll] {
 		return true, nil
@@ -115,9 +115,8 @@ func (m *NamespaceMatcher) MatchesWithClient(ctx context.Context, c client.Clien
 		return false, nil
 	}
 
-	// Need to retrieve namespace from cache to check labels
 	ns := &corev1.Namespace{}
-	if err := c.Get(ctx, client.ObjectKey{Name: namespaceName}, ns); err != nil {
+	if err := r.Get(ctx, client.ObjectKey{Name: namespaceName}, ns); err != nil {
 		return false, fmt.Errorf("failed to get namespace %s: %v", namespaceName, err)
 	}
 

@@ -237,7 +237,7 @@ func (r *Reconciler) SetupWithManager(mgr ctrl.Manager, options controller.Optio
 
 	// Create event filter with error handling
 	eventFilter, err := NewEventFilter(
-		mgr.GetClient(),
+		mgr.GetAPIReader(),
 		r.options.Namespaces,
 		r.options.NamespaceSelector,
 	)

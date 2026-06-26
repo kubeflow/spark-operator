@@ -11,7 +11,7 @@ import (
 // namespacePredicate is a predicate.Predicate
 // that filters events based on namespace list and/or label selector.
 type namespacePredicate struct {
-	client           client.Client
+	namespaceReader  client.Reader
 	namespaceMatcher *NamespaceMatcher
 }
 
@@ -20,21 +20,21 @@ type namespacePredicate struct {
 //
 // If namespaceSelector is empty, only explicit namespaces are matched.
 // If namespaces is empty, all namespaces are matched.
-func NewNamespacePredicate(c client.Client, namespaces []string, namespaceSelector string) (predicate.Predicate, error) {
+func NewNamespacePredicate(namespaceReader client.Reader, namespaces []string, namespaceSelector string) (predicate.Predicate, error) {
 	matcher, err := NewNamespaceMatcher(namespaces, namespaceSelector)
 	if err != nil {
 		return nil, err
 	}
 
 	return &namespacePredicate{
-		client:           c,
+		namespaceReader:  namespaceReader,
 		namespaceMatcher: matcher,
 	}, nil
 }
 
 // Create implements the predicate.Predicate interface.
 func (p *namespacePredicate) Create(e event.CreateEvent) bool {
-	matched, err := p.namespaceMatcher.MatchesWithClient(context.TODO(), p.client, e.Object.GetNamespace())
+	matched, err := p.namespaceMatcher.MatchesWithClient(context.TODO(), p.namespaceReader, e.Object.GetNamespace())
 	if err != nil {
 		return false
 	}
@@ -43,7 +43,7 @@ func (p *namespacePredicate) Create(e event.CreateEvent) bool {
 
 // Update implements the predicate.Predicate interface.
 func (p *namespacePredicate) Update(e event.UpdateEvent) bool {
-	matched, err := p.namespaceMatcher.MatchesWithClient(context.TODO(), p.client, e.ObjectNew.GetNamespace())
+	matched, err := p.namespaceMatcher.MatchesWithClient(context.TODO(), p.namespaceReader, e.ObjectNew.GetNamespace())
 	if err != nil {
 		return false
 	}
@@ -52,7 +52,7 @@ func (p *namespacePredicate) Update(e event.UpdateEvent) bool {
 
 // Delete implements the predicate.Predicate interface.
 func (p *namespacePredicate) Delete(e event.DeleteEvent) bool {
-	matched, err := p.namespaceMatcher.MatchesWithClient(context.TODO(), p.client, e.Object.GetNamespace())
+	matched, err := p.namespaceMatcher.MatchesWithClient(context.TODO(), p.namespaceReader, e.Object.GetNamespace())
 	if err != nil {
 		return false
 	}
@@ -61,7 +61,7 @@ func (p *namespacePredicate) Delete(e event.DeleteEvent) bool {
 
 // Generic implements the predicate.Predicate interface.
 func (p *namespacePredicate) Generic(e event.GenericEvent) bool {
-	matched, err := p.namespaceMatcher.MatchesWithClient(context.TODO(), p.client, e.Object.GetNamespace())
+	matched, err := p.namespaceMatcher.MatchesWithClient(context.TODO(), p.namespaceReader, e.Object.GetNamespace())
 	if err != nil {
 		return false
 	}
