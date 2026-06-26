@@ -212,6 +212,9 @@ spec:
       {{- end }}
       serviceAccountName: {{ include "spark-operator.controller.serviceAccountName" . }}
       automountServiceAccountToken: {{ .Values.controller.serviceAccount.automountServiceAccountToken }}
+      {{- with .Values.controller.terminationGracePeriodSeconds }}
+      terminationGracePeriodSeconds: {{ . }}
+      {{- end }}
       {{- with .Values.controller.podSecurityContext }}
       securityContext:
         {{- toYaml . | nindent 8 }}
