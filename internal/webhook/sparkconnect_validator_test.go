@@ -186,6 +186,34 @@ func TestSparkConnectValidatorValidateCreate_DynamicAllocationValid(t *testing.T
 	}
 }
 
+func TestSparkConnectValidatorValidateCreate_InvalidRestartPolicy(t *testing.T) {
+	validator := newTestSparkConnectValidator(t)
+	sc := newSparkConnect()
+	sc.Spec.RestartConfig.RestartPolicy = "Sometimes"
+
+	if _, err := validator.ValidateCreate(context.Background(), sc); err == nil || !strings.Contains(err.Error(), "restartPolicy") {
+		t.Fatalf("expected restartPolicy validation error, got %v", err)
+	}
+}
+
+func TestSparkConnectValidatorValidateCreate_NegativeRestartConfigValues(t *testing.T) {
+	validator := newTestSparkConnectValidator(t)
+
+	maxAttempts := int32(-1)
+	sc := newSparkConnect()
+	sc.Spec.RestartConfig.MaxRestartAttempts = &maxAttempts
+	if _, err := validator.ValidateCreate(context.Background(), sc); err == nil || !strings.Contains(err.Error(), "maxRestartAttempts") {
+		t.Fatalf("expected maxRestartAttempts validation error, got %v", err)
+	}
+
+	backoff := int64(-1)
+	sc = newSparkConnect()
+	sc.Spec.RestartConfig.RestartBackoffMillis = &backoff
+	if _, err := validator.ValidateCreate(context.Background(), sc); err == nil || !strings.Contains(err.Error(), "restartBackoffMillis") {
+		t.Fatalf("expected restartBackoffMillis validation error, got %v", err)
+	}
+}
+
 func TestSparkConnectValidatorValidateCreate_InvalidServerMemory(t *testing.T) {
 	validator := newTestSparkConnectValidator(t)
 

@@ -142,6 +142,11 @@ func (v *SparkConnectValidator) validateSpec(sc *v1alpha1.SparkConnect) error {
 		return err
 	}
 
+	// Validate RestartConfig
+	if err := v.validateRestartConfig(sc); err != nil {
+		return err
+	}
+
 	// Validate Server spec
 	if err := v.validateServerSpec(sc); err != nil {
 		return err
@@ -150,6 +155,24 @@ func (v *SparkConnectValidator) validateSpec(sc *v1alpha1.SparkConnect) error {
 	// Validate Executor spec
 	if err := v.validateExecutorSpec(sc); err != nil {
 		return err
+	}
+
+	return nil
+}
+
+func (v *SparkConnectValidator) validateRestartConfig(sc *v1alpha1.SparkConnect) error {
+	switch sc.Spec.RestartConfig.RestartPolicy {
+	case "", v1alpha1.SparkConnectRestartPolicyNever, v1alpha1.SparkConnectRestartPolicyAlways, v1alpha1.SparkConnectRestartPolicyOnFailure:
+	default:
+		return fmt.Errorf("restartPolicy must be empty or one of Never, Always, or OnFailure, got %q", sc.Spec.RestartConfig.RestartPolicy)
+	}
+
+	if sc.Spec.RestartConfig.MaxRestartAttempts != nil && *sc.Spec.RestartConfig.MaxRestartAttempts < 0 {
+		return fmt.Errorf("maxRestartAttempts must be greater than or equal to 0")
+	}
+
+	if sc.Spec.RestartConfig.RestartBackoffMillis != nil && *sc.Spec.RestartConfig.RestartBackoffMillis < 0 {
+		return fmt.Errorf("restartBackoffMillis must be greater than or equal to 0")
 	}
 
 	return nil
