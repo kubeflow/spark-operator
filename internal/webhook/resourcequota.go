@@ -251,7 +251,7 @@ func validateResourceQuota(resourceList corev1.ResourceList, resourceQuota corev
 			continue
 		}
 		quantity.Add(resourceQuota.Status.Used[key])
-		if quantity.Cmp(resourceQuota.Spec.Hard[key]) > 0 {
+		if quantity.Cmp(resourceQuota.Status.Hard[key]) > 0 {
 			return false
 		}
 	}
