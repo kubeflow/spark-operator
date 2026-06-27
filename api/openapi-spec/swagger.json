@@ -12657,6 +12657,26 @@
           }
         }
       },
+      "spark.v1alpha1.RestartConfig": {
+        "description": "RestartConfig defines operator-managed restart behavior for the Spark Connect server pod.",
+        "type": "object",
+        "properties": {
+          "maxRestartAttempts": {
+            "description": "MaxRestartAttempts is the maximum number of restart attempts. Nil means unlimited.",
+            "type": "integer",
+            "format": "int32"
+          },
+          "restartBackoffMillis": {
+            "description": "RestartBackoffMillis is the backoff time between restart attempts in milliseconds.",
+            "type": "integer",
+            "format": "int64"
+          },
+          "restartPolicy": {
+            "description": "RestartPolicy defines when the operator should restart the Spark Connect server pod.",
+            "type": "string"
+          }
+        }
+      },
       "spark.v1alpha1.ServerSpec": {
         "description": "ServerSpec is specification of the Spark connect server.",
         "type": "object",
@@ -12821,6 +12841,15 @@
             "description": "Image is the container image for the driver, executor, and init-container. Any custom container images for the driver, executor, or init-container takes precedence over this.",
             "type": "string"
           },
+          "restartConfig": {
+            "description": "RestartConfig defines the policy for operator-managed Spark Connect server pod restarts.",
+            "default": {},
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/spark.v1alpha1.RestartConfig"
+              }
+            ]
+          },
           "server": {
             "description": "Server is the Spark connect server specification.",
             "default": {},
@@ -12876,6 +12905,14 @@
               "default": 0
             }
           },
+          "lastRestartTime": {
+            "description": "LastRestartTime is the time of the latest operator-managed restart attempt.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/io.k8s.apimachinery.pkg.apis.meta.v1.Time"
+              }
+            ]
+          },
           "lastUpdateTime": {
             "description": "LastUpdateTime is the time at which the SparkConnect controller last updated the SparkConnect.",
             "allOf": [
@@ -12883,6 +12920,16 @@
                 "$ref": "#/components/schemas/io.k8s.apimachinery.pkg.apis.meta.v1.Time"
               }
             ]
+          },
+          "observedGeneration": {
+            "description": "ObservedGeneration is the most recent generation observed for restart lifecycle status.",
+            "type": "integer",
+            "format": "int64"
+          },
+          "restartAttempts": {
+            "description": "RestartAttempts is the number of operator-managed restart attempts for the current generation.",
+            "type": "integer",
+            "format": "int32"
           },
           "server": {
             "description": "Server represents the current state of the SparkConnect server.",
