@@ -2,7 +2,7 @@ blank_issues_enabled: true
 
 contact_links:
   - name: Spark Operator Documentation
-    url: https://www.kubeflow.org/docs/components/spark-operator
+    url: https://spark.kubeflow.org/en/latest/
     about: Much help can be found in the docs
   - name: Spark Operator Slack Channel
     url: https://app.slack.com/client/T08PSQ7BQ/C074588U7EG
