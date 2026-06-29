@@ -118,8 +118,18 @@ controller:
   # -- Configure the encoder of logging, can be one of `console` or `json`.
   logEncoder: console
 
-  # -- Grace period after a successful spark-submit when driver pod not found errors will be retried. Useful if the driver pod can take some time to be created.
+  # -- Grace period after a successful spark-submit when driver pod not found errors will be retried.
+  # Also caps how long an in-flight spark-submit is given to exit after SIGTERM during controller
+  # shutdown (reconcile context is cancelled immediately on SIGTERM; this window is for reaping the
+  # JVM subprocess). Set lower than `terminationGracePeriodSeconds` so the manager exits before the
+  # kubelet sends SIGKILL.
   driverPodCreationGracePeriod: 10s
+
+  # -- Termination grace period for the controller pod. The kubelet sends SIGKILL when this
+  # elapses. Must be set higher than `controller.driverPodCreationGracePeriod` so the manager
+  # has time to interrupt and reap in-flight `spark-submit` subprocesses before the process is
+  # forcibly killed.
+  terminationGracePeriodSeconds: 60
 
   # -- Specifies the maximum number of Executor pods that can be tracked by the controller per SparkApplication.
   maxTrackedExecutorPerApp: 1000
