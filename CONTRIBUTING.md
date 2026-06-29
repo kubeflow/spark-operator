@@ -4,7 +4,7 @@ Welcome to the Kubeflow Spark Operator project. We'd love to accept your patches
 
 ## Developer Guide
 
-For how to develope with spark operator, please refer to [Developer Guide](https://www.kubeflow.org/docs/components/spark-operator/developer-guide/).
+For how to develope with spark operator, please refer to [Developer Guide](https://spark.kubeflow.org/en/latest/contributor-guide/).
 
 ## Code Reviews
 
