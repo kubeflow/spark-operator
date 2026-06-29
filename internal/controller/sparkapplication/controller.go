@@ -20,7 +20,7 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"strconv"
+	"sort"
 	"strings"
 	"time"
 
@@ -1045,10 +1045,6 @@ func (r *Reconciler) updateExecutorState(ctx context.Context, app *v1beta2.Spark
 	var executorApplicationID string
 	for _, pod := range pods {
 		if util.IsExecutorPod(&pod) {
-			// If the executor number is higher than the `MaxTrackedExecutorPerApp` we want to stop persisting executors
-			if executorID, _ := strconv.Atoi(util.GetSparkExecutorID(&pod)); executorID > r.options.MaxTrackedExecutorPerApp {
-				continue
-			}
 			newState := util.GetExecutorState(&pod)
 			oldState, exists := app.Status.ExecutorState[pod.Name]
 			// Only record an executor event if the executor state is new or it has changed.
@@ -1107,7 +1103,80 @@ func (r *Reconciler) updateExecutorState(ctx context.Context, app *v1beta2.Spark
 		}
 	}
 
+	r.enforceExecutorStateCap(ctx, app)
+
 	return nil
+}
+
+// enforceExecutorStateCap bounds the size of app.Status.ExecutorState to
+// MaxTrackedExecutorPerApp. Terminated entries are evicted oldest-first by
+// executor ID; if the cap is still exceeded (all remaining entries are live),
+// the newest live entries are dropped and a warning is logged.
+//
+// Ordering relies on Spark assigning executor IDs as a monotonically
+// increasing per-application counter, so a larger ID means a more recently
+// created executor. Names without a parseable trailing ID resolve to 0 and
+// are thus treated as oldest; ID ties are broken by name for determinism.
+func (r *Reconciler) enforceExecutorStateCap(ctx context.Context, app *v1beta2.SparkApplication) {
+	logger := log.FromContext(ctx)
+	capacity := r.options.MaxTrackedExecutorPerApp
+	if capacity <= 0 || len(app.Status.ExecutorState) <= capacity {
+		return
+	}
+
+	type entry struct {
+		name string
+		id   int
+	}
+	var terminated, live []entry
+	for name, state := range app.Status.ExecutorState {
+		e := entry{name: name, id: util.ParseExecutorIDFromPodName(name)}
+		// UNKNOWN is set above when the pod is gone but the driver is still
+		// running, so treat it as evictable alongside terminal states.
+		if util.IsExecutorTerminated(state) || state == v1beta2.ExecutorStateUnknown {
+			terminated = append(terminated, e)
+		} else {
+			live = append(live, e)
+		}
+	}
+
+	// Terminated eviction: drop oldest-ID first until at cap or none left.
+	sort.Slice(terminated, func(i, j int) bool {
+		if terminated[i].id != terminated[j].id {
+			return terminated[i].id < terminated[j].id
+		}
+		return terminated[i].name < terminated[j].name
+	})
+	for _, e := range terminated {
+		if len(app.Status.ExecutorState) <= capacity {
+			return
+		}
+		delete(app.Status.ExecutorState, e.name)
+	}
+
+	if len(app.Status.ExecutorState) <= capacity {
+		return
+	}
+
+	// Live eviction: all remaining entries are live; drop newest-ID first.
+	sort.Slice(live, func(i, j int) bool {
+		if live[i].id != live[j].id {
+			return live[i].id > live[j].id
+		}
+		return live[i].name < live[j].name
+	})
+	dropped := 0
+	for _, e := range live {
+		if len(app.Status.ExecutorState) <= capacity {
+			break
+		}
+		delete(app.Status.ExecutorState, e.name)
+		dropped++
+	}
+	if dropped > 0 {
+		logger.Info("Dropped live executors from status; tracked-executor cap fully occupied by live entries",
+			"name", app.Name, "namespace", app.Namespace, "dropped", dropped, "cap", capacity)
+	}
 }
 
 func (r *Reconciler) getExecutorPods(ctx context.Context, app *v1beta2.SparkApplication) (*corev1.PodList, error) {
