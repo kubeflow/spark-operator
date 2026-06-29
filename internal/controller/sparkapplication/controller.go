@@ -677,6 +677,12 @@ func (r *Reconciler) reconcileTerminatedSparkApplication(ctx context.Context, re
 
 	if util.IsExpired(app) {
 		logger.Info("Deleting expired SparkApplication", "state", app.Status.AppState.State)
+		// Ensure resources created for the application (driver pod, services, ingress) are removed
+		if err := r.deleteSparkResources(ctx, app); err != nil {
+			logger.Error(err, "Failed to delete resources associated with expired SparkApplication")
+			// Requeue to retry cleanup before removing the SparkApplication object
+			return ctrl.Result{Requeue: true}, err
+		}
 		if err := r.client.Delete(ctx, app); err != nil {
 			return ctrl.Result{Requeue: true}, err
 		}
