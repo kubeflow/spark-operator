@@ -1374,6 +1374,142 @@ var _ = Describe("SparkApplication Controller", func() {
 			})
 		})
 	})
+
+	Context("When reconciling a terminated SparkApplication with a Spark UI service", func() {
+		ctx := context.Background()
+		appName := "test"
+		appNamespace := "default"
+		key := types.NamespacedName{
+			Name:      appName,
+			Namespace: appNamespace,
+		}
+
+		uiServiceKey := types.NamespacedName{
+			Namespace: appNamespace,
+		}
+		driverIngressServiceName := fmt.Sprintf("%s-driver-8080", appName)
+		driverIngressServiceKey := types.NamespacedName{
+			Name:      driverIngressServiceName,
+			Namespace: appNamespace,
+		}
+
+		// createTerminatedAppWithServices creates a Completed/Failed SparkApplication along with
+		// the Spark UI service and a driver-ingress service that the operator would have created
+		// while the application was running.
+		createTerminatedAppWithServices := func(state v1beta2.ApplicationStateType) {
+			app := &v1beta2.SparkApplication{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      appName,
+					Namespace: appNamespace,
+				},
+				Spec: v1beta2.SparkApplicationSpec{
+					MainApplicationFile: ptr.To("local:///dummy.jar"),
+				},
+			}
+			v1beta2.SetSparkApplicationDefaults(app)
+			Expect(k8sClient.Create(ctx, app)).To(Succeed())
+
+			// Re-read to obtain the UID needed for owner references.
+			Expect(k8sClient.Get(ctx, key, app)).To(Succeed())
+			ownerRef := util.GetOwnerReference(app)
+
+			uiServiceName := util.GetDefaultUIServiceName(app)
+			uiServiceKey.Name = uiServiceName
+			uiService := &corev1.Service{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:            uiServiceName,
+					Namespace:       appNamespace,
+					Labels:          util.GetResourceLabels(app),
+					OwnerReferences: []metav1.OwnerReference{ownerRef},
+				},
+				Spec: corev1.ServiceSpec{
+					Ports: []corev1.ServicePort{{Name: "spark-driver-ui-port", Port: 4040}},
+					Selector: map[string]string{
+						common.LabelSparkAppName: appName,
+						common.LabelSparkRole:    common.SparkRoleDriver,
+					},
+				},
+			}
+			Expect(k8sClient.Create(ctx, uiService)).To(Succeed())
+
+			driverIngressService := &corev1.Service{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:            driverIngressServiceName,
+					Namespace:       appNamespace,
+					Labels:          util.GetResourceLabels(app),
+					OwnerReferences: []metav1.OwnerReference{ownerRef},
+				},
+				Spec: corev1.ServiceSpec{
+					Ports: []corev1.ServicePort{{Name: "driver-ing-8080", Port: 8080}},
+					Selector: map[string]string{
+						common.LabelSparkAppName: appName,
+						common.LabelSparkRole:    common.SparkRoleDriver,
+					},
+				},
+			}
+			Expect(k8sClient.Create(ctx, driverIngressService)).To(Succeed())
+
+			By("Updating the SparkApplication to a terminated state with the UI service recorded")
+			app.Status.AppState.State = state
+			app.Status.TerminationTime = metav1.Now()
+			app.Status.DriverInfo.WebUIServiceName = uiServiceName
+			Expect(k8sClient.Status().Update(ctx, app)).To(Succeed())
+		}
+
+		AfterEach(func() {
+			app := &v1beta2.SparkApplication{}
+			if err := k8sClient.Get(ctx, key, app); err == nil {
+				By("Deleting the test SparkApplication")
+				Expect(k8sClient.Delete(ctx, app)).To(Succeed())
+			}
+			Expect(client.IgnoreNotFound(k8sClient.Delete(ctx, &corev1.Service{
+				ObjectMeta: metav1.ObjectMeta{Name: uiServiceKey.Name, Namespace: appNamespace},
+			}))).To(Succeed())
+			Expect(client.IgnoreNotFound(k8sClient.Delete(ctx, &corev1.Service{
+				ObjectMeta: metav1.ObjectMeta{Name: driverIngressServiceName, Namespace: appNamespace},
+			}))).To(Succeed())
+		})
+
+		newReconciler := func() *sparkapplication.Reconciler {
+			return sparkapplication.NewReconciler(
+				nil,
+				k8sClient.Scheme(),
+				k8sClient,
+				record.NewFakeRecorder(3),
+				nil,
+				&sparkapplication.SparkSubmitter{},
+				sparkapplication.Options{EnableUIService: true, Namespaces: []string{appNamespace}},
+			)
+		}
+
+		It("Should delete the Spark UI service when the application is Completed", func() {
+			createTerminatedAppWithServices(v1beta2.ApplicationStateCompleted)
+
+			By("Reconciling the Completed SparkApplication")
+			_, err := newReconciler().Reconcile(ctx, reconcile.Request{NamespacedName: key})
+			Expect(err).NotTo(HaveOccurred())
+
+			By("Checking that the Spark UI service has been deleted")
+			Expect(k8sClient.Get(ctx, uiServiceKey, &corev1.Service{})).To(Satisfy(errors.IsNotFound))
+
+			By("Checking that the driver-ingress service has been deleted")
+			Expect(k8sClient.Get(ctx, driverIngressServiceKey, &corev1.Service{})).To(Satisfy(errors.IsNotFound))
+		})
+
+		It("Should delete the Spark UI service when the application is Failed", func() {
+			createTerminatedAppWithServices(v1beta2.ApplicationStateFailed)
+
+			By("Reconciling the Failed SparkApplication")
+			_, err := newReconciler().Reconcile(ctx, reconcile.Request{NamespacedName: key})
+			Expect(err).NotTo(HaveOccurred())
+
+			By("Checking that the Spark UI service has been deleted")
+			Expect(k8sClient.Get(ctx, uiServiceKey, &corev1.Service{})).To(Satisfy(errors.IsNotFound))
+
+			By("Checking that the driver-ingress service has been deleted")
+			Expect(k8sClient.Get(ctx, driverIngressServiceKey, &corev1.Service{})).To(Satisfy(errors.IsNotFound))
+		})
+	})
 })
 
 func getDriverNamespacedName(appName string, appNamespace string) types.NamespacedName {

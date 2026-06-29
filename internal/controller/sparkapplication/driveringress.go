@@ -358,8 +358,11 @@ func (r *Reconciler) createDriverIngressService(
 		},
 	}
 
-	if len(serviceLabels) != 0 {
-		service.Labels = serviceLabels
+	// Merge any user-provided labels on top of the operator labels rather than replacing
+	// them, so that the SparkApplication name label that owner-reference GC, selectors and
+	// cleanup rely on is always preserved.
+	for key, value := range serviceLabels {
+		service.Labels[key] = value
 	}
 
 	if len(serviceAnnotations) != 0 {

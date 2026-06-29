@@ -1201,8 +1201,10 @@ func (r *Reconciler) deleteDriverPod(ctx context.Context, app *v1beta2.SparkAppl
 func (r *Reconciler) deleteWebUIService(ctx context.Context, app *v1beta2.SparkApplication) error {
 	logger := log.FromContext(ctx)
 	svcName := app.Status.DriverInfo.WebUIServiceName
+	// Fall back to the deterministic default name so the service is not orphaned if the
+	// status update that recorded WebUIServiceName was lost (e.g. failed right after submission).
 	if svcName == "" {
-		return nil
+		svcName = util.GetDefaultUIServiceName(app)
 	}
 	logger.Info("Deleting Spark web UI service", "service", svcName)
 	if err := r.client.Delete(
@@ -1216,6 +1218,26 @@ func (r *Reconciler) deleteWebUIService(ctx context.Context, app *v1beta2.SparkA
 		&client.DeleteOptions{
 			GracePeriodSeconds: ptr.To[int64](0),
 		},
+	); err != nil && !errors.IsNotFound(err) {
+		return err
+	}
+	return nil
+}
+
+// deleteDriverIngressServices deletes the per-DriverIngressOptions services created for the
+// application. Their names are not recorded in the status, so they are matched by the
+// SparkApplication name label that the operator stamps on every resource it creates.
+// Leaving them behind causes Kubernetes to inject a pair of environment variables per service
+// into every newly created pod, which eventually overflows the process argument list (#2984).
+func (r *Reconciler) deleteDriverIngressServices(ctx context.Context, app *v1beta2.SparkApplication) error {
+	logger := log.FromContext(ctx)
+	logger.Info("Deleting driver ingress services", "name", app.Name)
+	if err := r.client.DeleteAllOf(
+		ctx,
+		&corev1.Service{},
+		client.InNamespace(app.Namespace),
+		client.MatchingLabels(map[string]string{common.LabelSparkAppName: app.Name}),
+		client.GracePeriodSeconds(0),
 	); err != nil && !errors.IsNotFound(err) {
 		return err
 	}
@@ -1295,6 +1317,19 @@ func (r *Reconciler) validateSparkResourceDeletion(ctx context.Context, app *v1b
 		if err := r.client.Get(ctx, types.NamespacedName{Name: sparkUIIngressName, Namespace: app.Namespace}, &networkingv1.Ingress{}); err == nil || !errors.IsNotFound(err) {
 			return false
 		}
+	}
+
+	// Validate whether the driver-ingress services have been deleted. Their names are not
+	// recorded in the status, so they are matched by the SparkApplication name label.
+	services := &corev1.ServiceList{}
+	if err := r.client.List(ctx, services,
+		client.InNamespace(app.Namespace),
+		client.MatchingLabels(map[string]string{common.LabelSparkAppName: app.Name}),
+	); err != nil {
+		return false
+	}
+	if len(services.Items) > 0 {
+		return false
 	}
 
 	return true
@@ -1495,6 +1530,21 @@ func (r *Reconciler) cleanUpOnTermination(ctx context.Context, _, newApp *v1beta
 		if err := scheduler.Cleanup(newApp); err != nil {
 			return err
 		}
+	}
+
+	// Delete the network resources (Spark UI service/ingress and driver-ingress services) that
+	// are owned by the SparkApplication. They would otherwise persist for the entire lifetime of
+	// a retained Completed/Failed SparkApplication and leak per-service environment variables into
+	// every newly created pod (#2984). The driver pod is intentionally left in place so that its
+	// logs remain available for inspection.
+	if err := r.deleteWebUIService(ctx, newApp); err != nil {
+		return err
+	}
+	if err := r.deleteWebUIIngress(ctx, newApp); err != nil {
+		return err
+	}
+	if err := r.deleteDriverIngressServices(ctx, newApp); err != nil {
+		return err
 	}
 	return nil
 }
