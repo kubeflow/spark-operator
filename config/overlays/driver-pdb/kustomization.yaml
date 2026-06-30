@@ -1,0 +1,21 @@
+# Opt-in overlay that enables the driver PodDisruptionBudget feature.
+#
+# Usage:
+#   kustomize build config/overlays/driver-pdb/ | kubectl apply --server-side -f -
+#
+# It builds on config/default and appends --enable-driver-pdb=true to the
+# controller container args. The flag defaults to false in the binary, so this
+# overlay is the supported way to turn the feature on for kustomize-based
+# deployments.
+
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../../default
+
+patches:
+  - path: enable-driver-pdb-patch.yaml
+    target:
+      kind: Deployment
+      name: spark-operator-controller

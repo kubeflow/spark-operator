@@ -2526,6 +2526,13 @@ func schema_spark_operator_v2_api_v1beta2_SparkApplicationSpec(ref common.Refere
 							Ref:         ref("github.com/kubeflow/spark-operator/v2/api/v1beta2.DynamicAllocation"),
 						},
 					},
+					"driverPodDisruptionBudget": {
+						SchemaProps: spec.SchemaProps{
+							Description: "DriverPodDisruptionBudget controls whether a PodDisruptionBudget is created for the driver pod to prevent voluntary eviction (e.g. kubectl drain) while the application is running. A PDB is only created when this field is true AND the operator was started with --enable-driver-pdb. When unset or false, no PDB is created. The field has no effect when the operator-level gate is off.",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
 				},
 				Required: []string{"type", "sparkVersion", "mainApplicationFile", "driver", "executor"},
 			},

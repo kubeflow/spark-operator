@@ -38,6 +38,7 @@ import (
 	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
 	corev1 "k8s.io/api/core/v1"
 	discoveryv1 "k8s.io/api/discovery/v1"
+	policyv1 "k8s.io/api/policy/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -127,6 +128,7 @@ var _ = BeforeSuite(func() {
 
 	Expect(v1alpha1.AddToScheme(scheme.Scheme)).NotTo(HaveOccurred())
 	Expect(v1beta2.AddToScheme(scheme.Scheme)).NotTo(HaveOccurred())
+	Expect(policyv1.AddToScheme(scheme.Scheme)).NotTo(HaveOccurred())
 	// +kubebuilder:scaffold:scheme
 
 	k8sClient, err = client.New(cfg, client.Options{Scheme: scheme.Scheme})
@@ -219,8 +221,11 @@ func uninstallViaHelm() {
 
 func installViaKustomize() {
 	repoRoot := filepath.Join("..", "..")
-	kustomizeDir := filepath.Join(repoRoot, "config", "default")
-	kustomizationPath := filepath.Join(kustomizeDir, "kustomization.yaml")
+	// Deploy the driver-pdb overlay so e2e exercises the --enable-driver-pdb
+	// feature, matching the helm ci-values.yaml (driverPodDisruptionBudget.enable=true).
+	// The overlay inherits config/default, including the image tag we rewrite below.
+	kustomizeDir := filepath.Join(repoRoot, "config", "overlays", "driver-pdb")
+	kustomizationPath := filepath.Join(repoRoot, "config", "default", "kustomization.yaml")
 
 	imageTag := os.Getenv("IMAGE_TAG")
 	if imageTag != "" {
@@ -278,7 +283,7 @@ func uninstallViaKustomize() {
 	rbacDelCmd.Stderr = GinkgoWriter
 	_ = rbacDelCmd.Run()
 
-	kustomizeDir := filepath.Join(repoRoot, "config", "default")
+	kustomizeDir := filepath.Join(repoRoot, "config", "overlays", "driver-pdb")
 	By("Uninstalling the Spark operator via Kustomize")
 	deleteCmd := exec.Command("kubectl", "delete", "-k", kustomizeDir, "--ignore-not-found", "--timeout=120s")
 	deleteCmd.Stdout = GinkgoWriter
