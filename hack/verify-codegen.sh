@@ -20,15 +20,13 @@ set -o pipefail
 
 SCRIPT_ROOT=$(dirname "${BASH_SOURCE[0]}")/..
 
-_tmp="${SCRIPT_ROOT}/_tmp"
+_tmp="$(mktemp -d)"
 DIFF_ROOTS=("${SCRIPT_ROOT}/api" "${SCRIPT_ROOT}/pkg")
 
 cleanup() {
   rm -rf "${_tmp}"
 }
 trap "cleanup" EXIT SIGINT
-
-cleanup
 
 for root in "${DIFF_ROOTS[@]}"; do
   rel="${root#"${SCRIPT_ROOT}/"}"
