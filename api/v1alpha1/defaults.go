@@ -16,6 +16,25 @@ limitations under the License.
 
 package v1alpha1
 
+import (
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/utils/ptr"
+)
+
+const DefaultSparkConnectRestartBackoffMillis int64 = 5000
+
+// RegisterDefaults adds defaulting functions to the given scheme.
+func RegisterDefaults(scheme *runtime.Scheme) error {
+	scheme.AddTypeDefaultingFunc(&SparkConnect{}, func(obj interface{}) { SetSparkConnectDefaults(obj.(*SparkConnect)) })
+	return nil
+}
+
 // SetSparkConnectDefaults sets default values for certain fields of a SparkConnect.
 func SetSparkConnectDefaults(conn *SparkConnect) {
+	if conn.Spec.RestartConfig.RestartPolicy == "" {
+		conn.Spec.RestartConfig.RestartPolicy = SparkConnectRestartPolicyAlways
+	}
+	if conn.Spec.RestartConfig.RestartBackoffMillis == nil {
+		conn.Spec.RestartConfig.RestartBackoffMillis = ptr.To(DefaultSparkConnectRestartBackoffMillis)
+	}
 }
