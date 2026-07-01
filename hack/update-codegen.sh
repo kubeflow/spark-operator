@@ -30,7 +30,7 @@ source "${CODEGEN_PKG}/kube_codegen.sh"
 # Generate register code
 kube::codegen::gen_register \
   --boilerplate "${SCRIPT_ROOT}/hack/boilerplate.go.txt" \
-  "${SCRIPT_ROOT}"
+  "${SCRIPT_ROOT}/api"
 
 # Generate client code: client, lister, informer in client-go directory
 kube::codegen::gen_client \
