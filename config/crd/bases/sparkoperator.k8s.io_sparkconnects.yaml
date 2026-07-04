@@ -130,25 +130,25 @@ spec:
                   Image is the container image for the driver, executor, and init-container. Any custom container images for the
                   driver, executor, or init-container takes precedence over this.
                 type: string
-              restartConfig:
-                description: RestartConfig defines the policy for operator-managed
+              restartPolicy:
+                description: RestartPolicy defines the policy for operator-managed
                   Spark Connect server pod restarts.
                 properties:
-                  maxRestartAttempts:
-                    description: MaxRestartAttempts is the maximum number of restart
-                      attempts. Nil means unlimited.
+                  onFailureRetries:
+                    description: OnFailureRetries the number of times to retry running
+                      an application before giving up.
                     format: int32
                     minimum: 0
                     type: integer
-                  restartBackoffMillis:
-                    description: RestartBackoffMillis is the backoff time between
-                      restart attempts in milliseconds.
+                  onFailureRetryInterval:
+                    description: OnFailureRetryInterval is the interval in seconds
+                      between restart attempts on failed runs.
                     format: int64
-                    minimum: 0
+                    minimum: 1
                     type: integer
-                  restartPolicy:
-                    description: RestartPolicy defines when the operator should restart
-                      the Spark Connect server pod.
+                  restartPolicyType:
+                    description: RestartPolicyType defines when the operator should
+                      restart the Spark Connect server pod.
                     enum:
                     - Never
                     - Always

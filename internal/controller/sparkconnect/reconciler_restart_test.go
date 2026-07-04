@@ -69,86 +69,6 @@ func TestMutateServerPodSetsRestartPolicyNever(t *testing.T) {
 	}
 }
 
-func TestRestartPolicyAllowsRestartForPod(t *testing.T) {
-	maxAttempts := int32(2)
-	tests := []struct {
-		name string
-		conn *v1alpha1.SparkConnect
-		pod  *corev1.Pod
-		want bool
-	}{
-		{
-			name: "always restarts completed server pod",
-			conn: &v1alpha1.SparkConnect{
-				Spec: v1alpha1.SparkConnectSpec{
-					RestartConfig: v1alpha1.RestartConfig{RestartPolicy: v1alpha1.SparkConnectRestartPolicyAlways},
-				},
-				Status: v1alpha1.SparkConnectStatus{State: v1alpha1.SparkConnectStateCompleted},
-			},
-			pod:  &corev1.Pod{Status: corev1.PodStatus{Phase: corev1.PodSucceeded}},
-			want: true,
-		},
-		{
-			name: "on failure does not restart completed server pod",
-			conn: &v1alpha1.SparkConnect{
-				Spec: v1alpha1.SparkConnectSpec{
-					RestartConfig: v1alpha1.RestartConfig{RestartPolicy: v1alpha1.SparkConnectRestartPolicyOnFailure},
-				},
-				Status: v1alpha1.SparkConnectStatus{State: v1alpha1.SparkConnectStateCompleted},
-			},
-			pod:  &corev1.Pod{Status: corev1.PodStatus{Phase: corev1.PodSucceeded}},
-			want: false,
-		},
-		{
-			name: "on failure restarts failed server pod",
-			conn: &v1alpha1.SparkConnect{
-				Spec: v1alpha1.SparkConnectSpec{
-					RestartConfig: v1alpha1.RestartConfig{RestartPolicy: v1alpha1.SparkConnectRestartPolicyOnFailure},
-				},
-				Status: v1alpha1.SparkConnectStatus{State: v1alpha1.SparkConnectStateFailed},
-			},
-			pod:  &corev1.Pod{Status: corev1.PodStatus{Phase: corev1.PodFailed}},
-			want: true,
-		},
-		{
-			name: "never does not restart failed server pod",
-			conn: &v1alpha1.SparkConnect{
-				Spec: v1alpha1.SparkConnectSpec{
-					RestartConfig: v1alpha1.RestartConfig{RestartPolicy: v1alpha1.SparkConnectRestartPolicyNever},
-				},
-				Status: v1alpha1.SparkConnectStatus{State: v1alpha1.SparkConnectStateFailed},
-			},
-			pod:  &corev1.Pod{Status: corev1.PodStatus{Phase: corev1.PodFailed}},
-			want: false,
-		},
-		{
-			name: "finite attempts stop when exhausted",
-			conn: &v1alpha1.SparkConnect{
-				Spec: v1alpha1.SparkConnectSpec{
-					RestartConfig: v1alpha1.RestartConfig{
-						RestartPolicy:      v1alpha1.SparkConnectRestartPolicyAlways,
-						MaxRestartAttempts: &maxAttempts,
-					},
-				},
-				Status: v1alpha1.SparkConnectStatus{
-					State:           v1alpha1.SparkConnectStateFailed,
-					RestartAttempts: 2,
-				},
-			},
-			pod:  &corev1.Pod{Status: corev1.PodStatus{Phase: corev1.PodFailed}},
-			want: true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := restartPolicyAllowsRestartForPod(tt.conn, tt.pod); got != tt.want {
-				t.Fatalf("restartPolicyAllowsRestartForPod() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
 func TestCheckServerPodStatusSetsCompleted(t *testing.T) {
 	conn := &v1alpha1.SparkConnect{}
 	pod := &corev1.Pod{Status: corev1.PodStatus{Phase: corev1.PodSucceeded}}
@@ -187,9 +107,9 @@ func TestApplyServerPodStatusSetsFailedWhenRestartAttemptsExhausted(t *testing.T
 	maxAttempts := int32(1)
 	conn := &v1alpha1.SparkConnect{
 		Spec: v1alpha1.SparkConnectSpec{
-			RestartConfig: v1alpha1.RestartConfig{
-				RestartPolicy:      v1alpha1.SparkConnectRestartPolicyOnFailure,
-				MaxRestartAttempts: &maxAttempts,
+			RestartPolicy: v1alpha1.RestartPolicy{
+				RestartPolicyType: v1alpha1.RestartPolicyTypeOnFailure,
+				OnFailureRetries:  &maxAttempts,
 			},
 		},
 		Status: v1alpha1.SparkConnectStatus{
@@ -210,9 +130,9 @@ func TestApplyServerPodStatusKeepsCompletedWhenRestartAttemptsExhausted(t *testi
 	maxAttempts := int32(1)
 	conn := &v1alpha1.SparkConnect{
 		Spec: v1alpha1.SparkConnectSpec{
-			RestartConfig: v1alpha1.RestartConfig{
-				RestartPolicy:      v1alpha1.SparkConnectRestartPolicyAlways,
-				MaxRestartAttempts: &maxAttempts,
+			RestartPolicy: v1alpha1.RestartPolicy{
+				RestartPolicyType: v1alpha1.RestartPolicyTypeAlways,
+				OnFailureRetries:  &maxAttempts,
 			},
 		},
 		Status: v1alpha1.SparkConnectStatus{
@@ -247,17 +167,17 @@ func TestReconcileServerPodRestartIncrementsAttemptsWhenPodDeleted(t *testing.T)
 	}
 
 	maxAttempts := int32(1)
-	backoffMillis := int64(0)
+	retryInterval := int64(0)
 	conn := &v1alpha1.SparkConnect{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "spark-connect",
 			Namespace: "default",
 		},
 		Spec: v1alpha1.SparkConnectSpec{
-			RestartConfig: v1alpha1.RestartConfig{
-				RestartPolicy:        v1alpha1.SparkConnectRestartPolicyOnFailure,
-				MaxRestartAttempts:   &maxAttempts,
-				RestartBackoffMillis: &backoffMillis,
+			RestartPolicy: v1alpha1.RestartPolicy{
+				RestartPolicyType:      v1alpha1.RestartPolicyTypeOnFailure,
+				OnFailureRetries:       &maxAttempts,
+				OnFailureRetryInterval: &retryInterval,
 			},
 		},
 		Status: v1alpha1.SparkConnectStatus{
@@ -334,17 +254,17 @@ func TestReconcileServerPodRestartIncrementsAttemptsAcrossReplacementPods(t *tes
 	}
 
 	maxAttempts := int32(3)
-	backoffMillis := int64(0)
+	retryInterval := int64(0)
 	conn := &v1alpha1.SparkConnect{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "spark-connect",
 			Namespace: "default",
 		},
 		Spec: v1alpha1.SparkConnectSpec{
-			RestartConfig: v1alpha1.RestartConfig{
-				RestartPolicy:        v1alpha1.SparkConnectRestartPolicyOnFailure,
-				MaxRestartAttempts:   &maxAttempts,
-				RestartBackoffMillis: &backoffMillis,
+			RestartPolicy: v1alpha1.RestartPolicy{
+				RestartPolicyType:      v1alpha1.RestartPolicyTypeOnFailure,
+				OnFailureRetries:       &maxAttempts,
+				OnFailureRetryInterval: &retryInterval,
 			},
 		},
 		Status: v1alpha1.SparkConnectStatus{
@@ -428,9 +348,9 @@ func TestReconcileServerPodRestartSetsFailedWhenRestartAttemptsExhausted(t *test
 			Namespace: "default",
 		},
 		Spec: v1alpha1.SparkConnectSpec{
-			RestartConfig: v1alpha1.RestartConfig{
-				RestartPolicy:      v1alpha1.SparkConnectRestartPolicyOnFailure,
-				MaxRestartAttempts: &maxAttempts,
+			RestartPolicy: v1alpha1.RestartPolicy{
+				RestartPolicyType: v1alpha1.RestartPolicyTypeOnFailure,
+				OnFailureRetries:  &maxAttempts,
 			},
 		},
 		Status: v1alpha1.SparkConnectStatus{
@@ -465,12 +385,111 @@ func TestReconcileServerPodRestartSetsFailedWhenRestartAttemptsExhausted(t *test
 	}
 }
 
+func TestReconcileServerPodRestartOnFailureRequiresRetries(t *testing.T) {
+	ctx := context.Background()
+	scheme := runtime.NewScheme()
+	if err := corev1.AddToScheme(scheme); err != nil {
+		t.Fatalf("failed to add core scheme: %v", err)
+	}
+	if err := v1alpha1.AddToScheme(scheme); err != nil {
+		t.Fatalf("failed to add spark connect scheme: %v", err)
+	}
+
+	conn := &v1alpha1.SparkConnect{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "spark-connect",
+			Namespace: "default",
+		},
+		Spec: v1alpha1.SparkConnectSpec{
+			RestartPolicy: v1alpha1.RestartPolicy{
+				RestartPolicyType: v1alpha1.RestartPolicyTypeOnFailure,
+			},
+		},
+		Status: v1alpha1.SparkConnectStatus{
+			State: v1alpha1.SparkConnectStateNotReady,
+		},
+	}
+	pod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      GetServerPodName(conn),
+			Namespace: conn.Namespace,
+		},
+		Status: corev1.PodStatus{Phase: corev1.PodFailed},
+	}
+	reconciler := &Reconciler{
+		client: fake.NewClientBuilder().
+			WithScheme(scheme).
+			WithObjects(pod).
+			Build(),
+	}
+
+	decision := reconciler.reconcileServerPodRestart(ctx, conn, pod)
+	if decision.scheduled {
+		t.Fatal("onFailure without onFailureRetries should not schedule another restart")
+	}
+	if decision.reason != serverPodRestartDecisionLimitExceeded {
+		t.Fatalf("restart decision = %s, want %s", decision.reason, serverPodRestartDecisionLimitExceeded)
+	}
+}
+
+func TestReconcileServerPodRestartAlwaysIgnoresOnFailureRetriesForFailedPods(t *testing.T) {
+	ctx := context.Background()
+	scheme := runtime.NewScheme()
+	if err := corev1.AddToScheme(scheme); err != nil {
+		t.Fatalf("failed to add core scheme: %v", err)
+	}
+	if err := v1alpha1.AddToScheme(scheme); err != nil {
+		t.Fatalf("failed to add spark connect scheme: %v", err)
+	}
+
+	maxAttempts := int32(1)
+	conn := &v1alpha1.SparkConnect{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "spark-connect",
+			Namespace: "default",
+		},
+		Spec: v1alpha1.SparkConnectSpec{
+			RestartPolicy: v1alpha1.RestartPolicy{
+				RestartPolicyType: v1alpha1.RestartPolicyTypeAlways,
+				OnFailureRetries:  &maxAttempts,
+			},
+		},
+		Status: v1alpha1.SparkConnectStatus{
+			State:           v1alpha1.SparkConnectStateNotReady,
+			RestartAttempts: 1,
+		},
+	}
+	pod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      GetServerPodName(conn),
+			Namespace: conn.Namespace,
+		},
+		Status: corev1.PodStatus{Phase: corev1.PodFailed},
+	}
+	reconciler := &Reconciler{
+		client: fake.NewClientBuilder().
+			WithScheme(scheme).
+			WithObjects(pod).
+			Build(),
+	}
+
+	decision := reconciler.reconcileServerPodRestart(ctx, conn, pod)
+	if !decision.scheduled {
+		t.Fatal("always policy should schedule another failed pod restart after onFailureRetries is exhausted")
+	}
+	if decision.reason != serverPodRestartDecisionStartBackoff {
+		t.Fatalf("restart decision = %s, want %s", decision.reason, serverPodRestartDecisionStartBackoff)
+	}
+}
+
 func TestReconcileServerPodRestartDoesNotMutateStatusWhenScheduling(t *testing.T) {
 	ctx := context.Background()
+	maxAttempts := int32(1)
 	conn := &v1alpha1.SparkConnect{
 		Spec: v1alpha1.SparkConnectSpec{
-			RestartConfig: v1alpha1.RestartConfig{
-				RestartPolicy: v1alpha1.SparkConnectRestartPolicyOnFailure,
+			RestartPolicy: v1alpha1.RestartPolicy{
+				RestartPolicyType: v1alpha1.RestartPolicyTypeOnFailure,
+				OnFailureRetries:  &maxAttempts,
 			},
 		},
 	}
@@ -512,7 +531,7 @@ func TestReconcileKeepsRestartableFailedServerPodNotReady(t *testing.T) {
 	}
 
 	maxAttempts := int32(3)
-	backoffMillis := int64(0)
+	retryInterval := int64(0)
 	conn := &v1alpha1.SparkConnect{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:       "spark-connect",
@@ -522,10 +541,10 @@ func TestReconcileKeepsRestartableFailedServerPodNotReady(t *testing.T) {
 		Spec: v1alpha1.SparkConnectSpec{
 			SparkVersion: "4.0.0",
 			Image:        ptr.To("spark:4.0.0"),
-			RestartConfig: v1alpha1.RestartConfig{
-				RestartPolicy:        v1alpha1.SparkConnectRestartPolicyAlways,
-				MaxRestartAttempts:   &maxAttempts,
-				RestartBackoffMillis: &backoffMillis,
+			RestartPolicy: v1alpha1.RestartPolicy{
+				RestartPolicyType:      v1alpha1.RestartPolicyTypeAlways,
+				OnFailureRetries:       &maxAttempts,
+				OnFailureRetryInterval: &retryInterval,
 			},
 			Server: v1alpha1.ServerSpec{
 				SparkPodSpec: v1alpha1.SparkPodSpec{
@@ -585,7 +604,7 @@ func TestReconcileKeepsRestartableCompletedServerPodNotReady(t *testing.T) {
 	}
 
 	maxAttempts := int32(3)
-	backoffMillis := int64(0)
+	retryInterval := int64(0)
 	conn := &v1alpha1.SparkConnect{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:       "spark-connect",
@@ -595,10 +614,10 @@ func TestReconcileKeepsRestartableCompletedServerPodNotReady(t *testing.T) {
 		Spec: v1alpha1.SparkConnectSpec{
 			SparkVersion: "4.0.0",
 			Image:        ptr.To("spark:4.0.0"),
-			RestartConfig: v1alpha1.RestartConfig{
-				RestartPolicy:        v1alpha1.SparkConnectRestartPolicyAlways,
-				MaxRestartAttempts:   &maxAttempts,
-				RestartBackoffMillis: &backoffMillis,
+			RestartPolicy: v1alpha1.RestartPolicy{
+				RestartPolicyType:      v1alpha1.RestartPolicyTypeAlways,
+				OnFailureRetries:       &maxAttempts,
+				OnFailureRetryInterval: &retryInterval,
 			},
 			Server: v1alpha1.ServerSpec{
 				SparkPodSpec: v1alpha1.SparkPodSpec{
@@ -659,17 +678,17 @@ func TestReconcileServerPodRestartDoesNotScheduleTerminatingPod(t *testing.T) {
 	}
 
 	maxAttempts := int32(3)
-	backoffMillis := int64(0)
+	retryInterval := int64(0)
 	conn := &v1alpha1.SparkConnect{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "spark-connect",
 			Namespace: "default",
 		},
 		Spec: v1alpha1.SparkConnectSpec{
-			RestartConfig: v1alpha1.RestartConfig{
-				RestartPolicy:        v1alpha1.SparkConnectRestartPolicyOnFailure,
-				MaxRestartAttempts:   &maxAttempts,
-				RestartBackoffMillis: &backoffMillis,
+			RestartPolicy: v1alpha1.RestartPolicy{
+				RestartPolicyType:      v1alpha1.RestartPolicyTypeOnFailure,
+				OnFailureRetries:       &maxAttempts,
+				OnFailureRetryInterval: &retryInterval,
 			},
 		},
 		Status: v1alpha1.SparkConnectStatus{

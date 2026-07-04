@@ -142,8 +142,8 @@ func (v *SparkConnectValidator) validateSpec(sc *v1alpha1.SparkConnect) error {
 		return err
 	}
 
-	// Validate RestartConfig
-	if err := v.validateRestartConfig(sc); err != nil {
+	// Validate RestartPolicy
+	if err := v.validateRestartPolicy(sc); err != nil {
 		return err
 	}
 
@@ -160,19 +160,19 @@ func (v *SparkConnectValidator) validateSpec(sc *v1alpha1.SparkConnect) error {
 	return nil
 }
 
-func (v *SparkConnectValidator) validateRestartConfig(sc *v1alpha1.SparkConnect) error {
-	switch sc.Spec.RestartConfig.RestartPolicy {
-	case "", v1alpha1.SparkConnectRestartPolicyNever, v1alpha1.SparkConnectRestartPolicyAlways, v1alpha1.SparkConnectRestartPolicyOnFailure:
+func (v *SparkConnectValidator) validateRestartPolicy(sc *v1alpha1.SparkConnect) error {
+	switch sc.Spec.RestartPolicy.RestartPolicyType {
+	case "", v1alpha1.RestartPolicyTypeNever, v1alpha1.RestartPolicyTypeAlways, v1alpha1.RestartPolicyTypeOnFailure:
 	default:
-		return fmt.Errorf("restartPolicy must be empty or one of Never, Always, or OnFailure, got %q", sc.Spec.RestartConfig.RestartPolicy)
+		return fmt.Errorf("restartPolicyType must be empty or one of Never, Always, or OnFailure, got %q", sc.Spec.RestartPolicy.RestartPolicyType)
 	}
 
-	if sc.Spec.RestartConfig.MaxRestartAttempts != nil && *sc.Spec.RestartConfig.MaxRestartAttempts < 0 {
-		return fmt.Errorf("maxRestartAttempts must be greater than or equal to 0")
+	if sc.Spec.RestartPolicy.OnFailureRetries != nil && *sc.Spec.RestartPolicy.OnFailureRetries < 0 {
+		return fmt.Errorf("onFailureRetries must be greater than or equal to 0")
 	}
 
-	if sc.Spec.RestartConfig.RestartBackoffMillis != nil && *sc.Spec.RestartConfig.RestartBackoffMillis < 0 {
-		return fmt.Errorf("restartBackoffMillis must be greater than or equal to 0")
+	if sc.Spec.RestartPolicy.OnFailureRetryInterval != nil && *sc.Spec.RestartPolicy.OnFailureRetryInterval < 1 {
+		return fmt.Errorf("onFailureRetryInterval must be greater than or equal to 1")
 	}
 
 	return nil

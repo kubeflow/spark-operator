@@ -20,12 +20,10 @@ import (
 	"context"
 	"fmt"
 	"strings"
-	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -324,127 +322,6 @@ func (r *Reconciler) reconcileServerPod(ctx context.Context, conn *v1alpha1.Spar
 	return conn, restartDecision.result, restartDecision.scheduled, nil
 }
 
-type serverPodStatus struct {
-	state     v1alpha1.SparkConnectState
-	condition metav1.Condition
-}
-
-type serverPodRestartDecisionReason string
-
-const (
-	serverPodRestartDecisionNone          serverPodRestartDecisionReason = ""
-	serverPodRestartDecisionTerminating   serverPodRestartDecisionReason = "Terminating"
-	serverPodRestartDecisionLimitExceeded serverPodRestartDecisionReason = "LimitExceeded"
-	serverPodRestartDecisionStartBackoff  serverPodRestartDecisionReason = "StartBackoff"
-	serverPodRestartDecisionWaitBackoff   serverPodRestartDecisionReason = "WaitBackoff"
-	serverPodRestartDecisionDeletePod     serverPodRestartDecisionReason = "DeletePod"
-)
-
-type serverPodRestartDecision struct {
-	result                   reconcile.Result
-	scheduled                bool
-	reason                   serverPodRestartDecisionReason
-	deletePod                bool
-	incrementRestartAttempts bool
-}
-
-func checkServerPodStatus(pod *corev1.Pod) serverPodStatus {
-	switch pod.Status.Phase {
-	case corev1.PodSucceeded:
-		return serverPodStatus{
-			state: v1alpha1.SparkConnectStateCompleted,
-			condition: metav1.Condition{
-				Type:    string(v1alpha1.SparkConnectConditionServerPodReady),
-				Status:  metav1.ConditionFalse,
-				Reason:  string(v1alpha1.SparkConnectConditionReasonCompleted),
-				Message: "Server pod completed",
-			},
-		}
-	case corev1.PodFailed:
-		return serverPodStatus{
-			state: v1alpha1.SparkConnectStateFailed,
-			condition: metav1.Condition{
-				Type:    string(v1alpha1.SparkConnectConditionServerPodReady),
-				Status:  metav1.ConditionFalse,
-				Reason:  string(v1alpha1.SparkConnectConditionReasonServerPodNotReady),
-				Message: fmt.Sprintf("Server pod failed: %s", pod.Status.Message),
-			},
-		}
-	default:
-		ready := util.IsPodReady(pod)
-		if ready {
-			return serverPodStatus{
-				state: v1alpha1.SparkConnectStateReady,
-				condition: metav1.Condition{
-					Type:    string(v1alpha1.SparkConnectConditionServerPodReady),
-					Status:  metav1.ConditionTrue,
-					Reason:  string(v1alpha1.SparkConnectConditionReasonServerPodReady),
-					Message: "Server pod is ready",
-				},
-			}
-		}
-		return serverPodStatus{
-			state: v1alpha1.SparkConnectStateNotReady,
-			condition: metav1.Condition{
-				Type:    string(v1alpha1.SparkConnectConditionServerPodReady),
-				Status:  metav1.ConditionFalse,
-				Reason:  string(v1alpha1.SparkConnectConditionReasonServerPodNotReady),
-				Message: fmt.Sprintf("Server pod is not ready: %s", pod.Status.Message),
-			},
-		}
-	}
-}
-
-func applyServerPodStatus(conn *v1alpha1.SparkConnect, pod *corev1.Pod, podStatus serverPodStatus, restartDecision serverPodRestartDecision) {
-	conn.Status.Server.PodName = pod.Name
-	conn.Status.Server.PodIP = pod.Status.PodIP
-
-	if restartDecision.incrementRestartAttempts {
-		conn.Status.RestartAttempts++
-		conn.Status.LastRestartTime = metav1.Now()
-	}
-
-	switch restartDecision.reason {
-	case serverPodRestartDecisionLimitExceeded:
-		if podStatus.state == v1alpha1.SparkConnectStateCompleted {
-			_ = meta.SetStatusCondition(&conn.Status.Conditions, podStatus.condition)
-			conn.Status.State = podStatus.state
-			return
-		}
-		condition := metav1.Condition{
-			Type:    string(v1alpha1.SparkConnectConditionServerPodReady),
-			Status:  metav1.ConditionFalse,
-			Reason:  string(v1alpha1.SparkConnectConditionReasonRestartLimitExceeded),
-			Message: "Server pod restart limit exceeded",
-		}
-		_ = meta.SetStatusCondition(&conn.Status.Conditions, condition)
-		conn.Status.State = v1alpha1.SparkConnectStateFailed
-	case serverPodRestartDecisionStartBackoff:
-		now := metav1.Now()
-		condition := metav1.Condition{
-			Type:               string(v1alpha1.SparkConnectConditionServerPodReady),
-			Status:             metav1.ConditionFalse,
-			Reason:             string(v1alpha1.SparkConnectConditionReasonRestarting),
-			Message:            "Server pod restart scheduled",
-			LastTransitionTime: now,
-		}
-		_ = meta.SetStatusCondition(&conn.Status.Conditions, condition)
-		conn.Status.State = v1alpha1.SparkConnectStateNotReady
-	case serverPodRestartDecisionWaitBackoff, serverPodRestartDecisionDeletePod:
-		conn.Status.State = v1alpha1.SparkConnectStateNotReady
-	case serverPodRestartDecisionTerminating:
-		if _, backoffStarted := restartBackoffStartTime(conn); backoffStarted {
-			conn.Status.State = v1alpha1.SparkConnectStateNotReady
-			return
-		}
-		_ = meta.SetStatusCondition(&conn.Status.Conditions, podStatus.condition)
-		conn.Status.State = podStatus.state
-	default:
-		_ = meta.SetStatusCondition(&conn.Status.Conditions, podStatus.condition)
-		conn.Status.State = podStatus.state
-	}
-}
-
 // createOrUpdateServerPod creates or updates the server pod for the SparkConnect resource.
 func (r *Reconciler) createOrUpdateServerPod(ctx context.Context, conn *v1alpha1.SparkConnect) (*corev1.Pod, error) {
 	logger := ctrl.LoggerFrom(ctx)
@@ -469,93 +346,6 @@ func (r *Reconciler) createOrUpdateServerPod(ctx context.Context, conn *v1alpha1
 	}
 
 	return pod, nil
-}
-
-func (r *Reconciler) reconcileServerPodRestart(_ context.Context, conn *v1alpha1.SparkConnect, pod *corev1.Pod) serverPodRestartDecision {
-	if !pod.DeletionTimestamp.IsZero() {
-		return serverPodRestartDecision{
-			result:    reconcile.Result{Requeue: true},
-			scheduled: true,
-			reason:    serverPodRestartDecisionTerminating,
-		}
-	}
-	if !restartPolicyAllowsRestartForPod(conn, pod) {
-		return serverPodRestartDecision{}
-	}
-	if !hasRestartAttemptsRemaining(conn) {
-		return serverPodRestartDecision{
-			reason: serverPodRestartDecisionLimitExceeded,
-		}
-	}
-
-	backoff := restartBackoff(conn)
-	backoffStart, backoffStarted := restartBackoffStartTime(conn)
-	if !backoffStarted {
-		return serverPodRestartDecision{
-			result:    reconcile.Result{RequeueAfter: backoff},
-			scheduled: true,
-			reason:    serverPodRestartDecisionStartBackoff,
-		}
-	}
-
-	elapsed := time.Since(backoffStart)
-	if elapsed < backoff {
-		return serverPodRestartDecision{
-			result:    reconcile.Result{RequeueAfter: backoff - elapsed},
-			scheduled: true,
-			reason:    serverPodRestartDecisionWaitBackoff,
-		}
-	}
-
-	return serverPodRestartDecision{
-		result:    reconcile.Result{Requeue: true},
-		scheduled: true,
-		reason:    serverPodRestartDecisionDeletePod,
-		deletePod: true,
-	}
-}
-
-func restartPolicyAllowsRestartForPod(conn *v1alpha1.SparkConnect, pod *corev1.Pod) bool {
-	policy := conn.Spec.RestartConfig.RestartPolicy
-	if policy == "" {
-		policy = v1alpha1.SparkConnectRestartPolicyAlways
-	}
-
-	switch policy {
-	case v1alpha1.SparkConnectRestartPolicyNever:
-		return false
-	case v1alpha1.SparkConnectRestartPolicyOnFailure:
-		return pod.Status.Phase == corev1.PodFailed
-	case v1alpha1.SparkConnectRestartPolicyAlways:
-		return pod.Status.Phase == corev1.PodFailed || pod.Status.Phase == corev1.PodSucceeded
-	default:
-		return false
-	}
-}
-
-func hasRestartAttemptsRemaining(conn *v1alpha1.SparkConnect) bool {
-	if conn.Spec.RestartConfig.MaxRestartAttempts == nil {
-		return true
-	}
-	return conn.Status.RestartAttempts < *conn.Spec.RestartConfig.MaxRestartAttempts
-}
-
-func restartBackoffStartTime(conn *v1alpha1.SparkConnect) (time.Time, bool) {
-	condition := meta.FindStatusCondition(conn.Status.Conditions, string(v1alpha1.SparkConnectConditionServerPodReady))
-	if condition == nil ||
-		condition.Status != metav1.ConditionFalse ||
-		condition.Reason != string(v1alpha1.SparkConnectConditionReasonRestarting) ||
-		condition.LastTransitionTime.IsZero() {
-		return time.Time{}, false
-	}
-	return condition.LastTransitionTime.Time, true
-}
-
-func restartBackoff(conn *v1alpha1.SparkConnect) time.Duration {
-	if conn.Spec.RestartConfig.RestartBackoffMillis == nil {
-		return time.Duration(v1alpha1.DefaultSparkConnectRestartBackoffMillis) * time.Millisecond
-	}
-	return time.Duration(*conn.Spec.RestartConfig.RestartBackoffMillis) * time.Millisecond
 }
 
 func (r *Reconciler) mutateServerPod(_ context.Context, conn *v1alpha1.SparkConnect, pod *corev1.Pod) error {

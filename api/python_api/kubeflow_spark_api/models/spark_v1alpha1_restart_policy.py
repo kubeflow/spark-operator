@@ -22,14 +22,14 @@ from typing import Any, ClassVar, Dict, List, Optional
 from typing import Optional, Set
 from typing_extensions import Self
 
-class SparkV1alpha1RestartConfig(BaseModel):
+class SparkV1alpha1RestartPolicy(BaseModel):
     """
-    RestartConfig defines operator-managed restart behavior for the Spark Connect server pod.
+    RestartPolicy defines operator-managed restart behavior for the Spark Connect server pod.
     """ # noqa: E501
-    max_restart_attempts: Optional[StrictInt] = Field(default=None, description="MaxRestartAttempts is the maximum number of restart attempts. Nil means unlimited.", alias="maxRestartAttempts")
-    restart_backoff_millis: Optional[StrictInt] = Field(default=None, description="RestartBackoffMillis is the backoff time between restart attempts in milliseconds.", alias="restartBackoffMillis")
-    restart_policy: Optional[StrictStr] = Field(default=None, description="RestartPolicy defines when the operator should restart the Spark Connect server pod.", alias="restartPolicy")
-    __properties: ClassVar[List[str]] = ["maxRestartAttempts", "restartBackoffMillis", "restartPolicy"]
+    on_failure_retries: Optional[StrictInt] = Field(default=None, description="OnFailureRetries the number of times to retry running an application before giving up.", alias="onFailureRetries")
+    on_failure_retry_interval: Optional[StrictInt] = Field(default=None, description="OnFailureRetryInterval is the interval in seconds between restart attempts on failed runs.", alias="onFailureRetryInterval")
+    restart_policy_type: Optional[StrictStr] = Field(default=None, description="RestartPolicyType defines when the operator should restart the Spark Connect server pod.", alias="restartPolicyType")
+    __properties: ClassVar[List[str]] = ["onFailureRetries", "onFailureRetryInterval", "restartPolicyType"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -49,7 +49,7 @@ class SparkV1alpha1RestartConfig(BaseModel):
 
     @classmethod
     def from_json(cls, json_str: str) -> Optional[Self]:
-        """Create an instance of SparkV1alpha1RestartConfig from a JSON string"""
+        """Create an instance of SparkV1alpha1RestartPolicy from a JSON string"""
         return cls.from_dict(json.loads(json_str))
 
     def to_dict(self) -> Dict[str, Any]:
@@ -74,7 +74,7 @@ class SparkV1alpha1RestartConfig(BaseModel):
 
     @classmethod
     def from_dict(cls, obj: Optional[Dict[str, Any]]) -> Optional[Self]:
-        """Create an instance of SparkV1alpha1RestartConfig from a dict"""
+        """Create an instance of SparkV1alpha1RestartPolicy from a dict"""
         if obj is None:
             return None
 
@@ -82,9 +82,9 @@ class SparkV1alpha1RestartConfig(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
-            "maxRestartAttempts": obj.get("maxRestartAttempts"),
-            "restartBackoffMillis": obj.get("restartBackoffMillis"),
-            "restartPolicy": obj.get("restartPolicy")
+            "onFailureRetries": obj.get("onFailureRetries"),
+            "onFailureRetryInterval": obj.get("onFailureRetryInterval"),
+            "restartPolicyType": obj.get("restartPolicyType")
         })
         return _obj
 

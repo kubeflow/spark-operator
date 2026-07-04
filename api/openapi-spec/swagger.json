@@ -12657,22 +12657,22 @@
           }
         }
       },
-      "spark.v1alpha1.RestartConfig": {
-        "description": "RestartConfig defines operator-managed restart behavior for the Spark Connect server pod.",
+      "spark.v1alpha1.RestartPolicy": {
+        "description": "RestartPolicy defines operator-managed restart behavior for the Spark Connect server pod.",
         "type": "object",
         "properties": {
-          "maxRestartAttempts": {
-            "description": "MaxRestartAttempts is the maximum number of restart attempts. Nil means unlimited.",
+          "onFailureRetries": {
+            "description": "OnFailureRetries the number of times to retry running an application before giving up.",
             "type": "integer",
             "format": "int32"
           },
-          "restartBackoffMillis": {
-            "description": "RestartBackoffMillis is the backoff time between restart attempts in milliseconds.",
+          "onFailureRetryInterval": {
+            "description": "OnFailureRetryInterval is the interval in seconds between restart attempts on failed runs.",
             "type": "integer",
             "format": "int64"
           },
-          "restartPolicy": {
-            "description": "RestartPolicy defines when the operator should restart the Spark Connect server pod.",
+          "restartPolicyType": {
+            "description": "RestartPolicyType defines when the operator should restart the Spark Connect server pod.",
             "type": "string"
           }
         }
@@ -12841,12 +12841,12 @@
             "description": "Image is the container image for the driver, executor, and init-container. Any custom container images for the driver, executor, or init-container takes precedence over this.",
             "type": "string"
           },
-          "restartConfig": {
-            "description": "RestartConfig defines the policy for operator-managed Spark Connect server pod restarts.",
+          "restartPolicy": {
+            "description": "RestartPolicy defines the policy for operator-managed Spark Connect server pod restarts.",
             "default": {},
             "allOf": [
               {
-                "$ref": "#/components/schemas/spark.v1alpha1.RestartConfig"
+                "$ref": "#/components/schemas/spark.v1alpha1.RestartPolicy"
               }
             ]
           },

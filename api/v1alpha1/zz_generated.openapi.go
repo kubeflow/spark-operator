@@ -35,7 +35,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 	return map[string]common.OpenAPIDefinition{
 		"github.com/kubeflow/spark-operator/v2/api/v1alpha1.DynamicAllocation":        schema_spark_operator_v2_api_v1alpha1_DynamicAllocation(ref),
 		"github.com/kubeflow/spark-operator/v2/api/v1alpha1.ExecutorSpec":             schema_spark_operator_v2_api_v1alpha1_ExecutorSpec(ref),
-		"github.com/kubeflow/spark-operator/v2/api/v1alpha1.RestartConfig":            schema_spark_operator_v2_api_v1alpha1_RestartConfig(ref),
+		"github.com/kubeflow/spark-operator/v2/api/v1alpha1.RestartPolicy":            schema_spark_operator_v2_api_v1alpha1_RestartPolicy(ref),
 		"github.com/kubeflow/spark-operator/v2/api/v1alpha1.ServerSpec":               schema_spark_operator_v2_api_v1alpha1_ServerSpec(ref),
 		"github.com/kubeflow/spark-operator/v2/api/v1alpha1.SparkConnect":             schema_spark_operator_v2_api_v1alpha1_SparkConnect(ref),
 		"github.com/kubeflow/spark-operator/v2/api/v1alpha1.SparkConnectList":         schema_spark_operator_v2_api_v1alpha1_SparkConnectList(ref),
@@ -469,30 +469,30 @@ func schema_spark_operator_v2_api_v1alpha1_ExecutorSpec(ref common.ReferenceCall
 	}
 }
 
-func schema_spark_operator_v2_api_v1alpha1_RestartConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
+func schema_spark_operator_v2_api_v1alpha1_RestartPolicy(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "RestartConfig defines operator-managed restart behavior for the Spark Connect server pod.",
+				Description: "RestartPolicy defines operator-managed restart behavior for the Spark Connect server pod.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
-					"restartPolicy": {
+					"restartPolicyType": {
 						SchemaProps: spec.SchemaProps{
-							Description: "RestartPolicy defines when the operator should restart the Spark Connect server pod.",
+							Description: "RestartPolicyType defines when the operator should restart the Spark Connect server pod.",
 							Type:        []string{"string"},
 							Format:      "",
 						},
 					},
-					"maxRestartAttempts": {
+					"onFailureRetries": {
 						SchemaProps: spec.SchemaProps{
-							Description: "MaxRestartAttempts is the maximum number of restart attempts. Nil means unlimited.",
+							Description: "OnFailureRetries the number of times to retry running an application before giving up.",
 							Type:        []string{"integer"},
 							Format:      "int32",
 						},
 					},
-					"restartBackoffMillis": {
+					"onFailureRetryInterval": {
 						SchemaProps: spec.SchemaProps{
-							Description: "RestartBackoffMillis is the backoff time between restart attempts in milliseconds.",
+							Description: "OnFailureRetryInterval is the interval in seconds between restart attempts on failed runs.",
 							Type:        []string{"integer"},
 							Format:      "int64",
 						},
@@ -748,11 +748,11 @@ func schema_spark_operator_v2_api_v1alpha1_SparkConnectSpec(ref common.Reference
 							Ref:         ref("github.com/kubeflow/spark-operator/v2/api/v1alpha1.DynamicAllocation"),
 						},
 					},
-					"restartConfig": {
+					"restartPolicy": {
 						SchemaProps: spec.SchemaProps{
-							Description: "RestartConfig defines the policy for operator-managed Spark Connect server pod restarts.",
+							Description: "RestartPolicy defines the policy for operator-managed Spark Connect server pod restarts.",
 							Default:     map[string]interface{}{},
-							Ref:         ref("github.com/kubeflow/spark-operator/v2/api/v1alpha1.RestartConfig"),
+							Ref:         ref("github.com/kubeflow/spark-operator/v2/api/v1alpha1.RestartPolicy"),
 						},
 					},
 				},
@@ -760,7 +760,7 @@ func schema_spark_operator_v2_api_v1alpha1_SparkConnectSpec(ref common.Reference
 			},
 		},
 		Dependencies: []string{
-			"github.com/kubeflow/spark-operator/v2/api/v1alpha1.DynamicAllocation", "github.com/kubeflow/spark-operator/v2/api/v1alpha1.ExecutorSpec", "github.com/kubeflow/spark-operator/v2/api/v1alpha1.RestartConfig", "github.com/kubeflow/spark-operator/v2/api/v1alpha1.ServerSpec"},
+			"github.com/kubeflow/spark-operator/v2/api/v1alpha1.DynamicAllocation", "github.com/kubeflow/spark-operator/v2/api/v1alpha1.ExecutorSpec", "github.com/kubeflow/spark-operator/v2/api/v1alpha1.RestartPolicy", "github.com/kubeflow/spark-operator/v2/api/v1alpha1.ServerSpec"},
 	}
 }
 

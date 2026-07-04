@@ -250,7 +250,7 @@ var _ = Describe("SparkConnect Controller", func() {
 			return latest
 		}
 
-		startRestartableFailedStateMonitor := func(maxRestartAttempts int32) (func(), <-chan v1alpha1.SparkConnect) {
+		startRestartableFailedStateMonitor := func(expectedRestartAttempts int32) (func(), <-chan v1alpha1.SparkConnect) {
 			monitorCtx, cancel := context.WithCancel(ctx)
 			failedState := make(chan v1alpha1.SparkConnect, 1)
 			done := make(chan struct{})
@@ -264,7 +264,7 @@ var _ = Describe("SparkConnect Controller", func() {
 				for {
 					latest := &v1alpha1.SparkConnect{}
 					if err := k8sClient.Get(monitorCtx, sparkConnectKey(), latest); err == nil {
-						if latest.Status.RestartAttempts < maxRestartAttempts &&
+						if latest.Status.RestartAttempts < expectedRestartAttempts &&
 							latest.Status.State == v1alpha1.SparkConnectStateFailed {
 							failedState <- *latest.DeepCopy()
 							return
@@ -287,18 +287,25 @@ var _ = Describe("SparkConnect Controller", func() {
 			return stop, failedState
 		}
 
-		expectNoRestartableFailedState := func(failedState <-chan v1alpha1.SparkConnect, maxRestartAttempts int32) {
+		expectNoRestartableFailedState := func(failedState <-chan v1alpha1.SparkConnect, expectedRestartAttempts int32) {
 			select {
 			case latest := <-failedState:
 				Fail(fmt.Sprintf(
-					"SparkConnect state became Failed before restart attempts were exhausted: restartAttempts=%d, maxRestartAttempts=%d, observedGeneration=%d, generation=%d",
+					"SparkConnect state became Failed before expected restart attempts were exhausted: restartAttempts=%d, expectedRestartAttempts=%d, observedGeneration=%d, generation=%d",
 					latest.Status.RestartAttempts,
-					maxRestartAttempts,
+					expectedRestartAttempts,
 					latest.Status.ObservedGeneration,
 					latest.Generation,
 				))
 			default:
 			}
+		}
+
+		getOnFailureRetries := func() int32 {
+			if conn.Spec.RestartPolicy.OnFailureRetries == nil {
+				return 0
+			}
+			return *conn.Spec.RestartPolicy.OnFailureRetries
 		}
 
 		waitForNextServerPodUID := func(seen map[types.UID]struct{}, waitTimeout time.Duration) types.UID {
@@ -348,7 +355,7 @@ var _ = Describe("SparkConnect Controller", func() {
 
 		It("Should not restart failed server pod when restart policy is Never", func() {
 			parseSparkConnect(filepath.Join("bad_examples", "fail-sparkconnect-restart-never.yaml"))
-			Expect(conn.Spec.RestartConfig.RestartPolicy).To(Equal(v1alpha1.SparkConnectRestartPolicyNever))
+			Expect(conn.Spec.RestartPolicy.RestartPolicyType).To(Equal(v1alpha1.RestartPolicyTypeNever))
 			expectFailingServerEnv()
 			createSparkConnect()
 
@@ -366,13 +373,13 @@ var _ = Describe("SparkConnect Controller", func() {
 			}).WithPolling(PollInterval).WithTimeout(PollInterval * 3).Should(Equal(server.UID))
 		})
 
-		It("Should restart failed server pod up to max restart attempts when restart policy is OnFailure", func() {
+		It("Should restart failed server pod up to on failure retries when restart policy is OnFailure", func() {
 			parseSparkConnect(filepath.Join("bad_examples", "fail-sparkconnect-restart.yaml"))
-			Expect(conn.Spec.RestartConfig.RestartPolicy).To(Equal(v1alpha1.SparkConnectRestartPolicyOnFailure))
-			Expect(conn.Spec.RestartConfig.MaxRestartAttempts).NotTo(BeNil())
-			Expect(conn.Spec.RestartConfig.RestartBackoffMillis).NotTo(BeNil())
-			restartBackoffMillis := *conn.Spec.RestartConfig.RestartBackoffMillis
-			restartAttemptTimeout := time.Duration(restartBackoffMillis)*time.Millisecond + 10*time.Second
+			Expect(conn.Spec.RestartPolicy.RestartPolicyType).To(Equal(v1alpha1.RestartPolicyTypeOnFailure))
+			Expect(conn.Spec.RestartPolicy.OnFailureRetryInterval).NotTo(BeNil())
+			onFailureRetries := getOnFailureRetries()
+			onFailureRetryInterval := *conn.Spec.RestartPolicy.OnFailureRetryInterval
+			restartAttemptTimeout := time.Duration(onFailureRetryInterval)*time.Second + 10*time.Second
 
 			expectFailingServerEnv()
 			createSparkConnect()
@@ -384,16 +391,16 @@ var _ = Describe("SparkConnect Controller", func() {
 			seen := map[types.UID]struct{}{
 				server.UID: {},
 			}
-			stopFailedStateMonitor, failedState := startRestartableFailedStateMonitor(*conn.Spec.RestartConfig.MaxRestartAttempts)
+			stopFailedStateMonitor, failedState := startRestartableFailedStateMonitor(onFailureRetries)
 			defer stopFailedStateMonitor()
-			for attempt := int32(1); attempt <= *conn.Spec.RestartConfig.MaxRestartAttempts; attempt++ {
+			for attempt := int32(1); attempt <= onFailureRetries; attempt++ {
 				waitForRestartAttempt(attempt, restartAttemptTimeout)
 				waitForSparkConnectState(v1alpha1.SparkConnectStateNotReady, 10*time.Second)
 				uids = append(uids, waitForNextServerPodUID(seen, restartAttemptTimeout))
 			}
 			stopFailedStateMonitor()
-			expectNoRestartableFailedState(failedState, *conn.Spec.RestartConfig.MaxRestartAttempts)
-			Expect(uids).To(HaveLen(int(*conn.Spec.RestartConfig.MaxRestartAttempts) + 1))
+			expectNoRestartableFailedState(failedState, onFailureRetries)
+			Expect(uids).To(HaveLen(int(onFailureRetries) + 1))
 
 			waitForSparkConnectState(v1alpha1.SparkConnectStateFailed, WaitTimeout)
 			expectNoAdditionalServerPods(uids, PollInterval*5)
@@ -401,11 +408,10 @@ var _ = Describe("SparkConnect Controller", func() {
 
 		It("Should reset restart attempts after observing a new generation", func() {
 			parseSparkConnect(filepath.Join("bad_examples", "fail-sparkconnect-restart.yaml"))
-			Expect(conn.Spec.RestartConfig.RestartPolicy).To(Equal(v1alpha1.SparkConnectRestartPolicyOnFailure))
-			Expect(conn.Spec.RestartConfig.MaxRestartAttempts).NotTo(BeNil())
-			Expect(conn.Spec.RestartConfig.RestartBackoffMillis).NotTo(BeNil())
-			restartBackoffMillis := *conn.Spec.RestartConfig.RestartBackoffMillis
-			restartAttemptTimeout := time.Duration(restartBackoffMillis)*time.Millisecond + 10*time.Second
+			Expect(conn.Spec.RestartPolicy.RestartPolicyType).To(Equal(v1alpha1.RestartPolicyTypeOnFailure))
+			Expect(conn.Spec.RestartPolicy.OnFailureRetryInterval).NotTo(BeNil())
+			onFailureRetryInterval := *conn.Spec.RestartPolicy.OnFailureRetryInterval
+			restartAttemptTimeout := time.Duration(onFailureRetryInterval)*time.Second + 10*time.Second
 
 			expectFailingServerEnv()
 			createSparkConnect()
@@ -424,7 +430,7 @@ var _ = Describe("SparkConnect Controller", func() {
 			Expect(k8sClient.Get(ctx, sparkConnectKey(), latest)).To(Succeed())
 			previousGeneration := firstRestartConn.Generation
 			original := latest.DeepCopy()
-			latest.Spec.RestartConfig.RestartPolicy = v1alpha1.SparkConnectRestartPolicyNever
+			latest.Spec.RestartPolicy.RestartPolicyType = v1alpha1.RestartPolicyTypeNever
 			Expect(k8sClient.Patch(ctx, latest, client.MergeFrom(original))).To(Succeed())
 
 			updatedConn := waitForGenerationAfter(previousGeneration, WaitTimeout)
@@ -432,17 +438,16 @@ var _ = Describe("SparkConnect Controller", func() {
 			Expect(resetConn.Status.State).To(Equal(v1alpha1.SparkConnectStateFailed))
 		})
 
-		It("Should restart failed server pod up to max restart attempts when restart policy is Always", func() {
+		It("Should restart failed server pod beyond on failure retries when restart policy is Always", func() {
 			parseSparkConnect(filepath.Join("bad_examples", "fail-sparkconnect-restart-always.yaml"))
-			Expect(conn.Spec.RestartConfig.RestartPolicy).To(Equal(v1alpha1.SparkConnectRestartPolicyAlways))
-			Expect(conn.Spec.RestartConfig.MaxRestartAttempts).NotTo(BeNil())
-			Expect(conn.Spec.RestartConfig.RestartBackoffMillis).NotTo(BeNil())
-			restartBackoffMillis := *conn.Spec.RestartConfig.RestartBackoffMillis
-			restartAttemptTimeout := time.Duration(restartBackoffMillis)*time.Millisecond + 10*time.Second
+			Expect(conn.Spec.RestartPolicy.RestartPolicyType).To(Equal(v1alpha1.RestartPolicyTypeAlways))
+			Expect(conn.Spec.RestartPolicy.OnFailureRetryInterval).NotTo(BeNil())
+			onFailureRetries := getOnFailureRetries()
+			onFailureRetryInterval := *conn.Spec.RestartPolicy.OnFailureRetryInterval
+			restartAttemptTimeout := time.Duration(onFailureRetryInterval)*time.Second + 10*time.Second
 
 			expectFailingServerEnv()
 			createSparkConnect()
-
 			server := waitForServerPodPhase(corev1.PodFailed, WaitTimeout)
 			Expect(server.UID).NotTo(BeEmpty())
 
@@ -450,19 +455,17 @@ var _ = Describe("SparkConnect Controller", func() {
 			seen := map[types.UID]struct{}{
 				server.UID: {},
 			}
-			stopFailedStateMonitor, failedState := startRestartableFailedStateMonitor(*conn.Spec.RestartConfig.MaxRestartAttempts)
+			expectedRestartAttempts := onFailureRetries + 1
+			stopFailedStateMonitor, failedState := startRestartableFailedStateMonitor(expectedRestartAttempts)
 			defer stopFailedStateMonitor()
-			for attempt := int32(1); attempt <= *conn.Spec.RestartConfig.MaxRestartAttempts; attempt++ {
+			for attempt := int32(1); attempt <= expectedRestartAttempts; attempt++ {
 				waitForRestartAttempt(attempt, restartAttemptTimeout)
 				waitForSparkConnectState(v1alpha1.SparkConnectStateNotReady, 10*time.Second)
 				uids = append(uids, waitForNextServerPodUID(seen, restartAttemptTimeout))
 			}
 			stopFailedStateMonitor()
-			expectNoRestartableFailedState(failedState, *conn.Spec.RestartConfig.MaxRestartAttempts)
-			Expect(uids).To(HaveLen(int(*conn.Spec.RestartConfig.MaxRestartAttempts) + 1))
-
-			waitForSparkConnectState(v1alpha1.SparkConnectStateFailed, WaitTimeout)
-			expectNoAdditionalServerPods(uids, PollInterval*5)
+			expectNoRestartableFailedState(failedState, expectedRestartAttempts)
+			Expect(uids).To(HaveLen(int(expectedRestartAttempts) + 1))
 		})
 
 	})

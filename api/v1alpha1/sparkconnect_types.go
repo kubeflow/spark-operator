@@ -79,36 +79,36 @@ type SparkConnectSpec struct {
 	// +optional
 	DynamicAllocation *DynamicAllocation `json:"dynamicAllocation,omitempty"`
 
-	// RestartConfig defines the policy for operator-managed Spark Connect server pod restarts.
+	// RestartPolicy defines the policy for operator-managed Spark Connect server pod restarts.
 	// +optional
-	RestartConfig RestartConfig `json:"restartConfig,omitempty"`
+	RestartPolicy RestartPolicy `json:"restartPolicy,omitempty"`
 }
 
-// RestartConfig defines operator-managed restart behavior for the Spark Connect server pod.
-type RestartConfig struct {
-	// RestartPolicy defines when the operator should restart the Spark Connect server pod.
+// RestartPolicy defines operator-managed restart behavior for the Spark Connect server pod.
+type RestartPolicy struct {
+	// RestartPolicyType defines when the operator should restart the Spark Connect server pod.
 	// +kubebuilder:validation:Enum=Never;Always;OnFailure
 	// +optional
-	RestartPolicy SparkConnectRestartPolicy `json:"restartPolicy,omitempty"`
+	RestartPolicyType RestartPolicyType `json:"restartPolicyType,omitempty"`
 
-	// MaxRestartAttempts is the maximum number of restart attempts. Nil means unlimited.
+	// OnFailureRetries the number of times to retry running an application before giving up.
 	// +kubebuilder:validation:Minimum=0
 	// +optional
-	MaxRestartAttempts *int32 `json:"maxRestartAttempts,omitempty"`
+	OnFailureRetries *int32 `json:"onFailureRetries,omitempty"`
 
-	// RestartBackoffMillis is the backoff time between restart attempts in milliseconds.
-	// +kubebuilder:validation:Minimum=0
+	// OnFailureRetryInterval is the interval in seconds between restart attempts on failed runs.
+	// +kubebuilder:validation:Minimum=1
 	// +optional
-	RestartBackoffMillis *int64 `json:"restartBackoffMillis,omitempty"`
+	OnFailureRetryInterval *int64 `json:"onFailureRetryInterval,omitempty"`
 }
 
-// SparkConnectRestartPolicy defines when the operator should restart a Spark Connect server pod.
-type SparkConnectRestartPolicy string
+// RestartPolicyType defines when the operator should restart a Spark Connect server pod.
+type RestartPolicyType string
 
 const (
-	SparkConnectRestartPolicyNever     SparkConnectRestartPolicy = "Never"
-	SparkConnectRestartPolicyAlways    SparkConnectRestartPolicy = "Always"
-	SparkConnectRestartPolicyOnFailure SparkConnectRestartPolicy = "OnFailure"
+	RestartPolicyTypeNever     RestartPolicyType = "Never"
+	RestartPolicyTypeAlways    RestartPolicyType = "Always"
+	RestartPolicyTypeOnFailure RestartPolicyType = "OnFailure"
 )
 
 // ServerSpec is specification of the Spark connect server.
@@ -214,12 +214,11 @@ type SparkConnectState string
 
 // All possible states of the SparkConnect.
 const (
-	SparkConnectStateNew          SparkConnectState = ""
-	SparkConnectStateProvisioning SparkConnectState = "Provisioning"
-	SparkConnectStateReady        SparkConnectState = "Ready"
-	SparkConnectStateNotReady     SparkConnectState = "NotReady"
-	SparkConnectStateFailed       SparkConnectState = "Failed"
-	SparkConnectStateCompleted    SparkConnectState = "Completed"
+	SparkConnectStateNew       SparkConnectState = ""
+	SparkConnectStateReady     SparkConnectState = "Ready"
+	SparkConnectStateNotReady  SparkConnectState = "NotReady"
+	SparkConnectStateFailed    SparkConnectState = "Failed"
+	SparkConnectStateCompleted SparkConnectState = "Completed"
 )
 
 type SparkConnectServerStatus struct {

@@ -22,22 +22,25 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 )
 
-func TestSetSparkConnectDefaultsSetsRestartConfig(t *testing.T) {
+func TestSetSparkConnectDefaultsSetsRestartPolicy(t *testing.T) {
 	conn := &SparkConnect{}
 
 	SetSparkConnectDefaults(conn)
 
-	if conn.Spec.RestartConfig.RestartPolicy != SparkConnectRestartPolicyAlways {
-		t.Fatalf("restart policy = %q, want %q", conn.Spec.RestartConfig.RestartPolicy, SparkConnectRestartPolicyAlways)
+	if conn.Spec.RestartPolicy.RestartPolicyType != RestartPolicyTypeOnFailure {
+		t.Fatalf("restart policy type = %q, want %q", conn.Spec.RestartPolicy.RestartPolicyType, RestartPolicyTypeOnFailure)
 	}
-	if conn.Spec.RestartConfig.MaxRestartAttempts != nil {
-		t.Fatalf("max restart attempts = %v, want nil for unlimited", *conn.Spec.RestartConfig.MaxRestartAttempts)
+	if conn.Spec.RestartPolicy.OnFailureRetries == nil {
+		t.Fatal("on failure retries = nil, want default")
 	}
-	if conn.Spec.RestartConfig.RestartBackoffMillis == nil {
-		t.Fatal("restart backoff millis = nil, want default")
+	if *conn.Spec.RestartPolicy.OnFailureRetries != DefaultSparkConnectOnFailureRetries {
+		t.Fatalf("on failure retries = %d, want %d", *conn.Spec.RestartPolicy.OnFailureRetries, DefaultSparkConnectOnFailureRetries)
 	}
-	if *conn.Spec.RestartConfig.RestartBackoffMillis != 5000 {
-		t.Fatalf("restart backoff millis = %d, want 5000", *conn.Spec.RestartConfig.RestartBackoffMillis)
+	if conn.Spec.RestartPolicy.OnFailureRetryInterval == nil {
+		t.Fatal("on failure retry interval = nil, want default")
+	}
+	if *conn.Spec.RestartPolicy.OnFailureRetryInterval != 5 {
+		t.Fatalf("on failure retry interval = %d, want 5", *conn.Spec.RestartPolicy.OnFailureRetryInterval)
 	}
 }
 
@@ -50,10 +53,33 @@ func TestAddToSchemeRegistersSparkConnectDefaults(t *testing.T) {
 	conn := &SparkConnect{}
 	scheme.Default(conn)
 
-	if conn.Spec.RestartConfig.RestartPolicy != SparkConnectRestartPolicyAlways {
-		t.Fatalf("restart policy = %q, want %q", conn.Spec.RestartConfig.RestartPolicy, SparkConnectRestartPolicyAlways)
+	if conn.Spec.RestartPolicy.RestartPolicyType != RestartPolicyTypeOnFailure {
+		t.Fatalf("restart policy type = %q, want %q", conn.Spec.RestartPolicy.RestartPolicyType, RestartPolicyTypeOnFailure)
 	}
-	if conn.Spec.RestartConfig.RestartBackoffMillis == nil {
-		t.Fatal("restart backoff millis was not defaulted")
+	if conn.Spec.RestartPolicy.OnFailureRetries == nil {
+		t.Fatal("on failure retries was not defaulted")
+	}
+	if conn.Spec.RestartPolicy.OnFailureRetryInterval == nil {
+		t.Fatal("on failure retry interval was not defaulted")
+	}
+}
+
+func TestSetSparkConnectDefaultsPreservesOnFailureRetries(t *testing.T) {
+	retries := int32(0)
+	conn := &SparkConnect{
+		Spec: SparkConnectSpec{
+			RestartPolicy: RestartPolicy{
+				OnFailureRetries: &retries,
+			},
+		},
+	}
+
+	SetSparkConnectDefaults(conn)
+
+	if conn.Spec.RestartPolicy.OnFailureRetries == nil {
+		t.Fatal("on failure retries = nil, want explicit value preserved")
+	}
+	if *conn.Spec.RestartPolicy.OnFailureRetries != 0 {
+		t.Fatalf("on failure retries = %d, want 0", *conn.Spec.RestartPolicy.OnFailureRetries)
 	}
 }

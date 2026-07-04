@@ -21,7 +21,10 @@ import (
 	"k8s.io/utils/ptr"
 )
 
-const DefaultSparkConnectRestartBackoffMillis int64 = 5000
+const (
+	DefaultSparkConnectOnFailureRetries       int32 = 3
+	DefaultSparkConnectOnFailureRetryInterval int64 = 5
+)
 
 // RegisterDefaults adds defaulting functions to the given scheme.
 func RegisterDefaults(scheme *runtime.Scheme) error {
@@ -31,10 +34,13 @@ func RegisterDefaults(scheme *runtime.Scheme) error {
 
 // SetSparkConnectDefaults sets default values for certain fields of a SparkConnect.
 func SetSparkConnectDefaults(conn *SparkConnect) {
-	if conn.Spec.RestartConfig.RestartPolicy == "" {
-		conn.Spec.RestartConfig.RestartPolicy = SparkConnectRestartPolicyAlways
+	if conn.Spec.RestartPolicy.RestartPolicyType == "" {
+		conn.Spec.RestartPolicy.RestartPolicyType = RestartPolicyTypeOnFailure
 	}
-	if conn.Spec.RestartConfig.RestartBackoffMillis == nil {
-		conn.Spec.RestartConfig.RestartBackoffMillis = ptr.To(DefaultSparkConnectRestartBackoffMillis)
+	if conn.Spec.RestartPolicy.OnFailureRetries == nil {
+		conn.Spec.RestartPolicy.OnFailureRetries = ptr.To(DefaultSparkConnectOnFailureRetries)
+	}
+	if conn.Spec.RestartPolicy.OnFailureRetryInterval == nil {
+		conn.Spec.RestartPolicy.OnFailureRetryInterval = ptr.To(DefaultSparkConnectOnFailureRetryInterval)
 	}
 }

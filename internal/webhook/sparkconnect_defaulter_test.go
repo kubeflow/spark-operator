@@ -30,10 +30,16 @@ func TestSparkConnectDefaulterAppliesSchemeDefaults(t *testing.T) {
 		t.Fatalf("failed to default SparkConnect: %v", err)
 	}
 
-	if conn.Spec.RestartConfig.RestartPolicy != v1alpha1.SparkConnectRestartPolicyAlways {
-		t.Fatalf("restart policy = %q, want %q", conn.Spec.RestartConfig.RestartPolicy, v1alpha1.SparkConnectRestartPolicyAlways)
+	if conn.Spec.RestartPolicy.RestartPolicyType != v1alpha1.RestartPolicyTypeOnFailure {
+		t.Fatalf("restart policy type = %q, want %q", conn.Spec.RestartPolicy.RestartPolicyType, v1alpha1.RestartPolicyTypeOnFailure)
 	}
-	if conn.Spec.RestartConfig.RestartBackoffMillis == nil {
-		t.Fatal("restart backoff millis was not defaulted")
+	if conn.Spec.RestartPolicy.OnFailureRetries == nil {
+		t.Fatal("on failure retries was not defaulted")
+	}
+	if *conn.Spec.RestartPolicy.OnFailureRetries != v1alpha1.DefaultSparkConnectOnFailureRetries {
+		t.Fatalf("on failure retries = %d, want %d", *conn.Spec.RestartPolicy.OnFailureRetries, v1alpha1.DefaultSparkConnectOnFailureRetries)
+	}
+	if conn.Spec.RestartPolicy.OnFailureRetryInterval == nil {
+		t.Fatal("on failure retry interval was not defaulted")
 	}
 }
