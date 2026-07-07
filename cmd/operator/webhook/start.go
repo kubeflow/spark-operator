@@ -210,6 +210,13 @@ func start() {
 	mgr, err := ctrl.NewManager(cfg, ctrl.Options{
 		Scheme: operatorscheme.WebhookScheme,
 		Cache:  newCacheOptions(),
+		Client: client.Options{
+			Cache: &client.CacheOptions{
+				DisableFor: []client.Object{
+					&corev1.ResourceQuota{},
+				},
+			},
+		},
 		Metrics: metricsserver.Options{
 			BindAddress:   metricsBindAddress,
 			SecureServing: secureMetrics,
@@ -402,13 +409,10 @@ func newCacheOptions() cache.Options {
 		},
 	}
 
-	if enableResourceQuotaEnforcement {
-		byObject[&corev1.ResourceQuota{}] = cache.ByObject{}
-	}
-
 	options := cache.Options{
 		Scheme:            operatorscheme.WebhookScheme,
 		DefaultNamespaces: defaultNamespaces,
+		DefaultTransform:  cache.TransformStripManagedFields(),
 		ByObject:          byObject,
 	}
 

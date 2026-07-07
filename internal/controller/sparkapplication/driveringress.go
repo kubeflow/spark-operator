@@ -332,11 +332,14 @@ func (r *Reconciler) createDriverIngressService(
 	serviceLabels map[string]string,
 ) (*SparkService, error) {
 	logger := log.FromContext(ctx)
+	resourceLabels := util.GetResourceLabels(app)
+	resourceLabels[common.LabelCreatedBySparkOperator] = "true"
+
 	service := &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            serviceName,
 			Namespace:       app.Namespace,
-			Labels:          util.GetResourceLabels(app),
+			Labels:          resourceLabels,
 			OwnerReferences: []metav1.OwnerReference{util.GetOwnerReference(app)},
 		},
 		Spec: corev1.ServiceSpec{
@@ -361,6 +364,7 @@ func (r *Reconciler) createDriverIngressService(
 	if len(serviceLabels) != 0 {
 		service.Labels = serviceLabels
 	}
+	service.Labels[common.LabelCreatedBySparkOperator] = "true"
 
 	if len(serviceAnnotations) != 0 {
 		service.Annotations = serviceAnnotations

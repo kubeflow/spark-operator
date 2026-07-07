@@ -40,6 +40,7 @@ import (
 	"go.uber.org/zap/zapcore"
 	"golang.org/x/time/rate"
 	corev1 "k8s.io/api/core/v1"
+	extensionsv1beta1 "k8s.io/api/extensions/v1beta1"
 	networkingv1 "k8s.io/api/networking/v1"
 	policyv1 "k8s.io/api/policy/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -305,6 +306,14 @@ func start() {
 	mgr, err := ctrl.NewManager(cfg, ctrl.Options{
 		Scheme: operatorscheme.ControllerScheme,
 		Cache:  newCacheOptions(),
+		Client: client.Options{
+			Cache: &client.CacheOptions{
+				DisableFor: []client.Object{
+					&networkingv1.Ingress{},
+					&extensionsv1beta1.Ingress{},
+				},
+			},
+		},
 		Metrics: metricsserver.Options{
 			BindAddress:   metricsBindAddress,
 			SecureServing: secureMetrics,
@@ -467,6 +476,7 @@ func newCacheOptions() cache.Options {
 	options := cache.Options{
 		Scheme:            operatorscheme.ControllerScheme,
 		DefaultNamespaces: defaultNamespaces,
+		DefaultTransform:  cache.TransformStripManagedFields(),
 		ByObject: map[client.Object]cache.ByObject{
 			&corev1.Namespace{}: {},
 			&corev1.Pod{}: {
@@ -479,8 +489,11 @@ func newCacheOptions() cache.Options {
 					common.LabelCreatedBySparkOperator: "true",
 				}),
 			},
-			&corev1.PersistentVolumeClaim{}:      {},
-			&corev1.Service{}:                    {},
+			&corev1.Service{}: {
+				Label: labels.SelectorFromSet(labels.Set{
+					common.LabelCreatedBySparkOperator: "true",
+				}),
+			},
 			&v1beta2.SparkApplication{}:          {},
 			&v1beta2.ScheduledSparkApplication{}: {},
 			&v1alpha1.SparkConnect{}:             {},

@@ -587,6 +587,7 @@ func (r *Reconciler) mutateServerService(_ context.Context, conn *v1alpha1.Spark
 	for key, val := range GetCommonLabels(conn) {
 		svc.Labels[key] = val
 	}
+	svc.Labels[common.LabelCreatedBySparkOperator] = "true"
 
 	// Set controller owner reference on server service.
 	if err := ctrl.SetControllerReference(conn, svc, r.scheme); err != nil {
