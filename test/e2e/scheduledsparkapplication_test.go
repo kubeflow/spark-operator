@@ -1,13 +1,26 @@
+/*
+Copyright 2026 The Kubeflow authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    https://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package e2e_test
 
 import (
-	"bufio"
 	"context"
-	"io"
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -15,7 +28,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/yaml"
-	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/kubeflow/spark-operator/v2/api/v1beta2"
@@ -26,10 +38,7 @@ import (
 var _ = Describe("Example ScheduledSparkApplication", func() {
 	Context("spark-pi-scheduled", func() {
 		ctx := context.Background()
-		path := os.Getenv("SCHEDULED_APP_YAML")
-		if path == "" {
-			path = filepath.Join("..", "..", "examples", "spark-pi-scheduled.yaml")
-		}
+		path := filepath.Join("..", "..", "examples", "spark-pi-scheduled.yaml")
 		var scheduledApp *v1beta2.ScheduledSparkApplication
 
 		BeforeEach(func() {
@@ -45,7 +54,7 @@ var _ = Describe("Example ScheduledSparkApplication", func() {
 			Expect(decoder.Decode(scheduledApp)).NotTo(HaveOccurred())
 
 			// Use GenerateName so each spec gets a unique CR name,
-			// avoiding AlreadyExists when CLEANUP=false skips deletion.
+			// preventing collisions if a prior AfterEach fails to delete.
 			scheduledApp.GenerateName = scheduledApp.Name + "-"
 			scheduledApp.Name = ""
 
@@ -57,10 +66,6 @@ var _ = Describe("Example ScheduledSparkApplication", func() {
 		})
 
 		AfterEach(func() {
-			if strings.EqualFold(os.Getenv("CLEANUP"), "false") && CurrentSpecReport().Failed() {
-				return
-			}
-
 			key := types.NamespacedName{Namespace: scheduledApp.Namespace, Name: scheduledApp.Name}
 			if err := k8sClient.Get(ctx, key, scheduledApp); err == nil {
 				By("Deleting ScheduledSparkApplication")
@@ -100,7 +105,7 @@ var _ = Describe("Example ScheduledSparkApplication", func() {
 				g.Expect(k8sClient.Get(ctx, key, app)).To(Succeed())
 				g.Expect(app.Status.LastRunName).NotTo(BeEmpty())
 				childName = app.Status.LastRunName
-			}).WithTimeout(2 * time.Minute).WithPolling(PollInterval).Should(Succeed())
+			}).WithTimeout(WaitTimeout).WithPolling(PollInterval).Should(Succeed())
 
 			By("Verifying the child SparkApplication resource exists")
 			childKey := types.NamespacedName{Namespace: scheduledApp.Namespace, Name: childName}
@@ -131,21 +136,10 @@ var _ = Describe("Example ScheduledSparkApplication", func() {
 
 			By("Checking driver logs of the child SparkApplication")
 			driverPodName := util.GetDriverPodName(childApp)
-			logStream, err := clientset.CoreV1().Pods(scheduledApp.Namespace).GetLogs(driverPodName, &corev1.PodLogOptions{
-				LimitBytes: ptr.To(int64(1 << 20)),
-			}).Stream(ctx)
+			bytes, err := clientset.CoreV1().Pods(scheduledApp.Namespace).GetLogs(driverPodName, &corev1.PodLogOptions{}).Do(ctx).Raw()
 			Expect(err).NotTo(HaveOccurred())
-			defer func() { Expect(logStream.Close()).To(Succeed()) }()
-			scanner := bufio.NewScanner(io.LimitReader(logStream, 1<<20))
-			foundPi := false
-			for scanner.Scan() {
-				if strings.Contains(scanner.Text(), "Pi is roughly 3") {
-					foundPi = true
-					break
-				}
-			}
-			Expect(scanner.Err()).NotTo(HaveOccurred())
-			Expect(foundPi).To(BeTrue(), "expected driver logs to contain 'Pi is roughly 3'")
+			Expect(bytes).NotTo(BeEmpty())
+			Expect(strings.Contains(string(bytes), "Pi is roughly 3")).To(BeTrue())
 		})
 	})
 
