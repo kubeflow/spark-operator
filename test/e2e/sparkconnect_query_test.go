@@ -163,12 +163,12 @@ var _ = Describe("SparkConnect Query", func() {
 
 			By("Installing PySpark Connect client")
 			output, err := runCommand(
-				"kubectl", "exec", "-n", conn.Namespace, serverPodName, "--",
-				"bash", "-c", "export HOME=/tmp && pip install --quiet --disable-pip-version-check pandas pyarrow grpcio grpcio-status",
+				"kubectl", "exec", "-n", conn.Namespace, clientPod.Name, "--",
+				"bash", "-c", "export HOME=/tmp && pip install --quiet --disable-pip-version-check pyspark-client==4.0.1",
 			)
 			Expect(err).NotTo(HaveOccurred(), "pip install failed: %s", output)
 
-			By("Executing a PySpark query via Spark Connect inside the server pod")
+			By("Executing a PySpark query via Spark Connect from the client pod")
 			connectURL := fmt.Sprintf("sc://%s.%s.svc.cluster.local:15002", serviceName, conn.Namespace)
 			pysparkScript := fmt.Sprintf(
 				`from pyspark.sql import SparkSession; `+
@@ -181,12 +181,9 @@ var _ = Describe("SparkConnect Query", func() {
 				connectURL,
 			)
 			output, err = runCommand(
-				"kubectl", "exec", "-n", conn.Namespace, serverPodName, "--",
+				"kubectl", "exec", "-n", conn.Namespace, clientPod.Name, "--",
 				"bash", "-c",
-				fmt.Sprintf(
-					"export HOME=/tmp && PYTHONPATH=${SPARK_HOME}/python:$(ls ${SPARK_HOME}/python/lib/py4j-*.zip):${PYTHONPATH} python3 -c '%s'",
-					pysparkScript,
-				),
+				fmt.Sprintf("export HOME=/tmp && python3 -c '%s'", pysparkScript),
 			)
 			Expect(err).NotTo(HaveOccurred(), "PySpark query failed: %s", output)
 			Expect(output).To(ContainSubstring("ROW_COUNT=100"),
