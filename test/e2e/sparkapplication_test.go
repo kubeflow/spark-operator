@@ -641,11 +641,12 @@ var _ = Describe("Example SparkApplication", func() {
 		})
 	})
 
-	// spark-allowed-url-schemes: the webhook rejects SparkApplications whose fetch-capable
-	// fields (spec.sparkConf values, spec.deps.*, spec.mainApplicationFile) contain a URL
-	// value with a scheme that is not an always-allowed local scheme (schemeless, file://,
-	// local://) and not in the operator's --spark-allowed-url-schemes list. http:// is never
-	// in the default list so the rejection test runs unconditionally.
+	// spark-allowed-url-schemes: when URL-scheme validation is enabled, the webhook rejects
+	// SparkApplications whose fetch-capable fields (submit-time spec.sparkConf keys, spec.deps.*,
+	// spec.mainApplicationFile) contain a URL value with a scheme that is not an always-allowed
+	// local scheme (schemeless, file://, local://) and not in --spark-allowed-url-schemes. The
+	// feature is opt-in; the e2e deployments enable it (helm ci-values.yaml urlSchemeValidation.enable
+	// and the kustomize driver-pdb overlay), so http:// is always rejected here.
 	// Both tests use dry-run so neither ever persists a SparkApplication or triggers a
 	// submission attempt; they still exercise the full admission chain.
 	Context("spark-allowed-url-schemes", func() {

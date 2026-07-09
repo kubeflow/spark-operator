@@ -225,10 +225,12 @@ func TestSparkApplicationValidatorValidateDelete_Success(t *testing.T) {
 
 func newTestValidator(t *testing.T, enforceQuota bool, objs ...client.Object) *SparkApplicationValidator {
 	t.Helper()
-	return newTestValidatorWithSchemes(t, enforceQuota, nil, objs...)
+	// URL-scheme validation is opt-in and off here; the dedicated URL-scheme tests enable it
+	// explicitly via newTestValidatorWithSchemes.
+	return newTestValidatorWithSchemes(t, enforceQuota, false, nil, objs...)
 }
 
-func newTestValidatorWithSchemes(t *testing.T, enforceQuota bool, allowedSchemes []string, objs ...client.Object) *SparkApplicationValidator {
+func newTestValidatorWithSchemes(t *testing.T, enforceQuota bool, enableURLSchemeValidation bool, allowedSchemes []string, objs ...client.Object) *SparkApplicationValidator {
 	t.Helper()
 
 	scheme := newTestScheme(t)
@@ -238,7 +240,7 @@ func newTestValidatorWithSchemes(t *testing.T, enforceQuota bool, allowedSchemes
 		builder = builder.WithObjects(objs...)
 	}
 
-	return NewSparkApplicationValidator(builder.Build(), enforceQuota, allowedSchemes)
+	return NewSparkApplicationValidator(builder.Build(), enforceQuota, enableURLSchemeValidation, allowedSchemes)
 }
 
 func newTestScheme(t *testing.T) *runtime.Scheme {
@@ -351,7 +353,16 @@ func TestSparkApplicationValidatorSparkConfURLSchemes(t *testing.T) {
 		{
 			name:           "schemeless path always allowed with empty list",
 			allowedSchemes: nil,
-			sparkConf:      map[string]string{"spark.driver.extraJavaOptions": "-Dfoo=bar"},
+			sparkConf:      map[string]string{"spark.jars": "/opt/spark/jars/app.jar"},
+			wantError:      false,
+		},
+		{
+			// Runtime-only sparkConf keys are not forwarded to spark-submit by the operator, so
+			// they are never scheme-checked even with a scheme that would otherwise be rejected.
+			// This is the key-based allow-set at work (sparkConfURLKeys): submit-time keys only.
+			name:           "runtime-only key not checked",
+			allowedSchemes: nil,
+			sparkConf:      map[string]string{"spark.eventLog.dir": "s3a://logs/bucket"},
 			wantError:      false,
 		},
 		{
@@ -433,7 +444,7 @@ func TestSparkApplicationValidatorSparkConfURLSchemes(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			validator := newTestValidatorWithSchemes(t, false, tt.allowedSchemes)
+			validator := newTestValidatorWithSchemes(t, false, true, tt.allowedSchemes)
 			app := newSparkApplication()
 			app.Spec.SparkConf = tt.sparkConf
 
@@ -460,7 +471,7 @@ func TestSparkApplicationValidatorSparkConfURLSchemes(t *testing.T) {
 // that the message is deterministic: sparkConf keys are sorted rather than emitted in Go's
 // randomized map order, so the same spec always produces byte-identical error text.
 func TestSparkApplicationValidatorURLSchemesAggregateAllErrors(t *testing.T) {
-	validator := newTestValidatorWithSchemes(t, false, nil)
+	validator := newTestValidatorWithSchemes(t, false, true, nil)
 
 	app := newSparkApplication()
 	app.Spec.MainApplicationFile = ptr.To("http://evil.example.com/main.py")
@@ -503,10 +514,34 @@ func TestSparkApplicationValidatorURLSchemesAggregateAllErrors(t *testing.T) {
 	}
 }
 
+// TestSparkApplicationValidatorURLSchemesOptIn proves the check is strictly opt-in: a spec that
+// is rejected when validation is enabled is accepted unchanged when it is disabled (the default),
+// so operators already submitting remote deps are not broken on upgrade.
+func TestSparkApplicationValidatorURLSchemesOptIn(t *testing.T) {
+	app := newSparkApplication()
+	app.Spec.MainApplicationFile = ptr.To("http://evil.example.com/main.py")
+	app.Spec.Deps.Repositories = []string{"http://repo.example.com/maven"}
+	app.Spec.SparkConf = map[string]string{"spark.jars": "https://a.example.com/a.jar"}
+
+	// Disabled (default): the http/https values must be accepted.
+	disabled := newTestValidatorWithSchemes(t, false, false, nil)
+	if _, err := disabled.ValidateCreate(context.Background(), app); err != nil {
+		t.Fatalf("expected no error when URL-scheme validation is disabled, got: %v", err)
+	}
+
+	// Enabled: the very same spec must now be rejected, proving the gate is what flips behaviour.
+	enabled := newTestValidatorWithSchemes(t, false, true, nil)
+	if _, err := enabled.ValidateCreate(context.Background(), app); err == nil {
+		t.Fatalf("expected error when URL-scheme validation is enabled, got none")
+	}
+}
+
 // TestSparkApplicationValidatorURLSchemesOtherFields proves the check is applied to the
-// fetch-capable fields beyond sparkConf (mainApplicationFile and the reflected deps.* lists)
-// and that the Maven-coordinate fields are carved out. Scheme rules themselves are covered by
-// the sparkConf table above; these cases only pin field wiring.
+// fetch-capable fields beyond sparkConf (mainApplicationFile and the reflected deps.* lists),
+// that the Maven-coordinate deps fields are carved out, and that sparkConf keys the operator does
+// not dereference at submit time (Maven/Ivy keys) are simply not in the allow-set and therefore
+// not checked. Scheme rules themselves are covered by the sparkConf table above; these cases only
+// pin field wiring.
 func TestSparkApplicationValidatorURLSchemesOtherFields(t *testing.T) {
 	tests := []struct {
 		name        string
@@ -540,7 +575,7 @@ func TestSparkApplicationValidatorURLSchemesOtherFields(t *testing.T) {
 		{
 			// spark.jars.packages holds Maven coordinates, not URLs; net/url parses
 			// "org.postgresql:postgresql:42.7.3" as scheme "org.postgresql" but the key
-			// is exempted so the value is not URL-checked.
+			// is not in the submit-time allow-set (sparkConfURLKeys) so it is never checked.
 			name: "sparkConf spark.jars.packages maven coordinates not rejected",
 			mutate: func(app *v1beta2.SparkApplication) {
 				if app.Spec.SparkConf == nil {
@@ -551,7 +586,7 @@ func TestSparkApplicationValidatorURLSchemesOtherFields(t *testing.T) {
 			wantError: false,
 		},
 		{
-			// spark.jars.excludePackages is also Maven coordinates.
+			// spark.jars.excludePackages is also Maven coordinates and not in the allow-set.
 			name: "sparkConf spark.jars.excludePackages maven coordinates not rejected",
 			mutate: func(app *v1beta2.SparkApplication) {
 				if app.Spec.SparkConf == nil {
@@ -562,9 +597,10 @@ func TestSparkApplicationValidatorURLSchemesOtherFields(t *testing.T) {
 			wantError: false,
 		},
 		{
-			// spark.jars.ivySettings is a local or remote path to an Ivy XML, typically a
-			// Maven coordinate fragment or a file:// path, but can parse as an arbitrary scheme.
-			name: "sparkConf spark.jars.ivySettings local path not rejected",
+			// spark.jars.ivySettings is consumed by Spark's Ivy subsystem in the driver, not
+			// dereferenced by the operator at submit time, so it is not in sparkConfURLKeys and is
+			// never checked - not even a remote scheme is rejected here.
+			name: "sparkConf spark.jars.ivySettings not checked",
 			mutate: func(app *v1beta2.SparkApplication) {
 				if app.Spec.SparkConf == nil {
 					app.Spec.SparkConf = make(map[string]string)
@@ -589,7 +625,7 @@ func TestSparkApplicationValidatorURLSchemesOtherFields(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			validator := newTestValidatorWithSchemes(t, false, nil)
+			validator := newTestValidatorWithSchemes(t, false, true, nil)
 			app := newSparkApplication()
 			tt.mutate(app)
 

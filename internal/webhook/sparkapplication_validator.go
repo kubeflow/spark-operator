@@ -34,6 +34,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
 	"github.com/kubeflow/spark-operator/v2/api/v1beta2"
+	"github.com/kubeflow/spark-operator/v2/pkg/common"
 	"github.com/kubeflow/spark-operator/v2/pkg/util"
 )
 
@@ -45,19 +46,26 @@ type SparkApplicationValidator struct {
 	client client.Client
 
 	enableResourceQuotaEnforcement bool
+
+	// enableURLSchemeValidation gates the fetch-field URL-scheme check. It is strictly opt-in
+	// (default off): when false, validateURLSchemes is not run at all and admission behaviour is
+	// unchanged from before the check existed, so upgrading operators that already submit remote
+	// deps are never broken. Operators turn it on to harden against operator-privileged SSRF.
+	enableURLSchemeValidation bool
 	// allowedURLSchemes is the set of additional URL schemes permitted in fetch-capable spec
-	// fields (sparkConf values, deps.*, mainApplicationFile) beyond the always-allowed local
-	// schemes (schemeless, file://, local://). Any value whose URL scheme is not always-allowed
-	// and not in this set is rejected at admission time. Add schemes your workloads require
-	// (e.g. gs, s3a, hdfs).
+	// fields (submit-time sparkConf keys, deps.*, mainApplicationFile) beyond the always-allowed
+	// local schemes (schemeless, file://, local://). Any value whose URL scheme is not
+	// always-allowed and not in this set is rejected at admission time. Add schemes your workloads
+	// require (e.g. gs, s3a, hdfs). Only consulted when enableURLSchemeValidation is true.
 	allowedURLSchemes map[string]struct{}
 }
 
 // NewSparkApplicationValidator creates a new SparkApplicationValidator instance.
-// allowedURLSchemes lists URL schemes permitted in fetch-capable spec fields (sparkConf values,
-// deps.*, mainApplicationFile) in addition to the always-allowed local schemes (schemeless,
-// file://, local://). Any other scheme is rejected.
-func NewSparkApplicationValidator(client client.Client, enableResourceQuotaEnforcement bool, allowedURLSchemes []string) *SparkApplicationValidator {
+// enableURLSchemeValidation turns on the fetch-field URL-scheme check (default off / opt-in).
+// allowedURLSchemes lists URL schemes permitted in fetch-capable spec fields (submit-time
+// sparkConf keys, deps.*, mainApplicationFile) in addition to the always-allowed local schemes
+// (schemeless, file://, local://) when that check is enabled. Any other scheme is rejected.
+func NewSparkApplicationValidator(client client.Client, enableResourceQuotaEnforcement bool, enableURLSchemeValidation bool, allowedURLSchemes []string) *SparkApplicationValidator {
 	allowed := make(map[string]struct{}, len(allowedURLSchemes))
 	for _, s := range allowedURLSchemes {
 		s = strings.TrimSpace(strings.ToLower(s))
@@ -69,6 +77,7 @@ func NewSparkApplicationValidator(client client.Client, enableResourceQuotaEnfor
 		client: client,
 
 		enableResourceQuotaEnforcement: enableResourceQuotaEnforcement,
+		enableURLSchemeValidation:      enableURLSchemeValidation,
 		allowedURLSchemes:              allowed,
 	}
 }
@@ -178,8 +187,10 @@ func (v *SparkApplicationValidator) validateSpec(ctx context.Context, app *v1bet
 		return err
 	}
 
-	if err := v.validateURLSchemes(app); err != nil {
-		return err
+	if v.enableURLSchemeValidation {
+		if err := v.validateURLSchemes(app); err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -200,15 +211,28 @@ var alwaysAllowedURLSchemes = []string{"", "file", "local"}
 // covered without code changes; a new non-URL field must be added here.
 var depsURLFieldsExempt = []string{"packages", "excludePackages"}
 
-// sparkConfKeysExempt are sparkConf keys whose comma-separated values are NOT dereferenced as
-// URLs: they hold Maven coordinates (groupId:artifactId:version) or Ivy XML paths resolved by
-// the Spark Ivy subsystem, not operator-fetched URLs. spark.jars.packages is the primary case:
-// a value like "org.postgresql:postgresql:42.7.3" parses as scheme "org.postgresql" but is not
-// a URL. spark.jars.excludePackages and spark.jars.ivySettings follow the same pattern.
-var sparkConfKeysExempt = map[string]struct{}{
-	"spark.jars.packages":        {},
-	"spark.jars.excludePackages": {},
-	"spark.jars.ivySettings":     {},
+// sparkConfURLKeys is the allow-set of sparkConf keys the operator forwards to spark-submit and
+// dereferences at submit time, so a remote URL in one of them is fetched by the operator's own
+// principal (an SSRF vector). Only these keys are URL-checked; every other sparkConf entry is a
+// runtime config consumed by the driver/executor (spark.eventLog.dir, spark.sql.warehouse.dir,
+// spark.kubernetes.driverEnv.*, ...) that the operator never fetches, so scheme-checking it would
+// wrongly reject legitimate values and couple submit-time policy to runtime config.
+//
+// This is a positive allow-set rather than a scan-with-deny-list precisely so runtime keys are
+// untouched by default. Maven-coordinate keys (spark.jars.packages, spark.jars.excludePackages)
+// and Ivy settings (spark.jars.ivySettings) are simply absent here and therefore never checked.
+//
+// spark.jars / spark.files / spark.submit.pyFiles / spark.archives mirror spec.deps.{jars,files,
+// pyFiles,archives}; spark.kubernetes.file.upload.path is the staging location the operator uploads
+// local deps to; the podTemplateFile keys point at pod templates the operator writes and reads.
+var sparkConfURLKeys = map[string]struct{}{
+	"spark.jars":                                  {},
+	"spark.files":                                 {},
+	"spark.submit.pyFiles":                        {},
+	"spark.archives":                              {},
+	"spark.kubernetes.file.upload.path":           {},
+	common.SparkKubernetesDriverPodTemplateFile:   {},
+	common.SparkKubernetesExecutorPodTemplateFile: {},
 }
 
 // depsURLField is one []string field of v1beta2.Dependencies to URL-check: its struct field
@@ -246,7 +270,9 @@ func buildDepsURLFields() []depsURLField {
 // fetched by the operator's principal (its ServiceAccount, mounted secrets, IRSA/Workload
 // Identity, VPC reachability) - an SSRF vector.
 //
-// Comma-separated sparkConf values (spark.jars, spark.files, ...) are split.
+// Only the submit-time sparkConf keys the operator forwards to spark-submit (sparkConfURLKeys)
+// are checked; their comma-separated values (spark.jars, spark.files, ...) are split. Runtime
+// sparkConf keys are left untouched - see sparkConfURLKeys for why.
 //
 // spec.hadoopConf is out of scope: its values become spark.hadoop.* config consumed by the
 // driver/executor at runtime, not URLs the operator fetches at submit time, and many are
@@ -267,15 +293,17 @@ func (v *SparkApplicationValidator) validateURLSchemes(app *v1beta2.SparkApplica
 	// spec.deps fetch-capable lists (--jars, --files, --py-files, --archives, --repositories).
 	errs = append(errs, v.validateDepsURLSchemes(&app.Spec.Deps)...)
 
-	// spec.sparkConf values; some conf keys carry comma-separated URI lists, but some
-	// (spark.jars.packages, spark.jars.excludePackages, spark.jars.ivySettings) hold Maven
-	// coordinates or Ivy XML paths that parse as invalid URL schemes and are exempt.
-	for _, key := range slices.Sorted(maps.Keys(app.Spec.SparkConf)) {
-		if _, exempt := sparkConfKeysExempt[key]; exempt {
+	// spec.sparkConf: only the submit-time keys the operator itself dereferences (sparkConfURLKeys)
+	// are checked; runtime keys are left alone. Iterate the allow-set in sorted order so the error
+	// text is deterministic regardless of Go's randomized map iteration. Values may be comma-
+	// separated URI lists (spark.jars, spark.files, ...) and are split.
+	for _, key := range slices.Sorted(maps.Keys(sparkConfURLKeys)) {
+		value, ok := app.Spec.SparkConf[key]
+		if !ok {
 			continue
 		}
 		field := fmt.Sprintf("spec.sparkConf[%q]", key)
-		errs = append(errs, v.checkURLSchemes(field, strings.Split(app.Spec.SparkConf[key], ","))...)
+		errs = append(errs, v.checkURLSchemes(field, strings.Split(value, ","))...)
 	}
 
 	return errors.Join(errs...)

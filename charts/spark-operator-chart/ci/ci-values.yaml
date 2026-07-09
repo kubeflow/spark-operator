@@ -19,3 +19,8 @@ controller:
 webhook:
   kubeAPIQPS: 100
   kubeAPIBurst: 100
+  # Enable URL-scheme validation so the e2e SSRF rejection/acceptance specs exercise it; the
+  # feature is opt-in and off by default. No extra allowedSchemes: the specs only rely on the
+  # always-allowed local schemes (file://) passing and http:// being rejected.
+  urlSchemeValidation:
+    enable: true
