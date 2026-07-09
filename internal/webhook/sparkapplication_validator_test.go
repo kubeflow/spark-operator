@@ -454,6 +454,55 @@ func TestSparkApplicationValidatorSparkConfURLSchemes(t *testing.T) {
 	}
 }
 
+// TestSparkApplicationValidatorURLSchemesAggregateAllErrors proves that a spec with several
+// scheme violations across mainApplicationFile, deps.*, and sparkConf surfaces every violation
+// in one admission response (so a user does not have to fix them one round-trip at a time), and
+// that the message is deterministic: sparkConf keys are sorted rather than emitted in Go's
+// randomized map order, so the same spec always produces byte-identical error text.
+func TestSparkApplicationValidatorURLSchemesAggregateAllErrors(t *testing.T) {
+	validator := newTestValidatorWithSchemes(t, false, nil)
+
+	app := newSparkApplication()
+	app.Spec.MainApplicationFile = ptr.To("http://evil.example.com/main.py")
+	app.Spec.Deps.Repositories = []string{"http://repo.example.com/maven"}
+	app.Spec.SparkConf = map[string]string{
+		"spark.jars":  "https://a.example.com/a.jar",
+		"spark.files": "ftp://b.example.com/b.txt",
+	}
+
+	_, err := validator.ValidateCreate(context.Background(), app)
+	if err == nil {
+		t.Fatalf("expected error but got none")
+	}
+
+	// Every offending field must appear in the aggregated message.
+	wantSubstrings := []string{
+		"spec.mainApplicationFile",
+		"spec.deps.repositories",
+		`spec.sparkConf["spark.files"]`,
+		`spec.sparkConf["spark.jars"]`,
+	}
+	for _, want := range wantSubstrings {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("expected aggregated error to mention %q, got: %v", want, err)
+		}
+	}
+
+	// The message must be stable across repeated validations of the same spec; map iteration
+	// order would otherwise vary the sparkConf portion. Run several times and require identical
+	// output, and require the sorted "spark.files" before "spark.jars" ordering explicitly.
+	first := err.Error()
+	for range 10 {
+		_, e := validator.ValidateCreate(context.Background(), app)
+		if e == nil || e.Error() != first {
+			t.Fatalf("expected deterministic error text across runs;\n first: %v\n later: %v", first, e)
+		}
+	}
+	if fi, ji := strings.Index(first, `spec.sparkConf["spark.files"]`), strings.Index(first, `spec.sparkConf["spark.jars"]`); fi > ji {
+		t.Errorf("expected sparkConf keys in sorted order (spark.files before spark.jars), got: %v", first)
+	}
+}
+
 // TestSparkApplicationValidatorURLSchemesOtherFields proves the check is applied to the
 // fetch-capable fields beyond sparkConf (mainApplicationFile and the reflected deps.* lists)
 // and that the Maven-coordinate fields are carved out. Scheme rules themselves are covered by

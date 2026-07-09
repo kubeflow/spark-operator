@@ -18,7 +18,9 @@ package webhook
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"maps"
 	"net/url"
 	"reflect"
 	"slices"
@@ -250,56 +252,57 @@ func buildDepsURLFields() []depsURLField {
 // driver/executor at runtime, not URLs the operator fetches at submit time, and many are
 // legitimately host/endpoint-shaped (fs.s3a.endpoint, ...) that a scheme check would wrongly reject.
 func (v *SparkApplicationValidator) validateURLSchemes(app *v1beta2.SparkApplication) error {
+	// Collect every scheme violation rather than returning on the first: a user with several
+	// bad URLs should see them all in one admission response instead of fixing them one round-trip
+	// at a time. The order below is deterministic (mainApplicationFile, then deps.* in struct-field
+	// order, then sparkConf keys sorted) so the same spec always yields the same error text - map
+	// iteration order is randomized in Go, so the sparkConf keys must be sorted explicitly.
+	var errs []error
+
 	// spec.mainApplicationFile is a single URI forwarded as the final spark-submit argument.
 	if app.Spec.MainApplicationFile != nil {
-		if err := v.checkURLScheme("spec.mainApplicationFile", *app.Spec.MainApplicationFile); err != nil {
-			return err
-		}
+		errs = append(errs, v.checkURLScheme("spec.mainApplicationFile", *app.Spec.MainApplicationFile)...)
 	}
 
 	// spec.deps fetch-capable lists (--jars, --files, --py-files, --archives, --repositories).
-	if err := v.validateDepsURLSchemes(&app.Spec.Deps); err != nil {
-		return err
-	}
+	errs = append(errs, v.validateDepsURLSchemes(&app.Spec.Deps)...)
 
 	// spec.sparkConf values; some conf keys carry comma-separated URI lists, but some
 	// (spark.jars.packages, spark.jars.excludePackages, spark.jars.ivySettings) hold Maven
 	// coordinates or Ivy XML paths that parse as invalid URL schemes and are exempt.
-	for key, value := range app.Spec.SparkConf {
+	for _, key := range slices.Sorted(maps.Keys(app.Spec.SparkConf)) {
 		if _, exempt := sparkConfKeysExempt[key]; exempt {
 			continue
 		}
 		field := fmt.Sprintf("spec.sparkConf[%q]", key)
-		if err := v.checkURLSchemes(field, strings.Split(value, ",")); err != nil {
-			return err
-		}
+		errs = append(errs, v.checkURLSchemes(field, strings.Split(app.Spec.SparkConf[key], ","))...)
 	}
 
-	return nil
+	return errors.Join(errs...)
 }
 
 // validateDepsURLSchemes URL-checks the fetch-capable []string fields of spec.deps, using the
 // field plan computed once in depsURLFields. The error label is the field's json tag, so there
-// is no hand-maintained name-to-field mapping to drift from the type.
-func (v *SparkApplicationValidator) validateDepsURLSchemes(deps *v1beta2.Dependencies) error {
+// is no hand-maintained name-to-field mapping to drift from the type. It returns every violation
+// found (see validateURLSchemes) rather than stopping at the first.
+func (v *SparkApplicationValidator) validateDepsURLSchemes(deps *v1beta2.Dependencies) []error {
+	var errs []error
 	rv := reflect.ValueOf(deps).Elem()
 	for _, f := range depsURLFields {
 		values := rv.Field(f.index).Interface().([]string)
-		if err := v.checkURLSchemes(f.label, values); err != nil {
-			return err
-		}
+		errs = append(errs, v.checkURLSchemes(f.label, values)...)
 	}
-	return nil
+	return errs
 }
 
-// checkURLSchemes runs checkURLScheme over each value of a field that holds a list of URIs.
-func (v *SparkApplicationValidator) checkURLSchemes(field string, values []string) error {
+// checkURLSchemes runs checkURLScheme over each value of a field that holds a list of URIs,
+// returning every violation rather than stopping at the first.
+func (v *SparkApplicationValidator) checkURLSchemes(field string, values []string) []error {
+	var errs []error
 	for _, value := range values {
-		if err := v.checkURLScheme(field, value); err != nil {
-			return err
-		}
+		errs = append(errs, v.checkURLScheme(field, value)...)
 	}
-	return nil
+	return errs
 }
 
 // checkURLScheme rejects value unless its URL scheme is always allowed (schemeless, file://,
@@ -308,26 +311,29 @@ func (v *SparkApplicationValidator) checkURLSchemes(field string, values []strin
 // suspect, not waved through. "//host/path" is the one tricky case - it parses with an empty
 // scheme but a non-empty host, so guard on Host to tell a real local path (no host) from a
 // network-path reference.
-func (v *SparkApplicationValidator) checkURLScheme(field, value string) error {
+//
+// It returns a slice of at most one error (empty when the value is allowed) so callers can
+// accumulate violations across many fields and surface them together; see validateURLSchemes.
+func (v *SparkApplicationValidator) checkURLScheme(field, value string) []error {
 	value = strings.TrimSpace(value)
 	if value == "" {
 		return nil
 	}
 	u, err := url.Parse(value)
 	if err != nil {
-		return fmt.Errorf("%s contains a value that is not a valid URL: %q: %w", field, value, err)
+		return []error{fmt.Errorf("%s contains a value that is not a valid URL: %q: %w", field, value, err)}
 	}
 	scheme := strings.ToLower(u.Scheme)
 	if slices.Contains(alwaysAllowedURLSchemes, scheme) {
 		// "//host/x" has an empty scheme but a host - it's a network path, not a local one,
 		// so don't let the empty-scheme exemption cover it.
 		if scheme == "" && u.Host != "" {
-			return fmt.Errorf("%s contains a scheme-relative URL with host %q which is not a local path: %q", field, u.Host, value)
+			return []error{fmt.Errorf("%s contains a scheme-relative URL with host %q which is not a local path: %q", field, u.Host, value)}
 		}
 		return nil
 	}
 	if _, allowed := v.allowedURLSchemes[scheme]; !allowed {
-		return fmt.Errorf("%s contains a value with URL scheme %q which is not in the allowed list: %q", field, scheme, value)
+		return []error{fmt.Errorf("%s contains a value with URL scheme %q which is not in the allowed list: %q", field, scheme, value)}
 	}
 	return nil
 }
