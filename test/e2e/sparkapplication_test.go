@@ -646,7 +646,8 @@ var _ = Describe("Example SparkApplication", func() {
 	// value with a scheme that is not an always-allowed local scheme (schemeless, file://,
 	// local://) and not in the operator's --spark-allowed-url-schemes list. http:// is never
 	// in the default list so the rejection test runs unconditionally.
-	// The accept test uses dry-run so it never triggers a submission attempt.
+	// Both tests use dry-run so neither ever persists a SparkApplication or triggers a
+	// submission attempt; they still exercise the full admission chain.
 	Context("spark-allowed-url-schemes", func() {
 		ctx := context.Background()
 		mainFile := "local:///app.py"
@@ -681,7 +682,10 @@ var _ = Describe("Example SparkApplication", func() {
 				},
 			}
 
-			err := k8sClient.Create(ctx, app)
+			// Dry-run exercises the full admission chain (the webhook still runs and rejects)
+			// without ever persisting the object, so a future config change that allowed http
+			// could not leak a real SparkApplication for the controller to reconcile.
+			err := k8sClient.Create(ctx, app, &client.CreateOptions{DryRun: []string{metav1.DryRunAll}})
 			Expect(err).To(HaveOccurred(), "expected admission webhook to reject sparkConf with disallowed URL scheme")
 			Expect(errors.IsInvalid(err) || errors.IsForbidden(err)).To(BeTrue(), "expected Invalid or Forbidden, got: %v", err)
 		})
