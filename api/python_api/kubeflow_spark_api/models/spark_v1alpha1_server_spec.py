@@ -30,9 +30,10 @@ class SparkV1alpha1ServerSpec(BaseModel):
     """ # noqa: E501
     cores: Optional[StrictInt] = Field(default=None, description="Cores maps to `spark.driver.cores` or `spark.executor.cores` for the driver and executors, respectively.")
     memory: Optional[StrictStr] = Field(default=None, description="Memory is the amount of memory to request for the pod.")
+    port: Optional[StrictInt] = Field(default=None, description="Port is the port number on which the Spark Connect server listens. If not specified, the default port 15002 will be used.")
     service: Optional[IoK8sApiCoreV1Service] = Field(default=None, description="Service exposes the Spark connect server.")
     template: Optional[IoK8sApiCoreV1PodTemplateSpec] = Field(default=None, description="Template is a pod template that can be used to define the driver or executor pod configurations that Spark configurations do not support. Spark version >= 3.0.0 is required. Ref: https://spark.apache.org/docs/latest/running-on-kubernetes.html#pod-template.")
-    __properties: ClassVar[List[str]] = ["cores", "memory", "service", "template"]
+    __properties: ClassVar[List[str]] = ["cores", "memory", "port", "service", "template"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -93,6 +94,7 @@ class SparkV1alpha1ServerSpec(BaseModel):
         _obj = cls.model_validate({
             "cores": obj.get("cores"),
             "memory": obj.get("memory"),
+            "port": obj.get("port"),
             "service": IoK8sApiCoreV1Service.from_dict(obj["service"]) if obj.get("service") is not None else None,
             "template": IoK8sApiCoreV1PodTemplateSpec.from_dict(obj["template"]) if obj.get("template") is not None else None
         })

@@ -24,8 +24,15 @@ spec:
     - jsonPath: .status.state
       name: Status
       type: string
-    - jsonPath: .status.server.podName
-      name: PodName
+    - jsonPath: .status.server.serviceName
+      name: Service
+      type: string
+    - jsonPath: .status.server.port
+      name: Port
+      type: integer
+    - jsonPath: .status.errorMessage
+      name: Error
+      priority: 1
       type: string
     name: v1alpha1
     schema:
@@ -143,6 +150,14 @@ spec:
                     description: Memory is the amount of memory to request for the
                       pod.
                     type: string
+                  port:
+                    description: |-
+                      Port is the port number on which the Spark Connect server listens.
+                      If not specified, the default port 15002 will be used.
+                    format: int32
+                    maximum: 65535
+                    minimum: 1
+                    type: integer
                   service:
                     description: Service exposes the Spark connect server.
                     properties:
@@ -761,6 +776,10 @@ spec:
                 x-kubernetes-list-map-keys:
                 - type
                 x-kubernetes-list-type: map
+              errorMessage:
+                description: ErrorMessage contains a human-readable description of
+                  any errors that have occurred during reconciliation.
+                type: string
               executors:
                 additionalProperties:
                   type: integer
@@ -784,6 +803,11 @@ spec:
                     description: PodName is the name of the pod that is running the
                       Spark Connect server.
                     type: string
+                  port:
+                    description: Port is the port number on which the Spark Connect
+                      server is running.
+                    format: int32
+                    type: integer
                   serviceName:
                     description: ServiceName is the name of the service that is exposing
                       the Spark Connect server.
