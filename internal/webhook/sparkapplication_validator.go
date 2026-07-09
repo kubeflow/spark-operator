@@ -219,17 +219,38 @@ var depsURLFieldsExempt = []string{"packages", "excludePackages"}
 // wrongly reject legitimate values and couple submit-time policy to runtime config.
 //
 // This is a positive allow-set rather than a scan-with-deny-list precisely so runtime keys are
-// untouched by default. Maven-coordinate keys (spark.jars.packages, spark.jars.excludePackages)
-// and Ivy settings (spark.jars.ivySettings) are simply absent here and therefore never checked.
+// untouched by default. Some keys are deliberately absent because they are not remote-fetch
+// vectors even though spark-submit reads them at submit time:
+//   - spark.jars.packages / spark.jars.excludePackages hold Maven coordinates
+//     (groupId:artifactId:version), not fetchable URLs.
+//   - spark.jars.ivySettings is loaded at submit time, but Spark restricts it to the "file"
+//     scheme (SparkSubmit.loadIvySettings throws on any other scheme before touching the
+//     network), so it can only ever reference a local file and cannot reach the operator's
+//     network. Scheme-checking it would be redundant with the always-allowed "file"/schemeless.
 //
 // spark.jars / spark.files / spark.submit.pyFiles / spark.archives mirror spec.deps.{jars,files,
-// pyFiles,archives}; spark.kubernetes.file.upload.path is the staging location the operator uploads
-// local deps to; the podTemplateFile keys point at pod templates the operator writes and reads.
+// pyFiles,archives}. spark.jars.repositories mirrors spec.deps.repositories: in KUBERNETES cluster
+// mode (the operator's mode) spark-submit calls DependencyUtils.resolveMavenDependencies at submit
+// time (SparkSubmit.scala, the !isStandAloneCluster branch), which queries these repositories from
+// the operator pod to resolve --packages, so a remote repo URL is fetched with the operator's
+// principal. spark.kubernetes.file.upload.path is the destination the operator's spark-submit
+// uploads local deps to: BasicDriverFeatureStep/DriverCommandFeatureStep call
+// KubernetesUtils.uploadFileUri inside KubernetesDriverBuilder, which runs submit-side in
+// KubernetesClientApplication, again with the operator's credentials.
+//
+// The podTemplateFile keys are included defensively. Only the DRIVER template is loaded submit-side
+// (KubernetesDriverBuilder.buildFromFeatures -> loadPodFromTemplate -> downloadFile, in the operator
+// pod); the EXECUTOR template is loaded later in the driver pod by KubernetesClusterManager, so it
+// is not itself an operator-credential vector. In practice the operator overwrites both keys with a
+// local /tmp path it writes itself (submission.go driver/executorPodTemplateOption, appended after
+// the user's sparkConf so it wins), so a user value never reaches spark-submit; the keys stay here
+// so the check still bites if that override is ever removed or bypassed.
 var sparkConfURLKeys = map[string]struct{}{
 	"spark.jars":                                  {},
 	"spark.files":                                 {},
 	"spark.submit.pyFiles":                        {},
 	"spark.archives":                              {},
+	"spark.jars.repositories":                     {},
 	"spark.kubernetes.file.upload.path":           {},
 	common.SparkKubernetesDriverPodTemplateFile:   {},
 	common.SparkKubernetesExecutorPodTemplateFile: {},

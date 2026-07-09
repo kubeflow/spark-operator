@@ -366,6 +366,18 @@ func TestSparkApplicationValidatorSparkConfURLSchemes(t *testing.T) {
 			wantError:      false,
 		},
 		{
+			// spark.ui.proxyBase / spark.ui.proxyRedirectUri legitimately carry URL/path values
+			// consumed by the driver's UI at runtime; the operator never fetches them, so they are
+			// not in the submit-time allow-set and must not be rejected even with an http scheme.
+			name:           "spark.ui proxy keys not checked",
+			allowedSchemes: nil,
+			sparkConf: map[string]string{
+				"spark.ui.proxyBase":        "/proxy/app-1",
+				"spark.ui.proxyRedirectUri": "https://gateway.example.com",
+			},
+			wantError: false,
+		},
+		{
 			name:           "local:// always allowed with empty list",
 			allowedSchemes: nil,
 			sparkConf:      map[string]string{"spark.jars": "local:///opt/spark/jars/app.jar"},
@@ -379,6 +391,16 @@ func TestSparkApplicationValidatorSparkConfURLSchemes(t *testing.T) {
 			sparkConf:      map[string]string{"spark.jars": "http://example.com/app.jar"},
 			wantError:      true,
 			errContains:    `spec.sparkConf["spark.jars"]`,
+		},
+		{
+			// spark.jars.repositories is a submit-time fetch vector: in cluster mode spark-submit
+			// queries these repos from the operator pod to resolve --packages, so a disallowed
+			// scheme must be rejected. (spark.jars.packages itself is Maven coordinates, not a URL.)
+			name:           "spark.jars.repositories disallowed scheme rejected",
+			allowedSchemes: nil,
+			sparkConf:      map[string]string{"spark.jars.repositories": "http://repo.example.com/maven"},
+			wantError:      true,
+			errContains:    `spec.sparkConf["spark.jars.repositories"]`,
 		},
 		// A scheme is allowed once added to the extra list.
 		{
@@ -597,9 +619,10 @@ func TestSparkApplicationValidatorURLSchemesOtherFields(t *testing.T) {
 			wantError: false,
 		},
 		{
-			// spark.jars.ivySettings is consumed by Spark's Ivy subsystem in the driver, not
-			// dereferenced by the operator at submit time, so it is not in sparkConfURLKeys and is
-			// never checked - not even a remote scheme is rejected here.
+			// spark.jars.ivySettings is read by spark-submit at submit time, but Spark restricts
+			// it to the "file" scheme (loadIvySettings throws on any other scheme before any I/O),
+			// so it cannot reach the operator's network and is not in sparkConfURLKeys. A local
+			// path is accepted here; a remote scheme would be rejected by Spark itself, not us.
 			name: "sparkConf spark.jars.ivySettings not checked",
 			mutate: func(app *v1beta2.SparkApplication) {
 				if app.Spec.SparkConf == nil {
