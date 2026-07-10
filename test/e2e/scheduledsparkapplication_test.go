@@ -24,6 +24,7 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"github.com/robfig/cron/v3"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -140,6 +141,30 @@ var _ = Describe("Example ScheduledSparkApplication", func() {
 			Expect(err).NotTo(HaveOccurred())
 			Expect(bytes).NotTo(BeEmpty())
 			Expect(strings.Contains(string(bytes), "Pi is roughly 3")).To(BeTrue())
+
+			By("Waiting for a second scheduled run to fire at the expected interval")
+			schedule, err := cron.ParseStandard(scheduledApp.Spec.Schedule)
+			Expect(err).NotTo(HaveOccurred())
+			expectedInterval := schedule.Next(childApp.CreationTimestamp.Time).Sub(childApp.CreationTimestamp.Time)
+
+			var secondChildName string
+			Eventually(func(g Gomega) {
+				app := &v1beta2.ScheduledSparkApplication{}
+				g.Expect(k8sClient.Get(ctx, key, app)).To(Succeed())
+				g.Expect(app.Status.LastRunName).NotTo(Equal(childName))
+				secondChildName = app.Status.LastRunName
+			}).WithTimeout(WaitTimeout).WithPolling(PollInterval).Should(Succeed())
+
+			By("Verifying the second run starts at correct interval after the first run")
+			secondChildKey := types.NamespacedName{Namespace: scheduledApp.Namespace, Name: secondChildName}
+			secondChildApp := &v1beta2.SparkApplication{}
+			Expect(k8sClient.Get(ctx, secondChildKey, secondChildApp)).To(Succeed())
+			actualInterval := secondChildApp.CreationTimestamp.Sub(childApp.CreationTimestamp.Time)
+			Expect(actualInterval).To(BeNumerically(">=", expectedInterval),
+				"second run started before the schedule interval elapsed")
+
+			By("Waiting for the second child SparkApplication to complete")
+			Expect(waitForSparkApplicationCompleted(ctx, secondChildKey)).NotTo(HaveOccurred())
 		})
 	})
 
