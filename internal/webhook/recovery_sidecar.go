@@ -79,22 +79,34 @@ func addRecoveryAgentSidecar(pod *corev1.Pod, app *v1beta2.SparkApplication) err
 		return fmt.Errorf("SparkApplication %s/%s references unknown recovery store profile %q", app.Namespace, app.Name, recovery.StoreProfile)
 	}
 
-	epoch := int64(0)
-	if app.Status.RecoveryStatus != nil {
-		epoch = app.Status.RecoveryStatus.Epoch
+	// The epoch must come from the driver container's own env, not from
+	// status.recoveryStatus: submitSparkApplication creates the driver pod
+	// (triggering this webhook) before its status update persisting the
+	// freshly-advanced epoch reaches the API server. A webhook read of
+	// status can therefore observe the *previous* epoch, inject a
+	// mismatched sidecar, and have the agent self-fence a healthy driver
+	// the moment its first heartbeat sees the real (newer) epoch in the
+	// store. The driver container in this same pod already carries the
+	// correct value — submission.go set it from the identical in-memory
+	// epoch used to fence — so reading it here is race-free by construction.
+	driverIdx := findContainer(pod)
+	if driverIdx < 0 {
+		return fmt.Errorf("FencedRestart is enabled for SparkApplication %s/%s but no Spark driver container was found in pod %s", app.Namespace, app.Name, pod.Name)
+	}
+	driverEnv := pod.Spec.Containers[driverIdx].Env
+	epochValue, ok := lookupEnvValue(driverEnv, common.EnvRecoveryEpoch)
+	if !ok {
+		return fmt.Errorf("FencedRestart is enabled for SparkApplication %s/%s but the driver container is missing %s; expected the operator to set it before submission", app.Namespace, app.Name, common.EnvRecoveryEpoch)
 	}
 
 	env := []corev1.EnvVar{
 		{Name: common.EnvRecoveryJobNamespace, Value: app.Namespace},
 		{Name: common.EnvRecoveryJobName, Value: app.Name},
-		{Name: common.EnvRecoveryEpoch, Value: strconv.FormatInt(epoch, 10)},
+		{Name: common.EnvRecoveryEpoch, Value: epochValue},
 		{Name: common.EnvRecoveryStoreAddress, Value: profile.Address},
 	}
-	if app.Status.RecoveryStatus != nil && app.Status.RecoveryStatus.RestoredFromEpoch != nil {
-		env = append(env, corev1.EnvVar{
-			Name:  common.EnvRecoveryRestoreEpoch,
-			Value: strconv.FormatInt(*app.Status.RecoveryStatus.RestoredFromEpoch, 10),
-		})
+	if restoreEpochValue, ok := lookupEnvValue(driverEnv, common.EnvRecoveryRestoreEpoch); ok {
+		env = append(env, corev1.EnvVar{Name: common.EnvRecoveryRestoreEpoch, Value: restoreEpochValue})
 	}
 	if profile.Password != "" {
 		env = append(env, corev1.EnvVar{Name: common.EnvRecoveryStorePassword, Value: profile.Password})
@@ -143,9 +155,18 @@ func addRecoveryAgentSidecar(pod *corev1.Pod, app *v1beta2.SparkApplication) err
 	// Mount the shared volume into the driver container so the application
 	// can read the restored marker from a file as an alternative to the
 	// localhost HTTP API.
-	if i := findContainer(pod); i >= 0 {
-		pod.Spec.Containers[i].VolumeMounts = append(pod.Spec.Containers[i].VolumeMounts, volumeMount)
-	}
+	pod.Spec.Containers[driverIdx].VolumeMounts = append(pod.Spec.Containers[driverIdx].VolumeMounts, volumeMount)
 
 	return nil
+}
+
+// lookupEnvValue returns the value of the named environment variable and
+// whether it was present.
+func lookupEnvValue(env []corev1.EnvVar, name string) (string, bool) {
+	for _, e := range env {
+		if e.Name == name {
+			return e.Value, true
+		}
+	}
+	return "", false
 }

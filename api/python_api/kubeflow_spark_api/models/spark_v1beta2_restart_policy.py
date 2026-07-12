@@ -19,6 +19,7 @@ import json
 
 from pydantic import BaseModel, ConfigDict, Field, StrictInt, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional
+from kubeflow_spark_api.models.spark_v1beta2_recovery_policy import SparkV1beta2RecoveryPolicy
 from typing import Optional, Set
 from typing_extensions import Self
 
@@ -30,8 +31,9 @@ class SparkV1beta2RestartPolicy(BaseModel):
     on_failure_retry_interval: Optional[StrictInt] = Field(default=None, description="OnFailureRetryInterval is the interval in seconds between retries on failed runs.", alias="onFailureRetryInterval")
     on_submission_failure_retries: Optional[StrictInt] = Field(default=None, description="OnSubmissionFailureRetries is the number of times to retry submitting an application before giving up. This is best effort and actual retry attempts can be >= the value specified due to caching. These are required if RestartPolicy is OnFailure.", alias="onSubmissionFailureRetries")
     on_submission_failure_retry_interval: Optional[StrictInt] = Field(default=None, description="OnSubmissionFailureRetryInterval is the interval in seconds between retries on failed submissions.", alias="onSubmissionFailureRetryInterval")
+    recovery: Optional[SparkV1beta2RecoveryPolicy] = Field(default=None, description="Recovery, if set, makes restarts fenced and progress-preserving: before each rerun the operator atomically advances a monotonic epoch in an external state store, so a zombie of the previous driver can never commit state again, and the restarted driver is handed the last progress marker the application committed. Only valid with Type=OnFailure or Type=Always. Requires the FencedRestart feature gate to be enabled.")
     type: Optional[StrictStr] = Field(default=None, description="Type specifies the RestartPolicyType.")
-    __properties: ClassVar[List[str]] = ["onFailureRetries", "onFailureRetryInterval", "onSubmissionFailureRetries", "onSubmissionFailureRetryInterval", "type"]
+    __properties: ClassVar[List[str]] = ["onFailureRetries", "onFailureRetryInterval", "onSubmissionFailureRetries", "onSubmissionFailureRetryInterval", "recovery", "type"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -72,6 +74,9 @@ class SparkV1beta2RestartPolicy(BaseModel):
             exclude=excluded_fields,
             exclude_none=True,
         )
+        # override the default output from pydantic by calling `to_dict()` of recovery
+        if self.recovery:
+            _dict['recovery'] = self.recovery.to_dict()
         return _dict
 
     @classmethod
@@ -88,6 +93,7 @@ class SparkV1beta2RestartPolicy(BaseModel):
             "onFailureRetryInterval": obj.get("onFailureRetryInterval"),
             "onSubmissionFailureRetries": obj.get("onSubmissionFailureRetries"),
             "onSubmissionFailureRetryInterval": obj.get("onSubmissionFailureRetryInterval"),
+            "recovery": SparkV1beta2RecoveryPolicy.from_dict(obj["recovery"]) if obj.get("recovery") is not None else None,
             "type": obj.get("type")
         })
         return _obj

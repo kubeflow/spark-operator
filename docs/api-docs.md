@@ -1935,6 +1935,151 @@ Configuration has no effect if ConfigFile is set.</p>
 </tr>
 </tbody>
 </table>
+<h3 id="sparkoperator.k8s.io/v1beta2.RecoveryPolicy">RecoveryPolicy
+</h3>
+<p>
+(<em>Appears on:</em><a href="#sparkoperator.k8s.io/v1beta2.RestartPolicy">RestartPolicy</a>)
+</p>
+<div>
+<p>RecoveryPolicy configures fenced, progress-preserving restarts.</p>
+</div>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>storeProfile</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<p>StoreProfile names a state-store profile from the operator configuration
+(&ndash;recovery-store-profiles) that provides the fencing/snapshot backend.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>heartbeatInterval</code><br/>
+<em>
+<a href="https://pkg.go.dev/k8s.io/apimachinery/pkg/apis/meta/v1#Duration">
+Kubernetes meta/v1.Duration
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>HeartbeatInterval is how often the injected recovery agent records a
+liveness beat in the state store. Defaults to 10s.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>heartbeatTTL</code><br/>
+<em>
+<a href="https://pkg.go.dev/k8s.io/apimachinery/pkg/apis/meta/v1#Duration">
+Kubernetes meta/v1.Duration
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>HeartbeatTTL is how long the heartbeat may remain unchanged, judged on the
+controller&rsquo;s own clock, before the driver is considered Suspect. Must be
+greater than 2x HeartbeatInterval. Defaults to 30s.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>maxSnapshotAge</code><br/>
+<em>
+<a href="https://pkg.go.dev/k8s.io/apimachinery/pkg/apis/meta/v1#Duration">
+Kubernetes meta/v1.Duration
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>MaxSnapshotAge, if set, surfaces a Stalled warning event when no snapshot
+has been committed for this long. Detection-only; never triggers recovery.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>snapshotMaxSizeBytes</code><br/>
+<em>
+int64
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>SnapshotMaxSizeBytes caps the size of a progress marker accepted by the
+recovery agent. Defaults to 1048576 (1 MiB).</p>
+</td>
+</tr>
+</tbody>
+</table>
+<h3 id="sparkoperator.k8s.io/v1beta2.RecoveryStatus">RecoveryStatus
+</h3>
+<p>
+(<em>Appears on:</em><a href="#sparkoperator.k8s.io/v1beta2.SparkApplicationStatus">SparkApplicationStatus</a>)
+</p>
+<div>
+<p>RecoveryStatus describes the fenced-recovery state of an application.</p>
+</div>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>epoch</code><br/>
+<em>
+int64
+</em>
+</td>
+<td>
+<p>Epoch is the current fencing epoch as last advanced by the operator.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>restoredFromEpoch</code><br/>
+<em>
+int64
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>RestoredFromEpoch is the epoch whose snapshot was handed to the current
+run, if any.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>lastSnapshotTime</code><br/>
+<em>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.24/#time-v1-meta">
+Kubernetes meta/v1.Time
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>LastSnapshotTime is the time the most recent progress marker was observed.</p>
+</td>
+</tr>
+</tbody>
+</table>
 <h3 id="sparkoperator.k8s.io/v1beta2.RestartPolicy">RestartPolicy
 </h3>
 <p>
@@ -2013,6 +2158,25 @@ int64
 <td>
 <em>(Optional)</em>
 <p>OnFailureRetryInterval is the interval in seconds between retries on failed runs.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>recovery</code><br/>
+<em>
+<a href="#sparkoperator.k8s.io/v1beta2.RecoveryPolicy">
+RecoveryPolicy
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Recovery, if set, makes restarts fenced and progress-preserving: before each
+rerun the operator atomically advances a monotonic epoch in an external state
+store, so a zombie of the previous driver can never commit state again, and
+the restarted driver is handed the last progress marker the application
+committed. Only valid with Type=OnFailure or Type=Always.
+Requires the FencedRestart feature gate to be enabled.</p>
 </td>
 </tr>
 </tbody>
@@ -2935,6 +3099,21 @@ int32
 <td>
 <p>SubmissionAttempts is the total number of attempts to submit an application to run.
 Incremented upon each attempted submission of the application and reset upon invalidation and rerun.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>recoveryStatus</code><br/>
+<em>
+<a href="#sparkoperator.k8s.io/v1beta2.RecoveryStatus">
+RecoveryStatus
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>RecoveryStatus is populated only when spec.restartPolicy.recovery is set
+and the FencedRestart feature gate is enabled.</p>
 </td>
 </tr>
 </tbody>

@@ -90,9 +90,12 @@ Markers are *markers*, not data: store references (paths, offsets, stage
 numbers), never datasets.
 
 See [examples/spark-fenced-restart.yaml](../examples/spark-fenced-restart.yaml)
-for a complete resumable job and
+for a complete resumable job, and for an end-to-end demo with evidence
+collection:
+[hack/fenced-restart-demo/run-demo-kind.sh](../hack/fenced-restart-demo/run-demo-kind.sh)
+(kind) or
 [hack/fenced-restart-demo/run-demo.sh](../hack/fenced-restart-demo/run-demo.sh)
-for an end-to-end minikube demo with evidence collection.
+(minikube).
 
 ## Status and events
 

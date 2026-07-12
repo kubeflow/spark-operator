@@ -55,7 +55,16 @@ func recoveryTestDriverPod() *corev1.Pod {
 		},
 		Spec: corev1.PodSpec{
 			Containers: []corev1.Container{
-				{Name: common.SparkDriverContainerName, Image: "spark:4.0.1"},
+				{
+					Name:  common.SparkDriverContainerName,
+					Image: "spark:4.0.1",
+					// Set by submission.go's recoveryEnvOption before the
+					// driver pod is created; the webhook reads the epoch
+					// from here rather than status.recoveryStatus.
+					Env: []corev1.EnvVar{
+						{Name: common.EnvRecoveryEpoch, Value: "2"},
+					},
+				},
 			},
 		},
 	}
@@ -192,6 +201,16 @@ func TestAddRecoveryAgentSidecarSkips(t *testing.T) {
 		pod := recoveryTestDriverPod()
 		if err := addRecoveryAgentSidecar(pod, app); err == nil {
 			t.Error("expected error for unknown store profile")
+		}
+	})
+
+	t.Run("driver container missing recovery epoch env", func(t *testing.T) {
+		features.SetFeatureGateDuringTest(t, features.FencedRestart, true)
+		setupRecoveryConfig(t)
+		pod := recoveryTestDriverPod()
+		pod.Spec.Containers[0].Env = nil
+		if err := addRecoveryAgentSidecar(pod, recoveryTestApp()); err == nil {
+			t.Error("expected error when the driver container carries no recovery epoch env")
 		}
 	})
 }

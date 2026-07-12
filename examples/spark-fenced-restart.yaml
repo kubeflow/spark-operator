@@ -45,6 +45,11 @@ data:
     MARKER_FILE = "/var/run/spark-recovery/snapshot"
     TOTAL_STAGES = 20
     ROWS_PER_STAGE = 300_000_000
+    # Real Spark compute above is sub-second on modern hardware and would
+    # make every run race the driver-kill step below. Pad each stage up to
+    # a floor so stage duration is deterministic across host speeds instead
+    # of depending on how fast this machine happens to sum 300M rows.
+    STAGE_MIN_SECONDS = float(os.environ.get("STAGE_MIN_SECONDS", "8"))
 
     def load_marker():
         """Read the marker restored by the recovery agent, if any."""
@@ -90,6 +95,9 @@ data:
             .collect()[0]["total"]
         )
         totals[str(stage)] = total
+        remaining = STAGE_MIN_SECONDS - (time.time() - stage_start)
+        if remaining > 0:
+            time.sleep(remaining)
         commit_marker(stage, totals)
         print(f"[resumable-etl] stage {stage} done in "
               f"{time.time() - stage_start:.1f}s, marker committed", flush=True)

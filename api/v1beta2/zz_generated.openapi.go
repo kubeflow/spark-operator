@@ -47,6 +47,8 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/kubeflow/spark-operator/v2/api/v1beta2.NamePath":                        schema_spark_operator_v2_api_v1beta2_NamePath(ref),
 		"github.com/kubeflow/spark-operator/v2/api/v1beta2.Port":                            schema_spark_operator_v2_api_v1beta2_Port(ref),
 		"github.com/kubeflow/spark-operator/v2/api/v1beta2.PrometheusSpec":                  schema_spark_operator_v2_api_v1beta2_PrometheusSpec(ref),
+		"github.com/kubeflow/spark-operator/v2/api/v1beta2.RecoveryPolicy":                  schema_spark_operator_v2_api_v1beta2_RecoveryPolicy(ref),
+		"github.com/kubeflow/spark-operator/v2/api/v1beta2.RecoveryStatus":                  schema_spark_operator_v2_api_v1beta2_RecoveryStatus(ref),
 		"github.com/kubeflow/spark-operator/v2/api/v1beta2.RestartPolicy":                   schema_spark_operator_v2_api_v1beta2_RestartPolicy(ref),
 		"github.com/kubeflow/spark-operator/v2/api/v1beta2.ScheduledSparkApplication":       schema_spark_operator_v2_api_v1beta2_ScheduledSparkApplication(ref),
 		"github.com/kubeflow/spark-operator/v2/api/v1beta2.ScheduledSparkApplicationList":   schema_spark_operator_v2_api_v1beta2_ScheduledSparkApplicationList(ref),
@@ -1819,6 +1821,92 @@ func schema_spark_operator_v2_api_v1beta2_PrometheusSpec(ref common.ReferenceCal
 	}
 }
 
+func schema_spark_operator_v2_api_v1beta2_RecoveryPolicy(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "RecoveryPolicy configures fenced, progress-preserving restarts.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"storeProfile": {
+						SchemaProps: spec.SchemaProps{
+							Description: "StoreProfile names a state-store profile from the operator configuration (--recovery-store-profiles) that provides the fencing/snapshot backend.",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"heartbeatInterval": {
+						SchemaProps: spec.SchemaProps{
+							Description: "HeartbeatInterval is how often the injected recovery agent records a liveness beat in the state store. Defaults to 10s.",
+							Ref:         ref(metav1.Duration{}.OpenAPIModelName()),
+						},
+					},
+					"heartbeatTTL": {
+						SchemaProps: spec.SchemaProps{
+							Description: "HeartbeatTTL is how long the heartbeat may remain unchanged, judged on the controller's own clock, before the driver is considered Suspect. Must be greater than 2x HeartbeatInterval. Defaults to 30s.",
+							Ref:         ref(metav1.Duration{}.OpenAPIModelName()),
+						},
+					},
+					"maxSnapshotAge": {
+						SchemaProps: spec.SchemaProps{
+							Description: "MaxSnapshotAge, if set, surfaces a Stalled warning event when no snapshot has been committed for this long. Detection-only; never triggers recovery.",
+							Ref:         ref(metav1.Duration{}.OpenAPIModelName()),
+						},
+					},
+					"snapshotMaxSizeBytes": {
+						SchemaProps: spec.SchemaProps{
+							Description: "SnapshotMaxSizeBytes caps the size of a progress marker accepted by the recovery agent. Defaults to 1048576 (1 MiB).",
+							Type:        []string{"integer"},
+							Format:      "int64",
+						},
+					},
+				},
+				Required: []string{"storeProfile"},
+			},
+		},
+		Dependencies: []string{
+			metav1.Duration{}.OpenAPIModelName()},
+	}
+}
+
+func schema_spark_operator_v2_api_v1beta2_RecoveryStatus(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "RecoveryStatus describes the fenced-recovery state of an application.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"epoch": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Epoch is the current fencing epoch as last advanced by the operator.",
+							Default:     0,
+							Type:        []string{"integer"},
+							Format:      "int64",
+						},
+					},
+					"restoredFromEpoch": {
+						SchemaProps: spec.SchemaProps{
+							Description: "RestoredFromEpoch is the epoch whose snapshot was handed to the current run, if any.",
+							Type:        []string{"integer"},
+							Format:      "int64",
+						},
+					},
+					"lastSnapshotTime": {
+						SchemaProps: spec.SchemaProps{
+							Description: "LastSnapshotTime is the time the most recent progress marker was observed.",
+							Ref:         ref(metav1.Time{}.OpenAPIModelName()),
+						},
+					},
+				},
+				Required: []string{"epoch"},
+			},
+		},
+		Dependencies: []string{
+			metav1.Time{}.OpenAPIModelName()},
+	}
+}
+
 func schema_spark_operator_v2_api_v1beta2_RestartPolicy(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
@@ -1861,9 +1949,17 @@ func schema_spark_operator_v2_api_v1beta2_RestartPolicy(ref common.ReferenceCall
 							Format:      "int64",
 						},
 					},
+					"recovery": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Recovery, if set, makes restarts fenced and progress-preserving: before each rerun the operator atomically advances a monotonic epoch in an external state store, so a zombie of the previous driver can never commit state again, and the restarted driver is handed the last progress marker the application committed. Only valid with Type=OnFailure or Type=Always. Requires the FencedRestart feature gate to be enabled.",
+							Ref:         ref("github.com/kubeflow/spark-operator/v2/api/v1beta2.RecoveryPolicy"),
+						},
+					},
 				},
 			},
 		},
+		Dependencies: []string{
+			"github.com/kubeflow/spark-operator/v2/api/v1beta2.RecoveryPolicy"},
 	}
 }
 
@@ -2619,12 +2715,18 @@ func schema_spark_operator_v2_api_v1beta2_SparkApplicationStatus(ref common.Refe
 							Format:      "int32",
 						},
 					},
+					"recoveryStatus": {
+						SchemaProps: spec.SchemaProps{
+							Description: "RecoveryStatus is populated only when spec.restartPolicy.recovery is set and the FencedRestart feature gate is enabled.",
+							Ref:         ref("github.com/kubeflow/spark-operator/v2/api/v1beta2.RecoveryStatus"),
+						},
+					},
 				},
 				Required: []string{"driverInfo"},
 			},
 		},
 		Dependencies: []string{
-			"github.com/kubeflow/spark-operator/v2/api/v1beta2.ApplicationState", "github.com/kubeflow/spark-operator/v2/api/v1beta2.DriverInfo", metav1.Time{}.OpenAPIModelName()},
+			"github.com/kubeflow/spark-operator/v2/api/v1beta2.ApplicationState", "github.com/kubeflow/spark-operator/v2/api/v1beta2.DriverInfo", "github.com/kubeflow/spark-operator/v2/api/v1beta2.RecoveryStatus", metav1.Time{}.OpenAPIModelName()},
 	}
 }
 
