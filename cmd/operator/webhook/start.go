@@ -32,6 +32,7 @@ import (
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
+	utilfeature "k8s.io/apiserver/pkg/util/feature"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/fields"
@@ -54,7 +55,9 @@ import (
 	"github.com/kubeflow/spark-operator/v2/internal/webhook"
 	"github.com/kubeflow/spark-operator/v2/pkg/certificate"
 	"github.com/kubeflow/spark-operator/v2/pkg/common"
+	"github.com/kubeflow/spark-operator/v2/pkg/features"
 	operatorscheme "github.com/kubeflow/spark-operator/v2/pkg/scheme"
+	"github.com/kubeflow/spark-operator/v2/pkg/statestore"
 	"github.com/kubeflow/spark-operator/v2/pkg/version"
 	// +kubebuilder:scaffold:imports
 )
@@ -86,6 +89,10 @@ var (
 
 	// Cert Manager
 	enableCertManager bool
+
+	// Fenced restart (FencedRestart feature gate)
+	recoveryStoreProfiles string
+	recoveryAgentImage    string
 
 	// Leader election
 	enableLeaderElection        bool
@@ -144,6 +151,12 @@ func NewStartCommand() *cobra.Command {
 	command.Flags().StringVar(&mutatingWebhookName, "mutating-webhook-name", "spark-operator-webhook", "The name of the mutating webhook.")
 	command.Flags().StringVar(&validatingWebhookName, "validating-webhook-name", "spark-operator-webhook", "The name of the validating webhook.")
 	command.Flags().IntVar(&webhookPort, "webhook-port", 9443, "Service port of the webhook server.")
+	command.Flags().StringVar(&recoveryStoreProfiles, "recovery-store-profiles", "",
+		"Named state-store profiles for fenced, progress-preserving restarts (FencedRestart feature gate), "+
+			"in the form name=type:address[,name=type:address...]. Must match the controller's configuration.")
+	command.Flags().StringVar(&recoveryAgentImage, "recovery-agent-image", "",
+		"Image used for the spark-recovery-agent sidecar injected into driver pods of applications with "+
+			"spec.restartPolicy.recovery set (FencedRestart feature gate). Typically the operator image itself.")
 	command.Flags().StringVar(&webhookSecretName, "webhook-secret-name", "spark-operator-webhook-certs", "The name of the secret that contains the webhook server's TLS certificate and key.")
 	command.Flags().StringVar(&webhookSecretNamespace, "webhook-secret-namespace", "spark-operator", "The namespace of the secret that contains the webhook server's TLS certificate and key.")
 	command.Flags().StringVar(&webhookServiceName, "webhook-svc-name", "spark-webhook", "The name of the Service for the webhook server.")
@@ -184,6 +197,10 @@ func NewStartCommand() *cobra.Command {
 	ctrl.RegisterFlags(flagSet)
 	zapOptions.BindFlags(flagSet)
 	command.Flags().AddGoFlagSet(flagSet)
+
+	// Register the --feature-gates flag so gates (e.g. FencedRestart) can be
+	// enabled consistently on both the controller and the webhook.
+	utilfeature.DefaultMutableFeatureGate.AddFlag(command.Flags())
 
 	return command
 }
@@ -328,6 +345,15 @@ func start() {
 		Complete(); err != nil {
 		logger.Error(err, "Failed to create mutating webhook for Scheduled Spark application")
 		os.Exit(1)
+	}
+
+	if features.Enabled(features.FencedRestart) {
+		registry, err := statestore.ParseProfiles(recoveryStoreProfiles)
+		if err != nil {
+			logger.Error(err, "Failed to parse --recovery-store-profiles")
+			os.Exit(1)
+		}
+		webhook.SetRecoveryDefaulterConfig(recoveryAgentImage, registry)
 	}
 
 	if err := ctrl.NewWebhookManagedBy(mgr, &corev1.Pod{}).

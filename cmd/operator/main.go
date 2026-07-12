@@ -22,6 +22,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/kubeflow/spark-operator/v2/cmd/operator/agent"
 	"github.com/kubeflow/spark-operator/v2/cmd/operator/controller"
 	"github.com/kubeflow/spark-operator/v2/cmd/operator/version"
 	"github.com/kubeflow/spark-operator/v2/cmd/operator/webhook"
@@ -35,6 +36,7 @@ func NewCommand() *cobra.Command {
 			return cmd.Help()
 		},
 	}
+	command.AddCommand(agent.NewCommand())
 	command.AddCommand(controller.NewCommand())
 	command.AddCommand(webhook.NewCommand())
 	command.AddCommand(version.NewCommand())

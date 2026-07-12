@@ -1,0 +1,138 @@
+#
+# Copyright 2026 The Kubeflow authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Example: fenced, progress-preserving restart (FencedRestart feature gate).
+#
+# A long-running job of 20 sequential stages. After each stage it commits a
+# progress marker through the injected recovery agent. If the driver dies,
+# the operator fences the old run (epoch +1), restarts the application, and
+# the job resumes from the first uncompleted stage instead of from zero.
+#
+# Requires the operator to be started with:
+#   --feature-gates=FencedRestart=true
+#   --recovery-store-profiles=default=redis:<redis-host>:6379
+# and the webhook additionally with:
+#   --recovery-agent-image=<operator image>
+#
+# See hack/fenced-restart-demo/run-demo.sh for a complete minikube walkthrough.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: resumable-etl-script
+  namespace: default
+data:
+  resumable_etl.py: |
+    import json
+    import os
+    import time
+    import urllib.request
+
+    from pyspark.sql import SparkSession
+
+    AGENT = os.environ.get("SPARK_RECOVERY_AGENT_URL", "http://localhost:7691")
+    MARKER_FILE = "/var/run/spark-recovery/snapshot"
+    TOTAL_STAGES = 20
+    ROWS_PER_STAGE = 300_000_000
+
+    def load_marker():
+        """Read the marker restored by the recovery agent, if any."""
+        try:
+            with urllib.request.urlopen(AGENT + "/v1/snapshot", timeout=5) as resp:
+                return json.loads(resp.read())
+        except Exception:
+            pass
+        try:
+            if os.path.exists(MARKER_FILE):
+                with open(MARKER_FILE) as f:
+                    return json.load(f)
+        except Exception:
+            pass
+        return None
+
+    def commit_marker(stage, totals):
+        """Commit progress through the agent (epoch-guarded write)."""
+        body = json.dumps({"completedStage": stage, "totals": totals}).encode()
+        req = urllib.request.Request(AGENT + "/v1/snapshot", data=body, method="PUT")
+        urllib.request.urlopen(req, timeout=10)
+
+    spark = SparkSession.builder.appName("resumable-etl").getOrCreate()
+    epoch = os.environ.get("SPARK_RECOVERY_EPOCH", "unset")
+
+    marker = load_marker()
+    if marker is not None:
+        start_stage = marker["completedStage"] + 1
+        totals = marker["totals"]
+        print(f"[resumable-etl] epoch={epoch} RESUMING from stage {start_stage} "
+              f"(skipping {start_stage} completed stages)", flush=True)
+    else:
+        start_stage = 0
+        totals = {}
+        print(f"[resumable-etl] epoch={epoch} starting from stage 0", flush=True)
+
+    job_start = time.time()
+    for stage in range(start_stage, TOTAL_STAGES):
+        stage_start = time.time()
+        total = (
+            spark.range(0, ROWS_PER_STAGE, 1, 8)
+            .selectExpr("sum(id) AS total")
+            .collect()[0]["total"]
+        )
+        totals[str(stage)] = total
+        commit_marker(stage, totals)
+        print(f"[resumable-etl] stage {stage} done in "
+              f"{time.time() - stage_start:.1f}s, marker committed", flush=True)
+
+    print(f"[resumable-etl] ALL {TOTAL_STAGES} stages complete in "
+          f"{time.time() - job_start:.1f}s this run", flush=True)
+    spark.stop()
+---
+apiVersion: sparkoperator.k8s.io/v1beta2
+kind: SparkApplication
+metadata:
+  name: resumable-etl
+  namespace: default
+spec:
+  type: Python
+  pythonVersion: "3"
+  mode: cluster
+  image: docker.io/library/spark:4.0.1
+  imagePullPolicy: IfNotPresent
+  mainApplicationFile: local:///opt/job/resumable_etl.py
+  sparkVersion: 4.0.1
+  restartPolicy:
+    type: OnFailure
+    onFailureRetries: 3
+    onFailureRetryInterval: 10
+    onSubmissionFailureRetries: 3
+    onSubmissionFailureRetryInterval: 10
+    recovery:
+      storeProfile: default
+      heartbeatInterval: 10s
+      heartbeatTTL: 30s
+  volumes:
+  - name: job-script
+    configMap:
+      name: resumable-etl-script
+  driver:
+    cores: 1
+    memory: 512m
+    serviceAccount: spark-operator-spark
+    volumeMounts:
+    - name: job-script
+      mountPath: /opt/job
+  executor:
+    instances: 1
+    cores: 1
+    memory: 512m

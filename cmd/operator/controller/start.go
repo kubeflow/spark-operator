@@ -68,6 +68,7 @@ import (
 	"github.com/kubeflow/spark-operator/v2/internal/scheduler/yunikorn"
 	"github.com/kubeflow/spark-operator/v2/pkg/common"
 	operatorscheme "github.com/kubeflow/spark-operator/v2/pkg/scheme"
+	"github.com/kubeflow/spark-operator/v2/pkg/statestore"
 	"github.com/kubeflow/spark-operator/v2/pkg/util"
 	"github.com/kubeflow/spark-operator/v2/pkg/version"
 	// +kubebuilder:scaffold:imports
@@ -91,6 +92,10 @@ var (
 	// spec.driverPodDisruptionBudget=true. Defaults to false so the upgrade
 	// path is no-op for existing clusters.
 	enableDriverPDB bool
+
+	// Fenced restart (FencedRestart feature gate): state-store profiles for
+	// fencing epochs and progress markers.
+	recoveryStoreProfiles string
 
 	//WorkQueue
 	workqueueRateLimiterBucketQPS  int
@@ -210,6 +215,10 @@ func NewStartCommand() *cobra.Command {
 			"Each SparkApplication must additionally opt in via "+
 			"spec.driverPodDisruptionBudget=true.")
 
+	command.Flags().StringVar(&recoveryStoreProfiles, "recovery-store-profiles", "",
+		"Named state-store profiles for fenced, progress-preserving restarts (FencedRestart feature gate), "+
+			"in the form name=type:address[,name=type:address...], e.g. default=redis:redis.spark-operator.svc:6379. "+
+			"Passwords are read from RECOVERY_STORE_<NAME>_PASSWORD environment variables.")
 	command.Flags().IntVar(&workqueueRateLimiterBucketQPS, "workqueue-ratelimiter-bucket-qps", 10, "QPS of the bucket rate of the workqueue.")
 	command.Flags().IntVar(&workqueueRateLimiterBucketSize, "workqueue-ratelimiter-bucket-size", 100, "The token bucket size of the workqueue.")
 	command.Flags().DurationVar(&workqueueRateLimiterMaxDelay, "workqueue-ratelimiter-max-delay", rate.InfDuration, "The maximum delay of the workqueue.")
@@ -531,6 +540,14 @@ func newSparkApplicationReconcilerOptions() sparkapplication.Options {
 	}
 	if enableBatchScheduler {
 		options.KubeSchedulerNames = kubeSchedulerNames
+	}
+	if features.Enabled(features.FencedRestart) {
+		registry, err := statestore.ParseProfiles(recoveryStoreProfiles)
+		if err != nil {
+			logger.Error(err, "Failed to parse --recovery-store-profiles")
+			os.Exit(1)
+		}
+		options.RecoveryStoreProfiles = registry
 	}
 	return options
 }

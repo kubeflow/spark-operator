@@ -24,6 +24,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"slices"
+	"strconv"
 	"strings"
 
 	corev1 "k8s.io/api/core/v1"
@@ -114,6 +115,7 @@ func buildSparkSubmitArgs(app *v1beta2.SparkApplication, skipPodTemplates bool) 
 		driverPodNameOption,
 		driverConfOption,
 		driverEnvOption,
+		recoveryEnvOption,
 		driverSecretOption,
 		driverVolumeMountsOption,
 		executorConfOption,
@@ -697,6 +699,40 @@ func driverEnvOption(app *v1beta2.SparkApplication) ([]string, error) {
 	for key, value := range app.Spec.Driver.EnvVars {
 		property := fmt.Sprintf(common.SparkKubernetesDriverEnvTemplate, key)
 		args = append(args, "--conf", fmt.Sprintf("%s=%s", property, value))
+	}
+	return args, nil
+}
+
+// recoveryEnvOption injects the fenced-restart contract into the driver
+// environment (FencedRestart feature gate): the epoch this run is bound to,
+// the epoch of the progress marker to restore from (if any), and the
+// localhost URL of the recovery agent. The values come from
+// status.recoveryStatus, which the reconciler populates before submission.
+func recoveryEnvOption(app *v1beta2.SparkApplication) ([]string, error) {
+	if !recoveryEnabled(app) || app.Status.RecoveryStatus == nil {
+		return nil, nil
+	}
+	recoveryStatus := app.Status.RecoveryStatus
+	env := map[string]string{
+		common.EnvRecoveryEnabled:  "true",
+		common.EnvRecoveryEpoch:    strconv.FormatInt(recoveryStatus.Epoch, 10),
+		common.EnvRecoveryAgentURL: fmt.Sprintf("http://localhost:%d", common.RecoveryAgentPort),
+	}
+	if recoveryStatus.RestoredFromEpoch != nil {
+		env[common.EnvRecoveryRestoreEpoch] = strconv.FormatInt(*recoveryStatus.RestoredFromEpoch, 10)
+	}
+
+	// Sort keys for deterministic arguments (stable tests, stable submission logs).
+	keys := make([]string, 0, len(env))
+	for key := range env {
+		keys = append(keys, key)
+	}
+	slices.Sort(keys)
+
+	var args []string
+	for _, key := range keys {
+		property := fmt.Sprintf(common.SparkKubernetesDriverEnvTemplate, key)
+		args = append(args, "--conf", fmt.Sprintf("%s=%s", property, env[key]))
 	}
 	return args, nil
 }

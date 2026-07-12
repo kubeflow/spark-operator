@@ -182,6 +182,10 @@ type SparkApplicationStatus struct {
 	// SubmissionAttempts is the total number of attempts to submit an application to run.
 	// Incremented upon each attempted submission of the application and reset upon invalidation and rerun.
 	SubmissionAttempts int32 `json:"submissionAttempts,omitempty"`
+	// RecoveryStatus is populated only when spec.restartPolicy.recovery is set
+	// and the FencedRestart feature gate is enabled.
+	// +optional
+	RecoveryStatus *RecoveryStatus `json:"recoveryStatus,omitempty"`
 }
 
 // +kubebuilder:object:root=true
@@ -265,6 +269,61 @@ type RestartPolicy struct {
 	// +kubebuilder:validation:Minimum=1
 	// +optional
 	OnFailureRetryInterval *int64 `json:"onFailureRetryInterval,omitempty"`
+
+	// Recovery, if set, makes restarts fenced and progress-preserving: before each
+	// rerun the operator atomically advances a monotonic epoch in an external state
+	// store, so a zombie of the previous driver can never commit state again, and
+	// the restarted driver is handed the last progress marker the application
+	// committed. Only valid with Type=OnFailure or Type=Always.
+	// Requires the FencedRestart feature gate to be enabled.
+	// +optional
+	Recovery *RecoveryPolicy `json:"recovery,omitempty"`
+}
+
+// RecoveryPolicy configures fenced, progress-preserving restarts.
+type RecoveryPolicy struct {
+	// StoreProfile names a state-store profile from the operator configuration
+	// (--recovery-store-profiles) that provides the fencing/snapshot backend.
+	// +kubebuilder:validation:MinLength=1
+	StoreProfile string `json:"storeProfile"`
+
+	// HeartbeatInterval is how often the injected recovery agent records a
+	// liveness beat in the state store. Defaults to 10s.
+	// +optional
+	HeartbeatInterval *metav1.Duration `json:"heartbeatInterval,omitempty"`
+
+	// HeartbeatTTL is how long the heartbeat may remain unchanged, judged on the
+	// controller's own clock, before the driver is considered Suspect. Must be
+	// greater than 2x HeartbeatInterval. Defaults to 30s.
+	// +optional
+	HeartbeatTTL *metav1.Duration `json:"heartbeatTTL,omitempty"`
+
+	// MaxSnapshotAge, if set, surfaces a Stalled warning event when no snapshot
+	// has been committed for this long. Detection-only; never triggers recovery.
+	// +optional
+	MaxSnapshotAge *metav1.Duration `json:"maxSnapshotAge,omitempty"`
+
+	// SnapshotMaxSizeBytes caps the size of a progress marker accepted by the
+	// recovery agent. Defaults to 1048576 (1 MiB).
+	// +kubebuilder:validation:Minimum=1
+	// +optional
+	SnapshotMaxSizeBytes *int64 `json:"snapshotMaxSizeBytes,omitempty"`
+}
+
+// RecoveryStatus describes the fenced-recovery state of an application.
+type RecoveryStatus struct {
+	// Epoch is the current fencing epoch as last advanced by the operator.
+	Epoch int64 `json:"epoch"`
+
+	// RestoredFromEpoch is the epoch whose snapshot was handed to the current
+	// run, if any.
+	// +optional
+	RestoredFromEpoch *int64 `json:"restoredFromEpoch,omitempty"`
+
+	// LastSnapshotTime is the time the most recent progress marker was observed.
+	// +nullable
+	// +optional
+	LastSnapshotTime metav1.Time `json:"lastSnapshotTime,omitempty"`
 }
 
 type RestartPolicyType string
