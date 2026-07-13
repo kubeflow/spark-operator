@@ -177,6 +177,24 @@ tests:
           path: spec.template.spec.containers[?(@.name=="spark-operator-controller")].args
           content: --controller-threads=30
 
+  - it: Should contain `--default-time-to-live-seconds` arg if `controller.defaultTimeToLiveSeconds` is set
+    set:
+      controller:
+        defaultTimeToLiveSeconds: 86400
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[?(@.name=="spark-operator-controller")].args
+          content: --default-time-to-live-seconds=86400
+
+  - it: Should not contain `--default-time-to-live-seconds` arg when `controller.defaultTimeToLiveSeconds` is 0
+    set:
+      controller:
+        defaultTimeToLiveSeconds: 0
+    asserts:
+      - notContains:
+          path: spec.template.spec.containers[?(@.name=="spark-operator-controller")].args
+          content: --default-time-to-live-seconds=0
+
   - it: Should contain `--enable-ui-service` arg if `controller.uiService.enable` is set to `true`
     set:
       controller:
