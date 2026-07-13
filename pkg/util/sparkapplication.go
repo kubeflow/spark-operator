@@ -32,6 +32,7 @@ import (
 
 	"github.com/kubeflow/spark-operator/v2/api/v1beta2"
 	"github.com/kubeflow/spark-operator/v2/pkg/common"
+	"github.com/kubeflow/spark-operator/v2/pkg/features"
 )
 
 // GetDriverPodName returns name of the driver pod of the given spark application.
@@ -74,6 +75,28 @@ func IsExpired(app *v1beta2.SparkApplication) bool {
 	}
 
 	return false
+}
+
+// EffectiveTimeToLiveSeconds returns the TTL (in seconds) that should govern cleanup
+// of the given SparkApplication, and whether the operator default (rather than the
+// user spec) was the source.
+//
+// Resolution order:
+//   - the user's spec.timeToLiveSeconds when set and > 0, else
+//   - the operator default when the DefaultTimeToLive feature gate is enabled and
+//     defaultSeconds > 0, else
+//   - nil, meaning "never expire".
+//
+// It never mutates the SparkApplication.
+func EffectiveTimeToLiveSeconds(app *v1beta2.SparkApplication, defaultSeconds int64) (*int64, bool) {
+	if app.Spec.TimeToLiveSeconds != nil && *app.Spec.TimeToLiveSeconds > 0 {
+		return app.Spec.TimeToLiveSeconds, false
+	}
+	if features.Enabled(features.DefaultTimeToLive) && defaultSeconds > 0 {
+		seconds := defaultSeconds
+		return &seconds, true
+	}
+	return nil, false
 }
 
 // IsDriverRunning returns whether the driver pod of the given SparkApplication is running.
