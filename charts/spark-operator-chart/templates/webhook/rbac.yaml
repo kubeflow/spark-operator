@@ -84,6 +84,16 @@ metadata:
     {{- toYaml . | nindent 4 }}
   {{- end }}
 rules:
+{{- if .Values.webhook.leaderElection.enable }}
+- apiGroups:
+  - ""
+  resources:
+  - events
+  verbs:
+  - create
+  - update
+  - patch
+{{- end }}
 - apiGroups:
   - ""
   resources:

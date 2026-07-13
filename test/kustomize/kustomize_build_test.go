@@ -235,8 +235,8 @@ func TestKustomizeBuild(t *testing.T) {
 
 		assert.True(t, rulesHaveResource(role.Rules, "secrets"),
 			"webhook Role should have 'secrets'")
-		assert.False(t, rulesHaveResource(role.Rules, "events"),
-			"webhook Role should NOT have 'events' (events are in ClusterRole for Helm parity)")
+		assert.True(t, rulesHaveResource(role.Rules, "events"),
+			"webhook Role should have 'events' for leader election event recording")
 		assert.True(t, rulesHaveResourceName(role.Rules, "spark-operator-webhook-certs"),
 			"webhook Role should scope secret to 'spark-operator-webhook-certs'")
 		assert.True(t, rulesHaveResourceName(role.Rules, "spark-operator-webhook-lock"),
