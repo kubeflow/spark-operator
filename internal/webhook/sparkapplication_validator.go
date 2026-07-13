@@ -72,6 +72,7 @@ func (v *SparkApplicationValidator) ValidateCreate(ctx context.Context, app *v1b
 
 	if v.enableResourceQuotaEnforcement {
 		if err := v.validateResourceUsage(ctx, app); err != nil {
+			logger.Error(err, "Resource request validation failed")
 			return nil, err
 		}
 	}
@@ -105,6 +106,7 @@ func (v *SparkApplicationValidator) ValidateUpdate(ctx context.Context, oldApp *
 	// Validate SparkApplication resource usage when resource quota enforcement is enabled.
 	if v.enableResourceQuotaEnforcement {
 		if err := v.validateResourceUsage(ctx, newApp); err != nil {
+			logger.Error(err, "Resource request validation failed")
 			return nil, err
 		}
 	}
@@ -178,7 +180,7 @@ func (v *SparkApplicationValidator) validateSparkVersion(app *v1beta2.SparkAppli
 func (v *SparkApplicationValidator) validateResourceUsage(ctx context.Context, app *v1beta2.SparkApplication) error {
 	requests, err := getResourceList(app)
 	if err != nil {
-		return fmt.Errorf("failed to calculate resource quests: %v", err)
+		return fmt.Errorf("failed to calculate resource requests: %v", err)
 	}
 
 	resourceQuotaList := &corev1.ResourceQuotaList{}
@@ -193,8 +195,8 @@ func (v *SparkApplicationValidator) validateResourceUsage(ctx context.Context, a
 			continue
 		}
 
-		if !validateResourceQuota(requests, resourceQuota) {
-			return fmt.Errorf("failed to validate resource quota \"%s/%s\"", resourceQuota.Namespace, resourceQuota.Name)
+		if err := validateResourceQuota(requests, resourceQuota); err != nil {
+			return fmt.Errorf("failed to validate resource quota \"%s/%s\" with error \"%v\"", resourceQuota.Namespace, resourceQuota.Name, err)
 		}
 	}
 
