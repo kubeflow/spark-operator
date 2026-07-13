@@ -210,13 +210,7 @@ func start() {
 	mgr, err := ctrl.NewManager(cfg, ctrl.Options{
 		Scheme: operatorscheme.WebhookScheme,
 		Cache:  newCacheOptions(),
-		Client: client.Options{
-			Cache: &client.CacheOptions{
-				DisableFor: []client.Object{
-					&corev1.ResourceQuota{},
-				},
-			},
-		},
+		Client: client.Options{},
 		Metrics: metricsserver.Options{
 			BindAddress:   metricsBindAddress,
 			SecureServing: secureMetrics,
@@ -395,6 +389,7 @@ func newCacheOptions() cache.Options {
 				common.LabelLaunchedBySparkOperator: "true",
 			}),
 		},
+		&corev1.ResourceQuota{}:              {},
 		&v1beta2.SparkApplication{}:          {},
 		&v1beta2.ScheduledSparkApplication{}: {},
 		&admissionregistrationv1.MutatingWebhookConfiguration{}: {

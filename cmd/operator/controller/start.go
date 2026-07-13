@@ -308,6 +308,8 @@ func start() {
 		Cache:  newCacheOptions(),
 		Client: client.Options{
 			Cache: &client.CacheOptions{
+				// TODO: If Ingress reconciliation is added, move these to ByObject with a label selector.
+				// Currently write-only (created with OwnerReferences, no Watches/Owns registered).
 				DisableFor: []client.Object{
 					&networkingv1.Ingress{},
 					&extensionsv1beta1.Ingress{},
