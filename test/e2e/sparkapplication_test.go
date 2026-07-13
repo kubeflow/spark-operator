@@ -35,6 +35,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/yaml"
 	clientretry "k8s.io/client-go/util/retry"
 	"k8s.io/utils/ptr"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/kubeflow/spark-operator/v2/api/v1beta2"
 	"github.com/kubeflow/spark-operator/v2/pkg/common"
@@ -492,6 +493,84 @@ var _ = Describe("Example SparkApplication", func() {
 			Expect(err).NotTo(HaveOccurred())
 			Expect(bytes).NotTo(BeEmpty())
 			Expect(strings.Contains(string(bytes), "Pi is roughly 3")).To(BeTrue())
+		})
+	})
+
+	Context("sparkConf-key-authorization", func() {
+		ctx := context.Background()
+		mainFile := "local:///opt/spark/examples/jars/spark-examples.jar"
+
+		It("should reject a SparkApplication with a denied sparkConf key", func() {
+			app := &v1beta2.SparkApplication{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "sparkconf-denied-key",
+					Namespace: "default",
+				},
+				Spec: v1beta2.SparkApplicationSpec{
+					Type:                v1beta2.SparkApplicationTypeScala,
+					SparkVersion:        "3.5.0",
+					Mode:                v1beta2.DeployModeCluster,
+					MainApplicationFile: &mainFile,
+					MainClass:           ptr.To("org.apache.spark.examples.SparkPi"),
+					Driver: v1beta2.DriverSpec{
+						SparkPodSpec: v1beta2.SparkPodSpec{
+							Cores:  ptr.To[int32](1),
+							Memory: ptr.To("512m"),
+						},
+					},
+					Executor: v1beta2.ExecutorSpec{
+						SparkPodSpec: v1beta2.SparkPodSpec{
+							Cores:  ptr.To[int32](1),
+							Memory: ptr.To("512m"),
+						},
+						Instances: ptr.To[int32](1),
+					},
+					SparkConf: map[string]string{
+						common.SparkKubernetesAuthenticateDriverServiceAccountName: "cluster-admin",
+					},
+				},
+			}
+
+			By("Creating SparkApplication with denied sparkConf key")
+			err := k8sClient.Create(ctx, app)
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("is not allowed"))
+		})
+
+		It("should accept a SparkApplication with safe sparkConf keys via dry-run", func() {
+			app := &v1beta2.SparkApplication{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "sparkconf-safe-key",
+					Namespace: "default",
+				},
+				Spec: v1beta2.SparkApplicationSpec{
+					Type:                v1beta2.SparkApplicationTypeScala,
+					SparkVersion:        "3.5.0",
+					Mode:                v1beta2.DeployModeCluster,
+					MainApplicationFile: &mainFile,
+					MainClass:           ptr.To("org.apache.spark.examples.SparkPi"),
+					Driver: v1beta2.DriverSpec{
+						SparkPodSpec: v1beta2.SparkPodSpec{
+							Cores:  ptr.To[int32](1),
+							Memory: ptr.To("512m"),
+						},
+					},
+					Executor: v1beta2.ExecutorSpec{
+						SparkPodSpec: v1beta2.SparkPodSpec{
+							Cores:  ptr.To[int32](1),
+							Memory: ptr.To("512m"),
+						},
+						Instances: ptr.To[int32](1),
+					},
+					SparkConf: map[string]string{
+						"spark.executor.memory": "4g",
+					},
+				},
+			}
+
+			By("Creating SparkApplication with safe sparkConf via dry-run")
+			err := k8sClient.Create(ctx, app, client.DryRunAll)
+			Expect(err).NotTo(HaveOccurred())
 		})
 	})
 

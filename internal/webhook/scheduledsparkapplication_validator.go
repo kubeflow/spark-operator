@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"strings"
 
+	"k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/util/validation"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
@@ -71,6 +72,12 @@ func (v *ScheduledSparkApplicationValidator) ValidateUpdate(ctx context.Context,
 	if err := v.validateName(newApp.Name); err != nil {
 		return nil, err
 	}
+
+	// Skip validating when spec does not change.
+	if equality.Semantic.DeepEqual(oldApp.Spec, newApp.Spec) {
+		return nil, nil
+	}
+
 	if err := v.validate(newApp); err != nil {
 		return nil, err
 	}
@@ -88,9 +95,8 @@ func (v *ScheduledSparkApplicationValidator) ValidateDelete(ctx context.Context,
 	return nil, nil
 }
 
-func (v *ScheduledSparkApplicationValidator) validate(_ *v1beta2.ScheduledSparkApplication) error {
-	// TODO: implement validate logic
-	return nil
+func (v *ScheduledSparkApplicationValidator) validate(app *v1beta2.ScheduledSparkApplication) error {
+	return validateSparkConf(app.Spec.Template.SparkConf, app.Namespace)
 }
 
 // validateName ensures the ScheduledSparkApplication metadata.name, when combined with suffixes,
