@@ -38,6 +38,7 @@ import (
 	"github.com/kubeflow/spark-operator/v2/api/v1beta2"
 	"github.com/kubeflow/spark-operator/v2/internal/controller/sparkapplication"
 	"github.com/kubeflow/spark-operator/v2/pkg/common"
+	"github.com/kubeflow/spark-operator/v2/pkg/features"
 	"github.com/kubeflow/spark-operator/v2/pkg/util"
 )
 
@@ -528,6 +529,56 @@ var _ = Describe("SparkApplication Controller", func() {
 				nil,
 				&sparkapplication.SparkSubmitter{},
 				sparkapplication.Options{Namespaces: []string{appNamespace}},
+			)
+			result, err := reconciler.Reconcile(ctx, reconcile.Request{NamespacedName: key})
+			Expect(err).NotTo(HaveOccurred())
+			Expect(result.Requeue).To(BeFalse())
+		})
+	})
+
+	Context("When reconciling a terminated SparkApplication with the operator default TTL", func() {
+		ctx := context.Background()
+		appName := "test-default-ttl"
+		appNamespace := "default"
+		key := types.NamespacedName{Name: appName, Namespace: appNamespace}
+
+		BeforeEach(func() {
+			Expect(features.SetEnable(features.DefaultTimeToLive, true)).To(Succeed())
+			DeferCleanup(func() {
+				Expect(features.SetEnable(features.DefaultTimeToLive, false)).To(Succeed())
+			})
+
+			app := &v1beta2.SparkApplication{}
+			if err := k8sClient.Get(ctx, key, app); err != nil && errors.IsNotFound(err) {
+				app = &v1beta2.SparkApplication{
+					ObjectMeta: metav1.ObjectMeta{Name: appName, Namespace: appNamespace},
+					Spec: v1beta2.SparkApplicationSpec{
+						MainApplicationFile: ptr.To("local:///dummy.jar"),
+					},
+				}
+				v1beta2.SetSparkApplicationDefaults(app)
+				Expect(k8sClient.Create(ctx, app)).To(Succeed())
+
+				app.Status.AppState.State = v1beta2.ApplicationStateCompleted
+				app.Status.TerminationTime = metav1.NewTime(time.Now().Add(-2 * time.Minute))
+				Expect(k8sClient.Status().Update(ctx, app)).To(Succeed())
+			}
+		})
+
+		AfterEach(func() {
+			app := &v1beta2.SparkApplication{}
+			Expect(errors.IsNotFound(k8sClient.Get(ctx, key, app))).To(BeTrue())
+		})
+
+		It("Should delete a terminated app past the operator default TTL when it has no spec TTL", func() {
+			reconciler := sparkapplication.NewReconciler(
+				nil,
+				k8sClient.Scheme(),
+				k8sClient,
+				nil,
+				nil,
+				&sparkapplication.SparkSubmitter{},
+				sparkapplication.Options{Namespaces: []string{appNamespace}, DefaultTimeToLiveSeconds: 60},
 			)
 			result, err := reconciler.Reconcile(ctx, reconcile.Request{NamespacedName: key})
 			Expect(err).NotTo(HaveOccurred())
