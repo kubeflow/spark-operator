@@ -20,10 +20,12 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"runtime"
 	"slices"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 
@@ -42,6 +44,12 @@ import (
 	"github.com/kubeflow/spark-operator/v2/pkg/util"
 )
 
+const (
+	goWantSparkSubmitHelper   = "GO_WANT_SPARK_SUBMIT_HELPER"
+	sparkSubmitReadyPathEnv   = "SPARK_SUBMIT_READY_PATH"
+	sparkSubmitIgnoreTermEnv  = "SPARK_SUBMIT_IGNORE_TERM"
+)
+
 // writeFakeSparkHome creates a temporary SPARK_HOME directory containing a
 // `bin/spark-submit` script with the given contents and sets SPARK_HOME for the test.
 func writeFakeSparkHome(t *testing.T, script string) {
@@ -55,6 +63,42 @@ func writeFakeSparkHome(t *testing.T, script string) {
 	sparkSubmit := filepath.Join(binDir, "spark-submit")
 	require.NoError(t, os.WriteFile(sparkSubmit, []byte(script), 0o755))
 	t.Setenv(common.EnvSparkHome, root)
+}
+
+// writeGoSparkSubmitHelper installs a fake spark-submit that re-execs this test
+// binary as TestSparkSubmitSigtermHelper (the standard Go subprocess test pattern).
+func writeGoSparkSubmitHelper(t *testing.T, readyMarker string) {
+	t.Helper()
+	if runtime.GOOS == "windows" {
+		t.Skip("spark-submit helper subprocess is not supported on Windows")
+	}
+	exe, err := os.Executable()
+	require.NoError(t, err)
+	script := fmt.Sprintf("#!/bin/sh\nexport %s=1\nexport %s=%q\nexec %q -test.run=^TestSparkSubmitSigtermHelper$ -test.parallel=1 -test.count=1\n",
+		goWantSparkSubmitHelper, sparkSubmitReadyPathEnv, readyMarker, exe)
+	writeFakeSparkHome(t, script)
+}
+
+// TestSparkSubmitSigtermHelper is only executed when spawned as the fake spark-submit child.
+func TestSparkSubmitSigtermHelper(t *testing.T) {
+	if os.Getenv(goWantSparkSubmitHelper) != "1" {
+		return
+	}
+	readyPath := os.Getenv(sparkSubmitReadyPathEnv)
+	if err := os.WriteFile(readyPath, []byte("ready"), 0o644); err != nil {
+		fmt.Fprintf(os.Stderr, "write ready marker: %v\n", err)
+		os.Exit(1)
+	}
+	if os.Getenv(sparkSubmitIgnoreTermEnv) == "ignore" {
+		ignore := make(chan os.Signal, 1)
+		signal.Notify(ignore, syscall.SIGTERM)
+		select {}
+	}
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, syscall.SIGTERM)
+	<-sigCh
+	fmt.Fprintln(os.Stderr, "SIGTERM_RECEIVED")
+	os.Exit(42)
 }
 
 func TestRunSparkSubmit(t *testing.T) {
@@ -92,32 +136,11 @@ func TestRunSparkSubmit(t *testing.T) {
 	})
 
 	t.Run("context cancellation triggers SIGTERM rather than SIGKILL", func(t *testing.T) {
-		if _, err := os.Stat("/bin/bash"); err != nil {
-			t.Skip("/bin/bash is required for this test")
-		}
-		// The script traps SIGTERM, emits a marker to stderr, and exits non-zero.
-		// A foreground busy-loop is used so the trap fires between sleeps and so
-		// no background process keeps stderr open after the script exits (which
-		// would delay Wait by WaitDelay). We require bash (not /bin/sh) because
-		// some POSIX shells (notably bash 3.2 invoked as sh on macOS) do not
-		// deliver trapped signals during builtins like `wait`. If runSparkSubmit
-		// defaulted to SIGKILL (the os/exec default for context-cancelled
-		// commands), the trap would never run and stderr would be empty.
-		// The script writes a "ready" marker once the trap is registered so the
-		// test can wait until SIGTERM will be delivered after the handler is in
-		// place, avoiding a race on slow/loaded test machines.
 		readyMarker := filepath.Join(t.TempDir(), "ready")
-		script := fmt.Sprintf(`#!/bin/bash
-trap 'echo SIGTERM_RECEIVED 1>&2; exit 42' TERM
-touch %q
-while true; do
-  sleep 0.1
-done
-`, readyMarker)
-		writeFakeSparkHome(t, script)
+		writeGoSparkSubmitHelper(t, readyMarker)
 
-		ctx, cancel := context.WithCancel(context.Background())
-		// Cancel only after the script has installed the trap.
+		ctx, cancel := context.WithCancel(t.Context())
+		t.Cleanup(cancel)
 		go func() {
 			deadline := time.Now().Add(5 * time.Second)
 			for time.Now().Before(deadline) {
@@ -137,6 +160,44 @@ done
 		assert.Less(t, elapsed, 8*time.Second, "runSparkSubmit should return promptly after SIGTERM")
 		assert.Contains(t, err.Error(), "SIGTERM_RECEIVED",
 			"spark-submit child should receive SIGTERM, not SIGKILL")
+	})
+
+	t.Run("context cancellation waits ShutdownGracePeriod before force-kill", func(t *testing.T) {
+		if runtime.GOOS == "windows" {
+			t.Skip("spark-submit helper subprocess is not supported on Windows")
+		}
+		exe, err := os.Executable()
+		require.NoError(t, err)
+		readyMarker := filepath.Join(t.TempDir(), "ready")
+		// Ignore SIGTERM so runSparkSubmit must wait the full ShutdownGracePeriod.
+		script := fmt.Sprintf("#!/bin/sh\nexport %s=1\nexport %s=%q\nexport %s=ignore\nexec %q -test.run=^TestSparkSubmitSigtermHelper$ -test.parallel=1 -test.count=1\n",
+			goWantSparkSubmitHelper, sparkSubmitReadyPathEnv, readyMarker, sparkSubmitIgnoreTermEnv, exe)
+		writeFakeSparkHome(t, script)
+
+		shortWait := &SparkSubmitter{ShutdownGracePeriod: 2 * time.Second}
+		ctx, cancel := context.WithCancel(t.Context())
+		t.Cleanup(cancel)
+		go func() {
+			deadline := time.Now().Add(5 * time.Second)
+			for time.Now().Before(deadline) {
+				if _, statErr := os.Stat(readyMarker); statErr == nil {
+					break
+				}
+				time.Sleep(20 * time.Millisecond)
+			}
+			cancel()
+		}()
+
+		start := time.Now()
+		err = shortWait.runSparkSubmit(ctx, nil)
+		elapsed := time.Since(start)
+
+		require.Error(t, err)
+		assert.GreaterOrEqual(t, elapsed, 1500*time.Millisecond,
+			"runSparkSubmit should wait ShutdownGracePeriod before SIGKILL")
+		assert.Less(t, elapsed, 6*time.Second)
+		assert.NotContains(t, err.Error(), "SIGTERM_RECEIVED",
+			"helper ignores SIGTERM; process should be force-killed after WaitDelay")
 	})
 }
 

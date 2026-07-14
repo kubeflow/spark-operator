@@ -120,15 +120,17 @@ controller:
 
   # -- Grace period after a successful spark-submit when driver pod not found errors will be retried.
   # Also caps how long an in-flight spark-submit is given to exit after SIGTERM during controller
-  # shutdown (reconcile context is cancelled immediately on SIGTERM; this window is for reaping the
-  # JVM subprocess). Set lower than `terminationGracePeriodSeconds` so the manager exits before the
-  # kubelet sends SIGKILL.
+  # shutdown (SIGTERM to the JVM, then up to this duration before SIGKILL). Manager
+  # GracefulShutdownTimeout is this value plus one second so the process does not exit while
+  # runSparkSubmit is still waiting on the child. Set so that this value plus one second stays
+  # below `terminationGracePeriodSeconds` so the kubelet does not SIGKILL the pod before the
+  # manager finishes shutdown.
   driverPodCreationGracePeriod: 10s
 
   # -- Termination grace period for the controller pod. The kubelet sends SIGKILL when this
   # elapses. Must be set higher than `controller.driverPodCreationGracePeriod` so the manager
-  # has time to interrupt and reap in-flight `spark-submit` subprocesses before the process is
-  # forcibly killed.
+  # has time to interrupt and reap in-flight `spark-submit` subprocesses before the container
+  # is forcibly killed.
   terminationGracePeriodSeconds: 60
 
   # -- Specifies the maximum number of Executor pods that can be tracked by the controller per SparkApplication.
