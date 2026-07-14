@@ -4,7 +4,7 @@ As with all other Kubernetes API objects, a `SparkApplication` needs the `apiVer
 
 A `SparkApplication` also needs a [`.spec` section](https://github.com/kubernetes/community/blob/master/contributors/devel/sig-architecture/api-conventions.md#spec-and-status). This section contains fields for specifying various aspects of an application including its type (`Scala`, `Java`, `Python`, or `R`), deployment mode (`cluster` or `client`), main application resource URI (e.g., the URI of the application jar), main class, arguments, etc. Node selectors are also supported via the optional field `.spec.nodeSelector`.
 
-It also has fields for specifying the unified container image (to use for both the driver and executors) and the image pull policy, namely, `.spec.image` and `.spec.imagePullPolicy` respectively. If a custom init-container (in both the driver and executor pods) image needs to be used, the optional field `.spec.initContainerImage` can be used to specify it. If set, `.spec.initContainerImage` overrides `.spec.image` for the init-container image. Otherwise, the image specified by `.spec.image` will be used for the init-container. It is invalid if both `.spec.image` and `.spec.initContainerImage` are not set.
+The optional fields `.spec.image` and `.spec.imagePullPolicy` specify the default container image and pull policy for the driver and executors. Role-specific `.spec.driver.image` and `.spec.executor.image` values override `.spec.image`. Additional init containers are configured independently with `.spec.driver.initContainers` and `.spec.executor.initContainers`; each init-container entry uses the Kubernetes `Container` schema and specifies its own image. See [Using Init-Containers](#using-init-containers) for an example.
 
 Below is an example showing part of a `SparkApplication` specification:
 
@@ -28,11 +28,16 @@ A `SparkApplication` should set `.spec.mode` to `cluster`, as `client` is not cu
 
 ## Specifying Application Dependencies
 
-Often Spark applications need additional files additionally to the main application resource to run. Such application dependencies can include for example jars and data files the application needs at runtime. When using the `spark-submit` script to submit a Spark application, such dependencies are specified using the `--jars` and `--files` options. To support specification of application dependencies, a `SparkApplication` uses an optional field `.spec.deps` that in turn supports specifying jars and files, respectively. More specifically, the optional fields `.spec.deps.jars` and`.spec.deps.files` correspond to the `--jars` and `--files` options of the `spark-submit` script, respectively.
+Spark applications often need additional JARs, files, Python files, or archives at runtime. The optional `.spec.deps` section maps these dependencies to the corresponding `spark-submit` options:
 
-Additionally, `.spec.deps` also has fields for specifying the locations in the driver and executor containers where jars and files should be downloaded to, namely, `.spec.deps.jarsDownloadDir` and `.spec.deps.filesDownloadDir`. The optional fields `.spec.deps.downloadTimeout` and `.spec.deps.maxSimultaneousDownloads` are used to control the timeout and maximum parallelism of downloading dependencies that are hosted remotely, e.g., on an HTTP server, or in external storage such as HDFS, Google Cloud Storage, or AWS S3.
+- `.spec.deps.jars` maps to `--jars`.
+- `.spec.deps.files` maps to `--files`.
+- `.spec.deps.pyFiles` maps to `--py-files`.
+- `.spec.deps.archives` maps to `--archives`.
 
-The following is an example specification with both container-local (i.e., within the container) and remote dependencies:
+Entries may use container-local URIs or remote URIs supported by Spark and the Hadoop connectors available in the Spark image. Spark determines where remote dependencies are downloaded; the `SparkApplication` API does not configure a download directory, timeout, or download parallelism.
+
+The following example specifies both a container-local JAR and remote files:
 
 ```yaml
 spec:
@@ -610,19 +615,18 @@ Note that Python binding for PySpark is available in Apache Spark 2.4.
 
 The operator supports using the Spark metric system to expose metrics to a variety of sinks. Particularly, it is able to automatically configure the metric system to expose metrics to [Prometheus](https://prometheus.io/). Specifically, the field `.spec.monitoring` specifies how application monitoring is handled and particularly how metrics are to be reported. The metric system is configured through the configuration file `metrics.properties`, which gets its content from the field `.spec.monitoring.metricsProperties`. The content of [metrics.properties](https://github.com/kubeflow/spark-operator/blob/master/spark-docker/conf/metrics.properties) will be used by default if `.spec.monitoring.metricsProperties` is not specified. `.spec.monitoring.metricsPropertiesFile` overwrite the value `spark.metrics.conf` in spark.properties, and will not use content from `.spec.monitoring.metricsProperties`. You can choose to enable or disable reporting driver and executor metrics using the fields `.spec.monitoring.exposeDriverMetrics` and `.spec.monitoring.exposeExecutorMetrics`, respectively.
 
-Further, the field `.spec.monitoring.prometheus` specifies how metrics are exposed to Prometheus using the [Prometheus JMX exporter](https://github.com/prometheus/jmx_exporter). When `.spec.monitoring.prometheus` is specified, the operator automatically configures the JMX exporter to run as a Java agent. The only required field of `.spec.monitoring.prometheus` is `jmxExporterJar`, which specified the path to the Prometheus JMX exporter Java agent jar in the container. If you use the image `gcr.io/spark-operator/spark:v3.1.1-gcs-prometheus`, the jar is located at `/prometheus/jmx_prometheus_javaagent-0.11.0.jar`. The field `.spec.monitoring.prometheus.port` specifies the port the JMX exporter Java agent binds to and defaults to `8090` if not specified. The field `.spec.monitoring.prometheus.configuration` specifies the content of the configuration to be used with the JMX exporter. The content of [prometheus.yaml](https://github.com/kubeflow/spark-operator/blob/master/spark-docker/conf/prometheus.yaml) will be used by default if `.spec.monitoring.prometheus.configuration` is not specified.
+The field `.spec.monitoring.prometheus` configures the [Prometheus JMX exporter](https://github.com/prometheus/jmx_exporter) as a Java agent. Its required `jmxExporterJar` value is a path inside the Spark container, so the JAR must already be included in the image or mounted into the driver and executor containers. The optional `port` defaults to `8090`, and `configuration` supplies the exporter configuration.
 
-Below is an example that shows how to configure the metric system to expose metrics to Prometheus using the Prometheus JMX exporter. Note that the JMX exporter Java agent jar is listed as a dependency and will be downloaded to where `.spec.dep.jarsDownloadDir` points to in Spark 2.3.x, which is `/var/spark-data/spark-jars` by default. Things are different in Spark 2.4 as dependencies will be downloaded to the local working directory instead in Spark 2.4. A complete example can be found in [examples/spark-pi-prometheus.yaml](https://github.com/kubeflow/spark-operator/blob/master/examples/spark-pi-prometheus.yaml).
+The following example assumes the Spark image contains the exporter JAR at `/prometheus/jmx_prometheus_javaagent-0.11.0.jar`. See [examples/spark-pi-prometheus.yaml](https://github.com/kubeflow/spark-operator/blob/master/examples/spark-pi-prometheus.yaml) for the complete application.
 
 ```yaml
 spec:
-  deps:
-    jars:
-    - http://central.maven.org/maven2/io/prometheus/jmx/jmx_prometheus_javaagent/0.11.0/jmx_prometheus_javaagent-0.11.0.jar
   monitoring:
     exposeDriverMetrics: true
+    exposeExecutorMetrics: true
     prometheus:
-      jmxExporterJar: "/var/spark-data/spark-jars/jmx_prometheus_javaagent-0.11.0.jar"
+      jmxExporterJar: /prometheus/jmx_prometheus_javaagent-0.11.0.jar
+      port: 8090
 ```
 
 The operator automatically adds the annotations such as `prometheus.io/scrape=true` on the driver and/or executor pods (depending on the values of  `.spec.monitoring.exposeDriverMetrics` and `.spec.monitoring.exposeExecutorMetrics`) so the metrics exposed on the pods can be scraped by the Prometheus server in the same cluster.

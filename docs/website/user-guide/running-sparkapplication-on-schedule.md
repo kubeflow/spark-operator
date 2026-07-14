@@ -98,7 +98,7 @@ A scheduled `ScheduledSparkApplication` can be temporarily suspended (no future 
 
 ## Specifying Time Zone
 
-The timezone for the schedule is specified by `.spec.timezone`. If not specified, the default timezone is `Local`. If you want to use a different timezone, you can specify a timezone using the IANA timezone name (e.g. `America/New_York`).
+The time zone for the schedule is specified by `.spec.timeZone`. If it is not specified, the default is `Local`. To use a different time zone, set an IANA time zone name such as `America/New_York`.
 
 ## Status and Run History
 

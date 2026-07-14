@@ -47,14 +47,9 @@ helm install spark-operator spark-operator/spark-operator \
 
 See [helm install](https://helm.sh/docs/helm/helm_install) for command documentation.
 
-Installing the chart will create a namespace `spark-operator` if it doesn't exist, and helm will set up RBAC for the operator to run in the namespace. It will also set up RBAC in the `default` namespace for driver pods of your Spark applications to be able to manipulate executor pods. In addition, the chart will create a Deployment in the namespace `spark-operator`. The chart by default does not enable [Mutating Admission Webhook](https://kubernetes.io/docs/reference/access-authn-authz/extensible-admission-controllers/) for Spark pod customization. When enabled, a webhook service and a secret storing the x509 certificate called `spark-webhook-certs` are created for that purpose. To install the operator with the mutating admission webhook on a Kubernetes cluster, install the chart with the flag `webhook.enable=true`:
+The chart installs the CRDs and creates separate controller and webhook Deployments in the release namespace. It also creates operator RBAC and, by default, a Spark driver service account and RBAC in the `default` namespace. The validating and [mutating admission webhooks](https://kubernetes.io/docs/reference/access-authn-authz/extensible-admission-controllers/) are enabled by default. The webhook manages an internal TLS certificate and stores it in a release-scoped Secret; set `certManager.enable=true` to use cert-manager instead.
 
-```shell
-helm install my-release spark-operator/spark-operator \
-    --namespace spark-operator \
-    --create-namespace \
-    --set webhook.enable=true
-```
+To install without the webhook, set `webhook.enable=false`. Disabling it also disables admission defaulting, validation, and Spark pod customization, so the default installation is recommended.
 
 If you want to deploy the chart to GKE cluster, you will first need to [grant yourself cluster-admin privileges](https://cloud.google.com/kubernetes-engine/docs/how-to/role-based-access-control#defining_permissions_in_a_role) before you can create custom roles and role bindings on a GKE cluster versioned 1.6 and up. Run the following command before installing the chart on GKE:
 
@@ -186,27 +181,48 @@ The operator submits the Spark Pi example to run once it receives an event indic
 
 ## Configuration
 
-The operator is typically deployed and run using the Helm chart. However, users can still run it outside a Kubernetes cluster and make it talk to the Kubernetes API server of a cluster by specifying path to `kubeconfig`, which can be done using the `-kubeconfig` flag.
+The Helm chart runs the operator as two components:
 
-The operator uses multiple workers in the `SparkApplication` controller. The number of worker threads are controlled using command-line flag `-controller-threads` which has a default value of 10.
+- The **controller** reconciles `SparkApplication`, `ScheduledSparkApplication`, and `SparkConnect` resources and submits Spark applications.
+- The **webhook** performs API defaulting and validation and mutates Spark driver and executor pods.
 
-The operator enables cache resynchronization so periodically the informers used by the operator will re-list existing objects it manages and re-trigger resource events. The resynchronization interval in seconds can be configured using the flag `-resync-interval`, with a default value of 30 seconds.
+Configure these components with:
 
-By default, the operator will install the [CustomResourceDefinitions](https://kubernetes.io/docs/tasks/access-kubernetes-api/extend-api-custom-resource-definitions/) for the custom resources it manages. This can be disabled by setting the flag `-install-crds=false`, in which case the CustomResourceDefinitions can be installed manually using `kubectl apply -f manifest/spark-operator-crds.yaml`.
+| Helm value | Purpose | Default |
+| --- | --- | --- |
+| `controller.workers` | Concurrent controller workers | `10` |
+| `controller.uiService.enable` | Create Spark UI Services | `true` |
+| `spark.jobNamespaces` | Explicit namespaces containing Spark workloads | `[default]` |
+| `spark.jobNamespaceSelector` | Select additional workload namespaces by label | `""` |
+| `webhook.enable` | Deploy admission webhooks | `true` |
+| `webhook.port` | Webhook server port | `9443` |
+| `prometheus.metrics.enable` | Serve operator metrics | `true` |
+| `prometheus.metrics.port` | Operator metrics port | `8080` |
+| `prometheus.podMonitor.create` | Create a Prometheus Operator `PodMonitor` | `false` |
 
-The mutating admission webhook is an **optional** component and can be enabled or disabled using the `-enable-webhook` flag, which defaults to `false`.
-
-By default, the operator will manage custom resource objects of the managed CRD types for the whole cluster. It can be configured to manage only the custom resource objects in a specific namespace with the flag `-namespace=<namespace>`
-
-## Upgrade
-
-To upgrade the operator, e.g., to use a newer version container image with a new tag, run the following command with updated parameters for the Helm release:
+For example, the following limits the operator to the `analytics` namespace and creates a `PodMonitor`:
 
 ```shell
-helm upgrade <YOUR-HELM-RELEASE-NAME> --set image.repository=org/image --set image.tag=newTag
+helm upgrade --install spark-operator spark-operator/spark-operator \
+    --namespace spark-operator \
+    --create-namespace \
+    --set 'spark.jobNamespaces={analytics}' \
+    --set prometheus.podMonitor.create=true
 ```
 
-Refer to the Helm [documentation](https://helm.sh/docs/helm/helm_upgrade/) for more details on `helm upgrade`.
+The standalone binary exposes separate command trees for the two components. Run `spark-operator controller start --help` or `spark-operator webhook start --help` for their current flags.
+
+### CRD upgrades
+
+Helm does not automatically upgrade those CRDs. For upgrades that include CRD changes, enable the chart's pre-upgrade hook:
+
+```shell
+helm upgrade spark-operator spark-operator/spark-operator \
+    --namespace spark-operator \
+    --set hook.upgradeCrd=true
+```
+
+Review release notes before upgrading and keep CRDs when uninstalling unless you intend to delete all custom resources.
 
 ## About Spark Job Namespaces
 
@@ -226,13 +242,13 @@ A Spark executor pod may be configured with a Kubernetes service account in the 
 
 ## Enable Metric Exporting to Prometheus
 
-The operator exposes a set of metrics via the metric endpoint to be scraped by `Prometheus`. The Helm chart by default installs the operator with the additional flag to enable metrics (`-enable-metrics=true`) as well as other annotations used by Prometheus to scrape the metric endpoint. If `podMonitor.enable` is enabled, the helm chart will submit a pod monitor for the operator's pod. To install the operator  **without** metrics enabled, pass the appropriate flag during `helm install`:
+The controller and webhook expose metrics for Prometheus by default. Configure the endpoint with `prometheus.metrics.*`. If the Prometheus Operator is installed, set `prometheus.podMonitor.create=true` to create a `PodMonitor`. To disable operator metrics, set the following value during installation or upgrade:
 
 ```shell
-helm install my-release spark-operator/spark-operator \
+helm upgrade --install spark-operator spark-operator/spark-operator \
     --namespace spark-operator \
     --create-namespace \
-    --set metrics.enable=false
+    --set prometheus.metrics.enable=false
 ```
 
 If enabled, the operator generates the following metrics:
@@ -266,18 +282,7 @@ If enabled, the operator generates the following metrics:
 | `workqueue_unfinished_work_seconds` | Unfinished work in seconds |
 | `workqueue_longest_running_processor_seconds` | Longest running processor in seconds |
 
-The following is a list of all the configurations the operators supports for metrics:
-
-```shell
--enable-metrics=true
--metrics-port=10254
--metrics-endpoint=/metrics
--metrics-prefix=myServiceName
--metrics-label=label1Key
--metrics-label=label2Key
-```
-
-All configs except `-enable-metrics` are optional. If port and/or endpoint are specified, please ensure that the annotations `prometheus.io/port`,  `prometheus.io/path` and `containerPort` in `spark-operator-with-metrics.yaml` are updated as well.
+The corresponding Helm values are `prometheus.metrics.enable`, `port`, `endpoint`, `prefix`, and `labels`. When running either component directly, use `--enable-metrics=true`, `--metrics-bind-address=:8080`, `--metrics-endpoint=/metrics`, `--metrics-prefix=<prefix>`, and `--metrics-labels=<comma-separated-labels>`.
 
 A note about `metrics-labels`: In `Prometheus`, every unique combination of key-value label pairs represents a new time series, which can dramatically increase the amount of data stored. Hence, labels should not be used to store dimensions with high cardinality with potentially a large or unbounded value range.
 
@@ -300,35 +305,32 @@ spec:
         kubernetes.io/ingress.class: nginx
 ```
 
-## About the Mutating Admission Webhook
+## About the Admission Webhooks
 
-The Kubernetes Operator for Apache Spark comes with an optional mutating admission webhook for customizing Spark driver and executor pods based on the specification in `SparkApplication` objects, e.g., mounting user-specified ConfigMaps and volumes, and setting pod affinity/anti-affinity, and adding tolerations.
+The Helm chart deploys a separate webhook server by default. It provides:
 
-The webhook requires a X509 certificate for TLS for pod admission requests and responses between the Kubernetes API server and the webhook server running inside the operator. For that, the certificate and key files must be accessible by the webhook server. The location of these certs is configurable and they will be reloaded on a configurable period.
-The Kubernetes Operator for Spark ships with a tool at `hack/gencerts.sh` for generating the CA and server certificate and putting the certificate and key files into a secret named `spark-webhook-certs` in the namespace `spark-operator`. This secret will be mounted into the operator pod.
+- Defaulting and validation for Spark Operator custom resources.
+- Spark driver and executor pod customization, including volumes, ConfigMaps, affinity, tolerations, sidecars, and init containers.
 
-Run the following command to create the secret with a certificate and key files using a batch Job, and install the operator Deployment with the mutating admission webhook:
-
-```shell
-kubectl apply -f manifest/spark-operator-with-webhook.yaml
-```
-
-This will create a Deployment named `sparkoperator` and a Service named `spark-webhook` for the webhook in namespace `spark-operator`.
-
-### Mutating Admission Webhooks on a private GKE or EKS cluster
-
-If you are deploying the operator on a GKE cluster with the [Private cluster](https://cloud.google.com/kubernetes-engine/docs/how-to/private-clusters) setting enabled, or on an enterprise AWS EKS cluster and you wish to deploy the cluster with the [Mutating Admission Webhook](https://kubernetes.io/docs/reference/access-authn-authz/extensible-admission-controllers/), then make sure to change the `webhookPort` to `443`. Alternatively you can choose to allow connections to the default port (8080).
-
-> By default, firewall rules restrict your cluster master to only initiate TCP connections to your nodes on ports 443 (HTTPS) and 10250 (kubelet). For some Kubernetes features, you might need to add firewall rules to allow access on additional ports. For example, in Kubernetes 1.9 and older, kubectl top accesses heapster, which needs a firewall rule to allow TCP connections on port 8080. To grant such access, you can add firewall rules.
-For GCP, refer to [this link](https://cloud.google.com/kubernetes-engine/docs/how-to/private-clusters#add_firewall_rules)
-
-To install the operator with a custom port, pass the appropriate flag during `helm install`:
+The webhook listens on port `9443` by default. Without cert-manager, it generates and rotates an internal CA and serving certificate and synchronizes the release-scoped TLS Secret and webhook configurations. To use cert-manager instead, install cert-manager first and set:
 
 ```shell
-helm install my-release spark-operator/spark-operator \
-   --namespace spark-operator  \
-   --create-namespace \
-   --set "spark.jobNamespaces={spark}" \
-   --set webhook.enable=true \
-   --set webhook.port=443
+helm upgrade --install spark-operator spark-operator/spark-operator \
+    --namespace spark-operator \
+    --create-namespace \
+    --set certManager.enable=true
 ```
+
+### Private clusters
+
+The Kubernetes API server must be able to reach the webhook workload on `webhook.port` (default `9443`). Private GKE, EKS, and other restricted clusters may require a firewall or security-group rule permitting control-plane traffic to that port. Prefer allowing port `9443`; changing the container to a privileged port such as `443` also requires an appropriate pod security context and is not necessary when the network permits `9443`.
+
+After installation, verify both Deployments before creating applications:
+
+```shell
+kubectl --namespace spark-operator get deployments
+kubectl --namespace spark-operator rollout status deployment/spark-operator-controller
+kubectl --namespace spark-operator rollout status deployment/spark-operator-webhook
+```
+
+Deployment names include the Helm release name and may differ if `nameOverride` or `fullnameOverride` is set.
