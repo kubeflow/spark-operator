@@ -64,12 +64,18 @@ var _ = Describe("Driver PodDisruptionBudget", func() {
 		var app *v1beta2.SparkApplication
 
 		BeforeEach(func() {
+			if !driverPDBEnabled {
+				Skip("Driver PDB feature not enabled in operator (--enable-driver-pdb=true required)")
+			}
 			app = loadSparkPi("e2e-pdb-on")
 			app.Spec.DriverPodDisruptionBudget = ptr.To(true)
 			Expect(k8sClient.Create(ctx, app)).To(Succeed())
 		})
 
 		AfterEach(func() {
+			if app == nil {
+				return
+			}
 			key := types.NamespacedName{Namespace: app.Namespace, Name: app.Name}
 			if err := k8sClient.Get(ctx, key, app); err == nil {
 				_ = k8sClient.Delete(ctx, app)

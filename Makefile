@@ -198,9 +198,19 @@ unit-test: setup-envtest ## Run unit tests.
 
 .PHONY: e2e-test
 e2e-test: IMAGE_TAG=local
-e2e-test: envtest kind-load-image kind-load-spark-image ## Run the e2e tests against a Kind k8s instance that is spun up.
+e2e-test: envtest kind-load-image kind-load-spark-image ## Run the e2e tests against a Kind k8s instance. DEPLOY_METHOD: helm (default) or kustomize.
 	@echo "Running e2e tests (deploy_method=$(DEPLOY_METHOD))..."
-	DEPLOY_METHOD=$(DEPLOY_METHOD) IMAGE_TAG=$(IMAGE_TAG) KUBECONFIG=$(KIND_KUBE_CONFIG) go test ./test/e2e/ -v -ginkgo.v -timeout 30m
+	export DEPLOY_METHOD="$(DEPLOY_METHOD)" && \
+	export IMAGE_TAG="$(IMAGE_TAG)" && \
+	export KUBECONFIG="$(KIND_KUBE_CONFIG)" && \
+	go test ./test/e2e/ -v -ginkgo.v -timeout 30m
+
+.PHONY: e2e-test-preinstalled
+e2e-test-preinstalled: envtest ## Run the e2e tests against a preinstalled operator. DEPLOY_METHOD: helm (default) or kustomize.
+	@echo "Running e2e tests against preinstalled operator (deploy_method=$(DEPLOY_METHOD))..."
+	export DEPLOY_METHOD="$(DEPLOY_METHOD)" && \
+	export PREINSTALLED="true" && \
+	go test ./test/e2e/ -v -ginkgo.v -timeout 30m
 
 ##@ Kustomize
 
