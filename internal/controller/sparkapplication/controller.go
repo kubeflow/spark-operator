@@ -707,16 +707,6 @@ func (r *Reconciler) reconcileFailedSparkApplication(ctx context.Context, req ct
 	return r.reconcileTerminatedSparkApplication(ctx, req)
 }
 
-// isExpiredWithTTL reports whether the terminated SparkApplication has outlived the
-// given effective TTL (which may originate from the spec or the operator default).
-func isExpiredWithTTL(app *v1beta2.SparkApplication, ttlSeconds *int64) bool {
-	if ttlSeconds == nil || *ttlSeconds <= 0 || app.Status.TerminationTime.IsZero() {
-		return false
-	}
-	ttl := time.Duration(*ttlSeconds) * time.Second
-	return time.Since(app.Status.TerminationTime.Time) > ttl
-}
-
 func (r *Reconciler) reconcileTerminatedSparkApplication(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := log.FromContext(ctx)
 	key := req.NamespacedName
@@ -736,7 +726,7 @@ func (r *Reconciler) reconcileTerminatedSparkApplication(ctx context.Context, re
 			"ttlSeconds", *effectiveTTLSeconds, "state", app.Status.AppState.State)
 	}
 
-	if isExpiredWithTTL(app, effectiveTTLSeconds) {
+	if util.IsExpiredWithTTL(app, effectiveTTLSeconds) {
 		logger.Info("Deleting expired SparkApplication", "state", app.Status.AppState.State)
 		if err := r.client.Delete(ctx, app); err != nil {
 			return ctrl.Result{Requeue: true}, err

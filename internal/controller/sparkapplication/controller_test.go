@@ -548,8 +548,10 @@ var _ = Describe("SparkApplication Controller", func() {
 				Expect(features.SetEnable(features.DefaultTimeToLive, false)).To(Succeed())
 			})
 
+			// Create the SparkApplication if it does not already exist.
 			app := &v1beta2.SparkApplication{}
-			if err := k8sClient.Get(ctx, key, app); err != nil && errors.IsNotFound(err) {
+			err := k8sClient.Get(ctx, key, app)
+			if errors.IsNotFound(err) {
 				app = &v1beta2.SparkApplication{
 					ObjectMeta: metav1.ObjectMeta{Name: appName, Namespace: appNamespace},
 					Spec: v1beta2.SparkApplicationSpec{
@@ -558,11 +560,16 @@ var _ = Describe("SparkApplication Controller", func() {
 				}
 				v1beta2.SetSparkApplicationDefaults(app)
 				Expect(k8sClient.Create(ctx, app)).To(Succeed())
-
-				app.Status.AppState.State = v1beta2.ApplicationStateCompleted
-				app.Status.TerminationTime = metav1.NewTime(time.Now().Add(-2 * time.Minute))
-				Expect(k8sClient.Status().Update(ctx, app)).To(Succeed())
+			} else {
+				Expect(err).NotTo(HaveOccurred())
 			}
+
+			// Unconditionally drive the app into a terminated state whose TTL has already
+			// elapsed, so the precondition holds regardless of any pre-existing object.
+			Expect(k8sClient.Get(ctx, key, app)).To(Succeed())
+			app.Status.AppState.State = v1beta2.ApplicationStateCompleted
+			app.Status.TerminationTime = metav1.NewTime(time.Now().Add(-2 * time.Minute))
+			Expect(k8sClient.Status().Update(ctx, app)).To(Succeed())
 		})
 
 		AfterEach(func() {

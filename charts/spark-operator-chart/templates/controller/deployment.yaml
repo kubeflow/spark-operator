@@ -132,7 +132,7 @@ spec:
         {{- if .Values.controller.maxTrackedExecutorPerApp }}
         - --max-tracked-executor-per-app={{ .Values.controller.maxTrackedExecutorPerApp }}
         {{- end }}
-        {{- if .Values.controller.defaultTimeToLiveSeconds }}
+        {{- if gt (int .Values.controller.defaultTimeToLiveSeconds) 0 }}
         - --default-time-to-live-seconds={{ .Values.controller.defaultTimeToLiveSeconds }}
         {{- end }}
         {{- if .Values.controller.driverPodDisruptionBudget.enable }}
