@@ -332,14 +332,11 @@ func (r *Reconciler) createDriverIngressService(
 	serviceLabels map[string]string,
 ) (*SparkService, error) {
 	logger := log.FromContext(ctx)
-	resourceLabels := util.GetResourceLabels(app)
-	resourceLabels[common.LabelCreatedBySparkOperator] = "true"
-
 	service := &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            serviceName,
 			Namespace:       app.Namespace,
-			Labels:          resourceLabels,
+			Labels:          util.GetResourceLabels(app),
 			OwnerReferences: []metav1.OwnerReference{util.GetOwnerReference(app)},
 		},
 		Spec: corev1.ServiceSpec{
@@ -381,11 +378,26 @@ func (r *Reconciler) createDriverIngressService(
 			if !errors.IsAlreadyExists(err) {
 				return nil, err
 			}
-			// Lost a race — another reconciliation created it; fetch it.
-			if err := r.client.Get(ctx, client.ObjectKeyFromObject(service), existing); err != nil {
+			// Handle upgrade scenario: Service exists in the cluster but is not
+			// visible in the filtered cache because it was created before the
+			// LabelCreatedBySparkOperator label selector was added to the informer.
+			// Use Patch (merge patch) instead of Update because we cannot Get the
+			// object from the filtered cache to obtain its resourceVersion.
+			base := &corev1.Service{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      service.Name,
+					Namespace: service.Namespace,
+				},
+			}
+			desired := base.DeepCopy()
+			desired.Labels = service.Labels
+			desired.Annotations = service.Annotations
+			desired.OwnerReferences = service.OwnerReferences
+			desired.Spec = service.Spec
+			if err := r.client.Patch(ctx, desired, client.MergeFrom(base)); err != nil {
 				return nil, err
 			}
-			service = existing
+			service = desired
 		}
 		logger.Info("Created service for SparkApplication", "name", service.Name)
 	} else {
