@@ -21,6 +21,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -160,7 +161,7 @@ var _ = Describe("Example ScheduledSparkApplication", func() {
 			secondChildApp := &v1beta2.SparkApplication{}
 			Expect(k8sClient.Get(ctx, secondChildKey, secondChildApp)).To(Succeed())
 			actualInterval := secondChildApp.CreationTimestamp.Sub(childApp.CreationTimestamp.Time)
-			Expect(actualInterval).To(BeNumerically(">=", expectedInterval - 2*time.Second)),
+			Expect(actualInterval).To(BeNumerically(">=", expectedInterval-2*time.Second),
 				"second run started before the schedule interval elapsed")
 
 			By("Waiting for the second child SparkApplication to complete")
