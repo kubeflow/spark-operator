@@ -141,7 +141,7 @@ var _ = Describe("SparkConnect Query", func() {
 					Containers: []corev1.Container{
 						{
 							Name:    "pyspark-client",
-							Image:   "quay.io/fedora/python-312:latest",
+							Image:   "docker.io/library/spark:4.0.1",
 							Command: []string{"sleep", "infinity"},
 						},
 					},
@@ -161,10 +161,10 @@ var _ = Describe("SparkConnect Query", func() {
 				return util.IsPodReady(pod)
 			}).WithPolling(PollInterval).WithTimeout(WaitTimeout).Should(BeTrue())
 
-			By("Installing PySpark Connect client")
+			By("Installing PySpark Connect dependencies")
 			output, err := runCommand(
 				"kubectl", "exec", "-n", conn.Namespace, clientPod.Name, "--",
-				"bash", "-c", "export HOME=/tmp && pip install --quiet --disable-pip-version-check pyspark-client==4.0.1",
+				"bash", "-c", "export HOME=/tmp && pip install --quiet --disable-pip-version-check pandas pyarrow grpcio grpcio-status",
 			)
 			Expect(err).NotTo(HaveOccurred(), "pip install failed: %s", output)
 
@@ -183,7 +183,10 @@ var _ = Describe("SparkConnect Query", func() {
 			output, err = runCommand(
 				"kubectl", "exec", "-n", conn.Namespace, clientPod.Name, "--",
 				"bash", "-c",
-				fmt.Sprintf("export HOME=/tmp && python3 -c '%s'", pysparkScript),
+				fmt.Sprintf(
+					"export HOME=/tmp PYTHONPATH=${SPARK_HOME}/python:$(ls ${SPARK_HOME}/python/lib/py4j-*.zip):${PYTHONPATH} && python3 -c '%s'",
+					pysparkScript,
+				),
 			)
 			Expect(err).NotTo(HaveOccurred(), "PySpark query failed: %s", output)
 			Expect(output).To(ContainSubstring("ROW_COUNT=100"),
