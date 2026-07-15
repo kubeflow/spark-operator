@@ -188,17 +188,17 @@ The Helm chart runs the operator as two components:
 
 Configure these components with:
 
-| Helm value | Purpose | Default |
-| --- | --- | --- |
-| `controller.workers` | Concurrent controller workers | `10` |
-| `controller.uiService.enable` | Create Spark UI Services | `true` |
+| Helm value | Purpose | Default     |
+| --- | --- |-------------|
+| `controller.workers` | Concurrent controller workers | `10`        |
+| `controller.uiService.enable` | Create Spark UI Services | `true`      |
 | `spark.jobNamespaces` | Explicit namespaces containing Spark workloads | `[default]` |
-| `spark.jobNamespaceSelector` | Select additional workload namespaces by label | `""` |
-| `webhook.enable` | Deploy admission webhooks | `true` |
-| `webhook.port` | Webhook server port | `9443` |
-| `prometheus.metrics.enable` | Serve operator metrics | `true` |
-| `prometheus.metrics.port` | Operator metrics port | `8080` |
-| `prometheus.podMonitor.create` | Create a Prometheus Operator `PodMonitor` | `false` |
+| `spark.jobNamespaceSelector` | Select additional workload namespaces by label | `""`        |
+| `webhook.enable` | Deploy admission webhooks | `true`      |
+| `webhook.port` | Webhook server port | `9443`      |
+| `prometheus.metrics.enable` | Serve operator metrics | `true`      |
+| `prometheus.metrics.port` | Operator metrics port | `8080`      |
+| `prometheus.podMonitor.create` | Create a Prometheus Operator `PodMonitor` | `false`     |
 
 For example, the following limits the operator to the `analytics` namespace and creates a `PodMonitor`:
 
@@ -210,11 +210,13 @@ helm upgrade --install spark-operator spark-operator/spark-operator \
     --set prometheus.podMonitor.create=true
 ```
 
+For all available configuration options, see [values.yaml](https://github.com/kubeflow/spark-operator/blob/master/charts/spark-operator-chart/values.yaml) file.
+
 The standalone binary exposes separate command trees for the two components. Run `spark-operator controller start --help` or `spark-operator webhook start --help` for their current flags.
 
 ### CRD upgrades
 
-Helm does not automatically upgrade those CRDs. For upgrades that include CRD changes, enable the chart's pre-upgrade hook:
+Helm installs CRDs on first install but does not upgrade them on helm upgrade. For upgrades that include CRD changes, enable the chart's pre-upgrade hook:
 
 ```shell
 helm upgrade spark-operator spark-operator/spark-operator \
@@ -226,7 +228,7 @@ Review release notes before upgrading and keep CRDs when uninstalling unless you
 
 ## About Spark Job Namespaces
 
-The Spark Job Namespaces value defines the namespaces where `SparkApplications` can be deployed. The Helm chart value for the Spark Job Namespaces is `spark.jobNamespaces`, and its default value is `[]`. When the list of namespaces is empty the Helm chart will create a service account in the namespace where the spark-operator is deployed.
+The Spark Job Namespaces value defines the namespaces where `SparkApplications` can be deployed. The Helm chart value for the Spark Job Namespaces is `spark.jobNamespaces`, and its default value is `[default]`. When spark.jobNamespaces is empty, the chart creates cluster-wide RBAC for the operator controller, but it does not create Spark workload Role, RoleBinding, or service-account resources in any namespace.
 
 If you installed the operator using the Helm chart and overrode the `spark.jobNamespaces` to some other, pre-existing namespace, the Helm chart will create the necessary service account and RBAC in the specified namespace.
 
