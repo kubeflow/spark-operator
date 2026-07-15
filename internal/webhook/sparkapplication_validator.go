@@ -29,7 +29,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
 	"github.com/kubeflow/spark-operator/v2/api/v1beta2"
-	"github.com/kubeflow/spark-operator/v2/pkg/common"
 	"github.com/kubeflow/spark-operator/v2/pkg/util"
 )
 
@@ -175,32 +174,6 @@ func (v *SparkApplicationValidator) validateSparkVersion(app *v1beta2.SparkAppli
 	if app.Spec.Driver.Template != nil || app.Spec.Executor.Template != nil {
 		if util.CompareSemanticVersion(app.Spec.SparkVersion, "3.0.0") < 0 {
 			return fmt.Errorf("pod template feature requires Spark version 3.0.0 or higher")
-		}
-	}
-	return nil
-}
-
-func validateSparkConf(sparkConf map[string]string, namespace string) error {
-	for key, value := range sparkConf {
-		switch key {
-		case common.SparkKubernetesAuthenticateDriverServiceAccountName,
-			common.SparkKubernetesAuthenticateExecutorServiceAccountName:
-			return fmt.Errorf("sparkConf key %q is not allowed: use the serviceAccount field on the CRD instead", key)
-		case common.SparkKubernetesAuthenticateOAuthTokenFile,
-			common.SparkKubernetesAuthenticateOAuthToken,
-			common.SparkKubernetesAuthenticateDriverOAuthTokenFile,
-			common.SparkKubernetesAuthenticateDriverOAuthToken,
-			common.SparkKubernetesAuthenticateExecutorOAuthTokenFile,
-			common.SparkKubernetesAuthenticateExecutorOAuthToken:
-			return fmt.Errorf("sparkConf key %q is not allowed: use the serviceAccount field on the CRD instead", key)
-		case common.SparkMaster, common.SparkKubernetesDriverMaster:
-			return fmt.Errorf("sparkConf key %q is not allowed: this value is managed by the operator", key)
-		case common.SparkKubernetesContainerImage, common.SparkKubernetesDriverContainerImage, common.SparkKubernetesExecutorContainerImage:
-			return fmt.Errorf("sparkConf key %q is not allowed: use the image field on the CRD instead", key)
-		case common.SparkKubernetesNamespace:
-			if value != namespace {
-				return fmt.Errorf("sparkConf key %q must equal the application namespace %q, got %q", key, namespace, value)
-			}
 		}
 	}
 	return nil

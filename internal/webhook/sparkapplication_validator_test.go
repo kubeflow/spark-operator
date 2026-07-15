@@ -18,6 +18,7 @@ package webhook
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"testing"
 
@@ -413,6 +414,26 @@ func TestSparkApplicationValidatorSparkConf_UpdateRejected(t *testing.T) {
 
 	if _, err := validator.ValidateUpdate(context.Background(), oldApp, newApp); err == nil {
 		t.Fatalf("expected sparkConf to be rejected on update, but it was allowed")
+	}
+}
+
+func TestSparkApplicationValidatorSparkConf_TypedError(t *testing.T) {
+	validator := newTestValidator(t, false)
+
+	app := newSparkApplication()
+	app.Spec.SparkConf = map[string]string{common.SparkMaster: "k8s://https://attacker-cluster:443"}
+
+	_, err := validator.ValidateCreate(context.Background(), app)
+	if err == nil {
+		t.Fatalf("expected error, got nil")
+	}
+
+	var denied *SparkConfKeyDeniedError
+	if !errors.As(err, &denied) {
+		t.Fatalf("expected SparkConfKeyDeniedError, got %T", err)
+	}
+	if denied.Key != common.SparkMaster {
+		t.Fatalf("expected key %q, got %q", common.SparkMaster, denied.Key)
 	}
 }
 

@@ -58,18 +58,6 @@ const (
 
 // Spark on Kubernetes properties.
 const (
-	SparkKubernetesAuthenticateOAuthTokenFile = "spark.kubernetes.authenticate.oauthTokenFile"
-
-	SparkKubernetesAuthenticateOAuthToken = "spark.kubernetes.authenticate.oauthToken"
-
-	SparkKubernetesAuthenticateDriverOAuthTokenFile = "spark.kubernetes.authenticate.driver.oauthTokenFile"
-
-	SparkKubernetesAuthenticateDriverOAuthToken = "spark.kubernetes.authenticate.driver.oauthToken"
-
-	SparkKubernetesAuthenticateExecutorOAuthTokenFile = "spark.kubernetes.authenticate.executor.oauthTokenFile"
-
-	SparkKubernetesAuthenticateExecutorOAuthToken = "spark.kubernetes.authenticate.executor.oauthToken"
-
 	// SparkKubernetesDriverMaster is the Spark configuration key for specifying the Kubernetes master the driver use
 	// to manage executor pods and other Kubernetes resources.
 	SparkKubernetesDriverMaster = "spark.kubernetes.driver.master"
