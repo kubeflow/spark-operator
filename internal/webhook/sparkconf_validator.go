@@ -40,10 +40,10 @@ var deniedSparkConfKeys = map[string]string{
 	common.SparkKubernetesAuthenticateDriverOAuthToken:           "authentication credentials are managed by the operator",
 	common.SparkKubernetesAuthenticateExecutorOAuthTokenFile:     "authentication credentials are managed by the operator",
 	common.SparkKubernetesAuthenticateExecutorOAuthToken:         "authentication credentials are managed by the operator",
-	common.SparkMaster:                          "this value is managed by the operator",
-	common.SparkKubernetesDriverMaster:          "this value is managed by the operator",
-	common.SparkKubernetesContainerImage:        "use the image field on the CRD instead",
-	common.SparkKubernetesDriverContainerImage:  "use the image field on the CRD instead",
+	common.SparkMaster:                           "this value is managed by the operator",
+	common.SparkKubernetesDriverMaster:           "this value is managed by the operator",
+	common.SparkKubernetesContainerImage:         "use the image field on the CRD instead",
+	common.SparkKubernetesDriverContainerImage:   "use the image field on the CRD instead",
 	common.SparkKubernetesExecutorContainerImage: "use the image field on the CRD instead",
 }
 
