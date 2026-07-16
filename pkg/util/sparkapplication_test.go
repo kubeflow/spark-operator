@@ -224,6 +224,121 @@ var _ = Describe("IsDriverRunning", func() {
 	})
 })
 
+var _ = Describe("TimeUntilNextRetryDue", func() {
+	assertDurationBetween := func(actual, min, max time.Duration) {
+		Expect(actual).To(BeNumerically(">=", min))
+		Expect(actual).To(BeNumerically("<=", max))
+	}
+
+	Context("SparkApplication with linear retry interval method", func() {
+		It("Should calculate duration with attempts multiplier", func() {
+			retryInterval := int64(10)
+			now := time.Now()
+			app := &v1beta2.SparkApplication{
+				Spec: v1beta2.SparkApplicationSpec{
+					RestartPolicy: v1beta2.RestartPolicy{
+						RetryIntervalMethod:    v1beta2.RestartPolicyRetryIntervalMethodLinear,
+						OnFailureRetryInterval: &retryInterval,
+					},
+				},
+				Status: v1beta2.SparkApplicationStatus{
+					AppState: v1beta2.ApplicationState{
+						State: v1beta2.ApplicationStateFailing,
+					},
+					SubmissionAttempts:        3,
+					LastSubmissionAttemptTime: metav1.NewTime(now.Add(-8 * time.Second)),
+					TerminationTime:           metav1.NewTime(now.Add(-1 * time.Second)),
+				},
+			}
+
+			d, err := util.TimeUntilNextRetryDue(app)
+			Expect(err).NotTo(HaveOccurred())
+			assertDurationBetween(d, 17*time.Second, 27*time.Second)
+		})
+	})
+
+	Context("SparkApplication with static retry interval method", func() {
+		It("Should calculate constant interval without attempts multiplier", func() {
+			retryInterval := int64(10)
+			now := time.Now()
+			app := &v1beta2.SparkApplication{
+				Spec: v1beta2.SparkApplicationSpec{
+					RestartPolicy: v1beta2.RestartPolicy{
+						RetryIntervalMethod:    v1beta2.RestartPolicyRetryIntervalMethodStatic,
+						OnFailureRetryInterval: &retryInterval,
+					},
+				},
+				Status: v1beta2.SparkApplicationStatus{
+					AppState: v1beta2.ApplicationState{
+						State: v1beta2.ApplicationStateFailing,
+					},
+					SubmissionAttempts:        3,
+					LastSubmissionAttemptTime: metav1.NewTime(now.Add(-80 * time.Second)),
+					TerminationTime:           metav1.NewTime(now.Add(-8 * time.Second)),
+				},
+			}
+
+			d, err := util.TimeUntilNextRetryDue(app)
+			Expect(err).NotTo(HaveOccurred())
+			assertDurationBetween(d, 0, 7*time.Second)
+		})
+	})
+
+	Context("SparkApplication with explicit retry interval", func() {
+		It("Should prioritize retryInterval over state specific retry intervals", func() {
+			retryInterval := int64(50)
+			onFailureRetryInterval := int64(10)
+			now := time.Now()
+			app := &v1beta2.SparkApplication{
+				Spec: v1beta2.SparkApplicationSpec{
+					RestartPolicy: v1beta2.RestartPolicy{
+						RetryIntervalMethod:    v1beta2.RestartPolicyRetryIntervalMethodStatic,
+						RetryInterval:          &retryInterval,
+						OnFailureRetryInterval: &onFailureRetryInterval,
+					},
+				},
+				Status: v1beta2.SparkApplicationStatus{
+					AppState: v1beta2.ApplicationState{
+						State: v1beta2.ApplicationStateFailing,
+					},
+					SubmissionAttempts:        3,
+					LastSubmissionAttemptTime: metav1.NewTime(now.Add(-80 * time.Second)),
+					TerminationTime:           metav1.NewTime(now.Add(-8 * time.Second)),
+				},
+			}
+
+			d, err := util.TimeUntilNextRetryDue(app)
+			Expect(err).NotTo(HaveOccurred())
+			assertDurationBetween(d, 37*time.Second, 47*time.Second)
+		})
+	})
+
+	Context("SparkApplication with invalid retry interval method", func() {
+		It("Should return error", func() {
+			retryInterval := int64(10)
+			now := time.Now()
+			app := &v1beta2.SparkApplication{
+				Spec: v1beta2.SparkApplicationSpec{
+					RestartPolicy: v1beta2.RestartPolicy{
+						RetryIntervalMethod:    "unexpected",
+						OnFailureRetryInterval: &retryInterval,
+					},
+				},
+				Status: v1beta2.SparkApplicationStatus{
+					AppState: v1beta2.ApplicationState{
+						State: v1beta2.ApplicationStateFailing,
+					},
+					SubmissionAttempts:        1,
+					LastSubmissionAttemptTime: metav1.NewTime(now.Add(-1 * time.Second)),
+				},
+			}
+
+			_, err := util.TimeUntilNextRetryDue(app)
+			Expect(err).To(HaveOccurred())
+		})
+	})
+})
+
 var _ = Describe("GetLocalVolumes", func() {
 	Context("SparkApplication with local volumes", func() {
 		volume1 := corev1.Volume{
