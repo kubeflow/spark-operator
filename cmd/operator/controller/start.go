@@ -232,7 +232,7 @@ func NewStartCommand() *cobra.Command {
 	command.Flags().DurationVar(&leaderElectionRenewDeadline, "leader-election-renew-deadline", 10*time.Second, "Leader election renew deadline.")
 	command.Flags().DurationVar(&leaderElectionRetryPeriod, "leader-election-retry-period", 2*time.Second, "Leader election retry period.")
 
-	command.Flags().DurationVar(&driverPodCreationGracePeriod, "driver-pod-creation-grace-period", 10*time.Second, "Grace period after a successful spark-submit when driver pod not found errors will be retried, and maximum time to wait for an in-flight spark-submit to exit after SIGTERM during controller shutdown. Must be less than controller-runtime GracefulShutdownTimeout (30s default). Useful if driver pod creation can take some time. Should be set lower than the pod's terminationGracePeriodSeconds.")
+	command.Flags().DurationVar(&driverPodCreationGracePeriod, "driver-pod-creation-grace-period", 10*time.Second, "Grace period after a successful spark-submit when driver pod not found errors will be retried, and maximum time to wait for an in-flight spark-submit to exit after SIGTERM during controller shutdown. When this exceeds controller-runtime GracefulShutdownTimeout (30s default), the manager shutdown timeout is raised to this value plus one second. Useful if driver pod creation can take some time. Should be set lower than the pod's terminationGracePeriodSeconds.")
 
 	command.Flags().Float32Var(&kubeAPIQPS, "kube-api-qps", 20, "Maximum QPS to the API server from the controller client.")
 	command.Flags().IntVar(&kubeAPIBurst, "kube-api-burst", 30, "Maximum burst for throttle from the controller client.")
@@ -289,11 +289,13 @@ const defaultManagerGracefulShutdownTimeout = 30 * time.Second
 func start() {
 	setupLog()
 
-	if driverPodCreationGracePeriod >= defaultManagerGracefulShutdownTimeout {
-		logger.Error(nil, "driver-pod-creation-grace-period must be less than controller-runtime GracefulShutdownTimeout",
-			"driverPodCreationGracePeriod", driverPodCreationGracePeriod,
-			"gracefulShutdownTimeout", defaultManagerGracefulShutdownTimeout)
-		os.Exit(1)
+	// Bounds how long the manager waits for in-flight reconciles after SIGTERM. Each reconcile
+	// blocked in runSparkSubmit may take up to driverPodCreationGracePeriod to return (SIGTERM +
+	// WaitDelay). Keep the controller-runtime default (30s) when that is enough; otherwise raise
+	// GracefulShutdownTimeout so the manager outlives runSparkSubmit's WaitDelay window.
+	managerGracefulShutdownTimeout := defaultManagerGracefulShutdownTimeout
+	if wait := driverPodCreationGracePeriod + time.Second; wait > managerGracefulShutdownTimeout {
+		managerGracefulShutdownTimeout = wait
 	}
 
 	// Create the client rest config. Use kubeConfig if given, otherwise assume in-cluster.
@@ -332,6 +334,7 @@ func start() {
 		LeaseDuration:           &leaderElectionLeaseDuration,
 		RenewDeadline:           &leaderElectionRenewDeadline,
 		RetryPeriod:             &leaderElectionRetryPeriod,
+		GracefulShutdownTimeout: &managerGracefulShutdownTimeout,
 		// LeaderElectionReleaseOnCancel defines if the leader should step down voluntarily
 		// when the Manager ends. This requires the binary to immediately end when the
 		// Manager is stopped, otherwise, this setting is unsafe. Setting this significantly
