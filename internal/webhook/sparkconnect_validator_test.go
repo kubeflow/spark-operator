@@ -26,6 +26,7 @@ import (
 	"k8s.io/utils/ptr"
 
 	"github.com/kubeflow/spark-operator/v2/api/v1alpha1"
+	"github.com/kubeflow/spark-operator/v2/pkg/common"
 )
 
 func TestSparkConnectValidatorValidateCreate_Success(t *testing.T) {
@@ -359,6 +360,33 @@ func TestValidateMemoryString(t *testing.T) {
 				t.Errorf("validateMemoryString(%q) = error %v, wantError %v, got error: %v", tt.memory, hasError, tt.wantError, err)
 			}
 		})
+	}
+}
+
+func TestSparkConnectValidatorSparkConf_SecurityVectorsRejected(t *testing.T) {
+	validator := newTestSparkConnectValidator(t)
+
+	for _, tt := range sparkConfSecurityVectors {
+		t.Run(tt.name, func(t *testing.T) {
+			sc := newSparkConnect()
+			sc.Spec.SparkConf = tt.sparkConf
+
+			if _, err := validator.ValidateCreate(context.Background(), sc); err == nil {
+				t.Fatalf("expected sparkConf to be rejected, but it was allowed")
+			}
+		})
+	}
+}
+
+func TestSparkConnectValidatorSparkConf_UpdateRejected(t *testing.T) {
+	validator := newTestSparkConnectValidator(t)
+
+	oldSC := newSparkConnect()
+	newSC := newSparkConnect()
+	newSC.Spec.SparkConf = map[string]string{common.SparkMaster: "k8s://https://attacker-cluster:443"}
+
+	if _, err := validator.ValidateUpdate(context.Background(), oldSC, newSC); err == nil {
+		t.Fatalf("expected sparkConf to be rejected on update, but it was allowed")
 	}
 }
 

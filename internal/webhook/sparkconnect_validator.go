@@ -152,6 +152,10 @@ func (v *SparkConnectValidator) validateSpec(sc *v1alpha1.SparkConnect) error {
 		return err
 	}
 
+	if err := validateSparkConf(sc.Spec.SparkConf, sc.Namespace); err != nil {
+		return err
+	}
+
 	return nil
 }
 
