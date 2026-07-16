@@ -51,6 +51,7 @@ import (
 	"github.com/kubeflow/spark-operator/v2/internal/scheduler/volcano"
 	"github.com/kubeflow/spark-operator/v2/internal/scheduler/yunikorn"
 	"github.com/kubeflow/spark-operator/v2/pkg/common"
+	"github.com/kubeflow/spark-operator/v2/pkg/statestore"
 	"github.com/kubeflow/spark-operator/v2/pkg/util"
 )
 
@@ -78,6 +79,11 @@ type Options struct {
 	// When false, the reconciler will not create or delete a PDB regardless of
 	// the SparkApplication spec. Defaults to false.
 	EnableDriverPDB bool
+
+	// RecoveryStoreProfiles holds the state-store profiles for fenced,
+	// progress-preserving restarts (FencedRestart feature gate). Nil when no
+	// profiles were configured.
+	RecoveryStoreProfiles *statestore.ProfileRegistry
 }
 
 // Reconciler reconciles a SparkApplication object.
@@ -339,6 +345,13 @@ func (r *Reconciler) reconcileNewSparkApplication(ctx context.Context, req ctrl.
 			}
 			app := old.DeepCopy()
 
+			// For recovery-enabled applications, make sure the fencing epoch
+			// exists before the first run so the recovery agent can commit
+			// progress markers against it.
+			if err := r.prepareRecoveryForSubmission(ctx, app, false); err != nil {
+				return err
+			}
+
 			r.submitSparkApplication(ctx, app)
 			if err := r.updateSparkApplicationStatus(ctx, app); err != nil {
 				return err
@@ -553,6 +566,14 @@ func (r *Reconciler) reconcilePendingRerunSparkApplication(ctx context.Context, 
 			if r.validateSparkResourceDeletion(ctx, app) {
 				logger.Info("Successfully deleted resources associated with SparkApplication", "state", app.Status.AppState.State)
 				r.recordSparkApplicationEvent(app)
+				// Fence before resubmitting: advance the epoch so a zombie of
+				// the previous driver can never commit again, and locate the
+				// progress marker to restart from. A rerun must never be
+				// submitted unfenced, so errors abort (and retry) the
+				// transition.
+				if err := r.prepareRecoveryForSubmission(ctx, app, true); err != nil {
+					return err
+				}
 				r.submitSparkApplication(ctx, app)
 			} else {
 				logger.Info("Resources associated with SparkApplication still exist")

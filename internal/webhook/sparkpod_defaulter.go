@@ -164,6 +164,7 @@ func mutateSparkPod(pod *corev1.Pod, app *v1beta2.SparkApplication) error {
 		addTerminationGracePeriodSeconds,
 		addPodLifeCycleConfig,
 		addShareProcessNamespace,
+		addRecoveryAgentSidecar,
 	}
 
 	for _, option := range options {

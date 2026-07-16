@@ -29,6 +29,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
 	"github.com/kubeflow/spark-operator/v2/api/v1beta2"
+	"github.com/kubeflow/spark-operator/v2/pkg/features"
 	"github.com/kubeflow/spark-operator/v2/pkg/util"
 )
 
@@ -128,6 +129,10 @@ func (v *SparkApplicationValidator) validateSpec(ctx context.Context, app *v1bet
 		return err
 	}
 
+	if err := v.validateRecoveryPolicy(app); err != nil {
+		return err
+	}
+
 	if app.Spec.NodeSelector != nil && (app.Spec.Driver.NodeSelector != nil || app.Spec.Executor.NodeSelector != nil) {
 		return fmt.Errorf("node selector cannot be defined at both SparkApplication and Driver/Executor")
 	}
@@ -165,6 +170,32 @@ func (v *SparkApplicationValidator) validateSpec(ctx context.Context, app *v1bet
 func (v *SparkApplicationValidator) validateName(name string) error {
 	if errs := validation.IsDNS1035Label(name); len(errs) > 0 {
 		return fmt.Errorf("invalid SparkApplication name %q: %s", name, strings.Join(errs, ", "))
+	}
+	return nil
+}
+
+// validateRecoveryPolicy enforces the FencedRestart contract: the feature
+// gate must be enabled, restarts must be possible (OnFailure/Always), and
+// the heartbeat timing must be self-consistent.
+func (v *SparkApplicationValidator) validateRecoveryPolicy(app *v1beta2.SparkApplication) error {
+	recovery := app.Spec.RestartPolicy.Recovery
+	if recovery == nil {
+		return nil
+	}
+	if !features.Enabled(features.FencedRestart) {
+		return fmt.Errorf("spec.restartPolicy.recovery requires the FencedRestart feature gate to be enabled on the operator")
+	}
+	switch app.Spec.RestartPolicy.Type {
+	case v1beta2.RestartPolicyOnFailure, v1beta2.RestartPolicyAlways:
+	default:
+		return fmt.Errorf("spec.restartPolicy.recovery is only valid with restartPolicy type OnFailure or Always, got %q", app.Spec.RestartPolicy.Type)
+	}
+	if recovery.StoreProfile == "" {
+		return fmt.Errorf("spec.restartPolicy.recovery.storeProfile must not be empty")
+	}
+	if recovery.HeartbeatInterval != nil && recovery.HeartbeatTTL != nil &&
+		recovery.HeartbeatTTL.Duration <= 2*recovery.HeartbeatInterval.Duration {
+		return fmt.Errorf("spec.restartPolicy.recovery.heartbeatTTL must be greater than 2x heartbeatInterval")
 	}
 	return nil
 }

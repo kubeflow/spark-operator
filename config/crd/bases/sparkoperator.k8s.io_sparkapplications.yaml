@@ -10880,6 +10880,47 @@ spec:
                     format: int64
                     minimum: 1
                     type: integer
+                  recovery:
+                    description: |-
+                      Recovery, if set, makes restarts fenced and progress-preserving: before each
+                      rerun the operator atomically advances a monotonic epoch in an external state
+                      store, so a zombie of the previous driver can never commit state again, and
+                      the restarted driver is handed the last progress marker the application
+                      committed. Only valid with Type=OnFailure or Type=Always.
+                      Requires the FencedRestart feature gate to be enabled.
+                    properties:
+                      heartbeatInterval:
+                        description: |-
+                          HeartbeatInterval is how often the injected recovery agent records a
+                          liveness beat in the state store. Defaults to 10s.
+                        type: string
+                      heartbeatTTL:
+                        description: |-
+                          HeartbeatTTL is how long the heartbeat may remain unchanged, judged on the
+                          controller's own clock, before the driver is considered Suspect. Must be
+                          greater than 2x HeartbeatInterval. Defaults to 30s.
+                        type: string
+                      maxSnapshotAge:
+                        description: |-
+                          MaxSnapshotAge, if set, surfaces a Stalled warning event when no snapshot
+                          has been committed for this long. Detection-only; never triggers recovery.
+                        type: string
+                      snapshotMaxSizeBytes:
+                        description: |-
+                          SnapshotMaxSizeBytes caps the size of a progress marker accepted by the
+                          recovery agent. Defaults to 1048576 (1 MiB).
+                        format: int64
+                        minimum: 1
+                        type: integer
+                      storeProfile:
+                        description: |-
+                          StoreProfile names a state-store profile from the operator configuration
+                          (--recovery-store-profiles) that provides the fencing/snapshot backend.
+                        minLength: 1
+                        type: string
+                    required:
+                    - storeProfile
+                    type: object
                   type:
                     description: Type specifies the RestartPolicyType.
                     enum:
@@ -12982,6 +13023,31 @@ spec:
                 format: date-time
                 nullable: true
                 type: string
+              recoveryStatus:
+                description: |-
+                  RecoveryStatus is populated only when spec.restartPolicy.recovery is set
+                  and the FencedRestart feature gate is enabled.
+                properties:
+                  epoch:
+                    description: Epoch is the current fencing epoch as last advanced
+                      by the operator.
+                    format: int64
+                    type: integer
+                  lastSnapshotTime:
+                    description: LastSnapshotTime is the time the most recent progress
+                      marker was observed.
+                    format: date-time
+                    nullable: true
+                    type: string
+                  restoredFromEpoch:
+                    description: |-
+                      RestoredFromEpoch is the epoch whose snapshot was handed to the current
+                      run, if any.
+                    format: int64
+                    type: integer
+                required:
+                - epoch
+                type: object
               sparkApplicationId:
                 description: SparkApplicationID is set by the spark-distribution(via
                   spark.app.id config) on the driver and executor pods

@@ -79,7 +79,14 @@ func (h *SparkPodEventHandler) Update(ctx context.Context, event event.UpdateEve
 		return
 	}
 
-	if newPod.Status.Phase == oldPod.Status.Phase {
+	// Phase alone is not a sufficient signal once a driver pod can carry
+	// more than one container (e.g. the FencedRestart recovery-agent
+	// sidecar): the driver container can terminate while an unrelated
+	// sidecar keeps running, holding the pod at PodRunning indefinitely.
+	// Without also watching the driver container's own terminated state,
+	// that completion is never observed and the SparkApplication is stuck
+	// reporting RUNNING forever.
+	if newPod.Status.Phase == oldPod.Status.Phase && driverContainerStateUnchanged(oldPod, newPod) {
 		return
 	}
 
@@ -90,6 +97,19 @@ func (h *SparkPodEventHandler) Update(ctx context.Context, event event.UpdateEve
 	if h.metrics != nil && util.IsExecutorPod(oldPod) && util.IsExecutorPod(newPod) {
 		h.metrics.HandleSparkExecutorUpdate(oldPod, newPod)
 	}
+}
+
+// driverContainerStateUnchanged reports whether the driver container's
+// terminated-vs-running state is the same between the two pod snapshots. Not
+// a driver pod at all is reported as unchanged so non-driver updates keep
+// relying on the phase check above.
+func driverContainerStateUnchanged(oldPod, newPod *corev1.Pod) bool {
+	if !util.IsDriverPod(newPod) {
+		return true
+	}
+	oldTerminated := util.GetDriverContainerTerminatedState(oldPod) != nil
+	newTerminated := util.GetDriverContainerTerminatedState(newPod) != nil
+	return oldTerminated == newTerminated
 }
 
 // Delete implements handler.EventHandler.

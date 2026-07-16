@@ -646,6 +646,48 @@ func TestSparkPodEventFilter_Update(t *testing.T) {
 			expected: false,
 		},
 		{
+			name:              "phase not changed but driver container terminated - should return true",
+			namespaces:        []string{"default"},
+			namespaceSelector: "",
+			oldPod: &corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "spark-driver",
+					Namespace: "default",
+					Labels: map[string]string{
+						common.LabelLaunchedBySparkOperator: "true",
+						common.LabelSparkRole:               common.SparkRoleDriver,
+					},
+				},
+				Status: corev1.PodStatus{
+					Phase: corev1.PodRunning,
+					ContainerStatuses: []corev1.ContainerStatus{
+						{Name: common.SparkDriverContainerName, State: corev1.ContainerState{Running: &corev1.ContainerStateRunning{}}},
+						{Name: "spark-recovery-agent", State: corev1.ContainerState{Running: &corev1.ContainerStateRunning{}}},
+					},
+				},
+			},
+			newPod: &corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "spark-driver",
+					Namespace: "default",
+					Labels: map[string]string{
+						common.LabelLaunchedBySparkOperator: "true",
+						common.LabelSparkRole:               common.SparkRoleDriver,
+					},
+				},
+				Status: corev1.PodStatus{
+					// Still PodRunning: the recovery-agent sidecar keeps the
+					// pod alive even though the driver container completed.
+					Phase: corev1.PodRunning,
+					ContainerStatuses: []corev1.ContainerStatus{
+						{Name: common.SparkDriverContainerName, State: corev1.ContainerState{Terminated: &corev1.ContainerStateTerminated{ExitCode: 0}}},
+						{Name: "spark-recovery-agent", State: corev1.ContainerState{Running: &corev1.ContainerStateRunning{}}},
+					},
+				},
+			},
+			expected: true,
+		},
+		{
 			name:              "phase changed - spark pod with selector match",
 			namespaces:        []string{},
 			namespaceSelector: "spark=enabled",

@@ -80,7 +80,12 @@ func (f *sparkPodEventFilter) Update(e event.UpdateEvent) bool {
 		return false
 	}
 
-	if newPod.Status.Phase == oldPod.Status.Phase {
+	// Phase alone misses a driver container terminating while a sidecar
+	// (e.g. the FencedRestart recovery agent) keeps the pod at PodRunning;
+	// see driverContainerStateUnchanged for the full rationale. This
+	// predicate runs upstream of SparkPodEventHandler.Update, so it needs
+	// the identical check or that handler never even sees the event.
+	if newPod.Status.Phase == oldPod.Status.Phase && driverContainerStateUnchanged(oldPod, newPod) {
 		return false
 	}
 

@@ -13907,6 +13907,77 @@
           }
         }
       },
+      "spark.v1beta2.RecoveryPolicy": {
+        "description": "RecoveryPolicy configures fenced, progress-preserving restarts.",
+        "type": "object",
+        "required": [
+          "storeProfile"
+        ],
+        "properties": {
+          "heartbeatInterval": {
+            "description": "HeartbeatInterval is how often the injected recovery agent records a liveness beat in the state store. Defaults to 10s.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/io.k8s.apimachinery.pkg.apis.meta.v1.Duration"
+              }
+            ]
+          },
+          "heartbeatTTL": {
+            "description": "HeartbeatTTL is how long the heartbeat may remain unchanged, judged on the controller's own clock, before the driver is considered Suspect. Must be greater than 2x HeartbeatInterval. Defaults to 30s.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/io.k8s.apimachinery.pkg.apis.meta.v1.Duration"
+              }
+            ]
+          },
+          "maxSnapshotAge": {
+            "description": "MaxSnapshotAge, if set, surfaces a Stalled warning event when no snapshot has been committed for this long. Detection-only; never triggers recovery.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/io.k8s.apimachinery.pkg.apis.meta.v1.Duration"
+              }
+            ]
+          },
+          "snapshotMaxSizeBytes": {
+            "description": "SnapshotMaxSizeBytes caps the size of a progress marker accepted by the recovery agent. Defaults to 1048576 (1 MiB).",
+            "type": "integer",
+            "format": "int64"
+          },
+          "storeProfile": {
+            "description": "StoreProfile names a state-store profile from the operator configuration (--recovery-store-profiles) that provides the fencing/snapshot backend.",
+            "type": "string",
+            "default": ""
+          }
+        }
+      },
+      "spark.v1beta2.RecoveryStatus": {
+        "description": "RecoveryStatus describes the fenced-recovery state of an application.",
+        "type": "object",
+        "required": [
+          "epoch"
+        ],
+        "properties": {
+          "epoch": {
+            "description": "Epoch is the current fencing epoch as last advanced by the operator.",
+            "type": "integer",
+            "format": "int64",
+            "default": 0
+          },
+          "lastSnapshotTime": {
+            "description": "LastSnapshotTime is the time the most recent progress marker was observed.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/io.k8s.apimachinery.pkg.apis.meta.v1.Time"
+              }
+            ]
+          },
+          "restoredFromEpoch": {
+            "description": "RestoredFromEpoch is the epoch whose snapshot was handed to the current run, if any.",
+            "type": "integer",
+            "format": "int64"
+          }
+        }
+      },
       "spark.v1beta2.RestartPolicy": {
         "description": "RestartPolicy is the policy of if and in which conditions the controller should restart a terminated application. This completely defines actions to be taken on any kind of Failures during an application run.",
         "type": "object",
@@ -13930,6 +14001,14 @@
             "description": "OnSubmissionFailureRetryInterval is the interval in seconds between retries on failed submissions.",
             "type": "integer",
             "format": "int64"
+          },
+          "recovery": {
+            "description": "Recovery, if set, makes restarts fenced and progress-preserving: before each rerun the operator atomically advances a monotonic epoch in an external state store, so a zombie of the previous driver can never commit state again, and the restarted driver is handed the last progress marker the application committed. Only valid with Type=OnFailure or Type=Always. Requires the FencedRestart feature gate to be enabled.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/spark.v1beta2.RecoveryPolicy"
+              }
+            ]
           },
           "type": {
             "description": "Type specifies the RestartPolicyType.",
@@ -14477,6 +14556,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/io.k8s.apimachinery.pkg.apis.meta.v1.Time"
+              }
+            ]
+          },
+          "recoveryStatus": {
+            "description": "RecoveryStatus is populated only when spec.restartPolicy.recovery is set and the FencedRestart feature gate is enabled.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/spark.v1beta2.RecoveryStatus"
               }
             ]
           },

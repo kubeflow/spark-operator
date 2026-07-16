@@ -49,6 +49,16 @@ const (
 	// owner: @venkomirisetti
 	// alpha: v2.6.0
 	RestSubmitter featuregate.Feature = "RestSubmitter"
+
+	// FencedRestart enables fenced, progress-preserving restarts: before each
+	// rerun of an application with spec.restartPolicy.recovery set, the operator
+	// atomically advances a fencing epoch in an external state store so a zombie
+	// of the previous driver can never commit state again, and hands the
+	// restarted driver the last progress marker the application committed.
+	//
+	// owner: @gangavh
+	// alpha: v2.7.0
+	FencedRestart featuregate.Feature = "FencedRestart"
 )
 
 // To add a new feature gate, follow these steps:
@@ -91,6 +101,8 @@ var defaultFeatureGates = map[featuregate.Feature]featuregate.FeatureSpec{
 	LoadSparkDefaults: {Default: false, PreRelease: featuregate.Alpha},
 
 	RestSubmitter: {Default: false, PreRelease: featuregate.Alpha},
+
+	FencedRestart: {Default: false, PreRelease: featuregate.Alpha},
 }
 
 // SetFeatureGateDuringTest sets the specified feature gate to the specified value during a test.
