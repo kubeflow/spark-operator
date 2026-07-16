@@ -159,6 +159,10 @@ func (v *SparkApplicationValidator) validateSpec(ctx context.Context, app *v1bet
 		ingressURLFormats[item.IngressURLFormat] = true
 	}
 
+	if err := validateSparkConf(app.Spec.SparkConf, app.Namespace); err != nil {
+		return err
+	}
+
 	return nil
 }
 
