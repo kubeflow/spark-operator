@@ -130,6 +130,31 @@ spec:
                   Image is the container image for the driver, executor, and init-container. Any custom container images for the
                   driver, executor, or init-container takes precedence over this.
                 type: string
+              restartPolicy:
+                description: RestartPolicy defines the policy for operator-managed
+                  Spark Connect server pod restarts.
+                properties:
+                  onFailureRetries:
+                    description: OnFailureRetries the number of times to retry running
+                      an application before giving up.
+                    format: int32
+                    minimum: 0
+                    type: integer
+                  onFailureRetryInterval:
+                    description: OnFailureRetryInterval is the interval in seconds
+                      between restart attempts on failed runs.
+                    format: int64
+                    minimum: 1
+                    type: integer
+                  restartPolicyType:
+                    description: RestartPolicyType defines when the operator should
+                      restart the Spark Connect server pod.
+                    enum:
+                    - Never
+                    - Always
+                    - OnFailure
+                    type: string
+                type: object
               server:
                 description: Server is the Spark connect server specification.
                 properties:
@@ -767,11 +792,26 @@ spec:
                 description: Executors represents the current state of the SparkConnect
                   executors.
                 type: object
+              lastRestartTime:
+                description: LastRestartTime is the time of the latest operator-managed
+                  restart attempt.
+                format: date-time
+                type: string
               lastUpdateTime:
                 description: LastUpdateTime is the time at which the SparkConnect
                   controller last updated the SparkConnect.
                 format: date-time
                 type: string
+              observedGeneration:
+                description: ObservedGeneration is the most recent generation observed
+                  for restart lifecycle status.
+                format: int64
+                type: integer
+              restartAttempts:
+                description: RestartAttempts is the number of operator-managed restart
+                  attempts for the current generation.
+                format: int32
+                type: integer
               server:
                 description: Server represents the current state of the SparkConnect
                   server.

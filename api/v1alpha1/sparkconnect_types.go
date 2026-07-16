@@ -21,10 +21,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func init() {
-	SchemeBuilder.Register(&SparkConnect{}, &SparkConnectList{})
-}
-
 // +kubebuilder:object:root=true
 // +kubebuilder:metadata:annotations="api-approved.kubernetes.io=https://github.com/kubeflow/spark-operator/pull/1298"
 // +kubebuilder:resource:scope=Namespaced,shortName=sparkconn,singular=sparkconnect
@@ -82,7 +78,38 @@ type SparkConnectSpec struct {
 	// scheduler backend since Spark 3.0.
 	// +optional
 	DynamicAllocation *DynamicAllocation `json:"dynamicAllocation,omitempty"`
+
+	// RestartPolicy defines the policy for operator-managed Spark Connect server pod restarts.
+	// +optional
+	RestartPolicy RestartPolicy `json:"restartPolicy,omitempty"`
 }
+
+// RestartPolicy defines operator-managed restart behavior for the Spark Connect server pod.
+type RestartPolicy struct {
+	// RestartPolicyType defines when the operator should restart the Spark Connect server pod.
+	// +kubebuilder:validation:Enum=Never;Always;OnFailure
+	// +optional
+	RestartPolicyType RestartPolicyType `json:"restartPolicyType,omitempty"`
+
+	// OnFailureRetries the number of times to retry running an application before giving up.
+	// +kubebuilder:validation:Minimum=0
+	// +optional
+	OnFailureRetries *int32 `json:"onFailureRetries,omitempty"`
+
+	// OnFailureRetryInterval is the interval in seconds between restart attempts on failed runs.
+	// +kubebuilder:validation:Minimum=1
+	// +optional
+	OnFailureRetryInterval *int64 `json:"onFailureRetryInterval,omitempty"`
+}
+
+// RestartPolicyType defines when the operator should restart a Spark Connect server pod.
+type RestartPolicyType string
+
+const (
+	RestartPolicyTypeNever     RestartPolicyType = "Never"
+	RestartPolicyTypeAlways    RestartPolicyType = "Always"
+	RestartPolicyTypeOnFailure RestartPolicyType = "OnFailure"
+)
 
 // ServerSpec is specification of the Spark connect server.
 type ServerSpec struct {
@@ -140,6 +167,18 @@ type SparkConnectStatus struct {
 	// Server represents the current state of the SparkConnect server.
 	Server SparkConnectServerStatus `json:"server,omitempty"`
 
+	// RestartAttempts is the number of operator-managed restart attempts for the current generation.
+	// +optional
+	RestartAttempts int32 `json:"restartAttempts,omitempty"`
+
+	// LastRestartTime is the time of the latest operator-managed restart attempt.
+	// +optional
+	LastRestartTime metav1.Time `json:"lastRestartTime,omitempty"`
+
+	// ObservedGeneration is the most recent generation observed for restart lifecycle status.
+	// +optional
+	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
+
 	// Executors represents the current state of the SparkConnect executors.
 	Executors map[string]int `json:"executors,omitempty"`
 
@@ -163,8 +202,11 @@ type SparkConnectConditionReason string
 
 // All possible reasons of SparkConnect conditions.
 const (
-	SparkConnectConditionReasonServerPodReady    SparkConnectConditionReason = "ServerPodReady"
-	SparkConnectConditionReasonServerPodNotReady SparkConnectConditionReason = "ServerPodNotReady"
+	SparkConnectConditionReasonServerPodReady       SparkConnectConditionReason = "ServerPodReady"
+	SparkConnectConditionReasonServerPodNotReady    SparkConnectConditionReason = "ServerPodNotReady"
+	SparkConnectConditionReasonCompleted            SparkConnectConditionReason = "Completed"
+	SparkConnectConditionReasonRestarting           SparkConnectConditionReason = "Restarting"
+	SparkConnectConditionReasonRestartLimitExceeded SparkConnectConditionReason = "RestartLimitExceeded"
 )
 
 // SparkConnectState represents the current state of the SparkConnect.
@@ -172,11 +214,11 @@ type SparkConnectState string
 
 // All possible states of the SparkConnect.
 const (
-	SparkConnectStateNew          SparkConnectState = ""
-	SparkConnectStateProvisioning SparkConnectState = "Provisioning"
-	SparkConnectStateReady        SparkConnectState = "Ready"
-	SparkConnectStateNotReady     SparkConnectState = "NotReady"
-	SparkConnectStateFailed       SparkConnectState = "Failed"
+	SparkConnectStateNew       SparkConnectState = ""
+	SparkConnectStateReady     SparkConnectState = "Ready"
+	SparkConnectStateNotReady  SparkConnectState = "NotReady"
+	SparkConnectStateFailed    SparkConnectState = "Failed"
+	SparkConnectStateCompleted SparkConnectState = "Completed"
 )
 
 type SparkConnectServerStatus struct {

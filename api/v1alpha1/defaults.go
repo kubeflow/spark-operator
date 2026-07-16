@@ -16,6 +16,31 @@ limitations under the License.
 
 package v1alpha1
 
+import (
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/utils/ptr"
+)
+
+const (
+	DefaultSparkConnectOnFailureRetries       int32 = 3
+	DefaultSparkConnectOnFailureRetryInterval int64 = 5
+)
+
+// RegisterDefaults adds defaulting functions to the given scheme.
+func RegisterDefaults(scheme *runtime.Scheme) error {
+	scheme.AddTypeDefaultingFunc(&SparkConnect{}, func(obj interface{}) { SetSparkConnectDefaults(obj.(*SparkConnect)) })
+	return nil
+}
+
 // SetSparkConnectDefaults sets default values for certain fields of a SparkConnect.
 func SetSparkConnectDefaults(conn *SparkConnect) {
+	if conn.Spec.RestartPolicy.RestartPolicyType == "" {
+		conn.Spec.RestartPolicy.RestartPolicyType = RestartPolicyTypeOnFailure
+	}
+	if conn.Spec.RestartPolicy.OnFailureRetries == nil {
+		conn.Spec.RestartPolicy.OnFailureRetries = ptr.To(DefaultSparkConnectOnFailureRetries)
+	}
+	if conn.Spec.RestartPolicy.OnFailureRetryInterval == nil {
+		conn.Spec.RestartPolicy.OnFailureRetryInterval = ptr.To(DefaultSparkConnectOnFailureRetryInterval)
+	}
 }

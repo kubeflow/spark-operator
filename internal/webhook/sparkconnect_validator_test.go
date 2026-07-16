@@ -187,6 +187,41 @@ func TestSparkConnectValidatorValidateCreate_DynamicAllocationValid(t *testing.T
 	}
 }
 
+func TestSparkConnectValidatorValidateCreate_InvalidRestartPolicy(t *testing.T) {
+	validator := newTestSparkConnectValidator(t)
+	sc := newSparkConnect()
+	sc.Spec.RestartPolicy.RestartPolicyType = "Sometimes"
+
+	if _, err := validator.ValidateCreate(context.Background(), sc); err == nil || !strings.Contains(err.Error(), "restartPolicy") {
+		t.Fatalf("expected restartPolicy validation error, got %v", err)
+	}
+}
+
+func TestSparkConnectValidatorValidateCreate_InvalidRestartPolicyValues(t *testing.T) {
+	validator := newTestSparkConnectValidator(t)
+
+	maxAttempts := int32(-1)
+	sc := newSparkConnect()
+	sc.Spec.RestartPolicy.OnFailureRetries = &maxAttempts
+	if _, err := validator.ValidateCreate(context.Background(), sc); err == nil || !strings.Contains(err.Error(), "onFailureRetries") {
+		t.Fatalf("expected onFailureRetries validation error, got %v", err)
+	}
+
+	backoff := int64(-1)
+	sc = newSparkConnect()
+	sc.Spec.RestartPolicy.OnFailureRetryInterval = &backoff
+	if _, err := validator.ValidateCreate(context.Background(), sc); err == nil || !strings.Contains(err.Error(), "onFailureRetryInterval") {
+		t.Fatalf("expected onFailureRetryInterval validation error, got %v", err)
+	}
+
+	backoff = int64(0)
+	sc = newSparkConnect()
+	sc.Spec.RestartPolicy.OnFailureRetryInterval = &backoff
+	if _, err := validator.ValidateCreate(context.Background(), sc); err == nil || !strings.Contains(err.Error(), "onFailureRetryInterval") {
+		t.Fatalf("expected onFailureRetryInterval validation error, got %v", err)
+	}
+}
+
 func TestSparkConnectValidatorValidateCreate_InvalidServerMemory(t *testing.T) {
 	validator := newTestSparkConnectValidator(t)
 
