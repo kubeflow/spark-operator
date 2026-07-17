@@ -85,6 +85,17 @@ tests:
           kind: Role
           name: spark-operator-webhook
           namespace: spark-operator
+      - contains:
+          path: rules
+          content:
+            apiGroups:
+              - ""
+            resources:
+              - events
+            verbs:
+              - create
+              - update
+              - patch
 
   - it: Should create role and rolebinding for webhook in release namespace
     documentIndex: 3
@@ -107,6 +118,57 @@ tests:
             apiGroup: rbac.authorization.k8s.io
             kind: Role
             name: spark-operator-webhook
+
+  - it: Should not grant events permissions if `webhook.leaderElection.enable` is set to `false`
+    set:
+      webhook:
+        leaderElection:
+          enable: false
+    documentIndex: 2
+    asserts:
+      - notContains:
+          path: rules
+          content:
+            apiGroups:
+              - ""
+            resources:
+              - events
+            verbs:
+              - create
+              - update
+              - patch
+
+  - it: Should grant events permissions and include webhook policyRules when release namespace is in `spark.jobNamespaces`
+    set:
+      spark:
+        jobNamespaces:
+          - spark-operator
+      webhook:
+        leaderElection:
+          enable: true
+    documentIndex: 2
+    asserts:
+      - contains:
+          path: rules
+          content:
+            apiGroups:
+              - ""
+            resources:
+              - events
+            verbs:
+              - create
+              - update
+              - patch
+      - contains:
+          path: rules
+          content:
+            apiGroups:
+              - ""
+            resources:
+              - pods
+            verbs:
+              - list
+              - watch
 
   - it: Should create roles and rolebindings for webhook in every spark job namespace if `spark.jobNamespaces` is set and does not contain empty string
     set:
