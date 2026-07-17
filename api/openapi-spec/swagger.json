@@ -12670,6 +12670,11 @@
             "description": "Memory is the amount of memory to request for the pod.",
             "type": "string"
           },
+          "port": {
+            "description": "Port is the port number on which the Spark Connect server listens. If not specified, the default port 15002 will be used.",
+            "type": "integer",
+            "format": "int32"
+          },
           "service": {
             "description": "Service exposes the Spark connect server.",
             "allOf": [
@@ -12777,6 +12782,11 @@
             "description": "PodName is the name of the pod that is running the Spark Connect server.",
             "type": "string"
           },
+          "port": {
+            "description": "Port is the port number on which the Spark Connect server is running.",
+            "type": "integer",
+            "format": "int32"
+          },
           "serviceName": {
             "description": "ServiceName is the name of the service that is exposing the Spark Connect server.",
             "type": "string"
@@ -12866,6 +12876,10 @@
             "x-kubernetes-list-type": "map",
             "x-kubernetes-patch-merge-key": "type",
             "x-kubernetes-patch-strategy": "merge"
+          },
+          "errorMessage": {
+            "description": "ErrorMessage contains a human-readable description of any errors that have occurred during reconciliation.",
+            "type": "string"
           },
           "executors": {
             "description": "Executors represents the current state of the SparkConnect executors.",

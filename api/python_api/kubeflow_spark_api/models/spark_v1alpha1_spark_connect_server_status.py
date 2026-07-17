@@ -17,7 +17,7 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, ConfigDict, Field, StrictStr
+from pydantic import BaseModel, ConfigDict, Field, StrictInt, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional
 from typing import Optional, Set
 from typing_extensions import Self
@@ -28,8 +28,9 @@ class SparkV1alpha1SparkConnectServerStatus(BaseModel):
     """ # noqa: E501
     pod_ip: Optional[StrictStr] = Field(default=None, description="PodIP is the IP address of the pod that is running the Spark Connect server.", alias="podIp")
     pod_name: Optional[StrictStr] = Field(default=None, description="PodName is the name of the pod that is running the Spark Connect server.", alias="podName")
+    port: Optional[StrictInt] = Field(default=None, description="Port is the port number on which the Spark Connect server is running.")
     service_name: Optional[StrictStr] = Field(default=None, description="ServiceName is the name of the service that is exposing the Spark Connect server.", alias="serviceName")
-    __properties: ClassVar[List[str]] = ["podIp", "podName", "serviceName"]
+    __properties: ClassVar[List[str]] = ["podIp", "podName", "port", "serviceName"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -84,6 +85,7 @@ class SparkV1alpha1SparkConnectServerStatus(BaseModel):
         _obj = cls.model_validate({
             "podIp": obj.get("podIp"),
             "podName": obj.get("podName"),
+            "port": obj.get("port"),
             "serviceName": obj.get("serviceName")
         })
         return _obj

@@ -495,6 +495,13 @@ func schema_spark_operator_v2_api_v1alpha1_ServerSpec(ref common.ReferenceCallba
 							Ref:         ref(v1.PodTemplateSpec{}.OpenAPIModelName()),
 						},
 					},
+					"port": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Port is the port number on which the Spark Connect server listens. If not specified, the default port 15002 will be used.",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
 					"service": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Service exposes the Spark connect server.",
@@ -631,6 +638,13 @@ func schema_spark_operator_v2_api_v1alpha1_SparkConnectServerStatus(ref common.R
 							Description: "ServiceName is the name of the service that is exposing the Spark Connect server.",
 							Type:        []string{"string"},
 							Format:      "",
+						},
+					},
+					"port": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Port is the port number on which the Spark Connect server is running.",
+							Type:        []string{"integer"},
+							Format:      "int32",
 						},
 					},
 				},
@@ -793,6 +807,13 @@ func schema_spark_operator_v2_api_v1alpha1_SparkConnectStatus(ref common.Referen
 						SchemaProps: spec.SchemaProps{
 							Description: "LastUpdateTime is the time at which the SparkConnect controller last updated the SparkConnect.",
 							Ref:         ref(metav1.Time{}.OpenAPIModelName()),
+						},
+					},
+					"errorMessage": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ErrorMessage contains a human-readable description of any errors that have occurred during reconciliation.",
+							Type:        []string{"string"},
+							Format:      "",
 						},
 					},
 				},
