@@ -123,25 +123,27 @@ func (f *sparkPodEventFilter) filter(pod *corev1.Pod) bool {
 }
 
 type EventFilter struct {
-	client           client.Client
-	recorder         events.EventRecorder
-	namespaceMatcher *util.NamespaceMatcher
-	logger           logr.Logger
+	client                   client.Client
+	recorder                 events.EventRecorder
+	namespaceMatcher         *util.NamespaceMatcher
+	logger                   logr.Logger
+	defaultTimeToLiveSeconds int64
 }
 
 var _ predicate.Predicate = &EventFilter{}
 
-func NewSparkApplicationEventFilter(client client.Client, recorder events.EventRecorder, namespaces []string, namespaceSelector string) (*EventFilter, error) {
+func NewSparkApplicationEventFilter(client client.Client, recorder events.EventRecorder, namespaces []string, namespaceSelector string, defaultTimeToLiveSeconds int64) (*EventFilter, error) {
 	matcher, err := util.NewNamespaceMatcher(namespaces, namespaceSelector)
 	if err != nil {
 		return nil, err
 	}
 
 	return &EventFilter{
-		client:           client,
-		recorder:         recorder,
-		namespaceMatcher: matcher,
-		logger:           log.Log.WithName("spark-application-event-filter"),
+		client:                   client,
+		recorder:                 recorder,
+		namespaceMatcher:         matcher,
+		logger:                   log.Log.WithName("spark-application-event-filter"),
+		defaultTimeToLiveSeconds: defaultTimeToLiveSeconds,
 	}, nil
 }
 
@@ -171,7 +173,13 @@ func (f *EventFilter) Update(e event.UpdateEvent) bool {
 		return false
 	}
 
-	if oldApp.ResourceVersion == newApp.ResourceVersion && !util.IsExpired(newApp) && !util.ShouldRetry(newApp) {
+	// On a no-op resync (same ResourceVersion), only re-admit the event when the
+	// application still needs action: it is expired (needs deletion) or should
+	// retry. Expiry uses the effective TTL so that an app expired via the
+	// operator default TTL is reconciled for deletion, consistent with the
+	// controller's own cleanup decision.
+	effectiveTTLSeconds, _ := util.EffectiveTimeToLiveSeconds(newApp, f.defaultTimeToLiveSeconds)
+	if oldApp.ResourceVersion == newApp.ResourceVersion && !util.IsExpiredWithTTL(newApp, effectiveTTLSeconds) && !util.ShouldRetry(newApp) {
 		return false
 	}
 

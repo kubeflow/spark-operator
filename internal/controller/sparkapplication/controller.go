@@ -275,6 +275,7 @@ func (r *Reconciler) SetupWithManager(mgr ctrl.Manager, options controller.Optio
 		mgr.GetEventRecorder("spark-application-event-handler"),
 		r.options.Namespaces,
 		r.options.NamespaceSelector,
+		r.options.DefaultTimeToLiveSeconds,
 	)
 	if err != nil {
 		return fmt.Errorf("failed to create spark application event filter: %v", err)
@@ -721,13 +722,14 @@ func (r *Reconciler) reconcileTerminatedSparkApplication(ctx context.Context, re
 	}
 
 	effectiveTTLSeconds, usedDefault := util.EffectiveTimeToLiveSeconds(app, r.options.DefaultTimeToLiveSeconds)
-	if usedDefault {
-		logger.Info("Applying operator default TTL to terminated SparkApplication",
-			"ttlSeconds", *effectiveTTLSeconds, "state", app.Status.AppState.State)
-	}
 
 	if util.IsExpiredWithTTL(app, effectiveTTLSeconds) {
-		logger.Info("Deleting expired SparkApplication", "state", app.Status.AppState.State)
+		if usedDefault {
+			logger.Info("Deleting expired SparkApplication using operator default TTL",
+				"ttlSeconds", *effectiveTTLSeconds, "state", app.Status.AppState.State)
+		} else {
+			logger.Info("Deleting expired SparkApplication", "state", app.Status.AppState.State)
+		}
 		if err := r.client.Delete(ctx, app); err != nil {
 			return ctrl.Result{Requeue: true}, err
 		}

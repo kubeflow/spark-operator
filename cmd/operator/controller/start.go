@@ -193,6 +193,10 @@ func NewStartCommand() *cobra.Command {
 				}
 			}
 
+			if features.Enabled(features.DefaultTimeToLive) && defaultTimeToLiveSeconds <= 0 {
+				return fmt.Errorf("invalid value %d for --default-time-to-live-seconds, must be a positive value when the DefaultTimeToLive feature gate is enabled", defaultTimeToLiveSeconds)
+			}
+
 			return nil
 		},
 		Run: func(_ *cobra.Command, args []string) {
@@ -289,6 +293,13 @@ func NewStartCommand() *cobra.Command {
 
 func start() {
 	setupLog()
+
+	// The flag is ignored unless the DefaultTimeToLive feature gate is enabled. Warn
+	// here (rather than in PreRunE) because the logger is only initialized by setupLog.
+	if defaultTimeToLiveSeconds > 0 && !features.Enabled(features.DefaultTimeToLive) {
+		logger.Info("Ignoring --default-time-to-live-seconds because the DefaultTimeToLive feature gate is disabled",
+			"defaultTimeToLiveSeconds", defaultTimeToLiveSeconds)
+	}
 
 	// Create the client rest config. Use kubeConfig if given, otherwise assume in-cluster.
 	cfg, err := ctrl.GetConfig()
