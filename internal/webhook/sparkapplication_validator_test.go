@@ -18,6 +18,7 @@ package webhook
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"testing"
 
@@ -30,6 +31,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	"github.com/kubeflow/spark-operator/v2/api/v1beta2"
+	"github.com/kubeflow/spark-operator/v2/pkg/common"
 )
 
 func TestSparkApplicationValidatorValidateCreate_NodeSelectorConflict(t *testing.T) {
@@ -323,5 +325,139 @@ func newSparkApplication() *v1beta2.SparkApplication {
 				Instances: ptr.To[int32](1),
 			},
 		},
+	}
+}
+
+var sparkConfSecurityVectors = []struct {
+	name      string
+	sparkConf map[string]string
+}{
+	{
+		name:      "driver service account override",
+		sparkConf: map[string]string{common.SparkKubernetesAuthenticateDriverServiceAccountName: "cluster-admin"},
+	},
+	{
+		name:      "executor service account override",
+		sparkConf: map[string]string{common.SparkKubernetesAuthenticateExecutorServiceAccountName: "cluster-admin"},
+	},
+	{
+		name:      "submission OAuth token file path",
+		sparkConf: map[string]string{common.SparkKubernetesAuthenticateOAuthTokenFile: "/var/run/secrets/attacker/token"},
+	},
+	{
+		name:      "submission OAuth token injection",
+		sparkConf: map[string]string{common.SparkKubernetesAuthenticateOAuthToken: "stolen-token"},
+	},
+	{
+		name:      "driver OAuth token file path",
+		sparkConf: map[string]string{common.SparkKubernetesAuthenticateDriverOAuthTokenFile: "/var/run/secrets/attacker/token"},
+	},
+	{
+		name:      "driver OAuth token injection",
+		sparkConf: map[string]string{common.SparkKubernetesAuthenticateDriverOAuthToken: "stolen-token"},
+	},
+	{
+		name:      "executor OAuth token file path",
+		sparkConf: map[string]string{common.SparkKubernetesAuthenticateExecutorOAuthTokenFile: "/var/run/secrets/attacker/token"},
+	},
+	{
+		name:      "executor OAuth token injection",
+		sparkConf: map[string]string{common.SparkKubernetesAuthenticateExecutorOAuthToken: "stolen-token"},
+	},
+	{
+		name:      "namespace override",
+		sparkConf: map[string]string{common.SparkKubernetesNamespace: "kube-system"},
+	},
+	{
+		name:      "spark.master redirect",
+		sparkConf: map[string]string{common.SparkMaster: "k8s://https://attacker-cluster:443"},
+	},
+	{
+		name:      "spark.kubernetes.driver.master redirect",
+		sparkConf: map[string]string{common.SparkKubernetesDriverMaster: "k8s://https://attacker-cluster:443"},
+	},
+	{
+		name:      "container image override",
+		sparkConf: map[string]string{common.SparkKubernetesContainerImage: "attacker/malicious-image:latest"},
+	},
+	{
+		name:      "driver container image override",
+		sparkConf: map[string]string{common.SparkKubernetesDriverContainerImage: "attacker/malicious-image:latest"},
+	},
+	{
+		name:      "executor container image override",
+		sparkConf: map[string]string{common.SparkKubernetesExecutorContainerImage: "attacker/malicious-image:latest"},
+	},
+}
+
+func TestSparkApplicationValidatorSparkConf_SecurityVectorsRejected(t *testing.T) {
+	validator := newTestValidator(t, false)
+
+	for _, tt := range sparkConfSecurityVectors {
+		t.Run(tt.name, func(t *testing.T) {
+			app := newSparkApplication()
+			app.Spec.SparkConf = tt.sparkConf
+
+			if _, err := validator.ValidateCreate(context.Background(), app); err == nil {
+				t.Fatalf("expected sparkConf to be rejected, but it was allowed")
+			}
+		})
+	}
+}
+
+func TestSparkApplicationValidatorSparkConf_UpdateRejected(t *testing.T) {
+	validator := newTestValidator(t, false)
+
+	oldApp := newSparkApplication()
+	newApp := newSparkApplication()
+	newApp.Spec.SparkConf = map[string]string{common.SparkMaster: "k8s://https://attacker-cluster:443"}
+
+	if _, err := validator.ValidateUpdate(context.Background(), oldApp, newApp); err == nil {
+		t.Fatalf("expected sparkConf to be rejected on update, but it was allowed")
+	}
+}
+
+func TestSparkApplicationValidatorSparkConf_TypedError(t *testing.T) {
+	validator := newTestValidator(t, false)
+
+	app := newSparkApplication()
+	app.Spec.SparkConf = map[string]string{common.SparkMaster: "k8s://https://attacker-cluster:443"}
+
+	_, err := validator.ValidateCreate(context.Background(), app)
+	if err == nil {
+		t.Fatalf("expected error, got nil")
+	}
+
+	var denied *SparkConfKeyDeniedError
+	if !errors.As(err, &denied) {
+		t.Fatalf("expected SparkConfKeyDeniedError, got %T", err)
+	}
+	if denied.Key != common.SparkMaster {
+		t.Fatalf("expected key %q, got %q", common.SparkMaster, denied.Key)
+	}
+}
+
+func TestSparkApplicationValidatorSparkConf_BenignKeysPass(t *testing.T) {
+	validator := newTestValidator(t, false)
+
+	tests := []struct {
+		name      string
+		sparkConf map[string]string
+	}{
+		{name: "executor memory tuning", sparkConf: map[string]string{"spark.executor.memory": "4g"}},
+		{name: "shuffle partitions tuning", sparkConf: map[string]string{"spark.sql.shuffle.partitions": "200"}},
+		{name: "namespace matching app namespace", sparkConf: map[string]string{common.SparkKubernetesNamespace: "default"}},
+		{name: "arbitrary user-defined key", sparkConf: map[string]string{"spark.myapp.customSetting": "42"}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			app := newSparkApplication()
+			app.Spec.SparkConf = tt.sparkConf
+
+			if _, err := validator.ValidateCreate(context.Background(), app); err != nil {
+				t.Fatalf("expected benign sparkConf to be allowed, got error: %v", err)
+			}
+		})
 	}
 }
