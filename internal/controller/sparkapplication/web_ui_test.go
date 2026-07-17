@@ -296,7 +296,8 @@ func TestCreateWebUIService(t *testing.T) {
 			wantPortName: common.DefaultSparkWebUIPortName,
 			wantType:     corev1.ServiceTypeClusterIP,
 			wantLabels: map[string]string{
-				common.LabelSparkAppName: "ui-default",
+				common.LabelSparkAppName:           "ui-default",
+				common.LabelCreatedBySparkOperator: "true",
 			},
 			wantAnnots: nil,
 		},
@@ -329,7 +330,8 @@ func TestCreateWebUIService(t *testing.T) {
 			wantPortName: "http-spark",
 			wantType:     corev1.ServiceTypeClusterIP,
 			wantLabels: map[string]string{
-				"custom": "label",
+				"custom":                           "label",
+				common.LabelCreatedBySparkOperator: "true",
 			},
 			wantAnnots: map[string]string{"key": "value"},
 		},
@@ -355,7 +357,7 @@ func TestCreateWebUIService(t *testing.T) {
 			if tc.wantLabels != nil {
 				assert.Equal(t, tc.wantLabels, created.Labels)
 			} else {
-				assert.Equal(t, map[string]string{common.LabelSparkAppName: tc.app.Name}, created.Labels)
+				assert.Equal(t, map[string]string{common.LabelSparkAppName: tc.app.Name, common.LabelCreatedBySparkOperator: "true"}, created.Labels)
 			}
 
 			if tc.wantAnnots != nil {

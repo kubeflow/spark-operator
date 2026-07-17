@@ -26,6 +26,7 @@ import (
 	"k8s.io/utils/ptr"
 
 	"github.com/kubeflow/spark-operator/v2/api/v1beta2"
+	"github.com/kubeflow/spark-operator/v2/pkg/common"
 	"github.com/kubeflow/spark-operator/v2/pkg/util"
 )
 
@@ -360,6 +361,33 @@ func TestScheduledSparkApplicationValidatorTemplateForwarding(t *testing.T) {
 			t.Fatalf("expected no error when sparkAppValidator is nil, got %v", err)
 		}
 	})
+}
+
+func TestScheduledSparkApplicationValidatorSparkConf_SecurityVectorsRejected(t *testing.T) {
+	validator := newTestScheduledValidator(t)
+
+	for _, tt := range sparkConfSecurityVectors {
+		t.Run(tt.name, func(t *testing.T) {
+			app := newScheduledSparkApplication()
+			app.Spec.Template.SparkConf = tt.sparkConf
+
+			if _, err := validator.ValidateCreate(context.Background(), app); err == nil {
+				t.Fatalf("expected sparkConf to be rejected, but it was allowed")
+			}
+		})
+	}
+}
+
+func TestScheduledSparkApplicationValidatorSparkConf_UpdateRejected(t *testing.T) {
+	validator := newTestScheduledValidator(t)
+
+	oldApp := newScheduledSparkApplication()
+	newApp := newScheduledSparkApplication()
+	newApp.Spec.Template.SparkConf = map[string]string{common.SparkMaster: "k8s://https://attacker-cluster:443"}
+
+	if _, err := validator.ValidateUpdate(context.Background(), oldApp, newApp); err == nil {
+		t.Fatalf("expected sparkConf to be rejected on update, but it was allowed")
+	}
 }
 
 func TestScheduledSparkApplicationValidatorValidateName(t *testing.T) {
