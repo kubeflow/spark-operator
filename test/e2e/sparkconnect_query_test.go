@@ -25,6 +25,7 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -131,6 +132,14 @@ var _ = Describe("SparkConnect Query", func() {
 			}
 			Expect(hasConnectPort).To(BeTrue(), "service should expose spark-connect-server port 15002")
 
+			By("Reading the operator controller image")
+			operatorDeploy := &appsv1.Deployment{}
+			Expect(k8sClient.Get(ctx, types.NamespacedName{
+				Namespace: ReleaseNamespace,
+				Name:      "spark-operator-controller",
+			}, operatorDeploy)).To(Succeed())
+			operatorImage := operatorDeploy.Spec.Template.Spec.Containers[0].Image
+
 			By("Creating PySpark client pod")
 			clientPod := &corev1.Pod{
 				ObjectMeta: metav1.ObjectMeta{
@@ -140,9 +149,10 @@ var _ = Describe("SparkConnect Query", func() {
 				Spec: corev1.PodSpec{
 					Containers: []corev1.Container{
 						{
-							Name:    "pyspark-client",
-							Image:   "docker.io/library/spark:4.0.1",
-							Command: []string{"sleep", "infinity"},
+							Name:            "pyspark-client",
+							Image:           operatorImage,
+							ImagePullPolicy: corev1.PullNever,
+							Command:         []string{"sleep", "infinity"},
 						},
 					},
 					RestartPolicy: corev1.RestartPolicyNever,
@@ -164,7 +174,9 @@ var _ = Describe("SparkConnect Query", func() {
 			By("Installing PySpark Connect dependencies")
 			output, err := runCommand(
 				"kubectl", "exec", "-n", conn.Namespace, clientPod.Name, "--",
-				"bash", "-c", "export HOME=/tmp && pip install --quiet --disable-pip-version-check pandas pyarrow grpcio grpcio-status",
+				"sh", "-c",
+				"export HOME=/tmp && python3 -m pip install --quiet --disable-pip-version-check --no-cache-dir "+
+					"pandas==2.2.3 pyarrow==18.1.0 grpcio==1.68.1 grpcio-status==1.68.1 googleapis-common-protos==1.66.0",
 			)
 			Expect(err).NotTo(HaveOccurred(), "pip install failed: %s", output)
 
