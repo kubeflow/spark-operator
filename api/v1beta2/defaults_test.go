@@ -120,6 +120,31 @@ func TestSetSparkApplicationDefaultsOnFailureRestartPolicyShouldSetDefaultValueF
 	assert.Equal(t, int64(5), *app.Spec.RestartPolicy.OnSubmissionFailureRetryInterval)
 }
 
+func TestSetSparkApplicationDefaultsShouldSetDefaultRetryInterval(t *testing.T) {
+	app := &SparkApplication{
+		Spec: SparkApplicationSpec{},
+	}
+
+	SetSparkApplicationDefaults(app)
+
+	assert.NotNil(t, app.Spec.RetryInterval)
+	assert.Equal(t, int64(5), *app.Spec.RetryInterval)
+}
+
+func TestSetSparkApplicationDefaultsShouldNotOverrideRetryInterval(t *testing.T) {
+	expectedRetryInterval := int64(12)
+	app := &SparkApplication{
+		Spec: SparkApplicationSpec{
+			RetryInterval: &expectedRetryInterval,
+		},
+	}
+
+	SetSparkApplicationDefaults(app)
+
+	assert.NotNil(t, app.Spec.RetryInterval)
+	assert.Equal(t, expectedRetryInterval, *app.Spec.RetryInterval)
+}
+
 func TestSetSparkApplicationDefaultsDriverSpecDefaults(t *testing.T) {
 	//Case1: Driver config not set.
 	app := &SparkApplication{
