@@ -17,10 +17,14 @@ limitations under the License.
 package e2e_test
 
 import (
+	"bufio"
 	"context"
+	"fmt"
 	"net"
 	"os"
 	"path/filepath"
+	"regexp"
+	"strconv"
 	"strings"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -34,6 +38,29 @@ import (
 
 	"github.com/kubeflow/spark-operator/v2/api/v1beta2"
 )
+
+// sumMetricValues parses Prometheus text-exposition output and returns the
+// sum of all sample values for the given metric name, across all label combinations.
+func sumMetricValues(metricsText, name string) float64 {
+	pattern := regexp.MustCompile(`^` + regexp.QuoteMeta(name) + `(\{[^}]*\})?\s+(\S+)$`)
+
+	var total float64
+	scanner := bufio.NewScanner(strings.NewReader(metricsText))
+	for scanner.Scan() {
+		line := scanner.Text()
+		if strings.HasPrefix(line, "#") {
+			continue
+		}
+		matches := pattern.FindStringSubmatch(line)
+		if matches == nil {
+			continue
+		}
+		if value, err := strconv.ParseFloat(matches[2], 64); err == nil {
+			total += value
+		}
+	}
+	return total
+}
 
 var _ = Describe("Prometheus Metrics", func() {
 	Context("Controller metrics endpoint", func() {
@@ -54,7 +81,7 @@ var _ = Describe("Prometheus Metrics", func() {
 
 			app = &v1beta2.SparkApplication{}
 			Expect(decoder.Decode(app)).NotTo(HaveOccurred())
-			app.Name = "spark-pi-metrics-test"
+			app.Name = fmt.Sprintf("spark-pi-metrics-test-%d", GinkgoRandomSeed())
 		})
 
 		AfterEach(func() {
@@ -84,12 +111,16 @@ var _ = Describe("Prometheus Metrics", func() {
 				Namespace: ReleaseNamespace,
 				Name:      "spark-operator-controller-lock",
 			}, lease); err == nil && lease.Spec.HolderIdentity != nil {
+				// controller-runtime sets the lease holder identity to "<pod-name>_<uuid>".
+				matched := false
 				for _, pod := range pods.Items {
-					if pod.Name == *lease.Spec.HolderIdentity {
+					if strings.HasPrefix(*lease.Spec.HolderIdentity, pod.Name+"_") {
 						controllerPod = pod
+						matched = true
 						break
 					}
 				}
+				Expect(matched).To(BeTrue(), "no controller pod matches lease holder identity %q", *lease.Spec.HolderIdentity)
 			}
 
 			By("Detecting metrics scheme and port from controller deployment")
@@ -125,6 +156,12 @@ var _ = Describe("Prometheus Metrics", func() {
 			Expect(metricsOutput).To(ContainSubstring("go_goroutines"))
 			Expect(metricsOutput).To(ContainSubstring("process_cpu_seconds_total"))
 
+			// Other specs may run concurrently and share these process-global counters,
+			// so capture a baseline and assert on the delta rather than mere presence.
+			countBefore := sumMetricValues(metricsOutput, "spark_application_count")
+			submitCountBefore := sumMetricValues(metricsOutput, "spark_application_submit_count")
+			successCountBefore := sumMetricValues(metricsOutput, "spark_application_success_count")
+
 			By("Creating SparkApplication to exercise the metrics pipeline")
 			Expect(k8sClient.Create(ctx, app)).To(Succeed())
 
@@ -132,20 +169,19 @@ var _ = Describe("Prometheus Metrics", func() {
 			key := types.NamespacedName{Namespace: app.Namespace, Name: app.Name}
 			Expect(waitForSparkApplicationCompleted(ctx, key)).NotTo(HaveOccurred())
 
-			By("Verifying Spark application metrics are present after app completion")
-			Eventually(func() string {
+			By("Verifying Spark application metrics incremented after app completion")
+			Eventually(func() (bool, error) {
 				data, err := clientset.CoreV1().Pods(ReleaseNamespace).
 					ProxyGet(metricsScheme, controllerPod.Name, metricsPort, "metrics", nil).
 					DoRaw(ctx)
 				if err != nil {
-					return ""
+					return false, err
 				}
-				return string(data)
-			}).WithPolling(PollInterval).WithTimeout(WaitTimeout).Should(And(
-				ContainSubstring("spark_application_count"),
-				ContainSubstring("spark_application_submit_count"),
-				ContainSubstring("spark_application_success_count"),
-			))
+				metricsOutput := string(data)
+				return sumMetricValues(metricsOutput, "spark_application_count") > countBefore &&
+					sumMetricValues(metricsOutput, "spark_application_submit_count") > submitCountBefore &&
+					sumMetricValues(metricsOutput, "spark_application_success_count") > successCountBefore, nil
+			}).WithPolling(PollInterval).WithTimeout(WaitTimeout).Should(BeTrue())
 		})
 	})
 })

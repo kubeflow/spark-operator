@@ -57,10 +57,10 @@ var _ = Describe("Spark UI", func() {
 			app = &v1beta2.SparkApplication{}
 			Expect(decoder.Decode(app)).NotTo(HaveOccurred())
 
-			// Use a unique name and large partition count so SparkPi runs long enough
-			// for the test to query the UI while it's still in the Running state.
+			// Use a unique name and a partition count high enough that SparkPi keeps
+			// running for the few seconds it takes the test to query the UI.
 			app.Name = fmt.Sprintf("spark-pi-ui-test-%d", GinkgoRandomSeed())
-			app.Spec.Arguments = []string{"1000000"}
+			app.Spec.Arguments = []string{"50000"}
 
 			By("Creating SparkApplication")
 			Expect(k8sClient.Create(ctx, app)).To(Succeed())
