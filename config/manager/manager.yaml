@@ -87,7 +87,7 @@ spec:
             - --max-tracked-executor-per-app=1000
             - --kube-api-qps=20
             - --kube-api-burst=30
-            - --feature-gates=PartialRestart=false,LoadSparkDefaults=false,RestSubmitter=false
+            - --feature-gates=PartialRestart=false,LoadSparkDefaults=false,RestSubmitter=false,DefaultTimeToLive=false
             - --scheduled-spark-application-timestamp-precision=nanos
           env:
             - name: OPERATOR_VERSION
