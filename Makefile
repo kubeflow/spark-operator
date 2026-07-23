@@ -337,7 +337,7 @@ kind-load-image: kind-create-cluster docker-build ## Load the image into the kin
 # SPARK_IMAGE is the Spark runtime image used by drivers/executors. Defaults to
 # the same tag used by examples/spark-pi.yaml so manual e2e checks line up with
 # the canonical example. Override on the command line if you need a different one.
-SPARK_IMAGE ?= docker.io/library/spark:4.0.1
+SPARK_IMAGE ?= docker.io/apache/spark:4.0.3@sha256:7112c0c0ca07b7d2605163ba91a05e53af39ba7cfcf9886e63141ade3f850456
 
 .PHONY: kind-load-spark-image
 kind-load-spark-image: kind-create-cluster ## Pull the Spark runtime image and load it into the kind cluster.

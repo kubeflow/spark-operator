@@ -32,7 +32,7 @@ spec:
       spec:
         containers:
         - name: spark-kubernetes-driver
-          image: docker.io/library/spark:4.0.1
+          image: docker.io/library/spark:4.0.3
           imagePullPolicy: Always
           resources:
             requests:
@@ -67,7 +67,7 @@ spec:
       spec:
         containers:
         - name: spark-kubernetes-executor
-          image: docker.io/library/spark:4.0.1
+          image: docker.io/library/spark:4.0.3
           imagePullPolicy: Always
         securityContext:
           capabilities:
