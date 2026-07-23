@@ -86,6 +86,7 @@ var (
 	controllerThreads        int
 	cacheSyncTimeout         time.Duration
 	maxTrackedExecutorPerApp int
+	defaultTimeToLiveSeconds int64
 
 	// Driver PDB feature gate. When enabled, the controller creates a
 	// PodDisruptionBudget for each SparkApplication that sets
@@ -193,6 +194,10 @@ func NewStartCommand() *cobra.Command {
 				}
 			}
 
+			if features.Enabled(features.DefaultTimeToLive) && defaultTimeToLiveSeconds <= 0 {
+				return fmt.Errorf("invalid value %d for --default-time-to-live-seconds, must be a positive value when the DefaultTimeToLive feature gate is enabled", defaultTimeToLiveSeconds)
+			}
+
 			return nil
 		},
 		Run: func(_ *cobra.Command, args []string) {
@@ -206,6 +211,10 @@ func NewStartCommand() *cobra.Command {
 	command.Flags().StringVar(&namespaceSelector, "namespace-selector", "", "Label selector for namespaces to watch (e.g., 'spark-operator=enabled,env in (prod,staging)'). Namespaces matching this selector will be watched in addition to those specified via --namespaces. Requires ClusterRole permission to list and watch namespaces.")
 	command.Flags().DurationVar(&cacheSyncTimeout, "cache-sync-timeout", 30*time.Second, "Informer cache sync timeout.")
 	command.Flags().IntVar(&maxTrackedExecutorPerApp, "max-tracked-executor-per-app", 1000, "The maximum number of tracked executors per SparkApplication.")
+	command.Flags().Int64Var(&defaultTimeToLiveSeconds, "default-time-to-live-seconds", 0,
+		"Default Time-To-Live in seconds applied to terminated SparkApplications that do "+
+			"not set spec.timeToLiveSeconds. Requires the DefaultTimeToLive feature gate. "+
+			"0 (default) or negative disables it.")
 	command.Flags().BoolVar(&enableDriverPDB, "enable-driver-pdb", false,
 		"Enable creation of a PodDisruptionBudget for Spark driver pods. "+
 			"Each SparkApplication must additionally opt in via "+
@@ -285,6 +294,13 @@ func NewStartCommand() *cobra.Command {
 
 func start() {
 	setupLog()
+
+	// The flag is ignored unless the DefaultTimeToLive feature gate is enabled. Warn
+	// here (rather than in PreRunE) because the logger is only initialized by setupLog.
+	if defaultTimeToLiveSeconds > 0 && !features.Enabled(features.DefaultTimeToLive) {
+		logger.Info("Ignoring --default-time-to-live-seconds because the DefaultTimeToLive feature gate is disabled",
+			"defaultTimeToLiveSeconds", defaultTimeToLiveSeconds)
+	}
 
 	// Create the client rest config. Use kubeConfig if given, otherwise assume in-cluster.
 	cfg, err := ctrl.GetConfig()
@@ -543,6 +559,7 @@ func newSparkApplicationReconcilerOptions() sparkapplication.Options {
 		SparkExecutorMetrics:         sparkExecutorMetrics,
 		MaxTrackedExecutorPerApp:     maxTrackedExecutorPerApp,
 		EnableDriverPDB:              enableDriverPDB,
+		DefaultTimeToLiveSeconds:     defaultTimeToLiveSeconds,
 	}
 	if enableBatchScheduler {
 		options.KubeSchedulerNames = kubeSchedulerNames

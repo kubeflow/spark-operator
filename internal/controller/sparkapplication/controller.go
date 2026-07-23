@@ -78,6 +78,12 @@ type Options struct {
 	// When false, the reconciler will not create or delete a PDB regardless of
 	// the SparkApplication spec. Defaults to false.
 	EnableDriverPDB bool
+
+	// DefaultTimeToLiveSeconds is the operator-wide default TTL (in seconds) applied to
+	// terminated SparkApplications that do not set spec.timeToLiveSeconds. Only honored
+	// when the DefaultTimeToLive feature gate is enabled and the value is > 0. Applied as
+	// a runtime fallback for the cleanup decision; the object's spec is never modified.
+	DefaultTimeToLiveSeconds int64
 }
 
 // Reconciler reconciles a SparkApplication object.
@@ -269,6 +275,7 @@ func (r *Reconciler) SetupWithManager(mgr ctrl.Manager, options controller.Optio
 		mgr.GetEventRecorder("spark-application-event-handler"),
 		r.options.Namespaces,
 		r.options.NamespaceSelector,
+		r.options.DefaultTimeToLiveSeconds,
 	)
 	if err != nil {
 		return fmt.Errorf("failed to create spark application event filter: %v", err)
@@ -714,8 +721,15 @@ func (r *Reconciler) reconcileTerminatedSparkApplication(ctx context.Context, re
 		return ctrl.Result{}, nil
 	}
 
-	if util.IsExpired(app) {
-		logger.Info("Deleting expired SparkApplication", "state", app.Status.AppState.State)
+	effectiveTTLSeconds, usedDefault := util.EffectiveTimeToLiveSeconds(app, r.options.DefaultTimeToLiveSeconds)
+
+	if util.IsExpiredWithTTL(app, effectiveTTLSeconds) {
+		if usedDefault {
+			logger.Info("Deleting expired SparkApplication using operator default TTL",
+				"ttlSeconds", *effectiveTTLSeconds, "state", app.Status.AppState.State)
+		} else {
+			logger.Info("Deleting expired SparkApplication", "state", app.Status.AppState.State)
+		}
 		if err := r.client.Delete(ctx, app); err != nil {
 			return ctrl.Result{Requeue: true}, err
 		}
@@ -735,14 +749,14 @@ func (r *Reconciler) reconcileTerminatedSparkApplication(ctx context.Context, re
 		return ctrl.Result{Requeue: true}, err
 	}
 
-	// If termination time or TTL is not set, will not requeue this application.
-	if app.Status.TerminationTime.IsZero() || app.Spec.TimeToLiveSeconds == nil || *app.Spec.TimeToLiveSeconds <= 0 {
+	// If termination time or effective TTL is not set, will not requeue this application.
+	if app.Status.TerminationTime.IsZero() || effectiveTTLSeconds == nil || *effectiveTTLSeconds <= 0 {
 		return ctrl.Result{}, nil
 	}
 
 	// Otherwise, requeue the application for subsequent deletion.
 	now := time.Now()
-	ttl := time.Duration(*app.Spec.TimeToLiveSeconds) * time.Second
+	ttl := time.Duration(*effectiveTTLSeconds) * time.Second
 	survival := now.Sub(app.Status.TerminationTime.Time)
 
 	// If survival time is greater than TTL, requeue the application immediately.

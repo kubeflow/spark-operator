@@ -28,6 +28,7 @@ import (
 
 	"github.com/kubeflow/spark-operator/v2/api/v1beta2"
 	"github.com/kubeflow/spark-operator/v2/pkg/common"
+	"github.com/kubeflow/spark-operator/v2/pkg/features"
 	"github.com/kubeflow/spark-operator/v2/pkg/util"
 )
 
@@ -190,6 +191,120 @@ var _ = Describe("IsExpired", func() {
 
 		It("Should return true", func() {
 			Expect(util.IsExpired(app)).To(BeTrue())
+		})
+	})
+})
+
+var _ = Describe("IsExpiredWithTTL", func() {
+	terminatedApp := func(sinceTermination time.Duration) *v1beta2.SparkApplication {
+		return &v1beta2.SparkApplication{
+			Status: v1beta2.SparkApplicationStatus{
+				TerminationTime: metav1.NewTime(time.Now().Add(-sinceTermination)),
+			},
+		}
+	}
+
+	Context("with a nil TTL", func() {
+		It("never expires", func() {
+			Expect(util.IsExpiredWithTTL(terminatedApp(time.Hour), nil)).To(BeFalse())
+		})
+	})
+
+	Context("with a positive TTL", func() {
+		It("returns false before the TTL elapses", func() {
+			Expect(util.IsExpiredWithTTL(terminatedApp(30*time.Minute), ptr.To[int64](3600))).To(BeFalse())
+		})
+
+		It("returns true after the TTL elapses", func() {
+			Expect(util.IsExpiredWithTTL(terminatedApp(2*time.Hour), ptr.To[int64](3600))).To(BeTrue())
+		})
+	})
+
+	Context("with a non-positive TTL on a terminated app", func() {
+		It("expires immediately for a zero TTL", func() {
+			Expect(util.IsExpiredWithTTL(terminatedApp(time.Second), ptr.To[int64](0))).To(BeTrue())
+		})
+
+		It("expires immediately for a negative TTL", func() {
+			Expect(util.IsExpiredWithTTL(terminatedApp(time.Second), ptr.To[int64](-5))).To(BeTrue())
+		})
+	})
+
+	Context("with no termination time", func() {
+		It("does not expire even for a zero TTL", func() {
+			app := &v1beta2.SparkApplication{}
+			Expect(util.IsExpiredWithTTL(app, ptr.To[int64](0))).To(BeFalse())
+		})
+	})
+})
+
+var _ = Describe("EffectiveTimeToLiveSeconds", func() {
+	appWithTTL := func(ttl *int64) *v1beta2.SparkApplication {
+		return &v1beta2.SparkApplication{
+			Spec: v1beta2.SparkApplicationSpec{TimeToLiveSeconds: ttl},
+		}
+	}
+
+	Context("when the user sets spec.timeToLiveSeconds > 0", func() {
+		It("returns the user value regardless of the default or gate", func() {
+			ttl, usedDefault := util.EffectiveTimeToLiveSeconds(appWithTTL(ptr.To[int64](3600)), 60)
+			Expect(ttl).NotTo(BeNil())
+			Expect(*ttl).To(Equal(int64(3600)))
+			Expect(usedDefault).To(BeFalse())
+		})
+	})
+
+	Context("when the user sets a non-positive spec.timeToLiveSeconds", func() {
+		It("returns the user value as-is (explicit immediate expiry wins over the default)", func() {
+			Expect(features.SetEnable(features.DefaultTimeToLive, true)).To(Succeed())
+			DeferCleanup(func() {
+				Expect(features.SetEnable(features.DefaultTimeToLive, false)).To(Succeed())
+			})
+
+			ttl, usedDefault := util.EffectiveTimeToLiveSeconds(appWithTTL(ptr.To[int64](0)), 60)
+			Expect(ttl).NotTo(BeNil())
+			Expect(*ttl).To(Equal(int64(0)))
+			Expect(usedDefault).To(BeFalse())
+
+			ttl, usedDefault = util.EffectiveTimeToLiveSeconds(appWithTTL(ptr.To[int64](-5)), 60)
+			Expect(ttl).NotTo(BeNil())
+			Expect(*ttl).To(Equal(int64(-5)))
+			Expect(usedDefault).To(BeFalse())
+		})
+	})
+
+	// enableGate toggles the DefaultTimeToLive feature gate for a single spec and
+	// restores it to disabled afterwards, keeping specs independent.
+	enableGate := func(enabled bool) {
+		Expect(features.SetEnable(features.DefaultTimeToLive, enabled)).To(Succeed())
+		DeferCleanup(func() {
+			Expect(features.SetEnable(features.DefaultTimeToLive, false)).To(Succeed())
+		})
+	}
+
+	Context("when the gate is disabled", func() {
+		It("returns nil even though a positive default is configured", func() {
+			enableGate(false)
+			ttl, usedDefault := util.EffectiveTimeToLiveSeconds(appWithTTL(nil), 60)
+			Expect(ttl).To(BeNil())
+			Expect(usedDefault).To(BeFalse())
+		})
+	})
+
+	Context("when the gate is enabled and no user TTL is set", func() {
+		It("returns the default and reports usedDefault=true", func() {
+			enableGate(true)
+			ttl, usedDefault := util.EffectiveTimeToLiveSeconds(appWithTTL(nil), 60)
+			Expect(ttl).NotTo(BeNil())
+			Expect(*ttl).To(Equal(int64(60)))
+			Expect(usedDefault).To(BeTrue())
+		})
+
+		It("returns nil when the default is not positive", func() {
+			enableGate(true)
+			ttl, usedDefault := util.EffectiveTimeToLiveSeconds(appWithTTL(nil), 0)
+			Expect(ttl).To(BeNil())
+			Expect(usedDefault).To(BeFalse())
 		})
 	})
 })
