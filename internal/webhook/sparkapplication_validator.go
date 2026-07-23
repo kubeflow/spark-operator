@@ -18,7 +18,12 @@ package webhook
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"maps"
+	"net/url"
+	"reflect"
+	"slices"
 	"strings"
 
 	corev1 "k8s.io/api/core/v1"
@@ -29,6 +34,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
 	"github.com/kubeflow/spark-operator/v2/api/v1beta2"
+	"github.com/kubeflow/spark-operator/v2/pkg/common"
 	"github.com/kubeflow/spark-operator/v2/pkg/util"
 )
 
@@ -40,14 +46,39 @@ type SparkApplicationValidator struct {
 	client client.Client
 
 	enableResourceQuotaEnforcement bool
+
+	// enableURLSchemeValidation gates the fetch-field URL-scheme check. It is strictly opt-in
+	// (default off): when false, validateURLSchemes is not run at all and admission behaviour is
+	// unchanged from before the check existed, so upgrading operators that already submit remote
+	// deps are never broken. Operators turn it on to harden against operator-privileged SSRF.
+	enableURLSchemeValidation bool
+	// allowedURLSchemes is the set of additional URL schemes permitted in fetch-capable spec
+	// fields (submit-time sparkConf keys, deps.*, mainApplicationFile) beyond the always-allowed
+	// local schemes (schemeless, file://, local://). Any value whose URL scheme is not
+	// always-allowed and not in this set is rejected at admission time. Add schemes your workloads
+	// require (e.g. gs, s3a, hdfs). Only consulted when enableURLSchemeValidation is true.
+	allowedURLSchemes map[string]struct{}
 }
 
 // NewSparkApplicationValidator creates a new SparkApplicationValidator instance.
-func NewSparkApplicationValidator(client client.Client, enableResourceQuotaEnforcement bool) *SparkApplicationValidator {
+// enableURLSchemeValidation turns on the fetch-field URL-scheme check (default off / opt-in).
+// allowedURLSchemes lists URL schemes permitted in fetch-capable spec fields (submit-time
+// sparkConf keys, deps.*, mainApplicationFile) in addition to the always-allowed local schemes
+// (schemeless, file://, local://) when that check is enabled. Any other scheme is rejected.
+func NewSparkApplicationValidator(client client.Client, enableResourceQuotaEnforcement bool, enableURLSchemeValidation bool, allowedURLSchemes []string) *SparkApplicationValidator {
+	allowed := make(map[string]struct{}, len(allowedURLSchemes))
+	for _, s := range allowedURLSchemes {
+		s = strings.TrimSpace(strings.ToLower(s))
+		if s != "" {
+			allowed[s] = struct{}{}
+		}
+	}
 	return &SparkApplicationValidator{
 		client: client,
 
 		enableResourceQuotaEnforcement: enableResourceQuotaEnforcement,
+		enableURLSchemeValidation:      enableURLSchemeValidation,
+		allowedURLSchemes:              allowed,
 	}
 }
 
@@ -156,6 +187,197 @@ func (v *SparkApplicationValidator) validateSpec(ctx context.Context, app *v1bet
 		return err
 	}
 
+	if v.enableURLSchemeValidation {
+		if err := v.validateURLSchemes(app); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// alwaysAllowedURLSchemes are URL schemes that never reach the operator's network: they
+// reference files already present on the submitter/driver/executor filesystem or baked into
+// the container image, so they are not SSRF vectors and are always permitted.
+//   - "" (schemeless): a relative or absolute local path.
+//   - "file": a file:// URI on the local filesystem.
+//   - "local": a local:// URI resolved inside the driver/executor container image.
+var alwaysAllowedURLSchemes = []string{"", "file", "local"}
+
+// depsURLFieldsExempt are v1beta2.Dependencies json tags whose values are NOT dereferenced as
+// URLs and so are deliberately skipped by the URL-scheme check: they are Maven coordinates
+// (groupId:artifactId:version), not fetchable URLs. Every other []string field of Dependencies
+// is URL-checked automatically (see depsURLFields), so a newly-added fetch-capable field is
+// covered without code changes; a new non-URL field must be added here.
+var depsURLFieldsExempt = []string{"packages", "excludePackages"}
+
+// sparkConfURLKeys is the allow-set of sparkConf keys the operator forwards to spark-submit and
+// dereferences at submit time, so a remote URL in one of them is fetched by the operator's own
+// principal (an SSRF vector). Only these keys are URL-checked; every other sparkConf entry is a
+// runtime config consumed by the driver/executor (spark.eventLog.dir, spark.sql.warehouse.dir,
+// spark.kubernetes.driverEnv.*, ...) that the operator never fetches, so scheme-checking it would
+// wrongly reject legitimate values and couple submit-time policy to runtime config.
+//
+// This is a positive allow-set rather than a scan-with-deny-list precisely so runtime keys are
+// untouched by default. Maven-coordinate keys (spark.jars.packages, spark.jars.excludePackages)
+// are deliberately absent because they are not fetchable URLs.
+//
+// spark.jars / spark.files / spark.submit.pyFiles / spark.archives mirror spec.deps.{jars,files,
+// pyFiles,archives}. spark.jars.repositories mirrors spec.deps.repositories: in KUBERNETES cluster
+// mode (the operator's mode) spark-submit calls DependencyUtils.resolveMavenDependencies at submit
+// time (SparkSubmit.scala, the !isStandAloneCluster branch), which queries these repositories from
+// the operator pod to resolve --packages, so a remote repo URL is fetched with the operator's
+// principal. spark.kubernetes.file.upload.path is the destination the operator's spark-submit
+// uploads local deps to: BasicDriverFeatureStep/DriverCommandFeatureStep call
+// KubernetesUtils.uploadFileUri inside KubernetesDriverBuilder, which runs submit-side in
+// KubernetesClientApplication, again with the operator's credentials.
+//
+// The podTemplateFile keys are included defensively. Only the DRIVER template is loaded submit-side
+// (KubernetesDriverBuilder.buildFromFeatures -> loadPodFromTemplate -> downloadFile, in the operator
+// pod); the EXECUTOR template is loaded later in the driver pod by KubernetesClusterManager, so it
+// is not itself an operator-credential vector. In practice the operator overwrites both keys with a
+// local /tmp path it writes itself (submission.go driver/executorPodTemplateOption, appended after
+// the user's sparkConf so it wins), so a user value never reaches spark-submit; the keys stay here
+// so the check still bites if that override is ever removed or bypassed.
+var sparkConfURLKeys = map[string]struct{}{
+	"spark.jars":                                  {},
+	"spark.files":                                 {},
+	"spark.submit.pyFiles":                        {},
+	"spark.archives":                              {},
+	"spark.jars.repositories":                     {},
+	"spark.kubernetes.file.upload.path":           {},
+	common.SparkKubernetesDriverPodTemplateFile:   {},
+	common.SparkKubernetesExecutorPodTemplateFile: {},
+}
+
+// depsURLField is one []string field of v1beta2.Dependencies to URL-check: its struct field
+// index and the error label derived from its json tag.
+type depsURLField struct {
+	index int
+	label string
+}
+
+// depsURLFields is the URL-check plan for v1beta2.Dependencies, computed once from the struct's
+// json tags rather than re-reflected on every admission. See depsURLFieldsExempt for exclusions.
+var depsURLFields = buildDepsURLFields()
+
+func buildDepsURLFields() []depsURLField {
+	var fields []depsURLField
+	rt := reflect.TypeFor[v1beta2.Dependencies]()
+	stringSlice := reflect.TypeFor[[]string]()
+	for i := range rt.NumField() {
+		f := rt.Field(i)
+		if f.Type != stringSlice {
+			continue
+		}
+		tag := strings.Split(f.Tag.Get("json"), ",")[0]
+		if tag == "" || tag == "-" || slices.Contains(depsURLFieldsExempt, tag) {
+			continue
+		}
+		fields = append(fields, depsURLField{index: i, label: "spec.deps." + tag})
+	}
+	return fields
+}
+
+// validateURLSchemes rejects any user-supplied value that is forwarded to the operator's
+// spark-submit and dereferenced as a remote URL whose scheme is not in the allowed set.
+// spark-submit runs in the operator pod, so an http/https/etc. URL in any of these fields is
+// fetched by the operator's principal (its ServiceAccount, mounted secrets, IRSA/Workload
+// Identity, VPC reachability) - an SSRF vector.
+//
+// Only the submit-time sparkConf keys the operator forwards to spark-submit (sparkConfURLKeys)
+// are checked; their comma-separated values (spark.jars, spark.files, ...) are split. Runtime
+// sparkConf keys are left untouched - see sparkConfURLKeys for why.
+//
+// spec.hadoopConf is out of scope: its values become spark.hadoop.* config consumed by the
+// driver/executor at runtime, not URLs the operator fetches at submit time, and many are
+// legitimately host/endpoint-shaped (fs.s3a.endpoint, ...) that a scheme check would wrongly reject.
+func (v *SparkApplicationValidator) validateURLSchemes(app *v1beta2.SparkApplication) error {
+	// Collect every scheme violation rather than returning on the first: a user with several
+	// bad URLs should see them all in one admission response instead of fixing them one round-trip
+	// at a time. The order below is deterministic (mainApplicationFile, then deps.* in struct-field
+	// order, then sparkConf keys sorted) so the same spec always yields the same error text - map
+	// iteration order is randomized in Go, so the sparkConf keys must be sorted explicitly.
+	var errs []error
+
+	// spec.mainApplicationFile is a single URI forwarded as the final spark-submit argument.
+	if app.Spec.MainApplicationFile != nil {
+		errs = append(errs, v.checkURLScheme("spec.mainApplicationFile", *app.Spec.MainApplicationFile)...)
+	}
+
+	// spec.deps fetch-capable lists (--jars, --files, --py-files, --archives, --repositories).
+	errs = append(errs, v.validateDepsURLSchemes(&app.Spec.Deps)...)
+
+	// spec.sparkConf: only the submit-time keys the operator itself dereferences (sparkConfURLKeys)
+	// are checked; runtime keys are left alone. Iterate the allow-set in sorted order so the error
+	// text is deterministic regardless of Go's randomized map iteration. Values may be comma-
+	// separated URI lists (spark.jars, spark.files, ...) and are split.
+	for _, key := range slices.Sorted(maps.Keys(sparkConfURLKeys)) {
+		value, ok := app.Spec.SparkConf[key]
+		if !ok {
+			continue
+		}
+		field := fmt.Sprintf("spec.sparkConf[%q]", key)
+		errs = append(errs, v.checkURLSchemes(field, strings.Split(value, ","))...)
+	}
+
+	return errors.Join(errs...)
+}
+
+// validateDepsURLSchemes URL-checks the fetch-capable []string fields of spec.deps, using the
+// field plan computed once in depsURLFields. The error label is the field's json tag, so there
+// is no hand-maintained name-to-field mapping to drift from the type. It returns every violation
+// found (see validateURLSchemes) rather than stopping at the first.
+func (v *SparkApplicationValidator) validateDepsURLSchemes(deps *v1beta2.Dependencies) []error {
+	var errs []error
+	rv := reflect.ValueOf(deps).Elem()
+	for _, f := range depsURLFields {
+		values := rv.Field(f.index).Interface().([]string)
+		errs = append(errs, v.checkURLSchemes(f.label, values)...)
+	}
+	return errs
+}
+
+// checkURLSchemes runs checkURLScheme over each value of a field that holds a list of URIs,
+// returning every violation rather than stopping at the first.
+func (v *SparkApplicationValidator) checkURLSchemes(field string, values []string) []error {
+	var errs []error
+	for _, value := range values {
+		errs = append(errs, v.checkURLScheme(field, value)...)
+	}
+	return errs
+}
+
+// checkURLScheme rejects value unless its URL scheme is always allowed (schemeless, file://,
+// local://) or in the operator's configured allow list. It fails closed: anything url.Parse
+// can't handle (e.g. embedded control chars, which java.net.URI also rejects) is treated as
+// suspect, not waved through. "//host/path" is the one tricky case - it parses with an empty
+// scheme but a non-empty host, so guard on Host to tell a real local path (no host) from a
+// network-path reference.
+//
+// It returns a slice of at most one error (empty when the value is allowed) so callers can
+// accumulate violations across many fields and surface them together; see validateURLSchemes.
+func (v *SparkApplicationValidator) checkURLScheme(field, value string) []error {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return nil
+	}
+	u, err := url.Parse(value)
+	if err != nil {
+		return []error{fmt.Errorf("%s contains a value that is not a valid URL: %q: %w", field, value, err)}
+	}
+	scheme := strings.ToLower(u.Scheme)
+	if slices.Contains(alwaysAllowedURLSchemes, scheme) {
+		// "//host/x" has an empty scheme but a host - it's a network path, not a local one,
+		// so don't let the empty-scheme exemption cover it.
+		if scheme == "" && u.Host != "" {
+			return []error{fmt.Errorf("%s contains a scheme-relative URL with host %q which is not a local path: %q", field, u.Host, value)}
+		}
+		return nil
+	}
+	if _, allowed := v.allowedURLSchemes[scheme]; !allowed {
+		return []error{fmt.Errorf("%s contains a value with URL scheme %q which is not in the allowed list: %q", field, scheme, value)}
+	}
 	return nil
 }
 

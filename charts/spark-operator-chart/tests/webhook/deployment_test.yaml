@@ -190,6 +190,44 @@ tests:
           path: spec.template.spec.containers[?(@.name=="spark-operator-webhook")].args
           content: --metrics-labels=app_type
 
+  - it: Should not contain URL-scheme validation args by default (opt-in, off)
+    asserts:
+      - notContains:
+          path: spec.template.spec.containers[?(@.name=="spark-operator-webhook")].args
+          content: --enable-url-scheme-validation=true
+      - notContains:
+          path: spec.template.spec.containers[?(@.name=="spark-operator-webhook")].args
+          content: --spark-allowed-url-schemes=gs,s3a
+
+  - it: Should contain `--enable-url-scheme-validation` arg if `webhook.urlSchemeValidation.enable` is `true`
+    set:
+      webhook:
+        urlSchemeValidation:
+          enable: true
+          allowedSchemes:
+            - gs
+            - s3a
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[?(@.name=="spark-operator-webhook")].args
+          content: --enable-url-scheme-validation=true
+      - contains:
+          path: spec.template.spec.containers[?(@.name=="spark-operator-webhook")].args
+          content: --spark-allowed-url-schemes=gs,s3a
+
+  - it: Should not contain `--spark-allowed-url-schemes` arg when validation is enabled but no schemes are set
+    set:
+      webhook:
+        urlSchemeValidation:
+          enable: true
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[?(@.name=="spark-operator-webhook")].args
+          content: --enable-url-scheme-validation=true
+      - notContains:
+          path: spec.template.spec.containers[?(@.name=="spark-operator-webhook")].args
+          content: --spark-allowed-url-schemes
+
   - it: Should enable leader election by default
     asserts:
       - contains:

@@ -170,6 +170,8 @@ See [helm uninstall](https://helm.sh/docs/helm/helm_uninstall) for command docum
 | webhook.kubeAPIQPS | int | `20` | Maximum QPS to the API server from the controller client. |
 | webhook.kubeAPIBurst | int | `30` | Maximum burst for throttle from the controller client. |
 | webhook.resourceQuotaEnforcement.enable | bool | `false` | Specifies whether to enable the ResourceQuota enforcement for SparkApplication resources. |
+| webhook.urlSchemeValidation.enable | bool | `false` | Specifies whether to enable URL-scheme validation of fetch-capable SparkApplication fields (submit-time spec.sparkConf keys, spec.deps.*, spec.mainApplicationFile) at admission time. Opt-in and disabled by default so existing SparkApplications using remote schemes are not rejected on upgrade. |
+| webhook.urlSchemeValidation.allowedSchemes | list | `[]` | URL schemes permitted in fetch-capable SparkApplication fields when validation is enabled, in addition to the always-allowed local schemes (schemeless, file://, local://). Any other URL scheme is rejected. Add schemes your workloads require (e.g. gs, s3a, hdfs). |
 | webhook.serviceAccount.create | bool | `true` | Specifies whether to create a service account for the webhook. |
 | webhook.serviceAccount.name | string | `""` | Optional name for the webhook service account. |
 | webhook.serviceAccount.annotations | object | `{}` | Extra annotations for the webhook service account. |

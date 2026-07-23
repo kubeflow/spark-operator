@@ -1,12 +1,15 @@
-# Opt-in overlay that enables the driver PodDisruptionBudget feature.
+# Opt-in overlay that enables off-by-default operator features for e2e and for
+# kustomize-based deployments that want them:
+#   - controller: --enable-driver-pdb=true (driver PodDisruptionBudget)
+#   - webhook:    --enable-url-scheme-validation=true (fetch-field SSRF hardening)
 #
 # Usage:
 #   kustomize build config/overlays/driver-pdb/ | kubectl apply --server-side -f -
 #
-# It builds on config/default and appends --enable-driver-pdb=true to the
-# controller container args. The flag defaults to false in the binary, so this
-# overlay is the supported way to turn the feature on for kustomize-based
-# deployments.
+# It builds on config/default and appends the flags to the respective container
+# args. Both flags default to false in the binary, so this overlay is the
+# supported way to turn the features on for kustomize-based deployments; it keeps
+# the e2e kustomize deployment aligned with the helm ci-values.yaml.
 
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
@@ -19,3 +22,7 @@ patches:
     target:
       kind: Deployment
       name: spark-operator-controller
+  - path: enable-url-scheme-validation-patch.yaml
+    target:
+      kind: Deployment
+      name: spark-operator-webhook

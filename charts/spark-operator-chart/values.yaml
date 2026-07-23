@@ -388,6 +388,17 @@ webhook:
     # -- Specifies whether to enable the ResourceQuota enforcement for SparkApplication resources.
     enable: false
 
+  urlSchemeValidation:
+    # -- Specifies whether to enable URL-scheme validation of fetch-capable SparkApplication
+    # fields (submit-time spec.sparkConf keys, spec.deps.*, spec.mainApplicationFile) at admission
+    # time. Opt-in and disabled by default so existing SparkApplications using remote schemes are
+    # not rejected on upgrade.
+    enable: false
+    # -- URL schemes permitted in fetch-capable SparkApplication fields when validation is enabled,
+    # in addition to the always-allowed local schemes (schemeless, file://, local://). Any other
+    # URL scheme is rejected. Add schemes your workloads require (e.g. gs, s3a, hdfs).
+    allowedSchemes: []
+
   serviceAccount:
     # -- Specifies whether to create a service account for the webhook.
     create: true

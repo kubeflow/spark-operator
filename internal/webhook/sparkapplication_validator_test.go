@@ -19,6 +19,7 @@ package webhook
 import (
 	"context"
 	"errors"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -224,6 +225,13 @@ func TestSparkApplicationValidatorValidateDelete_Success(t *testing.T) {
 
 func newTestValidator(t *testing.T, enforceQuota bool, objs ...client.Object) *SparkApplicationValidator {
 	t.Helper()
+	// URL-scheme validation is opt-in and off here; the dedicated URL-scheme tests enable it
+	// explicitly via newTestValidatorWithSchemes.
+	return newTestValidatorWithSchemes(t, enforceQuota, false, nil, objs...)
+}
+
+func newTestValidatorWithSchemes(t *testing.T, enforceQuota bool, enableURLSchemeValidation bool, allowedSchemes []string, objs ...client.Object) *SparkApplicationValidator {
+	t.Helper()
 
 	scheme := newTestScheme(t)
 
@@ -232,7 +240,7 @@ func newTestValidator(t *testing.T, enforceQuota bool, objs ...client.Object) *S
 		builder = builder.WithObjects(objs...)
 	}
 
-	return NewSparkApplicationValidator(builder.Build(), enforceQuota)
+	return NewSparkApplicationValidator(builder.Build(), enforceQuota, enableURLSchemeValidation, allowedSchemes)
 }
 
 func newTestScheme(t *testing.T) *runtime.Scheme {
@@ -294,6 +302,352 @@ func TestSparkApplicationValidatorValidateName(t *testing.T) {
 
 			if hasError && err.Error() == "" {
 				t.Errorf("validateName(%q) should return a non-empty error message, got: %v", tt.appName, err)
+			}
+		})
+	}
+}
+
+// TestDepsURLFieldsExempt guards the depsURLFieldsExempt carve-out. validateDepsURLSchemes
+// URL-checks every []string field of v1beta2.Dependencies by reflection except the exempt tags,
+// so a newly-added fetch field is covered automatically. This test only has to ensure the
+// exempt set does not drift: every exempt tag must name a real []string field on the struct
+// (a stale entry would silently skip a future field that reused the name).
+func TestDepsURLFieldsExempt(t *testing.T) {
+	depsType := reflect.TypeFor[v1beta2.Dependencies]()
+	stringListTags := make(map[string]struct{}, depsType.NumField())
+	for i := range depsType.NumField() {
+		f := depsType.Field(i)
+		if f.Type != reflect.TypeFor[[]string]() {
+			continue
+		}
+		tag := strings.Split(f.Tag.Get("json"), ",")[0]
+		if tag == "" || tag == "-" {
+			continue
+		}
+		stringListTags[tag] = struct{}{}
+	}
+
+	for _, tag := range depsURLFieldsExempt {
+		if _, ok := stringListTags[tag]; !ok {
+			t.Errorf("depsURLFieldsExempt tag %q does not name a []string field on v1beta2.Dependencies; "+
+				"remove it or fix the tag", tag)
+		}
+	}
+}
+
+func TestSparkApplicationValidatorSparkConfURLSchemes(t *testing.T) {
+	tests := []struct {
+		name           string
+		allowedSchemes []string
+		sparkConf      map[string]string
+		wantError      bool
+		errContains    string
+	}{
+		// file:// and schemeless are always allowed regardless of the list.
+		{
+			name:           "file:// always allowed with empty list",
+			allowedSchemes: nil,
+			sparkConf:      map[string]string{"spark.jars": "file:///opt/spark/jars/app.jar"},
+			wantError:      false,
+		},
+		{
+			name:           "schemeless path always allowed with empty list",
+			allowedSchemes: nil,
+			sparkConf:      map[string]string{"spark.jars": "/opt/spark/jars/app.jar"},
+			wantError:      false,
+		},
+		{
+			// Runtime-only sparkConf keys are not forwarded to spark-submit by the operator, so
+			// they are never scheme-checked even with a scheme that would otherwise be rejected.
+			// This is the key-based allow-set at work (sparkConfURLKeys): submit-time keys only.
+			name:           "runtime-only key not checked",
+			allowedSchemes: nil,
+			sparkConf:      map[string]string{"spark.eventLog.dir": "s3a://logs/bucket"},
+			wantError:      false,
+		},
+		{
+			// spark.ui.proxyBase / spark.ui.proxyRedirectUri legitimately carry URL/path values
+			// consumed by the driver's UI at runtime; the operator never fetches them, so they are
+			// not in the submit-time allow-set and must not be rejected even with an http scheme.
+			name:           "spark.ui proxy keys not checked",
+			allowedSchemes: nil,
+			sparkConf: map[string]string{
+				"spark.ui.proxyBase":        "/proxy/app-1",
+				"spark.ui.proxyRedirectUri": "https://gateway.example.com",
+			},
+			wantError: false,
+		},
+		{
+			name:           "local:// always allowed with empty list",
+			allowedSchemes: nil,
+			sparkConf:      map[string]string{"spark.jars": "local:///opt/spark/jars/app.jar"},
+			wantError:      false,
+		},
+		// Any scheme not in the always-allowed set or the extra list is rejected; the
+		// error names the offending key. http represents all such schemes (https, ftp, gs, ...).
+		{
+			name:           "disallowed scheme rejected with empty extra list",
+			allowedSchemes: nil,
+			sparkConf:      map[string]string{"spark.jars": "http://example.com/app.jar"},
+			wantError:      true,
+			errContains:    `spec.sparkConf["spark.jars"]`,
+		},
+		{
+			// spark.jars.repositories is a submit-time fetch vector: in cluster mode spark-submit
+			// queries these repos from the operator pod to resolve --packages, so a disallowed
+			// scheme must be rejected. (spark.jars.packages itself is Maven coordinates, not a URL.)
+			name:           "spark.jars.repositories disallowed scheme rejected",
+			allowedSchemes: nil,
+			sparkConf:      map[string]string{"spark.jars.repositories": "http://repo.example.com/maven"},
+			wantError:      true,
+			errContains:    `spec.sparkConf["spark.jars.repositories"]`,
+		},
+		// A scheme is allowed once added to the extra list.
+		{
+			name:           "scheme allowed when added to extra list",
+			allowedSchemes: []string{"gs", "s3a"},
+			sparkConf:      map[string]string{"spark.jars": "gs://my-bucket/app.jar"},
+			wantError:      false,
+		},
+		// Comma-separated values are each checked.
+		{
+			name:           "comma-separated: one disallowed entry rejects",
+			allowedSchemes: []string{"gs"},
+			sparkConf:      map[string]string{"spark.jars": "gs://ok.jar,https://evil.com/bad.jar"},
+			wantError:      true,
+			errContains:    "https",
+		},
+		{
+			name:           "comma-separated: all in extra list passes",
+			allowedSchemes: []string{"gs", "s3a"},
+			sparkConf:      map[string]string{"spark.jars": "gs://bucket/a.jar,s3a://bucket/b.jar"},
+			wantError:      false,
+		},
+		{
+			// Allow-list entries are normalized to lower case in the constructor, so an
+			// uppercase entry still matches a lower-case URL scheme.
+			name:           "allow-list entry is case-insensitive",
+			allowedSchemes: []string{"GS"},
+			sparkConf:      map[string]string{"spark.jars": "gs://my-bucket/app.jar"},
+			wantError:      false,
+		},
+		{
+			name:           "empty sparkConf always passes",
+			allowedSchemes: nil,
+			sparkConf:      map[string]string{},
+			wantError:      false,
+		},
+		{
+			// Empty and whitespace-only values (incl. empty comma elements) are skipped.
+			name:           "empty and blank values pass",
+			allowedSchemes: nil,
+			sparkConf:      map[string]string{"spark.jars": "  ", "spark.files": "file:///a.jar,,file:///b.jar"},
+			wantError:      false,
+		},
+		// Defense-in-depth: scheme-relative "//host/path" has an empty scheme but a host, so it
+		// is not a local path and must be rejected.
+		{
+			name:           "scheme-relative //host rejected",
+			allowedSchemes: nil,
+			sparkConf:      map[string]string{"spark.jars": "//attacker.example.com/evil.jar"},
+			wantError:      true,
+			errContains:    "scheme-relative",
+		},
+		// Defense-in-depth: a value with embedded control characters is not a valid URL and
+		// must be rejected (fail closed) rather than waved through.
+		{
+			name:           "value with control character rejected",
+			allowedSchemes: nil,
+			sparkConf:      map[string]string{"spark.jars": "ht\ttp://attacker.example.com/evil.jar"},
+			wantError:      true,
+			errContains:    "not a valid URL",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			validator := newTestValidatorWithSchemes(t, false, true, tt.allowedSchemes)
+			app := newSparkApplication()
+			app.Spec.SparkConf = tt.sparkConf
+
+			_, err := validator.ValidateCreate(context.Background(), app)
+			if tt.wantError {
+				if err == nil {
+					t.Fatalf("expected error but got none")
+				}
+				if tt.errContains != "" && !strings.Contains(err.Error(), tt.errContains) {
+					t.Fatalf("expected error containing %q, got: %v", tt.errContains, err)
+				}
+			} else {
+				if err != nil {
+					t.Fatalf("expected no error, got: %v", err)
+				}
+			}
+		})
+	}
+}
+
+// TestSparkApplicationValidatorURLSchemesAggregateAllErrors proves that a spec with several
+// scheme violations across mainApplicationFile, deps.*, and sparkConf surfaces every violation
+// in one admission response (so a user does not have to fix them one round-trip at a time), and
+// that the message is deterministic: sparkConf keys are sorted rather than emitted in Go's
+// randomized map order, so the same spec always produces byte-identical error text.
+func TestSparkApplicationValidatorURLSchemesAggregateAllErrors(t *testing.T) {
+	validator := newTestValidatorWithSchemes(t, false, true, nil)
+
+	app := newSparkApplication()
+	app.Spec.MainApplicationFile = ptr.To("http://evil.example.com/main.py")
+	app.Spec.Deps.Repositories = []string{"http://repo.example.com/maven"}
+	app.Spec.SparkConf = map[string]string{
+		"spark.jars":  "https://a.example.com/a.jar",
+		"spark.files": "ftp://b.example.com/b.txt",
+	}
+
+	_, err := validator.ValidateCreate(context.Background(), app)
+	if err == nil {
+		t.Fatalf("expected error but got none")
+	}
+
+	// Every offending field must appear in the aggregated message.
+	wantSubstrings := []string{
+		"spec.mainApplicationFile",
+		"spec.deps.repositories",
+		`spec.sparkConf["spark.files"]`,
+		`spec.sparkConf["spark.jars"]`,
+	}
+	for _, want := range wantSubstrings {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("expected aggregated error to mention %q, got: %v", want, err)
+		}
+	}
+
+	// The message must be stable across repeated validations of the same spec; map iteration
+	// order would otherwise vary the sparkConf portion. Run several times and require identical
+	// output, and require the sorted "spark.files" before "spark.jars" ordering explicitly.
+	first := err.Error()
+	for range 10 {
+		_, e := validator.ValidateCreate(context.Background(), app)
+		if e == nil || e.Error() != first {
+			t.Fatalf("expected deterministic error text across runs;\n first: %v\n later: %v", first, e)
+		}
+	}
+	if fi, ji := strings.Index(first, `spec.sparkConf["spark.files"]`), strings.Index(first, `spec.sparkConf["spark.jars"]`); fi > ji {
+		t.Errorf("expected sparkConf keys in sorted order (spark.files before spark.jars), got: %v", first)
+	}
+}
+
+// TestSparkApplicationValidatorURLSchemesOptIn proves the check is strictly opt-in: a spec that
+// is rejected when validation is enabled is accepted unchanged when it is disabled (the default),
+// so operators already submitting remote deps are not broken on upgrade.
+func TestSparkApplicationValidatorURLSchemesOptIn(t *testing.T) {
+	app := newSparkApplication()
+	app.Spec.MainApplicationFile = ptr.To("http://evil.example.com/main.py")
+	app.Spec.Deps.Repositories = []string{"http://repo.example.com/maven"}
+	app.Spec.SparkConf = map[string]string{"spark.jars": "https://a.example.com/a.jar"}
+
+	// Disabled (default): the http/https values must be accepted.
+	disabled := newTestValidatorWithSchemes(t, false, false, nil)
+	if _, err := disabled.ValidateCreate(context.Background(), app); err != nil {
+		t.Fatalf("expected no error when URL-scheme validation is disabled, got: %v", err)
+	}
+
+	// Enabled: the very same spec must now be rejected, proving the gate is what flips behaviour.
+	enabled := newTestValidatorWithSchemes(t, false, true, nil)
+	if _, err := enabled.ValidateCreate(context.Background(), app); err == nil {
+		t.Fatalf("expected error when URL-scheme validation is enabled, got none")
+	}
+}
+
+// TestSparkApplicationValidatorURLSchemesOtherFields proves the check is applied to the
+// fetch-capable fields beyond sparkConf (mainApplicationFile and the reflected deps.* lists),
+// that the Maven-coordinate deps fields are carved out, and that sparkConf keys the operator does
+// not dereference at submit time (Maven-coordinate keys) are simply not in the allow-set and therefore
+// not checked. Scheme rules themselves are covered by the sparkConf table above; these cases only
+// pin field wiring.
+func TestSparkApplicationValidatorURLSchemesOtherFields(t *testing.T) {
+	tests := []struct {
+		name        string
+		mutate      func(app *v1beta2.SparkApplication)
+		wantError   bool
+		errContains string
+	}{
+		{
+			name: "mainApplicationFile http rejected",
+			mutate: func(app *v1beta2.SparkApplication) {
+				app.Spec.MainApplicationFile = ptr.To("http://evil.example.com/main.py")
+			},
+			wantError:   true,
+			errContains: "spec.mainApplicationFile",
+		},
+		{
+			name: "deps.repositories http rejected",
+			mutate: func(app *v1beta2.SparkApplication) {
+				app.Spec.Deps.Repositories = []string{"http://repo.example.com/maven"}
+			},
+			wantError:   true,
+			errContains: "spec.deps.repositories",
+		},
+		{
+			// Maven coordinates (groupId:artifactId:version) are not URLs and must not be
+			// rejected even though url.Parse reads "com.example" as a scheme-like prefix.
+			name:      "deps.packages maven coordinates not rejected",
+			mutate:    func(app *v1beta2.SparkApplication) { app.Spec.Deps.Packages = []string{"com.example:my-lib:1.2.3"} },
+			wantError: false,
+		},
+		{
+			// spark.jars.packages holds Maven coordinates, not URLs; net/url parses
+			// "org.postgresql:postgresql:42.7.3" as scheme "org.postgresql" but the key
+			// is not in the submit-time allow-set (sparkConfURLKeys) so it is never checked.
+			name: "sparkConf spark.jars.packages maven coordinates not rejected",
+			mutate: func(app *v1beta2.SparkApplication) {
+				if app.Spec.SparkConf == nil {
+					app.Spec.SparkConf = make(map[string]string)
+				}
+				app.Spec.SparkConf["spark.jars.packages"] = "org.postgresql:postgresql:42.7.3"
+			},
+			wantError: false,
+		},
+		{
+			// spark.jars.excludePackages is also Maven coordinates and not in the allow-set.
+			name: "sparkConf spark.jars.excludePackages maven coordinates not rejected",
+			mutate: func(app *v1beta2.SparkApplication) {
+				if app.Spec.SparkConf == nil {
+					app.Spec.SparkConf = make(map[string]string)
+				}
+				app.Spec.SparkConf["spark.jars.excludePackages"] = "org.slf4j:slf4j-api"
+			},
+			wantError: false,
+		},
+		{
+			// spark.jars is still URL-checked; it holds JAR URLs, not Maven coordinates.
+			name: "sparkConf spark.jars http rejected",
+			mutate: func(app *v1beta2.SparkApplication) {
+				if app.Spec.SparkConf == nil {
+					app.Spec.SparkConf = make(map[string]string)
+				}
+				app.Spec.SparkConf["spark.jars"] = "http://evil.example.com/app.jar"
+			},
+			wantError:   true,
+			errContains: `spec.sparkConf["spark.jars"]`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			validator := newTestValidatorWithSchemes(t, false, true, nil)
+			app := newSparkApplication()
+			tt.mutate(app)
+
+			_, err := validator.ValidateCreate(context.Background(), app)
+			if tt.wantError {
+				if err == nil {
+					t.Fatalf("expected error but got none")
+				}
+				if tt.errContains != "" && !strings.Contains(err.Error(), tt.errContains) {
+					t.Fatalf("expected error containing %q, got: %v", tt.errContains, err)
+				}
+			} else if err != nil {
+				t.Fatalf("expected no error, got: %v", err)
 			}
 		})
 	}

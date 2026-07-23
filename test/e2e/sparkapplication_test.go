@@ -640,4 +640,91 @@ var _ = Describe("Example SparkApplication", func() {
 			checkVolumeAndMount(*driverPod, common.SparkDriverContainerName)
 		})
 	})
+
+	// spark-allowed-url-schemes: when URL-scheme validation is enabled, the webhook rejects
+	// SparkApplications whose fetch-capable fields (submit-time spec.sparkConf keys, spec.deps.*,
+	// spec.mainApplicationFile) contain a URL value with a scheme that is not an always-allowed
+	// local scheme (schemeless, file://, local://) and not in --spark-allowed-url-schemes. The
+	// feature is opt-in; the e2e deployments enable it (helm ci-values.yaml urlSchemeValidation.enable
+	// and the kustomize driver-pdb overlay), so http:// is always rejected here.
+	// Both tests use dry-run so neither ever persists a SparkApplication or triggers a
+	// submission attempt; they still exercise the full admission chain.
+	Context("spark-allowed-url-schemes", func() {
+		ctx := context.Background()
+		mainFile := "local:///app.py"
+
+		It("Rejects a SparkApplication whose sparkConf contains a disallowed URL scheme", func() {
+			app := &v1beta2.SparkApplication{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "ssrf-reject-test",
+					Namespace: "default",
+				},
+				Spec: v1beta2.SparkApplicationSpec{
+					Type:                v1beta2.SparkApplicationTypeScala,
+					SparkVersion:        "3.5.0",
+					Mode:                v1beta2.DeployModeCluster,
+					MainApplicationFile: &mainFile,
+					SparkConf: map[string]string{
+						"spark.jars": "http://attacker.example.com/evil.jar",
+					},
+					Driver: v1beta2.DriverSpec{
+						SparkPodSpec: v1beta2.SparkPodSpec{
+							Cores:  ptr.To[int32](1),
+							Memory: ptr.To("512m"),
+						},
+					},
+					Executor: v1beta2.ExecutorSpec{
+						SparkPodSpec: v1beta2.SparkPodSpec{
+							Cores:  ptr.To[int32](1),
+							Memory: ptr.To("512m"),
+						},
+						Instances: ptr.To[int32](1),
+					},
+				},
+			}
+
+			// Dry-run exercises the full admission chain (the webhook still runs and rejects)
+			// without ever persisting the object, so a future config change that allowed http
+			// could not leak a real SparkApplication for the controller to reconcile.
+			err := k8sClient.Create(ctx, app, &client.CreateOptions{DryRun: []string{metav1.DryRunAll}})
+			Expect(err).To(HaveOccurred(), "expected admission webhook to reject sparkConf with disallowed URL scheme")
+			Expect(errors.IsInvalid(err) || errors.IsForbidden(err)).To(BeTrue(), "expected Invalid or Forbidden, got: %v", err)
+		})
+
+		It("Accepts a SparkApplication whose sparkConf uses only allowed URL schemes (dry-run)", func() {
+			app := &v1beta2.SparkApplication{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "ssrf-allow-test",
+					Namespace: "default",
+				},
+				Spec: v1beta2.SparkApplicationSpec{
+					Type:                v1beta2.SparkApplicationTypeScala,
+					SparkVersion:        "3.5.0",
+					Mode:                v1beta2.DeployModeCluster,
+					MainApplicationFile: &mainFile,
+					SparkConf: map[string]string{
+						// file:// is always in the default allow list.
+						"spark.jars": "file:///opt/spark/jars/app.jar",
+					},
+					Driver: v1beta2.DriverSpec{
+						SparkPodSpec: v1beta2.SparkPodSpec{
+							Cores:  ptr.To[int32](1),
+							Memory: ptr.To("512m"),
+						},
+					},
+					Executor: v1beta2.ExecutorSpec{
+						SparkPodSpec: v1beta2.SparkPodSpec{
+							Cores:  ptr.To[int32](1),
+							Memory: ptr.To("512m"),
+						},
+						Instances: ptr.To[int32](1),
+					},
+				},
+			}
+
+			// Dry-run exercises the full admission chain without persisting the object,
+			// so the controller never reconciles it and there is no submission attempt.
+			Expect(k8sClient.Create(ctx, app, &client.CreateOptions{DryRun: []string{metav1.DryRunAll}})).To(Succeed())
+		})
+	})
 })
