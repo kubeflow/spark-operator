@@ -219,14 +219,8 @@ var depsURLFieldsExempt = []string{"packages", "excludePackages"}
 // wrongly reject legitimate values and couple submit-time policy to runtime config.
 //
 // This is a positive allow-set rather than a scan-with-deny-list precisely so runtime keys are
-// untouched by default. Some keys are deliberately absent because they are not remote-fetch
-// vectors even though spark-submit reads them at submit time:
-//   - spark.jars.packages / spark.jars.excludePackages hold Maven coordinates
-//     (groupId:artifactId:version), not fetchable URLs.
-//   - spark.jars.ivySettings is loaded at submit time, but Spark restricts it to the "file"
-//     scheme (SparkSubmit.loadIvySettings throws on any other scheme before touching the
-//     network), so it can only ever reference a local file and cannot reach the operator's
-//     network. Scheme-checking it would be redundant with the always-allowed "file"/schemeless.
+// untouched by default. Maven-coordinate keys (spark.jars.packages, spark.jars.excludePackages)
+// are deliberately absent because they are not fetchable URLs.
 //
 // spark.jars / spark.files / spark.submit.pyFiles / spark.archives mirror spec.deps.{jars,files,
 // pyFiles,archives}. spark.jars.repositories mirrors spec.deps.repositories: in KUBERNETES cluster

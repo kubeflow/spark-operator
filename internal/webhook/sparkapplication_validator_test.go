@@ -561,7 +561,7 @@ func TestSparkApplicationValidatorURLSchemesOptIn(t *testing.T) {
 // TestSparkApplicationValidatorURLSchemesOtherFields proves the check is applied to the
 // fetch-capable fields beyond sparkConf (mainApplicationFile and the reflected deps.* lists),
 // that the Maven-coordinate deps fields are carved out, and that sparkConf keys the operator does
-// not dereference at submit time (Maven/Ivy keys) are simply not in the allow-set and therefore
+// not dereference at submit time (Maven-coordinate keys) are simply not in the allow-set and therefore
 // not checked. Scheme rules themselves are covered by the sparkConf table above; these cases only
 // pin field wiring.
 func TestSparkApplicationValidatorURLSchemesOtherFields(t *testing.T) {
@@ -615,20 +615,6 @@ func TestSparkApplicationValidatorURLSchemesOtherFields(t *testing.T) {
 					app.Spec.SparkConf = make(map[string]string)
 				}
 				app.Spec.SparkConf["spark.jars.excludePackages"] = "org.slf4j:slf4j-api"
-			},
-			wantError: false,
-		},
-		{
-			// spark.jars.ivySettings is read by spark-submit at submit time, but Spark restricts
-			// it to the "file" scheme (loadIvySettings throws on any other scheme before any I/O),
-			// so it cannot reach the operator's network and is not in sparkConfURLKeys. A local
-			// path is accepted here; a remote scheme would be rejected by Spark itself, not us.
-			name: "sparkConf spark.jars.ivySettings not checked",
-			mutate: func(app *v1beta2.SparkApplication) {
-				if app.Spec.SparkConf == nil {
-					app.Spec.SparkConf = make(map[string]string)
-				}
-				app.Spec.SparkConf["spark.jars.ivySettings"] = "/etc/ivy-settings.xml"
 			},
 			wantError: false,
 		},
