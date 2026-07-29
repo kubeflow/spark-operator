@@ -210,7 +210,7 @@ tests:
           path: spec.template.spec.containers[?(@.name=="spark-operator-controller")].args
           content: --default-time-to-live-seconds=86400
 
-  - it: Should not contain `--default-time-to-live-seconds` arg when `controller.defaultTimeToLiveSeconds` is 0 and the `DefaultTimeToLive` feature gate is enabled
+  - it: Should contain `--default-time-to-live-seconds=0` arg when `controller.defaultTimeToLiveSeconds` is 0 and the `DefaultTimeToLive` feature gate is enabled
     set:
       controller:
         defaultTimeToLiveSeconds: 0
@@ -218,7 +218,7 @@ tests:
           - name: DefaultTimeToLive
             enabled: true
     asserts:
-      - notContains:
+      - contains:
           path: spec.template.spec.containers[?(@.name=="spark-operator-controller")].args
           content: --default-time-to-live-seconds=0
 
