@@ -1,5 +1,5 @@
 /*
-Copyright 2026 The Kubeflow authors.
+Copyright The Kubeflow Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -20,23 +20,19 @@ import (
 	"bufio"
 	"context"
 	"fmt"
-	"net"
-	"os"
-	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	appsv1 "k8s.io/api/apps/v1"
 	coordinationv1 "k8s.io/api/coordination/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/apimachinery/pkg/util/yaml"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/kubeflow/spark-operator/v2/api/v1beta2"
+	"github.com/kubeflow/spark-operator/v2/pkg/common"
 )
 
 // sumMetricValues parses Prometheus text-exposition output and returns the
@@ -65,23 +61,11 @@ func sumMetricValues(metricsText, name string) float64 {
 var _ = Describe("Prometheus Metrics", func() {
 	Context("Controller metrics endpoint", func() {
 		ctx := context.Background()
-		path := filepath.Join("..", "..", "examples", "spark-pi.yaml")
 
 		var app *v1beta2.SparkApplication
 
 		BeforeEach(func() {
-			By("Parsing SparkApplication from file")
-			file, err := os.Open(path)
-			Expect(err).NotTo(HaveOccurred())
-			Expect(file).NotTo(BeNil())
-			defer func() { Expect(file.Close()).To(Succeed()) }()
-
-			decoder := yaml.NewYAMLOrJSONDecoder(file, 100)
-			Expect(decoder).NotTo(BeNil())
-
-			app = &v1beta2.SparkApplication{}
-			Expect(decoder.Decode(app)).NotTo(HaveOccurred())
-			app.Name = fmt.Sprintf("spark-pi-metrics-test-%d", GinkgoRandomSeed())
+			app = loadSparkPi(fmt.Sprintf("spark-pi-metrics-test-%d", GinkgoRandomSeed()))
 		})
 
 		AfterEach(func() {
@@ -123,30 +107,24 @@ var _ = Describe("Prometheus Metrics", func() {
 				Expect(matched).To(BeTrue(), "no controller pod matches lease holder identity %q", *lease.Spec.HolderIdentity)
 			}
 
-			By("Detecting metrics scheme and port from controller deployment")
-			deploy := &appsv1.Deployment{}
-			Expect(k8sClient.Get(ctx, types.NamespacedName{
-				Namespace: ReleaseNamespace,
-				Name:      "spark-operator-controller",
-			}, deploy)).To(Succeed())
-
+			// The chart stamps the scrape port/path onto the pod as annotations
+			// whenever prometheus.metrics.enable is set, so read config from there
+			// instead of re-deriving it from container args. This suite doesn't
+			// exercise --secure-metrics (it isn't enabled in CI and would require
+			// extra auth setup), so the scheme is always http.
 			metricsScheme := "http"
 			metricsPort := "8080"
-			for _, arg := range deploy.Spec.Template.Spec.Containers[0].Args {
-				if arg == "--secure-metrics" || arg == "--secure-metrics=true" {
-					metricsScheme = "https"
-				}
-				if strings.HasPrefix(arg, "--metrics-bind-address=") {
-					addr := strings.TrimPrefix(arg, "--metrics-bind-address=")
-					if _, port, err := net.SplitHostPort(addr); err == nil && port != "" {
-						metricsPort = port
-					}
-				}
+			metricsPath := "metrics"
+			if port, ok := controllerPod.Annotations[common.PrometheusPortAnnotation]; ok && port != "" {
+				metricsPort = port
+			}
+			if path, ok := controllerPod.Annotations[common.PrometheusPathAnnotation]; ok && path != "" {
+				metricsPath = strings.TrimPrefix(path, "/")
 			}
 
 			By("Verifying the metrics endpoint serves Prometheus-formatted data")
 			data, err := clientset.CoreV1().Pods(ReleaseNamespace).
-				ProxyGet(metricsScheme, controllerPod.Name, metricsPort, "metrics", nil).
+				ProxyGet(metricsScheme, controllerPod.Name, metricsPort, metricsPath, nil).
 				DoRaw(ctx)
 			Expect(err).NotTo(HaveOccurred(), "failed to proxy GET /metrics from controller pod")
 
@@ -158,9 +136,9 @@ var _ = Describe("Prometheus Metrics", func() {
 
 			// Other specs may run concurrently and share these process-global counters,
 			// so capture a baseline and assert on the delta rather than mere presence.
-			countBefore := sumMetricValues(metricsOutput, "spark_application_count")
-			submitCountBefore := sumMetricValues(metricsOutput, "spark_application_submit_count")
-			successCountBefore := sumMetricValues(metricsOutput, "spark_application_success_count")
+			countBefore := sumMetricValues(metricsOutput, common.MetricSparkApplicationCount)
+			submitCountBefore := sumMetricValues(metricsOutput, common.MetricSparkApplicationSubmitCount)
+			successCountBefore := sumMetricValues(metricsOutput, common.MetricSparkApplicationSuccessCount)
 
 			By("Creating SparkApplication to exercise the metrics pipeline")
 			Expect(k8sClient.Create(ctx, app)).To(Succeed())
@@ -172,15 +150,15 @@ var _ = Describe("Prometheus Metrics", func() {
 			By("Verifying Spark application metrics incremented after app completion")
 			Eventually(func() (bool, error) {
 				data, err := clientset.CoreV1().Pods(ReleaseNamespace).
-					ProxyGet(metricsScheme, controllerPod.Name, metricsPort, "metrics", nil).
+					ProxyGet(metricsScheme, controllerPod.Name, metricsPort, metricsPath, nil).
 					DoRaw(ctx)
 				if err != nil {
 					return false, err
 				}
 				metricsOutput := string(data)
-				return sumMetricValues(metricsOutput, "spark_application_count") > countBefore &&
-					sumMetricValues(metricsOutput, "spark_application_submit_count") > submitCountBefore &&
-					sumMetricValues(metricsOutput, "spark_application_success_count") > successCountBefore, nil
+				return sumMetricValues(metricsOutput, common.MetricSparkApplicationCount) > countBefore &&
+					sumMetricValues(metricsOutput, common.MetricSparkApplicationSubmitCount) > submitCountBefore &&
+					sumMetricValues(metricsOutput, common.MetricSparkApplicationSuccessCount) > successCountBefore, nil
 			}).WithPolling(PollInterval).WithTimeout(WaitTimeout).Should(BeTrue())
 		})
 	})

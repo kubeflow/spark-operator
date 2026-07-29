@@ -1,5 +1,5 @@
 /*
-Copyright 2026 The Kubeflow authors.
+Copyright The Kubeflow Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -18,49 +18,72 @@ package e2e_test
 
 import (
 	"context"
-	"errors"
+	"encoding/json"
 	"fmt"
-	"io"
-	"net/http"
-	"os"
-	"path/filepath"
+	"net"
+	"strconv"
 	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/apimachinery/pkg/util/yaml"
-	"k8s.io/client-go/tools/portforward"
-	"k8s.io/client-go/transport/spdy"
+	"k8s.io/utils/ptr"
 
 	"github.com/kubeflow/spark-operator/v2/api/v1beta2"
-	"github.com/kubeflow/spark-operator/v2/pkg/util"
+	"github.com/kubeflow/spark-operator/v2/pkg/common"
 )
+
+// sleepyPiScript computes a trivial result and then sleeps for a fixed,
+// deterministic duration so the driver stays up long enough for the test to
+// query the Spark UI, regardless of cluster/node speed.
+const sleepyPiScript = `
+import time
+from pyspark.sql import SparkSession
+
+spark = SparkSession.builder.appName("SparkUIKeepAlive").getOrCreate()
+print(spark.sparkContext.parallelize(range(2), 2).sum())
+time.sleep(60)
+spark.stop()
+`
 
 var _ = Describe("Spark UI", func() {
 	Context("Verify Spark UI is accessible while application is running", func() {
 		ctx := context.Background()
-		path := filepath.Join("..", "..", "examples", "spark-pi.yaml")
 
 		var app *v1beta2.SparkApplication
+		var scriptConfigMap *corev1.ConfigMap
 
 		BeforeEach(func() {
-			By("Parsing SparkApplication from file")
-			file, err := os.Open(path)
-			Expect(err).NotTo(HaveOccurred())
-			Expect(file).NotTo(BeNil())
-			defer func() { Expect(file.Close()).To(Succeed()) }()
-			decoder := yaml.NewYAMLOrJSONDecoder(file, 4096)
-			Expect(decoder).NotTo(BeNil())
+			seed := GinkgoRandomSeed()
+			app = loadSparkPiPython(fmt.Sprintf("spark-pi-ui-test-%d", seed))
 
-			app = &v1beta2.SparkApplication{}
-			Expect(decoder.Decode(app)).NotTo(HaveOccurred())
+			By("Creating a ConfigMap with a script that keeps the driver alive")
+			scriptConfigMap = &corev1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      fmt.Sprintf("spark-ui-test-script-%d", seed),
+					Namespace: app.Namespace,
+				},
+				Data: map[string]string{
+					"sleepy_pi.py": sleepyPiScript,
+				},
+			}
+			Expect(k8sClient.Create(ctx, scriptConfigMap)).To(Succeed())
 
-			// Use a unique name and a partition count high enough that SparkPi keeps
-			// running for the few seconds it takes the test to query the UI.
-			app.Name = fmt.Sprintf("spark-pi-ui-test-%d", GinkgoRandomSeed())
-			app.Spec.Arguments = []string{"50000"}
+			app.Spec.MainApplicationFile = ptr.To("local:///opt/spark/scripts/sleepy_pi.py")
+			app.Spec.Volumes = append(app.Spec.Volumes, corev1.Volume{
+				Name: "ui-test-script",
+				VolumeSource: corev1.VolumeSource{
+					ConfigMap: &corev1.ConfigMapVolumeSource{
+						LocalObjectReference: corev1.LocalObjectReference{Name: scriptConfigMap.Name},
+					},
+				},
+			})
+			app.Spec.Driver.VolumeMounts = append(app.Spec.Driver.VolumeMounts, corev1.VolumeMount{
+				Name:      "ui-test-script",
+				MountPath: "/opt/spark/scripts",
+			})
 
 			By("Creating SparkApplication")
 			Expect(k8sClient.Create(ctx, app)).To(Succeed())
@@ -72,11 +95,12 @@ var _ = Describe("Spark UI", func() {
 				By("Deleting SparkApplication")
 				Expect(k8sClient.Delete(ctx, app)).To(Succeed())
 			}
+			By("Deleting the script ConfigMap")
+			_ = k8sClient.Delete(ctx, scriptConfigMap)
 		})
 
 		It("Should create a UI service and serve the Spark web UI", func() {
 			key := types.NamespacedName{Namespace: app.Namespace, Name: app.Name}
-			driverPodName := util.GetDriverPodName(app)
 
 			By("Waiting for SparkApplication to reach Running state with UI service populated")
 			Eventually(func() bool {
@@ -88,71 +112,38 @@ var _ = Describe("Spark UI", func() {
 			}).WithPolling(PollInterval).WithTimeout(WaitTimeout).Should(BeTrue())
 
 			By("Verifying the WebUI status fields are populated")
-			Expect(app.Status.DriverInfo.WebUIPort).To(Equal(int32(4040)))
-			Expect(app.Status.DriverInfo.WebUIAddress).NotTo(BeEmpty())
+			Expect(app.Status.DriverInfo.WebUIPort).To(Equal(common.DefaultSparkWebUIPort))
+			_, port, err := net.SplitHostPort(app.Status.DriverInfo.WebUIAddress)
+			Expect(err).NotTo(HaveOccurred(), "WebUIAddress should be a valid host:port, got %q", app.Status.DriverInfo.WebUIAddress)
+			Expect(port).To(Equal(strconv.Itoa(int(app.Status.DriverInfo.WebUIPort))))
 
-			By("Verifying the UI service exists with port 4040")
+			By(fmt.Sprintf("Verifying the UI service exists with port %d", common.DefaultSparkWebUIPort))
 			uiServiceName := app.Status.DriverInfo.WebUIServiceName
 			svcKey := types.NamespacedName{Namespace: app.Namespace, Name: uiServiceName}
 			svc := &corev1.Service{}
 			Expect(k8sClient.Get(ctx, svcKey, svc)).To(Succeed())
 			hasUIPort := false
 			for _, port := range svc.Spec.Ports {
-				if port.Port == 4040 {
+				if port.Port == common.DefaultSparkWebUIPort {
 					hasUIPort = true
 					break
 				}
 			}
-			Expect(hasUIPort).To(BeTrue(), "UI service should expose port 4040")
+			Expect(hasUIPort).To(BeTrue(), "UI service should expose port %d", common.DefaultSparkWebUIPort)
 
-			By("Verifying the Spark UI is responding on port 4040")
+			By("Verifying the Spark UI REST API reports the running application via the Service proxy")
 			Eventually(func(g Gomega) {
-				transport, upgrader, err := spdy.RoundTripperFor(cfg)
-				g.Expect(err).NotTo(HaveOccurred())
+				reqCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
+				defer cancel()
 
-				reqURL := clientset.CoreV1().RESTClient().Post().
-					Resource("pods").
-					Namespace(app.Namespace).
-					Name(driverPodName).
-					SubResource("portforward").
-					URL()
+				data, err := clientset.CoreV1().Services(app.Namespace).
+					ProxyGet("http", uiServiceName, common.DefaultSparkWebUIPortName, "api/v1/applications", nil).
+					DoRaw(reqCtx)
+				g.Expect(err).NotTo(HaveOccurred(), "failed to proxy GET /api/v1/applications from UI service")
 
-				dialer := spdy.NewDialer(upgrader, &http.Client{Transport: transport}, http.MethodPost, reqURL)
-
-				stopChan := make(chan struct{})
-				defer close(stopChan)
-				readyChan := make(chan struct{})
-
-				fw, err := portforward.New(dialer, []string{"0:4040"}, stopChan, readyChan, io.Discard, io.Discard)
-				g.Expect(err).NotTo(HaveOccurred())
-
-				errChan := make(chan error, 1)
-				go func() { errChan <- fw.ForwardPorts() }()
-
-				select {
-				case <-readyChan:
-				case err := <-errChan:
-					g.Expect(err).NotTo(HaveOccurred(), "port forward failed to start")
-					return
-				case <-time.After(15 * time.Second):
-					g.Expect(errors.New("timed out waiting for port-forward to become ready")).NotTo(HaveOccurred())
-					return
-				}
-
-				ports, err := fw.GetPorts()
-				g.Expect(err).NotTo(HaveOccurred())
-				g.Expect(ports).NotTo(BeEmpty())
-
-				httpClient := &http.Client{Timeout: 15 * time.Second}
-				resp, err := httpClient.Get(fmt.Sprintf("http://localhost:%d", ports[0].Local))
-				g.Expect(err).NotTo(HaveOccurred())
-				defer func() { _ = resp.Body.Close() }()
-
-				g.Expect(resp.StatusCode).To(Equal(http.StatusOK))
-
-				body, err := io.ReadAll(resp.Body)
-				g.Expect(err).NotTo(HaveOccurred())
-				g.Expect(string(body)).To(ContainSubstring("Spark Jobs"))
+				var runningApps []map[string]any
+				g.Expect(json.Unmarshal(data, &runningApps)).To(Succeed(), "expected valid JSON from Spark UI REST API, got: %s", data)
+				g.Expect(runningApps).NotTo(BeEmpty(), "expected the Spark UI REST API to report at least one application")
 			}).WithPolling(PollInterval).WithTimeout(WaitTimeout).Should(Succeed())
 		})
 	})
