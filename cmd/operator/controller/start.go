@@ -193,8 +193,10 @@ func NewStartCommand() *cobra.Command {
 				}
 			}
 
-			if features.Enabled(features.DefaultTimeToLive) && defaultTimeToLiveSeconds <= 0 {
-				return fmt.Errorf("invalid value %d for --default-time-to-live-seconds, must be a positive value when the DefaultTimeToLive feature gate is enabled", defaultTimeToLiveSeconds)
+			// A negative TTL is never meaningful; reject it regardless of the gate.
+			// Zero is the valid "off" sentinel and is left untouched.
+			if defaultTimeToLiveSeconds < 0 {
+				return fmt.Errorf("invalid value %d for --default-time-to-live-seconds, must not be negative", defaultTimeToLiveSeconds)
 			}
 
 			return nil
@@ -213,7 +215,7 @@ func NewStartCommand() *cobra.Command {
 	command.Flags().Int64Var(&defaultTimeToLiveSeconds, "default-time-to-live-seconds", 0,
 		"Default Time-To-Live in seconds applied to terminated SparkApplications that do "+
 			"not set spec.timeToLiveSeconds. Requires the DefaultTimeToLive feature gate. "+
-			"0 (default) or negative disables it.")
+			"0 (default) disables it; a negative value is rejected.")
 	command.Flags().BoolVar(&enableDriverPDB, "enable-driver-pdb", false,
 		"Enable creation of a PodDisruptionBudget for Spark driver pods. "+
 			"Each SparkApplication must additionally opt in via "+
