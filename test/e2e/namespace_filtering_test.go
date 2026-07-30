@@ -144,8 +144,8 @@ var _ = Describe("Namespace Filtering", func() {
 		var testID string
 
 		BeforeEach(func() {
-			if deployMethod == "kustomize" {
-				Skip("Namespace filtering requires Helm deploy with jobNamespaceSelector configuration")
+			if !jobNamespaceSelectorConfigured {
+				Skip("Namespace filtering test requires operator configured with --job-namespace-selector flag")
 			}
 
 			// Generate TRULY unique suffix using current time

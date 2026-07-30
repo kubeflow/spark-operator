@@ -36,9 +36,11 @@ import (
 	"helm.sh/helm/v3/pkg/chartutil"
 	"helm.sh/helm/v3/pkg/cli"
 	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	discoveryv1 "k8s.io/api/discovery/v1"
 	policyv1 "k8s.io/api/policy/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -73,10 +75,26 @@ var (
 	k8sClient client.Client
 	clientset *kubernetes.Clientset
 
-	// deployMethod is read from DEPLOY_METHOD env var; defaults to "helm".
-	deployMethod          string
+	// deployMethod determines webhook names; read from DEPLOY_METHOD env var.
+	// Supported values: "helm" (default), "kustomize"
+	deployMethod string
+	// preinstalled skips operator install/uninstall; read from PREINSTALLED env var.
+	// Set to "true" to skip operator lifecycle management.
+	preinstalled          bool
 	mutatingWebhookName   string
 	validatingWebhookName string
+
+	// driverPDBEnabled tracks whether the operator has driver PDB feature enabled
+	driverPDBEnabled bool
+	// jobNamespaceSelectorConfigured tracks whether the operator has jobNamespaceSelector configured
+	jobNamespaceSelectorConfigured bool
+
+	// operatorNamespace is the namespace where the operator is deployed
+	// Can be overridden via OPERATOR_NAMESPACE env var for preinstalled mode
+	operatorNamespace string
+	// operatorDeploymentName is the name of the controller deployment
+	// Can be overridden via OPERATOR_DEPLOYMENT_NAME env var for preinstalled mode
+	operatorDeploymentName string
 )
 
 func TestSparkOperator(t *testing.T) {
@@ -92,7 +110,30 @@ var _ = BeforeSuite(func() {
 	if deployMethod == "" {
 		deployMethod = "helm"
 	}
-	GinkgoWriter.Printf("Deploy method: %s\n", deployMethod)
+
+	preinstalledStr := strings.ToLower(strings.TrimSpace(os.Getenv("PREINSTALLED")))
+	switch preinstalledStr {
+	case "", "false":
+		preinstalled = false
+	case "true":
+		preinstalled = true
+	default:
+		Fail(fmt.Sprintf("invalid PREINSTALLED value: %q (must be '', 'true', or 'false')", preinstalledStr))
+	}
+
+	// Allow overriding operator namespace and deployment name for preinstalled mode
+	operatorNamespace = os.Getenv("OPERATOR_NAMESPACE")
+	if operatorNamespace == "" {
+		operatorNamespace = ReleaseNamespace
+	}
+
+	operatorDeploymentName = os.Getenv("OPERATOR_DEPLOYMENT_NAME")
+	if operatorDeploymentName == "" {
+		operatorDeploymentName = "spark-operator-controller"
+	}
+
+	GinkgoWriter.Printf("Deploy method: %s, Preinstalled: %v, Operator namespace: %s, Deployment name: %s\n",
+		deployMethod, preinstalled, operatorNamespace, operatorDeploymentName)
 
 	switch deployMethod {
 	case "helm":
@@ -139,12 +180,84 @@ var _ = BeforeSuite(func() {
 	Expect(err).NotTo(HaveOccurred())
 	Expect(clientset).NotTo(BeNil())
 
-	switch deployMethod {
-	case "helm":
-		installViaHelm()
-	case "kustomize":
-		installViaKustomize()
+	if !preinstalled {
+		switch deployMethod {
+		case "helm":
+			installViaHelm()
+		case "kustomize":
+			installViaKustomize()
+		}
+	} else {
+		logf.Log.Info("Operator is preinstalled, skipping installation")
+
+		// Check if Spark RBAC already exists based on deployment method
+		// Helm: SA/Role/RoleBinding all named "spark-operator-spark"
+		// Kustomize: SA="spark-operator-spark", Role="spark-role", RoleBinding="spark-role-binding"
+		By("Checking if Spark RBAC already exists")
+
+		var roleName, roleBindingName string
+		if deployMethod == "helm" {
+			roleName = "spark-operator-spark"
+			roleBindingName = "spark-operator-spark"
+		} else {
+			roleName = "spark-role"
+			roleBindingName = "spark-role-binding"
+		}
+
+		// Check each resource and track if ALL are missing
+		allMissing := true
+		sa := &corev1.ServiceAccount{}
+		if err := k8sClient.Get(context.TODO(),
+			types.NamespacedName{Name: "spark-operator-spark", Namespace: "default"}, sa); err == nil {
+			allMissing = false // SA exists
+		}
+
+		role := &rbacv1.Role{}
+		if err := k8sClient.Get(context.TODO(),
+			types.NamespacedName{Name: roleName, Namespace: "default"}, role); err == nil {
+			allMissing = false // Role exists
+		}
+
+		roleBinding := &rbacv1.RoleBinding{}
+		if err := k8sClient.Get(context.TODO(),
+			types.NamespacedName{Name: roleBindingName, Namespace: "default"}, roleBinding); err == nil {
+			allMissing = false // RoleBinding exists
+		}
+
+		if allMissing {
+			Fail(fmt.Sprintf("Spark job RBAC is missing in preinstalled mode.\n"+
+				"The e2e suite requires ServiceAccount, Role, and RoleBinding for Spark applications in the 'default' namespace.\n"+
+				"Please apply RBAC before running tests:\n"+
+				"  kubectl apply -k config/spark-rbac -n default\n"+
+				"Or if using Helm, ensure spark.rbac.create=true (default)"))
+		} else {
+			By(fmt.Sprintf("Spark RBAC exists for %s deployment", deployMethod))
+		}
 	}
+
+	// Detect if driver PDB feature is enabled in the operator
+	By("Detecting operator feature flags")
+	deployment := &appsv1.Deployment{}
+	err = k8sClient.Get(context.TODO(),
+		types.NamespacedName{Name: operatorDeploymentName, Namespace: operatorNamespace},
+		deployment)
+	if err != nil {
+		Fail(fmt.Sprintf("Failed to get controller deployment %s/%s: %v\nIn preinstalled mode, set OPERATOR_NAMESPACE and OPERATOR_DEPLOYMENT_NAME to match your deployment",
+			operatorNamespace, operatorDeploymentName, err))
+	}
+
+	for _, container := range deployment.Spec.Template.Spec.Containers {
+		for _, arg := range container.Args {
+			if arg == "--enable-driver-pdb=true" || arg == "--enable-driver-pdb" {
+				driverPDBEnabled = true
+			}
+			if strings.HasPrefix(arg, "--namespace-selector=") {
+				jobNamespaceSelectorConfigured = true
+			}
+		}
+	}
+	GinkgoWriter.Printf("Driver PDB feature enabled: %v\n", driverPDBEnabled)
+	GinkgoWriter.Printf("jobNamespaceSelector configured: %v\n", jobNamespaceSelectorConfigured)
 
 	By("Waiting for the webhooks to be ready")
 	mutatingWebhookKey := types.NamespacedName{Name: mutatingWebhookName}
@@ -156,11 +269,15 @@ var _ = BeforeSuite(func() {
 })
 
 var _ = AfterSuite(func() {
-	switch deployMethod {
-	case "helm":
-		uninstallViaHelm()
-	case "kustomize":
-		uninstallViaKustomize()
+	if !preinstalled {
+		switch deployMethod {
+		case "helm":
+			uninstallViaHelm()
+		case "kustomize":
+			uninstallViaKustomize()
+		}
+	} else {
+		logf.Log.Info("Operator was preinstalled, skipping uninstallation")
 	}
 
 	By("Tearing down the test environment")
