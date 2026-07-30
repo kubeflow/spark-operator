@@ -666,7 +666,7 @@ func TestBuildSparkSubmitArgsSkipPodTemplates(t *testing.T) {
 			Mode:                v1beta2.DeployModeCluster,
 			MainApplicationFile: ptr.To("local:///app.jar"),
 			MainClass:           ptr.To("org.example.Main"),
-			SparkVersion:        "4.0.1",
+			SparkVersion:        "4.0.4",
 		},
 		Status: v1beta2.SparkApplicationStatus{
 			SubmissionID: "sub-123",

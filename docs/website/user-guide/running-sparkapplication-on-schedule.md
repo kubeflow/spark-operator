@@ -21,7 +21,7 @@ spec:
     type: Scala
     mode: cluster
     sparkVersion: 4.0.0
-    image: docker.io/library/spark:4.0.0
+    image: docker.io/apache/spark:4.0.0
     imagePullPolicy: Always
     mainClass: org.apache.spark.examples.SparkPi
     mainApplicationFile: local:///opt/spark/examples/jars/spark-examples.jar

@@ -21,11 +21,11 @@ metadata:
 spec:
   type: Scala
   mode: cluster
-  image: spark:4.0.1
+  image: apache/spark:4.0.4
   imagePullPolicy: IfNotPresent
   mainClass: non-existent
   mainApplicationFile: local:///non-existent.jar
-  sparkVersion: 4.0.1
+  sparkVersion: 4.0.4
   restartPolicy:
     type: OnFailure
     onFailureRetries: 3
