@@ -19,7 +19,7 @@ metadata:
   name: spark-connect
   namespace: default
 spec:
-  sparkVersion: 4.0.1
+  sparkVersion: 4.0.4
   server:
     template:
       metadata:

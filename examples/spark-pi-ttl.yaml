@@ -25,7 +25,7 @@ spec:
   imagePullPolicy: IfNotPresent
   mainClass: org.apache.spark.examples.SparkPi
   mainApplicationFile: local:///opt/spark/examples/jars/spark-examples.jar
-  sparkVersion: 4.0.1
+  sparkVersion: 4.0.4
   timeToLiveSeconds: 30
   driver:
     cores: 1

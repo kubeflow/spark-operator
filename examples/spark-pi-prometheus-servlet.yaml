@@ -24,7 +24,7 @@ spec:
   image: docker.io/apache/spark:4.0.4
   imagePullPolicy: IfNotPresent
   mainApplicationFile: local:///opt/spark/examples/src/main/python/pi.py
-  sparkVersion: 4.0.1
+  sparkVersion: 4.0.4
   sparkConf:
     # Expose Spark metrics for Prometheus
     "spark.kubernetes.driver.annotation.prometheus.io/scrape": "true"

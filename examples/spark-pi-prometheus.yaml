@@ -28,7 +28,7 @@ spec:
   mainApplicationFile: local:///opt/spark/examples/jars/spark-examples.jar
   arguments:
   - "100000"
-  sparkVersion: 4.0.1
+  sparkVersion: 4.0.4
   restartPolicy:
     type: Never
   driver:

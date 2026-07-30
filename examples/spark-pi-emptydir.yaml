@@ -27,7 +27,7 @@ spec:
   mainApplicationFile: local:///opt/spark/examples/jars/spark-examples.jar
   arguments:
   - "5000"
-  sparkVersion: 4.0.1
+  sparkVersion: 4.0.4
   volumes:
     - name: spark-local-dir-1
       emptyDir:
