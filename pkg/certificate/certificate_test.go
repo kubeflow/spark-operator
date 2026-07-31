@@ -74,11 +74,6 @@ var _ = Describe("Certificate Provider", func() {
 			Expect(serverCert).NotTo(BeEmpty())
 		})
 
-		It("Should generate new TLS config", func() {
-			cfg, err := cp.ServerCert()
-			Expect(err).To(BeNil())
-			Expect(cfg).NotTo(BeEmpty())
-		})
 	})
 
 	Context("The data of webhook secret is empty", func() {

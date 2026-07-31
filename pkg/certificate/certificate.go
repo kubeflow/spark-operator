@@ -19,7 +19,6 @@ package certificate
 import (
 	"context"
 	"crypto/rsa"
-	"crypto/tls"
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
@@ -203,29 +202,6 @@ func (cp *Provider) ServerCert() ([]byte, error) {
 		Bytes: cp.serverCert.Raw,
 	})
 	return data, nil
-}
-
-// TLSConfig returns the TLS configuration.
-func (cp *Provider) TLSConfig() (*tls.Config, error) {
-	keyPEMBlock, err := cp.ServerKey()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get server key: %v", err)
-	}
-
-	certPEMBlock, err := cp.ServerCert()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get server certificate: %v", err)
-	}
-
-	tlsCert, err := tls.X509KeyPair(certPEMBlock, keyPEMBlock)
-	if err != nil {
-		return nil, fmt.Errorf("failed to generate TLS certificate: %v", err)
-	}
-
-	cfg := &tls.Config{
-		Certificates: []tls.Certificate{tlsCert},
-	}
-	return cfg, nil
 }
 
 // WriteFile saves the certificate and key to the given path.
