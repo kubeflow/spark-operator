@@ -21,11 +21,11 @@ metadata:
 spec:
   type: Scala
   mode: cluster
-  image: docker.io/library/spark:4.0.1
+  image: docker.io/apache/spark:4.0.4
   imagePullPolicy: IfNotPresent
   mainClass: org.apache.spark.examples.SparkPi
   mainApplicationFile: local:///opt/spark/examples/jars/spark-examples.jar
-  sparkVersion: 4.0.1
+  sparkVersion: 4.0.4
   driver:
     cores: 1
     memory: 512m
