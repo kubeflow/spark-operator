@@ -227,6 +227,9 @@ func start() {
 		LeaderElection:          enableLeaderElection,
 		LeaderElectionID:        leaderElectionLockName,
 		LeaderElectionNamespace: leaderElectionLockNamespace,
+		LeaseDuration:           &leaderElectionLeaseDuration,
+		RenewDeadline:           &leaderElectionRenewDeadline,
+		RetryPeriod:             &leaderElectionRetryPeriod,
 		// LeaderElectionReleaseOnCancel defines if the leader should step down voluntarily
 		// when the Manager ends. This requires the binary to immediately end when the
 		// Manager is stopped, otherwise, this setting is unsafe. Setting this significantly
