@@ -359,6 +359,12 @@ webhook:
   leaderElection:
     # -- Specifies whether to enable leader election for webhook.
     enable: true
+    # -- Leader election lease duration.
+    leaseDuration: 15s
+    # -- Leader election renew deadline.
+    renewDeadline: 10s
+    # -- Leader election retry period.
+    retryPeriod: 2s
 
   # -- Configure the verbosity of logging, can be one of `debug`, `info`, `error`.
   logLevel: info

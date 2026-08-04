@@ -161,6 +161,9 @@ See [helm uninstall](https://helm.sh/docs/helm/helm_uninstall) for command docum
 | webhook.replicas | int | `1` | Number of replicas of webhook server. |
 | webhook.revisionHistoryLimit | int | `10` | The number of old history to retain to allow rollback. |
 | webhook.leaderElection.enable | bool | `true` | Specifies whether to enable leader election for webhook. |
+| webhook.leaderElection.leaseDuration | string | `"15s"` | Leader election lease duration. |
+| webhook.leaderElection.renewDeadline | string | `"10s"` | Leader election renew deadline. |
+| webhook.leaderElection.retryPeriod | string | `"2s"` | Leader election retry period. |
 | webhook.logLevel | string | `"info"` | Configure the verbosity of logging, can be one of `debug`, `info`, `error`. |
 | webhook.logEncoder | string | `"console"` | Configure the encoder of logging, can be one of `console` or `json`. |
 | webhook.port | int | `9443` | Specifies webhook port. |
