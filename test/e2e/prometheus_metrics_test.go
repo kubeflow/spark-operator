@@ -17,15 +17,14 @@ limitations under the License.
 package e2e_test
 
 import (
-	"bufio"
 	"context"
 	"fmt"
-	"regexp"
-	"strconv"
 	"strings"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"github.com/prometheus/common/expfmt"
+	"github.com/prometheus/common/model"
 	coordinationv1 "k8s.io/api/coordination/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -37,25 +36,30 @@ import (
 
 // sumMetricValues parses Prometheus text-exposition output and returns the
 // sum of all sample values for the given metric name, across all label combinations.
-func sumMetricValues(metricsText, name string) float64 {
-	pattern := regexp.MustCompile(`^` + regexp.QuoteMeta(name) + `(\{[^}]*\})?\s+(\S+)$`)
+func sumMetricValues(metricsText, name string) (float64, error) {
+	parser := expfmt.NewTextParser(model.LegacyValidation)
+	families, err := parser.TextToMetricFamilies(strings.NewReader(metricsText))
+	if err != nil {
+		return 0, fmt.Errorf("failed to parse Prometheus metrics: %w", err)
+	}
+
+	family, ok := families[name]
+	if !ok {
+		return 0, nil
+	}
 
 	var total float64
-	scanner := bufio.NewScanner(strings.NewReader(metricsText))
-	for scanner.Scan() {
-		line := scanner.Text()
-		if strings.HasPrefix(line, "#") {
-			continue
-		}
-		matches := pattern.FindStringSubmatch(line)
-		if matches == nil {
-			continue
-		}
-		if value, err := strconv.ParseFloat(matches[2], 64); err == nil {
-			total += value
+	for _, metric := range family.GetMetric() {
+		switch {
+		case metric.GetCounter() != nil:
+			total += metric.GetCounter().GetValue()
+		case metric.GetGauge() != nil:
+			total += metric.GetGauge().GetValue()
+		case metric.GetUntyped() != nil:
+			total += metric.GetUntyped().GetValue()
 		}
 	}
-	return total
+	return total, nil
 }
 
 var _ = Describe("Prometheus Metrics", func() {
@@ -136,9 +140,12 @@ var _ = Describe("Prometheus Metrics", func() {
 
 			// Other specs may run concurrently and share these process-global counters,
 			// so capture a baseline and assert on the delta rather than mere presence.
-			countBefore := sumMetricValues(metricsOutput, common.MetricSparkApplicationCount)
-			submitCountBefore := sumMetricValues(metricsOutput, common.MetricSparkApplicationSubmitCount)
-			successCountBefore := sumMetricValues(metricsOutput, common.MetricSparkApplicationSuccessCount)
+			countBefore, err := sumMetricValues(metricsOutput, common.MetricSparkApplicationCount)
+			Expect(err).NotTo(HaveOccurred())
+			submitCountBefore, err := sumMetricValues(metricsOutput, common.MetricSparkApplicationSubmitCount)
+			Expect(err).NotTo(HaveOccurred())
+			successCountBefore, err := sumMetricValues(metricsOutput, common.MetricSparkApplicationSuccessCount)
+			Expect(err).NotTo(HaveOccurred())
 
 			By("Creating SparkApplication to exercise the metrics pipeline")
 			Expect(k8sClient.Create(ctx, app)).To(Succeed())
@@ -148,18 +155,24 @@ var _ = Describe("Prometheus Metrics", func() {
 			Expect(waitForSparkApplicationCompleted(ctx, key)).NotTo(HaveOccurred())
 
 			By("Verifying Spark application metrics incremented after app completion")
-			Eventually(func() (bool, error) {
+			Eventually(func(g Gomega) {
 				data, err := clientset.CoreV1().Pods(ReleaseNamespace).
 					ProxyGet(metricsScheme, controllerPod.Name, metricsPort, metricsPath, nil).
 					DoRaw(ctx)
-				if err != nil {
-					return false, err
-				}
+				g.Expect(err).NotTo(HaveOccurred(), "failed to proxy GET /metrics from controller pod")
+
 				metricsOutput := string(data)
-				return sumMetricValues(metricsOutput, common.MetricSparkApplicationCount) > countBefore &&
-					sumMetricValues(metricsOutput, common.MetricSparkApplicationSubmitCount) > submitCountBefore &&
-					sumMetricValues(metricsOutput, common.MetricSparkApplicationSuccessCount) > successCountBefore, nil
-			}).WithPolling(PollInterval).WithTimeout(WaitTimeout).Should(BeTrue())
+				countAfter, err := sumMetricValues(metricsOutput, common.MetricSparkApplicationCount)
+				g.Expect(err).NotTo(HaveOccurred())
+				submitCountAfter, err := sumMetricValues(metricsOutput, common.MetricSparkApplicationSubmitCount)
+				g.Expect(err).NotTo(HaveOccurred())
+				successCountAfter, err := sumMetricValues(metricsOutput, common.MetricSparkApplicationSuccessCount)
+				g.Expect(err).NotTo(HaveOccurred())
+
+				g.Expect(countAfter).To(BeNumerically(">", countBefore))
+				g.Expect(submitCountAfter).To(BeNumerically(">", submitCountBefore))
+				g.Expect(successCountAfter).To(BeNumerically(">", successCountBefore))
+			}).WithPolling(PollInterval).WithTimeout(WaitTimeout).Should(Succeed())
 		})
 	})
 })
