@@ -22,6 +22,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -72,7 +73,7 @@ var _ = Describe("SparkConnect Query", func() {
 			}
 		})
 
-		It("Should execute a PySpark query through the Spark Connect endpoint", func() {
+		It("Should execute a Scala query through the Spark Connect endpoint", func() {
 			serverPodName := sparkconnect.GetServerPodName(conn)
 			serviceName := sparkconnect.GetServerServiceName(conn)
 
@@ -140,16 +141,16 @@ var _ = Describe("SparkConnect Query", func() {
 			}, operatorDeploy)).To(Succeed())
 			operatorImage := operatorDeploy.Spec.Template.Spec.Containers[0].Image
 
-			By("Creating PySpark client pod")
+			By("Creating Spark Connect client pod")
 			clientPod := &corev1.Pod{
 				ObjectMeta: metav1.ObjectMeta{
-					GenerateName: "pyspark-client-",
+					GenerateName: "spark-connect-client-",
 					Namespace:    conn.Namespace,
 				},
 				Spec: corev1.PodSpec{
 					Containers: []corev1.Container{
 						{
-							Name:            "pyspark-client",
+							Name:            "spark-connect-client",
 							Image:           operatorImage,
 							ImagePullPolicy: corev1.PullNever,
 							Command:         []string{"sleep", "infinity"},
@@ -161,7 +162,7 @@ var _ = Describe("SparkConnect Query", func() {
 			Expect(controllerutil.SetOwnerReference(conn, clientPod, k8sClient.Scheme())).To(Succeed())
 			Expect(k8sClient.Create(ctx, clientPod)).To(Succeed())
 
-			By("Waiting for PySpark client pod to be ready")
+			By("Waiting for Spark Connect client pod to be ready")
 			Eventually(func() bool {
 				key := types.NamespacedName{Namespace: conn.Namespace, Name: clientPod.Name}
 				pod := &corev1.Pod{}
@@ -171,36 +172,28 @@ var _ = Describe("SparkConnect Query", func() {
 				return util.IsPodReady(pod)
 			}).WithPolling(PollInterval).WithTimeout(WaitTimeout).Should(BeTrue())
 
-			By("Installing PySpark Connect dependencies")
-			output, err := runCommand(
-				"kubectl", "exec", "-n", conn.Namespace, clientPod.Name, "--",
-				"sh", "-c",
-				"export HOME=/tmp && python3 -m pip install --quiet --disable-pip-version-check --no-cache-dir "+
-					"pandas==2.2.3 pyarrow==18.1.0 grpcio==1.68.1 grpcio-status==1.68.1 googleapis-common-protos==1.66.0",
-			)
-			Expect(err).NotTo(HaveOccurred(), "pip install failed: %s", output)
-
-			By("Executing a PySpark query via Spark Connect from the client pod")
-			connectURL := fmt.Sprintf("sc://%s.%s.svc.cluster.local:15002", serviceName, conn.Namespace)
-			pysparkScript := fmt.Sprintf(
-				`from pyspark.sql import SparkSession; `+
-					`spark = SparkSession.builder.remote("%s").getOrCreate(); `+
-					`df = spark.range(100).selectExpr("id", "id * 2 as doubled"); `+
-					`print("ROW_COUNT=" + str(df.count())); `+
-					`row = df.filter("id = 7").collect()[0]; `+
-					`print("VALIDATE=" + str(row["doubled"])); `+
-					`spark.stop()`,
+			By("Executing a Scala query via Spark Connect from the client pod")
+			// --remote requires a TTY (Ammonite REPL); build the session explicitly so the
+			// classic REPL handles piped, non-interactive input under kubectl exec.
+			connectURL := fmt.Sprintf("sc://%s.%s.svc:15002", serviceName, conn.Namespace)
+			scalaScript := fmt.Sprintf(
+				`import org.apache.spark.sql.SparkSession
+val remoteSpark = SparkSession.builder().remote("%s").getOrCreate()
+val df = remoteSpark.range(100).selectExpr("id", "id * 2 as doubled")
+println("ROW_COUNT=" + df.count())
+val row = df.filter("id = 7").collect()(0)
+println("VALIDATE=" + row.getAs[Long]("doubled"))
+System.exit(0)
+`,
 				connectURL,
 			)
-			output, err = runCommand(
-				"kubectl", "exec", "-n", conn.Namespace, clientPod.Name, "--",
+			output, err := runCommandWithInput(
+				scalaScript,
+				"kubectl", "exec", "-i", "-n", conn.Namespace, clientPod.Name, "--",
 				"bash", "-c",
-				fmt.Sprintf(
-					"export HOME=/tmp PYTHONPATH=${SPARK_HOME}/python:$(ls ${SPARK_HOME}/python/lib/py4j-*.zip):${PYTHONPATH} && python3 -c '%s'",
-					pysparkScript,
-				),
+				"export HOME=/tmp && ${SPARK_HOME}/bin/spark-shell --master 'local[1]' --conf spark.ui.enabled=false",
 			)
-			Expect(err).NotTo(HaveOccurred(), "PySpark query failed: %s", output)
+			Expect(err).NotTo(HaveOccurred(), "Scala Spark Connect query failed: %s", output)
 			Expect(output).To(ContainSubstring("ROW_COUNT=100"),
 				"expected query to return 100 rows, got: %s", output)
 			Expect(output).To(ContainSubstring("VALIDATE=14"),
@@ -209,10 +202,12 @@ var _ = Describe("SparkConnect Query", func() {
 	})
 })
 
-func runCommand(name string, args ...string) (string, error) {
+func runCommandWithInput(input string, name string, args ...string) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), WaitTimeout)
 	defer cancel()
-	out, err := exec.CommandContext(ctx, name, args...).CombinedOutput()
+	cmd := exec.CommandContext(ctx, name, args...)
+	cmd.Stdin = strings.NewReader(input)
+	out, err := cmd.CombinedOutput()
 	if ctx.Err() == context.DeadlineExceeded {
 		return string(out), fmt.Errorf("command %s timed out after %s", name, WaitTimeout)
 	}
