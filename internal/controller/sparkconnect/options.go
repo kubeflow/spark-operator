@@ -128,7 +128,8 @@ func sparkConfOption(conn *v1alpha1.SparkConnect) ([]string, error) {
 }
 
 func shellQuoteSparkConfig(key, value string) string {
-	return "'" + strings.ReplaceAll(key+"="+value, "'", "'\"'\"'") + "'"
+	config := fmt.Sprintf("%s=%s", key, value)
+	return fmt.Sprintf("'%s'", strings.ReplaceAll(config, "'", `'"'"'`))
 }
 
 func hadoopConfOption(conn *v1alpha1.SparkConnect) ([]string, error) {
