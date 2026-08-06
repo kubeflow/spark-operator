@@ -42,6 +42,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/apimachinery/pkg/util/yaml"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
@@ -406,4 +407,31 @@ func collectSparkApplicationsUntilTermination(ctx context.Context, key types.Nam
 		return false, nil
 	})
 	return apps, err
+}
+
+// loadSparkApplication parses the SparkApplication example at path and gives
+// the caller a fresh copy. We rename it per-test so two tests can run in the
+// same namespace without colliding.
+func loadSparkApplication(path, name string) *v1beta2.SparkApplication {
+	app := &v1beta2.SparkApplication{}
+	file, err := os.Open(path)
+	Expect(err).NotTo(HaveOccurred())
+	defer func() {
+		_ = file.Close()
+	}()
+	Expect(yaml.NewYAMLOrJSONDecoder(file, 4096).Decode(app)).NotTo(HaveOccurred())
+	app.Name = name
+	app.ResourceVersion = ""
+	app.UID = ""
+	return app
+}
+
+// loadSparkPi loads the canonical Scala spark-pi example.
+func loadSparkPi(name string) *v1beta2.SparkApplication {
+	return loadSparkApplication(filepath.Join("..", "..", "examples", "spark-pi.yaml"), name)
+}
+
+// loadSparkPiPython loads the Python spark-pi example.
+func loadSparkPiPython(name string) *v1beta2.SparkApplication {
+	return loadSparkApplication(filepath.Join("..", "..", "examples", "spark-pi-python.yaml"), name)
 }
