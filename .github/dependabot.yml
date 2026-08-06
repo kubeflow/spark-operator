@@ -5,6 +5,11 @@ updates:
     schedule:
       interval: "weekly"
 
+  - package-ecosystem: "gomod"
+    directory: "/test/e2e"
+    schedule:
+      interval: "weekly"
+
   - package-ecosystem: "docker"
     directory: "/"
     schedule:

@@ -36,8 +36,9 @@ jobs:
       - name: Run go mod tidy
         run: |
           go mod tidy
+          go -C test/e2e mod tidy
           if ! git diff --quiet; then
-            echo "Please run 'go mod tidy' and commit the changes."
+            echo "Please run 'go mod tidy' in the root and test/e2e modules and commit the changes."
             git diff
             false
           fi
@@ -144,7 +145,7 @@ jobs:
       - name: Get Helm version
         id: get_helm_version
         run: |
-          HELM_VERSION=$(grep -e '^	helm.sh/helm/v3 v' go.mod | cut -d ' ' -f 2)
+          HELM_VERSION=$(grep -e '^[[:space:]]*helm.sh/helm/v3 v' test/e2e/go.mod | cut -d ' ' -f 2)
           echo "HELM_VERSION=$HELM_VERSION" >> "$GITHUB_OUTPUT"
 
       - name: Install Helm
@@ -237,6 +238,9 @@ jobs:
         uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0 # zizmor: ignore[cache-poisoning] caching is intentional for CI jobs
         with:
           go-version-file: go.mod
+          cache-dependency-path: |
+            go.sum
+            test/e2e/go.sum
 
       - name: Create a Kind cluster
         run: make kind-create-cluster KIND_K8S_VERSION=${{ matrix.k8s_version }}

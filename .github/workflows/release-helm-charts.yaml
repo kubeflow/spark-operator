@@ -35,7 +35,7 @@ jobs:
       - name: Get Helm version
         id: get_helm_version
         run: |
-          HELM_VERSION=$(grep -e '^	helm.sh/helm/v3 v' go.mod | cut -d ' ' -f 2)
+          HELM_VERSION=$(grep -e '^[[:space:]]*helm.sh/helm/v3 v' test/e2e/go.mod | cut -d ' ' -f 2)
           echo "HELM_VERSION=$HELM_VERSION" >> "$GITHUB_OUTPUT"
 
       - name: Set up Helm
