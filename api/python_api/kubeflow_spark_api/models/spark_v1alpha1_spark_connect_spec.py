@@ -21,6 +21,7 @@ from pydantic import BaseModel, ConfigDict, Field, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional
 from kubeflow_spark_api.models.spark_v1alpha1_dynamic_allocation import SparkV1alpha1DynamicAllocation
 from kubeflow_spark_api.models.spark_v1alpha1_executor_spec import SparkV1alpha1ExecutorSpec
+from kubeflow_spark_api.models.spark_v1alpha1_restart_policy import SparkV1alpha1RestartPolicy
 from kubeflow_spark_api.models.spark_v1alpha1_server_spec import SparkV1alpha1ServerSpec
 from typing import Optional, Set
 from typing_extensions import Self
@@ -33,10 +34,11 @@ class SparkV1alpha1SparkConnectSpec(BaseModel):
     executor: SparkV1alpha1ExecutorSpec = Field(description="Executor is the Spark executor specification.")
     hadoop_conf: Optional[Dict[str, StrictStr]] = Field(default=None, description="HadoopConf carries user-specified Hadoop configuration properties as they would use the \"--conf\" option in spark-submit. The SparkApplication controller automatically adds prefix \"spark.hadoop.\" to Hadoop configuration properties.", alias="hadoopConf")
     image: Optional[StrictStr] = Field(default=None, description="Image is the container image for the driver, executor, and init-container. Any custom container images for the driver, executor, or init-container takes precedence over this.")
+    restart_policy: Optional[SparkV1alpha1RestartPolicy] = Field(default=None, description="RestartPolicy defines the policy for operator-managed Spark Connect server pod restarts.", alias="restartPolicy")
     server: SparkV1alpha1ServerSpec = Field(description="Server is the Spark connect server specification.")
     spark_conf: Optional[Dict[str, StrictStr]] = Field(default=None, description="SparkConf carries user-specified Spark configuration properties as they would use the \"--conf\" option in spark-submit.", alias="sparkConf")
     spark_version: StrictStr = Field(description="SparkVersion is the version of Spark the spark connect use.", alias="sparkVersion")
-    __properties: ClassVar[List[str]] = ["dynamicAllocation", "executor", "hadoopConf", "image", "server", "sparkConf", "sparkVersion"]
+    __properties: ClassVar[List[str]] = ["dynamicAllocation", "executor", "hadoopConf", "image", "restartPolicy", "server", "sparkConf", "sparkVersion"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -83,6 +85,9 @@ class SparkV1alpha1SparkConnectSpec(BaseModel):
         # override the default output from pydantic by calling `to_dict()` of executor
         if self.executor:
             _dict['executor'] = self.executor.to_dict()
+        # override the default output from pydantic by calling `to_dict()` of restart_policy
+        if self.restart_policy:
+            _dict['restartPolicy'] = self.restart_policy.to_dict()
         # override the default output from pydantic by calling `to_dict()` of server
         if self.server:
             _dict['server'] = self.server.to_dict()
@@ -102,6 +107,7 @@ class SparkV1alpha1SparkConnectSpec(BaseModel):
             "executor": SparkV1alpha1ExecutorSpec.from_dict(obj["executor"]) if obj.get("executor") is not None else None,
             "hadoopConf": obj.get("hadoopConf"),
             "image": obj.get("image"),
+            "restartPolicy": SparkV1alpha1RestartPolicy.from_dict(obj["restartPolicy"]) if obj.get("restartPolicy") is not None else None,
             "server": SparkV1alpha1ServerSpec.from_dict(obj["server"]) if obj.get("server") is not None else None,
             "sparkConf": obj.get("sparkConf"),
             "sparkVersion": obj.get("sparkVersion") if obj.get("sparkVersion") is not None else ''

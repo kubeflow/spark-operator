@@ -24,7 +24,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -216,13 +215,27 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (reconcile
 	if conn.Status.StartTime.IsZero() {
 		conn.Status.StartTime = metav1.Now()
 	}
+	if conn.Status.ObservedGeneration != conn.Generation {
+		conn.Status.ObservedGeneration = conn.Generation
+		conn.Status.RestartAttempts = 0
+		conn.Status.LastRestartTime = metav1.Time{}
+	}
 
 	if err := r.createOrUpdateConfigMap(ctx, conn); err != nil {
 		return reconcile.Result{}, err
 	}
 
-	if err := r.createOrUpdateServerPod(ctx, conn); err != nil {
+	if updated, result, scheduled, err := r.reconcileServerPod(ctx, conn); err != nil {
 		return reconcile.Result{}, err
+	} else if scheduled {
+		conn = updated
+		if err := r.updateSparkConnectStatus(ctx, old, conn); err != nil {
+			logger.V(1).Info("conflict updating SparkConnect status", "error", err)
+			return ctrl.Result{}, fmt.Errorf("failed to update SparkConnect status: %v", err)
+		}
+		return result, nil
+	} else {
+		conn = updated
 	}
 
 	if err := r.createOrUpdateServerService(ctx, conn); err != nil {
@@ -289,8 +302,28 @@ func (r *Reconciler) mutateConfigMap(_ context.Context, conn *v1alpha1.SparkConn
 	return nil
 }
 
+func (r *Reconciler) reconcileServerPod(ctx context.Context, conn *v1alpha1.SparkConnect) (*v1alpha1.SparkConnect, reconcile.Result, bool, error) {
+	pod, err := r.createOrUpdateServerPod(ctx, conn)
+	if err != nil {
+		return conn, reconcile.Result{}, false, err
+	}
+
+	podStatus := checkServerPodStatus(pod)
+	restartDecision := r.reconcileServerPodRestart(ctx, conn, pod)
+	if restartDecision.deletePod {
+		if err := r.client.Delete(ctx, pod); err != nil && !errors.IsNotFound(err) {
+			return conn, reconcile.Result{}, false, fmt.Errorf("failed to delete server pod for restart: %v", err)
+		}
+		restartDecision.incrementRestartAttempts = true
+	}
+
+	applyServerPodStatus(conn, pod, podStatus, restartDecision)
+
+	return conn, restartDecision.result, restartDecision.scheduled, nil
+}
+
 // createOrUpdateServerPod creates or updates the server pod for the SparkConnect resource.
-func (r *Reconciler) createOrUpdateServerPod(ctx context.Context, conn *v1alpha1.SparkConnect) error {
+func (r *Reconciler) createOrUpdateServerPod(ctx context.Context, conn *v1alpha1.SparkConnect) (*corev1.Pod, error) {
 	logger := ctrl.LoggerFrom(ctx)
 	logger.V(1).Info("Create or update server pod")
 
@@ -309,38 +342,12 @@ func (r *Reconciler) createOrUpdateServerPod(ctx context.Context, conn *v1alpha1
 		return nil
 	})
 	if err != nil {
-		return fmt.Errorf("failed to create or update server pod: %v", err)
+		return nil, fmt.Errorf("failed to create or update server pod: %v", err)
 	}
 
-	// Update SparkConnect status.
-	ready := util.IsPodReady(pod)
-	if ready {
-		condition := metav1.Condition{
-			Type:    string(v1alpha1.SparkConnectConditionServerPodReady),
-			Status:  metav1.ConditionTrue,
-			Reason:  string(v1alpha1.SparkConnectConditionReasonServerPodReady),
-			Message: "Server pod is ready",
-		}
-		_ = meta.SetStatusCondition(&conn.Status.Conditions, condition)
-		conn.Status.State = v1alpha1.SparkConnectStateReady
-	} else {
-		condition := metav1.Condition{
-			Type:    string(v1alpha1.SparkConnectConditionServerPodReady),
-			Status:  metav1.ConditionFalse,
-			Reason:  string(v1alpha1.SparkConnectConditionReasonServerPodNotReady),
-			Message: fmt.Sprintf("Server pod is not ready: %s", pod.Status.Message),
-		}
-		_ = meta.SetStatusCondition(&conn.Status.Conditions, condition)
-		conn.Status.State = v1alpha1.SparkConnectStateNotReady
-	}
-
-	conn.Status.Server.PodName = pod.Name
-	conn.Status.Server.PodIP = pod.Status.PodIP
-
-	return nil
+	return pod, nil
 }
 
-// mutateServerPod mutates the server pod for SparkConnect.
 func (r *Reconciler) mutateServerPod(_ context.Context, conn *v1alpha1.SparkConnect, pod *corev1.Pod) error {
 	// Server pod not created yet.
 	if pod.CreationTimestamp.IsZero() {
@@ -447,6 +454,7 @@ func (r *Reconciler) mutateServerPod(_ context.Context, conn *v1alpha1.SparkConn
 			},
 		)
 	}
+	pod.Spec.RestartPolicy = corev1.RestartPolicyNever
 
 	// Set controller owner reference on server pod.
 	if err := ctrl.SetControllerReference(conn, pod, r.scheme); err != nil {

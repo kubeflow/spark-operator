@@ -35,6 +35,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 	return map[string]common.OpenAPIDefinition{
 		"github.com/kubeflow/spark-operator/v2/api/v1alpha1.DynamicAllocation":        schema_spark_operator_v2_api_v1alpha1_DynamicAllocation(ref),
 		"github.com/kubeflow/spark-operator/v2/api/v1alpha1.ExecutorSpec":             schema_spark_operator_v2_api_v1alpha1_ExecutorSpec(ref),
+		"github.com/kubeflow/spark-operator/v2/api/v1alpha1.RestartPolicy":            schema_spark_operator_v2_api_v1alpha1_RestartPolicy(ref),
 		"github.com/kubeflow/spark-operator/v2/api/v1alpha1.ServerSpec":               schema_spark_operator_v2_api_v1alpha1_ServerSpec(ref),
 		"github.com/kubeflow/spark-operator/v2/api/v1alpha1.SparkConnect":             schema_spark_operator_v2_api_v1alpha1_SparkConnect(ref),
 		"github.com/kubeflow/spark-operator/v2/api/v1alpha1.SparkConnectList":         schema_spark_operator_v2_api_v1alpha1_SparkConnectList(ref),
@@ -468,6 +469,40 @@ func schema_spark_operator_v2_api_v1alpha1_ExecutorSpec(ref common.ReferenceCall
 	}
 }
 
+func schema_spark_operator_v2_api_v1alpha1_RestartPolicy(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "RestartPolicy defines operator-managed restart behavior for the Spark Connect server pod.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"restartPolicyType": {
+						SchemaProps: spec.SchemaProps{
+							Description: "RestartPolicyType defines when the operator should restart the Spark Connect server pod.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"onFailureRetries": {
+						SchemaProps: spec.SchemaProps{
+							Description: "OnFailureRetries the number of times to retry running an application before giving up.",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
+					"onFailureRetryInterval": {
+						SchemaProps: spec.SchemaProps{
+							Description: "OnFailureRetryInterval is the interval in seconds between restart attempts on failed runs.",
+							Type:        []string{"integer"},
+							Format:      "int64",
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
 func schema_spark_operator_v2_api_v1alpha1_ServerSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
@@ -713,12 +748,19 @@ func schema_spark_operator_v2_api_v1alpha1_SparkConnectSpec(ref common.Reference
 							Ref:         ref("github.com/kubeflow/spark-operator/v2/api/v1alpha1.DynamicAllocation"),
 						},
 					},
+					"restartPolicy": {
+						SchemaProps: spec.SchemaProps{
+							Description: "RestartPolicy defines the policy for operator-managed Spark Connect server pod restarts.",
+							Default:     map[string]interface{}{},
+							Ref:         ref("github.com/kubeflow/spark-operator/v2/api/v1alpha1.RestartPolicy"),
+						},
+					},
 				},
 				Required: []string{"sparkVersion", "server", "executor"},
 			},
 		},
 		Dependencies: []string{
-			"github.com/kubeflow/spark-operator/v2/api/v1alpha1.DynamicAllocation", "github.com/kubeflow/spark-operator/v2/api/v1alpha1.ExecutorSpec", "github.com/kubeflow/spark-operator/v2/api/v1alpha1.ServerSpec"},
+			"github.com/kubeflow/spark-operator/v2/api/v1alpha1.DynamicAllocation", "github.com/kubeflow/spark-operator/v2/api/v1alpha1.ExecutorSpec", "github.com/kubeflow/spark-operator/v2/api/v1alpha1.RestartPolicy", "github.com/kubeflow/spark-operator/v2/api/v1alpha1.ServerSpec"},
 	}
 }
 
@@ -765,6 +807,26 @@ func schema_spark_operator_v2_api_v1alpha1_SparkConnectStatus(ref common.Referen
 							Description: "Server represents the current state of the SparkConnect server.",
 							Default:     map[string]interface{}{},
 							Ref:         ref("github.com/kubeflow/spark-operator/v2/api/v1alpha1.SparkConnectServerStatus"),
+						},
+					},
+					"restartAttempts": {
+						SchemaProps: spec.SchemaProps{
+							Description: "RestartAttempts is the number of operator-managed restart attempts for the current generation.",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
+					"lastRestartTime": {
+						SchemaProps: spec.SchemaProps{
+							Description: "LastRestartTime is the time of the latest operator-managed restart attempt.",
+							Ref:         ref(metav1.Time{}.OpenAPIModelName()),
+						},
+					},
+					"observedGeneration": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ObservedGeneration is the most recent generation observed for restart lifecycle status.",
+							Type:        []string{"integer"},
+							Format:      "int64",
 						},
 					},
 					"executors": {

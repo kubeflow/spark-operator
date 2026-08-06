@@ -31,11 +31,14 @@ class SparkV1alpha1SparkConnectStatus(BaseModel):
     """ # noqa: E501
     conditions: Optional[List[IoK8sApimachineryPkgApisMetaV1Condition]] = Field(default=None, description="Represents the latest available observations of a SparkConnect's current state.")
     executors: Optional[Dict[str, StrictInt]] = Field(default=None, description="Executors represents the current state of the SparkConnect executors.")
+    last_restart_time: Optional[datetime] = Field(default=None, description="LastRestartTime is the time of the latest operator-managed restart attempt.", alias="lastRestartTime")
     last_update_time: Optional[datetime] = Field(default=None, description="LastUpdateTime is the time at which the SparkConnect controller last updated the SparkConnect.", alias="lastUpdateTime")
+    observed_generation: Optional[StrictInt] = Field(default=None, description="ObservedGeneration is the most recent generation observed for restart lifecycle status.", alias="observedGeneration")
+    restart_attempts: Optional[StrictInt] = Field(default=None, description="RestartAttempts is the number of operator-managed restart attempts for the current generation.", alias="restartAttempts")
     server: Optional[SparkV1alpha1SparkConnectServerStatus] = Field(default=None, description="Server represents the current state of the SparkConnect server.")
     start_time: Optional[datetime] = Field(default=None, description="StartTime is the time at which the SparkConnect controller started processing the SparkConnect.", alias="startTime")
     state: Optional[StrictStr] = Field(default=None, description="State represents the current state of the SparkConnect.")
-    __properties: ClassVar[List[str]] = ["conditions", "executors", "lastUpdateTime", "server", "startTime", "state"]
+    __properties: ClassVar[List[str]] = ["conditions", "executors", "lastRestartTime", "lastUpdateTime", "observedGeneration", "restartAttempts", "server", "startTime", "state"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -100,7 +103,10 @@ class SparkV1alpha1SparkConnectStatus(BaseModel):
         _obj = cls.model_validate({
             "conditions": [IoK8sApimachineryPkgApisMetaV1Condition.from_dict(_item) for _item in obj["conditions"]] if obj.get("conditions") is not None else None,
             "executors": obj.get("executors"),
+            "lastRestartTime": obj.get("lastRestartTime"),
             "lastUpdateTime": obj.get("lastUpdateTime"),
+            "observedGeneration": obj.get("observedGeneration"),
+            "restartAttempts": obj.get("restartAttempts"),
             "server": SparkV1alpha1SparkConnectServerStatus.from_dict(obj["server"]) if obj.get("server") is not None else None,
             "startTime": obj.get("startTime"),
             "state": obj.get("state")
