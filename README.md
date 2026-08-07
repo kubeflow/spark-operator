@@ -3,6 +3,7 @@
 [![GitHub release](https://img.shields.io/github/v/release/kubeflow/spark-operator)](https://github.com/kubeflow/spark-operator/releases)
 [![Go Report Card](https://goreportcard.com/badge/github.com/kubeflow/spark-operator)](https://goreportcard.com/report/github.com/kubeflow/spark-operator)
 [![Integration Test](https://github.com/kubeflow/spark-operator/actions/workflows/integration.yaml/badge.svg)](https://github.com/kubeflow/spark-operator/actions/workflows/integration.yaml)
+[![Coverage Status](https://coveralls.io/repos/github/kubeflow/spark-operator/badge.svg?branch=master)](https://coveralls.io/github/kubeflow/spark-operator?branch=master)
 [![Join Slack](https://img.shields.io/badge/Join_Slack-blue?logo=slack)](https://www.kubeflow.org/docs/about/community/#kubeflow-slack-channels)
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/kubeflow/spark-operator)
 [![OpenSSF Best Practices](https://www.bestpractices.dev/projects/10524/badge)](https://www.bestpractices.dev/projects/10524)
