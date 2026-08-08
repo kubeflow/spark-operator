@@ -60,7 +60,7 @@ ENVTEST_VERSION ?= release-0.20
 ENVTEST_K8S_VERSION ?= $(shell go list -m -f "{{ .Version }}" k8s.io/api | awk -F'[v.]' '{printf "1.%d", $$3}')
 GOLANGCI_LINT_VERSION ?= v2.1.6
 GEN_CRD_API_REFERENCE_DOCS_VERSION ?= v0.3.0
-HELM_VERSION ?= $(shell grep -e '^	helm.sh/helm/v3 v' go.mod | cut -d ' ' -f 2)
+HELM_VERSION ?= $(shell grep -e '^[[:space:]]*helm.sh/helm/v3 v' test/e2e/go.mod | cut -d ' ' -f 2)
 HELM_UNITTEST_VERSION ?= 0.8.2
 HELM_DOCS_VERSION ?= v1.14.2
 CODE_GENERATOR_VERSION ?= v0.35.4
@@ -146,7 +146,7 @@ go-clean: ## Clean up caches and output.
 .PHONY: go-fmt
 go-fmt: ## Run go fmt against code.
 	@echo "Running go fmt..."
-	if [ -n "$(shell go fmt ./...)" ]; then \
+	if [ -n "$(shell go fmt ./... && cd test/e2e && go fmt ./...)" ]; then \
 		echo "Go code is not formatted, need to run \"make go-fmt\" and commit the changes."; \
 		false; \
 	else \
@@ -157,16 +157,19 @@ go-fmt: ## Run go fmt against code.
 go-vet: ## Run go vet against code.
 	@echo "Running go vet..."
 	go vet ./...
+	cd test/e2e && go vet ./...
 
 .PHONY: go-lint
 go-lint: golangci-lint ## Run golangci-lint linter.
 	@echo "Running golangci-lint run..."
 	$(GOLANGCI_LINT) run
+	cd test/e2e && $(GOLANGCI_LINT) run --config ../../.golangci.yaml
 
 .PHONY: go-lint-fix
 go-lint-fix: golangci-lint ## Run golangci-lint linter and perform fixes.
 	@echo "Running golangci-lint run --fix..."
 	$(GOLANGCI_LINT) run --fix
+	cd test/e2e && $(GOLANGCI_LINT) run --fix --config ../../.golangci.yaml
 
 # Shell scripts to format and lint (all tracked *.sh files).
 SHELL_SCRIPTS = $(shell git ls-files '*.sh')
@@ -191,7 +194,7 @@ shell-lint: shellcheck ## Lint shell scripts with shellcheck.
 unit-test: setup-envtest ## Run unit tests.
 	@echo "Running unit tests..."
 	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)"
-	go test $(shell go list ./... | grep -v -e /e2e -e /drift) -coverprofile cover.out
+	go test $(shell go list ./... | grep -v -e /drift) -coverprofile cover.out
 	@echo "Generating HTML coverage report..."
 	go tool cover -html=cover.out -o cover.html
 	@echo "Coverage report available at cover.html"
@@ -200,7 +203,7 @@ unit-test: setup-envtest ## Run unit tests.
 e2e-test: IMAGE_TAG=local
 e2e-test: envtest kind-load-image kind-load-spark-image ## Run the e2e tests against a Kind k8s instance that is spun up.
 	@echo "Running e2e tests (deploy_method=$(DEPLOY_METHOD))..."
-	DEPLOY_METHOD=$(DEPLOY_METHOD) IMAGE_TAG=$(IMAGE_TAG) KUBECONFIG=$(KIND_KUBE_CONFIG) go test ./test/e2e/ -v -ginkgo.v -timeout 30m
+	cd test/e2e && DEPLOY_METHOD=$(DEPLOY_METHOD) IMAGE_TAG=$(IMAGE_TAG) KUBECONFIG=$(KIND_KUBE_CONFIG) go test ./... -v -ginkgo.v -timeout 30m
 
 ##@ Kustomize
 
