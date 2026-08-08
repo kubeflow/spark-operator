@@ -51,6 +51,13 @@ Use `ScheduledSparkApplication` to run Spark jobs on a cron schedule
 Tune operator behavior, flags, and Helm chart values
 ::::
 
+::::{grid-item-card} Building Custom Operator Images
+:link: building-custom-images
+:link-type: doc
+
+Build your own operator image from the released binaries
+::::
+
 ::::{grid-item-card} Enabling Leader Election
 :link: leader-election
 :link-type: doc
@@ -134,6 +141,7 @@ writing-sparkapplication
 working-with-sparkapplication
 running-sparkapplication-on-schedule
 customizing-spark-operator
+building-custom-images
 leader-election
 running-multiple-instances-of-the-operator
 resource-quota-enforcement
