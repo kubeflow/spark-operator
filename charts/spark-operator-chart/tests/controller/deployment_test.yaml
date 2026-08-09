@@ -874,6 +874,21 @@ tests:
           path: spec.template.spec.containers[?(@.name=="spark-operator-controller")].args
           content: --max-tracked-executor-per-app=123
 
+  - it: Should set `terminationGracePeriodSeconds` on the pod by default
+    asserts:
+      - equal:
+          path: spec.template.spec.terminationGracePeriodSeconds
+          value: 60
+
+  - it: Should override `terminationGracePeriodSeconds` if `controller.terminationGracePeriodSeconds` is set
+    set:
+      controller:
+        terminationGracePeriodSeconds: 240
+    asserts:
+      - equal:
+          path: spec.template.spec.terminationGracePeriodSeconds
+          value: 240
+
 
   - it: Should add leader election parameters if `controller.leaderElection.leaseDuration`, `controller.leaderElection.renewDeadline` and `controller.leaderElection.retryPeriod` are set.
     set:
