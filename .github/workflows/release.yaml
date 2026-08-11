@@ -425,9 +425,9 @@ jobs:
             echo "Building linux/${arch}..."
             GOOS=linux GOARCH="${arch}" \
               make build-operator SPARK_OPERATOR="${stage}/spark-operator"
-            cp LICENSE "${stage}/"
+            cp LICENSE entrypoint.sh "${stage}/"
             tar -czf "${RUNNER_TEMP}/dist/spark-operator_${VERSION}_linux_${arch}.tar.gz" \
-              -C "${stage}" spark-operator LICENSE
+              -C "${stage}" spark-operator LICENSE entrypoint.sh
           done
 
       - name: Generate checksums

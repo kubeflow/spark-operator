@@ -14,8 +14,8 @@ Each GitHub release includes:
 
 | Artifact | Contents |
 | --- | --- |
-| `spark-operator_<version>_linux_amd64.tar.gz` | `spark-operator` binary and `LICENSE` |
-| `spark-operator_<version>_linux_arm64.tar.gz` | `spark-operator` binary and `LICENSE` |
+| `spark-operator_<version>_linux_amd64.tar.gz` | `spark-operator` binary `entrypoint.sh` and `LICENSE` |
+| `spark-operator_<version>_linux_arm64.tar.gz` | `spark-operator` binary `entrypoint.sh` and `LICENSE` |
 | `SHA256SUMS` | SHA-256 checksums for the archives above |
 
 The binaries are statically linked and carry the same version metadata as the official
@@ -69,11 +69,12 @@ USER ${SPARK_UID}:${SPARK_GID}
 
 ENTRYPOINT ["/usr/bin/entrypoint.sh"]
 ```
+
 Override `SPARK_VERSION` to target a different Spark line, or `SPARK_IMAGE` to point at an
 approved internal base image. Pinning `SPARK_IMAGE` by digest, as the project's own
 `Dockerfile` does, is recommended for reproducible builds.
 
-Build it alongside the extracted binary and `entrypoint.sh` from the release tag:
+Save this as `Dockerfile` next to the extracted `spark-operator` and `entrypoint.sh`, then:
 
 ```bash
 docker build -t my-registry.example.com/spark-operator:${VERSION} .
