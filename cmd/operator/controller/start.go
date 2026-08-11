@@ -296,11 +296,14 @@ func NewStartCommand() *cobra.Command {
 func start() {
 	setupLog()
 
-	// The flag is ignored unless the DefaultTimeToLive feature gate is enabled. Warn
-	// here (rather than in PreRunE) because the logger is only initialized by setupLog.
-	if defaultTimeToLiveSeconds > 0 && !features.Enabled(features.DefaultTimeToLive) {
-		logger.Info("Ignoring --default-time-to-live-seconds because the DefaultTimeToLive feature gate is disabled",
-			"defaultTimeToLiveSeconds", defaultTimeToLiveSeconds)
+	// Normalize the configured TTL before passing it to the controller so downstream
+	// cleanup logic does not need to depend on the global feature gate.
+	if !features.Enabled(features.DefaultTimeToLive) {
+		if defaultTimeToLiveSeconds > 0 {
+			logger.Info("Ignoring --default-time-to-live-seconds because the DefaultTimeToLive feature gate is disabled",
+				"defaultTimeToLiveSeconds", defaultTimeToLiveSeconds)
+		}
+		defaultTimeToLiveSeconds = 0
 	}
 
 	// Create the client rest config. Use kubeConfig if given, otherwise assume in-cluster.

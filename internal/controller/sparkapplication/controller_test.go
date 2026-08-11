@@ -38,7 +38,6 @@ import (
 	"github.com/kubeflow/spark-operator/v2/api/v1beta2"
 	"github.com/kubeflow/spark-operator/v2/internal/controller/sparkapplication"
 	"github.com/kubeflow/spark-operator/v2/pkg/common"
-	"github.com/kubeflow/spark-operator/v2/pkg/features"
 	"github.com/kubeflow/spark-operator/v2/pkg/util"
 )
 
@@ -543,11 +542,6 @@ var _ = Describe("SparkApplication Controller", func() {
 		key := types.NamespacedName{Name: appName, Namespace: appNamespace}
 
 		BeforeEach(func() {
-			Expect(features.SetEnable(features.DefaultTimeToLive, true)).To(Succeed())
-			DeferCleanup(func() {
-				Expect(features.SetEnable(features.DefaultTimeToLive, false)).To(Succeed())
-			})
-
 			// Create the SparkApplication if it does not already exist.
 			app := &v1beta2.SparkApplication{}
 			err := k8sClient.Get(ctx, key, app)
@@ -600,11 +594,6 @@ var _ = Describe("SparkApplication Controller", func() {
 		key := types.NamespacedName{Name: appName, Namespace: appNamespace}
 
 		BeforeEach(func() {
-			Expect(features.SetEnable(features.DefaultTimeToLive, true)).To(Succeed())
-			DeferCleanup(func() {
-				Expect(features.SetEnable(features.DefaultTimeToLive, false)).To(Succeed())
-			})
-
 			// Create the SparkApplication if it does not already exist.
 			app := &v1beta2.SparkApplication{}
 			err := k8sClient.Get(ctx, key, app)
@@ -667,11 +656,6 @@ var _ = Describe("SparkApplication Controller", func() {
 		key := types.NamespacedName{Name: appName, Namespace: appNamespace}
 
 		BeforeEach(func() {
-			Expect(features.SetEnable(features.DefaultTimeToLive, true)).To(Succeed())
-			DeferCleanup(func() {
-				Expect(features.SetEnable(features.DefaultTimeToLive, false)).To(Succeed())
-			})
-
 			// Create the SparkApplication if it does not already exist.
 			app := &v1beta2.SparkApplication{}
 			err := k8sClient.Get(ctx, key, app)
@@ -702,7 +686,7 @@ var _ = Describe("SparkApplication Controller", func() {
 			}
 		})
 
-		It("Should not delete or requeue the app when the default TTL is zero even with the gate enabled", func() {
+		It("Should not delete or requeue the app when the normalized default TTL is zero", func() {
 			reconciler := sparkapplication.NewReconciler(
 				nil,
 				k8sClient.Scheme(),

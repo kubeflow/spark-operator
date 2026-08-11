@@ -32,7 +32,6 @@ import (
 
 	"github.com/kubeflow/spark-operator/v2/api/v1beta2"
 	"github.com/kubeflow/spark-operator/v2/pkg/common"
-	"github.com/kubeflow/spark-operator/v2/pkg/features"
 )
 
 // GetDriverPodName returns name of the driver pod of the given spark application.
@@ -61,20 +60,14 @@ func IsTerminated(app *v1beta2.SparkApplication) bool {
 		app.Status.AppState.State == v1beta2.ApplicationStateFailed
 }
 
-// IsExpired returns whether the given SparkApplication is expired according to its
-// own spec.timeToLiveSeconds.
-func IsExpired(app *v1beta2.SparkApplication) bool {
-	return IsExpiredWithTTL(app, app.Spec.TimeToLiveSeconds)
-}
-
-// IsExpiredWithTTL returns whether the given terminated SparkApplication has outlived
+// IsExpired returns whether the given terminated SparkApplication has outlived
 // the provided TTL. The TTL may originate from the user's spec or from an
 // operator-configured default (see EffectiveTimeToLiveSeconds).
 //
 //   - A nil ttlSeconds means no TTL is defined: the application never expires.
 //   - A non-nil ttlSeconds that is <= 0 means the application expires immediately
 //     once it has a termination time.
-func IsExpiredWithTTL(app *v1beta2.SparkApplication, ttlSeconds *int64) bool {
+func IsExpired(app *v1beta2.SparkApplication, ttlSeconds *int64) bool {
 	// The application has no TTL defined and will never expire.
 	if ttlSeconds == nil {
 		return false
@@ -96,8 +89,7 @@ func IsExpiredWithTTL(app *v1beta2.SparkApplication, ttlSeconds *int64) bool {
 // Resolution order:
 //   - the user's spec.timeToLiveSeconds whenever it is set (a value <= 0 is an
 //     explicit request to expire immediately and still wins), else
-//   - the operator default when the DefaultTimeToLive feature gate is enabled and
-//     defaultSeconds > 0, else
+//   - the operator default when defaultSeconds > 0, else
 //   - nil, meaning "never expire".
 //
 // It never mutates the SparkApplication.
@@ -105,7 +97,7 @@ func EffectiveTimeToLiveSeconds(app *v1beta2.SparkApplication, defaultSeconds in
 	if app.Spec.TimeToLiveSeconds != nil {
 		return app.Spec.TimeToLiveSeconds, false
 	}
-	if features.Enabled(features.DefaultTimeToLive) && defaultSeconds > 0 {
+	if defaultSeconds > 0 {
 		seconds := defaultSeconds
 		return &seconds, true
 	}

@@ -31,7 +31,6 @@ import (
 
 	"github.com/kubeflow/spark-operator/v2/api/v1beta2"
 	"github.com/kubeflow/spark-operator/v2/pkg/common"
-	"github.com/kubeflow/spark-operator/v2/pkg/features"
 )
 
 func TestIsWebhookPatchedFieldsOnlyChange(t *testing.T) {
@@ -1165,23 +1164,20 @@ func TestSparkApplicationEventFilter_Update_ResyncReadmitsDefaultTTLExpired(t *t
 
 	tests := []struct {
 		name                     string
-		gateEnabled              bool
 		defaultTimeToLiveSeconds int64
 		expected                 bool
 	}{
 		{
 			// Without the operator default, a same-ResourceVersion resync of a
 			// terminated app with no spec TTL is dropped (unchanged legacy behavior).
-			name:                     "resync dropped when no operator default applies",
-			gateEnabled:              false,
-			defaultTimeToLiveSeconds: 3600,
+			name:                     "resync dropped when normalized operator default is disabled",
+			defaultTimeToLiveSeconds: 0,
 			expected:                 false,
 		},
 		{
-			// With the operator default enabled and the app past that TTL, the
+			// With a normalized operator default and the app past that TTL, the
 			// resync is re-admitted so the controller can delete it.
 			name:                     "resync re-admitted when expired via operator default",
-			gateEnabled:              true,
 			defaultTimeToLiveSeconds: 3600,
 			expected:                 true,
 		},
@@ -1189,13 +1185,6 @@ func TestSparkApplicationEventFilter_Update_ResyncReadmitsDefaultTTLExpired(t *t
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if err := features.SetEnable(features.DefaultTimeToLive, tt.gateEnabled); err != nil {
-				t.Fatalf("features.SetEnable() unexpected error: %v", err)
-			}
-			t.Cleanup(func() {
-				_ = features.SetEnable(features.DefaultTimeToLive, false)
-			})
-
 			app := newApp()
 			fakeClient := fake.NewClientBuilder().
 				WithScheme(scheme).

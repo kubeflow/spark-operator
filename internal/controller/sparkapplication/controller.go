@@ -79,10 +79,9 @@ type Options struct {
 	// the SparkApplication spec. Defaults to false.
 	EnableDriverPDB bool
 
-	// DefaultTimeToLiveSeconds is the operator-wide default TTL (in seconds) applied to
-	// terminated SparkApplications that do not set spec.timeToLiveSeconds. Only honored
-	// when the DefaultTimeToLive feature gate is enabled and the value is > 0. Applied as
-	// a runtime fallback for the cleanup decision; the object's spec is never modified.
+	// DefaultTimeToLiveSeconds is the normalized operator-wide default TTL (in seconds)
+	// applied to terminated SparkApplications that do not set spec.timeToLiveSeconds when
+	// the value is > 0. It is a cleanup-only fallback and never modifies the spec.
 	DefaultTimeToLiveSeconds int64
 }
 
@@ -723,7 +722,7 @@ func (r *Reconciler) reconcileTerminatedSparkApplication(ctx context.Context, re
 
 	effectiveTTLSeconds, usedDefault := util.EffectiveTimeToLiveSeconds(app, r.options.DefaultTimeToLiveSeconds)
 
-	if util.IsExpiredWithTTL(app, effectiveTTLSeconds) {
+	if util.IsExpired(app, effectiveTTLSeconds) {
 		if usedDefault {
 			logger.Info("Deleting expired SparkApplication using operator default TTL",
 				"ttlSeconds", *effectiveTTLSeconds, "state", app.Status.AppState.State)

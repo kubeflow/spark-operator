@@ -179,7 +179,7 @@ func (f *EventFilter) Update(e event.UpdateEvent) bool {
 	// operator default TTL is reconciled for deletion, consistent with the
 	// controller's own cleanup decision.
 	effectiveTTLSeconds, _ := util.EffectiveTimeToLiveSeconds(newApp, f.defaultTimeToLiveSeconds)
-	if oldApp.ResourceVersion == newApp.ResourceVersion && !util.IsExpiredWithTTL(newApp, effectiveTTLSeconds) && !util.ShouldRetry(newApp) {
+	if oldApp.ResourceVersion == newApp.ResourceVersion && !util.IsExpired(newApp, effectiveTTLSeconds) && !util.ShouldRetry(newApp) {
 		return false
 	}
 
