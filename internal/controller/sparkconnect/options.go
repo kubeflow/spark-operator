@@ -121,10 +121,15 @@ func sparkConfOption(conn *v1alpha1.SparkConnect) ([]string, error) {
 	for key, value := range conn.Spec.SparkConf {
 		// Configuration property for the driver pod name has already been set.
 		if key != common.SparkKubernetesDriverPodName {
-			args = append(args, "--conf", fmt.Sprintf("%s=%s", key, value))
+			args = append(args, "--conf", shellQuoteSparkConfig(key, value))
 		}
 	}
 	return args, nil
+}
+
+func shellQuoteSparkConfig(key, value string) string {
+	config := fmt.Sprintf("%s=%s", key, value)
+	return fmt.Sprintf("'%s'", strings.ReplaceAll(config, "'", `'"'"'`))
 }
 
 func hadoopConfOption(conn *v1alpha1.SparkConnect) ([]string, error) {
@@ -135,11 +140,11 @@ func hadoopConfOption(conn *v1alpha1.SparkConnect) ([]string, error) {
 	// Add Hadoop configuration properties.
 	for key, value := range conn.Spec.HadoopConf {
 		if strings.HasPrefix(key, common.SparkHadoopPropertiesPrefix) {
-			args = append(args, "--conf", fmt.Sprintf("%s=%s", key, value))
+			args = append(args, "--conf", shellQuoteSparkConfig(key, value))
 		} else {
 			// Add prefix to the configuration key if it does not start with `spark.hadoop.`.
 			// Users will be able to use the configuration key with or without prefix.
-			args = append(args, "--conf", fmt.Sprintf("%s%s=%s", common.SparkHadoopPropertiesPrefix, key, value))
+			args = append(args, "--conf", shellQuoteSparkConfig(common.SparkHadoopPropertiesPrefix+key, value))
 		}
 	}
 	return args, nil
