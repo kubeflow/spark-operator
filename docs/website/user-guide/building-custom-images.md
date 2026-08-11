@@ -44,7 +44,8 @@ image must contain a Spark distribution and a JVM. The example below layers the 
 binary onto the official Spark image; substitute your own approved base as needed.
 
 ```dockerfile
-ARG SPARK_IMAGE=docker.io/apache/spark:4.0.4
+ARG SPARK_VERSION=4.0.4
+ARG SPARK_IMAGE=docker.io/apache/spark:${SPARK_VERSION}
 FROM ${SPARK_IMAGE}
 
 ARG SPARK_UID=185
@@ -68,6 +69,9 @@ USER ${SPARK_UID}:${SPARK_GID}
 
 ENTRYPOINT ["/usr/bin/entrypoint.sh"]
 ```
+Override `SPARK_VERSION` to target a different Spark line, or `SPARK_IMAGE` to point at an
+approved internal base image. Pinning `SPARK_IMAGE` by digest, as the project's own
+`Dockerfile` does, is recommended for reproducible builds.
 
 Build it alongside the extracted binary and `entrypoint.sh` from the release tag:
 
