@@ -263,6 +263,16 @@ func (in *SparkPodSpec) DeepCopyInto(out *SparkPodSpec) {
 		*out = new(int32)
 		**out = **in
 	}
+	if in.CoreRequest != nil {
+		in, out := &in.CoreRequest, &out.CoreRequest
+		*out = new(string)
+		**out = **in
+	}
+	if in.CoreLimit != nil {
+		in, out := &in.CoreLimit, &out.CoreLimit
+		*out = new(string)
+		**out = **in
+	}
 	if in.Memory != nil {
 		in, out := &in.Memory, &out.Memory
 		*out = new(string)

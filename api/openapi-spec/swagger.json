@@ -12633,8 +12633,16 @@
         "description": "ExecutorSpec is specification of the executor.",
         "type": "object",
         "properties": {
+          "coreLimit": {
+            "description": "CoreLimit specifies the physical CPU limit for the pod, controlling the Kubernetes CPU limit. This is independent of Cores and maps to `spark.kubernetes.driver.limit.cores` or `spark.kubernetes.executor.limit.cores`. Valid values follow Kubernetes quantity format (e.g., \"500m\", \"1\", \"1.5\").",
+            "type": "string"
+          },
+          "coreRequest": {
+            "description": "CoreRequest specifies the physical CPU request for the pod, controlling the Kubernetes CPU request. This is independent of Cores and maps to `spark.kubernetes.driver.request.cores` or `spark.kubernetes.executor.request.cores`. Valid values follow Kubernetes quantity format (e.g., \"500m\", \"1\", \"1.5\").",
+            "type": "string"
+          },
           "cores": {
-            "description": "Cores maps to `spark.driver.cores` or `spark.executor.cores` for the driver and executors, respectively.",
+            "description": "Cores maps to `spark.driver.cores` or `spark.executor.cores` for the driver and executors, respectively. Cores represents Spark task-slot/JVM concurrency and is independent of physical Kubernetes CPU requests and limits.",
             "type": "integer",
             "format": "int32"
           },
@@ -12661,8 +12669,16 @@
         "description": "ServerSpec is specification of the Spark connect server.",
         "type": "object",
         "properties": {
+          "coreLimit": {
+            "description": "CoreLimit specifies the physical CPU limit for the pod, controlling the Kubernetes CPU limit. This is independent of Cores and maps to `spark.kubernetes.driver.limit.cores` or `spark.kubernetes.executor.limit.cores`. Valid values follow Kubernetes quantity format (e.g., \"500m\", \"1\", \"1.5\").",
+            "type": "string"
+          },
+          "coreRequest": {
+            "description": "CoreRequest specifies the physical CPU request for the pod, controlling the Kubernetes CPU request. This is independent of Cores and maps to `spark.kubernetes.driver.request.cores` or `spark.kubernetes.executor.request.cores`. Valid values follow Kubernetes quantity format (e.g., \"500m\", \"1\", \"1.5\").",
+            "type": "string"
+          },
           "cores": {
-            "description": "Cores maps to `spark.driver.cores` or `spark.executor.cores` for the driver and executors, respectively.",
+            "description": "Cores maps to `spark.driver.cores` or `spark.executor.cores` for the driver and executors, respectively. Cores represents Spark task-slot/JVM concurrency and is independent of physical Kubernetes CPU requests and limits.",
             "type": "integer",
             "format": "int32"
           },
@@ -12911,8 +12927,16 @@
         "description": "SparkPodSpec defines common things that can be customized for a Spark driver or executor pod.",
         "type": "object",
         "properties": {
+          "coreLimit": {
+            "description": "CoreLimit specifies the physical CPU limit for the pod, controlling the Kubernetes CPU limit. This is independent of Cores and maps to `spark.kubernetes.driver.limit.cores` or `spark.kubernetes.executor.limit.cores`. Valid values follow Kubernetes quantity format (e.g., \"500m\", \"1\", \"1.5\").",
+            "type": "string"
+          },
+          "coreRequest": {
+            "description": "CoreRequest specifies the physical CPU request for the pod, controlling the Kubernetes CPU request. This is independent of Cores and maps to `spark.kubernetes.driver.request.cores` or `spark.kubernetes.executor.request.cores`. Valid values follow Kubernetes quantity format (e.g., \"500m\", \"1\", \"1.5\").",
+            "type": "string"
+          },
           "cores": {
-            "description": "Cores maps to `spark.driver.cores` or `spark.executor.cores` for the driver and executors, respectively.",
+            "description": "Cores maps to `spark.driver.cores` or `spark.executor.cores` for the driver and executors, respectively. Cores represents Spark task-slot/JVM concurrency and is independent of physical Kubernetes CPU requests and limits.",
             "type": "integer",
             "format": "int32"
           },

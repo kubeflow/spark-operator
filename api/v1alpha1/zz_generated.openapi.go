@@ -435,9 +435,23 @@ func schema_spark_operator_v2_api_v1alpha1_ExecutorSpec(ref common.ReferenceCall
 				Properties: map[string]spec.Schema{
 					"cores": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Cores maps to `spark.driver.cores` or `spark.executor.cores` for the driver and executors, respectively.",
+							Description: "Cores maps to `spark.driver.cores` or `spark.executor.cores` for the driver and executors, respectively. Cores represents Spark task-slot/JVM concurrency and is independent of physical Kubernetes CPU requests and limits.",
 							Type:        []string{"integer"},
 							Format:      "int32",
+						},
+					},
+					"coreRequest": {
+						SchemaProps: spec.SchemaProps{
+							Description: "CoreRequest specifies the physical CPU request for the pod, controlling the Kubernetes CPU request. This is independent of Cores and maps to `spark.kubernetes.driver.request.cores` or `spark.kubernetes.executor.request.cores`. Valid values follow Kubernetes quantity format (e.g., \"500m\", \"1\", \"1.5\").",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"coreLimit": {
+						SchemaProps: spec.SchemaProps{
+							Description: "CoreLimit specifies the physical CPU limit for the pod, controlling the Kubernetes CPU limit. This is independent of Cores and maps to `spark.kubernetes.driver.limit.cores` or `spark.kubernetes.executor.limit.cores`. Valid values follow Kubernetes quantity format (e.g., \"500m\", \"1\", \"1.5\").",
+							Type:        []string{"string"},
+							Format:      "",
 						},
 					},
 					"memory": {
@@ -477,9 +491,23 @@ func schema_spark_operator_v2_api_v1alpha1_ServerSpec(ref common.ReferenceCallba
 				Properties: map[string]spec.Schema{
 					"cores": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Cores maps to `spark.driver.cores` or `spark.executor.cores` for the driver and executors, respectively.",
+							Description: "Cores maps to `spark.driver.cores` or `spark.executor.cores` for the driver and executors, respectively. Cores represents Spark task-slot/JVM concurrency and is independent of physical Kubernetes CPU requests and limits.",
 							Type:        []string{"integer"},
 							Format:      "int32",
+						},
+					},
+					"coreRequest": {
+						SchemaProps: spec.SchemaProps{
+							Description: "CoreRequest specifies the physical CPU request for the pod, controlling the Kubernetes CPU request. This is independent of Cores and maps to `spark.kubernetes.driver.request.cores` or `spark.kubernetes.executor.request.cores`. Valid values follow Kubernetes quantity format (e.g., \"500m\", \"1\", \"1.5\").",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"coreLimit": {
+						SchemaProps: spec.SchemaProps{
+							Description: "CoreLimit specifies the physical CPU limit for the pod, controlling the Kubernetes CPU limit. This is independent of Cores and maps to `spark.kubernetes.driver.limit.cores` or `spark.kubernetes.executor.limit.cores`. Valid values follow Kubernetes quantity format (e.g., \"500m\", \"1\", \"1.5\").",
+							Type:        []string{"string"},
+							Format:      "",
 						},
 					},
 					"memory": {
@@ -812,9 +840,23 @@ func schema_spark_operator_v2_api_v1alpha1_SparkPodSpec(ref common.ReferenceCall
 				Properties: map[string]spec.Schema{
 					"cores": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Cores maps to `spark.driver.cores` or `spark.executor.cores` for the driver and executors, respectively.",
+							Description: "Cores maps to `spark.driver.cores` or `spark.executor.cores` for the driver and executors, respectively. Cores represents Spark task-slot/JVM concurrency and is independent of physical Kubernetes CPU requests and limits.",
 							Type:        []string{"integer"},
 							Format:      "int32",
+						},
+					},
+					"coreRequest": {
+						SchemaProps: spec.SchemaProps{
+							Description: "CoreRequest specifies the physical CPU request for the pod, controlling the Kubernetes CPU request. This is independent of Cores and maps to `spark.kubernetes.driver.request.cores` or `spark.kubernetes.executor.request.cores`. Valid values follow Kubernetes quantity format (e.g., \"500m\", \"1\", \"1.5\").",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"coreLimit": {
+						SchemaProps: spec.SchemaProps{
+							Description: "CoreLimit specifies the physical CPU limit for the pod, controlling the Kubernetes CPU limit. This is independent of Cores and maps to `spark.kubernetes.driver.limit.cores` or `spark.kubernetes.executor.limit.cores`. Valid values follow Kubernetes quantity format (e.g., \"500m\", \"1\", \"1.5\").",
+							Type:        []string{"string"},
+							Format:      "",
 						},
 					},
 					"memory": {
