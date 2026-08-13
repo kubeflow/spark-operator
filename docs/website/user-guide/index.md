@@ -39,6 +39,20 @@ Use `ScheduledSparkApplication` to run Spark jobs on a cron schedule
 
 :::::
 
+## Spark Connect
+
+:::::{grid} 1
+:gutter: 3
+
+::::{grid-item-card} Using Spark Connect
+:link: spark-connect
+:link-type: doc
+
+Run an interactive Spark Connect server and connect remote clients
+::::
+
+:::::
+
 ## Operating the Operator
 
 :::::{grid} 1 1 2 2
@@ -133,6 +147,7 @@ using-sparkapplication
 writing-sparkapplication
 working-with-sparkapplication
 running-sparkapplication-on-schedule
+spark-connect
 customizing-spark-operator
 leader-election
 running-multiple-instances-of-the-operator
