@@ -429,6 +429,114 @@ func TestSparkConnectValidatorSparkConf_UpdateRejected(t *testing.T) {
 	}
 }
 
+func TestSparkConnectValidatorValidateCreate_InvalidServerCoreRequest(t *testing.T) {
+	validator := newTestSparkConnectValidator(t)
+
+	sc := newSparkConnect()
+	sc.Spec.Server.CoreRequest = ptr.To("invalid-cpu")
+
+	if _, err := validator.ValidateCreate(context.Background(), sc); err == nil || !strings.Contains(err.Error(), "invalid server.coreRequest") {
+		t.Fatalf("expected invalid coreRequest validation error, got %v", err)
+	}
+}
+
+func TestSparkConnectValidatorValidateCreate_InvalidServerCoreLimit(t *testing.T) {
+	validator := newTestSparkConnectValidator(t)
+
+	sc := newSparkConnect()
+	sc.Spec.Server.CoreLimit = ptr.To("invalid-cpu-value")
+
+	if _, err := validator.ValidateCreate(context.Background(), sc); err == nil || !strings.Contains(err.Error(), "invalid server.coreLimit") {
+		t.Fatalf("expected invalid coreLimit validation error, got %v", err)
+	}
+}
+
+func TestSparkConnectValidatorValidateCreate_InvalidExecutorCoreRequest(t *testing.T) {
+	validator := newTestSparkConnectValidator(t)
+
+	sc := newSparkConnect()
+	sc.Spec.Executor.CoreRequest = ptr.To("not-a-quantity")
+
+	if _, err := validator.ValidateCreate(context.Background(), sc); err == nil || !strings.Contains(err.Error(), "invalid executor.coreRequest") {
+		t.Fatalf("expected invalid coreRequest validation error, got %v", err)
+	}
+}
+
+func TestSparkConnectValidatorValidateCreate_InvalidExecutorCoreLimit(t *testing.T) {
+	validator := newTestSparkConnectValidator(t)
+
+	sc := newSparkConnect()
+	sc.Spec.Executor.CoreLimit = ptr.To("bad-quantity")
+
+	if _, err := validator.ValidateCreate(context.Background(), sc); err == nil || !strings.Contains(err.Error(), "invalid executor.coreLimit") {
+		t.Fatalf("expected invalid coreLimit validation error, got %v", err)
+	}
+}
+
+func TestSparkConnectValidatorValidateCreate_ValidCPUQuantities(t *testing.T) {
+	validator := newTestSparkConnectValidator(t)
+
+	testCases := []string{
+		"500m",
+		"1",
+		"1.5",
+		"2",
+		"3500m",
+		"4000m",
+		"0.5",
+	}
+
+	for _, cpu := range testCases {
+		t.Run(cpu, func(t *testing.T) {
+			sc := newSparkConnect()
+			sc.Spec.Server.CoreRequest = ptr.To(cpu)
+			sc.Spec.Server.CoreLimit = ptr.To(cpu)
+			sc.Spec.Executor.CoreRequest = ptr.To(cpu)
+			sc.Spec.Executor.CoreLimit = ptr.To(cpu)
+
+			if _, err := validator.ValidateCreate(context.Background(), sc); err != nil {
+				t.Fatalf("expected success for valid CPU quantity %q, got %v", cpu, err)
+			}
+		})
+	}
+}
+
+func TestValidateCPUQuantity(t *testing.T) {
+	testCases := []struct {
+		name    string
+		cpu     string
+		wantErr bool
+	}{
+		// Valid cases following Kubernetes quantity semantics via resource.ParseQuantity
+		{"millicores", "500m", false},
+		{"integer cores", "1", false},
+		{"decimal cores", "1.5", false},
+		{"decimal cores 2", "2.5", false},
+		{"zero with millis", "0m", false},
+		{"decimal zero", "0.5", false},
+		{"large millicores", "4000m", false},
+		{"large decimal", "8.5", false},
+		{"leading decimal", ".5", false},
+		{"trailing decimal", "5.", false},
+		{"millis only", "m", false},
+
+		// Invalid cases - empty and truly malformed strings
+		{"empty string", "", true},
+		{"space only", "   ", true},
+		{"invalid suffix", "500x", true},
+		{"invalid chars", "1a0", true},
+	}
+
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateCPUQuantity(tt.cpu)
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("validateCPUQuantity(%q) wantErr=%v, got err=%v", tt.cpu, tt.wantErr, err)
+			}
+		})
+	}
+}
+
 func newTestSparkConnectValidator(t *testing.T) *SparkConnectValidator {
 	t.Helper()
 	return NewSparkConnectValidator()
