@@ -28,11 +28,13 @@ class SparkV1alpha1ServerSpec(BaseModel):
     """
     ServerSpec is specification of the Spark connect server.
     """ # noqa: E501
-    cores: Optional[StrictInt] = Field(default=None, description="Cores maps to `spark.driver.cores` or `spark.executor.cores` for the driver and executors, respectively.")
+    core_limit: Optional[StrictStr] = Field(default=None, description="CoreLimit specifies the physical CPU limit for the pod, controlling the Kubernetes CPU limit. This is independent of Cores and maps to `spark.kubernetes.driver.limit.cores` or `spark.kubernetes.executor.limit.cores`. Valid values follow Kubernetes quantity format (e.g., \"500m\", \"1\", \"1.5\").", alias="coreLimit")
+    core_request: Optional[StrictStr] = Field(default=None, description="CoreRequest specifies the physical CPU request for the pod, controlling the Kubernetes CPU request. This is independent of Cores and maps to `spark.kubernetes.driver.request.cores` or `spark.kubernetes.executor.request.cores`. Valid values follow Kubernetes quantity format (e.g., \"500m\", \"1\", \"1.5\").", alias="coreRequest")
+    cores: Optional[StrictInt] = Field(default=None, description="Cores maps to `spark.driver.cores` or `spark.executor.cores` for the driver and executors, respectively. Cores represents Spark task-slot/JVM concurrency and is independent of physical Kubernetes CPU requests and limits.")
     memory: Optional[StrictStr] = Field(default=None, description="Memory is the amount of memory to request for the pod.")
     service: Optional[IoK8sApiCoreV1Service] = Field(default=None, description="Service exposes the Spark connect server.")
     template: Optional[IoK8sApiCoreV1PodTemplateSpec] = Field(default=None, description="Template is a pod template that can be used to define the driver or executor pod configurations that Spark configurations do not support. Spark version >= 3.0.0 is required. Ref: https://spark.apache.org/docs/latest/running-on-kubernetes.html#pod-template.")
-    __properties: ClassVar[List[str]] = ["cores", "memory", "service", "template"]
+    __properties: ClassVar[List[str]] = ["coreLimit", "coreRequest", "cores", "memory", "service", "template"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -91,6 +93,8 @@ class SparkV1alpha1ServerSpec(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
+            "coreLimit": obj.get("coreLimit"),
+            "coreRequest": obj.get("coreRequest"),
             "cores": obj.get("cores"),
             "memory": obj.get("memory"),
             "service": IoK8sApiCoreV1Service.from_dict(obj["service"]) if obj.get("service") is not None else None,
