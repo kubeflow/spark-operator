@@ -85,3 +85,12 @@ Whether the RestSubmitter feature gate is enabled.
 {{- if and (eq .name "RestSubmitter") .enabled -}}true{{- end -}}
 {{- end -}}
 {{- end -}}
+
+{{/*
+Whether the DefaultTimeToLive feature gate is enabled.
+*/}}
+{{- define "spark-operator.defaultTimeToLive.enabled" -}}
+{{- range .Values.controller.featureGates -}}
+{{- if and (eq .name "DefaultTimeToLive") .enabled -}}true{{- end -}}
+{{- end -}}
+{{- end -}}

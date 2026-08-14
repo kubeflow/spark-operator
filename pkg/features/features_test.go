@@ -61,6 +61,14 @@ func TestSetEnableWithRegisteredFeature(t *testing.T) {
 	assert.False(t, Enabled(testFeature))
 }
 
+func TestDefaultTimeToLiveGateRegisteredAndOffByDefault(t *testing.T) {
+	// The gate must be registered (init ran) and default to disabled.
+	assert.False(t, Enabled(DefaultTimeToLive))
+
+	SetFeatureGateDuringTest(t, DefaultTimeToLive, true)
+	assert.True(t, Enabled(DefaultTimeToLive))
+}
+
 func TestSetFeatureGateDuringTestHelper(t *testing.T) {
 	// Register a test feature for this test
 	testFeature := featuregate.Feature("TestFeatureForDuringTest")
