@@ -13,7 +13,7 @@ SHELL = /usr/bin/env bash -o pipefail
 .SHELLFLAGS = -ec
 
 # Version information.
-VERSION ?= $(shell cat VERSION | sed "s/^v//")
+VERSION := $(shell cat VERSION | sed "s/^v//")
 BUILD_DATE := $(shell date -u +"%Y-%m-%dT%H:%M:%S%:z")
 GIT_COMMIT := $(shell git rev-parse HEAD)
 GIT_TAG := $(shell if [ -z "`git status --porcelain`" ]; then git describe --exact-match --tags HEAD 2>/dev/null; fi)

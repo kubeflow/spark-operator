@@ -402,6 +402,62 @@ jobs:
           VERSION=$(cat VERSION)
           echo "VERSION=${VERSION}" >> $GITHUB_ENV
 
+      - name: Set up Go
+        uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
+        with:
+          go-version-file: go.mod
+          cache: false
+
+      # NOTE: this must run before "Package Helm charts". That step writes
+      # *.tgz into the repository root, which is not gitignored, so
+      # `git status --porcelain` becomes non-empty and the Makefile would
+      # stamp the binaries with GIT_TREE_STATE=dirty.
+      - name: Build operator binaries
+        run: |
+          set -euo pipefail
+          # The Makefile derives GIT_TREE_STATE from `git status --porcelain`,
+          # so fail loudly here rather than silently stamping binaries dirty.
+          test -z "$(git status --porcelain)"
+          mkdir -p "${RUNNER_TEMP}/dist"
+          for arch in amd64 arm64; do
+            stage="${RUNNER_TEMP}/stage/linux_${arch}"
+            mkdir -p "${stage}"
+            echo "Building linux/${arch}..."
+            GOOS=linux GOARCH="${arch}" \
+              make build-operator SPARK_OPERATOR="${stage}/spark-operator"
+            cp LICENSE entrypoint.sh "${stage}/"
+            tar -czf "${RUNNER_TEMP}/dist/spark-operator_${VERSION}_linux_${arch}.tar.gz" \
+              -C "${stage}" spark-operator LICENSE entrypoint.sh
+          done
+
+      - name: Generate checksums
+        run: |
+          set -euo pipefail
+          cd "${RUNNER_TEMP}/dist"
+          sha256sum spark-operator_*.tar.gz > SHA256SUMS
+          cat SHA256SUMS
+
+      - name: Verify binaries
+        run: |
+          set -euo pipefail
+          (cd "${RUNNER_TEMP}/dist" && sha256sum --check SHA256SUMS)
+
+          verify="${RUNNER_TEMP}/verify"
+          mkdir -p "${verify}"
+
+          tar -xzf "${RUNNER_TEMP}/dist/spark-operator_${VERSION}_linux_amd64.tar.gz" \
+            -C "${verify}" spark-operator
+          "${verify}/spark-operator" version
+          "${verify}/spark-operator" version | grep -qF "Git Version: ${VERSION}"
+          "${verify}/spark-operator" version | grep -qF "Git Tree State: clean"
+          "${verify}/spark-operator" --help > /dev/null
+
+          rm -f "${verify}/spark-operator"
+          tar -xzf "${RUNNER_TEMP}/dist/spark-operator_${VERSION}_linux_arm64.tar.gz" \
+            -C "${verify}" spark-operator
+          file "${verify}/spark-operator" | grep -q "ARM aarch64"
+          file "${verify}/spark-operator" | grep -q "statically linked"
+
       - name: Get Helm version
         id: get_helm_version
         run: |
@@ -432,4 +488,7 @@ jobs:
           if [[ "$VERSION" == *rc* ]]; then
             args+=(--prerelease)
           fi
-          gh release create "${args[@]}" *.tgz
+          gh release create "${args[@]}" \
+            *.tgz \
+            "${RUNNER_TEMP}"/dist/spark-operator_*.tar.gz \
+            "${RUNNER_TEMP}/dist/SHA256SUMS"

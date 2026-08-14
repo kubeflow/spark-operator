@@ -36,7 +36,7 @@ Below are the adopters of project Spark Operator. If you are using Spark Operato
 | [Ninja Van](https://tech.ninjavan.co/) | @hongshaoyang | Production | Data Infrastructure |
 | [PUBG](https://careers.pubg.com/#/en/) | @jacobhjkim | Production | ML & Data Infrastructure |
 | [Qualytics](https://www.qualytics.co/) | @josecsotomorales | Production | Data Quality Platform |
-| [RAICS.AI](https://raics.ai)| @vikas-saxena02 | Production | ML and AI patform |
+| [RAICS.AI](https://raics.ai)| @vikas-saxena02 | Production | ML and AI platform |
 | Riskified | @henbh | Evaluation | Analytics Data Platform |
 | [Roblox](https://www.roblox.com/) | @matschaffer-roblox | Evaluation | Data Infrastructure |
 | [Rokt](https://www.rokt.com) | @jacobsalway | Production | Data Infrastructure |
