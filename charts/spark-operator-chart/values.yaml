@@ -131,6 +131,13 @@ controller:
   # 0 (default) disables it.
   defaultTimeToLiveSeconds: 0
 
+  # -- Name of the service account used by the driver pod when a SparkApplication does not specify one.
+  # Leave empty to disable the fallback, in which case the driver pod uses the namespace's default
+  # service account. The service account must already exist in every namespace where Spark applications
+  # are submitted; note that `spark.serviceAccount.create` only provisions accounts for the namespaces
+  # listed in `spark.jobNamespaces`.
+  defaultServiceAccount: ""
+
   # -- Driver PDB feature gate. When true, the controller creates a PodDisruptionBudget for each SparkApplication that sets spec.driverPodDisruptionBudget=true. Default false.
   driverPodDisruptionBudget:
     enable: false
