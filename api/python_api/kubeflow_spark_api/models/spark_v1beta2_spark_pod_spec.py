@@ -33,6 +33,7 @@ from kubeflow_spark_api.models.io_k8s_api_core_v1_volume_mount import IoK8sApiCo
 from kubeflow_spark_api.models.spark_v1beta2_gpu_spec import SparkV1beta2GPUSpec
 from kubeflow_spark_api.models.spark_v1beta2_name_key import SparkV1beta2NameKey
 from kubeflow_spark_api.models.spark_v1beta2_name_path import SparkV1beta2NamePath
+from kubeflow_spark_api.models.spark_v1beta2_pod_scheduling_group import SparkV1beta2PodSchedulingGroup
 from kubeflow_spark_api.models.spark_v1beta2_secret_info import SparkV1beta2SecretInfo
 from typing import Optional, Set
 from typing_extensions import Self
@@ -63,6 +64,7 @@ class SparkV1beta2SparkPodSpec(BaseModel):
     node_selector: Optional[Dict[str, StrictStr]] = Field(default=None, description="NodeSelector is the Kubernetes node selector to be added to the driver and executor pods. This field is mutually exclusive with nodeSelector at SparkApplication level (which will be deprecated).", alias="nodeSelector")
     pod_security_context: Optional[IoK8sApiCoreV1PodSecurityContext] = Field(default=None, description="PodSecurityContext specifies the PodSecurityContext to apply.", alias="podSecurityContext")
     scheduler_name: Optional[StrictStr] = Field(default=None, description="SchedulerName specifies the scheduler that will be used for scheduling", alias="schedulerName")
+    scheduling_group: Optional[SparkV1beta2PodSchedulingGroup] = Field(default=None, description="SchedulingGroup binds this pod template to a Kubernetes native PodGroup (scheduling.k8s.io/v1alpha2) for gang scheduling via the \"workload\" batch scheduler backend. This field is set internally by the operator; it MUST NOT be set directly by users (enforced by the admission webhook). Requires Kubernetes v1.36+ with the GenericWorkload feature gate enabled.", alias="schedulingGroup")
     secrets: Optional[List[SparkV1beta2SecretInfo]] = Field(default=None, description="Secrets carries information of secrets to add to the pod.")
     security_context: Optional[IoK8sApiCoreV1SecurityContext] = Field(default=None, description="SecurityContext specifies the container's SecurityContext to apply.", alias="securityContext")
     service_account: Optional[StrictStr] = Field(default=None, description="ServiceAccount is the name of the custom Kubernetes service account used by the pod.", alias="serviceAccount")
@@ -72,7 +74,7 @@ class SparkV1beta2SparkPodSpec(BaseModel):
     termination_grace_period_seconds: Optional[StrictInt] = Field(default=None, description="Termination grace period seconds for the pod", alias="terminationGracePeriodSeconds")
     tolerations: Optional[List[IoK8sApiCoreV1Toleration]] = Field(default=None, description="Tolerations specifies the tolerations listed in \".spec.tolerations\" to be applied to the pod.")
     volume_mounts: Optional[List[IoK8sApiCoreV1VolumeMount]] = Field(default=None, description="VolumeMounts specifies the volumes listed in \".spec.volumes\" to mount into the main container's filesystem.", alias="volumeMounts")
-    __properties: ClassVar[List[str]] = ["affinity", "annotations", "configMaps", "coreLimit", "cores", "dnsConfig", "env", "envFrom", "envSecretKeyRefs", "envVars", "gpu", "hostAliases", "hostNetwork", "image", "initContainers", "labels", "memory", "memoryLimit", "memoryOverhead", "nodeSelector", "podSecurityContext", "schedulerName", "secrets", "securityContext", "serviceAccount", "shareProcessNamespace", "sidecars", "template", "terminationGracePeriodSeconds", "tolerations", "volumeMounts"]
+    __properties: ClassVar[List[str]] = ["affinity", "annotations", "configMaps", "coreLimit", "cores", "dnsConfig", "env", "envFrom", "envSecretKeyRefs", "envVars", "gpu", "hostAliases", "hostNetwork", "image", "initContainers", "labels", "memory", "memoryLimit", "memoryOverhead", "nodeSelector", "podSecurityContext", "schedulerName", "schedulingGroup", "secrets", "securityContext", "serviceAccount", "shareProcessNamespace", "sidecars", "template", "terminationGracePeriodSeconds", "tolerations", "volumeMounts"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -167,6 +169,9 @@ class SparkV1beta2SparkPodSpec(BaseModel):
         # override the default output from pydantic by calling `to_dict()` of pod_security_context
         if self.pod_security_context:
             _dict['podSecurityContext'] = self.pod_security_context.to_dict()
+        # override the default output from pydantic by calling `to_dict()` of scheduling_group
+        if self.scheduling_group:
+            _dict['schedulingGroup'] = self.scheduling_group.to_dict()
         # override the default output from pydantic by calling `to_dict()` of each item in secrets (list)
         _items = []
         if self.secrets:
@@ -240,6 +245,7 @@ class SparkV1beta2SparkPodSpec(BaseModel):
             "nodeSelector": obj.get("nodeSelector"),
             "podSecurityContext": IoK8sApiCoreV1PodSecurityContext.from_dict(obj["podSecurityContext"]) if obj.get("podSecurityContext") is not None else None,
             "schedulerName": obj.get("schedulerName"),
+            "schedulingGroup": SparkV1beta2PodSchedulingGroup.from_dict(obj["schedulingGroup"]) if obj.get("schedulingGroup") is not None else None,
             "secrets": [SparkV1beta2SecretInfo.from_dict(_item) for _item in obj["secrets"]] if obj.get("secrets") is not None else None,
             "securityContext": IoK8sApiCoreV1SecurityContext.from_dict(obj["securityContext"]) if obj.get("securityContext") is not None else None,
             "serviceAccount": obj.get("serviceAccount"),

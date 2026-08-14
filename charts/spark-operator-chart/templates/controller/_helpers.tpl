@@ -226,4 +226,19 @@ Create the role policy rules for the controller in every Spark job namespace
   - watch
   - create
   - delete
+{{- if .Values.controller.batchScheduler.workload.enable }}
+{{/* required for the native Kubernetes "workload" batch scheduler (K8s v1.36+) */}}
+- apiGroups:
+  - scheduling.k8s.io
+  resources:
+  - workloads
+  - podgroups
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - delete
+{{- end }}
 {{- end -}}
