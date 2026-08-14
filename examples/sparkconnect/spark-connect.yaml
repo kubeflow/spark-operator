@@ -55,6 +55,8 @@ spec:
   executor:
     instances: 2
     cores: 1
+    coreRequest: "1000m"
+    coreLimit: "1"
     memory: 512m
     template:
       metadata:
