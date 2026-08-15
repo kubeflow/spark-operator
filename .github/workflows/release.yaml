@@ -93,6 +93,7 @@ jobs:
         run: |
           platform=${{ matrix.platform }}
           echo "PLATFORM_PAIR=${platform//\//-}" >> $GITHUB_ENV
+          echo "ARCH=${platform#linux/}" >> $GITHUB_ENV
 
       - name: Checkout source code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -132,6 +133,31 @@ jobs:
           platforms: ${{ matrix.platform }}
           labels: ${{ steps.meta.outputs.labels }}
           outputs: type=image,name=${{ env.IMAGE_REGISTRY }}/${{ env.OPERATOR_IMAGE_REPOSITORY }},push-by-digest=true,name-canonical=true,push=true
+
+      - name: Export operator binary
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+        with:
+          platforms: ${{ matrix.platform }}
+          target: artifacts
+          outputs: type=local,dest=${{ runner.temp }}/binary
+
+      - name: Package operator binary
+        run: |
+          set -euo pipefail
+          stage="${RUNNER_TEMP}/stage"
+          mkdir -p "${stage}" "${RUNNER_TEMP}/dist"
+          cp "${RUNNER_TEMP}/binary/spark-operator" "${stage}/"
+          cp LICENSE entrypoint.sh "${stage}/"
+          tar -czf "${RUNNER_TEMP}/dist/spark-operator_${VERSION}_linux_${ARCH}.tar.gz" \
+            -C "${stage}" spark-operator LICENSE entrypoint.sh
+
+      - name: Upload operator binary archive
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        with:
+          name: binaries-operator-${{ env.PLATFORM_PAIR }}
+          path: ${{ runner.temp }}/dist/*.tar.gz
+          if-no-files-found: error
+          retention-days: 1
 
       - name: Export digest
         run: |
@@ -402,33 +428,12 @@ jobs:
           VERSION=$(cat VERSION)
           echo "VERSION=${VERSION}" >> $GITHUB_ENV
 
-      - name: Set up Go
-        uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
+      - name: Download operator binary archives
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
         with:
-          go-version-file: go.mod
-          cache: false
-
-      # NOTE: this must run before "Package Helm charts". That step writes
-      # *.tgz into the repository root, which is not gitignored, so
-      # `git status --porcelain` becomes non-empty and the Makefile would
-      # stamp the binaries with GIT_TREE_STATE=dirty.
-      - name: Build operator binaries
-        run: |
-          set -euo pipefail
-          # The Makefile derives GIT_TREE_STATE from `git status --porcelain`,
-          # so fail loudly here rather than silently stamping binaries dirty.
-          test -z "$(git status --porcelain)"
-          mkdir -p "${RUNNER_TEMP}/dist"
-          for arch in amd64 arm64; do
-            stage="${RUNNER_TEMP}/stage/linux_${arch}"
-            mkdir -p "${stage}"
-            echo "Building linux/${arch}..."
-            GOOS=linux GOARCH="${arch}" \
-              make build-operator SPARK_OPERATOR="${stage}/spark-operator"
-            cp LICENSE entrypoint.sh "${stage}/"
-            tar -czf "${RUNNER_TEMP}/dist/spark-operator_${VERSION}_linux_${arch}.tar.gz" \
-              -C "${stage}" spark-operator LICENSE entrypoint.sh
-          done
+          path: ${{ runner.temp }}/dist
+          pattern: binaries-operator-*
+          merge-multiple: true
 
       - name: Generate checksums
         run: |

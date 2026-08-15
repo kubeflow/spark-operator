@@ -14,7 +14,9 @@ SHELL = /usr/bin/env bash -o pipefail
 
 # Version information.
 VERSION := $(shell cat VERSION | sed "s/^v//")
-BUILD_DATE := $(shell date -u +"%Y-%m-%dT%H:%M:%S%:z")
+SOURCE_DATE_EPOCH ?= $(shell git log -1 --format=%ct 2>/dev/null || date -u +%s)
+BUILD_DATE := $(shell date -u -d "@$(SOURCE_DATE_EPOCH)" +"%Y-%m-%dT%H:%M:%S%:z" 2>/dev/null \
+                   || date -u -r $(SOURCE_DATE_EPOCH) +"%Y-%m-%dT%H:%M:%S%:z")
 GIT_COMMIT := $(shell git rev-parse HEAD)
 GIT_TAG := $(shell if [ -z "`git status --porcelain`" ]; then git describe --exact-match --tags HEAD 2>/dev/null; fi)
 GIT_TREE_STATE := $(shell if [ -z "`git status --porcelain`" ]; then echo "clean" ; else echo "dirty"; fi)

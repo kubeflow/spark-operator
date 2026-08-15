@@ -35,6 +35,12 @@ RUN --mount=type=cache,target=/go/pkg/mod/ \
     --mount=type=cache,target="/root/.cache/go-build" \
     CGO_ENABLED=0 GOOS=linux GOARCH=${TARGETARCH} GO111MODULE=on make build-operator
 
+# Export-only stage. `docker build` targets the final stage by default, so this
+# is never built unless requested via --target=artifacts. CI uses it to extract
+# the exact binary that ships in the image.
+FROM scratch AS artifacts
+COPY --from=builder /workspace/bin/spark-operator /spark-operator
+
 FROM ${SPARK_IMAGE}
 
 ARG SPARK_UID=185
