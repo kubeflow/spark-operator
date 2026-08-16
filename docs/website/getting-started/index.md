@@ -332,3 +332,74 @@ helm install my-release spark-operator/spark-operator \
    --set webhook.enable=true \
    --set webhook.port=443
 ```
+
+### Mutating Admission Webhook in a service mesh
+
+If the webhook pod receives a service mesh sidecar (for example Istio with automatic
+injection enabled in the operator's namespace, which is the default in a Kubeflow
+installation), the Kubernetes API server cannot reach the webhook and the operator will be
+unable to create any driver or executor pods.
+
+The failure is easy to misdiagnose, because everything else looks healthy: the webhook pod
+is `Running`, its certificate is valid, and the CA bundle is patched into the
+`MutatingWebhookConfiguration` successfully at startup. The `SparkApplication` or
+`SparkConnect` resource is accepted but never progresses, and has no events.
+
+The operator logs a generic `EOF`:
+
+```
+ERROR Reconciler error {"error": "failed to create or update server pod: Internal error occurred:
+  failed calling webhook \"mutate--v1-pod.sparkoperator.k8s.io\": failed to call webhook:
+  Post \"https://spark-operator-webhook-svc.spark-operator.svc:9443/mutate--v1-pod?timeout=10s\": EOF"}
+```
+
+The webhook's own logs show the handshakes failing, with `127.0.0.6` as the source address:
+
+```
+http: TLS handshake error from 127.0.0.6:52335: EOF
+http: TLS handshake error from 127.0.0.6:60629: EOF
+```
+
+`127.0.0.6` is the sidecar's loopback address, not a real client. The connection is being
+intercepted by the pod's own sidecar, which attempts mTLS, while the API server is speaking
+plain webhook TLS. Neither side can complete the other's handshake.
+
+This is not specific to this operator. The Kubernetes API server does not participate in the
+mesh, so any mesh-injected admission webhook needs the webhook port exempted from mesh mTLS.
+
+The simplest fix is to exclude the webhook port from sidecar interception:
+
+```shell
+helm install my-release spark-operator/spark-operator \
+   --namespace spark-operator \
+   --create-namespace \
+   --set webhook.enable=true \
+   --set-string webhook.annotations."traffic\.sidecar\.istio\.io/excludeInboundPorts"=9443
+```
+
+For clusters running STRICT mTLS mesh-wide, a port-level `PeerAuthentication` is a narrower
+exemption. The sidecar continues to handle the traffic, so telemetry and any
+`AuthorizationPolicy` still apply on the webhook port; it simply accepts plain TLS in
+addition to mTLS:
+
+```yaml
+apiVersion: security.istio.io/v1
+kind: PeerAuthentication
+metadata:
+  name: spark-operator-webhook
+  namespace: spark-operator
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: spark-operator
+      app.kubernetes.io/component: webhook
+  mtls:
+    mode: STRICT
+  portLevelMtls:
+    9443:
+      mode: PERMISSIVE
+```
+
+Removing the webhook from the mesh entirely
+(`sidecar.istio.io/inject: "false"`) also works, but is a broader exemption than either of
+the above.
