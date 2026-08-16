@@ -400,6 +400,10 @@ spec:
       mode: PERMISSIVE
 ```
 
+If more than one release of the operator is installed in the namespace, add
+`app.kubernetes.io/instance: <release-name>` to the selector so the policy applies only to
+the intended webhook.
+
 Removing the webhook from the mesh entirely
 (`sidecar.istio.io/inject: "false"`) also works, but is a broader exemption than either of
 the above.
