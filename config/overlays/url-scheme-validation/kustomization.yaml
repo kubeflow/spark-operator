@@ -1,0 +1,20 @@
+# Opt-in overlay that enables URL-scheme validation for SparkApplication and
+# ScheduledSparkApplication fetch fields in kustomize-based deployments.
+#
+# Usage:
+#   kustomize build config/overlays/url-scheme-validation/ | kubectl apply --server-side -f -
+#
+# It builds on config/default and appends --enable-url-scheme-validation=true to
+# the webhook args. The flag defaults to false in the binary.
+
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../../default
+
+patches:
+  - path: enable-url-scheme-validation-patch.yaml
+    target:
+      kind: Deployment
+      name: spark-operator-webhook

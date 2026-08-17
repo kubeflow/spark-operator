@@ -75,6 +75,21 @@ spec:
         {{- with .Values.webhook.resourceQuotaEnforcement.enable }}
         - --enable-resource-quota-enforcement=true
         {{- end }}
+        {{- if .Values.webhook.urlSchemeValidation.enable }}
+        - --enable-url-scheme-validation=true
+        {{- with .Values.webhook.urlSchemeValidation.allowedSchemes }}
+        - --allowed-url-schemes={{ . | join "," }}
+        {{- end }}
+        {{- with .Values.webhook.urlSchemeValidation.allowedSchemesAnyHost }}
+        - --allowed-url-schemes-any-host={{ . | join "," }}
+        {{- end }}
+        {{- with .Values.webhook.urlSchemeValidation.allowedHosts }}
+        - --allowed-url-hosts={{ . | join "," }}
+        {{- end }}
+        {{- with .Values.webhook.urlSchemeValidation.allowedWildcardHosts }}
+        - --allowed-wildcard-url-hosts={{ . | join "," }}
+        {{- end }}
+        {{- end }}
         {{- if .Values.certManager.enable }}
         - --enable-cert-manager=true
         {{- end }}

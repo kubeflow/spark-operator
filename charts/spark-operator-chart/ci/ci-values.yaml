@@ -19,3 +19,10 @@ controller:
 webhook:
   kubeAPIQPS: 100
   kubeAPIBurst: 100
+  # Enable URL validation so E2E exercises local URLs plus configured remote-host policy.
+  urlSchemeValidation:
+    enable: true
+    allowedSchemes:
+      - https
+    allowedHosts:
+      - https://test1.example.com
