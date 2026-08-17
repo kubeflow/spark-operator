@@ -22,13 +22,14 @@ import (
 	"testing"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/utils/ptr"
 
 	"github.com/kubeflow/spark-operator/v2/api/v1beta2"
 	"github.com/kubeflow/spark-operator/v2/pkg/common"
 )
 
 func TestScheduledSparkApplicationValidatorValidateCreate(t *testing.T) {
-	validator := NewScheduledSparkApplicationValidator()
+	validator := NewScheduledSparkApplicationValidator(false, nil, nil, nil, nil)
 
 	t.Run("accepts ScheduledSparkApplication instances", func(t *testing.T) {
 		app := &v1beta2.ScheduledSparkApplication{
@@ -48,7 +49,7 @@ func TestScheduledSparkApplicationValidatorValidateCreate(t *testing.T) {
 }
 
 func TestScheduledSparkApplicationValidatorValidateUpdate(t *testing.T) {
-	validator := NewScheduledSparkApplicationValidator()
+	validator := NewScheduledSparkApplicationValidator(false, nil, nil, nil, nil)
 
 	t.Run("accepts ScheduledSparkApplication instances", func(t *testing.T) {
 		oldApp := &v1beta2.ScheduledSparkApplication{
@@ -74,7 +75,7 @@ func TestScheduledSparkApplicationValidatorValidateUpdate(t *testing.T) {
 }
 
 func TestScheduledSparkApplicationValidatorValidateDelete(t *testing.T) {
-	validator := NewScheduledSparkApplicationValidator()
+	validator := NewScheduledSparkApplicationValidator(false, nil, nil, nil, nil)
 
 	t.Run("accepts ScheduledSparkApplication instances", func(t *testing.T) {
 		warnings, err := validator.ValidateDelete(context.Background(), &v1beta2.ScheduledSparkApplication{})
@@ -101,7 +102,7 @@ func newScheduledSparkApplication() *v1beta2.ScheduledSparkApplication {
 }
 
 func TestScheduledSparkApplicationValidatorSparkConf_SecurityVectorsRejected(t *testing.T) {
-	validator := NewScheduledSparkApplicationValidator()
+	validator := NewScheduledSparkApplicationValidator(false, nil, nil, nil, nil)
 
 	for _, tt := range sparkConfSecurityVectors {
 		t.Run(tt.name, func(t *testing.T) {
@@ -116,7 +117,7 @@ func TestScheduledSparkApplicationValidatorSparkConf_SecurityVectorsRejected(t *
 }
 
 func TestScheduledSparkApplicationValidatorSparkConf_UpdateRejected(t *testing.T) {
-	validator := NewScheduledSparkApplicationValidator()
+	validator := NewScheduledSparkApplicationValidator(false, nil, nil, nil, nil)
 
 	oldApp := newScheduledSparkApplication()
 	newApp := newScheduledSparkApplication()
@@ -128,7 +129,7 @@ func TestScheduledSparkApplicationValidatorSparkConf_UpdateRejected(t *testing.T
 }
 
 func TestScheduledSparkApplicationValidatorValidateName(t *testing.T) {
-	validator := NewScheduledSparkApplicationValidator()
+	validator := NewScheduledSparkApplicationValidator(false, nil, nil, nil, nil)
 
 	tests := []struct {
 		name      string
@@ -179,5 +180,60 @@ func TestScheduledSparkApplicationValidatorValidateName(t *testing.T) {
 				t.Errorf("validateName(%q) should return a non-empty error message, got: %v", tt.appName, err)
 			}
 		})
+	}
+}
+
+func TestScheduledSparkApplicationValidatorURLSchemes(t *testing.T) {
+	app := newScheduledSparkApplication()
+	app.Spec.Template.MainApplicationFile = ptr.To("http://attacker.example.com/app.py")
+	app.Spec.Template.Deps.Repositories = []string{"http://attacker.example.com/maven"}
+	app.Spec.Template.SparkConf = map[string]string{
+		"spark.jars": "http://attacker.example.com/evil.jar",
+	}
+
+	disabled := NewScheduledSparkApplicationValidator(false, nil, nil, nil, nil)
+	if _, err := disabled.ValidateCreate(context.Background(), app); err != nil {
+		t.Fatalf("expected no error when URL-scheme validation is disabled, got %v", err)
+	}
+
+	enabled := NewScheduledSparkApplicationValidator(true, nil, nil, nil, nil)
+	_, err := enabled.ValidateCreate(context.Background(), app)
+	requireURLValidationErrors(t, err,
+		urlValidationErrorExpectation{
+			field:  "spec.template.mainApplicationFile",
+			value:  "http://attacker.example.com/app.py",
+			scheme: "http",
+			kind:   URLValidationSchemeNotAllowed,
+		},
+		urlValidationErrorExpectation{
+			field:  "spec.template.deps.repositories",
+			value:  "http://attacker.example.com/maven",
+			scheme: "http",
+			kind:   URLValidationSchemeNotAllowed,
+		},
+		urlValidationErrorExpectation{
+			field:  `spec.template.sparkConf["spark.jars"]`,
+			value:  "http://attacker.example.com/evil.jar",
+			scheme: "http",
+			kind:   URLValidationSchemeNotAllowed,
+		},
+	)
+
+	oldApp := newScheduledSparkApplication()
+	newApp := oldApp.DeepCopy()
+	newApp.Spec.Template.MainApplicationFile = ptr.To("http://attacker.example.com/app.py")
+	_, err = enabled.ValidateUpdate(context.Background(), oldApp, newApp)
+	requireURLValidationErrors(t, err, urlValidationErrorExpectation{
+		field:  "spec.template.mainApplicationFile",
+		value:  "http://attacker.example.com/app.py",
+		scheme: "http",
+		kind:   URLValidationSchemeNotAllowed,
+	})
+
+	allowed := NewScheduledSparkApplicationValidator(true, []string{"https"}, nil, []string{"https://test1.example.com"}, nil)
+	allowedApp := newScheduledSparkApplication()
+	allowedApp.Spec.Template.MainApplicationFile = ptr.To("https://test1.example.com/app.py")
+	if _, err := allowed.ValidateCreate(context.Background(), allowedApp); err != nil {
+		t.Fatalf("expected allowed scheduled URL to pass validation, got %v", err)
 	}
 }

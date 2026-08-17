@@ -42,13 +42,10 @@ var _ = Describe("Driver PodDisruptionBudget", func() {
 	Context("when the SparkApplication opts in", func() {
 		var app *v1beta2.SparkApplication
 
-		BeforeEach(func() {
-			app = loadSparkPi("e2e-pdb-on")
-			app.Spec.DriverPodDisruptionBudget = ptr.To(true)
-			Expect(k8sClient.Create(ctx, app)).To(Succeed())
-		})
-
 		AfterEach(func() {
+			if app == nil {
+				return
+			}
 			key := types.NamespacedName{Namespace: app.Namespace, Name: app.Name}
 			if err := k8sClient.Get(ctx, key, app); err == nil {
 				_ = k8sClient.Delete(ctx, app)
@@ -56,6 +53,10 @@ var _ = Describe("Driver PodDisruptionBudget", func() {
 		})
 
 		It("creates a PDB while the driver is running, and the app completes", func() {
+			app = loadSparkPi("e2e-pdb-observe")
+			app.Spec.DriverPodDisruptionBudget = ptr.To(true)
+			Expect(k8sClient.Create(ctx, app)).To(Succeed())
+
 			By("Waiting for the driver PDB to appear")
 			pdb := &policyv1.PodDisruptionBudget{}
 			Eventually(func() error {
@@ -77,6 +78,10 @@ var _ = Describe("Driver PodDisruptionBudget", func() {
 		})
 
 		It("garbage-collects the PDB when the SparkApplication is deleted", func() {
+			app = loadSparkPi("e2e-pdb-delete")
+			app.Spec.DriverPodDisruptionBudget = ptr.To(true)
+			Expect(k8sClient.Create(ctx, app)).To(Succeed())
+
 			By("Waiting for the driver PDB to appear")
 			Eventually(func() error {
 				pdb := &policyv1.PodDisruptionBudget{}

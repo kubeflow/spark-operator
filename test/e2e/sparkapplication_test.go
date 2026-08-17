@@ -640,4 +640,5 @@ var _ = Describe("Example SparkApplication", func() {
 			checkVolumeAndMount(*driverPod, common.SparkDriverContainerName)
 		})
 	})
+
 })

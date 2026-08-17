@@ -73,6 +73,11 @@ var (
 
 	// Webhook
 	enableResourceQuotaEnforcement bool
+	enableURLSchemeValidation      bool
+	sparkAllowedURLSchemes         []string
+	sparkAllowedURLSchemesAnyHost  []string
+	sparkAllowedURLHosts           []string
+	sparkAllowedWildcardURLHosts   []string
 	webhookCertDir                 string
 	webhookCertName                string
 	webhookKeyName                 string
@@ -118,8 +123,12 @@ func NewStartCommand() *cobra.Command {
 	var command = &cobra.Command{
 		Use:   "start",
 		Short: "Start controller and webhook",
-		PreRun: func(_ *cobra.Command, args []string) {
+		PreRunE: func(_ *cobra.Command, args []string) error {
 			development = viper.GetBool("development")
+			if err := webhook.ValidateAllowedURLHosts(sparkAllowedURLHosts, sparkAllowedWildcardURLHosts); err != nil {
+				return err
+			}
+			return webhook.ValidateAllowAllURLHostsSchemes(sparkAllowedURLSchemes, sparkAllowedURLSchemesAnyHost)
 		},
 		Run: func(cmd *cobra.Command, args []string) {
 			version.PrintVersion(false)
@@ -149,6 +158,11 @@ func NewStartCommand() *cobra.Command {
 	command.Flags().StringVar(&webhookServiceName, "webhook-svc-name", "spark-webhook", "The name of the Service for the webhook server.")
 	command.Flags().StringVar(&webhookServiceNamespace, "webhook-svc-namespace", "spark-webhook", "The name of the Service for the webhook server.")
 	command.Flags().BoolVar(&enableResourceQuotaEnforcement, "enable-resource-quota-enforcement", false, "Whether to enable ResourceQuota enforcement for SparkApplication resources. Requires the webhook to be enabled.")
+	command.Flags().BoolVar(&enableURLSchemeValidation, "enable-url-scheme-validation", false, "Whether to enable URL validation of fetch-capable SparkApplication and ScheduledSparkApplication template fields (submit-time spec.sparkConf keys, spec.deps.*, spec.mainApplicationFile) at admission time. Opt-in and off by default so existing applications using remote URLs are not rejected on upgrade. When enabled, remote URLs must match both --spark-allowed-url-schemes and an allowed host.")
+	command.Flags().StringSliceVar(&sparkAllowedURLSchemes, "spark-allowed-url-schemes", []string{}, "Comma-separated list of URL schemes permitted in fetch-capable SparkApplication and ScheduledSparkApplication template fields when --enable-url-scheme-validation is set. Remote URLs must also match --spark-allowed-url-hosts or --spark-allowed-wildcard-url-hosts.")
+	command.Flags().StringSliceVar(&sparkAllowedURLSchemesAnyHost, "spark-allowed-url-schemes-any-host", []string{}, "Comma-separated list of allowed URL schemes permitted to access any host in fetch-capable SparkApplication and ScheduledSparkApplication template fields. Each scheme must also be listed in --spark-allowed-url-schemes. Use only where network policy constrains reachable hosts.")
+	command.Flags().StringSliceVar(&sparkAllowedURLHosts, "spark-allowed-url-hosts", []string{}, "Comma-separated list of exact scheme-qualified URL hosts permitted in fetch-capable SparkApplication and ScheduledSparkApplication template fields when --enable-url-scheme-validation is set, such as https://repo.example.com or s3a://bucket. Empty host lists deny all remote URLs.")
+	command.Flags().StringSliceVar(&sparkAllowedWildcardURLHosts, "spark-allowed-wildcard-url-hosts", []string{}, "Comma-separated list of scheme-qualified leftmost wildcard URL hosts permitted in fetch-capable SparkApplication and ScheduledSparkApplication template fields when --enable-url-scheme-validation is set, such as https://*.maven.apache.org. Empty host lists deny all remote URLs.")
 
 	// Cert Manager
 	command.Flags().BoolVar(&enableCertManager, "enable-cert-manager", false, "Enable cert-manager to manage the webhook server's TLS certificate.")
@@ -315,7 +329,7 @@ func start() {
 
 	if err := ctrl.NewWebhookManagedBy(mgr, &v1beta2.SparkApplication{}).
 		WithDefaulter(webhook.NewSparkApplicationDefaulter()).
-		WithValidator(webhook.NewSparkApplicationValidator(mgr.GetClient(), enableResourceQuotaEnforcement)).
+		WithValidator(webhook.NewSparkApplicationValidator(mgr.GetClient(), enableResourceQuotaEnforcement, enableURLSchemeValidation, sparkAllowedURLSchemes, sparkAllowedURLSchemesAnyHost, sparkAllowedURLHosts, sparkAllowedWildcardURLHosts)).
 		WithLogConstructor(webhook.LogConstructor).
 		Complete(); err != nil {
 		logger.Error(err, "Failed to create mutating webhook for Spark application")
@@ -324,7 +338,7 @@ func start() {
 
 	if err := ctrl.NewWebhookManagedBy(mgr, &v1beta2.ScheduledSparkApplication{}).
 		WithDefaulter(webhook.NewScheduledSparkApplicationDefaulter()).
-		WithValidator(webhook.NewScheduledSparkApplicationValidator()).
+		WithValidator(webhook.NewScheduledSparkApplicationValidator(enableURLSchemeValidation, sparkAllowedURLSchemes, sparkAllowedURLSchemesAnyHost, sparkAllowedURLHosts, sparkAllowedWildcardURLHosts)).
 		WithLogConstructor(webhook.LogConstructor).
 		Complete(); err != nil {
 		logger.Error(err, "Failed to create mutating webhook for Scheduled Spark application")
