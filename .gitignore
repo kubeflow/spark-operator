@@ -14,3 +14,9 @@ docs/website/_build/
 # Python virtual environments
 .venv/
 venv/
+
+# AL LLM agents state
+CLAUDE.md
+AGENTS.md
+.mcp.json
+.claude
