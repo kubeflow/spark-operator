@@ -78,16 +78,16 @@ spec:
         {{- if .Values.webhook.urlSchemeValidation.enable }}
         - --enable-url-scheme-validation=true
         {{- with .Values.webhook.urlSchemeValidation.allowedSchemes }}
-        - --spark-allowed-url-schemes={{ . | join "," }}
+        - --allowed-url-schemes={{ . | join "," }}
         {{- end }}
         {{- with .Values.webhook.urlSchemeValidation.allowedSchemesAnyHost }}
-        - --spark-allowed-url-schemes-any-host={{ . | join "," }}
+        - --allowed-url-schemes-any-host={{ . | join "," }}
         {{- end }}
         {{- with .Values.webhook.urlSchemeValidation.allowedHosts }}
-        - --spark-allowed-url-hosts={{ . | join "," }}
+        - --allowed-url-hosts={{ . | join "," }}
         {{- end }}
         {{- with .Values.webhook.urlSchemeValidation.allowedWildcardHosts }}
-        - --spark-allowed-wildcard-url-hosts={{ . | join "," }}
+        - --allowed-wildcard-url-hosts={{ . | join "," }}
         {{- end }}
         {{- end }}
         {{- if .Values.certManager.enable }}

@@ -3,7 +3,7 @@
   value: --enable-url-scheme-validation=true
 - op: add
   path: /spec/template/spec/containers/0/args/-
-  value: --spark-allowed-url-schemes=https
+  value: --allowed-url-schemes=https
 - op: add
   path: /spec/template/spec/containers/0/args/-
-  value: --spark-allowed-url-hosts=https://test1.example.com
+  value: --allowed-url-hosts=https://test1.example.com

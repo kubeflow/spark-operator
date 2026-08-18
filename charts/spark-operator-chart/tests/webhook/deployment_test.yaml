@@ -197,7 +197,7 @@ tests:
           content: --enable-url-scheme-validation=true
       - notContains:
           path: spec.template.spec.containers[?(@.name=="spark-operator-webhook")].args
-          content: --spark-allowed-url-schemes=gs,s3a
+          content: --allowed-url-schemes=gs,s3a
 
   - it: Should contain `--enable-url-scheme-validation` arg if `webhook.urlSchemeValidation.enable` is `true`
     set:
@@ -213,7 +213,7 @@ tests:
           content: --enable-url-scheme-validation=true
       - contains:
           path: spec.template.spec.containers[?(@.name=="spark-operator-webhook")].args
-          content: --spark-allowed-url-schemes=gs,s3a
+          content: --allowed-url-schemes=gs,s3a
 
   - it: Should render exact and wildcard URL host policy args when configured
     set:
@@ -232,15 +232,15 @@ tests:
     asserts:
       - contains:
           path: spec.template.spec.containers[?(@.name=="spark-operator-webhook")].args
-          content: --spark-allowed-url-hosts=https://test1.example.com,s3a://artifacts-bucket
+          content: --allowed-url-hosts=https://test1.example.com,s3a://artifacts-bucket
       - contains:
           path: spec.template.spec.containers[?(@.name=="spark-operator-webhook")].args
-          content: --spark-allowed-wildcard-url-hosts=https://*.maven.apache.org
+          content: --allowed-wildcard-url-hosts=https://*.maven.apache.org
       - contains:
           path: spec.template.spec.containers[?(@.name=="spark-operator-webhook")].args
-          content: --spark-allowed-url-schemes-any-host=s3a
+          content: --allowed-url-schemes-any-host=s3a
 
-  - it: Should not contain `--spark-allowed-url-schemes` arg when validation is enabled but no schemes are set
+  - it: Should not contain `--allowed-url-schemes` arg when validation is enabled but no schemes are set
     set:
       webhook:
         urlSchemeValidation:
@@ -251,16 +251,16 @@ tests:
           content: --enable-url-scheme-validation=true
       - notContains:
           path: spec.template.spec.containers[?(@.name=="spark-operator-webhook")].args
-          content: --spark-allowed-url-schemes
+          content: --allowed-url-schemes
       - notContains:
           path: spec.template.spec.containers[?(@.name=="spark-operator-webhook")].args
-          content: --spark-allowed-url-schemes-any-host
+          content: --allowed-url-schemes-any-host
       - notContains:
           path: spec.template.spec.containers[?(@.name=="spark-operator-webhook")].args
-          content: --spark-allowed-url-hosts
+          content: --allowed-url-hosts
       - notContains:
           path: spec.template.spec.containers[?(@.name=="spark-operator-webhook")].args
-          content: --spark-allowed-wildcard-url-hosts
+          content: --allowed-wildcard-url-hosts
 
   - it: Should enable leader election by default
     asserts:

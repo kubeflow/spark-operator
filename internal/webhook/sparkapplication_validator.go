@@ -162,7 +162,7 @@ func parseAllowedURLHost(value string, wildcard bool) (string, string, error) {
 			return "", "", fmt.Errorf("invalid allowed wildcard URL host %q: use a scheme-qualified leftmost wildcard such as https://*.example.com", value)
 		}
 	} else if strings.Contains(host, "*") {
-		return "", "", fmt.Errorf("invalid allowed URL host %q: use --spark-allowed-wildcard-url-hosts for wildcard hosts", value)
+		return "", "", fmt.Errorf("invalid allowed URL host %q: use --allowed-wildcard-url-hosts for wildcard hosts", value)
 	}
 	return scheme, host, nil
 }
@@ -193,7 +193,7 @@ func ValidateAllowAllURLHostsSchemes(allowedSchemes, allowAllHostsSchemes []stri
 			return fmt.Errorf("allowed URL scheme with all hosts cannot be empty")
 		}
 		if _, ok := allowed[scheme]; !ok {
-			return fmt.Errorf("allowed URL scheme with all hosts %q must also be listed in --spark-allowed-url-schemes", scheme)
+			return fmt.Errorf("allowed URL scheme with all hosts %q must also be listed in --allowed-url-schemes", scheme)
 		}
 	}
 	return nil
