@@ -76,6 +76,16 @@ func (d *SparkPodDefaulter) Default(ctx context.Context, pod *corev1.Pod) error 
 
 	logger := log.FromContext(ctx)
 	namespace := pod.Namespace
+	if namespace == "" {
+		// On older API servers (verified on Kubernetes 1.22), the object sent to
+		// admission webhooks does not have metadata.namespace populated when the
+		// client omitted it from the request body, which is the case for driver
+		// and executor pods created by spark-submit (fabric8 client). Fall back
+		// to the namespace of the admission request itself.
+		if req, err := admission.RequestFromContext(ctx); err == nil {
+			namespace = req.Namespace
+		}
+	}
 	if !d.isSparkJobNamespace(namespace) {
 		return nil
 	}

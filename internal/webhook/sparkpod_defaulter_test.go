@@ -17,6 +17,7 @@ limitations under the License.
 package webhook
 
 import (
+	"context"
 	"fmt"
 	"testing"
 
@@ -24,9 +25,13 @@ import (
 	. "github.com/onsi/gomega"
 
 	"github.com/stretchr/testify/assert"
+	admissionv1 "k8s.io/api/admission/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
 	"github.com/kubeflow/spark-operator/v2/api/v1beta2"
 	"github.com/kubeflow/spark-operator/v2/pkg/common"
@@ -2348,4 +2353,72 @@ func TestPatchSparkPod_MemoryLimit(t *testing.T) {
 	assert.Equal(t, "10Gi", expectedExecutorMemoryLimit.String())
 	assert.NotEqual(t, expectedExecutorMemoryRequest.String(), expectedExecutorMemoryLimit.String())
 
+}
+
+func TestSparkPodDefaulter_Default_NamespaceFallback(t *testing.T) {
+	scheme := runtime.NewScheme()
+	assert.NoError(t, v1beta2.AddToScheme(scheme))
+
+	app := &v1beta2.SparkApplication{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "spark-test",
+			Namespace: "test-ns",
+		},
+		Spec: v1beta2.SparkApplicationSpec{
+			Driver: v1beta2.DriverSpec{
+				SparkPodSpec: v1beta2.SparkPodSpec{
+					Tolerations: []corev1.Toleration{
+						{
+							Key:      "team",
+							Operator: corev1.TolerationOpEqual,
+							Value:    "de",
+							Effect:   corev1.TaintEffectNoSchedule,
+						},
+					},
+				},
+			},
+		},
+	}
+	fakeClient := fake.NewClientBuilder().WithScheme(scheme).WithObjects(app).Build()
+	defaulter := NewSparkPodDefaulter(fakeClient, []string{"test-ns"})
+
+	newPod := func() *corev1.Pod {
+		return &corev1.Pod{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "spark-test-driver",
+				// Namespace is intentionally left empty: on older API servers
+				// (verified on Kubernetes 1.22), the object in the admission
+				// request does not have metadata.namespace populated when the
+				// client omitted it from the request body, which is the case
+				// for pods created by spark-submit.
+				Labels: map[string]string{
+					common.LabelSparkRole:               common.SparkRoleDriver,
+					common.LabelLaunchedBySparkOperator: "true",
+					common.LabelSparkAppName:            "spark-test",
+				},
+			},
+			Spec: corev1.PodSpec{
+				Containers: []corev1.Container{
+					{
+						Name:  common.SparkDriverContainerName,
+						Image: "spark-driver:latest",
+					},
+				},
+			},
+		}
+	}
+
+	// The namespace of the admission request must be used as a fallback and
+	// the pod must be mutated.
+	req := admission.Request{AdmissionRequest: admissionv1.AdmissionRequest{Namespace: "test-ns"}}
+	pod := newPod()
+	assert.NoError(t, defaulter.Default(admission.NewContextWithRequest(context.Background(), req), pod))
+	assert.Equal(t, app.Spec.Driver.Tolerations, pod.Spec.Tolerations)
+
+	// A request from a namespace not watched by the operator must still be
+	// skipped without mutation.
+	req = admission.Request{AdmissionRequest: admissionv1.AdmissionRequest{Namespace: "other-ns"}}
+	pod = newPod()
+	assert.NoError(t, defaulter.Default(admission.NewContextWithRequest(context.Background(), req), pod))
+	assert.Empty(t, pod.Spec.Tolerations)
 }
