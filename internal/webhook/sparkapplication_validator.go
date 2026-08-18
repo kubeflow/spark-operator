@@ -53,8 +53,11 @@ type SparkApplicationValidator struct {
 	// unchanged from before the check existed, so upgrading operators that already submit remote
 	// deps are never broken. Operators turn it on to harden against operator-privileged SSRF.
 	enableURLSchemeValidation bool
-	// Remote values in fetch-capable spec fields must match both configured scheme and host policy.
-	// Empty host lists deny all remote URLs. Local paths, file://, and local:// remain allowed.
+	urlValidationPolicy
+}
+
+// urlValidationPolicy defines allowed schemes and host rules for remote URLs.
+type urlValidationPolicy struct {
 	allowedURLSchemes       map[string]struct{}
 	allowAllURLHostsSchemes map[string]struct{}
 	allowedURLHosts         map[string]map[string]struct{}
@@ -110,10 +113,16 @@ func NewSparkApplicationValidator(client client.Client, enableResourceQuotaEnfor
 
 		enableResourceQuotaEnforcement: enableResourceQuotaEnforcement,
 		enableURLSchemeValidation:      enableURLSchemeValidation,
-		allowedURLSchemes:              normalizedURLSchemes(allowedURLSchemes),
-		allowAllURLHostsSchemes:        normalizedURLSchemes(allowAllURLHostsSchemes),
-		allowedURLHosts:                normalizedURLHosts(allowedURLHosts),
-		allowedWildcardURLHosts:        normalizedWildcardURLHosts(allowedWildcardURLHosts),
+		urlValidationPolicy:            newURLValidationPolicy(allowedURLSchemes, allowAllURLHostsSchemes, allowedURLHosts, allowedWildcardURLHosts),
+	}
+}
+
+func newURLValidationPolicy(allowedURLSchemes, allowAllURLHostsSchemes, allowedURLHosts, allowedWildcardURLHosts []string) urlValidationPolicy {
+	return urlValidationPolicy{
+		allowedURLSchemes:       normalizedURLSchemes(allowedURLSchemes),
+		allowAllURLHostsSchemes: normalizedURLSchemes(allowAllURLHostsSchemes),
+		allowedURLHosts:         normalizedURLHosts(allowedURLHosts),
+		allowedWildcardURLHosts: normalizedWildcardURLHosts(allowedWildcardURLHosts),
 	}
 }
 
@@ -415,7 +424,9 @@ func (v *SparkApplicationValidator) validateURLSchemes(spec *v1beta2.SparkApplic
 
 	// spec.mainApplicationFile is a single URI forwarded as the final spark-submit argument.
 	if spec.MainApplicationFile != nil {
-		errs = append(errs, v.checkURLScheme(fieldPrefix+"mainApplicationFile", *spec.MainApplicationFile)...)
+		if err := v.checkURLScheme(fieldPrefix+"mainApplicationFile", *spec.MainApplicationFile); err != nil {
+			errs = append(errs, err)
+		}
 	}
 
 	// spec.deps fetch-capable lists (--jars, --files, --py-files, --archives, --repositories).
@@ -462,7 +473,9 @@ func (v *SparkApplicationValidator) validateDepsURLSchemes(deps *v1beta2.Depende
 func (v *SparkApplicationValidator) checkURLSchemes(field string, values []string) []error {
 	var errs []error
 	for _, value := range values {
-		errs = append(errs, v.checkURLScheme(field, value)...)
+		if err := v.checkURLScheme(field, value); err != nil {
+			errs = append(errs, err)
+		}
 	}
 	return errs
 }
@@ -473,52 +486,49 @@ func (v *SparkApplicationValidator) checkURLSchemes(field string, values []strin
 // suspect, not waved through. "//host/path" is the one tricky case - it parses with an empty
 // scheme but a non-empty host, so guard on Host to tell a real local path (no host) from a
 // network-path reference.
-//
-// It returns a slice of at most one error (empty when the value is allowed) so callers can
-// accumulate violations across many fields and surface them together; see validateURLSchemes.
-func (v *SparkApplicationValidator) checkURLScheme(field, value string) []error {
+func (v *SparkApplicationValidator) checkURLScheme(field, value string) error {
 	value = strings.TrimSpace(value)
 	if value == "" {
 		return nil
 	}
 	u, err := url.Parse(value)
 	if err != nil {
-		return []error{&URLValidationError{
+		return &URLValidationError{
 			Field: field,
 			Value: value,
 			Kind:  URLValidationInvalidURL,
 			Err:   err,
-		}}
+		}
 	}
 	scheme := strings.ToLower(u.Scheme)
 	if slices.Contains(alwaysAllowedURLSchemes, scheme) {
 		// Any authority makes an otherwise local form ambiguous or remote. In particular,
 		// "//host/x", "file://host/x", and "local://host/x" must not use this exemption.
 		if u.Host != "" {
-			return []error{&URLValidationError{
+			return &URLValidationError{
 				Field: field,
 				Value: value,
 				Host:  u.Host,
 				Kind:  URLValidationHostNotAllowed,
-			}}
+			}
 		}
 		return nil
 	}
 	if _, allowed := v.allowedURLSchemes[scheme]; !allowed {
-		return []error{&URLValidationError{
+		return &URLValidationError{
 			Field:  field,
 			Value:  value,
 			Scheme: scheme,
 			Kind:   URLValidationSchemeNotAllowed,
-		}}
+		}
 	}
 	if !v.isAllowedURLHost(scheme, u.Hostname()) {
-		return []error{&URLValidationError{
+		return &URLValidationError{
 			Field: field,
 			Value: value,
 			Host:  u.Hostname(),
 			Kind:  URLValidationHostNotAllowed,
-		}}
+		}
 	}
 	return nil
 }

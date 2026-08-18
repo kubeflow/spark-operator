@@ -35,20 +35,17 @@ import (
 
 type ScheduledSparkApplicationValidator struct {
 	enableURLSchemeValidation bool
-	allowedURLSchemes         map[string]struct{}
-	allowAllURLHostsSchemes   map[string]struct{}
-	allowedURLHosts           map[string]map[string]struct{}
-	allowedWildcardURLHosts   map[string][]string
+	urlValidationPolicy
 }
 
 // NewScheduledSparkApplicationValidator creates a new ScheduledSparkApplicationValidator instance.
+// enableURLSchemeValidation turns on fetch-field URL validation (default off / opt-in).
+// The remaining arguments define allowed schemes and scheme-qualified exact, wildcard, or
+// all-host URL policies for the scheduled application's template.
 func NewScheduledSparkApplicationValidator(enableURLSchemeValidation bool, allowedURLSchemes, allowAllURLHostsSchemes, allowedURLHosts, allowedWildcardURLHosts []string) *ScheduledSparkApplicationValidator {
 	return &ScheduledSparkApplicationValidator{
 		enableURLSchemeValidation: enableURLSchemeValidation,
-		allowedURLSchemes:         normalizedURLSchemes(allowedURLSchemes),
-		allowAllURLHostsSchemes:   normalizedURLSchemes(allowAllURLHostsSchemes),
-		allowedURLHosts:           normalizedURLHosts(allowedURLHosts),
-		allowedWildcardURLHosts:   normalizedWildcardURLHosts(allowedWildcardURLHosts),
+		urlValidationPolicy:       newURLValidationPolicy(allowedURLSchemes, allowAllURLHostsSchemes, allowedURLHosts, allowedWildcardURLHosts),
 	}
 }
 
@@ -115,12 +112,7 @@ func (v *ScheduledSparkApplicationValidator) validate(app *v1beta2.ScheduledSpar
 		return nil
 	}
 
-	return (&SparkApplicationValidator{
-		allowedURLSchemes:       v.allowedURLSchemes,
-		allowAllURLHostsSchemes: v.allowAllURLHostsSchemes,
-		allowedURLHosts:         v.allowedURLHosts,
-		allowedWildcardURLHosts: v.allowedWildcardURLHosts,
-	}).validateURLSchemes(&app.Spec.Template, "spec.template.")
+	return (&SparkApplicationValidator{urlValidationPolicy: v.urlValidationPolicy}).validateURLSchemes(&app.Spec.Template, "spec.template.")
 }
 
 // validateName ensures the ScheduledSparkApplication metadata.name, when combined with suffixes,
