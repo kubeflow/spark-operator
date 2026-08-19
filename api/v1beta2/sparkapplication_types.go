@@ -182,6 +182,14 @@ type SparkApplicationStatus struct {
 	// SubmissionAttempts is the total number of attempts to submit an application to run.
 	// Incremented upon each attempted submission of the application and reset upon invalidation and rerun.
 	SubmissionAttempts int32 `json:"submissionAttempts,omitempty"`
+	// LastDeletionAttemptTime is the time when deletion of Spark resources was
+	// last initiated for a rerun or suspension.
+	// +optional
+	LastDeletionAttemptTime metav1.Time `json:"lastDeletionAttemptTime,omitempty"`
+	// DeletionPollAttempts is the number of times the controller has polled for
+	// Spark resource deletion to complete for the current rerun or suspension.
+	// +optional
+	DeletionPollAttempts int32 `json:"deletionPollAttempts,omitempty"`
 }
 
 // +kubebuilder:object:root=true
