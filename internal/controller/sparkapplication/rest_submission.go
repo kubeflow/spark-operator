@@ -441,7 +441,7 @@ func buildTransport(tlsCfg *TLSConfig) (http.RoundTripper, error) {
 		return transport, nil
 	}
 
-	tlsConfig := &tls.Config{}
+	tlsConfig := &tls.Config{MinVersion: tls.VersionTLS12}
 
 	caCertFile := strings.TrimSpace(tlsCfg.CACertFile)
 	certFile := strings.TrimSpace(tlsCfg.CertFile)
