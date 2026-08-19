@@ -21,7 +21,9 @@ import (
 	"fmt"
 	"strings"
 
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/util/validation"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
@@ -266,7 +268,49 @@ func (v *SparkConnectValidator) validateServerSpec(sc *v1alpha1.SparkConnect) er
 		}
 	}
 
+	if server.Service != nil {
+		if err := validateServerServicePorts(server.Service.Spec.Ports); err != nil {
+			return fmt.Errorf("invalid server.service: %v", err)
+		}
+	}
+
 	return nil
+}
+
+func validateServerServicePorts(ports []corev1.ServicePort) error {
+	requiredByName := make(map[string]corev1.ServicePort)
+	for _, p := range util.GetRequiredServerServicePorts() {
+		requiredByName[p.Name] = p
+	}
+	for _, up := range ports {
+		req, ok := requiredByName[up.Name]
+		if !ok {
+			continue
+		}
+		if !IsCompatibleServerServicePort(up, req) {
+			return fmt.Errorf(
+				"service port %q conflicts with the required Spark Connect server port (required targetPort %q, protocol %q)",
+				up.Name, req.TargetPort.String(), req.Protocol,
+			)
+		}
+	}
+	return nil
+}
+
+// IsCompatibleServerServicePort reports whether a user-supplied service port is
+// compatible with a required Spark Connect server port of the same name. A user
+// port is compatible when it leaves the wiring fields (protocol and targetPort)
+// unset, or sets them to the required values. The service-facing port, nodePort
+// and appProtocol may be customized freely; the reconciler fills in any unset
+// wiring fields.
+func IsCompatibleServerServicePort(userPort, requiredPort corev1.ServicePort) bool {
+	if userPort.Protocol != "" && userPort.Protocol != requiredPort.Protocol {
+		return false
+	}
+	if userPort.TargetPort != (intstr.IntOrString{}) && userPort.TargetPort != requiredPort.TargetPort {
+		return false
+	}
+	return true
 }
 
 // validateExecutorSpec validates the Executor specification.

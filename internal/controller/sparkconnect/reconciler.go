@@ -31,7 +31,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/tools/events"
 	"k8s.io/client-go/util/workqueue"
-	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -538,40 +537,11 @@ func (r *Reconciler) createOrUpdateServerService(ctx context.Context, conn *v1al
 }
 
 // mutateServerService mutates the server service for the SparkConnect resource.
+// On creation, it preserves any user-supplied ports and appends the required
+// ports (by name) that are missing. Existing services are left untouched.
 func (r *Reconciler) mutateServerService(_ context.Context, conn *v1alpha1.SparkConnect, svc *corev1.Service) error {
 	if svc.CreationTimestamp.IsZero() {
-		svc.Spec.Ports = []corev1.ServicePort{
-			{
-				Name:        "driver-rpc",
-				Port:        7078,
-				TargetPort:  intstr.FromInt(7078),
-				Protocol:    corev1.ProtocolTCP,
-				AppProtocol: ptr.To("tcp"),
-			},
-			{
-				Name:        "blockmanager",
-				Port:        7079,
-				TargetPort:  intstr.FromInt(7079),
-				Protocol:    corev1.ProtocolTCP,
-				AppProtocol: ptr.To("tcp"),
-			},
-			{
-				Name:        "web-ui",
-				Port:        4040,
-				TargetPort:  intstr.FromInt(4040),
-				Protocol:    corev1.ProtocolTCP,
-				AppProtocol: ptr.To("http"),
-			},
-			{
-				Name:        "spark-connect-server",
-				Port:        sparkConnectServerPort,
-				TargetPort:  intstr.FromInt(sparkConnectServerPort),
-				Protocol:    corev1.ProtocolTCP,
-				AppProtocol: ptr.To("grpc"),
-			},
-		}
-
-		// Set pod label selector on server service.
+		svc.Spec.Ports = mergeServerServicePorts(svc.Spec.Ports)
 		if svc.Spec.Selector == nil {
 			svc.Spec.Selector = map[string]string{}
 		}
@@ -594,6 +564,40 @@ func (r *Reconciler) mutateServerService(_ context.Context, conn *v1alpha1.Spark
 	}
 
 	return nil
+}
+
+func mergeServerServicePorts(userPorts []corev1.ServicePort) []corev1.ServicePort {
+	required := util.GetRequiredServerServicePorts()
+	requiredByName := make(map[string]corev1.ServicePort, len(required))
+	for _, p := range required {
+		requiredByName[p.Name] = p
+	}
+
+	merged := make([]corev1.ServicePort, 0, len(userPorts)+len(required))
+	seen := make(map[string]struct{}, len(userPorts))
+	for _, up := range userPorts {
+		if req, ok := requiredByName[up.Name]; ok {
+			// Enforce the wiring invariants while preserving the user's
+			// service-facing port and nodePort.
+			if up.TargetPort == (intstr.IntOrString{}) {
+				up.TargetPort = req.TargetPort
+			}
+			if up.Protocol == "" {
+				up.Protocol = req.Protocol
+			}
+			if up.AppProtocol == nil {
+				up.AppProtocol = req.AppProtocol
+			}
+		}
+		merged = append(merged, up)
+		seen[up.Name] = struct{}{}
+	}
+	for _, req := range required {
+		if _, ok := seen[req.Name]; !ok {
+			merged = append(merged, req)
+		}
+	}
+	return merged
 }
 
 // updateSparkConnectStatus updates the status of the SparkConnect resource.
