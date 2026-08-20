@@ -105,6 +105,16 @@ jobs:
           VERSION=$(cat VERSION)
           echo "VERSION=${VERSION}" >> $GITHUB_ENV
 
+      - name: Collect build metadata
+        run: |
+          set -euo pipefail
+          {
+            echo "BUILD_VERSION=${VERSION#v}"
+            echo "GIT_COMMIT=$(git rev-parse HEAD)"
+            echo "GIT_TREE_STATE=$([ -z "$(git status --porcelain)" ] && echo clean || echo dirty)"
+            echo "SOURCE_DATE_EPOCH=$(git log -1 --format=%ct)"
+          } >> "$GITHUB_ENV"
+
       - name: Docker meta
         id: meta
         uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5

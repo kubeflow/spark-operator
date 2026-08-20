@@ -31,9 +31,21 @@ ENV GOCACHE=/root/.cache/go-build
 
 ARG TARGETARCH
 
+# Build metadata. When unset, the Makefile derives these from the git tree
+# inside the build context, preserving the behaviour of a plain `docker build`.
+ARG VERSION=
+ARG GIT_COMMIT=
+ARG GIT_TREE_STATE=
+ARG SOURCE_DATE_EPOCH=
+
 RUN --mount=type=cache,target=/go/pkg/mod/ \
     --mount=type=cache,target="/root/.cache/go-build" \
-    CGO_ENABLED=0 GOOS=linux GOARCH=${TARGETARCH} GO111MODULE=on make build-operator
+    CGO_ENABLED=0 GOOS=linux GOARCH=${TARGETARCH} GO111MODULE=on \
+    make build-operator \
+      ${VERSION:+VERSION=$VERSION} \
+      ${GIT_COMMIT:+GIT_COMMIT=$GIT_COMMIT} \
+      ${GIT_TREE_STATE:+GIT_TREE_STATE=$GIT_TREE_STATE} \
+      ${SOURCE_DATE_EPOCH:+SOURCE_DATE_EPOCH=$SOURCE_DATE_EPOCH}
 
 # Export-only stage. `docker build` targets the final stage by default, so this
 # is never built unless requested via --target=artifacts. CI uses it to extract
