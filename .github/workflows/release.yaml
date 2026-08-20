@@ -142,6 +142,11 @@ jobs:
         with:
           platforms: ${{ matrix.platform }}
           labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            VERSION=${{ env.BUILD_VERSION }}
+            GIT_COMMIT=${{ env.GIT_COMMIT }}
+            GIT_TREE_STATE=${{ env.GIT_TREE_STATE }}
+            SOURCE_DATE_EPOCH=${{ env.SOURCE_DATE_EPOCH }}
           outputs: type=image,name=${{ env.IMAGE_REGISTRY }}/${{ env.OPERATOR_IMAGE_REPOSITORY }},push-by-digest=true,name-canonical=true,push=true
 
       - name: Export operator binary
@@ -149,7 +154,27 @@ jobs:
         with:
           platforms: ${{ matrix.platform }}
           target: artifacts
+          build-args: |
+            VERSION=${{ env.BUILD_VERSION }}
+            GIT_COMMIT=${{ env.GIT_COMMIT }}
+            GIT_TREE_STATE=${{ env.GIT_TREE_STATE }}
+            SOURCE_DATE_EPOCH=${{ env.SOURCE_DATE_EPOCH }}
           outputs: type=local,dest=${{ runner.temp }}/binary
+
+      - name: Verify exported binary matches image
+        run: |
+          set -euo pipefail
+          image="${IMAGE_REGISTRY}/${OPERATOR_IMAGE_REPOSITORY}@${DIGEST}"
+          cid=$(docker create --platform "${{ matrix.platform }}" "${image}")
+          docker cp "${cid}:/usr/bin/spark-operator" "${RUNNER_TEMP}/from-image"
+          docker rm "${cid}"
+          exported=$(sha256sum "${RUNNER_TEMP}/binary/spark-operator" | cut -d' ' -f1)
+          from_image=$(sha256sum "${RUNNER_TEMP}/from-image" | cut -d' ' -f1)
+          echo "exported:   ${exported}"
+          echo "from image: ${from_image}"
+          [ "${exported}" = "${from_image}" ]
+        env:
+          DIGEST: ${{ steps.build.outputs.digest }}
 
       - name: Package operator binary
         run: |
