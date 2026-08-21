@@ -18,6 +18,7 @@ package sparkapplication
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -46,6 +47,24 @@ type SparkApplicationSubmitter interface {
 type SparkSubmitter struct {
 }
 
+// SparkSubmitError keeps the command error for operator-side diagnostics while exposing a
+// stable, non-sensitive message to SparkApplication status and Kubernetes Events.
+type SparkSubmitError struct {
+	err      error
+	exitCode int
+}
+
+func (e *SparkSubmitError) Error() string {
+	if e.exitCode >= 0 {
+		return fmt.Sprintf("spark-submit failed with exit code %d", e.exitCode)
+	}
+	return "spark-submit failed"
+}
+
+func (e *SparkSubmitError) Unwrap() error {
+	return e.err
+}
+
 // SparkSubmitter implements SparkApplicationSubmitter interface.
 // This interface is highly experimental and may go under significant changes or removed in the future.
 var _ SparkApplicationSubmitter = &SparkSubmitter{}
@@ -62,7 +81,12 @@ func (*SparkSubmitter) Submit(ctx context.Context, app *v1beta2.SparkApplication
 	// Try submitting the application by running spark-submit.
 	logger.Info("Running spark-submit", "arguments", args)
 	if err := runSparkSubmit(args); err != nil {
-		return fmt.Errorf("failed to run spark-submit: %v", err)
+		exitCode := -1
+		var exitErr *exec.ExitError
+		if errors.As(err, &exitErr) {
+			exitCode = exitErr.ExitCode()
+		}
+		return &SparkSubmitError{err: err, exitCode: exitCode}
 	}
 
 	return nil
@@ -86,9 +110,9 @@ func runSparkSubmit(args []string) error {
 			return fmt.Errorf("driver pod already exist")
 		}
 		if errorMsg != "" {
-			return fmt.Errorf("failed to run spark-submit: %s", errorMsg)
+			return fmt.Errorf("failed to run spark-submit: %s: %w", errorMsg, err)
 		}
-		return fmt.Errorf("failed to run spark-submit: %v", err)
+		return fmt.Errorf("failed to run spark-submit: %w", err)
 	}
 	return nil
 }

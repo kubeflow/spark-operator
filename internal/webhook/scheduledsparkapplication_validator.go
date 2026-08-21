@@ -33,11 +33,20 @@ import (
 // Modifying the path for an invalid path can cause API server errors; failing to locate the webhook.
 // +kubebuilder:webhook:admissionReviewVersions=v1,failurePolicy=fail,groups=sparkoperator.k8s.io,matchPolicy=Exact,mutating=false,name=validate-scheduledsparkapplication.sparkoperator.k8s.io,path=/validate-sparkoperator-k8s-io-v1beta2-scheduledsparkapplication,reinvocationPolicy=Never,resources=scheduledsparkapplications,sideEffects=None,verbs=create;update,versions=v1beta2,webhookVersions=v1
 
-type ScheduledSparkApplicationValidator struct{}
+type ScheduledSparkApplicationValidator struct {
+	enableURLSchemeValidation bool
+	urlValidationPolicy
+}
 
 // NewScheduledSparkApplicationValidator creates a new ScheduledSparkApplicationValidator instance.
-func NewScheduledSparkApplicationValidator() *ScheduledSparkApplicationValidator {
-	return &ScheduledSparkApplicationValidator{}
+// enableURLSchemeValidation turns on fetch-field URL validation (default off / opt-in).
+// The remaining arguments define allowed schemes and scheme-qualified exact, wildcard, or
+// all-host URL policies for the scheduled application's template.
+func NewScheduledSparkApplicationValidator(enableURLSchemeValidation bool, allowedURLSchemes, allowAllURLHostsSchemes, allowedURLHosts, allowedWildcardURLHosts []string) *ScheduledSparkApplicationValidator {
+	return &ScheduledSparkApplicationValidator{
+		enableURLSchemeValidation: enableURLSchemeValidation,
+		urlValidationPolicy:       newURLValidationPolicy(allowedURLSchemes, allowAllURLHostsSchemes, allowedURLHosts, allowedWildcardURLHosts),
+	}
 }
 
 var _ admission.Validator[*v1beta2.ScheduledSparkApplication] = &ScheduledSparkApplicationValidator{}
@@ -96,7 +105,14 @@ func (v *ScheduledSparkApplicationValidator) ValidateDelete(ctx context.Context,
 }
 
 func (v *ScheduledSparkApplicationValidator) validate(app *v1beta2.ScheduledSparkApplication) error {
-	return validateSparkConf(app.Spec.Template.SparkConf, app.Namespace)
+	if err := validateSparkConf(app.Spec.Template.SparkConf, app.Namespace); err != nil {
+		return err
+	}
+	if !v.enableURLSchemeValidation {
+		return nil
+	}
+
+	return (&SparkApplicationValidator{urlValidationPolicy: v.urlValidationPolicy}).validateURLSchemes(&app.Spec.Template, "spec.template.")
 }
 
 // validateName ensures the ScheduledSparkApplication metadata.name, when combined with suffixes,

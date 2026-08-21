@@ -171,6 +171,11 @@ See [helm uninstall](https://helm.sh/docs/helm/helm_uninstall) for command docum
 | webhook.kubeAPIQPS | int | `20` | Maximum QPS to the API server from the controller client. |
 | webhook.kubeAPIBurst | int | `30` | Maximum burst for throttle from the controller client. |
 | webhook.resourceQuotaEnforcement.enable | bool | `false` | Specifies whether to enable the ResourceQuota enforcement for SparkApplication resources. |
+| webhook.urlSchemeValidation.enable | bool | `false` | Specifies whether to enable URL-scheme validation of fetch-capable SparkApplication and ScheduledSparkApplication template fields (submit-time spec.sparkConf keys, spec.deps.*, spec.mainApplicationFile) at admission time. Opt-in and disabled by default so existing applications using remote schemes are not rejected on upgrade. |
+| webhook.urlSchemeValidation.allowedSchemes | list | `[]` | URL schemes permitted in fetch-capable SparkApplication fields when validation is enabled. Remote URLs must also match allowedHosts or allowedWildcardHosts unless their scheme is in allowedSchemesAnyHost. |
+| webhook.urlSchemeValidation.allowedSchemesAnyHost | list | `[]` | Allowed URL schemes permitted to access any host, such as `s3a` where a VPC endpoint and network policy constrain reachable buckets. Each scheme must also appear in allowedSchemes. |
+| webhook.urlSchemeValidation.allowedHosts | list | `[]` | Exact scheme-qualified URL hosts permitted in fetch-capable SparkApplication fields when validation is enabled, such as `https://repo.example.com` or `s3a://bucket`. Empty host lists deny all remote URLs. |
+| webhook.urlSchemeValidation.allowedWildcardHosts | list | `[]` | Scheme-qualified leftmost wildcard URL hosts permitted in fetch-capable SparkApplication fields when validation is enabled, such as `https://*.maven.apache.org`. Empty host lists deny all remote URLs. |
 | webhook.serviceAccount.create | bool | `true` | Specifies whether to create a service account for the webhook. |
 | webhook.serviceAccount.name | string | `""` | Optional name for the webhook service account. |
 | webhook.serviceAccount.annotations | object | `{}` | Extra annotations for the webhook service account. |

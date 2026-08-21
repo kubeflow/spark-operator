@@ -395,6 +395,28 @@ webhook:
     # -- Specifies whether to enable the ResourceQuota enforcement for SparkApplication resources.
     enable: false
 
+  urlSchemeValidation:
+    # -- Specifies whether to enable URL-scheme validation of fetch-capable SparkApplication and
+    # ScheduledSparkApplication template fields (submit-time spec.sparkConf keys, spec.deps.*,
+    # spec.mainApplicationFile) at admission time. Opt-in and disabled by default so existing
+    # applications using remote schemes are not rejected on upgrade.
+    enable: false
+    # -- URL schemes permitted in fetch-capable SparkApplication fields when validation is enabled.
+    # Remote URLs must also match allowedHosts or allowedWildcardHosts unless their scheme is in
+    # allowedSchemesAnyHost.
+    allowedSchemes: []
+    # -- Allowed URL schemes permitted to access any host, such as `s3a` where a VPC endpoint and
+    # network policy constrain reachable buckets. Each scheme must also appear in allowedSchemes.
+    allowedSchemesAnyHost: []
+    # -- Exact scheme-qualified URL hosts permitted in fetch-capable SparkApplication fields when
+    # validation is enabled, such as `https://repo.example.com` or `s3a://bucket`. Empty host
+    # lists deny all remote URLs.
+    allowedHosts: []
+    # -- Scheme-qualified leftmost wildcard URL hosts permitted in fetch-capable SparkApplication
+    # fields when validation is enabled, such as `https://*.maven.apache.org`. Empty host lists
+    # deny all remote URLs.
+    allowedWildcardHosts: []
+
   serviceAccount:
     # -- Specifies whether to create a service account for the webhook.
     create: true

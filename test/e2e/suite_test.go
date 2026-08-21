@@ -222,10 +222,10 @@ func uninstallViaHelm() {
 
 func installViaKustomize() {
 	repoRoot := filepath.Join("..", "..")
-	// Deploy the driver-pdb overlay so e2e exercises the --enable-driver-pdb
-	// feature, matching the helm ci-values.yaml (driverPodDisruptionBudget.enable=true).
-	// The overlay inherits config/default, including the image tag we rewrite below.
-	kustomizeDir := filepath.Join(repoRoot, "config", "overlays", "driver-pdb")
+	// Deploy the e2e overlay so Kustomize exercises the same opt-in features as
+	// the Helm CI values: driver PDB creation and URL-scheme validation. The overlay
+	// inherits config/default, including the image tag we rewrite below.
+	kustomizeDir := filepath.Join(repoRoot, "config", "overlays", "e2e")
 	kustomizationPath := filepath.Join(repoRoot, "config", "default", "kustomization.yaml")
 
 	imageTag := os.Getenv("IMAGE_TAG")
@@ -284,7 +284,7 @@ func uninstallViaKustomize() {
 	rbacDelCmd.Stderr = GinkgoWriter
 	_ = rbacDelCmd.Run()
 
-	kustomizeDir := filepath.Join(repoRoot, "config", "overlays", "driver-pdb")
+	kustomizeDir := filepath.Join(repoRoot, "config", "overlays", "e2e")
 	By("Uninstalling the Spark operator via Kustomize")
 	deleteCmd := exec.Command("kubectl", "delete", "-k", kustomizeDir, "--ignore-not-found", "--timeout=120s")
 	deleteCmd.Stdout = GinkgoWriter
