@@ -218,51 +218,62 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (reconcile
 	}
 
 	if err := r.createOrUpdateConfigMap(ctx, conn); err != nil {
+		logger.Error(err, "failed to create or update ConfigMap")
+		conn.Status.ErrorMessage = fmt.Sprintf("ConfigMap creation failed: %v", err)
+		condition := metav1.Condition{
+			Type:    string(v1alpha1.SparkConnectConditionConfigMapReady),
+			Status:  metav1.ConditionFalse,
+			Reason:  string(v1alpha1.SparkConnectConditionReasonConfigMapFailed),
+			Message: err.Error(),
+		}
+		meta.SetStatusCondition(&conn.Status.Conditions, condition)
+		conn.Status.State = v1alpha1.SparkConnectStateFailed
+		r.recorder.Event(conn, corev1.EventTypeWarning, "ConfigMapCreationFailed", err.Error())
+		_ = r.updateSparkConnectStatus(ctx, old, conn)
 		return reconcile.Result{}, err
 	}
 
 	if err := r.createOrUpdateServerPod(ctx, conn); err != nil {
+		logger.Error(err, "failed to create or update server pod")
+		conn.Status.ErrorMessage = fmt.Sprintf("Server pod creation failed: %v", err)
+		condition := metav1.Condition{
+			Type:    string(v1alpha1.SparkConnectConditionServerPodReady),
+			Status:  metav1.ConditionFalse,
+			Reason:  string(v1alpha1.SparkConnectConditionReasonServerPodFailed),
+			Message: err.Error(),
+		}
+		meta.SetStatusCondition(&conn.Status.Conditions, condition)
+		conn.Status.State = v1alpha1.SparkConnectStateFailed
+		r.recorder.Event(conn, corev1.EventTypeWarning, "ServerPodCreationFailed", err.Error())
+		_ = r.updateSparkConnectStatus(ctx, old, conn)
 		return reconcile.Result{}, err
 	}
 
 	if err := r.createOrUpdateServerService(ctx, conn); err != nil {
+		logger.Error(err, "failed to create or update server service")
+		conn.Status.ErrorMessage = fmt.Sprintf("Service creation failed: %v", err)
+		condition := metav1.Condition{
+			Type:    string(v1alpha1.SparkConnectConditionServiceAvailable),
+			Status:  metav1.ConditionFalse,
+			Reason:  string(v1alpha1.SparkConnectConditionReasonServiceFailed),
+			Message: err.Error(),
+		}
+		meta.SetStatusCondition(&conn.Status.Conditions, condition)
+		conn.Status.State = v1alpha1.SparkConnectStateFailed
+		r.recorder.Event(conn, corev1.EventTypeWarning, "ServiceCreationFailed", err.Error())
+		_ = r.updateSparkConnectStatus(ctx, old, conn)
 		return reconcile.Result{}, err
 	}
-
-	if err := r.updateSparkConnectStatus(ctx, old, conn); err != nil {
-		if errors.IsConflict(err) {
-			logger.V(1).Info("conflict updating SparkConnect status")
-			return ctrl.Result{Requeue: true}, nil
+	// Clear error message on successful reconciliation
+	if conn.Status.State == v1alpha1.SparkConnectStateReady {
+		if conn.Status.ErrorMessage != "" {
+			r.recorder.Event(conn, corev1.EventTypeNormal, "ReconciliationSuccess", "SparkConnect is ready and running")
 		}
-		return ctrl.Result{}, fmt.Errorf("failed to update SparkConnect status: %v", err)
+		conn.Status.ErrorMessage = ""
 	}
 
 	return reconcile.Result{}, nil
-}
 
-// createOrUpdateConfigMap creates or updates the ConfigMap for the SparkConnect resource.
-func (r *Reconciler) createOrUpdateConfigMap(ctx context.Context, conn *v1alpha1.SparkConnect) error {
-	logger := ctrl.LoggerFrom(ctx)
-	logger.V(1).Info("Create or update ConfigMap")
-
-	cm := &corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      GetConfigMapName(conn),
-			Namespace: conn.Namespace,
-		},
-	}
-
-	_, err := controllerutil.CreateOrUpdate(ctx, r.client, cm, func() error {
-		if err := r.mutateConfigMap(ctx, conn, cm); err != nil {
-			return fmt.Errorf("failed to mutate configmap: %v", err)
-		}
-		return nil
-	})
-	if err != nil {
-		return fmt.Errorf("failed to create or update configmap: %v", err)
-	}
-
-	return nil
 }
 
 // mutateConfigMap mutates the configmap for the SparkConnect resource.
@@ -323,6 +334,8 @@ func (r *Reconciler) createOrUpdateServerPod(ctx context.Context, conn *v1alpha1
 		}
 		_ = meta.SetStatusCondition(&conn.Status.Conditions, condition)
 		conn.Status.State = v1alpha1.SparkConnectStateReady
+		conn.Status.ErrorMessage = ""
+		r.recorder.Event(conn, corev1.EventTypeNormal, "ServerPodReady", "Spark Connect server pod is ready")
 	} else {
 		condition := metav1.Condition{
 			Type:    string(v1alpha1.SparkConnectConditionServerPodReady),
@@ -332,10 +345,19 @@ func (r *Reconciler) createOrUpdateServerPod(ctx context.Context, conn *v1alpha1
 		}
 		_ = meta.SetStatusCondition(&conn.Status.Conditions, condition)
 		conn.Status.State = v1alpha1.SparkConnectStateNotReady
+		conn.Status.ErrorMessage = fmt.Sprintf("Server pod not ready: %s", pod.Status.Message)
+		r.recorder.Event(conn, corev1.EventTypeWarning, "ServerPodNotReady", pod.Status.Message)
 	}
 
 	conn.Status.Server.PodName = pod.Name
 	conn.Status.Server.PodIP = pod.Status.PodIP
+
+	// Get the server port from spec or use default
+	port := sparkConnectServerPort
+	if conn.Spec.Server.Port != nil {
+		port = int(*conn.Spec.Server.Port)
+	}
+	conn.Status.Server.Port = ptr.To(int32(port))
 
 	return nil
 }
@@ -385,7 +407,12 @@ func (r *Reconciler) mutateServerPod(_ context.Context, conn *v1alpha1.SparkConn
 		}
 		container.Args = []string{strings.Join(args, " ")}
 
-		setDefaultSparkConnectServerProbes(container)
+		// Get the server port from spec or use default
+		port := sparkConnectServerPort
+		if conn.Spec.Server.Port != nil {
+			port = int(*conn.Spec.Server.Port)
+		}
+		setDefaultSparkConnectServerProbes(container, port)
 
 		// Setup environment variables.
 		container.Env = append(
@@ -465,20 +492,20 @@ func (r *Reconciler) mutateServerPod(_ context.Context, conn *v1alpha1.SparkConn
 	return nil
 }
 
-func setDefaultSparkConnectServerProbes(container *corev1.Container) {
+func setDefaultSparkConnectServerProbes(container *corev1.Container, port int) {
 	if container.StartupProbe == nil {
-		container.StartupProbe = newSparkConnectServerStartupProbe()
+		container.StartupProbe = newSparkConnectServerStartupProbe(port)
 	}
 	if container.ReadinessProbe == nil {
-		container.ReadinessProbe = newSparkConnectServerReadinessProbe()
+		container.ReadinessProbe = newSparkConnectServerReadinessProbe(port)
 	}
 }
 
-func newSparkConnectServerStartupProbe() *corev1.Probe {
+func newSparkConnectServerStartupProbe(port int) *corev1.Probe {
 	return &corev1.Probe{
 		ProbeHandler: corev1.ProbeHandler{
 			TCPSocket: &corev1.TCPSocketAction{
-				Port: intstr.FromInt(sparkConnectServerPort),
+				Port: intstr.FromInt(port),
 			},
 		},
 		InitialDelaySeconds: 5,
@@ -488,11 +515,11 @@ func newSparkConnectServerStartupProbe() *corev1.Probe {
 	}
 }
 
-func newSparkConnectServerReadinessProbe() *corev1.Probe {
+func newSparkConnectServerReadinessProbe(port int) *corev1.Probe {
 	return &corev1.Probe{
 		ProbeHandler: corev1.ProbeHandler{
 			TCPSocket: &corev1.TCPSocketAction{
-				Port: intstr.FromInt(sparkConnectServerPort),
+				Port: intstr.FromInt(port),
 			},
 		},
 		PeriodSeconds:    10,
@@ -527,8 +554,17 @@ func (r *Reconciler) createOrUpdateServerService(ctx context.Context, conn *v1al
 	switch opResult {
 	case controllerutil.OperationResultCreated:
 		logger.Info("Server service created")
+		r.recorder.Event(conn, corev1.EventTypeNormal, "ServiceCreated", fmt.Sprintf("Created service %s", svc.Name))
+		condition := metav1.Condition{
+			Type:    string(v1alpha1.SparkConnectConditionServiceAvailable),
+			Status:  metav1.ConditionTrue,
+			Reason:  string(v1alpha1.SparkConnectConditionReasonServiceCreated),
+			Message: fmt.Sprintf("Service %s created", svc.Name),
+		}
+		meta.SetStatusCondition(&conn.Status.Conditions, condition)
 	case controllerutil.OperationResultUpdated:
 		logger.Info("Server service updated")
+		r.recorder.Event(conn, corev1.EventTypeNormal, "ServiceUpdated", fmt.Sprintf("Updated service %s", svc.Name))
 	}
 
 	// Update SparkConnect status.
@@ -539,6 +575,12 @@ func (r *Reconciler) createOrUpdateServerService(ctx context.Context, conn *v1al
 
 // mutateServerService mutates the server service for the SparkConnect resource.
 func (r *Reconciler) mutateServerService(_ context.Context, conn *v1alpha1.SparkConnect, svc *corev1.Service) error {
+	// Get the server port from spec or use default
+	port := sparkConnectServerPort
+	if conn.Spec.Server.Port != nil {
+		port = int(*conn.Spec.Server.Port)
+	}
+
 	if svc.CreationTimestamp.IsZero() {
 		svc.Spec.Ports = []corev1.ServicePort{
 			{
@@ -564,8 +606,8 @@ func (r *Reconciler) mutateServerService(_ context.Context, conn *v1alpha1.Spark
 			},
 			{
 				Name:        "spark-connect-server",
-				Port:        sparkConnectServerPort,
-				TargetPort:  intstr.FromInt(sparkConnectServerPort),
+				Port:        int32(port),
+				TargetPort:  intstr.FromInt(port),
 				Protocol:    corev1.ProtocolTCP,
 				AppProtocol: ptr.To("grpc"),
 			},

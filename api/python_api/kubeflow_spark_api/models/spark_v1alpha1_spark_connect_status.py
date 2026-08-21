@@ -30,12 +30,13 @@ class SparkV1alpha1SparkConnectStatus(BaseModel):
     SparkConnectStatus defines the observed state of SparkConnect.
     """ # noqa: E501
     conditions: Optional[List[IoK8sApimachineryPkgApisMetaV1Condition]] = Field(default=None, description="Represents the latest available observations of a SparkConnect's current state.")
+    error_message: Optional[StrictStr] = Field(default=None, description="ErrorMessage contains a human-readable description of any errors that have occurred during reconciliation.", alias="errorMessage")
     executors: Optional[Dict[str, StrictInt]] = Field(default=None, description="Executors represents the current state of the SparkConnect executors.")
     last_update_time: Optional[datetime] = Field(default=None, description="LastUpdateTime is the time at which the SparkConnect controller last updated the SparkConnect.", alias="lastUpdateTime")
     server: Optional[SparkV1alpha1SparkConnectServerStatus] = Field(default=None, description="Server represents the current state of the SparkConnect server.")
     start_time: Optional[datetime] = Field(default=None, description="StartTime is the time at which the SparkConnect controller started processing the SparkConnect.", alias="startTime")
     state: Optional[StrictStr] = Field(default=None, description="State represents the current state of the SparkConnect.")
-    __properties: ClassVar[List[str]] = ["conditions", "executors", "lastUpdateTime", "server", "startTime", "state"]
+    __properties: ClassVar[List[str]] = ["conditions", "errorMessage", "executors", "lastUpdateTime", "server", "startTime", "state"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -99,6 +100,7 @@ class SparkV1alpha1SparkConnectStatus(BaseModel):
 
         _obj = cls.model_validate({
             "conditions": [IoK8sApimachineryPkgApisMetaV1Condition.from_dict(_item) for _item in obj["conditions"]] if obj.get("conditions") is not None else None,
+            "errorMessage": obj.get("errorMessage"),
             "executors": obj.get("executors"),
             "lastUpdateTime": obj.get("lastUpdateTime"),
             "server": SparkV1alpha1SparkConnectServerStatus.from_dict(obj["server"]) if obj.get("server") is not None else None,

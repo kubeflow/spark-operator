@@ -266,6 +266,18 @@ func (v *SparkConnectValidator) validateServerSpec(sc *v1alpha1.SparkConnect) er
 		}
 	}
 
+	// Validate port if specified
+	if server.Port != nil && (*server.Port < 1 || *server.Port > 65535) {
+		return fmt.Errorf("invalid server.port: port must be between 1 and 65535, got %d", *server.Port)
+	}
+
+	// Validate service account if specified in pod template
+	if server.Template != nil && server.Template.Spec.ServiceAccountName != "" {
+		if errs := validation.IsDNS1123Subdomain(server.Template.Spec.ServiceAccountName); len(errs) > 0 {
+			return fmt.Errorf("invalid server pod template serviceAccountName %q: %s", server.Template.Spec.ServiceAccountName, strings.Join(errs, ", "))
+		}
+	}
+
 	return nil
 }
 
