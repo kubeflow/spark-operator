@@ -12950,6 +12950,11 @@
         "description": "BatchSchedulerConfiguration used to configure how to batch scheduling Spark Application",
         "type": "object",
         "properties": {
+          "minMember": {
+            "description": "MinMember overrides the computed gang minCount for the \"workload\" batch scheduler. Defaults to 1 (driver, cluster mode only) + the initial requested executor count as computed by GetInitialExecutorNumber (DRA-aware). Only consumed by the \"workload\" backend; ignored by Volcano, YuniKorn, and kube-scheduler backends.",
+            "type": "integer",
+            "format": "int32"
+          },
           "priorityClassName": {
             "description": "PriorityClassName stands for the name of k8s PriorityClass resource, it's being used in Volcano batch scheduler.",
             "type": "string"
@@ -13338,6 +13343,14 @@
             "description": "SchedulerName specifies the scheduler that will be used for scheduling",
             "type": "string"
           },
+          "schedulingGroup": {
+            "description": "SchedulingGroup binds this pod template to a Kubernetes native PodGroup (scheduling.k8s.io/v1alpha2) for gang scheduling via the \"workload\" batch scheduler backend. This field is set internally by the operator; it MUST NOT be set directly by users (enforced by the admission webhook). Requires Kubernetes v1.36+ with the GenericWorkload feature gate enabled.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/spark.v1beta2.PodSchedulingGroup"
+              }
+            ]
+          },
           "secrets": {
             "description": "Secrets carries information of secrets to add to the pod.",
             "type": "array",
@@ -13681,6 +13694,14 @@
             "description": "SchedulerName specifies the scheduler that will be used for scheduling",
             "type": "string"
           },
+          "schedulingGroup": {
+            "description": "SchedulingGroup binds this pod template to a Kubernetes native PodGroup (scheduling.k8s.io/v1alpha2) for gang scheduling via the \"workload\" batch scheduler backend. This field is set internally by the operator; it MUST NOT be set directly by users (enforced by the admission webhook). Requires Kubernetes v1.36+ with the GenericWorkload feature gate enabled.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/spark.v1beta2.PodSchedulingGroup"
+              }
+            ]
+          },
           "secrets": {
             "description": "Secrets carries information of secrets to add to the pod.",
             "type": "array",
@@ -13847,6 +13868,20 @@
             "default": ""
           },
           "path": {
+            "type": "string",
+            "default": ""
+          }
+        }
+      },
+      "spark.v1beta2.PodSchedulingGroup": {
+        "description": "PodSchedulingGroup links a driver or executor pod template to a native Kubernetes PodGroup (scheduling.k8s.io/v1alpha2) for gang scheduling. It is set internally by the \"workload\" batch scheduler backend and must not be set directly by users.",
+        "type": "object",
+        "required": [
+          "podGroupName"
+        ],
+        "properties": {
+          "podGroupName": {
+            "description": "PodGroupName is the name of the PodGroup this pod belongs to. Must be a DNS subdomain.",
             "type": "string",
             "default": ""
           }
@@ -14675,6 +14710,14 @@
           "schedulerName": {
             "description": "SchedulerName specifies the scheduler that will be used for scheduling",
             "type": "string"
+          },
+          "schedulingGroup": {
+            "description": "SchedulingGroup binds this pod template to a Kubernetes native PodGroup (scheduling.k8s.io/v1alpha2) for gang scheduling via the \"workload\" batch scheduler backend. This field is set internally by the operator; it MUST NOT be set directly by users (enforced by the admission webhook). Requires Kubernetes v1.36+ with the GenericWorkload feature gate enabled.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/spark.v1beta2.PodSchedulingGroup"
+              }
+            ]
           },
           "secrets": {
             "description": "Secrets carries information of secrets to add to the pod.",

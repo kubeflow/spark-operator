@@ -45,6 +45,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/kubeflow/spark-operator/v2/api/v1beta2.MonitoringSpec":                  schema_spark_operator_v2_api_v1beta2_MonitoringSpec(ref),
 		"github.com/kubeflow/spark-operator/v2/api/v1beta2.NameKey":                         schema_spark_operator_v2_api_v1beta2_NameKey(ref),
 		"github.com/kubeflow/spark-operator/v2/api/v1beta2.NamePath":                        schema_spark_operator_v2_api_v1beta2_NamePath(ref),
+		"github.com/kubeflow/spark-operator/v2/api/v1beta2.PodSchedulingGroup":              schema_spark_operator_v2_api_v1beta2_PodSchedulingGroup(ref),
 		"github.com/kubeflow/spark-operator/v2/api/v1beta2.Port":                            schema_spark_operator_v2_api_v1beta2_Port(ref),
 		"github.com/kubeflow/spark-operator/v2/api/v1beta2.PrometheusSpec":                  schema_spark_operator_v2_api_v1beta2_PrometheusSpec(ref),
 		"github.com/kubeflow/spark-operator/v2/api/v1beta2.RestartPolicy":                   schema_spark_operator_v2_api_v1beta2_RestartPolicy(ref),
@@ -448,6 +449,13 @@ func schema_spark_operator_v2_api_v1beta2_BatchSchedulerConfiguration(ref common
 									},
 								},
 							},
+						},
+					},
+					"minMember": {
+						SchemaProps: spec.SchemaProps{
+							Description: "MinMember overrides the computed gang minCount for the \"workload\" batch scheduler. Defaults to 1 (driver, cluster mode only) + the initial requested executor count as computed by GetInitialExecutorNumber (DRA-aware). Only consumed by the \"workload\" backend; ignored by Volcano, YuniKorn, and kube-scheduler backends.",
+							Type:        []string{"integer"},
+							Format:      "int32",
 						},
 					},
 				},
@@ -1059,6 +1067,12 @@ func schema_spark_operator_v2_api_v1beta2_DriverSpec(ref common.ReferenceCallbac
 							Format:      "",
 						},
 					},
+					"schedulingGroup": {
+						SchemaProps: spec.SchemaProps{
+							Description: "SchedulingGroup binds this pod template to a Kubernetes native PodGroup (scheduling.k8s.io/v1alpha2) for gang scheduling via the \"workload\" batch scheduler backend. This field is set internally by the operator; it MUST NOT be set directly by users (enforced by the admission webhook). Requires Kubernetes v1.36+ with the GenericWorkload feature gate enabled.",
+							Ref:         ref("github.com/kubeflow/spark-operator/v2/api/v1beta2.PodSchedulingGroup"),
+						},
+					},
 					"podName": {
 						SchemaProps: spec.SchemaProps{
 							Description: "PodName is the name of the driver pod that the user creates. This is used for the in-cluster client mode in which the user creates a client pod where the driver of the user application runs. It's an error to set this field if Mode is not in-cluster-client.",
@@ -1150,7 +1164,7 @@ func schema_spark_operator_v2_api_v1beta2_DriverSpec(ref common.ReferenceCallbac
 			},
 		},
 		Dependencies: []string{
-			"github.com/kubeflow/spark-operator/v2/api/v1beta2.GPUSpec", "github.com/kubeflow/spark-operator/v2/api/v1beta2.NameKey", "github.com/kubeflow/spark-operator/v2/api/v1beta2.NamePath", "github.com/kubeflow/spark-operator/v2/api/v1beta2.Port", "github.com/kubeflow/spark-operator/v2/api/v1beta2.SecretInfo", v1.Affinity{}.OpenAPIModelName(), v1.Container{}.OpenAPIModelName(), v1.EnvFromSource{}.OpenAPIModelName(), v1.EnvVar{}.OpenAPIModelName(), v1.HostAlias{}.OpenAPIModelName(), v1.Lifecycle{}.OpenAPIModelName(), v1.PodDNSConfig{}.OpenAPIModelName(), v1.PodSecurityContext{}.OpenAPIModelName(), v1.PodTemplateSpec{}.OpenAPIModelName(), v1.SecurityContext{}.OpenAPIModelName(), v1.Toleration{}.OpenAPIModelName(), v1.VolumeMount{}.OpenAPIModelName()},
+			"github.com/kubeflow/spark-operator/v2/api/v1beta2.GPUSpec", "github.com/kubeflow/spark-operator/v2/api/v1beta2.NameKey", "github.com/kubeflow/spark-operator/v2/api/v1beta2.NamePath", "github.com/kubeflow/spark-operator/v2/api/v1beta2.PodSchedulingGroup", "github.com/kubeflow/spark-operator/v2/api/v1beta2.Port", "github.com/kubeflow/spark-operator/v2/api/v1beta2.SecretInfo", v1.Affinity{}.OpenAPIModelName(), v1.Container{}.OpenAPIModelName(), v1.EnvFromSource{}.OpenAPIModelName(), v1.EnvVar{}.OpenAPIModelName(), v1.HostAlias{}.OpenAPIModelName(), v1.Lifecycle{}.OpenAPIModelName(), v1.PodDNSConfig{}.OpenAPIModelName(), v1.PodSecurityContext{}.OpenAPIModelName(), v1.PodTemplateSpec{}.OpenAPIModelName(), v1.SecurityContext{}.OpenAPIModelName(), v1.Toleration{}.OpenAPIModelName(), v1.VolumeMount{}.OpenAPIModelName()},
 	}
 }
 
@@ -1534,6 +1548,12 @@ func schema_spark_operator_v2_api_v1beta2_ExecutorSpec(ref common.ReferenceCallb
 							Format:      "",
 						},
 					},
+					"schedulingGroup": {
+						SchemaProps: spec.SchemaProps{
+							Description: "SchedulingGroup binds this pod template to a Kubernetes native PodGroup (scheduling.k8s.io/v1alpha2) for gang scheduling via the \"workload\" batch scheduler backend. This field is set internally by the operator; it MUST NOT be set directly by users (enforced by the admission webhook). Requires Kubernetes v1.36+ with the GenericWorkload feature gate enabled.",
+							Ref:         ref("github.com/kubeflow/spark-operator/v2/api/v1beta2.PodSchedulingGroup"),
+						},
+					},
 					"instances": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Instances is the number of executor instances.",
@@ -1593,7 +1613,7 @@ func schema_spark_operator_v2_api_v1beta2_ExecutorSpec(ref common.ReferenceCallb
 			},
 		},
 		Dependencies: []string{
-			"github.com/kubeflow/spark-operator/v2/api/v1beta2.GPUSpec", "github.com/kubeflow/spark-operator/v2/api/v1beta2.NameKey", "github.com/kubeflow/spark-operator/v2/api/v1beta2.NamePath", "github.com/kubeflow/spark-operator/v2/api/v1beta2.Port", "github.com/kubeflow/spark-operator/v2/api/v1beta2.SecretInfo", v1.Affinity{}.OpenAPIModelName(), v1.Container{}.OpenAPIModelName(), v1.EnvFromSource{}.OpenAPIModelName(), v1.EnvVar{}.OpenAPIModelName(), v1.HostAlias{}.OpenAPIModelName(), v1.Lifecycle{}.OpenAPIModelName(), v1.PodDNSConfig{}.OpenAPIModelName(), v1.PodSecurityContext{}.OpenAPIModelName(), v1.PodTemplateSpec{}.OpenAPIModelName(), v1.SecurityContext{}.OpenAPIModelName(), v1.Toleration{}.OpenAPIModelName(), v1.VolumeMount{}.OpenAPIModelName()},
+			"github.com/kubeflow/spark-operator/v2/api/v1beta2.GPUSpec", "github.com/kubeflow/spark-operator/v2/api/v1beta2.NameKey", "github.com/kubeflow/spark-operator/v2/api/v1beta2.NamePath", "github.com/kubeflow/spark-operator/v2/api/v1beta2.PodSchedulingGroup", "github.com/kubeflow/spark-operator/v2/api/v1beta2.Port", "github.com/kubeflow/spark-operator/v2/api/v1beta2.SecretInfo", v1.Affinity{}.OpenAPIModelName(), v1.Container{}.OpenAPIModelName(), v1.EnvFromSource{}.OpenAPIModelName(), v1.EnvVar{}.OpenAPIModelName(), v1.HostAlias{}.OpenAPIModelName(), v1.Lifecycle{}.OpenAPIModelName(), v1.PodDNSConfig{}.OpenAPIModelName(), v1.PodSecurityContext{}.OpenAPIModelName(), v1.PodTemplateSpec{}.OpenAPIModelName(), v1.SecurityContext{}.OpenAPIModelName(), v1.Toleration{}.OpenAPIModelName(), v1.VolumeMount{}.OpenAPIModelName()},
 	}
 }
 
@@ -1729,6 +1749,28 @@ func schema_spark_operator_v2_api_v1beta2_NamePath(ref common.ReferenceCallback)
 					},
 				},
 				Required: []string{"name", "path"},
+			},
+		},
+	}
+}
+
+func schema_spark_operator_v2_api_v1beta2_PodSchedulingGroup(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "PodSchedulingGroup links a driver or executor pod template to a native Kubernetes PodGroup (scheduling.k8s.io/v1alpha2) for gang scheduling. It is set internally by the \"workload\" batch scheduler backend and must not be set directly by users.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"podGroupName": {
+						SchemaProps: spec.SchemaProps{
+							Description: "PodGroupName is the name of the PodGroup this pod belongs to. Must be a DNS subdomain.",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+				Required: []string{"podGroupName"},
 			},
 		},
 	}
@@ -2953,11 +2995,17 @@ func schema_spark_operator_v2_api_v1beta2_SparkPodSpec(ref common.ReferenceCallb
 							Format:      "",
 						},
 					},
+					"schedulingGroup": {
+						SchemaProps: spec.SchemaProps{
+							Description: "SchedulingGroup binds this pod template to a Kubernetes native PodGroup (scheduling.k8s.io/v1alpha2) for gang scheduling via the \"workload\" batch scheduler backend. This field is set internally by the operator; it MUST NOT be set directly by users (enforced by the admission webhook). Requires Kubernetes v1.36+ with the GenericWorkload feature gate enabled.",
+							Ref:         ref("github.com/kubeflow/spark-operator/v2/api/v1beta2.PodSchedulingGroup"),
+						},
+					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"github.com/kubeflow/spark-operator/v2/api/v1beta2.GPUSpec", "github.com/kubeflow/spark-operator/v2/api/v1beta2.NameKey", "github.com/kubeflow/spark-operator/v2/api/v1beta2.NamePath", "github.com/kubeflow/spark-operator/v2/api/v1beta2.SecretInfo", v1.Affinity{}.OpenAPIModelName(), v1.Container{}.OpenAPIModelName(), v1.EnvFromSource{}.OpenAPIModelName(), v1.EnvVar{}.OpenAPIModelName(), v1.HostAlias{}.OpenAPIModelName(), v1.PodDNSConfig{}.OpenAPIModelName(), v1.PodSecurityContext{}.OpenAPIModelName(), v1.PodTemplateSpec{}.OpenAPIModelName(), v1.SecurityContext{}.OpenAPIModelName(), v1.Toleration{}.OpenAPIModelName(), v1.VolumeMount{}.OpenAPIModelName()},
+			"github.com/kubeflow/spark-operator/v2/api/v1beta2.GPUSpec", "github.com/kubeflow/spark-operator/v2/api/v1beta2.NameKey", "github.com/kubeflow/spark-operator/v2/api/v1beta2.NamePath", "github.com/kubeflow/spark-operator/v2/api/v1beta2.PodSchedulingGroup", "github.com/kubeflow/spark-operator/v2/api/v1beta2.SecretInfo", v1.Affinity{}.OpenAPIModelName(), v1.Container{}.OpenAPIModelName(), v1.EnvFromSource{}.OpenAPIModelName(), v1.EnvVar{}.OpenAPIModelName(), v1.HostAlias{}.OpenAPIModelName(), v1.PodDNSConfig{}.OpenAPIModelName(), v1.PodSecurityContext{}.OpenAPIModelName(), v1.PodTemplateSpec{}.OpenAPIModelName(), v1.SecurityContext{}.OpenAPIModelName(), v1.Toleration{}.OpenAPIModelName(), v1.VolumeMount{}.OpenAPIModelName()},
 	}
 }
 

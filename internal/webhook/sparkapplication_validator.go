@@ -76,7 +76,12 @@ func (v *SparkApplicationValidator) ValidateCreate(ctx context.Context, app *v1b
 		}
 	}
 
-	return nil, nil
+	w, err := validateWorkloadSchedulerFields(app)
+	if err != nil {
+		return nil, err
+	}
+	warnings = append(warnings, w...)
+	return warnings, nil
 }
 
 // ValidateUpdate implements admission.Validator.
@@ -109,7 +114,12 @@ func (v *SparkApplicationValidator) ValidateUpdate(ctx context.Context, oldApp *
 		}
 	}
 
-	return nil, nil
+	w, err := validateWorkloadSchedulerFields(newApp)
+	if err != nil {
+		return nil, err
+	}
+	warnings = append(warnings, w...)
+	return warnings, nil
 }
 
 // ValidateDelete implements admission.Validator.
@@ -157,6 +167,32 @@ func (v *SparkApplicationValidator) validateSpec(ctx context.Context, app *v1bet
 	}
 
 	return nil
+}
+
+// validateWorkloadSchedulerFields rejects user-set schedulingGroup fields (which are
+// operator-managed) and emits a warning when batchSchedulerOptions.queue is set
+// together with batchScheduler: "workload" (queue has no effect on the Workload API).
+func validateWorkloadSchedulerFields(app *v1beta2.SparkApplication) (admission.Warnings, error) {
+	var warnings admission.Warnings
+
+	if app.Spec.Driver.SchedulingGroup != nil {
+		return nil, fmt.Errorf("spec.driver.schedulingGroup is managed by the operator " +
+			"and must not be set directly")
+	}
+	if app.Spec.Executor.SchedulingGroup != nil {
+		return nil, fmt.Errorf("spec.executor.schedulingGroup is managed by the operator " +
+			"and must not be set directly")
+	}
+
+	if app.Spec.BatchScheduler != nil && *app.Spec.BatchScheduler == "workload" {
+		if opts := app.Spec.BatchSchedulerOptions; opts != nil && opts.Queue != nil {
+			warnings = append(warnings,
+				`batchSchedulerOptions.queue has no effect when batchScheduler is "workload": `+
+					"the Workload API has no native queue/quota concept")
+		}
+	}
+
+	return warnings, nil
 }
 
 // validateName ensures the SparkApplication metadata.name is a valid DNS-1035 label

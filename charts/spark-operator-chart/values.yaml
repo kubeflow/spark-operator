@@ -184,6 +184,12 @@ controller:
     # If specified, this value must be either "volcano" or "yunikorn". Specifying any other
     # value will cause the controller to error on startup.
     default: ""
+    workload:
+      # -- Specifies whether to enable the native Kubernetes Workload/PodGroup
+      # ("workload") batch scheduler backend. Requires Kubernetes v1.36+ with the
+      # GenericWorkload feature gate enabled. When enabled, also grants the controller
+      # RBAC permissions on scheduling.k8s.io workloads and podgroups.
+      enable: false
 
   serviceAccount:
     # -- Specifies whether to create a service account for the controller.

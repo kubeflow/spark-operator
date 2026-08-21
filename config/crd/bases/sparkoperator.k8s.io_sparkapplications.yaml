@@ -77,6 +77,14 @@ spec:
                 description: BatchSchedulerOptions provides fine-grained control on
                   how to batch scheduling.
                 properties:
+                  minMember:
+                    description: |-
+                      MinMember overrides the computed gang minCount for the "workload" batch scheduler.
+                      Defaults to 1 (driver, cluster mode only) + the initial requested executor count
+                      as computed by GetInitialExecutorNumber (DRA-aware). Only consumed by the "workload"
+                      backend; ignored by Volcano, YuniKorn, and kube-scheduler backends.
+                    format: int32
+                    type: integer
                   priorityClassName:
                     description: PriorityClassName stands for the name of k8s PriorityClass
                       resource, it's being used in Volcano batch scheduler.
@@ -3494,6 +3502,22 @@ spec:
                     description: SchedulerName specifies the scheduler that will be
                       used for scheduling
                     type: string
+                  schedulingGroup:
+                    description: |-
+                      SchedulingGroup binds this pod template to a Kubernetes native PodGroup
+                      (scheduling.k8s.io/v1alpha2) for gang scheduling via the "workload" batch
+                      scheduler backend. This field is set internally by the operator; it MUST NOT
+                      be set directly by users (enforced by the admission webhook).
+                      Requires Kubernetes v1.36+ with the GenericWorkload feature gate enabled.
+                    properties:
+                      podGroupName:
+                        description: |-
+                          PodGroupName is the name of the PodGroup this pod belongs to.
+                          Must be a DNS subdomain.
+                        type: string
+                    required:
+                    - podGroupName
+                    type: object
                   secrets:
                     description: Secrets carries information of secrets to add to
                       the pod.
@@ -8844,6 +8868,22 @@ spec:
                     description: SchedulerName specifies the scheduler that will be
                       used for scheduling
                     type: string
+                  schedulingGroup:
+                    description: |-
+                      SchedulingGroup binds this pod template to a Kubernetes native PodGroup
+                      (scheduling.k8s.io/v1alpha2) for gang scheduling via the "workload" batch
+                      scheduler backend. This field is set internally by the operator; it MUST NOT
+                      be set directly by users (enforced by the admission webhook).
+                      Requires Kubernetes v1.36+ with the GenericWorkload feature gate enabled.
+                    properties:
+                      podGroupName:
+                        description: |-
+                          PodGroupName is the name of the PodGroup this pod belongs to.
+                          Must be a DNS subdomain.
+                        type: string
+                    required:
+                    - podGroupName
+                    type: object
                   secrets:
                     description: Secrets carries information of secrets to add to
                       the pod.
