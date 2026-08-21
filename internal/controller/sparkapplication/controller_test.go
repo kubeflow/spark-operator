@@ -417,6 +417,153 @@ var _ = Describe("SparkApplication Controller", func() {
 		})
 	})
 
+	Context("When reconciling a New SparkApplication whose driver pod already exists", func() {
+		// This simulates the scenario described in
+		// https://github.com/kubeflow/spark-operator/issues/2788, where the operator was
+		// restarted after spark-submit succeeded (creating the driver pod) but before the
+		// SparkApplication status was persisted. The driver pod exists while the application
+		// is still in the New state. Reconciliation should skip resubmission and transition
+		// to Submitted; the Submitted-state reconcile then fills in the rest of the status.
+		ctx := context.Background()
+		appName := "test"
+		appNamespace := "default"
+		key := types.NamespacedName{
+			Name:      appName,
+			Namespace: appNamespace,
+		}
+
+		BeforeEach(func() {
+			By("Creating a test SparkApplication in the New state")
+			app := &v1beta2.SparkApplication{}
+			if err := k8sClient.Get(ctx, key, app); err != nil && errors.IsNotFound(err) {
+				app = &v1beta2.SparkApplication{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      appName,
+						Namespace: appNamespace,
+					},
+					Spec: v1beta2.SparkApplicationSpec{
+						MainApplicationFile: ptr.To("local:///dummy.jar"),
+					},
+				}
+				v1beta2.SetSparkApplicationDefaults(app)
+				Expect(k8sClient.Create(ctx, app)).To(Succeed())
+			}
+
+			By("Creating a driver pod owned by the SparkApplication, simulating a prior submission")
+			Expect(k8sClient.Get(ctx, key, app)).To(Succeed())
+			driverPod := createDriverPod(appName, appNamespace)
+			driverPod.Labels[common.LabelSubmissionID] = "recovered-submission-id"
+			driverPod.OwnerReferences = []metav1.OwnerReference{util.GetOwnerReference(app)}
+			Expect(k8sClient.Create(ctx, driverPod)).To(Succeed())
+		})
+
+		AfterEach(func() {
+			app := &v1beta2.SparkApplication{}
+			Expect(k8sClient.Get(ctx, key, app)).To(Succeed())
+
+			By("Deleting the created test SparkApplication")
+			Expect(k8sClient.Delete(ctx, app)).To(Succeed())
+
+			By("Deleting the driver pod")
+			driverPod := &corev1.Pod{}
+			Expect(k8sClient.Get(ctx, getDriverNamespacedName(appName, appNamespace), driverPod)).To(Succeed())
+			Expect(k8sClient.Delete(ctx, driverPod)).To(Succeed())
+		})
+
+		It("Should transition to Submitted without resubmitting when the driver pod already exists", func() {
+			By("Reconciling the New SparkApplication")
+			reconciler := sparkapplication.NewReconciler(
+				nil,
+				k8sClient.Scheme(),
+				k8sClient,
+				record.NewFakeRecorder(3),
+				nil,
+				&sparkapplication.SparkSubmitter{},
+				sparkapplication.Options{Namespaces: []string{appNamespace}},
+			)
+			result, err := reconciler.Reconcile(ctx, reconcile.Request{NamespacedName: key})
+			Expect(err).NotTo(HaveOccurred())
+			Expect(result.Requeue).To(BeFalse())
+
+			By("Verifying that the application transitioned to Submitted")
+			app := &v1beta2.SparkApplication{}
+			Expect(k8sClient.Get(ctx, key, app)).To(Succeed())
+			Expect(app.Status.AppState.State).To(Equal(v1beta2.ApplicationStateSubmitted))
+			Expect(app.Status.DriverInfo.PodName).To(Equal(util.GetDriverPodName(app)))
+			Expect(app.Status.SubmissionID).To(Equal("recovered-submission-id"))
+			Expect(app.Status.SubmissionAttempts).To(Equal(int32(1)))
+			Expect(app.Status.ExecutionAttempts).To(Equal(int32(1)))
+		})
+	})
+
+	Context("When reconciling a New SparkApplication whose driver pod is owned by a different SparkApplication", func() {
+		// Sanity check that pod adoption only kicks in for pods owned by the current
+		// SparkApplication (matched by UID via owner references).
+		ctx := context.Background()
+		appName := "test"
+		appNamespace := "default"
+		key := types.NamespacedName{
+			Name:      appName,
+			Namespace: appNamespace,
+		}
+
+		BeforeEach(func() {
+			By("Creating a test SparkApplication in the New state")
+			app := &v1beta2.SparkApplication{}
+			if err := k8sClient.Get(ctx, key, app); err != nil && errors.IsNotFound(err) {
+				app = &v1beta2.SparkApplication{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      appName,
+						Namespace: appNamespace,
+					},
+					Spec: v1beta2.SparkApplicationSpec{
+						MainApplicationFile: ptr.To("local:///dummy.jar"),
+					},
+				}
+				v1beta2.SetSparkApplicationDefaults(app)
+				Expect(k8sClient.Create(ctx, app)).To(Succeed())
+			}
+
+			By("Creating a driver pod with no owner reference matching this SparkApplication")
+			driverPod := createDriverPod(appName, appNamespace)
+			Expect(k8sClient.Create(ctx, driverPod)).To(Succeed())
+		})
+
+		AfterEach(func() {
+			app := &v1beta2.SparkApplication{}
+			Expect(k8sClient.Get(ctx, key, app)).To(Succeed())
+
+			By("Deleting the created test SparkApplication")
+			Expect(k8sClient.Delete(ctx, app)).To(Succeed())
+
+			By("Deleting the driver pod")
+			driverPod := &corev1.Pod{}
+			Expect(k8sClient.Get(ctx, getDriverNamespacedName(appName, appNamespace), driverPod)).To(Succeed())
+			Expect(k8sClient.Delete(ctx, driverPod)).To(Succeed())
+		})
+
+		It("Should not adopt the unrelated driver pod", func() {
+			By("Reconciling the New SparkApplication")
+			reconciler := sparkapplication.NewReconciler(
+				nil,
+				k8sClient.Scheme(),
+				k8sClient,
+				record.NewFakeRecorder(3),
+				nil,
+				&sparkapplication.SparkSubmitter{},
+				sparkapplication.Options{Namespaces: []string{appNamespace}},
+			)
+			// We expect spark-submit to be attempted (and to fail since SPARK_HOME is unset
+			// in the test environment); critically the application must not be adopted into
+			// the Submitted state based on the unrelated pod.
+			_, _ = reconciler.Reconcile(ctx, reconcile.Request{NamespacedName: key})
+
+			app := &v1beta2.SparkApplication{}
+			Expect(k8sClient.Get(ctx, key, app)).To(Succeed())
+			Expect(app.Status.AppState.State).NotTo(Equal(v1beta2.ApplicationStateSubmitted))
+		})
+	})
+
 	Context("When reconciling a completed SparkApplication", func() {
 		ctx := context.Background()
 		appName := "test"
