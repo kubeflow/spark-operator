@@ -14,7 +14,14 @@ SHELL = /usr/bin/env bash -o pipefail
 
 # Version information.
 VERSION := $(shell cat VERSION | sed "s/^v//")
-BUILD_DATE := $(shell date -u +"%Y-%m-%dT%H:%M:%S%:z")
+# BUILD_DATE defaults to the current time. Set SOURCE_DATE_EPOCH (as CI does)
+# to pin it to a fixed timestamp for reproducible builds.
+BUILD_DATE := $(shell if [ -n "$(SOURCE_DATE_EPOCH)" ]; then \
+                        date -u -d "@$(SOURCE_DATE_EPOCH)" +"%Y-%m-%dT%H:%M:%S%:z" 2>/dev/null \
+                        || date -u -r "$(SOURCE_DATE_EPOCH)" +"%Y-%m-%dT%H:%M:%S%:z"; \
+                      else \
+                        date -u +"%Y-%m-%dT%H:%M:%S%:z"; \
+                      fi)
 GIT_COMMIT := $(shell git rev-parse HEAD)
 GIT_TAG := $(shell if [ -z "`git status --porcelain`" ]; then git describe --exact-match --tags HEAD 2>/dev/null; fi)
 GIT_TREE_STATE := $(shell if [ -z "`git status --porcelain`" ]; then echo "clean" ; else echo "dirty"; fi)
