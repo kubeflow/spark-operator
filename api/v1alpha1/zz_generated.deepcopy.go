@@ -91,6 +91,11 @@ func (in *ExecutorSpec) DeepCopy() *ExecutorSpec {
 func (in *ServerSpec) DeepCopyInto(out *ServerSpec) {
 	*out = *in
 	in.SparkPodSpec.DeepCopyInto(&out.SparkPodSpec)
+	if in.ServiceAccount != nil {
+		in, out := &in.ServiceAccount, &out.ServiceAccount
+		*out = new(string)
+		**out = **in
+	}
 	if in.Service != nil {
 		in, out := &in.Service, &out.Service
 		*out = new(v1.Service)

@@ -104,6 +104,10 @@ var (
 	kubeSchedulerNames    []string
 	defaultBatchScheduler string
 
+	// Fallback service account for Spark driver pods when the custom resource does
+	// not specify one. Empty by default, which preserves existing behavior.
+	defaultServiceAccount string
+
 	// Spark web UI service and ingress
 	enableUIService    bool
 	ingressClassName   string
@@ -217,6 +221,7 @@ func NewStartCommand() *cobra.Command {
 		"Default Time-To-Live in seconds applied to terminated SparkApplications that do "+
 			"not set spec.timeToLiveSeconds. Requires the DefaultTimeToLive feature gate. "+
 			"0 (default) disables it; a negative value is rejected.")
+	command.Flags().StringVar(&defaultServiceAccount, "default-service-account", "", "The service account used by the driver pod when the SparkApplication does not specify one. Leave empty to disable the fallback, in which case the driver pod uses the namespace's default service account.")
 	command.Flags().BoolVar(&enableDriverPDB, "enable-driver-pdb", false,
 		"Enable creation of a PodDisruptionBudget for Spark driver pods. "+
 			"Each SparkApplication must additionally opt in via "+
@@ -565,6 +570,7 @@ func newSparkApplicationReconcilerOptions() sparkapplication.Options {
 		MaxTrackedExecutorPerApp:     maxTrackedExecutorPerApp,
 		EnableDriverPDB:              enableDriverPDB,
 		DefaultTimeToLiveSeconds:     defaultTimeToLiveSeconds,
+		DefaultServiceAccount:        defaultServiceAccount,
 	}
 	if enableBatchScheduler {
 		options.KubeSchedulerNames = kubeSchedulerNames
@@ -583,8 +589,9 @@ func newScheduledSparkApplicationReconcilerOptions() scheduledsparkapplication.O
 
 func newSparkConnectReconcilerOptions() sparkconnect.Options {
 	options := sparkconnect.Options{
-		Namespaces:        namespaces,
-		NamespaceSelector: namespaceSelector,
+		Namespaces:            namespaces,
+		NamespaceSelector:     namespaceSelector,
+		DefaultServiceAccount: defaultServiceAccount,
 	}
 	return options
 }
