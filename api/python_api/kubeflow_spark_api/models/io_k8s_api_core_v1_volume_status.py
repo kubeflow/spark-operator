@@ -17,22 +17,18 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictStr
+from pydantic import BaseModel, ConfigDict, Field
 from typing import Any, ClassVar, Dict, List, Optional
-from kubeflow_spark_api.models.io_k8s_api_core_v1_volume_status import IoK8sApiCoreV1VolumeStatus
+from kubeflow_spark_api.models.io_k8s_api_core_v1_image_volume_status import IoK8sApiCoreV1ImageVolumeStatus
 from typing import Optional, Set
 from typing_extensions import Self
 
-class IoK8sApiCoreV1VolumeMountStatus(BaseModel):
+class IoK8sApiCoreV1VolumeStatus(BaseModel):
     """
-    VolumeMountStatus shows status of volume mounts.
+    VolumeStatus represents the status of a mounted volume. At most one of its members must be specified.
     """ # noqa: E501
-    mount_path: StrictStr = Field(description="MountPath corresponds to the original VolumeMount.", alias="mountPath")
-    name: StrictStr = Field(description="Name corresponds to the name of the original VolumeMount.")
-    read_only: Optional[StrictBool] = Field(default=None, description="ReadOnly corresponds to the original VolumeMount.", alias="readOnly")
-    recursive_read_only: Optional[StrictStr] = Field(default=None, description="RecursiveReadOnly must be set to Disabled, Enabled, or unspecified (for non-readonly mounts). An IfPossible value in the original VolumeMount must be translated to Disabled or Enabled, depending on the mount result.", alias="recursiveReadOnly")
-    volume_status: Optional[IoK8sApiCoreV1VolumeStatus] = Field(default=None, description="volumeStatus represents volume-type-specific status about the mounted volume.", alias="volumeStatus")
-    __properties: ClassVar[List[str]] = ["mountPath", "name", "readOnly", "recursiveReadOnly", "volumeStatus"]
+    image: Optional[IoK8sApiCoreV1ImageVolumeStatus] = Field(default=None, description="image represents an OCI object (a container image or artifact) pulled and mounted on the kubelet's host machine.")
+    __properties: ClassVar[List[str]] = ["image"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -52,7 +48,7 @@ class IoK8sApiCoreV1VolumeMountStatus(BaseModel):
 
     @classmethod
     def from_json(cls, json_str: str) -> Optional[Self]:
-        """Create an instance of IoK8sApiCoreV1VolumeMountStatus from a JSON string"""
+        """Create an instance of IoK8sApiCoreV1VolumeStatus from a JSON string"""
         return cls.from_dict(json.loads(json_str))
 
     def to_dict(self) -> Dict[str, Any]:
@@ -73,14 +69,14 @@ class IoK8sApiCoreV1VolumeMountStatus(BaseModel):
             exclude=excluded_fields,
             exclude_none=True,
         )
-        # override the default output from pydantic by calling `to_dict()` of volume_status
-        if self.volume_status:
-            _dict['volumeStatus'] = self.volume_status.to_dict()
+        # override the default output from pydantic by calling `to_dict()` of image
+        if self.image:
+            _dict['image'] = self.image.to_dict()
         return _dict
 
     @classmethod
     def from_dict(cls, obj: Optional[Dict[str, Any]]) -> Optional[Self]:
-        """Create an instance of IoK8sApiCoreV1VolumeMountStatus from a dict"""
+        """Create an instance of IoK8sApiCoreV1VolumeStatus from a dict"""
         if obj is None:
             return None
 
@@ -88,11 +84,7 @@ class IoK8sApiCoreV1VolumeMountStatus(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
-            "mountPath": obj.get("mountPath") if obj.get("mountPath") is not None else '',
-            "name": obj.get("name") if obj.get("name") is not None else '',
-            "readOnly": obj.get("readOnly"),
-            "recursiveReadOnly": obj.get("recursiveReadOnly"),
-            "volumeStatus": IoK8sApiCoreV1VolumeStatus.from_dict(obj["volumeStatus"]) if obj.get("volumeStatus") is not None else None
+            "image": IoK8sApiCoreV1ImageVolumeStatus.from_dict(obj["image"]) if obj.get("image") is not None else None
         })
         return _obj
 
