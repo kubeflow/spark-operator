@@ -589,8 +589,9 @@ func newScheduledSparkApplicationReconcilerOptions() scheduledsparkapplication.O
 
 func newSparkConnectReconcilerOptions() sparkconnect.Options {
 	options := sparkconnect.Options{
-		Namespaces:        namespaces,
-		NamespaceSelector: namespaceSelector,
+		Namespaces:            namespaces,
+		NamespaceSelector:     namespaceSelector,
+		DefaultServiceAccount: defaultServiceAccount,
 	}
 	return options
 }

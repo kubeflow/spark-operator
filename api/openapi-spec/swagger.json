@@ -12678,6 +12678,10 @@
               }
             ]
           },
+          "serviceAccount": {
+            "description": "ServiceAccount is the name of the Kubernetes service account used by the server pod. If not specified, the service account of the server pod template is used, and if that is also not specified, the operator falls back to the service account configured via the --default-service-account flag.",
+            "type": "string"
+          },
           "template": {
             "description": "Template is a pod template that can be used to define the driver or executor pod configurations that Spark configurations do not support. Spark version \u003e= 3.0.0 is required. Ref: https://spark.apache.org/docs/latest/running-on-kubernetes.html#pod-template.",
             "allOf": [
