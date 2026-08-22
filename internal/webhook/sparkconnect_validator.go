@@ -23,6 +23,7 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
+	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/util/validation"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
@@ -266,6 +267,20 @@ func (v *SparkConnectValidator) validateServerSpec(sc *v1alpha1.SparkConnect) er
 		}
 	}
 
+	// Validate CoreRequest format if specified
+	if server.CoreRequest != nil {
+		if err := validateCPUQuantity(*server.CoreRequest); err != nil {
+			return fmt.Errorf("invalid server.coreRequest: %v", err)
+		}
+	}
+
+	// Validate CoreLimit format if specified
+	if server.CoreLimit != nil {
+		if err := validateCPUQuantity(*server.CoreLimit); err != nil {
+			return fmt.Errorf("invalid server.coreLimit: %v", err)
+		}
+	}
+
 	return nil
 }
 
@@ -277,6 +292,20 @@ func (v *SparkConnectValidator) validateExecutorSpec(sc *v1alpha1.SparkConnect) 
 	if executor.Memory != nil && *executor.Memory != "" {
 		if err := validateMemoryString(*executor.Memory); err != nil {
 			return fmt.Errorf("invalid executor.memory: %v", err)
+		}
+	}
+
+	// Validate CoreRequest format if specified
+	if executor.CoreRequest != nil {
+		if err := validateCPUQuantity(*executor.CoreRequest); err != nil {
+			return fmt.Errorf("invalid executor.coreRequest: %v", err)
+		}
+	}
+
+	// Validate CoreLimit format if specified
+	if executor.CoreLimit != nil {
+		if err := validateCPUQuantity(*executor.CoreLimit); err != nil {
+			return fmt.Errorf("invalid executor.coreLimit: %v", err)
 		}
 	}
 
@@ -324,6 +353,22 @@ func validateMemoryString(memory string) error {
 				return fmt.Errorf("invalid memory format %q: must be a number with optional suffix (e.g., 1g, 512m, 1024k)", memory)
 			}
 		}
+	}
+
+	return nil
+}
+
+// validateCPUQuantity validates a Kubernetes CPU quantity string format using the standard resource.ParseQuantity.
+// Valid formats follow Kubernetes quantity semantics: "500m", "1", "1.5", "2", etc.
+func validateCPUQuantity(cpu string) error {
+	if cpu == "" {
+		// Empty string is invalid - nil should be used to indicate "not specified"
+		return fmt.Errorf("CPU quantity cannot be an empty string")
+	}
+
+	_, err := resource.ParseQuantity(cpu)
+	if err != nil {
+		return fmt.Errorf("invalid CPU quantity %q: %v", cpu, err)
 	}
 
 	return nil

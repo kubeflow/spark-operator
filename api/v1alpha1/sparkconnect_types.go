@@ -106,9 +106,22 @@ type ExecutorSpec struct {
 // SparkPodSpec defines common things that can be customized for a Spark driver or executor pod.
 type SparkPodSpec struct {
 	// Cores maps to `spark.driver.cores` or `spark.executor.cores` for the driver and executors, respectively.
+	// Cores represents Spark task-slot/JVM concurrency and is independent of physical Kubernetes CPU requests and limits.
 	// +optional
 	// +kubebuilder:validation:Minimum=1
 	Cores *int32 `json:"cores,omitempty"`
+
+	// CoreRequest specifies the physical CPU request for the pod, controlling the Kubernetes CPU request.
+	// This is independent of Cores and maps to `spark.kubernetes.driver.request.cores` or `spark.kubernetes.executor.request.cores`.
+	// Valid values follow Kubernetes quantity format (e.g., "500m", "1", "1.5").
+	// +optional
+	CoreRequest *string `json:"coreRequest,omitempty"`
+
+	// CoreLimit specifies the physical CPU limit for the pod, controlling the Kubernetes CPU limit.
+	// This is independent of Cores and maps to `spark.kubernetes.driver.limit.cores` or `spark.kubernetes.executor.limit.cores`.
+	// Valid values follow Kubernetes quantity format (e.g., "500m", "1", "1.5").
+	// +optional
+	CoreLimit *string `json:"coreLimit,omitempty"`
 
 	// Memory is the amount of memory to request for the pod.
 	// +optional
