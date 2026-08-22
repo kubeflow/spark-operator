@@ -199,7 +199,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		if errors.IsNotFound(err) {
 			return ctrl.Result{}, nil
 		}
-		return ctrl.Result{Requeue: true}, err
+		return ctrl.Result{}, err
 	}
 
 	logger.Info("Reconciling SparkApplication", "state", app.Status.AppState.State)
@@ -320,12 +320,12 @@ func (r *Reconciler) handleSparkApplicationDeletion(ctx context.Context, req ctr
 		if errors.IsNotFound(err) {
 			return ctrl.Result{}, nil
 		}
-		return ctrl.Result{Requeue: true}, err
+		return ctrl.Result{}, err
 	}
 
 	if err := r.deleteSparkResources(ctx, app); err != nil {
 		logger.Error(err, "Failed to delete resources associated with SparkApplication")
-		return ctrl.Result{Requeue: true}, err
+		return ctrl.Result{}, err
 	}
 	return ctrl.Result{}, nil
 }
@@ -354,7 +354,7 @@ func (r *Reconciler) reconcileNewSparkApplication(ctx context.Context, req ctrl.
 	)
 	if retryErr != nil {
 		logger.Error(retryErr, "Failed to reconcile SparkApplication")
-		return ctrl.Result{Requeue: true}, retryErr
+		return ctrl.Result{}, retryErr
 	}
 	return ctrl.Result{}, nil
 }
@@ -712,7 +712,7 @@ func (r *Reconciler) reconcileTerminatedSparkApplication(ctx context.Context, re
 	key := req.NamespacedName
 	old, err := r.getSparkApplication(ctx, key)
 	if err != nil {
-		return ctrl.Result{Requeue: true}, err
+		return ctrl.Result{}, err
 	}
 
 	app := old.DeepCopy()
@@ -730,22 +730,22 @@ func (r *Reconciler) reconcileTerminatedSparkApplication(ctx context.Context, re
 			logger.Info("Deleting expired SparkApplication", "state", app.Status.AppState.State)
 		}
 		if err := r.client.Delete(ctx, app); err != nil {
-			return ctrl.Result{Requeue: true}, err
+			return ctrl.Result{}, err
 		}
 		return ctrl.Result{}, nil
 	}
 
 	if err := r.updateExecutorState(ctx, app); err != nil {
-		return ctrl.Result{Requeue: true}, err
+		return ctrl.Result{}, err
 	}
 
 	if err := r.updateSparkApplicationStatus(ctx, app); err != nil {
-		return ctrl.Result{Requeue: true}, err
+		return ctrl.Result{}, err
 	}
 
 	if err := r.cleanUpOnTermination(ctx, old, app); err != nil {
 		logger.Error(err, "Failed to clean up resources for SparkApplication", "state", old.Status.AppState.State)
-		return ctrl.Result{Requeue: true}, err
+		return ctrl.Result{}, err
 	}
 
 	// If termination time or effective TTL is not set, will not requeue this application.
@@ -758,9 +758,9 @@ func (r *Reconciler) reconcileTerminatedSparkApplication(ctx context.Context, re
 	ttl := time.Duration(*effectiveTTLSeconds) * time.Second
 	survival := now.Sub(app.Status.TerminationTime.Time)
 
-	// If survival time is greater than TTL, requeue the application immediately.
+	// If survival time is greater than TTL, requeue the application shortly for deletion.
 	if survival >= ttl {
-		return ctrl.Result{Requeue: true}, nil
+		return ctrl.Result{RequeueAfter: time.Second}, nil
 	}
 	// Otherwise, requeue the application after (TTL - survival) seconds.
 	return ctrl.Result{RequeueAfter: ttl - survival}, nil
@@ -903,7 +903,7 @@ func (r *Reconciler) reconcileResumingSparkApplication(ctx context.Context, req 
 	)
 	if retryErr != nil {
 		logger.Error(retryErr, "Failed to reconcile SparkApplication")
-		return ctrl.Result{Requeue: true}, retryErr
+		return ctrl.Result{}, retryErr
 	}
 	return ctrl.Result{}, nil
 }
@@ -930,7 +930,7 @@ func (r *Reconciler) transitionToSuspending(ctx context.Context, req ctrl.Reques
 	)
 	if retryErr != nil {
 		logger.Error(retryErr, "Failed to reconcile SparkApplication")
-		return ctrl.Result{Requeue: true}, retryErr
+		return ctrl.Result{}, retryErr
 	}
 	return ctrl.Result{}, nil
 }

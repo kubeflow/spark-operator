@@ -80,7 +80,7 @@ func (r *Reconciler) SetupWithManager(mgr ctrl.Manager, options controller.Optio
 func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger.Info("Updating CA bundle of ValidatingWebhookConfiguration", "name", req.Name)
 	if err := r.updateValidatingWebhookConfiguration(ctx, req.NamespacedName); err != nil {
-		return ctrl.Result{Requeue: true}, nil
+		return ctrl.Result{}, err
 	}
 	return ctrl.Result{}, nil
 }
