@@ -31,8 +31,9 @@ class SparkV1alpha1ServerSpec(BaseModel):
     cores: Optional[StrictInt] = Field(default=None, description="Cores maps to `spark.driver.cores` or `spark.executor.cores` for the driver and executors, respectively.")
     memory: Optional[StrictStr] = Field(default=None, description="Memory is the amount of memory to request for the pod.")
     service: Optional[IoK8sApiCoreV1Service] = Field(default=None, description="Service exposes the Spark connect server.")
+    service_account: Optional[StrictStr] = Field(default=None, description="ServiceAccount is the name of the Kubernetes service account used by the server pod. If not specified, the service account of the server pod template is used, and if that is also not specified, the operator falls back to the service account configured via the --default-service-account flag.", alias="serviceAccount")
     template: Optional[IoK8sApiCoreV1PodTemplateSpec] = Field(default=None, description="Template is a pod template that can be used to define the driver or executor pod configurations that Spark configurations do not support. Spark version >= 3.0.0 is required. Ref: https://spark.apache.org/docs/latest/running-on-kubernetes.html#pod-template.")
-    __properties: ClassVar[List[str]] = ["cores", "memory", "service", "template"]
+    __properties: ClassVar[List[str]] = ["cores", "memory", "service", "serviceAccount", "template"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -94,6 +95,7 @@ class SparkV1alpha1ServerSpec(BaseModel):
             "cores": obj.get("cores"),
             "memory": obj.get("memory"),
             "service": IoK8sApiCoreV1Service.from_dict(obj["service"]) if obj.get("service") is not None else None,
+            "serviceAccount": obj.get("serviceAccount"),
             "template": IoK8sApiCoreV1PodTemplateSpec.from_dict(obj["template"]) if obj.get("template") is not None else None
         })
         return _obj
