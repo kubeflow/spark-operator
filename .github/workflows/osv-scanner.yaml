@@ -1,0 +1,122 @@
+name: OSV-Scanner Vulnerability Scan
+
+on:
+  schedule:
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Bump cadence: check https://github.com/google/osv-scanner/releases monthly.
+  # Dependabot cannot bump curl-installed binaries — update version + checksum manually.
+  OSV_SCANNER_VERSION: "2.5.1"
+  OSV_SCANNER_SHA256: "f9f25499a2c8cc367b3af45df2ea7eeca7fbccceab9c35079968f4b3652194be"
+
+jobs:
+  source-scan:
+    name: Scan source dependencies
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # Needed to upload SARIF results to the code scanning dashboard.
+      security-events: write
+
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install OSV-Scanner
+        run: |
+          set -euo pipefail
+          curl -fsSL "https://github.com/google/osv-scanner/releases/download/v${OSV_SCANNER_VERSION}/osv-scanner_linux_amd64" -o osv-scanner
+          ACTUAL_SHA=$(sha256sum osv-scanner | awk '{print $1}')
+          if [ "$ACTUAL_SHA" != "$OSV_SCANNER_SHA256" ]; then
+            echo "::error::OSV-Scanner checksum mismatch! Expected ${OSV_SCANNER_SHA256}, got ${ACTUAL_SHA}"
+            exit 1
+          fi
+          chmod +x osv-scanner
+          sudo mv osv-scanner /usr/local/bin/
+
+      - name: Run OSV-Scanner
+        # Every manifest OSV-Scanner can parse in this repo is listed here.
+        # api/python_api has no lock file, so there is nothing to resolve versions from.
+        run: |
+          rc=0
+          osv-scanner scan source \
+            --format sarif \
+            --output-file osv-results.sarif \
+            -L go.mod \
+            -L test/e2e/go.mod \
+            -L docs/website/uv.lock || rc=$?
+          # Exit code 1 = vulnerabilities found (expected, reported via SARIF), 0 = clean.
+          # Any other code is a real failure of the scanner itself.
+          if [ "$rc" -ne 0 ] && [ "$rc" -ne 1 ]; then
+            echo "::error::OSV-Scanner failed with unexpected exit code $rc"
+            exit 1
+          fi
+
+      - name: Upload SARIF to GitHub Security tab
+        if: always() && hashFiles('osv-results.sarif') != ''
+        uses: github/codeql-action/upload-sarif@1b168cd39490f61582a9beae412bb7057a6b2c4e # v4.31.8
+        with:
+          sarif_file: osv-results.sarif
+          category: spark-operator-osv-scanner-source
+
+  image-scan:
+    name: Scan published images
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+
+    strategy:
+      fail-fast: false
+      matrix:
+        image:
+          - controller
+          - kubectl
+
+    steps:
+      - name: Install OSV-Scanner
+        run: |
+          set -euo pipefail
+          curl -fsSL "https://github.com/google/osv-scanner/releases/download/v${OSV_SCANNER_VERSION}/osv-scanner_linux_amd64" -o osv-scanner
+          ACTUAL_SHA=$(sha256sum osv-scanner | awk '{print $1}')
+          if [ "$ACTUAL_SHA" != "$OSV_SCANNER_SHA256" ]; then
+            echo "::error::OSV-Scanner checksum mismatch! Expected ${OSV_SCANNER_SHA256}, got ${ACTUAL_SHA}"
+            exit 1
+          fi
+          chmod +x osv-scanner
+          sudo mv osv-scanner /usr/local/bin/
+
+      - name: Run OSV-Scanner
+        # `latest` is what master publishes, so a nightly run always has an image to
+        # scan. Release tags are covered once master is tagged and `latest` moves.
+        env:
+          IMAGE: ghcr.io/${{ github.repository }}/${{ matrix.image }}:latest
+          SARIF_FILE: osv-results-image-${{ matrix.image }}.sarif
+        run: |
+          rc=0
+          osv-scanner scan image \
+            --format sarif \
+            --output-file "${SARIF_FILE}" \
+            "${IMAGE}" || rc=$?
+          if [ "$rc" -ne 0 ] && [ "$rc" -ne 1 ]; then
+            echo "::error::OSV-Scanner failed with unexpected exit code $rc"
+            exit 1
+          fi
+
+      - name: Upload SARIF to GitHub Security tab
+        if: always() && hashFiles(format('osv-results-image-{0}.sarif', matrix.image)) != ''
+        uses: github/codeql-action/upload-sarif@1b168cd39490f61582a9beae412bb7057a6b2c4e # v4.31.8
+        with:
+          sarif_file: osv-results-image-${{ matrix.image }}.sarif
+          category: spark-operator-osv-scanner-image-${{ matrix.image }}
