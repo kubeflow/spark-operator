@@ -84,7 +84,7 @@ func imageOption(conn *v1alpha1.SparkConnect) ([]string, error) {
 
 	template := conn.Spec.Executor.Template
 	if template != nil && len(template.Spec.Containers) != 0 {
-		index := -1
+		index := 0
 		for i, container := range template.Spec.Containers {
 			if container.Name == common.Spark3DefaultExecutorContainerName {
 				index = i
@@ -92,7 +92,7 @@ func imageOption(conn *v1alpha1.SparkConnect) ([]string, error) {
 			}
 		}
 
-		if index != -1 && template.Spec.Containers[index].Image != "" {
+		if template.Spec.Containers[index].Image != "" {
 			executorImage = template.Spec.Containers[index].Image
 		}
 	}

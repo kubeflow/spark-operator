@@ -27,6 +27,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/validation"
 
 	"github.com/kubeflow/spark-operator/v2/api/v1beta2"
 	"github.com/kubeflow/spark-operator/v2/pkg/common"
@@ -378,6 +379,7 @@ func TestPatchSparkPod_ConfigMaps(t *testing.T) {
 					ConfigMaps: []v1beta2.NamePath{
 						{Name: "foo", Path: "/path/to/foo"},
 						{Name: "bar", Path: "/path/to/bar"},
+						{Name: "spark.application.conf", Path: "/path/to/dotted"},
 					},
 				},
 			},
@@ -407,14 +409,57 @@ func TestPatchSparkPod_ConfigMaps(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	assert.Len(t, modifiedPod.Spec.Volumes, 2)
+	assert.Len(t, modifiedPod.Spec.Volumes, 3)
 	assert.Equal(t, "foo-vol", modifiedPod.Spec.Volumes[0].Name)
 	assert.NotNil(t, modifiedPod.Spec.Volumes[0].ConfigMap)
 	assert.Equal(t, "bar-vol", modifiedPod.Spec.Volumes[1].Name)
 	assert.NotNil(t, modifiedPod.Spec.Volumes[1].ConfigMap)
-	assert.Len(t, modifiedPod.Spec.Containers[0].VolumeMounts, 2)
+	assert.Equal(t, "spark-application-conf-faf58873-vol", modifiedPod.Spec.Volumes[2].Name)
+	assert.NotNil(t, modifiedPod.Spec.Volumes[2].ConfigMap)
+	assert.Len(t, modifiedPod.Spec.Containers[0].VolumeMounts, 3)
 	assert.Equal(t, "/path/to/foo", modifiedPod.Spec.Containers[0].VolumeMounts[0].MountPath)
 	assert.Equal(t, "/path/to/bar", modifiedPod.Spec.Containers[0].VolumeMounts[1].MountPath)
+	assert.Equal(t, "/path/to/dotted", modifiedPod.Spec.Containers[0].VolumeMounts[2].MountPath)
+	assert.Equal(t, modifiedPod.Spec.Volumes[2].Name, modifiedPod.Spec.Containers[0].VolumeMounts[2].Name)
+}
+
+func TestGetConfigMapVolumeName(t *testing.T) {
+	tests := []struct {
+		name          string
+		configMapName string
+		expected      string
+	}{
+		{
+			name:          "ordinary name stays unchanged",
+			configMapName: "configmap1",
+			expected:      "configmap1-vol",
+		},
+		{
+			name:          "dotted name is sanitized",
+			configMapName: "spark.application.conf",
+			expected:      "spark-application-conf-faf58873-vol",
+		},
+		{
+			name:          "long name is truncated with a hash",
+			configMapName: "generated-config-name-generated-config-name-generated-config-name",
+			expected:      "generated-config-name-generated-config-name-genera-d0f2ef0c-vol",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			actual := getConfigMapVolumeName(tt.configMapName)
+			assert.Equal(t, tt.expected, actual)
+			assert.LessOrEqual(t, len(actual), maxNameLength)
+			assert.Empty(t, validation.IsDNS1123Label(actual))
+		})
+	}
+
+	assert.NotEqual(t, getConfigMapVolumeName("a.b"), getConfigMapVolumeName("a-b"))
+	assert.NotEqual(t,
+		getConfigMapVolumeName("generated-config-name-generated-config-name-generated-config-name-first"),
+		getConfigMapVolumeName("generated-config-name-generated-config-name-generated-config-name-second"),
+	)
 }
 
 func TestPatchSparkPod_SparkConfigMap(t *testing.T) {

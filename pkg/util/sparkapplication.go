@@ -60,20 +60,48 @@ func IsTerminated(app *v1beta2.SparkApplication) bool {
 		app.Status.AppState.State == v1beta2.ApplicationStateFailed
 }
 
-// IsExpired returns whether the given SparkApplication is expired.
-func IsExpired(app *v1beta2.SparkApplication) bool {
+// IsExpired returns whether the given terminated SparkApplication has outlived
+// the provided TTL. The TTL may originate from the user's spec or from an
+// operator-configured default (see EffectiveTimeToLiveSeconds).
+//
+//   - A nil ttlSeconds means no TTL is defined: the application never expires.
+//   - A non-nil ttlSeconds that is <= 0 means the application expires immediately
+//     once it has a termination time.
+func IsExpired(app *v1beta2.SparkApplication, ttlSeconds *int64) bool {
 	// The application has no TTL defined and will never expire.
-	if app.Spec.TimeToLiveSeconds == nil {
+	if ttlSeconds == nil {
 		return false
 	}
 
-	ttl := time.Duration(*app.Spec.TimeToLiveSeconds) * time.Second
+	ttl := time.Duration(*ttlSeconds) * time.Second
 	now := time.Now()
 	if !app.Status.TerminationTime.IsZero() && now.Sub(app.Status.TerminationTime.Time) > ttl {
 		return true
 	}
 
 	return false
+}
+
+// EffectiveTimeToLiveSeconds returns the TTL (in seconds) that should govern cleanup
+// of the given SparkApplication, and whether the operator default (rather than the
+// user spec) was the source.
+//
+// Resolution order:
+//   - the user's spec.timeToLiveSeconds whenever it is set (a value <= 0 is an
+//     explicit request to expire immediately and still wins), else
+//   - the operator default when defaultSeconds > 0, else
+//   - nil, meaning "never expire".
+//
+// It never mutates the SparkApplication.
+func EffectiveTimeToLiveSeconds(app *v1beta2.SparkApplication, defaultSeconds int64) (*int64, bool) {
+	if app.Spec.TimeToLiveSeconds != nil {
+		return app.Spec.TimeToLiveSeconds, false
+	}
+	if defaultSeconds > 0 {
+		seconds := defaultSeconds
+		return &seconds, true
+	}
+	return nil, false
 }
 
 // IsDriverRunning returns whether the driver pod of the given SparkApplication is running.

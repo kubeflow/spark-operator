@@ -124,6 +124,45 @@ func TestSparkConnectValidatorValidateCreate_ImageOnlyInServerTemplate(t *testin
 	}
 }
 
+func TestSparkConnectValidatorValidateCreate_ImageOnlyInUnselectedContainer(t *testing.T) {
+	tests := []struct {
+		name     string
+		server   []corev1.Container
+		executor []corev1.Container
+	}{
+		{
+			name: "server sidecar",
+			server: []corev1.Container{
+				{Name: "sidecar", Image: "busybox:1.36"},
+				{Name: common.SparkDriverContainerName},
+			},
+			executor: []corev1.Container{{Name: "executor", Image: "spark:3.5.0"}},
+		},
+		{
+			name:   "executor sidecar",
+			server: []corev1.Container{{Name: "server", Image: "spark:3.5.0"}},
+			executor: []corev1.Container{
+				{Name: "sidecar", Image: "busybox:1.36"},
+				{Name: common.Spark3DefaultExecutorContainerName},
+			},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			validator := newTestSparkConnectValidator(t)
+			sc := newSparkConnect()
+			sc.Spec.Image = nil
+			sc.Spec.Server.Template = &corev1.PodTemplateSpec{Spec: corev1.PodSpec{Containers: test.server}}
+			sc.Spec.Executor.Template = &corev1.PodTemplateSpec{Spec: corev1.PodSpec{Containers: test.executor}}
+
+			if _, err := validator.ValidateCreate(context.Background(), sc); err == nil || !strings.Contains(err.Error(), "image must be specified") {
+				t.Fatalf("expected image validation error, got %v", err)
+			}
+		})
+	}
+}
+
 func TestSparkConnectValidatorValidateCreate_DynamicAllocationMinGreaterThanMax(t *testing.T) {
 	validator := newTestSparkConnectValidator(t)
 

@@ -124,72 +124,90 @@ var _ = Describe("GetApplicationState", func() {
 })
 
 var _ = Describe("IsExpired", func() {
-	Context("SparkApplication without TTL", func() {
-		app := &v1beta2.SparkApplication{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "test-app",
-				Namespace: "test-namespace",
-			},
-		}
-
-		It("Should return false", func() {
-			Expect(util.IsExpired(app)).To(BeFalse())
-		})
-	})
-
-	Context("SparkApplication not terminated with TTL", func() {
-		app := &v1beta2.SparkApplication{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "test-app",
-				Namespace: "test-namespace",
-			},
-			Spec: v1beta2.SparkApplicationSpec{
-				TimeToLiveSeconds: ptr.To[int64](3600),
-			},
-		}
-
-		It("Should return false", func() {
-			Expect(util.IsExpired(app)).To(BeFalse())
-		})
-	})
-
-	Context("SparkApplication terminated with TTL not expired", func() {
-		now := time.Now()
-		app := &v1beta2.SparkApplication{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "test-app",
-				Namespace: "test-namespace",
-			},
-			Spec: v1beta2.SparkApplicationSpec{
-				TimeToLiveSeconds: ptr.To[int64](3600),
-			},
+	terminatedApp := func(sinceTermination time.Duration) *v1beta2.SparkApplication {
+		return &v1beta2.SparkApplication{
 			Status: v1beta2.SparkApplicationStatus{
-				TerminationTime: metav1.NewTime(now.Add(-30 * time.Minute)),
+				TerminationTime: metav1.NewTime(time.Now().Add(-sinceTermination)),
 			},
 		}
+	}
 
-		It("Should return false", func() {
-			Expect(util.IsExpired(app)).To(BeFalse())
+	Context("with a nil TTL", func() {
+		It("never expires", func() {
+			Expect(util.IsExpired(terminatedApp(time.Hour), nil)).To(BeFalse())
 		})
 	})
 
-	Context("SparkApplication terminated with TTL expired", func() {
-		now := time.Now()
-		app := &v1beta2.SparkApplication{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "test-app",
-				Namespace: "test-namespace",
-			},
-			Spec: v1beta2.SparkApplicationSpec{
-				TimeToLiveSeconds: ptr.To[int64](3600),
-			},
-			Status: v1beta2.SparkApplicationStatus{
-				TerminationTime: metav1.NewTime(now.Add(-2 * time.Hour)),
-			},
-		}
+	Context("with a positive TTL", func() {
+		It("returns false before the TTL elapses", func() {
+			Expect(util.IsExpired(terminatedApp(30*time.Minute), ptr.To[int64](3600))).To(BeFalse())
+		})
 
-		It("Should return true", func() {
-			Expect(util.IsExpired(app)).To(BeTrue())
+		It("returns true after the TTL elapses", func() {
+			Expect(util.IsExpired(terminatedApp(2*time.Hour), ptr.To[int64](3600))).To(BeTrue())
+		})
+	})
+
+	Context("with a non-positive TTL on a terminated app", func() {
+		It("expires immediately for a zero TTL", func() {
+			Expect(util.IsExpired(terminatedApp(time.Second), ptr.To[int64](0))).To(BeTrue())
+		})
+
+		It("expires immediately for a negative TTL", func() {
+			Expect(util.IsExpired(terminatedApp(time.Second), ptr.To[int64](-5))).To(BeTrue())
+		})
+	})
+
+	Context("with no termination time", func() {
+		It("does not expire even for a zero TTL", func() {
+			app := &v1beta2.SparkApplication{}
+			Expect(util.IsExpired(app, ptr.To[int64](0))).To(BeFalse())
+		})
+	})
+})
+
+var _ = Describe("EffectiveTimeToLiveSeconds", func() {
+	appWithTTL := func(ttl *int64) *v1beta2.SparkApplication {
+		return &v1beta2.SparkApplication{
+			Spec: v1beta2.SparkApplicationSpec{TimeToLiveSeconds: ttl},
+		}
+	}
+
+	Context("when the user sets spec.timeToLiveSeconds > 0", func() {
+		It("returns the user value regardless of the default", func() {
+			ttl, usedDefault := util.EffectiveTimeToLiveSeconds(appWithTTL(ptr.To[int64](3600)), 60)
+			Expect(ttl).NotTo(BeNil())
+			Expect(*ttl).To(Equal(int64(3600)))
+			Expect(usedDefault).To(BeFalse())
+		})
+	})
+
+	Context("when the user sets a non-positive spec.timeToLiveSeconds", func() {
+		It("returns the user value as-is (explicit immediate expiry wins over the default)", func() {
+			ttl, usedDefault := util.EffectiveTimeToLiveSeconds(appWithTTL(ptr.To[int64](0)), 60)
+			Expect(ttl).NotTo(BeNil())
+			Expect(*ttl).To(Equal(int64(0)))
+			Expect(usedDefault).To(BeFalse())
+
+			ttl, usedDefault = util.EffectiveTimeToLiveSeconds(appWithTTL(ptr.To[int64](-5)), 60)
+			Expect(ttl).NotTo(BeNil())
+			Expect(*ttl).To(Equal(int64(-5)))
+			Expect(usedDefault).To(BeFalse())
+		})
+	})
+
+	Context("when no user TTL is set", func() {
+		It("returns the default and reports usedDefault=true", func() {
+			ttl, usedDefault := util.EffectiveTimeToLiveSeconds(appWithTTL(nil), 60)
+			Expect(ttl).NotTo(BeNil())
+			Expect(*ttl).To(Equal(int64(60)))
+			Expect(usedDefault).To(BeTrue())
+		})
+
+		It("returns nil when the default is not positive", func() {
+			ttl, usedDefault := util.EffectiveTimeToLiveSeconds(appWithTTL(nil), 0)
+			Expect(ttl).To(BeNil())
+			Expect(usedDefault).To(BeFalse())
 		})
 	})
 })

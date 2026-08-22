@@ -95,6 +95,8 @@ controller:
     enabled: false
   - name: RestSubmitter
     enabled: false
+  - name: DefaultTimeToLive
+    enabled: false
 
   # -- The number of old history to retain to allow rollback.
   revisionHistoryLimit: 10
@@ -123,6 +125,11 @@ controller:
 
   # -- Specifies the maximum number of Executor pods that can be tracked by the controller per SparkApplication.
   maxTrackedExecutorPerApp: 1000
+
+  # -- Default Time-To-Live (in seconds) applied to terminated SparkApplications that do not
+  # set spec.timeToLiveSeconds. Requires the DefaultTimeToLive feature gate to be enabled.
+  # 0 (default) disables it.
+  defaultTimeToLiveSeconds: 0
 
   # -- Driver PDB feature gate. When true, the controller creates a PodDisruptionBudget for each SparkApplication that sets spec.driverPodDisruptionBudget=true. Default false.
   driverPodDisruptionBudget:

@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"strings"
 
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/util/validation"
@@ -28,6 +29,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
 	"github.com/kubeflow/spark-operator/v2/api/v1alpha1"
+	"github.com/kubeflow/spark-operator/v2/pkg/common"
 	"github.com/kubeflow/spark-operator/v2/pkg/util"
 )
 
@@ -187,32 +189,30 @@ func (v *SparkConnectValidator) validateImage(sc *v1alpha1.SparkConnect) error {
 		return nil
 	}
 
-	// Otherwise, require that both server and executor pod templates provide container images.
-	serverImageFound := false
-	if sc.Spec.Server.Template != nil {
-		for _, container := range sc.Spec.Server.Template.Spec.Containers {
-			if container.Image != "" {
-				serverImageFound = true
-				break
-			}
-		}
-	}
-
-	executorImageFound := false
-	if sc.Spec.Executor.Template != nil {
-		for _, container := range sc.Spec.Executor.Template.Spec.Containers {
-			if container.Image != "" {
-				executorImageFound = true
-				break
-			}
-		}
-	}
+	// Otherwise, require that the server and executor containers selected from the pod templates provide images.
+	serverImageFound := podTemplateContainerImage(sc.Spec.Server.Template, common.SparkDriverContainerName) != ""
+	executorImageFound := podTemplateContainerImage(sc.Spec.Executor.Template, common.Spark3DefaultExecutorContainerName) != ""
 
 	if serverImageFound && executorImageFound {
 		return nil
 	}
 
-	return fmt.Errorf("image must be specified in spec.image or both server and executor pod templates must provide container images")
+	return fmt.Errorf("image must be specified in spec.image or in the selected server and executor template containers")
+}
+
+func podTemplateContainerImage(template *corev1.PodTemplateSpec, containerName string) string {
+	if template == nil || len(template.Spec.Containers) == 0 {
+		return ""
+	}
+
+	index := 0
+	for i, container := range template.Spec.Containers {
+		if container.Name == containerName {
+			index = i
+			break
+		}
+	}
+	return template.Spec.Containers[index].Image
 }
 
 // validateDynamicAllocation validates DynamicAllocation configuration.

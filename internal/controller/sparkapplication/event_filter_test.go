@@ -18,6 +18,7 @@ package sparkapplication
 
 import (
 	"testing"
+	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -939,7 +940,7 @@ func TestNewSparkApplicationEventFilter(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			filter, err := NewSparkApplicationEventFilter(fakeClient, nil, tt.namespaces, tt.namespaceSelector)
+			filter, err := NewSparkApplicationEventFilter(fakeClient, nil, tt.namespaces, tt.namespaceSelector, 0)
 			if tt.expectError {
 				if err == nil {
 					t.Errorf("NewSparkApplicationEventFilter() expected error, got nil")
@@ -1046,7 +1047,7 @@ func TestSparkApplicationEventFilter_Create(t *testing.T) {
 			}
 			fakeClient := builder.Build()
 
-			filter, err := NewSparkApplicationEventFilter(fakeClient, nil, tt.namespaces, tt.namespaceSelector)
+			filter, err := NewSparkApplicationEventFilter(fakeClient, nil, tt.namespaces, tt.namespaceSelector, 0)
 			if err != nil {
 				t.Fatalf("NewSparkApplicationEventFilter() unexpected error: %v", err)
 			}
@@ -1073,7 +1074,7 @@ func TestSparkApplicationEventFilter_Create_NonSparkApplication(t *testing.T) {
 	_ = v1beta2.AddToScheme(scheme)
 	fakeClient := fake.NewClientBuilder().WithScheme(scheme).Build()
 
-	filter, _ := NewSparkApplicationEventFilter(fakeClient, nil, []string{"default"}, "")
+	filter, _ := NewSparkApplicationEventFilter(fakeClient, nil, []string{"default"}, "", 0)
 
 	// Test with a Pod instead of SparkApplication
 	pod := &corev1.Pod{
@@ -1120,7 +1121,7 @@ func TestSparkApplicationEventFilter_Update_TimeToLiveSecondsDoesNotInvalidate(t
 		WithStatusSubresource(&v1beta2.SparkApplication{}).
 		WithObjects(newApp.DeepCopy()).
 		Build()
-	filter, err := NewSparkApplicationEventFilter(fakeClient, events.NewFakeRecorder(10), []string{"default"}, "")
+	filter, err := NewSparkApplicationEventFilter(fakeClient, events.NewFakeRecorder(10), []string{"default"}, "", 0)
 	if err != nil {
 		t.Fatalf("NewSparkApplicationEventFilter() unexpected error: %v", err)
 	}
@@ -1132,6 +1133,75 @@ func TestSparkApplicationEventFilter_Update_TimeToLiveSecondsDoesNotInvalidate(t
 	}
 	if newApp.Status.AppState.State == v1beta2.ApplicationStateInvalidating {
 		t.Errorf("Update() moved application to %s for TimeToLiveSeconds-only change", v1beta2.ApplicationStateInvalidating)
+	}
+}
+
+func TestSparkApplicationEventFilter_Update_ResyncReadmitsDefaultTTLExpired(t *testing.T) {
+	scheme := runtime.NewScheme()
+	_ = corev1.AddToScheme(scheme)
+	_ = v1beta2.AddToScheme(scheme)
+
+	// A terminated app with no spec TTL, terminated well in the past.
+	newApp := func() *v1beta2.SparkApplication {
+		return &v1beta2.SparkApplication{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:            "test-app",
+				Namespace:       "default",
+				ResourceVersion: "1",
+			},
+			Spec: v1beta2.SparkApplicationSpec{
+				Type:         v1beta2.SparkApplicationTypeScala,
+				SparkVersion: "3.5.0",
+			},
+			Status: v1beta2.SparkApplicationStatus{
+				AppState: v1beta2.ApplicationState{
+					State: v1beta2.ApplicationStateCompleted,
+				},
+				TerminationTime: metav1.NewTime(time.Now().Add(-2 * time.Hour)),
+			},
+		}
+	}
+
+	tests := []struct {
+		name                     string
+		defaultTimeToLiveSeconds int64
+		expected                 bool
+	}{
+		{
+			// Without the operator default, a same-ResourceVersion resync of a
+			// terminated app with no spec TTL is dropped (unchanged legacy behavior).
+			name:                     "resync dropped when normalized operator default is disabled",
+			defaultTimeToLiveSeconds: 0,
+			expected:                 false,
+		},
+		{
+			// With a normalized operator default and the app past that TTL, the
+			// resync is re-admitted so the controller can delete it.
+			name:                     "resync re-admitted when expired via operator default",
+			defaultTimeToLiveSeconds: 3600,
+			expected:                 true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			app := newApp()
+			fakeClient := fake.NewClientBuilder().
+				WithScheme(scheme).
+				WithStatusSubresource(&v1beta2.SparkApplication{}).
+				WithObjects(app.DeepCopy()).
+				Build()
+			filter, err := NewSparkApplicationEventFilter(fakeClient, events.NewFakeRecorder(10), []string{"default"}, "", tt.defaultTimeToLiveSeconds)
+			if err != nil {
+				t.Fatalf("NewSparkApplicationEventFilter() unexpected error: %v", err)
+			}
+
+			// Same ResourceVersion on both sides simulates a no-op resync.
+			result := filter.Update(event.UpdateEvent{ObjectOld: app.DeepCopy(), ObjectNew: app.DeepCopy()})
+			if result != tt.expected {
+				t.Errorf("Update() = %v, expected %v", result, tt.expected)
+			}
+		})
 	}
 }
 
@@ -1185,7 +1255,7 @@ func TestSparkApplicationEventFilter_Delete(t *testing.T) {
 			}
 			fakeClient := builder.Build()
 
-			filter, err := NewSparkApplicationEventFilter(fakeClient, nil, tt.namespaces, tt.namespaceSelector)
+			filter, err := NewSparkApplicationEventFilter(fakeClient, nil, tt.namespaces, tt.namespaceSelector, 0)
 			if err != nil {
 				t.Fatalf("NewSparkApplicationEventFilter() unexpected error: %v", err)
 			}
@@ -1256,7 +1326,7 @@ func TestSparkApplicationEventFilter_Generic(t *testing.T) {
 			}
 			fakeClient := builder.Build()
 
-			filter, err := NewSparkApplicationEventFilter(fakeClient, nil, tt.namespaces, tt.namespaceSelector)
+			filter, err := NewSparkApplicationEventFilter(fakeClient, nil, tt.namespaces, tt.namespaceSelector, 0)
 			if err != nil {
 				t.Fatalf("NewSparkApplicationEventFilter() unexpected error: %v", err)
 			}
@@ -1339,7 +1409,7 @@ func TestSparkApplicationEventFilter_MultipleLabelsSelector(t *testing.T) {
 				WithObjects(ns).
 				Build()
 
-			filter, err := NewSparkApplicationEventFilter(fakeClient, nil, []string{}, tt.selector)
+			filter, err := NewSparkApplicationEventFilter(fakeClient, nil, []string{}, tt.selector, 0)
 			if err != nil {
 				t.Fatalf("NewSparkApplicationEventFilter() unexpected error: %v", err)
 			}
@@ -1367,7 +1437,7 @@ func TestSparkApplicationEventFilter_NamespaceAll(t *testing.T) {
 	fakeClient := fake.NewClientBuilder().WithScheme(scheme).Build()
 
 	// Empty namespaces list means watch all namespaces
-	filter, err := NewSparkApplicationEventFilter(fakeClient, nil, []string{}, "")
+	filter, err := NewSparkApplicationEventFilter(fakeClient, nil, []string{}, "", 0)
 	if err != nil {
 		t.Fatalf("NewSparkApplicationEventFilter() unexpected error: %v", err)
 	}

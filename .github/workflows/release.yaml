@@ -27,7 +27,7 @@ jobs:
 
     steps:
       - name: Checkout source code
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
           persist-credentials: false
@@ -93,9 +93,10 @@ jobs:
         run: |
           platform=${{ matrix.platform }}
           echo "PLATFORM_PAIR=${platform//\//-}" >> $GITHUB_ENV
+          echo "ARCH=${platform#linux/}" >> $GITHUB_ENV
 
       - name: Checkout source code
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
@@ -103,6 +104,16 @@ jobs:
         run: |
           VERSION=$(cat VERSION)
           echo "VERSION=${VERSION}" >> $GITHUB_ENV
+
+      - name: Collect build metadata
+        run: |
+          set -euo pipefail
+          {
+            echo "BUILD_VERSION=${VERSION#v}"
+            echo "GIT_COMMIT=$(git rev-parse HEAD)"
+            echo "GIT_TREE_STATE=$([ -z "$(git status --porcelain)" ] && echo clean || echo dirty)"
+            echo "SOURCE_DATE_EPOCH=$(git log -1 --format=%ct)"
+          } >> "$GITHUB_ENV"
 
       - name: Docker meta
         id: meta
@@ -131,7 +142,57 @@ jobs:
         with:
           platforms: ${{ matrix.platform }}
           labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            VERSION=${{ env.BUILD_VERSION }}
+            GIT_COMMIT=${{ env.GIT_COMMIT }}
+            GIT_TREE_STATE=${{ env.GIT_TREE_STATE }}
+            SOURCE_DATE_EPOCH=${{ env.SOURCE_DATE_EPOCH }}
           outputs: type=image,name=${{ env.IMAGE_REGISTRY }}/${{ env.OPERATOR_IMAGE_REPOSITORY }},push-by-digest=true,name-canonical=true,push=true
+
+      - name: Export operator binary
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+        with:
+          platforms: ${{ matrix.platform }}
+          target: artifacts
+          build-args: |
+            VERSION=${{ env.BUILD_VERSION }}
+            GIT_COMMIT=${{ env.GIT_COMMIT }}
+            GIT_TREE_STATE=${{ env.GIT_TREE_STATE }}
+            SOURCE_DATE_EPOCH=${{ env.SOURCE_DATE_EPOCH }}
+          outputs: type=local,dest=${{ runner.temp }}/binary
+
+      - name: Verify exported binary matches image
+        run: |
+          set -euo pipefail
+          image="${IMAGE_REGISTRY}/${OPERATOR_IMAGE_REPOSITORY}@${DIGEST}"
+          cid=$(docker create --platform "${{ matrix.platform }}" "${image}")
+          docker cp "${cid}:/usr/bin/spark-operator" "${RUNNER_TEMP}/from-image"
+          docker rm "${cid}"
+          exported=$(sha256sum "${RUNNER_TEMP}/binary/spark-operator" | cut -d' ' -f1)
+          from_image=$(sha256sum "${RUNNER_TEMP}/from-image" | cut -d' ' -f1)
+          echo "exported:   ${exported}"
+          echo "from image: ${from_image}"
+          [ "${exported}" = "${from_image}" ]
+        env:
+          DIGEST: ${{ steps.build.outputs.digest }}
+
+      - name: Package operator binary
+        run: |
+          set -euo pipefail
+          stage="${RUNNER_TEMP}/stage"
+          mkdir -p "${stage}" "${RUNNER_TEMP}/dist"
+          cp "${RUNNER_TEMP}/binary/spark-operator" "${stage}/"
+          cp LICENSE entrypoint.sh "${stage}/"
+          tar -czf "${RUNNER_TEMP}/dist/spark-operator_${VERSION}_linux_${ARCH}.tar.gz" \
+            -C "${stage}" spark-operator LICENSE entrypoint.sh
+
+      - name: Upload operator binary archive
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        with:
+          name: binaries-operator-${{ env.PLATFORM_PAIR }}
+          path: ${{ runner.temp }}/dist/*.tar.gz
+          if-no-files-found: error
+          retention-days: 1
 
       - name: Export digest
         run: |
@@ -173,7 +234,7 @@ jobs:
           echo "PLATFORM_PAIR=${platform//\//-}" >> $GITHUB_ENV
 
       - name: Checkout source code
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
@@ -242,7 +303,7 @@ jobs:
 
     steps:
       - name: Checkout source code
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
@@ -300,7 +361,7 @@ jobs:
 
     steps:
       - name: Checkout source code
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
@@ -358,7 +419,7 @@ jobs:
 
     steps:
       - name: Checkout source code
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2 # zizmor: ignore[artipacked]
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6.0.2 # zizmor: ignore[artipacked]
         with:
           fetch-depth: 0
 
@@ -388,7 +449,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
@@ -401,6 +462,41 @@ jobs:
         run: |
           VERSION=$(cat VERSION)
           echo "VERSION=${VERSION}" >> $GITHUB_ENV
+
+      - name: Download operator binary archives
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        with:
+          path: ${{ runner.temp }}/dist
+          pattern: binaries-operator-*
+          merge-multiple: true
+
+      - name: Generate checksums
+        run: |
+          set -euo pipefail
+          cd "${RUNNER_TEMP}/dist"
+          sha256sum spark-operator_*.tar.gz > SHA256SUMS
+          cat SHA256SUMS
+
+      - name: Verify binaries
+        run: |
+          set -euo pipefail
+          (cd "${RUNNER_TEMP}/dist" && sha256sum --check SHA256SUMS)
+
+          verify="${RUNNER_TEMP}/verify"
+          mkdir -p "${verify}"
+
+          tar -xzf "${RUNNER_TEMP}/dist/spark-operator_${VERSION}_linux_amd64.tar.gz" \
+            -C "${verify}" spark-operator
+          "${verify}/spark-operator" version
+          "${verify}/spark-operator" version | grep -qF "Git Version: ${VERSION}"
+          "${verify}/spark-operator" version | grep -qF "Git Tree State: clean"
+          "${verify}/spark-operator" --help > /dev/null
+
+          rm -f "${verify}/spark-operator"
+          tar -xzf "${RUNNER_TEMP}/dist/spark-operator_${VERSION}_linux_arm64.tar.gz" \
+            -C "${verify}" spark-operator
+          file "${verify}/spark-operator" | grep -q "ARM aarch64"
+          file "${verify}/spark-operator" | grep -q "statically linked"
 
       - name: Get Helm version
         id: get_helm_version
@@ -432,4 +528,7 @@ jobs:
           if [[ "$VERSION" == *rc* ]]; then
             args+=(--prerelease)
           fi
-          gh release create "${args[@]}" *.tgz
+          gh release create "${args[@]}" \
+            *.tgz \
+            "${RUNNER_TEMP}"/dist/spark-operator_*.tar.gz \
+            "${RUNNER_TEMP}/dist/SHA256SUMS"

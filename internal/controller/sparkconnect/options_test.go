@@ -18,12 +18,14 @@ package sparkconnect
 
 import (
 	"bytes"
+	"fmt"
 	"os/exec"
 	"strings"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/kubeflow/spark-operator/v2/api/v1alpha1"
@@ -58,6 +60,33 @@ var _ = Describe("Options functions", func() {
 				SatisfyAll(
 					ContainSubstring(common.SparkKubernetesExecutorContainerImage+"="+image),
 				),
+			))
+		})
+
+		It("uses the first template container when the default executor container is absent", func() {
+			image := "apache/spark:3.5.0"
+			conn := &v1alpha1.SparkConnect{
+				Spec: v1alpha1.SparkConnectSpec{
+					Executor: v1alpha1.ExecutorSpec{
+						SparkPodSpec: v1alpha1.SparkPodSpec{
+							Template: &corev1.PodTemplateSpec{
+								Spec: corev1.PodSpec{
+									Containers: []corev1.Container{{
+										Name:  "executor",
+										Image: image,
+									}},
+								},
+							},
+						},
+					},
+				},
+			}
+
+			args, err := imageOption(conn)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(args).To(ContainElements(
+				fmt.Sprintf("%s=%s", common.SparkKubernetesContainerImage, image),
+				fmt.Sprintf("%s=%s", common.SparkKubernetesExecutorContainerImage, image),
 			))
 		})
 	})
