@@ -42,6 +42,8 @@ IMAGE ?= $(IMAGE_REGISTRY)/$(IMAGE_REPOSITORY):$(IMAGE_TAG)
 
 # Deployment method for e2e tests (helm or kustomize)
 DEPLOY_METHOD ?= helm
+# Additional arguments passed to go test for the e2e suite.
+E2E_TEST_ARGS ?=
 
 # Kind cluster
 KIND_CLUSTER_NAME ?= spark-operator
@@ -203,7 +205,7 @@ unit-test: setup-envtest ## Run unit tests.
 e2e-test: IMAGE_TAG=local
 e2e-test: envtest kind-load-image kind-load-spark-image ## Run the e2e tests against a Kind k8s instance that is spun up.
 	@echo "Running e2e tests (deploy_method=$(DEPLOY_METHOD))..."
-	cd test/e2e && DEPLOY_METHOD=$(DEPLOY_METHOD) IMAGE_TAG=$(IMAGE_TAG) KUBECONFIG=$(KIND_KUBE_CONFIG) go test ./... -v -ginkgo.v -timeout 30m
+	cd test/e2e && DEPLOY_METHOD=$(DEPLOY_METHOD) IMAGE_TAG=$(IMAGE_TAG) KUBECONFIG=$(KIND_KUBE_CONFIG) go test ./... -v -ginkgo.v -timeout 30m $(E2E_TEST_ARGS)
 
 ##@ Kustomize
 
@@ -345,7 +347,16 @@ SPARK_IMAGE ?= docker.io/apache/spark:4.0.4@sha256:7112c0c0ca07b7d2605163ba91a05
 .PHONY: kind-load-spark-image
 kind-load-spark-image: kind-create-cluster ## Pull the Spark runtime image and load it into the kind cluster.
 	docker image inspect $(SPARK_IMAGE) >/dev/null 2>&1 || docker pull $(SPARK_IMAGE)
-	$(KIND) load docker-image --name $(KIND_CLUSTER_NAME) $(SPARK_IMAGE)
+	if ! $(KIND) load docker-image --name $(KIND_CLUSTER_NAME) $(SPARK_IMAGE); then \
+		echo "kind load failed, falling back to per-node ctr import..."; \
+		spark_runtime_image="$(SPARK_IMAGE)"; \
+		spark_runtime_image=$${spark_runtime_image%@*}; \
+		docker tag "$(SPARK_IMAGE)" "$$spark_runtime_image" || exit 1; \
+		for node in $$($(KIND) get nodes --name $(KIND_CLUSTER_NAME)); do \
+			echo "Importing $$spark_runtime_image to $$node"; \
+			docker save "$$spark_runtime_image" | docker exec --privileged -i "$$node" ctr --namespace=k8s.io images import --digests - || exit 1; \
+		done; \
+	fi
 
 .PHONY: kind-delete-cluster
 kind-delete-cluster: kind ## Delete the created kind cluster.
