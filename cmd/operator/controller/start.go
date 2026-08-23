@@ -229,7 +229,7 @@ func NewStartCommand() *cobra.Command {
 	command.Flags().DurationVar(&workqueueRateLimiterMaxDelay, "workqueue-ratelimiter-max-delay", rate.InfDuration, "The maximum delay of the workqueue.")
 
 	command.Flags().BoolVar(&enableBatchScheduler, "enable-batch-scheduler", false, "Enable batch schedulers.")
-	command.Flags().BoolVar(&enableWorkloadScheduler, "enable-workload-scheduler", false, "Enable the native Kubernetes Workload/PodGroup (scheduling.k8s.io/v1alpha2) batch scheduler backend. Requires Kubernetes v1.36+ with GenericWorkload enabled on kube-apiserver and kube-scheduler, GangScheduling enabled on kube-scheduler, and scheduling.k8s.io/v1alpha2 API enabled.")
+	command.Flags().BoolVar(&enableWorkloadScheduler, "enable-workload-scheduler", false, "Enable the native Kubernetes Workload/PodGroup (scheduling.k8s.io/v1alpha2) batch scheduler backend. Requires Kubernetes v1.36+ serving scheduling.k8s.io/v1alpha2, GenericWorkload on kube-apiserver, kube-scheduler, and kube-controller-manager, and GangScheduling on kube-scheduler. WorkloadAwarePreemption is also required on kube-apiserver and kube-scheduler when priorityClassName is used.")
 	command.Flags().StringSliceVar(&kubeSchedulerNames, "kube-scheduler-names", []string{}, "The kube-scheduler names for scheduling Spark applications.")
 	command.Flags().StringVar(&defaultBatchScheduler, "default-batch-scheduler", "", "Default batch scheduler.")
 

@@ -216,7 +216,7 @@ func TestSchedule_MinMemberOverride(t *testing.T) {
 
 	app := newTestApp("test-app", "default", v1beta2.DeployModeCluster)
 	app.Spec.BatchSchedulerOptions = &v1beta2.BatchSchedulerConfiguration{
-		MinMember: ptr.To(int32(10)),
+		MinMember: ptr.To(int32(2)),
 	}
 
 	err := s.Schedule(app)
@@ -234,8 +234,68 @@ func TestSchedule_MinMemberOverride(t *testing.T) {
 		t.Fatalf("PodGroup not created: %v", err)
 	}
 
-	if podGroup.Spec.SchedulingPolicy.Gang.MinCount != 10 {
-		t.Errorf("PodGroup minCount = %d, want 10", podGroup.Spec.SchedulingPolicy.Gang.MinCount)
+	if podGroup.Spec.SchedulingPolicy.Gang.MinCount != 2 {
+		t.Errorf("PodGroup minCount = %d, want 2", podGroup.Spec.SchedulingPolicy.Gang.MinCount)
+	}
+}
+
+func TestSchedule_RejectsInvalidGangSize(t *testing.T) {
+	tests := []struct {
+		name      string
+		minMember int32
+		wantError string
+	}{
+		{name: "zero", minMember: 0, wantError: "greater than or equal to 1"},
+		{name: "above initial executors", minMember: 4, wantError: "must not exceed the initial executor count (3)"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			fakeClient := newFakeClient()
+			s := &Scheduler{client: fakeClient}
+			app := newTestApp("test-app", "default", v1beta2.DeployModeCluster)
+			app.Spec.BatchSchedulerOptions = &v1beta2.BatchSchedulerConfiguration{
+				MinMember: ptr.To(tt.minMember),
+			}
+
+			err := s.Schedule(app)
+			if err == nil || !strings.Contains(err.Error(), tt.wantError) {
+				t.Fatalf("Schedule() error = %v, want error containing %q", err, tt.wantError)
+			}
+		})
+	}
+}
+
+func TestSchedule_RequiresSubmissionID(t *testing.T) {
+	s := &Scheduler{client: newFakeClient()}
+	app := newTestApp("test-app", "default", v1beta2.DeployModeCluster)
+	app.Status.SubmissionID = ""
+
+	err := s.Schedule(app)
+	if err == nil || !strings.Contains(err.Error(), "submission ID must be set") {
+		t.Fatalf("Schedule() error = %v, want missing submission ID error", err)
+	}
+}
+
+func TestSchedule_DefaultsGangSizeToOne(t *testing.T) {
+	fakeClient := newFakeClient()
+	s := &Scheduler{client: fakeClient}
+	app := newTestApp("test-app", "default", v1beta2.DeployModeCluster)
+	app.Spec.Executor.Instances = nil
+	app.Spec.DynamicAllocation = &v1beta2.DynamicAllocation{Enabled: true}
+
+	if err := s.Schedule(app); err != nil {
+		t.Fatalf("Schedule() failed: %v", err)
+	}
+
+	podGroup := &schedulingv1alpha2.PodGroup{}
+	if err := fakeClient.Get(context.TODO(), types.NamespacedName{
+		Name: "test-app-test-submission-1", Namespace: "default",
+	}, podGroup); err != nil {
+		t.Fatalf("PodGroup not created: %v", err)
+	}
+	if podGroup.Spec.SchedulingPolicy.Gang.MinCount != 1 {
+		t.Fatalf("PodGroup minCount = %d, want 1", podGroup.Spec.SchedulingPolicy.Gang.MinCount)
 	}
 }
 
@@ -308,6 +368,82 @@ func TestSchedule_Idempotent(t *testing.T) {
 	}
 	if len(podGroups.Items) != 1 {
 		t.Errorf("Expected 1 PodGroup, got %d", len(podGroups.Items))
+	}
+}
+
+func TestSchedule_RejectsExistingWorkloadFromAnotherApplication(t *testing.T) {
+	fakeClient := newFakeClient()
+	s := &Scheduler{client: fakeClient}
+	app := newTestApp("test-app", "default", v1beta2.DeployModeCluster)
+
+	foreignApp := app.DeepCopy()
+	foreignApp.UID = types.UID("other-uid")
+	foreignWorkload := buildWorkload(foreignApp, 3)
+	if err := fakeClient.Create(context.TODO(), foreignWorkload); err != nil {
+		t.Fatalf("failed to create foreign Workload: %v", err)
+	}
+
+	err := s.Schedule(app)
+	if err == nil || !strings.Contains(err.Error(), "is not controlled by SparkApplication") {
+		t.Fatalf("Schedule() error = %v, want ownership error", err)
+	}
+}
+
+func TestSchedule_RejectsExistingWorkloadWithDifferentPolicy(t *testing.T) {
+	fakeClient := newFakeClient()
+	s := &Scheduler{client: fakeClient}
+	app := newTestApp("test-app", "default", v1beta2.DeployModeCluster)
+
+	workload := buildWorkload(app, 2)
+	if err := fakeClient.Create(context.TODO(), workload); err != nil {
+		t.Fatalf("failed to create Workload: %v", err)
+	}
+
+	err := s.Schedule(app)
+	if err == nil || !strings.Contains(err.Error(), "immutable spec") {
+		t.Fatalf("Schedule() error = %v, want immutable spec error", err)
+	}
+}
+
+func TestSchedule_RejectsExistingPodGroupFromAnotherApplication(t *testing.T) {
+	fakeClient := newFakeClient()
+	s := &Scheduler{client: fakeClient}
+	app := newTestApp("test-app", "default", v1beta2.DeployModeCluster)
+
+	workload := buildWorkload(app, 3)
+	if err := fakeClient.Create(context.TODO(), workload); err != nil {
+		t.Fatalf("failed to create Workload: %v", err)
+	}
+	foreignApp := app.DeepCopy()
+	foreignApp.UID = types.UID("other-uid")
+	foreignPodGroup := buildPodGroup(foreignApp, workload.Name, 3)
+	if err := fakeClient.Create(context.TODO(), foreignPodGroup); err != nil {
+		t.Fatalf("failed to create foreign PodGroup: %v", err)
+	}
+
+	err := s.Schedule(app)
+	if err == nil || !strings.Contains(err.Error(), "is not controlled by SparkApplication") {
+		t.Fatalf("Schedule() error = %v, want ownership error", err)
+	}
+}
+
+func TestSchedule_RejectsExistingPodGroupWithDifferentPolicy(t *testing.T) {
+	fakeClient := newFakeClient()
+	s := &Scheduler{client: fakeClient}
+	app := newTestApp("test-app", "default", v1beta2.DeployModeCluster)
+
+	workload := buildWorkload(app, 3)
+	if err := fakeClient.Create(context.TODO(), workload); err != nil {
+		t.Fatalf("failed to create Workload: %v", err)
+	}
+	podGroup := buildPodGroup(app, workload.Name, 2)
+	if err := fakeClient.Create(context.TODO(), podGroup); err != nil {
+		t.Fatalf("failed to create PodGroup: %v", err)
+	}
+
+	err := s.Schedule(app)
+	if err == nil || !strings.Contains(err.Error(), "immutable spec") {
+		t.Fatalf("Schedule() error = %v, want immutable spec error", err)
 	}
 }
 
@@ -474,9 +610,43 @@ func TestCleanup_ToleratesNotFound(t *testing.T) {
 	}
 }
 
+func TestCleanup_RefusesForeignPodGroup(t *testing.T) {
+	fakeClient := newFakeClient()
+	s := &Scheduler{client: fakeClient}
+	app := newTestApp("test-app", "default", v1beta2.DeployModeCluster)
+	foreignApp := app.DeepCopy()
+	foreignApp.UID = types.UID("other-uid")
+	podGroup := buildPodGroup(foreignApp, getWorkloadName(foreignApp), 3)
+	if err := fakeClient.Create(context.TODO(), podGroup); err != nil {
+		t.Fatalf("failed to create foreign PodGroup: %v", err)
+	}
+
+	err := s.Cleanup(app)
+	if err == nil || !strings.Contains(err.Error(), "refusing to delete") {
+		t.Fatalf("Cleanup() error = %v, want ownership error", err)
+	}
+
+	if err := fakeClient.Get(context.TODO(), client.ObjectKeyFromObject(podGroup), &schedulingv1alpha2.PodGroup{}); err != nil {
+		t.Fatalf("foreign PodGroup should not be deleted: %v", err)
+	}
+}
+
+func TestCleanup_EmptySubmissionIDIsNoOp(t *testing.T) {
+	s := &Scheduler{client: newFakeClient()}
+	app := newTestApp("test-app", "default", v1beta2.DeployModeCluster)
+	app.Status.SubmissionID = ""
+
+	if err := s.Cleanup(app); err != nil {
+		t.Fatalf("Cleanup() failed: %v", err)
+	}
+}
+
 func TestCalculateMinCount_ClusterMode(t *testing.T) {
 	app := newTestApp("test", "default", v1beta2.DeployModeCluster)
-	minCount := calculateMinCount(app)
+	minCount, err := calculateMinCount(app)
+	if err != nil {
+		t.Fatalf("calculateMinCount() failed: %v", err)
+	}
 
 	// Expected: 3 executors (driver not included in PodGroup)
 	if minCount != 3 {
@@ -486,7 +656,10 @@ func TestCalculateMinCount_ClusterMode(t *testing.T) {
 
 func TestCalculateMinCount_ClientMode(t *testing.T) {
 	app := newTestApp("test", "default", v1beta2.DeployModeClient)
-	minCount := calculateMinCount(app)
+	minCount, err := calculateMinCount(app)
+	if err != nil {
+		t.Fatalf("calculateMinCount() failed: %v", err)
+	}
 
 	// Expected: 3 executors (no driver)
 	if minCount != 3 {

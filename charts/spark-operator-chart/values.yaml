@@ -188,8 +188,10 @@ controller:
     workload:
       # -- Specifies whether to enable the native Kubernetes Workload/PodGroup
       # ("workload") batch scheduler backend. Requires Kubernetes v1.36+ with
-      # GenericWorkload enabled on kube-apiserver and kube-scheduler,
-      # GangScheduling enabled on kube-scheduler, and scheduling.k8s.io/v1alpha2 API enabled.
+      # scheduling.k8s.io/v1alpha2 served, GenericWorkload enabled on kube-apiserver,
+      # kube-scheduler, and kube-controller-manager, and GangScheduling enabled on
+      # kube-scheduler. When priorityClassName is used, WorkloadAwarePreemption must
+      # also be enabled on kube-apiserver and kube-scheduler.
       # When enabled, also grants the controller RBAC permissions on
       # scheduling.k8s.io workloads and podgroups.
       enable: false

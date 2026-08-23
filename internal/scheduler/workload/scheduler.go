@@ -21,6 +21,7 @@ import (
 	"fmt"
 
 	schedulingv1alpha2 "k8s.io/api/scheduling/v1alpha2"
+	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -122,16 +123,24 @@ func (s *Scheduler) ShouldSchedule(_ *v1beta2.SparkApplication) bool {
 // It creates Workload and PodGroup objects, and stamps the pod templates with schedulingGroup references.
 func (s *Scheduler) Schedule(app *v1beta2.SparkApplication) error {
 	ctx := context.TODO()
+	if app.Status.SubmissionID == "" {
+		return fmt.Errorf("workload scheduler: submission ID must be set before scheduling")
+	}
 
-	// 1. Create or update Workload
-	workloadName := getWorkloadName(app)
-	if err := s.syncWorkload(ctx, app); err != nil {
+	minCount, err := calculateMinCount(app)
+	if err != nil {
+		return err
+	}
+
+	// 1. Create the immutable Workload policy template.
+	workload := buildWorkload(app, minCount)
+	if err := s.syncWorkload(ctx, app, workload); err != nil {
 		return fmt.Errorf("failed to sync Workload: %w", err)
 	}
 
-	// 2. Create or update PodGroup
-	podGroupName := getPodGroupName(app)
-	if err := s.syncPodGroup(ctx, app); err != nil {
+	// 2. Create the immutable per-submission PodGroup.
+	podGroup := buildPodGroup(app, workload.Name, minCount)
+	if err := s.syncPodGroup(ctx, app, podGroup); err != nil {
 		return fmt.Errorf("failed to sync PodGroup: %w", err)
 	}
 
@@ -139,7 +148,7 @@ func (s *Scheduler) Schedule(app *v1beta2.SparkApplication) error {
 	// The cluster-mode driver must schedule independently because it creates the executor pods.
 	// Adding it to the executor PodGroup would deadlock while waiting for executors that do not yet exist.
 	schedulingGroup := &v1beta2.PodSchedulingGroup{
-		PodGroupName: podGroupName,
+		PodGroupName: podGroup.Name,
 	}
 
 	app.Spec.Executor.SchedulingGroup = schedulingGroup
@@ -147,8 +156,8 @@ func (s *Scheduler) Schedule(app *v1beta2.SparkApplication) error {
 		"app", app.Name,
 		"namespace", app.Namespace,
 		"mode", app.Spec.Mode,
-		"podGroup", podGroupName,
-		"workload", workloadName,
+		"podGroup", podGroup.Name,
+		"workload", workload.Name,
 	)
 
 	return nil
@@ -158,6 +167,10 @@ func (s *Scheduler) Schedule(app *v1beta2.SparkApplication) error {
 // It deletes only the PodGroup (per-submission runtime unit).
 // The Workload (policy template) is retained and garbage-collected via ownerReference.
 func (s *Scheduler) Cleanup(app *v1beta2.SparkApplication) error {
+	if app.Status.SubmissionID == "" {
+		return nil
+	}
+
 	ctx := context.TODO()
 	podGroupName := getPodGroupName(app)
 	namespace := app.Namespace
@@ -171,6 +184,10 @@ func (s *Scheduler) Cleanup(app *v1beta2.SparkApplication) error {
 		}
 		return fmt.Errorf("failed to get PodGroup %s/%s: %w", namespace, podGroupName, err)
 	}
+	if !metav1.IsControlledBy(pg, app) {
+		return fmt.Errorf("refusing to delete PodGroup %s/%s because it is not controlled by SparkApplication %s (UID %s)",
+			namespace, podGroupName, app.Name, app.UID)
+	}
 
 	if err := s.client.Delete(ctx, pg); err != nil && !apierrors.IsNotFound(err) {
 		return fmt.Errorf("failed to delete PodGroup %s/%s: %w", namespace, podGroupName, err)
@@ -182,16 +199,24 @@ func (s *Scheduler) Cleanup(app *v1beta2.SparkApplication) error {
 
 // syncWorkload creates the Workload object if it doesn't exist.
 // Workloads are immutable after creation, so updates are not performed.
-func (s *Scheduler) syncWorkload(ctx context.Context, app *v1beta2.SparkApplication) error {
-	workloadName := getWorkloadName(app)
-	namespace := app.Namespace
-
+func (s *Scheduler) syncWorkload(
+	ctx context.Context,
+	app *v1beta2.SparkApplication,
+	desired *schedulingv1alpha2.Workload,
+) error {
 	// Check if Workload already exists
 	existing := &schedulingv1alpha2.Workload{}
-	err := s.client.Get(ctx, types.NamespacedName{Namespace: namespace, Name: workloadName}, existing)
+	err := s.client.Get(ctx, client.ObjectKeyFromObject(desired), existing)
 	if err == nil {
-		// Workload exists - it's immutable, so we don't update it
-		logger.V(1).Info("Workload already exists", "name", workloadName, "namespace", namespace)
+		if !metav1.IsControlledBy(existing, app) {
+			return fmt.Errorf("workload %s/%s is not controlled by SparkApplication %s (UID %s)",
+				desired.Namespace, desired.Name, app.Name, app.UID)
+		}
+		if !apiequality.Semantic.DeepDerivative(desired.Spec, existing.Spec) {
+			return fmt.Errorf("workload %s/%s has an immutable spec that differs from the requested scheduling policy",
+				desired.Namespace, desired.Name)
+		}
+		logger.V(1).Info("Workload already exists", "name", desired.Name, "namespace", desired.Namespace)
 		return nil
 	}
 
@@ -200,27 +225,33 @@ func (s *Scheduler) syncWorkload(ctx context.Context, app *v1beta2.SparkApplicat
 	}
 
 	// Create new Workload
-	workload := buildWorkload(app)
-	if err := s.client.Create(ctx, workload); err != nil {
+	if err := s.client.Create(ctx, desired); err != nil {
 		return fmt.Errorf("failed to create Workload: %w", err)
 	}
 
-	logger.Info("Created Workload", "name", workloadName, "namespace", namespace)
+	logger.Info("Created Workload", "name", desired.Name, "namespace", desired.Namespace)
 	return nil
 }
 
 // syncPodGroup creates the PodGroup object if it doesn't exist.
-func (s *Scheduler) syncPodGroup(ctx context.Context, app *v1beta2.SparkApplication) error {
-	podGroupName := getPodGroupName(app)
-	workloadName := getWorkloadName(app)
-	namespace := app.Namespace
-
+func (s *Scheduler) syncPodGroup(
+	ctx context.Context,
+	app *v1beta2.SparkApplication,
+	desired *schedulingv1alpha2.PodGroup,
+) error {
 	// Check if PodGroup already exists
 	existing := &schedulingv1alpha2.PodGroup{}
-	err := s.client.Get(ctx, types.NamespacedName{Namespace: namespace, Name: podGroupName}, existing)
+	err := s.client.Get(ctx, client.ObjectKeyFromObject(desired), existing)
 	if err == nil {
-		// PodGroup exists - most fields are immutable
-		logger.V(1).Info("PodGroup already exists", "name", podGroupName, "namespace", namespace)
+		if !metav1.IsControlledBy(existing, app) {
+			return fmt.Errorf("pod group %s/%s is not controlled by SparkApplication %s (UID %s)",
+				desired.Namespace, desired.Name, app.Name, app.UID)
+		}
+		if !apiequality.Semantic.DeepDerivative(desired.Spec, existing.Spec) {
+			return fmt.Errorf("pod group %s/%s has an immutable spec that differs from the requested scheduling policy",
+				desired.Namespace, desired.Name)
+		}
+		logger.V(1).Info("PodGroup already exists", "name", desired.Name, "namespace", desired.Namespace)
 		return nil
 	}
 
@@ -229,19 +260,17 @@ func (s *Scheduler) syncPodGroup(ctx context.Context, app *v1beta2.SparkApplicat
 	}
 
 	// Create new PodGroup
-	podGroup := buildPodGroup(app, workloadName)
-	if err := s.client.Create(ctx, podGroup); err != nil {
+	if err := s.client.Create(ctx, desired); err != nil {
 		return fmt.Errorf("failed to create PodGroup: %w", err)
 	}
 
-	logger.Info("Created PodGroup", "name", podGroupName, "namespace", namespace)
+	logger.Info("Created PodGroup", "name", desired.Name, "namespace", desired.Namespace)
 	return nil
 }
 
 // buildWorkload constructs a Workload object from a SparkApplication.
-func buildWorkload(app *v1beta2.SparkApplication) *schedulingv1alpha2.Workload {
+func buildWorkload(app *v1beta2.SparkApplication, minCount int32) *schedulingv1alpha2.Workload {
 	workloadName := getWorkloadName(app)
-	minCount := calculateMinCount(app)
 
 	podGroupTemplate := schedulingv1alpha2.PodGroupTemplate{
 		Name: podGroupTemplateName,
@@ -281,9 +310,8 @@ func buildWorkload(app *v1beta2.SparkApplication) *schedulingv1alpha2.Workload {
 }
 
 // buildPodGroup constructs a PodGroup object from a SparkApplication.
-func buildPodGroup(app *v1beta2.SparkApplication, workloadName string) *schedulingv1alpha2.PodGroup {
+func buildPodGroup(app *v1beta2.SparkApplication, workloadName string, minCount int32) *schedulingv1alpha2.PodGroup {
 	podGroupName := getPodGroupName(app)
-	minCount := calculateMinCount(app)
 
 	podGroup := &schedulingv1alpha2.PodGroup{
 		ObjectMeta: metav1.ObjectMeta{
@@ -318,15 +346,24 @@ func buildPodGroup(app *v1beta2.SparkApplication, workloadName string) *scheduli
 
 // calculateMinCount determines the minimum number of pods for gang scheduling.
 // Uses util.GetInitialExecutorNumber for DRA-aware sizing.
-func calculateMinCount(app *v1beta2.SparkApplication) int32 {
-	// Check for explicit MinMember override
+func calculateMinCount(app *v1beta2.SparkApplication) (int32, error) {
+	initialExecutors := max(int32(1), util.GetInitialExecutorNumber(app))
+
 	if app.Spec.BatchSchedulerOptions != nil && app.Spec.BatchSchedulerOptions.MinMember != nil {
-		return *app.Spec.BatchSchedulerOptions.MinMember
+		minMember := *app.Spec.BatchSchedulerOptions.MinMember
+		if minMember < 1 {
+			return 0, fmt.Errorf("workload scheduler: minMember must be greater than or equal to 1")
+		}
+		if minMember > initialExecutors {
+			return 0, fmt.Errorf("workload scheduler: minMember (%d) must not exceed the initial executor count (%d)",
+				minMember, initialExecutors)
+		}
+		return minMember, nil
 	}
 
 	// Only executors participate in gang scheduling.
 	// The cluster-mode driver schedules independently to avoid bootstrap deadlock.
-	return util.GetInitialExecutorNumber(app)
+	return initialExecutors, nil
 }
 
 // getWorkloadName returns the Workload name for a SparkApplication.

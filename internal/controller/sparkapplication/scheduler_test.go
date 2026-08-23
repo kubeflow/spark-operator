@@ -18,12 +18,14 @@ package sparkapplication
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/events"
 	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -122,9 +124,116 @@ func TestShouldDoBatchScheduling(t *testing.T) {
 	})
 }
 
+func TestSubmitSparkApplicationUsesEphemeralSchedulingCopy(t *testing.T) {
+	ctx := context.Background()
+	testRegistry := scheduler.NewRegistry()
+	var cleanedSubmissionID string
+	var scheduledSubmissionID string
+	mock := &mockScheduler{
+		name: workload.SchedulerName,
+		cleanupFunc: func(app *v1beta2.SparkApplication) error {
+			cleanedSubmissionID = app.Status.SubmissionID
+			return nil
+		},
+		scheduleFunc: func(app *v1beta2.SparkApplication) error {
+			scheduledSubmissionID = app.Status.SubmissionID
+			app.Spec.Executor.SchedulingGroup = &v1beta2.PodSchedulingGroup{
+				PodGroupName: "test-pod-group",
+			}
+			return nil
+		},
+	}
+	require.NoError(t, testRegistry.Register(workload.SchedulerName, func(scheduler.Config) (scheduler.Interface, error) {
+		return mock, nil
+	}))
+
+	submitter := &capturingSubmitter{}
+	reconciler := &Reconciler{
+		manager:   &fakeManager{},
+		recorder:  events.NewFakeRecorder(10),
+		registry:  testRegistry,
+		submitter: submitter,
+	}
+	app := &v1beta2.SparkApplication{
+		ObjectMeta: metav1.ObjectMeta{Name: "test-app", Namespace: "default"},
+		Spec: v1beta2.SparkApplicationSpec{
+			BatchScheduler: ptr.To(workload.SchedulerName),
+		},
+		Status: v1beta2.SparkApplicationStatus{SubmissionID: "previous-submission"},
+	}
+
+	reconciler.submitSparkApplication(ctx, app)
+
+	require.NotNil(t, submitter.app)
+	assert.Equal(t, "previous-submission", cleanedSubmissionID)
+	assert.NotEmpty(t, scheduledSubmissionID)
+	assert.NotEqual(t, cleanedSubmissionID, scheduledSubmissionID)
+	assert.Equal(t, scheduledSubmissionID, app.Status.SubmissionID)
+	assert.Nil(t, app.Spec.Executor.SchedulingGroup,
+		"operator-managed schedulingGroup must not be persisted to the reconciled object")
+	require.NotNil(t, submitter.app.Spec.Executor.SchedulingGroup)
+	assert.Equal(t, "test-pod-group", submitter.app.Spec.Executor.SchedulingGroup.PodGroupName)
+	assert.Equal(t, v1beta2.ApplicationStateSubmitted, app.Status.AppState.State)
+}
+
+func TestSubmitSparkApplicationStopsWhenPreviousPodGroupCleanupFails(t *testing.T) {
+	testRegistry := scheduler.NewRegistry()
+	mock := &mockScheduler{
+		name: workload.SchedulerName,
+		cleanupFunc: func(*v1beta2.SparkApplication) error {
+			return errors.New("cleanup failed")
+		},
+	}
+	require.NoError(t, testRegistry.Register(workload.SchedulerName, func(scheduler.Config) (scheduler.Interface, error) {
+		return mock, nil
+	}))
+
+	submitter := &capturingSubmitter{}
+	reconciler := &Reconciler{
+		manager:   &fakeManager{},
+		recorder:  events.NewFakeRecorder(10),
+		registry:  testRegistry,
+		submitter: submitter,
+	}
+	app := &v1beta2.SparkApplication{
+		ObjectMeta: metav1.ObjectMeta{Name: "test-app", Namespace: "default"},
+		Spec: v1beta2.SparkApplicationSpec{
+			BatchScheduler: ptr.To(workload.SchedulerName),
+		},
+		Status: v1beta2.SparkApplicationStatus{SubmissionID: "previous-submission"},
+	}
+
+	reconciler.submitSparkApplication(context.Background(), app)
+
+	assert.Nil(t, submitter.app)
+	assert.Equal(t, "previous-submission", app.Status.SubmissionID)
+	assert.Equal(t, v1beta2.ApplicationStateFailedSubmission, app.Status.AppState.State)
+	assert.Contains(t, app.Status.AppState.ErrorMessage, "cleanup failed")
+}
+
+func TestCleanUpOnTerminationPropagatesSchedulerSetupError(t *testing.T) {
+	testRegistry := scheduler.NewRegistry()
+	require.NoError(t, testRegistry.Register(workload.SchedulerName, func(scheduler.Config) (scheduler.Interface, error) {
+		return nil, errors.New("discovery failed")
+	}))
+	reconciler := &Reconciler{
+		manager:  &fakeManager{},
+		registry: testRegistry,
+	}
+	app := &v1beta2.SparkApplication{
+		Spec: v1beta2.SparkApplicationSpec{BatchScheduler: ptr.To(workload.SchedulerName)},
+	}
+
+	err := reconciler.cleanUpOnTermination(context.Background(), nil, app)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "discovery failed")
+}
+
 // mockScheduler is a simple mock for testing
 type mockScheduler struct {
-	name string
+	name         string
+	scheduleFunc func(*v1beta2.SparkApplication) error
+	cleanupFunc  func(*v1beta2.SparkApplication) error
 }
 
 func (m *mockScheduler) Name() string {
@@ -135,11 +244,26 @@ func (m *mockScheduler) ShouldSchedule(_ *v1beta2.SparkApplication) bool {
 	return true
 }
 
-func (m *mockScheduler) Schedule(_ *v1beta2.SparkApplication) error {
+func (m *mockScheduler) Schedule(app *v1beta2.SparkApplication) error {
+	if m.scheduleFunc != nil {
+		return m.scheduleFunc(app)
+	}
 	return nil
 }
 
-func (m *mockScheduler) Cleanup(_ *v1beta2.SparkApplication) error {
+func (m *mockScheduler) Cleanup(app *v1beta2.SparkApplication) error {
+	if m.cleanupFunc != nil {
+		return m.cleanupFunc(app)
+	}
+	return nil
+}
+
+type capturingSubmitter struct {
+	app *v1beta2.SparkApplication
+}
+
+func (s *capturingSubmitter) Submit(_ context.Context, app *v1beta2.SparkApplication) error {
+	s.app = app
 	return nil
 }
 
