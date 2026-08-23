@@ -3276,6 +3276,19 @@
           }
         }
       },
+      "io.k8s.api.core.v1.ImageVolumeStatus": {
+        "description": "ImageVolumeStatus represents the image-based volume status.",
+        "type": "object",
+        "required": [
+          "imageRef"
+        ],
+        "properties": {
+          "imageRef": {
+            "description": "ImageRef is the digest of the image used for this volume. It should have a value that's similar to the pod's status.containerStatuses[i].imageID. The ImageRef length should not exceed 256 characters.",
+            "type": "string"
+          }
+        }
+      },
       "io.k8s.api.core.v1.KeyToPath": {
         "description": "Maps a string key to a path within a volume.",
         "type": "object",
@@ -4011,6 +4024,37 @@
                 "$ref": "#/components/schemas/io.k8s.api.core.v1.NodeSelector"
               }
             ]
+          }
+        }
+      },
+      "io.k8s.api.core.v1.NodeAllocatableResourceClaimStatus": {
+        "description": "NodeAllocatableResourceClaimStatus describes the status of node allocatable resources allocated via DRA.",
+        "type": "object",
+        "required": [
+          "resourceClaimName",
+          "resources"
+        ],
+        "properties": {
+          "containers": {
+            "description": "Containers lists the names of all containers in this pod that reference the claim.",
+            "type": "array",
+            "items": {
+              "type": "string",
+              "default": ""
+            },
+            "x-kubernetes-list-type": "set"
+          },
+          "resourceClaimName": {
+            "description": "ResourceClaimName is the resource claim referenced by the pod that resulted in this node allocatable resource allocation.",
+            "type": "string",
+            "default": ""
+          },
+          "resources": {
+            "description": "Resources is a map of the node-allocatable resource name to the aggregate quantity allocated to the claim.",
+            "type": "object",
+            "additionalProperties": {
+              "$ref": "#/components/schemas/io.k8s.apimachinery.pkg.api.resource.Quantity"
+            }
           }
         }
       },
@@ -5206,7 +5250,7 @@
             ]
           },
           "portworxVolume": {
-            "description": "portworxVolume represents a portworx volume attached and mounted on kubelets host machine. Deprecated: PortworxVolume is deprecated. All operations for the in-tree portworxVolume type are redirected to the pxd.portworx.com CSI driver when the CSIMigrationPortworx feature-gate is on.",
+            "description": "portworxVolume represents a portworx volume attached and mounted on kubelets host machine. Deprecated: PortworxVolume is deprecated. All operations for the in-tree portworxVolume type are redirected to the pxd.portworx.com CSI driver.",
             "allOf": [
               {
                 "$ref": "#/components/schemas/io.k8s.api.core.v1.PortworxVolumeSource"
@@ -5445,7 +5489,7 @@
             ]
           },
           "portworxVolume": {
-            "description": "portworxVolume represents a portworx volume attached and mounted on kubelets host machine. Deprecated: PortworxVolume is deprecated. All operations for the in-tree portworxVolume type are redirected to the pxd.portworx.com CSI driver when the CSIMigrationPortworx feature-gate is on.",
+            "description": "portworxVolume represents a portworx volume attached and mounted on kubelets host machine. Deprecated: PortworxVolume is deprecated. All operations for the in-tree portworxVolume type are redirected to the pxd.portworx.com CSI driver.",
             "allOf": [
               {
                 "$ref": "#/components/schemas/io.k8s.api.core.v1.PortworxVolumeSource"
@@ -5829,7 +5873,7 @@
             "type": "string"
           },
           "observedGeneration": {
-            "description": "If set, this represents the .metadata.generation that the pod condition was set based upon. The PodObservedGenerationTracking feature gate must be enabled to use this field.",
+            "description": "If set, this represents the .metadata.generation that the pod condition was set based upon.",
             "type": "integer",
             "format": "int64"
           },
@@ -6158,7 +6202,7 @@
         }
       },
       "io.k8s.api.core.v1.PodResourceClaim": {
-        "description": "PodResourceClaim references exactly one ResourceClaim, either directly or by naming a ResourceClaimTemplate which is then turned into a ResourceClaim for the pod.\n\nIt adds a name to it that uniquely identifies the ResourceClaim inside the Pod. Containers that need access to the ResourceClaim reference it with this name.",
+        "description": "PodResourceClaim references exactly one ResourceClaim, either directly or by naming a ResourceClaimTemplate which is then turned into a ResourceClaim for the pod.\n\nIt adds a name to it that uniquely identifies the ResourceClaim inside the Pod. Containers that need access to the ResourceClaim reference it with this name.\n\nWhen the DRAWorkloadResourceClaims feature gate is enabled and this Pod belongs to a PodGroup, a PodResourceClaim is matched to a PodGroupResourceClaim if all of their fields are equal (Name, ResourceClaimName, and ResourceClaimTemplateName). A matched claim references a single ResourceClaim shared across all Pods in the PodGroup, reserved for the PodGroup in ResourceClaimStatus.ReservedFor rather than for individual Pods.",
         "type": "object",
         "required": [
           "name"
@@ -6174,7 +6218,7 @@
             "type": "string"
           },
           "resourceClaimTemplateName": {
-            "description": "ResourceClaimTemplateName is the name of a ResourceClaimTemplate object in the same namespace as this pod.\n\nThe template will be used to create a new ResourceClaim, which will be bound to this pod. When this pod is deleted, the ResourceClaim will also be deleted. The pod name and resource name, along with a generated component, will be used to form a unique name for the ResourceClaim, which will be recorded in pod.status.resourceClaimStatuses.\n\nThis field is immutable and no changes will be made to the corresponding ResourceClaim by the control plane after creating the ResourceClaim.\n\nExactly one of ResourceClaimName and ResourceClaimTemplateName must be set.",
+            "description": "ResourceClaimTemplateName is the name of a ResourceClaimTemplate object in the same namespace as this pod.\n\nThe template will be used to create a new ResourceClaim, which will be bound to this pod. When this pod is deleted, the ResourceClaim will also be deleted. The pod name and resource name, along with a generated component, will be used to form a unique name for the ResourceClaim, which will be recorded in pod.status.resourceClaimStatuses.\n\nWhen the DRAWorkloadResourceClaims feature gate is enabled and the pod belongs to a PodGroup that defines a PodGroupResourceClaim with the same Name and ResourceClaimTemplateName, this PodResourceClaim resolves to the ResourceClaim generated for the PodGroup. All pods in the group that define an equivalent PodResourceClaim matching the PodGroupResourceClaim's Name and ResourceClaimTemplateName share the same generated ResourceClaim. ResourceClaims generated for a PodGroup are owned by the PodGroup and their lifecycles are tied to the PodGroup instead of any individual pod.\n\nThis field is immutable and no changes will be made to the corresponding ResourceClaim by the control plane after creating the ResourceClaim.\n\nExactly one of ResourceClaimName and ResourceClaimTemplateName must be set.",
             "type": "string"
           }
         }
@@ -6192,7 +6236,7 @@
             "default": ""
           },
           "resourceClaimName": {
-            "description": "ResourceClaimName is the name of the ResourceClaim that was generated for the Pod in the namespace of the Pod. If this is unset, then generating a ResourceClaim was not necessary. The pod.spec.resourceClaims entry can be ignored in this case.",
+            "description": "ResourceClaimName is the name of the ResourceClaim that was generated for the Pod in the namespace of the Pod.\n\nWhen the DRAWorkloadResourceClaims feature is enabled and the corresponding PodResourceClaim matches a PodGroupResourceClaim made by the Pod's PodGroup, then this is the name of the ResourceClaim generated and reserved for the PodGroup.\n\nIf this is unset, then generating a ResourceClaim was not necessary. The pod.spec.resourceClaims entry can be ignored in this case.",
             "type": "string"
           }
         }
@@ -6210,6 +6254,23 @@
             "default": ""
           }
         }
+      },
+      "io.k8s.api.core.v1.PodSchedulingGroup": {
+        "description": "PodSchedulingGroup identifies the runtime scheduling group instance that a Pod belongs to. The scheduler uses this information to apply workload-aware scheduling semantics. Exactly one field must be specified.",
+        "type": "object",
+        "properties": {
+          "podGroupName": {
+            "description": "PodGroupName specifies the name of the standalone PodGroup object that represents the runtime instance of this group. Must be a DNS subdomain.",
+            "type": "string"
+          }
+        },
+        "x-kubernetes-unions": [
+          {
+            "fields-to-discriminateBy": {
+              "podGroupName": "PodGroupName"
+            }
+          }
+        ]
       },
       "io.k8s.api.core.v1.PodSecurityContext": {
         "description": "PodSecurityContext holds pod-level security attributes and common container settings. Some fields are also present in container.securityContext.  Field values of container.securityContext take precedence over field values of PodSecurityContext.",
@@ -6438,7 +6499,7 @@
             "type": "boolean"
           },
           "hostUsers": {
-            "description": "Use the host's user namespace. Optional: Default to true. If set to true or not present, the pod will be run in the host user namespace, useful for when the pod needs a feature only available to the host user namespace, such as loading a kernel module with CAP_SYS_MODULE. When set to false, a new userns is created for the pod. Setting false is useful for mitigating container breakout vulnerabilities even allowing users to run their containers as root without actually having root privileges on the host. This field is alpha-level and is only honored by servers that enable the UserNamespacesSupport feature.",
+            "description": "Use the host's user namespace. Optional: Default to true. If set to true or not present, the pod will be run in the host user namespace, useful for when the pod needs a feature only available to the host user namespace, such as loading a kernel module with CAP_SYS_MODULE. When set to false, a new userns is created for the pod. Setting false is useful for mitigating container breakout vulnerabilities even allowing users to run their containers as root without actually having root privileges on the host.",
             "type": "boolean"
           },
           "hostname": {
@@ -6604,6 +6665,14 @@
             "x-kubernetes-patch-merge-key": "name",
             "x-kubernetes-patch-strategy": "merge"
           },
+          "schedulingGroup": {
+            "description": "SchedulingGroup provides a reference to the immediate scheduling runtime grouping object that this Pod belongs to. This field is used by the scheduler to identify the group and apply the correct group scheduling policies. The association with a group also impacts other lifecycle aspects of a Pod that are relevant in a wider context of scheduling like preemption, resource attachment, etc. If not specified, the Pod is treated as a single unit in all of these aspects. The group object referenced by this field may not exist at the time the Pod is created. This field is immutable, but a group object with the same name may be recreated with different policies. Doing this during pod scheduling may result in the placement not conforming to the expected policies.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/io.k8s.api.core.v1.PodSchedulingGroup"
+              }
+            ]
+          },
           "securityContext": {
             "description": "SecurityContext holds pod-level security attributes and common container settings. Optional: Defaults to empty.  See type description for default values of each field.",
             "allOf": [
@@ -6686,14 +6755,6 @@
             "x-kubernetes-list-type": "map",
             "x-kubernetes-patch-merge-key": "name",
             "x-kubernetes-patch-strategy": "merge,retainKeys"
-          },
-          "workloadRef": {
-            "description": "WorkloadRef provides a reference to the Workload object that this Pod belongs to. This field is used by the scheduler to identify the PodGroup and apply the correct group scheduling policies. The Workload object referenced by this field may not exist at the time the Pod is created. This field is immutable, but a Workload object with the same name may be recreated with different policies. Doing this during pod scheduling may result in the placement not conforming to the expected policies.",
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/io.k8s.api.core.v1.WorkloadReference"
-              }
-            ]
           }
         }
       },
@@ -6795,6 +6856,19 @@
           "message": {
             "description": "A human readable message indicating details about why the pod is in this condition.",
             "type": "string"
+          },
+          "nodeAllocatableResourceClaimStatuses": {
+            "description": "NodeAllocatableResourceClaimStatuses contains the status of node-allocatable resources that were allocated for this pod through DRA claims. This includes resources currently reported in v1.Node `status.allocatable` that are not extended resources (see https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/#extended-resources). Examples include \"cpu\", \"memory\", \"ephemeral-storage\", and hugepages.",
+            "type": "array",
+            "items": {
+              "default": {},
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/io.k8s.api.core.v1.NodeAllocatableResourceClaimStatus"
+                }
+              ]
+            },
+            "x-kubernetes-list-type": "atomic"
           },
           "nominatedNodeName": {
             "description": "nominatedNodeName is set only when this pod preempts other pods on the node, but it cannot be scheduled right away as preemption victims receive their graceful termination periods. This field does not guarantee that the pod will be scheduled on this node. Scheduler may decide to place the pod elsewhere if other nodes become available sooner. Scheduler may also decide to give the resources on this node to a higher priority pod that is created after preemption. As a result, this field may be different than PodSpec.nodeName when the pod is scheduled.",
@@ -7699,6 +7773,10 @@
             "description": "Health of the resource. can be one of:\n - Healthy: operates as normal\n - Unhealthy: reported unhealthy. We consider this a temporary health issue\n              since we do not have a mechanism today to distinguish\n              temporary and permanent issues.\n - Unknown: The status cannot be determined.\n            For example, Device Plugin got unregistered and hasn't been re-registered since.\n\nIn future we may want to introduce the PermanentlyUnhealthy Status.",
             "type": "string"
           },
+          "message": {
+            "description": "Message provides human-readable context for Health (e.g. \"ECC error count exceeded threshold\"). This field is populated by the kubelet when ResourceHealthStatusMessage is enabled if the DRA plugin returns a message, and is null otherwise.",
+            "type": "string"
+          },
           "resourceID": {
             "description": "ResourceID is the unique identifier of the resource. See the ResourceID type for more information.",
             "type": "string",
@@ -8370,7 +8448,7 @@
             "type": "boolean"
           },
           "procMount": {
-            "description": "procMount denotes the type of proc mount to use for the containers. The default value is Default which uses the container runtime defaults for readonly paths and masked paths. This requires the ProcMountType feature flag to be enabled. Note that this field cannot be set when spec.os.name is windows.\n\nPossible enum values:\n - `\"Default\"` uses the container runtime defaults for readonly and masked paths for /proc. Most container runtimes mask certain paths in /proc to avoid accidental security exposure of special devices or information.\n - `\"Unmasked\"` bypasses the default masking behavior of the container runtime and ensures the newly created /proc the container stays in tact with no modifications.",
+            "description": "procMount denotes the type of proc mount to use for the containers. The default value is Default which uses the container runtime defaults for readonly paths and masked paths. Note that this field cannot be set when spec.os.name is windows.\n\nPossible enum values:\n - `\"Default\"` uses the container runtime defaults for readonly and masked paths for /proc. Most container runtimes mask certain paths in /proc to avoid accidental security exposure of special devices or information.\n - `\"Unmasked\"` bypasses the default masking behavior of the container runtime and ensures the newly created /proc the container stays in tact with no modifications.",
             "type": "string",
             "enum": [
               "Default",
@@ -9411,7 +9489,7 @@
             ]
           },
           "image": {
-            "description": "image represents an OCI object (a container image or artifact) pulled and mounted on the kubelet's host machine. The volume is resolved at pod startup depending on which PullPolicy value is provided:\n\n- Always: the kubelet always attempts to pull the reference. Container creation will fail If the pull fails. - Never: the kubelet never pulls the reference and only uses a local image or artifact. Container creation will fail if the reference isn't present. - IfNotPresent: the kubelet pulls if the reference isn't already present on disk. Container creation will fail if the reference isn't present and the pull fails.\n\nThe volume gets re-resolved if the pod gets deleted and recreated, which means that new remote content will become available on pod recreation. A failure to resolve or pull the image during pod startup will block containers from starting and may add significant latency. Failures will be retried using normal volume backoff and will be reported on the pod reason and message. The types of objects that may be mounted by this volume are defined by the container runtime implementation on a host machine and at minimum must include all valid types supported by the container image field. The OCI object gets mounted in a single directory (spec.containers[*].volumeMounts.mountPath) by merging the manifest layers in the same way as for container images. The volume will be mounted read-only (ro) and non-executable files (noexec). Sub path mounts for containers are not supported (spec.containers[*].volumeMounts.subpath) before 1.33. The field spec.securityContext.fsGroupChangePolicy has no effect on this volume type.",
+            "description": "image represents an OCI object (a container image or artifact) pulled and mounted on the kubelet's host machine. The volume is resolved at pod startup depending on which PullPolicy value is provided:\n\n- Always: the kubelet always attempts to pull the reference. Container creation will fail If the pull fails. - Never: the kubelet never pulls the reference and only uses a local image or artifact. Container creation will fail if the reference isn't present. - IfNotPresent: the kubelet pulls if the reference isn't already present on disk. Container creation will fail if the reference isn't present and the pull fails.\n\nThe volume gets re-resolved if the pod gets deleted and recreated, which means that new remote content will become available on pod recreation. A failure to resolve or pull the image during pod startup will block containers from starting and may add significant latency. Failures will be retried using normal volume backoff and will be reported on the pod reason and message. The types of objects that may be mounted by this volume are defined by the container runtime implementation on a host machine and at minimum must include all valid types supported by the container image field. The OCI object gets mounted in a single directory (spec.containers[*].volumeMounts.mountPath) by merging the manifest layers in the same way as for container images. The volume will be mounted read-only (ro). Sub path mounts for containers are not supported (spec.containers[*].volumeMounts.subpath) before 1.33. The field spec.securityContext.fsGroupChangePolicy has no effect on this volume type.",
             "allOf": [
               {
                 "$ref": "#/components/schemas/io.k8s.api.core.v1.ImageVolumeSource"
@@ -9456,7 +9534,7 @@
             ]
           },
           "portworxVolume": {
-            "description": "portworxVolume represents a portworx volume attached and mounted on kubelets host machine. Deprecated: PortworxVolume is deprecated. All operations for the in-tree portworxVolume type are redirected to the pxd.portworx.com CSI driver when the CSIMigrationPortworx feature-gate is on.",
+            "description": "portworxVolume represents a portworx volume attached and mounted on kubelets host machine. Deprecated: PortworxVolume is deprecated. All operations for the in-tree portworxVolume type are redirected to the pxd.portworx.com CSI driver.",
             "allOf": [
               {
                 "$ref": "#/components/schemas/io.k8s.api.core.v1.PortworxVolumeSource"
@@ -9611,6 +9689,14 @@
           "recursiveReadOnly": {
             "description": "RecursiveReadOnly must be set to Disabled, Enabled, or unspecified (for non-readonly mounts). An IfPossible value in the original VolumeMount must be translated to Disabled or Enabled, depending on the mount result.",
             "type": "string"
+          },
+          "volumeStatus": {
+            "description": "volumeStatus represents volume-type-specific status about the mounted volume.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/io.k8s.api.core.v1.VolumeStatus"
+              }
+            ]
           }
         }
       },
@@ -9843,7 +9929,7 @@
             ]
           },
           "image": {
-            "description": "image represents an OCI object (a container image or artifact) pulled and mounted on the kubelet's host machine. The volume is resolved at pod startup depending on which PullPolicy value is provided:\n\n- Always: the kubelet always attempts to pull the reference. Container creation will fail If the pull fails. - Never: the kubelet never pulls the reference and only uses a local image or artifact. Container creation will fail if the reference isn't present. - IfNotPresent: the kubelet pulls if the reference isn't already present on disk. Container creation will fail if the reference isn't present and the pull fails.\n\nThe volume gets re-resolved if the pod gets deleted and recreated, which means that new remote content will become available on pod recreation. A failure to resolve or pull the image during pod startup will block containers from starting and may add significant latency. Failures will be retried using normal volume backoff and will be reported on the pod reason and message. The types of objects that may be mounted by this volume are defined by the container runtime implementation on a host machine and at minimum must include all valid types supported by the container image field. The OCI object gets mounted in a single directory (spec.containers[*].volumeMounts.mountPath) by merging the manifest layers in the same way as for container images. The volume will be mounted read-only (ro) and non-executable files (noexec). Sub path mounts for containers are not supported (spec.containers[*].volumeMounts.subpath) before 1.33. The field spec.securityContext.fsGroupChangePolicy has no effect on this volume type.",
+            "description": "image represents an OCI object (a container image or artifact) pulled and mounted on the kubelet's host machine. The volume is resolved at pod startup depending on which PullPolicy value is provided:\n\n- Always: the kubelet always attempts to pull the reference. Container creation will fail If the pull fails. - Never: the kubelet never pulls the reference and only uses a local image or artifact. Container creation will fail if the reference isn't present. - IfNotPresent: the kubelet pulls if the reference isn't already present on disk. Container creation will fail if the reference isn't present and the pull fails.\n\nThe volume gets re-resolved if the pod gets deleted and recreated, which means that new remote content will become available on pod recreation. A failure to resolve or pull the image during pod startup will block containers from starting and may add significant latency. Failures will be retried using normal volume backoff and will be reported on the pod reason and message. The types of objects that may be mounted by this volume are defined by the container runtime implementation on a host machine and at minimum must include all valid types supported by the container image field. The OCI object gets mounted in a single directory (spec.containers[*].volumeMounts.mountPath) by merging the manifest layers in the same way as for container images. The volume will be mounted read-only (ro). Sub path mounts for containers are not supported (spec.containers[*].volumeMounts.subpath) before 1.33. The field spec.securityContext.fsGroupChangePolicy has no effect on this volume type.",
             "allOf": [
               {
                 "$ref": "#/components/schemas/io.k8s.api.core.v1.ImageVolumeSource"
@@ -9883,7 +9969,7 @@
             ]
           },
           "portworxVolume": {
-            "description": "portworxVolume represents a portworx volume attached and mounted on kubelets host machine. Deprecated: PortworxVolume is deprecated. All operations for the in-tree portworxVolume type are redirected to the pxd.portworx.com CSI driver when the CSIMigrationPortworx feature-gate is on.",
+            "description": "portworxVolume represents a portworx volume attached and mounted on kubelets host machine. Deprecated: PortworxVolume is deprecated. All operations for the in-tree portworxVolume type are redirected to the pxd.portworx.com CSI driver.",
             "allOf": [
               {
                 "$ref": "#/components/schemas/io.k8s.api.core.v1.PortworxVolumeSource"
@@ -9943,6 +10029,20 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/io.k8s.api.core.v1.VsphereVirtualDiskVolumeSource"
+              }
+            ]
+          }
+        }
+      },
+      "io.k8s.api.core.v1.VolumeStatus": {
+        "description": "VolumeStatus represents the status of a mounted volume. At most one of its members must be specified.",
+        "type": "object",
+        "properties": {
+          "image": {
+            "description": "image represents an OCI object (a container image or artifact) pulled and mounted on the kubelet's host machine.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/io.k8s.api.core.v1.ImageVolumeStatus"
               }
             ]
           }
@@ -10021,30 +10121,6 @@
           }
         }
       },
-      "io.k8s.api.core.v1.WorkloadReference": {
-        "description": "WorkloadReference identifies the Workload object and PodGroup membership that a Pod belongs to. The scheduler uses this information to apply workload-aware scheduling semantics.",
-        "type": "object",
-        "required": [
-          "name",
-          "podGroup"
-        ],
-        "properties": {
-          "name": {
-            "description": "Name defines the name of the Workload object this Pod belongs to. Workload must be in the same namespace as the Pod. If it doesn't match any existing Workload, the Pod will remain unschedulable until a Workload object is created and observed by the kube-scheduler. It must be a DNS subdomain.",
-            "type": "string",
-            "default": ""
-          },
-          "podGroup": {
-            "description": "PodGroup is the name of the PodGroup within the Workload that this Pod belongs to. If it doesn't match any existing PodGroup within the Workload, the Pod will remain unschedulable until the Workload object is recreated and observed by the kube-scheduler. It must be a DNS label.",
-            "type": "string",
-            "default": ""
-          },
-          "podGroupReplicaKey": {
-            "description": "PodGroupReplicaKey specifies the replica key of the PodGroup to which this Pod belongs. It is used to distinguish pods belonging to different replicas of the same pod group. The pod group policy is applied separately to each replica. When set, it must be a DNS label.",
-            "type": "string"
-          }
-        }
-      },
       "io.k8s.api.networking.v1.HTTPIngressPath": {
         "description": "HTTPIngressPath associates a path with a backend. Incoming urls matching the path are forwarded to the backend.",
         "type": "object",
@@ -10102,6 +10178,9 @@
       "io.k8s.api.networking.v1.IPAddress": {
         "description": "IPAddress represents a single IP of a single IP Family. The object is designed to be used by APIs that operate on IP addresses. The object is used by the Service core API for allocation of IP addresses. An IP address can be represented in different formats, to guarantee the uniqueness of the IP, the name of the object is the IP address in canonical format, four decimal digits separated by dots suppressing leading zeros for IPv4 and the representation defined by RFC 5952 for IPv6. Valid: 192.168.1.5 or 2001:db8::1 or 2001:db8:aaaa:bbbb:cccc:dddd:eeee:1 Invalid: 10.01.2.3 or 2001:db8:0:0:0::1",
         "type": "object",
+        "required": [
+          "spec"
+        ],
         "properties": {
           "apiVersion": {
             "description": "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
@@ -11748,6 +11827,14 @@
           "selfLink": {
             "description": "Deprecated: selfLink is a legacy read-only field that is no longer populated by the system.",
             "type": "string"
+          },
+          "shardInfo": {
+            "description": "shardInfo is set when the list is a filtered subset of the full collection, as selected by a shard selector on the request. It echoes back the selector so clients can verify which shard they received and merge sharded responses. Clients should not cache sharded list responses as a full representation of the collection.\n\nThis is an alpha field and requires enabling the ShardedListAndWatch feature gate.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/io.k8s.apimachinery.pkg.apis.meta.v1.ShardInfo"
+              }
+            ]
           }
         }
       },
@@ -11795,6 +11882,10 @@
           "sendInitialEvents": {
             "description": "`sendInitialEvents=true` may be set together with `watch=true`. In that case, the watch stream will begin with synthetic events to produce the current state of objects in the collection. Once all such events have been sent, a synthetic \"Bookmark\" event  will be sent. The bookmark will report the ResourceVersion (RV) corresponding to the set of objects, and be marked with `\"k8s.io/initial-events-end\": \"true\"` annotation. Afterwards, the watch stream will proceed as usual, sending watch events corresponding to changes (subsequent to the RV) to objects watched.\n\nWhen `sendInitialEvents` option is set, we require `resourceVersionMatch` option to also be set. The semantic of the watch request is as following: - `resourceVersionMatch` = NotOlderThan\n  is interpreted as \"data at least as new as the provided `resourceVersion`\"\n  and the bookmark event is send when the state is synced\n  to a `resourceVersion` at least as fresh as the one provided by the ListOptions.\n  If `resourceVersion` is unset, this is interpreted as \"consistent read\" and the\n  bookmark event is send when the state is synced at least to the moment\n  when request started being processed.\n- `resourceVersionMatch` set to any other value or unset\n  Invalid error is returned.\n\nDefaults to true if `resourceVersion=\"\"` or `resourceVersion=\"0\"` (for backward compatibility reasons) and to false otherwise.",
             "type": "boolean"
+          },
+          "shardSelector": {
+            "description": "shardSelector restricts the list of returned objects using a CEL-based shard selector expression. The format uses the shardRange() function combined with || (logical OR) to specify one or more hash ranges:\n\n  shardRange(object.metadata.uid, '0x0', '0x8000000000000000')\n  shardRange(object.metadata.uid, '0x0', '0x8000000000000000') || shardRange(object.metadata.uid, '0x8000000000000000', '0x10000000000000000')\n\nField paths use CEL-style object-rooted syntax (e.g. \"object.metadata.uid\"), NOT the fieldSelector format (\"metadata.uid\"). Currently supported paths:\n  - object.metadata.uid\n  - object.metadata.namespace\n\nhexStart and hexEnd are single-quoted CEL string literals with a '0x' prefix, defining the inclusive lower and exclusive upper bounds over the 64-bit FNV-1a hash space. The full range is [0x0, 0x10000000000000000), where the exclusive upper bound equals 2^64.\n\nExamples:\n  2-shard split:\n    shard 0: shardRange(object.metadata.uid, '0x0000000000000000', '0x8000000000000000')\n    shard 1: shardRange(object.metadata.uid, '0x8000000000000000', '0x10000000000000000')\n  4-shard split:\n    shard 0: shardRange(object.metadata.uid, '0x0000000000000000', '0x4000000000000000')\n    shard 1: shardRange(object.metadata.uid, '0x4000000000000000', '0x8000000000000000')\n    shard 2: shardRange(object.metadata.uid, '0x8000000000000000', '0xc000000000000000')\n    shard 3: shardRange(object.metadata.uid, '0xc000000000000000', '0x10000000000000000')\n\nThis is an alpha field and requires enabling the ShardedListAndWatch feature gate.",
+            "type": "string"
           },
           "timeoutSeconds": {
             "description": "Timeout for the list/watch call. This limits the duration of the call, regardless of any activity or inactivity.",
@@ -12155,6 +12246,20 @@
           },
           "serverAddress": {
             "description": "Address of this server, suitable for a client that matches the above CIDR. This can be a hostname, hostname:port, IP or IP:port.",
+            "type": "string",
+            "default": ""
+          }
+        }
+      },
+      "io.k8s.apimachinery.pkg.apis.meta.v1.ShardInfo": {
+        "description": "ShardInfo describes the shard selector that was applied to produce a list response. Its presence on a list response indicates the list is a filtered subset.",
+        "type": "object",
+        "required": [
+          "selector"
+        ],
+        "properties": {
+          "selector": {
+            "description": "selector is the shard selector string from the request, echoed back so clients can verify which shard they received and merge responses from multiple shards.",
             "type": "string",
             "default": ""
           }
@@ -12950,8 +13055,13 @@
         "description": "BatchSchedulerConfiguration used to configure how to batch scheduling Spark Application",
         "type": "object",
         "properties": {
+          "minMember": {
+            "description": "MinMember overrides the computed gang minCount for the \"workload\" batch scheduler. By default, minCount is the initial requested executor count as computed by GetInitialExecutorNumber (DRA-aware), clamped to at least 1. The cluster-mode driver is excluded to avoid a bootstrap deadlock while it creates executors. Only consumed by the \"workload\" backend; ignored by Volcano, YuniKorn, and kube-scheduler backends.",
+            "type": "integer",
+            "format": "int32"
+          },
           "priorityClassName": {
-            "description": "PriorityClassName stands for the name of k8s PriorityClass resource, it's being used in Volcano batch scheduler.",
+            "description": "PriorityClassName is the name of the Kubernetes PriorityClass used by the Volcano and workload batch schedulers.",
             "type": "string"
           },
           "queue": {
@@ -13338,6 +13448,14 @@
             "description": "SchedulerName specifies the scheduler that will be used for scheduling",
             "type": "string"
           },
+          "schedulingGroup": {
+            "description": "SchedulingGroup binds this pod template to a Kubernetes native PodGroup (scheduling.k8s.io/v1alpha2) for gang scheduling via the \"workload\" batch scheduler backend. This field is set internally by the operator; it MUST NOT be set directly by users (enforced by the admission webhook). Requires Kubernetes v1.36+ with the GenericWorkload feature gate enabled.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/spark.v1beta2.PodSchedulingGroup"
+              }
+            ]
+          },
           "secrets": {
             "description": "Secrets carries information of secrets to add to the pod.",
             "type": "array",
@@ -13681,6 +13799,14 @@
             "description": "SchedulerName specifies the scheduler that will be used for scheduling",
             "type": "string"
           },
+          "schedulingGroup": {
+            "description": "SchedulingGroup binds this pod template to a Kubernetes native PodGroup (scheduling.k8s.io/v1alpha2) for gang scheduling via the \"workload\" batch scheduler backend. This field is set internally by the operator; it MUST NOT be set directly by users (enforced by the admission webhook). Requires Kubernetes v1.36+ with the GenericWorkload feature gate enabled.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/spark.v1beta2.PodSchedulingGroup"
+              }
+            ]
+          },
           "secrets": {
             "description": "Secrets carries information of secrets to add to the pod.",
             "type": "array",
@@ -13847,6 +13973,20 @@
             "default": ""
           },
           "path": {
+            "type": "string",
+            "default": ""
+          }
+        }
+      },
+      "spark.v1beta2.PodSchedulingGroup": {
+        "description": "PodSchedulingGroup links a driver or executor pod template to a native Kubernetes PodGroup (scheduling.k8s.io/v1alpha2) for gang scheduling. It is set internally by the \"workload\" batch scheduler backend and must not be set directly by users.",
+        "type": "object",
+        "required": [
+          "podGroupName"
+        ],
+        "properties": {
+          "podGroupName": {
+            "description": "PodGroupName is the name of the PodGroup this pod belongs to. Must be a DNS subdomain.",
             "type": "string",
             "default": ""
           }
@@ -14675,6 +14815,14 @@
           "schedulerName": {
             "description": "SchedulerName specifies the scheduler that will be used for scheduling",
             "type": "string"
+          },
+          "schedulingGroup": {
+            "description": "SchedulingGroup binds this pod template to a Kubernetes native PodGroup (scheduling.k8s.io/v1alpha2) for gang scheduling via the \"workload\" batch scheduler backend. This field is set internally by the operator; it MUST NOT be set directly by users (enforced by the admission webhook). Requires Kubernetes v1.36+ with the GenericWorkload feature gate enabled.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/spark.v1beta2.PodSchedulingGroup"
+              }
+            ]
           },
           "secrets": {
             "description": "Secrets carries information of secrets to add to the pod.",

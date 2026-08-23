@@ -49,6 +49,7 @@ import (
 	"github.com/kubeflow/spark-operator/v2/internal/scheduler"
 	"github.com/kubeflow/spark-operator/v2/internal/scheduler/kubescheduler"
 	"github.com/kubeflow/spark-operator/v2/internal/scheduler/volcano"
+	"github.com/kubeflow/spark-operator/v2/internal/scheduler/workload"
 	"github.com/kubeflow/spark-operator/v2/internal/scheduler/yunikorn"
 	"github.com/kubeflow/spark-operator/v2/pkg/common"
 	"github.com/kubeflow/spark-operator/v2/pkg/util"
@@ -950,9 +951,6 @@ func (r *Reconciler) submitSparkApplication(ctx context.Context, app *v1beta2.Sp
 	logger := log.FromContext(ctx)
 	logger.Info("Submitting SparkApplication", "state", app.Status.AppState.State)
 
-	// SubmissionID must be set before creating any resources to ensure all the resources are labeled.
-	app.Status.SubmissionID = uuid.New().String()
-	app.Status.DriverInfo.PodName = util.GetDriverPodName(app)
 	app.Status.LastSubmissionAttemptTime = metav1.Now()
 	app.Status.SubmissionAttempts = app.Status.SubmissionAttempts + 1
 
@@ -973,38 +971,60 @@ func (r *Reconciler) submitSparkApplication(ctx context.Context, app *v1beta2.Sp
 		r.recordSparkApplicationEvent(app)
 	}()
 
-	if err := r.configWebUI(ctx, app); err != nil {
+	needScheduling, batchScheduler, err := r.shouldDoBatchScheduling(ctx, app)
+	if err != nil {
+		submitErr = fmt.Errorf("failed during batch scheduler setup or check: %v", err)
+		return
+	}
+
+	// A failed submission or rerun retains its previous SubmissionID. Remove the
+	// corresponding per-submission scheduling resources before allocating a new ID.
+	if needScheduling && batchScheduler.Name() == workload.SchedulerName && app.Status.SubmissionID != "" {
+		if err := batchScheduler.Cleanup(app); err != nil {
+			submitErr = fmt.Errorf("failed to clean up previous batch scheduler resources: %v", err)
+			return
+		}
+	}
+
+	// SubmissionID must be set before creating any resources to ensure all the resources are labeled.
+	app.Status.SubmissionID = uuid.New().String()
+	app.Status.DriverInfo.PodName = util.GetDriverPodName(app)
+
+	// Submission-time configuration is intentionally applied to a throwaway copy.
+	// In particular, the workload scheduler's operator-managed SchedulingGroup
+	// must never be persisted back to the SparkApplication spec and rejected by
+	// the validating webhook.
+	submissionApp := app.DeepCopy()
+
+	if err := r.configWebUI(ctx, submissionApp); err != nil {
 		submitErr = fmt.Errorf("failed to configure web UI: %v", err)
 		return
 	}
 
-	if util.PrometheusMonitoringEnabled(app) {
+	if util.PrometheusMonitoringEnabled(submissionApp) {
 		logger.Info("Configure Prometheus monitoring for SparkApplication")
-		if err := configPrometheusMonitoring(ctx, app, r.client); err != nil {
+		if err := configPrometheusMonitoring(ctx, submissionApp, r.client); err != nil {
 			submitErr = fmt.Errorf("failed to configure Prometheus monitoring: %v", err)
 			return
 		}
 	}
 
 	// Use batch scheduler to perform scheduling task before submitting (before build command arguments).
-	if needScheduling, scheduler, err := r.shouldDoBatchScheduling(ctx, app); err != nil {
-		submitErr = fmt.Errorf("failed during batch scheduler setup or check: %v", err)
-		return
-	} else if needScheduling {
+	if needScheduling {
 		logger.Info("Do batch scheduling for SparkApplication")
-		if err := scheduler.Schedule(app); err != nil {
+		if err := batchScheduler.Schedule(submissionApp); err != nil {
 			submitErr = fmt.Errorf("failed to process batch scheduler: %v", err)
 			return
 		}
 	}
 
 	defer func() {
-		if err := r.cleanUpPodTemplateFiles(ctx, app); err != nil {
+		if err := r.cleanUpPodTemplateFiles(ctx, submissionApp); err != nil {
 			logger.Error(err, "failed to clean up pod template files")
 		}
 	}()
 
-	if err := r.submitter.Submit(ctx, app); err != nil {
+	if err := r.submitter.Submit(ctx, submissionApp); err != nil {
 		r.recordSparkApplicationEvent(app)
 		submitErr = fmt.Errorf("failed to submit spark application: %v", err)
 		return
@@ -1534,6 +1554,12 @@ func (r *Reconciler) shouldDoBatchScheduling(ctx context.Context, app *v1beta2.S
 		scheduler, err = r.registry.GetScheduler(schedulerName, config)
 	case yunikorn.SchedulerName:
 		scheduler, err = r.registry.GetScheduler(schedulerName, nil)
+	case workload.SchedulerName:
+		config := &workload.Config{
+			RestConfig: r.manager.GetConfig(),
+			Client:     r.manager.GetClient(),
+		}
+		scheduler, err = r.registry.GetScheduler(schedulerName, config)
 	}
 
 	for _, name := range r.options.KubeSchedulerNames {
@@ -1554,7 +1580,11 @@ func (r *Reconciler) shouldDoBatchScheduling(ctx context.Context, app *v1beta2.S
 
 // Clean up when the spark application is terminated.
 func (r *Reconciler) cleanUpOnTermination(ctx context.Context, _, newApp *v1beta2.SparkApplication) error {
-	if needScheduling, scheduler, _ := r.shouldDoBatchScheduling(ctx, newApp); needScheduling {
+	needScheduling, scheduler, err := r.shouldDoBatchScheduling(ctx, newApp)
+	if err != nil {
+		return err
+	}
+	if needScheduling {
 		if err := scheduler.Cleanup(newApp); err != nil {
 			return err
 		}

@@ -27,8 +27,9 @@ class IoK8sApiCoreV1ResourceHealth(BaseModel):
     ResourceHealth represents the health of a resource. It has the latest device health information. This is a part of KEP https://kep.k8s.io/4680.
     """ # noqa: E501
     health: Optional[StrictStr] = Field(default=None, description="Health of the resource. can be one of:  - Healthy: operates as normal  - Unhealthy: reported unhealthy. We consider this a temporary health issue               since we do not have a mechanism today to distinguish               temporary and permanent issues.  - Unknown: The status cannot be determined.             For example, Device Plugin got unregistered and hasn't been re-registered since.  In future we may want to introduce the PermanentlyUnhealthy Status.")
+    message: Optional[StrictStr] = Field(default=None, description="Message provides human-readable context for Health (e.g. \"ECC error count exceeded threshold\"). This field is populated by the kubelet when ResourceHealthStatusMessage is enabled if the DRA plugin returns a message, and is null otherwise.")
     resource_id: StrictStr = Field(description="ResourceID is the unique identifier of the resource. See the ResourceID type for more information.", alias="resourceID")
-    __properties: ClassVar[List[str]] = ["health", "resourceID"]
+    __properties: ClassVar[List[str]] = ["health", "message", "resourceID"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -82,6 +83,7 @@ class IoK8sApiCoreV1ResourceHealth(BaseModel):
 
         _obj = cls.model_validate({
             "health": obj.get("health"),
+            "message": obj.get("message"),
             "resourceID": obj.get("resourceID") if obj.get("resourceID") is not None else ''
         })
         return _obj

@@ -28,7 +28,7 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	"github.com/kubeflow/spark-operator/v2/api/v1beta2"
@@ -1177,6 +1177,14 @@ func buildDriverPodTemplate(app *v1beta2.SparkApplication) *corev1.PodTemplateSp
 	}) {
 		template.OwnerReferences = append(template.OwnerReferences, ownerReference)
 	}
+
+	// Copy custom SchedulingGroup to native Kubernetes PodSpec field for workload scheduler.
+	if app.Spec.Driver.SchedulingGroup != nil {
+		template.Spec.SchedulingGroup = &corev1.PodSchedulingGroup{
+			PodGroupName: ptr.To(app.Spec.Driver.SchedulingGroup.PodGroupName),
+		}
+	}
+
 	return template
 }
 
@@ -1207,6 +1215,14 @@ func buildExecutorPodTemplate(app *v1beta2.SparkApplication) *corev1.PodTemplate
 	}) {
 		template.OwnerReferences = append(template.OwnerReferences, ownerReference)
 	}
+
+	// Copy custom SchedulingGroup to native Kubernetes PodSpec field for workload scheduler.
+	if app.Spec.Executor.SchedulingGroup != nil {
+		template.Spec.SchedulingGroup = &corev1.PodSchedulingGroup{
+			PodGroupName: ptr.To(app.Spec.Executor.SchedulingGroup.PodGroupName),
+		}
+	}
+
 	return template
 }
 
