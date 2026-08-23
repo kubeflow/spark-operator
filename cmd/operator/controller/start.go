@@ -66,6 +66,7 @@ import (
 	"github.com/kubeflow/spark-operator/v2/internal/scheduler"
 	"github.com/kubeflow/spark-operator/v2/internal/scheduler/kubescheduler"
 	"github.com/kubeflow/spark-operator/v2/internal/scheduler/volcano"
+	"github.com/kubeflow/spark-operator/v2/internal/scheduler/workload"
 	"github.com/kubeflow/spark-operator/v2/internal/scheduler/yunikorn"
 	"github.com/kubeflow/spark-operator/v2/pkg/common"
 	operatorscheme "github.com/kubeflow/spark-operator/v2/pkg/scheme"
@@ -100,9 +101,10 @@ var (
 	workqueueRateLimiterMaxDelay   time.Duration
 
 	// Batch scheduler
-	enableBatchScheduler  bool
-	kubeSchedulerNames    []string
-	defaultBatchScheduler string
+	enableBatchScheduler    bool
+	enableWorkloadScheduler bool
+	kubeSchedulerNames      []string
+	defaultBatchScheduler   string
 
 	// Spark web UI service and ingress
 	enableUIService    bool
@@ -227,6 +229,7 @@ func NewStartCommand() *cobra.Command {
 	command.Flags().DurationVar(&workqueueRateLimiterMaxDelay, "workqueue-ratelimiter-max-delay", rate.InfDuration, "The maximum delay of the workqueue.")
 
 	command.Flags().BoolVar(&enableBatchScheduler, "enable-batch-scheduler", false, "Enable batch schedulers.")
+	command.Flags().BoolVar(&enableWorkloadScheduler, "enable-workload-scheduler", false, "Enable the native Kubernetes Workload/PodGroup (scheduling.k8s.io/v1alpha2) batch scheduler backend. Requires Kubernetes v1.36+ with GenericWorkload enabled on kube-apiserver and kube-scheduler, GangScheduling enabled on kube-scheduler, and scheduling.k8s.io/v1alpha2 API enabled.")
 	command.Flags().StringSliceVar(&kubeSchedulerNames, "kube-scheduler-names", []string{}, "The kube-scheduler names for scheduling Spark applications.")
 	command.Flags().StringVar(&defaultBatchScheduler, "default-batch-scheduler", "", "Default batch scheduler.")
 
@@ -391,9 +394,31 @@ func start() {
 		for _, name := range kubeSchedulerNames {
 			_ = registry.Register(name, kubescheduler.Factory)
 		}
+	}
 
+	// Register workload scheduler separately when enabled.
+	// Discovery will probe for scheduling.k8s.io/v1alpha2 at first use.
+	if enableWorkloadScheduler {
+		if registry == nil {
+			registry = scheduler.GetRegistry()
+		}
+		if err := registry.Register(workload.SchedulerName, workload.Factory); err != nil {
+			logger.Error(err, "Failed to register workload scheduler")
+			os.Exit(1)
+		}
+
+		// Register Workload API types (scheduling.k8s.io/v1alpha2).
+		// The workload scheduler Factory will probe for API availability at first use.
+		if err := workload.AddToScheme(mgr.GetScheme()); err != nil {
+			logger.Error(err, "Failed to register Workload API types to scheme")
+			os.Exit(1)
+		}
+	}
+
+	// Validate defaultBatchScheduler after all enabled schedulers are registered.
+	if registry != nil && defaultBatchScheduler != "" {
 		schedulerNames := registry.GetRegisteredSchedulerNames()
-		if defaultBatchScheduler != "" && !slices.Contains(schedulerNames, defaultBatchScheduler) {
+		if !slices.Contains(schedulerNames, defaultBatchScheduler) {
 			logger.Error(nil, "Failed to find default batch scheduler in registered schedulers")
 			os.Exit(1)
 		}

@@ -25,6 +25,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -544,6 +545,73 @@ func TestDriverPodTemplateContents(t *testing.T) {
 	}
 }
 
+func TestDriverPodTemplateSchedulingGroup(t *testing.T) {
+	appName := "test-app"
+	uid := types.UID(uuid.New().String())
+	submissionID := "test-submission-1"
+	podGroupName := "test-app-test-submission-1"
+
+	for name, tc := range map[string]struct {
+		app                         *v1beta2.SparkApplication
+		expectSchedulingGroupInSpec bool
+		expectedPodGroupName        string
+	}{
+		"with SchedulingGroup": {
+			app: &v1beta2.SparkApplication{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: appName,
+					UID:  uid,
+				},
+				Spec: v1beta2.SparkApplicationSpec{
+					Driver: v1beta2.DriverSpec{
+						SparkPodSpec: v1beta2.SparkPodSpec{
+							SchedulingGroup: &v1beta2.PodSchedulingGroup{
+								PodGroupName: podGroupName,
+							},
+						},
+					},
+				},
+				Status: v1beta2.SparkApplicationStatus{
+					SubmissionID: submissionID,
+				},
+			},
+			expectSchedulingGroupInSpec: true,
+			expectedPodGroupName:        podGroupName,
+		},
+		"without SchedulingGroup": {
+			app: &v1beta2.SparkApplication{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: appName,
+					UID:  uid,
+				},
+				Spec: v1beta2.SparkApplicationSpec{
+					Driver: v1beta2.DriverSpec{
+						SparkPodSpec: v1beta2.SparkPodSpec{
+							SchedulingGroup: nil,
+						},
+					},
+				},
+				Status: v1beta2.SparkApplicationStatus{
+					SubmissionID: submissionID,
+				},
+			},
+			expectSchedulingGroupInSpec: false,
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			template := buildDriverPodTemplate(tc.app)
+
+			if tc.expectSchedulingGroupInSpec {
+				require.NotNil(t, template.Spec.SchedulingGroup, "PodSpec.SchedulingGroup should be set")
+				require.NotNil(t, template.Spec.SchedulingGroup.PodGroupName, "PodGroupName should be set")
+				assert.Equal(t, tc.expectedPodGroupName, *template.Spec.SchedulingGroup.PodGroupName)
+			} else {
+				assert.Nil(t, template.Spec.SchedulingGroup, "PodSpec.SchedulingGroup should be nil when custom SchedulingGroup is nil")
+			}
+		})
+	}
+}
+
 func TestExecutorPodTemplateContents(t *testing.T) {
 	appName := "test"
 	uid := types.UID(uuid.New().String())
@@ -647,6 +715,73 @@ func TestExecutorPodTemplateContents(t *testing.T) {
 			assert.NoError(t, err)
 
 			assert.Equal(t, string(expectedBytes), string(actualBytes))
+		})
+	}
+}
+
+func TestExecutorPodTemplateSchedulingGroup(t *testing.T) {
+	appName := "test-app"
+	uid := types.UID(uuid.New().String())
+	submissionID := "test-submission-1"
+	podGroupName := "test-app-test-submission-1"
+
+	for name, tc := range map[string]struct {
+		app                         *v1beta2.SparkApplication
+		expectSchedulingGroupInSpec bool
+		expectedPodGroupName        string
+	}{
+		"with SchedulingGroup": {
+			app: &v1beta2.SparkApplication{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: appName,
+					UID:  uid,
+				},
+				Spec: v1beta2.SparkApplicationSpec{
+					Executor: v1beta2.ExecutorSpec{
+						SparkPodSpec: v1beta2.SparkPodSpec{
+							SchedulingGroup: &v1beta2.PodSchedulingGroup{
+								PodGroupName: podGroupName,
+							},
+						},
+					},
+				},
+				Status: v1beta2.SparkApplicationStatus{
+					SubmissionID: submissionID,
+				},
+			},
+			expectSchedulingGroupInSpec: true,
+			expectedPodGroupName:        podGroupName,
+		},
+		"without SchedulingGroup": {
+			app: &v1beta2.SparkApplication{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: appName,
+					UID:  uid,
+				},
+				Spec: v1beta2.SparkApplicationSpec{
+					Executor: v1beta2.ExecutorSpec{
+						SparkPodSpec: v1beta2.SparkPodSpec{
+							SchedulingGroup: nil,
+						},
+					},
+				},
+				Status: v1beta2.SparkApplicationStatus{
+					SubmissionID: submissionID,
+				},
+			},
+			expectSchedulingGroupInSpec: false,
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			template := buildExecutorPodTemplate(tc.app)
+
+			if tc.expectSchedulingGroupInSpec {
+				require.NotNil(t, template.Spec.SchedulingGroup, "PodSpec.SchedulingGroup should be set")
+				require.NotNil(t, template.Spec.SchedulingGroup.PodGroupName, "PodGroupName should be set")
+				assert.Equal(t, tc.expectedPodGroupName, *template.Spec.SchedulingGroup.PodGroupName)
+			} else {
+				assert.Nil(t, template.Spec.SchedulingGroup, "PodSpec.SchedulingGroup should be nil when custom SchedulingGroup is nil")
+			}
 		})
 	}
 }

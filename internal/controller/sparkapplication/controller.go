@@ -49,6 +49,7 @@ import (
 	"github.com/kubeflow/spark-operator/v2/internal/scheduler"
 	"github.com/kubeflow/spark-operator/v2/internal/scheduler/kubescheduler"
 	"github.com/kubeflow/spark-operator/v2/internal/scheduler/volcano"
+	"github.com/kubeflow/spark-operator/v2/internal/scheduler/workload"
 	"github.com/kubeflow/spark-operator/v2/internal/scheduler/yunikorn"
 	"github.com/kubeflow/spark-operator/v2/pkg/common"
 	"github.com/kubeflow/spark-operator/v2/pkg/util"
@@ -1534,6 +1535,12 @@ func (r *Reconciler) shouldDoBatchScheduling(ctx context.Context, app *v1beta2.S
 		scheduler, err = r.registry.GetScheduler(schedulerName, config)
 	case yunikorn.SchedulerName:
 		scheduler, err = r.registry.GetScheduler(schedulerName, nil)
+	case workload.SchedulerName:
+		config := &workload.Config{
+			RestConfig: r.manager.GetConfig(),
+			Client:     r.manager.GetClient(),
+		}
+		scheduler, err = r.registry.GetScheduler(schedulerName, config)
 	}
 
 	for _, name := range r.options.KubeSchedulerNames {

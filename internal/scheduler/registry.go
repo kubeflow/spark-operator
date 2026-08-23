@@ -30,11 +30,16 @@ type Registry struct {
 	mu sync.Mutex
 }
 
+// NewRegistry creates a new Registry instance with an initialized factory map.
+func NewRegistry() *Registry {
+	return &Registry{
+		factories: make(map[string]Factory),
+	}
+}
+
 func GetRegistry() *Registry {
 	if registry == nil {
-		registry = &Registry{
-			factories: make(map[string]Factory),
-		}
+		registry = NewRegistry()
 	}
 	return registry
 }
