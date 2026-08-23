@@ -250,3 +250,30 @@ jobs:
 
       - name: Run e2e tests
         run: make e2e-test DEPLOY_METHOD=${{ matrix.deploy_method }} IMAGE_TAG=local
+
+  workload-e2e-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    name: e2e-test (v1.36.1, workload, helm)
+    env:
+      KIND_VERSION: v0.32.0
+      KIND_K8S_VERSION: v1.36.1@sha256:3489c7674813ba5d8b1a9977baea8a6e553784dab7b84759d1014dbd78f7ebd5
+      KIND_CONFIG_FILE: charts/spark-operator-chart/ci/workload-kind-config.yaml
+      WORKLOAD_E2E: "true"
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Go
+        uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0 # zizmor: ignore[cache-poisoning] caching is intentional for CI jobs
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: |
+            go.sum
+            test/e2e/go.sum
+
+      - name: Run workload scheduler e2e tests
+        run: make e2e-test DEPLOY_METHOD=helm IMAGE_TAG=local E2E_TEST_ARGS="-ginkgo.label-filter=workload"
