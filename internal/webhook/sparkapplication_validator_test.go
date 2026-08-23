@@ -545,7 +545,7 @@ func TestValidateWorkloadSchedulerFields(t *testing.T) {
 			if tt.wantWarns > 0 && tt.warnContains != "" {
 				found := false
 				for _, w := range warnings {
-					if strings.Contains(string(w), tt.warnContains) {
+					if strings.Contains(w, tt.warnContains) {
 						found = true
 						break
 					}
