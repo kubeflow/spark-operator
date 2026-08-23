@@ -146,28 +146,6 @@ func buildSparkSubmitArgs(app *v1beta2.SparkApplication, skipPodTemplates bool) 
 	return args, nil
 }
 
-// applyDefaultDriverServiceAccount returns a SparkApplication whose driver service account
-// is set to defaultServiceAccount when the application does not specify one. The original
-// application is returned unchanged when no fallback is configured or when the application
-// already specifies a driver service account, so that the fallback is only ever visible in
-// the spark-submit invocation and never written back to the custom resource.
-//
-// An explicitly empty service account is treated as unspecified. Without this, driverConfOption
-// emits spark.kubernetes.authenticate.driver.serviceAccountName with an empty value, which is
-// never what the user wants.
-func applyDefaultDriverServiceAccount(app *v1beta2.SparkApplication, defaultServiceAccount string) *v1beta2.SparkApplication {
-	if defaultServiceAccount == "" {
-		return app
-	}
-	if app.Spec.Driver.ServiceAccount != nil && *app.Spec.Driver.ServiceAccount != "" {
-		return app
-	}
-
-	copied := app.DeepCopy()
-	copied.Spec.Driver.ServiceAccount = &defaultServiceAccount
-	return copied
-}
-
 type sparkSubmitOptionFunc func(*v1beta2.SparkApplication) ([]string, error)
 
 func masterOption(_ *v1beta2.SparkApplication) ([]string, error) {

@@ -537,3 +537,33 @@ func IsDynamicAllocationEnabled(app *v1beta2.SparkApplication) bool {
 	dynamicAllocationConfVal, _ := strconv.ParseBool(app.Spec.SparkConf[common.SparkDynamicAllocationEnabled])
 	return dynamicAllocationConfVal
 }
+
+// ApplyDefaultDriverServiceAccount returns a SparkApplication whose driver service account is
+// set to defaultServiceAccount when neither the application nor its driver pod template
+// specifies one. The original application is returned unchanged when no fallback is
+// configured, or when a service account is already specified, so that the fallback is only
+// ever visible in the spark-submit invocation and never written back to the custom resource.
+//
+// Precedence, highest first:
+//  1. app.Spec.Driver.ServiceAccount
+//  2. app.Spec.Driver.Template.Spec.ServiceAccountName
+//  3. defaultServiceAccount
+func ApplyDefaultDriverServiceAccount(app *v1beta2.SparkApplication, defaultServiceAccount string) *v1beta2.SparkApplication {
+	if defaultServiceAccount == "" {
+		return app
+	}
+
+	if serviceAccount := app.Spec.Driver.ServiceAccount; serviceAccount != nil && *serviceAccount != "" {
+		return app
+	}
+
+	// A service account set in the driver pod template is honoured by Spark when rendering the
+	// driver pod, so the fallback must not override it.
+	if template := app.Spec.Driver.Template; template != nil && template.Spec.ServiceAccountName != "" {
+		return app
+	}
+
+	copied := app.DeepCopy()
+	copied.Spec.Driver.ServiceAccount = &defaultServiceAccount
+	return copied
+}

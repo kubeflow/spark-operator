@@ -508,6 +508,35 @@ var _ = Describe("SparkApplication Controller", func() {
 			Expect(submitter.submitted).NotTo(BeNil())
 			Expect(submitter.submitted.Spec.Driver.ServiceAccount).To(BeNil())
 		})
+
+		It("Should not apply the default service account when the driver pod template specifies one", func() {
+			By("Setting a service account in the driver pod template")
+			app := &v1beta2.SparkApplication{}
+			Expect(k8sClient.Get(ctx, key, app)).To(Succeed())
+			app.Spec.Driver.Template = &corev1.PodTemplateSpec{
+				Spec: corev1.PodSpec{
+					ServiceAccountName: "template-service-account",
+				},
+			}
+			Expect(k8sClient.Update(ctx, app)).To(Succeed())
+
+			By("Reconciling the created test SparkApplication")
+			submitter := &recordingSubmitter{}
+			reconciler := sparkapplication.NewReconciler(
+				nil,
+				k8sClient.Scheme(),
+				k8sClient,
+				events.NewFakeRecorder(3),
+				nil,
+				submitter,
+				sparkapplication.Options{Namespaces: []string{appNamespace}, DefaultServiceAccount: "spark-operator-spark"},
+			)
+			_, err := reconciler.Reconcile(ctx, reconcile.Request{NamespacedName: key})
+			Expect(err).NotTo(HaveOccurred())
+			Expect(submitter.submitted).NotTo(BeNil())
+			Expect(submitter.submitted.Spec.Driver.ServiceAccount).To(BeNil())
+			Expect(submitter.submitted.Spec.Driver.Template.Spec.ServiceAccountName).To(Equal("template-service-account"))
+		})
 	})
 
 	Context("When reconciling a completed SparkApplication", func() {

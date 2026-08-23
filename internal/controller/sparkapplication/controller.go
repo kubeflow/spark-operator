@@ -1008,10 +1008,13 @@ func (r *Reconciler) submitSparkApplication(ctx context.Context, app *v1beta2.Sp
 		}
 	}()
 
-	// Fall back to the operator-level default service account when the SparkApplication
-	// does not specify one for the driver. This is applied to a copy of the application
-	// so that the fallback is never written back to the custom resource.
-	submitApp := applyDefaultDriverServiceAccount(app, r.options.DefaultServiceAccount)
+	// Fall back to the operator-level default service account when neither the SparkApplication
+	// nor its driver pod template specifies one. This is applied to a copy of the application so
+	// that the fallback is never written back to the custom resource.
+	submitApp := util.ApplyDefaultDriverServiceAccount(app, r.options.DefaultServiceAccount)
+	if submitApp != app {
+		logger.Info("Applied default driver service account", "serviceAccount", r.options.DefaultServiceAccount)
+	}
 
 	if err := r.submitter.Submit(ctx, submitApp); err != nil {
 		r.recordSparkApplicationEvent(app)
