@@ -33,6 +33,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
 	"github.com/kubeflow/spark-operator/v2/api/v1beta2"
+	"github.com/kubeflow/spark-operator/v2/internal/scheduler/workload"
 	"github.com/kubeflow/spark-operator/v2/pkg/common"
 	"github.com/kubeflow/spark-operator/v2/pkg/util"
 )
@@ -530,7 +531,9 @@ func addDNSConfig(pod *corev1.Pod, app *v1beta2.SparkApplication) error {
 func addSchedulerName(pod *corev1.Pod, app *v1beta2.SparkApplication) error {
 	var schedulerName *string
 	// NOTE: Preferred to use `BatchScheduler` if application spec has it configured.
-	if app.Spec.BatchScheduler != nil {
+	// Exception: the native workload scheduler uses kube-scheduler with the GangScheduling plugin,
+	// not a separate scheduler process, so prefer the role-specific SchedulerName for workload.
+	if app.Spec.BatchScheduler != nil && *app.Spec.BatchScheduler != workload.SchedulerName {
 		schedulerName = app.Spec.BatchScheduler
 	} else if util.IsDriverPod(pod) {
 		schedulerName = app.Spec.Driver.SchedulerName

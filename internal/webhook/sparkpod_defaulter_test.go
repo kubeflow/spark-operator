@@ -30,6 +30,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/validation"
 
 	"github.com/kubeflow/spark-operator/v2/api/v1beta2"
+	"github.com/kubeflow/spark-operator/v2/internal/scheduler/workload"
 	"github.com/kubeflow/spark-operator/v2/pkg/common"
 )
 
@@ -2393,4 +2394,97 @@ func TestPatchSparkPod_MemoryLimit(t *testing.T) {
 	assert.Equal(t, "10Gi", expectedExecutorMemoryLimit.String())
 	assert.NotEqual(t, expectedExecutorMemoryRequest.String(), expectedExecutorMemoryLimit.String())
 
+}
+
+func TestPatchSparkPod_WorkloadSchedulerName(t *testing.T) {
+	stringPtr := func(s string) *string { return &s }
+
+	tests := []struct {
+		name                  string
+		batchScheduler        *string
+		roleSpecificScheduler *string
+		podRole               string
+		podInitialScheduler   string
+		expectedScheduler     string
+	}{
+		{
+			name:                  "volcano overrides driver initial scheduler",
+			batchScheduler:        stringPtr("volcano"),
+			roleSpecificScheduler: stringPtr("custom-driver"),
+			podRole:               common.SparkRoleDriver,
+			podInitialScheduler:   "default-scheduler",
+			expectedScheduler:     "volcano",
+		},
+		{
+			name:                  "workload driver without role-specific keeps initial default-scheduler",
+			batchScheduler:        stringPtr(workload.SchedulerName),
+			roleSpecificScheduler: nil,
+			podRole:               common.SparkRoleDriver,
+			podInitialScheduler:   "default-scheduler",
+			expectedScheduler:     "default-scheduler",
+		},
+		{
+			name:                  "workload executor without role-specific keeps initial default-scheduler",
+			batchScheduler:        stringPtr(workload.SchedulerName),
+			roleSpecificScheduler: nil,
+			podRole:               common.SparkRoleExecutor,
+			podInitialScheduler:   "default-scheduler",
+			expectedScheduler:     "default-scheduler",
+		},
+		{
+			name:                  "workload driver with explicit role-specific uses custom driver scheduler",
+			batchScheduler:        stringPtr(workload.SchedulerName),
+			roleSpecificScheduler: stringPtr("custom-driver"),
+			podRole:               common.SparkRoleDriver,
+			podInitialScheduler:   "default-scheduler",
+			expectedScheduler:     "custom-driver",
+		},
+		{
+			name:                  "workload executor with explicit role-specific uses custom executor scheduler",
+			batchScheduler:        stringPtr(workload.SchedulerName),
+			roleSpecificScheduler: stringPtr("custom-executor"),
+			podRole:               common.SparkRoleExecutor,
+			podInitialScheduler:   "default-scheduler",
+			expectedScheduler:     "custom-executor",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			app := &v1beta2.SparkApplication{
+				Spec: v1beta2.SparkApplicationSpec{
+					BatchScheduler: tt.batchScheduler,
+				},
+			}
+
+			if tt.podRole == common.SparkRoleDriver {
+				app.Spec.Driver = v1beta2.DriverSpec{
+					SparkPodSpec: v1beta2.SparkPodSpec{
+						SchedulerName: tt.roleSpecificScheduler,
+					},
+				}
+			} else {
+				app.Spec.Executor = v1beta2.ExecutorSpec{
+					SparkPodSpec: v1beta2.SparkPodSpec{
+						SchedulerName: tt.roleSpecificScheduler,
+					},
+				}
+			}
+
+			pod := &corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{
+						common.LabelSparkRole: tt.podRole,
+					},
+				},
+				Spec: corev1.PodSpec{
+					SchedulerName: tt.podInitialScheduler,
+				},
+			}
+
+			err := addSchedulerName(pod, app)
+			assert.NoError(t, err)
+			assert.Equal(t, tt.expectedScheduler, pod.Spec.SchedulerName)
+		})
+	}
 }
