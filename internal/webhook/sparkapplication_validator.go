@@ -170,8 +170,9 @@ func (v *SparkApplicationValidator) validateSpec(ctx context.Context, app *v1bet
 }
 
 // validateWorkloadSchedulerFields rejects user-set schedulingGroup fields (which are
-// operator-managed) and emits a warning when batchSchedulerOptions.queue is set
-// together with batchScheduler: "workload" (queue has no effect on the Workload API).
+// operator-managed), validates workload gang sizing, and emits a warning when
+// batchSchedulerOptions.queue is set together with batchScheduler: "workload"
+// (queue has no effect on the Workload API).
 func validateWorkloadSchedulerFields(app *v1beta2.SparkApplication) (admission.Warnings, error) {
 	var warnings admission.Warnings
 
@@ -184,8 +185,23 @@ func validateWorkloadSchedulerFields(app *v1beta2.SparkApplication) (admission.W
 			"and must not be set directly")
 	}
 
+	opts := app.Spec.BatchSchedulerOptions
+	if opts != nil && opts.MinMember != nil && *opts.MinMember < 1 {
+		return nil, fmt.Errorf("spec.batchSchedulerOptions.minMember must be greater than or equal to 1")
+	}
+
 	if app.Spec.BatchScheduler != nil && *app.Spec.BatchScheduler == "workload" {
-		if opts := app.Spec.BatchSchedulerOptions; opts != nil && opts.Queue != nil {
+		if opts != nil && opts.MinMember != nil {
+			initialExecutors := max(int32(1), util.GetInitialExecutorNumber(app))
+			if *opts.MinMember > initialExecutors {
+				return nil, fmt.Errorf(
+					"spec.batchSchedulerOptions.minMember (%d) must not exceed the initial executor count (%d)",
+					*opts.MinMember,
+					initialExecutors,
+				)
+			}
+		}
+		if opts != nil && opts.Queue != nil {
 			warnings = append(warnings,
 				`batchSchedulerOptions.queue has no effect when batchScheduler is "workload": `+
 					"the Workload API has no native queue/quota concept")

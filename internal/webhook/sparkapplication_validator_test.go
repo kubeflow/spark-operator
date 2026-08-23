@@ -518,6 +518,60 @@ func TestValidateWorkloadSchedulerFields(t *testing.T) {
 			wantErr:   false,
 			wantWarns: 0,
 		},
+		{
+			name: "minMember equal to initial executors (pass)",
+			modifyApp: func(app *v1beta2.SparkApplication) {
+				app.Spec.BatchScheduler = ptr.To("workload")
+				app.Spec.Executor.Instances = ptr.To[int32](2)
+				app.Spec.BatchSchedulerOptions = &v1beta2.BatchSchedulerConfiguration{
+					MinMember: ptr.To[int32](2),
+				}
+			},
+			wantErr: false,
+		},
+		{
+			name: "zero minMember (reject)",
+			modifyApp: func(app *v1beta2.SparkApplication) {
+				app.Spec.BatchSchedulerOptions = &v1beta2.BatchSchedulerConfiguration{
+					MinMember: ptr.To[int32](0),
+				}
+			},
+			wantErr:     true,
+			errContains: "minMember must be greater than or equal to 1",
+		},
+		{
+			name: "negative minMember (reject)",
+			modifyApp: func(app *v1beta2.SparkApplication) {
+				app.Spec.BatchSchedulerOptions = &v1beta2.BatchSchedulerConfiguration{
+					MinMember: ptr.To[int32](-1),
+				}
+			},
+			wantErr:     true,
+			errContains: "minMember must be greater than or equal to 1",
+		},
+		{
+			name: "minMember above initial executors (reject)",
+			modifyApp: func(app *v1beta2.SparkApplication) {
+				app.Spec.BatchScheduler = ptr.To("workload")
+				app.Spec.Executor.Instances = ptr.To[int32](2)
+				app.Spec.BatchSchedulerOptions = &v1beta2.BatchSchedulerConfiguration{
+					MinMember: ptr.To[int32](3),
+				}
+			},
+			wantErr:     true,
+			errContains: "minMember (3) must not exceed the initial executor count (2)",
+		},
+		{
+			name: "minMember is ignored by another scheduler",
+			modifyApp: func(app *v1beta2.SparkApplication) {
+				app.Spec.BatchScheduler = ptr.To("volcano")
+				app.Spec.Executor.Instances = ptr.To[int32](2)
+				app.Spec.BatchSchedulerOptions = &v1beta2.BatchSchedulerConfiguration{
+					MinMember: ptr.To[int32](3),
+				}
+			},
+			wantErr: false,
+		},
 	}
 
 	for _, tt := range tests {

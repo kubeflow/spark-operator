@@ -432,7 +432,7 @@ func schema_spark_operator_v2_api_v1beta2_BatchSchedulerConfiguration(ref common
 					},
 					"priorityClassName": {
 						SchemaProps: spec.SchemaProps{
-							Description: "PriorityClassName stands for the name of k8s PriorityClass resource, it's being used in Volcano batch scheduler.",
+							Description: "PriorityClassName is the name of the Kubernetes PriorityClass used by the Volcano and workload batch schedulers.",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -453,7 +453,7 @@ func schema_spark_operator_v2_api_v1beta2_BatchSchedulerConfiguration(ref common
 					},
 					"minMember": {
 						SchemaProps: spec.SchemaProps{
-							Description: "MinMember overrides the computed gang minCount for the \"workload\" batch scheduler. Defaults to 1 (driver, cluster mode only) + the initial requested executor count as computed by GetInitialExecutorNumber (DRA-aware). Only consumed by the \"workload\" backend; ignored by Volcano, YuniKorn, and kube-scheduler backends.",
+							Description: "MinMember overrides the computed gang minCount for the \"workload\" batch scheduler. By default, minCount is the initial requested executor count as computed by GetInitialExecutorNumber (DRA-aware), clamped to at least 1. The cluster-mode driver is excluded to avoid a bootstrap deadlock while it creates executors. Only consumed by the \"workload\" backend; ignored by Volcano, YuniKorn, and kube-scheduler backends.",
 							Type:        []string{"integer"},
 							Format:      "int32",
 						},

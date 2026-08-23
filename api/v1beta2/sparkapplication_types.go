@@ -280,7 +280,7 @@ type BatchSchedulerConfiguration struct {
 	// Queue stands for the resource queue which the application belongs to, it's being used in Volcano batch scheduler.
 	// +optional
 	Queue *string `json:"queue,omitempty"`
-	// PriorityClassName stands for the name of k8s PriorityClass resource, it's being used in Volcano batch scheduler.
+	// PriorityClassName is the name of the Kubernetes PriorityClass used by the Volcano and workload batch schedulers.
 	// +optional
 	PriorityClassName *string `json:"priorityClassName,omitempty"`
 	// Resources stands for the resource list custom request for. Usually it is used to define the lower-bound limit.
@@ -288,9 +288,12 @@ type BatchSchedulerConfiguration struct {
 	// +optional
 	Resources corev1.ResourceList `json:"resources,omitempty"`
 	// MinMember overrides the computed gang minCount for the "workload" batch scheduler.
-	// Defaults to 1 (driver, cluster mode only) + the initial requested executor count
-	// as computed by GetInitialExecutorNumber (DRA-aware). Only consumed by the "workload"
-	// backend; ignored by Volcano, YuniKorn, and kube-scheduler backends.
+	// By default, minCount is the initial requested executor count as computed by
+	// GetInitialExecutorNumber (DRA-aware), clamped to at least 1. The cluster-mode
+	// driver is excluded to avoid a bootstrap deadlock while it creates executors.
+	// Only consumed by the "workload" backend; ignored by Volcano, YuniKorn, and
+	// kube-scheduler backends.
+	// +kubebuilder:validation:Minimum=1
 	// +optional
 	MinMember *int32 `json:"minMember,omitempty"`
 }
