@@ -31,6 +31,7 @@ import (
 
 	"github.com/kubeflow/spark-operator/v2/api/v1beta2"
 	"github.com/kubeflow/spark-operator/v2/pkg/common"
+	"github.com/kubeflow/spark-operator/v2/pkg/util"
 )
 
 func TestPatchSparkPod_OwnerReference(t *testing.T) {
@@ -444,6 +445,16 @@ func TestGetConfigMapVolumeName(t *testing.T) {
 			configMapName: "generated-config-name-generated-config-name-generated-config-name",
 			expected:      "generated-config-name-generated-config-name-genera-d0f2ef0c-vol",
 		},
+		{
+			name:          "name landing exactly on the limit stays unchanged",
+			configMapName: "config-name-config-name-config-name-config-name-config-name",
+			expected:      "config-name-config-name-config-name-config-name-config-name-vol",
+		},
+		{
+			name:          "name one character over the limit is truncated with a hash",
+			configMapName: "config-name-config-name-config-name-config-name-config-names",
+			expected:      "config-name-config-name-config-name-config-name-co-95152860-vol",
+		},
 	}
 
 	for _, tt := range tests {
@@ -548,6 +559,87 @@ func TestPatchSparkPod_HadoopConfigMap(t *testing.T) {
 	assert.Equal(t, common.DefaultHadoopConfDir, modifiedPod.Spec.Containers[0].VolumeMounts[0].MountPath)
 	assert.Len(t, modifiedPod.Spec.Containers[0].Env, 1)
 	assert.Equal(t, common.DefaultHadoopConfDir, modifiedPod.Spec.Containers[0].Env[0].Value)
+}
+
+func TestPatchSparkPod_PrometheusConfigMap(t *testing.T) {
+	tests := []struct {
+		name               string
+		appName            string
+		expectedVolumeName string
+	}{
+		{
+			name:               "ordinary application name stays unchanged",
+			appName:            "spark-test",
+			expectedVolumeName: "spark-test-prom-conf-vol",
+		},
+		{
+			name:               "long application name is truncated with a hash",
+			appName:            "spark-application-with-a-very-long-name-that-exceeds-limits",
+			expectedVolumeName: "spark-application-with-a-very-long-name-that-excee-20857375-vol",
+		},
+	}
+
+	roles := []struct {
+		role      string
+		container string
+	}{
+		{role: common.SparkRoleDriver, container: common.SparkDriverContainerName},
+		{role: common.SparkRoleExecutor, container: common.SparkExecutorContainerName},
+	}
+
+	for _, tt := range tests {
+		for _, r := range roles {
+			t.Run(fmt.Sprintf("%s (%s)", tt.name, r.role), func(t *testing.T) {
+				app := &v1beta2.SparkApplication{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: tt.appName,
+						UID:  "spark-test-1",
+					},
+					Spec: v1beta2.SparkApplicationSpec{
+						Monitoring: &v1beta2.MonitoringSpec{
+							ExposeDriverMetrics:   true,
+							ExposeExecutorMetrics: true,
+							Prometheus: &v1beta2.PrometheusSpec{
+								JmxExporterJar: "/prometheus/jmx_prometheus_javaagent.jar",
+							},
+						},
+					},
+				}
+
+				pod := &corev1.Pod{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: fmt.Sprintf("spark-%s", r.role),
+						Labels: map[string]string{
+							common.LabelSparkRole:               r.role,
+							common.LabelLaunchedBySparkOperator: "true",
+						},
+					},
+					Spec: corev1.PodSpec{
+						Containers: []corev1.Container{
+							{
+								Name:  r.container,
+								Image: "spark:latest",
+							},
+						},
+					},
+				}
+
+				modifiedPod, err := getModifiedPod(pod, app)
+				if err != nil {
+					t.Fatal(err)
+				}
+
+				assert.Len(t, modifiedPod.Spec.Volumes, 1)
+				assert.Equal(t, tt.expectedVolumeName, modifiedPod.Spec.Volumes[0].Name)
+				assert.Empty(t, validation.IsDNS1123Label(modifiedPod.Spec.Volumes[0].Name))
+				assert.NotNil(t, modifiedPod.Spec.Volumes[0].ConfigMap)
+				assert.Equal(t, util.GetPrometheusConfigMapName(app), modifiedPod.Spec.Volumes[0].ConfigMap.Name)
+				assert.Len(t, modifiedPod.Spec.Containers[0].VolumeMounts, 1)
+				assert.Equal(t, tt.expectedVolumeName, modifiedPod.Spec.Containers[0].VolumeMounts[0].Name)
+				assert.Equal(t, common.PrometheusConfigMapMountPath, modifiedPod.Spec.Containers[0].VolumeMounts[0].MountPath)
+			})
+		}
+	}
 }
 
 // func TestPatchSparkPod_PrometheusConfigMaps(t *testing.T) {
