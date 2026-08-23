@@ -121,6 +121,13 @@ Batch scheduling and gang scheduling with Volcano
 Resource-aware batch scheduling with Apache YuniKorn
 ::::
 
+::::{grid-item-card} Kubernetes Workload Scheduler
+:link: workload-scheduler-integration
+:link-type: doc
+
+Native Workload and PodGroup gang scheduling using `scheduling.k8s.io/v1alpha2`
+::::
+
 :::::
 
 ## Integrations
@@ -163,6 +170,7 @@ resource-quota-enforcement
 monitoring-with-jmx-and-prometheus
 volcano-integration
 yunikorn-integration
+workload-scheduler-integration
 gcp
 notebooks-spark-operator
 ```

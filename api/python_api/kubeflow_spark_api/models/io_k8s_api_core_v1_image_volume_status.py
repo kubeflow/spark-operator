@@ -17,22 +17,17 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictStr
-from typing import Any, ClassVar, Dict, List, Optional
-from kubeflow_spark_api.models.io_k8s_api_core_v1_volume_status import IoK8sApiCoreV1VolumeStatus
+from pydantic import BaseModel, ConfigDict, Field, StrictStr
+from typing import Any, ClassVar, Dict, List
 from typing import Optional, Set
 from typing_extensions import Self
 
-class IoK8sApiCoreV1VolumeMountStatus(BaseModel):
+class IoK8sApiCoreV1ImageVolumeStatus(BaseModel):
     """
-    VolumeMountStatus shows status of volume mounts.
+    ImageVolumeStatus represents the image-based volume status.
     """ # noqa: E501
-    mount_path: StrictStr = Field(description="MountPath corresponds to the original VolumeMount.", alias="mountPath")
-    name: StrictStr = Field(description="Name corresponds to the name of the original VolumeMount.")
-    read_only: Optional[StrictBool] = Field(default=None, description="ReadOnly corresponds to the original VolumeMount.", alias="readOnly")
-    recursive_read_only: Optional[StrictStr] = Field(default=None, description="RecursiveReadOnly must be set to Disabled, Enabled, or unspecified (for non-readonly mounts). An IfPossible value in the original VolumeMount must be translated to Disabled or Enabled, depending on the mount result.", alias="recursiveReadOnly")
-    volume_status: Optional[IoK8sApiCoreV1VolumeStatus] = Field(default=None, description="volumeStatus represents volume-type-specific status about the mounted volume.", alias="volumeStatus")
-    __properties: ClassVar[List[str]] = ["mountPath", "name", "readOnly", "recursiveReadOnly", "volumeStatus"]
+    image_ref: StrictStr = Field(description="ImageRef is the digest of the image used for this volume. It should have a value that's similar to the pod's status.containerStatuses[i].imageID. The ImageRef length should not exceed 256 characters.", alias="imageRef")
+    __properties: ClassVar[List[str]] = ["imageRef"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -52,7 +47,7 @@ class IoK8sApiCoreV1VolumeMountStatus(BaseModel):
 
     @classmethod
     def from_json(cls, json_str: str) -> Optional[Self]:
-        """Create an instance of IoK8sApiCoreV1VolumeMountStatus from a JSON string"""
+        """Create an instance of IoK8sApiCoreV1ImageVolumeStatus from a JSON string"""
         return cls.from_dict(json.loads(json_str))
 
     def to_dict(self) -> Dict[str, Any]:
@@ -73,14 +68,11 @@ class IoK8sApiCoreV1VolumeMountStatus(BaseModel):
             exclude=excluded_fields,
             exclude_none=True,
         )
-        # override the default output from pydantic by calling `to_dict()` of volume_status
-        if self.volume_status:
-            _dict['volumeStatus'] = self.volume_status.to_dict()
         return _dict
 
     @classmethod
     def from_dict(cls, obj: Optional[Dict[str, Any]]) -> Optional[Self]:
-        """Create an instance of IoK8sApiCoreV1VolumeMountStatus from a dict"""
+        """Create an instance of IoK8sApiCoreV1ImageVolumeStatus from a dict"""
         if obj is None:
             return None
 
@@ -88,11 +80,7 @@ class IoK8sApiCoreV1VolumeMountStatus(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
-            "mountPath": obj.get("mountPath") if obj.get("mountPath") is not None else '',
-            "name": obj.get("name") if obj.get("name") is not None else '',
-            "readOnly": obj.get("readOnly"),
-            "recursiveReadOnly": obj.get("recursiveReadOnly"),
-            "volumeStatus": IoK8sApiCoreV1VolumeStatus.from_dict(obj["volumeStatus"]) if obj.get("volumeStatus") is not None else None
+            "imageRef": obj.get("imageRef")
         })
         return _obj
 

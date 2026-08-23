@@ -39,6 +39,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	discoveryv1 "k8s.io/api/discovery/v1"
 	policyv1 "k8s.io/api/policy/v1"
+	schedulingv1alpha2 "k8s.io/api/scheduling/v1alpha2"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -130,6 +131,7 @@ var _ = BeforeSuite(func() {
 	Expect(v1alpha1.AddToScheme(scheme.Scheme)).NotTo(HaveOccurred())
 	Expect(v1beta2.AddToScheme(scheme.Scheme)).NotTo(HaveOccurred())
 	Expect(policyv1.AddToScheme(scheme.Scheme)).NotTo(HaveOccurred())
+	Expect(schedulingv1alpha2.AddToScheme(scheme.Scheme)).NotTo(HaveOccurred())
 	// +kubebuilder:scaffold:scheme
 
 	k8sClient, err = client.New(cfg, client.Options{Scheme: scheme.Scheme})
@@ -194,9 +196,36 @@ func installViaHelm() {
 	values, err := chartutil.ReadValuesFile(filepath.Join(chartPath, "ci", "ci-values.yaml"))
 	Expect(err).NotTo(HaveOccurred())
 	Expect(values).NotTo(BeNil())
+	if workloadE2EEnabled() {
+		enableWorkloadScheduler(values)
+	}
 	release, err := installAction.Run(chart, values)
 	Expect(err).NotTo(HaveOccurred())
 	Expect(release).NotTo(BeNil())
+}
+
+func workloadE2EEnabled() bool {
+	return strings.EqualFold(os.Getenv("WORKLOAD_E2E"), "true")
+}
+
+func enableWorkloadScheduler(values chartutil.Values) {
+	controllerValues, ok := values["controller"].(map[string]interface{})
+	Expect(ok).To(BeTrue(), "controller Helm values must be a map")
+
+	batchSchedulerValues := map[string]interface{}{}
+	if existing, found := controllerValues["batchScheduler"]; found {
+		batchSchedulerValues, ok = existing.(map[string]interface{})
+		Expect(ok).To(BeTrue(), "controller.batchScheduler Helm values must be a map")
+	}
+	workloadValues := map[string]interface{}{}
+	if existing, found := batchSchedulerValues["workload"]; found {
+		workloadValues, ok = existing.(map[string]interface{})
+		Expect(ok).To(BeTrue(), "controller.batchScheduler.workload Helm values must be a map")
+	}
+	batchSchedulerValues["enable"] = true
+	workloadValues["enable"] = true
+	batchSchedulerValues["workload"] = workloadValues
+	controllerValues["batchScheduler"] = batchSchedulerValues
 }
 
 func uninstallViaHelm() {

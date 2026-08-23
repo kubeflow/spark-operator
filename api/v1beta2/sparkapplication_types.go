@@ -280,13 +280,22 @@ type BatchSchedulerConfiguration struct {
 	// Queue stands for the resource queue which the application belongs to, it's being used in Volcano batch scheduler.
 	// +optional
 	Queue *string `json:"queue,omitempty"`
-	// PriorityClassName stands for the name of k8s PriorityClass resource, it's being used in Volcano batch scheduler.
+	// PriorityClassName is the name of the Kubernetes PriorityClass used by the Volcano and workload batch schedulers.
 	// +optional
 	PriorityClassName *string `json:"priorityClassName,omitempty"`
 	// Resources stands for the resource list custom request for. Usually it is used to define the lower-bound limit.
 	// If specified, volcano scheduler will consider it as the resources requested.
 	// +optional
 	Resources corev1.ResourceList `json:"resources,omitempty"`
+	// MinMember overrides the computed gang minCount for the "workload" batch scheduler.
+	// By default, minCount is the initial requested executor count as computed by
+	// GetInitialExecutorNumber (DRA-aware), clamped to at least 1. The cluster-mode
+	// driver is excluded to avoid a bootstrap deadlock while it creates executors.
+	// Only consumed by the "workload" backend; ignored by Volcano, YuniKorn, and
+	// kube-scheduler backends.
+	// +kubebuilder:validation:Minimum=1
+	// +optional
+	MinMember *int32 `json:"minMember,omitempty"`
 }
 
 // SparkUIConfiguration is for driver UI specific configuration parameters.
@@ -529,6 +538,24 @@ type SparkPodSpec struct {
 	// ShareProcessNamespace settings for the pod, following the Kubernetes specifications.
 	// +optional
 	ShareProcessNamespace *bool `json:"shareProcessNamespace,omitempty"`
+	// SchedulingGroup binds this pod template to a Kubernetes native PodGroup
+	// (scheduling.k8s.io/v1alpha2) for gang scheduling via the "workload" batch
+	// scheduler backend. This field is set internally by the operator; it MUST NOT
+	// be set directly by users (enforced by the admission webhook).
+	// Requires Kubernetes v1.36+ with the GenericWorkload feature gate enabled.
+	// +optional
+	SchedulingGroup *PodSchedulingGroup `json:"schedulingGroup,omitempty"`
+}
+
+// PodSchedulingGroup links a driver or executor pod template to a native Kubernetes
+// PodGroup (scheduling.k8s.io/v1alpha2) for gang scheduling. It is set internally
+// by the "workload" batch scheduler backend and must not be set directly by users.
+type PodSchedulingGroup struct {
+	// PodGroupName is the name of the PodGroup this pod belongs to.
+	// Must be a DNS subdomain.
+	//
+	// +required
+	PodGroupName string `json:"podGroupName"`
 }
 
 // DriverSpec is specification of the driver.

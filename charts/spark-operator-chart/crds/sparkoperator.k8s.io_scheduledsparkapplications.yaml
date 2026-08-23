@@ -106,10 +106,20 @@ spec:
                     description: BatchSchedulerOptions provides fine-grained control
                       on how to batch scheduling.
                     properties:
+                      minMember:
+                        description: |-
+                          MinMember overrides the computed gang minCount for the "workload" batch scheduler.
+                          By default, minCount is the initial requested executor count as computed by
+                          GetInitialExecutorNumber (DRA-aware), clamped to at least 1. The cluster-mode
+                          driver is excluded to avoid a bootstrap deadlock while it creates executors.
+                          Only consumed by the "workload" backend; ignored by Volcano, YuniKorn, and
+                          kube-scheduler backends.
+                        format: int32
+                        minimum: 1
+                        type: integer
                       priorityClassName:
-                        description: PriorityClassName stands for the name of k8s
-                          PriorityClass resource, it's being used in Volcano batch
-                          scheduler.
+                        description: PriorityClassName is the name of the Kubernetes
+                          PriorityClass used by the Volcano and workload batch schedulers.
                         type: string
                       queue:
                         description: Queue stands for the resource queue which the
@@ -2581,7 +2591,6 @@ spec:
                                     procMount denotes the type of proc mount to use for the containers.
                                     The default value is Default which uses the container runtime defaults for
                                     readonly paths and masked paths.
-                                    This requires the ProcMountType feature flag to be enabled.
                                     Note that this field cannot be set when spec.os.name is windows.
                                   type: string
                                 readOnlyRootFilesystem:
@@ -3543,6 +3552,22 @@ spec:
                         description: SchedulerName specifies the scheduler that will
                           be used for scheduling
                         type: string
+                      schedulingGroup:
+                        description: |-
+                          SchedulingGroup binds this pod template to a Kubernetes native PodGroup
+                          (scheduling.k8s.io/v1alpha2) for gang scheduling via the "workload" batch
+                          scheduler backend. This field is set internally by the operator; it MUST NOT
+                          be set directly by users (enforced by the admission webhook).
+                          Requires Kubernetes v1.36+ with the GenericWorkload feature gate enabled.
+                        properties:
+                          podGroupName:
+                            description: |-
+                              PodGroupName is the name of the PodGroup this pod belongs to.
+                              Must be a DNS subdomain.
+                            type: string
+                        required:
+                        - podGroupName
+                        type: object
                       secrets:
                         description: Secrets carries information of secrets to add
                           to the pod.
@@ -3635,7 +3660,6 @@ spec:
                               procMount denotes the type of proc mount to use for the containers.
                               The default value is Default which uses the container runtime defaults for
                               readonly paths and masked paths.
-                              This requires the ProcMountType feature flag to be enabled.
                               Note that this field cannot be set when spec.os.name is windows.
                             type: string
                           readOnlyRootFilesystem:
@@ -4890,7 +4914,6 @@ spec:
                                     procMount denotes the type of proc mount to use for the containers.
                                     The default value is Default which uses the container runtime defaults for
                                     readonly paths and masked paths.
-                                    This requires the ProcMountType feature flag to be enabled.
                                     Note that this field cannot be set when spec.os.name is windows.
                                   type: string
                                 readOnlyRootFilesystem:
@@ -7963,7 +7986,6 @@ spec:
                                     procMount denotes the type of proc mount to use for the containers.
                                     The default value is Default which uses the container runtime defaults for
                                     readonly paths and masked paths.
-                                    This requires the ProcMountType feature flag to be enabled.
                                     Note that this field cannot be set when spec.os.name is windows.
                                   type: string
                                 readOnlyRootFilesystem:
@@ -8917,6 +8939,22 @@ spec:
                         description: SchedulerName specifies the scheduler that will
                           be used for scheduling
                         type: string
+                      schedulingGroup:
+                        description: |-
+                          SchedulingGroup binds this pod template to a Kubernetes native PodGroup
+                          (scheduling.k8s.io/v1alpha2) for gang scheduling via the "workload" batch
+                          scheduler backend. This field is set internally by the operator; it MUST NOT
+                          be set directly by users (enforced by the admission webhook).
+                          Requires Kubernetes v1.36+ with the GenericWorkload feature gate enabled.
+                        properties:
+                          podGroupName:
+                            description: |-
+                              PodGroupName is the name of the PodGroup this pod belongs to.
+                              Must be a DNS subdomain.
+                            type: string
+                        required:
+                        - podGroupName
+                        type: object
                       secrets:
                         description: Secrets carries information of secrets to add
                           to the pod.
@@ -9009,7 +9047,6 @@ spec:
                               procMount denotes the type of proc mount to use for the containers.
                               The default value is Default which uses the container runtime defaults for
                               readonly paths and masked paths.
-                              This requires the ProcMountType feature flag to be enabled.
                               Note that this field cannot be set when spec.os.name is windows.
                             type: string
                           readOnlyRootFilesystem:
@@ -10250,7 +10287,6 @@ spec:
                                     procMount denotes the type of proc mount to use for the containers.
                                     The default value is Default which uses the container runtime defaults for
                                     readonly paths and masked paths.
-                                    This requires the ProcMountType feature flag to be enabled.
                                     Note that this field cannot be set when spec.os.name is windows.
                                   type: string
                                 readOnlyRootFilesystem:
@@ -12019,7 +12055,7 @@ spec:
                             A failure to resolve or pull the image during pod startup will block containers from starting and may add significant latency. Failures will be retried using normal volume backoff and will be reported on the pod reason and message.
                             The types of objects that may be mounted by this volume are defined by the container runtime implementation on a host machine and at minimum must include all valid types supported by the container image field.
                             The OCI object gets mounted in a single directory (spec.containers[*].volumeMounts.mountPath) by merging the manifest layers in the same way as for container images.
-                            The volume will be mounted read-only (ro) and non-executable files (noexec).
+                            The volume will be mounted read-only (ro).
                             Sub path mounts for containers are not supported (spec.containers[*].volumeMounts.subpath) before 1.33.
                             The field spec.securityContext.fsGroupChangePolicy has no effect on this volume type.
                           properties:
@@ -12191,8 +12227,7 @@ spec:
                           description: |-
                             portworxVolume represents a portworx volume attached and mounted on kubelets host machine.
                             Deprecated: PortworxVolume is deprecated. All operations for the in-tree portworxVolume type
-                            are redirected to the pxd.portworx.com CSI driver when the CSIMigrationPortworx feature-gate
-                            is on.
+                            are redirected to the pxd.portworx.com CSI driver.
                           properties:
                             fsType:
                               description: |-
