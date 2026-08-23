@@ -2619,6 +2619,19 @@ func schema_spark_operator_v2_api_v1beta2_SparkApplicationStatus(ref common.Refe
 							Format:      "int32",
 						},
 					},
+					"lastDeletionAttemptTime": {
+						SchemaProps: spec.SchemaProps{
+							Description: "LastDeletionAttemptTime is the time when deletion of Spark resources was last initiated for a rerun or suspension.",
+							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
+						},
+					},
+					"deletionPollAttempts": {
+						SchemaProps: spec.SchemaProps{
+							Description: "DeletionPollAttempts is the number of times the controller has polled for Spark resource deletion to complete for the current rerun or suspension.",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
 				},
 				Required: []string{"driverInfo"},
 			},
