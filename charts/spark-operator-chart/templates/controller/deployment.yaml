@@ -75,9 +75,6 @@ spec:
         - --namespace-selector={{ . }}
         {{- end }}
         - --controller-threads={{ .Values.controller.workers }}
-        {{- with .Values.controller.defaultServiceAccount }}
-        - --default-service-account={{ . }}
-        {{- end }}
         - --enable-ui-service={{ .Values.controller.uiService.enable }}
         {{- if .Values.controller.uiIngress.enable }}
         {{- with .Values.controller.uiIngress.urlFormat }}
@@ -137,6 +134,9 @@ spec:
         {{- end }}
         {{- if and (include "spark-operator.defaultTimeToLive.enabled" .) (ge (int .Values.controller.defaultTimeToLiveSeconds) 0) }}
         - --default-time-to-live-seconds={{ .Values.controller.defaultTimeToLiveSeconds }}
+        {{- end }}
+        {{- with .Values.controller.defaultServiceAccount }}
+        - --default-service-account={{ . }}
         {{- end }}
         {{- if .Values.controller.driverPodDisruptionBudget.enable }}
         - --enable-driver-pdb=true
