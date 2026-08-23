@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"os"
 	"slices"
+	"strings"
 	"time"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
@@ -44,6 +45,7 @@ import (
 	networkingv1 "k8s.io/api/networking/v1"
 	policyv1 "k8s.io/api/policy/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/util/validation"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/utils/clock"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -202,6 +204,12 @@ func NewStartCommand() *cobra.Command {
 			// Zero is the valid "off" sentinel and is left untouched.
 			if defaultTimeToLiveSeconds < 0 {
 				return fmt.Errorf("invalid value %d for --default-time-to-live-seconds, must not be negative", defaultTimeToLiveSeconds)
+			}
+
+			if defaultServiceAccount != "" {
+				if errs := validation.IsDNS1123Subdomain(defaultServiceAccount); len(errs) > 0 {
+					return fmt.Errorf("invalid value %q for --default-service-account: %s", defaultServiceAccount, strings.Join(errs, ", "))
+				}
 			}
 
 			return nil
