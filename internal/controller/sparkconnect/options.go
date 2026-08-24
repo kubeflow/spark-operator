@@ -176,18 +176,6 @@ func driverConfOption(conn *v1alpha1.SparkConnect) ([]string, error) {
 			fmt.Sprintf("%s=%s", common.SparkDriverMemory, *conn.Spec.Server.Memory))
 	}
 
-	// Driver CPU request
-	if conn.Spec.Server.CoreRequest != nil {
-		args = append(args, "--conf",
-			fmt.Sprintf("%s=%s", common.SparkKubernetesDriverRequestCores, *conn.Spec.Server.CoreRequest))
-	}
-
-	// Driver CPU limit
-	if conn.Spec.Server.CoreLimit != nil {
-		args = append(args, "--conf",
-			fmt.Sprintf("%s=%s", common.SparkKubernetesDriverLimitCores, *conn.Spec.Server.CoreLimit))
-	}
-
 	args = append(args, "--conf", "spark.driver.bindAddress=0.0.0.0")
 
 	driverHost := "$(host=${POD_IP}; if [[ $host == *:* ]] && [[ $host != \\[* ]]; then echo \"[$host]\"; else echo \"$host\"; fi)"

@@ -131,7 +131,7 @@ var _ = Describe("Options functions", func() {
 	})
 
 	Context("driverConfOption and executorConfOption with CPU resources", func() {
-		It("includes CoreRequest and CoreLimit in driver configuration", func() {
+		It("does not emit driver SparkConf keys for server CoreRequest and CoreLimit", func() {
 			cores := int32(4)
 			coreRequest := "3500m"
 			coreLimit := "4"
@@ -157,14 +157,14 @@ var _ = Describe("Options functions", func() {
 			Expect(err).NotTo(HaveOccurred())
 			config := shellParsedSparkConfig(args)
 
-			// Verify Cores maps to spark.driver.cores (not affected by CoreRequest/CoreLimit)
+			// Verify Cores still maps to spark.driver.cores
 			Expect(config).To(HaveKeyWithValue("spark.driver.cores", "4"))
 
-			// Verify CoreRequest maps to physical CPU request
-			Expect(config).To(HaveKeyWithValue(common.SparkKubernetesDriverRequestCores, "3500m"))
-
-			// Verify CoreLimit maps to physical CPU limit
-			Expect(config).To(HaveKeyWithValue(common.SparkKubernetesDriverLimitCores, "4"))
+			// The server pod is created by the operator (client mode setup), so server
+			// CoreRequest/CoreLimit must NOT be emitted as driver SparkConf keys. They are
+			// applied directly to the server PodSpec by the operator instead.
+			Expect(config).NotTo(HaveKey(common.SparkKubernetesDriverRequestCores))
+			Expect(config).NotTo(HaveKey(common.SparkKubernetesDriverLimitCores))
 		})
 
 		It("includes CoreRequest and CoreLimit in executor configuration", func() {
@@ -235,7 +235,7 @@ var _ = Describe("Options functions", func() {
 			Expect(driverConfig).NotTo(HaveKey(common.SparkKubernetesDriverLimitCores))
 		})
 
-		It("includes only CoreRequest when CoreLimit is omitted", func() {
+		It("includes only CoreRequest when CoreLimit is omitted for executor", func() {
 			cores := int32(4)
 			coreRequest := "500m"
 			conn := &v1alpha1.SparkConnect{
@@ -245,28 +245,28 @@ var _ = Describe("Options functions", func() {
 				},
 				Spec: v1alpha1.SparkConnectSpec{
 					SparkVersion: "3.5.0",
-					Server: v1alpha1.ServerSpec{
+					Server:       v1alpha1.ServerSpec{},
+					Executor: v1alpha1.ExecutorSpec{
 						SparkPodSpec: v1alpha1.SparkPodSpec{
 							Cores:       &cores,
 							CoreRequest: &coreRequest,
 						},
 					},
-					Executor: v1alpha1.ExecutorSpec{},
 				},
 			}
 
-			args, err := driverConfOption(conn)
+			args, err := executorConfOption(conn)
 			Expect(err).NotTo(HaveOccurred())
 			config := shellParsedSparkConfig(args)
 
 			// Verify CoreRequest is present
-			Expect(config).To(HaveKeyWithValue(common.SparkKubernetesDriverRequestCores, "500m"))
+			Expect(config).To(HaveKeyWithValue(common.SparkKubernetesExecutorRequestCores, "500m"))
 
 			// Verify CoreLimit is NOT present
-			Expect(config).NotTo(HaveKey(common.SparkKubernetesDriverLimitCores))
+			Expect(config).NotTo(HaveKey(common.SparkKubernetesExecutorLimitCores))
 		})
 
-		It("supports decimal CPU values", func() {
+		It("supports decimal CPU values for executor", func() {
 			cores := int32(4)
 			coreRequest := "1.5"
 			coreLimit := "2.5"
@@ -277,24 +277,24 @@ var _ = Describe("Options functions", func() {
 				},
 				Spec: v1alpha1.SparkConnectSpec{
 					SparkVersion: "3.5.0",
-					Server: v1alpha1.ServerSpec{
+					Server:       v1alpha1.ServerSpec{},
+					Executor: v1alpha1.ExecutorSpec{
 						SparkPodSpec: v1alpha1.SparkPodSpec{
 							Cores:       &cores,
 							CoreRequest: &coreRequest,
 							CoreLimit:   &coreLimit,
 						},
 					},
-					Executor: v1alpha1.ExecutorSpec{},
 				},
 			}
 
-			args, err := driverConfOption(conn)
+			args, err := executorConfOption(conn)
 			Expect(err).NotTo(HaveOccurred())
 			config := shellParsedSparkConfig(args)
 
 			// Verify decimal values are preserved as strings
-			Expect(config).To(HaveKeyWithValue(common.SparkKubernetesDriverRequestCores, "1.5"))
-			Expect(config).To(HaveKeyWithValue(common.SparkKubernetesDriverLimitCores, "2.5"))
+			Expect(config).To(HaveKeyWithValue(common.SparkKubernetesExecutorRequestCores, "1.5"))
+			Expect(config).To(HaveKeyWithValue(common.SparkKubernetesExecutorLimitCores, "2.5"))
 		})
 	})
 })

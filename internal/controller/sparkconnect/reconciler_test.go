@@ -24,6 +24,7 @@ import (
 	. "github.com/onsi/gomega"
 
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/kubernetes/scheme"
@@ -306,3 +307,263 @@ var _ = Describe("mutateServerPod", func() {
 		})
 	})
 })
+
+var _ = Describe("setupServerContainerResources", func() {
+	var (
+		conn *v1alpha1.SparkConnect
+	)
+
+	BeforeEach(func() {
+		conn = &v1alpha1.SparkConnect{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "test-spark-connect",
+				Namespace: "test-namespace",
+			},
+			Spec: v1alpha1.SparkConnectSpec{
+				Server:   v1alpha1.ServerSpec{},
+				Executor: v1alpha1.ExecutorSpec{},
+			},
+		}
+	})
+
+	It("sets Requests[corev1.ResourceCPU] when server.coreRequest is specified", func() {
+		coreRequest := "500m"
+		conn.Spec.Server.CoreRequest = &coreRequest
+		container := &corev1.Container{}
+
+		err := setupServerContainerResources(container, conn)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(container.Resources.Requests).To(HaveKey(corev1.ResourceCPU))
+		Expect(cpuMilliValue(container.Resources.Requests[corev1.ResourceCPU])).To(Equal(int64(500)))
+	})
+
+	It("sets Limits[corev1.ResourceCPU] when server.coreLimit is specified", func() {
+		coreLimit := "1"
+		conn.Spec.Server.CoreLimit = &coreLimit
+		container := &corev1.Container{}
+
+		err := setupServerContainerResources(container, conn)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(container.Resources.Limits).To(HaveKey(corev1.ResourceCPU))
+		Expect(cpuMilliValue(container.Resources.Limits[corev1.ResourceCPU])).To(Equal(int64(1000)))
+	})
+
+	It("sets both request and limit when both are specified", func() {
+		coreRequest := "1.5"
+		coreLimit := "2.5"
+		conn.Spec.Server.CoreRequest = &coreRequest
+		conn.Spec.Server.CoreLimit = &coreLimit
+		container := &corev1.Container{}
+
+		err := setupServerContainerResources(container, conn)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(cpuMilliValue(container.Resources.Requests[corev1.ResourceCPU])).To(Equal(int64(1500)))
+		Expect(cpuMilliValue(container.Resources.Limits[corev1.ResourceCPU])).To(Equal(int64(2500)))
+	})
+
+	It("does not create CPU resources when neither is specified", func() {
+		container := &corev1.Container{}
+
+		err := setupServerContainerResources(container, conn)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(container.Resources.Requests).To(BeEmpty())
+		Expect(container.Resources.Limits).To(BeEmpty())
+	})
+
+	It("keeps Cores independent from Kubernetes CPU resources", func() {
+		cores := int32(4)
+		coreRequest := "500m"
+		conn.Spec.Server.Cores = &cores
+		conn.Spec.Server.CoreRequest = &coreRequest
+		container := &corev1.Container{}
+
+		err := setupServerContainerResources(container, conn)
+		Expect(err).NotTo(HaveOccurred())
+		// Cores is the task-slot count (spark.driver.cores) and must not influence the pod resource quantity.
+		Expect(conn.Spec.Server.Cores).NotTo(BeNil())
+		Expect(cpuMilliValue(container.Resources.Requests[corev1.ResourceCPU])).To(Equal(int64(500)))
+	})
+
+	It("preserves other resource keys when setting CPU request", func() {
+		coreRequest := "500m"
+		conn.Spec.Server.CoreRequest = &coreRequest
+		container := &corev1.Container{
+			Resources: corev1.ResourceRequirements{
+				Requests: corev1.ResourceList{
+					corev1.ResourceMemory: resource.MustParse("1Gi"),
+				},
+				Limits: corev1.ResourceList{
+					corev1.ResourceMemory: resource.MustParse("1Gi"),
+				},
+			},
+		}
+
+		err := setupServerContainerResources(container, conn)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(memValue(container.Resources.Requests[corev1.ResourceMemory])).To(Equal(int64(1) << 30))
+		Expect(cpuMilliValue(container.Resources.Requests[corev1.ResourceCPU])).To(Equal(int64(500)))
+		Expect(memValue(container.Resources.Limits[corev1.ResourceMemory])).To(Equal(int64(1) << 30))
+	})
+
+	It("returns an error for an invalid coreRequest quantity", func() {
+		coreRequest := "invalid-cpu"
+		conn.Spec.Server.CoreRequest = &coreRequest
+		container := &corev1.Container{}
+
+		err := setupServerContainerResources(container, conn)
+		Expect(err).To(HaveOccurred())
+	})
+})
+
+var _ = Describe("mutateServerPod with CPU resources", func() {
+	var (
+		reconciler *Reconciler
+		conn       *v1alpha1.SparkConnect
+		image      string
+	)
+
+	BeforeEach(func() {
+		reconciler = &Reconciler{
+			scheme: scheme.Scheme,
+		}
+		image = "apache/spark:4.0.0"
+		Expect(os.Setenv(common.EnvKubernetesServiceHost, "127.0.0.1")).NotTo(HaveOccurred())
+		Expect(os.Setenv(common.EnvKubernetesServicePort, "443")).NotTo(HaveOccurred())
+		conn = &v1alpha1.SparkConnect{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "test-spark-connect",
+				Namespace: "test-namespace",
+				UID:       "test-uid",
+			},
+			Spec: v1alpha1.SparkConnectSpec{
+				Image:        &image,
+				SparkVersion: "4.0.0",
+				Server: v1alpha1.ServerSpec{
+					SparkPodSpec: v1alpha1.SparkPodSpec{},
+				},
+				Executor: v1alpha1.ExecutorSpec{
+					SparkPodSpec: v1alpha1.SparkPodSpec{},
+				},
+			},
+		}
+	})
+
+	AfterEach(func() {
+		Expect(os.Unsetenv(common.EnvKubernetesServiceHost)).NotTo(HaveOccurred())
+		Expect(os.Unsetenv(common.EnvKubernetesServicePort)).NotTo(HaveOccurred())
+	})
+
+	It("applies server.coreRequest and server.coreLimit to the server container resources", func() {
+		coreRequest := "500m"
+		coreLimit := "1"
+		conn.Spec.Server.CoreRequest = &coreRequest
+		conn.Spec.Server.CoreLimit = &coreLimit
+		pod := &corev1.Pod{
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace: conn.Namespace,
+			},
+		}
+
+		err := reconciler.mutateServerPod(context.TODO(), conn, pod)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(pod.Spec.Containers).NotTo(BeEmpty())
+
+		container := pod.Spec.Containers[0]
+		Expect(container.Name).To(Equal(common.SparkDriverContainerName))
+		Expect(cpuMilliValue(container.Resources.Requests[corev1.ResourceCPU])).To(Equal(int64(500)))
+		Expect(cpuMilliValue(container.Resources.Limits[corev1.ResourceCPU])).To(Equal(int64(1000)))
+	})
+
+	It("does not set CPU resources when server.coreRequest and coreLimit are omitted", func() {
+		pod := &corev1.Pod{
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace: conn.Namespace,
+			},
+		}
+
+		err := reconciler.mutateServerPod(context.TODO(), conn, pod)
+		Expect(err).NotTo(HaveOccurred())
+
+		container := pod.Spec.Containers[0]
+		Expect(container.Resources.Requests).To(BeEmpty())
+		Expect(container.Resources.Limits).To(BeEmpty())
+	})
+
+	It("overrides template CPU request when server.coreRequest is specified, preserving other template resources", func() {
+		coreRequest := "500m"
+		conn.Spec.Server.CoreRequest = &coreRequest
+		conn.Spec.Server.Template = &corev1.PodTemplateSpec{
+			Spec: corev1.PodSpec{
+				Containers: []corev1.Container{
+					{
+						Name:  common.SparkDriverContainerName,
+						Image: image,
+						Resources: corev1.ResourceRequirements{
+							Requests: corev1.ResourceList{
+								corev1.ResourceCPU:    resource.MustParse("1"),
+								corev1.ResourceMemory: resource.MustParse("1Gi"),
+							},
+							Limits: corev1.ResourceList{
+								corev1.ResourceCPU:    resource.MustParse("2"),
+								corev1.ResourceMemory: resource.MustParse("1Gi"),
+							},
+						},
+					},
+				},
+			},
+		}
+		pod := &corev1.Pod{
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace: conn.Namespace,
+			},
+		}
+
+		err := reconciler.mutateServerPod(context.TODO(), conn, pod)
+		Expect(err).NotTo(HaveOccurred())
+
+		container := pod.Spec.Containers[0]
+		// server.coreRequest wins for the CPU key, matching the addMemoryLimit merge convention.
+		Expect(cpuMilliValue(container.Resources.Requests[corev1.ResourceCPU])).To(Equal(int64(500)))
+		// Template memory request and CPU limit are preserved.
+		Expect(memValue(container.Resources.Requests[corev1.ResourceMemory])).To(Equal(int64(1) << 30))
+		Expect(cpuMilliValue(container.Resources.Limits[corev1.ResourceCPU])).To(Equal(int64(2000)))
+		Expect(memValue(container.Resources.Limits[corev1.ResourceMemory])).To(Equal(int64(1) << 30))
+	})
+
+	It("preserves template CPU resources when server.coreRequest and coreLimit are omitted", func() {
+		conn.Spec.Server.Template = &corev1.PodTemplateSpec{
+			Spec: corev1.PodSpec{
+				Containers: []corev1.Container{
+					{
+						Name:  common.SparkDriverContainerName,
+						Image: image,
+						Resources: corev1.ResourceRequirements{
+							Requests: corev1.ResourceList{
+								corev1.ResourceCPU: resource.MustParse("2"),
+							},
+						},
+					},
+				},
+			},
+		}
+		pod := &corev1.Pod{
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace: conn.Namespace,
+			},
+		}
+
+		err := reconciler.mutateServerPod(context.TODO(), conn, pod)
+		Expect(err).NotTo(HaveOccurred())
+
+		container := pod.Spec.Containers[0]
+		Expect(cpuMilliValue(container.Resources.Requests[corev1.ResourceCPU])).To(Equal(int64(2000)))
+	})
+})
+
+func cpuMilliValue(q resource.Quantity) int64 {
+	return q.MilliValue()
+}
+
+func memValue(q resource.Quantity) int64 {
+	return q.Value()
+}
