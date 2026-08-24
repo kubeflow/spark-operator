@@ -8,5 +8,5 @@ The operator supports a high-availability (HA) mode, in which there can be more 
 | `leader-election-lock-namespace` | `spark-operator` | Kubernetes namespace of the lock resource used for leader election. |
 | `leader-election-lock-name` | `spark-operator-lock` | Name of the lock resource used for leader election. |
 | `leader-election-lease-duration` | 15 seconds | Leader election lease duration. |
-| `leader-election-renew-deadline` | 14 seconds | Leader election renew deadline. |
-| `leader-election-retry-period` | 4 seconds | Leader election retry period. |
+| `leader-election-renew-deadline` | 10 seconds | Leader election renew deadline. |
+| `leader-election-retry-period` | 2 seconds | Leader election retry period. |
