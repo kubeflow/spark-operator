@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"os"
 	"slices"
+	"strings"
 	"time"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
@@ -44,6 +45,7 @@ import (
 	networkingv1 "k8s.io/api/networking/v1"
 	policyv1 "k8s.io/api/policy/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/util/validation"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/utils/clock"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -103,6 +105,10 @@ var (
 	enableBatchScheduler  bool
 	kubeSchedulerNames    []string
 	defaultBatchScheduler string
+
+	// Fallback service account for Spark driver pods when the custom resource does
+	// not specify one. Empty by default, which preserves existing behavior.
+	defaultServiceAccount string
 
 	// Spark web UI service and ingress
 	enableUIService    bool
@@ -200,6 +206,12 @@ func NewStartCommand() *cobra.Command {
 				return fmt.Errorf("invalid value %d for --default-time-to-live-seconds, must not be negative", defaultTimeToLiveSeconds)
 			}
 
+			if defaultServiceAccount != "" {
+				if errs := validation.IsDNS1123Subdomain(defaultServiceAccount); len(errs) > 0 {
+					return fmt.Errorf("invalid value %q for --default-service-account: %s", defaultServiceAccount, strings.Join(errs, ", "))
+				}
+			}
+
 			return nil
 		},
 		Run: func(_ *cobra.Command, args []string) {
@@ -217,6 +229,7 @@ func NewStartCommand() *cobra.Command {
 		"Default Time-To-Live in seconds applied to terminated SparkApplications that do "+
 			"not set spec.timeToLiveSeconds. Requires the DefaultTimeToLive feature gate. "+
 			"0 (default) disables it; a negative value is rejected.")
+	command.Flags().StringVar(&defaultServiceAccount, "default-service-account", "", "The service account used by the driver pod when the SparkApplication does not specify one. Leave empty to disable the fallback, in which case the driver pod uses the namespace's default service account.")
 	command.Flags().BoolVar(&enableDriverPDB, "enable-driver-pdb", false,
 		"Enable creation of a PodDisruptionBudget for Spark driver pods. "+
 			"Each SparkApplication must additionally opt in via "+
@@ -565,6 +578,7 @@ func newSparkApplicationReconcilerOptions() sparkapplication.Options {
 		MaxTrackedExecutorPerApp:     maxTrackedExecutorPerApp,
 		EnableDriverPDB:              enableDriverPDB,
 		DefaultTimeToLiveSeconds:     defaultTimeToLiveSeconds,
+		DefaultServiceAccount:        defaultServiceAccount,
 	}
 	if enableBatchScheduler {
 		options.KubeSchedulerNames = kubeSchedulerNames

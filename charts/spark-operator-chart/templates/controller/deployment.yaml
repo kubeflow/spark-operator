@@ -135,6 +135,9 @@ spec:
         {{- if and (include "spark-operator.defaultTimeToLive.enabled" .) (ge (int .Values.controller.defaultTimeToLiveSeconds) 0) }}
         - --default-time-to-live-seconds={{ .Values.controller.defaultTimeToLiveSeconds }}
         {{- end }}
+        {{- with .Values.controller.defaultServiceAccount }}
+        - --default-service-account={{ . }}
+        {{- end }}
         {{- if .Values.controller.driverPodDisruptionBudget.enable }}
         - --enable-driver-pdb=true
         {{- end }}

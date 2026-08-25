@@ -338,6 +338,24 @@ tests:
           path: spec.template.spec.containers[?(@.name=="spark-operator-controller")].args
           content: --default-batch-scheduler=yunikorn
 
+  - it: Should contain `--default-service-account` arg if `controller.defaultServiceAccount` is set
+    set:
+      controller:
+        defaultServiceAccount: spark-operator-spark
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[?(@.name=="spark-operator-controller")].args
+          content: --default-service-account=spark-operator-spark
+
+  - it: Should not contain `--default-service-account` arg if `controller.defaultServiceAccount` is empty
+    set:
+      controller:
+        defaultServiceAccount: ""
+    asserts:
+      - notContains:
+          path: spec.template.spec.containers[?(@.name=="spark-operator-controller")].args
+          content: --default-service-account=
+  
   - it: Should contain `--enable-metrics` arg if `prometheus.metrics.enable` is set to `true`
     set:
       prometheus:

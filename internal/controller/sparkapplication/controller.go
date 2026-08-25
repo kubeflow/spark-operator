@@ -83,6 +83,10 @@ type Options struct {
 	// applied to terminated SparkApplications that do not set spec.timeToLiveSeconds when
 	// the value is > 0. It is a cleanup-only fallback and never modifies the spec.
 	DefaultTimeToLiveSeconds int64
+
+	// DefaultServiceAccount is the name of the service account used by the driver pod
+	// when the SparkApplication does not specify one. An empty value disables the fallback.
+	DefaultServiceAccount string
 }
 
 // Reconciler reconciles a SparkApplication object.
@@ -1004,7 +1008,15 @@ func (r *Reconciler) submitSparkApplication(ctx context.Context, app *v1beta2.Sp
 		}
 	}()
 
-	if err := r.submitter.Submit(ctx, app); err != nil {
+	// Fall back to the operator-level default service account when neither the SparkApplication
+	// nor its driver pod template specifies one. This is applied to a copy of the application so
+	// that the fallback is never written back to the custom resource.
+	submitApp := util.ApplyDefaultDriverServiceAccount(app, r.options.DefaultServiceAccount)
+	if submitApp != app {
+		logger.Info("Applied default driver service account", "serviceAccount", r.options.DefaultServiceAccount)
+	}
+
+	if err := r.submitter.Submit(ctx, submitApp); err != nil {
 		r.recordSparkApplicationEvent(app)
 		submitErr = fmt.Errorf("failed to submit spark application: %v", err)
 		return

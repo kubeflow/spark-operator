@@ -496,3 +496,77 @@ var _ = Describe("GetExecutorRequestResource", func() {
 		})
 	})
 })
+
+var _ = Describe("ApplyDefaultDriverServiceAccount", func() {
+	newApp := func() *v1beta2.SparkApplication {
+		return &v1beta2.SparkApplication{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "test-app",
+				Namespace: "test-namespace",
+			},
+		}
+	}
+
+	Context("No default service account configured", func() {
+		It("Should return the application unchanged", func() {
+			app := newApp()
+			Expect(util.ApplyDefaultDriverServiceAccount(app, "")).To(BeIdenticalTo(app))
+			Expect(app.Spec.Driver.ServiceAccount).To(BeNil())
+		})
+	})
+
+	Context("SparkApplication without a driver service account", func() {
+		It("Should apply the default service account", func() {
+			app := newApp()
+			got := util.ApplyDefaultDriverServiceAccount(app, "spark-operator-spark")
+			Expect(got).NotTo(BeIdenticalTo(app))
+			Expect(*got.Spec.Driver.ServiceAccount).To(Equal("spark-operator-spark"))
+			Expect(app.Spec.Driver.ServiceAccount).To(BeNil(), "the original application must not be mutated")
+		})
+	})
+
+	Context("SparkApplication with an empty driver service account", func() {
+		It("Should apply the default service account", func() {
+			app := newApp()
+			app.Spec.Driver.ServiceAccount = ptr.To("")
+			got := util.ApplyDefaultDriverServiceAccount(app, "spark-operator-spark")
+			Expect(*got.Spec.Driver.ServiceAccount).To(Equal("spark-operator-spark"))
+		})
+	})
+
+	Context("SparkApplication with a driver service account", func() {
+		It("Should return the application unchanged", func() {
+			app := newApp()
+			app.Spec.Driver.ServiceAccount = ptr.To("custom-sa")
+			Expect(util.ApplyDefaultDriverServiceAccount(app, "spark-operator-spark")).To(BeIdenticalTo(app))
+		})
+	})
+
+	Context("SparkApplication with a service account in the driver pod template", func() {
+		It("Should return the application unchanged", func() {
+			app := newApp()
+			app.Spec.Driver.Template = &corev1.PodTemplateSpec{
+				Spec: corev1.PodSpec{
+					ServiceAccountName: "template-sa",
+				},
+			}
+			got := util.ApplyDefaultDriverServiceAccount(app, "spark-operator-spark")
+			Expect(got).To(BeIdenticalTo(app))
+			Expect(got.Spec.Driver.ServiceAccount).To(BeNil())
+		})
+	})
+
+	Context("SparkApplication with both a driver service account and a pod template service account", func() {
+		It("Should prefer the driver service account", func() {
+			app := newApp()
+			app.Spec.Driver.ServiceAccount = ptr.To("custom-sa")
+			app.Spec.Driver.Template = &corev1.PodTemplateSpec{
+				Spec: corev1.PodSpec{
+					ServiceAccountName: "template-sa",
+				},
+			}
+			got := util.ApplyDefaultDriverServiceAccount(app, "spark-operator-spark")
+			Expect(*got.Spec.Driver.ServiceAccount).To(Equal("custom-sa"))
+		})
+	})
+})
