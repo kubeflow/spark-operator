@@ -1,5 +1,5 @@
 /*
-Copyright 2025 The Kubeflow authors.
+Copyright The Kubeflow Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -14,9 +14,10 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package util
+package util_test
 
 import (
+	"github.com/kubeflow/spark-operator/v2/pkg/util"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
@@ -24,7 +25,7 @@ import (
 
 var _ = Describe("GetContainerByNameOrFirst", func() {
 	It("returns nil when input container list is empty", func() {
-		Expect(GetContainerByNameOrFirst(nil, "spark")).To(BeNil())
+		Expect(util.GetContainerByNameOrFirst(nil, "spark")).To(BeNil())
 	})
 
 	It("returns the named container when it exists", func() {
@@ -33,7 +34,7 @@ var _ = Describe("GetContainerByNameOrFirst", func() {
 			{Name: "spark", Image: "apache/spark"},
 		}
 
-		container := GetContainerByNameOrFirst(containers, "spark")
+		container := util.GetContainerByNameOrFirst(containers, "spark")
 
 		Expect(container).NotTo(BeNil())
 		Expect(container.Name).To(Equal("spark"))
@@ -46,7 +47,7 @@ var _ = Describe("GetContainerByNameOrFirst", func() {
 			{Name: "second", Image: "second-image"},
 		}
 
-		container := GetContainerByNameOrFirst(containers, "spark")
+		container := util.GetContainerByNameOrFirst(containers, "spark")
 
 		Expect(container).NotTo(BeNil())
 		Expect(container.Name).To(Equal("first"))
@@ -59,7 +60,7 @@ var _ = Describe("GetContainerByNameOrFirst", func() {
 			{Name: "spark"},
 		}
 
-		container := GetContainerByNameOrFirst(containers, "spark")
+		container := util.GetContainerByNameOrFirst(containers, "spark")
 		Expect(container).NotTo(BeNil())
 
 		container.Image = "updated-image"

@@ -358,6 +358,7 @@ func (r *Reconciler) mutateServerPod(_ context.Context, conn *v1alpha1.SparkConn
 			})
 		}
 
+		// Build Spark connect server container.
 		container := util.GetContainerByNameOrFirst(
 			pod.Spec.Containers,
 			common.SparkDriverContainerName,
