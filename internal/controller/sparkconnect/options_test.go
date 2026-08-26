@@ -129,6 +129,36 @@ var _ = Describe("Options functions", func() {
 			}))
 		})
 	})
+
+	Context("dependenciesOption", func() {
+		It("emits spark-submit dependency flags", func() {
+			conn := &v1alpha1.SparkConnect{
+				Spec: v1alpha1.SparkConnectSpec{
+					Dependencies: v1alpha1.Dependencies{
+						Jars:            []string{"local:///opt/spark/jars/iceberg.jar"},
+						Packages:        []string{"org.apache.iceberg:iceberg-spark-runtime-3.5_2.12:1.5.0"},
+						ExcludePackages: []string{"org.slf4j:slf4j-log4j12"},
+						Repositories:    []string{"https://repo1.maven.org/maven2"},
+						PyFiles:         []string{"local:///opt/spark/pyfiles/utils.zip"},
+						Files:           []string{"local:///opt/spark/files/config.json"},
+						Archives:        []string{"local:///opt/spark/archives/data.zip"},
+					},
+				},
+			}
+
+			args, err := dependenciesOption(conn)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(args).To(Equal([]string{
+				"--jars", "local:///opt/spark/jars/iceberg.jar",
+				"--packages", "org.apache.iceberg:iceberg-spark-runtime-3.5_2.12:1.5.0",
+				"--exclude-packages", "org.slf4j:slf4j-log4j12",
+				"--repositories", "https://repo1.maven.org/maven2",
+				"--py-files", "local:///opt/spark/pyfiles/utils.zip",
+				"--files", "local:///opt/spark/files/config.json",
+				"--archives", "local:///opt/spark/archives/data.zip",
+			}))
+		})
+	})
 })
 
 func shellParsedSparkConfig(args []string) map[string]string {

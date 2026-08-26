@@ -33,6 +33,7 @@ func buildStartConnectServerArgs(conn *v1alpha1.SparkConnect) ([]string, error) 
 		masterOption,
 		namespaceOption,
 		imageOption,
+		dependenciesOption,
 		sparkConfOption,
 		hadoopConfOption,
 		driverConfOption,
@@ -108,6 +109,41 @@ func imageOption(conn *v1alpha1.SparkConnect) ([]string, error) {
 		"--conf",
 		fmt.Sprintf("%s=%s", common.SparkKubernetesExecutorContainerImage, executorImage),
 	)
+
+	return args, nil
+}
+
+func dependenciesOption(conn *v1alpha1.SparkConnect) ([]string, error) {
+	var args []string
+	deps := conn.Spec.Dependencies
+
+	if len(deps.Jars) > 0 {
+		args = append(args, "--jars", strings.Join(deps.Jars, ","))
+	}
+
+	if len(deps.Packages) > 0 {
+		args = append(args, "--packages", strings.Join(deps.Packages, ","))
+	}
+
+	if len(deps.ExcludePackages) > 0 {
+		args = append(args, "--exclude-packages", strings.Join(deps.ExcludePackages, ","))
+	}
+
+	if len(deps.Repositories) > 0 {
+		args = append(args, "--repositories", strings.Join(deps.Repositories, ","))
+	}
+
+	if len(deps.PyFiles) > 0 {
+		args = append(args, "--py-files", strings.Join(deps.PyFiles, ","))
+	}
+
+	if len(deps.Files) > 0 {
+		args = append(args, "--files", strings.Join(deps.Files, ","))
+	}
+
+	if len(deps.Archives) > 0 {
+		args = append(args, "--archives", strings.Join(deps.Archives, ","))
+	}
 
 	return args, nil
 }
