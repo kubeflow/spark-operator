@@ -383,7 +383,7 @@ func addPrometheusConfig(pod *corev1.Pod, app *v1beta2.SparkApplication) error {
 	}
 
 	name := util.GetPrometheusConfigMapName(app)
-	volumeName := name + "-vol"
+	volumeName := getConfigMapVolumeName(name)
 	mountPath := common.PrometheusConfigMapMountPath
 	promPort := common.DefaultPrometheusJavaAgentPort
 	if app.Spec.Monitoring.Prometheus.Port != nil {
