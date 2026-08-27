@@ -204,14 +204,11 @@ func podTemplateContainerImage(template *corev1.PodTemplateSpec, containerName s
 		return ""
 	}
 
-	index := 0
-	for i, container := range template.Spec.Containers {
-		if container.Name == containerName {
-			index = i
-			break
-		}
-	}
-	return template.Spec.Containers[index].Image
+	container := util.GetContainerByNameOrFirst(
+		template.Spec.Containers,
+		containerName,
+	)
+	return container.Image
 }
 
 // validateDynamicAllocation validates DynamicAllocation configuration.

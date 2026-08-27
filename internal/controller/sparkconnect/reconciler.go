@@ -358,17 +358,11 @@ func (r *Reconciler) mutateServerPod(_ context.Context, conn *v1alpha1.SparkConn
 			})
 		}
 
-		index := 0
-		for i, container := range pod.Spec.Containers {
-			if container.Name == common.SparkDriverContainerName {
-				index = i
-				break
-			}
-		}
-
 		// Build Spark connect server container.
-		container := &pod.Spec.Containers[index]
-
+		container := util.GetContainerByNameOrFirst(
+			pod.Spec.Containers,
+			common.SparkDriverContainerName,
+		)
 		// Setup image.
 		if container.Image == "" {
 			if conn.Spec.Image == nil || *conn.Spec.Image == "" {
