@@ -22,7 +22,6 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/utils/ptr"
 
 	"github.com/kubeflow/spark-operator/v2/api/v1alpha1"
 	"github.com/kubeflow/spark-operator/v2/pkg/common"
@@ -155,20 +154,5 @@ var _ = Describe("resolveServerServiceAccount", func() {
 			},
 		}
 		Expect(resolveServerServiceAccount(conn, "spark-operator-spark")).To(Equal("template-sa"))
-	})
-
-	It("should prefer the server service account over the pod template and the operator default", func() {
-		conn.Spec.Server.ServiceAccount = ptr.To("server-sa")
-		conn.Spec.Server.Template = &corev1.PodTemplateSpec{
-			Spec: corev1.PodSpec{
-				ServiceAccountName: "template-sa",
-			},
-		}
-		Expect(resolveServerServiceAccount(conn, "spark-operator-spark")).To(Equal("server-sa"))
-	})
-
-	It("should ignore an empty server service account", func() {
-		conn.Spec.Server.ServiceAccount = ptr.To("")
-		Expect(resolveServerServiceAccount(conn, "spark-operator-spark")).To(Equal("spark-operator-spark"))
 	})
 })

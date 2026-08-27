@@ -88,13 +88,6 @@ type SparkConnectSpec struct {
 type ServerSpec struct {
 	SparkPodSpec `json:",inline"`
 
-	// ServiceAccount is the name of the Kubernetes service account used by the server pod.
-	// If not specified, the service account of the server pod template is used, and if that
-	// is also not specified, the operator falls back to the service account configured via
-	// the --default-service-account flag.
-	// +optional
-	ServiceAccount *string `json:"serviceAccount,omitempty"`
-
 	// Service exposes the Spark connect server.
 	// +optional
 	Service *corev1.Service `json:"service,omitempty"`

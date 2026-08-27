@@ -495,13 +495,6 @@ func schema_spark_operator_v2_api_v1alpha1_ServerSpec(ref common.ReferenceCallba
 							Ref:         ref(v1.PodTemplateSpec{}.OpenAPIModelName()),
 						},
 					},
-					"serviceAccount": {
-						SchemaProps: spec.SchemaProps{
-							Description: "ServiceAccount is the name of the Kubernetes service account used by the server pod. If not specified, the service account of the server pod template is used, and if that is also not specified, the operator falls back to the service account configured via the --default-service-account flag.",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
 					"service": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Service exposes the Spark connect server.",
