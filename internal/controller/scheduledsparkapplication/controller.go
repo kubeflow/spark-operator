@@ -275,7 +275,7 @@ func (r *Reconciler) createSparkApplication(
 	}
 	app := &v1beta2.SparkApplication{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      fmt.Sprintf("%s-%s", scheduledApp.Name, formatTimestamp(t, r.options.TimestampPrecision)),
+			Name:      util.GetScheduledSparkApplicationRunName(scheduledApp, formatTimestamp(t, r.options.TimestampPrecision)),
 			Namespace: scheduledApp.Namespace,
 			Labels:    labels,
 			OwnerReferences: []metav1.OwnerReference{{
