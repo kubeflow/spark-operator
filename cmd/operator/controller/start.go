@@ -229,7 +229,10 @@ func NewStartCommand() *cobra.Command {
 		"Default Time-To-Live in seconds applied to terminated SparkApplications that do "+
 			"not set spec.timeToLiveSeconds. Requires the DefaultTimeToLive feature gate. "+
 			"0 (default) disables it; a negative value is rejected.")
-	command.Flags().StringVar(&defaultServiceAccount, "default-service-account", "", "The service account used by the driver pod when the SparkApplication does not specify one. Leave empty to disable the fallback, in which case the driver pod uses the namespace's default service account.")
+	command.Flags().StringVar(&defaultServiceAccount, "default-service-account", "",
+		"The service account used by the Spark driver pod and the Spark Connect server pod "+
+			"when neither the custom resource nor its pod template specifies one. Leave empty "+
+			"to disable the fallback, in which case the namespace's default service account is used.")
 	command.Flags().BoolVar(&enableDriverPDB, "enable-driver-pdb", false,
 		"Enable creation of a PodDisruptionBudget for Spark driver pods. "+
 			"Each SparkApplication must additionally opt in via "+
@@ -597,8 +600,9 @@ func newScheduledSparkApplicationReconcilerOptions() scheduledsparkapplication.O
 
 func newSparkConnectReconcilerOptions() sparkconnect.Options {
 	options := sparkconnect.Options{
-		Namespaces:        namespaces,
-		NamespaceSelector: namespaceSelector,
+		Namespaces:            namespaces,
+		NamespaceSelector:     namespaceSelector,
+		DefaultServiceAccount: defaultServiceAccount,
 	}
 	return options
 }

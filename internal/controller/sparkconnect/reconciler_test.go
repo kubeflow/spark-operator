@@ -252,5 +252,57 @@ var _ = Describe("mutateServerPod", func() {
 			Expect(container.StartupProbe).To(Equal(startupProbe))
 			Expect(container.ReadinessProbe).To(Equal(readinessProbe))
 		})
+		It("should not set a service account when none is configured", func() {
+			pod := &corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: conn.Namespace,
+				},
+			}
+			Expect(reconciler.mutateServerPod(context.TODO(), conn, pod)).To(Succeed())
+			Expect(pod.Spec.ServiceAccountName).To(BeEmpty())
+		})
+
+		It("should fall back to the operator default service account", func() {
+			reconciler.options.DefaultServiceAccount = "spark-operator-spark"
+			pod := &corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: conn.Namespace,
+				},
+			}
+			Expect(reconciler.mutateServerPod(context.TODO(), conn, pod)).To(Succeed())
+			Expect(pod.Spec.ServiceAccountName).To(Equal("spark-operator-spark"))
+		})
+
+		It("should preserve the service account specified in the server pod template", func() {
+			reconciler.options.DefaultServiceAccount = "spark-operator-spark"
+			conn.Spec.Server.Template = &corev1.PodTemplateSpec{
+				Spec: corev1.PodSpec{
+					ServiceAccountName: "template-sa",
+				},
+			}
+			pod := &corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: conn.Namespace,
+				},
+			}
+			Expect(reconciler.mutateServerPod(context.TODO(), conn, pod)).To(Succeed())
+			Expect(pod.Spec.ServiceAccountName).To(Equal("template-sa"))
+		})
+
+		It("should fall back to the default when the server pod template has an empty service account", func() {
+			reconciler.options.DefaultServiceAccount = "spark-operator-spark"
+			conn.Spec.Server.Template = &corev1.PodTemplateSpec{
+				Spec: corev1.PodSpec{
+					ServiceAccountName: "",
+				},
+			}
+			pod := &corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: conn.Namespace,
+				},
+			}
+			Expect(reconciler.mutateServerPod(context.TODO(), conn, pod)).To(Succeed())
+			Expect(pod.Spec.ServiceAccountName).To(Equal("spark-operator-spark"))
+		})
 	})
 })
