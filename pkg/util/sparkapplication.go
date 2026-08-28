@@ -201,6 +201,18 @@ func generateName(name, suffix string) string {
 	return fmt.Sprintf("%s-%s-%s", name[:maxNameLength], hash[:8], suffix)
 }
 
+// GetScheduledSparkApplicationRunName preserves the timestamp and hashes only the schedule name when truncating.
+func GetScheduledSparkApplicationRunName(app *v1beta2.ScheduledSparkApplication, timestamp string) string {
+	preferredName := fmt.Sprintf("%s-%s", app.Name, timestamp)
+	if len(preferredName) <= 63 {
+		return preferredName
+	}
+
+	maxNameLength := 63 - len(timestamp) - 10 // 8 for the hash, 2 for the dashes.
+	hash := fmt.Sprintf("%x", md5.Sum([]byte(app.Name)))
+	return fmt.Sprintf("%s-%s-%s", app.Name[:maxNameLength], hash[:8], timestamp)
+}
+
 func GetDefaultUIServiceName(app *v1beta2.SparkApplication) string {
 	return generateName(app.Name, "ui-svc")
 }
