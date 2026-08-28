@@ -346,7 +346,7 @@ func (r *Reconciler) createOrUpdateServerPod(ctx context.Context, conn *v1alpha1
 }
 
 // mutateServerPod mutates the server pod for SparkConnect.
-func (r *Reconciler) mutateServerPod(_ context.Context, conn *v1alpha1.SparkConnect, pod *corev1.Pod) error {
+func (r *Reconciler) mutateServerPod(ctx context.Context, conn *v1alpha1.SparkConnect, pod *corev1.Pod) error {
 	// Server pod not created yet.
 	if pod.CreationTimestamp.IsZero() {
 		template := conn.Spec.Server.Template
@@ -356,10 +356,12 @@ func (r *Reconciler) mutateServerPod(_ context.Context, conn *v1alpha1.SparkConn
 			pod.Spec = template.Spec
 		}
 
-		// Resolve the service account for the server pod. This must happen after the pod
-		// template has been copied above, which would otherwise overwrite it.
-		if serviceAccount := resolveServerServiceAccount(conn, r.options.DefaultServiceAccount); serviceAccount != "" {
-			pod.Spec.ServiceAccountName = serviceAccount
+		// Fall back to the operator-level default service account. This must happen after the
+		// pod template has been copied above, which would otherwise overwrite it.
+		if pod.Spec.ServiceAccountName == "" && r.options.DefaultServiceAccount != "" {
+			pod.Spec.ServiceAccountName = r.options.DefaultServiceAccount
+			ctrl.LoggerFrom(ctx).Info("Applied default service account to Spark Connect server pod",
+				"serviceAccount", r.options.DefaultServiceAccount)
 		}
 
 		// Add a default server container if not specified.

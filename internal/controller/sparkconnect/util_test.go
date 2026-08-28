@@ -123,36 +123,3 @@ var _ = Describe("Util functions", func() {
 		})
 	})
 })
-
-var _ = Describe("resolveServerServiceAccount", func() {
-	var conn *v1alpha1.SparkConnect
-
-	BeforeEach(func() {
-		conn = &v1alpha1.SparkConnect{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "test-spark-connect",
-				Namespace: "test-namespace",
-			},
-			Spec: v1alpha1.SparkConnectSpec{
-				Server: v1alpha1.ServerSpec{},
-			},
-		}
-	})
-
-	It("should return an empty string when nothing specifies a service account", func() {
-		Expect(resolveServerServiceAccount(conn, "")).To(BeEmpty())
-	})
-
-	It("should return the operator default when nothing else specifies a service account", func() {
-		Expect(resolveServerServiceAccount(conn, "spark-operator-spark")).To(Equal("spark-operator-spark"))
-	})
-
-	It("should prefer the pod template service account over the operator default", func() {
-		conn.Spec.Server.Template = &corev1.PodTemplateSpec{
-			Spec: corev1.PodSpec{
-				ServiceAccountName: "template-sa",
-			},
-		}
-		Expect(resolveServerServiceAccount(conn, "spark-operator-spark")).To(Equal("template-sa"))
-	})
-})

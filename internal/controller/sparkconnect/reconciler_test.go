@@ -288,5 +288,21 @@ var _ = Describe("mutateServerPod", func() {
 			Expect(reconciler.mutateServerPod(context.TODO(), conn, pod)).To(Succeed())
 			Expect(pod.Spec.ServiceAccountName).To(Equal("template-sa"))
 		})
+
+		It("should fall back to the default when the server pod template has an empty service account", func() {
+			reconciler.options.DefaultServiceAccount = "spark-operator-spark"
+			conn.Spec.Server.Template = &corev1.PodTemplateSpec{
+				Spec: corev1.PodSpec{
+					ServiceAccountName: "",
+				},
+			}
+			pod := &corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: conn.Namespace,
+				},
+			}
+			Expect(reconciler.mutateServerPod(context.TODO(), conn, pod)).To(Succeed())
+			Expect(pod.Spec.ServiceAccountName).To(Equal("spark-operator-spark"))
+		})
 	})
 })

@@ -79,15 +79,3 @@ func GetServerServiceName(conn *v1alpha1.SparkConnect) string {
 func GetServerServiceHost(conn *v1alpha1.SparkConnect) string {
 	return fmt.Sprintf("%s.%s.svc.cluster.local", GetServerServiceName(conn), conn.Namespace)
 }
-
-// resolveServerServiceAccount returns the name of the service account to use for the Spark
-// Connect server pod. A service account in the server pod template takes precedence over the
-// operator-level default. An empty string means no service account is set and the namespace
-// default applies.
-func resolveServerServiceAccount(conn *v1alpha1.SparkConnect, defaultServiceAccount string) string {
-	if template := conn.Spec.Server.Template; template != nil && template.Spec.ServiceAccountName != "" {
-		return template.Spec.ServiceAccountName
-	}
-
-	return defaultServiceAccount
-}
