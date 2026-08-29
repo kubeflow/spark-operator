@@ -363,6 +363,40 @@ tests:
             verbs:
               - watch
 
+  - it: Should grant httproutes without list or watch in ClusterRole
+    set:
+      spark:
+        jobNamespaces:
+          - ""
+    documentIndex: 0
+    asserts:
+      - contains:
+          path: rules
+          content:
+            apiGroups:
+              - gateway.networking.k8s.io
+            resources:
+              - httproutes
+            verbs:
+              - get
+              - create
+              - update
+              - delete
+      - notContains:
+          path: rules
+          content:
+            resources:
+              - httproutes
+            verbs:
+              - list
+      - notContains:
+          path: rules
+          content:
+            resources:
+              - httproutes
+            verbs:
+              - watch
+
   - it: Should grant sparkapplications only get/list/watch/create/delete in ClusterRole
     set:
       spark:

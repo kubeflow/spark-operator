@@ -90,6 +90,12 @@ spec:
         - --ingress-annotations={{ . | toJson }}
         {{- end }}
         {{- end }}
+        {{- if .Values.controller.uiHTTPRoute.enable }}
+        - --ui-httproute-enable=true
+        {{- with .Values.controller.uiHTTPRoute.parentRefs }}
+        - --ui-httproute-parent-refs={{ . | toJson }}
+        {{- end }}
+        {{- end }}
         {{- if .Values.controller.batchScheduler.enable }}
         - --enable-batch-scheduler=true
         {{- with .Values.controller.batchScheduler.kubeSchedulerNames }}
