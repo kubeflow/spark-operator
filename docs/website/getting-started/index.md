@@ -300,6 +300,58 @@ spec:
         kubernetes.io/ingress.class: nginx
 ```
 
+### Exposing the UI through a Gateway API HTTPRoute
+
+As an alternative to the Ingress above, the operator can expose the Spark UI through a Gateway
+API [`HTTPRoute`](https://gateway-api.sigs.k8s.io/api-types/httproute/). This is opt-in and off by
+default; existing deployments are unaffected.
+
+```yaml
+controller:
+  uiService:
+    enable: true
+  uiIngress:
+    # Still supplies the hostname and path, even when only the HTTPRoute is enabled.
+    urlFormat: "{{$appName}}.ingress.cluster.com/{{$appNamespace}}/{{$appName}}"
+  uiHTTPRoute:
+    enable: true
+    parentRefs:
+      - name: eg
+        namespace: envoy-gateway
+```
+
+Or, running the operator directly:
+
+```shell
+--ingress-url-format='{{$appName}}.ingress.cluster.com/{{$appNamespace}}/{{$appName}}' \
+--ui-httproute-enable \
+--ui-httproute-parent-refs='[{"name":"eg","namespace":"envoy-gateway"}]'
+```
+
+Things worth knowing before enabling it:
+
+- **The Gateway API CRDs must be installed.** The operator checks for
+  `gateway.networking.k8s.io/v1` at startup and exits with an error if the cluster does not serve
+  it, rather than silently falling back to an Ingress.
+- **`ingress-url-format` is still required.** It supplies the hostname and path for the route just
+  as it does for the Ingress, and the operator refuses to start without it.
+- **Routes are created in the SparkApplication's own namespace.** If the Gateway lives in another
+  namespace, its listener must permit cross-namespace attachment via
+  [`allowedRoutes.namespaces`](https://gateway-api.sigs.k8s.io/api-types/gateway/); otherwise the
+  route is created but never programmed, and its status reports `NotAllowedByListeners`. A
+  `parentRef` with no `namespace` defaults to the application's own namespace.
+- **TLS, `ingressClassName` and ingress annotations do not carry over.** Under the Gateway API, TLS
+  is configured on the Gateway listener rather than per route, and annotations are specific to an
+  Ingress controller. The operator logs a message if these are set while the HTTPRoute option is
+  enabled.
+- **Only the web UI is covered.** Entries in `spec.driverIngressOptions` still produce `Ingress`
+  objects.
+
+When serving on a subpath, the operator emits a `PathPrefix` match plus a `URLRewrite` filter,
+which reproduces what the nginx `rewrite-target` annotation does for the Ingress path. As with the
+Ingress, `WebUIIngressAddress` and `WebUIIngressName` in the `SparkApplication`'s `DriverInfo`
+record the resulting URL and object name.
+
 ## About the Mutating Admission Webhook
 
 The Kubernetes Operator for Apache Spark comes with an optional mutating admission webhook for customizing Spark driver and executor pods based on the specification in `SparkApplication` objects, e.g., mounting user-specified ConfigMaps and volumes, and setting pod affinity/anti-affinity, and adding tolerations.
