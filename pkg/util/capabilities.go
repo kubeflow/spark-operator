@@ -40,6 +40,10 @@ func (c Capabilities) String() string {
 	return strings.Join(keys, ", ")
 }
 
+// HTTPRouteCapabilityV1 is the API group/version that must be served by the cluster for
+// the operator to create Gateway API HTTPRoute objects.
+const HTTPRouteCapabilityV1 = "gateway.networking.k8s.io/v1"
+
 var (
 	IngressCapabilities Capabilities
 

@@ -32,10 +32,6 @@ import (
 	"github.com/kubeflow/spark-operator/v2/pkg/util"
 )
 
-// HTTPRouteCapabilityV1 is the API group/version that must be served by the cluster for
-// the operator to create Gateway API HTTPRoute objects.
-const HTTPRouteCapabilityV1 = "gateway.networking.k8s.io/v1"
-
 // createWebUIHTTPRoute creates or updates a Gateway API HTTPRoute exposing the Spark web UI
 // service. It mirrors createDriverIngressV1: the same URL format drives the hostname and
 // path, and the route is owned by the SparkApplication so it is garbage collected with it.
