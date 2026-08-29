@@ -28,7 +28,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/kubeflow/spark-operator/v2/api/v1alpha1"
 	"github.com/kubeflow/spark-operator/v2/internal/controller/sparkconnect"
@@ -158,22 +157,22 @@ var _ = Describe("SparkConnect CPU Resources", func() {
 						SparkPodSpec: v1alpha1.SparkPodSpec{
 							CoreRequest: ptr.To("500m"),
 							CoreLimit:   ptr.To("1"),
-						},
-						// Template also specifies CPU and memory.
-						Template: &corev1.PodTemplateSpec{
-							Spec: corev1.PodSpec{
-								Containers: []corev1.Container{
-									{
-										Name:  "spark-kubernetes-driver",
-										Image: image,
-										Resources: corev1.ResourceRequirements{
-											Requests: corev1.ResourceList{
-												corev1.ResourceCPU:    resource.MustParse("1"),
-												corev1.ResourceMemory: resource.MustParse("1Gi"),
-											},
-											Limits: corev1.ResourceList{
-												corev1.ResourceCPU:    resource.MustParse("2"),
-												corev1.ResourceMemory: resource.MustParse("1Gi"),
+							// Template also specifies CPU and memory.
+							Template: &corev1.PodTemplateSpec{
+								Spec: corev1.PodSpec{
+									Containers: []corev1.Container{
+										{
+											Name:  "spark-kubernetes-driver",
+											Image: image,
+											Resources: corev1.ResourceRequirements{
+												Requests: corev1.ResourceList{
+													corev1.ResourceCPU:    resource.MustParse("1"),
+													corev1.ResourceMemory: resource.MustParse("1Gi"),
+												},
+												Limits: corev1.ResourceList{
+													corev1.ResourceCPU:    resource.MustParse("2"),
+													corev1.ResourceMemory: resource.MustParse("1Gi"),
+												},
 											},
 										},
 									},
