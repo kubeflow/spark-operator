@@ -1315,8 +1315,13 @@ func (r *Reconciler) deleteWebUIIngress(ctx context.Context, app *v1beta2.SparkA
 		return nil
 	}
 
-	if r.options.EnableUIHTTPRoute && util.HTTPRouteCapabilities.Has(HTTPRouteCapabilityV1) {
-		return r.deleteWebUIHTTPRoute(ctx, app)
+	// Attempt every exposure mechanism rather than only the currently configured one:
+	// the operator may have been restarted with a different setting since the object was
+	// created, and the SparkApplication still exists so owner-reference GC has not run.
+	if util.HTTPRouteCapabilities.Has(util.HTTPRouteCapabilityV1) {
+		if err := r.deleteWebUIHTTPRoute(ctx, app); err != nil {
+			return err
+		}
 	}
 
 	if util.IngressCapabilities.Has("networking.k8s.io/v1") {
@@ -1384,6 +1389,13 @@ func (r *Reconciler) validateSparkResourceDeletion(ctx context.Context, app *v1b
 	if sparkUIIngressName != "" {
 		if err := r.client.Get(ctx, types.NamespacedName{Name: sparkUIIngressName, Namespace: app.Namespace}, &networkingv1.Ingress{}); err == nil || !errors.IsNotFound(err) {
 			return false
+		}
+		// The same status field records the HTTPRoute name when the web UI is exposed
+		// through the Gateway API, so it has to be checked as well.
+		if util.HTTPRouteCapabilities.Has(util.HTTPRouteCapabilityV1) {
+			if err := r.client.Get(ctx, types.NamespacedName{Name: sparkUIIngressName, Namespace: app.Namespace}, &gatewayv1.HTTPRoute{}); err == nil || !errors.IsNotFound(err) {
+				return false
+			}
 		}
 	}
 

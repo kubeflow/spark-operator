@@ -223,6 +223,15 @@ func TestCreateWebUIHTTPRouteIsIdempotent(t *testing.T) {
 }
 
 func TestCreateWebUIRouteDispatch(t *testing.T) {
+	// Both are mutable package globals; leaking them changes the behaviour of every later
+	// test in this package depending on run order.
+	originalIngressCaps := util.IngressCapabilities
+	originalHTTPRouteCaps := util.HTTPRouteCapabilities
+	t.Cleanup(func() {
+		util.IngressCapabilities = originalIngressCaps
+		util.HTTPRouteCapabilities = originalHTTPRouteCaps
+	})
+
 	app := httpRouteTestApp()
 	routeURL, err := url.Parse("http://spark.example.com/test-ns/test-app")
 	require.NoError(t, err)
@@ -262,11 +271,11 @@ func TestCreateWebUIRouteDispatch(t *testing.T) {
 
 		_, err := reconciler.createWebUIRoute(context.TODO(), app, httpRouteTestService(), routeURL)
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), HTTPRouteCapabilityV1)
+		assert.Contains(t, err.Error(), util.HTTPRouteCapabilityV1)
 	})
 
 	t.Run("creates an HTTPRoute when enabled and supported", func(t *testing.T) {
-		util.HTTPRouteCapabilities = util.Capabilities{HTTPRouteCapabilityV1: true}
+		util.HTTPRouteCapabilities = util.Capabilities{util.HTTPRouteCapabilityV1: true}
 		scheme := httpRouteTestScheme(t)
 		fakeClient := fake.NewClientBuilder().WithScheme(scheme).Build()
 		reconciler := Reconciler{
@@ -291,4 +300,48 @@ func TestCreateWebUIRouteDispatch(t *testing.T) {
 		require.NoError(t, fakeClient.List(context.TODO(), ingresses))
 		assert.Empty(t, ingresses.Items)
 	})
+}
+
+// Switching the operator between Ingress and HTTPRoute mode must not orphan whichever
+// object the previous mode created: the SparkApplication still exists at this point, so
+// owner-reference garbage collection has not run.
+func TestDeleteWebUIIngressCleansUpBothExposureTypes(t *testing.T) {
+	originalIngressCaps := util.IngressCapabilities
+	originalHTTPRouteCaps := util.HTTPRouteCapabilities
+	t.Cleanup(func() {
+		util.IngressCapabilities = originalIngressCaps
+		util.HTTPRouteCapabilities = originalHTTPRouteCaps
+	})
+	util.IngressCapabilities = util.Capabilities{"networking.k8s.io/v1": true}
+	util.HTTPRouteCapabilities = util.Capabilities{util.HTTPRouteCapabilityV1: true}
+
+	routeName := "test-app-ui-ingress"
+	app := httpRouteTestApp()
+	app.Status.DriverInfo.WebUIIngressName = routeName
+
+	scheme := httpRouteTestScheme(t)
+	fakeClient := fake.NewClientBuilder().WithScheme(scheme).WithObjects(
+		&networkingv1.Ingress{ObjectMeta: metav1.ObjectMeta{Name: routeName, Namespace: app.Namespace}},
+		&gatewayv1.HTTPRoute{ObjectMeta: metav1.ObjectMeta{Name: routeName, Namespace: app.Namespace}},
+	).Build()
+
+	// Configured for Ingress, but an HTTPRoute left over from a previous configuration.
+	reconciler := Reconciler{client: fakeClient, options: Options{}}
+	require.NoError(t, reconciler.deleteWebUIIngress(context.TODO(), app))
+
+	routes := &gatewayv1.HTTPRouteList{}
+	require.NoError(t, fakeClient.List(context.TODO(), routes))
+	assert.Empty(t, routes.Items, "stale HTTPRoute should be deleted even in Ingress mode")
+
+	ingresses := &networkingv1.IngressList{}
+	require.NoError(t, fakeClient.List(context.TODO(), ingresses))
+	assert.Empty(t, ingresses.Items)
+
+	// The resubmission gate must not report the web UI as gone while a route still exists.
+	fakeClient = fake.NewClientBuilder().WithScheme(scheme).WithObjects(
+		&gatewayv1.HTTPRoute{ObjectMeta: metav1.ObjectMeta{Name: routeName, Namespace: app.Namespace}},
+	).Build()
+	reconciler = Reconciler{client: fakeClient, options: Options{}}
+	assert.False(t, reconciler.validateSparkResourceDeletion(context.TODO(), app),
+		"a live HTTPRoute should block resubmission")
 }
