@@ -257,6 +257,40 @@ tests:
           path: spec.template.spec.containers[?(@.name=="spark-operator-controller")].args
           content: --ingress-url-format={{$appName}}.example.com/{{$appNamespace}}/{{$appName}}
 
+  - it: Should contain `--ui-httproute-enable` and `--ui-httproute-parent-refs` args if `controller.uiHTTPRoute.enable` is set to `true`
+    set:
+      controller:
+        uiService:
+          enable: true
+        uiIngress:
+          enable: true
+          urlFormat: "{{$appName}}.example.com/{{$appNamespace}}/{{$appName}}"
+        uiHTTPRoute:
+          enable: true
+          parentRefs:
+            - name: eg
+              namespace: envoy-gateway
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[?(@.name=="spark-operator-controller")].args
+          content: --ui-httproute-enable=true
+      - contains:
+          path: spec.template.spec.containers[?(@.name=="spark-operator-controller")].args
+          content: --ui-httproute-parent-refs=[{"name":"eg","namespace":"envoy-gateway"}]
+
+  - it: Should not contain any `--ui-httproute-*` arg by default
+    set:
+      controller:
+        uiService:
+          enable: true
+        uiIngress:
+          enable: true
+          urlFormat: "{{$appName}}.example.com/{{$appNamespace}}/{{$appName}}"
+    asserts:
+      - notContains:
+          path: spec.template.spec.containers[?(@.name=="spark-operator-controller")].args
+          content: --ui-httproute-enable=true
+
   - it: Should contain `--ingress-class-name` arg if `controller.uiIngress.enable` is set to `true` and `controller.uiIngress.ingressClassName` is set
     set:
       controller:

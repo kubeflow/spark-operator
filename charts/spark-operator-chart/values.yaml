@@ -181,6 +181,19 @@ controller:
       # key1: value1
       # key2: value2
 
+  uiHTTPRoute:
+    # -- Specifies whether to expose the Spark web UI through a Gateway API `HTTPRoute`
+    # instead of an `Ingress`. `controller.uiService.enable` must be `true`, the Gateway API
+    # CRDs must be installed, and `controller.uiIngress.urlFormat` supplies the hostname and
+    # path. When `false` the operator creates an `Ingress` exactly as before.
+    enable: false
+    # -- Gateway `parentRefs` attached to every Spark UI HTTPRoute.
+    # Required if `controller.uiHTTPRoute.enable` is true. `namespace` defaults to the
+    # SparkApplication's own namespace when omitted.
+    parentRefs: []
+    # - name: eg
+    #   namespace: envoy-gateway
+
   batchScheduler:
     # -- Specifies whether to enable batch scheduler for spark jobs scheduling.
     # If enabled, users can specify batch scheduler name in spark application.
