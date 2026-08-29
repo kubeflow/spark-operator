@@ -23,6 +23,7 @@ import (
 	"strconv"
 
 	networkingv1 "k8s.io/api/networking/v1"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	"github.com/kubeflow/spark-operator/v2/api/v1beta2"
 	"github.com/kubeflow/spark-operator/v2/pkg/common"
@@ -94,8 +95,18 @@ func (r *Reconciler) createWebUIIngress(ctx context.Context, app *v1beta2.SparkA
 // Gateway API, so the Ingress behaviour is unchanged for every existing deployment.
 func (r *Reconciler) createWebUIRoute(ctx context.Context, app *v1beta2.SparkApplication, service SparkService, ingressURL *url.URL) (*SparkIngress, error) {
 	if r.options.EnableUIHTTPRoute {
-		if !util.HTTPRouteCapabilities.Has(HTTPRouteCapabilityV1) {
-			return nil, fmt.Errorf("cannot create HTTPRoute for the Spark web UI: the cluster does not serve %s, install the Gateway API CRDs or disable the HTTPRoute option", HTTPRouteCapabilityV1)
+		if !util.HTTPRouteCapabilities.Has(util.HTTPRouteCapabilityV1) {
+			return nil, fmt.Errorf("cannot create HTTPRoute for the Spark web UI: the cluster does not serve %s, install the Gateway API CRDs or disable the HTTPRoute option", util.HTTPRouteCapabilityV1)
+		}
+		// TLS and ingressClassName are Gateway listener concerns under the Gateway API, and
+		// annotations are Ingress-controller specific, so none of them carry over to an
+		// HTTPRoute. Say so rather than dropping configuration silently.
+		if len(util.GetWebUIIngressTLS(app)) != 0 || len(r.options.IngressTLS) != 0 ||
+			len(util.GetWebUIIngressAnnotations(app)) != 0 || len(r.options.IngressAnnotations) != 0 ||
+			r.options.IngressClassName != "" {
+			log.FromContext(ctx).Info(
+				"Ignoring Ingress-only Spark UI configuration because the web UI is exposed through an HTTPRoute; configure TLS on the Gateway listener instead",
+				"sparkApplication", app.Name, "namespace", app.Namespace)
 		}
 		return r.createWebUIHTTPRoute(ctx, app, service, ingressURL, r.options.UIHTTPRouteParentRefs)
 	}
