@@ -190,8 +190,22 @@ func NewStartCommand() *cobra.Command {
 					return fmt.Errorf("failed parsing ui-httproute-parent-refs JSON string from CLI: %v", err)
 				}
 			}
-			if enableUIHTTPRoute && len(uiHTTPRouteParentRefs) == 0 {
-				return fmt.Errorf("ui-httproute-parent-refs is required when ui-httproute-enable is set")
+			if enableUIHTTPRoute {
+				if len(uiHTTPRouteParentRefs) == 0 {
+					return fmt.Errorf("ui-httproute-parent-refs is required when ui-httproute-enable is set")
+				}
+				// An entry without a name is accepted by JSON but rejected by the API server
+				// on every reconcile, so reject it here instead of failing continuously.
+				for i, parentRef := range uiHTTPRouteParentRefs {
+					if parentRef.Name == "" {
+						return fmt.Errorf("ui-httproute-parent-refs[%d] is missing the required 'name' field", i)
+					}
+				}
+				// Without a URL format the reconciler never reaches the route creation path,
+				// which would make ui-httproute-enable a silent no-op.
+				if ingressURLFormat == "" {
+					return fmt.Errorf("ingress-url-format is required when ui-httproute-enable is set")
+				}
 			}
 
 			validPrecisions := []string{"nanos", "micros", "millis", "seconds", "minutes"}
@@ -418,8 +432,8 @@ func start() {
 			logger.Error(err, "failed to retrieve cluster HTTPRoute capabilities")
 			os.Exit(1)
 		}
-		if !util.HTTPRouteCapabilities.Has(sparkapplication.HTTPRouteCapabilityV1) {
-			logger.Error(nil, "ui-httproute-enable is set but the cluster does not serve the Gateway API", "required", sparkapplication.HTTPRouteCapabilityV1)
+		if !util.HTTPRouteCapabilities.Has(util.HTTPRouteCapabilityV1) {
+			logger.Error(nil, "ui-httproute-enable is set but the cluster does not serve the Gateway API", "required", util.HTTPRouteCapabilityV1)
 			os.Exit(1)
 		}
 	}
