@@ -56,6 +56,7 @@ import (
 	logzap "sigs.k8s.io/controller-runtime/pkg/log/zap"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	ctrlwebhook "sigs.k8s.io/controller-runtime/pkg/webhook"
+	gatewayv1 "sigs.k8s.io/gateway-api/apis/v1"
 
 	operatortls "github.com/kubeflow/spark-operator/v2/pkg/tls"
 
@@ -117,6 +118,9 @@ var (
 	ingressTLS         []networkingv1.IngressTLS
 	ingressAnnotations map[string]string
 
+	enableUIHTTPRoute     bool
+	uiHTTPRouteParentRefs []gatewayv1.ParentReference
+
 	// Leader election
 	enableLeaderElection        bool
 	leaderElectionLockName      string
@@ -164,6 +168,7 @@ var (
 func NewStartCommand() *cobra.Command {
 	var ingressTLSstring string
 	var ingressAnnotationsString string
+	var uiHTTPRouteParentRefsString string
 	var command = &cobra.Command{
 		Use:   "start",
 		Short: "Start controller and webhook",
@@ -179,6 +184,14 @@ func NewStartCommand() *cobra.Command {
 				if err := json.Unmarshal([]byte(ingressAnnotationsString), &ingressAnnotations); err != nil {
 					return fmt.Errorf("failed parsing ingress-annotations JSON string from CLI: %v", err)
 				}
+			}
+			if uiHTTPRouteParentRefsString != "" {
+				if err := json.Unmarshal([]byte(uiHTTPRouteParentRefsString), &uiHTTPRouteParentRefs); err != nil {
+					return fmt.Errorf("failed parsing ui-httproute-parent-refs JSON string from CLI: %v", err)
+				}
+			}
+			if enableUIHTTPRoute && len(uiHTTPRouteParentRefs) == 0 {
+				return fmt.Errorf("ui-httproute-parent-refs is required when ui-httproute-enable is set")
 			}
 
 			validPrecisions := []string{"nanos", "micros", "millis", "seconds", "minutes"}
@@ -250,6 +263,8 @@ func NewStartCommand() *cobra.Command {
 	command.Flags().StringVar(&ingressClassName, "ingress-class-name", "", "Set ingressClassName for ingress resources created.")
 	command.Flags().StringVar(&ingressURLFormat, "ingress-url-format", "", "Ingress URL format.")
 	command.Flags().StringVar(&ingressTLSstring, "ingress-tls", "", "JSON format string for the default TLS config on the Spark UI ingresses. e.g. '[{\"hosts\":[\"*.example.com\"],\"secretName\":\"example-secret\"}]'. `ingressTLS` in the SparkApplication spec will override this value.")
+	command.Flags().BoolVar(&enableUIHTTPRoute, "ui-httproute-enable", false, "Expose the Spark web UI through a Gateway API HTTPRoute instead of an Ingress. Requires the Gateway API CRDs to be installed and `ingress-url-format` to be set.")
+	command.Flags().StringVar(&uiHTTPRouteParentRefsString, "ui-httproute-parent-refs", "", "JSON format string for the Gateway parentRefs attached to the Spark UI HTTPRoutes. e.g. '[{\"name\":\"eg\",\"namespace\":\"envoy-gateway\"}]'. Required when `ui-httproute-enable` is set.")
 	command.Flags().StringVar(&ingressAnnotationsString, "ingress-annotations", "", "JSON format string for the default ingress annotations for the Spark UI ingresses. e.g. '[{\"cert-manager.io/cluster-issuer\": \"letsencrypt\"}]'. `ingressAnnotations` in the SparkApplication spec will override this value.")
 
 	command.Flags().BoolVar(&enableLeaderElection, "leader-election", false, "Enable leader election for controller manager. "+
@@ -350,6 +365,7 @@ func start() {
 				DisableFor: []client.Object{
 					&networkingv1.Ingress{},
 					&extensionsv1beta1.Ingress{},
+					&gatewayv1.HTTPRoute{},
 				},
 			},
 		},
@@ -395,6 +411,17 @@ func start() {
 	if err = util.InitializeIngressCapabilities(clientset); err != nil {
 		logger.Error(err, "failed to retrieve cluster ingress capabilities")
 		os.Exit(1)
+	}
+
+	if enableUIHTTPRoute {
+		if err = util.InitializeHTTPRouteCapabilities(clientset); err != nil {
+			logger.Error(err, "failed to retrieve cluster HTTPRoute capabilities")
+			os.Exit(1)
+		}
+		if !util.HTTPRouteCapabilities.Has(sparkapplication.HTTPRouteCapabilityV1) {
+			logger.Error(nil, "ui-httproute-enable is set but the cluster does not serve the Gateway API", "required", sparkapplication.HTTPRouteCapabilityV1)
+			os.Exit(1)
+		}
 	}
 
 	var registry *scheduler.Registry
@@ -574,6 +601,8 @@ func newSparkApplicationReconcilerOptions() sparkapplication.Options {
 		IngressURLFormat:             ingressURLFormat,
 		IngressTLS:                   ingressTLS,
 		IngressAnnotations:           ingressAnnotations,
+		EnableUIHTTPRoute:            enableUIHTTPRoute,
+		UIHTTPRouteParentRefs:        uiHTTPRouteParentRefs,
 		DefaultBatchScheduler:        defaultBatchScheduler,
 		DriverPodCreationGracePeriod: driverPodCreationGracePeriod,
 		SparkApplicationMetrics:      sparkApplicationMetrics,
