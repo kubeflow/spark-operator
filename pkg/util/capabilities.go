@@ -42,6 +42,10 @@ func (c Capabilities) String() string {
 
 var (
 	IngressCapabilities Capabilities
+
+	// HTTPRouteCapabilities holds the API groups that serve the Gateway API HTTPRoute
+	// kind on the cluster. It is empty when the Gateway API CRDs are not installed.
+	HTTPRouteCapabilities Capabilities
 )
 
 func InitializeIngressCapabilities(client kubernetes.Interface) (err error) {
@@ -50,6 +54,18 @@ func InitializeIngressCapabilities(client kubernetes.Interface) (err error) {
 	}
 
 	IngressCapabilities, err = getPreferredAvailableAPIs(client, "Ingress")
+	return
+}
+
+// InitializeHTTPRouteCapabilities discovers whether the cluster serves the Gateway API
+// HTTPRoute kind. Clusters without the Gateway API CRDs installed yield empty
+// capabilities rather than an error, so the operator keeps working on them.
+func InitializeHTTPRouteCapabilities(client kubernetes.Interface) (err error) {
+	if HTTPRouteCapabilities != nil {
+		return
+	}
+
+	HTTPRouteCapabilities, err = getPreferredAvailableAPIs(client, "HTTPRoute")
 	return
 }
 
