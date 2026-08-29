@@ -89,6 +89,19 @@ func (r *Reconciler) createWebUIIngress(ctx context.Context, app *v1beta2.SparkA
 	return r.createDriverIngressLegacy(ctx, app, service, ingressName, ingressURL, ingressTLS, ingressAnnotations)
 }
 
+// createWebUIRoute exposes the Spark web UI, choosing between a Gateway API HTTPRoute and
+// an Ingress. HTTPRoute is opt-in and additionally requires the cluster to serve the
+// Gateway API, so the Ingress behaviour is unchanged for every existing deployment.
+func (r *Reconciler) createWebUIRoute(ctx context.Context, app *v1beta2.SparkApplication, service SparkService, ingressURL *url.URL) (*SparkIngress, error) {
+	if r.options.EnableUIHTTPRoute {
+		if !util.HTTPRouteCapabilities.Has(HTTPRouteCapabilityV1) {
+			return nil, fmt.Errorf("cannot create HTTPRoute for the Spark web UI: the cluster does not serve %s, install the Gateway API CRDs or disable the HTTPRoute option", HTTPRouteCapabilityV1)
+		}
+		return r.createWebUIHTTPRoute(ctx, app, service, ingressURL, r.options.UIHTTPRouteParentRefs)
+	}
+	return r.createWebUIIngress(ctx, app, service, ingressURL, r.options.IngressClassName, r.options.IngressTLS, r.options.IngressAnnotations)
+}
+
 func getWebUIServicePortName(app *v1beta2.SparkApplication) string {
 	if app.Spec.SparkUIOptions == nil {
 		return common.DefaultSparkWebUIPortName
