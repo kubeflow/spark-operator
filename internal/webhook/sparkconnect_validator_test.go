@@ -512,19 +512,21 @@ func TestValidateCPUQuantity(t *testing.T) {
 		{"integer cores", "1", false},
 		{"decimal cores", "1.5", false},
 		{"decimal cores 2", "2.5", false},
-		{"zero with millis", "0m", false},
-		{"decimal zero", "0.5", false},
 		{"large millicores", "4000m", false},
 		{"large decimal", "8.5", false},
 		{"leading decimal", ".5", false},
 		{"trailing decimal", "5.", false},
-		{"millis only", "m", false},
 
-		// Invalid cases - empty and truly malformed strings
+		// Invalid cases - empty, malformed, zero, or negative values are not acceptable CPU
+		// resource quantities for request/limit fields.
 		{"empty string", "", true},
 		{"space only", "   ", true},
 		{"invalid suffix", "500x", true},
 		{"invalid chars", "1a0", true},
+		{"zero integer", "0", true},
+		{"zero with millis", "0m", true},
+		{"negative", "-500m", true},
+		{"millis only (parses to 0)", "m", true},
 	}
 
 	for _, tt := range testCases {
@@ -534,6 +536,79 @@ func TestValidateCPUQuantity(t *testing.T) {
 				t.Fatalf("validateCPUQuantity(%q) wantErr=%v, got err=%v", tt.cpu, tt.wantErr, err)
 			}
 		})
+	}
+}
+
+func TestValidateCPURequestLELimit(t *testing.T) {
+	testCases := []struct {
+		name    string
+		request string
+		limit   string
+		wantErr bool
+	}{
+		{"equal integers", "1", "1", false},
+		{"equal millis", "500m", "500m", false},
+		{"request less than limit", "500m", "1", false},
+		{"request less than limit decimal", "1.5", "2.5", false},
+		{"request greater than limit", "2", "1", true},
+		{"request greater than limit decimal", "2.5", "1.5", true},
+		{"invalid request", "abc", "1", true},
+		{"invalid limit", "1", "xyz", true},
+	}
+
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateCPURequestLELimit(tt.request, tt.limit)
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("validateCPURequestLELimit(%q, %q) wantErr=%v, got err=%v", tt.request, tt.limit, tt.wantErr, err)
+			}
+		})
+	}
+}
+
+func TestSparkConnectValidatorValidateCreate_ServerCoreRequestExceedsLimit(t *testing.T) {
+	validator := newTestSparkConnectValidator(t)
+
+	sc := newSparkConnect()
+	sc.Spec.Server.CoreRequest = ptr.To("2")
+	sc.Spec.Server.CoreLimit = ptr.To("1")
+
+	if _, err := validator.ValidateCreate(context.Background(), sc); err == nil || !strings.Contains(err.Error(), "coreRequest") {
+		t.Fatalf("expected server coreRequest/coreLimit validation error, got %v", err)
+	}
+}
+
+func TestSparkConnectValidatorValidateCreate_ExecutorCoreRequestExceedsLimit(t *testing.T) {
+	validator := newTestSparkConnectValidator(t)
+
+	sc := newSparkConnect()
+	sc.Spec.Executor.CoreRequest = ptr.To("2")
+	sc.Spec.Executor.CoreLimit = ptr.To("1")
+
+	if _, err := validator.ValidateCreate(context.Background(), sc); err == nil || !strings.Contains(err.Error(), "coreRequest") {
+		t.Fatalf("expected executor coreRequest/coreLimit validation error, got %v", err)
+	}
+}
+
+func TestSparkConnectValidatorValidateCreate_ServerZeroCoreRequest(t *testing.T) {
+	validator := newTestSparkConnectValidator(t)
+
+	sc := newSparkConnect()
+	sc.Spec.Server.CoreRequest = ptr.To("0")
+
+	if _, err := validator.ValidateCreate(context.Background(), sc); err == nil || !strings.Contains(err.Error(), "greater than zero") {
+		t.Fatalf("expected server.coreRequest zero-value validation error, got %v", err)
+	}
+}
+
+func TestSparkConnectValidatorValidateCreate_ExecutorNegativeCoreLimit(t *testing.T) {
+	validator := newTestSparkConnectValidator(t)
+
+	sc := newSparkConnect()
+	sc.Spec.Executor.CoreLimit = ptr.To("-500m")
+
+	if _, err := validator.ValidateCreate(context.Background(), sc); err == nil || !strings.Contains(err.Error(), "must not be negative") {
+		t.Fatalf("expected negative coreLimit validation error, got %v", err)
 	}
 }
 
