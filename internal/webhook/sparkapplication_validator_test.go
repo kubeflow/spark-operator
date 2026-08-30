@@ -86,6 +86,66 @@ func TestSparkApplicationValidatorValidateCreate_PodTemplateRequiresSpark3(t *te
 	}
 }
 
+func TestSparkApplicationValidatorValidateCreate_DynamicAllocationMinGreaterThanMax(t *testing.T) {
+	validator := newTestValidator(t, false)
+
+	app := newSparkApplication()
+	app.Spec.DynamicAllocation = &v1beta2.DynamicAllocation{
+		Enabled:      true,
+		MinExecutors: ptr.To[int32](5),
+		MaxExecutors: ptr.To[int32](2),
+	}
+
+	if _, err := validator.ValidateCreate(context.Background(), app); err == nil || !strings.Contains(err.Error(), "cannot be greater than dynamicAllocation.maxExecutors") {
+		t.Fatalf("expected minExecutors > maxExecutors validation error, got %v", err)
+	}
+}
+
+func TestSparkApplicationValidatorValidateCreate_DynamicAllocationInitialOutOfRange(t *testing.T) {
+	validator := newTestValidator(t, false)
+
+	app := newSparkApplication()
+	app.Spec.DynamicAllocation = &v1beta2.DynamicAllocation{
+		Enabled:          true,
+		MinExecutors:     ptr.To[int32](2),
+		MaxExecutors:     ptr.To[int32](5),
+		InitialExecutors: ptr.To[int32](1),
+	}
+
+	if _, err := validator.ValidateCreate(context.Background(), app); err == nil || !strings.Contains(err.Error(), "cannot be less than dynamicAllocation.minExecutors") {
+		t.Fatalf("expected initialExecutors < minExecutors validation error, got %v", err)
+	}
+}
+
+func TestSparkApplicationValidatorValidateCreate_DynamicAllocationNegativeValue(t *testing.T) {
+	validator := newTestValidator(t, false)
+
+	app := newSparkApplication()
+	app.Spec.DynamicAllocation = &v1beta2.DynamicAllocation{
+		Enabled:      true,
+		MinExecutors: ptr.To[int32](-1),
+	}
+
+	if _, err := validator.ValidateCreate(context.Background(), app); err == nil || !strings.Contains(err.Error(), "must be non-negative") {
+		t.Fatalf("expected non-negative validation error, got %v", err)
+	}
+}
+
+func TestSparkApplicationValidatorValidateCreate_DynamicAllocationDisabledSkipsValidation(t *testing.T) {
+	validator := newTestValidator(t, false)
+
+	app := newSparkApplication()
+	app.Spec.DynamicAllocation = &v1beta2.DynamicAllocation{
+		Enabled:      false,
+		MinExecutors: ptr.To[int32](5),
+		MaxExecutors: ptr.To[int32](2),
+	}
+
+	if _, err := validator.ValidateCreate(context.Background(), app); err != nil {
+		t.Fatalf("expected success when dynamic allocation is disabled, got %v", err)
+	}
+}
+
 func TestSparkApplicationValidatorValidateCreate_ResourceQuotaSatisfied(t *testing.T) {
 	quota := &corev1.ResourceQuota{
 		ObjectMeta: metav1.ObjectMeta{

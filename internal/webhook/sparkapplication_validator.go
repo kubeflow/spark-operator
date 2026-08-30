@@ -156,6 +156,51 @@ func (v *SparkApplicationValidator) validateSpec(ctx context.Context, app *v1bet
 		return err
 	}
 
+	if err := v.validateDynamicAllocation(app); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// validateDynamicAllocation validates DynamicAllocation configuration.
+func (v *SparkApplicationValidator) validateDynamicAllocation(app *v1beta2.SparkApplication) error {
+	da := app.Spec.DynamicAllocation
+	if da == nil || !da.Enabled {
+		return nil
+	}
+
+	// Validate minExecutors <= maxExecutors
+	if da.MinExecutors != nil && da.MaxExecutors != nil {
+		if *da.MinExecutors > *da.MaxExecutors {
+			return fmt.Errorf("dynamicAllocation.minExecutors (%d) cannot be greater than dynamicAllocation.maxExecutors (%d)",
+				*da.MinExecutors, *da.MaxExecutors)
+		}
+	}
+
+	// Validate initialExecutors is within range
+	if da.InitialExecutors != nil {
+		if da.MinExecutors != nil && *da.InitialExecutors < *da.MinExecutors {
+			return fmt.Errorf("dynamicAllocation.initialExecutors (%d) cannot be less than dynamicAllocation.minExecutors (%d)",
+				*da.InitialExecutors, *da.MinExecutors)
+		}
+		if da.MaxExecutors != nil && *da.InitialExecutors > *da.MaxExecutors {
+			return fmt.Errorf("dynamicAllocation.initialExecutors (%d) cannot be greater than dynamicAllocation.maxExecutors (%d)",
+				*da.InitialExecutors, *da.MaxExecutors)
+		}
+	}
+
+	// Validate non-negative values
+	if da.MinExecutors != nil && *da.MinExecutors < 0 {
+		return fmt.Errorf("dynamicAllocation.minExecutors must be non-negative, got %d", *da.MinExecutors)
+	}
+	if da.MaxExecutors != nil && *da.MaxExecutors < 0 {
+		return fmt.Errorf("dynamicAllocation.maxExecutors must be non-negative, got %d", *da.MaxExecutors)
+	}
+	if da.InitialExecutors != nil && *da.InitialExecutors < 0 {
+		return fmt.Errorf("dynamicAllocation.initialExecutors must be non-negative, got %d", *da.InitialExecutors)
+	}
+
 	return nil
 }
 
