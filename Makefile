@@ -248,7 +248,7 @@ clean: ## Clean binaries.
 build-api-docs: gen-crd-api-reference-docs ## Build api documentation.
 	$(GEN_CRD_API_REFERENCE_DOCS) \
 	-config hack/api-docs/config.json \
-	-api-dir github.com/kubeflow/spark-operator/v2/api/v1beta2 \
+	-api-dir github.com/kubeflow/spark-operator/v2/api \
 	-template-dir hack/api-docs/template \
 	-out-file docs/api-docs.md
 
