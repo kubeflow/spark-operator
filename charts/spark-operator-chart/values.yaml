@@ -83,6 +83,21 @@ hook:
     # key1: value1
     # key2: value2
 
+  # -- Security context for the Helm hook Job pod.
+  podSecurityContext: {}
+
+  # -- Security context for the Helm hook Job container.
+  securityContext:
+    readOnlyRootFilesystem: true
+    privileged: false
+    allowPrivilegeEscalation: false
+    runAsNonRoot: true
+    capabilities:
+      drop:
+      - ALL
+    seccompProfile:
+      type: RuntimeDefault
+
 controller:
   # -- Number of replicas of controller.
   replicas: 1
