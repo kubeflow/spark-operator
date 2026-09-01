@@ -32,8 +32,8 @@ func (e *SparkConfKeyDeniedError) Error() string {
 }
 
 var deniedSparkConfKeys = map[string]string{
-	common.SparkKubernetesAuthenticateDriverServiceAccountName:   "configure the service account via the CRD spec instead",
-	common.SparkKubernetesAuthenticateExecutorServiceAccountName: "configure the service account via the CRD spec instead",
+	common.SparkKubernetesAuthenticateDriverServiceAccountName:   "configure the service account via the CRD spec or pod template instead",
+	common.SparkKubernetesAuthenticateExecutorServiceAccountName: "configure the service account via the CRD spec or pod template instead",
 	common.SparkKubernetesAuthenticateOAuthTokenFile:             "authentication credentials are managed by the operator",
 	common.SparkKubernetesAuthenticateOAuthToken:                 "authentication credentials are managed by the operator",
 	common.SparkKubernetesAuthenticateDriverOAuthTokenFile:       "authentication credentials are managed by the operator",

@@ -59,6 +59,11 @@ type Options struct {
 	// A list of namespaces that should be watched.
 	Namespaces        []string
 	NamespaceSelector string
+
+	// DefaultServiceAccount is the name of the service account used by the Spark Connect
+	// server pod when neither the SparkConnect nor its server pod template specifies one.
+	// An empty value disables the fallback.
+	DefaultServiceAccount string
 }
 
 // Reconciler reconciles a SparkConnect object.
@@ -341,7 +346,7 @@ func (r *Reconciler) createOrUpdateServerPod(ctx context.Context, conn *v1alpha1
 }
 
 // mutateServerPod mutates the server pod for SparkConnect.
-func (r *Reconciler) mutateServerPod(_ context.Context, conn *v1alpha1.SparkConnect, pod *corev1.Pod) error {
+func (r *Reconciler) mutateServerPod(ctx context.Context, conn *v1alpha1.SparkConnect, pod *corev1.Pod) error {
 	// Server pod not created yet.
 	if pod.CreationTimestamp.IsZero() {
 		template := conn.Spec.Server.Template
@@ -349,6 +354,14 @@ func (r *Reconciler) mutateServerPod(_ context.Context, conn *v1alpha1.SparkConn
 			pod.Labels = template.Labels
 			pod.Annotations = template.Annotations
 			pod.Spec = template.Spec
+		}
+
+		// Fall back to the operator-level default service account. This must happen after the
+		// pod template has been copied above, which would otherwise overwrite it.
+		if pod.Spec.ServiceAccountName == "" && r.options.DefaultServiceAccount != "" {
+			pod.Spec.ServiceAccountName = r.options.DefaultServiceAccount
+			ctrl.LoggerFrom(ctx).Info("Applied default service account to Spark Connect server pod",
+				"serviceAccount", r.options.DefaultServiceAccount)
 		}
 
 		// Add a default server container if not specified.

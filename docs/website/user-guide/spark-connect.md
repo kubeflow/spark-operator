@@ -114,7 +114,7 @@ The main `SparkConnect` fields are:
 | `.spec.sparkVersion` | Declares the Spark version used by the server. |
 | `.spec.image` | Sets a common server and executor image when templates do not provide component-specific images. |
 | `.spec.server.cores` and `.spec.server.memory` | Set the server pod's Spark CPU and memory configuration. |
-| `.spec.server.template` | Customizes the server pod, including its image, service account, volumes, and security context. |
+| `.spec.server.template` | Customizes the server pod, including its image, service account, volumes, and security context. If no service account is set here, the operator falls back to the `--default-service-account` controller flag (`controller.defaultServiceAccount` in the Helm chart). |
 | `.spec.executor.instances` | Sets the number of static executors. |
 | `.spec.executor.cores` and `.spec.executor.memory` | Set each executor's Spark CPU and memory configuration. |
 | `.spec.executor.template` | Customizes executor pods, including their image, volumes, and security context. |
