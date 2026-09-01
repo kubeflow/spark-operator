@@ -154,16 +154,17 @@ func (v *SparkApplicationValidator) validateSpec(ctx context.Context, app *v1bet
 		ingressURLFormats[item.IngressURLFormat] = true
 	}
 
-	if err := validateSparkConf(app.Spec.SparkConf, app.Namespace); err != nil {
-		return nil, err
-	}
-
-	warnings, err := v.validateDynamicAllocation(app)
+	sparkConfWarnings, err := validateSparkConf(app.Spec.SparkConf, app.Namespace)
 	if err != nil {
 		return nil, err
 	}
 
-	return warnings, nil
+	daWarnings, err := v.validateDynamicAllocation(app)
+	if err != nil {
+		return nil, err
+	}
+
+	return append(sparkConfWarnings, daWarnings...), nil
 }
 
 // validateDynamicAllocation validates DynamicAllocation configuration.

@@ -60,11 +60,12 @@ func (v *SparkConnectValidator) ValidateCreate(ctx context.Context, sc *v1alpha1
 		return nil, err
 	}
 
-	if err := v.validateSpec(sc); err != nil {
+	warnings, err = v.validateSpec(sc)
+	if err != nil {
 		return nil, err
 	}
 
-	return nil, nil
+	return warnings, nil
 }
 
 // ValidateUpdate implements admission.Validator.
@@ -86,11 +87,12 @@ func (v *SparkConnectValidator) ValidateUpdate(ctx context.Context, oldSC *v1alp
 		return nil, nil
 	}
 
-	if err := v.validateSpec(newSC); err != nil {
+	warnings, err = v.validateSpec(newSC)
+	if err != nil {
 		return nil, err
 	}
 
-	return nil, nil
+	return warnings, nil
 }
 
 // ValidateDelete implements admission.Validator.
@@ -128,37 +130,33 @@ func (v *SparkConnectValidator) validateName(name string) error {
 }
 
 // validateSpec validates the SparkConnect spec.
-func (v *SparkConnectValidator) validateSpec(sc *v1alpha1.SparkConnect) error {
+func (v *SparkConnectValidator) validateSpec(sc *v1alpha1.SparkConnect) (admission.Warnings, error) {
 	// Validate SparkVersion
 	if err := v.validateSparkVersion(sc); err != nil {
-		return err
+		return nil, err
 	}
 
 	// Validate image availability
 	if err := v.validateImage(sc); err != nil {
-		return err
+		return nil, err
 	}
 
 	// Validate DynamicAllocation
 	if err := v.validateDynamicAllocation(sc); err != nil {
-		return err
+		return nil, err
 	}
 
 	// Validate Server spec
 	if err := v.validateServerSpec(sc); err != nil {
-		return err
+		return nil, err
 	}
 
 	// Validate Executor spec
 	if err := v.validateExecutorSpec(sc); err != nil {
-		return err
+		return nil, err
 	}
 
-	if err := validateSparkConf(sc.Spec.SparkConf, sc.Namespace); err != nil {
-		return err
-	}
-
-	return nil
+	return validateSparkConf(sc.Spec.SparkConf, sc.Namespace)
 }
 
 // validateSparkVersion validates the Spark version.

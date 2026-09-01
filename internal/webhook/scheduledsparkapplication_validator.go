@@ -54,10 +54,11 @@ func (v *ScheduledSparkApplicationValidator) ValidateCreate(ctx context.Context,
 	if err := v.validateName(app.Name); err != nil {
 		return nil, err
 	}
-	if err := v.validate(app); err != nil {
+	warnings, err = v.validate(app)
+	if err != nil {
 		return nil, err
 	}
-	return nil, nil
+	return warnings, nil
 }
 
 // ValidateUpdate implements admission.Validator.
@@ -78,10 +79,11 @@ func (v *ScheduledSparkApplicationValidator) ValidateUpdate(ctx context.Context,
 		return nil, nil
 	}
 
-	if err := v.validate(newApp); err != nil {
+	warnings, err = v.validate(newApp)
+	if err != nil {
 		return nil, err
 	}
-	return nil, nil
+	return warnings, nil
 }
 
 // ValidateDelete implements admission.Validator.
@@ -95,7 +97,7 @@ func (v *ScheduledSparkApplicationValidator) ValidateDelete(ctx context.Context,
 	return nil, nil
 }
 
-func (v *ScheduledSparkApplicationValidator) validate(app *v1beta2.ScheduledSparkApplication) error {
+func (v *ScheduledSparkApplicationValidator) validate(app *v1beta2.ScheduledSparkApplication) (admission.Warnings, error) {
 	return validateSparkConf(app.Spec.Template.SparkConf, app.Namespace)
 }
 

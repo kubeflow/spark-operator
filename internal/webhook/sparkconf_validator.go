@@ -18,6 +18,9 @@ package webhook
 
 import (
 	"fmt"
+	"strconv"
+
+	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
 	"github.com/kubeflow/spark-operator/v2/pkg/common"
 )
@@ -47,17 +50,93 @@ var deniedSparkConfKeys = map[string]string{
 	common.SparkKubernetesExecutorContainerImage: "use the image field on the CRD instead",
 }
 
-func validateSparkConf(sparkConf map[string]string, namespace string) error {
+func validateSparkConf(sparkConf map[string]string, namespace string) (admission.Warnings, error) {
 	for key, value := range sparkConf {
 		if msg, denied := deniedSparkConfKeys[key]; denied {
-			return &SparkConfKeyDeniedError{Key: key, Message: msg}
+			return nil, &SparkConfKeyDeniedError{Key: key, Message: msg}
 		}
 		if key == common.SparkKubernetesNamespace && value != namespace {
-			return &SparkConfKeyDeniedError{
+			return nil, &SparkConfKeyDeniedError{
 				Key:     key,
 				Message: fmt.Sprintf("must equal the application namespace %q, got %q", namespace, value),
 			}
 		}
 	}
-	return nil
+
+	return validateDynamicAllocationSparkConf(sparkConf)
+}
+
+// validateDynamicAllocationSparkConf validates the dynamic allocation executor
+// bounds when they are supplied directly through sparkConf instead of the CRD
+// DynamicAllocation fields. It mirrors the checks in
+// SparkApplicationValidator.validateDynamicAllocation.
+func validateDynamicAllocationSparkConf(sparkConf map[string]string) (admission.Warnings, error) {
+	if enabled, _ := strconv.ParseBool(sparkConf[common.SparkDynamicAllocationEnabled]); !enabled {
+		return nil, nil
+	}
+
+	parse := func(key string) (*int32, error) {
+		value, ok := sparkConf[key]
+		if !ok {
+			return nil, nil
+		}
+		n, err := strconv.ParseInt(value, 10, 32)
+		if err != nil {
+			return nil, fmt.Errorf("%s must be an integer, got %q", key, value)
+		}
+		result := int32(n)
+		return &result, nil
+	}
+
+	minExecutors, err := parse(common.SparkDynamicAllocationMinExecutors)
+	if err != nil {
+		return nil, err
+	}
+	maxExecutors, err := parse(common.SparkDynamicAllocationMaxExecutors)
+	if err != nil {
+		return nil, err
+	}
+	initialExecutors, err := parse(common.SparkDynamicAllocationInitialExecutors)
+	if err != nil {
+		return nil, err
+	}
+
+	// Validate minExecutors <= maxExecutors
+	if minExecutors != nil && maxExecutors != nil && *minExecutors > *maxExecutors {
+		return nil, fmt.Errorf("%s (%d) cannot be greater than %s (%d)",
+			common.SparkDynamicAllocationMinExecutors, *minExecutors,
+			common.SparkDynamicAllocationMaxExecutors, *maxExecutors)
+	}
+
+	// Validate initialExecutors is within range
+	var warnings admission.Warnings
+	if initialExecutors != nil {
+		// initialExecutors below minExecutors is not an error: both Spark and the
+		// operator raise the initial executor count to at least minExecutors (see
+		// util.GetInitialExecutorNumber), so surface it as a warning instead.
+		if minExecutors != nil && *initialExecutors < *minExecutors {
+			warnings = append(warnings, fmt.Sprintf("%s (%d) is less than %s (%d); minExecutors will be used as the initial number of executors",
+				common.SparkDynamicAllocationInitialExecutors, *initialExecutors,
+				common.SparkDynamicAllocationMinExecutors, *minExecutors))
+		}
+		if maxExecutors != nil && *initialExecutors > *maxExecutors {
+			return nil, fmt.Errorf("%s (%d) cannot be greater than %s (%d)",
+				common.SparkDynamicAllocationInitialExecutors, *initialExecutors,
+				common.SparkDynamicAllocationMaxExecutors, *maxExecutors)
+		}
+	}
+
+	// Validate non-negative values. maxExecutors must be positive, while 0 is
+	// allowed for minExecutors and initialExecutors.
+	if minExecutors != nil && *minExecutors < 0 {
+		return nil, fmt.Errorf("%s must be non-negative, got %d", common.SparkDynamicAllocationMinExecutors, *minExecutors)
+	}
+	if maxExecutors != nil && *maxExecutors <= 0 {
+		return nil, fmt.Errorf("%s must be positive, got %d", common.SparkDynamicAllocationMaxExecutors, *maxExecutors)
+	}
+	if initialExecutors != nil && *initialExecutors < 0 {
+		return nil, fmt.Errorf("%s must be non-negative, got %d", common.SparkDynamicAllocationInitialExecutors, *initialExecutors)
+	}
+
+	return warnings, nil
 }
