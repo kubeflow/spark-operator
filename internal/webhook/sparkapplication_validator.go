@@ -190,12 +190,13 @@ func (v *SparkApplicationValidator) validateDynamicAllocation(app *v1beta2.Spark
 		}
 	}
 
-	// Validate non-negative values
+	// Validate non-negative values. maxExecutors must be positive, while 0 is
+	// allowed for minExecutors and initialExecutors.
 	if da.MinExecutors != nil && *da.MinExecutors < 0 {
 		return fmt.Errorf("dynamicAllocation.minExecutors must be non-negative, got %d", *da.MinExecutors)
 	}
-	if da.MaxExecutors != nil && *da.MaxExecutors < 0 {
-		return fmt.Errorf("dynamicAllocation.maxExecutors must be non-negative, got %d", *da.MaxExecutors)
+	if da.MaxExecutors != nil && *da.MaxExecutors <= 0 {
+		return fmt.Errorf("dynamicAllocation.maxExecutors must be positive, got %d", *da.MaxExecutors)
 	}
 	if da.InitialExecutors != nil && *da.InitialExecutors < 0 {
 		return fmt.Errorf("dynamicAllocation.initialExecutors must be non-negative, got %d", *da.InitialExecutors)

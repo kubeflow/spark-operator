@@ -131,6 +131,36 @@ func TestSparkApplicationValidatorValidateCreate_DynamicAllocationNegativeValue(
 	}
 }
 
+func TestSparkApplicationValidatorValidateCreate_DynamicAllocationZeroMaxExecutors(t *testing.T) {
+	validator := newTestValidator(t, false)
+
+	app := newSparkApplication()
+	app.Spec.DynamicAllocation = &v1beta2.DynamicAllocation{
+		Enabled:      true,
+		MaxExecutors: ptr.To[int32](0),
+	}
+
+	if _, err := validator.ValidateCreate(context.Background(), app); err == nil || !strings.Contains(err.Error(), "dynamicAllocation.maxExecutors must be positive") {
+		t.Fatalf("expected maxExecutors must be positive validation error, got %v", err)
+	}
+}
+
+func TestSparkApplicationValidatorValidateCreate_DynamicAllocationZeroMinAndInitialAllowed(t *testing.T) {
+	validator := newTestValidator(t, false)
+
+	app := newSparkApplication()
+	app.Spec.DynamicAllocation = &v1beta2.DynamicAllocation{
+		Enabled:          true,
+		MinExecutors:     ptr.To[int32](0),
+		MaxExecutors:     ptr.To[int32](5),
+		InitialExecutors: ptr.To[int32](0),
+	}
+
+	if _, err := validator.ValidateCreate(context.Background(), app); err != nil {
+		t.Fatalf("expected success when minExecutors and initialExecutors are zero, got %v", err)
+	}
+}
+
 func TestSparkApplicationValidatorValidateCreate_DynamicAllocationDisabledSkipsValidation(t *testing.T) {
 	validator := newTestValidator(t, false)
 
