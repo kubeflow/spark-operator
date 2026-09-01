@@ -66,7 +66,8 @@ func (v *SparkApplicationValidator) ValidateCreate(ctx context.Context, app *v1b
 	if err := v.validateName(app.Name); err != nil {
 		return nil, err
 	}
-	if err := v.validateSpec(ctx, app); err != nil {
+	warnings, err = v.validateSpec(ctx, app)
+	if err != nil {
 		return nil, err
 	}
 
@@ -76,7 +77,7 @@ func (v *SparkApplicationValidator) ValidateCreate(ctx context.Context, app *v1b
 		}
 	}
 
-	return nil, nil
+	return warnings, nil
 }
 
 // ValidateUpdate implements admission.Validator.
@@ -98,7 +99,8 @@ func (v *SparkApplicationValidator) ValidateUpdate(ctx context.Context, oldApp *
 		return nil, nil
 	}
 
-	if err := v.validateSpec(ctx, newApp); err != nil {
+	warnings, err = v.validateSpec(ctx, newApp)
+	if err != nil {
 		return nil, err
 	}
 
@@ -109,7 +111,7 @@ func (v *SparkApplicationValidator) ValidateUpdate(ctx context.Context, oldApp *
 		}
 	}
 
-	return nil, nil
+	return warnings, nil
 }
 
 // ValidateDelete implements admission.Validator.
@@ -123,69 +125,74 @@ func (v *SparkApplicationValidator) ValidateDelete(ctx context.Context, app *v1b
 	return nil, nil
 }
 
-func (v *SparkApplicationValidator) validateSpec(ctx context.Context, app *v1beta2.SparkApplication) error {
+func (v *SparkApplicationValidator) validateSpec(ctx context.Context, app *v1beta2.SparkApplication) (admission.Warnings, error) {
 	if err := v.validateSparkVersion(app); err != nil {
-		return err
+		return nil, err
 	}
 
 	if app.Spec.NodeSelector != nil && (app.Spec.Driver.NodeSelector != nil || app.Spec.Executor.NodeSelector != nil) {
-		return fmt.Errorf("node selector cannot be defined at both SparkApplication and Driver/Executor")
+		return nil, fmt.Errorf("node selector cannot be defined at both SparkApplication and Driver/Executor")
 	}
 
 	servicePorts := make(map[int32]bool)
 	ingressURLFormats := make(map[string]bool)
 	for _, item := range app.Spec.DriverIngressOptions {
 		if item.ServicePort == nil {
-			return fmt.Errorf("DriverIngressOptions has nill ServicePort")
+			return nil, fmt.Errorf("DriverIngressOptions has nill ServicePort")
 		}
 		if servicePorts[*item.ServicePort] {
-			return fmt.Errorf("DriverIngressOptions has duplicate ServicePort: %d", *item.ServicePort)
+			return nil, fmt.Errorf("DriverIngressOptions has duplicate ServicePort: %d", *item.ServicePort)
 		}
 		servicePorts[*item.ServicePort] = true
 
 		if item.IngressURLFormat == "" {
-			return fmt.Errorf("DriverIngressOptions has empty IngressURLFormat")
+			return nil, fmt.Errorf("DriverIngressOptions has empty IngressURLFormat")
 		}
 		if ingressURLFormats[item.IngressURLFormat] {
-			return fmt.Errorf("DriverIngressOptions has duplicate IngressURLFormat: %s", item.IngressURLFormat)
+			return nil, fmt.Errorf("DriverIngressOptions has duplicate IngressURLFormat: %s", item.IngressURLFormat)
 		}
 		ingressURLFormats[item.IngressURLFormat] = true
 	}
 
 	if err := validateSparkConf(app.Spec.SparkConf, app.Namespace); err != nil {
-		return err
+		return nil, err
 	}
 
-	if err := v.validateDynamicAllocation(app); err != nil {
-		return err
+	warnings, err := v.validateDynamicAllocation(app)
+	if err != nil {
+		return nil, err
 	}
 
-	return nil
+	return warnings, nil
 }
 
 // validateDynamicAllocation validates DynamicAllocation configuration.
-func (v *SparkApplicationValidator) validateDynamicAllocation(app *v1beta2.SparkApplication) error {
+func (v *SparkApplicationValidator) validateDynamicAllocation(app *v1beta2.SparkApplication) (admission.Warnings, error) {
 	da := app.Spec.DynamicAllocation
 	if da == nil || !da.Enabled {
-		return nil
+		return nil, nil
 	}
 
 	// Validate minExecutors <= maxExecutors
 	if da.MinExecutors != nil && da.MaxExecutors != nil {
 		if *da.MinExecutors > *da.MaxExecutors {
-			return fmt.Errorf("dynamicAllocation.minExecutors (%d) cannot be greater than dynamicAllocation.maxExecutors (%d)",
+			return nil, fmt.Errorf("dynamicAllocation.minExecutors (%d) cannot be greater than dynamicAllocation.maxExecutors (%d)",
 				*da.MinExecutors, *da.MaxExecutors)
 		}
 	}
 
 	// Validate initialExecutors is within range
+	var warnings admission.Warnings
 	if da.InitialExecutors != nil {
+		// initialExecutors below minExecutors is not an error: both Spark and the
+		// operator raise the initial executor count to at least minExecutors (see
+		// util.GetInitialExecutorNumber), so surface it as a warning instead.
 		if da.MinExecutors != nil && *da.InitialExecutors < *da.MinExecutors {
-			return fmt.Errorf("dynamicAllocation.initialExecutors (%d) cannot be less than dynamicAllocation.minExecutors (%d)",
-				*da.InitialExecutors, *da.MinExecutors)
+			warnings = append(warnings, fmt.Sprintf("dynamicAllocation.initialExecutors (%d) is less than dynamicAllocation.minExecutors (%d); minExecutors will be used as the initial number of executors",
+				*da.InitialExecutors, *da.MinExecutors))
 		}
 		if da.MaxExecutors != nil && *da.InitialExecutors > *da.MaxExecutors {
-			return fmt.Errorf("dynamicAllocation.initialExecutors (%d) cannot be greater than dynamicAllocation.maxExecutors (%d)",
+			return nil, fmt.Errorf("dynamicAllocation.initialExecutors (%d) cannot be greater than dynamicAllocation.maxExecutors (%d)",
 				*da.InitialExecutors, *da.MaxExecutors)
 		}
 	}
@@ -193,16 +200,16 @@ func (v *SparkApplicationValidator) validateDynamicAllocation(app *v1beta2.Spark
 	// Validate non-negative values. maxExecutors must be positive, while 0 is
 	// allowed for minExecutors and initialExecutors.
 	if da.MinExecutors != nil && *da.MinExecutors < 0 {
-		return fmt.Errorf("dynamicAllocation.minExecutors must be non-negative, got %d", *da.MinExecutors)
+		return nil, fmt.Errorf("dynamicAllocation.minExecutors must be non-negative, got %d", *da.MinExecutors)
 	}
 	if da.MaxExecutors != nil && *da.MaxExecutors <= 0 {
-		return fmt.Errorf("dynamicAllocation.maxExecutors must be positive, got %d", *da.MaxExecutors)
+		return nil, fmt.Errorf("dynamicAllocation.maxExecutors must be positive, got %d", *da.MaxExecutors)
 	}
 	if da.InitialExecutors != nil && *da.InitialExecutors < 0 {
-		return fmt.Errorf("dynamicAllocation.initialExecutors must be non-negative, got %d", *da.InitialExecutors)
+		return nil, fmt.Errorf("dynamicAllocation.initialExecutors must be non-negative, got %d", *da.InitialExecutors)
 	}
 
-	return nil
+	return warnings, nil
 }
 
 // validateName ensures the SparkApplication metadata.name is a valid DNS-1035 label
