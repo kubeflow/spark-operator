@@ -98,7 +98,17 @@ func (v *ScheduledSparkApplicationValidator) ValidateDelete(ctx context.Context,
 }
 
 func (v *ScheduledSparkApplicationValidator) validate(app *v1beta2.ScheduledSparkApplication) (admission.Warnings, error) {
-	return validateSparkConf(app.Spec.Template.SparkConf, app.Namespace)
+	sparkConfWarnings, err := validateSparkConf(app.Spec.Template.SparkConf, app.Namespace)
+	if err != nil {
+		return nil, err
+	}
+
+	daWarnings, err := validateDynamicAllocation(app.Spec.Template.DynamicAllocation)
+	if err != nil {
+		return nil, err
+	}
+
+	return append(sparkConfWarnings, daWarnings...), nil
 }
 
 // validateName ensures the ScheduledSparkApplication metadata.name, when combined with suffixes,

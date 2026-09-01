@@ -159,7 +159,7 @@ func (v *SparkApplicationValidator) validateSpec(ctx context.Context, app *v1bet
 		return nil, err
 	}
 
-	daWarnings, err := v.validateDynamicAllocation(app)
+	daWarnings, err := validateDynamicAllocation(app.Spec.DynamicAllocation)
 	if err != nil {
 		return nil, err
 	}
@@ -168,8 +168,7 @@ func (v *SparkApplicationValidator) validateSpec(ctx context.Context, app *v1bet
 }
 
 // validateDynamicAllocation validates DynamicAllocation configuration.
-func (v *SparkApplicationValidator) validateDynamicAllocation(app *v1beta2.SparkApplication) (admission.Warnings, error) {
-	da := app.Spec.DynamicAllocation
+func validateDynamicAllocation(da *v1beta2.DynamicAllocation) (admission.Warnings, error) {
 	if da == nil || !da.Enabled {
 		return nil, nil
 	}
