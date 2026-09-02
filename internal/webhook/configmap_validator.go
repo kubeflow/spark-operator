@@ -1,5 +1,5 @@
 /*
-Copyright 2026 The Kubeflow authors.
+Copyright The Kubeflow Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -52,13 +52,16 @@ func validateConfigMaps(spec *v1beta2.SparkApplicationSpec, root *field.Path) er
 
 func validateConfigMapList(path *field.Path, configMaps []v1beta2.NamePath) []error {
 	var errs []error
+	// A repeated name only collides because the mutating webhook builds one volume per entry.
+	// Once it builds one volume per distinct ConfigMap, mount paths become the thing to keep
+	// unique instead; tracked at https://github.com/kubeflow/spark-operator/issues/3134
 	seen := make(map[string]bool, len(configMaps))
 	for i, configMap := range configMaps {
-		if err := validateConfigMapName(path.Index(i), configMap.Name); err != nil {
+		if err := validateConfigMapName(path.Index(i).Child("name"), configMap.Name); err != nil {
 			errs = append(errs, err)
 		}
 		if seen[configMap.Name] {
-			errs = append(errs, fmt.Errorf("%s has duplicate ConfigMap name %q", path.Index(i), configMap.Name))
+			errs = append(errs, fmt.Errorf("%s has duplicate ConfigMap name %q", path.Index(i).Child("name"), configMap.Name))
 		}
 		seen[configMap.Name] = true
 	}

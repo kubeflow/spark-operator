@@ -189,7 +189,7 @@ func TestScheduledSparkApplicationValidatorValidateCreate_ConfigMapNames(t *test
 	app.Spec.Template.Driver.ConfigMaps = configMapRefs("MY_CONFIG")
 
 	_, err := validator.ValidateCreate(context.Background(), app)
-	if err == nil || !strings.Contains(err.Error(), `spec.template.driver.configMaps[0] has invalid ConfigMap name "MY_CONFIG"`) {
+	if err == nil || !strings.Contains(err.Error(), `spec.template.driver.configMaps[0].name has invalid ConfigMap name "MY_CONFIG"`) {
 		t.Fatalf("expected an invalid ConfigMap name error, got %v", err)
 	}
 }
