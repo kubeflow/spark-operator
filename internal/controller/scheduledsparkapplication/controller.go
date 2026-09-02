@@ -26,7 +26,6 @@ import (
 
 	_ "time/tzdata"
 
-	"github.com/robfig/cron/v3"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -133,32 +132,12 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		return ctrl.Result{}, nil
 	}
 
-	timezone := scheduledApp.Spec.TimeZone
-	if timezone == "" {
-		timezone = "Local"
-	} else {
-		// Explicitly validate the timezone for a better user experience, but only if it's explicitly specified
-		_, err = time.LoadLocation(timezone)
-		if err != nil {
-			logger.Error(err, "Failed to load timezone location", "name", scheduledApp.Name, "namespace", scheduledApp.Namespace, "timezone", timezone)
-			scheduledApp.Status.ScheduleState = v1beta2.ScheduleStateFailedValidation
-			scheduledApp.Status.Reason = fmt.Sprintf("Invalid timezone: %v", err)
-			if updateErr := r.updateScheduledSparkApplicationStatus(ctx, scheduledApp); updateErr != nil {
-				return ctrl.Result{Requeue: true}, updateErr
-			}
-			return ctrl.Result{}, nil
-		}
-	}
-
-	// Ensure backwards compatibility if the schedule is relying on internal functionality of robfig/cron
-	cronSchedule := scheduledApp.Spec.Schedule
-	if !strings.HasPrefix(cronSchedule, "CRON_TZ=") && !strings.HasPrefix(cronSchedule, "TZ=") {
-		cronSchedule = fmt.Sprintf("CRON_TZ=%s %s", timezone, cronSchedule)
-	}
-
-	schedule, parseErr := cron.ParseStandard(cronSchedule)
+	// Schedule construction (timezone defaulting, CRON_TZ=/TZ= prefix handling,
+	// cron.ParseStandard) is shared with the validating webhook via util.ParseSchedule
+	// so that admission and reconciliation accept exactly the same set of inputs.
+	schedule, parseErr := util.ParseSchedule(scheduledApp.Spec.Schedule, scheduledApp.Spec.TimeZone)
 	if parseErr != nil {
-		logger.Error(parseErr, "Failed to parse schedule of ScheduledSparkApplication", "name", scheduledApp.Name, "namespace", scheduledApp.Namespace, "schedule", scheduledApp.Spec.Schedule)
+		logger.Error(parseErr, "Failed to parse schedule of ScheduledSparkApplication", "name", scheduledApp.Name, "namespace", scheduledApp.Namespace, "schedule", scheduledApp.Spec.Schedule, "timezone", scheduledApp.Spec.TimeZone)
 		scheduledApp.Status.ScheduleState = v1beta2.ScheduleStateFailedValidation
 		scheduledApp.Status.Reason = parseErr.Error()
 		if updateErr := r.updateScheduledSparkApplicationStatus(ctx, scheduledApp); updateErr != nil {
@@ -365,35 +344,18 @@ func (r *Reconciler) checkAndUpdatePastRuns(ctx context.Context, scheduledApp *v
 		}
 	}
 
-	historyLimit := 1
-	if scheduledApp.Spec.SuccessfulRunHistoryLimit != nil {
-		historyLimit = int(*scheduledApp.Spec.SuccessfulRunHistoryLimit)
-	}
-
+	historyLimit := getHistoryLimit(scheduledApp.Spec.SuccessfulRunHistoryLimit)
 	toKeep, toDelete := bookkeepPastRuns(completedApps, historyLimit)
-	scheduledApp.Status.PastSuccessfulRunNames = []string{}
-	for _, app := range toKeep {
-		scheduledApp.Status.PastSuccessfulRunNames = append(scheduledApp.Status.PastSuccessfulRunNames, app.Name)
-	}
-	for _, app := range toDelete {
-		if err := r.client.Delete(ctx, app, client.GracePeriodSeconds(0)); err != nil {
-			return err
-		}
+	scheduledApp.Status.PastSuccessfulRunNames = extractAppNames(toKeep)
+	if err := deleteApps(ctx, r.client, toDelete); err != nil {
+		return err
 	}
 
-	historyLimit = 1
-	if scheduledApp.Spec.FailedRunHistoryLimit != nil {
-		historyLimit = int(*scheduledApp.Spec.FailedRunHistoryLimit)
-	}
+	historyLimit = getHistoryLimit(scheduledApp.Spec.FailedRunHistoryLimit)
 	toKeep, toDelete = bookkeepPastRuns(failedApps, historyLimit)
-	scheduledApp.Status.PastFailedRunNames = []string{}
-	for _, app := range toKeep {
-		scheduledApp.Status.PastFailedRunNames = append(scheduledApp.Status.PastFailedRunNames, app.Name)
-	}
-	for _, app := range toDelete {
-		if err := r.client.Delete(ctx, app, client.GracePeriodSeconds(0)); err != nil {
-			return err
-		}
+	scheduledApp.Status.PastFailedRunNames = extractAppNames(toKeep)
+	if err := deleteApps(ctx, r.client, toDelete); err != nil {
+		return err
 	}
 
 	return nil
@@ -438,4 +400,28 @@ func bookkeepPastRuns(apps []*v1beta2.SparkApplication, limit int) ([]*v1beta2.S
 	toKeep := apps[:limit]
 	toDelete := apps[limit:]
 	return toKeep, toDelete
+}
+
+func getHistoryLimit(limit *int32) int {
+	if limit != nil {
+		return int(*limit)
+	}
+	return 1
+}
+
+func extractAppNames(apps []*v1beta2.SparkApplication) []string {
+	names := make([]string, 0, len(apps))
+	for _, app := range apps {
+		names = append(names, app.Name)
+	}
+	return names
+}
+
+func deleteApps(ctx context.Context, c client.Client, apps []*v1beta2.SparkApplication) error {
+	for _, app := range apps {
+		if err := c.Delete(ctx, app, client.GracePeriodSeconds(0)); err != nil {
+			return err
+		}
+	}
+	return nil
 }
