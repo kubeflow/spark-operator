@@ -80,7 +80,7 @@ func (r *Reconciler) createWebUIHTTPRoute(
 					BackendRef: gatewayv1.BackendRef{
 						BackendObjectReference: gatewayv1.BackendObjectReference{
 							Name: gatewayv1.ObjectName(service.serviceName),
-							Port: ptr.To(gatewayv1.PortNumber(service.servicePort)),
+							Port: ptr.To(service.servicePort),
 						},
 					},
 				}},

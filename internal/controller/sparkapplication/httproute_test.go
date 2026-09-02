@@ -157,7 +157,7 @@ func TestCreateWebUIHTTPRoute(t *testing.T) {
 			backendRef := created.Spec.Rules[0].BackendRefs[0]
 			assert.Equal(t, tc.expectBackendName, string(backendRef.Name))
 			require.NotNil(t, backendRef.Port)
-			assert.Equal(t, tc.expectBackendPort, int32(*backendRef.Port))
+			assert.Equal(t, tc.expectBackendPort, *backendRef.Port)
 
 			if tc.expectRewrite {
 				require.Len(t, created.Spec.Rules[0].Matches, 1)
