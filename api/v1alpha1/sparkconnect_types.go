@@ -32,8 +32,6 @@ func init() {
 // +kubebuilder:printcolumn:JSONPath=.metadata.creationTimestamp,name=Age,type=date
 // +kubebuilder:printcolumn:JSONPath=.status.state,name="Status",type=string
 // +kubebuilder:printcolumn:JSONPath=.status.server.podName,name="PodName",type=string
-// +kubebuilder:object:root=true
-// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // +genclient
 
 // SparkConnect is the Schema for the sparkconnections API.
