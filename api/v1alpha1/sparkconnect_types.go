@@ -31,7 +31,9 @@ func init() {
 // +kubebuilder:subresource:status
 // +kubebuilder:printcolumn:JSONPath=.metadata.creationTimestamp,name=Age,type=date
 // +kubebuilder:printcolumn:JSONPath=.status.state,name="Status",type=string
-// +kubebuilder:printcolumn:JSONPath=.status.server.podName,name="PodName",type=string
+// +kubebuilder:printcolumn:JSONPath=.status.server.serviceName,name="Service",type=string
+// +kubebuilder:printcolumn:JSONPath=.status.server.port,name="Port",type=integer
+// +kubebuilder:printcolumn:JSONPath=.status.errorMessage,name="Error",type=string,priority=1
 
 // SparkConnect is the Schema for the sparkconnections API.
 type SparkConnect struct {
@@ -87,6 +89,13 @@ type SparkConnectSpec struct {
 // ServerSpec is specification of the Spark connect server.
 type ServerSpec struct {
 	SparkPodSpec `json:",inline"`
+
+	// Port is the port number on which the Spark Connect server listens.
+	// If not specified, the default port 15002 will be used.
+	// +optional
+	// +kubebuilder:validation:Minimum=1
+	// +kubebuilder:validation:Maximum=65535
+	Port *int32 `json:"port,omitempty"`
 
 	// Service exposes the Spark connect server.
 	// +optional
@@ -148,6 +157,10 @@ type SparkConnectStatus struct {
 
 	// LastUpdateTime is the time at which the SparkConnect controller last updated the SparkConnect.
 	LastUpdateTime metav1.Time `json:"lastUpdateTime,omitempty"`
+
+	// ErrorMessage contains a human-readable description of any errors that have occurred during reconciliation.
+	// +optional
+	ErrorMessage string `json:"errorMessage,omitempty"`
 }
 
 // SparkConnectConditionType represents the condition types of the SparkConnect.
@@ -155,7 +168,11 @@ type SparkConnectConditionType string
 
 // All possible condition types of the SparkConnect.
 const (
-	SparkConnectConditionServerPodReady SparkConnectConditionType = "ServerPodReady"
+	SparkConnectConditionServerPodReady       SparkConnectConditionType = "ServerPodReady"
+	SparkConnectConditionServiceAvailable     SparkConnectConditionType = "ServiceAvailable"
+	SparkConnectConditionServiceAccountValid  SparkConnectConditionType = "ServiceAccountValid"
+	SparkConnectConditionConfigMapReady       SparkConnectConditionType = "ConfigMapReady"
+	SparkConnectConditionReconciliationFailed SparkConnectConditionType = "ReconciliationFailed"
 )
 
 // SparkConnectConditionReason represents the reason of SparkConnect conditions.
@@ -163,8 +180,16 @@ type SparkConnectConditionReason string
 
 // All possible reasons of SparkConnect conditions.
 const (
-	SparkConnectConditionReasonServerPodReady    SparkConnectConditionReason = "ServerPodReady"
-	SparkConnectConditionReasonServerPodNotReady SparkConnectConditionReason = "ServerPodNotReady"
+	SparkConnectConditionReasonServerPodReady         SparkConnectConditionReason = "ServerPodReady"
+	SparkConnectConditionReasonServerPodNotReady      SparkConnectConditionReason = "ServerPodNotReady"
+	SparkConnectConditionReasonServerPodFailed        SparkConnectConditionReason = "ServerPodFailed"
+	SparkConnectConditionReasonServiceCreated         SparkConnectConditionReason = "ServiceCreated"
+	SparkConnectConditionReasonServiceFailed          SparkConnectConditionReason = "ServiceCreationFailed"
+	SparkConnectConditionReasonServiceAccountNotFound SparkConnectConditionReason = "ServiceAccountNotFound"
+	SparkConnectConditionReasonServiceAccountValid    SparkConnectConditionReason = "ServiceAccountValid"
+	SparkConnectConditionReasonConfigMapCreated       SparkConnectConditionReason = "ConfigMapCreated"
+	SparkConnectConditionReasonConfigMapFailed        SparkConnectConditionReason = "ConfigMapCreationFailed"
+	SparkConnectConditionReasonReconciliationFailed   SparkConnectConditionReason = "ReconciliationFailed"
 )
 
 // SparkConnectState represents the current state of the SparkConnect.
@@ -188,4 +213,8 @@ type SparkConnectServerStatus struct {
 
 	// ServiceName is the name of the service that is exposing the Spark Connect server.
 	ServiceName string `json:"serviceName,omitempty"`
+
+	// Port is the port number on which the Spark Connect server is running.
+	// +optional
+	Port *int32 `json:"port,omitempty"`
 }
