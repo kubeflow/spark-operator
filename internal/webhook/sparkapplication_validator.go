@@ -69,12 +69,12 @@ func (v *SparkApplicationValidator) ValidateCreate(ctx context.Context, app *v1b
 	}
 	warnings, err = v.validateSpec(ctx, app)
 	if err != nil {
-		return nil, err
+		return warnings, err
 	}
 
 	if v.enableResourceQuotaEnforcement {
 		if err := v.validateResourceUsage(ctx, app); err != nil {
-			return nil, err
+			return warnings, err
 		}
 	}
 
@@ -102,13 +102,13 @@ func (v *SparkApplicationValidator) ValidateUpdate(ctx context.Context, oldApp *
 
 	warnings, err = v.validateSpec(ctx, newApp)
 	if err != nil {
-		return nil, err
+		return warnings, err
 	}
 
 	// Validate SparkApplication resource usage when resource quota enforcement is enabled.
 	if v.enableResourceQuotaEnforcement {
 		if err := v.validateResourceUsage(ctx, newApp); err != nil {
-			return nil, err
+			return warnings, err
 		}
 	}
 
