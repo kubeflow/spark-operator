@@ -95,5 +95,3 @@ class SparkV1alpha1Dependencies(BaseModel):
             "repositories": obj.get("repositories")
         })
         return _obj
-
-
