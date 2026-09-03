@@ -189,8 +189,12 @@ func TestSparkConnectValidatorValidateCreate_DynamicAllocationInitialLessThanMin
 		MaxExecutors:     ptr.To[int32](10),
 	}
 
-	if _, err := validator.ValidateCreate(context.Background(), sc); err == nil || !strings.Contains(err.Error(), "cannot be less than") {
-		t.Fatalf("expected initialExecutors validation error, got %v", err)
+	warnings, err := validator.ValidateCreate(context.Background(), sc)
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if len(warnings) != 1 || !strings.Contains(warnings[0], "is less than minExecutors") {
+		t.Fatalf("expected initialExecutors warning, got %v", warnings)
 	}
 }
 

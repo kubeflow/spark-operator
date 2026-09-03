@@ -138,7 +138,7 @@ func TestScheduledSparkApplicationValidatorDynamicAllocation_MinGreaterThanMax(t
 		MaxExecutors: ptr.To[int32](2),
 	}
 
-	if _, err := validator.ValidateCreate(context.Background(), app); err == nil || !strings.Contains(err.Error(), "cannot be greater than dynamicAllocation.maxExecutors") {
+	if _, err := validator.ValidateCreate(context.Background(), app); err == nil || !strings.Contains(err.Error(), "cannot be greater than maxExecutors") {
 		t.Fatalf("expected minExecutors > maxExecutors validation error, got %v", err)
 	}
 }
@@ -158,7 +158,7 @@ func TestScheduledSparkApplicationValidatorDynamicAllocation_InitialLessThanMinW
 	if err != nil {
 		t.Fatalf("expected no error when initialExecutors < minExecutors, got %v", err)
 	}
-	if len(warnings) != 1 || !strings.Contains(warnings[0], "is less than dynamicAllocation.minExecutors") {
+	if len(warnings) != 1 || !strings.Contains(warnings[0], "is less than minExecutors") {
 		t.Fatalf("expected initialExecutors < minExecutors warning, got %v", warnings)
 	}
 }

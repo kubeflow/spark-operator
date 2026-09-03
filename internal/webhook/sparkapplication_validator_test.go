@@ -96,7 +96,7 @@ func TestSparkApplicationValidatorValidateCreate_DynamicAllocationMinGreaterThan
 		MaxExecutors: ptr.To[int32](2),
 	}
 
-	if _, err := validator.ValidateCreate(context.Background(), app); err == nil || !strings.Contains(err.Error(), "cannot be greater than dynamicAllocation.maxExecutors") {
+	if _, err := validator.ValidateCreate(context.Background(), app); err == nil || !strings.Contains(err.Error(), "cannot be greater than maxExecutors") {
 		t.Fatalf("expected minExecutors > maxExecutors validation error, got %v", err)
 	}
 }
@@ -116,7 +116,7 @@ func TestSparkApplicationValidatorValidateCreate_DynamicAllocationInitialLessTha
 	if err != nil {
 		t.Fatalf("expected no error when initialExecutors < minExecutors, got %v", err)
 	}
-	if len(warnings) != 1 || !strings.Contains(warnings[0], "is less than dynamicAllocation.minExecutors") {
+	if len(warnings) != 1 || !strings.Contains(warnings[0], "is less than minExecutors") {
 		t.Fatalf("expected initialExecutors < minExecutors warning, got %v", warnings)
 	}
 }
@@ -132,7 +132,7 @@ func TestSparkApplicationValidatorValidateCreate_DynamicAllocationInitialGreater
 		InitialExecutors: ptr.To[int32](6),
 	}
 
-	if _, err := validator.ValidateCreate(context.Background(), app); err == nil || !strings.Contains(err.Error(), "cannot be greater than dynamicAllocation.maxExecutors") {
+	if _, err := validator.ValidateCreate(context.Background(), app); err == nil || !strings.Contains(err.Error(), "cannot be greater than maxExecutors") {
 		t.Fatalf("expected initialExecutors > maxExecutors validation error, got %v", err)
 	}
 }
@@ -160,7 +160,7 @@ func TestSparkApplicationValidatorValidateCreate_DynamicAllocationZeroMaxExecuto
 		MaxExecutors: ptr.To[int32](0),
 	}
 
-	if _, err := validator.ValidateCreate(context.Background(), app); err == nil || !strings.Contains(err.Error(), "dynamicAllocation.maxExecutors must be positive") {
+	if _, err := validator.ValidateCreate(context.Background(), app); err == nil || !strings.Contains(err.Error(), "maxExecutors must be positive") {
 		t.Fatalf("expected maxExecutors must be positive validation error, got %v", err)
 	}
 }
@@ -662,5 +662,41 @@ func TestSparkApplicationValidatorSparkConf_DynamicAllocationDisabledSkipsValida
 
 	if _, err := validator.ValidateCreate(context.Background(), app); err != nil {
 		t.Fatalf("expected success when dynamic allocation is disabled, got %v", err)
+	}
+}
+
+func TestSparkApplicationValidatorDynamicAllocation_MergesCRDAndSparkConf(t *testing.T) {
+	validator := newTestValidator(t, false)
+
+	app := newSparkApplication()
+	app.Spec.SparkConf = map[string]string{
+		common.SparkDynamicAllocationEnabled:      "true",
+		common.SparkDynamicAllocationMinExecutors: "5",
+	}
+	app.Spec.DynamicAllocation = &v1beta2.DynamicAllocation{
+		Enabled:      true,
+		MaxExecutors: ptr.To[int32](2),
+	}
+
+	if _, err := validator.ValidateCreate(context.Background(), app); err == nil || !strings.Contains(err.Error(), "cannot be greater than maxExecutors") {
+		t.Fatalf("expected merged minExecutors > maxExecutors validation error, got %v", err)
+	}
+}
+
+func TestSparkApplicationValidatorDynamicAllocation_CRDOverridesSparkConf(t *testing.T) {
+	validator := newTestValidator(t, false)
+
+	app := newSparkApplication()
+	app.Spec.SparkConf = map[string]string{
+		common.SparkDynamicAllocationEnabled:      "true",
+		common.SparkDynamicAllocationMaxExecutors: "2",
+	}
+	app.Spec.DynamicAllocation = &v1beta2.DynamicAllocation{
+		Enabled:      true,
+		MaxExecutors: ptr.To[int32](10),
+	}
+
+	if _, err := validator.ValidateCreate(context.Background(), app); err != nil {
+		t.Fatalf("expected CRD maxExecutors (10) to override sparkConf maxExecutors (2), got %v", err)
 	}
 }

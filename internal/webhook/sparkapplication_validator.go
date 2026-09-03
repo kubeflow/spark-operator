@@ -154,62 +154,18 @@ func (v *SparkApplicationValidator) validateSpec(ctx context.Context, app *v1bet
 		ingressURLFormats[item.IngressURLFormat] = true
 	}
 
-	sparkConfWarnings, err := validateSparkConf(app.Spec.SparkConf, app.Namespace)
-	if err != nil {
+	if err := validateSparkConf(app.Spec.SparkConf, app.Namespace); err != nil {
 		return nil, err
 	}
 
-	daWarnings, err := validateDynamicAllocation(app.Spec.DynamicAllocation)
-	if err != nil {
-		return nil, err
+	var daEnabled bool
+	var daMinExecutors, daMaxExecutors, daInitialExecutors *int32
+	if da := app.Spec.DynamicAllocation; da != nil {
+		daEnabled = da.Enabled
+		daMinExecutors, daMaxExecutors, daInitialExecutors = da.MinExecutors, da.MaxExecutors, da.InitialExecutors
 	}
 
-	return append(sparkConfWarnings, daWarnings...), nil
-}
-
-// validateDynamicAllocation validates DynamicAllocation configuration.
-func validateDynamicAllocation(da *v1beta2.DynamicAllocation) (admission.Warnings, error) {
-	if da == nil || !da.Enabled {
-		return nil, nil
-	}
-
-	// Validate minExecutors <= maxExecutors
-	if da.MinExecutors != nil && da.MaxExecutors != nil {
-		if *da.MinExecutors > *da.MaxExecutors {
-			return nil, fmt.Errorf("dynamicAllocation.minExecutors (%d) cannot be greater than dynamicAllocation.maxExecutors (%d)",
-				*da.MinExecutors, *da.MaxExecutors)
-		}
-	}
-
-	// Validate initialExecutors is within range
-	var warnings admission.Warnings
-	if da.InitialExecutors != nil {
-		// initialExecutors below minExecutors is not an error: both Spark and the
-		// operator raise the initial executor count to at least minExecutors (see
-		// util.GetInitialExecutorNumber), so surface it as a warning instead.
-		if da.MinExecutors != nil && *da.InitialExecutors < *da.MinExecutors {
-			warnings = append(warnings, fmt.Sprintf("dynamicAllocation.initialExecutors (%d) is less than dynamicAllocation.minExecutors (%d); minExecutors will be used as the initial number of executors",
-				*da.InitialExecutors, *da.MinExecutors))
-		}
-		if da.MaxExecutors != nil && *da.InitialExecutors > *da.MaxExecutors {
-			return nil, fmt.Errorf("dynamicAllocation.initialExecutors (%d) cannot be greater than dynamicAllocation.maxExecutors (%d)",
-				*da.InitialExecutors, *da.MaxExecutors)
-		}
-	}
-
-	// Validate non-negative values. maxExecutors must be positive, while 0 is
-	// allowed for minExecutors and initialExecutors.
-	if da.MinExecutors != nil && *da.MinExecutors < 0 {
-		return nil, fmt.Errorf("dynamicAllocation.minExecutors must be non-negative, got %d", *da.MinExecutors)
-	}
-	if da.MaxExecutors != nil && *da.MaxExecutors <= 0 {
-		return nil, fmt.Errorf("dynamicAllocation.maxExecutors must be positive, got %d", *da.MaxExecutors)
-	}
-	if da.InitialExecutors != nil && *da.InitialExecutors < 0 {
-		return nil, fmt.Errorf("dynamicAllocation.initialExecutors must be non-negative, got %d", *da.InitialExecutors)
-	}
-
-	return warnings, nil
+	return mergeAndValidateDynamicAllocation(daEnabled, daMinExecutors, daMaxExecutors, daInitialExecutors, app.Spec.SparkConf)
 }
 
 // validateName ensures the SparkApplication metadata.name is a valid DNS-1035 label

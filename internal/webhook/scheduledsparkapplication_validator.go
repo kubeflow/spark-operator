@@ -98,17 +98,18 @@ func (v *ScheduledSparkApplicationValidator) ValidateDelete(ctx context.Context,
 }
 
 func (v *ScheduledSparkApplicationValidator) validate(app *v1beta2.ScheduledSparkApplication) (admission.Warnings, error) {
-	sparkConfWarnings, err := validateSparkConf(app.Spec.Template.SparkConf, app.Namespace)
-	if err != nil {
+	if err := validateSparkConf(app.Spec.Template.SparkConf, app.Namespace); err != nil {
 		return nil, err
 	}
 
-	daWarnings, err := validateDynamicAllocation(app.Spec.Template.DynamicAllocation)
-	if err != nil {
-		return nil, err
+	var daEnabled bool
+	var daMinExecutors, daMaxExecutors, daInitialExecutors *int32
+	if da := app.Spec.Template.DynamicAllocation; da != nil {
+		daEnabled = da.Enabled
+		daMinExecutors, daMaxExecutors, daInitialExecutors = da.MinExecutors, da.MaxExecutors, da.InitialExecutors
 	}
 
-	return append(sparkConfWarnings, daWarnings...), nil
+	return mergeAndValidateDynamicAllocation(daEnabled, daMinExecutors, daMaxExecutors, daInitialExecutors, app.Spec.Template.SparkConf)
 }
 
 // validateName ensures the ScheduledSparkApplication metadata.name, when combined with suffixes,
