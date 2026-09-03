@@ -12595,6 +12595,68 @@
           "format": "int-or-string"
         }
       },
+      "spark.v1alpha1.Dependencies": {
+        "description": "Dependencies specifies all possible types of dependencies of a Spark application.",
+        "type": "object",
+        "properties": {
+          "archives": {
+            "description": "Archives is a list of archives to be extracted into the working directory of each executor.",
+            "type": "array",
+            "items": {
+              "type": "string",
+              "default": ""
+            }
+          },
+          "excludePackages": {
+            "description": "ExcludePackages is a list of \"groupId:artifactId\", to exclude while resolving the dependencies provided in Packages to avoid dependency conflicts.",
+            "type": "array",
+            "items": {
+              "type": "string",
+              "default": ""
+            }
+          },
+          "files": {
+            "description": "Files is a list of files the Spark application depends on.",
+            "type": "array",
+            "items": {
+              "type": "string",
+              "default": ""
+            }
+          },
+          "jars": {
+            "description": "Jars is a list of JAR files the Spark application depends on.",
+            "type": "array",
+            "items": {
+              "type": "string",
+              "default": ""
+            }
+          },
+          "packages": {
+            "description": "Packages is a list of maven coordinates of jars to include on the driver and executor classpaths. This will search the local maven repo, then maven central and any additional remote repositories given by the \"repositories\" option. Each package should be of the form \"groupId:artifactId:version\".",
+            "type": "array",
+            "items": {
+              "type": "string",
+              "default": ""
+            }
+          },
+          "pyFiles": {
+            "description": "PyFiles is a list of Python files the Spark application depends on.",
+            "type": "array",
+            "items": {
+              "type": "string",
+              "default": ""
+            }
+          },
+          "repositories": {
+            "description": "Repositories is a list of additional remote repositories to search for the maven coordinate given with the \"packages\" option.",
+            "type": "array",
+            "items": {
+              "type": "string",
+              "default": ""
+            }
+          }
+        }
+      },
       "spark.v1alpha1.DynamicAllocation": {
         "description": "DynamicAllocation contains configuration options for dynamic allocation.",
         "type": "object",
@@ -12792,6 +12854,15 @@
           "executor"
         ],
         "properties": {
+          "deps": {
+            "description": "Deps captures all possible types of dependencies of a Spark Connect server.",
+            "default": {},
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/spark.v1alpha1.Dependencies"
+              }
+            ]
+          },
           "dynamicAllocation": {
             "description": "DynamicAllocation configures dynamic allocation that becomes available for the Kubernetes scheduler backend since Spark 3.0.",
             "allOf": [

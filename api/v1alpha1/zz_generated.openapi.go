@@ -33,6 +33,7 @@ import (
 
 func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenAPIDefinition {
 	return map[string]common.OpenAPIDefinition{
+		"github.com/kubeflow/spark-operator/v2/api/v1alpha1.Dependencies":             schema_spark_operator_v2_api_v1alpha1_Dependencies(ref),
 		"github.com/kubeflow/spark-operator/v2/api/v1alpha1.DynamicAllocation":        schema_spark_operator_v2_api_v1alpha1_DynamicAllocation(ref),
 		"github.com/kubeflow/spark-operator/v2/api/v1alpha1.ExecutorSpec":             schema_spark_operator_v2_api_v1alpha1_ExecutorSpec(ref),
 		"github.com/kubeflow/spark-operator/v2/api/v1alpha1.ServerSpec":               schema_spark_operator_v2_api_v1alpha1_ServerSpec(ref),
@@ -371,6 +372,124 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 	}
 }
 
+func schema_spark_operator_v2_api_v1alpha1_Dependencies(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "Dependencies specifies all possible types of dependencies of a Spark application.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"jars": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Jars is a list of JAR files the Spark application depends on.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+					"files": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Files is a list of files the Spark application depends on.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+					"pyFiles": {
+						SchemaProps: spec.SchemaProps{
+							Description: "PyFiles is a list of Python files the Spark application depends on.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+					"packages": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Packages is a list of maven coordinates of jars to include on the driver and executor classpaths. This will search the local maven repo, then maven central and any additional remote repositories given by the \"repositories\" option. Each package should be of the form \"groupId:artifactId:version\".",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+					"excludePackages": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ExcludePackages is a list of \"groupId:artifactId\", to exclude while resolving the dependencies provided in Packages to avoid dependency conflicts.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+					"repositories": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Repositories is a list of additional remote repositories to search for the maven coordinate given with the \"packages\" option.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+					"archives": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Archives is a list of archives to be extracted into the working directory of each executor.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
 func schema_spark_operator_v2_api_v1alpha1_DynamicAllocation(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
@@ -693,6 +812,13 @@ func schema_spark_operator_v2_api_v1alpha1_SparkConnectSpec(ref common.Reference
 							},
 						},
 					},
+					"deps": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Deps captures all possible types of dependencies of a Spark Connect server.",
+							Default:     map[string]interface{}{},
+							Ref:         ref("github.com/kubeflow/spark-operator/v2/api/v1alpha1.Dependencies"),
+						},
+					},
 					"server": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Server is the Spark connect server specification.",
@@ -718,7 +844,7 @@ func schema_spark_operator_v2_api_v1alpha1_SparkConnectSpec(ref common.Reference
 			},
 		},
 		Dependencies: []string{
-			"github.com/kubeflow/spark-operator/v2/api/v1alpha1.DynamicAllocation", "github.com/kubeflow/spark-operator/v2/api/v1alpha1.ExecutorSpec", "github.com/kubeflow/spark-operator/v2/api/v1alpha1.ServerSpec"},
+			"github.com/kubeflow/spark-operator/v2/api/v1alpha1.Dependencies", "github.com/kubeflow/spark-operator/v2/api/v1alpha1.DynamicAllocation", "github.com/kubeflow/spark-operator/v2/api/v1alpha1.ExecutorSpec", "github.com/kubeflow/spark-operator/v2/api/v1alpha1.ServerSpec"},
 	}
 }
 
