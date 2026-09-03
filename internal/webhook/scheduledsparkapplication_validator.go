@@ -23,6 +23,7 @@ import (
 
 	"k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/util/validation"
+	"k8s.io/apimachinery/pkg/util/validation/field"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
@@ -99,6 +100,10 @@ func (v *ScheduledSparkApplicationValidator) ValidateDelete(ctx context.Context,
 
 func (v *ScheduledSparkApplicationValidator) validate(app *v1beta2.ScheduledSparkApplication) (admission.Warnings, error) {
 	if err := validateSparkConf(app.Spec.Template.SparkConf, app.Namespace); err != nil {
+		return nil, err
+	}
+
+	if err := validateConfigMaps(&app.Spec.Template, field.NewPath("spec", "template")); err != nil {
 		return nil, err
 	}
 

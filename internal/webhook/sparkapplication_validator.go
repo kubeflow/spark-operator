@@ -24,6 +24,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/util/validation"
+	"k8s.io/apimachinery/pkg/util/validation/field"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
@@ -155,6 +156,10 @@ func (v *SparkApplicationValidator) validateSpec(ctx context.Context, app *v1bet
 	}
 
 	if err := validateSparkConf(app.Spec.SparkConf, app.Namespace); err != nil {
+		return nil, err
+	}
+
+	if err := validateConfigMaps(&app.Spec, field.NewPath("spec")); err != nil {
 		return nil, err
 	}
 

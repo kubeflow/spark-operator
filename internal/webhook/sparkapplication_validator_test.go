@@ -19,6 +19,7 @@ package webhook
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
 
@@ -699,4 +700,144 @@ func TestSparkApplicationValidatorDynamicAllocation_CRDOverridesSparkConf(t *tes
 	if _, err := validator.ValidateCreate(context.Background(), app); err != nil {
 		t.Fatalf("expected CRD maxExecutors (10) to override sparkConf maxExecutors (2), got %v", err)
 	}
+}
+
+func TestSparkApplicationValidatorValidateCreate_ConfigMapNames(t *testing.T) {
+	validator := newTestValidator(t, false)
+
+	tests := []struct {
+		name       string
+		mutate     func(app *v1beta2.SparkApplication)
+		wantErrors []string
+	}{
+		{
+			name:   "valid driver ConfigMap name",
+			mutate: func(app *v1beta2.SparkApplication) { app.Spec.Driver.ConfigMaps = configMapRefs("spark.conf") },
+		},
+		{
+			// Volume names are DNS labels, but ConfigMap names are DNS subdomains,
+			// so the longest legal name must keep passing.
+			name: "driver ConfigMap name at the length limit",
+			mutate: func(app *v1beta2.SparkApplication) {
+				app.Spec.Driver.ConfigMaps = configMapRefs(strings.Repeat("a", 253))
+			},
+		},
+		{
+			name:       "driver ConfigMap name with uppercase and underscore",
+			mutate:     func(app *v1beta2.SparkApplication) { app.Spec.Driver.ConfigMaps = configMapRefs("MY_CONFIG") },
+			wantErrors: []string{`spec.driver.configMaps[0].name has invalid ConfigMap name "MY_CONFIG"`},
+		},
+		{
+			name: "invalid name after a valid one",
+			mutate: func(app *v1beta2.SparkApplication) {
+				app.Spec.Driver.ConfigMaps = configMapRefs("spark-conf", "MY_CONFIG")
+			},
+			wantErrors: []string{`spec.driver.configMaps[1].name has invalid ConfigMap name "MY_CONFIG"`},
+		},
+		{
+			name:       "empty executor ConfigMap name",
+			mutate:     func(app *v1beta2.SparkApplication) { app.Spec.Executor.ConfigMaps = configMapRefs("") },
+			wantErrors: []string{`spec.executor.configMaps[0].name has invalid ConfigMap name ""`},
+		},
+		{
+			name:       "Spark ConfigMap name with a space",
+			mutate:     func(app *v1beta2.SparkApplication) { app.Spec.SparkConfigMap = ptr.To("spark conf") },
+			wantErrors: []string{`spec.sparkConfigMap has invalid ConfigMap name "spark conf"`},
+		},
+		{
+			name:       "Hadoop ConfigMap name that is too long",
+			mutate:     func(app *v1beta2.SparkApplication) { app.Spec.HadoopConfigMap = ptr.To(strings.Repeat("a", 254)) },
+			wantErrors: []string{fmt.Sprintf("spec.hadoopConfigMap has invalid ConfigMap name %q", strings.Repeat("a", 254))},
+		},
+		{
+			name: "duplicate driver ConfigMap names",
+			mutate: func(app *v1beta2.SparkApplication) {
+				app.Spec.Driver.ConfigMaps = configMapRefs("spark-conf", "spark-conf")
+			},
+			wantErrors: []string{`spec.driver.configMaps[1].name has duplicate ConfigMap name "spark-conf"`},
+		},
+		{
+			name: "same ConfigMap in both driver and executor",
+			mutate: func(app *v1beta2.SparkApplication) {
+				app.Spec.Driver.ConfigMaps = configMapRefs("spark-conf")
+				app.Spec.Executor.ConfigMaps = configMapRefs("spark-conf")
+			},
+		},
+		{
+			name: "every invalid name is reported",
+			mutate: func(app *v1beta2.SparkApplication) {
+				app.Spec.SparkConfigMap = ptr.To("BAD_SPARK")
+				app.Spec.Driver.ConfigMaps = configMapRefs("BAD_DRIVER")
+				app.Spec.Executor.ConfigMaps = configMapRefs("BAD_EXECUTOR")
+			},
+			wantErrors: []string{
+				`spec.sparkConfigMap has invalid ConfigMap name "BAD_SPARK"`,
+				`spec.driver.configMaps[0].name has invalid ConfigMap name "BAD_DRIVER"`,
+				`spec.executor.configMaps[0].name has invalid ConfigMap name "BAD_EXECUTOR"`,
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			app := newSparkApplication()
+			tt.mutate(app)
+
+			_, err := validator.ValidateCreate(context.Background(), app)
+			if hasError := err != nil; hasError != (len(tt.wantErrors) > 0) {
+				t.Fatalf("ValidateCreate() error = %v, wantErrors %v", err, tt.wantErrors)
+			}
+			for _, want := range tt.wantErrors {
+				if !strings.Contains(err.Error(), want) {
+					t.Fatalf("expected error to report %s, got %v", want, err)
+				}
+			}
+		})
+	}
+}
+
+func TestSparkApplicationValidatorValidateUpdate_ConfigMapNames(t *testing.T) {
+	validator := newTestValidator(t, false)
+
+	t.Run("metadata-only update to an invalid application is allowed", func(t *testing.T) {
+		oldApp := newSparkApplication()
+		oldApp.Spec.Driver.ConfigMaps = configMapRefs("MY_CONFIG")
+		newApp := oldApp.DeepCopy()
+		newApp.Labels = map[string]string{"team": "data"}
+
+		if _, err := validator.ValidateUpdate(context.Background(), oldApp, newApp); err != nil {
+			t.Fatalf("expected an unchanged spec to skip validation, got %v", err)
+		}
+	})
+
+	t.Run("spec update to an invalid application is rejected", func(t *testing.T) {
+		oldApp := newSparkApplication()
+		oldApp.Spec.Driver.ConfigMaps = configMapRefs("MY_CONFIG")
+		newApp := oldApp.DeepCopy()
+		newApp.Spec.Arguments = []string{"--foo"}
+
+		_, err := validator.ValidateUpdate(context.Background(), oldApp, newApp)
+		if err == nil || !strings.Contains(err.Error(), `spec.driver.configMaps[0].name has invalid ConfigMap name "MY_CONFIG"`) {
+			t.Fatalf("expected an invalid ConfigMap name error, got %v", err)
+		}
+	})
+
+	t.Run("spec update to a valid application is allowed", func(t *testing.T) {
+		oldApp := newSparkApplication()
+		oldApp.Spec.Driver.ConfigMaps = configMapRefs("spark-conf")
+		newApp := oldApp.DeepCopy()
+		newApp.Spec.Arguments = []string{"--foo"}
+
+		if _, err := validator.ValidateUpdate(context.Background(), oldApp, newApp); err != nil {
+			t.Fatalf("expected a valid spec update to be allowed, got %v", err)
+		}
+	})
+}
+
+func configMapRefs(names ...string) []v1beta2.NamePath {
+	refs := make([]v1beta2.NamePath, 0, len(names))
+	for i, name := range names {
+		refs = append(refs, v1beta2.NamePath{Name: name, Path: fmt.Sprintf("/etc/spark/conf%d", i)})
+	}
+	return refs
 }

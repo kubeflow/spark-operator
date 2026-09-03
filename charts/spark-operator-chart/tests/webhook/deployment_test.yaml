@@ -212,6 +212,25 @@ tests:
           path: spec.template.spec.containers[?(@.name=="spark-operator-webhook")].args
           content: --leader-election=false
 
+  - it: Should add leader election parameters if `webhook.leaderElection.leaseDuration`, `webhook.leaderElection.renewDeadline` and `webhook.leaderElection.retryPeriod` are set.
+    set:
+      webhook:
+        leaderElection:
+          enable: true
+          leaseDuration: 120s
+          renewDeadline: 30s
+          retryPeriod: 15s
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[?(@.name=="spark-operator-webhook")].args
+          content: --leader-election-lease-duration=120s
+      - contains:
+          path: spec.template.spec.containers[?(@.name=="spark-operator-webhook")].args
+          content: --leader-election-renew-deadline=30s
+      - contains:
+          path: spec.template.spec.containers[?(@.name=="spark-operator-webhook")].args
+          content: --leader-election-retry-period=15s
+
   - it: Should add webhook port
     set:
       webhook:
