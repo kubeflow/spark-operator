@@ -117,6 +117,8 @@ See [helm uninstall](https://helm.sh/docs/helm/helm_uninstall) for command docum
 | controller.uiIngress.ingressClassName | string | `""` | Optionally set the ingressClassName. |
 | controller.uiIngress.tls | list | `[]` | Optionally set default TLS configuration for the Spark UI's ingress. `ingressTLS` in the SparkApplication spec overrides this. |
 | controller.uiIngress.annotations | object | `{}` | Optionally set default ingress annotations for the Spark UI's ingress. `ingressAnnotations` in the SparkApplication spec overrides this. |
+| controller.uiHTTPRoute.enable | bool | `false` | Specifies whether to expose the Spark web UI through a Gateway API `HTTPRoute` instead of an `Ingress`. `controller.uiService.enable` must be `true`, the Gateway API CRDs must be installed, and `controller.uiIngress.urlFormat` supplies the hostname and path. When `false` the operator creates an `Ingress` exactly as before. |
+| controller.uiHTTPRoute.parentRefs | list | `[]` | Gateway `parentRefs` attached to every Spark UI HTTPRoute. Required if `controller.uiHTTPRoute.enable` is true. `namespace` defaults to the SparkApplication's own namespace when omitted. |
 | controller.batchScheduler.enable | bool | `false` | Specifies whether to enable batch scheduler for spark jobs scheduling. If enabled, users can specify batch scheduler name in spark application. |
 | controller.batchScheduler.kubeSchedulerNames | list | `[]` | Specifies a list of kube-scheduler names for scheduling Spark pods. |
 | controller.batchScheduler.default | string | `""` | Default batch scheduler to be used if not specified by the user. If specified, this value must be either "volcano" or "yunikorn". Specifying any other value will cause the controller to error on startup. |

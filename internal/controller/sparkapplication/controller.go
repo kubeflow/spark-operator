@@ -43,6 +43,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	gatewayv1 "sigs.k8s.io/gateway-api/apis/v1"
 
 	"github.com/kubeflow/spark-operator/v2/api/v1beta2"
 	"github.com/kubeflow/spark-operator/v2/internal/metrics"
@@ -64,6 +65,15 @@ type Options struct {
 	IngressTLS            []networkingv1.IngressTLS
 	IngressAnnotations    map[string]string
 	DefaultBatchScheduler string
+
+	// EnableUIHTTPRoute makes the operator expose the Spark web UI through a Gateway API
+	// HTTPRoute instead of an Ingress. IngressURLFormat still supplies the hostname and
+	// path. It has no effect unless the cluster serves the Gateway API HTTPRoute kind.
+	EnableUIHTTPRoute bool
+
+	// UIHTTPRouteParentRefs are the Gateway parentRefs attached to every web UI HTTPRoute
+	// the operator creates. Required when EnableUIHTTPRoute is true.
+	UIHTTPRouteParentRefs []gatewayv1.ParentReference
 
 	DriverPodCreationGracePeriod time.Duration
 
@@ -130,6 +140,7 @@ func NewReconciler(
 // +kubebuilder:rbac:groups="",resources=events,verbs=create;update;patch
 // +kubebuilder:rbac:groups=extensions,resources=ingresses,verbs=get;create;update;delete
 // +kubebuilder:rbac:groups=networking.k8s.io,resources=ingresses,verbs=get;create;update;delete
+// +kubebuilder:rbac:groups=gateway.networking.k8s.io,resources=httproutes,verbs=get;create;update;delete
 // +kubebuilder:rbac:groups=apiextensions.k8s.io,resources=customresourcedefinitions,verbs=get
 // +kubebuilder:rbac:groups=sparkoperator.k8s.io,resources=sparkapplications,verbs=get;list;watch;delete
 // +kubebuilder:rbac:groups=sparkoperator.k8s.io,resources=sparkapplications/status,verbs=update
@@ -406,7 +417,7 @@ func (r *Reconciler) reconcileSubmittedSparkApplication(ctx context.Context, req
 					if err != nil {
 						return fmt.Errorf("failed to get ingress url: %v", err)
 					}
-					ingress, err := r.createWebUIIngress(ctx, app, *service, ingressURL, r.options.IngressClassName, r.options.IngressTLS, r.options.IngressAnnotations)
+					ingress, err := r.createWebUIRoute(ctx, app, *service, ingressURL)
 					if err != nil {
 						return fmt.Errorf("failed to create web UI ingress: %v", err)
 					}
@@ -1304,6 +1315,15 @@ func (r *Reconciler) deleteWebUIIngress(ctx context.Context, app *v1beta2.SparkA
 		return nil
 	}
 
+	// Attempt every exposure mechanism rather than only the currently configured one:
+	// the operator may have been restarted with a different setting since the object was
+	// created, and the SparkApplication still exists so owner-reference GC has not run.
+	if util.HTTPRouteCapabilities.Has(util.HTTPRouteCapabilityV1) {
+		if err := r.deleteWebUIHTTPRoute(ctx, app); err != nil {
+			return err
+		}
+	}
+
 	if util.IngressCapabilities.Has("networking.k8s.io/v1") {
 		logger.Info("Deleting Spark web UI ingress", "ingress", ingressName)
 		if err := r.client.Delete(
@@ -1369,6 +1389,13 @@ func (r *Reconciler) validateSparkResourceDeletion(ctx context.Context, app *v1b
 	if sparkUIIngressName != "" {
 		if err := r.client.Get(ctx, types.NamespacedName{Name: sparkUIIngressName, Namespace: app.Namespace}, &networkingv1.Ingress{}); err == nil || !errors.IsNotFound(err) {
 			return false
+		}
+		// The same status field records the HTTPRoute name when the web UI is exposed
+		// through the Gateway API, so it has to be checked as well.
+		if util.HTTPRouteCapabilities.Has(util.HTTPRouteCapabilityV1) {
+			if err := r.client.Get(ctx, types.NamespacedName{Name: sparkUIIngressName, Namespace: app.Namespace}, &gatewayv1.HTTPRoute{}); err == nil || !errors.IsNotFound(err) {
+				return false
+			}
 		}
 	}
 

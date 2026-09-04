@@ -76,10 +76,12 @@ spec:
         {{- end }}
         - --controller-threads={{ .Values.controller.workers }}
         - --enable-ui-service={{ .Values.controller.uiService.enable }}
-        {{- if .Values.controller.uiIngress.enable }}
+        {{- if or .Values.controller.uiIngress.enable .Values.controller.uiHTTPRoute.enable }}
         {{- with .Values.controller.uiIngress.urlFormat }}
         - --ingress-url-format={{ . }}
         {{- end }}
+        {{- end }}
+        {{- if .Values.controller.uiIngress.enable }}
         {{- with .Values.controller.uiIngress.ingressClassName }}
         - --ingress-class-name={{ . }}
         {{- end }}
@@ -88,6 +90,12 @@ spec:
         {{- end }}
         {{- with .Values.controller.uiIngress.annotations }}
         - --ingress-annotations={{ . | toJson }}
+        {{- end }}
+        {{- end }}
+        {{- if .Values.controller.uiHTTPRoute.enable }}
+        - --ui-httproute-enable=true
+        {{- with .Values.controller.uiHTTPRoute.parentRefs }}
+        - --ui-httproute-parent-refs={{ . | toJson }}
         {{- end }}
         {{- end }}
         {{- if .Values.controller.batchScheduler.enable }}
