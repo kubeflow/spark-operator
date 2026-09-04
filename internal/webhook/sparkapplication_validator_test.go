@@ -97,7 +97,7 @@ func TestSparkApplicationValidatorValidateCreate_DynamicAllocationMinGreaterThan
 		MaxExecutors: ptr.To[int32](2),
 	}
 
-	if _, err := validator.ValidateCreate(context.Background(), app); err == nil || !(strings.Contains(err.Error(), "cannot be greater than") && strings.Contains(err.Error(), "maxExecutors")) {
+	if _, err := validator.ValidateCreate(context.Background(), app); err == nil || !strings.Contains(err.Error(), "cannot be greater than") || !strings.Contains(err.Error(), "maxExecutors") {
 		t.Fatalf("expected minExecutors > maxExecutors validation error, got %v", err)
 	}
 }
@@ -117,7 +117,7 @@ func TestSparkApplicationValidatorValidateCreate_DynamicAllocationInitialLessTha
 	if err != nil {
 		t.Fatalf("expected no error when initialExecutors < minExecutors, got %v", err)
 	}
-	if len(warnings) != 1 || !(strings.Contains(warnings[0], "is less than") && strings.Contains(warnings[0], "minExecutors")) {
+	if len(warnings) != 1 || !strings.Contains(warnings[0], "is less than") || !strings.Contains(warnings[0], "minExecutors") {
 		t.Fatalf("expected initialExecutors < minExecutors warning, got %v", warnings)
 	}
 }
@@ -137,7 +137,7 @@ func TestSparkApplicationValidatorValidateCreate_DynamicAllocationInitialGreater
 	if err != nil {
 		t.Fatalf("expected no error when initialExecutors > maxExecutors, got %v", err)
 	}
-	if len(warnings) != 1 || !(strings.Contains(warnings[0], "is greater than") && strings.Contains(warnings[0], "maxExecutors")) {
+	if len(warnings) != 1 || !strings.Contains(warnings[0], "is greater than") || !strings.Contains(warnings[0], "maxExecutors") {
 		t.Fatalf("expected initialExecutors > maxExecutors warning, got %v", warnings)
 	}
 }
@@ -620,7 +620,7 @@ func TestSparkApplicationValidatorSparkConf_DynamicAllocationInitialGreaterThanM
 	if err != nil {
 		t.Fatalf("expected no error when initialExecutors > maxExecutors, got %v", err)
 	}
-	if len(warnings) != 1 || !(strings.Contains(warnings[0], "is greater than") && strings.Contains(warnings[0], "maxExecutors")) {
+	if len(warnings) != 1 || !strings.Contains(warnings[0], "is greater than") || !strings.Contains(warnings[0], "maxExecutors") {
 		t.Fatalf("expected initialExecutors > maxExecutors warning, got %v", warnings)
 	}
 }
@@ -700,7 +700,7 @@ func TestSparkApplicationValidatorDynamicAllocation_MergesCRDAndSparkConf(t *tes
 		MaxExecutors: ptr.To[int32](2),
 	}
 
-	if _, err := validator.ValidateCreate(context.Background(), app); err == nil || !(strings.Contains(err.Error(), "cannot be greater than") && strings.Contains(err.Error(), "maxExecutors")) {
+	if _, err := validator.ValidateCreate(context.Background(), app); err == nil || !strings.Contains(err.Error(), "cannot be greater than") || !strings.Contains(err.Error(), "maxExecutors") {
 		t.Fatalf("expected merged minExecutors > maxExecutors validation error, got %v", err)
 	}
 }

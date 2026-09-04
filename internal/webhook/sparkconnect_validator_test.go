@@ -193,7 +193,7 @@ func TestSparkConnectValidatorValidateCreate_DynamicAllocationInitialLessThanMin
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
-	if len(warnings) != 1 || !(strings.Contains(warnings[0], "is less than") && strings.Contains(warnings[0], "minExecutors")) {
+	if len(warnings) != 1 || !strings.Contains(warnings[0], "is less than") || !strings.Contains(warnings[0], "minExecutors") {
 		t.Fatalf("expected initialExecutors warning, got %v", warnings)
 	}
 }
@@ -213,7 +213,7 @@ func TestSparkConnectValidatorValidateCreate_DynamicAllocationInitialGreaterThan
 	if err != nil {
 		t.Fatalf("expected no error when initialExecutors > maxExecutors, got %v", err)
 	}
-	if len(warnings) != 1 || !(strings.Contains(warnings[0], "is greater than") && strings.Contains(warnings[0], "maxExecutors")) {
+	if len(warnings) != 1 || !strings.Contains(warnings[0], "is greater than") || !strings.Contains(warnings[0], "maxExecutors") {
 		t.Fatalf("expected initialExecutors > maxExecutors warning, got %v", warnings)
 	}
 }
