@@ -338,11 +338,11 @@ func addGeneralConfigMaps(pod *corev1.Pod, app *v1beta2.SparkApplication) error 
 	addedVolumes := make(map[string]bool, len(configMaps))
 	for _, namePath := range configMaps {
 		volumeName := getConfigMapVolumeName(namePath.Name)
-		if !addedVolumes[volumeName] {
+		if !addedVolumes[namePath.Name] {
 			if err := addConfigMapVolume(pod, namePath.Name, volumeName); err != nil {
 				return err
 			}
-			addedVolumes[volumeName] = true
+			addedVolumes[namePath.Name] = true
 		}
 
 		if err := addConfigMapVolumeMount(pod, volumeName, namePath.Path); err != nil {
