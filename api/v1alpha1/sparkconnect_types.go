@@ -32,6 +32,7 @@ func init() {
 // +kubebuilder:printcolumn:JSONPath=.metadata.creationTimestamp,name=Age,type=date
 // +kubebuilder:printcolumn:JSONPath=.status.state,name="Status",type=string
 // +kubebuilder:printcolumn:JSONPath=.status.server.podName,name="PodName",type=string
+// +genclient
 
 // SparkConnect is the Schema for the sparkconnections API.
 type SparkConnect struct {
