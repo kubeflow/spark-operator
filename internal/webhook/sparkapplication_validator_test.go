@@ -511,17 +511,70 @@ func TestSparkApplicationValidatorValidateCreate_ConfigMapNames(t *testing.T) {
 			wantErrors: []string{fmt.Sprintf("spec.hadoopConfigMap has invalid ConfigMap name %q", strings.Repeat("a", 254))},
 		},
 		{
-			name: "duplicate driver ConfigMap names",
+			name: "same ConfigMap mounted twice at different paths",
 			mutate: func(app *v1beta2.SparkApplication) {
 				app.Spec.Driver.ConfigMaps = configMapRefs("spark-conf", "spark-conf")
 			},
-			wantErrors: []string{`spec.driver.configMaps[1].name has duplicate ConfigMap name "spark-conf"`},
+		},
+		{
+			name: "duplicate driver ConfigMap mount paths",
+			mutate: func(app *v1beta2.SparkApplication) {
+				app.Spec.Driver.ConfigMaps = []v1beta2.NamePath{
+					{Name: "spark-conf", Path: "/etc/spark/conf"},
+					{Name: "other-conf", Path: "/etc/spark/conf"},
+				}
+			},
+			wantErrors: []string{`spec.driver.configMaps[1].path has duplicate mount path "/etc/spark/conf"`},
 		},
 		{
 			name: "same ConfigMap in both driver and executor",
 			mutate: func(app *v1beta2.SparkApplication) {
 				app.Spec.Driver.ConfigMaps = configMapRefs("spark-conf")
 				app.Spec.Executor.ConfigMaps = configMapRefs("spark-conf")
+			},
+		},
+		{
+			name: "empty driver ConfigMap mount path",
+			mutate: func(app *v1beta2.SparkApplication) {
+				app.Spec.Driver.ConfigMaps = []v1beta2.NamePath{{Name: "spark-conf", Path: ""}}
+			},
+			wantErrors: []string{`spec.driver.configMaps[0].path must not be empty`},
+		},
+		{
+			name: "driver ConfigMap mount path collides with sparkConfigMap",
+			mutate: func(app *v1beta2.SparkApplication) {
+				app.Spec.SparkConfigMap = ptr.To("spark-conf")
+				app.Spec.Driver.ConfigMaps = []v1beta2.NamePath{{Name: "other-conf", Path: "/etc/spark/conf"}}
+			},
+			wantErrors: []string{`spec.driver.configMaps[0].path has mount path "/etc/spark/conf" reserved for sparkConfigMap`},
+		},
+		{
+			name: "executor ConfigMap mount path collides with hadoopConfigMap",
+			mutate: func(app *v1beta2.SparkApplication) {
+				app.Spec.HadoopConfigMap = ptr.To("hadoop-conf")
+				app.Spec.Executor.ConfigMaps = []v1beta2.NamePath{{Name: "other-conf", Path: "/etc/hadoop/conf"}}
+			},
+			wantErrors: []string{`spec.executor.configMaps[0].path has mount path "/etc/hadoop/conf" reserved for hadoopConfigMap`},
+		},
+		{
+			name: "driver ConfigMap mount path collides with Prometheus ConfigMap",
+			mutate: func(app *v1beta2.SparkApplication) {
+				app.Spec.Monitoring = &v1beta2.MonitoringSpec{
+					ExposeDriverMetrics: true,
+					Prometheus:          &v1beta2.PrometheusSpec{JmxExporterJar: "/prometheus/jmx_prometheus_javaagent.jar"},
+				}
+				app.Spec.Driver.ConfigMaps = []v1beta2.NamePath{{Name: "other-conf", Path: "/etc/metrics/conf"}}
+			},
+			wantErrors: []string{`spec.driver.configMaps[0].path has mount path "/etc/metrics/conf" reserved for monitoring.prometheus`},
+		},
+		{
+			name: "executor ConfigMap mount path matching Prometheus path is fine when executor metrics are not exposed",
+			mutate: func(app *v1beta2.SparkApplication) {
+				app.Spec.Monitoring = &v1beta2.MonitoringSpec{
+					ExposeDriverMetrics: true,
+					Prometheus:          &v1beta2.PrometheusSpec{JmxExporterJar: "/prometheus/jmx_prometheus_javaagent.jar"},
+				}
+				app.Spec.Executor.ConfigMaps = []v1beta2.NamePath{{Name: "other-conf", Path: "/etc/metrics/conf"}}
 			},
 		},
 		{

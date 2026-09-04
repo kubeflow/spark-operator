@@ -25,11 +25,14 @@ import (
 	"k8s.io/apimachinery/pkg/util/validation/field"
 
 	"github.com/kubeflow/spark-operator/v2/api/v1beta2"
+	"github.com/kubeflow/spark-operator/v2/pkg/common"
+	"github.com/kubeflow/spark-operator/v2/pkg/util"
 )
 
-// validateConfigMaps rejects ConfigMap references no ConfigMap could satisfy, and names
-// repeated within one list, which would mount two pod volumes under the same name. Neither
-// surfaces before the API server rejects the pod the mutating webhook has already built.
+// validateConfigMaps rejects ConfigMap references no ConfigMap could satisfy, entries with no
+// mount path, and mount paths that collide with another entry or with a path the webhook
+// reserves for the Spark, Hadoop, or Prometheus ConfigMap. None of these surface before the
+// API server rejects the pod the mutating webhook has already built.
 func validateConfigMaps(spec *v1beta2.SparkApplicationSpec, root *field.Path) error {
 	var errs []error
 
@@ -44,26 +47,66 @@ func validateConfigMaps(spec *v1beta2.SparkApplicationSpec, root *field.Path) er
 		}
 	}
 
-	errs = append(errs, validateConfigMapList(root.Child("driver", "configMaps"), spec.Driver.ConfigMaps)...)
-	errs = append(errs, validateConfigMapList(root.Child("executor", "configMaps"), spec.Executor.ConfigMaps)...)
+	errs = append(errs, validateConfigMapList(root.Child("driver", "configMaps"), spec.Driver.ConfigMaps, reservedConfigMapMountPaths(spec, true))...)
+	errs = append(errs, validateConfigMapList(root.Child("executor", "configMaps"), spec.Executor.ConfigMaps, reservedConfigMapMountPaths(spec, false))...)
 
 	return errors.Join(errs...)
 }
 
-func validateConfigMapList(path *field.Path, configMaps []v1beta2.NamePath) []error {
+// reservedConfigMapMountPaths returns the mount paths the mutating webhook itself fills in for
+// the given pod (driver if isDriver, else executor), keyed by the spec field responsible, so
+// validateConfigMapList can reject a spec.{driver,executor}.configMaps entry that collides with
+// one of them. It mirrors the same conditions addSparkConfigMap, addHadoopConfigMap, and
+// addPrometheusConfig use to decide whether to add their volumeMount.
+func reservedConfigMapMountPaths(spec *v1beta2.SparkApplicationSpec, isDriver bool) map[string]string {
+	reserved := make(map[string]string, 3)
+	if spec.SparkConfigMap != nil {
+		reserved[common.DefaultSparkConfDir] = "sparkConfigMap"
+	}
+	if spec.HadoopConfigMap != nil {
+		reserved[common.DefaultHadoopConfDir] = "hadoopConfigMap"
+	}
+	if prometheusConfigMapMounted(spec, isDriver) {
+		reserved[common.PrometheusConfigMapMountPath] = "monitoring.prometheus"
+	}
+	return reserved
+}
+
+func prometheusConfigMapMounted(spec *v1beta2.SparkApplicationSpec, isDriver bool) bool {
+	app := &v1beta2.SparkApplication{Spec: *spec}
+	if !util.PrometheusMonitoringEnabled(app) || (util.HasMetricsPropertiesFile(app) && util.HasPrometheusConfigFile(app)) {
+		return false
+	}
+	if isDriver {
+		return util.ExposeDriverMetrics(app)
+	}
+	return util.ExposeExecutorMetrics(app)
+}
+
+func validateConfigMapList(path *field.Path, configMaps []v1beta2.NamePath, reserved map[string]string) []error {
 	var errs []error
-	// A repeated name only collides because the mutating webhook builds one volume per entry.
-	// Once it builds one volume per distinct ConfigMap, mount paths become the thing to keep
-	// unique instead; tracked at https://github.com/kubeflow/spark-operator/issues/3134
+	// The same ConfigMap may be mounted more than once, at different paths, but two entries
+	// mounted at the same path collide: the mutating webhook would emit two volumeMounts with
+	// identical mountPaths, which the API server rejects. The same collision happens if an
+	// entry reuses a path the webhook already reserves for the Spark, Hadoop, or Prometheus
+	// ConfigMap it mounts on its own.
 	seen := make(map[string]bool, len(configMaps))
 	for i, configMap := range configMaps {
 		if err := validateConfigMapName(path.Index(i).Child("name"), configMap.Name); err != nil {
 			errs = append(errs, err)
 		}
-		if seen[configMap.Name] {
-			errs = append(errs, fmt.Errorf("%s has duplicate ConfigMap name %q", path.Index(i).Child("name"), configMap.Name))
+
+		pathField := path.Index(i).Child("path")
+		switch {
+		case configMap.Path == "":
+			errs = append(errs, fmt.Errorf("%s must not be empty", pathField))
+			continue
+		case seen[configMap.Path]:
+			errs = append(errs, fmt.Errorf("%s has duplicate mount path %q", pathField, configMap.Path))
+		case reserved[configMap.Path] != "":
+			errs = append(errs, fmt.Errorf("%s has mount path %q reserved for %s", pathField, configMap.Path, reserved[configMap.Path]))
 		}
-		seen[configMap.Name] = true
+		seen[configMap.Path] = true
 	}
 	return errs
 }
