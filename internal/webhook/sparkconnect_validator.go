@@ -24,6 +24,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/util/validation"
+	"k8s.io/apimachinery/pkg/util/validation/field"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
@@ -163,7 +164,7 @@ func (v *SparkConnectValidator) validateSpec(sc *v1alpha1.SparkConnect) (admissi
 		daMinExecutors, daMaxExecutors, daInitialExecutors = da.MinExecutors, da.MaxExecutors, da.InitialExecutors
 	}
 
-	return mergeAndValidateDynamicAllocation(daEnabled, daMinExecutors, daMaxExecutors, daInitialExecutors, sc.Spec.SparkConf)
+	return mergeAndValidateDynamicAllocation(field.NewPath("spec"), daEnabled, daMinExecutors, daMaxExecutors, daInitialExecutors, sc.Spec.Executor.Instances, sc.Spec.SparkConf)
 }
 
 // validateSparkVersion validates the Spark version.

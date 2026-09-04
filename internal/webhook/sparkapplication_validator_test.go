@@ -97,7 +97,7 @@ func TestSparkApplicationValidatorValidateCreate_DynamicAllocationMinGreaterThan
 		MaxExecutors: ptr.To[int32](2),
 	}
 
-	if _, err := validator.ValidateCreate(context.Background(), app); err == nil || !strings.Contains(err.Error(), "cannot be greater than maxExecutors") {
+	if _, err := validator.ValidateCreate(context.Background(), app); err == nil || !(strings.Contains(err.Error(), "cannot be greater than") && strings.Contains(err.Error(), "maxExecutors")) {
 		t.Fatalf("expected minExecutors > maxExecutors validation error, got %v", err)
 	}
 }
@@ -117,7 +117,7 @@ func TestSparkApplicationValidatorValidateCreate_DynamicAllocationInitialLessTha
 	if err != nil {
 		t.Fatalf("expected no error when initialExecutors < minExecutors, got %v", err)
 	}
-	if len(warnings) != 1 || !strings.Contains(warnings[0], "is less than minExecutors") {
+	if len(warnings) != 1 || !(strings.Contains(warnings[0], "is less than") && strings.Contains(warnings[0], "minExecutors")) {
 		t.Fatalf("expected initialExecutors < minExecutors warning, got %v", warnings)
 	}
 }
@@ -133,8 +133,12 @@ func TestSparkApplicationValidatorValidateCreate_DynamicAllocationInitialGreater
 		InitialExecutors: ptr.To[int32](6),
 	}
 
-	if _, err := validator.ValidateCreate(context.Background(), app); err == nil || !strings.Contains(err.Error(), "cannot be greater than maxExecutors") {
-		t.Fatalf("expected initialExecutors > maxExecutors validation error, got %v", err)
+	warnings, err := validator.ValidateCreate(context.Background(), app)
+	if err != nil {
+		t.Fatalf("expected no error when initialExecutors > maxExecutors, got %v", err)
+	}
+	if len(warnings) != 1 || !(strings.Contains(warnings[0], "is greater than") && strings.Contains(warnings[0], "maxExecutors")) {
+		t.Fatalf("expected initialExecutors > maxExecutors warning, got %v", warnings)
 	}
 }
 
@@ -612,8 +616,12 @@ func TestSparkApplicationValidatorSparkConf_DynamicAllocationInitialGreaterThanM
 		common.SparkDynamicAllocationInitialExecutors: "6",
 	}
 
-	if _, err := validator.ValidateCreate(context.Background(), app); err == nil || !strings.Contains(err.Error(), "cannot be greater than") {
-		t.Fatalf("expected initialExecutors > maxExecutors validation error, got %v", err)
+	warnings, err := validator.ValidateCreate(context.Background(), app)
+	if err != nil {
+		t.Fatalf("expected no error when initialExecutors > maxExecutors, got %v", err)
+	}
+	if len(warnings) != 1 || !(strings.Contains(warnings[0], "is greater than") && strings.Contains(warnings[0], "maxExecutors")) {
+		t.Fatalf("expected initialExecutors > maxExecutors warning, got %v", warnings)
 	}
 }
 
@@ -651,6 +659,19 @@ func TestSparkApplicationValidatorSparkConf_DynamicAllocationNonInteger(t *testi
 	}
 }
 
+func TestSparkApplicationValidatorSparkConf_DynamicAllocationEnabledNonBoolean(t *testing.T) {
+	validator := newTestValidator(t, false)
+
+	app := newSparkApplication()
+	app.Spec.SparkConf = map[string]string{
+		common.SparkDynamicAllocationEnabled: "notabool",
+	}
+
+	if _, err := validator.ValidateCreate(context.Background(), app); err == nil || !strings.Contains(err.Error(), "must be a boolean") {
+		t.Fatalf("expected non-boolean enabled validation error, got %v", err)
+	}
+}
+
 func TestSparkApplicationValidatorSparkConf_DynamicAllocationDisabledSkipsValidation(t *testing.T) {
 	validator := newTestValidator(t, false)
 
@@ -679,7 +700,7 @@ func TestSparkApplicationValidatorDynamicAllocation_MergesCRDAndSparkConf(t *tes
 		MaxExecutors: ptr.To[int32](2),
 	}
 
-	if _, err := validator.ValidateCreate(context.Background(), app); err == nil || !strings.Contains(err.Error(), "cannot be greater than maxExecutors") {
+	if _, err := validator.ValidateCreate(context.Background(), app); err == nil || !(strings.Contains(err.Error(), "cannot be greater than") && strings.Contains(err.Error(), "maxExecutors")) {
 		t.Fatalf("expected merged minExecutors > maxExecutors validation error, got %v", err)
 	}
 }

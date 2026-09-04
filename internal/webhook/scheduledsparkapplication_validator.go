@@ -114,7 +114,7 @@ func (v *ScheduledSparkApplicationValidator) validate(app *v1beta2.ScheduledSpar
 		daMinExecutors, daMaxExecutors, daInitialExecutors = da.MinExecutors, da.MaxExecutors, da.InitialExecutors
 	}
 
-	return mergeAndValidateDynamicAllocation(daEnabled, daMinExecutors, daMaxExecutors, daInitialExecutors, app.Spec.Template.SparkConf)
+	return mergeAndValidateDynamicAllocation(field.NewPath("spec", "template"), daEnabled, daMinExecutors, daMaxExecutors, daInitialExecutors, app.Spec.Template.Executor.Instances, app.Spec.Template.SparkConf)
 }
 
 // validateName ensures the ScheduledSparkApplication metadata.name, when combined with suffixes,

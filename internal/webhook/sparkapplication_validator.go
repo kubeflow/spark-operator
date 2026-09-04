@@ -170,7 +170,7 @@ func (v *SparkApplicationValidator) validateSpec(ctx context.Context, app *v1bet
 		daMinExecutors, daMaxExecutors, daInitialExecutors = da.MinExecutors, da.MaxExecutors, da.InitialExecutors
 	}
 
-	return mergeAndValidateDynamicAllocation(daEnabled, daMinExecutors, daMaxExecutors, daInitialExecutors, app.Spec.SparkConf)
+	return mergeAndValidateDynamicAllocation(field.NewPath("spec"), daEnabled, daMinExecutors, daMaxExecutors, daInitialExecutors, app.Spec.Executor.Instances, app.Spec.SparkConf)
 }
 
 // validateName ensures the SparkApplication metadata.name is a valid DNS-1035 label
