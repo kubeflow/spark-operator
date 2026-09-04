@@ -129,15 +129,82 @@ var _ = Describe("Options functions", func() {
 			}))
 		})
 	})
+
+	Context("dependenciesOption", func() {
+		It("emits shell-safe spark-submit dependency flags", func() {
+			conn := &v1alpha1.SparkConnect{
+				Spec: v1alpha1.SparkConnectSpec{
+					Deps: v1alpha1.Dependencies{
+						Jars:            []string{"local:///opt/spark/jars/iceberg.jar"},
+						Packages:        []string{"org.apache.iceberg:iceberg-spark-runtime-3.5_2.12:1.5.0"},
+						ExcludePackages: []string{"org.slf4j:slf4j-log4j12"},
+						Repositories:    []string{"https://repo1.maven.org/maven2"},
+						PyFiles:         []string{"local:///opt/spark/pyfiles/utils.zip"},
+						Files:           []string{"local:///opt/spark/files/config.json"},
+						Archives:        []string{"local:///opt/spark/archives/data.zip"},
+					},
+				},
+			}
+
+			args, err := dependenciesOption(conn)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(args).To(Equal([]string{
+				"--jars", "'local:///opt/spark/jars/iceberg.jar'",
+				"--packages", "'org.apache.iceberg:iceberg-spark-runtime-3.5_2.12:1.5.0'",
+				"--exclude-packages", "'org.slf4j:slf4j-log4j12'",
+				"--repositories", "'https://repo1.maven.org/maven2'",
+				"--py-files", "'local:///opt/spark/pyfiles/utils.zip'",
+				"--files", "'local:///opt/spark/files/config.json'",
+				"--archives", "'local:///opt/spark/archives/data.zip'",
+			}))
+		})
+
+		It("preserves shell-sensitive dependency values", func() {
+			conn := &v1alpha1.SparkConnect{
+				Spec: v1alpha1.SparkConnectSpec{
+					Deps: v1alpha1.Dependencies{
+						Jars:            []string{"local:///opt/spark/jars/with space.jar", "local:///opt/spark/jars/quote'file.jar"},
+						Packages:        []string{"org.example:package:1.0; printf injected"},
+						ExcludePackages: []string{"org.example:excluded"},
+						Repositories:    []string{"https://repo.example/a path"},
+						PyFiles:         []string{"local:///opt/spark/pyfiles/first.zip\nsecond.zip"},
+						Files:           []string{"local:///opt/spark/files/config.json"},
+						Archives:        []string{"local:///opt/spark/archives/archive.tar.gz"},
+					},
+				},
+			}
+
+			args, err := dependenciesOption(conn)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(shellParsedArgs(args)).To(Equal([]string{
+				"--jars", "local:///opt/spark/jars/with space.jar,local:///opt/spark/jars/quote'file.jar",
+				"--packages", "org.example:package:1.0; printf injected",
+				"--exclude-packages", "org.example:excluded",
+				"--repositories", "https://repo.example/a path",
+				"--py-files", "local:///opt/spark/pyfiles/first.zip\nsecond.zip",
+				"--files", "local:///opt/spark/files/config.json",
+				"--archives", "local:///opt/spark/archives/archive.tar.gz",
+			}))
+		})
+	})
 })
 
-func shellParsedSparkConfig(args []string) map[string]string {
+func shellParsedArgs(args []string) []string {
 	GinkgoHelper()
 
 	output, err := exec.Command("bash", "-c", "printf '%s\\0' "+strings.Join(args, " ")).Output()
 	Expect(err).NotTo(HaveOccurred())
 
 	fields := bytes.Split(bytes.TrimSuffix(output, []byte{0}), []byte{0})
+	parsedArgs := make([]string, len(fields))
+	for index, field := range fields {
+		parsedArgs[index] = string(field)
+	}
+	return parsedArgs
+}
+
+func shellParsedSparkConfig(args []string) map[string]string {
+	fields := shellParsedArgs(args)
 	Expect(len(fields) % 2).To(Equal(0))
 
 	config := make(map[string]string, len(fields)/2)

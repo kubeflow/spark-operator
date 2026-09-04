@@ -49,6 +49,36 @@ const (
 	ExecutorStateUnknown   ExecutorState = "UNKNOWN"
 )
 
+// Dependencies specifies all possible types of dependencies of a Spark application.
+type Dependencies struct {
+	// Jars is a list of JAR files the Spark application depends on.
+	// +optional
+	Jars []string `json:"jars,omitempty"`
+	// Files is a list of files the Spark application depends on.
+	// +optional
+	Files []string `json:"files,omitempty"`
+	// PyFiles is a list of Python files the Spark application depends on.
+	// +optional
+	PyFiles []string `json:"pyFiles,omitempty"`
+	// Packages is a list of maven coordinates of jars to include on the driver and executor
+	// classpaths. This will search the local maven repo, then maven central and any additional
+	// remote repositories given by the "repositories" option.
+	// Each package should be of the form "groupId:artifactId:version".
+	// +optional
+	Packages []string `json:"packages,omitempty"`
+	// ExcludePackages is a list of "groupId:artifactId", to exclude while resolving the
+	// dependencies provided in Packages to avoid dependency conflicts.
+	// +optional
+	ExcludePackages []string `json:"excludePackages,omitempty"`
+	// Repositories is a list of additional remote repositories to search for the maven coordinate
+	// given with the "packages" option.
+	// +optional
+	Repositories []string `json:"repositories,omitempty"`
+	// Archives is a list of archives to be extracted into the working directory of each executor.
+	// +optional
+	Archives []string `json:"archives,omitempty"`
+}
+
 // DynamicAllocation contains configuration options for dynamic allocation.
 type DynamicAllocation struct {
 	// Enabled controls whether dynamic allocation is enabled or not.

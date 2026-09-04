@@ -73,6 +73,10 @@ type SparkConnectSpec struct {
 	// +optional
 	SparkConf map[string]string `json:"sparkConf,omitempty"`
 
+	// Deps captures all possible types of dependencies of a Spark Connect server.
+	// +optional
+	Deps Dependencies `json:"deps,omitempty"`
+
 	// Server is the Spark connect server specification.
 	Server ServerSpec `json:"server"`
 
