@@ -139,7 +139,7 @@ Read and write data with GCS and BigQuery on GKE
 :link: notebooks-spark-operator
 :link-type: doc
 
-Run PySpark jobs from Kubeflow Notebooks
+Run distributed PySpark from Kubeflow Notebooks using the Kubeflow SDK
 ::::
 
 :::::
