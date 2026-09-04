@@ -201,6 +201,12 @@ func generateName(name, suffix string) string {
 	return fmt.Sprintf("%s-%s-%s", name[:maxNameLength], hash[:8], suffix)
 }
 
+// GetScheduledSparkApplicationRunName returns the name for a SparkApplication
+// created by a ScheduledSparkApplication.
+func GetScheduledSparkApplicationRunName(app *v1beta2.ScheduledSparkApplication, timestamp string) string {
+	return generateName(app.Name, timestamp)
+}
+
 func GetDefaultUIServiceName(app *v1beta2.SparkApplication) string {
 	return generateName(app.Name, "ui-svc")
 }
