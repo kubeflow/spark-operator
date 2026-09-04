@@ -25,15 +25,17 @@ The session is a normal Spark Connect client, so everything on the
 
 - Spark Operator installed, with the `SparkConnect` CRD and the operator watching your
   user namespaces
-- A notebook image with `kubeflow-spark-api` and a matching `pyspark-connect`
+- A notebook image with the Kubeflow SDK installed (`kubeflow[spark]`)
 - Permission to create `SparkConnect` resources in your namespace
 
 ## Getting started
 
-Pin the client to the Spark version the SDK provisions, so client and server cannot drift:
+Install the SDK, then pin the client to the Spark version it provisions. The `spark` extra
+installs a `pyspark-connect` release that does not currently match
+`DEFAULT_SPARK_VERSION`, so the second step is required:
 
 ```bash
-pip install kubeflow-spark-api
+pip install "kubeflow[spark]"
 SPARK_VERSION="$(python -c \
   'from kubeflow.spark.backends.kubernetes import constants; print(constants.DEFAULT_SPARK_VERSION)')"
 pip install "pyspark-connect==${SPARK_VERSION}"
