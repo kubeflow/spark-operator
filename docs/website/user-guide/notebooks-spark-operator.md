@@ -30,8 +30,7 @@ The session is a normal Spark Connect client, so everything on the
 
 ## Getting started
 
-Install the SDK, then pin the client to the Spark version it provisions. The `spark` extra
-installs a `pyspark-connect` release that does not currently match
+Install the SDK, then pin the client to the Spark version it provisions. The `spark` extra installs a `pyspark-connect` release that does not currently match
 `DEFAULT_SPARK_VERSION`, so the second step is required:
 
 ```bash
