@@ -43,6 +43,42 @@ import (
 )
 
 var _ = Describe("Example SparkApplication", func() {
+	Context("invalid Maven dependency", func() {
+		ctx := context.Background()
+		app := &v1beta2.SparkApplication{}
+
+		BeforeEach(func() {
+			app = loadSparkPi("invalid-maven-dependency")
+			app.Spec.Deps.Packages = []string{"com.example:artifact-that-does-not-exist:0.0.0"}
+			app.Spec.RestartPolicy = v1beta2.RestartPolicy{
+				Type:                             v1beta2.RestartPolicyOnFailure,
+				OnSubmissionFailureRetries:       ptr.To(int32(0)),
+				OnSubmissionFailureRetryInterval: ptr.To(int64(1)),
+			}
+			Expect(k8sClient.Create(ctx, app)).To(Succeed())
+		})
+
+		AfterEach(func() {
+			key := types.NamespacedName{Namespace: app.Namespace, Name: app.Name}
+			Expect(k8sClient.Get(ctx, key, app)).To(Succeed())
+			Expect(k8sClient.Delete(ctx, app)).To(Succeed())
+		})
+
+		It("fails during spark-submit dependency resolution", func() {
+			key := types.NamespacedName{Namespace: app.Namespace, Name: app.Name}
+			apps, err := collectSparkApplicationsUntilTermination(ctx, key)
+			Expect(err).To(HaveOccurred())
+
+			finalApp := apps[len(apps)-1]
+			Expect(finalApp.Status.AppState.State).To(Equal(v1beta2.ApplicationStateFailed))
+			Expect(finalApp.Status.AppState.ErrorMessage).To(MatchRegexp(`failed to submit spark application: spark-submit failed with exit code [1-9][0-9]*$`))
+
+			driverPodName := util.GetDriverPodName(app)
+			_, err = clientset.CoreV1().Pods(app.Namespace).Get(ctx, driverPodName, metav1.GetOptions{})
+			Expect(errors.IsNotFound(err)).To(BeTrue())
+		})
+	})
+
 	Context("spark-pi", func() {
 		ctx := context.Background()
 		path := filepath.Join("..", "..", "examples", "spark-pi.yaml")
@@ -277,7 +313,7 @@ var _ = Describe("Example SparkApplication", func() {
 			By("Should eventually fail")
 			finalApp := apps[len(apps)-1]
 			Expect(finalApp.Status.AppState.State).To(Equal(v1beta2.ApplicationStateFailed))
-			Expect(finalApp.Status.AppState.ErrorMessage).To(ContainSubstring("failed to run spark-submit"))
+			Expect(finalApp.Status.AppState.ErrorMessage).To(MatchRegexp(`failed to submit spark application: spark-submit failed with exit code [1-9][0-9]*$`))
 			Expect(finalApp.Status.SubmissionAttempts).To(Equal(*app.Spec.RestartPolicy.OnSubmissionFailureRetries + 1))
 
 			By("Only valid statuses appear in other apps")
@@ -640,4 +676,5 @@ var _ = Describe("Example SparkApplication", func() {
 			checkVolumeAndMount(*driverPod, common.SparkDriverContainerName)
 		})
 	})
+
 })
