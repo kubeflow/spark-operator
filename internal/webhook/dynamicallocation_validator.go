@@ -20,6 +20,7 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"strings"
 
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
@@ -27,19 +28,32 @@ import (
 	"github.com/kubeflow/spark-operator/v2/pkg/common"
 )
 
-// validateDynamicAllocation is the single resolver for dynamic allocation executor bounds, shared
-// by the CRD DynamicAllocation field and the equivalent sparkConf values. Spark tolerates
-// initialExecutors and executorInstances falling outside [minExecutors, maxExecutors] and uses
-// max(minExecutors, initialExecutors, executorInstances) as the initial number of executors, so
-// those cases only warrant a warning rather than a hard error.
-func validateDynamicAllocation(root *field.Path, minExecutors, maxExecutors, initialExecutors, executorInstances *int32) (admission.Warnings, error) {
-	minPath := root.Child("dynamicAllocation", "minExecutors")
-	maxPath := root.Child("dynamicAllocation", "maxExecutors")
-	initPath := root.Child("dynamicAllocation", "initialExecutors")
-	instPath := root.Child("executor", "instances")
+// fieldRef points at whichever of the CRD field or sparkConf key actually set a merged value.
+type fieldRef struct {
+	path *field.Path
+	key  string // set instead of path when the value was sourced from sparkConf
+}
 
+func crdFieldRef(path *field.Path) fieldRef {
+	return fieldRef{path: path}
+}
+
+func sparkConfFieldRef(key string) fieldRef {
+	return fieldRef{key: key}
+}
+
+func (r fieldRef) String() string {
+	if r.path != nil {
+		return r.path.String()
+	}
+	return fmt.Sprintf("spec.sparkConf[%q]", r.key)
+}
+
+// validateDynamicAllocation validates the merged executor bounds, shared by the CRD
+// DynamicAllocation field and the equivalent sparkConf values.
+func validateDynamicAllocation(minPath, maxPath, initPath, instPath fieldRef, minExecutors, maxExecutors, initialExecutors, executorInstances *int32) (admission.Warnings, error) {
 	var errs []error
-	minValid, maxValid, initValid := true, true, true
+	minValid, maxValid := true, true
 
 	if minExecutors != nil && *minExecutors < 0 {
 		errs = append(errs, fmt.Errorf("%s must be non-negative, got %d", minPath, *minExecutors))
@@ -49,33 +63,50 @@ func validateDynamicAllocation(root *field.Path, minExecutors, maxExecutors, ini
 		errs = append(errs, fmt.Errorf("%s must be positive, got %d", maxPath, *maxExecutors))
 		maxValid = false
 	}
-	if initialExecutors != nil && *initialExecutors < 0 {
-		errs = append(errs, fmt.Errorf("%s must be non-negative, got %d", initPath, *initialExecutors))
-		initValid = false
-	}
 
-	// Cross-field checks only make sense once the values involved are individually valid.
 	if minValid && maxValid && minExecutors != nil && maxExecutors != nil && *minExecutors > *maxExecutors {
 		errs = append(errs, fmt.Errorf("%s (%d) cannot be greater than %s (%d)", minPath, *minExecutors, maxPath, *maxExecutors))
 	}
 
 	var warnings admission.Warnings
-	if initValid && initialExecutors != nil {
-		if minValid && minExecutors != nil && *initialExecutors < *minExecutors {
-			warnings = append(warnings, fmt.Sprintf("%s (%d) is less than %s (%d); %s will be used as the initial number of executors",
-				initPath, *initialExecutors, minPath, *minExecutors, minPath))
-		}
-		if maxValid && maxExecutors != nil && *initialExecutors > *maxExecutors {
-			warnings = append(warnings, fmt.Sprintf("%s (%d) is greater than %s (%d); %s will be used as the initial number of executors",
-				initPath, *initialExecutors, maxPath, *maxExecutors, initPath))
-		}
+	if minValid && minExecutors != nil && initialExecutors != nil && *initialExecutors < *minExecutors {
+		warnings = append(warnings, fmt.Sprintf("%s (%d) is less than %s (%d); %s will be used as the initial number of executors",
+			initPath, *initialExecutors, minPath, *minExecutors, minPath))
 	}
-	if maxValid && executorInstances != nil && maxExecutors != nil && *executorInstances > *maxExecutors {
-		warnings = append(warnings, fmt.Sprintf("%s (%d) is greater than %s (%d); %s will be used as the initial number of executors",
-			instPath, *executorInstances, maxPath, *maxExecutors, instPath))
+
+	// Spark's actual initial executor count is max(minExecutors, initialExecutors, executorInstances);
+	// that's what must not exceed maxExecutors, not the individual fields.
+	if maxValid && maxExecutors != nil {
+		var initialTarget int32
+		if minValid && minExecutors != nil && *minExecutors > initialTarget {
+			initialTarget = *minExecutors
+		}
+		if initialExecutors != nil && *initialExecutors > initialTarget {
+			initialTarget = *initialExecutors
+		}
+		if executorInstances != nil && *executorInstances > initialTarget {
+			initialTarget = *executorInstances
+		}
+		if initialTarget > *maxExecutors {
+			errs = append(errs, fmt.Errorf("the initial number of executors, max(%s, %s, %s) = %d, cannot be greater than %s (%d)",
+				minPath, initPath, instPath, initialTarget, maxPath, *maxExecutors))
+		}
 	}
 
 	return warnings, errors.Join(errs...)
+}
+
+// parseSparkBoolean matches Spark's ConfigBuilder.toBoolean, which only accepts "true"/"false"
+// (case-insensitive, trimmed) unlike the more permissive strconv.ParseBool.
+func parseSparkBoolean(value string) (bool, error) {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "true":
+		return true, nil
+	case "false":
+		return false, nil
+	default:
+		return false, strconv.ErrSyntax
+	}
 }
 
 // mergeAndValidateDynamicAllocation merges the CRD DynamicAllocation field and Executor.Instances
@@ -85,56 +116,59 @@ func mergeAndValidateDynamicAllocation(root *field.Path, crdEnabled bool, crdMin
 	var confEnabled bool
 	if value, ok := sparkConf[common.SparkDynamicAllocationEnabled]; ok {
 		var err error
-		if confEnabled, err = strconv.ParseBool(value); err != nil {
-			enabledPath := root.Child("dynamicAllocation", "enabled")
-			return nil, fmt.Errorf("%s (%s) must be a boolean, got %q", enabledPath, common.SparkDynamicAllocationEnabled, value)
+		if confEnabled, err = parseSparkBoolean(value); err != nil {
+			return nil, fmt.Errorf("%s must be a boolean, got %q", sparkConfFieldRef(common.SparkDynamicAllocationEnabled), value)
 		}
 	}
 	if !crdEnabled && !confEnabled {
 		return nil, nil
 	}
 
-	confMinExecutors, confMaxExecutors, confInitialExecutors, confExecutorInstances, err := parseDynamicAllocationSparkConf(root, sparkConf)
+	confMinExecutors, confMaxExecutors, confInitialExecutors, confExecutorInstances, err := parseDynamicAllocationSparkConf(sparkConf)
 	if err != nil {
 		return nil, err
 	}
 
-	minExecutors, maxExecutors, initialExecutors, executorInstances := confMinExecutors, confMaxExecutors, confInitialExecutors, confExecutorInstances
+	minExecutors, minRef := confMinExecutors, sparkConfFieldRef(common.SparkDynamicAllocationMinExecutors)
+	maxExecutors, maxRef := confMaxExecutors, sparkConfFieldRef(common.SparkDynamicAllocationMaxExecutors)
+	initialExecutors, initRef := confInitialExecutors, sparkConfFieldRef(common.SparkDynamicAllocationInitialExecutors)
+	executorInstances, instRef := confExecutorInstances, sparkConfFieldRef(common.SparkExecutorInstances)
+
 	if crdEnabled {
 		if crdMinExecutors != nil {
-			minExecutors = crdMinExecutors
+			minExecutors, minRef = crdMinExecutors, crdFieldRef(root.Child("dynamicAllocation", "minExecutors"))
 		}
 		if crdMaxExecutors != nil {
-			maxExecutors = crdMaxExecutors
+			maxExecutors, maxRef = crdMaxExecutors, crdFieldRef(root.Child("dynamicAllocation", "maxExecutors"))
 		}
 		if crdInitialExecutors != nil {
-			initialExecutors = crdInitialExecutors
+			initialExecutors, initRef = crdInitialExecutors, crdFieldRef(root.Child("dynamicAllocation", "initialExecutors"))
 		}
 	}
 	if crdExecutorInstances != nil {
-		executorInstances = crdExecutorInstances
+		executorInstances, instRef = crdExecutorInstances, crdFieldRef(root.Child("executor", "instances"))
 	}
 
-	return validateDynamicAllocation(root, minExecutors, maxExecutors, initialExecutors, executorInstances)
+	return validateDynamicAllocation(minRef, maxRef, initRef, instRef, minExecutors, maxExecutors, initialExecutors, executorInstances)
 }
 
 // parseDynamicAllocationSparkConf extracts dynamic allocation executor bounds and executor
-// instances from sparkConf, unvalidated. All malformed values are collected and reported together
-// rather than failing on the first one encountered.
-func parseDynamicAllocationSparkConf(root *field.Path, sparkConf map[string]string) (minExecutors, maxExecutors, initialExecutors, executorInstances *int32, err error) {
+// instances from sparkConf, unvalidated.
+func parseDynamicAllocationSparkConf(sparkConf map[string]string) (minExecutors, maxExecutors, initialExecutors, executorInstances *int32, err error) {
 	var errs []error
 
-	parse := func(path *field.Path, key string) *int32 {
+	parse := func(key string) *int32 {
 		value, ok := sparkConf[key]
 		if !ok {
 			return nil
 		}
-		n, parseErr := strconv.ParseInt(value, 10, 32)
+		ref := sparkConfFieldRef(key)
+		n, parseErr := strconv.ParseInt(strings.TrimSpace(value), 10, 32)
 		if parseErr != nil {
 			if errors.Is(parseErr, strconv.ErrRange) {
-				errs = append(errs, fmt.Errorf("%s (%s) must be within the range of a 32-bit integer, got %q", path, key, value))
+				errs = append(errs, fmt.Errorf("%s must be within the range of a 32-bit integer, got %q", ref, value))
 			} else {
-				errs = append(errs, fmt.Errorf("%s (%s) must be an integer, got %q", path, key, value))
+				errs = append(errs, fmt.Errorf("%s must be an integer, got %q", ref, value))
 			}
 			return nil
 		}
@@ -142,10 +176,10 @@ func parseDynamicAllocationSparkConf(root *field.Path, sparkConf map[string]stri
 		return &result
 	}
 
-	minExecutors = parse(root.Child("dynamicAllocation", "minExecutors"), common.SparkDynamicAllocationMinExecutors)
-	maxExecutors = parse(root.Child("dynamicAllocation", "maxExecutors"), common.SparkDynamicAllocationMaxExecutors)
-	initialExecutors = parse(root.Child("dynamicAllocation", "initialExecutors"), common.SparkDynamicAllocationInitialExecutors)
-	executorInstances = parse(root.Child("executor", "instances"), common.SparkExecutorInstances)
+	minExecutors = parse(common.SparkDynamicAllocationMinExecutors)
+	maxExecutors = parse(common.SparkDynamicAllocationMaxExecutors)
+	initialExecutors = parse(common.SparkDynamicAllocationInitialExecutors)
+	executorInstances = parse(common.SparkExecutorInstances)
 
 	return minExecutors, maxExecutors, initialExecutors, executorInstances, errors.Join(errs...)
 }

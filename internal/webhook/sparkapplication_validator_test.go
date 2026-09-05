@@ -133,12 +133,8 @@ func TestSparkApplicationValidatorValidateCreate_DynamicAllocationInitialGreater
 		InitialExecutors: ptr.To[int32](6),
 	}
 
-	warnings, err := validator.ValidateCreate(context.Background(), app)
-	if err != nil {
-		t.Fatalf("expected no error when initialExecutors > maxExecutors, got %v", err)
-	}
-	if len(warnings) != 1 || !strings.Contains(warnings[0], "is greater than") || !strings.Contains(warnings[0], "maxExecutors") {
-		t.Fatalf("expected initialExecutors > maxExecutors warning, got %v", warnings)
+	if _, err := validator.ValidateCreate(context.Background(), app); err == nil || !strings.Contains(err.Error(), "cannot be greater than") || !strings.Contains(err.Error(), "maxExecutors") {
+		t.Fatalf("expected initial target > maxExecutors validation error, got %v", err)
 	}
 }
 
@@ -616,12 +612,8 @@ func TestSparkApplicationValidatorSparkConf_DynamicAllocationInitialGreaterThanM
 		common.SparkDynamicAllocationInitialExecutors: "6",
 	}
 
-	warnings, err := validator.ValidateCreate(context.Background(), app)
-	if err != nil {
-		t.Fatalf("expected no error when initialExecutors > maxExecutors, got %v", err)
-	}
-	if len(warnings) != 1 || !strings.Contains(warnings[0], "is greater than") || !strings.Contains(warnings[0], "maxExecutors") {
-		t.Fatalf("expected initialExecutors > maxExecutors warning, got %v", warnings)
+	if _, err := validator.ValidateCreate(context.Background(), app); err == nil || !strings.Contains(err.Error(), "cannot be greater than") || !strings.Contains(err.Error(), "maxExecutors") {
+		t.Fatalf("expected initial target > maxExecutors validation error, got %v", err)
 	}
 }
 
@@ -659,6 +651,22 @@ func TestSparkApplicationValidatorSparkConf_DynamicAllocationNonInteger(t *testi
 	}
 }
 
+func TestSparkApplicationValidatorSparkConf_DynamicAllocationIntegerTrimmed(t *testing.T) {
+	validator := newTestValidator(t, false)
+
+	// Spark's ConfigBuilder trims whitespace before parsing integers.
+	app := newSparkApplication()
+	app.Spec.SparkConf = map[string]string{
+		common.SparkDynamicAllocationEnabled:      "true",
+		common.SparkDynamicAllocationMinExecutors: "5",
+		common.SparkDynamicAllocationMaxExecutors: " 2 ",
+	}
+
+	if _, err := validator.ValidateCreate(context.Background(), app); err == nil || !strings.Contains(err.Error(), "cannot be greater than") {
+		t.Fatalf("expected \" 2 \" to be parsed as 2, got %v", err)
+	}
+}
+
 func TestSparkApplicationValidatorSparkConf_DynamicAllocationEnabledNonBoolean(t *testing.T) {
 	validator := newTestValidator(t, false)
 
@@ -669,6 +677,36 @@ func TestSparkApplicationValidatorSparkConf_DynamicAllocationEnabledNonBoolean(t
 
 	if _, err := validator.ValidateCreate(context.Background(), app); err == nil || !strings.Contains(err.Error(), "must be a boolean") {
 		t.Fatalf("expected non-boolean enabled validation error, got %v", err)
+	}
+}
+
+func TestSparkApplicationValidatorSparkConf_DynamicAllocationEnabledStricterThanParseBool(t *testing.T) {
+	validator := newTestValidator(t, false)
+
+	// Spark's ConfigBuilder.toBoolean only accepts "true"/"false" (case-insensitively, after
+	// trimming), unlike Go's strconv.ParseBool which also accepts "1", "0", "t", "f", etc.
+	app := newSparkApplication()
+	app.Spec.SparkConf = map[string]string{
+		common.SparkDynamicAllocationEnabled: "1",
+	}
+
+	if _, err := validator.ValidateCreate(context.Background(), app); err == nil || !strings.Contains(err.Error(), "must be a boolean") {
+		t.Fatalf("expected \"1\" to be rejected as a non-boolean, got %v", err)
+	}
+}
+
+func TestSparkApplicationValidatorSparkConf_DynamicAllocationEnabledCaseInsensitiveTrimmed(t *testing.T) {
+	validator := newTestValidator(t, false)
+
+	app := newSparkApplication()
+	app.Spec.SparkConf = map[string]string{
+		common.SparkDynamicAllocationEnabled:      " TRUE ",
+		common.SparkDynamicAllocationMinExecutors: "5",
+		common.SparkDynamicAllocationMaxExecutors: "2",
+	}
+
+	if _, err := validator.ValidateCreate(context.Background(), app); err == nil || !strings.Contains(err.Error(), "cannot be greater than") {
+		t.Fatalf("expected \" TRUE \" to be accepted as enabled=true, got %v", err)
 	}
 }
 

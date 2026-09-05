@@ -209,12 +209,8 @@ func TestSparkConnectValidatorValidateCreate_DynamicAllocationInitialGreaterThan
 		MaxExecutors:     ptr.To[int32](10),
 	}
 
-	warnings, err := validator.ValidateCreate(context.Background(), sc)
-	if err != nil {
-		t.Fatalf("expected no error when initialExecutors > maxExecutors, got %v", err)
-	}
-	if len(warnings) != 1 || !strings.Contains(warnings[0], "is greater than") || !strings.Contains(warnings[0], "maxExecutors") {
-		t.Fatalf("expected initialExecutors > maxExecutors warning, got %v", warnings)
+	if _, err := validator.ValidateCreate(context.Background(), sc); err == nil || !strings.Contains(err.Error(), "cannot be greater than") || !strings.Contains(err.Error(), "maxExecutors") {
+		t.Fatalf("expected initial target > maxExecutors validation error, got %v", err)
 	}
 }
 
