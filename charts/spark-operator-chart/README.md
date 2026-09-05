@@ -71,6 +71,12 @@ This removes all the Kubernetes resources associated with the chart and deletes 
 
 See [helm uninstall](https://helm.sh/docs/helm/helm_uninstall) for command documentation.
 
+## URL Validation and SSRF
+
+URL-scheme validation is opt-in and disabled by default. Setting allowed schemes or hosts does not enable it. Set `webhook.urlSchemeValidation.enable=true` to validate declared application and dependency URLs.
+
+This validation reduces server-side request forgery (SSRF) risk, but it is not a complete SSRF defense. It checks only the supported fetch-capable fields at admission time. It does not restrict ports, inspect runtime application traffic, prevent DNS rebinding, validate redirect destinations, or protect against a compromised allowed host. Use restricted egress, least-privilege identities, and trusted artifact sources with this feature. See [Validating Remote Dependency URLs](../../docs/website/user-guide/url-scheme-validation.md) for the validation scope and configuration guidance.
+
 ## Values
 
 | Key | Type | Default | Description |
@@ -175,9 +181,9 @@ See [helm uninstall](https://helm.sh/docs/helm/helm_uninstall) for command docum
 | webhook.kubeAPIQPS | int | `20` | Maximum QPS to the API server from the controller client. |
 | webhook.kubeAPIBurst | int | `30` | Maximum burst for throttle from the controller client. |
 | webhook.resourceQuotaEnforcement.enable | bool | `false` | Specifies whether to enable the ResourceQuota enforcement for SparkApplication resources. |
-| webhook.urlSchemeValidation.enable | bool | `false` | Specifies whether to enable URL-scheme validation of fetch-capable SparkApplication and ScheduledSparkApplication template fields (submit-time spec.sparkConf keys, spec.deps.*, spec.mainApplicationFile) at admission time. Opt-in and disabled by default so existing applications using remote schemes are not rejected on upgrade. |
+| webhook.urlSchemeValidation.enable | bool | `false` | Specifies whether to enable URL-scheme validation of fetch-capable SparkApplication and ScheduledSparkApplication template fields (submit-time spec.sparkConf keys, spec.deps.*, spec.mainApplicationFile) at admission time. Opt-in and disabled by default so existing applications using remote schemes are not rejected on upgrade. This reduces SSRF risk for the checked fields, but it is not a complete SSRF defense. Use restricted egress and least-privilege identities with this feature. |
 | webhook.urlSchemeValidation.allowedSchemes | list | `[]` | URL schemes permitted in fetch-capable SparkApplication fields when validation is enabled. Remote URLs must also match allowedHosts or allowedWildcardHosts unless their scheme is in allowedSchemesAnyHost. |
-| webhook.urlSchemeValidation.allowedSchemesAnyHost | list | `[]` | Allowed URL schemes permitted to access any host, such as `s3a` where a VPC endpoint and network policy constrain reachable buckets. Each scheme must also appear in allowedSchemes. |
+| webhook.urlSchemeValidation.allowedSchemesAnyHost | list | `[]` | Allowed URL schemes permitted to access any host. Each scheme must also appear in allowedSchemes. Use only when separate network and service authorization policies constrain the endpoints and resources that the scheme can access. |
 | webhook.urlSchemeValidation.allowedHosts | list | `[]` | Exact scheme-qualified URL hosts permitted in fetch-capable SparkApplication fields when validation is enabled, such as `https://repo.example.com` or `s3a://bucket`. Empty host lists deny all remote URLs. |
 | webhook.urlSchemeValidation.allowedWildcardHosts | list | `[]` | Scheme-qualified leftmost wildcard URL hosts permitted in fetch-capable SparkApplication fields when validation is enabled, such as `https://*.maven.apache.org`. Empty host lists deny all remote URLs. |
 | webhook.serviceAccount.create | bool | `true` | Specifies whether to create a service account for the webhook. |

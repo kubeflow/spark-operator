@@ -5,7 +5,9 @@
 #   kustomize build config/overlays/url-scheme-validation/ | kubectl apply --server-side -f -
 #
 # It builds on config/default and appends --enable-url-scheme-validation=true to
-# the webhook args. The flag defaults to false in the binary.
+# the webhook args. The flag defaults to false in the binary. This validation
+# reduces SSRF risk for declared fetch URLs, but it is not a complete defense.
+# Also enforce restricted egress and least-privilege identities.
 
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
