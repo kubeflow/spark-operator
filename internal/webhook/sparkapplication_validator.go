@@ -67,17 +67,18 @@ func (v *SparkApplicationValidator) ValidateCreate(ctx context.Context, app *v1b
 	if err := v.validateName(app.Name); err != nil {
 		return nil, err
 	}
-	if err := v.validateSpec(ctx, app); err != nil {
-		return nil, err
+	warnings, err = v.validateSpec(ctx, app)
+	if err != nil {
+		return warnings, err
 	}
 
 	if v.enableResourceQuotaEnforcement {
 		if err := v.validateResourceUsage(ctx, app); err != nil {
-			return nil, err
+			return warnings, err
 		}
 	}
 
-	return nil, nil
+	return warnings, nil
 }
 
 // ValidateUpdate implements admission.Validator.
@@ -99,18 +100,19 @@ func (v *SparkApplicationValidator) ValidateUpdate(ctx context.Context, oldApp *
 		return nil, nil
 	}
 
-	if err := v.validateSpec(ctx, newApp); err != nil {
-		return nil, err
+	warnings, err = v.validateSpec(ctx, newApp)
+	if err != nil {
+		return warnings, err
 	}
 
 	// Validate SparkApplication resource usage when resource quota enforcement is enabled.
 	if v.enableResourceQuotaEnforcement {
 		if err := v.validateResourceUsage(ctx, newApp); err != nil {
-			return nil, err
+			return warnings, err
 		}
 	}
 
-	return nil, nil
+	return warnings, nil
 }
 
 // ValidateDelete implements admission.Validator.
@@ -124,44 +126,51 @@ func (v *SparkApplicationValidator) ValidateDelete(ctx context.Context, app *v1b
 	return nil, nil
 }
 
-func (v *SparkApplicationValidator) validateSpec(ctx context.Context, app *v1beta2.SparkApplication) error {
+func (v *SparkApplicationValidator) validateSpec(ctx context.Context, app *v1beta2.SparkApplication) (admission.Warnings, error) {
 	if err := v.validateSparkVersion(app); err != nil {
-		return err
+		return nil, err
 	}
 
 	if app.Spec.NodeSelector != nil && (app.Spec.Driver.NodeSelector != nil || app.Spec.Executor.NodeSelector != nil) {
-		return fmt.Errorf("node selector cannot be defined at both SparkApplication and Driver/Executor")
+		return nil, fmt.Errorf("node selector cannot be defined at both SparkApplication and Driver/Executor")
 	}
 
 	servicePorts := make(map[int32]bool)
 	ingressURLFormats := make(map[string]bool)
 	for _, item := range app.Spec.DriverIngressOptions {
 		if item.ServicePort == nil {
-			return fmt.Errorf("DriverIngressOptions has nill ServicePort")
+			return nil, fmt.Errorf("DriverIngressOptions has nill ServicePort")
 		}
 		if servicePorts[*item.ServicePort] {
-			return fmt.Errorf("DriverIngressOptions has duplicate ServicePort: %d", *item.ServicePort)
+			return nil, fmt.Errorf("DriverIngressOptions has duplicate ServicePort: %d", *item.ServicePort)
 		}
 		servicePorts[*item.ServicePort] = true
 
 		if item.IngressURLFormat == "" {
-			return fmt.Errorf("DriverIngressOptions has empty IngressURLFormat")
+			return nil, fmt.Errorf("DriverIngressOptions has empty IngressURLFormat")
 		}
 		if ingressURLFormats[item.IngressURLFormat] {
-			return fmt.Errorf("DriverIngressOptions has duplicate IngressURLFormat: %s", item.IngressURLFormat)
+			return nil, fmt.Errorf("DriverIngressOptions has duplicate IngressURLFormat: %s", item.IngressURLFormat)
 		}
 		ingressURLFormats[item.IngressURLFormat] = true
 	}
 
 	if err := validateSparkConf(app.Spec.SparkConf, app.Namespace); err != nil {
-		return err
+		return nil, err
 	}
 
 	if err := validateConfigMaps(&app.Spec, field.NewPath("spec")); err != nil {
-		return err
+		return nil, err
 	}
 
-	return nil
+	var daEnabled bool
+	var daMinExecutors, daMaxExecutors, daInitialExecutors *int32
+	if da := app.Spec.DynamicAllocation; da != nil {
+		daEnabled = da.Enabled
+		daMinExecutors, daMaxExecutors, daInitialExecutors = da.MinExecutors, da.MaxExecutors, da.InitialExecutors
+	}
+
+	return mergeAndValidateDynamicAllocation(field.NewPath("spec"), daEnabled, daMinExecutors, daMaxExecutors, daInitialExecutors, app.Spec.Executor.Instances, app.Spec.SparkConf)
 }
 
 // validateName ensures the SparkApplication metadata.name is a valid DNS-1035 label

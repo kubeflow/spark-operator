@@ -24,6 +24,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/util/validation"
+	"k8s.io/apimachinery/pkg/util/validation/field"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
@@ -60,11 +61,12 @@ func (v *SparkConnectValidator) ValidateCreate(ctx context.Context, sc *v1alpha1
 		return nil, err
 	}
 
-	if err := v.validateSpec(sc); err != nil {
+	warnings, err = v.validateSpec(sc)
+	if err != nil {
 		return nil, err
 	}
 
-	return nil, nil
+	return warnings, nil
 }
 
 // ValidateUpdate implements admission.Validator.
@@ -86,11 +88,12 @@ func (v *SparkConnectValidator) ValidateUpdate(ctx context.Context, oldSC *v1alp
 		return nil, nil
 	}
 
-	if err := v.validateSpec(newSC); err != nil {
+	warnings, err = v.validateSpec(newSC)
+	if err != nil {
 		return nil, err
 	}
 
-	return nil, nil
+	return warnings, nil
 }
 
 // ValidateDelete implements admission.Validator.
@@ -128,37 +131,40 @@ func (v *SparkConnectValidator) validateName(name string) error {
 }
 
 // validateSpec validates the SparkConnect spec.
-func (v *SparkConnectValidator) validateSpec(sc *v1alpha1.SparkConnect) error {
+func (v *SparkConnectValidator) validateSpec(sc *v1alpha1.SparkConnect) (admission.Warnings, error) {
 	// Validate SparkVersion
 	if err := v.validateSparkVersion(sc); err != nil {
-		return err
+		return nil, err
 	}
 
 	// Validate image availability
 	if err := v.validateImage(sc); err != nil {
-		return err
-	}
-
-	// Validate DynamicAllocation
-	if err := v.validateDynamicAllocation(sc); err != nil {
-		return err
+		return nil, err
 	}
 
 	// Validate Server spec
 	if err := v.validateServerSpec(sc); err != nil {
-		return err
+		return nil, err
 	}
 
 	// Validate Executor spec
 	if err := v.validateExecutorSpec(sc); err != nil {
-		return err
+		return nil, err
 	}
 
 	if err := validateSparkConf(sc.Spec.SparkConf, sc.Namespace); err != nil {
-		return err
+		return nil, err
 	}
 
-	return nil
+	// Validate DynamicAllocation, merged with the equivalent sparkConf values.
+	var daEnabled bool
+	var daMinExecutors, daMaxExecutors, daInitialExecutors *int32
+	if da := sc.Spec.DynamicAllocation; da != nil {
+		daEnabled = da.Enabled
+		daMinExecutors, daMaxExecutors, daInitialExecutors = da.MinExecutors, da.MaxExecutors, da.InitialExecutors
+	}
+
+	return mergeAndValidateDynamicAllocation(field.NewPath("spec"), daEnabled, daMinExecutors, daMaxExecutors, daInitialExecutors, sc.Spec.Executor.Instances, sc.Spec.SparkConf)
 }
 
 // validateSparkVersion validates the Spark version.
@@ -209,47 +215,6 @@ func podTemplateContainerImage(template *corev1.PodTemplateSpec, containerName s
 		containerName,
 	)
 	return container.Image
-}
-
-// validateDynamicAllocation validates DynamicAllocation configuration.
-func (v *SparkConnectValidator) validateDynamicAllocation(sc *v1alpha1.SparkConnect) error {
-	da := sc.Spec.DynamicAllocation
-	if da == nil || !da.Enabled {
-		return nil
-	}
-
-	// Validate minExecutors <= maxExecutors
-	if da.MinExecutors != nil && da.MaxExecutors != nil {
-		if *da.MinExecutors > *da.MaxExecutors {
-			return fmt.Errorf("dynamicAllocation.minExecutors (%d) cannot be greater than dynamicAllocation.maxExecutors (%d)",
-				*da.MinExecutors, *da.MaxExecutors)
-		}
-	}
-
-	// Validate initialExecutors is within range
-	if da.InitialExecutors != nil {
-		if da.MinExecutors != nil && *da.InitialExecutors < *da.MinExecutors {
-			return fmt.Errorf("dynamicAllocation.initialExecutors (%d) cannot be less than dynamicAllocation.minExecutors (%d)",
-				*da.InitialExecutors, *da.MinExecutors)
-		}
-		if da.MaxExecutors != nil && *da.InitialExecutors > *da.MaxExecutors {
-			return fmt.Errorf("dynamicAllocation.initialExecutors (%d) cannot be greater than dynamicAllocation.maxExecutors (%d)",
-				*da.InitialExecutors, *da.MaxExecutors)
-		}
-	}
-
-	// Validate non-negative values
-	if da.MinExecutors != nil && *da.MinExecutors < 0 {
-		return fmt.Errorf("dynamicAllocation.minExecutors must be non-negative, got %d", *da.MinExecutors)
-	}
-	if da.MaxExecutors != nil && *da.MaxExecutors < 0 {
-		return fmt.Errorf("dynamicAllocation.maxExecutors must be non-negative, got %d", *da.MaxExecutors)
-	}
-	if da.InitialExecutors != nil && *da.InitialExecutors < 0 {
-		return fmt.Errorf("dynamicAllocation.initialExecutors must be non-negative, got %d", *da.InitialExecutors)
-	}
-
-	return nil
 }
 
 // validateServerSpec validates the Server specification.
