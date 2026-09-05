@@ -18,11 +18,8 @@ package webhook
 
 import (
 	"context"
-	"fmt"
-	"strings"
 
 	"k8s.io/apimachinery/pkg/api/equality"
-	"k8s.io/apimachinery/pkg/util/validation"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
@@ -33,6 +30,8 @@ import (
 // NOTE: The 'path' attribute must follow a specific pattern and should not be modified directly here.
 // Modifying the path for an invalid path can cause API server errors; failing to locate the webhook.
 // +kubebuilder:webhook:admissionReviewVersions=v1,failurePolicy=fail,groups=sparkoperator.k8s.io,matchPolicy=Exact,mutating=false,name=validate-scheduledsparkapplication.sparkoperator.k8s.io,path=/validate-sparkoperator-k8s-io-v1beta2-scheduledsparkapplication,reinvocationPolicy=Never,resources=scheduledsparkapplications,sideEffects=None,verbs=create;update,versions=v1beta2,webhookVersions=v1
+
+var scheduledSparkApplicationGroupKind = v1beta2.SchemeGroupVersion.WithKind("ScheduledSparkApplication").GroupKind()
 
 type ScheduledSparkApplicationValidator struct{}
 
@@ -52,10 +51,10 @@ func (v *ScheduledSparkApplicationValidator) ValidateCreate(ctx context.Context,
 	logger := log.FromContext(ctx)
 	logger.Info("Validating ScheduledSparkApplication create")
 	// Validate metadata.name early to prevent downstream Service creation failures
-	if err := v.validateName(app.Name); err != nil {
+	if err := newInvalidError(scheduledSparkApplicationGroupKind, app.Name, validateObjectName(app.Name)); err != nil {
 		return nil, err
 	}
-	if err := v.validate(app); err != nil {
+	if err := newInvalidError(scheduledSparkApplicationGroupKind, app.Name, v.validate(app)); err != nil {
 		return nil, err
 	}
 	return nil, nil
@@ -70,7 +69,7 @@ func (v *ScheduledSparkApplicationValidator) ValidateUpdate(ctx context.Context,
 	logger := log.FromContext(ctx)
 	logger.Info("Validating ScheduledSparkApplication update")
 	// Name is immutable in Kubernetes, but validate anyway for safety in case of admission reconcilers
-	if err := v.validateName(newApp.Name); err != nil {
+	if err := newInvalidError(scheduledSparkApplicationGroupKind, newApp.Name, validateObjectName(newApp.Name)); err != nil {
 		return nil, err
 	}
 
@@ -79,7 +78,7 @@ func (v *ScheduledSparkApplicationValidator) ValidateUpdate(ctx context.Context,
 		return nil, nil
 	}
 
-	if err := v.validate(newApp); err != nil {
+	if err := newInvalidError(scheduledSparkApplicationGroupKind, newApp.Name, v.validate(newApp)); err != nil {
 		return nil, err
 	}
 	return nil, nil
@@ -96,19 +95,11 @@ func (v *ScheduledSparkApplicationValidator) ValidateDelete(ctx context.Context,
 	return nil, nil
 }
 
-func (v *ScheduledSparkApplicationValidator) validate(app *v1beta2.ScheduledSparkApplication) error {
-	if err := validateSparkConf(app.Spec.Template.SparkConf, app.Namespace); err != nil {
-		return err
-	}
-	return validateConfigMaps(&app.Spec.Template, field.NewPath("spec", "template"))
-}
+func (v *ScheduledSparkApplicationValidator) validate(app *v1beta2.ScheduledSparkApplication) field.ErrorList {
+	templatePath := field.NewPath("spec", "template")
 
-// validateName ensures the ScheduledSparkApplication metadata.name, when combined with suffixes,
-// results in a valid DNS-1035 label for Kubernetes Service names. This prevents failures later
-// when creating SparkApplication resources that require DNS-1035 compliant names.
-func (v *ScheduledSparkApplicationValidator) validateName(name string) error {
-	if errs := validation.IsDNS1035Label(name); len(errs) > 0 {
-		return fmt.Errorf("invalid ScheduledSparkApplication name %q: %s", name, strings.Join(errs, ", "))
+	if errs := validateSparkConf(templatePath.Child("sparkConf"), app.Spec.Template.SparkConf, app.Namespace); len(errs) > 0 {
+		return errs
 	}
-	return nil
+	return validateConfigMaps(&app.Spec.Template, templatePath)
 }
