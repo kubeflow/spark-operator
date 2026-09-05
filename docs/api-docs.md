@@ -1622,7 +1622,7 @@ string
 </td>
 <td>
 <em>(Optional)</em>
-<p>PriorityClassName stands for the name of k8s PriorityClass resource, it&rsquo;s being used in Volcano batch scheduler.</p>
+<p>PriorityClassName is the name of the Kubernetes PriorityClass used by the Volcano and workload batch schedulers.</p>
 </td>
 </tr>
 <tr>
@@ -1638,6 +1638,23 @@ Kubernetes core/v1.ResourceList
 <em>(Optional)</em>
 <p>Resources stands for the resource list custom request for. Usually it is used to define the lower-bound limit.
 If specified, volcano scheduler will consider it as the resources requested.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>minMember</code><br/>
+<em>
+int32
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>MinMember overrides the computed gang minCount for the &ldquo;workload&rdquo; batch scheduler.
+By default, minCount is the initial requested executor count as computed by
+GetInitialExecutorNumber (DRA-aware), clamped to at least 1. The cluster-mode
+driver is excluded to avoid a bootstrap deadlock while it creates executors.
+Only consumed by the &ldquo;workload&rdquo; backend; ignored by Volcano, YuniKorn, and
+kube-scheduler backends.</p>
 </td>
 </tr>
 </tbody>

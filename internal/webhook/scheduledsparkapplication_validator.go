@@ -55,10 +55,12 @@ func (v *ScheduledSparkApplicationValidator) ValidateCreate(ctx context.Context,
 	if err := v.validateName(app.Name); err != nil {
 		return nil, err
 	}
-	if err := v.validate(app); err != nil {
+	w, err := v.validate(app)
+	if err != nil {
 		return nil, err
 	}
-	return nil, nil
+	warnings = append(warnings, w...)
+	return warnings, nil
 }
 
 // ValidateUpdate implements admission.Validator.
@@ -79,10 +81,12 @@ func (v *ScheduledSparkApplicationValidator) ValidateUpdate(ctx context.Context,
 		return nil, nil
 	}
 
-	if err := v.validate(newApp); err != nil {
+	w, err := v.validate(newApp)
+	if err != nil {
 		return nil, err
 	}
-	return nil, nil
+	warnings = append(warnings, w...)
+	return warnings, nil
 }
 
 // ValidateDelete implements admission.Validator.
@@ -96,11 +100,26 @@ func (v *ScheduledSparkApplicationValidator) ValidateDelete(ctx context.Context,
 	return nil, nil
 }
 
-func (v *ScheduledSparkApplicationValidator) validate(app *v1beta2.ScheduledSparkApplication) error {
+func (v *ScheduledSparkApplicationValidator) validate(app *v1beta2.ScheduledSparkApplication) (admission.Warnings, error) {
+	var warnings admission.Warnings
+
 	if err := validateSparkConf(app.Spec.Template.SparkConf, app.Namespace); err != nil {
-		return err
+		return nil, err
 	}
-	return validateConfigMaps(&app.Spec.Template, field.NewPath("spec", "template"))
+	if err := validateConfigMaps(&app.Spec.Template, field.NewPath("spec", "template")); err != nil {
+		return nil, err
+	}
+
+	// Apply workload scheduler validation to the template using a temporary wrapper
+	w, err := validateWorkloadSchedulerFields(&v1beta2.SparkApplication{
+		Spec: app.Spec.Template,
+	})
+	if err != nil {
+		return nil, err
+	}
+	warnings = append(warnings, w...)
+
+	return warnings, nil
 }
 
 // validateName ensures the ScheduledSparkApplication metadata.name, when combined with suffixes,

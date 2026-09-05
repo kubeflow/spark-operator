@@ -1,19 +1,3 @@
-/*
-Copyright 2025 The Kubeflow authors.
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    https://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
-
 package webhook
 
 import (
@@ -462,7 +446,6 @@ func TestSparkApplicationValidatorSparkConf_BenignKeysPass(t *testing.T) {
 		})
 	}
 }
-
 func TestSparkApplicationValidatorValidateCreate_ConfigMapNames(t *testing.T) {
 	validator := newTestValidator(t, false)
 
@@ -601,4 +584,113 @@ func configMapRefs(names ...string) []v1beta2.NamePath {
 		refs = append(refs, v1beta2.NamePath{Name: name, Path: fmt.Sprintf("/etc/spark/conf%d", i)})
 	}
 	return refs
+}
+
+func TestValidateWorkloadSchedulerFields(t *testing.T) {
+	tests := []struct {
+		name         string
+		modifyApp    func(app *v1beta2.SparkApplication)
+		wantErr      bool
+		errContains  string
+		wantWarns    int
+		warnContains string
+	}{
+		{
+			name:      "unset (pass)",
+			modifyApp: func(app *v1beta2.SparkApplication) {},
+			wantErr:   false,
+		},
+		{
+			name: "queue + workload (warn, not reject)",
+			modifyApp: func(app *v1beta2.SparkApplication) {
+				workload := "workload"
+				app.Spec.BatchScheduler = &workload
+				queue := "my-queue"
+				app.Spec.BatchSchedulerOptions = &v1beta2.BatchSchedulerConfiguration{
+					Queue: &queue,
+				}
+			},
+			wantErr:      false,
+			wantWarns:    1,
+			warnContains: "batchSchedulerOptions.queue has no effect when batchScheduler is \"workload\"",
+		},
+		{
+			name: "queue + volcano (no warning - regression check)",
+			modifyApp: func(app *v1beta2.SparkApplication) {
+				volcano := "volcano"
+				app.Spec.BatchScheduler = &volcano
+				queue := "my-queue"
+				app.Spec.BatchSchedulerOptions = &v1beta2.BatchSchedulerConfiguration{
+					Queue: &queue,
+				}
+			},
+			wantErr:   false,
+			wantWarns: 0,
+		},
+		{
+			name: "zero minMember (reject)",
+			modifyApp: func(app *v1beta2.SparkApplication) {
+				app.Spec.BatchSchedulerOptions = &v1beta2.BatchSchedulerConfiguration{
+					MinMember: ptr.To[int32](0),
+				}
+			},
+			wantErr:     true,
+			errContains: "minMember must be greater than or equal to 1",
+		},
+		{
+			name: "negative minMember (reject)",
+			modifyApp: func(app *v1beta2.SparkApplication) {
+				app.Spec.BatchSchedulerOptions = &v1beta2.BatchSchedulerConfiguration{
+					MinMember: ptr.To[int32](-1),
+				}
+			},
+			wantErr:     true,
+			errContains: "minMember must be greater than or equal to 1",
+		},
+		{
+			name: "positive minMember (pass)",
+			modifyApp: func(app *v1beta2.SparkApplication) {
+				app.Spec.BatchScheduler = ptr.To("workload")
+				app.Spec.BatchSchedulerOptions = &v1beta2.BatchSchedulerConfiguration{
+					MinMember: ptr.To[int32](5),
+				}
+			},
+			wantErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			app := newSparkApplication()
+			tt.modifyApp(app)
+
+			warnings, err := validateWorkloadSchedulerFields(app)
+			if tt.wantErr {
+				if err == nil {
+					t.Fatalf("expected error containing %q, got nil", tt.errContains)
+				}
+				if !strings.Contains(err.Error(), tt.errContains) {
+					t.Errorf("expected error containing %q, got %q", tt.errContains, err.Error())
+				}
+			} else if err != nil {
+				t.Fatalf("expected no error, got %v", err)
+			}
+
+			if len(warnings) != tt.wantWarns {
+				t.Errorf("expected %d warnings, got %d: %v", tt.wantWarns, len(warnings), warnings)
+			}
+			if tt.wantWarns > 0 && tt.warnContains != "" {
+				found := false
+				for _, w := range warnings {
+					if strings.Contains(w, tt.warnContains) {
+						found = true
+						break
+					}
+				}
+				if !found {
+					t.Errorf("expected warning containing %q, got warnings: %v", tt.warnContains, warnings)
+				}
+			}
+		})
+	}
 }
