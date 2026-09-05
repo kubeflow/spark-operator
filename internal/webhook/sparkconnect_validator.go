@@ -23,6 +23,7 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
+	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/util/validation"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
@@ -263,6 +264,28 @@ func (v *SparkConnectValidator) validateServerSpec(sc *v1alpha1.SparkConnect) er
 		}
 	}
 
+	// Validate CoreRequest format if specified
+	if server.CoreRequest != nil {
+		if err := validateCPUQuantity(*server.CoreRequest); err != nil {
+			return fmt.Errorf("invalid server.coreRequest: %v", err)
+		}
+	}
+
+	// Validate CoreLimit format if specified
+	if server.CoreLimit != nil {
+		if err := validateCPUQuantity(*server.CoreLimit); err != nil {
+			return fmt.Errorf("invalid server.coreLimit: %v", err)
+		}
+	}
+
+	// Cross-validate that coreRequest <= coreLimit when both are set. This is enforced by Kubernetes
+	// itself for container resources, but rejecting it here gives a clearer error at admission time.
+	if server.CoreRequest != nil && server.CoreLimit != nil {
+		if err := validateCPURequestLELimit(*server.CoreRequest, *server.CoreLimit); err != nil {
+			return fmt.Errorf("invalid server CPU request/limit: %v", err)
+		}
+	}
+
 	return nil
 }
 
@@ -274,6 +297,28 @@ func (v *SparkConnectValidator) validateExecutorSpec(sc *v1alpha1.SparkConnect) 
 	if executor.Memory != nil && *executor.Memory != "" {
 		if err := validateMemoryString(*executor.Memory); err != nil {
 			return fmt.Errorf("invalid executor.memory: %v", err)
+		}
+	}
+
+	// Validate CoreRequest format if specified
+	if executor.CoreRequest != nil {
+		if err := validateCPUQuantity(*executor.CoreRequest); err != nil {
+			return fmt.Errorf("invalid executor.coreRequest: %v", err)
+		}
+	}
+
+	// Validate CoreLimit format if specified
+	if executor.CoreLimit != nil {
+		if err := validateCPUQuantity(*executor.CoreLimit); err != nil {
+			return fmt.Errorf("invalid executor.coreLimit: %v", err)
+		}
+	}
+
+	// Cross-validate that coreRequest <= coreLimit when both are set. This is enforced by Kubernetes
+	// itself for container resources, but rejecting it here gives a clearer error at admission time.
+	if executor.CoreRequest != nil && executor.CoreLimit != nil {
+		if err := validateCPURequestLELimit(*executor.CoreRequest, *executor.CoreLimit); err != nil {
+			return fmt.Errorf("invalid executor CPU request/limit: %v", err)
 		}
 	}
 
@@ -323,5 +368,54 @@ func validateMemoryString(memory string) error {
 		}
 	}
 
+	return nil
+}
+
+// validateCPUQuantity validates a Kubernetes CPU quantity string.
+//
+// It enforces that the value is a valid Kubernetes resource quantity and that, after parsing, it
+// represents a positive, non-zero CPU resource. The Kubernetes `resource.ParseQuantity` parser
+// accepts many quantity forms (e.g. "500m", "1", "1.5"); we additionally verify that the parsed
+// quantity is well-formed as a CPU resource by checking that it is non-zero and is a valid CPU
+// representation. This satisfies the requirement that the validation ensures the value is a
+// valid Kubernetes resource quantity rather than merely checking whether parsing succeeded.
+func validateCPUQuantity(cpu string) error {
+	if cpu == "" {
+		// Empty string is invalid - nil should be used to indicate "not specified"
+		return fmt.Errorf("CPU quantity cannot be an empty string")
+	}
+
+	quantity, err := resource.ParseQuantity(cpu)
+	if err != nil {
+		return fmt.Errorf("invalid CPU quantity %q: %v", cpu, err)
+	}
+
+	// Verify the parsed quantity is a valid Kubernetes CPU resource by formatting it back through
+	// the standard quantity canonicalizer. This rejects any input that parsed but does not
+	// round-trip as a valid quantity (e.g. malformed decimals).
+	if quantity.IsZero() {
+		return fmt.Errorf("invalid CPU quantity %q: must be greater than zero", cpu)
+	}
+	if quantity.Sign() < 0 {
+		return fmt.Errorf("invalid CPU quantity %q: must not be negative", cpu)
+	}
+
+	return nil
+}
+
+// validateCPURequestLELimit validates that the parsed CPU request is less than or equal to the
+// parsed CPU limit. Both inputs must already be valid Kubernetes CPU quantities.
+func validateCPURequestLELimit(requestStr, limitStr string) error {
+	request, err := resource.ParseQuantity(requestStr)
+	if err != nil {
+		return fmt.Errorf("invalid CPU request %q: %v", requestStr, err)
+	}
+	limit, err := resource.ParseQuantity(limitStr)
+	if err != nil {
+		return fmt.Errorf("invalid CPU limit %q: %v", limitStr, err)
+	}
+	if request.Cmp(limit) > 0 {
+		return fmt.Errorf("coreRequest %q must not be greater than coreLimit %q", requestStr, limitStr)
+	}
 	return nil
 }

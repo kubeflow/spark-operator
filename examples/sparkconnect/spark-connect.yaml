@@ -13,6 +13,26 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+#
+# This example shows the difference between Spark `cores` (task-slot count)
+# and Kubernetes `coreRequest`/`coreLimit` (physical CPU request/limit):
+#
+#   - `cores` controls the Spark task-slot count via `spark.driver.cores` and
+#     `spark.executor.cores`. It is independent of physical CPU.
+#
+#   - For the server, the operator creates the pod directly (client mode setup),
+#     so `server.coreRequest`/`server.coreLimit` are applied to the operator-created
+#     server pod's `resources.requests.cpu` / `resources.limits.cpu`. They do NOT
+#     become `spark.kubernetes.driver.{request,limit}.cores`.
+#
+#   - For the executor, Spark creates the executor pods, so `executor.coreRequest`
+#     and `executor.coreLimit` are passed to Spark as
+#     `spark.kubernetes.executor.{request,limit}.cores`, which Spark uses to set
+#     `resources.requests.cpu` / `resources.limits.cpu` on the executor pods.
+#
+#   - The values below are deliberately different for `coreRequest` and
+#     `coreLimit` to demonstrate that they can be set independently.
+#
 apiVersion: sparkoperator.k8s.io/v1alpha1
 kind: SparkConnect
 metadata:
@@ -21,6 +41,14 @@ metadata:
 spec:
   sparkVersion: 4.0.4
   server:
+    # Spark task-slot count for the driver. Independent of physical CPU.
+    cores: 1
+    # Operator-applied Kubernetes CPU request/limit for the operator-created
+    # server pod. coreRequest (500m) is intentionally smaller than coreLimit
+    # (1) to show they can differ.
+    coreRequest: "500m"
+    coreLimit: "1"
+    memory: 1g
     template:
       metadata:
         labels:
@@ -34,12 +62,15 @@ spec:
         - name: spark-kubernetes-driver
           image: docker.io/apache/spark:4.0.4
           imagePullPolicy: Always
+          # Note: server.coreRequest/server.coreLimit above override the CPU
+          # values here. Other resource keys (memory, ephemeral-storage) on
+          # the template are preserved.
           resources:
             requests:
-              cpu: 1
+              cpu: 100m
               memory: 1Gi
             limits:
-              cpu: 1
+              cpu: 100m
               memory: 1Gi
         serviceAccount: spark-operator-spark
         securityContext:
@@ -54,7 +85,14 @@ spec:
             type: RuntimeDefault
   executor:
     instances: 2
-    cores: 1
+    # Spark task-slot count for executors. Independent of physical CPU.
+    cores: 2
+    # Maps to `spark.kubernetes.executor.{request,limit}.cores` and is
+    # applied by Spark when it creates the executor pods. The values
+    # `500m` and `1500m` differ to illustrate that coreRequest can be
+    # smaller than coreLimit.
+    coreRequest: "500m"
+    coreLimit: "1500m"
     memory: 512m
     template:
       metadata:

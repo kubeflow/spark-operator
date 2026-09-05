@@ -25,6 +25,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -376,6 +377,14 @@ func (r *Reconciler) mutateServerPod(ctx context.Context, conn *v1alpha1.SparkCo
 			pod.Spec.Containers,
 			common.SparkDriverContainerName,
 		)
+
+		// Setup Kubernetes CPU resources for the Connect server container.
+		// The server pod is created by the operator as part of the client mode setup, so
+		// server.coreRequest/server.coreLimit are applied directly to the pod spec instead of
+		// being mapped to spark.kubernetes.driver.{request,limit}.cores Spark configuration.
+		if err := setupServerContainerResources(container, conn); err != nil {
+			return err
+		}
 		// Setup image.
 		if container.Image == "" {
 			if conn.Spec.Image == nil || *conn.Spec.Image == "" {
@@ -468,6 +477,38 @@ func (r *Reconciler) mutateServerPod(ctx context.Context, conn *v1alpha1.SparkCo
 		pod.Labels[key] = val
 	}
 	pod.Labels[common.LabelSparkVersion] = conn.Spec.SparkVersion
+
+	return nil
+}
+
+// setupServerContainerResources sets the Kubernetes CPU resource request/limit on the
+// Spark Connect server container.
+//
+// The operator creates the server pod directly as part of the client mode setup, so unlike
+// executor pods (which are created by Spark and configured via Spark configuration), the server
+// CPU resources must be applied to the pod spec by the operator.
+func setupServerContainerResources(container *corev1.Container, conn *v1alpha1.SparkConnect) error {
+	if conn.Spec.Server.CoreRequest != nil {
+		quantity, err := resource.ParseQuantity(*conn.Spec.Server.CoreRequest)
+		if err != nil {
+			return fmt.Errorf("failed to parse server.coreRequest %q: %v", *conn.Spec.Server.CoreRequest, err)
+		}
+		if container.Resources.Requests == nil {
+			container.Resources.Requests = corev1.ResourceList{}
+		}
+		container.Resources.Requests[corev1.ResourceCPU] = quantity
+	}
+
+	if conn.Spec.Server.CoreLimit != nil {
+		quantity, err := resource.ParseQuantity(*conn.Spec.Server.CoreLimit)
+		if err != nil {
+			return fmt.Errorf("failed to parse server.coreLimit %q: %v", *conn.Spec.Server.CoreLimit, err)
+		}
+		if container.Resources.Limits == nil {
+			container.Resources.Limits = corev1.ResourceList{}
+		}
+		container.Resources.Limits[corev1.ResourceCPU] = quantity
+	}
 
 	return nil
 }

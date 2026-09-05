@@ -435,9 +435,23 @@ func schema_spark_operator_v2_api_v1alpha1_ExecutorSpec(ref common.ReferenceCall
 				Properties: map[string]spec.Schema{
 					"cores": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Cores maps to `spark.driver.cores` or `spark.executor.cores` for the driver and executors, respectively.",
+							Description: "Cores maps to `spark.driver.cores` or `spark.executor.cores` for the driver and executors, respectively. Cores represents Spark task-slot/JVM concurrency and is independent of physical Kubernetes CPU requests and limits.",
 							Type:        []string{"integer"},
 							Format:      "int32",
+						},
+					},
+					"coreRequest": {
+						SchemaProps: spec.SchemaProps{
+							Description: "CoreRequest specifies the physical CPU request for the pod, controlling the Kubernetes CPU request. This is independent of `cores` (which controls the Spark task-slot count via `spark.driver.cores` or `spark.executor.cores`) and is validated as a Kubernetes resource quantity.\n\nFor a SparkConnect server, the operator creates the server pod directly as part of the client mode setup, so `coreRequest` is applied directly to the operator-created server pod's container `resources.requests.cpu`. For a SparkConnect executor, executor pods are created by Spark, so `coreRequest` is mapped to the Spark configuration key `spark.kubernetes.executor.request.cores`, which Spark uses to set `resources.requests.cpu` on the executor pods.\n\nPrecedence (server only): if both this field and `spec.server.template.spec.containers[name=spark-kubernetes-driver].resources.requests.cpu` are set, this field wins for the CPU key. Other resource keys (memory, ephemeral-storage, etc.) on the template are preserved unchanged, matching the `addMemoryLimit` resource-merge convention used elsewhere in the project.\n\nValid values follow Kubernetes quantity format (e.g., \"500m\", \"1\", \"1.5\"). The value must be non-zero and, when `coreLimit` is also set, must not exceed `coreLimit`.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"coreLimit": {
+						SchemaProps: spec.SchemaProps{
+							Description: "CoreLimit specifies the physical CPU limit for the pod, controlling the Kubernetes CPU limit. This is independent of `cores` (which controls the Spark task-slot count via `spark.driver.cores` or `spark.executor.cores`) and is validated as a Kubernetes resource quantity.\n\nFor a SparkConnect server, the operator creates the server pod directly as part of the client mode setup, so `coreLimit` is applied directly to the operator-created server pod's container `resources.limits.cpu`. For a SparkConnect executor, executor pods are created by Spark, so `coreLimit` is mapped to the Spark configuration key `spark.kubernetes.executor.limit.cores`, which Spark uses to set `resources.limits.cpu` on the executor pods.\n\nPrecedence (server only): if both this field and `spec.server.template.spec.containers[name=spark-kubernetes-driver].resources.limits.cpu` are set, this field wins for the CPU key. Other resource keys (memory, ephemeral-storage, etc.) on the template are preserved unchanged, matching the `addMemoryLimit` resource-merge convention used elsewhere in the project.\n\nValid values follow Kubernetes quantity format (e.g., \"500m\", \"1\", \"1.5\"). The value must be non-zero and, when `coreRequest` is also set, must be greater than or equal to `coreRequest`.",
+							Type:        []string{"string"},
+							Format:      "",
 						},
 					},
 					"memory": {
@@ -477,9 +491,23 @@ func schema_spark_operator_v2_api_v1alpha1_ServerSpec(ref common.ReferenceCallba
 				Properties: map[string]spec.Schema{
 					"cores": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Cores maps to `spark.driver.cores` or `spark.executor.cores` for the driver and executors, respectively.",
+							Description: "Cores maps to `spark.driver.cores` or `spark.executor.cores` for the driver and executors, respectively. Cores represents Spark task-slot/JVM concurrency and is independent of physical Kubernetes CPU requests and limits.",
 							Type:        []string{"integer"},
 							Format:      "int32",
+						},
+					},
+					"coreRequest": {
+						SchemaProps: spec.SchemaProps{
+							Description: "CoreRequest specifies the physical CPU request for the pod, controlling the Kubernetes CPU request. This is independent of `cores` (which controls the Spark task-slot count via `spark.driver.cores` or `spark.executor.cores`) and is validated as a Kubernetes resource quantity.\n\nFor a SparkConnect server, the operator creates the server pod directly as part of the client mode setup, so `coreRequest` is applied directly to the operator-created server pod's container `resources.requests.cpu`. For a SparkConnect executor, executor pods are created by Spark, so `coreRequest` is mapped to the Spark configuration key `spark.kubernetes.executor.request.cores`, which Spark uses to set `resources.requests.cpu` on the executor pods.\n\nPrecedence (server only): if both this field and `spec.server.template.spec.containers[name=spark-kubernetes-driver].resources.requests.cpu` are set, this field wins for the CPU key. Other resource keys (memory, ephemeral-storage, etc.) on the template are preserved unchanged, matching the `addMemoryLimit` resource-merge convention used elsewhere in the project.\n\nValid values follow Kubernetes quantity format (e.g., \"500m\", \"1\", \"1.5\"). The value must be non-zero and, when `coreLimit` is also set, must not exceed `coreLimit`.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"coreLimit": {
+						SchemaProps: spec.SchemaProps{
+							Description: "CoreLimit specifies the physical CPU limit for the pod, controlling the Kubernetes CPU limit. This is independent of `cores` (which controls the Spark task-slot count via `spark.driver.cores` or `spark.executor.cores`) and is validated as a Kubernetes resource quantity.\n\nFor a SparkConnect server, the operator creates the server pod directly as part of the client mode setup, so `coreLimit` is applied directly to the operator-created server pod's container `resources.limits.cpu`. For a SparkConnect executor, executor pods are created by Spark, so `coreLimit` is mapped to the Spark configuration key `spark.kubernetes.executor.limit.cores`, which Spark uses to set `resources.limits.cpu` on the executor pods.\n\nPrecedence (server only): if both this field and `spec.server.template.spec.containers[name=spark-kubernetes-driver].resources.limits.cpu` are set, this field wins for the CPU key. Other resource keys (memory, ephemeral-storage, etc.) on the template are preserved unchanged, matching the `addMemoryLimit` resource-merge convention used elsewhere in the project.\n\nValid values follow Kubernetes quantity format (e.g., \"500m\", \"1\", \"1.5\"). The value must be non-zero and, when `coreRequest` is also set, must be greater than or equal to `coreRequest`.",
+							Type:        []string{"string"},
+							Format:      "",
 						},
 					},
 					"memory": {
@@ -812,9 +840,23 @@ func schema_spark_operator_v2_api_v1alpha1_SparkPodSpec(ref common.ReferenceCall
 				Properties: map[string]spec.Schema{
 					"cores": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Cores maps to `spark.driver.cores` or `spark.executor.cores` for the driver and executors, respectively.",
+							Description: "Cores maps to `spark.driver.cores` or `spark.executor.cores` for the driver and executors, respectively. Cores represents Spark task-slot/JVM concurrency and is independent of physical Kubernetes CPU requests and limits.",
 							Type:        []string{"integer"},
 							Format:      "int32",
+						},
+					},
+					"coreRequest": {
+						SchemaProps: spec.SchemaProps{
+							Description: "CoreRequest specifies the physical CPU request for the pod, controlling the Kubernetes CPU request. This is independent of `cores` (which controls the Spark task-slot count via `spark.driver.cores` or `spark.executor.cores`) and is validated as a Kubernetes resource quantity.\n\nFor a SparkConnect server, the operator creates the server pod directly as part of the client mode setup, so `coreRequest` is applied directly to the operator-created server pod's container `resources.requests.cpu`. For a SparkConnect executor, executor pods are created by Spark, so `coreRequest` is mapped to the Spark configuration key `spark.kubernetes.executor.request.cores`, which Spark uses to set `resources.requests.cpu` on the executor pods.\n\nPrecedence (server only): if both this field and `spec.server.template.spec.containers[name=spark-kubernetes-driver].resources.requests.cpu` are set, this field wins for the CPU key. Other resource keys (memory, ephemeral-storage, etc.) on the template are preserved unchanged, matching the `addMemoryLimit` resource-merge convention used elsewhere in the project.\n\nValid values follow Kubernetes quantity format (e.g., \"500m\", \"1\", \"1.5\"). The value must be non-zero and, when `coreLimit` is also set, must not exceed `coreLimit`.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"coreLimit": {
+						SchemaProps: spec.SchemaProps{
+							Description: "CoreLimit specifies the physical CPU limit for the pod, controlling the Kubernetes CPU limit. This is independent of `cores` (which controls the Spark task-slot count via `spark.driver.cores` or `spark.executor.cores`) and is validated as a Kubernetes resource quantity.\n\nFor a SparkConnect server, the operator creates the server pod directly as part of the client mode setup, so `coreLimit` is applied directly to the operator-created server pod's container `resources.limits.cpu`. For a SparkConnect executor, executor pods are created by Spark, so `coreLimit` is mapped to the Spark configuration key `spark.kubernetes.executor.limit.cores`, which Spark uses to set `resources.limits.cpu` on the executor pods.\n\nPrecedence (server only): if both this field and `spec.server.template.spec.containers[name=spark-kubernetes-driver].resources.limits.cpu` are set, this field wins for the CPU key. Other resource keys (memory, ephemeral-storage, etc.) on the template are preserved unchanged, matching the `addMemoryLimit` resource-merge convention used elsewhere in the project.\n\nValid values follow Kubernetes quantity format (e.g., \"500m\", \"1\", \"1.5\"). The value must be non-zero and, when `coreRequest` is also set, must be greater than or equal to `coreRequest`.",
+							Type:        []string{"string"},
+							Format:      "",
 						},
 					},
 					"memory": {
