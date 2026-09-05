@@ -19,6 +19,8 @@ package fake
 
 import (
 	clientset "github.com/kubeflow/spark-operator/v2/pkg/client/clientset/versioned"
+	sparkoperatorv1alpha1 "github.com/kubeflow/spark-operator/v2/pkg/client/clientset/versioned/typed/api/v1alpha1"
+	fakesparkoperatorv1alpha1 "github.com/kubeflow/spark-operator/v2/pkg/client/clientset/versioned/typed/api/v1alpha1/fake"
 	sparkoperatorv1beta2 "github.com/kubeflow/spark-operator/v2/pkg/client/clientset/versioned/typed/api/v1beta2"
 	fakesparkoperatorv1beta2 "github.com/kubeflow/spark-operator/v2/pkg/client/clientset/versioned/typed/api/v1beta2/fake"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -93,6 +95,11 @@ var (
 	_ clientset.Interface = &Clientset{}
 	_ testing.FakeClient  = &Clientset{}
 )
+
+// SparkoperatorV1alpha1 retrieves the SparkoperatorV1alpha1Client
+func (c *Clientset) SparkoperatorV1alpha1() sparkoperatorv1alpha1.SparkoperatorV1alpha1Interface {
+	return &fakesparkoperatorv1alpha1.FakeSparkoperatorV1alpha1{Fake: &c.Fake}
+}
 
 // SparkoperatorV1beta2 retrieves the SparkoperatorV1beta2Client
 func (c *Clientset) SparkoperatorV1beta2() sparkoperatorv1beta2.SparkoperatorV1beta2Interface {

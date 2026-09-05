@@ -1,9 +1,816 @@
 <p>Packages:</p>
 <ul>
 <li>
+<a href="#sparkoperator.k8s.io%2fv1alpha1">sparkoperator.k8s.io/v1alpha1</a>
+</li>
+<li>
 <a href="#sparkoperator.k8s.io%2fv1beta2">sparkoperator.k8s.io/v1beta2</a>
 </li>
 </ul>
+<h2 id="sparkoperator.k8s.io/v1alpha1">sparkoperator.k8s.io/v1alpha1</h2>
+<div>
+<p>Package v1alpha1 is the v1alpha1 version of the API.</p>
+<p>SparkConnect uses the sparkoperator.k8s.io/v1alpha1 API. An alpha API can
+change in a future release.</p>
+</div>
+Resource Types:
+<ul><li>
+<a href="#sparkoperator.k8s.io/v1alpha1.SparkConnect">SparkConnect</a>
+</li></ul>
+<h3 id="sparkoperator.k8s.io/v1alpha1.SparkConnect">SparkConnect
+</h3>
+<div>
+<p>SparkConnect is the Schema for the sparkconnections API.</p>
+</div>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>apiVersion</code><br/>
+string</td>
+<td>
+<code>
+sparkoperator.k8s.io/v1alpha1
+</code>
+</td>
+</tr>
+<tr>
+<td>
+<code>kind</code><br/>
+string
+</td>
+<td><code>SparkConnect</code></td>
+</tr>
+<tr>
+<td>
+<code>metadata</code><br/>
+<em>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.24/#objectmeta-v1-meta">
+Kubernetes meta/v1.ObjectMeta
+</a>
+</em>
+</td>
+<td>
+Refer to the Kubernetes API documentation for the fields of the
+<code>metadata</code> field.
+</td>
+</tr>
+<tr>
+<td>
+<code>spec</code><br/>
+<em>
+<a href="#sparkoperator.k8s.io/v1alpha1.SparkConnectSpec">
+SparkConnectSpec
+</a>
+</em>
+</td>
+<td>
+<br/>
+<br/>
+<table>
+<tr>
+<td>
+<code>sparkVersion</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<p>SparkVersion is the version of Spark the spark connect use.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>image</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Image is the container image for the driver, executor, and init-container. Any custom container images for the
+driver, executor, or init-container takes precedence over this.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>hadoopConf</code><br/>
+<em>
+map[string]string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>HadoopConf carries user-specified Hadoop configuration properties as they would use the &ldquo;&ndash;conf&rdquo; option
+in spark-submit. The SparkApplication controller automatically adds prefix &ldquo;spark.hadoop.&rdquo; to Hadoop
+configuration properties.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>sparkConf</code><br/>
+<em>
+map[string]string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>SparkConf carries user-specified Spark configuration properties as they would use the &ldquo;&ndash;conf&rdquo; option in
+spark-submit.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>server</code><br/>
+<em>
+<a href="#sparkoperator.k8s.io/v1alpha1.ServerSpec">
+ServerSpec
+</a>
+</em>
+</td>
+<td>
+<p>Server is the Spark connect server specification.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>executor</code><br/>
+<em>
+<a href="#sparkoperator.k8s.io/v1alpha1.ExecutorSpec">
+ExecutorSpec
+</a>
+</em>
+</td>
+<td>
+<p>Executor is the Spark executor specification.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>dynamicAllocation</code><br/>
+<em>
+<a href="#sparkoperator.k8s.io/v1alpha1.DynamicAllocation">
+DynamicAllocation
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>DynamicAllocation configures dynamic allocation that becomes available for the Kubernetes
+scheduler backend since Spark 3.0.</p>
+</td>
+</tr>
+</table>
+</td>
+</tr>
+<tr>
+<td>
+<code>status</code><br/>
+<em>
+<a href="#sparkoperator.k8s.io/v1alpha1.SparkConnectStatus">
+SparkConnectStatus
+</a>
+</em>
+</td>
+<td>
+</td>
+</tr>
+</tbody>
+</table>
+<h3 id="sparkoperator.k8s.io/v1alpha1.DeployMode">DeployMode
+(<code>string</code> alias)</h3>
+<div>
+<p>DeployMode describes the type of deployment of a Spark application.</p>
+</div>
+<table>
+<thead>
+<tr>
+<th>Value</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr><td><p>&#34;client&#34;</p></td>
+<td></td>
+</tr><tr><td><p>&#34;cluster&#34;</p></td>
+<td></td>
+</tr></tbody>
+</table>
+<h3 id="sparkoperator.k8s.io/v1alpha1.DriverState">DriverState
+(<code>string</code> alias)</h3>
+<div>
+<p>DriverState tells the current state of a spark driver.</p>
+</div>
+<table>
+<thead>
+<tr>
+<th>Value</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr><td><p>&#34;COMPLETED&#34;</p></td>
+<td></td>
+</tr><tr><td><p>&#34;FAILED&#34;</p></td>
+<td></td>
+</tr><tr><td><p>&#34;PENDING&#34;</p></td>
+<td></td>
+</tr><tr><td><p>&#34;RUNNING&#34;</p></td>
+<td></td>
+</tr><tr><td><p>&#34;UNKNOWN&#34;</p></td>
+<td></td>
+</tr></tbody>
+</table>
+<h3 id="sparkoperator.k8s.io/v1alpha1.DynamicAllocation">DynamicAllocation
+</h3>
+<p>
+(<em>Appears on:</em><a href="#sparkoperator.k8s.io/v1alpha1.SparkConnectSpec">SparkConnectSpec</a>)
+</p>
+<div>
+<p>DynamicAllocation contains configuration options for dynamic allocation.</p>
+</div>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>enabled</code><br/>
+<em>
+bool
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Enabled controls whether dynamic allocation is enabled or not.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>initialExecutors</code><br/>
+<em>
+int32
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>InitialExecutors is the initial number of executors to request. If .spec.executor.instances
+is also set, the initial number of executors is set to the bigger of that and this option.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>minExecutors</code><br/>
+<em>
+int32
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>MinExecutors is the lower bound for the number of executors if dynamic allocation is enabled.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>maxExecutors</code><br/>
+<em>
+int32
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>MaxExecutors is the upper bound for the number of executors if dynamic allocation is enabled.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>shuffleTrackingEnabled</code><br/>
+<em>
+bool
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>ShuffleTrackingEnabled enables shuffle file tracking for executors, which allows dynamic allocation without
+the need for an external shuffle service. This option will try to keep alive executors that are storing
+shuffle data for active jobs. If external shuffle service is enabled, set ShuffleTrackingEnabled to false.
+ShuffleTrackingEnabled is true by default if dynamicAllocation.enabled is true.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>shuffleTrackingTimeout</code><br/>
+<em>
+int64
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>ShuffleTrackingTimeout controls the timeout in milliseconds for executors that are holding
+shuffle data if shuffle tracking is enabled (true by default if dynamic allocation is enabled).</p>
+</td>
+</tr>
+</tbody>
+</table>
+<h3 id="sparkoperator.k8s.io/v1alpha1.ExecutorSpec">ExecutorSpec
+</h3>
+<p>
+(<em>Appears on:</em><a href="#sparkoperator.k8s.io/v1alpha1.SparkConnectSpec">SparkConnectSpec</a>)
+</p>
+<div>
+<p>ExecutorSpec is specification of the executor.</p>
+</div>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>SparkPodSpec</code><br/>
+<em>
+<a href="#sparkoperator.k8s.io/v1alpha1.SparkPodSpec">
+SparkPodSpec
+</a>
+</em>
+</td>
+<td>
+<p>
+(Members of <code>SparkPodSpec</code> are embedded into this type.)
+</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>instances</code><br/>
+<em>
+int32
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Instances is the number of executor instances.</p>
+</td>
+</tr>
+</tbody>
+</table>
+<h3 id="sparkoperator.k8s.io/v1alpha1.ExecutorState">ExecutorState
+(<code>string</code> alias)</h3>
+<div>
+<p>ExecutorState tells the current state of an executor.</p>
+</div>
+<table>
+<thead>
+<tr>
+<th>Value</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr><td><p>&#34;COMPLETED&#34;</p></td>
+<td></td>
+</tr><tr><td><p>&#34;FAILED&#34;</p></td>
+<td></td>
+</tr><tr><td><p>&#34;PENDING&#34;</p></td>
+<td></td>
+</tr><tr><td><p>&#34;RUNNING&#34;</p></td>
+<td></td>
+</tr><tr><td><p>&#34;UNKNOWN&#34;</p></td>
+<td></td>
+</tr></tbody>
+</table>
+<h3 id="sparkoperator.k8s.io/v1alpha1.ServerSpec">ServerSpec
+</h3>
+<p>
+(<em>Appears on:</em><a href="#sparkoperator.k8s.io/v1alpha1.SparkConnectSpec">SparkConnectSpec</a>)
+</p>
+<div>
+<p>ServerSpec is specification of the Spark connect server.</p>
+</div>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>SparkPodSpec</code><br/>
+<em>
+<a href="#sparkoperator.k8s.io/v1alpha1.SparkPodSpec">
+SparkPodSpec
+</a>
+</em>
+</td>
+<td>
+<p>
+(Members of <code>SparkPodSpec</code> are embedded into this type.)
+</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>service</code><br/>
+<em>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.24/#service-v1-core">
+Kubernetes core/v1.Service
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Service exposes the Spark connect server.</p>
+</td>
+</tr>
+</tbody>
+</table>
+<h3 id="sparkoperator.k8s.io/v1alpha1.SparkConnectConditionReason">SparkConnectConditionReason
+(<code>string</code> alias)</h3>
+<div>
+<p>SparkConnectConditionReason represents the reason of SparkConnect conditions.</p>
+</div>
+<table>
+<thead>
+<tr>
+<th>Value</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr><td><p>&#34;ServerPodNotReady&#34;</p></td>
+<td></td>
+</tr><tr><td><p>&#34;ServerPodReady&#34;</p></td>
+<td></td>
+</tr></tbody>
+</table>
+<h3 id="sparkoperator.k8s.io/v1alpha1.SparkConnectConditionType">SparkConnectConditionType
+(<code>string</code> alias)</h3>
+<div>
+<p>SparkConnectConditionType represents the condition types of the SparkConnect.</p>
+</div>
+<table>
+<thead>
+<tr>
+<th>Value</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr><td><p>&#34;ServerPodReady&#34;</p></td>
+<td></td>
+</tr></tbody>
+</table>
+<h3 id="sparkoperator.k8s.io/v1alpha1.SparkConnectServerStatus">SparkConnectServerStatus
+</h3>
+<p>
+(<em>Appears on:</em><a href="#sparkoperator.k8s.io/v1alpha1.SparkConnectStatus">SparkConnectStatus</a>)
+</p>
+<div>
+</div>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>podName</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<p>PodName is the name of the pod that is running the Spark Connect server.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>podIp</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<p>PodIP is the IP address of the pod that is running the Spark Connect server.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>serviceName</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<p>ServiceName is the name of the service that is exposing the Spark Connect server.</p>
+</td>
+</tr>
+</tbody>
+</table>
+<h3 id="sparkoperator.k8s.io/v1alpha1.SparkConnectSpec">SparkConnectSpec
+</h3>
+<p>
+(<em>Appears on:</em><a href="#sparkoperator.k8s.io/v1alpha1.SparkConnect">SparkConnect</a>)
+</p>
+<div>
+<p>SparkConnectSpec defines the desired state of SparkConnect.</p>
+</div>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>sparkVersion</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<p>SparkVersion is the version of Spark the spark connect use.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>image</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Image is the container image for the driver, executor, and init-container. Any custom container images for the
+driver, executor, or init-container takes precedence over this.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>hadoopConf</code><br/>
+<em>
+map[string]string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>HadoopConf carries user-specified Hadoop configuration properties as they would use the &ldquo;&ndash;conf&rdquo; option
+in spark-submit. The SparkApplication controller automatically adds prefix &ldquo;spark.hadoop.&rdquo; to Hadoop
+configuration properties.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>sparkConf</code><br/>
+<em>
+map[string]string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>SparkConf carries user-specified Spark configuration properties as they would use the &ldquo;&ndash;conf&rdquo; option in
+spark-submit.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>server</code><br/>
+<em>
+<a href="#sparkoperator.k8s.io/v1alpha1.ServerSpec">
+ServerSpec
+</a>
+</em>
+</td>
+<td>
+<p>Server is the Spark connect server specification.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>executor</code><br/>
+<em>
+<a href="#sparkoperator.k8s.io/v1alpha1.ExecutorSpec">
+ExecutorSpec
+</a>
+</em>
+</td>
+<td>
+<p>Executor is the Spark executor specification.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>dynamicAllocation</code><br/>
+<em>
+<a href="#sparkoperator.k8s.io/v1alpha1.DynamicAllocation">
+DynamicAllocation
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>DynamicAllocation configures dynamic allocation that becomes available for the Kubernetes
+scheduler backend since Spark 3.0.</p>
+</td>
+</tr>
+</tbody>
+</table>
+<h3 id="sparkoperator.k8s.io/v1alpha1.SparkConnectState">SparkConnectState
+(<code>string</code> alias)</h3>
+<p>
+(<em>Appears on:</em><a href="#sparkoperator.k8s.io/v1alpha1.SparkConnectStatus">SparkConnectStatus</a>)
+</p>
+<div>
+<p>SparkConnectState represents the current state of the SparkConnect.</p>
+</div>
+<table>
+<thead>
+<tr>
+<th>Value</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr><td><p>&#34;Failed&#34;</p></td>
+<td></td>
+</tr><tr><td><p>&#34;&#34;</p></td>
+<td></td>
+</tr><tr><td><p>&#34;NotReady&#34;</p></td>
+<td></td>
+</tr><tr><td><p>&#34;Provisioning&#34;</p></td>
+<td></td>
+</tr><tr><td><p>&#34;Ready&#34;</p></td>
+<td></td>
+</tr></tbody>
+</table>
+<h3 id="sparkoperator.k8s.io/v1alpha1.SparkConnectStatus">SparkConnectStatus
+</h3>
+<p>
+(<em>Appears on:</em><a href="#sparkoperator.k8s.io/v1alpha1.SparkConnect">SparkConnect</a>)
+</p>
+<div>
+<p>SparkConnectStatus defines the observed state of SparkConnect.</p>
+</div>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>conditions</code><br/>
+<em>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.24/#condition-v1-meta">
+[]Kubernetes meta/v1.Condition
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Represents the latest available observations of a SparkConnect&rsquo;s current state.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>state</code><br/>
+<em>
+<a href="#sparkoperator.k8s.io/v1alpha1.SparkConnectState">
+SparkConnectState
+</a>
+</em>
+</td>
+<td>
+<p>State represents the current state of the SparkConnect.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>server</code><br/>
+<em>
+<a href="#sparkoperator.k8s.io/v1alpha1.SparkConnectServerStatus">
+SparkConnectServerStatus
+</a>
+</em>
+</td>
+<td>
+<p>Server represents the current state of the SparkConnect server.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>executors</code><br/>
+<em>
+map[string]int
+</em>
+</td>
+<td>
+<p>Executors represents the current state of the SparkConnect executors.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>startTime</code><br/>
+<em>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.24/#time-v1-meta">
+Kubernetes meta/v1.Time
+</a>
+</em>
+</td>
+<td>
+<p>StartTime is the time at which the SparkConnect controller started processing the SparkConnect.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>lastUpdateTime</code><br/>
+<em>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.24/#time-v1-meta">
+Kubernetes meta/v1.Time
+</a>
+</em>
+</td>
+<td>
+<p>LastUpdateTime is the time at which the SparkConnect controller last updated the SparkConnect.</p>
+</td>
+</tr>
+</tbody>
+</table>
+<h3 id="sparkoperator.k8s.io/v1alpha1.SparkPodSpec">SparkPodSpec
+</h3>
+<p>
+(<em>Appears on:</em><a href="#sparkoperator.k8s.io/v1alpha1.ExecutorSpec">ExecutorSpec</a>, <a href="#sparkoperator.k8s.io/v1alpha1.ServerSpec">ServerSpec</a>)
+</p>
+<div>
+<p>SparkPodSpec defines common things that can be customized for a Spark driver or executor pod.</p>
+</div>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>cores</code><br/>
+<em>
+int32
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Cores maps to <code>spark.driver.cores</code> or <code>spark.executor.cores</code> for the driver and executors, respectively.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>memory</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Memory is the amount of memory to request for the pod.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>template</code><br/>
+<em>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.24/#podtemplatespec-v1-core">
+Kubernetes core/v1.PodTemplateSpec
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Template is a pod template that can be used to define the driver or executor pod configurations that Spark configurations do not support.
+Spark version &gt;= 3.0.0 is required.
+Ref: <a href="https://spark.apache.org/docs/latest/running-on-kubernetes.html#pod-template">https://spark.apache.org/docs/latest/running-on-kubernetes.html#pod-template</a>.</p>
+</td>
+</tr>
+</tbody>
+</table>
+<hr/>
 <h2 id="sparkoperator.k8s.io/v1beta2">sparkoperator.k8s.io/v1beta2</h2>
 <div>
 <p>Package v1beta2 is the v1beta2 version of the API.</p>

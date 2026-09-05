@@ -21,6 +21,7 @@ import (
 	fmt "fmt"
 	http "net/http"
 
+	sparkoperatorv1alpha1 "github.com/kubeflow/spark-operator/v2/pkg/client/clientset/versioned/typed/api/v1alpha1"
 	sparkoperatorv1beta2 "github.com/kubeflow/spark-operator/v2/pkg/client/clientset/versioned/typed/api/v1beta2"
 	discovery "k8s.io/client-go/discovery"
 	rest "k8s.io/client-go/rest"
@@ -29,13 +30,20 @@ import (
 
 type Interface interface {
 	Discovery() discovery.DiscoveryInterface
+	SparkoperatorV1alpha1() sparkoperatorv1alpha1.SparkoperatorV1alpha1Interface
 	SparkoperatorV1beta2() sparkoperatorv1beta2.SparkoperatorV1beta2Interface
 }
 
 // Clientset contains the clients for groups.
 type Clientset struct {
 	*discovery.DiscoveryClient
-	sparkoperatorV1beta2 *sparkoperatorv1beta2.SparkoperatorV1beta2Client
+	sparkoperatorV1alpha1 *sparkoperatorv1alpha1.SparkoperatorV1alpha1Client
+	sparkoperatorV1beta2  *sparkoperatorv1beta2.SparkoperatorV1beta2Client
+}
+
+// SparkoperatorV1alpha1 retrieves the SparkoperatorV1alpha1Client
+func (c *Clientset) SparkoperatorV1alpha1() sparkoperatorv1alpha1.SparkoperatorV1alpha1Interface {
+	return c.sparkoperatorV1alpha1
 }
 
 // SparkoperatorV1beta2 retrieves the SparkoperatorV1beta2Client
@@ -87,6 +95,10 @@ func NewForConfigAndClient(c *rest.Config, httpClient *http.Client) (*Clientset,
 
 	var cs Clientset
 	var err error
+	cs.sparkoperatorV1alpha1, err = sparkoperatorv1alpha1.NewForConfigAndClient(&configShallowCopy, httpClient)
+	if err != nil {
+		return nil, err
+	}
 	cs.sparkoperatorV1beta2, err = sparkoperatorv1beta2.NewForConfigAndClient(&configShallowCopy, httpClient)
 	if err != nil {
 		return nil, err
@@ -112,6 +124,7 @@ func NewForConfigOrDie(c *rest.Config) *Clientset {
 // New creates a new Clientset for the given RESTClient.
 func New(c rest.Interface) *Clientset {
 	var cs Clientset
+	cs.sparkoperatorV1alpha1 = sparkoperatorv1alpha1.New(c)
 	cs.sparkoperatorV1beta2 = sparkoperatorv1beta2.New(c)
 
 	cs.DiscoveryClient = discovery.NewDiscoveryClient(c)
