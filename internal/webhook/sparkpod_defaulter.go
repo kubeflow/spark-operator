@@ -335,10 +335,16 @@ func addGeneralConfigMaps(pod *corev1.Pod, app *v1beta2.SparkApplication) error 
 		configMaps = app.Spec.Executor.ConfigMaps
 	}
 
+	// A ConfigMap listed under several mount paths needs a single volume: one volume per
+	// entry would repeat its name, which the API server rejects.
+	volumeAdded := make(map[string]bool, len(configMaps))
 	for _, namePath := range configMaps {
 		volumeName := getConfigMapVolumeName(namePath.Name)
-		if err := addConfigMapVolume(pod, namePath.Name, volumeName); err != nil {
-			return err
+		if !volumeAdded[volumeName] {
+			if err := addConfigMapVolume(pod, namePath.Name, volumeName); err != nil {
+				return err
+			}
+			volumeAdded[volumeName] = true
 		}
 
 		if err := addConfigMapVolumeMount(pod, volumeName, namePath.Path); err != nil {

@@ -27,8 +27,8 @@ import (
 	"github.com/kubeflow/spark-operator/v2/api/v1beta2"
 )
 
-// validateConfigMaps rejects ConfigMap references no ConfigMap could satisfy, and names
-// repeated within one list, which would mount two pod volumes under the same name. Neither
+// validateConfigMaps rejects ConfigMap references no ConfigMap could satisfy, and mount
+// paths repeated within one list, which would mount two volumes at the same place. Neither
 // surfaces before the API server rejects the pod the mutating webhook has already built.
 func validateConfigMaps(spec *v1beta2.SparkApplicationSpec, root *field.Path) error {
 	var errs []error
@@ -52,18 +52,17 @@ func validateConfigMaps(spec *v1beta2.SparkApplicationSpec, root *field.Path) er
 
 func validateConfigMapList(path *field.Path, configMaps []v1beta2.NamePath) []error {
 	var errs []error
-	// A repeated name only collides because the mutating webhook builds one volume per entry.
-	// Once it builds one volume per distinct ConfigMap, mount paths become the thing to keep
-	// unique instead; tracked at https://github.com/kubeflow/spark-operator/issues/3134
+	// One ConfigMap may be mounted at several paths, but a path holds a single volume, so
+	// the name is free to repeat and the path is not.
 	seen := make(map[string]bool, len(configMaps))
 	for i, configMap := range configMaps {
 		if err := validateConfigMapName(path.Index(i).Child("name"), configMap.Name); err != nil {
 			errs = append(errs, err)
 		}
-		if seen[configMap.Name] {
-			errs = append(errs, fmt.Errorf("%s has duplicate ConfigMap name %q", path.Index(i).Child("name"), configMap.Name))
+		if seen[configMap.Path] {
+			errs = append(errs, fmt.Errorf("%s has duplicate mount path %q", path.Index(i).Child("path"), configMap.Path))
 		}
-		seen[configMap.Name] = true
+		seen[configMap.Path] = true
 	}
 	return errs
 }

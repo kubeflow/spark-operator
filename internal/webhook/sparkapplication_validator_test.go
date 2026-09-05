@@ -511,14 +511,36 @@ func TestSparkApplicationValidatorValidateCreate_ConfigMapNames(t *testing.T) {
 			wantErrors: []string{fmt.Sprintf("spec.hadoopConfigMap has invalid ConfigMap name %q", strings.Repeat("a", 254))},
 		},
 		{
-			name: "duplicate driver ConfigMap names",
+			name: "one ConfigMap mounted at two paths",
 			mutate: func(app *v1beta2.SparkApplication) {
-				app.Spec.Driver.ConfigMaps = configMapRefs("spark-conf", "spark-conf")
+				app.Spec.Driver.ConfigMaps = []v1beta2.NamePath{
+					{Name: "spark-conf", Path: "/etc/spark/conf"},
+					{Name: "spark-conf", Path: "/etc/spark/conf-copy"},
+				}
 			},
-			wantErrors: []string{`spec.driver.configMaps[1].name has duplicate ConfigMap name "spark-conf"`},
 		},
 		{
-			name: "same ConfigMap in both driver and executor",
+			name: "same mount path for two driver ConfigMaps",
+			mutate: func(app *v1beta2.SparkApplication) {
+				app.Spec.Driver.ConfigMaps = []v1beta2.NamePath{
+					{Name: "spark-conf", Path: "/etc/spark/conf"},
+					{Name: "extra-conf", Path: "/etc/spark/conf"},
+				}
+			},
+			wantErrors: []string{`spec.driver.configMaps[1].path has duplicate mount path "/etc/spark/conf"`},
+		},
+		{
+			name: "repeated executor ConfigMap entry",
+			mutate: func(app *v1beta2.SparkApplication) {
+				app.Spec.Executor.ConfigMaps = []v1beta2.NamePath{
+					{Name: "spark-conf", Path: "/etc/spark/conf"},
+					{Name: "spark-conf", Path: "/etc/spark/conf"},
+				}
+			},
+			wantErrors: []string{`spec.executor.configMaps[1].path has duplicate mount path "/etc/spark/conf"`},
+		},
+		{
+			name: "same ConfigMap and mount path in both driver and executor",
 			mutate: func(app *v1beta2.SparkApplication) {
 				app.Spec.Driver.ConfigMaps = configMapRefs("spark-conf")
 				app.Spec.Executor.ConfigMaps = configMapRefs("spark-conf")
