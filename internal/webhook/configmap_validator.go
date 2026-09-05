@@ -17,10 +17,6 @@ limitations under the License.
 package webhook
 
 import (
-	"errors"
-	"fmt"
-	"strings"
-
 	"k8s.io/apimachinery/pkg/util/validation"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 
@@ -30,47 +26,39 @@ import (
 // validateConfigMaps rejects ConfigMap references no ConfigMap could satisfy, and names
 // repeated within one list, which would mount two pod volumes under the same name. Neither
 // surfaces before the API server rejects the pod the mutating webhook has already built.
-func validateConfigMaps(spec *v1beta2.SparkApplicationSpec, root *field.Path) error {
-	var errs []error
+func validateConfigMaps(spec *v1beta2.SparkApplicationSpec, root *field.Path) field.ErrorList {
+	var errs field.ErrorList
 
 	if spec.SparkConfigMap != nil {
-		if err := validateConfigMapName(root.Child("sparkConfigMap"), *spec.SparkConfigMap); err != nil {
-			errs = append(errs, err)
-		}
+		errs = append(errs, validateConfigMapName(root.Child("sparkConfigMap"), *spec.SparkConfigMap)...)
 	}
 	if spec.HadoopConfigMap != nil {
-		if err := validateConfigMapName(root.Child("hadoopConfigMap"), *spec.HadoopConfigMap); err != nil {
-			errs = append(errs, err)
-		}
+		errs = append(errs, validateConfigMapName(root.Child("hadoopConfigMap"), *spec.HadoopConfigMap)...)
 	}
 
 	errs = append(errs, validateConfigMapList(root.Child("driver", "configMaps"), spec.Driver.ConfigMaps)...)
 	errs = append(errs, validateConfigMapList(root.Child("executor", "configMaps"), spec.Executor.ConfigMaps)...)
 
-	return errors.Join(errs...)
+	return errs
 }
 
-func validateConfigMapList(path *field.Path, configMaps []v1beta2.NamePath) []error {
-	var errs []error
+func validateConfigMapList(path *field.Path, configMaps []v1beta2.NamePath) field.ErrorList {
+	var errs field.ErrorList
 	// A repeated name only collides because the mutating webhook builds one volume per entry.
 	// Once it builds one volume per distinct ConfigMap, mount paths become the thing to keep
 	// unique instead; tracked at https://github.com/kubeflow/spark-operator/issues/3134
 	seen := make(map[string]bool, len(configMaps))
 	for i, configMap := range configMaps {
-		if err := validateConfigMapName(path.Index(i).Child("name"), configMap.Name); err != nil {
-			errs = append(errs, err)
-		}
+		namePath := path.Index(i).Child("name")
+		errs = append(errs, validateConfigMapName(namePath, configMap.Name)...)
 		if seen[configMap.Name] {
-			errs = append(errs, fmt.Errorf("%s has duplicate ConfigMap name %q", path.Index(i).Child("name"), configMap.Name))
+			errs = append(errs, field.Duplicate(namePath, configMap.Name))
 		}
 		seen[configMap.Name] = true
 	}
 	return errs
 }
 
-func validateConfigMapName(path *field.Path, name string) error {
-	if errs := validation.IsDNS1123Subdomain(name); len(errs) > 0 {
-		return fmt.Errorf("%s has invalid ConfigMap name %q: %s", path, name, strings.Join(errs, ", "))
-	}
-	return nil
+func validateConfigMapName(path *field.Path, name string) field.ErrorList {
+	return newInvalidErrors(path, name, validation.IsDNS1123Subdomain(name))
 }
