@@ -19,6 +19,7 @@ import json
 
 from pydantic import BaseModel, ConfigDict, Field, StrictInt, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional
+from kubeflow_spark_api.models.io_k8s_apimachinery_pkg_apis_meta_v1_shard_info import IoK8sApimachineryPkgApisMetaV1ShardInfo
 from typing import Optional, Set
 from typing_extensions import Self
 
@@ -30,7 +31,8 @@ class IoK8sApimachineryPkgApisMetaV1ListMeta(BaseModel):
     remaining_item_count: Optional[StrictInt] = Field(default=None, description="remainingItemCount is the number of subsequent items in the list which are not included in this list response. If the list request contained label or field selectors, then the number of remaining items is unknown and the field will be left unset and omitted during serialization. If the list is complete (either because it is not chunking or because this is the last chunk), then there are no more remaining items and this field will be left unset and omitted during serialization. Servers older than v1.15 do not set this field. The intended use of the remainingItemCount is *estimating* the size of a collection. Clients should not rely on the remainingItemCount to be set or to be exact.", alias="remainingItemCount")
     resource_version: Optional[StrictStr] = Field(default=None, description="String that identifies the server's internal version of this object that can be used by clients to determine when objects have changed. Value must be treated as opaque by clients and passed unmodified back to the server. Populated by the system. Read-only. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#concurrency-control-and-consistency", alias="resourceVersion")
     self_link: Optional[StrictStr] = Field(default=None, description="Deprecated: selfLink is a legacy read-only field that is no longer populated by the system.", alias="selfLink")
-    __properties: ClassVar[List[str]] = ["continue", "remainingItemCount", "resourceVersion", "selfLink"]
+    shard_info: Optional[IoK8sApimachineryPkgApisMetaV1ShardInfo] = Field(default=None, description="shardInfo is set when the list is a filtered subset of the full collection, as selected by a shard selector on the request. It echoes back the selector so clients can verify which shard they received and merge sharded responses. Clients should not cache sharded list responses as a full representation of the collection.  This is an alpha field and requires enabling the ShardedListAndWatch feature gate.", alias="shardInfo")
+    __properties: ClassVar[List[str]] = ["continue", "remainingItemCount", "resourceVersion", "selfLink", "shardInfo"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -71,6 +73,9 @@ class IoK8sApimachineryPkgApisMetaV1ListMeta(BaseModel):
             exclude=excluded_fields,
             exclude_none=True,
         )
+        # override the default output from pydantic by calling `to_dict()` of shard_info
+        if self.shard_info:
+            _dict['shardInfo'] = self.shard_info.to_dict()
         return _dict
 
     @classmethod
@@ -86,7 +91,8 @@ class IoK8sApimachineryPkgApisMetaV1ListMeta(BaseModel):
             "continue": obj.get("continue"),
             "remainingItemCount": obj.get("remainingItemCount"),
             "resourceVersion": obj.get("resourceVersion"),
-            "selfLink": obj.get("selfLink")
+            "selfLink": obj.get("selfLink"),
+            "shardInfo": IoK8sApimachineryPkgApisMetaV1ShardInfo.from_dict(obj["shardInfo"]) if obj.get("shardInfo") is not None else None
         })
         return _obj
 

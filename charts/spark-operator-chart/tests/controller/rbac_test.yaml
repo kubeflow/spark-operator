@@ -328,6 +328,108 @@ tests:
               - patch
               - delete
 
+  - it: Should grant core v1 events only create/update/patch in ClusterRole
+    set:
+      spark:
+        jobNamespaces:
+          - ""
+    documentIndex: 0
+    asserts:
+      - contains:
+          path: rules
+          content:
+            apiGroups:
+              - ""
+            resources:
+              - events
+            verbs:
+              - create
+              - update
+              - patch
+      - notContains:
+          path: rules
+          content:
+            resources:
+              - events
+            verbs:
+              - get
+      - notContains:
+          path: rules
+          content:
+            resources:
+              - events
+            verbs:
+              - list
+      - notContains:
+          path: rules
+          content:
+            resources:
+              - events
+            verbs:
+              - watch
+      - notContains:
+          path: rules
+          content:
+            resources:
+              - events
+            verbs:
+              - delete
+
+  - it: Should grant events.k8s.io events only create/update/patch in ClusterRole
+    set:
+      spark:
+        jobNamespaces:
+          - ""
+    documentIndex: 0
+    asserts:
+      - contains:
+          path: rules
+          content:
+            apiGroups:
+              - events.k8s.io
+            resources:
+              - events
+            verbs:
+              - create
+              - update
+              - patch
+      - notContains:
+          path: rules
+          content:
+            apiGroups:
+              - events.k8s.io
+            resources:
+              - events
+            verbs:
+              - get
+      - notContains:
+          path: rules
+          content:
+            apiGroups:
+              - events.k8s.io
+            resources:
+              - events
+            verbs:
+              - list
+      - notContains:
+          path: rules
+          content:
+            apiGroups:
+              - events.k8s.io
+            resources:
+              - events
+            verbs:
+              - watch
+      - notContains:
+          path: rules
+          content:
+            apiGroups:
+              - events.k8s.io
+            resources:
+              - events
+            verbs:
+              - delete
+
   - it: Should grant ingresses without list or watch in ClusterRole
     set:
       spark:

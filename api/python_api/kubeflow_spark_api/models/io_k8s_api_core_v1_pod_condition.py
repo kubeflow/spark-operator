@@ -30,7 +30,7 @@ class IoK8sApiCoreV1PodCondition(BaseModel):
     last_probe_time: Optional[datetime] = Field(default=None, description="Last time we probed the condition.", alias="lastProbeTime")
     last_transition_time: Optional[datetime] = Field(default=None, description="Last time the condition transitioned from one status to another.", alias="lastTransitionTime")
     message: Optional[StrictStr] = Field(default=None, description="Human-readable message indicating details about last transition.")
-    observed_generation: Optional[StrictInt] = Field(default=None, description="If set, this represents the .metadata.generation that the pod condition was set based upon. The PodObservedGenerationTracking feature gate must be enabled to use this field.", alias="observedGeneration")
+    observed_generation: Optional[StrictInt] = Field(default=None, description="If set, this represents the .metadata.generation that the pod condition was set based upon.", alias="observedGeneration")
     reason: Optional[StrictStr] = Field(default=None, description="Unique, one-word, CamelCase reason for the condition's last transition.")
     status: StrictStr = Field(description="Status is the status of the condition. Can be True, False, Unknown. More info: https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle#pod-conditions")
     type: StrictStr = Field(description="Type is the type of the condition. More info: https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle#pod-conditions")
