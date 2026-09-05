@@ -24,9 +24,11 @@ import (
 	"testing"
 
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/util/validation/field"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
@@ -42,7 +44,7 @@ func TestSparkApplicationValidatorValidateCreate_NodeSelectorConflict(t *testing
 	app.Spec.NodeSelector = map[string]string{"role": "shared"}
 	app.Spec.Driver.NodeSelector = map[string]string{"role": "driver"}
 
-	if _, err := validator.ValidateCreate(context.Background(), app); err == nil || !strings.Contains(err.Error(), "node selector cannot be defined") {
+	if _, err := validator.ValidateCreate(context.Background(), app); err == nil || !strings.Contains(err.Error(), "spec.nodeSelector: Forbidden") {
 		t.Fatalf("expected node selector validation error, got %v", err)
 	}
 }
@@ -55,23 +57,52 @@ func TestSparkApplicationValidatorValidateCreate_Success(t *testing.T) {
 	}
 }
 
-func TestSparkApplicationValidatorValidateCreate_DriverIngressDuplicatePort(t *testing.T) {
+func TestSparkApplicationValidatorValidateCreate_DriverIngressOptions(t *testing.T) {
 	validator := newTestValidator(t, false)
 
-	app := newSparkApplication()
-	app.Spec.DriverIngressOptions = []v1beta2.DriverIngressConfiguration{
+	tests := []struct {
+		name    string
+		options []v1beta2.DriverIngressConfiguration
+		wantErr string
+	}{
 		{
-			ServicePort:      ptr.To[int32](4040),
-			IngressURLFormat: "http://spark-a",
+			name:    "missing service port",
+			options: []v1beta2.DriverIngressConfiguration{{IngressURLFormat: "http://spark-a"}},
+			wantErr: "spec.driverIngressOptions[0].servicePort: Required value",
 		},
 		{
-			ServicePort:      ptr.To[int32](4040),
-			IngressURLFormat: "http://spark-b",
+			name: "duplicate service port",
+			options: []v1beta2.DriverIngressConfiguration{
+				{ServicePort: ptr.To[int32](4040), IngressURLFormat: "http://spark-a"},
+				{ServicePort: ptr.To[int32](4040), IngressURLFormat: "http://spark-b"},
+			},
+			wantErr: "spec.driverIngressOptions[1].servicePort: Duplicate value: 4040",
+		},
+		{
+			name:    "empty ingress URL format",
+			options: []v1beta2.DriverIngressConfiguration{{ServicePort: ptr.To[int32](4040)}},
+			wantErr: "spec.driverIngressOptions[0].ingressURLFormat: Required value",
+		},
+		{
+			name: "duplicate ingress URL format",
+			options: []v1beta2.DriverIngressConfiguration{
+				{ServicePort: ptr.To[int32](4040), IngressURLFormat: "http://spark"},
+				{ServicePort: ptr.To[int32](4041), IngressURLFormat: "http://spark"},
+			},
+			wantErr: `spec.driverIngressOptions[1].ingressURLFormat: Duplicate value: "http://spark"`,
 		},
 	}
 
-	if _, err := validator.ValidateCreate(context.Background(), app); err == nil || !strings.Contains(err.Error(), "duplicate ServicePort") {
-		t.Fatalf("expected duplicate service port error, got %v", err)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			app := newSparkApplication()
+			app.Spec.DriverIngressOptions = tt.options
+
+			_, err := validator.ValidateCreate(context.Background(), app)
+			if err == nil || !strings.Contains(err.Error(), tt.wantErr) {
+				t.Fatalf("expected error to report %s, got %v", tt.wantErr, err)
+			}
+		})
 	}
 }
 
@@ -82,7 +113,7 @@ func TestSparkApplicationValidatorValidateCreate_PodTemplateRequiresSpark3(t *te
 	app.Spec.SparkVersion = "2.4.0"
 	app.Spec.Driver.Template = &corev1.PodTemplateSpec{}
 
-	if _, err := validator.ValidateCreate(context.Background(), app); err == nil || !strings.Contains(err.Error(), "requires Spark version 3.0.0 or higher") {
+	if _, err := validator.ValidateCreate(context.Background(), app); err == nil || !strings.Contains(err.Error(), `spec.sparkVersion: Invalid value: "2.4.0": pod template feature requires Spark version 3.0.0 or higher`) {
 		t.Fatalf("expected spark version validation error, got %v", err)
 	}
 }
@@ -144,7 +175,7 @@ func TestSparkApplicationValidatorValidateUpdate_SpecChangedTriggersValidation(t
 	newApp.Spec.NodeSelector = map[string]string{"role": "shared"}
 	newApp.Spec.Driver.NodeSelector = map[string]string{"role": "driver"}
 
-	if _, err := validator.ValidateUpdate(context.Background(), oldApp, newApp); err == nil || !strings.Contains(err.Error(), "node selector cannot be defined") {
+	if _, err := validator.ValidateUpdate(context.Background(), oldApp, newApp); err == nil || !strings.Contains(err.Error(), "spec.nodeSelector: Forbidden") {
 		t.Fatalf("expected node selector validation error, got %v", err)
 	}
 }
@@ -210,8 +241,12 @@ func TestSparkApplicationValidatorValidateCreate_ResourceQuotaExceeded(t *testin
 
 	validator := newTestValidator(t, true, quota)
 
-	if _, err := validator.ValidateCreate(context.Background(), newSparkApplication()); err == nil || !strings.Contains(err.Error(), "failed to validate resource quota") {
+	_, err := validator.ValidateCreate(context.Background(), newSparkApplication())
+	if err == nil || !strings.Contains(err.Error(), `exceeds resource quota "default/strict"`) {
 		t.Fatalf("expected resource quota validation error, got %v", err)
+	}
+	if !apierrors.IsForbidden(err) {
+		t.Fatalf("expected a Forbidden status, got %v", err)
 	}
 }
 
@@ -418,7 +453,7 @@ func TestSparkApplicationValidatorSparkConf_UpdateRejected(t *testing.T) {
 	}
 }
 
-func TestSparkApplicationValidatorSparkConf_TypedError(t *testing.T) {
+func TestSparkApplicationValidatorSparkConf_StructuredError(t *testing.T) {
 	validator := newTestValidator(t, false)
 
 	app := newSparkApplication()
@@ -429,12 +464,24 @@ func TestSparkApplicationValidatorSparkConf_TypedError(t *testing.T) {
 		t.Fatalf("expected error, got nil")
 	}
 
-	var denied *SparkConfKeyDeniedError
-	if !errors.As(err, &denied) {
-		t.Fatalf("expected SparkConfKeyDeniedError, got %T", err)
+	var status apierrors.APIStatus
+	if !errors.As(err, &status) {
+		t.Fatalf("expected an APIStatus error, got %T", err)
 	}
-	if denied.Key != common.SparkMaster {
-		t.Fatalf("expected key %q, got %q", common.SparkMaster, denied.Key)
+	if !apierrors.IsInvalid(err) {
+		t.Fatalf("expected an Invalid status, got %q", status.Status().Reason)
+	}
+
+	causes := status.Status().Details.Causes
+	if len(causes) != 1 {
+		t.Fatalf("expected exactly one cause, got %v", causes)
+	}
+	wantField := fmt.Sprintf("spec.sparkConf[%s]", common.SparkMaster)
+	if causes[0].Field != wantField {
+		t.Fatalf("expected cause on field %q, got %q", wantField, causes[0].Field)
+	}
+	if causes[0].Type != metav1.CauseType(field.ErrorTypeForbidden) {
+		t.Fatalf("expected a Forbidden cause, got %q", causes[0].Type)
 	}
 }
 
@@ -486,36 +533,36 @@ func TestSparkApplicationValidatorValidateCreate_ConfigMapNames(t *testing.T) {
 		{
 			name:       "driver ConfigMap name with uppercase and underscore",
 			mutate:     func(app *v1beta2.SparkApplication) { app.Spec.Driver.ConfigMaps = configMapRefs("MY_CONFIG") },
-			wantErrors: []string{`spec.driver.configMaps[0].name has invalid ConfigMap name "MY_CONFIG"`},
+			wantErrors: []string{`spec.driver.configMaps[0].name: Invalid value: "MY_CONFIG"`},
 		},
 		{
 			name: "invalid name after a valid one",
 			mutate: func(app *v1beta2.SparkApplication) {
 				app.Spec.Driver.ConfigMaps = configMapRefs("spark-conf", "MY_CONFIG")
 			},
-			wantErrors: []string{`spec.driver.configMaps[1].name has invalid ConfigMap name "MY_CONFIG"`},
+			wantErrors: []string{`spec.driver.configMaps[1].name: Invalid value: "MY_CONFIG"`},
 		},
 		{
 			name:       "empty executor ConfigMap name",
 			mutate:     func(app *v1beta2.SparkApplication) { app.Spec.Executor.ConfigMaps = configMapRefs("") },
-			wantErrors: []string{`spec.executor.configMaps[0].name has invalid ConfigMap name ""`},
+			wantErrors: []string{`spec.executor.configMaps[0].name: Invalid value: ""`},
 		},
 		{
 			name:       "Spark ConfigMap name with a space",
 			mutate:     func(app *v1beta2.SparkApplication) { app.Spec.SparkConfigMap = ptr.To("spark conf") },
-			wantErrors: []string{`spec.sparkConfigMap has invalid ConfigMap name "spark conf"`},
+			wantErrors: []string{`spec.sparkConfigMap: Invalid value: "spark conf"`},
 		},
 		{
 			name:       "Hadoop ConfigMap name that is too long",
 			mutate:     func(app *v1beta2.SparkApplication) { app.Spec.HadoopConfigMap = ptr.To(strings.Repeat("a", 254)) },
-			wantErrors: []string{fmt.Sprintf("spec.hadoopConfigMap has invalid ConfigMap name %q", strings.Repeat("a", 254))},
+			wantErrors: []string{fmt.Sprintf("spec.hadoopConfigMap: Invalid value: %q", strings.Repeat("a", 254))},
 		},
 		{
 			name: "duplicate driver ConfigMap names",
 			mutate: func(app *v1beta2.SparkApplication) {
 				app.Spec.Driver.ConfigMaps = configMapRefs("spark-conf", "spark-conf")
 			},
-			wantErrors: []string{`spec.driver.configMaps[1].name has duplicate ConfigMap name "spark-conf"`},
+			wantErrors: []string{`spec.driver.configMaps[1].name: Duplicate value: "spark-conf"`},
 		},
 		{
 			name: "same ConfigMap in both driver and executor",
@@ -532,9 +579,9 @@ func TestSparkApplicationValidatorValidateCreate_ConfigMapNames(t *testing.T) {
 				app.Spec.Executor.ConfigMaps = configMapRefs("BAD_EXECUTOR")
 			},
 			wantErrors: []string{
-				`spec.sparkConfigMap has invalid ConfigMap name "BAD_SPARK"`,
-				`spec.driver.configMaps[0].name has invalid ConfigMap name "BAD_DRIVER"`,
-				`spec.executor.configMaps[0].name has invalid ConfigMap name "BAD_EXECUTOR"`,
+				`spec.sparkConfigMap: Invalid value: "BAD_SPARK"`,
+				`spec.driver.configMaps[0].name: Invalid value: "BAD_DRIVER"`,
+				`spec.executor.configMaps[0].name: Invalid value: "BAD_EXECUTOR"`,
 			},
 		},
 	}
@@ -578,7 +625,7 @@ func TestSparkApplicationValidatorValidateUpdate_ConfigMapNames(t *testing.T) {
 		newApp.Spec.Arguments = []string{"--foo"}
 
 		_, err := validator.ValidateUpdate(context.Background(), oldApp, newApp)
-		if err == nil || !strings.Contains(err.Error(), `spec.driver.configMaps[0].name has invalid ConfigMap name "MY_CONFIG"`) {
+		if err == nil || !strings.Contains(err.Error(), `spec.driver.configMaps[0].name: Invalid value: "MY_CONFIG"`) {
 			t.Fatalf("expected an invalid ConfigMap name error, got %v", err)
 		}
 	})

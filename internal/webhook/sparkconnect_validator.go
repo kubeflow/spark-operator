@@ -23,7 +23,9 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/util/validation"
+	"k8s.io/apimachinery/pkg/util/validation/field"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
@@ -35,6 +37,8 @@ import (
 // NOTE: The 'path' attribute must follow a specific pattern and should not be modified directly here.
 // Modifying the path for an invalid path can cause API server errors; failing to locate the webhook.
 // +kubebuilder:webhook:admissionReviewVersions=v1,failurePolicy=fail,groups=sparkoperator.k8s.io,matchPolicy=Exact,mutating=false,name=validate-sparkconnect.sparkoperator.k8s.io,path=/validate-sparkoperator-k8s-io-v1alpha1-sparkconnect,reinvocationPolicy=Never,resources=sparkconnects,sideEffects=None,verbs=create;update,versions=v1alpha1,webhookVersions=v1
+
+var sparkConnectGroupKind = v1alpha1.SchemeGroupVersion.WithKind("SparkConnect").GroupKind()
 
 // SparkConnectValidator validates SparkConnect resources.
 type SparkConnectValidator struct{}
@@ -56,12 +60,12 @@ func (v *SparkConnectValidator) ValidateCreate(ctx context.Context, sc *v1alpha1
 	logger.Info("Validating SparkConnect create", "name", sc.Name, "namespace", sc.Namespace)
 
 	// Validate metadata.name early to prevent downstream Service creation failures
-	if err := v.validateName(sc.Name); err != nil {
-		return nil, err
+	if errs := v.validateName(sc.Name); len(errs) > 0 {
+		return nil, apierrors.NewInvalid(sparkConnectGroupKind, sc.Name, errs)
 	}
 
-	if err := v.validateSpec(sc); err != nil {
-		return nil, err
+	if errs := v.validateSpec(sc); len(errs) > 0 {
+		return nil, apierrors.NewInvalid(sparkConnectGroupKind, sc.Name, errs)
 	}
 
 	return nil, nil
@@ -77,8 +81,8 @@ func (v *SparkConnectValidator) ValidateUpdate(ctx context.Context, oldSC *v1alp
 	logger.Info("Validating SparkConnect update", "name", newSC.Name, "namespace", newSC.Namespace)
 
 	// Name is immutable in Kubernetes, but validate anyway for safety
-	if err := v.validateName(newSC.Name); err != nil {
-		return nil, err
+	if errs := v.validateName(newSC.Name); len(errs) > 0 {
+		return nil, apierrors.NewInvalid(sparkConnectGroupKind, newSC.Name, errs)
 	}
 
 	// Skip validating when spec does not change.
@@ -86,8 +90,8 @@ func (v *SparkConnectValidator) ValidateUpdate(ctx context.Context, oldSC *v1alp
 		return nil, nil
 	}
 
-	if err := v.validateSpec(newSC); err != nil {
-		return nil, err
+	if errs := v.validateSpec(newSC); len(errs) > 0 {
+		return nil, apierrors.NewInvalid(sparkConnectGroupKind, newSC.Name, errs)
 	}
 
 	return nil, nil
@@ -110,9 +114,12 @@ func (v *SparkConnectValidator) ValidateDelete(ctx context.Context, sc *v1alpha1
 // require DNS-1035 compliant names. The operator derives a default Service name as
 // "<name>-server", so we must also ensure that this derived name does not exceed
 // the DNS-1035 maximum length.
-func (v *SparkConnectValidator) validateName(name string) error {
-	if errs := validation.IsDNS1035Label(name); len(errs) > 0 {
-		return fmt.Errorf("invalid SparkConnect name %q: %s", name, strings.Join(errs, ", "))
+func (v *SparkConnectValidator) validateName(name string) field.ErrorList {
+	path := field.NewPath("metadata", "name")
+
+	errs := newInvalidErrors(path, name, validation.IsDNS1035Label(name))
+	if len(errs) > 0 {
+		return errs
 	}
 
 	// Ensure the derived default Service name "<name>-server" also fits within the
@@ -120,59 +127,54 @@ func (v *SparkConnectValidator) validateName(name string) error {
 	const serviceSuffix = "-server"
 	maxBaseLen := validation.DNS1035LabelMaxLength - len(serviceSuffix)
 	if len(name) > maxBaseLen {
-		return fmt.Errorf("invalid SparkConnect name %q: must be at most %d characters so that the derived Service name %q does not exceed the DNS-1035 label length limit (%d characters)",
-			name, maxBaseLen, name+serviceSuffix, validation.DNS1035LabelMaxLength)
+		detail := fmt.Sprintf("must be at most %d characters so that the derived Service name %q does not exceed the DNS-1035 label length limit (%d characters)",
+			maxBaseLen, name+serviceSuffix, validation.DNS1035LabelMaxLength)
+		errs = append(errs, field.Invalid(path, name, detail))
 	}
 
-	return nil
+	return errs
 }
 
 // validateSpec validates the SparkConnect spec.
-func (v *SparkConnectValidator) validateSpec(sc *v1alpha1.SparkConnect) error {
-	// Validate SparkVersion
-	if err := v.validateSparkVersion(sc); err != nil {
-		return err
+func (v *SparkConnectValidator) validateSpec(sc *v1alpha1.SparkConnect) field.ErrorList {
+	specPath := field.NewPath("spec")
+
+	if errs := v.validateSparkVersion(specPath, sc); len(errs) > 0 {
+		return errs
 	}
 
-	// Validate image availability
-	if err := v.validateImage(sc); err != nil {
-		return err
+	if errs := v.validateImage(specPath, sc); len(errs) > 0 {
+		return errs
 	}
 
-	// Validate DynamicAllocation
-	if err := v.validateDynamicAllocation(sc); err != nil {
-		return err
+	if errs := v.validateDynamicAllocation(specPath.Child("dynamicAllocation"), sc.Spec.DynamicAllocation); len(errs) > 0 {
+		return errs
 	}
 
-	// Validate Server spec
-	if err := v.validateServerSpec(sc); err != nil {
-		return err
+	if errs := validateMemoryString(specPath.Child("server", "memory"), sc.Spec.Server.Memory); len(errs) > 0 {
+		return errs
 	}
 
-	// Validate Executor spec
-	if err := v.validateExecutorSpec(sc); err != nil {
-		return err
+	if errs := validateMemoryString(specPath.Child("executor", "memory"), sc.Spec.Executor.Memory); len(errs) > 0 {
+		return errs
 	}
 
-	if err := validateSparkConf(sc.Spec.SparkConf, sc.Namespace); err != nil {
-		return err
-	}
-
-	return nil
+	return validateSparkConf(specPath.Child("sparkConf"), sc.Spec.SparkConf, sc.Namespace)
 }
 
 // validateSparkVersion validates the Spark version.
 // Pod templates require Spark 3.0.0 or higher.
-func (v *SparkConnectValidator) validateSparkVersion(sc *v1alpha1.SparkConnect) error {
-	// SparkVersion is required
+func (v *SparkConnectValidator) validateSparkVersion(path *field.Path, sc *v1alpha1.SparkConnect) field.ErrorList {
+	versionPath := path.Child("sparkVersion")
+
 	if sc.Spec.SparkVersion == "" {
-		return fmt.Errorf("sparkVersion is required")
+		return field.ErrorList{field.Required(versionPath, "")}
 	}
 
 	// If pod templates are used, require Spark 3.0.0+
 	if sc.Spec.Server.Template != nil || sc.Spec.Executor.Template != nil {
 		if util.CompareSemanticVersion(sc.Spec.SparkVersion, "3.0.0") < 0 {
-			return fmt.Errorf("pod template feature requires Spark version 3.0.0 or higher, got %s", sc.Spec.SparkVersion)
+			return field.ErrorList{field.Invalid(versionPath, sc.Spec.SparkVersion, "pod template feature requires Spark version 3.0.0 or higher")}
 		}
 	}
 
@@ -182,7 +184,7 @@ func (v *SparkConnectValidator) validateSparkVersion(sc *v1alpha1.SparkConnect) 
 // validateImage validates that container images are available either from the spec-level image
 // or from both the server and executor pod templates. This prevents the controller from entering
 // a retry loop when it tries to reconcile a SparkConnect without valid images.
-func (v *SparkConnectValidator) validateImage(sc *v1alpha1.SparkConnect) error {
+func (v *SparkConnectValidator) validateImage(path *field.Path, sc *v1alpha1.SparkConnect) field.ErrorList {
 	// If a spec-level image is provided, it will be used for both server and executor.
 	if sc.Spec.Image != nil && *sc.Spec.Image != "" {
 		return nil
@@ -196,7 +198,7 @@ func (v *SparkConnectValidator) validateImage(sc *v1alpha1.SparkConnect) error {
 		return nil
 	}
 
-	return fmt.Errorf("image must be specified in spec.image or in the selected server and executor template containers")
+	return field.ErrorList{field.Required(path.Child("image"), "must be specified here or in the selected server and executor template containers")}
 }
 
 func podTemplateContainerImage(template *corev1.PodTemplateSpec, containerName string) string {
@@ -212,69 +214,38 @@ func podTemplateContainerImage(template *corev1.PodTemplateSpec, containerName s
 }
 
 // validateDynamicAllocation validates DynamicAllocation configuration.
-func (v *SparkConnectValidator) validateDynamicAllocation(sc *v1alpha1.SparkConnect) error {
-	da := sc.Spec.DynamicAllocation
+func (v *SparkConnectValidator) validateDynamicAllocation(path *field.Path, da *v1alpha1.DynamicAllocation) field.ErrorList {
 	if da == nil || !da.Enabled {
 		return nil
 	}
 
 	// Validate minExecutors <= maxExecutors
-	if da.MinExecutors != nil && da.MaxExecutors != nil {
-		if *da.MinExecutors > *da.MaxExecutors {
-			return fmt.Errorf("dynamicAllocation.minExecutors (%d) cannot be greater than dynamicAllocation.maxExecutors (%d)",
-				*da.MinExecutors, *da.MaxExecutors)
-		}
+	if da.MinExecutors != nil && da.MaxExecutors != nil && *da.MinExecutors > *da.MaxExecutors {
+		return field.ErrorList{field.Invalid(path.Child("minExecutors"), *da.MinExecutors,
+			fmt.Sprintf("cannot be greater than maxExecutors (%d)", *da.MaxExecutors))}
 	}
 
 	// Validate initialExecutors is within range
 	if da.InitialExecutors != nil {
 		if da.MinExecutors != nil && *da.InitialExecutors < *da.MinExecutors {
-			return fmt.Errorf("dynamicAllocation.initialExecutors (%d) cannot be less than dynamicAllocation.minExecutors (%d)",
-				*da.InitialExecutors, *da.MinExecutors)
+			return field.ErrorList{field.Invalid(path.Child("initialExecutors"), *da.InitialExecutors,
+				fmt.Sprintf("cannot be less than minExecutors (%d)", *da.MinExecutors))}
 		}
 		if da.MaxExecutors != nil && *da.InitialExecutors > *da.MaxExecutors {
-			return fmt.Errorf("dynamicAllocation.initialExecutors (%d) cannot be greater than dynamicAllocation.maxExecutors (%d)",
-				*da.InitialExecutors, *da.MaxExecutors)
+			return field.ErrorList{field.Invalid(path.Child("initialExecutors"), *da.InitialExecutors,
+				fmt.Sprintf("cannot be greater than maxExecutors (%d)", *da.MaxExecutors))}
 		}
 	}
 
 	// Validate non-negative values
 	if da.MinExecutors != nil && *da.MinExecutors < 0 {
-		return fmt.Errorf("dynamicAllocation.minExecutors must be non-negative, got %d", *da.MinExecutors)
+		return field.ErrorList{field.Invalid(path.Child("minExecutors"), *da.MinExecutors, "must be non-negative")}
 	}
 	if da.MaxExecutors != nil && *da.MaxExecutors < 0 {
-		return fmt.Errorf("dynamicAllocation.maxExecutors must be non-negative, got %d", *da.MaxExecutors)
+		return field.ErrorList{field.Invalid(path.Child("maxExecutors"), *da.MaxExecutors, "must be non-negative")}
 	}
 	if da.InitialExecutors != nil && *da.InitialExecutors < 0 {
-		return fmt.Errorf("dynamicAllocation.initialExecutors must be non-negative, got %d", *da.InitialExecutors)
-	}
-
-	return nil
-}
-
-// validateServerSpec validates the Server specification.
-func (v *SparkConnectValidator) validateServerSpec(sc *v1alpha1.SparkConnect) error {
-	server := sc.Spec.Server
-
-	// Validate memory format if specified
-	if server.Memory != nil && *server.Memory != "" {
-		if err := validateMemoryString(*server.Memory); err != nil {
-			return fmt.Errorf("invalid server.memory: %v", err)
-		}
-	}
-
-	return nil
-}
-
-// validateExecutorSpec validates the Executor specification.
-func (v *SparkConnectValidator) validateExecutorSpec(sc *v1alpha1.SparkConnect) error {
-	executor := sc.Spec.Executor
-
-	// Validate memory format if specified
-	if executor.Memory != nil && *executor.Memory != "" {
-		if err := validateMemoryString(*executor.Memory); err != nil {
-			return fmt.Errorf("invalid executor.memory: %v", err)
-		}
+		return field.ErrorList{field.Invalid(path.Child("initialExecutors"), *da.InitialExecutors, "must be non-negative")}
 	}
 
 	return nil
@@ -282,44 +253,33 @@ func (v *SparkConnectValidator) validateExecutorSpec(sc *v1alpha1.SparkConnect) 
 
 // validateMemoryString validates a Java/Spark memory string format.
 // Valid formats: 1g, 512m, 1024k, 1073741824 (bytes)
-func validateMemoryString(memory string) error {
-	if memory == "" {
+func validateMemoryString(path *field.Path, memory *string) field.ErrorList {
+	if memory == nil || *memory == "" {
 		return nil
 	}
 
-	lower := strings.ToLower(strings.TrimSpace(memory))
+	lower := strings.ToLower(strings.TrimSpace(*memory))
 
 	// Check for valid suffixes and extract numeric part
 	validSuffixes := []string{"pb", "tb", "gb", "mb", "kb", "p", "t", "g", "m", "k", "b"}
 	numericPart := lower
-	hasValidSuffix := false
 
 	for _, suffix := range validSuffixes {
 		if strings.HasSuffix(lower, suffix) {
 			numericPart = strings.TrimSuffix(lower, suffix)
-			hasValidSuffix = true
 			break
 		}
 	}
 
 	// Numeric part must not be empty and must be a valid number
 	if numericPart == "" {
-		return fmt.Errorf("invalid memory format %q: must have a numeric value", memory)
+		return field.ErrorList{field.Invalid(path, *memory, "must have a numeric value")}
 	}
 
 	// Check that the numeric part is a non-negative integer (no decimals, no negative sign)
 	for _, c := range numericPart {
 		if c < '0' || c > '9' {
-			return fmt.Errorf("invalid memory format %q: must be a non-negative integer with optional suffix (e.g., 1g, 512m, 1024k)", memory)
-		}
-	}
-
-	// If no valid suffix, should be a pure number (bytes)
-	if !hasValidSuffix {
-		for _, c := range lower {
-			if c < '0' || c > '9' {
-				return fmt.Errorf("invalid memory format %q: must be a number with optional suffix (e.g., 1g, 512m, 1024k)", memory)
-			}
+			return field.ErrorList{field.Invalid(path, *memory, "must be a non-negative integer with optional suffix (e.g., 1g, 512m, 1024k)")}
 		}
 	}
 

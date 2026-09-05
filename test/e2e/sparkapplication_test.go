@@ -18,6 +18,7 @@ package e2e_test
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -534,7 +535,7 @@ var _ = Describe("Example SparkApplication", func() {
 			By("Creating SparkApplication with denied sparkConf key")
 			err := k8sClient.Create(ctx, app)
 			Expect(err).To(HaveOccurred())
-			Expect(err.Error()).To(ContainSubstring("is not allowed"))
+			Expect(err.Error()).To(ContainSubstring(fmt.Sprintf("spec.sparkConf[%s]: Forbidden", common.SparkKubernetesAuthenticateDriverServiceAccountName)))
 		})
 
 		It("should accept a SparkApplication with safe sparkConf keys via dry-run", func() {
