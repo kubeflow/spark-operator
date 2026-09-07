@@ -57,9 +57,10 @@ scheduler process and is not copied to `pod.spec.schedulerName`. Unless a role-s
 `schedulerName` is explicitly configured, the pods use the cluster's default kube-scheduler with the
 GangScheduling plugin.
 
-When the backend is enabled, the controller checks API discovery for `scheduling.k8s.io/v1alpha2`
-during startup. If the API is unavailable, controller startup fails with an actionable error before
-applications are reconciled.
+When the backend is enabled, the backend factory is registered at controller startup. API discovery
+occurs when the backend is invoked during application reconciliation, not at startup. Discovery
+failures return an error for that application's reconciliation attempt without aborting the
+controller process.
 
 ## Submit an application
 
@@ -97,9 +98,18 @@ Only executor pods join the `PodGroup`. In cluster mode, the driver must schedul
 it can create those executor pods; including the driver in the same gang would cause a bootstrap
 deadlock.
 
+The executor pod template's native membership (`spec.executor.template.spec.schedulingGroup.podGroupName`)
+is populated by the operator during submission for this backend. This operator-generated state
+belongs to a temporary submission copy and is never persisted to the reconciled `SparkApplication`.
+
 The operator deletes a submission's `PodGroup` during scheduler cleanup. It retains the `Workload`
 for later submissions, and Kubernetes garbage collection removes it when its owning
 `SparkApplication` is deleted.
+
+If a retained `Workload` has a scheduling policy (minimum count or priority) that no longer matches
+the application's current configuration, the backend will refuse to reuse it and fail scheduling.
+Deleting the old `PodGroup` alone does not resolve this conflict; delete the `Workload` itself to
+allow the backend to create a new one with the updated policy.
 
 ## Gang size
 
@@ -115,21 +125,29 @@ spec:
     instances: 3
 ```
 
-`minMember` must be at least one and must not exceed the initial executor count. The admission
-webhook rejects invalid values.
+The admission webhook validates that `minMember` is at least one (lower-bound check). The workload
+backend validates that `minMember` does not exceed the initial executor count (upper-bound check).
+The backend rejects applications that fail this validation.
+
+The initial executor count is resolved from the effective Spark configuration, including values
+specified via `sparkConf`. For example, an application with no typed `spec.executor.instances` but
+with `spark.executor.instances: "4"` in `sparkConf` will be correctly sized as having 4 initial
+executors.
 
 ### Dynamic allocation
 
 With dynamic allocation enabled, the initial executor count is the greatest of
-`.spec.executor.instances`, `.spec.dynamicAllocation.initialExecutors`, and
-`.spec.dynamicAllocation.minExecutors`, clamped to at least one. This value is evaluated when the
-submission is created; the `PodGroup` is not resized as Spark adds or removes executors later.
+`.spec.executor.instances` (or `spark.executor.instances` from `sparkConf`),
+`.spec.dynamicAllocation.initialExecutors` (or `spark.dynamicAllocation.initialExecutors`), and
+`.spec.dynamicAllocation.minExecutors` (or `spark.dynamicAllocation.minExecutors`),
+clamped to at least one. Typed field values are preferred when both typed fields and `sparkConf`
+specify the same setting. This value is evaluated when the submission is created; the `PodGroup` is
+not resized as Spark adds or removes executors later.
 
 ## Current limitations
 
 - `batchSchedulerOptions.queue` has no effect because the Kubernetes Workload API has no native
-  queue or quota field. The admission webhook emits a warning when it is used with this backend.
-- The backend manages `.spec.driver.schedulingGroup` and `.spec.executor.schedulingGroup`
-  internally. Do not set either field in a `SparkApplication` manifest.
+  queue or quota field. The admission webhook emits a warning when `batchScheduler: workload` is
+  explicitly selected and a queue is supplied.
 - The backend depends on alpha Kubernetes APIs and feature gates; review Kubernetes release notes
   before upgrading the cluster.
