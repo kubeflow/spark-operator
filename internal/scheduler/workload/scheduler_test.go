@@ -272,6 +272,231 @@ func TestSchedule_RejectsInvalidGangSize(t *testing.T) {
 	}
 }
 
+func TestSchedule_SparkConfOnlyExecutorCount(t *testing.T) {
+	fakeClient := newFakeClient()
+	s := &Scheduler{client: fakeClient}
+
+	app := newTestApp("test-app", "default", v1beta2.DeployModeCluster)
+	// Remove typed executor count and use SparkConf instead
+	app.Spec.Executor.Instances = nil
+	app.Spec.SparkConf = map[string]string{
+		"spark.executor.instances": "4",
+	}
+	app.Spec.BatchSchedulerOptions = &v1beta2.BatchSchedulerConfiguration{
+		MinMember: ptr.To(int32(4)),
+	}
+
+	err := s.Schedule(app)
+	if err != nil {
+		t.Fatalf("Schedule() failed: %v (this test documents the SparkConf sizing gap)", err)
+	}
+
+	// Verify PodGroup uses the correct minCount from SparkConf
+	podGroup := &schedulingv1alpha2.PodGroup{}
+	err = fakeClient.Get(context.TODO(), types.NamespacedName{
+		Name:      "test-app-test-submission-1",
+		Namespace: "default",
+	}, podGroup)
+	if err != nil {
+		t.Fatalf("PodGroup not created: %v", err)
+	}
+
+	if podGroup.Spec.SchedulingPolicy.Gang.MinCount != 4 {
+		t.Errorf("PodGroup minCount = %d, want 4 (executor count from SparkConf)", podGroup.Spec.SchedulingPolicy.Gang.MinCount)
+	}
+}
+
+func TestSchedule_SparkConfFixedCountNoOverride(t *testing.T) {
+	fakeClient := newFakeClient()
+	s := &Scheduler{client: fakeClient}
+
+	app := newTestApp("test-app", "default", v1beta2.DeployModeCluster)
+	app.Spec.Executor.Instances = nil
+	app.Spec.SparkConf = map[string]string{
+		"spark.executor.instances": "4",
+	}
+	// No minMember override - should default to executor count
+
+	err := s.Schedule(app)
+	if err != nil {
+		t.Fatalf("Schedule() failed: %v", err)
+	}
+
+	podGroup := &schedulingv1alpha2.PodGroup{}
+	err = fakeClient.Get(context.TODO(), types.NamespacedName{
+		Name:      "test-app-test-submission-1",
+		Namespace: "default",
+	}, podGroup)
+	if err != nil {
+		t.Fatalf("PodGroup not created: %v", err)
+	}
+
+	if podGroup.Spec.SchedulingPolicy.Gang.MinCount != 4 {
+		t.Errorf("PodGroup minCount = %d, want 4 (default to executor count)", podGroup.Spec.SchedulingPolicy.Gang.MinCount)
+	}
+}
+
+func TestSchedule_SparkConfFixedCountWithSmallerOverride(t *testing.T) {
+	fakeClient := newFakeClient()
+	s := &Scheduler{client: fakeClient}
+
+	app := newTestApp("test-app", "default", v1beta2.DeployModeCluster)
+	app.Spec.Executor.Instances = nil
+	app.Spec.SparkConf = map[string]string{
+		"spark.executor.instances": "4",
+	}
+	app.Spec.BatchSchedulerOptions = &v1beta2.BatchSchedulerConfiguration{
+		MinMember: ptr.To(int32(2)), // Smaller than executor count
+	}
+
+	err := s.Schedule(app)
+	if err != nil {
+		t.Fatalf("Schedule() failed: %v", err)
+	}
+
+	podGroup := &schedulingv1alpha2.PodGroup{}
+	err = fakeClient.Get(context.TODO(), types.NamespacedName{
+		Name:      "test-app-test-submission-1",
+		Namespace: "default",
+	}, podGroup)
+	if err != nil {
+		t.Fatalf("PodGroup not created: %v", err)
+	}
+
+	if podGroup.Spec.SchedulingPolicy.Gang.MinCount != 2 {
+		t.Errorf("PodGroup minCount = %d, want 2 (override accepted)", podGroup.Spec.SchedulingPolicy.Gang.MinCount)
+	}
+}
+
+func TestSchedule_SparkConfDynamicAllocation(t *testing.T) {
+	fakeClient := newFakeClient()
+	s := &Scheduler{client: fakeClient}
+
+	app := newTestApp("test-app", "default", v1beta2.DeployModeCluster)
+	app.Spec.Executor.Instances = nil
+	app.Spec.DynamicAllocation = nil
+	app.Spec.SparkConf = map[string]string{
+		"spark.dynamicAllocation.enabled":          "true",
+		"spark.executor.instances":                 "2",
+		"spark.dynamicAllocation.initialExecutors": "5",
+		"spark.dynamicAllocation.minExecutors":     "1",
+	}
+
+	err := s.Schedule(app)
+	if err != nil {
+		t.Fatalf("Schedule() failed: %v", err)
+	}
+
+	podGroup := &schedulingv1alpha2.PodGroup{}
+	err = fakeClient.Get(context.TODO(), types.NamespacedName{
+		Name:      "test-app-test-submission-1",
+		Namespace: "default",
+	}, podGroup)
+	if err != nil {
+		t.Fatalf("PodGroup not created: %v", err)
+	}
+
+	// Should use max(instances=2, initial=5, min=1) = 5
+	if podGroup.Spec.SchedulingPolicy.Gang.MinCount != 5 {
+		t.Errorf("PodGroup minCount = %d, want 5 (max of DRA settings)", podGroup.Spec.SchedulingPolicy.Gang.MinCount)
+	}
+}
+
+func TestSchedule_MixedTypedAndSparkConfPreferTyped(t *testing.T) {
+	fakeClient := newFakeClient()
+	s := &Scheduler{client: fakeClient}
+
+	app := newTestApp("test-app", "default", v1beta2.DeployModeCluster)
+	app.Spec.Executor.Instances = ptr.To(int32(5))
+	app.Spec.SparkConf = map[string]string{
+		"spark.executor.instances": "3", // Should be ignored when typed field exists
+	}
+
+	err := s.Schedule(app)
+	if err != nil {
+		t.Fatalf("Schedule() failed: %v", err)
+	}
+
+	podGroup := &schedulingv1alpha2.PodGroup{}
+	err = fakeClient.Get(context.TODO(), types.NamespacedName{
+		Name:      "test-app-test-submission-1",
+		Namespace: "default",
+	}, podGroup)
+	if err != nil {
+		t.Fatalf("PodGroup not created: %v", err)
+	}
+
+	// Should use typed field value of 5, not SparkConf value of 3
+	if podGroup.Spec.SchedulingPolicy.Gang.MinCount != 5 {
+		t.Errorf("PodGroup minCount = %d, want 5 (typed field preferred)", podGroup.Spec.SchedulingPolicy.Gang.MinCount)
+	}
+}
+
+func TestSchedule_InvalidSparkConfValue(t *testing.T) {
+	fakeClient := newFakeClient()
+	s := &Scheduler{client: fakeClient}
+
+	app := newTestApp("test-app", "default", v1beta2.DeployModeCluster)
+	app.Spec.Executor.Instances = nil
+	app.Spec.SparkConf = map[string]string{
+		"spark.executor.instances": "not-a-number",
+	}
+
+	err := s.Schedule(app)
+	if err != nil {
+		t.Fatalf("Schedule() failed: %v", err)
+	}
+
+	podGroup := &schedulingv1alpha2.PodGroup{}
+	err = fakeClient.Get(context.TODO(), types.NamespacedName{
+		Name:      "test-app-test-submission-1",
+		Namespace: "default",
+	}, podGroup)
+	if err != nil {
+		t.Fatalf("PodGroup not created: %v", err)
+	}
+
+	// Should default to minimum of 1 when SparkConf is invalid
+	if podGroup.Spec.SchedulingPolicy.Gang.MinCount != 1 {
+		t.Errorf("PodGroup minCount = %d, want 1 (default for invalid config)", podGroup.Spec.SchedulingPolicy.Gang.MinCount)
+	}
+}
+
+func TestSchedule_TypedDynamicAllocationMixedWithSparkConf(t *testing.T) {
+	fakeClient := newFakeClient()
+	s := &Scheduler{client: fakeClient}
+
+	app := newTestApp("test-app", "default", v1beta2.DeployModeCluster)
+	app.Spec.Executor.Instances = ptr.To(int32(2))
+	app.Spec.DynamicAllocation = &v1beta2.DynamicAllocation{
+		Enabled:      true,
+		MinExecutors: ptr.To(int32(1)),
+	}
+	app.Spec.SparkConf = map[string]string{
+		"spark.dynamicAllocation.enabled":          "true",
+		"spark.dynamicAllocation.initialExecutors": "5",
+	}
+
+	err := s.Schedule(app)
+	if err != nil {
+		t.Fatalf("Schedule() failed: %v", err)
+	}
+
+	podGroup := &schedulingv1alpha2.PodGroup{}
+	err = fakeClient.Get(context.TODO(), types.NamespacedName{
+		Name:      "test-app-test-submission-1",
+		Namespace: "default",
+	}, podGroup)
+	if err != nil {
+		t.Fatalf("PodGroup not created: %v", err)
+	}
+
+	// Should use max(typed instances=2, typed min=1, sparkconf initial=5) = 5
+	if podGroup.Spec.SchedulingPolicy.Gang.MinCount != 5 {
+		t.Errorf("PodGroup minCount = %d, want 5 (combined typed and SparkConf)", podGroup.Spec.SchedulingPolicy.Gang.MinCount)
+	}
+}
+
 func TestSchedule_RequiresSubmissionID(t *testing.T) {
 	s := &Scheduler{client: newFakeClient()}
 	app := newTestApp("test-app", "default", v1beta2.DeployModeCluster)
