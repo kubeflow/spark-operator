@@ -416,18 +416,28 @@ func buildPodGroup(
 }
 
 func calculateMinCount(app *v1beta2.SparkApplication) (int32, error) {
+	// Get the initial executor count from effective configuration (typed fields or SparkConf).
+	// Clamp to at least 1 to ensure the executor PodGroup has a valid minimum member count,
+	// even when dynamic allocation starts with zero executors.
 	initialExecutors := max(int32(1), util.GetInitialExecutorNumber(app))
 
+	// If a minMember override is specified, validate and use it.
 	if app.Spec.BatchSchedulerOptions != nil &&
 		app.Spec.BatchSchedulerOptions.MinMember != nil {
 		minMember := *app.Spec.BatchSchedulerOptions.MinMember
 
+		// Backend validation: minMember must be at least 1.
+		// This is enforced here rather than in admission to allow the upper-bound check
+		// against the resolved executor count.
 		if minMember < 1 {
 			return 0, fmt.Errorf(
 				"workload scheduler: minMember must be greater than or equal to 1",
 			)
 		}
 
+		// Backend validation: minMember must not exceed the initial executor count.
+		// This ensures the gang scheduling policy is achievable with the application's
+		// configured executor demand.
 		if minMember > initialExecutors {
 			return 0, fmt.Errorf(
 				"workload scheduler: minMember (%d) must not exceed the initial executor count (%d)",
@@ -436,9 +446,13 @@ func calculateMinCount(app *v1beta2.SparkApplication) (int32, error) {
 			)
 		}
 
+		// Return the validated override, which may be smaller than initialExecutors
+		// to allow for quorum-based scheduling (e.g., 2 out of 4 executors minimum).
 		return minMember, nil
 	}
 
+	// Without an override, use the initial executor count as the minimum.
+	// This ensures all configured executors must be schedulable before the application starts.
 	return initialExecutors, nil
 }
 
