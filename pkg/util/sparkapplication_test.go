@@ -570,3 +570,198 @@ var _ = Describe("ApplyDefaultDriverServiceAccount", func() {
 		})
 	})
 })
+
+var _ = Describe("GetInitialExecutorNumber", func() {
+	Context("Fixed executor count mode", func() {
+		It("Should return default of 2 when no configuration is provided", func() {
+			app := &v1beta2.SparkApplication{}
+			Expect(util.GetInitialExecutorNumber(app)).To(Equal(int32(2)))
+		})
+
+		It("Should return typed Instances value", func() {
+			app := &v1beta2.SparkApplication{
+				Spec: v1beta2.SparkApplicationSpec{
+					Executor: v1beta2.ExecutorSpec{
+						Instances: ptr.To(int32(5)),
+					},
+				},
+			}
+			Expect(util.GetInitialExecutorNumber(app)).To(Equal(int32(5)))
+		})
+
+		It("Should return SparkConf executor instances when typed field is not set", func() {
+			app := &v1beta2.SparkApplication{
+				Spec: v1beta2.SparkApplicationSpec{
+					SparkConf: map[string]string{
+						common.SparkExecutorInstances: "4",
+					},
+				},
+			}
+			Expect(util.GetInitialExecutorNumber(app)).To(Equal(int32(4)))
+		})
+
+		It("Should prefer typed Instances over SparkConf", func() {
+			app := &v1beta2.SparkApplication{
+				Spec: v1beta2.SparkApplicationSpec{
+					Executor: v1beta2.ExecutorSpec{
+						Instances: ptr.To(int32(5)),
+					},
+					SparkConf: map[string]string{
+						common.SparkExecutorInstances: "3",
+					},
+				},
+			}
+			Expect(util.GetInitialExecutorNumber(app)).To(Equal(int32(5)))
+		})
+
+		It("Should return default when SparkConf has invalid value", func() {
+			app := &v1beta2.SparkApplication{
+				Spec: v1beta2.SparkApplicationSpec{
+					SparkConf: map[string]string{
+						common.SparkExecutorInstances: "invalid",
+					},
+				},
+			}
+			Expect(util.GetInitialExecutorNumber(app)).To(Equal(int32(2)))
+		})
+	})
+
+	Context("Dynamic allocation mode with typed configuration", func() {
+		It("Should compute max of instances, initial, and min executors", func() {
+			app := &v1beta2.SparkApplication{
+				Spec: v1beta2.SparkApplicationSpec{
+					Executor: v1beta2.ExecutorSpec{
+						Instances: ptr.To(int32(2)),
+					},
+					DynamicAllocation: &v1beta2.DynamicAllocation{
+						Enabled:          true,
+						InitialExecutors: ptr.To(int32(3)),
+						MinExecutors:     ptr.To(int32(1)),
+					},
+				},
+			}
+			Expect(util.GetInitialExecutorNumber(app)).To(Equal(int32(3)))
+		})
+
+		It("Should prefer min executors when highest", func() {
+			app := &v1beta2.SparkApplication{
+				Spec: v1beta2.SparkApplicationSpec{
+					Executor: v1beta2.ExecutorSpec{
+						Instances: ptr.To(int32(2)),
+					},
+					DynamicAllocation: &v1beta2.DynamicAllocation{
+						Enabled:          true,
+						InitialExecutors: ptr.To(int32(3)),
+						MinExecutors:     ptr.To(int32(5)),
+					},
+				},
+			}
+			Expect(util.GetInitialExecutorNumber(app)).To(Equal(int32(5)))
+		})
+	})
+
+	Context("Dynamic allocation mode with SparkConf", func() {
+		It("Should read dynamic allocation settings from SparkConf", func() {
+			app := &v1beta2.SparkApplication{
+				Spec: v1beta2.SparkApplicationSpec{
+					SparkConf: map[string]string{
+						common.SparkDynamicAllocationEnabled:          "true",
+						common.SparkExecutorInstances:                 "2",
+						common.SparkDynamicAllocationInitialExecutors: "4",
+						common.SparkDynamicAllocationMinExecutors:     "1",
+					},
+				},
+			}
+			Expect(util.GetInitialExecutorNumber(app)).To(Equal(int32(4)))
+		})
+
+		It("Should handle SparkConf-only with min executors highest", func() {
+			app := &v1beta2.SparkApplication{
+				Spec: v1beta2.SparkApplicationSpec{
+					SparkConf: map[string]string{
+						common.SparkDynamicAllocationEnabled:          "true",
+						common.SparkExecutorInstances:                 "2",
+						common.SparkDynamicAllocationInitialExecutors: "3",
+						common.SparkDynamicAllocationMinExecutors:     "5",
+					},
+				},
+			}
+			Expect(util.GetInitialExecutorNumber(app)).To(Equal(int32(5)))
+		})
+
+		It("Should prefer typed dynamic allocation over SparkConf", func() {
+			app := &v1beta2.SparkApplication{
+				Spec: v1beta2.SparkApplicationSpec{
+					DynamicAllocation: &v1beta2.DynamicAllocation{
+						Enabled:          true,
+						InitialExecutors: ptr.To(int32(6)),
+					},
+					SparkConf: map[string]string{
+						common.SparkDynamicAllocationEnabled:          "true",
+						common.SparkDynamicAllocationInitialExecutors: "3",
+					},
+				},
+			}
+			Expect(util.GetInitialExecutorNumber(app)).To(Equal(int32(6)))
+		})
+
+		It("Should combine typed and SparkConf values taking maximum", func() {
+			app := &v1beta2.SparkApplication{
+				Spec: v1beta2.SparkApplicationSpec{
+					Executor: v1beta2.ExecutorSpec{
+						Instances: ptr.To(int32(2)),
+					},
+					DynamicAllocation: &v1beta2.DynamicAllocation{
+						Enabled:      true,
+						MinExecutors: ptr.To(int32(1)),
+					},
+					SparkConf: map[string]string{
+						common.SparkDynamicAllocationEnabled:          "true",
+						common.SparkDynamicAllocationInitialExecutors: "5",
+					},
+				},
+			}
+			Expect(util.GetInitialExecutorNumber(app)).To(Equal(int32(5)))
+		})
+	})
+
+	Context("Edge cases", func() {
+		It("Should handle zero executors from SparkConf by using default", func() {
+			app := &v1beta2.SparkApplication{
+				Spec: v1beta2.SparkApplicationSpec{
+					SparkConf: map[string]string{
+						common.SparkExecutorInstances: "0",
+					},
+				},
+			}
+			Expect(util.GetInitialExecutorNumber(app)).To(Equal(int32(2)))
+		})
+
+		It("Should ignore malformed SparkConf values", func() {
+			app := &v1beta2.SparkApplication{
+				Spec: v1beta2.SparkApplicationSpec{
+					SparkConf: map[string]string{
+						common.SparkDynamicAllocationEnabled:          "true",
+						common.SparkExecutorInstances:                 "not-a-number",
+						common.SparkDynamicAllocationInitialExecutors: "also-invalid",
+					},
+				},
+			}
+			Expect(util.GetInitialExecutorNumber(app)).To(Equal(int32(0)))
+		})
+
+		It("Should handle explicit false for dynamic allocation", func() {
+			app := &v1beta2.SparkApplication{
+				Spec: v1beta2.SparkApplicationSpec{
+					DynamicAllocation: &v1beta2.DynamicAllocation{
+						Enabled: false,
+					},
+					Executor: v1beta2.ExecutorSpec{
+						Instances: ptr.To(int32(3)),
+					},
+				},
+			}
+			Expect(util.GetInitialExecutorNumber(app)).To(Equal(int32(3)))
+		})
+	})
+})

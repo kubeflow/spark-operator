@@ -507,25 +507,56 @@ func GetInitialExecutorNumber(app *v1beta2.SparkApplication) int32 {
 	// The reference for this implementation: https://github.com/apache/spark/blob/ba208b9ca99990fa329c36b28d0aa2a5f4d0a77e/core/src/main/scala/org/apache/spark/scheduler/cluster/SchedulerBackendUtils.scala#L31
 	var initialNumExecutors int32
 
-	dynamicAllocationEnabled := app.Spec.DynamicAllocation != nil && app.Spec.DynamicAllocation.Enabled
+	dynamicAllocationEnabled := IsDynamicAllocationEnabled(app)
 	if dynamicAllocationEnabled {
+		// Get executor instances from typed field or SparkConf
 		if app.Spec.Executor.Instances != nil {
 			initialNumExecutors = max(initialNumExecutors, *app.Spec.Executor.Instances)
+		} else if confInstances := getInt32FromSparkConf(app, common.SparkExecutorInstances); confInstances > 0 {
+			initialNumExecutors = max(initialNumExecutors, confInstances)
 		}
-		if app.Spec.DynamicAllocation.InitialExecutors != nil {
+
+		// Get initial executors from typed field or SparkConf
+		if app.Spec.DynamicAllocation != nil && app.Spec.DynamicAllocation.InitialExecutors != nil {
 			initialNumExecutors = max(initialNumExecutors, *app.Spec.DynamicAllocation.InitialExecutors)
+		} else if confInitial := getInt32FromSparkConf(app, common.SparkDynamicAllocationInitialExecutors); confInitial > 0 {
+			initialNumExecutors = max(initialNumExecutors, confInitial)
 		}
-		if app.Spec.DynamicAllocation.MinExecutors != nil {
+
+		// Get min executors from typed field or SparkConf
+		if app.Spec.DynamicAllocation != nil && app.Spec.DynamicAllocation.MinExecutors != nil {
 			initialNumExecutors = max(initialNumExecutors, *app.Spec.DynamicAllocation.MinExecutors)
+		} else if confMin := getInt32FromSparkConf(app, common.SparkDynamicAllocationMinExecutors); confMin > 0 {
+			initialNumExecutors = max(initialNumExecutors, confMin)
 		}
 	} else {
-		initialNumExecutors = 2
+		// Fixed executor count mode
+		initialNumExecutors = 2 // Default
 		if app.Spec.Executor.Instances != nil {
 			initialNumExecutors = *app.Spec.Executor.Instances
+		} else if confInstances := getInt32FromSparkConf(app, common.SparkExecutorInstances); confInstances > 0 {
+			initialNumExecutors = confInstances
 		}
 	}
 
 	return initialNumExecutors
+}
+
+// getInt32FromSparkConf retrieves an int32 value from app.Spec.SparkConf.
+// Returns 0 if the key is not present or cannot be parsed.
+func getInt32FromSparkConf(app *v1beta2.SparkApplication, key string) int32 {
+	if app.Spec.SparkConf == nil {
+		return 0
+	}
+	valueStr, exists := app.Spec.SparkConf[key]
+	if !exists {
+		return 0
+	}
+	value, err := strconv.ParseInt(valueStr, 10, 32)
+	if err != nil {
+		return 0
+	}
+	return int32(value)
 }
 
 // IsDynamicAllocationEnabled determines if Spark Dynamic Allocation is enabled in app.Spec.DynamicAllocation or in
