@@ -995,9 +995,9 @@ func (r *Reconciler) submitSparkApplication(ctx context.Context, app *v1beta2.Sp
 	app.Status.DriverInfo.PodName = util.GetDriverPodName(app)
 
 	// Submission-time configuration is intentionally applied to a throwaway copy.
-	// In particular, the workload scheduler's operator-managed SchedulingGroup
-	// must never be persisted back to the SparkApplication spec and rejected by
-	// the validating webhook.
+	// In particular, the workload scheduler populates native executor-template membership
+	// (spec.executor.template.spec.schedulingGroup.podGroupName) on this temporary copy,
+	// ensuring operator-generated state never persists back to the reconciled SparkApplication.
 	submissionApp := app.DeepCopy()
 
 	if err := r.configWebUI(ctx, submissionApp); err != nil {
