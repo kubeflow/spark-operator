@@ -28,9 +28,6 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
-// fakeDiscovery implements just enough of discovery.DiscoveryInterface for
-// these tests; ServerPreferredResources is the only method util.Capabilities
-// calls.
 type fakeDiscovery struct {
 	discovery.DiscoveryInterface
 	resources []*metav1.APIResourceList
@@ -68,6 +65,47 @@ var _ = Describe("Capabilities", func() {
 			Expect(util.IngressCapabilities.Has("networking.k8s.io/v1")).To(BeTrue())
 		})
 
+		It("populates IngressCapabilities for every matching group version", func() {
+			client := &fakeClientset{discovery: &fakeDiscovery{resources: []*metav1.APIResourceList{
+				{
+					GroupVersion: "networking.k8s.io/v1",
+					APIResources: []metav1.APIResource{{Kind: "Ingress", Verbs: metav1.Verbs{"get"}}},
+				},
+				{
+					GroupVersion: "extensions/v1beta1",
+					APIResources: []metav1.APIResource{{Kind: "Ingress", Verbs: metav1.Verbs{"get"}}},
+				},
+			}}}
+
+			Expect(util.InitializeIngressCapabilities(client)).To(Succeed())
+			Expect(util.IngressCapabilities.Has("networking.k8s.io/v1")).To(BeTrue())
+			Expect(util.IngressCapabilities.Has("extensions/v1beta1")).To(BeTrue())
+		})
+
+		It("skips a matching kind with no verbs", func() {
+			client := &fakeClientset{discovery: &fakeDiscovery{resources: []*metav1.APIResourceList{
+				{
+					GroupVersion: "networking.k8s.io/v1",
+					APIResources: []metav1.APIResource{{Kind: "Ingress", Verbs: metav1.Verbs{}}},
+				},
+			}}}
+
+			Expect(util.InitializeIngressCapabilities(client)).To(Succeed())
+			Expect(util.IngressCapabilities.Has("networking.k8s.io/v1")).To(BeFalse())
+		})
+
+		It("skips a group version with no APIResources", func() {
+			client := &fakeClientset{discovery: &fakeDiscovery{resources: []*metav1.APIResourceList{
+				{
+					GroupVersion: "networking.k8s.io/v1",
+					APIResources: []metav1.APIResource{},
+				},
+			}}}
+
+			Expect(util.InitializeIngressCapabilities(client)).To(Succeed())
+			Expect(util.IngressCapabilities.Has("networking.k8s.io/v1")).To(BeFalse())
+		})
+
 		It("leaves IngressCapabilities empty when the cluster has no Ingress kind", func() {
 			client := &fakeClientset{discovery: &fakeDiscovery{resources: []*metav1.APIResourceList{
 				{
@@ -77,7 +115,8 @@ var _ = Describe("Capabilities", func() {
 			}}}
 
 			Expect(util.InitializeIngressCapabilities(client)).To(Succeed())
-			Expect(util.IngressCapabilities.Has("apps/v1")).To(BeFalse())
+			Expect(util.IngressCapabilities).NotTo(BeNil())
+			Expect(util.IngressCapabilities).To(BeEmpty())
 		})
 
 		It("is a no-op on the second call", func() {
@@ -95,20 +134,27 @@ var _ = Describe("Capabilities", func() {
 			Expect(util.IngressCapabilities.Has("networking.k8s.io/v1")).To(BeTrue())
 		})
 
-		It("tolerates an orphaned API service instead of failing", func() {
+		It("uses the partial results alongside an orphaned API service", func() {
 			gv := schema.GroupVersion{Group: "orphaned.example.com", Version: "v1"}
 			client := &fakeClientset{discovery: &fakeDiscovery{
+				resources: []*metav1.APIResourceList{
+					{
+						GroupVersion: "networking.k8s.io/v1",
+						APIResources: []metav1.APIResource{{Kind: "Ingress", Verbs: metav1.Verbs{"get"}}},
+					},
+				},
 				err: &discovery.ErrGroupDiscoveryFailed{Groups: map[schema.GroupVersion]error{gv: errors.New("boom")}},
 			}}
 
 			Expect(util.InitializeIngressCapabilities(client)).To(Succeed())
-			Expect(util.IngressCapabilities).To(BeEmpty())
+			Expect(util.IngressCapabilities.Has("networking.k8s.io/v1")).To(BeTrue())
 		})
 
 		It("returns other discovery errors", func() {
 			client := &fakeClientset{discovery: &fakeDiscovery{err: errors.New("discovery unavailable")}}
 
 			Expect(util.InitializeIngressCapabilities(client)).To(MatchError("discovery unavailable"))
+			Expect(util.IngressCapabilities).To(BeNil())
 		})
 	})
 })
