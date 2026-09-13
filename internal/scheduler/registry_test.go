@@ -17,10 +17,8 @@ limitations under the License.
 package scheduler
 
 import (
-	"testing"
-
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
 
 	"github.com/kubeflow/spark-operator/v2/api/v1beta2"
 )
@@ -44,51 +42,51 @@ func newTestRegistry() *Registry {
 	return &Registry{factories: make(map[string]Factory)}
 }
 
-func TestRegistryRegisterAndGetScheduler(t *testing.T) {
-	r := newTestRegistry()
+var _ = Describe("Registry", func() {
+	It("registers and returns a scheduler", func() {
+		r := newTestRegistry()
 
-	err := r.Register("foo", newFakeFactory("foo"))
-	require.NoError(t, err)
+		Expect(r.Register("foo", newFakeFactory("foo"))).To(Succeed())
 
-	sched, err := r.GetScheduler("foo", nil)
-	require.NoError(t, err)
-	assert.Equal(t, "foo", sched.Name())
-}
+		sched, err := r.GetScheduler("foo", nil)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(sched.Name()).To(Equal("foo"))
+	})
 
-func TestRegistryRegisterDuplicateNameErrors(t *testing.T) {
-	r := newTestRegistry()
+	It("errors on a duplicate name and keeps the original factory", func() {
+		r := newTestRegistry()
 
-	require.NoError(t, r.Register("foo", newFakeFactory("foo")))
-	err := r.Register("foo", newFakeFactory("foo-again"))
-	require.Error(t, err)
+		Expect(r.Register("foo", newFakeFactory("foo"))).To(Succeed())
+		Expect(r.Register("foo", newFakeFactory("foo-again"))).To(HaveOccurred())
 
-	sched, err := r.GetScheduler("foo", nil)
-	require.NoError(t, err)
-	assert.Equal(t, "foo", sched.Name(), "the original factory must not be overwritten")
-}
+		sched, err := r.GetScheduler("foo", nil)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(sched.Name()).To(Equal("foo"))
+	})
 
-func TestRegistryGetSchedulerNotFoundErrors(t *testing.T) {
-	r := newTestRegistry()
+	It("errors when the scheduler is not found", func() {
+		r := newTestRegistry()
 
-	_, err := r.GetScheduler("missing", nil)
-	require.Error(t, err)
-}
+		_, err := r.GetScheduler("missing", nil)
+		Expect(err).To(HaveOccurred())
+	})
 
-func TestRegistryGetRegisteredSchedulerNames(t *testing.T) {
-	r := newTestRegistry()
+	It("lists the registered scheduler names", func() {
+		r := newTestRegistry()
 
-	assert.Empty(t, r.GetRegisteredSchedulerNames())
+		Expect(r.GetRegisteredSchedulerNames()).To(BeEmpty())
 
-	require.NoError(t, r.Register("foo", newFakeFactory("foo")))
-	require.NoError(t, r.Register("bar", newFakeFactory("bar")))
+		Expect(r.Register("foo", newFakeFactory("foo"))).To(Succeed())
+		Expect(r.Register("bar", newFakeFactory("bar"))).To(Succeed())
 
-	assert.ElementsMatch(t, []string{"foo", "bar"}, r.GetRegisteredSchedulerNames())
-}
+		Expect(r.GetRegisteredSchedulerNames()).To(ConsistOf("foo", "bar"))
+	})
 
-func TestGetRegistryReturnsSingleton(t *testing.T) {
-	first := GetRegistry()
-	require.NotNil(t, first)
+	It("returns the same registry instance from GetRegistry", func() {
+		first := GetRegistry()
+		Expect(first).NotTo(BeNil())
 
-	second := GetRegistry()
-	assert.Same(t, first, second)
-}
+		second := GetRegistry()
+		Expect(second).To(BeIdenticalTo(first))
+	})
+})
