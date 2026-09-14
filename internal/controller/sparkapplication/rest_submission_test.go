@@ -276,7 +276,6 @@ func TestParseSubmitResponse(t *testing.T) {
 		resp := &http.Response{StatusCode: http.StatusConflict, Body: io.NopCloser(bytes.NewReader(body))}
 		result, err := parseSubmitResponse(resp)
 		assert.Nil(t, result)
-		assert.Contains(t, err.Error(), "Failed to submit")
 		assert.Contains(t, err.Error(), "DRIVER_POD_ALREADY_EXISTS")
 		var submitErr *SubmitError
 		assert.True(t, errors.As(err, &submitErr))
@@ -295,7 +294,6 @@ func TestParseSubmitResponse(t *testing.T) {
 		resp := &http.Response{StatusCode: 400, Body: io.NopCloser(bytes.NewReader(body))}
 		result, err := parseSubmitResponse(resp)
 		assert.Nil(t, result)
-		assert.Contains(t, err.Error(), "Invalid job configuration")
 		assert.Contains(t, err.Error(), "BAD_REQUEST")
 	})
 
@@ -336,6 +334,16 @@ func TestCanRetry(t *testing.T) {
 	assert.False(t, s.canRetry(0, podExists), "DRIVER_POD_ALREADY_EXISTS should not retry")
 	assert.False(t, s.canRetry(0, invalidTemplate), "INVALID_POD_TEMPLATE should not retry")
 	assert.False(t, s.canRetry(2, overloaded), "last attempt should not retry")
+}
+
+func TestSubmitErrorDoesNotExposeResponseMessage(t *testing.T) {
+	err := &SubmitError{
+		Code:       ErrorCodeInvalidSparkSubmitArgs,
+		StatusCode: 400,
+		Message:    "https://user:password@example.com/repo?token=secret",
+	}
+
+	assert.Equal(t, "submitter service returned error (HTTP 400, error code: INVALID_SPARK_SUBMIT_ARGS)", err.Error())
 }
 
 // --- Test helpers ---

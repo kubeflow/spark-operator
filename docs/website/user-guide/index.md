@@ -93,6 +93,13 @@ Deploy several operator instances scoped to different namespaces
 Enforce Kubernetes resource quotas on Spark workloads
 ::::
 
+::::{grid-item-card} URL Scheme Validation
+:link: url-scheme-validation
+:link-type: doc
+
+Limit declared remote dependency URLs and understand the SSRF security boundary
+::::
+
 :::::
 
 ## Monitoring & Scheduling
@@ -160,6 +167,7 @@ building-custom-images
 leader-election
 running-multiple-instances-of-the-operator
 resource-quota-enforcement
+url-scheme-validation
 monitoring-with-jmx-and-prometheus
 volcano-integration
 yunikorn-integration

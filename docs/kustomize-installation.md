@@ -87,7 +87,7 @@ kubectl apply -f https://raw.githubusercontent.com/kubeflow/spark-operator/refs/
 
 ## Component Guide
 
-Three optional capabilities are shipped as standalone Kustomize directories
+Four optional capabilities are shipped as standalone Kustomize directories
 under `config/`.  Enable them by adding them to the `resources` list in
 your overlay.
 
@@ -128,6 +128,18 @@ annotations (`prometheus.io/scrape`, `prometheus.io/port`,
 `prometheus.io/path`), so basic annotation-based scraping works without this
 resource.  The `PodMonitor` is for clusters using the Prometheus Operator's
 CRD-based service discovery.
+
+### URL Scheme Validation (config/overlays/url-scheme-validation)
+
+URL-scheme validation is opt-in and disabled in `config/default`. Apply the overlay to enable admission checks for declared application and dependency URLs:
+
+```bash
+kubectl apply -k config/overlays/url-scheme-validation --server-side
+```
+
+The overlay allows local paths but does not allow any remote schemes or hosts. Add `--allowed-url-schemes` and `--allowed-url-hosts` arguments in your own overlay if applications need remote URLs.
+
+This validation reduces SSRF risk, but it is not a complete defense. It does not inspect runtime traffic, prevent DNS rebinding, validate redirect destinations, or protect against a compromised allowed host. Use restricted egress, least-privilege identities, and trusted artifact sources with this feature. See the [URL scheme validation guide](website/user-guide/url-scheme-validation.md) for the full scope and configuration options.
 
 ### cert-manager Integration (config/certmanager)
 

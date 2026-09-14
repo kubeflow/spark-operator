@@ -1,0 +1,19 @@
+# E2E overlay enables opt-in features exercised by the Helm CI values:
+#   - controller: --enable-driver-pdb=true
+#   - webhook: --enable-url-scheme-validation=true
+
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../../default
+
+patches:
+  - path: enable-driver-pdb-patch.yaml
+    target:
+      kind: Deployment
+      name: spark-operator-controller
+  - path: enable-url-scheme-validation-patch.yaml
+    target:
+      kind: Deployment
+      name: spark-operator-webhook

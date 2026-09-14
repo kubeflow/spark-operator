@@ -17,6 +17,7 @@ limitations under the License.
 package sparkapplication
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"slices"
@@ -36,6 +37,18 @@ import (
 	"github.com/kubeflow/spark-operator/v2/pkg/common"
 	"github.com/kubeflow/spark-operator/v2/pkg/util"
 )
+
+func TestSparkSubmitErrorPreservesCauseAndSanitizesMessage(t *testing.T) {
+	cause := errors.New("failed to run spark-submit: remote artifact fetch failed")
+	err := &SparkSubmitError{err: cause, exitCode: 17}
+
+	assert.Equal(t, "spark-submit failed with exit code 17", err.Error())
+	assert.ErrorIs(t, err, cause)
+
+	var got *SparkSubmitError
+	assert.ErrorAs(t, err, &got)
+	assert.Same(t, err, got)
+}
 
 func TestExecutorConfOption(t *testing.T) {
 	tests := []struct {

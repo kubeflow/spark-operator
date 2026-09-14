@@ -73,6 +73,12 @@ This removes all the Kubernetes resources associated with the chart and deletes 
 
 See [helm uninstall](https://helm.sh/docs/helm/helm_uninstall) for command documentation.
 
+## URL Validation and SSRF
+
+URL-scheme validation is opt-in and disabled by default. Setting allowed schemes or hosts does not enable it. Set `webhook.urlSchemeValidation.enable=true` to validate declared application and dependency URLs.
+
+This validation reduces server-side request forgery (SSRF) risk, but it is not a complete SSRF defense. It checks only the supported fetch-capable fields at admission time. It does not restrict ports, inspect runtime application traffic, prevent DNS rebinding, validate redirect destinations, or protect against a compromised allowed host. Use restricted egress, least-privilege identities, and trusted artifact sources with this feature. See [Validating Remote Dependency URLs](../../docs/website/user-guide/url-scheme-validation.md) for the validation scope and configuration guidance.
+
 {{ template "chart.valuesSection" . }}
 
 {{ template "chart.maintainersSection" . }}
