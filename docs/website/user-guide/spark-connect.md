@@ -135,6 +135,15 @@ kubectl explain sparkconnect.spec.server
 kubectl explain sparkconnect.spec.executor
 ```
 
+Cluster administrators can inject operator-level default labels and annotations
+into the Spark Connect server pod and its executor pods using the
+`--default-pod-labels` and `--default-pod-annotations` controller flags
+(`controller.defaultPodLabels` and `controller.defaultPodAnnotations` in the
+Helm chart). Labels and annotations set in the `SparkConnect` resource or its
+pod templates take precedence over these global defaults when there are key
+conflicts. Keys with the `sparkoperator.k8s.io/` prefix are reserved by the
+operator and cannot be used as default labels or annotations.
+
 ## Troubleshoot
 
 If the resource does not reach `Ready`:

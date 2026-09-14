@@ -419,6 +419,30 @@ func (r *Reconciler) mutateServerPod(ctx context.Context, conn *v1alpha1.SparkCo
 		if err != nil {
 			return fmt.Errorf("failed to build spark connection args: %v", err)
 		}
+
+		// Inject operator-level default labels and annotations into executor and driver pods
+		// via Spark configuration properties. These are prepended so that per-resource labels
+		// from the SparkConnect CR (set by executorConfOption / driverConfOption) appear later
+		// in the argument list and take precedence with Spark's last-writer-wins semantics.
+		var defaultArgs []string
+		for k, v := range r.options.DefaultPodLabels {
+			defaultArgs = append(defaultArgs, "--conf", fmt.Sprintf(common.SparkKubernetesExecutorLabelTemplate+"=%s", k, v))
+			defaultArgs = append(defaultArgs, "--conf", fmt.Sprintf(common.SparkKubernetesDriverLabelTemplate+"=%s", k, v))
+		}
+		for k, v := range r.options.DefaultPodAnnotations {
+			defaultArgs = append(defaultArgs, "--conf", fmt.Sprintf(common.SparkKubernetesExecutorAnnotationTemplate+"=%s", k, v))
+			defaultArgs = append(defaultArgs, "--conf", fmt.Sprintf(common.SparkKubernetesDriverAnnotationTemplate+"=%s", k, v))
+		}
+		if len(defaultArgs) > 0 {
+			// Insert defaults right after the initial start-connect-server.sh command (args[0])
+			// so that resource-specific conf options appear later and override.
+			combined := make([]string, 0, len(args)+len(defaultArgs))
+			combined = append(combined, args[0])
+			combined = append(combined, defaultArgs...)
+			combined = append(combined, args[1:]...)
+			args = combined
+		}
+
 		container.Args = []string{strings.Join(args, " ")}
 
 		setDefaultSparkConnectServerProbes(container)

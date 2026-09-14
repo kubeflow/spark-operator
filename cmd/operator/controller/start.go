@@ -189,10 +189,29 @@ func NewStartCommand() *cobra.Command {
 				if err := json.Unmarshal([]byte(defaultPodLabelsString), &defaultPodLabels); err != nil {
 					return fmt.Errorf("failed parsing default-pod-labels JSON string from CLI: %v", err)
 				}
+				for key, value := range defaultPodLabels {
+					if strings.HasPrefix(key, common.LabelAnnotationPrefix) {
+						return fmt.Errorf("invalid key %q in --default-pod-labels: keys with prefix %q are reserved by the operator", key, common.LabelAnnotationPrefix)
+					}
+					if errs := validation.IsQualifiedName(key); len(errs) > 0 {
+						return fmt.Errorf("invalid label key %q in --default-pod-labels: %s", key, strings.Join(errs, "; "))
+					}
+					if errs := validation.IsValidLabelValue(value); len(errs) > 0 {
+						return fmt.Errorf("invalid label value %q for key %q in --default-pod-labels: %s", value, key, strings.Join(errs, "; "))
+					}
+				}
 			}
 			if defaultPodAnnotationsString != "" {
 				if err := json.Unmarshal([]byte(defaultPodAnnotationsString), &defaultPodAnnotations); err != nil {
 					return fmt.Errorf("failed parsing default-pod-annotations JSON string from CLI: %v", err)
+				}
+				for key := range defaultPodAnnotations {
+					if strings.HasPrefix(key, common.LabelAnnotationPrefix) {
+						return fmt.Errorf("invalid key %q in --default-pod-annotations: keys with prefix %q are reserved by the operator", key, common.LabelAnnotationPrefix)
+					}
+					if errs := validation.IsQualifiedName(key); len(errs) > 0 {
+						return fmt.Errorf("invalid annotation key %q in --default-pod-annotations: %s", key, strings.Join(errs, "; "))
+					}
 				}
 			}
 

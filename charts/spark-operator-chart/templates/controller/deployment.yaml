@@ -139,10 +139,10 @@ spec:
         - --default-service-account={{ . }}
         {{- end }}
         {{- with .Values.controller.defaultPodLabels }}
-        - --default-pod-labels={{ . | toJson | quote }}
+        - --default-pod-labels={{ . | toJson }}
         {{- end }}
         {{- with .Values.controller.defaultPodAnnotations }}
-        - --default-pod-annotations={{ . | toJson | quote }}
+        - --default-pod-annotations={{ . | toJson }}
         {{- end }}
         {{- if .Values.controller.driverPodDisruptionBudget.enable }}
         - --enable-driver-pdb=true
