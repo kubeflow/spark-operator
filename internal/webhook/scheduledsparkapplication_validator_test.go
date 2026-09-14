@@ -22,6 +22,7 @@ import (
 	"testing"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/utils/ptr"
 
 	"github.com/kubeflow/spark-operator/v2/api/v1beta2"
 	"github.com/kubeflow/spark-operator/v2/pkg/common"
@@ -124,6 +125,55 @@ func TestScheduledSparkApplicationValidatorSparkConf_UpdateRejected(t *testing.T
 
 	if _, err := validator.ValidateUpdate(context.Background(), oldApp, newApp); err == nil {
 		t.Fatalf("expected sparkConf to be rejected on update, but it was allowed")
+	}
+}
+
+func TestScheduledSparkApplicationValidatorDynamicAllocation_MinGreaterThanMax(t *testing.T) {
+	validator := NewScheduledSparkApplicationValidator()
+
+	app := newScheduledSparkApplication()
+	app.Spec.Template.DynamicAllocation = &v1beta2.DynamicAllocation{
+		Enabled:      true,
+		MinExecutors: ptr.To[int32](5),
+		MaxExecutors: ptr.To[int32](2),
+	}
+
+	if _, err := validator.ValidateCreate(context.Background(), app); err == nil || !strings.Contains(err.Error(), "cannot be greater than") || !strings.Contains(err.Error(), "maxExecutors") {
+		t.Fatalf("expected minExecutors > maxExecutors validation error, got %v", err)
+	}
+}
+
+func TestScheduledSparkApplicationValidatorDynamicAllocation_InitialLessThanMinWarns(t *testing.T) {
+	validator := NewScheduledSparkApplicationValidator()
+
+	app := newScheduledSparkApplication()
+	app.Spec.Template.DynamicAllocation = &v1beta2.DynamicAllocation{
+		Enabled:          true,
+		MinExecutors:     ptr.To[int32](2),
+		MaxExecutors:     ptr.To[int32](5),
+		InitialExecutors: ptr.To[int32](1),
+	}
+
+	warnings, err := validator.ValidateCreate(context.Background(), app)
+	if err != nil {
+		t.Fatalf("expected no error when initialExecutors < minExecutors, got %v", err)
+	}
+	if len(warnings) != 1 || !strings.Contains(warnings[0], "is less than") || !strings.Contains(warnings[0], "minExecutors") {
+		t.Fatalf("expected initialExecutors < minExecutors warning, got %v", warnings)
+	}
+}
+
+func TestScheduledSparkApplicationValidatorSparkConf_DynamicAllocationZeroMaxExecutors(t *testing.T) {
+	validator := NewScheduledSparkApplicationValidator()
+
+	app := newScheduledSparkApplication()
+	app.Spec.Template.SparkConf = map[string]string{
+		common.SparkDynamicAllocationEnabled:      "true",
+		common.SparkDynamicAllocationMaxExecutors: "0",
+	}
+
+	if _, err := validator.ValidateCreate(context.Background(), app); err == nil || !strings.Contains(err.Error(), "must be positive") {
+		t.Fatalf("expected maxExecutors must be positive validation error, got %v", err)
 	}
 }
 
