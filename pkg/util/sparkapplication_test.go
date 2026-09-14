@@ -17,6 +17,7 @@ limitations under the License.
 package util_test
 
 import (
+	"strings"
 	"time"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -24,12 +25,33 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/validation"
 	"k8s.io/utils/ptr"
 
 	"github.com/kubeflow/spark-operator/v2/api/v1beta2"
 	"github.com/kubeflow/spark-operator/v2/pkg/common"
 	"github.com/kubeflow/spark-operator/v2/pkg/util"
 )
+
+var _ = Describe("GetScheduledSparkApplicationRunName", func() {
+	It("Should preserve names that fit", func() {
+		app := &v1beta2.ScheduledSparkApplication{ObjectMeta: metav1.ObjectMeta{Name: "scheduled-app"}}
+		Expect(util.GetScheduledSparkApplicationRunName(app, "1234567890")).To(Equal("scheduled-app-1234567890"))
+	})
+
+	It("Should generate valid unique names when truncation is needed", func() {
+		prefix := strings.Repeat("a", 50)
+		firstApp := &v1beta2.ScheduledSparkApplication{ObjectMeta: metav1.ObjectMeta{Name: prefix + "first"}}
+		secondApp := &v1beta2.ScheduledSparkApplication{ObjectMeta: metav1.ObjectMeta{Name: prefix + "secon"}}
+		first := util.GetScheduledSparkApplicationRunName(firstApp, "1234567890123456789")
+		second := util.GetScheduledSparkApplicationRunName(secondApp, "1234567890123456789")
+
+		Expect(first).To(HaveLen(63))
+		Expect(validation.IsDNS1035Label(first)).To(BeEmpty())
+		Expect(first).To(HaveSuffix("-1234567890123456789"))
+		Expect(first).NotTo(Equal(second))
+	})
+})
 
 var _ = Describe("GetDriverPodName", func() {
 	Context("SparkApplication without driver pod name field and driver pod name conf", func() {
