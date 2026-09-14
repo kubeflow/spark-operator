@@ -355,6 +355,45 @@ tests:
       - notContains:
           path: spec.template.spec.containers[?(@.name=="spark-operator-controller")].args
           content: --default-service-account=
+
+  - it: Should contain `--default-pod-labels` arg if `controller.defaultPodLabels` is set
+    set:
+      controller:
+        defaultPodLabels:
+          cost-center: engineering
+          team: data
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[?(@.name=="spark-operator-controller")].args
+          content: --default-pod-labels={"cost-center":"engineering","team":"data"}
+
+  - it: Should not contain `--default-pod-labels` arg if `controller.defaultPodLabels` is empty
+    set:
+      controller:
+        defaultPodLabels: {}
+    asserts:
+      - notContains:
+          path: spec.template.spec.containers[?(@.name=="spark-operator-controller")].args
+          pattern: --default-pod-labels=
+
+  - it: Should contain `--default-pod-annotations` arg if `controller.defaultPodAnnotations` is set
+    set:
+      controller:
+        defaultPodAnnotations:
+          example.com/managed-by: spark-operator
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[?(@.name=="spark-operator-controller")].args
+          content: --default-pod-annotations={"example.com/managed-by":"spark-operator"}
+
+  - it: Should not contain `--default-pod-annotations` arg if `controller.defaultPodAnnotations` is empty
+    set:
+      controller:
+        defaultPodAnnotations: {}
+    asserts:
+      - notContains:
+          path: spec.template.spec.containers[?(@.name=="spark-operator-controller")].args
+          pattern: --default-pod-annotations=
   
   - it: Should contain `--enable-metrics` arg if `prometheus.metrics.enable` is set to `true`
     set:

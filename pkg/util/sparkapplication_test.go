@@ -570,3 +570,66 @@ var _ = Describe("ApplyDefaultDriverServiceAccount", func() {
 		})
 	})
 })
+
+var _ = Describe("ApplyDefaultPodLabelsAndAnnotations", func() {
+	newApp := func() *v1beta2.SparkApplication {
+		return &v1beta2.SparkApplication{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "test-app",
+				Namespace: "test-namespace",
+			},
+		}
+	}
+
+	Context("No default labels or annotations", func() {
+		It("Should return the application unchanged", func() {
+			app := newApp()
+			Expect(util.ApplyDefaultPodLabelsAndAnnotations(app, nil, nil)).To(BeIdenticalTo(app))
+			Expect(app.Spec.Driver.Labels).To(BeNil())
+			Expect(app.Spec.Executor.Labels).To(BeNil())
+		})
+	})
+
+	Context("With default labels and annotations", func() {
+		It("Should inject them when they don't exist", func() {
+			app := newApp()
+			defaultsLabels := map[string]string{"label1": "value1"}
+			defaultsAnns := map[string]string{"ann1": "value1"}
+
+			got := util.ApplyDefaultPodLabelsAndAnnotations(app, defaultsLabels, defaultsAnns)
+			Expect(got).NotTo(BeIdenticalTo(app))
+			Expect(got.Spec.Driver.Labels["label1"]).To(Equal("value1"))
+			Expect(got.Spec.Executor.Labels["label1"]).To(Equal("value1"))
+			Expect(got.Spec.Driver.Annotations["ann1"]).To(Equal("value1"))
+			Expect(got.Spec.Executor.Annotations["ann1"]).To(Equal("value1"))
+			Expect(app.Spec.Driver.Labels).To(BeNil(), "the original application must not be mutated")
+		})
+	})
+
+	Context("With pre-existing labels and annotations in the spec", func() {
+		It("Should prefer the user-specified labels and annotations", func() {
+			app := newApp()
+			app.Spec.Driver.Labels = map[string]string{"label1": "app-driver-value1"}
+			app.Spec.Executor.Labels = map[string]string{"label1": "app-executor-value1"}
+			app.Spec.Driver.Annotations = map[string]string{"ann1": "app-driver-value1"}
+			app.Spec.Executor.Annotations = map[string]string{"ann1": "app-executor-value1"}
+
+			defaultsLabels := map[string]string{"label1": "default-value1", "label2": "default-value2"}
+			defaultsAnns := map[string]string{"ann1": "default-value1", "ann2": "default-value2"}
+
+			got := util.ApplyDefaultPodLabelsAndAnnotations(app, defaultsLabels, defaultsAnns)
+
+			Expect(got.Spec.Driver.Labels["label1"]).To(Equal("app-driver-value1"))
+			Expect(got.Spec.Driver.Labels["label2"]).To(Equal("default-value2"))
+
+			Expect(got.Spec.Executor.Labels["label1"]).To(Equal("app-executor-value1"))
+			Expect(got.Spec.Executor.Labels["label2"]).To(Equal("default-value2"))
+
+			Expect(got.Spec.Driver.Annotations["ann1"]).To(Equal("app-driver-value1"))
+			Expect(got.Spec.Driver.Annotations["ann2"]).To(Equal("default-value2"))
+
+			Expect(got.Spec.Executor.Annotations["ann1"]).To(Equal("app-executor-value1"))
+			Expect(got.Spec.Executor.Annotations["ann2"]).To(Equal("default-value2"))
+		})
+	})
+})

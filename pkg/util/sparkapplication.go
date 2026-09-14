@@ -567,3 +567,55 @@ func ApplyDefaultDriverServiceAccount(app *v1beta2.SparkApplication, defaultServ
 	copied.Spec.Driver.ServiceAccount = &defaultServiceAccount
 	return copied
 }
+
+// ApplyDefaultPodLabelsAndAnnotations injects default labels and annotations into the driver
+// and executor pod specs if they are not already set. Existing keys take precedence.
+func ApplyDefaultPodLabelsAndAnnotations(app *v1beta2.SparkApplication, defaultLabels, defaultAnnotations map[string]string) *v1beta2.SparkApplication {
+	if len(defaultLabels) == 0 && len(defaultAnnotations) == 0 {
+		return app
+	}
+
+	copied := app.DeepCopy()
+
+	if len(defaultLabels) > 0 {
+		if copied.Spec.Driver.Labels == nil {
+			copied.Spec.Driver.Labels = make(map[string]string)
+		}
+		for k, v := range defaultLabels {
+			if _, exists := copied.Spec.Driver.Labels[k]; !exists {
+				copied.Spec.Driver.Labels[k] = v
+			}
+		}
+
+		if copied.Spec.Executor.Labels == nil {
+			copied.Spec.Executor.Labels = make(map[string]string)
+		}
+		for k, v := range defaultLabels {
+			if _, exists := copied.Spec.Executor.Labels[k]; !exists {
+				copied.Spec.Executor.Labels[k] = v
+			}
+		}
+	}
+
+	if len(defaultAnnotations) > 0 {
+		if copied.Spec.Driver.Annotations == nil {
+			copied.Spec.Driver.Annotations = make(map[string]string)
+		}
+		for k, v := range defaultAnnotations {
+			if _, exists := copied.Spec.Driver.Annotations[k]; !exists {
+				copied.Spec.Driver.Annotations[k] = v
+			}
+		}
+
+		if copied.Spec.Executor.Annotations == nil {
+			copied.Spec.Executor.Annotations = make(map[string]string)
+		}
+		for k, v := range defaultAnnotations {
+			if _, exists := copied.Spec.Executor.Annotations[k]; !exists {
+				copied.Spec.Executor.Annotations[k] = v
+			}
+		}
+	}
+
+	return copied
+}

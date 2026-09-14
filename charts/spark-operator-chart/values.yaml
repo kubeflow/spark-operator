@@ -139,6 +139,16 @@ controller:
   # in `spark.jobNamespaces`.
   defaultServiceAccount: ""
 
+  # -- Default labels to inject globally into every Spark driver and executor pod.
+  # These act as fallback defaults; labels defined directly in a SparkApplication
+  # spec will override these defaults if there are key conflicts.
+  defaultPodLabels: {}
+
+  # -- Default annotations to inject globally into every Spark driver and executor pod.
+  # These act as fallback defaults; annotations defined directly in a SparkApplication
+  # spec will override these defaults if there are key conflicts.
+  defaultPodAnnotations: {}
+
   # -- Driver PDB feature gate. When true, the controller creates a PodDisruptionBudget for each SparkApplication that sets spec.driverPodDisruptionBudget=true. Default false.
   driverPodDisruptionBudget:
     enable: false

@@ -87,6 +87,12 @@ type Options struct {
 	// DefaultServiceAccount is the name of the service account used by the driver pod
 	// when the SparkApplication does not specify one. An empty value disables the fallback.
 	DefaultServiceAccount string
+
+	// DefaultPodLabels are the labels injected globally into every Spark driver and executor pod.
+	DefaultPodLabels map[string]string
+
+	// DefaultPodAnnotations are the annotations injected globally into every Spark driver and executor pod.
+	DefaultPodAnnotations map[string]string
 }
 
 // Reconciler reconciles a SparkApplication object.
@@ -1014,6 +1020,12 @@ func (r *Reconciler) submitSparkApplication(ctx context.Context, app *v1beta2.Sp
 	submitApp := util.ApplyDefaultDriverServiceAccount(app, r.options.DefaultServiceAccount)
 	if submitApp != app {
 		logger.Info("Applied default driver service account", "serviceAccount", r.options.DefaultServiceAccount)
+	}
+
+	// Apply default pod labels and annotations globally
+	if len(r.options.DefaultPodLabels) > 0 || len(r.options.DefaultPodAnnotations) > 0 {
+		submitApp = util.ApplyDefaultPodLabelsAndAnnotations(submitApp, r.options.DefaultPodLabels, r.options.DefaultPodAnnotations)
+		logger.Info("Applied default pod labels and annotations")
 	}
 
 	if err := r.submitter.Submit(ctx, submitApp); err != nil {
