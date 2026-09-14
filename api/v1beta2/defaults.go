@@ -53,6 +53,10 @@ func SetSparkApplicationDefaults(app *SparkApplication) {
 		app.Spec.RestartPolicy.Type = RestartPolicyNever
 	}
 
+	if app.Spec.RestartPolicy.RetryIntervalMethod == "" {
+		app.Spec.RestartPolicy.RetryIntervalMethod = RestartPolicyRetryIntervalMethodLinear
+	}
+
 	if app.Spec.RestartPolicy.Type != RestartPolicyNever {
 		// Default to 5 sec if the RestartPolicy is OnFailure or Always and these values aren't specified.
 		if app.Spec.RestartPolicy.OnFailureRetryInterval == nil {
