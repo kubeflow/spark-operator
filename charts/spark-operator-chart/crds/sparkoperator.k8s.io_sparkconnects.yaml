@@ -94,6 +94,22 @@ spec:
               executor:
                 description: Executor is the Spark executor specification.
                 properties:
+                  coreLimit:
+                    anyOf:
+                    - type: integer
+                    - type: string
+                    description: CoreLimit is the physical CPU core limit for the
+                      pod.
+                    pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                    x-kubernetes-int-or-string: true
+                  coreRequest:
+                    anyOf:
+                    - type: integer
+                    - type: string
+                    description: CoreRequest is the physical CPU core request for
+                      the pod.
+                    pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                    x-kubernetes-int-or-string: true
                   cores:
                     description: Cores maps to `spark.driver.cores` or `spark.executor.cores`
                       for the driver and executors, respectively.
@@ -133,6 +149,22 @@ spec:
               server:
                 description: Server is the Spark connect server specification.
                 properties:
+                  coreLimit:
+                    anyOf:
+                    - type: integer
+                    - type: string
+                    description: CoreLimit is the physical CPU core limit for the
+                      pod.
+                    pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                    x-kubernetes-int-or-string: true
+                  coreRequest:
+                    anyOf:
+                    - type: integer
+                    - type: string
+                    description: CoreRequest is the physical CPU core request for
+                      the pod.
+                    pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                    x-kubernetes-int-or-string: true
                   cores:
                     description: Cores maps to `spark.driver.cores` or `spark.executor.cores`
                       for the driver and executors, respectively.

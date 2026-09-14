@@ -12633,6 +12633,22 @@
         "description": "ExecutorSpec is specification of the executor.",
         "type": "object",
         "properties": {
+          "coreLimit": {
+            "description": "CoreLimit is the physical CPU core limit for the pod.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/io.k8s.apimachinery.pkg.api.resource.Quantity"
+              }
+            ]
+          },
+          "coreRequest": {
+            "description": "CoreRequest is the physical CPU core request for the pod.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/io.k8s.apimachinery.pkg.api.resource.Quantity"
+              }
+            ]
+          },
           "cores": {
             "description": "Cores maps to `spark.driver.cores` or `spark.executor.cores` for the driver and executors, respectively.",
             "type": "integer",
@@ -12661,6 +12677,22 @@
         "description": "ServerSpec is specification of the Spark connect server.",
         "type": "object",
         "properties": {
+          "coreLimit": {
+            "description": "CoreLimit is the physical CPU core limit for the pod.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/io.k8s.apimachinery.pkg.api.resource.Quantity"
+              }
+            ]
+          },
+          "coreRequest": {
+            "description": "CoreRequest is the physical CPU core request for the pod.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/io.k8s.apimachinery.pkg.api.resource.Quantity"
+              }
+            ]
+          },
           "cores": {
             "description": "Cores maps to `spark.driver.cores` or `spark.executor.cores` for the driver and executors, respectively.",
             "type": "integer",
@@ -12911,6 +12943,22 @@
         "description": "SparkPodSpec defines common things that can be customized for a Spark driver or executor pod.",
         "type": "object",
         "properties": {
+          "coreLimit": {
+            "description": "CoreLimit is the physical CPU core limit for the pod.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/io.k8s.apimachinery.pkg.api.resource.Quantity"
+              }
+            ]
+          },
+          "coreRequest": {
+            "description": "CoreRequest is the physical CPU core request for the pod.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/io.k8s.apimachinery.pkg.api.resource.Quantity"
+              }
+            ]
+          },
           "cores": {
             "description": "Cores maps to `spark.driver.cores` or `spark.executor.cores` for the driver and executors, respectively.",
             "type": "integer",

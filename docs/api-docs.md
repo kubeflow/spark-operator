@@ -782,6 +782,30 @@ int32
 </tr>
 <tr>
 <td>
+<code>coreRequest</code><br/>
+<em>
+k8s.io/apimachinery/pkg/api/resource.Quantity
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>CoreRequest is the physical CPU core request for the pod.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>coreLimit</code><br/>
+<em>
+k8s.io/apimachinery/pkg/api/resource.Quantity
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>CoreLimit is the physical CPU core limit for the pod.</p>
+</td>
+</tr>
+<tr>
+<td>
 <code>memory</code><br/>
 <em>
 string

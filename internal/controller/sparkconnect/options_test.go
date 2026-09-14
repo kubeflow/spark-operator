@@ -26,6 +26,7 @@ import (
 	. "github.com/onsi/gomega"
 
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/kubeflow/spark-operator/v2/api/v1alpha1"
@@ -127,6 +128,172 @@ var _ = Describe("Options functions", func() {
 				"spark.hadoop.fs.example.regex": "(?i)secret|password",
 				"spark.hadoop.fs.example.value": "literal '$HOME' $(printf injected)",
 			}))
+		})
+	})
+
+	Context("driverConfOption and executorConfOption with CPU resources", func() {
+		It("does not emit driver SparkConf keys for server CoreRequest and CoreLimit", func() {
+			cores := int32(4)
+			coreRequest := resource.MustParse("3500m")
+			coreLimit := resource.MustParse("4")
+			conn := &v1alpha1.SparkConnect{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-spark",
+					Namespace: "default",
+				},
+				Spec: v1alpha1.SparkConnectSpec{
+					SparkVersion: "3.5.0",
+					Server: v1alpha1.ServerSpec{
+						SparkPodSpec: v1alpha1.SparkPodSpec{
+							Cores:       &cores,
+							CoreRequest: &coreRequest,
+							CoreLimit:   &coreLimit,
+						},
+					},
+					Executor: v1alpha1.ExecutorSpec{},
+				},
+			}
+
+			args, err := driverConfOption(conn)
+			Expect(err).NotTo(HaveOccurred())
+			config := shellParsedSparkConfig(args)
+
+			// Verify Cores still maps to spark.driver.cores
+			Expect(config).To(HaveKeyWithValue("spark.driver.cores", "4"))
+
+			Expect(config).NotTo(HaveKey(common.SparkKubernetesDriverRequestCores))
+			Expect(config).NotTo(HaveKey(common.SparkKubernetesDriverLimitCores))
+		})
+
+		It("includes CoreRequest and CoreLimit in executor configuration", func() {
+			cores := int32(4)
+			instances := int32(2)
+			coreRequest := resource.MustParse("3500m")
+			coreLimit := resource.MustParse("4")
+			conn := &v1alpha1.SparkConnect{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-spark",
+					Namespace: "default",
+				},
+				Spec: v1alpha1.SparkConnectSpec{
+					SparkVersion: "3.5.0",
+					Server:       v1alpha1.ServerSpec{},
+					Executor: v1alpha1.ExecutorSpec{
+						SparkPodSpec: v1alpha1.SparkPodSpec{
+							Cores:       &cores,
+							CoreRequest: &coreRequest,
+							CoreLimit:   &coreLimit,
+						},
+						Instances: &instances,
+					},
+				},
+			}
+
+			args, err := executorConfOption(conn)
+			Expect(err).NotTo(HaveOccurred())
+			config := shellParsedSparkConfig(args)
+
+			// Verify Cores maps to spark.executor.cores (not affected by CoreRequest/CoreLimit)
+			Expect(config).To(HaveKeyWithValue("spark.executor.cores", "4"))
+
+			// Verify CoreRequest maps to physical CPU request
+			Expect(config).To(HaveKeyWithValue(common.SparkKubernetesExecutorRequestCores, "3500m"))
+
+			// Verify CoreLimit maps to physical CPU limit
+			Expect(config).To(HaveKeyWithValue(common.SparkKubernetesExecutorLimitCores, "4"))
+		})
+
+		It("omits CPU configuration when CoreRequest and CoreLimit are not specified", func() {
+			cores := int32(4)
+			conn := &v1alpha1.SparkConnect{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-spark",
+					Namespace: "default",
+				},
+				Spec: v1alpha1.SparkConnectSpec{
+					SparkVersion: "3.5.0",
+					Server: v1alpha1.ServerSpec{
+						SparkPodSpec: v1alpha1.SparkPodSpec{
+							Cores: &cores,
+						},
+					},
+					Executor: v1alpha1.ExecutorSpec{},
+				},
+			}
+
+			driverArgs, err := driverConfOption(conn)
+			Expect(err).NotTo(HaveOccurred())
+			driverConfig := shellParsedSparkConfig(driverArgs)
+
+			// Verify Cores is present
+			Expect(driverConfig).To(HaveKeyWithValue("spark.driver.cores", "4"))
+
+			// Verify CPU request/limit are NOT present
+			Expect(driverConfig).NotTo(HaveKey(common.SparkKubernetesDriverRequestCores))
+			Expect(driverConfig).NotTo(HaveKey(common.SparkKubernetesDriverLimitCores))
+		})
+
+		It("includes only CoreRequest when CoreLimit is omitted for executor", func() {
+			cores := int32(4)
+			coreRequest := resource.MustParse("500m")
+			conn := &v1alpha1.SparkConnect{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-spark",
+					Namespace: "default",
+				},
+				Spec: v1alpha1.SparkConnectSpec{
+					SparkVersion: "3.5.0",
+					Server:       v1alpha1.ServerSpec{},
+					Executor: v1alpha1.ExecutorSpec{
+						SparkPodSpec: v1alpha1.SparkPodSpec{
+							Cores:       &cores,
+							CoreRequest: &coreRequest,
+						},
+					},
+				},
+			}
+
+			args, err := executorConfOption(conn)
+			Expect(err).NotTo(HaveOccurred())
+			config := shellParsedSparkConfig(args)
+
+			// Verify CoreRequest is present
+			Expect(config).To(HaveKeyWithValue(common.SparkKubernetesExecutorRequestCores, "500m"))
+
+			// Verify CoreLimit is NOT present
+			Expect(config).NotTo(HaveKey(common.SparkKubernetesExecutorLimitCores))
+		})
+
+		It("supports decimal CPU values for executor", func() {
+			cores := int32(4)
+			coreRequest := resource.MustParse("1.5")
+			coreLimit := resource.MustParse("2.5")
+			conn := &v1alpha1.SparkConnect{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-spark",
+					Namespace: "default",
+				},
+				Spec: v1alpha1.SparkConnectSpec{
+					SparkVersion: "3.5.0",
+					Server:       v1alpha1.ServerSpec{},
+					Executor: v1alpha1.ExecutorSpec{
+						SparkPodSpec: v1alpha1.SparkPodSpec{
+							Cores:       &cores,
+							CoreRequest: &coreRequest,
+							CoreLimit:   &coreLimit,
+						},
+					},
+				},
+			}
+
+			args, err := executorConfOption(conn)
+			Expect(err).NotTo(HaveOccurred())
+			config := shellParsedSparkConfig(args)
+
+			// Verify decimal values are serialized in the canonical Kubernetes form
+			// (1.5 -> 1500m, 2.5 -> 2500m) via resource.Quantity.String().
+			Expect(config).To(HaveKeyWithValue(common.SparkKubernetesExecutorRequestCores, "1500m"))
+			Expect(config).To(HaveKeyWithValue(common.SparkKubernetesExecutorLimitCores, "2500m"))
 		})
 	})
 })

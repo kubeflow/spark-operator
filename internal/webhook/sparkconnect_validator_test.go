@@ -22,6 +22,7 @@ import (
 	"testing"
 
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
 
@@ -426,6 +427,328 @@ func TestSparkConnectValidatorSparkConf_UpdateRejected(t *testing.T) {
 
 	if _, err := validator.ValidateUpdate(context.Background(), oldSC, newSC); err == nil {
 		t.Fatalf("expected sparkConf to be rejected on update, but it was allowed")
+	}
+}
+
+func TestSparkConnectValidatorValidateCreate_InvalidServerCoreRequest(t *testing.T) {
+	validator := newTestSparkConnectValidator(t)
+
+	sc := newSparkConnect()
+	zero := resource.MustParse("0")
+	sc.Spec.Server.CoreRequest = &zero
+
+	if _, err := validator.ValidateCreate(context.Background(), sc); err == nil || !strings.Contains(err.Error(), "invalid server.coreRequest") {
+		t.Fatalf("expected invalid coreRequest validation error, got %v", err)
+	}
+}
+
+func TestSparkConnectValidatorValidateCreate_InvalidServerCoreLimit(t *testing.T) {
+	validator := newTestSparkConnectValidator(t)
+
+	sc := newSparkConnect()
+	zero := resource.MustParse("0")
+	sc.Spec.Server.CoreLimit = &zero
+
+	if _, err := validator.ValidateCreate(context.Background(), sc); err == nil || !strings.Contains(err.Error(), "invalid server.coreLimit") {
+		t.Fatalf("expected invalid coreLimit validation error, got %v", err)
+	}
+}
+
+func TestSparkConnectValidatorValidateCreate_InvalidExecutorCoreRequest(t *testing.T) {
+	validator := newTestSparkConnectValidator(t)
+
+	sc := newSparkConnect()
+	zero := resource.MustParse("0")
+	sc.Spec.Executor.CoreRequest = &zero
+
+	if _, err := validator.ValidateCreate(context.Background(), sc); err == nil || !strings.Contains(err.Error(), "invalid executor.coreRequest") {
+		t.Fatalf("expected invalid coreRequest validation error, got %v", err)
+	}
+}
+
+func TestSparkConnectValidatorValidateCreate_InvalidExecutorCoreLimit(t *testing.T) {
+	validator := newTestSparkConnectValidator(t)
+
+	sc := newSparkConnect()
+	zero := resource.MustParse("0")
+	sc.Spec.Executor.CoreLimit = &zero
+
+	if _, err := validator.ValidateCreate(context.Background(), sc); err == nil || !strings.Contains(err.Error(), "invalid executor.coreLimit") {
+		t.Fatalf("expected invalid coreLimit validation error, got %v", err)
+	}
+}
+
+func TestSparkConnectValidatorValidateCreate_ValidCPUQuantities(t *testing.T) {
+	validator := newTestSparkConnectValidator(t)
+
+	testCases := []string{
+		"500m",
+		"1",
+		"1.5",
+		"2",
+		"3500m",
+		"4000m",
+		"0.5",
+	}
+
+	for _, cpu := range testCases {
+		t.Run(cpu, func(t *testing.T) {
+			sc := newSparkConnect()
+			q := resource.MustParse(cpu)
+			sc.Spec.Server.CoreRequest = &q
+			sc.Spec.Server.CoreLimit = &q
+			sc.Spec.Executor.CoreRequest = &q
+			sc.Spec.Executor.CoreLimit = &q
+
+			if _, err := validator.ValidateCreate(context.Background(), sc); err != nil {
+				t.Fatalf("expected success for valid CPU quantity %q, got %v", cpu, err)
+			}
+		})
+	}
+}
+
+func TestValidateCPUQuantity(t *testing.T) {
+	testCases := []struct {
+		name    string
+		cpu     *resource.Quantity
+		wantErr bool
+	}{
+		// Valid cases following Kubernetes quantity semantics
+		{"millicores", ptr.To(resource.MustParse("500m")), false},
+		{"integer cores", ptr.To(resource.MustParse("1")), false},
+		{"decimal cores", ptr.To(resource.MustParse("1.5")), false},
+		{"decimal cores 2", ptr.To(resource.MustParse("2.5")), false},
+		{"large millicores", ptr.To(resource.MustParse("4000m")), false},
+		{"large decimal", ptr.To(resource.MustParse("8.5")), false},
+
+		// Invalid cases - zero, negative, or nil values are not acceptable CPU
+		// resource quantities for request/limit fields.
+		{"nil pointer", nil, true},
+		{"zero integer", ptr.To(resource.MustParse("0")), true},
+		{"zero with millis", ptr.To(resource.MustParse("0m")), true},
+		{"negative millicores", ptr.To(resource.MustParse("-500m")), true},
+	}
+
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateCPUQuantity(tt.cpu)
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("validateCPUQuantity(%v) wantErr=%v, got err=%v", tt.cpu, tt.wantErr, err)
+			}
+		})
+	}
+}
+
+func TestValidateCPURequestLELimit(t *testing.T) {
+	testCases := []struct {
+		name    string
+		request *resource.Quantity
+		limit   *resource.Quantity
+		wantErr bool
+	}{
+		{"equal integers", ptr.To(resource.MustParse("1")), ptr.To(resource.MustParse("1")), false},
+		{"equal millis", ptr.To(resource.MustParse("500m")), ptr.To(resource.MustParse("500m")), false},
+		{"request less than limit", ptr.To(resource.MustParse("500m")), ptr.To(resource.MustParse("1")), false},
+		{"request less than limit decimal", ptr.To(resource.MustParse("1.5")), ptr.To(resource.MustParse("2.5")), false},
+		{"request greater than limit", ptr.To(resource.MustParse("2")), ptr.To(resource.MustParse("1")), true},
+		{"request greater than limit decimal", ptr.To(resource.MustParse("2.5")), ptr.To(resource.MustParse("1.5")), true},
+	}
+
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateCPURequestLELimit(tt.request, tt.limit)
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("validateCPURequestLELimit(%v, %v) wantErr=%v, got err=%v", tt.request, tt.limit, tt.wantErr, err)
+			}
+		})
+	}
+}
+
+func TestSparkConnectValidatorValidateCreate_ServerCoreRequestExceedsLimit(t *testing.T) {
+	validator := newTestSparkConnectValidator(t)
+
+	sc := newSparkConnect()
+	sc.Spec.Server.CoreRequest = ptr.To(resource.MustParse("2"))
+	sc.Spec.Server.CoreLimit = ptr.To(resource.MustParse("1"))
+
+	if _, err := validator.ValidateCreate(context.Background(), sc); err == nil || !strings.Contains(err.Error(), "coreRequest") {
+		t.Fatalf("expected server coreRequest/coreLimit validation error, got %v", err)
+	}
+}
+
+// The request/limit cross-validation must use the effective values: a CRD field wins, and a
+// missing CRD field falls back to the pod template container resources. A request that only
+// exceeds the template's limit (not a CRD limit) must still be rejected.
+func TestSparkConnectValidatorValidateCreate_ServerCoreRequestExceedsTemplateLimit(t *testing.T) {
+	validator := newTestSparkConnectValidator(t)
+
+	sc := newSparkConnect()
+	sc.Spec.Server.CoreRequest = ptr.To(resource.MustParse("2"))
+	sc.Spec.Server.Template = &corev1.PodTemplateSpec{
+		Spec: corev1.PodSpec{
+			Containers: []corev1.Container{
+				{
+					Name:  common.SparkDriverContainerName,
+					Image: "spark:3.5.0",
+					Resources: corev1.ResourceRequirements{
+						Limits: corev1.ResourceList{
+							corev1.ResourceCPU: resource.MustParse("1"),
+						},
+					},
+				},
+			},
+		},
+	}
+
+	if _, err := validator.ValidateCreate(context.Background(), sc); err == nil || !strings.Contains(err.Error(), "coreRequest") {
+		t.Fatalf("expected server coreRequest vs template coreLimit validation error, got %v", err)
+	}
+}
+
+func TestSparkConnectValidatorValidateCreate_ExecutorCoreRequestExceedsTemplateLimit(t *testing.T) {
+	validator := newTestSparkConnectValidator(t)
+
+	sc := newSparkConnect()
+	sc.Spec.Executor.CoreRequest = ptr.To(resource.MustParse("2"))
+	sc.Spec.Executor.Template = &corev1.PodTemplateSpec{
+		Spec: corev1.PodSpec{
+			Containers: []corev1.Container{
+				{
+					Name:  common.Spark3DefaultExecutorContainerName,
+					Image: "spark:3.5.0",
+					Resources: corev1.ResourceRequirements{
+						Limits: corev1.ResourceList{
+							corev1.ResourceCPU: resource.MustParse("1"),
+						},
+					},
+				},
+			},
+		},
+	}
+
+	if _, err := validator.ValidateCreate(context.Background(), sc); err == nil || !strings.Contains(err.Error(), "coreRequest") {
+		t.Fatalf("expected executor coreRequest vs template coreLimit validation error, got %v", err)
+	}
+}
+
+// A CRD limit that is lower than the template's request must also be rejected: the CRD limit
+// wins over the template, so the effective request comes from the template.
+func TestSparkConnectValidatorValidateCreate_ServerCoreLimitBelowTemplateRequest(t *testing.T) {
+	validator := newTestSparkConnectValidator(t)
+
+	sc := newSparkConnect()
+	sc.Spec.Server.CoreLimit = ptr.To(resource.MustParse("1"))
+	sc.Spec.Server.Template = &corev1.PodTemplateSpec{
+		Spec: corev1.PodSpec{
+			Containers: []corev1.Container{
+				{
+					Name:  common.SparkDriverContainerName,
+					Image: "spark:3.5.0",
+					Resources: corev1.ResourceRequirements{
+						Requests: corev1.ResourceList{
+							corev1.ResourceCPU: resource.MustParse("2"),
+						},
+					},
+				},
+			},
+		},
+	}
+
+	if _, err := validator.ValidateCreate(context.Background(), sc); err == nil || !strings.Contains(err.Error(), "coreRequest") {
+		t.Fatalf("expected server template coreRequest vs CRD coreLimit validation error, got %v", err)
+	}
+}
+
+// When both effective values come from the template, the cross-validation still applies.
+func TestSparkConnectValidatorValidateCreate_TemplateRequestExceedsTemplateLimit(t *testing.T) {
+	validator := newTestSparkConnectValidator(t)
+
+	sc := newSparkConnect()
+	sc.Spec.Server.Template = &corev1.PodTemplateSpec{
+		Spec: corev1.PodSpec{
+			Containers: []corev1.Container{
+				{
+					Name:  common.SparkDriverContainerName,
+					Image: "spark:3.5.0",
+					Resources: corev1.ResourceRequirements{
+						Requests: corev1.ResourceList{
+							corev1.ResourceCPU: resource.MustParse("2"),
+						},
+						Limits: corev1.ResourceList{
+							corev1.ResourceCPU: resource.MustParse("1"),
+						},
+					},
+				},
+			},
+		},
+	}
+
+	if _, err := validator.ValidateCreate(context.Background(), sc); err == nil || !strings.Contains(err.Error(), "coreRequest") {
+		t.Fatalf("expected template-only coreRequest/coreLimit validation error, got %v", err)
+	}
+}
+
+// Missing effective values are skipped, and a valid combination of CRD and template values
+// passes.
+func TestSparkConnectValidatorValidateCreate_ValidEffectiveCPUCombination(t *testing.T) {
+	validator := newTestSparkConnectValidator(t)
+
+	sc := newSparkConnect()
+	sc.Spec.Server.CoreRequest = ptr.To(resource.MustParse("500m"))
+	sc.Spec.Server.Template = &corev1.PodTemplateSpec{
+		Spec: corev1.PodSpec{
+			Containers: []corev1.Container{
+				{
+					Name:  common.SparkDriverContainerName,
+					Image: "spark:3.5.0",
+					Resources: corev1.ResourceRequirements{
+						Limits: corev1.ResourceList{
+							corev1.ResourceCPU: resource.MustParse("1"),
+						},
+					},
+				},
+			},
+		},
+	}
+
+	if _, err := validator.ValidateCreate(context.Background(), sc); err != nil {
+		t.Fatalf("expected success for CRD request below template limit, got %v", err)
+	}
+}
+
+func TestSparkConnectValidatorValidateCreate_ExecutorCoreRequestExceedsLimit(t *testing.T) {
+	validator := newTestSparkConnectValidator(t)
+
+	sc := newSparkConnect()
+	sc.Spec.Executor.CoreRequest = ptr.To(resource.MustParse("2"))
+	sc.Spec.Executor.CoreLimit = ptr.To(resource.MustParse("1"))
+
+	if _, err := validator.ValidateCreate(context.Background(), sc); err == nil || !strings.Contains(err.Error(), "coreRequest") {
+		t.Fatalf("expected executor coreRequest/coreLimit validation error, got %v", err)
+	}
+}
+
+func TestSparkConnectValidatorValidateCreate_ServerZeroCoreRequest(t *testing.T) {
+	validator := newTestSparkConnectValidator(t)
+
+	sc := newSparkConnect()
+	zero := resource.MustParse("0")
+	sc.Spec.Server.CoreRequest = &zero
+
+	if _, err := validator.ValidateCreate(context.Background(), sc); err == nil || !strings.Contains(err.Error(), "greater than zero") {
+		t.Fatalf("expected server.coreRequest zero-value validation error, got %v", err)
+	}
+}
+
+func TestSparkConnectValidatorValidateCreate_ExecutorNegativeCoreLimit(t *testing.T) {
+	validator := newTestSparkConnectValidator(t)
+
+	sc := newSparkConnect()
+	neg := resource.NewMilliQuantity(-500, resource.DecimalSI)
+	sc.Spec.Executor.CoreLimit = neg
+
+	if _, err := validator.ValidateCreate(context.Background(), sc); err == nil || !strings.Contains(err.Error(), "must not be negative") {
+		t.Fatalf("expected negative coreLimit validation error, got %v", err)
 	}
 }
 

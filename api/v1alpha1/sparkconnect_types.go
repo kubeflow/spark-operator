@@ -18,6 +18,7 @@ package v1alpha1
 
 import (
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -110,6 +111,14 @@ type SparkPodSpec struct {
 	// +optional
 	// +kubebuilder:validation:Minimum=1
 	Cores *int32 `json:"cores,omitempty"`
+
+	// CoreRequest is the physical CPU core request for the pod.
+	// +optional
+	CoreRequest *resource.Quantity `json:"coreRequest,omitempty"`
+
+	// CoreLimit is the physical CPU core limit for the pod.
+	// +optional
+	CoreLimit *resource.Quantity `json:"coreLimit,omitempty"`
 
 	// Memory is the amount of memory to request for the pod.
 	// +optional

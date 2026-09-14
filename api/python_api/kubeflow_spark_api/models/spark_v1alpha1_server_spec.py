@@ -21,6 +21,7 @@ from pydantic import BaseModel, ConfigDict, Field, StrictInt, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional
 from kubeflow_spark_api.models.io_k8s_api_core_v1_pod_template_spec import IoK8sApiCoreV1PodTemplateSpec
 from kubeflow_spark_api.models.io_k8s_api_core_v1_service import IoK8sApiCoreV1Service
+from kubeflow_spark_api.models.io_k8s_apimachinery_pkg_api_resource_quantity import IoK8sApimachineryPkgApiResourceQuantity
 from typing import Optional, Set
 from typing_extensions import Self
 
@@ -28,11 +29,13 @@ class SparkV1alpha1ServerSpec(BaseModel):
     """
     ServerSpec is specification of the Spark connect server.
     """ # noqa: E501
+    core_limit: Optional[IoK8sApimachineryPkgApiResourceQuantity] = Field(default=None, description="CoreLimit is the physical CPU core limit for the pod.", alias="coreLimit")
+    core_request: Optional[IoK8sApimachineryPkgApiResourceQuantity] = Field(default=None, description="CoreRequest is the physical CPU core request for the pod.", alias="coreRequest")
     cores: Optional[StrictInt] = Field(default=None, description="Cores maps to `spark.driver.cores` or `spark.executor.cores` for the driver and executors, respectively.")
     memory: Optional[StrictStr] = Field(default=None, description="Memory is the amount of memory to request for the pod.")
     service: Optional[IoK8sApiCoreV1Service] = Field(default=None, description="Service exposes the Spark connect server.")
     template: Optional[IoK8sApiCoreV1PodTemplateSpec] = Field(default=None, description="Template is a pod template that can be used to define the driver or executor pod configurations that Spark configurations do not support. Spark version >= 3.0.0 is required. Ref: https://spark.apache.org/docs/latest/running-on-kubernetes.html#pod-template.")
-    __properties: ClassVar[List[str]] = ["cores", "memory", "service", "template"]
+    __properties: ClassVar[List[str]] = ["coreLimit", "coreRequest", "cores", "memory", "service", "template"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -73,6 +76,12 @@ class SparkV1alpha1ServerSpec(BaseModel):
             exclude=excluded_fields,
             exclude_none=True,
         )
+        # override the default output from pydantic by calling `to_dict()` of core_limit
+        if self.core_limit:
+            _dict['coreLimit'] = self.core_limit.to_dict()
+        # override the default output from pydantic by calling `to_dict()` of core_request
+        if self.core_request:
+            _dict['coreRequest'] = self.core_request.to_dict()
         # override the default output from pydantic by calling `to_dict()` of service
         if self.service:
             _dict['service'] = self.service.to_dict()
@@ -91,6 +100,8 @@ class SparkV1alpha1ServerSpec(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
+            "coreLimit": IoK8sApimachineryPkgApiResourceQuantity.from_dict(obj["coreLimit"]) if obj.get("coreLimit") is not None else None,
+            "coreRequest": IoK8sApimachineryPkgApiResourceQuantity.from_dict(obj["coreRequest"]) if obj.get("coreRequest") is not None else None,
             "cores": obj.get("cores"),
             "memory": obj.get("memory"),
             "service": IoK8sApiCoreV1Service.from_dict(obj["service"]) if obj.get("service") is not None else None,

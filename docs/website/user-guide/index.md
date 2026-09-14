@@ -37,6 +37,13 @@ Restart policies, failure handling, and managing running applications
 Use `ScheduledSparkApplication` to run Spark jobs on a cron schedule
 ::::
 
+::::{grid-item-card} Working with SparkConnect
+:link: working-with-sparkconnect
+:link-type: doc
+
+Run a long-lived Spark Connect server and connect Spark clients to it
+::::
+
 :::::
 
 ## Spark Connect
@@ -155,6 +162,7 @@ writing-sparkapplication
 working-with-sparkapplication
 running-sparkapplication-on-schedule
 spark-connect
+working-with-sparkconnect
 customizing-spark-operator
 building-custom-images
 leader-election

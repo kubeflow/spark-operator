@@ -23,6 +23,7 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
+	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/util/validation"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
@@ -263,6 +264,30 @@ func (v *SparkConnectValidator) validateServerSpec(sc *v1alpha1.SparkConnect) er
 		}
 	}
 
+	// Validate CoreRequest format if specified
+	if server.CoreRequest != nil {
+		if err := validateCPUQuantity(server.CoreRequest); err != nil {
+			return fmt.Errorf("invalid server.coreRequest: %v", err)
+		}
+	}
+
+	// Validate CoreLimit format if specified
+	if server.CoreLimit != nil {
+		if err := validateCPUQuantity(server.CoreLimit); err != nil {
+			return fmt.Errorf("invalid server.coreLimit: %v", err)
+		}
+	}
+
+	// Cross-validate that the effective coreRequest is less than or equal to the effective
+	// coreLimit. This is enforced by Kubernetes itself for container resources, but rejecting
+	// it here gives a clearer error at admission time.
+	request, limit := effectiveServerCPUResources(sc)
+	if request != nil && limit != nil {
+		if err := validateCPURequestLELimit(request, limit); err != nil {
+			return fmt.Errorf("invalid server CPU request/limit: %v", err)
+		}
+	}
+
 	return nil
 }
 
@@ -274,6 +299,30 @@ func (v *SparkConnectValidator) validateExecutorSpec(sc *v1alpha1.SparkConnect) 
 	if executor.Memory != nil && *executor.Memory != "" {
 		if err := validateMemoryString(*executor.Memory); err != nil {
 			return fmt.Errorf("invalid executor.memory: %v", err)
+		}
+	}
+
+	// Validate CoreRequest format if specified
+	if executor.CoreRequest != nil {
+		if err := validateCPUQuantity(executor.CoreRequest); err != nil {
+			return fmt.Errorf("invalid executor.coreRequest: %v", err)
+		}
+	}
+
+	// Validate CoreLimit format if specified
+	if executor.CoreLimit != nil {
+		if err := validateCPUQuantity(executor.CoreLimit); err != nil {
+			return fmt.Errorf("invalid executor.coreLimit: %v", err)
+		}
+	}
+
+	// Cross-validate that the effective coreRequest is less than or equal to the effective
+	// coreLimit. This is enforced by Kubernetes itself for container resources, but rejecting
+	// it here gives a clearer error at admission time.
+	request, limit := effectiveExecutorCPUResources(sc)
+	if request != nil && limit != nil {
+		if err := validateCPURequestLELimit(request, limit); err != nil {
+			return fmt.Errorf("invalid executor CPU request/limit: %v", err)
 		}
 	}
 
@@ -324,4 +373,90 @@ func validateMemoryString(memory string) error {
 	}
 
 	return nil
+}
+
+// validateCPUQuantity validates a Kubernetes CPU quantity.
+//
+// It enforces that the value represents a positive, non-zero CPU resource. A nil pointer is
+// treated as "not specified" and passes validation; the caller is responsible for guarding
+// against nil before invoking.
+func validateCPUQuantity(cpu *resource.Quantity) error {
+	if cpu == nil {
+		return fmt.Errorf("CPU quantity cannot be nil")
+	}
+
+	if cpu.IsZero() {
+		return fmt.Errorf("invalid CPU quantity: must be greater than zero")
+	}
+	if cpu.Sign() < 0 {
+		return fmt.Errorf("invalid CPU quantity: must not be negative")
+	}
+
+	return nil
+}
+
+// validateCPURequestLELimit validates that the effective CPU request is less than or equal to
+// the effective CPU limit. The effective values may come from the CRD spec or fall back to the
+// pod template container resources; both inputs must already be valid Kubernetes CPU quantities.
+func validateCPURequestLELimit(request, limit *resource.Quantity) error {
+	if request.Cmp(*limit) > 0 {
+		return fmt.Errorf("effective coreRequest %q must not be greater than effective coreLimit %q", request.String(), limit.String())
+	}
+	return nil
+}
+
+// effectiveServerCPUResources returns the CPU request and limit that will actually be applied
+// to the server container. A CRD field that is set always wins; when it is missing, the value
+// set on the server pod template's container resources applies (spec.server.template).
+func effectiveServerCPUResources(sc *v1alpha1.SparkConnect) (request, limit *resource.Quantity) {
+	request = sc.Spec.Server.CoreRequest
+	limit = sc.Spec.Server.CoreLimit
+
+	if template := sc.Spec.Server.Template; template != nil {
+		if container := util.GetContainerByNameOrFirst(
+			template.Spec.Containers,
+			common.SparkDriverContainerName,
+		); container != nil {
+			if request == nil {
+				if v, ok := container.Resources.Requests[corev1.ResourceCPU]; ok {
+					request = &v
+				}
+			}
+			if limit == nil {
+				if v, ok := container.Resources.Limits[corev1.ResourceCPU]; ok {
+					limit = &v
+				}
+			}
+		}
+	}
+
+	return request, limit
+}
+
+// effectiveExecutorCPUResources returns the CPU request and limit that will actually be applied
+// to executor pods. A CRD field that is set always wins; when it is missing, the value set on
+// the executor pod template's container resources applies (spec.executor.template).
+func effectiveExecutorCPUResources(sc *v1alpha1.SparkConnect) (request, limit *resource.Quantity) {
+	request = sc.Spec.Executor.CoreRequest
+	limit = sc.Spec.Executor.CoreLimit
+
+	if template := sc.Spec.Executor.Template; template != nil {
+		if container := util.GetContainerByNameOrFirst(
+			template.Spec.Containers,
+			common.Spark3DefaultExecutorContainerName,
+		); container != nil {
+			if request == nil {
+				if v, ok := container.Resources.Requests[corev1.ResourceCPU]; ok {
+					request = &v
+				}
+			}
+			if limit == nil {
+				if v, ok := container.Resources.Limits[corev1.ResourceCPU]; ok {
+					limit = &v
+				}
+			}
+		}
+	}
+
+	return request, limit
 }
