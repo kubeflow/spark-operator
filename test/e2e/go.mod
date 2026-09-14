@@ -7,7 +7,7 @@ toolchain go1.25.11
 require (
 	github.com/kubeflow/spark-operator/v2 v2.0.0
 	github.com/onsi/ginkgo/v2 v2.32.1
-	github.com/onsi/gomega v1.42.1
+	github.com/onsi/gomega v1.43.0
 	github.com/prometheus/common v0.70.1
 	github.com/robfig/cron/v3 v3.0.1
 	helm.sh/helm/v3 v3.20.2
