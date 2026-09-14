@@ -21,10 +21,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func init() {
-	SchemeBuilder.Register(&SparkConnect{}, &SparkConnectList{})
-}
-
 // +kubebuilder:object:root=true
 // +kubebuilder:metadata:annotations="api-approved.kubernetes.io=https://github.com/kubeflow/spark-operator/pull/1298"
 // +kubebuilder:resource:scope=Namespaced,shortName=sparkconn,singular=sparkconnect

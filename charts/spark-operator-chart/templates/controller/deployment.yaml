@@ -99,6 +99,9 @@ spec:
         - --default-batch-scheduler={{ . }}
         {{- end }}
         {{- end }}
+        {{- if .Values.controller.batchScheduler.workload.enable }}
+        - --enable-workload-scheduler=true
+        {{- end }}
         {{- if .Values.prometheus.metrics.enable }}
         - --enable-metrics=true
         - --metrics-bind-address=:{{ .Values.prometheus.metrics.port }}
