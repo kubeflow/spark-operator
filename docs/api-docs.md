@@ -3744,6 +3744,34 @@ int32
 Incremented upon each attempted submission of the application and reset upon invalidation and rerun.</p>
 </td>
 </tr>
+<tr>
+<td>
+<code>lastDeletionAttemptTime</code><br/>
+<em>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.24/#time-v1-meta">
+Kubernetes meta/v1.Time
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>LastDeletionAttemptTime is the time when deletion of Spark resources was
+last initiated for a rerun or suspension.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>deletionPollAttempts</code><br/>
+<em>
+int32
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>DeletionPollAttempts is the number of times the controller has polled for
+Spark resource deletion to complete for the current rerun or suspension.</p>
+</td>
+</tr>
 </tbody>
 </table>
 <h3 id="sparkoperator.k8s.io/v1beta2.SparkApplicationType">SparkApplicationType

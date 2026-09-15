@@ -30,15 +30,17 @@ class SparkV1beta2SparkApplicationStatus(BaseModel):
     SparkApplicationStatus defines the observed state of SparkApplication
     """ # noqa: E501
     application_state: Optional[SparkV1beta2ApplicationState] = Field(default=None, description="AppState tells the overall application state.", alias="applicationState")
+    deletion_poll_attempts: Optional[StrictInt] = Field(default=None, description="DeletionPollAttempts is the number of times the controller has polled for Spark resource deletion to complete for the current rerun or suspension.", alias="deletionPollAttempts")
     driver_info: SparkV1beta2DriverInfo = Field(description="DriverInfo has information about the driver.", alias="driverInfo")
     execution_attempts: Optional[StrictInt] = Field(default=None, description="ExecutionAttempts is the total number of attempts to run a submitted application to completion. Incremented upon each attempted run of the application and reset upon invalidation.", alias="executionAttempts")
     executor_state: Optional[Dict[str, StrictStr]] = Field(default=None, description="ExecutorState records the state of executors by executor Pod names.", alias="executorState")
+    last_deletion_attempt_time: Optional[datetime] = Field(default=None, description="LastDeletionAttemptTime is the time when deletion of Spark resources was last initiated for a rerun or suspension.", alias="lastDeletionAttemptTime")
     last_submission_attempt_time: Optional[datetime] = Field(default=None, description="LastSubmissionAttemptTime is the time for the last application submission attempt.", alias="lastSubmissionAttemptTime")
     spark_application_id: Optional[StrictStr] = Field(default=None, description="SparkApplicationID is set by the spark-distribution(via spark.app.id config) on the driver and executor pods", alias="sparkApplicationId")
     submission_attempts: Optional[StrictInt] = Field(default=None, description="SubmissionAttempts is the total number of attempts to submit an application to run. Incremented upon each attempted submission of the application and reset upon invalidation and rerun.", alias="submissionAttempts")
     submission_id: Optional[StrictStr] = Field(default=None, description="SubmissionID is a unique ID of the current submission of the application.", alias="submissionID")
     termination_time: Optional[datetime] = Field(default=None, description="CompletionTime is the time when the application runs to completion if it does.", alias="terminationTime")
-    __properties: ClassVar[List[str]] = ["applicationState", "driverInfo", "executionAttempts", "executorState", "lastSubmissionAttemptTime", "sparkApplicationId", "submissionAttempts", "submissionID", "terminationTime"]
+    __properties: ClassVar[List[str]] = ["applicationState", "deletionPollAttempts", "driverInfo", "executionAttempts", "executorState", "lastDeletionAttemptTime", "lastSubmissionAttemptTime", "sparkApplicationId", "submissionAttempts", "submissionID", "terminationTime"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -98,9 +100,11 @@ class SparkV1beta2SparkApplicationStatus(BaseModel):
 
         _obj = cls.model_validate({
             "applicationState": SparkV1beta2ApplicationState.from_dict(obj["applicationState"]) if obj.get("applicationState") is not None else None,
+            "deletionPollAttempts": obj.get("deletionPollAttempts"),
             "driverInfo": SparkV1beta2DriverInfo.from_dict(obj["driverInfo"]) if obj.get("driverInfo") is not None else None,
             "executionAttempts": obj.get("executionAttempts"),
             "executorState": obj.get("executorState"),
+            "lastDeletionAttemptTime": obj.get("lastDeletionAttemptTime"),
             "lastSubmissionAttemptTime": obj.get("lastSubmissionAttemptTime"),
             "sparkApplicationId": obj.get("sparkApplicationId"),
             "submissionAttempts": obj.get("submissionAttempts"),
