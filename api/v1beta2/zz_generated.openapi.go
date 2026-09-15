@@ -2622,7 +2622,7 @@ func schema_spark_operator_v2_api_v1beta2_SparkApplicationStatus(ref common.Refe
 					"lastDeletionAttemptTime": {
 						SchemaProps: spec.SchemaProps{
 							Description: "LastDeletionAttemptTime is the time when deletion of Spark resources was last initiated for a rerun or suspension.",
-							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Time"),
+							Ref:         ref(metav1.Time{}.OpenAPIModelName()),
 						},
 					},
 					"deletionPollAttempts": {
