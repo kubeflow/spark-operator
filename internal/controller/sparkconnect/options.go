@@ -33,6 +33,7 @@ func buildStartConnectServerArgs(conn *v1alpha1.SparkConnect) ([]string, error) 
 		masterOption,
 		namespaceOption,
 		imageOption,
+		dependenciesOption,
 		sparkConfOption,
 		hadoopConfOption,
 		driverConfOption,
@@ -110,6 +111,41 @@ func imageOption(conn *v1alpha1.SparkConnect) ([]string, error) {
 	return args, nil
 }
 
+func dependenciesOption(conn *v1alpha1.SparkConnect) ([]string, error) {
+	var args []string
+	deps := conn.Spec.Deps
+
+	if len(deps.Jars) > 0 {
+		args = append(args, "--jars", shellQuoteSparkArg(strings.Join(deps.Jars, ",")))
+	}
+
+	if len(deps.Packages) > 0 {
+		args = append(args, "--packages", shellQuoteSparkArg(strings.Join(deps.Packages, ",")))
+	}
+
+	if len(deps.ExcludePackages) > 0 {
+		args = append(args, "--exclude-packages", shellQuoteSparkArg(strings.Join(deps.ExcludePackages, ",")))
+	}
+
+	if len(deps.Repositories) > 0 {
+		args = append(args, "--repositories", shellQuoteSparkArg(strings.Join(deps.Repositories, ",")))
+	}
+
+	if len(deps.PyFiles) > 0 {
+		args = append(args, "--py-files", shellQuoteSparkArg(strings.Join(deps.PyFiles, ",")))
+	}
+
+	if len(deps.Files) > 0 {
+		args = append(args, "--files", shellQuoteSparkArg(strings.Join(deps.Files, ",")))
+	}
+
+	if len(deps.Archives) > 0 {
+		args = append(args, "--archives", shellQuoteSparkArg(strings.Join(deps.Archives, ",")))
+	}
+
+	return args, nil
+}
+
 func sparkConfOption(conn *v1alpha1.SparkConnect) ([]string, error) {
 	if conn.Spec.SparkConf == nil {
 		return nil, nil
@@ -128,6 +164,10 @@ func sparkConfOption(conn *v1alpha1.SparkConnect) ([]string, error) {
 func shellQuoteSparkConfig(key, value string) string {
 	config := fmt.Sprintf("%s=%s", key, value)
 	return fmt.Sprintf("'%s'", strings.ReplaceAll(config, "'", `'"'"'`))
+}
+
+func shellQuoteSparkArg(value string) string {
+	return fmt.Sprintf("'%s'", strings.ReplaceAll(value, "'", "'\"'\"'"))
 }
 
 func hadoopConfOption(conn *v1alpha1.SparkConnect) ([]string, error) {
