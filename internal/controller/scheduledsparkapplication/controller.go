@@ -168,18 +168,19 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	}
 
 	switch scheduledApp.Status.ScheduleState {
-	case v1beta2.ScheduleStateNew:
+	case v1beta2.ScheduleStateNew, v1beta2.ScheduleStateFailedValidation:
 		now := r.clock.Now()
 		oldNextRunTime := scheduledApp.Status.NextRun.Time
 		nextRunTime := schedule.Next(now)
-		if oldNextRunTime.IsZero() || nextRunTime.Before(oldNextRunTime) {
+		if oldNextRunTime.IsZero() || nextRunTime.Before(oldNextRunTime) || scheduledApp.Status.ScheduleState == v1beta2.ScheduleStateFailedValidation {
 			scheduledApp.Status.NextRun = metav1.NewTime(nextRunTime)
 		}
 		scheduledApp.Status.ScheduleState = v1beta2.ScheduleStateScheduled
+		scheduledApp.Status.Reason = ""
 		if err := r.updateScheduledSparkApplicationStatus(ctx, scheduledApp); err != nil {
 			return ctrl.Result{Requeue: true}, err
 		}
-		return ctrl.Result{RequeueAfter: nextRunTime.Sub(now)}, err
+		return ctrl.Result{RequeueAfter: nextRunTime.Sub(now)}, nil
 	case v1beta2.ScheduleStateScheduled:
 		now := r.clock.Now()
 		nextRunTime := scheduledApp.Status.NextRun
@@ -220,8 +221,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			return ctrl.Result{Requeue: true}, err
 		}
 		return ctrl.Result{RequeueAfter: schedule.Next(now).Sub(now)}, nil
-	case v1beta2.ScheduleStateFailedValidation:
-		return ctrl.Result{}, nil
 	}
 
 	return ctrl.Result{}, nil
