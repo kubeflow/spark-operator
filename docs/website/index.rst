@@ -121,7 +121,7 @@
    </a>
    <a class="doc-card" href="reference/index.html">
    <strong>Reference</strong>
-   <p>The <code>v1beta2</code> API definition for SparkApplication and ScheduledSparkApplication</p>
+   <p>API definitions for SparkApplication, ScheduledSparkApplication, and SparkConnect</p>
    </a>
    <a class="doc-card" href="contributor-guide/index.html">
    <strong>Contributor Guide</strong>

@@ -200,7 +200,7 @@ func TestSubmitPodTemplates(t *testing.T) {
 		assert.NotNil(t, capturedReq.DriverPodTemplate)
 		assert.NotNil(t, capturedReq.ExecutorPodTemplate)
 		assert.Len(t, capturedReq.DriverPodTemplate.OwnerReferences, 1)
-		assert.Len(t, capturedReq.ExecutorPodTemplate.OwnerReferences, 1)
+		assert.Empty(t, capturedReq.ExecutorPodTemplate.OwnerReferences)
 	})
 }
 

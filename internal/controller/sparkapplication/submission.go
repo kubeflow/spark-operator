@@ -1196,17 +1196,11 @@ func buildExecutorPodTemplate(app *v1beta2.SparkApplication) *corev1.PodTemplate
 		template = template.DeepCopy()
 	}
 
-	// we put non-controller owner reference so that
-	// other controller (e.g. Kueue) can recognize the executor pods
-	// are the children of the SparkApplication
-	ownerReference := util.GetOwnerReference(app)
-	ownerReference.Controller = nil
-	ownerReference.BlockOwnerDeletion = nil
-	if !slices.ContainsFunc(template.OwnerReferences, func(r metav1.OwnerReference) bool {
-		return reflect.DeepEqual(r, ownerReference)
-	}) {
-		template.OwnerReferences = append(template.OwnerReferences, ownerReference)
-	}
+	// Executor pods are controlled by the driver pod (Spark sets the controller
+	// reference itself). Do not add the SparkApplication as an additional owner:
+	// Kubernetes garbage collection only removes a dependent once all of its
+	// owners are gone, so a second owner would keep executor pods alive after
+	// the driver pod is deleted (e.g. on suspend).
 	return template
 }
 

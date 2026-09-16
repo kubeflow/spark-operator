@@ -424,6 +424,58 @@ func TestPatchSparkPod_ConfigMaps(t *testing.T) {
 	assert.Equal(t, modifiedPod.Spec.Volumes[2].Name, modifiedPod.Spec.Containers[0].VolumeMounts[2].Name)
 }
 
+func TestPatchSparkPod_ConfigMapMountedAtMultiplePaths(t *testing.T) {
+	app := &v1beta2.SparkApplication{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "spark-test",
+			UID:  "spark-test-1",
+		},
+		Spec: v1beta2.SparkApplicationSpec{
+			Driver: v1beta2.DriverSpec{
+				SparkPodSpec: v1beta2.SparkPodSpec{
+					ConfigMaps: []v1beta2.NamePath{
+						{Name: "foo", Path: "/path/to/a"},
+						{Name: "foo", Path: "/path/to/b"},
+					},
+				},
+			},
+		},
+	}
+
+	pod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "spark-driver",
+			Labels: map[string]string{
+				common.LabelSparkRole:               common.SparkRoleDriver,
+				common.LabelLaunchedBySparkOperator: "true",
+			},
+		},
+		Spec: corev1.PodSpec{
+			Containers: []corev1.Container{
+				{
+					Name:  common.SparkDriverContainerName,
+					Image: "spark-driver:latest",
+				},
+			},
+		},
+	}
+
+	modifiedPod, err := getModifiedPod(pod, app)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// The same ConfigMap mounted at two paths must produce a single volume, since a pod
+	// cannot carry two volumes with the same name, and one mount per entry.
+	assert.Len(t, modifiedPod.Spec.Volumes, 1)
+	assert.Equal(t, "foo-vol", modifiedPod.Spec.Volumes[0].Name)
+	assert.Len(t, modifiedPod.Spec.Containers[0].VolumeMounts, 2)
+	assert.Equal(t, "foo-vol", modifiedPod.Spec.Containers[0].VolumeMounts[0].Name)
+	assert.Equal(t, "/path/to/a", modifiedPod.Spec.Containers[0].VolumeMounts[0].MountPath)
+	assert.Equal(t, "foo-vol", modifiedPod.Spec.Containers[0].VolumeMounts[1].Name)
+	assert.Equal(t, "/path/to/b", modifiedPod.Spec.Containers[0].VolumeMounts[1].MountPath)
+}
+
 func TestGetConfigMapVolumeName(t *testing.T) {
 	tests := []struct {
 		name          string
