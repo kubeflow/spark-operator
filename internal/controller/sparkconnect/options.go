@@ -35,6 +35,7 @@ func buildStartConnectServerArgs(conn *v1alpha1.SparkConnect) ([]string, error) 
 		masterOption,
 		namespaceOption,
 		imageOption,
+		dependenciesOption,
 		sparkConfOption,
 		hadoopConfOption,
 		driverConfOption,
@@ -111,6 +112,31 @@ func imageOption(conn *v1alpha1.SparkConnect) ([]string, error) {
 		"--conf",
 		fmt.Sprintf("%s=%s", common.SparkKubernetesExecutorContainerImage, executorImage),
 	)
+
+	return args, nil
+}
+
+func dependenciesOption(conn *v1alpha1.SparkConnect) ([]string, error) {
+	var args []string
+	deps := conn.Spec.Deps
+
+	// Options are passed as individual container arguments via "$@", so values
+	// are not shell-interpreted and do not need quoting.
+	if len(deps.Jars) > 0 {
+		args = append(args, "--jars", strings.Join(deps.Jars, ","))
+	}
+
+	if len(deps.Packages) > 0 {
+		args = append(args, "--packages", strings.Join(deps.Packages, ","))
+	}
+
+	if len(deps.ExcludePackages) > 0 {
+		args = append(args, "--exclude-packages", strings.Join(deps.ExcludePackages, ","))
+	}
+
+	if len(deps.Repositories) > 0 {
+		args = append(args, "--repositories", strings.Join(deps.Repositories, ","))
+	}
 
 	return args, nil
 }
