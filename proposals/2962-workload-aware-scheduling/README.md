@@ -14,6 +14,7 @@
   - [User Stories](#user-stories)
 - [Design Details](#design-details)
   - [Kubernetes Workload API Overview](#kubernetes-workload-api-overview)
+  - [Executor Template Injection](#executor-template-injection)
   - [API](#api)
   - [Defaulting](#defaulting)
   - [Validation](#validation)
@@ -65,7 +66,9 @@ This KEP is **provisional**. Open decisions are listed in [Open Questions](#open
 
 ## Motivation
 
-Spark Operator users who need gang scheduling today choose an external integration such as Volcano, YuniKorn, or scheduler-plugins. Those integrations remain useful, but they have provider-specific APIs and installation requirements.
+Spark Operator users who need gang scheduling today choose an external integration such as Volcano, YuniKorn, or scheduler-plugins. Those integrations remain useful, but they have provider-specific APIs and installation requirements. They stay first-class. Native WAS does not replace them.
+
+`GenericWorkload` is beta and disabled by default in Kubernetes v1.37, and managed Kubernetes providers generally do not expose non-default feature gates. Native WAS is therefore available first to platform teams that run their own control planes and can enable the required gates. That availability limit is a reason to keep the feature opt-in, not a reason to skip the design.
 
 Spark Operator already knows information users should not repeat: driver versus executor role, resolved initial executor count, submission attempt identity, executor template content, and suspend/resume/retry lifecycle. [KEP-6089](https://github.com/kubernetes/enhancements/tree/master/keps/sig-scheduling/6089-was-controller-apis) calls the highest-level controller with this complete view the **root controller** and expects it to compile native `Workload` objects. For `SparkApplication`, that is the SparkApplication controller.
 
@@ -100,7 +103,8 @@ Earlier prototype PRs ([#3093](https://github.com/kubeflow/spark-operator/pull/3
 1. Replace, translate, or deprecate existing batch scheduler integrations.
 2. Put the cluster-mode driver in the executor gang.
 3. Expose a user-managed `schedulingGroup` field in the Spark CRD.
-4. Let users provide Gang `minCount`; scale remains expressed by Spark executor settings.
+4. Let users provide Gang `minCount` in alpha; scale remains expressed by Spark executor settings.
+   A later beta may relax this to floor semantics. Alpha does not promise that the prohibition is permanent.
 5. Support dynamic allocation in this KEP; alpha rejects opted-in applications with dynamic
   allocation enabled.
 6. Add a `CompositePodGroup` hierarchy in alpha.
@@ -121,10 +125,10 @@ The key design principles are:
 1. **Opt-in via the SparkApplication API.** A nil `.spec.scheduling` creates no WAS resources.
 2. **One SparkApplication – one Workload.** Each SparkApplication maps to a single long-lived `Workload` containing one executor `PodGroupTemplate`.
 3. **One submission attempt – one PodGroup.** Each `status.submissionID` gets its own runtime `PodGroup`; retries do not reuse a previous attempt's group.
-4. `minCount` **is always computed by the controller.** Users express scale through `executor.instances` and equivalent `sparkConf`; explicit `gang.minCount` is rejected in alpha.
+4. **`minCount` is computed by the controller in alpha.** Users express scale through `executor.instances` and equivalent `sparkConf`; explicit `gang.minCount` is rejected in alpha. A later beta may allow an explicit `minCount` as a floor that the controller will not go below.
 5. **The driver schedules independently.** Only executor Pods join the PodGroup.
 6. **Lifecycle via `ownerReferences`.** The SparkApplication controller owns the `Workload` and `PodGroup`; executor Pods keep their existing Spark ownership relationships.
-7. `**.spec.scheduling` is immutable in alpha.** Policy changes require a new `SparkApplication`.
+7. **`.spec.scheduling` is immutable in alpha.** Policy changes require a new `SparkApplication`.
 8. **Common concepts stay common.** Spark composes KEP-6089 types and uses `workloadbuilder`.
 
 ### User Stories
@@ -140,6 +144,8 @@ The key design principles are:
 | Suspend and resume cleanly           | Suspend deletes the attempt PodGroup; resume creates a new submission ID.                 |
 | Reject dynamic allocation            | Typed or `sparkConf` dynamic allocation with native WAS is rejected.                      |
 | ScheduledSparkApplication safety     | Webhook validates `spec.template`; each child owns its own objects.                       |
+| Gang never admits                    | Driver may be Running while executors stay unschedulable; no silent per-Pod fallback.    |
+| Retry identity                       | A failed attempt and a new attempt never share a PodGroup.                               |
 
 
 #### Story: Static executor gang for Spark Pi
@@ -219,6 +225,14 @@ spec:
     podGroupName: spark-pi-executors-<attempt-hash>
 ```
 
+#### Story: Gang never admits
+
+As a Spark user, I set Gang scheduling for four executors. The driver becomes Running, but the cluster never has four free slots. I should see the application stay submitted without executors binding, and I should not see Spark fall back to scheduling executors one by one. Alpha reports this through Kubernetes Events on the SparkApplication. A later beta may mirror `PodGroup` scheduling conditions onto SparkApplication status.
+
+#### Story: Retry uses a new submission
+
+As a Spark user, my first submission fails and the operator retries. Retry is a new submission with a new `status.submissionID`, not a restart of the same driver Pod. Pending executor Pods from the new attempt must belong only to the new PodGroup. The previous attempt's PodGroup is not reused.
+
 ## Design Details
 
 ### Kubernetes Workload API Overview
@@ -277,7 +291,21 @@ flowchart TD
     PG --> Exec[Executor Pods]
 ```
 
+### Executor Template Injection
 
+Unlike a Job controller, Spark Operator does not create executor Pods. In cluster mode it submits the driver and passes an executor Pod template. The Spark driver later creates executor Pods from that template. Membership therefore cannot be stamped at Pod create time by the operator. It has to travel with the template.
+
+Alpha path:
+
+1. The controller deep-copies the executor template for the current submission. It does not mutate the stored SparkApplication spec.
+2. It sets `spec.schedulingGroup.podGroupName` to the current attempt PodGroup name.
+3. The operator or submission service invokes `spark-submit` (or the REST submitter) with that template.
+4. Upstream Spark materializes the template for the driver.
+5. The Spark driver creates executor Pods through its Kubernetes client. For current Spark releases that client is Fabric8.
+
+Phase 0 must verify that the selected Spark version's template load, build, and serialize path preserves `spec.schedulingGroup`. The risk is a Fabric8 model that predates the field and drops unknown Pod fields. If that version cannot preserve the field, native WAS is unsupported for that Spark version rather than silently degraded.
+
+Alpha does not add a webhook fallback injector or a post-create membership condition. Those are defense-in-depth for beta, after the primary template path is proven. Alpha still rejects a user-authored `spec.schedulingGroup` on the stored executor template so attempt identity stays controller-owned.
 
 ### API
 
@@ -375,6 +403,8 @@ Whether an empty block should default to `Basic` or `Gang` remains an open revie
 | Native WAS + dynamic allocation              | Reject                                 | Requires separate KEP.          |
 | `scheduling` + `batchScheduler`              | Reject                                 | No native translation defined.  |
 | User sets `spec.schedulingGroup`             | Reject                                 | Operator-managed per attempt.   |
+| Non-default Spark scheduler name             | Reject                                 | Conflicts with native WAS.      |
+| `maxPendingPods` below Gang `minCount`       | Reject                                 | Gang can never become ready.    |
 | Unsupported topology, disruption, or claims  | Reject by allow-list                   | Fail closed.                    |
 | Feature gate disabled + `scheduling` set     | Reject admission                       | Avoid unusable contract.        |
 | Required Kubernetes APIs not served          | Reject at reconcile preflight          | Cached API discovery.           |
@@ -383,6 +413,8 @@ Whether an empty block should default to `Basic` or `Gang` remains an open revie
 
 
 Admission validates object-local rules, feature gate, static-allocation requirement, and conflicts visible in the submitted object. Reconcile preflight performs cached discovery for served Workload and PodGroup APIs. `.spec.scheduling` is immutable after creation in alpha.
+
+Scheduler-name conflicts include `spark.kubernetes.scheduler.name`, `spark.kubernetes.driver.scheduler.name`, and `spark.kubernetes.executor.scheduler.name` when set to a non-default scheduler. `spark.kubernetes.allocation.maxPendingPods` is rejected when it is set below the resolved Gang `minCount`, because the driver would never request enough pending executors for the gang to admit.
 
 A static executor-count change uses the existing invalidation flow, waits for old attempt members
 to disappear, updates the `Workload` blueprint template where individual fields allow it, and
@@ -517,7 +549,7 @@ For each new submission attempt:
 7. Materialize or discover the current attempt `PodGroup`.
 8. Deep-copy the executor template and inject `schedulingGroup.podGroupName`.
 9. Submit the driver through the existing cluster-mode path.
-10. Observe objects and emit events; delete stale attempt PodGroups only after member Pods disappear.
+10. Observe objects and emit events. Delete a stale attempt PodGroup and rely on API deletion protection while member Pods still exist.
 
 No failure path may silently fall back from Gang to ordinary per-Pod scheduling.
 
@@ -548,7 +580,9 @@ executors: one Basic or Gang PodGroup
 - PodGroupTemplate: `executors`
 - PodGroup: `<truncated-workload-name>-executors-<attempt-hash>`
 
-Reconciliation identifies objects by controller UID, `spec.controllerRef`, template name, and `status.submissionID`, not by human-readable names alone.
+`<attempt-hash>` is a hash of `status.submissionID`, so restart discovery is reproducible from the persisted submission ID.
+
+The controller also sets `sparkoperator.k8s.io/submission-id` on the attempt PodGroup. Reconciliation identifies objects by controller UID, `spec.controllerRef`, template name, the submission-id label, and `status.submissionID`, not by human-readable names alone.
 
 ### OwnerReferences Relationship
 
@@ -587,14 +621,18 @@ Every step is idempotent. The controller persists the submission ID first and tr
 | Event | Workload | PodGroup | Notes |
 | --- | --- | --- | --- |
 | New opted-in app | Create or discover | Create after submission ID | Inject membership, then submit. |
-| Retry | Preserve blueprint | New group per submission ID | Never attach Pods to old group. |
+| Retry | Preserve blueprint | New group per submission ID | New submission, not a driver restart. |
 | Static executor-count change | Update blueprint if needed | New group with resolved `minCount` | Uses invalidation flow. |
-| Suspend | Preserve blueprint | Delete after members gone | Existing stop/delete flow. |
-| Resume | Reuse blueprint | New group per submission ID | Fresh driver submission. |
+| Suspend | Preserve blueprint | Delete the attempt PodGroup | API deletion protection waits for members. |
+| Resume | Reuse blueprint | New group per submission ID | Fresh submission and driver. |
 | Delete SparkApplication | GC via ownerReferences | GC via ownerReferences | Existing deletion behavior. |
 
 
 Each generated `ScheduledSparkApplication` child owns its own Workload and PodGroups.
+
+Retry creates a new `status.submissionID` and a new driver submission. It does not restart the previous driver Pod in place.
+
+Suspend stops the current attempt. The controller deletes that attempt's PodGroup and relies on PodGroup deletion protection so the object is not removed while member Pods still exist ([KEP-4671](https://github.com/kubernetes/enhancements/blob/master/keps/sig-scheduling/4671-gang-scheduling/README.md)). The Workload blueprint stays. Resume is a new submission ID and a new PodGroup. Deleting the attempt group avoids mixing old and new executor membership, which is why this differs from controllers that keep one long-lived group for a stable replica set.
 
 ```mermaid
 stateDiagram-v2
@@ -624,14 +662,21 @@ type ResolvedExecutorAllocation struct {
 
 For alpha:
 
-1. Use effective executor instances after typed-field, `sparkConf`, and API-default precedence.
+1. Resolve the initial executor count with the same precedence the operator already uses for `spark-submit`:
+   - `spec.executor.instances`, when set, is submitted after `sparkConf` and wins;
+   - otherwise `spark.executor.instances`;
+   - otherwise the API default of 1 when dynamic allocation is disabled.
 2. Require at least one executor for Gang.
 3. Reject dynamic allocation enabled through typed fields or `sparkConf`.
+
+`minCount` uses that resolved value. Alpha does not accept a user-supplied `gang.minCount`, because Spark already has two scale surfaces. This is an alpha validation rule, not a permanent API promise. A later beta may allow an explicit `minCount` only as a floor that cannot exceed the resolved executor count.
 
 ### Compatibility with Existing Integrations
 
 - **Volcano, YuniKorn, scheduler-plugins:** unchanged; mutually exclusive with native `.spec.scheduling`.
-- **Kueue:** `kueue.x-k8s.io` Workload and `scheduling.k8s.io` Workload are different objects; queue admission is out of scope for this KEP.
+- **Default batch scheduler:** explicit `.spec.scheduling` takes precedence over a deployment-level `--default-batch-scheduler`. Explicit `.spec.scheduling` together with explicit `.spec.batchScheduler` or `batchSchedulerOptions` is an admission error. When neither native scheduling nor a batch scheduler is set, behavior is unchanged.
+- **Scheduler backend registry:** alpha does not register native WAS as another `batchScheduler` name. The public opt-in is `.spec.scheduling`. Mutual exclusion is enforced by admission. Reusing internal registry helpers is an implementation detail, not a second user-facing API.
+- **Kueue:** `kueue.x-k8s.io` Workload and `scheduling.k8s.io` Workload are different objects. Queue admission coordination is out of scope for this KEP. See [Future Plans](#future-plans).
 - **Client modes:** reject until executor template injection is verified end to end.
 - **SparkConnect:** out of scope.
 
@@ -676,7 +721,7 @@ Clusters must serve the required `scheduling.k8s.io` Workload and PodGroup APIs,
 | Served CRDs | `scheduling.k8s.io` **Workload** and **PodGroup** (standalone). |
 | Pod membership field | `spec.schedulingGroup` present in pinned `core/v1`. |
 | Rejected shapes | No dependency on v1alpha1 inline `podGroups` or Pod `workloadRef`. |
-| Verification | `workloadbuilder` compiles; client can create/list **PodGroup**; RBAC matches served resources. |
+| Verification | `workloadbuilder` compiles; client can create/list **PodGroup**; RBAC matches served resources; selected Spark/Fabric8 path preserves `schedulingGroup`. |
 
 
 RBAC when enabled:
@@ -700,15 +745,18 @@ not apply to the superseded v1alpha1 inline model.
 2. Should the first CRD expose only `schedulingPolicy`, or the full wrapper with allow-list rejection?
 3. Is v1.37+ an acceptable minimum cluster version for Phase 0 pinning? (Provisional yes; confirm
    after Phase 0 module bump and API discovery.)
-4. Should native WAS be rejected when a deployment-level default batch scheduler would also apply?
-5. Are Events and errors enough for alpha, or should a `WorkloadSchedulingReady` condition be added?
-6. Does the selected builder require materializing a Basic runtime PodGroup?
+4. Does the selected builder require materializing a Basic runtime PodGroup?
+
+Resolved for this KEP, pending reviewer objection:
+
+- Explicit `.spec.scheduling` beats `--default-batch-scheduler`. Both explicit native scheduling and an explicit batch scheduler are rejected. Neither set means unchanged behavior.
+- Alpha observability is Kubernetes Events and admission or reconcile errors. A mirrored scheduling condition or `status.workloadScheduling` is a beta requirement, not an alpha API.
 
 ## Test Plan
 
 ### Unit Tests
 
-- API defaulting and validation for Basic, Gang, legacy conflicts, dynamic allocation rejection, user `minCount` rejection, user `schedulingGroup` rejection, feature-gate disabled behavior, and `ScheduledSparkApplication.spec.template` parity.
+- API defaulting and validation for Basic, Gang, legacy conflicts, dynamic allocation rejection, user `minCount` rejection, scheduler-name conflicts, `maxPendingPods` below `minCount`, user `schedulingGroup` rejection, feature-gate disabled behavior, and `ScheduledSparkApplication.spec.template` parity.
 - Shared allocation resolver tests covering typed instances, `spark.executor.instances`, precedence, invalid values, and drift prevention against generated `spark-submit` arguments.
 - `workloadbuilder` compilation, ownerReferences, naming, discovery/reuse, retry isolation, membership injection without mutating stored spec, and nil-scheduling no-op behavior.
 
@@ -748,7 +796,8 @@ On a cluster serving the Phase 0 WAS APIs:
 
 - Upstream APIs used by Spark are beta or stable across supported Kubernetes versions.
 - Upgrade, downgrade, feature-disable, and controller-restart paths are tested.
-- Required observability supports per-application diagnosis without controller logs.
+- Required observability supports per-application diagnosis without controller logs, including a mirrored PodGroup scheduling condition when the gang does not admit.
+- Revisit user-supplied Gang `minCount` only as a floor, if Spark scale and WAS scale can stay consistent.
 
 ### GA
 
@@ -761,7 +810,7 @@ On a cluster serving the Phase 0 WAS APIs:
 1. **Dynamic allocation KEP:** bootstrap sizing, elastic gangs, replacement, and scale-down.
 2. **Topology and DRA KEP:** executor placement constraints and safely consumed shared claims.
 3. **Client mode support** after end-to-end validation.
-4. **Kueue coordination** if queue admission ownership is required.
+4. **Kueue coordination** in a follow-up if queue admission ownership is required. That follow-up must cover quota size versus Gang `minCount`, preserving Kueue Pod mutations while injecting `schedulingGroup`, and which controller times out when Kueue has admitted quota but WAS cannot place the gang.
 
 Implementation is expected to land in small reviewable PRs after this design is accepted: API and validation, shared allocation resolver, feature gate and RBAC, Workload compiler, PodGroup and template injection, lifecycle behavior, then E2E and documentation.
 
@@ -774,6 +823,7 @@ Implementation is expected to land in small reviewable PRs after this design is 
 - 2026-09-13: Restructured to match the Kubeflow Trainer KEP layout and trimmed duplicate sections.
 - 2026-09-17: Clarified v1alpha1 vs v1.37 `v1beta1` API evolution and Phase 0 pin requirements
   after community review on PR [#3154](https://github.com/kubeflow/spark-operator/pull/3154).
+- 2026-09-21: Incorporated review feedback on availability, alpha `minCount`, failure stories, executor template injection, validation conflicts, naming, suspend deletion, and deferred Kueue and status work.
 
 ## Alternatives
 
@@ -813,6 +863,11 @@ The operator already owns the template and attempt state; centralized management
 
 Duplicates KEP-6089 defaulting, validation, and version adaptation already provided by `workloadbuilder`.
 
+### Register native WAS as a `batchScheduler` backend
+
+The operator already has a scheduler registry for Volcano, YuniKorn, and scheduler-plugins. Native WAS could be plugged in there so mutual exclusion lives in the registry. This KEP keeps `.spec.scheduling` as the only public opt-in. A backend name would make Kubernetes-native scheduling look like another third-party scheduler and split the API. Admission enforces mutual exclusion. Internal helper reuse is allowed later without becoming a user-facing backend.
+
 ### Put scheduling under executor or driver fields
 
 A top-level `.spec.scheduling` matches Job and Trainer direction, keeps application-level policy in one place, and documents that alpha scope applies to the executor cohort.
+
