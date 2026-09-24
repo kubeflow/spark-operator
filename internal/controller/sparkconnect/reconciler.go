@@ -68,6 +68,14 @@ case "${host}" in
 esac
 exec "${SPARK_HOME}/sbin/start-connect-server.sh" "$@" --conf "spark.driver.host=${host}"
 `
+
+	// Default grace period must cover the preStop wait (60s) plus time for the
+	// main process to exit after preStop completes.
+	sparkConnectServerTerminationGracePeriodSeconds int64 = 90
+
+	// Match SparkSubmit on the JVM cmdline. Bracket-escaped dots avoid pkill/pgrep
+	// matching the preStop shell process whose argv contains this pattern string.
+	sparkConnectJVMPattern = "org[.]apache[.]spark[.]deploy[.]SparkSubmit"
 )
 
 // Options defines the options of SparkConnect reconciler.
@@ -443,16 +451,16 @@ func (r *Reconciler) mutateServerPod(ctx context.Context, conn *v1alpha1.SparkCo
 			},
 		)
 
-		container.Lifecycle = &corev1.Lifecycle{
-			PreStop: &corev1.LifecycleHandler{
-				Exec: &corev1.ExecAction{
-					Command: []string{
-						"bash",
-						"-c",
-						"${SPARK_HOME}/sbin/stop-connect-server.sh",
-					},
-				},
-			},
+		// stop-connect-server.sh uses spark-daemon.sh PID files, which are not
+		// written when SPARK_NO_DAEMONIZE=true. Explicitly SIGTERM the JVM so
+		// EventLogFileWriter can flush before the pod is killed.
+		if container.Lifecycle == nil {
+			container.Lifecycle = defaultSparkConnectServerLifecycle()
+		}
+
+		if pod.Spec.TerminationGracePeriodSeconds == nil {
+			grace := sparkConnectServerTerminationGracePeriodSeconds
+			pod.Spec.TerminationGracePeriodSeconds = &grace
 		}
 
 		pod.Spec.Volumes = append(
@@ -499,6 +507,22 @@ func setDefaultSparkConnectServerProbes(container *corev1.Container) {
 	}
 	if container.ReadinessProbe == nil {
 		container.ReadinessProbe = newSparkConnectServerReadinessProbe()
+	}
+}
+
+func defaultSparkConnectServerLifecycle() *corev1.Lifecycle {
+	script := fmt.Sprintf(
+		"pkill -TERM -f '%s' || true; "+
+			"i=0; while pgrep -f '%s' >/dev/null && [ $i -lt 60 ]; do sleep 1; i=$((i+1)); done",
+		sparkConnectJVMPattern,
+		sparkConnectJVMPattern,
+	)
+	return &corev1.Lifecycle{
+		PreStop: &corev1.LifecycleHandler{
+			Exec: &corev1.ExecAction{
+				Command: []string{"bash", "-c", script},
+			},
+		},
 	}
 }
 

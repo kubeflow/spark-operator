@@ -298,6 +298,76 @@ var _ = Describe("mutateServerPod", func() {
 			Expect(container.ReadinessProbe.TCPSocket.Port).To(Equal(intstr.FromInt(sparkConnectServerPort)))
 		})
 
+		It("should set a pkill-based preStop instead of stop-connect-server.sh", func() {
+			pod := &corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: conn.Namespace,
+				},
+			}
+			Expect(reconciler.mutateServerPod(context.TODO(), conn, pod)).To(Succeed())
+			container := pod.Spec.Containers[0]
+			Expect(container.Lifecycle).NotTo(BeNil())
+			Expect(container.Lifecycle.PreStop).NotTo(BeNil())
+			Expect(container.Lifecycle.PreStop.Exec).NotTo(BeNil())
+			cmd := strings.Join(container.Lifecycle.PreStop.Exec.Command, " ")
+			Expect(cmd).To(ContainSubstring("pkill"))
+			Expect(cmd).To(ContainSubstring("org[.]apache[.]spark[.]deploy[.]SparkSubmit"))
+			Expect(cmd).NotTo(ContainSubstring("stop-connect-server.sh"))
+		})
+
+		It("should preserve user-provided lifecycle", func() {
+			userLifecycle := &corev1.Lifecycle{
+				PreStop: &corev1.LifecycleHandler{
+					Exec: &corev1.ExecAction{Command: []string{"/bin/true"}},
+				},
+			}
+			conn.Spec.Server.Template = &corev1.PodTemplateSpec{
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{
+						{
+							Name:      common.SparkDriverContainerName,
+							Image:     image,
+							Lifecycle: userLifecycle,
+						},
+					},
+				},
+			}
+			pod := &corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: conn.Namespace,
+				},
+			}
+			Expect(reconciler.mutateServerPod(context.TODO(), conn, pod)).To(Succeed())
+			Expect(pod.Spec.Containers[0].Lifecycle).To(Equal(userLifecycle))
+		})
+
+		It("should default terminationGracePeriodSeconds to 90", func() {
+			pod := &corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: conn.Namespace,
+				},
+			}
+			Expect(reconciler.mutateServerPod(context.TODO(), conn, pod)).To(Succeed())
+			Expect(pod.Spec.TerminationGracePeriodSeconds).NotTo(BeNil())
+			Expect(*pod.Spec.TerminationGracePeriodSeconds).To(Equal(int64(90)))
+		})
+
+		It("should preserve user terminationGracePeriodSeconds", func() {
+			var grace int64 = 120
+			conn.Spec.Server.Template = &corev1.PodTemplateSpec{
+				Spec: corev1.PodSpec{
+					TerminationGracePeriodSeconds: &grace,
+				},
+			}
+			pod := &corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: conn.Namespace,
+				},
+			}
+			Expect(reconciler.mutateServerPod(context.TODO(), conn, pod)).To(Succeed())
+			Expect(*pod.Spec.TerminationGracePeriodSeconds).To(Equal(int64(120)))
+		})
+
 		It("should preserve user-provided startup and readiness probes", func() {
 			startupProbe := &corev1.Probe{
 				ProbeHandler: corev1.ProbeHandler{
