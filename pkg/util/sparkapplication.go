@@ -577,45 +577,50 @@ func ApplyDefaultPodLabelsAndAnnotations(app *v1beta2.SparkApplication, defaultL
 
 	copied := app.DeepCopy()
 
-	if len(defaultLabels) > 0 {
-		if copied.Spec.Driver.Labels == nil {
-			copied.Spec.Driver.Labels = make(map[string]string)
-		}
-		for k, v := range defaultLabels {
-			if _, exists := copied.Spec.Driver.Labels[k]; !exists {
-				copied.Spec.Driver.Labels[k] = v
-			}
-		}
-
-		if copied.Spec.Executor.Labels == nil {
-			copied.Spec.Executor.Labels = make(map[string]string)
-		}
-		for k, v := range defaultLabels {
-			if _, exists := copied.Spec.Executor.Labels[k]; !exists {
-				copied.Spec.Executor.Labels[k] = v
-			}
-		}
+	if copied.Spec.Driver.Template == nil {
+		copied.Spec.Driver.Template = &corev1.PodTemplateSpec{}
 	}
+	applyDefaultsToPodTemplate(copied.Spec.Driver.Template, defaultLabels, defaultAnnotations,
+		copied.Spec.Driver.Labels, copied.Spec.Driver.Annotations)
 
-	if len(defaultAnnotations) > 0 {
-		if copied.Spec.Driver.Annotations == nil {
-			copied.Spec.Driver.Annotations = make(map[string]string)
-		}
-		for k, v := range defaultAnnotations {
-			if _, exists := copied.Spec.Driver.Annotations[k]; !exists {
-				copied.Spec.Driver.Annotations[k] = v
-			}
-		}
-
-		if copied.Spec.Executor.Annotations == nil {
-			copied.Spec.Executor.Annotations = make(map[string]string)
-		}
-		for k, v := range defaultAnnotations {
-			if _, exists := copied.Spec.Executor.Annotations[k]; !exists {
-				copied.Spec.Executor.Annotations[k] = v
-			}
-		}
+	if copied.Spec.Executor.Template == nil {
+		copied.Spec.Executor.Template = &corev1.PodTemplateSpec{}
 	}
+	applyDefaultsToPodTemplate(copied.Spec.Executor.Template, defaultLabels, defaultAnnotations,
+		copied.Spec.Executor.Labels, copied.Spec.Executor.Annotations)
 
 	return copied
+}
+
+// applyDefaultsToPodTemplate injects default labels/annotations onto a pod template,
+// skipping any key that already exists on the template or in spec-level overrides.
+func applyDefaultsToPodTemplate(template *corev1.PodTemplateSpec, defaultLabels, defaultAnnotations, specLabels, specAnnotations map[string]string) {
+	if len(defaultLabels) > 0 {
+		if template.Labels == nil {
+			template.Labels = make(map[string]string)
+		}
+		for k, v := range defaultLabels {
+			if _, exists := template.Labels[k]; exists {
+				continue
+			}
+			if _, exists := specLabels[k]; exists {
+				continue
+			}
+			template.Labels[k] = v
+		}
+	}
+	if len(defaultAnnotations) > 0 {
+		if template.Annotations == nil {
+			template.Annotations = make(map[string]string)
+		}
+		for k, v := range defaultAnnotations {
+			if _, exists := template.Annotations[k]; exists {
+				continue
+			}
+			if _, exists := specAnnotations[k]; exists {
+				continue
+			}
+			template.Annotations[k] = v
+		}
+	}
 }

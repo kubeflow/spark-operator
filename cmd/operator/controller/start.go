@@ -45,7 +45,10 @@ import (
 	networkingv1 "k8s.io/api/networking/v1"
 	policyv1 "k8s.io/api/policy/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	apivalidation "k8s.io/apimachinery/pkg/api/validation"
+	metav1validation "k8s.io/apimachinery/pkg/apis/meta/v1/validation"
 	"k8s.io/apimachinery/pkg/util/validation"
+	"k8s.io/apimachinery/pkg/util/validation/field"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/utils/clock"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -110,15 +113,16 @@ var (
 	// not specify one. Empty by default, which preserves existing behavior.
 	defaultServiceAccount string
 
+	// Default pod labels and annotations
+	defaultPodLabels      map[string]string
+	defaultPodAnnotations map[string]string
+
 	// Spark web UI service and ingress
 	enableUIService    bool
 	ingressClassName   string
 	ingressURLFormat   string
 	ingressTLS         []networkingv1.IngressTLS
 	ingressAnnotations map[string]string
-
-	defaultPodLabels      map[string]string
-	defaultPodAnnotations map[string]string
 
 	// Leader election
 	enableLeaderElection        bool
@@ -189,15 +193,23 @@ func NewStartCommand() *cobra.Command {
 				if err := json.Unmarshal([]byte(defaultPodLabelsString), &defaultPodLabels); err != nil {
 					return fmt.Errorf("failed parsing default-pod-labels JSON string from CLI: %v", err)
 				}
-				for key, value := range defaultPodLabels {
+				if errs := metav1validation.ValidateLabels(defaultPodLabels, field.NewPath("defaultPodLabels")); len(errs) > 0 {
+					return fmt.Errorf("invalid default-pod-labels: %v", errs)
+				}
+				sparkReservedLabels := []string{
+					common.LabelSparkRole,
+					common.LabelSparkApplicationSelector,
+					common.LabelSparkAppNameNative,
+					common.LabelSparkVersion,
+					common.LabelSparkExecutorID,
+					common.LabelSparkExecutorResourceProfileID,
+				}
+				for key := range defaultPodLabels {
 					if strings.HasPrefix(key, common.LabelAnnotationPrefix) {
 						return fmt.Errorf("invalid key %q in --default-pod-labels: keys with prefix %q are reserved by the operator", key, common.LabelAnnotationPrefix)
 					}
-					if errs := validation.IsQualifiedName(key); len(errs) > 0 {
-						return fmt.Errorf("invalid label key %q in --default-pod-labels: %s", key, strings.Join(errs, "; "))
-					}
-					if errs := validation.IsValidLabelValue(value); len(errs) > 0 {
-						return fmt.Errorf("invalid label value %q for key %q in --default-pod-labels: %s", value, key, strings.Join(errs, "; "))
+					if slices.Contains(sparkReservedLabels, key) {
+						return fmt.Errorf("invalid key %q in --default-pod-labels: this label is reserved by Spark", key)
 					}
 				}
 			}
@@ -205,12 +217,12 @@ func NewStartCommand() *cobra.Command {
 				if err := json.Unmarshal([]byte(defaultPodAnnotationsString), &defaultPodAnnotations); err != nil {
 					return fmt.Errorf("failed parsing default-pod-annotations JSON string from CLI: %v", err)
 				}
+				if errs := apivalidation.ValidateAnnotations(defaultPodAnnotations, field.NewPath("defaultPodAnnotations")); len(errs) > 0 {
+					return fmt.Errorf("invalid default-pod-annotations: %v", errs)
+				}
 				for key := range defaultPodAnnotations {
 					if strings.HasPrefix(key, common.LabelAnnotationPrefix) {
 						return fmt.Errorf("invalid key %q in --default-pod-annotations: keys with prefix %q are reserved by the operator", key, common.LabelAnnotationPrefix)
-					}
-					if errs := validation.IsQualifiedName(key); len(errs) > 0 {
-						return fmt.Errorf("invalid annotation key %q in --default-pod-annotations: %s", key, strings.Join(errs, "; "))
 					}
 				}
 			}
@@ -267,6 +279,8 @@ func NewStartCommand() *cobra.Command {
 		"The service account used by the Spark driver pod and the Spark Connect server pod "+
 			"when neither the custom resource nor its pod template specifies one. Leave empty "+
 			"to disable the fallback, in which case the namespace's default service account is used.")
+	command.Flags().StringVar(&defaultPodLabelsString, "default-pod-labels", "", "JSON format string for the default labels to be injected into Spark driver and executor pods. e.g. '{\"billing-team\":\"xyz\",\"env\":\"prod\"}'.")
+	command.Flags().StringVar(&defaultPodAnnotationsString, "default-pod-annotations", "", "JSON format string for the default annotations to be injected into Spark driver and executor pods. e.g. '{\"security.example.com/scan\":\"true\"}'.")
 	command.Flags().BoolVar(&enableDriverPDB, "enable-driver-pdb", false,
 		"Enable creation of a PodDisruptionBudget for Spark driver pods. "+
 			"Each SparkApplication must additionally opt in via "+
@@ -285,9 +299,6 @@ func NewStartCommand() *cobra.Command {
 	command.Flags().StringVar(&ingressURLFormat, "ingress-url-format", "", "Ingress URL format.")
 	command.Flags().StringVar(&ingressTLSstring, "ingress-tls", "", "JSON format string for the default TLS config on the Spark UI ingresses. e.g. '[{\"hosts\":[\"*.example.com\"],\"secretName\":\"example-secret\"}]'. `ingressTLS` in the SparkApplication spec will override this value.")
 	command.Flags().StringVar(&ingressAnnotationsString, "ingress-annotations", "", "JSON format string for the default ingress annotations for the Spark UI ingresses. e.g. '[{\"cert-manager.io/cluster-issuer\": \"letsencrypt\"}]'. `ingressAnnotations` in the SparkApplication spec will override this value.")
-
-	command.Flags().StringVar(&defaultPodLabelsString, "default-pod-labels", "", "JSON format string for the default labels to be injected into Spark driver and executor pods. e.g. '{\"billing-team\":\"xyz\",\"env\":\"prod\"}'.")
-	command.Flags().StringVar(&defaultPodAnnotationsString, "default-pod-annotations", "", "JSON format string for the default annotations to be injected into Spark driver and executor pods. e.g. '{\"security.example.com/scan\":\"true\"}'.")
 
 	command.Flags().BoolVar(&enableLeaderElection, "leader-election", false, "Enable leader election for controller manager. "+
 		"Enabling this will ensure there is only one active controller manager.")

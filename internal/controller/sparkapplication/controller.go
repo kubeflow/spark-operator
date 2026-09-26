@@ -1025,7 +1025,9 @@ func (r *Reconciler) submitSparkApplication(ctx context.Context, app *v1beta2.Sp
 	// Apply default pod labels and annotations globally
 	if len(r.options.DefaultPodLabels) > 0 || len(r.options.DefaultPodAnnotations) > 0 {
 		submitApp = util.ApplyDefaultPodLabelsAndAnnotations(submitApp, r.options.DefaultPodLabels, r.options.DefaultPodAnnotations)
-		logger.Info("Applied default pod labels and annotations")
+		logger.Info("Applied default pod labels and annotations",
+			"defaultPodLabels", r.options.DefaultPodLabels,
+			"defaultPodAnnotations", r.options.DefaultPodAnnotations)
 	}
 
 	if err := r.submitter.Submit(ctx, submitApp); err != nil {
