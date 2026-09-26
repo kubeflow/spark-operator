@@ -44,8 +44,11 @@ import (
 	extensionsv1beta1 "k8s.io/api/extensions/v1beta1"
 	networkingv1 "k8s.io/api/networking/v1"
 	policyv1 "k8s.io/api/policy/v1"
+	apivalidation "k8s.io/apimachinery/pkg/api/validation"
+	metav1validation "k8s.io/apimachinery/pkg/apis/meta/v1/validation"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/validation"
+	"k8s.io/apimachinery/pkg/util/validation/field"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/utils/clock"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -110,6 +113,10 @@ var (
 	// not specify one. Empty by default, which preserves existing behavior.
 	defaultServiceAccount string
 
+	// Default pod labels and annotations
+	defaultPodLabels      map[string]string
+	defaultPodAnnotations map[string]string
+
 	// Spark web UI service and ingress
 	enableUIService    bool
 	ingressClassName   string
@@ -164,6 +171,8 @@ var (
 func NewStartCommand() *cobra.Command {
 	var ingressTLSstring string
 	var ingressAnnotationsString string
+	var defaultPodLabelsString string
+	var defaultPodAnnotationsString string
 	var command = &cobra.Command{
 		Use:   "start",
 		Short: "Start controller and webhook",
@@ -178,6 +187,43 @@ func NewStartCommand() *cobra.Command {
 			if ingressAnnotationsString != "" {
 				if err := json.Unmarshal([]byte(ingressAnnotationsString), &ingressAnnotations); err != nil {
 					return fmt.Errorf("failed parsing ingress-annotations JSON string from CLI: %v", err)
+				}
+			}
+			if defaultPodLabelsString != "" {
+				if err := json.Unmarshal([]byte(defaultPodLabelsString), &defaultPodLabels); err != nil {
+					return fmt.Errorf("failed parsing default-pod-labels JSON string from CLI: %v", err)
+				}
+				if errs := metav1validation.ValidateLabels(defaultPodLabels, field.NewPath("defaultPodLabels")); len(errs) > 0 {
+					return fmt.Errorf("invalid default-pod-labels: %v", errs)
+				}
+				sparkReservedLabels := []string{
+					common.LabelSparkRole,
+					common.LabelSparkApplicationSelector,
+					common.LabelSparkAppNameNative,
+					common.LabelSparkVersion,
+					common.LabelSparkExecutorID,
+					common.LabelSparkExecutorResourceProfileID,
+				}
+				for key := range defaultPodLabels {
+					if strings.HasPrefix(key, common.LabelAnnotationPrefix) {
+						return fmt.Errorf("invalid key %q in --default-pod-labels: keys with prefix %q are reserved by the operator", key, common.LabelAnnotationPrefix)
+					}
+					if slices.Contains(sparkReservedLabels, key) {
+						return fmt.Errorf("invalid key %q in --default-pod-labels: this label is reserved by Spark", key)
+					}
+				}
+			}
+			if defaultPodAnnotationsString != "" {
+				if err := json.Unmarshal([]byte(defaultPodAnnotationsString), &defaultPodAnnotations); err != nil {
+					return fmt.Errorf("failed parsing default-pod-annotations JSON string from CLI: %v", err)
+				}
+				if errs := apivalidation.ValidateAnnotations(defaultPodAnnotations, field.NewPath("defaultPodAnnotations")); len(errs) > 0 {
+					return fmt.Errorf("invalid default-pod-annotations: %v", errs)
+				}
+				for key := range defaultPodAnnotations {
+					if strings.HasPrefix(key, common.LabelAnnotationPrefix) {
+						return fmt.Errorf("invalid key %q in --default-pod-annotations: keys with prefix %q are reserved by the operator", key, common.LabelAnnotationPrefix)
+					}
 				}
 			}
 
@@ -233,6 +279,8 @@ func NewStartCommand() *cobra.Command {
 		"The service account used by the Spark driver pod and the Spark Connect server pod "+
 			"when neither the custom resource nor its pod template specifies one. Leave empty "+
 			"to disable the fallback, in which case the namespace's default service account is used.")
+	command.Flags().StringVar(&defaultPodLabelsString, "default-pod-labels", "", "JSON format string for the default labels to be injected into Spark driver and executor pods. e.g. '{\"billing-team\":\"xyz\",\"env\":\"prod\"}'.")
+	command.Flags().StringVar(&defaultPodAnnotationsString, "default-pod-annotations", "", "JSON format string for the default annotations to be injected into Spark driver and executor pods. e.g. '{\"security.example.com/scan\":\"true\"}'.")
 	command.Flags().BoolVar(&enableDriverPDB, "enable-driver-pdb", false,
 		"Enable creation of a PodDisruptionBudget for Spark driver pods. "+
 			"Each SparkApplication must additionally opt in via "+
@@ -582,6 +630,8 @@ func newSparkApplicationReconcilerOptions() sparkapplication.Options {
 		EnableDriverPDB:              enableDriverPDB,
 		DefaultTimeToLiveSeconds:     defaultTimeToLiveSeconds,
 		DefaultServiceAccount:        defaultServiceAccount,
+		DefaultPodLabels:             defaultPodLabels,
+		DefaultPodAnnotations:        defaultPodAnnotations,
 	}
 	if enableBatchScheduler {
 		options.KubeSchedulerNames = kubeSchedulerNames
@@ -603,6 +653,8 @@ func newSparkConnectReconcilerOptions() sparkconnect.Options {
 		Namespaces:            namespaces,
 		NamespaceSelector:     namespaceSelector,
 		DefaultServiceAccount: defaultServiceAccount,
+		DefaultPodLabels:      defaultPodLabels,
+		DefaultPodAnnotations: defaultPodAnnotations,
 	}
 	return options
 }

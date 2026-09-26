@@ -64,6 +64,12 @@ type Options struct {
 	// server pod when neither the SparkConnect nor its server pod template specifies one.
 	// An empty value disables the fallback.
 	DefaultServiceAccount string
+
+	// DefaultPodLabels are the labels injected globally into every Spark driver and executor pod.
+	DefaultPodLabels map[string]string
+
+	// DefaultPodAnnotations are the annotations injected globally into every Spark driver and executor pod.
+	DefaultPodAnnotations map[string]string
 }
 
 // Reconciler reconciles a SparkConnect object.
@@ -283,7 +289,34 @@ func (r *Reconciler) mutateConfigMap(_ context.Context, conn *v1alpha1.SparkConn
 		return fmt.Errorf("failed to set controller reference")
 	}
 
-	podTemplateData, err := yaml.Marshal(conn.Spec.Executor.Template)
+	execTemplate := conn.Spec.Executor.Template.DeepCopy()
+	if execTemplate == nil {
+		execTemplate = &corev1.PodTemplateSpec{}
+	}
+
+	if len(r.options.DefaultPodLabels) > 0 {
+		if execTemplate.Labels == nil {
+			execTemplate.Labels = make(map[string]string)
+		}
+		for k, v := range r.options.DefaultPodLabels {
+			if _, exists := execTemplate.Labels[k]; !exists {
+				execTemplate.Labels[k] = v
+			}
+		}
+	}
+
+	if len(r.options.DefaultPodAnnotations) > 0 {
+		if execTemplate.Annotations == nil {
+			execTemplate.Annotations = make(map[string]string)
+		}
+		for k, v := range r.options.DefaultPodAnnotations {
+			if _, exists := execTemplate.Annotations[k]; !exists {
+				execTemplate.Annotations[k] = v
+			}
+		}
+	}
+
+	podTemplateData, err := yaml.Marshal(execTemplate)
 	if err != nil {
 		return fmt.Errorf("failed to marshal executor pod template: %v", err)
 	}
@@ -364,6 +397,29 @@ func (r *Reconciler) mutateServerPod(ctx context.Context, conn *v1alpha1.SparkCo
 				"serviceAccount", r.options.DefaultServiceAccount)
 		}
 
+		// Apply operator-level default pod labels and annotations.
+		if len(r.options.DefaultPodLabels) > 0 {
+			if pod.Labels == nil {
+				pod.Labels = make(map[string]string)
+			}
+			for k, v := range r.options.DefaultPodLabels {
+				if _, exists := pod.Labels[k]; !exists {
+					pod.Labels[k] = v
+				}
+			}
+		}
+
+		if len(r.options.DefaultPodAnnotations) > 0 {
+			if pod.Annotations == nil {
+				pod.Annotations = make(map[string]string)
+			}
+			for k, v := range r.options.DefaultPodAnnotations {
+				if _, exists := pod.Annotations[k]; !exists {
+					pod.Annotations[k] = v
+				}
+			}
+		}
+
 		// Add a default server container if not specified.
 		if len(pod.Spec.Containers) == 0 {
 			pod.Spec.Containers = append(pod.Spec.Containers, corev1.Container{
@@ -390,6 +446,7 @@ func (r *Reconciler) mutateServerPod(ctx context.Context, conn *v1alpha1.SparkCo
 		if err != nil {
 			return fmt.Errorf("failed to build spark connection args: %v", err)
 		}
+
 		container.Args = []string{strings.Join(args, " ")}
 
 		setDefaultSparkConnectServerProbes(container)

@@ -358,6 +358,12 @@ const (
 
 	// LabelSparkExecutorID is the label that records executor pod ID
 	LabelSparkExecutorID = "spark-exec-id"
+
+	// LabelSparkAppNameNative is the application name label set by Spark on the driver/executor pods.
+	LabelSparkAppNameNative = "spark-app-name"
+
+	// LabelSparkExecutorResourceProfileID is the resource profile ID label set by Spark on executor pods.
+	LabelSparkExecutorResourceProfileID = "spark-exec-resourceprofile-id"
 )
 
 const (

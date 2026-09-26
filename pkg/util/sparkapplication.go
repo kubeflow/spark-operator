@@ -567,3 +567,60 @@ func ApplyDefaultDriverServiceAccount(app *v1beta2.SparkApplication, defaultServ
 	copied.Spec.Driver.ServiceAccount = &defaultServiceAccount
 	return copied
 }
+
+// ApplyDefaultPodLabelsAndAnnotations injects default labels and annotations into the driver
+// and executor pod specs if they are not already set. Existing keys take precedence.
+func ApplyDefaultPodLabelsAndAnnotations(app *v1beta2.SparkApplication, defaultLabels, defaultAnnotations map[string]string) *v1beta2.SparkApplication {
+	if len(defaultLabels) == 0 && len(defaultAnnotations) == 0 {
+		return app
+	}
+
+	copied := app.DeepCopy()
+
+	if copied.Spec.Driver.Template == nil {
+		copied.Spec.Driver.Template = &corev1.PodTemplateSpec{}
+	}
+	applyDefaultsToPodTemplate(copied.Spec.Driver.Template, defaultLabels, defaultAnnotations,
+		copied.Spec.Driver.Labels, copied.Spec.Driver.Annotations)
+
+	if copied.Spec.Executor.Template == nil {
+		copied.Spec.Executor.Template = &corev1.PodTemplateSpec{}
+	}
+	applyDefaultsToPodTemplate(copied.Spec.Executor.Template, defaultLabels, defaultAnnotations,
+		copied.Spec.Executor.Labels, copied.Spec.Executor.Annotations)
+
+	return copied
+}
+
+// applyDefaultsToPodTemplate injects default labels/annotations onto a pod template,
+// skipping any key that already exists on the template or in spec-level overrides.
+func applyDefaultsToPodTemplate(template *corev1.PodTemplateSpec, defaultLabels, defaultAnnotations, specLabels, specAnnotations map[string]string) {
+	if len(defaultLabels) > 0 {
+		if template.Labels == nil {
+			template.Labels = make(map[string]string)
+		}
+		for k, v := range defaultLabels {
+			if _, exists := template.Labels[k]; exists {
+				continue
+			}
+			if _, exists := specLabels[k]; exists {
+				continue
+			}
+			template.Labels[k] = v
+		}
+	}
+	if len(defaultAnnotations) > 0 {
+		if template.Annotations == nil {
+			template.Annotations = make(map[string]string)
+		}
+		for k, v := range defaultAnnotations {
+			if _, exists := template.Annotations[k]; exists {
+				continue
+			}
+			if _, exists := specAnnotations[k]; exists {
+				continue
+			}
+			template.Annotations[k] = v
+		}
+	}
+}
