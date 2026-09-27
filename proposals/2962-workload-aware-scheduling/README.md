@@ -62,6 +62,8 @@ this alpha boundary:
 
 The cluster-mode driver is not a member of the executor gang. The driver must run before it can create executor Pods, so requiring driver and executors to schedule together would deadlock.
 
+That choice has an orchestration cost. With Airflow, Argo Workflows, or similar systems that treat a Running driver or a non-terminal SparkApplication as "task started," the workflow can look in progress even when the executor gang never admits and executors never run. Alpha must make that state visible through Events, and user documentation must warn that driver-only Running is not the same as a fully scheduled Spark job. Beta requires a machine-readable scheduling condition so sensors and operators can wait on executor-gang readiness rather than driver start alone.
+
 This KEP is **provisional**. Open decisions are listed in [Open Questions](#open-questions).
 
 ## Motivation
@@ -145,6 +147,7 @@ The key design principles are:
 | Reject dynamic allocation            | Typed or `sparkConf` dynamic allocation with native WAS is rejected.                      |
 | ScheduledSparkApplication safety     | Webhook validates `spec.template`; each child owns its own objects.                       |
 | Gang never admits                    | Driver may be Running while executors stay unschedulable; no silent per-Pod fallback.    |
+| Orchestrator visibility              | Airflow-style tasks must not treat driver-only Running as fully started.                 |
 | Retry identity                       | A failed attempt and a new attempt never share a PodGroup.                               |
 
 
@@ -228,6 +231,10 @@ spec:
 #### Story: Gang never admits
 
 As a Spark user, I set Gang scheduling for four executors. The driver becomes Running, but the cluster never has four free slots. I should see the application stay submitted without executors binding, and I should not see Spark fall back to scheduling executors one by one. Alpha reports this through Kubernetes Events on the SparkApplication. A later beta may mirror `PodGroup` scheduling conditions onto SparkApplication status.
+
+#### Story: Orchestrator sees driver-only start as misleading
+
+As a platform user running Spark from Airflow (or a similar orchestrator), my DAG task turns "running" when the driver Pod starts. If the executor gang never admits, the task still looks started while no useful work runs. I need the SparkApplication to expose that the executor PodGroup is not ready—via Events in alpha, and via a condition or status field in beta—so my sensor or operator can fail, timeout, or wait on executor-gang readiness instead of driver start alone. Putting the driver into the gang is not an acceptable fix; that deadlocks cluster mode.
 
 #### Story: Retry uses a new submission
 
@@ -574,6 +581,8 @@ driver:    ordinary independent scheduling
 executors: one Basic or Gang PodGroup
 ```
 
+Because the driver can become Running before the executor gang admits, orchestrators that key off driver start or a non-terminal SparkApplication phase can misreport progress. Alpha must emit clear Events when the attempt PodGroup is not admitted (for example, unschedulable or below `minCount`). User docs must state that driver Running alone does not mean the Spark job has the resources to execute. Beta must expose a condition that sensors can watch for executor-gang readiness.
+
 ### Naming Conventions
 
 - Workload: `<truncated-app-name>-<stable-hash>`
@@ -750,7 +759,7 @@ not apply to the superseded v1alpha1 inline model.
 Resolved for this KEP, pending reviewer objection:
 
 - Explicit `.spec.scheduling` beats `--default-batch-scheduler`. Both explicit native scheduling and an explicit batch scheduler are rejected. Neither set means unchanged behavior.
-- Alpha observability is Kubernetes Events and admission or reconcile errors. A mirrored scheduling condition or `status.workloadScheduling` is a beta requirement, not an alpha API.
+- Alpha observability is Kubernetes Events and admission or reconcile errors. A mirrored scheduling condition or `status.workloadScheduling` is a beta requirement, not an alpha API. That condition is required so orchestrators such as Airflow can wait on executor-gang readiness instead of treating driver-only Running as a fully started job.
 
 ## Test Plan
 
@@ -774,7 +783,7 @@ At least one test must use the actual selected WAS CRDs, not only fake discovery
 On a cluster serving the Phase 0 WAS APIs:
 
 1. Static Gang success with four executors.
-2. Insufficient capacity: none bind until capacity is sufficient; no resubmission required.
+2. Insufficient capacity: none bind until capacity is sufficient; no resubmission required; Events show executor-gang not ready while the driver may already be Running.
 3. Basic policy schedules executors independently.
 4. Retry isolation across submission IDs.
 5. Controller restart without duplicate objects.
@@ -789,14 +798,16 @@ On a cluster serving the Phase 0 WAS APIs:
 - Cluster-mode Basic and static Gang policies are implemented with upstream `workloadbuilder`.
 - `.spec.scheduling == nil` preserves current behavior.
 - Workload and attempt PodGroup reconciliation is idempotent and restart-safe.
+- When the executor gang does not admit, the controller emits Events that distinguish driver Running from executor-gang not ready.
 - Unit, integration, Helm, and E2E tests above pass.
-- User documentation covers prerequisites, examples, limitations, and rollback.
+- User documentation covers prerequisites, examples, limitations, rollback, and the orchestrator pitfall that driver-only Running is not a fully scheduled job.
 
 ### Beta
 
 - Upstream APIs used by Spark are beta or stable across supported Kubernetes versions.
 - Upgrade, downgrade, feature-disable, and controller-restart paths are tested.
 - Required observability supports per-application diagnosis without controller logs, including a mirrored PodGroup scheduling condition when the gang does not admit.
+- That condition is usable by external sensors (for example Airflow) so workflows can wait or fail on executor-gang readiness rather than driver start alone.
 - Revisit user-supplied Gang `minCount` only as a floor, if Spark scale and WAS scale can stay consistent.
 
 ### GA
@@ -824,6 +835,7 @@ Implementation is expected to land in small reviewable PRs after this design is 
 - 2026-09-17: Clarified v1alpha1 vs v1.37 `v1beta1` API evolution and Phase 0 pin requirements
   after community review on PR [#3154](https://github.com/kubeflow/spark-operator/pull/3154).
 - 2026-09-21: Incorporated review feedback on availability, alpha `minCount`, failure stories, executor template injection, validation conflicts, naming, suspend deletion, and deferred Kueue and status work.
+- 2026-09-26: Documented orchestrator visibility when the driver runs outside the executor gang (Airflow-style misleading "started"), with alpha Events and beta condition requirements.
 
 ## Alternatives
 
