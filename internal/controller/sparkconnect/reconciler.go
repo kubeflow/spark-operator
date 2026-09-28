@@ -69,8 +69,9 @@ esac
 exec "${SPARK_HOME}/sbin/start-connect-server.sh" "$@" --conf "spark.driver.host=${host}"
 `
 
-	// Default grace period must cover the preStop wait (60s) plus time for the
-	// main process to exit after preStop completes.
+	// A 90-second grace period gives the JVM, signalled by the preStop hook,
+	// time to shut down while the hook waits on it, with margin before
+	// Kubernetes force-kills the pod.
 	sparkConnectServerTerminationGracePeriodSeconds int64 = 90
 
 	// Match SparkSubmit on the JVM cmdline. Bracket-escaped dots avoid pkill/pgrep
@@ -455,7 +456,24 @@ func (r *Reconciler) mutateServerPod(ctx context.Context, conn *v1alpha1.SparkCo
 		// written when SPARK_NO_DAEMONIZE=true. Explicitly SIGTERM the JVM so
 		// EventLogFileWriter can flush before the pod is killed.
 		if container.Lifecycle == nil {
-			container.Lifecycle = defaultSparkConnectServerLifecycle()
+			container.Lifecycle = &corev1.Lifecycle{}
+		}
+
+		if container.Lifecycle.PreStop == nil {
+			script := fmt.Sprintf(
+				"command -v pkill >/dev/null && command -v pgrep >/dev/null || "+
+					"{ echo 'spark-operator: pkill/pgrep (procps) required for graceful shutdown' >&2; exit 1; }; "+
+					"pkill -TERM -f '%s' || true; "+
+					"i=0; while pgrep -f '%s' >/dev/null && [ $i -lt 60 ]; do sleep 1; i=$((i+1)); done",
+				sparkConnectJVMPattern,
+				sparkConnectJVMPattern,
+			)
+
+			container.Lifecycle.PreStop = &corev1.LifecycleHandler{
+				Exec: &corev1.ExecAction{
+					Command: []string{"bash", "-c", script},
+				},
+			}
 		}
 
 		if pod.Spec.TerminationGracePeriodSeconds == nil {
@@ -507,22 +525,6 @@ func setDefaultSparkConnectServerProbes(container *corev1.Container) {
 	}
 	if container.ReadinessProbe == nil {
 		container.ReadinessProbe = newSparkConnectServerReadinessProbe()
-	}
-}
-
-func defaultSparkConnectServerLifecycle() *corev1.Lifecycle {
-	script := fmt.Sprintf(
-		"pkill -TERM -f '%s' || true; "+
-			"i=0; while pgrep -f '%s' >/dev/null && [ $i -lt 60 ]; do sleep 1; i=$((i+1)); done",
-		sparkConnectJVMPattern,
-		sparkConnectJVMPattern,
-	)
-	return &corev1.Lifecycle{
-		PreStop: &corev1.LifecycleHandler{
-			Exec: &corev1.ExecAction{
-				Command: []string{"bash", "-c", script},
-			},
-		},
 	}
 }
 
