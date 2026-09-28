@@ -21,6 +21,8 @@
   - [Open Questions](#open-questions)
   - [Risks and Mitigations](#risks-and-mitigations)
 - [Design Details](#design-details)
+  - [Semantic contract: Ingress to Gateway API](#semantic-contract-ingress-to-gateway-api)
+  - [Phasing: Spark UI first, driver ingress second](#phasing-spark-ui-first-driver-ingress-second)
   - [Capability detection](#capability-detection)
   - [Route generation](#route-generation)
   - [Path handling](#path-handling)
@@ -178,6 +180,24 @@ hardcoded to `Ingress`.
 explicitly set `uiHTTPRoute.enable=true` and gets silence has a configuration that appears
 to work and does not. Failing only in that case keeps the default path quiet.
 
+#### Question 3: what happens to Ingress-only fields?
+
+`ingressTLS`, `ingressAnnotations` and `ingressClassName` have no `HTTPRoute` equivalent, as
+set out in [the semantic contract](#semantic-contract-ingress-to-gateway-api).
+
+| Option | Behaviour when set while HTTPRoute mode is active | Trade-off |
+|---|---|---|
+| **A. Warn and ignore** | The operator logs that the fields do not apply and creates the route anyway | What #3125 does today. Nothing breaks, but a user who set `ingressTLS` may believe TLS is configured when it is not. |
+| **B. Reject at admission** | The webhook refuses a `SparkApplication` that sets them | Unambiguous and early. Requires the webhook to read an operator-level flag, which it does not do today. |
+| **C. Reject at reconcile** | The application fails with an event naming the unsupported field | No webhook coupling, but the failure arrives later and once per application. |
+
+**Recommendation: A while the switch is operator-level, revisited if Question 1 moves it into
+the CRD.** A cluster-wide flag flip cannot retroactively fix every existing
+`SparkApplication` that already carries `ingressTLS`, so rejecting would break running
+applications on a configuration change their owners did not make. If the switch becomes
+per-application, the person opting in is the same person who set the field, and B becomes
+reasonable.
+
 ### Risks and Mitigations
 
 | Risk | Mitigation |
@@ -190,6 +210,46 @@ to work and does not. Failing only in that case keeps the default path quiet.
 | Divergence from `kubeflow/notebooks` | Question 1 option A mirrors that repository's `ROUTING_PROVIDER` operator-level selector. Worth aligning naming if maintainers prefer. |
 
 ## Design Details
+
+### Semantic contract: Ingress to Gateway API
+
+`web_ui.go` and `driveringress.go` both call `createDriverIngressV1`, so the Ingress
+semantics below are identical for the Spark UI and for driver ingress. Each is remapped
+individually rather than assumed to carry over.
+
+| Ingress semantic | How the operator uses it today | Gateway API | Disposition |
+|---|---|---|---|
+| Hostname | `Rules[0].Host`, from `ingressURL.Host` | `HTTPRoute.spec.hostnames` | Translates directly. An empty value attaches the route to every hostname the `Gateway` serves. |
+| Backend | `IngressServiceBackend{Name, Port}` | `rules[].backendRefs[].BackendObjectReference{Name, Port}` | Translates directly. |
+| Path match | `ingressURL.Path` with `PathType: ImplementationSpecific` | `rules[].matches[].path` with `PathMatchPathPrefix` | Translates, but the type changes. Gateway API has no `ImplementationSpecific`; its core types are `Exact` and `PathPrefix`, with `RegularExpression` optional for implementations. |
+| Subpath capture groups | Path rewritten to `<path>(/\|$)(.*)` so nginx can reference `$2` | Not required | Disappears. The capture-group form exists only to feed the rewrite annotation. |
+| Rewrite | `nginx.ingress.kubernetes.io/rewrite-target: /$2`, set by the operator whenever the path is a subpath | `HTTPRouteFilterURLRewrite` with `HTTPPathModifier{Type: PrefixMatchHTTPPathModifier, ReplacePrefixMatch: "/"}` | Moves, and becomes portable. A hardcoded controller-specific annotation becomes a typed filter every conformant implementation honours. |
+| Controller selection | `spec.ingressClassName` | `parentRefs` naming a specific `Gateway` | Moves. Selection stops being a class name and becomes an explicit reference to an object the administrator supplies. |
+| TLS | `spec.tls` as `[]networkingv1.IngressTLS` (hosts plus `secretName`) | No route-level equivalent; TLS terminates on `Gateway.spec.listeners[].tls` | **Does not translate.** The listener belongs to whoever owns the `Gateway`, which is not the operator and often not the application's namespace. |
+| Arbitrary annotations | `IngressAnnotations`, copied verbatim onto the object | None, by design. Gateway API replaces annotations with typed fields and policy attachment | **Does not translate.** The values are controller-specific and carry no portable meaning on an `HTTPRoute`. |
+| Status | `Ingress.status.loadBalancer` | `HTTPRoute.status.parents[].conditions`, including `Accepted` and `ResolvedRefs` | Improves. Attachment failures surface as explicit conditions rather than an empty address. |
+
+Three fields therefore have no Gateway API home: `ingressTLS`, `ingressAnnotations` and
+`ingressClassName`. #3125 currently logs that it is ignoring them and proceeds. Whether that
+is the right disposition is [Open Question 3](#question-3-what-happens-to-ingress-only-fields).
+
+### Phasing: Spark UI first, driver ingress second
+
+`driverIngressOptions` is out of scope for the first phase, and #3125 reflects that: it
+changes `web_ui.go` and adds `httproute.go`, and does not touch `driveringress.go`.
+
+The split is not arbitrary. `SparkUIConfiguration` yields at most one route per application,
+driven by the operator-level URL format. `DriverIngressConfiguration` is a list whose entries
+each carry their own `IngressURLFormat` and port, so driver ingress yields one object per
+configured port and owns correspondingly more naming and cleanup surface.
+
+Because both paths already funnel through `createDriverIngressV1`, phase 2 is configuration
+plumbing rather than new semantics. The table above applies unchanged.
+
+| Phase | Scope |
+|---|---|
+| 1 | Spark UI only, via `SparkUIConfiguration` and the operator-level flag. Implemented in #3125. |
+| 2 | `driverIngressOptions`, once the phase 1 contract is agreed. |
 
 ### Capability detection
 
@@ -292,6 +352,9 @@ least one release has gone out with the feature available.
 - **2026-09-07** - Maintainer review on #3119 requested a design document before
   implementation continues.
 - **2026-09-12** - KEP drafted.
+- **2026-09-21** - Maintainer review asked for an explicit Ingress-to-Gateway-API semantic
+  contract and for a decision on how `driverIngressOptions` is phased.
+- **2026-09-29** - Added the semantic contract, the phasing split and Open Question 3.
 
 ## Drawbacks
 
