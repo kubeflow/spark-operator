@@ -24,10 +24,13 @@ import (
 	. "github.com/onsi/gomega"
 
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/utils/ptr"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/kubeflow/spark-operator/v2/api/v1alpha1"
 	"github.com/kubeflow/spark-operator/v2/pkg/common"
@@ -305,4 +308,135 @@ var _ = Describe("mutateServerPod", func() {
 			Expect(pod.Spec.ServiceAccountName).To(Equal("spark-operator-spark"))
 		})
 	})
+})
+
+var _ = Describe("mutateServerPod GPU support", func() {
+	var (
+		conn       *v1alpha1.SparkConnect
+		reconciler *Reconciler
+	)
+
+	BeforeEach(func() {
+		conn = &v1alpha1.SparkConnect{
+			ObjectMeta: metav1.ObjectMeta{Name: "gpu-connect", Namespace: "default", UID: "test-uid"},
+			Spec: v1alpha1.SparkConnectSpec{
+				SparkVersion: "4.0.0",
+				Image:        ptr.To("example.com/spark:gpu"),
+			},
+		}
+		reconciler = &Reconciler{scheme: scheme.Scheme}
+		Expect(os.Setenv(common.EnvKubernetesServiceHost, "127.0.0.1")).To(Succeed())
+		Expect(os.Setenv(common.EnvKubernetesServicePort, "443")).To(Succeed())
+		DeferCleanup(os.Unsetenv, common.EnvKubernetesServiceHost)
+		DeferCleanup(os.Unsetenv, common.EnvKubernetesServicePort)
+	})
+
+	It("does not request GPUs for CPU-only sessions", func() {
+		pod := &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Namespace: conn.Namespace}}
+		Expect(reconciler.mutateServerPod(context.Background(), conn, pod)).To(Succeed())
+		Expect(pod.Spec.Containers[0].Resources.Requests).NotTo(HaveKey(corev1.ResourceName("nvidia.com/gpu")))
+		Expect(pod.Spec.Containers[0].Resources.Limits).NotTo(HaveKey(corev1.ResourceName("nvidia.com/gpu")))
+	})
+
+	It("does not request a server GPU for an executor-only GPU session", func() {
+		conn.Spec.Executor.GPU = &v1alpha1.GPUSpec{Name: "nvidia.com/gpu", Quantity: 2}
+		pod := &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Namespace: conn.Namespace}}
+		Expect(reconciler.mutateServerPod(context.Background(), conn, pod)).To(Succeed())
+		command := pod.Spec.Containers[0].Args[0]
+		Expect(command).To(ContainSubstring("spark.executor.resource.gpu.amount=2"))
+		Expect(command).To(ContainSubstring("spark.executor.resource.gpu.vendor=nvidia.com"))
+		Expect(command).NotTo(ContainSubstring("spark.driver.resource.gpu.amount"))
+		Expect(pod.Spec.Containers[0].Resources.Limits).NotTo(HaveKey(corev1.ResourceName("nvidia.com/gpu")))
+	})
+
+	DescribeTable("preserves the pod template and sidecars while setting matching GPU requests and limits",
+		func(containerName string) {
+			template := &corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{"custom": "label"}},
+				Spec: corev1.PodSpec{Containers: []corev1.Container{
+					{Name: "metrics", Image: "example.com/metrics:latest"},
+					{Name: containerName, Resources: corev1.ResourceRequirements{
+						Requests: corev1.ResourceList{corev1.ResourceCPU: resource.MustParse("1"), "nvidia.com/gpu": resource.MustParse("9")},
+						Limits:   corev1.ResourceList{corev1.ResourceMemory: resource.MustParse("1Gi"), "nvidia.com/gpu": resource.MustParse("9")},
+					}},
+				}},
+			}
+			// A custom container name uses the same first-container fallback as image selection.
+			index := 1
+			if containerName == "custom" {
+				template.Spec.Containers[0], template.Spec.Containers[1] = template.Spec.Containers[1], template.Spec.Containers[0]
+				index = 0
+			}
+			before := template.DeepCopy()
+			conn.Spec.Server.GPU = &v1alpha1.GPUSpec{Name: "nvidia.com/gpu", Quantity: 2}
+			conn.Spec.Server.Template = template
+
+			pod := &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Namespace: conn.Namespace}}
+			Expect(reconciler.mutateServerPod(context.Background(), conn, pod)).To(Succeed())
+
+			containers := pod.Spec.Containers
+			Expect(containers).To(HaveLen(2))
+			Expect(containers[1-index]).To(Equal(before.Spec.Containers[1-index]))
+			Expect(containers[index].Resources.Requests).To(HaveKeyWithValue(corev1.ResourceCPU, resource.MustParse("1")))
+			Expect(containers[index].Resources.Limits).To(HaveKeyWithValue(corev1.ResourceMemory, resource.MustParse("1Gi")))
+			gpuName := corev1.ResourceName("nvidia.com/gpu")
+			Expect(containers[index].Resources.Requests.Name(gpuName, resource.DecimalSI).Value()).To(Equal(int64(2)))
+			Expect(containers[index].Resources.Limits.Name(gpuName, resource.DecimalSI).Value()).To(Equal(int64(2)))
+			// The user's template must not be mutated.
+			Expect(template).To(Equal(before))
+		},
+		Entry("named container", common.SparkDriverContainerName),
+		Entry("first container", "custom"),
+	)
+})
+
+var _ = Describe("SparkConnect GPU API validation", func() {
+	var conn *v1alpha1.SparkConnect
+
+	BeforeEach(func() {
+		conn = &v1alpha1.SparkConnect{
+			ObjectMeta: metav1.ObjectMeta{GenerateName: "gpu-connect-", Namespace: "default"},
+			Spec: v1alpha1.SparkConnectSpec{
+				SparkVersion: "4.0.0",
+				Image:        ptr.To("example.com/spark:gpu"),
+			},
+		}
+	})
+
+	It("retains both GPU specifications through the API server and deep copies", func() {
+		conn.Spec.Server.GPU = &v1alpha1.GPUSpec{Name: "amd.com/gpu", Quantity: 1}
+		conn.Spec.Executor.GPU = &v1alpha1.GPUSpec{Name: "nvidia.com/gpu", Quantity: 2}
+		Expect(k8sClient.Create(context.Background(), conn)).To(Succeed())
+		DeferCleanup(k8sClient.Delete, context.Background(), conn)
+
+		stored := &v1alpha1.SparkConnect{}
+		Expect(k8sClient.Get(context.Background(), client.ObjectKeyFromObject(conn), stored)).To(Succeed())
+		Expect(stored.Spec.Server.GPU).To(Equal(conn.Spec.Server.GPU))
+		Expect(stored.Spec.Executor.GPU).To(Equal(conn.Spec.Executor.GPU))
+
+		copied := stored.DeepCopy()
+		copied.Spec.Server.GPU.Quantity = 3
+		copied.Spec.Executor.GPU.Name = "amd.com/gpu"
+		Expect(stored.Spec.Server.GPU.Quantity).To(Equal(int64(1)))
+		Expect(stored.Spec.Executor.GPU.Name).To(Equal("nvidia.com/gpu"))
+	})
+
+	DescribeTable("rejects invalid GPU resources in the CRD schema",
+		func(server bool, name string, quantity int64) {
+			gpu := &v1alpha1.GPUSpec{Name: name, Quantity: quantity}
+			if server {
+				conn.Spec.Server.GPU = gpu
+			} else {
+				conn.Spec.Executor.GPU = gpu
+			}
+			err := k8sClient.Create(context.Background(), conn)
+			Expect(apierrors.IsInvalid(err)).To(BeTrue(), "expected schema rejection, got %v", err)
+		},
+		Entry("zero server GPUs", true, "nvidia.com/gpu", int64(0)),
+		Entry("negative executor GPUs", false, "nvidia.com/gpu", int64(-1)),
+		Entry("missing vendor", false, "gpu", int64(1)),
+		Entry("empty resource name", true, "", int64(1)),
+		Entry("invalid vendor", false, "bad..example/gpu", int64(1)),
+		Entry("unsupported resource suffix", true, "nvidia.com/other", int64(1)),
+	)
 })

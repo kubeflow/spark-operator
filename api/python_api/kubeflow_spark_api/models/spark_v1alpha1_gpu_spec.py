@@ -18,21 +18,17 @@ import re  # noqa: F401
 import json
 
 from pydantic import BaseModel, ConfigDict, Field, StrictInt, StrictStr
-from typing import Any, ClassVar, Dict, List, Optional
-from kubeflow_spark_api.models.io_k8s_api_core_v1_pod_template_spec import IoK8sApiCoreV1PodTemplateSpec
-from kubeflow_spark_api.models.spark_v1alpha1_gpu_spec import SparkV1alpha1GPUSpec
+from typing import Any, ClassVar, Dict, List
 from typing import Optional, Set
 from typing_extensions import Self
 
-class SparkV1alpha1SparkPodSpec(BaseModel):
+class SparkV1alpha1GPUSpec(BaseModel):
     """
-    SparkPodSpec defines common things that can be customized for a Spark driver or executor pod.
+    GPUSpec defines the GPU resources requested for a Spark Connect server or executor pod.  Name must be a Kubernetes extended resource name of the form \"<vendor-domain>/gpu\", for example \"nvidia.com/gpu\" or \"amd.com/gpu\". The vendor domain is passed to Spark as spark.{driver,executor}.resource.gpu.vendor, and the quantity as spark.{driver,executor}.resource.gpu.amount. GPU resource names whose suffix is not \"gpu\" (for example MIG profiles) are not supported by this field; configure them through the pod template and sparkConf instead.  Setting a GPU does not configure GPU discovery. A discovery script or discovery plugin must be provided through sparkConf for Spark to start.
     """ # noqa: E501
-    cores: Optional[StrictInt] = Field(default=None, description="Cores maps to `spark.driver.cores` or `spark.executor.cores` for the driver and executors, respectively.")
-    gpu: Optional[SparkV1alpha1GPUSpec] = Field(default=None, description="GPU specifies GPU resources for the pod and Spark resource scheduler. GPU discovery and per-task resource settings are configured through SparkConf.")
-    memory: Optional[StrictStr] = Field(default=None, description="Memory is the amount of memory to request for the pod.")
-    template: Optional[IoK8sApiCoreV1PodTemplateSpec] = Field(default=None, description="Template is a pod template that can be used to define the driver or executor pod configurations that Spark configurations do not support. Spark version >= 3.0.0 is required. Ref: https://spark.apache.org/docs/latest/running-on-kubernetes.html#pod-template.")
-    __properties: ClassVar[List[str]] = ["cores", "gpu", "memory", "template"]
+    name: StrictStr = Field(description="Name is the Kubernetes GPU resource name, such as nvidia.com/gpu or amd.com/gpu. The vendor domain is used for Spark's GPU resource vendor configuration.")
+    quantity: StrictInt = Field(description="Quantity is the number of GPUs to request for each pod.")
+    __properties: ClassVar[List[str]] = ["name", "quantity"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -52,7 +48,7 @@ class SparkV1alpha1SparkPodSpec(BaseModel):
 
     @classmethod
     def from_json(cls, json_str: str) -> Optional[Self]:
-        """Create an instance of SparkV1alpha1SparkPodSpec from a JSON string"""
+        """Create an instance of SparkV1alpha1GPUSpec from a JSON string"""
         return cls.from_dict(json.loads(json_str))
 
     def to_dict(self) -> Dict[str, Any]:
@@ -73,17 +69,11 @@ class SparkV1alpha1SparkPodSpec(BaseModel):
             exclude=excluded_fields,
             exclude_none=True,
         )
-        # override the default output from pydantic by calling `to_dict()` of gpu
-        if self.gpu:
-            _dict['gpu'] = self.gpu.to_dict()
-        # override the default output from pydantic by calling `to_dict()` of template
-        if self.template:
-            _dict['template'] = self.template.to_dict()
         return _dict
 
     @classmethod
     def from_dict(cls, obj: Optional[Dict[str, Any]]) -> Optional[Self]:
-        """Create an instance of SparkV1alpha1SparkPodSpec from a dict"""
+        """Create an instance of SparkV1alpha1GPUSpec from a dict"""
         if obj is None:
             return None
 
@@ -91,10 +81,8 @@ class SparkV1alpha1SparkPodSpec(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
-            "cores": obj.get("cores"),
-            "gpu": SparkV1alpha1GPUSpec.from_dict(obj["gpu"]) if obj.get("gpu") is not None else None,
-            "memory": obj.get("memory"),
-            "template": IoK8sApiCoreV1PodTemplateSpec.from_dict(obj["template"]) if obj.get("template") is not None else None
+            "name": obj.get("name") if obj.get("name") is not None else '',
+            "quantity": obj.get("quantity") if obj.get("quantity") is not None else 0
         })
         return _obj
 

@@ -349,7 +349,7 @@ func (r *Reconciler) createOrUpdateServerPod(ctx context.Context, conn *v1alpha1
 func (r *Reconciler) mutateServerPod(ctx context.Context, conn *v1alpha1.SparkConnect, pod *corev1.Pod) error {
 	// Server pod not created yet.
 	if pod.CreationTimestamp.IsZero() {
-		template := conn.Spec.Server.Template
+		template := conn.Spec.Server.Template.DeepCopy()
 		if template != nil {
 			pod.Labels = template.Labels
 			pod.Annotations = template.Annotations
@@ -376,6 +376,9 @@ func (r *Reconciler) mutateServerPod(ctx context.Context, conn *v1alpha1.SparkCo
 			pod.Spec.Containers,
 			common.SparkDriverContainerName,
 		)
+		if gpu := conn.Spec.Server.GPU; gpu != nil {
+			util.SetGPUResources(container, gpu.Name, gpu.Quantity)
+		}
 		// Setup image.
 		if container.Image == "" {
 			if conn.Spec.Image == nil || *conn.Spec.Image == "" {

@@ -115,6 +115,11 @@ type SparkPodSpec struct {
 	// +optional
 	Memory *string `json:"memory,omitempty"`
 
+	// GPU specifies GPU resources for the pod and Spark resource scheduler.
+	// GPU discovery and per-task resource settings are configured through SparkConf.
+	// +optional
+	GPU *GPUSpec `json:"gpu,omitempty"`
+
 	// Template is a pod template that can be used to define the driver or executor pod configurations that Spark configurations do not support.
 	// Spark version >= 3.0.0 is required.
 	// Ref: https://spark.apache.org/docs/latest/running-on-kubernetes.html#pod-template.
@@ -123,6 +128,30 @@ type SparkPodSpec struct {
 	// +kubebuilder:validation:Type:=object
 	// +kubebuilder:pruning:PreserveUnknownFields
 	Template *corev1.PodTemplateSpec `json:"template,omitempty"`
+}
+
+// GPUSpec defines the GPU resources requested for a Spark Connect server or executor pod.
+//
+// Name must be a Kubernetes extended resource name of the form
+// "<vendor-domain>/gpu", for example "nvidia.com/gpu" or "amd.com/gpu".
+// The vendor domain is passed to Spark as
+// spark.{driver,executor}.resource.gpu.vendor, and the quantity as
+// spark.{driver,executor}.resource.gpu.amount. GPU resource names whose
+// suffix is not "gpu" (for example MIG profiles) are not supported by this
+// field; configure them through the pod template and sparkConf instead.
+//
+// Setting a GPU does not configure GPU discovery. A discovery script or
+// discovery plugin must be provided through sparkConf for Spark to start.
+type GPUSpec struct {
+	// Name is the Kubernetes GPU resource name, such as nvidia.com/gpu or amd.com/gpu.
+	// The vendor domain is used for Spark's GPU resource vendor configuration.
+	// +kubebuilder:validation:MaxLength=257
+	// +kubebuilder:validation:Pattern="^([a-z0-9]([-a-z0-9]*[a-z0-9])?\\.)*[a-z0-9]([-a-z0-9]*[a-z0-9])?/gpu$"
+	Name string `json:"name"`
+
+	// Quantity is the number of GPUs to request for each pod.
+	// +kubebuilder:validation:Minimum=1
+	Quantity int64 `json:"quantity"`
 }
 
 // SparkConnectStatus defines the observed state of SparkConnect.
