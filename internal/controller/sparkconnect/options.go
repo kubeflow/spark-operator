@@ -44,7 +44,9 @@ func buildStartConnectServerArgs(conn *v1alpha1.SparkConnect) ([]string, error) 
 		dynamicAllocationOption,
 	}
 
-	args := []string{"${SPARK_HOME}/sbin/start-connect-server.sh"}
+	// The server script path is part of the container entrypoint, so the
+	// arguments built here contain only the options passed to that script.
+	var args []string
 
 	for _, optionFunc := range optionFuncs {
 		option, err := optionFunc(conn)
@@ -122,15 +124,10 @@ func sparkConfOption(conn *v1alpha1.SparkConnect) ([]string, error) {
 	for key, value := range conn.Spec.SparkConf {
 		// Configuration property for the driver pod name has already been set.
 		if key != common.SparkKubernetesDriverPodName {
-			args = append(args, "--conf", shellQuoteSparkConfig(key, value))
+			args = append(args, "--conf", fmt.Sprintf("%s=%s", key, value))
 		}
 	}
 	return args, nil
-}
-
-func shellQuoteSparkConfig(key, value string) string {
-	config := fmt.Sprintf("%s=%s", key, value)
-	return fmt.Sprintf("'%s'", strings.ReplaceAll(config, "'", `'"'"'`))
 }
 
 func hadoopConfOption(conn *v1alpha1.SparkConnect) ([]string, error) {
@@ -141,11 +138,11 @@ func hadoopConfOption(conn *v1alpha1.SparkConnect) ([]string, error) {
 	// Add Hadoop configuration properties.
 	for key, value := range conn.Spec.HadoopConf {
 		if strings.HasPrefix(key, common.SparkHadoopPropertiesPrefix) {
-			args = append(args, "--conf", shellQuoteSparkConfig(key, value))
+			args = append(args, "--conf", fmt.Sprintf("%s=%s", key, value))
 		} else {
 			// Add prefix to the configuration key if it does not start with `spark.hadoop.`.
 			// Users will be able to use the configuration key with or without prefix.
-			args = append(args, "--conf", shellQuoteSparkConfig(common.SparkHadoopPropertiesPrefix+key, value))
+			args = append(args, "--conf", fmt.Sprintf("%s=%s", common.SparkHadoopPropertiesPrefix+key, value))
 		}
 	}
 	return args, nil
@@ -181,8 +178,8 @@ func driverConfOption(conn *v1alpha1.SparkConnect) ([]string, error) {
 
 	args = append(args, "--conf", "spark.driver.bindAddress=0.0.0.0")
 
-	driverHost := "$(host=${POD_IP}; if [[ $host == *:* ]] && [[ $host != \\[* ]]; then echo \"[$host]\"; else echo \"$host\"; fi)"
-	args = append(args, "--conf", fmt.Sprintf("spark.driver.host=%s", driverHost))
+	// Property "spark.driver.host" is appended by the container entrypoint, which
+	// resolves POD_IP at runtime and wraps IPv6 addresses in brackets.
 	args = append(args, "--conf", "spark.driver.port=7078")
 	args = append(args, "--conf", "spark.driver.blockManager.port=7079")
 

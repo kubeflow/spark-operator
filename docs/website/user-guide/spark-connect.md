@@ -135,6 +135,31 @@ kubectl explain sparkconnect.spec
 kubectl explain sparkconnect.spec.server
 kubectl explain sparkconnect.spec.executor
 ```
+### Variable expansion in configuration values
+
+The operator passes each Spark and Hadoop configuration value to the server
+container as a separate argument, so values are not interpreted by a shell.
+Kubernetes still expands variable references in container arguments before the
+container starts:
+
+- `$(VAR_NAME)` is replaced with the value of `VAR_NAME` from the container's
+  environment. A reference that cannot be resolved is left unchanged.
+- `$$` is reduced to a single `$`, so `$$(VAR_NAME)` produces the literal
+  `$(VAR_NAME)`. Escaped references are never expanded, whether or not the
+  variable exists.
+
+The server container defines `POD_IP` and `SPARK_NO_DAEMONIZE`, along with any
+variables set in `.spec.server.template`. Escape a value that must reach Spark
+with one of these references intact:
+
+```yaml
+spec:
+  sparkConf:
+    spark.example.literal: $$(POD_IP)
+```
+
+See [Define a Command and Arguments for a Container](https://kubernetes.io/docs/tasks/inject-data-application/define-command-argument-container/#running-a-command-in-a-shell)
+for the full rules.
 
 ## Request GPUs
 

@@ -19,6 +19,9 @@ package sparkconnect
 import (
 	"context"
 	"os"
+	"os/exec"
+	"path/filepath"
+	"strings"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -194,6 +197,87 @@ var _ = Describe("mutateServerPod", func() {
 	})
 
 	Context("when creating a new server pod", func() {
+		It("should pass each generated option as a separate container argument", func() {
+			redactionRegex := "(?i)secret|password|token|access[.]key"
+			conn.Spec.SparkConf = map[string]string{
+				common.SparkDriverExtraJavaOptions: `-Dmessage="hello world"`,
+				"spark.redaction.regex":            redactionRegex,
+			}
+			pod := &corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: conn.Namespace,
+				},
+			}
+			Expect(reconciler.mutateServerPod(context.TODO(), conn, pod)).To(Succeed())
+			Expect(pod.Spec.Containers).NotTo(BeEmpty())
+
+			container := pod.Spec.Containers[0]
+			Expect(container.Command).To(Equal([]string{
+				"bash",
+				"-c",
+				sparkConnectServerEntrypointScript,
+				sparkConnectServerProcessName,
+			}))
+
+			// Every option is its own argument, so nothing is re-split or
+			// re-interpreted by the shell.
+			Expect(container.Args).To(ContainElement("spark.redaction.regex=" + redactionRegex))
+			Expect(container.Args).To(ContainElement(common.SparkDriverExtraJavaOptions + `=-Dmessage="hello world"`))
+			Expect(container.Args).NotTo(ContainElement(ContainSubstring("start-connect-server.sh")))
+		})
+
+		It("should start the server script with the generated options unchanged", func() {
+			conn.Spec.SparkConf = map[string]string{
+				"spark.redaction.regex":          "(?i)secret|password|token|access[.]key",
+				"spark.driver.extraJavaOptions":  `-Dmessage="hello world" -Dquote='value'`,
+				"spark.example.shell_expression": "$HOME $(printf injected) `printf injected` ; & |",
+				"spark.example.multiline":        "first line\nsecond line",
+				"spark.example.empty":            "",
+			}
+			pod := &corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: conn.Namespace,
+				},
+			}
+			Expect(reconciler.mutateServerPod(context.TODO(), conn, pod)).To(Succeed())
+			Expect(pod.Spec.Containers).NotTo(BeEmpty())
+			container := pod.Spec.Containers[0]
+
+			// Stand in for the Spark image with a script that reports the arguments
+			// it actually receives, NUL separated so that values containing spaces
+			// and newlines remain distinguishable.
+			sparkHome, err := os.MkdirTemp("", "spark-home")
+			Expect(err).NotTo(HaveOccurred())
+			DeferCleanup(func() {
+				Expect(os.RemoveAll(sparkHome)).To(Succeed())
+			})
+			Expect(os.MkdirAll(filepath.Join(sparkHome, "sbin"), 0o755)).To(Succeed())
+			Expect(os.WriteFile(
+				filepath.Join(sparkHome, "sbin", "start-connect-server.sh"),
+				[]byte("#!/usr/bin/env bash\nprintf '%s\\0' \"$@\"\n"),
+				0o755,
+			)).To(Succeed())
+
+			for podIP, driverHost := range map[string]string{
+				"10.1.2.3":  "10.1.2.3",
+				"fd00::1":   "[fd00::1]",
+				"[fd00::1]": "[fd00::1]",
+			} {
+				argv := append(append([]string{}, container.Command[1:]...), container.Args...)
+				cmd := exec.Command(container.Command[0], argv...)
+				cmd.Env = append(os.Environ(), "SPARK_HOME="+sparkHome, "POD_IP="+podIP)
+
+				output, err := cmd.Output()
+				Expect(err).NotTo(HaveOccurred())
+
+				received := strings.Split(strings.TrimSuffix(string(output), "\x00"), "\x00")
+				Expect(received).To(
+					Equal(append(append([]string{}, container.Args...), "--conf", "spark.driver.host="+driverHost)),
+					"POD_IP=%s", podIP,
+				)
+			}
+		})
+
 		It("should set default TCP startup and readiness probes", func() {
 			pod := &corev1.Pod{
 				ObjectMeta: metav1.ObjectMeta{
