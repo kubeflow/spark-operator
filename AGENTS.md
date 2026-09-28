@@ -149,7 +149,7 @@ Never edit these by hand; change the source and regenerate:
 | `charts/spark-operator-chart/crds/*.yaml` | `config/crd/bases/` | `make update-crd` |
 | `api/**/zz_generated.deepcopy.go` | Go types in `api/` | `make generate` |
 | `api/**/zz_generated.openapi.go`, `api/openapi-spec/swagger.json` | Go types in `api/` | `make generate` (via `hack/openapi/gen-openapi.sh`) |
-| `api/python_api/` | CRDs | `make generate` |
+| `api/python_api/` | `api/openapi-spec/swagger.json` | `make generate` |
 | `pkg/client/**` | Go types in `api/` | `hack/update-codegen.sh` (checked by `make verify-codegen`) |
 | `docs/api-docs.md` | Go types in `api/` | `make build-api-docs` |
 | `charts/spark-operator-chart/README.md` | `README.md.gotmpl`, `values.yaml` | `make helm-docs` |
@@ -167,10 +167,14 @@ CI regenerates these files (or, for the chart CRDs, diffs them with `make detect
 
 1. `make go-fmt go-vet go-lint`
 2. `go mod tidy && go -C test/e2e mod tidy`
-3. If `api/` changed: `make generate update-crd build-api-docs verify-codegen detect-crds-drift`
+3. If `api/` changed: `./hack/update-codegen.sh && make generate update-crd build-api-docs verify-codegen detect-crds-drift`
 4. `make unit-test`
-5. If the Helm chart changed: `make helm-unittest helm-docs`
-6. If shell scripts, `config/`, or `docs/website/` changed: `make shell-fmt shell-lint`, `make kustomize-lint drift-check`, or `make docs-test`
+5. If the Helm chart changed: `make helm-unittest helm-docs drift-check`
+6. Depending on what else changed:
+   - Shell scripts changed: `make shell-fmt shell-lint`
+   - `config/` changed: `make kustomize-lint drift-check`
+   - `internal/` changed: `make drift-check`
+   - `docs/website/` changed: `make docs-test`
 
 **Commit/PR hygiene**:
 
