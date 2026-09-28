@@ -73,6 +73,7 @@ Unit tests live next to the code they test as `*_test.go` files.
 - **Lint/format**: `golangci-lint` (pinned in `Makefile`, config in `.golangci.yaml`), `go fmt`, `go vet`
 - **Tests**: `go test` with envtest (unit), Ginkgo on Kind (e2e), `helm unittest` (chart)
 - **Code generation**: `controller-gen`, `code-generator`, `openapi-generator` (runs in a container)
+- **Docs**: `uv`, which `make` does not install; `make docs-test` runs Sphinx via `uv run --group docs` (see [`docs/website/README.md`](docs/website/README.md))
 - **Pre-commit**: `helm-docs`, `shfmt`, `shellcheck` hooks in `.pre-commit-config.yaml`
 
 Tools are downloaded on demand into `bin/` by the `make` targets.
