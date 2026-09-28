@@ -162,7 +162,7 @@ func getMemoryRequests(app *v1beta2.SparkApplication) (corev1.ResourceList, erro
 			return nil, err
 		}
 		memoryOverheadFactor = parsed
-	} else if app.Spec.Type == v1beta2.SparkApplicationTypeJava {
+	} else if util.IsJVMApp(app) {
 		memoryOverheadFactor = common.DefaultJVMMemoryOverheadFactor
 	} else {
 		memoryOverheadFactor = common.DefaultNonJVMMemoryOverheadFactor
