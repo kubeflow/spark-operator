@@ -19,6 +19,7 @@ package util_test
 import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	inf "gopkg.in/inf.v0"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 
@@ -113,8 +114,10 @@ var _ = Describe("SumResourceList", func() {
 	)
 
 	It("Should not mutate the input lists", func() {
-		first := corev1.ResourceList{corev1.ResourceCPU: resource.MustParse("1")}
-		second := corev1.ResourceList{corev1.ResourceCPU: resource.MustParse("2")}
+		// Use inf.Dec-backed quantities: a plain struct copy of these shares the
+		// underlying *inf.Dec, so this only passes if SumResourceList deep-copies.
+		first := corev1.ResourceList{corev1.ResourceCPU: *resource.NewDecimalQuantity(*inf.NewDec(1, 0), resource.DecimalSI)}
+		second := corev1.ResourceList{corev1.ResourceCPU: *resource.NewDecimalQuantity(*inf.NewDec(2, 0), resource.DecimalSI)}
 
 		total := util.SumResourceList([]corev1.ResourceList{first, second})
 		Expect(total.Cpu().Cmp(resource.MustParse("3"))).To(BeZero())
