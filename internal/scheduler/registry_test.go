@@ -17,6 +17,8 @@ limitations under the License.
 package scheduler
 
 import (
+	"fmt"
+
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
@@ -69,6 +71,34 @@ var _ = Describe("Registry", func() {
 
 		_, err := r.GetScheduler("missing", nil)
 		Expect(err).To(HaveOccurred())
+	})
+
+	It("propagates the error returned by the factory", func() {
+		r := newTestRegistry()
+		wantErr := fmt.Errorf("boom")
+
+		Expect(r.Register("foo", func(config Config) (Interface, error) {
+			return nil, wantErr
+		})).To(Succeed())
+
+		sched, err := r.GetScheduler("foo", nil)
+		Expect(err).To(MatchError(wantErr))
+		Expect(sched).To(BeNil())
+	})
+
+	It("passes the config through to the factory", func() {
+		r := newTestRegistry()
+		wantConfig := "some-config"
+		var gotConfig Config
+
+		Expect(r.Register("foo", func(config Config) (Interface, error) {
+			gotConfig = config
+			return &fakeScheduler{name: "foo"}, nil
+		})).To(Succeed())
+
+		_, err := r.GetScheduler("foo", wantConfig)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(gotConfig).To(Equal(wantConfig))
 	})
 
 	It("lists the registered scheduler names", func() {
