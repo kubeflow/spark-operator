@@ -426,10 +426,10 @@ var _ = Describe("mutateServerPod GPU support", func() {
 		conn.Spec.Executor.GPU = &v1alpha1.GPUSpec{Name: "nvidia.com/gpu", Quantity: 2}
 		pod := &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Namespace: conn.Namespace}}
 		Expect(reconciler.mutateServerPod(context.Background(), conn, pod)).To(Succeed())
-		command := pod.Spec.Containers[0].Args[0]
-		Expect(command).To(ContainSubstring("spark.executor.resource.gpu.amount=2"))
-		Expect(command).To(ContainSubstring("spark.executor.resource.gpu.vendor=nvidia.com"))
-		Expect(command).NotTo(ContainSubstring("spark.driver.resource.gpu.amount"))
+		args := pod.Spec.Containers[0].Args
+		Expect(args).To(ContainElement("spark.executor.resource.gpu.amount=2"))
+		Expect(args).To(ContainElement("spark.executor.resource.gpu.vendor=nvidia.com"))
+		Expect(args).NotTo(ContainElement(ContainSubstring("spark.driver.resource.gpu.amount")))
 		Expect(pod.Spec.Containers[0].Resources.Limits).NotTo(HaveKey(corev1.ResourceName("nvidia.com/gpu")))
 	})
 
