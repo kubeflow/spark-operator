@@ -68,9 +68,7 @@ func TestDriverPodRequests(t *testing.T) {
 
 	actual, err := DriverPodRequests(app)
 	assert.Nil(t, err)
-	memory, err := driverMemoryRequest(app)
-	assert.Nil(t, err)
-	assert.Equal(t, map[string]string{"cpu": "500m", "memory": memory}, actual)
+	assert.Equal(t, map[string]string{"cpu": "500m", "memory": "1408Mi"}, actual)
 
 	_, err = DriverPodRequests(&v1beta2.SparkApplication{Spec: v1beta2.SparkApplicationSpec{
 		Driver: v1beta2.DriverSpec{CoreRequest: ptr.To("bad")},
@@ -89,9 +87,7 @@ func TestExecutorPodRequests(t *testing.T) {
 
 	actual, err := ExecutorPodRequests(app)
 	assert.Nil(t, err)
-	memory, err := executorMemoryRequest(app)
-	assert.Nil(t, err)
-	assert.Equal(t, map[string]string{"cpu": "500m", "memory": memory}, actual)
+	assert.Equal(t, map[string]string{"cpu": "500m", "memory": "1408Mi"}, actual)
 
 	_, err = ExecutorPodRequests(&v1beta2.SparkApplication{Spec: v1beta2.SparkApplicationSpec{
 		Executor: v1beta2.ExecutorSpec{CoreRequest: ptr.To("bad")},
