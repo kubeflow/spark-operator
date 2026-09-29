@@ -17,7 +17,6 @@ limitations under the License.
 package resourceusage
 
 import (
-	"math"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -26,10 +25,6 @@ import (
 	"github.com/kubeflow/spark-operator/v2/api/v1beta2"
 	"github.com/kubeflow/spark-operator/v2/pkg/common"
 )
-
-func overheadBytes(memBytes int64, factor float64) int64 {
-	return int64(math.Max(float64(memBytes)*factor, common.MinMemoryOverhead))
-}
 
 func TestBytesToMi(t *testing.T) {
 	testCases := []struct {
@@ -44,22 +39,6 @@ func TestBytesToMi(t *testing.T) {
 
 	for _, tc := range testCases {
 		assert.Equal(t, tc.expected, bytesToMi(tc.input))
-	}
-}
-
-func TestIsJavaApp(t *testing.T) {
-	testCases := []struct {
-		appType  v1beta2.SparkApplicationType
-		expected bool
-	}{
-		{v1beta2.SparkApplicationTypeJava, true},
-		{v1beta2.SparkApplicationTypeScala, true},
-		{v1beta2.SparkApplicationTypePython, false},
-		{v1beta2.SparkApplicationTypeR, false},
-	}
-
-	for _, tc := range testCases {
-		assert.Equal(t, tc.expected, isJavaApp(tc.appType))
 	}
 }
 
@@ -82,8 +61,18 @@ func TestGetMemoryOverheadFactor(t *testing.T) {
 			common.DefaultJVMMemoryOverheadFactor,
 		},
 		{
+			"scala app defaults to jvm factor",
+			&v1beta2.SparkApplication{Spec: v1beta2.SparkApplicationSpec{Type: v1beta2.SparkApplicationTypeScala}},
+			common.DefaultJVMMemoryOverheadFactor,
+		},
+		{
 			"python app defaults to non-jvm factor",
 			&v1beta2.SparkApplication{Spec: v1beta2.SparkApplicationSpec{Type: v1beta2.SparkApplicationTypePython}},
+			common.DefaultNonJVMMemoryOverheadFactor,
+		},
+		{
+			"r app defaults to non-jvm factor",
+			&v1beta2.SparkApplication{Spec: v1beta2.SparkApplicationSpec{Type: v1beta2.SparkApplicationTypeR}},
 			common.DefaultNonJVMMemoryOverheadFactor,
 		},
 	}
@@ -203,7 +192,6 @@ func TestSparkOffHeapMemoryBytes(t *testing.T) {
 }
 
 func TestDriverMemoryRequest(t *testing.T) {
-	memBytes := int64(1 * 1024 * 1024 * 1024)
 	app := &v1beta2.SparkApplication{Spec: v1beta2.SparkApplicationSpec{
 		Type:   v1beta2.SparkApplicationTypeJava,
 		Driver: v1beta2.DriverSpec{SparkPodSpec: v1beta2.SparkPodSpec{Memory: ptr.To("1g")}},
@@ -211,12 +199,10 @@ func TestDriverMemoryRequest(t *testing.T) {
 
 	actual, err := driverMemoryRequest(app)
 	assert.Nil(t, err)
-	expected := bytesToMi(memBytes + overheadBytes(memBytes, common.DefaultJVMMemoryOverheadFactor))
-	assert.Equal(t, expected, actual)
+	assert.Equal(t, "1408Mi", actual)
 }
 
 func TestExecutorMemoryRequest(t *testing.T) {
-	memBytes := int64(1 * 1024 * 1024 * 1024)
 	app := &v1beta2.SparkApplication{Spec: v1beta2.SparkApplicationSpec{
 		Type:     v1beta2.SparkApplicationTypePython,
 		Executor: v1beta2.ExecutorSpec{SparkPodSpec: v1beta2.SparkPodSpec{Memory: ptr.To("1g")}},
@@ -229,7 +215,5 @@ func TestExecutorMemoryRequest(t *testing.T) {
 
 	actual, err := executorMemoryRequest(app)
 	assert.Nil(t, err)
-	overhead := overheadBytes(memBytes, common.DefaultNonJVMMemoryOverheadFactor)
-	expected := bytesToMi(memBytes + overhead + 512*1024*1024 + 256*1024*1024)
-	assert.Equal(t, expected, actual)
+	assert.Equal(t, "2201Mi", actual)
 }
