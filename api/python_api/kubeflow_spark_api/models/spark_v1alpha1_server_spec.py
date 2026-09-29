@@ -21,6 +21,7 @@ from pydantic import BaseModel, ConfigDict, Field, StrictInt, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional
 from kubeflow_spark_api.models.io_k8s_api_core_v1_pod_template_spec import IoK8sApiCoreV1PodTemplateSpec
 from kubeflow_spark_api.models.io_k8s_api_core_v1_service import IoK8sApiCoreV1Service
+from kubeflow_spark_api.models.spark_v1alpha1_gpu_spec import SparkV1alpha1GPUSpec
 from typing import Optional, Set
 from typing_extensions import Self
 
@@ -29,10 +30,11 @@ class SparkV1alpha1ServerSpec(BaseModel):
     ServerSpec is specification of the Spark connect server.
     """ # noqa: E501
     cores: Optional[StrictInt] = Field(default=None, description="Cores maps to `spark.driver.cores` or `spark.executor.cores` for the driver and executors, respectively.")
+    gpu: Optional[SparkV1alpha1GPUSpec] = Field(default=None, description="GPU specifies GPU resources for the pod and Spark resource scheduler. GPU discovery and per-task resource settings are configured through SparkConf.")
     memory: Optional[StrictStr] = Field(default=None, description="Memory is the amount of memory to request for the pod.")
     service: Optional[IoK8sApiCoreV1Service] = Field(default=None, description="Service exposes the Spark connect server.")
     template: Optional[IoK8sApiCoreV1PodTemplateSpec] = Field(default=None, description="Template is a pod template that can be used to define the driver or executor pod configurations that Spark configurations do not support. Spark version >= 3.0.0 is required. Ref: https://spark.apache.org/docs/latest/running-on-kubernetes.html#pod-template.")
-    __properties: ClassVar[List[str]] = ["cores", "memory", "service", "template"]
+    __properties: ClassVar[List[str]] = ["cores", "gpu", "memory", "service", "template"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -73,6 +75,9 @@ class SparkV1alpha1ServerSpec(BaseModel):
             exclude=excluded_fields,
             exclude_none=True,
         )
+        # override the default output from pydantic by calling `to_dict()` of gpu
+        if self.gpu:
+            _dict['gpu'] = self.gpu.to_dict()
         # override the default output from pydantic by calling `to_dict()` of service
         if self.service:
             _dict['service'] = self.service.to_dict()
@@ -92,6 +97,7 @@ class SparkV1alpha1ServerSpec(BaseModel):
 
         _obj = cls.model_validate({
             "cores": obj.get("cores"),
+            "gpu": SparkV1alpha1GPUSpec.from_dict(obj["gpu"]) if obj.get("gpu") is not None else None,
             "memory": obj.get("memory"),
             "service": IoK8sApiCoreV1Service.from_dict(obj["service"]) if obj.get("service") is not None else None,
             "template": IoK8sApiCoreV1PodTemplateSpec.from_dict(obj["template"]) if obj.get("template") is not None else None

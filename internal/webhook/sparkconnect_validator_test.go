@@ -266,6 +266,73 @@ func TestSparkConnectValidatorValidateCreate_ValidMemoryFormats(t *testing.T) {
 	}
 }
 
+func TestSparkConnectValidatorValidateCreate_GPUDiscovery(t *testing.T) {
+	gpu := &v1alpha1.GPUSpec{Name: "nvidia.com/gpu", Quantity: 1}
+
+	tests := []struct {
+		name      string
+		mutate    func(sc *v1alpha1.SparkConnect)
+		wantError string
+	}{
+		{
+			name:   "no GPU requires no discovery",
+			mutate: func(sc *v1alpha1.SparkConnect) {},
+		},
+		{
+			name:      "executor GPU without discovery",
+			mutate:    func(sc *v1alpha1.SparkConnect) { sc.Spec.Executor.GPU = gpu },
+			wantError: "executor.gpu is set but GPU discovery is not configured",
+		},
+		{
+			name:      "server GPU without discovery",
+			mutate:    func(sc *v1alpha1.SparkConnect) { sc.Spec.Server.GPU = gpu },
+			wantError: "server.gpu is set but GPU discovery is not configured",
+		},
+		{
+			name: "executor GPU with executor discovery script",
+			mutate: func(sc *v1alpha1.SparkConnect) {
+				sc.Spec.Executor.GPU = gpu
+				sc.Spec.SparkConf = map[string]string{common.SparkExecutorGPUDiscoveryScript: "/opt/spark/gpus.sh"}
+			},
+		},
+		{
+			name: "server GPU with only executor discovery script",
+			mutate: func(sc *v1alpha1.SparkConnect) {
+				sc.Spec.Server.GPU = gpu
+				sc.Spec.SparkConf = map[string]string{common.SparkExecutorGPUDiscoveryScript: "/opt/spark/gpus.sh"}
+			},
+			wantError: "server.gpu is set but GPU discovery is not configured",
+		},
+		{
+			name: "both GPUs with discovery plugin",
+			mutate: func(sc *v1alpha1.SparkConnect) {
+				sc.Spec.Server.GPU = gpu
+				sc.Spec.Executor.GPU = gpu
+				sc.Spec.SparkConf = map[string]string{common.SparkResourcesDiscoveryPlugin: "com.example.GpuPlugin"}
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			validator := newTestSparkConnectValidator(t)
+			sc := newSparkConnect()
+			tt.mutate(sc)
+
+			_, err := validator.ValidateCreate(context.Background(), sc)
+			if tt.wantError == "" {
+				if err != nil {
+					t.Fatalf("expected success, got %v", err)
+				}
+				return
+			}
+			if err == nil || !strings.Contains(err.Error(), tt.wantError) {
+				t.Fatalf("expected error containing %q, got %v", tt.wantError, err)
+			}
+		})
+	}
+}
+
 func TestSparkConnectValidatorValidateUpdate_SameSpecSkipsValidation(t *testing.T) {
 	validator := newTestSparkConnectValidator(t)
 

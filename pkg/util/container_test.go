@@ -21,6 +21,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 )
 
 var _ = Describe("GetContainerByNameOrFirst", func() {
@@ -66,5 +67,35 @@ var _ = Describe("GetContainerByNameOrFirst", func() {
 		container.Image = "updated-image"
 
 		Expect(containers[1].Image).To(Equal("updated-image"))
+	})
+})
+
+var _ = Describe("SetGPUResources", func() {
+	gpu := corev1.ResourceName("nvidia.com/gpu")
+
+	It("initializes nil requests and limits", func() {
+		container := &corev1.Container{Name: "spark"}
+
+		util.SetGPUResources(container, "nvidia.com/gpu", 2)
+
+		Expect(container.Resources.Requests.Name(gpu, resource.DecimalSI).Value()).To(Equal(int64(2)))
+		Expect(container.Resources.Limits.Name(gpu, resource.DecimalSI).Value()).To(Equal(int64(2)))
+	})
+
+	It("preserves other resources and overrides an existing GPU value", func() {
+		container := &corev1.Container{
+			Name: "spark",
+			Resources: corev1.ResourceRequirements{
+				Requests: corev1.ResourceList{corev1.ResourceCPU: resource.MustParse("1"), gpu: resource.MustParse("9")},
+				Limits:   corev1.ResourceList{corev1.ResourceMemory: resource.MustParse("1Gi"), gpu: resource.MustParse("9")},
+			},
+		}
+
+		util.SetGPUResources(container, "nvidia.com/gpu", 1)
+
+		Expect(container.Resources.Requests).To(HaveKeyWithValue(corev1.ResourceCPU, resource.MustParse("1")))
+		Expect(container.Resources.Limits).To(HaveKeyWithValue(corev1.ResourceMemory, resource.MustParse("1Gi")))
+		Expect(container.Resources.Requests.Name(gpu, resource.DecimalSI).Value()).To(Equal(int64(1)))
+		Expect(container.Resources.Limits.Name(gpu, resource.DecimalSI).Value()).To(Equal(int64(1)))
 	})
 })

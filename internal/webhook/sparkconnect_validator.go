@@ -154,6 +154,11 @@ func (v *SparkConnectValidator) validateSpec(sc *v1alpha1.SparkConnect) error {
 		return err
 	}
 
+	// Validate GPU discovery configuration
+	if err := v.validateGPUDiscovery(sc); err != nil {
+		return err
+	}
+
 	if err := validateSparkConf(sc.Spec.SparkConf, sc.Namespace); err != nil {
 		return err
 	}
@@ -275,6 +280,33 @@ func (v *SparkConnectValidator) validateExecutorSpec(sc *v1alpha1.SparkConnect) 
 		if err := validateMemoryString(*executor.Memory); err != nil {
 			return fmt.Errorf("invalid executor.memory: %v", err)
 		}
+	}
+
+	return nil
+}
+
+// validateGPUDiscovery ensures that Spark is told how to discover GPUs whenever a GPU is requested.
+// Spark refuses to start a driver or executor that requests a GPU resource without either a
+// discovery script for that role or a discovery plugin.
+func (v *SparkConnectValidator) validateGPUDiscovery(sc *v1alpha1.SparkConnect) error {
+	if sc.Spec.SparkConf[common.SparkResourcesDiscoveryPlugin] != "" {
+		return nil
+	}
+
+	roles := []struct {
+		field  string
+		gpu    *v1alpha1.GPUSpec
+		script string
+	}{
+		{field: "server", gpu: sc.Spec.Server.GPU, script: common.SparkDriverGPUDiscoveryScript},
+		{field: "executor", gpu: sc.Spec.Executor.GPU, script: common.SparkExecutorGPUDiscoveryScript},
+	}
+	for _, role := range roles {
+		if role.gpu == nil || sc.Spec.SparkConf[role.script] != "" {
+			continue
+		}
+		return fmt.Errorf("%s.gpu is set but GPU discovery is not configured: set sparkConf %q or %q",
+			role.field, role.script, common.SparkResourcesDiscoveryPlugin)
 	}
 
 	return nil

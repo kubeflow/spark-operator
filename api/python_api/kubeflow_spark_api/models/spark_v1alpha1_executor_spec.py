@@ -20,6 +20,7 @@ import json
 from pydantic import BaseModel, ConfigDict, Field, StrictInt, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional
 from kubeflow_spark_api.models.io_k8s_api_core_v1_pod_template_spec import IoK8sApiCoreV1PodTemplateSpec
+from kubeflow_spark_api.models.spark_v1alpha1_gpu_spec import SparkV1alpha1GPUSpec
 from typing import Optional, Set
 from typing_extensions import Self
 
@@ -28,10 +29,11 @@ class SparkV1alpha1ExecutorSpec(BaseModel):
     ExecutorSpec is specification of the executor.
     """ # noqa: E501
     cores: Optional[StrictInt] = Field(default=None, description="Cores maps to `spark.driver.cores` or `spark.executor.cores` for the driver and executors, respectively.")
+    gpu: Optional[SparkV1alpha1GPUSpec] = Field(default=None, description="GPU specifies GPU resources for the pod and Spark resource scheduler. GPU discovery and per-task resource settings are configured through SparkConf.")
     instances: Optional[StrictInt] = Field(default=None, description="Instances is the number of executor instances.")
     memory: Optional[StrictStr] = Field(default=None, description="Memory is the amount of memory to request for the pod.")
     template: Optional[IoK8sApiCoreV1PodTemplateSpec] = Field(default=None, description="Template is a pod template that can be used to define the driver or executor pod configurations that Spark configurations do not support. Spark version >= 3.0.0 is required. Ref: https://spark.apache.org/docs/latest/running-on-kubernetes.html#pod-template.")
-    __properties: ClassVar[List[str]] = ["cores", "instances", "memory", "template"]
+    __properties: ClassVar[List[str]] = ["cores", "gpu", "instances", "memory", "template"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -72,6 +74,9 @@ class SparkV1alpha1ExecutorSpec(BaseModel):
             exclude=excluded_fields,
             exclude_none=True,
         )
+        # override the default output from pydantic by calling `to_dict()` of gpu
+        if self.gpu:
+            _dict['gpu'] = self.gpu.to_dict()
         # override the default output from pydantic by calling `to_dict()` of template
         if self.template:
             _dict['template'] = self.template.to_dict()
@@ -88,6 +93,7 @@ class SparkV1alpha1ExecutorSpec(BaseModel):
 
         _obj = cls.model_validate({
             "cores": obj.get("cores"),
+            "gpu": SparkV1alpha1GPUSpec.from_dict(obj["gpu"]) if obj.get("gpu") is not None else None,
             "instances": obj.get("instances"),
             "memory": obj.get("memory"),
             "template": IoK8sApiCoreV1PodTemplateSpec.from_dict(obj["template"]) if obj.get("template") is not None else None

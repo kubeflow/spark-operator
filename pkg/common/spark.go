@@ -44,6 +44,15 @@ const (
 
 	SparkExecutorMemory = "spark.executor.memory"
 
+	// SparkDriverGPUDiscoveryScript is the configuration property for the driver GPU discovery script.
+	SparkDriverGPUDiscoveryScript = "spark.driver.resource.gpu.discoveryScript"
+
+	// SparkExecutorGPUDiscoveryScript is the configuration property for the executor GPU discovery script.
+	SparkExecutorGPUDiscoveryScript = "spark.executor.resource.gpu.discoveryScript"
+
+	// SparkResourcesDiscoveryPlugin is the configuration property for resource discovery plugins.
+	SparkResourcesDiscoveryPlugin = "spark.resources.discoveryPlugin"
+
 	SparkExecutorMemoryOverhead = "spark.executor.memoryOverhead"
 
 	SparkUIProxyBase = "spark.ui.proxyBase"
