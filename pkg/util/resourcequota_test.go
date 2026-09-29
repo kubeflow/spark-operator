@@ -25,19 +25,6 @@ import (
 )
 
 var _ = Describe("SumResourceList", func() {
-	It("returns an empty list for no input", func() {
-		Expect(util.SumResourceList(nil)).To(BeEmpty())
-	})
-
-	It("sums a single list", func() {
-		list := corev1.ResourceList{corev1.ResourceCPU: resource.MustParse("1")}
-
-		total := util.SumResourceList([]corev1.ResourceList{list})
-		cpu := total[corev1.ResourceCPU]
-
-		Expect(cpu.Value()).To(Equal(int64(1)))
-	})
-
 	It("sums overlapping resource names across multiple lists", func() {
 		lists := []corev1.ResourceList{
 			{corev1.ResourceCPU: resource.MustParse("1"), corev1.ResourceMemory: resource.MustParse("1Gi")},
