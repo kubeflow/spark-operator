@@ -93,7 +93,7 @@ var _ = Describe("SetupTLS", func() {
 		suites := cryptotls.CipherSuites()
 		Expect(suites).NotTo(BeEmpty())
 
-		opts, err := tls.SetupTLS("VersionTLS13", []string{suites[0].Name})
+		opts, err := tls.SetupTLS("VersionTLS12", []string{suites[0].Name})
 		Expect(err).NotTo(HaveOccurred())
 		Expect(opts).NotTo(BeEmpty())
 
@@ -102,7 +102,7 @@ var _ = Describe("SetupTLS", func() {
 			opt(cfg)
 		}
 
-		Expect(cfg.MinVersion).To(Equal(uint16(cryptotls.VersionTLS13)))
+		Expect(cfg.MinVersion).To(Equal(uint16(cryptotls.VersionTLS12)))
 		Expect(cfg.CipherSuites).To(Equal([]uint16{suites[0].ID}))
 		Expect(cfg.NextProtos).To(Equal([]string{"h2", "http/1.1"}))
 	})
@@ -116,6 +116,8 @@ var _ = Describe("SetupTLS", func() {
 			opt(cfg)
 		}
 
+		Expect(cfg.MinVersion).To(Equal(uint16(cryptotls.VersionTLS12)))
 		Expect(cfg.CipherSuites).To(BeNil())
+		Expect(cfg.NextProtos).To(Equal([]string{"h2", "http/1.1"}))
 	})
 })
