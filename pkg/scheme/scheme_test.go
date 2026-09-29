@@ -22,6 +22,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	schedulingv1alpha1 "sigs.k8s.io/scheduler-plugins/apis/scheduling/v1alpha1"
 
 	"github.com/kubeflow/spark-operator/v2/api/v1alpha1"
 	"github.com/kubeflow/spark-operator/v2/api/v1beta2"
@@ -33,6 +34,7 @@ func TestControllerSchemeRecognizesCRDTypes(t *testing.T) {
 		&v1beta2.ScheduledSparkApplication{},
 		&v1alpha1.SparkConnect{},
 		&corev1.Pod{},
+		&schedulingv1alpha1.PodGroup{},
 	} {
 		_, _, err := ControllerScheme.ObjectKinds(obj)
 		assert.NoError(t, err, "%T should be registered on ControllerScheme", obj)
