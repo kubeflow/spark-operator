@@ -22,8 +22,9 @@ import (
 	"strings"
 
 	"k8s.io/klog/v2"
+	"k8s.io/kube-openapi/pkg/builder3"
 	"k8s.io/kube-openapi/pkg/common"
-	builderutil "k8s.io/kube-openapi/pkg/openapiconv"
+	"k8s.io/kube-openapi/pkg/spec3"
 	"k8s.io/kube-openapi/pkg/validation/spec"
 
 	sparkv1alpha1 "github.com/kubeflow/spark-operator/v2/api/v1alpha1"
@@ -32,54 +33,82 @@ import (
 
 // Generate Kubeflow Spark Operator OpenAPI specification.
 func main() {
-	var oAPIDefs = map[string]common.OpenAPIDefinition{}
-	defs := spec.Definitions{}
+	var definitions = map[string]common.OpenAPIDefinition{}
 
 	refCallback := func(name string) spec.Ref {
-		return spec.MustCreateRef("#/definitions/" + swaggify(name))
+		return spec.MustCreateRef(
+			"#/components/schemas/" + common.EscapeJsonPointer(swaggify(name)),
+		)
 	}
 
 	// Load definitions from both API versions
 	for k, v := range sparkv1alpha1.GetOpenAPIDefinitions(refCallback) {
-		oAPIDefs[k] = v
+		definitions[k] = v
 	}
 
 	for k, v := range sparkv1beta2.GetOpenAPIDefinitions(refCallback) {
-		oAPIDefs[k] = v
+		definitions[k] = v
 	}
 
-	for defName, val := range oAPIDefs {
-		// Exclude InternalEvent from the OpenAPI spec since it requires runtime.Object dependency.
-		if defName != "k8s.io/apimachinery/pkg/apis/meta/v1.InternalEvent" {
-
-			// OpenAPI generator incorrectly creates models if enum doesn't have default value.
-			// Therefore, we remove the default value when it is equal to ""
-			// Kubernetes OpenAPI spec doesn't have enums: https://github.com/kubernetes/kubernetes/issues/109177
-			for property, schema := range val.Schema.Properties {
-				if schema.Enum != nil && schema.Default == "" {
-					schema.Default = nil
-					val.Schema.SetProperty(property, schema)
-				}
-			}
-			defs[swaggify(defName)] = val.Schema
+	// OpenAPI generator incorrectly creates models if enum doesn't have
+	// a default value. Remove the empty default for enum properties.
+	for defName, val := range definitions {
+		if defName == "k8s.io/apimachinery/pkg/apis/meta/v1.InternalEvent" {
+			delete(definitions, defName)
+			continue
 		}
+
+		for property, schema := range val.Schema.Properties {
+			if schema.Enum != nil && schema.Default == "" {
+				schema.Default = nil
+				val.Schema.SetProperty(property, schema)
+			}
+		}
+
+		definitions[defName] = val
 	}
-	swagger := spec.Swagger{
-		SwaggerProps: spec.SwaggerProps{
-			Swagger:     "2.0",
-			Definitions: defs,
-			Paths:       &spec.Paths{Paths: map[string]spec.PathItem{}},
-			Info: &spec.Info{
-				InfoProps: spec.InfoProps{
-					Title:   "Kubeflow Spark Operator OpenAPI Spec",
-					Version: "unversioned",
-				},
+
+	config := &common.OpenAPIV3Config{
+		Info: &spec.Info{
+			InfoProps: spec.InfoProps{
+				Title:   "Kubeflow Spark Operator OpenAPI Spec",
+				Version: "unversioned",
 			},
 		},
+		Definitions: definitions,
+		GetDefinitionName: func(name string) (string, spec.Extensions) {
+			return swaggify(name), nil
+		},
 	}
-	swaggerOpenAPIV3 := builderutil.ConvertV2ToV3(&swagger)
 
-	jsonBytes, err := json.MarshalIndent(swaggerOpenAPIV3, "", "  ")
+	// Build OpenAPI v3 schemas and their dependencies.
+	names := make([]string, 0, len(definitions))
+	for name := range definitions {
+		names = append(names, name)
+	}
+
+	defs, err := builder3.BuildOpenAPIDefinitionsForResources(config, names...)
+	if err != nil {
+		klog.Fatal(err.Error())
+	}
+
+	openAPIV3 := &spec3.OpenAPI{
+		Version: "3.0.0",
+		Info: &spec.Info{
+			InfoProps: spec.InfoProps{
+				Title:   "Kubeflow Spark Operator OpenAPI Spec",
+				Version: "unversioned",
+			},
+		},
+		Paths: &spec3.Paths{
+			Paths: map[string]*spec3.Path{},
+		},
+		Components: &spec3.Components{
+			Schemas: defs,
+		},
+	}
+
+	jsonBytes, err := json.MarshalIndent(openAPIV3, "", "  ")
 	if err != nil {
 		klog.Fatal(err.Error())
 	}
