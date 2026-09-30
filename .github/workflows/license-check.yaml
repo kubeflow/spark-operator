@@ -1,0 +1,35 @@
+# Verify that all tracked source files carry the Apache 2.0 license header.
+name: License Check
+
+on:
+  pull_request:
+    branches:
+      - master
+      - release-*
+
+  push:
+    branches:
+      - master
+      - release-*
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.actor }}
+  cancel-in-progress: true
+
+jobs:
+  license-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Set up Go
+        uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6
+        with:
+          go-version-file: go.mod
+
+      - name: Check license headers
+        run: make license-check
