@@ -155,7 +155,7 @@ var _ = Describe("Options functions", func() {
 
 			args, err := driverConfOption(conn)
 			Expect(err).NotTo(HaveOccurred())
-			config := shellParsedSparkConfig(args)
+			config := parsedSparkConfig(args)
 
 			// Verify Cores still maps to spark.driver.cores
 			Expect(config).To(HaveKeyWithValue("spark.driver.cores", "4"))
@@ -190,7 +190,7 @@ var _ = Describe("Options functions", func() {
 
 			args, err := executorConfOption(conn)
 			Expect(err).NotTo(HaveOccurred())
-			config := shellParsedSparkConfig(args)
+			config := parsedSparkConfig(args)
 
 			// Verify Cores maps to spark.executor.cores (not affected by CoreRequest/CoreLimit)
 			Expect(config).To(HaveKeyWithValue("spark.executor.cores", "4"))
@@ -222,7 +222,7 @@ var _ = Describe("Options functions", func() {
 
 			driverArgs, err := driverConfOption(conn)
 			Expect(err).NotTo(HaveOccurred())
-			driverConfig := shellParsedSparkConfig(driverArgs)
+			driverConfig := parsedSparkConfig(driverArgs)
 
 			// Verify Cores is present
 			Expect(driverConfig).To(HaveKeyWithValue("spark.driver.cores", "4"))
@@ -254,7 +254,7 @@ var _ = Describe("Options functions", func() {
 
 			args, err := executorConfOption(conn)
 			Expect(err).NotTo(HaveOccurred())
-			config := shellParsedSparkConfig(args)
+			config := parsedSparkConfig(args)
 
 			// Verify CoreRequest is present
 			Expect(config).To(HaveKeyWithValue(common.SparkKubernetesExecutorRequestCores, "500m"))
@@ -287,7 +287,7 @@ var _ = Describe("Options functions", func() {
 
 			args, err := executorConfOption(conn)
 			Expect(err).NotTo(HaveOccurred())
-			config := shellParsedSparkConfig(args)
+			config := parsedSparkConfig(args)
 
 			// Verify decimal values are serialized in the canonical Kubernetes form
 			// (1.5 -> 1500m, 2.5 -> 2500m) via resource.Quantity.String().
