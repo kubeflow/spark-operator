@@ -53,6 +53,22 @@ const (
 	ExecutorPodTemplateFileName = "executor-pod-template.yaml"
 
 	sparkConnectServerPort = 15002
+
+	// sparkConnectServerProcessName is passed as $0 to the entrypoint shell so that
+	// shell diagnostics are attributed to a meaningful name.
+	sparkConnectServerProcessName = "spark-connect-server"
+
+	// sparkConnectServerEntrypointScript starts the Spark Connect server with the
+	// arguments it receives. It contains no user-supplied data: POD_IP is read from
+	// the downward API and wrapped in brackets when it is an IPv6 address, and the
+	// generated options are forwarded verbatim through "$@".
+	sparkConnectServerEntrypointScript = `host="${POD_IP}"
+case "${host}" in
+\[*) ;;
+*:*) host="[${host}]" ;;
+esac
+exec "${SPARK_HOME}/sbin/start-connect-server.sh" "$@" --conf "spark.driver.host=${host}"
+`
 )
 
 // Options defines the options of SparkConnect reconciler.
@@ -350,7 +366,7 @@ func (r *Reconciler) createOrUpdateServerPod(ctx context.Context, conn *v1alpha1
 func (r *Reconciler) mutateServerPod(ctx context.Context, conn *v1alpha1.SparkConnect, pod *corev1.Pod) error {
 	// Server pod not created yet.
 	if pod.CreationTimestamp.IsZero() {
-		template := conn.Spec.Server.Template
+		template := conn.Spec.Server.Template.DeepCopy()
 		if template != nil {
 			// Deep copy the template fields onto the pod. The pod is mutated below, so assigning
 			// the maps and spec directly would write those mutations back into the template.
@@ -379,7 +395,6 @@ func (r *Reconciler) mutateServerPod(ctx context.Context, conn *v1alpha1.SparkCo
 			pod.Spec.Containers,
 			common.SparkDriverContainerName,
 		)
-
 		// Setup Kubernetes CPU resources for the Connect server container.
 		// The server pod is created by the operator as part of the client mode setup, so
 		// server.coreRequest/server.coreLimit are applied directly to the pod spec instead of
@@ -389,7 +404,9 @@ func (r *Reconciler) mutateServerPod(ctx context.Context, conn *v1alpha1.SparkCo
 			conn.Spec.Server.CoreRequest,
 			conn.Spec.Server.CoreLimit,
 		)
-
+		if gpu := conn.Spec.Server.GPU; gpu != nil {
+			util.SetGPUResources(container, gpu.Name, gpu.Quantity)
+		}
 		// Setup image.
 		if container.Image == "" {
 			if conn.Spec.Image == nil || *conn.Spec.Image == "" {
@@ -398,14 +415,16 @@ func (r *Reconciler) mutateServerPod(ctx context.Context, conn *v1alpha1.SparkCo
 			container.Image = *conn.Spec.Image
 		}
 
-		// Setup entrypoint.
-		container.Command = []string{"bash", "-c"}
+		// Setup entrypoint. The server script is invoked through a fixed shell
+		// prelude that only resolves SPARK_HOME and the driver host from the
+		// environment; every generated option is passed as its own argument via
+		// "$@", so no user-supplied value is subject to shell interpretation.
+		container.Command = []string{"bash", "-c", sparkConnectServerEntrypointScript, sparkConnectServerProcessName}
 		args, err := buildStartConnectServerArgs(conn)
 		if err != nil {
 			return fmt.Errorf("failed to build spark connection args: %v", err)
 		}
-		container.Args = []string{strings.Join(args, " ")}
-
+		container.Args = args
 		setDefaultSparkConnectServerProbes(container)
 
 		// Setup environment variables.

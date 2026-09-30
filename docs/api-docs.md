@@ -389,6 +389,56 @@ int32
 <td></td>
 </tr></tbody>
 </table>
+<h3 id="sparkoperator.k8s.io/v1alpha1.GPUSpec">GPUSpec
+</h3>
+<p>
+(<em>Appears on:</em><a href="#sparkoperator.k8s.io/v1alpha1.SparkPodSpec">SparkPodSpec</a>)
+</p>
+<div>
+<p>GPUSpec defines the GPU resources requested for a Spark Connect server or executor pod.</p>
+<p>Name must be a Kubernetes extended resource name of the form
+&ldquo;<vendor-domain>/gpu&rdquo;, for example &ldquo;nvidia.com/gpu&rdquo; or &ldquo;amd.com/gpu&rdquo;.
+The vendor domain is passed to Spark as
+spark.{driver,executor}.resource.gpu.vendor, and the quantity as
+spark.{driver,executor}.resource.gpu.amount. GPU resource names whose
+suffix is not &ldquo;gpu&rdquo; (for example MIG profiles) are not supported by this
+field; configure them through the pod template and sparkConf instead.</p>
+<p>Setting a GPU does not configure GPU discovery. A discovery script or
+discovery plugin must be provided through sparkConf for Spark to start.</p>
+</div>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>name</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<p>Name is the Kubernetes GPU resource name, such as nvidia.com/gpu or amd.com/gpu.
+The vendor domain is used for Spark&rsquo;s GPU resource vendor configuration.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>quantity</code><br/>
+<em>
+int64
+</em>
+</td>
+<td>
+<p>Quantity is the number of GPUs to request for each pod.</p>
+</td>
+</tr>
+</tbody>
+</table>
 <h3 id="sparkoperator.k8s.io/v1alpha1.ServerSpec">ServerSpec
 </h3>
 <p>
@@ -814,6 +864,21 @@ string
 <td>
 <em>(Optional)</em>
 <p>Memory is the amount of memory to request for the pod.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>gpu</code><br/>
+<em>
+<a href="#sparkoperator.k8s.io/v1alpha1.GPUSpec">
+GPUSpec
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>GPU specifies GPU resources for the pod and Spark resource scheduler.
+GPU discovery and per-task resource settings are configured through SparkConf.</p>
 </td>
 </tr>
 <tr>

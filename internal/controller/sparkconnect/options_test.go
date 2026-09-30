@@ -17,9 +17,7 @@ limitations under the License.
 package sparkconnect
 
 import (
-	"bytes"
 	"fmt"
-	"os/exec"
 	"strings"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -28,6 +26,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/utils/ptr"
 
 	"github.com/kubeflow/spark-operator/v2/api/v1alpha1"
 	"github.com/kubeflow/spark-operator/v2/pkg/common"
@@ -93,7 +92,7 @@ var _ = Describe("Options functions", func() {
 	})
 
 	Context("sparkConfOption", func() {
-		It("preserves shell-sensitive Spark configuration values", func() {
+		It("passes configuration values through unchanged", func() {
 			config := map[string]string{
 				"spark.redaction.regex":          "(?i)secret|password|token|access[.]key|account[.]key",
 				"spark.driver.extraJavaOptions":  `-Dmessage="hello world" -Dquote='value'`,
@@ -107,12 +106,12 @@ var _ = Describe("Options functions", func() {
 
 			args, err := sparkConfOption(conn)
 			Expect(err).NotTo(HaveOccurred())
-			Expect(shellParsedSparkConfig(args)).To(Equal(config))
+			Expect(parsedSparkConfig(args)).To(Equal(config))
 		})
 	})
 
 	Context("hadoopConfOption", func() {
-		It("preserves shell-sensitive Hadoop configuration values", func() {
+		It("passes configuration values through unchanged", func() {
 			conn := &v1alpha1.SparkConnect{
 				Spec: v1alpha1.SparkConnectSpec{
 					HadoopConf: map[string]string{
@@ -124,7 +123,7 @@ var _ = Describe("Options functions", func() {
 
 			args, err := hadoopConfOption(conn)
 			Expect(err).NotTo(HaveOccurred())
-			Expect(shellParsedSparkConfig(args)).To(Equal(map[string]string{
+			Expect(parsedSparkConfig(args)).To(Equal(map[string]string{
 				"spark.hadoop.fs.example.regex": "(?i)secret|password",
 				"spark.hadoop.fs.example.value": "literal '$HOME' $(printf injected)",
 			}))
@@ -298,21 +297,107 @@ var _ = Describe("Options functions", func() {
 	})
 })
 
-func shellParsedSparkConfig(args []string) map[string]string {
+// parsedSparkConfig reads back the "--conf key=value" pairs exactly as they are
+// handed to the container, without any shell in between.
+func parsedSparkConfig(args []string) map[string]string {
 	GinkgoHelper()
 
-	output, err := exec.Command("bash", "-c", "printf '%s\\0' "+strings.Join(args, " ")).Output()
-	Expect(err).NotTo(HaveOccurred())
+	Expect(len(args) % 2).To(Equal(0))
 
-	fields := bytes.Split(bytes.TrimSuffix(output, []byte{0}), []byte{0})
-	Expect(len(fields) % 2).To(Equal(0))
-
-	config := make(map[string]string, len(fields)/2)
-	for index := 0; index < len(fields); index += 2 {
-		Expect(string(fields[index])).To(Equal("--conf"))
-		key, value, found := strings.Cut(string(fields[index+1]), "=")
+	config := make(map[string]string, len(args)/2)
+	for index := 0; index < len(args); index += 2 {
+		Expect(args[index]).To(Equal("--conf"))
+		key, value, found := strings.Cut(args[index+1], "=")
 		Expect(found).To(BeTrue())
 		config[key] = value
 	}
 	return config
 }
+
+var _ = Describe("gpuConfOption", func() {
+	var conn *v1alpha1.SparkConnect
+
+	BeforeEach(func() {
+		conn = &v1alpha1.SparkConnect{
+			ObjectMeta: metav1.ObjectMeta{Name: "gpu-connect", Namespace: "default"},
+			Spec: v1alpha1.SparkConnectSpec{
+				SparkVersion: "4.0.0",
+				Image:        ptr.To("example.com/spark:gpu"),
+			},
+		}
+	})
+
+	It("returns no arguments for CPU-only sessions", func() {
+		args, err := gpuConfOption(conn)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(args).To(BeEmpty())
+	})
+
+	It("configures server and executor GPUs independently", func() {
+		conn.Spec.Server.GPU = &v1alpha1.GPUSpec{Name: "amd.com/gpu", Quantity: 1}
+		conn.Spec.Executor.GPU = &v1alpha1.GPUSpec{Name: "nvidia.com/gpu", Quantity: 2}
+		args, err := gpuConfOption(conn)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(parsedSparkConfig(args)).To(Equal(map[string]string{
+			"spark.driver.resource.gpu.amount":   "1",
+			"spark.driver.resource.gpu.vendor":   "amd.com",
+			"spark.executor.resource.gpu.amount": "2",
+			"spark.executor.resource.gpu.vendor": "nvidia.com",
+		}))
+	})
+
+	It("only configures the role that requests a GPU", func() {
+		conn.Spec.Executor.GPU = &v1alpha1.GPUSpec{Name: "nvidia.com/gpu", Quantity: 2}
+		args, err := gpuConfOption(conn)
+		Expect(err).NotTo(HaveOccurred())
+		config := parsedSparkConfig(args)
+		Expect(config).To(HaveKeyWithValue("spark.executor.resource.gpu.amount", "2"))
+		Expect(config).NotTo(HaveKey("spark.driver.resource.gpu.amount"))
+	})
+
+	It("takes precedence over the same keys in sparkConf", func() {
+		conn.Spec.Executor.GPU = &v1alpha1.GPUSpec{Name: "nvidia.com/gpu", Quantity: 2}
+		conn.Spec.SparkConf = map[string]string{
+			"spark.executor.resource.gpu.amount":          "9",
+			"spark.executor.resource.gpu.vendor":          "old.example.com",
+			"spark.executor.resource.gpu.discoveryScript": "/opt/spark/scripts/discover gpus.sh",
+			"spark.task.resource.gpu.amount":              "0.25",
+		}
+		sparkConfArgs, err := sparkConfOption(conn)
+		Expect(err).NotTo(HaveOccurred())
+		gpuArgs, err := gpuConfOption(conn)
+		Expect(err).NotTo(HaveOccurred())
+
+		config := parsedSparkConfig(append(sparkConfArgs, gpuArgs...))
+		Expect(config).To(HaveKeyWithValue("spark.executor.resource.gpu.amount", "2"))
+		Expect(config).To(HaveKeyWithValue("spark.executor.resource.gpu.vendor", "nvidia.com"))
+		Expect(config).To(HaveKeyWithValue("spark.executor.resource.gpu.discoveryScript", "/opt/spark/scripts/discover gpus.sh"))
+		Expect(config).To(HaveKeyWithValue("spark.task.resource.gpu.amount", "0.25"))
+	})
+
+	It("does not create an executor pod template only for a GPU", func() {
+		conn.Spec.Executor.GPU = &v1alpha1.GPUSpec{Name: "nvidia.com/gpu", Quantity: 2}
+		args, err := executorPodTemplateOption(conn)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(args).To(BeEmpty())
+	})
+
+	DescribeTable("rejects invalid GPU resources",
+		func(server bool, name string, quantity int64) {
+			gpu := &v1alpha1.GPUSpec{Name: name, Quantity: quantity}
+			if server {
+				conn.Spec.Server.GPU = gpu
+			} else {
+				conn.Spec.Executor.GPU = gpu
+			}
+			_, err := gpuConfOption(conn)
+			Expect(err).To(HaveOccurred())
+		},
+		Entry("zero server GPUs", true, "nvidia.com/gpu", int64(0)),
+		Entry("negative executor GPUs", false, "nvidia.com/gpu", int64(-1)),
+		Entry("missing vendor", false, "gpu", int64(1)),
+		Entry("empty resource name", true, "", int64(1)),
+		Entry("invalid vendor", false, "bad..example/gpu", int64(1)),
+		Entry("unsupported resource suffix", true, "nvidia.com/other", int64(1)),
+	)
+})
