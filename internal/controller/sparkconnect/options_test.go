@@ -171,7 +171,7 @@ var _ = Describe("gpuConfOption", func() {
 		conn.Spec.Executor.GPU = &v1alpha1.GPUSpec{Name: "nvidia.com/gpu", Quantity: 2}
 		args, err := gpuConfOption(conn)
 		Expect(err).NotTo(HaveOccurred())
-		Expect(shellParsedSparkConfig(args)).To(Equal(map[string]string{
+		Expect(parsedSparkConfig(args)).To(Equal(map[string]string{
 			"spark.driver.resource.gpu.amount":   "1",
 			"spark.driver.resource.gpu.vendor":   "amd.com",
 			"spark.executor.resource.gpu.amount": "2",
@@ -183,7 +183,7 @@ var _ = Describe("gpuConfOption", func() {
 		conn.Spec.Executor.GPU = &v1alpha1.GPUSpec{Name: "nvidia.com/gpu", Quantity: 2}
 		args, err := gpuConfOption(conn)
 		Expect(err).NotTo(HaveOccurred())
-		config := shellParsedSparkConfig(args)
+		config := parsedSparkConfig(args)
 		Expect(config).To(HaveKeyWithValue("spark.executor.resource.gpu.amount", "2"))
 		Expect(config).NotTo(HaveKey("spark.driver.resource.gpu.amount"))
 	})
@@ -201,7 +201,7 @@ var _ = Describe("gpuConfOption", func() {
 		gpuArgs, err := gpuConfOption(conn)
 		Expect(err).NotTo(HaveOccurred())
 
-		config := shellParsedSparkConfig(append(sparkConfArgs, gpuArgs...))
+		config := parsedSparkConfig(append(sparkConfArgs, gpuArgs...))
 		Expect(config).To(HaveKeyWithValue("spark.executor.resource.gpu.amount", "2"))
 		Expect(config).To(HaveKeyWithValue("spark.executor.resource.gpu.vendor", "nvidia.com"))
 		Expect(config).To(HaveKeyWithValue("spark.executor.resource.gpu.discoveryScript", "/opt/spark/scripts/discover gpus.sh"))
