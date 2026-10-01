@@ -415,20 +415,22 @@ func TestScheduleOverheadFactor(t *testing.T) {
 			mode:                   v1beta2.DeployModeClient,
 		},
 		{
-			// Dynamic allocation: initialExecutors = max(minExecutors, initialExecutors, instances)
-			// With minExecutors=2 and no static instances, executor count = 2
-			// executor per pod: 1024 + 384 = 1408 Mi; total = 1408 * 2 = 2816 Mi
+			// Dynamic allocation: GetInitialExecutorNumber returns
+			//   max(Instances, InitialExecutors, MinExecutors) from app.Spec.DynamicAllocation.
+			// Here InitialExecutors=4 > MinExecutors=2, so executor count = 4.
+			// executor per pod: 1024 + max(1024*0.1, 384) = 1024 + 384 = 1408 Mi
+			// total = 1408 * 4 = 5632 Mi
 			name: "JVM dynamic allocation uses initial executor count",
 			app: &v1beta2.SparkApplication{
 				ObjectMeta: metav1.ObjectMeta{Name: "jvm-dynalloc", Namespace: "default"},
 				Spec: v1beta2.SparkApplicationSpec{
 					Mode: v1beta2.DeployModeClient,
 					Type: v1beta2.SparkApplicationTypeJava,
-					SparkConf: map[string]string{
-						"spark.dynamicAllocation.enabled":          "true",
-						"spark.dynamicAllocation.minExecutors":     "2",
-						"spark.dynamicAllocation.maxExecutors":     "10",
-						"spark.dynamicAllocation.initialExecutors": "2",
+					DynamicAllocation: &v1beta2.DynamicAllocation{
+						Enabled:          true,
+						MinExecutors:     ptr.To[int32](2),
+						MaxExecutors:     ptr.To[int32](10),
+						InitialExecutors: ptr.To[int32](4),
 					},
 					Driver: v1beta2.DriverSpec{
 						SparkPodSpec: v1beta2.SparkPodSpec{
@@ -437,7 +439,8 @@ func TestScheduleOverheadFactor(t *testing.T) {
 						},
 					},
 					Executor: v1beta2.ExecutorSpec{
-						// Instances intentionally nil — dynamic allocation controls count
+						// Instances intentionally nil — dynamic allocation controls count.
+						// InitialExecutors=4 wins over MinExecutors=2.
 						SparkPodSpec: v1beta2.SparkPodSpec{
 							Memory: ptr.To("1g"),
 							Cores:  ptr.To[int32](1),
@@ -446,7 +449,7 @@ func TestScheduleOverheadFactor(t *testing.T) {
 				},
 			},
 			expectedDriverMemMi:    1408,
-			expectedExecTotalMemMi: 2816,
+			expectedExecTotalMemMi: 5632,
 			mode:                   v1beta2.DeployModeClient,
 		},
 	}
