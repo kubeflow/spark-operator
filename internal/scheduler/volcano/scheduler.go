@@ -202,12 +202,10 @@ func executorMinResources(app *v1beta2.SparkApplication) (corev1.ResourceList, e
 	}
 
 	instances := util.GetInitialExecutorNumber(app)
-	if instances == 0 {
-		// No executors requested; return an empty resource list rather than zero.
-		return corev1.ResourceList{}, nil
-	}
 
 	// Build a slice of identical per-pod resource lists and sum them.
+	// util.SumResourceList returns an empty ResourceList for an empty slice,
+	// so no special-case for instances == 0 is needed.
 	resourceList := make([]corev1.ResourceList, instances)
 	for i := range resourceList {
 		resourceList[i] = perPod
