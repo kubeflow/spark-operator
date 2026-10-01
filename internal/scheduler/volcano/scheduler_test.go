@@ -32,6 +32,7 @@ import (
 	fakevolcanoclientset "volcano.sh/apis/pkg/client/clientset/versioned/fake"
 
 	"github.com/kubeflow/spark-operator/v2/api/v1beta2"
+	"github.com/kubeflow/spark-operator/v2/internal/scheduler/resourceusage"
 	"github.com/kubeflow/spark-operator/v2/pkg/util"
 )
 
@@ -284,16 +285,13 @@ func TestSchedule(t *testing.T) {
 				}
 			}
 
-			// When no custom resources are set the PodGroup minResources must be
-			// computed via driverMinResources / executorMinResources, which apply the
-			// correct memoryOverheadFactor. Do NOT use util.Get*RequestResource here
-			// because those functions are buggy (they omit the default overhead factor).
+			// Expected values come from the resourceusage-based helpers, which apply the default memoryOverheadFactor.
 			if tc.app.Spec.BatchSchedulerOptions == nil {
 				assert.NotNil(t, capturedPodGroup.Spec.MinResources)
 
 				var expectedResources corev1.ResourceList
 				if tc.expectedMode == "cluster" {
-					driverRes, err := driverMinResources(tc.app)
+					driverRes, err := resourceusage.DriverPodResourceList(tc.app)
 					require.NoError(t, err)
 					execRes, err := executorMinResources(tc.app)
 					require.NoError(t, err)
@@ -479,23 +477,18 @@ func TestScheduleOverheadFactor(t *testing.T) {
 			switch tc.mode {
 			case v1beta2.DeployModeClient:
 				// Client mode: minResources = executor total only
-				expectedMem := resource.MustParse(mebibytes(tc.expectedExecTotalMemMi))
+				expectedMem := resource.MustParse(fmt.Sprintf("%dMi", tc.expectedExecTotalMemMi))
 				assert.Equal(t, expectedMem.Value(), actualMemory.Value(),
 					"client mode: PodGroup memory should equal total executor memory (with overhead); got %s, want %s",
 					actualMemory.String(), expectedMem.String())
 
 			case v1beta2.DeployModeCluster:
 				// Cluster mode: minResources = driver + executor total
-				expectedMem := resource.MustParse(mebibytes(tc.expectedDriverMemMi + tc.expectedExecTotalMemMi))
+				expectedMem := resource.MustParse(fmt.Sprintf("%dMi", tc.expectedDriverMemMi+tc.expectedExecTotalMemMi))
 				assert.Equal(t, expectedMem.Value(), actualMemory.Value(),
 					"cluster mode: PodGroup memory should equal driver + total executor memory (with overhead); got %s, want %s",
 					actualMemory.String(), expectedMem.String())
 			}
 		})
 	}
-}
-
-// mebibytes formats an int64 MiB count as a Kubernetes quantity string.
-func mebibytes(mi int64) string {
-	return fmt.Sprintf("%dMi", mi)
 }

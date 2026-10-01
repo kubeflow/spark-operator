@@ -164,7 +164,7 @@ func (s *Scheduler) syncPodGroupInClusterMode(app *v1beta2.SparkApplication) err
 	// In cluster mode, the initial size of PodGroup is set to 1 in order to schedule driver pod first.
 	if _, ok := app.Spec.Driver.Annotations[v1beta1.KubeGroupNameAnnotationKey]; !ok {
 		// Both driver and executor resource will be considered.
-		driverRes, err := driverMinResources(app)
+		driverRes, err := resourceusage.DriverPodResourceList(app)
 		if err != nil {
 			return fmt.Errorf("failed to calculate driver minResources: %w", err)
 		}
@@ -184,12 +184,6 @@ func (s *Scheduler) syncPodGroupInClusterMode(app *v1beta2.SparkApplication) err
 		app.Spec.Executor.Annotations[v1beta1.KubeGroupNameAnnotationKey] = getPodGroupName(app)
 	}
 	return nil
-}
-
-// driverMinResources returns the driver pod's resource requests as a
-// corev1.ResourceList with the correct memoryOverheadFactor applied.
-func driverMinResources(app *v1beta2.SparkApplication) (corev1.ResourceList, error) {
-	return resourceusage.DriverPodResourceList(app)
 }
 
 // executorMinResources returns the aggregate resource requests for all initial

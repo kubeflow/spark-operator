@@ -29,10 +29,6 @@ import (
 	"github.com/kubeflow/spark-operator/v2/api/v1beta2"
 )
 
-// ---------------------------------------------------------------------------
-// cpuRequest
-// ---------------------------------------------------------------------------
-
 func TestCpuRequest(t *testing.T) {
 	testCases := []struct {
 		cores       *int32
@@ -64,10 +60,6 @@ func TestCpuRequestInvalid(t *testing.T) {
 		assert.NotNil(t, err)
 	}
 }
-
-// ---------------------------------------------------------------------------
-// ToResourceList — exported, must handle invalid values with a non-nil error
-// ---------------------------------------------------------------------------
 
 func TestToResourceList(t *testing.T) {
 	t.Run("valid CPU quantity", func(t *testing.T) {
@@ -113,17 +105,12 @@ func TestToResourceList(t *testing.T) {
 	})
 }
 
-// ---------------------------------------------------------------------------
-// DriverPodResourceList — overhead factor, explicit overhead, custom factor
-// ---------------------------------------------------------------------------
-
 func TestDriverPodResourceList(t *testing.T) {
 	testCases := []struct {
 		name           string
 		app            *v1beta2.SparkApplication
 		expectMemoryMi int64
-		// Arithmetic comment is required per spec; see each case below.
-		expectCPU string
+		expectCPU      string
 	}{
 		{
 			// heap = 1g = 1024 Mi
@@ -198,7 +185,6 @@ func TestDriverPodResourceList(t *testing.T) {
 			//   429496729 / 1024 / 1024 = 409 Mi (integer division floors)
 			// total = 1024 + 409 = 1433 Mi
 			//
-			// VERIFIED: bytesToMi uses integer division (b/1024/1024), which floors.
 			// int64() conversion of float64 also truncates toward zero.
 			// So 0.4 * 1024 MiB = 409.6 MiB → 409 MiB (NOT 410).
 			name: "Python default overhead factor — confirmed floor not round",
@@ -267,7 +253,6 @@ func TestDriverPodResourceList(t *testing.T) {
 			require.NoError(t, err)
 			require.NotNil(t, rl)
 
-			// Arithmetic was derived above from first principles, not copied from output.
 			expectedMem := resource.MustParse(fmt.Sprintf("%dMi", tc.expectMemoryMi))
 			actualMem := rl[corev1.ResourceMemory]
 			assert.Equal(t, expectedMem.Value(), actualMem.Value(),
@@ -280,10 +265,6 @@ func TestDriverPodResourceList(t *testing.T) {
 		})
 	}
 }
-
-// ---------------------------------------------------------------------------
-// ExecutorPodResourceList — overhead, pyspark, off-heap, dynamic allocation
-// ---------------------------------------------------------------------------
 
 func TestExecutorPodResourceList(t *testing.T) {
 	testCases := []struct {
