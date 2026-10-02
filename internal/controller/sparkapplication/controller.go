@@ -1018,7 +1018,7 @@ func (r *Reconciler) submitSparkApplication(ctx context.Context, app *v1beta2.Sp
 
 	if err := r.submitter.Submit(ctx, submitApp); err != nil {
 		r.recordSparkApplicationEvent(app)
-		submitErr = fmt.Errorf("failed to submit spark application: %v", err)
+		submitErr = fmt.Errorf("failed to submit spark application: %w", err)
 		return
 	}
 
