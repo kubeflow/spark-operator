@@ -77,6 +77,21 @@ func (d *SparkPodDefaulter) Default(ctx context.Context, pod *corev1.Pod) error 
 
 	logger := log.FromContext(ctx)
 	namespace := pod.Namespace
+	if namespace == "" {
+		// kube-apiserver before v1.24 (kubernetes/kubernetes#94637) does not populate
+		// metadata.namespace on the object sent to admission webhooks when the client
+		// omitted it from the request body, which is what spark-submit (fabric8 client)
+		// does for driver and executor pods. The namespace of the admission request is
+		// always set, so use it instead. controller-runtime always puts the request in
+		// the context before calling Default, so a missing request is a programming
+		// error rather than something an old API server can trigger.
+		req, err := admission.RequestFromContext(ctx)
+		if err != nil {
+			return fmt.Errorf("pod namespace is empty and no admission request is available: %v", err)
+		}
+		namespace = req.Namespace
+		logger.V(1).Info("Pod namespace is empty, using the namespace of the admission request", "namespace", namespace)
+	}
 	if !d.isSparkJobNamespace(namespace) {
 		return nil
 	}
