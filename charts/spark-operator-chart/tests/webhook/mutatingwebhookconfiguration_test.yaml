@@ -88,6 +88,29 @@ tests:
       - notExists:
           path: webhooks[*].namespaceSelector
 
+  - it: Should use spark.webhookNamespaceSelector when set
+    set:
+      spark:
+        jobNamespaces:
+          - default
+        webhookNamespaceSelector:
+          matchLabels:
+            spark: enabled
+    asserts:
+      - equal:
+          path: webhooks[*].namespaceSelector
+          value:
+            matchLabels:
+              spark: enabled
+
+  - it: Should fail if jobNamespaceSelector is set without webhookNamespaceSelector
+    set:
+      spark:
+        jobNamespaceSelector: "spark=enabled"
+        webhookNamespaceSelector: {}
+    asserts:
+      - failedTemplate:
+          errorMessage: "spark.jobNamespaceSelector is set but spark.webhookNamespaceSelector is empty; set webhookNamespaceSelector to the structured form of the same labels so MutatingWebhookConfiguration/ValidatingWebhookConfiguration stay aligned with --namespace-selector (or clear jobNamespaceSelector)"
 
   - it: Should should use the specified timeoutSeconds
     set:

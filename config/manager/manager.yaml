@@ -124,6 +124,7 @@ spec:
             runAsNonRoot: true
             seccompProfile:
               type: RuntimeDefault
+          # Raise memory if spark-submit JVMs in this pod OOMKill('signal: killed').
           resources:
             limits:
               cpu: 500m

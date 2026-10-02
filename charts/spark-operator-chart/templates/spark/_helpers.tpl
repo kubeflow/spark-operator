@@ -22,6 +22,18 @@ Create the name of spark component
 {{- end -}}
 
 {{/*
+Fail closed when the controller/webhook process would filter by namespace labels
+but the admission webhook configs still use only the name-based selector from
+jobNamespaces. That mismatch skips mutate/validate for label-selected namespaces
+at the API server while the controller still reconciles them.
+*/}}
+{{- define "spark-operator.spark.validateNamespaceConfig" -}}
+{{- if and .Values.spark.jobNamespaceSelector (empty .Values.spark.webhookNamespaceSelector) -}}
+{{- fail "spark.jobNamespaceSelector is set but spark.webhookNamespaceSelector is empty; set webhookNamespaceSelector to the structured form of the same labels so MutatingWebhookConfiguration/ValidatingWebhookConfiguration stay aligned with --namespace-selector (or clear jobNamespaceSelector)" -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
 Create the name of the service account to be used by spark applications
 */}}
 {{- define "spark-operator.spark.serviceAccountName" -}}

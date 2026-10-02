@@ -46,6 +46,12 @@ var _ = Describe("NamespaceMatcher", func() {
 			Expect(matcher).NotTo(BeNil())
 		})
 
+		It("should create matcher with empty string explicit namespace (NamespaceAll)", func() {
+			matcher, err := util.NewNamespaceMatcher([]string{""}, "")
+			Expect(err).NotTo(HaveOccurred())
+			Expect(matcher).NotTo(BeNil())
+		})
+
 		It("should create matcher with selector only", func() {
 			matcher, err := util.NewNamespaceMatcher([]string{}, "spark=enabled")
 			Expect(err).NotTo(HaveOccurred())
@@ -91,6 +97,13 @@ var _ = Describe("NamespaceMatcher", func() {
 
 		It("should match all namespaces when namespaces list is empty", func() {
 			matcher, _ := util.NewNamespaceMatcher([]string{}, "")
+			Expect(matcher.Matches("any-namespace", nil)).To(BeTrue())
+			Expect(matcher.Matches("another-namespace", nil)).To(BeTrue())
+			Expect(matcher.Matches("", nil)).To(BeTrue())
+		})
+
+		It("should match all namespaces when namespaces list is just an empty string and has a Selector", func() {
+			matcher, _ := util.NewNamespaceMatcher([]string{""}, "spark=true")
 			Expect(matcher.Matches("any-namespace", nil)).To(BeTrue())
 			Expect(matcher.Matches("another-namespace", nil)).To(BeTrue())
 			Expect(matcher.Matches("", nil)).To(BeTrue())

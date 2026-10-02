@@ -9,6 +9,12 @@ spark:
   jobNamespaces:
     - default
   jobNamespaceSelector: "spark=enabled"
+  # Must match jobNamespaceSelector in structured form. Label the `default`
+  # namespace with spark=enabled in e2e so name-listed and label-selected
+  # namespaces both pass the API-server webhook gate.
+  webhookNamespaceSelector:
+    matchLabels:
+      spark: enabled
 
 controller:
   kubeAPIQPS: 100

@@ -197,6 +197,18 @@ func installViaHelm() {
 	release, err := installAction.Run(chart, values)
 	Expect(err).NotTo(HaveOccurred())
 	Expect(release).NotTo(BeNil())
+
+	// ci-values sets webhookNamespaceSelector matchLabels spark=enabled, which
+	// replaces the name-based jobNamespaces gate. Label default so core e2e
+	// SparkApplications in that namespace still hit mutate/validate.
+	By("Labeling default namespace for webhook namespaceSelector")
+	defaultNS := &corev1.Namespace{}
+	Expect(k8sClient.Get(context.TODO(), types.NamespacedName{Name: "default"}, defaultNS)).NotTo(HaveOccurred())
+	if defaultNS.Labels == nil {
+		defaultNS.Labels = map[string]string{}
+	}
+	defaultNS.Labels["spark"] = "enabled"
+	Expect(k8sClient.Update(context.TODO(), defaultNS)).NotTo(HaveOccurred())
 }
 
 func uninstallViaHelm() {

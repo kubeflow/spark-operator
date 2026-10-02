@@ -21,6 +21,7 @@ import (
 	"flag"
 	"os"
 	"slices"
+	"strings"
 	"time"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
@@ -55,6 +56,7 @@ import (
 	"github.com/kubeflow/spark-operator/v2/pkg/certificate"
 	"github.com/kubeflow/spark-operator/v2/pkg/common"
 	operatorscheme "github.com/kubeflow/spark-operator/v2/pkg/scheme"
+	"github.com/kubeflow/spark-operator/v2/pkg/util"
 	"github.com/kubeflow/spark-operator/v2/pkg/version"
 	// +kubebuilder:scaffold:imports
 )
@@ -64,8 +66,8 @@ var (
 )
 
 var (
-	namespaces          []string
-	labelSelectorFilter string
+	namespaces        []string
+	namespaceSelector string
 
 	// Controller
 	controllerThreads int
@@ -130,7 +132,7 @@ func NewStartCommand() *cobra.Command {
 	// Controller
 	command.Flags().IntVar(&controllerThreads, "controller-threads", 10, "Number of worker threads used by the SparkApplication controller.")
 	command.Flags().StringSliceVar(&namespaces, "namespaces", []string{}, "The Kubernetes namespace to manage. Will manage custom resource objects of the managed CRD types for the whole cluster if unset or contains empty string.")
-	command.Flags().StringVar(&labelSelectorFilter, "label-selector-filter", "", "A comma-separated list of key=value, or key labels to filter resources during watch and list based on the specified labels.")
+	command.Flags().StringVar(&namespaceSelector, "namespace-selector", "", "Label selector for namespaces to watch (e.g., 'spark-operator=enabled,env in (prod,staging)'). Namespaces matching this selector will be watched in addition to those specified via --namespaces. Requires ClusterRole permission to list and watch namespaces.")
 	command.Flags().DurationVar(&cacheSyncTimeout, "cache-sync-timeout", 30*time.Second, "Informer cache sync timeout.")
 
 	command.Flags().Float32Var(&kubeAPIQPS, "kube-api-qps", 20, "Maximum QPS to the API server from the controller client.")
@@ -307,9 +309,15 @@ func start() {
 		}
 	}
 
+	namespaceMatcher, err := util.NewNamespaceMatcher(namespaces, namespaceSelector)
+	if err != nil {
+		logger.Error(err, "Failed to build namespace matcher")
+		os.Exit(1)
+	}
+
 	if err := ctrl.NewWebhookManagedBy(mgr, &v1alpha1.SparkConnect{}).
-		WithDefaulter(webhook.NewSparkConnectDefaulter()).
-		WithValidator(webhook.NewSparkConnectValidator()).
+		WithDefaulter(webhook.NewNamespaceFilteringDefaulter(webhook.NewSparkConnectDefaulter(), namespaceMatcher, mgr.GetClient())).
+		WithValidator(webhook.NewNamespaceFilteringValidator(webhook.NewSparkConnectValidator(), namespaceMatcher, mgr.GetClient())).
 		WithLogConstructor(webhook.LogConstructor).
 		Complete(); err != nil {
 		logger.Error(err, "Failed to create mutating webhook for SparkConnect")
@@ -317,8 +325,8 @@ func start() {
 	}
 
 	if err := ctrl.NewWebhookManagedBy(mgr, &v1beta2.SparkApplication{}).
-		WithDefaulter(webhook.NewSparkApplicationDefaulter()).
-		WithValidator(webhook.NewSparkApplicationValidator(mgr.GetClient(), enableResourceQuotaEnforcement)).
+		WithDefaulter(webhook.NewNamespaceFilteringDefaulter(webhook.NewSparkApplicationDefaulter(), namespaceMatcher, mgr.GetClient())).
+		WithValidator(webhook.NewNamespaceFilteringValidator(webhook.NewSparkApplicationValidator(mgr.GetClient(), enableResourceQuotaEnforcement), namespaceMatcher, mgr.GetClient())).
 		WithLogConstructor(webhook.LogConstructor).
 		Complete(); err != nil {
 		logger.Error(err, "Failed to create mutating webhook for Spark application")
@@ -326,8 +334,8 @@ func start() {
 	}
 
 	if err := ctrl.NewWebhookManagedBy(mgr, &v1beta2.ScheduledSparkApplication{}).
-		WithDefaulter(webhook.NewScheduledSparkApplicationDefaulter()).
-		WithValidator(webhook.NewScheduledSparkApplicationValidator()).
+		WithDefaulter(webhook.NewNamespaceFilteringDefaulter(webhook.NewScheduledSparkApplicationDefaulter(), namespaceMatcher, mgr.GetClient())).
+		WithValidator(webhook.NewNamespaceFilteringValidator(webhook.NewScheduledSparkApplicationValidator(), namespaceMatcher, mgr.GetClient())).
 		WithLogConstructor(webhook.LogConstructor).
 		Complete(); err != nil {
 		logger.Error(err, "Failed to create mutating webhook for Scheduled Spark application")
@@ -335,7 +343,7 @@ func start() {
 	}
 
 	if err := ctrl.NewWebhookManagedBy(mgr, &corev1.Pod{}).
-		WithDefaulter(webhook.NewSparkPodDefaulter(mgr.GetClient(), namespaces)).
+		WithDefaulter(webhook.NewNamespaceFilteringDefaulter(webhook.NewSparkPodDefaulter(mgr.GetClient()), namespaceMatcher, mgr.GetClient())).
 		WithLogConstructor(webhook.LogConstructor).
 		Complete(); err != nil {
 		logger.Error(err, "Failed to create mutating webhook for Spark pod")
@@ -379,13 +387,6 @@ func setupLog() {
 
 // newCacheOptions creates and returns a cache.Options instance configured with default namespaces and object caching settings.
 func newCacheOptions() cache.Options {
-	defaultNamespaces := make(map[string]cache.Config)
-	if !slices.Contains(namespaces, cache.AllNamespaces) {
-		for _, ns := range namespaces {
-			defaultNamespaces[ns] = cache.Config{}
-		}
-	}
-
 	byObject := map[client.Object]cache.ByObject{
 		&corev1.Pod{}: {
 			Label: labels.SelectorFromSet(labels.Set{
@@ -405,6 +406,21 @@ func newCacheOptions() cache.Options {
 				"metadata.name": validatingWebhookName,
 			}),
 		},
+	}
+
+	var defaultNamespaces map[string]cache.Config
+
+	// Only cache Namespaces when a selector is configured; otherwise the
+	// matcher never needs to read them and we'd impose a cluster-scoped
+	// list/watch on installs that don't opt into label-based matching.
+	if strings.TrimSpace(namespaceSelector) != "" {
+		byObject[&corev1.Namespace{}] = cache.ByObject{}
+		defaultNamespaces = nil
+	} else if !slices.Contains(namespaces, cache.AllNamespaces) {
+		defaultNamespaces = make(map[string]cache.Config, len(namespaces))
+		for _, ns := range namespaces {
+			defaultNamespaces[ns] = cache.Config{}
+		}
 	}
 
 	options := cache.Options{

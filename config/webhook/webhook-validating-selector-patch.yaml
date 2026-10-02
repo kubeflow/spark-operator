@@ -4,7 +4,11 @@
 # add it here to align with the Helm chart defaults.
 #
 # namespaceSelector limits interception to the listed job namespaces
-# (default: "default"). Adjust the values list to match your deployment.
+# (default: "default"). Adjust the values list to match your deployment and
+# keep it in sync with webhook-objectselector-patch.yaml. Edits only stick if
+# they live in your kustomize sources (re-applying stock upstream resets them).
+# Prefer Helm spark.jobNamespaces / webhookNamespaceSelector for values-driven
+# installs.
 
 apiVersion: admissionregistration.k8s.io/v1
 kind: ValidatingWebhookConfiguration
