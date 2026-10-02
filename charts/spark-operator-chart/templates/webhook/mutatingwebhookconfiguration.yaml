@@ -38,17 +38,8 @@ webhooks:
   {{- with .Values.webhook.failurePolicy }}
   failurePolicy: {{ . }}
   {{- end }}
-  {{- with .Values.spark.jobNamespaces }}
-  {{- if not (has "" .) }}
-  namespaceSelector:
-    matchExpressions:
-    - key: kubernetes.io/metadata.name
-      operator: In
-      values:
-      {{- range $jobNamespace := . }}
-      - {{ $jobNamespace }}
-      {{- end }}
-  {{- end }}
+  {{- with (include "spark-operator.webhook.namespaceSelector" .) }}
+  {{- . | nindent 2 }}
   {{- end }}
   objectSelector:
     matchLabels:
@@ -73,17 +64,8 @@ webhooks:
   {{- with .Values.webhook.failurePolicy }}
   failurePolicy: {{ . }}
   {{- end }}
-  {{- with .Values.spark.jobNamespaces }}
-  {{- if not (has "" .) }}
-  namespaceSelector:
-    matchExpressions:
-    - key: kubernetes.io/metadata.name
-      operator: In
-      values:
-      {{- range $jobNamespace := . }}
-      - {{ $jobNamespace }}
-      {{- end }}
-  {{- end }}
+  {{- with (include "spark-operator.webhook.namespaceSelector" .) }}
+  {{- . | nindent 2 }}
   {{- end }}
   rules:
   - apiGroups: ["sparkoperator.k8s.io"]
@@ -105,17 +87,8 @@ webhooks:
   {{- with .Values.webhook.failurePolicy }}
   failurePolicy: {{ . }}
   {{- end }}
-  {{- with .Values.spark.jobNamespaces }}
-  {{- if not (has "" .) }}
-  namespaceSelector:
-    matchExpressions:
-    - key: kubernetes.io/metadata.name
-      operator: In
-      values:
-      {{- range $jobNamespace := . }}
-      - {{ $jobNamespace }}
-      {{- end }}
-  {{- end }}
+  {{- with (include "spark-operator.webhook.namespaceSelector" .) }}
+  {{- . | nindent 2 }}
   {{- end }}
   rules:
   - apiGroups: ["sparkoperator.k8s.io"]
@@ -137,17 +110,8 @@ webhooks:
   {{- with .Values.webhook.failurePolicy }}
   failurePolicy: {{ . }}
   {{- end }}
-  {{- with .Values.spark.jobNamespaces }}
-  {{- if not (has "" .) }}
-  namespaceSelector:
-    matchExpressions:
-    - key: kubernetes.io/metadata.name
-      operator: In
-      values:
-      {{- range $jobNamespace := . }}
-      - {{ $jobNamespace }}
-      {{- end }}
-  {{- end }}
+  {{- with (include "spark-operator.webhook.namespaceSelector" .) }}
+  {{- . | nindent 2 }}
   {{- end }}
   rules:
   - apiGroups: ["sparkoperator.k8s.io"]

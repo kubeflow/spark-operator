@@ -168,6 +168,27 @@ tests:
           path: spec.template.spec.containers[?(@.name=="spark-operator-controller")].args
           content: --namespaces=""
 
+  - it: Should contain `--namespace-selector` when jobNamespaceSelector and webhookNamespaceSelector are set
+    set:
+      spark:
+        jobNamespaceSelector: "spark=enabled"
+        webhookNamespaceSelector:
+          matchLabels:
+            spark: enabled
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[?(@.name=="spark-operator-controller")].args
+          content: --namespace-selector=spark=enabled
+
+  - it: Should fail if jobNamespaceSelector is set without webhookNamespaceSelector
+    set:
+      spark:
+        jobNamespaceSelector: "spark=enabled"
+        webhookNamespaceSelector: {}
+    asserts:
+      - failedTemplate:
+          errorMessage: "spark.jobNamespaceSelector is set but spark.webhookNamespaceSelector is empty; set webhookNamespaceSelector to the structured form of the same labels so MutatingWebhookConfiguration/ValidatingWebhookConfiguration stay aligned with --namespace-selector (or clear jobNamespaceSelector)"
+
   - it: Should contain `--controller-threads` arg if `controller.workers` is set
     set:
       controller:

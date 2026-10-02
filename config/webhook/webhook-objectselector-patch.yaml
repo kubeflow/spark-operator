@@ -1,3 +1,9 @@
+# namespaceSelector defaults to "default" only (Helm spark.jobNamespaces parity).
+# Multi-NS: edit each webhook's values list below, keep in sync with
+# webhook-validating-selector-patch.yaml, then re-apply kustomize.
+# All-NS: remove the namespaceSelector fields. Label-based scope: replace with
+# matchLabels / matchExpressions and set --namespace-selector on the webhook
+# and controller Deployments. Prefer Helm values for a values-driven install.
 apiVersion: admissionregistration.k8s.io/v1
 kind: MutatingWebhookConfiguration
 metadata:
