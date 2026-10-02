@@ -404,11 +404,10 @@ var _ = Describe("mutateServerPod", func() {
 			Expect(container.Lifecycle).NotTo(BeNil())
 			Expect(container.Lifecycle.PreStop).NotTo(BeNil())
 			Expect(container.Lifecycle.PreStop.Exec).NotTo(BeNil())
-			cmd := strings.Join(container.Lifecycle.PreStop.Exec.Command, " ")
-			Expect(cmd).To(ContainSubstring("pkill"))
-			Expect(cmd).To(ContainSubstring("command -v pkill"))
-			Expect(cmd).To(ContainSubstring("org[.]apache[.]spark[.]deploy[.]SparkSubmit"))
-			Expect(cmd).NotTo(ContainSubstring("stop-connect-server.sh"))
+			Expect(container.Lifecycle.PreStop.Exec.Command).To(Equal([]string{
+				"sh", "-c", gracefulStopScript, "graceful-stop", sparkConnectJVMPattern,
+			}))
+			Expect(gracefulStopScript).NotTo(ContainSubstring("stop-connect-server.sh"))
 		})
 
 		It("should preserve user-provided PreStop", func() {
@@ -465,9 +464,9 @@ var _ = Describe("mutateServerPod", func() {
 			Expect(container.Lifecycle.PostStart).To(Equal(userPostStart))
 			Expect(container.Lifecycle.PreStop).NotTo(BeNil())
 			Expect(container.Lifecycle.PreStop.Exec).NotTo(BeNil())
-			cmd := strings.Join(container.Lifecycle.PreStop.Exec.Command, " ")
-			Expect(cmd).To(ContainSubstring("pkill"))
-			Expect(cmd).To(ContainSubstring("org[.]apache[.]spark[.]deploy[.]SparkSubmit"))
+			Expect(container.Lifecycle.PreStop.Exec.Command).To(Equal([]string{
+				"sh", "-c", gracefulStopScript, "graceful-stop", sparkConnectJVMPattern,
+			}))
 		})
 
 		It("should default terminationGracePeriodSeconds to 90", func() {
