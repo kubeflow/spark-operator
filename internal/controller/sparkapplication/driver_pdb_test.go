@@ -519,6 +519,28 @@ func newFailingCreateClient(objType client.Object, failures int) client.Client {
 	})
 }
 
+// newFailingDeleteClient fails the first N matching Delete calls.
+func newFailingDeleteClient(objType client.Object, failures int) (client.Client, *int) {
+	base, err := client.NewWithWatch(cfg, client.Options{Scheme: k8sClient.Scheme()})
+	Expect(err).NotTo(HaveOccurred())
+	targetGVK, err := base.GroupVersionKindFor(objType)
+	Expect(err).NotTo(HaveOccurred())
+	remaining := failures
+	attempts := 0
+	return interceptor.NewClient(base, interceptor.Funcs{
+		Delete: func(ctx context.Context, c client.WithWatch, obj client.Object, opts ...client.DeleteOption) error {
+			if objectGVK(c, obj) == targetGVK {
+				attempts++
+				if remaining > 0 {
+					remaining--
+					return apierrors.NewServiceUnavailable(fmt.Sprintf("simulated transient delete failure for %s", targetGVK.Kind))
+				}
+			}
+			return c.Delete(ctx, obj, opts...)
+		},
+	}), &attempts
+}
+
 // objectGVK resolves obj's GroupVersionKind via the client's scheme.
 // Returns the zero value if the lookup fails or yields no kinds.
 func objectGVK(c client.Client, obj client.Object) schema.GroupVersionKind {
