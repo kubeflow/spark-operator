@@ -441,6 +441,18 @@ func schema_spark_operator_v2_api_v1alpha1_ExecutorSpec(ref common.ReferenceCall
 							Format:      "int32",
 						},
 					},
+					"coreRequest": {
+						SchemaProps: spec.SchemaProps{
+							Description: "CoreRequest is the physical CPU core request for the pod.",
+							Ref:         ref(resource.Quantity{}.OpenAPIModelName()),
+						},
+					},
+					"coreLimit": {
+						SchemaProps: spec.SchemaProps{
+							Description: "CoreLimit is the physical CPU core limit for the pod.",
+							Ref:         ref(resource.Quantity{}.OpenAPIModelName()),
+						},
+					},
 					"memory": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Memory is the amount of memory to request for the pod.",
@@ -471,7 +483,7 @@ func schema_spark_operator_v2_api_v1alpha1_ExecutorSpec(ref common.ReferenceCall
 			},
 		},
 		Dependencies: []string{
-			"github.com/kubeflow/spark-operator/v2/api/v1alpha1.GPUSpec", v1.PodTemplateSpec{}.OpenAPIModelName()},
+			"github.com/kubeflow/spark-operator/v2/api/v1alpha1.GPUSpec", v1.PodTemplateSpec{}.OpenAPIModelName(), resource.Quantity{}.OpenAPIModelName()},
 	}
 }
 
@@ -519,6 +531,18 @@ func schema_spark_operator_v2_api_v1alpha1_ServerSpec(ref common.ReferenceCallba
 							Format:      "int32",
 						},
 					},
+					"coreRequest": {
+						SchemaProps: spec.SchemaProps{
+							Description: "CoreRequest is the physical CPU core request for the pod.",
+							Ref:         ref(resource.Quantity{}.OpenAPIModelName()),
+						},
+					},
+					"coreLimit": {
+						SchemaProps: spec.SchemaProps{
+							Description: "CoreLimit is the physical CPU core limit for the pod.",
+							Ref:         ref(resource.Quantity{}.OpenAPIModelName()),
+						},
+					},
 					"memory": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Memory is the amount of memory to request for the pod.",
@@ -548,7 +572,7 @@ func schema_spark_operator_v2_api_v1alpha1_ServerSpec(ref common.ReferenceCallba
 			},
 		},
 		Dependencies: []string{
-			"github.com/kubeflow/spark-operator/v2/api/v1alpha1.GPUSpec", v1.PodTemplateSpec{}.OpenAPIModelName(), v1.Service{}.OpenAPIModelName()},
+			"github.com/kubeflow/spark-operator/v2/api/v1alpha1.GPUSpec", v1.PodTemplateSpec{}.OpenAPIModelName(), v1.Service{}.OpenAPIModelName(), resource.Quantity{}.OpenAPIModelName()},
 	}
 }
 
@@ -860,6 +884,18 @@ func schema_spark_operator_v2_api_v1alpha1_SparkPodSpec(ref common.ReferenceCall
 							Format:      "int32",
 						},
 					},
+					"coreRequest": {
+						SchemaProps: spec.SchemaProps{
+							Description: "CoreRequest is the physical CPU core request for the pod.",
+							Ref:         ref(resource.Quantity{}.OpenAPIModelName()),
+						},
+					},
+					"coreLimit": {
+						SchemaProps: spec.SchemaProps{
+							Description: "CoreLimit is the physical CPU core limit for the pod.",
+							Ref:         ref(resource.Quantity{}.OpenAPIModelName()),
+						},
+					},
 					"memory": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Memory is the amount of memory to request for the pod.",
@@ -883,7 +919,7 @@ func schema_spark_operator_v2_api_v1alpha1_SparkPodSpec(ref common.ReferenceCall
 			},
 		},
 		Dependencies: []string{
-			"github.com/kubeflow/spark-operator/v2/api/v1alpha1.GPUSpec", v1.PodTemplateSpec{}.OpenAPIModelName()},
+			"github.com/kubeflow/spark-operator/v2/api/v1alpha1.GPUSpec", v1.PodTemplateSpec{}.OpenAPIModelName(), resource.Quantity{}.OpenAPIModelName()},
 	}
 }
 

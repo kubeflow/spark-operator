@@ -27,6 +27,7 @@ import (
 	. "github.com/onsi/gomega"
 
 	corev1 "k8s.io/api/core/v1"
+	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -393,6 +394,218 @@ var _ = Describe("mutateServerPod", func() {
 		})
 	})
 })
+
+var _ = Describe("mutateServerPod with CPU resources", func() {
+	var (
+		reconciler *Reconciler
+		conn       *v1alpha1.SparkConnect
+		image      string
+	)
+
+	BeforeEach(func() {
+		reconciler = &Reconciler{
+			scheme: scheme.Scheme,
+		}
+		image = "apache/spark:4.0.0"
+		Expect(os.Setenv(common.EnvKubernetesServiceHost, "127.0.0.1")).NotTo(HaveOccurred())
+		Expect(os.Setenv(common.EnvKubernetesServicePort, "443")).NotTo(HaveOccurred())
+		conn = &v1alpha1.SparkConnect{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "test-spark-connect",
+				Namespace: "test-namespace",
+				UID:       "test-uid",
+			},
+			Spec: v1alpha1.SparkConnectSpec{
+				Image:        &image,
+				SparkVersion: "4.0.0",
+				Server: v1alpha1.ServerSpec{
+					SparkPodSpec: v1alpha1.SparkPodSpec{},
+				},
+				Executor: v1alpha1.ExecutorSpec{
+					SparkPodSpec: v1alpha1.SparkPodSpec{},
+				},
+			},
+		}
+	})
+
+	AfterEach(func() {
+		Expect(os.Unsetenv(common.EnvKubernetesServiceHost)).NotTo(HaveOccurred())
+		Expect(os.Unsetenv(common.EnvKubernetesServicePort)).NotTo(HaveOccurred())
+	})
+
+	It("applies server.coreRequest and server.coreLimit to the server container resources", func() {
+		coreRequest := resource.MustParse("500m")
+		coreLimit := resource.MustParse("1")
+		conn.Spec.Server.CoreRequest = &coreRequest
+		conn.Spec.Server.CoreLimit = &coreLimit
+		pod := &corev1.Pod{
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace: conn.Namespace,
+			},
+		}
+
+		err := reconciler.mutateServerPod(context.TODO(), conn, pod)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(pod.Spec.Containers).NotTo(BeEmpty())
+
+		container := pod.Spec.Containers[0]
+		Expect(container.Name).To(Equal(common.SparkDriverContainerName))
+		Expect(cpuMilliValue(container.Resources.Requests[corev1.ResourceCPU])).To(Equal(int64(500)))
+		Expect(cpuMilliValue(container.Resources.Limits[corev1.ResourceCPU])).To(Equal(int64(1000)))
+	})
+
+	It("does not set CPU resources when server.coreRequest and coreLimit are omitted", func() {
+		pod := &corev1.Pod{
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace: conn.Namespace,
+			},
+		}
+
+		err := reconciler.mutateServerPod(context.TODO(), conn, pod)
+		Expect(err).NotTo(HaveOccurred())
+
+		container := pod.Spec.Containers[0]
+		Expect(container.Resources.Requests).To(BeEmpty())
+		Expect(container.Resources.Limits).To(BeEmpty())
+	})
+
+	It("overrides template CPU request when server.coreRequest is specified, preserving other template resources", func() {
+		coreRequest := resource.MustParse("500m")
+		conn.Spec.Server.CoreRequest = &coreRequest
+		conn.Spec.Server.Template = &corev1.PodTemplateSpec{
+			Spec: corev1.PodSpec{
+				Containers: []corev1.Container{
+					{
+						Name:  common.SparkDriverContainerName,
+						Image: image,
+						Resources: corev1.ResourceRequirements{
+							Requests: corev1.ResourceList{
+								corev1.ResourceCPU:    resource.MustParse("1"),
+								corev1.ResourceMemory: resource.MustParse("1Gi"),
+							},
+							Limits: corev1.ResourceList{
+								corev1.ResourceCPU:    resource.MustParse("2"),
+								corev1.ResourceMemory: resource.MustParse("1Gi"),
+							},
+						},
+					},
+				},
+			},
+		}
+		pod := &corev1.Pod{
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace: conn.Namespace,
+			},
+		}
+
+		err := reconciler.mutateServerPod(context.TODO(), conn, pod)
+		Expect(err).NotTo(HaveOccurred())
+
+		container := pod.Spec.Containers[0]
+		// server.coreRequest wins for the CPU key, matching the addMemoryLimit merge convention.
+		Expect(cpuMilliValue(container.Resources.Requests[corev1.ResourceCPU])).To(Equal(int64(500)))
+		// Template memory request and CPU limit are preserved.
+		Expect(memValue(container.Resources.Requests[corev1.ResourceMemory])).To(Equal(int64(1) << 30))
+		Expect(cpuMilliValue(container.Resources.Limits[corev1.ResourceCPU])).To(Equal(int64(2000)))
+		Expect(memValue(container.Resources.Limits[corev1.ResourceMemory])).To(Equal(int64(1) << 30))
+	})
+
+	It("preserves template CPU resources when server.coreRequest and coreLimit are omitted", func() {
+		conn.Spec.Server.Template = &corev1.PodTemplateSpec{
+			Spec: corev1.PodSpec{
+				Containers: []corev1.Container{
+					{
+						Name:  common.SparkDriverContainerName,
+						Image: image,
+						Resources: corev1.ResourceRequirements{
+							Requests: corev1.ResourceList{
+								corev1.ResourceCPU: resource.MustParse("2"),
+							},
+						},
+					},
+				},
+			},
+		}
+		pod := &corev1.Pod{
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace: conn.Namespace,
+			},
+		}
+
+		err := reconciler.mutateServerPod(context.TODO(), conn, pod)
+		Expect(err).NotTo(HaveOccurred())
+
+		container := pod.Spec.Containers[0]
+		Expect(cpuMilliValue(container.Resources.Requests[corev1.ResourceCPU])).To(Equal(int64(2000)))
+	})
+
+	It("keeps spec.server.cores independent from the Kubernetes CPU resources", func() {
+		cores := int32(4)
+		coreRequest := resource.MustParse("500m")
+		conn.Spec.Server.Cores = &cores
+		conn.Spec.Server.CoreRequest = &coreRequest
+		pod := &corev1.Pod{
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace: conn.Namespace,
+			},
+		}
+
+		err := reconciler.mutateServerPod(context.TODO(), conn, pod)
+		Expect(err).NotTo(HaveOccurred())
+
+		// Cores is the task-slot count (spark.driver.cores) and must not influence the pod
+		// resource quantity.
+		container := pod.Spec.Containers[0]
+		Expect(cpuMilliValue(container.Resources.Requests[corev1.ResourceCPU])).To(Equal(int64(500)))
+	})
+
+	It("does not mutate the server pod template", func() {
+		coreRequest := resource.MustParse("500m")
+		conn.Spec.Server.CoreRequest = &coreRequest
+		conn.Spec.Server.Template = &corev1.PodTemplateSpec{
+			ObjectMeta: metav1.ObjectMeta{
+				Labels: map[string]string{"template-label": "template-value"},
+			},
+			Spec: corev1.PodSpec{
+				Containers: []corev1.Container{
+					{
+						Name: common.SparkDriverContainerName,
+						Resources: corev1.ResourceRequirements{
+							Requests: corev1.ResourceList{
+								corev1.ResourceCPU: resource.MustParse("1"),
+							},
+						},
+					},
+				},
+			},
+		}
+		original := conn.Spec.Server.Template.DeepCopy()
+		pod := &corev1.Pod{
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace: conn.Namespace,
+			},
+		}
+
+		err := reconciler.mutateServerPod(context.TODO(), conn, pod)
+		Expect(err).NotTo(HaveOccurred())
+
+		// The template must be left exactly as it was: mutateServerPod mutates the pod it is
+		// given, and both the label map and the container slice are shared unless they are
+		// copied onto the pod first.
+		Expect(conn.Spec.Server.Template.Spec.Containers[0].Image).To(BeEmpty())
+		Expect(conn.Spec.Server.Template.Labels).NotTo(HaveKey(common.LabelSparkVersion))
+		Expect(apiequality.Semantic.DeepEqual(original, conn.Spec.Server.Template)).To(BeTrue(),
+			"mutateServerPod must not mutate the SparkConnect's pod template")
+	})
+})
+
+func cpuMilliValue(q resource.Quantity) int64 {
+	return q.MilliValue()
+}
+
+func memValue(q resource.Quantity) int64 {
+	return q.Value()
+}
 
 var _ = Describe("mutateServerPod GPU support", func() {
 	var (
