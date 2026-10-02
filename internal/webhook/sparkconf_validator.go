@@ -19,17 +19,10 @@ package webhook
 import (
 	"fmt"
 
+	"k8s.io/apimachinery/pkg/util/validation/field"
+
 	"github.com/kubeflow/spark-operator/v2/pkg/common"
 )
-
-type SparkConfKeyDeniedError struct {
-	Key     string
-	Message string
-}
-
-func (e *SparkConfKeyDeniedError) Error() string {
-	return fmt.Sprintf("sparkConf key %q is not allowed: %s", e.Key, e.Message)
-}
 
 var deniedSparkConfKeys = map[string]string{
 	common.SparkKubernetesAuthenticateDriverServiceAccountName:   "configure the service account via the CRD spec or pod template instead",
@@ -47,16 +40,13 @@ var deniedSparkConfKeys = map[string]string{
 	common.SparkKubernetesExecutorContainerImage: "use the image field on the CRD instead",
 }
 
-func validateSparkConf(sparkConf map[string]string, namespace string) error {
+func validateSparkConf(path *field.Path, sparkConf map[string]string, namespace string) field.ErrorList {
 	for key, value := range sparkConf {
 		if msg, denied := deniedSparkConfKeys[key]; denied {
-			return &SparkConfKeyDeniedError{Key: key, Message: msg}
+			return field.ErrorList{field.Forbidden(path.Key(key), msg)}
 		}
 		if key == common.SparkKubernetesNamespace && value != namespace {
-			return &SparkConfKeyDeniedError{
-				Key:     key,
-				Message: fmt.Sprintf("must equal the application namespace %q, got %q", namespace, value),
-			}
+			return field.ErrorList{field.Invalid(path.Key(key), value, fmt.Sprintf("must equal the application namespace %q", namespace))}
 		}
 	}
 	return nil

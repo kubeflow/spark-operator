@@ -17,9 +17,7 @@ limitations under the License.
 package webhook
 
 import (
-	"errors"
 	"fmt"
-	"strings"
 
 	"k8s.io/apimachinery/pkg/util/validation"
 	"k8s.io/apimachinery/pkg/util/validation/field"
@@ -33,24 +31,20 @@ import (
 // mount path, and mount paths that collide with another entry or with a path the webhook
 // reserves for the Spark, Hadoop, or Prometheus ConfigMap. None of these surface before the
 // API server rejects the pod the mutating webhook has already built.
-func validateConfigMaps(spec *v1beta2.SparkApplicationSpec, root *field.Path) error {
-	var errs []error
+func validateConfigMaps(spec *v1beta2.SparkApplicationSpec, root *field.Path) field.ErrorList {
+	var errs field.ErrorList
 
 	if spec.SparkConfigMap != nil {
-		if err := validateConfigMapName(root.Child("sparkConfigMap"), *spec.SparkConfigMap); err != nil {
-			errs = append(errs, err)
-		}
+		errs = append(errs, validateConfigMapName(root.Child("sparkConfigMap"), *spec.SparkConfigMap)...)
 	}
 	if spec.HadoopConfigMap != nil {
-		if err := validateConfigMapName(root.Child("hadoopConfigMap"), *spec.HadoopConfigMap); err != nil {
-			errs = append(errs, err)
-		}
+		errs = append(errs, validateConfigMapName(root.Child("hadoopConfigMap"), *spec.HadoopConfigMap)...)
 	}
 
 	errs = append(errs, validateConfigMapList(root.Child("driver", "configMaps"), spec.Driver.ConfigMaps, reservedConfigMapMountPaths(spec, true))...)
 	errs = append(errs, validateConfigMapList(root.Child("executor", "configMaps"), spec.Executor.ConfigMaps, reservedConfigMapMountPaths(spec, false))...)
 
-	return errors.Join(errs...)
+	return errs
 }
 
 // reservedConfigMapMountPaths returns the mount paths the mutating webhook itself fills in for
@@ -83,8 +77,8 @@ func prometheusConfigMapMounted(spec *v1beta2.SparkApplicationSpec, isDriver boo
 	return util.ExposeExecutorMetrics(app)
 }
 
-func validateConfigMapList(path *field.Path, configMaps []v1beta2.NamePath, reserved map[string]string) []error {
-	var errs []error
+func validateConfigMapList(path *field.Path, configMaps []v1beta2.NamePath, reserved map[string]string) field.ErrorList {
+	var errs field.ErrorList
 	// The same ConfigMap may be mounted more than once, at different paths, but two entries
 	// mounted at the same path collide: the mutating webhook would emit two volumeMounts with
 	// identical mountPaths, which the API server rejects. The same collision happens if an
@@ -92,28 +86,23 @@ func validateConfigMapList(path *field.Path, configMaps []v1beta2.NamePath, rese
 	// ConfigMap it mounts on its own.
 	seen := make(map[string]bool, len(configMaps))
 	for i, configMap := range configMaps {
-		if err := validateConfigMapName(path.Index(i).Child("name"), configMap.Name); err != nil {
-			errs = append(errs, err)
-		}
+		errs = append(errs, validateConfigMapName(path.Index(i).Child("name"), configMap.Name)...)
 
 		pathField := path.Index(i).Child("path")
 		switch {
 		case configMap.Path == "":
-			errs = append(errs, fmt.Errorf("%s must not be empty", pathField))
+			errs = append(errs, field.Required(pathField, ""))
 			continue
 		case seen[configMap.Path]:
-			errs = append(errs, fmt.Errorf("%s has duplicate mount path %q", pathField, configMap.Path))
+			errs = append(errs, field.Duplicate(pathField, configMap.Path))
 		case reserved[configMap.Path] != "":
-			errs = append(errs, fmt.Errorf("%s has mount path %q reserved for %s", pathField, configMap.Path, reserved[configMap.Path]))
+			errs = append(errs, field.Forbidden(pathField, fmt.Sprintf("reserved for spec.%s", reserved[configMap.Path])))
 		}
 		seen[configMap.Path] = true
 	}
 	return errs
 }
 
-func validateConfigMapName(path *field.Path, name string) error {
-	if errs := validation.IsDNS1123Subdomain(name); len(errs) > 0 {
-		return fmt.Errorf("%s has invalid ConfigMap name %q: %s", path, name, strings.Join(errs, ", "))
-	}
-	return nil
+func validateConfigMapName(path *field.Path, name string) field.ErrorList {
+	return invalidValueErrors(path, name, validation.IsDNS1123Subdomain(name))
 }
