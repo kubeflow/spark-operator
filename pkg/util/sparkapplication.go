@@ -145,6 +145,11 @@ func TimeUntilNextRetryDue(app *v1beta2.SparkApplication) (time.Duration, error)
 	case v1beta2.ApplicationStateFailing:
 		retryInterval = app.Spec.RestartPolicy.OnFailureRetryInterval
 	}
+	// The interval is normally defaulted by the mutating webhook, which does not run when
+	// the webhook is disabled. Fall back to the same default so the retry can proceed.
+	if retryInterval == nil {
+		retryInterval = ptr.To(v1beta2.DefaultRestartPolicyRetryIntervalSeconds)
+	}
 
 	attemptsDone := app.Status.SubmissionAttempts
 	lastAttemptTime := app.Status.LastSubmissionAttemptTime
