@@ -128,6 +128,14 @@ An image set on the named container in a server or executor pod template takes
 precedence over `.spec.image` for that component. Server and executor pod
 templates require Spark 3.0 or later.
 
+When the server container has no `lifecycle.preStop`, the operator installs a
+default hook that sends `SIGTERM` to the SparkSubmit JVM and waits for it to
+exit so event logs can flush. If you set `lifecycle.preStop` on
+`.spec.server.template`, that value replaces the default graceful-shutdown
+hook. A custom `lifecycle.postStart` is preserved and does not disable the
+default `preStop`. The server image must provide `pkill` and `pgrep` (for
+example via the `procps` package) for the default hook to succeed.
+
 For all available fields and validation rules, inspect the installed CRD:
 
 ```shell
