@@ -88,6 +88,72 @@ tests:
       - notExists:
           path: webhooks[*].namespaceSelector
 
+  - it: Should use object jobNamespaceSelector when jobNamespaces is empty
+    set:
+      spark:
+        jobNamespaces: []
+        jobNamespaceSelector:
+          matchLabels:
+            spark: enabled
+    asserts:
+      - lengthEqual:
+          path: webhooks
+          count: 4
+      - equal:
+          path: webhooks[*].namespaceSelector
+          value:
+            matchLabels:
+              spark: enabled
+
+  - it: Should register name and label selectors when both are set
+    set:
+      spark:
+        jobNamespaces:
+          - ns1
+        jobNamespaceSelector:
+          matchLabels:
+            spark: enabled
+    asserts:
+      - lengthEqual:
+          path: webhooks
+          count: 8
+      - equal:
+          path: webhooks[0].name
+          value: mutate--v1-pod.sparkoperator.k8s.io
+      - equal:
+          path: webhooks[0].namespaceSelector
+          value:
+            matchExpressions:
+              - key: kubernetes.io/metadata.name
+                operator: In
+                values:
+                  - ns1
+      - equal:
+          path: webhooks[1].name
+          value: mutate--v1-pod.sparkoperator.k8s.io.selector
+      - equal:
+          path: webhooks[1].namespaceSelector
+          value:
+            matchExpressions:
+              - key: kubernetes.io/metadata.name
+                operator: NotIn
+                values:
+                  - ns1
+            matchLabels:
+              spark: enabled
+      - equal:
+          path: webhooks[1].objectSelector
+          value:
+            matchLabels:
+              sparkoperator.k8s.io/launched-by-spark-operator: "true"
+
+  - it: Should fail if jobNamespaceSelector is a string
+    set:
+      spark:
+        jobNamespaceSelector: "spark=enabled"
+    asserts:
+      - failedTemplate:
+          errorMessage: "spark.jobNamespaceSelector no longer accepts a string; use an object with matchLabels/matchExpressions (breaking change in v2.5.0)"
 
   - it: Should should use the specified timeoutSeconds
     set:

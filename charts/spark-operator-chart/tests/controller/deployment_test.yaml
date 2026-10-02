@@ -168,6 +168,40 @@ tests:
           path: spec.template.spec.containers[?(@.name=="spark-operator-controller")].args
           content: --namespaces=""
 
+  - it: Should render object jobNamespaceSelector as --namespace-selector
+    set:
+      spark:
+        jobNamespaceSelector:
+          matchLabels:
+            env: prod
+            spark: enabled
+          matchExpressions:
+            - key: tier
+              operator: In
+              values:
+                - prod
+                - staging
+            - key: canary
+              operator: Exists
+            - key: legacy
+              operator: DoesNotExist
+            - key: debug
+              operator: NotIn
+              values:
+                - "true"
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[?(@.name=="spark-operator-controller")].args
+          content: --namespace-selector=env=prod,spark=enabled,tier in (prod,staging),canary,!legacy,debug notin (true)
+
+  - it: Should fail if jobNamespaceSelector is a string
+    set:
+      spark:
+        jobNamespaceSelector: "spark=enabled"
+    asserts:
+      - failedTemplate:
+          errorMessage: "spark.jobNamespaceSelector no longer accepts a string; use an object with matchLabels/matchExpressions (breaking change in v2.5.0)"
+
   - it: Should contain `--controller-threads` arg if `controller.workers` is set
     set:
       controller:

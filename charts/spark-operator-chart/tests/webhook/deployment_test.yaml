@@ -164,6 +164,25 @@ tests:
           path: spec.template.spec.containers[?(@.name=="spark-operator-webhook")].args
           content: --namespaces=""
 
+  - it: Should render object jobNamespaceSelector as --namespace-selector
+    set:
+      spark:
+        jobNamespaceSelector:
+          matchLabels:
+            spark: enabled
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[?(@.name=="spark-operator-webhook")].args
+          content: --namespace-selector=spark=enabled
+
+  - it: Should fail if jobNamespaceSelector is a string
+    set:
+      spark:
+        jobNamespaceSelector: "spark=enabled"
+    asserts:
+      - failedTemplate:
+          errorMessage: "spark.jobNamespaceSelector no longer accepts a string; use an object with matchLabels/matchExpressions (breaking change in v2.5.0)"
+
   - it: Should contain `--enable-metrics` arg if `prometheus.metrics.enable` is set to `true`
     set:
       prometheus:
