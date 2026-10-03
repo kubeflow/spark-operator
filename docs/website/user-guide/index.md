@@ -72,6 +72,13 @@ Tune operator behavior, flags, and Helm chart values
 Build your own operator image from the released binaries
 ::::
 
+::::{grid-item-card} Controller Image Security
+:link: controller-image-security
+:link-type: doc
+
+Understand inherited controller-image dependencies and vulnerability remediation considerations
+::::
+
 ::::{grid-item-card} Enabling Leader Election
 :link: leader-election
 :link-type: doc
@@ -157,6 +164,7 @@ running-sparkapplication-on-schedule
 spark-connect
 customizing-spark-operator
 building-custom-images
+controller-image-security
 leader-election
 running-multiple-instances-of-the-operator
 resource-quota-enforcement
