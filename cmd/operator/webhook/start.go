@@ -18,6 +18,7 @@ package webhook
 
 import (
 	"context"
+	"crypto/tls"
 	"flag"
 	"os"
 	"slices"
@@ -63,6 +64,8 @@ var (
 	logger = ctrl.Log.WithName("")
 )
 
+const filesystemCertificateRetryInterval = time.Second
+
 var (
 	namespaces          []string
 	labelSelectorFilter string
@@ -83,6 +86,8 @@ var (
 	webhookSecretNamespace         string
 	webhookServiceName             string
 	webhookServiceNamespace        string
+	webhookCertProvider            string
+	webhookCertWaitTimeout         time.Duration
 
 	// Cert Manager
 	enableCertManager bool
@@ -123,7 +128,7 @@ func NewStartCommand() *cobra.Command {
 		},
 		Run: func(cmd *cobra.Command, args []string) {
 			version.PrintVersion(false)
-			start()
+			start(cmd.Flags().Changed("webhook-cert-provider"))
 		},
 	}
 
@@ -148,6 +153,8 @@ func NewStartCommand() *cobra.Command {
 	command.Flags().StringVar(&webhookSecretNamespace, "webhook-secret-namespace", "spark-operator", "The namespace of the secret that contains the webhook server's TLS certificate and key.")
 	command.Flags().StringVar(&webhookServiceName, "webhook-svc-name", "spark-webhook", "The name of the Service for the webhook server.")
 	command.Flags().StringVar(&webhookServiceNamespace, "webhook-svc-namespace", "spark-webhook", "The name of the Service for the webhook server.")
+	command.Flags().StringVar(&webhookCertProvider, "webhook-cert-provider", string(certificateProviderSelfSigned), "The provider for the webhook server certificate. Valid values are self-signed, cert-manager, and filesystem.")
+	command.Flags().DurationVar(&webhookCertWaitTimeout, "webhook-cert-wait-timeout", 2*time.Minute, "Maximum time to wait for an initial filesystem certificate and key pair.")
 	command.Flags().BoolVar(&enableResourceQuotaEnforcement, "enable-resource-quota-enforcement", false, "Whether to enable ResourceQuota enforcement for SparkApplication resources. Requires the webhook to be enabled.")
 
 	// Cert Manager
@@ -188,8 +195,25 @@ func NewStartCommand() *cobra.Command {
 	return command
 }
 
-func start() {
+func start(providerExplicit bool) {
 	setupLog()
+
+	certOptions, err := resolveCertificateOptions(certificateOptionsInput{
+		provider:          webhookCertProvider,
+		providerExplicit:  providerExplicit,
+		enableCertManager: enableCertManager,
+		certDir:           webhookCertDir,
+		certName:          webhookCertName,
+		keyName:           webhookKeyName,
+		waitTimeout:       webhookCertWaitTimeout,
+		retryInterval:     filesystemCertificateRetryInterval,
+	})
+	if err != nil {
+		logger.Error(err, "Failed to resolve certificate provider")
+		os.Exit(1)
+	}
+
+	ctx := ctrl.SetupSignalHandler()
 
 	// Create the client rest config. Use kubeConfig if given, otherwise assume in-cluster.
 	cfg, err := ctrl.GetConfig()
@@ -207,6 +231,34 @@ func start() {
 		logger.Error(err, "Failed to set up TLS")
 		os.Exit(1)
 	}
+	webhookTLSOptions := tlsOptions
+	var dynamicServing *certificate.DynamicTLSConfig
+	if certOptions.provider == certificateProviderFilesystem {
+		baseTLSConfig := &tls.Config{}
+		for _, option := range tlsOptions {
+			option(baseTLSConfig)
+		}
+		dynamicServing, err = certificate.NewDynamicTLSConfig(
+			ctx,
+			certOptions.certPath,
+			certOptions.keyPath,
+			certOptions.waitTimeout,
+			certOptions.retryInterval,
+			baseTLSConfig,
+		)
+		if err != nil {
+			logger.Error(err, "Failed to initialize filesystem certificate provider")
+			os.Exit(1)
+		}
+		webhookTLSOptions = dynamicWebhookTLSOptions(tlsOptions, dynamicServing)
+	}
+	webhookServer := newWebhookServer(ctrlwebhook.Options{
+		Port:     webhookPort,
+		CertDir:  webhookCertDir,
+		CertName: webhookCertName,
+		KeyName:  webhookKeyName,
+		TLSOpts:  webhookTLSOptions,
+	}, dynamicServing)
 	mgr, err := ctrl.NewManager(cfg, ctrl.Options{
 		Scheme: operatorscheme.WebhookScheme,
 		Cache:  newCacheOptions(),
@@ -216,13 +268,7 @@ func start() {
 			SecureServing: secureMetrics,
 			TLSOpts:       tlsOptions,
 		},
-		WebhookServer: ctrlwebhook.NewServer(ctrlwebhook.Options{
-			Port:     webhookPort,
-			CertDir:  webhookCertDir,
-			CertName: webhookCertName,
-			KeyName:  webhookKeyName,
-			TLSOpts:  tlsOptions,
-		}),
+		WebhookServer:           webhookServer,
 		HealthProbeBindAddress:  healthProbeBindAddress,
 		LeaderElection:          enableLeaderElection,
 		LeaderElectionID:        leaderElectionLockName,
@@ -247,64 +293,63 @@ func start() {
 		os.Exit(1)
 	}
 
-	client, err := client.New(cfg, client.Options{Scheme: mgr.GetScheme()})
-	if err != nil {
-		logger.Error(err, "Failed to create client")
-		os.Exit(1)
+	var certProvider *certificate.Provider
+	if certOptions.provider != certificateProviderFilesystem {
+		directClient, err := client.New(cfg, client.Options{Scheme: mgr.GetScheme()})
+		if err != nil {
+			logger.Error(err, "Failed to create client")
+			os.Exit(1)
+		}
+		certProvider = certificate.NewProvider(
+			directClient,
+			webhookServiceName,
+			webhookServiceNamespace,
+			certOptions.provider == certificateProviderCertManager,
+		)
 	}
 
-	certProvider := certificate.NewProvider(
-		client,
-		webhookServiceName,
-		webhookServiceNamespace,
-		enableCertManager,
-	)
-
-	if err := wait.ExponentialBackoff(
-		wait.Backoff{
-			Steps:    5,
-			Duration: 1 * time.Second,
-			Factor:   2.0,
-			Jitter:   0.1,
+	if err := runCertificateStartup(ctx, certOptions, certificateStartupActions{
+		syncSecret: func(ctx context.Context, _ certificateProvider) error {
+			return wait.ExponentialBackoffWithContext(
+				ctx,
+				wait.Backoff{
+					Steps:    5,
+					Duration: 1 * time.Second,
+					Factor:   2.0,
+					Jitter:   0.1,
+				},
+				func(ctx context.Context) (bool, error) {
+					if err := certProvider.SyncSecret(ctx, webhookSecretName, webhookSecretNamespace); err != nil {
+						if errors.IsAlreadyExists(err) || errors.IsConflict(err) {
+							return false, nil
+						}
+						return false, err
+					}
+					return true, nil
+				},
+			)
 		},
-		func() (bool, error) {
-			if err := certProvider.SyncSecret(context.TODO(), webhookSecretName, webhookSecretNamespace); err != nil {
-				if errors.IsAlreadyExists(err) || errors.IsConflict(err) {
-					return false, nil
-				}
-				return false, err
+		writeFiles: func() error {
+			logger.Info("Writing certificates", "path", webhookCertDir, "certificate name", webhookCertName, "key name", webhookKeyName)
+			return certProvider.WriteFile(webhookCertDir, webhookCertName, webhookKeyName)
+		},
+		setupCAReconcilers: func() error {
+			if err := mutatingwebhookconfiguration.NewReconciler(
+				mgr.GetClient(),
+				certProvider,
+				mutatingWebhookName,
+			).SetupWithManager(mgr, controller.Options{}); err != nil {
+				return err
 			}
-			return true, nil
+			return validatingwebhookconfiguration.NewReconciler(
+				mgr.GetClient(),
+				certProvider,
+				validatingWebhookName,
+			).SetupWithManager(mgr, controller.Options{})
 		},
-	); err != nil {
-		logger.Error(err, "Failed to sync webhook secret")
+	}); err != nil {
+		logger.Error(err, "Failed to initialize certificate provider", "provider", certOptions.provider)
 		os.Exit(1)
-	}
-
-	logger.Info("Writing certificates", "path", webhookCertDir, "certificate name", webhookCertName, "key name", webhookKeyName)
-	if err := certProvider.WriteFile(webhookCertDir, webhookCertName, webhookKeyName); err != nil {
-		logger.Error(err, "Failed to save certificate")
-		os.Exit(1)
-	}
-
-	if !enableCertManager {
-		if err := mutatingwebhookconfiguration.NewReconciler(
-			mgr.GetClient(),
-			certProvider,
-			mutatingWebhookName,
-		).SetupWithManager(mgr, controller.Options{}); err != nil {
-			logger.Error(err, "Failed to create controller", "controller", "MutatingWebhookConfiguration")
-			os.Exit(1)
-		}
-
-		if err := validatingwebhookconfiguration.NewReconciler(
-			mgr.GetClient(),
-			certProvider,
-			validatingWebhookName,
-		).SetupWithManager(mgr, controller.Options{}); err != nil {
-			logger.Error(err, "Failed to create controller", "controller", "ValidatingWebhookConfiguration")
-			os.Exit(1)
-		}
 	}
 
 	if err := ctrl.NewWebhookManagedBy(mgr, &v1alpha1.SparkConnect{}).
@@ -355,7 +400,7 @@ func start() {
 	}
 
 	logger.Info("Starting manager")
-	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
+	if err := mgr.Start(ctx); err != nil {
 		logger.Error(err, "Failed to start manager")
 		os.Exit(1)
 	}
