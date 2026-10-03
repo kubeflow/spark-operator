@@ -47,6 +47,7 @@ var deniedSparkConfKeys = map[string]string{
 	common.SparkKubernetesExecutorContainerImage: "use the image field on the CRD instead",
 }
 
+// validateSparkConf rejects sparkConf keys that are managed by the operator or other CRD fields.
 func validateSparkConf(sparkConf map[string]string, namespace string) error {
 	for key, value := range sparkConf {
 		if msg, denied := deniedSparkConfKeys[key]; denied {
@@ -59,5 +60,6 @@ func validateSparkConf(sparkConf map[string]string, namespace string) error {
 			}
 		}
 	}
+
 	return nil
 }
