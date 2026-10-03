@@ -19,6 +19,7 @@ import json
 
 from pydantic import BaseModel, ConfigDict, Field, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional
+from kubeflow_spark_api.models.spark_v1alpha1_dependencies import SparkV1alpha1Dependencies
 from kubeflow_spark_api.models.spark_v1alpha1_dynamic_allocation import SparkV1alpha1DynamicAllocation
 from kubeflow_spark_api.models.spark_v1alpha1_executor_spec import SparkV1alpha1ExecutorSpec
 from kubeflow_spark_api.models.spark_v1alpha1_server_spec import SparkV1alpha1ServerSpec
@@ -29,6 +30,7 @@ class SparkV1alpha1SparkConnectSpec(BaseModel):
     """
     SparkConnectSpec defines the desired state of SparkConnect.
     """ # noqa: E501
+    deps: Optional[SparkV1alpha1Dependencies] = Field(default=None, description="Deps captures all possible types of dependencies of a Spark Connect server.")
     dynamic_allocation: Optional[SparkV1alpha1DynamicAllocation] = Field(default=None, description="DynamicAllocation configures dynamic allocation that becomes available for the Kubernetes scheduler backend since Spark 3.0.", alias="dynamicAllocation")
     executor: SparkV1alpha1ExecutorSpec = Field(description="Executor is the Spark executor specification.")
     hadoop_conf: Optional[Dict[str, StrictStr]] = Field(default=None, description="HadoopConf carries user-specified Hadoop configuration properties as they would use the \"--conf\" option in spark-submit. The SparkApplication controller automatically adds prefix \"spark.hadoop.\" to Hadoop configuration properties.", alias="hadoopConf")
@@ -36,7 +38,7 @@ class SparkV1alpha1SparkConnectSpec(BaseModel):
     server: SparkV1alpha1ServerSpec = Field(description="Server is the Spark connect server specification.")
     spark_conf: Optional[Dict[str, StrictStr]] = Field(default=None, description="SparkConf carries user-specified Spark configuration properties as they would use the \"--conf\" option in spark-submit.", alias="sparkConf")
     spark_version: StrictStr = Field(description="SparkVersion is the version of Spark the spark connect use.", alias="sparkVersion")
-    __properties: ClassVar[List[str]] = ["dynamicAllocation", "executor", "hadoopConf", "image", "server", "sparkConf", "sparkVersion"]
+    __properties: ClassVar[List[str]] = ["deps", "dynamicAllocation", "executor", "hadoopConf", "image", "server", "sparkConf", "sparkVersion"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -77,6 +79,9 @@ class SparkV1alpha1SparkConnectSpec(BaseModel):
             exclude=excluded_fields,
             exclude_none=True,
         )
+        # override the default output from pydantic by calling `to_dict()` of deps
+        if self.deps:
+            _dict['deps'] = self.deps.to_dict()
         # override the default output from pydantic by calling `to_dict()` of dynamic_allocation
         if self.dynamic_allocation:
             _dict['dynamicAllocation'] = self.dynamic_allocation.to_dict()
@@ -98,6 +103,7 @@ class SparkV1alpha1SparkConnectSpec(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
+            "deps": SparkV1alpha1Dependencies.from_dict(obj["deps"]) if obj.get("deps") is not None else None,
             "dynamicAllocation": SparkV1alpha1DynamicAllocation.from_dict(obj["dynamicAllocation"]) if obj.get("dynamicAllocation") is not None else None,
             "executor": SparkV1alpha1ExecutorSpec.from_dict(obj["executor"]) if obj.get("executor") is not None else None,
             "hadoopConf": obj.get("hadoopConf"),

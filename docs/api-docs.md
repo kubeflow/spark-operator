@@ -127,6 +127,20 @@ spark-submit.</p>
 </tr>
 <tr>
 <td>
+<code>deps</code><br/>
+<em>
+<a href="#sparkoperator.k8s.io/v1alpha1.Dependencies">
+Dependencies
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Deps captures all possible types of dependencies of a Spark Connect server.</p>
+</td>
+</tr>
+<tr>
+<td>
 <code>server</code><br/>
 <em>
 <a href="#sparkoperator.k8s.io/v1alpha1.ServerSpec">
@@ -179,6 +193,77 @@ SparkConnectStatus
 </em>
 </td>
 <td>
+</td>
+</tr>
+</tbody>
+</table>
+<h3 id="sparkoperator.k8s.io/v1alpha1.Dependencies">Dependencies
+</h3>
+<p>
+(<em>Appears on:</em><a href="#sparkoperator.k8s.io/v1alpha1.SparkConnectSpec">SparkConnectSpec</a>)
+</p>
+<div>
+<p>Dependencies specifies the Maven dependencies of a Spark Connect server.</p>
+</div>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>jars</code><br/>
+<em>
+[]string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Jars is a list of JAR files the Spark Connect server depends on.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>packages</code><br/>
+<em>
+[]string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Packages is a list of maven coordinates of jars to include on the driver and executor
+classpaths. This will search the local maven repo, then maven central and any additional
+remote repositories given by the &ldquo;repositories&rdquo; option.
+Each package should be of the form &ldquo;groupId:artifactId:version&rdquo;.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>excludePackages</code><br/>
+<em>
+[]string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>ExcludePackages is a list of &ldquo;groupId:artifactId&rdquo;, to exclude while resolving the
+dependencies provided in Packages to avoid dependency conflicts.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>repositories</code><br/>
+<em>
+[]string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Repositories is a list of additional remote repositories to search for the maven coordinate
+given with the &ldquo;packages&rdquo; option.</p>
 </td>
 </tr>
 </tbody>
@@ -635,6 +720,20 @@ map[string]string
 <em>(Optional)</em>
 <p>SparkConf carries user-specified Spark configuration properties as they would use the &ldquo;&ndash;conf&rdquo; option in
 spark-submit.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>deps</code><br/>
+<em>
+<a href="#sparkoperator.k8s.io/v1alpha1.Dependencies">
+Dependencies
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Deps captures all possible types of dependencies of a Spark Connect server.</p>
 </td>
 </tr>
 <tr>
