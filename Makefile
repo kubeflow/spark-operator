@@ -73,6 +73,7 @@ HELM_DOCS_VERSION ?= v1.14.2
 CODE_GENERATOR_VERSION ?= v0.35.4
 SHFMT_VERSION ?= v3.13.1
 SHELLCHECK_VERSION ?= v0.11.0
+ADDLICENSE_VERSION ?= v1.2.0
 
 ## Binaries
 SPARK_OPERATOR ?= $(LOCALBIN)/spark-operator
@@ -86,6 +87,7 @@ HELM ?= $(LOCALBIN)/helm-$(HELM_VERSION)
 HELM_DOCS ?= $(LOCALBIN)/helm-docs-$(HELM_DOCS_VERSION)
 SHFMT ?= $(LOCALBIN)/shfmt-$(SHFMT_VERSION)
 SHELLCHECK ?= $(LOCALBIN)/shellcheck-$(SHELLCHECK_VERSION)
+ADDLICENSE ?= $(LOCALBIN)/addlicense-$(ADDLICENSE_VERSION)
 
 ##@ General
 
@@ -196,6 +198,34 @@ shell-fmt: shfmt ## Format shell scripts with shfmt.
 shell-lint: shellcheck ## Lint shell scripts with shellcheck.
 	@echo "Running shellcheck..."
 	$(SHELLCHECK) $(SHELLCHECK_OPTIONS) $(SHELL_SCRIPTS)
+
+# License header template applied by addlicense.
+LICENSE_HEADER_FILE ?= hack/license-header.txt
+
+# Files excluded from the license header check (doublestar patterns). Generated
+# files are excluded since their headers are owned by the generator.
+LICENSE_IGNORE_PATTERNS ?= \
+	.github/** \
+	api/python_api/kubeflow_spark_api/** \
+	charts/spark-operator-chart/crds/** \
+	config/crd/bases/** \
+	config/rbac/role.yaml \
+	config/webhook/manifests.yaml
+
+LICENSE_CHECK_FLAGS = -f $(LICENSE_HEADER_FILE) $(foreach p,$(LICENSE_IGNORE_PATTERNS),-ignore '$(p)')
+
+.PHONY: license-check
+license-check: addlicense ## Check that all tracked files have a license header.
+	@echo "Running addlicense -check..."
+	@git ls-files -z | xargs -0 $(ADDLICENSE) -check $(LICENSE_CHECK_FLAGS) || { \
+		echo "The files listed above are missing a license header. Run 'make license-fix' to add them."; \
+		exit 1; \
+	}
+
+.PHONY: license-fix
+license-fix: addlicense ## Add missing license headers to tracked files.
+	@echo "Running addlicense..."
+	git ls-files -z | xargs -0 $(ADDLICENSE) $(LICENSE_CHECK_FLAGS)
 
 .PHONY: unit-test
 unit-test: setup-envtest ## Run unit tests.
@@ -441,6 +471,11 @@ $(SHFMT): $(LOCALBIN)
 shellcheck: $(SHELLCHECK) ## Download shellcheck locally if necessary.
 $(SHELLCHECK): $(LOCALBIN)
 	$(call download-shellcheck,$(SHELLCHECK),$(SHELLCHECK_VERSION))
+
+.PHONY: addlicense
+addlicense: $(ADDLICENSE) ## Download addlicense locally if necessary.
+$(ADDLICENSE): $(LOCALBIN)
+	$(call go-install-tool,$(ADDLICENSE),github.com/google/addlicense,$(ADDLICENSE_VERSION))
 
 # go-install-tool will 'go install' any package with custom target and name of binary, if it doesn't exist
 # $1 - target path with name of binary (ideally with version)
