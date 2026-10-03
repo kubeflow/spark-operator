@@ -31,6 +31,7 @@ import (
 
 	"github.com/kubeflow/spark-operator/v2/api/v1beta2"
 	"github.com/kubeflow/spark-operator/v2/internal/scheduler"
+	"github.com/kubeflow/spark-operator/v2/internal/scheduler/resourceusage"
 	"github.com/kubeflow/spark-operator/v2/pkg/common"
 	"github.com/kubeflow/spark-operator/v2/pkg/util"
 )
@@ -141,7 +142,10 @@ func (s *Scheduler) Cleanup(app *v1beta2.SparkApplication) error {
 func (s *Scheduler) syncPodGroupInClientMode(app *v1beta2.SparkApplication) error {
 	// We only care about the executor pods in client mode
 	if _, ok := app.Spec.Executor.Annotations[v1beta1.KubeGroupNameAnnotationKey]; !ok {
-		totalResource := util.GetExecutorRequestResource(app)
+		totalResource, err := executorMinResources(app)
+		if err != nil {
+			return fmt.Errorf("failed to calculate executor minResources: %w", err)
+		}
 
 		if app.Spec.BatchSchedulerOptions != nil && len(app.Spec.BatchSchedulerOptions.Resources) > 0 {
 			totalResource = app.Spec.BatchSchedulerOptions.Resources
@@ -160,7 +164,15 @@ func (s *Scheduler) syncPodGroupInClusterMode(app *v1beta2.SparkApplication) err
 	// In cluster mode, the initial size of PodGroup is set to 1 in order to schedule driver pod first.
 	if _, ok := app.Spec.Driver.Annotations[v1beta1.KubeGroupNameAnnotationKey]; !ok {
 		// Both driver and executor resource will be considered.
-		totalResource := util.SumResourceList([]corev1.ResourceList{util.GetDriverRequestResource(app), util.GetExecutorRequestResource(app)})
+		driverRes, err := resourceusage.DriverPodResourceList(app)
+		if err != nil {
+			return fmt.Errorf("failed to calculate driver minResources: %w", err)
+		}
+		execRes, err := executorMinResources(app)
+		if err != nil {
+			return fmt.Errorf("failed to calculate executor minResources: %w", err)
+		}
+		totalResource := util.SumResourceList([]corev1.ResourceList{driverRes, execRes})
 		if app.Spec.BatchSchedulerOptions != nil && len(app.Spec.BatchSchedulerOptions.Resources) > 0 {
 			totalResource = app.Spec.BatchSchedulerOptions.Resources
 		}
@@ -172,6 +184,27 @@ func (s *Scheduler) syncPodGroupInClusterMode(app *v1beta2.SparkApplication) err
 		app.Spec.Executor.Annotations[v1beta1.KubeGroupNameAnnotationKey] = getPodGroupName(app)
 	}
 	return nil
+}
+
+// executorMinResources returns the aggregate resource requests for all initial
+// executor pods (single-pod resources × initial executor count) with the correct
+// memoryOverheadFactor applied.
+func executorMinResources(app *v1beta2.SparkApplication) (corev1.ResourceList, error) {
+	perPod, err := resourceusage.ExecutorPodResourceList(app)
+	if err != nil {
+		return nil, err
+	}
+
+	instances := util.GetInitialExecutorNumber(app)
+
+	// Build a slice of identical per-pod resource lists and sum them.
+	// util.SumResourceList returns an empty ResourceList for an empty slice,
+	// so no special-case for instances == 0 is needed.
+	resourceList := make([]corev1.ResourceList, instances)
+	for i := range resourceList {
+		resourceList[i] = perPod
+	}
+	return util.SumResourceList(resourceList), nil
 }
 
 func (s *Scheduler) syncPodGroup(app *v1beta2.SparkApplication, size int32, minResource corev1.ResourceList) error {

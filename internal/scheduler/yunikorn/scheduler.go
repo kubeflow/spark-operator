@@ -26,7 +26,7 @@ import (
 
 	"github.com/kubeflow/spark-operator/v2/api/v1beta2"
 	"github.com/kubeflow/spark-operator/v2/internal/scheduler"
-	"github.com/kubeflow/spark-operator/v2/internal/scheduler/yunikorn/resourceusage"
+	"github.com/kubeflow/spark-operator/v2/internal/scheduler/resourceusage"
 	"github.com/kubeflow/spark-operator/v2/pkg/util"
 )
 
