@@ -18,6 +18,7 @@ package scheduledsparkapplication
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -26,11 +27,13 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/validation"
 	"k8s.io/utils/clock"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/kubeflow/spark-operator/v2/api/v1beta2"
+	"github.com/kubeflow/spark-operator/v2/internal/webhook"
 )
 
 var _ = Describe("ScheduledSparkApplication Controller", func() {
@@ -132,5 +135,39 @@ var _ = Describe("formatTimestamp", func() {
 	It("should use nanos for empty precision", func() {
 		result := formatTimestamp(testTime, "")
 		Expect(result).To(Equal("1234567890123456789"))
+	})
+})
+
+var _ = Describe("createSparkApplication", func() {
+	It("should create a valid run name for a long accepted schedule name", func(ctx SpecContext) {
+		scheduledApp := &v1beta2.ScheduledSparkApplication{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      strings.Repeat("a", 55),
+				Namespace: "default",
+				UID:       "test-scheduled-app-uid",
+			},
+			Spec: v1beta2.ScheduledSparkApplicationSpec{
+				Schedule: "@every 1h",
+				Template: v1beta2.SparkApplicationSpec{
+					Type:                v1beta2.SparkApplicationTypeScala,
+					MainApplicationFile: ptr.To("local:///dummy.jar"),
+				},
+			},
+		}
+
+		_, err := webhook.NewScheduledSparkApplicationValidator().ValidateCreate(ctx, scheduledApp)
+		Expect(err).NotTo(HaveOccurred())
+
+		reconciler := NewReconciler(k8sClient.Scheme(), k8sClient, nil, clock.RealClock{}, Options{TimestampPrecision: "minutes"})
+		app, err := reconciler.createSparkApplication(scheduledApp, time.Unix(1_800_000_000, 0))
+		Expect(err).NotTo(HaveOccurred())
+		DeferCleanup(func() {
+			Expect(k8sClient.Delete(context.Background(), app)).To(Succeed())
+		})
+
+		Expect(app.Name).To(HaveLen(63))
+		Expect(validation.IsDNS1035Label(app.Name)).To(BeEmpty())
+		_, err = webhook.NewSparkApplicationValidator(nil, false).ValidateCreate(ctx, app)
+		Expect(err).NotTo(HaveOccurred())
 	})
 })
