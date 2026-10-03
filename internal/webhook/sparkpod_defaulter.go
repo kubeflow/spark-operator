@@ -140,6 +140,7 @@ type mutateSparkPodOption func(pod *corev1.Pod, app *v1beta2.SparkApplication) e
 func mutateSparkPod(pod *corev1.Pod, app *v1beta2.SparkApplication) error {
 	options := []mutateSparkPodOption{
 		addOwnerReference,
+		addLabels,
 		addEnvVars,
 		addEnvFrom,
 		addHadoopConfigMap,
@@ -186,6 +187,34 @@ func addOwnerReference(pod *corev1.Pod, app *v1beta2.SparkApplication) error {
 	}) {
 		pod.OwnerReferences = append(pod.OwnerReferences, ownerReference)
 	}
+	return nil
+}
+
+
+func addLabels(pod *corev1.Pod, app *v1beta2.SparkApplication) error {
+	if pod.Labels == nil {
+		pod.Labels = make(map[string]string)
+	}
+
+	var podSpecificLabels map[string]string
+	if util.IsDriverPod(pod) {
+		podSpecificLabels = app.Spec.Driver.Labels
+	} else if util.IsExecutorPod(pod) {
+		podSpecificLabels = app.Spec.Executor.Labels
+	}
+
+	for key, value := range app.Labels {
+		if strings.HasPrefix(key, common.KueueLabelPrefix) {
+			continue
+		}
+		// Preserve established precedence: explicitly configured
+		// driver/executor labels override SparkApplication metadata labels.
+		if _, exists := podSpecificLabels[key]; exists {
+			continue
+		}
+		pod.Labels[key] = value
+	}
+
 	return nil
 }
 
