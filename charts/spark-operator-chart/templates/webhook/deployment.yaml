@@ -15,6 +15,12 @@ limitations under the License.
 */}}
 
 {{- if .Values.webhook.enable }}
+{{- if and .Values.certManager.enable (ne (.Values.webhook.certProvider | default "self-signed") "self-signed") (ne .Values.webhook.certProvider "cert-manager") }}
+{{- fail (printf "certManager.enable conflicts with webhook.certProvider=%q; unset one (cert-manager is selected by certManager.enable)" .Values.webhook.certProvider) }}
+{{- end }}
+{{- if and (eq (include "spark-operator.webhook.caBundleOwner" .) "operator") (gt (int .Values.webhook.replicas) 1) (not .Values.webhook.leaderElection.enable) }}
+{{- fail "webhook.leaderElection.enable must be true when the operator owns the caBundle and webhook.replicas > 1, otherwise replicas will race to publish the caBundle" }}
+{{- end }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -77,6 +83,16 @@ spec:
         {{- end }}
         {{- if .Values.certManager.enable }}
         - --enable-cert-manager=true
+        {{- end }}
+        {{- if ne (.Values.webhook.certProvider | default "self-signed") "self-signed" }}
+        - --webhook-cert-provider={{ .Values.webhook.certProvider }}
+        {{- end }}
+        {{- if eq (.Values.webhook.certProvider | default "self-signed") "filesystem" }}
+        - --webhook-ca-bundle-sync={{ include "spark-operator.webhook.caBundleSyncMode" . }}
+        {{- with .Values.webhook.caBundle.file }}
+        - --webhook-ca-bundle-file={{ . }}
+        {{- end }}
+        - --webhook-ca-bundle-sync-interval={{ .Values.webhook.caBundle.syncInterval }}
         {{- end }}
         {{- if .Values.prometheus.metrics.enable }}
         - --enable-metrics=true

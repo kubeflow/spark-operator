@@ -132,6 +132,47 @@ func rulesHaveResourceName(rules []rbacv1.PolicyRule, name string) bool {
 	return false
 }
 
+func rulesGrantResourceNameVerb(rules []rbacv1.PolicyRule, apiGroup, resource, name, verb string) bool {
+	for _, rule := range rules {
+		hasAPIGroup := false
+		for _, group := range rule.APIGroups {
+			if group == apiGroup {
+				hasAPIGroup = true
+				break
+			}
+		}
+		if !hasAPIGroup {
+			continue
+		}
+		hasResource := false
+		for _, grantedResource := range rule.Resources {
+			if grantedResource == resource {
+				hasResource = true
+				break
+			}
+		}
+		if !hasResource {
+			continue
+		}
+		hasName := false
+		for _, resourceName := range rule.ResourceNames {
+			if resourceName == name {
+				hasName = true
+				break
+			}
+		}
+		if !hasName {
+			continue
+		}
+		for _, grantedVerb := range rule.Verbs {
+			if grantedVerb == verb {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 // --- tests ---
 
 func TestKustomizeBuild(t *testing.T) {
@@ -226,6 +267,15 @@ func TestKustomizeBuild(t *testing.T) {
 
 		assert.True(t, rulesHaveResourceName(cr.Rules, "mutating-webhook-configuration"),
 			"webhook ClusterRole should scope resourceNames for webhook configs")
+		for resource, name := range map[string]string{
+			"mutatingwebhookconfigurations":   "mutating-webhook-configuration",
+			"validatingwebhookconfigurations": "validating-webhook-configuration",
+		} {
+			for _, verb := range []string{"get", "update", "patch"} {
+				assert.True(t, rulesGrantResourceNameVerb(cr.Rules, "admissionregistration.k8s.io", resource, name, verb),
+					"webhook ClusterRole should grant '%s' on '%s'", verb, name)
+			}
+		}
 	})
 
 	t.Run("WebhookRole", func(t *testing.T) {

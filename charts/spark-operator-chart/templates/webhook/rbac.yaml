@@ -28,6 +28,7 @@ metadata:
     {{- toYaml . | nindent 4 }}
   {{- end }}
 rules:
+{{- if eq (include "spark-operator.webhook.caBundleOwner" .) "operator" }}
 - apiGroups:
   - admissionregistration.k8s.io
   resources:
@@ -46,6 +47,8 @@ rules:
   verbs:
   - get
   - update
+  - patch
+{{- end }}
 {{- if or (not .Values.spark.jobNamespaces) (has "" .Values.spark.jobNamespaces) .Values.spark.jobNamespaceSelector }}
 {{ include "spark-operator.webhook.policyRules" . }}
 {{- end }}

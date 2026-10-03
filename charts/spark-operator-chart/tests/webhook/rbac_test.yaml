@@ -41,6 +41,24 @@ tests:
           kind: ClusterRole
           name: spark-operator-webhook
 
+  - it: Should grant get, update, and patch on the named webhook configurations
+    documentIndex: 0
+    asserts:
+      - contains:
+          path: rules
+          content:
+            apiGroups:
+              - admissionregistration.k8s.io
+            resources:
+              - mutatingwebhookconfigurations
+              - validatingwebhookconfigurations
+            resourceNames:
+              - spark-operator-webhook
+            verbs:
+              - get
+              - update
+              - patch
+
   - it: Should create webhook ClusterRoleBinding by default
     documentIndex: 1
     asserts:
@@ -387,3 +405,87 @@ tests:
             resources:
               - scheduledsparkapplications/finalizers
           any: true
+
+  # ---- caBundle ownership gating of the admission rules (KEP-3165 matrix) ----
+
+  - it: Should grant the admission rules for the filesystem provider in auto mode (operator-owned)
+    set:
+      webhook:
+        certProvider: filesystem
+    documentIndex: 0
+    asserts:
+      - contains:
+          path: rules
+          content:
+            apiGroups:
+              - admissionregistration.k8s.io
+            resources:
+              - mutatingwebhookconfigurations
+              - validatingwebhookconfigurations
+            resourceNames:
+              - spark-operator-webhook
+            verbs:
+              - get
+              - update
+              - patch
+
+  - it: Should not grant the admission rules for the filesystem provider when caBundle sync is disabled (external-owned)
+    set:
+      spark:
+        jobNamespaces:
+          - ""
+      webhook:
+        certProvider: filesystem
+        caBundle:
+          sync: disabled
+    documentIndex: 0
+    asserts:
+      - notContains:
+          path: rules
+          content:
+            apiGroups:
+              - admissionregistration.k8s.io
+            resources:
+              - mutatingwebhookconfigurations
+              - validatingwebhookconfigurations
+            resourceNames:
+              - spark-operator-webhook
+            verbs:
+              - get
+              - update
+              - patch
+      - notContains:
+          path: rules
+          content:
+            apiGroups:
+              - admissionregistration.k8s.io
+            resources:
+              - mutatingwebhookconfigurations
+              - validatingwebhookconfigurations
+            verbs:
+              - list
+              - watch
+
+  - it: Should not grant the admission rules when cert-manager owns the caBundle
+    set:
+      spark:
+        jobNamespaces:
+          - ""
+      certManager:
+        enable: true
+    documentIndex: 0
+    asserts:
+      - notContains:
+          path: rules
+          content:
+            apiGroups:
+              - admissionregistration.k8s.io
+            resources:
+              - mutatingwebhookconfigurations
+              - validatingwebhookconfigurations
+            resourceNames:
+              - spark-operator-webhook
+            verbs:
+              - get
+              - update
+              - patch
