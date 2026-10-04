@@ -249,7 +249,7 @@ const (
 	SparkKubernetesExecutorDeleteOnTermination = "spark.kubernetes.executor.deleteOnTermination"
 
 	// SparkOperatorManagerName is the default manager name for spec.managedBy.
-    // When the field is unset or equals this value, the built-in operator manages the application.
+	// When the field is unset or equals this value, the built-in operator manages the application.
 	SparkOperatorManagerName = "sparkoperator.k8s.io/spark-operator"
 )
 
