@@ -1327,6 +1327,176 @@ var _ = Describe("SparkApplication Controller", func() {
 		})
 	})
 
+	Context("When reconciling an invalidating SparkApplication", func() {
+		ctx := context.Background()
+		appName := "test-invalidating"
+		appNamespace := "default"
+		key := types.NamespacedName{
+			Name:      appName,
+			Namespace: appNamespace,
+		}
+		driverKey := getDriverNamespacedName(appName, appNamespace)
+		svcKey := types.NamespacedName{
+			Name:      fmt.Sprintf("%s-ui-svc", appName),
+			Namespace: appNamespace,
+		}
+
+		newReconciler := func(c client.Client) *sparkapplication.Reconciler {
+			return sparkapplication.NewReconciler(
+				nil,
+				k8sClient.Scheme(),
+				c,
+				events.NewFakeRecorder(3),
+				nil,
+				&sparkapplication.SparkSubmitter{},
+				sparkapplication.Options{Namespaces: []string{appNamespace}},
+			)
+		}
+
+		BeforeEach(func() {
+			By("Creating a SparkApplication")
+			app := &v1beta2.SparkApplication{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      appName,
+					Namespace: appNamespace,
+				},
+				Spec: v1beta2.SparkApplicationSpec{
+					MainApplicationFile: ptr.To("local:///dummy.jar"),
+				},
+			}
+			v1beta2.SetSparkApplicationDefaults(app)
+			Expect(k8sClient.Create(ctx, app)).To(Succeed())
+
+			By("Creating a driver pod")
+			driver := createDriverPod(appName, appNamespace)
+			Expect(k8sClient.Create(ctx, driver)).To(Succeed())
+
+			By("Updating the SparkApplication state to Invalidating")
+			app.Status.SparkApplicationID = "test-app-id"
+			app.Status.SubmissionAttempts = 1
+			app.Status.LastSubmissionAttemptTime = metav1.NewTime(time.Now().Add(-5 * time.Minute))
+			app.Status.ExecutionAttempts = 1
+			app.Status.AppState.State = v1beta2.ApplicationStateInvalidating
+			app.Status.DriverInfo.PodName = driver.Name
+			Expect(k8sClient.Status().Update(ctx, app)).To(Succeed())
+		})
+
+		AfterEach(func() {
+			By("Deleting the test SparkApplication")
+			app := &v1beta2.SparkApplication{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      appName,
+					Namespace: appNamespace,
+				},
+			}
+			Expect(client.IgnoreNotFound(k8sClient.Delete(ctx, app))).To(Succeed())
+
+			By("Deleting the driver pod")
+			driver := &corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      driverKey.Name,
+					Namespace: driverKey.Namespace,
+				},
+			}
+			Expect(client.IgnoreNotFound(k8sClient.Delete(ctx, driver))).To(Succeed())
+
+			By("Deleting the web UI service")
+			svc := &corev1.Service{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      svcKey.Name,
+					Namespace: svcKey.Namespace,
+				},
+			}
+			Expect(client.IgnoreNotFound(k8sClient.Delete(ctx, svc))).To(Succeed())
+		})
+
+		It("Should stay Invalidating and return the error when deleting the driver pod fails", func() {
+			before := &v1beta2.SparkApplication{}
+			Expect(k8sClient.Get(ctx, key, before)).To(Succeed())
+
+			By("Reconciling with a client that fails the first driver pod delete")
+			failOnce, attempts := newFailingDeleteClient(&corev1.Pod{}, 1)
+			result, err := newReconciler(failOnce).Reconcile(ctx, reconcile.Request{NamespacedName: key})
+			Expect(err).To(Satisfy(errors.IsServiceUnavailable))
+			Expect(result).To(BeZero())
+			Expect(*attempts).To(Equal(1))
+
+			By("Checking that the SparkApplication status is unchanged")
+			app := &v1beta2.SparkApplication{}
+			Expect(k8sClient.Get(ctx, key, app)).To(Succeed())
+			Expect(app.Status).To(Equal(before.Status))
+			Expect(k8sClient.Get(ctx, driverKey, &corev1.Pod{})).To(Succeed())
+
+			By("Reconciling again with a healthy client")
+			result, err = newReconciler(k8sClient).Reconcile(ctx, reconcile.Request{NamespacedName: key})
+			Expect(err).NotTo(HaveOccurred())
+			Expect(result).To(BeZero())
+
+			By("Checking that the SparkApplication status has been reset")
+			Expect(k8sClient.Get(ctx, key, app)).To(Succeed())
+			Expect(app.Status.AppState.State).To(Equal(v1beta2.ApplicationStatePendingRerun))
+			Expect(app.Status.SparkApplicationID).To(BeEmpty())
+			Expect(app.Status.SubmissionAttempts).To(BeZero())
+			Expect(app.Status.LastSubmissionAttemptTime).To(BeZero())
+			Expect(app.Status.ExecutionAttempts).To(BeZero())
+			Expect(app.Status.DriverInfo).To(BeZero())
+			Expect(errors.IsNotFound(k8sClient.Get(ctx, driverKey, &corev1.Pod{}))).To(BeTrue())
+		})
+
+		It("Should stay Invalidating and return the error when deleting the web UI service fails", func() {
+			By("Creating the web UI service")
+			svc := &corev1.Service{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      svcKey.Name,
+					Namespace: svcKey.Namespace,
+				},
+				Spec: corev1.ServiceSpec{
+					Ports: []corev1.ServicePort{{Port: 4040}},
+				},
+			}
+			Expect(k8sClient.Create(ctx, svc)).To(Succeed())
+			app := &v1beta2.SparkApplication{}
+			Expect(k8sClient.Get(ctx, key, app)).To(Succeed())
+			app.Status.DriverInfo.WebUIServiceName = svc.Name
+			Expect(k8sClient.Status().Update(ctx, app)).To(Succeed())
+
+			By("Reconciling with a client that fails the first service delete")
+			failOnce, attempts := newFailingDeleteClient(&corev1.Service{}, 1)
+			_, err := newReconciler(failOnce).Reconcile(ctx, reconcile.Request{NamespacedName: key})
+			Expect(err).To(Satisfy(errors.IsServiceUnavailable))
+			Expect(*attempts).To(Equal(1))
+
+			By("Checking that the driver pod is gone but the SparkApplication is still Invalidating")
+			Expect(errors.IsNotFound(k8sClient.Get(ctx, driverKey, &corev1.Pod{}))).To(BeTrue())
+			Expect(k8sClient.Get(ctx, svcKey, &corev1.Service{})).To(Succeed())
+			Expect(k8sClient.Get(ctx, key, app)).To(Succeed())
+			Expect(app.Status.AppState.State).To(Equal(v1beta2.ApplicationStateInvalidating))
+			Expect(app.Status.DriverInfo.WebUIServiceName).To(Equal(svc.Name))
+
+			By("Reconciling again with a healthy client")
+			_, err = newReconciler(k8sClient).Reconcile(ctx, reconcile.Request{NamespacedName: key})
+			Expect(err).NotTo(HaveOccurred())
+			Expect(errors.IsNotFound(k8sClient.Get(ctx, svcKey, &corev1.Service{}))).To(BeTrue())
+			Expect(k8sClient.Get(ctx, key, app)).To(Succeed())
+			Expect(app.Status.AppState.State).To(Equal(v1beta2.ApplicationStatePendingRerun))
+		})
+
+		It("Should transition to PendingRerun when the driver pod is already gone", func() {
+			By("Deleting the driver pod")
+			Expect(k8sClient.Delete(ctx, createDriverPod(appName, appNamespace))).To(Succeed())
+			Expect(errors.IsNotFound(k8sClient.Get(ctx, driverKey, &corev1.Pod{}))).To(BeTrue())
+
+			By("Reconciling the invalidating SparkApplication")
+			_, err := newReconciler(k8sClient).Reconcile(ctx, reconcile.Request{NamespacedName: key})
+			Expect(err).NotTo(HaveOccurred())
+
+			app := &v1beta2.SparkApplication{}
+			Expect(k8sClient.Get(ctx, key, app)).To(Succeed())
+			Expect(app.Status.AppState.State).To(Equal(v1beta2.ApplicationStatePendingRerun))
+			Expect(app.Status.DriverInfo).To(BeZero())
+		})
+	})
+
 	Context("Suspend and Resume", func() {
 		ctx := context.Background()
 		appName := "test"

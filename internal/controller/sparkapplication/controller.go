@@ -598,10 +598,10 @@ func (r *Reconciler) reconcileInvalidatingSparkApplication(ctx context.Context, 
 			// Invalidate the current run and enqueue the SparkApplication for re-execution.
 			if err := r.deleteSparkResources(ctx, app); err != nil {
 				logger.Error(err, "Failed to delete resources associated with SparkApplication")
-			} else {
-				r.resetSparkApplicationStatus(app)
-				app.Status.AppState.State = v1beta2.ApplicationStatePendingRerun
+				return err
 			}
+			r.resetSparkApplicationStatus(app)
+			app.Status.AppState.State = v1beta2.ApplicationStatePendingRerun
 			if err := r.updateSparkApplicationStatus(ctx, app); err != nil {
 				return err
 			}
