@@ -1091,6 +1091,53 @@ func TestSparkApplicationEventFilter_Create_NonSparkApplication(t *testing.T) {
 	}
 }
 
+func TestSparkApplicationEventFilter_Update_ManagedByExternalController(t *testing.T) {
+	scheme := runtime.NewScheme()
+	_ = corev1.AddToScheme(scheme)
+	_ = v1beta2.AddToScheme(scheme)
+
+	fakeClient := fake.NewClientBuilder().
+		WithScheme(scheme).
+		WithObjects().
+		Build()
+
+	filter, err := NewSparkApplicationEventFilter(
+		fakeClient,
+		events.NewFakeRecorder(10),
+		[]string{"default"},
+		"",
+		0,
+	)
+	if err != nil {
+		t.Fatalf("NewSparkApplicationEventFilter() unexpected error: %v", err)
+	}
+
+	oldApp := &v1beta2.SparkApplication{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:            "test-app",
+			Namespace:       "default",
+			ResourceVersion: "1",
+		},
+		Spec: v1beta2.SparkApplicationSpec{
+			SparkVersion: "3.5.0",
+			ManagedBy:    ptr.To("kueue.x-k8s.io/multikueue"),
+		},
+	}
+
+	newApp := oldApp.DeepCopy()
+	newApp.ResourceVersion = "2"
+	newApp.Spec.SparkVersion = "3.5.1"
+
+	result := filter.Update(event.UpdateEvent{
+		ObjectOld: oldApp,
+		ObjectNew: newApp,
+	})
+
+	if result {
+		t.Errorf("Update() = true, expected false for externally managed SparkApplication")
+	}
+}
+
 func TestSparkApplicationEventFilter_Update_TimeToLiveSecondsDoesNotInvalidate(t *testing.T) {
 	scheme := runtime.NewScheme()
 	_ = corev1.AddToScheme(scheme)

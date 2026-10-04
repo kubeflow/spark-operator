@@ -27,10 +27,19 @@ import (
 
 // SparkApplicationSpec defines the desired state of SparkApplication
 // It carries every pieces of information a spark-submit command takes and recognizes.
+// +kubebuilder:validation:XValidation:rule="has(oldSelf.managedBy) == has(self.managedBy)",message="managedBy is immutable"
 type SparkApplicationSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make generate" to regenerate code after modifying this file
 
+	// ManagedBy indicates the controller managing this SparkApplication.
+	// Set to "sparkoperator.k8s.io/spark-operator" for the built-in operator
+	// (default behavior when field is omitted) or "kueue.x-k8s.io/multikueue"
+	// to delegate reconciliation to MultiKueue. The field is immutable once set.
+	// +kubebuilder:validation:XValidation:rule="self in ['sparkoperator.k8s.io/spark-operator', 'kueue.x-k8s.io/multikueue']",message="managedBy must be 'sparkoperator.k8s.io/spark-operator' or 'kueue.x-k8s.io/multikueue'"
+	// +kubebuilder:validation:MaxLength=253
+	// +optional
+	ManagedBy *string `json:"managedBy,omitempty"`
 	// Suspend indicates whether the SparkApplication should be suspended.
 	// When true, the controller skips submitting the Spark job.
 	// If a SparkApplication is suspended after creation
