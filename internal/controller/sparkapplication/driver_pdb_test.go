@@ -18,7 +18,6 @@ package sparkapplication_test
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -28,13 +27,11 @@ import (
 	policyv1 "k8s.io/api/policy/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/tools/events"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/client/interceptor"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/kubeflow/spark-operator/v2/api/v1beta2"
@@ -492,61 +489,3 @@ var _ = Describe("Driver PodDisruptionBudget delete path", func() {
 		Expect(apierrors.IsNotFound(k8sClient.Get(ctx, pdbKey(app), got))).To(BeTrue())
 	})
 })
-
-// newFailingCreateClient returns a client that fails the first N Create
-// calls for objects of the same GVK as objType, then delegates to a real
-// client for every subsequent Create. This simulates a transient API
-// server failure for one specific resource type without affecting other
-// writes the reconciler performs in the same pass.
-//
-// The interceptor wraps client.WithWatch (not the plain client.Client that
-// envtest hands tests via k8sClient), so we build a fresh WithWatch from
-// the package-level cfg here rather than reusing k8sClient directly.
-func newFailingCreateClient(objType client.Object, failures int) client.Client {
-	base, err := client.NewWithWatch(cfg, client.Options{Scheme: k8sClient.Scheme()})
-	Expect(err).NotTo(HaveOccurred())
-	targetGVK, err := base.GroupVersionKindFor(objType)
-	Expect(err).NotTo(HaveOccurred())
-	remaining := failures
-	return interceptor.NewClient(base, interceptor.Funcs{
-		Create: func(ctx context.Context, c client.WithWatch, obj client.Object, opts ...client.CreateOption) error {
-			if remaining > 0 && objectGVK(c, obj) == targetGVK {
-				remaining--
-				return fmt.Errorf("simulated transient create failure for %s", targetGVK.Kind)
-			}
-			return c.Create(ctx, obj, opts...)
-		},
-	})
-}
-
-// newFailingDeleteClient fails the first N matching Delete calls.
-func newFailingDeleteClient(objType client.Object, failures int) (client.Client, *int) {
-	base, err := client.NewWithWatch(cfg, client.Options{Scheme: k8sClient.Scheme()})
-	Expect(err).NotTo(HaveOccurred())
-	targetGVK, err := base.GroupVersionKindFor(objType)
-	Expect(err).NotTo(HaveOccurred())
-	remaining := failures
-	attempts := 0
-	return interceptor.NewClient(base, interceptor.Funcs{
-		Delete: func(ctx context.Context, c client.WithWatch, obj client.Object, opts ...client.DeleteOption) error {
-			if objectGVK(c, obj) == targetGVK {
-				attempts++
-				if remaining > 0 {
-					remaining--
-					return apierrors.NewServiceUnavailable(fmt.Sprintf("simulated transient delete failure for %s", targetGVK.Kind))
-				}
-			}
-			return c.Delete(ctx, obj, opts...)
-		},
-	}), &attempts
-}
-
-// objectGVK resolves obj's GroupVersionKind via the client's scheme.
-// Returns the zero value if the lookup fails or yields no kinds.
-func objectGVK(c client.Client, obj client.Object) schema.GroupVersionKind {
-	gvks, _, err := c.Scheme().ObjectKinds(obj)
-	if err != nil || len(gvks) == 0 {
-		return schema.GroupVersionKind{}
-	}
-	return gvks[0]
-}
