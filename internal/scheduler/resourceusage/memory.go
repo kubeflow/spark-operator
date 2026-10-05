@@ -47,7 +47,8 @@ func memoryRequestBytes(podSpec *v1beta2.SparkPodSpec, memoryOverheadFactor floa
 	var memoryBytes, memoryOverheadBytes int64
 
 	if podSpec.Memory != nil {
-		parsed, err := byteStringAsBytes(*podSpec.Memory)
+		// spark.driver.memory / spark.executor.memory: bare number means MiB.
+		parsed, err := byteStringAsBytes(*podSpec.Memory, DefaultUnitMiB)
 		if err != nil {
 			return 0, err
 		}
@@ -55,7 +56,8 @@ func memoryRequestBytes(podSpec *v1beta2.SparkPodSpec, memoryOverheadFactor floa
 	}
 
 	if podSpec.MemoryOverhead != nil {
-		parsed, err := byteStringAsBytes(*podSpec.MemoryOverhead)
+		// spark.driver.memoryOverhead / spark.executor.memoryOverhead: bare number means MiB.
+		parsed, err := byteStringAsBytes(*podSpec.MemoryOverhead, DefaultUnitMiB)
 		if err != nil {
 			return 0, err
 		}
@@ -76,13 +78,9 @@ func executorPysparkMemoryBytes(app *v1beta2.SparkApplication) (int64, error) {
 		return 0, nil
 	}
 
-	// This fields defaults to mebibytes if no resource suffix is specified
-	// https://github.com/apache/spark/blob/7de71a2ec78d985c2a045f13c1275101b126cec4/docs/configuration.md?plain=1#L289-L305
-	if _, err := strconv.Atoi(pysparkMemory); err == nil {
-		pysparkMemory = pysparkMemory + "m"
-	}
-
-	pysparkMemoryBytes, err := byteStringAsBytes(pysparkMemory)
+	// spark.executor.pyspark.memory: bare number means MiB (same as other Spark memory settings).
+	// https://spark.apache.org/docs/latest/configuration.html#execution-behavior
+	pysparkMemoryBytes, err := byteStringAsBytes(pysparkMemory, DefaultUnitMiB)
 	if err != nil {
 		return 0, err
 	}
@@ -99,7 +97,9 @@ func sparkOffHeapMemoryBytes(app *v1beta2.SparkApplication) (int64, error) {
 	if !found {
 		return 0, nil
 	}
-	offHeapBytes, err := byteStringAsBytes(offHeapSize)
+	// spark.memory.offHeap.size: bare number means bytes (not MiB).
+	// https://spark.apache.org/docs/latest/configuration.html#memory-management
+	offHeapBytes, err := byteStringAsBytes(offHeapSize, DefaultUnitBytes)
 	if err != nil {
 		return 0, err
 	}

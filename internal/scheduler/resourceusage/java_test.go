@@ -24,21 +24,45 @@ import (
 
 func TestByteStringAsMb(t *testing.T) {
 	testCases := []struct {
-		input    string
-		expected int
+		input       string
+		defaultUnit DefaultUnit
+		expected    int64
 	}{
-		{"1k", 1024},
-		{"1m", 1024 * 1024},
-		{"1g", 1024 * 1024 * 1024},
-		{"1t", 1024 * 1024 * 1024 * 1024},
-		{"1p", 1024 * 1024 * 1024 * 1024 * 1024},
+		// Suffixed inputs — defaultUnit is ignored, should produce the same result regardless.
+		{"1k", DefaultUnitMiB, 1024},
+		{"1m", DefaultUnitMiB, 1024 * 1024},
+		{"1g", DefaultUnitMiB, 1024 * 1024 * 1024},
+		{"1t", DefaultUnitMiB, 1024 * 1024 * 1024 * 1024},
+		{"1p", DefaultUnitMiB, 1024 * 1024 * 1024 * 1024 * 1024},
+		// Two-letter suffixes.
+		{"1kb", DefaultUnitMiB, 1024},
+		{"1mb", DefaultUnitMiB, 1024 * 1024},
+		{"1gb", DefaultUnitMiB, 1024 * 1024 * 1024},
+		{"1tb", DefaultUnitMiB, 1024 * 1024 * 1024 * 1024},
+		{"1pb", DefaultUnitMiB, 1024 * 1024 * 1024 * 1024 * 1024},
+		// Bare number with DefaultUnitMiB: treated as mebibytes.
+		// Used for spark.driver.memory, spark.executor.memory, spark.*.memoryOverhead,
+		// spark.executor.pyspark.memory.
+		{"1024", DefaultUnitMiB, 1024 * 1024 * 1024},  // 1024 MiB = 1 GiB
+		{"512", DefaultUnitMiB, 512 * 1024 * 1024},     // 512 MiB
+		// Bare number with DefaultUnitBytes: treated as bytes.
+		// Used for spark.memory.offHeap.size.
+		{"1024", DefaultUnitBytes, 1024},  // 1024 bytes
+		{"512", DefaultUnitBytes, 512},    // 512 bytes
+		// Suffixed inputs with DefaultUnitBytes: suffix still wins.
+		{"1m", DefaultUnitBytes, 1024 * 1024},
 	}
 
 	for _, tc := range testCases {
-		t.Run(tc.input, func(t *testing.T) {
-			actual, err := byteStringAsBytes(tc.input)
+		t.Run(tc.input+"/"+func() string {
+			if tc.defaultUnit == DefaultUnitMiB {
+				return "MiB"
+			}
+			return "Bytes"
+		}(), func(t *testing.T) {
+			actual, err := byteStringAsBytes(tc.input, tc.defaultUnit)
 			assert.Nil(t, err)
-			assert.Equal(t, int64(tc.expected), actual)
+			assert.Equal(t, tc.expected, actual)
 		})
 	}
 }
@@ -52,11 +76,12 @@ func TestByteStringAsMbInvalid(t *testing.T) {
 		"This breaks 600",
 		"600gb This breaks",
 		"This 123mb breaks",
+		"",
 	}
 
 	for _, input := range invalidInputs {
 		t.Run(input, func(t *testing.T) {
-			_, err := byteStringAsBytes(input)
+			_, err := byteStringAsBytes(input, DefaultUnitMiB)
 			assert.NotNil(t, err)
 		})
 	}

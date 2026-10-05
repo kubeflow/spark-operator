@@ -348,3 +348,119 @@ func TestExecutorPodResourceList(t *testing.T) {
 		})
 	}
 }
+
+// TestUnitlessMemoryValues verifies that a bare number in a memory field is treated
+// correctly per Spark's unit rules:
+//   - spark.driver.memory / spark.executor.memory / spark.*.memoryOverhead /
+//     spark.executor.pyspark.memory: bare number means MiB.
+//   - spark.memory.offHeap.size: bare number means bytes.
+func TestUnitlessMemoryValues(t *testing.T) {
+	t.Run("driver.memory bare number treated as MiB", func(t *testing.T) {
+		// "1024" with no suffix means 1024 MiB = 1 GiB.
+		// factor = 0.1 (JVM); overhead = max(1024*0.1, 384) = 384 MiB (floor)
+		// total = 1024 + 384 = 1408 MiB
+		app := &v1beta2.SparkApplication{
+			Spec: v1beta2.SparkApplicationSpec{
+				Type: v1beta2.SparkApplicationTypeJava,
+				Driver: v1beta2.DriverSpec{
+					SparkPodSpec: v1beta2.SparkPodSpec{
+						Memory: ptr.To("1024"),
+						Cores:  ptr.To[int32](1),
+					},
+				},
+			},
+		}
+		rl, err := DriverPodResourceList(app)
+		require.NoError(t, err)
+		expected := resource.MustParse("1408Mi")
+		actual := rl[corev1.ResourceMemory]
+		assert.Equal(t, expected.Value(), actual.Value(),
+			"bare-number driver.memory: got %s, want 1408Mi", actual.String())
+	})
+
+	t.Run("executor.memoryOverhead bare number treated as MiB", func(t *testing.T) {
+		// heap = 2g = 2048 MiB; explicit overhead = "512" = 512 MiB (bare number, MiB)
+		// total = 2048 + 512 = 2560 MiB
+		app := &v1beta2.SparkApplication{
+			Spec: v1beta2.SparkApplicationSpec{
+				Type: v1beta2.SparkApplicationTypeJava,
+				Executor: v1beta2.ExecutorSpec{
+					SparkPodSpec: v1beta2.SparkPodSpec{
+						Memory:         ptr.To("2g"),
+						MemoryOverhead: ptr.To("512"),
+						Cores:          ptr.To[int32](1),
+					},
+				},
+			},
+		}
+		rl, err := ExecutorPodResourceList(app)
+		require.NoError(t, err)
+		expected := resource.MustParse("2560Mi")
+		actual := rl[corev1.ResourceMemory]
+		assert.Equal(t, expected.Value(), actual.Value(),
+			"bare-number executor.memoryOverhead: got %s, want 2560Mi", actual.String())
+	})
+
+	t.Run("spark.memory.offHeap.size bare number treated as bytes", func(t *testing.T) {
+		// heap = 1g = 1024 MiB; overhead = 384 MiB (JVM floor)
+		// off-heap = 1024 bytes (NOT MiB) = 0 MiB when floored by bytesToMi
+		// total visible in MiB = (1024 + 384 + 0) = 1408 MiB
+		// But the raw bytes sum = 1408*1024*1024 + 1024 — bytesToMi floors, so still 1408 MiB.
+		// This test verifies the off-heap value is parsed as bytes (1024 bytes, not 1024 MiB).
+		app := &v1beta2.SparkApplication{
+			Spec: v1beta2.SparkApplicationSpec{
+				Type: v1beta2.SparkApplicationTypeJava,
+				SparkConf: map[string]string{
+					"spark.memory.offHeap.enabled": "true",
+					"spark.memory.offHeap.size":    "1024", // 1024 bytes (not MiB)
+				},
+				Executor: v1beta2.ExecutorSpec{
+					SparkPodSpec: v1beta2.SparkPodSpec{
+						Memory: ptr.To("1g"),
+						Cores:  ptr.To[int32](1),
+					},
+				},
+			},
+		}
+		rl, err := ExecutorPodResourceList(app)
+		require.NoError(t, err)
+		// 1024 MiB heap + 384 MiB overhead + 1024 bytes off-heap.
+		// bytesToMi floors: (1024+384)*1024*1024 + 1024 bytes = 1468006424 bytes
+		// 1468006424 / 1024 / 1024 = 1399 MiB (floors, not 1408)
+		// Wait — this tells us the off-heap is additive BEFORE the floor:
+		// total bytes = (1408 * 1024 * 1024) + 1024 = 1476396032 + 1024 = 1476397056
+		// 1476397056 / 1024 / 1024 = 1408 Mi (integer division: 1476397056/1048576 = 1408.0009...)
+		// So the result is still 1408 MiB — 1024 bytes is below the MiB floor.
+		expected := resource.MustParse("1408Mi")
+		actual := rl[corev1.ResourceMemory]
+		assert.Equal(t, expected.Value(), actual.Value(),
+			"offHeap.size as bytes: got %s, want 1408Mi", actual.String())
+	})
+
+	t.Run("spark.memory.offHeap.size large bare number stays bytes not MiB", func(t *testing.T) {
+		// heap = 1g = 1024 MiB; overhead = 384 MiB (JVM floor)
+		// off-heap = 536870912 bytes = 512 MiB (exactly 512 * 1024 * 1024)
+		// total = (1024 + 384) MiB + 512 MiB = 1920 MiB
+		app := &v1beta2.SparkApplication{
+			Spec: v1beta2.SparkApplicationSpec{
+				Type: v1beta2.SparkApplicationTypeJava,
+				SparkConf: map[string]string{
+					"spark.memory.offHeap.enabled": "true",
+					"spark.memory.offHeap.size":    "536870912", // 512 MiB in bytes
+				},
+				Executor: v1beta2.ExecutorSpec{
+					SparkPodSpec: v1beta2.SparkPodSpec{
+						Memory: ptr.To("1g"),
+						Cores:  ptr.To[int32](1),
+					},
+				},
+			},
+		}
+		rl, err := ExecutorPodResourceList(app)
+		require.NoError(t, err)
+		expected := resource.MustParse("1920Mi")
+		actual := rl[corev1.ResourceMemory]
+		assert.Equal(t, expected.Value(), actual.Value(),
+			"offHeap.size 536870912 bytes = 512MiB: got %s, want 1920Mi", actual.String())
+	})
+}
