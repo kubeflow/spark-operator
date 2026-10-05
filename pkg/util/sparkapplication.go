@@ -507,30 +507,76 @@ func GetExecutorRequestResource(app *v1beta2.SparkApplication) corev1.ResourceLi
 	return SumResourceList(resourceList)
 }
 
-// GetInitialExecutorNumber calculates the initial number of executor pods that will be requested by the driver on startup.
-func GetInitialExecutorNumber(app *v1beta2.SparkApplication) int32 {
-	// The reference for this implementation: https://github.com/apache/spark/blob/ba208b9ca99990fa329c36b28d0aa2a5f4d0a77e/core/src/main/scala/org/apache/spark/scheduler/cluster/SchedulerBackendUtils.scala#L31
-	var initialNumExecutors int32
+// sparkConfInt32 reads an int32 value from app.Spec.SparkConf[key].
+// Returns (value, true) on success, (0, false) if the key is absent or unparsable.
+// Unparsable values are silently ignored, matching IsDynamicAllocationEnabled's behaviour.
+func sparkConfInt32(app *v1beta2.SparkApplication, key string) (int32, bool) {
+	raw, found := app.Spec.SparkConf[key]
+	if !found {
+		return 0, false
+	}
+	v, err := strconv.ParseInt(raw, 10, 32)
+	if err != nil {
+		return 0, false
+	}
+	return int32(v), true
+}
 
-	dynamicAllocationEnabled := app.Spec.DynamicAllocation != nil && app.Spec.DynamicAllocation.Enabled
-	if dynamicAllocationEnabled {
-		if app.Spec.Executor.Instances != nil {
-			initialNumExecutors = max(initialNumExecutors, *app.Spec.Executor.Instances)
-		}
-		if app.Spec.DynamicAllocation.InitialExecutors != nil {
-			initialNumExecutors = max(initialNumExecutors, *app.Spec.DynamicAllocation.InitialExecutors)
-		}
-		if app.Spec.DynamicAllocation.MinExecutors != nil {
-			initialNumExecutors = max(initialNumExecutors, *app.Spec.DynamicAllocation.MinExecutors)
-		}
-	} else {
-		initialNumExecutors = 2
-		if app.Spec.Executor.Instances != nil {
-			initialNumExecutors = *app.Spec.Executor.Instances
-		}
+// GetInitialExecutorNumber calculates the initial number of executor pods that will be
+// requested by the driver on startup.
+//
+// Precedence rule (mirrors how the operator builds spark-submit args): CRD fields take
+// precedence over sparkConf entries for the same logical setting. When a CRD field is set it
+// is used; otherwise the corresponding sparkConf key is consulted.
+//
+// Mirrors Spark's SchedulerBackendUtils.getInitialTargetExecutorNumber:
+// https://github.com/apache/spark/blob/ba208b9ca99990fa329c36b28d0aa2a5f4d0a77e/core/src/main/scala/org/apache/spark/scheduler/cluster/SchedulerBackendUtils.scala#L31
+//
+// Dynamic allocation enabled:
+//
+//	initialNumExecutors = max(instances, max(initialExecutors, minExecutors))
+//	where initialExecutors defaults to minExecutors, and all values default to 0.
+//
+// Dynamic allocation disabled:
+//
+//	initialNumExecutors = instances, defaulting to 2 when unset.
+func GetInitialExecutorNumber(app *v1beta2.SparkApplication) int32 {
+	// Resolve spark.executor.instances from CRD first, then sparkConf.
+	var instances int32
+	var instancesSet bool
+	if app.Spec.Executor.Instances != nil {
+		instances = *app.Spec.Executor.Instances
+		instancesSet = true
+	} else if v, ok := sparkConfInt32(app, common.SparkExecutorInstances); ok {
+		instances = v
+		instancesSet = true
 	}
 
-	return initialNumExecutors
+	if !IsDynamicAllocationEnabled(app) {
+		if instancesSet {
+			return instances
+		}
+		return 2
+	}
+
+	// Dynamic allocation is enabled. Resolve minExecutors and initialExecutors from
+	// CRD fields first, falling back to sparkConf.
+	var minExecutors int32
+	if app.Spec.DynamicAllocation != nil && app.Spec.DynamicAllocation.MinExecutors != nil {
+		minExecutors = *app.Spec.DynamicAllocation.MinExecutors
+	} else if v, ok := sparkConfInt32(app, common.SparkDynamicAllocationMinExecutors); ok {
+		minExecutors = v
+	}
+
+	// initialExecutors defaults to minExecutors when unset (Spark behaviour).
+	initialExecutors := minExecutors
+	if app.Spec.DynamicAllocation != nil && app.Spec.DynamicAllocation.InitialExecutors != nil {
+		initialExecutors = *app.Spec.DynamicAllocation.InitialExecutors
+	} else if v, ok := sparkConfInt32(app, common.SparkDynamicAllocationInitialExecutors); ok {
+		initialExecutors = v
+	}
+
+	return max(instances, max(initialExecutors, minExecutors))
 }
 
 // IsDynamicAllocationEnabled determines if Spark Dynamic Allocation is enabled in app.Spec.DynamicAllocation or in
