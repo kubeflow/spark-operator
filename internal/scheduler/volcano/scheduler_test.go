@@ -492,3 +492,303 @@ func TestScheduleOverheadFactor(t *testing.T) {
 		})
 	}
 }
+
+// TestBatchSchedulerOptionsOverride verifies that batchSchedulerOptions.resources is checked
+// before the resource calculation runs, in both client and cluster mode.
+func TestBatchSchedulerOptionsOverride(t *testing.T) {
+	// explicitResources is the fixed override that all "override set" cases use.
+	explicitResources := corev1.ResourceList{
+		corev1.ResourceCPU:    resource.MustParse("10"),
+		corev1.ResourceMemory: resource.MustParse("20Gi"),
+	}
+
+	// badMemory is an invalid memory string that would cause executorMinResources to
+	// return an error if it were ever called.
+	badMemory := ptr.To("not-a-valid-memory-value")
+
+	testCases := []struct {
+		name            string
+		app             *v1beta2.SparkApplication
+		mode            v1beta2.DeployMode
+		expectError     bool
+		expectResources corev1.ResourceList // nil means "computed, not overridden"
+		expectMemoryMiB int64               // used only when expectResources is nil
+	}{
+		// ---- Client mode ----
+
+		{
+			// Override set → minResources equals the override verbatim; no calculation runs.
+			name: "client mode: override set",
+			app: &v1beta2.SparkApplication{
+				ObjectMeta: metav1.ObjectMeta{Name: "app-co", Namespace: "default"},
+				Spec: v1beta2.SparkApplicationSpec{
+					Mode: v1beta2.DeployModeClient,
+					Type: v1beta2.SparkApplicationTypeJava,
+					Driver: v1beta2.DriverSpec{
+						SparkPodSpec: v1beta2.SparkPodSpec{Memory: ptr.To("1g"), Cores: ptr.To[int32](1)},
+					},
+					Executor: v1beta2.ExecutorSpec{
+						Instances:    ptr.To[int32](2),
+						SparkPodSpec: v1beta2.SparkPodSpec{Memory: ptr.To("1g"), Cores: ptr.To[int32](1)},
+					},
+					BatchSchedulerOptions: &v1beta2.BatchSchedulerConfiguration{
+						Resources: explicitResources,
+					},
+				},
+			},
+			mode:            v1beta2.DeployModeClient,
+			expectResources: explicitResources,
+		},
+		{
+			// Override set AND spec has invalid memory → must still succeed, use override.
+			name: "client mode: override set, invalid memory string",
+			app: &v1beta2.SparkApplication{
+				ObjectMeta: metav1.ObjectMeta{Name: "app-ci", Namespace: "default"},
+				Spec: v1beta2.SparkApplicationSpec{
+					Mode: v1beta2.DeployModeClient,
+					Type: v1beta2.SparkApplicationTypeJava,
+					Driver: v1beta2.DriverSpec{
+						SparkPodSpec: v1beta2.SparkPodSpec{Memory: badMemory, Cores: ptr.To[int32](1)},
+					},
+					Executor: v1beta2.ExecutorSpec{
+						Instances:    ptr.To[int32](2),
+						SparkPodSpec: v1beta2.SparkPodSpec{Memory: badMemory, Cores: ptr.To[int32](1)},
+					},
+					BatchSchedulerOptions: &v1beta2.BatchSchedulerConfiguration{
+						Resources: explicitResources,
+					},
+				},
+			},
+			mode:            v1beta2.DeployModeClient,
+			expectResources: explicitResources,
+		},
+		{
+			// No override, invalid memory string → must return error.
+			name: "client mode: no override, invalid memory string → error",
+			app: &v1beta2.SparkApplication{
+				ObjectMeta: metav1.ObjectMeta{Name: "app-ce", Namespace: "default"},
+				Spec: v1beta2.SparkApplicationSpec{
+					Mode: v1beta2.DeployModeClient,
+					Type: v1beta2.SparkApplicationTypeJava,
+					Driver: v1beta2.DriverSpec{
+						SparkPodSpec: v1beta2.SparkPodSpec{Memory: ptr.To("1g"), Cores: ptr.To[int32](1)},
+					},
+					Executor: v1beta2.ExecutorSpec{
+						Instances:    ptr.To[int32](2),
+						SparkPodSpec: v1beta2.SparkPodSpec{Memory: badMemory, Cores: ptr.To[int32](1)},
+					},
+				},
+			},
+			mode:        v1beta2.DeployModeClient,
+			expectError: true,
+		},
+		{
+			// Empty override map (len == 0) → falls through to calculation.
+			// JVM, 1g executor × 1, overhead floor:
+			//   1024 + max(1024*0.1, 384) = 1024 + 384 = 1408 MiB
+			name: "client mode: empty override map falls through to calculation",
+			app: &v1beta2.SparkApplication{
+				ObjectMeta: metav1.ObjectMeta{Name: "app-cem", Namespace: "default"},
+				Spec: v1beta2.SparkApplicationSpec{
+					Mode: v1beta2.DeployModeClient,
+					Type: v1beta2.SparkApplicationTypeJava,
+					Driver: v1beta2.DriverSpec{
+						SparkPodSpec: v1beta2.SparkPodSpec{Memory: ptr.To("1g"), Cores: ptr.To[int32](1)},
+					},
+					Executor: v1beta2.ExecutorSpec{
+						Instances:    ptr.To[int32](1),
+						SparkPodSpec: v1beta2.SparkPodSpec{Memory: ptr.To("1g"), Cores: ptr.To[int32](1)},
+					},
+					BatchSchedulerOptions: &v1beta2.BatchSchedulerConfiguration{
+						Resources: corev1.ResourceList{}, // explicitly empty
+					},
+				},
+			},
+			mode:            v1beta2.DeployModeClient,
+			expectResources: nil,
+			expectMemoryMiB: 1408,
+		},
+		{
+			// Sanity: JVM default overhead, client mode.
+			// 1g executor × 2: (1024 + 384) * 2 = 2816 MiB
+			name: "client mode: no override, JVM default overhead",
+			app: &v1beta2.SparkApplication{
+				ObjectMeta: metav1.ObjectMeta{Name: "app-cj", Namespace: "default"},
+				Spec: v1beta2.SparkApplicationSpec{
+					Mode: v1beta2.DeployModeClient,
+					Type: v1beta2.SparkApplicationTypeJava,
+					Driver: v1beta2.DriverSpec{
+						SparkPodSpec: v1beta2.SparkPodSpec{Memory: ptr.To("1g"), Cores: ptr.To[int32](1)},
+					},
+					Executor: v1beta2.ExecutorSpec{
+						Instances:    ptr.To[int32](2),
+						SparkPodSpec: v1beta2.SparkPodSpec{Memory: ptr.To("1g"), Cores: ptr.To[int32](1)},
+					},
+				},
+			},
+			mode:            v1beta2.DeployModeClient,
+			expectMemoryMiB: 2816,
+		},
+
+		// ---- Cluster mode ----
+
+		{
+			// Override set → minResources equals the override verbatim; no calculation runs.
+			name: "cluster mode: override set",
+			app: &v1beta2.SparkApplication{
+				ObjectMeta: metav1.ObjectMeta{Name: "app-ko", Namespace: "default"},
+				Spec: v1beta2.SparkApplicationSpec{
+					Mode: v1beta2.DeployModeCluster,
+					Type: v1beta2.SparkApplicationTypeJava,
+					Driver: v1beta2.DriverSpec{
+						SparkPodSpec: v1beta2.SparkPodSpec{Memory: ptr.To("1g"), Cores: ptr.To[int32](1)},
+					},
+					Executor: v1beta2.ExecutorSpec{
+						Instances:    ptr.To[int32](2),
+						SparkPodSpec: v1beta2.SparkPodSpec{Memory: ptr.To("1g"), Cores: ptr.To[int32](1)},
+					},
+					BatchSchedulerOptions: &v1beta2.BatchSchedulerConfiguration{
+						Resources: explicitResources,
+					},
+				},
+			},
+			mode:            v1beta2.DeployModeCluster,
+			expectResources: explicitResources,
+		},
+		{
+			// Override set AND spec has invalid memory → must still succeed, use override.
+			name: "cluster mode: override set, invalid memory string",
+			app: &v1beta2.SparkApplication{
+				ObjectMeta: metav1.ObjectMeta{Name: "app-ki", Namespace: "default"},
+				Spec: v1beta2.SparkApplicationSpec{
+					Mode: v1beta2.DeployModeCluster,
+					Type: v1beta2.SparkApplicationTypeJava,
+					Driver: v1beta2.DriverSpec{
+						SparkPodSpec: v1beta2.SparkPodSpec{Memory: badMemory, Cores: ptr.To[int32](1)},
+					},
+					Executor: v1beta2.ExecutorSpec{
+						Instances:    ptr.To[int32](2),
+						SparkPodSpec: v1beta2.SparkPodSpec{Memory: badMemory, Cores: ptr.To[int32](1)},
+					},
+					BatchSchedulerOptions: &v1beta2.BatchSchedulerConfiguration{
+						Resources: explicitResources,
+					},
+				},
+			},
+			mode:            v1beta2.DeployModeCluster,
+			expectResources: explicitResources,
+		},
+		{
+			// No override, invalid executor memory → error.
+			name: "cluster mode: no override, invalid executor memory → error",
+			app: &v1beta2.SparkApplication{
+				ObjectMeta: metav1.ObjectMeta{Name: "app-ke", Namespace: "default"},
+				Spec: v1beta2.SparkApplicationSpec{
+					Mode: v1beta2.DeployModeCluster,
+					Type: v1beta2.SparkApplicationTypeJava,
+					Driver: v1beta2.DriverSpec{
+						SparkPodSpec: v1beta2.SparkPodSpec{Memory: ptr.To("1g"), Cores: ptr.To[int32](1)},
+					},
+					Executor: v1beta2.ExecutorSpec{
+						Instances:    ptr.To[int32](2),
+						SparkPodSpec: v1beta2.SparkPodSpec{Memory: badMemory, Cores: ptr.To[int32](1)},
+					},
+				},
+			},
+			mode:        v1beta2.DeployModeCluster,
+			expectError: true,
+		},
+		{
+			// Empty override map → falls through to calculation.
+			// driver: 1024 + 384 = 1408 MiB; executors: 1408 * 2 = 2816 MiB; total = 4224 MiB
+			name: "cluster mode: empty override map falls through to calculation",
+			app: &v1beta2.SparkApplication{
+				ObjectMeta: metav1.ObjectMeta{Name: "app-kem", Namespace: "default"},
+				Spec: v1beta2.SparkApplicationSpec{
+					Mode: v1beta2.DeployModeCluster,
+					Type: v1beta2.SparkApplicationTypeJava,
+					Driver: v1beta2.DriverSpec{
+						SparkPodSpec: v1beta2.SparkPodSpec{Memory: ptr.To("1g"), Cores: ptr.To[int32](1)},
+					},
+					Executor: v1beta2.ExecutorSpec{
+						Instances:    ptr.To[int32](2),
+						SparkPodSpec: v1beta2.SparkPodSpec{Memory: ptr.To("1g"), Cores: ptr.To[int32](1)},
+					},
+					BatchSchedulerOptions: &v1beta2.BatchSchedulerConfiguration{
+						Resources: corev1.ResourceList{}, // explicitly empty
+					},
+				},
+			},
+			mode:            v1beta2.DeployModeCluster,
+			expectResources: nil,
+			expectMemoryMiB: 4224, // 1408 (driver) + 2816 (2 × 1408 executor)
+		},
+		{
+			// Sanity: Python default overhead, cluster mode.
+			// driver: 1024 + max(1024*0.4, 384) = 1024 + 409 = 1433 MiB
+			// executor × 1: 1433 MiB
+			// total: 2866 MiB
+			name: "cluster mode: no override, Python default overhead",
+			app: &v1beta2.SparkApplication{
+				ObjectMeta: metav1.ObjectMeta{Name: "app-kp", Namespace: "default"},
+				Spec: v1beta2.SparkApplicationSpec{
+					Mode: v1beta2.DeployModeCluster,
+					Type: v1beta2.SparkApplicationTypePython,
+					Driver: v1beta2.DriverSpec{
+						SparkPodSpec: v1beta2.SparkPodSpec{Memory: ptr.To("1g"), Cores: ptr.To[int32](1)},
+					},
+					Executor: v1beta2.ExecutorSpec{
+						Instances:    ptr.To[int32](1),
+						SparkPodSpec: v1beta2.SparkPodSpec{Memory: ptr.To("1g"), Cores: ptr.To[int32](1)},
+					},
+				},
+			},
+			mode:            v1beta2.DeployModeCluster,
+			expectMemoryMiB: 2866,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			tc.app.Annotations = make(map[string]string)
+			tc.app.Spec.Driver.Annotations = make(map[string]string)
+			tc.app.Spec.Executor.Annotations = make(map[string]string)
+
+			var capturedPodGroup *v1beta1.PodGroup
+			mockVolcanoClient := fakevolcanoclientset.NewSimpleClientset()
+			mockVolcanoClient.PrependReactor("create", "podgroups", func(action clienttesting.Action) (bool, runtime.Object, error) {
+				createAction := action.(clienttesting.CreateAction)
+				capturedPodGroup = createAction.GetObject().(*v1beta1.PodGroup)
+				return false, capturedPodGroup, nil
+			})
+
+			sched := &Scheduler{volcanoClient: mockVolcanoClient}
+			err := sched.Schedule(tc.app)
+
+			if tc.expectError {
+				assert.Error(t, err, "expected an error but got none")
+				return
+			}
+			require.NoError(t, err)
+			require.NotNil(t, capturedPodGroup)
+			require.NotNil(t, capturedPodGroup.Spec.MinResources)
+			got := *capturedPodGroup.Spec.MinResources
+
+			if tc.expectResources != nil {
+				// Override path: resources must match the override verbatim.
+				for name, want := range tc.expectResources {
+					actual := got.Name(name, resource.DecimalSI)
+					assert.Equal(t, want.Value(), actual.Value(),
+						"resource %s: got %s, want %s", name, actual.String(), want.String())
+				}
+				return
+			}
+
+			// Computed path: check the memory total only.
+			expected := resource.MustParse(fmt.Sprintf("%dMi", tc.expectMemoryMiB))
+			actualMem := got[corev1.ResourceMemory]
+			assert.Equal(t, expected.Value(), actualMem.Value(),
+				"memory: got %s, want %dMi", actualMem.String(), tc.expectMemoryMiB)
+		})
+	}
+}

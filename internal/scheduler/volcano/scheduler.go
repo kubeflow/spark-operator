@@ -142,13 +142,16 @@ func (s *Scheduler) Cleanup(app *v1beta2.SparkApplication) error {
 func (s *Scheduler) syncPodGroupInClientMode(app *v1beta2.SparkApplication) error {
 	// We only care about the executor pods in client mode
 	if _, ok := app.Spec.Executor.Annotations[v1beta1.KubeGroupNameAnnotationKey]; !ok {
-		totalResource, err := executorMinResources(app)
-		if err != nil {
-			return fmt.Errorf("failed to calculate executor minResources: %w", err)
-		}
-
-		if app.Spec.BatchSchedulerOptions != nil && len(app.Spec.BatchSchedulerOptions.Resources) > 0 {
-			totalResource = app.Spec.BatchSchedulerOptions.Resources
+		// Check the user-supplied override first so that a spec with an invalid memory
+		// string does not error when the override would be used anyway.
+		var totalResource corev1.ResourceList
+		if o := app.Spec.BatchSchedulerOptions; o != nil && len(o.Resources) > 0 {
+			totalResource = o.Resources
+		} else {
+			var err error
+			if totalResource, err = executorMinResources(app); err != nil {
+				return fmt.Errorf("failed to calculate executor minResources: %w", err)
+			}
 		}
 		if err := s.syncPodGroup(app, 1, totalResource); err == nil {
 			app.Spec.Executor.Annotations[v1beta1.KubeGroupNameAnnotationKey] = getPodGroupName(app)
@@ -163,18 +166,21 @@ func (s *Scheduler) syncPodGroupInClusterMode(app *v1beta2.SparkApplication) err
 	// We need mark both driver and executor when submitting.
 	// In cluster mode, the initial size of PodGroup is set to 1 in order to schedule driver pod first.
 	if _, ok := app.Spec.Driver.Annotations[v1beta1.KubeGroupNameAnnotationKey]; !ok {
-		// Both driver and executor resource will be considered.
-		driverRes, err := resourceusage.DriverPodResourceList(app)
-		if err != nil {
-			return fmt.Errorf("failed to calculate driver minResources: %w", err)
-		}
-		execRes, err := executorMinResources(app)
-		if err != nil {
-			return fmt.Errorf("failed to calculate executor minResources: %w", err)
-		}
-		totalResource := util.SumResourceList([]corev1.ResourceList{driverRes, execRes})
-		if app.Spec.BatchSchedulerOptions != nil && len(app.Spec.BatchSchedulerOptions.Resources) > 0 {
-			totalResource = app.Spec.BatchSchedulerOptions.Resources
+		// Check the user-supplied override first so that a spec with an invalid memory
+		// string does not error when the override would be used anyway.
+		var totalResource corev1.ResourceList
+		if o := app.Spec.BatchSchedulerOptions; o != nil && len(o.Resources) > 0 {
+			totalResource = o.Resources
+		} else {
+			driverRes, err := resourceusage.DriverPodResourceList(app)
+			if err != nil {
+				return fmt.Errorf("failed to calculate driver minResources: %w", err)
+			}
+			execRes, err := executorMinResources(app)
+			if err != nil {
+				return fmt.Errorf("failed to calculate executor minResources: %w", err)
+			}
+			totalResource = util.SumResourceList([]corev1.ResourceList{driverRes, execRes})
 		}
 
 		if err := s.syncPodGroup(app, 1, totalResource); err != nil {
