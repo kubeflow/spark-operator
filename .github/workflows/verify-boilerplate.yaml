@@ -1,0 +1,94 @@
+# Copyright The Kubeflow Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Verify that source files carry the Kubeflow Apache 2.0 boilerplate header.
+# New files must use the year-less header ("Copyright The Kubeflow Authors.").
+name: Verify Boilerplate
+
+on:
+  pull_request:
+    branches:
+      - master
+      - release-*
+
+  push:
+    branches:
+      - master
+      - release-*
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.actor }}
+  cancel-in-progress: true
+
+jobs:
+  verify-boilerplate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+
+      - name: Verify boilerplate headers
+        uses: kubeflow/testing/.github/actions/verify-boilerplate@4c88c676bb7104f432f98baa47340cd8b8f3bdf7 # master
+        with:
+          exclude: |
+            # Generated files whose generators do not emit a header.
+            ^api/python_api/kubeflow_spark_api/models/
+            ^charts/spark-operator-chart/crds/
+            ^config/crd/bases/
+            ^config/rbac/role\.yaml$
+            ^config/webhook/manifests\.yaml$
+            # Files that keep their original copyright notice (Google LLC,
+            # The Kubernetes Authors, spark-operator contributors).
+            ^Dockerfile$
+            ^api/v1beta2/defaults\.go$
+            ^api/v1beta2/defaults_test\.go$
+            ^api/v1beta2/doc\.go$
+            ^examples/spark-pi-configmap\.yaml$
+            ^examples/spark-pi-custom-resource\.yaml$
+            ^examples/spark-pi-emptydir\.yaml$
+            ^examples/spark-pi-prometheus\.yaml$
+            ^examples/spark-pi-python\.yaml$
+            ^examples/spark-pi-scheduled\.yaml$
+            ^examples/spark-pi\.yaml$
+            ^hack/install_packages\.sh$
+            ^hack/update-codegen\.sh$
+            ^hack/verify-codegen\.sh$
+            ^internal/controller/sparkapplication/driveringress\.go$
+            ^internal/controller/sparkapplication/driveringress_test\.go$
+            ^internal/controller/sparkapplication/monitoring_config\.go$
+            ^internal/controller/sparkapplication/monitoring_config_test\.go$
+            ^internal/controller/sparkapplication/submission\.go$
+            ^internal/controller/sparkapplication/submission_test\.go$
+            ^internal/controller/sparkapplication/web_ui\.go$
+            ^internal/controller/sparkapplication/web_ui_test\.go$
+            ^internal/scheduler/registry\.go$
+            ^internal/scheduler/scheduler\.go$
+            ^internal/scheduler/volcano/scheduler\.go$
+            ^internal/scheduler/volcano/scheduler_test\.go$
+            ^internal/webhook/doc\.go$
+            ^internal/webhook/sparkpod_defaulter_test\.go$
+            ^pkg/common/doc\.go$
+            ^pkg/common/spark\.go$
+            ^pkg/util/capabilities\.go$
+            ^pkg/util/doc\.go$
+            ^pkg/util/interrupt\.go$
+            ^pkg/util/metrics\.go$
+            ^pkg/util/util\.go$
+            ^spark-docker/Dockerfile$
+            ^spark-docker/conf/prometheus\.yaml$
