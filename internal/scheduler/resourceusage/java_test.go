@@ -40,9 +40,12 @@ func TestByteStringAsMb(t *testing.T) {
 		{"1gb", DefaultUnitMiB, 1024 * 1024 * 1024},
 		{"1tb", DefaultUnitMiB, 1024 * 1024 * 1024 * 1024},
 		{"1pb", DefaultUnitMiB, 1024 * 1024 * 1024 * 1024 * 1024},
-		// Bare number with DefaultUnitMiB: treated as mebibytes.
-		// Used for spark.driver.memory, spark.executor.memory, spark.*.memoryOverhead,
-		// spark.executor.pyspark.memory.
+		// Uppercase suffixes: strings.ToLower normalises them before matching.
+		{"1G", DefaultUnitMiB, 1024 * 1024 * 1024},
+		{"1GB", DefaultUnitMiB, 1024 * 1024 * 1024},
+		{"1M", DefaultUnitMiB, 1024 * 1024},
+		// Bare number with DefaultUnitMiB: treated as mebibytes (spark.driver.memory,
+		// spark.executor.memory, spark.*.memoryOverhead, spark.executor.pyspark.memory).
 		{"1024", DefaultUnitMiB, 1024 * 1024 * 1024}, // 1024 MiB = 1 GiB
 		{"512", DefaultUnitMiB, 512 * 1024 * 1024},   // 512 MiB
 		// Bare number with DefaultUnitBytes: treated as bytes.

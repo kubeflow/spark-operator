@@ -203,9 +203,10 @@ func executorMinResources(app *v1beta2.SparkApplication) (corev1.ResourceList, e
 
 	instances := util.GetInitialExecutorNumber(app)
 
-	// Build a slice of identical per-pod resource lists and sum them.
-	// util.SumResourceList returns an empty ResourceList for an empty slice,
-	// so no special-case for instances == 0 is needed.
+	// GetInitialExecutorNumber guarantees instances >= 0, so make() cannot panic.
+	// util.SumResourceList only reads its inputs (it calls quantity.DeepCopy() on
+	// the first occurrence of each resource name and Add() on its own accumulator
+	// thereafter), so repeating the same perPod map in the slice is safe.
 	resourceList := make([]corev1.ResourceList, instances)
 	for i := range resourceList {
 		resourceList[i] = perPod
