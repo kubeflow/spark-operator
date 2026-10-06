@@ -90,13 +90,6 @@ type Options struct {
 	DefaultServiceAccount string
 }
 
-// statusUpdateConflictBackoff is used when retrying a SparkApplication status update
-// that failed with a resource-version conflict. When many executor pods terminate at
-// once, the informer cache backing getSparkApplication's Get can lag behind the API
-// server for around a second, so retry.DefaultRetry's ~50ms total budget is often too
-// short to ride out the lag and every attempt fails with the same conflict. A longer,
-// exponentially increasing backoff gives the cache time to catch up before the retries
-// are exhausted and controller-runtime logs a Reconciler error.
 var statusUpdateConflictBackoff = wait.Backoff{
 	Steps:    10,
 	Duration: 50 * time.Millisecond,
