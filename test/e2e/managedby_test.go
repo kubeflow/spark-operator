@@ -57,7 +57,7 @@ var _ = Describe("SparkApplication managedBy field", func() {
 	)
 
 	DescribeTable("update validation",
-		func(oldManagedBy, newManagedBy *string) {
+		func(oldManagedBy, newManagedBy *string, wantInvalid bool) {
 			app := newManagedByApp("managed-by-update-test", oldManagedBy)
 			Expect(k8sClient.Create(ctx, app)).To(Succeed())
 			DeferCleanup(k8sClient.Delete, ctx, app)
@@ -66,19 +66,26 @@ var _ = Describe("SparkApplication managedBy field", func() {
 			updated.Spec.ManagedBy = newManagedBy
 
 			err := k8sClient.Update(ctx, updated)
-			Expect(err).To(HaveOccurred())
-			Expect(apierrors.IsInvalid(err)).To(BeTrue(),
-				"expected Invalid status error, got: %v", err)
+			if wantInvalid {
+				Expect(err).To(HaveOccurred())
+				Expect(apierrors.IsInvalid(err)).To(BeTrue(),
+					"expected Invalid status error, got: %v", err)
+			} else {
+				Expect(err).To(Succeed())
+			}
 		},
-		Entry("rejects adding managedBy",
+		Entry("allows adding managedBy",
 			nil,
-			ptr.To(common.SparkOperatorManagerName)),
-		Entry("rejects removing managedBy",
 			ptr.To(common.SparkOperatorManagerName),
-			nil),
-		Entry("rejects removing managedBy from MultiKueue",
+			false),
+		Entry("rejects changing managedBy to MultiKueue",
+			ptr.To(common.SparkOperatorManagerName),
 			ptr.To("kueue.x-k8s.io/multikueue"),
-			nil),
+			true),
+		Entry("rejects changing managedBy to spark operator",
+			ptr.To("kueue.x-k8s.io/multikueue"),
+			ptr.To(common.SparkOperatorManagerName),
+			true),
 	)
 })
 
