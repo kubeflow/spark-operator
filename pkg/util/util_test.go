@@ -19,11 +19,14 @@ package util_test
 import (
 	"os"
 
+	"github.com/go-logr/logr/funcr"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/kubeflow/spark-operator/v2/pkg/common"
 	"github.com/kubeflow/spark-operator/v2/pkg/util"
@@ -220,5 +223,42 @@ var _ = Describe("ConvertJavaMemoryStringToK8sMemoryString", func() {
 			Expect(util.ConvertJavaMemoryStringToK8sMemoryString(input)).
 				To(Equal(expected), "input: %q", input)
 		}
+	})
+})
+
+var _ = Describe("SetIfNotExists", func() {
+	It("Should set the value when the key does not exist", func() {
+		m := map[string]string{"a": "1"}
+		util.SetIfNotExists(m, "b", "2")
+		Expect(m).To(Equal(map[string]string{"a": "1", "b": "2"}))
+	})
+
+	It("Should not overwrite the value when the key already exists", func() {
+		m := map[string]string{"a": "1"}
+		util.SetIfNotExists(m, "a", "2")
+		Expect(m).To(Equal(map[string]string{"a": "1"}))
+	})
+})
+
+var _ = Describe("NewLogConstructor", func() {
+	It("Should add the controller name in lowercase for a nil request", func() {
+		var captured string
+		logger := funcr.New(func(prefix, args string) { captured = args }, funcr.Options{})
+
+		util.NewLogConstructor(logger, "SparkApplication")(nil).Info("test")
+
+		Expect(captured).To(ContainSubstring(`"controller"="sparkapplication"`))
+		Expect(captured).NotTo(ContainSubstring("SparkApplication"))
+	})
+
+	It("Should add the kind keyed by the namespaced name for a non nil request", func() {
+		var captured string
+		logger := funcr.New(func(prefix, args string) { captured = args }, funcr.Options{})
+		req := &reconcile.Request{NamespacedName: types.NamespacedName{Namespace: "ns", Name: "app"}}
+
+		util.NewLogConstructor(logger, "SparkApplication")(req).Info("test")
+
+		Expect(captured).To(ContainSubstring(`"controller"="sparkapplication"`))
+		Expect(captured).To(ContainSubstring(`"SparkApplication"={"name"="app" "namespace"="ns"}`))
 	})
 })
