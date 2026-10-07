@@ -30,6 +30,7 @@ import (
 
 	"github.com/go-logr/logr"
 	"github.com/kubeflow/spark-operator/v2/api/v1beta2"
+	"github.com/kubeflow/spark-operator/v2/pkg/common"
 	"github.com/kubeflow/spark-operator/v2/pkg/features"
 	"github.com/kubeflow/spark-operator/v2/pkg/util"
 )
@@ -170,6 +171,10 @@ func (f *EventFilter) Update(e event.UpdateEvent) bool {
 	}
 
 	if !f.filter(newApp) {
+		return false
+	}
+
+	if newApp.Spec.ManagedBy != nil && *newApp.Spec.ManagedBy != common.SparkOperatorManagerName {
 		return false
 	}
 
