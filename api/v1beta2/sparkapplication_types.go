@@ -27,6 +27,7 @@ import (
 
 // SparkApplicationSpec defines the desired state of SparkApplication
 // It carries every pieces of information a spark-submit command takes and recognizes.
+// +kubebuilder:validation:XValidation:rule="has(oldSelf.managedBy) == has(self.managedBy)",message="managedBy is immutable"
 type SparkApplicationSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make generate" to regenerate code after modifying this file

@@ -12942,6 +12942,9 @@ spec:
             - sparkVersion
             - type
             type: object
+            x-kubernetes-validations:
+            - message: managedBy is immutable
+              rule: has(oldSelf.managedBy) == has(self.managedBy)
           status:
             description: SparkApplicationStatus defines the observed state of SparkApplication
             properties:

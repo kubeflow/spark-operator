@@ -13028,6 +13028,9 @@ spec:
                 - sparkVersion
                 - type
                 type: object
+                x-kubernetes-validations:
+                - message: managedBy is immutable
+                  rule: has(oldSelf.managedBy) == has(self.managedBy)
               timeZone:
                 description: |-
                   TimeZone is the time zone in which the cron schedule will be interpreted in.
