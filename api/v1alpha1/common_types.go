@@ -49,6 +49,27 @@ const (
 	ExecutorStateUnknown   ExecutorState = "UNKNOWN"
 )
 
+// Dependencies specifies the Maven dependencies of a Spark Connect server.
+type Dependencies struct {
+	// Jars is a list of JAR files the Spark Connect server depends on.
+	// +optional
+	Jars []string `json:"jars,omitempty"`
+	// Packages is a list of maven coordinates of jars to include on the driver and executor
+	// classpaths. This will search the local maven repo, then maven central and any additional
+	// remote repositories given by the "repositories" option.
+	// Each package should be of the form "groupId:artifactId:version".
+	// +optional
+	Packages []string `json:"packages,omitempty"`
+	// ExcludePackages is a list of "groupId:artifactId", to exclude while resolving the
+	// dependencies provided in Packages to avoid dependency conflicts.
+	// +optional
+	ExcludePackages []string `json:"excludePackages,omitempty"`
+	// Repositories is a list of additional remote repositories to search for the maven coordinate
+	// given with the "packages" option.
+	// +optional
+	Repositories []string `json:"repositories,omitempty"`
+}
+
 // DynamicAllocation contains configuration options for dynamic allocation.
 type DynamicAllocation struct {
 	// Enabled controls whether dynamic allocation is enabled or not.

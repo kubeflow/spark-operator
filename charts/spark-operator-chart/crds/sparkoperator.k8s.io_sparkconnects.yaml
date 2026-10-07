@@ -52,6 +52,40 @@ spec:
           spec:
             description: SparkConnectSpec defines the desired state of SparkConnect.
             properties:
+              deps:
+                description: Deps captures all possible types of dependencies of a
+                  Spark Connect server.
+                properties:
+                  excludePackages:
+                    description: |-
+                      ExcludePackages is a list of "groupId:artifactId", to exclude while resolving the
+                      dependencies provided in Packages to avoid dependency conflicts.
+                    items:
+                      type: string
+                    type: array
+                  jars:
+                    description: Jars is a list of JAR files the Spark Connect server
+                      depends on.
+                    items:
+                      type: string
+                    type: array
+                  packages:
+                    description: |-
+                      Packages is a list of maven coordinates of jars to include on the driver and executor
+                      classpaths. This will search the local maven repo, then maven central and any additional
+                      remote repositories given by the "repositories" option.
+                      Each package should be of the form "groupId:artifactId:version".
+                    items:
+                      type: string
+                    type: array
+                  repositories:
+                    description: |-
+                      Repositories is a list of additional remote repositories to search for the maven coordinate
+                      given with the "packages" option.
+                    items:
+                      type: string
+                    type: array
+                type: object
               dynamicAllocation:
                 description: |-
                   DynamicAllocation configures dynamic allocation that becomes available for the Kubernetes

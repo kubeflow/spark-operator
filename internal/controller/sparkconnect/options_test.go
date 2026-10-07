@@ -128,6 +128,52 @@ var _ = Describe("Options functions", func() {
 			}))
 		})
 	})
+
+	Context("dependenciesOption", func() {
+		It("emits spark-submit dependency flags as individual arguments", func() {
+			conn := &v1alpha1.SparkConnect{
+				Spec: v1alpha1.SparkConnectSpec{
+					Deps: v1alpha1.Dependencies{
+						Jars:            []string{"local:///opt/spark/jars/iceberg.jar"},
+						Packages:        []string{"org.apache.iceberg:iceberg-spark-runtime-3.5_2.12:1.5.0"},
+						ExcludePackages: []string{"org.slf4j:slf4j-log4j12"},
+						Repositories:    []string{"https://repo1.maven.org/maven2"},
+					},
+				},
+			}
+
+			args, err := dependenciesOption(conn)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(args).To(Equal([]string{
+				"--jars", "local:///opt/spark/jars/iceberg.jar",
+				"--packages", "org.apache.iceberg:iceberg-spark-runtime-3.5_2.12:1.5.0",
+				"--exclude-packages", "org.slf4j:slf4j-log4j12",
+				"--repositories", "https://repo1.maven.org/maven2",
+			}))
+		})
+
+		It("passes dependency values through unchanged", func() {
+			conn := &v1alpha1.SparkConnect{
+				Spec: v1alpha1.SparkConnectSpec{
+					Deps: v1alpha1.Dependencies{
+						Jars:            []string{"local:///opt/spark/jars/with space.jar", "local:///opt/spark/jars/quote'file.jar"},
+						Packages:        []string{"org.example:package:1.0; printf injected"},
+						ExcludePackages: []string{"org.example:excluded"},
+						Repositories:    []string{"https://repo.example/a path"},
+					},
+				},
+			}
+
+			args, err := dependenciesOption(conn)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(args).To(Equal([]string{
+				"--jars", "local:///opt/spark/jars/with space.jar,local:///opt/spark/jars/quote'file.jar",
+				"--packages", "org.example:package:1.0; printf injected",
+				"--exclude-packages", "org.example:excluded",
+				"--repositories", "https://repo.example/a path",
+			}))
+		})
+	})
 })
 
 // parsedSparkConfig reads back the "--conf key=value" pairs exactly as they are
