@@ -655,3 +655,63 @@ func configMapRefs(names ...string) []v1beta2.NamePath {
 	}
 	return refs
 }
+
+func TestSparkApplicationValidatorValidateCreate_GPU(t *testing.T) {
+	tests := []struct {
+		name      string
+		mutate    func(app *v1beta2.SparkApplication)
+		wantError string
+	}{
+		{
+			name:   "no GPU",
+			mutate: func(*v1beta2.SparkApplication) {},
+		},
+		{
+			name: "valid driver and executor GPU",
+			mutate: func(app *v1beta2.SparkApplication) {
+				app.Spec.Driver.GPU = &v1beta2.GPUSpec{Name: "nvidia.com/gpu", Quantity: 1}
+				app.Spec.Executor.GPU = &v1beta2.GPUSpec{Name: "nvidia.com/gpu", Quantity: 2}
+			},
+		},
+		{
+			name: "driver GPU with empty name",
+			mutate: func(app *v1beta2.SparkApplication) {
+				app.Spec.Driver.GPU = &v1beta2.GPUSpec{Quantity: 1}
+			},
+			wantError: "driver.gpu.name must not be empty",
+		},
+		{
+			name: "executor GPU with zero quantity",
+			mutate: func(app *v1beta2.SparkApplication) {
+				app.Spec.Executor.GPU = &v1beta2.GPUSpec{Name: "nvidia.com/gpu", Quantity: 0}
+			},
+			wantError: "executor.gpu.quantity must be positive, got 0",
+		},
+		{
+			name: "executor GPU with negative quantity",
+			mutate: func(app *v1beta2.SparkApplication) {
+				app.Spec.Executor.GPU = &v1beta2.GPUSpec{Name: "nvidia.com/gpu", Quantity: -1}
+			},
+			wantError: "executor.gpu.quantity must be positive, got -1",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			validator := newTestValidator(t, false)
+			app := newSparkApplication()
+			tt.mutate(app)
+
+			_, err := validator.ValidateCreate(context.Background(), app)
+			if tt.wantError == "" {
+				if err != nil {
+					t.Fatalf("expected success, got %v", err)
+				}
+				return
+			}
+			if err == nil || !strings.Contains(err.Error(), tt.wantError) {
+				t.Fatalf("expected error containing %q, got %v", tt.wantError, err)
+			}
+		})
+	}
+}
