@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-#
 apiVersion: sparkoperator.k8s.io/v1alpha1
 kind: SparkConnect
 metadata:
@@ -21,11 +20,7 @@ metadata:
 spec:
   sparkVersion: 4.0.4
   server:
-    # Spark task-slot count for the driver. Independent of physical CPU.
     cores: 1
-    # Operator-applied Kubernetes CPU request/limit for the operator-created
-    # server pod. coreRequest (500m) is intentionally smaller than coreLimit
-    # (1) to show they can differ.
     coreRequest: "500m"
     coreLimit: "1"
     memory: 1g
@@ -68,12 +63,7 @@ spec:
             type: RuntimeDefault
   executor:
     instances: 2
-    # Spark task-slot count for executors. Independent of physical CPU.
     cores: 2
-    # Maps to `spark.kubernetes.executor.{request,limit}.cores` and is
-    # applied by Spark when it creates the executor pods. The values
-    # `500m` and `1500m` differ to illustrate that coreRequest can be
-    # smaller than coreLimit.
     coreRequest: "500m"
     coreLimit: "1500m"
     memory: 512m

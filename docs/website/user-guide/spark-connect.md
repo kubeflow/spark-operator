@@ -163,6 +163,40 @@ spec:
 See [Define a Command and Arguments for a Container](https://kubernetes.io/docs/tasks/inject-data-application/define-command-argument-container/#running-a-command-in-a-shell)
 for the full rules.
 
+## CPU request and limit
+
+`cores` and `coreRequest` / `coreLimit` are independent. `cores` is the number of
+Spark task slots, while `coreRequest` and `coreLimit` are the physical Kubernetes
+CPU request and limit on the container, so setting `cores: 2` together with
+`coreRequest: 500m` is valid and common.
+
+The two are applied differently, because the server and executor pods are created
+by different actors:
+
+- **Server** — the operator creates the server pod, so
+  `.spec.server.coreRequest` and `.spec.server.coreLimit` are written directly onto
+  its container's `resources`. A CPU value in `.spec.server.template` is used only
+  where the corresponding field is unset.
+- **Executor** — Spark creates the executor pods. The operator passes the fields to
+  Spark as `spark.kubernetes.executor.request.cores` and
+  `spark.kubernetes.executor.limit.cores`, and Spark sets the container resources
+  from them. Spark always computes the executor CPU *request* itself, so a CPU
+  request in `.spec.executor.template` never applies, while a CPU *limit* in that
+  template is used only when `.spec.executor.coreLimit` is unset.
+
+If a value is set both as a CRD field and as the same key in `.spec.sparkConf`, the
+CRD field wins: the operator emits its generated `--conf` flags after the
+`sparkConf` entries, and Spark applies the last value.
+
+The admission webhook requires each of these fields to be positive and validates
+that `coreRequest` does not exceed `coreLimit` on the effective values, so a pod
+template value counts where the CRD field is unset. The comparison is skipped when
+no effective limit is set.
+
+The [`spark-connect-custom-resource.yaml`](https://github.com/kubeflow/spark-operator/blob/master/examples/sparkconnect/spark-connect-custom-resource.yaml)
+example sets both fields on the server and on the executor, alongside pod templates
+that also specify CPU, and shows which value ends up on the pods.
+
 ## Request GPUs
 
 Set `.spec.executor.gpu` to run GPU workloads on executors. Set
@@ -239,40 +273,6 @@ GPU allocation alone does not enable SQL/DataFrame acceleration: configure
 the RAPIDS plugin separately if your workload needs it. See Spark's
 [resource allocation documentation](https://spark.apache.org/docs/latest/running-on-kubernetes.html#resource-allocation-and-configuration-overview)
 for discovery scripts and scheduling requirements.
-
-### CPU request and limit
-
-`cores` and `coreRequest` / `coreLimit` are independent. `cores` is the number of
-Spark task slots, while `coreRequest` and `coreLimit` are the physical Kubernetes
-CPU request and limit on the container, so setting `cores: 2` together with
-`coreRequest: 500m` is valid and common.
-
-The two are applied differently, because the server and executor pods are created
-by different actors:
-
-- **Server** — the operator creates the server pod, so
-  `.spec.server.coreRequest` and `.spec.server.coreLimit` are written directly onto
-  its container's `resources`. A CPU value in `.spec.server.template` is used only
-  where the corresponding field is unset.
-- **Executor** — Spark creates the executor pods. The operator passes the fields to
-  Spark as `spark.kubernetes.executor.request.cores` and
-  `spark.kubernetes.executor.limit.cores`, and Spark sets the container resources
-  from them. Spark always computes the executor CPU *request* itself, so a CPU
-  request in `.spec.executor.template` never applies, while a CPU *limit* in that
-  template is used only when `.spec.executor.coreLimit` is unset.
-
-If a value is set both as a CRD field and as the same key in `.spec.sparkConf`, the
-CRD field wins: the operator emits its generated `--conf` flags after the
-`sparkConf` entries, and Spark applies the last value.
-
-The admission webhook requires each of these fields to be positive and validates
-that `coreRequest` does not exceed `coreLimit` on the effective values, so a pod
-template value counts where the CRD field is unset. The comparison is skipped when
-no effective limit is set.
-
-The [`spark-connect-custom-resource.yaml`](https://github.com/kubeflow/spark-operator/blob/master/examples/sparkconnect/spark-connect-custom-resource.yaml)
-example sets both fields on the server and on the executor, alongside pod templates
-that also specify CPU, and shows which value ends up on the pods.
 
 ## Troubleshoot
 

@@ -37,22 +37,6 @@ import (
 )
 
 var _ = Describe("SparkConnect CPU Resources", func() {
-	// Test the new CoreRequest/CoreLimit fields at the API/runtime level.
-	// These tests create a SparkConnect in-memory (rather than loading the
-	// example yaml) so that they can assert the specific values they wrote
-	// are actually applied to the operator-created server pod and surfaced
-	// in the spark-submit args for executor pods.
-	//
-	// The "Apply server CoreRequest/CoreLimit" Context only waits for the
-	// server pod to be created — its assertions only depend on fields the
-	// operator writes at pod-creation time, and waiting on readiness would
-	// add JVM startup per spec for no extra coverage. The "Precedence"
-	// Context adds separate Its that do exercise readiness end-to-end and
-	// inspect a real executor pod. The executor assertions belong there
-	// because Spark, not the operator, creates executor pods, and those are
-	// created by the server pod's service account: the namespace's default
-	// service account has no RBAC to create them, so that Context sets
-	// spark-operator-spark explicitly.
 	Context("Apply server CoreRequest/CoreLimit to the server pod", func() {
 		ctx := context.Background()
 
@@ -115,12 +99,6 @@ var _ = Describe("SparkConnect CPU Resources", func() {
 				"expected server CPU limit 1, got %s", cpuLim.String())
 
 			By("Asserting the server pod args contain the executor CPU conf keys")
-			// These stay alongside the executor-pod assertions in the Precedence Context
-			// below: they guard what the operator emits, which is a different failure from
-			// Spark not honouring it.
-			// The server pod's args string is built from buildStartConnectServerArgs and includes
-			// --conf spark.kubernetes.executor.request.cores=... and --conf spark.kubernetes.executor.limit.cores=...
-			// generated from executor.coreRequest / executor.coreLimit.
 			args := serverContainer.Args
 			Expect(args).NotTo(BeEmpty(), "server pod args should be set by the operator")
 			allArgs := strings.Join(args, " ")
@@ -151,14 +129,8 @@ var _ = Describe("SparkConnect CPU Resources", func() {
 						SparkPodSpec: v1alpha1.SparkPodSpec{
 							CoreRequest: ptr.To(resource.MustParse("500m")),
 							CoreLimit:   ptr.To(resource.MustParse("1")),
-							// Template also specifies CPU and memory.
 							Template: &corev1.PodTemplateSpec{
 								Spec: corev1.PodSpec{
-									// The readiness It waits for the Spark Connect server to start, which
-									// requires the pod to launch executor pods. The default service account
-									// in the "default" namespace has no RBAC for that, so we explicitly use
-									// the spark-operator-spark SA installed by config/spark-rbac/ in the e2e
-									// suite. The example YAML does the same.
 									ServiceAccountName: "spark-operator-spark",
 									Containers: []corev1.Container{
 										{
@@ -258,9 +230,6 @@ var _ = Describe("SparkConnect CPU Resources", func() {
 			executorContainer := containerByName(executorPod, common.Spark3DefaultExecutorContainerName)
 
 			By("Asserting spec.executor.coreRequest wins for the CPU request")
-			// Spark always sets the executor CPU request from
-			// spark.kubernetes.executor.request.cores, so the template's request never
-			// applies — the container must end up with the CRD value, not the template's.
 			cpuReq, ok := executorContainer.Resources.Requests[corev1.ResourceCPU]
 			Expect(ok).To(BeTrue(), "executor pod should have a CPU request set")
 			Expect(cpuReq.Equal(resource.MustParse("500m"))).To(BeTrue(),
@@ -293,9 +262,6 @@ var _ = Describe("SparkConnect CPU Resources", func() {
 	})
 })
 
-// waitForServerPod waits until the operator has created the SparkConnect server pod
-// and returns it. It deliberately does not wait for the pod to become ready: the
-// caller asserts on fields the operator writes when it first creates the pod.
 func waitForServerPod(ctx context.Context, conn *v1alpha1.SparkConnect) *corev1.Pod {
 	GinkgoHelper()
 
@@ -312,10 +278,6 @@ func waitForServerPod(ctx context.Context, conn *v1alpha1.SparkConnect) *corev1.
 	return serverPod
 }
 
-// waitForExecutorPod waits until Spark has created the requested number of executor
-// pods for the SparkConnect and they are all ready, then returns the first one.
-// Executor pods are created by Spark rather than the operator, so they can only be
-// found by label — there is no computed pod name to look up.
 func waitForExecutorPod(ctx context.Context, conn *v1alpha1.SparkConnect) *corev1.Pod {
 	GinkgoHelper()
 
@@ -349,10 +311,6 @@ func waitForExecutorPod(ctx context.Context, conn *v1alpha1.SparkConnect) *corev
 	return &executorPods.Items[0]
 }
 
-// containerByName returns the container with the given name. It fails the test
-// rather than falling back to the first container when the name does not match, so
-// that a renamed or reordered container is caught instead of silently asserting
-// against an unrelated one.
 func containerByName(pod *corev1.Pod, name string) *corev1.Container {
 	GinkgoHelper()
 

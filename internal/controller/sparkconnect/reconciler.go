@@ -403,6 +403,7 @@ func (r *Reconciler) mutateServerPod(ctx context.Context, conn *v1alpha1.SparkCo
 			conn.Spec.Server.CoreLimit,
 		)
 
+		// Setup GPU resources.
 		if gpu := conn.Spec.Server.GPU; gpu != nil {
 			util.SetGPUResources(container, gpu.Name, gpu.Quantity)
 		}

@@ -157,9 +157,7 @@ var _ = Describe("Options functions", func() {
 			Expect(err).NotTo(HaveOccurred())
 			config := parsedSparkConfig(args)
 
-			// Verify Cores still maps to spark.driver.cores
 			Expect(config).To(HaveKeyWithValue("spark.driver.cores", "4"))
-
 			Expect(config).NotTo(HaveKey(common.SparkKubernetesDriverRequestCores))
 			Expect(config).NotTo(HaveKey(common.SparkKubernetesDriverLimitCores))
 		})
@@ -192,13 +190,8 @@ var _ = Describe("Options functions", func() {
 			Expect(err).NotTo(HaveOccurred())
 			config := parsedSparkConfig(args)
 
-			// Verify Cores maps to spark.executor.cores (not affected by CoreRequest/CoreLimit)
 			Expect(config).To(HaveKeyWithValue("spark.executor.cores", "4"))
-
-			// Verify CoreRequest maps to physical CPU request
 			Expect(config).To(HaveKeyWithValue(common.SparkKubernetesExecutorRequestCores, "3500m"))
-
-			// Verify CoreLimit maps to physical CPU limit
 			Expect(config).To(HaveKeyWithValue(common.SparkKubernetesExecutorLimitCores, "4"))
 		})
 
@@ -224,10 +217,7 @@ var _ = Describe("Options functions", func() {
 			Expect(err).NotTo(HaveOccurred())
 			driverConfig := parsedSparkConfig(driverArgs)
 
-			// Verify Cores is present
 			Expect(driverConfig).To(HaveKeyWithValue("spark.driver.cores", "4"))
-
-			// Verify CPU request/limit are NOT present
 			Expect(driverConfig).NotTo(HaveKey(common.SparkKubernetesDriverRequestCores))
 			Expect(driverConfig).NotTo(HaveKey(common.SparkKubernetesDriverLimitCores))
 		})
@@ -256,10 +246,7 @@ var _ = Describe("Options functions", func() {
 			Expect(err).NotTo(HaveOccurred())
 			config := parsedSparkConfig(args)
 
-			// Verify CoreRequest is present
 			Expect(config).To(HaveKeyWithValue(common.SparkKubernetesExecutorRequestCores, "500m"))
-
-			// Verify CoreLimit is NOT present
 			Expect(config).NotTo(HaveKey(common.SparkKubernetesExecutorLimitCores))
 		})
 
@@ -289,8 +276,6 @@ var _ = Describe("Options functions", func() {
 			Expect(err).NotTo(HaveOccurred())
 			config := parsedSparkConfig(args)
 
-			// Verify decimal values are serialized in the canonical Kubernetes form
-			// (1.5 -> 1500m, 2.5 -> 2500m) via resource.Quantity.String().
 			Expect(config).To(HaveKeyWithValue(common.SparkKubernetesExecutorRequestCores, "1500m"))
 			Expect(config).To(HaveKeyWithValue(common.SparkKubernetesExecutorLimitCores, "2500m"))
 		})

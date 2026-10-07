@@ -502,9 +502,7 @@ var _ = Describe("mutateServerPod with CPU resources", func() {
 		Expect(err).NotTo(HaveOccurred())
 
 		container := pod.Spec.Containers[0]
-		// server.coreRequest wins for the CPU key, matching the addMemoryLimit merge convention.
 		Expect(cpuMilliValue(container.Resources.Requests[corev1.ResourceCPU])).To(Equal(int64(500)))
-		// Template memory request and CPU limit are preserved.
 		Expect(memValue(container.Resources.Requests[corev1.ResourceMemory])).To(Equal(int64(1) << 30))
 		Expect(cpuMilliValue(container.Resources.Limits[corev1.ResourceCPU])).To(Equal(int64(2000)))
 		Expect(memValue(container.Resources.Limits[corev1.ResourceMemory])).To(Equal(int64(1) << 30))
@@ -553,8 +551,6 @@ var _ = Describe("mutateServerPod with CPU resources", func() {
 		err := reconciler.mutateServerPod(context.TODO(), conn, pod)
 		Expect(err).NotTo(HaveOccurred())
 
-		// Cores is the task-slot count (spark.driver.cores) and must not influence the pod
-		// resource quantity.
 		container := pod.Spec.Containers[0]
 		Expect(cpuMilliValue(container.Resources.Requests[corev1.ResourceCPU])).To(Equal(int64(500)))
 	})
@@ -589,9 +585,6 @@ var _ = Describe("mutateServerPod with CPU resources", func() {
 		err := reconciler.mutateServerPod(context.TODO(), conn, pod)
 		Expect(err).NotTo(HaveOccurred())
 
-		// The template must be left exactly as it was: mutateServerPod mutates the pod it is
-		// given, and both the label map and the container slice are shared unless they are
-		// copied onto the pod first.
 		Expect(conn.Spec.Server.Template.Spec.Containers[0].Image).To(BeEmpty())
 		Expect(conn.Spec.Server.Template.Labels).NotTo(HaveKey(common.LabelSparkVersion))
 		Expect(apiequality.Semantic.DeepEqual(original, conn.Spec.Server.Template)).To(BeTrue(),
