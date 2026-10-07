@@ -27,6 +27,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/clock"
+	testingclock "k8s.io/utils/clock/testing"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
@@ -89,6 +90,115 @@ var _ = Describe("ScheduledSparkApplication Controller", func() {
 			Expect(err).NotTo(HaveOccurred())
 			// TODO(user): Add more specific assertions depending on your controller's reconciliation logic.
 			// Example: If you expect a certain status condition after reconciliation, verify it here.
+		})
+
+		It("should transition to FailedValidation on invalid schedule and recover to Scheduled when corrected", func() {
+			t0 := time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC)
+			fakeClock := testingclock.NewFakeClock(t0)
+			reconciler := NewReconciler(k8sClient.Scheme(), k8sClient, nil, fakeClock, Options{Namespaces: []string{"default"}, TimestampPrecision: "nanos"})
+
+			By("Initially reconciling to Scheduled state with a valid schedule")
+			app := &v1beta2.ScheduledSparkApplication{}
+			Expect(k8sClient.Get(ctx, typeNamespacedName, app)).To(Succeed())
+			app.Spec.Schedule = "@every 1h"
+			Expect(k8sClient.Update(ctx, app)).To(Succeed())
+
+			result, err := reconciler.Reconcile(ctx, reconcile.Request{NamespacedName: typeNamespacedName})
+			Expect(err).NotTo(HaveOccurred())
+			Expect(result.RequeueAfter).To(Equal(1 * time.Hour))
+
+			Expect(k8sClient.Get(ctx, typeNamespacedName, app)).To(Succeed())
+			Expect(app.Status.ScheduleState).To(Equal(v1beta2.ScheduleStateScheduled))
+			initialNextRun := app.Status.NextRun
+			Expect(initialNextRun.Time).To(BeTemporally("==", t0.Add(1*time.Hour)))
+
+			By("Updating the schedule to an invalid value")
+			app.Spec.Schedule = "invalid-cron-schedule"
+			Expect(k8sClient.Update(ctx, app)).To(Succeed())
+
+			By("Reconciling with invalid schedule")
+			result, err = reconciler.Reconcile(ctx, reconcile.Request{NamespacedName: typeNamespacedName})
+			Expect(err).NotTo(HaveOccurred())
+			Expect(result.RequeueAfter).To(BeZero())
+
+			By("Verifying the status reflects FailedValidation while preserving stale NextRun")
+			Expect(k8sClient.Get(ctx, typeNamespacedName, app)).To(Succeed())
+			Expect(app.Status.ScheduleState).To(Equal(v1beta2.ScheduleStateFailedValidation))
+			Expect(app.Status.Reason).To(ContainSubstring("expected exactly 5 fields"))
+			Expect(app.Status.NextRun.Time).To(BeTemporally("==", initialNextRun.Time))
+
+			By("Correcting the schedule to a new valid schedule with a later next run")
+			// @every 2h ensures the new next run (t0 + 2h) is after the stale next run (t0 + 1h),
+			// directly verifying that recovery updates NextRun even when nextRunTime is not before oldNextRunTime.
+			app.Spec.Schedule = "@every 2h"
+			Expect(k8sClient.Update(ctx, app)).To(Succeed())
+
+			By("Reconciling after correcting the schedule")
+			result, err = reconciler.Reconcile(ctx, reconcile.Request{NamespacedName: typeNamespacedName})
+			Expect(err).NotTo(HaveOccurred())
+			Expect(result.RequeueAfter).To(Equal(2 * time.Hour))
+
+			By("Verifying the status recovered to Scheduled with recalculated NextRun")
+			Expect(k8sClient.Get(ctx, typeNamespacedName, app)).To(Succeed())
+			Expect(app.Status.ScheduleState).To(Equal(v1beta2.ScheduleStateScheduled))
+			Expect(app.Status.Reason).To(BeEmpty())
+			Expect(app.Status.NextRun.Time).To(BeTemporally("==", t0.Add(2*time.Hour)))
+			Expect(app.Status.NextRun.Time).NotTo(BeTemporally("==", initialNextRun.Time))
+		})
+
+		It("should transition to FailedValidation on invalid timezone and recover to Scheduled when corrected", func() {
+			t0 := time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC)
+			fakeClock := testingclock.NewFakeClock(t0)
+			reconciler := NewReconciler(k8sClient.Scheme(), k8sClient, nil, fakeClock, Options{Namespaces: []string{"default"}, TimestampPrecision: "nanos"})
+
+			By("Initially reconciling to Scheduled state with a valid timezone")
+			app := &v1beta2.ScheduledSparkApplication{}
+			Expect(k8sClient.Get(ctx, typeNamespacedName, app)).To(Succeed())
+			app.Spec.Schedule = "0 14 * * *"
+			app.Spec.TimeZone = "UTC"
+			Expect(k8sClient.Update(ctx, app)).To(Succeed())
+
+			result, err := reconciler.Reconcile(ctx, reconcile.Request{NamespacedName: typeNamespacedName})
+			Expect(err).NotTo(HaveOccurred())
+			Expect(result.RequeueAfter).To(Equal(2 * time.Hour))
+
+			Expect(k8sClient.Get(ctx, typeNamespacedName, app)).To(Succeed())
+			Expect(app.Status.ScheduleState).To(Equal(v1beta2.ScheduleStateScheduled))
+			initialNextRun := app.Status.NextRun
+			Expect(initialNextRun.Time).To(BeTemporally("==", t0.Add(2*time.Hour)))
+
+			By("Updating the timezone to an invalid value")
+			app.Spec.TimeZone = "Invalid/Timezone"
+			Expect(k8sClient.Update(ctx, app)).To(Succeed())
+
+			By("Reconciling with invalid timezone")
+			result, err = reconciler.Reconcile(ctx, reconcile.Request{NamespacedName: typeNamespacedName})
+			Expect(err).NotTo(HaveOccurred())
+			Expect(result.RequeueAfter).To(BeZero())
+
+			By("Verifying the status reflects FailedValidation while preserving stale NextRun")
+			Expect(k8sClient.Get(ctx, typeNamespacedName, app)).To(Succeed())
+			Expect(app.Status.ScheduleState).To(Equal(v1beta2.ScheduleStateFailedValidation))
+			Expect(app.Status.Reason).To(ContainSubstring("unknown time zone"))
+			Expect(app.Status.NextRun.Time).To(BeTemporally("==", initialNextRun.Time))
+
+			By("Correcting the timezone to a timezone that produces a later next run")
+			// 14:00 in America/New_York (EST, UTC-5) corresponds to 19:00 UTC (t0 + 7h).
+			// This tests that recovery overwrites stale NextRun (t0 + 2h) with the recalculated next run (t0 + 7h).
+			app.Spec.TimeZone = "America/New_York"
+			Expect(k8sClient.Update(ctx, app)).To(Succeed())
+
+			By("Reconciling after correcting the timezone")
+			result, err = reconciler.Reconcile(ctx, reconcile.Request{NamespacedName: typeNamespacedName})
+			Expect(err).NotTo(HaveOccurred())
+			Expect(result.RequeueAfter).To(Equal(7 * time.Hour))
+
+			By("Verifying the status recovered to Scheduled with recalculated NextRun")
+			Expect(k8sClient.Get(ctx, typeNamespacedName, app)).To(Succeed())
+			Expect(app.Status.ScheduleState).To(Equal(v1beta2.ScheduleStateScheduled))
+			Expect(app.Status.Reason).To(BeEmpty())
+			Expect(app.Status.NextRun.Time).To(BeTemporally("==", t0.Add(7*time.Hour)))
+			Expect(app.Status.NextRun.Time).NotTo(BeTemporally("==", initialNextRun.Time))
 		})
 	})
 })

@@ -8,6 +8,9 @@ corporate CA bundle, or satisfy private registry conventions.
 Every release attaches prebuilt `spark-operator` binaries so you can do this without
 installing a Go toolchain or reproducing the project build.
 
+> For guidance on evaluating vulnerability findings inherited from a Spark base image,
+> see [Controller Image Security](controller-image-security.md).
+
 ## Release artifacts
 
 Each GitHub release includes:

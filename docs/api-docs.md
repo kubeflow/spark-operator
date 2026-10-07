@@ -1134,6 +1134,21 @@ SparkApplicationSpec
 <table>
 <tr>
 <td>
+<code>managedBy</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>ManagedBy indicates the controller managing this SparkApplication.
+Set to &ldquo;sparkoperator.k8s.io/spark-operator&rdquo; for the built-in operator
+(default behavior when field is omitted) or &ldquo;kueue.x-k8s.io/multikueue&rdquo;
+to delegate reconciliation to MultiKueue. The field is immutable once set.</p>
+</td>
+</tr>
+<tr>
+<td>
 <code>suspend</code><br/>
 <em>
 bool
@@ -3264,6 +3279,21 @@ It carries every pieces of information a spark-submit command takes and recogniz
 </tr>
 </thead>
 <tbody>
+<tr>
+<td>
+<code>managedBy</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>ManagedBy indicates the controller managing this SparkApplication.
+Set to &ldquo;sparkoperator.k8s.io/spark-operator&rdquo; for the built-in operator
+(default behavior when field is omitted) or &ldquo;kueue.x-k8s.io/multikueue&rdquo;
+to delegate reconciliation to MultiKueue. The field is immutable once set.</p>
+</td>
+</tr>
 <tr>
 <td>
 <code>suspend</code><br/>

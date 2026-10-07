@@ -79,6 +79,20 @@ Tune operator behavior, flags, and Helm chart values
 Build your own operator image from the released binaries
 ::::
 
+::::{grid-item-card} Controller Image Security
+:link: controller-image-security
+:link-type: doc
+
+Understand inherited controller-image dependencies and vulnerability remediation considerations
+::::
+
+::::{grid-item-card} Integrate the REST Submitter
+:link: rest-submitter
+:link-type: doc
+
+Connect the operator to a separate REST submission service
+::::
+
 ::::{grid-item-card} Enabling Leader Election
 :link: leader-election
 :link-type: doc
@@ -165,6 +179,8 @@ spark-connect
 working-with-sparkconnect
 customizing-spark-operator
 building-custom-images
+controller-image-security
+rest-submitter
 leader-election
 running-multiple-instances-of-the-operator
 resource-quota-enforcement
