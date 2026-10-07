@@ -18,6 +18,7 @@ package volcano
 
 import (
 	"fmt"
+	"math"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -791,4 +792,187 @@ func TestBatchSchedulerOptionsOverride(t *testing.T) {
 				"memory: got %s, want %dMi", actualMem.String(), tc.expectMemoryMiB)
 		})
 	}
+}
+
+// TestExecutorMinResources covers the O(1)-multiply path, the upper-bound
+// guard, and the overflow guard introduced to fix the reviewer comment about
+// O(instances) slice allocation.
+func TestExecutorMinResources(t *testing.T) {
+	// base is a JVM app with 1g executor memory and 2 cores.
+	// perPod memory = 1024 + max(1024*0.1, 384) = 1024 + 384 = 1408 Mi
+	// perPod cpu    = 2
+	base := func(instances *int32, sparkConf map[string]string) *v1beta2.SparkApplication {
+		app := &v1beta2.SparkApplication{
+			ObjectMeta: metav1.ObjectMeta{Name: "test", Namespace: "default"},
+			Spec: v1beta2.SparkApplicationSpec{
+				Type: v1beta2.SparkApplicationTypeJava,
+				Executor: v1beta2.ExecutorSpec{
+					Instances: instances,
+					SparkPodSpec: v1beta2.SparkPodSpec{
+						Memory: ptr.To("1g"),
+						Cores:  ptr.To[int32](2),
+					},
+				},
+			},
+		}
+		if len(sparkConf) > 0 {
+			app.Spec.SparkConf = sparkConf
+		}
+		return app
+	}
+
+	t.Run("instances=1 matches per-pod values", func(t *testing.T) {
+		rl, err := executorMinResources(base(ptr.To[int32](1), nil))
+		require.NoError(t, err)
+		// memory: 1408 Mi * 1 = 1408 Mi
+		wantMem := resource.MustParse("1408Mi")
+		gotMem := rl[corev1.ResourceMemory]
+		assert.Equal(t, wantMem.Value(), gotMem.Value(), "memory 1×1408Mi")
+		// cpu: 2 * 1 = 2
+		wantCPU := resource.MustParse("2")
+		gotCPU := rl[corev1.ResourceCPU]
+		assert.Equal(t, wantCPU.Value(), gotCPU.Value(), "cpu 1×2")
+	})
+
+	t.Run("instances=2 doubles each resource", func(t *testing.T) {
+		rl, err := executorMinResources(base(ptr.To[int32](2), nil))
+		require.NoError(t, err)
+		// 1408 Mi * 2 = 2816 Mi
+		wantMem := resource.MustParse("2816Mi")
+		gotMem := rl[corev1.ResourceMemory]
+		assert.Equal(t, wantMem.Value(), gotMem.Value(), "memory 2×1408Mi")
+		// cpu: 2 * 2 = 4
+		wantCPU := resource.MustParse("4")
+		gotCPU := rl[corev1.ResourceCPU]
+		assert.Equal(t, wantCPU.Value(), gotCPU.Value(), "cpu 2×2")
+	})
+
+	t.Run("instances=10 matches 10x per-pod", func(t *testing.T) {
+		rl, err := executorMinResources(base(ptr.To[int32](10), nil))
+		require.NoError(t, err)
+		// 1408 Mi * 10 = 14080 Mi
+		wantMem := resource.MustParse("14080Mi")
+		gotMem := rl[corev1.ResourceMemory]
+		assert.Equal(t, wantMem.Value(), gotMem.Value(), "memory 10×1408Mi")
+		wantCPU := resource.MustParse("20")
+		gotCPU := rl[corev1.ResourceCPU]
+		assert.Equal(t, wantCPU.Value(), gotCPU.Value(), "cpu 10×2")
+	})
+
+	t.Run("instances=0 returns empty ResourceList", func(t *testing.T) {
+		rl, err := executorMinResources(base(ptr.To[int32](0), nil))
+		require.NoError(t, err)
+		assert.Empty(t, rl, "zero instances should yield empty ResourceList")
+	})
+
+	t.Run("binary-SI memory quantity preserved across multiply", func(t *testing.T) {
+		// Use a Gi memory value to confirm binary-SI Format is preserved.
+		app := &v1beta2.SparkApplication{
+			ObjectMeta: metav1.ObjectMeta{Name: "bsi", Namespace: "default"},
+			Spec: v1beta2.SparkApplicationSpec{
+				Type: v1beta2.SparkApplicationTypeJava,
+				Executor: v1beta2.ExecutorSpec{
+					Instances: ptr.To[int32](2),
+					SparkPodSpec: v1beta2.SparkPodSpec{
+						// 2Gi heap, explicit 512Mi overhead -> total 2048+512 = 2560 Mi per pod
+						// 2 pods -> 5120 Mi
+						Memory:         ptr.To("2g"),
+						MemoryOverhead: ptr.To("512m"),
+						Cores:          ptr.To[int32](1),
+					},
+				},
+			},
+		}
+		rl, err := executorMinResources(app)
+		require.NoError(t, err)
+		wantMem := resource.MustParse("5120Mi")
+		gotMem := rl[corev1.ResourceMemory]
+		assert.Equal(t, wantMem.Value(), gotMem.Value(), "2×2560Mi binary-SI")
+	})
+
+	t.Run("huge instances via sparkConf returns error promptly", func(t *testing.T) {
+		// 2_000_000_000 via sparkConf: used to allocate a ~16 GB slice and stall the loop.
+		// Must now return an error quickly.
+		app := base(nil, map[string]string{
+			"spark.executor.instances": "2000000000",
+		})
+		_, err := executorMinResources(app)
+		require.Error(t, err, "expected error for 2e9 instances")
+		assert.Contains(t, err.Error(), "exceeds maximum supported value",
+			"error message should mention the bound")
+	})
+
+	t.Run("instances just at maxExecutorInstances is accepted", func(t *testing.T) {
+		app := base(ptr.To[int32](maxExecutorInstances), nil)
+		_, err := executorMinResources(app)
+		require.NoError(t, err, "exactly maxExecutorInstances should be accepted")
+	})
+
+	t.Run("instances one over maxExecutorInstances is rejected", func(t *testing.T) {
+		app := base(ptr.To[int32](maxExecutorInstances+1), nil)
+		_, err := executorMinResources(app)
+		require.Error(t, err, "maxExecutorInstances+1 should be rejected")
+	})
+}
+
+// TestMultiplyQuantity covers the overflow helper directly.
+func TestMultiplyQuantity(t *testing.T) {
+	t.Run("normal multiply", func(t *testing.T) {
+		q := resource.MustParse("1408Mi")
+		got, err := multiplyQuantity(q, 3)
+		require.NoError(t, err)
+		want := resource.MustParse("4224Mi")
+		assert.Equal(t, want.Value(), got.Value())
+	})
+
+	t.Run("milli-cpu normal multiply", func(t *testing.T) {
+		q := resource.MustParse("500m")
+		got, err := multiplyQuantity(q, 4)
+		require.NoError(t, err)
+		want := resource.MustParse("2")
+		assert.Equal(t, want.MilliValue(), got.MilliValue())
+	})
+
+	t.Run("multiply by zero returns zero", func(t *testing.T) {
+		q := resource.MustParse("1Gi")
+		got, err := multiplyQuantity(q, 0)
+		require.NoError(t, err)
+		assert.Equal(t, int64(0), got.Value())
+	})
+
+	t.Run("just-safe milli-value: MaxInt64/milli exact boundary", func(t *testing.T) {
+		// Choose q and n so that milli*n is exactly MaxInt64.
+		// 1m has milli-value 1; MaxInt64 * 1m = MaxInt64 millivalue -> no overflow.
+		q := resource.MustParse("1m")
+		n := int64(math.MaxInt64)
+		_, err := multiplyQuantity(q, n)
+		require.NoError(t, err, "milli=1, n=MaxInt64 should not overflow")
+	})
+
+	t.Run("overflow: milli-value * n > MaxInt64", func(t *testing.T) {
+		// 2m has milli-value 2; 2*(MaxInt64/2 + 1) overflows.
+		q := resource.MustParse("2m")
+		n := int64(math.MaxInt64/2) + 1
+		_, err := multiplyQuantity(q, n)
+		require.Error(t, err, "should detect milli-value overflow")
+		assert.Contains(t, err.Error(), "overflows int64")
+	})
+
+	t.Run("large memory just under overflow", func(t *testing.T) {
+		// 1Gi = 1073741824 bytes; milli-value = 1073741824000.
+		// max safe n = MaxInt64 / 1073741824000 = 8589934.
+		q := resource.MustParse("1Gi")
+		milli := q.MilliValue() // 1073741824000
+		safeN := math.MaxInt64 / milli
+		_, err := multiplyQuantity(q, safeN)
+		require.NoError(t, err, "safeN should not overflow")
+	})
+
+	t.Run("large memory just over overflow", func(t *testing.T) {
+		q := resource.MustParse("1Gi")
+		milli := q.MilliValue()
+		overN := math.MaxInt64/milli + 1
+		_, err := multiplyQuantity(q, overN)
+		require.Error(t, err, "safeN+1 should overflow")
+	})
 }

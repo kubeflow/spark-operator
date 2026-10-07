@@ -19,10 +19,12 @@ package volcano
 import (
 	"context"
 	"fmt"
+	"math"
 
 	corev1 "k8s.io/api/core/v1"
 	apiextensionsclientset "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -192,9 +194,61 @@ func (s *Scheduler) syncPodGroupInClusterMode(app *v1beta2.SparkApplication) err
 	return nil
 }
 
+// maxExecutorInstances is the upper bound on the executor count accepted by
+// executorMinResources.  Instances are unbounded user input (the CRD has no
+// maximum, and sparkConf is a plain string map), so we cap here to keep the
+// per-resource multiplication from overflowing int64.  The value is large
+// enough to cover every real workload; a Spark job with 10 000 executors
+// would be extraordinary.
+const maxExecutorInstances = 10_000
+
+// multiplyResourceList returns a new ResourceList whose every quantity equals
+// q * n.  The Format of the original quantity is preserved on the result.
+// An error is returned if the multiplication would overflow int64 in the
+// milli-value representation (which is the finest granularity k8s uses
+// internally).
+func multiplyResourceList(src corev1.ResourceList, n int32) (corev1.ResourceList, error) {
+	if n == 0 {
+		return corev1.ResourceList{}, nil
+	}
+	result := make(corev1.ResourceList, len(src))
+	for name, q := range src {
+		scaled, err := multiplyQuantity(q, int64(n))
+		if err != nil {
+			return nil, fmt.Errorf("overflow multiplying resource %s by %d: %w", name, n, err)
+		}
+		result[name] = scaled
+	}
+	return result, nil
+}
+
+// multiplyQuantity returns q*n while preserving q.Format.
+// It errors on int64 milli-value overflow.
+func multiplyQuantity(q resource.Quantity, n int64) (resource.Quantity, error) {
+	milli := q.MilliValue()
+	if milli != 0 {
+		// Overflow guard: milli*n overflows when n > MaxInt64/|milli|.
+		if milli > 0 && n > math.MaxInt64/milli {
+			return resource.Quantity{}, fmt.Errorf("milli-value %d × %d overflows int64", milli, n)
+		}
+		if milli < 0 && n > math.MaxInt64/(-milli) {
+			return resource.Quantity{}, fmt.Errorf("milli-value %d × %d overflows int64", milli, n)
+		}
+	}
+	// Build the result from the scaled milli-value, then restore the original
+	// Format so binary-SI quantities (e.g. Gi) remain binary-SI.
+	scaled := resource.NewMilliQuantity(milli*n, q.Format)
+	return *scaled, nil
+}
+
 // executorMinResources returns the aggregate resource requests for all initial
 // executor pods (single-pod resources × initial executor count) with the correct
 // memoryOverheadFactor applied.
+//
+// instances is unbounded user input (no CRD maximum, sparkConf is a free-form
+// string map).  We multiply per-resource directly instead of building a slice of
+// length instances, to avoid O(instances) allocation and iteration.  We also
+// enforce maxExecutorInstances to keep the multiplication from overflowing int64.
 func executorMinResources(app *v1beta2.SparkApplication) (corev1.ResourceList, error) {
 	perPod, err := resourceusage.ExecutorPodResourceList(app)
 	if err != nil {
@@ -202,16 +256,15 @@ func executorMinResources(app *v1beta2.SparkApplication) (corev1.ResourceList, e
 	}
 
 	instances := util.GetInitialExecutorNumber(app)
-
-	// GetInitialExecutorNumber guarantees instances >= 0, so make() cannot panic.
-	// util.SumResourceList only reads its inputs (it calls quantity.DeepCopy() on
-	// the first occurrence of each resource name and Add() on its own accumulator
-	// thereafter), so repeating the same perPod map in the slice is safe.
-	resourceList := make([]corev1.ResourceList, instances)
-	for i := range resourceList {
-		resourceList[i] = perPod
+	if instances == 0 {
+		return corev1.ResourceList{}, nil
 	}
-	return util.SumResourceList(resourceList), nil
+	if instances > maxExecutorInstances {
+		return nil, fmt.Errorf("spark.executor.instances %d exceeds maximum supported value %d",
+			instances, maxExecutorInstances)
+	}
+
+	return multiplyResourceList(perPod, instances)
 }
 
 func (s *Scheduler) syncPodGroup(app *v1beta2.SparkApplication, size int32, minResource corev1.ResourceList) error {
