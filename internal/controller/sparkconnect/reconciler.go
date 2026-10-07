@@ -395,15 +395,14 @@ func (r *Reconciler) mutateServerPod(ctx context.Context, conn *v1alpha1.SparkCo
 			pod.Spec.Containers,
 			common.SparkDriverContainerName,
 		)
+
 		// Setup Kubernetes CPU resources for the Connect server container.
-		// The server pod is created by the operator as part of the client mode setup, so
-		// server.coreRequest/server.coreLimit are applied directly to the pod spec instead of
-		// being mapped to spark.kubernetes.driver.{request,limit}.cores Spark configuration.
 		container = util.SetContainerCPUResources(
 			container,
 			conn.Spec.Server.CoreRequest,
 			conn.Spec.Server.CoreLimit,
 		)
+
 		if gpu := conn.Spec.Server.GPU; gpu != nil {
 			util.SetGPUResources(container, gpu.Name, gpu.Quantity)
 		}
