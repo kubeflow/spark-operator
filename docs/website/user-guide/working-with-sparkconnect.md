@@ -26,10 +26,3 @@ The operator builds the server pod only on first creation, so changes to `spec.s
 
 A `SparkConnect` can be checked using the `kubectl describe sparkconnect <name>` command. The output shows the specification and status of the `SparkConnect` as well as the events associated with it. The events communicate the overall process and errors of the `SparkConnect`.
 
-## Specifying CPU Resources
-
-`SparkPodSpec` exposes `cores` (Spark task-slot count, mapped to `spark.driver.cores` or `spark.executor.cores`) and `coreRequest` / `coreLimit` (physical Kubernetes CPU request/limit, mapped to the container's `resources.{requests,limits}.cpu`). `cores` and `coreRequest` / `coreLimit` are independent.
-
-The server pod is created directly by the operator, so `spec.server.coreRequest` / `coreLimit` are applied to the operator-created server pod's container resources. The executor pods are created by Spark, so `spec.executor.coreRequest` / `coreLimit` are passed via `spark.kubernetes.executor.{request,limit}.cores`. The admission webhook enforces a positive value for both fields and validates `coreRequest <= coreLimit` on the effective values: a CRD field wins over the same field set in the pod template, and the check is skipped when the effective request or limit is not set.
-
-The one exception is the executor CPU request: Spark computes that value itself, so a CPU request in `spec.executor.template` is never used rather than being overridden, while a CPU *limit* in that template is used only when `spec.executor.coreLimit` is unset. See [Using Spark Connect](spark-connect.md#cpu-request-and-limit) for the field table.
