@@ -13,32 +13,6 @@
 # limitations under the License.
 
 #
-# This example shows the difference between Spark `cores` (task-slot count),
-# Kubernetes `coreRequest`/`coreLimit` (physical CPU request/limit), and the
-# `resources` section of a pod template. The CPU values are set differently in
-# the CRD fields and in the pod templates below to show which one wins.
-#
-#   - `cores` controls the Spark task-slot count via `spark.driver.cores` and
-#     `spark.executor.cores`. It is independent of physical CPU.
-#
-#   - For the server, the operator creates the pod directly (client mode setup),
-#     so `spec.server.coreRequest`/`coreLimit` are applied to the operator-created
-#     server pod's `resources.requests.cpu` / `resources.limits.cpu`. They do NOT
-#     become `spark.kubernetes.driver.{request,limit}.cores`. A CPU value in the
-#     server pod template is therefore overridden whenever the corresponding CRD
-#     field is set, and is used only when that field is unset.
-#
-#   - For the executor, Spark creates the executor pods, so `executor.coreRequest`
-#     and `executor.coreLimit` are passed to Spark as
-#     `spark.kubernetes.executor.{request,limit}.cores`. Spark always sets the
-#     executor container's CPU request, from that configuration when it is present
-#     and `spark.executor.cores` otherwise, so a CPU request in the executor pod
-#     template never takes effect. The limit from the pod template is used only
-#     when `spec.executor.coreLimit` is unset.
-#
-#   - The values below are deliberately different for `coreRequest` and
-#     `coreLimit` to demonstrate that they can be set independently.
-#
 apiVersion: sparkoperator.k8s.io/v1alpha1
 kind: SparkConnect
 metadata:
