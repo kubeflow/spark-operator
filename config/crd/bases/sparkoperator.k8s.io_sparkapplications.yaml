@@ -10769,6 +10769,8 @@ spec:
                 - message: managedBy must be 'sparkoperator.k8s.io/spark-operator'
                     or 'kueue.x-k8s.io/multikueue'
                   rule: self in ['sparkoperator.k8s.io/spark-operator', 'kueue.x-k8s.io/multikueue']
+                - message: managedBy is immutable
+                  rule: self == oldSelf
               memoryOverheadFactor:
                 description: |-
                   This sets the Memory Overhead Factor that will allocate memory to non-JVM memory.
@@ -12940,9 +12942,6 @@ spec:
             - sparkVersion
             - type
             type: object
-            x-kubernetes-validations:
-            - message: managedBy is immutable
-              rule: has(oldSelf.managedBy) == has(self.managedBy)
           status:
             description: SparkApplicationStatus defines the observed state of SparkApplication
             properties:
