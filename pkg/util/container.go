@@ -39,6 +39,30 @@ func GetContainerByNameOrFirst(
 	return &containers[0]
 }
 
+// SetContainerCPUResources sets the CPU resource request and limit on the container and
+// returns the container. A nil request or limit leaves the corresponding value untouched.
+func SetContainerCPUResources(
+	container *corev1.Container,
+	request *resource.Quantity,
+	limit *resource.Quantity,
+) *corev1.Container {
+	if request != nil {
+		if container.Resources.Requests == nil {
+			container.Resources.Requests = corev1.ResourceList{}
+		}
+		container.Resources.Requests[corev1.ResourceCPU] = *request
+	}
+
+	if limit != nil {
+		if container.Resources.Limits == nil {
+			container.Resources.Limits = corev1.ResourceList{}
+		}
+		container.Resources.Limits[corev1.ResourceCPU] = *limit
+	}
+
+	return container
+}
+
 // SetGPUResources sets the GPU resource identified by name to quantity in both
 // the requests and limits of container. Kubernetes requires extended resources
 // such as GPUs to have equal requests and limits.

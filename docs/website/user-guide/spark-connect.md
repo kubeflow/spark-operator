@@ -113,10 +113,12 @@ The main `SparkConnect` fields are:
 | --- | --- |
 | `.spec.sparkVersion` | Declares the Spark version used by the server. |
 | `.spec.image` | Sets a common server and executor image when templates do not provide component-specific images. |
-| `.spec.server.cores` and `.spec.server.memory` | Set the server pod's Spark CPU and memory configuration. |
+| `.spec.server.cores` and `.spec.server.memory` | Set the server's Spark CPU and memory settings, passed as `spark.driver.cores` and `spark.driver.memory`. |
+| `.spec.server.coreRequest` and `.spec.server.coreLimit` | Set the physical Kubernetes CPU request and limit on the container of the operator-created server pod. |
 | `.spec.server.template` | Customizes the server pod, including its image, service account, volumes, and security context. If no service account is set here, the operator falls back to the `--default-service-account` controller flag (`controller.defaultServiceAccount` in the Helm chart). |
 | `.spec.executor.instances` | Sets the number of static executors. |
-| `.spec.executor.cores` and `.spec.executor.memory` | Set each executor's Spark CPU and memory configuration. |
+| `.spec.executor.cores` and `.spec.executor.memory` | Set each executor's Spark CPU and memory settings, passed as `spark.executor.cores` and `spark.executor.memory`. |
+| `.spec.executor.coreRequest` and `.spec.executor.coreLimit` | Set the physical Kubernetes CPU request and limit for executor pods, passed as `spark.kubernetes.executor.request.cores` and `spark.kubernetes.executor.limit.cores`. |
 | `.spec.server.gpu` and `.spec.executor.gpu` | Request GPUs for the server or each executor and configure Spark's GPU resource amount and vendor. |
 | `.spec.executor.template` | Customizes executor pods, including their image, volumes, and security context. |
 | `.spec.dynamicAllocation` | Enables dynamic allocation and configures the initial, minimum, and maximum executor counts. |
@@ -160,6 +162,40 @@ spec:
 
 See [Define a Command and Arguments for a Container](https://kubernetes.io/docs/tasks/inject-data-application/define-command-argument-container/#running-a-command-in-a-shell)
 for the full rules.
+
+## CPU request and limit
+
+`cores` and `coreRequest` / `coreLimit` are independent. `cores` is the number of
+Spark task slots, while `coreRequest` and `coreLimit` are the physical Kubernetes
+CPU request and limit on the container, so setting `cores: 2` together with
+`coreRequest: 500m` is valid and common.
+
+The two are applied differently, because the server and executor pods are created
+by different actors:
+
+- **Server** — the operator creates the server pod, so
+  `.spec.server.coreRequest` and `.spec.server.coreLimit` are written directly onto
+  its container's `resources`. A CPU value in `.spec.server.template` is used only
+  where the corresponding field is unset.
+- **Executor** — Spark creates the executor pods. The operator passes the fields to
+  Spark as `spark.kubernetes.executor.request.cores` and
+  `spark.kubernetes.executor.limit.cores`, and Spark sets the container resources
+  from them. Spark always computes the executor CPU *request* itself, so a CPU
+  request in `.spec.executor.template` never applies, while a CPU *limit* in that
+  template is used only when `.spec.executor.coreLimit` is unset.
+
+If a value is set both as a CRD field and as the same key in `.spec.sparkConf`, the
+CRD field wins: the operator emits its generated `--conf` flags after the
+`sparkConf` entries, and Spark applies the last value.
+
+The admission webhook requires each of these fields to be positive and validates
+that `coreRequest` does not exceed `coreLimit` on the effective values, so a pod
+template value counts where the CRD field is unset. The comparison is skipped when
+no effective limit is set.
+
+The [`spark-connect-custom-resource.yaml`](https://github.com/kubeflow/spark-operator/blob/master/examples/sparkconnect/spark-connect-custom-resource.yaml)
+example sets both fields on the server and on the executor, alongside pod templates
+that also specify CPU, and shows which value ends up on the pods.
 
 ## Request GPUs
 
