@@ -185,13 +185,6 @@ var _ = Describe("SparkConnect CPU Resources", func() {
 						SparkPodSpec: v1alpha1.SparkPodSpec{
 							CoreRequest: ptr.To(resource.MustParse("500m")),
 							CoreLimit:   ptr.To(resource.MustParse("1500m")),
-							// The template also specifies CPU, which Spark ignores for the request
-							// and only falls back to for the limit once executor.coreLimit is unset.
-							// The values deliberately differ from the CRD fields above so the
-							// assertions below can tell the two sources apart. Memory is left out
-							// on purpose: Spark sets the executor container's memory from
-							// spark.executor.memory plus its overhead, so a template memory value
-							// only risks the merged pod being rejected for request > limit.
 							Template: &corev1.PodTemplateSpec{
 								Spec: corev1.PodSpec{
 									Containers: []corev1.Container{
