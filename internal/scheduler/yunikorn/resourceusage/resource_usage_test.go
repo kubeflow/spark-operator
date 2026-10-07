@@ -21,6 +21,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"k8s.io/utils/ptr"
+
+	"github.com/kubeflow/spark-operator/v2/api/v1beta2"
 )
 
 func TestCpuRequest(t *testing.T) {
@@ -53,4 +55,42 @@ func TestCpuRequestInvalid(t *testing.T) {
 		_, err := cpuRequest(nil, &input)
 		assert.NotNil(t, err)
 	}
+}
+
+func TestDriverPodRequests(t *testing.T) {
+	app := &v1beta2.SparkApplication{Spec: v1beta2.SparkApplicationSpec{
+		Type: v1beta2.SparkApplicationTypeJava,
+		Driver: v1beta2.DriverSpec{
+			CoreRequest:  ptr.To("500m"),
+			SparkPodSpec: v1beta2.SparkPodSpec{Memory: ptr.To("1g")},
+		},
+	}}
+
+	actual, err := DriverPodRequests(app)
+	assert.Nil(t, err)
+	assert.Equal(t, map[string]string{"cpu": "500m", "memory": "1408Mi"}, actual)
+
+	_, err = DriverPodRequests(&v1beta2.SparkApplication{Spec: v1beta2.SparkApplicationSpec{
+		Driver: v1beta2.DriverSpec{CoreRequest: ptr.To("bad")},
+	}})
+	assert.NotNil(t, err)
+}
+
+func TestExecutorPodRequests(t *testing.T) {
+	app := &v1beta2.SparkApplication{Spec: v1beta2.SparkApplicationSpec{
+		Type: v1beta2.SparkApplicationTypeJava,
+		Executor: v1beta2.ExecutorSpec{
+			CoreRequest:  ptr.To("500m"),
+			SparkPodSpec: v1beta2.SparkPodSpec{Memory: ptr.To("1g")},
+		},
+	}}
+
+	actual, err := ExecutorPodRequests(app)
+	assert.Nil(t, err)
+	assert.Equal(t, map[string]string{"cpu": "500m", "memory": "1408Mi"}, actual)
+
+	_, err = ExecutorPodRequests(&v1beta2.SparkApplication{Spec: v1beta2.SparkApplicationSpec{
+		Executor: v1beta2.ExecutorSpec{CoreRequest: ptr.To("bad")},
+	}})
+	assert.NotNil(t, err)
 }
