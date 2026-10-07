@@ -77,6 +77,14 @@ func (d *SparkPodDefaulter) Default(ctx context.Context, pod *corev1.Pod) error 
 
 	logger := log.FromContext(ctx)
 	namespace := pod.Namespace
+	if namespace == "" {
+		req, err := admission.RequestFromContext(ctx)
+		if err != nil {
+			return fmt.Errorf("pod namespace is empty and no admission request is available: %v", err)
+		}
+		namespace = req.Namespace
+		logger.V(1).Info("Pod namespace is empty, using the namespace of the admission request", "namespace", namespace)
+	}
 	if !d.isSparkJobNamespace(namespace) {
 		return nil
 	}
