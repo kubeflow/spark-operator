@@ -17,9 +17,12 @@ limitations under the License.
 package volcano
 
 import (
+	"fmt"
+	"math"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -30,6 +33,7 @@ import (
 	fakevolcanoclientset "volcano.sh/apis/pkg/client/clientset/versioned/fake"
 
 	"github.com/kubeflow/spark-operator/v2/api/v1beta2"
+	"github.com/kubeflow/spark-operator/v2/internal/scheduler/resourceusage"
 	"github.com/kubeflow/spark-operator/v2/pkg/util"
 )
 
@@ -136,6 +140,7 @@ func TestSchedule(t *testing.T) {
 				},
 				Spec: v1beta2.SparkApplicationSpec{
 					Mode: v1beta2.DeployModeClient,
+					Type: v1beta2.SparkApplicationTypeJava,
 					Driver: v1beta2.DriverSpec{
 						SparkPodSpec: v1beta2.SparkPodSpec{
 							Memory: ptr.To("2g"),
@@ -201,6 +206,7 @@ func TestSchedule(t *testing.T) {
 				},
 				Spec: v1beta2.SparkApplicationSpec{
 					Mode: v1beta2.DeployModeCluster,
+					Type: v1beta2.SparkApplicationTypeJava,
 					Driver: v1beta2.DriverSpec{
 						SparkPodSpec: v1beta2.SparkPodSpec{
 							Memory: ptr.To("2g"),
@@ -270,7 +276,7 @@ func TestSchedule(t *testing.T) {
 			assert.Equal(t, tc.app.Name, capturedPodGroup.OwnerReferences[0].Name)
 			assert.Equal(t, "SparkApplication", capturedPodGroup.OwnerReferences[0].Kind)
 
-			// Verify custom resources if specified
+			// Verify custom resources if specified — these bypass the computed path entirely.
 			if tc.app.Spec.BatchSchedulerOptions != nil && len(tc.app.Spec.BatchSchedulerOptions.Resources) > 0 {
 				assert.NotNil(t, capturedPodGroup.Spec.MinResources)
 				for resourceName, expectedQuantity := range tc.app.Spec.BatchSchedulerOptions.Resources {
@@ -279,18 +285,22 @@ func TestSchedule(t *testing.T) {
 						"Resource %s quantity should match in PodGroup MinResources", resourceName)
 				}
 			}
+
+			// Expected values come from the resourceusage-based helpers, which apply the default memoryOverheadFactor.
 			if tc.app.Spec.BatchSchedulerOptions == nil {
 				assert.NotNil(t, capturedPodGroup.Spec.MinResources)
 
 				var expectedResources corev1.ResourceList
 				if tc.expectedMode == "cluster" {
-					// For cluster mode, check that the resources are the sum of driver and executor resources
-					driverResources := util.GetDriverRequestResource(tc.app)
-					executorResources := util.GetExecutorRequestResource(tc.app)
-					expectedResources = util.SumResourceList([]corev1.ResourceList{driverResources, executorResources})
+					driverRes, err := resourceusage.DriverPodResourceList(tc.app)
+					require.NoError(t, err)
+					execRes, err := executorMinResources(tc.app)
+					require.NoError(t, err)
+					expectedResources = util.SumResourceList([]corev1.ResourceList{driverRes, execRes})
 				} else {
-					// For client mode, check that only executor resources are used
-					expectedResources = util.GetExecutorRequestResource(tc.app)
+					var err error
+					expectedResources, err = executorMinResources(tc.app)
+					require.NoError(t, err)
 				}
 
 				for resourceName, expectedQuantity := range expectedResources {
@@ -301,4 +311,668 @@ func TestSchedule(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestScheduleOverheadFactor is the regression test for issue #2244.
+// It verifies that Volcano PodGroup minResources includes the default
+// memoryOverheadFactor (0.1 for JVM, 0.4 for non-JVM) when no explicit
+// memoryOverhead is set on the SparkApplication.
+func TestScheduleOverheadFactor(t *testing.T) {
+	testCases := []struct {
+		name string
+		app  *v1beta2.SparkApplication
+		// expectedDriverMemMi is the expected driver memory in the PodGroup in MiB.
+		// Formula: heap + max(heap*factor, 384Mi)
+		expectedDriverMemMi int64
+		// expectedExecTotalMemMi is total executor memory = instances * per-pod memory.
+		expectedExecTotalMemMi int64
+		mode                   v1beta2.DeployMode
+	}{
+		{
+			// JVM app, 2g driver, 1g executor × 2 instances, default factor 0.1
+			// driver:   2048 + max(2048*0.1, 384) = 2048 + 384 = 2432 Mi
+			// executor: (1024 + max(1024*0.1, 384)) * 2 = (1024+384)*2 = 2816 Mi
+			name: "JVM default overhead factor client mode",
+			app: &v1beta2.SparkApplication{
+				ObjectMeta: metav1.ObjectMeta{Name: "jvm-default", Namespace: "default"},
+				Spec: v1beta2.SparkApplicationSpec{
+					Mode: v1beta2.DeployModeClient,
+					Type: v1beta2.SparkApplicationTypeJava,
+					Driver: v1beta2.DriverSpec{
+						SparkPodSpec: v1beta2.SparkPodSpec{
+							Memory: ptr.To("2g"),
+							Cores:  ptr.To[int32](1),
+						},
+					},
+					Executor: v1beta2.ExecutorSpec{
+						Instances: ptr.To[int32](2),
+						SparkPodSpec: v1beta2.SparkPodSpec{
+							Memory: ptr.To("1g"),
+							Cores:  ptr.To[int32](1),
+						},
+					},
+				},
+			},
+			expectedDriverMemMi:    2432,
+			expectedExecTotalMemMi: 2816,
+			mode:                   v1beta2.DeployModeClient,
+		},
+		{
+			// JVM app cluster mode — minResources = driver + 2 executors
+			// driver: 2048 + 384 = 2432 Mi; executors: 2816 Mi; total: 5248 Mi
+			name: "JVM default overhead factor cluster mode",
+			app: &v1beta2.SparkApplication{
+				ObjectMeta: metav1.ObjectMeta{Name: "jvm-cluster", Namespace: "default"},
+				Spec: v1beta2.SparkApplicationSpec{
+					Mode: v1beta2.DeployModeCluster,
+					Type: v1beta2.SparkApplicationTypeJava,
+					Driver: v1beta2.DriverSpec{
+						SparkPodSpec: v1beta2.SparkPodSpec{
+							Memory: ptr.To("2g"),
+							Cores:  ptr.To[int32](2),
+						},
+					},
+					Executor: v1beta2.ExecutorSpec{
+						Instances: ptr.To[int32](2),
+						SparkPodSpec: v1beta2.SparkPodSpec{
+							Memory: ptr.To("1g"),
+							Cores:  ptr.To[int32](1),
+						},
+					},
+				},
+			},
+			expectedDriverMemMi:    2432,
+			expectedExecTotalMemMi: 2816,
+			mode:                   v1beta2.DeployModeCluster,
+		},
+		{
+			// Python app, 1g executor × 1 instance, default factor 0.4
+			// executor: 1024 + max(1024*0.4, 384) = 1024 + 409 = 1433 Mi  (floor)
+			name: "Python default overhead factor client mode",
+			app: &v1beta2.SparkApplication{
+				ObjectMeta: metav1.ObjectMeta{Name: "python-default", Namespace: "default"},
+				Spec: v1beta2.SparkApplicationSpec{
+					Mode: v1beta2.DeployModeClient,
+					Type: v1beta2.SparkApplicationTypePython,
+					Driver: v1beta2.DriverSpec{
+						SparkPodSpec: v1beta2.SparkPodSpec{
+							Memory: ptr.To("1g"),
+							Cores:  ptr.To[int32](1),
+						},
+					},
+					Executor: v1beta2.ExecutorSpec{
+						Instances: ptr.To[int32](1),
+						SparkPodSpec: v1beta2.SparkPodSpec{
+							Memory: ptr.To("1g"),
+							Cores:  ptr.To[int32](1),
+						},
+					},
+				},
+			},
+			expectedDriverMemMi:    1433,
+			expectedExecTotalMemMi: 1433,
+			mode:                   v1beta2.DeployModeClient,
+		},
+		{
+			// Dynamic allocation: GetInitialExecutorNumber returns
+			//   max(Instances, InitialExecutors, MinExecutors) from app.Spec.DynamicAllocation.
+			// Here InitialExecutors=4 > MinExecutors=2, so executor count = 4.
+			// executor per pod: 1024 + max(1024*0.1, 384) = 1024 + 384 = 1408 Mi
+			// total = 1408 * 4 = 5632 Mi
+			name: "JVM dynamic allocation uses initial executor count",
+			app: &v1beta2.SparkApplication{
+				ObjectMeta: metav1.ObjectMeta{Name: "jvm-dynalloc", Namespace: "default"},
+				Spec: v1beta2.SparkApplicationSpec{
+					Mode: v1beta2.DeployModeClient,
+					Type: v1beta2.SparkApplicationTypeJava,
+					DynamicAllocation: &v1beta2.DynamicAllocation{
+						Enabled:          true,
+						MinExecutors:     ptr.To[int32](2),
+						MaxExecutors:     ptr.To[int32](10),
+						InitialExecutors: ptr.To[int32](4),
+					},
+					Driver: v1beta2.DriverSpec{
+						SparkPodSpec: v1beta2.SparkPodSpec{
+							Memory: ptr.To("1g"),
+							Cores:  ptr.To[int32](1),
+						},
+					},
+					Executor: v1beta2.ExecutorSpec{
+						// Instances intentionally nil — dynamic allocation controls count.
+						// InitialExecutors=4 wins over MinExecutors=2.
+						SparkPodSpec: v1beta2.SparkPodSpec{
+							Memory: ptr.To("1g"),
+							Cores:  ptr.To[int32](1),
+						},
+					},
+				},
+			},
+			expectedDriverMemMi:    1408,
+			expectedExecTotalMemMi: 5632,
+			mode:                   v1beta2.DeployModeClient,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			tc.app.Annotations = make(map[string]string)
+			tc.app.Spec.Driver.Annotations = make(map[string]string)
+			tc.app.Spec.Executor.Annotations = make(map[string]string)
+
+			var capturedPodGroup *v1beta1.PodGroup
+			mockVolcanoClient := fakevolcanoclientset.NewSimpleClientset()
+			mockVolcanoClient.PrependReactor("create", "podgroups", func(action clienttesting.Action) (bool, runtime.Object, error) {
+				createAction := action.(clienttesting.CreateAction)
+				capturedPodGroup = createAction.GetObject().(*v1beta1.PodGroup)
+				return false, capturedPodGroup, nil
+			})
+
+			sched := &Scheduler{volcanoClient: mockVolcanoClient}
+			require.NoError(t, sched.Schedule(tc.app))
+			require.NotNil(t, capturedPodGroup)
+			require.NotNil(t, capturedPodGroup.Spec.MinResources)
+
+			minResources := *capturedPodGroup.Spec.MinResources
+			actualMemory := minResources[corev1.ResourceMemory]
+
+			switch tc.mode {
+			case v1beta2.DeployModeClient:
+				// Client mode: minResources = executor total only
+				expectedMem := resource.MustParse(fmt.Sprintf("%dMi", tc.expectedExecTotalMemMi))
+				assert.Equal(t, expectedMem.Value(), actualMemory.Value(),
+					"client mode: PodGroup memory should equal total executor memory (with overhead); got %s, want %s",
+					actualMemory.String(), expectedMem.String())
+
+			case v1beta2.DeployModeCluster:
+				// Cluster mode: minResources = driver + executor total
+				expectedMem := resource.MustParse(fmt.Sprintf("%dMi", tc.expectedDriverMemMi+tc.expectedExecTotalMemMi))
+				assert.Equal(t, expectedMem.Value(), actualMemory.Value(),
+					"cluster mode: PodGroup memory should equal driver + total executor memory (with overhead); got %s, want %s",
+					actualMemory.String(), expectedMem.String())
+			}
+		})
+	}
+}
+
+// TestBatchSchedulerOptionsOverride verifies that batchSchedulerOptions.resources is checked
+// before the resource calculation runs, in both client and cluster mode.
+func TestBatchSchedulerOptionsOverride(t *testing.T) {
+	// explicitResources is the fixed override that all "override set" cases use.
+	explicitResources := corev1.ResourceList{
+		corev1.ResourceCPU:    resource.MustParse("10"),
+		corev1.ResourceMemory: resource.MustParse("20Gi"),
+	}
+
+	// badMemory is an invalid memory string that would cause executorMinResources to
+	// return an error if it were ever called.
+	badMemory := ptr.To("not-a-valid-memory-value")
+
+	testCases := []struct {
+		name            string
+		app             *v1beta2.SparkApplication
+		mode            v1beta2.DeployMode
+		expectError     bool
+		expectResources corev1.ResourceList // nil means "computed, not overridden"
+		expectMemoryMiB int64               // used only when expectResources is nil
+	}{
+		// ---- Client mode ----
+
+		{
+			// Override set → minResources equals the override verbatim; no calculation runs.
+			name: "client mode: override set",
+			app: &v1beta2.SparkApplication{
+				ObjectMeta: metav1.ObjectMeta{Name: "app-co", Namespace: "default"},
+				Spec: v1beta2.SparkApplicationSpec{
+					Mode: v1beta2.DeployModeClient,
+					Type: v1beta2.SparkApplicationTypeJava,
+					Driver: v1beta2.DriverSpec{
+						SparkPodSpec: v1beta2.SparkPodSpec{Memory: ptr.To("1g"), Cores: ptr.To[int32](1)},
+					},
+					Executor: v1beta2.ExecutorSpec{
+						Instances:    ptr.To[int32](2),
+						SparkPodSpec: v1beta2.SparkPodSpec{Memory: ptr.To("1g"), Cores: ptr.To[int32](1)},
+					},
+					BatchSchedulerOptions: &v1beta2.BatchSchedulerConfiguration{
+						Resources: explicitResources,
+					},
+				},
+			},
+			mode:            v1beta2.DeployModeClient,
+			expectResources: explicitResources,
+		},
+		{
+			// Override set AND spec has invalid memory → must still succeed, use override.
+			name: "client mode: override set, invalid memory string",
+			app: &v1beta2.SparkApplication{
+				ObjectMeta: metav1.ObjectMeta{Name: "app-ci", Namespace: "default"},
+				Spec: v1beta2.SparkApplicationSpec{
+					Mode: v1beta2.DeployModeClient,
+					Type: v1beta2.SparkApplicationTypeJava,
+					Driver: v1beta2.DriverSpec{
+						SparkPodSpec: v1beta2.SparkPodSpec{Memory: badMemory, Cores: ptr.To[int32](1)},
+					},
+					Executor: v1beta2.ExecutorSpec{
+						Instances:    ptr.To[int32](2),
+						SparkPodSpec: v1beta2.SparkPodSpec{Memory: badMemory, Cores: ptr.To[int32](1)},
+					},
+					BatchSchedulerOptions: &v1beta2.BatchSchedulerConfiguration{
+						Resources: explicitResources,
+					},
+				},
+			},
+			mode:            v1beta2.DeployModeClient,
+			expectResources: explicitResources,
+		},
+		{
+			// No override, invalid memory string → must return error.
+			name: "client mode: no override, invalid memory string → error",
+			app: &v1beta2.SparkApplication{
+				ObjectMeta: metav1.ObjectMeta{Name: "app-ce", Namespace: "default"},
+				Spec: v1beta2.SparkApplicationSpec{
+					Mode: v1beta2.DeployModeClient,
+					Type: v1beta2.SparkApplicationTypeJava,
+					Driver: v1beta2.DriverSpec{
+						SparkPodSpec: v1beta2.SparkPodSpec{Memory: ptr.To("1g"), Cores: ptr.To[int32](1)},
+					},
+					Executor: v1beta2.ExecutorSpec{
+						Instances:    ptr.To[int32](2),
+						SparkPodSpec: v1beta2.SparkPodSpec{Memory: badMemory, Cores: ptr.To[int32](1)},
+					},
+				},
+			},
+			mode:        v1beta2.DeployModeClient,
+			expectError: true,
+		},
+		{
+			// Empty override map (len == 0) → falls through to calculation.
+			// JVM, 1g executor × 1, overhead floor:
+			//   1024 + max(1024*0.1, 384) = 1024 + 384 = 1408 MiB
+			name: "client mode: empty override map falls through to calculation",
+			app: &v1beta2.SparkApplication{
+				ObjectMeta: metav1.ObjectMeta{Name: "app-cem", Namespace: "default"},
+				Spec: v1beta2.SparkApplicationSpec{
+					Mode: v1beta2.DeployModeClient,
+					Type: v1beta2.SparkApplicationTypeJava,
+					Driver: v1beta2.DriverSpec{
+						SparkPodSpec: v1beta2.SparkPodSpec{Memory: ptr.To("1g"), Cores: ptr.To[int32](1)},
+					},
+					Executor: v1beta2.ExecutorSpec{
+						Instances:    ptr.To[int32](1),
+						SparkPodSpec: v1beta2.SparkPodSpec{Memory: ptr.To("1g"), Cores: ptr.To[int32](1)},
+					},
+					BatchSchedulerOptions: &v1beta2.BatchSchedulerConfiguration{
+						Resources: corev1.ResourceList{}, // explicitly empty
+					},
+				},
+			},
+			mode:            v1beta2.DeployModeClient,
+			expectResources: nil,
+			expectMemoryMiB: 1408,
+		},
+		{
+			// Sanity: JVM default overhead, client mode.
+			// 1g executor × 2: (1024 + 384) * 2 = 2816 MiB
+			name: "client mode: no override, JVM default overhead",
+			app: &v1beta2.SparkApplication{
+				ObjectMeta: metav1.ObjectMeta{Name: "app-cj", Namespace: "default"},
+				Spec: v1beta2.SparkApplicationSpec{
+					Mode: v1beta2.DeployModeClient,
+					Type: v1beta2.SparkApplicationTypeJava,
+					Driver: v1beta2.DriverSpec{
+						SparkPodSpec: v1beta2.SparkPodSpec{Memory: ptr.To("1g"), Cores: ptr.To[int32](1)},
+					},
+					Executor: v1beta2.ExecutorSpec{
+						Instances:    ptr.To[int32](2),
+						SparkPodSpec: v1beta2.SparkPodSpec{Memory: ptr.To("1g"), Cores: ptr.To[int32](1)},
+					},
+				},
+			},
+			mode:            v1beta2.DeployModeClient,
+			expectMemoryMiB: 2816,
+		},
+
+		// ---- Cluster mode ----
+
+		{
+			// Override set → minResources equals the override verbatim; no calculation runs.
+			name: "cluster mode: override set",
+			app: &v1beta2.SparkApplication{
+				ObjectMeta: metav1.ObjectMeta{Name: "app-ko", Namespace: "default"},
+				Spec: v1beta2.SparkApplicationSpec{
+					Mode: v1beta2.DeployModeCluster,
+					Type: v1beta2.SparkApplicationTypeJava,
+					Driver: v1beta2.DriverSpec{
+						SparkPodSpec: v1beta2.SparkPodSpec{Memory: ptr.To("1g"), Cores: ptr.To[int32](1)},
+					},
+					Executor: v1beta2.ExecutorSpec{
+						Instances:    ptr.To[int32](2),
+						SparkPodSpec: v1beta2.SparkPodSpec{Memory: ptr.To("1g"), Cores: ptr.To[int32](1)},
+					},
+					BatchSchedulerOptions: &v1beta2.BatchSchedulerConfiguration{
+						Resources: explicitResources,
+					},
+				},
+			},
+			mode:            v1beta2.DeployModeCluster,
+			expectResources: explicitResources,
+		},
+		{
+			// Override set AND spec has invalid memory → must still succeed, use override.
+			name: "cluster mode: override set, invalid memory string",
+			app: &v1beta2.SparkApplication{
+				ObjectMeta: metav1.ObjectMeta{Name: "app-ki", Namespace: "default"},
+				Spec: v1beta2.SparkApplicationSpec{
+					Mode: v1beta2.DeployModeCluster,
+					Type: v1beta2.SparkApplicationTypeJava,
+					Driver: v1beta2.DriverSpec{
+						SparkPodSpec: v1beta2.SparkPodSpec{Memory: badMemory, Cores: ptr.To[int32](1)},
+					},
+					Executor: v1beta2.ExecutorSpec{
+						Instances:    ptr.To[int32](2),
+						SparkPodSpec: v1beta2.SparkPodSpec{Memory: badMemory, Cores: ptr.To[int32](1)},
+					},
+					BatchSchedulerOptions: &v1beta2.BatchSchedulerConfiguration{
+						Resources: explicitResources,
+					},
+				},
+			},
+			mode:            v1beta2.DeployModeCluster,
+			expectResources: explicitResources,
+		},
+		{
+			// No override, invalid executor memory → error.
+			name: "cluster mode: no override, invalid executor memory → error",
+			app: &v1beta2.SparkApplication{
+				ObjectMeta: metav1.ObjectMeta{Name: "app-ke", Namespace: "default"},
+				Spec: v1beta2.SparkApplicationSpec{
+					Mode: v1beta2.DeployModeCluster,
+					Type: v1beta2.SparkApplicationTypeJava,
+					Driver: v1beta2.DriverSpec{
+						SparkPodSpec: v1beta2.SparkPodSpec{Memory: ptr.To("1g"), Cores: ptr.To[int32](1)},
+					},
+					Executor: v1beta2.ExecutorSpec{
+						Instances:    ptr.To[int32](2),
+						SparkPodSpec: v1beta2.SparkPodSpec{Memory: badMemory, Cores: ptr.To[int32](1)},
+					},
+				},
+			},
+			mode:        v1beta2.DeployModeCluster,
+			expectError: true,
+		},
+		{
+			// Empty override map → falls through to calculation.
+			// driver: 1024 + 384 = 1408 MiB; executors: 1408 * 2 = 2816 MiB; total = 4224 MiB
+			name: "cluster mode: empty override map falls through to calculation",
+			app: &v1beta2.SparkApplication{
+				ObjectMeta: metav1.ObjectMeta{Name: "app-kem", Namespace: "default"},
+				Spec: v1beta2.SparkApplicationSpec{
+					Mode: v1beta2.DeployModeCluster,
+					Type: v1beta2.SparkApplicationTypeJava,
+					Driver: v1beta2.DriverSpec{
+						SparkPodSpec: v1beta2.SparkPodSpec{Memory: ptr.To("1g"), Cores: ptr.To[int32](1)},
+					},
+					Executor: v1beta2.ExecutorSpec{
+						Instances:    ptr.To[int32](2),
+						SparkPodSpec: v1beta2.SparkPodSpec{Memory: ptr.To("1g"), Cores: ptr.To[int32](1)},
+					},
+					BatchSchedulerOptions: &v1beta2.BatchSchedulerConfiguration{
+						Resources: corev1.ResourceList{}, // explicitly empty
+					},
+				},
+			},
+			mode:            v1beta2.DeployModeCluster,
+			expectResources: nil,
+			expectMemoryMiB: 4224, // 1408 (driver) + 2816 (2 × 1408 executor)
+		},
+		{
+			// Sanity: Python default overhead, cluster mode.
+			// driver: 1024 + max(1024*0.4, 384) = 1024 + 409 = 1433 MiB
+			// executor × 1: 1433 MiB
+			// total: 2866 MiB
+			name: "cluster mode: no override, Python default overhead",
+			app: &v1beta2.SparkApplication{
+				ObjectMeta: metav1.ObjectMeta{Name: "app-kp", Namespace: "default"},
+				Spec: v1beta2.SparkApplicationSpec{
+					Mode: v1beta2.DeployModeCluster,
+					Type: v1beta2.SparkApplicationTypePython,
+					Driver: v1beta2.DriverSpec{
+						SparkPodSpec: v1beta2.SparkPodSpec{Memory: ptr.To("1g"), Cores: ptr.To[int32](1)},
+					},
+					Executor: v1beta2.ExecutorSpec{
+						Instances:    ptr.To[int32](1),
+						SparkPodSpec: v1beta2.SparkPodSpec{Memory: ptr.To("1g"), Cores: ptr.To[int32](1)},
+					},
+				},
+			},
+			mode:            v1beta2.DeployModeCluster,
+			expectMemoryMiB: 2866,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			tc.app.Annotations = make(map[string]string)
+			tc.app.Spec.Driver.Annotations = make(map[string]string)
+			tc.app.Spec.Executor.Annotations = make(map[string]string)
+
+			var capturedPodGroup *v1beta1.PodGroup
+			mockVolcanoClient := fakevolcanoclientset.NewSimpleClientset()
+			mockVolcanoClient.PrependReactor("create", "podgroups", func(action clienttesting.Action) (bool, runtime.Object, error) {
+				createAction := action.(clienttesting.CreateAction)
+				capturedPodGroup = createAction.GetObject().(*v1beta1.PodGroup)
+				return false, capturedPodGroup, nil
+			})
+
+			sched := &Scheduler{volcanoClient: mockVolcanoClient}
+			err := sched.Schedule(tc.app)
+
+			if tc.expectError {
+				assert.Error(t, err, "expected an error but got none")
+				return
+			}
+			require.NoError(t, err)
+			require.NotNil(t, capturedPodGroup)
+			require.NotNil(t, capturedPodGroup.Spec.MinResources)
+			got := *capturedPodGroup.Spec.MinResources
+
+			if tc.expectResources != nil {
+				// Override path: resources must match the override verbatim.
+				for name, want := range tc.expectResources {
+					actual := got.Name(name, resource.DecimalSI)
+					assert.Equal(t, want.Value(), actual.Value(),
+						"resource %s: got %s, want %s", name, actual.String(), want.String())
+				}
+				return
+			}
+
+			// Computed path: check the memory total only.
+			expected := resource.MustParse(fmt.Sprintf("%dMi", tc.expectMemoryMiB))
+			actualMem := got[corev1.ResourceMemory]
+			assert.Equal(t, expected.Value(), actualMem.Value(),
+				"memory: got %s, want %dMi", actualMem.String(), tc.expectMemoryMiB)
+		})
+	}
+}
+
+// TestExecutorMinResources covers the O(1)-multiply path, the upper-bound
+// guard, and the overflow guard introduced to fix the reviewer comment about
+// O(instances) slice allocation.
+func TestExecutorMinResources(t *testing.T) {
+	// base is a JVM app with 1g executor memory and 2 cores.
+	// perPod memory = 1024 + max(1024*0.1, 384) = 1024 + 384 = 1408 Mi
+	// perPod cpu    = 2
+	base := func(instances *int32, sparkConf map[string]string) *v1beta2.SparkApplication {
+		app := &v1beta2.SparkApplication{
+			ObjectMeta: metav1.ObjectMeta{Name: "test", Namespace: "default"},
+			Spec: v1beta2.SparkApplicationSpec{
+				Type: v1beta2.SparkApplicationTypeJava,
+				Executor: v1beta2.ExecutorSpec{
+					Instances: instances,
+					SparkPodSpec: v1beta2.SparkPodSpec{
+						Memory: ptr.To("1g"),
+						Cores:  ptr.To[int32](2),
+					},
+				},
+			},
+		}
+		if len(sparkConf) > 0 {
+			app.Spec.SparkConf = sparkConf
+		}
+		return app
+	}
+
+	t.Run("instances=1 matches per-pod values", func(t *testing.T) {
+		rl, err := executorMinResources(base(ptr.To[int32](1), nil))
+		require.NoError(t, err)
+		// memory: 1408 Mi * 1 = 1408 Mi
+		wantMem := resource.MustParse("1408Mi")
+		gotMem := rl[corev1.ResourceMemory]
+		assert.Equal(t, wantMem.Value(), gotMem.Value(), "memory 1×1408Mi")
+		// cpu: 2 * 1 = 2
+		wantCPU := resource.MustParse("2")
+		gotCPU := rl[corev1.ResourceCPU]
+		assert.Equal(t, wantCPU.Value(), gotCPU.Value(), "cpu 1×2")
+	})
+
+	t.Run("instances=2 doubles each resource", func(t *testing.T) {
+		rl, err := executorMinResources(base(ptr.To[int32](2), nil))
+		require.NoError(t, err)
+		// 1408 Mi * 2 = 2816 Mi
+		wantMem := resource.MustParse("2816Mi")
+		gotMem := rl[corev1.ResourceMemory]
+		assert.Equal(t, wantMem.Value(), gotMem.Value(), "memory 2×1408Mi")
+		// cpu: 2 * 2 = 4
+		wantCPU := resource.MustParse("4")
+		gotCPU := rl[corev1.ResourceCPU]
+		assert.Equal(t, wantCPU.Value(), gotCPU.Value(), "cpu 2×2")
+	})
+
+	t.Run("instances=10 matches 10x per-pod", func(t *testing.T) {
+		rl, err := executorMinResources(base(ptr.To[int32](10), nil))
+		require.NoError(t, err)
+		// 1408 Mi * 10 = 14080 Mi
+		wantMem := resource.MustParse("14080Mi")
+		gotMem := rl[corev1.ResourceMemory]
+		assert.Equal(t, wantMem.Value(), gotMem.Value(), "memory 10×1408Mi")
+		wantCPU := resource.MustParse("20")
+		gotCPU := rl[corev1.ResourceCPU]
+		assert.Equal(t, wantCPU.Value(), gotCPU.Value(), "cpu 10×2")
+	})
+
+	t.Run("instances=0 returns empty ResourceList", func(t *testing.T) {
+		rl, err := executorMinResources(base(ptr.To[int32](0), nil))
+		require.NoError(t, err)
+		assert.Empty(t, rl, "zero instances should yield empty ResourceList")
+	})
+
+	t.Run("binary-SI memory quantity preserved across multiply", func(t *testing.T) {
+		// Use a Gi memory value to confirm binary-SI Format is preserved.
+		app := &v1beta2.SparkApplication{
+			ObjectMeta: metav1.ObjectMeta{Name: "bsi", Namespace: "default"},
+			Spec: v1beta2.SparkApplicationSpec{
+				Type: v1beta2.SparkApplicationTypeJava,
+				Executor: v1beta2.ExecutorSpec{
+					Instances: ptr.To[int32](2),
+					SparkPodSpec: v1beta2.SparkPodSpec{
+						// 2Gi heap, explicit 512Mi overhead -> total 2048+512 = 2560 Mi per pod
+						// 2 pods -> 5120 Mi
+						Memory:         ptr.To("2g"),
+						MemoryOverhead: ptr.To("512m"),
+						Cores:          ptr.To[int32](1),
+					},
+				},
+			},
+		}
+		rl, err := executorMinResources(app)
+		require.NoError(t, err)
+		wantMem := resource.MustParse("5120Mi")
+		gotMem := rl[corev1.ResourceMemory]
+		assert.Equal(t, wantMem.Value(), gotMem.Value(), "2×2560Mi binary-SI")
+	})
+
+	t.Run("huge instances via sparkConf returns error promptly", func(t *testing.T) {
+		// 2_000_000_000 via sparkConf: used to allocate a ~16 GB slice and stall the loop.
+		// Must now return an error quickly.
+		app := base(nil, map[string]string{
+			"spark.executor.instances": "2000000000",
+		})
+		_, err := executorMinResources(app)
+		require.Error(t, err, "expected error for 2e9 instances")
+		assert.Contains(t, err.Error(), "exceeds maximum supported value",
+			"error message should mention the bound")
+	})
+
+	t.Run("instances just at maxExecutorInstances is accepted", func(t *testing.T) {
+		app := base(ptr.To[int32](maxExecutorInstances), nil)
+		_, err := executorMinResources(app)
+		require.NoError(t, err, "exactly maxExecutorInstances should be accepted")
+	})
+
+	t.Run("instances one over maxExecutorInstances is rejected", func(t *testing.T) {
+		app := base(ptr.To[int32](maxExecutorInstances+1), nil)
+		_, err := executorMinResources(app)
+		require.Error(t, err, "maxExecutorInstances+1 should be rejected")
+	})
+}
+
+// TestMultiplyQuantity covers the overflow helper directly.
+func TestMultiplyQuantity(t *testing.T) {
+	t.Run("normal multiply", func(t *testing.T) {
+		q := resource.MustParse("1408Mi")
+		got, err := multiplyQuantity(q, 3)
+		require.NoError(t, err)
+		want := resource.MustParse("4224Mi")
+		assert.Equal(t, want.Value(), got.Value())
+	})
+
+	t.Run("milli-cpu normal multiply", func(t *testing.T) {
+		q := resource.MustParse("500m")
+		got, err := multiplyQuantity(q, 4)
+		require.NoError(t, err)
+		want := resource.MustParse("2")
+		assert.Equal(t, want.MilliValue(), got.MilliValue())
+	})
+
+	t.Run("multiply by zero returns zero", func(t *testing.T) {
+		q := resource.MustParse("1Gi")
+		got, err := multiplyQuantity(q, 0)
+		require.NoError(t, err)
+		assert.Equal(t, int64(0), got.Value())
+	})
+
+	t.Run("just-safe milli-value: MaxInt64/milli exact boundary", func(t *testing.T) {
+		// Choose q and n so that milli*n is exactly MaxInt64.
+		// 1m has milli-value 1; MaxInt64 * 1m = MaxInt64 millivalue -> no overflow.
+		q := resource.MustParse("1m")
+		n := int64(math.MaxInt64)
+		_, err := multiplyQuantity(q, n)
+		require.NoError(t, err, "milli=1, n=MaxInt64 should not overflow")
+	})
+
+	t.Run("overflow: milli-value * n > MaxInt64", func(t *testing.T) {
+		// 2m has milli-value 2; 2*(MaxInt64/2 + 1) overflows.
+		q := resource.MustParse("2m")
+		n := int64(math.MaxInt64/2) + 1
+		_, err := multiplyQuantity(q, n)
+		require.Error(t, err, "should detect milli-value overflow")
+		assert.Contains(t, err.Error(), "overflows int64")
+	})
+
+	t.Run("large memory just under overflow", func(t *testing.T) {
+		// 1Gi = 1073741824 bytes; milli-value = 1073741824000.
+		// max safe n = MaxInt64 / 1073741824000 = 8589934.
+		q := resource.MustParse("1Gi")
+		milli := q.MilliValue() // 1073741824000
+		safeN := math.MaxInt64 / milli
+		_, err := multiplyQuantity(q, safeN)
+		require.NoError(t, err, "safeN should not overflow")
+	})
+
+	t.Run("large memory just over overflow", func(t *testing.T) {
+		q := resource.MustParse("1Gi")
+		milli := q.MilliValue()
+		overN := math.MaxInt64/milli + 1
+		_, err := multiplyQuantity(q, overN)
+		require.Error(t, err, "safeN+1 should overflow")
+	})
 }
