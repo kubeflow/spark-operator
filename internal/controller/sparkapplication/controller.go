@@ -33,6 +33,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/tools/events"
 	"k8s.io/client-go/util/retry"
 	"k8s.io/utils/ptr"
@@ -87,6 +88,13 @@ type Options struct {
 	// DefaultServiceAccount is the name of the service account used by the driver pod
 	// when the SparkApplication does not specify one. An empty value disables the fallback.
 	DefaultServiceAccount string
+}
+
+var statusUpdateConflictBackoff = wait.Backoff{
+	Steps:    10,
+	Duration: 50 * time.Millisecond,
+	Factor:   1.5,
+	Jitter:   0.1,
 }
 
 // Reconciler reconciles a SparkApplication object.
@@ -346,7 +354,7 @@ func (r *Reconciler) reconcileNewSparkApplication(ctx context.Context, req ctrl.
 	logger := log.FromContext(ctx)
 	key := req.NamespacedName
 	retryErr := retry.RetryOnConflict(
-		retry.DefaultRetry,
+		statusUpdateConflictBackoff,
 		func() error {
 			old, err := r.getSparkApplication(ctx, key)
 			if err != nil {
@@ -375,7 +383,7 @@ func (r *Reconciler) reconcileSubmittedSparkApplication(ctx context.Context, req
 	logger := log.FromContext(ctx)
 	key := req.NamespacedName
 	retryErr := retry.RetryOnConflict(
-		retry.DefaultRetry,
+		statusUpdateConflictBackoff,
 		func() error {
 			old, err := r.getSparkApplication(ctx, key)
 			if err != nil {
@@ -463,7 +471,7 @@ func (r *Reconciler) reconcileFailedSubmissionSparkApplication(ctx context.Conte
 	var result ctrl.Result
 
 	retryErr := retry.RetryOnConflict(
-		retry.DefaultRetry,
+		statusUpdateConflictBackoff,
 		func() error {
 			old, err := r.getSparkApplication(ctx, key)
 			if err != nil {
@@ -515,7 +523,7 @@ func (r *Reconciler) reconcileRunningSparkApplication(ctx context.Context, req c
 	logger := log.FromContext(ctx)
 	key := req.NamespacedName
 	retryErr := retry.RetryOnConflict(
-		retry.DefaultRetry,
+		statusUpdateConflictBackoff,
 		func() error {
 			old, err := r.getSparkApplication(ctx, key)
 			if err != nil {
@@ -556,7 +564,7 @@ func (r *Reconciler) reconcilePendingRerunSparkApplication(ctx context.Context, 
 	logger := log.FromContext(ctx)
 	key := req.NamespacedName
 	retryErr := retry.RetryOnConflict(
-		retry.DefaultRetry,
+		statusUpdateConflictBackoff,
 		func() error {
 			old, err := r.getSparkApplication(ctx, key)
 			if err != nil {
@@ -592,7 +600,7 @@ func (r *Reconciler) reconcileInvalidatingSparkApplication(ctx context.Context, 
 	logger := log.FromContext(ctx)
 	key := req.NamespacedName
 	retryErr := retry.RetryOnConflict(
-		retry.DefaultRetry,
+		statusUpdateConflictBackoff,
 		func() error {
 			old, err := r.getSparkApplication(ctx, key)
 			if err != nil {
@@ -627,7 +635,7 @@ func (r *Reconciler) reconcileSucceedingSparkApplication(ctx context.Context, re
 	logger := log.FromContext(ctx)
 	key := req.NamespacedName
 	retryErr := retry.RetryOnConflict(
-		retry.DefaultRetry,
+		statusUpdateConflictBackoff,
 		func() error {
 			old, err := r.getSparkApplication(ctx, key)
 			if err != nil {
@@ -668,7 +676,7 @@ func (r *Reconciler) reconcileFailingSparkApplication(ctx context.Context, req c
 	var result ctrl.Result
 
 	retryErr := retry.RetryOnConflict(
-		retry.DefaultRetry,
+		statusUpdateConflictBackoff,
 		func() error {
 			old, err := r.getSparkApplication(ctx, key)
 			if err != nil {
@@ -782,7 +790,7 @@ func (r *Reconciler) reconcileUnknownSparkApplication(ctx context.Context, req c
 	logger := log.FromContext(ctx)
 	key := req.NamespacedName
 	retryErr := retry.RetryOnConflict(
-		retry.DefaultRetry,
+		statusUpdateConflictBackoff,
 		func() error {
 			old, err := r.getSparkApplication(ctx, key)
 			if err != nil {
@@ -813,7 +821,7 @@ func (r *Reconciler) reconcileSuspendingSparkApplication(ctx context.Context, re
 	logger := log.FromContext(ctx)
 	key := req.NamespacedName
 	retryErr := retry.RetryOnConflict(
-		retry.DefaultRetry,
+		statusUpdateConflictBackoff,
 		func() error {
 			old, err := r.getSparkApplication(ctx, key)
 			if err != nil {
@@ -853,7 +861,7 @@ func (r *Reconciler) reconcileSuspendedSparkApplication(ctx context.Context, req
 	logger := log.FromContext(ctx)
 	key := req.NamespacedName
 	retryErr := retry.RetryOnConflict(
-		retry.DefaultRetry,
+		statusUpdateConflictBackoff,
 		func() error {
 			old, err := r.getSparkApplication(ctx, key)
 			if err != nil {
@@ -893,7 +901,7 @@ func (r *Reconciler) reconcileResumingSparkApplication(ctx context.Context, req 
 	logger := log.FromContext(ctx)
 	key := req.NamespacedName
 	retryErr := retry.RetryOnConflict(
-		retry.DefaultRetry,
+		statusUpdateConflictBackoff,
 		func() error {
 			old, err := r.getSparkApplication(ctx, key)
 			if err != nil {
@@ -924,7 +932,7 @@ func (r *Reconciler) transitionToSuspending(ctx context.Context, req ctrl.Reques
 	logger := log.FromContext(ctx)
 	key := req.NamespacedName
 	retryErr := retry.RetryOnConflict(
-		retry.DefaultRetry,
+		statusUpdateConflictBackoff,
 		func() error {
 			old, err := r.getSparkApplication(ctx, key)
 			if err != nil {
