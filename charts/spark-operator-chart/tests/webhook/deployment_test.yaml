@@ -677,3 +677,104 @@ tests:
     asserts:
       - notExists:
           path: spec.template.spec.hostUsers
+
+  # ---- Certificate provider / CA bundle flags ----
+
+  - it: Should not render cert provider or CA bundle args with the default self-signed provider
+    asserts:
+      - notContains:
+          path: spec.template.spec.containers[?(@.name=="spark-operator-webhook")].args
+          content: --webhook-cert-provider=self-signed
+      - notContains:
+          path: spec.template.spec.containers[?(@.name=="spark-operator-webhook")].args
+          content: --webhook-ca-bundle-sync=auto
+      - notContains:
+          path: spec.template.spec.containers[?(@.name=="spark-operator-webhook")].args
+          content: --webhook-ca-bundle-sync-interval=10s
+
+  - it: Should render the filesystem cert provider and CA bundle args when `webhook.certProvider` is `filesystem`
+    set:
+      webhook:
+        certProvider: filesystem
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[?(@.name=="spark-operator-webhook")].args
+          content: --webhook-cert-provider=filesystem
+      - contains:
+          path: spec.template.spec.containers[?(@.name=="spark-operator-webhook")].args
+          content: --webhook-ca-bundle-sync=auto
+      - contains:
+          path: spec.template.spec.containers[?(@.name=="spark-operator-webhook")].args
+          content: --webhook-ca-bundle-sync-interval=10s
+      - notContains:
+          path: spec.template.spec.containers[?(@.name=="spark-operator-webhook")].args
+          content: --webhook-ca-bundle-file=
+
+  - it: Should render an explicit CA bundle file, sync mode, and interval when set
+    set:
+      webhook:
+        certProvider: filesystem
+        caBundle:
+          sync: enabled
+          file: /etc/pki_service/ca/cacerts.pem
+          syncInterval: 30s
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[?(@.name=="spark-operator-webhook")].args
+          content: --webhook-ca-bundle-sync=enabled
+      - contains:
+          path: spec.template.spec.containers[?(@.name=="spark-operator-webhook")].args
+          content: --webhook-ca-bundle-file=/etc/pki_service/ca/cacerts.pem
+      - contains:
+          path: spec.template.spec.containers[?(@.name=="spark-operator-webhook")].args
+          content: --webhook-ca-bundle-sync-interval=30s
+
+  - it: Should not render CA bundle args for a non-filesystem explicit provider
+    set:
+      webhook:
+        certProvider: cert-manager
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[?(@.name=="spark-operator-webhook")].args
+          content: --webhook-cert-provider=cert-manager
+      - notContains:
+          path: spec.template.spec.containers[?(@.name=="spark-operator-webhook")].args
+          content: --webhook-ca-bundle-sync=auto
+
+  # ---- Guards ----
+
+  - it: Should fail when operator owns the caBundle with replicas > 1 and leader election disabled
+    set:
+      webhook:
+        certProvider: filesystem
+        replicas: 2
+        leaderElection:
+          enable: false
+    asserts:
+      - failedTemplate:
+          errorMessage: "webhook.leaderElection.enable must be true when the operator owns the caBundle and webhook.replicas > 1, otherwise replicas will race to publish the caBundle"
+
+  - it: Should render with replicas > 1 and leader election disabled when trust is externally owned
+    set:
+      webhook:
+        certProvider: filesystem
+        replicas: 2
+        leaderElection:
+          enable: false
+        caBundle:
+          sync: disabled
+    asserts:
+      - containsDocument:
+          apiVersion: apps/v1
+          kind: Deployment
+          name: spark-operator-webhook
+
+  - it: Should fail when certManager.enable conflicts with a non-cert-manager webhook.certProvider
+    set:
+      certManager:
+        enable: true
+      webhook:
+        certProvider: filesystem
+    asserts:
+      - failedTemplate:
+          errorMessage: 'certManager.enable conflicts with webhook.certProvider="filesystem"; unset one (cert-manager is selected by certManager.enable)'

@@ -371,6 +371,21 @@ webhook:
   # -- The number of old history to retain to allow rollback.
   revisionHistoryLimit: 10
 
+  # -- Provider of the webhook server certificate and, in filesystem mode, the trust the operator publishes.
+  # Valid values are `self-signed`, `cert-manager`, and `filesystem`. When `certManager.enable` is `true`,
+  # cert-manager takes precedence regardless of this value.
+  certProvider: self-signed
+
+  # CA bundle publication settings. Only take effect with the `filesystem` provider; ignored otherwise.
+  caBundle:
+    # -- Who reconciles the admission webhook `clientConfig.caBundle`. Valid values are `auto`, `enabled`, and
+    # `disabled`. `auto`/`enabled` make the operator publish trust; `disabled` defers to an external owner.
+    sync: auto
+    # -- Path to the CA bundle file the operator reads and publishes. Empty defaults to `ca.crt` under the cert dir.
+    file: ""
+    # -- Interval at which the operator re-reads the CA bundle file when it owns trust.
+    syncInterval: 10s
+
   leaderElection:
     # -- Specifies whether to enable leader election for webhook.
     enable: true

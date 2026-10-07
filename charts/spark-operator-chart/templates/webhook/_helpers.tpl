@@ -126,6 +126,55 @@ Create the name of the pod disruption budget to be used by webhook
 {{- end -}}
 
 {{/*
+Resolve the webhook server certificate provider. cert-manager (via
+certManager.enable) takes precedence for backward compatibility; otherwise the
+explicit webhook.certProvider value is used, defaulting to self-signed. Mirrors
+the operator's resolveCertificateOptions precedence (enable-cert-manager forces
+cert-manager unless the provider was set explicitly).
+*/}}
+{{- define "spark-operator.webhook.certProvider" -}}
+{{- if .Values.certManager.enable -}}
+cert-manager
+{{- else -}}
+{{ .Values.webhook.certProvider | default "self-signed" }}
+{{- end -}}
+{{- end -}}
+
+{{/*
+Resolve the webhook caBundle sync mode, defaulting to auto.
+*/}}
+{{- define "spark-operator.webhook.caBundleSyncMode" -}}
+{{ .Values.webhook.caBundle.sync | default "auto" }}
+{{- end -}}
+
+{{/*
+Resolve who owns (publishes) the admission webhook caBundle. Mirrors the
+operator's resolveCABundleOwner matrix (cmd/operator/webhook/certificate_options.go):
+  self-signed             => operator (operator mints and publishes its CA)
+  cert-manager            => cert-manager (cert-manager's ca-injector publishes)
+  filesystem + disabled   => external
+  filesystem + auto/enabled => operator
+Only the "operator" result grants the operator the admission get/update/patch RBAC.
+*/}}
+{{- define "spark-operator.webhook.caBundleOwner" -}}
+{{- $provider := include "spark-operator.webhook.certProvider" . -}}
+{{- $sync := include "spark-operator.webhook.caBundleSyncMode" . -}}
+{{- if eq $provider "self-signed" -}}
+operator
+{{- else if eq $provider "cert-manager" -}}
+cert-manager
+{{- else if eq $provider "filesystem" -}}
+{{- if eq $sync "disabled" -}}
+external
+{{- else -}}
+operator
+{{- end -}}
+{{- else -}}
+{{- fail (printf "unsupported webhook.certProvider %q (valid values: self-signed, cert-manager, filesystem)" $provider) -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
 Create the role policy rules for the webhook in every Spark job namespace
 */}}
 {{- define "spark-operator.webhook.policyRules" -}}

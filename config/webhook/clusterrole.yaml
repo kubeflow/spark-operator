@@ -39,6 +39,7 @@ rules:
     verbs:
       - get
       - update
+      - patch
   - apiGroups:
       - sparkoperator.k8s.io
     resources:
