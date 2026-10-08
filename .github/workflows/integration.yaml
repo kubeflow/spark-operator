@@ -118,6 +118,12 @@ jobs:
       - name: Run go unit tests
         run: make unit-test
 
+      - name: Coveralls report
+        uses: shogo82148/actions-goveralls@9606dbc5ac5cf888a0e9ef901515c3cd516a2790 # v1
+        continue-on-error: true
+        with:
+          path-to-profile: cover.out
+
       - name: Build Spark operator
         run: make build-operator
 
