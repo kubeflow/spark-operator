@@ -625,3 +625,135 @@ tests:
               - sparkconnects/finalizers
             verbs:
               - patch
+
+  # ---- Batch scheduler RBAC rules ----
+
+  - it: Should include volcano podgroups when batchScheduler is enabled
+    set:
+      spark:
+        jobNamespaces:
+          - ""
+      controller:
+        batchScheduler:
+          enable: true
+    documentIndex: 0
+    asserts:
+      - contains:
+          path: rules
+          content:
+            apiGroups:
+              - scheduling.incubator.k8s.io
+              - scheduling.sigs.dev
+              - scheduling.volcano.sh
+            resources:
+              - podgroups
+            verbs:
+              - "*"
+
+  - it: Should not include volcano podgroups when batchScheduler is disabled
+    set:
+      spark:
+        jobNamespaces:
+          - ""
+      controller:
+        batchScheduler:
+          enable: false
+    documentIndex: 0
+    asserts:
+      - notContains:
+          path: rules
+          any: true
+          content:
+            apiGroups:
+              - scheduling.incubator.k8s.io
+              - scheduling.sigs.dev
+              - scheduling.volcano.sh
+            resources:
+              - podgroups
+
+  # ---- Workload scheduler RBAC gating tests ----
+
+  - it: Should include workload API RBAC when both batchScheduler.enable and workload.enable are true
+    set:
+      spark:
+        jobNamespaces:
+          - ""
+      controller:
+        batchScheduler:
+          enable: true
+          workload:
+            enable: true
+    documentIndex: 0
+    asserts:
+      - contains:
+          path: rules
+          content:
+            apiGroups:
+              - scheduling.k8s.io
+            resources:
+              - workloads
+              - podgroups
+            verbs:
+              - get
+              - list
+              - watch
+              - create
+              - update
+              - delete
+
+  - it: Should not include workload API RBAC when batchScheduler.enable is false and workload.enable is true
+    set:
+      spark:
+        jobNamespaces:
+          - ""
+      controller:
+        batchScheduler:
+          enable: false
+          workload:
+            enable: true
+    documentIndex: 0
+    asserts:
+      - notContains:
+          path: rules
+          any: true
+          content:
+            apiGroups:
+              - scheduling.k8s.io
+
+  - it: Should not include workload API RBAC when batchScheduler.enable is true and workload.enable is false
+    set:
+      spark:
+        jobNamespaces:
+          - ""
+      controller:
+        batchScheduler:
+          enable: true
+          workload:
+            enable: false
+    documentIndex: 0
+    asserts:
+      - notContains:
+          path: rules
+          any: true
+          content:
+            apiGroups:
+              - scheduling.k8s.io
+
+  - it: Should not include workload API RBAC when both batchScheduler.enable and workload.enable are false
+    set:
+      spark:
+        jobNamespaces:
+          - ""
+      controller:
+        batchScheduler:
+          enable: false
+          workload:
+            enable: false
+    documentIndex: 0
+    asserts:
+      - notContains:
+          path: rules
+          any: true
+          content:
+            apiGroups:
+              - scheduling.k8s.io

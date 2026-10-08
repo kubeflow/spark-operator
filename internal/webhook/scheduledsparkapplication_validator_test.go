@@ -22,6 +22,7 @@ import (
 	"testing"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/utils/ptr"
 
 	"github.com/kubeflow/spark-operator/v2/api/v1beta2"
 	"github.com/kubeflow/spark-operator/v2/pkg/common"
@@ -192,4 +193,143 @@ func TestScheduledSparkApplicationValidatorValidateCreate_ConfigMapNames(t *test
 	if err == nil || !strings.Contains(err.Error(), `spec.template.driver.configMaps[0].name has invalid ConfigMap name "MY_CONFIG"`) {
 		t.Fatalf("expected an invalid ConfigMap name error, got %v", err)
 	}
+}
+
+func TestScheduledSparkApplicationValidatorValidateWorkloadScheduler(t *testing.T) {
+	validator := NewScheduledSparkApplicationValidator()
+
+	tests := []struct {
+		name         string
+		modifyApp    func(app *v1beta2.ScheduledSparkApplication)
+		wantErr      bool
+		errContains  string
+		wantWarns    int
+		warnContains string
+	}{
+		{
+			name: "workload + queue (warn, not reject)",
+			modifyApp: func(app *v1beta2.ScheduledSparkApplication) {
+				workload := "workload"
+				app.Spec.Template.BatchScheduler = &workload
+				queue := "my-queue"
+				app.Spec.Template.BatchSchedulerOptions = &v1beta2.BatchSchedulerConfiguration{
+					Queue: &queue,
+				}
+			},
+			wantErr:      false,
+			wantWarns:    1,
+			warnContains: "batchSchedulerOptions.queue has no effect when batchScheduler is \"workload\"",
+		},
+		{
+			name: "volcano + queue (no warning)",
+			modifyApp: func(app *v1beta2.ScheduledSparkApplication) {
+				volcano := "volcano"
+				app.Spec.Template.BatchScheduler = &volcano
+				queue := "my-queue"
+				app.Spec.Template.BatchSchedulerOptions = &v1beta2.BatchSchedulerConfiguration{
+					Queue: &queue,
+				}
+			},
+			wantErr:   false,
+			wantWarns: 0,
+		},
+		{
+			name: "zero minMember (reject)",
+			modifyApp: func(app *v1beta2.ScheduledSparkApplication) {
+				app.Spec.Template.BatchSchedulerOptions = &v1beta2.BatchSchedulerConfiguration{
+					MinMember: ptr.To[int32](0),
+				}
+			},
+			wantErr:     true,
+			errContains: "minMember must be greater than or equal to 1",
+		},
+		{
+			name: "negative minMember (reject)",
+			modifyApp: func(app *v1beta2.ScheduledSparkApplication) {
+				app.Spec.Template.BatchSchedulerOptions = &v1beta2.BatchSchedulerConfiguration{
+					MinMember: ptr.To[int32](-1),
+				}
+			},
+			wantErr:     true,
+			errContains: "minMember must be greater than or equal to 1",
+		},
+		{
+			name: "positive minMember (pass)",
+			modifyApp: func(app *v1beta2.ScheduledSparkApplication) {
+				app.Spec.Template.BatchScheduler = ptr.To("workload")
+				app.Spec.Template.BatchSchedulerOptions = &v1beta2.BatchSchedulerConfiguration{
+					MinMember: ptr.To[int32](5),
+				}
+			},
+			wantErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			app := newScheduledSparkApplication()
+			tt.modifyApp(app)
+
+			warnings, err := validator.ValidateCreate(context.Background(), app)
+			if tt.wantErr {
+				if err == nil {
+					t.Fatalf("expected error containing %q, got nil", tt.errContains)
+				}
+				if !strings.Contains(err.Error(), tt.errContains) {
+					t.Errorf("expected error containing %q, got %q", tt.errContains, err.Error())
+				}
+			} else if err != nil {
+				t.Fatalf("expected no error, got %v", err)
+			}
+
+			if len(warnings) != tt.wantWarns {
+				t.Errorf("expected %d warnings, got %d: %v", tt.wantWarns, len(warnings), warnings)
+			}
+			if tt.wantWarns > 0 && tt.warnContains != "" {
+				found := false
+				for _, w := range warnings {
+					if strings.Contains(w, tt.warnContains) {
+						found = true
+						break
+					}
+				}
+				if !found {
+					t.Errorf("expected warning containing %q, got warnings: %v", tt.warnContains, warnings)
+				}
+			}
+		})
+	}
+}
+
+func TestScheduledSparkApplicationValidatorValidateUpdate_WorkloadScheduler(t *testing.T) {
+	validator := NewScheduledSparkApplicationValidator()
+
+	t.Run("changed template receives workload validation", func(t *testing.T) {
+		oldApp := newScheduledSparkApplication()
+		newApp := newScheduledSparkApplication()
+		// Change template to trigger validation
+		newApp.Spec.Template.BatchSchedulerOptions = &v1beta2.BatchSchedulerConfiguration{
+			MinMember: ptr.To[int32](-1),
+		}
+
+		_, err := validator.ValidateUpdate(context.Background(), oldApp, newApp)
+		if err == nil || !strings.Contains(err.Error(), "minMember must be greater than or equal to 1") {
+			t.Fatalf("expected minMember validation error, got %v", err)
+		}
+	})
+
+	t.Run("unchanged template skips validation", func(t *testing.T) {
+		oldApp := newScheduledSparkApplication()
+		oldApp.Spec.Template.BatchSchedulerOptions = &v1beta2.BatchSchedulerConfiguration{
+			MinMember: ptr.To[int32](-1), // Invalid, but unchanged
+		}
+		newApp := oldApp.DeepCopy()
+		// Only metadata changed
+		newApp.Labels = map[string]string{"team": "data"}
+
+		_, err := validator.ValidateUpdate(context.Background(), oldApp, newApp)
+		if err != nil {
+			t.Fatalf("expected unchanged spec to skip validation, got %v", err)
+		}
+	})
 }
