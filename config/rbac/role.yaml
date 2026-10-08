@@ -63,6 +63,15 @@ rules:
   - get
   - update
 - apiGroups:
+  - gateway.networking.k8s.io
+  resources:
+  - httproutes
+  verbs:
+  - create
+  - delete
+  - get
+  - update
+- apiGroups:
   - policy
   resources:
   - poddisruptionbudgets
