@@ -78,14 +78,17 @@ Spark Operator image
 {{- end -}}
 
 {{/*
-Spark Operator control-plane version
+Name of the public ConfigMap that exposes the Spark Operator control-plane version.
 */}}
-{{- define "spark-operator.version" -}}  
-{{- if hasPrefix "0.0.0-" .Chart.Version -}} 
-dev
-{{- else -}}
-{{ printf "v%s" .Chart.Version }}
+{{- define "spark-operator.publicConfigMap.name" -}}
+kubeflow-spark-public
 {{- end -}}
+
+{{/*
+Spark Operator control-plane version, e.g. v2.5.0.
+*/}}
+{{- define "spark-operator.version" -}}
+{{- printf "v%s" (.Chart.AppVersion | toString | trimPrefix "v") -}}
 {{- end -}}
 
 {{/*
@@ -103,4 +106,5 @@ Whether the DefaultTimeToLive feature gate is enabled.
 {{- define "spark-operator.defaultTimeToLive.enabled" -}}
 {{- range .Values.controller.featureGates -}}
 {{- if and (eq .name "DefaultTimeToLive") .enabled -}}true{{- end -}}
+{{- end -}}
 {{- end -}}

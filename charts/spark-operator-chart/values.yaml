@@ -27,6 +27,13 @@ fullnameOverride: ""
 # -- Common labels to add to the resources.
 commonLabels: {}
 
+# Public ConfigMap exposing the Spark Operator control-plane version.
+publicConfigMap:
+  # -- Whether to create the `kubeflow-spark-public` ConfigMap.
+  # The ConfigMap name is fixed so that clients can discover it, so only one Spark Operator release
+  # per namespace can create it. Set this to `false` for any additional release installed in the same namespace.
+  create: true
+
 # Image used by the Spark operator.
 image:
   # -- Image registry.
