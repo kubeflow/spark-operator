@@ -34,3 +34,15 @@ labels:
 images:
   - name: ghcr.io/kubeflow/spark-operator/controller
     newTag: v2.5.0-rc.0
+
+# Public ConfigMap exposing the Spark Operator control-plane version to clients
+# such as the Kubeflow SDK. Read access is granted to all authenticated users by
+# the kubeflow-spark-public Role/RoleBinding in ../rbac.
+# The version is derived from the VERSION file at the repo root.
+# To update: make kustomize-set-image
+configMapGenerator:
+  - name: kubeflow-spark-public
+    literals:
+      - kubeflow_spark_version=v2.5.0-rc.0
+    options:
+      disableNameSuffixHash: true

@@ -15,3 +15,6 @@ resources:
   - sparkapplication_editor_role.yaml
   - scheduledsparkapplication_viewer_role.yaml
   - scheduledsparkapplication_editor_role.yaml
+  # Read-only access to the public ConfigMap for all authenticated users
+  - public_configmap_role.yaml
+  - public_configmap_role_binding.yaml
