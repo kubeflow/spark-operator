@@ -1,187 +1,177 @@
 # Releasing the Spark operator
 
+Spark Operator releases are automated: a maintainer opens a single
+"release PR", and merging it runs the [release workflow](../.github/workflows/release.yaml),
+which publishes every artifact.
+
 ## Prerequisites
 
-- [Write](https://docs.github.com/organizations/managing-access-to-your-organizations-repositories/repository-permission-levels-for-an-organization#permission-levels-for-repositories-owned-by-an-organization) permission for the Spark operator repository.
+- [Write](https://docs.github.com/organizations/managing-access-to-your-organizations-repositories/repository-permission-levels-for-an-organization#permission-levels-for-repositories-owned-by-an-organization)
+  permission for the Spark operator repository, and membership in the reviewers of the
+  `release` GitHub environment (to approve the release run).
+- For final (non-RC) releases, a [GitHub token](https://docs.github.com/github/authenticating-to-github/keeping-your-account-and-data-secure/creating-a-personal-access-token)
+  and `PyGithub` to generate the [changelog](../CHANGELOG.md):
 
-- Maintainer access to [the Kubeflow Spark Operator API Python modules](https://pypi.org/project/kubeflow-spark-api/).
-
-- Create a [GitHub Token](https://docs.github.com/github/authenticating-to-github/keeping-your-account-and-data-secure/creating-a-personal-access-token).
-
-- Create an isolated Python environment (recommended):
-
-  ```bash
-  # Using venv
-  python -m venv .venv
-  source .venv/bin/activate
-
-  # Or using uv (faster dependency management)
-  uv venv
-  source .venv/bin/activate
-  ```
-
-- Install `PyGithub` to generate the [Changelog](../CHANGELOG.md):
-
-  ```bash
+```bash
   pip install PyGithub==2.3.0
-  ```
+```
 
-- Install `twine` and `build` to publish the SDK package:
+- A git remote named `upstream` pointing at `kubeflow/spark-operator` (falls back to `origin`).
 
-  ```
-  pip install twine>=6.1.0
-  pip install build>=1.3.0
-  ```
-
-  - Create a [PyPI Token](https://pypi.org/help/#apitoken) to publish Spark Operator SDK.
-
-  - Add the following config to your `~/.pypirc` file:
-
-    ```
-    [pypi]
-       username = __token__
-       password = <PYPI_TOKEN>
-    ```
+No PyPI token is needed: the Python API package is published with
+[PyPI trusted publishing](https://docs.pypi.org/trusted-publishers/).
 
 ## Versioning policy
 
-Spark Operator version format follows [Semantic Versioning](https://semver.org/). Spark Operator versions are in the format of `vX.Y.Z`, where `X` is the major version, `Y` is the minor version, and `Z` is the patch version. The patch version contains only bug fixes.
+Spark Operator version format follows [Semantic Versioning](https://semver.org/). Spark Operator
+versions are in the format of `vX.Y.Z`, where `X` is the major version, `Y` is the minor version,
+and `Z` is the patch version. The patch version contains only bug fixes.
 
-Additionally, Spark Operator does pre-releases in this format: `vX.Y.Z-rc.N` where `N` is a number of the `Nth` release candidate (RC) before an upcoming public release named `vX.Y.Z`.
+Additionally, Spark Operator does pre-releases in this format: `vX.Y.Z-rc.N` where `N` is a number
+of the `Nth` release candidate (RC) before an upcoming public release named `vX.Y.Z`.
+
+One version is used for every artifact of a release:
+
+| Artifact | Version for `v2.6.0-rc.0` |
+| --- | --- |
+| Git tag and GitHub release | `v2.6.0-rc.0` |
+| Container images `ghcr.io/kubeflow/spark-operator/{controller,kubectl}` | `2.6.0-rc.0` |
+| Helm chart `version` and `appVersion` | `2.6.0-rc.0` |
+| Kustomize image tag in `config/default/kustomization.yaml` | `2.6.0-rc.0` |
+| Python API [`kubeflow-spark-api`](https://pypi.org/project/kubeflow-spark-api/) | `2.6.0rc0` (PEP 440) |
+
+Image tags, the chart version and the Kustomize tag carry no leading `v`.
 
 ## Release branches and tags
 
-Spark Operator releases are tagged with tags like `vX.Y.Z`, for example `v1.7.2`.
+Spark Operator releases are tagged with tags like `vX.Y.Z`, for example `v2.6.0`.
 
 Release branches are in the format of `release-X.Y`, where `X.Y` stands for the minor release.
+All `vX.Y.Z` releases, including patch releases, are released from the `release-X.Y` branch.
+For example, `v2.6.1` is released from `release-2.6`. Do not create per-patch branches such as
+`release-2.6.1`.
 
-`vX.Y.Z` releases are released from the `release-X.Y` branch. For example, `v1.7.2` release should be on `release-1.7` branch.
+The release workflow creates `release-X.Y` from `master` when the first release of a minor
+line (normally `vX.Y.0-rc.0`) is merged.
 
-If you want to push changes to the `release-X.Y` release branch, you have to cherry pick your changes from the `master` branch and submit a PR.
+If you want to push changes to the `release-X.Y` branch, cherry-pick them from `master` and
+submit a PR against `release-X.Y`. When the next release of the line is merged on `master`, only
+the release commit itself is cherry-picked to `release-X.Y`: fixes merged to `master` after the
+branch was cut are **not** included unless they were cherry-picked to the release branch.
 
-## Create a new release
+## Create a release
 
-### Create release branch
+### 1. Prepare the release PR
 
-1. Depends on what version you want to release,
+Choose the target branch:
 
-   - Major or Minor version - Use the GitHub UI to create a release branch from `master` and name the release branch `release-X.Y`.
-   - Patch version - You don't need to create a new release branch.
+- **Latest minor line** (new minor, RC, or patch of the newest minor): work from `master`.
+- **Patch of an older minor line** (for example `v2.5.3` while `master` is on `v2.6.x`): work
+  from `release-X.Y`.
 
-2. Fetch the upstream changes into your local directory:
-
-   ```bash
-   git fetch upstream
-   ```
-
-3. Checkout into the release branch:
-
-   ```bash
-   git checkout release-X.Y
-   git rebase upstream/release-X.Y
-   ```
-
-### Create GitHub tag
-
-1. Modify `VERSION` file in the root directory of the project:
-
-    - For the RC tag as follows:
-
-    ```bash
-    vX.Y.Z-rc.N
-    ```
-
-    - For the official release tag as follows:
-
-    ```bash
-    vX.Y.Z
-    ```
-
-2. Modify `version` and `appVersion` in `Chart.yaml`:
-
-    ```bash
-    # Get version and remove the leading 'v'
-    VERSION=$(cat VERSION | sed "s/^v//")
-
-    # Change the version and appVersion in Chart.yaml
-    # On Linux
-    sed -i "s/^version.*/version: ${VERSION}/" charts/spark-operator-chart/Chart.yaml
-    sed -i "s/^appVersion.*/appVersion: ${VERSION}/" charts/spark-operator-chart/Chart.yaml
-
-    # On MacOS
-    sed -i '' "s/^version.*/version: ${VERSION}/" charts/spark-operator-chart/Chart.yaml
-    sed -i '' "s/^appVersion.*/appVersion: ${VERSION}/" charts/spark-operator-chart/Chart.yaml
-    ```
-
-3. Update the Helm chart README:
-
-    ```bash
-    make helm-docs
-    ```
-
-4. Commit the changes:
-
-    ```bash
-    git add VERSION
-    git add charts/spark-operator-chart/Chart.yaml
-    git add charts/spark-operator-chart/README.md
-    git commit -s -m "Spark Operator Official Release v${VERSION}"
-    git push origin release-X.Y
-    ```
-
-5. Submit a PR to the release branch.
-
-### Release Kubeflow Spark Operator API Modules
-
-1. Update the `API_VERSION` in [the `gen-api.sh` file](../../hack/python-api/gen-api.sh).
-
-   You must follow this semantic `X.Y.ZrcN` for the RC or `X.Y.Z` for the public release.
-
-   For example:
-
-   ```sh
-   API_VERSION = "2.1.0rc0"
-   ```
-
-1. Generate and publish the Kubeflow Spark Operator API models:
-
-   ```
-   make python-api
-   cd api/python_api
-   rm -rf dist
-   python -m build
-   twine upload dist/*
-   cd ../..
-   ```
-
-### Release Spark Operator Image
-
-After `VERSION` file is modified and pushed to the release branch, a release workflow will be triggered to build and push Spark operator docker images to Docker Hub.
-
-### Publish release
-
-After `VERSION` file is modified and pushed to the release branch, a release workflow will be triggered to create a new draft release with the Spark operator Helm chart packaged as an artifact. After modifying the release notes, then publish the release.
-
-### Release Spark Operator Helm Chart
-
-After the draft release is published, a release workflow will be triggered to update the Helm chart repo index and publish it to the Helm repository.
-
-## Update Changelog
-
-Update the `CHANGELOG.md` file by running:
+Then run:
 
 ```bash
-python hack/generate-changelog.py \
-    --token=<github-token> \
-    --range=<previous-release>..<current-release>
+git fetch upstream --tags
+git checkout -b release-vX.Y.Z upstream/master   # or upstream/release-X.Y
+
+# Release candidate (no changelog):
+make release VERSION=vX.Y.Z-rc.N
+
+# Final release (generates the CHANGELOG.md section):
+make release VERSION=vX.Y.Z GITHUB_TOKEN=<github-token>
 ```
 
-If you are creating the **first minor pre-release** or the **minor** release (`X.Y`), your `previous-release` is equal to the latest release on the `release-X.Y` branch.
-For example: `--range=v1.7.1..v1.8.0`.
+This will:
 
-Otherwise, your `previous-release` is equal to the latest release on the `release-X.Y` branch.
-For example: `--range=v1.7.0..v1.8.0-rc.0`
+1. Update `VERSION` to `vX.Y.Z[-rc.N]`.
+1. Update the Helm chart `version` and `appVersion` to `X.Y.Z[-rc.N]`.
+1. Update the Kustomize controller image tag to `X.Y.Z[-rc.N]`.
+1. Update the Python API package version.
+1. Regenerate the Helm chart README (`make helm-docs`).
+1. For final releases, prepend a `## [vX.Y.Z]` section to `CHANGELOG.md`, generated from the
+   PRs between the previous release and the release branch (or `master` for a new minor line).
+   Set `PREVIOUS_VERSION` or `CHANGELOG_HEAD_REF` to override the range.
 
-Group PRs in the Changelog into Features, Bug fixes, Documentation, etc.
+Group the generated changelog entries into Features, Bug Fixes, Documentation, etc. The section
+is used verbatim as the GitHub release notes. Then validate, commit and open the PR:
 
-Finally, submit a PR with the updated Changelog.
+```bash
+make check-release
+git add -A && git commit -s -m "Release vX.Y.Z"
+git push origin release-vX.Y.Z
+```
+
+The [Check Release](../.github/workflows/check-release.yaml) workflow verifies that all versions
+agree, that the tag does not exist yet and that final releases have a changelog section.
+
+### 2. Merge and approve
+
+When the PR is merged, the [release workflow](../.github/workflows/release.yaml) starts and waits
+for approval on the `release` environment. Once approved, it runs:
+
+1. **Prepare release branch**: creates `release-X.Y` from `master`, or cherry-picks the release
+   commit onto the existing `release-X.Y` (when merged to `master`), then re-validates the branch.
+1. **Verify**: builds the operator, checks the generated Python API is up to date, runs Helm unit
+   tests, the Helm/Kustomize drift check and the Kustomize build validation.
+1. **Build Python package** with `uv` and validates it with `twine check`.
+1. **Create and push tag**: an annotated `vX.Y.Z` tag on the release branch commit.
+1. **Build and publish images**: multi-arch (`linux/amd64`, `linux/arm64`) controller and
+   kubectl images, plus operator binary archives extracted and verified from the image.
+1. **Publish Helm chart** to `oci://ghcr.io/kubeflow/helm-charts/spark-operator`.
+1. **Publish to PyPI** with trusted publishing (approval on the `release` environment again).
+1. **Create GitHub release**: a draft with the changelog section as notes (generated notes for
+   RCs), the Helm chart archive, the binary archives, the Python package and `SHA256SUMS`, which
+   is then published. RCs are marked as pre-releases.
+1. **Update Helm repository index** on the `gh-pages` branch so that
+   `helm repo add spark-operator https://kubeflow.github.io/spark-operator` serves the release.
+
+Every step is idempotent (existing tags, PyPI files, releases and index entries are detected),
+so a failed run can be re-run from the Actions UI. The Helm chart phases can also be re-run on
+their own with the [Release Helm charts](../.github/workflows/release-helm-charts.yaml) workflow.
+
+### 3. Verify the release
+
+```bash
+VERSION=X.Y.Z
+docker buildx imagetools inspect ghcr.io/kubeflow/spark-operator/controller:${VERSION}
+helm show chart oci://ghcr.io/kubeflow/helm-charts/spark-operator --version ${VERSION}
+helm repo update spark-operator && helm search repo spark-operator/spark-operator --versions --devel | head
+pip download --no-deps kubeflow-spark-api==${VERSION/-rc./rc}
+kustomize build "github.com/kubeflow/spark-operator/config/default?ref=v${VERSION}" | grep image:
+```
+
+## Announcement
+
+Post the release announcement in:
+
+- `#kubeflow-spark-operator` channel in the [CNCF Slack](https://communityinviter.com/apps/cloud-native/cncf)
+- [`kubeflow-discuss`](https://groups.google.com/g/kubeflow-discuss) mailing list
+
+Update the Spark Operator version in
+[kubeflow/manifests](https://github.com/kubeflow/manifests) for final releases.
+
+## Bump the milestone applier
+
+When a new minor release branch (`release-X.Y`) is cut, update the
+[`milestone_applier`](https://github.com/GoogleCloudPlatform/oss-test-infra/blob/master/prow/oss/plugins.yaml)
+configuration for `kubeflow/spark-operator` in `GoogleCloudPlatform/oss-test-infra`, so Prow
+keeps applying the correct milestone to PRs on each branch:
+
+1. Bump the `master` milestone to the next minor (for example `v2.6` to `v2.7`).
+1. Add an entry pinning the new release branch to its milestone (for example `release-2.6: v2.6`).
+
+## Repository settings required by the release workflow
+
+These are one-time settings for repository administrators:
+
+- **`release` environment** with required reviewers (Settings → Environments). Both the
+  `prepare` and `publish-pypi` jobs run in it.
+- **PyPI trusted publisher** for `kubeflow-spark-api`: owner `kubeflow`, repository
+  `spark-operator`, workflow `release.yaml`, environment `release`.
+- **Branch protection** for `release-*` must allow `github-actions[bot]` to push the release
+  commit and create the branch, and tag protection must allow it to push `v*` tags.
+- **Workflow permissions**: GitHub Actions must be allowed to create releases and push to
+  `ghcr.io/kubeflow/spark-operator/*` and `ghcr.io/kubeflow/helm-charts/*`.
+- Optionally enable **immutable releases**; the workflow attaches all assets while the release is
+  still a draft, so it works with immutable releases enabled.

@@ -1,36 +1,73 @@
 name: Release Helm charts
 
 on:
-  release:
-    types:
-      - published
+  workflow_call:
+    inputs:
+      version:
+        description: Release version (vX.Y.Z or vX.Y.Z-rc.N). The chart is packaged from this tag.
+        required: true
+        type: string
+      publish-oci:
+        description: Push the chart to the OCI registry.
+        required: false
+        type: boolean
+        default: false
+      update-index:
+        description: Add the chart to the gh-pages Helm repository index.
+        required: false
+        type: boolean
+        default: false
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Release version (vX.Y.Z or vX.Y.Z-rc.N). The chart is packaged from this tag.
+        required: true
+        type: string
+      publish-oci:
+        description: Push the chart to the OCI registry.
+        required: false
+        type: boolean
+        default: true
+      update-index:
+        description: Add the chart to the gh-pages Helm repository index.
+        required: false
+        type: boolean
+        default: true
 
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+permissions:
+  contents: read
 
 env:
   HELM_REGISTRY: ghcr.io
   HELM_REPOSITORY: ${{ github.repository_owner }}/helm-charts
+  # The release workflow downloads this artifact and attaches the same archives to the GitHub
+  # release, so the chart in the OCI registry, the release asset and the index are identical.
+  CHARTS_ARTIFACT: helm-charts-${{ inputs.version }}
 
 jobs:
-  release_helm_charts:
-    permissions:
-      contents: write
-      packages: write
-
+  package:
+    name: Package Helm charts
+    if: inputs.publish-oci
     runs-on: ubuntu-latest
 
+    permissions:
+      contents: read
+
     steps:
-      - name: Checkout source code
+      - name: Validate version
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          if [[ ! "${VERSION}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-rc\.[0-9]+)?$ ]]; then
+            echo "Invalid version '${VERSION}'" >&2
+            exit 1
+          fi
+
+      - name: Checkout release tag
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          ref: refs/tags/${{ inputs.version }}
           persist-credentials: false
-
-      - name: Configure Git
-        run: |
-          git config user.name "$GITHUB_ACTOR"
-          git config user.email "$GITHUB_ACTOR@users.noreply.github.com"
 
       - name: Get Helm version
         id: get_helm_version
@@ -43,50 +80,120 @@ jobs:
         with:
           version: ${{ steps.get_helm_version.outputs.HELM_VERSION }}
 
+      - name: Package Helm charts
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          mkdir -p "${RUNNER_TEMP}/charts"
+          for chart in charts/*/; do
+            chart_version=$(awk '/^version:/{print $2; exit}' "${chart}Chart.yaml")
+            if [[ "${chart_version}" != "${VERSION#v}" ]]; then
+              echo "Chart ${chart} version '${chart_version}' does not match release ${VERSION}" >&2
+              exit 1
+            fi
+            helm package "${chart}" --destination "${RUNNER_TEMP}/charts"
+          done
+          ls -l "${RUNNER_TEMP}/charts"
+
+      - name: Upload packaged charts
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        with:
+          name: ${{ env.CHARTS_ARTIFACT }}
+          path: ${{ runner.temp }}/charts/*.tgz
+          if-no-files-found: error
+          retention-days: 1
+
+  publish-oci:
+    name: Push Helm charts to OCI registry
+    if: inputs.publish-oci
+    needs:
+      - package
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Download packaged charts
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        with:
+          name: ${{ env.CHARTS_ARTIFACT }}
+          path: ${{ runner.temp }}/charts
+
+      - name: Set up Helm
+        uses: azure/setup-helm@9bc31f4ebc9c6b171d7bfbaa5d006ae7abdb4310 # v5.0.1
+
       - name: Login to GHCR
         uses: docker/login-action@650006c6eb7dba73a995cc03b0b2d7f5ca915bee # v4.2.0
         with:
           registry: ${{ env.HELM_REGISTRY }}
-          username: ${{ github.repository_owner }}
+          username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Read version from VERSION file
+      - name: Push charts to GHCR
         run: |
-          VERSION=$(cat VERSION)
-          echo "VERSION=${VERSION}" >> $GITHUB_ENV
-
-      - name: Package Helm charts
-        run: |
-          for chart in $(ls charts); do
-            helm package charts/${chart}
+          set -euo pipefail
+          for pkg in "${RUNNER_TEMP}"/charts/*.tgz; do
+            helm push "${pkg}" "oci://${HELM_REGISTRY}/${HELM_REPOSITORY}"
           done
 
-      - name: Upload charts to GHCR
-        run: |
-          for pkg in $(ls *.tgz); do
-            helm push ${pkg} oci://${HELM_REGISTRY}/${HELM_REPOSITORY}
-          done
+  update-index:
+    name: Update Helm repository index
+    # Runs after `package`/`publish-oci` when both phases are requested from workflow_dispatch.
+    if: ${{ !failure() && !cancelled() && inputs.update-index }}
+    needs:
+      - package
+      - publish-oci
+    runs-on: ubuntu-latest
 
-      - name: Save packaged charts to temp directory
-        run: |
-          mkdir -p /tmp/charts
-          cp *.tgz /tmp/charts
+    permissions:
+      contents: write
 
-      - name: Checkout to branch gh-pages
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6.0.2 # zizmor: ignore[artipacked]
+    steps:
+      - name: Download chart archives from the published release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ inputs.version }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          # The index points at the release assets, so index exactly those archives, and only
+          # once the release is public (draft assets are not downloadable anonymously).
+          is_draft=$(gh release view "${VERSION}" --repo "${REPOSITORY}" --json isDraft --jq .isDraft)
+          if [[ "${is_draft}" != "false" ]]; then
+            echo "Release ${VERSION} is not published; the index would point at unreachable archives." >&2
+            exit 1
+          fi
+          mkdir -p "${RUNNER_TEMP}/charts"
+          # Helm chart archives are *.tgz; operator binary archives are *.tar.gz.
+          gh release download "${VERSION}" --repo "${REPOSITORY}" --pattern '*.tgz' --dir "${RUNNER_TEMP}/charts"
+          ls -l "${RUNNER_TEMP}/charts"
+
+      - name: Checkout gh-pages
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1 # zizmor: ignore[artipacked] credentials are needed to push the index
         with:
           ref: gh-pages
           fetch-depth: 0
 
-      - name: Copy packaged charts
-        run: |
-          cp /tmp/charts/*.tgz .
+      - name: Set up Helm
+        uses: azure/setup-helm@9bc31f4ebc9c6b171d7bfbaa5d006ae7abdb4310 # v5.0.1
 
       - name: Update Helm charts repo index
         env:
-          CHART_URL: https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}
+          VERSION: ${{ inputs.version }}
+          CHART_URL: https://github.com/${{ github.repository }}/releases/download/${{ inputs.version }}
         run: |
-          helm repo index --merge index.yaml --url ${CHART_URL} .
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          helm repo index "${RUNNER_TEMP}/charts" --url "${CHART_URL}" --merge index.yaml
+          cp "${RUNNER_TEMP}/charts/index.yaml" index.yaml
           git add index.yaml
-          git commit -s -m "Add index for Spark operator chart ${VERSION}" || exit 0
-          git push
+          if git diff --cached --quiet; then
+            echo "Index already contains ${VERSION}."
+            exit 0
+          fi
+          git commit -s -m "Add index for Spark operator chart ${VERSION}"
+          git push origin gh-pages
