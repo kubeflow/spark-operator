@@ -1,0 +1,299 @@
+# Copyright The Kubeflow Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+name: Build and Push Images
+
+on:
+  workflow_call:
+    inputs:
+      ref:
+        description: Git ref (tag, branch or SHA) to build the images from.
+        required: true
+        type: string
+      version:
+        description: Image version. "vX.Y.Z[-rc.N]" publishes the "X.Y.Z[-rc.N]" tag; "latest" publishes "latest".
+        required: true
+        type: string
+      publish:
+        description: Push the images and manifest lists to the registry.
+        required: false
+        type: boolean
+        default: false
+      export-binaries:
+        description: Export, verify and upload the operator binaries as workflow artifacts.
+        required: false
+        type: boolean
+        default: false
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Git ref (tag, branch or SHA) to build the images from.
+        required: true
+        type: string
+      version:
+        description: Image version (vX.Y.Z[-rc.N] or latest).
+        required: true
+        type: string
+      publish:
+        description: Push the images and manifest lists to the registry.
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+env:
+  IMAGE_REGISTRY: ghcr.io
+  KUBECTL_VERSION: 1.33.2
+
+jobs:
+  build:
+    name: Build ${{ matrix.image }} (${{ matrix.platform }})
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      packages: write
+
+    strategy:
+      fail-fast: false
+      matrix:
+        image:
+          - controller
+          - kubectl
+        platform:
+          - linux/amd64
+          - linux/arm64
+
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.ref }}
+          persist-credentials: false
+
+      - name: Collect build metadata
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
+          PLATFORM: ${{ matrix.platform }}
+          IMAGE: ${{ matrix.image }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          if [[ "${INPUT_VERSION}" == "latest" ]]; then
+            build_version=$(sed 's/^v//' VERSION)
+            tag_spec="type=raw,value=latest"
+          elif [[ "${INPUT_VERSION}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-rc\.[0-9]+)?$ ]]; then
+            build_version="${INPUT_VERSION#v}"
+            tag_spec="type=raw,value=${build_version}"
+          else
+            echo "Unsupported version '${INPUT_VERSION}'" >&2
+            exit 1
+          fi
+          {
+            echo "PLATFORM_PAIR=${PLATFORM//\//-}"
+            echo "ARCH=${PLATFORM#linux/}"
+            echo "IMAGE_NAME=${IMAGE_REGISTRY}/${REPOSITORY}/${IMAGE}"
+            echo "TAG_SPEC=${tag_spec}"
+            echo "BUILD_VERSION=${build_version}"
+            echo "GIT_COMMIT=$(git rev-parse HEAD)"
+            echo "GIT_TREE_STATE=$([ -z "$(git status --porcelain)" ] && echo clean || echo dirty)"
+            echo "SOURCE_DATE_EPOCH=$(git log -1 --format=%ct)"
+          } >> "$GITHUB_ENV"
+          if [[ "${IMAGE}" == "controller" ]]; then
+            echo "DOCKERFILE=Dockerfile" >> "$GITHUB_ENV"
+          else
+            echo "DOCKERFILE=docker/Dockerfile.kubectl" >> "$GITHUB_ENV"
+          fi
+
+      - name: Docker meta
+        id: meta
+        uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5
+        with:
+          images: ${{ env.IMAGE_NAME }}
+          tags: ${{ env.TAG_SPEC }}
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130 # v3
+
+      - name: Set up Docker buildx
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+
+      - name: Login to container registry
+        if: inputs.publish
+        uses: docker/login-action@650006c6eb7dba73a995cc03b0b2d7f5ca915bee # v4.2.0
+        with:
+          registry: ${{ env.IMAGE_REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build (and push by digest)
+        id: build
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+        with:
+          context: .
+          file: ${{ env.DOCKERFILE }}
+          platforms: ${{ matrix.platform }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            VERSION=${{ env.BUILD_VERSION }}
+            GIT_COMMIT=${{ env.GIT_COMMIT }}
+            GIT_TREE_STATE=${{ env.GIT_TREE_STATE }}
+            SOURCE_DATE_EPOCH=${{ env.SOURCE_DATE_EPOCH }}
+            KUBECTL_VERSION=${{ env.KUBECTL_VERSION }}
+          outputs: ${{ inputs.publish && format('type=image,name={0},push-by-digest=true,name-canonical=true,push=true', env.IMAGE_NAME) || 'type=docker' }}
+
+      - name: Export operator binary
+        if: matrix.image == 'controller' && inputs.export-binaries
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+        with:
+          context: .
+          platforms: ${{ matrix.platform }}
+          target: artifacts
+          build-args: |
+            VERSION=${{ env.BUILD_VERSION }}
+            GIT_COMMIT=${{ env.GIT_COMMIT }}
+            GIT_TREE_STATE=${{ env.GIT_TREE_STATE }}
+            SOURCE_DATE_EPOCH=${{ env.SOURCE_DATE_EPOCH }}
+          outputs: type=local,dest=${{ runner.temp }}/binary
+
+      - name: Verify exported binary matches image
+        if: matrix.image == 'controller' && inputs.export-binaries
+        env:
+          PUBLISH: ${{ inputs.publish }}
+          DIGEST: ${{ steps.build.outputs.digest }}
+          IMAGE_ID: ${{ steps.build.outputs.imageid }}
+          PLATFORM: ${{ matrix.platform }}
+        run: |
+          set -euo pipefail
+          if [[ "${PUBLISH}" == "true" ]]; then
+            image="${IMAGE_NAME}@${DIGEST}"
+          else
+            image="${IMAGE_ID}"
+          fi
+          cid=$(docker create --platform "${PLATFORM}" "${image}")
+          docker cp "${cid}:/usr/bin/spark-operator" "${RUNNER_TEMP}/from-image"
+          docker rm "${cid}"
+          exported=$(sha256sum "${RUNNER_TEMP}/binary/spark-operator" | cut -d' ' -f1)
+          from_image=$(sha256sum "${RUNNER_TEMP}/from-image" | cut -d' ' -f1)
+          echo "exported:   ${exported}"
+          echo "from image: ${from_image}"
+          [ "${exported}" = "${from_image}" ]
+
+      - name: Package operator binary
+        if: matrix.image == 'controller' && inputs.export-binaries
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          stage="${RUNNER_TEMP}/stage"
+          mkdir -p "${stage}" "${RUNNER_TEMP}/dist"
+          cp "${RUNNER_TEMP}/binary/spark-operator" "${stage}/"
+          cp LICENSE entrypoint.sh "${stage}/"
+          tar -czf "${RUNNER_TEMP}/dist/spark-operator_${VERSION}_linux_${ARCH}.tar.gz" \
+            -C "${stage}" spark-operator LICENSE entrypoint.sh
+
+      - name: Upload operator binary archive
+        if: matrix.image == 'controller' && inputs.export-binaries
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        with:
+          name: binaries-operator-${{ env.PLATFORM_PAIR }}
+          path: ${{ runner.temp }}/dist/*.tar.gz
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Export digest
+        if: inputs.publish
+        env:
+          DIGEST: ${{ steps.build.outputs.digest }}
+        run: |
+          mkdir -p "${RUNNER_TEMP}/digests"
+          touch "${RUNNER_TEMP}/digests/${DIGEST#sha256:}"
+
+      - name: Upload digest
+        if: inputs.publish
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        with:
+          name: digests-${{ matrix.image }}-${{ env.PLATFORM_PAIR }}
+          path: ${{ runner.temp }}/digests/*
+          if-no-files-found: error
+          retention-days: 1
+
+  merge:
+    name: Publish ${{ matrix.image }} manifest list
+    if: inputs.publish
+    needs:
+      - build
+
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      packages: write
+
+    strategy:
+      fail-fast: false
+      matrix:
+        image:
+          - controller
+          - kubectl
+
+    steps:
+      - name: Compute image tag
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
+          IMAGE: ${{ matrix.image }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          if [[ "${INPUT_VERSION}" == "latest" ]]; then
+            tag=latest
+          else
+            tag="${INPUT_VERSION#v}"
+          fi
+          {
+            echo "IMAGE_NAME=${IMAGE_REGISTRY}/${REPOSITORY}/${IMAGE}"
+            echo "IMAGE_TAG=${tag}"
+          } >> "$GITHUB_ENV"
+
+      - name: Download digests
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        with:
+          path: ${{ runner.temp }}/digests
+          pattern: digests-${{ matrix.image }}-*
+          merge-multiple: true
+
+      - name: Set up Docker buildx
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+
+      - name: Login to container registry
+        uses: docker/login-action@650006c6eb7dba73a995cc03b0b2d7f5ca915bee # v4.2.0
+        with:
+          registry: ${{ env.IMAGE_REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create manifest list and push
+        working-directory: ${{ runner.temp }}/digests
+        run: |
+          set -euo pipefail
+          sources=()
+          for digest in *; do
+            sources+=("${IMAGE_NAME}@sha256:${digest}")
+          done
+          docker buildx imagetools create -t "${IMAGE_NAME}:${IMAGE_TAG}" "${sources[@]}"
+
+      - name: Inspect image
+        run: docker buildx imagetools inspect "${IMAGE_NAME}:${IMAGE_TAG}"

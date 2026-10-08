@@ -3,465 +3,304 @@ name: Release
 on:
   push:
     branches:
+      - master
       - release-*
     paths:
       - VERSION
+  workflow_dispatch: {}
 
 permissions:
   contents: read
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
-
-env:
-  SEMVER_PATTERN: '^v([0-9]+)\.([0-9]+)\.([0-9]+)(-rc\.([0-9]+))?$'
-  IMAGE_REGISTRY: ghcr.io
-  OPERATOR_IMAGE_REPOSITORY: ${{ github.repository }}/controller
-  KUBECTL_IMAGE_REPOSITORY: ${{ github.repository }}/kubectl
-  KUBECTL_VERSION: 1.33.2
+  cancel-in-progress: false
 
 jobs:
-  check-release:
+  prepare:
+    name: Prepare release branch
+    if: github.repository == 'kubeflow/spark-operator'
     runs-on: ubuntu-latest
+
+    environment:
+      name: release
+
+    permissions:
+      contents: write
+
+    outputs:
+      version: ${{ steps.vars.outputs.version }}
+      chart-version: ${{ steps.vars.outputs.chart-version }}
+      pypi-version: ${{ steps.vars.outputs.pypi-version }}
+      branch: ${{ steps.vars.outputs.branch }}
+      is-prerelease: ${{ steps.vars.outputs.is-prerelease }}
+      sha: ${{ steps.branch.outputs.sha }}
 
     steps:
       - name: Checkout source code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1 # zizmor: ignore[artipacked] credentials are needed to push the release branch
+        with:
+          fetch-depth: 0
+
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Check release assets
+        id: vars
+        run: hack/release/check-release.sh
+
+      - name: Create or update release branch
+        id: branch
+        env:
+          BRANCH: ${{ steps.vars.outputs.branch }}
+          SOURCE_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+
+          if [[ "${GITHUB_REF_NAME}" == "${BRANCH}" ]]; then
+            echo "Triggered on ${BRANCH}; releasing from it directly."
+          elif [[ "${GITHUB_REF_NAME}" == "master" ]]; then
+            if git ls-remote --exit-code --heads origin "${BRANCH}" >/dev/null; then
+              echo "Using existing branch ${BRANCH}."
+              git checkout -B "${BRANCH}" "origin/${BRANCH}"
+              if git merge-base --is-ancestor "${SOURCE_SHA}" HEAD; then
+                echo "Commit ${SOURCE_SHA} is already in ${BRANCH}; skipping cherry-pick."
+              else
+                # Only the release commit is cherry-picked. Fixes must already be on the
+                # release branch (cherry-picked through their own PRs).
+                parents=$(git rev-list --parents -n 1 "${SOURCE_SHA}" | wc -w)
+                cherry_pick_args=(-x)
+                if ((parents > 2)); then
+                  cherry_pick_args+=(-m 1)
+                fi
+                if ! git cherry-pick "${cherry_pick_args[@]}" "${SOURCE_SHA}"; then
+                  git cherry-pick --abort || true
+                  echo "Cherry-pick of ${SOURCE_SHA} onto ${BRANCH} failed." >&2
+                  echo "Open a PR with the release commit against ${BRANCH} instead." >&2
+                  exit 1
+                fi
+              fi
+            else
+              echo "Creating ${BRANCH} from master@${SOURCE_SHA}."
+              git checkout -B "${BRANCH}" "${SOURCE_SHA}"
+            fi
+            # The release branch must still be consistent after the cherry-pick.
+            GITHUB_OUTPUT=/dev/null hack/release/check-release.sh
+            # Pushes made with GITHUB_TOKEN do not trigger this workflow again.
+            git push origin "HEAD:refs/heads/${BRANCH}"
+          else
+            echo "VERSION $(cat VERSION) must be released from master or ${BRANCH}, not ${GITHUB_REF_NAME}." >&2
+            exit 1
+          fi
+
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          echo "Release commit: $(git rev-parse HEAD) on ${BRANCH}"
+
+  verify:
+    name: Verify release branch
+    needs:
+      - prepare
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout release commit
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          ref: ${{ needs.prepare.outputs.sha }}
           fetch-depth: 0
           persist-credentials: false
 
-      - name: Check whether version matches semver pattern
-        run: |
-          VERSION=$(cat VERSION)
-          if [[ ${VERSION} =~ ${SEMVER_PATTERN} ]]; then
-            echo "Version '${VERSION}' matches semver pattern."
-          else
-            echo "Version '${VERSION}' does not match semver pattern."
-            exit 1
-          fi
-          echo "VERSION=${VERSION}" >> $GITHUB_ENV
+      - name: Set up Go
+        uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6
+        with:
+          go-version-file: go.mod
+          cache: false
 
-      - name: Check whether chart version and appVersion matches version
+      - name: Build operator
+        run: go build ./...
+
+      - name: Verify generated Python API is up to date
         run: |
-          VERSION=${VERSION#v}
-          CHART_VERSION=$(cat charts/spark-operator-chart/Chart.yaml | grep version | awk '{print $2}')
-          CHART_APP_VERSION=$(cat charts/spark-operator-chart/Chart.yaml | grep appVersion | awk '{print $2}')
-          if [[ ${CHART_VERSION} == ${VERSION} ]]; then
-            echo "Chart version '${CHART_VERSION}' matches version '${VERSION}'."
-          else
-            echo "Chart version '${CHART_VERSION}' does not match version '${VERSION}'."
-            exit 1
-          fi
-          if [[ ${CHART_APP_VERSION} == ${VERSION} ]]; then
-            echo "Chart appVersion '${CHART_APP_VERSION}' matches version '${VERSION}'."
-          else
-            echo "Chart appVersion '${CHART_APP_VERSION}' does not match version '${VERSION}'."
+          make python-api
+          if ! git diff --exit-code -- api/; then
+            echo "Generated Python API differs from the committed one. Run 'make python-api'." >&2
             exit 1
           fi
 
-      - name: Check if tag exists
-        run: |
-          git fetch --tags
-          if git tag -l | grep -q "^${VERSION}$"; then
-            echo "Tag '${VERSION}' already exists."
-            exit 1
-          else
-            echo "Tag '${VERSION}' does not exist."
-          fi
+      - name: Run Helm unit tests
+        run: make helm-unittest
 
-  build_operator_images:
+      - name: Check Helm/Kustomize drift
+        run: make drift-check
+
+      - name: Validate Kustomize build
+        run: make kustomize-lint
+
+  build-python:
+    name: Build Python package
     needs:
-      - check-release
-
+      - prepare
     runs-on: ubuntu-latest
 
     permissions:
       contents: read
-      packages: write
-
-    strategy:
-      fail-fast: false
-      matrix:
-        platform:
-          - linux/amd64
-          - linux/arm64
 
     steps:
-      - name: Prepare
-        run: |
-          platform=${{ matrix.platform }}
-          echo "PLATFORM_PAIR=${platform//\//-}" >> $GITHUB_ENV
-          echo "ARCH=${platform#linux/}" >> $GITHUB_ENV
-
-      - name: Checkout source code
+      - name: Checkout release commit
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          ref: ${{ needs.prepare.outputs.sha }}
           persist-credentials: false
 
-      - name: Read version from VERSION file
-        run: |
-          VERSION=$(cat VERSION)
-          echo "VERSION=${VERSION}" >> $GITHUB_ENV
+      - name: Install uv
+        uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
+        with:
+          enable-cache: false
 
-      - name: Collect build metadata
+      - name: Build and validate package
+        env:
+          PYPI_VERSION: ${{ needs.prepare.outputs.pypi-version }}
         run: |
           set -euo pipefail
-          {
-            echo "BUILD_VERSION=${VERSION#v}"
-            echo "GIT_COMMIT=$(git rev-parse HEAD)"
-            echo "GIT_TREE_STATE=$([ -z "$(git status --porcelain)" ] && echo clean || echo dirty)"
-            echo "SOURCE_DATE_EPOCH=$(git log -1 --format=%ct)"
-          } >> "$GITHUB_ENV"
+          uv build api/python_api --out-dir dist
+          uvx twine check --strict dist/*
+          ls -l dist
+          # Hatchling normalizes "2.6.0-rc.0" to the PEP 440 version "2.6.0rc0".
+          test -f "dist/kubeflow_spark_api-${PYPI_VERSION}-py3-none-any.whl"
+          test -f "dist/kubeflow_spark_api-${PYPI_VERSION}.tar.gz"
 
-      - name: Docker meta
-        id: meta
-        uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5
-        with:
-          images: ${{ env.IMAGE_REGISTRY }}/${{ env.OPERATOR_IMAGE_REPOSITORY }}
-          tags: |
-            type=semver,pattern={{version}},value=${{ env.VERSION }}
-
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130 # v3
-
-      - name: Set up Docker buildx
-        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
-
-      - name: Login to container registry
-        uses: docker/login-action@650006c6eb7dba73a995cc03b0b2d7f5ca915bee # v4.2.0
-        with:
-          registry: ${{ env.IMAGE_REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Build and push by digest
-        id: build
-        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
-        with:
-          platforms: ${{ matrix.platform }}
-          labels: ${{ steps.meta.outputs.labels }}
-          build-args: |
-            VERSION=${{ env.BUILD_VERSION }}
-            GIT_COMMIT=${{ env.GIT_COMMIT }}
-            GIT_TREE_STATE=${{ env.GIT_TREE_STATE }}
-            SOURCE_DATE_EPOCH=${{ env.SOURCE_DATE_EPOCH }}
-          outputs: type=image,name=${{ env.IMAGE_REGISTRY }}/${{ env.OPERATOR_IMAGE_REPOSITORY }},push-by-digest=true,name-canonical=true,push=true
-
-      - name: Export operator binary
-        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
-        with:
-          platforms: ${{ matrix.platform }}
-          target: artifacts
-          build-args: |
-            VERSION=${{ env.BUILD_VERSION }}
-            GIT_COMMIT=${{ env.GIT_COMMIT }}
-            GIT_TREE_STATE=${{ env.GIT_TREE_STATE }}
-            SOURCE_DATE_EPOCH=${{ env.SOURCE_DATE_EPOCH }}
-          outputs: type=local,dest=${{ runner.temp }}/binary
-
-      - name: Verify exported binary matches image
-        run: |
-          set -euo pipefail
-          image="${IMAGE_REGISTRY}/${OPERATOR_IMAGE_REPOSITORY}@${DIGEST}"
-          cid=$(docker create --platform "${{ matrix.platform }}" "${image}")
-          docker cp "${cid}:/usr/bin/spark-operator" "${RUNNER_TEMP}/from-image"
-          docker rm "${cid}"
-          exported=$(sha256sum "${RUNNER_TEMP}/binary/spark-operator" | cut -d' ' -f1)
-          from_image=$(sha256sum "${RUNNER_TEMP}/from-image" | cut -d' ' -f1)
-          echo "exported:   ${exported}"
-          echo "from image: ${from_image}"
-          [ "${exported}" = "${from_image}" ]
-        env:
-          DIGEST: ${{ steps.build.outputs.digest }}
-
-      - name: Package operator binary
-        run: |
-          set -euo pipefail
-          stage="${RUNNER_TEMP}/stage"
-          mkdir -p "${stage}" "${RUNNER_TEMP}/dist"
-          cp "${RUNNER_TEMP}/binary/spark-operator" "${stage}/"
-          cp LICENSE entrypoint.sh "${stage}/"
-          tar -czf "${RUNNER_TEMP}/dist/spark-operator_${VERSION}_linux_${ARCH}.tar.gz" \
-            -C "${stage}" spark-operator LICENSE entrypoint.sh
-
-      - name: Upload operator binary archive
+      - name: Upload build artifacts
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         with:
-          name: binaries-operator-${{ env.PLATFORM_PAIR }}
-          path: ${{ runner.temp }}/dist/*.tar.gz
+          name: python-dist-${{ needs.prepare.outputs.version }}
+          path: dist/
           if-no-files-found: error
-          retention-days: 1
+          retention-days: 7
 
-      - name: Export digest
-        run: |
-          mkdir -p /tmp/digests
-          digest="${STEPS_BUILD_OUTPUTS_DIGEST}"
-          touch "/tmp/digests/${digest#sha256:}"
-        env:
-          STEPS_BUILD_OUTPUTS_DIGEST: ${{ steps.build.outputs.digest }}
-
-      - name: Upload digest
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
-        with:
-          name: digests-operator-${{ env.PLATFORM_PAIR }}
-          path: /tmp/digests/*
-          if-no-files-found: error
-          retention-days: 1
-
-  build_kubectl_images:
+  create-tag:
+    name: Create and push tag
     needs:
-      - check-release
-
-    runs-on: ubuntu-latest
-
-    permissions:
-      contents: read
-      packages: write
-
-    strategy:
-      fail-fast: false
-      matrix:
-        platform:
-          - linux/amd64
-          - linux/arm64
-
-    steps:
-      - name: Prepare
-        run: |
-          platform=${{ matrix.platform }}
-          echo "PLATFORM_PAIR=${platform//\//-}" >> $GITHUB_ENV
-
-      - name: Checkout source code
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-
-      - name: Read version from VERSION file
-        run: |
-          VERSION=$(cat VERSION)
-          echo "VERSION=${VERSION}" >> $GITHUB_ENV
-
-      - name: Docker meta
-        id: meta
-        uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5
-        with:
-          images: ${{ env.IMAGE_REGISTRY }}/${{ env.KUBECTL_IMAGE_REPOSITORY }}
-          tags: |
-            type=semver,pattern={{version}},value=${{ env.VERSION }}
-
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130 # v3
-
-      - name: Set up Docker buildx
-        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
-
-      - name: Login to container registry
-        uses: docker/login-action@650006c6eb7dba73a995cc03b0b2d7f5ca915bee # v4.2.0
-        with:
-          registry: ${{ env.IMAGE_REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Build and push by digest
-        id: build
-        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
-        with:
-          file: docker/Dockerfile.kubectl
-          platforms: ${{ matrix.platform }}
-          build-args: |
-            KUBECTL_VERSION=${{ env.KUBECTL_VERSION }}
-          labels: ${{ steps.meta.outputs.labels }}
-          outputs: type=image,name=${{ env.IMAGE_REGISTRY }}/${{ env.KUBECTL_IMAGE_REPOSITORY }},push-by-digest=true,name-canonical=true,push=true
-
-      - name: Export digest
-        run: |
-          mkdir -p /tmp/digests
-          digest="${STEPS_BUILD_OUTPUTS_DIGEST}"
-          touch "/tmp/digests/${digest#sha256:}"
-        env:
-          STEPS_BUILD_OUTPUTS_DIGEST: ${{ steps.build.outputs.digest }}
-
-      - name: Upload digest
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
-        with:
-          name: digests-kubectl-${{ env.PLATFORM_PAIR }}
-          path: /tmp/digests/*
-          if-no-files-found: error
-          retention-days: 1
-
-  release_operator_images:
-    needs:
-      - build_operator_images
-
-    runs-on: ubuntu-latest
-
-    permissions:
-      contents: read
-      packages: write
-
-    steps:
-      - name: Checkout source code
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-
-      - name: Read version from VERSION file
-        run: |
-          VERSION=$(cat VERSION)
-          echo "VERSION=${VERSION}" >> $GITHUB_ENV
-
-      - name: Docker meta
-        id: meta
-        uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5
-        with:
-          images: ${{ env.IMAGE_REGISTRY }}/${{ env.OPERATOR_IMAGE_REPOSITORY }}
-          tags: |
-            type=semver,pattern={{version}},value=${{ env.VERSION }}
-
-      - name: Download digests
-        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
-        with:
-          path: /tmp/digests
-          pattern: digests-operator-*
-          merge-multiple: true
-
-      - name: Set up Docker buildx
-        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
-
-      - name: Login to container registry
-        uses: docker/login-action@650006c6eb7dba73a995cc03b0b2d7f5ca915bee # v4.2.0
-        with:
-          registry: ${{ env.IMAGE_REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Create manifest list and push
-        working-directory: /tmp/digests
-        run: |
-          docker buildx imagetools create $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
-            $(printf "${IMAGE_REGISTRY}/${OPERATOR_IMAGE_REPOSITORY}@sha256:%s " *)
-
-      - name: Inspect image
-        run: |
-          docker buildx imagetools inspect ${IMAGE_REGISTRY}/${OPERATOR_IMAGE_REPOSITORY}:${STEPS_META_OUTPUTS_VERSION}
-        env:
-          STEPS_META_OUTPUTS_VERSION: ${{ steps.meta.outputs.version }}
-
-  release_kubectl_images:
-    needs:
-      - build_kubectl_images
-
-    runs-on: ubuntu-latest
-
-    permissions:
-      contents: read
-      packages: write
-
-    steps:
-      - name: Checkout source code
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-
-      - name: Read version from VERSION file
-        run: |
-          VERSION=$(cat VERSION)
-          echo "VERSION=${VERSION}" >> $GITHUB_ENV
-
-      - name: Docker meta
-        id: meta
-        uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5
-        with:
-          images: ${{ env.IMAGE_REGISTRY }}/${{ env.KUBECTL_IMAGE_REPOSITORY }}
-          tags: |
-            type=semver,pattern={{version}},value=${{ env.VERSION }}
-
-      - name: Download digests
-        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
-        with:
-          path: /tmp/digests
-          pattern: digests-kubectl-*
-          merge-multiple: true
-
-      - name: Set up Docker buildx
-        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
-
-      - name: Login to container registry
-        uses: docker/login-action@650006c6eb7dba73a995cc03b0b2d7f5ca915bee # v4.2.0
-        with:
-          registry: ${{ env.IMAGE_REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Create manifest list and push
-        working-directory: /tmp/digests
-        run: |
-          docker buildx imagetools create $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
-            $(printf "${IMAGE_REGISTRY}/${KUBECTL_IMAGE_REPOSITORY}@sha256:%s " *)
-
-      - name: Inspect image
-        run: |
-          docker buildx imagetools inspect ${IMAGE_REGISTRY}/${KUBECTL_IMAGE_REPOSITORY}:${STEPS_META_OUTPUTS_VERSION}
-        env:
-          STEPS_META_OUTPUTS_VERSION: ${{ steps.meta.outputs.version }}
-
-  push_tag:
-    needs:
-      - release_operator_images
-      - release_kubectl_images
-
+      - prepare
+      - verify
+      - build-python
     runs-on: ubuntu-latest
 
     permissions:
       contents: write
 
     steps:
-      - name: Checkout source code
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6.0.2 # zizmor: ignore[artipacked]
+      - name: Checkout release commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1 # zizmor: ignore[artipacked] credentials are needed to push the tag
         with:
+          ref: ${{ needs.prepare.outputs.sha }}
           fetch-depth: 0
 
-      - name: Configure Git
+      - name: Create and push annotated tag
+        env:
+          VERSION: ${{ needs.prepare.outputs.version }}
+          SHA: ${{ needs.prepare.outputs.sha }}
         run: |
-          git config user.name "$GITHUB_ACTOR"
-          git config user.email "$GITHUB_ACTOR@users.noreply.github.com"
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch --tags --force origin
+          if git rev-parse --verify --quiet "refs/tags/${VERSION}" >/dev/null; then
+            tagged=$(git rev-parse "refs/tags/${VERSION}^{commit}")
+            if [[ "${tagged}" == "${SHA}" ]]; then
+              echo "Tag ${VERSION} already points at ${SHA}; skipping."
+              exit 0
+            fi
+            echo "Tag ${VERSION} already exists at ${tagged}, not at the release commit ${SHA}." >&2
+            exit 1
+          fi
+          git tag -a "${VERSION}" -m "Kubeflow Spark Operator ${VERSION}" "${SHA}"
+          git push origin "refs/tags/${VERSION}"
 
-      - name: Read version from VERSION file
-        run: |
-          VERSION=$(cat VERSION)
-          echo "VERSION=${VERSION}" >> $GITHUB_ENV
-
-      - name: Create and push tag
-        run: |
-          git tag -a "${VERSION}" -m "Official Release ${VERSION}"
-          git push origin "${VERSION}"
-
-  draft_release:
+  publish-images:
+    name: Build and publish images
     needs:
-      - push_tag
+      - prepare
+      - create-tag
+
+    permissions:
+      contents: read
+      packages: write
+
+    uses: ./.github/workflows/build-and-push-images.yaml
+    with:
+      ref: refs/tags/${{ needs.prepare.outputs.version }}
+      version: ${{ needs.prepare.outputs.version }}
+      publish: true
+      export-binaries: true
+
+  publish-chart:
+    name: Publish Helm chart
+    needs:
+      - prepare
+      - publish-images
+
+    permissions:
+      contents: write
+      packages: write
+
+    uses: ./.github/workflows/release-helm-charts.yaml
+    with:
+      version: ${{ needs.prepare.outputs.version }}
+      publish-oci: true
+
+  publish-pypi:
+    name: Publish to PyPI
+    needs:
+      - prepare
+      - build-python
+      - publish-images
+      - publish-chart
+    runs-on: ubuntu-latest
+
+    environment:
+      name: release
+      url: https://pypi.org/project/kubeflow-spark-api/${{ needs.prepare.outputs.pypi-version }}/
+
+    permissions:
+      id-token: write
+
+    steps:
+      - name: Download Python package
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        with:
+          name: python-dist-${{ needs.prepare.outputs.version }}
+          path: dist/
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # release/v1
+        with:
+          print-hash: true
+          skip-existing: true
+
+  github-release:
+    name: Create GitHub release
+    needs:
+      - prepare
+      - create-tag
+      - publish-images
+      - publish-chart
+      - publish-pypi
+    runs-on: ubuntu-latest
 
     permissions:
       contents: write
 
-    runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout
+      - name: Checkout release tag
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          ref: refs/tags/${{ needs.prepare.outputs.version }}
           persist-credentials: false
-
-      - name: Configure Git
-        run: |
-          git config user.name "$GITHUB_ACTOR"
-          git config user.email "$GITHUB_ACTOR@users.noreply.github.com"
-
-      - name: Read version from VERSION file
-        run: |
-          VERSION=$(cat VERSION)
-          echo "VERSION=${VERSION}" >> $GITHUB_ENV
 
       - name: Download operator binary archives
         uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
@@ -470,18 +309,23 @@ jobs:
           pattern: binaries-operator-*
           merge-multiple: true
 
-      - name: Generate checksums
-        run: |
-          set -euo pipefail
-          cd "${RUNNER_TEMP}/dist"
-          sha256sum spark-operator_*.tar.gz > SHA256SUMS
-          cat SHA256SUMS
+      - name: Download Helm chart archives
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        with:
+          name: helm-charts-${{ needs.prepare.outputs.version }}
+          path: ${{ runner.temp }}/dist
+
+      - name: Download Python package
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        with:
+          name: python-dist-${{ needs.prepare.outputs.version }}
+          path: ${{ runner.temp }}/dist
 
       - name: Verify binaries
+        env:
+          VERSION: ${{ needs.prepare.outputs.version }}
         run: |
           set -euo pipefail
-          (cd "${RUNNER_TEMP}/dist" && sha256sum --check SHA256SUMS)
-
           verify="${RUNNER_TEMP}/verify"
           mkdir -p "${verify}"
 
@@ -498,37 +342,90 @@ jobs:
           file "${verify}/spark-operator" | grep -q "ARM aarch64"
           file "${verify}/spark-operator" | grep -q "statically linked"
 
-      - name: Get Helm version
-        id: get_helm_version
+      - name: Generate checksums
         run: |
-          HELM_VERSION=$(grep -e '^[[:space:]]*helm.sh/helm/v3 v' test/e2e/go.mod | cut -d ' ' -f 2)
-          echo "HELM_VERSION=$HELM_VERSION" >> "$GITHUB_OUTPUT"
+          set -euo pipefail
+          cd "${RUNNER_TEMP}/dist"
+          sha256sum -- * > SHA256SUMS
+          cat SHA256SUMS
+          sha256sum --check SHA256SUMS
 
-      - name: Set up Helm
-        uses: azure/setup-helm@9bc31f4ebc9c6b171d7bfbaa5d006ae7abdb4310 # v5.0.1
-        with:
-          version: ${{ steps.get_helm_version.outputs.HELM_VERSION }}
-
-      - name: Package Helm charts
+      - name: Prepare release notes
+        env:
+          VERSION: ${{ needs.prepare.outputs.version }}
+          PYPI_VERSION: ${{ needs.prepare.outputs.pypi-version }}
+          IS_PRERELEASE: ${{ needs.prepare.outputs.is-prerelease }}
         run: |
-          for chart in $(ls charts); do
-            helm package charts/${chart}
-          done
+          set -euo pipefail
+          if [[ "${IS_PRERELEASE}" == "true" ]]; then
+            : > "${RUNNER_TEMP}/notes.md"
+          else
+            hack/release/extract-changelog.sh "${VERSION}" > "${RUNNER_TEMP}/notes.md"
+          fi
+          {
+            echo
+            echo "## Installation"
+            echo
+            echo '```bash'
+            echo "helm install spark-operator oci://ghcr.io/kubeflow/helm-charts/spark-operator \\"
+            echo "  --version ${VERSION#v} --namespace spark-operator --create-namespace"
+            echo '```'
+            echo
+            echo "Images: \`ghcr.io/kubeflow/spark-operator/controller:${VERSION#v}\`, \`ghcr.io/kubeflow/spark-operator/kubectl:${VERSION#v}\`"
+            echo
+            echo "Python API: \`pip install kubeflow-spark-api==${PYPI_VERSION}\`"
+          } >> "${RUNNER_TEMP}/notes.md"
+          cat "${RUNNER_TEMP}/notes.md"
 
-      - name: Release
+      - name: Create draft release with assets
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ needs.prepare.outputs.version }}
+          IS_PRERELEASE: ${{ needs.prepare.outputs.is-prerelease }}
         run: |
-          args=(
-            "$VERSION"
-            --title "$VERSION"
-            --target "$GITHUB_SHA"
-            --draft
-          )
-          if [[ "$VERSION" == *rc* ]]; then
-            args+=(--prerelease)
+          set -euo pipefail
+          if ! is_draft=$(gh release view "${VERSION}" --json isDraft --jq .isDraft 2>/dev/null); then
+            # Create as a draft so all assets are attached before publication: with immutable
+            # releases enabled, assets of a published release cannot be changed.
+            args=(
+              "${VERSION}"
+              --verify-tag
+              --draft
+              --title "${VERSION}"
+              --notes-file "${RUNNER_TEMP}/notes.md"
+            )
+            if [[ "${IS_PRERELEASE}" == "true" ]]; then
+              args+=(--prerelease --generate-notes)
+            fi
+            gh release create "${args[@]}" "${RUNNER_TEMP}"/dist/*
+          elif [[ "${is_draft}" == "true" ]]; then
+            echo "Draft release ${VERSION} exists; re-uploading assets."
+            gh release upload "${VERSION}" --clobber "${RUNNER_TEMP}"/dist/*
+          else
+            echo "Release ${VERSION} is already published; leaving it unchanged."
           fi
-          gh release create "${args[@]}" \
-            *.tgz \
-            "${RUNNER_TEMP}"/dist/spark-operator_*.tar.gz \
-            "${RUNNER_TEMP}/dist/SHA256SUMS"
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ needs.prepare.outputs.version }}
+        run: |
+          set -euo pipefail
+          if [[ "$(gh release view "${VERSION}" --json isDraft --jq .isDraft)" == "true" ]]; then
+            gh release edit "${VERSION}" --draft=false
+          fi
+
+  update-helm-index:
+    name: Update Helm repository index
+    needs:
+      - prepare
+      - github-release
+
+    permissions:
+      contents: write
+      packages: write
+
+    uses: ./.github/workflows/release-helm-charts.yaml
+    with:
+      version: ${{ needs.prepare.outputs.version }}
+      update-index: true
