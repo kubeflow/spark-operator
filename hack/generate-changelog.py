@@ -10,6 +10,13 @@ parser.add_argument("--token", type=str, help="GitHub Access Token")
 parser.add_argument(
     "--range", type=str, help="Changelog is generated for this release range"
 )
+parser.add_argument(
+    "--version",
+    type=str,
+    default=None,
+    help="Release version used in the changelog header (defaults to the end of --range). "
+    "Use it when the release tag does not exist yet, e.g. --range=v2.5.0..master --version=v2.6.0",
+)
 args = parser.parse_args()
 
 if args.token is None:
@@ -19,6 +26,7 @@ try:
     current_release = args.range.split("..")[1]
 except Exception:
     raise Exception("Release range must be set in this format: v1.7.0..v1.8.0")
+release_version = args.version or current_release
 
 # Get list of commits from the range.
 github_repo = Github(args.token).get_repo(REPO_NAME)
@@ -27,7 +35,7 @@ commits = comparison.commits
 
 # The latest commit contains the release date.
 release_date = str(commits[-1].commit.author.date).split(" ")[0]
-release_url = "https://github.com/{}/tree/{}".format(REPO_NAME, current_release)
+release_url = "https://github.com/{}/tree/{}".format(REPO_NAME, release_version)
 
 # Get all PRs in reverse chronological order from the commits.
 pr_list = ""
@@ -53,11 +61,13 @@ for commit in commits.reversed:
 
 change_log = [
     "\n",
-    "## [{}]({}) ({})\n".format(current_release, release_url, release_date),
+    "## [{}]({}) ({})\n".format(release_version, release_url, release_date),
     "\n",
     pr_list,
     "\n",
-    "[Full Changelog]({})\n".format(comparison.html_url),
+    "[Full Changelog](https://github.com/{}/compare/{}...{})\n".format(
+        REPO_NAME, previous_release, release_version
+    ),
 ]
 
 # Update Changelog with the new changes.

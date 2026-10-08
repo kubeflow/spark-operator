@@ -215,8 +215,8 @@ e2e-test: envtest kind-load-image kind-load-spark-image ## Run the e2e tests aga
 ##@ Kustomize
 
 .PHONY: kustomize-set-image
-kustomize-set-image: ## Update config/default/kustomization.yaml image tag from VERSION file.
-	@TAG=$$(cat VERSION) && \
+kustomize-set-image: ## Update config/default/kustomization.yaml image tag from VERSION file (published tags have no leading "v").
+	@TAG=$$(sed "s/^v//" VERSION) && \
 	sed -i.bak "s|    newTag: .*|    newTag: $$TAG|" config/default/kustomization.yaml && \
 	rm -f config/default/kustomization.yaml.bak && \
 	echo "Updated kustomize image tag to $$TAG"
@@ -314,6 +314,23 @@ helm-unittest: helm-unittest-plugin ## Run Helm chart unittests.
 .PHONY: helm-lint
 helm-lint: ## Run Helm chart lint test.
 	docker run --rm --workdir /workspace --volume "$$(pwd):/workspace" quay.io/helmpack/chart-testing:latest ct lint --target-branch master --validate-maintainers=false
+
+##@ Release
+
+.PHONY: release
+# VERSION given on the command line takes precedence over the value read from the VERSION file,
+# so `make release VERSION=vX.Y.Z` receives the new version verbatim (with the leading "v").
+release: ## Prepare a release commit. Usage: make release VERSION=vX.Y.Z[-rc.N] [GITHUB_TOKEN=<token>]
+	VERSION="$(VERSION)" GITHUB_TOKEN="$(GITHUB_TOKEN)" hack/release/prepare-release.sh
+	$(MAKE) helm-docs
+	@echo
+	@echo "Release $(VERSION) prepared. Review the changes, then run:"
+	@echo "  git add -A && git commit -s -m 'Release $(VERSION)'"
+	@echo "and open a PR against master (latest minor) or release-X.Y (older minor patch)."
+
+.PHONY: check-release
+check-release: ## Validate that VERSION, Chart.yaml, Kustomize, Python API and CHANGELOG.md agree.
+	hack/release/check-release.sh
 
 .PHONY: helm-docs
 helm-docs: helm-docs-plugin ## Generates markdown documentation for helm charts from requirements and values files.
