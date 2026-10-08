@@ -215,11 +215,14 @@ e2e-test: envtest kind-load-image kind-load-spark-image ## Run the e2e tests aga
 ##@ Kustomize
 
 .PHONY: kustomize-set-image
-kustomize-set-image: ## Update config/default/kustomization.yaml image tag from VERSION file.
+kustomize-set-image: ## Update config/default/kustomization.yaml image tag and public ConfigMap version from VERSION file.
 	@TAG=$$(cat VERSION) && \
-	sed -i.bak "s|    newTag: .*|    newTag: $$TAG|" config/default/kustomization.yaml && \
+	sed -i.bak \
+		-e "s|    newTag: .*|    newTag: $$TAG|" \
+		-e "s|      - kubeflow_spark_version=.*|      - kubeflow_spark_version=$$TAG|" \
+		config/default/kustomization.yaml && \
 	rm -f config/default/kustomization.yaml.bak && \
-	echo "Updated kustomize image tag to $$TAG"
+	echo "Updated kustomize image tag and kubeflow_spark_version to $$TAG"
 
 .PHONY: kustomize-lint
 kustomize-lint: ## Validate Kustomize build output (no cluster needed).

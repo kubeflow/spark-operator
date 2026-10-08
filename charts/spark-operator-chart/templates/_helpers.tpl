@@ -78,6 +78,20 @@ Spark Operator image
 {{- end -}}
 
 {{/*
+Name of the public ConfigMap that exposes the Spark Operator control-plane version.
+*/}}
+{{- define "spark-operator.publicConfigMap.name" -}}
+kubeflow-spark-public
+{{- end -}}
+
+{{/*
+Spark Operator control-plane version, e.g. v2.5.0.
+*/}}
+{{- define "spark-operator.version" -}}
+{{- printf "v%s" (.Chart.AppVersion | toString | trimPrefix "v") -}}
+{{- end -}}
+
+{{/*
 Whether the RestSubmitter feature gate is enabled.
 */}}
 {{- define "spark-operator.submitter.enabled" -}}

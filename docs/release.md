@@ -119,7 +119,14 @@ If you want to push changes to the `release-X.Y` release branch, you have to che
     make helm-docs
     ```
 
-4. Commit the changes:
+4. Update the Kustomize manifests. This sets both the controller image tag and the `kubeflow_spark_version`
+   literal of the `kubeflow-spark-public` ConfigMap in `config/default/kustomization.yaml` to the value of the `VERSION` file:
+
+    ```bash
+    make kustomize-set-image
+    ```
+
+5. Commit the changes:
 
     ```bash
     git add VERSION
@@ -129,7 +136,7 @@ If you want to push changes to the `release-X.Y` release branch, you have to che
     git push origin release-X.Y
     ```
 
-5. Submit a PR to the release branch.
+6. Submit a PR to the release branch.
 
 ### Release Kubeflow Spark Operator API Modules
 
