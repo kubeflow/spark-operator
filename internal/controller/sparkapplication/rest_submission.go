@@ -160,7 +160,7 @@ type SubmitError struct {
 }
 
 func (e *SubmitError) Error() string {
-	return fmt.Sprintf("submitter service returned error: %s (HTTP %d, error code: %s)", e.Message, e.StatusCode, e.Code)
+	return fmt.Sprintf("submitter service returned error (HTTP %d, error code: %s)", e.StatusCode, e.Code)
 }
 
 func (e *SubmitError) IsRetryable() bool {
