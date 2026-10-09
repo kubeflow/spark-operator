@@ -535,12 +535,14 @@ spark:
   jobNamespaces:
   - default
 
-  # -- Label selector to filter namespaces to watch.
-  # Supports standard Kubernetes label selector syntax (e.g., 'spark-operator=enabled,env in (prod,staging)').
-  # Namespaces matching this selector will be watched in addition to those in jobNamespaces.
-  # When specified, requires ClusterRole permission to list and watch namespaces.
-  # Leave empty to disable namespace selector functionality.
-  jobNamespaceSelector: ""
+  # -- (object) Namespace label selector, in addition to jobNamespaces. Object with matchLabels and/or
+  # matchExpressions; the string form was removed in v2.6.0. When set alongside jobNamespaces,
+  # each webhook is registered twice (names, then labels).
+  jobNamespaceSelector: null
+  # jobNamespaceSelector:
+  #   matchLabels:
+  #     spark: enabled
+  # Spark RBAC covers jobNamespaces only; create it yourself for label-selected namespaces.
 
   serviceAccount:
     # -- Specifies whether to create a service account for spark applications.

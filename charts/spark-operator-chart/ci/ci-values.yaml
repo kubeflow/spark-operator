@@ -8,7 +8,9 @@ image:
 spark:
   jobNamespaces:
     - default
-  jobNamespaceSelector: "spark=enabled"
+  jobNamespaceSelector:
+    matchLabels:
+      spark: enabled
 
 controller:
   kubeAPIQPS: 100

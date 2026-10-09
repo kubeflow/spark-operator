@@ -15,6 +15,7 @@ limitations under the License.
 */}}
 
 {{- if .Values.webhook.enable }}
+{{- include "spark-operator.spark.validateNamespaceConfig" . -}}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -64,6 +65,10 @@ spec:
         {{- else }}
         - --namespaces={{ . | join "," }}
         {{- end }}
+        {{- end }}
+        {{- $nsSelector := include "spark-operator.spark.namespaceSelectorFlag" . | trim }}
+        {{- if $nsSelector }}
+        - {{ printf "--namespace-selector=%s" $nsSelector | quote }}
         {{- end }}
         - --webhook-secret-name={{ include "spark-operator.webhook.secretName" . }}
         - --webhook-secret-namespace={{ .Release.Namespace }}

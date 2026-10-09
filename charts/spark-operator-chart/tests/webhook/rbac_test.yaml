@@ -235,7 +235,9 @@ tests:
       spark:
         jobNamespaces:
           - default
-        jobNamespaceSelector: "spark=enabled"
+        jobNamespaceSelector:
+          matchLabels:
+            spark: enabled
     documentIndex: 0
     asserts:
       - contains:
