@@ -23,12 +23,12 @@ Create the name of spark component
 
 {{/*
 Fail unless jobNamespaceSelector is an object with matchLabels/matchExpressions.
-The string form was removed in v2.5.0.
+The string form was removed in v2.6.0.
 */}}
 {{- define "spark-operator.spark.validateNamespaceConfig" -}}
 {{- $sel := .Values.spark.jobNamespaceSelector -}}
 {{- if and $sel (kindIs "string" $sel) -}}
-{{- fail "spark.jobNamespaceSelector no longer accepts a string; use an object with matchLabels/matchExpressions (breaking change in v2.5.0)" -}}
+{{- fail "spark.jobNamespaceSelector no longer accepts a string; use an object with matchLabels/matchExpressions (breaking change in v2.6.0)" -}}
 {{- end -}}
 {{- if and $sel (not (kindIs "map" $sel)) -}}
 {{- fail "spark.jobNamespaceSelector must be an object with matchLabels and/or matchExpressions" -}}
@@ -69,17 +69,41 @@ Render jobNamespaceSelector as a label-selector string for --namespace-selector.
 {{- end -}}
 
 {{/*
-Object form of jobNamespaceSelector, or empty when unset.
+Object form of jobNamespaceSelector, or empty when unset. Label and expression
+values are stringified so non-string YAML (e.g. `spark: true`) is not rejected
+by the API server, which expects map[string]string.
 */}}
 {{- define "spark-operator.spark.structuredJobNamespaceSelector" -}}
 {{- $sel := .Values.spark.jobNamespaceSelector -}}
 {{- if and (kindIs "map" $sel) $sel -}}
 {{- $out := dict -}}
 {{- if $sel.matchLabels -}}
-{{- $_ := set $out "matchLabels" $sel.matchLabels -}}
+{{- $labels := dict -}}
+{{- range $k, $v := $sel.matchLabels -}}
+{{- if kindIs "invalid" $v -}}
+{{- fail (printf "spark.jobNamespaceSelector.matchLabels.%s must not be null" $k) -}}
+{{- end -}}
+{{- $_ := set $labels $k ($v | toString) -}}
+{{- end -}}
+{{- $_ := set $out "matchLabels" $labels -}}
 {{- end -}}
 {{- if $sel.matchExpressions -}}
-{{- $_ := set $out "matchExpressions" $sel.matchExpressions -}}
+{{- $exprs := list -}}
+{{- range $expr := $sel.matchExpressions -}}
+{{- $vals := list -}}
+{{- range $v := ($expr.values | default list) -}}
+{{- if kindIs "invalid" $v -}}
+{{- fail (printf "spark.jobNamespaceSelector.matchExpressions values for key %s must not be null" $expr.key) -}}
+{{- end -}}
+{{- $vals = append $vals ($v | toString) -}}
+{{- end -}}
+{{- $e := dict "key" $expr.key "operator" $expr.operator -}}
+{{- if $vals -}}
+{{- $_ := set $e "values" $vals -}}
+{{- end -}}
+{{- $exprs = append $exprs $e -}}
+{{- end -}}
+{{- $_ := set $out "matchExpressions" $exprs -}}
 {{- end -}}
 {{- if $out -}}
 {{- toYaml $out -}}

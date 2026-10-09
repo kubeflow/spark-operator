@@ -536,7 +536,7 @@ spark:
   - default
 
   # -- (object) Namespace label selector, in addition to jobNamespaces. Object with matchLabels and/or
-  # matchExpressions; the string form was removed in v2.5.0. When set alongside jobNamespaces,
+  # matchExpressions; the string form was removed in v2.6.0. When set alongside jobNamespaces,
   # each webhook is registered twice (names, then labels).
   jobNamespaceSelector: null
   # jobNamespaceSelector:

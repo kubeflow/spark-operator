@@ -147,7 +147,7 @@ tests:
         jobNamespaceSelector: "spark=enabled"
     asserts:
       - failedTemplate:
-          errorMessage: "spark.jobNamespaceSelector no longer accepts a string; use an object with matchLabels/matchExpressions (breaking change in v2.5.0)"
+          errorMessage: "spark.jobNamespaceSelector no longer accepts a string; use an object with matchLabels/matchExpressions (breaking change in v2.6.0)"
 
   - it: Should should use the specified timeoutSeconds
     set:
