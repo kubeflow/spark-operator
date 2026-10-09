@@ -237,6 +237,26 @@ tests:
             verbs:
               - deletecollection
 
+  - it: Should grant events.k8s.io events in ClusterRole
+    set:
+      spark:
+        jobNamespaces:
+          - ""
+    documentIndex: 0
+    asserts:
+      - contains:
+          path: rules
+          content:
+            apiGroups:
+              - ""
+              - events.k8s.io
+            resources:
+              - events
+            verbs:
+              - create
+              - update
+              - patch
+
   - it: Should grant configmaps only get/list/watch/create/update/patch in ClusterRole
     set:
       spark:
