@@ -22,8 +22,7 @@ Create the name of spark component
 {{- end -}}
 
 {{/*
-Fail unless jobNamespaceSelector is an object with matchLabels/matchExpressions.
-The string form was removed in v2.6.0.
+Validate jobNamespaceSelector. String form removed in v2.6.0.
 */}}
 {{- define "spark-operator.spark.validateNamespaceConfig" -}}
 {{- $sel := .Values.spark.jobNamespaceSelector -}}
@@ -36,11 +35,28 @@ The string form was removed in v2.6.0.
 {{- if and (kindIs "map" $sel) $sel (not $sel.matchLabels) (not $sel.matchExpressions) -}}
 {{- fail "spark.jobNamespaceSelector must set matchLabels or matchExpressions" -}}
 {{- end -}}
-{{- $_ := include "spark-operator.spark.namespaceSelectorFlag" . -}}
+{{- if and (kindIs "map" $sel) $sel -}}
+{{- range $k, $v := ($sel.matchLabels | default dict) -}}
+{{- if kindIs "invalid" $v -}}
+{{- fail (printf "spark.jobNamespaceSelector.matchLabels.%s must not be null" $k) -}}
+{{- end -}}
+{{- end -}}
+{{- range $expr := ($sel.matchExpressions | default list) -}}
+{{- $op := $expr.operator | default "" -}}
+{{- if not (or (eq $op "In") (eq $op "NotIn") (eq $op "Exists") (eq $op "DoesNotExist")) -}}
+{{- fail (printf "unsupported spark.jobNamespaceSelector operator %q" $op) -}}
+{{- end -}}
+{{- range $v := ($expr.values | default list) -}}
+{{- if kindIs "invalid" $v -}}
+{{- fail (printf "spark.jobNamespaceSelector.matchExpressions values for key %s must not be null" $expr.key) -}}
+{{- end -}}
+{{- end -}}
+{{- end -}}
+{{- end -}}
 {{- end -}}
 
 {{/*
-Render jobNamespaceSelector as a label-selector string for --namespace-selector.
+Render jobNamespaceSelector as a --namespace-selector flag string.
 */}}
 {{- define "spark-operator.spark.namespaceSelectorFlag" -}}
 {{- $sel := .Values.spark.jobNamespaceSelector -}}
@@ -60,8 +76,6 @@ Render jobNamespaceSelector as a label-selector string for --namespace-selector.
 {{- $parts = append $parts ($expr.key | toString) -}}
 {{- else if eq $op "DoesNotExist" -}}
 {{- $parts = append $parts (printf "!%s" $expr.key) -}}
-{{- else -}}
-{{- fail (printf "unsupported spark.jobNamespaceSelector operator %q" $op) -}}
 {{- end -}}
 {{- end -}}
 {{- join "," $parts -}}
@@ -69,9 +83,7 @@ Render jobNamespaceSelector as a label-selector string for --namespace-selector.
 {{- end -}}
 
 {{/*
-Object form of jobNamespaceSelector, or empty when unset. Label and expression
-values are stringified so non-string YAML (e.g. `spark: true`) is not rejected
-by the API server, which expects map[string]string.
+Render jobNamespaceSelector as YAML. Values are stringified for the API server.
 */}}
 {{- define "spark-operator.spark.structuredJobNamespaceSelector" -}}
 {{- $sel := .Values.spark.jobNamespaceSelector -}}
@@ -80,9 +92,6 @@ by the API server, which expects map[string]string.
 {{- if $sel.matchLabels -}}
 {{- $labels := dict -}}
 {{- range $k, $v := $sel.matchLabels -}}
-{{- if kindIs "invalid" $v -}}
-{{- fail (printf "spark.jobNamespaceSelector.matchLabels.%s must not be null" $k) -}}
-{{- end -}}
 {{- $_ := set $labels $k ($v | toString) -}}
 {{- end -}}
 {{- $_ := set $out "matchLabels" $labels -}}
@@ -92,9 +101,6 @@ by the API server, which expects map[string]string.
 {{- range $expr := $sel.matchExpressions -}}
 {{- $vals := list -}}
 {{- range $v := ($expr.values | default list) -}}
-{{- if kindIs "invalid" $v -}}
-{{- fail (printf "spark.jobNamespaceSelector.matchExpressions values for key %s must not be null" $expr.key) -}}
-{{- end -}}
 {{- $vals = append $vals ($v | toString) -}}
 {{- end -}}
 {{- $e := dict "key" $expr.key "operator" $expr.operator -}}
