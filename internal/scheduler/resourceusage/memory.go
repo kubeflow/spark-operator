@@ -109,9 +109,3 @@ func executorMemoryRequest(app *v1beta2.SparkApplication) (string, error) {
 
 	return bytesToMi(cfg.totalBytes() + pysparkBytes + offHeapBytes), nil
 }
-
-// getMemoryOverheadFactor delegates to effectiveOverheadFactor. Retained for
-// any caller that used it before the resolver was introduced.
-func getMemoryOverheadFactor(app *v1beta2.SparkApplication) (float64, error) {
-	return effectiveOverheadFactor(app)
-}
