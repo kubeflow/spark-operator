@@ -464,3 +464,102 @@ func TestUnitlessMemoryValues(t *testing.T) {
 			"offHeap.size 536870912 bytes = 512MiB: got %s, want 1920Mi", actual.String())
 	})
 }
+
+// TestDefaultHeapWhenMemoryOmitted verifies that omitting spec.driver.memory /
+// spec.executor.memory results in a 1 GiB default heap (matching Spark's own
+// default), not a 0-byte heap that would make the reservation too small.
+func TestDefaultHeapWhenMemoryOmitted(t *testing.T) {
+	t.Run("driver memory nil JVM — default 1g heap", func(t *testing.T) {
+		// heap = DefaultMemoryBytes = 1 GiB = 1024 MiB
+		// factor = 0.1 (JVM); overhead = max(1024*0.1, 384) = 384 MiB (floor)
+		// total = 1024 + 384 = 1408 MiB
+		app := &v1beta2.SparkApplication{
+			Spec: v1beta2.SparkApplicationSpec{
+				Type: v1beta2.SparkApplicationTypeJava,
+				Driver: v1beta2.DriverSpec{
+					SparkPodSpec: v1beta2.SparkPodSpec{
+						// Memory intentionally nil
+						Cores: ptr.To[int32](1),
+					},
+				},
+			},
+		}
+		rl, err := DriverPodResourceList(app)
+		require.NoError(t, err)
+		expected := resource.MustParse("1408Mi")
+		actual := rl[corev1.ResourceMemory]
+		assert.Equal(t, expected.Value(), actual.Value(),
+			"driver memory nil JVM: got %s, want 1408Mi", actual.String())
+	})
+
+	t.Run("executor memory nil JVM — default 1g heap", func(t *testing.T) {
+		// Same arithmetic as driver above: 1024 + 384 = 1408 MiB
+		app := &v1beta2.SparkApplication{
+			Spec: v1beta2.SparkApplicationSpec{
+				Type: v1beta2.SparkApplicationTypeJava,
+				Executor: v1beta2.ExecutorSpec{
+					SparkPodSpec: v1beta2.SparkPodSpec{
+						// Memory intentionally nil
+						Cores: ptr.To[int32](1),
+					},
+				},
+			},
+		}
+		rl, err := ExecutorPodResourceList(app)
+		require.NoError(t, err)
+		expected := resource.MustParse("1408Mi")
+		actual := rl[corev1.ResourceMemory]
+		assert.Equal(t, expected.Value(), actual.Value(),
+			"executor memory nil JVM: got %s, want 1408Mi", actual.String())
+	})
+
+	t.Run("executor memory nil Python — default 1g heap with 0.4 factor", func(t *testing.T) {
+		// heap = 1 GiB = 1024 MiB
+		// factor = 0.4 (Python/non-JVM default)
+		// overhead = max(1024*1024*1024 * 0.4, 384*1024*1024)
+		//          = max(429496729.6 bytes, 402653184 bytes)
+		//   int64(429496729.6) = 429496729 bytes (truncated toward zero)
+		//   429496729 / 1024 / 1024 = 409 MiB
+		// total = 1024 + 409 = 1433 MiB
+		app := &v1beta2.SparkApplication{
+			Spec: v1beta2.SparkApplicationSpec{
+				Type: v1beta2.SparkApplicationTypePython,
+				Executor: v1beta2.ExecutorSpec{
+					SparkPodSpec: v1beta2.SparkPodSpec{
+						// Memory intentionally nil
+						Cores: ptr.To[int32](1),
+					},
+				},
+			},
+		}
+		rl, err := ExecutorPodResourceList(app)
+		require.NoError(t, err)
+		expected := resource.MustParse("1433Mi")
+		actual := rl[corev1.ResourceMemory]
+		assert.Equal(t, expected.Value(), actual.Value(),
+			"executor memory nil Python: got %s, want 1433Mi", actual.String())
+	})
+
+	t.Run("explicit memory still wins over default", func(t *testing.T) {
+		// Explicit memory=2g should NOT be replaced by the default.
+		// heap = 2048 MiB; factor 0.1 JVM; overhead = max(2048*0.1, 384) = 384 MiB
+		// total = 2048 + 384 = 2432 MiB
+		app := &v1beta2.SparkApplication{
+			Spec: v1beta2.SparkApplicationSpec{
+				Type: v1beta2.SparkApplicationTypeJava,
+				Driver: v1beta2.DriverSpec{
+					SparkPodSpec: v1beta2.SparkPodSpec{
+						Memory: ptr.To("2g"),
+						Cores:  ptr.To[int32](1),
+					},
+				},
+			},
+		}
+		rl, err := DriverPodResourceList(app)
+		require.NoError(t, err)
+		expected := resource.MustParse("2432Mi")
+		actual := rl[corev1.ResourceMemory]
+		assert.Equal(t, expected.Value(), actual.Value(),
+			"explicit memory=2g: got %s, want 2432Mi", actual.String())
+	})
+}

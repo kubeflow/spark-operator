@@ -976,3 +976,77 @@ func TestMultiplyQuantity(t *testing.T) {
 		require.Error(t, err, "safeN+1 should overflow")
 	})
 }
+
+// TestDefaultHeapInVolcano verifies that omitting spec.driver.memory /
+// spec.executor.memory produces a correct PodGroup minResources reservation
+// (uses Spark's 1 GiB default heap, not 0), in both client and cluster mode.
+func TestDefaultHeapInVolcano(t *testing.T) {
+	scheduleAndCapture := func(t *testing.T, app *v1beta2.SparkApplication) *v1beta1.PodGroup {
+		t.Helper()
+		app.Annotations = make(map[string]string)
+		app.Spec.Driver.Annotations = make(map[string]string)
+		app.Spec.Executor.Annotations = make(map[string]string)
+		var pg *v1beta1.PodGroup
+		mock := fakevolcanoclientset.NewSimpleClientset()
+		mock.PrependReactor("create", "podgroups", func(action clienttesting.Action) (bool, runtime.Object, error) {
+			pg = action.(clienttesting.CreateAction).GetObject().(*v1beta1.PodGroup)
+			return false, pg, nil
+		})
+		require.NoError(t, (&Scheduler{volcanoClient: mock}).Schedule(app))
+		require.NotNil(t, pg)
+		require.NotNil(t, pg.Spec.MinResources)
+		return pg
+	}
+
+	t.Run("client mode: executor memory nil JVM — 1408 MiB", func(t *testing.T) {
+		// heap default = 1 GiB = 1024 MiB; JVM factor 0.1; overhead floor 384 MiB
+		// per-pod = 1024 + 384 = 1408 MiB; 2 executors → total = 2816 MiB
+		app := &v1beta2.SparkApplication{
+			ObjectMeta: metav1.ObjectMeta{Name: "default-heap-client", Namespace: "default"},
+			Spec: v1beta2.SparkApplicationSpec{
+				Mode: v1beta2.DeployModeClient,
+				Type: v1beta2.SparkApplicationTypeJava,
+				Driver: v1beta2.DriverSpec{
+					SparkPodSpec: v1beta2.SparkPodSpec{Cores: ptr.To[int32](1)},
+				},
+				Executor: v1beta2.ExecutorSpec{
+					Instances:    ptr.To[int32](2),
+					SparkPodSpec: v1beta2.SparkPodSpec{Cores: ptr.To[int32](1)},
+					// Memory intentionally nil
+				},
+			},
+		}
+		pg := scheduleAndCapture(t, app)
+		wantMem := resource.MustParse("2816Mi") // 2 × 1408 MiB
+		gotMem := (*pg.Spec.MinResources)[corev1.ResourceMemory]
+		assert.Equal(t, wantMem.Value(), gotMem.Value(),
+			"client nil-memory: got %s, want 2816Mi", gotMem.String())
+	})
+
+	t.Run("cluster mode: driver+executor memory nil JVM — driver 1408 + 2×1408", func(t *testing.T) {
+		// driver:   1024 + 384 = 1408 MiB
+		// executor: 1408 MiB × 2 = 2816 MiB
+		// total:    1408 + 2816 = 4224 MiB
+		app := &v1beta2.SparkApplication{
+			ObjectMeta: metav1.ObjectMeta{Name: "default-heap-cluster", Namespace: "default"},
+			Spec: v1beta2.SparkApplicationSpec{
+				Mode: v1beta2.DeployModeCluster,
+				Type: v1beta2.SparkApplicationTypeJava,
+				Driver: v1beta2.DriverSpec{
+					SparkPodSpec: v1beta2.SparkPodSpec{Cores: ptr.To[int32](1)},
+					// Memory intentionally nil
+				},
+				Executor: v1beta2.ExecutorSpec{
+					Instances:    ptr.To[int32](2),
+					SparkPodSpec: v1beta2.SparkPodSpec{Cores: ptr.To[int32](1)},
+					// Memory intentionally nil
+				},
+			},
+		}
+		pg := scheduleAndCapture(t, app)
+		wantMem := resource.MustParse("4224Mi")
+		gotMem := (*pg.Spec.MinResources)[corev1.ResourceMemory]
+		assert.Equal(t, wantMem.Value(), gotMem.Value(),
+			"cluster nil-memory: got %s, want 4224Mi", gotMem.String())
+	})
+}

@@ -53,6 +53,10 @@ func memoryRequestBytes(podSpec *v1beta2.SparkPodSpec, memoryOverheadFactor floa
 			return 0, err
 		}
 		memoryBytes = parsed
+	} else {
+		// Spark defaults heap to 1g when the field is unset.  Mirror that so the
+		// PodGroup reservation is not under-sized when Memory is omitted.
+		memoryBytes = common.DefaultMemoryBytes
 	}
 
 	if podSpec.MemoryOverhead != nil {
