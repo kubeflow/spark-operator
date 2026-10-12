@@ -18,80 +18,37 @@ package resourceusage
 
 import (
 	"fmt"
-	"math"
-	"strconv"
 
 	"github.com/kubeflow/spark-operator/v2/api/v1beta2"
-	"github.com/kubeflow/spark-operator/v2/pkg/common"
 )
 
 func isJavaApp(appType v1beta2.SparkApplicationType) bool {
 	return appType == v1beta2.SparkApplicationTypeJava || appType == v1beta2.SparkApplicationTypeScala
 }
 
-func getMemoryOverheadFactor(app *v1beta2.SparkApplication) (float64, error) {
-	if app.Spec.MemoryOverheadFactor != nil {
-		parsed, err := strconv.ParseFloat(*app.Spec.MemoryOverheadFactor, 64)
-		if err != nil {
-			return 0, fmt.Errorf("failed to parse memory overhead factor as float: %w", err)
-		}
-		return parsed, nil
-	} else if isJavaApp(app.Spec.Type) {
-		return common.DefaultJVMMemoryOverheadFactor, nil
-	}
-
-	return common.DefaultNonJVMMemoryOverheadFactor, nil
+func bytesToMi(b int64) string {
+	// this floors the value to the nearest mebibyte
+	return fmt.Sprintf("%dMi", b/1024/1024)
 }
 
-func memoryRequestBytes(podSpec *v1beta2.SparkPodSpec, memoryOverheadFactor float64) (int64, error) {
-	var memoryBytes, memoryOverheadBytes int64
-
-	if podSpec.Memory != nil {
-		// spark.driver.memory / spark.executor.memory: bare number means MiB.
-		parsed, err := byteStringAsBytes(*podSpec.Memory, DefaultUnitMiB)
-		if err != nil {
-			return 0, err
-		}
-		memoryBytes = parsed
-	} else {
-		// Spark defaults heap to 1g when the field is unset.  Mirror that so the
-		// PodGroup reservation is not under-sized when Memory is omitted.
-		memoryBytes = common.DefaultMemoryBytes
-	}
-
-	if podSpec.MemoryOverhead != nil {
-		// spark.driver.memoryOverhead / spark.executor.memoryOverhead: bare number means MiB.
-		parsed, err := byteStringAsBytes(*podSpec.MemoryOverhead, DefaultUnitMiB)
-		if err != nil {
-			return 0, err
-		}
-		memoryOverheadBytes = parsed
-	} else {
-		memoryOverheadBytes = int64(math.Max(
-			float64(memoryBytes)*memoryOverheadFactor,
-			common.MinMemoryOverhead,
-		))
-	}
-
-	return memoryBytes + memoryOverheadBytes, nil
-}
-
+// executorPysparkMemoryBytes returns the pyspark memory contribution for Python
+// executors.  spark.executor.pyspark.memory: bare number means MiB.
+// https://spark.apache.org/docs/latest/configuration.html#execution-behavior
 func executorPysparkMemoryBytes(app *v1beta2.SparkApplication) (int64, error) {
 	pysparkMemory, found := app.Spec.SparkConf["spark.executor.pyspark.memory"]
 	if app.Spec.Type != v1beta2.SparkApplicationTypePython || !found {
 		return 0, nil
 	}
-
-	// spark.executor.pyspark.memory: bare number means MiB (same as other Spark memory settings).
-	// https://spark.apache.org/docs/latest/configuration.html#execution-behavior
-	pysparkMemoryBytes, err := byteStringAsBytes(pysparkMemory, DefaultUnitMiB)
+	b, err := byteStringAsBytes(pysparkMemory, DefaultUnitMiB)
 	if err != nil {
-		return 0, err
+		return 0, fmt.Errorf("failed to parse spark.executor.pyspark.memory=%q: %w", pysparkMemory, err)
 	}
-
-	return pysparkMemoryBytes, nil
+	return b, nil
 }
 
+// sparkOffHeapMemoryBytes returns the off-heap memory contribution.
+// spark.memory.offHeap.size: bare number means bytes (not MiB).
+// https://spark.apache.org/docs/latest/configuration.html#memory-management
 func sparkOffHeapMemoryBytes(app *v1beta2.SparkApplication) (int64, error) {
 	offHeapMemoryEnabled, found := app.Spec.SparkConf["spark.memory.offHeap.enabled"]
 	if !found || offHeapMemoryEnabled == "false" {
@@ -101,49 +58,46 @@ func sparkOffHeapMemoryBytes(app *v1beta2.SparkApplication) (int64, error) {
 	if !found {
 		return 0, nil
 	}
-	// spark.memory.offHeap.size: bare number means bytes (not MiB).
-	// https://spark.apache.org/docs/latest/configuration.html#memory-management
-	offHeapBytes, err := byteStringAsBytes(offHeapSize, DefaultUnitBytes)
+	b, err := byteStringAsBytes(offHeapSize, DefaultUnitBytes)
 	if err != nil {
-		return 0, err
+		return 0, fmt.Errorf("failed to parse spark.memory.offHeap.size=%q: %w", offHeapSize, err)
 	}
-	return offHeapBytes, nil
+	return b, nil
 }
 
-func bytesToMi(b int64) string {
-	// this floors the value to the nearest mebibyte
-	return fmt.Sprintf("%dMi", b/1024/1024)
-}
-
+// driverMemoryRequest returns the total driver pod memory request as a MiB
+// string, using effectiveDriverConfig to resolve the correct heap, overhead, and
+// factor values from CRD fields and sparkConf.
+//
+// Precedence (see effective_config.go for full documentation):
+//   - Heap:            CRD > sparkConf > default 1 GiB
+//   - MemoryOverhead:  CRD > sparkConf > factor-based calculation
+//   - OverheadFactor:  sparkConf > CRD > language default (0.1 JVM / 0.4 non-JVM)
+//
+// See also Spark source:
+// https://github.com/apache/spark/blob/11b682cf5b7c5360a02410be288b7905eecc1d28/resource-managers/kubernetes/core/src/main/scala/org/apache/spark/deploy/k8s/features/BasicDriverFeatureStep.scala#L88
 func driverMemoryRequest(app *v1beta2.SparkApplication) (string, error) {
-	memoryOverheadFactor, err := getMemoryOverheadFactor(app)
+	cfg, err := effectiveDriverConfig(app)
 	if err != nil {
 		return "", err
 	}
-
-	requestBytes, err := memoryRequestBytes(&app.Spec.Driver.SparkPodSpec, memoryOverheadFactor)
-	if err != nil {
-		return "", err
-	}
-
-	// Convert memory quantity to mebibytes even if larger than a gibibyte to match Spark
-	// https://github.com/apache/spark/blob/11b682cf5b7c5360a02410be288b7905eecc1d28/resource-managers/kubernetes/core/src/main/scala/org/apache/spark/deploy/k8s/features/BasicDriverFeatureStep.scala#L88
-	// https://github.com/apache/spark/blob/11b682cf5b7c5360a02410be288b7905eecc1d28/resource-managers/kubernetes/core/src/main/scala/org/apache/spark/deploy/k8s/features/BasicExecutorFeatureStep.scala#L121
-	return bytesToMi(requestBytes), nil
+	return bytesToMi(cfg.totalBytes()), nil
 }
 
+// executorMemoryRequest returns the total executor pod memory request as a MiB
+// string, including pyspark and off-heap contributions.
+//
+// Precedence: see driverMemoryRequest and effective_config.go.
+//
+// See also Spark source:
+// https://github.com/apache/spark/blob/11b682cf5b7c5360a02410be288b7905eecc1d28/resource-managers/kubernetes/core/src/main/scala/org/apache/spark/deploy/k8s/features/BasicExecutorFeatureStep.scala#L121
 func executorMemoryRequest(app *v1beta2.SparkApplication) (string, error) {
-	memoryOverheadFactor, err := getMemoryOverheadFactor(app)
+	cfg, err := effectiveExecutorConfig(app)
 	if err != nil {
 		return "", err
 	}
 
-	requestBytes, err := memoryRequestBytes(&app.Spec.Executor.SparkPodSpec, memoryOverheadFactor)
-	if err != nil {
-		return "", err
-	}
-
-	pysparkMemoryBytes, err := executorPysparkMemoryBytes(app)
+	pysparkBytes, err := executorPysparkMemoryBytes(app)
 	if err != nil {
 		return "", err
 	}
@@ -153,6 +107,11 @@ func executorMemoryRequest(app *v1beta2.SparkApplication) (string, error) {
 		return "", err
 	}
 
-	// See comment above in driver
-	return bytesToMi(requestBytes + pysparkMemoryBytes + offHeapBytes), nil
+	return bytesToMi(cfg.totalBytes() + pysparkBytes + offHeapBytes), nil
+}
+
+// getMemoryOverheadFactor delegates to effectiveOverheadFactor. Retained for
+// any caller that used it before the resolver was introduced.
+func getMemoryOverheadFactor(app *v1beta2.SparkApplication) (float64, error) {
+	return effectiveOverheadFactor(app)
 }
