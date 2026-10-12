@@ -194,12 +194,6 @@ func (s *Scheduler) syncPodGroupInClusterMode(app *v1beta2.SparkApplication) err
 	return nil
 }
 
-// maxExecutorInstances is a sanity limit on the initial executor count.
-// Instances come from unvalidated user input (the CRD has no maximum and
-// sparkConf is a free-form string map), so we reject absurd values early
-// with a clear error. Overflow is guarded separately in multiplyQuantity.
-const maxExecutorInstances = 10_000
-
 // multiplyResourceList returns a new ResourceList whose every quantity equals
 // q * n.  The Format of the original quantity is preserved on the result.
 // An error is returned if the multiplication would overflow int64 in the
@@ -244,10 +238,9 @@ func multiplyQuantity(q resource.Quantity, n int64) (resource.Quantity, error) {
 // memoryOverheadFactor applied.
 //
 // instances is unbounded user input (no CRD maximum, sparkConf is a free-form
-// string map).  We multiply per-resource directly instead of building a slice of
-// length instances, to avoid O(instances) allocation and iteration.  Absurd
-// values are rejected by the maxExecutorInstances guard; int64 overflow is
-// handled inside multiplyQuantity.
+// string map).  We multiply per-resource directly in O(1) space rather than
+// building a slice of length instances.  multiplyQuantity returns a clear error
+// if the milli-value of any resource would overflow int64 when scaled.
 func executorMinResources(app *v1beta2.SparkApplication) (corev1.ResourceList, error) {
 	perPod, err := resourceusage.ExecutorPodResourceList(app)
 	if err != nil {
@@ -257,10 +250,6 @@ func executorMinResources(app *v1beta2.SparkApplication) (corev1.ResourceList, e
 	instances := util.GetInitialExecutorNumber(app)
 	if instances == 0 {
 		return corev1.ResourceList{}, nil
-	}
-	if instances > maxExecutorInstances {
-		return nil, fmt.Errorf("spark.executor.instances %d exceeds maximum supported value %d",
-			instances, maxExecutorInstances)
 	}
 
 	return multiplyResourceList(perPod, instances)

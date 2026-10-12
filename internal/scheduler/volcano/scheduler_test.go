@@ -890,28 +890,29 @@ func TestExecutorMinResources(t *testing.T) {
 		assert.Equal(t, wantMem.Value(), gotMem.Value(), "2×2560Mi binary-SI")
 	})
 
-	t.Run("huge instances via sparkConf returns error promptly", func(t *testing.T) {
-		// 2_000_000_000 via sparkConf: used to allocate a ~16 GB slice and stall the loop.
-		// Must now return an error quickly.
+	t.Run("huge instances via sparkConf causes overflow error from multiplyQuantity", func(t *testing.T) {
+		// 2_000_000_000 instances: the cap is gone, but multiplyQuantity detects
+		// int64 overflow on the milli-value before doing any allocation.
+		// Per-pod memory = 1408 MiB; milli-value = 1408*1024*1024*1000 = 1476395008000
+		// 1476395008000 * 2e9 >> MaxInt64 (~9.2e18), so multiplyQuantity errors.
 		app := base(nil, map[string]string{
 			"spark.executor.instances": "2000000000",
 		})
 		_, err := executorMinResources(app)
-		require.Error(t, err, "expected error for 2e9 instances")
-		assert.Contains(t, err.Error(), "exceeds maximum supported value",
-			"error message should mention the bound")
+		require.Error(t, err, "expected overflow error for 2e9 instances")
+		assert.Contains(t, err.Error(), "overflow",
+			"error should mention overflow")
 	})
 
-	t.Run("instances just at maxExecutorInstances is accepted", func(t *testing.T) {
-		app := base(ptr.To[int32](maxExecutorInstances), nil)
-		_, err := executorMinResources(app)
-		require.NoError(t, err, "exactly maxExecutorInstances should be accepted")
-	})
-
-	t.Run("instances one over maxExecutorInstances is rejected", func(t *testing.T) {
-		app := base(ptr.To[int32](maxExecutorInstances+1), nil)
-		_, err := executorMinResources(app)
-		require.Error(t, err, "maxExecutorInstances+1 should be rejected")
+	t.Run("large but non-overflowing instance count succeeds", func(t *testing.T) {
+		// 100 instances with 1g memory: well within int64 range.
+		// memory per pod = 1408 MiB; total = 140800 MiB — no overflow.
+		app := base(ptr.To[int32](100), nil)
+		rl, err := executorMinResources(app)
+		require.NoError(t, err, "100 instances should not overflow")
+		wantMem := resource.MustParse("140800Mi")
+		gotMem := rl[corev1.ResourceMemory]
+		assert.Equal(t, wantMem.Value(), gotMem.Value(), "100×1408Mi")
 	})
 }
 
