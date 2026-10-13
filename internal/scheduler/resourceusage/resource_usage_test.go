@@ -563,3 +563,88 @@ func TestDefaultHeapWhenMemoryOmitted(t *testing.T) {
 			"explicit memory=2g: got %s, want 2432Mi", actual.String())
 	})
 }
+
+// TestRoundingMatchesSpark verifies that our byte-level arithmetic produces the
+// same integer-MiB result as Spark's own formula for a case where the factor
+// product is non-integer MiB.
+//
+// Spark formula (Scala):  overhead = max((heapMiB * factor).toInt, 384)
+//
+//	→ (4096 * 0.1).toInt = 409  (Scala truncates toward zero like int64 cast)
+//	→ max(409, 384) = 409 MiB; total = 4096 + 409 = 4505 MiB
+//
+// Our formula (Go):
+//
+//	overheadBytes = int64(heapBytes * factor) = int64(4294967296 * 0.1)
+//	              = int64(429496729.6) = 429496729 bytes
+//	floor div:    429496729 / 1024 / 1024 = 409 MiB   ✓ matches Spark
+func TestRoundingMatchesSpark(t *testing.T) {
+	testCases := []struct {
+		name    string
+		memory  string
+		appType v1beta2.SparkApplicationType
+		// factor is the overhead factor to use
+		factor      string // set in sparkConf to override default
+		wantTotalMi int64
+	}{
+		{
+			// heap=4g, factor=0.1 (JVM default).  Non-integer product: 4096*0.1=409.6
+			// Spark: (4096*0.1).toInt=409; total=4096+409=4505 MiB
+			name:        "4g JVM factor=0.1 non-integer product",
+			memory:      "4g",
+			appType:     v1beta2.SparkApplicationTypeJava,
+			wantTotalMi: 4505,
+		},
+		{
+			// heap=1g, factor=0.4 (Python default).  Non-integer product: 1024*0.4=409.6
+			// Spark: (1024*0.4).toInt=409; total=1024+409=1433 MiB
+			name:        "1g Python factor=0.4 non-integer product",
+			memory:      "1g",
+			appType:     v1beta2.SparkApplicationTypePython,
+			wantTotalMi: 1433,
+		},
+		{
+			// heap=3g=3072 MiB, factor=0.1.  Non-integer: 3072*0.1=307.2
+			// Spark: (3072*0.1).toInt=307; total=3072+384=3456 (floor<384 so floor wins)
+			// wait: 307 < 384 so overhead=384; total=3072+384=3456 MiB
+			name:        "3g JVM factor=0.1 below 384 floor",
+			memory:      "3g",
+			appType:     v1beta2.SparkApplicationTypeJava,
+			wantTotalMi: 3456,
+		},
+		{
+			// heap=5g=5120 MiB, custom factor=0.15.  5120*0.15=768.0 (exact integer MiB).
+			// Spark: (5120*0.15).toInt=768; overhead=768; total=5120+768=5888 MiB
+			name:        "5g custom factor=0.15 exact integer product",
+			memory:      "5g",
+			appType:     v1beta2.SparkApplicationTypeJava,
+			factor:      "0.15",
+			wantTotalMi: 5888,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			app := &v1beta2.SparkApplication{
+				Spec: v1beta2.SparkApplicationSpec{
+					Type: tc.appType,
+					Driver: v1beta2.DriverSpec{
+						SparkPodSpec: v1beta2.SparkPodSpec{
+							Memory: ptr.To(tc.memory),
+							Cores:  ptr.To[int32](1),
+						},
+					},
+				},
+			}
+			if tc.factor != "" {
+				app.Spec.MemoryOverheadFactor = ptr.To(tc.factor)
+			}
+			rl, err := DriverPodResourceList(app)
+			require.NoError(t, err)
+			want := resource.MustParse(fmt.Sprintf("%dMi", tc.wantTotalMi))
+			got := rl[corev1.ResourceMemory]
+			assert.Equal(t, want.Value(), got.Value(),
+				"rounding: got %s, want %dMi", got.String(), tc.wantTotalMi)
+		})
+	}
+}

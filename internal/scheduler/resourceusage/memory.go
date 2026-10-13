@@ -27,7 +27,13 @@ func isJavaApp(appType v1beta2.SparkApplicationType) bool {
 }
 
 func bytesToMi(b int64) string {
-	// this floors the value to the nearest mebibyte
+	// Floors to the nearest MiB (integer division), matching Spark's own
+	// behaviour: Spark computes overhead in whole MiB via
+	//   max((heapMiB * factor).toInt, minMiB)
+	// then adds to heap MiB and emits the string.  Because heap strings like
+	// "1g" produce an exact number of MiB, and because we compute overhead
+	// as int64(heapBytes * factor) / MiB, our result equals Spark's for all
+	// realistic inputs (see TestRoundingMatchesSpark).
 	return fmt.Sprintf("%dMi", b/1024/1024)
 }
 
