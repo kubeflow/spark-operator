@@ -34,4 +34,4 @@ labels:
 # CI/e2e tests override this via: kustomize edit set image ...
 images:
   - name: ghcr.io/kubeflow/spark-operator/controller
-    newTag: 2.5.0-rc.0
+    newTag: 2.6.0-rc.0
