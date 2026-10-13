@@ -209,6 +209,14 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	logger.Info("Reconciling SparkApplication", "state", app.Status.AppState.State)
 	defer logger.Info("Finished reconciling SparkApplication")
 
+	if app.Spec.ManagedBy != nil && *app.Spec.ManagedBy != common.SparkOperatorManagerName {
+		logger.Info(
+			"Skipping reconciliation: managed by external controller",
+			"managedBy", *app.Spec.ManagedBy,
+		)
+		return ctrl.Result{}, nil
+	}
+
 	// Check if the spark application is being deleted
 	if !app.DeletionTimestamp.IsZero() {
 		return r.handleSparkApplicationDeletion(ctx, req)

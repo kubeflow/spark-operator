@@ -202,7 +202,7 @@ func start() {
 	cfg.Burst = kubeAPIBurst
 
 	// Create the manager.
-	tlsOptions, err := operatortls.SetupTLS(tlsMinVersion, tlsCipherSuites)
+	tlsOptions, err := operatortls.SetupTLS("webhook", tlsMinVersion, tlsCipherSuites)
 	if err != nil {
 		logger.Error(err, "Failed to set up TLS")
 		os.Exit(1)

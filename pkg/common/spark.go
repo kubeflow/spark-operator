@@ -247,6 +247,10 @@ const (
 
 	// SparkKubernetesExecutorDeleteOnTermination is the Spark configuration for specifying whether executor pods should be deleted in case of failure or normal termination.
 	SparkKubernetesExecutorDeleteOnTermination = "spark.kubernetes.executor.deleteOnTermination"
+
+	// SparkOperatorManagerName is the default manager name for spec.managedBy.
+	// When the field is unset or equals this value, the built-in operator manages the application.
+	SparkOperatorManagerName = "sparkoperator.k8s.io/spark-operator"
 )
 
 // Dynamic allocation properties.

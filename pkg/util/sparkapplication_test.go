@@ -570,3 +570,86 @@ var _ = Describe("ApplyDefaultDriverServiceAccount", func() {
 		})
 	})
 })
+
+var _ = Describe("TimeUntilNextRetryDue", func() {
+	newApp := func(state v1beta2.ApplicationStateType, attempts int32, lastAttempt time.Time) *v1beta2.SparkApplication {
+		return &v1beta2.SparkApplication{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "test-app",
+				Namespace: "test-namespace",
+			},
+			Status: v1beta2.SparkApplicationStatus{
+				AppState:                  v1beta2.ApplicationState{State: state},
+				SubmissionAttempts:        attempts,
+				LastSubmissionAttemptTime: metav1.NewTime(lastAttempt),
+			},
+		}
+	}
+
+	defaultInterval := time.Duration(v1beta2.DefaultRestartPolicyRetryIntervalSeconds) * time.Second
+
+	Context("retry interval is not set", func() {
+		It("Should fall back to the default interval for a failing application", func() {
+			app := newApp(v1beta2.ApplicationStateFailing, 1, time.Now())
+
+			got, err := util.TimeUntilNextRetryDue(app)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(got).To(BeNumerically("~", defaultInterval, time.Second))
+		})
+
+		It("Should fall back to the default interval for a failed submission", func() {
+			app := newApp(v1beta2.ApplicationStateFailedSubmission, 2, time.Now())
+
+			got, err := util.TimeUntilNextRetryDue(app)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(got).To(BeNumerically("~", 2*defaultInterval, time.Second))
+		})
+	})
+
+	Context("retry interval is set", func() {
+		It("Should use OnFailureRetryInterval with linear backoff for a failing application", func() {
+			app := newApp(v1beta2.ApplicationStateFailing, 3, time.Now().Add(-5*time.Second))
+			app.Spec.RestartPolicy.OnFailureRetryInterval = ptr.To[int64](10)
+			app.Spec.RestartPolicy.OnSubmissionFailureRetryInterval = ptr.To[int64](100)
+
+			got, err := util.TimeUntilNextRetryDue(app)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(got).To(BeNumerically("~", 25*time.Second, time.Second))
+		})
+
+		It("Should use OnSubmissionFailureRetryInterval for a failed submission", func() {
+			app := newApp(v1beta2.ApplicationStateFailedSubmission, 1, time.Now())
+			app.Spec.RestartPolicy.OnFailureRetryInterval = ptr.To[int64](100)
+			app.Spec.RestartPolicy.OnSubmissionFailureRetryInterval = ptr.To[int64](2)
+
+			got, err := util.TimeUntilNextRetryDue(app)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(got).To(BeNumerically("~", 2*time.Second, time.Second))
+		})
+
+		It("Should return a non-positive duration once the retry is due", func() {
+			app := newApp(v1beta2.ApplicationStateFailing, 1, time.Now().Add(-time.Minute))
+			app.Spec.RestartPolicy.OnFailureRetryInterval = ptr.To[int64](5)
+
+			got, err := util.TimeUntilNextRetryDue(app)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(got).To(BeNumerically("<=", 0))
+		})
+	})
+
+	Context("status is incomplete", func() {
+		It("Should return an error when there is no last submission attempt time", func() {
+			app := newApp(v1beta2.ApplicationStateFailing, 1, time.Time{})
+
+			_, err := util.TimeUntilNextRetryDue(app)
+			Expect(err).To(HaveOccurred())
+		})
+
+		It("Should return an error when no submission attempt was made", func() {
+			app := newApp(v1beta2.ApplicationStateFailing, 0, time.Now())
+
+			_, err := util.TimeUntilNextRetryDue(app)
+			Expect(err).To(HaveOccurred())
+		})
+	})
+})

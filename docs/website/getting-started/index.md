@@ -33,6 +33,11 @@ See [helm repo](https://helm.sh/docs/helm/helm_repo) for command documentation.
 
 ### Install the chart
 
+The REST submitter is a pluggable alpha feature that provides an alternative to the operator's
+default `spark-submit` CLI. It can reduce controller resource use and Spark application submission
+latency during bursts. To enable it, follow
+[Integrate the REST Submitter](../user-guide/rest-submitter.md).
+
 ```shell
 helm install [RELEASE_NAME] spark-operator/spark-operator
 ```
