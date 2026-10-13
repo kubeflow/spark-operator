@@ -73,7 +73,7 @@ Then run:
 
 ```bash
 git fetch upstream --tags
-git checkout -b release-vX.Y.Z upstream/master   # or upstream/release-X.Y
+git checkout -b prepare-release-vX.Y.Z upstream/master   # or upstream/release-X.Y
 
 # Release candidate (no changelog):
 make release VERSION=vX.Y.Z-rc.N
