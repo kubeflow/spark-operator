@@ -149,6 +149,7 @@ var _ = Describe("Options functions", func() {
 				"--packages", "org.apache.iceberg:iceberg-spark-runtime-3.5_2.12:1.5.0",
 				"--exclude-packages", "org.slf4j:slf4j-log4j12",
 				"--repositories", "https://repo1.maven.org/maven2",
+				"--conf", "spark.jars.ivy=/tmp/.ivy2",
 			}))
 		})
 
@@ -171,6 +172,7 @@ var _ = Describe("Options functions", func() {
 				"--packages", "org.example:package:1.0; printf injected",
 				"--exclude-packages", "org.example:excluded",
 				"--repositories", "https://repo.example/a path",
+				"--conf", "spark.jars.ivy=/tmp/.ivy2",
 			}))
 		})
 	})

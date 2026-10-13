@@ -138,6 +138,12 @@ func dependenciesOption(conn *v1alpha1.SparkConnect) ([]string, error) {
 		args = append(args, "--repositories", strings.Join(deps.Repositories, ","))
 	}
 
+	// The Apache Spark image runs as a non-root user whose passwd HOME may not
+	// exist; Ivy must write under a writable directory to resolve Maven coords.
+	if len(deps.Packages) > 0 || len(deps.ExcludePackages) > 0 || len(deps.Repositories) > 0 {
+		args = append(args, "--conf", "spark.jars.ivy=/tmp/.ivy2")
+	}
+
 	return args, nil
 }
 
