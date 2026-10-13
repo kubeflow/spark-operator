@@ -106,6 +106,26 @@ func TestGetMemoryOverheadFactor(t *testing.T) {
 			},
 			expected: common.DefaultNonJVMMemoryOverheadFactor,
 		},
+		{
+			name: "zero factor is parsed and passed through",
+			app: &v1beta2.SparkApplication{
+				Spec: v1beta2.SparkApplicationSpec{
+					Type:                 v1beta2.SparkApplicationTypeScala,
+					MemoryOverheadFactor: ptr.To("0"),
+				},
+			},
+			expected: 0,
+		},
+		{
+			name: "negative factor is parsed and passed through",
+			app: &v1beta2.SparkApplication{
+				Spec: v1beta2.SparkApplicationSpec{
+					Type:                 v1beta2.SparkApplicationTypeScala,
+					MemoryOverheadFactor: ptr.To("-0.5"),
+				},
+			},
+			expected: -0.5,
+		},
 	}
 
 	for _, tc := range testCases {
@@ -182,6 +202,20 @@ func TestMemoryRequestBytes(t *testing.T) {
 			podSpec:              &v1beta2.SparkPodSpec{MemoryOverhead: ptr.To("512m")},
 			memoryOverheadFactor: common.DefaultJVMMemoryOverheadFactor,
 			expected:             512 * 1024 * 1024,
+		},
+		{
+			// 4Gi * 0 is below the floor, so the 384Mi minimum applies
+			name:                 "zero factor floors at the minimum overhead",
+			podSpec:              &v1beta2.SparkPodSpec{Memory: ptr.To("4g")},
+			memoryOverheadFactor: 0,
+			expected:             (4096 + 384) * 1024 * 1024,
+		},
+		{
+			// math.Max clamps the negative product to the 384Mi minimum
+			name:                 "negative factor floors at the minimum overhead",
+			podSpec:              &v1beta2.SparkPodSpec{Memory: ptr.To("4g")},
+			memoryOverheadFactor: -0.5,
+			expected:             (4096 + 384) * 1024 * 1024,
 		},
 	}
 
