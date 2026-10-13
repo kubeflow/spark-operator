@@ -17,7 +17,7 @@
 # Bumps every versioned asset in the repository to a new release version and,
 # for final releases, prepends a CHANGELOG.md section. Run it via:
 #
-#   make release VERSION=vX.Y.Z[-rc.N] [GITHUB_TOKEN=<token>]
+#   GITHUB_TOKEN=$(gh auth token) make release VERSION=vX.Y.Z[-rc.N]
 #
 # Environment:
 #   VERSION            (required) vX.Y.Z or vX.Y.Z-rc.N
@@ -39,7 +39,7 @@ PYTHON_INIT_FILE="api/python_api/kubeflow_spark_api/__init__.py"
 VERSION="${VERSION:-}"
 if [[ ! ${VERSION} =~ ${SEMVER_PATTERN} ]]; then
   echo "ERROR: VERSION must be vX.Y.Z or vX.Y.Z-rc.N, got '${VERSION}'." >&2
-  echo "Usage: make release VERSION=vX.Y.Z[-rc.N] [GITHUB_TOKEN=<token>]" >&2
+  echo "Usage: [GITHUB_TOKEN=\$(gh auth token)] make release VERSION=vX.Y.Z[-rc.N]" >&2
   exit 1
 fi
 MAJOR="${BASH_REMATCH[1]}"
@@ -52,7 +52,7 @@ CHART_VERSION="${VERSION#v}"
 if [[ -z ${RC} ]]; then
   if [[ -z ${GITHUB_TOKEN:-} ]]; then
     echo "ERROR: GITHUB_TOKEN is required to generate the changelog for ${VERSION}." >&2
-    echo "Usage: make release VERSION=${VERSION} GITHUB_TOKEN=<token>" >&2
+    echo "Usage: GITHUB_TOKEN=\$(gh auth token) make release VERSION=${VERSION}" >&2
     exit 1
   fi
   if ! python3 -c 'import github' 2> /dev/null; then
@@ -122,6 +122,5 @@ fi
 
 echo "Generating changelog for ${VERSION} from ${PREVIOUS_VERSION}..${CHANGELOG_HEAD_REF}"
 python3 hack/generate-changelog.py \
-  --token="${GITHUB_TOKEN}" \
   --range="${PREVIOUS_VERSION}..${CHANGELOG_HEAD_REF}" \
   --version="${VERSION}"

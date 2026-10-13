@@ -320,8 +320,8 @@ helm-lint: ## Run Helm chart lint test.
 .PHONY: release
 # VERSION given on the command line takes precedence over the value read from the VERSION file,
 # so `make release VERSION=vX.Y.Z` receives the new version verbatim (with the leading "v").
-release: ## Prepare a release commit. Usage: make release VERSION=vX.Y.Z[-rc.N] [GITHUB_TOKEN=<token>]
-	VERSION="$(VERSION)" GITHUB_TOKEN="$(GITHUB_TOKEN)" hack/release/prepare-release.sh
+release: ## Prepare a release commit. Usage: GITHUB_TOKEN=$$(gh auth token) make release VERSION=vX.Y.Z[-rc.N]
+	@hack/release/prepare-release.sh
 	$(MAKE) helm-docs
 	@echo
 	@echo "Release $(VERSION) prepared. Review the changes, then run:"

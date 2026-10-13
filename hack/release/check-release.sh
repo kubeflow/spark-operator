@@ -101,7 +101,7 @@ python_version=$(sed -n 's/^__version__ = "\(.*\)"/\1/p' "${PYTHON_INIT_FILE}")
 # Changelog entry is mandatory for final releases.
 if [[ ${IS_PRERELEASE} == false ]]; then
   grep -qE "^## \[${VERSION//./\\.}\]" "${CHANGELOG_FILE}" ||
-    fail "${CHANGELOG_FILE} has no '## [${VERSION}]' section (run: make release VERSION=${VERSION} GITHUB_TOKEN=...)"
+    fail "${CHANGELOG_FILE} has no '## [${VERSION}]' section (run: GITHUB_TOKEN=\$(gh auth token) make release VERSION=${VERSION})"
 fi
 
 if [[ ${REQUIRE_NEW_TAG} == true ]]; then
