@@ -18,6 +18,7 @@ package e2e_test
 
 import (
 	"context"
+	_ "embed"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -37,6 +38,11 @@ import (
 	"github.com/kubeflow/spark-operator/v2/internal/controller/sparkconnect"
 	"github.com/kubeflow/spark-operator/v2/pkg/util"
 )
+
+// connectQueryScript queries the Spark Connect server from the client pod.
+//
+//go:embed scripts/connect_query.py
+var connectQueryScript string
 
 var _ = Describe("SparkConnect Dependencies", func() {
 	Context("Start the server with dependencies", func() {
@@ -155,31 +161,21 @@ var _ = Describe("SparkConnect Dependencies", func() {
 				return util.IsPodReady(pod)
 			}).WithPolling(PollInterval).WithTimeout(WaitTimeout).Should(BeTrue())
 
-			By("Running a query on the server pod that uses the declared spark-avro package")
-			// spark-avro is declared under spec.deps.packages and is not part of the base
-			// image. to_avro() only resolves if that package was fetched and put on the
-			// server pod's classpath by spark-submit, so a successful query exercises the
-			// declared dependency rather than only inspecting the container arguments.
+			By("Running a query on the server session that uses the declared spark-avro package")
+			// to_avro is not available in the base image. It only resolves if the
+			// declared spark-avro package was fetched and put on the server session's
+			// classpath, so a successful query exercises the dependency instead of only
+			// inspecting the container arguments. The helper asserts the session is a
+			// genuine Spark Connect session, because a classic fallback would evaluate
+			// the query on the client JVM and never reach the operator's server at all.
 			connectURL := fmt.Sprintf("sc://%s.%s.svc:15002", serviceName, conn.Namespace)
-			scalaScript := fmt.Sprintf(
-				`import org.apache.spark.sql.SparkSession
-val remoteSpark = SparkSession.builder().remote("%s").getOrCreate()
-val df = remoteSpark.range(10).selectExpr("to_avro(named_struct('id', id)) as payload")
-df.createOrReplaceTempView("avro_demo")
-val count = remoteSpark.sql("SELECT count(*) AS c FROM avro_demo").collect()(0).getAs[Long]("c")
-println("AVRO_ROWS=" + count)
-System.exit(0)
-`,
-				connectURL,
-			)
 			output, err := runCommandWithInput(
-				scalaScript,
+				connectQueryScript,
 				"kubectl", "exec", "-i", "-n", conn.Namespace, clientPod.Name, "--",
-				"bash", "-c",
-				"export HOME=/tmp && ${SPARK_HOME}/bin/spark-shell --master 'local[1]' --conf spark.ui.enabled=false",
+				"python3", "-", connectURL,
 			)
-			Expect(err).NotTo(HaveOccurred(), "Scala Spark Connect query failed: %s", output)
-			Expect(output).To(ContainSubstring("AVRO_ROWS=10"), "expected the spark-avro query to return 10 rows, got: %s", output)
+			Expect(err).NotTo(HaveOccurred(), "Spark Connect dependency query failed: %s", output)
+			Expect(output).To(ContainSubstring("CONNECT_ROWS=10"), "expected the spark-avro query to return 10 rows, got: %s", output)
 		})
 	})
 })
