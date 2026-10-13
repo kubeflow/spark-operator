@@ -76,9 +76,11 @@ func sparkOffHeapMemoryBytes(app *v1beta2.SparkApplication) (int64, error) {
 // factor values from CRD fields and sparkConf.
 //
 // Precedence (see effective_config.go for full documentation):
-//   - Heap:            CRD > sparkConf > default 1 GiB
-//   - MemoryOverhead:  CRD > sparkConf > factor-based calculation
-//   - OverheadFactor:  sparkConf > CRD > language default (0.1 JVM / 0.4 non-JVM)
+//   - Heap:           CRD > sparkConf > default 1 GiB
+//   - MemoryOverhead: CRD > sparkConf > factor-based calculation
+//   - OverheadFactor: sparkConf[spark.driver.memoryOverheadFactor] >
+//     sparkConf[spark.kubernetes.memoryOverheadFactor] >
+//     spec.MemoryOverheadFactor > language default (0.1 JVM / 0.4 non-JVM)
 //
 // See also Spark source:
 // https://github.com/apache/spark/blob/11b682cf5b7c5360a02410be288b7905eecc1d28/resource-managers/kubernetes/core/src/main/scala/org/apache/spark/deploy/k8s/features/BasicDriverFeatureStep.scala#L88
@@ -93,7 +95,10 @@ func driverMemoryRequest(app *v1beta2.SparkApplication) (string, error) {
 // executorMemoryRequest returns the total executor pod memory request as a MiB
 // string, including pyspark and off-heap contributions.
 //
-// Precedence: see driverMemoryRequest and effective_config.go.
+// Precedence: see effective_config.go. Factor resolution:
+// sparkConf[spark.executor.memoryOverheadFactor] >
+// sparkConf[spark.kubernetes.memoryOverheadFactor] >
+// spec.MemoryOverheadFactor > language default (0.1 JVM / 0.4 non-JVM).
 //
 // See also Spark source:
 // https://github.com/apache/spark/blob/11b682cf5b7c5360a02410be288b7905eecc1d28/resource-managers/kubernetes/core/src/main/scala/org/apache/spark/deploy/k8s/features/BasicExecutorFeatureStep.scala#L121

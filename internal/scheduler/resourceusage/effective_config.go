@@ -47,7 +47,9 @@ type effectiveMemoryConfig struct {
 // Spark computes overhead in whole MiB: max(int(heapMiB * factor), 384).
 // We compute in bytes and floor the total at the end (in bytesToMi), which
 // produces the same integer-MiB result because:
-//   int64(heapBytes * factor) / 1024 / 1024  ==  int(heapMiB * factor)
+//
+//	int64(heapBytes * factor) / 1024 / 1024  ==  int(heapMiB * factor)
+//
 // for any heap that is an exact number of MiB (which all Spark memory
 // strings produce).  bytesToMi then floors the grand total, matching Spark.
 func (e *effectiveMemoryConfig) totalBytes() int64 {
