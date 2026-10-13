@@ -43,6 +43,13 @@ type effectiveMemoryConfig struct {
 
 // totalBytes returns heapBytes + overhead bytes, where overhead is either the
 // explicit value or max(heap*factor, MinMemoryOverhead).
+//
+// Spark computes overhead in whole MiB: max(int(heapMiB * factor), 384).
+// We compute in bytes and floor the total at the end (in bytesToMi), which
+// produces the same integer-MiB result because:
+//   int64(heapBytes * factor) / 1024 / 1024  ==  int(heapMiB * factor)
+// for any heap that is an exact number of MiB (which all Spark memory
+// strings produce).  bytesToMi then floors the grand total, matching Spark.
 func (e *effectiveMemoryConfig) totalBytes() int64 {
 	if e.overheadExplicit {
 		return e.heapBytes + e.memoryOverheadBytes
@@ -68,15 +75,17 @@ func (e *effectiveMemoryConfig) totalBytes() int64 {
 //
 //   - spark.driver.memoryOverhead / spark.executor.memoryOverhead: CRD field wins.
 //
-//   - spark.kubernetes.memoryOverheadFactor: sparkConf wins over spec.MemoryOverheadFactor
-//     (sparkConfOption runs after memoryOverheadFactorOption).
-//
-// The per-role keys spark.driver.memoryOverheadFactor /
-// spark.executor.memoryOverheadFactor are not supported by this codebase (no
-// constants, no CRD field); they are ignored here.
+//   - Factor keys (highest to lowest priority for the factor):
+//       1. sparkConf[spark.driver.memoryOverheadFactor] (driver) or
+//          sparkConf[spark.executor.memoryOverheadFactor] (executor)  — Spark 3.3+,
+//          per-role key, wins over the cluster-wide key.
+//       2. sparkConf[spark.kubernetes.memoryOverheadFactor] — cluster-wide key,
+//          wins over the CRD structured field (sparkConfOption runs after
+//          memoryOverheadFactorOption).
+//       3. spec.MemoryOverheadFactor — structured CRD field.
+//       4. Language default: 0.1 for JVM (Java/Scala), 0.4 for non-JVM (Python/R).
 
-// effectiveDriverConfig returns the resolved memory configuration for the driver,
-// applying the precedence rules above.
+// effectiveDriverConfig returns the resolved memory configuration for the driver.
 func effectiveDriverConfig(app *v1beta2.SparkApplication) (*effectiveMemoryConfig, error) {
 	return effectivePodConfig(
 		app,
@@ -84,11 +93,11 @@ func effectiveDriverConfig(app *v1beta2.SparkApplication) (*effectiveMemoryConfi
 		app.Spec.Driver.MemoryOverhead,
 		common.SparkDriverMemory,
 		common.SparkDriverMemoryOverhead,
+		common.SparkDriverMemoryOverheadFactor,
 	)
 }
 
-// effectiveExecutorConfig returns the resolved memory configuration for an
-// executor, applying the precedence rules above.
+// effectiveExecutorConfig returns the resolved memory configuration for an executor.
 func effectiveExecutorConfig(app *v1beta2.SparkApplication) (*effectiveMemoryConfig, error) {
 	return effectivePodConfig(
 		app,
@@ -96,6 +105,7 @@ func effectiveExecutorConfig(app *v1beta2.SparkApplication) (*effectiveMemoryCon
 		app.Spec.Executor.MemoryOverhead,
 		common.SparkExecutorMemory,
 		common.SparkExecutorMemoryOverhead,
+		common.SparkExecutorMemoryOverheadFactor,
 	)
 }
 
@@ -111,31 +121,30 @@ func effectiveExecutorConfig(app *v1beta2.SparkApplication) (*effectiveMemoryCon
 //  2. sparkConf[overheadKey] — raw string; explicit, factor not applied.
 //  3. Default: apply overheadFactor (resolved below).
 //
-// Precedence for overheadFactor:
-//  1. sparkConf["spark.kubernetes.memoryOverheadFactor"] — wins because sparkConfOption
-//     runs after memoryOverheadFactorOption in the arg builder.
-//  2. spec.MemoryOverheadFactor — structured CRD field.
-//  3. Default: 0.1 for JVM (Java/Scala), 0.4 for non-JVM (Python/R).
+// Precedence for overheadFactor (see effectiveOverheadFactor):
+//  1. sparkConf[perRoleFactorKey] — per-role key (spark.driver/executor.memoryOverheadFactor).
+//  2. sparkConf[spark.kubernetes.memoryOverheadFactor] — cluster-wide key.
+//  3. spec.MemoryOverheadFactor — structured CRD field.
+//  4. Language default (0.1 JVM / 0.4 non-JVM).
 func effectivePodConfig(
 	app *v1beta2.SparkApplication,
 	crdMemory *string,
 	crdOverhead *string,
 	heapKey string,
 	overheadKey string,
+	perRoleFactorKey string,
 ) (*effectiveMemoryConfig, error) {
 	cfg := &effectiveMemoryConfig{}
 
 	// --- Heap ---
 	switch {
 	case crdMemory != nil:
-		// CRD wins.
 		b, err := byteStringAsBytes(*crdMemory, DefaultUnitMiB)
 		if err != nil {
 			return nil, fmt.Errorf("failed to parse %s CRD field %q: %w", heapKey, *crdMemory, err)
 		}
 		cfg.heapBytes = b
 	case app.Spec.SparkConf[heapKey] != "":
-		// Raw sparkConf fallback.
 		b, err := byteStringAsBytes(app.Spec.SparkConf[heapKey], DefaultUnitMiB)
 		if err != nil {
 			return nil, fmt.Errorf("failed to parse sparkConf %s=%q: %w",
@@ -143,14 +152,12 @@ func effectivePodConfig(
 		}
 		cfg.heapBytes = b
 	default:
-		// Spark default: 1 GiB.
 		cfg.heapBytes = common.DefaultMemoryBytes
 	}
 
 	// --- Overhead ---
 	switch {
 	case crdOverhead != nil:
-		// CRD wins; explicit value, skip factor.
 		b, err := byteStringAsBytes(*crdOverhead, DefaultUnitMiB)
 		if err != nil {
 			return nil, fmt.Errorf("failed to parse %s CRD field %q: %w", overheadKey, *crdOverhead, err)
@@ -158,7 +165,6 @@ func effectivePodConfig(
 		cfg.memoryOverheadBytes = b
 		cfg.overheadExplicit = true
 	case app.Spec.SparkConf[overheadKey] != "":
-		// Raw sparkConf; explicit, skip factor.
 		b, err := byteStringAsBytes(app.Spec.SparkConf[overheadKey], DefaultUnitMiB)
 		if err != nil {
 			return nil, fmt.Errorf("failed to parse sparkConf %s=%q: %w",
@@ -167,8 +173,7 @@ func effectivePodConfig(
 		cfg.memoryOverheadBytes = b
 		cfg.overheadExplicit = true
 	default:
-		// Use factor; factor itself has its own precedence.
-		factor, err := effectiveOverheadFactor(app)
+		factor, err := effectiveOverheadFactor(app, perRoleFactorKey)
 		if err != nil {
 			return nil, err
 		}
@@ -178,13 +183,26 @@ func effectivePodConfig(
 	return cfg, nil
 }
 
-// effectiveOverheadFactor returns the memory overhead factor to use, applying:
-//  1. sparkConf["spark.kubernetes.memoryOverheadFactor"] (wins over CRD field because
-//     sparkConfOption runs after memoryOverheadFactorOption in buildSparkSubmitArgs).
-//  2. spec.MemoryOverheadFactor (structured CRD field).
-//  3. Default: 0.1 for JVM, 0.4 for Python/R.
-func effectiveOverheadFactor(app *v1beta2.SparkApplication) (float64, error) {
-	// sparkConf wins for the factor key.
+// effectiveOverheadFactor returns the memory overhead factor to use.
+//
+// Precedence:
+//  1. sparkConf[perRoleFactorKey] — spark.driver.memoryOverheadFactor or
+//     spark.executor.memoryOverheadFactor (Spark 3.3+, role-specific, highest priority).
+//  2. sparkConf[spark.kubernetes.memoryOverheadFactor] — cluster-wide key;
+//     wins over the CRD field because sparkConfOption runs after
+//     memoryOverheadFactorOption in buildSparkSubmitArgs.
+//  3. spec.MemoryOverheadFactor — structured CRD field.
+//  4. Language default: 0.1 for JVM (Java/Scala), 0.4 for non-JVM (Python/R).
+func effectiveOverheadFactor(app *v1beta2.SparkApplication, perRoleFactorKey string) (float64, error) {
+	// 1. Per-role sparkConf key (highest priority).
+	if raw, ok := app.Spec.SparkConf[perRoleFactorKey]; ok && raw != "" {
+		f, err := strconv.ParseFloat(raw, 64)
+		if err != nil {
+			return 0, fmt.Errorf("failed to parse sparkConf %s=%q: %w", perRoleFactorKey, raw, err)
+		}
+		return f, nil
+	}
+	// 2. Cluster-wide sparkConf key.
 	if raw, ok := app.Spec.SparkConf[common.SparkKubernetesMemoryOverheadFactor]; ok && raw != "" {
 		f, err := strconv.ParseFloat(raw, 64)
 		if err != nil {
@@ -193,7 +211,7 @@ func effectiveOverheadFactor(app *v1beta2.SparkApplication) (float64, error) {
 		}
 		return f, nil
 	}
-	// CRD structured field.
+	// 3. CRD structured field.
 	if app.Spec.MemoryOverheadFactor != nil && *app.Spec.MemoryOverheadFactor != "" {
 		f, err := strconv.ParseFloat(*app.Spec.MemoryOverheadFactor, 64)
 		if err != nil {
@@ -202,7 +220,7 @@ func effectiveOverheadFactor(app *v1beta2.SparkApplication) (float64, error) {
 		}
 		return f, nil
 	}
-	// Defaults.
+	// 4. Language defaults.
 	if isJavaApp(app.Spec.Type) {
 		return common.DefaultJVMMemoryOverheadFactor, nil
 	}
