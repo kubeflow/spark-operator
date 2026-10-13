@@ -21,6 +21,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"k8s.io/utils/ptr"
+
+	"github.com/kubeflow/spark-operator/v2/api/v1beta2"
 )
 
 func TestCpuRequest(t *testing.T) {
@@ -52,5 +54,172 @@ func TestCpuRequestInvalid(t *testing.T) {
 	for _, input := range invalidInputs {
 		_, err := cpuRequest(nil, &input)
 		assert.NotNil(t, err)
+	}
+}
+
+func TestDriverPodRequests(t *testing.T) {
+	testCases := []struct {
+		name     string
+		app      *v1beta2.SparkApplication
+		expected map[string]string
+	}{
+		{
+			name: "defaults when neither cores nor memory are set",
+			app: &v1beta2.SparkApplication{
+				Spec: v1beta2.SparkApplicationSpec{Type: v1beta2.SparkApplicationTypeScala},
+			},
+			expected: map[string]string{"cpu": "1", "memory": "384Mi"},
+		},
+		{
+			name: "cores and memory",
+			app: &v1beta2.SparkApplication{
+				Spec: v1beta2.SparkApplicationSpec{
+					Type: v1beta2.SparkApplicationTypeScala,
+					Driver: v1beta2.DriverSpec{SparkPodSpec: v1beta2.SparkPodSpec{
+						Cores:  ptr.To[int32](2),
+						Memory: ptr.To("4g"),
+					}},
+				},
+			},
+			expected: map[string]string{"cpu": "2", "memory": "4505Mi"},
+		},
+		{
+			name: "core request takes precedence over cores",
+			app: &v1beta2.SparkApplication{
+				Spec: v1beta2.SparkApplicationSpec{
+					Type: v1beta2.SparkApplicationTypeScala,
+					Driver: v1beta2.DriverSpec{
+						CoreRequest:  ptr.To("500m"),
+						SparkPodSpec: v1beta2.SparkPodSpec{Cores: ptr.To[int32](2), Memory: ptr.To("512m")},
+					},
+				},
+			},
+			expected: map[string]string{"cpu": "500m", "memory": "896Mi"},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			actual, err := DriverPodRequests(tc.app)
+			assert.Nil(t, err)
+			assert.Equal(t, tc.expected, actual)
+		})
+	}
+}
+
+func TestDriverPodRequestsInvalid(t *testing.T) {
+	testCases := []struct {
+		name string
+		app  *v1beta2.SparkApplication
+	}{
+		{
+			name: "invalid core request",
+			app: &v1beta2.SparkApplication{
+				Spec: v1beta2.SparkApplicationSpec{
+					Type:   v1beta2.SparkApplicationTypeScala,
+					Driver: v1beta2.DriverSpec{CoreRequest: ptr.To("abc")},
+				},
+			},
+		},
+		{
+			name: "invalid memory",
+			app: &v1beta2.SparkApplication{
+				Spec: v1beta2.SparkApplicationSpec{
+					Type:   v1beta2.SparkApplicationTypeScala,
+					Driver: v1beta2.DriverSpec{SparkPodSpec: v1beta2.SparkPodSpec{Memory: ptr.To("512ub")}},
+				},
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := DriverPodRequests(tc.app)
+			assert.NotNil(t, err)
+		})
+	}
+}
+
+func TestExecutorPodRequests(t *testing.T) {
+	testCases := []struct {
+		name     string
+		app      *v1beta2.SparkApplication
+		expected map[string]string
+	}{
+		{
+			name: "defaults when neither cores nor memory are set",
+			app: &v1beta2.SparkApplication{
+				Spec: v1beta2.SparkApplicationSpec{Type: v1beta2.SparkApplicationTypeScala},
+			},
+			expected: map[string]string{"cpu": "1", "memory": "384Mi"},
+		},
+		{
+			name: "cores and memory",
+			app: &v1beta2.SparkApplication{
+				Spec: v1beta2.SparkApplicationSpec{
+					Type: v1beta2.SparkApplicationTypeScala,
+					Executor: v1beta2.ExecutorSpec{SparkPodSpec: v1beta2.SparkPodSpec{
+						Cores:  ptr.To[int32](4),
+						Memory: ptr.To("4g"),
+					}},
+				},
+			},
+			expected: map[string]string{"cpu": "4", "memory": "4505Mi"},
+		},
+		{
+			name: "python executor includes pyspark memory",
+			app: &v1beta2.SparkApplication{
+				Spec: v1beta2.SparkApplicationSpec{
+					Type:      v1beta2.SparkApplicationTypePython,
+					SparkConf: map[string]string{"spark.executor.pyspark.memory": "512"},
+					Executor: v1beta2.ExecutorSpec{
+						CoreRequest:  ptr.To("500m"),
+						SparkPodSpec: v1beta2.SparkPodSpec{Memory: ptr.To("512m")},
+					},
+				},
+			},
+			expected: map[string]string{"cpu": "500m", "memory": "1408Mi"},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			actual, err := ExecutorPodRequests(tc.app)
+			assert.Nil(t, err)
+			assert.Equal(t, tc.expected, actual)
+		})
+	}
+}
+
+func TestExecutorPodRequestsInvalid(t *testing.T) {
+	testCases := []struct {
+		name string
+		app  *v1beta2.SparkApplication
+	}{
+		{
+			name: "invalid core request",
+			app: &v1beta2.SparkApplication{
+				Spec: v1beta2.SparkApplicationSpec{
+					Type:     v1beta2.SparkApplicationTypeScala,
+					Executor: v1beta2.ExecutorSpec{CoreRequest: ptr.To("abc")},
+				},
+			},
+		},
+		{
+			name: "invalid memory",
+			app: &v1beta2.SparkApplication{
+				Spec: v1beta2.SparkApplicationSpec{
+					Type:     v1beta2.SparkApplicationTypeScala,
+					Executor: v1beta2.ExecutorSpec{SparkPodSpec: v1beta2.SparkPodSpec{Memory: ptr.To("512ub")}},
+				},
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := ExecutorPodRequests(tc.app)
+			assert.NotNil(t, err)
+		})
 	}
 }
