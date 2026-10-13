@@ -69,17 +69,41 @@ jobs:
         id: branch
         env:
           BRANCH: ${{ steps.vars.outputs.branch }}
-          SOURCE_SHA: ${{ github.sha }}
+          VERSION: ${{ steps.vars.outputs.version }}
         run: |
           set -euo pipefail
+          git fetch --tags --force origin
+
+          # A tag for this version means an earlier run already prepared the release branch
+          # (this is a re-run). Reuse the tagged commit and never touch the branch again.
+          if git rev-parse --verify --quiet "refs/tags/${VERSION}" >/dev/null; then
+            tagged=$(git rev-parse "refs/tags/${VERSION}^{commit}")
+            if ! git merge-base --is-ancestor "${tagged}" "origin/${BRANCH}"; then
+              echo "Tag ${VERSION} (${tagged}) is not on ${BRANCH}; refusing to continue." >&2
+              exit 1
+            fi
+            git checkout --detach "${tagged}"
+            GITHUB_OUTPUT=/dev/null hack/release/check-release.sh
+            echo "Tag ${VERSION} already exists at ${tagged}; resuming the release from it."
+            echo "sha=${tagged}" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
 
           if [[ "${GITHUB_REF_NAME}" == "${BRANCH}" ]]; then
             echo "Triggered on ${BRANCH}; releasing from it directly."
           elif [[ "${GITHUB_REF_NAME}" == "master" ]]; then
+            # Release the commit that set VERSION on master, not whatever is at the tip of
+            # master: a workflow_dispatch run, or a push that batches several merges, would
+            # otherwise cherry-pick an unrelated commit onto the release branch.
+            SOURCE_SHA=$(git log -1 --first-parent --format=%H "${GITHUB_SHA}" -- VERSION)
+            echo "Release commit on master: ${SOURCE_SHA}"
             if git ls-remote --exit-code --heads origin "${BRANCH}" >/dev/null; then
               echo "Using existing branch ${BRANCH}."
               git checkout -B "${BRANCH}" "origin/${BRANCH}"
-              if git merge-base --is-ancestor "${SOURCE_SHA}" HEAD; then
+              # cherry-pick -x records the source commit, so an earlier run is detected even
+              # though the cherry-picked commit has a different SHA.
+              if git merge-base --is-ancestor "${SOURCE_SHA}" HEAD ||
+                git log --format=%B "origin/${BRANCH}" | grep -qF "(cherry picked from commit ${SOURCE_SHA})"; then
                 echo "Commit ${SOURCE_SHA} is already in ${BRANCH}; skipping cherry-pick."
               else
                 # Only the release commit is cherry-picked. Fixes must already be on the
@@ -137,6 +161,9 @@ jobs:
 
       - name: Build operator
         run: go build ./...
+
+      - name: Run unit tests
+        run: make unit-test
 
       - name: Verify generated Python API is up to date
         run: |

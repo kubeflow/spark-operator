@@ -79,7 +79,7 @@ git checkout -b release-vX.Y.Z upstream/master   # or upstream/release-X.Y
 make release VERSION=vX.Y.Z-rc.N
 
 # Final release (generates the CHANGELOG.md section):
-make release VERSION=vX.Y.Z GITHUB_TOKEN=<github-token>
+GITHUB_TOKEN=$(gh auth token) make release VERSION=vX.Y.Z
 ```
 
 This will:
@@ -112,8 +112,12 @@ for approval on the `release` environment. Once approved, it runs:
 
 1. **Prepare release branch**: creates `release-X.Y` from `master`, or cherry-picks the release
    commit onto the existing `release-X.Y` (when merged to `master`), then re-validates the branch.
-1. **Verify**: builds the operator, checks the generated Python API is up to date, runs Helm unit
-   tests, the Helm/Kustomize drift check and the Kustomize build validation.
+   The release commit is the last commit on `master` that changed `VERSION`, not the tip of
+   `master`, so a manual run or a batched merge cannot release unrelated commits. If the tag
+   already exists (a re-run), the tagged commit is reused and the branch is left untouched.
+1. **Verify**: builds the operator and runs the unit tests on the exact commit that will be
+   tagged, checks the generated Python API is up to date, runs Helm unit tests, the
+   Helm/Kustomize drift check and the Kustomize build validation.
 1. **Build Python package** with `uv` and validates it with `twine check`.
 1. **Create and push tag**: an annotated `vX.Y.Z` tag on the release branch commit.
 1. **Build and publish images**: multi-arch (`linux/amd64`, `linux/arm64`) controller and

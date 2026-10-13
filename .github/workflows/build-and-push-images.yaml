@@ -35,21 +35,6 @@ on:
         required: false
         type: boolean
         default: false
-  workflow_dispatch:
-    inputs:
-      ref:
-        description: Git ref (tag, branch or SHA) to build the images from.
-        required: true
-        type: string
-      version:
-        description: Image version (vX.Y.Z[-rc.N] or latest).
-        required: true
-        type: string
-      publish:
-        description: Push the images and manifest lists to the registry.
-        required: false
-        type: boolean
-        default: false
 
 permissions:
   contents: read
@@ -83,6 +68,24 @@ jobs:
         with:
           ref: ${{ inputs.ref }}
           persist-credentials: false
+
+      - name: Check that a versioned publication matches its tag
+        if: inputs.publish && inputs.version != 'latest'
+        env:
+          INPUT_REF: ${{ inputs.ref }}
+          INPUT_VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          expected_ref="refs/tags/${INPUT_VERSION}"
+          if [[ "${INPUT_REF}" != "${expected_ref}" ]]; then
+            echo "Published version ${INPUT_VERSION} must be built from ${expected_ref}, not ${INPUT_REF}." >&2
+            exit 1
+          fi
+          repository_version=$(tr -d ' \n' < VERSION)
+          if [[ "${repository_version}" != "${INPUT_VERSION}" ]]; then
+            echo "VERSION contains ${repository_version}, expected ${INPUT_VERSION}." >&2
+            exit 1
+          fi
 
       - name: Collect build metadata
         env:
@@ -229,7 +232,7 @@ jobs:
           name: digests-${{ matrix.image }}-${{ env.PLATFORM_PAIR }}
           path: ${{ runner.temp }}/digests/*
           if-no-files-found: error
-          retention-days: 1
+          retention-days: 7
 
   merge:
     name: Publish ${{ matrix.image }} manifest list

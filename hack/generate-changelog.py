@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import argparse
+import os
 
 from github import Github
 
@@ -20,7 +21,12 @@ REPO_NAME = "kubeflow/spark-operator"
 CHANGELOG_FILE = "CHANGELOG.md"
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--token", type=str, help="GitHub Access Token")
+parser.add_argument(
+    "--token",
+    type=str,
+    default=os.environ.get("GITHUB_TOKEN"),
+    help="GitHub Access Token (defaults to the GITHUB_TOKEN environment variable)",
+)
 parser.add_argument(
     "--range", type=str, help="Changelog is generated for this release range"
 )
