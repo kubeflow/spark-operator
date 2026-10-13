@@ -352,6 +352,7 @@ func TestDriverMemoryRequest(t *testing.T) {
 					Driver: v1beta2.DriverSpec{SparkPodSpec: v1beta2.SparkPodSpec{Memory: ptr.To("512m")}},
 				},
 			},
+			// 512Mi + max(512Mi * 0.1, 384Mi) = 512 + 384
 			expected: "896Mi",
 		},
 		{
@@ -362,6 +363,7 @@ func TestDriverMemoryRequest(t *testing.T) {
 					Driver: v1beta2.DriverSpec{SparkPodSpec: v1beta2.SparkPodSpec{Memory: ptr.To("4g")}},
 				},
 			},
+			// 4Gi + floor(4Gi * 0.1) = 4096 + 409.6, floored to MiB
 			expected: "4505Mi",
 		},
 		{
@@ -372,6 +374,7 @@ func TestDriverMemoryRequest(t *testing.T) {
 					Driver: v1beta2.DriverSpec{SparkPodSpec: v1beta2.SparkPodSpec{Memory: ptr.To("4g")}},
 				},
 			},
+			// 4Gi + floor(4Gi * 0.4) = 4096 + 1638.4, floored to MiB
 			expected: "5734Mi",
 		},
 		{
@@ -385,6 +388,7 @@ func TestDriverMemoryRequest(t *testing.T) {
 					}},
 				},
 			},
+			// 4Gi + 1Gi, the factor is not consulted
 			expected: "5120Mi",
 		},
 		{
@@ -396,6 +400,7 @@ func TestDriverMemoryRequest(t *testing.T) {
 					Driver:               v1beta2.DriverSpec{SparkPodSpec: v1beta2.SparkPodSpec{Memory: ptr.To("4g")}},
 				},
 			},
+			// 4Gi + floor(4Gi * 0.3) = 4096 + 1228.8, floored to MiB
 			expected: "5324Mi",
 		},
 	}
@@ -456,6 +461,7 @@ func TestExecutorMemoryRequest(t *testing.T) {
 					Executor: v1beta2.ExecutorSpec{SparkPodSpec: v1beta2.SparkPodSpec{Memory: ptr.To("512m")}},
 				},
 			},
+			// 512Mi + max(512Mi * 0.1, 384Mi) = 512 + 384
 			expected: "896Mi",
 		},
 		{
@@ -467,6 +473,7 @@ func TestExecutorMemoryRequest(t *testing.T) {
 					Executor:  v1beta2.ExecutorSpec{SparkPodSpec: v1beta2.SparkPodSpec{Memory: ptr.To("512m")}},
 				},
 			},
+			// 512 + 384 overhead + 512 pyspark
 			expected: "1408Mi",
 		},
 		{
@@ -481,6 +488,7 @@ func TestExecutorMemoryRequest(t *testing.T) {
 					Executor: v1beta2.ExecutorSpec{SparkPodSpec: v1beta2.SparkPodSpec{Memory: ptr.To("1g")}},
 				},
 			},
+			// 1024 + 384 overhead + 1024 off-heap
 			expected: "2432Mi",
 		},
 		{
@@ -496,6 +504,7 @@ func TestExecutorMemoryRequest(t *testing.T) {
 					Executor: v1beta2.ExecutorSpec{SparkPodSpec: v1beta2.SparkPodSpec{Memory: ptr.To("2g")}},
 				},
 			},
+			// 2048 + floor(2048 * 0.4) + 1024 pyspark + 512 off-heap
 			expected: "4403Mi",
 		},
 	}
