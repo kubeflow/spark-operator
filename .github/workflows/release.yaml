@@ -19,7 +19,7 @@ concurrency:
 jobs:
   prepare:
     name: Prepare release branch
-    if: github.repository == 'kubeflow/spark-operator'
+    if: github.repository == 'tariq-hasan/spark-operator'
     runs-on: ubuntu-latest
 
     environment:
@@ -291,7 +291,7 @@ jobs:
 
     environment:
       name: release
-      url: https://pypi.org/project/kubeflow-spark-api/${{ needs.prepare.outputs.pypi-version }}/
+      url: https://test.pypi.org/project/kubeflow-spark-api/${{ needs.prepare.outputs.pypi-version }}/
 
     permissions:
       id-token: write
@@ -308,6 +308,7 @@ jobs:
         with:
           print-hash: true
           skip-existing: true
+          repository-url: https://test.pypi.org/legacy/
 
   github-release:
     name: Create GitHub release
