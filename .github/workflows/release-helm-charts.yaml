@@ -102,7 +102,7 @@ jobs:
           name: ${{ env.CHARTS_ARTIFACT }}
           path: ${{ runner.temp }}/charts/*.tgz
           if-no-files-found: error
-          retention-days: 1
+          retention-days: 7
 
   publish-oci:
     name: Push Helm charts to OCI registry
