@@ -50,6 +50,7 @@ func (f *fakeClientset) Discovery() discovery.DiscoveryInterface {
 var _ = Describe("Capabilities", func() {
 	AfterEach(func() {
 		util.IngressCapabilities = nil
+		util.HTTPRouteCapabilities = nil
 	})
 
 	Describe("InitializeIngressCapabilities", func() {
@@ -155,6 +156,67 @@ var _ = Describe("Capabilities", func() {
 
 			Expect(util.InitializeIngressCapabilities(client)).To(MatchError("discovery unavailable"))
 			Expect(util.IngressCapabilities).To(BeNil())
+		})
+	})
+
+	Describe("InitializeHTTPRouteCapabilities", func() {
+		It("populates HTTPRouteCapabilities when the cluster serves the Gateway API", func() {
+			client := &fakeClientset{discovery: &fakeDiscovery{resources: []*metav1.APIResourceList{
+				{
+					GroupVersion: "gateway.networking.k8s.io/v1",
+					APIResources: []metav1.APIResource{{Kind: "HTTPRoute", Verbs: metav1.Verbs{"get", "list", "create"}}},
+				},
+			}}}
+
+			Expect(util.InitializeHTTPRouteCapabilities(client)).To(Succeed())
+			Expect(util.HTTPRouteCapabilities.Has("gateway.networking.k8s.io/v1")).To(BeTrue())
+		})
+
+		It("leaves HTTPRouteCapabilities empty when the Gateway API CRDs are absent", func() {
+			client := &fakeClientset{discovery: &fakeDiscovery{resources: []*metav1.APIResourceList{
+				{
+					GroupVersion: "networking.k8s.io/v1",
+					APIResources: []metav1.APIResource{{Kind: "Ingress", Verbs: metav1.Verbs{"get", "list"}}},
+				},
+			}}}
+
+			Expect(util.InitializeHTTPRouteCapabilities(client)).To(Succeed())
+			Expect(util.HTTPRouteCapabilities).NotTo(BeNil())
+			Expect(util.HTTPRouteCapabilities).To(BeEmpty())
+		})
+
+		It("skips a matching kind with no verbs", func() {
+			client := &fakeClientset{discovery: &fakeDiscovery{resources: []*metav1.APIResourceList{
+				{
+					GroupVersion: "gateway.networking.k8s.io/v1",
+					APIResources: []metav1.APIResource{{Kind: "HTTPRoute", Verbs: metav1.Verbs{}}},
+				},
+			}}}
+
+			Expect(util.InitializeHTTPRouteCapabilities(client)).To(Succeed())
+			Expect(util.HTTPRouteCapabilities.Has("gateway.networking.k8s.io/v1")).To(BeFalse())
+		})
+
+		It("is a no-op on the second call", func() {
+			first := &fakeClientset{discovery: &fakeDiscovery{resources: []*metav1.APIResourceList{
+				{
+					GroupVersion: "gateway.networking.k8s.io/v1",
+					APIResources: []metav1.APIResource{{Kind: "HTTPRoute", Verbs: metav1.Verbs{"get"}}},
+				},
+			}}}
+			Expect(util.InitializeHTTPRouteCapabilities(first)).To(Succeed())
+
+			second := &fakeClientset{discovery: &fakeDiscovery{resources: nil}}
+			Expect(util.InitializeHTTPRouteCapabilities(second)).To(Succeed())
+
+			Expect(util.HTTPRouteCapabilities.Has("gateway.networking.k8s.io/v1")).To(BeTrue())
+		})
+
+		It("returns other discovery errors", func() {
+			client := &fakeClientset{discovery: &fakeDiscovery{err: errors.New("discovery unavailable")}}
+
+			Expect(util.InitializeHTTPRouteCapabilities(client)).To(MatchError("discovery unavailable"))
+			Expect(util.HTTPRouteCapabilities).To(BeNil())
 		})
 	})
 })
