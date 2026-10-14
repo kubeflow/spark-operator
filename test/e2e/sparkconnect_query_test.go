@@ -174,7 +174,7 @@ var _ = Describe("SparkConnect Query", func() {
 
 			By("Executing a Scala query via Spark Connect from the client pod")
 			// spark-shell --remote starts the Spark Connect (Ammonite) REPL, which opens /dev/tty.
-			// kubectl exec -i has no TTY, so `script` allocates a pseudo-terminal for it.
+			// kubectl exec -i has no TTY or $TERM, so `script` allocates a pseudo-terminal and TERM=dumb lets Ammonite size it.
 			// `spark` in this REPL is a Connect session bound to the server, not a local one.
 			connectURL := fmt.Sprintf("sc://%s.%s.svc:15002", serviceName, conn.Namespace)
 			scalaScript := `println("SESSION_CLASS=" + spark.getClass.getName)
@@ -188,7 +188,7 @@ sys.exit(0)
 				scalaScript,
 				"kubectl", "exec", "-i", "-n", conn.Namespace, clientPod.Name, "--",
 				"bash", "-c",
-				fmt.Sprintf("export HOME=/tmp && script -qec '${SPARK_HOME}/bin/spark-shell --remote %s' /dev/null", connectURL),
+				fmt.Sprintf("export HOME=/tmp TERM=dumb && script -qec '${SPARK_HOME}/bin/spark-shell --remote %s' /dev/null", connectURL),
 			)
 			Expect(err).NotTo(HaveOccurred(), "Scala Spark Connect query failed: %s", output)
 			Expect(output).To(ContainSubstring("SESSION_CLASS=org.apache.spark.sql.connect.SparkSession"),
