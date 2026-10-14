@@ -173,27 +173,26 @@ var _ = Describe("SparkConnect Query", func() {
 			}).WithPolling(PollInterval).WithTimeout(WaitTimeout).Should(BeTrue())
 
 			By("Executing a Scala query via Spark Connect from the client pod")
-			// --remote requires a TTY (Ammonite REPL); build the session explicitly so the
-			// classic REPL handles piped, non-interactive input under kubectl exec.
+			// spark-shell --remote starts the Spark Connect (Ammonite) REPL, which opens /dev/tty.
+			// kubectl exec -i has no TTY, so `script` allocates a pseudo-terminal for it.
+			// `spark` in this REPL is a Connect session bound to the server, not a local one.
 			connectURL := fmt.Sprintf("sc://%s.%s.svc:15002", serviceName, conn.Namespace)
-			scalaScript := fmt.Sprintf(
-				`import org.apache.spark.sql.SparkSession
-val remoteSpark = SparkSession.builder().remote("%s").getOrCreate()
-val df = remoteSpark.range(100).selectExpr("id", "id * 2 as doubled")
+			scalaScript := `println("SESSION_CLASS=" + spark.getClass.getName)
+val df = spark.range(100).selectExpr("id", "id * 2 as doubled")
 println("ROW_COUNT=" + df.count())
 val row = df.filter("id = 7").collect()(0)
 println("VALIDATE=" + row.getAs[Long]("doubled"))
-System.exit(0)
-`,
-				connectURL,
-			)
+sys.exit(0)
+`
 			output, err := runCommandWithInput(
 				scalaScript,
 				"kubectl", "exec", "-i", "-n", conn.Namespace, clientPod.Name, "--",
 				"bash", "-c",
-				"export HOME=/tmp && ${SPARK_HOME}/bin/spark-shell --master 'local[1]' --conf spark.ui.enabled=false",
+				fmt.Sprintf("export HOME=/tmp && script -qec '${SPARK_HOME}/bin/spark-shell --remote %s' /dev/null", connectURL),
 			)
 			Expect(err).NotTo(HaveOccurred(), "Scala Spark Connect query failed: %s", output)
+			Expect(output).To(ContainSubstring("SESSION_CLASS=org.apache.spark.sql.connect.SparkSession"),
+				"expected a Spark Connect session, got: %s", output)
 			Expect(output).To(ContainSubstring("ROW_COUNT=100"),
 				"expected query to return 100 rows, got: %s", output)
 			Expect(output).To(ContainSubstring("VALIDATE=14"),
