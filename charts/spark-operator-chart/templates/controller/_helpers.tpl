@@ -161,6 +161,13 @@ Create the role policy rules for the controller in every Spark job namespace
   - update
   - delete
 - apiGroups:
+  - networking.k8s.io
+  resources:
+  - networkpolicies
+  verbs:
+  - create
+  - patch
+- apiGroups:
   - sparkoperator.k8s.io
   resources:
   - sparkapplications
