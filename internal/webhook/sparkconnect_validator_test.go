@@ -496,6 +496,83 @@ func TestSparkConnectValidatorSparkConf_UpdateRejected(t *testing.T) {
 	}
 }
 
+func TestSparkConnectValidatorValidateCreate_Deps(t *testing.T) {
+	tests := []struct {
+		name      string
+		deps      v1alpha1.Dependencies
+		wantError string
+	}{
+		{
+			name: "valid deps",
+			deps: v1alpha1.Dependencies{
+				Jars:            []string{"local:///opt/spark/jars/extra.jar"},
+				Packages:        []string{"org.postgresql:postgresql:42.6.0"},
+				ExcludePackages: []string{"org.slf4j:slf4j-log4j12"},
+				Repositories:    []string{"https://repo1.maven.org/maven2"},
+			},
+		},
+		{
+			name:      "jars entry with comma",
+			deps:      v1alpha1.Dependencies{Jars: []string{"a.jar,b.jar"}},
+			wantError: "deps.jars entry \"a.jar,b.jar\" must not contain a comma",
+		},
+		{
+			name:      "repositories entry with comma",
+			deps:      v1alpha1.Dependencies{Repositories: []string{"https://repo1,https://repo2"}},
+			wantError: "deps.repositories entry \"https://repo1,https://repo2\" must not contain a comma",
+		},
+		{
+			name:      "packages entry with comma",
+			deps:      v1alpha1.Dependencies{Packages: []string{"org.postgresql:postgresql:42.6.0,org.other:other:1.0"}},
+			wantError: "deps.packages entry",
+		},
+		{
+			name:      "packages entry missing version",
+			deps:      v1alpha1.Dependencies{Packages: []string{"org.postgresql:postgresql"}},
+			wantError: "must be of the form \"groupId:artifactId:version\"",
+		},
+		{
+			name:      "packages entry missing artifact",
+			deps:      v1alpha1.Dependencies{Packages: []string{"org.postgresql"}},
+			wantError: "must be of the form \"groupId:artifactId:version\"",
+		},
+		{
+			name:      "excludePackages entry with comma",
+			deps:      v1alpha1.Dependencies{ExcludePackages: []string{"org.slf4j:slf4j-log4j12,org.other:other"}},
+			wantError: "deps.excludePackages entry",
+		},
+		{
+			name:      "excludePackages entry with version",
+			deps:      v1alpha1.Dependencies{ExcludePackages: []string{"org.slf4j:slf4j-log4j12:1.0"}},
+			wantError: "must be of the form \"groupId:artifactId\"",
+		},
+		{
+			name:      "excludePackages entry missing artifact",
+			deps:      v1alpha1.Dependencies{ExcludePackages: []string{"org.slf4j"}},
+			wantError: "must be of the form \"groupId:artifactId\"",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			validator := newTestSparkConnectValidator(t)
+			sc := newSparkConnect()
+			sc.Spec.Deps = tt.deps
+
+			_, err := validator.ValidateCreate(context.Background(), sc)
+			if tt.wantError == "" {
+				if err != nil {
+					t.Fatalf("expected success, got %v", err)
+				}
+				return
+			}
+			if err == nil || !strings.Contains(err.Error(), tt.wantError) {
+				t.Fatalf("expected error containing %q, got %v", tt.wantError, err)
+			}
+		})
+	}
+}
+
 func newTestSparkConnectValidator(t *testing.T) *SparkConnectValidator {
 	t.Helper()
 	return NewSparkConnectValidator()
