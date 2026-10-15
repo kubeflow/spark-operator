@@ -1170,10 +1170,11 @@ func (r *Reconciler) updateExecutorState(ctx context.Context, app *v1beta2.Spark
 		_, exists := executorStateMap[name]
 		if !util.IsExecutorTerminated(oldStatus) && !exists {
 			if !util.IsDriverRunning(app) {
-				// If ApplicationState is COMPLETED, in other words, the driver pod has been completed
+				// If ApplicationState is SUCCEEDING or COMPLETED, in other words, the driver pod has been completed
 				// successfully. The executor pods terminate and are cleaned up, so we could not found
 				// the executor pod, under this circumstances, we assume the executor pod are completed.
-				if app.Status.AppState.State == v1beta2.ApplicationStateCompleted {
+				if app.Status.AppState.State == v1beta2.ApplicationStateSucceeding ||
+					app.Status.AppState.State == v1beta2.ApplicationStateCompleted {
 					app.Status.ExecutorState[name] = v1beta2.ExecutorStateCompleted
 				} else {
 					logger.Info("Executor pod not found, assuming it was deleted", "name", name)
