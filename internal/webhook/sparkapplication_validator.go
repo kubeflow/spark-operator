@@ -161,6 +161,34 @@ func (v *SparkApplicationValidator) validateSpec(ctx context.Context, app *v1bet
 		return err
 	}
 
+	if err := validateGPU(app); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// validateGPU rejects a driver or executor GPU spec with an empty name or a non-positive quantity.
+// The mutating webhook skips such a spec without an error, so the pod would silently run without a GPU.
+func validateGPU(app *v1beta2.SparkApplication) error {
+	roles := []struct {
+		field string
+		gpu   *v1beta2.GPUSpec
+	}{
+		{field: "driver", gpu: app.Spec.Driver.GPU},
+		{field: "executor", gpu: app.Spec.Executor.GPU},
+	}
+	for _, role := range roles {
+		if role.gpu == nil {
+			continue
+		}
+		if role.gpu.Name == "" {
+			return fmt.Errorf("%s.gpu.name must not be empty", role.field)
+		}
+		if role.gpu.Quantity <= 0 {
+			return fmt.Errorf("%s.gpu.quantity must be positive, got %d", role.field, role.gpu.Quantity)
+		}
+	}
 	return nil
 }
 
