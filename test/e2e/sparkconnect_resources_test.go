@@ -43,7 +43,7 @@ var _ = Describe("SparkConnect CPU Resources", func() {
 		var conn *v1alpha1.SparkConnect
 
 		BeforeEach(func() {
-			image := "docker.io/apache/spark:4.0.4"
+			image := "docker.io/apache/spark:4.2.0"
 			conn = &v1alpha1.SparkConnect{
 				ObjectMeta: metav1.ObjectMeta{
 					GenerateName: "spark-connect-resources-",
@@ -51,7 +51,7 @@ var _ = Describe("SparkConnect CPU Resources", func() {
 				},
 				Spec: v1alpha1.SparkConnectSpec{
 					Image:        &image,
-					SparkVersion: "4.0.4",
+					SparkVersion: "4.2.0",
 					Server: v1alpha1.ServerSpec{
 						SparkPodSpec: v1alpha1.SparkPodSpec{
 							Cores:       ptr.To[int32](1),
@@ -116,7 +116,7 @@ var _ = Describe("SparkConnect CPU Resources", func() {
 		var conn *v1alpha1.SparkConnect
 
 		BeforeEach(func() {
-			image := "docker.io/apache/spark:4.0.4"
+			image := "docker.io/apache/spark:4.2.0"
 			conn = &v1alpha1.SparkConnect{
 				ObjectMeta: metav1.ObjectMeta{
 					GenerateName: "spark-connect-precedence-",
@@ -124,7 +124,7 @@ var _ = Describe("SparkConnect CPU Resources", func() {
 				},
 				Spec: v1alpha1.SparkConnectSpec{
 					Image:        &image,
-					SparkVersion: "4.0.4",
+					SparkVersion: "4.2.0",
 					Server: v1alpha1.ServerSpec{
 						SparkPodSpec: v1alpha1.SparkPodSpec{
 							CoreRequest: ptr.To(resource.MustParse("500m")),

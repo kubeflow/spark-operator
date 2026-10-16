@@ -42,7 +42,7 @@ kubectl apply -f examples/sparkconnect/spark-connect.yaml
 
 The example creates a resource named `spark-connect` with:
 
-- Spark version `4.0.4` and matching server and executor images;
+- Spark version `4.2.0` and matching server and executor images;
 - a server pod that uses the `spark-operator-spark` service account; and
 - two executors with one core and `512m` of memory each.
 
@@ -265,8 +265,8 @@ kind: SparkConnect
 metadata:
   name: spark-connect-gpu
 spec:
-  sparkVersion: "4.0.4"
-  image: your-registry/spark:4.0.4-gpu
+  sparkVersion: "4.2.0"
+  image: your-registry/spark:4.2.0-gpu
   server:
     template:
       spec:

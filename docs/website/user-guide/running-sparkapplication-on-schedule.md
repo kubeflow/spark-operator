@@ -20,8 +20,8 @@ spec:
   template:
     type: Scala
     mode: cluster
-    sparkVersion: 4.0.0
-    image: docker.io/apache/spark:4.0.0
+    sparkVersion: 4.2.0
+    image: docker.io/apache/spark:4.2.0
     imagePullPolicy: Always
     mainClass: org.apache.spark.examples.SparkPi
     mainApplicationFile: local:///opt/spark/examples/jars/spark-examples.jar
@@ -35,9 +35,9 @@ spec:
       template:
         metadata:
           labels:
-            spark.apache.org/version: 4.0.0
+            spark.apache.org/version: 4.2.0
           annotations:
-            spark.apache.org/version: 4.0.0
+            spark.apache.org/version: 4.2.0
         spec:
           containers:
           - name: spark-kubernetes-driver
@@ -59,9 +59,9 @@ spec:
       template:
         metadata:
           labels:
-            spark.apache.org/version: 4.0.0
+            spark.apache.org/version: 4.2.0
           annotations:
-            spark.apache.org/version: 4.0.0
+            spark.apache.org/version: 4.2.0
         spec:
           containers:
           - name: spark-kubernetes-executor
