@@ -68,6 +68,30 @@ case "${host}" in
 esac
 exec "${SPARK_HOME}/sbin/start-connect-server.sh" "$@" --conf "spark.driver.host=${host}"
 `
+
+	// A 90-second grace period gives the JVM, signalled by the preStop hook,
+	// time to shut down while the hook waits on it, with margin before
+	// Kubernetes force-kills the pod.
+	sparkConnectServerTerminationGracePeriodSeconds int64 = 90
+
+	// Match SparkSubmit on the JVM cmdline. Bracket-escaped dots avoid pkill/pgrep
+	// matching the preStop shell process whose argv contains this pattern string.
+	sparkConnectJVMPattern = "org[.]apache[.]spark[.]deploy[.]SparkSubmit"
+
+	// gracefulStopScript SIGTERMs the SparkSubmit JVM and waits for it to exit.
+	// $1 is the process match pattern (sparkConnectJVMPattern), passed via sh -c args.
+	gracefulStopScript = `
+command -v pkill >/dev/null && command -v pgrep >/dev/null || {
+  echo 'spark-operator: pkill/pgrep (procps) required for graceful shutdown' >&2
+  exit 1
+}
+pkill -TERM -f "$1" || true
+i=0
+while pgrep -f "$1" >/dev/null && [ $i -lt 60 ]; do
+  sleep 1
+  i=$((i+1))
+done
+`
 )
 
 // Options defines the options of SparkConnect reconciler.
@@ -443,16 +467,24 @@ func (r *Reconciler) mutateServerPod(ctx context.Context, conn *v1alpha1.SparkCo
 			},
 		)
 
-		container.Lifecycle = &corev1.Lifecycle{
-			PreStop: &corev1.LifecycleHandler{
+		// stop-connect-server.sh uses spark-daemon.sh PID files, which are not
+		// written when SPARK_NO_DAEMONIZE=true. Explicitly SIGTERM the JVM so
+		// EventLogFileWriter can flush before the pod is killed.
+		if container.Lifecycle == nil {
+			container.Lifecycle = &corev1.Lifecycle{}
+		}
+
+		if container.Lifecycle.PreStop == nil {
+			container.Lifecycle.PreStop = &corev1.LifecycleHandler{
 				Exec: &corev1.ExecAction{
-					Command: []string{
-						"bash",
-						"-c",
-						"${SPARK_HOME}/sbin/stop-connect-server.sh",
-					},
+					Command: []string{"sh", "-c", gracefulStopScript, "graceful-stop", sparkConnectJVMPattern},
 				},
-			},
+			}
+		}
+
+		if pod.Spec.TerminationGracePeriodSeconds == nil {
+			grace := sparkConnectServerTerminationGracePeriodSeconds
+			pod.Spec.TerminationGracePeriodSeconds = &grace
 		}
 
 		pod.Spec.Volumes = append(
