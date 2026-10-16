@@ -42,6 +42,7 @@ namespace and labelled with `app.kubernetes.io/name: spark-operator`.
  - Controller Deployment (1 replica) with ServiceAccount, ClusterRole, and leader-election Role
  - Webhook Deployment (1 replica) with ServiceAccount, ClusterRole, Role, Service, and self-signed TLS
  - MutatingWebhookConfiguration and ValidatingWebhookConfiguration
+ - The `kubeflow-spark-public` ConfigMap
 
 The webhook generates its own TLS certificates at startup (no cert-manager required by default).
 See the cert-manager section below if you want managed certificate rotation.
