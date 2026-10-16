@@ -128,8 +128,10 @@ func NewReconciler(
 // +kubebuilder:rbac:groups="",resources=configmaps,verbs=get;list;watch;create;update;patch
 // +kubebuilder:rbac:groups="",resources=services,verbs=get;create;update;patch;delete
 // +kubebuilder:rbac:groups="",resources=events,verbs=create;update;patch
+// +kubebuilder:rbac:groups=events.k8s.io,resources=events,verbs=create;update;patch
 // +kubebuilder:rbac:groups=extensions,resources=ingresses,verbs=get;create;update;delete
 // +kubebuilder:rbac:groups=networking.k8s.io,resources=ingresses,verbs=get;create;update;delete
+// +kubebuilder:rbac:groups=networking.k8s.io,resources=networkpolicies,verbs=create;patch
 // +kubebuilder:rbac:groups=apiextensions.k8s.io,resources=customresourcedefinitions,verbs=get
 // +kubebuilder:rbac:groups=sparkoperator.k8s.io,resources=sparkapplications,verbs=get;list;watch;delete
 // +kubebuilder:rbac:groups=sparkoperator.k8s.io,resources=sparkapplications/status,verbs=update
@@ -1170,10 +1172,11 @@ func (r *Reconciler) updateExecutorState(ctx context.Context, app *v1beta2.Spark
 		_, exists := executorStateMap[name]
 		if !util.IsExecutorTerminated(oldStatus) && !exists {
 			if !util.IsDriverRunning(app) {
-				// If ApplicationState is COMPLETED, in other words, the driver pod has been completed
+				// If ApplicationState is SUCCEEDING or COMPLETED, in other words, the driver pod has been completed
 				// successfully. The executor pods terminate and are cleaned up, so we could not found
 				// the executor pod, under this circumstances, we assume the executor pod are completed.
-				if app.Status.AppState.State == v1beta2.ApplicationStateCompleted {
+				if app.Status.AppState.State == v1beta2.ApplicationStateSucceeding ||
+					app.Status.AppState.State == v1beta2.ApplicationStateCompleted {
 					app.Status.ExecutorState[name] = v1beta2.ExecutorStateCompleted
 				} else {
 					logger.Info("Executor pod not found, assuming it was deleted", "name", name)

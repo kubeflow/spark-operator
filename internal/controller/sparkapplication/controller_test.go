@@ -1147,6 +1147,80 @@ var _ = Describe("SparkApplication Controller", func() {
 		})
 	})
 
+	Context("When reconciling a running SparkApplication whose driver completed after its executor pods were deleted", func() {
+		ctx := context.Background()
+		appName := "test"
+		appNamespace := "default"
+		key := types.NamespacedName{
+			Name:      appName,
+			Namespace: appNamespace,
+		}
+		executorName := getExecutorNamespacedName(appName, appNamespace, 1).Name
+
+		BeforeEach(func() {
+			By("Creating a test SparkApplication")
+			app := &v1beta2.SparkApplication{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      appName,
+					Namespace: appNamespace,
+				},
+				Spec: v1beta2.SparkApplicationSpec{
+					MainApplicationFile: ptr.To("local:///dummy.jar"),
+				},
+			}
+			v1beta2.SetSparkApplicationDefaults(app)
+			Expect(k8sClient.Create(ctx, app)).To(Succeed())
+
+			By("Creating a driver pod that completed successfully")
+			driverPod := createDriverPod(appName, appNamespace)
+			Expect(k8sClient.Create(ctx, driverPod)).To(Succeed())
+			driverPod.Status.Phase = corev1.PodSucceeded
+			Expect(k8sClient.Status().Update(ctx, driverPod)).To(Succeed())
+
+			// The executor was seen running, but its pod is already gone, as happens
+			// when the driver deletes its executors on shutdown.
+			app.Status.DriverInfo.PodName = driverPod.Name
+			app.Status.AppState.State = v1beta2.ApplicationStateRunning
+			app.Status.ExecutorState = map[string]v1beta2.ExecutorState{
+				executorName: v1beta2.ExecutorStateRunning,
+			}
+			Expect(k8sClient.Status().Update(ctx, app)).To(Succeed())
+		})
+
+		AfterEach(func() {
+			app := &v1beta2.SparkApplication{}
+			Expect(k8sClient.Get(ctx, key, app)).To(Succeed())
+
+			By("Deleting the created test SparkApplication")
+			Expect(k8sClient.Delete(ctx, app)).To(Succeed())
+
+			By("Deleting the driver pod")
+			driverPod := &corev1.Pod{}
+			Expect(k8sClient.Get(ctx, getDriverNamespacedName(appName, appNamespace), driverPod)).To(Succeed())
+			Expect(k8sClient.Delete(ctx, driverPod)).To(Succeed())
+		})
+
+		It("Should mark the missing executor as completed", func() {
+			By("Reconciling the running SparkApplication")
+			reconciler := sparkapplication.NewReconciler(
+				nil,
+				k8sClient.Scheme(),
+				k8sClient,
+				events.NewFakeRecorder(3),
+				nil,
+				&sparkapplication.SparkSubmitter{},
+				sparkapplication.Options{Namespaces: []string{appNamespace}, MaxTrackedExecutorPerApp: 10},
+			)
+			_, err := reconciler.Reconcile(ctx, reconcile.Request{NamespacedName: key})
+			Expect(err).NotTo(HaveOccurred())
+
+			app := &v1beta2.SparkApplication{}
+			Expect(k8sClient.Get(ctx, key, app)).To(Succeed())
+			Expect(app.Status.AppState.State).To(Equal(v1beta2.ApplicationStateSucceeding))
+			Expect(app.Status.ExecutorState).To(HaveKeyWithValue(executorName, v1beta2.ExecutorStateCompleted))
+		})
+	})
+
 	Context("When reconciling a succeeding SparkApplication with Always retry policy", func() {
 		ctx := context.Background()
 		appName := "test"
