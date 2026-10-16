@@ -23,11 +23,8 @@ import (
 
 	"github.com/kubeflow/spark-operator/v2/api/v1beta2"
 	"github.com/kubeflow/spark-operator/v2/pkg/common"
+	"github.com/kubeflow/spark-operator/v2/pkg/util"
 )
-
-func isJavaApp(appType v1beta2.SparkApplicationType) bool {
-	return appType == v1beta2.SparkApplicationTypeJava || appType == v1beta2.SparkApplicationTypeScala
-}
 
 func getMemoryOverheadFactor(app *v1beta2.SparkApplication) (float64, error) {
 	if app.Spec.MemoryOverheadFactor != nil {
@@ -36,7 +33,7 @@ func getMemoryOverheadFactor(app *v1beta2.SparkApplication) (float64, error) {
 			return 0, fmt.Errorf("failed to parse memory overhead factor as float: %w", err)
 		}
 		return parsed, nil
-	} else if isJavaApp(app.Spec.Type) {
+	} else if util.IsJVMApp(app) {
 		return common.DefaultJVMMemoryOverheadFactor, nil
 	}
 
