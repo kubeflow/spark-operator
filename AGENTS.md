@@ -33,6 +33,16 @@ Before writing code, agents should:
 
 For additional context see [the Spark Operator docs](https://spark.kubeflow.org/en/latest/).
 
+### Comments
+
+- Prefer clear names and small functions over explanatory comments.
+- Add comments only to explain why the code exists, a non-obvious invariant, an external compatibility rule, or a deliberate tradeoff.
+- Do not add comments that restate names, conditions, assignments, or control flow.
+- Keep inline comments to two lines or fewer. Keep function comments to one sentence unless more detail is necessary to document an external protocol or algorithm.
+- Put long design explanations in documentation or a proposal. Add a short code comment with a link when necessary.
+- Keep comments required for exported Go symbols. Do not edit comments in generated files.
+- Before completion, review every comment added or changed. Remove comments that only describe what the next statement does.
+
 ## Repository Map
 
 ```
