@@ -36,4 +36,6 @@ COPY charts/spark-operator-chart/crds /etc/spark-operator/crds
 
 COPY --from=builder /workspace/kubectl /usr/bin/kubectl
 
+USER 65534:65534
+
 ENTRYPOINT ["/usr/bin/kubectl"]
