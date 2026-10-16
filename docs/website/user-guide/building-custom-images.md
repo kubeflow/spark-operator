@@ -44,11 +44,10 @@ tar -xzf "spark-operator_${VERSION}_linux_${ARCH}.tar.gz"
 
 The operator invokes `${SPARK_HOME}/bin/spark-submit` as a subprocess, so the runtime
 image must contain a Spark distribution and a JVM. The example below layers the released
-binary onto the official Spark image; substitute your own approved base as needed.
+binary onto the Apache Spark Scala-only image used by the project; substitute your own approved base as needed.
 
 ```dockerfile
-ARG SPARK_VERSION=4.0.4
-ARG SPARK_IMAGE=docker.io/apache/spark:${SPARK_VERSION}
+ARG SPARK_IMAGE=docker.io/apache/spark:4.2.0-scala2.13-java21-ubuntu
 FROM ${SPARK_IMAGE}
 
 ARG SPARK_UID=185
@@ -73,9 +72,9 @@ USER ${SPARK_UID}:${SPARK_GID}
 ENTRYPOINT ["/usr/bin/entrypoint.sh"]
 ```
 
-Override `SPARK_VERSION` to target a different Spark line, or `SPARK_IMAGE` to point at an
-approved internal base image. Pinning `SPARK_IMAGE` by digest, as the project's own
-`Dockerfile` does, is recommended for reproducible builds.
+Override `SPARK_IMAGE` to target a different Spark line or an approved internal base image.
+Pinning `SPARK_IMAGE` by digest, as the project's own `Dockerfile` does, is recommended
+for reproducible builds.
 
 Save this as `Dockerfile` next to the extracted `spark-operator` and `entrypoint.sh`, then:
 

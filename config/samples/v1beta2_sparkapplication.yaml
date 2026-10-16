@@ -8,16 +8,16 @@ metadata:
 spec:
   type: Scala
   mode: cluster
-  image: docker.io/apache/spark:4.0.4
+  image: docker.io/apache/spark:4.2.0
   imagePullPolicy: IfNotPresent
   mainClass: org.apache.spark.examples.SparkPi
   mainApplicationFile: local:///opt/spark/examples/jars/spark-examples.jar
-  sparkVersion: 4.0.4
+  sparkVersion: 4.2.0
   driver:
     labels:
-      version: 4.0.0
+      version: 4.2.0
     serviceAccount: spark-operator-spark
   executor:
     labels:
-      version: 4.0.0
+      version: 4.2.0
     instances: 1
