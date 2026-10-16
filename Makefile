@@ -221,6 +221,18 @@ e2e-test: envtest kind-load-image kind-load-spark-image ## Run the e2e tests aga
 	@echo "Running e2e tests (deploy_method=$(DEPLOY_METHOD))..."
 	cd test/e2e && DEPLOY_METHOD=$(DEPLOY_METHOD) IMAGE_TAG=$(IMAGE_TAG) KUBECONFIG=$(KIND_KUBE_CONFIG) go test ./... -v -ginkgo.v -timeout 30m
 
+.PHONY: update-spark-version
+update-spark-version: ## Update managed Spark runtime references. Usage: make update-spark-version SPARK_VERSION=x.y.z
+	@if [ -z "$(SPARK_VERSION)" ]; then \
+		echo "SPARK_VERSION is required. Usage: make update-spark-version SPARK_VERSION=x.y.z"; \
+		exit 1; \
+	fi
+	./hack/update-spark-version.sh "$(SPARK_VERSION)"
+
+.PHONY: verify-spark-version
+verify-spark-version: ## Verify managed Spark runtime references are consistent.
+	./hack/verify-spark-version.sh
+
 ##@ Kustomize
 
 .PHONY: kustomize-set-image
@@ -357,7 +369,7 @@ kind-load-image: kind-create-cluster docker-build ## Load the image into the kin
 # SPARK_IMAGE is the Spark runtime image used by drivers/executors. Defaults to
 # the same tag used by examples/spark-pi.yaml so manual e2e checks line up with
 # the canonical example. Override on the command line if you need a different one.
-SPARK_IMAGE ?= docker.io/apache/spark:4.0.4@sha256:7112c0c0ca07b7d2605163ba91a05e53af39ba7cfcf9886e63141ade3f850456
+SPARK_IMAGE ?= docker.io/apache/spark:4.2.1@sha256:0cb70cf0193ec81c93c6c47078208512bbe659dd9dc89535dd2773826f0ea2bf
 
 .PHONY: kind-load-spark-image
 kind-load-spark-image: kind-create-cluster ## Pull the Spark runtime image and load it into the kind cluster.
