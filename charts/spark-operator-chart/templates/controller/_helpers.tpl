@@ -144,6 +144,7 @@ Create the role policy rules for the controller in every Spark job namespace
   - delete
 - apiGroups:
   - ""
+  - events.k8s.io
   resources:
   - events
   verbs:
