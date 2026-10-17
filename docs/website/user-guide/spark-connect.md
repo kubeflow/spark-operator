@@ -121,12 +121,19 @@ The main `SparkConnect` fields are:
 | `.spec.executor.template` | Customizes executor pods, including their image, volumes, and security context. |
 | `.spec.dynamicAllocation` | Enables dynamic allocation and configures the initial, minimum, and maximum executor counts. |
 | `.spec.sparkConf` | Passes Spark configuration properties to the server. |
+| `.spec.deps` | Declares the Maven dependencies of the server: `jars`, `packages`, `excludePackages`, and `repositories`, which the operator passes to `spark-submit`. |
 | `.spec.hadoopConf` | Passes Hadoop properties; the operator adds the `spark.hadoop.` prefix when it is omitted. |
 | `.spec.server.service` | Customizes service metadata and supported service settings. The operator controls its namespace, selectors, and required ports. |
 
 An image set on the named container in a server or executor pod template takes
 precedence over `.spec.image` for that component. Server and executor pod
 templates require Spark 3.0 or later.
+
+Server dependencies are declared under `.spec.deps`. The operator forwards
+`jars`, `packages`, `excludePackages`, and `repositories` to `spark-submit`
+when it starts the server. See
+`examples/sparkconnect/spark-connect-dependencies.yaml` for a complete
+manifest.
 
 For all available fields and validation rules, inspect the installed CRD:
 
