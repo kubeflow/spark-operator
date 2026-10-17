@@ -430,6 +430,8 @@ func sortSparkApplicationsInPlace(apps []*v1beta2.SparkApplication) {
 
 // bookkeepPastRuns bookkeeps the past runs of the given SparkApplication slice.
 func bookkeepPastRuns(apps []*v1beta2.SparkApplication, limit int) ([]*v1beta2.SparkApplication, []*v1beta2.SparkApplication) {
+	// A negative limit would make apps[:limit] panic; treat it as 0.
+	limit = max(limit, 0)
 	if len(apps) <= limit {
 		return apps, nil
 	}
