@@ -55,10 +55,11 @@ func (v *ScheduledSparkApplicationValidator) ValidateCreate(ctx context.Context,
 	if err := v.validateName(app.Name); err != nil {
 		return nil, err
 	}
-	if err := v.validate(app); err != nil {
+	warnings, err = v.validate(app)
+	if err != nil {
 		return nil, err
 	}
-	return nil, nil
+	return warnings, nil
 }
 
 // ValidateUpdate implements admission.Validator.
@@ -79,10 +80,11 @@ func (v *ScheduledSparkApplicationValidator) ValidateUpdate(ctx context.Context,
 		return nil, nil
 	}
 
-	if err := v.validate(newApp); err != nil {
+	warnings, err = v.validate(newApp)
+	if err != nil {
 		return nil, err
 	}
-	return nil, nil
+	return warnings, nil
 }
 
 // ValidateDelete implements admission.Validator.
@@ -96,11 +98,23 @@ func (v *ScheduledSparkApplicationValidator) ValidateDelete(ctx context.Context,
 	return nil, nil
 }
 
-func (v *ScheduledSparkApplicationValidator) validate(app *v1beta2.ScheduledSparkApplication) error {
+func (v *ScheduledSparkApplicationValidator) validate(app *v1beta2.ScheduledSparkApplication) (admission.Warnings, error) {
 	if err := validateSparkConf(app.Spec.Template.SparkConf, app.Namespace); err != nil {
-		return err
+		return nil, err
 	}
-	return validateConfigMaps(&app.Spec.Template, field.NewPath("spec", "template"))
+
+	if err := validateConfigMaps(&app.Spec.Template, field.NewPath("spec", "template")); err != nil {
+		return nil, err
+	}
+
+	var daEnabled bool
+	var daMinExecutors, daMaxExecutors, daInitialExecutors *int32
+	if da := app.Spec.Template.DynamicAllocation; da != nil {
+		daEnabled = da.Enabled
+		daMinExecutors, daMaxExecutors, daInitialExecutors = da.MinExecutors, da.MaxExecutors, da.InitialExecutors
+	}
+
+	return mergeAndValidateDynamicAllocation(field.NewPath("spec", "template"), daEnabled, daMinExecutors, daMaxExecutors, daInitialExecutors, app.Spec.Template.Executor.Instances, app.Spec.Template.SparkConf)
 }
 
 // validateName ensures the ScheduledSparkApplication metadata.name, when combined with suffixes,

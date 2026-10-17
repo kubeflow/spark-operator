@@ -17,10 +17,10 @@ limitations under the License.
 package v1beta2
 
 import (
-	"strconv"
-
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/utils/ptr"
+
+	"github.com/kubeflow/spark-operator/v2/pkg/common"
 )
 
 // DefaultRestartPolicyRetryIntervalSeconds is the retry interval, in seconds, used for
@@ -113,6 +113,6 @@ func isDynamicAllocationEnabled(sparkConf map[string]string, allocSpec *DynamicA
 	if allocSpec != nil {
 		return allocSpec.Enabled
 	}
-	dynamicAllocationConfVal, _ := strconv.ParseBool(sparkConf["spark.dynamicallocation.enabled"])
+	dynamicAllocationConfVal, _ := common.ParseSparkBoolean(sparkConf["spark.dynamicallocation.enabled"])
 	return dynamicAllocationConfVal
 }
