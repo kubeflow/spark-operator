@@ -17,403 +17,316 @@ limitations under the License.
 package resourceusage
 
 import (
-	"testing"
+	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
 
-	"github.com/stretchr/testify/assert"
 	"k8s.io/utils/ptr"
 
 	"github.com/kubeflow/spark-operator/v2/api/v1beta2"
 	"github.com/kubeflow/spark-operator/v2/pkg/common"
 )
 
-func TestBytesToMi(t *testing.T) {
-	testCases := []struct {
-		input    int64
-		expected string
-	}{
-		{(2 * 1024 * 1024) - 1, "1Mi"},
-		{2 * 1024 * 1024, "2Mi"},
-		{(1024 * 1024 * 1024) - 1, "1023Mi"},
-		{1024 * 1024 * 1024, "1024Mi"},
-	}
+var _ = Describe("bytesToMi", func() {
+	DescribeTable("Should floor the value to the nearest mebibyte",
+		func(input int64, expected string) {
+			Expect(bytesToMi(input)).To(Equal(expected))
+		},
+		Entry("one byte below two mebibytes", int64((2*1024*1024)-1), "1Mi"),
+		Entry("exactly two mebibytes", int64(2*1024*1024), "2Mi"),
+		Entry("one byte below one gibibyte", int64((1024*1024*1024)-1), "1023Mi"),
+		Entry("exactly one gibibyte", int64(1024*1024*1024), "1024Mi"),
+	)
+})
 
-	for _, tc := range testCases {
-		assert.Equal(t, tc.expected, bytesToMi(tc.input))
-	}
-}
+var _ = Describe("isJavaApp", func() {
+	DescribeTable("Should report whether the application runs on the JVM",
+		func(appType v1beta2.SparkApplicationType, expected bool) {
+			Expect(isJavaApp(appType)).To(Equal(expected))
+		},
+		Entry("java", v1beta2.SparkApplicationTypeJava, true),
+		Entry("scala", v1beta2.SparkApplicationTypeScala, true),
+		Entry("python", v1beta2.SparkApplicationTypePython, false),
+		Entry("r", v1beta2.SparkApplicationTypeR, false),
+		Entry("empty", v1beta2.SparkApplicationType(""), false),
+	)
+})
 
-func TestIsJavaApp(t *testing.T) {
-	testCases := []struct {
-		name     string
-		appType  v1beta2.SparkApplicationType
-		expected bool
-	}{
-		{"java", v1beta2.SparkApplicationTypeJava, true},
-		{"scala", v1beta2.SparkApplicationTypeScala, true},
-		{"python", v1beta2.SparkApplicationTypePython, false},
-		{"r", v1beta2.SparkApplicationTypeR, false},
-		{"empty", v1beta2.SparkApplicationType(""), false},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			assert.Equal(t, tc.expected, isJavaApp(tc.appType))
-		})
-	}
-}
-
-func TestGetMemoryOverheadFactor(t *testing.T) {
-	testCases := []struct {
-		name     string
-		app      *v1beta2.SparkApplication
-		expected float64
-	}{
-		{
-			name: "explicit factor takes precedence over the application type",
-			app: &v1beta2.SparkApplication{
+var _ = Describe("getMemoryOverheadFactor", func() {
+	DescribeTable("Should return the expected memory overhead factor",
+		func(app *v1beta2.SparkApplication, expected float64) {
+			actual, err := getMemoryOverheadFactor(app)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(actual).To(BeNumerically("~", expected, 1e-9))
+		},
+		Entry("explicit factor takes precedence over the application type",
+			&v1beta2.SparkApplication{
 				Spec: v1beta2.SparkApplicationSpec{
 					Type:                 v1beta2.SparkApplicationTypeJava,
 					MemoryOverheadFactor: ptr.To("0.3"),
 				},
 			},
-			expected: 0.3,
-		},
-		{
-			name: "java application defaults to the JVM factor",
-			app: &v1beta2.SparkApplication{
+			0.3,
+		),
+		Entry("java application defaults to the JVM factor",
+			&v1beta2.SparkApplication{
 				Spec: v1beta2.SparkApplicationSpec{Type: v1beta2.SparkApplicationTypeJava},
 			},
-			expected: common.DefaultJVMMemoryOverheadFactor,
-		},
-		{
-			name: "scala application defaults to the JVM factor",
-			app: &v1beta2.SparkApplication{
+			common.DefaultJVMMemoryOverheadFactor,
+		),
+		Entry("scala application defaults to the JVM factor",
+			&v1beta2.SparkApplication{
 				Spec: v1beta2.SparkApplicationSpec{Type: v1beta2.SparkApplicationTypeScala},
 			},
-			expected: common.DefaultJVMMemoryOverheadFactor,
-		},
-		{
-			name: "python application defaults to the non-JVM factor",
-			app: &v1beta2.SparkApplication{
+			common.DefaultJVMMemoryOverheadFactor,
+		),
+		Entry("python application defaults to the non-JVM factor",
+			&v1beta2.SparkApplication{
 				Spec: v1beta2.SparkApplicationSpec{Type: v1beta2.SparkApplicationTypePython},
 			},
-			expected: common.DefaultNonJVMMemoryOverheadFactor,
-		},
-		{
-			name: "r application defaults to the non-JVM factor",
-			app: &v1beta2.SparkApplication{
+			common.DefaultNonJVMMemoryOverheadFactor,
+		),
+		Entry("r application defaults to the non-JVM factor",
+			&v1beta2.SparkApplication{
 				Spec: v1beta2.SparkApplicationSpec{Type: v1beta2.SparkApplicationTypeR},
 			},
-			expected: common.DefaultNonJVMMemoryOverheadFactor,
-		},
-		{
-			name: "zero factor is parsed and passed through",
-			app: &v1beta2.SparkApplication{
+			common.DefaultNonJVMMemoryOverheadFactor,
+		),
+		Entry("zero factor is parsed and passed through",
+			&v1beta2.SparkApplication{
 				Spec: v1beta2.SparkApplicationSpec{
 					Type:                 v1beta2.SparkApplicationTypeScala,
 					MemoryOverheadFactor: ptr.To("0"),
 				},
 			},
-			expected: 0,
-		},
-		{
-			name: "negative factor is parsed and passed through",
-			app: &v1beta2.SparkApplication{
+			0.0,
+		),
+		Entry("negative factor is parsed and passed through",
+			&v1beta2.SparkApplication{
 				Spec: v1beta2.SparkApplicationSpec{
 					Type:                 v1beta2.SparkApplicationTypeScala,
 					MemoryOverheadFactor: ptr.To("-0.5"),
 				},
 			},
-			expected: -0.5,
-		},
-	}
+			-0.5,
+		),
+	)
 
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			actual, err := getMemoryOverheadFactor(tc.app)
-			assert.Nil(t, err)
-			assert.InDelta(t, tc.expected, actual, 1e-9)
-		})
-	}
-}
-
-func TestGetMemoryOverheadFactorInvalid(t *testing.T) {
-	invalidInputs := []string{
-		"",
-		"abc",
-		"0.1.2",
-		"10%",
-	}
-
-	for _, input := range invalidInputs {
-		t.Run(input, func(t *testing.T) {
+	DescribeTable("Should return an error for a factor that cannot be parsed",
+		func(factor string) {
 			app := &v1beta2.SparkApplication{
 				Spec: v1beta2.SparkApplicationSpec{
 					Type:                 v1beta2.SparkApplicationTypeJava,
-					MemoryOverheadFactor: ptr.To(input),
+					MemoryOverheadFactor: ptr.To(factor),
 				},
 			}
 			_, err := getMemoryOverheadFactor(app)
-			assert.NotNil(t, err)
-		})
-	}
-}
+			Expect(err).To(HaveOccurred())
+		},
+		Entry("empty string", ""),
+		Entry("non-numeric string", "abc"),
+		Entry("two decimal points", "0.1.2"),
+		Entry("percentage", "10%"),
+	)
+})
 
-func TestMemoryRequestBytes(t *testing.T) {
-	testCases := []struct {
-		name                 string
-		podSpec              *v1beta2.SparkPodSpec
-		memoryOverheadFactor float64
-		expected             int64
-	}{
-		{
-			name:                 "no memory set falls back to the minimum overhead",
-			podSpec:              &v1beta2.SparkPodSpec{},
-			memoryOverheadFactor: common.DefaultJVMMemoryOverheadFactor,
-			expected:             384 * 1024 * 1024,
+var _ = Describe("memoryRequestBytes", func() {
+	DescribeTable("Should return the expected memory request in bytes",
+		func(podSpec *v1beta2.SparkPodSpec, memoryOverheadFactor float64, expected int64) {
+			actual, err := memoryRequestBytes(podSpec, memoryOverheadFactor)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(actual).To(Equal(expected))
 		},
-		{
-			name:                 "minimum overhead wins when the factor yields less",
-			podSpec:              &v1beta2.SparkPodSpec{Memory: ptr.To("512m")},
-			memoryOverheadFactor: common.DefaultJVMMemoryOverheadFactor,
-			expected:             (512 + 384) * 1024 * 1024,
-		},
-		{
-			// 4Gi + floor(4Gi * 0.1)
-			name:                 "factor wins once it exceeds the minimum overhead",
-			podSpec:              &v1beta2.SparkPodSpec{Memory: ptr.To("4g")},
-			memoryOverheadFactor: common.DefaultJVMMemoryOverheadFactor,
-			expected:             4724464025,
-		},
-		{
-			name:                 "explicit overhead bypasses the factor",
-			podSpec:              &v1beta2.SparkPodSpec{Memory: ptr.To("4g"), MemoryOverhead: ptr.To("1g")},
-			memoryOverheadFactor: common.DefaultJVMMemoryOverheadFactor,
-			expected:             5 * 1024 * 1024 * 1024,
-		},
-		{
-			name:                 "non-JVM factor still floors at the minimum overhead",
-			podSpec:              &v1beta2.SparkPodSpec{Memory: ptr.To("512m")},
-			memoryOverheadFactor: common.DefaultNonJVMMemoryOverheadFactor,
-			expected:             (512 + 384) * 1024 * 1024,
-		},
-		{
-			name:                 "explicit overhead with no memory set",
-			podSpec:              &v1beta2.SparkPodSpec{MemoryOverhead: ptr.To("512m")},
-			memoryOverheadFactor: common.DefaultJVMMemoryOverheadFactor,
-			expected:             512 * 1024 * 1024,
-		},
-		{
-			// 4Gi * 0 is below the floor, so the 384Mi minimum applies
-			name:                 "zero factor floors at the minimum overhead",
-			podSpec:              &v1beta2.SparkPodSpec{Memory: ptr.To("4g")},
-			memoryOverheadFactor: 0,
-			expected:             (4096 + 384) * 1024 * 1024,
-		},
-		{
-			// math.Max clamps the negative product to the 384Mi minimum
-			name:                 "negative factor floors at the minimum overhead",
-			podSpec:              &v1beta2.SparkPodSpec{Memory: ptr.To("4g")},
-			memoryOverheadFactor: -0.5,
-			expected:             (4096 + 384) * 1024 * 1024,
-		},
-	}
+		Entry("no memory set falls back to the minimum overhead",
+			&v1beta2.SparkPodSpec{},
+			common.DefaultJVMMemoryOverheadFactor,
+			int64(384*1024*1024),
+		),
+		Entry("minimum overhead wins when the factor yields less",
+			&v1beta2.SparkPodSpec{Memory: ptr.To("512m")},
+			common.DefaultJVMMemoryOverheadFactor,
+			int64((512+384)*1024*1024),
+		),
+		// 4Gi + floor(4Gi * 0.1)
+		Entry("factor wins once it exceeds the minimum overhead",
+			&v1beta2.SparkPodSpec{Memory: ptr.To("4g")},
+			common.DefaultJVMMemoryOverheadFactor,
+			int64(4724464025),
+		),
+		Entry("explicit overhead bypasses the factor",
+			&v1beta2.SparkPodSpec{Memory: ptr.To("4g"), MemoryOverhead: ptr.To("1g")},
+			common.DefaultJVMMemoryOverheadFactor,
+			int64(5*1024*1024*1024),
+		),
+		Entry("non-JVM factor still floors at the minimum overhead",
+			&v1beta2.SparkPodSpec{Memory: ptr.To("512m")},
+			common.DefaultNonJVMMemoryOverheadFactor,
+			int64((512+384)*1024*1024),
+		),
+		Entry("explicit overhead with no memory set",
+			&v1beta2.SparkPodSpec{MemoryOverhead: ptr.To("512m")},
+			common.DefaultJVMMemoryOverheadFactor,
+			int64(512*1024*1024),
+		),
+		// 4Gi * 0 is below the floor, so the 384Mi minimum applies
+		Entry("zero factor floors at the minimum overhead",
+			&v1beta2.SparkPodSpec{Memory: ptr.To("4g")},
+			0.0,
+			int64((4096+384)*1024*1024),
+		),
+		// math.Max clamps the negative product to the 384Mi minimum
+		Entry("negative factor floors at the minimum overhead",
+			&v1beta2.SparkPodSpec{Memory: ptr.To("4g")},
+			-0.5,
+			int64((4096+384)*1024*1024),
+		),
+	)
 
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			actual, err := memoryRequestBytes(tc.podSpec, tc.memoryOverheadFactor)
-			assert.Nil(t, err)
-			assert.Equal(t, tc.expected, actual)
-		})
-	}
-}
+	DescribeTable("Should return an error for memory values that cannot be parsed",
+		func(podSpec *v1beta2.SparkPodSpec) {
+			_, err := memoryRequestBytes(podSpec, common.DefaultJVMMemoryOverheadFactor)
+			Expect(err).To(HaveOccurred())
+		},
+		Entry("invalid memory", &v1beta2.SparkPodSpec{Memory: ptr.To("512ub")}),
+		Entry("invalid memory overhead",
+			&v1beta2.SparkPodSpec{Memory: ptr.To("512m"), MemoryOverhead: ptr.To("abc")},
+		),
+	)
+})
 
-func TestMemoryRequestBytesInvalid(t *testing.T) {
-	testCases := []struct {
-		name    string
-		podSpec *v1beta2.SparkPodSpec
-	}{
-		{
-			name:    "invalid memory",
-			podSpec: &v1beta2.SparkPodSpec{Memory: ptr.To("512ub")},
-		},
-		{
-			name:    "invalid memory overhead",
-			podSpec: &v1beta2.SparkPodSpec{Memory: ptr.To("512m"), MemoryOverhead: ptr.To("abc")},
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			_, err := memoryRequestBytes(tc.podSpec, common.DefaultJVMMemoryOverheadFactor)
-			assert.NotNil(t, err)
-		})
-	}
-}
-
-func TestExecutorPysparkMemoryBytes(t *testing.T) {
-	testCases := []struct {
-		name     string
-		appType  v1beta2.SparkApplicationType
-		conf     map[string]string
-		expected int64
-	}{
-		{
-			name:     "bare number defaults to mebibytes",
-			appType:  v1beta2.SparkApplicationTypePython,
-			conf:     map[string]string{"spark.executor.pyspark.memory": "512"},
-			expected: 512 * 1024 * 1024,
-		},
-		{
-			name:     "explicit suffix is honoured",
-			appType:  v1beta2.SparkApplicationTypePython,
-			conf:     map[string]string{"spark.executor.pyspark.memory": "1g"},
-			expected: 1024 * 1024 * 1024,
-		},
-		{
-			name:     "conf is ignored for non-python applications",
-			appType:  v1beta2.SparkApplicationTypeJava,
-			conf:     map[string]string{"spark.executor.pyspark.memory": "512"},
-			expected: 0,
-		},
-		{
-			name:     "python application without the conf",
-			appType:  v1beta2.SparkApplicationTypePython,
-			conf:     map[string]string{},
-			expected: 0,
-		},
-		{
-			name:     "python application with a nil spark conf",
-			appType:  v1beta2.SparkApplicationTypePython,
-			conf:     nil,
-			expected: 0,
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
+var _ = Describe("executorPysparkMemoryBytes", func() {
+	DescribeTable("Should return the expected PySpark memory in bytes",
+		func(appType v1beta2.SparkApplicationType, conf map[string]string, expected int64) {
 			app := &v1beta2.SparkApplication{
-				Spec: v1beta2.SparkApplicationSpec{Type: tc.appType, SparkConf: tc.conf},
+				Spec: v1beta2.SparkApplicationSpec{Type: appType, SparkConf: conf},
 			}
 			actual, err := executorPysparkMemoryBytes(app)
-			assert.Nil(t, err)
-			assert.Equal(t, tc.expected, actual)
-		})
-	}
-}
+			Expect(err).NotTo(HaveOccurred())
+			Expect(actual).To(Equal(expected))
+		},
+		Entry("bare number defaults to mebibytes",
+			v1beta2.SparkApplicationTypePython,
+			map[string]string{"spark.executor.pyspark.memory": "512"},
+			int64(512*1024*1024),
+		),
+		Entry("explicit suffix is honoured",
+			v1beta2.SparkApplicationTypePython,
+			map[string]string{"spark.executor.pyspark.memory": "1g"},
+			int64(1024*1024*1024),
+		),
+		Entry("conf is ignored for non-python applications",
+			v1beta2.SparkApplicationTypeJava,
+			map[string]string{"spark.executor.pyspark.memory": "512"},
+			int64(0),
+		),
+		Entry("python application without the conf",
+			v1beta2.SparkApplicationTypePython,
+			map[string]string{},
+			int64(0),
+		),
+		Entry("python application with a nil spark conf",
+			v1beta2.SparkApplicationTypePython,
+			nil,
+			int64(0),
+		),
+	)
 
-func TestExecutorPysparkMemoryBytesInvalid(t *testing.T) {
-	app := &v1beta2.SparkApplication{
-		Spec: v1beta2.SparkApplicationSpec{
-			Type:      v1beta2.SparkApplicationTypePython,
-			SparkConf: map[string]string{"spark.executor.pyspark.memory": "512ub"},
-		},
-	}
+	It("Should return an error for a PySpark memory value that cannot be parsed", func() {
+		app := &v1beta2.SparkApplication{
+			Spec: v1beta2.SparkApplicationSpec{
+				Type:      v1beta2.SparkApplicationTypePython,
+				SparkConf: map[string]string{"spark.executor.pyspark.memory": "512ub"},
+			},
+		}
 
-	_, err := executorPysparkMemoryBytes(app)
-	assert.NotNil(t, err)
-}
+		_, err := executorPysparkMemoryBytes(app)
+		Expect(err).To(HaveOccurred())
+	})
+})
 
-func TestSparkOffHeapMemoryBytes(t *testing.T) {
-	testCases := []struct {
-		name     string
-		conf     map[string]string
-		expected int64
-	}{
-		{
-			name:     "no off-heap conf",
-			conf:     map[string]string{},
-			expected: 0,
-		},
-		{
-			name:     "off-heap explicitly disabled",
-			conf:     map[string]string{"spark.memory.offHeap.enabled": "false", "spark.memory.offHeap.size": "1g"},
-			expected: 0,
-		},
-		{
-			name:     "off-heap enabled without a size",
-			conf:     map[string]string{"spark.memory.offHeap.enabled": "true"},
-			expected: 0,
-		},
-		{
-			name:     "off-heap enabled with a size",
-			conf:     map[string]string{"spark.memory.offHeap.enabled": "true", "spark.memory.offHeap.size": "1g"},
-			expected: 1024 * 1024 * 1024,
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
+var _ = Describe("sparkOffHeapMemoryBytes", func() {
+	DescribeTable("Should return the expected off-heap memory in bytes",
+		func(conf map[string]string, expected int64) {
 			app := &v1beta2.SparkApplication{
 				Spec: v1beta2.SparkApplicationSpec{
 					Type:      v1beta2.SparkApplicationTypeScala,
-					SparkConf: tc.conf,
+					SparkConf: conf,
 				},
 			}
 			actual, err := sparkOffHeapMemoryBytes(app)
-			assert.Nil(t, err)
-			assert.Equal(t, tc.expected, actual)
-		})
-	}
-}
-
-func TestSparkOffHeapMemoryBytesInvalid(t *testing.T) {
-	app := &v1beta2.SparkApplication{
-		Spec: v1beta2.SparkApplicationSpec{
-			Type: v1beta2.SparkApplicationTypeScala,
-			SparkConf: map[string]string{
-				"spark.memory.offHeap.enabled": "true",
-				"spark.memory.offHeap.size":    "abc",
-			},
+			Expect(err).NotTo(HaveOccurred())
+			Expect(actual).To(Equal(expected))
 		},
-	}
+		Entry("no off-heap conf", map[string]string{}, int64(0)),
+		Entry("off-heap explicitly disabled",
+			map[string]string{"spark.memory.offHeap.enabled": "false", "spark.memory.offHeap.size": "1g"},
+			int64(0),
+		),
+		Entry("off-heap enabled without a size",
+			map[string]string{"spark.memory.offHeap.enabled": "true"},
+			int64(0),
+		),
+		Entry("off-heap enabled with a size",
+			map[string]string{"spark.memory.offHeap.enabled": "true", "spark.memory.offHeap.size": "1g"},
+			int64(1024*1024*1024),
+		),
+	)
 
-	_, err := sparkOffHeapMemoryBytes(app)
-	assert.NotNil(t, err)
-}
+	It("Should return an error for an off-heap size that cannot be parsed", func() {
+		app := &v1beta2.SparkApplication{
+			Spec: v1beta2.SparkApplicationSpec{
+				Type: v1beta2.SparkApplicationTypeScala,
+				SparkConf: map[string]string{
+					"spark.memory.offHeap.enabled": "true",
+					"spark.memory.offHeap.size":    "abc",
+				},
+			},
+		}
 
-func TestDriverMemoryRequest(t *testing.T) {
-	testCases := []struct {
-		name     string
-		app      *v1beta2.SparkApplication
-		expected string
-	}{
-		{
-			name: "jvm application where the minimum overhead dominates",
-			app: &v1beta2.SparkApplication{
+		_, err := sparkOffHeapMemoryBytes(app)
+		Expect(err).To(HaveOccurred())
+	})
+})
+
+var _ = Describe("driverMemoryRequest", func() {
+	DescribeTable("Should return the expected driver memory request",
+		func(app *v1beta2.SparkApplication, expected string) {
+			actual, err := driverMemoryRequest(app)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(actual).To(Equal(expected))
+		},
+		// 512Mi + max(512Mi * 0.1, 384Mi) = 512 + 384
+		Entry("jvm application where the minimum overhead dominates",
+			&v1beta2.SparkApplication{
 				Spec: v1beta2.SparkApplicationSpec{
 					Type:   v1beta2.SparkApplicationTypeScala,
 					Driver: v1beta2.DriverSpec{SparkPodSpec: v1beta2.SparkPodSpec{Memory: ptr.To("512m")}},
 				},
 			},
-			// 512Mi + max(512Mi * 0.1, 384Mi) = 512 + 384
-			expected: "896Mi",
-		},
-		{
-			name: "jvm application where the overhead factor dominates",
-			app: &v1beta2.SparkApplication{
+			"896Mi",
+		),
+		// 4Gi + floor(4Gi * 0.1) = 4096 + 409.6, floored to MiB
+		Entry("jvm application where the overhead factor dominates",
+			&v1beta2.SparkApplication{
 				Spec: v1beta2.SparkApplicationSpec{
 					Type:   v1beta2.SparkApplicationTypeScala,
 					Driver: v1beta2.DriverSpec{SparkPodSpec: v1beta2.SparkPodSpec{Memory: ptr.To("4g")}},
 				},
 			},
-			// 4Gi + floor(4Gi * 0.1) = 4096 + 409.6, floored to MiB
-			expected: "4505Mi",
-		},
-		{
-			name: "python application uses the larger non-jvm factor",
-			app: &v1beta2.SparkApplication{
+			"4505Mi",
+		),
+		// 4Gi + floor(4Gi * 0.4) = 4096 + 1638.4, floored to MiB
+		Entry("python application uses the larger non-jvm factor",
+			&v1beta2.SparkApplication{
 				Spec: v1beta2.SparkApplicationSpec{
 					Type:   v1beta2.SparkApplicationTypePython,
 					Driver: v1beta2.DriverSpec{SparkPodSpec: v1beta2.SparkPodSpec{Memory: ptr.To("4g")}},
 				},
 			},
-			// 4Gi + floor(4Gi * 0.4) = 4096 + 1638.4, floored to MiB
-			expected: "5734Mi",
-		},
-		{
-			name: "explicit overhead bypasses the factor",
-			app: &v1beta2.SparkApplication{
+			"5734Mi",
+		),
+		// 4Gi + 1Gi, the factor is not consulted
+		Entry("explicit overhead bypasses the factor",
+			&v1beta2.SparkApplication{
 				Spec: v1beta2.SparkApplicationSpec{
 					Type: v1beta2.SparkApplicationTypeScala,
 					Driver: v1beta2.DriverSpec{SparkPodSpec: v1beta2.SparkPodSpec{
@@ -422,97 +335,76 @@ func TestDriverMemoryRequest(t *testing.T) {
 					}},
 				},
 			},
-			// 4Gi + 1Gi, the factor is not consulted
-			expected: "5120Mi",
-		},
-		{
-			name: "explicit overhead factor",
-			app: &v1beta2.SparkApplication{
+			"5120Mi",
+		),
+		// 4Gi + floor(4Gi * 0.3) = 4096 + 1228.8, floored to MiB
+		Entry("explicit overhead factor",
+			&v1beta2.SparkApplication{
 				Spec: v1beta2.SparkApplicationSpec{
 					Type:                 v1beta2.SparkApplicationTypeScala,
 					MemoryOverheadFactor: ptr.To("0.3"),
 					Driver:               v1beta2.DriverSpec{SparkPodSpec: v1beta2.SparkPodSpec{Memory: ptr.To("4g")}},
 				},
 			},
-			// 4Gi + floor(4Gi * 0.3) = 4096 + 1228.8, floored to MiB
-			expected: "5324Mi",
+			"5324Mi",
+		),
+	)
+
+	DescribeTable("Should return an error when the driver memory cannot be resolved",
+		func(app *v1beta2.SparkApplication) {
+			_, err := driverMemoryRequest(app)
+			Expect(err).To(HaveOccurred())
 		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			actual, err := driverMemoryRequest(tc.app)
-			assert.Nil(t, err)
-			assert.Equal(t, tc.expected, actual)
-		})
-	}
-}
-
-func TestDriverMemoryRequestInvalid(t *testing.T) {
-	testCases := []struct {
-		name string
-		app  *v1beta2.SparkApplication
-	}{
-		{
-			name: "invalid overhead factor",
-			app: &v1beta2.SparkApplication{
+		Entry("invalid overhead factor",
+			&v1beta2.SparkApplication{
 				Spec: v1beta2.SparkApplicationSpec{
 					Type:                 v1beta2.SparkApplicationTypeScala,
 					MemoryOverheadFactor: ptr.To("abc"),
 				},
 			},
-		},
-		{
-			name: "invalid driver memory",
-			app: &v1beta2.SparkApplication{
+		),
+		Entry("invalid driver memory",
+			&v1beta2.SparkApplication{
 				Spec: v1beta2.SparkApplicationSpec{
 					Type:   v1beta2.SparkApplicationTypeScala,
 					Driver: v1beta2.DriverSpec{SparkPodSpec: v1beta2.SparkPodSpec{Memory: ptr.To("512ub")}},
 				},
 			},
+		),
+	)
+})
+
+var _ = Describe("executorMemoryRequest", func() {
+	DescribeTable("Should return the expected executor memory request",
+		func(app *v1beta2.SparkApplication, expected string) {
+			actual, err := executorMemoryRequest(app)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(actual).To(Equal(expected))
 		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			_, err := driverMemoryRequest(tc.app)
-			assert.NotNil(t, err)
-		})
-	}
-}
-
-func TestExecutorMemoryRequest(t *testing.T) {
-	testCases := []struct {
-		name     string
-		app      *v1beta2.SparkApplication
-		expected string
-	}{
-		{
-			name: "jvm application with no extra memory",
-			app: &v1beta2.SparkApplication{
+		// 512Mi + max(512Mi * 0.1, 384Mi) = 512 + 384
+		Entry("jvm application with no extra memory",
+			&v1beta2.SparkApplication{
 				Spec: v1beta2.SparkApplicationSpec{
 					Type:     v1beta2.SparkApplicationTypeScala,
 					Executor: v1beta2.ExecutorSpec{SparkPodSpec: v1beta2.SparkPodSpec{Memory: ptr.To("512m")}},
 				},
 			},
-			// 512Mi + max(512Mi * 0.1, 384Mi) = 512 + 384
-			expected: "896Mi",
-		},
-		{
-			name: "python application adds pyspark memory",
-			app: &v1beta2.SparkApplication{
+			"896Mi",
+		),
+		// 512 + 384 overhead + 512 pyspark
+		Entry("python application adds pyspark memory",
+			&v1beta2.SparkApplication{
 				Spec: v1beta2.SparkApplicationSpec{
 					Type:      v1beta2.SparkApplicationTypePython,
 					SparkConf: map[string]string{"spark.executor.pyspark.memory": "512"},
 					Executor:  v1beta2.ExecutorSpec{SparkPodSpec: v1beta2.SparkPodSpec{Memory: ptr.To("512m")}},
 				},
 			},
-			// 512 + 384 overhead + 512 pyspark
-			expected: "1408Mi",
-		},
-		{
-			name: "jvm application adds off-heap memory",
-			app: &v1beta2.SparkApplication{
+			"1408Mi",
+		),
+		// 1024 + 384 overhead + 1024 off-heap
+		Entry("jvm application adds off-heap memory",
+			&v1beta2.SparkApplication{
 				Spec: v1beta2.SparkApplicationSpec{
 					Type: v1beta2.SparkApplicationTypeScala,
 					SparkConf: map[string]string{
@@ -522,12 +414,11 @@ func TestExecutorMemoryRequest(t *testing.T) {
 					Executor: v1beta2.ExecutorSpec{SparkPodSpec: v1beta2.SparkPodSpec{Memory: ptr.To("1g")}},
 				},
 			},
-			// 1024 + 384 overhead + 1024 off-heap
-			expected: "2432Mi",
-		},
-		{
-			name: "python application adds both pyspark and off-heap memory",
-			app: &v1beta2.SparkApplication{
+			"2432Mi",
+		),
+		// 2048 + floor(2048 * 0.4) + 1024 pyspark + 512 off-heap
+		Entry("python application adds both pyspark and off-heap memory",
+			&v1beta2.SparkApplication{
 				Spec: v1beta2.SparkApplicationSpec{
 					Type: v1beta2.SparkApplicationTypePython,
 					SparkConf: map[string]string{
@@ -538,47 +429,34 @@ func TestExecutorMemoryRequest(t *testing.T) {
 					Executor: v1beta2.ExecutorSpec{SparkPodSpec: v1beta2.SparkPodSpec{Memory: ptr.To("2g")}},
 				},
 			},
-			// 2048 + floor(2048 * 0.4) + 1024 pyspark + 512 off-heap
-			expected: "4403Mi",
+			"4403Mi",
+		),
+	)
+
+	DescribeTable("Should return an error when the executor memory cannot be resolved",
+		func(app *v1beta2.SparkApplication) {
+			_, err := executorMemoryRequest(app)
+			Expect(err).To(HaveOccurred())
 		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			actual, err := executorMemoryRequest(tc.app)
-			assert.Nil(t, err)
-			assert.Equal(t, tc.expected, actual)
-		})
-	}
-}
-
-func TestExecutorMemoryRequestInvalid(t *testing.T) {
-	testCases := []struct {
-		name string
-		app  *v1beta2.SparkApplication
-	}{
-		{
-			name: "invalid executor memory",
-			app: &v1beta2.SparkApplication{
+		Entry("invalid executor memory",
+			&v1beta2.SparkApplication{
 				Spec: v1beta2.SparkApplicationSpec{
 					Type:     v1beta2.SparkApplicationTypeScala,
 					Executor: v1beta2.ExecutorSpec{SparkPodSpec: v1beta2.SparkPodSpec{Memory: ptr.To("512ub")}},
 				},
 			},
-		},
-		{
-			name: "invalid pyspark memory",
-			app: &v1beta2.SparkApplication{
+		),
+		Entry("invalid pyspark memory",
+			&v1beta2.SparkApplication{
 				Spec: v1beta2.SparkApplicationSpec{
 					Type:      v1beta2.SparkApplicationTypePython,
 					SparkConf: map[string]string{"spark.executor.pyspark.memory": "512ub"},
 					Executor:  v1beta2.ExecutorSpec{SparkPodSpec: v1beta2.SparkPodSpec{Memory: ptr.To("512m")}},
 				},
 			},
-		},
-		{
-			name: "invalid off-heap size",
-			app: &v1beta2.SparkApplication{
+		),
+		Entry("invalid off-heap size",
+			&v1beta2.SparkApplication{
 				Spec: v1beta2.SparkApplicationSpec{
 					Type: v1beta2.SparkApplicationTypeScala,
 					SparkConf: map[string]string{
@@ -588,13 +466,6 @@ func TestExecutorMemoryRequestInvalid(t *testing.T) {
 					Executor: v1beta2.ExecutorSpec{SparkPodSpec: v1beta2.SparkPodSpec{Memory: ptr.To("512m")}},
 				},
 			},
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			_, err := executorMemoryRequest(tc.app)
-			assert.NotNil(t, err)
-		})
-	}
-}
+		),
+	)
+})
