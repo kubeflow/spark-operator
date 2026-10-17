@@ -17,47 +17,35 @@ limitations under the License.
 package resourceusage
 
 import (
-	"testing"
-
-	"github.com/stretchr/testify/assert"
+	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
 )
 
-func TestByteStringAsMb(t *testing.T) {
-	testCases := []struct {
-		input    string
-		expected int
-	}{
-		{"1k", 1024},
-		{"1m", 1024 * 1024},
-		{"1g", 1024 * 1024 * 1024},
-		{"1t", 1024 * 1024 * 1024 * 1024},
-		{"1p", 1024 * 1024 * 1024 * 1024 * 1024},
-	}
+var _ = Describe("byteStringAsBytes", func() {
+	DescribeTable("Should convert a Java-style byte string to bytes",
+		func(input string, expected int64) {
+			actual, err := byteStringAsBytes(input)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(actual).To(Equal(expected))
+		},
+		Entry("kibibytes", "1k", int64(1024)),
+		Entry("mebibytes", "1m", int64(1024*1024)),
+		Entry("gibibytes", "1g", int64(1024*1024*1024)),
+		Entry("tebibytes", "1t", int64(1024*1024*1024*1024)),
+		Entry("pebibytes", "1p", int64(1024*1024*1024*1024*1024)),
+	)
 
-	for _, tc := range testCases {
-		t.Run(tc.input, func(t *testing.T) {
-			actual, err := byteStringAsBytes(tc.input)
-			assert.Nil(t, err)
-			assert.Equal(t, int64(tc.expected), actual)
-		})
-	}
-}
-
-func TestByteStringAsMbInvalid(t *testing.T) {
-	invalidInputs := []string{
-		"0.064",
-		"0.064m",
-		"500ub",
-		"This breaks 600b",
-		"This breaks 600",
-		"600gb This breaks",
-		"This 123mb breaks",
-	}
-
-	for _, input := range invalidInputs {
-		t.Run(input, func(t *testing.T) {
+	DescribeTable("Should return an error for a byte string that cannot be parsed",
+		func(input string) {
 			_, err := byteStringAsBytes(input)
-			assert.NotNil(t, err)
-		})
-	}
-}
+			Expect(err).To(HaveOccurred())
+		},
+		Entry("fractional value without a suffix", "0.064"),
+		Entry("fractional value with a suffix", "0.064m"),
+		Entry("unknown suffix", "500ub"),
+		Entry("leading text with a valid value", "This breaks 600b"),
+		Entry("leading text without a suffix", "This breaks 600"),
+		Entry("trailing text after a valid value", "600gb This breaks"),
+		Entry("value embedded in text", "This 123mb breaks"),
+	)
+})
