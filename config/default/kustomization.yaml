@@ -28,9 +28,10 @@ labels:
 # that the default kustomize build stays in sync with the helm default-off
 # behaviour. To enable it, build config/overlays/driver-pdb instead.
 
-# Image configuration - tag is derived from the VERSION file at the repo root.
+# Image configuration - tag is the VERSION file without the leading "v" (published image tags
+# carry no "v" prefix) and must equal the Helm chart appVersion. It is set by `make release`.
 # To update: make kustomize-set-image
 # CI/e2e tests override this via: kustomize edit set image ...
 images:
   - name: ghcr.io/kubeflow/spark-operator/controller
-    newTag: v2.5.0-rc.0
+    newTag: 2.5.0-rc.0
