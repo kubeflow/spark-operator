@@ -873,9 +873,9 @@ func TestEffectiveExecutorCPUResources_Request(t *testing.T) {
 			wantRequest:    "3",
 		},
 		{
-			name:           "template request is ignored and the request defaults to one core",
+			name:           "template request is ignored and no request is inferred",
 			templateCPUReq: "3",
-			wantRequest:    "1",
+			wantRequest:    "",
 		},
 	}
 
@@ -890,6 +890,12 @@ func TestEffectiveExecutorCPUResources_Request(t *testing.T) {
 			}
 
 			request, _ := effectiveExecutorCPUResources(sc)
+			if tt.wantRequest == "" {
+				if request != nil {
+					t.Fatalf("expected no effective request, got %s", request.String())
+				}
+				return
+			}
 			if request == nil {
 				t.Fatalf("expected an effective request, got nil")
 			}
@@ -995,17 +1001,17 @@ func TestSparkConnectValidatorValidateCreate_SparkConfRequestCoresAboveCoreLimit
 	}
 }
 
-// Spark always sets an executor CPU request, so a limit below the implied single core cannot be
-// satisfied even though no request field is set on the spec.
-func TestSparkConnectValidatorValidateCreate_ExecutorCoreLimitBelowDefaultRequest(t *testing.T) {
+// A limit with no explicit CPU request is accepted: the webhook does not infer a request, so
+// there is nothing to compare. Spark's own default applies.
+func TestSparkConnectValidatorValidateCreate_ExecutorCoreLimitWithoutRequest(t *testing.T) {
 	validator := newTestSparkConnectValidator(t)
 
 	sc := newSparkConnect()
 	sc.Spec.Executor.Cores = nil
 	sc.Spec.Executor.CoreLimit = ptr.To(resource.MustParse("500m"))
 
-	if _, err := validator.ValidateCreate(context.Background(), sc); err == nil || !strings.Contains(err.Error(), "coreRequest") {
-		t.Fatalf("expected executor CPU request/limit validation error, got %v", err)
+	if _, err := validator.ValidateCreate(context.Background(), sc); err != nil {
+		t.Fatalf("expected success for a limit with no explicit request, got %v", err)
 	}
 }
 
@@ -1038,6 +1044,11 @@ func TestSparkConnectValidatorValidateCreate_InvalidSparkConfCPUKeys(t *testing.
 		{name: "unparseable", key: common.SparkKubernetesExecutorLimitCores, value: "nonsense", wantError: true},
 		{name: "negative", key: common.SparkKubernetesExecutorLimitCores, value: "-1", wantError: true},
 		{name: "zero", key: common.SparkKubernetesExecutorRequestCores, value: "0", wantError: true},
+		{name: "executor cores millicores", key: common.SparkExecutorCores, value: "500m", wantError: true},
+		{name: "executor cores fraction", key: common.SparkExecutorCores, value: "1.5", wantError: true},
+		{name: "executor cores zero", key: common.SparkExecutorCores, value: "0", wantError: true},
+		{name: "executor cores negative", key: common.SparkExecutorCores, value: "-1", wantError: true},
+		{name: "executor cores above Int range", key: common.SparkExecutorCores, value: "2147483648", wantError: true},
 	}
 
 	for _, tt := range testCases {
@@ -1061,8 +1072,7 @@ func TestSparkConnectValidatorValidateCreate_InvalidSparkConfCPUKeys(t *testing.
 // Setting both a CRD field and its equivalent sparkConf key is permitted -- the CRD field wins at
 // runtime, so the duplication is not an error. The sparkConf value is still validated, because it
 // is inert only while the CRD field is set: drop that field later and an unparseable value becomes
-// the effective one, failing at executor-pod creation instead of at admission. This pins the
-// decision recorded on validateSparkConfCPUKeys.
+// the effective one, failing at executor-pod creation instead of at admission.
 func TestSparkConnectValidatorValidateCreate_DuplicateSparkConfCPUKeyStillValidated(t *testing.T) {
 	testCases := []struct {
 		name      string

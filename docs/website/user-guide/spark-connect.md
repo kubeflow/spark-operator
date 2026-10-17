@@ -180,18 +180,23 @@ by different actors:
 - **Executor** — Spark creates the executor pods. The operator passes the fields to
   Spark as `spark.kubernetes.executor.request.cores` and
   `spark.kubernetes.executor.limit.cores`, and Spark sets the container resources
-  from them. Spark always computes the executor CPU *request* itself, so a CPU
-  request in `.spec.executor.template` never applies, while a CPU *limit* in that
-  template is used only when `.spec.executor.coreLimit` is unset.
+  from them. The CPU request is taken from `.spec.executor.coreRequest` when set;
+  otherwise from `spark.kubernetes.executor.request.cores`; otherwise from
+  `spark.executor.cores` — the setting `.spec.executor.cores` maps to — and
+  finally from Spark's own default. A CPU *request* in `.spec.executor.template`
+  never applies; a CPU *limit* in that template is used only when
+  `.spec.executor.coreLimit` is unset.
 
 If a value is set both as a CRD field and as the same key in `.spec.sparkConf`, the
 CRD field wins: the operator emits its generated `--conf` flags after the
 `sparkConf` entries, and Spark applies the last value.
 
 The admission webhook requires each of these fields to be positive and validates
-that `coreRequest` does not exceed `coreLimit` on the effective values, so a pod
-template value counts where the CRD field is unset. The comparison is skipped when
-no effective limit is set.
+that `coreRequest` does not exceed `coreLimit` on the effective values, including
+values taken from a pod template where the CRD field is unset. The comparison runs
+only when both effective values are set; if either is unset, it is skipped and the
+webhook does not infer one. Spark applies its own default to the executor CPU
+request.
 
 The [`spark-connect-custom-resource.yaml`](https://github.com/kubeflow/spark-operator/blob/master/examples/sparkconnect/spark-connect-custom-resource.yaml)
 example sets both fields on the server and on the executor, alongside pod templates

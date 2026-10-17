@@ -19,6 +19,7 @@ package webhook
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"strings"
 
 	corev1 "k8s.io/api/core/v1"
@@ -327,11 +328,8 @@ func (v *SparkConnectValidator) validateExecutorSpec(sc *v1alpha1.SparkConnect) 
 		}
 	}
 
-	// Cross-validate that the effective coreRequest is less than or equal to the effective
-	// coreLimit. Spark always sets an executor CPU request, so the effective request is never
-	// unset and only the effective limit needs a nil check.
 	request, limit := effectiveExecutorCPUResources(sc)
-	if limit != nil {
+	if request != nil && limit != nil {
 		if err := validateCPURequestLELimit(request, limit); err != nil {
 			return fmt.Errorf("invalid executor CPU request/limit: %w", err)
 		}
@@ -413,10 +411,6 @@ func validateMemoryString(memory string) error {
 	return nil
 }
 
-// validateCPUQuantity validates a Kubernetes CPU quantity.
-//
-// It rejects a nil quantity as well as any quantity that is zero or negative. Callers must
-// therefore only invoke it for fields that are actually set.
 func validateCPUQuantity(cpu *resource.Quantity) error {
 	if cpu == nil {
 		return fmt.Errorf("CPU quantity cannot be nil")
@@ -429,9 +423,6 @@ func validateCPUQuantity(cpu *resource.Quantity) error {
 	return nil
 }
 
-// validateCPURequestLELimit validates that the effective CPU request is less than or equal to
-// the effective CPU limit. The effective values may come from the CRD spec or fall back to the
-// pod template container resources; both inputs must already be valid Kubernetes CPU quantities.
 func validateCPURequestLELimit(request, limit *resource.Quantity) error {
 	if request.Cmp(*limit) > 0 {
 		return fmt.Errorf("effective coreRequest %q must not be greater than effective coreLimit %q", request.String(), limit.String())
@@ -439,9 +430,6 @@ func validateCPURequestLELimit(request, limit *resource.Quantity) error {
 	return nil
 }
 
-// effectiveServerCPUResources returns the CPU request and limit that will actually be applied
-// to the server container. A CRD field that is set always wins; when it is missing, the value
-// set on the server pod template's container resources applies (spec.server.template).
 func effectiveServerCPUResources(sc *v1alpha1.SparkConnect) (request, limit *resource.Quantity) {
 	request = sc.Spec.Server.CoreRequest
 	limit = sc.Spec.Server.CoreLimit
@@ -467,25 +455,6 @@ func effectiveServerCPUResources(sc *v1alpha1.SparkConnect) (request, limit *res
 	return request, limit
 }
 
-// effectiveExecutorCPUResources returns the CPU request and limit that Spark will actually apply
-// to executor pods.
-//
-// Spark, not the operator, creates executor pods, so these values follow Spark's own resolution
-// order rather than the CRD-over-template rule used for the server pod:
-//
-//	request: spec.executor.coreRequest, then sparkConf spark.kubernetes.executor.request.cores,
-//	         then spark.executor.cores, then Spark's default of a single core.
-//	limit:   spec.executor.coreLimit, then sparkConf spark.kubernetes.executor.limit.cores, then
-//	         the executor pod template's container limit.
-//
-// The asymmetry is Spark's: the executor container's CPU request is always overwritten from
-// spark.kubernetes.executor.request.cores or spark.executor.cores, so a request set on the pod
-// template is ignored, while the limit is only set when limit.cores is configured and otherwise
-// keeps whatever the pod template specified. Ref: running-on-kubernetes.md, "Container spec".
-//
-// Where a CRD field and its equivalent sparkConf key are both set, the CRD field wins: the operator
-// appends its generated configuration after the user-supplied sparkConf, and spark-submit resolves
-// duplicate --conf entries last-wins.
 func effectiveExecutorCPUResources(sc *v1alpha1.SparkConnect) (request, limit *resource.Quantity) {
 	request = sc.Spec.Executor.CoreRequest
 	limit = sc.Spec.Executor.CoreLimit
@@ -497,11 +466,13 @@ func effectiveExecutorCPUResources(sc *v1alpha1.SparkConnect) (request, limit *r
 		request = resource.NewQuantity(int64(*sc.Spec.Executor.Cores), resource.DecimalSI)
 	}
 	if request == nil {
-		request = sparkConfCPUQuantity(sc.Spec.SparkConf, common.SparkExecutorCores)
-	}
-	if request == nil {
-		// Spark always sets an executor CPU request, defaulting to one core.
-		request = resource.NewQuantity(1, resource.DecimalSI)
+		// spark.executor.cores is an Int, not a quantity; validateSparkConfCPUKeys has already
+		// rejected anything that is not a positive integer.
+		if value, ok := sc.Spec.SparkConf[common.SparkExecutorCores]; ok {
+			if cores, err := strconv.ParseInt(value, 10, 32); err == nil && cores > 0 {
+				request = resource.NewQuantity(cores, resource.DecimalSI)
+			}
+		}
 	}
 
 	if limit == nil {
@@ -514,9 +485,6 @@ func effectiveExecutorCPUResources(sc *v1alpha1.SparkConnect) (request, limit *r
 	return request, limit
 }
 
-// executorTemplateCPULimit returns the CPU limit set on the executor pod template's container, or
-// nil when it is not set. Only the limit is read from the template: Spark overwrites the executor
-// CPU request unconditionally.
 func executorTemplateCPULimit(sc *v1alpha1.SparkConnect) *resource.Quantity {
 	template := sc.Spec.Executor.Template
 	if template == nil {
@@ -538,26 +506,11 @@ func executorTemplateCPULimit(sc *v1alpha1.SparkConnect) *resource.Quantity {
 	return nil
 }
 
-// sparkConfCPUKeys are the sparkConf keys that carry a CPU quantity and therefore take part in
-// resolving the effective executor CPU resources. Driver CPU configuration is deliberately absent:
-// the operator creates the Spark Connect server pod itself and never emits
-// spark.kubernetes.driver.{request,limit}.cores, so those keys have no effect on a SparkConnect.
 var sparkConfCPUKeys = []string{
 	common.SparkKubernetesExecutorRequestCores,
 	common.SparkKubernetesExecutorLimitCores,
-	common.SparkExecutorCores,
 }
 
-// validateSparkConfCPUKeys validates the CPU quantities set directly in spec.sparkConf. These keys
-// are read to compute the effective executor CPU resources, so a value that cannot be parsed as a
-// Kubernetes quantity -- or that is not positive -- must be rejected at admission time instead of
-// being silently ignored or turned into an invalid executor pod.
-//
-// Setting both a CRD field and its equivalent sparkConf key is permitted rather than rejected as
-// ambiguous: the operator emits its generated configuration after the user-supplied sparkConf, so
-// the CRD field wins at runtime. The sparkConf value is validated all the same -- it is inert only
-// while the CRD field is set, and would otherwise silently become the effective value if that field
-// were later removed.
 func validateSparkConfCPUKeys(sparkConf map[string]string) error {
 	for _, key := range sparkConfCPUKeys {
 		value, ok := sparkConf[key]
@@ -574,12 +527,17 @@ func validateSparkConfCPUKeys(sparkConf map[string]string) error {
 		}
 	}
 
+	// spark.executor.cores is a Spark Int config, not a Kubernetes quantity.
+	if value, ok := sparkConf[common.SparkExecutorCores]; ok {
+		cores, err := strconv.ParseInt(value, 10, 32)
+		if err != nil || cores <= 0 {
+			return fmt.Errorf("invalid sparkConf %s %q: must be a positive integer", common.SparkExecutorCores, value)
+		}
+	}
+
 	return nil
 }
 
-// sparkConfCPUQuantity parses a CPU quantity from spec.sparkConf, returning nil when the key is
-// absent or its value cannot be parsed. Unparseable values are reported separately by
-// validateSparkConfCPUKeys, which runs before the effective values are computed.
 func sparkConfCPUQuantity(sparkConf map[string]string, key string) *resource.Quantity {
 	value, ok := sparkConf[key]
 	if !ok {
