@@ -166,6 +166,16 @@ After `VERSION` file is modified and pushed to the release branch, a release wor
 
 After the draft release is published, a release workflow will be triggered to update the Helm chart repo index and publish it to the Helm repository.
 
+### Verify the release
+
+After all the release workflows have completed, verify that every published artifact (the controller image, the Helm chart, the Python SDK package, and the Kustomize manifests) is available:
+
+```bash
+make verify-release VERSION=X.Y.Z
+```
+
+The target exits with a non-zero status if any artifact is missing.
+
 ## Update Changelog
 
 Update the `CHANGELOG.md` file by running:

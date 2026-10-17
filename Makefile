@@ -226,6 +226,12 @@ kustomize-lint: ## Validate Kustomize build output (no cluster needed).
 	@echo "Running Kustomize build validation..."
 	go test ./test/kustomize/ -v -count=1
 
+##@ Release
+
+.PHONY: verify-release
+verify-release: ## Verify published release artifacts (controller image, Helm chart, Python SDK, Kustomize manifests). Usage: make verify-release VERSION=X.Y.Z
+	VERSION=$(VERSION) ./hack/verify-release.sh
+
 ##@ Build
 
 override LDFLAGS += \
