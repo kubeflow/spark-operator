@@ -19,6 +19,7 @@ package sparkconnect
 import (
 	"context"
 	"fmt"
+	"maps"
 	"strings"
 
 	corev1 "k8s.io/api/core/v1"
@@ -367,9 +368,11 @@ func (r *Reconciler) mutateServerPod(ctx context.Context, conn *v1alpha1.SparkCo
 	if pod.CreationTimestamp.IsZero() {
 		template := conn.Spec.Server.Template.DeepCopy()
 		if template != nil {
-			pod.Labels = template.Labels
-			pod.Annotations = template.Annotations
-			pod.Spec = template.Spec
+			// Deep copy the template fields onto the pod. The pod is mutated below, so assigning
+			// the maps and spec directly would write those mutations back into the template.
+			pod.Labels = maps.Clone(template.Labels)
+			pod.Annotations = maps.Clone(template.Annotations)
+			template.Spec.DeepCopyInto(&pod.Spec)
 		}
 
 		// Fall back to the operator-level default service account. This must happen after the
@@ -392,6 +395,15 @@ func (r *Reconciler) mutateServerPod(ctx context.Context, conn *v1alpha1.SparkCo
 			pod.Spec.Containers,
 			common.SparkDriverContainerName,
 		)
+
+		// Setup Kubernetes CPU resources for the Connect server container.
+		container = util.SetContainerCPUResources(
+			container,
+			conn.Spec.Server.CoreRequest,
+			conn.Spec.Server.CoreLimit,
+		)
+
+		// Setup GPU resources.
 		if gpu := conn.Spec.Server.GPU; gpu != nil {
 			util.SetGPUResources(container, gpu.Name, gpu.Quantity)
 		}

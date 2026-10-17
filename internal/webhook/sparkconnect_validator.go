@@ -19,10 +19,12 @@ package webhook
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"strings"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
+	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/util/validation"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
@@ -141,6 +143,12 @@ func (v *SparkConnectValidator) validateSpec(sc *v1alpha1.SparkConnect) error {
 
 	// Validate DynamicAllocation
 	if err := v.validateDynamicAllocation(sc); err != nil {
+		return err
+	}
+
+	// Validate the CPU-related sparkConf keys before the CPU cross-validation below reads them to
+	// compute the effective executor CPU resources.
+	if err := validateSparkConfCPUKeys(sc.Spec.SparkConf); err != nil {
 		return err
 	}
 
@@ -264,7 +272,31 @@ func (v *SparkConnectValidator) validateServerSpec(sc *v1alpha1.SparkConnect) er
 	// Validate memory format if specified
 	if server.Memory != nil && *server.Memory != "" {
 		if err := validateMemoryString(*server.Memory); err != nil {
-			return fmt.Errorf("invalid server.memory: %v", err)
+			return fmt.Errorf("invalid server.memory: %w", err)
+		}
+	}
+
+	// Validate CoreRequest format if specified
+	if server.CoreRequest != nil {
+		if err := validateCPUQuantity(server.CoreRequest); err != nil {
+			return fmt.Errorf("invalid server.coreRequest: %w", err)
+		}
+	}
+
+	// Validate CoreLimit format if specified
+	if server.CoreLimit != nil {
+		if err := validateCPUQuantity(server.CoreLimit); err != nil {
+			return fmt.Errorf("invalid server.coreLimit: %w", err)
+		}
+	}
+
+	// Cross-validate that the effective coreRequest is less than or equal to the effective
+	// coreLimit. This is enforced by Kubernetes itself for container resources, but rejecting
+	// it here gives a clearer error at admission time.
+	request, limit := effectiveServerCPUResources(sc)
+	if request != nil && limit != nil {
+		if err := validateCPURequestLELimit(request, limit); err != nil {
+			return fmt.Errorf("invalid server CPU request/limit: %w", err)
 		}
 	}
 
@@ -278,7 +310,28 @@ func (v *SparkConnectValidator) validateExecutorSpec(sc *v1alpha1.SparkConnect) 
 	// Validate memory format if specified
 	if executor.Memory != nil && *executor.Memory != "" {
 		if err := validateMemoryString(*executor.Memory); err != nil {
-			return fmt.Errorf("invalid executor.memory: %v", err)
+			return fmt.Errorf("invalid executor.memory: %w", err)
+		}
+	}
+
+	// Validate CoreRequest format if specified
+	if executor.CoreRequest != nil {
+		if err := validateCPUQuantity(executor.CoreRequest); err != nil {
+			return fmt.Errorf("invalid executor.coreRequest: %w", err)
+		}
+	}
+
+	// Validate CoreLimit format if specified
+	if executor.CoreLimit != nil {
+		if err := validateCPUQuantity(executor.CoreLimit); err != nil {
+			return fmt.Errorf("invalid executor.coreLimit: %w", err)
+		}
+	}
+
+	request, limit := effectiveExecutorCPUResources(sc)
+	if request != nil && limit != nil {
+		if err := validateCPURequestLELimit(request, limit); err != nil {
+			return fmt.Errorf("invalid executor CPU request/limit: %w", err)
 		}
 	}
 
@@ -356,4 +409,145 @@ func validateMemoryString(memory string) error {
 	}
 
 	return nil
+}
+
+func validateCPUQuantity(cpu *resource.Quantity) error {
+	if cpu == nil {
+		return fmt.Errorf("CPU quantity cannot be nil")
+	}
+
+	if cpu.Sign() <= 0 {
+		return fmt.Errorf("invalid CPU quantity: must be greater than zero")
+	}
+
+	return nil
+}
+
+func validateCPURequestLELimit(request, limit *resource.Quantity) error {
+	if request.Cmp(*limit) > 0 {
+		return fmt.Errorf("effective coreRequest %q must not be greater than effective coreLimit %q", request.String(), limit.String())
+	}
+	return nil
+}
+
+func effectiveServerCPUResources(sc *v1alpha1.SparkConnect) (request, limit *resource.Quantity) {
+	request = sc.Spec.Server.CoreRequest
+	limit = sc.Spec.Server.CoreLimit
+
+	if template := sc.Spec.Server.Template; template != nil {
+		if container := util.GetContainerByNameOrFirst(
+			template.Spec.Containers,
+			common.SparkDriverContainerName,
+		); container != nil {
+			if request == nil {
+				if v, ok := container.Resources.Requests[corev1.ResourceCPU]; ok {
+					request = &v
+				}
+			}
+			if limit == nil {
+				if v, ok := container.Resources.Limits[corev1.ResourceCPU]; ok {
+					limit = &v
+				}
+			}
+		}
+	}
+
+	return request, limit
+}
+
+func effectiveExecutorCPUResources(sc *v1alpha1.SparkConnect) (request, limit *resource.Quantity) {
+	request = sc.Spec.Executor.CoreRequest
+	limit = sc.Spec.Executor.CoreLimit
+
+	if request == nil {
+		request = sparkConfCPUQuantity(sc.Spec.SparkConf, common.SparkKubernetesExecutorRequestCores)
+	}
+	if request == nil && sc.Spec.Executor.Cores != nil {
+		request = resource.NewQuantity(int64(*sc.Spec.Executor.Cores), resource.DecimalSI)
+	}
+	if request == nil {
+		// spark.executor.cores is an Int, not a quantity; validateSparkConfCPUKeys has already
+		// rejected anything that is not a positive integer.
+		if value, ok := sc.Spec.SparkConf[common.SparkExecutorCores]; ok {
+			if cores, err := strconv.ParseInt(value, 10, 32); err == nil && cores > 0 {
+				request = resource.NewQuantity(cores, resource.DecimalSI)
+			}
+		}
+	}
+
+	if limit == nil {
+		limit = sparkConfCPUQuantity(sc.Spec.SparkConf, common.SparkKubernetesExecutorLimitCores)
+	}
+	if limit == nil {
+		limit = executorTemplateCPULimit(sc)
+	}
+
+	return request, limit
+}
+
+func executorTemplateCPULimit(sc *v1alpha1.SparkConnect) *resource.Quantity {
+	template := sc.Spec.Executor.Template
+	if template == nil {
+		return nil
+	}
+
+	container := util.GetContainerByNameOrFirst(
+		template.Spec.Containers,
+		common.Spark3DefaultExecutorContainerName,
+	)
+	if container == nil {
+		return nil
+	}
+
+	if v, ok := container.Resources.Limits[corev1.ResourceCPU]; ok {
+		return &v
+	}
+
+	return nil
+}
+
+var sparkConfCPUKeys = []string{
+	common.SparkKubernetesExecutorRequestCores,
+	common.SparkKubernetesExecutorLimitCores,
+}
+
+func validateSparkConfCPUKeys(sparkConf map[string]string) error {
+	for _, key := range sparkConfCPUKeys {
+		value, ok := sparkConf[key]
+		if !ok {
+			continue
+		}
+
+		quantity, err := resource.ParseQuantity(value)
+		if err != nil {
+			return fmt.Errorf("invalid sparkConf %s %q: %w", key, value, err)
+		}
+		if err := validateCPUQuantity(&quantity); err != nil {
+			return fmt.Errorf("invalid sparkConf %s %q: %w", key, value, err)
+		}
+	}
+
+	// spark.executor.cores is a Spark Int config, not a Kubernetes quantity.
+	if value, ok := sparkConf[common.SparkExecutorCores]; ok {
+		cores, err := strconv.ParseInt(value, 10, 32)
+		if err != nil || cores <= 0 {
+			return fmt.Errorf("invalid sparkConf %s %q: must be a positive integer", common.SparkExecutorCores, value)
+		}
+	}
+
+	return nil
+}
+
+func sparkConfCPUQuantity(sparkConf map[string]string, key string) *resource.Quantity {
+	value, ok := sparkConf[key]
+	if !ok {
+		return nil
+	}
+
+	quantity, err := resource.ParseQuantity(value)
+	if err != nil {
+		return nil
+	}
+
+	return &quantity
 }
