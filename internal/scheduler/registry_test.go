@@ -18,10 +18,9 @@ package scheduler
 
 import (
 	"errors"
-	"testing"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
 
 	"github.com/kubeflow/spark-operator/v2/api/v1beta2"
 )
@@ -53,109 +52,164 @@ func newFakeFactory(name string) Factory {
 	}
 }
 
-// newTestRegistry returns an isolated registry so tests never touch the package
-// level singleton.
-func newTestRegistry() *Registry {
-	return &Registry{factories: make(map[string]Factory)}
-}
+var _ = Describe("GetRegistry", func() {
+	// GetRegistry operates on the package level singleton, so it is saved and
+	// restored around each spec to keep the specs independent of each other.
+	var original *Registry
 
-func TestGetRegistry(t *testing.T) {
-	original := registry
-	t.Cleanup(func() { registry = original })
+	BeforeEach(func() {
+		original = registry
+		registry = nil
+	})
 
-	registry = nil
+	AfterEach(func() {
+		registry = original
+	})
 
-	first := GetRegistry()
-	require.NotNil(t, first)
-	require.NotNil(t, first.factories)
-	assert.Empty(t, first.factories)
+	It("Should lazily create a registry with an initialized factory map", func() {
+		r := GetRegistry()
+		Expect(r).NotTo(BeNil())
+		Expect(r.factories).NotTo(BeNil())
+		Expect(r.factories).To(BeEmpty())
+	})
 
-	second := GetRegistry()
-	assert.Same(t, first, second)
-}
+	It("Should return the same instance on subsequent calls", func() {
+		Expect(GetRegistry()).To(BeIdenticalTo(GetRegistry()))
+	})
+})
 
-func TestRegistryRegister(t *testing.T) {
-	r := newTestRegistry()
+var _ = Describe("Registry.Register", func() {
+	// Every spec below uses its own registry rather than the package level
+	// singleton, so registrations never leak between specs.
+	var r *Registry
 
-	require.NoError(t, r.Register("volcano", newFakeFactory("volcano")))
-	require.NoError(t, r.Register("yunikorn", newFakeFactory("yunikorn")))
-	assert.Len(t, r.factories, 2)
-}
+	BeforeEach(func() {
+		r = &Registry{factories: make(map[string]Factory)}
+	})
 
-func TestRegistryRegisterDuplicate(t *testing.T) {
-	r := newTestRegistry()
+	Context("Registering distinct scheduler names", func() {
+		It("Should register every scheduler", func() {
+			Expect(r.Register("volcano", newFakeFactory("volcano"))).To(Succeed())
+			Expect(r.Register("yunikorn", newFakeFactory("yunikorn"))).To(Succeed())
+			Expect(r.factories).To(HaveLen(2))
+		})
+	})
 
-	require.NoError(t, r.Register("volcano", newFakeFactory("volcano")))
+	Context("Registering a name that is already registered", func() {
+		BeforeEach(func() {
+			Expect(r.Register("volcano", newFakeFactory("volcano"))).To(Succeed())
+		})
 
-	err := r.Register("volcano", newFakeFactory("volcano"))
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "already registered")
+		It("Should return an error and keep the original registration", func() {
+			err := r.Register("volcano", newFakeFactory("volcano"))
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("already registered"))
+			Expect(r.factories).To(HaveLen(1))
+		})
+	})
+})
 
-	// The original registration is left intact.
-	assert.Len(t, r.factories, 1)
-}
+var _ = Describe("Registry.GetScheduler", func() {
+	var r *Registry
 
-func TestRegistryGetScheduler(t *testing.T) {
-	r := newTestRegistry()
-	require.NoError(t, r.Register("volcano", newFakeFactory("volcano")))
+	BeforeEach(func() {
+		r = &Registry{factories: make(map[string]Factory)}
+	})
 
-	scheduler, err := r.GetScheduler("volcano", nil)
-	require.NoError(t, err)
-	require.NotNil(t, scheduler)
-	assert.Equal(t, "volcano", scheduler.Name())
-}
+	Context("Looking up a registered scheduler", func() {
+		BeforeEach(func() {
+			Expect(r.Register("volcano", newFakeFactory("volcano"))).To(Succeed())
+		})
 
-func TestRegistryGetSchedulerNotFound(t *testing.T) {
-	r := newTestRegistry()
-	require.NoError(t, r.Register("volcano", newFakeFactory("volcano")))
+		It("Should return the scheduler built by the factory", func() {
+			scheduler, err := r.GetScheduler("volcano", nil)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(scheduler).NotTo(BeNil())
+			Expect(scheduler.Name()).To(Equal("volcano"))
+		})
+	})
 
-	scheduler, err := r.GetScheduler("yunikorn", nil)
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "not found")
-	assert.Nil(t, scheduler)
-}
+	Context("Looking up a scheduler that is not registered", func() {
+		BeforeEach(func() {
+			Expect(r.Register("volcano", newFakeFactory("volcano"))).To(Succeed())
+		})
 
-func TestRegistryGetSchedulerFactoryError(t *testing.T) {
-	r := newTestRegistry()
-	factoryErr := errors.New("failed to create scheduler")
+		It("Should return an error", func() {
+			scheduler, err := r.GetScheduler("yunikorn", nil)
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("not found"))
+			Expect(scheduler).To(BeNil())
+		})
+	})
 
-	require.NoError(t, r.Register("broken", func(_ Config) (Interface, error) {
-		return nil, factoryErr
-	}))
+	Context("Looking up a scheduler whose factory fails", func() {
+		factoryErr := errors.New("failed to create scheduler")
 
-	scheduler, err := r.GetScheduler("broken", nil)
-	require.Error(t, err)
-	assert.ErrorIs(t, err, factoryErr)
-	assert.Nil(t, scheduler)
-}
+		BeforeEach(func() {
+			Expect(r.Register("broken", func(_ Config) (Interface, error) {
+				return nil, factoryErr
+			})).To(Succeed())
+		})
 
-func TestRegistryGetSchedulerPassesConfig(t *testing.T) {
-	type testConfig struct {
-		value string
-	}
+		It("Should propagate the error returned by the factory", func() {
+			scheduler, err := r.GetScheduler("broken", nil)
+			Expect(err).To(MatchError(factoryErr))
+			Expect(scheduler).To(BeNil())
+		})
+	})
 
-	r := newTestRegistry()
-	want := &testConfig{value: "expected"}
+	Context("Passing a configuration to the factory", func() {
+		type testConfig struct {
+			value string
+		}
 
-	var got Config
-	require.NoError(t, r.Register("config-capture", func(config Config) (Interface, error) {
-		got = config
-		return &fakeScheduler{name: "config-capture"}, nil
-	}))
+		var (
+			want *testConfig
+			got  Config
+		)
 
-	_, err := r.GetScheduler("config-capture", want)
-	require.NoError(t, err)
-	assert.Equal(t, want, got)
-}
+		BeforeEach(func() {
+			want = &testConfig{value: "expected"}
+			got = nil
 
-func TestRegistryGetRegisteredSchedulerNames(t *testing.T) {
-	r := newTestRegistry()
-	assert.Empty(t, r.GetRegisteredSchedulerNames())
+			Expect(r.Register("config-capture", func(config Config) (Interface, error) {
+				got = config
+				return &fakeScheduler{name: "config-capture"}, nil
+			})).To(Succeed())
+		})
 
-	names := []string{"volcano", "yunikorn", "kube-scheduler"}
-	for _, name := range names {
-		require.NoError(t, r.Register(name, newFakeFactory(name)))
-	}
+		It("Should hand the configuration to the factory unchanged", func() {
+			_, err := r.GetScheduler("config-capture", want)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(got).To(Equal(want))
+		})
+	})
+})
 
-	assert.ElementsMatch(t, names, r.GetRegisteredSchedulerNames())
-}
+var _ = Describe("Registry.GetRegisteredSchedulerNames", func() {
+	var r *Registry
+
+	BeforeEach(func() {
+		r = &Registry{factories: make(map[string]Factory)}
+	})
+
+	Context("Registry without any registered scheduler", func() {
+		It("Should return no names", func() {
+			Expect(r.GetRegisteredSchedulerNames()).To(BeEmpty())
+		})
+	})
+
+	Context("Registry with registered schedulers", func() {
+		names := []string{"volcano", "yunikorn", "kube-scheduler"}
+
+		BeforeEach(func() {
+			for _, name := range names {
+				Expect(r.Register(name, newFakeFactory(name))).To(Succeed())
+			}
+		})
+
+		It("Should return every registered name", func() {
+			Expect(r.GetRegisteredSchedulerNames()).To(ConsistOf(names))
+		})
+	})
+})
