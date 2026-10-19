@@ -136,6 +136,9 @@ type SparkApplicationSpec struct {
 	// BatchScheduler configures which batch scheduler will be used for scheduling
 	// +optional
 	BatchScheduler *string `json:"batchScheduler,omitempty"`
+	// Scheduling configures workload-aware scheduling for executor Pods.
+	// +optional
+	Scheduling *SchedulingSpec `json:"scheduling,omitempty"`
 	// TimeToLiveSeconds defines the Time-To-Live (TTL) duration in seconds for this SparkApplication
 	// after its termination.
 	// The SparkApplication object will be garbage collected if the current time is more than the
@@ -297,6 +300,34 @@ type BatchSchedulerConfiguration struct {
 	// If specified, volcano scheduler will consider it as the resources requested.
 	// +optional
 	Resources corev1.ResourceList `json:"resources,omitempty"`
+}
+
+// SchedulingPolicy selects the workload-aware scheduling policy.
+type SchedulingPolicy string
+
+const (
+	// SchedulingPolicyBasic schedules executor Pods independently.
+	SchedulingPolicyBasic SchedulingPolicy = "Basic"
+	// SchedulingPolicyGang schedules executor Pods as a gang.
+	SchedulingPolicyGang SchedulingPolicy = "Gang"
+)
+
+// SchedulingSpec configures workload-aware scheduling for executor Pods.
+type SchedulingSpec struct {
+	// Policy selects the scheduling mode.
+	// +kubebuilder:validation:Enum={Basic,Gang}
+	// +optional
+	Policy SchedulingPolicy `json:"policy,omitempty"`
+	// Gang configures gang scheduling.
+	// +optional
+	Gang *GangSchedulingSpec `json:"gang,omitempty"`
+}
+
+// GangSchedulingSpec configures gang scheduling.
+type GangSchedulingSpec struct {
+	// MinCount is the minimum number of executors.
+	// +optional
+	MinCount *int32 `json:"minCount,omitempty"`
 }
 
 // SparkUIConfiguration is for driver UI specific configuration parameters.
