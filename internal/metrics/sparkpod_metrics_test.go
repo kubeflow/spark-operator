@@ -172,16 +172,21 @@ my_prefix_spark_executor_running_count{namespace="default"} 1
 	Context("Register", func() {
 		It("Should register all executor metrics with the controller-runtime registry", func() {
 			m = NewSparkExecutorMetrics("register_test_", []string{"namespace"})
+			// Restore the shared registry even if an assertion below fails.
+			DeferCleanup(func() {
+				metrics.Registry.Unregister(m.runningCount)
+				metrics.Registry.Unregister(m.successCount)
+				metrics.Registry.Unregister(m.failureCount)
+			})
+
 			m.Register()
 			// A second call fails to register the same collectors again; Register
 			// only logs those errors, so it must not panic.
 			Expect(m.Register).NotTo(Panic())
 
-			// Unregister returns true only for collectors that were registered,
-			// and also leaves the shared registry as it was before this spec.
-			Expect(metrics.Registry.Unregister(m.runningCount)).To(BeTrue())
-			Expect(metrics.Registry.Unregister(m.successCount)).To(BeTrue())
-			Expect(metrics.Registry.Unregister(m.failureCount)).To(BeTrue())
+			for _, c := range []prometheus.Collector{m.runningCount, m.successCount, m.failureCount} {
+				Expect(metrics.Registry.Register(c)).To(BeAssignableToTypeOf(prometheus.AlreadyRegisteredError{}))
+			}
 		})
 	})
 })
