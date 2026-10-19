@@ -166,7 +166,7 @@ func (m *SparkExecutorMetrics) incFailureCount(pod *corev1.Pod) {
 	}
 
 	failureCount.Inc()
-	logger.V(1).Info("Increased Spark executor running count", "name", pod.Name, "namespace", pod.Namespace, "metric", common.MetricSparkExecutorFailureCount, "labels", labels)
+	logger.V(1).Info("Increased Spark executor failure count", "name", pod.Name, "namespace", pod.Namespace, "metric", common.MetricSparkExecutorFailureCount, "labels", labels)
 }
 
 func (m *SparkExecutorMetrics) getMetricLabels(pod *corev1.Pod) map[string]string {
