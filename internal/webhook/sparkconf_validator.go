@@ -59,5 +59,6 @@ func validateSparkConf(sparkConf map[string]string, namespace string) error {
 			}
 		}
 	}
+
 	return nil
 }

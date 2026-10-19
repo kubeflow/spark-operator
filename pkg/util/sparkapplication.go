@@ -20,7 +20,6 @@ import (
 	"crypto/md5"
 	"fmt"
 	"reflect"
-	"strconv"
 	"strings"
 	"time"
 
@@ -539,7 +538,7 @@ func IsDynamicAllocationEnabled(app *v1beta2.SparkApplication) bool {
 	if app.Spec.DynamicAllocation != nil {
 		return app.Spec.DynamicAllocation.Enabled
 	}
-	dynamicAllocationConfVal, _ := strconv.ParseBool(app.Spec.SparkConf[common.SparkDynamicAllocationEnabled])
+	dynamicAllocationConfVal, _ := common.ParseSparkBoolean(app.Spec.SparkConf[common.SparkDynamicAllocationEnabled])
 	return dynamicAllocationConfVal
 }
 
