@@ -704,6 +704,7 @@ func TestSparkConnectValidatorValidateCreate_ServerCoreLimitBelowTemplateRequest
 	validator := newTestSparkConnectValidator(t)
 
 	sc := newSparkConnect()
+	sc.Spec.Server.Cores = nil
 	sc.Spec.Server.CoreLimit = ptr.To(resource.MustParse("1"))
 	sc.Spec.Server.Template = &corev1.PodTemplateSpec{
 		Spec: corev1.PodSpec{
@@ -731,6 +732,7 @@ func TestSparkConnectValidatorValidateCreate_TemplateRequestExceedsTemplateLimit
 	validator := newTestSparkConnectValidator(t)
 
 	sc := newSparkConnect()
+	sc.Spec.Server.Cores = nil
 	sc.Spec.Server.Template = &corev1.PodTemplateSpec{
 		Spec: corev1.PodSpec{
 			Containers: []corev1.Container{
@@ -780,6 +782,57 @@ func TestSparkConnectValidatorValidateCreate_ValidEffectiveCPUCombination(t *tes
 
 	if _, err := validator.ValidateCreate(context.Background(), sc); err != nil {
 		t.Fatalf("expected success for CRD request below template limit, got %v", err)
+	}
+}
+
+func TestSparkConnectValidatorValidateCreate_ServerCoresExceedsLimit(t *testing.T) {
+	validator := newTestSparkConnectValidator(t)
+
+	sc := newSparkConnect()
+	sc.Spec.Server.Cores = ptr.To[int32](2)
+	sc.Spec.Server.CoreLimit = ptr.To(resource.MustParse("1"))
+
+	if _, err := validator.ValidateCreate(context.Background(), sc); err == nil || !strings.Contains(err.Error(), "coreRequest") {
+		t.Fatalf("expected server cores vs coreLimit validation error, got %v", err)
+	}
+}
+
+func TestSparkConnectValidatorValidateCreate_ServerCoresExceedsTemplateLimit(t *testing.T) {
+	validator := newTestSparkConnectValidator(t)
+
+	sc := newSparkConnect()
+	sc.Spec.Server.Cores = ptr.To[int32](2)
+	sc.Spec.Server.Template = &corev1.PodTemplateSpec{
+		Spec: corev1.PodSpec{
+			Containers: []corev1.Container{
+				{
+					Name:  common.SparkDriverContainerName,
+					Image: "spark:3.5.0",
+					Resources: corev1.ResourceRequirements{
+						Limits: corev1.ResourceList{
+							corev1.ResourceCPU: resource.MustParse("1"),
+						},
+					},
+				},
+			},
+		},
+	}
+
+	if _, err := validator.ValidateCreate(context.Background(), sc); err == nil || !strings.Contains(err.Error(), "coreRequest") {
+		t.Fatalf("expected server cores vs template coreLimit validation error, got %v", err)
+	}
+}
+
+func TestSparkConnectValidatorValidateCreate_ServerCoreRequestTakesPrecedenceOverCores(t *testing.T) {
+	validator := newTestSparkConnectValidator(t)
+
+	sc := newSparkConnect()
+	sc.Spec.Server.Cores = ptr.To[int32](4)
+	sc.Spec.Server.CoreRequest = ptr.To(resource.MustParse("500m"))
+	sc.Spec.Server.CoreLimit = ptr.To(resource.MustParse("1"))
+
+	if _, err := validator.ValidateCreate(context.Background(), sc); err != nil {
+		t.Fatalf("expected success when coreRequest is within coreLimit despite larger cores, got %v", err)
 	}
 }
 
