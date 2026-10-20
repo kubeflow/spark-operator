@@ -111,7 +111,7 @@ type ExecutorSpec struct {
 
 // SparkPodSpec defines common things that can be customized for a Spark driver or executor pod.
 type SparkPodSpec struct {
-	// Cores maps to `spark.driver.cores` or `spark.executor.cores` for the driver and executors, respectively.
+	// Cores is a shorthand for coreRequest on the server, and maps to `spark.executor.cores` for executors.
 	// +optional
 	// +kubebuilder:validation:Minimum=1
 	Cores *int32 `json:"cores,omitempty"`
