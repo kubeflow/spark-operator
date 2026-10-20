@@ -1,0 +1,107 @@
+# Copyright The Kubeflow Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+apiVersion: sparkoperator.k8s.io/v1alpha1
+kind: SparkConnect
+metadata:
+  name: spark-connect-custom-resource
+  namespace: default
+spec:
+  sparkVersion: 4.0.4
+  server:
+    cores: 1
+    coreRequest: "500m"
+    coreLimit: "1"
+    memory: 1g
+    template:
+      metadata:
+        labels:
+          key1: value1
+          key2: value2
+        annotations:
+          key3: value3
+          key4: value4
+      spec:
+        containers:
+        - name: spark-kubernetes-driver
+          image: docker.io/apache/spark:4.0.4
+          imagePullPolicy: Always
+          # Ref: https://spark.apache.org/docs/latest/running-on-kubernetes.html#pod-template.
+          resources:
+            requests:
+              # Overridden by `spec.server.coreRequest` above. Remove that field
+              # and this value becomes the server pod's CPU request.
+              cpu: 100m
+              # Not overridden: the operator only manages the server pod's CPU,
+              # so this memory request is applied to the pod as-is.
+              memory: 1Gi
+            limits:
+              # Overridden by `spec.server.coreLimit` above.
+              cpu: 100m
+              memory: 1Gi
+        serviceAccount: spark-operator-spark
+        securityContext:
+          capabilities:
+            drop:
+            - ALL
+          runAsGroup: 185
+          runAsUser: 185
+          runAsNonRoot: true
+          allowPrivilegeEscalation: false
+          seccompProfile:
+            type: RuntimeDefault
+  executor:
+    instances: 2
+    cores: 2
+    coreRequest: "500m"
+    coreLimit: "1500m"
+    memory: 512m
+    template:
+      metadata:
+        labels:
+          key1: value1
+          key2: value2
+        annotations:
+          key3: value3
+          key4: value4
+      spec:
+        containers:
+        - name: spark-kubernetes-executor
+          image: docker.io/apache/spark:4.0.4
+          imagePullPolicy: Always
+          # Ref: https://spark.apache.org/docs/latest/running-on-kubernetes.html#pod-template.
+          resources:
+            requests:
+              # Never used: Spark always overwrites the executor CPU request,
+              # from `spec.executor.coreRequest` when set and `spec.executor.cores`
+              # otherwise.
+              cpu: 1
+              # Please use `spec.executor.memory` instead.
+              memory: 1Gi
+            limits:
+              # Overridden by `spec.executor.coreLimit` above. Remove that field
+              # and this value becomes the executor pod's CPU limit.
+              cpu: 2
+              # Please use `spec.executor.memory` instead.
+              memory: 1512Mi
+        securityContext:
+          capabilities:
+            drop:
+            - ALL
+          runAsGroup: 185
+          runAsUser: 185
+          runAsNonRoot: true
+          allowPrivilegeEscalation: false
+          seccompProfile:
+            type: RuntimeDefault

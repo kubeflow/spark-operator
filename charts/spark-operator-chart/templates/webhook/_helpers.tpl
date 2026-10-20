@@ -126,6 +126,56 @@ Create the name of the pod disruption budget to be used by webhook
 {{- end -}}
 
 {{/*
+namespaceSelector list for one admission handler.
+
+One LabelSelector cannot express "listed namespaces OR labeled namespaces", so
+when both are set we emit two: names, then labels minus those names (no double
+admission). Empty dict matches all; "" in jobNamespaces is the all-namespaces
+sentinel.
+*/}}
+{{- define "spark-operator.webhook.namespaceSelectors" -}}
+{{- include "spark-operator.spark.validateNamespaceConfig" . -}}
+{{- $ns := .Values.spark.jobNamespaces | default (list) -}}
+{{- $all := has "" $ns -}}
+{{- $concrete := and (gt (len $ns) 0) (not $all) -}}
+{{- $selectors := list -}}
+{{- if $concrete -}}
+{{- $selectors = append $selectors (dict "matchExpressions" (list (dict "key" "kubernetes.io/metadata.name" "operator" "In" "values" $ns))) -}}
+{{- end -}}
+{{- if not $all -}}
+{{- $raw := include "spark-operator.spark.structuredJobNamespaceSelector" . | trim -}}
+{{- if $raw -}}
+{{- $labelSel := fromYaml $raw -}}
+{{- if $concrete -}}
+{{- $exprs := $labelSel.matchExpressions | default (list) -}}
+{{- $exprs = append $exprs (dict "key" "kubernetes.io/metadata.name" "operator" "NotIn" "values" $ns) -}}
+{{- $_ := set $labelSel "matchExpressions" $exprs -}}
+{{- end -}}
+{{- $selectors = append $selectors $labelSel -}}
+{{- end -}}
+{{- end -}}
+{{- if not $selectors -}}
+{{- $selectors = append $selectors (dict) -}}
+{{- end -}}
+{{- toYaml $selectors -}}
+{{- end -}}
+
+{{- define "spark-operator.webhook.selectorName" -}}
+{{- if gt (index . "index" | int) 0 -}}
+{{- printf "%s.selector" (index . "name") -}}
+{{- else -}}
+{{- index . "name" -}}
+{{- end -}}
+{{- end -}}
+
+{{- define "spark-operator.webhook.namespaceSelectorBlock" -}}
+{{- if . -}}
+namespaceSelector:
+{{ toYaml . | indent 2 -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
 Create the role policy rules for the webhook in every Spark job namespace
 */}}
 {{- define "spark-operator.webhook.policyRules" -}}
