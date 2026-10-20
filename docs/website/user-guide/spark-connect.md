@@ -113,7 +113,8 @@ The main `SparkConnect` fields are:
 | --- | --- |
 | `.spec.sparkVersion` | Declares the Spark version used by the server. |
 | `.spec.image` | Sets a common server and executor image when templates do not provide component-specific images. |
-| `.spec.server.cores` and `.spec.server.memory` | Set the server's Spark CPU and memory settings, passed as `spark.driver.cores` and `spark.driver.memory`. |
+| `.spec.server.cores` | Shorthand for `.spec.server.coreRequest` in whole CPUs; `coreRequest` takes precedence when both are set. |
+| `.spec.server.memory` | Sets the server's Spark memory setting, passed as `spark.driver.memory`. |
 | `.spec.server.coreRequest` and `.spec.server.coreLimit` | Set the physical Kubernetes CPU request and limit on the container of the operator-created server pod. |
 | `.spec.server.template` | Customizes the server pod, including its image, service account, volumes, and security context. If no service account is set here, the operator falls back to the `--default-service-account` controller flag (`controller.defaultServiceAccount` in the Helm chart). |
 | `.spec.executor.instances` | Sets the number of static executors. |
@@ -172,18 +173,24 @@ for the full rules.
 
 ## CPU request and limit
 
-`cores` and `coreRequest` / `coreLimit` are independent. `cores` is the number of
-Spark task slots, while `coreRequest` and `coreLimit` are the physical Kubernetes
-CPU request and limit on the container, so setting `cores: 2` together with
-`coreRequest: 500m` is valid and common.
+`coreRequest` and `coreLimit` are the physical Kubernetes CPU request and limit on
+the container. On executors, `cores` is independent of them: it is the number of
+Spark task slots, so setting `cores: 2` together with `coreRequest: 500m` is valid
+and common.
+
+On the server, `cores` is a shorthand for `coreRequest` in whole CPUs. The server
+runs as the Spark driver in client mode, where `spark.driver.cores` has no effect,
+so the operator does not pass it to Spark. When both `cores` and `coreRequest` are
+set, `coreRequest` wins.
 
 The two are applied differently, because the server and executor pods are created
 by different actors:
 
 - **Server** — the operator creates the server pod, so
-  `.spec.server.coreRequest` and `.spec.server.coreLimit` are written directly onto
-  its container's `resources`. A CPU value in `.spec.server.template` is used only
-  where the corresponding field is unset.
+  `.spec.server.coreRequest` (or `.spec.server.cores` when `coreRequest` is unset)
+  and `.spec.server.coreLimit` are written directly onto its container's
+  `resources`. A CPU value in `.spec.server.template` is used only where the
+  corresponding field is unset.
 - **Executor** — Spark creates the executor pods. The operator passes the fields to
   Spark as `spark.kubernetes.executor.request.cores` and
   `spark.kubernetes.executor.limit.cores`, and Spark sets the container resources
