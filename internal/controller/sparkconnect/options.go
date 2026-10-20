@@ -164,12 +164,6 @@ func driverConfOption(conn *v1alpha1.SparkConnect) ([]string, error) {
 		args = append(args, "--conf", fmt.Sprintf("%s=%s", property, value))
 	}
 
-	// Driver cores
-	if conn.Spec.Server.Cores != nil {
-		args = append(args, "--conf",
-			fmt.Sprintf("%s=%d", common.SparkDriverCores, *conn.Spec.Server.Cores))
-	}
-
 	// Driver memory
 	if conn.Spec.Server.Memory != nil {
 		args = append(args, "--conf",

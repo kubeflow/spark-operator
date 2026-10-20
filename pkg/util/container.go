@@ -63,6 +63,17 @@ func SetContainerCPUResources(
 	return container
 }
 
+// CPURequestOrCores returns coreRequest when set, otherwise cores as a whole-CPU quantity, otherwise nil.
+func CPURequestOrCores(coreRequest *resource.Quantity, cores *int32) *resource.Quantity {
+	if coreRequest != nil {
+		return coreRequest
+	}
+	if cores != nil {
+		return resource.NewQuantity(int64(*cores), resource.DecimalSI)
+	}
+	return nil
+}
+
 // SetGPUResources sets the GPU resource identified by name to quantity in both
 // the requests and limits of container. Kubernetes requires extended resources
 // such as GPUs to have equal requests and limits.

@@ -431,7 +431,7 @@ func validateCPURequestLELimit(request, limit *resource.Quantity) error {
 }
 
 func effectiveServerCPUResources(sc *v1alpha1.SparkConnect) (request, limit *resource.Quantity) {
-	request = sc.Spec.Server.CoreRequest
+	request = util.CPURequestOrCores(sc.Spec.Server.CoreRequest, sc.Spec.Server.Cores)
 	limit = sc.Spec.Server.CoreLimit
 
 	if template := sc.Spec.Server.Template; template != nil {
