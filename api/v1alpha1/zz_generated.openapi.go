@@ -510,7 +510,7 @@ func schema_spark_operator_v2_api_v1alpha1_ExecutorSpec(ref common.ReferenceCall
 				Properties: map[string]spec.Schema{
 					"cores": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Cores maps to `spark.driver.cores` or `spark.executor.cores` for the driver and executors, respectively.",
+							Description: "Cores is a shorthand for coreRequest on the server, and maps to `spark.executor.cores` for executors.",
 							Type:        []string{"integer"},
 							Format:      "int32",
 						},
@@ -600,7 +600,7 @@ func schema_spark_operator_v2_api_v1alpha1_ServerSpec(ref common.ReferenceCallba
 				Properties: map[string]spec.Schema{
 					"cores": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Cores maps to `spark.driver.cores` or `spark.executor.cores` for the driver and executors, respectively.",
+							Description: "Cores is a shorthand for coreRequest on the server, and maps to `spark.executor.cores` for executors.",
 							Type:        []string{"integer"},
 							Format:      "int32",
 						},
@@ -960,7 +960,7 @@ func schema_spark_operator_v2_api_v1alpha1_SparkPodSpec(ref common.ReferenceCall
 				Properties: map[string]spec.Schema{
 					"cores": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Cores maps to `spark.driver.cores` or `spark.executor.cores` for the driver and executors, respectively.",
+							Description: "Cores is a shorthand for coreRequest on the server, and maps to `spark.executor.cores` for executors.",
 							Type:        []string{"integer"},
 							Format:      "int32",
 						},
