@@ -85,6 +85,13 @@ kubeflow-spark-public
 {{- end -}}
 
 {{/*
+Namespace of the public ConfigMap and its RBAC resources.
+*/}}
+{{- define "spark-operator.publicConfigMap.namespace" -}}
+{{- .Values.publicConfigMap.namespace | default .Release.Namespace -}}
+{{- end -}}
+
+{{/*
 Spark Operator control-plane version, e.g. v2.5.0.
 */}}
 {{- define "spark-operator.version" -}}

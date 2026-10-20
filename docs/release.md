@@ -119,8 +119,8 @@ If you want to push changes to the `release-X.Y` release branch, you have to che
     make helm-docs
     ```
 
-4. Update the Kustomize manifests. This sets both the controller image tag and the `kubeflow_spark_version`
-   literal of the `kubeflow-spark-public` ConfigMap in `config/default/kustomization.yaml` to the value of the `VERSION` file:
+4. Update the Kustomize manifests. This sets the controller image tag in `config/default/kustomization.yaml` and the
+   `kubeflow_spark_version` literal in `config/public/kustomization.yaml` to the value of the `VERSION` file:
 
     ```bash
     make kustomize-set-image
@@ -132,6 +132,8 @@ If you want to push changes to the `release-X.Y` release branch, you have to che
     git add VERSION
     git add charts/spark-operator-chart/Chart.yaml
     git add charts/spark-operator-chart/README.md
+    git add config/default/kustomization.yaml
+    git add config/public/kustomization.yaml
     git commit -s -m "Spark Operator Official Release v${VERSION}"
     git push origin release-X.Y
     ```

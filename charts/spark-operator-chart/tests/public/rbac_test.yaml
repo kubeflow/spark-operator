@@ -22,15 +22,15 @@ release:
   namespace: spark-operator
 
 tests:
-  - it: Should not create RBAC resources if `publicConfigMap.create` is false
-    set:
-      publicConfigMap:
-        create: false
+  - it: Should not create RBAC resources by default
     asserts:
       - hasDocuments:
           count: 0
 
   - it: Should create a Role granting read-only access to the public ConfigMap only
+    set:
+      publicConfigMap:
+        create: true
     documentIndex: 0
     asserts:
       - containsDocument:
@@ -53,6 +53,9 @@ tests:
                 - watch
 
   - it: Should bind the Role to all authenticated users
+    set:
+      publicConfigMap:
+        create: true
     documentIndex: 1
     asserts:
       - containsDocument:
@@ -73,3 +76,13 @@ tests:
             kind: Group
             name: system:authenticated
           count: 1
+
+  - it: Should create the Role and RoleBinding in `publicConfigMap.namespace` if set
+    set:
+      publicConfigMap:
+        create: true
+        namespace: kube-public
+    asserts:
+      - equal:
+          path: metadata.namespace
+          value: kube-public

@@ -26,7 +26,15 @@ chart:
   appVersion: 2.5.0
 
 tests:
-  - it: Should create the public ConfigMap by default
+  - it: Should not create the public ConfigMap by default
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: Should create the public ConfigMap in the release namespace if `publicConfigMap.create` is true
+    set:
+      publicConfigMap:
+        create: true
     asserts:
       - containsDocument:
           apiVersion: v1
@@ -34,15 +42,22 @@ tests:
           name: kubeflow-spark-public
           namespace: spark-operator
 
-  - it: Should not create the public ConfigMap if `publicConfigMap.create` is false
+  - it: Should create the public ConfigMap in `publicConfigMap.namespace` if set
     set:
       publicConfigMap:
-        create: false
+        create: true
+        namespace: kube-public
     asserts:
-      - hasDocuments:
-          count: 0
+      - containsDocument:
+          apiVersion: v1
+          kind: ConfigMap
+          name: kubeflow-spark-public
+          namespace: kube-public
 
   - it: Should expose the control-plane version with a `v` prefix
+    set:
+      publicConfigMap:
+        create: true
     asserts:
       - equal:
           path: data.kubeflow_spark_version
@@ -51,6 +66,9 @@ tests:
   - it: Should not duplicate the `v` prefix if the appVersion already has one
     chart:
       appVersion: v2.5.0-rc.1
+    set:
+      publicConfigMap:
+        create: true
     asserts:
       - equal:
           path: data.kubeflow_spark_version
@@ -59,6 +77,9 @@ tests:
   - it: Should use a fixed name regardless of the release name
     release:
       name: another-release
+    set:
+      publicConfigMap:
+        create: true
     asserts:
       - equal:
           path: metadata.name
@@ -66,6 +87,8 @@ tests:
 
   - it: Should add common labels
     set:
+      publicConfigMap:
+        create: true
       commonLabels:
         key1: value1
     asserts:
