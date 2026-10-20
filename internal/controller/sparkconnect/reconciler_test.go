@@ -572,6 +572,56 @@ var _ = Describe("mutateServerPod with CPU resources", func() {
 		Expect(container.Resources.Limits).NotTo(HaveKey(corev1.ResourceCPU))
 	})
 
+	It("overrides template CPU request with server.cores when server.coreRequest is omitted", func() {
+		cores := int32(2)
+		conn.Spec.Server.Cores = &cores
+		conn.Spec.Server.Template = &corev1.PodTemplateSpec{
+			Spec: corev1.PodSpec{
+				Containers: []corev1.Container{
+					{
+						Name:  common.SparkDriverContainerName,
+						Image: image,
+						Resources: corev1.ResourceRequirements{
+							Requests: corev1.ResourceList{
+								corev1.ResourceCPU: resource.MustParse("1"),
+							},
+							Limits: corev1.ResourceList{
+								corev1.ResourceCPU: resource.MustParse("3"),
+							},
+						},
+					},
+				},
+			},
+		}
+		pod := &corev1.Pod{
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace: conn.Namespace,
+			},
+		}
+
+		err := reconciler.mutateServerPod(context.TODO(), conn, pod)
+		Expect(err).NotTo(HaveOccurred())
+
+		container := pod.Spec.Containers[0]
+		Expect(cpuMilliValue(container.Resources.Requests[corev1.ResourceCPU])).To(Equal(int64(2000)))
+		Expect(cpuMilliValue(container.Resources.Limits[corev1.ResourceCPU])).To(Equal(int64(3000)))
+	})
+
+	It("does not pass spark.driver.cores to the server", func() {
+		cores := int32(2)
+		conn.Spec.Server.Cores = &cores
+		pod := &corev1.Pod{
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace: conn.Namespace,
+			},
+		}
+
+		err := reconciler.mutateServerPod(context.TODO(), conn, pod)
+		Expect(err).NotTo(HaveOccurred())
+
+		Expect(pod.Spec.Containers[0].Args).NotTo(ContainElement(ContainSubstring(common.SparkDriverCores)))
+	})
+
 	It("does not mutate the server pod template", func() {
 		coreRequest := resource.MustParse("500m")
 		conn.Spec.Server.CoreRequest = &coreRequest
