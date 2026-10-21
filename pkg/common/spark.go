@@ -44,6 +44,15 @@ const (
 
 	SparkExecutorMemory = "spark.executor.memory"
 
+	// SparkDriverGPUDiscoveryScript is the configuration property for the driver GPU discovery script.
+	SparkDriverGPUDiscoveryScript = "spark.driver.resource.gpu.discoveryScript"
+
+	// SparkExecutorGPUDiscoveryScript is the configuration property for the executor GPU discovery script.
+	SparkExecutorGPUDiscoveryScript = "spark.executor.resource.gpu.discoveryScript"
+
+	// SparkResourcesDiscoveryPlugin is the configuration property for resource discovery plugins.
+	SparkResourcesDiscoveryPlugin = "spark.resources.discoveryPlugin"
+
 	SparkExecutorMemoryOverhead = "spark.executor.memoryOverhead"
 
 	SparkUIProxyBase = "spark.ui.proxyBase"
@@ -238,6 +247,10 @@ const (
 
 	// SparkKubernetesExecutorDeleteOnTermination is the Spark configuration for specifying whether executor pods should be deleted in case of failure or normal termination.
 	SparkKubernetesExecutorDeleteOnTermination = "spark.kubernetes.executor.deleteOnTermination"
+
+	// SparkOperatorManagerName is the default manager name for spec.managedBy.
+	// When the field is unset or equals this value, the built-in operator manages the application.
+	SparkOperatorManagerName = "sparkoperator.k8s.io/spark-operator"
 )
 
 // Dynamic allocation properties.

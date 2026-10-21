@@ -16,7 +16,10 @@ limitations under the License.
 
 package util
 
-import corev1 "k8s.io/api/core/v1"
+import (
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
+)
 
 // GetContainerByNameOrFirst returns the container matching name.
 // If no container matches, it returns the first container.
@@ -34,4 +37,43 @@ func GetContainerByNameOrFirst(
 		}
 	}
 	return &containers[0]
+}
+
+// SetContainerCPUResources sets the CPU resource request and limit on the container and
+// returns the container. A nil request or limit leaves the corresponding value untouched.
+func SetContainerCPUResources(
+	container *corev1.Container,
+	request *resource.Quantity,
+	limit *resource.Quantity,
+) *corev1.Container {
+	if request != nil {
+		if container.Resources.Requests == nil {
+			container.Resources.Requests = corev1.ResourceList{}
+		}
+		container.Resources.Requests[corev1.ResourceCPU] = *request
+	}
+
+	if limit != nil {
+		if container.Resources.Limits == nil {
+			container.Resources.Limits = corev1.ResourceList{}
+		}
+		container.Resources.Limits[corev1.ResourceCPU] = *limit
+	}
+
+	return container
+}
+
+// SetGPUResources sets the GPU resource identified by name to quantity in both
+// the requests and limits of container. Kubernetes requires extended resources
+// such as GPUs to have equal requests and limits.
+func SetGPUResources(container *corev1.Container, name string, quantity int64) {
+	if container.Resources.Requests == nil {
+		container.Resources.Requests = corev1.ResourceList{}
+	}
+	if container.Resources.Limits == nil {
+		container.Resources.Limits = corev1.ResourceList{}
+	}
+	q := *resource.NewQuantity(quantity, resource.DecimalSI)
+	container.Resources.Requests[corev1.ResourceName(name)] = q
+	container.Resources.Limits[corev1.ResourceName(name)] = q
 }

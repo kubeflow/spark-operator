@@ -35,6 +35,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 	return map[string]common.OpenAPIDefinition{
 		"github.com/kubeflow/spark-operator/v2/api/v1alpha1.DynamicAllocation":        schema_spark_operator_v2_api_v1alpha1_DynamicAllocation(ref),
 		"github.com/kubeflow/spark-operator/v2/api/v1alpha1.ExecutorSpec":             schema_spark_operator_v2_api_v1alpha1_ExecutorSpec(ref),
+		"github.com/kubeflow/spark-operator/v2/api/v1alpha1.GPUSpec":                  schema_spark_operator_v2_api_v1alpha1_GPUSpec(ref),
 		"github.com/kubeflow/spark-operator/v2/api/v1alpha1.ServerSpec":               schema_spark_operator_v2_api_v1alpha1_ServerSpec(ref),
 		"github.com/kubeflow/spark-operator/v2/api/v1alpha1.SparkConnect":             schema_spark_operator_v2_api_v1alpha1_SparkConnect(ref),
 		"github.com/kubeflow/spark-operator/v2/api/v1alpha1.SparkConnectList":         schema_spark_operator_v2_api_v1alpha1_SparkConnectList(ref),
@@ -440,11 +441,29 @@ func schema_spark_operator_v2_api_v1alpha1_ExecutorSpec(ref common.ReferenceCall
 							Format:      "int32",
 						},
 					},
+					"coreRequest": {
+						SchemaProps: spec.SchemaProps{
+							Description: "CoreRequest is the physical CPU core request for the pod.",
+							Ref:         ref(resource.Quantity{}.OpenAPIModelName()),
+						},
+					},
+					"coreLimit": {
+						SchemaProps: spec.SchemaProps{
+							Description: "CoreLimit is the physical CPU core limit for the pod.",
+							Ref:         ref(resource.Quantity{}.OpenAPIModelName()),
+						},
+					},
 					"memory": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Memory is the amount of memory to request for the pod.",
 							Type:        []string{"string"},
 							Format:      "",
+						},
+					},
+					"gpu": {
+						SchemaProps: spec.SchemaProps{
+							Description: "GPU specifies GPU resources for the pod and Spark resource scheduler. GPU discovery and per-task resource settings are configured through SparkConf.",
+							Ref:         ref("github.com/kubeflow/spark-operator/v2/api/v1alpha1.GPUSpec"),
 						},
 					},
 					"template": {
@@ -464,7 +483,37 @@ func schema_spark_operator_v2_api_v1alpha1_ExecutorSpec(ref common.ReferenceCall
 			},
 		},
 		Dependencies: []string{
-			v1.PodTemplateSpec{}.OpenAPIModelName()},
+			"github.com/kubeflow/spark-operator/v2/api/v1alpha1.GPUSpec", v1.PodTemplateSpec{}.OpenAPIModelName(), resource.Quantity{}.OpenAPIModelName()},
+	}
+}
+
+func schema_spark_operator_v2_api_v1alpha1_GPUSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "GPUSpec defines the GPU resources requested for a Spark Connect server or executor pod.\n\nName must be a Kubernetes extended resource name of the form \"<vendor-domain>/gpu\", for example \"nvidia.com/gpu\" or \"amd.com/gpu\". The vendor domain is passed to Spark as spark.{driver,executor}.resource.gpu.vendor, and the quantity as spark.{driver,executor}.resource.gpu.amount. GPU resource names whose suffix is not \"gpu\" (for example MIG profiles) are not supported by this field; configure them through the pod template and sparkConf instead.\n\nSetting a GPU does not configure GPU discovery. A discovery script or discovery plugin must be provided through sparkConf for Spark to start.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"name": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Name is the Kubernetes GPU resource name, such as nvidia.com/gpu or amd.com/gpu. The vendor domain is used for Spark's GPU resource vendor configuration.",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"quantity": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Quantity is the number of GPUs to request for each pod.",
+							Default:     0,
+							Type:        []string{"integer"},
+							Format:      "int64",
+						},
+					},
+				},
+				Required: []string{"name", "quantity"},
+			},
+		},
 	}
 }
 
@@ -482,11 +531,29 @@ func schema_spark_operator_v2_api_v1alpha1_ServerSpec(ref common.ReferenceCallba
 							Format:      "int32",
 						},
 					},
+					"coreRequest": {
+						SchemaProps: spec.SchemaProps{
+							Description: "CoreRequest is the physical CPU core request for the pod.",
+							Ref:         ref(resource.Quantity{}.OpenAPIModelName()),
+						},
+					},
+					"coreLimit": {
+						SchemaProps: spec.SchemaProps{
+							Description: "CoreLimit is the physical CPU core limit for the pod.",
+							Ref:         ref(resource.Quantity{}.OpenAPIModelName()),
+						},
+					},
 					"memory": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Memory is the amount of memory to request for the pod.",
 							Type:        []string{"string"},
 							Format:      "",
+						},
+					},
+					"gpu": {
+						SchemaProps: spec.SchemaProps{
+							Description: "GPU specifies GPU resources for the pod and Spark resource scheduler. GPU discovery and per-task resource settings are configured through SparkConf.",
+							Ref:         ref("github.com/kubeflow/spark-operator/v2/api/v1alpha1.GPUSpec"),
 						},
 					},
 					"template": {
@@ -505,7 +572,7 @@ func schema_spark_operator_v2_api_v1alpha1_ServerSpec(ref common.ReferenceCallba
 			},
 		},
 		Dependencies: []string{
-			v1.PodTemplateSpec{}.OpenAPIModelName(), v1.Service{}.OpenAPIModelName()},
+			"github.com/kubeflow/spark-operator/v2/api/v1alpha1.GPUSpec", v1.PodTemplateSpec{}.OpenAPIModelName(), v1.Service{}.OpenAPIModelName(), resource.Quantity{}.OpenAPIModelName()},
 	}
 }
 
@@ -817,11 +884,29 @@ func schema_spark_operator_v2_api_v1alpha1_SparkPodSpec(ref common.ReferenceCall
 							Format:      "int32",
 						},
 					},
+					"coreRequest": {
+						SchemaProps: spec.SchemaProps{
+							Description: "CoreRequest is the physical CPU core request for the pod.",
+							Ref:         ref(resource.Quantity{}.OpenAPIModelName()),
+						},
+					},
+					"coreLimit": {
+						SchemaProps: spec.SchemaProps{
+							Description: "CoreLimit is the physical CPU core limit for the pod.",
+							Ref:         ref(resource.Quantity{}.OpenAPIModelName()),
+						},
+					},
 					"memory": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Memory is the amount of memory to request for the pod.",
 							Type:        []string{"string"},
 							Format:      "",
+						},
+					},
+					"gpu": {
+						SchemaProps: spec.SchemaProps{
+							Description: "GPU specifies GPU resources for the pod and Spark resource scheduler. GPU discovery and per-task resource settings are configured through SparkConf.",
+							Ref:         ref("github.com/kubeflow/spark-operator/v2/api/v1alpha1.GPUSpec"),
 						},
 					},
 					"template": {
@@ -834,7 +919,7 @@ func schema_spark_operator_v2_api_v1alpha1_SparkPodSpec(ref common.ReferenceCall
 			},
 		},
 		Dependencies: []string{
-			v1.PodTemplateSpec{}.OpenAPIModelName()},
+			"github.com/kubeflow/spark-operator/v2/api/v1alpha1.GPUSpec", v1.PodTemplateSpec{}.OpenAPIModelName(), resource.Quantity{}.OpenAPIModelName()},
 	}
 }
 

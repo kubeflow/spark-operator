@@ -78,6 +78,8 @@ See [helm uninstall](https://helm.sh/docs/helm/helm_uninstall) for command docum
 | nameOverride | string | `""` | String to partially override release name. |
 | fullnameOverride | string | `""` | String to fully override release name. |
 | commonLabels | object | `{}` | Common labels to add to the resources. |
+| publicConfigMap.create | bool | `false` | Specifies whether to create the `kubeflow-spark-public` ConfigMap, together with a Role and RoleBinding that let all authenticated users read it. Its name is fixed so that clients can find it, so enable it for only one Spark Operator release per target namespace. |
+| publicConfigMap.namespace | string | `""` | Namespace to create the ConfigMap, Role and RoleBinding in, e.g. `kube-public`. Defaults to the release namespace. The namespace must already exist and the installing user must be allowed to create these resources in it. |
 | image.registry | string | `"ghcr.io"` | Image registry. |
 | image.repository | string | `"kubeflow/spark-operator/controller"` | Image repository. |
 | image.tag | string | If not set, the chart appVersion will be used. | Image tag. |
@@ -201,7 +203,7 @@ See [helm uninstall](https://helm.sh/docs/helm/helm_uninstall) for command docum
 | webhook.podDisruptionBudget.enable | bool | `false` | Specifies whether to create pod disruption budget for webhook. Ref: [Specifying a Disruption Budget for your Application](https://kubernetes.io/docs/tasks/run-application/configure-pdb/) |
 | webhook.podDisruptionBudget.minAvailable | int | `1` | The number of pods that must be available. Require `webhook.replicas` to be greater than 1 |
 | spark.jobNamespaces | list | `["default"]` | List of namespaces where to run spark jobs. If empty string is included, all namespaces will be allowed. Namespaces specified here will be watched in addition to those matching jobNamespaceSelector. Make sure the namespaces have already existed. |
-| spark.jobNamespaceSelector | string | `""` | Label selector to filter namespaces to watch. Supports standard Kubernetes label selector syntax (e.g., 'spark-operator=enabled,env in (prod,staging)'). Namespaces matching this selector will be watched in addition to those in jobNamespaces. When specified, requires ClusterRole permission to list and watch namespaces. Leave empty to disable namespace selector functionality. |
+| spark.jobNamespaceSelector | object | `nil` | Namespace label selector, in addition to jobNamespaces. Object with matchLabels and/or matchExpressions; the string form was removed in v2.6.0. When set alongside jobNamespaces, each webhook is registered twice (names, then labels). |
 | spark.serviceAccount.create | bool | `true` | Specifies whether to create a service account for spark applications. |
 | spark.serviceAccount.name | string | `""` | Optional name for the spark service account. |
 | spark.serviceAccount.annotations | object | `{}` | Optional annotations for the spark service account. |

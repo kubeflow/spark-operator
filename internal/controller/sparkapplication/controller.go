@@ -128,8 +128,10 @@ func NewReconciler(
 // +kubebuilder:rbac:groups="",resources=configmaps,verbs=get;list;watch;create;update;patch
 // +kubebuilder:rbac:groups="",resources=services,verbs=get;create;update;patch;delete
 // +kubebuilder:rbac:groups="",resources=events,verbs=create;update;patch
+// +kubebuilder:rbac:groups=events.k8s.io,resources=events,verbs=create;update;patch
 // +kubebuilder:rbac:groups=extensions,resources=ingresses,verbs=get;create;update;delete
 // +kubebuilder:rbac:groups=networking.k8s.io,resources=ingresses,verbs=get;create;update;delete
+// +kubebuilder:rbac:groups=networking.k8s.io,resources=networkpolicies,verbs=create;patch
 // +kubebuilder:rbac:groups=apiextensions.k8s.io,resources=customresourcedefinitions,verbs=get
 // +kubebuilder:rbac:groups=sparkoperator.k8s.io,resources=sparkapplications,verbs=get;list;watch;delete
 // +kubebuilder:rbac:groups=sparkoperator.k8s.io,resources=sparkapplications/status,verbs=update
@@ -208,6 +210,14 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 
 	logger.Info("Reconciling SparkApplication", "state", app.Status.AppState.State)
 	defer logger.Info("Finished reconciling SparkApplication")
+
+	if app.Spec.ManagedBy != nil && *app.Spec.ManagedBy != common.SparkOperatorManagerName {
+		logger.Info(
+			"Skipping reconciliation: managed by external controller",
+			"managedBy", *app.Spec.ManagedBy,
+		)
+		return ctrl.Result{}, nil
+	}
 
 	// Check if the spark application is being deleted
 	if !app.DeletionTimestamp.IsZero() {
@@ -1184,10 +1194,11 @@ func (r *Reconciler) updateExecutorState(ctx context.Context, app *v1beta2.Spark
 		_, exists := executorStateMap[name]
 		if !util.IsExecutorTerminated(oldStatus) && !exists {
 			if !util.IsDriverRunning(app) {
-				// If ApplicationState is COMPLETED, in other words, the driver pod has been completed
+				// If ApplicationState is SUCCEEDING or COMPLETED, in other words, the driver pod has been completed
 				// successfully. The executor pods terminate and are cleaned up, so we could not found
 				// the executor pod, under this circumstances, we assume the executor pod are completed.
-				if app.Status.AppState.State == v1beta2.ApplicationStateCompleted {
+				if app.Status.AppState.State == v1beta2.ApplicationStateSucceeding ||
+					app.Status.AppState.State == v1beta2.ApplicationStateCompleted {
 					app.Status.ExecutorState[name] = v1beta2.ExecutorStateCompleted
 				} else {
 					logger.Info("Executor pod not found, assuming it was deleted", "name", name)
@@ -1632,9 +1643,6 @@ func (r *Reconciler) cleanUpOnTermination(ctx context.Context, _, newApp *v1beta
 // cleanUpPodTemplateFiles cleans up the driver and executor pod template files.
 func (r *Reconciler) cleanUpPodTemplateFiles(ctx context.Context, app *v1beta2.SparkApplication) error {
 	logger := log.FromContext(ctx)
-	if app.Spec.Driver.Template == nil && app.Spec.Executor.Template == nil {
-		return nil
-	}
 	path := fmt.Sprintf("/tmp/spark/%s", app.Status.SubmissionID)
 	if err := os.RemoveAll(path); err != nil {
 		if !os.IsNotExist(err) {

@@ -12633,10 +12633,34 @@
         "description": "ExecutorSpec is specification of the executor.",
         "type": "object",
         "properties": {
+          "coreLimit": {
+            "description": "CoreLimit is the physical CPU core limit for the pod.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/io.k8s.apimachinery.pkg.api.resource.Quantity"
+              }
+            ]
+          },
+          "coreRequest": {
+            "description": "CoreRequest is the physical CPU core request for the pod.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/io.k8s.apimachinery.pkg.api.resource.Quantity"
+              }
+            ]
+          },
           "cores": {
             "description": "Cores maps to `spark.driver.cores` or `spark.executor.cores` for the driver and executors, respectively.",
             "type": "integer",
             "format": "int32"
+          },
+          "gpu": {
+            "description": "GPU specifies GPU resources for the pod and Spark resource scheduler. GPU discovery and per-task resource settings are configured through SparkConf.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/spark.v1alpha1.GPUSpec"
+              }
+            ]
           },
           "instances": {
             "description": "Instances is the number of executor instances.",
@@ -12657,14 +12681,59 @@
           }
         }
       },
+      "spark.v1alpha1.GPUSpec": {
+        "description": "GPUSpec defines the GPU resources requested for a Spark Connect server or executor pod.\n\nName must be a Kubernetes extended resource name of the form \"\u003cvendor-domain\u003e/gpu\", for example \"nvidia.com/gpu\" or \"amd.com/gpu\". The vendor domain is passed to Spark as spark.{driver,executor}.resource.gpu.vendor, and the quantity as spark.{driver,executor}.resource.gpu.amount. GPU resource names whose suffix is not \"gpu\" (for example MIG profiles) are not supported by this field; configure them through the pod template and sparkConf instead.\n\nSetting a GPU does not configure GPU discovery. A discovery script or discovery plugin must be provided through sparkConf for Spark to start.",
+        "type": "object",
+        "required": [
+          "name",
+          "quantity"
+        ],
+        "properties": {
+          "name": {
+            "description": "Name is the Kubernetes GPU resource name, such as nvidia.com/gpu or amd.com/gpu. The vendor domain is used for Spark's GPU resource vendor configuration.",
+            "type": "string",
+            "default": ""
+          },
+          "quantity": {
+            "description": "Quantity is the number of GPUs to request for each pod.",
+            "type": "integer",
+            "format": "int64",
+            "default": 0
+          }
+        }
+      },
       "spark.v1alpha1.ServerSpec": {
         "description": "ServerSpec is specification of the Spark connect server.",
         "type": "object",
         "properties": {
+          "coreLimit": {
+            "description": "CoreLimit is the physical CPU core limit for the pod.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/io.k8s.apimachinery.pkg.api.resource.Quantity"
+              }
+            ]
+          },
+          "coreRequest": {
+            "description": "CoreRequest is the physical CPU core request for the pod.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/io.k8s.apimachinery.pkg.api.resource.Quantity"
+              }
+            ]
+          },
           "cores": {
             "description": "Cores maps to `spark.driver.cores` or `spark.executor.cores` for the driver and executors, respectively.",
             "type": "integer",
             "format": "int32"
+          },
+          "gpu": {
+            "description": "GPU specifies GPU resources for the pod and Spark resource scheduler. GPU discovery and per-task resource settings are configured through SparkConf.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/spark.v1alpha1.GPUSpec"
+              }
+            ]
           },
           "memory": {
             "description": "Memory is the amount of memory to request for the pod.",
@@ -12911,10 +12980,34 @@
         "description": "SparkPodSpec defines common things that can be customized for a Spark driver or executor pod.",
         "type": "object",
         "properties": {
+          "coreLimit": {
+            "description": "CoreLimit is the physical CPU core limit for the pod.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/io.k8s.apimachinery.pkg.api.resource.Quantity"
+              }
+            ]
+          },
+          "coreRequest": {
+            "description": "CoreRequest is the physical CPU core request for the pod.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/io.k8s.apimachinery.pkg.api.resource.Quantity"
+              }
+            ]
+          },
           "cores": {
             "description": "Cores maps to `spark.driver.cores` or `spark.executor.cores` for the driver and executors, respectively.",
             "type": "integer",
             "format": "int32"
+          },
+          "gpu": {
+            "description": "GPU specifies GPU resources for the pod and Spark resource scheduler. GPU discovery and per-task resource settings are configured through SparkConf.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/spark.v1alpha1.GPUSpec"
+              }
+            ]
           },
           "memory": {
             "description": "Memory is the amount of memory to request for the pod.",
@@ -14333,6 +14426,10 @@
           },
           "mainClass": {
             "description": "MainClass is the fully-qualified main class of the Spark application. This only applies to Java/Scala Spark applications.",
+            "type": "string"
+          },
+          "managedBy": {
+            "description": "ManagedBy indicates the controller managing this SparkApplication. Set to \"sparkoperator.k8s.io/spark-operator\" for the built-in operator (default behavior when field is omitted) or \"kueue.x-k8s.io/multikueue\" to delegate reconciliation to MultiKueue. The field is immutable once set.",
             "type": "string"
           },
           "memoryOverheadFactor": {

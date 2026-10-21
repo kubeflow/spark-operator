@@ -51,6 +51,13 @@ Use `ScheduledSparkApplication` to run Spark jobs on a cron schedule
 Run an interactive Spark Connect server and connect remote clients
 ::::
 
+::::{grid-item-card} Working with SparkConnect
+:link: working-with-sparkconnect
+:link-type: doc
+
+Run a long-lived Spark Connect server and connect Spark clients to it
+::::
+
 :::::
 
 ## Operating the Operator
@@ -70,6 +77,20 @@ Tune operator behavior, flags, and Helm chart values
 :link-type: doc
 
 Build your own operator image from the released binaries
+::::
+
+::::{grid-item-card} Controller Image Security
+:link: controller-image-security
+:link-type: doc
+
+Understand inherited controller-image dependencies and vulnerability remediation considerations
+::::
+
+::::{grid-item-card} Integrate the REST Submitter
+:link: rest-submitter
+:link-type: doc
+
+Connect the operator to a separate REST submission service
 ::::
 
 ::::{grid-item-card} Enabling Leader Election
@@ -155,8 +176,11 @@ writing-sparkapplication
 working-with-sparkapplication
 running-sparkapplication-on-schedule
 spark-connect
+working-with-sparkconnect
 customizing-spark-operator
 building-custom-images
+controller-image-security
+rest-submitter
 leader-election
 running-multiple-instances-of-the-operator
 resource-quota-enforcement

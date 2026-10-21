@@ -1,0 +1,28 @@
+# Opt-in public ConfigMap exposing the Spark Operator version to clients such
+# as the Kubeflow SDK, readable by all authenticated users.
+#
+# Usage: add ../config/public next to ../config/default in your overlay's
+# resources. See docs/kustomize-installation.md for publishing it elsewhere.
+
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: spark-operator
+
+resources:
+  - role.yaml
+  - rolebinding.yaml
+
+labels:
+  - pairs:
+      app.kubernetes.io/name: spark-operator
+      app.kubernetes.io/managed-by: kustomize
+
+# Clients look the ConfigMap up by name, so it must not get a hash suffix.
+# The version is derived from the VERSION file. To update: make kustomize-set-image
+configMapGenerator:
+  - name: kubeflow-spark-public
+    literals:
+      - kubeflow_spark_version=v2.5.0-rc.0
+    options:
+      disableNameSuffixHash: true

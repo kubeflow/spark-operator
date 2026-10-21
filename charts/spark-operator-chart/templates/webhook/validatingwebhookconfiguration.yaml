@@ -25,101 +25,82 @@ metadata:
   annotations:
     cert-manager.io/inject-ca-from: {{ .Release.Namespace }}/{{ include "spark-operator.certManager.certificate.name" . }}
   {{- end }}
+{{- $root := . -}}
+{{- $selectors := include "spark-operator.webhook.namespaceSelectors" . | fromYamlArray }}
 webhooks:
-- name: validate-sparkoperator-k8s-io-v1beta2-sparkapplication.sparkoperator.k8s.io
+{{- range $i, $selector := $selectors }}
+- name: {{ include "spark-operator.webhook.selectorName" (dict "name" "validate-sparkoperator-k8s-io-v1beta2-sparkapplication.sparkoperator.k8s.io" "index" $i) }}
   admissionReviewVersions: ["v1"]
   clientConfig:
     service:
-      name: {{ include "spark-operator.webhook.serviceName" . }}
-      namespace: {{ .Release.Namespace }}
-      port: {{ .Values.webhook.port }}
+      name: {{ include "spark-operator.webhook.serviceName" $root }}
+      namespace: {{ $root.Release.Namespace }}
+      port: {{ $root.Values.webhook.port }}
       path: /validate-sparkoperator-k8s-io-v1beta2-sparkapplication
   sideEffects: None
-  {{- with .Values.webhook.failurePolicy }}
+  {{- with $root.Values.webhook.failurePolicy }}
   failurePolicy: {{ . }}
   {{- end }}
-  {{- with .Values.spark.jobNamespaces }}
-  {{- if not (has "" .) }}
-  namespaceSelector:
-    matchExpressions:
-    - key: kubernetes.io/metadata.name
-      operator: In
-      values:
-      {{- range $jobNamespace := . }}
-      - {{ $jobNamespace }}
-      {{- end }}
-  {{- end }}
+  {{- with (include "spark-operator.webhook.namespaceSelectorBlock" $selector) }}
+  {{- . | nindent 2 }}
   {{- end }}
   rules:
   - apiGroups: ["sparkoperator.k8s.io"]
     apiVersions: ["v1beta2"]
     resources: ["sparkapplications"]
     operations: ["CREATE", "UPDATE"]
-  {{- with .Values.webhook.timeoutSeconds }}
+  {{- with $root.Values.webhook.timeoutSeconds }}
   timeoutSeconds: {{ . }}
   {{- end }}
-- name: validate-sparkoperator-k8s-io-v1beta2-scheduledsparkapplication.sparkoperator.k8s.io
+{{- end }}
+{{- range $i, $selector := $selectors }}
+- name: {{ include "spark-operator.webhook.selectorName" (dict "name" "validate-sparkoperator-k8s-io-v1beta2-scheduledsparkapplication.sparkoperator.k8s.io" "index" $i) }}
   admissionReviewVersions: ["v1"]
   clientConfig:
     service:
-      name: {{ include "spark-operator.webhook.serviceName" . }}
-      namespace: {{ .Release.Namespace }}
-      port: {{ .Values.webhook.port }}
+      name: {{ include "spark-operator.webhook.serviceName" $root }}
+      namespace: {{ $root.Release.Namespace }}
+      port: {{ $root.Values.webhook.port }}
       path: /validate-sparkoperator-k8s-io-v1beta2-scheduledsparkapplication
   sideEffects: None
-  {{- with .Values.webhook.failurePolicy }}
+  {{- with $root.Values.webhook.failurePolicy }}
   failurePolicy: {{ . }}
   {{- end }}
-  {{- with .Values.spark.jobNamespaces }}
-  {{- if not (has "" .) }}
-  namespaceSelector:
-    matchExpressions:
-    - key: kubernetes.io/metadata.name
-      operator: In
-      values:
-      {{- range $jobNamespace := . }}
-      - {{ $jobNamespace }}
-      {{- end }}
-  {{- end }}
+  {{- with (include "spark-operator.webhook.namespaceSelectorBlock" $selector) }}
+  {{- . | nindent 2 }}
   {{- end }}
   rules:
   - apiGroups: ["sparkoperator.k8s.io"]
     apiVersions: ["v1beta2"]
     resources: ["scheduledsparkapplications"]
     operations: ["CREATE", "UPDATE"]
-  {{- with .Values.webhook.timeoutSeconds }}
+  {{- with $root.Values.webhook.timeoutSeconds }}
   timeoutSeconds: {{ . }}
   {{- end }}
-- name: validate-sparkoperator-k8s-io-v1alpha1-sparkconnect.sparkoperator.k8s.io
+{{- end }}
+{{- range $i, $selector := $selectors }}
+- name: {{ include "spark-operator.webhook.selectorName" (dict "name" "validate-sparkoperator-k8s-io-v1alpha1-sparkconnect.sparkoperator.k8s.io" "index" $i) }}
   admissionReviewVersions: ["v1"]
   clientConfig:
     service:
-      name: {{ include "spark-operator.webhook.serviceName" . }}
-      namespace: {{ .Release.Namespace }}
-      port: {{ .Values.webhook.port }}
+      name: {{ include "spark-operator.webhook.serviceName" $root }}
+      namespace: {{ $root.Release.Namespace }}
+      port: {{ $root.Values.webhook.port }}
       path: /validate-sparkoperator-k8s-io-v1alpha1-sparkconnect
   sideEffects: None
-  {{- with .Values.webhook.failurePolicy }}
+  {{- with $root.Values.webhook.failurePolicy }}
   failurePolicy: {{ . }}
   {{- end }}
-  {{- with .Values.spark.jobNamespaces }}
-  {{- if not (has "" .) }}
-  namespaceSelector:
-    matchExpressions:
-    - key: kubernetes.io/metadata.name
-      operator: In
-      values:
-      {{- range $jobNamespace := . }}
-      - {{ $jobNamespace }}
-      {{- end }}
-  {{- end }}
+  {{- with (include "spark-operator.webhook.namespaceSelectorBlock" $selector) }}
+  {{- . | nindent 2 }}
   {{- end }}
   rules:
   - apiGroups: ["sparkoperator.k8s.io"]
     apiVersions: ["v1alpha1"]
     resources: ["sparkconnects"]
     operations: ["CREATE", "UPDATE"]
-  {{- with .Values.webhook.timeoutSeconds }}
+  {{- with $root.Values.webhook.timeoutSeconds }}
   timeoutSeconds: {{ . }}
   {{- end }}
+{{- end }}
 {{- end }}

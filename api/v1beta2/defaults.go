@@ -23,6 +23,11 @@ import (
 	"k8s.io/utils/ptr"
 )
 
+// DefaultRestartPolicyRetryIntervalSeconds is the retry interval, in seconds, used for
+// RestartPolicy.OnFailureRetryInterval and RestartPolicy.OnSubmissionFailureRetryInterval
+// when the RestartPolicy is OnFailure or Always and the interval is not specified.
+const DefaultRestartPolicyRetryIntervalSeconds int64 = 5
+
 func addDefaultingFuncs(scheme *runtime.Scheme) error {
 	return RegisterDefaults(scheme)
 }
@@ -54,14 +59,13 @@ func SetSparkApplicationDefaults(app *SparkApplication) {
 	}
 
 	if app.Spec.RestartPolicy.Type != RestartPolicyNever {
-		// Default to 5 sec if the RestartPolicy is OnFailure or Always and these values aren't specified.
+		// Default the retry intervals if the RestartPolicy is OnFailure or Always and these values aren't specified.
 		if app.Spec.RestartPolicy.OnFailureRetryInterval == nil {
-			app.Spec.RestartPolicy.OnFailureRetryInterval = ptr.To[int64](5)
+			app.Spec.RestartPolicy.OnFailureRetryInterval = ptr.To(DefaultRestartPolicyRetryIntervalSeconds)
 		}
 
 		if app.Spec.RestartPolicy.OnSubmissionFailureRetryInterval == nil {
-			app.Spec.RestartPolicy.OnSubmissionFailureRetryInterval = new(int64)
-			app.Spec.RestartPolicy.OnSubmissionFailureRetryInterval = ptr.To[int64](5)
+			app.Spec.RestartPolicy.OnSubmissionFailureRetryInterval = ptr.To(DefaultRestartPolicyRetryIntervalSeconds)
 		}
 	}
 
