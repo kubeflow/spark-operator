@@ -83,9 +83,6 @@ def value(text, prefix):
 pump(90)  # server session bootstrap and Ammonite compilation
 os.write(fd, b'println("SESSION_PROBE=" + spark.getClass.getName)\n')
 session_out = pump(25)
-# AVRO comes from the declared spark-avro package, RE2J from the declared jar.
-# Asserting on the values (not a row count) proves each one resolved on the
-# server session; either being absent makes the SQL itself fail.
 os.write(
     fd,
     b'try { println("AVRO=" + spark.sql("SELECT hex(to_avro(42))")'
