@@ -78,6 +78,8 @@ See [helm uninstall](https://helm.sh/docs/helm/helm_uninstall) for command docum
 | nameOverride | string | `""` | String to partially override release name. |
 | fullnameOverride | string | `""` | String to fully override release name. |
 | commonLabels | object | `{}` | Common labels to add to the resources. |
+| publicConfigMap.create | bool | `false` | Specifies whether to create the `kubeflow-spark-public` ConfigMap, together with a Role and RoleBinding that let all authenticated users read it. Its name is fixed so that clients can find it, so enable it for only one Spark Operator release per target namespace. |
+| publicConfigMap.namespace | string | `""` | Namespace to create the ConfigMap, Role and RoleBinding in, e.g. `kube-public`. Defaults to the release namespace. The namespace must already exist and the installing user must be allowed to create these resources in it. |
 | image.registry | string | `"ghcr.io"` | Image registry. |
 | image.repository | string | `"kubeflow/spark-operator/controller"` | Image repository. |
 | image.tag | string | If not set, the chart appVersion will be used. | Image tag. |

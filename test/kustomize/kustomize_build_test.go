@@ -20,6 +20,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"io"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
@@ -29,14 +30,15 @@ import (
 	"github.com/stretchr/testify/require"
 	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
 	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	utilyaml "k8s.io/apimachinery/pkg/util/yaml"
 )
 
-// buildKustomize runs "kubectl kustomize" on config/default and returns the
-// parsed Kubernetes resources. The test is skipped when kubectl is absent.
-func buildKustomize(t *testing.T) []unstructured.Unstructured {
+// buildKustomize runs "kubectl kustomize" on the given config subdirectory and
+// returns the parsed Kubernetes resources. The test is skipped when kubectl is absent.
+func buildKustomize(t *testing.T, configDir string) []unstructured.Unstructured {
 	t.Helper()
 
 	if _, err := exec.LookPath("kubectl"); err != nil {
@@ -44,7 +46,7 @@ func buildKustomize(t *testing.T) []unstructured.Unstructured {
 	}
 
 	repoRoot := filepath.Join("..", "..")
-	kustomizeDir := filepath.Join(repoRoot, "config", "default")
+	kustomizeDir := filepath.Join(repoRoot, "config", configDir)
 
 	cmd := exec.Command("kubectl", "kustomize", kustomizeDir)
 	output, err := cmd.CombinedOutput()
@@ -135,7 +137,7 @@ func rulesHaveResourceName(rules []rbacv1.PolicyRule, name string) bool {
 // --- tests ---
 
 func TestKustomizeBuild(t *testing.T) {
-	resources := buildKustomize(t)
+	resources := buildKustomize(t, "default")
 
 	t.Run("ResourceInventory", func(t *testing.T) {
 		expected := map[string]int{
@@ -339,5 +341,66 @@ func TestKustomizeBuild(t *testing.T) {
 		assert.True(t, runAsNonRoot, "expected runAsNonRoot: true")
 		assert.True(t, hasHealthz, "expected /healthz liveness probe")
 		assert.True(t, hasReadyz, "expected /readyz readiness probe")
+	})
+}
+
+func TestKustomizePublicConfigMap(t *testing.T) {
+	resources := buildKustomize(t, "public")
+
+	t.Run("ResourceInventory", func(t *testing.T) {
+		expected := map[string]int{
+			"ConfigMap":   1,
+			"Role":        1,
+			"RoleBinding": 1,
+		}
+		assert.Len(t, resources, len(expected), "config/public should only contain the public ConfigMap and its RBAC")
+		for kind, want := range expected {
+			t.Run(kind, func(t *testing.T) {
+				assert.Equal(t, want, countKind(resources, kind), "unexpected %s count", kind)
+			})
+		}
+	})
+
+	t.Run("NamespaceConsistency", func(t *testing.T) {
+		for i := range resources {
+			assert.Equal(t, "spark-operator", resources[i].GetNamespace(),
+				"%s %q should default to the spark-operator namespace", resources[i].GetKind(), resources[i].GetName())
+		}
+	})
+
+	t.Run("PublicConfigMap", func(t *testing.T) {
+		obj := findResource(resources, "ConfigMap", "kubeflow-spark-public")
+		require.NotNil(t, obj, "ConfigMap 'kubeflow-spark-public' not found (name must not carry a hash suffix)")
+		cm := convertTo[corev1.ConfigMap](t, obj)
+
+		version, err := os.ReadFile(filepath.Join("..", "..", "VERSION"))
+		require.NoError(t, err, "failed to read VERSION file")
+		assert.Equal(t, strings.TrimSpace(string(version)), cm.Data["kubeflow_spark_version"],
+			"kubeflow_spark_version should match the VERSION file (run 'make kustomize-set-image')")
+	})
+
+	t.Run("PublicConfigMapRBAC", func(t *testing.T) {
+		roleObj := findResource(resources, "Role", "kubeflow-spark-public")
+		require.NotNil(t, roleObj, "Role 'kubeflow-spark-public' not found")
+		role := convertTo[rbacv1.Role](t, roleObj)
+
+		require.Len(t, role.Rules, 1, "public Role should have exactly one rule")
+		rule := role.Rules[0]
+		assert.Equal(t, []string{""}, rule.APIGroups, "public Role should target the core API group")
+		assert.Equal(t, []string{"configmaps"}, rule.Resources, "public Role should only grant access to configmaps")
+		assert.Equal(t, []string{"kubeflow-spark-public"}, rule.ResourceNames,
+			"public Role should be scoped to the 'kubeflow-spark-public' ConfigMap")
+		assert.ElementsMatch(t, []string{"get", "list", "watch"}, rule.Verbs,
+			"public Role should be read-only")
+
+		rbObj := findResource(resources, "RoleBinding", "kubeflow-spark-public")
+		require.NotNil(t, rbObj, "RoleBinding 'kubeflow-spark-public' not found")
+		rb := convertTo[rbacv1.RoleBinding](t, rbObj)
+
+		assert.Equal(t, "Role", rb.RoleRef.Kind)
+		assert.Equal(t, "kubeflow-spark-public", rb.RoleRef.Name)
+		require.Len(t, rb.Subjects, 1, "public RoleBinding should have exactly one subject")
+		assert.Equal(t, rbacv1.GroupKind, rb.Subjects[0].Kind)
+		assert.Equal(t, "system:authenticated", rb.Subjects[0].Name)
 	})
 }
