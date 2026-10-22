@@ -175,7 +175,10 @@ var _ = Describe("SparkConnect Dependencies", func() {
 				"python3", "-", connectURL,
 			)
 			Expect(err).NotTo(HaveOccurred(), "Spark Connect dependency query failed: %s", output)
-			Expect(output).To(ContainSubstring("CONNECT_ROWS=10"), "expected the spark-avro query to return 10 rows, got: %s", output)
+			// AVRO proves the declared spark-avro package resolved on the server session;
+			// RE2J proves the declared jar did. Both are asserted on values, not row counts.
+			Expect(output).To(ContainSubstring("AVRO=54"), "expected to_avro(42) to produce the Avro bytes, got: %s", output)
+			Expect(output).To(ContainSubstring("RE2J=true"), "expected re2j to match 'a.c' against 'abc', got: %s", output)
 		})
 	})
 })

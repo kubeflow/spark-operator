@@ -13,8 +13,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Matches examples/sparkconnect/spark-connect.yaml except for spec.deps, so the
-# e2e isolates the dependency behavior from the rest of the SparkConnect spec.
 apiVersion: sparkoperator.k8s.io/v1alpha1
 kind: SparkConnect
 metadata:
