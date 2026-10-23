@@ -23,6 +23,7 @@ on:
       - VERSION
       - charts/spark-operator-chart/Chart.yaml
       - config/default/kustomization.yaml
+      - config/public/kustomization.yaml
       - api/python_api/kubeflow_spark_api/__init__.py
       - CHANGELOG.md
       - hack/release/**

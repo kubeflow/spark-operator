@@ -38,6 +38,7 @@ SEMVER_PATTERN='^v([0-9]+)\.([0-9]+)\.([0-9]+)(-rc\.([0-9]+))?$'
 
 CHART_FILE="charts/spark-operator-chart/Chart.yaml"
 KUSTOMIZATION_FILE="config/default/kustomization.yaml"
+PUBLIC_KUSTOMIZATION_FILE="config/public/kustomization.yaml"
 PYTHON_INIT_FILE="api/python_api/kubeflow_spark_api/__init__.py"
 CHANGELOG_FILE="CHANGELOG.md"
 
@@ -92,6 +93,11 @@ chart_app_version=$(awk '/^appVersion:/{print $2; exit}' "${CHART_FILE}" | tr -d
 kustomize_tag=$(awk '/newTag:/{print $2; exit}' "${KUSTOMIZATION_FILE}" | tr -d '"')
 [[ ${kustomize_tag} == "${CHART_VERSION}" ]] ||
   fail "${KUSTOMIZATION_FILE} newTag '${kustomize_tag}' != '${CHART_VERSION}' (run: make kustomize-set-image)"
+
+# The public ConfigMap exposes the version with its leading "v", like the Helm chart does.
+public_version=$(sed -n 's/^[[:space:]]*- kubeflow_spark_version=//p' "${PUBLIC_KUSTOMIZATION_FILE}" | tr -d '"')
+[[ ${public_version} == "${VERSION}" ]] ||
+  fail "${PUBLIC_KUSTOMIZATION_FILE} kubeflow_spark_version '${public_version}' != '${VERSION}' (run: make kustomize-set-image)"
 
 # Python API package version.
 python_version=$(sed -n 's/^__version__ = "\(.*\)"/\1/p' "${PYTHON_INIT_FILE}")
