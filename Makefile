@@ -215,12 +215,12 @@ e2e-test: envtest kind-load-image kind-load-spark-image ## Run the e2e tests aga
 ##@ Kustomize
 
 .PHONY: kustomize-set-image
-kustomize-set-image: ## Update the Kustomize image tag and public ConfigMap version from VERSION file.
-	@TAG=$$(cat VERSION) && \
+kustomize-set-image: ## Update the Kustomize image tag (no leading "v") and public ConfigMap version from VERSION file.
+	@VERSION=$$(cat VERSION) && TAG=$${VERSION#v} && \
 	sed -i.bak "s|    newTag: .*|    newTag: $$TAG|" config/default/kustomization.yaml && \
-	sed -i.bak "s|      - kubeflow_spark_version=.*|      - kubeflow_spark_version=$$TAG|" config/public/kustomization.yaml && \
+	sed -i.bak "s|      - kubeflow_spark_version=.*|      - kubeflow_spark_version=$$VERSION|" config/public/kustomization.yaml && \
 	rm -f config/default/kustomization.yaml.bak config/public/kustomization.yaml.bak && \
-	echo "Updated kustomize image tag and kubeflow_spark_version to $$TAG"
+	echo "Updated kustomize image tag to $$TAG and kubeflow_spark_version to $$VERSION"
 
 .PHONY: kustomize-lint
 kustomize-lint: ## Validate Kustomize build output (no cluster needed).
@@ -315,6 +315,23 @@ helm-unittest: helm-unittest-plugin ## Run Helm chart unittests.
 .PHONY: helm-lint
 helm-lint: ## Run Helm chart lint test.
 	docker run --rm --workdir /workspace --volume "$$(pwd):/workspace" quay.io/helmpack/chart-testing:latest ct lint --target-branch master --validate-maintainers=false
+
+##@ Release
+
+.PHONY: release
+# VERSION given on the command line takes precedence over the value read from the VERSION file,
+# so `make release VERSION=vX.Y.Z` receives the new version verbatim (with the leading "v").
+release: ## Prepare a release commit. Usage: GITHUB_TOKEN=$$(gh auth token) make release VERSION=vX.Y.Z[-rc.N]
+	@hack/release/prepare-release.sh
+	$(MAKE) helm-docs
+	@echo
+	@echo "Release $(VERSION) prepared. Review the changes, then run:"
+	@echo "  git add -A && git commit -s -m 'Release $(VERSION)'"
+	@echo "and open a PR against master (latest minor) or release-X.Y (older minor patch)."
+
+.PHONY: check-release
+check-release: ## Validate that VERSION, Chart.yaml, Kustomize, Python API and CHANGELOG.md agree.
+	hack/release/check-release.sh
 
 .PHONY: helm-docs
 helm-docs: helm-docs-plugin ## Generates markdown documentation for helm charts from requirements and values files.
