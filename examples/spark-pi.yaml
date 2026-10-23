@@ -21,16 +21,16 @@ metadata:
 spec:
   type: Scala
   mode: cluster
-  image: docker.io/apache/spark:4.0.4
+  image: docker.io/apache/spark:4.2.0
   imagePullPolicy: IfNotPresent
   mainClass: org.apache.spark.examples.SparkPi
   mainApplicationFile: local:///opt/spark/examples/jars/spark-examples.jar
   arguments:
   - "5000"
-  sparkVersion: 4.0.4
+  sparkVersion: 4.2.0
   driver:
     labels:
-      version: 4.0.0
+      version: 4.2.0
     cores: 1
     memory: 512m
     serviceAccount: spark-operator-spark
@@ -46,7 +46,7 @@ spec:
         type: RuntimeDefault
   executor:
     labels:
-      version: 4.0.0
+      version: 4.2.0
     instances: 1
     cores: 1
     memory: 512m

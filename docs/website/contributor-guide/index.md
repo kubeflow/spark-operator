@@ -140,7 +140,7 @@ The easiest way to build the operator without worrying about its dependencies is
 make docker-build IMAGE_TAG=<image-tag>
 ```
 
-The operator image is built upon a base Spark image that defaults to `spark:3.5.2`. If you want to use your own Spark image (e.g., an image with a different version of Spark or some custom dependencies), specify the argument `SPARK_IMAGE` as the following example shows:
+The operator image is built upon an Apache Spark base image. By default, the project uses the Spark 4.2.0 Scala-only image (`docker.io/apache/spark:4.2.0-scala2.13-java21-ubuntu`), pinned by digest in the `Dockerfile`. If you want to use your own Spark image (e.g., an image with a different version of Spark or some custom dependencies), specify the argument `SPARK_IMAGE` as the following example shows:
 
 ```shell
 docker build --build-arg SPARK_IMAGE=<your Spark image> -t <image-tag> .
