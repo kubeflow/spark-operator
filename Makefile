@@ -118,13 +118,22 @@ print-%: ; @echo $*=$($*)
 
 CONTROLLER_GEN_PATHS := ./api/...;./internal/...
 
+# Year-less boilerplate header prepended to generated manifests (controller-gen
+# emits none). The boilerplate CI check uses the templates from kubeflow/testing.
+BOILERPLATE_HEADER := hack/boilerplate/boilerplate.sh.txt
+
 .PHONY: manifests
 manifests: controller-gen ## Generate CustomResourceDefinition, RBAC and WebhookConfiguration manifests.
 	$(CONTROLLER_GEN) crd:generateEmbeddedObjectMeta=true rbac:roleName=spark-operator-controller webhook paths="$(CONTROLLER_GEN_PATHS)" output:crd:artifacts:config=config/crd/bases
+	@# controller-gen rewrites these files in full on every run, so prepending
+	@# the header here once is idempotent.
+	@for f in config/crd/bases/*.yaml config/rbac/role.yaml config/webhook/manifests.yaml; do \
+		{ cat $(BOILERPLATE_HEADER); echo; cat "$$f"; } > "$$f.tmp" && mv "$$f.tmp" "$$f"; \
+	done
 
 .PHONY: generate
 generate: controller-gen manifests ## Generate Go code and Python APIs.
-	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="$(CONTROLLER_GEN_PATHS)"
+	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate/boilerplate.go.txt" paths="$(CONTROLLER_GEN_PATHS)"
 	$(MAKE) python-api
 
 .PHONY: update-crd
