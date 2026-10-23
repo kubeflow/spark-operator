@@ -13,7 +13,7 @@ which publishes every artifact.
   and `PyGithub` to generate the [changelog](../CHANGELOG.md):
 
 ```bash
-  pip install PyGithub==2.3.0
+  python3 -m pip install PyGithub==2.3.0
 ```
 
 - A git remote named `upstream` pointing at `kubeflow/spark-operator` (falls back to `origin`).
@@ -38,9 +38,11 @@ One version is used for every artifact of a release:
 | Container images `ghcr.io/kubeflow/spark-operator/{controller,kubectl}` | `2.6.0-rc.0` |
 | Helm chart `version` and `appVersion` | `2.6.0-rc.0` |
 | Kustomize image tag in `config/default/kustomization.yaml` | `2.6.0-rc.0` |
+| `kubeflow_spark_version` in the `kubeflow-spark-public` ConfigMap (`config/public/kustomization.yaml`) | `v2.6.0-rc.0` |
 | Python API [`kubeflow-spark-api`](https://pypi.org/project/kubeflow-spark-api/) | `2.6.0rc0` (PEP 440) |
 
-Image tags, the chart version and the Kustomize tag carry no leading `v`.
+Image tags, the chart version and the Kustomize tag carry no leading `v`; the public ConfigMap
+version keeps it, matching the value the Helm chart renders.
 
 ## Release branches and tags
 
@@ -86,7 +88,8 @@ This will:
 
 1. Update `VERSION` to `vX.Y.Z[-rc.N]`.
 1. Update the Helm chart `version` and `appVersion` to `X.Y.Z[-rc.N]`.
-1. Update the Kustomize controller image tag to `X.Y.Z[-rc.N]`.
+1. Update the Kustomize controller image tag to `X.Y.Z[-rc.N]` and the public ConfigMap
+   `kubeflow_spark_version` to `vX.Y.Z[-rc.N]`.
 1. Update the Python API package version.
 1. Regenerate the Helm chart README (`make helm-docs`).
 1. For final releases, prepend a `## [vX.Y.Z]` section to `CHANGELOG.md`, generated from the
@@ -99,7 +102,7 @@ is used verbatim as the GitHub release notes. Then validate, commit and open the
 ```bash
 make check-release
 git add -A && git commit -s -m "Release vX.Y.Z"
-git push origin release-vX.Y.Z
+git push origin prepare-release-vX.Y.Z
 ```
 
 The [Check Release](../.github/workflows/check-release.yaml) workflow verifies that all versions
@@ -115,6 +118,8 @@ for approval on the `release` environment. Once approved, it runs:
    The release commit is the last commit on `master` that changed `VERSION`, not the tip of
    `master`, so a manual run or a batched merge cannot release unrelated commits. If the tag
    already exists (a re-run), the tagged commit is reused and the branch is left untouched.
+   A version of an older minor line merged to `master` is refused; release it from its
+   `release-X.Y` branch instead.
 1. **Verify**: builds the operator and runs the unit tests on the exact commit that will be
    tagged, checks the generated Python API is up to date, runs Helm unit tests, the
    Helm/Kustomize drift check and the Kustomize build validation.

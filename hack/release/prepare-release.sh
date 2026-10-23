@@ -34,6 +34,7 @@ SEMVER_PATTERN='^v([0-9]+)\.([0-9]+)\.([0-9]+)(-rc\.([0-9]+))?$'
 
 CHART_FILE="charts/spark-operator-chart/Chart.yaml"
 KUSTOMIZATION_FILE="config/default/kustomization.yaml"
+PUBLIC_KUSTOMIZATION_FILE="config/public/kustomization.yaml"
 PYTHON_INIT_FILE="api/python_api/kubeflow_spark_api/__init__.py"
 
 VERSION="${VERSION:-}"
@@ -55,8 +56,9 @@ if [[ -z ${RC} ]]; then
     echo "Usage: GITHUB_TOKEN=\$(gh auth token) make release VERSION=${VERSION}" >&2
     exit 1
   fi
-  if ! python3 -c 'import github' 2> /dev/null; then
-    echo "ERROR: PyGithub is required to generate the changelog: pip install PyGithub==2.3.0" >&2
+  if ! import_error=$(python3 -c 'import github' 2>&1); then
+    echo "ERROR: PyGithub is not importable by $(command -v python3): ${import_error##*$'\n'}" >&2
+    echo "Install it for that interpreter: python3 -m pip install PyGithub==2.3.0" >&2
     exit 1
   fi
 fi
@@ -79,6 +81,9 @@ echo "Updated ${CHART_FILE} version and appVersion to ${CHART_VERSION}"
 
 sed_i -e "s|^\([[:space:]]*newTag:\).*|\1 ${CHART_VERSION}|" "${KUSTOMIZATION_FILE}"
 echo "Updated ${KUSTOMIZATION_FILE} image tag to ${CHART_VERSION}"
+
+sed_i -e "s|^\([[:space:]]*- kubeflow_spark_version=\).*|\1${VERSION}|" "${PUBLIC_KUSTOMIZATION_FILE}"
+echo "Updated ${PUBLIC_KUSTOMIZATION_FILE} kubeflow_spark_version to ${VERSION}"
 
 sed_i -e "s/^__version__ = .*/__version__ = \"${CHART_VERSION}\"/" "${PYTHON_INIT_FILE}"
 echo "Updated ${PYTHON_INIT_FILE} __version__ to ${CHART_VERSION}"

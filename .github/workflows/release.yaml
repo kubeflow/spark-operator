@@ -4,7 +4,8 @@ on:
   push:
     branches:
       - master
-      - release-*
+      # release-X.Y only: release-* would also match release PR branches such as release-v2.6.0.
+      - "release-[0-9]+.[0-9]+"
     paths:
       - VERSION
   workflow_dispatch: {}
@@ -83,6 +84,13 @@ jobs:
             # otherwise cherry-pick an unrelated commit onto the release branch.
             SOURCE_SHA=$(git log -1 --first-parent --format=%H "${GITHUB_SHA}" -- VERSION)
             echo "Release commit on master: ${SOURCE_SHA}"
+            newest_minor=$(git ls-remote --heads origin 'release-*' | sed -n 's|.*refs/heads/release-\([0-9][0-9]*\.[0-9][0-9]*\)$|\1|p' |
+              sort -t. -k1,1n -k2,2n | tail -1)
+            if [[ -n "${newest_minor}" && "${BRANCH#release-}" != "${newest_minor}" ]] &&
+              [[ "$(printf '%s\n%s\n' "${BRANCH#release-}" "${newest_minor}" | sort -t. -k1,1n -k2,2n | tail -1)" == "${newest_minor}" ]]; then
+              echo "${VERSION} belongs to an older minor line than release-${newest_minor}; open the release PR against ${BRANCH} instead of master." >&2
+              exit 1
+            fi
             if git ls-remote --exit-code --heads origin "${BRANCH}" >/dev/null; then
               echo "Using existing branch ${BRANCH}."
               git checkout -B "${BRANCH}" "origin/${BRANCH}"
