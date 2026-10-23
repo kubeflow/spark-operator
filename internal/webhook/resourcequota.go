@@ -45,8 +45,9 @@ var javaStringSuffixes = map[string]int64{
 	"p":  1 << 50,
 }
 
-var javaStringPattern = regexp.MustCompile(`([0-9]+)([a-z]+)?`)
-var javaFractionStringPattern = regexp.MustCompile(`([0-9]+\.[0-9]+)([a-z]+)?`)
+// The patterns are anchored because Spark uses Matcher.matches(), which must match the whole string.
+var javaStringPattern = regexp.MustCompile(`^([0-9]+)([a-z]+)?$`)
+var javaFractionStringPattern = regexp.MustCompile(`^([0-9]+\.[0-9]+)([a-z]+)?$`)
 
 // getResourceList returns the resource requests of the given SparkApplication.
 func getResourceList(app *v1beta2.SparkApplication) (corev1.ResourceList, error) {
@@ -220,28 +221,26 @@ func getMemoryLimits(app *v1beta2.SparkApplication) (corev1.ResourceList, error)
 }
 
 // Logic copied from https://github.com/apache/spark/blob/5264164a67df498b73facae207eda12ee133be7d/common/network-common/src/main/java/org/apache/spark/network/util/JavaUtils.java#L276
+// A value without a suffix is read as MiB, the default unit of spark.{driver,executor}.memory
+// and spark.{driver,executor}.memoryOverhead.
 func parseJavaMemoryString(s string) (int64, error) {
-	lower := strings.ToLower(s)
+	lower := strings.ToLower(strings.TrimSpace(s))
 	if matches := javaStringPattern.FindStringSubmatch(lower); matches != nil {
 		value, err := strconv.ParseInt(matches[1], 10, 64)
 		if err != nil {
 			return 0, err
 		}
 		suffix := matches[2]
+		if suffix == "" {
+			return value * javaStringSuffixes["m"], nil
+		}
 		if multiplier, present := javaStringSuffixes[suffix]; present {
 			return multiplier * value, nil
 		}
-	} else if matches = javaFractionStringPattern.FindStringSubmatch(lower); matches != nil {
-		value, err := strconv.ParseFloat(matches[1], 64)
-		if err != nil {
-			return 0, err
-		}
-		suffix := matches[2]
-		if multiplier, present := javaStringSuffixes[suffix]; present {
-			return int64(float64(multiplier) * value), nil
-		}
+	} else if javaFractionStringPattern.MatchString(lower) {
+		return 0, fmt.Errorf("could not parse string '%s' as a Java-style memory value: fractional values are not supported", s)
 	}
-	return 0, fmt.Errorf("could not parse string '%s' as a Java-style memory value. Examples: 100kb, 1.5mb, 1g", s)
+	return 0, fmt.Errorf("could not parse string '%s' as a Java-style memory value. Examples: 100kb, 512m, 1g", s)
 }
 
 // Check whether the resource list will satisfy the resource quota.
