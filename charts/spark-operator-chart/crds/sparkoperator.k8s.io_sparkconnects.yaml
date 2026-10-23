@@ -125,8 +125,8 @@ spec:
                     pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                     x-kubernetes-int-or-string: true
                   cores:
-                    description: Cores maps to `spark.driver.cores` or `spark.executor.cores`
-                      for the driver and executors, respectively.
+                    description: Cores is a shorthand for coreRequest on the server,
+                      and maps to `spark.executor.cores` for executors.
                     format: int32
                     minimum: 1
                     type: integer
@@ -202,8 +202,8 @@ spec:
                     pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                     x-kubernetes-int-or-string: true
                   cores:
-                    description: Cores maps to `spark.driver.cores` or `spark.executor.cores`
-                      for the driver and executors, respectively.
+                    description: Cores is a shorthand for coreRequest on the server,
+                      and maps to `spark.executor.cores` for executors.
                     format: int32
                     minimum: 1
                     type: integer

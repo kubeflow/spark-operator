@@ -12650,7 +12650,7 @@
             ]
           },
           "cores": {
-            "description": "Cores maps to `spark.driver.cores` or `spark.executor.cores` for the driver and executors, respectively.",
+            "description": "Cores is a shorthand for coreRequest on the server, and maps to `spark.executor.cores` for executors.",
             "type": "integer",
             "format": "int32"
           },
@@ -12723,7 +12723,7 @@
             ]
           },
           "cores": {
-            "description": "Cores maps to `spark.driver.cores` or `spark.executor.cores` for the driver and executors, respectively.",
+            "description": "Cores is a shorthand for coreRequest on the server, and maps to `spark.executor.cores` for executors.",
             "type": "integer",
             "format": "int32"
           },
@@ -12997,7 +12997,7 @@
             ]
           },
           "cores": {
-            "description": "Cores maps to `spark.driver.cores` or `spark.executor.cores` for the driver and executors, respectively.",
+            "description": "Cores is a shorthand for coreRequest on the server, and maps to `spark.executor.cores` for executors.",
             "type": "integer",
             "format": "int32"
           },

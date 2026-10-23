@@ -175,3 +175,25 @@ var _ = Describe("SetGPUResources", func() {
 		Expect(container.Resources.Limits.Name(gpu, resource.DecimalSI).Value()).To(Equal(int64(1)))
 	})
 })
+
+var _ = Describe("CPURequestOrCores", func() {
+	It("returns coreRequest when both are set", func() {
+		coreRequest := resource.MustParse("500m")
+		cores := int32(4)
+
+		Expect(util.CPURequestOrCores(&coreRequest, &cores)).To(Equal(&coreRequest))
+	})
+
+	It("returns cores as whole CPUs when coreRequest is nil", func() {
+		cores := int32(2)
+
+		request := util.CPURequestOrCores(nil, &cores)
+
+		Expect(request).NotTo(BeNil())
+		Expect(request.MilliValue()).To(Equal(int64(2000)))
+	})
+
+	It("returns nil when both are nil", func() {
+		Expect(util.CPURequestOrCores(nil, nil)).To(BeNil())
+	})
+})

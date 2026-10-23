@@ -131,7 +131,7 @@ var _ = Describe("Options functions", func() {
 	})
 
 	Context("driverConfOption and executorConfOption with CPU resources", func() {
-		It("does not emit driver SparkConf keys for server CoreRequest and CoreLimit", func() {
+		It("does not emit driver CPU SparkConf keys for server Cores, CoreRequest and CoreLimit", func() {
 			cores := int32(4)
 			coreRequest := resource.MustParse("3500m")
 			coreLimit := resource.MustParse("4")
@@ -157,7 +157,7 @@ var _ = Describe("Options functions", func() {
 			Expect(err).NotTo(HaveOccurred())
 			config := parsedSparkConfig(args)
 
-			Expect(config).To(HaveKeyWithValue("spark.driver.cores", "4"))
+			Expect(config).NotTo(HaveKey(common.SparkDriverCores))
 			Expect(config).NotTo(HaveKey(common.SparkKubernetesDriverRequestCores))
 			Expect(config).NotTo(HaveKey(common.SparkKubernetesDriverLimitCores))
 		})
@@ -217,7 +217,7 @@ var _ = Describe("Options functions", func() {
 			Expect(err).NotTo(HaveOccurred())
 			driverConfig := parsedSparkConfig(driverArgs)
 
-			Expect(driverConfig).To(HaveKeyWithValue("spark.driver.cores", "4"))
+			Expect(driverConfig).NotTo(HaveKey(common.SparkDriverCores))
 			Expect(driverConfig).NotTo(HaveKey(common.SparkKubernetesDriverRequestCores))
 			Expect(driverConfig).NotTo(HaveKey(common.SparkKubernetesDriverLimitCores))
 		})
