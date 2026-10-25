@@ -88,6 +88,7 @@ func (e *effectiveMemoryConfig) totalBytes() int64 {
 //       3. spec.MemoryOverheadFactor — structured CRD field.
 //       4. Language default: 0.1 for JVM (Java/Scala), 0.4 for non-JVM (Python/R).
 
+
 // effectiveDriverConfig returns the resolved memory configuration for the driver.
 func effectiveDriverConfig(app *v1beta2.SparkApplication) (*effectiveMemoryConfig, error) {
 	return effectivePodConfig(
