@@ -63,3 +63,18 @@ if [[ $(uname) == "Darwin" ]]; then
 else
   sed -i -e "s/__version__.*/__version__ = \"${API_VERSION}\"/" ${PKG_ROOT}/__init__.py
 fi
+
+# openapi-generator emits no license header, so prepend the year-less boilerplate.
+echo "Adding copyright headers to generated Python API models"
+BOILERPLATE="${SPARK_OPERATOR_ROOT}/hack/boilerplate/boilerplate.sh.txt"
+find "${PKG_ROOT}/models" -name '*.py' -type f | while read -r f; do
+  if ! head -n 5 "$f" | grep -q "Copyright"; then
+    tmp="$(mktemp)"
+    {
+      cat "${BOILERPLATE}"
+      echo
+      cat "$f"
+    } > "$tmp"
+    mv "$tmp" "$f"
+  fi
+done

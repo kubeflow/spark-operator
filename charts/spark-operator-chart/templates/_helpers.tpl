@@ -1,18 +1,18 @@
-{{/*
-Copyright 2024 The Kubeflow authors.
+{{- /*
+Copyright 2024 The Kubeflow Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-    https://www.apache.org/licenses/LICENSE-2.0
+    http://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
-*/}}
+*/ -}}
 
 {{/* vim: set filetype=mustache: */}}
 {{/*
@@ -75,6 +75,27 @@ Spark Operator image
 */}}
 {{- define "spark-operator.image" -}}
 {{ printf "%s/%s:%s" .Values.image.registry .Values.image.repository (.Values.image.tag | default .Chart.AppVersion | toString) }}
+{{- end -}}
+
+{{/*
+Name of the public ConfigMap that exposes the Spark Operator control-plane version.
+*/}}
+{{- define "spark-operator.publicConfigMap.name" -}}
+kubeflow-spark-public
+{{- end -}}
+
+{{/*
+Namespace of the public ConfigMap and its RBAC resources.
+*/}}
+{{- define "spark-operator.publicConfigMap.namespace" -}}
+{{- .Values.publicConfigMap.namespace | default .Release.Namespace -}}
+{{- end -}}
+
+{{/*
+Spark Operator control-plane version, e.g. v2.5.0.
+*/}}
+{{- define "spark-operator.version" -}}
+{{- printf "v%s" (.Chart.AppVersion | toString | trimPrefix "v") -}}
 {{- end -}}
 
 {{/*

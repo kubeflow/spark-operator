@@ -1,18 +1,16 @@
-#
-# Copyright 2024 The Kubeflow authors.
+# Copyright 2024 The Kubeflow Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
-#     https://www.apache.org/licenses/LICENSE-2.0
+#     http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-#
 
 # Default values for spark-operator.
 # This is a YAML-formatted file.
@@ -26,6 +24,16 @@ fullnameOverride: ""
 
 # -- Common labels to add to the resources.
 commonLabels: {}
+
+# Public ConfigMap exposing the Spark Operator version to clients such as the Kubeflow SDK.
+publicConfigMap:
+  # -- Specifies whether to create the `kubeflow-spark-public` ConfigMap, together with a Role and RoleBinding
+  # that let all authenticated users read it. Its name is fixed so that clients can find it,
+  # so enable it for only one Spark Operator release per target namespace.
+  create: false
+  # -- Namespace to create the ConfigMap, Role and RoleBinding in, e.g. `kube-public`. Defaults to the release namespace.
+  # The namespace must already exist and the installing user must be allowed to create these resources in it.
+  namespace: ""
 
 # Image used by the Spark operator.
 image:

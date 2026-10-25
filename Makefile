@@ -118,13 +118,22 @@ print-%: ; @echo $*=$($*)
 
 CONTROLLER_GEN_PATHS := ./api/...;./internal/...
 
+# Year-less boilerplate header prepended to generated manifests (controller-gen
+# emits none). The boilerplate CI check uses the templates from kubeflow/testing.
+BOILERPLATE_HEADER := hack/boilerplate/boilerplate.sh.txt
+
 .PHONY: manifests
 manifests: controller-gen ## Generate CustomResourceDefinition, RBAC and WebhookConfiguration manifests.
 	$(CONTROLLER_GEN) crd:generateEmbeddedObjectMeta=true rbac:roleName=spark-operator-controller webhook paths="$(CONTROLLER_GEN_PATHS)" output:crd:artifacts:config=config/crd/bases
+	@# controller-gen rewrites these files in full on every run, so prepending
+	@# the header here once is idempotent.
+	@for f in config/crd/bases/*.yaml config/rbac/role.yaml config/webhook/manifests.yaml; do \
+		{ cat $(BOILERPLATE_HEADER); echo; cat "$$f"; } > "$$f.tmp" && mv "$$f.tmp" "$$f"; \
+	done
 
 .PHONY: generate
 generate: controller-gen manifests ## Generate Go code and Python APIs.
-	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="$(CONTROLLER_GEN_PATHS)"
+	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate/boilerplate.go.txt" paths="$(CONTROLLER_GEN_PATHS)"
 	$(MAKE) python-api
 
 .PHONY: update-crd
@@ -215,11 +224,12 @@ e2e-test: envtest kind-load-image kind-load-spark-image ## Run the e2e tests aga
 ##@ Kustomize
 
 .PHONY: kustomize-set-image
-kustomize-set-image: ## Update config/default/kustomization.yaml image tag from VERSION file.
+kustomize-set-image: ## Update the Kustomize image tag and public ConfigMap version from VERSION file.
 	@TAG=$$(cat VERSION) && \
 	sed -i.bak "s|    newTag: .*|    newTag: $$TAG|" config/default/kustomization.yaml && \
-	rm -f config/default/kustomization.yaml.bak && \
-	echo "Updated kustomize image tag to $$TAG"
+	sed -i.bak "s|      - kubeflow_spark_version=.*|      - kubeflow_spark_version=$$TAG|" config/public/kustomization.yaml && \
+	rm -f config/default/kustomization.yaml.bak config/public/kustomization.yaml.bak && \
+	echo "Updated kustomize image tag and kubeflow_spark_version to $$TAG"
 
 .PHONY: kustomize-lint
 kustomize-lint: ## Validate Kustomize build output (no cluster needed).

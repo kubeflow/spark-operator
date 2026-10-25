@@ -1,11 +1,11 @@
 /*
-Copyright 2024 The Kubeflow authors.
+Copyright 2024 The Kubeflow Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-	https://www.apache.org/licenses/LICENSE-2.0
+    http://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -29,6 +29,7 @@ import (
 	"k8s.io/utils/clock"
 	testingclock "k8s.io/utils/clock/testing"
 	"k8s.io/utils/ptr"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/kubeflow/spark-operator/v2/api/v1beta2"
@@ -144,6 +145,32 @@ var _ = Describe("ScheduledSparkApplication Controller", func() {
 			Expect(app.Status.Reason).To(BeEmpty())
 			Expect(app.Status.NextRun.Time).To(BeTemporally("==", t0.Add(2*time.Hour)))
 			Expect(app.Status.NextRun.Time).NotTo(BeTemporally("==", initialNextRun.Time))
+		})
+
+		It("should not panic or create duplicate runs when a history limit is negative", func() {
+			t0 := time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC)
+			fakeClock := testingclock.NewFakeClock(t0)
+			reconciler := NewReconciler(k8sClient.Scheme(), k8sClient, nil, fakeClock, Options{Namespaces: []string{"default"}, TimestampPrecision: "nanos"})
+			req := reconcile.Request{NamespacedName: typeNamespacedName}
+			DeferCleanup(func() {
+				Expect(k8sClient.DeleteAllOf(ctx, &v1beta2.SparkApplication{}, client.InNamespace("default"))).To(Succeed())
+			})
+
+			app := &v1beta2.ScheduledSparkApplication{}
+			Expect(k8sClient.Get(ctx, typeNamespacedName, app)).To(Succeed())
+			app.Spec.Schedule = "@every 1m"
+			app.Spec.SuccessfulRunHistoryLimit = ptr.To[int32](-1)
+			Expect(k8sClient.Update(ctx, app)).To(Succeed())
+			_, err := reconciler.Reconcile(ctx, req)
+			Expect(err).NotTo(HaveOccurred())
+
+			fakeClock.Step(2 * time.Minute)
+			_, err = reconciler.Reconcile(ctx, req)
+			Expect(err).NotTo(HaveOccurred())
+
+			Expect(k8sClient.Get(ctx, typeNamespacedName, app)).To(Succeed())
+			Expect(app.Status.LastRunName).NotTo(BeEmpty())
+			Expect(app.Status.NextRun.Time).To(BeTemporally(">", fakeClock.Now()))
 		})
 
 		It("should transition to FailedValidation on invalid timezone and recover to Scheduled when corrected", func() {
