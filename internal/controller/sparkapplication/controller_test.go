@@ -1838,6 +1838,216 @@ var _ = Describe("SparkApplication Controller", func() {
 			})
 		})
 	})
+
+	Context("When reconciling a terminal SparkApplication with a web UI service (issue #2984)", func() {
+		ctx := context.Background()
+		appNamespace := "default"
+
+		// createTerminalApp creates an app, sets its status to the given terminal state
+		// with the given WebUIServiceName, and returns both the app and its key.
+		createTerminalApp := func(name string, state v1beta2.ApplicationStateType, svcName string) (*v1beta2.SparkApplication, types.NamespacedName) {
+			key := types.NamespacedName{Name: name, Namespace: appNamespace}
+			app := &v1beta2.SparkApplication{
+				ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: appNamespace},
+				Spec:       v1beta2.SparkApplicationSpec{MainApplicationFile: ptr.To("local:///dummy.jar")},
+			}
+			v1beta2.SetSparkApplicationDefaults(app)
+			Expect(k8sClient.Create(ctx, app)).To(Succeed())
+			// Status must be set after Create; the API server ignores status on Create.
+			app.Status.AppState.State = state
+			app.Status.TerminationTime = metav1.Now()
+			app.Status.DriverInfo.WebUIServiceName = svcName
+			Expect(k8sClient.Status().Update(ctx, app)).To(Succeed())
+			return app, key
+		}
+
+		newUIService := func(svcName string) *corev1.Service {
+			return &corev1.Service{
+				ObjectMeta: metav1.ObjectMeta{Name: svcName, Namespace: appNamespace},
+				Spec:       corev1.ServiceSpec{Ports: []corev1.ServicePort{{Port: 4040}}},
+			}
+		}
+
+		newReconcilerWithUI := func() *sparkapplication.Reconciler {
+			return sparkapplication.NewReconciler(
+				nil, k8sClient.Scheme(), k8sClient,
+				events.NewFakeRecorder(3), nil, &sparkapplication.SparkSubmitter{},
+				sparkapplication.Options{Namespaces: []string{appNamespace}, EnableUIService: true},
+			)
+		}
+
+		It("Should delete UI service when SparkApplication completes", func() {
+			appName := "test-ui-completed"
+			svcName := util.GetDefaultUIServiceName(&v1beta2.SparkApplication{ObjectMeta: metav1.ObjectMeta{Name: appName}})
+			app, key := createTerminalApp(appName, v1beta2.ApplicationStateCompleted, svcName)
+			defer func() { _ = k8sClient.Delete(ctx, app) }()
+
+			svc := newUIService(svcName)
+			Expect(k8sClient.Create(ctx, svc)).To(Succeed())
+			defer func() { _ = k8sClient.Delete(ctx, svc) }()
+
+			By("Reconciling the completed SparkApplication")
+			_, err := newReconcilerWithUI().Reconcile(ctx, reconcile.Request{NamespacedName: key})
+			Expect(err).NotTo(HaveOccurred())
+
+			By("Checking that the UI service was deleted")
+			Expect(k8sClient.Get(ctx, types.NamespacedName{Name: svcName, Namespace: appNamespace}, &corev1.Service{})).
+				To(Satisfy(errors.IsNotFound))
+		})
+
+		It("Should delete UI service when SparkApplication fails", func() {
+			appName := "test-ui-failed"
+			svcName := util.GetDefaultUIServiceName(&v1beta2.SparkApplication{ObjectMeta: metav1.ObjectMeta{Name: appName}})
+			app, key := createTerminalApp(appName, v1beta2.ApplicationStateFailed, svcName)
+			defer func() { _ = k8sClient.Delete(ctx, app) }()
+
+			svc := newUIService(svcName)
+			Expect(k8sClient.Create(ctx, svc)).To(Succeed())
+			defer func() { _ = k8sClient.Delete(ctx, svc) }()
+
+			By("Reconciling the failed SparkApplication")
+			_, err := newReconcilerWithUI().Reconcile(ctx, reconcile.Request{NamespacedName: key})
+			Expect(err).NotTo(HaveOccurred())
+
+			By("Checking that the UI service was deleted")
+			Expect(k8sClient.Get(ctx, types.NamespacedName{Name: svcName, Namespace: appNamespace}, &corev1.Service{})).
+				To(Satisfy(errors.IsNotFound))
+		})
+
+		It("Should not error when UI service is already gone (NotFound is idempotent)", func() {
+			appName := "test-ui-notfound"
+			svcName := util.GetDefaultUIServiceName(&v1beta2.SparkApplication{ObjectMeta: metav1.ObjectMeta{Name: appName}})
+			app, key := createTerminalApp(appName, v1beta2.ApplicationStateCompleted, svcName)
+			defer func() { _ = k8sClient.Delete(ctx, app) }()
+			// UI service intentionally not created — simulates already-deleted case.
+
+			By("Reconciling without pre-creating the UI service")
+			_, err := newReconcilerWithUI().Reconcile(ctx, reconcile.Request{NamespacedName: key})
+			Expect(err).NotTo(HaveOccurred())
+
+			By("Reconciling again to confirm idempotency")
+			_, err = newReconcilerWithUI().Reconcile(ctx, reconcile.Request{NamespacedName: key})
+			Expect(err).NotTo(HaveOccurred())
+		})
+
+		It("Should delete UI service by derived name when WebUIServiceName is not recorded in status", func() {
+			appName := "test-ui-no-status"
+			derivedSvcName := util.GetDefaultUIServiceName(&v1beta2.SparkApplication{ObjectMeta: metav1.ObjectMeta{Name: appName}})
+			// Pass empty string for svcName to simulate a lost status update.
+			app, key := createTerminalApp(appName, v1beta2.ApplicationStateCompleted, "")
+			defer func() { _ = k8sClient.Delete(ctx, app) }()
+
+			svc := newUIService(derivedSvcName)
+			Expect(k8sClient.Create(ctx, svc)).To(Succeed())
+			defer func() { _ = k8sClient.Delete(ctx, svc) }()
+
+			By("Reconciling the completed SparkApplication with missing WebUIServiceName")
+			_, err := newReconcilerWithUI().Reconcile(ctx, reconcile.Request{NamespacedName: key})
+			Expect(err).NotTo(HaveOccurred())
+
+			By("Checking that the UI service was deleted via the derived name")
+			Expect(k8sClient.Get(ctx, types.NamespacedName{Name: derivedSvcName, Namespace: appNamespace}, &corev1.Service{})).
+				To(Satisfy(errors.IsNotFound))
+		})
+
+		It("Should not attempt UI service deletion when EnableUIService is false and name is empty", func() {
+			appName := "test-ui-disabled"
+			derivedSvcName := util.GetDefaultUIServiceName(&v1beta2.SparkApplication{ObjectMeta: metav1.ObjectMeta{Name: appName}})
+			// Pass empty svcName to simulate EnableUIService being off when the app ran.
+			app, key := createTerminalApp(appName, v1beta2.ApplicationStateCompleted, "")
+			defer func() { _ = k8sClient.Delete(ctx, app) }()
+
+			// Pre-create a service with the derived name to prove the cleanup code
+			// does not touch it when EnableUIService=false.
+			svc := newUIService(derivedSvcName)
+			Expect(k8sClient.Create(ctx, svc)).To(Succeed())
+			defer func() { _ = k8sClient.Delete(ctx, svc) }()
+
+			By("Reconciling with EnableUIService=false")
+			reconciler := sparkapplication.NewReconciler(
+				nil, k8sClient.Scheme(), k8sClient,
+				events.NewFakeRecorder(3), nil, &sparkapplication.SparkSubmitter{},
+				sparkapplication.Options{Namespaces: []string{appNamespace}, EnableUIService: false},
+			)
+			_, err := reconciler.Reconcile(ctx, reconcile.Request{NamespacedName: key})
+			Expect(err).NotTo(HaveOccurred())
+
+			By("Checking that the pre-existing service was not deleted (EnableUIService=false skips cleanup)")
+			Expect(k8sClient.Get(ctx, types.NamespacedName{Name: derivedSvcName, Namespace: appNamespace}, &corev1.Service{})).
+				To(Succeed())
+		})
+
+		It("Should delete UI ingress by derived name when SparkApplication fails and WebUIIngressName is not recorded in status", func() {
+			origCaps := util.IngressCapabilities
+			defer func() { util.IngressCapabilities = origCaps }()
+			util.IngressCapabilities = util.Capabilities{"networking.k8s.io/v1": true}
+
+			appName := "test-ui-ingress-failed-no-status"
+			derivedIngressName := util.GetDefaultUIIngressName(&v1beta2.SparkApplication{ObjectMeta: metav1.ObjectMeta{Name: appName}})
+			app, key := createTerminalApp(appName, v1beta2.ApplicationStateFailed, "")
+			defer func() { _ = k8sClient.Delete(ctx, app) }()
+
+			ingress := &networkingv1.Ingress{
+				ObjectMeta: metav1.ObjectMeta{Name: derivedIngressName, Namespace: appNamespace},
+				Spec:       networkingv1.IngressSpec{Rules: []networkingv1.IngressRule{{Host: "test.example.com"}}},
+			}
+			Expect(k8sClient.Create(ctx, ingress)).To(Succeed())
+			defer func() { _ = k8sClient.Delete(ctx, ingress) }()
+
+			By("Reconciling a failed app with IngressURLFormat set and WebUIIngressName empty in status")
+			reconciler := sparkapplication.NewReconciler(
+				nil, k8sClient.Scheme(), k8sClient,
+				events.NewFakeRecorder(3), nil, &sparkapplication.SparkSubmitter{},
+				sparkapplication.Options{
+					Namespaces:       []string{appNamespace},
+					EnableUIService:  true,
+					IngressURLFormat: "{{$appName}}.spark.test.com",
+				},
+			)
+			_, err := reconciler.Reconcile(ctx, reconcile.Request{NamespacedName: key})
+			Expect(err).NotTo(HaveOccurred())
+
+			By("Checking that the UI ingress was deleted via the derived name")
+			Expect(k8sClient.Get(ctx, types.NamespacedName{Name: derivedIngressName, Namespace: appNamespace}, &networkingv1.Ingress{})).
+				To(Satisfy(errors.IsNotFound))
+		})
+
+		It("Should delete UI ingress by derived name when WebUIIngressName is not recorded in status", func() {
+			origCaps := util.IngressCapabilities
+			defer func() { util.IngressCapabilities = origCaps }()
+			util.IngressCapabilities = util.Capabilities{"networking.k8s.io/v1": true}
+
+			appName := "test-ui-ingress-no-status"
+			derivedIngressName := util.GetDefaultUIIngressName(&v1beta2.SparkApplication{ObjectMeta: metav1.ObjectMeta{Name: appName}})
+			// createTerminalApp leaves WebUIIngressName empty (only sets WebUIServiceName).
+			app, key := createTerminalApp(appName, v1beta2.ApplicationStateCompleted, "")
+			defer func() { _ = k8sClient.Delete(ctx, app) }()
+
+			ingress := &networkingv1.Ingress{
+				ObjectMeta: metav1.ObjectMeta{Name: derivedIngressName, Namespace: appNamespace},
+				Spec:       networkingv1.IngressSpec{Rules: []networkingv1.IngressRule{{Host: "test.example.com"}}},
+			}
+			Expect(k8sClient.Create(ctx, ingress)).To(Succeed())
+			defer func() { _ = k8sClient.Delete(ctx, ingress) }()
+
+			By("Reconciling with IngressURLFormat set and WebUIIngressName empty in status")
+			reconciler := sparkapplication.NewReconciler(
+				nil, k8sClient.Scheme(), k8sClient,
+				events.NewFakeRecorder(3), nil, &sparkapplication.SparkSubmitter{},
+				sparkapplication.Options{
+					Namespaces:       []string{appNamespace},
+					EnableUIService:  true,
+					IngressURLFormat: "{{$appName}}.spark.test.com",
+				},
+			)
+			_, err := reconciler.Reconcile(ctx, reconcile.Request{NamespacedName: key})
+			Expect(err).NotTo(HaveOccurred())
+
+			By("Checking that the UI ingress was deleted via the derived name")
+			Expect(k8sClient.Get(ctx, types.NamespacedName{Name: derivedIngressName, Namespace: appNamespace}, &networkingv1.Ingress{})).
+				To(Satisfy(errors.IsNotFound))
+		})
+	})
 })
 
 func getDriverNamespacedName(appName string, appNamespace string) types.NamespacedName {
