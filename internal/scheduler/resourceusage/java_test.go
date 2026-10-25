@@ -89,3 +89,17 @@ func TestByteStringAsMbInvalid(t *testing.T) {
 		})
 	}
 }
+
+func TestByteStringAsBytesOverflow(t *testing.T) {
+	// "99999999pb": value=99999999, multiplier=1<<50.
+	// 99999999 * 1125899906842624 overflows int64 (max ~9.2e18).
+	_, err := byteStringAsBytes("99999999pb", DefaultUnitMiB)
+	assert.NotNil(t, err, "expected overflow error for 99999999pb")
+	assert.Contains(t, err.Error(), "overflow")
+
+	// Boundary: 8 PiB (just under overflow).
+	// 8 * (1<<50) = 9007199254740992 < MaxInt64 (9223372036854775807)
+	result, err := byteStringAsBytes("8p", DefaultUnitMiB)
+	assert.Nil(t, err, "8p should not overflow")
+	assert.Equal(t, int64(8)*(1<<50), result)
+}

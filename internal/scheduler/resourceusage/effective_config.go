@@ -18,6 +18,7 @@ package resourceusage
 
 import (
 	"fmt"
+	"math"
 	"strconv"
 
 	"github.com/kubeflow/spark-operator/v2/api/v1beta2"
@@ -195,12 +196,18 @@ func effectivePodConfig(
 //     memoryOverheadFactorOption in buildSparkSubmitArgs.
 //  3. spec.MemoryOverheadFactor — structured CRD field.
 //  4. Language default: 0.1 for JVM (Java/Scala), 0.4 for non-JVM (Python/R).
+//
+// The resolved factor must be a finite non-negative number; NaN, Inf, and
+// negative values return an error.
 func effectiveOverheadFactor(app *v1beta2.SparkApplication, perRoleFactorKey string) (float64, error) {
 	// 1. Per-role sparkConf key (highest priority).
 	if raw, ok := app.Spec.SparkConf[perRoleFactorKey]; ok && raw != "" {
 		f, err := strconv.ParseFloat(raw, 64)
 		if err != nil {
 			return 0, fmt.Errorf("failed to parse sparkConf %s=%q: %w", perRoleFactorKey, raw, err)
+		}
+		if err := validateFactor(f, perRoleFactorKey); err != nil {
+			return 0, err
 		}
 		return f, nil
 	}
@@ -211,6 +218,9 @@ func effectiveOverheadFactor(app *v1beta2.SparkApplication, perRoleFactorKey str
 			return 0, fmt.Errorf("failed to parse sparkConf %s=%q: %w",
 				common.SparkKubernetesMemoryOverheadFactor, raw, err)
 		}
+		if err := validateFactor(f, common.SparkKubernetesMemoryOverheadFactor); err != nil {
+			return 0, err
+		}
 		return f, nil
 	}
 	// 3. CRD structured field.
@@ -220,6 +230,9 @@ func effectiveOverheadFactor(app *v1beta2.SparkApplication, perRoleFactorKey str
 			return 0, fmt.Errorf("failed to parse spec.MemoryOverheadFactor %q: %w",
 				*app.Spec.MemoryOverheadFactor, err)
 		}
+		if err := validateFactor(f, "spec.MemoryOverheadFactor"); err != nil {
+			return 0, err
+		}
 		return f, nil
 	}
 	// 4. Language defaults.
@@ -227,4 +240,16 @@ func effectiveOverheadFactor(app *v1beta2.SparkApplication, perRoleFactorKey str
 		return common.DefaultJVMMemoryOverheadFactor, nil
 	}
 	return common.DefaultNonJVMMemoryOverheadFactor, nil
+}
+
+// validateFactor rejects NaN, Inf, and negative overhead factors.
+// Spark itself allows factors > 1, so we only enforce finiteness and non-negativity.
+func validateFactor(f float64, key string) error {
+	if math.IsNaN(f) || math.IsInf(f, 0) {
+		return fmt.Errorf("memory overhead factor %s=%v must be a finite number", key, f)
+	}
+	if f < 0 {
+		return fmt.Errorf("memory overhead factor %s=%v must be non-negative", key, f)
+	}
+	return nil
 }

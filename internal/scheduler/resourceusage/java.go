@@ -18,6 +18,7 @@ package resourceusage
 
 import (
 	"fmt"
+	"math"
 	"regexp"
 	"strconv"
 	"strings"
@@ -62,6 +63,8 @@ var (
 //     spark.executor.memory, spark.driver.memoryOverhead, spark.executor.memoryOverhead,
 //     and spark.executor.pyspark.memory).
 //   - DefaultUnitBytes: bare numbers are treated as bytes (used for spark.memory.offHeap.size).
+//
+// Returns an error for values that would overflow int64 (e.g. "99999999pb").
 func byteStringAsBytes(byteString string, defaultUnit DefaultUnit) (int64, error) {
 	matches := javaStringPattern.FindStringSubmatch(strings.ToLower(byteString))
 	if matches == nil {
@@ -87,6 +90,10 @@ func byteStringAsBytes(byteString string, defaultUnit DefaultUnit) (int64, error
 	}
 
 	if multiplier, present := javaStringSuffixes[suffix]; present {
+		// Guard against int64 overflow (e.g. "99999999pb").
+		if multiplier != 0 && value > math.MaxInt64/multiplier {
+			return 0, fmt.Errorf("byte string %q overflows int64", byteString)
+		}
 		return value * multiplier, nil
 	}
 	return 0, fmt.Errorf("unable to parse byte string: %s", byteString)

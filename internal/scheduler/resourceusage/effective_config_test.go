@@ -505,3 +505,61 @@ func TestPerRoleOverheadFactor(t *testing.T) {
 		assertMemMi(t, app, 1433, "executor")
 	})
 }
+
+// TestOverheadFactorValidation verifies that NaN, Inf, and negative overhead
+// factors are rejected with a clear error naming the offending key.
+func TestOverheadFactorValidation(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		value string
+		key   string
+	}{
+		{"NaN via per-role key", "NaN", common.SparkExecutorMemoryOverheadFactor},
+		{"Inf via per-role key", "Inf", common.SparkExecutorMemoryOverheadFactor},
+		{"-Inf via cluster-wide key", "-Inf", common.SparkKubernetesMemoryOverheadFactor},
+		{"negative via per-role key", "-0.1", common.SparkExecutorMemoryOverheadFactor},
+		{"negative via cluster-wide key", "-1", common.SparkKubernetesMemoryOverheadFactor},
+		{"negative via CRD field", "-0.5", "spec.MemoryOverheadFactor"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var app *v1beta2.SparkApplication
+			if tc.key == "spec.MemoryOverheadFactor" {
+				app = &v1beta2.SparkApplication{
+					Spec: v1beta2.SparkApplicationSpec{
+						Type:                 v1beta2.SparkApplicationTypeJava,
+						MemoryOverheadFactor: ptr.To(tc.value),
+						Executor: v1beta2.ExecutorSpec{
+							SparkPodSpec: v1beta2.SparkPodSpec{
+								Memory: ptr.To("1g"),
+								Cores:  ptr.To[int32](1),
+							},
+						},
+					},
+				}
+			} else {
+				app = &v1beta2.SparkApplication{
+					Spec: v1beta2.SparkApplicationSpec{
+						Type:      v1beta2.SparkApplicationTypeJava,
+						SparkConf: map[string]string{tc.key: tc.value},
+						Executor: v1beta2.ExecutorSpec{
+							SparkPodSpec: v1beta2.SparkPodSpec{
+								Memory: ptr.To("1g"),
+								Cores:  ptr.To[int32](1),
+							},
+						},
+					},
+				}
+			}
+			_, err := ExecutorPodResourceList(app)
+			require.Error(t, err, "expected error for factor %q", tc.value)
+			// Error must name the key or field so the user knows what to fix.
+			if tc.key != "spec.MemoryOverheadFactor" {
+				assert.Contains(t, err.Error(), tc.key,
+					"error should name the offending sparkConf key")
+			} else {
+				assert.Contains(t, err.Error(), "MemoryOverheadFactor",
+					"error should mention MemoryOverheadFactor")
+			}
+		})
+	}
+}
