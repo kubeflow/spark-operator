@@ -22,7 +22,7 @@ import (
 	"github.com/kubeflow/spark-operator/v2/api/v1beta2"
 )
 
-func isJavaApp(appType v1beta2.SparkApplicationType) bool {
+func isJVMApp(appType v1beta2.SparkApplicationType) bool {
 	return appType == v1beta2.SparkApplicationTypeJava || appType == v1beta2.SparkApplicationTypeScala
 }
 

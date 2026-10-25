@@ -223,7 +223,7 @@ func effectiveOverheadFactor(app *v1beta2.SparkApplication, perRoleFactorKey str
 		return f, nil
 	}
 	// 4. Language defaults.
-	if isJavaApp(app.Spec.Type) {
+	if isJVMApp(app.Spec.Type) {
 		return common.DefaultJVMMemoryOverheadFactor, nil
 	}
 	return common.DefaultNonJVMMemoryOverheadFactor, nil
