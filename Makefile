@@ -230,7 +230,7 @@ kustomize-lint: ## Validate Kustomize build output (no cluster needed).
 
 .PHONY: verify-release
 verify-release: ## Verify published release artifacts (controller image, Helm chart, Python SDK, Kustomize manifests). Usage: make verify-release VERSION=X.Y.Z
-	VERSION=$(VERSION) ./hack/verify-release.sh
+	VERSION=$(VERSION) bash hack/verify-release.sh
 
 ##@ Build
 
