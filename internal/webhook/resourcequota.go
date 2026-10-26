@@ -216,7 +216,16 @@ func getSparkPodMemoryRequests(podSpec *v1beta2.SparkPodSpec, memoryOverheadFact
 
 // For Spark pod, memory requests and limits are the same.
 func getMemoryLimits(app *v1beta2.SparkApplication) (corev1.ResourceList, error) {
-	return getMemoryRequests(app)
+	memoryRequests, err := getMemoryRequests(app)
+	if err != nil {
+		return nil, err
+	}
+	// Return the value under the limits key only, as getSparkPodCoresLimits does for CPU.
+	// Reusing the request keys here would count memory and requests.memory twice in
+	// getResourceList and leave limits.memory out of the quota check.
+	return corev1.ResourceList{
+		corev1.ResourceLimitsMemory: memoryRequests[corev1.ResourceRequestsMemory],
+	}, nil
 }
 
 // Logic copied from https://github.com/apache/spark/blob/5264164a67df498b73facae207eda12ee133be7d/common/network-common/src/main/java/org/apache/spark/network/util/JavaUtils.java#L276
