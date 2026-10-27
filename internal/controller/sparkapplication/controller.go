@@ -1288,7 +1288,13 @@ func (r *Reconciler) deleteWebUIService(ctx context.Context, app *v1beta2.SparkA
 	logger := log.FromContext(ctx)
 	svcName := app.Status.DriverInfo.WebUIServiceName
 	if svcName == "" {
-		return nil
+		// Fall back to the derived name when the status field was never persisted
+		// (e.g. the status update after service creation failed). Skip the call
+		// entirely when the UI service feature is off — nothing was created.
+		if !r.options.EnableUIService {
+			return nil
+		}
+		svcName = util.GetDefaultUIServiceName(app)
 	}
 	logger.Info("Deleting Spark web UI service", "service", svcName)
 	if err := r.client.Delete(
@@ -1312,7 +1318,13 @@ func (r *Reconciler) deleteWebUIIngress(ctx context.Context, app *v1beta2.SparkA
 	logger := log.FromContext(ctx)
 	ingressName := app.Status.DriverInfo.WebUIIngressName
 	if ingressName == "" {
-		return nil
+		// Fall back to the derived name when the status field was never persisted.
+		// Skip the call when no UI ingress could have been created: either the UI
+		// service feature is off, or no IngressURLFormat was configured.
+		if !r.options.EnableUIService || r.options.IngressURLFormat == "" {
+			return nil
+		}
+		ingressName = util.GetDefaultUIIngressName(app)
 	}
 
 	if util.IngressCapabilities.Has("networking.k8s.io/v1") {
@@ -1590,6 +1602,15 @@ func (r *Reconciler) cleanUpOnTermination(ctx context.Context, _, newApp *v1beta
 	// every reconcile of an already-terminal app and deleteDriverPDB is
 	// idempotent.
 	if err := r.deleteDriverPDB(ctx, newApp); err != nil {
+		return err
+	}
+	// Delete the web UI service and ingress so they do not accumulate for
+	// completed or failed apps that are never retried and have no TTL set.
+	// Both deletes are idempotent (NotFound is ignored).
+	if err := r.deleteWebUIService(ctx, newApp); err != nil {
+		return err
+	}
+	if err := r.deleteWebUIIngress(ctx, newApp); err != nil {
 		return err
 	}
 	return nil
