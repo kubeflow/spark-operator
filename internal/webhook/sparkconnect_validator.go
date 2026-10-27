@@ -19,6 +19,7 @@ package webhook
 import (
 	"context"
 	"fmt"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -169,6 +170,56 @@ func (v *SparkConnectValidator) validateSpec(sc *v1alpha1.SparkConnect) error {
 
 	if err := validateSparkConf(sc.Spec.SparkConf, sc.Namespace); err != nil {
 		return err
+	}
+
+	// Validate Deps
+	if err := v.validateDeps(sc); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// mavenCoordinatePattern matches a Maven "groupId:artifactId" or "groupId:artifactId:version"
+// coordinate: non-empty, comma-free segments separated by colons.
+var mavenCoordinatePattern = regexp.MustCompile(`^[^:,]+:[^:,]+(:[^:,]+)?$`)
+
+// validateDeps validates the SparkConnect spec.deps field. A malformed dependency entry
+// resolves inside the runtime pod with a Maven error instead of being rejected at apply time,
+// and a comma inside a single entry silently splits into two values when dependenciesOption
+// joins each list with "," to build the "--jars" / "--packages" / "--exclude-packages" /
+// "--repositories" flags.
+func (v *SparkConnectValidator) validateDeps(sc *v1alpha1.SparkConnect) error {
+	deps := sc.Spec.Deps
+
+	for _, jar := range deps.Jars {
+		if strings.Contains(jar, ",") {
+			return fmt.Errorf("deps.jars entry %q must not contain a comma", jar)
+		}
+	}
+
+	for _, repository := range deps.Repositories {
+		if strings.Contains(repository, ",") {
+			return fmt.Errorf("deps.repositories entry %q must not contain a comma", repository)
+		}
+	}
+
+	for _, pkg := range deps.Packages {
+		if strings.Contains(pkg, ",") {
+			return fmt.Errorf("deps.packages entry %q must not contain a comma", pkg)
+		}
+		if !mavenCoordinatePattern.MatchString(pkg) || strings.Count(pkg, ":") != 2 {
+			return fmt.Errorf("deps.packages entry %q must be of the form \"groupId:artifactId:version\"", pkg)
+		}
+	}
+
+	for _, excludePkg := range deps.ExcludePackages {
+		if strings.Contains(excludePkg, ",") {
+			return fmt.Errorf("deps.excludePackages entry %q must not contain a comma", excludePkg)
+		}
+		if !mavenCoordinatePattern.MatchString(excludePkg) || strings.Count(excludePkg, ":") != 1 {
+			return fmt.Errorf("deps.excludePackages entry %q must be of the form \"groupId:artifactId\"", excludePkg)
+		}
 	}
 
 	return nil
