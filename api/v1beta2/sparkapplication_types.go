@@ -241,10 +241,12 @@ const (
 // DeployMode describes the type of deployment of a Spark application.
 type DeployMode string
 
-// Different types of deployments. Client and in-cluster-client modes are deprecated, see https://github.com/kubeflow/spark-operator/issues/3253.
+// Different types of deployments.
 const (
-	DeployModeCluster         DeployMode = "cluster"
-	DeployModeClient          DeployMode = "client"
+	DeployModeCluster DeployMode = "cluster"
+	// Deprecated: client mode will be removed in the next API version, see https://github.com/kubeflow/spark-operator/issues/3253.
+	DeployModeClient DeployMode = "client"
+	// Deprecated: in-cluster-client mode will be removed in the next API version, see https://github.com/kubeflow/spark-operator/issues/3253.
 	DeployModeInClusterClient DeployMode = "in-cluster-client"
 )
 
