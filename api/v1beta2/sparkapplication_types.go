@@ -54,6 +54,7 @@ type SparkApplicationSpec struct {
 	// SparkVersion is the version of Spark the application uses.
 	SparkVersion string `json:"sparkVersion"`
 	// Mode is the deployment mode of the Spark application.
+	// The client mode is deprecated and will be removed in the next API version.
 	// +kubebuilder:validation:Enum={cluster,client}
 	Mode DeployMode `json:"mode,omitempty"`
 	// ProxyUser specifies the user to impersonate when submitting the application.
@@ -240,7 +241,7 @@ const (
 // DeployMode describes the type of deployment of a Spark application.
 type DeployMode string
 
-// Different types of deployments.
+// Different types of deployments. Client and in-cluster-client modes are deprecated, see https://github.com/kubeflow/spark-operator/issues/3253.
 const (
 	DeployModeCluster         DeployMode = "cluster"
 	DeployModeClient          DeployMode = "client"
