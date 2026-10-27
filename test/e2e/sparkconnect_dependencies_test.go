@@ -39,11 +39,6 @@ import (
 	"github.com/kubeflow/spark-operator/v2/pkg/util"
 )
 
-// connectQueryScript queries the Spark Connect server from the client pod.
-//
-//go:embed scripts/connect_query.py
-var connectQueryScript string
-
 var _ = Describe("SparkConnect Dependencies", func() {
 	Context("Start the server with dependencies", func() {
 		ctx := context.Background()
@@ -169,12 +164,29 @@ var _ = Describe("SparkConnect Dependencies", func() {
 			// genuine Spark Connect session, because a classic fallback would evaluate
 			// the query on the client JVM and never reach the operator's server at all.
 			connectURL := fmt.Sprintf("sc://%s.%s.svc:15002", serviceName, conn.Namespace)
+
+			queryScript := `
+println("SESSION_PROBE=" + spark.getClass.getName)
+try { println("AVRO=" + spark.sql("SELECT hex(to_avro(54))").collect()(0).getString(0)) } 
+catch { case e: Throwable => println("AVRO_ERROR=" + e.getMessage.take(160)) }
+
+try { println("RE2J=" + spark.sql("SELECT reflect('com.google.re2j.Pattern', 'matches', 'a.c', 'abc')").collect()(0).getString(0)) } 
+catch { case e: Throwable => println("RE2J_ERROR=" + e.getMessage.take(160)) }
+System.exit(0)
+`
+
+			// spark-shell --remote starts the Spark Connect (Ammonite) REPL, which opens /dev/tty.
+			// kubectl exec -i has no TTY or $TERM, so `script` allocates a pseudo-terminal and TERM=dumb lets Ammonite size it.
+			// `spark` in this REPL is a Connect session bound to the server, not a local one.
 			output, err := runCommandWithInput(
-				connectQueryScript,
+				queryScript,
 				"kubectl", "exec", "-i", "-n", conn.Namespace, clientPod.Name, "--",
-				"python3", "-", connectURL,
+				"bash", "-c",
+				fmt.Sprintf("export HOME=/tmp TERM=dumb && script -qec '${SPARK_HOME}/bin/spark-shell --remote %s' /dev/null", connectURL),
 			)
 			Expect(err).NotTo(HaveOccurred(), "Spark Connect dependency query failed: %s", output)
+			Expect(output).To(ContainSubstring("SESSION_CLASS=org.apache.spark.sql.connect.SparkSession"),
+				"expected a Spark Connect session, got: %s", output)
 			Expect(output).To(ContainSubstring("AVRO=54"), "expected to_avro(42) to produce the Avro bytes, got: %s", output)
 			Expect(output).To(ContainSubstring("RE2J=true"), "expected re2j to match 'a.c' against 'abc', got: %s", output)
 		})
