@@ -397,7 +397,7 @@ func (r *Reconciler) mutateServerPod(ctx context.Context, conn *v1alpha1.SparkCo
 		)
 
 		// Setup Kubernetes CPU resources for the Connect server container.
-		// The server runs in client mode, where spark.driver.cores is inert, so cores sets the pod CPU request instead.
+		// spark.driver.cores has no effect because the Connect server runs in client mode.
 		container = util.SetContainerCPUResources(
 			container,
 			util.CPURequestOrCores(conn.Spec.Server.CoreRequest, conn.Spec.Server.Cores),
