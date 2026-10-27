@@ -77,4 +77,5 @@ jobs:
             ^pkg/util/metrics\.go$
             ^pkg/util/util\.go$
             ^spark-docker/Dockerfile$
+            ^spark-docker/conf/metrics\.properties$
             ^spark-docker/conf/prometheus\.yaml$
