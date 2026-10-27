@@ -655,3 +655,46 @@ func configMapRefs(names ...string) []v1beta2.NamePath {
 	}
 	return refs
 }
+
+func TestSparkApplicationValidatorValidateCreate_ClientModeWarning(t *testing.T) {
+	validator := newTestValidator(t, false)
+
+	app := newSparkApplication()
+	app.Spec.Mode = v1beta2.DeployModeClient
+
+	warnings, err := validator.ValidateCreate(context.Background(), app)
+	if err != nil {
+		t.Fatalf("expected success, got %v", err)
+	}
+	if len(warnings) != 1 || !strings.Contains(warnings[0], "spec.mode: client mode is deprecated") {
+		t.Fatalf("expected client mode deprecation warning, got %v", warnings)
+	}
+}
+
+func TestSparkApplicationValidatorValidateCreate_ClusterModeNoWarning(t *testing.T) {
+	validator := newTestValidator(t, false)
+
+	warnings, err := validator.ValidateCreate(context.Background(), newSparkApplication())
+	if err != nil {
+		t.Fatalf("expected success, got %v", err)
+	}
+	if len(warnings) != 0 {
+		t.Fatalf("expected no warnings, got %v", warnings)
+	}
+}
+
+func TestSparkApplicationValidatorValidateUpdate_ClientModeWarning(t *testing.T) {
+	validator := newTestValidator(t, false)
+
+	oldApp := newSparkApplication()
+	newApp := newSparkApplication()
+	newApp.Spec.Mode = v1beta2.DeployModeClient
+
+	warnings, err := validator.ValidateUpdate(context.Background(), oldApp, newApp)
+	if err != nil {
+		t.Fatalf("expected success, got %v", err)
+	}
+	if len(warnings) != 1 || !strings.Contains(warnings[0], "spec.mode: client mode is deprecated") {
+		t.Fatalf("expected client mode deprecation warning, got %v", warnings)
+	}
+}
