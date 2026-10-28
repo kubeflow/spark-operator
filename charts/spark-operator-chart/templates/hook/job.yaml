@@ -55,13 +55,10 @@ spec:
         resources:
           {{- toYaml . | nindent 10 }}
         {{- end }}
+        {{- with .Values.hook.securityContext }}
         securityContext:
-          readOnlyRootFilesystem: true
-          privileged: false
-          allowPrivilegeEscalation: false
-          capabilities:
-            drop:
-            - ALL
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
       {{- with .Values.image.pullSecrets }}
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
@@ -79,5 +76,9 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       serviceAccountName: {{ include "spark-operator.hook.serviceAccount.name" . }}
+      {{- with .Values.hook.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       restartPolicy: Never
 {{- end }}
