@@ -27,7 +27,7 @@ spec:
 A `SparkApplication` should set `.spec.mode` to `cluster`. The driver pod will then run `spark-submit` in `client` mode internally to run the driver program. Additional details of how `SparkApplication`s are run can be found in the [design documentation](../overview/index.md#architecture).
 
 :::{warning}
-`.spec.mode: client` (and `in-cluster-client`) is deprecated and will be removed in the next API version. Client mode runs the driver inside the operator, which is a security risk. For interactive workloads, use [SparkConnect](spark-connect.md) instead. See [#3253](https://github.com/kubeflow/spark-operator/issues/3253).
+`.spec.mode: client` is deprecated and will be removed in the next API version. Client mode runs the driver inside the operator, which is a security risk. For interactive workloads, use [SparkConnect](spark-connect.md) instead. See [#3253](https://github.com/kubeflow/spark-operator/issues/3253).
 :::
 
 ## Specifying Application Dependencies
