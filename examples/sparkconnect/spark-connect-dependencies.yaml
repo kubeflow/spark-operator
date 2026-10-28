@@ -18,13 +18,13 @@ metadata:
   name: spark-connect-dependencies
   namespace: default
 spec:
-  sparkVersion: 4.0.4
+  sparkVersion: 4.2.0
   deps:
     jars:
     - https://repo1.maven.org/maven2/com/google/re2j/re2j/1.8/re2j-1.8.jar
     packages:
     # spark-avro must match the image's Spark version
-    - org.apache.spark:spark-avro_2.13:4.0.4
+    - org.apache.spark:spark-avro_2.13:4.2.0
     excludePackages:
     - org.tukaani:xz
     - org.apache.spark:spark-tags_2.13
@@ -42,7 +42,7 @@ spec:
       spec:
         containers:
         - name: spark-kubernetes-driver
-          image: docker.io/apache/spark:4.0.4
+          image: docker.io/apache/spark:4.2.0
           imagePullPolicy: Always
           resources:
             requests:
@@ -77,7 +77,7 @@ spec:
       spec:
         containers:
         - name: spark-kubernetes-executor
-          image: docker.io/apache/spark:4.0.4
+          image: docker.io/apache/spark:4.2.0
           imagePullPolicy: Always
         securityContext:
           capabilities:

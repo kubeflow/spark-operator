@@ -18,7 +18,6 @@ package e2e_test
 
 import (
 	"context"
-	_ "embed"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -38,11 +37,6 @@ import (
 	"github.com/kubeflow/spark-operator/v2/internal/controller/sparkconnect"
 	"github.com/kubeflow/spark-operator/v2/pkg/util"
 )
-
-// connectQueryScript queries the Spark Connect server from the client pod.
-//
-//go:embed scripts/connect_query.py
-var connectQueryScript string
 
 var _ = Describe("SparkConnect Dependencies", func() {
 	Context("Start the server with dependencies", func() {
@@ -161,22 +155,36 @@ var _ = Describe("SparkConnect Dependencies", func() {
 				return util.IsPodReady(pod)
 			}).WithPolling(PollInterval).WithTimeout(WaitTimeout).Should(BeTrue())
 
-			By("Running a query on the server session that uses the declared spark-avro package")
-			// to_avro is not available in the base image. It only resolves if the
-			// declared spark-avro package was fetched and put on the server session's
-			// classpath, so a successful query exercises the dependency instead of only
-			// inspecting the container arguments. The helper asserts the session is a
-			// genuine Spark Connect session, because a classic fallback would evaluate
-			// the query on the client JVM and never reach the operator's server at all.
+			By("Running a query on the server session that uses the declared dependencies")
 			connectURL := fmt.Sprintf("sc://%s.%s.svc:15002", serviceName, conn.Namespace)
+
+			// Use spark-shell because the controller image is Scala-only. The remote session
+			// ensures dependency expressions execute on the Spark Connect server, not locally.
+			scalaScript := `println("SESSION_CLASS=" + spark.getClass.getName)
+			println("AVRO=" + spark.sql("SELECT hex(to_avro(42))").collect()(0).getString(0))
+			println("RE2J=" + spark.sql("SELECT reflect('com.google.re2j.Pattern', 'matches', 'a.c', 'abc')").collect()(0).getString(0))
+			sys.exit(0)
+			`
+
 			output, err := runCommandWithInput(
-				connectQueryScript,
+				scalaScript,
 				"kubectl", "exec", "-i", "-n", conn.Namespace, clientPod.Name, "--",
-				"python3", "-", connectURL,
+				"bash", "-c",
+				fmt.Sprintf(
+					"export HOME=/tmp TERM=dumb && script -qec '${SPARK_HOME}/bin/spark-shell --remote %s' /dev/null",
+					connectURL,
+				),
 			)
 			Expect(err).NotTo(HaveOccurred(), "Spark Connect dependency query failed: %s", output)
-			Expect(output).To(ContainSubstring("AVRO=54"), "expected to_avro(42) to produce the Avro bytes, got: %s", output)
-			Expect(output).To(ContainSubstring("RE2J=true"), "expected re2j to match 'a.c' against 'abc', got: %s", output)
+			Expect(output).To(ContainSubstring(
+				"SESSION_CLASS=org.apache.spark.sql.connect.SparkSession",
+			), "expected a Spark Connect session, got: %s", output)
+			Expect(output).To(ContainSubstring(
+				"AVRO=54",
+			), "expected to_avro(42) to produce the Avro bytes, got: %s", output)
+			Expect(output).To(ContainSubstring(
+				"RE2J=true",
+			), "expected re2j to match 'a.c' against 'abc', got: %s", output)
 		})
 	})
 })

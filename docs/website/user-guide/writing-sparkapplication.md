@@ -17,9 +17,9 @@ metadata:
 spec:
   type: Scala
   mode: cluster
-  image: spark:3.5.1
+  image: docker.io/apache/spark:4.2.0
   mainClass: org.apache.spark.examples.SparkPi
-  mainApplicationFile: local:///opt/spark/examples/jars/spark-examples_2.12-3.5.1.jar
+  mainApplicationFile: local:///opt/spark/examples/jars/spark-examples.jar
 ```
 
 ## Specifying Deployment Mode

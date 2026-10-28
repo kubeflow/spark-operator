@@ -18,7 +18,7 @@ metadata:
   name: spark-connect-custom-resource
   namespace: default
 spec:
-  sparkVersion: 4.0.4
+  sparkVersion: 4.2.0
   server:
     cores: 1
     coreRequest: "500m"
@@ -35,7 +35,7 @@ spec:
       spec:
         containers:
         - name: spark-kubernetes-driver
-          image: docker.io/apache/spark:4.0.4
+          image: docker.io/apache/spark:4.2.0
           imagePullPolicy: Always
           # Ref: https://spark.apache.org/docs/latest/running-on-kubernetes.html#pod-template.
           resources:
@@ -79,7 +79,7 @@ spec:
       spec:
         containers:
         - name: spark-kubernetes-executor
-          image: docker.io/apache/spark:4.0.4
+          image: docker.io/apache/spark:4.2.0
           imagePullPolicy: Always
           # Ref: https://spark.apache.org/docs/latest/running-on-kubernetes.html#pod-template.
           resources:
