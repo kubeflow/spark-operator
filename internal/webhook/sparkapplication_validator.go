@@ -77,7 +77,7 @@ func (v *SparkApplicationValidator) ValidateCreate(ctx context.Context, app *v1b
 		}
 	}
 
-	return nil, nil
+	return deprecationWarnings(&app.Spec, field.NewPath("spec")), nil
 }
 
 // ValidateUpdate implements admission.Validator.
@@ -110,7 +110,7 @@ func (v *SparkApplicationValidator) ValidateUpdate(ctx context.Context, oldApp *
 		}
 	}
 
-	return nil, nil
+	return deprecationWarnings(&newApp.Spec, field.NewPath("spec")), nil
 }
 
 // ValidateDelete implements admission.Validator.
@@ -162,6 +162,16 @@ func (v *SparkApplicationValidator) validateSpec(ctx context.Context, app *v1bet
 	}
 
 	return nil
+}
+
+// deprecationWarnings returns admission warnings so users see client mode is deprecated at apply time, see https://github.com/kubeflow/spark-operator/issues/3253.
+func deprecationWarnings(spec *v1beta2.SparkApplicationSpec, path *field.Path) admission.Warnings {
+	if spec.Mode != v1beta2.DeployModeClient {
+		return nil
+	}
+	return admission.Warnings{
+		fmt.Sprintf("%s: client mode is deprecated and will be removed in the next API version; use cluster mode or SparkConnect instead", path.Child("mode")),
+	}
 }
 
 // validateName ensures the SparkApplication metadata.name is a valid DNS-1035 label
