@@ -1,11 +1,11 @@
 /*
-Copyright 2025 The Kubeflow authors.
+Copyright 2025 The Kubeflow Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-    https://www.apache.org/licenses/LICENSE-2.0
+    http://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -131,7 +131,7 @@ var _ = Describe("Options functions", func() {
 	})
 
 	Context("driverConfOption and executorConfOption with CPU resources", func() {
-		It("does not emit driver SparkConf keys for server CoreRequest and CoreLimit", func() {
+		It("does not emit driver CPU SparkConf keys for server Cores, CoreRequest and CoreLimit", func() {
 			cores := int32(4)
 			coreRequest := resource.MustParse("3500m")
 			coreLimit := resource.MustParse("4")
@@ -157,7 +157,7 @@ var _ = Describe("Options functions", func() {
 			Expect(err).NotTo(HaveOccurred())
 			config := parsedSparkConfig(args)
 
-			Expect(config).To(HaveKeyWithValue("spark.driver.cores", "4"))
+			Expect(config).NotTo(HaveKey(common.SparkDriverCores))
 			Expect(config).NotTo(HaveKey(common.SparkKubernetesDriverRequestCores))
 			Expect(config).NotTo(HaveKey(common.SparkKubernetesDriverLimitCores))
 		})
@@ -217,7 +217,7 @@ var _ = Describe("Options functions", func() {
 			Expect(err).NotTo(HaveOccurred())
 			driverConfig := parsedSparkConfig(driverArgs)
 
-			Expect(driverConfig).To(HaveKeyWithValue("spark.driver.cores", "4"))
+			Expect(driverConfig).NotTo(HaveKey(common.SparkDriverCores))
 			Expect(driverConfig).NotTo(HaveKey(common.SparkKubernetesDriverRequestCores))
 			Expect(driverConfig).NotTo(HaveKey(common.SparkKubernetesDriverLimitCores))
 		})

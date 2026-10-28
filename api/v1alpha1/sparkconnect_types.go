@@ -1,11 +1,11 @@
 /*
-Copyright 2025 The Kubeflow authors.
+Copyright 2025 The Kubeflow Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-    https://www.apache.org/licenses/LICENSE-2.0
+    http://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -111,7 +111,7 @@ type ExecutorSpec struct {
 
 // SparkPodSpec defines common things that can be customized for a Spark driver or executor pod.
 type SparkPodSpec struct {
-	// Cores maps to `spark.driver.cores` or `spark.executor.cores` for the driver and executors, respectively.
+	// Cores is a shorthand for coreRequest on the server, and maps to `spark.executor.cores` for executors.
 	// +optional
 	// +kubebuilder:validation:Minimum=1
 	Cores *int32 `json:"cores,omitempty"`

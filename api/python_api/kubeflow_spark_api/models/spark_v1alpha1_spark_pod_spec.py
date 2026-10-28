@@ -1,3 +1,17 @@
+# Copyright The Kubeflow Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 # coding: utf-8
 
 """
@@ -31,7 +45,7 @@ class SparkV1alpha1SparkPodSpec(BaseModel):
     """ # noqa: E501
     core_limit: Optional[IoK8sApimachineryPkgApiResourceQuantity] = Field(default=None, description="CoreLimit is the physical CPU core limit for the pod.", alias="coreLimit")
     core_request: Optional[IoK8sApimachineryPkgApiResourceQuantity] = Field(default=None, description="CoreRequest is the physical CPU core request for the pod.", alias="coreRequest")
-    cores: Optional[StrictInt] = Field(default=None, description="Cores maps to `spark.driver.cores` or `spark.executor.cores` for the driver and executors, respectively.")
+    cores: Optional[StrictInt] = Field(default=None, description="Cores is a shorthand for coreRequest on the server, and maps to `spark.executor.cores` for executors.")
     gpu: Optional[SparkV1alpha1GPUSpec] = Field(default=None, description="GPU specifies GPU resources for the pod and Spark resource scheduler. GPU discovery and per-task resource settings are configured through SparkConf.")
     memory: Optional[StrictStr] = Field(default=None, description="Memory is the amount of memory to request for the pod.")
     template: Optional[IoK8sApiCoreV1PodTemplateSpec] = Field(default=None, description="Template is a pod template that can be used to define the driver or executor pod configurations that Spark configurations do not support. Spark version >= 3.0.0 is required. Ref: https://spark.apache.org/docs/latest/running-on-kubernetes.html#pod-template.")

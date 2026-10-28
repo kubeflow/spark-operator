@@ -926,7 +926,7 @@ int32
 </td>
 <td>
 <em>(Optional)</em>
-<p>Cores maps to <code>spark.driver.cores</code> or <code>spark.executor.cores</code> for the driver and executors, respectively.</p>
+<p>Cores is a shorthand for coreRequest on the server, and maps to <code>spark.executor.cores</code> for executors.</p>
 </td>
 </tr>
 <tr>
