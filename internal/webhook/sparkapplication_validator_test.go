@@ -121,6 +121,38 @@ func TestSparkApplicationValidatorValidateCreate_ResourceQuotaSatisfied(t *testi
 	}
 }
 
+func TestSparkApplicationValidatorValidateCreate_ResourceQuotaMemoryWithoutUnit(t *testing.T) {
+	validator := newTestValidator(t, true)
+
+	app := newSparkApplication()
+	app.Spec.Driver.MemoryOverhead = ptr.To("384")
+	app.Spec.Executor.Memory = ptr.To("2048")
+
+	if _, err := validator.ValidateCreate(context.Background(), app); err != nil {
+		t.Fatalf("expected memory values without a unit to be accepted, got %v", err)
+	}
+
+	// A value without a unit is MiB, so it must be counted the same as the explicit "m" form.
+	withUnits := newSparkApplication()
+	withUnits.Spec.Driver.MemoryOverhead = ptr.To("384m")
+	withUnits.Spec.Executor.Memory = ptr.To("2048m")
+
+	got, err := getResourceList(app)
+	if err != nil {
+		t.Fatalf("failed to calculate resource list: %v", err)
+	}
+	want, err := getResourceList(withUnits)
+	if err != nil {
+		t.Fatalf("failed to calculate resource list: %v", err)
+	}
+	for _, name := range []corev1.ResourceName{corev1.ResourceMemory, corev1.ResourceRequestsMemory} {
+		g, w := got[name], want[name]
+		if g.Cmp(w) != 0 {
+			t.Errorf("%s: expected %s, got %s", name, w.String(), g.String())
+		}
+	}
+}
+
 func TestSparkApplicationValidatorValidateUpdate_SameSpecSkipsValidation(t *testing.T) {
 	validator := newTestValidator(t, true)
 
