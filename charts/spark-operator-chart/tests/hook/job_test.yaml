@@ -213,3 +213,68 @@ tests:
     - equal:
         path: spec.template.metadata.labels.key2
         value: value2
+
+
+- it: Should set the default container securityContext
+  set:
+    hook:
+      upgradeCrd: true
+  asserts:
+    - equal:
+        path: spec.template.spec.containers[0].securityContext
+        value:
+          readOnlyRootFilesystem: true
+          privileged: false
+          allowPrivilegeEscalation: false
+          runAsNonRoot: true
+          runAsUser: 65534
+          capabilities:
+            drop:
+            - ALL
+          seccompProfile:
+            type: RuntimeDefault
+
+- it: Should not set the pod securityContext by default
+  set:
+    hook:
+      upgradeCrd: true
+  asserts:
+    - notExists:
+        path: spec.template.spec.securityContext
+
+- it: Should override fields of `hook.securityContext` if they are set
+  set:
+    hook:
+      upgradeCrd: true
+      securityContext:
+        runAsUser: 1000
+  asserts:
+    - equal:
+        path: spec.template.spec.containers[0].securityContext.runAsUser
+        value: 1000
+    - equal:
+        path: spec.template.spec.containers[0].securityContext.runAsNonRoot
+        value: true
+
+- it: Should not set the container securityContext if `hook.securityContext` is null
+  set:
+    hook:
+      upgradeCrd: true
+      securityContext: null
+  asserts:
+    - notExists:
+        path: spec.template.spec.containers[0].securityContext
+
+- it: Should set the pod securityContext if `hook.podSecurityContext` is set
+  set:
+    hook:
+      upgradeCrd: true
+      podSecurityContext:
+        runAsGroup: 65534
+        fsGroup: 65534
+  asserts:
+    - equal:
+        path: spec.template.spec.securityContext
+        value:
+          runAsGroup: 65534
+          fsGroup: 65534
