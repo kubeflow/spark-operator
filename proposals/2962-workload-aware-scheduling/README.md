@@ -16,6 +16,7 @@
   - [Kubernetes Workload API Overview](#kubernetes-workload-api-overview)
   - [Executor Template Injection](#executor-template-injection)
   - [API](#api)
+  - [Scheduling surface unification](#scheduling-surface-unification)
   - [Defaulting](#defaulting)
   - [Validation](#validation)
   - [Controller Integration](#controller-integration)
@@ -46,7 +47,19 @@ This document proposes integrating the Kubernetes Workload API into Kubeflow Spa
 - Other features through `Workload` and `PodGroup` resources defined in
 [KEP-6089](https://github.com/kubernetes/enhancements/tree/master/keps/sig-scheduling/6089-was-controller-apis)
 
-An optional `.spec.scheduling` field on `SparkApplication` lets users configure Basic or Gang scheduling for executor Pods. When the field is set and the `SparkApplicationWorkloadAwareScheduling` feature gate is enabled, the SparkApplication controller creates exactly one `Workload` blueprint and one attempt-scoped `PodGroup` per submission before executor Pods are created. When the field is nil, no scheduling objects are created and behavior is unchanged.
+An optional `.spec.scheduling` field is the **application-level scheduling surface**. It holds:
+
+- **Native WAS:** `schedulingPolicy` (Basic or Gang for executor Pods). When set and the
+  `SparkApplicationWorkloadAwareScheduling` feature gate is enabled, the controller creates one
+  `Workload` and one attempt-scoped `PodGroup` per submission.
+- **Batch backends:** `batchScheduler` (Volcano, YuniKorn, scheduler-plugins / kube-scheduler
+  names, and their options). Same capabilities as today's top-level fields; not a second-class
+  path and **not** translated into native WAS.
+
+`schedulingPolicy` and `batchScheduler` are mutually exclusive (CEL). Typed and sparkConf
+`schedulerName` stay on driver/executor pods. Top-level `batchScheduler` /
+`batchSchedulerOptions` remain readable during dual support. When `.spec.scheduling` is nil and
+no top-level batch fields are set, behavior is unchanged.
 
 ### Alpha scope
 
@@ -84,8 +97,9 @@ Earlier prototype PRs ([#3093](https://github.com/kubeflow/spark-operator/pull/3
 
 ### Goals
 
-1. Add an optional `SparkApplicationSpec.Scheduling`, serialized as `.spec.scheduling`.
-2. Compose [KEP-6089](https://github.com/kubernetes/enhancements/tree/master/keps/sig-scheduling/6089-was-controller-apis) leaf-level building blocks in a Spark-owned wrapper whose JSON mirrors `schedulingPolicy.{basic|gang}`.
+1. Add an optional `SparkApplicationSpec.Scheduling`, serialized as `.spec.scheduling`, as the
+  application-level scheduling surface for native WAS **and** batch backends.
+2. Compose [KEP-6089](https://github.com/kubernetes/enhancements/tree/master/keps/sig-scheduling/6089-was-controller-apis) leaf-level building blocks in a Spark-owned wrapper whose JSON mirrors `schedulingPolicy.{basic|gang}`, and nest batch backends as `scheduling.batchScheduler`.
 3. Make `SparkApplication` the root workload and the SparkApplication controller the sole compiler
   and owner of its native `Workload` and attempt `PodGroup`.
 4. Use upstream `workloadbuilder` from
@@ -96,7 +110,8 @@ Earlier prototype PRs ([#3093](https://github.com/kubeflow/spark-operator/pull/3
 6. Compute Gang `minCount` from the same resolved initial-executor value used for Spark submission.
 7. Isolate retries by creating a separate attempt-scoped `PodGroup` for every `status.submissionID`.
 8. Preserve current behavior for applications that omit `.spec.scheduling`.
-9. Preserve existing Volcano, YuniKorn, and scheduler-plugins integrations.
+9. Preserve Volcano, YuniKorn, and scheduler-plugins as first-class backends under
+  `.spec.scheduling.batchScheduler` (with dual support for top-level fields).
 10. Apply the same validation to `ScheduledSparkApplication.spec.template`.
 
 ### Future Goals
@@ -105,11 +120,7 @@ Earlier prototype PRs ([#3093](https://github.com/kubeflow/spark-operator/pull/3
 2. Enable topology constraints, DRA resource claims, and disruption modes as upstream APIs mature.
 3. Evaluate client and in-cluster-client deployment modes after validating executor template paths.
 4. Expand Kueue coordination beyond the alpha coexistence contract.
-5. Unify confusing scheduling-related surfaces under `.spec.scheduling` (nest or replace
-  `batchScheduler` / `batchSchedulerOptions`, clarify interaction with typed and sparkConf
-  `schedulerName`) and deprecate the moved fields over a release window. Alpha keeps mutual
-  exclusion only; it does not perform that migration.
-6. Implement multi-leaf and/or CompositePodGroup (CPG) semantics when Spark or platforms need
+5. Implement multi-leaf and/or CompositePodGroup (CPG) semantics when Spark or platforms need
   them (e.g. multiple executor groups, or driver+executor composition without one atomic gang).
   Alpha does not expose those fields, but the `.spec.scheduling` wrapper is designed now so they
   can be added without renaming or breaking the single-leaf shape (same approach as TrainJob /
@@ -117,9 +128,10 @@ Earlier prototype PRs ([#3093](https://github.com/kubeflow/spark-operator/pull/3
 
 ### Non-Goals
 
-1. In alpha: replace, silently translate, or migrate existing batch scheduler integrations into
-  native WAS. Volcano, YuniKorn, and scheduler-plugins stay first-class and mutually exclusive
-  with `.spec.scheduling`. Deprecation/unification is a Future Goal, not this KEP's alpha work.
+1. Silently translate Volcano, YuniKorn, or scheduler-plugins into native WAS (or the reverse).
+  Those backends stay first-class under `.spec.scheduling.batchScheduler` and are mutually
+  exclusive with `schedulingPolicy`. This KEP **does** unify the user surface under
+  `.spec.scheduling`; it does **not** invent a bridge between backend kinds.
 2. Put the cluster-mode driver in the executor gang.
 3. Expose a user-managed `schedulingGroup` field in the Spark CRD.
 4. Let users provide Gang `minCount` in alpha; scale remains expressed by Spark executor settings.
@@ -139,16 +151,26 @@ Earlier prototype PRs ([#3093](https://github.com/kubeflow/spark-operator/pull/3
   SparkApplications. Alpha keeps Volcano, YuniKorn, and scheduler-plugins for that class of
   guarantee.
 11. Combine `PartialRestart` with native WAS in alpha. The two feature gates are mutually
-  exclusive when `.spec.scheduling` is set.
+  exclusive when `scheduling.schedulingPolicy` is set.
 
 ## Proposal
 
-Add `.spec.scheduling` to `SparkApplicationSpec`. When the field is set and the `SparkApplicationWorkloadAwareScheduling` feature gate is enabled, the SparkApplication controller
-builds one `Workload`, materializes one attempt-scoped `PodGroup`, injects `spec.schedulingGroup.podGroupName` into a deep-copied executor template, and runs the existing cluster-mode submission path. When the field is nil, no scheduling objects are created.
+Add `.spec.scheduling` to `SparkApplicationSpec` as the application-level scheduling surface.
+
+- When `scheduling.schedulingPolicy` is set and `SparkApplicationWorkloadAwareScheduling` is
+  enabled, the controller builds one `Workload`, materializes one attempt-scoped `PodGroup`,
+  injects `spec.schedulingGroup.podGroupName` into a deep-copied executor template, and runs the
+  existing cluster-mode submission path.
+- When `scheduling.batchScheduler` is set (and `schedulingPolicy` is not), the existing Volcano /
+  YuniKorn / scheduler-plugins path runs; no native WAS objects are created.
+- When `.spec.scheduling` is nil, top-level `batchScheduler` / `batchSchedulerOptions` still work
+  (dual support). When neither nested nor top-level batch fields nor `schedulingPolicy` are set,
+  behavior is unchanged.
 
 The key design principles are:
 
-1. **Opt-in via the SparkApplication API.** A nil `.spec.scheduling` creates no WAS resources.
+1. **One scheduling surface.** Application-level scheduling intent lives under `.spec.scheduling`
+  (native WAS and batch backends). A nil `.spec.scheduling` creates no native WAS resources.
 2. **One SparkApplication – one Workload; API ready for more leaves.** Each SparkApplication maps
   to a single long-lived `Workload`. Alpha enforces exactly one executor `PodGroupTemplate`.
   `.spec.scheduling` is an extensible object (not a bare enum) so later revisions can add
@@ -183,7 +205,7 @@ The key design principles are:
 | Gang-schedule initial executors      | `schedulingPolicy.gang: {}` with static `executor.instances`; controller sets `minCount`. |
 | Insufficient cluster capacity        | Executors stay unbound until the gang admits; no per-Pod fallback.                        |
 | Keep ordinary Spark apps unchanged   | Omitted `scheduling` creates no WAS objects.                                              |
-| Keep legacy batch schedulers working | Native WAS and `batchScheduler` are mutually exclusive.                                   |
+| Keep batch backends first-class      | Nested `scheduling.batchScheduler` (dual-support top-level); XOR with native WAS.         |
 | Retry without mixing attempts        | Each new `submissionID` gets a new PodGroup.                                              |
 | Suspend and resume cleanly           | Suspend deletes the attempt PodGroup; resume creates a new submission ID.                 |
 | Reject dynamic allocation            | Typed or `sparkConf` dynamic allocation with native WAS is rejected.                      |
@@ -383,90 +405,114 @@ Injection must cover both the spark-submit template-file path and the REST submi
 
 ### API
 
-Intended alpha wire shape (matches [#3230](https://github.com/kubeflow/spark-operator/pull/3230)
-once that PR is brought into parity with this KEP):
+Target wire shape (native WAS **or** batch backend — not both):
 
 ```yaml
+# Native WAS
 spec:
   scheduling:
     schedulingPolicy:
       gang: {}    # or basic: {}
+
+# Batch backend (Volcano / YuniKorn / scheduler-plugins — first-class, not "legacy")
+spec:
+  scheduling:
+    batchScheduler:
+      name: volcano          # volcano | yunikorn | kube-scheduler profile names
+      queue: default
+      priorityClassName: high
+      resources: {}
 ```
 
 ```go
 type SparkApplicationSpec struct {
     // Existing fields omitted.
 
-    // Scheduling defines Kubernetes-native Workload-Aware Scheduling for executor Pods.
-    // When nil, Spark Operator creates no native Workload or PodGroup.
+    // Scheduling is the application-level scheduling surface (native WAS and/or batch backends).
     // +optional
     Scheduling *SparkApplicationSchedulingConfiguration `json:"scheduling,omitempty"`
+
+    // BatchScheduler is the pre-unification top-level field. Still accepted during dual support.
+    // Prefer spec.scheduling.batchScheduler.name. See Scheduling surface unification.
+    // +optional
+    BatchScheduler *string `json:"batchScheduler,omitempty"`
+    // +optional
+    BatchSchedulerOptions *BatchSchedulerConfiguration `json:"batchSchedulerOptions,omitempty"`
 }
 
-// Spark-owned wrapper. JSON mirrors the KEP-6089 policy union
-// (schedulingPolicy.{basic|gang}). Alpha does not import unstable upstream Go packages into
-// the Spark CRD until Phase 0 pins them; translation to Workload/PodGroup still uses
-// workloadbuilder.
-//
-// Forward compatibility: this remains a struct (not a string enum) so later KEPs can add
-// fields such as named podGroupTemplates or a CompositePodGroup / composite ref without
-// renaming .spec.scheduling or breaking single-leaf users. Alpha allow-lists only
-// schedulingPolicy; unknown extension fields are rejected until graduated.
+// +kubebuilder:validation:XValidation:rule="!(has(self.schedulingPolicy) && has(self.batchScheduler))",message="schedulingPolicy and batchScheduler are mutually exclusive"
 type SparkApplicationSchedulingConfiguration struct {
-    // SchedulingPolicy is the alpha shorthand for the single executor leaf's policy.
-    // Controllers map it to Workload.podGroupTemplates[name=executors].
-    // Exactly one of basic or gang may be set (union).
+    // SchedulingPolicy is the single executor-leaf shorthand for native WAS.
+    // Maps to Workload.podGroupTemplates[name=executors].
     // +optional
     SchedulingPolicy *WorkloadPodGroupSchedulingPolicy `json:"schedulingPolicy,omitempty"`
 
-    // Future (not in alpha CRD — shown for design intent only):
-    // PodGroupTemplates []... `json:"podGroupTemplates,omitempty"`
-    // Composite         *...  `json:"composite,omitempty"` // or CPG ref when upstream lands
+    // BatchScheduler selects Volcano, YuniKorn, or other registered batch / kube-scheduler
+    // backends. Merges today's top-level batchScheduler string + batchSchedulerOptions.
+    // +optional
+    BatchScheduler *SchedulingBatchScheduler `json:"batchScheduler,omitempty"`
+}
+
+type SchedulingBatchScheduler struct {
+    // Name is the backend name (volcano, yunikorn, or a configured kube-scheduler name).
+    // +optional
+    Name *string `json:"name,omitempty"`
+    // +optional
+    Queue *string `json:"queue,omitempty"`
+    // +optional
+    PriorityClassName *string `json:"priorityClassName,omitempty"`
+    // +optional
+    Resources corev1.ResourceList `json:"resources,omitempty"`
 }
 
 // +kubebuilder:validation:XValidation:rule="!(has(self.basic) && has(self.gang))",message="basic and gang are mutually exclusive"
 type WorkloadPodGroupSchedulingPolicy struct {
     // +optional
     Basic *BasicSchedulingPolicy `json:"basic,omitempty"`
-    // Gang selects gang scheduling. Leave empty in alpha; the controller derives minCount.
-    // User-provided minCount is not part of the alpha CRD (Non-goal 4).
+    // Gang selects gang scheduling. Leave empty in alpha; controller derives minCount.
     // +optional
     Gang *GangSchedulingPolicy `json:"gang,omitempty"`
 }
 
 type BasicSchedulingPolicy struct{}
-
-// Alpha omits minCount on the CRD.
 type GangSchedulingPolicy struct{}
 ```
 
-The alpha CRD exposes only `schedulingPolicy`. That field is the **single-leaf shorthand**: the
-controller always compiles one `PodGroupTemplate` named `executors`. Reserved KEP-6089 leaf fields
-(constraints, disruption, claims) and reserved multi-group / CPG fields are omitted and rejected
-by allow-list until an explicit graduation — same pattern TrainJob / JobSet use so phase-1 users
-are not forced through a rename when composition arrives.
+`schedulingPolicy` remains the **single-leaf** native-WAS shorthand (one `PodGroupTemplate`
+named `executors`). Multi-template / CPG fields stay out of the served CRD until graduated; the
+wrapper stays a struct so they can be additive later (TrainJob / JobSet approach).
 
-Illustrative **non-alpha** extension (not served today):
+Typed and sparkConf `schedulerName` stay on driver/executor (pod-level) and are **not**
+deprecated by this KEP.
 
-```yaml
-# Future — not alpha. Existing schedulingPolicy: gang: {} keeps working as the one-leaf form.
-spec:
-  scheduling:
-    podGroupTemplates:
-      - name: executors
-        schedulingPolicy:
-          gang: {}
-      # - name: driver   # only if a later KEP defines a non-deadlocking driver leaf
-    # composite: ...    # CompositePodGroup when useful / available upstream
-```
+[#3230](https://github.com/kubeflow/spark-operator/pull/3230) and follow-up API PRs must match
+this shape and regenerate CRDs / OpenAPI / docs.
 
-When Phase 0 can import stable upstream building blocks
-([#6342](https://github.com/kubernetes/enhancements/pull/6342)), Spark may switch the Go types to
-those packages without changing the alpha JSON shorthand above.
+### Scheduling surface unification
 
-`batchScheduler` / `batchSchedulerOptions` / typed and sparkConf `schedulerName` remain separate
-fields in alpha. They are mutually exclusive with native WAS where they conflict; unifying them
-under `.spec.scheduling` is a Future Goal, not a silent translation of existing backends.
+Maintainer direction ([#3154 comment](https://github.com/kubeflow/spark-operator/pull/3154#issuecomment-6370431280)):
+put application-level scheduling under `.spec.scheduling` so users do not face four similarly
+named top-level fields. Batch backends are **not** called legacy.
+
+**Rollout sequence**
+
+1. **API change:** add `.spec.scheduling` with `schedulingPolicy` and nested `batchScheduler`
+   (merged name + options). CEL XOR on the parent.
+2. **Dual support:** preserve current behavior when users set **either** top-level
+   `batchScheduler` / `batchSchedulerOptions` **or** `scheduling.batchScheduler`. Prefer nested
+   when only nested is set; if **both** top-level and nested batch fields are set, **reject**
+   (fail closed — no ambiguous precedence).
+3. **Native WAS alpha:** implement Workload/PodGroup path behind
+   `SparkApplicationWorkloadAwareScheduling` when `schedulingPolicy` is set.
+4. **Docs / examples:** new docs show nested `scheduling.batchScheduler`; top-level remains
+   documented as accepted during dual support.
+5. **Deprecation (follow-on, same release train):** emit Warning on top-level
+   `batchScheduler*` once nested ships; keep fields readable for at least two minors (or keep
+   indefinitely with `+deprecated`). Removal is a separate, explicitly versioned step.
+
+`--default-batch-scheduler` still applies when neither nested nor top-level batch fields nor
+`schedulingPolicy` are set. Explicit `schedulingPolicy` wins over the default (native WAS path).
+Explicit nested or top-level batch fields win over the default (existing batch path).
 
 Runtime `Workload` and `PodGroup` examples in this KEP use the `scheduling.k8s.io/v1beta1` shape
 served in Kubernetes v1.37:
@@ -500,23 +546,27 @@ spec:
   executor:
     instances: 8
 
-# Native WAS + legacy batch scheduler
+# Native WAS + batch backend (nested or top-level) — rejected (XOR)
 spec:
   scheduling:
     schedulingPolicy:
       gang: {}
-  batchScheduler: volcano
+    batchScheduler:
+      name: volcano
 ```
 
 Users do not set `spec.executor.schedulingGroup` in the Spark CRD. PodGroup identity is attempt-scoped controller state injected into the ephemeral executor template only.
 
 ### Defaulting
 
-- `.spec.scheduling == nil`: do not opt in; create no native WAS objects.
-- `.spec.scheduling != nil` with no `schedulingPolicy`: default the executor leaf to `Basic`.
+- `.spec.scheduling == nil`: no native WAS objects; top-level batch fields and
+  `--default-batch-scheduler` behave as today.
+- `.spec.scheduling.batchScheduler` set (no `schedulingPolicy`): batch path only; do **not**
+  default a native WAS policy.
+- `.spec.scheduling.schedulingPolicy` omitted but user intends native WAS via empty
+  `scheduling: {}`: default Basic is proposed (Open Question 1) — only when neither
+  `batchScheduler` child nor top-level batch fields are set.
 - Explicit `gang: {}`: compute `minCount` from Spark's resolved initial executor count.
-
-Whether an empty block should default to `Basic` or `Gang` remains an open reviewer decision.
 
 ### Validation
 
@@ -524,22 +574,26 @@ Whether an empty block should default to `Basic` or `Gang` remains an open revie
 | Configuration                                | Result                                 | Reason                          |
 | -------------------------------------------- | -------------------------------------- | ------------------------------- |
 | `scheduling` omitted                         | Accept                                 | Backward compatible.            |
-| Empty `scheduling: {}`                       | Accept; default Basic proposed         | Safe explicit opt-in.           |
+| Empty `scheduling: {}` (no batch child)      | Accept; default Basic proposed         | Native WAS opt-in (OQ1).        |
+| `scheduling.batchScheduler` only             | Accept; existing batch path            | First-class backend under scheduling. |
+| Top-level `batchScheduler*` only             | Accept during dual support             | Preserve current manifests.     |
+| Top-level **and** nested batch fields        | Reject                                 | No ambiguous precedence.        |
+| `schedulingPolicy` + `scheduling.batchScheduler` | Reject (CEL)                       | XOR; no silent translation.     |
+| `schedulingPolicy` + top-level `batchScheduler*` | Reject                            | Same XOR across old/new fields. |
 | `schedulingPolicy.gang` without `minCount`   | Accept; controller computes `minCount` | Spark scale is source of truth. |
-| User sets `gang.minCount`                    | Reject                                 | Duplicate scale configuration; not on alpha CRD. |
+| User sets `gang.minCount`                    | Reject                                 | Not on alpha CRD.               |
 | Both Basic and Gang set                      | Reject                                 | Policy is a union.              |
 | Native WAS + dynamic allocation              | Reject                                 | Requires separate KEP.          |
-| `scheduling` + `batchScheduler`              | Reject                                 | No silent translation.          |
 | User sets `spec.schedulingGroup`             | Reject                                 | Operator-managed per attempt.   |
-| Non-default / non-WAS scheduler name         | Reject                                 | Conflicts with native WAS.      |
-| Typed `driver`/`executor.schedulerName` conflict | Reject                              | Same as sparkConf scheduler keys. |
+| Non-default / non-WAS scheduler name with WAS | Reject                                | Conflicts with native WAS.      |
+| Typed `driver`/`executor.schedulerName` conflict with WAS | Reject                   | Pod-level fields stay; still conflict-checked. |
 | `maxPendingPods` below Gang `minCount`       | Reject                                 | Gang can never become ready.    |
 | `PartialRestart` enabled with native WAS     | Reject at admission; see below         | Mutually exclusive in alpha.    |
 | Unsupported topology, disruption, or claims  | Reject by allow-list                   | Fail closed.                    |
-| Feature gate disabled + `scheduling` set     | Reject admission; reconcile backstop   | Avoid unusable contract.        |
-| Webhook disabled + `scheduling` set          | Reject / fail closed                   | Membership defense requires webhook. |
-| Required Kubernetes APIs not served          | Reject at reconcile preflight          | Cached API discovery.           |
-| Client or in-cluster-client mode             | Reject until supported                 | Unverified injection path.      |
+| Feature gate disabled + `schedulingPolicy` set | Reject admission; reconcile backstop | Avoid unusable WAS contract.  |
+| Webhook disabled + `schedulingPolicy` set    | Reject / fail closed                   | Membership defense requires webhook. |
+| Required Kubernetes APIs not served (WAS)    | Reject at reconcile preflight          | Cached API discovery.           |
+| Client or in-cluster-client mode + WAS       | Reject until supported                 | Unverified injection path.      |
 | `ScheduledSparkApplication` template invalid | Reject the schedule                    | Fail before child creation.     |
 
 
@@ -555,9 +609,10 @@ controller. Alpha requires **both**:
 Admission alone is not enough (pre-existing objects, brief misconfig). Controller-only is not
 enough (users should not discover the contract only after reconcile).
 
-**Webhook required:** opting in with `.spec.scheduling` while the Spark pod webhook is disabled
-(`webhook.enable=false`) is rejected at admission when possible, otherwise failed closed at
-reconcile. Template injection alone does not satisfy the membership guarantee.
+**Webhook required for native WAS:** opting in with `scheduling.schedulingPolicy` while the Spark
+pod webhook is disabled (`webhook.enable=false`) is rejected at admission when possible,
+otherwise failed closed at reconcile. Nested `batchScheduler` alone does not require the WAS
+membership webhook contract.
 
 Admission validates object-local rules, feature gate, static-allocation requirement, and
 conflicts visible in the submitted object on create and update. Reconcile preflight performs
@@ -861,18 +916,29 @@ For alpha:
 
 ### Compatibility with Existing Integrations
 
-- **Volcano, YuniKorn, scheduler-plugins:** unchanged; mutually exclusive with native `.spec.scheduling`. **No silent translation** into native WAS — those backends do not map cleanly. They remain the recommended path when platforms need resource-based multi-app admission that native WAS alpha does not provide.
-- **Naming / future unify:** alpha adds `.spec.scheduling` beside `batchScheduler`, `batchSchedulerOptions`, and typed/sparkConf `schedulerName`. That is admittedly crowded. Alpha keeps mutual exclusion only; a later change may nest or replace the batch-scheduler fields under `.spec.scheduling` and deprecate the moved fields (Future Goal 5).
-- **Default batch scheduler:** explicit `.spec.scheduling` takes precedence over a deployment-level `--default-batch-scheduler`. Explicit `.spec.scheduling` together with explicit `.spec.batchScheduler` or `batchSchedulerOptions` is an admission error. When neither native scheduling nor a batch scheduler is set, behavior is unchanged.
-- **Scheduler backend registry:** the public opt-in remains `.spec.scheduling` only; alpha does not add a public `batchScheduler: was` name. Internally, native WAS may reuse the existing scheduler registry/interface for lifecycle hooks and mutual exclusion.
-- **PartialRestart:** mutually exclusive with native WAS in alpha when `.spec.scheduling` is set (admission reject + controller disables skip-invalidation).
-- **Webhook / feature gates:** native WAS requires the Spark pod webhook enabled with `failurePolicy: Fail`. The webhook binary and chart must accept `--feature-gates` kept in sync with the controller; the controller re-validates at reconcile as a backstop.
-- **Kueue:** `kueue.x-k8s.io` Workload and `scheduling.k8s.io` Workload are different objects. Alpha coexistence contract: Kueue may admit the SparkApplication; native WAS places the executor gang after that admission; if the gang never admits, the operator's admission deadline fails the attempt (non-retryable) so quota can be released rather than held forever. Full mutation-ownership and timeout-owner design remains a follow-up KEP.
-- **Client modes:** reject until executor template injection is verified end to end.
+- **Volcano, YuniKorn, scheduler-plugins:** first-class under `scheduling.batchScheduler` (and
+  top-level during dual support). **No silent translation** into native WAS. Still the
+  recommended path for resource-based multi-app admission that native WAS alpha does not provide.
+- **Scheduling surface:** see [Scheduling surface unification](#scheduling-surface-unification).
+  Typed / sparkConf `schedulerName` stay pod-level and are not deprecated here.
+- **Default batch scheduler:** `--default-batch-scheduler` applies only when no explicit batch
+  fields (nested or top-level) and no `schedulingPolicy` are set. Explicit `schedulingPolicy` or
+  explicit batch fields override the default. XOR still forbids combining WAS with a batch backend.
+- **Scheduler backend registry:** no public `batchScheduler: was` name. Nested
+  `scheduling.batchScheduler.name` uses the existing registry. Internally, native WAS may reuse
+  registry hooks for mutual exclusion without becoming a user-facing backend name.
+- **PartialRestart:** mutually exclusive with native WAS when `schedulingPolicy` is set
+  (admission reject + controller disables skip-invalidation).
+- **Webhook / feature gates:** native WAS (`schedulingPolicy`) requires the Spark pod webhook
+  with `failurePolicy: Fail` and `--feature-gates` on webhook + controller; controller
+  re-validates at reconcile as a backstop.
+- **Kueue:** `kueue.x-k8s.io` Workload and `scheduling.k8s.io` Workload are different objects.
+  Alpha coexistence: Kueue may admit the app; native WAS places the executor gang; deadline
+  failure is non-retryable so quota can be released. Full mutation-ownership design is a follow-up.
+- **Client modes:** reject WAS until executor template injection is verified end to end.
 - **SparkConnect:** out of scope.
-- **CompositePodGroup / multi-leaf:** not implemented in alpha, but `.spec.scheduling` is an
-  extensible wrapper designed so templates/CPG can be added later without breaking the
-  `schedulingPolicy` single-leaf shorthand (TrainJob / JobSet approach).
+- **CompositePodGroup / multi-leaf:** not implemented in alpha; wrapper stays extensible
+  (TrainJob / JobSet approach).
 
 ### API Evolution and Phase 0 Pin
 
@@ -942,36 +1008,40 @@ not apply to the superseded v1alpha1 inline model.
 
 ### Open Questions
 
-1. Should `.spec.scheduling: {}` default to `Basic` or `Gang`?
-2. Should the first CRD expose only `schedulingPolicy`, or the full wrapper with allow-list rejection?
-3. Is v1.37+ an acceptable minimum cluster version for Phase 0 pinning? (Provisional yes; confirm
+1. Should empty `scheduling: {}` (no `batchScheduler` child) default to `Basic` or `Gang`?
+2. Is v1.37+ an acceptable minimum cluster version for Phase 0 pinning? (Provisional yes; confirm
    after Phase 0 module bump and API discovery.)
-4. Does the selected builder require materializing a Basic runtime PodGroup?
-5. What **numeric default** should the executor-gang admission deadline use in alpha?
-   (Config locus, terminal state, non-retryability, and clock start are resolved below.)
-6. When should the Future Goal to unify `batchScheduler*` under `.spec.scheduling` start
-   relative to alpha GA of native WAS?
+3. Does the selected builder require materializing a Basic runtime PodGroup?
+4. What **numeric default** should the executor-gang admission deadline use in alpha?
+5. Exact Warning / removal versions for top-level `batchScheduler*` after nested ships
+   (proposal: warn when nested is available; keep ≥2 minors; removal separate).
 
 Resolved for this KEP, pending reviewer objection:
 
-- Explicit `.spec.scheduling` beats `--default-batch-scheduler`. Both explicit native scheduling and an explicit batch scheduler are rejected. Neither set means unchanged behavior. No silent translation of Volcano/YuniKorn/scheduler-plugins into WAS.
-- Alpha CRD JSON is `scheduling.schedulingPolicy.{basic|gang}` via Spark-owned types that mirror the KEP-6089 union; user `minCount` is not on the alpha CRD; basic and gang are mutually exclusive. [#3230](https://github.com/kubeflow/spark-operator/pull/3230) must match and regenerate CRDs/OpenAPI/docs.
-- Alpha observability includes a minimal `WorkloadSchedulingReady` (or equivalent) condition plus supporting Events. A richer mirrored `status.workloadScheduling` object is a beta enhancement. Orchestrators that only poll status must be able to detect driver Running with gang not ready in alpha.
-- `.spec.scheduling` changes are accepted and take effect via normal invalidation on the next submission; the current attempt is not mutated in place (not webhook-immutable).
-- `PartialRestart` and native WAS are mutually exclusive: admission reject (webhook feature-gates) plus controller disables PartialRestart skip-invalidation when `.spec.scheduling` is set.
-- Webhook: native WAS requires webhook enabled, `failurePolicy: Fail`, and `--feature-gates` on webhook + controller; controller re-validates at reconcile as backstop.
-- Membership fail-closed: delete offending executor Pods on `ExecutorMembershipMissing`; fail the attempt if membership stays wrong. Phase 0 confirms `schedulingGroup` mutability.
-- Admission deadline: operator/Helm config only; clock starts at driver Running; terminal `Failed` / `ExecutorGangAdmissionDeadlineExceeded`; non-retryable in alpha; numeric default still Open Question 5.
-- Internal scheduler-registry reuse is allowed; no public `batchScheduler: was` name.
-- Alpha Kueue coexistence: Kueue admits the app; WAS places the gang; deadline failure (non-retryable) releases the attempt so quota can be released.
-- Post-admission static executor replacement schedules on an already-satisfied PodGroup and does not re-require full `minCount`.
-- Alpha: one executor `PodGroupTemplate` via `schedulingPolicy` shorthand; operator sole owner of Workload/PodGroup. Multi-leaf / CPG not implemented in alpha, but the scheduling wrapper is designed for additive extension without rename (Future Goal 6; TrainJob / JobSet approach).
+- **Scheduling surface:** `.spec.scheduling` holds `schedulingPolicy` (native WAS) and
+  `batchScheduler` (merged name+options). CEL XOR. Dual support for top-level batch fields;
+  reject if both top-level and nested batch are set. No silent WAS↔batch translation. Do not
+  call batch backends "legacy." Rollout: API → dual support → WAS behind feature gate
+  ([nabuskey](https://github.com/kubeflow/spark-operator/pull/3154#issuecomment-6370431280)).
+- **`schedulerName`:** typed and sparkConf fields stay on driver/executor; not deprecated here.
+- Native WAS JSON: `scheduling.schedulingPolicy.{basic|gang}`; no user `minCount` on alpha CRD.
+  API PRs must regenerate CRDs/OpenAPI/docs.
+- `--default-batch-scheduler` applies only when no explicit batch fields and no `schedulingPolicy`.
+- Alpha observability: `WorkloadSchedulingReady` (+ Events); richer status object is beta.
+- `.spec.scheduling` changes use normal invalidation (not webhook-immutable).
+- `PartialRestart` mutually exclusive with native WAS (`schedulingPolicy` set).
+- Webhook + feature-gates required for native WAS; membership delete-then-fail.
+- Admission deadline: operator/Helm; clock at driver Running; `Failed` / non-retryable; numeric
+  default still Open Question 4.
+- No public `batchScheduler: was`; registry reuse for hooks OK.
+- Kueue coexistence + post-admission static replacement as previously resolved.
+- One executor `PodGroupTemplate` in alpha; CPG/multi-leaf deferred but wrapper extensible.
 
 ## Test Plan
 
 ### Unit Tests
 
-- API defaulting and validation for Basic, Gang, legacy conflicts, dynamic allocation rejection, user `minCount` rejection, typed and sparkConf scheduler-name conflicts, `maxPendingPods` below `minCount`, PartialRestart mutual exclusion, user `schedulingGroup` rejection, feature-gate disabled behavior, and `ScheduledSparkApplication.spec.template` parity.
+- API defaulting and validation for Basic, Gang, nested vs top-level batch dual support, XOR conflicts, dynamic allocation rejection, user `minCount` rejection, typed and sparkConf scheduler-name conflicts with WAS, `maxPendingPods` below `minCount`, PartialRestart mutual exclusion, user `schedulingGroup` rejection, feature-gate disabled behavior, and `ScheduledSparkApplication.spec.template` parity.
 - Shared allocation resolver tests covering typed instances, `spark.executor.instances`, precedence, invalid values, and drift prevention against generated `spark-submit` arguments.
 - `workloadbuilder` compilation, ownerReferences, naming, discovery/reuse, retry isolation, membership injection for spark-submit and REST paths without mutating stored spec, webhook membership stamping, post-create membership check, stale PodGroup cleanup, admission-deadline failure, and nil-scheduling no-op behavior.
 
@@ -1000,7 +1070,7 @@ On a cluster serving the Phase 0 WAS APIs:
 6. Controller restart without duplicate objects.
 7. Suspend/resume with a new PodGroup.
 8. Kill one executor after gang admission; replacement schedules without re-blocking on full `minCount`.
-9. Legacy Volcano/YuniKorn/scheduler-plugins regressions unchanged.
+9. Volcano/YuniKorn/scheduler-plugins regressions unchanged (top-level and nested `batchScheduler`).
 
 ## Graduation Criteria
 
@@ -1008,7 +1078,7 @@ On a cluster serving the Phase 0 WAS APIs:
 
 - `SparkApplicationWorkloadAwareScheduling` exists and defaults to disabled; webhook and controller share feature-gates.
 - Cluster-mode Basic and static Gang policies are implemented with upstream `workloadbuilder`.
-- `.spec.scheduling == nil` preserves current behavior; CRD shape is `schedulingPolicy.{basic|gang}` without user `minCount`.
+- `.spec.scheduling == nil` preserves current behavior; CRD includes `schedulingPolicy.{basic|gang}` and nested `batchScheduler` (XOR); dual support for top-level batch fields; no user `minCount`.
 - Workload and attempt PodGroup reconciliation is idempotent and restart-safe; operator is sole owner.
 - `status.submissionID` is persisted before Workload/PodGroup creation; stale attempt PodGroups are cleaned up.
 - Template injection, webhook membership defense (`failurePolicy: Fail`), and post-create checks (delete bad Pods, fail attempt if still wrong) enforce no silent per-Pod fallback. Native WAS requires the webhook.
@@ -1041,10 +1111,14 @@ On a cluster serving the Phase 0 WAS APIs:
 3. **Client mode support** after end-to-end validation.
 4. **Kueue coordination** beyond the alpha coexistence contract: quota size versus Gang `minCount`, preserving Kueue Pod mutations while injecting `schedulingGroup`, and explicit timeout-owner semantics when Kueue has admitted quota but WAS cannot place the gang.
 5. **Cluster-wide admission** options if platforms need stronger multi-app guarantees than driver-outside-gang native WAS provides.
-6. **Unify scheduling API surface:** nest or replace `batchScheduler` / `batchSchedulerOptions` under `.spec.scheduling`, clarify `schedulerName`, and deprecate moved fields — without silently translating existing backends into WAS.
-7. **Multi-group / CompositePodGroup:** implement templates/CPG when needed; alpha keeps one executor leaf and operator-owned PodGroups, with the CRD wrapper already shaped for additive extension (see API forward compatibility).
+6. **Multi-group / CompositePodGroup:** implement templates/CPG when needed; alpha keeps one executor leaf and operator-owned PodGroups, with the CRD wrapper already shaped for additive extension.
 
-The API foundation is being delivered separately in [#3230](https://github.com/kubeflow/spark-operator/pull/3230) and must stay in parity with this KEP (shape + regenerated CRDs). The remaining implementation is expected to land in small reviewable PRs after this design is accepted: validation, shared allocation resolver, feature gates on controller and webhook, RBAC, Workload compiler, PodGroup and template injection, webhook membership defense, lifecycle and admission deadline, then E2E and documentation.
+API / implementation order after this design is accepted:
+
+1. CRD: `.spec.scheduling` with `schedulingPolicy` + nested `batchScheduler`, dual support, CEL XOR, regenerated manifests ([#3230](https://github.com/kubeflow/spark-operator/pull/3230) updated to match).
+2. Validation / shared allocation resolver / feature gates on controller and webhook / RBAC.
+3. Native WAS behind the feature gate: Workload compiler, PodGroup, template injection, membership defense, lifecycle, admission deadline.
+4. E2E, documentation, and top-level `batchScheduler*` deprecation Warnings.
 
 ## Implementation History
 
@@ -1059,7 +1133,8 @@ The API foundation is being delivered separately in [#3230](https://github.com/k
 - 2026-09-26: Documented orchestrator visibility when the driver runs outside the executor gang (Airflow-style misleading "started"), with alpha Events and beta condition requirements.
 - 2026-10-06: Incorporated second-round review feedback: alpha `WorkloadSchedulingReady` condition, webhook and post-create membership enforcement, admission deadline, next-submission scheduling changes, PartialRestart mutual exclusion, typed schedulerName conflicts, persist-before-create submissionID and stale PodGroup cleanup, REST injection path, static post-admission replacement, minimal Kueue coexistence, and inter-app starvation limitation.
 - 2026-10-12: Added the initial workload-aware scheduling API in [#3230](https://github.com/kubeflow/spark-operator/pull/3230).
-- 2026-10-13: Third-round review: Spark-owned `schedulingPolicy.{basic|gang}` CRD parity with [#3230], webhook feature-gates + reconcile backstop, invalidation (not immutability) for `.spec.scheduling` changes, membership delete-then-fail, admission-deadline pins, naming/unify Future Goal, one executor template with CPG/multi-group deferred but API wrapper designed for additive extension (TrainJob/JobSet approach), operator sole PodGroup ownership.
+- 2026-10-13: Third-round review: Spark-owned `schedulingPolicy.{basic|gang}` CRD parity with [#3230], webhook feature-gates + reconcile backstop, invalidation (not immutability) for `.spec.scheduling` changes, membership delete-then-fail, admission-deadline pins, one executor template with CPG/multi-group deferred but API wrapper designed for additive extension (TrainJob/JobSet approach), operator sole PodGroup ownership.
+- 2026-10-29: Locked scheduling-surface unification per nabuskey: nested first-class `batchScheduler` under `.spec.scheduling`, CEL XOR with `schedulingPolicy`, dual support for top-level batch fields, `schedulerName` stays pod-level, rollout API → dual support → WAS feature gate; trim "legacy" / Future-Goal deferral of unify.
 
 ## Alternatives
 
