@@ -18,7 +18,6 @@ package e2e_test
 
 import (
 	"context"
-	_ "embed"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -160,17 +159,17 @@ var _ = Describe("SparkConnect Dependencies", func() {
 			// to_avro is not available in the base image. It only resolves if the
 			// declared spark-avro package was fetched and put on the server session's
 			// classpath, so a successful query exercises the dependency instead of only
-			// inspecting the container arguments. The helper asserts the session is a
-			// genuine Spark Connect session, because a classic fallback would evaluate
-			// the query on the client JVM and never reach the operator's server at all.
+			// inspecting the container arguments. The SESSION_CLASS assertion below checks
+			// the session is a genuine Spark Connect session, because a classic fallback
+			// would evaluate the query on the client JVM and never reach the operator's server at all.
 			connectURL := fmt.Sprintf("sc://%s.%s.svc:15002", serviceName, conn.Namespace)
 
 			queryScript := `
-println("SESSION_PROBE=" + spark.getClass.getName)
-try { println("AVRO=" + spark.sql("SELECT hex(to_avro(54))").collect()(0).getString(0)) } 
+println("SESSION_CLASS=" + spark.getClass.getName)
+try { println("AVRO=" + spark.sql("SELECT hex(to_avro(42))").collect()(0).getString(0)) }
 catch { case e: Throwable => println("AVRO_ERROR=" + e.getMessage.take(160)) }
 
-try { println("RE2J=" + spark.sql("SELECT reflect('com.google.re2j.Pattern', 'matches', 'a.c', 'abc')").collect()(0).getString(0)) } 
+try { println("RE2J=" + spark.sql("SELECT reflect('com.google.re2j.Pattern', 'matches', 'a.c', 'abc')").collect()(0).getString(0)) }
 catch { case e: Throwable => println("RE2J_ERROR=" + e.getMessage.take(160)) }
 System.exit(0)
 `
