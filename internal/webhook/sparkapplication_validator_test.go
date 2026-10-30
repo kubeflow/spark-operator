@@ -215,6 +215,58 @@ func TestSparkApplicationValidatorValidateCreate_ResourceQuotaExceeded(t *testin
 	}
 }
 
+func newCPURequestsQuota(hard string) *corev1.ResourceQuota {
+	return &corev1.ResourceQuota{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "cpu-requests",
+			Namespace: "default",
+		},
+		Spec: corev1.ResourceQuotaSpec{
+			Hard: corev1.ResourceList{
+				corev1.ResourceRequestsCPU: resource.MustParse(hard),
+			},
+		},
+		Status: corev1.ResourceQuotaStatus{
+			Hard: corev1.ResourceList{
+				corev1.ResourceRequestsCPU: resource.MustParse(hard),
+			},
+			Used: corev1.ResourceList{
+				corev1.ResourceRequestsCPU: resource.MustParse("0"),
+			},
+		},
+	}
+}
+
+func TestSparkApplicationValidatorValidateCreate_ResourceQuotaUsesCoreRequest(t *testing.T) {
+	validator := newTestValidator(t, true, newCPURequestsQuota("3"))
+
+	// Pods request 0.5 + 2*1 = 2.5 CPUs, although cores add up to 12.
+	app := newSparkApplication()
+	app.Spec.Driver.Cores = ptr.To[int32](4)
+	app.Spec.Driver.CoreRequest = ptr.To("500m")
+	app.Spec.Executor.Cores = ptr.To[int32](4)
+	app.Spec.Executor.CoreRequest = ptr.To("1")
+	app.Spec.Executor.Instances = ptr.To[int32](2)
+
+	if _, err := validator.ValidateCreate(context.Background(), app); err != nil {
+		t.Fatalf("expected quota satisfied, got %v", err)
+	}
+}
+
+func TestSparkApplicationValidatorValidateCreate_ResourceQuotaExceededByCoreRequest(t *testing.T) {
+	validator := newTestValidator(t, true, newCPURequestsQuota("3"))
+
+	// Pods request 2 + 2*2 = 6 CPUs, although cores add up to 3.
+	app := newSparkApplication()
+	app.Spec.Driver.CoreRequest = ptr.To("2")
+	app.Spec.Executor.CoreRequest = ptr.To("2")
+	app.Spec.Executor.Instances = ptr.To[int32](2)
+
+	if _, err := validator.ValidateCreate(context.Background(), app); err == nil || !strings.Contains(err.Error(), "failed to validate resource quota") {
+		t.Fatalf("expected resource quota validation error, got %v", err)
+	}
+}
+
 func TestSparkApplicationValidatorValidateDelete_Success(t *testing.T) {
 	validator := newTestValidator(t, false)
 
