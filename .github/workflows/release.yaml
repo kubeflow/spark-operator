@@ -152,7 +152,7 @@ jobs:
 
       - name: Build and push by digest
         id: build
-        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           platforms: ${{ matrix.platform }}
           labels: ${{ steps.meta.outputs.labels }}
@@ -164,7 +164,7 @@ jobs:
           outputs: type=image,name=${{ env.IMAGE_REGISTRY }}/${{ env.OPERATOR_IMAGE_REPOSITORY }},push-by-digest=true,name-canonical=true,push=true
 
       - name: Export operator binary
-        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           platforms: ${{ matrix.platform }}
           target: artifacts
@@ -280,7 +280,7 @@ jobs:
 
       - name: Build and push by digest
         id: build
-        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           file: docker/Dockerfile.kubectl
           platforms: ${{ matrix.platform }}
