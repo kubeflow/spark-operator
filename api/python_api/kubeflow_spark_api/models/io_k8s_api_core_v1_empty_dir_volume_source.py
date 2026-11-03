@@ -31,7 +31,7 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, ConfigDict, Field, StrictStr
+from pydantic import BaseModel, ConfigDict, Field, StrictInt, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional
 from kubeflow_spark_api.models.io_k8s_apimachinery_pkg_api_resource_quantity import IoK8sApimachineryPkgApiResourceQuantity
 from typing import Optional, Set
@@ -42,8 +42,9 @@ class IoK8sApiCoreV1EmptyDirVolumeSource(BaseModel):
     Represents an empty directory for a pod. Empty directory volumes support ownership management and SELinux relabeling.
     """ # noqa: E501
     medium: Optional[StrictStr] = Field(default=None, description="medium represents what type of storage medium should back this directory. The default is \"\" which means to use the node's default medium. Must be an empty string (default) or Memory. More info: https://kubernetes.io/docs/concepts/storage/volumes#emptydir")
+    mode: Optional[StrictInt] = Field(default=None, description="mode specifies the permission bits for the emptyDir directory, in numeric notation (e.g., 0755, 01777). Must be a value between 0000 and 01777. If not specified, defaults to 0777. This might be in conflict with other options that affect the file mode, like fsGroup. If fsGroup is specified, the fsGroup permissions will override the mode specified here. This field has no effect on Windows. This field is alpha and requires EmptyDirVolumeMode featuregate to be enabled.")
     size_limit: Optional[IoK8sApimachineryPkgApiResourceQuantity] = Field(default=None, description="sizeLimit is the total amount of local storage required for this EmptyDir volume. The size limit is also applicable for memory medium. The maximum usage on memory medium EmptyDir would be the minimum value between the SizeLimit specified here and the sum of memory limits of all containers in a pod. The default is nil which means that the limit is undefined. More info: https://kubernetes.io/docs/concepts/storage/volumes#emptydir", alias="sizeLimit")
-    __properties: ClassVar[List[str]] = ["medium", "sizeLimit"]
+    __properties: ClassVar[List[str]] = ["medium", "mode", "sizeLimit"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -100,6 +101,7 @@ class IoK8sApiCoreV1EmptyDirVolumeSource(BaseModel):
 
         _obj = cls.model_validate({
             "medium": obj.get("medium"),
+            "mode": obj.get("mode"),
             "sizeLimit": IoK8sApimachineryPkgApiResourceQuantity.from_dict(obj["sizeLimit"]) if obj.get("sizeLimit") is not None else None
         })
         return _obj

@@ -34,6 +34,7 @@ import json
 from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional
 from kubeflow_spark_api.models.io_k8s_api_core_v1_node_config_source import IoK8sApiCoreV1NodeConfigSource
+from kubeflow_spark_api.models.io_k8s_api_core_v1_node_pod_preemption_policy import IoK8sApiCoreV1NodePodPreemptionPolicy
 from kubeflow_spark_api.models.io_k8s_api_core_v1_taint import IoK8sApiCoreV1Taint
 from typing import Optional, Set
 from typing_extensions import Self
@@ -46,10 +47,11 @@ class IoK8sApiCoreV1NodeSpec(BaseModel):
     external_id: Optional[StrictStr] = Field(default=None, description="Deprecated. Not all kubelets will set this field. Remove field after 1.13. see: https://issues.k8s.io/61966", alias="externalID")
     pod_cidr: Optional[StrictStr] = Field(default=None, description="PodCIDR represents the pod IP range assigned to the node.", alias="podCIDR")
     pod_cidrs: Optional[List[StrictStr]] = Field(default=None, description="podCIDRs represents the IP ranges assigned to the node for usage by Pods on that node. If this field is specified, the 0th entry must match the podCIDR field. It may contain at most 1 value for each of IPv4 and IPv6.", alias="podCIDRs")
+    pod_preemption_policy: Optional[IoK8sApiCoreV1NodePodPreemptionPolicy] = Field(default=None, description="PodPreemptionPolicy controls the node-level preemption behaviors for pods on this node. This is an alpha field and requires enabling the InPlacePodVerticalScalingSchedulerPreemption feature gate.", alias="podPreemptionPolicy")
     provider_id: Optional[StrictStr] = Field(default=None, description="ID of the node assigned by the cloud provider in the format: <ProviderName>://<ProviderSpecificNodeID>", alias="providerID")
     taints: Optional[List[IoK8sApiCoreV1Taint]] = Field(default=None, description="If specified, the node's taints.")
     unschedulable: Optional[StrictBool] = Field(default=None, description="Unschedulable controls node schedulability of new pods. By default, node is schedulable. More info: https://kubernetes.io/docs/concepts/nodes/node/#manual-node-administration")
-    __properties: ClassVar[List[str]] = ["configSource", "externalID", "podCIDR", "podCIDRs", "providerID", "taints", "unschedulable"]
+    __properties: ClassVar[List[str]] = ["configSource", "externalID", "podCIDR", "podCIDRs", "podPreemptionPolicy", "providerID", "taints", "unschedulable"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -93,6 +95,9 @@ class IoK8sApiCoreV1NodeSpec(BaseModel):
         # override the default output from pydantic by calling `to_dict()` of config_source
         if self.config_source:
             _dict['configSource'] = self.config_source.to_dict()
+        # override the default output from pydantic by calling `to_dict()` of pod_preemption_policy
+        if self.pod_preemption_policy:
+            _dict['podPreemptionPolicy'] = self.pod_preemption_policy.to_dict()
         # override the default output from pydantic by calling `to_dict()` of each item in taints (list)
         _items = []
         if self.taints:
@@ -116,6 +121,7 @@ class IoK8sApiCoreV1NodeSpec(BaseModel):
             "externalID": obj.get("externalID"),
             "podCIDR": obj.get("podCIDR"),
             "podCIDRs": obj.get("podCIDRs"),
+            "podPreemptionPolicy": IoK8sApiCoreV1NodePodPreemptionPolicy.from_dict(obj["podPreemptionPolicy"]) if obj.get("podPreemptionPolicy") is not None else None,
             "providerID": obj.get("providerID"),
             "taints": [IoK8sApiCoreV1Taint.from_dict(_item) for _item in obj["taints"]] if obj.get("taints") is not None else None,
             "unschedulable": obj.get("unschedulable")

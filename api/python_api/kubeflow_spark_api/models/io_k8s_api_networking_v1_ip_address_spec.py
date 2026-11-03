@@ -41,7 +41,7 @@ class IoK8sApiNetworkingV1IPAddressSpec(BaseModel):
     """
     IPAddressSpec describe the attributes in an IP Address.
     """ # noqa: E501
-    parent_ref: IoK8sApiNetworkingV1ParentReference = Field(description="ParentRef references the resource that an IPAddress is attached to. An IPAddress must reference a parent object.", alias="parentRef")
+    parent_ref: IoK8sApiNetworkingV1ParentReference = Field(description="parentRef references the resource that an IPAddress is attached to. An IPAddress must reference a parent object.", alias="parentRef")
     __properties: ClassVar[List[str]] = ["parentRef"]
 
     model_config = ConfigDict(

@@ -42,8 +42,9 @@ class IoK8sApiCoreV1DownwardAPIVolumeSource(BaseModel):
     DownwardAPIVolumeSource represents a volume containing downward API info. Downward API volumes support ownership management and SELinux relabeling.
     """ # noqa: E501
     default_mode: Optional[StrictInt] = Field(default=None, description="Optional: mode bits to use on created files by default. Must be a Optional: mode bits used to set permissions on created files by default. Must be an octal value between 0000 and 0777 or a decimal value between 0 and 511. YAML accepts both octal and decimal values, JSON requires decimal values for mode bits. Defaults to 0644. Directories within the path are not affected by this setting. This might be in conflict with other options that affect the file mode, like fsGroup, and the result can be other mode bits set.", alias="defaultMode")
+    default_user: Optional[StrictInt] = Field(default=None, description="defaultUser is Optional: The owner UID of the created files by default. The defaultUser field is only used as a fallback when the item-level user field is unset. (Alpha) This field requires the AtomicWriteVolumeUserFields feature gate to be enabled.", alias="defaultUser")
     items: Optional[List[IoK8sApiCoreV1DownwardAPIVolumeFile]] = Field(default=None, description="Items is a list of downward API volume file")
-    __properties: ClassVar[List[str]] = ["defaultMode", "items"]
+    __properties: ClassVar[List[str]] = ["defaultMode", "defaultUser", "items"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -104,6 +105,7 @@ class IoK8sApiCoreV1DownwardAPIVolumeSource(BaseModel):
 
         _obj = cls.model_validate({
             "defaultMode": obj.get("defaultMode"),
+            "defaultUser": obj.get("defaultUser"),
             "items": [IoK8sApiCoreV1DownwardAPIVolumeFile.from_dict(_item) for _item in obj["items"]] if obj.get("items") is not None else None
         })
         return _obj

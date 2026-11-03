@@ -40,10 +40,10 @@ class IoK8sApiNetworkingV1ParentReference(BaseModel):
     """
     ParentReference describes a reference to a parent object.
     """ # noqa: E501
-    group: Optional[StrictStr] = Field(default=None, description="Group is the group of the object being referenced.")
-    name: StrictStr = Field(description="Name is the name of the object being referenced.")
-    namespace: Optional[StrictStr] = Field(default=None, description="Namespace is the namespace of the object being referenced.")
-    resource: StrictStr = Field(description="Resource is the resource of the object being referenced.")
+    group: Optional[StrictStr] = Field(default=None, description="group is the group of the object being referenced.")
+    name: StrictStr = Field(description="name is the name of the object being referenced.")
+    namespace: Optional[StrictStr] = Field(default=None, description="namespace is the namespace of the object being referenced.")
+    resource: StrictStr = Field(description="resource is the resource of the object being referenced.")
     __properties: ClassVar[List[str]] = ["group", "name", "namespace", "resource"]
 
     model_config = ConfigDict(
