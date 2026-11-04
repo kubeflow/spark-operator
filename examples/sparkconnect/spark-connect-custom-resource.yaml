@@ -41,7 +41,8 @@ spec:
           resources:
             requests:
               # Overridden by `spec.server.coreRequest` above. Remove that field
-              # and this value becomes the server pod's CPU request.
+              # and `spec.server.cores`, and this value becomes the server pod's
+              # CPU request.
               cpu: 100m
               # Not overridden: the operator only manages the server pod's CPU,
               # so this memory request is applied to the pod as-is.

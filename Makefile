@@ -118,13 +118,22 @@ print-%: ; @echo $*=$($*)
 
 CONTROLLER_GEN_PATHS := ./api/...;./internal/...
 
+# Year-less boilerplate header prepended to generated manifests (controller-gen
+# emits none). The boilerplate CI check uses the templates from kubeflow/testing.
+BOILERPLATE_HEADER := hack/boilerplate/boilerplate.sh.txt
+
 .PHONY: manifests
 manifests: controller-gen ## Generate CustomResourceDefinition, RBAC and WebhookConfiguration manifests.
 	$(CONTROLLER_GEN) crd:generateEmbeddedObjectMeta=true rbac:roleName=spark-operator-controller webhook paths="$(CONTROLLER_GEN_PATHS)" output:crd:artifacts:config=config/crd/bases
+	@# controller-gen rewrites these files in full on every run, so prepending
+	@# the header here once is idempotent.
+	@for f in config/crd/bases/*.yaml config/rbac/role.yaml config/webhook/manifests.yaml; do \
+		{ cat $(BOILERPLATE_HEADER); echo; cat "$$f"; } > "$$f.tmp" && mv "$$f.tmp" "$$f"; \
+	done
 
 .PHONY: generate
 generate: controller-gen manifests ## Generate Go code and Python APIs.
-	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="$(CONTROLLER_GEN_PATHS)"
+	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate/boilerplate.go.txt" paths="$(CONTROLLER_GEN_PATHS)"
 	$(MAKE) python-api
 
 .PHONY: update-crd
@@ -353,7 +362,10 @@ SPARK_IMAGE ?= docker.io/apache/spark:4.0.4@sha256:7112c0c0ca07b7d2605163ba91a05
 .PHONY: kind-load-spark-image
 kind-load-spark-image: kind-create-cluster ## Pull the Spark runtime image and load it into the kind cluster.
 	docker image inspect $(SPARK_IMAGE) >/dev/null 2>&1 || docker pull $(SPARK_IMAGE)
-	$(KIND) load docker-image --name $(KIND_CLUSTER_NAME) $(SPARK_IMAGE)
+	# Docker 29 keeps only the host platform of multi-platform images, which `kind load docker-image` can't import.
+	docker save --platform $$(docker version -f '{{.Server.Os}}/{{.Server.Arch}}') -o $(LOCALBIN)/spark-image.tar $(SPARK_IMAGE)
+	$(KIND) load image-archive --name $(KIND_CLUSTER_NAME) $(LOCALBIN)/spark-image.tar
+	rm -f $(LOCALBIN)/spark-image.tar
 
 .PHONY: kind-delete-cluster
 kind-delete-cluster: kind ## Delete the created kind cluster.

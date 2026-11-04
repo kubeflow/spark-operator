@@ -576,6 +576,24 @@ spec:
 
 In cases like Spark Streaming or Spark Structured Streaming applications, you can test if a file exists to start a graceful shutdown and stop all streaming queries manually.
 
+## Using a Runtime Class
+
+A `SparkApplication` can run its driver and executor pods with a specific [RuntimeClass](https://kubernetes.io/docs/concepts/containers/runtime-class/), such as a sandboxed or confidential runtime like gVisor or Kata Containers. This is useful when Spark jobs need stronger isolation from the node, for example in a locked down or multi-tenant cluster. There is no dedicated field for it, so set `runtimeClassName` in the driver and executor pod templates. Pod templates require Spark 3.0.0 or later.
+
+```yaml
+spec:
+  driver:
+    template:
+      spec:
+        runtimeClassName: kata-qemu
+  executor:
+    template:
+      spec:
+        runtimeClassName: kata-qemu
+```
+
+The RuntimeClass must already exist in the cluster. If `kubectl apply` fails with `unknown field "spec.driver.template"`, the installed `SparkApplication` CRD is older than v2.1.0 and needs to be updated. Note that `helm upgrade` does not update CRDs unless `hook.upgradeCrd` is enabled.
+
 ## Python Support
 
 Python support can be enabled by setting `.spec.mainApplicationFile` with path to your python application. Optionally, the `.spec.pythonVersion` field can be used to set the major Python version of the docker image used to run the driver and executor containers. Below is an example showing part of a `SparkApplication` specification:

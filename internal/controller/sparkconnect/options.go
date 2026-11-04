@@ -1,11 +1,11 @@
 /*
-Copyright 2025 The Kubeflow authors.
+Copyright 2025 The Kubeflow Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-    https://www.apache.org/licenses/LICENSE-2.0
+    http://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -35,6 +35,7 @@ func buildStartConnectServerArgs(conn *v1alpha1.SparkConnect) ([]string, error) 
 		masterOption,
 		namespaceOption,
 		imageOption,
+		dependenciesOption,
 		sparkConfOption,
 		hadoopConfOption,
 		driverConfOption,
@@ -115,6 +116,37 @@ func imageOption(conn *v1alpha1.SparkConnect) ([]string, error) {
 	return args, nil
 }
 
+func dependenciesOption(conn *v1alpha1.SparkConnect) ([]string, error) {
+	var args []string
+	deps := conn.Spec.Deps
+
+	// Options are passed as individual container arguments via "$@", so values
+	// are not shell-interpreted and do not need quoting.
+	if len(deps.Jars) > 0 {
+		args = append(args, "--jars", strings.Join(deps.Jars, ","))
+	}
+
+	if len(deps.Packages) > 0 {
+		args = append(args, "--packages", strings.Join(deps.Packages, ","))
+	}
+
+	if len(deps.ExcludePackages) > 0 {
+		args = append(args, "--exclude-packages", strings.Join(deps.ExcludePackages, ","))
+	}
+
+	if len(deps.Repositories) > 0 {
+		args = append(args, "--repositories", strings.Join(deps.Repositories, ","))
+	}
+
+	// The Apache Spark image runs as a non-root user whose passwd HOME may not
+	// exist; Ivy must write under a writable directory to resolve Maven coords.
+	if len(deps.Packages) > 0 || len(deps.ExcludePackages) > 0 || len(deps.Repositories) > 0 {
+		args = append(args, "--conf", "spark.jars.ivy=/tmp/.ivy2")
+	}
+
+	return args, nil
+}
+
 func sparkConfOption(conn *v1alpha1.SparkConnect) ([]string, error) {
 	if conn.Spec.SparkConf == nil {
 		return nil, nil
@@ -162,12 +194,6 @@ func driverConfOption(conn *v1alpha1.SparkConnect) ([]string, error) {
 	for key, value := range conn.Labels {
 		property = fmt.Sprintf(common.SparkKubernetesDriverLabelTemplate, key)
 		args = append(args, "--conf", fmt.Sprintf("%s=%s", property, value))
-	}
-
-	// Driver cores
-	if conn.Spec.Server.Cores != nil {
-		args = append(args, "--conf",
-			fmt.Sprintf("%s=%d", common.SparkDriverCores, *conn.Spec.Server.Cores))
 	}
 
 	// Driver memory

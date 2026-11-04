@@ -5,7 +5,7 @@ Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-    https://www.apache.org/licenses/LICENSE-2.0
+    http://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -173,5 +173,27 @@ var _ = Describe("SetGPUResources", func() {
 		Expect(container.Resources.Limits).To(HaveKeyWithValue(corev1.ResourceMemory, resource.MustParse("1Gi")))
 		Expect(container.Resources.Requests.Name(gpu, resource.DecimalSI).Value()).To(Equal(int64(1)))
 		Expect(container.Resources.Limits.Name(gpu, resource.DecimalSI).Value()).To(Equal(int64(1)))
+	})
+})
+
+var _ = Describe("CPURequestOrCores", func() {
+	It("returns coreRequest when both are set", func() {
+		coreRequest := resource.MustParse("500m")
+		cores := int32(4)
+
+		Expect(util.CPURequestOrCores(&coreRequest, &cores)).To(Equal(&coreRequest))
+	})
+
+	It("returns cores as whole CPUs when coreRequest is nil", func() {
+		cores := int32(2)
+
+		request := util.CPURequestOrCores(nil, &cores)
+
+		Expect(request).NotTo(BeNil())
+		Expect(request.MilliValue()).To(Equal(int64(2000)))
+	})
+
+	It("returns nil when both are nil", func() {
+		Expect(util.CPURequestOrCores(nil, nil)).To(BeNil())
 	})
 })

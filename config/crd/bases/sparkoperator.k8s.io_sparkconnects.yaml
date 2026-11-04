@@ -1,3 +1,17 @@
+# Copyright The Kubeflow Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 ---
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
@@ -52,6 +66,40 @@ spec:
           spec:
             description: SparkConnectSpec defines the desired state of SparkConnect.
             properties:
+              deps:
+                description: Deps captures all possible types of dependencies of a
+                  Spark Connect server.
+                properties:
+                  excludePackages:
+                    description: |-
+                      ExcludePackages is a list of "groupId:artifactId", to exclude while resolving the
+                      dependencies provided in Packages to avoid dependency conflicts.
+                    items:
+                      type: string
+                    type: array
+                  jars:
+                    description: Jars is a list of JAR files the Spark Connect server
+                      depends on.
+                    items:
+                      type: string
+                    type: array
+                  packages:
+                    description: |-
+                      Packages is a list of maven coordinates of jars to include on the driver and executor
+                      classpaths. This will search the local maven repo, then maven central and any additional
+                      remote repositories given by the "repositories" option.
+                      Each package should be of the form "groupId:artifactId:version".
+                    items:
+                      type: string
+                    type: array
+                  repositories:
+                    description: |-
+                      Repositories is a list of additional remote repositories to search for the maven coordinate
+                      given with the "packages" option.
+                    items:
+                      type: string
+                    type: array
+                type: object
               dynamicAllocation:
                 description: |-
                   DynamicAllocation configures dynamic allocation that becomes available for the Kubernetes
@@ -111,8 +159,8 @@ spec:
                     pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                     x-kubernetes-int-or-string: true
                   cores:
-                    description: Cores maps to `spark.driver.cores` or `spark.executor.cores`
-                      for the driver and executors, respectively.
+                    description: Cores is a shorthand for coreRequest on the server,
+                      and maps to `spark.executor.cores` for executors.
                     format: int32
                     minimum: 1
                     type: integer
@@ -188,8 +236,8 @@ spec:
                     pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                     x-kubernetes-int-or-string: true
                   cores:
-                    description: Cores maps to `spark.driver.cores` or `spark.executor.cores`
-                      for the driver and executors, respectively.
+                    description: Cores is a shorthand for coreRequest on the server,
+                      and maps to `spark.executor.cores` for executors.
                     format: int32
                     minimum: 1
                     type: integer

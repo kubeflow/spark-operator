@@ -1,11 +1,11 @@
 /*
-Copyright 2026 The Kubeflow authors.
+Copyright 2026 The Kubeflow Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-    https://www.apache.org/licenses/LICENSE-2.0
+    http://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -431,7 +431,7 @@ func validateCPURequestLELimit(request, limit *resource.Quantity) error {
 }
 
 func effectiveServerCPUResources(sc *v1alpha1.SparkConnect) (request, limit *resource.Quantity) {
-	request = sc.Spec.Server.CoreRequest
+	request = util.CPURequestOrCores(sc.Spec.Server.CoreRequest, sc.Spec.Server.Cores)
 	limit = sc.Spec.Server.CoreLimit
 
 	if template := sc.Spec.Server.Template; template != nil {

@@ -1,3 +1,17 @@
+# Copyright The Kubeflow Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 # coding: utf-8
 
 # flake8: noqa
@@ -334,6 +348,7 @@ from kubeflow_spark_api.models.io_k8s_apimachinery_pkg_apis_meta_v1_watch_event 
 from kubeflow_spark_api.models.io_k8s_apimachinery_pkg_runtime_type_meta import IoK8sApimachineryPkgRuntimeTypeMeta
 from kubeflow_spark_api.models.io_k8s_apimachinery_pkg_runtime_unknown import IoK8sApimachineryPkgRuntimeUnknown
 from kubeflow_spark_api.models.io_k8s_apimachinery_pkg_util_intstr_int_or_string import IoK8sApimachineryPkgUtilIntstrIntOrString
+from kubeflow_spark_api.models.spark_v1alpha1_dependencies import SparkV1alpha1Dependencies
 from kubeflow_spark_api.models.spark_v1alpha1_dynamic_allocation import SparkV1alpha1DynamicAllocation
 from kubeflow_spark_api.models.spark_v1alpha1_executor_spec import SparkV1alpha1ExecutorSpec
 from kubeflow_spark_api.models.spark_v1alpha1_gpu_spec import SparkV1alpha1GPUSpec

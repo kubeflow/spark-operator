@@ -1,11 +1,11 @@
 /*
-Copyright 2025 The Kubeflow authors.
+Copyright 2025 The Kubeflow Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-    https://www.apache.org/licenses/LICENSE-2.0
+    http://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -131,7 +131,7 @@ var _ = Describe("Options functions", func() {
 	})
 
 	Context("driverConfOption and executorConfOption with CPU resources", func() {
-		It("does not emit driver SparkConf keys for server CoreRequest and CoreLimit", func() {
+		It("does not emit driver CPU SparkConf keys for server Cores, CoreRequest and CoreLimit", func() {
 			cores := int32(4)
 			coreRequest := resource.MustParse("3500m")
 			coreLimit := resource.MustParse("4")
@@ -157,7 +157,7 @@ var _ = Describe("Options functions", func() {
 			Expect(err).NotTo(HaveOccurred())
 			config := parsedSparkConfig(args)
 
-			Expect(config).To(HaveKeyWithValue("spark.driver.cores", "4"))
+			Expect(config).NotTo(HaveKey(common.SparkDriverCores))
 			Expect(config).NotTo(HaveKey(common.SparkKubernetesDriverRequestCores))
 			Expect(config).NotTo(HaveKey(common.SparkKubernetesDriverLimitCores))
 		})
@@ -217,7 +217,7 @@ var _ = Describe("Options functions", func() {
 			Expect(err).NotTo(HaveOccurred())
 			driverConfig := parsedSparkConfig(driverArgs)
 
-			Expect(driverConfig).To(HaveKeyWithValue("spark.driver.cores", "4"))
+			Expect(driverConfig).NotTo(HaveKey(common.SparkDriverCores))
 			Expect(driverConfig).NotTo(HaveKey(common.SparkKubernetesDriverRequestCores))
 			Expect(driverConfig).NotTo(HaveKey(common.SparkKubernetesDriverLimitCores))
 		})
@@ -278,6 +278,54 @@ var _ = Describe("Options functions", func() {
 
 			Expect(config).To(HaveKeyWithValue(common.SparkKubernetesExecutorRequestCores, "1500m"))
 			Expect(config).To(HaveKeyWithValue(common.SparkKubernetesExecutorLimitCores, "2500m"))
+		})
+	})
+
+	Context("dependenciesOption", func() {
+		It("emits spark-submit dependency flags as individual arguments", func() {
+			conn := &v1alpha1.SparkConnect{
+				Spec: v1alpha1.SparkConnectSpec{
+					Deps: v1alpha1.Dependencies{
+						Jars:            []string{"local:///opt/spark/jars/iceberg.jar"},
+						Packages:        []string{"org.apache.iceberg:iceberg-spark-runtime-3.5_2.12:1.5.0"},
+						ExcludePackages: []string{"org.slf4j:slf4j-log4j12"},
+						Repositories:    []string{"https://repo1.maven.org/maven2"},
+					},
+				},
+			}
+
+			args, err := dependenciesOption(conn)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(args).To(Equal([]string{
+				"--jars", "local:///opt/spark/jars/iceberg.jar",
+				"--packages", "org.apache.iceberg:iceberg-spark-runtime-3.5_2.12:1.5.0",
+				"--exclude-packages", "org.slf4j:slf4j-log4j12",
+				"--repositories", "https://repo1.maven.org/maven2",
+				"--conf", "spark.jars.ivy=/tmp/.ivy2",
+			}))
+		})
+
+		It("passes dependency values through unchanged", func() {
+			conn := &v1alpha1.SparkConnect{
+				Spec: v1alpha1.SparkConnectSpec{
+					Deps: v1alpha1.Dependencies{
+						Jars:            []string{"local:///opt/spark/jars/with space.jar", "local:///opt/spark/jars/quote'file.jar"},
+						Packages:        []string{"org.example:package:1.0; printf injected"},
+						ExcludePackages: []string{"org.example:excluded"},
+						Repositories:    []string{"https://repo.example/a path"},
+					},
+				},
+			}
+
+			args, err := dependenciesOption(conn)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(args).To(Equal([]string{
+				"--jars", "local:///opt/spark/jars/with space.jar,local:///opt/spark/jars/quote'file.jar",
+				"--packages", "org.example:package:1.0; printf injected",
+				"--exclude-packages", "org.example:excluded",
+				"--repositories", "https://repo.example/a path",
+				"--conf", "spark.jars.ivy=/tmp/.ivy2",
+			}))
 		})
 	})
 })
