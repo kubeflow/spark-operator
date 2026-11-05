@@ -1177,6 +1177,9 @@ func buildDriverPodTemplate(app *v1beta2.SparkApplication) *corev1.PodTemplateSp
 	}) {
 		template.OwnerReferences = append(template.OwnerReferences, ownerReference)
 	}
+	if template.Spec.SchedulerName == "" {
+		template.Spec.SchedulerName = util.GetDriverSchedulerName(app)
+	}
 	return template
 }
 
@@ -1201,6 +1204,9 @@ func buildExecutorPodTemplate(app *v1beta2.SparkApplication) *corev1.PodTemplate
 	// Kubernetes garbage collection only removes a dependent once all of its
 	// owners are gone, so a second owner would keep executor pods alive after
 	// the driver pod is deleted (e.g. on suspend).
+	if template.Spec.SchedulerName == "" {
+		template.Spec.SchedulerName = util.GetExecutorSchedulerName(app)
+	}
 	return template
 }
 

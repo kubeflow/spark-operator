@@ -522,6 +522,75 @@ func TestDriverPodTemplateContents(t *testing.T) {
 				},
 			},
 		},
+		"batch scheduler sets the scheduler name": {
+			app: &v1beta2.SparkApplication{
+				Spec: v1beta2.SparkApplicationSpec{
+					BatchScheduler: ptr.To("volcano"),
+					Driver: v1beta2.DriverSpec{
+						SparkPodSpec: v1beta2.SparkPodSpec{
+							SchedulerName: ptr.To("driver-scheduler"),
+						},
+					},
+				},
+			},
+			expectedTemplate: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					OwnerReferences: []metav1.OwnerReference{appOwnerReference},
+				},
+				Spec: corev1.PodSpec{
+					SchedulerName: "volcano",
+					Containers: []corev1.Container{{
+						Name: common.SparkDriverContainerName,
+					}},
+				},
+			},
+		},
+		"driver scheduler name is used without a batch scheduler": {
+			app: &v1beta2.SparkApplication{
+				Spec: v1beta2.SparkApplicationSpec{
+					Driver: v1beta2.DriverSpec{
+						SparkPodSpec: v1beta2.SparkPodSpec{
+							SchedulerName: ptr.To("driver-scheduler"),
+						},
+					},
+				},
+			},
+			expectedTemplate: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					OwnerReferences: []metav1.OwnerReference{appOwnerReference},
+				},
+				Spec: corev1.PodSpec{
+					SchedulerName: "driver-scheduler",
+					Containers: []corev1.Container{{
+						Name: common.SparkDriverContainerName,
+					}},
+				},
+			},
+		},
+		"scheduler name in the pod template is kept": {
+			app: &v1beta2.SparkApplication{
+				Spec: v1beta2.SparkApplicationSpec{
+					BatchScheduler: ptr.To("volcano"),
+					Driver: v1beta2.DriverSpec{
+						SparkPodSpec: v1beta2.SparkPodSpec{
+							Template: &corev1.PodTemplateSpec{
+								Spec: corev1.PodSpec{
+									SchedulerName: "template-scheduler",
+								},
+							},
+						},
+					},
+				},
+			},
+			expectedTemplate: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					OwnerReferences: []metav1.OwnerReference{appOwnerReference},
+				},
+				Spec: corev1.PodSpec{
+					SchedulerName: "template-scheduler",
+				},
+			},
+		},
 	} {
 		t.Run(name, func(t *testing.T) {
 			submissionID := "TestDriverPodTemplateOption-" + strings.ReplaceAll(name, " ", "_") + "-" + uuid.New().String()
@@ -622,6 +691,66 @@ func TestExecutorPodTemplateContents(t *testing.T) {
 						{Name: "owner-in-template"},
 						appNonControllerOwnerReference,
 					},
+				},
+			},
+		},
+		"batch scheduler sets the scheduler name": {
+			app: &v1beta2.SparkApplication{
+				Spec: v1beta2.SparkApplicationSpec{
+					BatchScheduler: ptr.To("volcano"),
+					Executor: v1beta2.ExecutorSpec{
+						SparkPodSpec: v1beta2.SparkPodSpec{
+							SchedulerName: ptr.To("executor-scheduler"),
+						},
+					},
+				},
+			},
+			expectedTemplate: corev1.PodTemplateSpec{
+				Spec: corev1.PodSpec{
+					SchedulerName: "volcano",
+					Containers: []corev1.Container{{
+						Name: common.Spark3DefaultExecutorContainerName,
+					}},
+				},
+			},
+		},
+		"executor scheduler name is used without a batch scheduler": {
+			app: &v1beta2.SparkApplication{
+				Spec: v1beta2.SparkApplicationSpec{
+					Executor: v1beta2.ExecutorSpec{
+						SparkPodSpec: v1beta2.SparkPodSpec{
+							SchedulerName: ptr.To("executor-scheduler"),
+						},
+					},
+				},
+			},
+			expectedTemplate: corev1.PodTemplateSpec{
+				Spec: corev1.PodSpec{
+					SchedulerName: "executor-scheduler",
+					Containers: []corev1.Container{{
+						Name: common.Spark3DefaultExecutorContainerName,
+					}},
+				},
+			},
+		},
+		"scheduler name in the pod template is kept": {
+			app: &v1beta2.SparkApplication{
+				Spec: v1beta2.SparkApplicationSpec{
+					BatchScheduler: ptr.To("volcano"),
+					Executor: v1beta2.ExecutorSpec{
+						SparkPodSpec: v1beta2.SparkPodSpec{
+							Template: &corev1.PodTemplateSpec{
+								Spec: corev1.PodSpec{
+									SchedulerName: "template-scheduler",
+								},
+							},
+						},
+					},
+				},
+			},
+			expectedTemplate: corev1.PodTemplateSpec{
+				Spec: corev1.PodSpec{
+					SchedulerName: "template-scheduler",
 				},
 			},
 		},

@@ -572,3 +572,44 @@ func ApplyDefaultDriverServiceAccount(app *v1beta2.SparkApplication, defaultServ
 	copied.Spec.Driver.ServiceAccount = &defaultServiceAccount
 	return copied
 }
+
+// ApplyDefaultBatchScheduler returns a copy of the application with the operator-level default
+// batch scheduler set as its batch scheduler, or the application itself when it already sets
+// one or there is no default.
+func ApplyDefaultBatchScheduler(app *v1beta2.SparkApplication, defaultBatchScheduler string) *v1beta2.SparkApplication {
+	if defaultBatchScheduler == "" {
+		return app
+	}
+
+	if batchScheduler := app.Spec.BatchScheduler; batchScheduler != nil && *batchScheduler != "" {
+		return app
+	}
+
+	copied := app.DeepCopy()
+	copied.Spec.BatchScheduler = &defaultBatchScheduler
+	return copied
+}
+
+// GetDriverSchedulerName returns the scheduler name for the driver pod, preferring the batch
+// scheduler over the driver's own schedulerName.
+func GetDriverSchedulerName(app *v1beta2.SparkApplication) string {
+	if batchScheduler := app.Spec.BatchScheduler; batchScheduler != nil && *batchScheduler != "" {
+		return *batchScheduler
+	}
+	if schedulerName := app.Spec.Driver.SchedulerName; schedulerName != nil {
+		return *schedulerName
+	}
+	return ""
+}
+
+// GetExecutorSchedulerName returns the scheduler name for the executor pods, preferring the batch
+// scheduler over the executor's own schedulerName.
+func GetExecutorSchedulerName(app *v1beta2.SparkApplication) string {
+	if batchScheduler := app.Spec.BatchScheduler; batchScheduler != nil && *batchScheduler != "" {
+		return *batchScheduler
+	}
+	if schedulerName := app.Spec.Executor.SchedulerName; schedulerName != nil {
+		return *schedulerName
+	}
+	return ""
+}

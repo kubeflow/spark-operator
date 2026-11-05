@@ -497,6 +497,77 @@ var _ = Describe("GetExecutorRequestResource", func() {
 	})
 })
 
+var _ = Describe("ApplyDefaultBatchScheduler", func() {
+	newApp := func() *v1beta2.SparkApplication {
+		return &v1beta2.SparkApplication{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "test-app",
+				Namespace: "test-namespace",
+			},
+		}
+	}
+
+	Context("No default batch scheduler configured", func() {
+		It("Should return the application unchanged", func() {
+			app := newApp()
+			Expect(util.ApplyDefaultBatchScheduler(app, "")).To(BeIdenticalTo(app))
+			Expect(app.Spec.BatchScheduler).To(BeNil())
+		})
+	})
+
+	Context("SparkApplication without a batch scheduler", func() {
+		It("Should apply the default batch scheduler without mutating the original", func() {
+			app := newApp()
+			got := util.ApplyDefaultBatchScheduler(app, "volcano")
+			Expect(got).NotTo(BeIdenticalTo(app))
+			Expect(got.Spec.BatchScheduler).To(HaveValue(Equal("volcano")))
+			Expect(app.Spec.BatchScheduler).To(BeNil())
+		})
+	})
+
+	Context("SparkApplication with an empty batch scheduler", func() {
+		It("Should apply the default batch scheduler", func() {
+			app := newApp()
+			app.Spec.BatchScheduler = ptr.To("")
+			got := util.ApplyDefaultBatchScheduler(app, "volcano")
+			Expect(got.Spec.BatchScheduler).To(HaveValue(Equal("volcano")))
+		})
+	})
+
+	Context("SparkApplication with a batch scheduler", func() {
+		It("Should return the application unchanged", func() {
+			app := newApp()
+			app.Spec.BatchScheduler = ptr.To("yunikorn")
+			Expect(util.ApplyDefaultBatchScheduler(app, "volcano")).To(BeIdenticalTo(app))
+		})
+	})
+})
+
+var _ = Describe("GetDriverSchedulerName and GetExecutorSchedulerName", func() {
+	It("Should return an empty name when nothing is set", func() {
+		app := &v1beta2.SparkApplication{}
+		Expect(util.GetDriverSchedulerName(app)).To(BeEmpty())
+		Expect(util.GetExecutorSchedulerName(app)).To(BeEmpty())
+	})
+
+	It("Should return the per-role scheduler names", func() {
+		app := &v1beta2.SparkApplication{}
+		app.Spec.Driver.SchedulerName = ptr.To("driver-scheduler")
+		app.Spec.Executor.SchedulerName = ptr.To("executor-scheduler")
+		Expect(util.GetDriverSchedulerName(app)).To(Equal("driver-scheduler"))
+		Expect(util.GetExecutorSchedulerName(app)).To(Equal("executor-scheduler"))
+	})
+
+	It("Should prefer the batch scheduler over the per-role scheduler names", func() {
+		app := &v1beta2.SparkApplication{}
+		app.Spec.BatchScheduler = ptr.To("volcano")
+		app.Spec.Driver.SchedulerName = ptr.To("driver-scheduler")
+		app.Spec.Executor.SchedulerName = ptr.To("executor-scheduler")
+		Expect(util.GetDriverSchedulerName(app)).To(Equal("volcano"))
+		Expect(util.GetExecutorSchedulerName(app)).To(Equal("volcano"))
+	})
+})
+
 var _ = Describe("ApplyDefaultDriverServiceAccount", func() {
 	newApp := func() *v1beta2.SparkApplication {
 		return &v1beta2.SparkApplication{
