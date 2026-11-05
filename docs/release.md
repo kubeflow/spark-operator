@@ -43,6 +43,43 @@
        password = <PYPI_TOKEN>
     ```
 
+## kubectl version policy
+
+The Spark Operator Helm chart ships a [kubectl image](../docker/Dockerfile.kubectl) that
+the optional CRD-upgrade hook (`hook.upgradeCrd=true`) uses to run
+`kubectl apply --server-side` against the target cluster.
+
+### Supported minor version
+
+The bundled kubectl tracks the **latest patch** of a **single supported minor version**.
+The active minor version is recorded as the single source of truth in
+[`.github/kubectl-version.txt`](../.github/kubectl-version.txt).
+
+The minor version follows the
+[Kubernetes version-skew policy](https://kubernetes.io/releases/version-skew-policy/#kubectl):
+kubectl `N` works with cluster `N-1`, `N`, and `N+1`. We pin to a minor version
+that sits within the skew window of all Kubernetes versions that Spark Operator
+currently supports.
+
+When a bundled minor becomes end-of-life (outside the skew window for all supported
+cluster versions), maintainers open a PR to advance it to the next minor.
+
+### Automated patch updates
+
+A [weekly GitHub Actions workflow](../.github/workflows/update-kubectl.yaml) checks
+`https://dl.k8s.io/release/stable-<minor>.txt` every Monday. When a new patch is
+available it opens a PR that bumps `.github/kubectl-version.txt` and the
+`ARG KUBECTL_VERSION` default in `docker/Dockerfile.kubectl`. The PR is labelled
+`kind/dependency-update` and can be merged immediately after CI passes—no release
+branch coordination is required.
+
+### Bumping the minor version manually
+
+1. Update `.github/kubectl-version.txt` to the latest patch of the new minor, e.g. `1.37.0`.
+2. Update the `ARG KUBECTL_VERSION` default in `docker/Dockerfile.kubectl` to match.
+3. Update the Kubernetes version-support table in the main `README.md` if needed.
+4. Open a PR; CI will rebuild and push a new `kubectl` image on merge to `master`.
+
 ## Versioning policy
 
 Spark Operator version format follows [Semantic Versioning](https://semver.org/). Spark Operator versions are in the format of `vX.Y.Z`, where `X` is the major version, `Y` is the minor version, and `Z` is the patch version. The patch version contains only bug fixes.
