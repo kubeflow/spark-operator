@@ -214,9 +214,9 @@ jobs:
         if: steps.list-changed.outputs.changed == 'true'
         run: make kind-create-cluster
 
-      - name: Build and load image to Kind cluster
+      - name: Build and load images to Kind cluster
         if: steps.list-changed.outputs.changed == 'true'
-        run: make kind-load-image IMAGE_TAG=local
+        run: make kind-load-image kind-load-kubectl-image IMAGE_TAG=local
 
       - name: Run chart-testing (install)
         if: steps.list-changed.outputs.changed == 'true'
