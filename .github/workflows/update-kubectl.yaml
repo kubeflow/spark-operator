@@ -1,0 +1,100 @@
+# Copyright The Kubeflow Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+name: Update kubectl version
+
+on:
+  schedule:
+    # Every Monday at 09:00 UTC
+    - cron: "0 9 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  update-kubectl:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: true
+
+      - name: Determine supported kubectl minor version
+        id: kubectl-minor
+        run: |
+          current=$(cat .github/kubectl-version.txt)
+          echo "Current kubectl version: ${current}"
+          minor=$(echo "${current}" | cut -d. -f1-2)
+          echo "minor=${minor}" >> "$GITHUB_OUTPUT"
+          echo "current=${current}" >> "$GITHUB_OUTPUT"
+
+      - name: Fetch latest patch for the supported minor
+        id: latest
+        run: |
+          minor="${{ steps.kubectl-minor.outputs.minor }}"
+          latest=$(curl -sSfL "https://dl.k8s.io/release/stable-${minor}.txt")
+          # Strip leading 'v'
+          latest_bare="${latest#v}"
+          echo "Latest kubectl ${minor}: ${latest_bare}"
+          echo "version=${latest_bare}" >> "$GITHUB_OUTPUT"
+
+      - name: Check whether update is needed
+        id: check
+        run: |
+          current="${{ steps.kubectl-minor.outputs.current }}"
+          latest="${{ steps.latest.outputs.version }}"
+          if [ "${current}" = "${latest}" ]; then
+            echo "kubectl is already at ${current}; no update needed."
+            echo "needed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "Update needed: ${current} -> ${latest}"
+            echo "needed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Apply version bump
+        if: steps.check.outputs.needed == 'true'
+        run: |
+          latest="${{ steps.latest.outputs.version }}"
+          printf '%s\n' "${latest}" > .github/kubectl-version.txt
+          sed -i "s/ARG KUBECTL_VERSION=.*/ARG KUBECTL_VERSION=${latest}/" docker/Dockerfile.kubectl
+
+      - name: Create pull request
+        if: steps.check.outputs.needed == 'true'
+        uses: peter-evans/create-pull-request@271a8d0bbe57e18cdff9a26b31e44e5b6b6cfc1b # v7.0.6
+        with:
+          commit-message: "chore(deps): bump kubectl from ${{ steps.kubectl-minor.outputs.current }} to ${{ steps.latest.outputs.version }}"
+          branch: "chore/kubectl-${{ steps.latest.outputs.version }}"
+          delete-branch: true
+          title: "chore(deps): bump kubectl to ${{ steps.latest.outputs.version }}"
+          body: |
+            Automated weekly check found a new kubectl patch release.
+
+            | | Version |
+            |---|---|
+            | Previous | `${{ steps.kubectl-minor.outputs.current }}` |
+            | Updated | `${{ steps.latest.outputs.version }}` |
+
+            Changes:
+            - `.github/kubectl-version.txt`
+            - `docker/Dockerfile.kubectl` (ARG default for local builds)
+
+            See the [Kubernetes changelog](https://github.com/kubernetes/kubernetes/blob/master/CHANGELOG/CHANGELOG-${{ steps.kubectl-minor.outputs.minor }}.md) for details.
+          labels: "kind/dependency-update,size/XS"
