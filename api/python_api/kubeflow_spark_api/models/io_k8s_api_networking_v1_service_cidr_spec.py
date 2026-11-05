@@ -40,7 +40,7 @@ class IoK8sApiNetworkingV1ServiceCIDRSpec(BaseModel):
     """
     ServiceCIDRSpec define the CIDRs the user wants to use for allocating ClusterIPs for Services.
     """ # noqa: E501
-    cidrs: Optional[List[StrictStr]] = Field(default=None, description="CIDRs defines the IP blocks in CIDR notation (e.g. \"192.168.0.0/24\" or \"2001:db8::/64\") from which to assign service cluster IPs. Max of two CIDRs is allowed, one of each IP family. This field is immutable.")
+    cidrs: Optional[List[StrictStr]] = Field(default=None, description="cidrs defines the IP blocks in CIDR notation (e.g. \"192.168.0.0/24\" or \"2001:db8::/64\") from which to assign service cluster IPs. Max of two CIDRs is allowed, one of each IP family. This field is immutable.")
     __properties: ClassVar[List[str]] = ["cidrs"]
 
     model_config = ConfigDict(

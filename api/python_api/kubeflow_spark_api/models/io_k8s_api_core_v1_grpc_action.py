@@ -31,7 +31,7 @@ import pprint
 import re  # noqa: F401
 import json
 
-from pydantic import BaseModel, ConfigDict, Field, StrictInt, StrictStr
+from pydantic import BaseModel, ConfigDict, Field, StrictInt, StrictStr, field_validator
 from typing import Any, ClassVar, Dict, List, Optional
 from typing import Optional, Set
 from typing_extensions import Self
@@ -40,9 +40,20 @@ class IoK8sApiCoreV1GRPCAction(BaseModel):
     """
     GRPCAction specifies an action involving a GRPC service.
     """ # noqa: E501
+    mode: Optional[StrictStr] = Field(default=None, description="mode specifies the connection mode for the gRPC health probe. Set to \"TLS\" to use TLS without certificate verification. Set to \"Plaintext\" to use a plaintext (insecure) connection explicitly. If not specified, the probe uses a plaintext (insecure) connection.  Possible enum values:  - `\"Plaintext\"` indicates that the probe should use a plaintext (insecure) gRPC connection.  - `\"TLS\"` indicates that the probe should connect using TLS without certificate verification.")
     port: StrictInt = Field(description="Port number of the gRPC service. Number must be in the range 1 to 65535.")
     service: Optional[StrictStr] = Field(default='', description="Service is the name of the service to place in the gRPC HealthCheckRequest (see https://github.com/grpc/grpc/blob/master/doc/health-checking.md).  If this is not specified, the default behavior is defined by gRPC.")
-    __properties: ClassVar[List[str]] = ["port", "service"]
+    __properties: ClassVar[List[str]] = ["mode", "port", "service"]
+
+    @field_validator('mode')
+    def mode_validate_enum(cls, value):
+        """Validates the enum"""
+        if value is None:
+            return value
+
+        if value not in set(['Plaintext', 'TLS']):
+            raise ValueError("must be one of enum values ('Plaintext', 'TLS')")
+        return value
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -95,6 +106,7 @@ class IoK8sApiCoreV1GRPCAction(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
+            "mode": obj.get("mode"),
             "port": obj.get("port") if obj.get("port") is not None else 0,
             "service": obj.get("service") if obj.get("service") is not None else ''
         })

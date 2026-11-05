@@ -29,7 +29,7 @@ import (
 )
 
 type fakeDiscovery struct {
-	discovery.DiscoveryInterface
+	discovery.DiscoveryInterfaces
 	resources []*metav1.APIResourceList
 	err       error
 }
@@ -40,10 +40,10 @@ func (f *fakeDiscovery) ServerPreferredResources() ([]*metav1.APIResourceList, e
 
 type fakeClientset struct {
 	kubernetes.Interface
-	discovery discovery.DiscoveryInterface
+	discovery discovery.DiscoveryInterfaces
 }
 
-func (f *fakeClientset) Discovery() discovery.DiscoveryInterface {
+func (f *fakeClientset) Discovery() discovery.DiscoveryInterfaces {
 	return f.discovery
 }
 

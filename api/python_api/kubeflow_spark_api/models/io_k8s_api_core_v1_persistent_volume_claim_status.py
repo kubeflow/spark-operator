@@ -35,6 +35,7 @@ from pydantic import BaseModel, ConfigDict, Field, StrictStr, field_validator
 from typing import Any, ClassVar, Dict, List, Optional
 from kubeflow_spark_api.models.io_k8s_api_core_v1_modify_volume_status import IoK8sApiCoreV1ModifyVolumeStatus
 from kubeflow_spark_api.models.io_k8s_api_core_v1_persistent_volume_claim_condition import IoK8sApiCoreV1PersistentVolumeClaimCondition
+from kubeflow_spark_api.models.io_k8s_api_core_v1_volume_health_status import IoK8sApiCoreV1VolumeHealthStatus
 from kubeflow_spark_api.models.io_k8s_apimachinery_pkg_api_resource_quantity import IoK8sApimachineryPkgApiResourceQuantity
 from typing import Optional, Set
 from typing_extensions import Self
@@ -49,9 +50,10 @@ class IoK8sApiCoreV1PersistentVolumeClaimStatus(BaseModel):
     capacity: Optional[Dict[str, IoK8sApimachineryPkgApiResourceQuantity]] = Field(default=None, description="capacity represents the actual resources of the underlying volume.")
     conditions: Optional[List[IoK8sApiCoreV1PersistentVolumeClaimCondition]] = Field(default=None, description="conditions is the current Condition of persistent volume claim. If underlying persistent volume is being resized then the Condition will be set to 'Resizing'.")
     current_volume_attributes_class_name: Optional[StrictStr] = Field(default=None, description="currentVolumeAttributesClassName is the current name of the VolumeAttributesClass the PVC is using. When unset, there is no VolumeAttributeClass applied to this PersistentVolumeClaim", alias="currentVolumeAttributesClassName")
+    health_status: Optional[IoK8sApiCoreV1VolumeHealthStatus] = Field(default=None, description="healthStatus contains the latest controller-reported health information for the volume bound to this claim.", alias="healthStatus")
     modify_volume_status: Optional[IoK8sApiCoreV1ModifyVolumeStatus] = Field(default=None, description="ModifyVolumeStatus represents the status object of ControllerModifyVolume operation. When this is unset, there is no ModifyVolume operation being attempted.", alias="modifyVolumeStatus")
     phase: Optional[StrictStr] = Field(default=None, description="phase represents the current phase of PersistentVolumeClaim.  Possible enum values:  - `\"Bound\"` used for PersistentVolumeClaims that are bound  - `\"Lost\"` used for PersistentVolumeClaims that lost their underlying PersistentVolume. The claim was bound to a PersistentVolume and this volume does not exist any longer and all data on it was lost.  - `\"Pending\"` used for PersistentVolumeClaims that are not yet bound")
-    __properties: ClassVar[List[str]] = ["accessModes", "allocatedResourceStatuses", "allocatedResources", "capacity", "conditions", "currentVolumeAttributesClassName", "modifyVolumeStatus", "phase"]
+    __properties: ClassVar[List[str]] = ["accessModes", "allocatedResourceStatuses", "allocatedResources", "capacity", "conditions", "currentVolumeAttributesClassName", "healthStatus", "modifyVolumeStatus", "phase"]
 
     @field_validator('access_modes')
     def access_modes_validate_enum(cls, value):
@@ -145,6 +147,9 @@ class IoK8sApiCoreV1PersistentVolumeClaimStatus(BaseModel):
                 if _item_conditions:
                     _items.append(_item_conditions.to_dict())
             _dict['conditions'] = _items
+        # override the default output from pydantic by calling `to_dict()` of health_status
+        if self.health_status:
+            _dict['healthStatus'] = self.health_status.to_dict()
         # override the default output from pydantic by calling `to_dict()` of modify_volume_status
         if self.modify_volume_status:
             _dict['modifyVolumeStatus'] = self.modify_volume_status.to_dict()
@@ -176,6 +181,7 @@ class IoK8sApiCoreV1PersistentVolumeClaimStatus(BaseModel):
             else None,
             "conditions": [IoK8sApiCoreV1PersistentVolumeClaimCondition.from_dict(_item) for _item in obj["conditions"]] if obj.get("conditions") is not None else None,
             "currentVolumeAttributesClassName": obj.get("currentVolumeAttributesClassName"),
+            "healthStatus": IoK8sApiCoreV1VolumeHealthStatus.from_dict(obj["healthStatus"]) if obj.get("healthStatus") is not None else None,
             "modifyVolumeStatus": IoK8sApiCoreV1ModifyVolumeStatus.from_dict(obj["modifyVolumeStatus"]) if obj.get("modifyVolumeStatus") is not None else None,
             "phase": obj.get("phase")
         })
