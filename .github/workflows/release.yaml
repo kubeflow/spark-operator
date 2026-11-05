@@ -33,7 +33,6 @@ env:
   IMAGE_REGISTRY: ghcr.io
   OPERATOR_IMAGE_REPOSITORY: ${{ github.repository }}/controller
   KUBECTL_IMAGE_REPOSITORY: ${{ github.repository }}/kubectl
-  KUBECTL_VERSION: 1.33.2
 
 jobs:
   check-release:
@@ -251,6 +250,9 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+
+      - name: Set kubectl version
+        run: echo "KUBECTL_VERSION=$(cat .github/kubectl-version.txt)" >> "$GITHUB_ENV"
 
       - name: Read version from VERSION file
         run: |
