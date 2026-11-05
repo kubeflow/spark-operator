@@ -224,6 +224,8 @@ jobs:
         run: |
           docker build -t ghcr.io/kubeflow/spark-operator/controller:local .
           minikube image load ghcr.io/kubeflow/spark-operator/controller:local
+          docker build -f docker/Dockerfile.kubectl -t ghcr.io/kubeflow/spark-operator/kubectl:local .
+          minikube image load ghcr.io/kubeflow/spark-operator/kubectl:local
           ct install --target-branch ${STEPS_GET_BRANCH_OUTPUTS_BRANCH}
         env:
           STEPS_GET_BRANCH_OUTPUTS_BRANCH: ${{ steps.get_branch.outputs.BRANCH }}
