@@ -66,8 +66,12 @@ Development
   go-vet                          Run go vet against code.
   go-lint                         Run golangci-lint linter.
   go-lint-fix                     Run golangci-lint linter and perform fixes.
+  shell-fmt                       Format shell scripts with shfmt.
+  shell-lint                      Lint shell scripts with shellcheck.
   unit-test                       Run unit tests.
   e2e-test                        Run the e2e tests against a Kind k8s instance that is spun up.
+  update-spark-version            Update managed Spark runtime references. Usage: make update-spark-version SPARK_VERSION=x.y.z
+  verify-spark-version            Verify managed Spark runtime references are consistent.
 
 Kustomize
   kustomize-set-image             Update config/default/kustomization.yaml image tag from VERSION file.
@@ -140,11 +144,31 @@ The easiest way to build the operator without worrying about its dependencies is
 make docker-build IMAGE_TAG=<image-tag>
 ```
 
-The operator image is built upon a base Spark image that defaults to `spark:3.5.2`. If you want to use your own Spark image (e.g., an image with a different version of Spark or some custom dependencies), specify the argument `SPARK_IMAGE` as the following example shows:
+The operator image is built upon an Apache Spark base image. By default, the project uses the Spark 4.2.1 Scala-only image (`docker.io/apache/spark:4.2.1-scala2.13-java21-ubuntu`), pinned by digest in the `Dockerfile`. If you want to use your own Spark image (e.g., an image with a different version of Spark or some custom dependencies), specify the argument `SPARK_IMAGE` as the following example shows:
 
 ```shell
 docker build --build-arg SPARK_IMAGE=<your Spark image> -t <image-tag> .
 ```
+
+### Update the Spark Runtime
+
+The project keeps the supported Apache Spark runtime version synchronized across the operator base image, examples, selected documentation, and e2e fixtures.
+
+To update the managed Spark runtime references, specify the target Spark version:
+
+```shell
+make update-spark-version SPARK_VERSION=x.y.z
+```
+
+The update verifies that the Apache Spark workload image and the Scala 2.13, Java 21 controller base image are available for both `linux/amd64` and `linux/arm64`, resolves their multi-platform image digests, and updates the managed references.
+
+To verify that the managed references are consistent without modifying files, run:
+
+```shell
+make verify-spark-version
+```
+
+Some Spark-related files are intentionally outside this automation when they require independent compatibility work, such as the custom Prometheus/JMX image path. Review the resulting diff and run the relevant project checks and e2e tests before submitting an upgrade.
 
 ### Update the API definition
 
