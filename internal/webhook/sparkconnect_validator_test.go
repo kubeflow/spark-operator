@@ -24,6 +24,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/validation/field"
 	"k8s.io/utils/ptr"
 
 	"github.com/kubeflow/spark-operator/v2/api/v1alpha1"
@@ -44,7 +45,7 @@ func TestSparkConnectValidatorValidateCreate_SparkVersionRequired(t *testing.T) 
 	sc := newSparkConnect()
 	sc.Spec.SparkVersion = ""
 
-	if _, err := validator.ValidateCreate(context.Background(), sc); err == nil || !strings.Contains(err.Error(), "sparkVersion is required") {
+	if _, err := validator.ValidateCreate(context.Background(), sc); err == nil || !strings.Contains(err.Error(), "spec.sparkVersion: Required value") {
 		t.Fatalf("expected sparkVersion required error, got %v", err)
 	}
 }
@@ -56,7 +57,7 @@ func TestSparkConnectValidatorValidateCreate_PodTemplateRequiresSpark3(t *testin
 	sc.Spec.SparkVersion = "2.4.0"
 	sc.Spec.Server.Template = &corev1.PodTemplateSpec{}
 
-	if _, err := validator.ValidateCreate(context.Background(), sc); err == nil || !strings.Contains(err.Error(), "requires Spark version 3.0.0 or higher") {
+	if _, err := validator.ValidateCreate(context.Background(), sc); err == nil || !strings.Contains(err.Error(), `spec.sparkVersion: Invalid value: "2.4.0": pod template feature requires Spark version 3.0.0 or higher`) {
 		t.Fatalf("expected spark version validation error, got %v", err)
 	}
 }
@@ -67,7 +68,7 @@ func TestSparkConnectValidatorValidateCreate_ImageRequired(t *testing.T) {
 	sc := newSparkConnect()
 	sc.Spec.Image = nil
 
-	if _, err := validator.ValidateCreate(context.Background(), sc); err == nil || !strings.Contains(err.Error(), "image must be specified") {
+	if _, err := validator.ValidateCreate(context.Background(), sc); err == nil || !strings.Contains(err.Error(), "spec.image: Required value") {
 		t.Fatalf("expected image validation error, got %v", err)
 	}
 }
@@ -120,7 +121,7 @@ func TestSparkConnectValidatorValidateCreate_ImageOnlyInServerTemplate(t *testin
 	}
 	// No executor template - should fail
 
-	if _, err := validator.ValidateCreate(context.Background(), sc); err == nil || !strings.Contains(err.Error(), "image must be specified") {
+	if _, err := validator.ValidateCreate(context.Background(), sc); err == nil || !strings.Contains(err.Error(), "spec.image: Required value") {
 		t.Fatalf("expected image validation error when only server template has image, got %v", err)
 	}
 }
@@ -157,7 +158,7 @@ func TestSparkConnectValidatorValidateCreate_ImageOnlyInUnselectedContainer(t *t
 			sc.Spec.Server.Template = &corev1.PodTemplateSpec{Spec: corev1.PodSpec{Containers: test.server}}
 			sc.Spec.Executor.Template = &corev1.PodTemplateSpec{Spec: corev1.PodSpec{Containers: test.executor}}
 
-			if _, err := validator.ValidateCreate(context.Background(), sc); err == nil || !strings.Contains(err.Error(), "image must be specified") {
+			if _, err := validator.ValidateCreate(context.Background(), sc); err == nil || !strings.Contains(err.Error(), "spec.image: Required value") {
 				t.Fatalf("expected image validation error, got %v", err)
 			}
 		})
@@ -174,7 +175,7 @@ func TestSparkConnectValidatorValidateCreate_DynamicAllocationMinGreaterThanMax(
 		MaxExecutors: ptr.To[int32](5),
 	}
 
-	if _, err := validator.ValidateCreate(context.Background(), sc); err == nil || !strings.Contains(err.Error(), "cannot be greater than") {
+	if _, err := validator.ValidateCreate(context.Background(), sc); err == nil || !strings.Contains(err.Error(), "spec.dynamicAllocation.minExecutors: Invalid value: 10: cannot be greater than maxExecutors (5)") {
 		t.Fatalf("expected min/max executors validation error, got %v", err)
 	}
 }
@@ -190,7 +191,7 @@ func TestSparkConnectValidatorValidateCreate_DynamicAllocationInitialLessThanMin
 		MaxExecutors:     ptr.To[int32](10),
 	}
 
-	if _, err := validator.ValidateCreate(context.Background(), sc); err == nil || !strings.Contains(err.Error(), "cannot be less than") {
+	if _, err := validator.ValidateCreate(context.Background(), sc); err == nil || !strings.Contains(err.Error(), "spec.dynamicAllocation.initialExecutors: Invalid value: 1: cannot be less than minExecutors (5)") {
 		t.Fatalf("expected initialExecutors validation error, got %v", err)
 	}
 }
@@ -206,7 +207,7 @@ func TestSparkConnectValidatorValidateCreate_DynamicAllocationInitialGreaterThan
 		MaxExecutors:     ptr.To[int32](10),
 	}
 
-	if _, err := validator.ValidateCreate(context.Background(), sc); err == nil || !strings.Contains(err.Error(), "cannot be greater than") {
+	if _, err := validator.ValidateCreate(context.Background(), sc); err == nil || !strings.Contains(err.Error(), "spec.dynamicAllocation.initialExecutors: Invalid value: 15: cannot be greater than maxExecutors (10)") {
 		t.Fatalf("expected initialExecutors validation error, got %v", err)
 	}
 }
@@ -233,7 +234,7 @@ func TestSparkConnectValidatorValidateCreate_InvalidServerMemory(t *testing.T) {
 	sc := newSparkConnect()
 	sc.Spec.Server.Memory = ptr.To("invalid-memory")
 
-	if _, err := validator.ValidateCreate(context.Background(), sc); err == nil || !strings.Contains(err.Error(), "invalid server.memory") {
+	if _, err := validator.ValidateCreate(context.Background(), sc); err == nil || !strings.Contains(err.Error(), `spec.server.memory: Invalid value: "invalid-memory"`) {
 		t.Fatalf("expected server memory validation error, got %v", err)
 	}
 }
@@ -244,7 +245,7 @@ func TestSparkConnectValidatorValidateCreate_InvalidExecutorMemory(t *testing.T)
 	sc := newSparkConnect()
 	sc.Spec.Executor.Memory = ptr.To("bad-format")
 
-	if _, err := validator.ValidateCreate(context.Background(), sc); err == nil || !strings.Contains(err.Error(), "invalid executor.memory") {
+	if _, err := validator.ValidateCreate(context.Background(), sc); err == nil || !strings.Contains(err.Error(), `spec.executor.memory: Invalid value: "bad-format"`) {
 		t.Fatalf("expected executor memory validation error, got %v", err)
 	}
 }
@@ -282,12 +283,12 @@ func TestSparkConnectValidatorValidateCreate_GPUDiscovery(t *testing.T) {
 		{
 			name:      "executor GPU without discovery",
 			mutate:    func(sc *v1alpha1.SparkConnect) { sc.Spec.Executor.GPU = gpu },
-			wantError: "executor.gpu is set but GPU discovery is not configured",
+			wantError: "spec.executor.gpu: Forbidden: may not be set unless GPU discovery is configured",
 		},
 		{
 			name:      "server GPU without discovery",
 			mutate:    func(sc *v1alpha1.SparkConnect) { sc.Spec.Server.GPU = gpu },
-			wantError: "server.gpu is set but GPU discovery is not configured",
+			wantError: "spec.server.gpu: Forbidden: may not be set unless GPU discovery is configured",
 		},
 		{
 			name: "executor GPU with executor discovery script",
@@ -302,7 +303,7 @@ func TestSparkConnectValidatorValidateCreate_GPUDiscovery(t *testing.T) {
 				sc.Spec.Server.GPU = gpu
 				sc.Spec.SparkConf = map[string]string{common.SparkExecutorGPUDiscoveryScript: "/opt/spark/gpus.sh"}
 			},
-			wantError: "server.gpu is set but GPU discovery is not configured",
+			wantError: "spec.server.gpu: Forbidden: may not be set unless GPU discovery is configured",
 		},
 		{
 			name: "both GPUs with discovery plugin",
@@ -361,7 +362,7 @@ func TestSparkConnectValidatorValidateUpdate_SpecChangedTriggersValidation(t *te
 	newSC := oldSC.DeepCopy()
 	newSC.Spec.SparkVersion = ""
 
-	if _, err := validator.ValidateUpdate(context.Background(), oldSC, newSC); err == nil || !strings.Contains(err.Error(), "sparkVersion is required") {
+	if _, err := validator.ValidateUpdate(context.Background(), oldSC, newSC); err == nil || !strings.Contains(err.Error(), "spec.sparkVersion: Required value") {
 		t.Fatalf("expected sparkVersion validation error, got %v", err)
 	}
 }
@@ -460,11 +461,11 @@ func TestValidateMemoryString(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := validateMemoryString(tt.memory)
-			hasError := err != nil
+			errs := validateMemoryString(field.NewPath("spec", "server", "memory"), ptr.To(tt.memory))
+			hasError := len(errs) > 0
 
 			if hasError != tt.wantError {
-				t.Errorf("validateMemoryString(%q) = error %v, wantError %v, got error: %v", tt.memory, hasError, tt.wantError, err)
+				t.Errorf("validateMemoryString(%q) = errors %v, wantError %v", tt.memory, errs, tt.wantError)
 			}
 		})
 	}
@@ -504,7 +505,7 @@ func TestSparkConnectValidatorValidateCreate_InvalidServerCoreRequest(t *testing
 	zero := resource.MustParse("0")
 	sc.Spec.Server.CoreRequest = &zero
 
-	if _, err := validator.ValidateCreate(context.Background(), sc); err == nil || !strings.Contains(err.Error(), "invalid server.coreRequest") {
+	if _, err := validator.ValidateCreate(context.Background(), sc); err == nil || !strings.Contains(err.Error(), "spec.server.coreRequest: Invalid value") {
 		t.Fatalf("expected invalid coreRequest validation error, got %v", err)
 	}
 }
@@ -516,7 +517,7 @@ func TestSparkConnectValidatorValidateCreate_InvalidServerCoreLimit(t *testing.T
 	zero := resource.MustParse("0")
 	sc.Spec.Server.CoreLimit = &zero
 
-	if _, err := validator.ValidateCreate(context.Background(), sc); err == nil || !strings.Contains(err.Error(), "invalid server.coreLimit") {
+	if _, err := validator.ValidateCreate(context.Background(), sc); err == nil || !strings.Contains(err.Error(), "spec.server.coreLimit: Invalid value") {
 		t.Fatalf("expected invalid coreLimit validation error, got %v", err)
 	}
 }
@@ -528,7 +529,7 @@ func TestSparkConnectValidatorValidateCreate_InvalidExecutorCoreRequest(t *testi
 	zero := resource.MustParse("0")
 	sc.Spec.Executor.CoreRequest = &zero
 
-	if _, err := validator.ValidateCreate(context.Background(), sc); err == nil || !strings.Contains(err.Error(), "invalid executor.coreRequest") {
+	if _, err := validator.ValidateCreate(context.Background(), sc); err == nil || !strings.Contains(err.Error(), "spec.executor.coreRequest: Invalid value") {
 		t.Fatalf("expected invalid coreRequest validation error, got %v", err)
 	}
 }
@@ -540,7 +541,7 @@ func TestSparkConnectValidatorValidateCreate_InvalidExecutorCoreLimit(t *testing
 	zero := resource.MustParse("0")
 	sc.Spec.Executor.CoreLimit = &zero
 
-	if _, err := validator.ValidateCreate(context.Background(), sc); err == nil || !strings.Contains(err.Error(), "invalid executor.coreLimit") {
+	if _, err := validator.ValidateCreate(context.Background(), sc); err == nil || !strings.Contains(err.Error(), "spec.executor.coreLimit: Invalid value") {
 		t.Fatalf("expected invalid coreLimit validation error, got %v", err)
 	}
 }
@@ -598,9 +599,9 @@ func TestValidateCPUQuantity(t *testing.T) {
 
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
-			err := validateCPUQuantity(tt.cpu)
-			if (err != nil) != tt.wantErr {
-				t.Fatalf("validateCPUQuantity(%v) wantErr=%v, got err=%v", tt.cpu, tt.wantErr, err)
+			errs := validateCPUQuantity(field.NewPath("spec", "server", "coreRequest"), tt.cpu)
+			if (len(errs) > 0) != tt.wantErr {
+				t.Fatalf("validateCPUQuantity(%v) wantErr=%v, got errs=%v", tt.cpu, tt.wantErr, errs)
 			}
 		})
 	}
@@ -623,9 +624,9 @@ func TestValidateCPURequestLELimit(t *testing.T) {
 
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
-			err := validateCPURequestLELimit(tt.request, tt.limit)
-			if (err != nil) != tt.wantErr {
-				t.Fatalf("validateCPURequestLELimit(%v, %v) wantErr=%v, got err=%v", tt.request, tt.limit, tt.wantErr, err)
+			errs := validateCPURequestLELimit(field.NewPath("spec", "server", "coreRequest"), tt.request, tt.limit)
+			if (len(errs) > 0) != tt.wantErr {
+				t.Fatalf("validateCPURequestLELimit(%v, %v) wantErr=%v, got errs=%v", tt.request, tt.limit, tt.wantErr, errs)
 			}
 		})
 	}

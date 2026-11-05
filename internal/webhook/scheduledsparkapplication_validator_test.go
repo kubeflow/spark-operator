@@ -18,6 +18,7 @@ package webhook
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"testing"
 
@@ -115,6 +116,19 @@ func TestScheduledSparkApplicationValidatorSparkConf_SecurityVectorsRejected(t *
 	}
 }
 
+func TestScheduledSparkApplicationValidatorSparkConf_FieldPath(t *testing.T) {
+	validator := NewScheduledSparkApplicationValidator()
+
+	app := newScheduledSparkApplication()
+	app.Spec.Template.SparkConf = map[string]string{common.SparkMaster: "k8s://https://attacker-cluster:443"}
+
+	_, err := validator.ValidateCreate(context.Background(), app)
+	wantField := fmt.Sprintf("spec.template.sparkConf[%s]", common.SparkMaster)
+	if err == nil || !strings.Contains(err.Error(), wantField) {
+		t.Fatalf("expected error to report %s, got %v", wantField, err)
+	}
+}
+
 func TestScheduledSparkApplicationValidatorSparkConf_UpdateRejected(t *testing.T) {
 	validator := NewScheduledSparkApplicationValidator()
 
@@ -189,7 +203,7 @@ func TestScheduledSparkApplicationValidatorValidateCreate_ConfigMapNames(t *test
 	app.Spec.Template.Driver.ConfigMaps = configMapRefs("MY_CONFIG")
 
 	_, err := validator.ValidateCreate(context.Background(), app)
-	if err == nil || !strings.Contains(err.Error(), `spec.template.driver.configMaps[0].name has invalid ConfigMap name "MY_CONFIG"`) {
+	if err == nil || !strings.Contains(err.Error(), `spec.template.driver.configMaps[0].name: Invalid value: "MY_CONFIG"`) {
 		t.Fatalf("expected an invalid ConfigMap name error, got %v", err)
 	}
 }
