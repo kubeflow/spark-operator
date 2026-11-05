@@ -15,6 +15,11 @@
 image:
   tag: local
 
+hook:
+  upgradeCrd: true
+  image:
+    tag: local
+
 # Configure spark jobs to run in:
 # 1. "default" namespace explicitly (for core e2e tests)
 # 2. Any namespace with "spark=enabled" label (for namespace filtering tests)
