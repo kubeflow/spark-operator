@@ -68,6 +68,10 @@ const (
 	WaitTimeout  = 5 * time.Minute
 )
 
+var restrictedPodSecurityLabels = map[string]string{
+	"pod-security.kubernetes.io/enforce": "restricted",
+}
+
 var (
 	cfg       *rest.Config
 	testEnv   *envtest.Environment
@@ -171,7 +175,10 @@ var _ = AfterSuite(func() {
 
 func installViaHelm() {
 	By("Creating release namespace")
-	namespace := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: ReleaseNamespace}}
+	namespace := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{
+		Name:   ReleaseNamespace,
+		Labels: restrictedPodSecurityLabels,
+	}}
 	Expect(k8sClient.Create(context.TODO(), namespace)).NotTo(HaveOccurred())
 
 	By("Installing the Spark operator helm chart")
