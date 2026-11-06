@@ -1,5 +1,5 @@
 /*
-Copyright 2024 The Kubeflow Authors.
+Copyright The Kubeflow Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -20,37 +20,20 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"k8s.io/utils/ptr"
 )
 
-func TestCpuRequest(t *testing.T) {
+func TestBytesToMi(t *testing.T) {
 	testCases := []struct {
-		cores       *int32
-		coreRequest *string
-		expected    string
+		input    int64
+		expected string
 	}{
-		{nil, nil, "1"},
-		{ptr.To[int32](1), nil, "1"},
-		{nil, ptr.To("1"), "1"},
-		{ptr.To[int32](1), ptr.To("500m"), "500m"},
+		{(2 * 1024 * 1024) - 1, "1Mi"},
+		{2 * 1024 * 1024, "2Mi"},
+		{(1024 * 1024 * 1024) - 1, "1023Mi"},
+		{1024 * 1024 * 1024, "1024Mi"},
 	}
 
 	for _, tc := range testCases {
-		actual, err := cpuRequest(tc.cores, tc.coreRequest)
-		assert.Nil(t, err)
-		assert.Equal(t, tc.expected, actual)
-	}
-}
-
-func TestCpuRequestInvalid(t *testing.T) {
-	invalidInputs := []string{
-		"",
-		"asd",
-		"Random 500m",
-	}
-
-	for _, input := range invalidInputs {
-		_, err := cpuRequest(nil, &input)
-		assert.NotNil(t, err)
+		assert.Equal(t, tc.expected, bytesToMi(tc.input))
 	}
 }

@@ -198,6 +198,12 @@ const (
 	// SparkKubernetesMemoryOverheadFactor is the Spark configuration key for specifying memory overhead factor used for Non-JVM memory.
 	SparkKubernetesMemoryOverheadFactor = "spark.kubernetes.memoryOverheadFactor"
 
+	// SparkDriverMemoryOverheadFactor is the per-driver overhead factor key (Spark 3.3+, SPARK-38194).
+	SparkDriverMemoryOverheadFactor = "spark.driver.memoryOverheadFactor"
+
+	// SparkExecutorMemoryOverheadFactor is the per-executor overhead factor key (Spark 3.3+, SPARK-38194).
+	SparkExecutorMemoryOverheadFactor = "spark.executor.memoryOverheadFactor"
+
 	// SparkKubernetesPysparkPythonVersion is the Spark configuration key for specifying python version used.
 	SparkKubernetesPysparkPythonVersion = "spark.kubernetes.pyspark.pythonVersion"
 
