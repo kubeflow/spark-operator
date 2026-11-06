@@ -19,6 +19,7 @@ package e2e_test
 import (
 	"context"
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
 	"time"
@@ -37,11 +38,12 @@ import (
 
 // createTestNamespaceWithSA creates a namespace with service account and required RBAC
 func createTestNamespaceWithSA(ctx context.Context, name string, nsLabels map[string]string) (*corev1.Namespace, error) {
-	// Create namespace
+	labels := maps.Clone(restrictedPodSecurityLabels)
+	maps.Copy(labels, nsLabels)
 	ns := &corev1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:   name,
-			Labels: nsLabels,
+			Labels: labels,
 		},
 	}
 	if err := k8sClient.Create(ctx, ns); err != nil {

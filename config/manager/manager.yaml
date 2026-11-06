@@ -20,6 +20,7 @@ metadata:
     app.kubernetes.io/name: spark-operator
     app.kubernetes.io/component: operator
     control-plane: controller-manager
+    pod-security.kubernetes.io/enforce: restricted
 ---
 apiVersion: apps/v1
 kind: Deployment
