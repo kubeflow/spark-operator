@@ -963,6 +963,9 @@ func (r *Reconciler) getSparkApplication(ctx context.Context, key types.Namespac
 func (r *Reconciler) submitSparkApplication(ctx context.Context, app *v1beta2.SparkApplication) {
 	logger := log.FromContext(ctx)
 	logger.Info("Submitting SparkApplication", "state", app.Status.AppState.State)
+	if app.Spec.Mode == v1beta2.DeployModeClient {
+		logger.Info("Client mode is deprecated and will be removed in the next API version; use cluster mode or SparkConnect instead")
+	}
 
 	// SubmissionID must be set before creating any resources to ensure all the resources are labeled.
 	app.Status.SubmissionID = uuid.New().String()
