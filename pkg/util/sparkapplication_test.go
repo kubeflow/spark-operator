@@ -653,3 +653,18 @@ var _ = Describe("TimeUntilNextRetryDue", func() {
 		})
 	})
 })
+
+var _ = DescribeTable("IsJVMApp",
+	func(appType v1beta2.SparkApplicationType, expected bool) {
+		app := &v1beta2.SparkApplication{
+			Spec: v1beta2.SparkApplicationSpec{
+				Type: appType,
+			},
+		}
+		Expect(util.IsJVMApp(app)).To(Equal(expected))
+	},
+	Entry("Java", v1beta2.SparkApplicationTypeJava, true),
+	Entry("Scala", v1beta2.SparkApplicationTypeScala, true),
+	Entry("Python", v1beta2.SparkApplicationTypePython, false),
+	Entry("R", v1beta2.SparkApplicationTypeR, false),
+)
