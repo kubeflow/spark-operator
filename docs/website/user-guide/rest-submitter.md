@@ -15,8 +15,115 @@ This guide walks you through deploying the REST submitter service and integratin
 Operator.
 
 ```{note}
-REST submission is an alpha feature. Enable the `RestSubmitter` feature gate to use it.
+REST submission is an alpha feature. Enable the `RestSubmitter` feature gate to use it. Review
+[Limitations](#limitations) before you enable it.
 ```
+
+## Limitations
+
+The submitter builds the driver pod with the Spark libraries in its own image, not the Spark in the
+operator image or the application image. It also uses its own service account. Several differences
+from `spark-submit` follow from this.
+
+### The submitter's Spark version decides the driver pod
+
+Spark settings that apply when the driver pod is created only work if the submitter's Spark
+version supports them. Settings that the driver reads at runtime are not affected. For example, a
+submitter built on Spark 4.0 ignores these settings for an application that runs Spark 4.3:
+
+| Behavior | Added in | With a Spark 4.0 submitter |
+| --- | --- | --- |
+| `spark.kubernetes.driver.pod.excludedFeatureSteps` | 4.1 | Ignored |
+| Per-application `NetworkPolicy` for executor pods | 4.2 | Not created |
+| `spark.kubernetes.driver.securityContext.allowPrivilegeEscalation` (defaults to `false`) | 4.3 | Not set on the driver container |
+| `spark.kubernetes.driver.service.publishNotReadyAddresses` | 4.3 | Ignored |
+
+The driver pod's `spark-version` label also shows the submitter's Spark version.
+
+Choose a submitter image whose Spark version matches the version your applications run. If your
+applications run several Spark versions, the operator cannot route them to different submitters.
+One operator sends every application to the single `submitter.serviceUrl`.
+
+The published submitter images are built on Spark 4.0.1. The submitter source builds against Spark
+4.1 and earlier only. Spark 4.2 moved to Jetty 12, so a submitter for Spark 4.2 or later needs
+source changes in the submitter project before it can be built.
+
+The published submitter images support `linux/amd64` only. On clusters with other node
+architectures, set `nodeSelector` with `kubernetes.io/arch: amd64` in `submitter-values.yaml`.
+
+### Extra RBAC for the submitter
+
+The submitter chart grants its service account access to `pods`, `configmaps`, and `services` only.
+Spark creates other resources with the submitter's service account:
+
+| When | Resource |
+| --- | --- |
+| Every application, if the submitter is built on Spark 4.2 or later | `networkpolicies` (API group `networking.k8s.io`) |
+| `OnDemand` persistent volume claims (`spark.kubernetes.driver.volumes.persistentVolumeClaim.*.options.claimName=OnDemand`) | `persistentvolumeclaims` |
+| Kerberos delegation tokens | `secrets` |
+
+Spark 4.2 and later create a `NetworkPolicy` for the executors of every application. Without the
+`networkpolicies` rule, every submission fails with a submitter built on these versions.
+
+Without access, the submission fails with a `forbidden` error after the driver pod is created. The
+submitter then deletes the pod. It reports the failure as a retryable `INTERNAL_SERVER_ERROR`, so the
+operator makes up to `--submitter-max-retries` attempts (3 by default) before it marks the
+application failed. The `forbidden` message appears in the application's status. Grant the access
+in each job namespace:
+
+```yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: spark-submitter-extra
+  namespace: <job-namespace>
+rules:
+  - apiGroups: [""]
+    resources: ["persistentvolumeclaims", "secrets"]
+    verbs: ["get", "create", "patch", "delete"]
+  - apiGroups: ["networking.k8s.io"]
+    resources: ["networkpolicies"]
+    verbs: ["get", "create", "patch", "delete"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: spark-submitter-extra
+  namespace: <job-namespace>
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: spark-submitter-extra
+subjects:
+  - kind: ServiceAccount
+    name: spark-submitter
+    namespace: spark-submitter
+```
+
+Grant only the resources your applications use.
+
+### Work that moves into the submitter pod
+
+`spark-submit` work that does not create Kubernetes resources now runs in the shared submitter
+process instead of a separate process per application:
+
+- `--packages` (`.spec.deps.packages`) are resolved in the submitter pod. The pod needs access to the
+  Maven repositories, and resolution time counts against `--submitter-request-timeout`.
+- `file://` dependencies are read from the submitter pod's file system and uploaded to
+  `spark.kubernetes.file.upload.path` with the submitter's credentials.
+- Kerberos delegation tokens are obtained in the submitter process.
+- `spark-defaults.conf` comes from the submitter image.
+
+Prefer dependencies that are built into the application image or referenced with remote URIs.
+
+### Other differences
+
+- Only `cluster` deploy mode is supported.
+- The controller does not start until the submitter is reachable, up to
+  `--submitter-startup-timeout` (5 minutes by default).
+- The submitter serves plain HTTP by default. If `jobNamespaces` is empty, the chart grants it
+  cluster-wide access to create pods. Set `jobNamespaces`, [enable mTLS](#enable-mtls), and restrict
+  ingress to the submitter Service to the operator.
 
 ## Prerequisites
 
