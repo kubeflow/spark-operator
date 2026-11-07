@@ -26,6 +26,7 @@ API rule violation: list_type_missing,github.com/kubeflow/spark-operator/v2/api/
 API rule violation: list_type_missing,github.com/kubeflow/spark-operator/v2/api/v1beta2,SparkUIConfiguration,IngressTLS
 API rule violation: names_match,github.com/kubeflow/spark-operator/v2/api/v1beta2,SecretInfo,Type
 API rule violation: names_match,github.com/kubeflow/spark-operator/v2/api/v1beta2,SparkApplicationStatus,AppState
+API rule violation: names_match,github.com/kubeflow/spark-operator/v2/api/v1beta2,SparkApplicationStatus,MaxExecutorID
 API rule violation: names_match,github.com/kubeflow/spark-operator/v2/api/v1beta2,SparkApplicationStatus,SparkApplicationID
 API rule violation: names_match,k8s.io/api/core/v1,AzureDiskVolumeSource,DataDiskURI
 API rule violation: names_match,k8s.io/api/core/v1,ContainerStatus,LastTerminationState

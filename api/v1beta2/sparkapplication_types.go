@@ -187,6 +187,21 @@ type SparkApplicationStatus struct {
 	AppState ApplicationState `json:"applicationState,omitempty"`
 	// ExecutorState records the state of executors by executor Pod names.
 	ExecutorState map[string]ExecutorState `json:"executorState,omitempty"`
+	// ActiveExecutors is the number of executor pods which are pending, including those held by
+	// a scheduling gate, or running, including those being deleted. It is counted from the pods,
+	// so it does not depend on ExecutorState, which stops recording executors beyond
+	// MaxTrackedExecutorPerApp.
+	// +optional
+	ActiveExecutors *int32 `json:"activeExecutors,omitempty"`
+	// ReadyExecutors is the number of executor pods which are running and ready, and not being
+	// deleted. Unlike ActiveExecutors, it leaves out pending executors and those being removed, so it
+	// tells whether the executors have started. It is also counted from the pods.
+	// +optional
+	ReadyExecutors *int32 `json:"readyExecutors,omitempty"`
+	// MaxExecutorID is the highest executor ID seen so far. Spark never reuses executor IDs, so it
+	// never decreases until the status is reset for a new attempt, and it changes with every scale-up.
+	// +optional
+	MaxExecutorID *int64 `json:"maxExecutorId,omitempty"`
 	// ExecutionAttempts is the total number of attempts to run a submitted application to completion.
 	// Incremented upon each attempted run of the application and reset upon invalidation.
 	ExecutionAttempts int32 `json:"executionAttempts,omitempty"`

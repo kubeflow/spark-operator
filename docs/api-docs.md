@@ -3944,6 +3944,48 @@ map[string]github.com/kubeflow/spark-operator/v2/api/v1beta2.ExecutorState
 </tr>
 <tr>
 <td>
+<code>activeExecutors</code><br/>
+<em>
+int32
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>ActiveExecutors is the number of executor pods which are pending, including those held by
+a scheduling gate, or running, including those being deleted. It is counted from the pods,
+so it does not depend on ExecutorState, which stops recording executors beyond
+MaxTrackedExecutorPerApp.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>readyExecutors</code><br/>
+<em>
+int32
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>ReadyExecutors is the number of executor pods which are running and ready, and not being
+deleted. Unlike ActiveExecutors, it leaves out pending executors and those being removed, so it
+tells whether the executors have started. It is also counted from the pods.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>maxExecutorId</code><br/>
+<em>
+int64
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>MaxExecutorID is the highest executor ID seen so far. Spark never reuses executor IDs, so it
+never decreases until the status is reset for a new attempt, and it changes with every scale-up.</p>
+</td>
+</tr>
+<tr>
+<td>
 <code>executionAttempts</code><br/>
 <em>
 int32
