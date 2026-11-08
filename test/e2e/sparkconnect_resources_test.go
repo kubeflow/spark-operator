@@ -116,69 +116,8 @@ var _ = Describe("SparkConnect CPU Resources", func() {
 		var conn *v1alpha1.SparkConnect
 
 		BeforeEach(func() {
-			image := "docker.io/apache/spark:4.2.1"
-			conn = &v1alpha1.SparkConnect{
-				ObjectMeta: metav1.ObjectMeta{
-					GenerateName: "spark-connect-precedence-",
-					Namespace:    "default",
-				},
-				Spec: v1alpha1.SparkConnectSpec{
-					Image:        &image,
-					SparkVersion: "4.2.1",
-					Server: v1alpha1.ServerSpec{
-						SparkPodSpec: v1alpha1.SparkPodSpec{
-							CoreRequest: ptr.To(resource.MustParse("500m")),
-							CoreLimit:   ptr.To(resource.MustParse("1")),
-							Template: &corev1.PodTemplateSpec{
-								Spec: corev1.PodSpec{
-									ServiceAccountName: "spark-operator-spark",
-									Containers: []corev1.Container{
-										{
-											Name:  common.SparkDriverContainerName,
-											Image: image,
-											Resources: corev1.ResourceRequirements{
-												Requests: corev1.ResourceList{
-													corev1.ResourceCPU:    resource.MustParse("1"),
-													corev1.ResourceMemory: resource.MustParse("1Gi"),
-												},
-												Limits: corev1.ResourceList{
-													corev1.ResourceCPU:    resource.MustParse("2"),
-													corev1.ResourceMemory: resource.MustParse("1Gi"),
-												},
-											},
-										},
-									},
-								},
-							},
-						},
-					},
-					Executor: v1alpha1.ExecutorSpec{
-						Instances: ptr.To[int32](1),
-						SparkPodSpec: v1alpha1.SparkPodSpec{
-							CoreRequest: ptr.To(resource.MustParse("500m")),
-							CoreLimit:   ptr.To(resource.MustParse("1500m")),
-							Template: &corev1.PodTemplateSpec{
-								Spec: corev1.PodSpec{
-									Containers: []corev1.Container{
-										{
-											Name:  common.Spark3DefaultExecutorContainerName,
-											Image: image,
-											Resources: corev1.ResourceRequirements{
-												Requests: corev1.ResourceList{
-													corev1.ResourceCPU: resource.MustParse("1"),
-												},
-												Limits: corev1.ResourceList{
-													corev1.ResourceCPU: resource.MustParse("2"),
-												},
-											},
-										},
-									},
-								},
-							},
-						},
-					},
-				},
-			}
+			conn = loadSparkConnectCustomResource("spark-connect-precedence")
+			conn.Namespace = "default"
 		})
 
 		AfterEach(func() {
@@ -200,13 +139,13 @@ var _ = Describe("SparkConnect CPU Resources", func() {
 			cpuReq, ok := serverContainer.Resources.Requests[corev1.ResourceCPU]
 			Expect(ok).To(BeTrue())
 			Expect(cpuReq.Equal(resource.MustParse("500m"))).To(BeTrue(),
-				"spec.server.coreRequest (500m) should win over template CPU request (1), got %s", cpuReq.String())
+				"spec.server.coreRequest (500m) should win over template CPU request (100m), got %s", cpuReq.String())
 
 			By("Asserting spec.server.coreLimit wins for the CPU limit")
 			cpuLim, ok := serverContainer.Resources.Limits[corev1.ResourceCPU]
 			Expect(ok).To(BeTrue())
 			Expect(cpuLim.Equal(resource.MustParse("1"))).To(BeTrue(),
-				"spec.server.coreLimit (1) should win over template CPU limit (2), got %s", cpuLim.String())
+				"spec.server.coreLimit (1) should win over template CPU limit (100m), got %s", cpuLim.String())
 
 			By("Asserting the template's memory request is preserved")
 			memReq, ok := serverContainer.Resources.Requests[corev1.ResourceMemory]
