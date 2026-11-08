@@ -698,3 +698,96 @@ func TestSparkApplicationValidatorValidateUpdate_ClientModeWarning(t *testing.T)
 		t.Fatalf("expected client mode deprecation warning, got %v", warnings)
 	}
 }
+
+func TestSparkApplicationValidatorValidateCreate_ServiceOptions(t *testing.T) {
+	unknownType := corev1.ServiceType("Foo")
+	externalName := corev1.ServiceTypeExternalName
+	nodePort := corev1.ServiceTypeNodePort
+
+	tests := []struct {
+		name      string
+		ui        *v1beta2.SparkUIConfiguration
+		ingress   []v1beta2.DriverIngressConfiguration
+		wantError string
+	}{
+		{
+			name: "valid sparkUIOptions",
+			ui: &v1beta2.SparkUIConfiguration{
+				ServicePort:        ptr.To[int32](4041),
+				ServicePortName:    ptr.To("spark-ui"),
+				ServiceType:        &nodePort,
+				ServiceLabels:      map[string]string{"team": "data-eng"},
+				ServiceAnnotations: map[string]string{"example.com/owner": "data eng"},
+			},
+		},
+		{
+			name:      "sparkUIOptions servicePort out of range",
+			ui:        &v1beta2.SparkUIConfiguration{ServicePort: ptr.To[int32](70000)},
+			wantError: "spec.sparkUIOptions.servicePort",
+		},
+		{
+			name:      "sparkUIOptions servicePortName with uppercase letters",
+			ui:        &v1beta2.SparkUIConfiguration{ServicePortName: ptr.To("SparkUI")},
+			wantError: "spec.sparkUIOptions.servicePortName",
+		},
+		{
+			name:      "sparkUIOptions unknown serviceType",
+			ui:        &v1beta2.SparkUIConfiguration{ServiceType: &unknownType},
+			wantError: "spec.sparkUIOptions.serviceType",
+		},
+		{
+			name:      "sparkUIOptions ExternalName serviceType",
+			ui:        &v1beta2.SparkUIConfiguration{ServiceType: &externalName},
+			wantError: "spec.sparkUIOptions.serviceType",
+		},
+		{
+			name:      "sparkUIOptions invalid label value",
+			ui:        &v1beta2.SparkUIConfiguration{ServiceLabels: map[string]string{"team": "data eng"}},
+			wantError: "spec.sparkUIOptions.serviceLabels",
+		},
+		{
+			name:      "sparkUIOptions invalid annotation key",
+			ui:        &v1beta2.SparkUIConfiguration{ServiceAnnotations: map[string]string{"bad key": "value"}},
+			wantError: "spec.sparkUIOptions.serviceAnnotations",
+		},
+		{
+			name: "driverIngressOptions invalid servicePortName",
+			ingress: []v1beta2.DriverIngressConfiguration{{
+				ServicePort:      ptr.To[int32](4040),
+				ServicePortName:  ptr.To("Driver_UI"),
+				IngressURLFormat: "http://spark",
+			}},
+			wantError: "spec.driverIngressOptions[0].servicePortName",
+		},
+		{
+			name: "driverIngressOptions invalid label value",
+			ingress: []v1beta2.DriverIngressConfiguration{{
+				ServicePort:      ptr.To[int32](4040),
+				ServicePortName:  ptr.To("driver-ui"),
+				ServiceLabels:    map[string]string{"team": "data eng"},
+				IngressURLFormat: "http://spark",
+			}},
+			wantError: "spec.driverIngressOptions[0].serviceLabels",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			validator := newTestValidator(t, false)
+			app := newSparkApplication()
+			app.Spec.SparkUIOptions = tt.ui
+			app.Spec.DriverIngressOptions = tt.ingress
+
+			_, err := validator.ValidateCreate(context.Background(), app)
+			if tt.wantError == "" {
+				if err != nil {
+					t.Fatalf("expected success, got %v", err)
+				}
+				return
+			}
+			if err == nil || !strings.Contains(err.Error(), tt.wantError) {
+				t.Fatalf("expected error for %s, got %v", tt.wantError, err)
+			}
+		})
+	}
+}

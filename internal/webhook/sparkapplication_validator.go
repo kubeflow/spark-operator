@@ -161,6 +161,10 @@ func (v *SparkApplicationValidator) validateSpec(ctx context.Context, app *v1bet
 		return err
 	}
 
+	if err := validateServiceOptions(&app.Spec, field.NewPath("spec")); err != nil {
+		return err
+	}
+
 	return nil
 }
 
