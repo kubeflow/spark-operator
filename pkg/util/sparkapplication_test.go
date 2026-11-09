@@ -653,3 +653,199 @@ var _ = Describe("TimeUntilNextRetryDue", func() {
 		})
 	})
 })
+
+var _ = Describe("GetInitialExecutorNumber", func() {
+	DescribeTable("Should return the correct initial executor count",
+		func(app *v1beta2.SparkApplication, expected int32) {
+			Expect(util.GetInitialExecutorNumber(app)).To(Equal(expected))
+		},
+
+		// --- Dynamic allocation disabled ---
+
+		Entry("disabled, no instances set: default 2",
+			&v1beta2.SparkApplication{Spec: v1beta2.SparkApplicationSpec{}},
+			int32(2),
+		),
+		Entry("disabled, instances set via CRD",
+			&v1beta2.SparkApplication{Spec: v1beta2.SparkApplicationSpec{
+				Executor: v1beta2.ExecutorSpec{Instances: ptr.To[int32](5)},
+			}},
+			int32(5),
+		),
+		Entry("disabled, instances set via sparkConf only",
+			&v1beta2.SparkApplication{Spec: v1beta2.SparkApplicationSpec{
+				SparkConf: map[string]string{common.SparkExecutorInstances: "7"},
+			}},
+			int32(7),
+		),
+		Entry("disabled, both CRD and sparkConf set: CRD wins",
+			&v1beta2.SparkApplication{Spec: v1beta2.SparkApplicationSpec{
+				Executor:  v1beta2.ExecutorSpec{Instances: ptr.To[int32](3)},
+				SparkConf: map[string]string{common.SparkExecutorInstances: "99"},
+			}},
+			int32(3),
+		),
+		Entry("disabled, sparkConf instances value is non-integer: ignored, default 2",
+			&v1beta2.SparkApplication{Spec: v1beta2.SparkApplicationSpec{
+				SparkConf: map[string]string{common.SparkExecutorInstances: "not-a-number"},
+			}},
+			int32(2),
+		),
+
+		// --- Dynamic allocation enabled via CRD ---
+
+		Entry("dynamic via CRD, nothing else set: 0",
+			&v1beta2.SparkApplication{Spec: v1beta2.SparkApplicationSpec{
+				DynamicAllocation: &v1beta2.DynamicAllocation{Enabled: true},
+			}},
+			int32(0),
+		),
+		Entry("dynamic via CRD, minExecutors=3, no initialExecutors: initialExecutors=minExecutors=3",
+			&v1beta2.SparkApplication{Spec: v1beta2.SparkApplicationSpec{
+				DynamicAllocation: &v1beta2.DynamicAllocation{
+					Enabled:      true,
+					MinExecutors: ptr.To[int32](3),
+				},
+			}},
+			int32(3),
+		),
+		Entry("dynamic via CRD, initialExecutors=4 > minExecutors=2: returns 4",
+			&v1beta2.SparkApplication{Spec: v1beta2.SparkApplicationSpec{
+				DynamicAllocation: &v1beta2.DynamicAllocation{
+					Enabled:          true,
+					MinExecutors:     ptr.To[int32](2),
+					InitialExecutors: ptr.To[int32](4),
+				},
+			}},
+			int32(4),
+		),
+		Entry("dynamic via CRD, instances=5 > initialExecutors=4 > minExecutors=2: returns 5",
+			&v1beta2.SparkApplication{Spec: v1beta2.SparkApplicationSpec{
+				Executor: v1beta2.ExecutorSpec{Instances: ptr.To[int32](5)},
+				DynamicAllocation: &v1beta2.DynamicAllocation{
+					Enabled:          true,
+					MinExecutors:     ptr.To[int32](2),
+					InitialExecutors: ptr.To[int32](4),
+				},
+			}},
+			int32(5),
+		),
+
+		// --- Dynamic allocation enabled via sparkConf only ---
+
+		Entry("dynamic via sparkConf only, nothing else set: 0",
+			&v1beta2.SparkApplication{Spec: v1beta2.SparkApplicationSpec{
+				SparkConf: map[string]string{
+					common.SparkDynamicAllocationEnabled: "true",
+				},
+			}},
+			int32(0),
+		),
+		Entry("dynamic via sparkConf, minExecutors from sparkConf",
+			&v1beta2.SparkApplication{Spec: v1beta2.SparkApplicationSpec{
+				SparkConf: map[string]string{
+					common.SparkDynamicAllocationEnabled:      "true",
+					common.SparkDynamicAllocationMinExecutors: "3",
+				},
+			}},
+			int32(3),
+		),
+		Entry("dynamic via sparkConf, initialExecutors=6 > minExecutors=3 from sparkConf",
+			&v1beta2.SparkApplication{Spec: v1beta2.SparkApplicationSpec{
+				SparkConf: map[string]string{
+					common.SparkDynamicAllocationEnabled:          "true",
+					common.SparkDynamicAllocationMinExecutors:     "3",
+					common.SparkDynamicAllocationInitialExecutors: "6",
+				},
+			}},
+			int32(6),
+		),
+		Entry("dynamic via sparkConf, CRD instances=8 is the max over sparkConf initial=6",
+			&v1beta2.SparkApplication{Spec: v1beta2.SparkApplicationSpec{
+				Executor: v1beta2.ExecutorSpec{Instances: ptr.To[int32](8)},
+				SparkConf: map[string]string{
+					common.SparkDynamicAllocationEnabled:          "true",
+					common.SparkDynamicAllocationMinExecutors:     "3",
+					common.SparkDynamicAllocationInitialExecutors: "6",
+				},
+			}},
+			int32(8),
+		),
+
+		// --- Mixed CRD and sparkConf: CRD wins ---
+
+		Entry("dynamic enabled via CRD, minExecutors from CRD overrides sparkConf",
+			&v1beta2.SparkApplication{Spec: v1beta2.SparkApplicationSpec{
+				DynamicAllocation: &v1beta2.DynamicAllocation{
+					Enabled:      true,
+					MinExecutors: ptr.To[int32](2),
+				},
+				SparkConf: map[string]string{
+					common.SparkDynamicAllocationMinExecutors: "99",
+				},
+			}},
+			int32(2),
+		),
+		Entry("dynamic enabled via CRD, initialExecutors from CRD overrides sparkConf",
+			&v1beta2.SparkApplication{Spec: v1beta2.SparkApplicationSpec{
+				DynamicAllocation: &v1beta2.DynamicAllocation{
+					Enabled:          true,
+					InitialExecutors: ptr.To[int32](4),
+				},
+				SparkConf: map[string]string{
+					common.SparkDynamicAllocationInitialExecutors: "99",
+				},
+			}},
+			int32(4),
+		),
+
+		// --- Invalid sparkConf values are ignored ---
+
+		Entry("dynamic via sparkConf, invalid minExecutors ignored: 0",
+			&v1beta2.SparkApplication{Spec: v1beta2.SparkApplicationSpec{
+				SparkConf: map[string]string{
+					common.SparkDynamicAllocationEnabled:      "true",
+					common.SparkDynamicAllocationMinExecutors: "bad",
+				},
+			}},
+			int32(0),
+		),
+
+		// --- Negative values ---
+
+		// Negative sparkConf instances with dynamic allocation disabled: sparkConfInt32
+		// rejects negatives (returns (0, false)), so instancesSet stays false -> default 2.
+		Entry("disabled, sparkConf instances=-1: negative rejected, default 2",
+			&v1beta2.SparkApplication{Spec: v1beta2.SparkApplicationSpec{
+				SparkConf: map[string]string{
+					common.SparkExecutorInstances: "-1",
+				},
+			}},
+			int32(2),
+		),
+		// Negative CRD instances (bypasses webhook min=1 validation) with dynamic
+		// allocation disabled: clamped to 0.
+		Entry("disabled, negative CRD instances: clamped to 0",
+			&v1beta2.SparkApplication{Spec: v1beta2.SparkApplicationSpec{
+				Executor: v1beta2.ExecutorSpec{Instances: ptr.To[int32](-3)},
+			}},
+			int32(0),
+		),
+
+		// --- Dynamic allocation on, instances only in sparkConf, larger than min/initial ---
+
+		// Dynamic allocation via sparkConf, spark.executor.instances in sparkConf only,
+		// value larger than min and initial: max should win.
+		Entry("dynamic via sparkConf, sparkConf instances=10 > initial=6 > min=3",
+			&v1beta2.SparkApplication{Spec: v1beta2.SparkApplicationSpec{
+				SparkConf: map[string]string{
+					common.SparkDynamicAllocationEnabled:          "true",
+					common.SparkExecutorInstances:                 "10",
+					common.SparkDynamicAllocationMinExecutors:     "3",
+					common.SparkDynamicAllocationInitialExecutors: "6",
+				},
+			}},
+			int32(10),
+		),
+	)
+})

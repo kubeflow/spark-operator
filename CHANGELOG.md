@@ -1,5 +1,17 @@
 # Changelog
 
+## [Unreleased]
+
+### Bug Fixes
+
+- fix(volcano): Volcano PodGroup `minResources` now includes the default memory overhead (0.1× for JVM/Scala, 0.4× for Python/R, floor 384 Mi), the default 1 GiB heap when `spec.driver.memory` / `spec.executor.memory` is omitted, and the initial executor count from dynamic allocation. `spec.sparkConf` memory settings and factor keys are honored. Fixes #2244. ([#3196](https://github.com/kubeflow/spark-operator/pull/3196) by [@Rajadi16](https://github.com/Rajadi16))
+
+### Behavior Changes
+
+- **Volcano / YuniKorn**: memory, memoryOverhead and memoryOverheadFactor keys in `spec.sparkConf` are now honored for gang-scheduling reservations. Unitless memory values (e.g. `"2048"`) are parsed as MiB; `spark.memory.offHeap.size` remains bytes. When `spec.driver.memory` / `spec.executor.memory` is omitted, a 1 GiB default heap is reserved (previously 0 heap + 384 Mi minimum overhead).
+- **Fail-fast on invalid memory**: An unparsable memory value in `spec.sparkConf` (e.g. `spark.executor.memory: "2gb"`) now fails scheduling and aborts submission. Previously such specs ran with an under-reserved PodGroup. Use `g`, `m`, `k`, … suffixes, or set `spec.batchSchedulerOptions.resources` to override. The admission webhook does not validate these strings.
+- **Spark 3.3+ note**: `spark.driver.memoryOverheadFactor` and `spark.executor.memoryOverheadFactor` (SPARK-38194) require Spark 3.3+. On Spark ≤ 3.2, Spark ignores them but the operator honors them, which over-reserves the PodGroup. Use `spark.kubernetes.memoryOverheadFactor` or `spec.memoryOverheadFactor` on older Spark.
+
 ## [v2.4.0](https://github.com/kubeflow/spark-operator/tree/v2.4.0) (2025-11-14)
 
 ### Features
