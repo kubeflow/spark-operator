@@ -22,6 +22,13 @@ spec:
   mainApplicationFile: local:///opt/spark/examples/jars/spark-examples.jar
 ```
 
+Container image fields can contain the `{{SPARK_VERSION}}` placeholder. This covers `.spec.image`,
+`.spec.driver.image`, `.spec.executor.image`, and any `spark.kubernetes.*container.image` property in
+`.spec.sparkConf`. The operator replaces the placeholder with `.spec.sparkVersion` before it submits
+the application. For example, `image: docker.io/apache/spark:{{SPARK_VERSION}}` with
+`sparkVersion: 4.3.0` runs `docker.io/apache/spark:4.3.0`. If `.spec.sparkVersion` is empty, the
+placeholder is left for Spark to resolve.
+
 ## Specifying Deployment Mode
 
 A `SparkApplication` should set `.spec.mode` to `cluster`. The driver pod will then run `spark-submit` in `client` mode internally to run the driver program. Additional details of how `SparkApplication`s are run can be found in the [design documentation](../overview/index.md#architecture).
