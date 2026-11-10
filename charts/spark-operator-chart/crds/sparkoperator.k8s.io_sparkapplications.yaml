@@ -12964,14 +12964,6 @@ spec:
           status:
             description: SparkApplicationStatus defines the observed state of SparkApplication
             properties:
-              activeExecutors:
-                description: |-
-                  ActiveExecutors is the number of executor pods which are pending, including those held by
-                  a scheduling gate, or running, including those being deleted. It is counted from the pods,
-                  so it does not depend on ExecutorState, which stops recording executors beyond
-                  MaxTrackedExecutorPerApp.
-                format: int32
-                type: integer
               applicationState:
                 description: AppState tells the overall application state.
                 properties:
@@ -13017,25 +13009,52 @@ spec:
                 description: ExecutorState records the state of executors by executor
                   Pod names.
                 type: object
+              executors:
+                description: |-
+                  Executors counts the executor pods of the current submission. It is unset until an executor
+                  pod is observed.
+                properties:
+                  active:
+                    description: |-
+                      Active is the number of executor pods which are pending, including those held by a
+                      scheduling gate, or running, and are not terminating.
+                    format: int32
+                    type: integer
+                  maxExecutorID:
+                    description: |-
+                      MaxExecutorID is the highest executor ID of the submission so far. Spark never reuses
+                      executor IDs, so it never decreases within a submission, and it changes with every scale-up.
+                    format: int64
+                    type: integer
+                  ready:
+                    description: Ready is the number of executor pods which are running
+                      and ready, and are not terminating.
+                    format: int32
+                    type: integer
+                  submissionID:
+                    description: |-
+                      SubmissionID is the submission the counts belong to. Counts of another submission than the
+                      application's are stale, and the operator starts them over.
+                    type: string
+                  terminating:
+                    description: |-
+                      Terminating is the number of executor pods which are pending or running and are being
+                      deleted.
+                    format: int32
+                    type: integer
+                required:
+                - active
+                - maxExecutorID
+                - ready
+                - submissionID
+                - terminating
+                type: object
               lastSubmissionAttemptTime:
                 description: LastSubmissionAttemptTime is the time for the last application
                   submission attempt.
                 format: date-time
                 nullable: true
                 type: string
-              maxExecutorId:
-                description: |-
-                  MaxExecutorID is the highest executor ID seen so far. Spark never reuses executor IDs, so it
-                  never decreases until the status is reset for a new attempt, and it changes with every scale-up.
-                format: int64
-                type: integer
-              readyExecutors:
-                description: |-
-                  ReadyExecutors is the number of executor pods which are running and ready, and not being
-                  deleted. Unlike ActiveExecutors, it leaves out pending executors and those being removed, so it
-                  tells whether the executors have started. It is also counted from the pods.
-                format: int32
-                type: integer
               sparkApplicationId:
                 description: SparkApplicationID is set by the spark-distribution(via
                   spark.app.id config) on the driver and executor pods

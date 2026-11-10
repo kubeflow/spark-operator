@@ -1240,44 +1240,45 @@ func (r *Reconciler) updateSparkApplicationState(ctx context.Context, app *v1bet
 	return nil
 }
 
-// updateExecutorCounts records the active and ready executor pods and the highest executor ID, from the pods rather than from ExecutorState.
+// updateExecutorCounts counts the executor pods of the current submission in status.executors,
+// from the pods rather than from ExecutorState. Counts of another submission are started over.
 func (r *Reconciler) updateExecutorCounts(ctx context.Context, app *v1beta2.SparkApplication) error {
 	podList, err := r.getExecutorPods(ctx, app)
 	if err != nil {
 		return err
 	}
-	var active, ready int32
-	var maxID int64
+	counts := v1beta2.ExecutorStatus{SubmissionID: app.Status.SubmissionID}
 	for i := range podList.Items {
 		pod := &podList.Items[i]
 		if !util.IsExecutorPod(pod) {
 			continue
 		}
 		if id, err := strconv.ParseInt(util.GetSparkExecutorID(pod), 10, 64); err == nil {
-			maxID = max(maxID, id)
+			counts.MaxExecutorID = max(counts.MaxExecutorID, id)
 		}
-		switch pod.Status.Phase {
-		case corev1.PodPending:
-			active++
-		case corev1.PodRunning:
-			active++
-			if pod.DeletionTimestamp == nil && util.IsPodReady(pod) {
-				ready++
-			}
+		if pod.Status.Phase != corev1.PodPending && pod.Status.Phase != corev1.PodRunning {
+			continue
+		}
+		if pod.DeletionTimestamp != nil {
+			counts.Terminating++
+			continue
+		}
+		counts.Active++
+		if pod.Status.Phase == corev1.PodRunning && util.IsPodReady(pod) {
+			counts.Ready++
 		}
 	}
-	// Left unset until the application has an executor pod.
-	if active > 0 || app.Status.ActiveExecutors != nil {
-		app.Status.ActiveExecutors = &active
-		app.Status.ReadyExecutors = &ready
+	previous := app.Status.Executors
+	switch {
+	case previous != nil && previous.SubmissionID == counts.SubmissionID:
+		// A running maximum, since the pods of removed executors can be gone.
+		counts.MaxExecutorID = max(counts.MaxExecutorID, previous.MaxExecutorID)
+	case counts.Active == 0 && counts.Terminating == 0 && counts.MaxExecutorID == 0:
+		// Left unset until an executor pod of the submission is observed.
+		app.Status.Executors = nil
+		return nil
 	}
-	// A running maximum, since the pods of removed executors can be gone.
-	if app.Status.MaxExecutorID != nil {
-		maxID = max(maxID, *app.Status.MaxExecutorID)
-	}
-	if maxID > 0 {
-		app.Status.MaxExecutorID = &maxID
-	}
+	app.Status.Executors = &counts
 	return nil
 }
 
@@ -1565,9 +1566,6 @@ func (r *Reconciler) resetSparkApplicationStatus(app *v1beta2.SparkApplication) 
 		status.AppState.ErrorMessage = ""
 		status.DriverInfo = v1beta2.DriverInfo{}
 		status.ExecutorState = nil
-		status.ActiveExecutors = nil
-		status.ReadyExecutors = nil
-		status.MaxExecutorID = nil
 	case v1beta2.ApplicationStateInvalidating:
 		status.SparkApplicationID = ""
 		status.SubmissionAttempts = 0
@@ -1577,17 +1575,11 @@ func (r *Reconciler) resetSparkApplicationStatus(app *v1beta2.SparkApplication) 
 		status.AppState.ErrorMessage = ""
 		status.DriverInfo = v1beta2.DriverInfo{}
 		status.ExecutorState = nil
-		status.ActiveExecutors = nil
-		status.ReadyExecutors = nil
-		status.MaxExecutorID = nil
 	case v1beta2.ApplicationStateSuspended:
 		status.SparkApplicationID = ""
 		status.AppState.ErrorMessage = ""
 		status.DriverInfo = v1beta2.DriverInfo{}
 		status.ExecutorState = nil
-		status.ActiveExecutors = nil
-		status.ReadyExecutors = nil
-		status.MaxExecutorID = nil
 	}
 }
 

@@ -13900,6 +13900,48 @@
           }
         }
       },
+      "spark.v1beta2.ExecutorStatus": {
+        "description": "ExecutorStatus counts the executor pods of a submission. The counts are taken from the pods, so they do not depend on ExecutorState, which stops recording executors beyond MaxTrackedExecutorPerApp.",
+        "type": "object",
+        "required": [
+          "submissionID",
+          "active",
+          "terminating",
+          "ready",
+          "maxExecutorID"
+        ],
+        "properties": {
+          "active": {
+            "description": "Active is the number of executor pods which are pending, including those held by a scheduling gate, or running, and are not terminating.",
+            "type": "integer",
+            "format": "int32",
+            "default": 0
+          },
+          "maxExecutorID": {
+            "description": "MaxExecutorID is the highest executor ID of the submission so far. Spark never reuses executor IDs, so it never decreases within a submission, and it changes with every scale-up.",
+            "type": "integer",
+            "format": "int64",
+            "default": 0
+          },
+          "ready": {
+            "description": "Ready is the number of executor pods which are running and ready, and are not terminating.",
+            "type": "integer",
+            "format": "int32",
+            "default": 0
+          },
+          "submissionID": {
+            "description": "SubmissionID is the submission the counts belong to. Counts of another submission than the application's are stale, and the operator starts them over.",
+            "type": "string",
+            "default": ""
+          },
+          "terminating": {
+            "description": "Terminating is the number of executor pods which are pending or running and are being deleted.",
+            "type": "integer",
+            "format": "int32",
+            "default": 0
+          }
+        }
+      },
       "spark.v1beta2.GPUSpec": {
         "type": "object",
         "required": [
@@ -14585,11 +14627,6 @@
           "driverInfo"
         ],
         "properties": {
-          "activeExecutors": {
-            "description": "ActiveExecutors is the number of executor pods which are pending, including those held by a scheduling gate, or running, including those being deleted. It is counted from the pods, so it does not depend on ExecutorState, which stops recording executors beyond MaxTrackedExecutorPerApp.",
-            "type": "integer",
-            "format": "int32"
-          },
           "applicationState": {
             "description": "AppState tells the overall application state.",
             "default": {},
@@ -14621,6 +14658,14 @@
               "default": ""
             }
           },
+          "executors": {
+            "description": "Executors counts the executor pods of the current submission. It is unset until an executor pod is observed.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/spark.v1beta2.ExecutorStatus"
+              }
+            ]
+          },
           "lastSubmissionAttemptTime": {
             "description": "LastSubmissionAttemptTime is the time for the last application submission attempt.",
             "allOf": [
@@ -14628,16 +14673,6 @@
                 "$ref": "#/components/schemas/io.k8s.apimachinery.pkg.apis.meta.v1.Time"
               }
             ]
-          },
-          "maxExecutorId": {
-            "description": "MaxExecutorID is the highest executor ID seen so far. Spark never reuses executor IDs, so it never decreases until the status is reset for a new attempt, and it changes with every scale-up.",
-            "type": "integer",
-            "format": "int64"
-          },
-          "readyExecutors": {
-            "description": "ReadyExecutors is the number of executor pods which are running and ready, and not being deleted. Unlike ActiveExecutors, it leaves out pending executors and those being removed, so it tells whether the executors have started. It is also counted from the pods.",
-            "type": "integer",
-            "format": "int32"
           },
           "sparkApplicationId": {
             "description": "SparkApplicationID is set by the spark-distribution(via spark.app.id config) on the driver and executor pods",

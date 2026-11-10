@@ -27,13 +27,14 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/events"
-	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	"github.com/kubeflow/spark-operator/v2/api/v1beta2"
 	"github.com/kubeflow/spark-operator/v2/pkg/common"
 )
+
+const executorCountSubmissionID = "sub-1"
 
 func executorPodWithPhase(appName string, id int, phase corev1.PodPhase) *corev1.Pod {
 	return &corev1.Pod{
@@ -44,6 +45,7 @@ func executorPodWithPhase(appName string, id int, phase corev1.PodPhase) *corev1
 				common.LabelSparkAppName:    appName,
 				common.LabelSparkRole:       common.SparkRoleExecutor,
 				common.LabelSparkExecutorID: fmt.Sprintf("%d", id),
+				common.LabelSubmissionID:    executorCountSubmissionID,
 			},
 		},
 		Status: corev1.PodStatus{Phase: phase},
@@ -75,17 +77,21 @@ func runningApp(appName string) *v1beta2.SparkApplication {
 	return &v1beta2.SparkApplication{
 		ObjectMeta: metav1.ObjectMeta{Name: appName, Namespace: "default"},
 		Status: v1beta2.SparkApplicationStatus{
-			AppState: v1beta2.ApplicationState{State: v1beta2.ApplicationStateRunning},
+			SubmissionID: executorCountSubmissionID,
+			AppState:     v1beta2.ApplicationState{State: v1beta2.ApplicationStateRunning},
 		},
 	}
 }
 
-func TestUpdateExecutorCountsCountsActiveAndReadyExecutors(t *testing.T) {
+func TestUpdateExecutorCountsCountsActiveTerminatingAndReadyExecutors(t *testing.T) {
 	deleting := readyExecutorPod("app", 3)
 	deleting.DeletionTimestamp = &metav1.Time{Time: metav1.Now().Time}
 	deleting.Finalizers = []string{"test"} // the fake client keeps an object being deleted only with a finalizer
 	notReady := executorPodWithPhase("app", 2, corev1.PodRunning)
 	notReady.Status.Conditions = []corev1.PodCondition{{Type: corev1.PodReady, Status: corev1.ConditionFalse}}
+	otherSubmission := readyExecutorPod("app", 8)
+	otherSubmission.Name = "app-old-exec-8"
+	otherSubmission.Labels[common.LabelSubmissionID] = "sub-0"
 	r := newExecutorCountReconciler(t, 1000,
 		readyExecutorPod("app", 1),
 		notReady,
@@ -93,15 +99,20 @@ func TestUpdateExecutorCountsCountsActiveAndReadyExecutors(t *testing.T) {
 		executorPodWithPhase("app", 4, corev1.PodPending), // e.g. held by a scheduling gate
 		executorPodWithPhase("app", 5, corev1.PodSucceeded),
 		executorPodWithPhase("app", 6, corev1.PodFailed),
+		otherSubmission,
 		readyExecutorPod("other", 9),
 	)
 	app := runningApp("app")
 
 	require.NoError(t, r.updateExecutorCounts(context.Background(), app))
 
-	assert.Equal(t, ptr.To[int32](4), app.Status.ActiveExecutors)
-	assert.Equal(t, ptr.To[int32](1), app.Status.ReadyExecutors)
-	assert.Equal(t, ptr.To[int64](6), app.Status.MaxExecutorID)
+	assert.Equal(t, &v1beta2.ExecutorStatus{
+		SubmissionID:  executorCountSubmissionID,
+		Active:        3,
+		Terminating:   1,
+		Ready:         1,
+		MaxExecutorID: 6,
+	}, app.Status.Executors)
 }
 
 func TestUpdateExecutorCountsDoesNotDependOnExecutorState(t *testing.T) {
@@ -118,9 +129,12 @@ func TestUpdateExecutorCountsDoesNotDependOnExecutorState(t *testing.T) {
 	require.NoError(t, r.updateExecutorCounts(context.Background(), app))
 
 	assert.Len(t, app.Status.ExecutorState, 1)
-	assert.Equal(t, ptr.To[int32](4), app.Status.ActiveExecutors)
-	assert.Equal(t, ptr.To[int32](3), app.Status.ReadyExecutors)
-	assert.Equal(t, ptr.To[int64](4), app.Status.MaxExecutorID)
+	assert.Equal(t, &v1beta2.ExecutorStatus{
+		SubmissionID:  executorCountSubmissionID,
+		Active:        4,
+		Ready:         3,
+		MaxExecutorID: 4,
+	}, app.Status.Executors)
 }
 
 func TestUpdateExecutorCountsLeavesThemUnsetWithoutExecutors(t *testing.T) {
@@ -129,50 +143,47 @@ func TestUpdateExecutorCountsLeavesThemUnsetWithoutExecutors(t *testing.T) {
 
 	require.NoError(t, r.updateExecutorCounts(context.Background(), app))
 
-	assert.Nil(t, app.Status.ActiveExecutors)
-	assert.Nil(t, app.Status.ReadyExecutors)
-	assert.Nil(t, app.Status.MaxExecutorID)
+	assert.Nil(t, app.Status.Executors)
 }
 
 func TestUpdateExecutorCountsDropToZeroAndKeepTheHighestExecutorID(t *testing.T) {
 	r := newExecutorCountReconciler(t, 1000, readyExecutorPod("app", 2))
 	app := runningApp("app")
-	app.Status.ActiveExecutors = ptr.To[int32](5)
-	app.Status.ReadyExecutors = ptr.To[int32](4)
-	app.Status.MaxExecutorID = ptr.To[int64](7)
+	app.Status.Executors = &v1beta2.ExecutorStatus{SubmissionID: executorCountSubmissionID, Active: 5, Ready: 4, MaxExecutorID: 7}
 
 	require.NoError(t, r.updateExecutorCounts(context.Background(), app))
-	assert.Equal(t, ptr.To[int32](1), app.Status.ActiveExecutors)
-	assert.Equal(t, ptr.To[int32](1), app.Status.ReadyExecutors)
-	assert.Equal(t, ptr.To[int64](7), app.Status.MaxExecutorID)
+	assert.Equal(t, &v1beta2.ExecutorStatus{
+		SubmissionID:  executorCountSubmissionID,
+		Active:        1,
+		Ready:         1,
+		MaxExecutorID: 7,
+	}, app.Status.Executors)
 
 	// Once every executor is gone, the counts drop to zero, while the highest executor ID is kept
 	r = newExecutorCountReconciler(t, 1000)
 	require.NoError(t, r.updateExecutorCounts(context.Background(), app))
-	assert.Equal(t, ptr.To[int32](0), app.Status.ActiveExecutors)
-	assert.Equal(t, ptr.To[int32](0), app.Status.ReadyExecutors)
-	assert.Equal(t, ptr.To[int64](7), app.Status.MaxExecutorID)
+	assert.Equal(t, &v1beta2.ExecutorStatus{SubmissionID: executorCountSubmissionID, MaxExecutorID: 7}, app.Status.Executors)
 }
 
-func TestResetSparkApplicationStatusClearsTheExecutorCountsAndMaxExecutorID(t *testing.T) {
-	for _, state := range []v1beta2.ApplicationStateType{
-		v1beta2.ApplicationStateSucceeding,
-		v1beta2.ApplicationStateFailing,
-		v1beta2.ApplicationStateInvalidating,
-		v1beta2.ApplicationStateSuspended,
-	} {
-		t.Run(string(state), func(t *testing.T) {
-			app := runningApp("app")
-			app.Status.AppState.State = state
-			app.Status.ActiveExecutors = ptr.To[int32](3)
-			app.Status.ReadyExecutors = ptr.To[int32](2)
-			app.Status.MaxExecutorID = ptr.To[int64](9)
+func TestUpdateExecutorCountsStartOverForANewSubmission(t *testing.T) {
+	previous := &v1beta2.ExecutorStatus{SubmissionID: "sub-0", Active: 5, Ready: 4, MaxExecutorID: 9}
 
-			(&Reconciler{}).resetSparkApplicationStatus(app)
+	// The counts and the highest executor ID of the previous submission are not carried over
+	r := newExecutorCountReconciler(t, 1000, readyExecutorPod("app", 1))
+	app := runningApp("app")
+	app.Status.Executors = previous.DeepCopy()
+	require.NoError(t, r.updateExecutorCounts(context.Background(), app))
+	assert.Equal(t, &v1beta2.ExecutorStatus{
+		SubmissionID:  executorCountSubmissionID,
+		Active:        1,
+		Ready:         1,
+		MaxExecutorID: 1,
+	}, app.Status.Executors)
 
-			assert.Nil(t, app.Status.ActiveExecutors)
-			assert.Nil(t, app.Status.ReadyExecutors)
-			assert.Nil(t, app.Status.MaxExecutorID)
-		})
-	}
+	// Until the new submission has an executor pod, there are no counts
+	r = newExecutorCountReconciler(t, 1000)
+	app = runningApp("app")
+	app.Status.Executors = previous.DeepCopy()
+	require.NoError(t, r.updateExecutorCounts(context.Background(), app))
+	assert.Nil(t, app.Status.Executors)
 }

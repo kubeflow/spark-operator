@@ -41,6 +41,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/kubeflow/spark-operator/v2/api/v1beta2.DriverSpec":                      schema_spark_operator_v2_api_v1beta2_DriverSpec(ref),
 		"github.com/kubeflow/spark-operator/v2/api/v1beta2.DynamicAllocation":               schema_spark_operator_v2_api_v1beta2_DynamicAllocation(ref),
 		"github.com/kubeflow/spark-operator/v2/api/v1beta2.ExecutorSpec":                    schema_spark_operator_v2_api_v1beta2_ExecutorSpec(ref),
+		"github.com/kubeflow/spark-operator/v2/api/v1beta2.ExecutorStatus":                  schema_spark_operator_v2_api_v1beta2_ExecutorStatus(ref),
 		"github.com/kubeflow/spark-operator/v2/api/v1beta2.GPUSpec":                         schema_spark_operator_v2_api_v1beta2_GPUSpec(ref),
 		"github.com/kubeflow/spark-operator/v2/api/v1beta2.MonitoringSpec":                  schema_spark_operator_v2_api_v1beta2_MonitoringSpec(ref),
 		"github.com/kubeflow/spark-operator/v2/api/v1beta2.NameKey":                         schema_spark_operator_v2_api_v1beta2_NameKey(ref),
@@ -1597,6 +1598,60 @@ func schema_spark_operator_v2_api_v1beta2_ExecutorSpec(ref common.ReferenceCallb
 	}
 }
 
+func schema_spark_operator_v2_api_v1beta2_ExecutorStatus(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "ExecutorStatus counts the executor pods of a submission. The counts are taken from the pods, so they do not depend on ExecutorState, which stops recording executors beyond MaxTrackedExecutorPerApp.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"submissionID": {
+						SchemaProps: spec.SchemaProps{
+							Description: "SubmissionID is the submission the counts belong to. Counts of another submission than the application's are stale, and the operator starts them over.",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"active": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Active is the number of executor pods which are pending, including those held by a scheduling gate, or running, and are not terminating.",
+							Default:     0,
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
+					"terminating": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Terminating is the number of executor pods which are pending or running and are being deleted.",
+							Default:     0,
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
+					"ready": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Ready is the number of executor pods which are running and ready, and are not terminating.",
+							Default:     0,
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
+					"maxExecutorID": {
+						SchemaProps: spec.SchemaProps{
+							Description: "MaxExecutorID is the highest executor ID of the submission so far. Spark never reuses executor IDs, so it never decreases within a submission, and it changes with every scale-up.",
+							Default:     0,
+							Type:        []string{"integer"},
+							Format:      "int64",
+						},
+					},
+				},
+				Required: []string{"submissionID", "active", "terminating", "ready", "maxExecutorID"},
+			},
+		},
+	}
+}
+
 func schema_spark_operator_v2_api_v1beta2_GPUSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
@@ -2612,25 +2667,10 @@ func schema_spark_operator_v2_api_v1beta2_SparkApplicationStatus(ref common.Refe
 							},
 						},
 					},
-					"activeExecutors": {
+					"executors": {
 						SchemaProps: spec.SchemaProps{
-							Description: "ActiveExecutors is the number of executor pods which are pending, including those held by a scheduling gate, or running, including those being deleted. It is counted from the pods, so it does not depend on ExecutorState, which stops recording executors beyond MaxTrackedExecutorPerApp.",
-							Type:        []string{"integer"},
-							Format:      "int32",
-						},
-					},
-					"readyExecutors": {
-						SchemaProps: spec.SchemaProps{
-							Description: "ReadyExecutors is the number of executor pods which are running and ready, and not being deleted. Unlike ActiveExecutors, it leaves out pending executors and those being removed, so it tells whether the executors have started. It is also counted from the pods.",
-							Type:        []string{"integer"},
-							Format:      "int32",
-						},
-					},
-					"maxExecutorId": {
-						SchemaProps: spec.SchemaProps{
-							Description: "MaxExecutorID is the highest executor ID seen so far. Spark never reuses executor IDs, so it never decreases until the status is reset for a new attempt, and it changes with every scale-up.",
-							Type:        []string{"integer"},
-							Format:      "int64",
+							Description: "Executors counts the executor pods of the current submission. It is unset until an executor pod is observed.",
+							Ref:         ref("github.com/kubeflow/spark-operator/v2/api/v1beta2.ExecutorStatus"),
 						},
 					},
 					"executionAttempts": {
@@ -2652,7 +2692,7 @@ func schema_spark_operator_v2_api_v1beta2_SparkApplicationStatus(ref common.Refe
 			},
 		},
 		Dependencies: []string{
-			"github.com/kubeflow/spark-operator/v2/api/v1beta2.ApplicationState", "github.com/kubeflow/spark-operator/v2/api/v1beta2.DriverInfo", metav1.Time{}.OpenAPIModelName()},
+			"github.com/kubeflow/spark-operator/v2/api/v1beta2.ApplicationState", "github.com/kubeflow/spark-operator/v2/api/v1beta2.DriverInfo", "github.com/kubeflow/spark-operator/v2/api/v1beta2.ExecutorStatus", metav1.Time{}.OpenAPIModelName()},
 	}
 }
 
