@@ -19,6 +19,7 @@ package sparkapplication_test
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -372,6 +373,85 @@ var _ = Describe("SparkApplication Controller", func() {
 			Expect(k8sClient.Get(ctx, ingressKey, ingress)).To(Succeed())
 			Expect(ingress.Spec.TLS).To(Equal(ingressTLS))
 			Expect(ingress.ObjectMeta.Annotations).To(Equal(ingressAnnotations))
+		})
+	})
+
+	Context("When reconciling a submitted SparkApplication with the longest valid name and driver ingress options", func() {
+		ctx := context.Background()
+		appName := "a" + strings.Repeat("b", 62)
+		appNamespace := "default"
+		key := types.NamespacedName{
+			Name:      appName,
+			Namespace: appNamespace,
+		}
+		appConfig := &v1beta2.SparkApplication{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      appName,
+				Namespace: appNamespace,
+			},
+			Spec: v1beta2.SparkApplicationSpec{
+				MainApplicationFile: ptr.To("local:///dummy.jar"),
+				DriverIngressOptions: []v1beta2.DriverIngressConfiguration{
+					{
+						ServicePort:     ptr.To[int32](4040),
+						ServicePortName: ptr.To("driver-ui"),
+					},
+				},
+			},
+		}
+		serviceKey := types.NamespacedName{
+			Name:      util.GetDriverIngressServiceName(appConfig, 4040),
+			Namespace: appNamespace,
+		}
+
+		BeforeEach(func() {
+			By("Creating a test SparkApplication")
+			app := appConfig.DeepCopy()
+			v1beta2.SetSparkApplicationDefaults(app)
+			Expect(k8sClient.Create(ctx, app)).To(Succeed())
+
+			driverPod := createDriverPod(appName, appNamespace)
+			Expect(k8sClient.Create(ctx, driverPod)).To(Succeed())
+
+			app.Status.DriverInfo.PodName = driverPod.Name
+			app.Status.AppState.State = v1beta2.ApplicationStateSubmitted
+			Expect(k8sClient.Status().Update(ctx, app)).To(Succeed())
+		})
+
+		AfterEach(func() {
+			app := &v1beta2.SparkApplication{}
+			Expect(k8sClient.Get(ctx, key, app)).To(Succeed())
+			By("Deleting the created test SparkApplication")
+			Expect(k8sClient.Delete(ctx, app)).To(Succeed())
+
+			service := &corev1.Service{}
+			if err := k8sClient.Get(ctx, serviceKey, service); err == nil {
+				By("Deleting the created driver ingress service")
+				Expect(k8sClient.Delete(ctx, service)).To(Succeed())
+			}
+
+			driverPod := &corev1.Pod{}
+			By("Deleting the driver pod")
+			Expect(k8sClient.Get(ctx, getDriverNamespacedName(appName, appNamespace), driverPod)).To(Succeed())
+			Expect(k8sClient.Delete(ctx, driverPod)).To(Succeed())
+		})
+
+		It("Should create the driver ingress service", func() {
+			By("Reconciling the submitted SparkApplication")
+			reconciler := sparkapplication.NewReconciler(
+				nil,
+				k8sClient.Scheme(),
+				k8sClient,
+				events.NewFakeRecorder(3),
+				nil,
+				&sparkapplication.SparkSubmitter{},
+				sparkapplication.Options{Namespaces: []string{appNamespace}},
+			)
+			_, err := reconciler.Reconcile(ctx, reconcile.Request{NamespacedName: key})
+			Expect(err).NotTo(HaveOccurred())
+
+			service := &corev1.Service{}
+			Expect(k8sClient.Get(ctx, serviceKey, service)).To(Succeed())
 		})
 	})
 
