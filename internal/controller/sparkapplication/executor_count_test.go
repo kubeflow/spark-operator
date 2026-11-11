@@ -27,6 +27,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/events"
+	"k8s.io/utils/ptr"
+	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
@@ -186,4 +188,65 @@ func TestUpdateExecutorCountsStartOverForANewSubmission(t *testing.T) {
 	app.Status.Executors = previous.DeepCopy()
 	require.NoError(t, r.updateExecutorCounts(context.Background(), app))
 	assert.Nil(t, app.Status.Executors)
+}
+
+// newDeletingExecutorReconciler serves app, its driver pod and one executor pod being deleted,
+// as while the executors of a suspended or rerun application are released.
+func newDeletingExecutorReconciler(t *testing.T, app *v1beta2.SparkApplication) (*Reconciler, client.Client, *corev1.Pod) {
+	t.Helper()
+	scheme := runtime.NewScheme()
+	require.NoError(t, corev1.AddToScheme(scheme))
+	require.NoError(t, v1beta2.AddToScheme(scheme))
+	driver := &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: app.Status.DriverInfo.PodName, Namespace: app.Namespace}}
+	executor := readyExecutorPod(app.Name, 2)
+	executor.Finalizers = []string{"test"} // the fake client keeps an object being deleted only with a finalizer
+	c := fake.NewClientBuilder().
+		WithScheme(scheme).
+		WithStatusSubresource(&v1beta2.SparkApplication{}).
+		WithObjects(app, driver, executor).
+		Build()
+	require.NoError(t, c.Delete(context.Background(), executor))
+	r := &Reconciler{client: c, recorder: events.NewFakeRecorder(100), options: Options{MaxTrackedExecutorPerApp: 1000}}
+	return r, c, executor
+}
+
+func TestExecutorCountsFollowTheExecutorsWhileTheyAreReleased(t *testing.T) {
+	for name, tc := range map[string]struct {
+		state     v1beta2.ApplicationStateType
+		reconcile func(*Reconciler, context.Context, ctrl.Request) (ctrl.Result, error)
+	}{
+		"suspended":     {state: v1beta2.ApplicationStateSuspended, reconcile: (*Reconciler).reconcileSuspendedSparkApplication},
+		"pending rerun": {state: v1beta2.ApplicationStatePendingRerun, reconcile: (*Reconciler).reconcilePendingRerunSparkApplication},
+	} {
+		t.Run(name, func(t *testing.T) {
+			ctx := context.Background()
+			app := runningApp("app")
+			app.Spec.Suspend = ptr.To(true)
+			app.Status.AppState.State = tc.state
+			app.Status.DriverInfo.PodName = "app-driver"
+			app.Status.Executors = &v1beta2.ExecutorStatus{SubmissionID: executorCountSubmissionID, Active: 3, Ready: 3, MaxExecutorID: 3}
+			r, c, executor := newDeletingExecutorReconciler(t, app)
+			req := ctrl.Request{NamespacedName: client.ObjectKeyFromObject(app)}
+
+			_, err := tc.reconcile(r, ctx, req)
+			require.NoError(t, err)
+			got := &v1beta2.SparkApplication{}
+			require.NoError(t, c.Get(ctx, req.NamespacedName, got))
+			assert.Equal(t, &v1beta2.ExecutorStatus{
+				SubmissionID:  executorCountSubmissionID,
+				Terminating:   1,
+				MaxExecutorID: 3,
+			}, got.Status.Executors, "counts while the executor is being deleted")
+
+			// Once the executor is gone, the counts are zero, and the highest executor ID is kept
+			require.NoError(t, c.Get(ctx, client.ObjectKeyFromObject(executor), executor))
+			executor.Finalizers = nil
+			require.NoError(t, c.Update(ctx, executor))
+			_, err = tc.reconcile(r, ctx, req)
+			require.NoError(t, err)
+			require.NoError(t, c.Get(ctx, req.NamespacedName, got))
+			assert.Equal(t, &v1beta2.ExecutorStatus{SubmissionID: executorCountSubmissionID, MaxExecutorID: 3}, got.Status.Executors,
+				"counts once the executor is gone")
+		})
+	}
 }

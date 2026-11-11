@@ -569,6 +569,11 @@ func (r *Reconciler) reconcilePendingRerunSparkApplication(ctx context.Context, 
 			}
 			app := old.DeepCopy()
 
+			// The executors of the previous run are being deleted; their counts follow them.
+			if err := r.updateExecutorCounts(ctx, app); err != nil {
+				return err
+			}
+
 			logger.Info("Pending rerun SparkApplication", "state", app.Status.AppState.State)
 			if r.validateSparkResourceDeletion(ctx, app) {
 				logger.Info("Successfully deleted resources associated with SparkApplication", "state", app.Status.AppState.State)
@@ -869,6 +874,11 @@ func (r *Reconciler) reconcileSuspendedSparkApplication(ctx context.Context, req
 				return nil
 			}
 			app := old.DeepCopy()
+
+			// The executors are being deleted; their counts follow them.
+			if err := r.updateExecutorCounts(ctx, app); err != nil {
+				return err
+			}
 
 			if r.validateSparkResourceDeletion(ctx, app) {
 				logger.Info("Successfully deleted resources associated with SparkApplication", "state", app.Status.AppState.State)
