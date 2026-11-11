@@ -38,4 +38,15 @@ func TestJavaMemoryString(t *testing.T) {
 	assertMemory("1gb", 1024*1024*1024, t)
 	assertMemory("10TB", 10*1024*1024*1024*1024, t)
 	assertMemory("10PB", 10*1024*1024*1024*1024*1024, t)
+	// No suffix means MiB, as for spark.{driver,executor}.memory and memoryOverhead.
+	assertMemory("384", 384*1024*1024, t)
+	assertMemory(" 2048 ", 2048*1024*1024, t)
+}
+
+func TestJavaMemoryStringInvalid(t *testing.T) {
+	for _, s := range []string{"", "g", "1.5g", "0.5", "1g1", "10gx", "-1g", "1 g"} {
+		if m, err := parseJavaMemoryString(s); err == nil {
+			t.Errorf("%q: expected an error, got %v bytes", s, m)
+		}
+	}
 }
