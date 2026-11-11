@@ -36,6 +36,7 @@ from pydantic import BaseModel, ConfigDict, Field, StrictInt, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional
 from kubeflow_spark_api.models.spark_v1beta2_application_state import SparkV1beta2ApplicationState
 from kubeflow_spark_api.models.spark_v1beta2_driver_info import SparkV1beta2DriverInfo
+from kubeflow_spark_api.models.spark_v1beta2_executor_status import SparkV1beta2ExecutorStatus
 from typing import Optional, Set
 from typing_extensions import Self
 
@@ -47,12 +48,13 @@ class SparkV1beta2SparkApplicationStatus(BaseModel):
     driver_info: SparkV1beta2DriverInfo = Field(description="DriverInfo has information about the driver.", alias="driverInfo")
     execution_attempts: Optional[StrictInt] = Field(default=None, description="ExecutionAttempts is the total number of attempts to run a submitted application to completion. Incremented upon each attempted run of the application and reset upon invalidation.", alias="executionAttempts")
     executor_state: Optional[Dict[str, StrictStr]] = Field(default=None, description="ExecutorState records the state of executors by executor Pod names.", alias="executorState")
+    executors: Optional[SparkV1beta2ExecutorStatus] = Field(default=None, description="Executors counts the executor pods of the current submission. It is unset until an executor pod is observed.")
     last_submission_attempt_time: Optional[datetime] = Field(default=None, description="LastSubmissionAttemptTime is the time for the last application submission attempt.", alias="lastSubmissionAttemptTime")
     spark_application_id: Optional[StrictStr] = Field(default=None, description="SparkApplicationID is set by the spark-distribution(via spark.app.id config) on the driver and executor pods", alias="sparkApplicationId")
     submission_attempts: Optional[StrictInt] = Field(default=None, description="SubmissionAttempts is the total number of attempts to submit an application to run. Incremented upon each attempted submission of the application and reset upon invalidation and rerun.", alias="submissionAttempts")
     submission_id: Optional[StrictStr] = Field(default=None, description="SubmissionID is a unique ID of the current submission of the application.", alias="submissionID")
     termination_time: Optional[datetime] = Field(default=None, description="CompletionTime is the time when the application runs to completion if it does.", alias="terminationTime")
-    __properties: ClassVar[List[str]] = ["applicationState", "driverInfo", "executionAttempts", "executorState", "lastSubmissionAttemptTime", "sparkApplicationId", "submissionAttempts", "submissionID", "terminationTime"]
+    __properties: ClassVar[List[str]] = ["applicationState", "driverInfo", "executionAttempts", "executorState", "executors", "lastSubmissionAttemptTime", "sparkApplicationId", "submissionAttempts", "submissionID", "terminationTime"]
 
     model_config = ConfigDict(
         populate_by_name=True,
@@ -99,6 +101,9 @@ class SparkV1beta2SparkApplicationStatus(BaseModel):
         # override the default output from pydantic by calling `to_dict()` of driver_info
         if self.driver_info:
             _dict['driverInfo'] = self.driver_info.to_dict()
+        # override the default output from pydantic by calling `to_dict()` of executors
+        if self.executors:
+            _dict['executors'] = self.executors.to_dict()
         return _dict
 
     @classmethod
@@ -115,6 +120,7 @@ class SparkV1beta2SparkApplicationStatus(BaseModel):
             "driverInfo": SparkV1beta2DriverInfo.from_dict(obj["driverInfo"]) if obj.get("driverInfo") is not None else None,
             "executionAttempts": obj.get("executionAttempts"),
             "executorState": obj.get("executorState"),
+            "executors": SparkV1beta2ExecutorStatus.from_dict(obj["executors"]) if obj.get("executors") is not None else None,
             "lastSubmissionAttemptTime": obj.get("lastSubmissionAttemptTime"),
             "sparkApplicationId": obj.get("sparkApplicationId"),
             "submissionAttempts": obj.get("submissionAttempts"),

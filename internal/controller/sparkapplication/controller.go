@@ -569,6 +569,11 @@ func (r *Reconciler) reconcilePendingRerunSparkApplication(ctx context.Context, 
 			}
 			app := old.DeepCopy()
 
+			// The executors of the previous run are being deleted; their counts follow them.
+			if err := r.updateExecutorCounts(ctx, app); err != nil {
+				return err
+			}
+
 			logger.Info("Pending rerun SparkApplication", "state", app.Status.AppState.State)
 			if r.validateSparkResourceDeletion(ctx, app) {
 				logger.Info("Successfully deleted resources associated with SparkApplication", "state", app.Status.AppState.State)
@@ -753,6 +758,10 @@ func (r *Reconciler) reconcileTerminatedSparkApplication(ctx context.Context, re
 		return ctrl.Result{Requeue: true}, err
 	}
 
+	if err := r.updateExecutorCounts(ctx, app); err != nil {
+		return ctrl.Result{Requeue: true}, err
+	}
+
 	if err := r.updateSparkApplicationStatus(ctx, app); err != nil {
 		return ctrl.Result{Requeue: true}, err
 	}
@@ -865,6 +874,11 @@ func (r *Reconciler) reconcileSuspendedSparkApplication(ctx context.Context, req
 				return nil
 			}
 			app := old.DeepCopy()
+
+			// The executors are being deleted; their counts follow them.
+			if err := r.updateExecutorCounts(ctx, app); err != nil {
+				return err
+			}
 
 			if r.validateSparkResourceDeletion(ctx, app) {
 				logger.Info("Successfully deleted resources associated with SparkApplication", "state", app.Status.AppState.State)
@@ -1229,6 +1243,52 @@ func (r *Reconciler) updateSparkApplicationState(ctx context.Context, app *v1bet
 		return err
 	}
 
+	if err := r.updateExecutorCounts(ctx, app); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// updateExecutorCounts counts the executor pods of the current submission in status.executors,
+// from the pods rather than from ExecutorState. Counts of another submission are started over.
+func (r *Reconciler) updateExecutorCounts(ctx context.Context, app *v1beta2.SparkApplication) error {
+	podList, err := r.getExecutorPods(ctx, app)
+	if err != nil {
+		return err
+	}
+	counts := v1beta2.ExecutorStatus{SubmissionID: app.Status.SubmissionID}
+	for i := range podList.Items {
+		pod := &podList.Items[i]
+		if !util.IsExecutorPod(pod) {
+			continue
+		}
+		if id, err := strconv.ParseInt(util.GetSparkExecutorID(pod), 10, 64); err == nil {
+			counts.MaxExecutorID = max(counts.MaxExecutorID, id)
+		}
+		if pod.Status.Phase != corev1.PodPending && pod.Status.Phase != corev1.PodRunning {
+			continue
+		}
+		if pod.DeletionTimestamp != nil {
+			counts.Terminating++
+			continue
+		}
+		counts.Active++
+		if pod.Status.Phase == corev1.PodRunning && util.IsPodReady(pod) {
+			counts.Ready++
+		}
+	}
+	previous := app.Status.Executors
+	switch {
+	case previous != nil && previous.SubmissionID == counts.SubmissionID:
+		// A running maximum, since the pods of removed executors can be gone.
+		counts.MaxExecutorID = max(counts.MaxExecutorID, previous.MaxExecutorID)
+	case counts.Active == 0 && counts.Terminating == 0 && counts.MaxExecutorID == 0:
+		// Left unset until an executor pod of the submission is observed.
+		app.Status.Executors = nil
+		return nil
+	}
+	app.Status.Executors = &counts
 	return nil
 }
 

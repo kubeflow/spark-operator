@@ -2622,6 +2622,85 @@ string
 <td></td>
 </tr></tbody>
 </table>
+<h3 id="sparkoperator.k8s.io/v1beta2.ExecutorStatus">ExecutorStatus
+</h3>
+<p>
+(<em>Appears on:</em><a href="#sparkoperator.k8s.io/v1beta2.SparkApplicationStatus">SparkApplicationStatus</a>)
+</p>
+<div>
+<p>ExecutorStatus counts the executor pods of a submission. The counts are taken from the pods, so
+they do not depend on ExecutorState, which stops recording executors beyond
+MaxTrackedExecutorPerApp.</p>
+</div>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>submissionID</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<p>SubmissionID is the submission the counts belong to. Counts of another submission than the
+application&rsquo;s are stale, and the operator starts them over.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>active</code><br/>
+<em>
+int32
+</em>
+</td>
+<td>
+<p>Active is the number of executor pods which are pending, including those held by a
+scheduling gate, or running, and are not terminating.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>terminating</code><br/>
+<em>
+int32
+</em>
+</td>
+<td>
+<p>Terminating is the number of executor pods which are pending or running and are being
+deleted.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>ready</code><br/>
+<em>
+int32
+</em>
+</td>
+<td>
+<p>Ready is the number of executor pods which are running and ready, and are not terminating.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>maxExecutorID</code><br/>
+<em>
+int64
+</em>
+</td>
+<td>
+<p>MaxExecutorID is the highest executor ID of the submission so far. Spark never reuses
+executor IDs, so it never decreases within a submission, and it changes with every scale-up.</p>
+</td>
+</tr>
+</tbody>
+</table>
 <h3 id="sparkoperator.k8s.io/v1beta2.GPUSpec">GPUSpec
 </h3>
 <p>
@@ -3940,6 +4019,21 @@ map[string]github.com/kubeflow/spark-operator/v2/api/v1beta2.ExecutorState
 </td>
 <td>
 <p>ExecutorState records the state of executors by executor Pod names.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>executors</code><br/>
+<em>
+<a href="#sparkoperator.k8s.io/v1beta2.ExecutorStatus">
+ExecutorStatus
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Executors counts the executor pods of the current submission. It is unset until an executor
+pod is observed.</p>
 </td>
 </tr>
 <tr>

@@ -13900,6 +13900,48 @@
           }
         }
       },
+      "spark.v1beta2.ExecutorStatus": {
+        "description": "ExecutorStatus counts the executor pods of a submission. The counts are taken from the pods, so they do not depend on ExecutorState, which stops recording executors beyond MaxTrackedExecutorPerApp.",
+        "type": "object",
+        "required": [
+          "submissionID",
+          "active",
+          "terminating",
+          "ready",
+          "maxExecutorID"
+        ],
+        "properties": {
+          "active": {
+            "description": "Active is the number of executor pods which are pending, including those held by a scheduling gate, or running, and are not terminating.",
+            "type": "integer",
+            "format": "int32",
+            "default": 0
+          },
+          "maxExecutorID": {
+            "description": "MaxExecutorID is the highest executor ID of the submission so far. Spark never reuses executor IDs, so it never decreases within a submission, and it changes with every scale-up.",
+            "type": "integer",
+            "format": "int64",
+            "default": 0
+          },
+          "ready": {
+            "description": "Ready is the number of executor pods which are running and ready, and are not terminating.",
+            "type": "integer",
+            "format": "int32",
+            "default": 0
+          },
+          "submissionID": {
+            "description": "SubmissionID is the submission the counts belong to. Counts of another submission than the application's are stale, and the operator starts them over.",
+            "type": "string",
+            "default": ""
+          },
+          "terminating": {
+            "description": "Terminating is the number of executor pods which are pending or running and are being deleted.",
+            "type": "integer",
+            "format": "int32",
+            "default": 0
+          }
+        }
+      },
       "spark.v1beta2.GPUSpec": {
         "type": "object",
         "required": [
@@ -14615,6 +14657,14 @@
               "type": "string",
               "default": ""
             }
+          },
+          "executors": {
+            "description": "Executors counts the executor pods of the current submission. It is unset until an executor pod is observed.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/spark.v1beta2.ExecutorStatus"
+              }
+            ]
           },
           "lastSubmissionAttemptTime": {
             "description": "LastSubmissionAttemptTime is the time for the last application submission attempt.",
