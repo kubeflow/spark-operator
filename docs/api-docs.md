@@ -1296,7 +1296,8 @@ DeployMode
 </em>
 </td>
 <td>
-<p>Mode is the deployment mode of the Spark application.</p>
+<p>Mode is the deployment mode of the Spark application.
+The client mode is deprecated and will be removed in the next API version.</p>
 </td>
 </tr>
 <tr>
@@ -1994,11 +1995,13 @@ given with the &ldquo;packages&rdquo; option.</p>
 </tr>
 </thead>
 <tbody><tr><td><p>&#34;client&#34;</p></td>
-<td></td>
+<td><p>Deprecated: client mode will be removed in the next API version, see <a href="https://github.com/kubeflow/spark-operator/issues/3253">https://github.com/kubeflow/spark-operator/issues/3253</a>.</p>
+</td>
 </tr><tr><td><p>&#34;cluster&#34;</p></td>
 <td></td>
 </tr><tr><td><p>&#34;in-cluster-client&#34;</p></td>
-<td></td>
+<td><p>Deprecated: in-cluster-client mode will be removed in the next API version, see <a href="https://github.com/kubeflow/spark-operator/issues/3253">https://github.com/kubeflow/spark-operator/issues/3253</a>.</p>
+</td>
 </tr></tbody>
 </table>
 <h3 id="sparkoperator.k8s.io/v1beta2.DriverInfo">DriverInfo
@@ -3443,7 +3446,8 @@ DeployMode
 </em>
 </td>
 <td>
-<p>Mode is the deployment mode of the Spark application.</p>
+<p>Mode is the deployment mode of the Spark application.
+The client mode is deprecated and will be removed in the next API version.</p>
 </td>
 </tr>
 <tr>

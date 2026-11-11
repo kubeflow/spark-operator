@@ -2,7 +2,7 @@
 
 As with all other Kubernetes API objects, a `SparkApplication` needs the `apiVersion`, `kind`, and `metadata` fields. For general information about working with manifests, see [object management using kubectl](https://kubernetes.io/docs/concepts/overview/object-management-kubectl/overview/).
 
-A `SparkApplication` also needs a [`.spec` section](https://github.com/kubernetes/community/blob/master/contributors/devel/sig-architecture/api-conventions.md#spec-and-status). This section contains fields for specifying various aspects of an application including its type (`Scala`, `Java`, `Python`, or `R`), deployment mode (`cluster` or `client`), main application resource URI (e.g., the URI of the application jar), main class, arguments, etc. Node selectors are also supported via the optional field `.spec.nodeSelector`.
+A `SparkApplication` also needs a [`.spec` section](https://github.com/kubernetes/community/blob/master/contributors/devel/sig-architecture/api-conventions.md#spec-and-status). This section contains fields for specifying various aspects of an application including its type (`Scala`, `Java`, `Python`, or `R`), deployment mode (`cluster`; `client` is deprecated), main application resource URI (e.g., the URI of the application jar), main class, arguments, etc. Node selectors are also supported via the optional field `.spec.nodeSelector`.
 
 It also has fields for specifying the unified container image (to use for both the driver and executors) and the image pull policy, namely, `.spec.image` and `.spec.imagePullPolicy` respectively. If a custom init-container (in both the driver and executor pods) image needs to be used, the optional field `.spec.initContainerImage` can be used to specify it. If set, `.spec.initContainerImage` overrides `.spec.image` for the init-container image. Otherwise, the image specified by `.spec.image` will be used for the init-container. It is invalid if both `.spec.image` and `.spec.initContainerImage` are not set.
 
@@ -17,14 +17,25 @@ metadata:
 spec:
   type: Scala
   mode: cluster
-  image: spark:3.5.1
+  image: docker.io/apache/spark:4.2.1
   mainClass: org.apache.spark.examples.SparkPi
-  mainApplicationFile: local:///opt/spark/examples/jars/spark-examples_2.12-3.5.1.jar
+  mainApplicationFile: local:///opt/spark/examples/jars/spark-examples.jar
 ```
+
+Container image fields can contain the `{{SPARK_VERSION}}` placeholder. This covers `.spec.image`,
+`.spec.driver.image`, `.spec.executor.image`, and any `spark.kubernetes.*container.image` property in
+`.spec.sparkConf`. The operator replaces the placeholder with `.spec.sparkVersion` before it submits
+the application. For example, `image: docker.io/apache/spark:{{SPARK_VERSION}}` with
+`sparkVersion: 4.3.0` runs `docker.io/apache/spark:4.3.0`. If `.spec.sparkVersion` is empty, the
+placeholder is left for Spark to resolve.
 
 ## Specifying Deployment Mode
 
-A `SparkApplication` should set `.spec.mode` to `cluster`, as `client` is not currently implemented. The driver pod will then run `spark-submit` in `client` mode internally to run the driver program. Additional details of how `SparkApplication`s are run can be found in the [design documentation](../overview/index.md#architecture).
+A `SparkApplication` should set `.spec.mode` to `cluster`. The driver pod will then run `spark-submit` in `client` mode internally to run the driver program. Additional details of how `SparkApplication`s are run can be found in the [design documentation](../overview/index.md#architecture).
+
+:::{warning}
+`.spec.mode: client` is deprecated and will be removed in the next API version. Client mode runs the driver inside the operator, which is a security risk. For interactive workloads, use [SparkConnect](spark-connect.md) instead. See [#3253](https://github.com/kubeflow/spark-operator/issues/3253).
+:::
 
 ## Specifying Application Dependencies
 

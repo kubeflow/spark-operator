@@ -14484,7 +14484,7 @@
             "type": "string"
           },
           "mode": {
-            "description": "Mode is the deployment mode of the Spark application.",
+            "description": "Mode is the deployment mode of the Spark application. The client mode is deprecated and will be removed in the next API version.",
             "type": "string"
           },
           "monitoring": {

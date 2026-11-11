@@ -68,6 +68,10 @@ linters:
       - linters:
           - staticcheck
         text: "SA1019: .*\\.Requeue is deprecated: Use `RequeueAfter` instead."
+      # exclude staticcheck SA1019 for client deploy mode until it is removed, see #3253.
+      - linters:
+          - staticcheck
+        text: "SA1019: v1beta2.DeployModeClient is deprecated"
 
 issues:
   # Maximum issues count per one linter.
