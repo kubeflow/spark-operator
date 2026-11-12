@@ -38,6 +38,8 @@ rules:
   - delete
   - deletecollection
 ---
+# RoleBinding for Spark driver - connects the Role to the ServiceAccount.
+# This grants Spark driver pods the permissions to manage their executor pods.
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
