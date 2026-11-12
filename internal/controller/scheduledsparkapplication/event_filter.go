@@ -19,6 +19,7 @@ package scheduledsparkapplication
 import (
 	"context"
 
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -69,7 +70,26 @@ func (f *EventFilter) Update(e event.UpdateEvent) bool {
 		return false
 	}
 
-	return f.filter(newApp)
+	if !f.filter(newApp) {
+		return false
+	}
+
+	oldApp, ok := e.ObjectOld.(*v1beta2.ScheduledSparkApplication)
+	if ok && newApp.Status.ScheduleState == v1beta2.ScheduleStateScheduled &&
+		(oldApp.Spec.Schedule != newApp.Spec.Schedule || oldApp.Spec.TimeZone != newApp.Spec.TimeZone) {
+		// The Scheduled state keeps status.nextRun, so send the app back to New to recompute it from the new schedule.
+		app := newApp.DeepCopy()
+		app.Status.ScheduleState = v1beta2.ScheduleStateNew
+		app.Status.NextRun = metav1.Time{}
+		f.logger.Info("Schedule changed, recomputing next run", "name", app.Name, "namespace", app.Namespace,
+			"oldSchedule", oldApp.Spec.Schedule, "newSchedule", app.Spec.Schedule,
+			"oldTimeZone", oldApp.Spec.TimeZone, "newTimeZone", app.Spec.TimeZone)
+		if err := f.client.Status().Update(context.TODO(), app); err != nil {
+			f.logger.Error(err, "Failed to reset ScheduledSparkApplication status after schedule change", "name", app.Name, "namespace", app.Namespace)
+		}
+	}
+
+	return true
 }
 
 // Delete implements predicate.Predicate.

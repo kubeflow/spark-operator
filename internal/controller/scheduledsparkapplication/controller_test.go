@@ -30,6 +30,7 @@ import (
 	testingclock "k8s.io/utils/clock/testing"
 	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/kubeflow/spark-operator/v2/api/v1beta2"
@@ -145,6 +146,41 @@ var _ = Describe("ScheduledSparkApplication Controller", func() {
 			Expect(app.Status.Reason).To(BeEmpty())
 			Expect(app.Status.NextRun.Time).To(BeTemporally("==", t0.Add(2*time.Hour)))
 			Expect(app.Status.NextRun.Time).NotTo(BeTemporally("==", initialNextRun.Time))
+		})
+
+		It("should recompute NextRun when the schedule of a Scheduled application changes", func() {
+			t0 := time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC)
+			fakeClock := testingclock.NewFakeClock(t0)
+			reconciler := NewReconciler(k8sClient.Scheme(), k8sClient, nil, fakeClock, Options{Namespaces: []string{"default"}, TimestampPrecision: "nanos"})
+			filter, err := NewEventFilter(k8sClient, []string{"default"}, "")
+			Expect(err).NotTo(HaveOccurred())
+			req := reconcile.Request{NamespacedName: typeNamespacedName}
+
+			By("Scheduling the application with a yearly schedule")
+			app := &v1beta2.ScheduledSparkApplication{}
+			Expect(k8sClient.Get(ctx, typeNamespacedName, app)).To(Succeed())
+			app.Spec.Schedule = "0 0 1 1 *"
+			app.Spec.TimeZone = "UTC"
+			Expect(k8sClient.Update(ctx, app)).To(Succeed())
+			_, err = reconciler.Reconcile(ctx, req)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(k8sClient.Get(ctx, typeNamespacedName, app)).To(Succeed())
+			Expect(app.Status.ScheduleState).To(Equal(v1beta2.ScheduleStateScheduled))
+			Expect(app.Status.NextRun.Time).To(BeTemporally("==", time.Date(2027, 1, 1, 0, 0, 0, 0, time.UTC)))
+
+			By("Changing the schedule to every hour")
+			oldApp := app.DeepCopy()
+			app.Spec.Schedule = "0 * * * *"
+			Expect(k8sClient.Update(ctx, app)).To(Succeed())
+			Expect(filter.Update(event.UpdateEvent{ObjectOld: oldApp, ObjectNew: app})).To(BeTrue())
+
+			result, err := reconciler.Reconcile(ctx, req)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(result.RequeueAfter).To(Equal(1 * time.Hour))
+
+			Expect(k8sClient.Get(ctx, typeNamespacedName, app)).To(Succeed())
+			Expect(app.Status.ScheduleState).To(Equal(v1beta2.ScheduleStateScheduled))
+			Expect(app.Status.NextRun.Time).To(BeTemporally("==", t0.Add(1*time.Hour)))
 		})
 
 		It("should not panic or create duplicate runs when a history limit is negative", func() {

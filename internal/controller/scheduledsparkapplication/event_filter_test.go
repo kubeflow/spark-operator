@@ -17,11 +17,15 @@ limitations under the License.
 package scheduledsparkapplication
 
 import (
+	"context"
 	"testing"
+	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/utils/ptr"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 
@@ -312,6 +316,94 @@ func TestEventFilter_Update(t *testing.T) {
 
 			if result != tt.expected {
 				t.Errorf("Update() = %v, expected %v", result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestEventFilter_Update_ScheduleChange(t *testing.T) {
+	scheme := runtime.NewScheme()
+	_ = corev1.AddToScheme(scheme)
+	_ = v1beta2.AddToScheme(scheme)
+
+	nextRun := metav1.NewTime(time.Date(2027, 1, 1, 0, 0, 0, 0, time.UTC))
+
+	tests := []struct {
+		name          string
+		state         v1beta2.ScheduleState
+		mutate        func(app *v1beta2.ScheduledSparkApplication)
+		expectedState v1beta2.ScheduleState
+		expectedNext  metav1.Time
+	}{
+		{
+			name:          "schedule changed while scheduled",
+			state:         v1beta2.ScheduleStateScheduled,
+			mutate:        func(app *v1beta2.ScheduledSparkApplication) { app.Spec.Schedule = "* * * * *" },
+			expectedState: v1beta2.ScheduleStateNew,
+			expectedNext:  metav1.Time{},
+		},
+		{
+			name:          "time zone changed while scheduled",
+			state:         v1beta2.ScheduleStateScheduled,
+			mutate:        func(app *v1beta2.ScheduledSparkApplication) { app.Spec.TimeZone = "Asia/Kolkata" },
+			expectedState: v1beta2.ScheduleStateNew,
+			expectedNext:  metav1.Time{},
+		},
+		{
+			name:          "template changed while scheduled",
+			state:         v1beta2.ScheduleStateScheduled,
+			mutate:        func(app *v1beta2.ScheduledSparkApplication) { app.Spec.Template.Image = ptr.To("spark:new") },
+			expectedState: v1beta2.ScheduleStateScheduled,
+			expectedNext:  nextRun,
+		},
+		{
+			name:          "schedule changed while failed validation",
+			state:         v1beta2.ScheduleStateFailedValidation,
+			mutate:        func(app *v1beta2.ScheduledSparkApplication) { app.Spec.Schedule = "* * * * *" },
+			expectedState: v1beta2.ScheduleStateFailedValidation,
+			expectedNext:  nextRun,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			oldApp := &v1beta2.ScheduledSparkApplication{
+				ObjectMeta: metav1.ObjectMeta{Name: "test-app", Namespace: "default"},
+				Spec:       v1beta2.ScheduledSparkApplicationSpec{Schedule: "0 0 1 1 *"},
+				Status:     v1beta2.ScheduledSparkApplicationStatus{ScheduleState: tt.state, NextRun: nextRun},
+			}
+			fakeClient := fake.NewClientBuilder().WithScheme(scheme).
+				WithObjects(oldApp.DeepCopy()).
+				WithStatusSubresource(&v1beta2.ScheduledSparkApplication{}).
+				Build()
+			filter, err := NewEventFilter(fakeClient, []string{"default"}, "")
+			if err != nil {
+				t.Fatalf("NewEventFilter() unexpected error: %v", err)
+			}
+
+			stored := &v1beta2.ScheduledSparkApplication{}
+			if err := fakeClient.Get(context.TODO(), client.ObjectKeyFromObject(oldApp), stored); err != nil {
+				t.Fatalf("Get() unexpected error: %v", err)
+			}
+			newApp := stored.DeepCopy()
+			tt.mutate(newApp)
+			if err := fakeClient.Update(context.TODO(), newApp); err != nil {
+				t.Fatalf("Update() unexpected error: %v", err)
+			}
+
+			if !filter.Update(event.UpdateEvent{ObjectOld: stored, ObjectNew: newApp}) {
+				t.Fatalf("Update() = false, expected true")
+			}
+
+			got := &v1beta2.ScheduledSparkApplication{}
+			if err := fakeClient.Get(context.TODO(), client.ObjectKeyFromObject(oldApp), got); err != nil {
+				t.Fatalf("Get() unexpected error: %v", err)
+			}
+			if got.Status.ScheduleState != tt.expectedState {
+				t.Errorf("ScheduleState = %q, expected %q", got.Status.ScheduleState, tt.expectedState)
+			}
+			if !got.Status.NextRun.Equal(&tt.expectedNext) {
+				t.Errorf("NextRun = %v, expected %v", got.Status.NextRun, tt.expectedNext)
 			}
 		})
 	}
