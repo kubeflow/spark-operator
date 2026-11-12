@@ -48,7 +48,7 @@ func (h *EventHandler) Create(ctx context.Context, event event.CreateEvent, queu
 		Namespace: vwc.Namespace,
 		Name:      vwc.Name,
 	}
-	queue.AddRateLimited(ctrl.Request{NamespacedName: key})
+	queue.Add(ctrl.Request{NamespacedName: key})
 }
 
 // Update implements handler.EventHandler.
@@ -70,7 +70,7 @@ func (h *EventHandler) Update(ctx context.Context, event event.UpdateEvent, queu
 		Namespace: newWebhook.Namespace,
 		Name:      newWebhook.Name,
 	}
-	queue.AddRateLimited(ctrl.Request{NamespacedName: key})
+	queue.Add(ctrl.Request{NamespacedName: key})
 }
 
 // Delete implements handler.EventHandler.
@@ -84,7 +84,7 @@ func (h *EventHandler) Delete(ctx context.Context, event event.DeleteEvent, queu
 		Namespace: vwc.Namespace,
 		Name:      vwc.Name,
 	}
-	queue.AddRateLimited(ctrl.Request{NamespacedName: key})
+	queue.Add(ctrl.Request{NamespacedName: key})
 }
 
 // Generic implements handler.EventHandler.
@@ -98,5 +98,5 @@ func (h *EventHandler) Generic(ctx context.Context, event event.GenericEvent, qu
 		Namespace: vwc.Namespace,
 		Name:      vwc.Name,
 	}
-	queue.AddRateLimited(ctrl.Request{NamespacedName: key})
+	queue.Add(ctrl.Request{NamespacedName: key})
 }
