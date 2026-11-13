@@ -106,7 +106,7 @@ func NewReconciler(
 // +kubebuilder:rbac:groups=sparkoperator.k8s.io,resources=sparkapplications,verbs=create;list;delete
 // +kubebuilder:rbac:groups=sparkoperator.k8s.io,resources=scheduledsparkapplications,verbs=get;list;watch
 // +kubebuilder:rbac:groups=sparkoperator.k8s.io,resources=scheduledsparkapplications/status,verbs=update
-// +kubebuilder:rbac:groups=sparkoperator.k8s.io,resources=scheduledsparkapplications/finalizers,verbs=update;patch
+// +kubebuilder:rbac:groups=sparkoperator.k8s.io,resources=scheduledsparkapplications/finalizers,verbs=update
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
