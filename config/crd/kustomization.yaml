@@ -12,9 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
 # This kustomization.yaml is not intended to be run by itself,
 # since it depends on service name and namespace that are out of this kustomize package.
-# It should be run by config/default
+# It should be run by config/default or config/overlays/*
 resources:
 - bases/sparkoperator.k8s.io_scheduledsparkapplications.yaml
 - bases/sparkoperator.k8s.io_sparkapplications.yaml

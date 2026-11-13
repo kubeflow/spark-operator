@@ -12,14 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# permissions for end users to view sparkapplications.
+# Permissions for end users to view SparkApplications.
+# Aggregated to the default "view" ClusterRole.
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
+  name: spark-operator-sparkapplication-viewer-role
   labels:
     app.kubernetes.io/name: spark-operator
     app.kubernetes.io/managed-by: kustomize
-  name: sparkapplication-viewer-role
+    rbac.authorization.k8s.io/aggregate-to-view: "true"
 rules:
 - apiGroups:
   - sparkoperator.k8s.io
