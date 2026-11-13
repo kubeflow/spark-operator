@@ -18,6 +18,3 @@ venv/
 # Python bytecode
 __pycache__/
 *.py[cod]
-
-# Internal ACLs
-internal-acls
