@@ -419,7 +419,7 @@ uninstall-crd: manifests ## Uninstall CRDs from the K8s cluster specified in .ku
 
 .PHONY: deploy
 deploy: IMAGE_TAG=local
-deploy: helm manifests update-crd kind-load-image kind-load-spark-image ## Deploy controller to the K8s cluster specified in .kube/config.
+deploy: helm manifests update-crd kind-load-image kind-load-kubectl-image kind-load-spark-image ## Deploy controller to the K8s cluster specified in .kube/config.
 	KUBECONFIG=$(KIND_KUBE_CONFIG) $(HELM) upgrade --install -f charts/spark-operator-chart/ci/ci-values.yaml spark-operator ./charts/spark-operator-chart/
 
 .PHONY: undeploy
