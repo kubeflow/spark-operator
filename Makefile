@@ -383,12 +383,10 @@ kind-create-cluster: kind ## Create a kind cluster for integration tests.
 kind-load-image: kind-create-cluster docker-build ## Load the image into the kind cluster.
 	$(KIND) load docker-image --name $(KIND_CLUSTER_NAME) $(IMAGE)
 
-KUBECTL_IMAGE ?= $(IMAGE_REGISTRY)/kubeflow/spark-operator/kubectl:$(IMAGE_TAG)
-
 .PHONY: kind-load-kubectl-image
 kind-load-kubectl-image: kind-create-cluster ## Build the Helm hook image and load it into the kind cluster.
-	$(CONTAINER_TOOL) build -f docker/Dockerfile.kubectl -t $(KUBECTL_IMAGE) .
-	$(KIND) load docker-image --name $(KIND_CLUSTER_NAME) $(KUBECTL_IMAGE)
+	$(CONTAINER_TOOL) build -f docker/Dockerfile.kubectl -t ghcr.io/kubeflow/spark-operator/kubectl:local .
+	$(KIND) load docker-image --name $(KIND_CLUSTER_NAME) ghcr.io/kubeflow/spark-operator/kubectl:local
 
 # SPARK_IMAGE is the Spark runtime image used by drivers/executors. Defaults to
 # the same tag used by examples/spark-pi.yaml so manual e2e checks line up with
