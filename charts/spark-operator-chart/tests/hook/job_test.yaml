@@ -256,14 +256,24 @@ tests:
         path: spec.template.spec.containers[0].securityContext.runAsNonRoot
         value: true
 
-- it: Should not set the container securityContext if `hook.securityContext` is null
+- it: Should fall back to the hardened container securityContext if `hook.securityContext` is null
   set:
     hook:
       upgradeCrd: true
       securityContext: null
   asserts:
-    - notExists:
+    - equal:
         path: spec.template.spec.containers[0].securityContext
+        value:
+          readOnlyRootFilesystem: true
+          privileged: false
+          allowPrivilegeEscalation: false
+          runAsNonRoot: true
+          capabilities:
+            drop:
+            - ALL
+          seccompProfile:
+            type: RuntimeDefault
 
 - it: Should set the pod securityContext if `hook.podSecurityContext` is set
   set:
