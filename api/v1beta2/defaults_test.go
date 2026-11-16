@@ -216,11 +216,27 @@ func TestSetSparkApplicationDefaultsExecutorSpecDefaults(t *testing.T) {
 	app = &SparkApplication{
 		Spec: SparkApplicationSpec{
 			SparkConf: map[string]string{
-				"spark.dynamicallocation.enabled": "true",
+				"spark.dynamicAllocation.enabled": "true",
 			},
 		},
 	}
 
 	SetSparkApplicationDefaults(app)
 	assert.Nil(t, app.Spec.Executor.Instances)
+
+	//Case5: Spark config keys are case-sensitive, so a lowercase key does not enable dynamic allocation
+	app = &SparkApplication{
+		Spec: SparkApplicationSpec{
+			SparkConf: map[string]string{
+				"spark.dynamicallocation.enabled": "true",
+			},
+		},
+	}
+
+	SetSparkApplicationDefaults(app)
+	if app.Spec.Executor.Instances == nil {
+		t.Error("Expected app.Spec.Executor.Instances not to be nil.")
+	} else {
+		assert.Equal(t, int32(1), *app.Spec.Executor.Instances)
+	}
 }

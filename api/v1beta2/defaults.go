@@ -113,6 +113,6 @@ func isDynamicAllocationEnabled(sparkConf map[string]string, allocSpec *DynamicA
 	if allocSpec != nil {
 		return allocSpec.Enabled
 	}
-	dynamicAllocationConfVal, _ := strconv.ParseBool(sparkConf["spark.dynamicallocation.enabled"])
+	dynamicAllocationConfVal, _ := strconv.ParseBool(sparkConf["spark.dynamicAllocation.enabled"])
 	return dynamicAllocationConfVal
 }
