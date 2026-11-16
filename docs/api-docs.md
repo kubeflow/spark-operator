@@ -2630,7 +2630,7 @@ string
 <div>
 <p>ExecutorStatus counts the executor pods of a submission. The counts are taken from the pods, so
 they do not depend on ExecutorState, which stops recording executors beyond
-MaxTrackedExecutorPerApp.</p>
+MaxTrackedExecutorPerApp. A count that is unset is 0.</p>
 </div>
 <table>
 <thead>
@@ -2660,6 +2660,7 @@ int32
 </em>
 </td>
 <td>
+<em>(Optional)</em>
 <p>Active is the number of executor pods which are pending, including those held by a
 scheduling gate, or running, and are not terminating.</p>
 </td>
@@ -2672,6 +2673,7 @@ int32
 </em>
 </td>
 <td>
+<em>(Optional)</em>
 <p>Terminating is the number of executor pods which are pending or running and are being
 deleted.</p>
 </td>
@@ -2684,6 +2686,7 @@ int32
 </em>
 </td>
 <td>
+<em>(Optional)</em>
 <p>Ready is the number of executor pods which are running and ready, and are not terminating.</p>
 </td>
 </tr>
@@ -2695,6 +2698,7 @@ int64
 </em>
 </td>
 <td>
+<em>(Optional)</em>
 <p>MaxExecutorID is the highest executor ID of the submission so far. Spark never reuses
 executor IDs, so it never decreases within a submission, and it changes with every scale-up.</p>
 </td>

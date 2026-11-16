@@ -201,22 +201,26 @@ type SparkApplicationStatus struct {
 
 // ExecutorStatus counts the executor pods of a submission. The counts are taken from the pods, so
 // they do not depend on ExecutorState, which stops recording executors beyond
-// MaxTrackedExecutorPerApp.
+// MaxTrackedExecutorPerApp. A count that is unset is 0.
 type ExecutorStatus struct {
 	// SubmissionID is the submission the counts belong to. Counts of another submission than the
 	// application's are stale, and the operator starts them over.
 	SubmissionID string `json:"submissionID"`
 	// Active is the number of executor pods which are pending, including those held by a
 	// scheduling gate, or running, and are not terminating.
-	Active int32 `json:"active"`
+	// +optional
+	Active int32 `json:"active,omitempty"`
 	// Terminating is the number of executor pods which are pending or running and are being
 	// deleted.
-	Terminating int32 `json:"terminating"`
+	// +optional
+	Terminating int32 `json:"terminating,omitempty"`
 	// Ready is the number of executor pods which are running and ready, and are not terminating.
-	Ready int32 `json:"ready"`
+	// +optional
+	Ready int32 `json:"ready,omitempty"`
 	// MaxExecutorID is the highest executor ID of the submission so far. Spark never reuses
 	// executor IDs, so it never decreases within a submission, and it changes with every scale-up.
-	MaxExecutorID int64 `json:"maxExecutorID"`
+	// +optional
+	MaxExecutorID int64 `json:"maxExecutorID,omitempty"`
 }
 
 // +kubebuilder:object:root=true

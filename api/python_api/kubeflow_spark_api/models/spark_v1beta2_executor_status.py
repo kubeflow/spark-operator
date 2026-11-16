@@ -32,19 +32,19 @@ import re  # noqa: F401
 import json
 
 from pydantic import BaseModel, ConfigDict, Field, StrictInt, StrictStr
-from typing import Any, ClassVar, Dict, List
+from typing import Any, ClassVar, Dict, List, Optional
 from typing import Optional, Set
 from typing_extensions import Self
 
 class SparkV1beta2ExecutorStatus(BaseModel):
     """
-    ExecutorStatus counts the executor pods of a submission. The counts are taken from the pods, so they do not depend on ExecutorState, which stops recording executors beyond MaxTrackedExecutorPerApp.
+    ExecutorStatus counts the executor pods of a submission. The counts are taken from the pods, so they do not depend on ExecutorState, which stops recording executors beyond MaxTrackedExecutorPerApp. A count that is unset is 0.
     """ # noqa: E501
-    active: StrictInt = Field(description="Active is the number of executor pods which are pending, including those held by a scheduling gate, or running, and are not terminating.")
-    max_executor_id: StrictInt = Field(description="MaxExecutorID is the highest executor ID of the submission so far. Spark never reuses executor IDs, so it never decreases within a submission, and it changes with every scale-up.", alias="maxExecutorID")
-    ready: StrictInt = Field(description="Ready is the number of executor pods which are running and ready, and are not terminating.")
+    active: Optional[StrictInt] = Field(default=None, description="Active is the number of executor pods which are pending, including those held by a scheduling gate, or running, and are not terminating.")
+    max_executor_id: Optional[StrictInt] = Field(default=None, description="MaxExecutorID is the highest executor ID of the submission so far. Spark never reuses executor IDs, so it never decreases within a submission, and it changes with every scale-up.", alias="maxExecutorID")
+    ready: Optional[StrictInt] = Field(default=None, description="Ready is the number of executor pods which are running and ready, and are not terminating.")
     submission_id: StrictStr = Field(description="SubmissionID is the submission the counts belong to. Counts of another submission than the application's are stale, and the operator starts them over.", alias="submissionID")
-    terminating: StrictInt = Field(description="Terminating is the number of executor pods which are pending or running and are being deleted.")
+    terminating: Optional[StrictInt] = Field(default=None, description="Terminating is the number of executor pods which are pending or running and are being deleted.")
     __properties: ClassVar[List[str]] = ["active", "maxExecutorID", "ready", "submissionID", "terminating"]
 
     model_config = ConfigDict(
@@ -98,11 +98,11 @@ class SparkV1beta2ExecutorStatus(BaseModel):
             return cls.model_validate(obj)
 
         _obj = cls.model_validate({
-            "active": obj.get("active") if obj.get("active") is not None else 0,
-            "maxExecutorID": obj.get("maxExecutorID") if obj.get("maxExecutorID") is not None else 0,
-            "ready": obj.get("ready") if obj.get("ready") is not None else 0,
+            "active": obj.get("active"),
+            "maxExecutorID": obj.get("maxExecutorID"),
+            "ready": obj.get("ready"),
             "submissionID": obj.get("submissionID") if obj.get("submissionID") is not None else '',
-            "terminating": obj.get("terminating") if obj.get("terminating") is not None else 0
+            "terminating": obj.get("terminating")
         })
         return _obj
 

@@ -13043,11 +13043,7 @@ spec:
                     format: int32
                     type: integer
                 required:
-                - active
-                - maxExecutorID
-                - ready
                 - submissionID
-                - terminating
                 type: object
               lastSubmissionAttemptTime:
                 description: LastSubmissionAttemptTime is the time for the last application

@@ -1602,7 +1602,7 @@ func schema_spark_operator_v2_api_v1beta2_ExecutorStatus(ref common.ReferenceCal
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "ExecutorStatus counts the executor pods of a submission. The counts are taken from the pods, so they do not depend on ExecutorState, which stops recording executors beyond MaxTrackedExecutorPerApp.",
+				Description: "ExecutorStatus counts the executor pods of a submission. The counts are taken from the pods, so they do not depend on ExecutorState, which stops recording executors beyond MaxTrackedExecutorPerApp. A count that is unset is 0.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"submissionID": {
@@ -1616,7 +1616,6 @@ func schema_spark_operator_v2_api_v1beta2_ExecutorStatus(ref common.ReferenceCal
 					"active": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Active is the number of executor pods which are pending, including those held by a scheduling gate, or running, and are not terminating.",
-							Default:     0,
 							Type:        []string{"integer"},
 							Format:      "int32",
 						},
@@ -1624,7 +1623,6 @@ func schema_spark_operator_v2_api_v1beta2_ExecutorStatus(ref common.ReferenceCal
 					"terminating": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Terminating is the number of executor pods which are pending or running and are being deleted.",
-							Default:     0,
 							Type:        []string{"integer"},
 							Format:      "int32",
 						},
@@ -1632,7 +1630,6 @@ func schema_spark_operator_v2_api_v1beta2_ExecutorStatus(ref common.ReferenceCal
 					"ready": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Ready is the number of executor pods which are running and ready, and are not terminating.",
-							Default:     0,
 							Type:        []string{"integer"},
 							Format:      "int32",
 						},
@@ -1640,13 +1637,12 @@ func schema_spark_operator_v2_api_v1beta2_ExecutorStatus(ref common.ReferenceCal
 					"maxExecutorID": {
 						SchemaProps: spec.SchemaProps{
 							Description: "MaxExecutorID is the highest executor ID of the submission so far. Spark never reuses executor IDs, so it never decreases within a submission, and it changes with every scale-up.",
-							Default:     0,
 							Type:        []string{"integer"},
 							Format:      "int64",
 						},
 					},
 				},
-				Required: []string{"submissionID", "active", "terminating", "ready", "maxExecutorID"},
+				Required: []string{"submissionID"},
 			},
 		},
 	}
